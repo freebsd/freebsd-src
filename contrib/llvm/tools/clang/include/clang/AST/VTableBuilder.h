@@ -19,13 +19,15 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/ABI.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
+#include <memory>
 #include <utility>
 
 namespace clang {
   class CXXRecordDecl;
 
-/// VTableComponent - Represents a single component in a vtable.
+/// \brief Represents a single component in a vtable.
 class VTableComponent {
 public:
   enum Kind {
@@ -35,15 +37,17 @@ public:
     CK_RTTI,
     CK_FunctionPointer,
 
-    /// CK_CompleteDtorPointer - A pointer to the complete destructor.
+    /// \brief A pointer to the complete destructor.
     CK_CompleteDtorPointer,
 
-    /// CK_DeletingDtorPointer - A pointer to the deleting destructor.
+    /// \brief A pointer to the deleting destructor.
     CK_DeletingDtorPointer,
 
-    /// CK_UnusedFunctionPointer - In some cases, a vtable function pointer
-    /// will end up never being called. Such vtable function pointers are
-    /// represented as a CK_UnusedFunctionPointer.
+    /// \brief An entry that is never used.
+    ///
+    /// In some cases, a vtable function pointer will end up never being
+    /// called. Such vtable function pointers are represented as a
+    /// CK_UnusedFunctionPointer.
     CK_UnusedFunctionPointer
   };
 
@@ -94,7 +98,7 @@ public:
     return VTableComponent(I);
   }
 
-  /// getKind - Get the kind of this vtable component.
+  /// \brief Get the kind of this vtable component.
   Kind getKind() const {
     return (Kind)(Value & 0x7);
   }
@@ -189,7 +193,7 @@ private:
 
   /// The kind is stored in the lower 3 bits of the value. For offsets, we
   /// make use of the facts that classes can't be larger than 2^55 bytes,
-  /// so we store the offset in the lower part of the 61 bytes that remain.
+  /// so we store the offset in the lower part of the 61 bits that remain.
   /// (The reason that we're not simply using a PointerIntPair here is that we
   /// need the offsets to be 64-bit, even when on a 32-bit machine).
   int64_t Value;
@@ -198,7 +202,6 @@ private:
 class VTableLayout {
 public:
   typedef std::pair<uint64_t, ThunkInfo> VTableThunkTy;
-  typedef SmallVector<ThunkInfo, 1> ThunkInfoVectorTy;
 
   typedef const VTableComponent *vtable_component_iterator;
   typedef const VTableThunkTy *vtable_thunk_iterator;
@@ -206,21 +209,24 @@ public:
   typedef llvm::DenseMap<BaseSubobject, uint64_t> AddressPointsMapTy;
 private:
   uint64_t NumVTableComponents;
-  llvm::OwningArrayPtr<VTableComponent> VTableComponents;
+  std::unique_ptr<VTableComponent[]> VTableComponents;
 
-  /// VTableThunks - Contains thunks needed by vtables.
+  /// \brief Contains thunks needed by vtables, sorted by indices.
   uint64_t NumVTableThunks;
-  llvm::OwningArrayPtr<VTableThunkTy> VTableThunks;
+  std::unique_ptr<VTableThunkTy[]> VTableThunks;
 
-  /// Address points - Address points for all vtables.
+  /// \brief Address points for all vtables.
   AddressPointsMapTy AddressPoints;
+
+  bool IsMicrosoftABI;
 
 public:
   VTableLayout(uint64_t NumVTableComponents,
                const VTableComponent *VTableComponents,
                uint64_t NumVTableThunks,
                const VTableThunkTy *VTableThunks,
-               const AddressPointsMapTy &AddressPoints);
+               const AddressPointsMapTy &AddressPoints,
+               bool IsMicrosoftABI);
   ~VTableLayout();
 
   uint64_t getNumVTableComponents() const {
@@ -228,23 +234,21 @@ public:
   }
 
   vtable_component_iterator vtable_component_begin() const {
-   return VTableComponents.get();
+    return VTableComponents.get();
   }
 
   vtable_component_iterator vtable_component_end() const {
-   return VTableComponents.get()+NumVTableComponents;
+    return VTableComponents.get() + NumVTableComponents;
   }
 
-  uint64_t getNumVTableThunks() const {
-    return NumVTableThunks;
-  }
+  uint64_t getNumVTableThunks() const { return NumVTableThunks; }
 
   vtable_thunk_iterator vtable_thunk_begin() const {
-   return VTableThunks.get();
+    return VTableThunks.get();
   }
 
   vtable_thunk_iterator vtable_thunk_end() const {
-   return VTableThunks.get()+NumVTableThunks;
+    return VTableThunks.get() + NumVTableThunks;
   }
 
   uint64_t getAddressPoint(BaseSubobject Base) const {
@@ -252,7 +256,8 @@ public:
            "Did not find address point!");
 
     uint64_t AddressPoint = AddressPoints.lookup(Base);
-    assert(AddressPoint && "Address point must not be zero!");
+    assert(AddressPoint != 0 || IsMicrosoftABI);
+    (void)IsMicrosoftABI;
 
     return AddressPoint;
   }
@@ -262,17 +267,50 @@ public:
   }
 };
 
-class VTableContext {
-  ASTContext &Context;
-
+class VTableContextBase {
 public:
-  typedef SmallVector<std::pair<uint64_t, ThunkInfo>, 1>
-    VTableThunksTy;
   typedef SmallVector<ThunkInfo, 1> ThunkInfoVectorTy;
 
+  bool isMicrosoft() const { return IsMicrosoftABI; }
+
+  virtual ~VTableContextBase() {}
+
+protected:
+  typedef llvm::DenseMap<const CXXMethodDecl *, ThunkInfoVectorTy> ThunksMapTy;
+
+  /// \brief Contains all thunks that a given method decl will need.
+  ThunksMapTy Thunks;
+
+  /// Compute and store all vtable related information (vtable layout, vbase
+  /// offset offsets, thunks etc) for the given record decl.
+  virtual void computeVTableRelatedInformation(const CXXRecordDecl *RD) = 0;
+
+  VTableContextBase(bool MS) : IsMicrosoftABI(MS) {}
+
+public:
+  virtual const ThunkInfoVectorTy *getThunkInfo(GlobalDecl GD) {
+    const CXXMethodDecl *MD = cast<CXXMethodDecl>(GD.getDecl()->getCanonicalDecl());
+    computeVTableRelatedInformation(MD->getParent());
+
+    // This assumes that all the destructors present in the vtable
+    // use exactly the same set of thunks.
+    ThunksMapTy::const_iterator I = Thunks.find(MD);
+    if (I == Thunks.end()) {
+      // We did not find a thunk for this method.
+      return nullptr;
+    }
+
+    return &I->second;
+  }
+
+  bool IsMicrosoftABI;
+};
+
+class ItaniumVTableContext : public VTableContextBase {
 private:
-  /// MethodVTableIndices - Contains the index (relative to the vtable address
-  /// point) where the function pointer for a virtual function is stored.
+
+  /// \brief Contains the index (relative to the vtable address point)
+  /// where the function pointer for a virtual function is stored.
   typedef llvm::DenseMap<GlobalDecl, int64_t> MethodVTableIndicesTy;
   MethodVTableIndicesTy MethodVTableIndices;
 
@@ -280,38 +318,25 @@ private:
     VTableLayoutMapTy;
   VTableLayoutMapTy VTableLayouts;
 
-  /// NumVirtualFunctionPointers - Contains the number of virtual function
-  /// pointers in the vtable for a given record decl.
-  llvm::DenseMap<const CXXRecordDecl *, uint64_t> NumVirtualFunctionPointers;
-
   typedef std::pair<const CXXRecordDecl *,
                     const CXXRecordDecl *> ClassPairTy;
 
-  /// VirtualBaseClassOffsetOffsets - Contains the vtable offset (relative to
-  /// the address point) in chars where the offsets for virtual bases of a class
-  /// are stored.
+  /// \brief vtable offsets for offsets of virtual bases of a class.
+  ///
+  /// Contains the vtable offset (relative to the address point) in chars
+  /// where the offsets for virtual bases of a class are stored.
   typedef llvm::DenseMap<ClassPairTy, CharUnits>
     VirtualBaseClassOffsetOffsetsMapTy;
   VirtualBaseClassOffsetOffsetsMapTy VirtualBaseClassOffsetOffsets;
 
-  typedef llvm::DenseMap<const CXXMethodDecl *, ThunkInfoVectorTy> ThunksMapTy;
-
-  /// Thunks - Contains all thunks that a given method decl will need.
-  ThunksMapTy Thunks;
-
-  void ComputeMethodVTableIndices(const CXXRecordDecl *RD);
-
-  /// ComputeVTableRelatedInformation - Compute and store all vtable related
-  /// information (vtable layout, vbase offset offsets, thunks etc) for the
-  /// given record decl.
-  void ComputeVTableRelatedInformation(const CXXRecordDecl *RD);
+  void computeVTableRelatedInformation(const CXXRecordDecl *RD) override;
 
 public:
-  VTableContext(ASTContext &Context) : Context(Context) {}
-  ~VTableContext();
+  ItaniumVTableContext(ASTContext &Context);
+  ~ItaniumVTableContext();
 
   const VTableLayout &getVTableLayout(const CXXRecordDecl *RD) {
-    ComputeVTableRelatedInformation(RD);
+    computeVTableRelatedInformation(RD);
     assert(VTableLayouts.count(RD) && "No layout for this record decl!");
 
     return *VTableLayouts[RD];
@@ -323,36 +348,198 @@ public:
                                  bool MostDerivedClassIsVirtual,
                                  const CXXRecordDecl *LayoutClass);
 
-  const ThunkInfoVectorTy *getThunkInfo(const CXXMethodDecl *MD) {
-    ComputeVTableRelatedInformation(MD->getParent());
-
-    ThunksMapTy::const_iterator I = Thunks.find(MD);
-    if (I == Thunks.end()) {
-      // We did not find a thunk for this method.
-      return 0;
-    }
-
-    return &I->second;
-  }
-
-  /// getNumVirtualFunctionPointers - Return the number of virtual function
-  /// pointers in the vtable for a given record decl.
-  uint64_t getNumVirtualFunctionPointers(const CXXRecordDecl *RD);
-
-  /// getMethodVTableIndex - Return the index (relative to the vtable address
-  /// point) where the function pointer for the given virtual function is
-  /// stored.
+  /// \brief Locate a virtual function in the vtable.
+  ///
+  /// Return the index (relative to the vtable address point) where the
+  /// function pointer for the given virtual function is stored.
   uint64_t getMethodVTableIndex(GlobalDecl GD);
 
-  /// getVirtualBaseOffsetOffset - Return the offset in chars (relative to the
-  /// vtable address point) where the offset of the virtual base that contains
-  /// the given base is stored, otherwise, if no virtual base contains the given
-  /// class, return 0.  Base must be a virtual base class or an unambigious
-  /// base.
+  /// Return the offset in chars (relative to the vtable address point) where
+  /// the offset of the virtual base that contains the given base is stored,
+  /// otherwise, if no virtual base contains the given class, return 0. 
+  ///
+  /// Base must be a virtual base class or an unambiguous base.
   CharUnits getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
                                        const CXXRecordDecl *VBase);
+
+  static bool classof(const VTableContextBase *VT) {
+    return !VT->isMicrosoft();
+  }
 };
 
-}
+/// Holds information about the inheritance path to a virtual base or function
+/// table pointer.  A record may contain as many vfptrs or vbptrs as there are
+/// base subobjects.
+struct VPtrInfo {
+  typedef SmallVector<const CXXRecordDecl *, 1> BasePath;
+
+  VPtrInfo(const CXXRecordDecl *RD)
+      : ReusingBase(RD), BaseWithVPtr(RD), NextBaseToMangle(RD) {}
+
+  // Copy constructor.
+  // FIXME: Uncomment when we've moved to C++11.
+  // VPtrInfo(const VPtrInfo &) = default;
+
+  /// The vtable will hold all of the virtual bases or virtual methods of
+  /// ReusingBase.  This may or may not be the same class as VPtrSubobject.Base.
+  /// A derived class will reuse the vptr of the first non-virtual base
+  /// subobject that has one.
+  const CXXRecordDecl *ReusingBase;
+
+  /// BaseWithVPtr is at this offset from its containing complete object or
+  /// virtual base.
+  CharUnits NonVirtualOffset;
+
+  /// The vptr is stored inside this subobject.
+  const CXXRecordDecl *BaseWithVPtr;
+
+  /// The bases from the inheritance path that got used to mangle the vbtable
+  /// name.  This is not really a full path like a CXXBasePath.  It holds the
+  /// subset of records that need to be mangled into the vbtable symbol name in
+  /// order to get a unique name.
+  BasePath MangledPath;
+
+  /// The next base to push onto the mangled path if this path is ambiguous in a
+  /// derived class.  If it's null, then it's already been pushed onto the path.
+  const CXXRecordDecl *NextBaseToMangle;
+
+  /// The set of possibly indirect vbases that contain this vbtable.  When a
+  /// derived class indirectly inherits from the same vbase twice, we only keep
+  /// vtables and their paths from the first instance.
+  BasePath ContainingVBases;
+
+  /// This holds the base classes path from the complete type to the first base
+  /// with the given vfptr offset, in the base-to-derived order.  Only used for
+  /// vftables.
+  BasePath PathToBaseWithVPtr;
+
+  /// Static offset from the top of the most derived class to this vfptr,
+  /// including any virtual base offset.  Only used for vftables.
+  CharUnits FullOffsetInMDC;
+
+  /// The vptr is stored inside the non-virtual component of this virtual base.
+  const CXXRecordDecl *getVBaseWithVPtr() const {
+    return ContainingVBases.empty() ? nullptr : ContainingVBases.front();
+  }
+};
+
+typedef SmallVector<VPtrInfo *, 2> VPtrInfoVector;
+
+/// All virtual base related information about a given record decl.  Includes
+/// information on all virtual base tables and the path components that are used
+/// to mangle them.
+struct VirtualBaseInfo {
+  ~VirtualBaseInfo() { llvm::DeleteContainerPointers(VBPtrPaths); }
+
+  /// A map from virtual base to vbtable index for doing a conversion from the
+  /// the derived class to the a base.
+  llvm::DenseMap<const CXXRecordDecl *, unsigned> VBTableIndices;
+
+  /// Information on all virtual base tables used when this record is the most
+  /// derived class.
+  VPtrInfoVector VBPtrPaths;
+};
+
+class MicrosoftVTableContext : public VTableContextBase {
+public:
+  struct MethodVFTableLocation {
+    /// If nonzero, holds the vbtable index of the virtual base with the vfptr.
+    uint64_t VBTableIndex;
+
+    /// If nonnull, holds the last vbase which contains the vfptr that the
+    /// method definition is adjusted to.
+    const CXXRecordDecl *VBase;
+
+    /// This is the offset of the vfptr from the start of the last vbase, or the
+    /// complete type if there are no virtual bases.
+    CharUnits VFPtrOffset;
+
+    /// Method's index in the vftable.
+    uint64_t Index;
+
+    MethodVFTableLocation()
+        : VBTableIndex(0), VBase(nullptr), VFPtrOffset(CharUnits::Zero()),
+          Index(0) {}
+
+    MethodVFTableLocation(uint64_t VBTableIndex, const CXXRecordDecl *VBase,
+                          CharUnits VFPtrOffset, uint64_t Index)
+        : VBTableIndex(VBTableIndex), VBase(VBase),
+          VFPtrOffset(VFPtrOffset), Index(Index) {}
+
+    bool operator<(const MethodVFTableLocation &other) const {
+      if (VBTableIndex != other.VBTableIndex) {
+        assert(VBase != other.VBase);
+        return VBTableIndex < other.VBTableIndex;
+      }
+      return std::tie(VFPtrOffset, Index) <
+             std::tie(other.VFPtrOffset, other.Index);
+    }
+  };
+
+private:
+  ASTContext &Context;
+
+  typedef llvm::DenseMap<GlobalDecl, MethodVFTableLocation>
+    MethodVFTableLocationsTy;
+  MethodVFTableLocationsTy MethodVFTableLocations;
+
+  typedef llvm::DenseMap<const CXXRecordDecl *, VPtrInfoVector *>
+    VFPtrLocationsMapTy;
+  VFPtrLocationsMapTy VFPtrLocations;
+
+  typedef std::pair<const CXXRecordDecl *, CharUnits> VFTableIdTy;
+  typedef llvm::DenseMap<VFTableIdTy, const VTableLayout *> VFTableLayoutMapTy;
+  VFTableLayoutMapTy VFTableLayouts;
+
+  llvm::DenseMap<const CXXRecordDecl *, VirtualBaseInfo *> VBaseInfo;
+
+  void enumerateVFPtrs(const CXXRecordDecl *ForClass, VPtrInfoVector &Result);
+
+  void computeVTableRelatedInformation(const CXXRecordDecl *RD) override;
+
+  void dumpMethodLocations(const CXXRecordDecl *RD,
+                           const MethodVFTableLocationsTy &NewMethods,
+                           raw_ostream &);
+
+  const VirtualBaseInfo *
+  computeVBTableRelatedInformation(const CXXRecordDecl *RD);
+
+  void computeVTablePaths(bool ForVBTables, const CXXRecordDecl *RD,
+                          VPtrInfoVector &Paths);
+
+public:
+  MicrosoftVTableContext(ASTContext &Context)
+      : VTableContextBase(/*MS=*/true), Context(Context) {}
+
+  ~MicrosoftVTableContext();
+
+  const VPtrInfoVector &getVFPtrOffsets(const CXXRecordDecl *RD);
+
+  const VTableLayout &getVFTableLayout(const CXXRecordDecl *RD,
+                                       CharUnits VFPtrOffset);
+
+  const MethodVFTableLocation &getMethodVFTableLocation(GlobalDecl GD);
+
+  const ThunkInfoVectorTy *getThunkInfo(GlobalDecl GD) override {
+    // Complete destructors don't have a slot in a vftable, so no thunks needed.
+    if (isa<CXXDestructorDecl>(GD.getDecl()) &&
+        GD.getDtorType() == Dtor_Complete)
+      return nullptr;
+    return VTableContextBase::getThunkInfo(GD);
+  }
+
+  /// \brief Returns the index of VBase in the vbtable of Derived.
+  /// VBase must be a morally virtual base of Derived.
+  /// The vbtable is an array of i32 offsets.  The first entry is a self entry,
+  /// and the rest are offsets from the vbptr to virtual bases.
+  unsigned getVBTableIndex(const CXXRecordDecl *Derived,
+                           const CXXRecordDecl *VBase);
+
+  const VPtrInfoVector &enumerateVBTables(const CXXRecordDecl *RD);
+
+  static bool classof(const VTableContextBase *VT) { return VT->isMicrosoft(); }
+};
+
+} // namespace clang
 
 #endif

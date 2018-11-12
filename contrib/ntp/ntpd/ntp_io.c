@@ -1124,7 +1124,7 @@ is_wildcard_addr(struct sockaddr_storage *sas)
 #ifdef INCLUDE_IPV6_SUPPORT
 	if (sas->ss_family == AF_INET6 &&
 	    memcmp(&((struct sockaddr_in6*)sas)->sin6_addr, &in6addr_any,
-		   sizeof(in6addr_any) == 0))
+		   sizeof(in6addr_any)) == 0)
 		return 1;
 #endif
 
@@ -1176,12 +1176,13 @@ set_wildcard_reuse(int family, int on)
 
 #ifdef INCLUDE_IPV6_SUPPORT
 static isc_boolean_t
-is_anycast(struct sockaddr *sa, char *name)
+is_not_bindable(struct sockaddr *sa, char *name)
 {
-#if defined(SIOCGIFAFLAG_IN6) && defined(IN6_IFF_ANYCAST)
+#if defined(SIOCGIFAFLAG_IN6) && \
+	   (defined(IN6_IFF_ANYCAST) || defined(IN6_IFF_NOTREADY))
 	struct in6_ifreq ifr6;
 	int fd;
-	u_int32_t flags6;
+	u_int32_t flags6, exclude = 0;
 
 	if (sa->sa_family != AF_INET6)
 		return ISC_FALSE;
@@ -1197,9 +1198,15 @@ is_anycast(struct sockaddr *sa, char *name)
 	}
 	close(fd);
 	flags6 = ifr6.ifr_ifru.ifru_flags6;
-	if ((flags6 & IN6_IFF_ANYCAST) != 0)
+#if defined(IN6_IFF_ANYCAST)
+	exclude |= IN6_IFF_ANYCAST;
+#endif /* !IN6_IFF_ANYCAST */
+#if defined(IN6_IFF_NOTREADY)
+	exclude |= IN6_IFF_NOTREADY;
+#endif /* !IN6_IFF_NOTREADY */
+	if ((flags6 & exclude) != 0)
 		return ISC_TRUE;
-#endif /* !SIOCGIFAFLAG_IN6 || !IN6_IFF_ANYCAST */
+#endif /* !SIOCGIFAFLAG_IN6 || !(IN6_IFF_ANYCAST && IN6_IFF_NOTREADY) */
 	return ISC_FALSE;
 }
 #endif /* !INCLUDE_IPV6_SUPPORT */
@@ -1344,7 +1351,7 @@ update_interfaces(
 			continue;
 
 #ifdef INCLUDE_IPV6_SUPPORT
-		if (is_anycast((struct sockaddr *)&interface.sin, isc_if.name))
+		if (is_not_bindable((struct sockaddr *)&interface.sin, isc_if.name))
 			continue;
 #endif /* !INCLUDE_IPV6_SUPPORT */
 

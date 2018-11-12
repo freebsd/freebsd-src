@@ -703,6 +703,10 @@ putfloat(double f, int l, int lc, int w, int d, int nz)
 	snr = snprintf(b, sizeof(b), "%*.*f", w, d, f);
 	if (snr != w)
 		snr = snprintf(b, sizeof(b), "%*.0f", w, f);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0fk", w - 1, f / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0fM", w - 1, f / 1000000);
 	if (snr != w) {
 		while (--w >= 0)
 			addch('*');
@@ -731,6 +735,10 @@ putlongdouble(long double f, int l, int lc, int w, int d, int nz)
 	snr = snprintf(b, sizeof(b), "%*.*Lf", w, d, f);
 	if (snr != w)
 		snr = snprintf(b, sizeof(b), "%*.0Lf", w, f);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0Lfk", w - 1, f / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0LfM", w - 1, f / 1000000);
 	if (snr != w) {
 		while (--w >= 0)
 			addch('*');

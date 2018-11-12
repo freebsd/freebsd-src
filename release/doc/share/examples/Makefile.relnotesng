@@ -6,7 +6,7 @@
 # the build tree.
 #
 
-ARCHS=		amd64 ia64 i386 pc98 powerpc sparc64
+ARCHS=		amd64 i386 pc98 powerpc sparc64
 MULTITEXTS=	
 UNITEXTS=	hardware readme relnotes errata
 

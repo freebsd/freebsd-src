@@ -13,8 +13,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_OPENCLRUNTIME_H
-#define CLANG_CODEGEN_OPENCLRUNTIME_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGOPENCLRUNTIME_H
+#define LLVM_CLANG_LIB_CODEGEN_CGOPENCLRUNTIME_H
+
+#include "clang/AST/Type.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
 
 namespace clang {
 
@@ -38,6 +42,8 @@ public:
   /// CodeGenFunction::EmitStaticVarDecl to emit an internal global for D.
   virtual void EmitWorkGroupLocalVarDecl(CodeGenFunction &CGF,
                                          const VarDecl &D);
+
+  virtual llvm::Type *convertOpenCLSpecificType(const Type *T);
 };
 
 }

@@ -11,7 +11,6 @@ WARNS?= 2
 
 .PATH: ${MOUNT}
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .include <bsd.prog.mk>

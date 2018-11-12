@@ -34,9 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
@@ -49,12 +46,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
-#ifdef HWPMC_HOOKS
-#include <sys/pmckern.h>
-#endif
 
 #include <security/audit/audit.h>
 
@@ -84,7 +79,6 @@ static void	printtrap(u_int vector, struct trapframe *frame, int isfatal,
 		    int user);
 static int	trap_pfault(struct trapframe *frame, int user);
 static int	fix_unaligned(struct thread *td, struct trapframe *frame);
-static int	ppc_instr_emulate(struct trapframe *frame);
 static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
@@ -94,12 +88,6 @@ static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
 extern int	n_slbs;
 #endif
 
-int	setfault(faultbuf);		/* defined in locore.S */
-
-/* Why are these not defined in a header? */
-int	badaddr(void *, size_t);
-int	badaddr_read(void *, size_t, int *);
-
 struct powerpc_exception {
 	u_int	vector;
 	char	*name;
@@ -108,28 +96,6 @@ struct powerpc_exception {
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
 
-/*
- * This is a hook which is initialised by the dtrace module
- * to handle traps which might occur during DTrace probe
- * execution.
- */
-dtrace_trap_func_t	dtrace_trap_func;
-
-dtrace_doubletrap_func_t	dtrace_doubletrap_func;
-
-/*
- * This is a hook which is initialised by the systrace module
- * when it is loaded. This keeps the DTrace syscall provider
- * implementation opaque. 
- */
-systrace_probe_func_t	systrace_probe_func;
-
-/*
- * These hooks are necessary for the pid, usdt and fasttrap providers.
- */
-dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
-dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
-dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 int (*dtrace_invop_jump_addr)(struct trapframe *);
 #endif
 
@@ -150,6 +116,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ 0x0e00, "floating-point assist" },
 	{ 0x0f00, "performance monitoring" },
 	{ 0x0f20, "altivec unavailable" },
+	{ 0x0f40, "vsx unavailable" },
 	{ 0x1000, "instruction tlb miss" },
 	{ 0x1100, "data load tlb miss" },
 	{ 0x1200, "data store tlb miss" },
@@ -179,6 +146,9 @@ trap(struct trapframe *frame)
 {
 	struct thread	*td;
 	struct proc	*p;
+#ifdef KDTRACE_HOOKS
+	uint32_t inst;
+#endif
 	int		sig, type, user;
 	u_int		ucode;
 	ksiginfo_t	ksi;
@@ -195,21 +165,11 @@ trap(struct trapframe *frame)
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
-#ifdef HWPMC_HOOKS
-	if (type == EXC_PERF && (pmc_intr != NULL)) {
-#ifdef notyet
-	    (*pmc_intr)(PCPU_GET(cpuid), frame);
-	    if (!user)
-		return;
-#endif
-	}
-	else
-#endif
 #ifdef KDTRACE_HOOKS
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * a flag in its per-cpu flags to indicate that it doesn't
 	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
@@ -218,10 +178,7 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	/*
-	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
-	 */
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type) != 0)
 		return;
 #endif
 
@@ -237,20 +194,24 @@ trap(struct trapframe *frame)
 		case EXC_TRC:
 			frame->srr1 &= ~PSL_SE;
 			sig = SIGTRAP;
+			ucode = TRAP_TRACE;
 			break;
 
 #ifdef __powerpc64__
 		case EXC_ISE:
 		case EXC_DSE:
 			if (handle_user_slb_spill(&p->p_vmspace->vm_pmap,
-			    (type == EXC_ISE) ? frame->srr0 :
-			    frame->cpu.aim.dar) != 0)
+			    (type == EXC_ISE) ? frame->srr0 : frame->dar) != 0){
 				sig = SIGSEGV;
+				ucode = SEGV_MAPERR;
+			}
 			break;
 #endif
 		case EXC_DSI:
 		case EXC_ISI:
 			sig = trap_pfault(frame, 1);
+			if (sig == SIGSEGV)
+				ucode = SEGV_MAPERR;
 			break;
 
 		case EXC_SC:
@@ -269,6 +230,17 @@ trap(struct trapframe *frame)
 			enable_vec(td);
 			break;
 
+		case EXC_VSX:
+			KASSERT((td->td_pcb->pcb_flags & PCB_VSX) != PCB_VSX,
+			    ("VSX already enabled for thread"));
+			if (!(td->td_pcb->pcb_flags & PCB_VEC))
+				enable_vec(td);
+			if (!(td->td_pcb->pcb_flags & PCB_FPU))
+				save_fpu(td);
+			td->td_pcb->pcb_flags |= PCB_VSX;
+			enable_fpu(td);
+			break;
+
 		case EXC_VECAST_G4:
 		case EXC_VECAST_G5:
 			/*
@@ -285,20 +257,49 @@ trap(struct trapframe *frame)
 			break;
 
 		case EXC_ALI:
-			if (fix_unaligned(td, frame) != 0)
+			if (fix_unaligned(td, frame) != 0) {
 				sig = SIGBUS;
+				ucode = BUS_ADRALN;
+			}
 			else
 				frame->srr0 += 4;
 			break;
 
 		case EXC_PGM:
 			/* Identify the trap reason */
-			if (frame->srr1 & EXC_PGM_TRAP)
-				sig = SIGTRAP;
-			else if (ppc_instr_emulate(frame) == 0)
-				frame->srr0 += 4;
-			else
-				sig = SIGILL;
+			if (frame->srr1 & EXC_PGM_TRAP) {
+#ifdef KDTRACE_HOOKS
+				inst = fuword32((const void *)frame->srr0);
+				if (inst == 0x0FFFDDDD &&
+				    dtrace_pid_probe_ptr != NULL) {
+					struct reg regs;
+					fill_regs(td, &regs);
+					(*dtrace_pid_probe_ptr)(&regs);
+					break;
+				}
+#endif
+ 				sig = SIGTRAP;
+				ucode = TRAP_BRKPT;
+			} else {
+				sig = ppc_instr_emulate(frame, td->td_pcb);
+				if (sig == SIGILL) {
+					if (frame->srr1 & EXC_PGM_PRIV)
+						ucode = ILL_PRVOPC;
+					else if (frame->srr1 & EXC_PGM_ILLEGAL)
+						ucode = ILL_ILLOPC;
+				} else if (sig == SIGFPE)
+					ucode = FPE_FLTINV;	/* Punt for now, invalid operation. */
+			}
+			break;
+
+		case EXC_MCHK:
+			/*
+			 * Note that this may not be recoverable for the user
+			 * process, depending on the type of machine check,
+			 * but it at least prevents the kernel from dying.
+			 */
+			sig = SIGBUS;
+			ucode = BUS_OBJERR;
 			break;
 
 		default:
@@ -313,16 +314,18 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 		case EXC_PGM:
 			if (frame->srr1 & EXC_PGM_TRAP) {
-				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
+				if (*(uint32_t *)frame->srr0 == EXC_DTRACE) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
+						return;
 					}
 				}
 			}
+			break;
 #endif
 #ifdef __powerpc64__
 		case EXC_DSE:
-			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+			if ((frame->dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
 					"r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
 					"r"(USER_SLB_SLBE));
@@ -383,8 +386,9 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	switch (vector) {
 	case EXC_DSE:
 	case EXC_DSI:
-		printf("   virtual address = 0x%" PRIxPTR "\n",
-		    frame->cpu.aim.dar);
+		printf("   virtual address = 0x%" PRIxPTR "\n", frame->dar);
+		printf("   dsisr           = 0x%" PRIxPTR "\n",
+		    frame->cpu.aim.dsisr);
 		break;
 	case EXC_ISE:
 	case EXC_ISI:
@@ -636,7 +640,7 @@ trap_pfault(struct trapframe *frame, int user)
 		if (frame->srr1 & SRR1_ISI_PFAULT)
 			ftype |= VM_PROT_READ;
 	} else {
-		eva = frame->cpu.aim.dar;
+		eva = frame->dar;
 		if (frame->cpu.aim.dsisr & DSISR_STORE)
 			ftype = VM_PROT_WRITE;
 		else
@@ -696,59 +700,6 @@ trap_pfault(struct trapframe *frame, int user)
 	return (SIGSEGV);
 }
 
-int
-badaddr(void *addr, size_t size)
-{
-	return (badaddr_read(addr, size, NULL));
-}
-
-int
-badaddr_read(void *addr, size_t size, int *rptr)
-{
-	struct thread	*td;
-	faultbuf	env;
-	int		x;
-
-	/* Get rid of any stale machine checks that have been waiting.  */
-	__asm __volatile ("sync; isync");
-
-	td = curthread;
-
-	if (setfault(env)) {
-		td->td_pcb->pcb_onfault = 0;
-		__asm __volatile ("sync");
-		return 1;
-	}
-
-	__asm __volatile ("sync");
-
-	switch (size) {
-	case 1:
-		x = *(volatile int8_t *)addr;
-		break;
-	case 2:
-		x = *(volatile int16_t *)addr;
-		break;
-	case 4:
-		x = *(volatile int32_t *)addr;
-		break;
-	default:
-		panic("badaddr: invalid size (%zd)", size);
-	}
-
-	/* Make sure we took the machine check, if we caused one. */
-	__asm __volatile ("sync; isync");
-
-	td->td_pcb->pcb_onfault = 0;
-	__asm __volatile ("sync");	/* To be sure. */
-
-	/* Use the value to avoid reorder. */
-	if (rptr)
-		*rptr = x;
-
-	return (0);
-}
-
 /*
  * For now, this only deals with the particular unaligned access case
  * that gcc tends to generate.  Eventually it should handle all of the
@@ -768,7 +719,7 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 	case EXC_ALI_LFD:
 	case EXC_ALI_STFD:
 		reg = EXC_ALI_RST(frame->cpu.aim.dsisr);
-		fpr = &td->td_pcb->pcb_fpu.fpr[reg];
+		fpr = &td->td_pcb->pcb_fpu.fpr[reg].fpr;
 		fputhread = PCPU_GET(fputhread);
 
 		/* Juggle the FPU to ensure that we've initialized
@@ -783,12 +734,12 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 		save_fpu(td);
 
 		if (indicator == EXC_ALI_LFD) {
-			if (copyin((void *)frame->cpu.aim.dar, fpr,
+			if (copyin((void *)frame->dar, fpr,
 			    sizeof(double)) != 0)
 				return -1;
 			enable_fpu(td);
 		} else {
-			if (copyout(fpr, (void *)frame->cpu.aim.dar,
+			if (copyout(fpr, (void *)frame->dar,
 			    sizeof(double)) != 0)
 				return -1;
 		}
@@ -797,22 +748,5 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 	}
 
 	return -1;
-}
-
-static int
-ppc_instr_emulate(struct trapframe *frame)
-{
-	uint32_t instr;
-	int reg;
-
-	instr = fuword32((void *)frame->srr0);
-
-	if ((instr & 0xfc1fffff) == 0x7c1f42a6) {	/* mfpvr */
-		reg = (instr & ~0xfc1fffff) >> 21;
-		frame->fixreg[reg] = mfpvr();
-		return (0);
-	}
-
-	return (-1);
 }
 

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/time.h>
 #include <geom/geom_disk.h>
 
 #include <dev/mmc/mmcbrvar.h>
@@ -86,6 +87,8 @@ struct mmcsd_softc {
 	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
 	int suspend;
+	int log_count;
+	struct timeval log_time;
 };
 
 static const char *errmsg[] =
@@ -98,6 +101,8 @@ static const char *errmsg[] =
 	"Invalid",
 	"NO MEMORY"
 };
+
+#define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /* bus entry points */
 static int mmcsd_attach(device_t dev);
@@ -155,27 +160,55 @@ mmcsd_attach(device_t dev)
 	d->d_dump = mmcsd_dump;
 	d->d_name = "mmcsd";
 	d->d_drv1 = sc;
-	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
 	d->d_sectorsize = mmc_get_sector_size(dev);
+	d->d_maxsize = mmc_get_max_data(dev) * d->d_sectorsize;
 	d->d_mediasize = (off_t)mmc_get_media_size(dev) * d->d_sectorsize;
 	d->d_stripeoffset = 0;
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
+	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize * 1; /* conservative */
 	/*
-	 * Display in most natural units.  There's no cards < 1MB.
-	 * The SD standard goes to 2GiB, but the data format supports
-	 * up to 4GiB and some card makers push it up to this limit.
-	 * The SDHC standard only goes to 32GiB (the data format in
-	 * SDHC is good to 2TiB however, which isn't too ugly at
-	 * 2048GiBm, so we note it in passing here and don't add the
-	 * code to print TiB).
+	 * The d_fw* values are fake. However, layout is aided by making the
+	 * number of fwsectors equal to the erase sectors from the drive since
+	 * we set the stripe size equal to that. We set fwheads such that there
+	 * are ~20 cylinder groups since all values are somewhat arbitrary here
+	 * and this gives good behavior with ffs without wasting too much
+	 * space.  Sadly, geom_part wants to round partitions to these
+	 * values. While not bad, in and of itself, the values we present here
+	 * will almost certainly be different then the values that USB SD
+	 * adapters use and there's too much variation between brands to just
+	 * use those values here.  Also SD to ATA adapters favor traditional
+	 * ata sizes, which are different again from the USB adapters (which
+	 * favor SCSI values). This rounding leads to a loss of up to 5% of the
+	 * usable space (usually much less, but that's why 20 was selected: to
+	 * limit this effect at a few percent). gpart needs a way to override
+	 * this behavior for situations like this, but doesn't provide
+	 * one. Perhaps this behavior should be tunable as well, but maybe that
+	 * belongs in the disk layer.  These values will be much better than
+	 * the default ones.
 	 */
-	mb = d->d_mediasize >> 20;	/* 1MiB == 1 << 20 */
+	d->d_fwsectors = mmc_get_erase_sector(dev);
+	d->d_fwheads = mmc_get_media_size(dev) / (d->d_fwsectors * 20);
+	strlcpy(d->d_ident, mmc_get_card_sn_string(dev), sizeof(d->d_ident));
+	strlcpy(d->d_descr, mmc_get_card_id_string(dev), sizeof(d->d_descr));
+
+	/*
+	 * Display in most natural units.  There's no cards < 1MB.  The SD
+	 * standard goes to 2GiB due to its reliance on FAT, but the data
+	 * format supports up to 4GiB and some card makers push it up to this
+	 * limit.  The SDHC standard only goes to 32GiB due to FAT32, but the
+	 * data format supports up to 2TiB however. 2048GB isn't too ugly, so
+	 * we note it in passing here and don't add the code to print
+	 * TB). Since these cards are sold in terms of MB and GB not MiB and
+	 * GiB, report them like that. We also round to the nearest unit, since
+	 * many cards are a few percent short, even of the power of 10 size.
+	 */
+	mb = (d->d_mediasize + 1000000 / 2 - 1) / 1000000;
 	unit = 'M';
-	if (mb >= 10240) {		/* 1GiB = 1024 MiB */
+	if (mb >= 1000) {
 		unit = 'G';
-		mb /= 1024;
+		mb = (mb + 1000 / 2 - 1) / 1000;
 	}
 	/*
 	 * Report the clock speed of the underlying hardware, which might be
@@ -185,7 +218,7 @@ mmcsd_attach(device_t dev)
 	speed = mmcbr_get_clock(device_get_parent(dev));
 	maxblocks = mmc_get_max_data(dev);
 	device_printf(dev, "%ju%cB <%s>%s at %s %d.%01dMHz/%dbit/%d-block\n",
-	    mb, unit, mmc_get_card_id_string(dev),
+	    mb, unit, d->d_descr,
 	    mmc_get_read_only(dev) ? " (read-only)" : "",
 	    device_get_nameunit(device_get_parent(dev)),
 	    speed / 1000000, (speed / 100000) % 10,
@@ -196,7 +229,8 @@ mmcsd_attach(device_t dev)
 	sc->running = 1;
 	sc->suspend = 0;
 	sc->eblock = sc->eend = 0;
-	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+	kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card", 
+	    device_get_nameunit(dev));
 
 	return (0);
 }
@@ -257,7 +291,8 @@ mmcsd_resume(device_t dev)
 	if (sc->running <= 0) {
 		sc->running = 1;
 		MMCSD_UNLOCK(sc);
-		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "task: mmc/sd card");
+		kproc_create(&mmcsd_task, sc, &sc->p, 0, 0, "%s: mmc/sd card",
+		    device_get_nameunit(dev));
 	} else
 		MMCSD_UNLOCK(sc);
 	return (0);
@@ -312,6 +347,7 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 	struct mmc_data data;
 	device_t dev = sc->dev;
 	int sz = sc->disk->d_sectorsize;
+	device_t mmcbr = device_get_parent(dev);
 
 	block = bp->bio_pblkno;
 	end = bp->bio_pblkno + (bp->bio_bcount / sz);
@@ -322,6 +358,8 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		memset(&req, 0, sizeof(req));
     		memset(&cmd, 0, sizeof(cmd));
 		memset(&stop, 0, sizeof(stop));
+		memset(&data, 0, sizeof(data));
+		cmd.mrq = &req;
 		req.cmd = &cmd;
 		cmd.data = &data;
 		if (bp->bio_cmd == BIO_READ) {
@@ -351,13 +389,15 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 			stop.opcode = MMC_STOP_TRANSMISSION;
 			stop.arg = 0;
 			stop.flags = MMC_RSP_R1B | MMC_CMD_AC;
+			stop.mrq = &req;
 			req.stop = &stop;
 		}
-		MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
-		    &req);
+		MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 		if (req.cmd->error != MMC_ERR_NONE) {
-			device_printf(dev, "Error indicated: %d %s\n",
-			    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+				device_printf(dev, "Error indicated: %d %s\n",
+				    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			}
 			break;
 		}
 		block += numblocks;
@@ -374,6 +414,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	device_t dev = sc->dev;
 	int sz = sc->disk->d_sectorsize;
 	int erase_sector;
+	device_t mmcbr = device_get_parent(dev);
 
 	block = bp->bio_pblkno;
 	end = bp->bio_pblkno + (bp->bio_bcount / sz);
@@ -398,6 +439,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	/* Set erase start position. */
 	memset(&req, 0, sizeof(req));
 	memset(&cmd, 0, sizeof(cmd));
+	cmd.mrq = &req;
 	req.cmd = &cmd;
 	if (mmc_get_card_type(dev) == mode_sd)
 		cmd.opcode = SD_ERASE_WR_BLK_START;
@@ -407,8 +449,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	if (!mmc_get_high_cap(dev))
 		cmd.arg <<= 9;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
-	    &req);
+	MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 	if (req.cmd->error != MMC_ERR_NONE) {
 	    printf("erase err1: %d\n", req.cmd->error);
 	    return (block);
@@ -426,8 +467,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 		cmd.arg <<= 9;
 	cmd.arg--;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
-	    &req);
+	MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 	if (req.cmd->error != MMC_ERR_NONE) {
 	    printf("erase err2: %d\n", req.cmd->error);
 	    return (block);
@@ -439,8 +479,7 @@ mmcsd_delete(struct mmcsd_softc *sc, struct bio *bp)
 	cmd.opcode = MMC_ERASE;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
-	MMCBUS_WAIT_FOR_REQUEST(device_get_parent(dev), dev,
-	    &req);
+	MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 	if (req.cmd->error != MMC_ERR_NONE) {
 	    printf("erase err3 %d\n", req.cmd->error);
 	    return (block);
@@ -465,6 +504,7 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 	device_t dev = sc->dev;
 	struct bio bp;
 	daddr_t block, end;
+	device_t mmcbr = device_get_parent(dev);
 
 	/* length zero is special and really means flush buffers to media */
 	if (!length)
@@ -477,9 +517,9 @@ mmcsd_dump(void *arg, void *virtual, vm_offset_t physical,
 	bp.bio_data = virtual;
 	bp.bio_cmd = BIO_WRITE;
 	end = bp.bio_pblkno + bp.bio_bcount / sc->disk->d_sectorsize;
-	MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
+	MMCBUS_ACQUIRE_BUS(mmcbr, dev);
 	block = mmcsd_rw(sc, &bp);
-	MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
+	MMCBUS_RELEASE_BUS(mmcbr, dev);
 	return ((end < block) ? EIO : 0);
 }
 
@@ -490,9 +530,9 @@ mmcsd_task(void *arg)
 	struct bio *bp;
 	int sz;
 	daddr_t block, end;
-	device_t dev;
+	device_t dev = sc->dev;
+	device_t mmcbr = device_get_parent(sc->dev);
 
-	dev = sc->dev;
 	while (1) {
 		MMCSD_LOCK(sc);
 		do {
@@ -510,7 +550,7 @@ mmcsd_task(void *arg)
 			biodone(bp);
 			continue;
 		}
-		MMCBUS_ACQUIRE_BUS(device_get_parent(dev), dev);
+		MMCBUS_ACQUIRE_BUS(mmcbr, dev);
 		sz = sc->disk->d_sectorsize;
 		block = bp->bio_pblkno;
 		end = bp->bio_pblkno + (bp->bio_bcount / sz);
@@ -522,7 +562,7 @@ mmcsd_task(void *arg)
 		} else if (bp->bio_cmd == BIO_DELETE) {
 			block = mmcsd_delete(sc, bp);
 		}
-		MMCBUS_RELEASE_BUS(device_get_parent(dev), dev);
+		MMCBUS_RELEASE_BUS(mmcbr, dev);
 		if (block < end) {
 			bp->bio_error = EIO;
 			bp->bio_resid = (end - block) * sz;

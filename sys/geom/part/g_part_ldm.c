@@ -55,18 +55,16 @@ static SYSCTL_NODE(_kern_geom_part, OID_AUTO, ldm, CTLFLAG_RW, 0,
     "GEOM_PART_LDM Logical Disk Manager");
 
 static u_int ldm_debug = 0;
-TUNABLE_INT("kern.geom.part.ldm.debug", &ldm_debug);
 SYSCTL_UINT(_kern_geom_part_ldm, OID_AUTO, debug,
-    CTLFLAG_RW | CTLFLAG_TUN, &ldm_debug, 0, "Debug level");
+    CTLFLAG_RWTUN, &ldm_debug, 0, "Debug level");
 
 /*
  * This allows access to mirrored LDM volumes. Since we do not
  * doing mirroring here, it is not enabled by default.
  */
 static u_int show_mirrors = 0;
-TUNABLE_INT("kern.geom.part.ldm.show_mirrors", &show_mirrors);
 SYSCTL_UINT(_kern_geom_part_ldm, OID_AUTO, show_mirrors,
-    CTLFLAG_RW | CTLFLAG_TUN, &show_mirrors, 0, "Show mirrored volumes");
+    CTLFLAG_RWTUN, &show_mirrors, 0, "Show mirrored volumes");
 
 #define	LDM_DEBUG(lvl, fmt, ...)	do {				\
 	if (ldm_debug >= (lvl)) {					\
@@ -336,13 +334,9 @@ static const char *g_part_ldm_name(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_ldm_probe(struct g_part_table *, struct g_consumer *);
 static int g_part_ldm_read(struct g_part_table *, struct g_consumer *);
-static int g_part_ldm_setunset(struct g_part_table *, struct g_part_entry *,
-    const char *, unsigned int);
 static const char *g_part_ldm_type(struct g_part_table *, struct g_part_entry *,
     char *, size_t);
 static int g_part_ldm_write(struct g_part_table *, struct g_consumer *);
-static int g_part_ldm_resize(struct g_part_table *, struct g_part_entry *,
-    struct g_part_parms *);
 
 static kobj_method_t g_part_ldm_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_ldm_add),
@@ -352,11 +346,9 @@ static kobj_method_t g_part_ldm_methods[] = {
 	KOBJMETHOD(g_part_dumpconf,	g_part_ldm_dumpconf),
 	KOBJMETHOD(g_part_dumpto,	g_part_ldm_dumpto),
 	KOBJMETHOD(g_part_modify,	g_part_ldm_modify),
-	KOBJMETHOD(g_part_resize,	g_part_ldm_resize),
 	KOBJMETHOD(g_part_name,		g_part_ldm_name),
 	KOBJMETHOD(g_part_probe,	g_part_ldm_probe),
 	KOBJMETHOD(g_part_read,		g_part_ldm_read),
-	KOBJMETHOD(g_part_setunset,	g_part_ldm_setunset),
 	KOBJMETHOD(g_part_type,		g_part_ldm_type),
 	KOBJMETHOD(g_part_write,	g_part_ldm_write),
 	{ 0, 0 }
@@ -1209,14 +1201,6 @@ g_part_ldm_modify(struct g_part_table *basetable,
 	return (ENOSYS);
 }
 
-static int
-g_part_ldm_resize(struct g_part_table *basetable,
-    struct g_part_entry *baseentry, struct g_part_parms *gpp)
-{
-
-	return (ENOSYS);
-}
-
 static const char *
 g_part_ldm_name(struct g_part_table *table, struct g_part_entry *baseentry,
     char *buf, size_t bufsz)
@@ -1474,14 +1458,6 @@ gpt_cleanup:
 	}
 	ldm_vmdb_free(&db);
 	return (error);
-}
-
-static int
-g_part_ldm_setunset(struct g_part_table *table, struct g_part_entry *baseentry,
-    const char *attrib, unsigned int set)
-{
-
-	return (ENOSYS);
 }
 
 static const char *

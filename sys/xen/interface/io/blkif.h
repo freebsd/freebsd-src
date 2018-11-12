@@ -28,8 +28,8 @@
 #ifndef __XEN_PUBLIC_IO_BLKIF_H__
 #define __XEN_PUBLIC_IO_BLKIF_H__
 
-#include <xen/interface/io/ring.h>
-#include <xen/interface/grant_table.h>
+#include "ring.h"
+#include "../grant_table.h"
 
 /*
  * Front->back notifications: When enqueuing a new request, sending a

@@ -92,13 +92,18 @@ int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	msgbufsize;			/* size of kernel message buffer */
 int	nbuf;
+int	bio_transient_maxcnt;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
 pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
 long	maxpipekva;			/* Limit on pipe KVA */
-int 	vm_guest;			/* Running as virtual machine guest? */
+#ifdef XEN
+int	vm_guest = VM_GUEST_XEN;
+#else
+int	vm_guest = VM_GUEST_NO;		/* Running as virtual machine guest? */
+#endif
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
 u_long	maxdsiz;			/* max data size */
@@ -106,33 +111,36 @@ u_long	dflssiz;			/* initial stack size limit */
 u_long	maxssiz;			/* max stack size */
 u_long	sgrowsiz;			/* amount to grow stack */
 
-SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN, &hz, 0,
+SYSCTL_INT(_kern, OID_AUTO, hz, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &hz, 0,
     "Number of clock ticks per second");
-SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN, &nbuf, 0,
+SYSCTL_INT(_kern, OID_AUTO, nbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nbuf, 0,
     "Number of buffers in the buffer cache");
-SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN, &nswbuf, 0,
+SYSCTL_INT(_kern, OID_AUTO, nswbuf, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &nswbuf, 0,
     "Number of swap buffers");
-SYSCTL_INT(_kern, OID_AUTO, msgbufsize, CTLFLAG_RDTUN, &msgbufsize, 0,
+SYSCTL_INT(_kern, OID_AUTO, msgbufsize, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &msgbufsize, 0,
     "Size of the kernel message buffer");
-SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
+SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxswzone, 0,
     "Maximum memory for swap metadata");
-SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
+SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &maxbcache, 0,
     "Maximum value of vfs.maxbufspace");
-SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxtsiz, 0,
+SYSCTL_INT(_kern, OID_AUTO, bio_transient_maxcnt, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &bio_transient_maxcnt, 0,
+    "Maximum number of transient BIOs mappings");
+SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxtsiz, 0,
     "Maximum text size");
-SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RW | CTLFLAG_TUN, &dfldsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &dfldsiz, 0,
     "Initial data size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxdsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxdsiz, 0,
     "Maximum data size");
-SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RW | CTLFLAG_TUN, &dflssiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &dflssiz, 0,
     "Initial stack size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RW | CTLFLAG_TUN, &maxssiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &maxssiz, 0,
     "Maximum stack size");
-SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RW | CTLFLAG_TUN, &sgrowsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RWTUN | CTLFLAG_NOFETCH, &sgrowsiz, 0,
     "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     NULL, 0, sysctl_kern_vm_guest, "A",
-    "Virtual machine guest detected? (none|generic|xen)");
+    "Virtual machine guest detected?");
 
 /*
  * These have to be allocated somewhere; allocating
@@ -149,60 +157,11 @@ static const char *const vm_guest_sysctl_names[] = {
 	"none",
 	"generic",
 	"xen",
+	"hv",
+	"vmware",
 	NULL
 };
-
-#ifndef XEN
-static const char *const vm_bnames[] = {
-	"QEMU",				/* QEMU */
-	"Plex86",			/* Plex86 */
-	"Bochs",			/* Bochs */
-	"Xen",				/* Xen */
-	"BHYVE",			/* bhyve */
-	"Seabios",			/* KVM */
-	NULL
-};
-
-static const char *const vm_pnames[] = {
-	"VMware Virtual Platform",	/* VMWare VM */
-	"Virtual Machine",		/* Microsoft VirtualPC */
-	"VirtualBox",			/* Sun xVM VirtualBox */
-	"Parallels Virtual Platform",	/* Parallels VM */
-	"KVM",				/* KVM */
-	NULL
-};
-
-
-/*
- * Detect known Virtual Machine hosts by inspecting the emulated BIOS.
- */
-static enum VM_GUEST
-detect_virtual(void)
-{
-	char *sysenv;
-	int i;
-
-	sysenv = getenv("smbios.bios.vendor");
-	if (sysenv != NULL) {
-		for (i = 0; vm_bnames[i] != NULL; i++)
-			if (strcmp(sysenv, vm_bnames[i]) == 0) {
-				freeenv(sysenv);
-				return (VM_GUEST_VM);
-			}
-		freeenv(sysenv);
-	}
-	sysenv = getenv("smbios.system.product");
-	if (sysenv != NULL) {
-		for (i = 0; vm_pnames[i] != NULL; i++)
-			if (strcmp(sysenv, vm_pnames[i]) == 0) {
-				freeenv(sysenv);
-				return (VM_GUEST_VM);
-			}
-		freeenv(sysenv);
-	}
-	return (VM_GUEST_NO);
-}
-#endif
+CTASSERT(nitems(vm_guest_sysctl_names) - 1 == VM_LAST);
 
 /*
  * Boot time overrides that are not scaled against main memory
@@ -210,11 +169,7 @@ detect_virtual(void)
 void
 init_param1(void)
 {
-#ifndef XEN
-	vm_guest = detect_virtual();
-#else
-	vm_guest = VM_GUEST_XEN;
-#endif
+
 	hz = -1;
 	TUNABLE_INT_FETCH("kern.hz", &hz);
 	if (hz == -1)
@@ -266,6 +221,8 @@ init_param1(void)
 		pid_max = PID_MAX;
 	else if (pid_max < 300)
 		pid_max = 300;
+
+	TUNABLE_INT_FETCH("vfs.unmapped_buf_allowed", &unmapped_buf_allowed);
 }
 
 /*
@@ -322,6 +279,7 @@ init_param2(long physpages)
 	 */
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
+	TUNABLE_INT_FETCH("kern.bio_transient_maxcnt", &bio_transient_maxcnt);
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,
@@ -337,11 +295,10 @@ init_param2(long physpages)
 }
 
 /*
- * Sysctl stringiying handler for kern.vm_guest.
+ * Sysctl stringifying handler for kern.vm_guest.
  */
 static int
 sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS)
 {
-	return (SYSCTL_OUT(req, vm_guest_sysctl_names[vm_guest], 
-	    strlen(vm_guest_sysctl_names[vm_guest])));
+	return (SYSCTL_OUT_STR(req, vm_guest_sysctl_names[vm_guest]));
 }

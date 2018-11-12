@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 LOADER?=	loader
@@ -55,6 +55,8 @@ LDFLAGS=	-static -Ttext 0x0
 # pc98 standalone support library
 LIBPC98=	${.OBJDIR}/../libpc98/libpc98.a
 CFLAGS+=	-I${.CURDIR}/..
+
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 
 # BTX components
 CFLAGS+=	-I${.CURDIR}/../btx/lib

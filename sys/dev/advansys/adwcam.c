@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #define ccb_acb_ptr spriv_ptr0
 #define ccb_adw_ptr spriv_ptr1
 
-static __inline cam_status	adwccbstatus(union ccb*);
 static __inline struct acb*	adwgetacb(struct adw_softc *adw);
 static __inline void		adwfreeacb(struct adw_softc *adw,
 					   struct acb *acb);
@@ -99,12 +98,6 @@ static void		adw_handle_device_reset(struct adw_softc *adw,
 						u_int target);
 static void		adw_handle_bus_reset(struct adw_softc *adw,
 					     int initiated);
-
-static __inline cam_status
-adwccbstatus(union ccb* ccb)
-{
-	return (ccb->ccb_h.status & CAM_STATUS_MASK);
-}
 
 static __inline struct acb*
 adwgetacb(struct adw_softc *adw)
@@ -329,8 +322,8 @@ adwexecuteacb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	acb->state |= ACB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&adw->pending_ccbs, &ccb->ccb_h, sim_links.le);
-	callout_reset(&acb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    adwtimeout, acb);
+	callout_reset_sbt(&acb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    adwtimeout, acb, 0);
 
 	adw_send_acb(adw, acb, acbvtob(adw, acb));
 }
@@ -351,12 +344,10 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
 	{
 		struct	ccb_scsiio *csio;
-		struct	ccb_hdr *ccbh;
 		struct	acb *acb;
 		int error;
 
 		csio = &ccb->csio;
-		ccbh = &ccb->ccb_h;
 
 		/* Max supported CDB length is 12 bytes */
 		if (csio->cdb_len > 12) { 
@@ -786,7 +777,6 @@ adw_free(struct adw_softc *adw)
 	case 7:
 		bus_dmamem_free(adw->acb_dmat, adw->acbs,
 				adw->acb_dmamap);
-		bus_dmamap_destroy(adw->acb_dmat, adw->acb_dmamap);
 	case 6:
 		bus_dma_tag_destroy(adw->acb_dmat);
 	case 5:
@@ -794,7 +784,6 @@ adw_free(struct adw_softc *adw)
 	case 4:
 		bus_dmamem_free(adw->carrier_dmat, adw->carriers,
 				adw->carrier_dmamap);
-		bus_dmamap_destroy(adw->carrier_dmat, adw->carrier_dmamap);
 	case 3:
 		bus_dma_tag_destroy(adw->carrier_dmat);
 	case 2:
@@ -972,7 +961,7 @@ adw_init(struct adw_softc *adw)
 			/* highaddr	*/ BUS_SPACE_MAXADDR,
 			/* filter	*/ NULL,
 			/* filterarg	*/ NULL,
-			/* maxsize	*/ MAXBSIZE,
+			/* maxsize	*/ DFLTPHYS,
 			/* nsegments	*/ ADW_SGSIZE,
 			/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 			/* flags	*/ BUS_DMA_ALLOCNOW,

@@ -1,5 +1,3 @@
-.\" @(#) $Header: /tcpdump/master/libpcap/pcap-filter.manmisc.in,v 1.1 2008-10-21 07:33:01 guy Exp $ (LBL)
-.\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994, 1995, 1996, 1997
 .\"	The Regents of the University of California.  All rights reserved.
 .\" All rights reserved.
@@ -20,7 +18,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP-FILTER @MAN_MISC_INFO@ "6 January 2008"
+.TH PCAP-FILTER @MAN_MISC_INFO@ "17 May 2013"
 .SH NAME
 pcap-filter \- packet filter syntax
 .br
@@ -45,6 +43,7 @@ Primitives usually consist of an
 There are three
 different kinds of qualifier:
 .IP \fItype\fP
+.I type
 qualifiers say what kind of thing the id name or number refers to.
 Possible types are
 .BR host ,
@@ -58,6 +57,7 @@ qualifier,
 .B host
 is assumed.
 .IP \fIdir\fP
+.I dir
 qualifiers specify a particular transfer direction to and/or from
 .IR id .
 Possible directions are
@@ -93,6 +93,7 @@ and
 .B outbound
 qualifiers can be used to specify a desired direction.
 .IP \fIproto\fP
+.I proto
 qualifiers restrict the match to a particular protocol.
 Possible
 protos are:
@@ -159,7 +160,7 @@ True if the IPv4/v6 destination field of the packet is \fIhost\fP,
 which may be either an address or a name.
 .IP "\fBsrc host \fIhost\fR"
 True if the IPv4/v6 source field of the packet is \fIhost\fP.
-.IP "\fBhost \fIhost\fP
+.IP "\fBhost \fIhost\fP"
 True if either the IPv4/v6 source or destination of the packet is \fIhost\fP.
 .IP
 Any of the above host expressions can be prepended with the keywords,
@@ -177,17 +178,17 @@ which is equivalent to:
 .in -.5i
 If \fIhost\fR is a name with multiple IP addresses, each address will
 be checked for a match.
-.IP "\fBether dst \fIehost\fP
+.IP "\fBether dst \fIehost\fP"
 True if the Ethernet destination address is \fIehost\fP.
 \fIEhost\fP
 may be either a name from /etc/ethers or a number (see
 .IR ethers (3N)
 for numeric format).
-.IP "\fBether src \fIehost\fP
+.IP "\fBether src \fIehost\fP"
 True if the Ethernet source address is \fIehost\fP.
-.IP "\fBether host \fIehost\fP
+.IP "\fBether host \fIehost\fP"
 True if either the Ethernet source or destination address is \fIehost\fP.
-.IP "\fBgateway\fP \fIhost\fP
+.IP "\fBgateway\fP \fIhost\fP"
 True if the packet used \fIhost\fP as a gateway.
 I.e., the Ethernet
 source or destination address was \fIhost\fP but neither the IP source
@@ -302,6 +303,18 @@ Note that this primitive does not chase the protocol header chain.
 .IP "\fBip6 proto \fIprotocol\fR"
 True if the packet is an IPv6 packet of protocol type \fIprotocol\fP.
 Note that this primitive does not chase the protocol header chain.
+.IP "\fBproto \fIprotocol\fR"
+True if the packet is an IPv4 or IPv6 packet of protocol type
+\fIprotocol\fP.  Note that this primitive does not chase the protocol
+header chain.
+.IP  "\fBtcp\fR, \fBudp\fR, \fBicmp\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBproto \fIp\fR\fB
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
 .IP "\fBip6 protochain \fIprotocol\fR"
 True if the packet is IPv6 packet,
 and contains protocol header with type \fIprotocol\fR
@@ -317,10 +330,15 @@ The packet may contain, for example,
 authentication header, routing header, or hop-by-hop option header,
 between IPv6 header and TCP header.
 The BPF code emitted by this primitive is complex and
-cannot be optimized by the BPF optimizer code, so this can be somewhat
-slow.
+cannot be optimized by the BPF optimizer code, and is not supported by
+filter engines in the kernel, so this can be somewhat slow, and may
+cause more packets to be dropped.
 .IP "\fBip protochain \fIprotocol\fR"
 Equivalent to \fBip6 protochain \fIprotocol\fR, but this is for IPv4.
+.IP "\fBprotochain \fIprotocol\fR"
+True if the packet is an IPv4 or IPv6 packet of protocol type
+\fIprotocol\fP.  Note that this primitive chases the protocol
+header chain.
 .IP "\fBether broadcast\fR"
 True if the packet is an Ethernet broadcast packet.
 The \fIether\fP
@@ -402,6 +420,25 @@ the filter checks for the IPX etype in an Ethernet frame, the IPX
 DSAP in the LLC header, the 802.3-with-no-LLC-header encapsulation of
 IPX, and the IPX etype in a SNAP frame.
 .RE
+.IP "\fBip\fR, \fBip6\fR, \fBarp\fR, \fBrarp\fR, \fBatalk\fR, \fBaarp\fR, \fBdecnet\fR, \fBiso\fR, \fBstp\fR, \fBipx\fR, \fBnetbeui\fP"
+Abbreviations for:
+.in +.5i
+.nf
+\fBether proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+.IP "\fBlat\fR, \fBmoprc\fR, \fBmopdl\fR"
+Abbreviations for:
+.in +.5i
+.nf
+\fBether proto \fIp\fR
+.fi
+.in -.5i
+where \fIp\fR is one of the above protocols.
+Note that not all applications using
+.BR pcap (3PCAP)
+currently know how to parse these protocols.
 .IP "\fBdecnet src \fIhost\fR"
 True if the DECNET source address is
 .IR host ,
@@ -415,6 +452,67 @@ True if the DECNET destination address is
 .IP "\fBdecnet host \fIhost\fR"
 True if either the DECNET source or destination address is
 .IR host .
+.IP \fBllc\fP
+True if the packet has an 802.2 LLC header.  This includes:
+.IP
+Ethernet packets with a length field rather than a type field that
+aren't raw NetWare-over-802.3 packets;
+.IP
+IEEE 802.11 data packets;
+.IP
+Token Ring packets (no check is done for LLC frames);
+.IP
+FDDI packets (no check is done for LLC frames);
+.IP
+LLC-encapsulated ATM packets, for SunATM on Solaris.
+.IP
+
+.IP "\fBllc\fP \Fitype\fR"
+True if the packet has an 802.2 LLC header and has the specified
+.IR type .
+.I type
+can be one of:
+.RS
+.TP
+\fBi\fR
+Information (I) PDUs
+.TP
+\fBs\fR
+Supervisory (S) PDUs
+.TP
+\fBu\fR
+Unnumbered (U) PDUs
+.TP
+\fBrr\fR
+Receiver Ready (RR) S PDUs
+.TP
+\fBrnr\fR
+Receiver Not Ready (RNR) S PDUs
+.TP
+\fBrej\fR
+Reject (REJ) S PDUs
+.TP
+\fBui\fR
+Unnumbered Information (UI) U PDUs
+.TP
+\fBua\fR
+Unnumbered Acknowledgment (UA) U PDUs
+.TP
+\fBdisc\fR
+Disconnect (DISC) U PDUs
+.TP
+\fBsabme\fR
+Set Asynchronous Balanced Mode Extended (SABME) U PDUs
+.TP
+\fBtest\fR
+Test (TEST) U PDUs
+.TP
+\fBxid\fR
+Exchange Identification (XID) U PDUs
+.TP
+\fBfrmr\fR
+Frame Reject (FRMR) U PDUs
+.RE
 .IP "\fBifname \fIinterface\fR"
 True if the packet was logged as coming from the specified interface (applies
 only to packets logged by OpenBSD's or FreeBSD's
@@ -449,7 +547,7 @@ name of an anchored ruleset (applies only to packets logged by OpenBSD's
 or FreeBSD's
 .BR pf (4)).
 .IP "\fBruleset \fIname\fR"
-Synonomous with the
+Synonymous with the
 .B rset
 modifier.
 .IP "\fBsrnr \fInum\fR"
@@ -458,7 +556,7 @@ of an anchored ruleset (applies only to packets logged by OpenBSD's or
 FreeBSD's
 .BR pf (4)).
 .IP "\fBsubrulenum \fInum\fR"
-Synonomous with the
+Synonymous with the
 .B srnr
 modifier.
 .IP "\fBaction \fIact\fR"
@@ -503,25 +601,6 @@ True if the fourth IEEE 802.11 address, if present, is
 .IR ehost .
 The fourth address field is only used for
 WDS (Wireless Distribution System) frames.
-.IP "\fBip\fR, \fBip6\fR, \fBarp\fR, \fBrarp\fR, \fBatalk\fR, \fBaarp\fR, \fBdecnet\fR, \fBiso\fR, \fBstp\fR, \fBipx\fR, \fBnetbeui\fP"
-Abbreviations for:
-.in +.5i
-.nf
-\fBether proto \fIp\fR
-.fi
-.in -.5i
-where \fIp\fR is one of the above protocols.
-.IP "\fBlat\fR, \fBmoprc\fR, \fBmopdl\fR"
-Abbreviations for:
-.in +.5i
-.nf
-\fBether proto \fIp\fR
-.fi
-.in -.5i
-where \fIp\fR is one of the above protocols.
-Note that not all applications using
-.BR pcap (3)
-currently know how to parse these protocols.
 .IP "\fBtype \fIwlan_type\fR"
 True if the IEEE 802.11 frame type matches the specified \fIwlan_type\fR.
 Valid \fIwlan_type\fRs are:
@@ -638,9 +717,11 @@ any outer label.
 .IP \fBpppoed\fP
 True if the packet is a PPP-over-Ethernet Discovery packet (Ethernet
 type 0x8863).
-.IP \fBpppoes\fP
+.IP "\fBpppoes \fI[session_id]\fR"
 True if the packet is a PPP-over-Ethernet Session packet (Ethernet
 type 0x8864).
+If \fI[session_id]\fR is specified, only true if the packet has the specified
+\fIsession_id\fR.
 Note that the first \fBpppoes\fR keyword encountered in \fIexpression\fR
 changes the decoding offsets for the remainder of \fIexpression\fR on
 the assumption that the packet is a PPPoE session packet.
@@ -648,18 +729,10 @@ the assumption that the packet is a PPPoE session packet.
 For example:
 .in +.5i
 .nf
-\fBpppoes && ip\fR
+\fBpppoes 0x27 && ip\fR
 .fi
 .in -.5i
-filters IPv4 protocols encapsulated in PPPoE.
-.IP  "\fBtcp\fR, \fBudp\fR, \fBicmp\fR"
-Abbreviations for:
-.in +.5i
-.nf
-\fBip proto \fIp\fR\fB or ip6 proto \fIp\fR
-.fi
-.in -.5i
-where \fIp\fR is one of the above protocols.
+filters IPv4 protocols encapsulated in PPPoE session id 0x27.
 .IP "\fBiso proto \fIprotocol\fR"
 True if the packet is an OSI packet of protocol type \fIprotocol\fP.
 \fIProtocol\fP can be a number or one of the names
@@ -674,11 +747,11 @@ Abbreviations for:
 where \fIp\fR is one of the above protocols.
 .IP "\fBl1\fR, \fBl2\fR, \fBiih\fR, \fBlsp\fR, \fBsnp\fR, \fBcsnp\fR, \fBpsnp\fR"
 Abbreviations for IS-IS PDU types.
-.IP "\fBvpi\fP \fIn\fR
+.IP "\fBvpi\fP \fIn\fR"
 True if the packet is an ATM packet, for SunATM on Solaris, with a
 virtual path identifier of
 .IR n .
-.IP "\fBvci\fP \fIn\fR
+.IP "\fBvci\fP \fIn\fR"
 True if the packet is an ATM packet, for SunATM on Solaris, with a
 virtual channel identifier of
 .IR n .
@@ -691,9 +764,6 @@ on the assumption that the packet is either a LANE emulated Ethernet
 packet or a LANE LE Control packet.  If \fBlane\fR isn't specified, the
 tests are done under the assumption that the packet is an
 LLC-encapsulated packet.
-.IP \fBllc\fP
-True if the packet is an ATM packet, for SunATM on Solaris, and is
-an LLC-encapsulated packet.
 .IP \fBoamf4s\fP
 True if the packet is an ATM packet, for SunATM on Solaris, and is
 a segment OAM F4 flow cell (VPI=0 & VCI=3).
@@ -730,11 +800,17 @@ Release, or Release Done message.
 True if the relation holds, where \fIrelop\fR is one of >, <, >=, <=, =,
 !=, and \fIexpr\fR is an arithmetic expression composed of integer
 constants (expressed in standard C syntax), the normal binary operators
-[+, -, *, /, &, |, <<, >>], a length operator, and special packet data
+[+, -, *, /, %, &, |, ^, <<, >>], a length operator, and special packet data
 accessors.  Note that all comparisons are unsigned, so that, for example,
 0x80000000 and 0xffffffff are > 0.
-To access
-data inside the packet, use the following syntax:
+.IP
+The % and ^ operators are currently only supported for filtering in the
+kernel on Linux with 3.7 and later kernels; on all other systems, if
+those operators are used, filtering will be done in user mode, which
+will increase the overhead of capturing packets and may cause more
+packets to be dropped.
+.IP
+To access data inside the packet, use the following syntax:
 .in +.5i
 .nf
 \fIproto\fB [ \fIexpr\fB : \fIsize\fB ]\fR
@@ -783,7 +859,8 @@ The following ICMP type field values are available: \fBicmp-echoreply\fP,
 
 The following TCP flags field values are available: \fBtcp-fin\fP,
 \fBtcp-syn\fP, \fBtcp-rst\fP, \fBtcp-push\fP,
-\fBtcp-ack\fP, \fBtcp-urg\fP.
+\fBtcp-ack\fP, \fBtcp-urg\fP, \fBtcp-ece\fP,
+\fBtcp-cwr\fP.
 .LP
 Primitives may be combined using:
 .IP
@@ -918,27 +995,6 @@ icmp[icmptype] != icmp-echo and icmp[icmptype] != icmp-echoreply
 .RE
 .SH "SEE ALSO"
 pcap(3PCAP)
-.SH AUTHORS
-The original authors are:
-.LP
-Van Jacobson,
-Craig Leres and
-Steven McCanne, all of the
-Lawrence Berkeley National Laboratory, University of California, Berkeley, CA.
-.LP
-It is currently being maintained by tcpdump.org.
-.LP
-The current version of libpcap is available via http:
-.LP
-.RS
-.I http://www.tcpdump.org/
-.RE
-.LP
-The original distribution is available via anonymous ftp:
-.LP
-.RS
-.I ftp://ftp.ee.lbl.gov/tcpdump.tar.Z
-.RE
 .SH BUGS
 Please send problems, bugs, questions, desirable enhancements, etc. to:
 .LP

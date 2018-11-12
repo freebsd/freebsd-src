@@ -493,7 +493,7 @@ convert_driver () {
 	return
 }
 
-ICONVPATH=/usr/local/bin/iconv
+ICONVPATH=/usr/bin/iconv
 NDISCVT=/usr/sbin/ndiscvt
 STUBPATH=/usr/share/misc
 STUBFILE=windrv_stub.c

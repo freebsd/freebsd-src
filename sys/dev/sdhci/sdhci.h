@@ -57,6 +57,12 @@
 #define	SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<11)
 /* SDHCI_CAPABILITIES is invalid */
 #define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
+/* Hardware shifts the 136-bit response, don't do it in software. */
+#define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
+/* Wait to see reset bit asserted before waiting for de-asserted  */
+#define	SDHCI_QUIRK_WAITFOR_RESET_ASSERTED		(1<<14)
+/* Leave controller in standard mode when putting card in HS mode. */
+#define	SDHCI_QUIRK_DONT_SET_HISPD_BIT			(1<<15)
 
 /*
  * Controller registers
@@ -102,6 +108,7 @@
 #define  SDHCI_CMD_INHIBIT	0x00000001
 #define  SDHCI_DAT_INHIBIT	0x00000002
 #define  SDHCI_DAT_ACTIVE	0x00000004
+#define  SDHCI_RETUNE_REQUEST	0x00000008
 #define  SDHCI_DOING_WRITE	0x00000100
 #define  SDHCI_DOING_READ	0x00000200
 #define  SDHCI_SPACE_AVAILABLE	0x00000400
@@ -110,8 +117,8 @@
 #define  SDHCI_CARD_STABLE	0x00020000
 #define  SDHCI_CARD_PIN		0x00040000
 #define  SDHCI_WRITE_PROTECT	0x00080000
-#define  SDHCI_STATE_DAT	0x00700000
-#define  SDHCI_STATE_CMD	0x00800000
+#define  SDHCI_STATE_DAT_MASK	0x00f00000
+#define  SDHCI_STATE_CMD	0x01000000
 
 #define SDHCI_HOST_CONTROL 	0x28
 #define  SDHCI_CTRL_LED		0x01
@@ -120,6 +127,8 @@
 #define  SDHCI_CTRL_SDMA	0x08
 #define  SDHCI_CTRL_ADMA2	0x10
 #define  SDHCI_CTRL_ADMA264	0x18
+#define  SDHCI_CTRL_DMA_MASK	0x18
+#define  SDHCI_CTRL_8BITBUS	0x20
 #define  SDHCI_CTRL_CARD_DET	0x40
 #define  SDHCI_CTRL_FORCE_CARD	0x80
 
@@ -162,6 +171,10 @@
 #define  SDHCI_INT_CARD_INSERT	0x00000040
 #define  SDHCI_INT_CARD_REMOVE	0x00000080
 #define  SDHCI_INT_CARD_INT	0x00000100
+#define  SDHCI_INT_INT_A	0x00000200
+#define  SDHCI_INT_INT_B	0x00000400
+#define  SDHCI_INT_INT_C	0x00000800
+#define  SDHCI_INT_RETUNE	0x00001000
 #define  SDHCI_INT_ERROR	0x00008000
 #define  SDHCI_INT_TIMEOUT	0x00010000
 #define  SDHCI_INT_CRC		0x00020000
@@ -173,18 +186,23 @@
 #define  SDHCI_INT_BUS_POWER	0x00800000
 #define  SDHCI_INT_ACMD12ERR	0x01000000
 #define  SDHCI_INT_ADMAERR	0x02000000
+#define  SDHCI_INT_TUNEERR	0x04000000
 
 #define  SDHCI_INT_NORMAL_MASK	0x00007FFF
 #define  SDHCI_INT_ERROR_MASK	0xFFFF8000
 
-#define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_TIMEOUT | \
+#define  SDHCI_INT_CMD_ERROR_MASK 	(SDHCI_INT_TIMEOUT | \
 		SDHCI_INT_CRC | SDHCI_INT_END_BIT | SDHCI_INT_INDEX)
+
+#define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_CMD_ERROR_MASK)
+
 #define  SDHCI_INT_DATA_MASK	(SDHCI_INT_DATA_END | SDHCI_INT_DMA_END | \
 		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL | \
 		SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_DATA_CRC | \
 		SDHCI_INT_DATA_END_BIT)
 
 #define SDHCI_ACMD12_ERR	0x3C
+#define SDHCI_HOST_CONTROL2	0x3E
 
 #define SDHCI_CAPABILITIES	0x40
 #define  SDHCI_TIMEOUT_CLK_MASK	0x0000003F
@@ -195,6 +213,7 @@
 #define  SDHCI_CLOCK_BASE_SHIFT	8
 #define  SDHCI_MAX_BLOCK_MASK	0x00030000
 #define  SDHCI_MAX_BLOCK_SHIFT  16
+#define  SDHCI_CAN_DO_8BITBUS	0x00040000
 #define  SDHCI_CAN_DO_ADMA2	0x00080000
 #define  SDHCI_CAN_DO_HISPD	0x00200000
 #define  SDHCI_CAN_DO_DMA	0x00400000
@@ -203,8 +222,31 @@
 #define  SDHCI_CAN_VDD_300	0x02000000
 #define  SDHCI_CAN_VDD_180	0x04000000
 #define  SDHCI_CAN_DO_64BIT	0x10000000
+#define  SDHCI_CAN_ASYNC_INTR	0x20000000
+
+#define SDHCI_CAPABILITIES2	0x44
+#define  SDHCI_CAN_SDR50	0x00000001
+#define  SDHCI_CAN_SDR104	0x00000002
+#define  SDHCI_CAN_DDR50	0x00000004
+#define  SDHCI_CAN_DRIVE_TYPE_A	0x00000010
+#define  SDHCI_CAN_DRIVE_TYPE_B	0x00000020
+#define  SDHCI_CAN_DRIVE_TYPE_C	0x00000040
+#define  SDHCI_RETUNE_CNT_MASK	0x00000F00
+#define  SDHCI_RETUNE_CNT_SHIFT	8
+#define  SDHCI_TUNE_SDR50	0x00002000
+#define  SDHCI_RETUNE_MODES_MASK  0x0000C000
+#define  SDHCI_RETUNE_MODES_SHIFT 14
+#define  SDHCI_CLOCK_MULT_MASK	0x00FF0000
+#define  SDHCI_CLOCK_MULT_SHIFT	16
 
 #define SDHCI_MAX_CURRENT	0x48
+#define SDHCI_FORCE_AUTO_EVENT	0x50
+#define SDHCI_FORCE_INTR_EVENT	0x52
+#define SDHCI_ADMA_ERR		0x54
+#define SDHCI_ADMA_ADDRESS_LOW	0x58
+#define SDHCI_ADMA_ADDRESS_HI	0x5C
+#define SDHCI_PRESET_VALUE	0x60
+#define SDHCI_SHARED_BUS_CTRL	0xE0
 
 #define SDHCI_SLOT_INT_STATUS	0xFC
 
@@ -216,6 +258,8 @@
 #define	SDHCI_SPEC_100		0
 #define	SDHCI_SPEC_200		1
 #define	SDHCI_SPEC_300		2
+
+SYSCTL_DECL(_hw_sdhci);
 
 struct sdhci_slot {
 	u_int		quirks;		/* Chip specific quirks */
@@ -235,6 +279,7 @@ struct sdhci_slot {
 	bus_addr_t	paddr;		/* DMA buffer address */
 	struct task	card_task;	/* Card presence check task */
 	struct callout	card_callout;	/* Card insert delay callout */
+	struct callout	timeout_callout;/* Card command/data response timeout */
 	struct mmc_host host;		/* Host parameters */
 	struct mmc_request *req;	/* Current request */
 	struct mmc_command *curcmd;	/* Current command of current request */

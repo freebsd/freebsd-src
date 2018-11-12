@@ -29,8 +29,6 @@
  * Use is subject to license terms.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -46,7 +44,8 @@
 #include <sys/lockstat.h>
 
 #if defined(__i386__) || defined(__amd64__) || \
-	defined(__mips__) || defined(__powerpc__)
+	defined(__mips__) || defined(__powerpc__) || \
+	defined(__arm__)
 #define LOCKSTAT_AFRAMES 1
 #else
 #error "architecture not supported"

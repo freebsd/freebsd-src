@@ -12,67 +12,38 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_TARGET_MSP430_TARGETMACHINE_H
-#define LLVM_TARGET_MSP430_TARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_MSP430_MSP430TARGETMACHINE_H
+#define LLVM_LIB_TARGET_MSP430_MSP430TARGETMACHINE_H
 
-#include "MSP430InstrInfo.h"
-#include "MSP430ISelLowering.h"
-#include "MSP430FrameLowering.h"
-#include "MSP430SelectionDAGInfo.h"
-#include "MSP430RegisterInfo.h"
 #include "MSP430Subtarget.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetTransformImpl.h"
 
 namespace llvm {
 
 /// MSP430TargetMachine
 ///
 class MSP430TargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   MSP430Subtarget        Subtarget;
-  const DataLayout       DL;       // Calculates type size & alignment
-  MSP430InstrInfo        InstrInfo;
-  MSP430TargetLowering   TLInfo;
-  MSP430SelectionDAGInfo TSInfo;
-  MSP430FrameLowering    FrameLowering;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
 
 public:
   MSP430TargetMachine(const Target &T, StringRef TT,
                       StringRef CPU, StringRef FS, const TargetOptions &Options,
                       Reloc::Model RM, CodeModel::Model CM,
                       CodeGenOpt::Level OL);
+  ~MSP430TargetMachine() override;
 
-  virtual const TargetFrameLowering *getFrameLowering() const {
-    return &FrameLowering;
+  const MSP430Subtarget *getSubtargetImpl() const override {
+    return &Subtarget;
   }
-  virtual const MSP430InstrInfo *getInstrInfo() const  { return &InstrInfo; }
-  virtual const DataLayout *getDataLayout() const     { return &DL;}
-  virtual const MSP430Subtarget *getSubtargetImpl() const { return &Subtarget; }
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
-  virtual const TargetRegisterInfo *getRegisterInfo() const {
-    return &InstrInfo.getRegisterInfo();
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
   }
-
-  virtual const MSP430TargetLowering *getTargetLowering() const {
-    return &TLInfo;
-  }
-
-  virtual const MSP430SelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
-  }
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
 }; // MSP430TargetMachine.
 
 } // end namespace llvm
 
-#endif // LLVM_TARGET_MSP430_TARGETMACHINE_H
+#endif

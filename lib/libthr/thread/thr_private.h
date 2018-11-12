@@ -337,7 +337,7 @@ struct pthread_key {
 
 /*
  * lwpid_t is 32bit but kernel thr API exports tid as long type
- * in very earily date.
+ * to preserve the ABI for M:N model in very early date (r131431).
  */
 #define TID(thread)	((uint32_t) ((thread)->tid))
 
@@ -432,6 +432,9 @@ struct pthread {
 
 	/* the sigaction should be used for deferred signal. */
 	struct sigaction	deferred_sigact;
+
+	/* deferred signal delivery is performed, do not reenter. */
+	int			deferred_run;
 
 	/* Force new thread to exit. */
 	int			force_exit;
@@ -746,7 +749,6 @@ void	_thr_ref_delete(struct pthread *, struct pthread *) __hidden;
 void	_thr_ref_delete_unlocked(struct pthread *, struct pthread *) __hidden;
 int	_thr_find_thread(struct pthread *, struct pthread *, int) __hidden;
 void	_thr_rtld_init(void) __hidden;
-void	_thr_rtld_fini(void) __hidden;
 void	_thr_rtld_postfork_child(void) __hidden;
 int	_thr_stack_alloc(struct pthread_attr *) __hidden;
 void	_thr_stack_free(struct pthread_attr *) __hidden;
@@ -761,7 +763,7 @@ void	_thr_cancel_leave(struct pthread *, int) __hidden;
 void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
 void	_thr_signal_unblock(struct pthread *) __hidden;
-void	_thr_signal_init(void) __hidden;
+void	_thr_signal_init(int) __hidden;
 void	_thr_signal_deinit(void) __hidden;
 int	_thr_send_sig(struct pthread *, int sig) __hidden;
 void	_thr_list_init(void) __hidden;
@@ -837,7 +839,6 @@ int     __sys_close(int);
 int	__sys_fork(void);
 pid_t	__sys_getpid(void);
 ssize_t __sys_read(int, void *, size_t);
-ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 #endif
 
@@ -904,11 +905,35 @@ int	_sleepq_remove(struct sleepqueue *, struct pthread *) __hidden;
 void	_sleepq_drop(struct sleepqueue *,
 		void (*cb)(struct pthread *, void *arg), void *) __hidden;
 
+int	_pthread_mutex_init_calloc_cb(pthread_mutex_t *mutex,
+	    void *(calloc_cb)(size_t, size_t));
+
 struct dl_phdr_info;
 void __pthread_cxa_finalize(struct dl_phdr_info *phdr_info);
 void _thr_tsd_unload(struct dl_phdr_info *phdr_info) __hidden;
 void _thr_sigact_unload(struct dl_phdr_info *phdr_info) __hidden;
 void _thr_stack_fix_protection(struct pthread *thrd);
+
+int *__error_threaded(void) __hidden;
+void __thr_interpose_libc(void) __hidden;
+pid_t __thr_fork(void);
+int __thr_setcontext(const ucontext_t *ucp);
+int __thr_sigaction(int sig, const struct sigaction *act,
+    struct sigaction *oact) __hidden;
+int __thr_sigprocmask(int how, const sigset_t *set, sigset_t *oset);
+int __thr_sigsuspend(const sigset_t * set);
+int __thr_sigtimedwait(const sigset_t *set, siginfo_t *info,
+    const struct timespec * timeout);
+int __thr_sigwait(const sigset_t *set, int *sig);
+int __thr_sigwaitinfo(const sigset_t *set, siginfo_t *info);
+int __thr_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
+
+struct _spinlock;
+void __thr_spinunlock(struct _spinlock *lck);
+void __thr_spinlock(struct _spinlock *lck);
+
+struct tcb *_tcb_ctor(struct pthread *, int);
+void	_tcb_dtor(struct tcb *);
 
 __END_DECLS
 

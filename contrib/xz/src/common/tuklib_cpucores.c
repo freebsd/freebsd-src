@@ -12,7 +12,13 @@
 
 #include "tuklib_cpucores.h"
 
-#if defined(TUKLIB_CPUCORES_SYSCTL)
+#if defined(_WIN32) || defined(__CYGWIN__)
+#	ifndef _WIN32_WINNT
+#		define _WIN32_WINNT 0x0500
+#	endif
+#	include <windows.h>
+
+#elif defined(TUKLIB_CPUCORES_SYSCTL)
 #	ifdef HAVE_SYS_PARAM_H
 #		include <sys/param.h>
 #	endif
@@ -33,7 +39,12 @@ tuklib_cpucores(void)
 {
 	uint32_t ret = 0;
 
-#if defined(TUKLIB_CPUCORES_SYSCTL)
+#if defined(_WIN32) || defined(__CYGWIN__)
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	ret = sysinfo.dwNumberOfProcessors;
+
+#elif defined(TUKLIB_CPUCORES_SYSCTL)
 	int name[2] = { CTL_HW, HW_NCPU };
 	int cpus;
 	size_t cpus_size = sizeof(cpus);

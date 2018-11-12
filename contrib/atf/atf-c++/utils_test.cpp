@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,268 +22,445 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
+#include "atf-c++/utils.hpp"
+
+extern "C" {
+#include <sys/stat.h>
+#include <sys/wait.h>
+
+#include <fcntl.h>
+#include <unistd.h>
+}
+
+#include <cstdlib>
 #include <iostream>
+#include <set>
+#include <sstream>
+#include <string>
+#include <vector>
 
-#include "atf-c/defs.h"
+#include <atf-c++.hpp>
 
-#include "macros.hpp"
-#include "utils.hpp"
-
-#include "detail/test_helpers.hpp"
-
-// ------------------------------------------------------------------------
-// Tests for the "auto_array" class.
-// ------------------------------------------------------------------------
-
-class test_array {
-public:
-    int m_value;
-
-    static ssize_t m_nblocks;
-
-    static
-    atf::utils::auto_array< test_array >
-    do_copy(atf::utils::auto_array< test_array >& ta)
-    {
-        return atf::utils::auto_array< test_array >(ta);
-    }
-
-    void* operator new(size_t size ATF_DEFS_ATTRIBUTE_UNUSED)
-    {
-        ATF_FAIL("New called but should have been new[]");
-        return new int(5);
-    }
-
-    void* operator new[](size_t size)
-    {
-        m_nblocks++;
-        void* mem = ::operator new(size);
-        std::cout << "Allocated 'test_array' object " << mem << "\n";
-        return mem;
-    }
-
-    void operator delete(void* mem ATF_DEFS_ATTRIBUTE_UNUSED)
-    {
-        ATF_FAIL("Delete called but should have been delete[]");
-    }
-
-    void operator delete[](void* mem)
-    {
-        std::cout << "Releasing 'test_array' object " << mem << "\n";
-        if (m_nblocks == 0)
-            ATF_FAIL("Unbalanced delete[]");
-        m_nblocks--;
-        ::operator delete(mem);
-    }
-};
-
-ssize_t test_array::m_nblocks = 0;
-
-ATF_TEST_CASE(auto_array_scope);
-ATF_TEST_CASE_HEAD(auto_array_scope)
+static std::string
+read_file(const std::string& path)
 {
-    set_md_var("descr", "Tests the automatic scope handling in the "
-               "auto_array smart pointer class");
-}
-ATF_TEST_CASE_BODY(auto_array_scope)
-{
-    using atf::utils::auto_array;
+    char buffer[1024];
 
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    {
-        auto_array< test_array > t(new test_array[10]);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-}
+    const int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1)
+        ATF_FAIL("Cannot open " + path);
+    const ssize_t length = read(fd, buffer, sizeof(buffer) - 1);
+    close(fd);
+    ATF_REQUIRE(length != -1);
+    if (length == sizeof(buffer) - 1)
+        ATF_FAIL("Internal buffer not long enough to read temporary file");
+    ((char *)buffer)[length] = '\0';
 
-ATF_TEST_CASE(auto_array_copy);
-ATF_TEST_CASE_HEAD(auto_array_copy)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' copy "
-               "constructor");
-}
-ATF_TEST_CASE_BODY(auto_array_copy)
-{
-    using atf::utils::auto_array;
-
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    {
-        auto_array< test_array > t1(new test_array[10]);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-
-        {
-            auto_array< test_array > t2(t1);
-            ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-        }
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-}
-
-ATF_TEST_CASE(auto_array_copy_ref);
-ATF_TEST_CASE_HEAD(auto_array_copy_ref)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' copy "
-               "constructor through the auxiliary auto_array_ref object");
-}
-ATF_TEST_CASE_BODY(auto_array_copy_ref)
-{
-    using atf::utils::auto_array;
-
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    {
-        auto_array< test_array > t1(new test_array[10]);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-
-        {
-            auto_array< test_array > t2 = test_array::do_copy(t1);
-            ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-        }
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-}
-
-ATF_TEST_CASE(auto_array_get);
-ATF_TEST_CASE_HEAD(auto_array_get)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' get "
-               "method");
-}
-ATF_TEST_CASE_BODY(auto_array_get)
-{
-    using atf::utils::auto_array;
-
-    test_array* ta = new test_array[10];
-    auto_array< test_array > t(ta);
-    ATF_REQUIRE_EQ(t.get(), ta);
-}
-
-ATF_TEST_CASE(auto_array_release);
-ATF_TEST_CASE_HEAD(auto_array_release)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' release "
-               "method");
-}
-ATF_TEST_CASE_BODY(auto_array_release)
-{
-    using atf::utils::auto_array;
-
-    test_array* ta1 = new test_array[10];
-    {
-        auto_array< test_array > t(ta1);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-        test_array* ta2 = t.release();
-        ATF_REQUIRE_EQ(ta2, ta1);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-    delete [] ta1;
-}
-
-ATF_TEST_CASE(auto_array_reset);
-ATF_TEST_CASE_HEAD(auto_array_reset)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' reset "
-               "method");
-}
-ATF_TEST_CASE_BODY(auto_array_reset)
-{
-    using atf::utils::auto_array;
-
-    test_array* ta1 = new test_array[10];
-    test_array* ta2 = new test_array[10];
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 2);
-
-    {
-        auto_array< test_array > t(ta1);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 2);
-        t.reset(ta2);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-        t.reset();
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-}
-
-ATF_TEST_CASE(auto_array_assign);
-ATF_TEST_CASE_HEAD(auto_array_assign)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' "
-               "assignment operator");
-}
-ATF_TEST_CASE_BODY(auto_array_assign)
-{
-    using atf::utils::auto_array;
-
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    {
-        auto_array< test_array > t1(new test_array[10]);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-
-        {
-            auto_array< test_array > t2;
-            t2 = t1;
-            ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-        }
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-}
-
-ATF_TEST_CASE(auto_array_assign_ref);
-ATF_TEST_CASE_HEAD(auto_array_assign_ref)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' "
-               "assignment operator through the auxiliary auto_array_ref "
-               "object");
-}
-ATF_TEST_CASE_BODY(auto_array_assign_ref)
-{
-    using atf::utils::auto_array;
-
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    {
-        auto_array< test_array > t1(new test_array[10]);
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-
-        {
-            auto_array< test_array > t2;
-            t2 = test_array::do_copy(t1);
-            ATF_REQUIRE_EQ(test_array::m_nblocks, 1);
-        }
-        ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-    }
-    ATF_REQUIRE_EQ(test_array::m_nblocks, 0);
-}
-
-ATF_TEST_CASE(auto_array_access);
-ATF_TEST_CASE_HEAD(auto_array_access)
-{
-    set_md_var("descr", "Tests the auto_array smart pointer class' access "
-               "operator");
-}
-ATF_TEST_CASE_BODY(auto_array_access)
-{
-    using atf::utils::auto_array;
-
-    auto_array< test_array > t(new test_array[10]);
-
-    for (int i = 0; i < 10; i++)
-        t[i].m_value = i * 2;
-
-    for (int i = 0; i < 10; i++)
-        ATF_REQUIRE_EQ(t[i].m_value, i * 2);
+    return buffer;
 }
 
 // ------------------------------------------------------------------------
-// Tests cases for the header file.
+// Tests cases for the free functions.
 // ------------------------------------------------------------------------
 
-HEADER_TC(include, "atf-c++/utils.hpp");
+ATF_TEST_CASE_WITHOUT_HEAD(cat_file__empty);
+ATF_TEST_CASE_BODY(cat_file__empty)
+{
+    atf::utils::create_file("file.txt", "");
+    atf::utils::redirect(STDOUT_FILENO, "captured.txt");
+    atf::utils::cat_file("file.txt", "PREFIX");
+    std::cout.flush();
+    close(STDOUT_FILENO);
+
+    ATF_REQUIRE_EQ("", read_file("captured.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(cat_file__one_line);
+ATF_TEST_CASE_BODY(cat_file__one_line)
+{
+    atf::utils::create_file("file.txt", "This is a single line\n");
+    atf::utils::redirect(STDOUT_FILENO, "captured.txt");
+    atf::utils::cat_file("file.txt", "PREFIX");
+    std::cout.flush();
+    close(STDOUT_FILENO);
+
+    ATF_REQUIRE_EQ("PREFIXThis is a single line\n", read_file("captured.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(cat_file__several_lines);
+ATF_TEST_CASE_BODY(cat_file__several_lines)
+{
+    atf::utils::create_file("file.txt", "First\nSecond line\nAnd third\n");
+    atf::utils::redirect(STDOUT_FILENO, "captured.txt");
+    atf::utils::cat_file("file.txt", ">");
+    std::cout.flush();
+    close(STDOUT_FILENO);
+
+    ATF_REQUIRE_EQ(">First\n>Second line\n>And third\n",
+                   read_file("captured.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(cat_file__no_newline_eof);
+ATF_TEST_CASE_BODY(cat_file__no_newline_eof)
+{
+    atf::utils::create_file("file.txt", "Foo\n bar baz");
+    atf::utils::redirect(STDOUT_FILENO, "captured.txt");
+    atf::utils::cat_file("file.txt", "PREFIX");
+    std::cout.flush();
+    close(STDOUT_FILENO);
+
+    ATF_REQUIRE_EQ("PREFIXFoo\nPREFIX bar baz", read_file("captured.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(compare_file__empty__match);
+ATF_TEST_CASE_BODY(compare_file__empty__match)
+{
+    atf::utils::create_file("test.txt", "");
+    ATF_REQUIRE(atf::utils::compare_file("test.txt", ""));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(compare_file__empty__not_match);
+ATF_TEST_CASE_BODY(compare_file__empty__not_match)
+{
+    atf::utils::create_file("test.txt", "");
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "\n"));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "foo"));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", " "));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(compare_file__short__match);
+ATF_TEST_CASE_BODY(compare_file__short__match)
+{
+    atf::utils::create_file("test.txt", "this is a short file");
+    ATF_REQUIRE(atf::utils::compare_file("test.txt", "this is a short file"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(compare_file__short__not_match);
+ATF_TEST_CASE_BODY(compare_file__short__not_match)
+{
+    atf::utils::create_file("test.txt", "this is a short file");
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", ""));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "\n"));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "this is a Short file"));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "this is a short fil"));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "this is a short file "));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(compare_file__long__match);
+ATF_TEST_CASE_BODY(compare_file__long__match)
+{
+    char long_contents[3456];
+    size_t i = 0;
+    for (; i < sizeof(long_contents) - 1; i++)
+        long_contents[i] = '0' + (i % 10);
+    long_contents[i] = '\0';
+    atf::utils::create_file("test.txt", long_contents);
+
+    ATF_REQUIRE(atf::utils::compare_file("test.txt", long_contents));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(compare_file__long__not_match);
+ATF_TEST_CASE_BODY(compare_file__long__not_match)
+{
+    char long_contents[3456];
+    size_t i = 0;
+    for (; i < sizeof(long_contents) - 1; i++)
+        long_contents[i] = '0' + (i % 10);
+    long_contents[i] = '\0';
+    atf::utils::create_file("test.txt", long_contents);
+
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", ""));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "\n"));
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", "0123456789"));
+    long_contents[i - 1] = 'Z';
+    ATF_REQUIRE(!atf::utils::compare_file("test.txt", long_contents));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(copy_file__empty);
+ATF_TEST_CASE_BODY(copy_file__empty)
+{
+    atf::utils::create_file("src.txt", "");
+    ATF_REQUIRE(chmod("src.txt", 0520) != -1);
+
+    atf::utils::copy_file("src.txt", "dest.txt");
+    ATF_REQUIRE(atf::utils::compare_file("dest.txt", ""));
+    struct stat sb;
+    ATF_REQUIRE(stat("dest.txt", &sb) != -1);
+    ATF_REQUIRE_EQ(0520, sb.st_mode & 0xfff);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(copy_file__some_contents);
+ATF_TEST_CASE_BODY(copy_file__some_contents)
+{
+    atf::utils::create_file("src.txt", "This is a\ntest file\n");
+    atf::utils::copy_file("src.txt", "dest.txt");
+    ATF_REQUIRE(atf::utils::compare_file("dest.txt", "This is a\ntest file\n"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(create_file);
+ATF_TEST_CASE_BODY(create_file)
+{
+    atf::utils::create_file("test.txt", "This is a %d test");
+
+    ATF_REQUIRE_EQ("This is a %d test", read_file("test.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(file_exists);
+ATF_TEST_CASE_BODY(file_exists)
+{
+    atf::utils::create_file("test.txt", "foo");
+
+    ATF_REQUIRE( atf::utils::file_exists("test.txt"));
+    ATF_REQUIRE( atf::utils::file_exists("./test.txt"));
+    ATF_REQUIRE(!atf::utils::file_exists("./test.tx"));
+    ATF_REQUIRE(!atf::utils::file_exists("test.txt2"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(fork);
+ATF_TEST_CASE_BODY(fork)
+{
+    std::cout << "Should not get into child\n";
+    std::cerr << "Should not get into child\n";
+    pid_t pid = atf::utils::fork();
+    if (pid == 0) {
+        std::cout << "Child stdout\n";
+        std::cerr << "Child stderr\n";
+        exit(EXIT_SUCCESS);
+    }
+
+    int status;
+    ATF_REQUIRE(waitpid(pid, &status, 0) != -1);
+    ATF_REQUIRE(WIFEXITED(status));
+    ATF_REQUIRE_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
+
+    std::ostringstream out_name;
+    out_name << "atf_utils_fork_" << pid << "_out.txt";
+    std::ostringstream err_name;
+    err_name << "atf_utils_fork_" << pid << "_err.txt";
+
+    ATF_REQUIRE_EQ("Child stdout\n", read_file(out_name.str()));
+    ATF_REQUIRE_EQ("Child stderr\n", read_file(err_name.str()));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(grep_collection__set);
+ATF_TEST_CASE_BODY(grep_collection__set)
+{
+    std::set< std::string > strings;
+    strings.insert("First");
+    strings.insert("Second");
+
+    ATF_REQUIRE( atf::utils::grep_collection("irs", strings));
+    ATF_REQUIRE( atf::utils::grep_collection("cond", strings));
+    ATF_REQUIRE(!atf::utils::grep_collection("Third", strings));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(grep_collection__vector);
+ATF_TEST_CASE_BODY(grep_collection__vector)
+{
+    std::vector< std::string > strings;
+    strings.push_back("First");
+    strings.push_back("Second");
+
+    ATF_REQUIRE( atf::utils::grep_collection("irs", strings));
+    ATF_REQUIRE( atf::utils::grep_collection("cond", strings));
+    ATF_REQUIRE(!atf::utils::grep_collection("Third", strings));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(grep_file);
+ATF_TEST_CASE_BODY(grep_file)
+{
+    atf::utils::create_file("test.txt", "line1\nthe second line\naaaabbbb\n");
+
+    ATF_REQUIRE(atf::utils::grep_file("line1", "test.txt"));
+    ATF_REQUIRE(atf::utils::grep_file("second line", "test.txt"));
+    ATF_REQUIRE(atf::utils::grep_file("aa.*bb", "test.txt"));
+    ATF_REQUIRE(!atf::utils::grep_file("foo", "test.txt"));
+    ATF_REQUIRE(!atf::utils::grep_file("bar", "test.txt"));
+    ATF_REQUIRE(!atf::utils::grep_file("aaaaa", "test.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(grep_string);
+ATF_TEST_CASE_BODY(grep_string)
+{
+    const char *str = "a string - aaaabbbb";
+    ATF_REQUIRE(atf::utils::grep_string("a string", str));
+    ATF_REQUIRE(atf::utils::grep_string("^a string", str));
+    ATF_REQUIRE(atf::utils::grep_string("aaaabbbb$", str));
+    ATF_REQUIRE(atf::utils::grep_string("aa.*bb", str));
+    ATF_REQUIRE(!atf::utils::grep_string("foo", str));
+    ATF_REQUIRE(!atf::utils::grep_string("bar", str));
+    ATF_REQUIRE(!atf::utils::grep_string("aaaaa", str));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(redirect__stdout);
+ATF_TEST_CASE_BODY(redirect__stdout)
+{
+    std::cout << "Buffer this";
+    atf::utils::redirect(STDOUT_FILENO, "captured.txt");
+    std::cout << "The printed message";
+    std::cout.flush();
+
+    ATF_REQUIRE_EQ("The printed message", read_file("captured.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(redirect__stderr);
+ATF_TEST_CASE_BODY(redirect__stderr)
+{
+    std::cerr << "Buffer this";
+    atf::utils::redirect(STDERR_FILENO, "captured.txt");
+    std::cerr << "The printed message";
+    std::cerr.flush();
+
+    ATF_REQUIRE_EQ("The printed message", read_file("captured.txt"));
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(redirect__other);
+ATF_TEST_CASE_BODY(redirect__other)
+{
+    const std::string message = "Foo bar\nbaz\n";
+    atf::utils::redirect(15, "captured.txt");
+    ATF_REQUIRE(write(15, message.c_str(), message.length()) != -1);
+    close(15);
+
+    ATF_REQUIRE_EQ(message, read_file("captured.txt"));
+}
+
+static void
+fork_and_wait(const int exitstatus, const char* expout, const char* experr)
+{
+    const pid_t pid = atf::utils::fork();
+    if (pid == 0) {
+        std::cout << "Some output\n";
+        std::cerr << "Some error\n";
+        exit(123);
+    }
+    atf::utils::wait(pid, exitstatus, expout, experr);
+    exit(EXIT_SUCCESS);
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__ok);
+ATF_TEST_CASE_BODY(wait__ok)
+{
+    const pid_t control = fork();
+    ATF_REQUIRE(control != -1);
+    if (control == 0)
+        fork_and_wait(123, "Some output\n", "Some error\n");
+    else {
+        int status;
+        ATF_REQUIRE(waitpid(control, &status, 0) != -1);
+        ATF_REQUIRE(WIFEXITED(status));
+        ATF_REQUIRE_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
+    }
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__ok_nested);
+ATF_TEST_CASE_BODY(wait__ok_nested)
+{
+    const pid_t parent = atf::utils::fork();
+    ATF_REQUIRE(parent != -1);
+    if (parent == 0) {
+        const pid_t child = atf::utils::fork();
+        ATF_REQUIRE(child != -1);
+        if (child == 0) {
+            std::cerr.flush();
+            std::cout << "Child output\n";
+            std::cout.flush();
+            std::cerr << "Child error\n";
+            std::exit(50);
+        } else {
+            std::cout << "Parent output\n";
+            std::cerr << "Parent error\n";
+            atf::utils::wait(child, 50, "Child output\n", "Child error\n");
+            std::exit(40);
+        }
+    } else {
+        atf::utils::wait(parent, 40,
+                         "Parent output\n"
+                         "subprocess stdout: Child output\n"
+                         "subprocess stderr: Child error\n",
+                         "Parent error\n");
+    }
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__invalid_exitstatus);
+ATF_TEST_CASE_BODY(wait__invalid_exitstatus)
+{
+    const pid_t control = fork();
+    ATF_REQUIRE(control != -1);
+    if (control == 0)
+        fork_and_wait(120, "Some output\n", "Some error\n");
+    else {
+        int status;
+        ATF_REQUIRE(waitpid(control, &status, 0) != -1);
+        ATF_REQUIRE(WIFEXITED(status));
+        ATF_REQUIRE_EQ(EXIT_FAILURE, WEXITSTATUS(status));
+    }
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__invalid_stdout);
+ATF_TEST_CASE_BODY(wait__invalid_stdout)
+{
+    const pid_t control = fork();
+    ATF_REQUIRE(control != -1);
+    if (control == 0)
+        fork_and_wait(123, "Some output foo\n", "Some error\n");
+    else {
+        int status;
+        ATF_REQUIRE(waitpid(control, &status, 0) != -1);
+        ATF_REQUIRE(WIFEXITED(status));
+        ATF_REQUIRE_EQ(EXIT_FAILURE, WEXITSTATUS(status));
+    }
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__invalid_stderr);
+ATF_TEST_CASE_BODY(wait__invalid_stderr)
+{
+    const pid_t control = fork();
+    ATF_REQUIRE(control != -1);
+    if (control == 0)
+        fork_and_wait(123, "Some output\n", "Some error foo\n");
+    else {
+        int status;
+        ATF_REQUIRE(waitpid(control, &status, 0) != -1);
+        ATF_REQUIRE(WIFEXITED(status));
+        ATF_REQUIRE_EQ(EXIT_FAILURE, WEXITSTATUS(status));
+    }
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__save_stdout);
+ATF_TEST_CASE_BODY(wait__save_stdout)
+{
+    const pid_t control = fork();
+    ATF_REQUIRE(control != -1);
+    if (control == 0)
+        fork_and_wait(123, "save:my-output.txt", "Some error\n");
+    else {
+        int status;
+        ATF_REQUIRE(waitpid(control, &status, 0) != -1);
+        ATF_REQUIRE(WIFEXITED(status));
+        ATF_REQUIRE_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
+
+        ATF_REQUIRE(atf::utils::compare_file("my-output.txt", "Some output\n"));
+    }
+}
+
+ATF_TEST_CASE_WITHOUT_HEAD(wait__save_stderr);
+ATF_TEST_CASE_BODY(wait__save_stderr)
+{
+    const pid_t control = fork();
+    ATF_REQUIRE(control != -1);
+    if (control == 0)
+        fork_and_wait(123, "Some output\n", "save:my-output.txt");
+    else {
+        int status;
+        ATF_REQUIRE(waitpid(control, &status, 0) != -1);
+        ATF_REQUIRE(WIFEXITED(status));
+        ATF_REQUIRE_EQ(EXIT_SUCCESS, WEXITSTATUS(status));
+
+        ATF_REQUIRE(atf::utils::compare_file("my-output.txt", "Some error\n"));
+    }
+}
 
 // ------------------------------------------------------------------------
 // Main.
@@ -294,17 +468,42 @@ HEADER_TC(include, "atf-c++/utils.hpp");
 
 ATF_INIT_TEST_CASES(tcs)
 {
-    // Add the test for the "auto_array" class.
-    ATF_ADD_TEST_CASE(tcs, auto_array_scope);
-    ATF_ADD_TEST_CASE(tcs, auto_array_copy);
-    ATF_ADD_TEST_CASE(tcs, auto_array_copy_ref);
-    ATF_ADD_TEST_CASE(tcs, auto_array_get);
-    ATF_ADD_TEST_CASE(tcs, auto_array_release);
-    ATF_ADD_TEST_CASE(tcs, auto_array_reset);
-    ATF_ADD_TEST_CASE(tcs, auto_array_assign);
-    ATF_ADD_TEST_CASE(tcs, auto_array_assign_ref);
-    ATF_ADD_TEST_CASE(tcs, auto_array_access);
+    // Add the test for the free functions.
+    ATF_ADD_TEST_CASE(tcs, cat_file__empty);
+    ATF_ADD_TEST_CASE(tcs, cat_file__one_line);
+    ATF_ADD_TEST_CASE(tcs, cat_file__several_lines);
+    ATF_ADD_TEST_CASE(tcs, cat_file__no_newline_eof);
 
-    // Add the test cases for the header file.
-    ATF_ADD_TEST_CASE(tcs, include);
+    ATF_ADD_TEST_CASE(tcs, compare_file__empty__match);
+    ATF_ADD_TEST_CASE(tcs, compare_file__empty__not_match);
+    ATF_ADD_TEST_CASE(tcs, compare_file__short__match);
+    ATF_ADD_TEST_CASE(tcs, compare_file__short__not_match);
+    ATF_ADD_TEST_CASE(tcs, compare_file__long__match);
+    ATF_ADD_TEST_CASE(tcs, compare_file__long__not_match);
+
+    ATF_ADD_TEST_CASE(tcs, copy_file__empty);
+    ATF_ADD_TEST_CASE(tcs, copy_file__some_contents);
+
+    ATF_ADD_TEST_CASE(tcs, create_file);
+
+    ATF_ADD_TEST_CASE(tcs, file_exists);
+
+    ATF_ADD_TEST_CASE(tcs, fork);
+
+    ATF_ADD_TEST_CASE(tcs, grep_collection__set);
+    ATF_ADD_TEST_CASE(tcs, grep_collection__vector);
+    ATF_ADD_TEST_CASE(tcs, grep_file);
+    ATF_ADD_TEST_CASE(tcs, grep_string);
+
+    ATF_ADD_TEST_CASE(tcs, redirect__stdout);
+    ATF_ADD_TEST_CASE(tcs, redirect__stderr);
+    ATF_ADD_TEST_CASE(tcs, redirect__other);
+
+    ATF_ADD_TEST_CASE(tcs, wait__ok);
+    ATF_ADD_TEST_CASE(tcs, wait__ok_nested);
+    ATF_ADD_TEST_CASE(tcs, wait__invalid_exitstatus);
+    ATF_ADD_TEST_CASE(tcs, wait__invalid_stdout);
+    ATF_ADD_TEST_CASE(tcs, wait__invalid_stderr);
+    ATF_ADD_TEST_CASE(tcs, wait__save_stdout);
+    ATF_ADD_TEST_CASE(tcs, wait__save_stderr);
 }

@@ -24,6 +24,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#ifndef MIN
+#define MIN(a, b) (((a) <= (b)) ? (a) : (b))
+#endif
+
 /*
  * Structure to hold request procedure information
  */
@@ -893,6 +897,7 @@ ctl_putdata(
 	)
 {
 	int overhead;
+	unsigned int currentlen;
 
 	overhead = 0;
 	if (!bin) {
@@ -916,12 +921,22 @@ ctl_putdata(
 	/*
 	 * Save room for trailing junk
 	 */
-	if (dlen + overhead + datapt > dataend) {
+	while (dlen + overhead + datapt > dataend) {
 		/*
 		 * Not enough room in this one, flush it out.
 		 */
+		currentlen = MIN(dlen, dataend - datapt);
+
+		memcpy(datapt, dp, currentlen);
+
+		datapt += currentlen;
+		dp += currentlen;
+		dlen -= currentlen;
+		datalinelen += currentlen;
+
 		ctl_flushpkt(CTL_MORE);
 	}
+
 	memmove((char *)datapt, dp, (unsigned)dlen);
 	datapt += dlen;
 	datalinelen += dlen;

@@ -14,19 +14,28 @@
 
 #include "llvm-c/Target.h"
 #include "llvm-c/Initialization.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Value.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/PassManager.h"
-#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
-#include "llvm/LLVMContext.h"
 #include <cstring>
 
 using namespace llvm;
 
+inline TargetLibraryInfo *unwrap(LLVMTargetLibraryInfoRef P) {
+  return reinterpret_cast<TargetLibraryInfo*>(P);
+}
+
+inline LLVMTargetLibraryInfoRef wrap(const TargetLibraryInfo *P) {
+  TargetLibraryInfo *X = const_cast<TargetLibraryInfo*>(P);
+  return reinterpret_cast<LLVMTargetLibraryInfoRef>(X);
+}
+
 void llvm::initializeTarget(PassRegistry &Registry) {
-  initializeDataLayoutPass(Registry);
+  initializeDataLayoutPassPass(Registry);
   initializeTargetLibraryInfoPass(Registry);
-  initializeTargetTransformInfoPass(Registry);
 }
 
 void LLVMInitializeTarget(LLVMPassRegistryRef R) {
@@ -38,7 +47,9 @@ LLVMTargetDataRef LLVMCreateTargetData(const char *StringRep) {
 }
 
 void LLVMAddTargetData(LLVMTargetDataRef TD, LLVMPassManagerRef PM) {
-  unwrap(PM)->add(new DataLayout(*unwrap(TD)));
+  // The DataLayoutPass must now be in sync with the module. Unfortunatelly we
+  // cannot enforce that from the C api.
+  unwrap(PM)->add(new DataLayoutPass());
 }
 
 void LLVMAddTargetLibraryInfo(LLVMTargetLibraryInfoRef TLI,
@@ -71,6 +82,14 @@ LLVMTypeRef LLVMIntPtrTypeForAS(LLVMTargetDataRef TD, unsigned AS) {
   return wrap(unwrap(TD)->getIntPtrType(getGlobalContext(), AS));
 }
 
+LLVMTypeRef LLVMIntPtrTypeInContext(LLVMContextRef C, LLVMTargetDataRef TD) {
+  return wrap(unwrap(TD)->getIntPtrType(*unwrap(C)));
+}
+
+LLVMTypeRef LLVMIntPtrTypeForASInContext(LLVMContextRef C, LLVMTargetDataRef TD, unsigned AS) {
+  return wrap(unwrap(TD)->getIntPtrType(*unwrap(C), AS));
+}
+
 unsigned long long LLVMSizeOfTypeInBits(LLVMTargetDataRef TD, LLVMTypeRef Ty) {
   return unwrap(TD)->getTypeSizeInBits(unwrap(Ty));
 }
@@ -88,7 +107,7 @@ unsigned LLVMABIAlignmentOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty) {
 }
 
 unsigned LLVMCallFrameAlignmentOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty) {
-  return unwrap(TD)->getCallFrameTypeAlignment(unwrap(Ty));
+  return unwrap(TD)->getABITypeAlignment(unwrap(Ty));
 }
 
 unsigned LLVMPreferredAlignmentOfType(LLVMTargetDataRef TD, LLVMTypeRef Ty) {

@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_SUPPORT_TIMEVALUE_H
+#define LLVM_SUPPORT_TIMEVALUE_H
+
 #include "llvm/Support/DataTypes.h"
 #include <string>
-
-#ifndef LLVM_SYSTEM_TIMEVALUE_H
-#define LLVM_SYSTEM_TIMEVALUE_H
 
 namespace llvm {
 namespace sys {
@@ -38,28 +38,38 @@ namespace sys {
     /// value permissible by the class. MinTime is some point
     /// in the distant past, about 300 billion years BCE.
     /// @brief The smallest possible time value.
-    static const TimeValue MinTime;
+    static TimeValue MinTime() {
+      return TimeValue ( INT64_MIN,0 );
+    }
 
     /// A constant TimeValue representing the largest time
     /// value permissible by the class. MaxTime is some point
     /// in the distant future, about 300 billion years AD.
     /// @brief The largest possible time value.
-    static const TimeValue MaxTime;
+    static TimeValue MaxTime() {
+      return TimeValue ( INT64_MAX,0 );
+    }
 
     /// A constant TimeValue representing the base time,
     /// or zero time of 00:00:00 (midnight) January 1st, 2000.
     /// @brief 00:00:00 Jan 1, 2000 UTC.
-    static const TimeValue ZeroTime;
+    static TimeValue ZeroTime() {
+      return TimeValue ( 0,0 );
+    }
 
     /// A constant TimeValue for the Posix base time which is
     /// 00:00:00 (midnight) January 1st, 1970.
     /// @brief 00:00:00 Jan 1, 1970 UTC.
-    static const TimeValue PosixZeroTime;
+    static TimeValue PosixZeroTime() {
+      return TimeValue ( PosixZeroTimeSeconds,0 );
+    }
 
     /// A constant TimeValue for the Win32 base time which is
     /// 00:00:00 (midnight) January 1st, 1601.
     /// @brief 00:00:00 Jan 1, 1601 UTC.
-    static const TimeValue Win32ZeroTime;
+    static TimeValue Win32ZeroTime() {
+      return TimeValue ( Win32ZeroTimeSeconds,0 );
+    }
 
   /// @}
   /// @name Types
@@ -74,14 +84,16 @@ namespace sys {
       MILLISECONDS_PER_SECOND = 1000,       ///< One Thousand
       NANOSECONDS_PER_MICROSECOND = 1000,   ///< One Thousand
       NANOSECONDS_PER_MILLISECOND = 1000000,///< One Million
-      NANOSECONDS_PER_POSIX_TICK = 100,     ///< Posix tick is 100 Hz (10ms)
-      NANOSECONDS_PER_WIN32_TICK = 100      ///< Win32 tick is 100 Hz (10ms)
+      NANOSECONDS_PER_WIN32_TICK = 100      ///< Win32 tick is 10^7 Hz (10ns)
     };
 
   /// @}
   /// @name Constructors
   /// @{
   public:
+    /// \brief Default construct a time value, initializing to ZeroTime.
+    TimeValue() : seconds_(0), nanos_(0) {}
+
     /// Caller provides the exact value in seconds and nanoseconds. The
     /// \p nanos argument defaults to zero for convenience.
     /// @brief Explicit constructor
@@ -233,26 +245,18 @@ namespace sys {
              ( nanos_ / NANOSECONDS_PER_MILLISECOND );
     }
 
-    /// Converts the TimeValue into the corresponding number of "ticks" for
-    /// Posix, correcting for the difference in Posix zero time.
-    /// @brief Convert to unix time (100 nanoseconds since 12:00:00a Jan 1,1970)
-    uint64_t toPosixTime() const {
-      uint64_t result = seconds_ - PosixZeroTime.seconds_;
-      result += nanos_ / NANOSECONDS_PER_POSIX_TICK;
-      return result;
-    }
-
     /// Converts the TimeValue into the corresponding number of seconds
     /// since the epoch (00:00:00 Jan 1,1970).
     uint64_t toEpochTime() const {
-      return seconds_ - PosixZeroTime.seconds_;
+      return seconds_ - PosixZeroTimeSeconds;
     }
 
     /// Converts the TimeValue into the corresponding number of "ticks" for
     /// Win32 platforms, correcting for the difference in Win32 zero time.
-    /// @brief Convert to windows time (seconds since 12:00:00a Jan 1, 1601)
+    /// @brief Convert to Win32's FILETIME
+    /// (100ns intervals since 00:00:00 Jan 1, 1601 UTC)
     uint64_t toWin32Time() const {
-      uint64_t result = seconds_ - Win32ZeroTime.seconds_;
+      uint64_t result = (uint64_t)10000000 * (seconds_ - Win32ZeroTimeSeconds);
       result += nanos_ / NANOSECONDS_PER_WIN32_TICK;
       return result;
     }
@@ -261,7 +265,7 @@ namespace sys {
     /// correction for the Posix zero time.
     /// @brief Convert to timespec time (ala POSIX.1b)
     void getTimespecTime( uint64_t& seconds, uint32_t& nanos ) const {
-      seconds = seconds_ - PosixZeroTime.seconds_;
+      seconds = seconds_ - PosixZeroTimeSeconds;
       nanos = nanos_;
     }
 
@@ -328,7 +332,7 @@ namespace sys {
     /// TimeValue and assigns that value to \p this.
     /// @brief Convert seconds form PosixTime to TimeValue
     void fromEpochTime( SecondsType seconds ) {
-      seconds_ = seconds + PosixZeroTime.seconds_;
+      seconds_ = seconds + PosixZeroTimeSeconds;
       nanos_ = 0;
       this->normalize();
     }
@@ -337,7 +341,7 @@ namespace sys {
     /// corresponding TimeValue and assigns that value to \p this.
     /// @brief Convert seconds form Windows FILETIME to TimeValue
     void fromWin32Time( uint64_t win32Time ) {
-      this->seconds_ = win32Time / 10000000 + Win32ZeroTime.seconds_;
+      this->seconds_ = win32Time / 10000000 + Win32ZeroTimeSeconds;
       this->nanos_ = NanoSecondsType(win32Time  % 10000000) * 100;
     }
 
@@ -357,6 +361,9 @@ namespace sys {
     /// Store the values as a <timeval>.
     SecondsType      seconds_;///< Stores the seconds part of the TimeVal
     NanoSecondsType  nanos_;  ///< Stores the nanoseconds part of the TimeVal
+
+    static const SecondsType PosixZeroTimeSeconds;
+    static const SecondsType Win32ZeroTimeSeconds;
   /// @}
 
   };

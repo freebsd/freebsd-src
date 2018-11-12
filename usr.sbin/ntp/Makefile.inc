@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 DEFS_LOCAL= -DPARSE -DHAVE_CONFIG_H
 NTPDEFS=   -DSYS_FREEBSD
@@ -13,10 +13,6 @@ CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${CLOCKDEFS}
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 CFLAGS+= -DOPENSSL
 .endif
-
-LIBOPTS=	${.OBJDIR}/../libopts/libopts.a
-LIBPARSE=	${.OBJDIR}/../libparse/libparse.a
-LIBNTP=	${.OBJDIR}/../libntp/libntp.a
 
 WARNS?=	0
 

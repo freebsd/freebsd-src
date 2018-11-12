@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_llc.h>
@@ -82,9 +83,8 @@ static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
 
 #ifdef BWN_DEBUG
 static	int bwn_debug = 0;
-SYSCTL_INT(_hw_bwn, OID_AUTO, debug, CTLFLAG_RW, &bwn_debug, 0,
+SYSCTL_INT(_hw_bwn, OID_AUTO, debug, CTLFLAG_RWTUN, &bwn_debug, 0,
     "Broadcom debugging printfs");
-TUNABLE_INT("hw.bwn.debug", &bwn_debug);
 enum {
 	BWN_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	BWN_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
@@ -1311,17 +1311,17 @@ bwn_start_locked(struct ifnet *ifp)
 		if (ni == NULL) {
 			device_printf(sc->sc_dev, "unexpected NULL ni\n");
 			m_freem(m);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 		KASSERT(ni != NULL, ("%s:%d: fail", __func__, __LINE__));
 		wh = mtod(m, struct ieee80211_frame *);
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			k = ieee80211_crypto_encap(ni, m);
 			if (k == NULL) {
 				ieee80211_free_node(ni);
 				m_freem(m);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 		}
@@ -1330,7 +1330,7 @@ bwn_start_locked(struct ifnet *ifp)
 		if (bwn_tx_start(sc, ni, m) != 0) {
 			if (ni != NULL)
 				ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 
@@ -1587,7 +1587,7 @@ bwn_watchdog(void *arg)
 
 	if (sc->sc_watchdog_timer != 0 && --sc->sc_watchdog_timer == 0) {
 		if_printf(ifp, "device timeout\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 	callout_schedule(&sc->sc_watchdog_ch, hz);
 }
@@ -2748,7 +2748,7 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (bwn_tx_isfull(sc, m)) {
 		ieee80211_free_node(ni);
 		m_freem(m);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		BWN_UNLOCK(sc);
 		return (ENOBUFS);
 	}
@@ -2756,7 +2756,7 @@ bwn_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	if (bwn_tx_start(sc, ni, m) != 0) {
 		if (ni != NULL)
 			ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 	sc->sc_watchdog_timer = 5;
 	BWN_UNLOCK(sc);
@@ -8929,14 +8929,14 @@ bwn_dma_rxeof(struct bwn_dma_ring *dr, int *slot)
 	m = meta->mt_m;
 
 	if (bwn_dma_newbuf(dr, desc, meta, 0)) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
 	rxhdr = mtod(m, struct bwn_rxhdr4 *);
 	len = le16toh(rxhdr->frame_len);
 	if (len <= 0) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	if (bwn_dma_check_redzone(dr, m)) {
@@ -9242,7 +9242,7 @@ back:
 	/*
 	 * Setup RX buf descriptor
 	 */
-	dr->setdesc(dr, desc, paddr, meta->mt_m->m_len -
+	dr->setdesc(dr, desc, meta->mt_paddr, meta->mt_m->m_len -
 	    sizeof(*hdr), 0, 0, 0);
 	return (error);
 }
@@ -9366,7 +9366,7 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 	rssi = rxhdr->phy.abg.rssi;	/* XXX incorrect RSSI calculation? */
 	noise = mac->mac_stats.link_noise;
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	BWN_UNLOCK(sc);
 
@@ -9441,7 +9441,7 @@ bwn_dma_handle_txeof(struct bwn_mac *mac,
 
 		dr->dr_usedslot--;
 		if (meta->mt_islast) {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			break;
 		}
 		slot = bwn_dma_nextslot(dr, slot);
@@ -9487,7 +9487,7 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 	tp->tp_m = NULL;
 	TAILQ_INSERT_TAIL(&tq->tq_pktlist, tp, tp_list);
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	sc->sc_watchdog_timer = 0;
 	if (tq->tq_stop) {
@@ -9780,7 +9780,7 @@ bwn_set_txhdr(struct bwn_mac *mac, struct ieee80211_node *ni,
 	 */
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (isshort &&
 		    (rate == BWN_CCK_RATE_2MB || rate == BWN_CCK_RATE_5MB ||
@@ -10319,7 +10319,7 @@ bwn_rx_radiotap(struct bwn_mac *mac, struct mbuf *m,
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 
 	wh = mtod(m, const struct ieee80211_frame_min *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
 
 	bwn_tsf_read(mac, &tsf);
@@ -10381,7 +10381,7 @@ bwn_dma_attach(struct bwn_mac *mac)
 			       lowaddr,			/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE,	/* maxsegsize */
 			       0,			/* flags */

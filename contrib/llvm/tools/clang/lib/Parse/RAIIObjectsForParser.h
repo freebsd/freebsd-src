@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PARSE_RAII_OBJECTS_FOR_PARSER_H
-#define LLVM_CLANG_PARSE_RAII_OBJECTS_FOR_PARSER_H
+#ifndef LLVM_CLANG_LIB_PARSE_RAIIOBJECTSFORPARSER_H
+#define LLVM_CLANG_LIB_PARSE_RAIIOBJECTSFORPARSER_H
 
 #include "clang/Parse/ParseDiagnostic.h"
 #include "clang/Parse/Parser.h"
@@ -50,7 +50,7 @@ namespace clang {
   public:
     /// Begin suppressing access-like checks 
     SuppressAccessChecks(Parser &P, bool activate = true)
-        : S(P.getActions()), DiagnosticPool(NULL) {
+        : S(P.getActions()), DiagnosticPool(nullptr) {
       if (activate) {
         State = S.PushParsingDeclaration(DiagnosticPool);
         Active = true;
@@ -61,7 +61,7 @@ namespace clang {
 
     void done() {
       assert(Active && "trying to end an inactive suppression");
-      S.PopParsingDeclaration(State, NULL);
+      S.PopParsingDeclaration(State, nullptr);
       Active = false;
     }
 
@@ -93,7 +93,7 @@ namespace clang {
   public:
     enum NoParent_t { NoParent };
     ParsingDeclRAIIObject(Parser &P, NoParent_t _)
-        : Actions(P.getActions()), DiagnosticPool(NULL) {
+        : Actions(P.getActions()), DiagnosticPool(nullptr) {
       push();
     }
 
@@ -109,7 +109,7 @@ namespace clang {
     /// RAII object (which is assumed to be the current top pool).
     ParsingDeclRAIIObject(Parser &P, ParsingDeclRAIIObject *other)
         : Actions(P.getActions()),
-          DiagnosticPool(other ? other->DiagnosticPool.getParent() : NULL) {
+          DiagnosticPool(other ? other->DiagnosticPool.getParent() : nullptr) {
       if (other) {
         DiagnosticPool.steal(other->DiagnosticPool);
         other->abort();
@@ -137,7 +137,7 @@ namespace clang {
     /// Signals that the context was completed without an appropriate
     /// declaration being parsed.
     void abort() {
-      pop(0);
+      pop(nullptr);
     }
 
     void complete(Decl *D) {
@@ -148,7 +148,7 @@ namespace clang {
     /// Unregister this object from Sema, but remember all the
     /// diagnostics that were emitted into it.
     void abortAndRemember() {
-      pop(0);
+      pop(nullptr);
     }
 
   private:
@@ -358,7 +358,7 @@ namespace clang {
   /// pair, such as braces { ... } or parentheses ( ... ).
   class BalancedDelimiterTracker : public GreaterThanIsOperatorScope {
     Parser& P;
-    tok::TokenKind Kind, Close;
+    tok::TokenKind Kind, Close, FinalToken;
     SourceLocation (Parser::*Consumer)();
     SourceLocation LOpen, LClose;
     
@@ -377,9 +377,10 @@ namespace clang {
     bool diagnoseMissingClose();
     
   public:
-    BalancedDelimiterTracker(Parser& p, tok::TokenKind k)
+    BalancedDelimiterTracker(Parser& p, tok::TokenKind k,
+                             tok::TokenKind FinalToken = tok::semi)
       : GreaterThanIsOperatorScope(p.GreaterThanIsOperator, true),
-        P(p), Kind(k)
+        P(p), Kind(k), FinalToken(FinalToken)
     {
       switch (Kind) {
         default: llvm_unreachable("Unexpected balanced token");
@@ -407,15 +408,15 @@ namespace clang {
       if (!P.Tok.is(Kind))
         return true;
       
-      if (getDepth() < MaxDepth) {
+      if (getDepth() < P.getLangOpts().BracketDepth) {
         LOpen = (P.*Consumer)();
         return false;
       }
       
       return diagnoseOverflow();
     }
-    
-    bool expectAndConsume(unsigned DiagID,
+
+    bool expectAndConsume(unsigned DiagID = diag::err_expected,
                           const char *Msg = "",
                           tok::TokenKind SkipToTok = tok::unknown);
     bool consumeClose() {

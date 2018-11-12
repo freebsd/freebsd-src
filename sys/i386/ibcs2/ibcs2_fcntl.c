@@ -32,7 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -189,7 +189,7 @@ ibcs2_open(td, uap)
 		CHECKALTCREAT(td, uap->path, &path);
 	else
 		CHECKALTEXIST(td, uap->path, &path);
-	ret = kern_open(td, path, UIO_SYSSPACE, flags, uap->mode);
+	ret = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE, flags, uap->mode);
 
 #ifdef SPX_HACK
 	if (ret == ENXIO) {
@@ -201,10 +201,12 @@ ibcs2_open(td, uap)
 	free(path, M_TEMP);
 	PROC_LOCK(p);
 	if (!ret && !noctty && SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
+		cap_rights_t rights;
 		struct file *fp;
 		int error;
 
-		error = fget(td, td->td_retval[0], CAP_IOCTL, &fp);
+		error = fget(td, td->td_retval[0],
+		    cap_rights_init(&rights, CAP_IOCTL), &fp);
 		PROC_UNLOCK(p);
 		if (error)
 			return (EBADF);
@@ -228,8 +230,8 @@ ibcs2_creat(td, uap)
 	int error;
 
 	CHECKALTCREAT(td, uap->path, &path);
-	error = kern_open(td, path, UIO_SYSSPACE, O_WRONLY | O_CREAT | O_TRUNC,
-	    uap->mode);
+	error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    O_WRONLY | O_CREAT | O_TRUNC, uap->mode);
 	free(path, M_TEMP);
 	return (error);
 }       
@@ -243,7 +245,7 @@ ibcs2_access(td, uap)
 	int error;
 
         CHECKALTEXIST(td, uap->path, &path);
-	error = kern_access(td, path, UIO_SYSSPACE, uap->amode);
+	error = kern_accessat(td, AT_FDCWD, path, UIO_SYSSPACE, 0, uap->amode);
 	free(path, M_TEMP);
 	return (error);
 }

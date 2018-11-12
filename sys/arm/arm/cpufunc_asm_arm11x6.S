@@ -62,7 +62,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-	.cpu arm1136js
+	.cpu arm1176jz-s
 
 #if 0
 #define Invalidate_I_cache(Rtmp1, Rtmp2) \
@@ -114,12 +114,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 ENTRY(arm11x6_setttb)
-#ifdef PMAP_CACHE_VIVT
-	Flush_D_cache(r1)
-	Invalidate_I_cache(r1, r2)
-#else
 	mov	r1, #0
-#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
 	mcr	p15, 0, r1, c8, c7, 0	/* invalidate I+D TLBs */
 	mcr	p15, 0, r1, c7, c10, 4	/* drain write buffer */

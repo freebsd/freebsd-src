@@ -23,6 +23,9 @@
  * Copyright 2010 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #include <assert.h>
 #include <strings.h>
@@ -30,19 +33,21 @@
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <libgen.h>
 #include <stddef.h>
+#include <sys/sysmacros.h>
 
 #include <dt_impl.h>
 #include <dt_program.h>
 #include <dt_pid.h>
 #include <dt_string.h>
-#if !defined(sun)
+#ifndef illumos
 #include <libproc_compat.h>
 #endif
+#include <dt_module.h>
 
 typedef struct dt_pid_probe {
 	dtrace_hdl_t *dpp_dtp;
@@ -69,7 +74,7 @@ typedef struct dt_pid_probe {
 static void
 dt_pid_objname(char *buf, size_t len, Lmid_t lmid, const char *obj)
 {
-#if defined(sun)
+#ifdef illumos
 	if (lmid == LM_ID_BASE)
 		(void) strncpy(buf, obj, len);
 	else
@@ -121,7 +126,7 @@ dt_pid_per_sym(dt_pid_probe_t *pp, const GElf_Sym *symp, const char *func)
 	int isdash = strcmp("-", func) == 0;
 	pid_t pid;
 
-#if defined(sun)
+#ifdef illumos
 	pid = Pstatus(pp->dpp_pr)->pr_pid;
 #else
 	pid = proc_getpid(pp->dpp_pr);
@@ -265,7 +270,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 	if (obj == NULL)
 		return (0);
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
 #endif
 	
@@ -274,7 +279,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 		pp->dpp_obj = obj;
 	else
 		pp->dpp_obj++;
-#if defined(sun)
+#ifdef illumos
 	if (Pxlookup_by_name(pp->dpp_pr, pp->dpp_lmid, obj, ".stret1", &sym,
 	    NULL) == 0)
 		pp->dpp_stret[0] = sym.st_value;
@@ -332,7 +337,7 @@ dt_pid_per_mod(void *arg, const prmap_t *pmp, const char *obj)
 				    GELF_ST_INFO(STB_LOCAL, STT_FUNC);
 				sym.st_other = 0;
 				sym.st_value = 0;
-#if defined(sun)
+#ifdef illumos
 				sym.st_size = Pstatus(pp->dpp_pr)->pr_dmodel ==
 				    PR_MODEL_ILP32 ? -1U : -1ULL;
 #else
@@ -399,7 +404,7 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	if (gmatch(obj, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
 #else
 	pp->dpp_lmid = 0;
@@ -413,7 +418,7 @@ dt_pid_mod_filt(void *arg, const prmap_t *pmp, const char *obj)
 	if (gmatch(pp->dpp_obj, pp->dpp_mod))
 		return (dt_pid_per_mod(pp, pmp, obj));
 
-#if defined(sun)
+#ifdef illumos
 	(void) Plmid(pp->dpp_pr, pmp->pr_vaddr, &pp->dpp_lmid);
 #endif
 
@@ -429,15 +434,10 @@ static const prmap_t *
 dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 {
 	char m[MAXPATHLEN];
-#if defined(sun)
 	Lmid_t lmid = PR_LMID_EVERY;
-#else
-	Lmid_t lmid = 0;
-#endif
 	const char *obj;
 	const prmap_t *pmp;
 
-#if defined(sun)
 	/*
 	 * Pick apart the link map from the library name.
 	 */
@@ -458,20 +458,17 @@ dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 	} else {
 		obj = pdp->dtpd_mod;
 	}
-#else
-	obj = pdp->dtpd_mod;
-#endif
 
 	if ((pmp = Plmid_to_map(P, lmid, obj)) == NULL)
 		return (NULL);
 
-#if defined(sun)
 	(void) Pobjname(P, pmp->pr_vaddr, m, sizeof (m));
 	if ((obj = strrchr(m, '/')) == NULL)
 		obj = &m[0];
 	else
 		obj++;
 
+#ifdef illumos
 	(void) Plmid(P, pmp->pr_vaddr, &lmid);
 #endif
 
@@ -566,9 +563,7 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 {
 	struct ps_prochandle *P = data;
 	GElf_Sym sym;
-#if defined(sun)
 	prsyminfo_t sip;
-#endif
 	dof_helper_t dh;
 	GElf_Half e_type;
 	const char *mname;
@@ -604,13 +599,13 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 		dh.dofhp_addr = (e_type == ET_EXEC) ? 0 : pmp->pr_vaddr;
 
 		dt_pid_objname(dh.dofhp_mod, sizeof (dh.dofhp_mod),
-#if defined(sun)
+#ifdef illumos
 		    sip.prs_lmid, mname);
 #else
 		    0, mname);
 #endif
 
-#if defined(sun)
+#ifdef illumos
 		if (fd == -1 &&
 		    (fd = pr_open(P, "/dev/dtrace/helper", O_RDWR, 0)) < 0) {
 			dt_dprintf("pr_open of helper device failed: %s\n",
@@ -623,7 +618,7 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 #endif
 	}
 
-#if defined(sun)
+#ifdef illumos
 	if (fd != -1)
 		(void) pr_close(P, fd);
 #endif
@@ -639,13 +634,13 @@ dt_pid_create_usdt_probes(dtrace_probedesc_t *pdp, dtrace_hdl_t *dtp,
 	int ret = 0;
 
 	assert(DT_MUTEX_HELD(&dpr->dpr_lock));
-#if defined(sun)
+#ifdef illumos
 	(void) Pupdate_maps(P);
 	if (Pobject_iter(P, dt_pid_usdt_mapping, P) != 0) {
 		ret = -1;
 		(void) dt_pid_error(dtp, pcb, dpr, NULL, D_PROC_USDT,
 		    "failed to instantiate probes for pid %d: %s",
-#if defined(sun)
+#ifdef illumos
 		    (int)Pstatus(P)->pr_pid, strerror(errno));
 #else
 		    (int)proc_getpid(P), strerror(errno));
@@ -826,4 +821,163 @@ dt_pid_create_probes_module(dtrace_hdl_t *dtp, dt_proc_t *dpr)
 	}
 
 	return (ret);
+}
+
+/*
+ * libdtrace has a backroom deal with us to ask us for type information on
+ * behalf of pid provider probes when fasttrap doesn't return any type
+ * information. Instead we'll look up the module and see if there is type
+ * information available. However, if there is no type information available due
+ * to a lack of CTF data, then we want to make sure that DTrace still carries on
+ * in face of that. As such we don't have a meaningful exit code about failure.
+ * We emit information about why we failed to the dtrace debug log so someone
+ * can figure it out by asking nicely for DTRACE_DEBUG.
+ */
+void
+dt_pid_get_types(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp,
+    dtrace_argdesc_t *adp, int *nargs)
+{
+	dt_module_t *dmp;
+	ctf_file_t *fp;
+	ctf_funcinfo_t f;
+	ctf_id_t argv[32];
+	GElf_Sym sym;
+	prsyminfo_t si;
+	struct ps_prochandle *p;
+	int i, args;
+	char buf[DTRACE_ARGTYPELEN];
+	const char *mptr;
+	char *eptr;
+	int ret = 0;
+	int argc = sizeof (argv) / sizeof (ctf_id_t);
+	Lmid_t lmid;
+
+	/* Set up a potential outcome */
+	args = *nargs;
+	*nargs = 0;
+
+	/*
+	 * If we don't have an entry or return probe then we can just stop right
+	 * now as we don't have arguments for offset probes.
+	 */
+	if (strcmp(pdp->dtpd_name, "entry") != 0 &&
+	    strcmp(pdp->dtpd_name, "return") != 0)
+		return;
+
+	dmp = dt_module_create(dtp, pdp->dtpd_provider);
+	if (dmp == NULL) {
+		dt_dprintf("failed to find module for %s\n",
+		    pdp->dtpd_provider);
+		return;
+	}
+	if (dt_module_load(dtp, dmp) != 0) {
+		dt_dprintf("failed to load module for %s\n",
+		    pdp->dtpd_provider);
+		return;
+	}
+
+	/*
+	 * We may be working with a module that doesn't have ctf. If that's the
+	 * case then we just return now and move on with life.
+	 */
+	fp = dt_module_getctflib(dtp, dmp, pdp->dtpd_mod);
+	if (fp == NULL) {
+		dt_dprintf("no ctf container for  %s\n",
+		    pdp->dtpd_mod);
+		return;
+	}
+	p = dt_proc_grab(dtp, dmp->dm_pid, 0, PGRAB_RDONLY | PGRAB_FORCE);
+	if (p == NULL) {
+		dt_dprintf("failed to grab pid\n");
+		return;
+	}
+	dt_proc_lock(dtp, p);
+
+	/*
+	 * Check to see if the D module has a link map ID and separate that out
+	 * for properly interrogating libproc.
+	 */
+	if ((mptr = strchr(pdp->dtpd_mod, '`')) != NULL) {
+		if (strlen(pdp->dtpd_mod) < 3) {
+			dt_dprintf("found weird modname with linkmap, "
+			    "aborting: %s\n", pdp->dtpd_mod);
+			goto out;
+		}
+		if (pdp->dtpd_mod[0] != 'L' || pdp->dtpd_mod[1] != 'M') {
+			dt_dprintf("missing leading 'LM', "
+			    "aborting: %s\n", pdp->dtpd_mod);
+			goto out;
+		}
+		errno = 0;
+		lmid = strtol(pdp->dtpd_mod + 2, &eptr, 16);
+		if (errno == ERANGE || eptr != mptr) {
+			dt_dprintf("failed to parse out lmid, aborting: %s\n",
+			    pdp->dtpd_mod);
+			goto out;
+		}
+		mptr++;
+	} else {
+		mptr = pdp->dtpd_mod;
+		lmid = 0;
+	}
+
+	if (Pxlookup_by_name(p, lmid, mptr, pdp->dtpd_func,
+	    &sym, &si) != 0) {
+		dt_dprintf("failed to find function %s in %s`%s\n",
+		    pdp->dtpd_func, pdp->dtpd_provider, pdp->dtpd_mod);
+		goto out;
+	}
+	if (ctf_func_info(fp, si.prs_id, &f) == CTF_ERR) {
+		dt_dprintf("failed to get ctf information for %s in %s`%s\n",
+		    pdp->dtpd_func, pdp->dtpd_provider, pdp->dtpd_mod);
+		goto out;
+	}
+
+	(void) snprintf(buf, sizeof (buf), "%s`%s", pdp->dtpd_provider,
+	    pdp->dtpd_mod);
+
+	if (strcmp(pdp->dtpd_name, "return") == 0) {
+		if (args < 2)
+			goto out;
+
+		bzero(adp, sizeof (dtrace_argdesc_t));
+		adp->dtargd_ndx = 0;
+		adp->dtargd_id = pdp->dtpd_id;
+		adp->dtargd_mapping = adp->dtargd_ndx;
+		/*
+		 * We explicitly leave out the library here, we only care that
+		 * it is some int. We are assuming that there is no ctf
+		 * container in here that is lying about what an int is.
+		 */
+		(void) snprintf(adp->dtargd_native, DTRACE_ARGTYPELEN,
+		    "user %s`%s", pdp->dtpd_provider, "int");
+		adp++;
+		bzero(adp, sizeof (dtrace_argdesc_t));
+		adp->dtargd_ndx = 1;
+		adp->dtargd_id = pdp->dtpd_id;
+		adp->dtargd_mapping = adp->dtargd_ndx;
+		ret = snprintf(adp->dtargd_native, DTRACE_ARGTYPELEN,
+		    "userland ");
+		(void) ctf_type_qname(fp, f.ctc_return, adp->dtargd_native +
+		    ret, DTRACE_ARGTYPELEN - ret, buf);
+		*nargs = 2;
+	} else {
+		if (ctf_func_args(fp, si.prs_id, argc, argv) == CTF_ERR)
+			goto out;
+
+		*nargs = MIN(args, f.ctc_argc);
+		for (i = 0; i < *nargs; i++, adp++) {
+			bzero(adp, sizeof (dtrace_argdesc_t));
+			adp->dtargd_ndx = i;
+			adp->dtargd_id = pdp->dtpd_id;
+			adp->dtargd_mapping = adp->dtargd_ndx;
+			ret = snprintf(adp->dtargd_native, DTRACE_ARGTYPELEN,
+			    "userland ");
+			(void) ctf_type_qname(fp, argv[i], adp->dtargd_native +
+			    ret, DTRACE_ARGTYPELEN - ret, buf);
+		}
+	}
+out:
+	dt_proc_unlock(dtp, p);
+	dt_proc_release(dtp, p);
 }

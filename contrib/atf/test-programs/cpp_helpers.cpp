@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,6 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
 extern "C" {
 #include <signal.h>
@@ -36,7 +32,7 @@ extern "C" {
 #include <fstream>
 #include <iostream>
 
-#include "atf-c++/macros.hpp"
+#include <atf-c++.hpp>
 
 #include "atf-c++/detail/fs.hpp"
 
@@ -225,27 +221,6 @@ ATF_TEST_CASE_BODY(expect_timeout_but_pass)
 }
 
 // ------------------------------------------------------------------------
-// Helper tests for "t_fork".
-// ------------------------------------------------------------------------
-
-ATF_TEST_CASE(fork_stop);
-ATF_TEST_CASE_HEAD(fork_stop)
-{
-    set_md_var("descr", "Helper test case for the t_fork test program");
-}
-ATF_TEST_CASE_BODY(fork_stop)
-{
-    std::ofstream os(get_config_var("pidfile").c_str());
-    os << ::getpid() << "\n";
-    os.close();
-    std::cout << "Wrote pid file\n";
-    std::cout << "Waiting for done file\n";
-    while (::access(get_config_var("donefile").c_str(), F_OK) != 0)
-        ::usleep(10000);
-    std::cout << "Exiting\n";
-}
-
-// ------------------------------------------------------------------------
 // Helper tests for "t_meta_data".
 // ------------------------------------------------------------------------
 
@@ -362,9 +337,6 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, expect_death_but_pass);
     ATF_ADD_TEST_CASE(tcs, expect_timeout_and_hang);
     ATF_ADD_TEST_CASE(tcs, expect_timeout_but_pass);
-
-    // Add helper tests for t_fork.
-    ATF_ADD_TEST_CASE(tcs, fork_stop);
 
     // Add helper tests for t_meta_data.
     ATF_ADD_TEST_CASE(tcs, metadata_no_descr);

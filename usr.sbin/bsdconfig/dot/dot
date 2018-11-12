@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
-# All Rights Reserved.
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -28,6 +28,11 @@
 #
 ############################################################ INCLUDES
 
+# Prevent common.subr from auto initializing debugging (this is not an inter-
+# active utility so does not require debugging; also `-d' has been repurposed).
+#
+DEBUG_SELF_INITIALIZE=NO
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
@@ -36,13 +41,13 @@ BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="dot"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
 #
-# Locataion of bsdconfig(8)
+# Location of bsdconfig(8)
 #
 BSDCONFIG=/usr/sbin/bsdconfig
 
@@ -89,8 +94,8 @@ print_node()
 	shift 1 # node
 
 	case "$node" in
-	edge) printf '\t\t%s' "$node";;
-	   *) printf '\t\t"%s"' "$node";;
+	edge) printf '\t\t%s' "$node" ;;
+	   *) printf '\t\t"%s"' "$node" ;;
 	esac
 
 	if [ $# -gt 0 ]; then
@@ -150,15 +155,15 @@ end_nodelist()
 #
 while getopts cdhi flag; do
 	case "$flag" in
-	i) SHOW_INCLUDES=;;
-	d) SHOW_GRAPH_LABEL_DATE=;;
-	c) SHOW_CMDLINE=;;
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	i) SHOW_INCLUDES= ;;
+	d) SHOW_GRAPH_LABEL_DATE= ;;
+	c) SHOW_CMDLINE= ;;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
 
-cd $BSDCFG_LIBE || f_die 1 "$msg_directory_not_found" "$BSDCFG_LIB"
+cd $BSDCFG_LIBE || f_die # Pedantic
 
 #
 # Get a list of menu programs
@@ -244,6 +249,7 @@ if [ "$SHOW_INCLUDES" ]; then
 			$menu_program_list \
 			$submenu_program_list \
 			$cmd_program_list \
+			$BSDCFG_SHARE/script.subr \
 		; do
 			[ -e "$file" ] && echo $file
 		done | sort -u
@@ -255,8 +261,7 @@ if [ "$SHOW_INCLUDES" ]; then
 	include_file_list=
 	for file in $file_list; do
 		include_file_list="$include_file_list $(
-			awk -v file="$file" -v item="${file%%/*}" \
-				"$print_includes_awk" $file
+			awk "$print_includes_awk" $file
 		)"
 	done
 
@@ -272,21 +277,26 @@ if [ "$SHOW_INCLUDES" ]; then
 	#
 	# Search previously-discovered include files for further includes
 	#
-	for file in $include_file_list; do
-		include_file_list="$include_file_list $(
-			awk -v file="$file" -v item="${file%%/*}" \
-				"$print_includes_awk" $BSDCFG_SHARE/$file
-		)"
-	done
+	before="$include_file_list"
+	while :; do
+		for file in $include_file_list; do
+			include_file_list="$include_file_list $(
+				awk "$print_includes_awk" $BSDCFG_SHARE/$file
+			)"
+		done
 
-	#
-	# Sort the list of includes and remove duplicate entries [again]
-	#
-	include_file_list=$(
-		for include_file in $include_file_list; do
-			echo "$include_file"
-		done | sort -u
-	)
+		#
+		# Sort list of includes and remove duplicate entries [again]
+		#
+		include_file_list=$(
+			for include_file in $include_file_list; do
+				echo "$include_file"
+			done | sort -u
+		)
+
+		[ "$include_file_list" = "$before" ] && break
+		before="$include_file_list"
+	done
 fi
 
 #
@@ -314,8 +324,8 @@ printf '\tcenter = 1;\t\t// center drawing on page\n'
 #
 # Perform edge-concentration when displaying a lot of information
 #
-# NOTE: This is disabled because dot version 2.28.0 (current) and older have a
-#       bug that causes a crash when rankdir = LR and concentrate = true
+# NOTE: This is disabled because dot(1) version 2.28.0 (current) and older have
+#       a bug that causes a crash when rankdir = LR and concentrate = true
 #
 # NOTE: Do not re-enable until said bug is fixed in some future revision.
 #
@@ -337,7 +347,7 @@ printf '\tnode [\n'
 printf '\t\tfontname = "Times-Roman",\n'
 printf '\t\tfontsize = 12,\n'
 printf '\t\twidth = 2.5, // arbitrary minimum width for all nodes\n'
-printf '\t\tfixedsize,   // turn minimum width into exact width\n'
+printf '\t\tfixedsize = true, // turn minimum width into exact width\n'
 printf '\t];\n'
 
 #
@@ -432,7 +442,8 @@ if [ "$SHOW_INCLUDES" ]; then
 	shape=oval color=black fillcolor=white style=filled edge_color=grey
 	begin_nodelist "$shape" "$color" "$fillcolor" "$style"
 	print_node edge "style = dashed" "color = $edge_color"
-	print_node edge "label = \"\\T\"" "fontsize = 9"
+	#print_node edge "label = \"\\T\"" "fontsize = 9"
+		# NOTE: Edge labels are buggy on large graphs
 	file_list=$(
 		for file in \
 			$BSDCONFIG \
@@ -530,34 +541,36 @@ printf '\t\tbgcolor = "%s";\n' "$bgcolor_bsdconfig"
 printf '\t\tlabel = "bsdconfig(8)";\n'
 printf '\t\ttooltip = "bsdconfig(8)";\n'
 print_node "bsdconfig"
+end_nodelist
 if [ "$SHOW_INCLUDES" ]; then
-	printf '\t\tsubgraph "cluster_includes" {\n'
-	printf '\t\t\tbgcolor = "%s";\n' "$bgcolor_includes"
-	printf '\t\t\tlabel = "%s";\n' "$msg_includes"
-
 	for include_file in $include_file_list; do
 		echo $include_file
-	done | awk -v bgcolor="$bgcolor_bsdconfig" '
-	BEGIN { created = 0 }
-	function end_subgraph() { printf "\t\t\t};\n" }
-	( $0 !~ "/" ) {
-		if ( ! created )
-		{
-			printf "\t\t\tsubgraph \"%s\" {\n",
-			       "cluster_bsdconfig_includes"
-			printf "\t\t\t\tbgcolor = \"%s\";\n", bgcolor
-			printf "\t\t\t\tlabel = \"bsdconfig\";\n"
-			created++
+	done | awk \
+		-v bgcolor="$bgcolor_bsdconfig" \
+		-v msg_subroutines="$msg_subroutines" \
+	'
+		BEGIN { created = 0 }
+		function end_subgraph() { printf "\t};\n" }
+		( $0 !~ "/" ) {
+			if ( ! created )
+			{
+				printf "\tsubgraph \"%s\" {\n",
+				       "cluster_bsdconfig_includes"
+				printf "\t\tbgcolor = \"%s\";\n", bgcolor
+				printf "\t\tlabel = \"bsdconfig %s\";\n",
+				       msg_subroutines
+				created++
+			}
+			printf "\t\t\"%s\";\n", $1
 		}
-		printf "\t\t\t\t\"%s\";\n", $1
-	}
-	END { created && end_subgraph() }'
+		END { created && end_subgraph() }
+	' # END-QUOTE
 
 	for include_file in $include_file_list; do
 		echo $include_file
-	done | awk '
+	done | awk -v msg_subroutines="$msg_subroutines" '
 	BEGIN { created = 0 }
-	function end_subgraph() { printf "\t\t\t};\n" }
+	function end_subgraph() { printf "\t};\n" }
 	( $0 ~ "/" ) {
 		include_dir_tmp = $1
 		sub("/[^/]*$", "", include_dir_tmp)
@@ -572,20 +585,18 @@ if [ "$SHOW_INCLUDES" ]; then
 		if ( ! created )
 		{
 			include_dir = include_dir_tmp
-			printf "\t\t\tsubgraph \"cluster_%s_includes\" {\n",
+			printf "\tsubgraph \"cluster_%s_includes\" {\n",
 			       include_dir
-			printf "\t\t\t\tbgcolor = \"white\";\n"
-			printf "\t\t\t\tlabel = \"%s\";\n", include_dir
+			printf "\t\tbgcolor = \"thistle\";\n"
+			printf "\t\tlabel = \"%s %s\";\n", include_dir,
+			       msg_subroutines
 			created++
 		}
 
-		printf "\t\t\t\t\"%s\";\n", $1
+		printf "\t\t\"%s\";\n", $1
 	}
 	END { created && end_subgraph() }'
-
-	printf '\t\t};\n'
 fi
-end_nodelist
 for INDEX in */INDEX; do
 	menu_title=
 	menu_help=
@@ -595,7 +606,7 @@ for INDEX in */INDEX; do
 	printf '\tsubgraph "cluster_%s" {\n' "$item"
 
 	case "$item" in
-	[0-9][0-9][0-9].*) bgcolor="$bgcolor_menuitem";;
+	[0-9][0-9][0-9].*) bgcolor="$bgcolor_menuitem" ;;
 	*) bgcolor="$bgcolor_shortcuts"
 	esac
 	printf '\t\tbgcolor = "%s";\n' "$bgcolor"
@@ -660,7 +671,7 @@ for INDEX in */INDEX; do
 	end_nodelist
 done
 
-printf '\n};\n'
+printf '\n}\n'
 
 ################################################################################
 # END

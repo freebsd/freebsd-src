@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -34,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/smp.h>
 #include <vm/vm.h>
@@ -41,7 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include <x86/apicreg.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
+#include <machine/md_var.h>
+#include <x86/vmware.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/actables.h>
@@ -60,7 +60,7 @@ static struct lapic_info {
 	u_int la_acpi_id:8;
 } lapics[MAX_APIC_ID + 1];
 
-static int madt_found_sci_override;
+int madt_found_sci_override;
 static ACPI_TABLE_MADT *madt;
 static vm_paddr_t madt_physaddr;
 static vm_offset_t madt_length;
@@ -105,7 +105,7 @@ madt_probe(void)
 	madt_physaddr = acpi_find_table(ACPI_SIG_MADT);
 	if (madt_physaddr == 0)
 		return (ENXIO);
-	return (0);
+	return (-50);
 }
 
 /*
@@ -130,8 +130,40 @@ madt_probe_cpus(void)
 static int
 madt_setup_local(void)
 {
+	ACPI_TABLE_DMAR *dmartbl;
+	vm_paddr_t dmartbl_physaddr;
+	u_int p[4];
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
+	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
+		x2apic_mode = 1;
+		dmartbl_physaddr = acpi_find_table(ACPI_SIG_DMAR);
+		if (dmartbl_physaddr != 0) {
+			dmartbl = acpi_map_table(dmartbl_physaddr,
+			    ACPI_SIG_DMAR);
+			if ((dmartbl->Flags & ACPI_DMAR_X2APIC_OPT_OUT) != 0) {
+				x2apic_mode = 0;
+				if (bootverbose)
+					printf(
+		"x2APIC available but disabled by DMAR table\n");
+			}
+			acpi_unmap_table(dmartbl);
+		}
+		if (vm_guest == VM_GUEST_VMWARE) {
+			vmware_hvcall(VMW_HVCMD_GETVCPU_INFO, p);
+			if ((p[0] & VMW_VCPUINFO_VCPU_RESERVED) != 0 ||
+			    (p[0] & VMW_VCPUINFO_LEGACY_X2APIC) == 0) {
+				x2apic_mode = 0;
+				if (bootverbose)
+					printf(
+       "x2APIC available but disabled inside VMWare without intr redirection\n");
+			}
+		} else if (vm_guest == VM_GUEST_XEN) {
+			x2apic_mode = 0;
+		}
+		TUNABLE_INT_FETCH("hw.x2apic_enable", &x2apic_mode);
+	}
+
 	lapic_init(madt->Address);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
 	    (int)sizeof(madt->Header.OemId), madt->Header.OemId,
@@ -301,6 +333,9 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_POLARITY_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Polarity. Assume CONFORMS\n");
+		/* FALLTHROUGH*/
 	case ACPI_MADT_POLARITY_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_POLARITY_LOW);
@@ -310,8 +345,6 @@ interrupt_polarity(UINT16 IntiFlags, UINT8 Source)
 		return (INTR_POLARITY_HIGH);
 	case ACPI_MADT_POLARITY_ACTIVE_LOW:
 		return (INTR_POLARITY_LOW);
-	default:
-		panic("Bogus Interrupt Polarity");
 	}
 }
 
@@ -320,6 +353,9 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 {
 
 	switch (IntiFlags & ACPI_MADT_TRIGGER_MASK) {
+	default:
+		printf("WARNING: Bogus Interrupt Trigger Mode. Assume CONFORMS.\n");
+		/*FALLTHROUGH*/
 	case ACPI_MADT_TRIGGER_CONFORMS:
 		if (Source == AcpiGbl_FADT.SciInterrupt)
 			return (INTR_TRIGGER_LEVEL);
@@ -329,8 +365,6 @@ interrupt_trigger(UINT16 IntiFlags, UINT8 Source)
 		return (INTR_TRIGGER_EDGE);
 	case ACPI_MADT_TRIGGER_LEVEL:
 		return (INTR_TRIGGER_LEVEL);
-	default:
-		panic("Bogus Interrupt Trigger Mode");
 	}
 }
 
@@ -381,6 +415,61 @@ madt_find_interrupt(int intr, void **apic, u_int *pin)
 	return (0);
 }
 
+void
+madt_parse_interrupt_values(void *entry,
+    enum intr_trigger *trig, enum intr_polarity *pol)
+{
+	ACPI_MADT_INTERRUPT_OVERRIDE *intr;
+	char buf[64];
+
+	intr = entry;
+
+	if (bootverbose)
+		printf("MADT: Interrupt override: source %u, irq %u\n",
+		    intr->SourceIrq, intr->GlobalIrq);
+	KASSERT(intr->Bus == 0, ("bus for interrupt overrides must be zero"));
+
+	/*
+	 * Lookup the appropriate trigger and polarity modes for this
+	 * entry.
+	 */
+	*trig = interrupt_trigger(intr->IntiFlags, intr->SourceIrq);
+	*pol = interrupt_polarity(intr->IntiFlags, intr->SourceIrq);
+
+	/*
+	 * If the SCI is identity mapped but has edge trigger and
+	 * active-hi polarity or the force_sci_lo tunable is set,
+	 * force it to use level/lo.
+	 */
+	if (intr->SourceIrq == AcpiGbl_FADT.SciInterrupt) {
+		madt_found_sci_override = 1;
+		if (getenv_string("hw.acpi.sci.trigger", buf, sizeof(buf))) {
+			if (tolower(buf[0]) == 'e')
+				*trig = INTR_TRIGGER_EDGE;
+			else if (tolower(buf[0]) == 'l')
+				*trig = INTR_TRIGGER_LEVEL;
+			else
+				panic(
+				"Invalid trigger %s: must be 'edge' or 'level'",
+				    buf);
+			printf("MADT: Forcing SCI to %s trigger\n",
+			    *trig == INTR_TRIGGER_EDGE ? "edge" : "level");
+		}
+		if (getenv_string("hw.acpi.sci.polarity", buf, sizeof(buf))) {
+			if (tolower(buf[0]) == 'h')
+				*pol = INTR_POLARITY_HIGH;
+			else if (tolower(buf[0]) == 'l')
+				*pol = INTR_POLARITY_LOW;
+			else
+				panic(
+				"Invalid polarity %s: must be 'high' or 'low'",
+				    buf);
+			printf("MADT: Forcing SCI to active %s polarity\n",
+			    *pol == INTR_POLARITY_HIGH ? "high" : "low");
+		}
+	}
+}
+
 /*
  * Parse an interrupt source override for an ISA interrupt.
  */
@@ -391,7 +480,6 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 	u_int new_pin, old_pin;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
-	char buf[64];
 
 	if (acpi_quirks & ACPI_Q_MADT_IRQ0 && intr->SourceIrq == 0 &&
 	    intr->GlobalIrq == 2) {
@@ -399,55 +487,14 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 			printf("MADT: Skipping timer override\n");
 		return;
 	}
-	if (bootverbose)
-		printf("MADT: Interrupt override: source %u, irq %u\n",
-		    intr->SourceIrq, intr->GlobalIrq);
-	KASSERT(intr->Bus == 0, ("bus for interrupt overrides must be zero"));
+
 	if (madt_find_interrupt(intr->GlobalIrq, &new_ioapic, &new_pin) != 0) {
 		printf("MADT: Could not find APIC for vector %u (IRQ %u)\n",
 		    intr->GlobalIrq, intr->SourceIrq);
 		return;
 	}
 
-	/*
-	 * Lookup the appropriate trigger and polarity modes for this
-	 * entry.
-	 */
-	trig = interrupt_trigger(intr->IntiFlags, intr->SourceIrq);
-	pol = interrupt_polarity(intr->IntiFlags, intr->SourceIrq);
-	
-	/*
-	 * If the SCI is identity mapped but has edge trigger and
-	 * active-hi polarity or the force_sci_lo tunable is set,
-	 * force it to use level/lo.
-	 */
-	if (intr->SourceIrq == AcpiGbl_FADT.SciInterrupt) {
-		madt_found_sci_override = 1;
-		if (getenv_string("hw.acpi.sci.trigger", buf, sizeof(buf))) {
-			if (tolower(buf[0]) == 'e')
-				trig = INTR_TRIGGER_EDGE;
-			else if (tolower(buf[0]) == 'l')
-				trig = INTR_TRIGGER_LEVEL;
-			else
-				panic(
-				"Invalid trigger %s: must be 'edge' or 'level'",
-				    buf);
-			printf("MADT: Forcing SCI to %s trigger\n",
-			    trig == INTR_TRIGGER_EDGE ? "edge" : "level");
-		}
-		if (getenv_string("hw.acpi.sci.polarity", buf, sizeof(buf))) {
-			if (tolower(buf[0]) == 'h')
-				pol = INTR_POLARITY_HIGH;
-			else if (tolower(buf[0]) == 'l')
-				pol = INTR_POLARITY_LOW;
-			else
-				panic(
-				"Invalid polarity %s: must be 'high' or 'low'",
-				    buf);
-			printf("MADT: Forcing SCI to active %s polarity\n",
-			    pol == INTR_POLARITY_HIGH ? "high" : "low");
-		}
-	}
+	madt_parse_interrupt_values(intr, &trig, &pol);
 
 	/* Remap the IRQ if it is mapped to a different interrupt vector. */
 	if (intr->SourceIrq != intr->GlobalIrq) {
@@ -495,7 +542,7 @@ madt_parse_nmi(ACPI_MADT_NMI_SOURCE *nmi)
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		ioapic_set_triggermode(ioapic, pin,
 		    interrupt_trigger(nmi->IntiFlags, 0));
-	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
+	if (!(nmi->IntiFlags & ACPI_MADT_POLARITY_CONFORMS))
 		ioapic_set_polarity(ioapic, pin,
 		    interrupt_polarity(nmi->IntiFlags, 0));
 }
@@ -517,9 +564,9 @@ madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi)
 		return;
 	}
 	if (nmi->Lint == 0)
-		pin = LVT_LINT0;
+		pin = APIC_LVT_LINT0;
 	else
-		pin = LVT_LINT1;
+		pin = APIC_LVT_LINT1;
 	lapic_set_lvt_mode(apic_id, pin, APIC_LVT_DM_NMI);
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		lapic_set_lvt_triggermode(apic_id, pin,
@@ -575,4 +622,4 @@ madt_set_ids(void *dummy)
 			    la->la_acpi_id);
 	}
 }
-SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_ANY, madt_set_ids, NULL);
+SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_MIDDLE, madt_set_ids, NULL);

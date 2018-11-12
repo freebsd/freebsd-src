@@ -195,8 +195,6 @@ void	mac_mount_create(struct ucred *cred, struct mount *mp);
 void	mac_mount_destroy(struct mount *);
 void	mac_mount_init(struct mount *);
 
-void	mac_netatalk_aarp_send(struct ifnet *ifp, struct mbuf *m);
-
 void	mac_netinet_arp_send(struct ifnet *ifp, struct mbuf *m);
 void	mac_netinet_firewall_reply(struct mbuf *mrecv, struct mbuf *msend);
 void	mac_netinet_firewall_send(struct mbuf *m);
@@ -243,6 +241,8 @@ int	mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 	    int prot, int flags);
 int	mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 	    accmode_t accmode);
+int	mac_posixshm_check_read(struct ucred *active_cred,
+	    struct ucred *file_cred, struct shmfd *shmfd);
 int	mac_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
 	    mode_t mode);
 int	mac_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
@@ -252,6 +252,8 @@ int	mac_posixshm_check_stat(struct ucred *active_cred,
 int	mac_posixshm_check_truncate(struct ucred *active_cred,
 	    struct ucred *file_cred, struct shmfd *shmfd);
 int	mac_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd);
+int	mac_posixshm_check_write(struct ucred *active_cred,
+	    struct ucred *file_cred, struct shmfd *shmfd);
 void 	mac_posixshm_create(struct ucred *cred, struct shmfd *shmfd);
 void	mac_posixshm_destroy(struct shmfd *);
 void	mac_posixshm_init(struct shmfd *);

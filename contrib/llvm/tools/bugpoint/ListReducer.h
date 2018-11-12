@@ -12,14 +12,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef BUGPOINT_LIST_REDUCER_H
-#define BUGPOINT_LIST_REDUCER_H
+#ifndef LLVM_TOOLS_BUGPOINT_LISTREDUCER_H
+#define LLVM_TOOLS_BUGPOINT_LISTREDUCER_H
 
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <vector>
-#include <cstdlib>
+#include "llvm/Support/raw_ostream.h"
 #include <algorithm>
+#include <cstdlib>
+#include <vector>
 
 namespace llvm {
   

@@ -65,6 +65,9 @@ static eventhandler_tag		acpi_timer_eh;
 
 static u_int	acpi_timer_frequency = 14318182 / 4;
 
+/* Knob to disable acpi_timer device */
+bool acpi_timer_disabled = false;
+
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
@@ -125,7 +128,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
     if (acpi_disabled("timer") || (acpi_quirks & ACPI_Q_TIMER) ||
-	acpi_timer_dev)
+	acpi_timer_dev || acpi_timer_disabled)
 	return_VOID;
 
     if ((dev = BUS_ADD_CHILD(parent, 2, "acpi_timer", 0)) == NULL) {
@@ -189,6 +192,7 @@ acpi_timer_probe(device_t dev)
     else
 	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
+    acpi_timer_timecounter.tc_flags = TC_FLAGS_SUSPEND_SAFE;
     if (testenv("debug.acpi.timer_test"))
 	acpi_timer_boot_test();
 
@@ -283,6 +287,14 @@ acpi_timer_suspend_handler(struct timecounter *newtc)
 	if (acpi_timer_eh != NULL) {
 		EVENTHANDLER_DEREGISTER(power_resume, acpi_timer_eh);
 		acpi_timer_eh = NULL;
+	}
+
+	if ((timecounter->tc_flags & TC_FLAGS_SUSPEND_SAFE) != 0) {
+		/*
+		 * If we are using a suspend safe timecounter, don't
+		 * save/restore it across suspend/resume.
+		 */
+		return;
 	}
 
 	KASSERT(newtc == &acpi_timer_timecounter,

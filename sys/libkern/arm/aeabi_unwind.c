@@ -29,7 +29,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#ifdef _KERNEL
 #include <sys/systm.h>
+#else
+#define	panic(x) (void)0
+#endif
 
 #ifdef __ARM_EABI__
 /* We need to provide these functions never call them */

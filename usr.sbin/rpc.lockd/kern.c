@@ -97,8 +97,7 @@ nfslockdans(int vers, struct lockd_ans *ansp)
 #define d_args (debug_level > 2)
 
 static const char *
-from_addr(saddr)
-	struct sockaddr *saddr;
+from_addr(struct sockaddr *saddr)
 {
 	static char inet_buf[INET6_ADDRSTRLEN];
 
@@ -231,9 +230,7 @@ err:
 }
 
 void
-set_auth(cl, xucred)
-	CLIENT *cl;
-	struct xucred *xucred;
+set_auth(CLIENT *cl, struct xucred *xucred)
 {
 	int ngroups;
 

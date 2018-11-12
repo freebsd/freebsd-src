@@ -44,6 +44,8 @@
 #include <sys/_mutex.h>
 #include <sys/disk.h>
 
+#define G_DISK_CLASS_NAME	"DISK"
+
 struct disk;
 
 typedef	int	disk_open_t(struct disk *);
@@ -86,6 +88,7 @@ struct disk {
 	u_int			d_fwsectors;
 	u_int			d_fwheads;
 	u_int			d_maxsize;
+	off_t			d_delmaxsize;
 	u_int			d_stripeoffset;
 	u_int			d_stripesize;
 	char			d_ident[DISK_IDENT_SIZE];
@@ -94,15 +97,18 @@ struct disk {
 	uint16_t		d_hba_device;
 	uint16_t		d_hba_subvendor;
 	uint16_t		d_hba_subdevice;
+	uint16_t		d_rotation_rate;
 
 	/* Fields private to the driver */
 	void			*d_drv1;
 };
 
-#define DISKFLAG_NEEDSGIANT	0x1
+#define DISKFLAG_RESERVED	0x1	/* Was NEEDSGIANT */
 #define DISKFLAG_OPEN		0x2
 #define DISKFLAG_CANDELETE	0x4
 #define DISKFLAG_CANFLUSHCACHE	0x8
+#define	DISKFLAG_UNMAPPED_BIO	0x10
+#define	DISKFLAG_DIRECT_COMPLETION	0x20
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);
@@ -116,7 +122,9 @@ int disk_resize(struct disk *dp, int flag);
 #define DISK_VERSION_00		0x58561059
 #define DISK_VERSION_01		0x5856105a
 #define DISK_VERSION_02		0x5856105b
-#define DISK_VERSION		DISK_VERSION_02
+#define DISK_VERSION_03		0x5856105c
+#define DISK_VERSION_04		0x5856105d
+#define DISK_VERSION		DISK_VERSION_04
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */

@@ -16,8 +16,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "early-ifcvt"
-#include "MachineTraceMetrics.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/ADT/SetVector.h"
@@ -30,15 +28,18 @@
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/MachineTraceMetrics.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "early-ifcvt"
 
 // Absolute maximum number of instructions allowed per speculated block.
 // This bypasses all other heuristics, so it should be set fairly high.
@@ -152,8 +153,8 @@ private:
 public:
   /// runOnMachineFunction - Initialize per-function data structures.
   void runOnMachineFunction(MachineFunction &MF) {
-    TII = MF.getTarget().getInstrInfo();
-    TRI = MF.getTarget().getRegisterInfo();
+    TII = MF.getSubtarget().getInstrInfo();
+    TRI = MF.getSubtarget().getRegisterInfo();
     MRI = &MF.getRegInfo();
     LiveRegUnits.clear();
     LiveRegUnits.setUniverse(TRI->getNumRegUnits());
@@ -219,7 +220,7 @@ bool SSAIfConv::canSpeculateInstrs(MachineBasicBlock *MBB) {
 
     // We never speculate stores, so an AA pointer isn't necessary.
     bool DontMoveAcrossStore = true;
-    if (!I->isSafeToMove(TII, 0, DontMoveAcrossStore)) {
+    if (!I->isSafeToMove(TII, nullptr, DontMoveAcrossStore)) {
       DEBUG(dbgs() << "Can't speculate: " << *I);
       return false;
     }
@@ -244,7 +245,7 @@ bool SSAIfConv::canSpeculateInstrs(MachineBasicBlock *MBB) {
       MachineInstr *DefMI = MRI->getVRegDef(Reg);
       if (!DefMI || DefMI->getParent() != Head)
         continue;
-      if (InsertAfter.insert(DefMI))
+      if (InsertAfter.insert(DefMI).second)
         DEBUG(dbgs() << "BB#" << MBB->getNumber() << " depends on " << *DefMI);
       if (DefMI->isTerminator()) {
         DEBUG(dbgs() << "Can't insert instructions below terminator.\n");
@@ -338,7 +339,7 @@ bool SSAIfConv::findInsertionPoint() {
 ///
 bool SSAIfConv::canConvertIf(MachineBasicBlock *MBB) {
   Head = MBB;
-  TBB = FBB = Tail = 0;
+  TBB = FBB = Tail = nullptr;
 
   if (Head->succ_size() != 2)
     return false;
@@ -459,12 +460,11 @@ void SSAIfConv::replacePHIInstrs() {
   for (unsigned i = 0, e = PHIs.size(); i != e; ++i) {
     PHIInfo &PI = PHIs[i];
     DEBUG(dbgs() << "If-converting " << *PI.PHI);
-    assert(PI.PHI->getNumOperands() == 5 && "Unexpected PHI operands.");
     unsigned DstReg = PI.PHI->getOperand(0).getReg();
     TII->insertSelect(*Head, FirstTerm, HeadDL, DstReg, Cond, PI.TReg, PI.FReg);
-    DEBUG(dbgs() << "          --> " << *llvm::prior(FirstTerm));
+    DEBUG(dbgs() << "          --> " << *std::prev(FirstTerm));
     PI.PHI->eraseFromParent();
-    PI.PHI = 0;
+    PI.PHI = nullptr;
   }
 }
 
@@ -483,7 +483,7 @@ void SSAIfConv::rewritePHIOperands() {
     unsigned PHIDst = PI.PHI->getOperand(0).getReg();
     unsigned DstReg = MRI->createVirtualRegister(MRI->getRegClass(PHIDst));
     TII->insertSelect(*Head, FirstTerm, HeadDL, DstReg, Cond, PI.TReg, PI.FReg);
-    DEBUG(dbgs() << "          --> " << *llvm::prior(FirstTerm));
+    DEBUG(dbgs() << "          --> " << *std::prev(FirstTerm));
 
     // Rewrite PHI operands TPred -> (DstReg, Head), remove FPred.
     for (unsigned i = PI.PHI->getNumOperands(); i != 1; i -= 2) {
@@ -565,7 +565,7 @@ void SSAIfConv::convertIf(SmallVectorImpl<MachineBasicBlock*> &RemovedBlocks) {
     // We need a branch to Tail, let code placement work it out later.
     DEBUG(dbgs() << "Converting to unconditional branch.\n");
     SmallVector<MachineOperand, 0> EmptyCond;
-    TII->InsertBranch(*Head, Tail, 0, EmptyCond, HeadDL);
+    TII->InsertBranch(*Head, Tail, nullptr, EmptyCond, HeadDL);
     Head->addSuccessor(Tail);
   }
   DEBUG(dbgs() << *Head);
@@ -580,7 +580,7 @@ namespace {
 class EarlyIfConverter : public MachineFunctionPass {
   const TargetInstrInfo *TII;
   const TargetRegisterInfo *TRI;
-  const MCSchedModel *SchedModel;
+  MCSchedModel SchedModel;
   MachineRegisterInfo *MRI;
   MachineDominatorTree *DomTree;
   MachineLoopInfo *Loops;
@@ -591,8 +591,9 @@ class EarlyIfConverter : public MachineFunctionPass {
 public:
   static char ID;
   EarlyIfConverter() : MachineFunctionPass(ID) {}
-  void getAnalysisUsage(AnalysisUsage &AU) const;
-  bool runOnMachineFunction(MachineFunction &MF);
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool runOnMachineFunction(MachineFunction &MF) override;
+  const char *getPassName() const override { return "Early If-Conversion"; }
 
 private:
   bool tryConvertIf(MachineBasicBlock*);
@@ -687,7 +688,7 @@ bool EarlyIfConverter::shouldConvertIf() {
                               FBBTrace.getCriticalPath());
 
   // Set a somewhat arbitrary limit on the critical path extension we accept.
-  unsigned CritLimit = SchedModel->MispredictPenalty/2;
+  unsigned CritLimit = SchedModel.MispredictPenalty/2;
 
   // If-conversion only makes sense when there is unexploited ILP. Compute the
   // maximum-ILP resource length of the trace after if-conversion. Compare it
@@ -775,15 +776,21 @@ bool EarlyIfConverter::tryConvertIf(MachineBasicBlock *MBB) {
 bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(dbgs() << "********** EARLY IF-CONVERSION **********\n"
                << "********** Function: " << MF.getName() << '\n');
-  TII = MF.getTarget().getInstrInfo();
-  TRI = MF.getTarget().getRegisterInfo();
+  // Only run if conversion if the target wants it.
+  if (!MF.getTarget()
+           .getSubtarget<TargetSubtargetInfo>()
+           .enableEarlyIfConversion())
+    return false;
+
+  TII = MF.getSubtarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   SchedModel =
     MF.getTarget().getSubtarget<TargetSubtargetInfo>().getSchedModel();
   MRI = &MF.getRegInfo();
   DomTree = &getAnalysis<MachineDominatorTree>();
   Loops = getAnalysisIfAvailable<MachineLoopInfo>();
   Traces = &getAnalysis<MachineTraceMetrics>();
-  MinInstr = 0;
+  MinInstr = nullptr;
 
   bool Changed = false;
   IfConv.runOnMachineFunction(MF);

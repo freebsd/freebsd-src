@@ -94,6 +94,7 @@ struct in_endpoints {
 		struct	in_addr_4in6 ie46_local;
 		struct	in6_addr ie6_local;
 	} ie_dependladdr;
+	u_int32_t	ie6_zoneid;		/* scope zone id */
 };
 #define	ie_faddr	ie_dependfaddr.ie46_foreign.ia46_addr4
 #define	ie_laddr	ie_dependladdr.ie46_local.ia46_addr4
@@ -124,6 +125,7 @@ struct in_conninfo {
 #define	inc_laddr	inc_ie.ie_laddr
 #define	inc6_faddr	inc_ie.ie6_faddr
 #define	inc6_laddr	inc_ie.ie6_laddr
+#define	inc6_zoneid	inc_ie.ie6_zoneid
 
 struct	icmp6_filter;
 
@@ -180,7 +182,9 @@ struct inpcb {
 	uint32_t inp_flowid;		/* (x) flow id / queue id */
 	u_int	inp_refcount;		/* (i) refcount */
 	void	*inp_pspare[5];		/* (x) route caching / general use */
-	u_int	inp_ispare[6];		/* (x) route caching / user cookie /
+	uint32_t inp_flowtype;		/* (x) M_HASHTYPE value */
+	uint32_t inp_rss_listen_bucket;	/* (x) overridden RSS listen bucket */
+	u_int	inp_ispare[4];		/* (x) route caching / user cookie /
 					 *     general use */
 
 	/* Local and foreign ports, local and foreign addr. */
@@ -227,6 +231,7 @@ struct inpcb {
 
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
+#define	in6p_zoneid	inp_inc.inc6_zoneid
 #define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
 #define	in6p_flowinfo	inp_flow
 #define	in6p_options	inp_depend6.inp6_options
@@ -442,6 +447,7 @@ struct tcpcb *
 	inp_inpcbtotcpcb(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
+short	inp_so_options(const struct inpcb *inp);
 
 #endif /* _KERNEL */
 
@@ -484,6 +490,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
 #define INP_PCBPORTHASH(lport, mask) \
 	(ntohs((lport)) & (mask))
+#define	INP6_PCBHASHKEY(faddr)	((faddr)->s6_addr32[3])
 
 /*
  * Flags for inp_vflags -- historically version flags only
@@ -504,7 +511,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_ANONPORT		0x00000040 /* port chosen for user */
 #define	INP_RECVIF		0x00000080 /* receive incoming interface */
 #define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
-#define	INP_FAITH		0x00000200 /* accept FAITH'ed connections */
+				   	   /* 0x000200 unused: was INP_FAITH */
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
 #define	INP_BINDANY		0x00001000 /* allow bind to any address */
@@ -523,8 +530,8 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
 #define	INP_DROPPED		0x04000000 /* protocol drop flag */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
-#define	INP_SW_FLOWID           0x10000000 /* software generated flow id */
-#define	INP_HW_FLOWID           0x20000000 /* hardware generated flow id */
+#define	INP_RESERVED_0          0x10000000 /* reserved field */
+#define	INP_RESERVED_1          0x20000000 /* reserved field */
 #define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
 #define	IN6P_MTU		0x80000000 /* receive path MTU */
 
@@ -543,6 +550,11 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 #define	INP_FREED		0x00000010 /* inp itself is not valid */
+#define	INP_REUSEADDR		0x00000020 /* SO_REUSEADDR option is set */
+#define	INP_BINDMULTI		0x00000040 /* IP_BINDMULTI option is set */
+#define	INP_RSS_BUCKET_SET	0x00000080 /* IP_RSS_LISTEN_BUCKET is set */
+#define	INP_RECVFLOWID		0x00000100 /* populate recv datagram with flow info */
+#define	INP_RECVRSSBUCKETID	0x00000200 /* populate recv datagram with bucket id */
 
 /*
  * Flags passed to in_pcblookup*() functions.
@@ -601,6 +613,9 @@ void	in_pcbinfo_destroy(struct inpcbinfo *);
 void	in_pcbinfo_init(struct inpcbinfo *, const char *, struct inpcbhead *,
 	    int, int, char *, uma_init, uma_fini, uint32_t, u_int);
 
+int	in_pcbbind_check_bindmulti(const struct inpcb *ni,
+	    const struct inpcb *oi);
+
 struct inpcbgroup *
 	in_pcbgroup_byhash(struct inpcbinfo *, u_int, uint32_t);
 struct inpcbgroup *
@@ -634,6 +649,8 @@ void	in_pcbdrop(struct inpcb *);
 void	in_pcbfree(struct inpcb *);
 int	in_pcbinshash(struct inpcb *);
 int	in_pcbinshash_nopcbgroup(struct inpcb *);
+int	in_pcbladdr(struct inpcb *, struct in_addr *, struct in_addr *,
+	    struct ucred *);
 struct inpcb *
 	in_pcblookup_local(struct inpcbinfo *,
 	    struct in_addr, u_short, int, struct ucred *);

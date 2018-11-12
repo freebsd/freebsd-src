@@ -25,21 +25,23 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
+ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}/atf-sh
 
-BINDIR=		/usr/libexec
 PROG_CXX=	atf-check
 SRCS=		atf-check.cpp
 MAN=		atf-check.1
 
 CFLAGS+=	-I${ATF}
+CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 
-DPADD+=		${LIBATF_CXX} ${LIBATF_C}
+LIBADD=		atf_cxx
 
-LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c++
-LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c
-LDADD+=		-latf-c++ -latf-c
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

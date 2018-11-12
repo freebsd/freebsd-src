@@ -8,7 +8,7 @@
 
 /* Structure to describe one communications endpoint. */
 
-#define STRING_LENGTH	128		/* hosts, users, processes */
+#define	STRING_LENGTH	128		/* hosts, users, processes */
 
 struct host_info {
     char    name[STRING_LENGTH];	/* access via eval_hostname(host) */
@@ -31,21 +31,21 @@ struct request_info {
     char    pid[10];			/* access via eval_pid(request) */
     struct host_info client[1];		/* client endpoint info */
     struct host_info server[1];		/* server endpoint info */
-    void  (*sink) ();			/* datagram sink function or 0 */
-    void  (*hostname) ();		/* address to printable hostname */
-    void  (*hostaddr) ();		/* address to printable address */
-    void  (*cleanup) ();		/* cleanup function or 0 */
+    void  (*sink) (int);		/* datagram sink function or 0 */
+    void  (*hostname) (struct host_info *); /* address to printable hostname */
+    void  (*hostaddr) (struct host_info *); /* address to printable address */
+    void  (*cleanup) (struct request_info *); /* cleanup function or 0 */
     struct netconfig *config;		/* netdir handle */
 };
 
 /* Common string operations. Less clutter should be more readable. */
 
-#define STRN_CPY(d,s,l)	{ strncpy((d),(s),(l)); (d)[(l)-1] = 0; }
+#define	STRN_CPY(d,s,l)	{ strncpy((d),(s),(l)); (d)[(l)-1] = 0; }
 
-#define STRN_EQ(x,y,l)	(strncasecmp((x),(y),(l)) == 0)
-#define STRN_NE(x,y,l)	(strncasecmp((x),(y),(l)) != 0)
-#define STR_EQ(x,y)	(strcasecmp((x),(y)) == 0)
-#define STR_NE(x,y)	(strcasecmp((x),(y)) != 0)
+#define	STRN_EQ(x,y,l)	(strncasecmp((x),(y),(l)) == 0)
+#define	STRN_NE(x,y,l)	(strncasecmp((x),(y),(l)) != 0)
+#define	STR_EQ(x,y)	(strcasecmp((x),(y)) == 0)
+#define	STR_NE(x,y)	(strcasecmp((x),(y)) != 0)
 
  /*
   * Initially, all above strings have the empty value. Information that
@@ -54,25 +54,26 @@ struct request_info {
   * that we do not believe in is set to "paranoid".
   */
 
-#define STRING_UNKNOWN	"unknown"	/* lookup failed */
-#define STRING_PARANOID	"paranoid"	/* hostname conflict */
+#define	STRING_UNKNOWN	"unknown"	/* lookup failed */
+#define	STRING_PARANOID	"paranoid"	/* hostname conflict */
 
 extern char unknown[];
 extern char paranoid[];
 
-#define HOSTNAME_KNOWN(s) (STR_NE((s),unknown) && STR_NE((s),paranoid))
+#define	HOSTNAME_KNOWN(s) (STR_NE((s),unknown) && STR_NE((s),paranoid))
 
-#define NOT_INADDR(s) (s[strspn(s,"01234567890./")] != 0)
+#define	NOT_INADDR(s) (s[strspn(s,"01234567890./")] != 0)
 
 /* Global functions. */
 
 #if defined(TLI) || defined(PTX) || defined(TLI_SEQUENT)
 extern void fromhost();			/* get/validate client host info */
 #else
-#define fromhost sock_host		/* no TLI support needed */
+#define	fromhost sock_host		/* no TLI support needed */
 #endif
 
 extern int hosts_access();		/* access control */
+extern int hosts_ctl();			/* wrapper around request_init() */
 extern void shell_cmd();		/* execute shell command */
 extern char *percent_x();		/* do %<char> expansion */
 extern void rfc931();			/* client name from RFC 931 daemon */
@@ -105,15 +106,15 @@ extern struct request_info *request_init();	/* initialize request */
 extern struct request_info *request_set();	/* update request structure */
 #endif
 
-#define RQ_FILE		1		/* file descriptor */
-#define RQ_DAEMON	2		/* server process (argv[0]) */
-#define RQ_USER		3		/* client user name */
-#define RQ_CLIENT_NAME	4		/* client host name */
-#define RQ_CLIENT_ADDR	5		/* client host address */
-#define RQ_CLIENT_SIN	6		/* client endpoint (internal) */
-#define RQ_SERVER_NAME	7		/* server host name */
-#define RQ_SERVER_ADDR	8		/* server host address */
-#define RQ_SERVER_SIN	9		/* server endpoint (internal) */
+#define	RQ_FILE		1		/* file descriptor */
+#define	RQ_DAEMON	2		/* server process (argv[0]) */
+#define	RQ_USER		3		/* client user name */
+#define	RQ_CLIENT_NAME	4		/* client host name */
+#define	RQ_CLIENT_ADDR	5		/* client host address */
+#define	RQ_CLIENT_SIN	6		/* client endpoint (internal) */
+#define	RQ_SERVER_NAME	7		/* server host name */
+#define	RQ_SERVER_ADDR	8		/* server host address */
+#define	RQ_SERVER_SIN	9		/* server endpoint (internal) */
 
  /*
   * Routines for delayed evaluation of request attributes. Each attribute
@@ -129,15 +130,15 @@ extern char *eval_hostaddr();		/* printable host address */
 extern char *eval_hostinfo();		/* host name or address */
 extern char *eval_client();		/* whatever is available */
 extern char *eval_server();		/* whatever is available */
-#define eval_daemon(r)	((r)->daemon)	/* daemon process name */
-#define eval_pid(r)	((r)->pid)	/* process id */
+#define	eval_daemon(r)	((r)->daemon)	/* daemon process name */
+#define	eval_pid(r)	((r)->pid)	/* process id */
 
 /* Socket-specific methods, including DNS hostname lookups. */
 
 extern void sock_host();		/* look up endpoint addresses */
 extern void sock_hostname();		/* translate address to hostname */
 extern void sock_hostaddr();		/* address to printable address */
-#define sock_methods(r) \
+#define	sock_methods(r) \
 	{ (r)->hostname = sock_hostname; (r)->hostaddr = sock_hostaddr; }
 
 /* The System V Transport-Level Interface (TLI) interface. */
@@ -173,9 +174,9 @@ extern struct tcpd_context tcpd_context;
   * (-1) returns are here because zero is already taken by longjmp().
   */
 
-#define AC_PERMIT	1		/* permit access */
-#define AC_DENY		(-1)		/* deny_access */
-#define AC_ERROR	AC_DENY		/* XXX */
+#define	AC_PERMIT	1		/* permit access */
+#define	AC_DENY		(-1)		/* deny_access */
+#define	AC_ERROR	AC_DENY		/* XXX */
 
  /*
   * In verification mode an option function should just say what it would do,
@@ -190,36 +191,36 @@ extern int dry_run;			/* verification flag */
 /* Bug workarounds. */
 
 #ifdef INET_ADDR_BUG			/* inet_addr() returns struct */
-#define inet_addr fix_inet_addr
+#define	inet_addr fix_inet_addr
 extern long fix_inet_addr();
 #endif
 
 #ifdef BROKEN_FGETS			/* partial reads from sockets */
-#define fgets fix_fgets
+#define	fgets fix_fgets
 extern char *fix_fgets();
 #endif
 
 #ifdef RECVFROM_BUG			/* no address family info */
-#define recvfrom fix_recvfrom
+#define	recvfrom fix_recvfrom
 extern int fix_recvfrom();
 #endif
 
 #ifdef GETPEERNAME_BUG			/* claims success with UDP */
-#define getpeername fix_getpeername
+#define	getpeername fix_getpeername
 extern int fix_getpeername();
 #endif
 
 #ifdef SOLARIS_24_GETHOSTBYNAME_BUG	/* lists addresses as aliases */
-#define gethostbyname fix_gethostbyname
+#define	gethostbyname fix_gethostbyname
 extern struct hostent *fix_gethostbyname();
 #endif
 
 #ifdef USE_STRSEP			/* libc calls strtok() */
-#define strtok	fix_strtok
+#define	strtok	fix_strtok
 extern char *fix_strtok();
 #endif
 
 #ifdef LIBC_CALLS_STRTOK		/* libc calls strtok() */
-#define strtok	my_strtok
+#define	strtok	my_strtok
 extern char *my_strtok();
 #endif

@@ -12,25 +12,31 @@
 //===----------------------------------------------------------------------===//
 
 #include "Mips16FrameLowering.h"
-#include "MipsInstrInfo.h"
 #include "MCTargetDesc/MipsBaseInfo.h"
-#include "llvm/Function.h"
+#include "Mips16InstrInfo.h"
+#include "MipsInstrInfo.h"
+#include "MipsRegisterInfo.h"
+#include "MipsSubtarget.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
+
+Mips16FrameLowering::Mips16FrameLowering(const MipsSubtarget &STI)
+    : MipsFrameLowering(STI, STI.stackAlignment()) {}
 
 void Mips16FrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineBasicBlock &MBB = MF.front();
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  const MipsInstrInfo &TII =
-    *static_cast<const MipsInstrInfo*>(MF.getTarget().getInstrInfo());
+  const Mips16InstrInfo &TII =
+      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
   MachineBasicBlock::iterator MBBI = MBB.begin();
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
   uint64_t StackSize = MFI->getStackSize();
@@ -38,13 +44,38 @@ void Mips16FrameLowering::emitPrologue(MachineFunction &MF) const {
   // No need to allocate space on the stack.
   if (StackSize == 0 && !MFI->adjustsStack()) return;
 
-  // Adjust stack.
-  if (isInt<16>(-StackSize))
-    BuildMI(MBB, MBBI, dl, TII.get(Mips::SaveRaF16)).addImm(StackSize);
+  MachineModuleInfo &MMI = MF.getMMI();
+  const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
+  MachineLocation DstML, SrcML;
 
+  // Adjust stack.
+  TII.makeFrame(Mips::SP, StackSize, MBB, MBBI);
+
+  // emit ".cfi_def_cfa_offset StackSize"
+  unsigned CFIIndex = MMI.addFrameInst(
+      MCCFIInstruction::createDefCfaOffset(nullptr, -StackSize));
+  BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+      .addCFIIndex(CFIIndex);
+
+  const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
+
+  if (CSI.size()) {
+    const std::vector<CalleeSavedInfo> &CSI = MFI->getCalleeSavedInfo();
+
+    for (std::vector<CalleeSavedInfo>::const_iterator I = CSI.begin(),
+         E = CSI.end(); I != E; ++I) {
+      int64_t Offset = MFI->getObjectOffset(I->getFrameIdx());
+      unsigned Reg = I->getReg();
+      unsigned DReg = MRI->getDwarfRegNum(Reg, true);
+      unsigned CFIIndex = MMI.addFrameInst(
+          MCCFIInstruction::createOffset(nullptr, DReg, Offset));
+      BuildMI(MBB, MBBI, dl, TII.get(TargetOpcode::CFI_INSTRUCTION))
+          .addCFIIndex(CFIIndex);
+    }
+  }
   if (hasFP(MF))
     BuildMI(MBB, MBBI, dl, TII.get(Mips::MoveR3216), Mips::S0)
-      .addReg(Mips::SP);
+      .addReg(Mips::SP).setMIFlag(MachineInstr::FrameSetup);
 
 }
 
@@ -52,8 +83,8 @@ void Mips16FrameLowering::emitEpilogue(MachineFunction &MF,
                                  MachineBasicBlock &MBB) const {
   MachineBasicBlock::iterator MBBI = MBB.getLastNonDebugInstr();
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  const MipsInstrInfo &TII =
-    *static_cast<const MipsInstrInfo*>(MF.getTarget().getInstrInfo());
+  const Mips16InstrInfo &TII =
+      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
   DebugLoc dl = MBBI->getDebugLoc();
   uint64_t StackSize = MFI->getStackSize();
 
@@ -65,9 +96,8 @@ void Mips16FrameLowering::emitEpilogue(MachineFunction &MF,
       .addReg(Mips::S0);
 
   // Adjust stack.
-  if (isInt<16>(StackSize))
-    // assumes stacksize multiple of 8
-    BuildMI(MBB, MBBI, dl, TII.get(Mips::RestoreRaF16)).addImm(StackSize);
+  // assumes stacksize multiple of 8
+  TII.restoreFrame(Mips::SP, StackSize, MBB, MBBI);
 }
 
 bool Mips16FrameLowering::
@@ -113,6 +143,25 @@ bool Mips16FrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   return true;
 }
 
+// Eliminate ADJCALLSTACKDOWN, ADJCALLSTACKUP pseudo instructions
+void Mips16FrameLowering::
+eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
+                              MachineBasicBlock::iterator I) const {
+  if (!hasReservedCallFrame(MF)) {
+    int64_t Amount = I->getOperand(0).getImm();
+
+    if (I->getOpcode() == Mips::ADJCALLSTACKDOWN)
+      Amount = -Amount;
+
+    const Mips16InstrInfo &TII =
+        *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
+
+    TII.adjustStackPtr(Mips::SP, Amount, MBB, I);
+  }
+
+  MBB.erase(I);
+}
+
 bool
 Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
@@ -124,9 +173,15 @@ Mips16FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
 void Mips16FrameLowering::
 processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                      RegScavenger *RS) const {
-  MF.getRegInfo().setPhysRegUsed(Mips::RA);
-  MF.getRegInfo().setPhysRegUsed(Mips::S0);
-  MF.getRegInfo().setPhysRegUsed(Mips::S1);
+  const Mips16InstrInfo &TII =
+      *static_cast<const Mips16InstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const MipsRegisterInfo &RI = TII.getRegisterInfo();
+  const BitVector Reserved = RI.getReservedRegs(MF);
+  bool SaveS2 = Reserved[Mips::S2];
+  if (SaveS2)
+    MF.getRegInfo().setPhysRegUsed(Mips::S2);
+  if (hasFP(MF))
+    MF.getRegInfo().setPhysRegUsed(Mips::S0);
 }
 
 const MipsFrameLowering *

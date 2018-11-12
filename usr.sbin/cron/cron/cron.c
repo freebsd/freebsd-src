@@ -376,30 +376,17 @@ cron_sync(int secres) {
 	}
 }
 
-static int
+static void
 timespec_subtract(struct timespec *result, struct timespec *x,
     struct timespec *y)
 {
-	time_t nsec;
-
-	/* Perform the carry for the later subtraction by updating y. */
-	if (x->tv_nsec < y->tv_nsec) {
-		nsec = (y->tv_nsec - x->tv_nsec) / 10000000 + 1;
-		y->tv_nsec -= 1000000000 * nsec;
-		y->tv_sec += nsec;
+	*result = *x;
+	result->tv_sec -= y->tv_sec;
+	result->tv_nsec -= y->tv_nsec;
+	if (result->tv_nsec < 0) {
+		result->tv_sec--;
+		result->tv_nsec += 1000000000;
 	}
-	if (x->tv_nsec - y->tv_nsec > 1000000000) {
-		nsec = (x->tv_nsec - y->tv_nsec) / 1000000000;
-		y->tv_nsec += 1000000000 * nsec;
-		y->tv_sec -= nsec;
-	}
-     
-	/* tv_nsec is certainly positive. */
-	result->tv_sec = x->tv_sec - y->tv_sec;
-	result->tv_nsec = x->tv_nsec - y->tv_nsec;
-     
-	/* Return True if result is negative. */
-	return (x->tv_sec < y->tv_sec);
 }
 
 static void

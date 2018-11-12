@@ -30,6 +30,8 @@
  * 2) GPIO initializtion in board setup code.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -54,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -72,6 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91var.h>
 #include <arm/at91/if_atereg.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "miibus_if.h"
 
@@ -228,7 +237,10 @@ static int	ate_miibus_writereg(device_t dev, int phy, int reg, int data);
 static int
 ate_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "cdns,at32ap7000-macb"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "EMAC");
 	return (0);
 }
@@ -659,7 +671,6 @@ ate_deactivate(struct ate_softc *sc)
 			bus_dmamem_free(sc->rx_tag, sc->rx_buf[i],
 			    sc->rx_map[i]);
 			sc->rx_buf[i] = NULL;
-			sc->rx_map[i] = NULL;
 		}
 		bus_dma_tag_destroy(sc->rx_tag);
 	}
@@ -765,19 +776,19 @@ ate_tick(void *xsc)
 	sc->mibdata.dot3StatsAlignmentErrors += RD4(sc, ETH_ALE);
 	sc->mibdata.dot3StatsFCSErrors += RD4(sc, ETH_SEQE);
 	c = RD4(sc, ETH_SCOL);
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsSingleCollisionFrames += c;
 	c = RD4(sc, ETH_MCOL);
 	sc->mibdata.dot3StatsMultipleCollisionFrames += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsSQETestErrors += RD4(sc, ETH_SQEE);
 	sc->mibdata.dot3StatsDeferredTransmissions += RD4(sc, ETH_DTE);
 	c = RD4(sc, ETH_LCOL);
 	sc->mibdata.dot3StatsLateCollisions += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	c = RD4(sc, ETH_ECOL);
 	sc->mibdata.dot3StatsExcessiveCollisions += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsCarrierSenseErrors += RD4(sc, ETH_CSE);
 	sc->mibdata.dot3StatsFrameTooLongs += RD4(sc, ETH_ELR);
 	sc->mibdata.dot3StatsInternalMacReceiveErrors += RD4(sc, ETH_DRFC);
@@ -786,9 +797,9 @@ ate_tick(void *xsc)
 	 * Not sure where to lump these, so count them against the errors
 	 * for the interface.
 	 */
-	sc->ifp->if_oerrors += RD4(sc, ETH_TUE);
-	sc->ifp->if_ierrors += RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) +
-	    RD4(sc, ETH_USF);
+	if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, RD4(sc, ETH_TUE));
+	if_inc_counter(sc->ifp, IFCOUNTER_IERRORS,
+	    RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) + RD4(sc, ETH_USF));
 
 	/* Schedule another timeout one second from now. */
 	callout_reset(&sc->tick_ch, hz, ate_tick, sc);
@@ -903,7 +914,7 @@ ate_intr(void *xsc)
 			mb = m_get2(remain + ETHER_ALIGN, M_NOWAIT, MT_DATA,
 			    M_PKTHDR);
 			if (mb == NULL) {
-				sc->ifp->if_iqdrops++;
+				if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
 				rxdhead->status = 0;
 				continue;
 			}
@@ -946,10 +957,8 @@ ate_intr(void *xsc)
 
 			} while (!done);
 
-			if (mb != NULL) {
-				ifp->if_ipackets++;
-				(*ifp->if_input)(ifp, mb);
-			}
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+			(*ifp->if_input)(ifp, mb);
 		}
 	}
 
@@ -973,17 +982,15 @@ ate_intr(void *xsc)
 				sc->tx_descs[sc->txtail + 1].status |= ETHB_TX_USED;
 		}
 
-		while (sc->txtail != sc->txhead &&
-		    sc->tx_descs[sc->txtail].status & ETHB_TX_USED ) {
-
+		while ((sc->tx_descs[sc->txtail].status & ETHB_TX_USED) &&
+		    sc->sent_mbuf[sc->txtail] != NULL) {
 			bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txtail],
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
 			m_freem(sc->sent_mbuf[sc->txtail]);
 			sc->tx_descs[sc->txtail].addr = 0;
 			sc->sent_mbuf[sc->txtail] = NULL;
-
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			sc->txtail = NEXT_TX_IDX(sc, sc->txtail);
 		}
 
@@ -1117,12 +1124,10 @@ atestart_locked(struct ifnet *ifp)
 		 * xmit packets.  We use OACTIVE to indicate "we can stuff more
 		 * into our buffers (clear) or not (set)."
 		 */
-		if (!sc->is_emacb) {
-			/* RM9200 has only two hardware entries */
-			if (!sc->is_emacb && (RD4(sc, ETH_TSR) & ETH_TSR_BNQ) == 0) {
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				return;
-			}
+		/* RM9200 has only two hardware entries */
+		if (!sc->is_emacb && (RD4(sc, ETH_TSR) & ETH_TSR_BNQ) == 0) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			return;
 		}
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -1145,6 +1150,21 @@ atestart_locked(struct ifnet *ifp)
 			m_freem(m);
 			continue;
 		}
+
+		/*
+		 * There's a small race between the loop in ate_intr finishing
+		 * and the check above to see if the packet was finished, as well
+		 * as when atestart gets called via other paths. Lose the race
+		 * gracefully and free the mbuf...
+		 */
+		if (sc->sent_mbuf[sc->txhead] != NULL) {
+			bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txtail],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
+			m_free(sc->sent_mbuf[sc->txhead]);
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		}
+		
 		sc->sent_mbuf[sc->txhead] = m;
 
 		bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txhead],
@@ -1448,7 +1468,11 @@ static driver_t ate_driver = {
 	sizeof(struct ate_softc),
 };
 
+#ifdef FDT
+DRIVER_MODULE(ate, simplebus, ate_driver, ate_devclass, NULL, NULL);
+#else
 DRIVER_MODULE(ate, atmelarm, ate_driver, ate_devclass, NULL, NULL);
+#endif
 DRIVER_MODULE(miibus, ate, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_DEPEND(ate, miibus, 1, 1, 1);
 MODULE_DEPEND(ate, ether, 1, 1, 1);

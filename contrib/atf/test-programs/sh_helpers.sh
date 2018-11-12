@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 # -------------------------------------------------------------------------
 # Helper tests for "t_cleanup".
@@ -111,23 +107,6 @@ cleanup_sigterm_cleanup()
     rm $(atf_config_get tmpfile)
 }
 
-atf_test_case cleanup_fork cleanup
-cleanup_fork_head()
-{
-    atf_set "descr" "Helper test case for the t_cleanup test program"
-}
-cleanup_fork_body()
-{
-    :
-}
-cleanup_fork_cleanup()
-{
-    exec 1>out
-    exec 2>err
-    exec 3>res
-    rm -f out err res
-}
-
 # -------------------------------------------------------------------------
 # Helper tests for "t_config".
 # -------------------------------------------------------------------------
@@ -172,24 +151,6 @@ config_multi_value_head()
 config_multi_value_body()
 {
     atf_check_equal "$(atf_config_get 'test')" "foo bar"
-}
-
-# -------------------------------------------------------------------------
-# Helper tests for "t_fork".
-# -------------------------------------------------------------------------
-
-atf_test_case fork_stop
-fork_stop_head()
-{
-    atf_set "descr" "Helper test case for the t_fork test program"
-}
-fork_stop_body()
-{
-    echo ${$} >$(atf_config_get pidfile)
-    echo "Wrote pid file"
-    echo "Waiting for done file"
-    while ! test -f $(atf_config_get donefile); do sleep 1; done
-    echo "Exiting"
 }
 
 # -------------------------------------------------------------------------
@@ -387,7 +348,6 @@ atf_init_test_cases()
     atf_add_test_case cleanup_skip
     atf_add_test_case cleanup_curdir
     atf_add_test_case cleanup_sigterm
-    atf_add_test_case cleanup_fork
 
     # Add helper tests for t_config.
     atf_add_test_case config_unset
@@ -413,9 +373,6 @@ atf_init_test_cases()
     atf_add_test_case expect_death_but_pass
     atf_add_test_case expect_timeout_and_hang
     atf_add_test_case expect_timeout_but_pass
-
-    # Add helper tests for t_fork.
-    atf_add_test_case fork_stop
 
     # Add helper tests for t_meta_data.
     atf_add_test_case metadata_no_descr

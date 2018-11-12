@@ -46,31 +46,37 @@
  */
 
 #include <machine/_align.h>
+#include <machine/acle-compat.h>
 
 #define STACKALIGNBYTES	(8 - 1)
 #define STACKALIGN(p)	((u_int)(p) & ~STACKALIGNBYTES)
 
 #define __PCI_REROUTE_INTERRUPT
 
+#if __ARM_ARCH >= 6
+#define	_V6_SUFFIX "v6"
+#else
+#define	_V6_SUFFIX ""
+#endif
+
+#ifdef __ARM_PCS_VFP
+#define	_HF_SUFFIX "hf"
+#else
+#define	_HF_SUFFIX ""
+#endif
+
+#ifdef __ARM_BIG_ENDIAN
+#define	_EB_SUFFIX "eb"
+#else
+#define	_EB_SUFFIX ""
+#endif
+
 #ifndef MACHINE
 #define	MACHINE		"arm"
 #endif
 #ifndef MACHINE_ARCH
-#if defined(__FreeBSD_ARCH_armv6__) || (defined(__ARM_ARCH) && __ARM_ARCH >= 6)
-#ifdef __ARMEB__
-#define	MACHINE_ARCH	"armv6eb"
-#else
-#define	MACHINE_ARCH	"armv6"
+#define	MACHINE_ARCH	"arm" _V6_SUFFIX _HF_SUFFIX _EB_SUFFIX
 #endif
-#else
-#ifdef __ARMEB__
-#define	MACHINE_ARCH	"armeb"
-#else
-#define	MACHINE_ARCH	"arm"
-#endif
-#endif
-#endif
-#define	MID_MACHINE	MID_ARM6
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
@@ -79,6 +85,10 @@
 #else
 #define	MAXCPU		1
 #endif /* SMP || KLD_MODULE */
+
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
 
 #define	ALIGNBYTES	_ALIGNBYTES
 #define	ALIGN(p)	_ALIGN(p)
@@ -104,9 +114,10 @@
 
 #define PDR_SHIFT	20 /* log2(NBPDR) */
 #define NBPDR		(1 << PDR_SHIFT)
+#define PDRMASK		(NBPDR - 1)
 #define NPDEPG          (1 << (32 - PDR_SHIFT))
 
-#define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
+#define	MAXPAGESIZES	2		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
 #define KSTACK_PAGES    2
@@ -120,17 +131,15 @@
 #define KSTACK_GUARD_PAGES	1
 #endif /* !KSTACK_GUARD_PAGES */
 
-#define USPACE_SVC_STACK_TOP		KSTACK_PAGES * PAGE_SIZE
-#define USPACE_SVC_STACK_BOTTOM		(USPACE_SVC_STACK_TOP - 0x1000)
-#define USPACE_UNDEF_STACK_TOP		(USPACE_SVC_STACK_BOTTOM - 0x10)
-#define USPACE_UNDEF_STACK_BOTTOM	(FPCONTEXTSIZE + 10)
+#define USPACE_SVC_STACK_TOP		(KSTACK_PAGES * PAGE_SIZE)
+
 /*
  * Mach derived conversion macros
  */
 #define	trunc_page(x)		((x) & ~PAGE_MASK)
 #define	round_page(x)		(((x) + PAGE_MASK) & ~PAGE_MASK)
-#define	trunc_4mpage(x)		((unsigned)(x) & ~PDRMASK)
-#define	round_4mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
+#define	trunc_1mpage(x)		((unsigned)(x) & ~PDRMASK)
+#define	round_1mpage(x)		((((unsigned)(x)) + PDRMASK) & ~PDRMASK)
 
 #define	atop(x)			((unsigned)(x) >> PAGE_SHIFT)
 #define	ptoa(x)			((unsigned)(x) << PAGE_SHIFT)
@@ -139,5 +148,9 @@
 #define	arm32_ptob(x)		((unsigned)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+
+#ifdef _KERNEL
+#define	NO_FUEWORD	1
+#endif
 
 #endif /* !_ARM_INCLUDE_PARAM_H_ */

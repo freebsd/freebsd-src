@@ -1,9 +1,9 @@
 /*
- *  $Id: yesno.c,v 1.51 2011/06/27 08:20:57 tom Exp $
+ *  $Id: yesno.c,v 1.57 2012/12/01 01:48:21 tom Exp $
  *
  *  yesno.c -- implements the yes/no box
  *
- *  Copyright 1999-2010,2011	Thomas E. Dickey
+ *  Copyright 1999-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -37,13 +37,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     static DLG_KEYS_BINDING binding[] = {
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
-	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
-	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_DOWN ),
-	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ),
-	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ),
-	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_UP ),
-	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_BTAB ),
-	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_LEFT ),
+	TRAVERSE_BINDINGS,
 	SCROLLKEY_BINDINGS,
 	END_KEYS_BINDING
     };
@@ -52,7 +46,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
     int x, y;
     int key = 0, fkey;
     int code;
-    int button = dlg_defaultno_button();
+    int button = dlg_default_button();
     WINDOW *dialog = 0;
     int result = DLG_EXIT_UNKNOWN;
     char *prompt = dlg_strclone(cprompt);
@@ -87,12 +81,12 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
 	dlg_register_buttons(dialog, "yesno", buttons);
     }
 
-    dlg_draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
-    dlg_draw_bottom_box(dialog);
+    dlg_draw_box2(dialog, 0, 0, height, width, dialog_attr, border_attr, border2_attr);
+    dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
     dlg_draw_helpline(dialog, FALSE);
 
-    wattrset(dialog, dialog_attr);
+    (void) wattrset(dialog, dialog_attr);
 
     page = height - (1 + 3 * MARGIN);
     dlg_draw_buttons(dialog,
@@ -103,6 +97,7 @@ dialog_yesno(const char *title, const char *cprompt, int height, int width)
 	if (show) {
 	    last = dlg_print_scrolled(dialog, prompt, offset,
 				      page, width, TRUE);
+	    dlg_trace_win(dialog);
 	    show = FALSE;
 	}
 	key = dlg_mouse_wgetch(dialog, &fkey);

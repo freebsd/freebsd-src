@@ -1,14 +1,15 @@
 # $FreeBSD$
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=	3.0.4
+BSDTAR_VERSION_STRING=	3.1.2
 
 .PATH: ${LIBARCHIVEDIR}/tar
 SRCS=	bsdtar.c	\
 	cmdline.c	\
+	creation_set.c	\
 	read.c		\
 	subst.c		\
 	util.c		\
@@ -18,15 +19,7 @@ SRCS=	bsdtar.c	\
 SRCS+=	err.c		\
 	line_reader.c
 
-DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA} ${LIBBSDXML}
-LDADD=	-larchive -lbz2 -lz -llzma -lbsdxml
-.if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+= -lcrypto
-.else
-DPADD+= ${LIBMD}
-LDADD+= -lmd
-.endif
+LIBADD=	archive
 
 .if ${MK_ICONV} != "no"
 CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const

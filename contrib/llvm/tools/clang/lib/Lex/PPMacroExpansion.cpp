@@ -7,32 +7,34 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the top level handling of macro expasion for the
+// This file implements the top level handling of macro expansion for the
 // preprocessor.
 //
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
-#include "MacroArgs.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Basic/SourceManager.h"
+#include "clang/Basic/Attributes.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/Lex/LexDiagnostic.h"
 #include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/ExternalPreprocessorSource.h"
-#include "clang/Lex/LiteralSupport.h"
-#include "llvm/ADT/StringSwitch.h"
+#include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/MacroArgs.h"
+#include "clang/Lex/MacroInfo.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Config/llvm-config.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cstdio>
 #include <ctime>
 using namespace clang;
 
-MacroInfo *Preprocessor::getMacroInfoHistory(IdentifierInfo *II) const {
+MacroDirective *
+Preprocessor::getMacroDirectiveHistory(const IdentifierInfo *II) const {
   assert(II->hadMacroDefinition() && "Identifier has not been not a macro!");
 
   macro_iterator Pos = Macros.find(II);
@@ -40,125 +42,34 @@ MacroInfo *Preprocessor::getMacroInfoHistory(IdentifierInfo *II) const {
   return Pos->second;
 }
 
-/// setMacroInfo - Specify a macro for this identifier.
-///
-void Preprocessor::setMacroInfo(IdentifierInfo *II, MacroInfo *MI) {
-  assert(MI && "MacroInfo should be non-zero!");
-  assert(MI->getUndefLoc().isInvalid() &&
-         "Undefined macros cannot be registered");
+void Preprocessor::appendMacroDirective(IdentifierInfo *II, MacroDirective *MD){
+  assert(MD && "MacroDirective should be non-zero!");
+  assert(!MD->getPrevious() && "Already attached to a MacroDirective history.");
 
-  MacroInfo *&StoredMI = Macros[II];
-  MI->setPreviousDefinition(StoredMI);
-  StoredMI = MI;
-  II->setHasMacroDefinition(MI->getUndefLoc().isInvalid());
-  if (II->isFromAST())
+  MacroDirective *&StoredMD = Macros[II];
+  MD->setPrevious(StoredMD);
+  StoredMD = MD;
+  // Setup the identifier as having associated macro history.
+  II->setHasMacroDefinition(true);
+  if (!MD->isDefined())
+    II->setHasMacroDefinition(false);
+  bool isImportedMacro = isa<DefMacroDirective>(MD) &&
+                         cast<DefMacroDirective>(MD)->isImported();
+  if (II->isFromAST() && !isImportedMacro)
     II->setChangedSinceDeserialization();
 }
 
-void Preprocessor::addLoadedMacroInfo(IdentifierInfo *II, MacroInfo *MI,
-                                      MacroInfo *Hint) {
-  assert(MI && "Missing macro?");
-  assert(MI->isFromAST() && "Macro is not from an AST?");
-  assert(!MI->getPreviousDefinition() && "Macro already in chain?");
-  
-  MacroInfo *&StoredMI = Macros[II];
-
-  // Easy case: this is the first macro definition for this macro.
-  if (!StoredMI) {
-    StoredMI = MI;
-
-    if (MI->isDefined())
-      II->setHasMacroDefinition(true);
-    return;
-  }
-
-  // If this macro is a definition and this identifier has been neither
-  // defined nor undef'd in the current translation unit, add this macro
-  // to the end of the chain of definitions.
-  if (MI->isDefined() && StoredMI->isFromAST()) {
-    // Simple case: if this is the first actual definition, just put it at
-    // th beginning.
-    if (!StoredMI->isDefined()) {
-      MI->setPreviousDefinition(StoredMI);
-      StoredMI = MI;
-
-      II->setHasMacroDefinition(true);
-      return;
-    }
-
-    // Find the end of the definition chain.
-    MacroInfo *Prev;
-    MacroInfo *PrevPrev = StoredMI;
-    bool Ambiguous = StoredMI->isAmbiguous();
-    bool MatchedOther = false;
-    do {
-      Prev = PrevPrev;
-
-      // If the macros are not identical, we have an ambiguity.
-      if (!Prev->isIdenticalTo(*MI, *this)) {
-        if (!Ambiguous) {
-          Ambiguous = true;
-          StoredMI->setAmbiguous(true);
-        }
-      } else {
-        MatchedOther = true;
-      }
-    } while ((PrevPrev = Prev->getPreviousDefinition()) &&
-             PrevPrev->isDefined());
-
-    // If there are ambiguous definitions, and we didn't match any other
-    // definition, then mark us as ambiguous.
-    if (Ambiguous && !MatchedOther)
-      MI->setAmbiguous(true);
-
-    // Wire this macro information into the chain.
-    MI->setPreviousDefinition(Prev->getPreviousDefinition());
-    Prev->setPreviousDefinition(MI);
-    return;
-  }
-
-  // The macro is not a definition; put it at the end of the list.
-  MacroInfo *Prev = Hint? Hint : StoredMI;
-  while (Prev->getPreviousDefinition())
-    Prev = Prev->getPreviousDefinition();
-  Prev->setPreviousDefinition(MI);
-}
-
-void Preprocessor::makeLoadedMacroInfoVisible(IdentifierInfo *II,
-                                              MacroInfo *MI) {
-  assert(MI->isFromAST() && "Macro must be from the AST");
-
-  MacroInfo *&StoredMI = Macros[II];
-  if (StoredMI == MI) {
-    // Easy case: this is the first macro anyway.
-    II->setHasMacroDefinition(MI->isDefined());
-    return;
-  }
-
-  // Go find the macro and pull it out of the list.
-  // FIXME: Yes, this is O(N), and making a pile of macros visible or hidden
-  // would be quadratic, but it's extremely rare.
-  MacroInfo *Prev = StoredMI;
-  while (Prev->getPreviousDefinition() != MI)
-    Prev = Prev->getPreviousDefinition();
-  Prev->setPreviousDefinition(MI->getPreviousDefinition());
-  MI->setPreviousDefinition(0);
-
-  // Add the macro back to the list.
-  addLoadedMacroInfo(II, MI);
-
-  II->setHasMacroDefinition(StoredMI->isDefined());
-  if (II->isFromAST())
-    II->setChangedSinceDeserialization();
-}
-
-/// \brief Undefine a macro for this identifier.
-void Preprocessor::clearMacroInfo(IdentifierInfo *II) {
-  assert(II->hasMacroDefinition() && "Macro is not defined!");
-  assert(Macros[II]->getUndefLoc().isValid() && "Macro is still defined!");
-  II->setHasMacroDefinition(false);
-  if (II->isFromAST())
-    II->setChangedSinceDeserialization();
+void Preprocessor::setLoadedMacroDirective(IdentifierInfo *II,
+                                           MacroDirective *MD) {
+  assert(II && MD);
+  MacroDirective *&StoredMD = Macros[II];
+  assert(!StoredMD &&
+         "the macro history was modified before initializing it from a pch");
+  StoredMD = MD;
+  // Setup the identifier as having associated macro history.
+  II->setHasMacroDefinition(true);
+  if (!MD->isDefined())
+    II->setHasMacroDefinition(false);
 }
 
 /// RegisterBuiltinMacro - Register the specified identifier in the identifier
@@ -170,7 +81,7 @@ static IdentifierInfo *RegisterBuiltinMacro(Preprocessor &PP, const char *Name){
   // Mark it as being a macro that is builtin.
   MacroInfo *MI = PP.AllocateMacroInfo(SourceLocation());
   MI->setIsBuiltinMacro();
-  PP.setMacroInfo(Id, MI);
+  PP.appendDefMacroDirective(Id, MI);
   return Id;
 }
 
@@ -185,19 +96,33 @@ void Preprocessor::RegisterBuiltinMacros() {
   Ident__COUNTER__ = RegisterBuiltinMacro(*this, "__COUNTER__");
   Ident_Pragma  = RegisterBuiltinMacro(*this, "_Pragma");
 
+  // C++ Standing Document Extensions.
+  Ident__has_cpp_attribute = RegisterBuiltinMacro(*this, "__has_cpp_attribute");
+
   // GCC Extensions.
   Ident__BASE_FILE__     = RegisterBuiltinMacro(*this, "__BASE_FILE__");
   Ident__INCLUDE_LEVEL__ = RegisterBuiltinMacro(*this, "__INCLUDE_LEVEL__");
   Ident__TIMESTAMP__     = RegisterBuiltinMacro(*this, "__TIMESTAMP__");
+
+  // Microsoft Extensions.
+  if (LangOpts.MicrosoftExt) {
+    Ident__identifier = RegisterBuiltinMacro(*this, "__identifier");
+    Ident__pragma = RegisterBuiltinMacro(*this, "__pragma");
+  } else {
+    Ident__identifier = nullptr;
+    Ident__pragma = nullptr;
+  }
 
   // Clang Extensions.
   Ident__has_feature      = RegisterBuiltinMacro(*this, "__has_feature");
   Ident__has_extension    = RegisterBuiltinMacro(*this, "__has_extension");
   Ident__has_builtin      = RegisterBuiltinMacro(*this, "__has_builtin");
   Ident__has_attribute    = RegisterBuiltinMacro(*this, "__has_attribute");
+  Ident__has_declspec = RegisterBuiltinMacro(*this, "__has_declspec_attribute");
   Ident__has_include      = RegisterBuiltinMacro(*this, "__has_include");
   Ident__has_include_next = RegisterBuiltinMacro(*this, "__has_include_next");
   Ident__has_warning      = RegisterBuiltinMacro(*this, "__has_warning");
+  Ident__is_identifier    = RegisterBuiltinMacro(*this, "__is_identifier");
 
   // Modules.
   if (LangOpts.Modules) {
@@ -207,17 +132,11 @@ void Preprocessor::RegisterBuiltinMacros() {
     if (!LangOpts.CurrentModule.empty())
       Ident__MODULE__ = RegisterBuiltinMacro(*this, "__MODULE__");
     else
-      Ident__MODULE__ = 0;
+      Ident__MODULE__ = nullptr;
   } else {
-    Ident__building_module = 0;
-    Ident__MODULE__ = 0;
+    Ident__building_module = nullptr;
+    Ident__MODULE__ = nullptr;
   }
-  
-  // Microsoft Extensions.
-  if (LangOpts.MicrosoftExt) 
-    Ident__pragma = RegisterBuiltinMacro(*this, "__pragma");
-  else
-    Ident__pragma = 0;
 }
 
 /// isTrivialSingleTokenExpansion - Return true if MI, which has a single token
@@ -228,7 +147,7 @@ static bool isTrivialSingleTokenExpansion(const MacroInfo *MI,
   IdentifierInfo *II = MI->getReplacementToken(0).getIdentifierInfo();
 
   // If the token isn't an identifier, it's always literally expanded.
-  if (II == 0) return true;
+  if (!II) return true;
 
   // If the information about this identifier is out of date, update it from
   // the external source.
@@ -303,7 +222,11 @@ bool Preprocessor::isNextPPTokenLParen() {
 /// HandleMacroExpandedIdentifier - If an identifier token is read that is to be
 /// expanded as a macro, handle it and return the next token as 'Identifier'.
 bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
-                                                 MacroInfo *MI) {
+                                                 MacroDirective *MD) {
+  MacroDirective::DefInfo Def = MD->getDefinition();
+  assert(Def.isValid());
+  MacroInfo *MI = Def.getMacroInfo();
+
   // If this is a macro expansion in the "#if !defined(x)" line for the file,
   // then the macro could expand to different things in other contexts, we need
   // to disable the optimization in this case.
@@ -311,16 +234,17 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // If this is a builtin macro, like __LINE__ or _Pragma, handle it specially.
   if (MI->isBuiltinMacro()) {
-    if (Callbacks) Callbacks->MacroExpands(Identifier, MI,
-                                           Identifier.getLocation());
+    if (Callbacks) Callbacks->MacroExpands(Identifier, MD,
+                                           Identifier.getLocation(),
+                                           /*Args=*/nullptr);
     ExpandBuiltinMacro(Identifier);
-    return false;
+    return true;
   }
 
   /// Args - If this is a function-like macro expansion, this contains,
   /// for each macro argument, the list of tokens that were provided to the
   /// invocation.
-  MacroArgs *Args = 0;
+  MacroArgs *Args = nullptr;
 
   // Remember where the end of the expansion occurred.  For an object-like
   // macro, this is the identifier.  For a function-like macro, this is the ')'.
@@ -328,11 +252,6 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
 
   // If this is a function-like macro, read the arguments.
   if (MI->isFunctionLike()) {
-    // C99 6.10.3p10: If the preprocessing token immediately after the macro
-    // name isn't a '(', this macro should not be expanded.
-    if (!isNextPPTokenLParen())
-      return true;
-
     // Remember that we are now parsing the arguments to a macro invocation.
     // Preprocessor directives used inside macro arguments are not portable, and
     // this enables the warning.
@@ -343,7 +262,7 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     InMacroArgs = false;
 
     // If there was an error parsing the arguments, bail out.
-    if (Args == 0) return false;
+    if (!Args) return true;
 
     ++NumFnMacroExpanded;
   } else {
@@ -364,13 +283,15 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
       // MacroExpands callbacks still happen in source order, queue this
       // callback to have it happen after the function macro callback.
       DelayedMacroExpandsCallbacks.push_back(
-                              MacroExpandsInfo(Identifier, MI, ExpansionRange));
+                              MacroExpandsInfo(Identifier, MD, ExpansionRange));
     } else {
-      Callbacks->MacroExpands(Identifier, MI, ExpansionRange);
+      Callbacks->MacroExpands(Identifier, MD, ExpansionRange, Args);
       if (!DelayedMacroExpandsCallbacks.empty()) {
         for (unsigned i=0, e = DelayedMacroExpandsCallbacks.size(); i!=e; ++i) {
           MacroExpandsInfo &Info = DelayedMacroExpandsCallbacks[i];
-          Callbacks->MacroExpands(Info.Tok, Info.MI, Info.Range);
+          // FIXME: We lose macro args info with delayed callback.
+          Callbacks->MacroExpands(Info.Tok, Info.MD, Info.Range,
+                                  /*Args=*/nullptr);
         }
         DelayedMacroExpandsCallbacks.clear();
       }
@@ -378,18 +299,19 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
   }
 
   // If the macro definition is ambiguous, complain.
-  if (MI->isAmbiguous()) {
+  if (Def.getDirective()->isAmbiguous()) {
     Diag(Identifier, diag::warn_pp_ambiguous_macro)
       << Identifier.getIdentifierInfo();
     Diag(MI->getDefinitionLoc(), diag::note_pp_ambiguous_macro_chosen)
       << Identifier.getIdentifierInfo();
-    for (MacroInfo *PrevMI = MI->getPreviousDefinition();
-         PrevMI && PrevMI->isDefined();
-         PrevMI = PrevMI->getPreviousDefinition()) {
-      if (PrevMI->isAmbiguous()) {
-        Diag(PrevMI->getDefinitionLoc(), diag::note_pp_ambiguous_macro_other)
-          << Identifier.getIdentifierInfo();
-      }
+    for (MacroDirective::DefInfo PrevDef = Def.getPreviousDefinition();
+         PrevDef && !PrevDef.isUndefined();
+         PrevDef = PrevDef.getPreviousDefinition()) {
+      Diag(PrevDef.getMacroInfo()->getDefinitionLoc(),
+           diag::note_pp_ambiguous_macro_other)
+        << Identifier.getIdentifierInfo();
+      if (!PrevDef.getDirective()->isAmbiguous())
+        break;
     }
   }
 
@@ -401,25 +323,12 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
     // No need for arg info.
     if (Args) Args->destroy(*this);
 
-    // Ignore this macro use, just return the next token in the current
-    // buffer.
-    bool HadLeadingSpace = Identifier.hasLeadingSpace();
-    bool IsAtStartOfLine = Identifier.isAtStartOfLine();
-
-    Lex(Identifier);
-
-    // If the identifier isn't on some OTHER line, inherit the leading
-    // whitespace/first-on-a-line property of this token.  This handles
-    // stuff like "! XX," -> "! ," and "   XX," -> "    ,", when XX is
-    // empty.
-    if (!Identifier.isAtStartOfLine()) {
-      if (IsAtStartOfLine) Identifier.setFlag(Token::StartOfLine);
-      if (HadLeadingSpace) Identifier.setFlag(Token::LeadingSpace);
-    }
+    // Propagate whitespace info as if we had pushed, then popped,
+    // a macro context.
     Identifier.setFlag(Token::LeadingEmptyMacro);
+    PropagateLineStartLeadingSpaceInfo(Identifier);
     ++NumFastMacroExpanded;
     return false;
-
   } else if (MI->getNumTokens() == 1 &&
              isTrivialSingleTokenExpansion(MI, Identifier.getIdentifierInfo(),
                                            *this)) {
@@ -455,23 +364,152 @@ bool Preprocessor::HandleMacroExpandedIdentifier(Token &Identifier,
       if (MacroInfo *NewMI = getMacroInfo(NewII))
         if (!NewMI->isEnabled() || NewMI == MI) {
           Identifier.setFlag(Token::DisableExpand);
-          Diag(Identifier, diag::pp_disabled_macro_expansion);
+          // Don't warn for "#define X X" like "#define bool bool" from
+          // stdbool.h.
+          if (NewMI != MI || MI->isFunctionLike())
+            Diag(Identifier, diag::pp_disabled_macro_expansion);
         }
     }
 
     // Since this is not an identifier token, it can't be macro expanded, so
     // we're done.
     ++NumFastMacroExpanded;
-    return false;
+    return true;
   }
 
   // Start expanding the macro.
   EnterMacro(Identifier, ExpansionEnd, MI, Args);
-
-  // Now that the macro is at the top of the include stack, ask the
-  // preprocessor to read the next token from it.
-  Lex(Identifier);
   return false;
+}
+
+enum Bracket {
+  Brace,
+  Paren
+};
+
+/// CheckMatchedBrackets - Returns true if the braces and parentheses in the
+/// token vector are properly nested.
+static bool CheckMatchedBrackets(const SmallVectorImpl<Token> &Tokens) {
+  SmallVector<Bracket, 8> Brackets;
+  for (SmallVectorImpl<Token>::const_iterator I = Tokens.begin(),
+                                              E = Tokens.end();
+       I != E; ++I) {
+    if (I->is(tok::l_paren)) {
+      Brackets.push_back(Paren);
+    } else if (I->is(tok::r_paren)) {
+      if (Brackets.empty() || Brackets.back() == Brace)
+        return false;
+      Brackets.pop_back();
+    } else if (I->is(tok::l_brace)) {
+      Brackets.push_back(Brace);
+    } else if (I->is(tok::r_brace)) {
+      if (Brackets.empty() || Brackets.back() == Paren)
+        return false;
+      Brackets.pop_back();
+    }
+  }
+  if (!Brackets.empty())
+    return false;
+  return true;
+}
+
+/// GenerateNewArgTokens - Returns true if OldTokens can be converted to a new
+/// vector of tokens in NewTokens.  The new number of arguments will be placed
+/// in NumArgs and the ranges which need to surrounded in parentheses will be
+/// in ParenHints.
+/// Returns false if the token stream cannot be changed.  If this is because
+/// of an initializer list starting a macro argument, the range of those
+/// initializer lists will be place in InitLists.
+static bool GenerateNewArgTokens(Preprocessor &PP,
+                                 SmallVectorImpl<Token> &OldTokens,
+                                 SmallVectorImpl<Token> &NewTokens,
+                                 unsigned &NumArgs,
+                                 SmallVectorImpl<SourceRange> &ParenHints,
+                                 SmallVectorImpl<SourceRange> &InitLists) {
+  if (!CheckMatchedBrackets(OldTokens))
+    return false;
+
+  // Once it is known that the brackets are matched, only a simple count of the
+  // braces is needed.
+  unsigned Braces = 0;
+
+  // First token of a new macro argument.
+  SmallVectorImpl<Token>::iterator ArgStartIterator = OldTokens.begin();
+
+  // First closing brace in a new macro argument.  Used to generate
+  // SourceRanges for InitLists.
+  SmallVectorImpl<Token>::iterator ClosingBrace = OldTokens.end();
+  NumArgs = 0;
+  Token TempToken;
+  // Set to true when a macro separator token is found inside a braced list.
+  // If true, the fixed argument spans multiple old arguments and ParenHints
+  // will be updated.
+  bool FoundSeparatorToken = false;
+  for (SmallVectorImpl<Token>::iterator I = OldTokens.begin(),
+                                        E = OldTokens.end();
+       I != E; ++I) {
+    if (I->is(tok::l_brace)) {
+      ++Braces;
+    } else if (I->is(tok::r_brace)) {
+      --Braces;
+      if (Braces == 0 && ClosingBrace == E && FoundSeparatorToken)
+        ClosingBrace = I;
+    } else if (I->is(tok::eof)) {
+      // EOF token is used to separate macro arguments
+      if (Braces != 0) {
+        // Assume comma separator is actually braced list separator and change
+        // it back to a comma.
+        FoundSeparatorToken = true;
+        I->setKind(tok::comma);
+        I->setLength(1);
+      } else { // Braces == 0
+        // Separator token still separates arguments.
+        ++NumArgs;
+
+        // If the argument starts with a brace, it can't be fixed with
+        // parentheses.  A different diagnostic will be given.
+        if (FoundSeparatorToken && ArgStartIterator->is(tok::l_brace)) {
+          InitLists.push_back(
+              SourceRange(ArgStartIterator->getLocation(),
+                          PP.getLocForEndOfToken(ClosingBrace->getLocation())));
+          ClosingBrace = E;
+        }
+
+        // Add left paren
+        if (FoundSeparatorToken) {
+          TempToken.startToken();
+          TempToken.setKind(tok::l_paren);
+          TempToken.setLocation(ArgStartIterator->getLocation());
+          TempToken.setLength(0);
+          NewTokens.push_back(TempToken);
+        }
+
+        // Copy over argument tokens
+        NewTokens.insert(NewTokens.end(), ArgStartIterator, I);
+
+        // Add right paren and store the paren locations in ParenHints
+        if (FoundSeparatorToken) {
+          SourceLocation Loc = PP.getLocForEndOfToken((I - 1)->getLocation());
+          TempToken.startToken();
+          TempToken.setKind(tok::r_paren);
+          TempToken.setLocation(Loc);
+          TempToken.setLength(0);
+          NewTokens.push_back(TempToken);
+          ParenHints.push_back(SourceRange(ArgStartIterator->getLocation(),
+                                           Loc));
+        }
+
+        // Copy separator token
+        NewTokens.push_back(*I);
+
+        // Reset values
+        ArgStartIterator = I + 1;
+        FoundSeparatorToken = false;
+      }
+    }
+  }
+
+  return !ParenHints.empty() && InitLists.empty();
 }
 
 /// ReadFunctionLikeMacroArgs - After reading "MACRO" and knowing that the next
@@ -497,9 +535,15 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
   // argument is separated by an EOF token.  Use a SmallVector so we can avoid
   // heap allocations in the common case.
   SmallVector<Token, 64> ArgTokens;
+  bool ContainsCodeCompletionTok = false;
+
+  SourceLocation TooManyArgsLoc;
 
   unsigned NumActuals = 0;
   while (Tok.isNot(tok::r_paren)) {
+    if (ContainsCodeCompletionTok && (Tok.is(tok::eof) || Tok.is(tok::eod)))
+      break;
+
     assert((Tok.is(tok::l_paren) || Tok.is(tok::comma)) &&
            "only expect argument separators here");
 
@@ -516,10 +560,20 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       LexUnexpandedToken(Tok);
 
       if (Tok.is(tok::eof) || Tok.is(tok::eod)) { // "#if f(<eof>" & "#if f(\n"
-        Diag(MacroName, diag::err_unterm_macro_invoc);
-        // Do not lose the EOF/EOD.  Return it to the client.
-        MacroName = Tok;
-        return 0;
+        if (!ContainsCodeCompletionTok) {
+          Diag(MacroName, diag::err_unterm_macro_invoc);
+          Diag(MI->getDefinitionLoc(), diag::note_macro_here)
+            << MacroName.getIdentifierInfo();
+          // Do not lose the EOF/EOD.  Return it to the client.
+          MacroName = Tok;
+          return nullptr;
+        } else {
+          // Do not lose the EOF/EOD.
+          Token *Toks = new Token[1];
+          Toks[0] = Tok;
+          EnterTokenStream(Toks, 1, true, true);
+          break;
+        }
       } else if (Tok.is(tok::r_paren)) {
         // If we found the ) token, the macro arg list is done.
         if (NumParens-- == 0) {
@@ -528,7 +582,12 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         }
       } else if (Tok.is(tok::l_paren)) {
         ++NumParens;
-      } else if (Tok.is(tok::comma) && NumParens == 0) {
+      } else if (Tok.is(tok::comma) && NumParens == 0 &&
+                 !(Tok.getFlags() & Token::IgnoredComma)) {
+        // In Microsoft-compatibility mode, single commas from nested macro
+        // expansions should not be considered as argument separators. We test
+        // for this with the IgnoredComma token flag above.
+
         // Comma ends this argument if there are more fixed arguments expected.
         // However, if this is a variadic macro, and this is part of the
         // variadic part, then the comma is just an argument token.
@@ -539,7 +598,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
         // If this is a comment token in the argument list and we're just in
         // -C mode (not -CC mode), discard the comment.
         continue;
-      } else if (Tok.getIdentifierInfo() != 0) {
+      } else if (Tok.getIdentifierInfo() != nullptr) {
         // Reading macro arguments can cause macros that we are currently
         // expanding from to be popped off the expansion stack.  Doing so causes
         // them to be reenabled for expansion.  Here we record whether any
@@ -550,6 +609,7 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
           if (!MI->isEnabled())
             Tok.setFlag(Token::DisableExpand);
       } else if (Tok.is(tok::code_completion)) {
+        ContainsCodeCompletionTok = true;
         if (CodeComplete)
           CodeComplete->CodeCompleteMacroArgument(MacroName.getIdentifierInfo(),
                                                   MI, NumActuals);
@@ -568,20 +628,17 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
 
     // If this is not a variadic macro, and too many args were specified, emit
     // an error.
-    if (!isVariadic && NumFixedArgsLeft == 0) {
+    if (!isVariadic && NumFixedArgsLeft == 0 && TooManyArgsLoc.isInvalid()) {
       if (ArgTokens.size() != ArgTokenStart)
-        ArgStartLoc = ArgTokens[ArgTokenStart].getLocation();
-
-      // Emit the diagnostic at the macro name in case there is a missing ).
-      // Emitting it at the , could be far away from the macro name.
-      Diag(ArgStartLoc, diag::err_too_many_args_in_macro_invoc);
-      return 0;
+        TooManyArgsLoc = ArgTokens[ArgTokenStart].getLocation();
+      else
+        TooManyArgsLoc = ArgStartLoc;
     }
 
-    // Empty arguments are standard in C99 and C++0x, and are supported as an extension in
-    // other modes.
+    // Empty arguments are standard in C99 and C++0x, and are supported as an
+    // extension in other modes.
     if (ArgTokens.size() == ArgTokenStart && !LangOpts.C99)
-      Diag(Tok, LangOpts.CPlusPlus0x ?
+      Diag(Tok, LangOpts.CPlusPlus11 ?
            diag::warn_cxx98_compat_empty_fnmacro_arg :
            diag::ext_empty_fnmacro_arg);
 
@@ -593,16 +650,68 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
     EOFTok.setLength(0);
     ArgTokens.push_back(EOFTok);
     ++NumActuals;
-    assert(NumFixedArgsLeft != 0 && "Too many arguments parsed");
-    --NumFixedArgsLeft;
+    if (!ContainsCodeCompletionTok && NumFixedArgsLeft != 0)
+      --NumFixedArgsLeft;
   }
 
   // Okay, we either found the r_paren.  Check to see if we parsed too few
   // arguments.
   unsigned MinArgsExpected = MI->getNumArgs();
 
+  // If this is not a variadic macro, and too many args were specified, emit
+  // an error.
+  if (!isVariadic && NumActuals > MinArgsExpected &&
+      !ContainsCodeCompletionTok) {
+    // Emit the diagnostic at the macro name in case there is a missing ).
+    // Emitting it at the , could be far away from the macro name.
+    Diag(TooManyArgsLoc, diag::err_too_many_args_in_macro_invoc);
+    Diag(MI->getDefinitionLoc(), diag::note_macro_here)
+      << MacroName.getIdentifierInfo();
+
+    // Commas from braced initializer lists will be treated as argument
+    // separators inside macros.  Attempt to correct for this with parentheses.
+    // TODO: See if this can be generalized to angle brackets for templates
+    // inside macro arguments.
+
+    SmallVector<Token, 4> FixedArgTokens;
+    unsigned FixedNumArgs = 0;
+    SmallVector<SourceRange, 4> ParenHints, InitLists;
+    if (!GenerateNewArgTokens(*this, ArgTokens, FixedArgTokens, FixedNumArgs,
+                              ParenHints, InitLists)) {
+      if (!InitLists.empty()) {
+        DiagnosticBuilder DB =
+            Diag(MacroName,
+                 diag::note_init_list_at_beginning_of_macro_argument);
+        for (const SourceRange &Range : InitLists)
+          DB << Range;
+      }
+      return nullptr;
+    }
+    if (FixedNumArgs != MinArgsExpected)
+      return nullptr;
+
+    DiagnosticBuilder DB = Diag(MacroName, diag::note_suggest_parens_for_macro);
+    for (const SourceRange &ParenLocation : ParenHints) {
+      DB << FixItHint::CreateInsertion(ParenLocation.getBegin(), "(");
+      DB << FixItHint::CreateInsertion(ParenLocation.getEnd(), ")");
+    }
+    ArgTokens.swap(FixedArgTokens);
+    NumActuals = FixedNumArgs;
+  }
+
   // See MacroArgs instance var for description of this.
   bool isVarargsElided = false;
+
+  if (ContainsCodeCompletionTok) {
+    // Recover from not-fully-formed macro invocation during code-completion.
+    Token EOFTok;
+    EOFTok.startToken();
+    EOFTok.setKind(tok::eof);
+    EOFTok.setLocation(Tok.getLocation());
+    EOFTok.setLength(0);
+    for (; NumActuals < MinArgsExpected; ++NumActuals)
+      ArgTokens.push_back(EOFTok);
+  }
 
   if (NumActuals < MinArgsExpected) {
     // There are several cases where too few arguments is ok, handle them now.
@@ -619,9 +728,14 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       // Varargs where the named vararg parameter is missing: OK as extension.
       //   #define A(x, ...)
       //   A("blah")
-      Diag(Tok, diag::ext_missing_varargs_arg);
-      Diag(MI->getDefinitionLoc(), diag::note_macro_here)
-        << MacroName.getIdentifierInfo();
+      //
+      // If the macro contains the comma pasting extension, the diagnostic
+      // is suppressed; we know we'll get another diagnostic later.
+      if (!MI->hasCommaPasting()) {
+        Diag(Tok, diag::ext_missing_varargs_arg);
+        Diag(MI->getDefinitionLoc(), diag::note_macro_here)
+          << MacroName.getIdentifierInfo();
+      }
 
       // Remember this occurred, allowing us to elide the comma when used for
       // cases like:
@@ -630,10 +744,12 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
       //   #define C(...) blah(a, ## __VA_ARGS__)
       //  A(x) B(x) C()
       isVarargsElided = true;
-    } else {
+    } else if (!ContainsCodeCompletionTok) {
       // Otherwise, emit the error.
       Diag(Tok, diag::err_too_few_args_in_macro_invoc);
-      return 0;
+      Diag(MI->getDefinitionLoc(), diag::note_macro_here)
+        << MacroName.getIdentifierInfo();
+      return nullptr;
     }
 
     // Add a marker EOF token to the end of the token list for this argument.
@@ -648,11 +764,14 @@ MacroArgs *Preprocessor::ReadFunctionLikeMacroArgs(Token &MacroName,
     if (NumActuals == 0 && MinArgsExpected == 2)
       ArgTokens.push_back(Tok);
 
-  } else if (NumActuals > MinArgsExpected && !MI->isVariadic()) {
+  } else if (NumActuals > MinArgsExpected && !MI->isVariadic() &&
+             !ContainsCodeCompletionTok) {
     // Emit the diagnostic at the macro name in case there is a missing ).
     // Emitting it at the , could be far away from the macro name.
     Diag(MacroName, diag::err_too_many_args_in_macro_invoc);
-    return 0;
+    Diag(MI->getDefinitionLoc(), diag::note_macro_here)
+      << MacroName.getIdentifierInfo();
+    return nullptr;
   }
 
   return MacroArgs::create(MI, ArgTokens, isVarargsElided, *this);
@@ -667,7 +786,7 @@ Token *Preprocessor::cacheMacroExpandedTokens(TokenLexer *tokLexer,
                                               ArrayRef<Token> tokens) {
   assert(tokLexer);
   if (tokens.empty())
-    return 0;
+    return nullptr;
 
   size_t newIndex = MacroExpandedTokens.size();
   bool cacheNeedsToGrow = tokens.size() >
@@ -680,7 +799,7 @@ Token *Preprocessor::cacheMacroExpandedTokens(TokenLexer *tokLexer,
     for (unsigned i = 0, e = MacroExpandingLexersStack.size(); i != e; ++i) {
       TokenLexer *prevLexer;
       size_t tokIndex;
-      llvm::tie(prevLexer, tokIndex) = MacroExpandingLexersStack[i];
+      std::tie(prevLexer, tokIndex) = MacroExpandingLexersStack[i];
       prevLexer->Tokens = MacroExpandedTokens.data() + tokIndex;
     }
   }
@@ -703,7 +822,7 @@ void Preprocessor::removeCachedMacroExpandedTokensOfLastLexer() {
 /// the identifier tokens inserted.
 static void ComputeDATE_TIME(SourceLocation &DATELoc, SourceLocation &TIMELoc,
                              Preprocessor &PP) {
-  time_t TT = time(0);
+  time_t TT = time(nullptr);
   struct tm *TM = localtime(&TT);
 
   static const char * const Months[] = {
@@ -745,121 +864,148 @@ static bool HasFeature(const Preprocessor &PP, const IdentifierInfo *II) {
     Feature = Feature.substr(2, Feature.size() - 4);
 
   return llvm::StringSwitch<bool>(Feature)
-           .Case("address_sanitizer", LangOpts.SanitizeAddress)
-           .Case("attribute_analyzer_noreturn", true)
-           .Case("attribute_availability", true)
-           .Case("attribute_availability_with_message", true)
-           .Case("attribute_cf_returns_not_retained", true)
-           .Case("attribute_cf_returns_retained", true)
-           .Case("attribute_deprecated_with_message", true)
-           .Case("attribute_ext_vector_type", true)
-           .Case("attribute_ns_returns_not_retained", true)
-           .Case("attribute_ns_returns_retained", true)
-           .Case("attribute_ns_consumes_self", true)
-           .Case("attribute_ns_consumed", true)
-           .Case("attribute_cf_consumed", true)
-           .Case("attribute_objc_ivar_unused", true)
-           .Case("attribute_objc_method_family", true)
-           .Case("attribute_overloadable", true)
-           .Case("attribute_unavailable_with_message", true)
-           .Case("attribute_unused_on_fields", true)
-           .Case("blocks", LangOpts.Blocks)
-           .Case("cxx_exceptions", LangOpts.Exceptions)
-           .Case("cxx_rtti", LangOpts.RTTI)
-           .Case("enumerator_attributes", true)
-           // Objective-C features
-           .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
-           .Case("objc_arc", LangOpts.ObjCAutoRefCount)
-           .Case("objc_arc_weak", LangOpts.ObjCARCWeak)
-           .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
-           .Case("objc_fixed_enum", LangOpts.ObjC2)
-           .Case("objc_instancetype", LangOpts.ObjC2)
-           .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
-           .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
-           .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
-           .Case("ownership_holds", true)
-           .Case("ownership_returns", true)
-           .Case("ownership_takes", true)
-           .Case("objc_bool", true)
-           .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
-           .Case("objc_array_literals", LangOpts.ObjC2)
-           .Case("objc_dictionary_literals", LangOpts.ObjC2)
-           .Case("objc_boxed_expressions", LangOpts.ObjC2)
-           .Case("arc_cf_code_audited", true)
-           // C11 features
-           .Case("c_alignas", LangOpts.C11)
-           .Case("c_atomic", LangOpts.C11)
-           .Case("c_generic_selections", LangOpts.C11)
-           .Case("c_static_assert", LangOpts.C11)
-           // C++11 features
-           .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus0x)
-           .Case("cxx_alias_templates", LangOpts.CPlusPlus0x)
-           .Case("cxx_alignas", LangOpts.CPlusPlus0x)
-           .Case("cxx_atomic", LangOpts.CPlusPlus0x)
-           .Case("cxx_attributes", LangOpts.CPlusPlus0x)
-           .Case("cxx_auto_type", LangOpts.CPlusPlus0x)
-           .Case("cxx_constexpr", LangOpts.CPlusPlus0x)
-           .Case("cxx_decltype", LangOpts.CPlusPlus0x)
-           .Case("cxx_decltype_incomplete_return_types", LangOpts.CPlusPlus0x)
-           .Case("cxx_default_function_template_args", LangOpts.CPlusPlus0x)
-           .Case("cxx_defaulted_functions", LangOpts.CPlusPlus0x)
-           .Case("cxx_delegating_constructors", LangOpts.CPlusPlus0x)
-           .Case("cxx_deleted_functions", LangOpts.CPlusPlus0x)
-           .Case("cxx_explicit_conversions", LangOpts.CPlusPlus0x)
-           .Case("cxx_generalized_initializers", LangOpts.CPlusPlus0x)
-           .Case("cxx_implicit_moves", LangOpts.CPlusPlus0x)
-         //.Case("cxx_inheriting_constructors", false)
-           .Case("cxx_inline_namespaces", LangOpts.CPlusPlus0x)
-           .Case("cxx_lambdas", LangOpts.CPlusPlus0x)
-           .Case("cxx_local_type_template_args", LangOpts.CPlusPlus0x)
-           .Case("cxx_nonstatic_member_init", LangOpts.CPlusPlus0x)
-           .Case("cxx_noexcept", LangOpts.CPlusPlus0x)
-           .Case("cxx_nullptr", LangOpts.CPlusPlus0x)
-           .Case("cxx_override_control", LangOpts.CPlusPlus0x)
-           .Case("cxx_range_for", LangOpts.CPlusPlus0x)
-           .Case("cxx_raw_string_literals", LangOpts.CPlusPlus0x)
-           .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus0x)
-           .Case("cxx_rvalue_references", LangOpts.CPlusPlus0x)
-           .Case("cxx_strong_enums", LangOpts.CPlusPlus0x)
-           .Case("cxx_static_assert", LangOpts.CPlusPlus0x)
-           .Case("cxx_trailing_return", LangOpts.CPlusPlus0x)
-           .Case("cxx_unicode_literals", LangOpts.CPlusPlus0x)
-           .Case("cxx_unrestricted_unions", LangOpts.CPlusPlus0x)
-           .Case("cxx_user_literals", LangOpts.CPlusPlus0x)
-           .Case("cxx_variadic_templates", LangOpts.CPlusPlus0x)
-           // Type traits
-           .Case("has_nothrow_assign", LangOpts.CPlusPlus)
-           .Case("has_nothrow_copy", LangOpts.CPlusPlus)
-           .Case("has_nothrow_constructor", LangOpts.CPlusPlus)
-           .Case("has_trivial_assign", LangOpts.CPlusPlus)
-           .Case("has_trivial_copy", LangOpts.CPlusPlus)
-           .Case("has_trivial_constructor", LangOpts.CPlusPlus)
-           .Case("has_trivial_destructor", LangOpts.CPlusPlus)
-           .Case("has_virtual_destructor", LangOpts.CPlusPlus)
-           .Case("is_abstract", LangOpts.CPlusPlus)
-           .Case("is_base_of", LangOpts.CPlusPlus)
-           .Case("is_class", LangOpts.CPlusPlus)
-           .Case("is_convertible_to", LangOpts.CPlusPlus)
-            // __is_empty is available only if the horrible
-            // "struct __is_empty" parsing hack hasn't been needed in this
-            // translation unit. If it has, __is_empty reverts to a normal
-            // identifier and __has_feature(is_empty) evaluates false.
-           .Case("is_empty", LangOpts.CPlusPlus)
-           .Case("is_enum", LangOpts.CPlusPlus)
-           .Case("is_final", LangOpts.CPlusPlus)
-           .Case("is_literal", LangOpts.CPlusPlus)
-           .Case("is_standard_layout", LangOpts.CPlusPlus)
-           .Case("is_pod", LangOpts.CPlusPlus)
-           .Case("is_polymorphic", LangOpts.CPlusPlus)
-           .Case("is_trivial", LangOpts.CPlusPlus)
-           .Case("is_trivially_assignable", LangOpts.CPlusPlus)
-           .Case("is_trivially_constructible", LangOpts.CPlusPlus)
-           .Case("is_trivially_copyable", LangOpts.CPlusPlus)
-           .Case("is_union", LangOpts.CPlusPlus)
-           .Case("modules", LangOpts.Modules)
-           .Case("tls", PP.getTargetInfo().isTLSSupported())
-           .Case("underlying_type", LangOpts.CPlusPlus)
-           .Default(false);
+      .Case("address_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Address))
+      .Case("attribute_analyzer_noreturn", true)
+      .Case("attribute_availability", true)
+      .Case("attribute_availability_with_message", true)
+      .Case("attribute_cf_returns_not_retained", true)
+      .Case("attribute_cf_returns_retained", true)
+      .Case("attribute_deprecated_with_message", true)
+      .Case("attribute_ext_vector_type", true)
+      .Case("attribute_ns_returns_not_retained", true)
+      .Case("attribute_ns_returns_retained", true)
+      .Case("attribute_ns_consumes_self", true)
+      .Case("attribute_ns_consumed", true)
+      .Case("attribute_cf_consumed", true)
+      .Case("attribute_objc_ivar_unused", true)
+      .Case("attribute_objc_method_family", true)
+      .Case("attribute_overloadable", true)
+      .Case("attribute_unavailable_with_message", true)
+      .Case("attribute_unused_on_fields", true)
+      .Case("blocks", LangOpts.Blocks)
+      .Case("c_thread_safety_attributes", true)
+      .Case("cxx_exceptions", LangOpts.CXXExceptions)
+      .Case("cxx_rtti", LangOpts.RTTI)
+      .Case("enumerator_attributes", true)
+      .Case("memory_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Memory))
+      .Case("thread_sanitizer", LangOpts.Sanitize.has(SanitizerKind::Thread))
+      .Case("dataflow_sanitizer", LangOpts.Sanitize.has(SanitizerKind::DataFlow))
+      // Objective-C features
+      .Case("objc_arr", LangOpts.ObjCAutoRefCount) // FIXME: REMOVE?
+      .Case("objc_arc", LangOpts.ObjCAutoRefCount)
+      .Case("objc_arc_weak", LangOpts.ObjCARCWeak)
+      .Case("objc_default_synthesize_properties", LangOpts.ObjC2)
+      .Case("objc_fixed_enum", LangOpts.ObjC2)
+      .Case("objc_instancetype", LangOpts.ObjC2)
+      .Case("objc_modules", LangOpts.ObjC2 && LangOpts.Modules)
+      .Case("objc_nonfragile_abi", LangOpts.ObjCRuntime.isNonFragile())
+      .Case("objc_property_explicit_atomic",
+            true) // Does clang support explicit "atomic" keyword?
+      .Case("objc_protocol_qualifier_mangling", true)
+      .Case("objc_weak_class", LangOpts.ObjCRuntime.hasWeakClassImport())
+      .Case("ownership_holds", true)
+      .Case("ownership_returns", true)
+      .Case("ownership_takes", true)
+      .Case("objc_bool", true)
+      .Case("objc_subscripting", LangOpts.ObjCRuntime.isNonFragile())
+      .Case("objc_array_literals", LangOpts.ObjC2)
+      .Case("objc_dictionary_literals", LangOpts.ObjC2)
+      .Case("objc_boxed_expressions", LangOpts.ObjC2)
+      .Case("arc_cf_code_audited", true)
+      .Case("objc_bridge_id", LangOpts.ObjC2)
+      // C11 features
+      .Case("c_alignas", LangOpts.C11)
+      .Case("c_alignof", LangOpts.C11)
+      .Case("c_atomic", LangOpts.C11)
+      .Case("c_generic_selections", LangOpts.C11)
+      .Case("c_static_assert", LangOpts.C11)
+      .Case("c_thread_local",
+            LangOpts.C11 && PP.getTargetInfo().isTLSSupported())
+      // C++11 features
+      .Case("cxx_access_control_sfinae", LangOpts.CPlusPlus11)
+      .Case("cxx_alias_templates", LangOpts.CPlusPlus11)
+      .Case("cxx_alignas", LangOpts.CPlusPlus11)
+      .Case("cxx_alignof", LangOpts.CPlusPlus11)
+      .Case("cxx_atomic", LangOpts.CPlusPlus11)
+      .Case("cxx_attributes", LangOpts.CPlusPlus11)
+      .Case("cxx_auto_type", LangOpts.CPlusPlus11)
+      .Case("cxx_constexpr", LangOpts.CPlusPlus11)
+      .Case("cxx_decltype", LangOpts.CPlusPlus11)
+      .Case("cxx_decltype_incomplete_return_types", LangOpts.CPlusPlus11)
+      .Case("cxx_default_function_template_args", LangOpts.CPlusPlus11)
+      .Case("cxx_defaulted_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_delegating_constructors", LangOpts.CPlusPlus11)
+      .Case("cxx_deleted_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_explicit_conversions", LangOpts.CPlusPlus11)
+      .Case("cxx_generalized_initializers", LangOpts.CPlusPlus11)
+      .Case("cxx_implicit_moves", LangOpts.CPlusPlus11)
+      .Case("cxx_inheriting_constructors", LangOpts.CPlusPlus11)
+      .Case("cxx_inline_namespaces", LangOpts.CPlusPlus11)
+      .Case("cxx_lambdas", LangOpts.CPlusPlus11)
+      .Case("cxx_local_type_template_args", LangOpts.CPlusPlus11)
+      .Case("cxx_nonstatic_member_init", LangOpts.CPlusPlus11)
+      .Case("cxx_noexcept", LangOpts.CPlusPlus11)
+      .Case("cxx_nullptr", LangOpts.CPlusPlus11)
+      .Case("cxx_override_control", LangOpts.CPlusPlus11)
+      .Case("cxx_range_for", LangOpts.CPlusPlus11)
+      .Case("cxx_raw_string_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus11)
+      .Case("cxx_rvalue_references", LangOpts.CPlusPlus11)
+      .Case("cxx_strong_enums", LangOpts.CPlusPlus11)
+      .Case("cxx_static_assert", LangOpts.CPlusPlus11)
+      .Case("cxx_thread_local",
+            LangOpts.CPlusPlus11 && PP.getTargetInfo().isTLSSupported())
+      .Case("cxx_trailing_return", LangOpts.CPlusPlus11)
+      .Case("cxx_unicode_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_unrestricted_unions", LangOpts.CPlusPlus11)
+      .Case("cxx_user_literals", LangOpts.CPlusPlus11)
+      .Case("cxx_variadic_templates", LangOpts.CPlusPlus11)
+      // C++1y features
+      .Case("cxx_aggregate_nsdmi", LangOpts.CPlusPlus14)
+      .Case("cxx_binary_literals", LangOpts.CPlusPlus14)
+      .Case("cxx_contextual_conversions", LangOpts.CPlusPlus14)
+      .Case("cxx_decltype_auto", LangOpts.CPlusPlus14)
+      .Case("cxx_generic_lambdas", LangOpts.CPlusPlus14)
+      .Case("cxx_init_captures", LangOpts.CPlusPlus14)
+      .Case("cxx_relaxed_constexpr", LangOpts.CPlusPlus14)
+      .Case("cxx_return_type_deduction", LangOpts.CPlusPlus14)
+      .Case("cxx_variable_templates", LangOpts.CPlusPlus14)
+      // C++ TSes
+      //.Case("cxx_runtime_arrays", LangOpts.CPlusPlusTSArrays)
+      //.Case("cxx_concepts", LangOpts.CPlusPlusTSConcepts)
+      // FIXME: Should this be __has_feature or __has_extension?
+      //.Case("raw_invocation_type", LangOpts.CPlusPlus)
+      // Type traits
+      .Case("has_nothrow_assign", LangOpts.CPlusPlus)
+      .Case("has_nothrow_copy", LangOpts.CPlusPlus)
+      .Case("has_nothrow_constructor", LangOpts.CPlusPlus)
+      .Case("has_trivial_assign", LangOpts.CPlusPlus)
+      .Case("has_trivial_copy", LangOpts.CPlusPlus)
+      .Case("has_trivial_constructor", LangOpts.CPlusPlus)
+      .Case("has_trivial_destructor", LangOpts.CPlusPlus)
+      .Case("has_virtual_destructor", LangOpts.CPlusPlus)
+      .Case("is_abstract", LangOpts.CPlusPlus)
+      .Case("is_base_of", LangOpts.CPlusPlus)
+      .Case("is_class", LangOpts.CPlusPlus)
+      .Case("is_constructible", LangOpts.CPlusPlus)
+      .Case("is_convertible_to", LangOpts.CPlusPlus)
+      .Case("is_empty", LangOpts.CPlusPlus)
+      .Case("is_enum", LangOpts.CPlusPlus)
+      .Case("is_final", LangOpts.CPlusPlus)
+      .Case("is_literal", LangOpts.CPlusPlus)
+      .Case("is_standard_layout", LangOpts.CPlusPlus)
+      .Case("is_pod", LangOpts.CPlusPlus)
+      .Case("is_polymorphic", LangOpts.CPlusPlus)
+      .Case("is_sealed", LangOpts.MicrosoftExt)
+      .Case("is_trivial", LangOpts.CPlusPlus)
+      .Case("is_trivially_assignable", LangOpts.CPlusPlus)
+      .Case("is_trivially_constructible", LangOpts.CPlusPlus)
+      .Case("is_trivially_copyable", LangOpts.CPlusPlus)
+      .Case("is_union", LangOpts.CPlusPlus)
+      .Case("modules", LangOpts.Modules)
+      .Case("tls", PP.getTargetInfo().isTLSSupported())
+      .Case("underlying_type", LangOpts.CPlusPlus)
+      .Default(false);
 }
 
 /// HasExtension - Return true if we recognize and implement the feature
@@ -871,8 +1017,8 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
 
   // If the use of an extension results in an error diagnostic, extensions are
   // effectively unavailable, so just return false here.
-  if (PP.getDiagnostics().getExtensionHandlingBehavior() ==
-      DiagnosticsEngine::Ext_Error)
+  if (PP.getDiagnostics().getExtensionHandlingBehavior() >=
+      diag::Severity::Error)
     return false;
 
   const LangOptions &LangOpts = PP.getLangOpts();
@@ -888,10 +1034,12 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
   return llvm::StringSwitch<bool>(Extension)
            // C11 features supported by other languages as extensions.
            .Case("c_alignas", true)
+           .Case("c_alignof", true)
            .Case("c_atomic", true)
            .Case("c_generic_selections", true)
            .Case("c_static_assert", true)
-           // C++0x features supported by other languages as extensions.
+           .Case("c_thread_local", PP.getTargetInfo().isTLSSupported())
+           // C++11 features supported by other languages as extensions.
            .Case("cxx_atomic", LangOpts.CPlusPlus)
            .Case("cxx_deleted_functions", LangOpts.CPlusPlus)
            .Case("cxx_explicit_conversions", LangOpts.CPlusPlus)
@@ -902,21 +1050,11 @@ static bool HasExtension(const Preprocessor &PP, const IdentifierInfo *II) {
            .Case("cxx_range_for", LangOpts.CPlusPlus)
            .Case("cxx_reference_qualified_functions", LangOpts.CPlusPlus)
            .Case("cxx_rvalue_references", LangOpts.CPlusPlus)
+           // C++1y features supported by other languages as extensions.
+           .Case("cxx_binary_literals", true)
+           .Case("cxx_init_captures", LangOpts.CPlusPlus11)
+           .Case("cxx_variable_templates", LangOpts.CPlusPlus)
            .Default(false);
-}
-
-/// HasAttribute -  Return true if we recognize and implement the attribute
-/// specified by the given identifier.
-static bool HasAttribute(const IdentifierInfo *II) {
-  StringRef Name = II->getName();
-  // Normalize the attribute name, __foo__ becomes foo.
-  if (Name.startswith("__") && Name.endswith("__") && Name.size() >= 4)
-    Name = Name.substr(2, Name.size() - 4);
-
-  // FIXME: Do we need to handle namespaces here?
-  return llvm::StringSwitch<bool>(Name)
-#include "clang/Lex/AttrSpellings.inc"
-        .Default(false);
 }
 
 /// EvaluateHasIncludeCommon - Process a '__has_include("path")'
@@ -924,10 +1062,17 @@ static bool HasAttribute(const IdentifierInfo *II) {
 /// Returns true if successful.
 static bool EvaluateHasIncludeCommon(Token &Tok,
                                      IdentifierInfo *II, Preprocessor &PP,
-                                     const DirectoryLookup *LookupFrom) {
+                                     const DirectoryLookup *LookupFrom,
+                                     const FileEntry *LookupFromFile) {
   // Save the location of the current token.  If a '(' is later found, use
-  // that location.  If no, use the end of this location instead.
+  // that location.  If not, use the end of this location instead.
   SourceLocation LParenLoc = Tok.getLocation();
+
+  // These expressions are only allowed within a preprocessor directive.
+  if (!PP.isParsingIfOrElifDirective()) {
+    PP.Diag(LParenLoc, diag::err_pp_directive_required) << II->getName();
+    return false;
+  }
 
   // Get '('.
   PP.LexNonComment(Tok);
@@ -936,7 +1081,7 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   if (Tok.isNot(tok::l_paren)) {
     // No '(', use end of last token.
     LParenLoc = PP.getLocForEndOfToken(LParenLoc);
-    PP.Diag(LParenLoc, diag::err_pp_missing_lparen) << II->getName();
+    PP.Diag(LParenLoc, diag::err_pp_expected_after) << II << tok::l_paren;
     // If the next token looks like a filename or the start of one,
     // assume it is and process it as such.
     if (!Tok.is(tok::angle_string_literal) && !Tok.is(tok::string_literal) &&
@@ -946,8 +1091,14 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
     // Save '(' location for possible missing ')' message.
     LParenLoc = Tok.getLocation();
 
-    // Get the file name.
-    PP.getCurrentLexer()->LexIncludeFilename(Tok);
+    if (PP.getCurrentLexer()) {
+      // Get the file name.
+      PP.getCurrentLexer()->LexIncludeFilename(Tok);
+    } else {
+      // We're in a macro, so we can't use LexIncludeFilename; just
+      // grab the next token.
+      PP.Lex(Tok);
+    }
   }
 
   // Reserve a buffer to get the spelling.
@@ -992,9 +1143,9 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
 
   // Ensure we have a trailing ).
   if (Tok.isNot(tok::r_paren)) {
-    PP.Diag(PP.getLocForEndOfToken(FilenameLoc), diag::err_pp_missing_rparen)
-        << II->getName();
-    PP.Diag(LParenLoc, diag::note_matching) << "(";
+    PP.Diag(PP.getLocForEndOfToken(FilenameLoc), diag::err_pp_expected_after)
+        << II << tok::r_paren;
+    PP.Diag(LParenLoc, diag::note_matching) << tok::l_paren;
     return false;
   }
 
@@ -1007,17 +1158,18 @@ static bool EvaluateHasIncludeCommon(Token &Tok,
   // Search include directories.
   const DirectoryLookup *CurDir;
   const FileEntry *File =
-      PP.LookupFile(Filename, isAngled, LookupFrom, CurDir, NULL, NULL, NULL);
+      PP.LookupFile(FilenameLoc, Filename, isAngled, LookupFrom, LookupFromFile,
+                    CurDir, nullptr, nullptr, nullptr);
 
   // Get the result value.  A result of true means the file exists.
-  return File != 0;
+  return File != nullptr;
 }
 
 /// EvaluateHasInclude - Process a '__has_include("path")' expression.
 /// Returns true if successful.
 static bool EvaluateHasInclude(Token &Tok, IdentifierInfo *II,
                                Preprocessor &PP) {
-  return EvaluateHasIncludeCommon(Tok, II, PP, NULL);
+  return EvaluateHasIncludeCommon(Tok, II, PP, nullptr, nullptr);
 }
 
 /// EvaluateHasIncludeNext - Process '__has_include_next("path")' expression.
@@ -1027,18 +1179,27 @@ static bool EvaluateHasIncludeNext(Token &Tok,
   // __has_include_next is like __has_include, except that we start
   // searching after the current found directory.  If we can't do this,
   // issue a diagnostic.
+  // FIXME: Factor out duplication wiht
+  // Preprocessor::HandleIncludeNextDirective.
   const DirectoryLookup *Lookup = PP.GetCurDirLookup();
+  const FileEntry *LookupFromFile = nullptr;
   if (PP.isInPrimaryFile()) {
-    Lookup = 0;
+    Lookup = nullptr;
     PP.Diag(Tok, diag::pp_include_next_in_primary);
-  } else if (Lookup == 0) {
+  } else if (PP.getCurrentSubmodule()) {
+    // Start looking up in the directory *after* the one in which the current
+    // file would be found, if any.
+    assert(PP.getCurrentLexer() && "#include_next directive in macro?");
+    LookupFromFile = PP.getCurrentLexer()->getFileEntry();
+    Lookup = nullptr;
+  } else if (!Lookup) {
     PP.Diag(Tok, diag::pp_include_next_absolute_path);
   } else {
     // Start looking up in the next directory.
     ++Lookup;
   }
 
-  return EvaluateHasIncludeCommon(Tok, II, PP, Lookup);
+  return EvaluateHasIncludeCommon(Tok, II, PP, Lookup, LookupFromFile);
 }
 
 /// \brief Process __building_module(identifier) expression.
@@ -1050,7 +1211,8 @@ static bool EvaluateBuildingModule(Token &Tok,
 
   // Ensure we have a '('.
   if (Tok.isNot(tok::l_paren)) {
-    PP.Diag(Tok.getLocation(), diag::err_pp_missing_lparen) << II->getName();
+    PP.Diag(Tok.getLocation(), diag::err_pp_expected_after) << II
+                                                            << tok::l_paren;
     return false;
   }
 
@@ -1074,8 +1236,9 @@ static bool EvaluateBuildingModule(Token &Tok,
 
   // Ensure we have a trailing ).
   if (Tok.isNot(tok::r_paren)) {
-    PP.Diag(Tok.getLocation(), diag::err_pp_missing_rparen) << II->getName();
-    PP.Diag(LParenLoc, diag::note_matching) << "(";
+    PP.Diag(Tok.getLocation(), diag::err_pp_expected_after) << II
+                                                            << tok::r_paren;
+    PP.Diag(LParenLoc, diag::note_matching) << tok::l_paren;
     return false;
   }
 
@@ -1102,7 +1265,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
   llvm::raw_svector_ostream OS(TmpBuffer);
 
   // Set up the return result.
-  Tok.setIdentifierInfo(0);
+  Tok.setIdentifierInfo(nullptr);
   Tok.clearFlag(Token::NeedsCleaning);
 
   if (II == Ident__LINE__) {
@@ -1153,6 +1316,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     }
     Tok.setKind(tok::string_literal);
   } else if (II == Ident__DATE__) {
+    Diag(Tok.getLocation(), diag::warn_pp_date_time);
     if (!DATELoc.isValid())
       ComputeDATE_TIME(DATELoc, TIMELoc, *this);
     Tok.setKind(tok::string_literal);
@@ -1162,6 +1326,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
                                                  Tok.getLength()));
     return;
   } else if (II == Ident__TIME__) {
+    Diag(Tok.getLocation(), diag::warn_pp_date_time);
     if (!TIMELoc.isValid())
       ComputeDATE_TIME(DATELoc, TIMELoc, *this);
     Tok.setKind(tok::string_literal);
@@ -1186,12 +1351,13 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     OS << Depth;
     Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__TIMESTAMP__) {
+    Diag(Tok.getLocation(), diag::warn_pp_date_time);
     // MSVC, ICC, GCC, VisualAge C++ extension.  The generated string should be
     // of the form "Ddd Mmm dd hh::mm::ss yyyy", which is returned by asctime.
 
     // Get the file that we are lexing out of.  If we're currently lexing from
     // a macro, dig into the include stack.
-    const FileEntry *CurFile = 0;
+    const FileEntry *CurFile = nullptr;
     PreprocessorLexer *TheLexer = getCurrentFileLexer();
 
     if (TheLexer)
@@ -1206,7 +1372,7 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Result = "??? ??? ?? ??:??:?? ????\n";
     }
     // Surround the string with " and strip the trailing newline.
-    OS << '"' << StringRef(Result, strlen(Result)-1) << '"';
+    OS << '"' << StringRef(Result).drop_back() << '"';
     Tok.setKind(tok::string_literal);
   } else if (II == Ident__COUNTER__) {
     // __COUNTER__ expands to a simple numeric value.
@@ -1215,36 +1381,63 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
   } else if (II == Ident__has_feature   ||
              II == Ident__has_extension ||
              II == Ident__has_builtin   ||
-             II == Ident__has_attribute) {
+             II == Ident__is_identifier ||
+             II == Ident__has_attribute ||
+             II == Ident__has_declspec  ||
+             II == Ident__has_cpp_attribute) {
     // The argument to these builtins should be a parenthesized identifier.
     SourceLocation StartLoc = Tok.getLocation();
 
     bool IsValid = false;
-    IdentifierInfo *FeatureII = 0;
+    IdentifierInfo *FeatureII = nullptr;
+    IdentifierInfo *ScopeII = nullptr;
 
     // Read the '('.
-    Lex(Tok);
+    LexUnexpandedToken(Tok);
     if (Tok.is(tok::l_paren)) {
       // Read the identifier
-      Lex(Tok);
-      if (Tok.is(tok::identifier) || Tok.is(tok::kw_const)) {
-        FeatureII = Tok.getIdentifierInfo();
-
-        // Read the ')'.
-        Lex(Tok);
-        if (Tok.is(tok::r_paren))
+      LexUnexpandedToken(Tok);
+      if ((FeatureII = Tok.getIdentifierInfo())) {
+        // If we're checking __has_cpp_attribute, it is possible to receive a
+        // scope token. Read the "::", if it's available.
+        LexUnexpandedToken(Tok);
+        bool IsScopeValid = true;
+        if (II == Ident__has_cpp_attribute && Tok.is(tok::coloncolon)) {
+          LexUnexpandedToken(Tok);
+          // The first thing we read was not the feature, it was the scope.
+          ScopeII = FeatureII;
+          if ((FeatureII = Tok.getIdentifierInfo()))
+            LexUnexpandedToken(Tok);
+          else
+            IsScopeValid = false;          
+        }
+        // Read the closing paren.
+        if (IsScopeValid && Tok.is(tok::r_paren))
           IsValid = true;
       }
+      // Eat tokens until ')'.
+      while (Tok.isNot(tok::r_paren) && Tok.isNot(tok::eod) &&
+             Tok.isNot(tok::eof))
+        LexUnexpandedToken(Tok);
     }
 
-    bool Value = false;
+    int Value = 0;
     if (!IsValid)
       Diag(StartLoc, diag::err_feature_check_malformed);
+    else if (II == Ident__is_identifier)
+      Value = FeatureII->getTokenID() == tok::identifier;
     else if (II == Ident__has_builtin) {
       // Check for a builtin is trivial.
       Value = FeatureII->getBuiltinID() != 0;
     } else if (II == Ident__has_attribute)
-      Value = HasAttribute(FeatureII);
+      Value = hasAttribute(AttrSyntax::GNU, nullptr, FeatureII,
+                           getTargetInfo().getTriple(), getLangOpts());
+    else if (II == Ident__has_cpp_attribute)
+      Value = hasAttribute(AttrSyntax::CXX, ScopeII, FeatureII,
+                           getTargetInfo().getTriple(), getLangOpts());
+    else if (II == Ident__has_declspec)
+      Value = hasAttribute(AttrSyntax::Declspec, nullptr, FeatureII,
+                           getTargetInfo().getTriple(), getLangOpts());
     else if (II == Ident__has_extension)
       Value = HasExtension(*this, FeatureII);
     else {
@@ -1252,9 +1445,10 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
       Value = HasFeature(*this, FeatureII);
     }
 
-    OS << (int)Value;
-    if (IsValid)
-      Tok.setKind(tok::numeric_constant);
+    if (!IsValid)
+      return;
+    OS << Value;
+    Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__has_include ||
              II == Ident__has_include_next) {
     // The argument to these two builtins should be a parenthesized
@@ -1275,67 +1469,51 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     bool IsValid = false;
     bool Value = false;
     // Read the '('.
-    Lex(Tok);
+    LexUnexpandedToken(Tok);
     do {
-      if (Tok.is(tok::l_paren)) {      
-        // Read the string.
-        Lex(Tok);
-      
-        // We need at least one string literal.
-        if (!Tok.is(tok::string_literal)) {
-          StartLoc = Tok.getLocation();
-          IsValid = false;
-          // Eat tokens until ')'.
-          do Lex(Tok); while (!(Tok.is(tok::r_paren) || Tok.is(tok::eod)));
-          break;
-        }
-        
-        // String concatenation allows multiple strings, which can even come
-        // from macro expansion.
-        SmallVector<Token, 4> StrToks;
-        while (Tok.is(tok::string_literal)) {
-          // Complain about, and drop, any ud-suffix.
-          if (Tok.hasUDSuffix())
-            Diag(Tok, diag::err_invalid_string_udl);
-          StrToks.push_back(Tok);
-          LexUnexpandedToken(Tok);
-        }
-        
-        // Is the end a ')'?
-        if (!(IsValid = Tok.is(tok::r_paren)))
-          break;
-        
-        // Concatenate and parse the strings.
-        StringLiteralParser Literal(&StrToks[0], StrToks.size(), *this);
-        assert(Literal.isAscii() && "Didn't allow wide strings in");
-        if (Literal.hadError)
-          break;
-        if (Literal.Pascal) {
-          Diag(Tok, diag::warn_pragma_diagnostic_invalid);
-          break;
-        }
-        
-        StringRef WarningName(Literal.GetString());
-        
-        if (WarningName.size() < 3 || WarningName[0] != '-' ||
-            WarningName[1] != 'W') {
-          Diag(StrToks[0].getLocation(), diag::warn_has_warning_invalid_option);
-          break;
-        }
-        
-        // Finally, check if the warning flags maps to a diagnostic group.
-        // We construct a SmallVector here to talk to getDiagnosticIDs().
-        // Although we don't use the result, this isn't a hot path, and not
-        // worth special casing.
-        llvm::SmallVector<diag::kind, 10> Diags;
-        Value = !getDiagnostics().getDiagnosticIDs()->
-          getDiagnosticsInGroup(WarningName.substr(2), Diags);
+      if (Tok.isNot(tok::l_paren)) {
+        Diag(StartLoc, diag::err_warning_check_malformed);
+        break;
       }
-    } while (false);
-    
-    if (!IsValid)
-      Diag(StartLoc, diag::err_warning_check_malformed);
 
+      LexUnexpandedToken(Tok);
+      std::string WarningName;
+      SourceLocation StrStartLoc = Tok.getLocation();
+      if (!FinishLexStringLiteral(Tok, WarningName, "'__has_warning'",
+                                  /*MacroExpansion=*/false)) {
+        // Eat tokens until ')'.
+        while (Tok.isNot(tok::r_paren) && Tok.isNot(tok::eod) &&
+               Tok.isNot(tok::eof))
+          LexUnexpandedToken(Tok);
+        break;
+      }
+
+      // Is the end a ')'?
+      if (!(IsValid = Tok.is(tok::r_paren))) {
+        Diag(StartLoc, diag::err_warning_check_malformed);
+        break;
+      }
+
+      // FIXME: Should we accept "-R..." flags here, or should that be handled
+      // by a separate __has_remark?
+      if (WarningName.size() < 3 || WarningName[0] != '-' ||
+          WarningName[1] != 'W') {
+        Diag(StrStartLoc, diag::warn_has_warning_invalid_option);
+        break;
+      }
+
+      // Finally, check if the warning flags maps to a diagnostic group.
+      // We construct a SmallVector here to talk to getDiagnosticIDs().
+      // Although we don't use the result, this isn't a hot path, and not
+      // worth special casing.
+      SmallVector<diag::kind, 10> Diags;
+      Value = !getDiagnostics().getDiagnosticIDs()->
+        getDiagnosticsInGroup(diag::Flavor::WarningOrError,
+                              WarningName.substr(2), Diags);
+    } while (false);
+
+    if (!IsValid)
+      return;
     OS << (int)Value;
     Tok.setKind(tok::numeric_constant);
   } else if (II == Ident__building_module) {
@@ -1350,6 +1528,44 @@ void Preprocessor::ExpandBuiltinMacro(Token &Tok) {
     IdentifierInfo *ModuleII = getIdentifierInfo(getLangOpts().CurrentModule);
     Tok.setIdentifierInfo(ModuleII);
     Tok.setKind(ModuleII->getTokenID());
+  } else if (II == Ident__identifier) {
+    SourceLocation Loc = Tok.getLocation();
+
+    // We're expecting '__identifier' '(' identifier ')'. Try to recover
+    // if the parens are missing.
+    LexNonComment(Tok);
+    if (Tok.isNot(tok::l_paren)) {
+      // No '(', use end of last token.
+      Diag(getLocForEndOfToken(Loc), diag::err_pp_expected_after)
+        << II << tok::l_paren;
+      // If the next token isn't valid as our argument, we can't recover.
+      if (!Tok.isAnnotation() && Tok.getIdentifierInfo())
+        Tok.setKind(tok::identifier);
+      return;
+    }
+
+    SourceLocation LParenLoc = Tok.getLocation();
+    LexNonComment(Tok);
+
+    if (!Tok.isAnnotation() && Tok.getIdentifierInfo())
+      Tok.setKind(tok::identifier);
+    else {
+      Diag(Tok.getLocation(), diag::err_pp_identifier_arg_not_identifier)
+        << Tok.getKind();
+      // Don't walk past anything that's not a real token.
+      if (Tok.is(tok::eof) || Tok.is(tok::eod) || Tok.isAnnotation())
+        return;
+    }
+
+    // Discard the ')', preserving 'Tok' as our result.
+    Token RParen;
+    LexNonComment(RParen);
+    if (RParen.isNot(tok::r_paren)) {
+      Diag(getLocForEndOfToken(Tok.getLocation()), diag::err_pp_expected_after)
+        << Tok.getKind() << tok::r_paren;
+      Diag(LParenLoc, diag::note_matching) << tok::l_paren;
+    }
+    return;
   } else {
     llvm_unreachable("Unknown identifier!");
   }

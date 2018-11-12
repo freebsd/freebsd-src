@@ -12,18 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TARGET_X86_H
-#define TARGET_X86_H
+#ifndef LLVM_LIB_TARGET_X86_X86_H
+#define LLVM_LIB_TARGET_X86_X86_H
 
-#include "MCTargetDesc/X86BaseInfo.h"
-#include "MCTargetDesc/X86MCTargetDesc.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/CodeGen.h"
 
 namespace llvm {
 
 class FunctionPass;
-class JITCodeEmitter;
+class ImmutablePass;
 class X86TargetMachine;
 
 /// createX86ISelDag - This pass converts a legalized DAG into a
@@ -32,9 +29,9 @@ class X86TargetMachine;
 FunctionPass *createX86ISelDag(X86TargetMachine &TM,
                                CodeGenOpt::Level OptLevel);
 
-/// createGlobalBaseRegPass - This pass initializes a global base
+/// createX86GlobalBaseRegPass - This pass initializes a global base
 /// register for PIC on x86-32.
-FunctionPass* createGlobalBaseRegPass();
+FunctionPass* createX86GlobalBaseRegPass();
 
 /// createCleanupLocalDynamicTLSPass() - This pass combines multiple accesses
 /// to local-dynamic TLS variables so that the TLS base address for the module
@@ -52,22 +49,28 @@ FunctionPass *createX86FloatingPointStackifierPass();
 /// AVX and SSE.
 FunctionPass *createX86IssueVZeroUpperPass();
 
-/// createX86CodeEmitterPass - Return a pass that emits the collected X86 code
-/// to the specified MCE object.
-FunctionPass *createX86JITCodeEmitterPass(X86TargetMachine &TM,
-                                          JITCodeEmitter &JCE);
-
 /// createX86EmitCodeToMemory - Returns a pass that converts a register
 /// allocated function into raw machine code in a dynamically
 /// allocated chunk of memory.
 ///
 FunctionPass *createEmitX86CodeToMemory();
 
-/// createX86MaxStackAlignmentHeuristicPass - This function returns a pass
-/// which determines whether the frame pointer register should be
-/// reserved in case dynamic stack alignment is later required.
-///
-FunctionPass *createX86MaxStackAlignmentHeuristicPass();
+/// \brief Creates an X86-specific Target Transformation Info pass.
+ImmutablePass *createX86TargetTransformInfoPass(const X86TargetMachine *TM);
+
+/// createX86PadShortFunctions - Return a pass that pads short functions
+/// with NOOPs. This will prevent a stall when returning on the Atom.
+FunctionPass *createX86PadShortFunctions();
+/// createX86FixupLEAs - Return a a pass that selectively replaces
+/// certain instructions (like add, sub, inc, dec, some shifts,
+/// and some multiplies) by equivalent LEA instructions, in order
+/// to eliminate execution delays in some Atom processors.
+FunctionPass *createX86FixupLEAs();
+
+/// createX86CallFrameOptimization - Return a pass that optimizes
+/// the code-size of x86 call sequences. This is done by replacing
+/// esp-relative movs with pushes.
+FunctionPass *createX86CallFrameOptimization();
 
 } // End llvm namespace
 

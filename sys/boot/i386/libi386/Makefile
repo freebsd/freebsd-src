@@ -6,7 +6,7 @@ INTERNALLIB=
 SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	biospci.c biossmap.c bootinfo.c bootinfo32.c bootinfo64.c \
 	comconsole.c devicename.c elf32_freebsd.c \
-	elf64_freebsd.c \
+	elf64_freebsd.c multiboot.c multiboot_tramp.S \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
 .PATH:	${.CURDIR}/../../zfs
@@ -36,6 +36,9 @@ CFLAGS+= -DSMBIOS_SERIAL_NUMBERS
 .if defined(BOOT_LITTLE_ENDIAN_UUID)
 # Use little-endian UUID format as defined in SMBIOS 2.6.
 CFLAGS+= -DSMBIOS_LITTLE_ENDIAN_UUID
+.elif defined(BOOT_NETWORK_ENDIAN_UUID)
+# Use network-endian UUID format for backward compatibility.
+CFLAGS+= -DSMBIOS_NETWORK_ENDIAN_UUID
 .endif
 .endif
 
@@ -52,6 +55,9 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../common \
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+# Handle FreeBSD specific %b and %D printf format specifiers
+CFLAGS+= ${FORMAT_EXTENSIONS}
+
 .if ${MACHINE_CPUARCH} == "amd64"
 CLEANFILES+=	machine
 machine:
@@ -62,6 +68,7 @@ machine:
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
 CFLAGS.amd64_tramp.S=	${CLANG_NO_IAS}
+CFLAGS.multiboot_tramp.S=	${CLANG_NO_IAS}
 CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
 
 .if ${MACHINE_CPUARCH} == "amd64"

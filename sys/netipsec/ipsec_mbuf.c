@@ -37,11 +37,8 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
-#include <net/route.h>
 #include <net/vnet.h>
-
 #include <netinet/in.h>
-
 #include <netipsec/ipsec.h>
 
 /*
@@ -135,7 +132,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 			m = n;			/* header is at front ... */
 			*off = 0;		/* ... of new mbuf */
 		}
-		V_ipsec4stat.ips_mbinserted++;
+		IPSECSTAT_INC(ips_mbinserted);
 	} else {
 		/*
 		 * Copy the remainder to the back of the mbuf
@@ -241,7 +238,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 	/* Remove the header and associated data from the mbuf. */
 	if (roff == 0) {
 		/* The header was at the beginning of the mbuf */
-		V_ipsec4stat.ips_input_front++;
+		IPSECSTAT_INC(ips_input_front);
 		m_adj(m1, hlen);
 		if ((m1->m_flags & M_PKTHDR) == 0)
 			m->m_pkthdr.len -= hlen;
@@ -253,7 +250,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 * so first let's remove the remainder of the header from
 		 * the beginning of the remainder of the mbuf chain, if any.
 		 */
-		V_ipsec4stat.ips_input_end++;
+		IPSECSTAT_INC(ips_input_end);
 		if (roff + hlen > m1->m_len) {
 			/* Adjust the next mbuf by the remainder */
 			m_adj(m1->m_next, roff + hlen - m1->m_len);
@@ -278,7 +275,7 @@ m_striphdr(struct mbuf *m, int skip, int hlen)
 		 * The header lies in the "middle" of the mbuf; copy
 		 * the remainder of the mbuf down over the header.
 		 */
-		V_ipsec4stat.ips_input_middle++;
+		IPSECSTAT_INC(ips_input_middle);
 		bcopy(mtod(m1, u_char *) + roff + hlen,
 		      mtod(m1, u_char *) + roff,
 		      m1->m_len - (roff + hlen));

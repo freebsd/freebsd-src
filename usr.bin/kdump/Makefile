@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .if (${MACHINE_ARCH} == "amd64")
 SFX=		32
 .endif
@@ -9,16 +11,25 @@ SFX=		32
 
 PROG=		kdump
 SRCS=		kdump_subr.c kdump.c ioctl.c subr.c
-DPSRCS=		kdump_subr.h 
+DPSRCS=		kdump_subr.h
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-SRCS+=		linux_syscalls.c
+.if ${MK_CASPER} != "no"
+LIBADD=	capsicum
+CFLAGS+=-DHAVE_LIBCAPSICUM
+.endif
+
+.if ${MK_PF} != "no"
+CFLAGS+=-DPF
 .endif
 
 NO_WERROR?=	YES
 
-CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h linux_syscalls.c
+CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h
+
+.if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
+CLEANFILES+=	linux_syscalls.c
+.endif
 
 ioctl.c: mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
@@ -30,11 +41,9 @@ kdump_subr.h: mksubr
 
 kdump_subr.c: mksubr kdump_subr.h
 	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include >${.TARGET}
-
-linux_syscalls.c:
-	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
+.if (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
+	sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
 	    ${.CURDIR}/../../sys/${MACHINE_ARCH}/linux${SFX}/syscalls.master ${.CURDIR}/linux_syscalls.conf
-	echo "int nlinux_syscalls = sizeof(linux_syscallnames) / sizeof(linux_syscallnames[0]);" \
-	    >> linux_syscalls.c
+.endif
 
 .include <bsd.prog.mk>

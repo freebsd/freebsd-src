@@ -89,6 +89,16 @@ obj: .PHONY
 		fi; \
 		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
 	fi
+.for dir in ${SRCS:H:O:u}
+	@if ! test -d ${CANONICALOBJDIR}/${dir}/; then \
+		mkdir -p ${CANONICALOBJDIR}/${dir}; \
+		if ! test -d ${CANONICALOBJDIR}/${dir}/; then \
+			${ECHO} "Unable to create ${CANONICALOBJDIR}/${dir}."; \
+			exit 1; \
+		fi; \
+		${ECHO} "${CANONICALOBJDIR}/${dir} created for ${.CURDIR}"; \
+	fi
+.endfor
 .endif
 
 .if !target(objlink)
@@ -112,15 +122,16 @@ whereobj:
 
 .if ${CANONICALOBJDIR} != ${.CURDIR} && exists(${CANONICALOBJDIR}/)
 cleanobj:
-	@rm -rf ${CANONICALOBJDIR}
+	@-rm -rf ${CANONICALOBJDIR}
 .else
 cleanobj: clean cleandepend
 .endif
 	@if [ -L ${.CURDIR}/obj ]; then rm -f ${.CURDIR}/obj; fi
 
 # Tell bmake not to look for generated files via .PATH
-.if !empty(CLEANFILES)
-.NOPATH: ${CLEANFILES}
+NOPATH_FILES+=	${CLEANFILES}
+.if !empty(NOPATH_FILES)
+.NOPATH: ${NOPATH_FILES}
 .endif
 
 .if !target(clean)
@@ -129,7 +140,7 @@ clean:
 	rm -f ${CLEANFILES}
 .endif
 .if defined(CLEANDIRS) && !empty(CLEANDIRS)
-	rm -rf ${CLEANDIRS}
+	-rm -rf ${CLEANDIRS}
 .endif
 .endif
 

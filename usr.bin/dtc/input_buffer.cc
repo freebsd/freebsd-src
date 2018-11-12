@@ -151,7 +151,7 @@ input_buffer::next_token()
 		start = cursor;
 		skip_spaces();
 		// Parse /* comments
-		if (((*this)[0] == '/') && ((*this)[1] == '*'))
+		if ((*this)[0] == '/' && (*this)[1] == '*')
 		{
 			// eat the start of the comment
 			++(*this);
@@ -168,13 +168,14 @@ input_buffer::next_token()
 			// Eat the /
 			++(*this);
 		}
-		// Parse // comments
-		if (((*this)[0] == '/') && ((*this)[1] == '/'))
+		// Parse // comments and # comments
+		if (((*this)[0] == '/' && (*this)[1] == '/') || 
+		     (*this)[0] == '#')
 		{
 			// eat the start of the comment
 			++(*this);
 			++(*this);
-			// Find the ending * of */
+			// Find the ending of the line
 			while (**this != '\n')
 			{
 				++(*this);
@@ -216,7 +217,8 @@ input_buffer::parse_error(const char *msg)
 	putc('\n', stderr);
 	for (int i=0 ; i<(cursor-line_start) ; ++i)
 	{
-		putc(' ', stderr);
+		char c = (buffer[i+line_start] == '\t') ? '\t' : ' ';
+		putc(c, stderr);
 	}
 	putc('^', stderr);
 	putc('\n', stderr);

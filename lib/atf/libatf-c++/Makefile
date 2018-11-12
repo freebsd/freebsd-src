@@ -25,17 +25,19 @@
 #
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include <bsd.init.mk>
 
-LIB=		atf-c++
-SHLIB_MAJOR=	1
+LIB_CXX=	atf-c++
+PRIVATELIB=	true
+SHLIB_MAJOR=	2
 
 # libatf-c++ depends on the C version of the ATF library to build.
-DPADD=		${LIBATFC}
-LDADD=		-latf-c
+LIBADD+=	atf_c
 
 LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 
+ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
@@ -49,20 +51,16 @@ CFLAGS+=	-DHAVE_CONFIG_H
 SRCS=		application.cpp \
 		build.cpp \
 		check.cpp \
-		config.cpp \
 		env.cpp \
 		exceptions.cpp \
-		expand.cpp \
 		fs.cpp \
-		parser.cpp \
 		process.cpp \
 		tests.cpp \
 		text.cpp \
-		ui.cpp
+		utils.cpp
 
 INCS=		build.hpp \
 		check.hpp \
-		config.hpp \
 		macros.hpp \
 		tests.hpp \
 		utils.hpp
@@ -71,6 +69,12 @@ INCSDIR=	${INCLUDEDIR}/atf-c++
 INCS+=		atf-c++.hpp
 INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
-MAN=		atf-c++-api.3
+MAN=		atf-c++.3
+MLINKS+=	atf-c++.3 atf-c-api++.3  # Backwards compatibility.
 
+.if ${MK_TESTS} != "no"
+SUBDIR=		tests
+.endif
+
+.include "../common.mk"
 .include <bsd.lib.mk>

@@ -16,7 +16,7 @@ draw-brand    \ draw the FreeBSD title (top-left; see `brand.4th')
 menu-init     \ initialize the menu area (see `menu.4th')
 
 \ Initialize main menu constructs (see `menu.4th')
-\ NOTE: To use the `ansi' variants, add `loader_color=1' to loader.conf(5)
+\ NOTE: To use `non-ansi' variants, add `loader_color=0' to loader.conf(5)
 
 \ 
 \ MAIN MENU
@@ -55,10 +55,14 @@ set mainmenu_reboot
 \ 
 set mainmenu_options=5
 
-set mainmenu_caption[5]="Configure Boot [O]ptions..."
-set mainmenu_command[5]="2 goto_menu"
-set mainmenu_keycode[5]=111
-set mainansi_caption[5]="Configure Boot [1mO[37mptions..."
+set mainmenu_kernel=5
+set mainmenu_command[5]="cycle_kernel"
+set mainmenu_keycode[5]=107
+
+set mainmenu_caption[6]="Configure Boot [O]ptions..."
+set mainmenu_command[6]="2 goto_menu"
+set mainmenu_keycode[6]=111
+set mainansi_caption[6]="Configure Boot [1mO[37mptions..."
 
 \ 
 \ BOOT OPTIONS MENU
@@ -115,6 +119,10 @@ set optionstoggled_ansi[6]="[1mV[37merbose..... [32;7mOn[0;37m"
 \ customize the timeout; default is 10-seconds)
 \ 
 set menu_timeout_command="boot"
+
+\ Include optional elements defined in a local file
+\ 
+try-include /boot/menu.rc.local
 
 \ Display the main menu (see `menu.4th')
 set menuset_initial=1

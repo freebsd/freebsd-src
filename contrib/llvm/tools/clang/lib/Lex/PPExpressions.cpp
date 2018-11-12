@@ -17,13 +17,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Lex/LiteralSupport.h"
-#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Basic/TargetInfo.h"
+#include "clang/Lex/CodeCompletionHandler.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/LiteralSupport.h"
+#include "clang/Lex/MacroInfo.h"
 #include "llvm/ADT/APSInt.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/SaveAndRestore.h"
 using namespace clang;
 
 namespace {
@@ -80,8 +81,8 @@ struct DefinedTracker {
 /// EvaluateDefined - Process a 'defined(sym)' expression.
 static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
                             bool ValueLive, Preprocessor &PP) {
-  IdentifierInfo *II;
-  Result.setBegin(PeekTok.getLocation());
+  SourceLocation beginLoc(PeekTok.getLocation());
+  Result.setBegin(beginLoc);
 
   // Get the next token, don't expand it.
   PP.LexUnexpandedNonComment(PeekTok);
@@ -100,26 +101,25 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.setCodeCompletionReached();
     PP.LexUnexpandedNonComment(PeekTok);
   }
-  
+
   // If we don't have a pp-identifier now, this is an error.
-  if ((II = PeekTok.getIdentifierInfo()) == 0) {
-    PP.Diag(PeekTok, diag::err_pp_defined_requires_identifier);
+  if (PP.CheckMacroName(PeekTok, MU_Other))
     return true;
-  }
 
   // Otherwise, we got an identifier, is it defined to something?
+  IdentifierInfo *II = PeekTok.getIdentifierInfo();
   Result.Val = II->hasMacroDefinition();
   Result.Val.setIsUnsigned(false);  // Result is signed intmax_t.
 
+  MacroDirective *Macro = nullptr;
   // If there is a macro, mark it used.
   if (Result.Val != 0 && ValueLive) {
-    MacroInfo *Macro = PP.getMacroInfo(II);
-    PP.markMacroAsUsed(Macro);
+    Macro = PP.getMacroDirective(II);
+    PP.markMacroAsUsed(Macro->getMacroInfo());
   }
 
-  // Invoke the 'defined' callback.
-  if (PPCallbacks *Callbacks = PP.getPPCallbacks())
-    Callbacks->Defined(PeekTok);
+  // Save macro token for callback.
+  Token macroToken(PeekTok);
 
   // If we are in parens, ensure we have a trailing ).
   if (LParenLoc.isValid()) {
@@ -128,8 +128,9 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.LexUnexpandedNonComment(PeekTok);
 
     if (PeekTok.isNot(tok::r_paren)) {
-      PP.Diag(PeekTok.getLocation(), diag::err_pp_missing_rparen) << "defined";
-      PP.Diag(LParenLoc, diag::note_matching) << "(";
+      PP.Diag(PeekTok.getLocation(), diag::err_pp_expected_after)
+          << "'defined'" << tok::r_paren;
+      PP.Diag(LParenLoc, diag::note_matching) << tok::l_paren;
       return true;
     }
     // Consume the ).
@@ -139,6 +140,16 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     // Consume identifier.
     Result.setEnd(PeekTok.getLocation());
     PP.LexNonComment(PeekTok);
+  }
+
+  // Invoke the 'defined' callback.
+  if (PPCallbacks *Callbacks = PP.getPPCallbacks()) {
+    MacroDirective *MD = Macro;
+    // Pass the MacroInfo for the macro name even if the value is dead.
+    if (!MD && Result.Val != 0)
+      MD = PP.getMacroDirective(II);
+    Callbacks->Defined(macroToken, MD,
+                       SourceRange(beginLoc, PeekTok.getLocation()));
   }
 
   // Success, remember that we saw defined(X).
@@ -224,7 +235,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     if (!PP.getLangOpts().C99 && Literal.isLongLong) {
       if (PP.getLangOpts().CPlusPlus)
         PP.Diag(PeekTok,
-             PP.getLangOpts().CPlusPlus0x ?
+             PP.getLangOpts().CPlusPlus11 ?
              diag::warn_cxx98_compat_longlong : diag::ext_cxx11_longlong);
       else
         PP.Diag(PeekTok, diag::ext_c99_longlong);
@@ -233,7 +244,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     // Parse the integer literal into Result.
     if (Literal.GetIntegerValue(Result.Val)) {
       // Overflow parsing integer literal.
-      if (ValueLive) PP.Diag(PeekTok, diag::warn_integer_too_large);
+      if (ValueLive)
+        PP.Diag(PeekTok, diag::err_integer_literal_too_large)
+            << /* Unsigned */ 1;
       Result.Val.setIsUnsigned(true);
     } else {
       // Set the signedness of the result to match whether there was a U suffix
@@ -245,9 +258,10 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
       // large that it is unsigned" e.g. on 12345678901234567890 where intmax_t
       // is 64-bits.
       if (!Literal.isUnsigned && Result.Val.isNegative()) {
-        // Don't warn for a hex literal: 0x8000..0 shouldn't warn.
-        if (ValueLive && Literal.getRadix() != 16)
-          PP.Diag(PeekTok, diag::warn_integer_too_large_for_signed);
+        // Octal, hexadecimal, and binary literals are implicitly unsigned if
+        // the value does not fit into a signed integer type.
+        if (ValueLive && Literal.getRadix() == 10)
+          PP.Diag(PeekTok, diag::ext_integer_literal_too_large_for_signed);
         Result.Val.setIsUnsigned(true);
       }
     }
@@ -258,9 +272,10 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     return false;
   }
   case tok::char_constant:          // 'x'
-  case tok::wide_char_constant: {   // L'x'
+  case tok::wide_char_constant:     // L'x'
+  case tok::utf8_char_constant:     // u8'x'
   case tok::utf16_char_constant:    // u'x'
-  case tok::utf32_char_constant:    // U'x'
+  case tok::utf32_char_constant: {  // U'x'
     // Complain about, and drop, any ud-suffix.
     if (PeekTok.hasUDSuffix())
       PP.Diag(PeekTok, diag::err_pp_invalid_udl) << /*character*/0;
@@ -330,7 +345,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
       if (PeekTok.isNot(tok::r_paren)) {
         PP.Diag(PeekTok.getLocation(), diag::err_pp_expected_rparen)
           << Result.getRange();
-        PP.Diag(Start, diag::note_matching) << "(";
+        PP.Diag(Start, diag::note_matching) << tok::l_paren;
         return true;
       }
       DT.State = DefinedTracker::Unknown;
@@ -585,15 +600,10 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
       break;
     case tok::lessless: {
       // Determine whether overflow is about to happen.
-      unsigned ShAmt = static_cast<unsigned>(RHS.Val.getLimitedValue());
-      if (LHS.isUnsigned()) {
-        Overflow = ShAmt >= LHS.Val.getBitWidth();
-        if (Overflow)
-          ShAmt = LHS.Val.getBitWidth()-1;
-        Res = LHS.Val << ShAmt;
-      } else {
-        Res = llvm::APSInt(LHS.Val.sshl_ov(ShAmt, Overflow), false);
-      }
+      if (LHS.isUnsigned())
+        Res = LHS.Val.ushl_ov(RHS.Val, Overflow);
+      else
+        Res = llvm::APSInt(LHS.Val.sshl_ov(RHS.Val, Overflow), false);
       break;
     }
     case tok::greatergreater: {
@@ -668,9 +678,9 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
     case tok::question: {
       // Parse the : part of the expression.
       if (PeekTok.isNot(tok::colon)) {
-        PP.Diag(PeekTok.getLocation(), diag::err_expected_colon)
-          << LHS.getRange(), RHS.getRange();
-        PP.Diag(OpLoc, diag::note_matching) << "?";
+        PP.Diag(PeekTok.getLocation(), diag::err_expected)
+            << tok::colon << LHS.getRange() << RHS.getRange();
+        PP.Diag(OpLoc, diag::note_matching) << tok::question;
         return true;
       }
       // Consume the :.
@@ -724,6 +734,7 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
 /// to "!defined(X)" return X in IfNDefMacro.
 bool Preprocessor::
 EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
+  SaveAndRestore<bool> PPDir(ParsingIfOrElifDirective, true);
   // Save the current state of 'DisableMacroExpansion' and reset it to false. If
   // 'DisableMacroExpansion' is true, then we must be in a macro argument list
   // in which case a directive is undefined behavior.  We want macros to be able

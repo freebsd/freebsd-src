@@ -139,7 +139,7 @@ kgdb_trgt_fetch_tss(void)
 	uintptr_t addr, cpu0prvpage, tss;
 
 	kt = kgdb_thr_lookup_tid(ptid_get_pid(inferior_ptid));
-	if (kt == NULL || kt->cpu == NOCPU)
+	if (kt == NULL || kt->cpu == NOCPU || kt->cpu < 0)
 		return (0);
 
 	addr = kgdb_lookup("gdt");

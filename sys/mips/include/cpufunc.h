@@ -242,8 +242,13 @@ MIPS_RW32_COP0_SEL(config3, MIPS_COP_0_CONFIG, 3);
 #ifdef CPU_CNMIPS
 MIPS_RW32_COP0_SEL(config4, MIPS_COP_0_CONFIG, 4);
 #endif
-#ifdef CPU_NLM
+#ifdef BERI_LARGE_TLB
+MIPS_RW32_COP0_SEL(config5, MIPS_COP_0_CONFIG, 5);
+#endif
+#if defined(CPU_NLM) || defined(BERI_LARGE_TLB)
 MIPS_RW32_COP0_SEL(config6, MIPS_COP_0_CONFIG, 6);
+#endif
+#ifdef CPU_NLM
 MIPS_RW32_COP0_SEL(config7, MIPS_COP_0_CONFIG, 7);
 #endif
 MIPS_RW32_COP0(count, MIPS_COP_0_COUNT);
@@ -354,9 +359,15 @@ void mips3_sd(volatile uint64_t *, uint64_t);
 #define	readb(va)	(*(volatile uint8_t *) (va))
 #define	readw(va)	(*(volatile uint16_t *) (va))
 #define	readl(va)	(*(volatile uint32_t *) (va))
+#if defined(__GNUC__) && !defined(__mips_o32)
+#define	readq(a)	(*(volatile uint64_t *)(a))
+#endif
  
 #define	writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
 #define	writew(va, d)	(*(volatile uint16_t *) (va) = (d))
 #define	writel(va, d)	(*(volatile uint32_t *) (va) = (d))
+#if defined(__GNUC__) && !defined(__mips_o32)
+#define	writeq(va, d)	(*(volatile uint64_t *) (va) = (d))
+#endif
 
 #endif /* !_MACHINE_CPUFUNC_H_ */

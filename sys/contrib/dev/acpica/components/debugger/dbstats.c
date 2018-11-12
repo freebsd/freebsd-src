@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -267,6 +266,7 @@ AcpiDbEnumerateObject (
         break;
 
     default:
+
         break;
     }
 }
@@ -400,7 +400,7 @@ AcpiDbDisplayStatistics (
 
     AcpiUtStrupr (TypeArg);
     Temp = AcpiDbMatchArgument (TypeArg, AcpiDbStatTypes);
-    if (Temp == (UINT32) -1)
+    if (Temp == ACPI_TYPE_NOT_FOUND)
     {
         AcpiOsPrintf ("Invalid or unsupported argument\n");
         return (AE_OK);
@@ -479,7 +479,6 @@ AcpiDbDisplayStatistics (
         }
         break;
 
-
     case CMD_STAT_SIZES:
 
         AcpiOsPrintf ("\nInternal object sizes:\n\n");
@@ -530,7 +529,6 @@ AcpiDbDisplayStatistics (
         AcpiOsPrintf ("Notify Info      %3d\n", sizeof (ACPI_NOTIFY_INFO));
         break;
 
-
     case CMD_STAT_STACK:
 #if defined(ACPI_DEBUG_OUTPUT)
 
@@ -545,6 +543,7 @@ AcpiDbDisplayStatistics (
         break;
 
     default:
+
         break;
     }
 

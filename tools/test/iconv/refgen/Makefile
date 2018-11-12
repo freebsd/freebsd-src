@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../tablegen
 
 PROG=	refgen
-NO_MAN=	yes
+MAN=
 SRCS=	tablegen.c
 
 WARNS?=	3

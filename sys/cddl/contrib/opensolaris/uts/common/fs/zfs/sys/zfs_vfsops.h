@@ -64,7 +64,7 @@ struct zfsvfs {
 	int		z_norm;		/* normalization flags */
 	boolean_t	z_atime;	/* enable atimes mount option */
 	boolean_t	z_unmounted;	/* unmounted */
-	rrwlock_t	z_teardown_lock;
+	rrmlock_t	z_teardown_lock;
 	krwlock_t	z_teardown_inactive_lock;
 	list_t		z_all_znodes;	/* all vnodes in the fs */
 	kmutex_t	z_znodes_lock;	/* lock for z_all_znodes */
@@ -156,7 +156,6 @@ extern int zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers);
 extern int zfsvfs_create(const char *name, zfsvfs_t **zfvp);
 extern void zfsvfs_free(zfsvfs_t *zfsvfs);
 extern int zfs_check_global_label(const char *dsname, const char *hexsl);
-extern int zfs_vnode_lock(vnode_t *vp, int flags);
 
 #ifdef _KERNEL
 extern void zfsvfs_update_fromname(const char *oldname, const char *newname);

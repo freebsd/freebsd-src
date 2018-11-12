@@ -471,7 +471,7 @@ parse_cfg(struct ng_pipe_hookcfg *current, struct ng_pipe_hookcfg *new,
 		if (hinfo->ber_p == NULL)
 			hinfo->ber_p =
 			    malloc((MAX_FSIZE + MAX_OHSIZE) * sizeof(uint64_t),
-			    M_NG_PIPE, M_NOWAIT);
+			    M_NG_PIPE, M_WAITOK);
 		current->ber = new->ber;
 
 		/*
@@ -677,35 +677,6 @@ ngp_rcvdata(hook_p hook, item_p item)
 
 	/* Discard a frame if inbound queue limit has been reached */
 	if (hinfo->run.qin_frames > hinfo->cfg.qin_size_limit) {
-		struct mbuf *m1;
-		int longest = 0;
-
-		/* Find the longest queue */
-		TAILQ_FOREACH(ngp_f1, &hinfo->fifo_head, fifo_le)
-			if (ngp_f1->packets > longest) {
-				longest = ngp_f1->packets;
-				ngp_f = ngp_f1;
-			}
-
-		/* Drop a frame from the queue head/tail, depending on cfg */
-		if (hinfo->cfg.drophead) 
-			ngp_h = TAILQ_FIRST(&ngp_f->packet_head);
-		else 
-			ngp_h = TAILQ_LAST(&ngp_f->packet_head, p_head);
-		TAILQ_REMOVE(&ngp_f->packet_head, ngp_h, ngp_link);
-		m1 = ngp_h->m;
-		uma_zfree(ngp_zone, ngp_h);
-		hinfo->run.qin_octets -= m1->m_pkthdr.len;
-		hinfo->stats.in_disc_octets += m1->m_pkthdr.len;
-		m_freem(m1);
-		if (--(ngp_f->packets) == 0) {
-			TAILQ_REMOVE(&hinfo->fifo_head, ngp_f, fifo_le);
-			uma_zfree(ngp_zone, ngp_f);
-			hinfo->run.fifo_queues--;
-		}
-		hinfo->run.qin_frames--;
-		hinfo->stats.in_disc_frames++;
-	} else if (hinfo->run.qin_frames > hinfo->cfg.qin_size_limit) {
 		struct mbuf *m1;
 		int longest = 0;
 

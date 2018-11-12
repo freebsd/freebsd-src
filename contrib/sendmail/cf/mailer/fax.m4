@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998, 1999, 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999, 2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -28,7 +28,7 @@ POPDIVERT
 ###   FAX Mailer specification   ###
 ####################################
 
-VERSIONID(`$Id: fax.m4,v 8.16 2001/11/12 23:11:34 ca Exp $')
+VERSIONID(`$Id: fax.m4,v 8.17 2013-11-22 20:51:14 ca Exp $')
 
 Mfax,		P=FAX_MAILER_PATH, F=DFMhu, S=14, R=24,
 		M=FAX_MAILER_MAX, T=X-Phone/X-FAX/X-Unix,_FAX_QGRP

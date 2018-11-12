@@ -30,6 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PSIM			#GDB PSIM ppc simulator
 options 	MAMBO			#IBM Mambo Full System Simulator
+options 	PSERIES			#PAPR-compliant systems
 
 options 	SCHED_ULE		#ULE scheduler
 options 	PREEMPTION		#Enable kernel thread preemption
@@ -43,8 +44,8 @@ options 	UFS_DIRHASH		#Improve performance on big directories
 options 	UFS_GJOURNAL		#Enable gjournal-based UFS journaling
 options 	QUOTA			#Enable disk quotas for UFS
 options 	MD_ROOT			#MD is a potential root device
-options 	NFSCL			#New Network Filesystem Client
-options 	NFSD			#New Network Filesystem Server
+options 	NFSCL			#Network Filesystem Client
+options 	NFSD			#Network Filesystem Server
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as root device
 options 	MSDOSFS			#MSDOS Filesystem
@@ -58,6 +59,8 @@ options 	COMPAT_FREEBSD4		#Keep this for a while
 options 	COMPAT_FREEBSD5		#Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		#Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		#Compatible with FreeBSD7
+options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 options 	SCSI_DELAY=5000		#Delay (in ms) before probing SCSI 
 options 	KTRACE			#ktrace(1) syscall trace support
 options 	STACK			#stack(9) support
@@ -76,9 +79,8 @@ options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 # Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE		# Print a stack trace for a panic.
-# For full debugger support use this instead:
+options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
 options 	DDB			#Support DDB
 #options 	DEADLKRES		#Enable the deadlock resolver
 options 	INVARIANTS		#Enable calls of extra sanity checking
@@ -100,7 +102,6 @@ device		agp
 # ATA controllers
 device		ahci		# AHCI-compatible SATA controllers
 device		ata		# Legacy ATA/SATA controllers
-options 	ATA_CAM		# Handle legacy controllers with CAM
 device		mvs		# Marvell 88SX50XX/88SX60XX/88SX70XX/SoC SATA
 device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
@@ -122,17 +123,19 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
-# syscons is the default console driver, resembling an SCO console
-device		sc
+# vt is the default console driver, resembling an SCO console
+device		vt		# Generic console driver (pulls in OF FB)
 device		kbdmux
-options 	SC_OFWFB	# OFW frame buffer
-options 	SC_DFLT_FONT	# compile font in
-makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
 device		scc
 device		uart
 device		uart_z8530
+
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
@@ -151,7 +154,6 @@ device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying/(translation)
 device		firmware	# firmware assist module
 
 # The `bpf' device enables the Berkeley Packet Filter.
@@ -181,20 +183,21 @@ device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
 # Wireless NIC cards
-options		IEEE80211_SUPPORT_MESH
-options		AH_SUPPORT_AR5416
+options 	IEEE80211_SUPPORT_MESH
+options 	AH_SUPPORT_AR5416
 
 # Misc
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		adt746x		# PowerBook5,8 temperature sensor
 device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit
 device		max6690		# PowerMac7,2 temperature sensor
 device		powermac_nvram	# Open Firmware configuration NVRAM
 device		smu		# Apple System Management Unit
-device		windtunnel	# Apple G4 MDD fan controller
+device		adm1030		# Apple G4 MDD fan controller
 device		atibl		# ATI-based backlight driver for PowerBooks/iBooks
 device		nvbl		# nVidia-based backlight driver for PowerBooks/iBooks
 

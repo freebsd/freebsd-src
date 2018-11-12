@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -82,13 +83,15 @@ dummynet(void *arg)
 {
 
 	(void)arg;	/* UNUSED */
-	taskqueue_enqueue(dn_tq, &dn_task);
+	taskqueue_enqueue_fast(dn_tq, &dn_task);
 }
 
 void
 dn_reschedule(void)
 {
-	callout_reset(&dn_timeout, 1, dummynet, NULL);
+
+	callout_reset_sbt(&dn_timeout, tick_sbt, 0, dummynet, NULL,
+	    C_HARDCLOCK | C_DIRECT_EXEC);
 }
 /*----- end of callout hooks -----*/
 
@@ -618,7 +621,7 @@ fsk_detach(struct dn_fsk *fs, int flags)
 		fs->sched->fp->free_fsk(fs);
 	fs->sched = NULL;
 	if (flags & DN_DELETE_FS) {
-		bzero(fs, sizeof(fs));	/* safety */
+		bzero(fs, sizeof(*fs));	/* safety */
 		free(fs, M_DUMMYNET);
 		dn_cfg.fsk_count--;
 	} else {
@@ -1068,7 +1071,10 @@ config_red(struct dn_fsk *fs)
 	fs->min_th = SCALE(fs->fs.min_th);
 	fs->max_th = SCALE(fs->fs.max_th);
 
-	fs->c_1 = fs->max_p / (fs->fs.max_th - fs->fs.min_th);
+	if (fs->fs.max_th == fs->fs.min_th)
+		fs->c_1 = fs->max_p;
+	else
+		fs->c_1 = SCALE((int64_t)(fs->max_p)) / (fs->fs.max_th - fs->fs.min_th);
 	fs->c_2 = SCALE_MUL(fs->c_1, SCALE(fs->fs.min_th));
 
 	if (fs->fs.flags & DN_IS_GENTLE_RED) {
@@ -2159,18 +2165,17 @@ ip_dn_init(void)
 	DN_LOCK_INIT();
 
 	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
-	dn_tq = taskqueue_create("dummynet", M_WAITOK,
+	dn_tq = taskqueue_create_fast("dummynet", M_WAITOK,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
 	callout_init(&dn_timeout, CALLOUT_MPSAFE);
-	callout_reset(&dn_timeout, 1, dummynet, NULL);
+	dn_reschedule();
 
 	/* Initialize curr_time adjustment mechanics. */
 	getmicrouptime(&dn_cfg.prev_t);
 }
 
-#ifdef KLD_MODULE
 static void
 ip_dn_destroy(int last)
 {
@@ -2194,7 +2199,6 @@ ip_dn_destroy(int last)
 
 	DN_LOCK_DESTROY();
 }
-#endif /* KLD_MODULE */
 
 static int
 dummynet_modevent(module_t mod, int type, void *data)
@@ -2210,13 +2214,8 @@ dummynet_modevent(module_t mod, int type, void *data)
 		ip_dn_io_ptr = dummynet_io;
 		return 0;
 	} else if (type == MOD_UNLOAD) {
-#if !defined(KLD_MODULE)
-		printf("dummynet statically compiled, cannot unload\n");
-		return EINVAL ;
-#else
 		ip_dn_destroy(1 /* last */);
 		return 0;
-#endif
 	} else
 		return EOPNOTSUPP;
 }
@@ -2295,7 +2294,7 @@ static moduledata_t dummynet_mod = {
 #define	DN_SI_SUB	SI_SUB_PROTO_IFATTACHDOMAIN
 #define	DN_MODEV_ORD	(SI_ORDER_ANY - 128) /* after ipfw */
 DECLARE_MODULE(dummynet, dummynet_mod, DN_SI_SUB, DN_MODEV_ORD);
-MODULE_DEPEND(dummynet, ipfw, 2, 2, 2);
+MODULE_DEPEND(dummynet, ipfw, 3, 3, 3);
 MODULE_VERSION(dummynet, 3);
 
 /*

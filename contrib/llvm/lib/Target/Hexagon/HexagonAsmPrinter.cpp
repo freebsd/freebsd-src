@@ -13,24 +13,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "Hexagon.h"
 #include "HexagonAsmPrinter.h"
 #include "HexagonMachineFunctionInfo.h"
-#include "HexagonMCInst.h"
-#include "HexagonTargetMachine.h"
 #include "HexagonSubtarget.h"
-#include "InstPrinter/HexagonInstPrinter.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
+#include "HexagonTargetMachine.h"
+#include "MCTargetDesc/HexagonInstPrinter.h"
+#include "MCTargetDesc/HexagonMCInst.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Analysis/ConstantFolding.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Mangler.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
@@ -38,39 +41,25 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Format.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/TargetRegistry.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringExtras.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 static cl::opt<bool> AlignCalls(
          "hexagon-align-calls", cl::Hidden, cl::init(true),
           cl::desc("Insert falign after call instruction for Hexagon target"));
-
-void HexagonAsmPrinter::EmitAlignment(unsigned NumBits,
-                                      const GlobalValue *GV) const {
-  // For basic block level alignment, use ".falign".
-  if (!GV) {
-    OutStreamer.EmitRawText(StringRef("\t.falign"));
-    return;
-  }
-
-  AsmPrinter::EmitAlignment(NumBits, GV);
-}
 
 void HexagonAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
                                     raw_ostream &O) {
@@ -87,19 +76,12 @@ void HexagonAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
   case MachineOperand::MO_MachineBasicBlock:
     O << *MO.getMBB()->getSymbol();
     return;
-  case MachineOperand::MO_JumpTableIndex:
-    O << *GetJTISymbol(MO.getIndex());
-    // FIXME: PIC relocation model.
-    return;
   case MachineOperand::MO_ConstantPoolIndex:
     O << *GetCPISymbol(MO.getIndex());
     return;
-  case MachineOperand::MO_ExternalSymbol:
-    O << *GetExternalSymbolSymbol(MO.getSymbolName());
-    return;
   case MachineOperand::MO_GlobalAddress:
     // Computing the address of a global symbol, not calling it.
-    O << *Mang->getSymbol(MO.getGlobal());
+    O << *getSymbol(MO.getGlobal());
     printOffset(MO.getOffset(), O);
     return;
   }
@@ -186,19 +168,13 @@ bool HexagonAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   return false;
 }
 
-void HexagonAsmPrinter::printPredicateOperand(const MachineInstr *MI,
-                                              unsigned OpNo,
-                                              raw_ostream &O) {
-  llvm_unreachable("Unimplemented");
-}
-
 
 /// printMachineInstruction -- Print out a single Hexagon MI in Darwin syntax to
 /// the current output stream.
 ///
 void HexagonAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   if (MI->isBundle()) {
-    std::vector<const MachineInstr*> BundleMIs;
+    std::vector<MachineInstr const *> BundleMIs;
 
     const MachineBasicBlock *MBB = MI->getParent();
     MachineBasicBlock::const_instr_iterator MII = MI;
@@ -207,91 +183,39 @@ void HexagonAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     while (MII != MBB->end() && MII->isInsideBundle()) {
       const MachineInstr *MInst = MII;
       if (MInst->getOpcode() == TargetOpcode::DBG_VALUE ||
-          MInst->getOpcode() == TargetOpcode::IMPLICIT_DEF) {
-          IgnoreCount++;
-          ++MII;
-          continue;
+        MInst->getOpcode() == TargetOpcode::IMPLICIT_DEF) {
+        IgnoreCount++;
+        ++MII;
+        continue;
       }
-      //BundleMIs.push_back(&*MII);
+      // BundleMIs.push_back(&*MII);
       BundleMIs.push_back(MInst);
       ++MII;
     }
     unsigned Size = BundleMIs.size();
-    assert((Size+IgnoreCount) == MI->getBundleSize() && "Corrupt Bundle!");
+    assert((Size + IgnoreCount) == MI->getBundleSize() && "Corrupt Bundle!");
     for (unsigned Index = 0; Index < Size; Index++) {
       HexagonMCInst MCI;
-      MCI.setStartPacket(Index == 0);
-      MCI.setEndPacket(Index == (Size-1));
 
       HexagonLowerToMC(BundleMIs[Index], MCI, *this);
-      OutStreamer.EmitInstruction(MCI);
+      HexagonMCInst::AppendImplicitOperands(MCI);
+      MCI.setPacketBegin(Index == 0);
+      MCI.setPacketEnd(Index == (Size - 1));
+      EmitToStreamer(OutStreamer, MCI);
     }
   }
   else {
     HexagonMCInst MCI;
-    if (MI->getOpcode() == Hexagon::ENDLOOP0) {
-      MCI.setStartPacket(true);
-      MCI.setEndPacket(true);
-    }
     HexagonLowerToMC(MI, MCI, *this);
-    OutStreamer.EmitInstruction(MCI);
+    HexagonMCInst::AppendImplicitOperands(MCI);
+    if (MI->getOpcode() == Hexagon::ENDLOOP0) {
+      MCI.setPacketBegin(true);
+      MCI.setPacketEnd(true);
+    }
+    EmitToStreamer(OutStreamer, MCI);
   }
 
   return;
-}
-
-/// PrintUnmangledNameSafely - Print out the printable characters in the name.
-/// Don't print things like \n or \0.
-// static void PrintUnmangledNameSafely(const Value *V, raw_ostream &OS) {
-//   for (const char *Name = V->getNameStart(), *E = Name+V->getNameLen();
-//        Name != E; ++Name)
-//     if (isprint(*Name))
-//       OS << *Name;
-// }
-
-
-void HexagonAsmPrinter::printAddrModeBasePlusOffset(const MachineInstr *MI,
-                                                    int OpNo, raw_ostream &O) {
-  const MachineOperand &MO1 = MI->getOperand(OpNo);
-  const MachineOperand &MO2 = MI->getOperand(OpNo+1);
-
-  O << HexagonInstPrinter::getRegisterName(MO1.getReg())
-    << " + #"
-    << MO2.getImm();
-}
-
-
-void HexagonAsmPrinter::printGlobalOperand(const MachineInstr *MI, int OpNo,
-                                           raw_ostream &O) {
-  const MachineOperand &MO = MI->getOperand(OpNo);
-  assert( (MO.getType() == MachineOperand::MO_GlobalAddress) &&
-         "Expecting global address");
-
-  O << *Mang->getSymbol(MO.getGlobal());
-  if (MO.getOffset() != 0) {
-    O << " + ";
-    O << MO.getOffset();
-  }
-}
-
-void HexagonAsmPrinter::printJumpTable(const MachineInstr *MI, int OpNo,
-                                       raw_ostream &O) {
-  const MachineOperand &MO = MI->getOperand(OpNo);
-  assert( (MO.getType() == MachineOperand::MO_JumpTableIndex) && 
-           "Expecting jump table index");
-
-  // Hexagon_TODO: Do we need name mangling?
-  O << *GetJTISymbol(MO.getIndex());
-}
-
-void HexagonAsmPrinter::printConstantPool(const MachineInstr *MI, int OpNo,
-                                       raw_ostream &O) {
-  const MachineOperand &MO = MI->getOperand(OpNo);
-  assert( (MO.getType() == MachineOperand::MO_ConstantPoolIndex) &&
-          "Expecting constant pool index");
-
-  // Hexagon_TODO: Do we need name mangling?
-  O << *GetCPISymbol(MO.getIndex());
 }
 
 static MCInstPrinter *createHexagonMCInstPrinter(const Target &T,
@@ -303,7 +227,7 @@ static MCInstPrinter *createHexagonMCInstPrinter(const Target &T,
   if (SyntaxVariant == 0)
     return(new HexagonInstPrinter(MAI, MII, MRI));
   else
-   return NULL;
+   return nullptr;
 }
 
 extern "C" void LLVMInitializeHexagonAsmPrinter() {

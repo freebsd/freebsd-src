@@ -2,7 +2,7 @@
 #	$NetBSD: Makefile,v 1.15 1997/10/18 15:31:20 lukem Exp $
 #	from: @(#)Makefile	8.2 (Berkeley) 4/3/94
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # Uncomment the following to provide defaults for gate-ftp operation
 #
@@ -20,8 +20,7 @@ CFLAGS+= -DINET6
 .endif
 
 CFLAGS+= -I${.CURDIR} -I${TNFTP}
-LDADD=	-ledit -ltermcap -lutil
-DPADD=	${LIBEDIT} ${LIBTERMCAP} ${LIBUTIL}
+LIBADD=	edit
 
 WARNS?=	2
 

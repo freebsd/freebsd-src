@@ -11,15 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_MACHINE_FUNCTION_ANALYSIS_H
-#define LLVM_CODEGEN_MACHINE_FUNCTION_ANALYSIS_H
+#ifndef LLVM_CODEGEN_MACHINEFUNCTIONANALYSIS_H
+#define LLVM_CODEGEN_MACHINEFUNCTIONANALYSIS_H
 
 #include "llvm/Pass.h"
-#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
 class MachineFunction;
+class TargetMachine;
 
 /// MachineFunctionAnalysis - This class is a Pass that manages a
 /// MachineFunction object.
@@ -34,16 +34,16 @@ public:
   ~MachineFunctionAnalysis();
 
   MachineFunction &getMF() const { return *MF; }
-  
-  virtual const char* getPassName() const {
+
+  const char* getPassName() const override {
     return "Machine Function Analysis";
   }
 
 private:
-  virtual bool doInitialization(Module &M);
-  virtual bool runOnFunction(Function &F);
-  virtual void releaseMemory();
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+  bool doInitialization(Module &M) override;
+  bool runOnFunction(Function &F) override;
+  void releaseMemory() override;
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
 };
 
 } // End llvm namespace

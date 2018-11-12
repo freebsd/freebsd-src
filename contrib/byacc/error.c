@@ -1,4 +1,4 @@
-/* $Id: error.c,v 1.9 2011/09/05 23:27:43 tom Exp $ */
+/* $Id: error.c,v 1.11 2014/04/07 22:22:49 tom Exp $ */
 
 /* routines for printing error messages  */
 
@@ -42,9 +42,9 @@ unexpected_EOF(void)
 }
 
 static void
-print_pos(char *st_line, char *st_cptr)
+print_pos(const char *st_line, const char *st_cptr)
 {
-    char *s;
+    const char *s;
 
     if (st_line == 0)
 	return;
@@ -286,3 +286,117 @@ undefined_symbol_warning(char *s)
 {
     fprintf(stderr, "%s: w - the symbol %s is undefined\n", myname, s);
 }
+
+#if ! defined(YYBTYACC)
+void
+unsupported_flag_warning(const char *flag, const char *details)
+{
+    fprintf(stderr, "%s: w - %s flag unsupported, %s\n",
+	    myname, flag, details);
+}
+#endif
+
+#if defined(YYBTYACC)
+void
+at_warning(int a_lineno, int i)
+{
+    fprintf(stderr, "%s: w - line %d of \"%s\", @%d references beyond the \
+end of the current rule\n", myname, a_lineno, input_file_name, i);
+}
+
+void
+at_error(int a_lineno, char *a_line, char *a_cptr)
+{
+    fprintf(stderr,
+	    "%s: e - line %d of \"%s\", illegal @$ or @N reference\n",
+	    myname, a_lineno, input_file_name);
+    print_pos(a_line, a_cptr);
+    done(1);
+}
+
+void
+unterminated_arglist(int a_lineno, char *a_line, char *a_cptr)
+{
+    fprintf(stderr,
+	    "%s: e - line %d of \"%s\", unterminated argument list\n",
+	    myname, a_lineno, input_file_name);
+    print_pos(a_line, a_cptr);
+    done(1);
+}
+
+void
+arg_number_disagree_warning(int a_lineno, char *a_name)
+{
+    fprintf(stderr, "%s: w - line %d of \"%s\", number of arguments of %s "
+	    "doesn't agree with previous declaration\n",
+	    myname, a_lineno, input_file_name, a_name);
+}
+
+void
+bad_formals(void)
+{
+    fprintf(stderr, "%s: e - line %d of \"%s\", bad formal argument list\n",
+	    myname, lineno, input_file_name);
+    print_pos(line, cptr);
+    done(1);
+}
+
+void
+arg_type_disagree_warning(int a_lineno, int i, char *a_name)
+{
+    fprintf(stderr, "%s: w - line %d of \"%s\", type of argument %d "
+	    "to %s doesn't agree with previous declaration\n",
+	    myname, a_lineno, input_file_name, i, a_name);
+}
+
+void
+unknown_arg_warning(int d_lineno, const char *dlr_opt, const char *d_arg, const char
+		    *d_line, const char *d_cptr)
+{
+    fprintf(stderr, "%s: w - line %d of \"%s\", unknown argument %s%s\n",
+	    myname, d_lineno, input_file_name, dlr_opt, d_arg);
+    print_pos(d_line, d_cptr);
+}
+
+void
+untyped_arg_warning(int a_lineno, const char *dlr_opt, const char *a_name)
+{
+    fprintf(stderr, "%s: w - line %d of \"%s\", untyped argument %s%s\n",
+	    myname, a_lineno, input_file_name, dlr_opt, a_name);
+}
+
+void
+wrong_number_args_warning(const char *which, const char *a_name)
+{
+    fprintf(stderr,
+	    "%s: w - line %d of \"%s\", wrong number of %sarguments for %s\n",
+	    myname, lineno, input_file_name, which, a_name);
+    print_pos(line, cptr);
+}
+
+void
+wrong_type_for_arg_warning(int i, char *a_name)
+{
+    fprintf(stderr,
+	    "%s: w - line %d of \"%s\", wrong type for default argument %d to %s\n",
+	    myname, lineno, input_file_name, i, a_name);
+    print_pos(line, cptr);
+}
+
+void
+start_requires_args(char *a_name)
+{
+    fprintf(stderr,
+	    "%s: w - line %d of \"%s\", start symbol %s requires arguments\n",
+	    myname, 0, input_file_name, a_name);
+
+}
+
+void
+destructor_redeclared_warning(int a_lineno, char *a_line, char *a_cptr)
+{
+    fprintf(stderr, "%s: w - line %d of \"%s\", destructor redeclared\n",
+	    myname, a_lineno, input_file_name);
+    print_pos(a_line, a_cptr);
+}
+#endif

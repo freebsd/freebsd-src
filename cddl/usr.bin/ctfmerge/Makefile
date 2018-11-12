@@ -33,7 +33,7 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 		-I${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt \
 		-I${OPENSOLARIS_SYS_DISTDIR}/uts/common
 
-DPADD=		${LIBCTF} ${LIBDWARF} ${LIBELF} ${LIBZ} ${LIBPTHREAD}
-LDADD=		-lctf -ldwarf -lelf -lz -lpthread
+DPADD=		${LIBDWARF} ${LIBELF} ${LIBZ} ${LIBPTHREAD}
+LDADD=		-ldwarf -lelf -lz -lpthread
 
 .include <bsd.prog.mk>

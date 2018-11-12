@@ -342,6 +342,8 @@ dump_type (tree t, int flags)
 	 reduces code size.  */
     case ARRAY_TYPE:
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
     case OFFSET_TYPE:
     offset_type:
@@ -497,6 +499,8 @@ dump_type_prefix (tree t, int flags)
   switch (TREE_CODE (t))
     {
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
       {
 	tree sub = TREE_TYPE (t);
@@ -507,7 +511,10 @@ dump_type_prefix (tree t, int flags)
 	    pp_cxx_whitespace (cxx_pp);
 	    pp_cxx_left_paren (cxx_pp);
 	  }
-	pp_character (cxx_pp, "&*"[TREE_CODE (t) == POINTER_TYPE]);
+	/* APPLE LOCAL begin blocks 6040305 */
+	pp_character (cxx_pp, "&*^"[(TREE_CODE (t) == POINTER_TYPE)
+				    + (TREE_CODE (t) == BLOCK_POINTER_TYPE)*2]);
+	/* APPLE LOCAL end blocks 6040305 */
 	pp_base (cxx_pp)->padding = pp_before;
 	pp_cxx_cv_qualifier_seq (cxx_pp, t);
       }
@@ -593,6 +600,8 @@ dump_type_suffix (tree t, int flags)
   switch (TREE_CODE (t))
     {
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
     case OFFSET_TYPE:
       if (TREE_CODE (TREE_TYPE (t)) == ARRAY_TYPE)

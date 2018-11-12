@@ -2,14 +2,8 @@
  * WPA Supplicant / Network configuration structures
  * Copyright (c) 2003-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef CONFIG_SSID_H
@@ -30,6 +24,14 @@
 #define DEFAULT_GROUP (WPA_CIPHER_CCMP | WPA_CIPHER_TKIP | \
 		       WPA_CIPHER_WEP104 | WPA_CIPHER_WEP40)
 #define DEFAULT_FRAGMENT_SIZE 1398
+
+#define DEFAULT_BG_SCAN_PERIOD -1
+#define DEFAULT_DISABLE_HT 0
+#define DEFAULT_DISABLE_HT40 0
+#define DEFAULT_DISABLE_SGI 0
+#define DEFAULT_DISABLE_MAX_AMSDU -1 /* no change */
+#define DEFAULT_AMPDU_FACTOR -1 /* no change */
+#define DEFAULT_AMPDU_DENSITY -1 /* no change */
 
 /**
  * struct wpa_ssid - Network configuration data
@@ -109,6 +111,9 @@ struct wpa_ssid {
 	 *
 	 * If set, this network block is used only when associating with the AP
 	 * using the configured BSSID
+	 *
+	 * If this is a persistent P2P group (disabled == 2), this is the GO
+	 * Device Address.
 	 */
 	u8 bssid[ETH_ALEN];
 
@@ -137,6 +142,14 @@ struct wpa_ssid {
 	char *passphrase;
 
 	/**
+	 * ext_psk - PSK/passphrase name in external storage
+	 *
+	 * If this is set, PSK/passphrase will be fetched from external storage
+	 * when requesting association with the network.
+	 */
+	char *ext_psk;
+
+	/**
 	 * pairwise_cipher - Bitfield of allowed pairwise ciphers, WPA_CIPHER_*
 	 */
 	int pairwise_cipher;
@@ -152,6 +165,12 @@ struct wpa_ssid {
 	 * WPA_KEY_MGMT_*
 	 */
 	int key_mgmt;
+
+	/**
+	 * bg_scan_period - Background scan period in seconds, 0 to disable, or
+	 * -1 to indicate no change to default driver configuration
+	 */
+	int bg_scan_period;
 
 	/**
 	 * proto - Bitfield of allowed protocols, WPA_PROTO_*
@@ -210,13 +229,18 @@ struct wpa_ssid {
 	 *
 	 * This field can be used to enable proactive key caching which is also
 	 * known as opportunistic PMKSA caching for WPA2. This is disabled (0)
-	 * by default. Enable by setting this to 1.
+	 * by default unless default value is changed with the global okc=1
+	 * parameter. Enable by setting this to 1.
 	 *
 	 * Proactive key caching is used to make supplicant assume that the APs
 	 * are using the same PMK and generate PMKSA cache entries without
 	 * doing RSN pre-authentication. This requires support from the AP side
 	 * and is normally used with wireless switches that co-locate the
 	 * authenticator.
+	 *
+	 * Internally, special value -1 is used to indicate that the parameter
+	 * was not specified in the configuration (i.e., default behavior is
+	 * followed).
 	 */
 	int proactive_key_caching;
 
@@ -273,6 +297,11 @@ struct wpa_ssid {
 	 *
 	 * 2 = AP (access point)
 	 *
+	 * 3 = P2P Group Owner (can be set in the configuration file)
+	 *
+	 * 4 = P2P Group Formation (used internally; not in configuration
+	 * files)
+	 *
 	 * Note: IBSS can only be used with key_mgmt NONE (plaintext and
 	 * static WEP) and key_mgmt=WPA-NONE (fixed group key TKIP/CCMP). In
 	 * addition, ap_scan has to be set to 2 for IBSS. WPA-None requires
@@ -284,6 +313,8 @@ struct wpa_ssid {
 		WPAS_MODE_INFRA = 0,
 		WPAS_MODE_IBSS = 1,
 		WPAS_MODE_AP = 2,
+		WPAS_MODE_P2P_GO = 3,
+		WPAS_MODE_P2P_GROUP_FORMATION = 4,
 	} mode;
 
 	/**
@@ -292,8 +323,18 @@ struct wpa_ssid {
 	 * 0 = this network can be used (default).
 	 * 1 = this network block is disabled (can be enabled through
 	 * ctrl_iface, e.g., with wpa_cli or wpa_gui).
+	 * 2 = this network block includes parameters for a persistent P2P
+	 * group (can be used with P2P ctrl_iface commands)
 	 */
 	int disabled;
+
+	/**
+	 * disabled_for_connect - Whether this network was temporarily disabled
+	 *
+	 * This flag is used to reenable all the temporarily disabled networks
+	 * after either the success or failure of a WPS connection.
+	 */
+	int disabled_for_connect;
 
 	/**
 	 * peerkey -  Whether PeerKey handshake for direct links is allowed
@@ -321,6 +362,12 @@ struct wpa_ssid {
 	 *
 	 * This value is used to configure policy for management frame
 	 * protection (IEEE 802.11w). 0 = disabled, 1 = optional, 2 = required.
+	 * This is disabled by default unless the default value has been changed
+	 * with the global pmf=1/2 parameter.
+	 *
+	 * Internally, special value 3 is used to indicate that the parameter
+	 * was not specified in the configuration (i.e., default behavior is
+	 * followed).
 	 */
 	enum mfp_options ieee80211w;
 #endif /* CONFIG_IEEE80211W */
@@ -336,6 +383,8 @@ struct wpa_ssid {
 	 * will be used instead of this configured value.
 	 */
 	int frequency;
+
+	int ht40;
 
 	/**
 	 * wpa_ptk_rekey - Maximum lifetime for PTK in seconds
@@ -365,6 +414,20 @@ struct wpa_ssid {
 	char *bgscan;
 
 	/**
+	 * ignore_broadcast_ssid - Hide SSID in AP mode
+	 *
+	 * Send empty SSID in beacons and ignore probe request frames that do
+	 * not specify full SSID, i.e., require stations to know SSID.
+	 * default: disabled (0)
+	 * 1 = send empty (length=0) SSID in beacon and ignore probe request
+	 * for broadcast SSID
+	 * 2 = clear SSID (ASCII 0), but keep the original length (this may be
+	 * required with some clients that do not support empty SSID) and
+	 * ignore probe requests for broadcast SSID
+	 */
+	int ignore_broadcast_ssid;
+
+	/**
 	 * freq_list - Array of allowed frequencies or %NULL for all
 	 *
 	 * This is an optional zero-terminated array of frequencies in
@@ -373,6 +436,136 @@ struct wpa_ssid {
 	 * considered when selecting a BSS.
 	 */
 	int *freq_list;
+
+	/**
+	 * p2p_client_list - List of P2P Clients in a persistent group (GO)
+	 *
+	 * This is a list of P2P Clients (P2P Device Address) that have joined
+	 * the persistent group. This is maintained on the GO for persistent
+	 * group entries (disabled == 2).
+	 */
+	u8 *p2p_client_list;
+
+	/**
+	 * num_p2p_clients - Number of entries in p2p_client_list
+	 */
+	size_t num_p2p_clients;
+
+#ifndef P2P_MAX_STORED_CLIENTS
+#define P2P_MAX_STORED_CLIENTS 100
+#endif /* P2P_MAX_STORED_CLIENTS */
+
+	/**
+	 * p2p_group - Network generated as a P2P group (used internally)
+	 */
+	int p2p_group;
+
+	/**
+	 * p2p_persistent_group - Whether this is a persistent group
+	 */
+	int p2p_persistent_group;
+
+	/**
+	 * temporary - Whether this network is temporary and not to be saved
+	 */
+	int temporary;
+
+	/**
+	 * export_keys - Whether keys may be exported
+	 *
+	 * This attribute will be set when keys are determined through
+	 * WPS or similar so that they may be exported.
+	 */
+	int export_keys;
+
+#ifdef CONFIG_HT_OVERRIDES
+	/**
+	 * disable_ht - Disable HT (IEEE 802.11n) for this network
+	 *
+	 * By default, use it if it is available, but this can be configured
+	 * to 1 to have it disabled.
+	 */
+	int disable_ht;
+
+	/**
+	 * disable_ht40 - Disable HT40 for this network
+	 *
+	 * By default, use it if it is available, but this can be configured
+	 * to 1 to have it disabled.
+	 */
+	int disable_ht40;
+
+	/**
+	 * disable_sgi - Disable SGI (Short Guard Interval) for this network
+	 *
+	 * By default, use it if it is available, but this can be configured
+	 * to 1 to have it disabled.
+	 */
+	int disable_sgi;
+
+	/**
+	 * disable_max_amsdu - Disable MAX A-MSDU
+	 *
+	 * A-MDSU will be 3839 bytes when disabled, or 7935
+	 * when enabled (assuming it is otherwise supported)
+	 * -1 (default) means do not apply any settings to the kernel.
+	 */
+	int disable_max_amsdu;
+
+	/**
+	 * ampdu_factor - Maximum A-MPDU Length Exponent
+	 *
+	 * Value: 0-3, see 7.3.2.56.3 in IEEE Std 802.11n-2009.
+	 */
+	int ampdu_factor;
+
+	/**
+	 * ampdu_density - Minimum A-MPDU Start Spacing
+	 *
+	 * Value: 0-7, see 7.3.2.56.3 in IEEE Std 802.11n-2009.
+	 */
+	int ampdu_density;
+
+	/**
+	 * ht_mcs - Allowed HT-MCS rates, in ASCII hex: ffff0000...
+	 *
+	 * By default (empty string): Use whatever the OS has configured.
+	 */
+	char *ht_mcs;
+#endif /* CONFIG_HT_OVERRIDES */
+
+	/**
+	 * ap_max_inactivity - Timeout in seconds to detect STA's inactivity
+	 *
+	 * This timeout value is used in AP mode to clean up inactive stations.
+	 * By default: 300 seconds.
+	 */
+	int ap_max_inactivity;
+
+	/**
+	 * dtim_period - DTIM period in Beacon intervals
+	 * By default: 2
+	 */
+	int dtim_period;
+
+	/**
+	 * auth_failures - Number of consecutive authentication failures
+	 */
+	unsigned int auth_failures;
+
+	/**
+	 * disabled_until - Network block disabled until this time if non-zero
+	 */
+	struct os_time disabled_until;
+
+	/**
+	 * parent_cred - Pointer to parent wpa_cred entry
+	 *
+	 * This pointer can be used to delete temporary networks when a wpa_cred
+	 * that was used to create them is removed. This pointer should not be
+	 * dereferences since it may not be updated in all cases.
+	 */
+	void *parent_cred;
 };
 
 #endif /* CONFIG_SSID_H */

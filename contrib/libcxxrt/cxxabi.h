@@ -22,6 +22,7 @@
 
 #ifndef __CXXABI_H_
 #define __CXXABI_H_
+#include <stddef.h>
 #include <stdint.h>
 #include "unwind.h"
 namespace std 
@@ -109,7 +110,7 @@ struct __cxa_exception
 	 * handler count reaches 0 (which it doesn't with the top bit set).
 	 */
 	int handlerCount;
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 	/**
 	 * The ARM EH ABI requires the unwind library to keep track of exceptions
 	 * during cleanups.  These support nesting, so we need to keep a list of
@@ -192,6 +193,8 @@ __cxa_eh_globals *__cxa_get_globals(void);
  * been called at least once by this thread.
  */
 __cxa_eh_globals *__cxa_get_globals_fast(void);
+
+std::type_info * __cxa_current_exception_type();
 
 /**
  * Throws an exception returned by __cxa_current_primary_exception().  This

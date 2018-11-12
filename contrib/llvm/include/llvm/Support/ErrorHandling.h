@@ -15,8 +15,8 @@
 #ifndef LLVM_SUPPORT_ERRORHANDLING_H
 #define LLVM_SUPPORT_ERRORHANDLING_H
 
-#include "llvm/Support/Compiler.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/Compiler.h"
 #include <string>
 
 namespace llvm {
@@ -24,13 +24,11 @@ namespace llvm {
 
   /// An error handler callback.
   typedef void (*fatal_error_handler_t)(void *user_data,
-                                        const std::string& reason);
+                                        const std::string& reason,
+                                        bool gen_crash_diag);
 
   /// install_fatal_error_handler - Installs a new error handler to be used
   /// whenever a serious (non-recoverable) error is encountered by LLVM.
-  ///
-  /// If you are using llvm_start_multithreaded, you should register the handler
-  /// before doing that.
   ///
   /// If no error handler is installed the default is to print the error message
   /// to stderr, and call exit(1).  If an error handler is installed then it is
@@ -46,11 +44,9 @@ namespace llvm {
   /// \param user_data - An argument which will be passed to the install error
   /// handler.
   void install_fatal_error_handler(fatal_error_handler_t handler,
-                                   void *user_data = 0);
+                                   void *user_data = nullptr);
 
   /// Restores default error handling behaviour.
-  /// This must not be called between llvm_start_multithreaded() and
-  /// llvm_stop_multithreaded().
   void remove_fatal_error_handler();
 
   /// ScopedFatalErrorHandler - This is a simple helper class which just
@@ -58,7 +54,7 @@ namespace llvm {
   /// remove_fatal_error_handler in its destructor.
   struct ScopedFatalErrorHandler {
     explicit ScopedFatalErrorHandler(fatal_error_handler_t handler,
-                                     void *user_data = 0) {
+                                     void *user_data = nullptr) {
       install_fatal_error_handler(handler, user_data);
     }
 
@@ -73,17 +69,21 @@ namespace llvm {
   /// standard error, followed by a newline.
   /// After the error handler is called this function will call exit(1), it 
   /// does not return.
-  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const char *reason);
-  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const std::string &reason);
-  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(StringRef reason);
-  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const Twine &reason);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const char *reason,
+                                                  bool gen_crash_diag = true);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const std::string &reason,
+                                                  bool gen_crash_diag = true);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(StringRef reason,
+                                                  bool gen_crash_diag = true);
+  LLVM_ATTRIBUTE_NORETURN void report_fatal_error(const Twine &reason,
+                                                  bool gen_crash_diag = true);
 
   /// This function calls abort(), and prints the optional message to stderr.
   /// Use the llvm_unreachable macro (that adds location info), instead of
   /// calling this function directly.
-  LLVM_ATTRIBUTE_NORETURN void llvm_unreachable_internal(const char *msg=0,
-                                                         const char *file=0,
-                                                         unsigned line=0);
+  LLVM_ATTRIBUTE_NORETURN void
+  llvm_unreachable_internal(const char *msg=nullptr, const char *file=nullptr,
+                            unsigned line=0);
 }
 
 /// Marks that the current location is not supposed to be reachable.

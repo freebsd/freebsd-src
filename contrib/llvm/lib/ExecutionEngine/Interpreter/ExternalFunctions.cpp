@@ -20,19 +20,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "Interpreter.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
 #include "llvm/Config/config.h"     // Detect libffi
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/DataLayout.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
+#include "llvm/Support/UniqueLock.h"
+#include <cmath>
 #include <csignal>
 #include <cstdio>
-#include <map>
-#include <cmath>
 #include <cstring>
+#include <map>
 
 #ifdef HAVE_FFI_CALL
 #ifdef HAVE_FFI_H
@@ -51,7 +52,7 @@ static ManagedStatic<sys::Mutex> FunctionsLock;
 typedef GenericValue (*ExFunc)(FunctionType *,
                                const std::vector<GenericValue> &);
 static ManagedStatic<std::map<const Function *, ExFunc> > ExportedFunctions;
-static std::map<std::string, ExFunc> FuncNames;
+static ManagedStatic<std::map<std::string, ExFunc> > FuncNames;
 
 #ifdef USE_LIBFFI
 typedef void (*RawFunc)();
@@ -97,14 +98,14 @@ static ExFunc lookupFunction(const Function *F) {
   ExtName += "_" + F->getName().str();
 
   sys::ScopedLock Writer(*FunctionsLock);
-  ExFunc FnPtr = FuncNames[ExtName];
-  if (FnPtr == 0)
-    FnPtr = FuncNames["lle_X_" + F->getName().str()];
-  if (FnPtr == 0)  // Try calling a generic function... if it exists...
+  ExFunc FnPtr = (*FuncNames)[ExtName];
+  if (!FnPtr)
+    FnPtr = (*FuncNames)["lle_X_" + F->getName().str()];
+  if (!FnPtr)  // Try calling a generic function... if it exists...
     FnPtr = (ExFunc)(intptr_t)
       sys::DynamicLibrary::SearchForAddressOfSymbol("lle_X_" +
                                                     F->getName().str());
-  if (FnPtr != 0)
+  if (FnPtr)
     ExportedFunctions->insert(std::make_pair(F, FnPtr));  // Cache for later
   return FnPtr;
 }
@@ -248,14 +249,14 @@ GenericValue Interpreter::callExternalFunction(Function *F,
                                      const std::vector<GenericValue> &ArgVals) {
   TheInterpreter = this;
 
-  FunctionsLock->acquire();
+  unique_lock<sys::Mutex> Guard(*FunctionsLock);
 
   // Do a lookup to see if the function is in our cache... this should just be a
   // deferred annotation!
   std::map<const Function *, ExFunc>::iterator FI = ExportedFunctions->find(F);
   if (ExFunc Fn = (FI == ExportedFunctions->end()) ? lookupFunction(F)
                                                    : FI->second) {
-    FunctionsLock->release();
+    Guard.unlock();
     return Fn(F->getFunctionType(), ArgVals);
   }
 
@@ -273,7 +274,7 @@ GenericValue Interpreter::callExternalFunction(Function *F,
     RawFn = RF->second;
   }
 
-  FunctionsLock->release();
+  Guard.unlock();
 
   GenericValue Result;
   if (RawFn != 0 && ffiInvoke(RawFn, F, ArgVals, getDataLayout(), Result))
@@ -406,6 +407,7 @@ GenericValue lle_X_sprintf(FunctionType *FT,
       break;
     }
   }
+  return GV;
 }
 
 // int printf(const char *, ...) - a very rough implementation to make output
@@ -434,7 +436,7 @@ GenericValue lle_X_sscanf(FunctionType *FT,
 
   GenericValue GV;
   GV.IntVal = APInt(32, sscanf(Args[0], Args[1], Args[2], Args[3], Args[4],
-                        Args[5], Args[6], Args[7], Args[8], Args[9]));
+                    Args[5], Args[6], Args[7], Args[8], Args[9]));
   return GV;
 }
 
@@ -450,7 +452,7 @@ GenericValue lle_X_scanf(FunctionType *FT,
 
   GenericValue GV;
   GV.IntVal = APInt(32, scanf( Args[0], Args[1], Args[2], Args[3], Args[4],
-                        Args[5], Args[6], Args[7], Args[8], Args[9]));
+                    Args[5], Args[6], Args[7], Args[8], Args[9]));
   return GV;
 }
 
@@ -470,15 +472,41 @@ GenericValue lle_X_fprintf(FunctionType *FT,
   return GV;
 }
 
+static GenericValue lle_X_memset(FunctionType *FT,
+                                 const std::vector<GenericValue> &Args) {
+  int val = (int)Args[1].IntVal.getSExtValue();
+  size_t len = (size_t)Args[2].IntVal.getZExtValue();
+  memset((void *)GVTOP(Args[0]), val, len);
+  // llvm.memset.* returns void, lle_X_* returns GenericValue,
+  // so here we return GenericValue with IntVal set to zero
+  GenericValue GV;
+  GV.IntVal = 0;
+  return GV;
+}
+
+static GenericValue lle_X_memcpy(FunctionType *FT,
+                                 const std::vector<GenericValue> &Args) {
+  memcpy(GVTOP(Args[0]), GVTOP(Args[1]),
+         (size_t)(Args[2].IntVal.getLimitedValue()));
+
+  // llvm.memcpy* returns void, lle_X_* returns GenericValue,
+  // so here we return GenericValue with IntVal set to zero
+  GenericValue GV;
+  GV.IntVal = 0;
+  return GV;
+}
+
 void Interpreter::initializeExternalFunctions() {
   sys::ScopedLock Writer(*FunctionsLock);
-  FuncNames["lle_X_atexit"]       = lle_X_atexit;
-  FuncNames["lle_X_exit"]         = lle_X_exit;
-  FuncNames["lle_X_abort"]        = lle_X_abort;
+  (*FuncNames)["lle_X_atexit"]       = lle_X_atexit;
+  (*FuncNames)["lle_X_exit"]         = lle_X_exit;
+  (*FuncNames)["lle_X_abort"]        = lle_X_abort;
 
-  FuncNames["lle_X_printf"]       = lle_X_printf;
-  FuncNames["lle_X_sprintf"]      = lle_X_sprintf;
-  FuncNames["lle_X_sscanf"]       = lle_X_sscanf;
-  FuncNames["lle_X_scanf"]        = lle_X_scanf;
-  FuncNames["lle_X_fprintf"]      = lle_X_fprintf;
+  (*FuncNames)["lle_X_printf"]       = lle_X_printf;
+  (*FuncNames)["lle_X_sprintf"]      = lle_X_sprintf;
+  (*FuncNames)["lle_X_sscanf"]       = lle_X_sscanf;
+  (*FuncNames)["lle_X_scanf"]        = lle_X_scanf;
+  (*FuncNames)["lle_X_fprintf"]      = lle_X_fprintf;
+  (*FuncNames)["lle_X_memset"]       = lle_X_memset;
+  (*FuncNames)["lle_X_memcpy"]       = lle_X_memcpy;
 }

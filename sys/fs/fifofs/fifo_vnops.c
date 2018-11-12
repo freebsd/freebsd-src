@@ -137,18 +137,16 @@ fifo_open(ap)
 	struct thread *td;
 	struct fifoinfo *fip;
 	struct pipe *fpipe;
-	int error;
+	int error, stops_deferred;
 
 	vp = ap->a_vp;
 	fp = ap->a_fp;
 	td = ap->a_td;
 	ASSERT_VOP_ELOCKED(vp, "fifo_open");
-	if (fp == NULL)
+	if (fp == NULL || (ap->a_mode & FEXEC) != 0)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
-		error = pipe_named_ctor(&fpipe, td);
-		if (error != 0)
-			return (error);
+		pipe_named_ctor(&fpipe, td);
 		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
 		fip->fi_pipe = fpipe;
 		fpipe->pipe_wgen = fip->fi_readers = fip->fi_writers = 0;
@@ -190,8 +188,11 @@ fifo_open(ap)
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0);
+			stops_deferred = sigallowstop();
 			error = msleep(&fip->fi_readers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
+			if (stops_deferred)
+				sigdeferstop();
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_readers--;
@@ -214,8 +215,11 @@ fifo_open(ap)
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
 			VOP_UNLOCK(vp, 0);
+			stops_deferred = sigallowstop();
 			error = msleep(&fip->fi_writers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);
+			if (stops_deferred)
+				sigdeferstop();
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_writers--;

@@ -90,8 +90,7 @@ static struct mfi_command * mfip_start(void *);
 static void	mfip_done(struct mfi_command *cm);
 
 static int mfi_allow_disks = 0;
-TUNABLE_INT("hw.mfi.allow_cam_disk_passthrough", &mfi_allow_disks);
-SYSCTL_INT(_hw_mfi, OID_AUTO, allow_cam_disk_passthrough, CTLFLAG_RD,
+SYSCTL_INT(_hw_mfi, OID_AUTO, allow_cam_disk_passthrough, CTLFLAG_RDTUN,
     &mfi_allow_disks, 0, "event message locale");
 
 static devclass_t	mfip_devclass;
@@ -216,9 +215,9 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1;
-		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
+		cpi->hba_inquiry = PI_TAG_ABLE;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_NOBUSRESET|PIM_SEQSCAN;
+		cpi->hba_misc = PIM_NOBUSRESET | PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = MFI_SCSI_MAX_TARGETS;
 		cpi->max_lun = MFI_SCSI_MAX_LUNS;
@@ -244,6 +243,8 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
+		struct ccb_trans_settings_scsi *scsi =
+		    &ccb->cts.proto_specific.scsi;
 		struct ccb_trans_settings_sas *sas =
 		    &ccb->cts.xport_specific.sas;
 
@@ -251,6 +252,9 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 		ccb->cts.protocol_version = SCSI_REV_2;
 		ccb->cts.transport = XPORT_SAS;
 		ccb->cts.transport_version = 0;
+
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 
 		sas->valid &= ~CTS_SAS_VALID_SPEED;
 		sas->bitrate = 150000;
@@ -308,27 +312,26 @@ mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
 		return;
 	}
 	camsc->state = MFIP_STATE_RESCAN;
-	mtx_unlock(&sc->mfi_io_lock);
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
+		mtx_unlock(&sc->mfi_io_lock);
 		device_printf(sc->mfi_dev,
 		    "Cannot allocate ccb for bus rescan.\n");
 		return;
 	}
 
 	sim = camsc->sim;
-	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
+	if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sim),
 	    tid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_free_ccb(ccb);
+		mtx_unlock(&sc->mfi_io_lock);
 		device_printf(sc->mfi_dev,
 		    "Cannot create path for bus rescan.\n");
 		return;
 	}
-
 	xpt_rescan(ccb);
 
-	mtx_lock(&sc->mfi_io_lock);
 	camsc->state = MFIP_STATE_NONE;
 	mtx_unlock(&sc->mfi_io_lock);
 }

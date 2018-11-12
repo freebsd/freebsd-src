@@ -32,6 +32,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
+#include <sys/queue.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 
@@ -46,7 +50,7 @@ sfxge_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	addr = arg;
 
-	if (error) {
+	if (error != 0) {
 		*addr = 0;
 		return;
 	}
@@ -78,7 +82,7 @@ retry:
 		return (0);
 	}
 #if defined(__i386__) || defined(__amd64__)
-	while (m && seg_count < maxsegs) {
+	while (m != NULL && seg_count < maxsegs) {
 		/*
 		 * firmware doesn't like empty segments
 		 */
@@ -137,7 +141,7 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	    MIN(0x3FFFFFFFFFFFUL, BUS_SPACE_MAXADDR), BUS_SPACE_MAXADDR, NULL,
 	    NULL, len, 1, len, 0, NULL, NULL, &esmp->esm_tag) != 0) {
 		device_printf(sc->dev, "Couldn't allocate txq DMA tag\n");
-		return (ENOMEM);
+		goto fail_tag_create;
 	}
 
 	/* Allocate kernel memory. */
@@ -145,30 +149,35 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
 	    &esmp->esm_map) != 0) {
 		device_printf(sc->dev, "Couldn't allocate DMA memory\n");
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
+		goto fail_alloc;
 	}
 
 	/* Load map into device memory. */
 	if (bus_dmamap_load(esmp->esm_tag, esmp->esm_map, vaddr, len,
 	    sfxge_dma_cb, &esmp->esm_addr, 0) != 0) {
 		device_printf(sc->dev, "Couldn't load DMA mapping\n");
-		bus_dmamem_free(esmp->esm_tag, esmp->esm_base, esmp->esm_map);
-		bus_dma_tag_destroy(esmp->esm_tag);
-		return (ENOMEM);
+		goto fail_load;
 	}
 
 	/*
 	 * The callback gets error information about the mapping
-	 * and will have set our vaddr to NULL if something went
+	 * and will have set esm_addr to 0 if something went
 	 * wrong.
 	 */
-	if (vaddr == NULL)
-		return (ENOMEM);
+	if (esmp->esm_addr == 0)
+		goto fail_load_check;
 
 	esmp->esm_base = vaddr;
 
 	return (0);
+
+fail_load_check:
+fail_load:
+	bus_dmamem_free(esmp->esm_tag, vaddr, esmp->esm_map);
+fail_alloc:
+	bus_dma_tag_destroy(esmp->esm_tag);
+fail_tag_create:
+	return (ENOMEM);
 }
 
 void
@@ -193,7 +202,7 @@ sfxge_dma_init(struct sfxge_softc *sc)
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lock, lockarg */
-	    &sc->parent_dma_tag)) {
+	    &sc->parent_dma_tag) != 0) {
 		device_printf(sc->dev, "Cannot allocate parent DMA tag\n");
 		return (ENOMEM);
 	}

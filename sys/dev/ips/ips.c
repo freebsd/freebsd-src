@@ -41,7 +41,6 @@ MALLOC_DEFINE(M_IPSBUF, "ipsbuf","IPS driver buffer");
 
 static struct cdevsw ips_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	ips_open,
 	.d_close =	ips_close,
 	.d_ioctl =	ips_ioctl,
@@ -74,14 +73,19 @@ static const char* ips_adapter_name[] = {
 static int ips_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	ips_softc_t *sc = dev->si_drv1;
+	mtx_lock(&sc->queue_mtx);
 	sc->state |= IPS_DEV_OPEN;
+	mtx_unlock(&sc->queue_mtx);
         return 0;
 }
 
 static int ips_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	ips_softc_t *sc = dev->si_drv1;
+
+	mtx_lock(&sc->queue_mtx);
 	sc->state &= ~IPS_DEV_OPEN;
+	mtx_unlock(&sc->queue_mtx);
 
         return 0;
 }
@@ -299,7 +303,7 @@ static void ips_timeout(void *arg)
 	int i, state = 0;
 	ips_command_t *command;
 
-	mtx_lock(&sc->queue_mtx);
+	mtx_assert(&sc->queue_mtx, MA_OWNED);
 	command = &sc->commandarray[0];
 	for(i = 0; i < sc->max_cmds; i++){
 		if(!command[i].timeout){
@@ -329,8 +333,7 @@ static void ips_timeout(void *arg)
 			sc->state &= ~IPS_TIMEOUT;
 	}
 	if (sc->state != IPS_OFFLINE)
-		sc->timer = timeout(ips_timeout, sc, 10*hz);
-	mtx_unlock(&sc->queue_mtx);
+		callout_reset(&sc->timer, 10 * hz, ips_timeout, sc);
 }
 
 /* check card and initialize it */
@@ -379,7 +382,6 @@ int ips_adapter_init(ips_softc_t *sc)
            can handle */
 	sc->max_cmds = 1;
 	ips_cmdqueue_init(sc);
-	callout_handle_init(&sc->timer);
 
 	if(sc->ips_adapter_reinit(sc, 0))
 		goto error;
@@ -417,7 +419,7 @@ int ips_adapter_init(ips_softc_t *sc)
                                         S_IRUSR | S_IWUSR, "ips%d", device_get_unit(sc->dev));
 	sc->device_file->si_drv1 = sc;
 	ips_diskdev_init(sc);
-	sc->timer = timeout(ips_timeout, sc, 10*hz);
+	callout_reset(&sc->timer, 10 * hz, ips_timeout, sc);
         return 0;
 
 error:
@@ -492,7 +494,7 @@ int ips_adapter_free(ips_softc_t *sc)
 		return EBUSY;
 	}
 	DEVICE_PRINTF(1, sc->dev, "free\n");
-	untimeout(ips_timeout, sc, sc->timer);
+	callout_drain(&sc->timer);
 
 	if(sc->sg_dmatag)
 		bus_dma_tag_destroy(sc->sg_dmatag);
@@ -595,7 +597,7 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 				&dmatag) != 0) {
                 device_printf(sc->dev, "can't alloc dma tag for statue queue\n");
 		error = ENOMEM;
-		goto exit;
+		return error;
         }
 	if(bus_dmamem_alloc(dmatag, (void *)&(sc->copper_queue), 
 	   		    BUS_DMA_NOWAIT, &dmamap)){
@@ -623,7 +625,8 @@ static int ips_copperhead_queue_init(ips_softc_t *sc)
 	
 	return 0;
 exit:
-	bus_dmamem_free(dmatag, sc->copper_queue, dmamap);
+	if (sc->copper_queue != NULL)
+		bus_dmamem_free(dmatag, sc->copper_queue, dmamap);
 	bus_dma_tag_destroy(dmatag);
 	return error;
 }

@@ -1,6 +1,6 @@
 /*-
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
- * Copyright (C) 2012 Oleg Moskalenko <oleg.moskalenko@citrix.com>
+ * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -897,7 +897,7 @@ fix_obsolete_keys(int *argc, char **argv)
 						}
 					}
 				}
-				sprintf(sopt, "-k%d.%d", f1, c1);
+				sprintf(sopt, "-k%d.%d%s", f1, c1, sopts1);
 				argv[i] = sort_strdup(sopt);
 			}
 		}

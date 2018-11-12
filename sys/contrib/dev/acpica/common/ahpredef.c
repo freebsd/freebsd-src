@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,9 @@
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 
+#define _COMPONENT          ACPI_UTILITIES
+        ACPI_MODULE_NAME    ("ahpredef")
+
 /*
  * iASL only needs a partial table (short descriptions only).
  * AcpiHelp needs the full table.
@@ -61,7 +64,7 @@
 const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
 {
     AH_PREDEF ("_ACx",    "Active Cooling", "Returns the active cooling policy threshold values"),
-    AH_PREDEF ("_ADR",    "Address", "Returns the address of a device on its parent bus"),
+    AH_PREDEF ("_ADR",    "Address", "Returns address of a device on parent bus, and resource field"),
     AH_PREDEF ("_AEI",    "ACPI Event Interrupts", "Returns a list of GPIO events to be used as ACPI events"),
     AH_PREDEF ("_ALC",    "Ambient Light Chromaticity", "Returns the ambient light color chromaticity"),
     AH_PREDEF ("_ALI",    "Ambient Light Illuminance", "Returns the ambient light brightness"),
@@ -94,6 +97,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_BTM",    "Battery Time", "Returns the battery runtime"),
     AH_PREDEF ("_BTP",    "Battery Trip Point", "Sets a Control Method Battery trip point"),
     AH_PREDEF ("_CBA",    "Configuration Base Address", "Sets the base address for a PCI Express host bridge"),
+    AH_PREDEF ("_CCA",    "Cache Coherency Attribute", "Returns a device's support level for cache coherency"),
     AH_PREDEF ("_CDM",    "Clock Domain", "Returns a logical processor's clock domain identifier"),
     AH_PREDEF ("_CID",    "Compatible ID", "Returns a device's Plug and Play Compatible ID list"),
     AH_PREDEF ("_CLS",    "Class Code", "Returns PCI class code and subclass"),
@@ -113,11 +117,12 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_DGS",    "Display Graphics State", "Return the current state of the output device"),
     AH_PREDEF ("_DIS",    "Disable Device", "Disables a device"),
     AH_PREDEF ("_DLM",    "Device Lock Mutex", "Defines mutex for OS/AML sharing"),
-    AH_PREDEF ("_DMA",    "Direct Memory Access", "Returns a device's current resources for DMA transactions"),
+    AH_PREDEF ("_DMA",    "Direct Memory Access", "Returns device current resources for DMA transactions, and resource field"),
     AH_PREDEF ("_DOD",    "Display Output Devices", "Enumerate all devices attached to the display adapter"),
     AH_PREDEF ("_DOS",    "Disable Output Switching", "Sets the display output switching mode"),
     AH_PREDEF ("_DPL",    "Device Selection Polarity", "Polarity of Device Selection signal, Resource Descriptor field"),
     AH_PREDEF ("_DRS",    "Drive Strength", "Drive Strength setting for GPIO connection, Resource Descriptor field"),
+    AH_PREDEF ("_DSD",    "Device-Specific Data", "Returns a list of device property information"),
     AH_PREDEF ("_DSM",    "Device-Specific Method", "Executes device-specific functions"),
     AH_PREDEF ("_DSS",    "Device Set State", "Sets the display device state"),
     AH_PREDEF ("_DSW",    "Device Sleep Wake", "Sets the sleep and wake transition states for a device"),
@@ -169,6 +174,7 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_LID",    "Lid Status", "Returns the open/closed status of the lid on a mobile system"),
     AH_PREDEF ("_LIN",    "Lines In Use", "Handshake lines, Resource Descriptor field"),
     AH_PREDEF ("_LL_",    "Low Level", "Interrupt polarity, Resource Descriptor field"),
+    AH_PREDEF ("_LPD",    "Low Power Dependencies", "Returns a list of dependencies for low power idle entry"),
     AH_PREDEF ("_MAF",    "Maximum Address Fixed", "Resource Descriptor field"),
     AH_PREDEF ("_MAT",    "Multiple APIC Table Entry", "Returns a list of MADT APIC structure entries"),
     AH_PREDEF ("_MAX",    "Maximum Base Address", "Resource Descriptor field"),
@@ -321,3 +327,34 @@ const AH_PREDEFINED_NAME    AslPredefinedInfo[] =
     AH_PREDEF ("_Wxx",    "Wake Event", "Method executed as a result of a wake event"),
     AH_PREDEF (NULL,      NULL, NULL)
 };
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiAhMatchPredefinedName
+ *
+ * PARAMETERS:  Nameseg                 - Predefined name string
+ *
+ * RETURN:      ID info struct. NULL if Nameseg not found
+ *
+ * DESCRIPTION: Lookup a predefined name.
+ *
+ ******************************************************************************/
+
+const AH_PREDEFINED_NAME *
+AcpiAhMatchPredefinedName (
+    char                        *Nameseg)
+{
+    const AH_PREDEFINED_NAME    *Info;
+
+
+    for (Info = AslPredefinedInfo; Info->Name; Info++)
+    {
+        if (ACPI_COMPARE_NAME (Nameseg, Info->Name))
+        {
+            return (Info);
+        }
+    }
+
+    return (NULL);
+}

@@ -159,8 +159,6 @@ struct nandfs_device {
 	int			nd_syncer_exit;
 	int			nd_cleaner_exit;
 
-	int			nd_is_nand;
-
 	struct nandfs_fsarea	nd_fsarea[NANDFS_NFSAREAS];
 	int			nd_last_fsarea;
 
@@ -199,6 +197,8 @@ struct nandfs_device {
 	uint32_t		nd_erasesize;
 
 	uint32_t		nd_devblocksize;
+
+	uint32_t		nd_segs_reserved;
 
 	/* Segment usage */
 	uint64_t		nd_clean_segs;
@@ -303,8 +303,8 @@ struct nandfs_node {
 #define	PRINT_NODE_FLAGS \
 	"\10\1IN_ACCESS\2IN_CHANGE\3IN_UPDATE\4IN_MODIFIED\5IN_RENAME"
 
-#define	NANDFS_GATHER(x) ((x)->b_flags |= B_00800000)
-#define	NANDFS_UNGATHER(x) ((x)->b_flags &= ~B_00800000)
-#define	NANDFS_ISGATHERED(x) ((x)->b_flags & B_00800000)
+#define	NANDFS_GATHER(x) ((x)->b_flags |= B_FS_FLAG1)
+#define	NANDFS_UNGATHER(x) ((x)->b_flags &= ~B_FS_FLAG1)
+#define	NANDFS_ISGATHERED(x) ((x)->b_flags & B_FS_FLAG1)
 
 #endif /* !_FS_NANDFS_NANDFS_H_ */

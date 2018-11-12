@@ -11,25 +11,26 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "lower-expect-intrinsic"
-#include "llvm/BasicBlock.h"
-#include "llvm/Constants.h"
-#include "llvm/Function.h"
-#include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
-#include "llvm/LLVMContext.h"
-#include "llvm/MDBuilder.h"
-#include "llvm/Metadata.h"
-#include "llvm/Pass.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/MDBuilder.h"
+#include "llvm/IR/Metadata.h"
+#include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include <vector>
 
 using namespace llvm;
 
-STATISTIC(IfHandled, "Number of 'expect' intrinsic intructions handled");
+#define DEBUG_TYPE "lower-expect-intrinsic"
+
+STATISTIC(IfHandled, "Number of 'expect' intrinsic instructions handled");
 
 static cl::opt<uint32_t>
 LikelyBranchWeight("likely-branch-weight", cl::Hidden, cl::init(64),
@@ -52,7 +53,7 @@ namespace {
       initializeLowerExpectIntrinsicPass(*PassRegistry::getPassRegistry());
     }
 
-    bool runOnFunction(Function &F);
+    bool runOnFunction(Function &F) override;
   };
 }
 
@@ -94,15 +95,25 @@ bool LowerExpectIntrinsic::HandleIfExpect(BranchInst *BI) {
     return false;
 
   // Handle non-optimized IR code like:
-  //   %expval = call i64 @llvm.expect.i64.i64(i64 %conv1, i64 1)
+  //   %expval = call i64 @llvm.expect.i64(i64 %conv1, i64 1)
   //   %tobool = icmp ne i64 %expval, 0
   //   br i1 %tobool, label %if.then, label %if.end
+  //
+  // Or the following simpler case:
+  //   %expval = call i1 @llvm.expect.i1(i1 %cmp, i1 1)
+  //   br i1 %expval, label %if.then, label %if.end
+
+  CallInst *CI;
 
   ICmpInst *CmpI = dyn_cast<ICmpInst>(BI->getCondition());
-  if (!CmpI || CmpI->getPredicate() != CmpInst::ICMP_NE)
-    return false;
+  if (!CmpI) {
+    CI = dyn_cast<CallInst>(BI->getCondition());
+  } else {
+    if (CmpI->getPredicate() != CmpInst::ICMP_NE)
+      return false;
+    CI = dyn_cast<CallInst>(CmpI->getOperand(0));
+  }
 
-  CallInst *CI = dyn_cast<CallInst>(CmpI->getOperand(0));
   if (!CI)
     return false;
 
@@ -127,7 +138,10 @@ bool LowerExpectIntrinsic::HandleIfExpect(BranchInst *BI) {
 
   BI->setMetadata(LLVMContext::MD_prof, Node);
 
-  CmpI->setOperand(0, ArgValue);
+  if (CmpI)
+    CmpI->setOperand(0, ArgValue);
+  else
+    BI->setCondition(ArgValue);
   return true;
 }
 

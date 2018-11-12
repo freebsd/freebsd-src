@@ -54,11 +54,13 @@
 
 #include <sys/queue.h>
 
+struct ifnet;
+
 /*
  * Driver callbacks for media status and change requests.
  */
-typedef	int (*ifm_change_cb_t)(struct ifnet *ifp);
-typedef	void (*ifm_stat_cb_t)(struct ifnet *ifp, struct ifmediareq *req);
+typedef	int (*ifm_change_cb_t)(struct ifnet *);
+typedef	void (*ifm_stat_cb_t)(struct ifnet *, struct ifmediareq *req);
 
 /*
  * In-kernel representation of a single supported media type.
@@ -103,6 +105,7 @@ void	ifmedia_set(struct ifmedia *ifm, int mword);
 /* Common ioctl function for getting/setting media, called by driver. */
 int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 	    struct ifmedia *ifm, u_long cmd);
+
 
 /* Compute baudrate for a given media. */
 uint64_t	ifmedia_baudrate(int);
@@ -153,7 +156,10 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_40G_CR4	27		/* 40GBase-CR4 */
 #define	IFM_40G_SR4	28		/* 40GBase-SR4 */
 #define	IFM_40G_LR4	29		/* 40GBase-LR4 */
-
+/*
+ * Please update ieee8023ad_lacp.c:lacp_compose_key()
+ * after adding new Ethernet media types.
+ */
 /* note 31 is the max! */
 
 #define	IFM_ETH_MASTER	0x00000100	/* master mode (1000baseT) */

@@ -332,10 +332,10 @@ retry:
 		perror(hp->h_name);
 		return (-1);
 	}
-	if (fd2p == 0) {
-		(void) write(s, "", 1);
-		port = 0;
-	} else {
+	port = 0;
+	if (fd2p == 0)
+		(void) write(s, "", 1);	
+	else {
 		char num[8];
 		int s2, sin2len;
 

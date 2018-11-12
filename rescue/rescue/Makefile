@@ -1,9 +1,9 @@
 #$FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
-NO_MAN=
+.include <src.opts.mk>
 
-.include <bsd.own.mk>
+MAN=
 MK_SSP=	no
 
 PROG=	rescue
@@ -51,8 +51,9 @@ CRUNCH_LIBS+= ${.OBJDIR}/../librescue/*.o
 CRUNCH_SRCDIRS+= bin
 CRUNCH_PROGS_bin= cat chflags chio chmod cp date dd df echo 	\
 	 ed expr getfacl hostname kenv kill ln ls mkdir mv	\
-	 pkill ps pwd realpath rm rmdir setfacl sh stty sync test
-CRUNCH_LIBS+= -lcrypt -ledit -lkvm -ll -ltermcap -lutil
+	 pkill ps pwd realpath rm rmdir setfacl sh sleep stty	\
+	 sync test
+CRUNCH_LIBS+= -lcrypt -ledit -ljail -lkvm -ll -ltermcapw -lutil -lxo
 CRUNCH_BUILDTOOLS+= bin/sh
 
 # Additional options for specific programs
@@ -87,7 +88,7 @@ CRUNCH_SUPPRESS_LINK_-tcsh= 1
 # headers in addition to the standard 'paths.h' header.
 #
 CRUNCH_SRCDIRS+= sbin
-CRUNCH_PROGS_sbin= atacontrol badsect				\
+CRUNCH_PROGS_sbin= badsect					\
 	camcontrol ccdconfig clri devfs dmesg dump		\
 	dumpfs dumpon fsck fsck_ffs fsck_msdosfs fsdb		\
 	fsirand gbde geom ifconfig init 			\
@@ -113,32 +114,34 @@ CRUNCH_PROGS_sbin+= ipf
 .if ${MK_ZFS} != "no"
 CRUNCH_PROGS_sbin+= zfs
 CRUNCH_PROGS_sbin+= zpool
+CRUNCH_PROGS_usr.sbin+= zdb
 .endif
 
 # crunchgen does not like C++ programs; this should be fixed someday
 # CRUNCH_PROGS+= devd
 
-CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
-.if ${MK_IPX} != "no"
-CRUNCH_LIBS+= -lipx
-.endif
+CRUNCH_LIBS+= -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
 .if ${MK_ZFS} != "no"
-CRUNCH_LIBS+= -lavl -ljail -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
+CRUNCH_LIBS+= -lavl -lzpool -lzfs_core -lzfs -lnvpair -lpthread -luutil -lumem
+.else
+# liblzma needs pthread
+CRUNCH_LIBS+= -lpthread
 .endif
-CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv -lmd -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lgeom -lbsdxml -lkiconv
+.if ${MK_OPENSSL} == "no"
+CRUNCH_LIBS+= -lmd
+.endif
+CRUNCH_LIBS+= -lmt -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
 CRUNCH_ALIAS_bsdlabel= disklabel
+#CRUNCH_PROGS+= mount_smbfs
+#CRUNCH_LIBS+= -lsmb
 .endif
 
 .if ${MACHINE} == "pc98"
-CRUNCH_PROGS_sbin+= bsdlabel
 CRUNCH_SRCDIR_fdisk= $(.CURDIR)/../../sbin/fdisk_pc98
-.endif
-
-.if ${MACHINE_CPUARCH} == "ia64"
-CRUNCH_PROGS_sbin+= mca
 .endif
 
 .if ${MACHINE_CPUARCH} == "sparc64"
@@ -159,6 +162,7 @@ CRUNCH_SRCDIR_ipf= $(.CURDIR)/../../sbin/ipf/ipf
 .if ${MK_ZFS} != "no"
 CRUNCH_SRCDIR_zfs= ${.CURDIR}/../../cddl/sbin/zfs
 CRUNCH_SRCDIR_zpool= ${.CURDIR}/../../cddl/sbin/zpool
+CRUNCH_SRCDIR_zdb= ${.CURDIR}/../../cddl/usr.sbin/zdb
 .endif
 CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
@@ -184,18 +188,23 @@ CRUNCH_PROGS_usr.bin+= bzip2
 CRUNCH_ALIAS_bzip2= bunzip2 bzcat
 CRUNCH_LIBS+= -lbz2
 
+CRUNCH_PROGS_usr.bin+= less
+CRUNCH_ALIAS_less= more
+
 CRUNCH_PROGS_usr.bin+= xz
 CRUNCH_ALIAS_xz= unxz lzma unlzma xzcat lzcat
-CRUNCH_LIBS+= -llzma
 
 CRUNCH_PROGS_usr.bin+= tar
-CRUNCH_LIBS+= -larchive -lmd
+CRUNCH_LIBS+= -larchive
 .if ${MK_OPENSSL} != "no"
 CRUNCH_LIBS+= -lcrypto
 .endif
+CRUNCH_LIBS+= -lmd
 
+.if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
+.endif
 
 CRUNCH_PROGS_usr.bin+= id
 CRUNCH_ALIAS_id= groups whoami
@@ -205,7 +214,7 @@ CRUNCH_ALIAS_id= groups whoami
 #
 CRUNCH_SRCDIRS+= usr.sbin
 
-CRUNCH_PROGS_usr.sbin= chroot
+CRUNCH_PROGS_usr.sbin+= chroot
 
 CRUNCH_PROGS_usr.sbin+= chown
 CRUNCH_ALIAS_chown= chgrp

@@ -138,6 +138,7 @@ enum {
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 
@@ -343,6 +344,7 @@ en_k2sz(int k)
 }
 #define en_log2(X) en_k2sz(X)
 
+#if 0
 /*
  * en_b2sz: convert a DMA burst code to its byte size
  */
@@ -364,6 +366,7 @@ en_b2sz(int b)
 	}
 	return (0);
 }
+#endif
 
 /*
  * en_sz2b: convert a burst size (bytes) to DMA burst code
@@ -771,7 +774,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 	}
 
 	EN_COUNT(sc->stats.launch);
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 
 	sc->vccs[tx.vci]->opackets++;
 	sc->vccs[tx.vci]->obytes += tx.datalen;
@@ -1848,7 +1851,7 @@ en_rx_drain(struct en_softc *sc, u_int drq)
 		    EN_DQ_LEN(drq), vc->rxhand));
 
 		m->m_pkthdr.rcvif = sc->ifp;
-		sc->ifp->if_ipackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 
 		vc->ipackets++;
 		vc->ibytes += m->m_pkthdr.len;
@@ -1932,7 +1935,7 @@ en_mget(struct en_softc *sc, u_int pktlen)
 	m->m_pkthdr.rcvif = NULL;
 	m->m_pkthdr.len = pktlen;
 	m->m_len = EN_RX1BUF;
-	MH_ALIGN(m, EN_RX1BUF);
+	M_ALIGN(m, EN_RX1BUF);
 	if (m->m_len >= totlen) {
 		m->m_len = totlen;
 
@@ -2246,13 +2249,13 @@ en_service(struct en_softc *sc)
 			device_printf(sc->dev, "invalid AAL5 length\n");
 			rx.post_skip = MID_RBD_CNT(rbd) * MID_ATMDATASZ;
 			mlen = 0;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 
 		} else if (rbd & MID_RBD_CRCERR) {
 			device_printf(sc->dev, "CRC error\n");
 			rx.post_skip = MID_RBD_CNT(rbd) * MID_ATMDATASZ;
 			mlen = 0;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 
 		} else {
 			mlen = MID_PDU_LEN(pdu);

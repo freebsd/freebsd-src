@@ -43,11 +43,8 @@ __FBSDID("$FreeBSD$");
  */
 /*ARGSUSED*/
 void
-db_write_cmd(address, have_addr, count, modif)
-	db_expr_t	address;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_write_cmd(db_expr_t address, boolean_t have_addr, db_expr_t count,
+    char * modif)
 {
 	register
 	db_addr_t	addr;

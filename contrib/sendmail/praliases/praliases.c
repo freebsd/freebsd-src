@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,13 +14,13 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.96 2008/07/10 20:13:10 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: praliases.c,v 8.98 2013-11-22 20:51:53 ca Exp $")
 
 #include <sys/types.h>
 #include <ctype.h>
@@ -122,7 +122,7 @@ main(argc, argv)
 		exit(EX_NOINPUT);
 	}
 
-	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		register char *b, *p;
 

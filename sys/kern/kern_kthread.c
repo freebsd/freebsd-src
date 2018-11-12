@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/umtx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <sys/sched.h>
@@ -257,17 +258,16 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 		panic("kthread_add called too soon");
 
 	/* If no process supplied, put it on proc0 */
-	if (p == NULL) {
+	if (p == NULL)
 		p = &proc0;
-		oldtd = &thread0;
-	} else {
-		oldtd = FIRST_THREAD_IN_PROC(p);
-	}
 
 	/* Initialize our new td  */
 	newtd = thread_alloc(pages);
 	if (newtd == NULL)
 		return (ENOMEM);
+
+	PROC_LOCK(p);
+	oldtd = FIRST_THREAD_IN_PROC(p);
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
@@ -292,7 +292,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	newtd->td_ucred = crhold(p->p_ucred);
 
 	/* this code almost the same as create_thread() in kern_thr.c */
-	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
 	thread_link(newtd, p);
 	thread_lock(oldtd);
@@ -341,6 +340,7 @@ kthread_exit(void)
 	}
 	LIST_REMOVE(curthread, td_hash);
 	rw_wunlock(&tidhash_lock);
+	umtx_thread_exit(curthread);
 	PROC_SLOCK(p);
 	thread_exit();
 }

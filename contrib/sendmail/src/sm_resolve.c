@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004, 2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2004, 2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -50,7 +50,7 @@
 #  endif /* NETINET */
 #  include "sm_resolve.h"
 
-SM_RCSID("$Id: sm_resolve.c,v 8.39 2010/06/29 15:35:33 ca Exp $")
+SM_RCSID("$Id: sm_resolve.c,v 8.40 2013-11-22 20:51:56 ca Exp $")
 
 static struct stot
 {

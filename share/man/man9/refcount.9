@@ -39,7 +39,7 @@
 .In sys/param.h
 .In sys/refcount.h
 .Ft void
-.Fn refcount_init "volatile u_int *count, u_int value"
+.Fn refcount_init "volatile u_int *count" "u_int value"
 .Ft void
 .Fn refcount_acquire "volatile u_int *count"
 .Ft int

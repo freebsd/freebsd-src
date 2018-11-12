@@ -99,7 +99,7 @@ struct icmp {
 		struct id_ts {			/* ICMP Timestamp */
 			/*
 			 * The next 3 fields are in network format,
-			 * milliseconds since 00:00 GMT
+			 * milliseconds since 00:00 UTC
 			 */
 			uint32_t its_otime;	/* Originate */
 			uint32_t its_rtime;	/* Receive */
@@ -207,7 +207,7 @@ struct icmp {
 
 #ifdef _KERNEL
 void	icmp_error(struct mbuf *, int, int, uint32_t, int);
-void	icmp_input(struct mbuf *, int);
+int	icmp_input(struct mbuf **, int *, int);
 int	ip_next_mtu(int, int);
 #endif
 

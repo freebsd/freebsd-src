@@ -11,25 +11,32 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "loop-rotate"
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Function.h"
-#include "llvm/IntrinsicInst.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
-#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolution.h"
+#include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/ADT/Statistic.h"
 using namespace llvm;
 
-#define MAX_HEADER_SIZE 16
+#define DEBUG_TYPE "loop-rotate"
+
+static cl::opt<unsigned>
+DefaultRotationThreshold("rotation-max-header-size", cl::init(16), cl::Hidden,
+       cl::desc("The default maximum header size for automatic loop rotation"));
 
 STATISTIC(NumRotated, "Number of loops rotated");
 namespace {
@@ -37,13 +44,18 @@ namespace {
   class LoopRotate : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    LoopRotate() : LoopPass(ID) {
+    LoopRotate(int SpecifiedMaxHeaderSize = -1) : LoopPass(ID) {
       initializeLoopRotatePass(*PassRegistry::getPassRegistry());
+      if (SpecifiedMaxHeaderSize == -1)
+        MaxHeaderSize = DefaultRotationThreshold;
+      else
+        MaxHeaderSize = unsigned(SpecifiedMaxHeaderSize);
     }
 
     // LCSSA form makes instruction renaming easier.
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-      AU.addPreserved<DominatorTree>();
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<AssumptionCacheTracker>();
+      AU.addPreserved<DominatorTreeWrapperPass>();
       AU.addRequired<LoopInfo>();
       AU.addPreserved<LoopInfo>();
       AU.addRequiredID(LoopSimplifyID);
@@ -51,40 +63,64 @@ namespace {
       AU.addRequiredID(LCSSAID);
       AU.addPreservedID(LCSSAID);
       AU.addPreserved<ScalarEvolution>();
+      AU.addRequired<TargetTransformInfo>();
     }
 
-    bool runOnLoop(Loop *L, LPPassManager &LPM);
-    void simplifyLoopLatch(Loop *L);
-    bool rotateLoop(Loop *L);
+    bool runOnLoop(Loop *L, LPPassManager &LPM) override;
+    bool simplifyLoopLatch(Loop *L);
+    bool rotateLoop(Loop *L, bool SimplifiedLatch);
 
   private:
+    unsigned MaxHeaderSize;
     LoopInfo *LI;
+    const TargetTransformInfo *TTI;
+    AssumptionCache *AC;
   };
 }
 
 char LoopRotate::ID = 0;
 INITIALIZE_PASS_BEGIN(LoopRotate, "loop-rotate", "Rotate Loops", false, false)
+INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
 INITIALIZE_PASS_DEPENDENCY(LoopSimplify)
 INITIALIZE_PASS_DEPENDENCY(LCSSA)
 INITIALIZE_PASS_END(LoopRotate, "loop-rotate", "Rotate Loops", false, false)
 
-Pass *llvm::createLoopRotatePass() { return new LoopRotate(); }
+Pass *llvm::createLoopRotatePass(int MaxHeaderSize) {
+  return new LoopRotate(MaxHeaderSize);
+}
 
 /// Rotate Loop L as many times as possible. Return true if
 /// the loop is rotated at least once.
 bool LoopRotate::runOnLoop(Loop *L, LPPassManager &LPM) {
+  if (skipOptnoneFunction(L))
+    return false;
+
+  // Save the loop metadata.
+  MDNode *LoopMD = L->getLoopID();
+
   LI = &getAnalysis<LoopInfo>();
+  TTI = &getAnalysis<TargetTransformInfo>();
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(
+      *L->getHeader()->getParent());
 
   // Simplify the loop latch before attempting to rotate the header
   // upward. Rotation may not be needed if the loop tail can be folded into the
   // loop exit.
-  simplifyLoopLatch(L);
+  bool SimplifiedLatch = simplifyLoopLatch(L);
 
   // One loop can be rotated multiple times.
   bool MadeChange = false;
-  while (rotateLoop(L))
+  while (rotateLoop(L, SimplifiedLatch)) {
     MadeChange = true;
+    SimplifiedLatch = false;
+  }
+
+  // Restore the loop metadata.
+  // NB! We presume LoopRotation DOESN'T ADD its own metadata.
+  if ((MadeChange || SimplifiedLatch) && LoopMD)
+    L->setLoopID(LoopMD);
 
   return MadeChange;
 }
@@ -124,7 +160,7 @@ static void RewriteUsesOfClonedInstructions(BasicBlock *OrigHeader,
     for (Value::use_iterator UI = OrigHeaderVal->use_begin(),
          UE = OrigHeaderVal->use_end(); UI != UE; ) {
       // Grab the use before incrementing the iterator.
-      Use &U = UI.getUse();
+      Use &U = *UI;
 
       // Increment the iterator before removing the use from the list.
       ++UI;
@@ -154,13 +190,18 @@ static void RewriteUsesOfClonedInstructions(BasicBlock *OrigHeader,
   }
 }
 
-/// Determine whether the instructions in this range my be safely and cheaply
+/// Determine whether the instructions in this range may be safely and cheaply
 /// speculated. This is not an important enough situation to develop complex
 /// heuristics. We handle a single arithmetic instruction along with any type
 /// conversions.
 static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
-                                  BasicBlock::iterator End) {
+                                  BasicBlock::iterator End, Loop *L) {
   bool seenIncrement = false;
+  bool MultiExitLoop = false;
+
+  if (!L->getExitingBlock())
+    MultiExitLoop = true;
+
   for (BasicBlock::iterator I = Begin; I != End; ++I) {
 
     if (!isSafeToSpeculativelyExecute(I))
@@ -184,11 +225,33 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
     case Instruction::Xor:
     case Instruction::Shl:
     case Instruction::LShr:
-    case Instruction::AShr:
+    case Instruction::AShr: {
+      Value *IVOpnd = nullptr;
+      if (isa<ConstantInt>(I->getOperand(0)))
+        IVOpnd = I->getOperand(1);
+
+      if (isa<ConstantInt>(I->getOperand(1))) {
+        if (IVOpnd)
+          return false;
+
+        IVOpnd = I->getOperand(0);
+      }
+
+      // If increment operand is used outside of the loop, this speculation
+      // could cause extra live range interference.
+      if (MultiExitLoop && IVOpnd) {
+        for (User *UseI : IVOpnd->users()) {
+          auto *UserInst = cast<Instruction>(UseI);
+          if (!L->contains(UserInst))
+            return false;
+        }
+      }
+
       if (seenIncrement)
         return false;
       seenIncrement = true;
       break;
+    }
     case Instruction::Trunc:
     case Instruction::ZExt:
     case Instruction::SExt:
@@ -202,30 +265,30 @@ static bool shouldSpeculateInstrs(BasicBlock::iterator Begin,
 /// Fold the loop tail into the loop exit by speculating the loop tail
 /// instructions. Typically, this is a single post-increment. In the case of a
 /// simple 2-block loop, hoisting the increment can be much better than
-/// duplicating the entire loop header. In the cast of loops with early exits,
+/// duplicating the entire loop header. In the case of loops with early exits,
 /// rotation will not work anyway, but simplifyLoopLatch will put the loop in
 /// canonical form so downstream passes can handle it.
 ///
 /// I don't believe this invalidates SCEV.
-void LoopRotate::simplifyLoopLatch(Loop *L) {
+bool LoopRotate::simplifyLoopLatch(Loop *L) {
   BasicBlock *Latch = L->getLoopLatch();
   if (!Latch || Latch->hasAddressTaken())
-    return;
+    return false;
 
   BranchInst *Jmp = dyn_cast<BranchInst>(Latch->getTerminator());
   if (!Jmp || !Jmp->isUnconditional())
-    return;
+    return false;
 
   BasicBlock *LastExit = Latch->getSinglePredecessor();
   if (!LastExit || !L->isLoopExiting(LastExit))
-    return;
+    return false;
 
   BranchInst *BI = dyn_cast<BranchInst>(LastExit->getTerminator());
   if (!BI)
-    return;
+    return false;
 
-  if (!shouldSpeculateInstrs(Latch->begin(), Jmp))
-    return;
+  if (!shouldSpeculateInstrs(Latch->begin(), Jmp, L))
+    return false;
 
   DEBUG(dbgs() << "Folding loop latch " << Latch->getName() << " into "
         << LastExit->getName() << "\n");
@@ -245,13 +308,24 @@ void LoopRotate::simplifyLoopLatch(Loop *L) {
   // Nuke the Latch block.
   assert(Latch->empty() && "unable to evacuate Latch");
   LI->removeBlock(Latch);
-  if (DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>())
-    DT->eraseNode(Latch);
+  if (DominatorTreeWrapperPass *DTWP =
+          getAnalysisIfAvailable<DominatorTreeWrapperPass>())
+    DTWP->getDomTree().eraseNode(Latch);
   Latch->eraseFromParent();
+  return true;
 }
 
 /// Rotate loop LP. Return true if the loop is rotated.
-bool LoopRotate::rotateLoop(Loop *L) {
+///
+/// \param SimplifiedLatch is true if the latch was just folded into the final
+/// loop exit. In this case we may want to rotate even though the new latch is
+/// now an exiting branch. This rotation would have happened had the latch not
+/// been simplified. However, if SimplifiedLatch is false, then we avoid
+/// rotating loops in which the latch exits to avoid excessive or endless
+/// rotation. LoopRotate should be repeatable and converge to a canonical
+/// form. This property is satisfied because simplifying the loop latch can only
+/// happen once across multiple invocations of the LoopRotate pass.
+bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
   // If the loop has only one block then there is not much to rotate.
   if (L->getBlocks().size() == 1)
     return false;
@@ -260,7 +334,7 @@ bool LoopRotate::rotateLoop(Loop *L) {
   BasicBlock *OrigLatch = L->getLoopLatch();
 
   BranchInst *BI = dyn_cast<BranchInst>(OrigHeader->getTerminator());
-  if (BI == 0 || BI->isUnconditional())
+  if (!BI || BI->isUnconditional())
     return false;
 
   // If the loop header is not one of the loop exiting blocks then
@@ -271,14 +345,28 @@ bool LoopRotate::rotateLoop(Loop *L) {
 
   // If the loop latch already contains a branch that leaves the loop then the
   // loop is already rotated.
-  if (OrigLatch == 0 || L->isLoopExiting(OrigLatch))
+  if (!OrigLatch)
     return false;
 
-  // Check size of original header and reject loop if it is very big.
+  // Rotate if either the loop latch does *not* exit the loop, or if the loop
+  // latch was just simplified.
+  if (L->isLoopExiting(OrigLatch) && !SimplifiedLatch)
+    return false;
+
+  // Check size of original header and reject loop if it is very big or we can't
+  // duplicate blocks inside it.
   {
+    SmallPtrSet<const Value *, 32> EphValues;
+    CodeMetrics::collectEphemeralValues(L, AC, EphValues);
+
     CodeMetrics Metrics;
-    Metrics.analyzeBasicBlock(OrigHeader);
-    if (Metrics.NumInsts > MAX_HEADER_SIZE)
+    Metrics.analyzeBasicBlock(OrigHeader, *TTI, EphValues);
+    if (Metrics.notDuplicatable) {
+      DEBUG(dbgs() << "LoopRotation: NOT rotating - contains non-duplicatable"
+            << " instructions: "; L->dump());
+      return false;
+    }
+    if (Metrics.NumInsts > MaxHeaderSize)
       return false;
   }
 
@@ -287,7 +375,7 @@ bool LoopRotate::rotateLoop(Loop *L) {
 
   // If the loop could not be converted to canonical form, it must have an
   // indirectbr in it, just give up.
-  if (OrigPreheader == 0)
+  if (!OrigPreheader)
     return false;
 
   // Anything ScalarEvolution may know about this loop or the PHI nodes
@@ -354,6 +442,7 @@ bool LoopRotate::rotateLoop(Loop *L) {
     // With the operands remapped, see if the instruction constant folds or is
     // otherwise simplifyable.  This commonly occurs because the entry from PHI
     // nodes allows icmps and other instructions to fold.
+    // FIXME: Provide DL, TLI, DT, AC to SimplifyInstruction.
     Value *V = SimplifyInstruction(C);
     if (V && LI->replacementPreservesLCSSAForm(C, V)) {
       // If so, then delete the temporary instruction and stick the folded value
@@ -406,23 +495,25 @@ bool LoopRotate::rotateLoop(Loop *L) {
     // The conditional branch can't be folded, handle the general case.
     // Update DominatorTree to reflect the CFG change we just made.  Then split
     // edges as necessary to preserve LoopSimplify form.
-    if (DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>()) {
+    if (DominatorTreeWrapperPass *DTWP =
+            getAnalysisIfAvailable<DominatorTreeWrapperPass>()) {
+      DominatorTree &DT = DTWP->getDomTree();
       // Everything that was dominated by the old loop header is now dominated
       // by the original loop preheader. Conceptually the header was merged
       // into the preheader, even though we reuse the actual block as a new
       // loop latch.
-      DomTreeNode *OrigHeaderNode = DT->getNode(OrigHeader);
+      DomTreeNode *OrigHeaderNode = DT.getNode(OrigHeader);
       SmallVector<DomTreeNode *, 8> HeaderChildren(OrigHeaderNode->begin(),
                                                    OrigHeaderNode->end());
-      DomTreeNode *OrigPreheaderNode = DT->getNode(OrigPreheader);
+      DomTreeNode *OrigPreheaderNode = DT.getNode(OrigPreheader);
       for (unsigned I = 0, E = HeaderChildren.size(); I != E; ++I)
-        DT->changeImmediateDominator(HeaderChildren[I], OrigPreheaderNode);
+        DT.changeImmediateDominator(HeaderChildren[I], OrigPreheaderNode);
 
-      assert(DT->getNode(Exit)->getIDom() == OrigPreheaderNode);
-      assert(DT->getNode(NewHeader)->getIDom() == OrigPreheaderNode);
+      assert(DT.getNode(Exit)->getIDom() == OrigPreheaderNode);
+      assert(DT.getNode(NewHeader)->getIDom() == OrigPreheaderNode);
 
       // Update OrigHeader to be dominated by the new header block.
-      DT->changeImmediateDominator(OrigHeader, OrigLatch);
+      DT.changeImmediateDominator(OrigHeader, OrigLatch);
     }
 
     // Right now OrigPreHeader has two successors, NewHeader and ExitBlock, and
@@ -432,9 +523,26 @@ bool LoopRotate::rotateLoop(Loop *L) {
     NewPH->setName(NewHeader->getName() + ".lr.ph");
 
     // Preserve canonical loop form, which means that 'Exit' should have only
-    // one predecessor.
-    BasicBlock *ExitSplit = SplitCriticalEdge(L->getLoopLatch(), Exit, this);
-    ExitSplit->moveBefore(Exit);
+    // one predecessor. Note that Exit could be an exit block for multiple
+    // nested loops, causing both of the edges to now be critical and need to
+    // be split.
+    SmallVector<BasicBlock *, 4> ExitPreds(pred_begin(Exit), pred_end(Exit));
+    bool SplitLatchEdge = false;
+    for (SmallVectorImpl<BasicBlock *>::iterator PI = ExitPreds.begin(),
+                                                 PE = ExitPreds.end();
+         PI != PE; ++PI) {
+      // We only need to split loop exit edges.
+      Loop *PredLoop = LI->getLoopFor(*PI);
+      if (!PredLoop || PredLoop->contains(Exit))
+        continue;
+      if (isa<IndirectBrInst>((*PI)->getTerminator()))
+        continue;
+      SplitLatchEdge |= L->getLoopLatch() == *PI;
+      BasicBlock *ExitSplit = SplitCriticalEdge(*PI, Exit, this);
+      ExitSplit->moveBefore(Exit);
+    }
+    assert(SplitLatchEdge &&
+           "Despite splitting all preds, failed to split latch exit?");
   } else {
     // We can fold the conditional branch in the preheader, this makes things
     // simpler. The first step is to remove the extra edge to the Exit block.
@@ -444,15 +552,17 @@ bool LoopRotate::rotateLoop(Loop *L) {
     PHBI->eraseFromParent();
 
     // With our CFG finalized, update DomTree if it is available.
-    if (DominatorTree *DT = getAnalysisIfAvailable<DominatorTree>()) {
+    if (DominatorTreeWrapperPass *DTWP =
+            getAnalysisIfAvailable<DominatorTreeWrapperPass>()) {
+      DominatorTree &DT = DTWP->getDomTree();
       // Update OrigHeader to be dominated by the new header block.
-      DT->changeImmediateDominator(NewHeader, OrigPreheader);
-      DT->changeImmediateDominator(OrigHeader, OrigLatch);
+      DT.changeImmediateDominator(NewHeader, OrigPreheader);
+      DT.changeImmediateDominator(OrigHeader, OrigLatch);
 
       // Brute force incremental dominator tree update. Call
       // findNearestCommonDominator on all CFG predecessors of each child of the
       // original header.
-      DomTreeNode *OrigHeaderNode = DT->getNode(OrigHeader);
+      DomTreeNode *OrigHeaderNode = DT.getNode(OrigHeader);
       SmallVector<DomTreeNode *, 8> HeaderChildren(OrigHeaderNode->begin(),
                                                    OrigHeaderNode->end());
       bool Changed;
@@ -465,11 +575,11 @@ bool LoopRotate::rotateLoop(Loop *L) {
           pred_iterator PI = pred_begin(BB);
           BasicBlock *NearestDom = *PI;
           for (pred_iterator PE = pred_end(BB); PI != PE; ++PI)
-            NearestDom = DT->findNearestCommonDominator(NearestDom, *PI);
+            NearestDom = DT.findNearestCommonDominator(NearestDom, *PI);
 
           // Remember if this changes the DomTree.
           if (Node->getIDom()->getBlock() != NearestDom) {
-            DT->changeImmediateDominator(BB, NearestDom);
+            DT.changeImmediateDominator(BB, NearestDom);
             Changed = true;
           }
         }
@@ -494,4 +604,3 @@ bool LoopRotate::rotateLoop(Loop *L) {
   ++NumRotated;
   return true;
 }
-

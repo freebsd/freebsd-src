@@ -394,8 +394,8 @@ update_ifinfo_nd_flags(struct ifinfo *ifi)
 	error = ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd);
 	if (error) {
 		close(s);
-		syslog(LOG_ERR,
-		    "<%s> ioctl() failed.", __func__);
+		if (errno != EPFNOSUPPORT)
+			syslog(LOG_ERR, "<%s> ioctl() failed.", __func__);
 		return (1);
 	}
 	ifi->ifi_nd_flags = nd.ndi.flags;

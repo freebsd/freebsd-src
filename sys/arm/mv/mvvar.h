@@ -44,8 +44,9 @@
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/vm.h>
+
+#include <dev/ofw/openfirm.h>
 
 #define	MV_TYPE_PCI		0
 #define	MV_TYPE_PCIE		1
@@ -67,7 +68,6 @@ struct decode_win {
 	vm_paddr_t	remap;
 };
 
-extern const struct pmap_devmap pmap_devmap[];
 extern const struct gpio_config mv_gpio_config[];
 extern const struct decode_win *cpu_wins;
 extern const struct decode_win *idma_wins;
@@ -82,7 +82,6 @@ void mv_gpio_intr_mask(int pin);
 void mv_gpio_intr_unmask(int pin);
 void mv_gpio_out(uint32_t pin, uint8_t val, uint8_t enable);
 uint8_t mv_gpio_in(uint32_t pin);
-int platform_gpio_init(void);
 
 int soc_decode_win(void);
 void soc_id(uint32_t *dev, uint32_t *rev);
@@ -97,6 +96,7 @@ int decode_win_overlap(int, int, const struct decode_win *);
 int win_cpu_can_remap(int);
 void decode_win_pcie_setup(u_long);
 
+void ddr_disable(int i);
 int ddr_is_active(int i);
 uint32_t ddr_base(int i);
 uint32_t ddr_size(int i);
@@ -135,5 +135,10 @@ void	mv_drbl_set_msg(uint32_t val, int mnr, int dir, int unit);
 uint32_t mv_drbl_get_msg(int mnr, int dir, int unit);
 
 int	mv_msi_data(int irq, uint64_t *addr, uint32_t *data);
+
+struct arm_devmap_entry;
+
+int mv_pci_devmap(phandle_t, struct arm_devmap_entry *, vm_offset_t,
+    vm_offset_t);
 
 #endif /* _MVVAR_H_ */

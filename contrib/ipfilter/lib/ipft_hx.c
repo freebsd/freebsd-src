@@ -1,13 +1,13 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2005 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipft_hx.c	1.1 3/9/96 (C) 1996 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipft_hx.c,v 1.11.4.4 2006/06/16 17:21:03 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #include <ctype.h>
@@ -20,7 +20,7 @@ extern	int	opts;
 
 static	int	hex_open __P((char *));
 static	int	hex_close __P((void));
-static	int	hex_readip __P((char *, int, char **, int *));
+static	int	hex_readip __P((mb_t *, char **, int *));
 static	char	*readhex __P((char *, char *));
 
 struct	ipread	iphex = { hex_open, hex_close, hex_readip, 0 };
@@ -28,7 +28,7 @@ static	FILE	*tfp = NULL;
 static	int	tfd = -1;
 
 static	int	hex_open(fname)
-char	*fname;
+	char	*fname;
 {
 	if (tfp && tfd != -1) {
 		rewind(tfp);
@@ -56,14 +56,19 @@ static	int	hex_close()
 }
 
 
-static	int	hex_readip(buf, cnt, ifn, dir)
-char	*buf, **ifn;
-int	cnt, *dir;
+static	int	hex_readip(mb, ifn, dir)
+	mb_t	*mb;
+	char	**ifn;
+	int	*dir;
 {
 	register char *s, *t, *u;
 	char	line[513];
 	ip_t	*ip;
+	char	*buf;
+	int	cnt;
 
+	buf = (char *)mb->mb_buf;
+	cnt = sizeof(mb->mb_buf);
 	/*
 	 * interpret start of line as possibly "[ifname]" or
 	 * "[in/out,ifname]".
@@ -75,8 +80,10 @@ int	cnt, *dir;
  	ip = (ip_t *)buf;
 	while (fgets(line, sizeof(line)-1, tfp)) {
 		if ((s = strchr(line, '\n'))) {
-			if (s == line)
-				return (char *)ip - buf;
+			if (s == line) {
+				mb->mb_len = (char *)ip - buf;
+				return mb->mb_len;
+			}
 			*s = '\0';
 		}
 		if ((s = strchr(line, '#')))
@@ -104,17 +111,35 @@ int	cnt, *dir;
 				} else if (ifn)
 					*ifn = t;
 			}
+
+			while (*s++ == '+') {
+				if (!strncasecmp(s, "mcast", 5)) {
+					mb->mb_flags |= M_MCAST;
+					s += 5;
+				}
+				if (!strncasecmp(s, "bcast", 5)) {
+					mb->mb_flags |= M_BCAST;
+					s += 5;
+				}
+				if (!strncasecmp(s, "mbcast", 6)) {
+					mb->mb_flags |= M_MBCAST;
+					s += 6;
+				}
+			}
+			while (ISSPACE(*s))
+				s++;
 		} else
 			s = line;
 		t = (char *)ip;
 		ip = (ip_t *)readhex(s, (char *)ip);
 		if ((opts & OPT_DEBUG) != 0) {
 			if (opts & OPT_ASCII) {
+				int c = *t;
 				if (t < (char *)ip)
 					putchar('\t');
 				while (t < (char *)ip) {
-					if (ISPRINT(*t) && ISASCII(*t))
-						putchar(*t);
+					if (isprint(c) && isascii(c))
+						putchar(c);
 					else
 						putchar('.');
 					t++;

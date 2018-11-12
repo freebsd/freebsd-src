@@ -1,9 +1,9 @@
 /*
- *  $Id: rc.c,v 1.47 2011/06/20 22:30:04 tom Exp $
+ *  $Id: rc.c,v 1.51 2012/11/30 21:32:39 tom Exp $
  *
  *  rc.c -- routines for processing the configuration file
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -203,9 +203,10 @@ attr_to_str(char *str, int fg, int bg, int hl)
 
 /*
  * Extract the foreground, background and highlight values from an attribute
- * represented as a string in this form:
+ * represented as a string in one of two forms:
  *
  * "(foreground,background,highlight)"
+ " "xxxx_color"
  */
 static int
 str_to_attr(char *str, int *fg, int *bg, int *hl)
@@ -213,13 +214,27 @@ str_to_attr(char *str, int *fg, int *bg, int *hl)
     int i = 0, get_fg = 1;
     unsigned j;
     char tempstr[MAX_LEN + 1], *part;
+    size_t have;
 
-    if (str[0] != '(' || lastch(str) != ')')
+    if (str[0] != '(' || lastch(str) != ')') {
+	if ((i = find_color(str)) >= 0) {
+	    *fg = dlg_color_table[i].fg;
+	    *bg = dlg_color_table[i].bg;
+	    *hl = dlg_color_table[i].hilite;
+	    return 0;
+	}
 	return -1;		/* invalid representation */
+    }
 
     /* remove the parenthesis */
-    strcpy(tempstr, str + 1);
-    lastch(tempstr) = '\0';
+    have = strlen(str);
+    if (have > MAX_LEN) {
+	have = MAX_LEN - 1;
+    } else {
+	have -= 2;
+    }
+    memcpy(tempstr, str + 1, have);
+    tempstr[have] = '\0';
 
     /* get foreground and background */
 
@@ -424,13 +439,29 @@ dlg_create_rc(const char *filename)
 #ifdef HAVE_COLOR
     for (i = 0; i < (unsigned) dlg_color_count(); ++i) {
 	char buffer[MAX_LEN + 1];
+	unsigned j;
+	bool repeat = FALSE;
 
 	fprintf(rc_file, "\n# %s\n", dlg_color_table[i].comment);
-	fprintf(rc_file, "%s = %s\n", dlg_color_table[i].name,
-		attr_to_str(buffer,
-			    dlg_color_table[i].fg,
-			    dlg_color_table[i].bg,
-			    dlg_color_table[i].hilite));
+	for (j = 0; j != i; ++j) {
+	    if (dlg_color_table[i].fg == dlg_color_table[j].fg
+		&& dlg_color_table[i].bg == dlg_color_table[j].bg
+		&& dlg_color_table[i].hilite == dlg_color_table[j].hilite) {
+		fprintf(rc_file, "%s = %s\n",
+			dlg_color_table[i].name,
+			dlg_color_table[j].name);
+		repeat = TRUE;
+		break;
+	    }
+	}
+
+	if (!repeat) {
+	    fprintf(rc_file, "%s = %s\n", dlg_color_table[i].name,
+		    attr_to_str(buffer,
+				dlg_color_table[i].fg,
+				dlg_color_table[i].bg,
+				dlg_color_table[i].hilite));
+	}
     }
 #endif /* HAVE_COLOR */
     dlg_dump_keys(rc_file);
@@ -507,7 +538,10 @@ dlg_parse_rc(void)
 
 	lastch(str) = '\0';
 	if (begins_with(str, "bindkey", &params)) {
-	    dlg_parse_bindkey(params);
+	    if (!dlg_parse_bindkey(params)) {
+		fprintf(stderr, "\nParse error: line %d of configuration\n", l);
+		result = -1;
+	    }
 	    continue;
 	}
 	parse = parse_line(str, &var, &value);	/* parse current line */

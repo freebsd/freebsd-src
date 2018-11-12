@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPS16REGISTERINFO_H
-#define MIPS16REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPS16REGISTERINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPS16REGISTERINFO_H
 
 #include "MipsRegisterInfo.h"
 
@@ -20,17 +20,27 @@ namespace llvm {
 class Mips16InstrInfo;
 
 class Mips16RegisterInfo : public MipsRegisterInfo {
-  const Mips16InstrInfo &TII;
 public:
-  Mips16RegisterInfo(const MipsSubtarget &Subtarget, const Mips16InstrInfo &TII);
+  Mips16RegisterInfo(const MipsSubtarget &Subtarget);
 
-  void eliminateCallFramePseudoInstr(MachineFunction &MF,
-                                     MachineBasicBlock &MBB,
-                                     MachineBasicBlock::iterator I) const;
+  bool requiresRegisterScavenging(const MachineFunction &MF) const override;
+
+  bool requiresFrameIndexScavenging(const MachineFunction &MF) const override;
+
+  bool useFPForScavengingIndex(const MachineFunction &MF) const override;
+
+  bool saveScavengerRegister(MachineBasicBlock &MBB,
+                                     MachineBasicBlock::iterator I,
+                                     MachineBasicBlock::iterator &UseMI,
+                                     const TargetRegisterClass *RC,
+                                     unsigned Reg) const override;
+
+  const TargetRegisterClass *intRegClass(unsigned Size) const override;
+
 private:
-  virtual void eliminateFI(MachineBasicBlock::iterator II, unsigned OpNo,
-                           int FrameIndex, uint64_t StackSize,
-                           int64_t SPOffset) const;
+  void eliminateFI(MachineBasicBlock::iterator II, unsigned OpNo,
+                   int FrameIndex, uint64_t StackSize,
+                   int64_t SPOffset) const override;
 };
 
 } // end namespace llvm

@@ -72,7 +72,7 @@ void
 _sethosthtent(int f, struct hostent_data *hed)
 {
 	if (!hed->hostf)
-		hed->hostf = fopen(_PATH_HOSTS, "r");
+		hed->hostf = fopen(_PATH_HOSTS, "re");
 	else
 		rewind(hed->hostf);
 	hed->stayopen = f;
@@ -96,7 +96,7 @@ gethostent_p(struct hostent *he, struct hostent_data *hed, int mapped,
 	int af, len;
 	char hostbuf[BUFSIZ + 1];
 
-	if (!hed->hostf && !(hed->hostf = fopen(_PATH_HOSTS, "r"))) {
+	if (!hed->hostf && !(hed->hostf = fopen(_PATH_HOSTS, "re"))) {
 		RES_SET_H_ERRNO(statp, NETDB_INTERNAL);
 		return (-1);
 	}

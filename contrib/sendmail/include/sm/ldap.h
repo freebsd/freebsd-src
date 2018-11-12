@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2001-2003, 2005-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2003, 2005-2007 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: ldap.h,v 1.34 2008/11/17 21:02:54 ca Exp $
+ *	$Id: ldap.h,v 1.35 2013-11-22 20:51:31 ca Exp $
  */
 
 #ifndef	SM_LDAP_H

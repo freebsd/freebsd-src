@@ -131,9 +131,8 @@ struct usb_fifo_methods usb_ugen_methods = {
 static int ugen_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
-SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &ugen_debug,
+SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RWTUN, &ugen_debug,
     0, "Debug level");
-TUNABLE_INT("hw.usb.ugen.debug", &ugen_debug);
 #endif
 
 
@@ -616,24 +615,17 @@ ugen_set_config(struct usb_fifo *f, uint8_t index)
 		/* not possible in device side mode */
 		return (ENOTTY);
 	}
-	if (f->udev->curr_config_index == index) {
-		/* no change needed */
-		return (0);
-	}
+
 	/* make sure all FIFO's are gone */
 	/* else there can be a deadlock */
 	if (ugen_fs_uninit(f)) {
 		/* ignore any errors */
 		DPRINTFN(6, "no FIFOs\n");
 	}
-	/* change setting - will free generic FIFOs, if any */
-	if (usbd_set_config_index(f->udev, index)) {
+
+	if (usbd_start_set_config(f->udev, index) != 0)
 		return (EIO);
-	}
-	/* probe and attach */
-	if (usb_probe_and_attach(f->udev, USB_IFACE_INDEX_ANY)) {
-		return (EIO);
-	}
+
 	return (0);
 }
 
@@ -688,18 +680,21 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 	if ((ugd->ugd_config_index == USB_UNCONFIG_INDEX) ||
 	    (ugd->ugd_config_index == udev->curr_config_index)) {
 		cdesc = usbd_get_config_descriptor(udev);
-		if (cdesc == NULL) {
+		if (cdesc == NULL)
 			return (ENXIO);
-		}
 		free_data = 0;
 
 	} else {
+#if (USB_HAVE_FIXED_CONFIG == 0)
 		if (usbd_req_get_config_desc_full(udev,
-		    NULL, &cdesc, M_USBDEV,
-		    ugd->ugd_config_index)) {
+		    NULL, &cdesc, ugd->ugd_config_index)) {
 			return (ENXIO);
 		}
 		free_data = 1;
+#else
+		/* configuration descriptor data is shared */
+		return (EINVAL);
+#endif
 	}
 
 	len = UGETW(cdesc->wTotalLength);
@@ -713,9 +708,9 @@ ugen_get_cdesc(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 
 	error = copyout(cdesc, ugd->ugd_data, len);
 
-	if (free_data) {
-		free(cdesc, M_USBDEV);
-	}
+	if (free_data)
+		usbd_free_config_desc(udev, cdesc);
+
 	return (error);
 }
 
@@ -966,11 +961,6 @@ ugen_re_enumerate(struct usb_fifo *f)
 		/* not possible in device side mode */
 		DPRINTFN(6, "device mode\n");
 		return (ENOTTY);
-	}
-	if (udev->parent_hub == NULL) {
-		/* the root HUB cannot be re-enumerated */
-		DPRINTFN(6, "cannot reset root HUB\n");
-		return (EINVAL);
 	}
 	/* make sure all FIFO's are gone */
 	/* else there can be a deadlock */
@@ -1759,16 +1749,11 @@ ugen_set_power_mode(struct usb_fifo *f, int mode)
 
 	switch (mode) {
 	case USB_POWER_MODE_OFF:
-		/* get the device unconfigured */
-		err = ugen_set_config(f, USB_UNCONFIG_INDEX);
-		if (err) {
-			DPRINTFN(0, "Could not unconfigure "
-			    "device (ignored)\n");
+		if (udev->flags.usb_mode == USB_MODE_HOST &&
+		    udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+			udev->re_enumerate_wait = USB_RE_ENUM_PWR_OFF;
 		}
-
-		/* clear port enable */
-		err = usbd_req_clear_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_ENABLE);
+		/* set power mode will wake up the explore thread */
 		break;
 
 	case USB_POWER_MODE_ON:
@@ -1816,9 +1801,9 @@ ugen_set_power_mode(struct usb_fifo *f, int mode)
 
 	/* if we are powered off we need to re-enumerate first */
 	if (old_mode == USB_POWER_MODE_OFF) {
-		if (udev->flags.usb_mode == USB_MODE_HOST) {
-			if (udev->re_enumerate_wait == 0)
-				udev->re_enumerate_wait = 1;
+		if (udev->flags.usb_mode == USB_MODE_HOST &&
+		    udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+			udev->re_enumerate_wait = USB_RE_ENUM_START;
 		}
 		/* set power mode will wake up the explore thread */
 	}
@@ -1838,6 +1823,45 @@ ugen_get_power_mode(struct usb_fifo *f)
 		return (USB_POWER_MODE_ON);
 
 	return (udev->power_mode);
+}
+
+static int
+ugen_get_port_path(struct usb_fifo *f, struct usb_device_port_path *dpp)
+{
+	struct usb_device *udev = f->udev;
+	struct usb_device *next;
+	unsigned int nlevel = 0;
+
+	if (udev == NULL)
+		goto error;
+
+	dpp->udp_bus = device_get_unit(udev->bus->bdev);
+	dpp->udp_index = udev->device_index;
+
+	/* count port levels */
+	next = udev;
+	while (next->parent_hub != NULL) {
+		nlevel++;
+		next = next->parent_hub;
+	}
+
+	/* check if too many levels */
+	if (nlevel > USB_DEVICE_PORT_PATH_MAX)
+		goto error;
+
+	/* store total level of ports */
+	dpp->udp_port_level = nlevel;
+
+	/* store port index array */
+	next = udev;
+	while (next->parent_hub != NULL) {
+		dpp->udp_port_no[--nlevel] = next->port_no;
+		next = next->parent_hub;
+	}
+	return (0);	/* success */
+
+error:
+	return (EINVAL);	/* failure */
 }
 
 static int
@@ -2041,6 +2065,7 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_device_stats *stat;
 		struct usb_fs_init *pinit;
 		struct usb_fs_uninit *puninit;
+		struct usb_device_port_path *dpp;
 		uint32_t *ptime;
 		void   *addr;
 		int    *pint;
@@ -2211,6 +2236,10 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_GET_POWER_MODE:
 		*u.pint = ugen_get_power_mode(f);
+		break;
+
+	case USB_GET_DEV_PORT_PATH:
+		error = ugen_get_port_path(f, u.dpp);
 		break;
 
 	case USB_GET_POWER_USAGE:

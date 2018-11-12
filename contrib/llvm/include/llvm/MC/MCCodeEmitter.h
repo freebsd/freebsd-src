@@ -15,6 +15,7 @@
 namespace llvm {
 class MCFixup;
 class MCInst;
+class MCSubtargetInfo;
 class raw_ostream;
 template<typename T> class SmallVectorImpl;
 
@@ -29,10 +30,14 @@ protected: // Can only create subclasses.
 public:
   virtual ~MCCodeEmitter();
 
+  /// Lifetime management
+  virtual void reset() { }
+
   /// EncodeInstruction - Encode the given \p Inst to bytes on the output
   /// stream \p OS.
   virtual void EncodeInstruction(const MCInst &Inst, raw_ostream &OS,
-                                 SmallVectorImpl<MCFixup> &Fixups) const = 0;
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const = 0;
 };
 
 } // End llvm namespace

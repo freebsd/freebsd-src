@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/uio.h>
 #else
 #include <stdint.h>
 #include <string.h>
@@ -63,8 +62,6 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	struct cryptoini cri;
 	struct cryptop *crp;
 	struct cryptodesc *crd;
-	struct uio *uio;
-	struct iovec *iov;
 	uint64_t sid;
 	u_char *p;
 	int error;
@@ -79,24 +76,13 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	error = crypto_newsession(&sid, &cri, CRYPTOCAP_F_SOFTWARE);
 	if (error != 0)
 		return (error);
-	p = malloc(sizeof(*crp) + sizeof(*crd) + sizeof(*uio) + sizeof(*iov),
-	    M_ELI, M_NOWAIT | M_ZERO);
+	p = malloc(sizeof(*crp) + sizeof(*crd), M_ELI, M_NOWAIT | M_ZERO);
 	if (p == NULL) {
 		crypto_freesession(sid);
 		return (ENOMEM);
 	}
 	crp = (struct cryptop *)p;	p += sizeof(*crp);
 	crd = (struct cryptodesc *)p;	p += sizeof(*crd);
-	uio = (struct uio *)p;		p += sizeof(*uio);
-	iov = (struct iovec *)p;	p += sizeof(*iov);
-
-	iov->iov_len = datasize;
-	iov->iov_base = data;
-
-	uio->uio_iov = iov;
-	uio->uio_iovcnt = 1;
-	uio->uio_segflg = UIO_SYSSPACE;
-	uio->uio_resid = datasize;
 
 	crd->crd_skip = 0;
 	crd->crd_len = datasize;
@@ -114,8 +100,8 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	crp->crp_olen = datasize;
 	crp->crp_opaque = NULL;
 	crp->crp_callback = g_eli_crypto_done;
-	crp->crp_buf = (void *)uio;
-	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
+	crp->crp_buf = (void *)data;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	crp->crp_desc = crd;
 
 	error = crypto_dispatch(crp);
@@ -265,6 +251,7 @@ g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
 	/* Perform inner SHA512. */
 	SHA512_Init(&ctx->shactx);
 	SHA512_Update(&ctx->shactx, k_ipad, sizeof(k_ipad));
+	bzero(k_ipad, sizeof(k_ipad));
 }
 
 void
@@ -288,10 +275,12 @@ g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
 	bzero(ctx, sizeof(*ctx));
 	SHA512_Update(&lctx, digest, sizeof(digest));
 	SHA512_Final(digest, &lctx);
+	bzero(&lctx, sizeof(lctx));
 	/* mdsize == 0 means "Give me the whole hash!" */
 	if (mdsize == 0)
 		mdsize = SHA512_MDLEN;
 	bcopy(digest, md, mdsize);
+	bzero(digest, sizeof(digest));
 }
 
 void

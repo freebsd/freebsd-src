@@ -15,452 +15,729 @@
 #ifndef LLVM_CODEGEN_PBQP_GRAPH_H
 #define LLVM_CODEGEN_PBQP_GRAPH_H
 
-#include "Math.h"
-
+#include "llvm/ADT/ilist.h"
+#include "llvm/ADT/ilist_node.h"
+#include "llvm/Support/Debug.h"
 #include <list>
 #include <map>
-#include <llvm/ADT/ilist.h>
+#include <set>
 
+namespace llvm {
 namespace PBQP {
+
+  class GraphBase {
+  public:
+    typedef unsigned NodeId;
+    typedef unsigned EdgeId;
+
+    /// @brief Returns a value representing an invalid (non-existent) node.
+    static NodeId invalidNodeId() {
+      return std::numeric_limits<NodeId>::max();
+    }
+
+    /// @brief Returns a value representing an invalid (non-existent) edge.
+    static EdgeId invalidEdgeId() {
+      return std::numeric_limits<EdgeId>::max();
+    }
+  };
 
   /// PBQP Graph class.
   /// Instances of this class describe PBQP problems.
-  class Graph {
+  ///
+  template <typename SolverT>
+  class Graph : public GraphBase {
   private:
-
-    // ----- TYPEDEFS -----
-    class NodeEntry;
-    class EdgeEntry;
-
-    typedef llvm::ilist<NodeEntry> NodeList;
-    typedef llvm::ilist<EdgeEntry> EdgeList;
-
+    typedef typename SolverT::CostAllocator CostAllocator;
   public:
-
-    typedef NodeEntry* NodeItr;
-    typedef const NodeEntry* ConstNodeItr;
-
-    typedef EdgeEntry* EdgeItr;
-    typedef const EdgeEntry* ConstEdgeItr;
-
-  private:
-
-    typedef std::list<EdgeItr> AdjEdgeList;
-  
-  public:
-
-    typedef AdjEdgeList::iterator AdjEdgeItr;
+    typedef typename SolverT::RawVector RawVector;
+    typedef typename SolverT::RawMatrix RawMatrix;
+    typedef typename SolverT::Vector Vector;
+    typedef typename SolverT::Matrix Matrix;
+    typedef typename CostAllocator::VectorPtr VectorPtr;
+    typedef typename CostAllocator::MatrixPtr MatrixPtr;
+    typedef typename SolverT::NodeMetadata NodeMetadata;
+    typedef typename SolverT::EdgeMetadata EdgeMetadata;
+    typedef typename SolverT::GraphMetadata GraphMetadata;
 
   private:
 
-    class NodeEntry : public llvm::ilist_node<NodeEntry> {
-      friend struct llvm::ilist_sentinel_traits<NodeEntry>;
-    private:
-      Vector costs;      
-      AdjEdgeList adjEdges;
-      unsigned degree;
-      void *data;
-      NodeEntry() : costs(0, 0) {}
+    class NodeEntry {
     public:
-      NodeEntry(const Vector &costs) : costs(costs), degree(0) {}
-      Vector& getCosts() { return costs; }
-      const Vector& getCosts() const { return costs; }
-      unsigned getDegree() const { return degree; }
-      AdjEdgeItr edgesBegin() { return adjEdges.begin(); }
-      AdjEdgeItr edgesEnd() { return adjEdges.end(); }
-      AdjEdgeItr addEdge(EdgeItr e) {
-        ++degree;
-        return adjEdges.insert(adjEdges.end(), e);
+      typedef std::vector<EdgeId> AdjEdgeList;
+      typedef AdjEdgeList::size_type AdjEdgeIdx;
+      typedef AdjEdgeList::const_iterator AdjEdgeItr;
+
+      static AdjEdgeIdx getInvalidAdjEdgeIdx() {
+        return std::numeric_limits<AdjEdgeIdx>::max();
       }
-      void removeEdge(AdjEdgeItr ae) {
-        --degree;
-        adjEdges.erase(ae);
+
+      NodeEntry(VectorPtr Costs) : Costs(Costs) {}
+
+      AdjEdgeIdx addAdjEdgeId(EdgeId EId) {
+        AdjEdgeIdx Idx = AdjEdgeIds.size();
+        AdjEdgeIds.push_back(EId);
+        return Idx;
       }
-      void setData(void *data) { this->data = data; }
-      void* getData() { return data; }
+
+      void removeAdjEdgeId(Graph &G, NodeId ThisNId, AdjEdgeIdx Idx) {
+        // Swap-and-pop for fast removal.
+        //   1) Update the adj index of the edge currently at back().
+        //   2) Move last Edge down to Idx.
+        //   3) pop_back()
+        // If Idx == size() - 1 then the setAdjEdgeIdx and swap are
+        // redundant, but both operations are cheap.
+        G.getEdge(AdjEdgeIds.back()).setAdjEdgeIdx(ThisNId, Idx);
+        AdjEdgeIds[Idx] = AdjEdgeIds.back();
+        AdjEdgeIds.pop_back();
+      }
+
+      const AdjEdgeList& getAdjEdgeIds() const { return AdjEdgeIds; }
+
+      VectorPtr Costs;
+      NodeMetadata Metadata;
+    private:
+      AdjEdgeList AdjEdgeIds;
     };
 
-    class EdgeEntry : public llvm::ilist_node<EdgeEntry> {
-      friend struct llvm::ilist_sentinel_traits<EdgeEntry>;
-    private:
-      NodeItr node1, node2;
-      Matrix costs;
-      AdjEdgeItr node1AEItr, node2AEItr;
-      void *data;
-      EdgeEntry() : costs(0, 0, 0) {}
+    class EdgeEntry {
     public:
-      EdgeEntry(NodeItr node1, NodeItr node2, const Matrix &costs)
-        : node1(node1), node2(node2), costs(costs) {}
-      NodeItr getNode1() const { return node1; }
-      NodeItr getNode2() const { return node2; }
-      Matrix& getCosts() { return costs; }
-      const Matrix& getCosts() const { return costs; }
-      void setNode1AEItr(AdjEdgeItr ae) { node1AEItr = ae; }
-      AdjEdgeItr getNode1AEItr() { return node1AEItr; }
-      void setNode2AEItr(AdjEdgeItr ae) { node2AEItr = ae; }
-      AdjEdgeItr getNode2AEItr() { return node2AEItr; }
-      void setData(void *data) { this->data = data; }
-      void *getData() { return data; }
+      EdgeEntry(NodeId N1Id, NodeId N2Id, MatrixPtr Costs)
+        : Costs(Costs) {
+        NIds[0] = N1Id;
+        NIds[1] = N2Id;
+        ThisEdgeAdjIdxs[0] = NodeEntry::getInvalidAdjEdgeIdx();
+        ThisEdgeAdjIdxs[1] = NodeEntry::getInvalidAdjEdgeIdx();
+      }
+
+      void invalidate() {
+        NIds[0] = NIds[1] = Graph::invalidNodeId();
+        ThisEdgeAdjIdxs[0] = ThisEdgeAdjIdxs[1] =
+          NodeEntry::getInvalidAdjEdgeIdx();
+        Costs = nullptr;
+      }
+
+      void connectToN(Graph &G, EdgeId ThisEdgeId, unsigned NIdx) {
+        assert(ThisEdgeAdjIdxs[NIdx] == NodeEntry::getInvalidAdjEdgeIdx() &&
+               "Edge already connected to NIds[NIdx].");
+        NodeEntry &N = G.getNode(NIds[NIdx]);
+        ThisEdgeAdjIdxs[NIdx] = N.addAdjEdgeId(ThisEdgeId);
+      }
+
+      void connectTo(Graph &G, EdgeId ThisEdgeId, NodeId NId) {
+        if (NId == NIds[0])
+          connectToN(G, ThisEdgeId, 0);
+        else {
+          assert(NId == NIds[1] && "Edge does not connect NId.");
+          connectToN(G, ThisEdgeId, 1);
+        }
+      }
+
+      void connect(Graph &G, EdgeId ThisEdgeId) {
+        connectToN(G, ThisEdgeId, 0);
+        connectToN(G, ThisEdgeId, 1);
+      }
+
+      void setAdjEdgeIdx(NodeId NId, typename NodeEntry::AdjEdgeIdx NewIdx) {
+        if (NId == NIds[0])
+          ThisEdgeAdjIdxs[0] = NewIdx;
+        else {
+          assert(NId == NIds[1] && "Edge not connected to NId");
+          ThisEdgeAdjIdxs[1] = NewIdx;
+        }
+      }
+
+      void disconnectFromN(Graph &G, unsigned NIdx) {
+        assert(ThisEdgeAdjIdxs[NIdx] != NodeEntry::getInvalidAdjEdgeIdx() &&
+               "Edge not connected to NIds[NIdx].");
+        NodeEntry &N = G.getNode(NIds[NIdx]);
+        N.removeAdjEdgeId(G, NIds[NIdx], ThisEdgeAdjIdxs[NIdx]);
+        ThisEdgeAdjIdxs[NIdx] = NodeEntry::getInvalidAdjEdgeIdx();
+      }
+
+      void disconnectFrom(Graph &G, NodeId NId) {
+        if (NId == NIds[0])
+          disconnectFromN(G, 0);
+        else {
+          assert(NId == NIds[1] && "Edge does not connect NId");
+          disconnectFromN(G, 1);
+        }
+      }
+
+      NodeId getN1Id() const { return NIds[0]; }
+      NodeId getN2Id() const { return NIds[1]; }
+      MatrixPtr Costs;
+      EdgeMetadata Metadata;
+    private:
+      NodeId NIds[2];
+      typename NodeEntry::AdjEdgeIdx ThisEdgeAdjIdxs[2];
     };
 
     // ----- MEMBERS -----
 
-    NodeList nodes;
-    unsigned numNodes;
+    GraphMetadata Metadata;
+    CostAllocator CostAlloc;
+    SolverT *Solver;
 
-    EdgeList edges;
-    unsigned numEdges;
+    typedef std::vector<NodeEntry> NodeVector;
+    typedef std::vector<NodeId> FreeNodeVector;
+    NodeVector Nodes;
+    FreeNodeVector FreeNodeIds;
+
+    typedef std::vector<EdgeEntry> EdgeVector;
+    typedef std::vector<EdgeId> FreeEdgeVector;
+    EdgeVector Edges;
+    FreeEdgeVector FreeEdgeIds;
 
     // ----- INTERNAL METHODS -----
 
-    NodeEntry& getNode(NodeItr nItr) { return *nItr; }
-    const NodeEntry& getNode(ConstNodeItr nItr) const { return *nItr; }
-
-    EdgeEntry& getEdge(EdgeItr eItr) { return *eItr; }
-    const EdgeEntry& getEdge(ConstEdgeItr eItr) const { return *eItr; }
-
-    NodeItr addConstructedNode(const NodeEntry &n) {
-      ++numNodes;
-      return nodes.insert(nodes.end(), n);
+    NodeEntry &getNode(NodeId NId) {
+      assert(NId < Nodes.size() && "Out of bound NodeId");
+      return Nodes[NId];
+    }
+    const NodeEntry &getNode(NodeId NId) const {
+      assert(NId < Nodes.size() && "Out of bound NodeId");
+      return Nodes[NId];
     }
 
-    EdgeItr addConstructedEdge(const EdgeEntry &e) {
-      assert(findEdge(e.getNode1(), e.getNode2()) == edges.end() &&
+    EdgeEntry& getEdge(EdgeId EId) { return Edges[EId]; }
+    const EdgeEntry& getEdge(EdgeId EId) const { return Edges[EId]; }
+
+    NodeId addConstructedNode(NodeEntry N) {
+      NodeId NId = 0;
+      if (!FreeNodeIds.empty()) {
+        NId = FreeNodeIds.back();
+        FreeNodeIds.pop_back();
+        Nodes[NId] = std::move(N);
+      } else {
+        NId = Nodes.size();
+        Nodes.push_back(std::move(N));
+      }
+      return NId;
+    }
+
+    EdgeId addConstructedEdge(EdgeEntry E) {
+      assert(findEdge(E.getN1Id(), E.getN2Id()) == invalidEdgeId() &&
              "Attempt to add duplicate edge.");
-      ++numEdges;
-      EdgeItr edgeItr = edges.insert(edges.end(), e);
-      EdgeEntry &ne = getEdge(edgeItr);
-      NodeEntry &n1 = getNode(ne.getNode1());
-      NodeEntry &n2 = getNode(ne.getNode2());
-      // Sanity check on matrix dimensions:
-      assert((n1.getCosts().getLength() == ne.getCosts().getRows()) &&
-             (n2.getCosts().getLength() == ne.getCosts().getCols()) &&
-             "Edge cost dimensions do not match node costs dimensions.");
-      ne.setNode1AEItr(n1.addEdge(edgeItr));
-      ne.setNode2AEItr(n2.addEdge(edgeItr));
-      return edgeItr;
+      EdgeId EId = 0;
+      if (!FreeEdgeIds.empty()) {
+        EId = FreeEdgeIds.back();
+        FreeEdgeIds.pop_back();
+        Edges[EId] = std::move(E);
+      } else {
+        EId = Edges.size();
+        Edges.push_back(std::move(E));
+      }
+
+      EdgeEntry &NE = getEdge(EId);
+
+      // Add the edge to the adjacency sets of its nodes.
+      NE.connect(*this, EId);
+      return EId;
     }
 
-    inline void copyFrom(const Graph &other);
+    Graph(const Graph &Other) {}
+    void operator=(const Graph &Other) {}
+
   public:
 
-    /// \brief Construct an empty PBQP graph.
-    Graph() : numNodes(0), numEdges(0) {}
+    typedef typename NodeEntry::AdjEdgeItr AdjEdgeItr;
 
-    /// \brief Copy construct this graph from "other". Note: Does not copy node
-    ///        and edge data, only graph structure and costs.
-    /// @param other Source graph to copy from.
-    Graph(const Graph &other) : numNodes(0), numEdges(0) {
-      copyFrom(other);
+    class NodeItr {
+    public:
+      typedef std::forward_iterator_tag iterator_category;
+      typedef NodeId value_type;
+      typedef int difference_type;
+      typedef NodeId* pointer;
+      typedef NodeId& reference;
+
+      NodeItr(NodeId CurNId, const Graph &G)
+        : CurNId(CurNId), EndNId(G.Nodes.size()), FreeNodeIds(G.FreeNodeIds) {
+        this->CurNId = findNextInUse(CurNId); // Move to first in-use node id
+      }
+
+      bool operator==(const NodeItr &O) const { return CurNId == O.CurNId; }
+      bool operator!=(const NodeItr &O) const { return !(*this == O); }
+      NodeItr& operator++() { CurNId = findNextInUse(++CurNId); return *this; }
+      NodeId operator*() const { return CurNId; }
+
+    private:
+      NodeId findNextInUse(NodeId NId) const {
+        while (NId < EndNId &&
+               std::find(FreeNodeIds.begin(), FreeNodeIds.end(), NId) !=
+               FreeNodeIds.end()) {
+          ++NId;
+        }
+        return NId;
+      }
+
+      NodeId CurNId, EndNId;
+      const FreeNodeVector &FreeNodeIds;
+    };
+
+    class EdgeItr {
+    public:
+      EdgeItr(EdgeId CurEId, const Graph &G)
+        : CurEId(CurEId), EndEId(G.Edges.size()), FreeEdgeIds(G.FreeEdgeIds) {
+        this->CurEId = findNextInUse(CurEId); // Move to first in-use edge id
+      }
+
+      bool operator==(const EdgeItr &O) const { return CurEId == O.CurEId; }
+      bool operator!=(const EdgeItr &O) const { return !(*this == O); }
+      EdgeItr& operator++() { CurEId = findNextInUse(++CurEId); return *this; }
+      EdgeId operator*() const { return CurEId; }
+
+    private:
+      EdgeId findNextInUse(EdgeId EId) const {
+        while (EId < EndEId &&
+               std::find(FreeEdgeIds.begin(), FreeEdgeIds.end(), EId) !=
+               FreeEdgeIds.end()) {
+          ++EId;
+        }
+        return EId;
+      }
+
+      EdgeId CurEId, EndEId;
+      const FreeEdgeVector &FreeEdgeIds;
+    };
+
+    class NodeIdSet {
+    public:
+      NodeIdSet(const Graph &G) : G(G) { }
+      NodeItr begin() const { return NodeItr(0, G); }
+      NodeItr end() const { return NodeItr(G.Nodes.size(), G); }
+      bool empty() const { return G.Nodes.empty(); }
+      typename NodeVector::size_type size() const {
+        return G.Nodes.size() - G.FreeNodeIds.size();
+      }
+    private:
+      const Graph& G;
+    };
+
+    class EdgeIdSet {
+    public:
+      EdgeIdSet(const Graph &G) : G(G) { }
+      EdgeItr begin() const { return EdgeItr(0, G); }
+      EdgeItr end() const { return EdgeItr(G.Edges.size(), G); }
+      bool empty() const { return G.Edges.empty(); }
+      typename NodeVector::size_type size() const {
+        return G.Edges.size() - G.FreeEdgeIds.size();
+      }
+    private:
+      const Graph& G;
+    };
+
+    class AdjEdgeIdSet {
+    public:
+      AdjEdgeIdSet(const NodeEntry &NE) : NE(NE) { }
+      typename NodeEntry::AdjEdgeItr begin() const {
+        return NE.getAdjEdgeIds().begin();
+      }
+      typename NodeEntry::AdjEdgeItr end() const {
+        return NE.getAdjEdgeIds().end();
+      }
+      bool empty() const { return NE.getAdjEdgeIds().empty(); }
+      typename NodeEntry::AdjEdgeList::size_type size() const {
+        return NE.getAdjEdgeIds().size();
+      }
+    private:
+      const NodeEntry &NE;
+    };
+
+    /// @brief Construct an empty PBQP graph.
+    Graph() : Solver(nullptr) {}
+
+    /// @brief Construct an empty PBQP graph with the given graph metadata.
+    Graph(GraphMetadata Metadata) : Metadata(Metadata), Solver(nullptr) {}
+
+    /// @brief Get a reference to the graph metadata.
+    GraphMetadata& getMetadata() { return Metadata; }
+
+    /// @brief Get a const-reference to the graph metadata.
+    const GraphMetadata& getMetadata() const { return Metadata; }
+
+    /// @brief Lock this graph to the given solver instance in preparation
+    /// for running the solver. This method will call solver.handleAddNode for
+    /// each node in the graph, and handleAddEdge for each edge, to give the
+    /// solver an opportunity to set up any requried metadata.
+    void setSolver(SolverT &S) {
+      assert(!Solver && "Solver already set. Call unsetSolver().");
+      Solver = &S;
+      for (auto NId : nodeIds())
+        Solver->handleAddNode(NId);
+      for (auto EId : edgeIds())
+        Solver->handleAddEdge(EId);
     }
 
-    /// \brief Make this graph a copy of "other". Note: Does not copy node and
-    ///        edge data, only graph structure and costs.
-    /// @param other The graph to copy from.
-    /// @return A reference to this graph.
-    ///
-    /// This will clear the current graph, erasing any nodes and edges added,
-    /// before copying from other.
-    Graph& operator=(const Graph &other) {
-      clear();      
-      copyFrom(other);
-      return *this;
+    /// @brief Release from solver instance.
+    void unsetSolver() {
+      assert(Solver && "Solver not set.");
+      Solver = nullptr;
     }
 
-    /// \brief Add a node with the given costs.
-    /// @param costs Cost vector for the new node.
+    /// @brief Add a node with the given costs.
+    /// @param Costs Cost vector for the new node.
     /// @return Node iterator for the added node.
-    NodeItr addNode(const Vector &costs) {
-      return addConstructedNode(NodeEntry(costs));
+    template <typename OtherVectorT>
+    NodeId addNode(OtherVectorT Costs) {
+      // Get cost vector from the problem domain
+      VectorPtr AllocatedCosts = CostAlloc.getVector(std::move(Costs));
+      NodeId NId = addConstructedNode(NodeEntry(AllocatedCosts));
+      if (Solver)
+        Solver->handleAddNode(NId);
+      return NId;
     }
 
-    /// \brief Add an edge between the given nodes with the given costs.
-    /// @param n1Itr First node.
-    /// @param n2Itr Second node.
+    /// @brief Add a node bypassing the cost allocator.
+    /// @param Costs Cost vector ptr for the new node (must be convertible to
+    ///        VectorPtr).
+    /// @return Node iterator for the added node.
+    ///
+    ///   This method allows for fast addition of a node whose costs don't need
+    /// to be passed through the cost allocator. The most common use case for
+    /// this is when duplicating costs from an existing node (when using a
+    /// pooling allocator). These have already been uniqued, so we can avoid
+    /// re-constructing and re-uniquing them by attaching them directly to the
+    /// new node.
+    template <typename OtherVectorPtrT>
+    NodeId addNodeBypassingCostAllocator(OtherVectorPtrT Costs) {
+      NodeId NId = addConstructedNode(NodeEntry(Costs));
+      if (Solver)
+        Solver->handleAddNode(NId);
+      return NId;
+    }
+
+    /// @brief Add an edge between the given nodes with the given costs.
+    /// @param N1Id First node.
+    /// @param N2Id Second node.
+    /// @param Costs Cost matrix for new edge.
     /// @return Edge iterator for the added edge.
-    EdgeItr addEdge(Graph::NodeItr n1Itr, Graph::NodeItr n2Itr,
-                    const Matrix &costs) {
-      assert(getNodeCosts(n1Itr).getLength() == costs.getRows() &&
-             getNodeCosts(n2Itr).getLength() == costs.getCols() &&
+    template <typename OtherVectorT>
+    EdgeId addEdge(NodeId N1Id, NodeId N2Id, OtherVectorT Costs) {
+      assert(getNodeCosts(N1Id).getLength() == Costs.getRows() &&
+             getNodeCosts(N2Id).getLength() == Costs.getCols() &&
              "Matrix dimensions mismatch.");
-      return addConstructedEdge(EdgeEntry(n1Itr, n2Itr, costs)); 
+      // Get cost matrix from the problem domain.
+      MatrixPtr AllocatedCosts = CostAlloc.getMatrix(std::move(Costs));
+      EdgeId EId = addConstructedEdge(EdgeEntry(N1Id, N2Id, AllocatedCosts));
+      if (Solver)
+        Solver->handleAddEdge(EId);
+      return EId;
     }
 
-    /// \brief Get the number of nodes in the graph.
+    /// @brief Add an edge bypassing the cost allocator.
+    /// @param N1Id First node.
+    /// @param N2Id Second node.
+    /// @param Costs Cost matrix for new edge.
+    /// @return Edge iterator for the added edge.
+    ///
+    ///   This method allows for fast addition of an edge whose costs don't need
+    /// to be passed through the cost allocator. The most common use case for
+    /// this is when duplicating costs from an existing edge (when using a
+    /// pooling allocator). These have already been uniqued, so we can avoid
+    /// re-constructing and re-uniquing them by attaching them directly to the
+    /// new edge.
+    template <typename OtherMatrixPtrT>
+    NodeId addEdgeBypassingCostAllocator(NodeId N1Id, NodeId N2Id,
+                                         OtherMatrixPtrT Costs) {
+      assert(getNodeCosts(N1Id).getLength() == Costs->getRows() &&
+             getNodeCosts(N2Id).getLength() == Costs->getCols() &&
+             "Matrix dimensions mismatch.");
+      // Get cost matrix from the problem domain.
+      EdgeId EId = addConstructedEdge(EdgeEntry(N1Id, N2Id, Costs));
+      if (Solver)
+        Solver->handleAddEdge(EId);
+      return EId;
+    }
+
+    /// @brief Returns true if the graph is empty.
+    bool empty() const { return NodeIdSet(*this).empty(); }
+
+    NodeIdSet nodeIds() const { return NodeIdSet(*this); }
+    EdgeIdSet edgeIds() const { return EdgeIdSet(*this); }
+
+    AdjEdgeIdSet adjEdgeIds(NodeId NId) { return AdjEdgeIdSet(getNode(NId)); }
+
+    /// @brief Get the number of nodes in the graph.
     /// @return Number of nodes in the graph.
-    unsigned getNumNodes() const { return numNodes; }
+    unsigned getNumNodes() const { return NodeIdSet(*this).size(); }
 
-    /// \brief Get the number of edges in the graph.
+    /// @brief Get the number of edges in the graph.
     /// @return Number of edges in the graph.
-    unsigned getNumEdges() const { return numEdges; }
+    unsigned getNumEdges() const { return EdgeIdSet(*this).size(); }
 
-    /// \brief Get a node's cost vector.
-    /// @param nItr Node iterator.
-    /// @return Node cost vector.
-    Vector& getNodeCosts(NodeItr nItr) { return getNode(nItr).getCosts(); }
-
-    /// \brief Get a node's cost vector (const version).
-    /// @param nItr Node iterator.
-    /// @return Node cost vector.
-    const Vector& getNodeCosts(ConstNodeItr nItr) const {
-      return getNode(nItr).getCosts();
+    /// @brief Set a node's cost vector.
+    /// @param NId Node to update.
+    /// @param Costs New costs to set.
+    template <typename OtherVectorT>
+    void setNodeCosts(NodeId NId, OtherVectorT Costs) {
+      VectorPtr AllocatedCosts = CostAlloc.getVector(std::move(Costs));
+      if (Solver)
+        Solver->handleSetNodeCosts(NId, *AllocatedCosts);
+      getNode(NId).Costs = AllocatedCosts;
     }
 
-    /// \brief Set a node's data pointer.
-    /// @param nItr Node iterator.
-    /// @param data Pointer to node data.
+    /// @brief Get a VectorPtr to a node's cost vector. Rarely useful - use
+    ///        getNodeCosts where possible.
+    /// @param NId Node id.
+    /// @return VectorPtr to node cost vector.
     ///
-    /// Typically used by a PBQP solver to attach data to aid in solution.
-    void setNodeData(NodeItr nItr, void *data) { getNode(nItr).setData(data); }
-
-    /// \brief Get the node's data pointer.
-    /// @param nItr Node iterator.
-    /// @return Pointer to node data.
-    void* getNodeData(NodeItr nItr) { return getNode(nItr).getData(); }
-    
-    /// \brief Get an edge's cost matrix.
-    /// @param eItr Edge iterator.
-    /// @return Edge cost matrix.
-    Matrix& getEdgeCosts(EdgeItr eItr) { return getEdge(eItr).getCosts(); }
-
-    /// \brief Get an edge's cost matrix (const version).
-    /// @param eItr Edge iterator.
-    /// @return Edge cost matrix.
-    const Matrix& getEdgeCosts(ConstEdgeItr eItr) const {
-      return getEdge(eItr).getCosts();
+    ///   This method is primarily useful for duplicating costs quickly by
+    /// bypassing the cost allocator. See addNodeBypassingCostAllocator. Prefer
+    /// getNodeCosts when dealing with node cost values.
+    const VectorPtr& getNodeCostsPtr(NodeId NId) const {
+      return getNode(NId).Costs;
     }
 
-    /// \brief Set an edge's data pointer.
-    /// @param eItr Edge iterator.
-    /// @param data Pointer to edge data.
+    /// @brief Get a node's cost vector.
+    /// @param NId Node id.
+    /// @return Node cost vector.
+    const Vector& getNodeCosts(NodeId NId) const {
+      return *getNodeCostsPtr(NId);
+    }
+
+    NodeMetadata& getNodeMetadata(NodeId NId) {
+      return getNode(NId).Metadata;
+    }
+
+    const NodeMetadata& getNodeMetadata(NodeId NId) const {
+      return getNode(NId).Metadata;
+    }
+
+    typename NodeEntry::AdjEdgeList::size_type getNodeDegree(NodeId NId) const {
+      return getNode(NId).getAdjEdgeIds().size();
+    }
+
+    /// @brief Set an edge's cost matrix.
+    /// @param EId Edge id.
+    /// @param Costs New cost matrix.
+    template <typename OtherMatrixT>
+    void setEdgeCosts(EdgeId EId, OtherMatrixT Costs) {
+      MatrixPtr AllocatedCosts = CostAlloc.getMatrix(std::move(Costs));
+      if (Solver)
+        Solver->handleSetEdgeCosts(EId, *AllocatedCosts);
+      getEdge(EId).Costs = AllocatedCosts;
+    }
+
+    /// @brief Get a MatrixPtr to a node's cost matrix. Rarely useful - use
+    ///        getEdgeCosts where possible.
+    /// @param EId Edge id.
+    /// @return MatrixPtr to edge cost matrix.
     ///
-    /// Typically used by a PBQP solver to attach data to aid in solution.
-    void setEdgeData(EdgeItr eItr, void *data) { getEdge(eItr).setData(data); }
-
-    /// \brief Get an edge's data pointer.
-    /// @param eItr Edge iterator.
-    /// @return Pointer to edge data. 
-    void* getEdgeData(EdgeItr eItr) { return getEdge(eItr).getData(); }
-
-    /// \brief Get a node's degree.
-    /// @param nItr Node iterator.
-    /// @return The degree of the node.
-    unsigned getNodeDegree(NodeItr nItr) const {
-      return getNode(nItr).getDegree();
+    ///   This method is primarily useful for duplicating costs quickly by
+    /// bypassing the cost allocator. See addNodeBypassingCostAllocator. Prefer
+    /// getEdgeCosts when dealing with edge cost values.
+    const MatrixPtr& getEdgeCostsPtr(EdgeId EId) const {
+      return getEdge(EId).Costs;
     }
 
-    /// \brief Begin iterator for node set.
-    NodeItr nodesBegin() { return nodes.begin(); }
-
-    /// \brief Begin const iterator for node set.
-    ConstNodeItr nodesBegin() const { return nodes.begin(); }
-
-    /// \brief End iterator for node set.
-    NodeItr nodesEnd() { return nodes.end(); }
-
-    /// \brief End const iterator for node set.
-    ConstNodeItr nodesEnd() const { return nodes.end(); }
-
-    /// \brief Begin iterator for edge set.
-    EdgeItr edgesBegin() { return edges.begin(); }
-
-    /// \brief End iterator for edge set.
-    EdgeItr edgesEnd() { return edges.end(); }
-
-    /// \brief Get begin iterator for adjacent edge set.
-    /// @param nItr Node iterator.
-    /// @return Begin iterator for the set of edges connected to the given node.
-    AdjEdgeItr adjEdgesBegin(NodeItr nItr) {
-      return getNode(nItr).edgesBegin();
+    /// @brief Get an edge's cost matrix.
+    /// @param EId Edge id.
+    /// @return Edge cost matrix.
+    const Matrix& getEdgeCosts(EdgeId EId) const {
+      return *getEdge(EId).Costs;
     }
 
-    /// \brief Get end iterator for adjacent edge set.
-    /// @param nItr Node iterator.
-    /// @return End iterator for the set of edges connected to the given node.
-    AdjEdgeItr adjEdgesEnd(NodeItr nItr) {
-      return getNode(nItr).edgesEnd();
+    EdgeMetadata& getEdgeMetadata(EdgeId EId) {
+      return getEdge(EId).Metadata;
     }
 
-    /// \brief Get the first node connected to this edge.
-    /// @param eItr Edge iterator.
-    /// @return The first node connected to the given edge. 
-    NodeItr getEdgeNode1(EdgeItr eItr) {
-      return getEdge(eItr).getNode1();
+    const EdgeMetadata& getEdgeMetadata(EdgeId EId) const {
+      return getEdge(EId).Metadata;
     }
 
-    /// \brief Get the second node connected to this edge.
-    /// @param eItr Edge iterator.
-    /// @return The second node connected to the given edge. 
-    NodeItr getEdgeNode2(EdgeItr eItr) {
-      return getEdge(eItr).getNode2();
-    } 
+    /// @brief Get the first node connected to this edge.
+    /// @param EId Edge id.
+    /// @return The first node connected to the given edge.
+    NodeId getEdgeNode1Id(EdgeId EId) {
+      return getEdge(EId).getN1Id();
+    }
 
-    /// \brief Get the "other" node connected to this edge.
-    /// @param eItr Edge iterator.
-    /// @param nItr Node iterator for the "given" node.
-    /// @return The iterator for the "other" node connected to this edge. 
-    NodeItr getEdgeOtherNode(EdgeItr eItr, NodeItr nItr) {
-      EdgeEntry &e = getEdge(eItr);
-      if (e.getNode1() == nItr) {
-        return e.getNode2();
+    /// @brief Get the second node connected to this edge.
+    /// @param EId Edge id.
+    /// @return The second node connected to the given edge.
+    NodeId getEdgeNode2Id(EdgeId EId) {
+      return getEdge(EId).getN2Id();
+    }
+
+    /// @brief Get the "other" node connected to this edge.
+    /// @param EId Edge id.
+    /// @param NId Node id for the "given" node.
+    /// @return The iterator for the "other" node connected to this edge.
+    NodeId getEdgeOtherNodeId(EdgeId EId, NodeId NId) {
+      EdgeEntry &E = getEdge(EId);
+      if (E.getN1Id() == NId) {
+        return E.getN2Id();
       } // else
-      return e.getNode1();
+      return E.getN1Id();
     }
 
-    /// \brief Get the edge connecting two nodes.
-    /// @param n1Itr First node iterator.
-    /// @param n2Itr Second node iterator.
-    /// @return An iterator for edge (n1Itr, n2Itr) if such an edge exists,
-    ///         otherwise returns edgesEnd(). 
-    EdgeItr findEdge(NodeItr n1Itr, NodeItr n2Itr) {
-      for (AdjEdgeItr aeItr = adjEdgesBegin(n1Itr), aeEnd = adjEdgesEnd(n1Itr);
-         aeItr != aeEnd; ++aeItr) {
-        if ((getEdgeNode1(*aeItr) == n2Itr) ||
-            (getEdgeNode2(*aeItr) == n2Itr)) {
-          return *aeItr;
+    /// @brief Get the edge connecting two nodes.
+    /// @param N1Id First node id.
+    /// @param N2Id Second node id.
+    /// @return An id for edge (N1Id, N2Id) if such an edge exists,
+    ///         otherwise returns an invalid edge id.
+    EdgeId findEdge(NodeId N1Id, NodeId N2Id) {
+      for (auto AEId : adjEdgeIds(N1Id)) {
+        if ((getEdgeNode1Id(AEId) == N2Id) ||
+            (getEdgeNode2Id(AEId) == N2Id)) {
+          return AEId;
         }
       }
-      return edges.end();
+      return invalidEdgeId();
     }
 
-    /// \brief Remove a node from the graph.
-    /// @param nItr Node iterator.
-    void removeNode(NodeItr nItr) {
-      NodeEntry &n = getNode(nItr);
-      for (AdjEdgeItr itr = n.edgesBegin(), end = n.edgesEnd(); itr != end;) {
-        EdgeItr eItr = *itr;
-        ++itr;
-        removeEdge(eItr); 
+    /// @brief Remove a node from the graph.
+    /// @param NId Node id.
+    void removeNode(NodeId NId) {
+      if (Solver)
+        Solver->handleRemoveNode(NId);
+      NodeEntry &N = getNode(NId);
+      // TODO: Can this be for-each'd?
+      for (AdjEdgeItr AEItr = N.adjEdgesBegin(),
+             AEEnd = N.adjEdgesEnd();
+           AEItr != AEEnd;) {
+        EdgeId EId = *AEItr;
+        ++AEItr;
+        removeEdge(EId);
       }
-      nodes.erase(nItr);
-      --numNodes;
+      FreeNodeIds.push_back(NId);
     }
 
-    /// \brief Remove an edge from the graph.
-    /// @param eItr Edge iterator.
-    void removeEdge(EdgeItr eItr) {
-      EdgeEntry &e = getEdge(eItr);
-      NodeEntry &n1 = getNode(e.getNode1());
-      NodeEntry &n2 = getNode(e.getNode2());
-      n1.removeEdge(e.getNode1AEItr());
-      n2.removeEdge(e.getNode2AEItr());
-      edges.erase(eItr);
-      --numEdges;
+    /// @brief Disconnect an edge from the given node.
+    ///
+    /// Removes the given edge from the adjacency list of the given node.
+    /// This operation leaves the edge in an 'asymmetric' state: It will no
+    /// longer appear in an iteration over the given node's (NId's) edges, but
+    /// will appear in an iteration over the 'other', unnamed node's edges.
+    ///
+    /// This does not correspond to any normal graph operation, but exists to
+    /// support efficient PBQP graph-reduction based solvers. It is used to
+    /// 'effectively' remove the unnamed node from the graph while the solver
+    /// is performing the reduction. The solver will later call reconnectNode
+    /// to restore the edge in the named node's adjacency list.
+    ///
+    /// Since the degree of a node is the number of connected edges,
+    /// disconnecting an edge from a node 'u' will cause the degree of 'u' to
+    /// drop by 1.
+    ///
+    /// A disconnected edge WILL still appear in an iteration over the graph
+    /// edges.
+    ///
+    /// A disconnected edge should not be removed from the graph, it should be
+    /// reconnected first.
+    ///
+    /// A disconnected edge can be reconnected by calling the reconnectEdge
+    /// method.
+    void disconnectEdge(EdgeId EId, NodeId NId) {
+      if (Solver)
+        Solver->handleDisconnectEdge(EId, NId);
+
+      EdgeEntry &E = getEdge(EId);
+      E.disconnectFrom(*this, NId);
     }
 
-    /// \brief Remove all nodes and edges from the graph.
+    /// @brief Convenience method to disconnect all neighbours from the given
+    ///        node.
+    void disconnectAllNeighborsFromNode(NodeId NId) {
+      for (auto AEId : adjEdgeIds(NId))
+        disconnectEdge(AEId, getEdgeOtherNodeId(AEId, NId));
+    }
+
+    /// @brief Re-attach an edge to its nodes.
+    ///
+    /// Adds an edge that had been previously disconnected back into the
+    /// adjacency set of the nodes that the edge connects.
+    void reconnectEdge(EdgeId EId, NodeId NId) {
+      EdgeEntry &E = getEdge(EId);
+      E.connectTo(*this, EId, NId);
+      if (Solver)
+        Solver->handleReconnectEdge(EId, NId);
+    }
+
+    /// @brief Remove an edge from the graph.
+    /// @param EId Edge id.
+    void removeEdge(EdgeId EId) {
+      if (Solver)
+        Solver->handleRemoveEdge(EId);
+      EdgeEntry &E = getEdge(EId);
+      E.disconnect();
+      FreeEdgeIds.push_back(EId);
+      Edges[EId].invalidate();
+    }
+
+    /// @brief Remove all nodes and edges from the graph.
     void clear() {
-      nodes.clear();
-      edges.clear();
-      numNodes = numEdges = 0;
+      Nodes.clear();
+      FreeNodeIds.clear();
+      Edges.clear();
+      FreeEdgeIds.clear();
     }
 
-    /// \brief Dump a graph to an output stream.
+    /// @brief Dump a graph to an output stream.
     template <typename OStream>
-    void dump(OStream &os) {
-      os << getNumNodes() << " " << getNumEdges() << "\n";
+    void dumpToStream(OStream &OS) {
+      OS << nodeIds().size() << " " << edgeIds().size() << "\n";
 
-      for (NodeItr nodeItr = nodesBegin(), nodeEnd = nodesEnd();
-           nodeItr != nodeEnd; ++nodeItr) {
-        const Vector& v = getNodeCosts(nodeItr);
-        os << "\n" << v.getLength() << "\n";
-        assert(v.getLength() != 0 && "Empty vector in graph.");
-        os << v[0];
-        for (unsigned i = 1; i < v.getLength(); ++i) {
-          os << " " << v[i];
+      for (auto NId : nodeIds()) {
+        const Vector& V = getNodeCosts(NId);
+        OS << "\n" << V.getLength() << "\n";
+        assert(V.getLength() != 0 && "Empty vector in graph.");
+        OS << V[0];
+        for (unsigned i = 1; i < V.getLength(); ++i) {
+          OS << " " << V[i];
         }
-        os << "\n";
+        OS << "\n";
       }
 
-      for (EdgeItr edgeItr = edgesBegin(), edgeEnd = edgesEnd();
-           edgeItr != edgeEnd; ++edgeItr) {
-        unsigned n1 = std::distance(nodesBegin(), getEdgeNode1(edgeItr));
-        unsigned n2 = std::distance(nodesBegin(), getEdgeNode2(edgeItr));
-        assert(n1 != n2 && "PBQP graphs shound not have self-edges.");
-        const Matrix& m = getEdgeCosts(edgeItr);
-        os << "\n" << n1 << " " << n2 << "\n"
-           << m.getRows() << " " << m.getCols() << "\n";
-        assert(m.getRows() != 0 && "No rows in matrix.");
-        assert(m.getCols() != 0 && "No cols in matrix.");
-        for (unsigned i = 0; i < m.getRows(); ++i) {
-          os << m[i][0];
-          for (unsigned j = 1; j < m.getCols(); ++j) {
-            os << " " << m[i][j];
+      for (auto EId : edgeIds()) {
+        NodeId N1Id = getEdgeNode1Id(EId);
+        NodeId N2Id = getEdgeNode2Id(EId);
+        assert(N1Id != N2Id && "PBQP graphs shound not have self-edges.");
+        const Matrix& M = getEdgeCosts(EId);
+        OS << "\n" << N1Id << " " << N2Id << "\n"
+           << M.getRows() << " " << M.getCols() << "\n";
+        assert(M.getRows() != 0 && "No rows in matrix.");
+        assert(M.getCols() != 0 && "No cols in matrix.");
+        for (unsigned i = 0; i < M.getRows(); ++i) {
+          OS << M[i][0];
+          for (unsigned j = 1; j < M.getCols(); ++j) {
+            OS << " " << M[i][j];
           }
-          os << "\n";
+          OS << "\n";
         }
       }
     }
 
-    /// \brief Print a representation of this graph in DOT format.
-    /// @param os Output stream to print on.
+    /// @brief Dump this graph to dbgs().
+    void dump() {
+      dumpToStream(dbgs());
+    }
+
+    /// @brief Print a representation of this graph in DOT format.
+    /// @param OS Output stream to print on.
     template <typename OStream>
-    void printDot(OStream &os) {
-    
-      os << "graph {\n";
-
-      for (NodeItr nodeItr = nodesBegin(), nodeEnd = nodesEnd();
-           nodeItr != nodeEnd; ++nodeItr) {
-
-        os << "  node" << nodeItr << " [ label=\""
-           << nodeItr << ": " << getNodeCosts(nodeItr) << "\" ]\n";
+    void printDot(OStream &OS) {
+      OS << "graph {\n";
+      for (auto NId : nodeIds()) {
+        OS << "  node" << NId << " [ label=\""
+           << NId << ": " << getNodeCosts(NId) << "\" ]\n";
       }
-
-      os << "  edge [ len=" << getNumNodes() << " ]\n";
-
-      for (EdgeItr edgeItr = edgesBegin(), edgeEnd = edgesEnd();
-           edgeItr != edgeEnd; ++edgeItr) {
-
-        os << "  node" << getEdgeNode1(edgeItr)
-           << " -- node" << getEdgeNode2(edgeItr)
+      OS << "  edge [ len=" << nodeIds().size() << " ]\n";
+      for (auto EId : edgeIds()) {
+        OS << "  node" << getEdgeNode1Id(EId)
+           << " -- node" << getEdgeNode2Id(EId)
            << " [ label=\"";
-
-        const Matrix &edgeCosts = getEdgeCosts(edgeItr);
-
-        for (unsigned i = 0; i < edgeCosts.getRows(); ++i) {
-          os << edgeCosts.getRowAsVector(i) << "\\n";
+        const Matrix &EdgeCosts = getEdgeCosts(EId);
+        for (unsigned i = 0; i < EdgeCosts.getRows(); ++i) {
+          OS << EdgeCosts.getRowAsVector(i) << "\\n";
         }
-        os << "\" ]\n";
+        OS << "\" ]\n";
       }
-      os << "}\n";
-    }
-
-  };
-
-  class NodeItrComparator {
-  public:
-    bool operator()(Graph::NodeItr n1, Graph::NodeItr n2) const {
-      return &*n1 < &*n2;
-    }
-
-    bool operator()(Graph::ConstNodeItr n1, Graph::ConstNodeItr n2) const {
-      return &*n1 < &*n2;
+      OS << "}\n";
     }
   };
 
-  class EdgeItrCompartor {
-  public:
-    bool operator()(Graph::EdgeItr e1, Graph::EdgeItr e2) const {
-      return &*e1 < &*e2;
-    }
-
-    bool operator()(Graph::ConstEdgeItr e1, Graph::ConstEdgeItr e2) const {
-      return &*e1 < &*e2;
-    }
-  };
-
-  void Graph::copyFrom(const Graph &other) {
-    std::map<Graph::ConstNodeItr, Graph::NodeItr,
-             NodeItrComparator> nodeMap;
-
-     for (Graph::ConstNodeItr nItr = other.nodesBegin(),
-                             nEnd = other.nodesEnd();
-         nItr != nEnd; ++nItr) {
-      nodeMap[nItr] = addNode(other.getNodeCosts(nItr));
-    }
-      
-  }
-
-}
+}  // namespace PBQP
+}  // namespace llvm
 
 #endif // LLVM_CODEGEN_PBQP_GRAPH_HPP

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Michael Bushkov <bushman@freebsd.org>
- * All rights rehted.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -109,7 +109,7 @@ __gethostbyname2(const char *name, int af)
 	else {
 		error = 0;
 		he = getipnodebyname(name, af, ipnode_flags, &error);
-		if (he == NULL);
+		if (he == NULL)
 			errno = error;
 	}
 	

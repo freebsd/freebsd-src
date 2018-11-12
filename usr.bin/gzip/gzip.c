@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.105 2011/08/30 23:06:00 joerg Exp $	*/
+/*	$NetBSD: gzip.c,v 1.106 2014/10/18 08:33:30 snj Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998, 2003, 2004, 2006 Matthew R. Green
@@ -158,7 +158,7 @@ static suffixes_t suffixes[] = {
 #define NUM_SUFFIXES (sizeof suffixes / sizeof suffixes[0])
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20111009";
+static	const char	gzip_version[] = "FreeBSD gzip 20141022";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -1070,7 +1070,7 @@ out2:
 static void
 copymodes(int fd, const struct stat *sbp, const char *file)
 {
-	struct timeval times[2];
+	struct timespec times[2];
 	struct stat sb;
 
 	/*
@@ -1098,10 +1098,10 @@ copymodes(int fd, const struct stat *sbp, const char *file)
 	if (fchmod(fd, sb.st_mode) < 0)
 		maybe_warn("couldn't fchmod: %s", file);
 
-	TIMESPEC_TO_TIMEVAL(&times[0], &sb.st_atim);
-	TIMESPEC_TO_TIMEVAL(&times[1], &sb.st_mtim);
-	if (futimes(fd, times) < 0)
-		maybe_warn("couldn't utimes: %s", file);
+	times[0] = sb.st_atim;
+	times[1] = sb.st_mtim;
+	if (futimens(fd, times) < 0)
+		maybe_warn("couldn't futimens: %s", file);
 
 	/* only try flags if they exist already */
         if (sb.st_flags != 0 && fchflags(fd, sb.st_flags) < 0)
@@ -1769,7 +1769,7 @@ handle_stdout(void)
 		return;
 	}
 #endif
-	/* If stdin is a file use it's mtime, otherwise use current time */
+	/* If stdin is a file use its mtime, otherwise use current time */
 	ret = fstat(STDIN_FILENO, &sb);
 
 #ifndef SMALL
@@ -2110,7 +2110,7 @@ static void
 display_license(void)
 {
 
-	fprintf(stderr, "%s (based on NetBSD gzip 20111009)\n", gzip_version);
+	fprintf(stderr, "%s (based on NetBSD gzip 20141018)\n", gzip_version);
 	fprintf(stderr, "%s\n", gzip_copyright);
 	exit(0);
 }

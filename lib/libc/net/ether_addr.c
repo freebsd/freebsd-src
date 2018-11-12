@@ -72,11 +72,13 @@ ether_line(const char *l, struct ether_addr *e, char *hostname)
 
 	i = sscanf(l, "%x:%x:%x:%x:%x:%x %s", &o[0], &o[1], &o[2], &o[3],
 	    &o[4], &o[5], hostname);
-	if (i != 7)
-		return (i);
-	for (i=0; i<6; i++)
-		e->octet[i] = o[i];
-	return (0);
+	if (i == 7) {
+		for (i = 0; i < 6; i++)
+			e->octet[i] = o[i];
+		return (0);
+	} else {
+		return (-1);
+	}
 }
 
 /*
@@ -148,7 +150,7 @@ ether_ntohost(char *hostname, const struct ether_addr *e)
 	char *yp_domain;
 #endif
 
-	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL)
+	if ((fp = fopen(_PATH_ETHERS, "re")) == NULL)
 		return (1);
 	while (fgets(buf,BUFSIZ,fp)) {
 		if (buf[0] == '#')
@@ -197,7 +199,7 @@ ether_hostton(const char *hostname, struct ether_addr *e)
 	char *yp_domain;
 #endif
 
-	if ((fp = fopen(_PATH_ETHERS, "r")) == NULL)
+	if ((fp = fopen(_PATH_ETHERS, "re")) == NULL)
 		return (1);
 	while (fgets(buf,BUFSIZ,fp)) {
 		if (buf[0] == '#')

@@ -34,6 +34,10 @@
 
 #define __ARM_EABI_UNWINDER__ 1
 
+#ifndef __ARM_STATIC_INLINE
+#define __ARM_STATIC_INLINE static inline
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -205,6 +209,13 @@ extern "C" {
 	_Unwind_Control_Block *, struct _Unwind_Context *, void *);
   _Unwind_Reason_Code _Unwind_ForcedUnwind (_Unwind_Control_Block *,
 					    _Unwind_Stop_Fn, void *);
+  /* @@@ Use unwind data to perform a stack backtrace.  The trace callback
+     is called for every stack frame in the call chain, but no cleanup
+     actions are performed.  */
+  typedef _Unwind_Reason_Code (*_Unwind_Trace_Fn) (_Unwind_Context *, void *);
+  _Unwind_Reason_Code _Unwind_Backtrace(_Unwind_Trace_Fn,
+					void*);
+
   _Unwind_Word _Unwind_GetCFA (struct _Unwind_Context *);
   void _Unwind_Complete(_Unwind_Control_Block *ucbp);
   void _Unwind_DeleteException (_Unwind_Exception *);
@@ -225,7 +236,7 @@ extern "C" {
       if (!tmp)
 	return 0;
 
-#if defined(linux) || defined(__NetBSD__)
+#if defined(linux) || defined(__NetBSD__) || defined(__FreeBSD__)
       /* Pc-relative indirect.  */
       tmp += ptr;
       tmp = *(_Unwind_Word *) tmp;
@@ -238,7 +249,7 @@ extern "C" {
       return tmp;
     }
 
-  static inline _Unwind_Word
+  __ARM_STATIC_INLINE _Unwind_Word
   _Unwind_GetGR (_Unwind_Context *context, int regno)
     {
       _uw val;
@@ -246,6 +257,13 @@ extern "C" {
       return val;
     }
 
+  __ARM_STATIC_INLINE void
+  _Unwind_SetGR (_Unwind_Context *context, int regno, _Unwind_Word val)
+    {
+      _Unwind_VRS_Set (context, _UVRSC_CORE, regno, _UVRSD_UINT32, &val);
+    }
+
+#ifndef __FreeBSD__
   /* Return the address of the instruction, not the actual IP value.  */
 #define _Unwind_GetIP(context) \
   (_Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
@@ -253,16 +271,15 @@ extern "C" {
 #define _Unwind_GetIPInfo(context, ip_before_insn) \
   (*ip_before_insn = 0, _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
 
-  static inline void
-  _Unwind_SetGR (_Unwind_Context *context, int regno, _Unwind_Word val)
-    {
-      _Unwind_VRS_Set (context, _UVRSC_CORE, regno, _UVRSD_UINT32, &val);
-    }
-
   /* The dwarf unwinder doesn't understand arm/thumb state.  We assume the
      landing pad uses the same instruction set as the call site.  */
 #define _Unwind_SetIP(context, val) \
   _Unwind_SetGR (context, 15, val | (_Unwind_GetGR (context, 15) & 1))
+#else
+  _Unwind_Ptr _Unwind_GetIP (struct _Unwind_Context *);
+  _Unwind_Ptr _Unwind_GetIPInfo (struct _Unwind_Context *, int *);
+  void _Unwind_SetIP (struct _Unwind_Context *, _Unwind_Ptr);
+#endif
 
 #ifdef __cplusplus
 }   /* extern "C" */

@@ -2,9 +2,10 @@
 
 PROG=	mwlstats
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 
-SRCS=	main.c statfoo.c mwlstats.c
+SRCS=	main.c mwlstats.c
+LIBADD=	bsdstat
 
 .include <bsd.prog.mk>
 

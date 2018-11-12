@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -259,10 +260,39 @@ dn_tag_get(struct mbuf *m)
 static inline void
 mq_append(struct mq *q, struct mbuf *m)
 {
+#ifdef USERSPACE
+	// buffers from netmap need to be copied
+	// XXX note that the routine is not expected to fail
+	ND("append %p to %p", m, q);
+	if (m->m_flags & M_STACK) {
+		struct mbuf *m_new;
+		void *p;
+		int l, ofs;
+
+		ofs = m->m_data - m->__m_extbuf;
+		// XXX allocate
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		ND("*** WARNING, volatile buf %p ext %p %d dofs %d m_new %p",
+			m, m->__m_extbuf, m->__m_extlen, ofs, m_new);
+		p = m_new->__m_extbuf;	/* new pointer */
+		l = m_new->__m_extlen;	/* new len */
+		if (l <= m->__m_extlen) {
+			panic("extlen too large");
+		}
+
+		*m_new = *m;	// copy
+		m_new->m_flags &= ~M_STACK;
+		m_new->__m_extbuf = p; // point to new buffer
+		_pkt_copy(m->__m_extbuf, p, m->__m_extlen);
+		m_new->m_data = p + ofs;
+		m = m_new;
+	}
+#endif /* USERSPACE */
 	if (q->head == NULL)
 		q->head = m;
 	else
 		q->tail->m_nextpkt = m;
+	q->count++;
 	q->tail = m;
 	m->m_nextpkt = NULL;
 }
@@ -337,6 +367,8 @@ red_drops (struct dn_queue *q, int len)
 		return (0);	/* accept packet */
 	}
 	if (q->avg >= fs->max_th) {	/* average queue >=  max threshold */
+		if (fs->fs.flags & DN_IS_ECN)
+			return (1);
 		if (fs->fs.flags & DN_IS_GENTLE_RED) {
 			/*
 			 * According to Gentle-RED, if avg is greater than
@@ -352,6 +384,8 @@ red_drops (struct dn_queue *q, int len)
 			return (1);
 		}
 	} else if (q->avg > fs->min_th) {
+		if (fs->fs.flags & DN_IS_ECN)
+			return (1);
 		/*
 		 * We compute p_b using the linear dropping function
 		 *	 p_b = c_1 * avg - c_2
@@ -381,6 +415,70 @@ red_drops (struct dn_queue *q, int len)
 
 	return (0);	/* accept */
 
+}
+
+/*
+ * ECN/ECT Processing (partially adopted from altq)
+ */
+static int
+ecn_mark(struct mbuf* m)
+{
+	struct ip *ip;
+	ip = mtod(m, struct ip *);
+
+	switch (ip->ip_v) {
+	case IPVERSION:
+	{
+		u_int8_t otos;
+		int sum;
+
+		if ((ip->ip_tos & IPTOS_ECN_MASK) == IPTOS_ECN_NOTECT)
+			return (0);	/* not-ECT */
+		if ((ip->ip_tos & IPTOS_ECN_MASK) == IPTOS_ECN_CE)
+			return (1);	/* already marked */
+
+		/*
+		 * ecn-capable but not marked,
+		 * mark CE and update checksum
+		 */
+		otos = ip->ip_tos;
+		ip->ip_tos |= IPTOS_ECN_CE;
+		/*
+		 * update checksum (from RFC1624)
+		 *	   HC' = ~(~HC + ~m + m')
+		 */
+		sum = ~ntohs(ip->ip_sum) & 0xffff;
+		sum += (~otos & 0xffff) + ip->ip_tos;
+		sum = (sum >> 16) + (sum & 0xffff);
+		sum += (sum >> 16);  /* add carry */
+		ip->ip_sum = htons(~sum & 0xffff);
+		return (1);
+	}
+#ifdef INET6
+	case (IPV6_VERSION >> 4):
+	{
+		struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
+		u_int32_t flowlabel;
+
+		flowlabel = ntohl(ip6->ip6_flow);
+		if ((flowlabel >> 28) != 6)
+			return (0);	/* version mismatch! */
+		if ((flowlabel & (IPTOS_ECN_MASK << 20)) ==
+		    (IPTOS_ECN_NOTECT << 20))
+			return (0);	/* not-ECT */
+		if ((flowlabel & (IPTOS_ECN_MASK << 20)) ==
+		    (IPTOS_ECN_CE << 20))
+			return (1);	/* already marked */
+		/*
+		 * ecn-capable but not marked, mark CE
+		 */
+		flowlabel |= (IPTOS_ECN_CE << 20);
+		ip6->ip6_flow = htonl(flowlabel);
+		return (1);
+	}
+#endif
+	}
+	return (0);
 }
 
 /*
@@ -414,8 +512,10 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 		goto drop;
 	if (f->plr && random() < f->plr)
 		goto drop;
-	if (f->flags & DN_IS_RED && red_drops(q, m->m_pkthdr.len))
-		goto drop;
+	if (f->flags & DN_IS_RED && red_drops(q, m->m_pkthdr.len)) {
+		if (!(f->flags & DN_IS_ECN) || !ecn_mark(m))
+			goto drop;
+	}
 	if (f->flags & DN_QSIZE_BYTES) {
 		if (q->ni.len_bytes > f->qsize)
 			goto drop;
@@ -427,14 +527,14 @@ dn_enqueue(struct dn_queue *q, struct mbuf* m, int drop)
 	q->ni.len_bytes += len;
 	ni->length++;
 	ni->len_bytes += len;
-	return 0;
+	return (0);
 
 drop:
 	io_pkt_drop++;
 	q->ni.drops++;
 	ni->drops++;
 	FREE_PKT(m);
-	return 1;
+	return (1);
 }
 
 /*
@@ -454,6 +554,7 @@ transmit_event(struct mq *q, struct delay_line *dline, uint64_t now)
 		if (!DN_KEY_LEQ(pkt->output_time, now))
 			break;
 		dline->mq.head = m->m_nextpkt;
+		dline->mq.count--;
 		mq_append(q, m);
 	}
 	if (m != NULL) {
@@ -650,10 +751,15 @@ dummynet_send(struct mbuf *m)
 			/* extract the dummynet info, rename the tag
 			 * to carry reinject info.
 			 */
-			dst = pkt->dn_dir;
-			ifp = pkt->ifp;
-			tag->m_tag_cookie = MTAG_IPFW_RULE;
-			tag->m_tag_id = 0;
+			if (pkt->dn_dir == (DIR_OUT | PROTO_LAYER2) &&
+				pkt->ifp == NULL) {
+				dst = DIR_DROP;
+			} else {
+				dst = pkt->dn_dir;
+				ifp = pkt->ifp;
+				tag->m_tag_cookie = MTAG_IPFW_RULE;
+				tag->m_tag_id = 0;
+			}
 		}
 
 		switch (dst) {

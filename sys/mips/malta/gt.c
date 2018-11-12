@@ -51,7 +51,7 @@ static int
 gt_probe(device_t dev)
 {
 	device_set_desc(dev, "GT64120 chip");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void

@@ -156,6 +156,7 @@ nand_getattr(struct bio *bp)
 	struct nand_chip *chip;
 	struct chip_geom *cg;
 	device_t dev;
+	int val;
 
 	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
 		return (ENXIO);
@@ -166,22 +167,25 @@ nand_getattr(struct bio *bp)
 	dev = device_get_parent(chip->dev);
 	dev = device_get_parent(dev);
 
-	do {
-		if (g_handleattr_int(bp, "NAND::oobsize", cg->oob_size))
-			break;
-		else if (g_handleattr_int(bp, "NAND::pagesize", cg->page_size))
-			break;
-		else if (g_handleattr_int(bp, "NAND::blocksize",
-		    cg->block_size))
-			break;
-		else if (g_handleattr(bp, "NAND::device", &(dev),
-		    sizeof(device_t)))
-			break;
-
-		return (ERESTART);
-	} while (0);
-
-	return (EJUSTRETURN);
+	if (strcmp(bp->bio_attribute, "NAND::device") == 0) {
+		if (bp->bio_length != sizeof(dev))
+			return (EFAULT);
+		bcopy(&dev, bp->bio_data, sizeof(dev));
+	} else {
+		if (strcmp(bp->bio_attribute, "NAND::oobsize") == 0)
+			val = cg->oob_size;
+		else if (strcmp(bp->bio_attribute, "NAND::pagesize") == 0)
+			val = cg->page_size;
+		else if (strcmp(bp->bio_attribute, "NAND::blocksize") == 0)
+			val = cg->block_size;
+		else
+			return (-1);
+		if (bp->bio_length != sizeof(val))
+			return (EFAULT);
+		bcopy(&val, bp->bio_data, sizeof(val));
+	}
+	bp->bio_completed = bp->bio_length;
+	return (0);
 }
 
 static int
@@ -189,20 +193,42 @@ nand_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
     struct thread *td)
 {
 	struct nand_chip *chip;
+	struct chip_geom  *cg;
 	struct nand_oob_rw *oob_rw = NULL;
 	struct nand_raw_rw *raw_rw = NULL;
 	device_t nandbus;
+	size_t bufsize = 0, len = 0;
+	size_t raw_size;
+	off_t off;
 	uint8_t *buf = NULL;
 	int ret = 0;
 	uint8_t status;
 
 	chip = (struct nand_chip *)ndisk->d_drv1;
+	cg = &chip->chip_geom;
 	nandbus = device_get_parent(chip->dev);
 
 	if ((cmd == NAND_IO_RAW_READ) || (cmd == NAND_IO_RAW_PROG)) {
 		raw_rw = (struct nand_raw_rw *)data;
-		buf = malloc(raw_rw->len, M_NAND, M_WAITOK);
+		raw_size =  cg->pgs_per_blk * (cg->page_size + cg->oob_size);
+
+		/* Check if len is not bigger than chip size */
+		if (raw_rw->len > raw_size)
+			return (EFBIG);
+
+		/*
+		 * Do not ask for too much memory, in case of large transfers
+		 * read/write in 16-pages chunks
+		 */
+		bufsize = 16 * (cg->page_size + cg->oob_size);
+		if (raw_rw->len < bufsize)
+			bufsize = raw_rw->len;
+
+		buf = malloc(bufsize, M_NAND, M_WAITOK);
+		len = raw_rw->len;
+		off = 0;
 	}
+
 	switch (cmd) {
 	case NAND_IO_ERASE:
 		ret = nand_erase_blocks(chip, ((off_t *)data)[0],
@@ -230,15 +256,38 @@ nand_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
 		break;
 
 	case NAND_IO_RAW_PROG:
-		copyin(raw_rw->data, buf, raw_rw->len);
-		ret = nand_prog_pages_raw(chip, raw_rw->off, buf,
-		    raw_rw->len);
+		while (len > 0) {
+			if (len < bufsize)
+				bufsize = len;
+
+			ret = copyin(raw_rw->data + off, buf, bufsize);
+			if (ret)
+				break;
+			ret = nand_prog_pages_raw(chip, raw_rw->off + off, buf,
+			    bufsize);
+			if (ret)
+				break;
+			len -= bufsize;
+			off += bufsize;
+		}
 		break;
 
 	case NAND_IO_RAW_READ:
-		ret = nand_read_pages_raw(chip, raw_rw->off, buf,
-		    raw_rw->len);
-		copyout(buf, raw_rw->data, raw_rw->len);
+		while (len > 0) {
+			if (len < bufsize)
+				bufsize = len;
+
+			ret = nand_read_pages_raw(chip, raw_rw->off + off, buf,
+			    bufsize);
+			if (ret)
+				break;
+
+			ret = copyout(buf, raw_rw->data + off, bufsize);
+			if (ret)
+				break;
+			len -= bufsize;
+			off += bufsize;
+		}
 		break;
 
 	case NAND_IO_GET_CHIP_PARAM:

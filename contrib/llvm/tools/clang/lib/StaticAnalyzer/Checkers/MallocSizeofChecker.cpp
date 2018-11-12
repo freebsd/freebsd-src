@@ -14,13 +14,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/StmtVisitor.h"
+#include "clang/AST/TypeLoc.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/AST/StmtVisitor.h"
-#include "clang/AST/TypeLoc.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -94,15 +95,14 @@ public:
     if (FD) {
       IdentifierInfo *II = FD->getIdentifier();
       if (II == II_malloc || II == II_calloc || II == II_realloc)
-        return TypeCallPair((const TypeSourceInfo *)0, E);
+        return TypeCallPair((const TypeSourceInfo *)nullptr, E);
     }
     return TypeCallPair();
   }
 
   TypeCallPair VisitDeclStmt(const DeclStmt *S) {
-    for (DeclStmt::const_decl_iterator I = S->decl_begin(), E = S->decl_end();
-         I!=E; ++I)
-      if (const VarDecl *VD = dyn_cast<VarDecl>(*I))
+    for (const auto *I : S->decls())
+      if (const VarDecl *VD = dyn_cast<VarDecl>(I))
         if (const Expr *Init = VD->getInit())
           VisitChild(VD, Init);
     return TypeCallPair();
@@ -137,6 +137,10 @@ public:
 // Determine if the pointee and sizeof types are compatible.  Here
 // we ignore constness of pointer types.
 static bool typesCompatible(ASTContext &C, QualType A, QualType B) {
+  // sizeof(void*) is compatible with any other pointer.
+  if (B->isVoidPointerType() && A->getAs<PointerType>())
+    return true;
+
   while (true) {
     A = A.getCanonicalType();
     B = B.getCanonicalType();
@@ -187,7 +191,7 @@ public:
 
       for (CallExpr::const_arg_iterator ai = i->AllocCall->arg_begin(),
            ae = i->AllocCall->arg_end(); ai != ae; ++ai) {
-        if (!(*ai)->getType()->isIntegerType())
+        if (!(*ai)->getType()->isIntegralOrUnscopedEnumerationType())
           continue;
 
         SizeofFinder SFinder;
@@ -205,7 +209,7 @@ public:
         if (compatibleWithArrayType(BR.getContext(), PointeeType, SizeofType))
           continue;
 
-        const TypeSourceInfo *TSI = 0;
+        const TypeSourceInfo *TSI = nullptr;
         if (i->CastedExprParent.is<const VarDecl *>()) {
           TSI =
               i->CastedExprParent.get<const VarDecl *>()->getTypeSourceInfo();
@@ -225,7 +229,7 @@ public:
         OS << " is converted to a pointer of type '"
             << PointeeType.getAsString() << "', which is incompatible with "
             << "sizeof operand type '" << SizeofType.getAsString() << "'";
-        llvm::SmallVector<SourceRange, 4> Ranges;
+        SmallVector<SourceRange, 4> Ranges;
         Ranges.push_back(i->AllocCall->getCallee()->getSourceRange());
         Ranges.push_back(SFinder.Sizeofs[0]->getSourceRange());
         if (TSI)
@@ -235,10 +239,8 @@ public:
             PathDiagnosticLocation::createBegin(i->AllocCall->getCallee(),
                 BR.getSourceManager(), ADC);
 
-        BR.EmitBasicReport(D, "Allocator sizeof operand mismatch",
-            categories::UnixAPI,
-            OS.str(),
-            L, Ranges.data(), Ranges.size());
+        BR.EmitBasicReport(D, this, "Allocator sizeof operand mismatch",
+                           categories::UnixAPI, OS.str(), L, Ranges);
       }
     }
   }

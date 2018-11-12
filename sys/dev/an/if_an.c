@@ -111,6 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/ethernet.h>
@@ -269,9 +270,7 @@ SYSCTL_PROC(_hw_an, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
 static int
 sysctl_an_cache_mode(SYSCTL_HANDLER_ARGS)
 {
-	int	error, last;
-
-	last = an_cache_mode;
+	int	error;
 
 	switch (an_cache_mode) {
 	case 1:
@@ -357,6 +356,7 @@ an_probe(device_t dev)
 	CSR_WRITE_2(sc, AN_INT_EN(sc->mpi350), 0);
 	CSR_WRITE_2(sc, AN_EVENT_ACK(sc->mpi350), 0xFFFF);
 
+	sc->an_dev = dev;
 	mtx_init(&sc->an_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	AN_LOCK(sc);
@@ -481,10 +481,6 @@ an_dma_malloc(struct an_softc *sc, bus_size_t size, struct an_dma_alloc *dma,
 {
 	int r;
 
-	r = bus_dmamap_create(sc->an_dtag, BUS_DMA_NOWAIT, &dma->an_dma_map);
-	if (r != 0)
-		goto fail_0;
-
 	r = bus_dmamem_alloc(sc->an_dtag, (void**) &dma->an_dma_vaddr,
 			     BUS_DMA_NOWAIT, &dma->an_dma_map);
 	if (r != 0)
@@ -505,9 +501,6 @@ fail_2:
 	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
 fail_1:
 	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
-fail_0:
-	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
-	dma->an_dma_map = NULL;
 	return (r);
 }
 
@@ -517,7 +510,6 @@ an_dma_free(struct an_softc *sc, struct an_dma_alloc *dma)
 	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
 	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
 	dma->an_dma_vaddr = 0;
-	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
 }
 
 /*
@@ -685,6 +677,9 @@ an_attach(struct an_softc *sc, int flags)
 		device_printf(sc->an_dev, "can not if_alloc()\n");
 		goto fail;
 	}
+	ifp->if_softc = sc;
+	if_initname(ifp, device_get_name(sc->an_dev),
+	    device_get_unit(sc->an_dev));
 
 	sc->an_gone = 0;
 	sc->an_associated = 0;
@@ -758,9 +753,6 @@ an_attach(struct an_softc *sc, int flags)
 #endif
 	AN_UNLOCK(sc);
 
-	ifp->if_softc = sc;
-	if_initname(ifp, device_get_name(sc->an_dev),
-	    device_get_unit(sc->an_dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = an_ioctl;
 	ifp->if_start = an_start;
@@ -880,7 +872,7 @@ an_rxeof(struct an_softc *sc)
 			/* read header */
 			if (an_read_data(sc, id, 0x0, (caddr_t)&rx_frame,
 					 sizeof(rx_frame))) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 
@@ -903,7 +895,7 @@ an_rxeof(struct an_softc *sc)
 					if_printf(ifp, "oversized packet "
 					       "received (%d, %d)\n",
 					       len, MCLBYTES);
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
 
@@ -929,7 +921,7 @@ an_rxeof(struct an_softc *sc)
 					if_printf(ifp, "oversized packet "
 					       "received (%d, %d)\n",
 					       len, MCLBYTES);
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
 
@@ -948,13 +940,12 @@ an_rxeof(struct an_softc *sc)
 		} else {
 			MGETHDR(m, M_NOWAIT, MT_DATA);
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
-			MCLGET(m, M_NOWAIT);
-			if (!(m->m_flags & M_EXT)) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				m_freem(m);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 			m->m_pkthdr.rcvif = ifp;
@@ -965,7 +956,7 @@ an_rxeof(struct an_softc *sc)
 			if (an_read_data(sc, id, 0, (caddr_t)&rx_frame,
 					 sizeof(rx_frame))) {
 				m_freem(m);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 #endif
@@ -974,12 +965,12 @@ an_rxeof(struct an_softc *sc)
 					 (caddr_t)&rx_frame_802_3,
 					 sizeof(rx_frame_802_3))) {
 				m_freem(m);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 			if (rx_frame_802_3.an_rx_802_3_status != 0) {
 				m_freem(m);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 			/* Check for insane frame length */
@@ -989,7 +980,7 @@ an_rxeof(struct an_softc *sc)
 				if_printf(ifp, "oversized packet "
 				       "received (%d, %d)\n",
 				       len, MCLBYTES);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
 			m->m_pkthdr.len = m->m_len =
@@ -1009,10 +1000,10 @@ an_rxeof(struct an_softc *sc)
 
 			if (error) {
 				m_freem(m);
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			/* Receive packet. */
 #ifdef ANCACHE
@@ -1039,13 +1030,12 @@ an_rxeof(struct an_softc *sc)
 
 				MGETHDR(m, M_NOWAIT, MT_DATA);
 				if (m == NULL) {
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
-				MCLGET(m, M_NOWAIT);
-				if (!(m->m_flags & M_EXT)) {
+				if (!(MCLGET(m, M_NOWAIT))) {
 					m_freem(m);
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
 				m->m_pkthdr.rcvif = ifp;
@@ -1069,7 +1059,7 @@ an_rxeof(struct an_softc *sc)
 					if_printf(ifp, "oversized packet "
 					       "received (%d, %d)\n",
 					       len, MCLBYTES);
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
 
@@ -1081,7 +1071,7 @@ an_rxeof(struct an_softc *sc)
 				bcopy(buf, (char *)eh,
 				      m->m_pkthdr.len);
 
-				ifp->if_ipackets++;
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 				/* Receive packet. */
 #if 0
@@ -1134,9 +1124,9 @@ an_txeof(struct an_softc *sc, int status)
 		id = CSR_READ_2(sc, AN_TX_CMP_FID(sc->mpi350));
 
 		if (status & AN_EV_TX_EXC) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		for (i = 0; i < AN_TX_RING_CNT; i++) {
 			if (id == sc->an_rdata.an_tx_ring[i]) {
@@ -1150,9 +1140,9 @@ an_txeof(struct an_softc *sc, int status)
 		id = CSR_READ_2(sc, AN_TX_CMP_FID(sc->mpi350));
 		if (!sc->an_rdata.an_tx_empty){
 			if (status & AN_EV_TX_EXC) {
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			} else
-				ifp->if_opackets++;
+				if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			AN_INC(sc->an_rdata.an_tx_cons, AN_MAX_TX_DESC);
 			if (sc->an_rdata.an_tx_prod ==
 			    sc->an_rdata.an_tx_cons)
@@ -1387,7 +1377,7 @@ an_reset(struct an_softc *sc)
 	an_cmd(sc, AN_CMD_NOOP2, 0);
 
 	if (an_cmd(sc, AN_CMD_FORCE_SYNCLOSS, 0) == ETIMEDOUT)
-		if_printf(sc->an_ifp, "reset failed\n");
+		device_printf(sc->an_dev, "reset failed\n");
 
 	an_cmd(sc, AN_CMD_DISABLE, 0);
 
@@ -2970,7 +2960,7 @@ an_watchdog(struct an_softc *sc)
 		an_init_mpi350_desc(sc);
 	an_init_locked(sc);
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 int

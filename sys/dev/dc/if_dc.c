@@ -107,6 +107,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -670,20 +671,16 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			 * code think there's a PHY here.
 			 */
 				return (BMSR_MEDIAMASK);
-				break;
 			case MII_PHYIDR1:
 				if (DC_IS_PNIC(sc))
 					return (DC_VENDORID_LO);
 				return (DC_VENDORID_DEC);
-				break;
 			case MII_PHYIDR2:
 				if (DC_IS_PNIC(sc))
 					return (DC_DEVICEID_82C168);
 				return (DC_DEVICEID_21143);
-				break;
 			default:
 				return (0);
-				break;
 			}
 		} else
 			return (0);
@@ -747,7 +744,6 @@ dc_miibus_readreg(device_t dev, int phy, int reg)
 			device_printf(dev, "phy_read: bad phy register %x\n",
 			    reg);
 			return (0);
-			break;
 		}
 
 		rval = CSR_READ_4(sc, phy_reg) & 0x0000FFFF;
@@ -1981,9 +1977,9 @@ dc_dma_free(struct dc_softc *sc)
 
 	/* RX descriptor list. */
 	if (sc->dc_rx_ltag) {
-		if (sc->dc_rx_lmap != NULL)
+		if (sc->dc_ldata.dc_rx_list_paddr != 0)
 			bus_dmamap_unload(sc->dc_rx_ltag, sc->dc_rx_lmap);
-		if (sc->dc_rx_lmap != NULL && sc->dc_ldata.dc_rx_list != NULL)
+		if (sc->dc_ldata.dc_rx_list != NULL)
 			bus_dmamem_free(sc->dc_rx_ltag, sc->dc_ldata.dc_rx_list,
 			    sc->dc_rx_lmap);
 		bus_dma_tag_destroy(sc->dc_rx_ltag);
@@ -1991,9 +1987,9 @@ dc_dma_free(struct dc_softc *sc)
 
 	/* TX descriptor list. */
 	if (sc->dc_tx_ltag) {
-		if (sc->dc_tx_lmap != NULL)
+		if (sc->dc_ldata.dc_tx_list_paddr != 0)
 			bus_dmamap_unload(sc->dc_tx_ltag, sc->dc_tx_lmap);
-		if (sc->dc_tx_lmap != NULL && sc->dc_ldata.dc_tx_list != NULL)
+		if (sc->dc_ldata.dc_tx_list != NULL)
 			bus_dmamem_free(sc->dc_tx_ltag, sc->dc_ldata.dc_tx_list,
 			    sc->dc_tx_lmap);
 		bus_dma_tag_destroy(sc->dc_tx_ltag);
@@ -2001,9 +1997,9 @@ dc_dma_free(struct dc_softc *sc)
 
 	/* multicast setup frame. */
 	if (sc->dc_stag) {
-		if (sc->dc_smap != NULL)
+		if (sc->dc_saddr != 0)
 			bus_dmamap_unload(sc->dc_stag, sc->dc_smap);
-		if (sc->dc_smap != NULL && sc->dc_cdata.dc_sbuf != NULL)
+		if (sc->dc_cdata.dc_sbuf != NULL)
 			bus_dmamem_free(sc->dc_stag, sc->dc_cdata.dc_sbuf,
 			    sc->dc_smap);
 		bus_dma_tag_destroy(sc->dc_stag);
@@ -2483,7 +2479,7 @@ dc_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
@@ -2914,9 +2910,9 @@ dc_rxeof(struct dc_softc *sc)
 			    (rxstat & (DC_RXSTAT_CRCERR | DC_RXSTAT_DRIBBLE |
 				       DC_RXSTAT_MIIERE | DC_RXSTAT_COLLSEEN |
 				       DC_RXSTAT_RUNT   | DC_RXSTAT_DE))) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				if (rxstat & DC_RXSTAT_COLLSEEN)
-					ifp->if_collisions++;
+					if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 				dc_discard_rxbuf(sc, i);
 				if (rxstat & DC_RXSTAT_CRCERR)
 					continue;
@@ -2942,7 +2938,7 @@ dc_rxeof(struct dc_softc *sc)
 		 */
 		if (dc_newbuf(sc, i) != 0) {
 			dc_discard_rxbuf(sc, i);
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			continue;
 		}
 		m->m_pkthdr.rcvif = ifp;
@@ -2955,14 +2951,14 @@ dc_rxeof(struct dc_softc *sc)
 				ETHER_ALIGN, ifp, NULL);
 			dc_discard_rxbuf(sc, i);
 			if (m0 == NULL) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 			m = m0;
 		}
 #endif
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		DC_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		DC_LOCK(sc);
@@ -3053,19 +3049,19 @@ dc_txeof(struct dc_softc *sc)
 		}
 
 		if (txstat & DC_TXSTAT_ERRSUM) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (txstat & DC_TXSTAT_EXCESSCOLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (txstat & DC_TXSTAT_LATECOLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (!(txstat & DC_TXSTAT_UNDERRUN)) {
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				dc_init_locked(sc);
 				return;
 			}
 		} else
-			ifp->if_opackets++;
-		ifp->if_collisions += (txstat & DC_TXSTAT_COLLCNT) >> 3;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & DC_TXSTAT_COLLCNT) >> 3);
 
 		bus_dmamap_sync(sc->dc_tx_mtag, sc->dc_cdata.dc_tx_map[idx],
 		    BUS_DMASYNC_POSTWRITE);
@@ -3260,7 +3256,7 @@ dc_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 
 		if (status & (DC_ISR_RX_WATDOGTIMEO | DC_ISR_RX_NOBUF)) {
 			uint32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
-			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, (r & 0xffff) + ((r >> 17) & 0x7ff));
 
 			if (dc_rx_resync(sc))
 				dc_rxeof(sc);
@@ -3342,7 +3338,7 @@ dc_intr(void *arg)
 		if ((status & DC_ISR_RX_WATDOGTIMEO)
 		    || (status & DC_ISR_RX_NOBUF)) {
 			r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
-			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, (r & 0xffff) + ((r >> 17) & 0x7ff));
 			if (dc_rxeof(sc) == 0) {
 				while (dc_rx_resync(sc))
 					dc_rxeof(sc);
@@ -3940,7 +3936,7 @@ dc_watchdog(void *xsc)
 	}
 
 	ifp = sc->dc_ifp;
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	device_printf(sc->dc_dev, "watchdog timeout\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

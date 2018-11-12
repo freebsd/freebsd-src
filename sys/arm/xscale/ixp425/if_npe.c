@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -254,9 +255,8 @@ static SYSCTL_NODE(_hw, OID_AUTO, npe, CTLFLAG_RD, 0,
     "IXP4XX NPE driver parameters");
 
 static int npe_debug = 0;
-SYSCTL_INT(_hw_npe, OID_AUTO, debug, CTLFLAG_RW, &npe_debug,
+SYSCTL_INT(_hw_npe, OID_AUTO, debug, CTLFLAG_RWTUN, &npe_debug,
 	   0, "IXP4XX NPE network interface debug msgs");
-TUNABLE_INT("hw.npe.debug", &npe_debug);
 #define	DPRINTF(sc, fmt, ...) do {					\
 	if (sc->sc_debug) device_printf(sc->sc_dev, fmt, __VA_ARGS__);	\
 } while (0)
@@ -264,18 +264,15 @@ TUNABLE_INT("hw.npe.debug", &npe_debug);
 	if (sc->sc_debug >= n) device_printf(sc->sc_dev, fmt, __VA_ARGS__);\
 } while (0)
 static int npe_tickinterval = 3;		/* npe_tick frequency (secs) */
-SYSCTL_INT(_hw_npe, OID_AUTO, tickinterval, CTLFLAG_RD, &npe_tickinterval,
+SYSCTL_INT(_hw_npe, OID_AUTO, tickinterval, CTLFLAG_RDTUN, &npe_tickinterval,
 	    0, "periodic work interval (secs)");
-TUNABLE_INT("hw.npe.tickinterval", &npe_tickinterval);
 
 static	int npe_rxbuf = 64;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_npe, OID_AUTO, rxbuf, CTLFLAG_RD, &npe_rxbuf,
+SYSCTL_INT(_hw_npe, OID_AUTO, rxbuf, CTLFLAG_RDTUN, &npe_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.npe.rxbuf", &npe_rxbuf);
 static	int npe_txbuf = 128;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_npe, OID_AUTO, txbuf, CTLFLAG_RD, &npe_txbuf,
+SYSCTL_INT(_hw_npe, OID_AUTO, txbuf, CTLFLAG_RDTUN, &npe_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.npe.txbuf", &npe_txbuf);
 
 static int
 unit2npeid(int unit)
@@ -288,7 +285,7 @@ unit2npeid(int unit)
 	};
 	/* XXX check feature register instead */
 	return (unit < 3 ? npeidmap[
-	    (cpu_id() & CPU_ID_CPU_MASK) == CPU_ID_IXP435][unit] : -1);
+	    (cpu_ident() & CPU_ID_CPU_MASK) == CPU_ID_IXP435][unit] : -1);
 }
 
 static int
@@ -507,7 +504,6 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 		    dma->name, error);
 		return error;
 	}
-	/* XXX COHERENT for now */
 	if (bus_dmamem_alloc(dma->buf_tag, (void **)&dma->hwbuf,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 	    &dma->buf_map) != 0) {
@@ -685,7 +681,8 @@ npe_activate(device_t dev)
 	/* MAC */
 	if (!override_addr(dev, "mac", &macbase))
 		macbase = npeconfig[sc->sc_npeid].macbase;
-	device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "MAC at 0x%x\n", macbase);
 	if (bus_space_map(sc->sc_iot, macbase, IXP425_REG_SIZE, 0, &sc->sc_ioh)) {
 		device_printf(dev, "cannot map mac registers 0x%x:0x%x\n",
 		    macbase, IXP425_REG_SIZE);
@@ -697,7 +694,8 @@ npe_activate(device_t dev)
 		phy = npeconfig[sc->sc_npeid].phy;
 	if (!override_addr(dev, "mii", &miibase))
 		miibase = npeconfig[sc->sc_npeid].miibase;
-	device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
+	if (bootverbose)
+		device_printf(sc->sc_dev, "MII at 0x%x\n", miibase);
 	if (miibase != macbase) {
 		/*
 		 * PHY is mapped through a different MAC, setup an
@@ -908,20 +906,18 @@ npe_addstats(struct npe_softc *sc)
 	      be32toh(ns->RxOverrunDiscards)
 	    + be32toh(ns->RxUnderflowEntryDiscards);
 
-	ifp->if_oerrors +=
-		  be32toh(ns->dot3StatsInternalMacTransmitErrors)
-		+ be32toh(ns->dot3StatsCarrierSenseErrors)
-		+ be32toh(ns->TxVLANIdFilterDiscards)
-		;
-	ifp->if_ierrors += be32toh(ns->dot3StatsFCSErrors)
-		+ be32toh(ns->dot3StatsInternalMacReceiveErrors)
-		+ be32toh(ns->RxOverrunDiscards)
-		+ be32toh(ns->RxUnderflowEntryDiscards)
-		;
-	ifp->if_collisions +=
-		  be32toh(ns->dot3StatsSingleCollisionFrames)
-		+ be32toh(ns->dot3StatsMultipleCollisionFrames)
-		;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
+	    be32toh(ns->dot3StatsInternalMacTransmitErrors) +
+	    be32toh(ns->dot3StatsCarrierSenseErrors) +
+	    be32toh(ns->TxVLANIdFilterDiscards));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    be32toh(ns->dot3StatsFCSErrors) +
+	    be32toh(ns->dot3StatsInternalMacReceiveErrors) +
+	    be32toh(ns->RxOverrunDiscards) +
+	    be32toh(ns->RxUnderflowEntryDiscards));
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    be32toh(ns->dot3StatsSingleCollisionFrames) +
+	    be32toh(ns->dot3StatsMultipleCollisionFrames));
 #undef NPEADD
 #undef MIBADD
 }
@@ -1001,7 +997,7 @@ npe_txdone_finish(struct npe_softc *sc, const struct txdone *td)
 	 * We're no longer busy, so clear the busy flag and call the
 	 * start routine to xmit more packets.
 	 */
-	ifp->if_opackets += td->count;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, td->count);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->npe_watchdog_timer = 0;
 	npestart_locked(ifp);
@@ -1073,6 +1069,7 @@ npe_rxbuf_init(struct npe_softc *sc, struct npebuf *npe, struct mbuf *m)
 	m->m_pkthdr.len = m->m_len = 1536;
 	/* backload payload and align ip hdr */
 	m->m_data = m->m_ext.ext_buf + (m->m_ext.ext_size - (1536+ETHER_ALIGN));
+	bus_dmamap_unload(dma->mtag, npe->ix_map);
 	error = bus_dmamap_load_mbuf_sg(dma->mtag, npe->ix_map, m,
 			segs, &nseg, 0);
 	if (error != 0) {
@@ -1085,6 +1082,8 @@ npe_rxbuf_init(struct npe_softc *sc, struct npebuf *npe, struct mbuf *m)
 	/* NB: buffer length is shifted in word */
 	hw->ix_ne[0].len = htobe32(segs[0].ds_len << 16);
 	hw->ix_ne[0].next = 0;
+	bus_dmamap_sync(dma->buf_tag, dma->buf_map, 
+	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 	npe->ix_m = m;
 	/* Flush the memory in the mbuf */
 	bus_dmamap_sync(dma->mtag, npe->ix_map, BUS_DMASYNC_PREREAD);
@@ -1110,6 +1109,8 @@ npe_rxdone(int qid, void *arg)
 		struct npebuf *npe = P2V(NPE_QM_Q_ADDR(entry), dma);
 		struct mbuf *m;
 
+		bus_dmamap_sync(dma->buf_tag, dma->buf_map,
+		    BUS_DMASYNC_POSTREAD);
 		DPRINTF(sc, "%s: entry 0x%x neaddr 0x%x ne_len 0x%x\n",
 		    __func__, entry, npe->ix_neaddr, npe->ix_hw->ix_ne[0].len);
 		/*
@@ -1130,13 +1131,12 @@ npe_rxdone(int qid, void *arg)
 			bus_dmamap_sync(dma->mtag, npe->ix_map,
 			    BUS_DMASYNC_POSTREAD);
 
-			/* XXX flush hw buffer; works now 'cuz coherent */
 			/* set m_len etc. per rx frame size */
 			mrx->m_len = be32toh(hw->ix_ne[0].len) & 0xffff;
 			mrx->m_pkthdr.len = mrx->m_len;
 			mrx->m_pkthdr.rcvif = ifp;
 
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			ifp->if_input(ifp, mrx);
 			rx_npkts++;
 		} else {
@@ -1313,6 +1313,7 @@ npestart_locked(struct ifnet *ifp)
 			return;
 		}
 		npe = sc->tx_free;
+		bus_dmamap_unload(dma->mtag, npe->ix_map);
 		error = bus_dmamap_load_mbuf_sg(dma->mtag, npe->ix_map,
 		    m, segs, &nseg, 0);
 		if (error == EFBIG) {
@@ -1355,7 +1356,8 @@ npestart_locked(struct ifnet *ifp)
 			next += sizeof(hw->ix_ne[0]);
 		}
 		hw->ix_ne[i-1].next = 0;	/* zero last in chain */
-		/* XXX flush descriptor instead of using uncached memory */
+		bus_dmamap_sync(dma->buf_tag, dma->buf_map,
+		    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 
 		DPRINTF(sc, "%s: qwrite(%u, 0x%x) ne_data %x ne_len 0x%x\n",
 		    __func__, sc->tx_qid, npe->ix_neaddr,
@@ -1463,7 +1465,7 @@ npewatchdog(struct npe_softc *sc)
 		return;
 
 	device_printf(sc->sc_dev, "watchdog timeout\n");
-	sc->sc_ifp->if_oerrors++;
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 
 	npeinit_locked(sc);
 }

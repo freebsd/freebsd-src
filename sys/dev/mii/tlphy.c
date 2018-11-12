@@ -130,8 +130,7 @@ static int
 tlphy_probe(device_t dev)
 {
 
-	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
-	    "tl") != 0)
+	if (!mii_dev_mac_match(dev, "tl"))
 		return (ENXIO);
 	return (mii_phy_dev_probe(dev, tlphys, BUS_PROBE_DEFAULT));
 }
@@ -217,12 +216,6 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 			/*
@@ -246,12 +239,6 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * Is the interface even up?
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
 		/*
 		 * Only used for autonegotiation.
 		 */

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: mpeix.m4,v 1.1 2001/12/13 23:56:40 gshapiro Exp $')
+VERSIONID(`$Id: mpeix.m4,v 1.2 2013-11-22 20:51:15 ca Exp $')
 
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', `/bin/tsmail')')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `mu9')dnl

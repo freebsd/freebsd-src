@@ -673,7 +673,12 @@ ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags, ino_t ino,
 	 */
 	blks = howmany(frags * sblock->fs_fsize, TP_BSIZE);
 	if (last) {
-		resid = howmany(fragoff(sblock, dp->dp2.di_size), TP_BSIZE);
+		if (writingextdata)
+			resid = howmany(fragoff(sblock, spcl.c_extsize),
+			    TP_BSIZE);
+		else
+			resid = howmany(fragoff(sblock, dp->dp2.di_size),
+			    TP_BSIZE);
 		if (resid > 0)
 			blks -= howmany(sblock->fs_fsize, TP_BSIZE) - resid;
 	}

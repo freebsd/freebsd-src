@@ -52,12 +52,12 @@ __FBSDID("$FreeBSD$");
 #else
 
 	.text
-	.align	0
+	.align	2
 
 #ifdef _ARM_ARCH_6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
-	add	tmp, tmp, #(PC_CURPCB)
+	add	tmp, tmp, #(TD_PCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB

@@ -41,3 +41,4 @@ ed -s $f1 < $f2
 #w" | ed -s $f1
 #rm $f1 $f2
 uptime > /dev/null
+sizeof_long${BIT} > /dev/null

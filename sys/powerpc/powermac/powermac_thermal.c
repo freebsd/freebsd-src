@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include "powermac_thermal.h"
 
+/* A 10 second timer for spinning down fans. */
+#define FAN_HYSTERESIS_TIMER	10
+
 static void fan_management_proc(void);
 static void pmac_therm_manage_fans(void);
 
@@ -63,11 +66,14 @@ static MALLOC_DEFINE(M_PMACTHERM, "pmactherm", "Powermac Thermal Management");
 struct pmac_fan_le {
 	struct pmac_fan			*fan;
 	int				last_val;
+	int				timer;
 	SLIST_ENTRY(pmac_fan_le)	entries;
 };
 struct pmac_sens_le {
 	struct pmac_therm		*sensor;
 	int				last_val;
+#define MAX_CRITICAL_COUNT 6
+	int				critical_count;
 	SLIST_ENTRY(pmac_sens_le)	entries;
 };
 static SLIST_HEAD(pmac_fans, pmac_fan_le) fans = SLIST_HEAD_INITIALIZER(fans);
@@ -93,6 +99,7 @@ pmac_therm_manage_fans(void)
 	struct pmac_sens_le *sensor;
 	struct pmac_fan_le *fan;
 	int average_excess, max_excess_zone, frac_excess;
+	int fan_speed;
 	int nsens, nsens_zone;
 	int temp;
 
@@ -106,14 +113,27 @@ pmac_therm_manage_fans(void)
 			sensor->last_val = temp;
 
 		if (sensor->last_val > sensor->sensor->max_temp) {
+			sensor->critical_count++;
 			printf("WARNING: Current temperature (%s: %d.%d C) "
-			    "exceeds critical temperature (%d.%d C)! "
-			    "Shutting down!\n", sensor->sensor->name,
-			       (sensor->last_val - ZERO_C_TO_K) / 10,
-			       (sensor->last_val - ZERO_C_TO_K) % 10,
-			       (sensor->sensor->max_temp - ZERO_C_TO_K) / 10,
-			       (sensor->sensor->max_temp - ZERO_C_TO_K) % 10);
-			shutdown_nice(RB_POWEROFF);
+			    "exceeds critical temperature (%d.%d C); "
+			    "count=%d\n",
+			    sensor->sensor->name,
+			    (sensor->last_val - ZERO_C_TO_K) / 10,
+			    (sensor->last_val - ZERO_C_TO_K) % 10,
+			    (sensor->sensor->max_temp - ZERO_C_TO_K) / 10,
+			    (sensor->sensor->max_temp - ZERO_C_TO_K) % 10,
+			    sensor->critical_count);
+			if (sensor->critical_count >= MAX_CRITICAL_COUNT) {
+				printf("WARNING: %s temperature exceeded "
+				    "critical temperature %d times in a row; "
+				    "shutting down!\n",
+				    sensor->sensor->name,
+				    sensor->critical_count);
+				shutdown_nice(RB_POWEROFF);
+			}
+		} else {
+			if (sensor->critical_count > 0)
+				sensor->critical_count--;
 		}
 	}
 
@@ -122,10 +142,11 @@ pmac_therm_manage_fans(void)
 		nsens = nsens_zone = 0;
 		average_excess = max_excess_zone = 0;
 		SLIST_FOREACH(sensor, &sensors, entries) {
-			frac_excess = (sensor->last_val -
+			temp = imin(sensor->last_val,
+			    sensor->sensor->max_temp);
+			frac_excess = (temp -
 			    sensor->sensor->target_temp)*100 /
-			    (sensor->sensor->max_temp -
-			    sensor->sensor->target_temp);
+			    (sensor->sensor->max_temp - temp + 1);
 			if (frac_excess < 0)
 				frac_excess = 0;
 			if (sensor->sensor->zone == fan->fan->zone) {
@@ -151,9 +172,21 @@ pmac_therm_manage_fans(void)
 		 * Scale the fan linearly in the max temperature in its
 		 * thermal zone.
 		 */
-		fan->fan->set(fan->fan, max_excess_zone *
+		max_excess_zone = imin(max_excess_zone, 100);
+		fan_speed = max_excess_zone * 
 		    (fan->fan->max_rpm - fan->fan->min_rpm)/100 +
-		    fan->fan->min_rpm);
+		    fan->fan->min_rpm;
+		if (fan_speed >= fan->last_val) {
+		    fan->timer = FAN_HYSTERESIS_TIMER;
+		    fan->last_val = fan_speed;
+		} else {
+		    fan->timer--;
+		    if (fan->timer == 0) {
+		    	fan->last_val = fan_speed;
+		    	fan->timer = FAN_HYSTERESIS_TIMER;
+		    }
+		}
+		fan->fan->set(fan->fan, fan->last_val);
 	}
 }
 
@@ -177,6 +210,8 @@ pmac_thermal_sensor_register(struct pmac_therm *sensor)
 	list_entry = malloc(sizeof(struct pmac_sens_le), M_PMACTHERM,
 	    M_ZERO | M_WAITOK);
 	list_entry->sensor = sensor;
+	list_entry->last_val = 0;
+	list_entry->critical_count = 0;
 
 	SLIST_INSERT_HEAD(&sensors, list_entry, entries);
 }

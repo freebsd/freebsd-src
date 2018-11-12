@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 /*
  * Functions that perform the vfs operations required by the routines in
@@ -58,13 +58,17 @@ extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
 extern struct nfsv4lock nfsd_suspend_lock;
+extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
-struct mtx nfs_cache_mutex;
+struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
+struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
+struct mtx nfsrc_udpmtx;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
 int nfs_pubfhset = 0, nfs_rootfhset = 0;
 struct proc *nfsd_master_proc = NULL;
+int nfsd_debuglevel = 0;
 static pid_t nfsd_master_pid = (pid_t)-1;
 static char nfsd_master_comm[MAXCOMLEN + 1];
 static struct timeval nfsd_master_start;
@@ -78,6 +82,7 @@ static int nfs_commit_blks;
 static int nfs_commit_miss;
 extern int nfsrv_issuedelegs;
 extern int nfsrv_dolocallocks;
+extern int nfsd_enable_stringtouid;
 
 SYSCTL_NODE(_vfs, OID_AUTO, nfsd, CTLFLAG_RW, 0, "New NFS server");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, mirrormnt, CTLFLAG_RW,
@@ -90,6 +95,10 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, issue_delegations, CTLFLAG_RW,
     &nfsrv_issuedelegs, 0, "Enable nfsd to issue delegations");
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_locallocks, CTLFLAG_RW,
     &nfsrv_dolocallocks, 0, "Enable nfsd to acquire local locks on files");
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, debuglevel, CTLFLAG_RW, &nfsd_debuglevel,
+    0, "Debug level for new nfs server");
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid, CTLFLAG_RW,
+    &nfsd_enable_stringtouid, 0, "Enable nfsd to accept numeric owner_names");
 
 #define	MAX_REORDERED_RPC	16
 #define	NUM_HEURISTIC		1031
@@ -390,7 +399,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 
 	/*
 	 * Initialize for scan, set ni_startdir and bump ref on dp again
-	 * becuase lookup() will dereference ni_startdir.
+	 * because lookup() will dereference ni_startdir.
 	 */
 
 	cnp->cn_thread = p;
@@ -566,7 +575,7 @@ nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
 	while (len < NFS_MAXPATHLEN) {
 		NFSMGET(mp);
 		MCLGET(mp, M_WAITOK);
-		mp->m_len = NFSMSIZ(mp);
+		mp->m_len = M_SIZE(mp);
 		if (len == 0) {
 			mp3 = mp2 = mp;
 		} else {
@@ -671,6 +680,7 @@ nfsvno_read(struct vnode *vp, off_t off, int cnt, struct ucred *cred,
 	uiop->uio_resid = len;
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
+	uiop->uio_td = NULL;
 	nh = nfsrv_sequential_heuristic(uiop, vp);
 	ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 	error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
@@ -998,7 +1008,7 @@ nfsvno_getsymlink(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 	*pathcpp = NULL;
 	*lenp = 0;
 	if ((nd->nd_flag & ND_NFSV3) &&
-	    (error = nfsrv_sattr(nd, nvap, NULL, NULL, p)))
+	    (error = nfsrv_sattr(nd, NULL, nvap, NULL, NULL, p)))
 		goto nfsmout;
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	len = fxdr_unsigned(int, *tl);
@@ -1321,7 +1331,7 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 			 */
 			if ((bp = gbincore(&vp->v_bufobj, lblkno)) != NULL) {
 				if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_SLEEPFAIL |
-				    LK_INTERLOCK, BO_MTX(bo)) == ENOLCK) {
+				    LK_INTERLOCK, BO_LOCKPTR(bo)) == ENOLCK) {
 					BO_LOCK(bo);
 					continue; /* retry */
 				}
@@ -1468,8 +1478,9 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
  * Updates the file rev and sets the mtime and ctime
  * to the current clock time, returning the va_filerev and va_Xtime
  * values.
+ * Return ESTALE to indicate the vnode is VI_DOOMED.
  */
-void
+int
 nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
     struct ucred *cred, struct thread *p)
 {
@@ -1477,8 +1488,14 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 
 	VATTR_NULL(&va);
 	vfs_timestamp(&va.va_mtime);
+	if (NFSVOPISLOCKED(vp) != LK_EXCLUSIVE) {
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (ESTALE);
+	}
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
+	return (0);
 }
 
 /*
@@ -1538,7 +1555,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	u_long *cookies = NULL, *cookiep;
 	struct uio io;
 	struct iovec iv;
-	int not_zfs;
+	int is_ufs;
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -1574,6 +1591,8 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 			nd->nd_repstat = NFSERR_BAD_COOKIE;
 #endif
 	}
+	if (!nd->nd_repstat && vp->v_type != VDIR)
+		nd->nd_repstat = NFSERR_NOTDIR;
 	if (nd->nd_repstat == 0 && cnt == 0) {
 		if (nd->nd_flag & ND_NFSV2)
 			/* NFSv2 does not have NFSERR_TOOSMALL */
@@ -1591,7 +1610,7 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 			nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs");
+	is_ufs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "ufs") == 0;
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
 	eofflag = 0;
@@ -1671,12 +1690,10 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
-	 * Since the offset cookies don't monotonically increase for ZFS,
-	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 	    (dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-	     (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff))) {
+	     (is_ufs == 1 && ((u_quad_t)(*cookiep)) <= toff))) {
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;
@@ -1789,7 +1806,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	struct uio io;
 	struct iovec iv;
 	struct componentname cn;
-	int at_root, needs_unbusy, not_zfs, supports_nfsv4acls;
+	int at_root, is_ufs, is_zfs, needs_unbusy, supports_nfsv4acls;
 	struct mount *mp, *new_mp;
 	uint64_t mounted_on_fileno;
 
@@ -1869,7 +1886,8 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 			nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	not_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs");
+	is_ufs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "ufs") == 0;
+	is_zfs = strcmp(vp->v_mount->mnt_vfc->vfc_name, "zfs") == 0;
 
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 again:
@@ -1942,12 +1960,10 @@ again:
 	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
-	 * Since the offset cookies don't monotonically increase for ZFS,
-	 * this is not done when ZFS is the file system.
 	 */
 	while (cpos < cend && ncookies > 0 &&
 	  (dp->d_fileno == 0 || dp->d_type == DT_WHT ||
-	   (not_zfs != 0 && ((u_quad_t)(*cookiep)) <= toff) ||
+	   (is_ufs == 1 && ((u_quad_t)(*cookiep)) <= toff) ||
 	   ((nd->nd_flag & ND_NFSV4) &&
 	    ((dp->d_namlen == 1 && dp->d_name[0] == '.') ||
 	     (dp->d_namlen==2 && dp->d_name[0]=='.' && dp->d_name[1]=='.'))))) {
@@ -1978,6 +1994,27 @@ again:
 		if (nd->nd_flag & ND_NFSV3)
 			nfsrv_postopattr(nd, getret, &at);
 		goto out;
+	}
+
+	/*
+	 * Check to see if entries in this directory can be safely acquired
+	 * via VFS_VGET() or if a switch to VOP_LOOKUP() is required.
+	 * ZFS snapshot directories need VOP_LOOKUP(), so that any
+	 * automount of the snapshot directory that is required will
+	 * be done.
+	 * This needs to be done here for NFSv4, since NFSv4 never does
+	 * a VFS_VGET() for "." or "..".
+	 */
+	if (is_zfs == 1) {
+		r = VFS_VGET(mp, at.na_fileid, LK_SHARED, &nvp);
+		if (r == EOPNOTSUPP) {
+			usevget = 0;
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_lkflags = LK_SHARED | LK_RETRY;
+			cn.cn_cred = nd->nd_cred;
+			cn.cn_thread = p;
+		} else if (r == 0)
+			vput(nvp);
 	}
 
 	/*
@@ -2117,6 +2154,22 @@ again:
 					if (!r)
 					    r = nfsvno_getattr(nvp, nvap,
 						nd->nd_cred, p, 1);
+					if (r == 0 && is_zfs == 1 &&
+					    nfsrv_enable_crossmntpt != 0 &&
+					    (nd->nd_flag & ND_NFSV4) != 0 &&
+					    nvp->v_type == VDIR &&
+					    vp->v_mount != nvp->v_mount) {
+					    /*
+					     * For a ZFS snapshot, there is a
+					     * pseudo mount that does not set
+					     * v_mountedhere, so it needs to
+					     * be detected via a different
+					     * mount structure.
+					     */
+					    at_root = 1;
+					    if (new_mp == mp)
+						new_mp = nvp->v_mount;
+					}
 				    }
 				} else {
 				    nvp = NULL;
@@ -2211,9 +2264,11 @@ again:
 	if (dirlen > cnt || nd->nd_repstat) {
 		if (!nd->nd_repstat && entrycnt == 0)
 			nd->nd_repstat = NFSERR_TOOSMALL;
-		if (nd->nd_repstat)
+		if (nd->nd_repstat) {
 			newnfs_trimtrailing(nd, mb0, bpos0);
-		else
+			if (nd->nd_flag & ND_NFSV3)
+				nfsrv_postopattr(nd, getret, &at);
+		} else
 			newnfs_trimtrailing(nd, mb1, bpos1);
 		eofflag = 0;
 	} else if (cpos < cend)
@@ -2243,7 +2298,7 @@ nfsmout:
  * (Return 0 or EBADRPC)
  */
 int
-nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
+nfsrv_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
     nfsattrbit_t *attrbitp, NFSACL_T *aclp, struct thread *p)
 {
 	u_int32_t *tl;
@@ -2325,7 +2380,7 @@ nfsrv_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 		};
 		break;
 	case ND_NFSV4:
-		error = nfsv4_sattr(nd, nvap, attrbitp, aclp, p);
+		error = nfsv4_sattr(nd, vp, nvap, attrbitp, aclp, p);
 	};
 nfsmout:
 	NFSEXITCODE2(error, nd);
@@ -2337,7 +2392,7 @@ nfsmout:
  * Returns NFSERR_BADXDR if it can't be parsed, 0 otherwise.
  */
 int
-nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
+nfsv4_sattr(struct nfsrv_descript *nd, vnode_t vp, struct nfsvattr *nvap,
     nfsattrbit_t *attrbitp, NFSACL_T *aclp, struct thread *p)
 {
 	u_int32_t *tl;
@@ -2374,6 +2429,11 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 		switch (bitpos) {
 		case NFSATTRBIT_SIZE:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
+                     if (vp != NULL && vp->v_type != VREG) {
+                            error = (vp->v_type == VDIR) ? NFSERR_ISDIR :
+                                NFSERR_INVAL;
+                            goto nfsmout;
+			}
 			nvap->na_size = fxdr_hyper(tl);
 			attrsum += NFSX_HYPER;
 			break;
@@ -2692,9 +2752,11 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 		goto out;
 	}
 
-	if (startwrite)
+	if (startwrite) {
 		vn_start_write(NULL, mpp, V_WAIT);
-
+		if (lktype == LK_SHARED && !(MNT_SHARED_WRITES(mp)))
+			lktype = LK_EXCLUSIVE;
+	}
 	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
 	vfs_unbusy(mp);
@@ -2832,40 +2894,6 @@ out:
 }
 
 /*
- * Get the tcp socket sequence numbers we need.
- * (Maybe this should be moved to the tcp sources?)
- */
-int
-nfsrv_getsocksndseq(struct socket *so, tcp_seq *maxp, tcp_seq *unap)
-{
-	struct inpcb *inp;
-	struct tcpcb *tp;
-	int error = 0;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("nfsrv_getsocksndseq: inp == NULL"));
-	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	tp = intotcpcb(inp);
-	if (tp->t_state != TCPS_ESTABLISHED) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	*maxp = tp->snd_max;
-	*unap = tp->snd_una;
-	INP_RUNLOCK(inp);
-
-out:
-	NFSEXITCODE(error);
-	return (error);
-}
-
-/*
  * This function needs to test to see if the system is near its limit
  * for memory allocation via malloc() or mget() and return True iff
  * either of these resources are near their limit.
@@ -2942,12 +2970,7 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 
 	if (nfsrv_dolocallocks == 0)
 		goto out;
-
-	/* Check for VI_DOOMED here, so that VOP_ADVLOCK() isn't performed. */
-	if ((vp->v_iflag & VI_DOOMED) != 0) {
-		error = EPERM;
-		goto out;
-	}
+	ASSERT_VOP_UNLOCKED(vp, "nfsvno_advlock: vp locked");
 
 	fl.l_whence = SEEK_SET;
 	fl.l_type = ftype;
@@ -2971,14 +2994,12 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 	fl.l_pid = (pid_t)0;
 	fl.l_sysid = (int)nfsv4_sysid;
 
-	NFSVOPUNLOCK(vp, 0);
 	if (ftype == F_UNLCK)
 		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_UNLCK, &fl,
 		    (F_POSIX | F_REMOTE));
 	else
 		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
 		    (F_POSIX | F_REMOTE));
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 
 out:
 	NFSEXITCODE(error);
@@ -3030,6 +3051,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfsd_addsock_args sockarg;
 	struct nfsd_nfsd_args nfsdarg;
+	cap_rights_t rights;
 	int error;
 
 	if (uap->flag & NFSSVC_NFSDADDSOCK) {
@@ -3041,7 +3063,9 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, sockarg.sock, CAP_SOCK_SERVER, &fp)) != 0)
+		error = fget(td, sockarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_SERVER), &fp);
+		if (error != 0)
 			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
@@ -3241,6 +3265,18 @@ nfsrv_hashfh(fhandle_t *fhp)
 }
 
 /*
+ * Calculate a hash value for the sessionid.
+ */
+uint32_t
+nfsrv_hashsessionid(uint8_t *sessionid)
+{
+	uint32_t hashval;
+
+	hashval = hash32_buf(sessionid, NFSX_V4SESSIONID, 0);
+	return (hashval);
+}
+
+/*
  * Signal the userland master nfsd to backup the stable restart file.
  */
 void
@@ -3274,7 +3310,7 @@ extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 static int
 nfsd_modevent(module_t mod, int type, void *data)
 {
-	int error = 0;
+	int error = 0, i;
 	static int loaded = 0;
 
 	switch (type) {
@@ -3282,10 +3318,18 @@ nfsd_modevent(module_t mod, int type, void *data)
 		if (loaded)
 			goto out;
 		newnfs_portinit();
-		mtx_init(&nfs_cache_mutex, "nfs_cache_mutex", NULL, MTX_DEF);
-		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
-		mtx_init(&nfsv4root_mnt.mnt_mtx, "struct mount mtx", NULL,
-		    MTX_DEF);
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
+			mtx_init(&nfsrchash_table[i].mtx, "nfsrtc", NULL,
+			    MTX_DEF);
+			mtx_init(&nfsrcahash_table[i].mtx, "nfsrtca", NULL,
+			    MTX_DEF);
+		}
+		mtx_init(&nfsrc_udpmtx, "nfsuc", NULL, MTX_DEF);
+		mtx_init(&nfs_v4root_mutex, "nfs4rt", NULL, MTX_DEF);
+		mtx_init(&nfsv4root_mnt.mnt_mtx, "nfs4mnt", NULL, MTX_DEF);
+		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+			mtx_init(&nfssessionhash[i].mtx, "nfssm",
+			    NULL, MTX_DEF);
 		lockinit(&nfsv4root_mnt.mnt_explock, PVFS, "explock", 0, 0);
 		nfsrvd_initcache();
 		nfsd_init();
@@ -3326,9 +3370,15 @@ nfsd_modevent(module_t mod, int type, void *data)
 			svcpool_destroy(nfsrvd_pool);
 
 		/* and get rid of the locks */
-		mtx_destroy(&nfs_cache_mutex);
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
+			mtx_destroy(&nfsrchash_table[i].mtx);
+			mtx_destroy(&nfsrcahash_table[i].mtx);
+		}
+		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);
+		for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+			mtx_destroy(&nfssessionhash[i].mtx);
 		lockdestroy(&nfsv4root_mnt.mnt_explock);
 		loaded = 0;
 		break;

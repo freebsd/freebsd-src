@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -64,7 +63,7 @@ ata_micron_probe(device_t dev)
 	device_set_desc(dev,
 	    "RZ 100? ATA controller !WARNING! data loss/corruption risk");
 	ctlr->chipinit = ata_generic_chipinit;
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_LOW_PRIORITY);
     }
     return (ENXIO);
 }

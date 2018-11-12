@@ -81,18 +81,30 @@
 #define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+#define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
 
 /*
  * Intel Extended Features registers
  */
 #define	XCR0	0		/* XFEATURE_ENABLED_MASK register */
 
-#define	XFEATURE_ENABLED_X87	0x00000001
-#define	XFEATURE_ENABLED_SSE	0x00000002
-#define	XFEATURE_ENABLED_AVX	0x00000004
+#define	XFEATURE_ENABLED_X87		0x00000001
+#define	XFEATURE_ENABLED_SSE		0x00000002
+#define	XFEATURE_ENABLED_YMM_HI128	0x00000004
+#define	XFEATURE_ENABLED_AVX		XFEATURE_ENABLED_YMM_HI128
+#define	XFEATURE_ENABLED_BNDREGS	0x00000008
+#define	XFEATURE_ENABLED_BNDCSR		0x00000010
+#define	XFEATURE_ENABLED_OPMASK		0x00000020
+#define	XFEATURE_ENABLED_ZMM_HI256	0x00000040
+#define	XFEATURE_ENABLED_HI16_ZMM	0x00000080
 
 #define	XFEATURE_AVX					\
     (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE | XFEATURE_ENABLED_AVX)
+#define	XFEATURE_AVX512						\
+    (XFEATURE_ENABLED_OPMASK | XFEATURE_ENABLED_ZMM_HI256 |	\
+    XFEATURE_ENABLED_HI16_ZMM)
+#define	XFEATURE_MPX					\
+    (XFEATURE_ENABLED_BNDREGS | XFEATURE_ENABLED_BNDCSR)
 
 /*
  * CPUID instruction features register
@@ -142,6 +154,7 @@
 #define	CPUID2_TM2	0x00000100
 #define	CPUID2_SSSE3	0x00000200
 #define	CPUID2_CNXTID	0x00000400
+#define	CPUID2_SDBG	0x00000800
 #define	CPUID2_FMA	0x00001000
 #define	CPUID2_CX16	0x00002000
 #define	CPUID2_XTPR	0x00004000
@@ -201,9 +214,15 @@
 #define	AMDID2_WDT	0x00002000
 #define	AMDID2_LWP	0x00008000
 #define	AMDID2_FMA4	0x00010000
+#define	AMDID2_TCE	0x00020000
 #define	AMDID2_NODE_ID	0x00080000
 #define	AMDID2_TBM	0x00200000
 #define	AMDID2_TOPOLOGY	0x00400000
+#define	AMDID2_PCXC	0x00800000
+#define	AMDID2_PNXC	0x01000000
+#define	AMDID2_DBE	0x04000000
+#define	AMDID2_PTSC	0x08000000
+#define	AMDID2_PTSCEL2I	0x10000000
 
 /*
  * CPUID instruction 1 eax info
@@ -240,6 +259,29 @@
 #define	CPUID_LOCAL_APIC_ID	0xff000000
 
 /*
+ * CPUID instruction 5 info
+ */
+#define	CPUID5_MON_MIN_SIZE	0x0000ffff	/* eax */
+#define	CPUID5_MON_MAX_SIZE	0x0000ffff	/* ebx */
+#define	CPUID5_MON_MWAIT_EXT	0x00000001	/* ecx */
+#define	CPUID5_MWAIT_INTRBREAK	0x00000002	/* ecx */
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+/*
+ * MWAIT extensions.
+ */
+/* Interrupt breaks MWAIT even when masked. */
+#define	MWAIT_INTRBREAK		0x00000001
+
+/*
  * CPUID instruction 6 ecx info
  */
 #define	CPUID_PERF_STAT		0x00000001
@@ -256,6 +298,9 @@
  * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1
  */
 #define	CPUID_EXTSTATE_XSAVEOPT	0x00000001
+#define	CPUID_EXTSTATE_XSAVEC	0x00000002
+#define	CPUID_EXTSTATE_XINUSE	0x00000004
+#define	CPUID_EXTSTATE_XSAVES	0x00000008
 
 /*
  * AMD extended function 8000_0007h edx info
@@ -278,11 +323,30 @@
 #define	AMDID_COREID_SIZE	0x0000f000
 #define	AMDID_COREID_SIZE_SHIFT	12
 
+/*
+ * CPUID instruction 7 Structured Extended Features, leaf 0 ebx info
+ */
 #define	CPUID_STDEXT_FSGSBASE	0x00000001
 #define	CPUID_STDEXT_TSC_ADJUST	0x00000002
+#define	CPUID_STDEXT_BMI1	0x00000008
+#define	CPUID_STDEXT_HLE	0x00000010
+#define	CPUID_STDEXT_AVX2	0x00000020
 #define	CPUID_STDEXT_SMEP	0x00000080
-#define	CPUID_STDEXT_ENH_MOVSB	0x00000200
+#define	CPUID_STDEXT_BMI2	0x00000100
+#define	CPUID_STDEXT_ERMS	0x00000200
 #define	CPUID_STDEXT_INVPCID	0x00000400
+#define	CPUID_STDEXT_RTM	0x00000800
+#define	CPUID_STDEXT_MPX	0x00004000
+#define	CPUID_STDEXT_AVX512F	0x00010000
+#define	CPUID_STDEXT_RDSEED	0x00040000
+#define	CPUID_STDEXT_ADX	0x00080000
+#define	CPUID_STDEXT_SMAP	0x00100000
+#define	CPUID_STDEXT_CLFLUSHOPT	0x00800000
+#define	CPUID_STDEXT_PROCTRACE	0x02000000
+#define	CPUID_STDEXT_AVX512PF	0x04000000
+#define	CPUID_STDEXT_AVX512ER	0x08000000
+#define	CPUID_STDEXT_AVX512CD	0x10000000
+#define	CPUID_STDEXT_SHA	0x20000000
 
 /*
  * CPUID manufacturers identifiers
@@ -319,6 +383,7 @@
 #define	MSR_BIOS_SIGN		0x08b
 #define	MSR_PERFCTR0		0x0c1
 #define	MSR_PERFCTR1		0x0c2
+#define	MSR_PLATFORM_INFO	0x0ce
 #define	MSR_MPERF		0x0e7
 #define	MSR_APERF		0x0e8
 #define	MSR_IA32_EXT_CONFIG	0x0ee	/* Undocumented. Core Solo/Duo only */
@@ -342,6 +407,8 @@
 #define	MSR_THERM_STATUS	0x19c
 #define	MSR_IA32_MISC_ENABLE	0x1a0
 #define	MSR_IA32_TEMPERATURE_TARGET	0x1a2
+#define	MSR_TURBO_RATIO_LIMIT	0x1ad
+#define	MSR_TURBO_RATIO_LIMIT1	0x1ae
 #define	MSR_DEBUGCTLMSR		0x1d9
 #define	MSR_LASTBRANCHFROMIP	0x1db
 #define	MSR_LASTBRANCHTOIP	0x1dc
@@ -375,10 +442,35 @@
 #define	MSR_MC4_STATUS		0x411
 #define	MSR_MC4_ADDR		0x412
 #define	MSR_MC4_MISC		0x413
+#define	MSR_RAPL_POWER_UNIT	0x606
+#define	MSR_PKG_ENERGY_STATUS	0x611
+#define	MSR_DRAM_ENERGY_STATUS	0x619
+#define	MSR_PP0_ENERGY_STATUS	0x639
+#define	MSR_PP1_ENERGY_STATUS	0x641
+
+/*
+ * VMX MSRs
+ */
+#define	MSR_VMX_BASIC		0x480
+#define	MSR_VMX_PINBASED_CTLS	0x481
+#define	MSR_VMX_PROCBASED_CTLS	0x482
+#define	MSR_VMX_EXIT_CTLS	0x483
+#define	MSR_VMX_ENTRY_CTLS	0x484
+#define	MSR_VMX_CR0_FIXED0	0x486
+#define	MSR_VMX_CR0_FIXED1	0x487
+#define	MSR_VMX_CR4_FIXED0	0x488
+#define	MSR_VMX_CR4_FIXED1	0x489
+#define	MSR_VMX_PROCBASED_CTLS2	0x48b
+#define	MSR_VMX_EPT_VPID_CAP	0x48c
+#define	MSR_VMX_TRUE_PINBASED_CTLS	0x48d
+#define	MSR_VMX_TRUE_PROCBASED_CTLS	0x48e
+#define	MSR_VMX_TRUE_EXIT_CTLS	0x48f
+#define	MSR_VMX_TRUE_ENTRY_CTLS	0x490
 
 /*
  * X2APIC MSRs
  */
+#define	MSR_APIC_000		0x800
 #define	MSR_APIC_ID		0x802
 #define	MSR_APIC_VERSION	0x803
 #define	MSR_APIC_TPR		0x808
@@ -409,6 +501,8 @@
 #define	MSR_APIC_DCR_TIMER	0x83e
 #define	MSR_APIC_SELF_IPI	0x83f
 
+#define	MSR_IA32_XSS		0xda0
+
 /*
  * Constants related to MSR's.
  */
@@ -417,6 +511,11 @@
 #define	APICBASE_X2APIC		0x00000400
 #define	APICBASE_ENABLED	0x00000800
 #define	APICBASE_ADDRESS	0xfffff000
+
+/* MSR_IA32_FEATURE_CONTROL related */
+#define	IA32_FEATURE_CONTROL_LOCK	0x01	/* lock bit */
+#define	IA32_FEATURE_CONTROL_SMX_EN	0x02	/* enable VMX inside SMX */
+#define	IA32_FEATURE_CONTROL_VMX_EN	0x04	/* enable VMX outside SMX */
 
 /*
  * PAT modes.
@@ -675,12 +774,10 @@
 #define	MSR_PERFEVSEL1	0xc0010001
 #define	MSR_PERFEVSEL2	0xc0010002
 #define	MSR_PERFEVSEL3	0xc0010003
-#undef MSR_PERFCTR0
-#undef MSR_PERFCTR1
-#define	MSR_PERFCTR0	0xc0010004
-#define	MSR_PERFCTR1	0xc0010005
-#define	MSR_PERFCTR2	0xc0010006
-#define	MSR_PERFCTR3	0xc0010007
+#define	MSR_K7_PERFCTR0	0xc0010004
+#define	MSR_K7_PERFCTR1	0xc0010005
+#define	MSR_K7_PERFCTR2	0xc0010006
+#define	MSR_K7_PERFCTR3	0xc0010007
 #define	MSR_SYSCFG	0xc0010010
 #define	MSR_HWCR	0xc0010015
 #define	MSR_IORRBASE0	0xc0010016
@@ -689,8 +786,21 @@
 #define	MSR_IORRMASK1	0xc0010019
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
+#define	MSR_NB_CFG1	0xc001001f	/* NB configuration 1 */
+#define	MSR_P_STATE_LIMIT 0xc0010061	/* P-state Current Limit Register */
+#define	MSR_P_STATE_CONTROL 0xc0010062	/* P-state Control Register */
+#define	MSR_P_STATE_STATUS 0xc0010063	/* P-state Status Register */
+#define	MSR_P_STATE_CONFIG(n) (0xc0010064 + (n)) /* P-state Config */
+#define	MSR_SMM_ADDR	0xc0010112	/* SMM TSEG base address */
+#define	MSR_SMM_MASK	0xc0010113	/* SMM TSEG address mask */
+#define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 #define	MSR_MC0_CTL_MASK	0xc0010044
+#define	MSR_VM_CR		0xc0010114 /* SVM: feature control */
+#define	MSR_VM_HSAVE_PA		0xc0010117 /* SVM: host save area address */
+
+/* MSR_VM_CR related */
+#define	VM_CR_SVMDIS		0x10	/* SVM: disabled by BIOS */
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */

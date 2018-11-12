@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: aix3.m4,v 8.16 1999/04/12 17:34:36 ca Exp $')
+VERSIONID(`$Id: aix3.m4,v 8.17 2013-11-22 20:51:15 ca Exp $')
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /bin/bellmail)')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', mail $u)')dnl
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `mn9')dnl

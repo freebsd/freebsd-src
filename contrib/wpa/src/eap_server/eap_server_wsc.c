@@ -2,14 +2,8 @@
  * EAP-WSC server for Wi-Fi Protected Setup
  * Copyright (c) 2007-2008, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -18,6 +12,7 @@
 #include "eloop.h"
 #include "eap_i.h"
 #include "eap_common/eap_wsc_common.h"
+#include "p2p/p2p.h"
 #include "wps/wps.h"
 
 
@@ -135,14 +130,22 @@ static void * eap_wsc_init(struct eap_sm *sm)
 	}
 	cfg.assoc_wps_ie = sm->assoc_wps_ie;
 	cfg.peer_addr = sm->peer_addr;
-	if (0 /* TODO: could provide option for forcing PSK format */)
-		 cfg.use_psk_key = 1;
+#ifdef CONFIG_P2P
+	if (sm->assoc_p2p_ie) {
+		wpa_printf(MSG_DEBUG, "EAP-WSC: Prefer PSK format for P2P "
+			   "client");
+		cfg.use_psk_key = 1;
+		cfg.p2p_dev_addr = p2p_get_go_dev_addr(sm->assoc_p2p_ie);
+	}
+#endif /* CONFIG_P2P */
+	cfg.pbc_in_m1 = sm->pbc_in_m1;
 	data->wps = wps_init(&cfg);
 	if (data->wps == NULL) {
 		os_free(data);
 		return NULL;
 	}
-	data->fragment_size = WSC_FRAGMENT_SIZE;
+	data->fragment_size = sm->fragment_size > 0 ? sm->fragment_size :
+		WSC_FRAGMENT_SIZE;
 
 	return data;
 }

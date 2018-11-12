@@ -56,11 +56,15 @@ dtrace_load(void *dummy)
 	/* Hang our hook for exceptions. */
 	dtrace_invop_init();
 
-	/*
-	 * XXX This is a short term hack to avoid having to comment
-	 * out lots and lots of lock/unlock calls.
-	 */
-	mutex_init(&mod_lock,"XXX mod_lock hack", MUTEX_DEFAULT, NULL);
+	dtrace_taskq = taskq_create("dtrace_taskq", 1, maxclsyspri, 0, 0, 0);
+
+	dtrace_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
+
+	/* Register callbacks for linker file load and unload events. */
+	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
+	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
+	dtrace_kld_unload_try_tag = EVENTHANDLER_REGISTER(kld_unload_try,
+	    dtrace_kld_unload_try, NULL, EVENTHANDLER_PRI_ANY);
 
 	/*
 	 * Initialise the mutexes without 'witness' because the dtrace
@@ -73,15 +77,15 @@ dtrace_load(void *dummy)
 	mutex_init(&dtrace_lock,"dtrace probe state", MUTEX_DEFAULT, NULL);
 	mutex_init(&dtrace_provider_lock,"dtrace provider state", MUTEX_DEFAULT, NULL);
 	mutex_init(&dtrace_meta_lock,"dtrace meta-provider state", MUTEX_DEFAULT, NULL);
+#ifdef DEBUG
 	mutex_init(&dtrace_errlock,"dtrace error lock", MUTEX_DEFAULT, NULL);
+#endif
 
 	mutex_enter(&dtrace_provider_lock);
 	mutex_enter(&dtrace_lock);
 	mutex_enter(&cpu_lock);
 
 	ASSERT(MUTEX_HELD(&cpu_lock));
-
-	dtrace_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
 
 	dtrace_state_cache = kmem_cache_create("dtrace_state_cache",
 	    sizeof (dtrace_dstate_percpu_t) * NCPU, DTRACE_STATE_ALIGN,
@@ -133,17 +137,6 @@ dtrace_load(void *dummy)
 
 	mutex_exit(&cpu_lock);
 
-	/*
-	 * If DTrace helper tracing is enabled, we need to allocate the
-	 * trace buffer and initialize the values.
-	 */
-	if (dtrace_helptrace_enabled) {
-		ASSERT(dtrace_helptrace_buffer == NULL);
-		dtrace_helptrace_buffer =
-		    kmem_zalloc(dtrace_helptrace_bufsize, KM_SLEEP);
-		dtrace_helptrace_next = 0;
-	}
-
 	mutex_exit(&dtrace_lock);
 	mutex_exit(&dtrace_provider_lock);
 
@@ -154,18 +147,10 @@ dtrace_load(void *dummy)
 
 	mutex_exit(&cpu_lock);
 
-#if __FreeBSD_version < 800039
-	/* Enable device cloning. */
-	clone_setup(&dtrace_clones);
-
-	/* Setup device cloning events. */
-	eh_tag = EVENTHANDLER_REGISTER(dev_clone, dtrace_clone, 0, 1000);
-#else
 	dtrace_dev = make_dev(&dtrace_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "dtrace/dtrace");
 	helper_dev = make_dev(&helper_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
 	    "dtrace/helper");
-#endif
 
 	return;
 }

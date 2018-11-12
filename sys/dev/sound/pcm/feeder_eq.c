@@ -97,8 +97,7 @@ static char feeder_eq_presets[] = FEEDER_EQ_PRESETS;
 SYSCTL_STRING(_hw_snd, OID_AUTO, feeder_eq_presets, CTLFLAG_RD,
     &feeder_eq_presets, 0, "compile-time eq presets");
 
-TUNABLE_INT("hw.snd.feeder_eq_exact_rate", &feeder_eq_exact_rate);
-SYSCTL_INT(_hw_snd, OID_AUTO, feeder_eq_exact_rate, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, feeder_eq_exact_rate, CTLFLAG_RWTUN,
     &feeder_eq_exact_rate, 0, "force exact rate validation");
 #endif
 
@@ -683,11 +682,9 @@ feeder_eq_initsys(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "eq", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
+	    "eq", CTLTYPE_INT | CTLFLAG_RWTUN, d, sizeof(d),
 	    sysctl_dev_pcm_eq, "I",
 	    "Bass/Treble Equalizer (0=disable, 1=enable, 2=bypass)");
-
-	bzero(buf, sizeof(buf));
 
 	(void)snprintf(buf, sizeof(buf), "Bass/Treble Equalizer Preamp "
 	    "(-/+ %d.0dB , %d.%ddB step)",
@@ -697,7 +694,7 @@ feeder_eq_initsys(device_t dev)
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "eq_preamp", CTLTYPE_STRING | CTLFLAG_RW, d, sizeof(d),
+	    "eq_preamp", CTLTYPE_STRING | CTLFLAG_RWTUN, d, sizeof(d),
 	    sysctl_dev_pcm_eq_preamp, "A", buf);
 }
 #endif

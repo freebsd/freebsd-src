@@ -4,21 +4,46 @@
 
 PROG=	bhyve
 
-DEBUG_FLAGS= -g -O0 
+DEBUG_FLAGS= -g -O0
 
-SRCS=	acpi.c atpic.c bhyverun.c consport.c dbgport.c elcr.c inout.c 
-SRCS+=  ioapic.c mem.c mevent.c mptbl.c
-SRCS+=	pci_emul.c pci_hostbridge.c pci_passthru.c pci_virtio_block.c
-SRCS+=	pci_virtio_net.c pci_uart.c pit_8254.c pmtmr.c post.c rtc.c uart.c
-SRCS+=	xmsr.c spinup_ap.c
+MAN=	bhyve.8
+
+SRCS=	\
+	atkbdc.c		\
+	acpi.c			\
+	bhyverun.c		\
+	block_if.c		\
+	consport.c		\
+	dbgport.c		\
+	inout.c			\
+	ioapic.c		\
+	mem.c			\
+	mevent.c		\
+	mptbl.c			\
+	pci_ahci.c		\
+	pci_emul.c		\
+	pci_hostbridge.c	\
+	pci_irq.c		\
+	pci_lpc.c		\
+	pci_passthru.c		\
+	pci_virtio_block.c	\
+	pci_virtio_net.c	\
+	pci_virtio_rnd.c	\
+	pci_uart.c		\
+	pm.c			\
+	post.c			\
+	rtc.c			\
+	smbiostbl.c		\
+	task_switch.c		\
+	uart_emul.c		\
+	virtio.c		\
+	xmsr.c			\
+	spinup_ap.c
 
 .PATH:	${.CURDIR}/../../sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
-NO_MAN=
-
-DPADD=	${LIBVMMAPI} ${LIBMD} ${LIBPTHREAD}
-LDADD=	-lvmmapi -lmd -lpthread
+LIBADD=	vmmapi md util pthread
 
 WARNS?=	2
 

@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -139,6 +138,10 @@ static struct cdevsw lpc_fb_cdevsw = {
 static int
 lpc_fb_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,fb"))
 		return (ENXIO);
 

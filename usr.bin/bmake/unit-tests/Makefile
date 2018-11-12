@@ -5,9 +5,9 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.40 2012/12/28 21:28:19 sjg Exp $
+# $Id: Makefile.in,v 1.44 2013/08/28 22:09:29 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.35 2012/11/09 19:08:28 sjg Exp $
+# $NetBSD: Makefile,v 1.38 2013/08/28 21:56:50 sjg Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
@@ -35,6 +35,7 @@ SUBFILES= \
 	error \
 	export \
 	export-all \
+	export-env \
 	doterror \
 	dotwait \
 	forloop \
@@ -51,6 +52,7 @@ SUBFILES= \
 	phony-end \
 	posix \
 	qequals \
+	sunshcmd \
 	sysv \
 	ternary \
 	unexport \
@@ -95,7 +97,7 @@ test:
 	@echo "${TEST_MAKE} -f ${MAKEFILE} > ${.TARGET}.out 2>&1"
 	@cd ${.OBJDIR} && ${TEST_MAKE} -f ${MAKEFILE} 2>&1 | \
 	${TOOL_TR} -d '\015' | \
-	${TOOL_SED} -e 's,^${TEST_MAKE:T:C/\./\\\./g}:,make:,' \
+	${TOOL_SED} -e 's,^${TEST_MAKE:T:C/\./\\\./g}[^:]*:,make:,' \
 	-e '/stopped/s, /.*, unit-tests,' \
 	-e 's,${.CURDIR:C/\./\\\./g}/,,g' \
 	-e 's,${UNIT_TESTS:C/\./\\\./g}/,,g' > ${.TARGET}.out || { \

@@ -1,7 +1,7 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 7/19/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH: ${.CURDIR}/../../../../usr.bin/login
 
@@ -11,13 +11,11 @@ MAN=	login.1
 
 CFLAGS+=-DLOGALL
 
-DPADD=	${LIBUTIL} ${LIBCRYPT}
-LDADD=	-lutil -lcrypt
+LIBADD=	util crypt
 
 .if ${MK_PAM_SUPPORT} != "no"
 CFLAGS+= -DUSE_PAM
-DPADD+=	${LIBPAM}
-LDADD+=	${MINUSLPAM}
+LIBADD+=	pam
 .endif
 
 BINOWN=	root

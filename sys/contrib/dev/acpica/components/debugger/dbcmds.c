@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -105,16 +104,18 @@ AcpiDbConvertToNode (
     char                    *InString)
 {
     ACPI_NAMESPACE_NODE     *Node;
+    ACPI_SIZE               Address;
 
 
     if ((*InString >= 0x30) && (*InString <= 0x39))
     {
         /* Numeric argument, convert */
 
-        Node = ACPI_TO_POINTER (ACPI_STRTOUL (InString, NULL, 16));
+        Address = ACPI_STRTOUL (InString, NULL, 16);
+        Node = ACPI_TO_POINTER (Address);
         if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
         {
-            AcpiOsPrintf ("Address %p is invalid in this address space\n",
+            AcpiOsPrintf ("Address %p is invalid",
                 Node);
             return (NULL);
         }
@@ -123,7 +124,7 @@ AcpiDbConvertToNode (
 
         if (ACPI_GET_DESCRIPTOR_TYPE (Node) != ACPI_DESC_TYPE_NAMED)
         {
-            AcpiOsPrintf ("Address %p is not a valid NS node [%s]\n",
+            AcpiOsPrintf ("Address %p is not a valid namespace node [%s]\n",
                     Node, AcpiUtGetDescriptorName (Node));
             return (NULL);
         }
@@ -137,6 +138,8 @@ AcpiDbConvertToNode (
         Node = AcpiDbLocalNsLookup (InString);
         if (!Node)
         {
+            AcpiOsPrintf ("Could not find [%s] in namespace, defaulting to root node\n",
+                InString);
             Node = AcpiGbl_RootNode;
         }
     }
@@ -335,7 +338,7 @@ AcpiDbDisplayTableInfo (
 
     /* Header */
 
-    AcpiOsPrintf ("Idx ID Status    Type            Sig  Address  Len   Header\n");
+    AcpiOsPrintf ("Idx ID    Status Type              TableHeader (Sig, Address, Length)\n");
 
     /* Walk the entire root table list */
 
@@ -360,30 +363,30 @@ AcpiDbDisplayTableInfo (
 
         switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
         {
-        case ACPI_TABLE_ORIGIN_UNKNOWN:
-            AcpiOsPrintf ("Unknown   ");
+        case ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL:
+
+            AcpiOsPrintf ("External/virtual  ");
             break;
 
-        case ACPI_TABLE_ORIGIN_MAPPED:
-            AcpiOsPrintf ("Mapped    ");
+        case ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL:
+
+            AcpiOsPrintf ("Internal/physical ");
             break;
 
-        case ACPI_TABLE_ORIGIN_ALLOCATED:
-            AcpiOsPrintf ("Allocated ");
-            break;
+        case ACPI_TABLE_ORIGIN_INTERNAL_VIRTUAL:
 
-        case ACPI_TABLE_ORIGIN_OVERRIDE:
-            AcpiOsPrintf ("Override  ");
+            AcpiOsPrintf ("Internal/virtual  ");
             break;
 
         default:
-            AcpiOsPrintf ("INVALID   ");
+
+            AcpiOsPrintf ("INVALID TYPE      ");
             break;
         }
 
         /* Make sure that the table is mapped */
 
-        Status = AcpiTbVerifyTable (TableDesc);
+        Status = AcpiTbValidateTable (TableDesc);
         if (ACPI_FAILURE (Status))
         {
             return;
@@ -433,8 +436,6 @@ AcpiDbUnloadAcpiTable (
     Node = AcpiDbConvertToNode (ObjectName);
     if (!Node)
     {
-        AcpiOsPrintf ("Could not find [%s] in namespace\n",
-            ObjectName);
         return;
     }
 
@@ -823,7 +824,7 @@ AcpiDmTestResourceConversion (
 
     /* Convert internal resource list to external AML resource template */
 
-    Status = AcpiRsCreateAmlResources (ResourceBuffer.Pointer, &NewAml);
+    Status = AcpiRsCreateAmlResources (&ResourceBuffer, &NewAml);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("AcpiRsCreateAmlResources failed: %s\n",
@@ -835,8 +836,8 @@ AcpiDmTestResourceConversion (
 
     OriginalAml = ReturnBuffer.Pointer;
 
-    AcpiDmCompareAmlResources (
-        OriginalAml->Buffer.Pointer, (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
+    AcpiDmCompareAmlResources (OriginalAml->Buffer.Pointer,
+        (ACPI_RSDESC_SIZE) OriginalAml->Buffer.Length,
         NewAml.Pointer, (ACPI_RSDESC_SIZE) NewAml.Length);
 
     /* Cleanup and exit */
@@ -1035,7 +1036,7 @@ GetCrs:
         }
 
 EndCrs:
-        ACPI_FREE_BUFFER (ReturnBuffer);
+        ACPI_FREE (ReturnBuffer.Pointer);
     }
 
 
@@ -1185,14 +1186,25 @@ AcpiDbGenerateGpe (
     char                    *GpeArg,
     char                    *BlockArg)
 {
-    UINT32                  BlockNumber;
+    UINT32                  BlockNumber = 0;
     UINT32                  GpeNumber;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
-    GpeNumber   = ACPI_STRTOUL (GpeArg, NULL, 0);
-    BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
+    GpeNumber = ACPI_STRTOUL (GpeArg, NULL, 0);
 
+    /*
+     * If no block arg, or block arg == 0 or 1, use the FADT-defined
+     * GPE blocks.
+     */
+    if (BlockArg)
+    {
+        BlockNumber = ACPI_STRTOUL (BlockArg, NULL, 0);
+        if (BlockNumber == 1)
+        {
+            BlockNumber = 0;
+        }
+    }
 
     GpeEventInfo = AcpiEvGetGpeEventInfo (ACPI_TO_POINTER (BlockNumber),
         GpeNumber);
@@ -1204,6 +1216,14 @@ AcpiDbGenerateGpe (
 
     (void) AcpiEvGpeDispatch (NULL, GpeEventInfo, GpeNumber);
 }
+
+void
+AcpiDbGenerateSci (
+    void)
+{
+    AcpiEvSciDispatch ();
+}
+
 #endif /* !ACPI_REDUCED_HARDWARE */
 
 #endif /* ACPI_DEBUGGER */

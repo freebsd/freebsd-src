@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 # -------------------------------------------------------------------------
 # Helper tests for "t_atf_check".
@@ -141,6 +137,18 @@ atf_check_equal_eval_fail_body()
     x=a
     y=b
     atf_check_equal '${x}' '${y}'
+}
+
+atf_test_case atf_check_timeout
+atf_check_timeout_head()
+{
+    atf_set "descr" "Helper test case for the t_atf_check test program"
+    atf_set "timeout" 1
+}
+atf_check_timeout_body()
+{
+    atf_check true
+    atf_check sleep 42
 }
 
 # -------------------------------------------------------------------------
@@ -273,6 +281,7 @@ atf_init_test_cases()
     atf_add_test_case atf_check_equal_fail
     atf_add_test_case atf_check_equal_eval_ok
     atf_add_test_case atf_check_equal_eval_fail
+    atf_add_test_case atf_check_timeout
 
     # Add helper tests for t_config.
     atf_add_test_case config_get

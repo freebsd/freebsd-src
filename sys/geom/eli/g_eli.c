@@ -63,30 +63,61 @@ static int g_eli_version = G_ELI_VERSION;
 SYSCTL_INT(_kern_geom_eli, OID_AUTO, version, CTLFLAG_RD, &g_eli_version, 0,
     "GELI version");
 int g_eli_debug = 0;
-TUNABLE_INT("kern.geom.eli.debug", &g_eli_debug);
-SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RW, &g_eli_debug, 0,
+SYSCTL_INT(_kern_geom_eli, OID_AUTO, debug, CTLFLAG_RWTUN, &g_eli_debug, 0,
     "Debug level");
 static u_int g_eli_tries = 3;
-TUNABLE_INT("kern.geom.eli.tries", &g_eli_tries);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RW, &g_eli_tries, 0,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RWTUN, &g_eli_tries, 0,
     "Number of tries for entering the passphrase");
 static u_int g_eli_visible_passphrase = GETS_NOECHO;
-TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RWTUN,
     &g_eli_visible_passphrase, 0,
     "Visibility of passphrase prompt (0 = invisible, 1 = visible, 2 = asterisk)");
 u_int g_eli_overwrites = G_ELI_OVERWRITES;
-TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RWTUN, &g_eli_overwrites,
     0, "Number of times on-disk keys should be overwritten when destroying them");
 static u_int g_eli_threads = 0;
-TUNABLE_INT("kern.geom.eli.threads", &g_eli_threads);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RW, &g_eli_threads, 0,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, threads, CTLFLAG_RWTUN, &g_eli_threads, 0,
     "Number of threads doing crypto work");
 u_int g_eli_batch = 0;
-TUNABLE_INT("kern.geom.eli.batch", &g_eli_batch);
-SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RW, &g_eli_batch, 0,
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, batch, CTLFLAG_RWTUN, &g_eli_batch, 0,
     "Use crypto operations batching");
+
+/*
+ * Passphrase cached during boot, in order to be more user-friendly if
+ * there are multiple providers using the same passphrase.
+ */
+static char cached_passphrase[256];
+static u_int g_eli_boot_passcache = 1;
+TUNABLE_INT("kern.geom.eli.boot_passcache", &g_eli_boot_passcache);
+SYSCTL_UINT(_kern_geom_eli, OID_AUTO, boot_passcache, CTLFLAG_RD,
+    &g_eli_boot_passcache, 0,
+    "Passphrases are cached during boot process for possible reuse");
+static void
+fetch_loader_passphrase(void * dummy)
+{
+	char * env_passphrase;
+
+	KASSERT(dynamic_kenv, ("need dynamic kenv"));
+
+	if ((env_passphrase = kern_getenv("kern.geom.eli.passphrase")) != NULL) {
+		/* Extract passphrase from the environment. */
+		strlcpy(cached_passphrase, env_passphrase,
+		    sizeof(cached_passphrase));
+		freeenv(env_passphrase);
+
+		/* Wipe the passphrase from the environment. */
+		kern_unsetenv("kern.geom.eli.passphrase");
+	}
+}
+SYSINIT(geli_fetch_loader_passphrase, SI_SUB_KMEM + 1, SI_ORDER_ANY,
+    fetch_loader_passphrase, NULL);
+static void
+zero_boot_passcache(void * dummy)
+{
+
+	memset(cached_passphrase, 0, sizeof(cached_passphrase));
+}
+EVENTHANDLER_DEFINE(mountroot, zero_boot_passcache, NULL, 0);
 
 static eventhandler_tag g_eli_pre_sync = NULL;
 
@@ -621,21 +652,19 @@ end:
  * to close it when this situation occur.
  */
 static void
-g_eli_last_close(struct g_eli_softc *sc)
+g_eli_last_close(void *arg, int flags __unused)
 {
 	struct g_geom *gp;
-	struct g_provider *pp;
-	char ppname[64];
+	char gpname[64];
 	int error;
 
 	g_topology_assert();
-	gp = sc->sc_geom;
-	pp = LIST_FIRST(&gp->provider);
-	strlcpy(ppname, pp->name, sizeof(ppname));
-	error = g_eli_destroy(sc, TRUE);
+	gp = arg;
+	strlcpy(gpname, gp->name, sizeof(gpname));
+	error = g_eli_destroy(gp->softc, TRUE);
 	KASSERT(error == 0, ("Cannot detach %s on last close (error=%d).",
-	    ppname, error));
-	G_ELI_DEBUG(0, "Detached %s on last close.", ppname);
+	    gpname, error));
+	G_ELI_DEBUG(0, "Detached %s on last close.", gpname);
 }
 
 int
@@ -665,7 +694,7 @@ g_eli_access(struct g_provider *pp, int dr, int dw, int de)
 	 */
 	if ((sc->sc_flags & G_ELI_FLAG_RW_DETACH) ||
 	    (sc->sc_flags & G_ELI_FLAG_WOPEN)) {
-		g_eli_last_close(sc);
+		g_post_event(g_eli_last_close, gp, M_WAITOK, NULL);
 	}
 	return (0);
 }
@@ -916,6 +945,10 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 		if (force) {
 			G_ELI_DEBUG(1, "Device %s is still open, so it "
 			    "cannot be definitely removed.", pp->name);
+			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
+			gp->access = g_eli_access;
+			g_wither_provider(pp, ENXIO);
+			return (EBUSY);
 		} else {
 			G_ELI_DEBUG(1,
 			    "Device %s is still open (r%dw%de%d).", pp->name,
@@ -1063,7 +1096,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		tries = g_eli_tries;
 	}
 
-	for (i = 0; i < tries; i++) {
+	for (i = 0; i <= tries; i++) {
 		g_eli_crypto_hmac_init(&ctx, NULL, 0);
 
 		/*
@@ -1087,9 +1120,19 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 		/* Ask for the passphrase if defined. */
 		if (md.md_iterations >= 0) {
-			printf("Enter passphrase for %s: ", pp->name);
-			cngets(passphrase, sizeof(passphrase),
-			    g_eli_visible_passphrase);
+			/* Try first with cached passphrase. */
+			if (i == 0) {
+				if (!g_eli_boot_passcache)
+					continue;
+				memcpy(passphrase, cached_passphrase,
+				    sizeof(passphrase));
+			} else {
+				printf("Enter passphrase for %s: ", pp->name);
+				cngets(passphrase, sizeof(passphrase),
+				    g_eli_visible_passphrase);
+				memcpy(cached_passphrase, passphrase,
+				    sizeof(passphrase));
+			}
 		}
 
 		/*
@@ -1119,15 +1162,18 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
 		bzero(key, sizeof(key));
 		if (error == -1) {
-			if (i == tries - 1) {
+			if (i == tries) {
 				G_ELI_DEBUG(0,
 				    "Wrong key for %s. No tries left.",
 				    pp->name);
 				g_eli_keyfiles_clear(pp->name);
 				return (NULL);
 			}
-			G_ELI_DEBUG(0, "Wrong key for %s. Tries left: %u.",
-			    pp->name, tries - i - 1);
+			if (i > 0) {
+				G_ELI_DEBUG(0,
+				    "Wrong key for %s. Tries left: %u.",
+				    pp->name, tries - i);
+			}
 			/* Try again. */
 			continue;
 		} else if (error > 0) {
@@ -1137,6 +1183,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 			g_eli_keyfiles_clear(pp->name);
 			return (NULL);
 		}
+		g_eli_keyfiles_clear(pp->name);
 		G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
 		break;
 	}
@@ -1168,9 +1215,9 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL || cp != NULL)
 		return;	/* Nothing here. */
 
-	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>", indent,
+	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>\n", indent,
 	    (uintmax_t)sc->sc_ekeys_total);
-	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>", indent,
+	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>\n", indent,
 	    (uintmax_t)sc->sc_ekeys_allocated);
 	sbuf_printf(sb, "%s<Flags>", indent);
 	if (sc->sc_flags == 0)

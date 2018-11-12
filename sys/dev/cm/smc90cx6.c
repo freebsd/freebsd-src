@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_arc.h>
@@ -511,7 +512,7 @@ cm_srint_locked(vsc)
 		 * count it as input error (we dont have any other
 		 * detectable)
 		 */
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto cleanup;
 	}
 
@@ -539,17 +540,14 @@ cm_srint_locked(vsc)
 	 */
 	if ((len + 2 + 2) > MHLEN) {
 		/* attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-
-		/* Insist on getting a cluster */
-		if ((m->m_flags & M_EXT) == 0) {
-			ifp->if_ierrors++;
+		if (!(MCLGET(m, M_NOWAIT))) {
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto cleanup;
 		}
 	}
 
 	if (m == 0) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto cleanup;
 	}
 
@@ -571,7 +569,7 @@ cm_srint_locked(vsc)
 	CM_LOCK(sc);
 
 	m = NULL;
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 cleanup:
 
@@ -619,7 +617,7 @@ cm_tint_locked(sc, isr)
 	 */
 
 	if (isr & CM_TMA || sc->sc_broadcast[buffer])
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 #ifdef CMRETRANSMIT
 	else if (ifp->if_flags & IFF_LINK2 && sc->sc_timer > 0
 	    && --sc->sc_retransmits[buffer] > 0) {
@@ -629,7 +627,7 @@ cm_tint_locked(sc, isr)
 	}
 #endif
 	else
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 
 	/* We know we can accept another buffer at this point. */
@@ -729,7 +727,7 @@ cmintr(arg)
 			 * PUTREG(CMCMD, CM_CONF(CONF_LONG));
 			 */
 			PUTREG(CMCMD, CM_CLR(CLR_RECONFIG));
-			ifp->if_collisions++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 
 			/*
 			 * If less than 2 seconds per reconfig:

@@ -12,33 +12,37 @@
 //===----------------------------------------------------------------------===//
 
 #include "XCoreRegisterInfo.h"
-#include "XCoreMachineFunctionInfo.h"
 #include "XCore.h"
-#include "llvm/Type.h"
-#include "llvm/Function.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineFunction.h"
+#include "XCoreInstrInfo.h"
+#include "XCoreMachineFunctionInfo.h"
+#include "XCoreSubtarget.h"
+#include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
+
+using namespace llvm;
+
+#define DEBUG_TYPE "xcore-reg-info"
 
 #define GET_REGINFO_TARGET_DESC
 #include "XCoreGenRegisterInfo.inc"
 
-using namespace llvm;
-
-XCoreRegisterInfo::XCoreRegisterInfo(const TargetInstrInfo &tii)
-  : XCoreGenRegisterInfo(XCore::LR), TII(tii) {
+XCoreRegisterInfo::XCoreRegisterInfo()
+  : XCoreGenRegisterInfo(XCore::LR) {
 }
 
 // helper functions
@@ -54,24 +58,179 @@ static inline bool isImmU16(unsigned val) {
   return val < (1 << 16);
 }
 
+
+static void InsertFPImmInst(MachineBasicBlock::iterator II,
+                            const XCoreInstrInfo &TII,
+                            unsigned Reg, unsigned FrameReg, int Offset ) {
+  MachineInstr &MI = *II;
+  MachineBasicBlock &MBB = *MI.getParent();
+  DebugLoc dl = MI.getDebugLoc();
+
+  switch (MI.getOpcode()) {
+  case XCore::LDWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::LDW_2rus), Reg)
+          .addReg(FrameReg)
+          .addImm(Offset)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::STWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::STW_2rus))
+          .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+          .addReg(FrameReg)
+          .addImm(Offset)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::LDAWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l2rus), Reg)
+          .addReg(FrameReg)
+          .addImm(Offset);
+    break;
+  default:
+    llvm_unreachable("Unexpected Opcode");
+  }
+}
+
+static void InsertFPConstInst(MachineBasicBlock::iterator II,
+                              const XCoreInstrInfo &TII,
+                              unsigned Reg, unsigned FrameReg,
+                              int Offset, RegScavenger *RS ) {
+  assert(RS && "requiresRegisterScavenging failed");
+  MachineInstr &MI = *II;
+  MachineBasicBlock &MBB = *MI.getParent();
+  DebugLoc dl = MI.getDebugLoc();
+  unsigned ScratchOffset = RS->scavengeRegister(&XCore::GRRegsRegClass, II, 0);
+  RS->setRegUsed(ScratchOffset);
+  TII.loadImmediate(MBB, II, ScratchOffset, Offset);
+
+  switch (MI.getOpcode()) {
+  case XCore::LDWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::LDW_3r), Reg)
+          .addReg(FrameReg)
+          .addReg(ScratchOffset, RegState::Kill)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::STWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::STW_l3r))
+          .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+          .addReg(FrameReg)
+          .addReg(ScratchOffset, RegState::Kill)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::LDAWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l3r), Reg)
+          .addReg(FrameReg)
+          .addReg(ScratchOffset, RegState::Kill);
+    break;
+  default:
+    llvm_unreachable("Unexpected Opcode");
+  }
+}
+
+static void InsertSPImmInst(MachineBasicBlock::iterator II,
+                            const XCoreInstrInfo &TII,
+                            unsigned Reg, int Offset) {
+  MachineInstr &MI = *II;
+  MachineBasicBlock &MBB = *MI.getParent();
+  DebugLoc dl = MI.getDebugLoc();
+  bool isU6 = isImmU6(Offset);
+
+  switch (MI.getOpcode()) {
+  int NewOpcode;
+  case XCore::LDWFI:
+    NewOpcode = (isU6) ? XCore::LDWSP_ru6 : XCore::LDWSP_lru6;
+    BuildMI(MBB, II, dl, TII.get(NewOpcode), Reg)
+          .addImm(Offset)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::STWFI:
+    NewOpcode = (isU6) ? XCore::STWSP_ru6 : XCore::STWSP_lru6;
+    BuildMI(MBB, II, dl, TII.get(NewOpcode))
+          .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+          .addImm(Offset)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::LDAWFI:
+    NewOpcode = (isU6) ? XCore::LDAWSP_ru6 : XCore::LDAWSP_lru6;
+    BuildMI(MBB, II, dl, TII.get(NewOpcode), Reg)
+          .addImm(Offset);
+    break;
+  default:
+    llvm_unreachable("Unexpected Opcode");
+  }
+}
+
+static void InsertSPConstInst(MachineBasicBlock::iterator II,
+                                const XCoreInstrInfo &TII,
+                                unsigned Reg, int Offset, RegScavenger *RS ) {
+  assert(RS && "requiresRegisterScavenging failed");
+  MachineInstr &MI = *II;
+  MachineBasicBlock &MBB = *MI.getParent();
+  DebugLoc dl = MI.getDebugLoc();
+  unsigned OpCode = MI.getOpcode();
+
+  unsigned ScratchBase;
+  if (OpCode==XCore::STWFI) {
+    ScratchBase = RS->scavengeRegister(&XCore::GRRegsRegClass, II, 0);
+    RS->setRegUsed(ScratchBase);
+  } else
+    ScratchBase = Reg;
+  BuildMI(MBB, II, dl, TII.get(XCore::LDAWSP_ru6), ScratchBase).addImm(0);
+  unsigned ScratchOffset = RS->scavengeRegister(&XCore::GRRegsRegClass, II, 0);
+  RS->setRegUsed(ScratchOffset);
+  TII.loadImmediate(MBB, II, ScratchOffset, Offset);
+
+  switch (OpCode) {
+  case XCore::LDWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::LDW_3r), Reg)
+          .addReg(ScratchBase, RegState::Kill)
+          .addReg(ScratchOffset, RegState::Kill)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::STWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::STW_l3r))
+          .addReg(Reg, getKillRegState(MI.getOperand(0).isKill()))
+          .addReg(ScratchBase, RegState::Kill)
+          .addReg(ScratchOffset, RegState::Kill)
+          .addMemOperand(*MI.memoperands_begin());
+    break;
+  case XCore::LDAWFI:
+    BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l3r), Reg)
+          .addReg(ScratchBase, RegState::Kill)
+          .addReg(ScratchOffset, RegState::Kill);
+    break;
+  default:
+    llvm_unreachable("Unexpected Opcode");
+  }
+}
+
 bool XCoreRegisterInfo::needsFrameMoves(const MachineFunction &MF) {
   return MF.getMMI().hasDebugInfo() ||
     MF.getFunction()->needsUnwindTableEntry();
 }
 
-const uint16_t* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
+const MCPhysReg* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
                                                                          const {
-  static const uint16_t CalleeSavedRegs[] = {
+  // The callee saved registers LR & FP are explicitly handled during
+  // emitPrologue & emitEpilogue and related functions.
+  static const MCPhysReg CalleeSavedRegs[] = {
     XCore::R4, XCore::R5, XCore::R6, XCore::R7,
-    XCore::R8, XCore::R9, XCore::R10, XCore::LR,
+    XCore::R8, XCore::R9, XCore::R10,
     0
   };
+  static const MCPhysReg CalleeSavedRegsFP[] = {
+    XCore::R4, XCore::R5, XCore::R6, XCore::R7,
+    XCore::R8, XCore::R9,
+    0
+  };
+  const TargetFrameLowering *TFI = MF->getSubtarget().getFrameLowering();
+  if (TFI->hasFP(*MF))
+    return CalleeSavedRegsFP;
   return CalleeSavedRegs;
 }
 
 BitVector XCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   Reserved.set(XCore::CP);
   Reserved.set(XCore::DP);
@@ -85,15 +244,12 @@ BitVector XCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
 bool
 XCoreRegisterInfo::requiresRegisterScavenging(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
-
-  // TODO can we estimate stack size?
-  return TFI->hasFP(MF);
+  return true;
 }
 
 bool
 XCoreRegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
-  return requiresRegisterScavenging(MF);
+  return true;
 }
 
 bool
@@ -101,76 +257,20 @@ XCoreRegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
   return false;
 }
 
-// This function eliminates ADJCALLSTACKDOWN,
-// ADJCALLSTACKUP pseudo instructions
-void XCoreRegisterInfo::
-eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
-                              MachineBasicBlock::iterator I) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
-
-  if (!TFI->hasReservedCallFrame(MF)) {
-    // Turn the adjcallstackdown instruction into 'extsp <amt>' and the
-    // adjcallstackup instruction into 'ldaw sp, sp[<amt>]'
-    MachineInstr *Old = I;
-    uint64_t Amount = Old->getOperand(0).getImm();
-    if (Amount != 0) {
-      // We need to keep the stack aligned properly.  To do this, we round the
-      // amount of space needed for the outgoing arguments up to the next
-      // alignment boundary.
-      unsigned Align = TFI->getStackAlignment();
-      Amount = (Amount+Align-1)/Align*Align;
-
-      assert(Amount%4 == 0);
-      Amount /= 4;
-
-      bool isU6 = isImmU6(Amount);
-      if (!isU6 && !isImmU16(Amount)) {
-        // FIX could emit multiple instructions in this case.
-#ifndef NDEBUG
-        errs() << "eliminateCallFramePseudoInstr size too big: "
-               << Amount << "\n";
-#endif
-        llvm_unreachable(0);
-      }
-
-      MachineInstr *New;
-      if (Old->getOpcode() == XCore::ADJCALLSTACKDOWN) {
-        int Opcode = isU6 ? XCore::EXTSP_u6 : XCore::EXTSP_lu6;
-        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode))
-          .addImm(Amount);
-      } else {
-        assert(Old->getOpcode() == XCore::ADJCALLSTACKUP);
-        int Opcode = isU6 ? XCore::LDAWSP_ru6_RRegs : XCore::LDAWSP_lru6_RRegs;
-        New=BuildMI(MF, Old->getDebugLoc(), TII.get(Opcode), XCore::SP)
-          .addImm(Amount);
-      }
-
-      // Replace the pseudo instruction with a new instruction...
-      MBB.insert(I, New);
-    }
-  }
-  
-  MBB.erase(I);
-}
-
 void
 XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                       int SPAdj, RegScavenger *RS) const {
+                                       int SPAdj, unsigned FIOperandNum,
+                                       RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
   MachineInstr &MI = *II;
-  DebugLoc dl = MI.getDebugLoc();
-  unsigned i = 0;
-
-  while (!MI.getOperand(i).isFI()) {
-    ++i;
-    assert(i < MI.getNumOperands() && "Instr doesn't have FrameIndex operand!");
-  }
-
-  MachineOperand &FrameOp = MI.getOperand(i);
+  MachineOperand &FrameOp = MI.getOperand(FIOperandNum);
   int FrameIndex = FrameOp.getIndex();
 
   MachineFunction &MF = *MI.getParent()->getParent();
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const XCoreInstrInfo &TII =
+      *static_cast<const XCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
+
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   int Offset = MF.getFrameInfo()->getObjectOffset(FrameIndex);
   int StackSize = MF.getFrameInfo()->getStackSize();
 
@@ -190,128 +290,41 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   // Special handling of DBG_VALUE instructions.
   if (MI.isDebugValue()) {
-    MI.getOperand(i).ChangeToRegister(FrameReg, false /*isDef*/);
-    MI.getOperand(i+1).ChangeToImmediate(Offset);
+    MI.getOperand(FIOperandNum).ChangeToRegister(FrameReg, false /*isDef*/);
+    MI.getOperand(FIOperandNum + 1).ChangeToImmediate(Offset);
     return;
   }
 
   // fold constant into offset.
-  Offset += MI.getOperand(i + 1).getImm();
-  MI.getOperand(i + 1).ChangeToImmediate(0);
+  Offset += MI.getOperand(FIOperandNum + 1).getImm();
+  MI.getOperand(FIOperandNum + 1).ChangeToImmediate(0);
   
   assert(Offset%4 == 0 && "Misaligned stack offset");
-
   DEBUG(errs() << "Offset             : " << Offset << "\n" << "<--------->\n");
-  
   Offset/=4;
   
-  bool FP = TFI->hasFP(MF);
-
   unsigned Reg = MI.getOperand(0).getReg();
-  bool isKill = MI.getOpcode() == XCore::STWFI && MI.getOperand(0).isKill();
-
   assert(XCore::GRRegsRegClass.contains(Reg) && "Unexpected register operand");
-  
-  MachineBasicBlock &MBB = *MI.getParent();
-  
-  if (FP) {
-    bool isUs = isImmUs(Offset);
-    
-    if (!isUs) {
-      if (!RS)
-        report_fatal_error("eliminateFrameIndex Frame size too big: " +
-                           Twine(Offset));
-      unsigned ScratchReg = RS->scavengeRegister(&XCore::GRRegsRegClass, II,
-                                                 SPAdj);
-      loadConstant(MBB, II, ScratchReg, Offset, dl);
-      switch (MI.getOpcode()) {
-      case XCore::LDWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::LDW_3r), Reg)
-              .addReg(FrameReg)
-              .addReg(ScratchReg, RegState::Kill);
-        break;
-      case XCore::STWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::STW_3r))
-              .addReg(Reg, getKillRegState(isKill))
-              .addReg(FrameReg)
-              .addReg(ScratchReg, RegState::Kill);
-        break;
-      case XCore::LDAWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l3r), Reg)
-              .addReg(FrameReg)
-              .addReg(ScratchReg, RegState::Kill);
-        break;
-      default:
-        llvm_unreachable("Unexpected Opcode");
-      }
-    } else {
-      switch (MI.getOpcode()) {
-      case XCore::LDWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::LDW_2rus), Reg)
-              .addReg(FrameReg)
-              .addImm(Offset);
-        break;
-      case XCore::STWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::STW_2rus))
-              .addReg(Reg, getKillRegState(isKill))
-              .addReg(FrameReg)
-              .addImm(Offset);
-        break;
-      case XCore::LDAWFI:
-        BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l2rus), Reg)
-              .addReg(FrameReg)
-              .addImm(Offset);
-        break;
-      default:
-        llvm_unreachable("Unexpected Opcode");
-      }
-    }
-  } else {
-    bool isU6 = isImmU6(Offset);
-    if (!isU6 && !isImmU16(Offset))
-      report_fatal_error("eliminateFrameIndex Frame size too big: " +
-                         Twine(Offset));
 
-    switch (MI.getOpcode()) {
-    int NewOpcode;
-    case XCore::LDWFI:
-      NewOpcode = (isU6) ? XCore::LDWSP_ru6 : XCore::LDWSP_lru6;
-      BuildMI(MBB, II, dl, TII.get(NewOpcode), Reg)
-            .addImm(Offset);
-      break;
-    case XCore::STWFI:
-      NewOpcode = (isU6) ? XCore::STWSP_ru6 : XCore::STWSP_lru6;
-      BuildMI(MBB, II, dl, TII.get(NewOpcode))
-            .addReg(Reg, getKillRegState(isKill))
-            .addImm(Offset);
-      break;
-    case XCore::LDAWFI:
-      NewOpcode = (isU6) ? XCore::LDAWSP_ru6 : XCore::LDAWSP_lru6;
-      BuildMI(MBB, II, dl, TII.get(NewOpcode), Reg)
-            .addImm(Offset);
-      break;
-    default:
-      llvm_unreachable("Unexpected Opcode");
-    }
+  if (TFI->hasFP(MF)) {
+    if (isImmUs(Offset))
+      InsertFPImmInst(II, TII, Reg, FrameReg, Offset);
+    else
+      InsertFPConstInst(II, TII, Reg, FrameReg, Offset, RS);
+  } else {
+    if (isImmU16(Offset))
+      InsertSPImmInst(II, TII, Reg, Offset);
+    else
+      InsertSPConstInst(II, TII, Reg, Offset, RS);
   }
   // Erase old instruction.
+  MachineBasicBlock &MBB = *MI.getParent();
   MBB.erase(II);
 }
 
-void XCoreRegisterInfo::
-loadConstant(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
-            unsigned DstReg, int64_t Value, DebugLoc dl) const {
-  // TODO use mkmsk if possible.
-  if (!isImmU16(Value)) {
-    // TODO use constant pool.
-    report_fatal_error("loadConstant value too big " + Twine(Value));
-  }
-  int Opcode = isImmU6(Value) ? XCore::LDC_ru6 : XCore::LDC_lru6;
-  BuildMI(MBB, I, dl, TII.get(Opcode), DstReg).addImm(Value);
-}
 
 unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   return TFI->hasFP(MF) ? XCore::R10 : XCore::SP;
 }

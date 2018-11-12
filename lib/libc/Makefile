@@ -3,13 +3,15 @@
 
 SHLIBDIR?= /lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+LIBC_SRCTOP?= ${.CURDIR}
 
 # Pick the current architecture directory for libc. In general, this is
 # named MACHINE_CPUARCH, but some ABIs are different enough to require
 # their own libc, so allow a directory named MACHINE_ARCH to override this.
 
-.if exists(${.CURDIR}/${MACHINE_ARCH})
+.if exists(${LIBC_SRCTOP}/${MACHINE_ARCH})
 LIBC_ARCH=${MACHINE_ARCH}
 .else
 LIBC_ARCH=${MACHINE_CPUARCH}
@@ -23,9 +25,10 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 # to CFLAGS below.  -DSYSLIBC_SCCS affects just the system call stubs.
 LIB=c
 SHLIB_MAJOR= 7
+SHLIB_LDSCRIPT=libc.ldscript
 WARNS?=	2
-CFLAGS+=-I${.CURDIR}/include -I${.CURDIR}/../../include
-CFLAGS+=-I${.CURDIR}/${LIBC_ARCH}
+CFLAGS+=-I${LIBC_SRCTOP}/include -I${LIBC_SRCTOP}/../../include
+CFLAGS+=-I${LIBC_SRCTOP}/${LIBC_ARCH}
 .if ${MK_NLS} != "no"
 CFLAGS+=-DNLS
 .endif
@@ -39,15 +42,17 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 .endif
 
 #
-# Only link with static libgcc.a (no libgcc_eh.a).
+# Link with static libcompiler_rt.a.
 #
-DPADD+=	${LIBGCC}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lgcc
+LIBADD+=	compiler_rt
 
 .if ${MK_SSP} != "no"
-LDADD+= -lssp_nonshared
+LIBADD+=	ssp_nonshared
 .endif
+
+# Extras that live in either libc.a or libc_nonshared.a
+LIBC_NONSHARED_SRCS=
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
@@ -57,48 +62,50 @@ MDASM=
 MIASM=
 NOASM=
 
-.include "${.CURDIR}/${LIBC_ARCH}/Makefile.inc"
-.include "${.CURDIR}/db/Makefile.inc"
-.include "${.CURDIR}/compat-43/Makefile.inc"
-.include "${.CURDIR}/gdtoa/Makefile.inc"
-.include "${.CURDIR}/gen/Makefile.inc"
-.include "${.CURDIR}/gmon/Makefile.inc"
+.include "${LIBC_SRCTOP}/${LIBC_ARCH}/Makefile.inc"
+.include "${LIBC_SRCTOP}/db/Makefile.inc"
+.include "${LIBC_SRCTOP}/compat-43/Makefile.inc"
+.include "${LIBC_SRCTOP}/gdtoa/Makefile.inc"
+.include "${LIBC_SRCTOP}/gen/Makefile.inc"
+.include "${LIBC_SRCTOP}/gmon/Makefile.inc"
 .if ${MK_ICONV} != "no"
-.include "${.CURDIR}/iconv/Makefile.inc"
+.include "${LIBC_SRCTOP}/iconv/Makefile.inc"
 .endif
-.include "${.CURDIR}/inet/Makefile.inc"
-.include "${.CURDIR}/isc/Makefile.inc"
-.include "${.CURDIR}/locale/Makefile.inc"
-.include "${.CURDIR}/nameser/Makefile.inc"
-.include "${.CURDIR}/net/Makefile.inc"
-.include "${.CURDIR}/nls/Makefile.inc"
-.include "${.CURDIR}/posix1e/Makefile.inc"
+.include "${LIBC_SRCTOP}/inet/Makefile.inc"
+.include "${LIBC_SRCTOP}/isc/Makefile.inc"
+.include "${LIBC_SRCTOP}/locale/Makefile.inc"
+.include "${LIBC_SRCTOP}/md/Makefile.inc"
+.include "${LIBC_SRCTOP}/nameser/Makefile.inc"
+.include "${LIBC_SRCTOP}/net/Makefile.inc"
+.include "${LIBC_SRCTOP}/nls/Makefile.inc"
+.include "${LIBC_SRCTOP}/posix1e/Makefile.inc"
 .if ${LIBC_ARCH} != "amd64" && \
-    ${LIBC_ARCH} != "ia64" && \
     ${LIBC_ARCH} != "powerpc64" && \
     ${LIBC_ARCH} != "sparc64" && \
     ${MACHINE_ARCH:Mmipsn32*} == "" && \
     ${MACHINE_ARCH:Mmips64*} == ""
-.include "${.CURDIR}/quad/Makefile.inc"
+.include "${LIBC_SRCTOP}/quad/Makefile.inc"
 .endif
-.include "${.CURDIR}/regex/Makefile.inc"
-.include "${.CURDIR}/resolv/Makefile.inc"
-.include "${.CURDIR}/stdio/Makefile.inc"
-.include "${.CURDIR}/stdlib/Makefile.inc"
-.include "${.CURDIR}/stdlib/jemalloc/Makefile.inc"
-.include "${.CURDIR}/stdtime/Makefile.inc"
-.include "${.CURDIR}/string/Makefile.inc"
-.include "${.CURDIR}/sys/Makefile.inc"
-.include "${.CURDIR}/rpc/Makefile.inc"
-.include "${.CURDIR}/uuid/Makefile.inc"
-.include "${.CURDIR}/xdr/Makefile.inc"
-.if ${LIBC_ARCH} == "arm" || ${LIBC_ARCH} == "mips"
-.include "${.CURDIR}/softfloat/Makefile.inc"
+.include "${LIBC_SRCTOP}/regex/Makefile.inc"
+.include "${LIBC_SRCTOP}/resolv/Makefile.inc"
+.include "${LIBC_SRCTOP}/stdio/Makefile.inc"
+.include "${LIBC_SRCTOP}/stdlib/Makefile.inc"
+.include "${LIBC_SRCTOP}/stdlib/jemalloc/Makefile.inc"
+.include "${LIBC_SRCTOP}/stdtime/Makefile.inc"
+.include "${LIBC_SRCTOP}/string/Makefile.inc"
+.include "${LIBC_SRCTOP}/sys/Makefile.inc"
+.include "${LIBC_SRCTOP}/rpc/Makefile.inc"
+.include "${LIBC_SRCTOP}/uuid/Makefile.inc"
+.include "${LIBC_SRCTOP}/xdr/Makefile.inc"
+.if (${LIBC_ARCH} == "arm" && ${MACHINE_ARCH} != "armv6hf") ||\
+     ${LIBC_ARCH} == "mips"
+.include "${LIBC_SRCTOP}/softfloat/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"
 CFLAGS+= -DYP
-.include "${.CURDIR}/yp/Makefile.inc"
+.include "${LIBC_SRCTOP}/yp/Makefile.inc"
 .endif
+.include "${LIBC_SRCTOP}/capability/Makefile.inc"
 .if ${MK_HESIOD} != "no"
 CFLAGS+= -DHESIOD
 .endif
@@ -112,7 +119,9 @@ CFLAGS+= -DNS_CACHING
 CFLAGS+=-D_FREEFALL_CONFIG
 .endif
 
-VERSION_DEF=${.CURDIR}/Versions.def
+STATICOBJS+=${LIBC_NONSHARED_SRCS:S/.c$/.o/}
+
+VERSION_DEF=${LIBC_SRCTOP}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}
 CFLAGS+= -DSYMBOL_VERSIONING
 
@@ -140,12 +149,18 @@ KSRCS=	bcmp.c ffs.c ffsl.c fls.c flsl.c mcount.c strcat.c strchr.c \
 libkern: libkern.gen libkern.${LIBC_ARCH}
 
 libkern.gen: ${KQSRCS} ${KSRCS}
-	cp -p ${.CURDIR}/quad/quad.h ${.ALLSRC} ${DESTDIR}/sys/libkern
+	${CP} ${LIBC_SRCTOP}/quad/quad.h ${.ALLSRC} ${DESTDIR}/sys/libkern
 
 libkern.${LIBC_ARCH}:: ${KMSRCS}
 .if defined(KMSRCS) && !empty(KMSRCS)
-	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
+	${CP} ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
+
+.if ${MK_SYSCALL_COMPAT} != "no"
+CFLAGS+=-DSYSCALL_COMPAT
+.endif
+
+.include <bsd.arch.inc.mk>
 
 .include <bsd.lib.mk>
 

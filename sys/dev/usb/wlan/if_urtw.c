@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -64,9 +65,8 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
 #ifdef URTW_DEBUG
 int urtw_debug = 0;
-SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &urtw_debug, 0,
+SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RWTUN, &urtw_debug, 0,
     "control debugging printfs");
-TUNABLE_INT("hw.usb.urtw.debug", &urtw_debug);
 enum {
 	URTW_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	URTW_DEBUG_RECV		= 0x00000002,	/* basic recv operation */
@@ -89,9 +89,8 @@ enum {
 } while (0)
 #endif
 static int urtw_preamble_mode = URTW_PREAMBLE_MODE_LONG;
-SYSCTL_INT(_hw_usb_urtw, OID_AUTO, preamble_mode, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_urtw, OID_AUTO, preamble_mode, CTLFLAG_RWTUN,
     &urtw_preamble_mode, 0, "set the preable mode (long or short)");
-TUNABLE_INT("hw.usb.urtw.preamble_mode", &urtw_preamble_mode);
 
 /* recognized device vendors/products */
 #define urtw_lookup(v, p)						\
@@ -477,6 +476,7 @@ static struct urtw_pair urtw_ratetable[] = {
 	{ 96, 10 }, { 108, 11 }
 };
 
+#if 0
 static const uint8_t urtw_8187b_reg_table[][3] = {
 	{ 0xf0, 0x32, 0 }, { 0xf1, 0x32, 0 }, { 0xf2, 0x00, 0 },
 	{ 0xf3, 0x00, 0 }, { 0xf4, 0x32, 0 }, { 0xf5, 0x43, 0 },
@@ -510,6 +510,7 @@ static const uint8_t urtw_8187b_reg_table[][3] = {
 	{ 0x4c, 0x00, 2 }, { 0x9f, 0x00, 3 }, { 0x8c, 0x01, 0 },
 	{ 0x8d, 0x10, 0 }, { 0x8e, 0x08, 0 }, { 0x8f, 0x00, 0 }
 };
+#endif
 
 static usb_callback_t urtw_bulk_rx_callback;
 static usb_callback_t urtw_bulk_tx_callback;
@@ -1035,8 +1036,13 @@ urtw_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -1466,7 +1472,7 @@ urtw_start(struct ifnet *ifp)
 		m->m_pkthdr.rcvif = NULL;
 
 		if (urtw_tx_start(sc, ni, m, bf, URTW_PRIORITY_NORMAL) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			ieee80211_free_node(ni);
 			break;
@@ -1576,10 +1582,10 @@ urtw_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return (ENOBUFS);		/* XXX */
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if (urtw_tx_start(sc, ni, m, bf, URTW_PRIORITY_LOW) != 0) {
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		URTW_UNLOCK(sc);
 		return (EIO);
@@ -1689,7 +1695,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	/*
 	 * Software crypto.
 	 */
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			device_printf(sc->sc_dev,
@@ -1761,7 +1767,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		else
 			dur = URTW_ASIFS_TIME + acktime;
 	}
-	*(uint16_t *)wh->i_dur = htole16(dur);
+	USETW(wh->i_dur, dur);
 
 	xferlen = m0->m_pkthdr.len;
 	xferlen += (sc->sc_flags & URTW_RTL8187B) ? (4 * 8) : (4 * 3);
@@ -1912,7 +1918,7 @@ urtw_watchdog(void *arg)
 	if (sc->sc_txtimer > 0) {
 		if (--sc->sc_txtimer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 		callout_reset(&sc->sc_watchdog_ch, hz, urtw_watchdog, sc);
@@ -3987,7 +3993,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	if (actlen < (int)URTW_MIN_RXBUFSZ) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
@@ -3998,7 +4004,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 		    (actlen - (sizeof(struct urtw_8187b_rxhdr))));
 		flen = le32toh(rx->flag) & 0xfff;
 		if (flen > actlen) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return (NULL);
 		}
 		rate = (le32toh(rx->flag) >> URTW_RX_FLAG_RXRATE_SHIFT) & 0xf;
@@ -4012,7 +4018,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 		    (actlen - (sizeof(struct urtw_8187l_rxhdr))));
 		flen = le32toh(rx->flag) & 0xfff;
 		if (flen > actlen) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			return (NULL);
 		}
 
@@ -4024,7 +4030,7 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 
 	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
@@ -4121,7 +4127,7 @@ setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto setup;
 		}
 		break;
@@ -4150,7 +4156,7 @@ urtw_txstatus_eof(struct usb_xfer *xfer)
 		pktretry = val & 0xff;
 		seq = (val >> 16) & 0xff;
 		if (pktretry == URTW_TX_MAXRETRY)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		DPRINTF(sc, URTW_DEBUG_TXSTATUS, "pktretry %d seq %#x\n",
 		    pktretry, seq);
 	}
@@ -4178,7 +4184,7 @@ setup:
 	default:
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto setup;
 		}
 		break;
@@ -4212,7 +4218,7 @@ urtw_txeof(struct usb_xfer *xfer, struct urtw_data *data)
 		data->ni = NULL;
 	}
 	sc->sc_txtimer = 0;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
@@ -4259,7 +4265,7 @@ setup:
 		if (data->ni != NULL) {
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);

@@ -99,10 +99,10 @@ element will be included.  For example:
 
 	<para arch="sparc64">SPARC64-specific text</para>
 
-The currently-supported architectures are amd64, arm, i386, ia64,
-pc98, powerpc, and sparc64.  An element may appear for multiple
-architectures by specifying a comma-separated list of architectures
-(i.e. arch="sparc64,ia64").
+The currently-supported architectures are amd64, arm, i386, pc98,
+powerpc and sparc64.  An element may appear for multiple architectures
+by specifying a comma-separated list of architectures
+(i.e. arch="sparc64,amd64").
 
 When creating a translation, make a new directory under this
 directory with a language code (paralleling the DocProj directory

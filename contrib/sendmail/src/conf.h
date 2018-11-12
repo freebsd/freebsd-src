@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 8.575 2009/03/25 20:04:00 ca Exp $
+ *	$Id: conf.h,v 8.577 2013-11-22 20:51:55 ca Exp $
  */
 
 /*
@@ -112,7 +112,9 @@ struct rusage;	/* forward declaration to get gcc to shut up in wait.h */
 #ifndef MAXHDRSLEN
 # define MAXHDRSLEN	(32 * 1024)	/* max size of message headers */
 #endif /* ! MAXHDRSLEN */
-#define MAXDAEMONS	10		/* max number of ports to listen to */
+#ifndef MAXDAEMONS
+# define MAXDAEMONS	10		/* max number of ports to listen to */
+#endif /* MAXDAEMONS */
 #ifndef MAXINTERFACES
 # define MAXINTERFACES	512		/* number of interfaces to probe */
 #endif /* MAXINTERFACES */

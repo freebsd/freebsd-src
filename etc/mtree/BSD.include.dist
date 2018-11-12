@@ -81,7 +81,11 @@
             ..
         ..
         v1
+            experimental
+            ..
             ext
+            ..
+            tr1
             ..
         ..
     ..
@@ -89,10 +93,6 @@
         ata
         ..
         scsi
-        ..
-    ..
-    clang
-        3.2
         ..
     ..
     crypto
@@ -115,8 +115,6 @@
         hwpmc
         ..
         ic
-        ..
-        ieee488
         ..
         iicbus
         ..
@@ -162,6 +160,8 @@
         ..
     ..
     fs
+        cuse
+        ..
         devfs
         ..
         fdescfs
@@ -175,6 +175,8 @@
         nullfs
         ..
         procfs
+        ..
+        smbfs
         ..
         udf
         ..
@@ -221,8 +223,6 @@
         posix
         ..
     ..
-    gpib
-    ..
     gssapi
     ..
     infiniband
@@ -245,7 +245,7 @@
     ..
     libmilter
     ..
-    lwres
+    libxo
     ..
     lzma
     ..
@@ -256,8 +256,6 @@
     net
     ..
     net80211
-    ..
-    netatalk
     ..
     netgraph
         atm
@@ -275,8 +273,6 @@
     ..
     netipsec
     ..
-    netipx
-    ..
     netnatm
         api
         ..
@@ -285,6 +281,10 @@
         saal
         ..
         sig
+        ..
+    ..
+    netpfil
+        pf
         ..
     ..
     netsmb
@@ -302,8 +302,6 @@
     protocols
     ..
     rdma
-    ..
-    readline
     ..
     rpc
     ..
@@ -326,6 +324,8 @@
     ssp
     ..
     sys
+    ..
+    teken
     ..
     ufs
         ffs

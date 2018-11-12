@@ -15,9 +15,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar.h"
-#include "llvm/Function.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Pass.h"
-#include "llvm/Type.h"
 using namespace llvm;
 
 namespace {
@@ -27,11 +27,11 @@ namespace {
       initializeInstNamerPass(*PassRegistry::getPassRegistry());
     }
     
-    void getAnalysisUsage(AnalysisUsage &Info) const {
+    void getAnalysisUsage(AnalysisUsage &Info) const override {
       Info.setPreservesAll();
     }
 
-    bool runOnFunction(Function &F) {
+    bool runOnFunction(Function &F) override {
       for (Function::arg_iterator AI = F.arg_begin(), AE = F.arg_end();
            AI != AE; ++AI)
         if (!AI->hasName() && !AI->getType()->isVoidTy())

@@ -1,9 +1,13 @@
 .\"
-.\" Copyright (c) 2009-2010, 2012 Robert N. M. Watson
+.\" Copyright (c) 2009-2010, 2012-2013 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" This software was developed at the University of Cambridge Computer
 .\" Laboratory with support from a grant from Google, Inc.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -28,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd April 7, 2014
 .Dt PDFORK 2
 .Os
 .Sh NAME
@@ -41,7 +45,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/procdesc.h
-.Ft int
+.Ft pid_t
 .Fn pdfork "int *fdp" "int flags"
 .Ft int
 .Fn pdgetpid "int fd" "pid_t *pidp"
@@ -71,7 +75,9 @@ Instead of the default terminate-on-close behaviour, allow the process to
 live until it is explicitly killed with
 .Xr kill 2 .
 .Pp
-This option is not permitted in Capsicum capability mode (see
+This option is not permitted in
+.Xr capsicum 4
+capability mode (see
 .Xr cap_enter 2 ) .
 .El
 .Pp
@@ -111,6 +117,13 @@ and
 allow waiting for process state transitions; currently only
 .Dv POLLHUP
 is defined, and will be raised when the process dies.
+Process state transitions can also be monitored using
+.Xr kqueue 2
+filter
+.Dv EVFILT_PROCDESC ;
+currently only
+.Dv NOTE_EXIT
+is implemented.
 .Pp
 .Xr close 2
 will close the process descriptor unless
@@ -156,7 +169,9 @@ for
 .Xr fstat 2 ,
 .Xr kill 2 ,
 .Xr poll 2 ,
-.Xr wait4 2
+.Xr wait4 2 ,
+.Xr capsicum 4 ,
+.Xr procdesc 4
 .Sh HISTORY
 The
 .Fn pdfork ,
@@ -173,9 +188,9 @@ Project.
 .Sh AUTHORS
 .An -nosplit
 These functions and the capability facility were created by
-.An "Robert N. M. Watson" Aq rwatson@FreeBSD.org
+.An Robert N. M. Watson Aq Mt rwatson@FreeBSD.org
 and
-.An "Jonathan Anderson" Aq jonathan@FreeBSD.org
+.An Jonathan Anderson Aq Mt jonathan@FreeBSD.org
 at the University of Cambridge Computer Laboratory with support from a grant
 from Google, Inc.
 .Sh BUGS

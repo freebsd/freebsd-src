@@ -52,11 +52,8 @@ static void	db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
  */
 /*ARGSUSED*/
 void
-db_examine_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_examine_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
 	if (modif[0] != '\0')
 	    db_strcpy(db_examine_format, modif);
@@ -68,11 +65,7 @@ db_examine_cmd(addr, have_addr, count, modif)
 }
 
 static void
-db_examine(addr, fmt, count)
-	register
-	db_addr_t	addr;
-	char *		fmt;	/* format string */
-	int		count;	/* repeat count */
+db_examine(db_addr_t addr, char *fmt, int count)
 {
 	int		c;
 	db_expr_t	value;
@@ -197,11 +190,8 @@ static char	db_print_format = 'x';
 
 /*ARGSUSED*/
 void
-db_print_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_print_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
 	db_expr_t	value;
 
@@ -242,8 +232,7 @@ db_print_cmd(addr, have_addr, count, modif)
 }
 
 void
-db_print_loc_and_inst(loc)
-	db_addr_t	loc;
+db_print_loc_and_inst(db_addr_t loc)
 {
 	db_printsym(loc, DB_STGY_PROC);
 	db_printf(":\t");
@@ -255,11 +244,8 @@ db_print_loc_and_inst(loc)
  * Syntax: search [/bhl] addr value [mask] [,count]
  */
 void
-db_search_cmd(dummy1, dummy2, dummy3, dummy4)
-	db_expr_t	dummy1;
-	boolean_t	dummy2;
-	db_expr_t	dummy3;
-	char *		dummy4;
+db_search_cmd(db_expr_t dummy1, boolean_t dummy2, db_expr_t dummy3,
+    char *dummy4)
 {
 	int		t;
 	db_addr_t	addr;
@@ -323,13 +309,8 @@ db_search_cmd(dummy1, dummy2, dummy3, dummy4)
 }
 
 static void
-db_search(addr, size, value, mask, count)
-	register
-	db_addr_t	addr;
-	int		size;
-	db_expr_t	value;
-	db_expr_t	mask;
-	unsigned int	count;
+db_search(db_addr_t addr, int size, db_expr_t value, db_expr_t mask,
+    unsigned int count)
 {
 	while (count-- != 0) {
 		db_prev = addr;

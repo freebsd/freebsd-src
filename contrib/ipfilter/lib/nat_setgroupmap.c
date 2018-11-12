@@ -1,33 +1,33 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2003 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: nat_setgroupmap.c,v 1.1.4.1 2006/06/16 17:21:07 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #include "ipf.h"
 
 void nat_setgroupmap(n)
-ipnat_t *n;
+	ipnat_t *n;
 {
-	if (n->in_outmsk == n->in_inmsk)
+	if (n->in_nsrcmsk == n->in_osrcmsk)
 		n->in_ippip = 1;
 	else if (n->in_flags & IPN_AUTOPORTMAP) {
-		n->in_ippip = ~ntohl(n->in_inmsk);
-		if (n->in_outmsk != 0xffffffff)
-			n->in_ippip /= (~ntohl(n->in_outmsk) + 1);
+		n->in_ippip = ~ntohl(n->in_osrcmsk);
+		if (n->in_nsrcmsk != 0xffffffff)
+			n->in_ippip /= (~ntohl(n->in_nsrcmsk) + 1);
 		n->in_ippip++;
 		if (n->in_ippip == 0)
 			n->in_ippip = 1;
 		n->in_ppip = USABLE_PORTS / n->in_ippip;
 	} else {
-		n->in_space = USABLE_PORTS * ~ntohl(n->in_outmsk);
-		n->in_nip = 0;
-		if (!(n->in_ppip = n->in_pmin))
+		n->in_space = USABLE_PORTS * ~ntohl(n->in_nsrcmsk);
+		n->in_snip = 0;
+		if (!(n->in_ppip = n->in_spmin))
 			n->in_ppip = 1;
 		n->in_ippip = USABLE_PORTS / n->in_ppip;
 	}

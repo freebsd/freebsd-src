@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_unix.c 437 2011-09-13 12:00:13Z des $
+ * $Id: pam_unix.c 648 2013-03-05 17:54:27Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -74,7 +74,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 #endif
 	struct passwd *pwd;
 	const char *user;
-	char *crypt_password, *password;
+	const char *crypt_password, *password;
 	int pam_err, retry;
 
 	(void)argc;
@@ -98,7 +98,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags,
 	for (retry = 0; retry < 3; ++retry) {
 #ifdef OPENPAM
 		pam_err = pam_get_authtok(pamh, PAM_AUTHTOK,
-		    (const char **)&password, NULL);
+		    &password, NULL);
 #else
 		resp = NULL;
 		pam_err = (*conv->conv)(1, &msgp, &resp, conv->appdata_ptr);

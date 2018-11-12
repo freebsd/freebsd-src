@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
-# All Rights Reserved.
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -47,22 +47,6 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 # Location of ttys(5)
 #
 ETC_TTYS=/etc/ttys
-
-############################################################ GLOBALS
-
-#
-# Terminal-type map/menu-item list
-#
-TTY_MENU_LIST="
-	'1 $msg_none'                '$msg_none_ttys_desc'
-	'2 $msg_ibm_437_vga_default' 'cons25'
-	'3 $msg_iso_8859_1'          'cons25l1'
-	'4 $msg_iso_8859_2'          'cons25l2'
-	'5 $msg_iso_8859_7'          'cons25l7'
-	'6 $msg_koi8_r'              'cons25r'
-	'7 $msg_koi8_u'              'cons25u'
-	'8 $msg_us_ascii'            'cons25w'
-" # END-QUOTE
 
 ############################################################ FUNCTIONS
 
@@ -72,30 +56,49 @@ TTY_MENU_LIST="
 #
 dialog_menu_main()
 {
-	local size
-	local hline="$hline_choose_a_terminal_type"
 	local prompt="$msg_ttys_menu_text"
+	local menu_list="
+		'1 $msg_none'                '$msg_none_ttys_desc'
+		'2 $msg_ibm_437_vga_default' 'cons25'
+		'3 $msg_iso_8859_1'          'cons25l1'
+		'4 $msg_iso_8859_2'          'cons25l2'
+		'5 $msg_iso_8859_7'          'cons25l7'
+		'6 $msg_koi8_r'              'cons25r'
+		'7 $msg_koi8_u'              'cons25u'
+		'8 $msg_us_ascii'            'cons25w'
+	" # END-QUOTE
+	local hline="$hline_choose_a_terminal_type"
 
-	size=$( eval f_dialog_menu_size \
-	        	\"\$DIALOG_TITLE\"     \
-	        	\"\$DIALOG_BACKTITLE\" \
-	                \"\$prompt\"           \
-	        	\"\$hline\"            \
-	        	$TTY_MENU_LIST         )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
 
-	local dialog_menu
-	dialog_menu=$( eval $DIALOG \
-		--clear --title \"\$DIALOG_TITLE\" \
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
-		--menu \"\$prompt\" $size          \
-		$TTY_MENU_LIST                     \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
 	local retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
+	f_dialog_menutag_store -s "$menu_choice"
+
+	if [ $retval -eq $DIALOG_OK ]; then
+		local item
+		item=$( eval f_dialog_menutag2item \
+		        	\"\$menu_choice\" $menu_list )
+		f_dialog_menuitem_store "$item"
+	fi
+		
 	return $retval
 }
 
@@ -105,29 +108,34 @@ dialog_menu_main()
 #
 ttys_set_type()
 {
-	local consterm="$1"
+	local funcname=ttys_set_type
+	local consterm="$1" err
 
 	#
 	# Create new temporary file to write our ttys(5) update with new types.
 	#
-	local tmpfile="$( mktemp -t "pgm" )"
-	[ "$tmpfile" ] || return $FAILURE
+	local tmpfile
+	f_eval_catch -k tmpfile $funcname mktemp 'mktemp -t "%s"' "$pgm" ||
+		return $FAILURE
 
 	#
 	# Fixup permissions and ownership (mktemp(1) creates the temporary file
 	# with 0600 permissions -- change the permissions and ownership to
 	# match ttys(5) before we write it out and mv(1) it into place).
 	#
-	local mode="$( stat -f '%#Lp' "$ETC_TTYS" 2> /dev/null )"
-	local owner="$( stat -f '%u:%g' "$ETC_TTYS" 2> /dev/null )"
-	f_quietly chmod "${mode:-0644}" "$tmpfile"
-	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
+	local mode owner
+	f_eval_catch -dk mode $funcname stat \
+		'stat -f "%%#Lp" "%s"' "$ETC_TTYS" || mode=0644
+	f_eval_catch -dk owner $funcname stat \
+		'stat -f "%%u:%%g" "%s"' "$ETC_TTYS" || owner="root:wheel"
+	f_eval_catch -d $funcname chmod 'chmod "%s" "%s"' "$mode" "$tmpfile"
+	f_eval_catch -d $funcname chown 'chown "%s" "%s"' "$owner" "$tmpfile"
 
 	#
 	# Operate on ttys(5), replacing only the types of `ttyv*' and
 	# `cons[0-9]' terminals with the new type.
 	#
-	awk -v consterm="$consterm" '
+	if ! err=$( awk -v consterm="$consterm" '
 	BEGIN {
 	}
 	{
@@ -149,8 +157,12 @@ ttys_set_type()
 		right = substr($0, RSTART)
 		printf "%s%s%s\n", left, consterm, right
 	}
-	' "$ETC_TTYS" > "$tmpfile" || return $FAILURE
-	f_quietly mv "$tmpfile" "$ETC_TTYS" || return $FAILURE
+	' "$ETC_TTYS" > "$tmpfile" 2>&1 ); then
+		f_dialog_msgbox "$err"
+		return $FAILURE
+	fi
+	f_eval_catch $funcname mv 'mv -f "%s" "%s"' "$tmpfile" "$ETC_TTYS" ||
+		return $FAILURE
 
 	return $SUCCESS
 }
@@ -163,9 +175,9 @@ ttys_set_type()
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -180,20 +192,13 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
-while :; do
-	dialog_menu_main
-	retval=$?
-	mtag=$( f_dialog_menutag )
+dialog_menu_main || f_die
+f_dialog_menutag_fetch mtag
 
-	[ $retval -eq 0 ] || f_die
-	[ "$mtag" = "1 $msg_none" ] && break
+[ "$mtag" = "1 $msg_none" ] && exit $SUCCESS
 
-	consterm=$( eval f_dialog_menutag2item \"\$mtag\" $TTY_MENU_LIST )
-	err=$( ttys_set_type "$consterm" 2>&1 )
-	[ "$err" ] || break
-
-	f_dialog_msgbox "$err"
-done
+f_dialog_menuitem_fetch consterm
+ttys_set_type "$consterm" || f_die
 
 exit $SUCCESS
 

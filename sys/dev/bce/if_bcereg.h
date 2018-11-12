@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2006-2010 Broadcom Corporation
- *	David Christensen <davidch@broadcom.com>.  All rights reserved.
+ * Copyright (c) 2006-2014 QLogic Corporation
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,9 +9,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of Broadcom Corporation nor the name of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written consent.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -31,55 +27,6 @@
 
 #ifndef	_BCEREG_H_DEFINED
 #define _BCEREG_H_DEFINED
-
-#ifdef HAVE_KERNEL_OPTION_HEADERS
-#include "opt_device_polling.h"
-#endif
-
-#include <sys/param.h>
-#include <sys/endian.h>
-#include <sys/systm.h>
-#include <sys/sockio.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/socket.h>
-#include <sys/sysctl.h>
-#include <sys/queue.h>
-
-#include <net/bpf.h>
-#include <net/ethernet.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <net/if_dl.h>
-#include <net/if_media.h>
-
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
-
-#include <netinet/in_systm.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/ip.h>
-#include <netinet/ip6.h>
-#include <netinet/tcp.h>
-#include <netinet/udp.h>
-
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/bus.h>
-#include <sys/rman.h>
-
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
-#include "miidevs.h"
-#include <dev/mii/brgphyreg.h>
-
-#include <dev/pci/pcireg.h>
-#include <dev/pci/pcivar.h>
-
-#include "miibus_if.h"
 
 /****************************************************************************/
 /* Conversion to FreeBSD type definitions.                                  */
@@ -472,7 +419,7 @@
 /* Returns FALSE in "defects" per 2^31 - 1 calls, otherwise returns TRUE. */
 #define DB_RANDOMFALSE(defects)        (random() > defects)
 #define DB_OR_RANDOMFALSE(defects)  || (random() > defects)
-#define DB_AND_RANDOMFALSE(defects) && (random() > ddfects)
+#define DB_AND_RANDOMFALSE(defects) && (random() > defects)
 
 /* Returns TRUE in "defects" per 2^31 - 1 calls, otherwise returns FALSE. */
 #define DB_RANDOMTRUE(defects)         (random() < defects)
@@ -6336,13 +6283,13 @@ struct fw_info {
 	u32 bss_addr;
 	u32 bss_len;
 	u32 bss_index;
-	u32 *bss;
+	const u32 *bss;
 
 	/* Read-only section. */
 	u32 rodata_addr;
 	u32 rodata_len;
 	u32 rodata_index;
-	u32 *rodata;
+	const u32 *rodata;
 };
 
 #define RV2P_PROC1		0
@@ -6358,8 +6305,8 @@ struct fw_info {
 
 #define BCE_TX_TIMEOUT		5
 
-#define BCE_MAX_SEGMENTS	32
-#define BCE_TSO_MAX_SIZE	65536
+#define BCE_MAX_SEGMENTS	35
+#define BCE_TSO_MAX_SIZE	(65535 + sizeof(struct ether_vlan_header))
 #define BCE_TSO_MAX_SEG_SIZE	4096
 
 #define BCE_DMA_ALIGN		8
@@ -6421,6 +6368,8 @@ struct fw_info {
 
 struct bce_softc
 {
+	struct mtx		bce_mtx;
+
 	/* Interface info */
 	struct ifnet		*bce_ifp;
 
@@ -6448,8 +6397,6 @@ struct bce_softc
 	/* IRQ Resource Handle */
 	struct resource		*bce_res_irq;
 
-	struct mtx		bce_mtx;
-
 	/* Interrupt handler. */
 	void			*bce_intrhand;
 
@@ -6469,6 +6416,7 @@ struct bce_softc
 #define BCE_USING_MSIX_FLAG			0x00000100
 #define BCE_PCIE_FLAG				0x00000200
 #define BCE_USING_TX_FLOW_CONTROL		0x00000400
+#define BCE_USING_RX_FLOW_CONTROL		0x00000800
 
 	/* Controller capability flags. */
 	u32			bce_cap_flags;
@@ -6563,14 +6511,6 @@ struct bce_softc
 	u16			bce_rx_ticks;
 	u32			bce_stats_ticks;
 
-	/* ToDo: Can these be removed? */
-	u16			bce_comp_prod_trip_int;
-	u16			bce_comp_prod_trip;
-	u16			bce_com_ticks_int;
-	u16			bce_com_ticks;
-	u16			bce_cmd_ticks_int;
-	u16			bce_cmd_ticks;
-
 	/* The address of the integrated PHY on the MII bus. */
 	int			bce_phy_addr;
 
@@ -6603,11 +6543,9 @@ struct bce_softc
 	int			watchdog_timer;
 
 	/* Frame size and mbuf allocation size for RX frames. */
-	u32			max_frame_size;
 	int			rx_bd_mbuf_alloc_size;
 	int			rx_bd_mbuf_data_len;
 	int			rx_bd_mbuf_align_pad;
-	int			pg_bd_mbuf_alloc_size;
 
 	/* Receive mode settings (i.e promiscuous, multicast, etc.). */
 	u32			rx_mode;
@@ -6754,6 +6692,7 @@ struct bce_softc
 	u32			l2fhdr_error_count;
 	u32			dma_map_addr_tx_failed_count;
 	u32			dma_map_addr_rx_failed_count;
+	u32			watchdog_timeouts;
 
 	/* Host coalescing block command register */
 	u32			hc_command;

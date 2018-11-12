@@ -29,9 +29,12 @@ typedef struct {
 	/// Uncompressed Size fields
 	bool all_have_sizes;
 
+	/// Oldest XZ Utils version that will decompress the file
+	uint32_t min_version;
+
 } xz_file_info;
 
-#define XZ_FILE_INFO_INIT { NULL, 0, 0, true }
+#define XZ_FILE_INFO_INIT { NULL, 0, 0, true, 50000002 }
 
 
 /// Information about a .xz Block
@@ -104,8 +107,32 @@ static struct {
 	uint64_t stream_padding;
 	uint64_t memusage_max;
 	uint32_t checks;
+	uint32_t min_version;
 	bool all_have_sizes;
-} totals = { 0, 0, 0, 0, 0, 0, 0, 0, true };
+} totals = { 0, 0, 0, 0, 0, 0, 0, 0, 0, true };
+
+
+/// Convert XZ Utils version number to a string.
+static const char *
+xz_ver_to_str(uint32_t ver)
+{
+	static char buf[32];
+
+	unsigned int major = ver / 10000000U;
+	ver -= major * 10000000U;
+
+	unsigned int minor = ver / 10000U;
+	ver -= minor * 10000U;
+
+	unsigned int patch = ver / 10U;
+	ver -= patch * 10U;
+
+	const char *stability = ver == 0 ? "alpha" : ver == 1 ? "beta" : "";
+
+	snprintf(buf, sizeof(buf), "%u.%u.%u%s",
+			major, minor, patch, stability);
+	return buf;
+}
 
 
 /// \brief      Parse the Index(es) from the given .xz file
@@ -200,6 +227,20 @@ parse_indexes(xz_file_info *xfi, file_pair *pair)
 		if (ret != LZMA_OK) {
 			message_error("%s: %s", pair->src_name,
 					message_strm(ret));
+			goto error;
+		}
+
+		// Check that the Stream Footer doesn't specify something
+		// that we don't support. This can only happen if the xz
+		// version is older than liblzma and liblzma supports
+		// something new.
+		//
+		// It is enough to check Stream Footer. Stream Header must
+		// match when it is compared against Stream Footer with
+		// lzma_stream_flags_compare().
+		if (footer_flags.version != 0) {
+			message_error("%s: %s", pair->src_name,
+					message_strm(LZMA_OPTIONS_ERROR));
 			goto error;
 		}
 
@@ -429,7 +470,19 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 	switch (lzma_block_compressed_size(&block,
 			iter->block.unpadded_size)) {
 	case LZMA_OK:
-		break;
+		// Validate also block.uncompressed_size if it is present.
+		// If it isn't present, there's no need to set it since
+		// we aren't going to actually decompress the Block; if
+		// we were decompressing, then we should set it so that
+		// the Block decoder could validate the Uncompressed Size
+		// that was stored in the Index.
+		if (block.uncompressed_size == LZMA_VLI_UNKNOWN
+				|| block.uncompressed_size
+					== iter->block.uncompressed_size)
+			break;
+
+		// If the above fails, the file is corrupt so
+		// LZMA_DATA_ERROR is a good error code.
 
 	case LZMA_DATA_ERROR:
 		// Free the memory allocated by lzma_block_header_decode().
@@ -451,6 +504,21 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 	bhi->memusage = lzma_raw_decoder_memusage(filters);
 	if (xfi->memusage_max < bhi->memusage)
 		xfi->memusage_max = bhi->memusage;
+
+	// Determine the minimum XZ Utils version that supports this Block.
+	//
+	// Currently the only thing that 5.0.0 doesn't support is empty
+	// LZMA2 Block. This decoder bug was fixed in 5.0.2.
+	{
+		size_t i = 0;
+		while (filters[i + 1].id != LZMA_VLI_UNKNOWN)
+			++i;
+
+		if (filters[i].id == LZMA_FILTER_LZMA2
+				&& iter->block.uncompressed_size == 0
+				&& xfi->min_version < 50000022U)
+			xfi->min_version = 50000022U;
+	}
 
 	// Convert the filter chain to human readable form.
 	message_filters_to_str(bhi->filter_chain, filters, false);
@@ -830,6 +898,8 @@ print_info_adv(xz_file_info *xfi, file_pair *pair)
 				round_up_to_mib(xfi->memusage_max), 0));
 		printf(_("  Sizes in headers:   %s\n"),
 				xfi->all_have_sizes ? _("Yes") : _("No"));
+		printf(_("  Minimum XZ Utils version: %s\n"),
+				xz_ver_to_str(xfi->min_version));
 	}
 
 	return false;
@@ -912,9 +982,10 @@ print_info_robot(xz_file_info *xfi, file_pair *pair)
 	}
 
 	if (message_verbosity_get() >= V_DEBUG)
-		printf("summary\t%" PRIu64 "\t%s\n",
+		printf("summary\t%" PRIu64 "\t%s\t%" PRIu32 "\n",
 				xfi->memusage_max,
-				xfi->all_have_sizes ? "yes" : "no");
+				xfi->all_have_sizes ? "yes" : "no",
+				xfi->min_version);
 
 	return false;
 }
@@ -934,6 +1005,9 @@ update_totals(const xz_file_info *xfi)
 
 	if (totals.memusage_max < xfi->memusage_max)
 		totals.memusage_max = xfi->memusage_max;
+
+	if (totals.min_version < xfi->min_version)
+		totals.min_version = xfi->min_version;
 
 	totals.all_have_sizes &= xfi->all_have_sizes;
 
@@ -999,6 +1073,8 @@ print_totals_adv(void)
 				round_up_to_mib(totals.memusage_max), 0));
 		printf(_("  Sizes in headers:   %s\n"),
 				totals.all_have_sizes ? _("Yes") : _("No"));
+		printf(_("  Minimum XZ Utils version: %s\n"),
+				xz_ver_to_str(totals.min_version));
 	}
 
 	return;
@@ -1024,9 +1100,10 @@ print_totals_robot(void)
 			totals.files);
 
 	if (message_verbosity_get() >= V_DEBUG)
-		printf("\t%" PRIu64 "\t%s",
+		printf("\t%" PRIu64 "\t%s\t%" PRIu32,
 				totals.memusage_max,
-				totals.all_have_sizes ? "yes" : "no");
+				totals.all_have_sizes ? "yes" : "no",
+				totals.min_version);
 
 	putchar('\n');
 

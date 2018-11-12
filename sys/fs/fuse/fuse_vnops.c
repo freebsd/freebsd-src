@@ -795,7 +795,7 @@ calldaemon:
 	         * caching...)
 	         */
 #if 0
-		if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE) {
+		if ((cnp->cn_flags & MAKEENTRY) != 0) {
 			FS_DEBUG("inserting NULL into cache\n");
 			cache_enter(dvp, NULL, cnp);
 		}
@@ -1173,6 +1173,11 @@ fuse_vnop_read(struct vop_read_args *ap)
 	if (fuse_isdeadfs(vp)) {
 		return ENXIO;
 	}
+
+	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
+		ioflag |= IO_DIRECT;
+	}
+
 	return fuse_io_dispatch(vp, uio, ioflag, cred);
 }
 
@@ -1712,6 +1717,10 @@ fuse_vnop_write(struct vop_write_args *ap)
 	}
 	fuse_vnode_refreshsize(vp, cred);
 
+	if (VTOFUD(vp)->flag & FN_DIRECTIO) {
+		ioflag |= IO_DIRECT;
+	}
+
 	return fuse_io_dispatch(vp, uio, ioflag, cred);
 }
 
@@ -1721,7 +1730,6 @@ fuse_vnop_write(struct vop_write_args *ap)
         vm_page_t *a_m;
         int a_count;
         int a_reqpage;
-        vm_ooffset_t a_offset;
     };
 */
 static int
@@ -1854,36 +1862,8 @@ fuse_vnop_getpages(struct vop_getpages_args *ap)
 			 */
 			;
 		}
-		if (i != ap->a_reqpage) {
-			/*
-			 * Whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere (it already is in the object).  Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * Just in case someone was asking for this page we
-			 * now tell them that it is ok to use.
-			 */
-			if (!error) {
-				if (m->oflags & VPO_WANTED) {
-					fuse_vm_page_lock(m);
-					vm_page_activate(m);
-					fuse_vm_page_unlock(m);
-				} else {
-					fuse_vm_page_lock(m);
-					vm_page_deactivate(m);
-					fuse_vm_page_unlock(m);
-				}
-				vm_page_wakeup(m);
-			} else {
-				fuse_vm_page_lock(m);
-				vm_page_free(m);
-				fuse_vm_page_unlock(m);
-			}
-		}
+		if (i != ap->a_reqpage)
+			vm_page_readahead_finish(m);
 	}
 	fuse_vm_page_unlock_queues();
 	VM_OBJECT_WUNLOCK(vp->v_object);

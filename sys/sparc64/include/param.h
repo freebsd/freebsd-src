@@ -57,6 +57,10 @@
 #define MAXCPU		1
 #endif /* SMP || KLD_MODULE */
 
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
+
 #define	INT_SHIFT	2
 #define	PTR_SHIFT	3
 
@@ -141,5 +145,9 @@
 #define sparc64_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((unsigned long)(x) * (PAGE_SIZE / 1024))
+
+#ifdef _KERNEL
+#define	NO_FUEWORD	1
+#endif
 
 #endif /* !_SPARC64_INCLUDE_PARAM_H_ */

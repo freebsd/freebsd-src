@@ -793,8 +793,8 @@ dptexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	dccb->state |= DCCB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&dpt->pending_ccb_list, &ccb->ccb_h, sim_links.le);
-	callout_reset(&dccb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    dpttimeout, dccb);
+	callout_reset_sbt(&dccb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    dpttimeout, dccb, 0);
 	if (dpt_send_eata_command(dpt, &dccb->eata_ccb,
 				  dccb->eata_ccb.cp_busaddr,
 				  EATA_CMD_DMA_SEND_CP, 0, 0, 0, 0) != 0) {
@@ -1149,7 +1149,6 @@ dpt_free(struct dpt_softc *dpt)
 	case 4:
 		bus_dmamem_free(dpt->dccb_dmat, dpt->dpt_dccbs,
 				dpt->dccb_dmamap);
-		bus_dmamap_destroy(dpt->dccb_dmat, dpt->dccb_dmamap);
 	case 3:
 		bus_dma_tag_destroy(dpt->dccb_dmat);
 	case 2:
@@ -1389,7 +1388,7 @@ dpt_init(struct dpt_softc *dpt)
 				/* highaddr	*/ BUS_SPACE_MAXADDR,
 				/* filter	*/ NULL,
 				/* filterarg	*/ NULL,
-				/* maxsize	*/ MAXBSIZE,
+				/* maxsize	*/ DFLTPHYS,
 				/* nsegments	*/ dpt->sgsize,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
@@ -1632,9 +1631,6 @@ dpt_intr_locked(dpt_softc_t *dpt)
 			       "clear EOC.\n     Marking as LOST.\n",
 			       dccb->transaction_id);
 
-#ifdef DPT_HANDLE_TIMEOUTS
-			dccb->state |= DPT_CCB_STATE_MARKED_LOST;
-#endif
 			/* This CLEARS the interrupt! */
 			status = dpt_inb(dpt, HA_RSTATUS);
 			continue;
@@ -2523,155 +2519,5 @@ dpt_user_cmd_done(dpt_softc_t * dpt, int bus, dpt_ccb_t * ccb)
 	/* Free allocated memory */
 	return;
 }
-
-#ifdef DPT_HANDLE_TIMEOUTS
-/**
- * This function walks down the SUBMITTED queue.
- * Every request that is too old gets aborted and marked.
- * Since the DPT will complete (interrupt) immediately (what does that mean?),
- * We just walk the list, aborting old commands and marking them as such.
- * The dpt_complete function will get rid of the that were interrupted in the
- * normal manner.
- *
- * This function needs to run at splcam(), as it interacts with the submitted
- * queue, as well as the completed and free queues.  Just like dpt_intr() does.
- * To run it at any ISPL other than that of dpt_intr(), will mean that dpt_intr
- * willbe able to pre-empt it, grab a transaction in progress (towards
- * destruction) and operate on it.  The state of this transaction will be not
- * very clear.
- * The only other option, is to lock it only as long as necessary but have
- * dpt_intr() spin-wait on it. In a UP environment this makes no sense and in
- * a SMP environment, the advantage is dubvious for a function that runs once
- * every ten seconds for few microseconds and, on systems with healthy
- * hardware, does not do anything anyway.
- */
-
-static void
-dpt_handle_timeouts(dpt_softc_t * dpt)
-{
-	dpt_ccb_t      *ccb;
-
-	if (dpt->state & DPT_HA_TIMEOUTS_ACTIVE) {
-		device_printf(dpt->dev, "WARNING: Timeout Handling Collision\n");
-		return;
-	}
-	dpt->state |= DPT_HA_TIMEOUTS_ACTIVE;
-
-	/* Loop through the entire submitted queue, looking for lost souls */
-	TAILQ_FIRST(ccb, &&dpt->submitted_ccbs, links) {
-		struct scsi_xfer *xs;
-		u_int32_t       age, max_age;
-
-		xs = ccb->xs;
-		age = dpt_time_delta(ccb->command_started, microtime_now);
-
-#define TenSec	10000000
-
-		if (xs == NULL) {	/* Local, non-kernel call */
-			max_age = TenSec;
-		} else {
-			max_age = (((xs->timeout * (dpt->submitted_ccbs_count
-						    + DPT_TIMEOUT_FACTOR))
-				    > TenSec)
-				 ? (xs->timeout * (dpt->submitted_ccbs_count
-						   + DPT_TIMEOUT_FACTOR))
-				   : TenSec);
-		}
-
-		/*
-		 * If a transaction is marked lost and is TWICE as old as we
-		 * care, then, and only then do we destroy it!
-		 */
-		if (ccb->state & DPT_CCB_STATE_MARKED_LOST) {
-			/* Remember who is next */
-			if (age > (max_age * 2)) {
-				dpt_Qremove_submitted(dpt, ccb);
-				ccb->state &= ~DPT_CCB_STATE_MARKED_LOST;
-				ccb->state |= DPT_CCB_STATE_ABORTED;
-#define cmd_name scsi_cmd_name(ccb->eata_ccb.cp_scsi_cmd)
-				if (ccb->retries++ > DPT_RETRIES) {
-					device_printf(dpt->dev,
-					       "ERROR: Destroying stale "
-					       "%d (%s)\n"
-					       "		on "
-					       "c%db%dt%du%d (%d/%d)\n",
-					       ccb->transaction_id,
-					       cmd_name,
-					       device_get_unit(dpt->dev),
-					       ccb->eata_ccb.cp_channel,
-					       ccb->eata_ccb.cp_id,
-					       ccb->eata_ccb.cp_LUN, age,
-					       ccb->retries);
-#define send_ccb &ccb->eata_ccb
-#define ESA	 EATA_SPECIFIC_ABORT
-					(void) dpt_send_immediate(dpt,
-								  send_ccb,
-								  ESA,
-								  0, 0);
-					dpt_Qpush_free(dpt, ccb);
-
-					/* The SCSI layer should re-try */
-					xs->error |= XS_TIMEOUT;
-					xs->flags |= SCSI_ITSDONE;
-					scsi_done(xs);
-				} else {
-					device_printf(dpt->dev,
-					       "ERROR: Stale %d (%s) on "
-					       "c%db%dt%du%d (%d)\n"
-					     "		gets another "
-					       "chance(%d/%d)\n",
-					       ccb->transaction_id,
-					       cmd_name,
-					       device_get_unit(dpt->dev),
-					       ccb->eata_ccb.cp_channel,
-					       ccb->eata_ccb.cp_id,
-					       ccb->eata_ccb.cp_LUN,
-					    age, ccb->retries, DPT_RETRIES);
-
-					dpt_Qpush_waiting(dpt, ccb);
-					dpt_sched_queue(dpt);
-				}
-			}
-		} else {
-			/*
-			 * This is a transaction that is not to be destroyed
-			 * (yet) But it is too old for our liking. We wait as
-			 * long as the upper layer thinks. Not really, we
-			 * multiply that by the number of commands in the
-			 * submitted queue + 1.
-			 */
-			if (!(ccb->state & DPT_CCB_STATE_MARKED_LOST) &&
-			    (age != ~0) && (age > max_age)) {
-				device_printf(dpt->dev,
-				       "ERROR: Marking %d (%s) on "
-				       "c%db%dt%du%d \n"
-				       "            as late after %dusec\n",
-				       ccb->transaction_id,
-				       cmd_name,
-				       device_get_unit(dpt->dev),
-				       ccb->eata_ccb.cp_channel,
-				       ccb->eata_ccb.cp_id,
-				       ccb->eata_ccb.cp_LUN, age);
-				ccb->state |= DPT_CCB_STATE_MARKED_LOST;
-			}
-		}
-	}
-
-	dpt->state &= ~DPT_HA_TIMEOUTS_ACTIVE;
-}
-
-static void
-dpt_timeout(void *arg)
-{
-	dpt_softc_t    *dpt = (dpt_softc_t *) arg;
-
-	mtx_assert(&dpt->lock, MA_OWNED);
-	if (!(dpt->state & DPT_HA_TIMEOUTS_ACTIVE))
-		dpt_handle_timeouts(dpt);
-
-	callout_reset(&dpt->timer, hz * 10, dpt_timeout, dpt);
-}
-
-#endif				/* DPT_HANDLE_TIMEOUTS */
 
 #endif

@@ -86,48 +86,24 @@ procstat_sigs(struct procstat *prstat __unused, struct kinfo_proc *kipp)
 }
 
 void
-procstat_threads_sigs(struct procstat *prstat __unused, struct kinfo_proc *kipp)
+procstat_threads_sigs(struct procstat *procstat, struct kinfo_proc *kipp)
 {
 	struct kinfo_proc *kip;
 	pid_t pid;
-	int error, name[4], j;
-	unsigned int i;
-	size_t len;
+	int j;
+	unsigned int count, i;
 
 	pid = kipp->ki_pid;
 	if (!hflag)
 		printf("%5s %6s %-16s %-7s %4s\n", "PID", "TID", "COMM",
 		     "SIG", "FLAGS");
 
-	/*
-	 * We need to re-query for thread information, so don't use *kipp.
-	 */
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PID | KERN_PROC_INC_THREAD;
-	name[3] = pid;
-
-	len = 0;
-	error = sysctl(name, 4, NULL, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		return;
-	}
-	if (error < 0)
-		return;
-
-	kip = malloc(len);
+	kip = procstat_getprocs(procstat, KERN_PROC_PID | KERN_PROC_INC_THREAD,
+	    pid, &count);
 	if (kip == NULL)
-		err(-1, "malloc");
-
-	if (sysctl(name, 4, kip, &len, NULL, 0) < 0) {
-		warn("sysctl: kern.proc.pid: %d", pid);
-		free(kip);
 		return;
-	}
-
-	kinfo_proc_sort(kip, len / sizeof(*kipp));
-	for (i = 0; i < len / sizeof(*kipp); i++) {
+	kinfo_proc_sort(kip, count);
+	for (i = 0; i < count; i++) {
 		kipp = &kip[i];
 		for (j = 1; j <= _SIG_MAXSIG; j++) {
 			printf("%5d ", pid);
@@ -140,5 +116,5 @@ procstat_threads_sigs(struct procstat *prstat __unused, struct kinfo_proc *kipp)
 			printf("\n");
 		}
 	}
-	free(kip);
+	procstat_freeprocs(procstat, kip);
 }

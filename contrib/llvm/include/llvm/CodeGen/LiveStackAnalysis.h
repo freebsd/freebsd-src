@@ -13,13 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_LIVESTACK_ANALYSIS_H
-#define LLVM_CODEGEN_LIVESTACK_ANALYSIS_H
+#ifndef LLVM_CODEGEN_LIVESTACKANALYSIS_H
+#define LLVM_CODEGEN_LIVESTACKANALYSIS_H
 
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/LiveInterval.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <map>
 
 namespace llvm {
@@ -85,14 +85,14 @@ namespace llvm {
 
     VNInfo::Allocator& getVNInfoAllocator() { return VNInfoAllocator; }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-    virtual void releaseMemory();
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    void releaseMemory() override;
 
     /// runOnMachineFunction - pass entry point
-    virtual bool runOnMachineFunction(MachineFunction&);
+    bool runOnMachineFunction(MachineFunction&) override;
 
     /// print - Implement the dump method.
-    virtual void print(raw_ostream &O, const Module* = 0) const;
+    void print(raw_ostream &O, const Module* = nullptr) const override;
   };
 }
 

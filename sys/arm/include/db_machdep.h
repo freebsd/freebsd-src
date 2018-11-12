@@ -38,7 +38,7 @@
 typedef vm_offset_t	db_addr_t;
 typedef int		db_expr_t;
 
-#define	PC_REGS()	((db_addr_t)kdb_thrctx->un_32.pcb32_pc)
+#define	PC_REGS()	((db_addr_t)kdb_thrctx->pcb_regs.sf_pc)
 
 #define	BKPT_INST	(KERNEL_BREAKPOINT)
 #define	BKPT_SIZE	(INSN_SIZE)

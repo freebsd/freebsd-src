@@ -6,7 +6,6 @@ MAN=	ancontrol.8
 WARNS?=	3
 CFLAGS+= -DANCACHE -I${.CURDIR}/../../sys
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.prog.mk>

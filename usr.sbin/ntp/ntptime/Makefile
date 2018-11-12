@@ -3,11 +3,10 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/util
 
 PROG=	ntptime
-NO_MAN=
+MAN=
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+LIBADD=	ntp
 
 .include <bsd.prog.mk>

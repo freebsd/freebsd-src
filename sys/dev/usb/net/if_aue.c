@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
@@ -86,6 +87,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -103,7 +107,7 @@ __FBSDID("$FreeBSD$");
 static int aue_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, aue, CTLFLAG_RW, 0, "USB aue");
-SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RW, &aue_debug, 0,
+SYSCTL_INT(_hw_usb_aue, OID_AUTO, debug, CTLFLAG_RWTUN, &aue_debug, 0,
     "Debug level");
 #endif
 
@@ -208,9 +212,7 @@ static uint8_t	aue_csr_read_1(struct aue_softc *, uint16_t);
 static uint16_t	aue_csr_read_2(struct aue_softc *, uint16_t);
 static void	aue_csr_write_1(struct aue_softc *, uint16_t, uint8_t);
 static void	aue_csr_write_2(struct aue_softc *, uint16_t, uint16_t);
-static void	aue_eeprom_getword(struct aue_softc *, int, uint16_t *);
-static void	aue_read_eeprom(struct aue_softc *, uint8_t *, uint16_t,
-		    uint16_t);
+static uint16_t	aue_eeprom_getword(struct aue_softc *, int);
 static void	aue_reset(struct aue_softc *);
 static void	aue_reset_pegasus_II(struct aue_softc *);
 
@@ -372,11 +374,10 @@ aue_csr_write_2(struct aue_softc *sc, uint16_t reg, uint16_t val)
 /*
  * Read a word of data stored in the EEPROM at address 'addr.'
  */
-static void
-aue_eeprom_getword(struct aue_softc *sc, int addr, uint16_t *dest)
+static uint16_t
+aue_eeprom_getword(struct aue_softc *sc, int addr)
 {
 	int i;
-	uint16_t word = 0;
 
 	aue_csr_write_1(sc, AUE_EE_REG, addr);
 	aue_csr_write_1(sc, AUE_EE_CTL, AUE_EECTL_READ);
@@ -391,22 +392,23 @@ aue_eeprom_getword(struct aue_softc *sc, int addr, uint16_t *dest)
 	if (i == AUE_TIMEOUT)
 		device_printf(sc->sc_ue.ue_dev, "EEPROM read timed out\n");
 
-	word = aue_csr_read_2(sc, AUE_EE_DATA);
-	*dest = word;
+	return (aue_csr_read_2(sc, AUE_EE_DATA));
 }
 
 /*
- * Read a sequence of words from the EEPROM.
+ * Read station address(offset 0) from the EEPROM.
  */
 static void
-aue_read_eeprom(struct aue_softc *sc, uint8_t *dest,
-    uint16_t off, uint16_t len)
+aue_read_mac(struct aue_softc *sc, uint8_t *eaddr)
 {
-	uint16_t *ptr = (uint16_t *)dest;
-	int i;
+	int i, offset;
+	uint16_t word;
 
-	for (i = 0; i != len; i++, ptr++)
-		aue_eeprom_getword(sc, off + i, ptr);
+	for (i = 0, offset = 0; i < ETHER_ADDR_LEN / 2; i++) {
+		word = aue_eeprom_getword(sc, offset + i);
+		eaddr[i * 2] = (uint8_t)word;
+		eaddr[i * 2 + 1] = (uint8_t)(word >> 8);
+	}
 }
 
 static int
@@ -632,7 +634,7 @@ aue_attach_post(struct usb_ether *ue)
 	aue_reset(sc);
 
 	/* get station address from the EEPROM */
-	aue_read_eeprom(sc, ue->ue_eaddr, 0, 3);
+	aue_read_mac(sc, ue->ue_eaddr);
 }
 
 /*
@@ -746,10 +748,10 @@ aue_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
 
 			if (pkt.aue_txstat0)
-				ifp->if_oerrors++;
-			if (pkt.aue_txstat0 & (AUE_TXSTAT0_LATECOLL &
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+			if (pkt.aue_txstat0 & (AUE_TXSTAT0_LATECOLL |
 			    AUE_TXSTAT0_EXCESSCOLL))
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -788,13 +790,13 @@ aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (sc->sc_flags & AUE_FLAG_VER_2) {
 
 			if (actlen == 0) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 		} else {
 
 			if (actlen <= (int)(sizeof(stat) + ETHER_CRC_LEN)) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 			usbd_copy_out(pc, actlen - sizeof(stat), &stat,
@@ -806,7 +808,7 @@ aue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			stat.aue_rxstat &= AUE_RXSTAT_MASK;
 			if (stat.aue_rxstat) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				goto tr_setup;
 			}
 			/* No errors; receive the packet. */
@@ -851,7 +853,7 @@ aue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer of %d bytes complete\n", actlen);
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -908,7 +910,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
@@ -1008,14 +1010,15 @@ aue_ifmedia_upd(struct ifnet *ifp)
 	struct aue_softc *sc = ifp->if_softc;
 	struct mii_data *mii = GET_MII(sc);
 	struct mii_softc *miisc;
+	int error;
 
 	AUE_LOCK_ASSERT(sc, MA_OWNED);
 
         sc->sc_flags &= ~AUE_FLAG_LINK;
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
-	mii_mediachg(mii);
-	return (0);
+	error = mii_mediachg(mii);
+	return (error);
 }
 
 /*

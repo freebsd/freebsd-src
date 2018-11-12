@@ -90,7 +90,7 @@ disk_lookup(struct disk_devdesc *dev)
 		    entry->d_partition == dev->d_partition) {
 			dev->d_offset = entry->d_offset;
 			DEBUG("%s offset %lld", disk_fmtdev(dev),
-			    dev->d_offset);
+			    (long long)dev->d_offset);
 #ifdef DISK_DEBUG
 			entry->count++;
 #endif
@@ -367,7 +367,7 @@ out:
 		dev->d_slice = slice;
 		dev->d_partition = partition;
 		DEBUG("%s offset %lld => %p", disk_fmtdev(dev),
-		    dev->d_offset, od);
+		    (long long)dev->d_offset, od);
 	}
 	return (rc);
 }

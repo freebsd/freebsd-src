@@ -265,8 +265,26 @@ struct nstat {
 #define	UF_NODUMP	0x00000001	/* do not dump file */
 #define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
 #define	UF_APPEND	0x00000004	/* writes to file may only append */
-#define UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
-#define UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
+#define	UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+#define	UF_NOUNLINK	0x00000010	/* file may not be removed or renamed */
+/*
+ * These two bits are defined in MacOS X.  They are not currently used in
+ * FreeBSD.
+ */
+#if 0
+#define	UF_COMPRESSED	0x00000020	/* file is compressed */
+#define	UF_TRACKED	0x00000040	/* renames and deletes are tracked */
+#endif
+
+#define	UF_SYSTEM	0x00000080	/* Windows system file bit */
+#define	UF_SPARSE	0x00000100	/* sparse file */
+#define	UF_OFFLINE	0x00000200	/* file is offline */
+#define	UF_REPARSE	0x00000400	/* Windows reparse point file bit */
+#define	UF_ARCHIVE	0x00000800	/* file needs to be archived */
+#define	UF_READONLY	0x00001000	/* Windows readonly file bit */
+/* This is the same as the MacOS X definition of UF_HIDDEN. */
+#define	UF_HIDDEN	0x00008000	/* file is hidden */
+
 /*
  * Super-user changeable flags.
  */
@@ -289,10 +307,16 @@ struct nstat {
 
 #endif /* __BSD_VISIBLE */
 
+#if __POSIX_VISIBLE >= 200809
+#define	UTIME_NOW	-1
+#define	UTIME_OMIT	-2
+#endif
+
 #ifndef _KERNEL
 __BEGIN_DECLS
 #if __BSD_VISIBLE
 int	chflags(const char *, unsigned long);
+int	chflagsat(int, const char *, unsigned long, int);
 #endif
 int	chmod(const char *, mode_t);
 #if __BSD_VISIBLE
@@ -303,10 +327,13 @@ int	fchmod(int, mode_t);
 #endif
 #if __POSIX_VISIBLE >= 200809
 int	fchmodat(int, const char *, mode_t, int);
+int	futimens(int fd, const struct timespec times[2]);
+int	utimensat(int fd, const char *path, const struct timespec times[2],
+		int flag);
 #endif
 int	fstat(int, struct stat *);
 #if __BSD_VISIBLE
-int	lchflags(const char *, int);
+int	lchflags(const char *, unsigned long);
 int	lchmod(const char *, mode_t);
 #endif
 #if __POSIX_VISIBLE >= 200112
@@ -320,12 +347,12 @@ int	mknod(const char *, mode_t, dev_t);
 #endif
 int	stat(const char * __restrict, struct stat * __restrict);
 mode_t	umask(mode_t);
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200809
+#if __POSIX_VISIBLE >= 200809
 int	fstatat(int, const char *, struct stat *, int);
 int	mkdirat(int, const char *, mode_t);
 int	mkfifoat(int, const char *, mode_t);
 #endif
-#if __BSD_VISIBLE || __XSI_VISIBLE >= 700
+#if __XSI_VISIBLE >= 700
 int	mknodat(int, const char *, mode_t, dev_t);
 #endif
 __END_DECLS

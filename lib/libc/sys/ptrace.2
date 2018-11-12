@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd February 7, 2013
+.Dd July 22, 2013
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -556,6 +556,14 @@ was attempted on a process with no valid register set.
 was given an invalid value for
 .Fa pve_entry .
 This can also be caused by changes to the VM map of the process.
+.It
+The size (in
+.Fa data )
+provided to
+.Dv PT_LWPINFO
+was less than or equal to zero, or larger than the
+.Vt ptrace_lwpinfo
+structure known to the kernel.
 .El
 .It Bq Er EBUSY
 .Bl -bullet -compact

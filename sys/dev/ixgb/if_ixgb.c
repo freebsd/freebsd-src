@@ -72,8 +72,8 @@ char            ixgb_copyright[] = "Copyright (c) 2001-2004 Intel Corporation.";
 static ixgb_vendor_info_t ixgb_vendor_info_array[] =
 {
 	/* Intel(R) PRO/10000 Network Connection */
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX, PCI_ANY_ID, PCI_ANY_ID, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{IXGB_VENDOR_ID, IXGB_DEVICE_ID_82597EX, PCI_ANY_ID, PCI_ANY_ID, 0},
+	{IXGB_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR, PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{0, 0, 0, 0, 0}
 };
@@ -97,6 +97,7 @@ static void     ixgb_intr(void *);
 static void     ixgb_start(struct ifnet *);
 static void     ixgb_start_locked(struct ifnet *);
 static int      ixgb_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
+static uint64_t	ixgb_get_counter(struct ifnet *, ift_counter);
 static void     ixgb_watchdog(struct adapter *);
 static void     ixgb_init(void *);
 static void     ixgb_init_locked(struct adapter *);
@@ -643,7 +644,7 @@ ixgb_watchdog(struct adapter *adapter)
 	ixgb_init_locked(adapter);
 
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	return;
 }
@@ -1210,15 +1211,9 @@ ixgb_identify_hardware(struct adapter * adapter)
 	device_t        dev = adapter->dev;
 
 	/* Make sure our PCI config space has the necessary stuff set */
+	pci_enable_busmaster(dev);
 	adapter->hw.pci_cmd_word = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!((adapter->hw.pci_cmd_word & PCIM_CMD_BUSMASTEREN) &&
-	      (adapter->hw.pci_cmd_word & PCIM_CMD_MEMEN))) {
-		device_printf(dev,
-		    "Memory Access and/or Bus Master bits were not set!\n");
-		adapter->hw.pci_cmd_word |=
-			(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
-		pci_write_config(dev, PCIR_COMMAND, adapter->hw.pci_cmd_word, 2);
-	}
+
 	/* Save off the information about this board */
 	adapter->hw.vendor_id = pci_get_vendor(dev);
 	adapter->hw.device_id = pci_get_device(dev);
@@ -1361,6 +1356,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgb_ioctl;
 	ifp->if_start = ixgb_start;
+	ifp->if_get_counter = ixgb_get_counter;
 	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 1;
 
 #if __FreeBSD_version < 500000
@@ -1374,7 +1370,7 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 #if __FreeBSD_version >= 500000
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
@@ -1465,7 +1461,6 @@ fail_2:
 fail_1:
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 	return (r);
 }
@@ -2333,7 +2328,6 @@ ixgb_write_pci_cfg(struct ixgb_hw * hw,
 static void
 ixgb_update_stats_counters(struct adapter * adapter)
 {
-	struct ifnet   *ifp;
 
 	adapter->stats.crcerrs += IXGB_READ_REG(&adapter->hw, CRCERRS);
 	adapter->stats.gprcl += IXGB_READ_REG(&adapter->hw, GPRCL);
@@ -2396,28 +2390,36 @@ ixgb_update_stats_counters(struct adapter * adapter)
 	adapter->stats.pfrc += IXGB_READ_REG(&adapter->hw, PFRC);
 	adapter->stats.pftc += IXGB_READ_REG(&adapter->hw, PFTC);
 	adapter->stats.mcfrc += IXGB_READ_REG(&adapter->hw, MCFRC);
-
-	ifp = adapter->ifp;
-
-	/* Fill out the OS statistics structure */
-	ifp->if_ipackets = adapter->stats.gprcl;
-	ifp->if_opackets = adapter->stats.gptcl;
-	ifp->if_ibytes = adapter->stats.gorcl;
-	ifp->if_obytes = adapter->stats.gotcl;
-	ifp->if_imcasts = adapter->stats.mprcl;
-	ifp->if_collisions = 0;
-
-	/* Rx Errors */
-	ifp->if_ierrors =
-		adapter->dropped_pkts +
-		adapter->stats.crcerrs +
-		adapter->stats.rnbc +
-		adapter->stats.mpc +
-		adapter->stats.rlec;
-
-
 }
 
+static uint64_t
+ixgb_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct adapter *adapter;
+
+	adapter = if_getsoftc(ifp);
+
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (adapter->stats.gprcl);
+	case IFCOUNTER_OPACKETS:
+		return ( adapter->stats.gptcl);
+	case IFCOUNTER_IBYTES:
+		return (adapter->stats.gorcl);
+	case IFCOUNTER_OBYTES:
+		return (adapter->stats.gotcl);
+	case IFCOUNTER_IMCASTS:
+		return ( adapter->stats.mprcl);
+	case IFCOUNTER_COLLISIONS:
+		return (0);
+	case IFCOUNTER_IERRORS:
+		return (adapter->dropped_pkts + adapter->stats.crcerrs +
+		    adapter->stats.rnbc + adapter->stats.mpc +
+		    adapter->stats.rlec);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
+}
 
 /**********************************************************************
  *

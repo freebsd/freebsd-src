@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -36,15 +33,24 @@
 
 #include "pjdlog.h"
 
+typedef unsigned int refcnt_t;
+
 static __inline void
-refcnt_acquire(volatile unsigned int *count)
+refcnt_init(refcnt_t *count, unsigned int v)
+{
+
+	*count = v;
+}
+
+static __inline void
+refcnt_acquire(refcnt_t *count)
 {
 
 	atomic_add_acq_int(count, 1);
 }
 
 static __inline unsigned int
-refcnt_release(volatile unsigned int *count)
+refcnt_release(refcnt_t *count)
 {
 	unsigned int old;
 

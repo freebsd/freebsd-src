@@ -6,11 +6,12 @@
 #   quite large.
 #
 
-.include <bsd.own.mk>
+MK_PROFILE=	no
 MK_SSP=		no
 
+.include <src.opts.mk>
+
 LIB=		stand
-NO_PROFILE=
 NO_PIC=
 INCS=		stand.h
 MAN=		libstand.3
@@ -21,8 +22,13 @@ CFLAGS+= -ffreestanding -Wformat
 CFLAGS+= -I${.CURDIR}
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
+.endif
+.if ${MACHINE_CPUARCH} == "i386"
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
+.endif
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-fPIC -mno-red-zone
 .endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os
@@ -30,11 +36,11 @@ CFLAGS+=	-Os
 .if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
 .endif
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-m32 -I.
-.endif
 .if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float -D_STANDALONE
+.endif
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-G0 -fno-pic -mno-abicalls
 .endif
 
 # standalone components and stuff we have modified locally
@@ -51,49 +57,29 @@ SRCS+= ntoh.c
 
 # string functions from libc
 .PATH: ${.CURDIR}/../libc/string
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc" || \
-	${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "amd64" || \
-	${MACHINE_CPUARCH} == "arm"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 	memmove.c memset.c qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
 	strcspn.c strlen.c strncat.c strncmp.c strncpy.c strpbrk.c \
 	strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
-.endif
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${.CURDIR}/../libc/arm/gen
 
-.if ${MK_ARM_EABI} == "no"
-SRCS+= divsi3.S
-.else
 # Compiler support functions
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
 SRCS+=	clzsi2.c ctzsi2.c
 # Divide and modulus functions called by the compiler
 SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/arm/
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
-.endif
 
-.endif
-.if ${MACHINE_CPUARCH} == "ia64"
-.PATH: ${.CURDIR}/../libc/ia64/string
-SRCS+=	bcmp.c bcopy.S bzero.S ffs.S memccpy.c memchr.c memcmp.c memcpy.S \
-	memmove.S memset.c strcat.c strchr.c strcmp.c strcpy.c strcspn.c \
-	strlen.c strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
-	strspn.c strstr.c strtok.c swab.c
-
-.PATH: ${.CURDIR}/../libc/ia64/gen
-SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
-SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${.CURDIR}/../libc/quad
 SRCS+=	ashldi3.c ashrdi3.c
-.PATH: ${.CURDIR}/../libc/powerpc/gen
 SRCS+=	syncicache.c
 .endif
 
@@ -102,13 +88,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
-.if ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${.CURDIR}/i386
-.elif ${MACHINE_ARCH} == "powerpc64"
-.PATH: ${.CURDIR}/powerpc
-.else
 .PATH: ${.CURDIR}/${MACHINE_CPUARCH}
-.endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
@@ -172,18 +152,10 @@ SRCS+=	bootp.c rarp.c bootparam.c
 SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
+SRCS+=	pkgfs.c
 .if ${MK_NAND} != "no"
 SRCS+=	nandfs.c
 .endif
 
 .include <bsd.lib.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-cleandepend: cleanmachine
-cleanmachine:
-	rm -f machine
-
-machine:
-	ln -s ${.CURDIR}/../../sys/i386/include machine
-.endif

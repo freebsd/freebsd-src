@@ -53,8 +53,14 @@ typedef unsigned int RING_IDX;
 /*
  * Calculate size of a shared ring, given the total available space for the
  * ring and indexes (_sz), and the name tag of the request/response structure.
- * A ring contains as many entries as will fit, rounded down to the nearest 
+ * A ring contains as many entries as will fit, rounded down to the nearest
  * power of two (so we can mask with (size-1) to loop around).
+ */
+#define __CONST_RING_SIZE(_s, _sz) \
+    (__RD32(((_sz) - offsetof(struct _s##_sring, ring)) / \
+	    sizeof(((struct _s##_sring *)0)->ring[0])))
+/*
+ * The same for passing in an actual pointer instead of a name tag.
  */
 #define __RING_SIZE(_s, _sz) \
     (__RD32(((_sz) - __RING_HEADER_SIZE(_s)) / sizeof((_s)->ring[0])))
@@ -113,7 +119,16 @@ union __name##_sring_entry {                                            \
 struct __name##_sring {                                                 \
     RING_IDX req_prod, req_event;                                       \
     RING_IDX rsp_prod, rsp_event;                                       \
-    uint8_t  pad[48];                                                   \
+    union {                                                             \
+        struct {                                                        \
+            uint8_t smartpoll_active;                                   \
+        } netif;                                                        \
+        struct {                                                        \
+            uint8_t msg;                                                \
+        } tapif_user;                                                   \
+        uint8_t pvt_pad[4];                                             \
+    } private;                                                          \
+    uint8_t __pad[44];                                                  \
     union __name##_sring_entry ring[1]; /* variable-length */           \
 };                                                                      \
                                                                         \
@@ -157,7 +172,8 @@ typedef struct __name##_back_ring __name##_back_ring_t
 #define SHARED_RING_INIT(_s) do {                                       \
     (_s)->req_prod  = (_s)->rsp_prod  = 0;                              \
     (_s)->req_event = (_s)->rsp_event = 1;                              \
-    (void)memset((_s)->pad, 0, sizeof((_s)->pad));                      \
+    (void)memset((_s)->private.pvt_pad, 0, sizeof((_s)->private.pvt_pad)); \
+    (void)memset((_s)->__pad, 0, sizeof((_s)->__pad));                  \
 } while(0)
 
 #define FRONT_RING_INIT(_r, _s, __size) do {                            \

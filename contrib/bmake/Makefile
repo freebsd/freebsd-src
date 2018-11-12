@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.5 2013/01/28 19:31:58 sjg Exp $
+#	$Id: Makefile,v 1.27 2014/06/20 14:51:54 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20130123
+MAKE_VERSION= 20140620
 
 PROG=	bmake
 
@@ -68,7 +68,7 @@ SRCS+= ${LIBOBJS:T:.o=.c}
 prefix?= /usr
 srcdir?= ${.CURDIR}
 
-DEFAULT_SYS_PATH?= .../share/mk:${prefix}/share/mk
+DEFAULT_SYS_PATH?= ${prefix}/share/mk
 
 CPPFLAGS+= -DUSE_META
 CFLAGS+= ${CPPFLAGS}
@@ -117,7 +117,7 @@ MANTARGET?= man
 # turn this on by default - ignored if we are root
 WITH_INSTALL_AS_USER=
 
-# supress with -DWITHOUT_*
+# suppress with -DWITHOUT_*
 OPTIONS_DEFAULT_YES+= \
 	AUTOCONF_MK \
 	INSTALL_MK \
@@ -187,14 +187,14 @@ MANDIR= ${SHAREDIR}/man
 .if !exists(.depend)
 ${OBJS}: config.h
 .endif
-.if ${MK_AUTOCONF_MK} == "yes"
-.include <autoconf.mk>
-.endif
 
 # make sure that MAKE_VERSION gets updated.
 main.o: ${SRCS} ${MAKEFILE}
 
 # start-delete2 for bsd.after-import.mk
+.if ${MK_AUTOCONF_MK} == "yes"
+.include <autoconf.mk>
+.endif
 SHARE_MK?=${SHAREDIR}/mk
 MKSRC=${srcdir}/mk
 INSTALL?=${srcdir}/install-sh

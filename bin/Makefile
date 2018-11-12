@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 5/31/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR= cat \
 	chflags \
@@ -15,6 +15,7 @@ SUBDIR= cat \
 	echo \
 	ed \
 	expr \
+	freebsd-version \
 	getfacl \
 	hostname \
 	kenv \
@@ -51,8 +52,14 @@ SUBDIR+=	rmail
 SUBDIR+=	csh
 .endif
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

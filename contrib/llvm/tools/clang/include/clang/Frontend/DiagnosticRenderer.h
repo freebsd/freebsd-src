@@ -13,12 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTIC_RENDERER_H_
-#define LLVM_CLANG_FRONTEND_DIAGNOSTIC_RENDERER_H_
+#ifndef LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
+#define LLVM_CLANG_FRONTEND_DIAGNOSTICRENDERER_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PointerUnion.h"
 
 namespace clang {
@@ -31,7 +32,8 @@ typedef llvm::PointerUnion<const Diagnostic *,
                            const StoredDiagnostic *> DiagOrStoredDiag;
   
 /// \brief Class to encapsulate the logic for formatting a diagnostic message.
-///  Actual "printing" logic is implemented by subclasses.
+///
+/// Actual "printing" logic is implemented by subclasses.
 ///
 /// This class provides an interface for building and emitting
 /// diagnostic, including all of the macro backtraces, caret diagnostics, FixIt
@@ -55,7 +57,7 @@ protected:
   
   /// \brief The location of the last include whose stack was printed if known.
   ///
-  /// Same restriction as \see LastLoc essentially, but tracking include stack
+  /// Same restriction as LastLoc essentially, but tracking include stack
   /// root locations rather than diagnostic locations.
   SourceLocation LastIncludeLoc;
   
@@ -81,9 +83,7 @@ protected:
                                  DiagnosticsEngine::Level Level,
                                  ArrayRef<CharSourceRange> Ranges,
                                  const SourceManager &SM) = 0;
-  
-  virtual void emitBasicNote(StringRef Message) = 0;
-  
+
   virtual void emitCodeContext(SourceLocation Loc,
                                DiagnosticsEngine::Level Level,
                                SmallVectorImpl<CharSourceRange>& Ranges,
@@ -92,7 +92,13 @@ protected:
   
   virtual void emitIncludeLocation(SourceLocation Loc, PresumedLoc PLoc,
                                    const SourceManager &SM) = 0;
-  
+  virtual void emitImportLocation(SourceLocation Loc, PresumedLoc PLoc,
+                                  StringRef ModuleName,
+                                  const SourceManager &SM) = 0;
+  virtual void emitBuildingModuleLocation(SourceLocation Loc, PresumedLoc PLoc,
+                                          StringRef ModuleName,
+                                          const SourceManager &SM) = 0;
+
   virtual void beginDiagnostic(DiagOrStoredDiag D,
                                DiagnosticsEngine::Level Level) {}
   virtual void endDiagnostic(DiagOrStoredDiag D,
@@ -100,16 +106,24 @@ protected:
 
   
 private:
-  void emitIncludeStack(SourceLocation Loc, DiagnosticsEngine::Level Level,
-                        const SourceManager &SM);
+  void emitBasicNote(StringRef Message);
+  void emitIncludeStack(SourceLocation Loc, PresumedLoc PLoc,
+                        DiagnosticsEngine::Level Level, const SourceManager &SM);
   void emitIncludeStackRecursively(SourceLocation Loc, const SourceManager &SM);
-  void emitMacroExpansionsAndCarets(SourceLocation Loc,
-                                    DiagnosticsEngine::Level Level,
-                                    SmallVectorImpl<CharSourceRange>& Ranges,
-                                    ArrayRef<FixItHint> Hints,
-                                    const SourceManager &SM,
-                                    unsigned &MacroDepth,
-                                    unsigned OnMacroInst = 0);
+  void emitImportStack(SourceLocation Loc, const SourceManager &SM);
+  void emitImportStackRecursively(SourceLocation Loc, StringRef ModuleName,
+                                  const SourceManager &SM);
+  void emitModuleBuildStack(const SourceManager &SM);
+  void emitCaret(SourceLocation Loc, DiagnosticsEngine::Level Level,
+                 ArrayRef<CharSourceRange> Ranges, ArrayRef<FixItHint> Hints,
+                 const SourceManager &SM);
+  void emitMacroExpansions(SourceLocation Loc,
+                           DiagnosticsEngine::Level Level,
+                           ArrayRef<CharSourceRange> Ranges,
+                           ArrayRef<FixItHint> Hints,
+                           const SourceManager &SM,
+                           unsigned &MacroDepth,
+                           unsigned OnMacroInst = 0);
 public:
   /// \brief Emit a diagnostic.
   ///
@@ -129,7 +143,7 @@ public:
                       StringRef Message, ArrayRef<CharSourceRange> Ranges,
                       ArrayRef<FixItHint> FixItHints,
                       const SourceManager *SM,
-                      DiagOrStoredDiag D = (Diagnostic *)0);
+                      DiagOrStoredDiag D = (Diagnostic *)nullptr);
 
   void emitStoredDiagnostic(StoredDiagnostic &Diag);
 };
@@ -143,13 +157,18 @@ public:
     : DiagnosticRenderer(LangOpts, DiagOpts) {}
   
   virtual ~DiagnosticNoteRenderer();
-  
-  virtual void emitBasicNote(StringRef Message);
-    
-  virtual void emitIncludeLocation(SourceLocation Loc,
-                                   PresumedLoc PLoc,
-                                   const SourceManager &SM);
-  
+
+  void emitIncludeLocation(SourceLocation Loc, PresumedLoc PLoc,
+                           const SourceManager &SM) override;
+
+  void emitImportLocation(SourceLocation Loc, PresumedLoc PLoc,
+                          StringRef ModuleName,
+                          const SourceManager &SM) override;
+
+  void emitBuildingModuleLocation(SourceLocation Loc, PresumedLoc PLoc,
+                                  StringRef ModuleName,
+                                  const SourceManager &SM) override;
+
   virtual void emitNote(SourceLocation Loc, StringRef Message,
                         const SourceManager *SM) = 0;
 };

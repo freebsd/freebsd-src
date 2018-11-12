@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include "ldef.h"
 #include "y.tab.h"
 #include "extern.h"
+
+#define	YY_DECL	int yylex(void)
 %}
 
 ODIGIT	[0-7]

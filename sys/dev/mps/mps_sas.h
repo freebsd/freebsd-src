@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011, 2012 LSI Corp.
+ * Copyright (c) 2011-2015 LSI Corp.
+ * Copyright (c) 2013-2015 Avago Technologies
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * LSI MPT-Fusion Host Adapter FreeBSD
+ * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
@@ -51,11 +52,10 @@ struct mpssas_target {
 #define MPSSAS_TARGET_INREMOVAL	(1 << 3)
 #define MPS_TARGET_FLAGS_RAID_COMPONENT (1 << 4)
 #define MPS_TARGET_FLAGS_VOLUME         (1 << 5)
+#define MPS_TARGET_IS_SATA_SSD	(1 << 6)
 #define MPSSAS_TARGET_INRECOVERY (MPSSAS_TARGET_INABORT | \
     MPSSAS_TARGET_INRESET | MPSSAS_TARGET_INCHIPRESET)
 
-#define MPSSAS_TARGET_ADD       (1 << 29)
-#define MPSSAS_TARGET_REMOVE    (1 << 30)
 	uint16_t	tid;
 	SLIST_HEAD(, mpssas_lun) luns;
 	TAILQ_HEAD(, mps_command) commands;
@@ -77,6 +77,8 @@ struct mpssas_target {
 	unsigned int    aborts;
 	unsigned int    logical_unit_resets;
 	unsigned int    target_resets;
+	uint8_t		stop_at_shutdown;
+	uint8_t		supports_SSU;
 };
 
 struct mpssas_softc {
@@ -87,22 +89,17 @@ struct mpssas_softc {
 #define MPSSAS_DISCOVERY_TIMEOUT_PENDING	(1 << 2)
 #define MPSSAS_QUEUE_FROZEN	(1 << 3)
 #define	MPSSAS_SHUTDOWN		(1 << 4)
-#define	MPSSAS_SCANTHREAD	(1 << 5)
+	u_int			maxtargets;
 	struct mpssas_target	*targets;
 	struct cam_devq		*devq;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct intr_config_hook	sas_ich;
 	struct callout		discovery_callout;
-	u_int			discovery_timeouts;
 	struct mps_event_handle	*mpssas_eh;
 
 	u_int                   startup_refcount;
-	u_int                   tm_count;
 	struct proc             *sysctl_proc;
-
-	TAILQ_HEAD(, ccb_hdr) ccb_scanq;
-	struct proc		*rescan_thread;
 
 	struct taskqueue	*ev_tq;
 	struct task		ev_task;
@@ -148,6 +145,19 @@ mpssas_set_lun(uint8_t *lun, u_int ccblun)
 	return (0);
 }
 
+static __inline void
+mpssas_set_ccbstatus(union ccb *ccb, int status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline int
+mpssas_get_ccbstatus(union ccb *ccb)
+{
+	return (ccb->ccb_h.status & CAM_STATUS_MASK);
+}
+
 #define MPS_SET_SINGLE_LUN(req, lun)	\
 do {					\
 	bzero((req)->LUN, 8);		\
@@ -156,9 +166,10 @@ do {					\
 
 void mpssas_rescan_target(struct mps_softc *sc, struct mpssas_target *targ);
 void mpssas_discovery_end(struct mpssas_softc *sassc);
+void mpssas_prepare_for_tm(struct mps_softc *sc, struct mps_command *tm,
+    struct mpssas_target *target, lun_id_t lun_id);
 void mpssas_startup_increment(struct mpssas_softc *sassc);
 void mpssas_startup_decrement(struct mpssas_softc *sassc);
 
-struct mps_command * mpssas_alloc_tm(struct mps_softc *sc);
-void mpssas_free_tm(struct mps_softc *sc, struct mps_command *tm);
 void mpssas_firmware_event_work(void *arg, int pending);
+int mpssas_check_id(struct mpssas_softc *sassc, int id);

@@ -12,20 +12,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "MipsFrameLowering.h"
+#include "MCTargetDesc/MipsBaseInfo.h"
 #include "MipsAnalyzeImmediate.h"
 #include "MipsInstrInfo.h"
 #include "MipsMachineFunction.h"
 #include "MipsTargetMachine.h"
-#include "MCTargetDesc/MipsBaseInfo.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetOptions.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Function.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
 
@@ -82,9 +82,8 @@ using namespace llvm;
 //
 //===----------------------------------------------------------------------===//
 
-const MipsFrameLowering *MipsFrameLowering::create(MipsTargetMachine &TM,
-                                                   const MipsSubtarget &ST) {
-  if (TM.getSubtargetImpl()->inMips16Mode())
+const MipsFrameLowering *MipsFrameLowering::create(const MipsSubtarget &ST) {
+  if (ST.inMips16Mode())
     return llvm::createMips16FrameLowering(ST);
 
   return llvm::createMipsSEFrameLowering(ST);
@@ -101,7 +100,7 @@ bool MipsFrameLowering::hasFP(const MachineFunction &MF) const {
 
 uint64_t MipsFrameLowering::estimateStackSize(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  const TargetRegisterInfo &TRI = *MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo &TRI = *MF.getSubtarget().getRegisterInfo();
 
   int64_t Offset = 0;
 
@@ -110,7 +109,7 @@ uint64_t MipsFrameLowering::estimateStackSize(const MachineFunction &MF) const {
     Offset = std::max(Offset, -MFI->getObjectOffset(I));
 
   // Conservatively assume all callee-saved registers will be saved.
-  for (const uint16_t *R = TRI.getCalleeSavedRegs(&MF); *R; ++R) {
+  for (const MCPhysReg *R = TRI.getCalleeSavedRegs(&MF); *R; ++R) {
     unsigned Size = TRI.getMinimalPhysRegClass(*R)->getSize();
     Offset = RoundUpToAlignment(Offset + Size, Size);
   }

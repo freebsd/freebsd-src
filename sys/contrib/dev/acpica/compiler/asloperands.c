@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -298,7 +297,6 @@ OpnDoFieldCommon (
             /* Nothing additional to do */
             break;
 
-
         case PARSEOP_OFFSET:
 
             /* New offset into the field */
@@ -342,7 +340,6 @@ OpnDoFieldCommon (
             }
             break;
 
-
         case PARSEOP_NAMESEG:
         case PARSEOP_RESERVED_BYTES:
 
@@ -360,6 +357,7 @@ OpnDoFieldCommon (
                 case AML_FIELD_ACCESS_BYTE:
                 case AML_FIELD_ACCESS_BUFFER:
                 default:
+
                     MinimumLength = 8;
                     break;
 
@@ -380,7 +378,9 @@ OpnDoFieldCommon (
             break;
 
         default:
+
             /* All supported field opcodes must appear above */
+
             break;
         }
 
@@ -610,7 +610,6 @@ OpnDoBuffer (
         }
         break;
 
-
     case PARSEOP_STRING_LITERAL:
 
         /*
@@ -624,18 +623,16 @@ OpnDoBuffer (
         InitializerOp->Asl.ParseOpcode    = PARSEOP_RAW_DATA;
         break;
 
-
     case PARSEOP_RAW_DATA:
 
         /* Buffer nodes are already initialized (e.g. Unicode operator) */
         return;
 
-
     case PARSEOP_DEFAULT_ARG:
         break;
 
-
     default:
+
         AslError (ASL_ERROR, ASL_MSG_INVALID_OPERAND, InitializerOp,
             "Unknown buffer initializer opcode");
         printf ("Unknown buffer initializer opcode [%s]\n",
@@ -915,8 +912,8 @@ OpnDoDefinitionBlock (
          * We will use the AML filename that is embedded in the source file
          * for the output filename.
          */
-        Filename = ACPI_ALLOCATE (strlen (Gbl_DirectoryPath) +
-                    strlen ((char *) Child->Asl.Value.Buffer) + 1);
+        Filename = UtStringCacheCalloc (strlen (Gbl_DirectoryPath) +
+            strlen ((char *) Child->Asl.Value.Buffer) + 1);
 
         /* Prepend the current directory path */
 
@@ -924,6 +921,7 @@ OpnDoDefinitionBlock (
         strcat (Filename, (char *) Child->Asl.Value.Buffer);
 
         Gbl_OutputFilenamePrefix = Filename;
+        UtConvertBackslashes (Gbl_OutputFilenamePrefix);
     }
     Child->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
 
@@ -970,15 +968,18 @@ OpnDoDefinitionBlock (
     if (Child->Asl.Value.String)
     {
         Length = ACPI_STRLEN (Child->Asl.Value.String);
-        Gbl_TableId = AcpiOsAllocate (Length + 1);
+        Gbl_TableId = UtStringCacheCalloc (Length + 1);
         ACPI_STRCPY (Gbl_TableId, Child->Asl.Value.String);
 
+        /*
+         * Convert anything non-alphanumeric to an underscore. This
+         * allows us to use the TableID to generate unique C symbols.
+         */
         for (i = 0; i < Length; i++)
         {
-            if (Gbl_TableId[i] == ' ')
+            if (!isalnum ((int) Gbl_TableId[i]))
             {
-                Gbl_TableId[i] = 0;
-                break;
+                Gbl_TableId[i] = '_';
             }
         }
     }
@@ -1092,6 +1093,7 @@ OpnAttachNameToNode (
         return;
 
     default:
+
         return;
     }
 
@@ -1130,42 +1132,52 @@ OpnGenerateAmlOperands (
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_DEFINITIONBLOCK:
+
         OpnDoDefinitionBlock (Op);
         break;
 
     case PARSEOP_METHOD:
+
         OpnDoMethod (Op);
         break;
 
     case PARSEOP_MUTEX:
+
         OpnDoMutex (Op);
         break;
 
     case PARSEOP_FIELD:
+
         OpnDoField (Op);
         break;
 
     case PARSEOP_INDEXFIELD:
+
         OpnDoIndexField (Op);
         break;
 
     case PARSEOP_BANKFIELD:
+
         OpnDoBankField (Op);
         break;
 
     case PARSEOP_BUFFER:
+
         OpnDoBuffer (Op);
         break;
 
     case PARSEOP_LOADTABLE:
+
         OpnDoLoadTable (Op);
         break;
 
     case PARSEOP_OPERATIONREGION:
+
         OpnDoRegion (Op);
         break;
 
     case PARSEOP_RESOURCETEMPLATE:
+
         RsDoResourceTemplate (Op);
         break;
 
@@ -1173,9 +1185,11 @@ OpnGenerateAmlOperands (
     case PARSEOP_NAMESTRING:
     case PARSEOP_METHODCALL:
     case PARSEOP_STRING_LITERAL:
+
         break;
 
     default:
+
         break;
     }
 

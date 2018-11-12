@@ -512,7 +512,7 @@ void mach64_dump_ring_info(drm_mach64_private_t *dev_priv)
 
 	DRM_INFO("\n");
 
-	if (ring->head >= 0 && ring->head < ring->size / sizeof(u32)) {
+	if (ring->head < ring->size / sizeof(u32)) {
 		struct list_head *ptr;
 		u32 addr = le32_to_cpu(((u32 *) ring->start)[ring->head + 1]);
 
@@ -557,54 +557,6 @@ void mach64_dump_ring_info(drm_mach64_private_t *dev_priv)
 /*******************************************************************/
 /** \name DMA descriptor ring macros */
 /*@{*/
-
-/**
- * Add the end mark to the ring's new tail position.
- *
- * The bus master engine will keep processing the DMA buffers listed in the ring
- * until it finds this mark, making it stop.
- *
- * \sa mach64_clear_dma_eol
- */ 
-static __inline__ void mach64_set_dma_eol(volatile u32 *addr)
-{
-#if defined(__i386__)
-	int nr = 31;
-
-	/* Taken from include/asm-i386/bitops.h linux header */
-	__asm__ __volatile__("lock;" "btsl %1,%0":"=m"(*addr)
-			     :"Ir"(nr));
-#elif defined(__powerpc__)
-	u32 old;
-	u32 mask = cpu_to_le32(MACH64_DMA_EOL);
-
-	/* Taken from the include/asm-ppc/bitops.h linux header */
-	__asm__ __volatile__("\n\
-1:	lwarx	%0,0,%3 \n\
-	or	%0,%0,%2 \n\
-	stwcx.	%0,0,%3 \n\
-	bne-	1b":"=&r"(old), "=m"(*addr)
-			     :"r"(mask), "r"(addr), "m"(*addr)
-			     :"cc");
-#elif defined(__alpha__)
-	u32 temp;
-	u32 mask = MACH64_DMA_EOL;
-
-	/* Taken from the include/asm-alpha/bitops.h linux header */
-	__asm__ __volatile__("1:	ldl_l %0,%3\n"
-			     "	bis %0,%2,%0\n"
-			     "	stl_c %0,%1\n"
-			     "	beq %0,2f\n"
-			     ".subsection 2\n"
-			     "2:	br 1b\n"
-			     ".previous":"=&r"(temp), "=m"(*addr)
-			     :"Ir"(mask), "m"(*addr));
-#else
-	u32 mask = cpu_to_le32(MACH64_DMA_EOL);
-
-	*addr |= mask;
-#endif
-}
 
 /**
  * Remove the end mark from the ring's old tail position.
@@ -1276,7 +1228,7 @@ int mach64_do_dispatch_pseudo_dma(drm_mach64_private_t *dev_priv)
 			entry = list_entry(ptr, drm_mach64_freelist_t, list);
 			buf = entry->buf;
 			offset = buf_addr - GETBUFADDR(buf);
-			if (offset >= 0 && offset < MACH64_BUFFER_SIZE) {
+			if (offset < MACH64_BUFFER_SIZE) {
 				found = 1;
 				break;
 			}

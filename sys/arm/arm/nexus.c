@@ -39,6 +39,8 @@
  * and I/O memory address space.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -56,10 +58,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 
 #include <machine/resource.h>
 #include <machine/intr.h>
+
+#ifdef FDT
+#include <machine/fdt.h>
+#include "ofw_bus_if.h"
+#endif
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
@@ -79,9 +85,21 @@ static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
     u_long, u_long, u_long, u_int);
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
+static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol);
+static	int nexus_deactivate_resource(device_t, device_t, int, int,
+    struct resource *);
+static int nexus_release_resource(device_t, device_t, int, int,
+    struct resource *);
+
 static int nexus_setup_intr(device_t dev, device_t child, struct resource *res,
     int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep);
 static int nexus_teardown_intr(device_t, device_t, struct resource *, void *);
+
+#ifdef FDT
+static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
+    int icells, pcell_t *intr);
+#endif
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -92,17 +110,25 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
+	DEVMETHOD(bus_config_intr,	nexus_config_intr),
+	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
+	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+#ifdef FDT
+	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
+#endif
 	{ 0, 0 }
 };
 
+static devclass_t nexus_devclass;
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
 	1			/* no softc */
 };
-static devclass_t nexus_devclass;
+EARLY_DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0, 
+    BUS_PASS_BUS + BUS_PASS_ORDER_EARLY);
 
 static int
 nexus_probe(device_t dev)
@@ -111,30 +137,6 @@ nexus_probe(device_t dev)
 	device_quiet(dev);	/* suppress attach message for neatness */
 
 	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
-{
-	int irq;
-
-	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
-		flags |= INTR_EXCL;
-
-	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
-		arm_setup_irqhandler(device_get_nameunit(child),
-		    filt, intr, arg, irq, flags, cookiep);
-		arm_unmask_irq(irq);
-	}
-	return (0);
-}
-
-static int
-nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
-{
-
-	return (arm_remove_irqhandler(rman_get_start(r), ih));
 }
 
 static int
@@ -156,7 +158,6 @@ nexus_attach(device_t dev)
 
 	return (0);
 }
-
 
 static int
 nexus_print_child(device_t bus, device_t child)
@@ -194,7 +195,6 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
  * child of one of our descendants, not a direct child of nexus0.
  * (Exceptions include footbridge.)
  */
-#define ARM_BUS_SPACE_MEM 1
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
@@ -203,22 +203,23 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct rman *rm;
 	int needactivate = flags & RF_ACTIVE;
 
+	flags &= ~RF_ACTIVE;
+
 	switch (type) {
 	case SYS_RES_MEMORY:
+	case SYS_RES_IOPORT:
 		rm = &mem_rman;
 		break;
 
 	default:
-		return (0);
+		return (NULL);
 	}
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == 0)
-		return (0);
+		return (NULL);
 
 	rman_set_rid(rv, *rid);
-	rman_set_bustag(rv, (void*)ARM_BUS_SPACE_MEM);
-	rman_set_bushandle(rv, rman_get_start(rv));
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -230,28 +231,126 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (rv);
 }
 
+static int
+nexus_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	int error;
+	
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		error = bus_deactivate_resource(child, type, rid, res);
+		if (error)
+			return (error);
+	}
+	return (rman_release_resource(res));
+}
+
+static int
+nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	int ret = ENODEV;
+
+	if (arm_config_irq)
+		ret = (*arm_config_irq)(irq, trig, pol);
+
+	return (ret);
+}
+
+static int
+nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
+    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
+{
+	int irq;
+
+	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
+		flags |= INTR_EXCL;
+
+	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
+		arm_setup_irqhandler(device_get_nameunit(child),
+		    filt, intr, arg, irq, flags, cookiep);
+		arm_unmask_irq(irq);
+	}
+	return (0);
+}
+
+static int
+nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
+{
+
+	return (arm_remove_irqhandler(rman_get_start(r), ih));
+}
+
 
 static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
+	int err;
+	bus_addr_t paddr;
+	bus_size_t psize;
+	bus_space_handle_t vaddr;
+
+	if ((err = rman_activate_resource(r)) != 0)
+		return (err);
+
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-	if (rman_get_bustag(r) == (void*)ARM_BUS_SPACE_MEM) {
-		caddr_t vaddr = 0;
-		u_int32_t paddr;
-		u_int32_t psize;
-		u_int32_t poffs;
-
-		paddr = rman_get_start(r);
-		psize = rman_get_size(r);
-		poffs = paddr - trunc_page(paddr);
-		vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
-		rman_set_virtual(r, vaddr);
-		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		paddr = (bus_addr_t)rman_get_start(r);
+		psize = (bus_size_t)rman_get_size(r);
+#ifdef FDT
+		err = bus_space_map(fdtbus_bs_tag, paddr, psize, 0, &vaddr);
+		if (err != 0) {
+			rman_deactivate_resource(r);
+			return (err);
+		}
+		rman_set_bustag(r, fdtbus_bs_tag);
+#else
+		vaddr = (bus_space_handle_t)pmap_mapdev((vm_offset_t)paddr,
+		    (vm_size_t)psize);
+		if (vaddr == 0) {
+			rman_deactivate_resource(r);
+			return (ENOMEM);
+		}
+		rman_set_bustag(r, (void *)1);
+#endif
+		rman_set_virtual(r, (void *)vaddr);
+		rman_set_bushandle(r, vaddr);
 	}
-	return (rman_activate_resource(r));
+	return (0);
 }
 
-DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
+static int
+nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+	bus_size_t psize;
+	bus_space_handle_t vaddr;
+
+	psize = (bus_size_t)rman_get_size(r);
+	vaddr = rman_get_bushandle(r);
+
+	if (vaddr != 0) {
+#ifdef FDT
+		bus_space_unmap(fdtbus_bs_tag, vaddr, psize);
+#else
+		pmap_unmapdev((vm_offset_t)vaddr, (vm_size_t)psize);
+#endif
+		rman_set_virtual(r, NULL);
+		rman_set_bushandle(r, 0);
+	}
+
+	return (rman_deactivate_resource(r));
+}
+
+#ifdef FDT
+static int
+nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
+    pcell_t *intr)
+{
+
+	return (arm_fdt_map_irq(iparent, intr, icells));
+}
+#endif

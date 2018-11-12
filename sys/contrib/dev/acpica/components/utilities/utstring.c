@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __UTSTRING_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -220,10 +217,13 @@ AcpiUtStrtoul64 (
     {
     case ACPI_ANY_BASE:
     case 16:
+
         break;
 
     default:
+
         /* Invalid Base */
+
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
@@ -392,7 +392,8 @@ ErrorExit:
  * FUNCTION:    AcpiUtPrintString
  *
  * PARAMETERS:  String          - Null terminated ASCII string
- *              MaxLength       - Maximum output length
+ *              MaxLength       - Maximum output length. Used to constrain the
+ *                                length of strings during debug output only.
  *
  * RETURN:      None
  *
@@ -404,7 +405,7 @@ ErrorExit:
 void
 AcpiUtPrintString (
     char                    *String,
-    UINT8                   MaxLength)
+    UINT16                  MaxLength)
 {
     UINT32                  i;
 
@@ -416,43 +417,51 @@ AcpiUtPrintString (
     }
 
     AcpiOsPrintf ("\"");
-    for (i = 0; String[i] && (i < MaxLength); i++)
+    for (i = 0; (i < MaxLength) && String[i]; i++)
     {
         /* Escape sequences */
 
         switch (String[i])
         {
         case 0x07:
+
             AcpiOsPrintf ("\\a");       /* BELL */
             break;
 
         case 0x08:
+
             AcpiOsPrintf ("\\b");       /* BACKSPACE */
             break;
 
         case 0x0C:
+
             AcpiOsPrintf ("\\f");       /* FORMFEED */
             break;
 
         case 0x0A:
+
             AcpiOsPrintf ("\\n");       /* LINEFEED */
             break;
 
         case 0x0D:
+
             AcpiOsPrintf ("\\r");       /* CARRIAGE RETURN*/
             break;
 
         case 0x09:
+
             AcpiOsPrintf ("\\t");       /* HORIZONTAL TAB */
             break;
 
         case 0x0B:
+
             AcpiOsPrintf ("\\v");       /* VERTICAL TAB */
             break;
 
         case '\'':                      /* Single Quote */
         case '\"':                      /* Double Quote */
         case '\\':                      /* Backslash */
+
             AcpiOsPrintf ("\\%c", (int) String[i]);
             break;
 
@@ -530,7 +539,8 @@ AcpiUtValidAcpiChar (
  *
  * FUNCTION:    AcpiUtValidAcpiName
  *
- * PARAMETERS:  Name            - The name to be examined
+ * PARAMETERS:  Name            - The name to be examined. Does not have to
+ *                                be NULL terminated string.
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
@@ -543,7 +553,7 @@ AcpiUtValidAcpiChar (
 
 BOOLEAN
 AcpiUtValidAcpiName (
-    UINT32                  Name)
+    char                    *Name)
 {
     UINT32                  i;
 
@@ -553,7 +563,7 @@ AcpiUtValidAcpiName (
 
     for (i = 0; i < ACPI_NAME_SIZE; i++)
     {
-        if (!AcpiUtValidAcpiChar ((ACPI_CAST_PTR (char, &Name))[i], i))
+        if (!AcpiUtValidAcpiChar (Name[i], i))
         {
             return (FALSE);
         }
@@ -671,4 +681,82 @@ UtConvertBackslashes (
         Pathname++;
     }
 }
+#endif
+
+#if defined (ACPI_DEBUGGER) || defined (ACPI_APPLICATION)
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtSafeStrcpy, AcpiUtSafeStrcat, AcpiUtSafeStrncat
+ *
+ * PARAMETERS:  Adds a "DestSize" parameter to each of the standard string
+ *              functions. This is the size of the Destination buffer.
+ *
+ * RETURN:      TRUE if the operation would overflow the destination buffer.
+ *
+ * DESCRIPTION: Safe versions of standard Clib string functions. Ensure that
+ *              the result of the operation will not overflow the output string
+ *              buffer.
+ *
+ * NOTE:        These functions are typically only helpful for processing
+ *              user input and command lines. For most ACPICA code, the
+ *              required buffer length is precisely calculated before buffer
+ *              allocation, so the use of these functions is unnecessary.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiUtSafeStrcpy (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source)
+{
+
+    if (ACPI_STRLEN (Source) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    ACPI_STRCPY (Dest, Source);
+    return (FALSE);
+}
+
+BOOLEAN
+AcpiUtSafeStrcat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source)
+{
+
+    if ((ACPI_STRLEN (Dest) + ACPI_STRLEN (Source)) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    ACPI_STRCAT (Dest, Source);
+    return (FALSE);
+}
+
+#ifndef _KERNEL
+BOOLEAN
+AcpiUtSafeStrncat (
+    char                    *Dest,
+    ACPI_SIZE               DestSize,
+    char                    *Source,
+    ACPI_SIZE               MaxTransferLength)
+{
+    ACPI_SIZE               ActualTransferLength;
+
+
+    ActualTransferLength = ACPI_MIN (MaxTransferLength, ACPI_STRLEN (Source));
+
+    if ((ACPI_STRLEN (Dest) + ActualTransferLength) >= DestSize)
+    {
+        return (TRUE);
+    }
+
+    ACPI_STRNCAT (Dest, Source, MaxTransferLength);
+    return (FALSE);
+}
+#endif
+
 #endif

@@ -12,14 +12,15 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_LANGOPTIONS_H
-#define LLVM_CLANG_LANGOPTIONS_H
+#ifndef LLVM_CLANG_BASIC_LANGOPTIONS_H
+#define LLVM_CLANG_BASIC_LANGOPTIONS_H
 
-#include <string>
+#include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/ObjCRuntime.h"
+#include "clang/Basic/Sanitizers.h"
 #include "clang/Basic/Visibility.h"
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include <string>
 
 namespace clang {
 
@@ -43,12 +44,12 @@ protected:
 
 /// \brief Keeps track of the various options that can be
 /// enabled, which controls the dialect of C or C++ that is accepted.
-class LangOptions : public RefCountedBase<LangOptions>, public LangOptionsBase {
+class LangOptions : public LangOptionsBase {
 public:
   typedef clang::Visibility Visibility;
   
   enum GCMode { NonGC, GCOnly, HybridGC };
-  enum StackProtectorMode { SSPOff, SSPOn, SSPReq };
+  enum StackProtectorMode { SSPOff, SSPOn, SSPStrong, SSPReq };
   
   enum SignedOverflowBehaviorTy {
     SOB_Undefined,  // Default C standard behavior.
@@ -56,13 +57,23 @@ public:
     SOB_Trapping    // -ftrapv
   };
 
-  enum FPContractModeKind {
-    FPC_Off,        // Form fused FP ops only where result will not be affected.
-    FPC_On,         // Form fused FP ops according to FP_CONTRACT rules.
-    FPC_Fast        // Aggressively fuse FP ops (E.g. FMA).
+  enum PragmaMSPointersToMembersKind {
+    PPTMK_BestCase,
+    PPTMK_FullGeneralitySingleInheritance,
+    PPTMK_FullGeneralityMultipleInheritance,
+    PPTMK_FullGeneralityVirtualInheritance
   };
 
+  enum AddrSpaceMapMangling { ASMM_Target, ASMM_On, ASMM_Off };
+
 public:
+  /// \brief Set of enabled sanitizers.
+  SanitizerSet Sanitize;
+
+  /// \brief Path to blacklist file specifying which objects
+  /// (files, functions, variables) should not be instrumented.
+  std::string SanitizerBlacklistFile;
+
   clang::ObjCRuntime ObjCRuntime;
 
   std::string ObjCConstantStringClass;
@@ -75,6 +86,14 @@ public:
 
   /// \brief The name of the current module.
   std::string CurrentModule;
+
+  /// \brief The name of the module that the translation unit is an
+  /// implementation of. Prevents semantic imports, but does not otherwise
+  /// treat this as the CurrentModule.
+  std::string ImplementationOfModule;
+
+  /// \brief Options for parsing comments.
+  CommentOptions CommentOpts;
   
   LangOptions();
 
@@ -87,6 +106,11 @@ public:
   
   bool isSignedOverflowDefined() const {
     return getSignedOverflowBehavior() == SOB_Defined;
+  }
+  
+  bool isSubscriptPointerArithmetic() const {
+    return ObjCRuntime.isSubscriptPointerArithmetic() &&
+           !ObjCSubscriptingLegacyRuntime;
   }
 
   /// \brief Reset all of the options that are not considered when building a

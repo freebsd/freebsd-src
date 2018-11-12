@@ -251,6 +251,7 @@ int	libusb20_dev_reset(struct libusb20_device *pdev);
 int	libusb20_dev_check_connected(struct libusb20_device *pdev);
 int	libusb20_dev_set_power_mode(struct libusb20_device *pdev, uint8_t power_mode);
 uint8_t	libusb20_dev_get_power_mode(struct libusb20_device *pdev);
+int	libusb20_dev_get_port_path(struct libusb20_device *pdev, uint8_t *buf, uint8_t bufsize);
 uint16_t	libusb20_dev_get_power_usage(struct libusb20_device *pdev);
 int	libusb20_dev_set_alt_index(struct libusb20_device *pdev, uint8_t iface_index, uint8_t alt_index);
 int	libusb20_dev_get_info(struct libusb20_device *pdev, struct usb_device_info *pinfo);

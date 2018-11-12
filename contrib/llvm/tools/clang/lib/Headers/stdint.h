@@ -28,9 +28,49 @@
 /* If we're hosted, fall back to the system's stdint.h, which might have
  * additional definitions.
  */
-#if __STDC_HOSTED__ && \
-    defined(__has_include_next) && __has_include_next(<stdint.h>)
+#if __STDC_HOSTED__ && __has_include_next(<stdint.h>)
+
+// C99 7.18.3 Limits of other integer types
+//
+//  Footnote 219, 220: C++ implementations should define these macros only when
+//  __STDC_LIMIT_MACROS is defined before <stdint.h> is included.
+//
+//  Footnote 222: C++ implementations should define these macros only when
+//  __STDC_CONSTANT_MACROS is defined before <stdint.h> is included.
+//
+// C++11 [cstdint.syn]p2:
+//
+//  The macros defined by <cstdint> are provided unconditionally. In particular,
+//  the symbols __STDC_LIMIT_MACROS and __STDC_CONSTANT_MACROS (mentioned in
+//  footnotes 219, 220, and 222 in the C standard) play no role in C++.
+//
+// C11 removed the problematic footnotes.
+//
+// Work around this inconsistency by always defining those macros in C++ mode,
+// so that a C library implementation which follows the C99 standard can be
+// used in C++.
+# ifdef __cplusplus
+#  if !defined(__STDC_LIMIT_MACROS)
+#   define __STDC_LIMIT_MACROS
+#   define __STDC_LIMIT_MACROS_DEFINED_BY_CLANG
+#  endif
+#  if !defined(__STDC_CONSTANT_MACROS)
+#   define __STDC_CONSTANT_MACROS
+#   define __STDC_CONSTANT_MACROS_DEFINED_BY_CLANG
+#  endif
+# endif
+
 # include_next <stdint.h>
+
+# ifdef __STDC_LIMIT_MACROS_DEFINED_BY_CLANG
+#  undef __STDC_LIMIT_MACROS
+#  undef __STDC_LIMIT_MACROS_DEFINED_BY_CLANG
+# endif
+# ifdef __STDC_CONSTANT_MACROS_DEFINED_BY_CLANG
+#  undef __STDC_CONSTANT_MACROS
+#  undef __STDC_CONSTANT_MACROS_DEFINED_BY_CLANG
+# endif
+
 #else
 
 /* C99 7.18.1.1 Exact-width integer types.
@@ -64,9 +104,9 @@
 
 #ifdef __INT64_TYPE__
 # ifndef __int8_t_defined /* glibc sys/types.h also defines int64_t*/
-typedef signed __INT64_TYPE__ int64_t;
+typedef __INT64_TYPE__ int64_t;
 # endif /* __int8_t_defined */
-typedef unsigned __INT64_TYPE__ uint64_t;
+typedef __UINT64_TYPE__ uint64_t;
 # define __int_least64_t int64_t
 # define __uint_least64_t uint64_t
 # define __int_least32_t int64_t
@@ -85,8 +125,8 @@ typedef __uint_least64_t uint_fast64_t;
 #endif /* __int_least64_t */
 
 #ifdef __INT56_TYPE__
-typedef signed __INT56_TYPE__ int56_t;
-typedef unsigned __INT56_TYPE__ uint56_t;
+typedef __INT56_TYPE__ int56_t;
+typedef __UINT56_TYPE__ uint56_t;
 typedef int56_t int_least56_t;
 typedef uint56_t uint_least56_t;
 typedef int56_t int_fast56_t;
@@ -101,8 +141,8 @@ typedef uint56_t uint_fast56_t;
 
 
 #ifdef __INT48_TYPE__
-typedef signed __INT48_TYPE__ int48_t;
-typedef unsigned __INT48_TYPE__ uint48_t;
+typedef __INT48_TYPE__ int48_t;
+typedef __UINT48_TYPE__ uint48_t;
 typedef int48_t int_least48_t;
 typedef uint48_t uint_least48_t;
 typedef int48_t int_fast48_t;
@@ -117,8 +157,8 @@ typedef uint48_t uint_fast48_t;
 
 
 #ifdef __INT40_TYPE__
-typedef signed __INT40_TYPE__ int40_t;
-typedef unsigned __INT40_TYPE__ uint40_t;
+typedef __INT40_TYPE__ int40_t;
+typedef __UINT40_TYPE__ uint40_t;
 typedef int40_t int_least40_t;
 typedef uint40_t uint_least40_t;
 typedef int40_t int_fast40_t;
@@ -135,12 +175,12 @@ typedef uint40_t uint_fast40_t;
 #ifdef __INT32_TYPE__
 
 # ifndef __int8_t_defined /* glibc sys/types.h also defines int32_t*/
-typedef signed __INT32_TYPE__ int32_t;
+typedef __INT32_TYPE__ int32_t;
 # endif /* __int8_t_defined */
 
 # ifndef __uint32_t_defined  /* more glibc compatibility */
 # define __uint32_t_defined
-typedef unsigned __INT32_TYPE__ uint32_t;
+typedef __UINT32_TYPE__ uint32_t;
 # endif /* __uint32_t_defined */
 
 # define __int_least32_t int32_t
@@ -159,8 +199,8 @@ typedef __uint_least32_t uint_fast32_t;
 #endif /* __int_least32_t */
 
 #ifdef __INT24_TYPE__
-typedef signed __INT24_TYPE__ int24_t;
-typedef unsigned __INT24_TYPE__ uint24_t;
+typedef __INT24_TYPE__ int24_t;
+typedef __UINT24_TYPE__ uint24_t;
 typedef int24_t int_least24_t;
 typedef uint24_t uint_least24_t;
 typedef int24_t int_fast24_t;
@@ -173,9 +213,9 @@ typedef uint24_t uint_fast24_t;
 
 #ifdef __INT16_TYPE__
 #ifndef __int8_t_defined /* glibc sys/types.h also defines int16_t*/
-typedef signed __INT16_TYPE__ int16_t;
+typedef __INT16_TYPE__ int16_t;
 #endif /* __int8_t_defined */
-typedef unsigned __INT16_TYPE__ uint16_t;
+typedef __UINT16_TYPE__ uint16_t;
 # define __int_least16_t int16_t
 # define __uint_least16_t uint16_t
 # define __int_least8_t int16_t
@@ -192,9 +232,9 @@ typedef __uint_least16_t uint_fast16_t;
 
 #ifdef __INT8_TYPE__
 #ifndef __int8_t_defined  /* glibc sys/types.h also defines int8_t*/
-typedef signed __INT8_TYPE__ int8_t;
+typedef __INT8_TYPE__ int8_t;
 #endif /* __int8_t_defined */
-typedef unsigned __INT8_TYPE__ uint8_t;
+typedef __UINT8_TYPE__ uint8_t;
 # define __int_least8_t int8_t
 # define __uint_least8_t uint8_t
 #endif /* __INT8_TYPE__ */
@@ -625,6 +665,12 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 #define PTRDIFF_MIN  __INTN_MIN(__PTRDIFF_WIDTH__)
 #define PTRDIFF_MAX  __INTN_MAX(__PTRDIFF_WIDTH__)
 #define    SIZE_MAX __UINTN_MAX(__SIZE_WIDTH__)
+
+/* ISO9899:2011 7.20 (C11 Annex K): Define RSIZE_MAX if __STDC_WANT_LIB_EXT1__
+ * is enabled. */
+#if defined(__STDC_WANT_LIB_EXT1__) && __STDC_WANT_LIB_EXT1__ >= 1
+#define   RSIZE_MAX            (SIZE_MAX >> 1)
+#endif
 
 /* C99 7.18.2.5 Limits of greatest-width integer types. */
 #define INTMAX_MIN   __INTN_MIN(__INTMAX_WIDTH__)

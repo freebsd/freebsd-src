@@ -48,33 +48,25 @@ SYSCTL_DECL(_kern_geom_raid_raid1e);
 
 #define RAID1E_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */
 static int g_raid1e_rebuild_slab = RAID1E_REBUILD_SLAB;
-TUNABLE_INT("kern.geom.raid.raid1e.rebuild_slab_size",
-    &g_raid1e_rebuild_slab);
-SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_slab_size, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_slab_size, CTLFLAG_RWTUN,
     &g_raid1e_rebuild_slab, 0,
     "Amount of the disk to rebuild each read/write cycle of the rebuild.");
 
 #define RAID1E_REBUILD_FAIR_IO 20 /* use 1/x of the available I/O */
 static int g_raid1e_rebuild_fair_io = RAID1E_REBUILD_FAIR_IO;
-TUNABLE_INT("kern.geom.raid.raid1e.rebuild_fair_io",
-    &g_raid1e_rebuild_fair_io);
-SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_fair_io, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_fair_io, CTLFLAG_RWTUN,
     &g_raid1e_rebuild_fair_io, 0,
     "Fraction of the I/O bandwidth to use when disk busy for rebuild.");
 
 #define RAID1E_REBUILD_CLUSTER_IDLE 100
 static int g_raid1e_rebuild_cluster_idle = RAID1E_REBUILD_CLUSTER_IDLE;
-TUNABLE_INT("kern.geom.raid.raid1e.rebuild_cluster_idle",
-    &g_raid1e_rebuild_cluster_idle);
-SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_cluster_idle, CTLFLAG_RWTUN,
     &g_raid1e_rebuild_cluster_idle, 0,
     "Number of slabs to do each time we trigger a rebuild cycle");
 
 #define RAID1E_REBUILD_META_UPDATE 1024 /* update meta data every 1GB or so */
 static int g_raid1e_rebuild_meta_update = RAID1E_REBUILD_META_UPDATE;
-TUNABLE_INT("kern.geom.raid.raid1e.rebuild_meta_update",
-    &g_raid1e_rebuild_meta_update);
-SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_meta_update, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_raid_raid1e, OID_AUTO, rebuild_meta_update, CTLFLAG_RWTUN,
     &g_raid1e_rebuild_meta_update, 0,
     "When to update the meta data.");
 
@@ -134,7 +126,8 @@ static struct g_raid_tr_class g_raid_tr_raid1e_class = {
 	g_raid_tr_raid1e_methods,
 	sizeof(struct g_raid_tr_raid1e_object),
 	.trc_enable = 1,
-	.trc_priority = 200
+	.trc_priority = 200,
+	.trc_accept_unmapped = 1
 };
 
 static void g_raid_tr_raid1e_rebuild_abort(struct g_raid_tr_object *tr);
@@ -701,7 +694,10 @@ g_raid_tr_iostart_raid1e_read(struct g_raid_tr_object *tr, struct bio *bp)
 	int best;
 
 	vol = tr->tro_volume;
-	addr = bp->bio_data;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = bp->bio_data;
 	strip_size = vol->v_strip_size;
 	V2P(vol, bp->bio_offset, &no, &offset, &start);
 	remain = bp->bio_length;
@@ -721,8 +717,15 @@ g_raid_tr_iostart_raid1e_read(struct g_raid_tr_object *tr, struct bio *bp)
 		if (cbp == NULL)
 			goto failure;
 		cbp->bio_offset = offset + start;
-		cbp->bio_data = addr;
 		cbp->bio_length = length;
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+			cbp->bio_ma_offset += (uintptr_t)addr;
+			cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+			cbp->bio_ma_offset %= PAGE_SIZE;
+			cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+			    cbp->bio_length) / PAGE_SIZE;
+		} else
+			cbp->bio_data = addr;
 		cbp->bio_caller1 = &vol->v_subdisks[no];
 		bioq_insert_tail(&queue, cbp);
 		no += N - best;
@@ -734,20 +737,15 @@ g_raid_tr_iostart_raid1e_read(struct g_raid_tr_object *tr, struct bio *bp)
 		addr += length;
 		start = 0;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
@@ -766,7 +764,10 @@ g_raid_tr_iostart_raid1e_write(struct g_raid_tr_object *tr, struct bio *bp)
 	int i;
 
 	vol = tr->tro_volume;
-	addr = bp->bio_data;
+	if ((bp->bio_flags & BIO_UNMAPPED) != 0)
+		addr = NULL;
+	else
+		addr = bp->bio_data;
 	strip_size = vol->v_strip_size;
 	V2P(vol, bp->bio_offset, &no, &offset, &start);
 	remain = bp->bio_length;
@@ -791,8 +792,16 @@ g_raid_tr_iostart_raid1e_write(struct g_raid_tr_object *tr, struct bio *bp)
 			if (cbp == NULL)
 				goto failure;
 			cbp->bio_offset = offset + start;
-			cbp->bio_data = addr;
 			cbp->bio_length = length;
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
+			    bp->bio_cmd != BIO_DELETE) {
+				cbp->bio_ma_offset += (uintptr_t)addr;
+				cbp->bio_ma += cbp->bio_ma_offset / PAGE_SIZE;
+				cbp->bio_ma_offset %= PAGE_SIZE;
+				cbp->bio_ma_n = round_page(cbp->bio_ma_offset +
+				    cbp->bio_length) / PAGE_SIZE;
+			} else
+				cbp->bio_data = addr;
 			cbp->bio_caller1 = sd;
 			bioq_insert_tail(&queue, cbp);
 nextdisk:
@@ -806,20 +815,15 @@ nextdisk:
 			addr += length;
 		start = 0;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
@@ -1030,13 +1034,16 @@ rebuild_round_done:
 			cbp->bio_offset = offset + start;
 			cbp->bio_length = bp->bio_length;
 			cbp->bio_data = bp->bio_data;
+			cbp->bio_ma = bp->bio_ma;
+			cbp->bio_ma_offset = bp->bio_ma_offset;
+			cbp->bio_ma_n = bp->bio_ma_n;
 			g_destroy_bio(bp);
 			nsd = &vol->v_subdisks[disk];
 			G_RAID_LOGREQ(2, cbp, "Retrying read from %d",
 			    nsd->sd_pos);
 			if (do_write)
 				mask |= 1 << 31;
-			if ((mask & (1 << 31)) != 0)
+			if ((mask & (1U << 31)) != 0)
 				sd->sd_recovery++;
 			cbp->bio_caller2 = (void *)mask;
 			if (do_write) {
@@ -1059,7 +1066,7 @@ rebuild_round_done:
 	}
 	if (bp->bio_cmd == BIO_READ &&
 	    bp->bio_error == 0 &&
-	    (mask & (1 << 31)) != 0) {
+	    (mask & (1U << 31)) != 0) {
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 
 		/* Restore what we were doing. */
@@ -1076,8 +1083,6 @@ rebuild_round_done:
 				offset += vol->v_strip_size;
 			}
 			cbp->bio_offset = offset + start;
-			cbp->bio_length = bp->bio_length;
-			cbp->bio_data = bp->bio_data;
 			cbp->bio_cmd = BIO_WRITE;
 			cbp->bio_cflags = G_RAID_BIO_FLAG_REMAP;
 			cbp->bio_caller2 = (void *)mask;
@@ -1088,7 +1093,7 @@ rebuild_round_done:
 			return;
 		}
 	}
-	if ((mask & (1 << 31)) != 0) {
+	if ((mask & (1U << 31)) != 0) {
 		/*
 		 * We're done with a recovery, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since

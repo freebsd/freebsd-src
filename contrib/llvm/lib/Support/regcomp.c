@@ -49,6 +49,14 @@
 #include "regcclass.h"
 #include "regcname.h"
 
+#include "llvm/Config/config.h"
+#if HAVE_STDINT_H
+#include <stdint.h>
+#else
+/* Pessimistically bound memory use */
+#define SIZE_MAX UINT_MAX
+#endif
+
 /*
  * parse structure, passed up and down to avoid global variables and
  * other clumsinesses
@@ -303,6 +311,7 @@ p_ere_exp(struct parse *p)
 	sopno pos;
 	int count;
 	int count2;
+	int backrefnum;
 	sopno subno;
 	int wascaret = 0;
 
@@ -370,7 +379,34 @@ p_ere_exp(struct parse *p)
 	case '\\':
 		REQUIRE(MORE(), REG_EESCAPE);
 		c = GETNEXT();
-		ordinary(p, c);
+		if (c >= '1' && c <= '9') {
+			/* \[0-9] is taken to be a back-reference to a previously specified
+			 * matching group. backrefnum will hold the number. The matching
+			 * group must exist (i.e. if \4 is found there must have been at
+			 * least 4 matching groups specified in the pattern previously).
+			 */
+			backrefnum = c - '0';
+			if (p->pend[backrefnum] == 0) {
+				SETERROR(REG_ESUBREG);
+				break;
+			}
+
+			/* Make sure everything checks out and emit the sequence
+			 * that marks a back-reference to the parse structure.
+			 */
+			assert(backrefnum <= p->g->nsub);
+			EMIT(OBACK_, backrefnum);
+			assert(p->pbegin[backrefnum] != 0);
+			assert(OP(p->strip[p->pbegin[backrefnum]]) != OLPAREN);
+			assert(OP(p->strip[p->pend[backrefnum]]) != ORPAREN);
+			(void) dupl(p, p->pbegin[backrefnum]+1, p->pend[backrefnum]);
+			EMIT(O_BACK, backrefnum);
+			p->g->backrefs = 1;
+		} else {
+			/* Other chars are simply themselves when escaped with a backslash.
+			 */
+			ordinary(p, c);
+		}
 		break;
 	case '{':		/* okay as ordinary except if digit follows */
 		REQUIRE(!MORE() || !isdigit((uch)PEEK()), REG_BADRPT);
@@ -504,10 +540,10 @@ p_simp_re(struct parse *p,
 	sopno subno;
 #	define	BACKSL	(1<<CHAR_BIT)
 
-	pos = HERE();		/* repetion op, if any, covers from here */
+        pos = HERE(); /* repetition op, if any, covers from here */
 
-	assert(MORE());		/* caller should have ensured this */
-	c = GETNEXT();
+        assert(MORE()); /* caller should have ensured this */
+        c = GETNEXT();
 	if (c == '\\') {
 		REQUIRE(MORE(), REG_EESCAPE);
 		c = BACKSL | GETNEXT();
@@ -1041,6 +1077,8 @@ allocset(struct parse *p)
 
 		p->ncsalloc += CHAR_BIT;
 		nc = p->ncsalloc;
+		if (nc > SIZE_MAX / sizeof(cset))
+			goto nomem;
 		assert(nc % CHAR_BIT == 0);
 		nbytes = nc / CHAR_BIT * css;
 
@@ -1384,6 +1422,11 @@ enlarge(struct parse *p, sopno size)
 	if (p->ssize >= size)
 		return;
 
+	if ((unsigned long)size > SIZE_MAX / sizeof(sop)) {
+		SETERROR(REG_ESPACE);
+		return;
+	}
+
 	sp = (sop *)realloc(p->strip, size*sizeof(sop));
 	if (sp == NULL) {
 		SETERROR(REG_ESPACE);
@@ -1400,6 +1443,12 @@ static void
 stripsnug(struct parse *p, struct re_guts *g)
 {
 	g->nstates = p->slen;
+	if ((unsigned long)p->slen > SIZE_MAX / sizeof(sop)) {
+		g->strip = p->strip;
+		SETERROR(REG_ESPACE);
+		return;
+	}
+
 	g->strip = (sop *)realloc((char *)p->strip, p->slen * sizeof(sop));
 	if (g->strip == NULL) {
 		SETERROR(REG_ESPACE);

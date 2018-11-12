@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2012
+.Dd June 6, 2014
 .Dt XNB 4
 .Os
 .Sh NAME
@@ -97,14 +97,13 @@ The
 device driver first appeared in
 .Fx 10.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
-.An Alan Somers
-.Aq alans@spectralogic.com
+.An Alan Somers Aq Mt alans@spectralogic.com
 and
-.An John Suykerbuyk
-.Aq johns@spectralogic.com .
+.An John Suykerbuyk Aq Mt johns@spectralogic.com .
 .Sh CAVEATS
 Packets sent through Xennet pass over shared memory, so the protocol includes
 no form of link-layer checksum or CRC.
@@ -116,7 +115,9 @@ machine.
 However, when a Xennet interface is bridged to a physical interface,
 a correct checksum must be attached to any packets bound for that physical
 interface.
-Currently, FreeBSD lacks any mechanism for an ethernet device to
+Currently,
+.Fx
+lacks any mechanism for an Ethernet device to
 inform the OS that newly received packets are valid even though their checksums
 are not.
 So if the netfront driver is configured to offload checksum calculations,

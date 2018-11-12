@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pciio.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -55,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 /* XXX locking */
 
-#define	MAX_PPTDEVS	(sizeof(pptdevs) / sizeof(pptdevs[0]))
 #define	MAX_MSIMSGS	32
 
 /*
@@ -72,13 +72,14 @@ MALLOC_DEFINE(M_PPTMSIX, "pptmsix", "Passthru MSI-X resources");
 
 struct pptintr_arg {				/* pptintr(pptintr_arg) */
 	struct pptdev	*pptdev;
-	int		vec;
-	int 		vcpu;
+	uint64_t	addr;
+	uint64_t	msg_data;
 };
 
-static struct pptdev {
+struct pptdev {
 	device_t	dev;
 	struct vm	*vm;			/* owner of this device */
+	TAILQ_ENTRY(pptdev)	next;
 	struct vm_memory_segment mmio[MAX_MMIOSEGS];
 	struct {
 		int	num_msgs;		/* guest state */
@@ -98,9 +99,16 @@ static struct pptdev {
 		void **cookie;
 		struct pptintr_arg *arg;
 	} msix;
-} pptdevs[64];
+};
+
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, ppt, CTLFLAG_RW, 0, "bhyve passthru devices");
 
 static int num_pptdevs;
+SYSCTL_INT(_hw_vmm_ppt, OID_AUTO, devices, CTLFLAG_RD, &num_pptdevs, 0,
+    "number of pci passthru devices");
+
+static TAILQ_HEAD(, pptdev) pptdev_list = TAILQ_HEAD_INITIALIZER(pptdev_list);
 
 static int
 ppt_probe(device_t dev)
@@ -119,26 +127,30 @@ ppt_probe(device_t dev)
 	 * - be allowed by administrator to be used in this role
 	 * - be an endpoint device
 	 */
-	if (vmm_is_pptdev(bus, slot, func) &&
-	    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) == PCIM_HDRTYPE_NORMAL)
+	if ((dinfo->cfg.hdrtype & PCIM_HDRTYPE) != PCIM_HDRTYPE_NORMAL)
+		return (ENXIO);
+	else if (vmm_is_pptdev(bus, slot, func))
 		return (0);
 	else
-		return (ENXIO);
+		/*
+		 * Returning BUS_PROBE_NOWILDCARD here matches devices that the
+		 * SR-IOV infrastructure specified as "ppt" passthrough devices.
+		 * All normal devices that did not have "ppt" specified as their
+		 * driver will not be matched by this.
+		 */
+		return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
 ppt_attach(device_t dev)
 {
-	int n;
+	struct pptdev *ppt;
 
-	if (num_pptdevs >= MAX_PPTDEVS) {
-		printf("ppt_attach: maximum number of pci passthrough devices "
-		       "exceeded\n");
-		return (ENXIO);
-	}
+	ppt = device_get_softc(dev);
 
-	n = num_pptdevs++;
-	pptdevs[n].dev = dev;
+	num_pptdevs++;
+	TAILQ_INSERT_TAIL(&pptdev_list, ppt, next);
+	ppt->dev = dev;
 
 	if (bootverbose)
 		device_printf(dev, "attached\n");
@@ -149,10 +161,14 @@ ppt_attach(device_t dev)
 static int
 ppt_detach(device_t dev)
 {
-	/*
-	 * XXX check whether there are any pci passthrough devices assigned
-	 * to guests before we allow this driver to detach.
-	 */
+	struct pptdev *ppt;
+
+	ppt = device_get_softc(dev);
+
+	if (ppt->vm != NULL)
+		return (EBUSY);
+	num_pptdevs--;
+	TAILQ_REMOVE(&pptdev_list, ppt, next);
 
 	return (0);
 }
@@ -166,22 +182,23 @@ static device_method_t ppt_methods[] = {
 };
 
 static devclass_t ppt_devclass;
-DEFINE_CLASS_0(ppt, ppt_driver, ppt_methods, 0);
+DEFINE_CLASS_0(ppt, ppt_driver, ppt_methods, sizeof(struct pptdev));
 DRIVER_MODULE(ppt, pci, ppt_driver, ppt_devclass, NULL, NULL);
 
 static struct pptdev *
 ppt_find(int bus, int slot, int func)
 {
 	device_t dev;
-	int i, b, s, f;
+	struct pptdev *ppt;
+	int b, s, f;
 
-	for (i = 0; i < num_pptdevs; i++) {
-		dev = pptdevs[i].dev;
+	TAILQ_FOREACH(ppt, &pptdev_list, next) {
+		dev = ppt->dev;
 		b = pci_get_bus(dev);
 		s = pci_get_slot(dev);
 		f = pci_get_function(dev);
 		if (bus == b && slot == s && func == f)
-			return (&pptdevs[i]);
+			return (ppt);
 	}
 	return (NULL);
 }
@@ -282,6 +299,50 @@ ppt_teardown_msix(struct pptdev *ppt)
 }
 
 int
+ppt_avail_devices(void)
+{
+
+	return (num_pptdevs);
+}
+
+int
+ppt_assigned_devices(struct vm *vm)
+{
+	struct pptdev *ppt;
+	int num;
+
+	num = 0;
+	TAILQ_FOREACH(ppt, &pptdev_list, next) {
+		if (ppt->vm == vm)
+			num++;
+	}
+	return (num);
+}
+
+boolean_t
+ppt_is_mmio(struct vm *vm, vm_paddr_t gpa)
+{
+	int i;
+	struct pptdev *ppt;
+	struct vm_memory_segment *seg;
+
+	TAILQ_FOREACH(ppt, &pptdev_list, next) {
+		if (ppt->vm != vm)
+			continue;
+
+		for (i = 0; i < MAX_MMIOSEGS; i++) {
+			seg = &ppt->mmio[i];
+			if (seg->len == 0)
+				continue;
+			if (gpa >= seg->gpa && gpa < seg->gpa + seg->len)
+				return (TRUE);
+		}
+	}
+
+	return (FALSE);
+}
+
+int
 ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 {
 	struct pptdev *ppt;
@@ -296,7 +357,7 @@ ppt_assign_device(struct vm *vm, int bus, int slot, int func)
 			return (EBUSY);
 
 		ppt->vm = vm;
-		iommu_add_device(vm_iommu_domain(vm), bus, slot, func);
+		iommu_add_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
 		return (0);
 	}
 	return (ENOENT);
@@ -317,7 +378,7 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 		ppt_unmap_mmio(vm, ppt);
 		ppt_teardown_msi(ppt);
 		ppt_teardown_msix(ppt);
-		iommu_remove_device(vm_iommu_domain(vm), bus, slot, func);
+		iommu_remove_device(vm_iommu_domain(vm), pci_get_rid(ppt->dev));
 		ppt->vm = NULL;
 		return (0);
 	}
@@ -327,16 +388,17 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 int
 ppt_unassign_all(struct vm *vm)
 {
-	int i, bus, slot, func;
+	struct pptdev *ppt;
+	int bus, slot, func;
 	device_t dev;
 
-	for (i = 0; i < num_pptdevs; i++) {
-		if (pptdevs[i].vm == vm) {
-			dev = pptdevs[i].dev;
+	TAILQ_FOREACH(ppt, &pptdev_list, next) {
+		if (ppt->vm == vm) {
+			dev = ppt->dev;
 			bus = pci_get_bus(dev);
 			slot = pci_get_slot(dev);
 			func = pci_get_function(dev);
-			ppt_unassign_device(vm, bus, slot, func);
+			vm_unassign_pptdev(vm, bus, slot, func);
 		}
 	}
 
@@ -375,16 +437,14 @@ ppt_map_mmio(struct vm *vm, int bus, int slot, int func,
 static int
 pptintr(void *arg)
 {
-	int vec;
 	struct pptdev *ppt;
 	struct pptintr_arg *pptarg;
 	
 	pptarg = arg;
 	ppt = pptarg->pptdev;
-	vec = pptarg->vec;
 
 	if (ppt->vm != NULL)
-		(void) lapic_set_intr(ppt->vm, pptarg->vcpu, vec);
+		lapic_intr_msi(ppt->vm, pptarg->addr, pptarg->msg_data);
 	else {
 		/*
 		 * XXX
@@ -404,15 +464,13 @@ pptintr(void *arg)
 
 int
 ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
-	      int destcpu, int vector, int numvec)
+	      uint64_t addr, uint64_t msg, int numvec)
 {
 	int i, rid, flags;
 	int msi_count, startrid, error, tmp;
 	struct pptdev *ppt;
 
-	if ((destcpu >= VM_MAXCPU || destcpu < 0) ||
-	    (vector < 0 || vector > 255) ||
-	    (numvec < 0 || numvec > MAX_MSIMSGS))
+	if (numvec < 0 || numvec > MAX_MSIMSGS)
 		return (EINVAL);
 
 	ppt = ppt_find(bus, slot, func);
@@ -476,8 +534,8 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 			break;
 
 		ppt->msi.arg[i].pptdev = ppt;
-		ppt->msi.arg[i].vec = vector + i;
-		ppt->msi.arg[i].vcpu = destcpu;
+		ppt->msi.arg[i].addr = addr;
+		ppt->msi.arg[i].msg_data = msg + i;
 
 		error = bus_setup_intr(ppt->dev, ppt->msi.res[i],
 				       INTR_TYPE_NET | INTR_MPSAFE,
@@ -497,7 +555,7 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 
 int
 ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
-	       int idx, uint32_t msg, uint32_t vector_control, uint64_t addr)
+	       int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
 {
 	struct pptdev *ppt;
 	struct pci_devinfo *dinfo;
@@ -568,8 +626,8 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 			return (ENXIO);
 	
 		ppt->msix.arg[idx].pptdev = ppt;
-		ppt->msix.arg[idx].vec = msg;
-		ppt->msix.arg[idx].vcpu = (addr >> 12) & 0xFF;
+		ppt->msix.arg[idx].addr = addr;
+		ppt->msix.arg[idx].msg_data = msg;
 	
 		/* Setup the MSI-X interrupt */
 		error = bus_setup_intr(ppt->dev, ppt->msix.res[idx],
@@ -591,4 +649,3 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 
 	return (0);
 }
-

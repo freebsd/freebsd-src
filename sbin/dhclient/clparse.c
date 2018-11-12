@@ -642,6 +642,10 @@ parse_client_lease_declaration(FILE *cfile, struct client_lease *lease,
 	case FILENAME:
 		lease->filename = parse_string(cfile);
 		return;
+	case NEXT_SERVER:
+		if (!parse_ip_addr(cfile, &lease->nextserver))
+			return;
+		break;
 	case SERVER_NAME:
 		lease->server_name = parse_string(cfile);
 		return;

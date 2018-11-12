@@ -7,24 +7,48 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  Check that Objective C properties follow the following rules:
-//    - The property should be set with the setter, not though a direct
-//      assignment.
+//  Check that Objective C properties are set with the setter, not though a
+//      direct assignment.
+//
+//  Two versions of a checker exist: one that checks all methods and the other
+//      that only checks the methods annotated with
+//      __attribute__((annotate("objc_no_direct_instance_variable_assignment")))
+//
+//  The checker does not warn about assignments to Ivars, annotated with
+//       __attribute__((objc_allow_direct_instance_variable_assignment"))). This
+//      annotation serves as a false positive suppression mechanism for the
+//      checker. The annotation is allowed on properties and Ivars.
 //
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/DenseMap.h"
 
 using namespace clang;
 using namespace ento;
 
 namespace {
+
+/// The default method filter, which is used to filter out the methods on which
+/// the check should not be performed.
+///
+/// Checks for the init, dealloc, and any other functions that might be allowed
+/// to perform direct instance variable assignment based on their name.
+static bool DefaultMethodFilter(const ObjCMethodDecl *M) {
+  if (M->getMethodFamily() == OMF_init || M->getMethodFamily() == OMF_dealloc ||
+      M->getMethodFamily() == OMF_copy ||
+      M->getMethodFamily() == OMF_mutableCopy ||
+      M->getSelector().getNameForSlot(0).find("init") != StringRef::npos ||
+      M->getSelector().getNameForSlot(0).find("Init") != StringRef::npos)
+    return true;
+  return false;
+}
 
 class DirectIvarAssignment :
   public Checker<check::ASTDecl<ObjCImplementationDecl> > {
@@ -39,13 +63,15 @@ class DirectIvarAssignment :
     const ObjCMethodDecl *MD;
     const ObjCInterfaceDecl *InterfD;
     BugReporter &BR;
+    const CheckerBase *Checker;
     LocationOrAnalysisDeclContext DCtx;
 
   public:
     MethodCrawler(const IvarToPropertyMapTy &InMap, const ObjCMethodDecl *InMD,
-        const ObjCInterfaceDecl *InID,
-        BugReporter &InBR, AnalysisDeclContext *InDCtx)
-    : IvarToPropMap(InMap), MD(InMD), InterfD(InID), BR(InBR), DCtx(InDCtx) {}
+                  const ObjCInterfaceDecl *InID, BugReporter &InBR,
+                  const CheckerBase *Checker, AnalysisDeclContext *InDCtx)
+        : IvarToPropMap(InMap), MD(InMD), InterfD(InID), BR(InBR),
+          Checker(Checker), DCtx(InDCtx) {}
 
     void VisitStmt(const Stmt *S) { VisitChildren(S); }
 
@@ -59,6 +85,10 @@ class DirectIvarAssignment :
   };
 
 public:
+  bool (*ShouldSkipMethod)(const ObjCMethodDecl *);
+
+  DirectIvarAssignment() : ShouldSkipMethod(&DefaultMethodFilter) {}
+
   void checkASTDecl(const ObjCImplementationDecl *D, AnalysisManager& Mgr,
                     BugReporter &BR) const;
 };
@@ -94,10 +124,7 @@ void DirectIvarAssignment::checkASTDecl(const ObjCImplementationDecl *D,
   IvarToPropertyMapTy IvarToPropMap;
 
   // Find all properties for this class.
-  for (ObjCInterfaceDecl::prop_iterator I = InterD->prop_begin(),
-      E = InterD->prop_end(); I != E; ++I) {
-    ObjCPropertyDecl *PD = *I;
-
+  for (const auto *PD : InterD->properties()) {
     // Find the corresponding IVar.
     const ObjCIvarDecl *ID = findPropertyBackingIvar(PD, InterD,
                                                      Mgr.getASTContext());
@@ -112,28 +139,27 @@ void DirectIvarAssignment::checkASTDecl(const ObjCImplementationDecl *D,
   if (IvarToPropMap.empty())
     return;
 
-  for (ObjCImplementationDecl::instmeth_iterator I = D->instmeth_begin(),
-      E = D->instmeth_end(); I != E; ++I) {
-
-    ObjCMethodDecl *M = *I;
+  for (const auto *M : D->instance_methods()) {
     AnalysisDeclContext *DCtx = Mgr.getAnalysisDeclContext(M);
 
-    // Skip the init, dealloc functions and any functions that might be doing
-    // initialization based on their name.
-    if (M->getMethodFamily() == OMF_init ||
-        M->getMethodFamily() == OMF_dealloc ||
-        M->getMethodFamily() == OMF_copy ||
-        M->getMethodFamily() == OMF_mutableCopy ||
-        M->getSelector().getNameForSlot(0).find("init") != StringRef::npos ||
-        M->getSelector().getNameForSlot(0).find("Init") != StringRef::npos)
+    if ((*ShouldSkipMethod)(M))
       continue;
 
     const Stmt *Body = M->getBody();
     assert(Body);
 
-    MethodCrawler MC(IvarToPropMap, M->getCanonicalDecl(), InterD, BR, DCtx);
+    MethodCrawler MC(IvarToPropMap, M->getCanonicalDecl(), InterD, BR, this,
+                     DCtx);
     MC.VisitStmt(Body);
   }
+}
+
+static bool isAnnotatedToAllowDirectAssignment(const Decl *D) {
+  for (const auto *Ann : D->specific_attrs<AnnotateAttr>())
+    if (Ann->getAnnotation() ==
+        "objc_allow_direct_instance_variable_assignment")
+      return true;
+  return false;
 }
 
 void DirectIvarAssignment::MethodCrawler::VisitBinaryOperator(
@@ -149,8 +175,16 @@ void DirectIvarAssignment::MethodCrawler::VisitBinaryOperator(
 
   if (const ObjCIvarDecl *D = IvarRef->getDecl()) {
     IvarToPropertyMapTy::const_iterator I = IvarToPropMap.find(D);
+
     if (I != IvarToPropMap.end()) {
       const ObjCPropertyDecl *PD = I->second;
+      // Skip warnings on Ivars, annotated with
+      // objc_allow_direct_instance_variable_assignment. This annotation serves
+      // as a false positive suppression mechanism for the checker. The
+      // annotation is allowed on properties and ivars.
+      if (isAnnotatedToAllowDirectAssignment(PD) ||
+          isAnnotatedToAllowDirectAssignment(D))
+        return;
 
       ObjCMethodDecl *GetterMethod =
           InterfD->getInstanceMethod(PD->getGetterName());
@@ -163,18 +197,32 @@ void DirectIvarAssignment::MethodCrawler::VisitBinaryOperator(
       if (GetterMethod && GetterMethod->getCanonicalDecl() == MD)
         return;
 
-      BR.EmitBasicReport(MD,
-          "Property access",
-          categories::CoreFoundationObjectiveC,
+      BR.EmitBasicReport(
+          MD, Checker, "Property access", categories::CoreFoundationObjectiveC,
           "Direct assignment to an instance variable backing a property; "
-          "use the setter instead", PathDiagnosticLocation(IvarRef,
-                                                          BR.getSourceManager(),
-                                                          DCtx));
+          "use the setter instead",
+          PathDiagnosticLocation(IvarRef, BR.getSourceManager(), DCtx));
     }
   }
 }
 }
 
+// Register the checker that checks for direct accesses in all functions,
+// except for the initialization and copy routines.
 void ento::registerDirectIvarAssignment(CheckerManager &mgr) {
   mgr.registerChecker<DirectIvarAssignment>();
+}
+
+// Register the checker that checks for direct accesses in functions annotated
+// with __attribute__((annotate("objc_no_direct_instance_variable_assignment"))).
+static bool AttrFilter(const ObjCMethodDecl *M) {
+  for (const auto *Ann : M->specific_attrs<AnnotateAttr>())
+    if (Ann->getAnnotation() == "objc_no_direct_instance_variable_assignment")
+      return false;
+  return true;
+}
+
+void ento::registerDirectIvarAssignmentForAnnotatedFunctions(
+    CheckerManager &mgr) {
+  mgr.registerChecker<DirectIvarAssignment>()->ShouldSkipMethod = &AttrFilter;
 }

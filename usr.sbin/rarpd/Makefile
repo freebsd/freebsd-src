@@ -4,8 +4,7 @@
 PROG=	rarpd
 MAN=	rarpd.8
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 WARNS?=	3
 # This breaks with format strings returned by expand_syslog_m().. argh!

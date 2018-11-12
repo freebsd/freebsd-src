@@ -11,21 +11,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/PlistSupport.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Version.h"
 #include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Casting.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
 using namespace clang;
 using namespace ento;
-
-typedef llvm::DenseMap<FileID, unsigned> FIDMap;
-
+using namespace markup;
 
 namespace {
   class PlistDiagnostics : public PathDiagnosticConsumer {
@@ -33,121 +32,52 @@ namespace {
     const LangOptions &LangOpts;
     const bool SupportsCrossFileDiagnostics;
   public:
-    PlistDiagnostics(const std::string& prefix, const LangOptions &LangOpts,
+    PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                     const std::string& prefix,
+                     const LangOptions &LangOpts,
                      bool supportsMultipleFiles);
 
     virtual ~PlistDiagnostics() {}
 
     void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
-                              FilesMade *filesMade);
-    
-    virtual StringRef getName() const {
+                              FilesMade *filesMade) override;
+
+    StringRef getName() const override {
       return "PlistDiagnostics";
     }
 
-    PathGenerationScheme getGenerationScheme() const { return Extensive; }
-    bool supportsLogicalOpControlFlow() const { return true; }
-    bool supportsAllBlockEdges() const { return true; }
-    virtual bool supportsCrossFileDiagnostics() const {
+    PathGenerationScheme getGenerationScheme() const override {
+      return Extensive;
+    }
+    bool supportsLogicalOpControlFlow() const override { return true; }
+    bool supportsCrossFileDiagnostics() const override {
       return SupportsCrossFileDiagnostics;
     }
   };
 } // end anonymous namespace
 
-PlistDiagnostics::PlistDiagnostics(const std::string& output,
+PlistDiagnostics::PlistDiagnostics(AnalyzerOptions &AnalyzerOpts,
+                                   const std::string& output,
                                    const LangOptions &LO,
                                    bool supportsMultipleFiles)
-  : OutputFile(output), LangOpts(LO),
+  : OutputFile(output),
+    LangOpts(LO),
     SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
-void ento::createPlistDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                         PathDiagnosticConsumers &C,
                                          const std::string& s,
                                          const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), false));
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), false));
 }
 
-void ento::createPlistMultiFileDiagnosticConsumer(PathDiagnosticConsumers &C,
+void ento::createPlistMultiFileDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
+                                                  PathDiagnosticConsumers &C,
                                                   const std::string &s,
                                                   const Preprocessor &PP) {
-  C.push_back(new PlistDiagnostics(s, PP.getLangOpts(), true));
-}
-
-static void AddFID(FIDMap &FIDs, SmallVectorImpl<FileID> &V,
-                   const SourceManager* SM, SourceLocation L) {
-
-  FileID FID = SM->getFileID(SM->getExpansionLoc(L));
-  FIDMap::iterator I = FIDs.find(FID);
-  if (I != FIDs.end()) return;
-  FIDs[FID] = V.size();
-  V.push_back(FID);
-}
-
-static unsigned GetFID(const FIDMap& FIDs, const SourceManager &SM,
-                       SourceLocation L) {
-  FileID FID = SM.getFileID(SM.getExpansionLoc(L));
-  FIDMap::const_iterator I = FIDs.find(FID);
-  assert(I != FIDs.end());
-  return I->second;
-}
-
-static raw_ostream &Indent(raw_ostream &o, const unsigned indent) {
-  for (unsigned i = 0; i < indent; ++i) o << ' ';
-  return o;
-}
-
-static void EmitLocation(raw_ostream &o, const SourceManager &SM,
-                         const LangOptions &LangOpts,
-                         SourceLocation L, const FIDMap &FM,
-                         unsigned indent, bool extend = false) {
-
-  FullSourceLoc Loc(SM.getExpansionLoc(L), const_cast<SourceManager&>(SM));
-
-  // Add in the length of the token, so that we cover multi-char tokens.
-  unsigned offset =
-    extend ? Lexer::MeasureTokenLength(Loc, SM, LangOpts) - 1 : 0;
-
-  Indent(o, indent) << "<dict>\n";
-  Indent(o, indent) << " <key>line</key><integer>"
-                    << Loc.getExpansionLineNumber() << "</integer>\n";
-  Indent(o, indent) << " <key>col</key><integer>"
-                    << Loc.getExpansionColumnNumber() + offset << "</integer>\n";
-  Indent(o, indent) << " <key>file</key><integer>"
-                    << GetFID(FM, SM, Loc) << "</integer>\n";
-  Indent(o, indent) << "</dict>\n";
-}
-
-static void EmitLocation(raw_ostream &o, const SourceManager &SM,
-                         const LangOptions &LangOpts,
-                         const PathDiagnosticLocation &L, const FIDMap& FM,
-                         unsigned indent, bool extend = false) {
-  EmitLocation(o, SM, LangOpts, L.asLocation(), FM, indent, extend);
-}
-
-static void EmitRange(raw_ostream &o, const SourceManager &SM,
-                      const LangOptions &LangOpts,
-                      PathDiagnosticRange R, const FIDMap &FM,
-                      unsigned indent) {
-  Indent(o, indent) << "<array>\n";
-  EmitLocation(o, SM, LangOpts, R.getBegin(), FM, indent+1);
-  EmitLocation(o, SM, LangOpts, R.getEnd(), FM, indent+1, !R.isPoint);
-  Indent(o, indent) << "</array>\n";
-}
-
-static raw_ostream &EmitString(raw_ostream &o, StringRef s) {
-  o << "<string>";
-  for (StringRef::const_iterator I = s.begin(), E = s.end(); I != E; ++I) {
-    char c = *I;
-    switch (c) {
-    default:   o << c; break;
-    case '&':  o << "&amp;"; break;
-    case '<':  o << "&lt;"; break;
-    case '>':  o << "&gt;"; break;
-    case '\'': o << "&apos;"; break;
-    case '\"': o << "&quot;"; break;
-    }
-  }
-  o << "</string>";
-  return o;
+  C.push_back(new PlistDiagnostics(AnalyzerOpts, s,
+                                   PP.getLangOpts(), true));
 }
 
 static void ReportControlFlow(raw_ostream &o,
@@ -177,11 +107,13 @@ static void ReportControlFlow(raw_ostream &o,
     // logic for clients.
     Indent(o, indent) << "<key>start</key>\n";
     SourceLocation StartEdge = I->getStart().asRange().getBegin();
-    EmitRange(o, SM, LangOpts, SourceRange(StartEdge, StartEdge), FM, indent+1);
+    EmitRange(o, SM, LangOpts, CharSourceRange::getTokenRange(StartEdge), FM,
+              indent + 1);
 
     Indent(o, indent) << "<key>end</key>\n";
     SourceLocation EndEdge = I->getEnd().asRange().getBegin();
-    EmitRange(o, SM, LangOpts, SourceRange(EndEdge, EndEdge), FM, indent+1);
+    EmitRange(o, SM, LangOpts, CharSourceRange::getTokenRange(EndEdge), FM,
+              indent + 1);
 
     --indent;
     Indent(o, indent) << "</dict>\n";
@@ -206,12 +138,17 @@ static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
                         const SourceManager &SM,
                         const LangOptions &LangOpts,
                         unsigned indent,
-                        unsigned depth) {
+                        unsigned depth,
+                        bool isKeyEvent = false) {
 
   Indent(o, indent) << "<dict>\n";
   ++indent;
 
   Indent(o, indent) << "<key>kind</key><string>event</string>\n";
+
+  if (isKeyEvent) {
+    Indent(o, indent) << "<key>key_event</key><true/>\n";
+  }
 
   // Output the location.
   FullSourceLoc L = P.getLocation().asLocation();
@@ -228,15 +165,16 @@ static void ReportEvent(raw_ostream &o, const PathDiagnosticPiece& P,
     ++indent;
     for (ArrayRef<SourceRange>::iterator I = Ranges.begin(), E = Ranges.end();
          I != E; ++I) {
-      EmitRange(o, SM, LangOpts, *I, FM, indent+1);
+      EmitRange(o, SM, LangOpts, CharSourceRange::getTokenRange(*I), FM,
+                indent + 1);
     }
     --indent;
     Indent(o, indent) << "</array>\n";
   }
   
   // Output the call depth.
-  Indent(o, indent) << "<key>depth</key>"
-                    << "<integer>" << depth << "</integer>\n";
+  Indent(o, indent) << "<key>depth</key>";
+  EmitInteger(o, depth) << '\n';
 
   // Output the text.
   assert(!P.getString().empty());
@@ -261,7 +199,8 @@ static void ReportPiece(raw_ostream &o,
                         const LangOptions &LangOpts,
                         unsigned indent,
                         unsigned depth,
-                        bool includeControlFlow);
+                        bool includeControlFlow,
+                        bool isKeyEvent = false);
 
 static void ReportCall(raw_ostream &o,
                        const PathDiagnosticCallPiece &P,
@@ -274,7 +213,8 @@ static void ReportCall(raw_ostream &o,
     P.getCallEnterEvent();  
 
   if (callEnter)
-    ReportPiece(o, *callEnter, FM, SM, LangOpts, indent, depth, true);
+    ReportPiece(o, *callEnter, FM, SM, LangOpts, indent, depth, true,
+                P.isLastInMainSourceFile());
 
   IntrusiveRefCntPtr<PathDiagnosticEventPiece> callEnterWithinCaller =
     P.getCallEnterWithinCallerEvent();
@@ -287,6 +227,8 @@ static void ReportCall(raw_ostream &o,
   
   for (PathPieces::const_iterator I = P.path.begin(), E = P.path.end();I!=E;++I)
     ReportPiece(o, **I, FM, SM, LangOpts, indent, depth, true);
+
+  --depth;
   
   IntrusiveRefCntPtr<PathDiagnosticEventPiece> callExit =
     P.getCallExitEvent();
@@ -320,7 +262,8 @@ static void ReportPiece(raw_ostream &o,
                         const LangOptions &LangOpts,
                         unsigned indent,
                         unsigned depth,
-                        bool includeControlFlow) {
+                        bool includeControlFlow,
+                        bool isKeyEvent) {
   switch (P.getKind()) {
     case PathDiagnosticPiece::ControlFlow:
       if (includeControlFlow)
@@ -333,7 +276,7 @@ static void ReportPiece(raw_ostream &o,
       break;
     case PathDiagnosticPiece::Event:
       ReportEvent(o, cast<PathDiagnosticSpotPiece>(P), FM, SM, LangOpts,
-                  indent, depth);
+                  indent, depth, isKeyEvent);
       break;
     case PathDiagnosticPiece::Macro:
       ReportMacro(o, cast<PathDiagnosticMacroPiece>(P), FM, SM, LangOpts,
@@ -349,7 +292,7 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
   // ranges of the diagnostics.
   FIDMap FM;
   SmallVector<FileID, 10> Fids;
-  const SourceManager* SM = 0;
+  const SourceManager* SM = nullptr;
 
   if (!Diags.empty())
     SM = &(*(*Diags.begin())->path.begin())->getLocation().getManager();
@@ -360,22 +303,21 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
 
     const PathDiagnostic *D = *DI;
 
-    llvm::SmallVector<const PathPieces *, 5> WorkList;
+    SmallVector<const PathPieces *, 5> WorkList;
     WorkList.push_back(&D->path);
 
     while (!WorkList.empty()) {
-      const PathPieces &path = *WorkList.back();
-      WorkList.pop_back();
-    
-      for (PathPieces::const_iterator I = path.begin(), E = path.end();
-           I!=E; ++I) {
-        const PathDiagnosticPiece *piece = I->getPtr();
-        AddFID(FM, Fids, SM, piece->getLocation().asLocation());
+      const PathPieces &path = *WorkList.pop_back_val();
+
+      for (PathPieces::const_iterator I = path.begin(), E = path.end(); I != E;
+           ++I) {
+        const PathDiagnosticPiece *piece = I->get();
+        AddFID(FM, Fids, *SM, piece->getLocation().asLocation());
         ArrayRef<SourceRange> Ranges = piece->getRanges();
         for (ArrayRef<SourceRange>::iterator I = Ranges.begin(),
                                              E = Ranges.end(); I != E; ++I) {
-          AddFID(FM, Fids, SM, I->getBegin());
-          AddFID(FM, Fids, SM, I->getEnd());
+          AddFID(FM, Fids, *SM, I->getBegin());
+          AddFID(FM, Fids, *SM, I->getEnd());
         }
 
         if (const PathDiagnosticCallPiece *call =
@@ -383,7 +325,7 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
           IntrusiveRefCntPtr<PathDiagnosticEventPiece>
             callEnterWithin = call->getCallEnterWithinCallerEvent();
           if (callEnterWithin)
-            AddFID(FM, Fids, SM, callEnterWithin->getLocation().asLocation());
+            AddFID(FM, Fids, *SM, callEnterWithin->getLocation().asLocation());
 
           WorkList.push_back(&call->path);
         }
@@ -396,18 +338,14 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
   }
 
   // Open the file.
-  std::string ErrMsg;
-  llvm::raw_fd_ostream o(OutputFile.c_str(), ErrMsg);
-  if (!ErrMsg.empty()) {
-    llvm::errs() << "warning: could not create file: " << OutputFile << '\n';
+  std::error_code EC;
+  llvm::raw_fd_ostream o(OutputFile, EC, llvm::sys::fs::F_Text);
+  if (EC) {
+    llvm::errs() << "warning: could not create file: " << EC.message() << '\n';
     return;
   }
 
-  // Write the plist header.
-  o << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-  "<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" "
-  "\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
-  "<plist version=\"1.0\">\n";
+  EmitPlistHeader(o);
 
   // Write the root object: a <dict> containing...
   //  - "clang_version", the string representation of clang version
@@ -419,11 +357,8 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
   o << " <key>files</key>\n"
        " <array>\n";
 
-  for (SmallVectorImpl<FileID>::iterator I=Fids.begin(), E=Fids.end();
-       I!=E; ++I) {
-    o << "  ";
-    EmitString(o, SM->getFileEntryForID(*I)->getName()) << '\n';
-  }
+  for (FileID FID : Fids)
+    EmitString(o << "  ", SM->getFileEntryForID(FID)->getName()) << '\n';
 
   o << " </array>\n"
        " <key>diagnostics</key>\n"
@@ -486,19 +421,39 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
         // Output the bug hash for issue unique-ing. Currently, it's just an
         // offset from the beginning of the function.
         if (const Stmt *Body = DeclWithIssue->getBody()) {
-          FullSourceLoc Loc(SM->getExpansionLoc(D->getLocation().asLocation()),
+          
+          // If the bug uniqueing location exists, use it for the hash.
+          // For example, this ensures that two leaks reported on the same line
+          // will have different issue_hashes and that the hash will identify
+          // the leak location even after code is added between the allocation
+          // site and the end of scope (leak report location).
+          PathDiagnosticLocation UPDLoc = D->getUniqueingLoc();
+          if (UPDLoc.isValid()) {
+            FullSourceLoc UL(SM->getExpansionLoc(UPDLoc.asLocation()),
+                             *SM);
+            FullSourceLoc UFunL(SM->getExpansionLoc(
+              D->getUniqueingDecl()->getBody()->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << UL.getExpansionLineNumber() - UFunL.getExpansionLineNumber()
+              << "</string>\n";
+
+          // Otherwise, use the location on which the bug is reported.
+          } else {
+            FullSourceLoc L(SM->getExpansionLoc(D->getLocation().asLocation()),
                             *SM);
-          FullSourceLoc FunLoc(SM->getExpansionLoc(Body->getLocStart()), *SM);
-          o << "  <key>issue_hash</key><integer>"
-              << Loc.getExpansionLineNumber() - FunLoc.getExpansionLineNumber()
-              << "</integer>\n";
+            FullSourceLoc FunL(SM->getExpansionLoc(Body->getLocStart()), *SM);
+            o << "  <key>issue_hash</key><string>"
+              << L.getExpansionLineNumber() - FunL.getExpansionLineNumber()
+              << "</string>\n";
+          }
+
         }
       }
     }
 
     // Output the location of the bug.
     o << "  <key>location</key>\n";
-    EmitLocation(o, *SM, LangOpts, D->getLocation(), FM, 2);
+    EmitLocation(o, *SM, LangOpts, D->getLocation().asLocation(), FM, 2);
 
     // Output the diagnostic to the sub-diagnostic client, if any.
     if (!filesMade->empty()) {

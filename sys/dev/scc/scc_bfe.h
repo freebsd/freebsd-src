@@ -136,7 +136,7 @@ struct scc_softc {
 };
 
 extern devclass_t scc_devclass;
-extern char scc_driver_name[];
+extern const char scc_driver_name[];
 
 int scc_bfe_attach(device_t dev, u_int ipc);
 int scc_bfe_detach(device_t dev);

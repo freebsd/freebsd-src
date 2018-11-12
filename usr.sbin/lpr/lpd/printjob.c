@@ -176,7 +176,7 @@ printjob(struct printer *pp)
 	}
 	if(setgid(getegid()) != 0) err(1, "setgid() failed");
 	printpid = getpid();			/* for use with lprm */
-	setpgrp(0, printpid);
+	setpgid((pid_t)0, printpid);
 
 	/*
 	 * At initial lpd startup, printjob may be called with various

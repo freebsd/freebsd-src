@@ -45,10 +45,24 @@ is_scheme_bootable(const char *part_type) {
 	return (0);
 }
 
+int
+is_fs_bootable(const char *part_type, const char *fs)
+{
+	if (strcmp(fs, "freebsd-ufs") == 0)
+		return (1);
+	
+	return (0);
+}
+
 size_t
 bootpart_size(const char *part_type) {
 	/* No boot partition */
 	return (0);
+}
+
+const char *
+bootpart_type(const char *scheme) {
+	return ("freebsd-boot");
 }
 
 const char *
@@ -62,7 +76,7 @@ bootcode_path(const char *part_type) {
 }
 	
 const char *
-partcode_path(const char *part_type) {
+partcode_path(const char *part_type, const char *fs_type) {
 	/* No partcode */
 	return (NULL);
 }

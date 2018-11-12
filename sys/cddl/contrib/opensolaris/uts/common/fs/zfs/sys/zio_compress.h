@@ -36,11 +36,10 @@
 extern "C" {
 #endif
 
-/*
- * Common signature for all zio compress/decompress functions.
- */
+/* Common signature for all zio compress functions. */
 typedef size_t zio_compress_func_t(void *src, void *dst,
     size_t s_len, size_t d_len, int);
+/* Common signature for all zio decompress functions. */
 typedef int zio_decompress_func_t(void *src, void *dst,
     size_t s_len, size_t d_len, int);
 
@@ -71,6 +70,8 @@ extern size_t zle_compress(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
 extern int zle_decompress(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
+extern void lz4_init(void);
+extern void lz4_fini(void);
 extern size_t lz4_compress(void *src, void *dst, size_t s_len, size_t d_len,
     int level);
 extern int lz4_decompress(void *src, void *dst, size_t s_len, size_t d_len,
@@ -83,6 +84,12 @@ extern size_t zio_compress_data(enum zio_compress c, void *src, void *dst,
     size_t s_len);
 extern int zio_decompress_data(enum zio_compress c, void *src, void *dst,
     size_t s_len, size_t d_len);
+
+/*
+ * Module lifetime management.
+ */
+extern void zio_compress_init(void);
+extern void zio_compress_fini(void);
 
 #ifdef	__cplusplus
 }

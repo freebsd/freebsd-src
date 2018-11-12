@@ -80,7 +80,7 @@ convert (tree type, tree expr)
   if ((invalid_conv_diag
        = targetm.invalid_conversion (TREE_TYPE (expr), type)))
     {
-      error (invalid_conv_diag);
+      error (invalid_conv_diag, "");
       return error_mark_node;
     }
 
@@ -104,6 +104,10 @@ convert (tree type, tree expr)
     return fold_convert (type, c_objc_common_truthvalue_conversion (expr));
   if (code == POINTER_TYPE || code == REFERENCE_TYPE)
     return fold (convert_to_pointer (type, e));
+  /* APPLE LOCAL begin blocks (C++ ck) */
+  if (code == BLOCK_POINTER_TYPE)
+    return fold (convert_to_block_pointer (type, e));
+  /* APPLE LOCAL end blocks (C++ ck) */
   if (code == REAL_TYPE)
     return fold (convert_to_real (type, e));
   if (code == COMPLEX_TYPE)

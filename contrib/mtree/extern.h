@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.37 2012/12/20 16:43:16 christos Exp $	*/
+/*	$NetBSD: extern.h,v 1.39 2014/04/24 17:22:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -42,6 +42,7 @@
 #include <err.h> 
 #include <fts.h>
 #include <util.h>
+#include <stdbool.h>
 
 #if HAVE_NETDB_H
 /* For MAXHOSTNAMELEN on some platforms. */
@@ -62,8 +63,8 @@ void	 addtag(slist_t *, char *);
 int	 check_excludes(const char *, const char *);
 int	 compare(NODE *, FTSENT *);
 int	 crc(int, u_int32_t *, u_int32_t *);
-void	 cwalk(void);
-void	 dump_nodes(const char *, NODE *, int);
+void	 cwalk(FILE *);
+void	 dump_nodes(FILE *, const char *, NODE *, int);
 void	 init_excludes(void);
 int	 matchtags(NODE *);
 __dead __printflike(1,2) void	 mtree_err(const char *, ...);
@@ -74,6 +75,8 @@ u_int	 parsetype(const char *);
 void	 read_excludes_file(const char *);
 const char *rlink(const char *);
 int	 verify(FILE *);
+void	 load_only(const char *fname);
+bool	 find_only(const char *path);
 
 extern int	bflag, dflag, eflag, iflag, jflag, lflag, mflag,
 		nflag, qflag, rflag, sflag, tflag, uflag;

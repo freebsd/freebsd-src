@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -79,7 +80,7 @@ __FBSDID("$FreeBSD$");
 static int zyd_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
-SYSCTL_INT(_hw_usb_zyd, OID_AUTO, debug, CTLFLAG_RW, &zyd_debug, 0,
+SYSCTL_INT(_hw_usb_zyd, OID_AUTO, debug, CTLFLAG_RWTUN, &zyd_debug, 0,
     "zyd debug level");
 
 enum {
@@ -488,9 +489,14 @@ zyd_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (zvp == NULL)
 		return (NULL);
 	vap = &zvp->vap;
+
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(zvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	zvp->newstate = vap->iv_newstate;
@@ -673,7 +679,7 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				ieee80211_free_node(ni);
 			}
 			if (le16toh(retry->count) & 0x100)
-				ifp->if_oerrors++;	/* too many retries */
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);	/* too many retries */
 			break;
 		}
 		case ZYD_NOTIF_IORD:
@@ -2182,7 +2188,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	if (len < ZYD_MIN_FRAGSZ) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: frame too short (length=%d)\n",
 		    device_get_nameunit(sc->sc_dev), len);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	pc = usbd_xfer_get_frame(xfer, 0);
@@ -2193,7 +2199,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 		DPRINTF(sc, ZYD_DEBUG_RECV,
 		    "%s: RX status indicated error (%x)\n",
 		    device_get_nameunit(sc->sc_dev), stat.flags);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -2205,7 +2211,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	if (rlen > (int)MCLBYTES) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: frame too long (length=%d)\n",
 		    device_get_nameunit(sc->sc_dev), rlen);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	} else if (rlen > (int)MHLEN)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -2214,7 +2220,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	if (m == NULL) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: could not allocate rx mbuf\n",
 		    device_get_nameunit(sc->sc_dev));
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	m->m_pkthdr.rcvif = ifp;
@@ -2397,7 +2403,7 @@ zyd_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		zyd_tx_free(data, 0);
 		usbd_xfer_set_priv(xfer, NULL);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		/* FALLTHROUGH */
@@ -2441,7 +2447,7 @@ tr_setup:
 		DPRINTF(sc, ZYD_DEBUG_ANY, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		data = usbd_xfer_get_priv(xfer);
 		usbd_xfer_set_priv(xfer, NULL);
 		if (data != NULL)
@@ -2474,7 +2480,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	const struct ieee80211_txparam *tp;
 	struct ieee80211_key *k;
 	int rate, totlen;
-	static uint8_t ratediv[] = ZYD_TX_RATEDIV;
+	static const uint8_t ratediv[] = ZYD_TX_RATEDIV;
 	uint8_t phy;
 	uint16_t pktlen;
 	uint32_t bits;
@@ -2501,7 +2507,7 @@ zyd_tx_start(struct zyd_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 		}
 	}
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -2602,7 +2608,7 @@ zyd_start(struct ifnet *ifp)
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		if (zyd_tx_start(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 	}
@@ -2640,7 +2646,7 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	if (zyd_tx_start(sc, m, ni) != 0) {
 		ZYD_UNLOCK(sc);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_free_node(ni);
 		return (EIO);
 	}

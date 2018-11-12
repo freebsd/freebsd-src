@@ -8,13 +8,7 @@ MOUNTDIR=	${.CURDIR}/../../sbin/mount
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 CFLAGS+=	-DSMBFS -I${MOUNTDIR} -I${CONTRIBDIR}/include
 
-LDADD=	-lsmb -lkiconv
-DPADD=	${LIBSMB} ${LIBKICONV}
-
-# Needs to be dynamically linked for optional dlopen() access to
-# userland libiconv (see the -E option).
-#
-NO_SHARED?=	NO
+LIBADD=	smb
 
 .PATH:	${CONTRIBDIR}/mount_smbfs
 .PATH:  ${MOUNTDIR}

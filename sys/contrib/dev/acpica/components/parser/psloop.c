@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 /*
  * Parse the AML and build an operation tree as most interpreters, (such as
@@ -174,7 +173,6 @@ AcpiPsGetArguments (
             case AML_IF_OP:
             case AML_ELSE_OP:
             case AML_WHILE_OP:
-
                 /*
                  * Currently supported module-level opcodes are:
                  * IF/ELSE/WHILE. These appear to be the most common,
@@ -280,6 +278,7 @@ AcpiPsGetArguments (
         default:
 
             /* No action for all other opcodes */
+
             break;
         }
 
@@ -487,6 +486,11 @@ AcpiPsParseLoop (
                 if (Status == AE_CTRL_PARSE_PENDING)
                 {
                     Status = AE_OK;
+                }
+
+                if (Status == AE_CTRL_TERMINATE)
+                {
+                    return_ACPI_STATUS (Status);
                 }
 
                 Status = AcpiPsCompleteOp (WalkState, &Op, Status);

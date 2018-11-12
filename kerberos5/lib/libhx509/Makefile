@@ -3,8 +3,7 @@
 LIB=	hx509
 LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/hx509/version-script.map
-LDADD=	-lasn1 -lcom_err -lcrypto -lroken -lwind
-DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBCRYPTO} ${LIBROKEN} ${LIBWIND}
+LIBADD=	asn1 com_err crypto roken wind
 
 MAN=	hx509.3 \
 	hx509_ca.3 \
@@ -269,24 +268,27 @@ CLEANFILES= ${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} ocsp_asn1_files \
 
 INCS+=	ocsp_asn1.h pkcs10_asn1.h crmf_asn1.h
 
+.ORDER: ${GEN_OSCP}
 ${GEN_OCSP}: ocsp.asn1 ocsp.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 	 ${.ALLSRC:M*.asn1} ocsp_asn1
 
+.ORDER: ${GEN_PKCS10}
 ${GEN_PKCS10}: pkcs10.asn1 pkcs10.opt
 	${ASN1_COMPILE} --option-file=${.ALLSRC:M*.opt} \
 	${.ALLSRC:M*.asn1} pkcs10_asn1
 
+.ORDER: ${GEN_CRMF}
 ${GEN_CRMF}: crmf.asn1
 	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} crmf_asn1
 
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 

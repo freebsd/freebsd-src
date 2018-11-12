@@ -44,6 +44,8 @@ static int LZ4_compressCtx(void *ctx, const char *source, char *dest,
 static int LZ4_compress64kCtx(void *ctx, const char *source, char *dest,
     int isize, int osize);
 
+static kmem_cache_t *lz4_ctx_cache;
+
 /*ARGSUSED*/
 size_t
 lz4_compress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
@@ -840,7 +842,7 @@ static int
 real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 {
 #if HEAPMODE
-	void *ctx = kmem_zalloc(sizeof (struct refTables), KM_NOSLEEP);
+	void *ctx = kmem_cache_alloc(lz4_ctx_cache, KM_NOSLEEP);
 	int result;
 
 	/*
@@ -850,12 +852,13 @@ real_LZ4_compress(const char *source, char *dest, int isize, int osize)
 	if (ctx == NULL)
 		return (0);
 
+	bzero(ctx, sizeof(struct refTables));
 	if (isize < LZ4_64KLIMIT)
 		result = LZ4_compress64kCtx(ctx, source, dest, isize, osize);
 	else
 		result = LZ4_compressCtx(ctx, source, dest, isize, osize);
 
-	kmem_free(ctx, sizeof (struct refTables));
+	kmem_cache_free(lz4_ctx_cache, ctx);
 	return (result);
 #else
 	if (isize < (int)LZ4_64KLIMIT)
@@ -1000,4 +1003,23 @@ LZ4_uncompress_unknownOutputSize(const char *source, char *dest, int isize,
 	/* write overflow error detected */
 	_output_error:
 	return (int)(-(((char *)ip) - source));
+}
+
+extern void
+lz4_init(void)
+{
+
+#if HEAPMODE
+	lz4_ctx_cache = kmem_cache_create("lz4_ctx", sizeof(struct refTables),
+	    0, NULL, NULL, NULL, NULL, NULL, 0);
+#endif
+}
+
+extern void
+lz4_fini(void)
+{
+
+#if HEAPMODE
+	kmem_cache_destroy(lz4_ctx_cache);
+#endif
 }

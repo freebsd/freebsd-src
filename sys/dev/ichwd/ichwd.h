@@ -126,6 +126,7 @@ struct ichwd_softc {
 #define DEVICEID_PPT30		0x1e5e
 #define DEVICEID_PPT31		0x1e5f
 #define DEVICEID_DH89XXCC_LPC	0x2310
+#define DEVICEID_COLETOCRK_LPC	0x2390
 #define DEVICEID_82801AA	0x2410
 #define DEVICEID_82801AB	0x2420
 #define DEVICEID_82801BA	0x2440
@@ -209,6 +210,9 @@ struct ichwd_softc {
 #define DEVICEID_LPT29		0x8c5d
 #define DEVICEID_LPT30		0x8c5e
 #define DEVICEID_LPT31		0x8c5f
+#define DEVICEID_WCPT2		0x8cc2
+#define DEVICEID_WCPT4		0x8cc4
+#define DEVICEID_WCPT6		0x8cc6
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define ICH_GEN_STA		0xd4

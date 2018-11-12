@@ -13,12 +13,13 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_PARTIALDIAGNOSTIC_H
-#define LLVM_CLANG_PARTIALDIAGNOSTIC_H
+#ifndef LLVM_CLANG_BASIC_PARTIALDIAGNOSTIC_H
+#define LLVM_CLANG_BASIC_PARTIALDIAGNOSTIC_H
 
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
 
@@ -35,7 +36,7 @@ public:
   };
 
   struct Storage {
-    Storage() : NumDiagArgs(0), NumDiagRanges(0) { }
+    Storage() : NumDiagArgs(0) { }
 
     enum {
         /// \brief The maximum number of arguments we can hold. We
@@ -48,9 +49,6 @@ public:
 
     /// \brief The number of entries in Arguments.
     unsigned char NumDiagArgs;
-
-    /// \brief This is the number of ranges in the DiagRanges array.
-    unsigned char NumDiagRanges;
 
     /// \brief Specifies for each argument whether it is in DiagArgumentsStr
     /// or in DiagArguments.
@@ -68,9 +66,7 @@ public:
     std::string DiagArgumentsStr[MaxArguments];
 
     /// \brief The list of ranges added to this diagnostic.
-    ///
-    /// It currently only support 10 ranges, could easily be extended if needed.
-    CharSourceRange DiagRanges[10];
+    SmallVector<CharSourceRange, 8> DiagRanges;
 
     /// \brief If valid, provides a hint with some code to insert, remove, or
     /// modify at a particular position.
@@ -96,7 +92,7 @@ public:
 
       Storage *Result = FreeList[--NumFreeListEntries];
       Result->NumDiagArgs = 0;
-      Result->NumDiagRanges = 0;
+      Result->DiagRanges.clear();
       Result->FixItHints.clear();
       return Result;
     }
@@ -158,17 +154,14 @@ private:
       Allocator->Deallocate(DiagStorage);
     else if (Allocator != reinterpret_cast<StorageAllocator *>(~uintptr_t(0)))
       delete DiagStorage;
-    DiagStorage = 0;
+    DiagStorage = nullptr;
   }
 
   void AddSourceRange(const CharSourceRange &R) const {
     if (!DiagStorage)
       DiagStorage = getStorage();
 
-    assert(DiagStorage->NumDiagRanges <
-           llvm::array_lengthof(DiagStorage->DiagRanges) &&
-           "Too many arguments to diagnostic!");
-    DiagStorage->DiagRanges[DiagStorage->NumDiagRanges++] = R;
+    DiagStorage->DiagRanges.push_back(R);
   }
 
   void AddFixItHint(const FixItHint &Hint) const {
@@ -186,18 +179,24 @@ public:
   /// \brief Create a null partial diagnostic, which cannot carry a payload,
   /// and only exists to be swapped with a real partial diagnostic.
   PartialDiagnostic(NullDiagnostic)
-    : DiagID(0), DiagStorage(0), Allocator(0) { }
+    : DiagID(0), DiagStorage(nullptr), Allocator(nullptr) { }
 
   PartialDiagnostic(unsigned DiagID, StorageAllocator &Allocator)
-    : DiagID(DiagID), DiagStorage(0), Allocator(&Allocator) { }
+    : DiagID(DiagID), DiagStorage(nullptr), Allocator(&Allocator) { }
 
   PartialDiagnostic(const PartialDiagnostic &Other)
-    : DiagID(Other.DiagID), DiagStorage(0), Allocator(Other.Allocator)
+    : DiagID(Other.DiagID), DiagStorage(nullptr), Allocator(Other.Allocator)
   {
     if (Other.DiagStorage) {
       DiagStorage = getStorage();
       *DiagStorage = *Other.DiagStorage;
     }
+  }
+
+  PartialDiagnostic(PartialDiagnostic &&Other)
+    : DiagID(Other.DiagID), DiagStorage(Other.DiagStorage),
+      Allocator(Other.Allocator) {
+    Other.DiagStorage = nullptr;
   }
 
   PartialDiagnostic(const PartialDiagnostic &Other, Storage *DiagStorage)
@@ -209,7 +208,7 @@ public:
   }
 
   PartialDiagnostic(const Diagnostic &Other, StorageAllocator &Allocator)
-    : DiagID(Other.getID()), DiagStorage(0), Allocator(&Allocator)
+    : DiagID(Other.getID()), DiagStorage(nullptr), Allocator(&Allocator)
   {
     // Copy arguments.
     for (unsigned I = 0, N = Other.getNumArgs(); I != N; ++I) {
@@ -239,6 +238,17 @@ public:
       freeStorage();
     }
 
+    return *this;
+  }
+
+  PartialDiagnostic &operator=(PartialDiagnostic &&Other) {
+    freeStorage();
+
+    DiagID = Other.DiagID;
+    DiagStorage = Other.DiagStorage;
+    Allocator = Other.Allocator;
+
+    Other.DiagStorage = nullptr;
     return *this;
   }
 
@@ -290,16 +300,16 @@ public:
     }
 
     // Add all ranges.
-    for (unsigned i = 0, e = DiagStorage->NumDiagRanges; i != e; ++i)
-      DB.AddSourceRange(DiagStorage->DiagRanges[i]);
+    for (const CharSourceRange &Range : DiagStorage->DiagRanges)
+      DB.AddSourceRange(Range);
 
     // Add all fix-its.
-    for (unsigned i = 0, e = DiagStorage->FixItHints.size(); i != e; ++i)
-      DB.AddFixItHint(DiagStorage->FixItHints[i]);
+    for (const FixItHint &Fix : DiagStorage->FixItHints)
+      DB.AddFixItHint(Fix);
   }
 
   void EmitToString(DiagnosticsEngine &Diags,
-                    llvm::SmallVectorImpl<char> &Buf) const {
+                    SmallVectorImpl<char> &Buf) const {
     // FIXME: It should be possible to render a diagnostic to a string without
     //        messing with the state of the diagnostics engine.
     DiagnosticBuilder DB(Diags.Report(getDiagID()));
@@ -317,7 +327,7 @@ public:
     freeStorage();
   }
 
-  bool hasStorage() const { return DiagStorage != 0; }
+  bool hasStorage() const { return DiagStorage != nullptr; }
 
   friend const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
                                              unsigned I) {
@@ -342,6 +352,27 @@ public:
                                                     StringRef S) {
 
     PD.AddString(S);
+    return PD;
+  }
+
+  friend inline const PartialDiagnostic &operator<<(const PartialDiagnostic &PD,
+                                                    const IdentifierInfo *II) {
+    PD.AddTaggedVal(reinterpret_cast<intptr_t>(II),
+                    DiagnosticsEngine::ak_identifierinfo);
+    return PD;
+  }
+
+  // Adds a DeclContext to the diagnostic. The enable_if template magic is here
+  // so that we only match those arguments that are (statically) DeclContexts;
+  // other arguments that derive from DeclContext (e.g., RecordDecls) will not
+  // match.
+  template<typename T>
+  friend inline
+  typename std::enable_if<std::is_same<T, DeclContext>::value,
+                          const PartialDiagnostic &>::type
+  operator<<(const PartialDiagnostic &PD, T *DC) {
+    PD.AddTaggedVal(reinterpret_cast<intptr_t>(DC),
+                    DiagnosticsEngine::ak_declcontext);
     return PD;
   }
 

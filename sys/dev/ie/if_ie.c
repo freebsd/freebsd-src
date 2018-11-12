@@ -130,6 +130,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 
@@ -172,17 +173,12 @@ static void	iestart_locked		(struct ifnet *);
 
 static __inline void
 		ee16_interrupt_enable	(struct ie_softc *);
-static void	ee16_eeprom_outbits	(struct ie_softc *, int, int);
-static void	ee16_eeprom_clock	(struct ie_softc *, int);
-static u_short	ee16_read_eeprom	(struct ie_softc *, int);
-static int	ee16_eeprom_inbits	(struct ie_softc *);
 
 static __inline void
 		ie_ack			(struct ie_softc *, u_int);
 static void	iereset			(struct ie_softc *);
 static void	ie_readframe		(struct ie_softc *, int);
 static void	ie_drop_packet_buffer	(struct ie_softc *);
-static void	find_ie_mem_size	(struct ie_softc *);
 static int	command_and_wait	(struct ie_softc *,
 					 int, void volatile *, int);
 static void	run_tdr			(struct ie_softc *,
@@ -431,13 +427,13 @@ ierint(struct ie_softc *sc)
 		status = sc->rframes[i]->ie_fd_status;
 
 		if ((status & IE_FD_COMPLETE) && (status & IE_FD_OK)) {
-			sc->ifp->if_ipackets++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 			if (!--timesthru) {
-				sc->ifp->if_ierrors +=
+				if_inc_counter(sc->ifp, IFCOUNTER_IERRORS,
 				    sc->scb->ie_err_crc +
 				    sc->scb->ie_err_align +
 				    sc->scb->ie_err_resource +
-				    sc->scb->ie_err_overrun;
+				    sc->scb->ie_err_overrun);
 				sc->scb->ie_err_crc = 0;
 				sc->scb->ie_err_align = 0;
 				sc->scb->ie_err_resource = 0;
@@ -481,24 +477,24 @@ ietint(struct ie_softc *sc)
 
 		if (status & IE_XS_LATECOLL) {
 			if_printf(ifp, "late collision\n");
-			ifp->if_collisions++;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_NOCARRIER) {
 			if_printf(ifp, "no carrier\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_LOSTCTS) {
 			if_printf(ifp, "lost CTS\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_UNDERRUN) {
 			if_printf(ifp, "DMA underrun\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else if (status & IE_XS_EXCMAX) {
 			if_printf(ifp, "too many collisions\n");
-			ifp->if_collisions += 16;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 16);
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		} else {
-			ifp->if_opackets++;
-			ifp->if_collisions += status & IE_XS_MAXCOLL;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+			if_inc_counter(ifp, IFCOUNTER_COLLISIONS, status & IE_XS_MAXCOLL);
 		}
 	}
 	sc->xmit_count = 0;
@@ -543,7 +539,7 @@ iernr(struct ie_softc *sc)
 #endif
 	ie_ack(sc, IE_ST_WHENCE);
 
-	sc->ifp->if_ierrors++;
+	if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	return (0);
 }
 
@@ -692,16 +688,12 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 	 */
 	if (!check_eh(sc, &eh)) {
 		ie_drop_packet_buffer(sc);
-		sc->ifp->if_ierrors--;	/* just this case, it's not an
-						 * error
-						 */
 		return (-1);
 	}
 
 	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m) {
 		ie_drop_packet_buffer(sc);
-		/* XXXX if_ierrors++; */
 		return (-1);
 	}
 
@@ -736,8 +728,7 @@ ieget(struct ie_softc *sc, struct mbuf **mp)
 			m->m_len = MLEN;
 		}
 		if (resid >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
-			if (m->m_flags & M_EXT)
+			if (MCLGET(m, M_NOWAIT))
 				m->m_len = min(resid, MCLBYTES);
 		} else {
 			if (resid < m->m_len) {
@@ -863,7 +854,7 @@ ie_readframe(struct ie_softc *sc, int	num/* frame number to read */)
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
 		if (ieget(sc, &m)) {
-			sc->ifp->if_ierrors++;	/* this counts as an
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);	/* this counts as an
 							 * error */
 			return;
 		}
@@ -957,6 +948,8 @@ iestart_locked(struct ifnet *ifp)
 		if (!m)
 			break;
 
+		BPF_MTAP(ifp, m); 
+
 		buffer = sc->xmit_cbuffs[sc->xmit_count];
 		len = 0;
 
@@ -968,13 +961,6 @@ iestart_locked(struct ifnet *ifp)
 
 		m_freem(m0);
 		len = max(len, ETHER_MIN_LEN);
-
-		/*
-		 * See if bpf is listening on this interface, let it see the
-		 * packet before we commit it to the wire.
-		 */
-		BPF_TAP(sc->ifp,
-			(void *)sc->xmit_cbuffs[sc->xmit_count], len);
 
 		sc->xmit_buffs[sc->xmit_count]->ie_xmit_flags =
 		    IE_XMIT_LAST|len;
@@ -1090,26 +1076,6 @@ check_ie_present(struct ie_softc *sc)
 	return (1);
 }
 
-/*
- * Divine the memory size of ie board UNIT.
- * Better hope there's nothing important hiding just below the ie card...
- */
-static void
-find_ie_mem_size(struct ie_softc *sc)
-{
-	unsigned size;
-
-	sc->iosize = 0;
-
-	for (size = 65536; size >= 8192; size -= 8192) {
-		if (check_ie_present(sc)) {
-			return;
-		}
-	}
-
-	return;
-}
-
 void
 el_reset_586(struct ie_softc *sc)
 {
@@ -1150,82 +1116,6 @@ void
 ee16_chan_attn(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IEE16_ATTN, 0);
-}
-
-u_short
-ee16_read_eeprom(struct ie_softc *sc, int location)
-{
-	int	ectrl, edata;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= IEE16_ECTRL_MASK;
-	ectrl |= IEE16_ECTRL_EECS;
-	outb(sc->port + IEE16_ECTRL, ectrl);
-
-	ee16_eeprom_outbits(sc, IEE16_EEPROM_READ, IEE16_EEPROM_OPSIZE1);
-	ee16_eeprom_outbits(sc, location, IEE16_EEPROM_ADDR_SIZE);
-	edata = ee16_eeprom_inbits(sc);
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~(IEE16_RESET_ASIC | IEE16_ECTRL_EEDI | IEE16_ECTRL_EECS);
-	outb(sc->port + IEE16_ECTRL, ectrl);
-	ee16_eeprom_clock(sc, 1);
-	ee16_eeprom_clock(sc, 0);
-	return edata;
-}
-
-static void
-ee16_eeprom_outbits(struct ie_softc *sc, int edata, int count)
-{
-	int	ectrl, i;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~IEE16_RESET_ASIC;
-	for (i = count - 1; i >= 0; i--) {
-		ectrl &= ~IEE16_ECTRL_EEDI;
-		if (edata & (1 << i)) {
-			ectrl |= IEE16_ECTRL_EEDI;
-		}
-		outb(sc->port + IEE16_ECTRL, ectrl);
-		DELAY(1);	/* eeprom data must be setup for 0.4 uSec */
-		ee16_eeprom_clock(sc, 1);
-		ee16_eeprom_clock(sc, 0);
-	}
-	ectrl &= ~IEE16_ECTRL_EEDI;
-	outb(sc->port + IEE16_ECTRL, ectrl);
-	DELAY(1);		/* eeprom data must be held for 0.4 uSec */
-}
-
-static int
-ee16_eeprom_inbits(struct ie_softc *sc)
-{
-	int	ectrl, edata, i;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~IEE16_RESET_ASIC;
-	for (edata = 0, i = 0; i < 16; i++) {
-		edata = edata << 1;
-		ee16_eeprom_clock(sc, 1);
-		ectrl = inb(sc->port + IEE16_ECTRL);
-		if (ectrl & IEE16_ECTRL_EEDO) {
-			edata |= 1;
-		}
-		ee16_eeprom_clock(sc, 0);
-	}
-	return (edata);
-}
-
-static void
-ee16_eeprom_clock(struct ie_softc *sc, int state)
-{
-	int	ectrl;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~(IEE16_RESET_ASIC | IEE16_ECTRL_EESK);
-	if (state) {
-		ectrl |= IEE16_ECTRL_EESK;
-	}
-	outb(sc->port + IEE16_ECTRL, ectrl);
-	DELAY(9);		/* EESK must be stable for 8.38 uSec */
 }
 
 static __inline void

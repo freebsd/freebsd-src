@@ -22,6 +22,9 @@
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ */
 
 #include <sys/zfs_context.h>
 #include <sys/spa.h>
@@ -87,13 +90,10 @@ int zfs_vdev_cache_bshift = 16;
 
 SYSCTL_DECL(_vfs_zfs_vdev);
 SYSCTL_NODE(_vfs_zfs_vdev, OID_AUTO, cache, CTLFLAG_RW, 0, "ZFS VDEV Cache");
-TUNABLE_INT("vfs.zfs.vdev.cache.max", &zfs_vdev_cache_max);
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, max, CTLFLAG_RDTUN,
     &zfs_vdev_cache_max, 0, "Maximum I/O request size that increase read size");
-TUNABLE_INT("vfs.zfs.vdev.cache.size", &zfs_vdev_cache_size);
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, size, CTLFLAG_RDTUN,
     &zfs_vdev_cache_size, 0, "Size of VDEV cache");
-TUNABLE_INT("vfs.zfs.vdev.cache.bshift", &zfs_vdev_cache_bshift);
 SYSCTL_INT(_vfs_zfs_vdev_cache, OID_AUTO, bshift, CTLFLAG_RDTUN,
     &zfs_vdev_cache_bshift, 0, "Turn too small requests into 1 << this value");
 
@@ -111,7 +111,7 @@ static vdc_stats_t vdc_stats = {
 	{ "misses",		KSTAT_DATA_UINT64 }
 };
 
-#define	VDCSTAT_BUMP(stat)	atomic_add_64(&vdc_stats.stat.value.ui64, 1);
+#define	VDCSTAT_BUMP(stat)	atomic_inc_64(&vdc_stats.stat.value.ui64);
 
 static int
 vdev_cache_offset_compare(const void *a1, const void *a2)
@@ -257,9 +257,9 @@ vdev_cache_fill(zio_t *fio)
 }
 
 /*
- * Read data from the cache.  Returns 0 on cache hit, errno on a miss.
+ * Read data from the cache.  Returns B_TRUE cache hit, B_FALSE on miss.
  */
-int
+boolean_t
 vdev_cache_read(zio_t *zio)
 {
 	vdev_cache_t *vc = &zio->io_vd->vdev_cache;
@@ -271,16 +271,16 @@ vdev_cache_read(zio_t *zio)
 	ASSERT(zio->io_type == ZIO_TYPE_READ);
 
 	if (zio->io_flags & ZIO_FLAG_DONT_CACHE)
-		return (EINVAL);
+		return (B_FALSE);
 
 	if (zio->io_size > zfs_vdev_cache_max)
-		return (EOVERFLOW);
+		return (B_FALSE);
 
 	/*
 	 * If the I/O straddles two or more cache blocks, don't cache it.
 	 */
 	if (P2BOUNDARY(zio->io_offset, zio->io_size, VCBS))
-		return (EXDEV);
+		return (B_FALSE);
 
 	ASSERT(cache_phase + zio->io_size <= VCBS);
 
@@ -292,7 +292,7 @@ vdev_cache_read(zio_t *zio)
 	if (ve != NULL) {
 		if (ve->ve_missed_update) {
 			mutex_exit(&vc->vc_lock);
-			return (ESTALE);
+			return (B_FALSE);
 		}
 
 		if ((fio = ve->ve_fill_io) != NULL) {
@@ -300,7 +300,7 @@ vdev_cache_read(zio_t *zio)
 			zio_add_child(zio, fio);
 			mutex_exit(&vc->vc_lock);
 			VDCSTAT_BUMP(vdc_stat_delegations);
-			return (0);
+			return (B_TRUE);
 		}
 
 		vdev_cache_hit(vc, ve, zio);
@@ -308,18 +308,18 @@ vdev_cache_read(zio_t *zio)
 
 		mutex_exit(&vc->vc_lock);
 		VDCSTAT_BUMP(vdc_stat_hits);
-		return (0);
+		return (B_TRUE);
 	}
 
 	ve = vdev_cache_allocate(zio);
 
 	if (ve == NULL) {
 		mutex_exit(&vc->vc_lock);
-		return (ENOMEM);
+		return (B_FALSE);
 	}
 
 	fio = zio_vdev_delegated_io(zio->io_vd, cache_offset,
-	    ve->ve_data, VCBS, ZIO_TYPE_READ, ZIO_PRIORITY_CACHE_FILL,
+	    ve->ve_data, VCBS, ZIO_TYPE_READ, ZIO_PRIORITY_NOW,
 	    ZIO_FLAG_DONT_CACHE, vdev_cache_fill, ve);
 
 	ve->ve_fill_io = fio;
@@ -330,7 +330,7 @@ vdev_cache_read(zio_t *zio)
 	zio_nowait(fio);
 	VDCSTAT_BUMP(vdc_stat_misses);
 
-	return (0);
+	return (B_TRUE);
 }
 
 /*

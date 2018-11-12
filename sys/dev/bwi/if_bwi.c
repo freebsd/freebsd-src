@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -1395,12 +1396,12 @@ bwi_start_locked(struct ifnet *ifp)
 
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		wh = mtod(m, struct ieee80211_frame *);
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 			k = ieee80211_crypto_encap(ni, m);
 			if (k == NULL) {
 				ieee80211_free_node(ni);
 				m_freem(m);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 				continue;
 			}
 		}
@@ -1410,7 +1411,7 @@ bwi_start_locked(struct ifnet *ifp)
 			/* 'm' is freed in bwi_encap() if we reach here */
 			if (ni != NULL)
 				ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			continue;
 		}
 
@@ -1418,7 +1419,7 @@ bwi_start_locked(struct ifnet *ifp)
 		tbd->tbd_used++;
 		idx = (idx + 1) % BWI_TX_NDESC;
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		if (tbd->tbd_used + BWI_TX_NSPRDESC >= BWI_TX_NDESC) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1465,7 +1466,7 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = bwi_encap_raw(sc, idx, m, ni, params);
 	}
 	if (error == 0) {
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if (++tbd->tbd_used + BWI_TX_NSPRDESC >= BWI_TX_NDESC)
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		tbd->tbd_idx = (idx + 1) % BWI_TX_NDESC;
@@ -1473,7 +1474,7 @@ bwi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	} else {
 		/* NB: m is reclaimed on encap failure */
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	}
 	BWI_UNLOCK(sc);
 	return error;
@@ -1490,7 +1491,7 @@ bwi_watchdog(void *arg)
 	BWI_ASSERT_LOCKED(sc);
 	if (sc->sc_tx_timer != 0 && --sc->sc_tx_timer == 0) {
 		if_printf(ifp, "watchdog timeout\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_restart_task);
 	}
 	callout_reset(&sc->sc_watchdog_timer, hz, bwi_watchdog, sc);
@@ -1915,7 +1916,7 @@ bwi_dma_alloc(struct bwi_softc *sc)
 			       lowaddr,			/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       MAXBSIZE,		/* maxsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       BUS_SPACE_UNRESTRICTED,	/* nsegments */
 			       BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
@@ -2638,7 +2639,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 				BUS_DMASYNC_POSTREAD);
 
 		if (bwi_newbuf(sc, idx, 0)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto next;
 		}
 
@@ -2654,7 +2655,7 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		if (buflen < BWI_FRAME_MIN_LEN(wh_ofs)) {
 			if_printf(ifp, "%s: zero length data, hdr_extra %d\n",
 				  __func__, hdr_extra);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			goto next;
 		}
@@ -3000,7 +3001,7 @@ bwi_encap(struct bwi_softc *sc, int idx, struct mbuf *m,
 	 */
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (ieee80211_rate2phytype(sc->sc_rates, rate) == IEEE80211_T_DS &&
 		    (ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&
@@ -3183,7 +3184,7 @@ bwi_encap_raw(struct bwi_softc *sc, int idx, struct mbuf *m,
 	if (ieee80211_radiotap_active_vap(vap)) {
 		sc->sc_tx_th.wt_flags = 0;
 		/* XXX IEEE80211_BPF_CRYPTO */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 		if (params->ibp_flags & IEEE80211_BPF_SHORTPRE)
 			sc->sc_tx_th.wt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
@@ -3819,7 +3820,7 @@ bwi_rx_radiotap(struct bwi_softc *sc, struct mbuf *m,
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
 
 	wh = mtod(m, const struct ieee80211_frame_min *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 		sc->sc_rx_th.wr_flags |= IEEE80211_RADIOTAP_F_WEP;
 
 	sc->sc_rx_th.wr_tsf = hdr->rxh_tsf; /* No endian convertion */

@@ -30,6 +30,8 @@
 #ifndef _TCP_LRO_H_
 #define _TCP_LRO_H_
 
+#include <sys/time.h>
+
 struct lro_entry
 {
 	SLIST_ENTRY(lro_entry)	next;
@@ -59,6 +61,7 @@ struct lro_entry
 	uint32_t		tsecr;
 	uint16_t		window;
 	uint16_t		timestamp;	/* flag, not a TCP hdr field. */
+	struct timeval		mtime;
 };
 SLIST_HEAD(lro_head, lro_entry);
 
@@ -83,6 +86,7 @@ struct lro_ctrl {
 
 int tcp_lro_init(struct lro_ctrl *);
 void tcp_lro_free(struct lro_ctrl *);
+void tcp_lro_flush_inactive(struct lro_ctrl *, const struct timeval *);
 void tcp_lro_flush(struct lro_ctrl *, struct lro_entry *);
 int tcp_lro_rx(struct lro_ctrl *, struct mbuf *, uint32_t);
 

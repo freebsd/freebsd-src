@@ -59,8 +59,8 @@ struct listen_ctx;
 
 struct stid_region {
 	TAILQ_ENTRY(stid_region) link;
-	int used;	/* # of stids used by this region */
-	int free;	/* # of contiguous stids free right after this region */
+	u_int used;	/* # of stids used by this region */
+	u_int free;	/* # of contiguous stids free right after this region */
 };
 
 /*
@@ -101,6 +101,11 @@ struct tid_info {
 	u_int nftids;
 	u_int ftid_base;
 	u_int ftids_in_use;
+
+	struct mtx etid_lock __aligned(CACHE_LINE_SIZE);
+	struct etid_entry *etid_tab;
+	u_int netids;
+	u_int etid_base;
 };
 
 struct t4_range {
@@ -122,7 +127,10 @@ struct t4_virt_res {                      /* virtualized HW resources */
 
 #ifdef TCP_OFFLOAD
 enum {
-	ULD_TOM = 1,
+	ULD_TOM = 0,
+	ULD_IWARP,
+	ULD_ISCSI,
+	ULD_MAX = ULD_ISCSI
 };
 
 struct adapter;
@@ -140,12 +148,15 @@ struct tom_tunables {
 	int ddp;
 	int indsz;
 	int ddp_thres;
+	int rx_coalesce;
+	int tx_align;
 };
 
 int t4_register_uld(struct uld_info *);
 int t4_unregister_uld(struct uld_info *);
 int t4_activate_uld(struct adapter *, int);
 int t4_deactivate_uld(struct adapter *, int);
+void t4_iscsi_init(struct ifnet *, unsigned int, const unsigned int *);
+int uld_active(struct adapter *, int);
 #endif
-
 #endif

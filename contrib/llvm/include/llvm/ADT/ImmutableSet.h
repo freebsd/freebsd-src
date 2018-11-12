@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_IMSET_H
-#define LLVM_ADT_IMSET_H
+#ifndef LLVM_ADT_IMMUTABLESET_H
+#define LLVM_ADT_IMMUTABLESET_H
 
-#include "llvm/Support/Allocator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
@@ -81,7 +81,7 @@ public:
       else
         T = T->getRight();
     }
-    return NULL;
+    return nullptr;
   }
 
   /// getMaxElement - Find the subtree associated with the highest ranged
@@ -242,9 +242,9 @@ private:
   ///   ImutAVLFactory.
   ImutAVLTree(Factory *f, ImutAVLTree* l, ImutAVLTree* r, value_type_ref v,
               unsigned height)
-    : factory(f), left(l), right(r), prev(0), next(0), height(height),
-      IsMutable(true), IsDigestCached(false), IsCanonicalized(0),
-      value(v), digest(0), refCount(0)
+    : factory(f), left(l), right(r), prev(nullptr), next(nullptr),
+      height(height), IsMutable(true), IsDigestCached(false),
+      IsCanonicalized(0), value(v), digest(0), refCount(0)
   {
     if (left) left->retain();
     if (right) right->retain();
@@ -411,7 +411,7 @@ public:
     return T;
   }
 
-  TreeTy* getEmptyTree() const { return NULL; }
+  TreeTy* getEmptyTree() const { return nullptr; }
 
 protected:
 
@@ -607,7 +607,7 @@ protected:
 public:
   TreeTy *getCanonicalTree(TreeTy *TNew) {
     if (!TNew)
-      return 0;
+      return nullptr;
 
     if (TNew->IsCanonicalized)
       return TNew;
@@ -619,7 +619,7 @@ public:
     do {
       if (!entry)
         break;
-      for (TreeTy *T = entry ; T != 0; T = T->next) {
+      for (TreeTy *T = entry ; T != nullptr; T = T->next) {
         // Compare the Contents('T') with Contents('TNew')
         typename TreeTy::iterator TI = T->begin(), TE = T->end();
         if (!compareTreeWithSection(TNew, TI, TE))
@@ -696,12 +696,7 @@ public:
   }
 
   inline bool operator==(const _Self& x) const {
-    if (stack.size() != x.stack.size())
-      return false;
-    for (unsigned i = 0 ; i < stack.size(); i++)
-      if (stack[i] != x.stack[i])
-        return false;
-    return true;
+    return stack == x.stack;
   }
 
   inline bool operator!=(const _Self& x) const { return !operator==(x); }
@@ -850,6 +845,18 @@ PROFILE_INTEGER_INFO(long long)
 PROFILE_INTEGER_INFO(unsigned long long)
 
 #undef PROFILE_INTEGER_INFO
+
+/// Profile traits for booleans.
+template <>
+struct ImutProfileInfo<bool> {
+  typedef const bool  value_type;
+  typedef const bool& value_type_ref;
+
+  static inline void Profile(FoldingSetNodeID& ID, value_type_ref X) {
+    ID.AddBoolean(X);
+  }
+};
+
 
 /// Generic profile trait for pointer types.  We treat pointers as
 /// references to unique objects.
@@ -1054,18 +1061,28 @@ public:
 
   class iterator {
     typename TreeTy::iterator itr;
+
+    iterator() {}
     iterator(TreeTy* t) : itr(t) {}
     friend class ImmutableSet<ValT,ValInfo>;
+
   public:
-    iterator() {}
-    inline value_type_ref operator*() const { return itr->getValue(); }
-    inline iterator& operator++() { ++itr; return *this; }
-    inline iterator  operator++(int) { iterator tmp(*this); ++itr; return tmp; }
-    inline iterator& operator--() { --itr; return *this; }
-    inline iterator  operator--(int) { iterator tmp(*this); --itr; return tmp; }
-    inline bool operator==(const iterator& RHS) const { return RHS.itr == itr; }
-    inline bool operator!=(const iterator& RHS) const { return RHS.itr != itr; }
-    inline value_type *operator->() const { return &(operator*()); }
+    typedef ptrdiff_t difference_type;
+    typedef typename ImmutableSet<ValT,ValInfo>::value_type value_type;
+    typedef typename ImmutableSet<ValT,ValInfo>::value_type_ref reference;
+    typedef typename iterator::value_type *pointer;
+    typedef std::bidirectional_iterator_tag iterator_category;
+
+    typename iterator::reference operator*() const { return itr->getValue(); }
+    typename iterator::pointer   operator->() const { return &(operator*()); }
+
+    iterator& operator++() { ++itr; return *this; }
+    iterator  operator++(int) { iterator tmp(*this); ++itr; return tmp; }
+    iterator& operator--() { --itr; return *this; }
+    iterator  operator--(int) { iterator tmp(*this); --itr; return tmp; }
+
+    bool operator==(const iterator& RHS) const { return RHS.itr == itr; }
+    bool operator!=(const iterator& RHS) const { return RHS.itr != itr; }
   };
 
   iterator begin() const { return iterator(Root); }

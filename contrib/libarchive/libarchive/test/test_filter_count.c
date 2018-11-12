@@ -32,7 +32,10 @@ static void
 read_test(const char *name)
 {
 	struct archive* a = archive_read_new();
-	if(ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
+	int r;
+
+	r = archive_read_support_filter_bzip2(a);
+	if((ARCHIVE_WARN == r && !canBzip2()) || ARCHIVE_WARN > r) {
 		skipping("bzip2 unsupported");
 		return;
 	}
@@ -52,11 +55,13 @@ write_test(void)
 {
 	char buff[4096];
 	struct archive* a = archive_write_new();
+	int r;
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_per_block(a, 10));
 
-	if(ARCHIVE_OK != archive_write_set_compression_bzip2(a)) {
+	r = archive_write_add_filter_bzip2(a);
+	if((ARCHIVE_WARN == r && !canBzip2()) || ARCHIVE_WARN > r) {
 		skipping("bzip2 unsupported");
 		return;
 	}

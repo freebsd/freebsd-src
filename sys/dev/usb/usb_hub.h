@@ -35,6 +35,9 @@ struct usb_port {
 #define	USB_RESTART_MAX 5
 	uint8_t	device_index;		/* zero means not valid */
 	enum usb_hc_mode usb_mode;	/* host or device mode */
+#if USB_HAVE_TT_SUPPORT
+	struct usb_device_request req_reset_tt __aligned(4);
+#endif
 };
 
 /*
@@ -44,11 +47,18 @@ struct usb_hub {
 	struct usb_device *hubudev;	/* the HUB device */
 	usb_error_t (*explore) (struct usb_device *hub);
 	void   *hubsoftc;
+#if USB_HAVE_TT_SUPPORT
+	struct usb_udev_msg tt_msg[2];
+#endif
 	usb_size_t uframe_usage[USB_HS_MICRO_FRAMES_MAX];
 	uint16_t portpower;		/* mA per USB port */
 	uint8_t	isoc_last_time;
 	uint8_t	nports;
+#if (USB_HAVE_FIXED_PORT == 0)
 	struct usb_port ports[0];
+#else
+	struct usb_port ports[USB_MAX_PORTS];
+#endif
 };
 
 /* function prototypes */
@@ -65,5 +75,6 @@ void	usb_bus_power_update(struct usb_bus *bus);
 void	usb_bus_powerd(struct usb_bus *bus);
 void	uhub_root_intr(struct usb_bus *, const uint8_t *, uint8_t);
 usb_error_t uhub_query_info(struct usb_device *, uint8_t *, uint8_t *);
+void	uhub_explore_handle_re_enumerate(struct usb_device *);
 
 #endif					/* _USB_HUB_H_ */

@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	limits
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .include <bsd.prog.mk>

@@ -2,8 +2,7 @@
 
 LIB=	heimsqlite
 SRCS=	sqlite3.c
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 CFLAGS+=-I${KRB5DIR}/lib/sqlite
 
 .include <bsd.lib.mk>

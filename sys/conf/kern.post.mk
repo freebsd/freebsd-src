@@ -126,7 +126,8 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
 .if ${MK_CTF} != "no"
-	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
+	@echo ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ...
+	@${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 .endif
 .if !defined(DEBUG)
 	${OBJCOPY} --strip-debug ${.TARGET}
@@ -219,7 +220,7 @@ _ILINKS+= x86
 # Ensure that the link exists without depending on it when it exists.
 .for _link in ${_ILINKS}
 .if !exists(${.OBJDIR}/${_link})
-${SRCS}: ${_link}
+${SRCS} ${CLEAN:M*.o}: ${_link}
 .endif
 .endfor
 

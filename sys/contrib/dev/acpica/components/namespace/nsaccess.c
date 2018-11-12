@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __NSACCESS_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -167,6 +165,7 @@ AcpiNsRootInitialize (
             switch (InitVal->Type)
             {
             case ACPI_TYPE_METHOD:
+
                 ObjDesc->Method.ParamCount = (UINT8) ACPI_TO_INTEGER (Val);
                 ObjDesc->Common.Flags |= AOPOBJ_DATA_VALID;
 
@@ -188,7 +187,6 @@ AcpiNsRootInitialize (
                 ObjDesc->Integer.Value = ACPI_TO_INTEGER (Val);
                 break;
 
-
             case ACPI_TYPE_STRING:
 
                 /* Build an object around the static string */
@@ -197,7 +195,6 @@ AcpiNsRootInitialize (
                 ObjDesc->String.Pointer = Val;
                 ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
                 break;
-
 
             case ACPI_TYPE_MUTEX:
 
@@ -230,7 +227,6 @@ AcpiNsRootInitialize (
                     }
                 }
                 break;
-
 
             default:
 
@@ -450,8 +446,8 @@ AcpiNsLookup (
                     /* Current scope has no parent scope */
 
                     ACPI_ERROR ((AE_INFO,
-                        "ACPI path has too many parent prefixes (^) "
-                        "- reached beyond root node"));
+                        "%s: Path has too many parent prefixes (^) "
+                        "- reached beyond root node", Pathname));
                     return_ACPI_STATUS (AE_NOT_FOUND);
                 }
             }

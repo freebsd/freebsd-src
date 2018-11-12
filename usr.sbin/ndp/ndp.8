@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jan 10, 2013
+.Dd May 9, 2014
 .Dt NDP 8
 .Os
 .\"
@@ -136,9 +136,26 @@ seconds.
 Erase all the NDP entries.
 .It Fl d
 Delete specified NDP entry.
-.It Fl f
-Parse the file specified by
-.Ar filename .
+.It Fl f Ar filename
+Cause the file
+.Ar filename
+to be read and multiple entries to be set in the
+.Tn NDP
+table.
+Entries
+in the file should be of the form
+.Pp
+.Bd -ragged -offset indent -compact
+.Ar hostname ether_addr
+.Op Cm temp
+.Op Cm proxy
+.Ed
+.Pp
+with argument meanings as given above.
+Leading whitespace and empty lines are ignored.
+A
+.Ql #
+character will mark the rest of the line as a comment.
 .It Fl H
 Harmonize consistency between the routing table and the default router
 list; install the top entry of the list into the kernel routing table.
@@ -222,6 +239,36 @@ Specify the Cur Hop Limit on the interface.
 Do not try to resolve numeric addresses to hostnames.
 .It Fl p
 Show prefix list.
+The following information will be printed:
+.Bl -tag -width indent
+.It Cm if
+The network interface associated with this prefix.
+.It Cm flags
+The status of the prefix, expressed by a combination of the following
+letters:
+.Pp
+.Bl -tag -width indent -compact
+.It Cm A
+This prefix can be used for stateless address autoconfiguration.
+.It Cm L, Cm O
+This prefix can be used for on-link determination; that is, it can be
+used to determine whether a given destination address is on-link.
+.It Cm D
+There are no reachable routers advertising this prefix.
+.El
+.It Cm vltime
+Valid lifetime; the length of time for which the prefix and a stateless
+autoconfigured address generated from this prefix can be used for the
+source or destination address of a packet.
+.It Cm pltime
+Preferred lifetime; the length of time for which the prefix and a stateless
+autoconfigured address generated from this prefix can be used by upper-layer
+protocols unrestrictedly.
+.It Cm expire
+This is the remaining time that the prefix is in the valid state.
+.It Cm ref
+The number of kernel references held for this prefix.
+.El
 .It Fl P
 Flush all the entries in the prefix list.
 .It Fl r

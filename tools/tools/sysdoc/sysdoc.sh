@@ -59,12 +59,12 @@ implementation, see the respecting manual pages.
 This manual page is automatically generated
 by a set of scripts written by
 .An -nosplit
-.An Tom Rhodes Aq trhodes@FreeBSD.org ,
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org ,
 with significant contributions from
-.An Giorgos Keramidas Aq keramida@FreeBSD.org ,
-.An Ruslan Ermilov Aq ru@FreeBSD.org ,
+.An Giorgos Keramidas Aq Mt keramida@FreeBSD.org ,
+.An Ruslan Ermilov Aq Mt ru@FreeBSD.org ,
 and
-.An Marc Silver Aq marcs@draenor.org .
+.An Marc Silver Aq Mt marcs@draenor.org .
 .Sh BUGS
 Sometimes
 .Fx
@@ -88,7 +88,7 @@ EOF
 # tunables in our tunables.mdoc file and generate
 # the final 'inner circle' of our manual page.
 markup_create() {
-	sort  < _names |		\
+	sort -u  < _names |		\
 	xargs -n 1 /bin/sh ./sysctl.sh  \
 		> markup.file		\
 		2> tunables.TODO
@@ -238,9 +238,13 @@ if [ -z "$LOCATION" ] ;
     && for x in `find $LOCATION -name '*.kld'`  \
 	$LOCATION/kernel;			\
 	do nm $x |				\
-	grep ' sysctl___' | uniq |		\
-	sed 's/sysctl___//g' | sed 's/_/./g' |	\
-	awk {'print $3'} > _names;
+	sed -n '/sysctl___/ {
+		's/[\.a-z_]*sysctl___//g'
+		's/_/./g'
+		p
+	}' |					\
+	awk {'print $3'} |			\
+	sort -u > _names;
 	done;
 	markup_create
 	page_create

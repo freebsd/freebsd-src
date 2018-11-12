@@ -51,7 +51,7 @@ typedef	__size_t	size_t;
 
 #ifndef	__cplusplus
 #ifndef _WCHAR_T_DECLARED
-typedef	__wchar_t	wchar_t;
+typedef	___wchar_t	wchar_t;
 #define	_WCHAR_T_DECLARED
 #endif
 #endif
@@ -69,7 +69,7 @@ typedef struct {
 #define	EXIT_FAILURE	1
 #define	EXIT_SUCCESS	0
 
-#define	RAND_MAX	0x7fffffff
+#define	RAND_MAX	0x7ffffffd
 
 __BEGIN_DECLS
 #ifdef _XLOCALE_H_
@@ -161,14 +161,16 @@ _Noreturn void
 	quick_exit(int);
 #endif /* __ISO_C_VISIBLE >= 2011 */
 /*
- * Extensions made by POSIX relative to C.  We don't know yet which edition
- * of POSIX made these extensions, so assume they've always been there until
- * research can be done.
+ * Extensions made by POSIX relative to C.
  */
-#if __POSIX_VISIBLE /* >= ??? */
-int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
-int	 rand_r(unsigned *);			/* (TSF) */
+#if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE
 char	*realpath(const char * __restrict, char * __restrict);
+#endif
+#if __POSIX_VISIBLE >= 199506
+int	 rand_r(unsigned *);			/* (TSF) */
+#endif
+#if __POSIX_VISIBLE >= 200112
+int	 posix_memalign(void **, size_t, size_t); /* (ADV) */
 int	 setenv(const char *, const char *, int);
 int	 unsetenv(const char *);
 #endif
@@ -255,6 +257,11 @@ void	 arc4random_buf(void *, size_t);
 void	 arc4random_stir(void);
 __uint32_t 
 	 arc4random_uniform(__uint32_t);
+#ifdef __BLOCKS__
+int	 atexit_b(void (^)(void));
+void	*bsearch_b(const void *, const void *, size_t,
+	    size_t, int (^)(const void *, const void *));
+#endif
 char	*getbsize(int *, long *);
 					/* getcap(3) functions */
 char	*cgetcap(char *, const char *, int);
@@ -270,16 +277,26 @@ int	 cgetustr(char *, const char *, char **);
 
 int	 daemon(int, int);
 char	*devname(__dev_t, __mode_t);
-char 	*devname_r(__dev_t, __mode_t, char *, int);
+char	*devname_r(__dev_t, __mode_t, char *, int);
 char	*fdevname(int);
-char 	*fdevname_r(int, char *, int);
+char	*fdevname_r(int, char *, int);
 int	 getloadavg(double [], int);
 const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+int	 heapsort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+void	 qsort_b(void *, size_t, size_t,
+	    int (^)(const void *, const void *));
+#endif
 int	 l64a_r(long, char *, int);
 int	 mergesort(void *, size_t, size_t, int (*)(const void *, const void *));
+#ifdef __BLOCKS__
+int	 mergesort_b(void *, size_t, size_t, int (^)(const void *, const void *));
+#endif
+int	 mkostemp(char *, int);
+int	 mkostemps(char *, int, int);
 void	 qsort_r(void *, size_t, size_t, void *,
 	    int (*)(void *, const void *, const void *));
 int	 radixsort(const unsigned char **, int, const unsigned char *,

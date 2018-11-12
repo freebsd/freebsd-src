@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __NSXFINIT_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -129,9 +126,8 @@ AcpiNsInitializeObjects (
         Info.PackageInit,   Info.PackageCount, Info.ObjectCount));
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-        "%u Control Methods found\n", Info.MethodCount));
-    ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-        "%u Op Regions found\n", Info.OpRegionCount));
+        "%u Control Methods found\n%u Op Regions found\n",
+        Info.MethodCount, Info.OpRegionCount));
 
     return_ACPI_STATUS (AE_OK);
 }
@@ -198,7 +194,7 @@ AcpiNsInitializeDevices (
      * part of the ACPI specification.
      */
     Info.EvaluateInfo->PrefixNode = AcpiGbl_RootNode;
-    Info.EvaluateInfo->Pathname = METHOD_NAME__INI;
+    Info.EvaluateInfo->RelativePathname = METHOD_NAME__INI;
     Info.EvaluateInfo->Parameters = NULL;
     Info.EvaluateInfo->Flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -296,28 +292,34 @@ AcpiNsInitOneObject (
     switch (Type)
     {
     case ACPI_TYPE_REGION:
+
         Info->OpRegionCount++;
         break;
 
     case ACPI_TYPE_BUFFER_FIELD:
+
         Info->FieldCount++;
         break;
 
     case ACPI_TYPE_LOCAL_BANK_FIELD:
+
         Info->FieldCount++;
         break;
 
     case ACPI_TYPE_BUFFER:
+
         Info->BufferCount++;
         break;
 
     case ACPI_TYPE_PACKAGE:
+
         Info->PackageCount++;
         break;
 
     default:
 
         /* No init required, just exit now */
+
         return (AE_OK);
     }
 
@@ -369,7 +371,9 @@ AcpiNsInitOneObject (
         break;
 
     default:
+
         /* No other types can get here */
+
         break;
     }
 
@@ -456,6 +460,7 @@ AcpiNsFindIniMethods (
         break;
 
     default:
+
         break;
     }
 
@@ -609,8 +614,9 @@ AcpiNsInitOneDevice (
     ACPI_DEBUG_EXEC (AcpiUtDisplayInitPathname (
         ACPI_TYPE_METHOD, DeviceNode, METHOD_NAME__INI));
 
+    ACPI_MEMSET (Info, 0, sizeof (ACPI_EVALUATE_INFO));
     Info->PrefixNode = DeviceNode;
-    Info->Pathname = METHOD_NAME__INI;
+    Info->RelativePathname = METHOD_NAME__INI;
     Info->Parameters = NULL;
     Info->Flags = ACPI_IGNORE_RETURN_VALUE;
 
@@ -625,7 +631,7 @@ AcpiNsInitOneDevice (
     {
         /* Ignore error and move on to next device */
 
-        char *ScopeName = AcpiNsGetExternalPathname (Info->ResolvedNode);
+        char *ScopeName = AcpiNsGetExternalPathname (Info->Node);
 
         ACPI_EXCEPTION ((AE_INFO, Status, "during %s._INI execution",
             ScopeName));

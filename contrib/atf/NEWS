@@ -1,6 +1,162 @@
 Major changes between releases                  Automated Testing Framework
 ===========================================================================
 
+Changes in version 0.21
+***********************
+
+Released on October 23rd, 2014.
+
+* Restored the atf(7) manual page to serve as a reference to all the other
+  manual pages shipped by ATF.
+
+* Added the -s flag to atf-sh to support specifying the shell interpreter
+  to be used.
+
+* Removed ATF_WORKDIR.  The only remaining consumers have been converted to
+  use the standard TMPDIR environment variable.  As a benefit, and because
+  Kyua forces the TMPDIR to live within the test case's work directory,
+  any stale files left behind by ATF will be automatically cleaned up.
+
+* Documented the environment variables recognized by each component in the
+  relevant manual pages.  This information was lost with the atf-config(1)
+  removal.
+
+* Added a new "require.diskspace" metadata property to test cases so that
+  they can specify the minimum amount of disk space required for the test
+  to run.
+
+* Renamed the atf-{c,c++,sh}-api(3) manual pages to atf-{c,c++,sh}(3) for
+  discoverability purposes.  Symbolic links are provided for the time
+  being to still make the old names visible.
+
+* Issue #5: Recommend the (expected, actual) idiom for calls to the test
+  macros in the manual pages.
+
+* Issue #7: Stopped catching unhandled exceptions in atf-c++ tests.  This
+  propagates the crash to the caller, which in turn allows it to obtain
+  proper debugging information.  In particular, Kyua should now be able to
+  extract a stacktrace pinpointing the problem.
+
+* Issue #8: Fixed atf-c/macros_test:use test failures spotted by the clang
+  that ships with FreeBSD 11.0-CURRENT.
+
+* Issue #12: Improved documentation of atf-sh(3) and atf-check(1) by better
+  explaining how they relate to each other.
+
+* Issue #14: Stopped setting 'set -e' in atf-sh.  This setting was
+  initially added as a way to enable a "strict" mode in the library and to
+  make test cases fail fast when they run unprotected commands.  However,
+  doing so in the library is surprising as the responsibility of enabling
+  'set -e' should be on the user's code.  Also, 'set -e' introduces
+  inconsistent behavior on subshells and users do not expect that.
+
+* Issue #15: Fixed atf_utils_{fork,wait} to support nested calls.
+
+* Issue #16: Fixed test failures (by removing a long-standing hack) on
+  systems that lack \e support in printf(1).
+
+* Issue #19: Removed stale references to atf-config and atf-run.
+
+
+Changes in version 0.20
+***********************
+
+Experimental version released on February 7th, 2014.
+
+This is the first release without the code for the deprecated tools.  If
+you require such code, please fetch a copy of the 0.19 release and extract
+the 'tools' directory for your own consumption.
+
+* Removed the deprecated tools.  This includes atf-config, atf-report,
+  atf-run and atf-version.
+
+* Issue #8: Fixed atf-c/macros_test:use test failures spotted by the clang
+  that ships with FreeBSD 11.0-CURRENT.
+
+
+Changes in version 0.19
+***********************
+
+Experimental version released on February 7th, 2014.
+
+This is the last release to bundle the code for the deprecated tools.
+The next release will drop their code and will stop worrying about
+backwards compatibility between the ATF libraries and what the old tools
+may or may not support.
+
+If you still require the old tools for some reason, grab a copy of the
+'tools' directory now.  The code in this directory is standalone and
+does not depend on any internal details of atf-c++ any longer.
+
+* Various fixes and improvements to support running as part of the FreeBSD
+  test suite.
+
+* Project hosting moved from Google Code (as a subproject of Kyua) to
+  GitHub (as a first-class project).  The main reason for the change is
+  the suppression of binary downloads in Google Code on Jan 15th, 2014.
+  See https://github.com/jmmv/atf/
+
+* Removed builtin help from atf-sh(1) and atf-check(1) for simplicity
+  reasons.  In other words, their -h option is gone.
+
+* Moved the code of the deprecated tools into a 'tools' directory and
+  completely decoupled their code from the internals of atf-c++.  The
+  reason for this is to painlessly allow a third-party to maintain a
+  copy of these tools after we delete them because upcoming changes to
+  atf-c++ would break the stale tools.
+
+
+Changes in version 0.18
+***********************
+
+Experimental version released on November 16th, 2013.
+
+* Issue 45: Added require.memory support in atf-run for FreeBSD.
+
+* Fixed an issue with the handling of cin with libc++.
+
+* Issue 64: Fixed various mandoc formatting warnings.
+
+* NetBSD PR bin/48284: Made atf-check flush its progress message to
+  stdout so that an interrupted test case always shows the last message
+  being executed.
+
+* NetBSD PR bin/48285: Fixed atf_check examples in atf-sh-api(3).
+
+
+Changes in version 0.17
+***********************
+
+Experimental version released on February 14th, 2013.
+
+* Added the atf_utils_cat_file, atf_utils_compare_file,
+  atf_utils_copy_file, atf_utils_create_file, atf_utils_file_exists,
+  atf_utils_fork, atf_utils_grep_file, atf_utils_grep_string,
+  atf_utils_readline, atf_utils_redirect and atf_utils_wait utility
+  functions to atf-c-api.  Documented the already-public
+  atf_utils_free_charpp function.
+
+* Added the cat_file, compare_file, copy_file, create_file, file_exists,
+  fork, grep_collection, grep_file, grep_string, redirect and wait
+  functions to the atf::utils namespace of atf-c++-api.  These are
+  wrappers around the same functions added to the atf-c-api library.
+
+* Added the ATF_CHECK_MATCH, ATF_CHECK_MATCH_MSG, ATF_REQUIRE_MATCH and
+  ATF_REQUIRE_MATCH_MSG macros to atf-c to simplify the validation of a
+  string against a regular expression.
+
+* Miscellaneous fixes for manpage typos and compilation problems with
+  clang.
+
+* Added caching of the results of those configure tests that rely on
+  executing a test program.  This should help crossbuild systems by
+  providing a mechanism to pre-specify what the results should be.
+
+* PR bin/45690: Make atf-report convert any non-printable characters to
+  a plain-text representation (matching their corresponding hexadecimal
+  entities) in XML output files.  This is to prevent the output of test
+  cases from breaking xsltproc later.
+
 
 Changes in version 0.16
 ***********************

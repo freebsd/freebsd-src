@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/limits.h>
@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/un.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -60,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/in6_var.h>
 #endif
 
 #ifdef COMPAT_LINUX32
@@ -573,7 +573,8 @@ linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 static int
 linux_check_hdrincl(struct thread *td, int s)
 {
-	int error, optval, size_val;
+	int error, optval;
+	socklen_t size_val;
 
 	size_val = sizeof(optval);
 	error = kern_getsockopt(td, s, IPPROTO_IP, IP_HDRINCL,
@@ -731,7 +732,7 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 	if (error)
 		return (error);
 
-	error = kern_bind(td, args->s, sa);
+	error = kern_bindat(td, AT_FDCWD, args->s, sa);
 	free(sa, M_SONAME);
 	if (error == EADDRNOTAVAIL && args->namelen != sizeof(struct sockaddr_in))
 	   	return (EINVAL);
@@ -748,6 +749,7 @@ int linux_connect(struct thread *, struct linux_connect_args *);
 int
 linux_connect(struct thread *td, struct linux_connect_args *args)
 {
+	cap_rights_t rights;
 	struct socket *so;
 	struct sockaddr *sa;
 	u_int fflag;
@@ -758,7 +760,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	if (error)
 		return (error);
 
-	error = kern_connect(td, args->s, sa);
+	error = kern_connectat(td, AT_FDCWD, args->s, sa);
 	free(sa, M_SONAME);
 	if (error != EISCONN)
 		return (error);
@@ -772,7 +774,8 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	 * socket and use the file descriptor reference instead of
 	 * creating a new one.
 	 */
-	error = fgetsock(td, args->s, CAP_CONNECT, &so, &fflag);
+	error = fgetsock(td, args->s, cap_rights_init(&rights, CAP_CONNECT),
+	    &so, &fflag);
 	if (error == 0) {
 		error = EISCONN;
 		if (fflag & FNONBLOCK) {
@@ -930,7 +933,7 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 
 	bsd_args.fdes = args->s;
 	bsd_args.asa = (struct sockaddr *)PTRIN(args->addr);
-	bsd_args.alen = (int *)PTRIN(args->namelen);
+	bsd_args.alen = (socklen_t *)PTRIN(args->namelen);
 	error = sys_getpeername(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
 	if (error)

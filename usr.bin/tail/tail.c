@@ -203,10 +203,8 @@ main(int argc, char *argv[])
 				continue;
 			}
 			if (argc > 1 && !qflag) {
-				(void)printf("%s==> %s <==\n",
-				    first ? "" : "\n", fn);
+				printfn(fn, !first);
 				first = 0;
-				(void)fflush(stdout);
 			}
 
 			if (rflag)

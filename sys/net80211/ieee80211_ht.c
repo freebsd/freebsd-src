@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -154,7 +155,7 @@ SYSCTL_PROC(_net_wlan, OID_AUTO, addba_backoff, CTLTYPE_INT | CTLFLAG_RW,
 	&ieee80211_addba_backoff, 0, ieee80211_sysctl_msecs_ticks, "I",
 	"ADDBA request backoff (ms)");
 static	int ieee80211_addba_maxtries = 3;/* max ADDBA requests before backoff */
-SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, addba_maxtries, CTLFLAG_RW,
 	&ieee80211_addba_maxtries, 0, "max ADDBA requests sent before backoff");
 
 static	int ieee80211_bar_timeout = -1;	/* timeout waiting for BAR response */
@@ -1046,6 +1047,7 @@ ieee80211_ht_node_init(struct ieee80211_node *ni)
 		tap = &ni->ni_tx_ampdu[tid];
 		tap->txa_tid = tid;
 		tap->txa_ni = ni;
+		tap->txa_lastsample = ticks;
 		/* NB: further initialization deferred */
 	}
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -1215,6 +1217,7 @@ ieee80211_ht_wds_init(struct ieee80211_node *ni)
 	for (tid = 0; tid < WME_NUM_TID; tid++) {
 		tap = &ni->ni_tx_ampdu[tid];
 		tap->txa_tid = tid;
+		tap->txa_lastsample = ticks;
 	}
 	/* NB: AMPDU tx/rx governed by IEEE80211_FHT_AMPDU_{TX,RX} */
 	ni->ni_flags |= IEEE80211_NODE_HT | IEEE80211_NODE_AMPDU;
@@ -1690,6 +1693,7 @@ ampdu_tx_setup(struct ieee80211_tx_ampdu *tap)
 {
 	callout_init(&tap->txa_timer, CALLOUT_MPSAFE);
 	tap->txa_flags |= IEEE80211_AGGR_SETUP;
+	tap->txa_lastsample = ticks;
 }
 
 static void
@@ -1717,8 +1721,12 @@ ampdu_tx_stop(struct ieee80211_tx_ampdu *tap)
 	 */
 	bar_stop_timer(tap);
 
-	tap->txa_lastsample = 0;
+	/*
+	 * Reset packet estimate.
+	 */
+	tap->txa_lastsample = ticks;
 	tap->txa_avgpps = 0;
+
 	/* NB: clearing NAK means we may re-send ADDBA */ 
 	tap->txa_flags &= ~(IEEE80211_AGGR_SETUP | IEEE80211_AGGR_NAK);
 }
@@ -2773,10 +2781,14 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 	struct ieee80211_beacon_offsets *bo)
 {
 #define	PROTMODE	(IEEE80211_HTINFO_OPMODE|IEEE80211_HTINFO_NONHT_PRESENT)
-	const struct ieee80211_channel *bsschan = vap->iv_bss->ni_chan;
+	struct ieee80211_node *ni;
+	const struct ieee80211_channel *bsschan;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_ie_htinfo *ht =
 	   (struct ieee80211_ie_htinfo *) bo->bo_htinfo;
+
+	ni = ieee80211_ref_node(vap->iv_bss);
+	bsschan = ni->ni_chan;
 
 	/* XXX only update on channel change */
 	ht->hi_ctrlchannel = ieee80211_chan2ieee(ic, bsschan);
@@ -2795,6 +2807,8 @@ ieee80211_ht_update_beacon(struct ieee80211vap *vap,
 
 	/* protection mode */
 	ht->hi_byte2 = (ht->hi_byte2 &~ PROTMODE) | ic->ic_curhtprotmode;
+
+	ieee80211_free_node(ni);
 
 	/* XXX propagate to vendor ie's */
 #undef PROTMODE

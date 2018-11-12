@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2009
+.Dd April 19, 2014
 .Dt UMASS 4
 .Os
 .Sh NAME
@@ -60,6 +60,10 @@ and one of
 .Xr uhci 4
 or
 .Xr ohci 4
+or
+.Xr ehci 4
+or
+.Xr xhci 4
 must be configured in the kernel.
 Additionally, since
 .Nm
@@ -240,6 +244,7 @@ when using
 .Xr uhci 4 ,
 .Xr usb 4 ,
 .Xr vpo 4 ,
+.Xr xhci 4 ,
 .Xr disktab 5 ,
 .Xr bsdlabel 8 ,
 .Xr camcontrol 8
@@ -249,9 +254,9 @@ when using
 The
 .Nm
 driver was written by
-.An MAEKAWA Masahide Aq bishop@rr.iij4u.or.jp
+.An MAEKAWA Masahide Aq Mt bishop@rr.iij4u.or.jp
 and
-.An Nick Hibma Aq n_hibma@FreeBSD.org .
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .
 .Pp
 This manual page was written by
-.An Nick Hibma Aq n_hibma@FreeBSD.org .
+.An Nick Hibma Aq Mt n_hibma@FreeBSD.org .

@@ -11,28 +11,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "codegen-cp"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Pass.h"
-#include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "codegen-cp"
 
 STATISTIC(NumDeletes, "Number of dead copies deleted");
 
 namespace {
   class MachineCopyPropagation : public MachineFunctionPass {
     const TargetRegisterInfo *TRI;
+    const TargetInstrInfo *TII;
     MachineRegisterInfo *MRI;
 
   public:
@@ -41,7 +44,7 @@ namespace {
      initializeMachineCopyPropagationPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
   private:
     typedef SmallVector<unsigned, 4> DestList;
@@ -51,6 +54,7 @@ namespace {
                                  SourceMap &SrcMap,
                                  DenseMap<unsigned, MachineInstr*> &AvailCopyMap);
     bool CopyPropagateBlock(MachineBasicBlock &MBB);
+    void removeCopy(MachineInstr *MI);
   };
 }
 char MachineCopyPropagation::ID = 0;
@@ -124,11 +128,20 @@ static bool isNopCopy(MachineInstr *CopyMI, unsigned Def, unsigned Src,
   return false;
 }
 
+// Remove MI from the function because it has been determined it is dead.
+// Turn it into a noop KILL instruction as opposed to removing it to
+// maintain imp-use/imp-def chains.
+void MachineCopyPropagation::removeCopy(MachineInstr *MI) {
+  MI->setDesc(TII->get(TargetOpcode::KILL));
+}
+
 bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
   SmallSetVector<MachineInstr*, 8> MaybeDeadCopies;  // Candidates for deletion
   DenseMap<unsigned, MachineInstr*> AvailCopyMap;    // Def -> available copies map
   DenseMap<unsigned, MachineInstr*> CopyMap;         // Def -> copies map
   SourceMap SrcMap; // Src -> Def map
+
+  DEBUG(dbgs() << "MCP: CopyPropagateBlock " << MBB.getName() << "\n");
 
   bool Changed = false;
   for (MachineBasicBlock::iterator I = MBB.begin(), E = MBB.end(); I != E; ) {
@@ -164,12 +177,14 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
           // CALL
           // %RAX<def> = COPY %RSP
 
+          DEBUG(dbgs() << "MCP: copy is a NOP, removing: "; MI->dump());
+
           // Clear any kills of Def between CopyMI and MI. This extends the
           // live range.
           for (MachineBasicBlock::iterator I = CopyMI, E = MI; I != E; ++I)
             I->clearRegisterKills(Def, TRI);
 
-          MI->eraseFromParent();
+          removeCopy(MI);
           Changed = true;
           ++NumDeletes;
           continue;
@@ -179,9 +194,13 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
       // If Src is defined by a previous copy, it cannot be eliminated.
       for (MCRegAliasIterator AI(Src, TRI, true); AI.isValid(); ++AI) {
         CI = CopyMap.find(*AI);
-        if (CI != CopyMap.end())
+        if (CI != CopyMap.end()) {
+          DEBUG(dbgs() << "MCP: Copy is no longer dead: "; CI->second->dump());
           MaybeDeadCopies.remove(CI->second);
+        }
       }
+
+      DEBUG(dbgs() << "MCP: Copy is a deletion candidate: "; MI->dump());
 
       // Copy is now a candidate for deletion.
       MaybeDeadCopies.insert(MI);
@@ -201,9 +220,8 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
         CopyMap.erase(*AI);
         AvailCopyMap.erase(*AI);
       }
-      CopyMap[Def] = MI;
-      AvailCopyMap[Def] = MI;
-      for (MCSubRegIterator SR(Def, TRI); SR.isValid(); ++SR) {
+      for (MCSubRegIterator SR(Def, TRI, /*IncludeSelf=*/true); SR.isValid();
+           ++SR) {
         CopyMap[*SR] = MI;
         AvailCopyMap[*SR] = MI;
       }
@@ -244,8 +262,10 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
       // for elimination.
       for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI) {
         DenseMap<unsigned, MachineInstr*>::iterator CI = CopyMap.find(*AI);
-        if (CI != CopyMap.end())
+        if (CI != CopyMap.end()) {
+          DEBUG(dbgs() << "MCP: Copy is used - not dead: "; CI->second->dump());
           MaybeDeadCopies.remove(CI->second);
+        }
       }
     }
 
@@ -262,7 +282,9 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
         unsigned Reg = (*DI)->getOperand(0).getReg();
         if (MRI->isReserved(Reg) || !MaskMO.clobbersPhysReg(Reg))
           continue;
-        (*DI)->eraseFromParent();
+        DEBUG(dbgs() << "MCP: Removing copy due to regmask clobbering: ";
+              (*DI)->dump());
+        removeCopy(*DI);
         Changed = true;
         ++NumDeletes;
       }
@@ -298,7 +320,7 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
            DI = MaybeDeadCopies.begin(), DE = MaybeDeadCopies.end();
          DI != DE; ++DI) {
       if (!MRI->isReserved((*DI)->getOperand(0).getReg())) {
-        (*DI)->eraseFromParent();
+        removeCopy(*DI);
         Changed = true;
         ++NumDeletes;
       }
@@ -309,9 +331,13 @@ bool MachineCopyPropagation::CopyPropagateBlock(MachineBasicBlock &MBB) {
 }
 
 bool MachineCopyPropagation::runOnMachineFunction(MachineFunction &MF) {
+  if (skipOptnoneFunction(*MF.getFunction()))
+    return false;
+
   bool Changed = false;
 
-  TRI = MF.getTarget().getRegisterInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
   MRI = &MF.getRegInfo();
 
   for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I)

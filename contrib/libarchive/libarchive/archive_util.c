@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009,2010 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2012 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -49,6 +49,10 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_string.h"
+
+#ifndef O_CLOEXEC
+#define O_CLOEXEC	0
+#endif
 
 /* Generic initialization of 'struct archive' objects. */
 int
@@ -239,7 +243,7 @@ __archive_mktemp(const char *tmpdir)
 			errno = ENOMEM;
 			goto exit_tmpfile;
 		}
-		GetTempPathW(l, tmp);
+		GetTempPathW((DWORD)l, tmp);
 		archive_wstrcpy(&temp_name, tmp);
 		free(tmp);
 	} else {
@@ -293,7 +297,8 @@ __archive_mktemp(const char *tmpdir)
 
 		/* Generate a random file name through CryptGenRandom(). */
 		p = xp;
-		if (!CryptGenRandom(hProv, (ep - p)*sizeof(wchar_t), (BYTE*)p)) {
+		if (!CryptGenRandom(hProv, (DWORD)(ep - p)*sizeof(wchar_t),
+		    (BYTE*)p)) {
 			la_dosmaperr(GetLastError());
 			goto exit_tmpfile;
 		}
@@ -385,6 +390,7 @@ __archive_mktemp(const char *tmpdir)
 	fd = mkstemp(temp_name.s);
 	if (fd < 0)
 		goto exit_tmpfile;
+	__archive_ensure_cloexec_flag(fd);
 	unlink(temp_name.s);
 exit_tmpfile:
 	archive_string_free(&temp_name);
@@ -438,7 +444,8 @@ __archive_mktemp(const char *tmpdir)
 	archive_strcat(&temp_name, "XXXXXXXXXX");
 	ep = temp_name.s + archive_strlen(&temp_name);
 
-	fd = open("/dev/random", O_RDONLY);
+	fd = open("/dev/random", O_RDONLY | O_CLOEXEC);
+	__archive_ensure_cloexec_flag(fd);
 	if (fd < 0)
 		seed = time(NULL);
 	else {
@@ -452,10 +459,12 @@ __archive_mktemp(const char *tmpdir)
 		p = tp;
 		while (p < ep)
 			*p++ = num[((unsigned)rand_r(&seed)) % sizeof(num)];
-		fd = open(temp_name.s, O_CREAT | O_EXCL | O_RDWR, 0600);
+		fd = open(temp_name.s, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC,
+			  0600);
 	} while (fd < 0 && errno == EEXIST);
 	if (fd < 0)
 		goto exit_tmpfile;
+	__archive_ensure_cloexec_flag(fd);
 	unlink(temp_name.s);
 exit_tmpfile:
 	archive_string_free(&temp_name);
@@ -464,3 +473,29 @@ exit_tmpfile:
 
 #endif /* HAVE_MKSTEMP */
 #endif /* !_WIN32 || __CYGWIN__ */
+
+/*
+ * Set FD_CLOEXEC flag to a file descriptor if it is not set.
+ * We have to set the flag if the platform does not provide O_CLOEXEC
+ * or F_DUPFD_CLOEXEC flags.
+ *
+ * Note: This function is absolutely called after creating a new file
+ * descriptor even if the platform seemingly provides O_CLOEXEC or
+ * F_DUPFD_CLOEXEC macros because it is possible that the platform
+ * merely declares those macros, especially Linux 2.6.18 - 2.6.24 do it.
+ */
+void
+__archive_ensure_cloexec_flag(int fd)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)fd; /* UNSED */
+#else
+	int flags;
+
+	if (fd >= 0) {
+		flags = fcntl(fd, F_GETFD);
+		if (flags != -1 && (flags & FD_CLOEXEC) == 0)
+			fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+	}
+#endif
+}

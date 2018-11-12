@@ -177,21 +177,6 @@ static dtrace_pops_t dtnfsclient_pops = {
 static dtrace_provider_id_t	dtnfsclient_id;
 
 /*
- * Most probes are generated from the above RPC table, but for access and
- * attribute caches, we have specific IDs we recognize and handle specially
- * in various spots.
- */
-extern uint32_t	nfscl_accesscache_flush_done_id;
-extern uint32_t	nfscl_accesscache_get_hit_id;
-extern uint32_t	nfscl_accesscache_get_miss_id;
-extern uint32_t	nfscl_accesscache_load_done_id;
-
-extern uint32_t	nfscl_attrcache_flush_done_id;
-extern uint32_t	nfscl_attrcache_get_hit_id;
-extern uint32_t	nfscl_attrcache_get_miss_id;
-extern uint32_t	nfscl_attrcache_load_done_id;
-
-/*
  * When tracing on a procedure is enabled, the DTrace ID for an RPC event is
  * stored in one of these two NFS client-allocated arrays; 0 indicates that
  * the event is not being traced so probes should not be called.

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	${_drti} \
 	libavl \
@@ -11,7 +11,12 @@ SUBDIR=	${_drti} \
 	libuutil \
 	${_libzfs_core} \
 	${_libzfs} \
-	${_libzpool}
+	${_libzpool} \
+	${_tests}
+
+.if ${MK_TESTS} != "no"
+_tests=		tests
+.endif
 
 .if ${MK_ZFS} != "no"
 _libzfs_core=	libzfs_core
@@ -22,7 +27,8 @@ _libzpool=	libzpool
 .endif
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc"
+	${MACHINE_CPUARCH} == "mips" || ${MACHINE_CPUARCH} == "powerpc" || \
+	${MACHINE_CPUARCH} == "arm"
 _drti=		drti
 _libdtrace=	libdtrace
 .endif

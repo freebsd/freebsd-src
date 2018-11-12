@@ -21,18 +21,64 @@
 
 namespace llvm {
 
-  class FunctionPass;
-  class MachineFunctionPass;
-  class PassInfo;
-  class PassManagerBase;
-  class TargetLowering;
-  class TargetRegisterClass;
-  class raw_ostream;
-}
-
-namespace llvm {
-
+class FunctionPass;
+class MachineFunctionPass;
 class PassConfigImpl;
+class PassInfo;
+class ScheduleDAGInstrs;
+class TargetLowering;
+class TargetLoweringBase;
+class TargetRegisterClass;
+class raw_ostream;
+struct MachineSchedContext;
+
+// The old pass manager infrastructure is hidden in a legacy namespace now.
+namespace legacy {
+class PassManagerBase;
+}
+using legacy::PassManagerBase;
+
+/// Discriminated union of Pass ID types.
+///
+/// The PassConfig API prefers dealing with IDs because they are safer and more
+/// efficient. IDs decouple configuration from instantiation. This way, when a
+/// pass is overriden, it isn't unnecessarily instantiated. It is also unsafe to
+/// refer to a Pass pointer after adding it to a pass manager, which deletes
+/// redundant pass instances.
+///
+/// However, it is convient to directly instantiate target passes with
+/// non-default ctors. These often don't have a registered PassInfo. Rather than
+/// force all target passes to implement the pass registry boilerplate, allow
+/// the PassConfig API to handle either type.
+///
+/// AnalysisID is sadly char*, so PointerIntPair won't work.
+class IdentifyingPassPtr {
+  union {
+    AnalysisID ID;
+    Pass *P;
+  };
+  bool IsInstance;
+public:
+  IdentifyingPassPtr() : P(nullptr), IsInstance(false) {}
+  IdentifyingPassPtr(AnalysisID IDPtr) : ID(IDPtr), IsInstance(false) {}
+  IdentifyingPassPtr(Pass *InstancePtr) : P(InstancePtr), IsInstance(true) {}
+
+  bool isValid() const { return P; }
+  bool isInstance() const { return IsInstance; }
+
+  AnalysisID getID() const {
+    assert(!IsInstance && "Not a Pass ID");
+    return ID;
+  }
+  Pass *getInstance() const {
+    assert(IsInstance && "Not a Pass Instance");
+    return P;
+  }
+};
+
+template <> struct isPodLike<IdentifyingPassPtr> {
+  static const bool value = true;
+};
 
 /// Target-Independent Code Generator Pass Configuration Options.
 ///
@@ -59,6 +105,7 @@ private:
   AnalysisID StopAfter;
   bool Started;
   bool Stopped;
+  bool AddingMachinePasses;
 
 protected:
   TargetMachine *TM;
@@ -87,10 +134,6 @@ public:
     return *static_cast<TMC*>(TM);
   }
 
-  const TargetLowering *getTargetLowering() const {
-    return TM->getTargetLowering();
-  }
-
   //
   void setInitialized() { Initialized = true; }
 
@@ -105,7 +148,7 @@ public:
   void setStartStopPasses(AnalysisID Start, AnalysisID Stop) {
     StartAfter = Start;
     StopAfter = Stop;
-    Started = (StartAfter == 0);
+    Started = (StartAfter == nullptr);
   }
 
   void setDisableVerify(bool Disable) { setOpt(DisableVerify, Disable); }
@@ -116,23 +159,29 @@ public:
   /// Allow the target to override a specific pass without overriding the pass
   /// pipeline. When passes are added to the standard pipeline at the
   /// point where StandardID is expected, add TargetID in its place.
-  void substitutePass(AnalysisID StandardID, AnalysisID TargetID);
+  void substitutePass(AnalysisID StandardID, IdentifyingPassPtr TargetID);
 
   /// Insert InsertedPassID pass after TargetPassID pass.
-  void insertPass(AnalysisID TargetPassID, AnalysisID InsertedPassID);
+  void insertPass(AnalysisID TargetPassID, IdentifyingPassPtr InsertedPassID);
 
   /// Allow the target to enable a specific standard pass by default.
   void enablePass(AnalysisID PassID) { substitutePass(PassID, PassID); }
 
   /// Allow the target to disable a specific standard pass by default.
-  void disablePass(AnalysisID PassID) { substitutePass(PassID, 0); }
+  void disablePass(AnalysisID PassID) {
+    substitutePass(PassID, IdentifyingPassPtr());
+  }
 
   /// Return the pass substituted for StandardID by the target.
   /// If no substitution exists, return StandardID.
-  AnalysisID getPassSubstitution(AnalysisID StandardID) const;
+  IdentifyingPassPtr getPassSubstitution(AnalysisID StandardID) const;
 
   /// Return true if the optimized regalloc pipeline is enabled.
   bool getOptimizeRegAlloc() const;
+
+  /// Return true if the default global register allocator is in use and
+  /// has not be overriden on the command line with '-regalloc=...'
+  bool usingDefaultRegAlloc() const;
 
   /// Add common target configurable passes that perform LLVM IR to IR
   /// transforms following machine independent optimization.
@@ -140,6 +189,10 @@ public:
 
   /// Add passes to lower exception handling for the code generator.
   void addPassesToHandleExceptions();
+
+  /// Add pass to prepare the LLVM IR for code generation. This should be done
+  /// before exception handling preparation passes.
+  virtual void addCodeGenPrepare();
 
   /// Add common passes that perform LLVM IR to IR transforms in preparation for
   /// instruction selection.
@@ -154,6 +207,27 @@ public:
   /// Add the complete, standard set of LLVM CodeGen passes.
   /// Fully developed targets will not generally override this.
   virtual void addMachinePasses();
+
+  /// Create an instance of ScheduleDAGInstrs to be run within the standard
+  /// MachineScheduler pass for this function and target at the current
+  /// optimization level.
+  ///
+  /// This can also be used to plug a new MachineSchedStrategy into an instance
+  /// of the standard ScheduleDAGMI:
+  ///   return new ScheduleDAGMI(C, new MyStrategy(C))
+  ///
+  /// Return NULL to select the default (generic) machine scheduler.
+  virtual ScheduleDAGInstrs *
+  createMachineScheduler(MachineSchedContext *C) const {
+    return nullptr;
+  }
+
+  /// Similar to createMachineScheduler but used when postRA machine scheduling
+  /// is enabled.
+  virtual ScheduleDAGInstrs *
+  createPostMachineScheduler(MachineSchedContext *C) const {
+    return nullptr;
+  }
 
 protected:
   // Helper to verify the analysis is really immutable.
@@ -176,12 +250,19 @@ protected:
   /// instructions in SSA form.
   virtual void addMachineSSAOptimization();
 
-  /// addPreRegAlloc - This method may be implemented by targets that want to
-  /// run passes immediately before register allocation. This should return
-  /// true if -print-machineinstrs should print after these passes.
-  virtual bool addPreRegAlloc() {
+  /// Add passes that optimize instruction level parallelism for out-of-order
+  /// targets. These passes are run while the machine code is still in SSA
+  /// form, so they can use MachineTraceMetrics to control their heuristics.
+  ///
+  /// All passes added here should preserve the MachineDominatorTree,
+  /// MachineLoopInfo, and MachineTraceMetrics analyses.
+  virtual bool addILPOpts() {
     return false;
   }
+
+  /// This method may be implemented by targets that want to run passes
+  /// immediately before register allocation.
+  virtual void addPreRegAlloc() { }
 
   /// createTargetRegisterAllocator - Create the register allocator pass for
   /// this target at the current optimization level.
@@ -207,56 +288,49 @@ protected:
     return false;
   }
 
-  /// addFinalizeRegAlloc - This method may be implemented by targets that want
-  /// to run passes within the regalloc pipeline, immediately after the register
-  /// allocation pass itself. These passes run as soon as virtual regisiters
-  /// have been rewritten to physical registers but before and other postRA
-  /// optimization happens. Targets that have marked instructions for bundling
-  /// must have finalized those bundles by the time these passes have run,
-  /// because subsequent passes are not guaranteed to be bundle-aware.
-  virtual bool addFinalizeRegAlloc() {
-    return false;
-  }
-
-  /// addPostRegAlloc - This method may be implemented by targets that want to
-  /// run passes after register allocation pass pipeline but before
-  /// prolog-epilog insertion.  This should return true if -print-machineinstrs
-  /// should print after these passes.
-  virtual bool addPostRegAlloc() {
-    return false;
-  }
+  /// This method may be implemented by targets that want to run passes after
+  /// register allocation pass pipeline but before prolog-epilog insertion.
+  virtual void addPostRegAlloc() { }
 
   /// Add passes that optimize machine instructions after register allocation.
   virtual void addMachineLateOptimization();
 
-  /// addPreSched2 - This method may be implemented by targets that want to
-  /// run passes after prolog-epilog insertion and before the second instruction
-  /// scheduling pass.  This should return true if -print-machineinstrs should
-  /// print after these passes.
-  virtual bool addPreSched2() {
-    return false;
-  }
+  /// This method may be implemented by targets that want to run passes after
+  /// prolog-epilog insertion and before the second instruction scheduling pass.
+  virtual void addPreSched2() { }
+
+  /// addGCPasses - Add late codegen passes that analyze code for garbage
+  /// collection. This should return true if GC info should be printed after
+  /// these passes.
+  virtual bool addGCPasses();
 
   /// Add standard basic block placement passes.
   virtual void addBlockPlacement();
 
-  /// addPreEmitPass - This pass may be implemented by targets that want to run
-  /// passes immediately before machine code is emitted.  This should return
-  /// true if -print-machineinstrs should print out the code after the passes.
-  virtual bool addPreEmitPass() {
-    return false;
-  }
+  /// This pass may be implemented by targets that want to run passes
+  /// immediately before machine code is emitted.
+  virtual void addPreEmitPass() { }
 
   /// Utilities for targets to add passes to the pass manager.
   ///
 
   /// Add a CodeGen pass at this point in the pipeline after checking overrides.
   /// Return the pass that was added, or zero if no pass was added.
-  AnalysisID addPass(AnalysisID PassID);
+  /// @p printAfter    if true and adding a machine function pass add an extra
+  ///                  machine printer pass afterwards
+  /// @p verifyAfter   if true and adding a machine function pass add an extra
+  ///                  machine verification pass afterwards.
+  AnalysisID addPass(AnalysisID PassID, bool verifyAfter = true,
+                     bool printAfter = true);
 
   /// Add a pass to the PassManager if that pass is supposed to be run, as
-  /// determined by the StartAfter and StopAfter options.
-  void addPass(Pass *P);
+  /// determined by the StartAfter and StopAfter options. Takes ownership of the
+  /// pass.
+  /// @p printAfter    if true and adding a machine function pass add an extra
+  ///                  machine printer pass afterwards
+  /// @p verifyAfter   if true and adding a machine function pass add an extra
+  ///                  machine verification pass afterwards.
+  void addPass(Pass *P, bool verifyAfter = true, bool printAfter = true);
 
   /// addMachinePasses helper to create the target-selected or overriden
   /// regalloc pass.
@@ -265,12 +339,28 @@ protected:
   /// printAndVerify - Add a pass to dump then verify the machine function, if
   /// those steps are enabled.
   ///
-  void printAndVerify(const char *Banner);
+  void printAndVerify(const std::string &Banner);
+
+  /// Add a pass to print the machine function if printing is enabled.
+  void addPrintPass(const std::string &Banner);
+
+  /// Add a pass to perform basic verification of the machine function if
+  /// verification is enabled.
+  void addVerifyPass(const std::string &Banner);
 };
 } // namespace llvm
 
 /// List of target independent CodeGen pass IDs.
 namespace llvm {
+  FunctionPass *createAtomicExpandPass(const TargetMachine *TM);
+
+  /// \brief Create a basic TargetTransformInfo analysis pass.
+  ///
+  /// This pass implements the target transform info analysis using the target
+  /// independent information available to the LLVM code generator.
+  ImmutablePass *
+  createBasicTargetTransformInfoPass(const TargetMachine *TM);
+
   /// createUnreachableBlockEliminationPass - The LLVM code generator does not
   /// work well with unreachable basic blocks (what live ranges make sense for a
   /// block that cannot be reached?).  As such, a code generator should either
@@ -285,14 +375,22 @@ namespace llvm {
   createMachineFunctionPrinterPass(raw_ostream &OS,
                                    const std::string &Banner ="");
 
+  /// createCodeGenPreparePass - Transform the code to expose more pattern
+  /// matching during instruction selection.
+  FunctionPass *createCodeGenPreparePass(const TargetMachine *TM = nullptr);
+
+  /// AtomicExpandID -- Lowers atomic operations in terms of either cmpxchg
+  /// load-linked/store-conditional loops.
+  extern char &AtomicExpandID;
+
   /// MachineLoopInfo - This pass is a loop analysis pass.
   extern char &MachineLoopInfoID;
 
-  /// MachineLoopRanges - This pass is an on-demand loop coverage analysis.
-  extern char &MachineLoopRangesID;
-
   /// MachineDominators - This pass is a machine dominators analysis pass.
   extern char &MachineDominatorsID;
+
+/// MachineDominanaceFrontier - This pass is a machine dominators analysis pass.
+  extern char &MachineDominanceFrontierID;
 
   /// EdgeBundles analysis - Bundle machine CFG edges.
   extern char &EdgeBundlesID;
@@ -306,14 +404,6 @@ namespace llvm {
   /// desired input for some register allocators.  This pass is "required" by
   /// these register allocator like this: AU.addRequiredID(PHIEliminationID);
   extern char &PHIEliminationID;
-
-  /// StrongPHIElimination - This pass eliminates machine instruction PHI
-  /// nodes by inserting copy instructions.  This destroys SSA information, but
-  /// is the desired input for some register allocators.  This pass is
-  /// "required" by these register allocator like this:
-  ///    AU.addRequiredID(PHIEliminationID);
-  ///  This pass is still in development
-  extern char &StrongPHIEliminationID;
 
   /// LiveIntervals - This analysis keeps track of the live ranges of virtual
   /// and physical registers.
@@ -335,6 +425,9 @@ namespace llvm {
 
   /// MachineScheduler - This pass schedules machine instructions.
   extern char &MachineSchedulerID;
+
+  /// PostMachineScheduler - This pass schedules machine instructions postRA.
+  extern char &PostMachineSchedulerID;
 
   /// SpillPlacement analysis. Suggest optimal placement of spill code between
   /// basic blocks.
@@ -404,6 +497,10 @@ namespace llvm {
   /// inserting cmov instructions.
   extern char &EarlyIfConverterID;
 
+  /// This pass performs instruction combining using trace metrics to estimate
+  /// critical-path and resource depth.
+  extern char &MachineCombinerID;
+
   /// StackSlotColoring - This pass performs stack coloring and merging.
   /// It merges disjoint allocas to reduce the stack size.
   extern char &StackColoringID;
@@ -420,10 +517,6 @@ namespace llvm {
   /// information.
   extern char &MachineBlockPlacementStatsID;
 
-  /// Code Placement - This pass optimize code placement and aligns loop
-  /// headers to target specific alignment boundary.
-  extern char &CodePlacementOptID;
-
   /// GCLowering Pass - Performs target-independent LLVM IR transformations for
   /// highly portable strategies.
   ///
@@ -434,10 +527,6 @@ namespace llvm {
   /// prior to output, and importantly after all CFG transformations (such as
   /// branch folding).
   extern char &GCMachineCodeAnalysisID;
-
-  /// Deleter Pass - Releases GC metadata.
-  ///
-  FunctionPass *createGCInfoDeleter();
 
   /// Creates a pass to print GC metadata.
   ///
@@ -469,21 +558,21 @@ namespace llvm {
 
   /// createStackProtectorPass - This pass adds stack protectors to functions.
   ///
-  FunctionPass *createStackProtectorPass(const TargetLowering *tli);
+  FunctionPass *createStackProtectorPass(const TargetMachine *TM);
 
   /// createMachineVerifierPass - This pass verifies cenerated machine code
   /// instructions for correctness.
   ///
-  FunctionPass *createMachineVerifierPass(const char *Banner = 0);
+  FunctionPass *createMachineVerifierPass(const std::string& Banner);
 
   /// createDwarfEHPass - This pass mulches exception handling code into a form
   /// adapted to code generation.  Required if using dwarf exception handling.
-  FunctionPass *createDwarfEHPass(const TargetMachine *tm);
+  FunctionPass *createDwarfEHPass(const TargetMachine *TM);
 
   /// createSjLjEHPreparePass - This pass adapts exception handling code to use
   /// the GCC-style builtin setjmp/longjmp (sjlj) to handling EH control flow.
   ///
-  FunctionPass *createSjLjEHPreparePass(const TargetLowering *tli);
+  FunctionPass *createSjLjEHPreparePass(const TargetMachine *TM);
 
   /// LocalStackSlotAllocation - This pass assigns local frame indices to stack
   /// slots relative to one another and allocates base registers to access them
@@ -509,6 +598,34 @@ namespace llvm {
   /// bundles (created earlier, e.g. during pre-RA scheduling).
   extern char &FinalizeMachineBundlesID;
 
+  /// StackMapLiveness - This pass analyses the register live-out set of
+  /// stackmap/patchpoint intrinsics and attaches the calculated information to
+  /// the intrinsic for later emission to the StackMap.
+  extern char &StackMapLivenessID;
+
+  /// createJumpInstrTables - This pass creates jump-instruction tables.
+  ModulePass *createJumpInstrTablesPass();
+
+  /// createForwardControlFlowIntegrityPass - This pass adds control-flow
+  /// integrity.
+  ModulePass *createForwardControlFlowIntegrityPass();
 } // End llvm namespace
+
+/// This initializer registers TargetMachine constructor, so the pass being
+/// initialized can use target dependent interfaces. Please do not move this
+/// macro to be together with INITIALIZE_PASS, which is a complete target
+/// independent initializer, and we don't want to make libScalarOpts depend
+/// on libCodeGen.
+#define INITIALIZE_TM_PASS(passName, arg, name, cfg, analysis) \
+  static void* initialize##passName##PassOnce(PassRegistry &Registry) { \
+    PassInfo *PI = new PassInfo(name, arg, & passName ::ID, \
+      PassInfo::NormalCtor_t(callDefaultCtor< passName >), cfg, analysis, \
+      PassInfo::TargetMachineCtor_t(callTargetMachineCtor< passName >)); \
+    Registry.registerPass(*PI, true); \
+    return PI; \
+  } \
+  void llvm::initialize##passName##Pass(PassRegistry &Registry) { \
+    CALL_ONCE_INITIALIZATION(initialize##passName##PassOnce) \
+  }
 
 #endif

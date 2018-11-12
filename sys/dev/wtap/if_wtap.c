@@ -421,13 +421,13 @@ wtap_start(struct ifnet *ifp)
 #endif
 		if ((m->m_flags & M_FRAG)){
 			printf("dont support frags\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if(wtap_raw_xmit(ni, m, NULL) < 0){
 			printf("error raw_xmiting\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 	}
@@ -594,7 +594,7 @@ wtap_rx_deliver(struct wtap_softc *sc, struct mbuf *m)
 		if_printf(ifp, "%s: no mbuf!\n", __func__);
 	}
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 	ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 
@@ -649,7 +649,7 @@ wtap_rx_proc(void *arg, int npending)
 			return;
 		}
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 #if 0
 		ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 #endif

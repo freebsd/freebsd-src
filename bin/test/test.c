@@ -63,13 +63,22 @@ error(const char *msg, ...)
 		"-u"|"-g"|"-k"|"-s"|"-t"|"-z"|"-n"|"-o"|"-O"|"-G"|"-L"|"-S";
 
 	binary-operator ::= "="|"!="|"-eq"|"-ne"|"-ge"|"-gt"|"-le"|"-lt"|
-			"-nt"|"-nt[abcm][abcm]"|"-ot"|"-ot[abcm][abcm])"|"-ef";
+			"-nt"|"-ot"|"-ef";
 	operand ::= <any legal UNIX file name>
 */
 
+enum token_types {
+	UNOP = 0x100,
+	BINOP = 0x200,
+	BUNOP = 0x300,
+	BBINOP = 0x400,
+	PAREN = 0x500
+};
+
 enum token {
 	EOI,
-	FILRD,
+	OPERAND,
+	FILRD = UNOP + 1,
 	FILWR,
 	FILEX,
 	FILEXIST,
@@ -85,43 +94,13 @@ enum token {
 	FILSUID,
 	FILSGID,
 	FILSTCK,
-	FILNTAA,
-	FILNTAB,
-	FILNTAC,
-	FILNTAM,
-	FILNTBA,
-	FILNTBB,
-	FILNTBC,
-	FILNTBM,
-	FILNTCA,
-	FILNTCB,
-	FILNTCC,
-	FILNTCM,
-	FILNTMA,
-	FILNTMB,
-	FILNTMC,
-	FILNTMM,
-	FILOTAA,
-	FILOTAB,
-	FILOTAC,
-	FILOTAM,
-	FILOTBA,
-	FILOTBB,
-	FILOTBC,
-	FILOTBM,
-	FILOTCA,
-	FILOTCB,
-	FILOTCC,
-	FILOTCM,
-	FILOTMA,
-	FILOTMB,
-	FILOTMC,
-	FILOTMM,
-	FILEQ,
-	FILUID,
-	FILGID,
 	STREZ,
 	STRNZ,
+	FILUID,
+	FILGID,
+	FILNT = BINOP + 1,
+	FILOT,
+	FILEQ,
 	STREQ,
 	STRNE,
 	STRLT,
@@ -132,115 +111,68 @@ enum token {
 	INTGT,
 	INTLE,
 	INTLT,
-	UNOT,
-	BAND,
+	UNOT = BUNOP + 1,
+	BAND = BBINOP + 1,
 	BOR,
-	LPAREN,
-	RPAREN,
-	OPERAND
+	LPAREN = PAREN + 1,
+	RPAREN
 };
 
-enum token_types {
-	UNOP,
-	BINOP,
-	BUNOP,
-	BBINOP,
-	PAREN
-};
-
-enum time_types {
-	ATIME,
-	BTIME,
-	CTIME,
-	MTIME
-};
+#define TOKEN_TYPE(token) ((token) & 0xff00)
 
 static struct t_op {
-	char op_text[6];
-	char op_num, op_type;
+	char op_text[4];
+	short op_num;
 } const ops [] = {
-	{"-r",	FILRD,	UNOP},
-	{"-w",	FILWR,	UNOP},
-	{"-x",	FILEX,	UNOP},
-	{"-e",	FILEXIST,UNOP},
-	{"-f",	FILREG,	UNOP},
-	{"-d",	FILDIR,	UNOP},
-	{"-c",	FILCDEV,UNOP},
-	{"-b",	FILBDEV,UNOP},
-	{"-p",	FILFIFO,UNOP},
-	{"-u",	FILSUID,UNOP},
-	{"-g",	FILSGID,UNOP},
-	{"-k",	FILSTCK,UNOP},
-	{"-s",	FILGZ,	UNOP},
-	{"-t",	FILTT,	UNOP},
-	{"-z",	STREZ,	UNOP},
-	{"-n",	STRNZ,	UNOP},
-	{"-h",	FILSYM,	UNOP},		/* for backwards compat */
-	{"-O",	FILUID,	UNOP},
-	{"-G",	FILGID,	UNOP},
-	{"-L",	FILSYM,	UNOP},
-	{"-S",	FILSOCK,UNOP},
-	{"=",	STREQ,	BINOP},
-	{"==",	STREQ,	BINOP},
-	{"!=",	STRNE,	BINOP},
-	{"<",	STRLT,	BINOP},
-	{">",	STRGT,	BINOP},
-	{"-eq",	INTEQ,	BINOP},
-	{"-ne",	INTNE,	BINOP},
-	{"-ge",	INTGE,	BINOP},
-	{"-gt",	INTGT,	BINOP},
-	{"-le",	INTLE,	BINOP},
-	{"-lt",	INTLT,	BINOP},
-	{"-nt",	FILNTMM,	BINOP},
-	{"-ntaa",	FILNTAA,	BINOP},
-	{"-ntab",	FILNTAB,	BINOP},
-	{"-ntac",	FILNTAC,	BINOP},
-	{"-ntam",	FILNTAM,	BINOP},
-	{"-ntba",	FILNTBA,	BINOP},
-	{"-ntbb",	FILNTBB,	BINOP},
-	{"-ntbc",	FILNTBC,	BINOP},
-	{"-ntbm",	FILNTBM,	BINOP},
-	{"-ntca",	FILNTCA,	BINOP},
-	{"-ntcb",	FILNTCB,	BINOP},
-	{"-ntcc",	FILNTCC,	BINOP},
-	{"-ntcm",	FILNTCM,	BINOP},
-	{"-ntma",	FILNTMA,	BINOP},
-	{"-ntmb",	FILNTMB,	BINOP},
-	{"-ntmc",	FILNTMC,	BINOP},
-	{"-ntmm",	FILNTMM,	BINOP},
-	{"-ot",	FILOTMM,	BINOP},
-	{"-otaa",	FILOTAA,	BINOP},
-	{"-otab",	FILOTBB,	BINOP},
-	{"-otac",	FILOTAC,	BINOP},
-	{"-otam",	FILOTAM,	BINOP},
-	{"-otba",	FILOTBA,	BINOP},
-	{"-otbb",	FILOTBB,	BINOP},
-	{"-otbc",	FILOTBC,	BINOP},
-	{"-otbm",	FILOTBM,	BINOP},
-	{"-otca",	FILOTCA,	BINOP},
-	{"-otcb",	FILOTCB,	BINOP},
-	{"-otcc",	FILOTCC,	BINOP},
-	{"-otcm",	FILOTCM,	BINOP},
-	{"-otma",	FILOTMA,	BINOP},
-	{"-otmb",	FILOTMB,	BINOP},
-	{"-otmc",	FILOTMC,	BINOP},
-	{"-otmm",	FILOTMM,	BINOP},
-	{"-ef",	FILEQ,	BINOP},
-	{"!",	UNOT,	BUNOP},
-	{"-a",	BAND,	BBINOP},
-	{"-o",	BOR,	BBINOP},
-	{"(",	LPAREN,	PAREN},
-	{")",	RPAREN,	PAREN},
-	{"",	0,	0}
+	{"-r",	FILRD},
+	{"-w",	FILWR},
+	{"-x",	FILEX},
+	{"-e",	FILEXIST},
+	{"-f",	FILREG},
+	{"-d",	FILDIR},
+	{"-c",	FILCDEV},
+	{"-b",	FILBDEV},
+	{"-p",	FILFIFO},
+	{"-u",	FILSUID},
+	{"-g",	FILSGID},
+	{"-k",	FILSTCK},
+	{"-s",	FILGZ},
+	{"-t",	FILTT},
+	{"-z",	STREZ},
+	{"-n",	STRNZ},
+	{"-h",	FILSYM},		/* for backwards compat */
+	{"-O",	FILUID},
+	{"-G",	FILGID},
+	{"-L",	FILSYM},
+	{"-S",	FILSOCK},
+	{"=",	STREQ},
+	{"==",	STREQ},
+	{"!=",	STRNE},
+	{"<",	STRLT},
+	{">",	STRGT},
+	{"-eq",	INTEQ},
+	{"-ne",	INTNE},
+	{"-ge",	INTGE},
+	{"-gt",	INTGT},
+	{"-le",	INTLE},
+	{"-lt",	INTLT},
+	{"-nt",	FILNT},
+	{"-ot",	FILOT},
+	{"-ef",	FILEQ},
+	{"!",	UNOT},
+	{"-a",	BAND},
+	{"-o",	BOR},
+	{"(",	LPAREN},
+	{")",	RPAREN},
+	{"",	0}
 };
 
-static struct t_op const *t_wp_op;
 static int nargc;
 static char **t_wp;
 static int parenlevel;
 
 static int	aexpr(enum token);
-static int	binop(void);
+static int	binop(enum token);
 static int	equalf(const char *, const char *);
 static int	filstat(char *, enum token);
 static int	getn(const char *);
@@ -249,10 +181,10 @@ static int	intcmp(const char *, const char *);
 static int	isunopoperand(void);
 static int	islparenoperand(void);
 static int	isrparenoperand(void);
-static int	newerf(const char *, const char *, enum time_types,
-		       enum time_types);
+static int	newerf(const char *, const char *);
 static int	nexpr(enum token);
 static int	oexpr(enum token);
+static int	olderf(const char *, const char *);
 static int	primary(enum token);
 static void	syntax(const char *, const char *);
 static enum	token t_lex(char *);
@@ -364,10 +296,10 @@ primary(enum token n)
 		parenlevel--;
 		return res;
 	}
-	if (t_wp_op && t_wp_op->op_type == UNOP) {
+	if (TOKEN_TYPE(n) == UNOP) {
 		/* unary expression */
 		if (--nargc == 0)
-			syntax(t_wp_op->op_text, "argument expected");
+			syntax(NULL, "argument expected"); /* impossible */
 		switch (n) {
 		case STREZ:
 			return strlen(*++t_wp) == 0;
@@ -380,28 +312,25 @@ primary(enum token n)
 		}
 	}
 
-	if (t_lex(nargc > 0 ? t_wp[1] : NULL), t_wp_op && t_wp_op->op_type ==
-	    BINOP) {
-		return binop();
-	}
+	nn = t_lex(nargc > 0 ? t_wp[1] : NULL);
+	if (TOKEN_TYPE(nn) == BINOP)
+		return binop(nn);
 
 	return strlen(*t_wp) > 0;
 }
 
 static int
-binop(void)
+binop(enum token n)
 {
-	const char *opnd1, *opnd2;
-	struct t_op const *op;
+	const char *opnd1, *op, *opnd2;
 
 	opnd1 = *t_wp;
-	(void) t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL);
-	op = t_wp_op;
+	op = nargc > 0 ? (--nargc, *++t_wp) : NULL;
 
 	if ((opnd2 = nargc > 0 ? (--nargc, *++t_wp) : NULL) == NULL)
-		syntax(op->op_text, "argument expected");
+		syntax(op, "argument expected");
 
-	switch (op->op_num) {
+	switch (n) {
 	case STREQ:
 		return strcmp(opnd1, opnd2) == 0;
 	case STRNE:
@@ -422,70 +351,10 @@ binop(void)
 		return intcmp(opnd1, opnd2) <= 0;
 	case INTLT:
 		return intcmp(opnd1, opnd2) < 0;
-	case FILNTAA:
-		return newerf(opnd1, opnd2, ATIME, ATIME);
-	case FILNTAB:
-		return newerf(opnd1, opnd2, ATIME, BTIME);
-	case FILNTAC:
-		return newerf(opnd1, opnd2, ATIME, CTIME);
-	case FILNTAM:
-		return newerf(opnd1, opnd2, ATIME, MTIME);
-	case FILNTBA:
-		return newerf(opnd1, opnd2, BTIME, ATIME);
-	case FILNTBB:
-		return newerf(opnd1, opnd2, BTIME, BTIME);
-	case FILNTBC:
-		return newerf(opnd1, opnd2, BTIME, CTIME);
-	case FILNTBM:
-		return newerf(opnd1, opnd2, BTIME, MTIME);
-	case FILNTCA:
-		return newerf(opnd1, opnd2, CTIME, ATIME);
-	case FILNTCB:
-		return newerf(opnd1, opnd2, CTIME, BTIME);
-	case FILNTCC:
-		return newerf(opnd1, opnd2, CTIME, CTIME);
-	case FILNTCM:
-		return newerf(opnd1, opnd2, CTIME, MTIME);
-	case FILNTMA:
-		return newerf(opnd1, opnd2, MTIME, ATIME);
-	case FILNTMB:
-		return newerf(opnd1, opnd2, MTIME, BTIME);
-	case FILNTMC:
-		return newerf(opnd1, opnd2, MTIME, CTIME);
-	case FILNTMM:
-		return newerf(opnd1, opnd2, MTIME, MTIME);
-	case FILOTAA:
-		return newerf(opnd2, opnd1, ATIME, ATIME);
-	case FILOTAB:
-		return newerf(opnd2, opnd1, BTIME, ATIME);
-	case FILOTAC:
-		return newerf(opnd2, opnd1, CTIME, ATIME);
-	case FILOTAM:
-		return newerf(opnd2, opnd1, MTIME, ATIME);
-	case FILOTBA:
-		return newerf(opnd2, opnd1, ATIME, BTIME);
-	case FILOTBB:
-		return newerf(opnd2, opnd1, BTIME, BTIME);
-	case FILOTBC:
-		return newerf(opnd2, opnd1, CTIME, BTIME);
-	case FILOTBM:
-		return newerf(opnd2, opnd1, MTIME, BTIME);
-	case FILOTCA:
-		return newerf(opnd2, opnd1, ATIME, CTIME);
-	case FILOTCB:
-		return newerf(opnd2, opnd1, BTIME, CTIME);
-	case FILOTCC:
-		return newerf(opnd2, opnd1, CTIME, CTIME);
-	case FILOTCM:
-		return newerf(opnd2, opnd1, MTIME, CTIME);
-	case FILOTMA:
-		return newerf(opnd2, opnd1, ATIME, MTIME);
-	case FILOTMB:
-		return newerf(opnd2, opnd1, BTIME, MTIME);
-	case FILOTMC:
-		return newerf(opnd2, opnd1, CTIME, MTIME);
-	case FILOTMM:
-		return newerf(opnd2, opnd1, MTIME, MTIME);
+	case FILNT:
+		return newerf (opnd1, opnd2);
+	case FILOT:
+		return olderf (opnd1, opnd2);
 	case FILEQ:
 		return equalf (opnd1, opnd2);
 	default:
@@ -553,22 +422,20 @@ t_lex(char *s)
 	struct t_op const *op = ops;
 
 	if (s == 0) {
-		t_wp_op = NULL;
 		return EOI;
 	}
 	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0) {
-			if (((op->op_type == UNOP || op->op_type == BUNOP)
+			if (((TOKEN_TYPE(op->op_num) == UNOP ||
+			    TOKEN_TYPE(op->op_num) == BUNOP)
 						&& isunopoperand()) ||
 			    (op->op_num == LPAREN && islparenoperand()) ||
 			    (op->op_num == RPAREN && isrparenoperand()))
 				break;
-			t_wp_op = op;
 			return op->op_num;
 		}
 		op++;
 	}
-	t_wp_op = NULL;
 	return OPERAND;
 }
 
@@ -587,7 +454,7 @@ isunopoperand(void)
 	t = *(t_wp + 2);
 	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
-			return op->op_type == BINOP &&
+			return TOKEN_TYPE(op->op_num) == BINOP &&
 			    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
 		op++;
 	}
@@ -609,7 +476,7 @@ islparenoperand(void)
 		return 0;
 	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
-			return op->op_type == BINOP;
+			return TOKEN_TYPE(op->op_num) == BINOP;
 		op++;
 	}
 	return 0;
@@ -699,34 +566,25 @@ intcmp (const char *s1, const char *s2)
 }
 
 static int
-newerf (const char *f1, const char *f2, enum time_types t1, enum time_types t2)
+newerf (const char *f1, const char *f2)
 {
 	struct stat b1, b2;
-	struct timespec *ts1, *ts2;
 
 	if (stat(f1, &b1) != 0 || stat(f2, &b2) != 0)
 		return 0;
 
-	switch (t1) {
-	case ATIME:	ts1 = &b1.st_atim;	break;
-	case BTIME:	ts1 = &b1.st_birthtim;	break;
-	case CTIME:	ts1 = &b1.st_ctim;	break;
-	default:	ts1 = &b1.st_mtim;	break;
-	}
-
-	switch (t2) {
-	case ATIME:	ts2 = &b2.st_atim;	break;
-	case BTIME:	ts2 = &b2.st_birthtim;	break;
-	case CTIME:	ts2 = &b2.st_ctim;	break;
-	default:	ts2 = &b2.st_mtim;	break;
-	}
-
-	if (ts1->tv_sec > ts2->tv_sec)
+	if (b1.st_mtim.tv_sec > b2.st_mtim.tv_sec)
 		return 1;
-	if (ts1->tv_sec < ts2->tv_sec)
+	if (b1.st_mtim.tv_sec < b2.st_mtim.tv_sec)
 		return 0;
 
-       return (ts1->tv_nsec > ts2->tv_nsec);
+       return (b1.st_mtim.tv_nsec > b2.st_mtim.tv_nsec);
+}
+
+static int
+olderf (const char *f1, const char *f2)
+{
+	return (newerf(f2, f1));
 }
 
 static int

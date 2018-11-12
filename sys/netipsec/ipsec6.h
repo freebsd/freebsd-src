@@ -41,14 +41,17 @@
 #include <netipsec/keydb.h>
 
 #ifdef _KERNEL
-VNET_DECLARE(struct ipsecstat, ipsec6stat);
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct ipsecstat, ipsec6stat);
 VNET_DECLARE(int, ip6_esp_trans_deflev);
 VNET_DECLARE(int, ip6_esp_net_deflev);
 VNET_DECLARE(int, ip6_ah_trans_deflev);
 VNET_DECLARE(int, ip6_ah_net_deflev);
 VNET_DECLARE(int, ip6_ipsec_ecn);
 
-#define	V_ipsec6stat		VNET(ipsec6stat)
+#define	IPSEC6STAT_INC(name)	\
+    VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec6stat, name, 1)
 #define	V_ip6_esp_trans_deflev	VNET(ip6_esp_trans_deflev)
 #define	V_ip6_esp_net_deflev	VNET(ip6_esp_net_deflev)
 #define	V_ip6_ah_trans_deflev	VNET(ip6_ah_trans_deflev)
@@ -56,23 +59,14 @@ VNET_DECLARE(int, ip6_ipsec_ecn);
 #define	V_ip6_ipsec_ecn		VNET(ip6_ipsec_ecn)
 
 struct inpcb;
-
-extern int ipsec6_in_reject __P((struct mbuf *, struct inpcb *));
-
-struct ip6_hdr;
-extern const char *ipsec6_logpacketstr __P((struct ip6_hdr *, u_int32_t));
+extern int ipsec6_in_reject(struct mbuf *, struct inpcb *);
 
 struct m_tag;
 extern int ipsec6_common_input(struct mbuf **mp, int *offp, int proto);
 extern int ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff, struct m_tag *mt);
+			int skip, int protoff);
 extern void esp6_ctlinput(int, struct sockaddr *, void *);
-
-struct ipsec_output_state;
-extern int ipsec6_output_trans __P((struct ipsec_output_state *, u_char *,
-	struct mbuf *, struct secpolicy *, int, int *));
-extern int ipsec6_output_tunnel __P((struct ipsec_output_state *,
-	struct secpolicy *, int));
+extern int ipsec6_process_packet(struct mbuf *, struct ipsecrequest *);
 #endif /*_KERNEL*/
 
 #endif /*_NETIPSEC_IPSEC6_H_*/

@@ -6,7 +6,7 @@ ippool \- user interface to the IPFilter pools
 .SH SYNOPSIS
 .br
 .B ippool
--a [-dnv] [-m <name>] [-o <role>] -i <ipaddr>[/<netmask>]
+-a [-dnv] [-m <name>] [-o <role>] [-t <type>] [-T ttl] -i <ipaddr>[/<netmask>]
 .br
 .B ippool
 -A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]
@@ -21,7 +21,7 @@ ippool \- user interface to the IPFilter pools
 -l [-dv] [-m <name>] [-t <type>]
 .br
 .B ippool
--r [-dnv] [-m <name>] [-o <role>] -i <ipaddr>[/<netmask>]
+-r [-dnv] [-m <name>] [-o <role>] [-t <type>] -i <ipaddr>[/<netmask>]
 .br
 .B ippool
 -R [-dnv] [-m <name>] [-o <role>] [-t <type>]
@@ -109,6 +109,13 @@ type pools.
 .TP
 .B -t <type>
 Sets the type of pool being defined.  Myst be one of
+.B tree,
+.B hash,
+.B group-map.
+.TP
+.B -T <ttl>
+Sets the expiration of the node being added. The timeout is expressed
+as a number of seconds.
 .B tree,
 .B hash,
 .B group-map.

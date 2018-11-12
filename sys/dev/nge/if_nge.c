@@ -109,6 +109,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -963,7 +964,7 @@ nge_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * Hookup IRQ last.
@@ -1224,31 +1225,29 @@ nge_dma_free(struct nge_softc *sc)
 
 	/* Tx ring. */
 	if (sc->nge_cdata.nge_tx_ring_tag) {
-		if (sc->nge_cdata.nge_tx_ring_map)
+		if (sc->nge_rdata.nge_tx_ring_paddr)
 			bus_dmamap_unload(sc->nge_cdata.nge_tx_ring_tag,
 			    sc->nge_cdata.nge_tx_ring_map);
-		if (sc->nge_cdata.nge_tx_ring_map &&
-		    sc->nge_rdata.nge_tx_ring)
+		if (sc->nge_rdata.nge_tx_ring)
 			bus_dmamem_free(sc->nge_cdata.nge_tx_ring_tag,
 			    sc->nge_rdata.nge_tx_ring,
 			    sc->nge_cdata.nge_tx_ring_map);
 		sc->nge_rdata.nge_tx_ring = NULL;
-		sc->nge_cdata.nge_tx_ring_map = NULL;
+		sc->nge_rdata.nge_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->nge_cdata.nge_tx_ring_tag);
 		sc->nge_cdata.nge_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->nge_cdata.nge_rx_ring_tag) {
-		if (sc->nge_cdata.nge_rx_ring_map)
+		if (sc->nge_rdata.nge_rx_ring_paddr)
 			bus_dmamap_unload(sc->nge_cdata.nge_rx_ring_tag,
 			    sc->nge_cdata.nge_rx_ring_map);
-		if (sc->nge_cdata.nge_rx_ring_map &&
-		    sc->nge_rdata.nge_rx_ring)
+		if (sc->nge_rdata.nge_rx_ring)
 			bus_dmamem_free(sc->nge_cdata.nge_rx_ring_tag,
 			    sc->nge_rdata.nge_rx_ring,
 			    sc->nge_cdata.nge_rx_ring_map);
 		sc->nge_rdata.nge_rx_ring = NULL;
-		sc->nge_cdata.nge_rx_ring_map = NULL;
+		sc->nge_rdata.nge_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->nge_cdata.nge_rx_ring_tag);
 		sc->nge_cdata.nge_rx_ring_tag = NULL;
 	}
@@ -1477,7 +1476,7 @@ nge_rxeof(struct nge_softc *sc)
 
 		if ((cmdsts & NGE_CMDSTS_MORE) != 0) {
 			if (nge_newbuf(sc, cons) != 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				if (sc->nge_head != NULL) {
 					m_freem(sc->nge_head);
 					sc->nge_head = sc->nge_tail = NULL;
@@ -1527,7 +1526,7 @@ nge_rxeof(struct nge_softc *sc)
 		/* Try conjure up a replacement mbuf. */
 
 		if (nge_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			if (sc->nge_head != NULL) {
 				m_freem(sc->nge_head);
 				sc->nge_head = sc->nge_tail = NULL;
@@ -1564,7 +1563,7 @@ nge_rxeof(struct nge_softc *sc)
 		nge_fixup_rx(m);
 #endif
 		m->m_pkthdr.rcvif = ifp;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		if ((ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 			/* Do IP checksum checking. */
@@ -1651,15 +1650,15 @@ nge_txeof(struct nge_softc *sc)
 		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(sc->nge_cdata.nge_tx_tag, txd->tx_dmamap);
 		if ((cmdsts & NGE_CMDSTS_PKT_OK) == 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if ((cmdsts & NGE_TXSTAT_EXCESSCOLLS) != 0)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if ((cmdsts & NGE_TXSTAT_OUTOFWINCOLL) != 0)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		} else
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
-		ifp->if_collisions += (cmdsts & NGE_TXSTAT_COLLCNT) >> 16;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (cmdsts & NGE_TXSTAT_COLLCNT) >> 16);
 		KASSERT(txd->tx_m != NULL, ("%s: freeing NULL mbuf!\n",
 		    __func__));
 		m_freem(txd->tx_m);
@@ -1731,8 +1730,9 @@ nge_stats_update(struct nge_softc *sc)
 	/*
 	 * Since we've accept errored frames exclude Rx length errors.
 	 */
-	ifp->if_ierrors += stats->rx_pkts_errs + stats->rx_crc_errs +
-	    stats->rx_fifo_oflows + stats->rx_sym_errs;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    stats->rx_pkts_errs + stats->rx_crc_errs +
+	    stats->rx_fifo_oflows + stats->rx_sym_errs);
 
 	nstats = &sc->nge_stats;
 	nstats->rx_pkts_errs += stats->rx_pkts_errs;
@@ -2102,27 +2102,6 @@ nge_init_locked(struct nge_softc *sc)
 	 */
 	nge_list_tx_init(sc);
 
-	/*
-	 * For the NatSemi chip, we have to explicitly enable the
-	 * reception of ARP frames, as well as turn on the 'perfect
-	 * match' filter where we store the station address, otherwise
-	 * we won't receive unicasts meant for this host.
-	 */
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_ARP);
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_PERFECT);
-
-	/*
-	 * Set the capture broadcast bit to capture broadcast frames.
-	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_BROAD);
-	} else {
-		NGE_CLRBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_BROAD);
-	}
-
-	/* Turn the receive filter on. */
-	NGE_SETBIT(sc, NGE_RXFILT_CTL, NGE_RXFILTCTL_ENABLE);
-
 	/* Set Rx filter. */
 	nge_rxfilter(sc);
 
@@ -2335,9 +2314,9 @@ nge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		NGE_LOCK(sc);
-		nge_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			nge_rxfilter(sc);
 		NGE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -2436,7 +2415,7 @@ nge_watchdog(struct nge_softc *sc)
 		return;
 
 	ifp = sc->nge_ifp;
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

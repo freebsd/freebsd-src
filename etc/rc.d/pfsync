@@ -42,7 +42,7 @@ pfsync_start()
 pfsync_stop()
 {
 	echo "Disabling pfsync."
-	ifconfig pfsync0 -syncdev down
+	ifconfig pfsync0 -syncdev -syncpeer down
 }
 
 load_rc_config $name

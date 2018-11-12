@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -111,7 +112,7 @@ MODULE_DEPEND(txp, ether, 1, 1, 1);
  *    restriction by copying received frame to align the frame on
  *    32bit boundary on strict-alignment architectures. This adds a
  *    lot of CPU burden and it effectively reduce Rx performance on
- *    strict-alignment architectures(e.g. sparc64, arm, mips and ia64).
+ *    strict-alignment architectures(e.g. sparc64, arm and mips).
  *
  * Unfortunately it seems that 3Com have no longer interests in
  * releasing fixed firmware so we may have to live with these bugs.
@@ -148,6 +149,7 @@ static int txp_intr(void *);
 static void txp_int_task(void *, int);
 static void txp_tick(void *);
 static int txp_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t txp_get_counter(struct ifnet *, ift_counter);
 static void txp_start(struct ifnet *);
 static void txp_start_locked(struct ifnet *);
 static int txp_encap(struct txp_softc *, struct txp_tx_ring *, struct mbuf **);
@@ -168,8 +170,8 @@ static int txp_alloc_rings(struct txp_softc *);
 static void txp_init_rings(struct txp_softc *);
 static int txp_dma_alloc(struct txp_softc *, char *, bus_dma_tag_t *,
     bus_size_t, bus_size_t, bus_dmamap_t *, void **, bus_size_t, bus_addr_t *);
-static void txp_dma_free(struct txp_softc *, bus_dma_tag_t *, bus_dmamap_t *,
-    void **);
+static void txp_dma_free(struct txp_softc *, bus_dma_tag_t *, bus_dmamap_t,
+    void **, bus_addr_t *);
 static void txp_free_rings(struct txp_softc *);
 static int txp_rxring_fill(struct txp_softc *);
 static void txp_rxring_empty(struct txp_softc *);
@@ -412,6 +414,7 @@ txp_attach(device_t dev)
 	ifp->if_ioctl = txp_ioctl;
 	ifp->if_start = txp_start;
 	ifp->if_init = txp_init;
+	ifp->if_get_counter = txp_get_counter;
 	ifp->if_snd.ifq_drv_maxlen = TX_ENTRIES - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -435,7 +438,7 @@ txp_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	WRITE_REG(sc, TXP_IER, TXP_INTR_NONE);
 	WRITE_REG(sc, TXP_IMR, TXP_INTR_ALL);
@@ -786,7 +789,7 @@ txp_download_fw_section(struct txp_softc *sc,
 
 	bus_dmamap_sync(sec_tag, sec_map, BUS_DMASYNC_POSTWRITE);
 bail:
-	txp_dma_free(sc, &sec_tag, &sec_map, (void **)&sec_buf);
+	txp_dma_free(sc, &sec_tag, sec_map, (void **)&sec_buf, &sec_paddr);
 	return (err);
 }
 
@@ -1264,17 +1267,17 @@ txp_dma_alloc(struct txp_softc *sc, char *type, bus_dma_tag_t *tag,
 }
 
 static void
-txp_dma_free(struct txp_softc *sc, bus_dma_tag_t *tag, bus_dmamap_t *map,
-    void **buf)
+txp_dma_free(struct txp_softc *sc, bus_dma_tag_t *tag, bus_dmamap_t map,
+    void **buf, bus_addr_t *paddr)
 {
 
 	if (*tag != NULL) {
-		if (*map != NULL)
-			bus_dmamap_unload(*tag, *map);
-		if (*map != NULL && buf != NULL)
-			bus_dmamem_free(*tag, *(uint8_t **)buf, *map);
+		if (*paddr != 0)
+			bus_dmamap_unload(*tag, map);
+		if (buf != NULL)
+			bus_dmamem_free(*tag, *(uint8_t **)buf, map);
 		*(uint8_t **)buf = NULL;
-		*map = NULL;
+		*paddr = 0;
 		bus_dma_tag_destroy(*tag);
 		*tag = NULL;
 	}
@@ -1648,38 +1651,48 @@ txp_free_rings(struct txp_softc *sc)
 
 	/* Hi priority Tx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_txhiring_tag,
-	    &sc->sc_cdata.txp_txhiring_map,
-	    (void **)&sc->sc_ldata.txp_txhiring);
+	    sc->sc_cdata.txp_txhiring_map,
+	    (void **)&sc->sc_ldata.txp_txhiring,
+	    &sc->sc_ldata.txp_txhiring_paddr);
 	/* Low priority Tx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_txloring_tag,
-	    &sc->sc_cdata.txp_txloring_map,
-	    (void **)&sc->sc_ldata.txp_txloring);
+	    sc->sc_cdata.txp_txloring_map,
+	    (void **)&sc->sc_ldata.txp_txloring,
+	    &sc->sc_ldata.txp_txloring_paddr);
 	/* Hi priority Rx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rxhiring_tag,
-	    &sc->sc_cdata.txp_rxhiring_map,
-	    (void **)&sc->sc_ldata.txp_rxhiring);
+	    sc->sc_cdata.txp_rxhiring_map,
+	    (void **)&sc->sc_ldata.txp_rxhiring,
+	    &sc->sc_ldata.txp_rxhiring_paddr);
 	/* Low priority Rx ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rxloring_tag,
-	    &sc->sc_cdata.txp_rxloring_map,
-	    (void **)&sc->sc_ldata.txp_rxloring);
+	    sc->sc_cdata.txp_rxloring_map,
+	    (void **)&sc->sc_ldata.txp_rxloring,
+	    &sc->sc_ldata.txp_rxloring_paddr);
 	/* Receive buffer ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rxbufs_tag,
-	    &sc->sc_cdata.txp_rxbufs_map, (void **)&sc->sc_ldata.txp_rxbufs);
+	    sc->sc_cdata.txp_rxbufs_map, (void **)&sc->sc_ldata.txp_rxbufs,
+	    &sc->sc_ldata.txp_rxbufs_paddr);
 	/* Command ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_cmdring_tag,
-	    &sc->sc_cdata.txp_cmdring_map, (void **)&sc->sc_ldata.txp_cmdring);
+	    sc->sc_cdata.txp_cmdring_map, (void **)&sc->sc_ldata.txp_cmdring,
+	    &sc->sc_ldata.txp_cmdring_paddr);
 	/* Response ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_rspring_tag,
-	    &sc->sc_cdata.txp_rspring_map, (void **)&sc->sc_ldata.txp_rspring);
+	    sc->sc_cdata.txp_rspring_map, (void **)&sc->sc_ldata.txp_rspring,
+	    &sc->sc_ldata.txp_rspring_paddr);
 	/* Zero ring. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_zero_tag,
-	    &sc->sc_cdata.txp_zero_map, (void **)&sc->sc_ldata.txp_zero);
+	    sc->sc_cdata.txp_zero_map, (void **)&sc->sc_ldata.txp_zero,
+	    &sc->sc_ldata.txp_zero_paddr);
 	/* Host variables. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_hostvar_tag,
-	    &sc->sc_cdata.txp_hostvar_map, (void **)&sc->sc_ldata.txp_hostvar);
+	    sc->sc_cdata.txp_hostvar_map, (void **)&sc->sc_ldata.txp_hostvar,
+	    &sc->sc_ldata.txp_hostvar_paddr);
 	/* Boot record. */
 	txp_dma_free(sc, &sc->sc_cdata.txp_boot_tag,
-	    &sc->sc_cdata.txp_boot_map, (void **)&sc->sc_ldata.txp_boot);
+	    sc->sc_cdata.txp_boot_map, (void **)&sc->sc_ldata.txp_boot,
+	    &sc->sc_ldata.txp_boot_paddr);
 
 	if (sc->sc_cdata.txp_parent_tag != NULL) {
 		bus_dma_tag_destroy(sc->sc_cdata.txp_parent_tag);
@@ -2529,7 +2542,7 @@ txp_watchdog(struct txp_softc *sc)
 
 	ifp = sc->sc_ifp;
 	if_printf(ifp, "watchdog timeout -- resetting\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	txp_stop(sc);
 	txp_init_locked(sc);
 }
@@ -2805,13 +2818,11 @@ out:
 static void
 txp_stats_update(struct txp_softc *sc, struct txp_rsp_desc *rsp)
 {
-	struct ifnet *ifp;
 	struct txp_hw_stats *ostats, *stats;
 	struct txp_ext_desc *ext;
 
 	TXP_LOCK_ASSERT(sc);
 
-	ifp = sc->sc_ifp;
 	ext = (struct txp_ext_desc *)(rsp + 1);
 	ostats = &sc->sc_ostats;
 	stats = &sc->sc_stats;
@@ -2845,15 +2856,34 @@ txp_stats_update(struct txp_softc *sc, struct txp_rsp_desc *rsp)
 	    le32toh(ext[4].ext_3);
 	stats->rx_oflows = ostats->rx_oflows + le32toh(ext[4].ext_4);
 	stats->rx_filtered = ostats->rx_filtered + le32toh(ext[5].ext_1);
+}
 
-	ifp->if_ierrors = stats->rx_fifo_oflows + stats->rx_badssd +
-	    stats->rx_crcerrs + stats->rx_lenerrs + stats->rx_oflows;
-	ifp->if_oerrors = stats->tx_deferred + stats->tx_carrier_lost +
-	    stats->tx_fifo_underruns + stats->tx_mcast_oflows;
-	ifp->if_collisions = stats->tx_late_colls + stats->tx_multi_colls +
-	    stats->tx_excess_colls;
-	ifp->if_opackets = stats->tx_frames;
-	ifp->if_ipackets = stats->rx_frames;
+static uint64_t
+txp_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct txp_softc *sc;
+	struct txp_hw_stats *stats;
+
+	sc = if_getsoftc(ifp);
+	stats = &sc->sc_stats;
+
+	switch (cnt) {
+	case IFCOUNTER_IERRORS:
+		return (stats->rx_fifo_oflows + stats->rx_badssd +
+		    stats->rx_crcerrs + stats->rx_lenerrs + stats->rx_oflows);
+	case IFCOUNTER_OERRORS:
+		return (stats->tx_deferred + stats->tx_carrier_lost +
+		    stats->tx_fifo_underruns + stats->tx_mcast_oflows);
+	case IFCOUNTER_COLLISIONS:
+		return (stats->tx_late_colls + stats->tx_multi_colls +
+		    stats->tx_excess_colls);
+	case IFCOUNTER_OPACKETS:
+		return (stats->tx_frames);
+	case IFCOUNTER_IPACKETS:
+		return (stats->rx_frames);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 #define	TXP_SYSCTL_STAT_ADD32(c, h, n, p, d)	\

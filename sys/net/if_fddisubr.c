@@ -36,10 +36,8 @@
  * $FreeBSD$
  */
 
-#include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +49,7 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_llc.h>
 #include <net/if_types.h>
@@ -71,23 +70,9 @@
 #include <netinet6/nd6.h>
 #endif
 
-#ifdef IPX
-#include <netipx/ipx.h> 
-#include <netipx/ipx_if.h>
-#endif
-
 #ifdef DECNET
 #include <netdnet/dn.h>
 #endif
-
-#ifdef NETATALK
-#include <netatalk/at.h>
-#include <netatalk/at_var.h>
-#include <netatalk/at_extern.h>
-
-extern u_char	at_org_code[ 3 ];
-extern u_char	aarp_org_code[ 3 ];
-#endif /* NETATALK */
 
 #include <security/mac/mac_framework.h>
 
@@ -96,7 +81,7 @@ static const u_char fddibroadcastaddr[FDDI_ADDR_LEN] =
 
 static int fddi_resolvemulti(struct ifnet *, struct sockaddr **,
 			      struct sockaddr *);
-static int fddi_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+static int fddi_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 		       struct route *); 
 static void fddi_input(struct ifnet *ifp, struct mbuf *m);
 
@@ -107,21 +92,17 @@ static void fddi_input(struct ifnet *ifp, struct mbuf *m);
  * Encapsulate a packet of type family for the local net.
  * Use trailer local net encapsulation if enough data in first
  * packet leaves a multiple of 512 bytes of data in remainder.
- * Assumes that ifp is actually pointer to arpcom structure.
  */
 static int
-fddi_output(ifp, m, dst, ro)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct route *ro;
+fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
+	struct route *ro)
 {
 	u_int16_t type;
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
+#ifdef INET
+	int is_gw;
 #endif
 
 #ifdef MAC
@@ -140,11 +121,11 @@ fddi_output(ifp, m, dst, ro)
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
-		struct rtentry *rt0 = NULL;
-
-		if (ro != NULL)
-			rt0 = ro->ro_rt;
-		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+		is_gw = 0;
+		if (ro != NULL && ro->ro_rt != NULL &&
+		    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
+		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -180,68 +161,29 @@ fddi_output(ifp, m, dst, ro)
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
 		if (error)
 			return (error); /* Something bad happened */
 		type = htons(ETHERTYPE_IPV6);
 		break;
 #endif /* INET6 */
-#ifdef IPX
-	case AF_IPX:
-		type = htons(ETHERTYPE_IPX);
- 		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
-		    (caddr_t)edst, FDDI_ADDR_LEN);
-		break;
-#endif /* IPX */
-#ifdef NETATALK
-	case AF_APPLETALK: {
-	    struct at_ifaddr *aa;
-            if (!aarpresolve(ifp, m, (struct sockaddr_at *)dst, edst))
-                return (0);
-	    /*
-	     * ifaddr is the first thing in at_ifaddr
-	     */
-	    if ((aa = at_ifawithnet( (struct sockaddr_at *)dst)) == 0)
-		goto bad;
-	    
-	    /*
-	     * In the phase 2 case, we need to prepend an mbuf for the llc header.
-	     * Since we must preserve the value of m, which is passed to us by
-	     * value, we m_copy() the first mbuf, and use it for our llc header.
-	     */
-	    if (aa->aa_flags & AFA_PHASE2) {
-		struct llc llc;
-
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAITOK);
-		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
-		llc.llc_control = LLC_UI;
-		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));
-		llc.llc_snap.ether_type = htons(ETHERTYPE_AT);
-		bcopy(&llc, mtod(m, caddr_t), LLC_SNAPFRAMELEN);
-		type = 0;
-	    } else {
-		type = htons(ETHERTYPE_AT);
-	    }
-	    ifa_free(&aa->aa_ifa);
-	    break;
-	}
-#endif /* NETATALK */
-
 	case pseudo_AF_HDRCMPLT:
 	{
-		struct ether_header *eh;
+		const struct ether_header *eh;
+
 		hdrcmplt = 1;
-		eh = (struct ether_header *)dst->sa_data;
-		bcopy((caddr_t)eh->ether_shost, (caddr_t)esrc, FDDI_ADDR_LEN);
+		eh = (const struct ether_header *)dst->sa_data;
+		bcopy(eh->ether_shost, esrc, FDDI_ADDR_LEN);
 		/* FALLTHROUGH */
 	}
 
 	case AF_UNSPEC:
 	{
-		struct ether_header *eh;
+		const struct ether_header *eh;
+
 		loop_copy = -1;
-		eh = (struct ether_header *)dst->sa_data;
-		bcopy((caddr_t)eh->ether_dhost, (caddr_t)edst, FDDI_ADDR_LEN);
+		eh = (const struct ether_header *)dst->sa_data;
+		bcopy(eh->ether_dhost, edst, FDDI_ADDR_LEN);
 		if (*edst & 1)
 			m->m_flags |= (M_BCAST|M_MCAST);
 		type = eh->ether_type;
@@ -345,12 +287,12 @@ fddi_output(ifp, m, dst, ro)
 
 	error = (ifp->if_transmit)(ifp, m);
 	if (error)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	return (error);
 
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if (m)
 		m_freem(m);
 	return (error);
@@ -374,24 +316,23 @@ fddi_input(ifp, m)
 	 */
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		if_printf(ifp, "discard frame w/o packet header\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
 	if (m->m_pkthdr.rcvif == NULL) {
 		if_printf(ifp, "discard frame w/o interface pointer\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
         }
 
 	m = m_pullup(m, FDDI_HDR_LEN);
 	if (m == NULL) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto dropanyway;
 	}
 	fh = mtod(m, struct fddi_header *);
-	m->m_pkthdr.header = (void *)fh;
 
 	/*
 	 * Discard packet if interface is not up.
@@ -420,7 +361,7 @@ fddi_input(ifp, m)
 	/*
 	 * Update interface statistics.
 	 */
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	getmicrotime(&ifp->if_lastchange);
 
 	/*
@@ -441,7 +382,7 @@ fddi_input(ifp, m)
 			m->m_flags |= M_BCAST;
 		else
 			m->m_flags |= M_MCAST;
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 	}
 
 #ifdef M_LINK0
@@ -459,7 +400,7 @@ fddi_input(ifp, m)
 
 	m = m_pullup(m, LLC_SNAPFRAMELEN);
 	if (m == 0) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		goto dropanyway;
 	}
 	l = mtod(m, struct llc *);
@@ -470,30 +411,13 @@ fddi_input(ifp, m)
 		u_int16_t type;
 		if ((l->llc_control != LLC_UI) ||
 		    (l->llc_ssap != LLC_SNAP_LSAP)) {
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto dropanyway;
 		}
-#ifdef NETATALK
-		if (bcmp(&(l->llc_snap.org_code)[0], at_org_code,
-		    sizeof(at_org_code)) == 0 &&
-		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AT) {
-			isr = NETISR_ATALK2;
-			m_adj(m, LLC_SNAPFRAMELEN);
-			break;
-		}
-
-		if (bcmp(&(l->llc_snap.org_code)[0], aarp_org_code,
-		    sizeof(aarp_org_code)) == 0 &&
-		    ntohs(l->llc_snap.ether_type) == ETHERTYPE_AARP) {
-			m_adj(m, LLC_SNAPFRAMELEN);
-			isr = NETISR_AARP;
-			break;
-		}
-#endif /* NETATALK */
 		if (l->llc_snap.org_code[0] != 0 ||
 		    l->llc_snap.org_code[1] != 0 ||
 		    l->llc_snap.org_code[2] != 0) {
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto dropanyway;
 		}
 
@@ -519,27 +443,14 @@ fddi_input(ifp, m)
 			isr = NETISR_IPV6;
 			break;
 #endif
-#ifdef IPX      
-		case ETHERTYPE_IPX: 
-			isr = NETISR_IPX;
-			break;  
-#endif   
 #ifdef DECNET
 		case ETHERTYPE_DECNET:
 			isr = NETISR_DECNET;
 			break;
 #endif
-#ifdef NETATALK 
-		case ETHERTYPE_AT:
-	                isr = NETISR_ATALK1;
-			break;
-	        case ETHERTYPE_AARP:
-			isr = NETISR_AARP;
-			break;
-#endif /* NETATALK */
 		default:
 			/* printf("fddi_input: unknown protocol 0x%x\n", type); */
-			ifp->if_noproto++;
+			if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 			goto dropanyway;
 		}
 		break;
@@ -547,7 +458,7 @@ fddi_input(ifp, m)
 		
 	default:
 		/* printf("fddi_input: unknown dsap 0x%x\n", l->llc_dsap); */
-		ifp->if_noproto++;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
 		goto dropanyway;
 	}
 	M_SETFIB(m, ifp->if_fib);
@@ -555,7 +466,7 @@ fddi_input(ifp, m)
 	return;
 
 dropanyway:
-	ifp->if_iqdrops++;
+	if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 	if (m)
 		m_freem(m);
 	return;
@@ -641,31 +552,6 @@ fddi_ioctl (ifp, command, data)
 			arp_ifinit(ifp, ifa);
 			break;
 #endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX: {
-				struct ipx_addr *ina;
-
-				ina = &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina)) {
-					ina->x_host = *(union ipx_host *)
-							IF_LLADDR(ifp);
-				} else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) IF_LLADDR(ifp),
-					      ETHER_ADDR_LEN);
-				}
-	
-				/*
-				 * Set new address
-				 */
-				ifp->if_init(ifp->if_softc);
-			}
-			break;
-#endif
 		default:
 			ifp->if_init(ifp->if_softc);
 			break;
@@ -730,14 +616,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return (EADDRNOTAVAIL);
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT | M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_FDDI;
+		sdl = link_init_sdl(ifp, *llsa, IFT_FDDI);
 		sdl->sdl_nlen = 0;
 		sdl->sdl_alen = FDDI_ADDR_LEN;
 		sdl->sdl_slen = 0;
@@ -761,14 +640,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return (EADDRNOTAVAIL);
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT | M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_FDDI;
+		sdl = link_init_sdl(ifp, *llsa, IFT_FDDI);
 		sdl->sdl_nlen = 0;
 		sdl->sdl_alen = FDDI_ADDR_LEN;
 		sdl->sdl_slen = 0;

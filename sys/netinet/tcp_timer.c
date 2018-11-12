@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -50,11 +51,14 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
+#include <net/netisr.h>
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_rss.h>
 #include <netinet/in_systm.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
@@ -63,6 +67,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#ifdef INET6
+#include <netinet6/tcp6_var.h>
+#endif
 #include <netinet/tcpip.h>
 #ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
@@ -124,12 +131,105 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rexmit_drop_options, CTLFLAG_RW,
     &tcp_rexmit_drop_options, 0,
     "Drop TCP options from 3rd and later retransmitted SYN");
 
+static VNET_DEFINE(int, tcp_pmtud_blackhole_detect);
+#define	V_tcp_pmtud_blackhole_detect	VNET(tcp_pmtud_blackhole_detect)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_detection,
+    CTLFLAG_RW|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_detect), 0,
+    "Path MTU Discovery Black Hole Detection Enabled");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_activated);
+#define	V_tcp_pmtud_blackhole_activated \
+    VNET(tcp_pmtud_blackhole_activated)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated,
+    CTLFLAG_RD|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_activated), 0,
+    "Path MTU Discovery Black Hole Detection, Activation Count");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_activated_min_mss);
+#define	V_tcp_pmtud_blackhole_activated_min_mss \
+    VNET(tcp_pmtud_blackhole_activated_min_mss)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_activated_min_mss,
+    CTLFLAG_RD|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_activated_min_mss), 0,
+    "Path MTU Discovery Black Hole Detection, Activation Count at min MSS");
+
+static VNET_DEFINE(int, tcp_pmtud_blackhole_failed);
+#define	V_tcp_pmtud_blackhole_failed	VNET(tcp_pmtud_blackhole_failed)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_failed,
+    CTLFLAG_RD|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_failed), 0,
+    "Path MTU Discovery Black Hole Detection, Failure Count");
+
+#ifdef INET
+static VNET_DEFINE(int, tcp_pmtud_blackhole_mss) = 1200;
+#define	V_tcp_pmtud_blackhole_mss	VNET(tcp_pmtud_blackhole_mss)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pmtud_blackhole_mss,
+    CTLFLAG_RW|CTLFLAG_VNET,
+    &VNET_NAME(tcp_pmtud_blackhole_mss), 0,
+    "Path MTU Discovery Black Hole Detection lowered MSS");
+#endif
+
+#ifdef INET6
+static VNET_DEFINE(int, tcp_v6pmtud_blackhole_mss) = 1220;
+#define	V_tcp_v6pmtud_blackhole_mss	VNET(tcp_v6pmtud_blackhole_mss)
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, v6pmtud_blackhole_mss,
+    CTLFLAG_RW|CTLFLAG_VNET,
+    &VNET_NAME(tcp_v6pmtud_blackhole_mss), 0,
+    "Path MTU Discovery IPv6 Black Hole Detection lowered MSS");
+#endif
+
+#ifdef	RSS
+static int	per_cpu_timers = 1;
+#else
 static int	per_cpu_timers = 0;
+#endif
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, per_cpu_timers, CTLFLAG_RW,
     &per_cpu_timers , 0, "run tcp timers on all cpus");
 
+#if 0
 #define	INP_CPU(inp)	(per_cpu_timers ? (!CPU_ABSENT(((inp)->inp_flowid % (mp_maxid+1))) ? \
 		((inp)->inp_flowid % (mp_maxid+1)) : curcpu) : 0)
+#endif
+
+/*
+ * Map the given inp to a CPU id.
+ *
+ * This queries RSS if it's compiled in, else it defaults to the current
+ * CPU ID.
+ */
+static inline int
+inp_to_cpuid(struct inpcb *inp)
+{
+	u_int cpuid;
+
+#ifdef	RSS
+	if (per_cpu_timers) {
+		cpuid = rss_hash2cpuid(inp->inp_flowid, inp->inp_flowtype);
+		if (cpuid == NETISR_CPUID_NONE)
+			return (curcpu);	/* XXX */
+		else
+			return (cpuid);
+	}
+#else
+	/* Legacy, pre-RSS behaviour */
+	if (per_cpu_timers) {
+		/*
+		 * We don't have a flowid -> cpuid mapping, so cheat and
+		 * just map unknown cpuids to curcpu.  Not the best, but
+		 * apparently better than defaulting to swi 0.
+		 */
+		cpuid = inp->inp_flowid % (mp_maxid + 1);
+		if (! CPU_ABSENT(cpuid))
+			return (cpuid);
+		return (curcpu);
+	}
+#endif
+	/* Default for RSS and non-RSS - cpuid 0 */
+	else {
+		return (0);
+	}
+}
 
 /*
  * Tcp protocol timeout routine called every 500 ms.
@@ -144,9 +244,7 @@ tcp_slowtimo(void)
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		INP_INFO_WLOCK(&V_tcbinfo);
 		(void) tcp_tw_2msl_scan(0);
-		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
@@ -273,7 +371,8 @@ tcp_timer_2msl(void *xtp)
 		if (tp->t_state != TCPS_TIME_WAIT &&
 		   ticks - tp->t_rcvtime <= TP_MAXIDLE(tp))
 		       callout_reset_on(&tp->t_timers->tt_2msl,
-			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp, INP_CPU(inp));
+			   TP_KEEPINTVL(tp), tcp_timer_2msl, tp,
+			   inp_to_cpuid(inp));
 	       else
 		       tp = tcp_close(tp);
        }
@@ -363,10 +462,10 @@ tcp_timer_keep(void *xtp)
 			free(t_template, M_TEMP);
 		}
 		callout_reset_on(&tp->t_timers->tt_keep, TP_KEEPINTVL(tp),
-		    tcp_timer_keep, tp, INP_CPU(inp));
+		    tcp_timer_keep, tp, inp_to_cpuid(inp));
 	} else
 		callout_reset_on(&tp->t_timers->tt_keep, TP_KEEPIDLE(tp),
-		    tcp_timer_keep, tp, INP_CPU(inp));
+		    tcp_timer_keep, tp, inp_to_cpuid(inp));
 
 #ifdef TCPDEBUG
 	if (inp->inp_socket->so_options & SO_DEBUG)
@@ -492,6 +591,7 @@ tcp_timer_rexmt(void * xtp)
 
 	ostate = tp->t_state;
 #endif
+
 	INP_INFO_RLOCK(&V_tcbinfo);
 	inp = tp->t_inpcb;
 	/*
@@ -593,6 +693,110 @@ tcp_timer_rexmt(void * xtp)
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
+
+	/*
+	 * We enter the path for PLMTUD if connection is established or, if
+	 * connection is FIN_WAIT_1 status, reason for the last is that if
+	 * amount of data we send is very small, we could send it in couple of
+	 * packets and process straight to FIN. In that case we won't catch
+	 * ESTABLISHED state.
+	 */
+	if (V_tcp_pmtud_blackhole_detect && (((tp->t_state == TCPS_ESTABLISHED))
+	    || (tp->t_state == TCPS_FIN_WAIT_1))) {
+		int optlen;
+#ifdef INET6
+		int isipv6;
+#endif
+
+		if (((tp->t_flags2 & (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) ==
+		    (TF2_PLPMTU_PMTUD|TF2_PLPMTU_MAXSEGSNT)) &&
+		    (tp->t_rxtshift <= 2)) {
+			/*
+			 * Enter Path MTU Black-hole Detection mechanism:
+			 * - Disable Path MTU Discovery (IP "DF" bit).
+			 * - Reduce MTU to lower value than what we
+			 *   negotiated with peer.
+			 */
+			/* Record that we may have found a black hole. */
+			tp->t_flags2 |= TF2_PLPMTU_BLACKHOLE;
+
+			/* Keep track of previous MSS. */
+			optlen = tp->t_maxopd - tp->t_maxseg;
+			tp->t_pmtud_saved_maxopd = tp->t_maxopd;
+
+			/* 
+			 * Reduce the MSS to blackhole value or to the default
+			 * in an attempt to retransmit.
+			 */
+#ifdef INET6
+			isipv6 = (tp->t_inpcb->inp_vflag & INP_IPV6) ? 1 : 0;
+			if (isipv6 &&
+			    tp->t_maxopd > V_tcp_v6pmtud_blackhole_mss) {
+				/* Use the sysctl tuneable blackhole MSS. */
+				tp->t_maxopd = V_tcp_v6pmtud_blackhole_mss;
+				V_tcp_pmtud_blackhole_activated++;
+			} else if (isipv6) {
+				/* Use the default MSS. */
+				tp->t_maxopd = V_tcp_v6mssdflt;
+				/*
+				 * Disable Path MTU Discovery when we switch to
+				 * minmss.
+				 */
+				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+				V_tcp_pmtud_blackhole_activated_min_mss++;
+			}
+#endif
+#if defined(INET6) && defined(INET)
+			else
+#endif
+#ifdef INET
+			if (tp->t_maxopd > V_tcp_pmtud_blackhole_mss) {
+				/* Use the sysctl tuneable blackhole MSS. */
+				tp->t_maxopd = V_tcp_pmtud_blackhole_mss;
+				V_tcp_pmtud_blackhole_activated++;
+			} else {
+				/* Use the default MSS. */
+				tp->t_maxopd = V_tcp_mssdflt;
+				/*
+				 * Disable Path MTU Discovery when we switch to
+				 * minmss.
+				 */
+				tp->t_flags2 &= ~TF2_PLPMTU_PMTUD;
+				V_tcp_pmtud_blackhole_activated_min_mss++;
+			}
+#endif
+			tp->t_maxseg = tp->t_maxopd - optlen;
+			/*
+			 * Reset the slow-start flight size
+			 * as it may depend on the new MSS.
+			 */
+			if (CC_ALGO(tp)->conn_init != NULL)
+				CC_ALGO(tp)->conn_init(tp->ccv);
+		} else {
+			/*
+			 * If further retransmissions are still unsuccessful
+			 * with a lowered MTU, maybe this isn't a blackhole and
+			 * we restore the previous MSS and blackhole detection
+			 * flags.
+			 */
+			if ((tp->t_flags2 & TF2_PLPMTU_BLACKHOLE) &&
+			    (tp->t_rxtshift > 4)) {
+				tp->t_flags2 |= TF2_PLPMTU_PMTUD;
+				tp->t_flags2 &= ~TF2_PLPMTU_BLACKHOLE;
+				optlen = tp->t_maxopd - tp->t_maxseg;
+				tp->t_maxopd = tp->t_pmtud_saved_maxopd;
+				tp->t_maxseg = tp->t_maxopd - optlen;
+				V_tcp_pmtud_blackhole_failed++;
+				/*
+				 * Reset the slow-start flight size as it
+				 * may depend on the new MSS.
+				 */
+				if (CC_ALGO(tp)->conn_init != NULL)
+					CC_ALGO(tp)->conn_init(tp->ccv);
+			}
+		}
+	}
+
 	/*
 	 * Disable RFC1323 and SACK if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
@@ -651,7 +855,7 @@ tcp_timer_activate(struct tcpcb *tp, int timer_type, u_int delta)
 	struct callout *t_callout;
 	void *f_callout;
 	struct inpcb *inp = tp->t_inpcb;
-	int cpu = INP_CPU(inp);
+	int cpu = inp_to_cpuid(inp);
 
 #ifdef TCP_OFFLOAD
 	if (tp->t_flags & TF_TOE)

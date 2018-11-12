@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2012
+.Dd July 29, 2014
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -77,9 +77,9 @@
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithdstaddr "struct sockaddr *addr"
+.Fn ifa_ifwithdstaddr "struct sockaddr *addr" "int fib"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp"
+.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp" "int fib"
 .Ft "struct ifaddr *"
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
@@ -103,7 +103,7 @@
 .Ft int
 .Fo \*(lp*if_output\*(rp
 .Fa "struct ifnet *ifp" "struct mbuf *m"
-.Fa "struct sockaddr *dst" "struct route *ro"
+.Fa "const struct sockaddr *dst" "struct route *ro"
 .Fc
 .Ft void
 .Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
@@ -418,7 +418,7 @@ lock used to protect interface-related address lists.
 .Xr queue 3
 macro glue for the list of clonable network interfaces.
 .It Va if_groups
-.Pq Fn TAILQ_HEAD ", ifg_list"
+.Pq Fn TAILQ_HEAD "" "ifg_list"
 The head of the
 .Xr queue 3
 .Li TAILQ
@@ -583,14 +583,6 @@ The interface is a loopback device.
 The interface is point-to-point;
 .Dq broadcast
 address is actually the address of the other end.
-.It Dv IFF_SMART
-.Aq S*
-The interface manages its own routes, rather than using the generic
-code in
-.Fn if_up
-and
-.Fn if_down .
-This is probably useful for serial lines.
 .It Dv IFF_DRV_RUNNING
 .Aq D*
 The interface has been configured and dynamic resources were
@@ -1092,10 +1084,6 @@ address in the route table.
 .It Va ifa_refcnt
 .Pq Vt short
 The reference count.
-.It Va ifa_metric
-.Pq Vt int
-A metric associated with this interface address, for the use of some
-external routing protocol.
 .El
 .Pp
 References to
@@ -1284,9 +1272,8 @@ further interpretation.
 The following commands are handled by
 .Fn ifioctl :
 .Pp
-.Bl -tag -width ".Dv OSIOCGIFNETMASK" -offset indent -compact
+.Bl -tag -width ".Dv SIOCGIFNETMASK" -offset indent -compact
 .It Dv SIOCGIFCONF
-.It Dv OSIOCGIFCONF
 Get interface configuration.
 (No call-down to driver.)
 .Pp
@@ -1379,18 +1366,6 @@ function is called to perform the operation; qq.v.
 .It Dv SIOCDIFADDR
 The socket's protocol control routine is called to implement the
 requested action.
-.Pp
-.It Dv OSIOCGIFADDR
-.It Dv OSIOCGIFDSTADDR
-.It Dv OSIOCGIFBRDADDR
-.It Dv OSIOCGIFNETMASK
-The socket's protocol control routine is called to implement the
-requested action.
-On return,
-.Vt sockaddr
-structures are converted into old-style (no
-.Va sa_len
-member).
 .El
 .El
 .Pp
@@ -1414,7 +1389,16 @@ returns an interface address for a point-to-point interface whose
 remote
 .Pq Dq destination
 address is
-.Fa addr .
+.Fa addr
+and a fib is
+.Fa fib .
+If
+.Fa fib
+is
+.Dv RT_ALL_FIBS ,
+then the first interface address matching
+.Fa addr
+will be returned.
 .Pp
 .Fn ifa_ifwithnet
 returns the most specific interface address which matches the
@@ -1427,6 +1411,10 @@ if one is found.
 If
 .Fa ignore_ptp
 is true, skip point-to-point interface addresses.
+The
+.Fa fib
+parameter is handled the same way as by
+.Fn ifa_ifwithdstaddr .
 .Pp
 .Fn ifaof_ifpforaddr
 returns the most specific address configured on interface

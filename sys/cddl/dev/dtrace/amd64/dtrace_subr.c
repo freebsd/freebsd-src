@@ -142,7 +142,6 @@ dtrace_sync(void)
 }
 
 #ifdef notyet
-int (*dtrace_fasttrap_probe_ptr)(struct regs *);
 int (*dtrace_pid_probe_ptr)(struct regs *);
 int (*dtrace_return_probe_ptr)(struct regs *);
 
@@ -212,13 +211,6 @@ dtrace_user_probe(struct regs *rp, caddr_t addr, processorid_t cpuid)
 			(void) (*dtrace_return_probe_ptr)(rp);
 		rw_exit(rwp);
 		rp->r_pc = npc;
-
-	} else if (rp->r_trapno == T_DTRACE_PROBE) {
-		rwp = &CPU->cpu_ft_lock;
-		rw_enter(rwp, RW_READER);
-		if (dtrace_fasttrap_probe_ptr != NULL)
-			(void) (*dtrace_fasttrap_probe_ptr)(rp);
-		rw_exit(rwp);
 
 	} else if (rp->r_trapno == T_BPTFLT) {
 		uint8_t instr;
@@ -470,19 +462,18 @@ dtrace_gethrestime(void)
 	return (current_time.tv_sec * 1000000000ULL + current_time.tv_nsec);
 }
 
-/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
+/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c. */
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * a flag in its per-cpu flags to indicate that it doesn't
 	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
 	 * Check if DTrace has enabled 'no-fault' mode:
-	 *
 	 */
 	if ((cpu_core[curcpu].cpuc_dtrace_flags & CPU_DTRACE_NOFAULT) != 0) {
 		/*
@@ -490,9 +481,6 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 * All the rest will be handled in the usual way.
 		 */
 		switch (type) {
-		/* Privilieged instruction fault. */
-		case T_PRIVINFLT:
-			break;
 		/* General protection fault. */
 		case T_PROTFLT:
 			/* Flag an illegal operation. */

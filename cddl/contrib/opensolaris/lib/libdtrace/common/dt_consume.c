@@ -24,7 +24,8 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <stdlib.h>
@@ -34,11 +35,12 @@
 #include <limits.h>
 #include <assert.h>
 #include <ctype.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <dt_impl.h>
-#if !defined(sun)
+#include <dt_pq.h>
+#ifndef illumos
 #include <libproc_compat.h>
 #endif
 
@@ -55,6 +57,25 @@ dt_fabsl(long double x)
 		return (-x);
 
 	return (x);
+}
+
+static int
+dt_ndigits(long long val)
+{
+	int rval = 1;
+	long long cmp = 10;
+
+	if (val < 0) {
+		val = val == INT64_MIN ? INT64_MAX : -val;
+		rval++;
+	}
+
+	while (val > cmp && cmp > 0) {
+		rval++;
+		cmp *= 10;
+	}
+
+	return (rval < 4 ? 4 : rval);
 }
 
 /*
@@ -361,6 +382,9 @@ dt_stddev(uint64_t *data, uint64_t normal)
 	int64_t norm_avg;
 	uint64_t diff[2];
 
+	if (data[0] == 0)
+		return (0);
+
 	/*
 	 * The standard approximation for standard deviation is
 	 * sqrt(average(x**2) - average(x)**2), i.e. the square root
@@ -442,17 +466,8 @@ dt_flowindent(dtrace_hdl_t *dtp, dtrace_probedata_t *data, dtrace_epid_t last,
 		offs += epd->dtepd_size;
 
 		do {
-			if (offs >= buf->dtbd_size) {
-				/*
-				 * We're at the end -- maybe.  If the oldest
-				 * record is non-zero, we need to wrap.
-				 */
-				if (buf->dtbd_oldest != 0) {
-					offs = 0;
-				} else {
-					goto out;
-				}
-			}
+			if (offs >= buf->dtbd_size)
+				goto out;
 
 			next = *(uint32_t *)((uintptr_t)buf->dtbd_data + offs);
 
@@ -494,7 +509,125 @@ dt_nullrec()
 	return (DTRACE_CONSUME_NEXT);
 }
 
-int
+static void
+dt_quantize_total(dtrace_hdl_t *dtp, int64_t datum, long double *total)
+{
+	long double val = dt_fabsl((long double)datum);
+
+	if (dtp->dt_options[DTRACEOPT_AGGZOOM] == DTRACEOPT_UNSET) {
+		*total += val;
+		return;
+	}
+
+	/*
+	 * If we're zooming in on an aggregation, we want the height of the
+	 * highest value to be approximately 95% of total bar height -- so we
+	 * adjust up by the reciprocal of DTRACE_AGGZOOM_MAX when comparing to
+	 * our highest value.
+	 */
+	val *= 1 / DTRACE_AGGZOOM_MAX;
+
+	if (*total < val)
+		*total = val;
+}
+
+static int
+dt_print_quanthdr(dtrace_hdl_t *dtp, FILE *fp, int width)
+{
+	return (dt_printf(dtp, fp, "\n%*s %41s %-9s\n",
+	    width ? width : 16, width ? "key" : "value",
+	    "------------- Distribution -------------", "count"));
+}
+
+static int
+dt_print_quanthdr_packed(dtrace_hdl_t *dtp, FILE *fp, int width,
+    const dtrace_aggdata_t *aggdata, dtrace_actkind_t action)
+{
+	int min = aggdata->dtada_minbin, max = aggdata->dtada_maxbin;
+	int minwidth, maxwidth, i;
+
+	assert(action == DTRACEAGG_QUANTIZE || action == DTRACEAGG_LQUANTIZE);
+
+	if (action == DTRACEAGG_QUANTIZE) {
+		if (min != 0 && min != DTRACE_QUANTIZE_ZEROBUCKET)
+			min--;
+
+		if (max < DTRACE_QUANTIZE_NBUCKETS - 1)
+			max++;
+
+		minwidth = dt_ndigits(DTRACE_QUANTIZE_BUCKETVAL(min));
+		maxwidth = dt_ndigits(DTRACE_QUANTIZE_BUCKETVAL(max));
+	} else {
+		maxwidth = 8;
+		minwidth = maxwidth - 1;
+		max++;
+	}
+
+	if (dt_printf(dtp, fp, "\n%*s %*s .",
+	    width, width > 0 ? "key" : "", minwidth, "min") < 0)
+		return (-1);
+
+	for (i = min; i <= max; i++) {
+		if (dt_printf(dtp, fp, "-") < 0)
+			return (-1);
+	}
+
+	return (dt_printf(dtp, fp, ". %*s | count\n", -maxwidth, "max"));
+}
+
+/*
+ * We use a subset of the Unicode Block Elements (U+2588 through U+258F,
+ * inclusive) to represent aggregations via UTF-8 -- which are expressed via
+ * 3-byte UTF-8 sequences.
+ */
+#define	DTRACE_AGGUTF8_FULL	0x2588
+#define	DTRACE_AGGUTF8_BASE	0x258f
+#define	DTRACE_AGGUTF8_LEVELS	8
+
+#define	DTRACE_AGGUTF8_BYTE0(val)	(0xe0 | ((val) >> 12))
+#define	DTRACE_AGGUTF8_BYTE1(val)	(0x80 | (((val) >> 6) & 0x3f))
+#define	DTRACE_AGGUTF8_BYTE2(val)	(0x80 | ((val) & 0x3f))
+
+static int
+dt_print_quantline_utf8(dtrace_hdl_t *dtp, FILE *fp, int64_t val,
+    uint64_t normal, long double total)
+{
+	uint_t len = 40, i, whole, partial;
+	long double f = (dt_fabsl((long double)val) * len) / total;
+	const char *spaces = "                                        ";
+
+	whole = (uint_t)f;
+	partial = (uint_t)((f - (long double)(uint_t)f) *
+	    (long double)DTRACE_AGGUTF8_LEVELS);
+
+	if (dt_printf(dtp, fp, "|") < 0)
+		return (-1);
+
+	for (i = 0; i < whole; i++) {
+		if (dt_printf(dtp, fp, "%c%c%c",
+		    DTRACE_AGGUTF8_BYTE0(DTRACE_AGGUTF8_FULL),
+		    DTRACE_AGGUTF8_BYTE1(DTRACE_AGGUTF8_FULL),
+		    DTRACE_AGGUTF8_BYTE2(DTRACE_AGGUTF8_FULL)) < 0)
+			return (-1);
+	}
+
+	if (partial != 0) {
+		partial = DTRACE_AGGUTF8_BASE - (partial - 1);
+
+		if (dt_printf(dtp, fp, "%c%c%c",
+		    DTRACE_AGGUTF8_BYTE0(partial),
+		    DTRACE_AGGUTF8_BYTE1(partial),
+		    DTRACE_AGGUTF8_BYTE2(partial)) < 0)
+			return (-1);
+
+		i++;
+	}
+
+	return (dt_printf(dtp, fp, "%s %-9lld\n", spaces + i,
+	    (long long)val / normal));
+}
+
+static int
 dt_print_quantline(dtrace_hdl_t *dtp, FILE *fp, int64_t val,
     uint64_t normal, long double total, char positives, char negatives)
 {
@@ -512,6 +645,11 @@ dt_print_quantline(dtrace_hdl_t *dtp, FILE *fp, int64_t val,
 
 	if (!negatives) {
 		if (positives) {
+			if (dtp->dt_encoding == DT_ENCODING_UTF8) {
+				return (dt_print_quantline_utf8(dtp, fp, val,
+				    normal, total));
+			}
+
 			f = (dt_fabsl((long double)val) * len) / total;
 			depth = (uint_t)(f + 0.5);
 		} else {
@@ -554,6 +692,73 @@ dt_print_quantline(dtrace_hdl_t *dtp, FILE *fp, int64_t val,
 	}
 }
 
+/*
+ * As with UTF-8 printing of aggregations, we use a subset of the Unicode
+ * Block Elements (U+2581 through U+2588, inclusive) to represent our packed
+ * aggregation.
+ */
+#define	DTRACE_AGGPACK_BASE	0x2581
+#define	DTRACE_AGGPACK_LEVELS	8
+
+static int
+dt_print_packed(dtrace_hdl_t *dtp, FILE *fp,
+    long double datum, long double total)
+{
+	static boolean_t utf8_checked = B_FALSE;
+	static boolean_t utf8;
+	char *ascii = "__xxxxXX";
+	char *neg = "vvvvVV";
+	unsigned int len;
+	long double val;
+
+	if (!utf8_checked) {
+		char *term;
+
+		/*
+		 * We want to determine if we can reasonably emit UTF-8 for our
+		 * packed aggregation.  To do this, we will check for terminals
+		 * that are known to be primitive to emit UTF-8 on these.
+		 */
+		utf8_checked = B_TRUE;
+
+		if (dtp->dt_encoding == DT_ENCODING_ASCII) {
+			utf8 = B_FALSE;
+		} else if (dtp->dt_encoding == DT_ENCODING_UTF8) {
+			utf8 = B_TRUE;
+		} else if ((term = getenv("TERM")) != NULL &&
+		    (strcmp(term, "sun") == 0 ||
+		    strcmp(term, "sun-color") == 0) ||
+		    strcmp(term, "dumb") == 0) {
+			utf8 = B_FALSE;
+		} else {
+			utf8 = B_TRUE;
+		}
+	}
+
+	if (datum == 0)
+		return (dt_printf(dtp, fp, " "));
+
+	if (datum < 0) {
+		len = strlen(neg);
+		val = dt_fabsl(datum * (len - 1)) / total;
+		return (dt_printf(dtp, fp, "%c", neg[(uint_t)(val + 0.5)]));
+	}
+
+	if (utf8) {
+		int block = DTRACE_AGGPACK_BASE + (unsigned int)(((datum *
+		    (DTRACE_AGGPACK_LEVELS - 1)) / total) + 0.5);
+
+		return (dt_printf(dtp, fp, "%c%c%c",
+		    DTRACE_AGGUTF8_BYTE0(block),
+		    DTRACE_AGGUTF8_BYTE1(block),
+		    DTRACE_AGGUTF8_BYTE2(block)));
+	}
+
+	len = strlen(ascii);
+	val = (datum * (len - 1)) / total;
+	return (dt_printf(dtp, fp, "%c", ascii[(uint_t)(val + 0.5)]));
+}
+
 int
 dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
     size_t size, uint64_t normal)
@@ -571,9 +776,9 @@ dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 
 	if (first_bin == DTRACE_QUANTIZE_NBUCKETS - 1) {
 		/*
-		 * There isn't any data.  This is possible if (and only if)
-		 * negative increment values have been used.  In this case,
-		 * we'll print the buckets around 0.
+		 * There isn't any data.  This is possible if the aggregation
+		 * has been clear()'d or if negative increment values have been
+		 * used.  Regardless, we'll print the buckets around 0.
 		 */
 		first_bin = DTRACE_QUANTIZE_ZEROBUCKET - 1;
 		last_bin = DTRACE_QUANTIZE_ZEROBUCKET + 1;
@@ -591,11 +796,10 @@ dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	for (i = first_bin; i <= last_bin; i++) {
 		positives |= (data[i] > 0);
 		negatives |= (data[i] < 0);
-		total += dt_fabsl((long double)data[i]);
+		dt_quantize_total(dtp, data[i], &total);
 	}
 
-	if (dt_printf(dtp, fp, "\n%16s %41s %-9s\n", "value",
-	    "------------- Distribution -------------", "count") < 0)
+	if (dt_print_quanthdr(dtp, fp, 0) < 0)
 		return (-1);
 
 	for (i = first_bin; i <= last_bin; i++) {
@@ -607,6 +811,48 @@ dt_print_quantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 		    positives, negatives) < 0)
 			return (-1);
 	}
+
+	return (0);
+}
+
+int
+dt_print_quantize_packed(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
+    size_t size, const dtrace_aggdata_t *aggdata)
+{
+	const int64_t *data = addr;
+	long double total = 0, count = 0;
+	int min = aggdata->dtada_minbin, max = aggdata->dtada_maxbin, i;
+	int64_t minval, maxval;
+
+	if (size != DTRACE_QUANTIZE_NBUCKETS * sizeof (uint64_t))
+		return (dt_set_errno(dtp, EDT_DMISMATCH));
+
+	if (min != 0 && min != DTRACE_QUANTIZE_ZEROBUCKET)
+		min--;
+
+	if (max < DTRACE_QUANTIZE_NBUCKETS - 1)
+		max++;
+
+	minval = DTRACE_QUANTIZE_BUCKETVAL(min);
+	maxval = DTRACE_QUANTIZE_BUCKETVAL(max);
+
+	if (dt_printf(dtp, fp, " %*lld :", dt_ndigits(minval),
+	    (long long)minval) < 0)
+		return (-1);
+
+	for (i = min; i <= max; i++) {
+		dt_quantize_total(dtp, data[i], &total);
+		count += data[i];
+	}
+
+	for (i = min; i <= max; i++) {
+		if (dt_print_packed(dtp, fp, data[i], total) < 0)
+			return (-1);
+	}
+
+	if (dt_printf(dtp, fp, ": %*lld | %lld\n",
+	    -dt_ndigits(maxval), (long long)maxval, (long long)count) < 0)
+		return (-1);
 
 	return (0);
 }
@@ -658,7 +904,7 @@ dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	for (i = first_bin; i <= last_bin; i++) {
 		positives |= (data[i] > 0);
 		negatives |= (data[i] < 0);
-		total += dt_fabsl((long double)data[i]);
+		dt_quantize_total(dtp, data[i], &total);
 	}
 
 	if (dt_printf(dtp, fp, "\n%16s %41s %-9s\n", "value",
@@ -670,8 +916,7 @@ dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 		int err;
 
 		if (i == 0) {
-			(void) snprintf(c, sizeof (c), "< %d",
-			    base / (uint32_t)normal);
+			(void) snprintf(c, sizeof (c), "< %d", base);
 			err = dt_printf(dtp, fp, "%16s ", c);
 		} else if (i == levels + 1) {
 			(void) snprintf(c, sizeof (c), ">= %d",
@@ -688,6 +933,59 @@ dt_print_lquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	}
 
 	return (0);
+}
+
+/*ARGSUSED*/
+int
+dt_print_lquantize_packed(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
+    size_t size, const dtrace_aggdata_t *aggdata)
+{
+	const int64_t *data = addr;
+	long double total = 0, count = 0;
+	int min, max, base, err;
+	uint64_t arg;
+	uint16_t step, levels;
+	char c[32];
+	unsigned int i;
+
+	if (size < sizeof (uint64_t))
+		return (dt_set_errno(dtp, EDT_DMISMATCH));
+
+	arg = *data++;
+	size -= sizeof (uint64_t);
+
+	base = DTRACE_LQUANTIZE_BASE(arg);
+	step = DTRACE_LQUANTIZE_STEP(arg);
+	levels = DTRACE_LQUANTIZE_LEVELS(arg);
+
+	if (size != sizeof (uint64_t) * (levels + 2))
+		return (dt_set_errno(dtp, EDT_DMISMATCH));
+
+	min = 0;
+	max = levels + 1;
+
+	if (min == 0) {
+		(void) snprintf(c, sizeof (c), "< %d", base);
+		err = dt_printf(dtp, fp, "%8s :", c);
+	} else {
+		err = dt_printf(dtp, fp, "%8d :", base + (min - 1) * step);
+	}
+
+	if (err < 0)
+		return (-1);
+
+	for (i = min; i <= max; i++) {
+		dt_quantize_total(dtp, data[i], &total);
+		count += data[i];
+	}
+
+	for (i = min; i <= max; i++) {
+		if (dt_print_packed(dtp, fp, data[i], total) < 0)
+			return (-1);
+	}
+
+	(void) snprintf(c, sizeof (c), ">= %d", base + (levels * step));
+	return (dt_printf(dtp, fp, ": %-8s | %lld\n", c, (long long)count));
 }
 
 int
@@ -747,7 +1045,7 @@ dt_print_llquantize(dtrace_hdl_t *dtp, FILE *fp, const void *addr,
 	for (i = first_bin; i <= last_bin; i++) {
 		positives |= (data[i] > 0);
 		negatives |= (data[i] < 0);
-		total += dt_fabsl((long double)data[i]);
+		dt_quantize_total(dtp, data[i], &total);
 	}
 
 	if (dt_printf(dtp, fp, "\n%16s %41s %-9s\n", "value",
@@ -830,9 +1128,9 @@ dt_print_stddev(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 }
 
 /*ARGSUSED*/
-int
+static int
 dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
-    size_t nbytes, int width, int quiet, int raw)
+    size_t nbytes, int width, int quiet, int forceraw)
 {
 	/*
 	 * If the byte stream is a series of printable characters, followed by
@@ -845,7 +1143,10 @@ dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 	if (nbytes == 0)
 		return (0);
 
-	if (raw || dtp->dt_options[DTRACEOPT_RAWBYTES] != DTRACEOPT_UNSET)
+	if (forceraw)
+		goto raw;
+
+	if (dtp->dt_options[DTRACEOPT_RAWBYTES] != DTRACEOPT_UNSET)
 		goto raw;
 
 	for (i = 0; i < nbytes; i++) {
@@ -880,10 +1181,12 @@ dt_print_bytes(dtrace_hdl_t *dtp, FILE *fp, caddr_t addr,
 			if (j != nbytes)
 				break;
 
-			if (quiet)
+			if (quiet) {
 				return (dt_printf(dtp, fp, "%s", c));
-			else
-				return (dt_printf(dtp, fp, "  %-*s", width, c));
+			} else {
+				return (dt_printf(dtp, fp, " %s%*s",
+				    width < 0 ? " " : "", width, c));
+			}
 		}
 
 		break;
@@ -1797,10 +2100,83 @@ dt_trunc(dtrace_hdl_t *dtp, caddr_t base, dtrace_recdesc_t *rec)
 
 static int
 dt_print_datum(dtrace_hdl_t *dtp, FILE *fp, dtrace_recdesc_t *rec,
-    caddr_t addr, size_t size, uint64_t normal)
+    caddr_t addr, size_t size, const dtrace_aggdata_t *aggdata,
+    uint64_t normal, dt_print_aggdata_t *pd)
 {
-	int err;
+	int err, width;
 	dtrace_actkind_t act = rec->dtrd_action;
+	boolean_t packed = pd->dtpa_agghist || pd->dtpa_aggpack;
+	dtrace_aggdesc_t *agg = aggdata->dtada_desc;
+
+	static struct {
+		size_t size;
+		int width;
+		int packedwidth;
+	} *fmt, fmttab[] = {
+		{ sizeof (uint8_t),	3,	3 },
+		{ sizeof (uint16_t),	5,	5 },
+		{ sizeof (uint32_t),	8,	8 },
+		{ sizeof (uint64_t),	16,	16 },
+		{ 0,			-50,	16 }
+	};
+
+	if (packed && pd->dtpa_agghisthdr != agg->dtagd_varid) {
+		dtrace_recdesc_t *r;
+
+		width = 0;
+
+		/*
+		 * To print our quantization header for either an agghist or
+		 * aggpack aggregation, we need to iterate through all of our
+		 * of our records to determine their width.
+		 */
+		for (r = rec; !DTRACEACT_ISAGG(r->dtrd_action); r++) {
+			for (fmt = fmttab; fmt->size &&
+			    fmt->size != r->dtrd_size; fmt++)
+				continue;
+
+			width += fmt->packedwidth + 1;
+		}
+
+		if (pd->dtpa_agghist) {
+			if (dt_print_quanthdr(dtp, fp, width) < 0)
+				return (-1);
+		} else {
+			if (dt_print_quanthdr_packed(dtp, fp,
+			    width, aggdata, r->dtrd_action) < 0)
+				return (-1);
+		}
+
+		pd->dtpa_agghisthdr = agg->dtagd_varid;
+	}
+
+	if (pd->dtpa_agghist && DTRACEACT_ISAGG(act)) {
+		char positives = aggdata->dtada_flags & DTRACE_A_HASPOSITIVES;
+		char negatives = aggdata->dtada_flags & DTRACE_A_HASNEGATIVES;
+		int64_t val;
+
+		assert(act == DTRACEAGG_SUM || act == DTRACEAGG_COUNT);
+		val = (long long)*((uint64_t *)addr);
+
+		if (dt_printf(dtp, fp, " ") < 0)
+			return (-1);
+
+		return (dt_print_quantline(dtp, fp, val, normal,
+		    aggdata->dtada_total, positives, negatives));
+	}
+
+	if (pd->dtpa_aggpack && DTRACEACT_ISAGG(act)) {
+		switch (act) {
+		case DTRACEAGG_QUANTIZE:
+			return (dt_print_quantize_packed(dtp,
+			    fp, addr, size, aggdata));
+		case DTRACEAGG_LQUANTIZE:
+			return (dt_print_lquantize_packed(dtp,
+			    fp, addr, size, aggdata));
+		default:
+			break;
+		}
+	}
 
 	switch (act) {
 	case DTRACEACT_STACK:
@@ -1843,28 +2219,33 @@ dt_print_datum(dtrace_hdl_t *dtp, FILE *fp, dtrace_recdesc_t *rec,
 		break;
 	}
 
+	for (fmt = fmttab; fmt->size && fmt->size != size; fmt++)
+		continue;
+
+	width = packed ? fmt->packedwidth : fmt->width;
+
 	switch (size) {
 	case sizeof (uint64_t):
-		err = dt_printf(dtp, fp, " %16lld",
+		err = dt_printf(dtp, fp, " %*lld", width,
 		    /* LINTED - alignment */
 		    (long long)*((uint64_t *)addr) / normal);
 		break;
 	case sizeof (uint32_t):
 		/* LINTED - alignment */
-		err = dt_printf(dtp, fp, " %8d", *((uint32_t *)addr) /
+		err = dt_printf(dtp, fp, " %*d", width, *((uint32_t *)addr) /
 		    (uint32_t)normal);
 		break;
 	case sizeof (uint16_t):
 		/* LINTED - alignment */
-		err = dt_printf(dtp, fp, " %5d", *((uint16_t *)addr) /
+		err = dt_printf(dtp, fp, " %*d", width, *((uint16_t *)addr) /
 		    (uint32_t)normal);
 		break;
 	case sizeof (uint8_t):
-		err = dt_printf(dtp, fp, " %3d", *((uint8_t *)addr) /
+		err = dt_printf(dtp, fp, " %*d", width, *((uint8_t *)addr) /
 		    (uint32_t)normal);
 		break;
 	default:
-		err = dt_print_bytes(dtp, fp, addr, size, 50, 0, 0);
+		err = dt_print_bytes(dtp, fp, addr, size, width, 0, 0);
 		break;
 	}
 
@@ -1885,6 +2266,9 @@ dt_print_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 	caddr_t addr;
 	size_t size;
 
+	pd->dtpa_agghist = (aggdata->dtada_flags & DTRACE_A_TOTAL);
+	pd->dtpa_aggpack = (aggdata->dtada_flags & DTRACE_A_MINMAXBIN);
+
 	/*
 	 * Iterate over each record description in the key, printing the traced
 	 * data, skipping the first datum (the tuple member created by the
@@ -1901,7 +2285,8 @@ dt_print_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 			break;
 		}
 
-		if (dt_print_datum(dtp, fp, rec, addr, size, 1) < 0)
+		if (dt_print_datum(dtp, fp, rec, addr,
+		    size, aggdata, 1, pd) < 0)
 			return (-1);
 
 		if (dt_buffered_flush(dtp, NULL, rec, aggdata,
@@ -1924,7 +2309,8 @@ dt_print_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 		assert(DTRACEACT_ISAGG(act));
 		normal = aggdata->dtada_normal;
 
-		if (dt_print_datum(dtp, fp, rec, addr, size, normal) < 0)
+		if (dt_print_datum(dtp, fp, rec, addr,
+		    size, aggdata, normal, pd) < 0)
 			return (-1);
 
 		if (dt_buffered_flush(dtp, NULL, rec, aggdata,
@@ -1935,8 +2321,10 @@ dt_print_aggs(const dtrace_aggdata_t **aggsdata, int naggvars, void *arg)
 			agg->dtagd_flags |= DTRACE_AGD_PRINTED;
 	}
 
-	if (dt_printf(dtp, fp, "\n") < 0)
-		return (-1);
+	if (!pd->dtpa_agghist && !pd->dtpa_aggpack) {
+		if (dt_printf(dtp, fp, "\n") < 0)
+			return (-1);
+	}
 
 	if (dt_buffered_flush(dtp, NULL, NULL, aggdata,
 	    DTRACE_BUFDATA_AGGFORMAT | DTRACE_BUFDATA_AGGLAST) < 0)
@@ -2010,25 +2398,27 @@ dt_setopt(dtrace_hdl_t *dtp, const dtrace_probedata_t *data,
 }
 
 static int
-dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu, dtrace_bufdesc_t *buf,
+dt_consume_cpu(dtrace_hdl_t *dtp, FILE *fp, int cpu,
+    dtrace_bufdesc_t *buf, boolean_t just_one,
     dtrace_consume_probe_f *efunc, dtrace_consume_rec_f *rfunc, void *arg)
 {
 	dtrace_epid_t id;
-	size_t offs, start = buf->dtbd_oldest, end = buf->dtbd_size;
+	size_t offs;
 	int flow = (dtp->dt_options[DTRACEOPT_FLOWINDENT] != DTRACEOPT_UNSET);
 	int quiet = (dtp->dt_options[DTRACEOPT_QUIET] != DTRACEOPT_UNSET);
 	int rval, i, n;
-	dtrace_epid_t last = DTRACE_EPIDNONE;
+	uint64_t tracememsize = 0;
 	dtrace_probedata_t data;
 	uint64_t drops;
-	caddr_t addr;
 
 	bzero(&data, sizeof (data));
 	data.dtpda_handle = dtp;
 	data.dtpda_cpu = cpu;
+	data.dtpda_flow = dtp->dt_flow;
+	data.dtpda_indent = dtp->dt_indent;
+	data.dtpda_prefix = dtp->dt_prefix;
 
-again:
-	for (offs = start; offs < end; ) {
+	for (offs = buf->dtbd_oldest; offs < buf->dtbd_size; ) {
 		dtrace_eprobedesc_t *epd;
 
 		/*
@@ -2063,7 +2453,8 @@ again:
 		}
 
 		if (flow)
-			(void) dt_flowindent(dtp, &data, last, buf, offs);
+			(void) dt_flowindent(dtp, &data, dtp->dt_last_epid,
+			    buf, offs);
 
 		rval = (*efunc)(&data, arg);
 
@@ -2082,6 +2473,7 @@ again:
 			return (dt_set_errno(dtp, EDT_BADRVAL));
 
 		for (i = 0; i < epd->dtepd_nrecs; i++) {
+			caddr_t addr;
 			dtrace_recdesc_t *rec = &epd->dtepd_rec[i];
 			dtrace_actkind_t act = rec->dtrd_action;
 
@@ -2187,6 +2579,13 @@ again:
 				}
 			}
 
+			if (act == DTRACEACT_TRACEMEM_DYNSIZE &&
+			    rec->dtrd_size == sizeof (uint64_t)) {
+			    	/* LINTED - alignment */
+				tracememsize = *((unsigned long long *)addr);
+				continue;
+			}
+
 			rval = (*rfunc)(&data, rec, arg);
 
 			if (rval == DTRACE_CONSUME_NEXT)
@@ -2290,6 +2689,35 @@ again:
 				goto nextrec;
 			}
 
+			/*
+			 * If this is a DIF expression, and the record has a
+			 * format set, this indicates we have a CTF type name
+			 * associated with the data and we should try to print
+			 * it out by type.
+			 */
+			if (act == DTRACEACT_DIFEXPR) {
+				const char *strdata = dt_strdata_lookup(dtp,
+				    rec->dtrd_format);
+				if (strdata != NULL) {
+					n = dtrace_print(dtp, fp, strdata,
+					    addr, rec->dtrd_size);
+
+					/*
+					 * dtrace_print() will return -1 on
+					 * error, or return the number of bytes
+					 * consumed.  It will return 0 if the
+					 * type couldn't be determined, and we
+					 * should fall through to the normal
+					 * trace method.
+					 */
+					if (n < 0)
+						return (-1);
+
+					if (n > 0)
+						goto nextrec;
+				}
+			}
+
 nofmt:
 			if (act == DTRACEACT_PRINTA) {
 				dt_print_aggdata_t pd;
@@ -2358,6 +2786,23 @@ nofmt:
 				goto nextrec;
 			}
 
+			if (act == DTRACEACT_TRACEMEM) {
+				if (tracememsize == 0 ||
+				    tracememsize > rec->dtrd_size) {
+					tracememsize = rec->dtrd_size;
+				}
+
+				n = dt_print_bytes(dtp, fp, addr,
+				    tracememsize, -33, quiet, 1);
+
+				tracememsize = 0;
+
+				if (n < 0)
+					return (-1);
+
+				goto nextrec;
+			}
+
 			switch (rec->dtrd_size) {
 			case sizeof (uint64_t):
 				n = dt_printf(dtp, fp,
@@ -2381,7 +2826,7 @@ nofmt:
 				break;
 			default:
 				n = dt_print_bytes(dtp, fp, addr,
-				    rec->dtrd_size, 33, quiet, 0);
+				    rec->dtrd_size, -33, quiet, 0);
 				break;
 			}
 
@@ -2400,14 +2845,16 @@ nextrec:
 		rval = (*rfunc)(&data, NULL, arg);
 nextepid:
 		offs += epd->dtepd_size;
-		last = id;
+		dtp->dt_last_epid = id;
+		if (just_one) {
+			buf->dtbd_oldest = offs;
+			break;
+		}
 	}
 
-	if (buf->dtbd_oldest != 0 && start == buf->dtbd_oldest) {
-		end = buf->dtbd_oldest;
-		start = 0;
-		goto again;
-	}
+	dtp->dt_flow = data.dtpda_flow;
+	dtp->dt_indent = data.dtpda_indent;
+	dtp->dt_prefix = data.dtpda_prefix;
 
 	if ((drops = buf->dtbd_drops) == 0)
 		return (0);
@@ -2418,6 +2865,131 @@ nextepid:
 	buf->dtbd_drops = 0;
 
 	return (dt_handle_cpudrop(dtp, cpu, DTRACEDROP_PRINCIPAL, drops));
+}
+
+/*
+ * Reduce memory usage by shrinking the buffer if it's no more than half full.
+ * Note, we need to preserve the alignment of the data at dtbd_oldest, which is
+ * only 4-byte aligned.
+ */
+static void
+dt_realloc_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf, int cursize)
+{
+	uint64_t used = buf->dtbd_size - buf->dtbd_oldest;
+	if (used < cursize / 2) {
+		int misalign = buf->dtbd_oldest & (sizeof (uint64_t) - 1);
+		char *newdata = dt_alloc(dtp, used + misalign);
+		if (newdata == NULL)
+			return;
+		bzero(newdata, misalign);
+		bcopy(buf->dtbd_data + buf->dtbd_oldest,
+		    newdata + misalign, used);
+		dt_free(dtp, buf->dtbd_data);
+		buf->dtbd_oldest = misalign;
+		buf->dtbd_size = used + misalign;
+		buf->dtbd_data = newdata;
+	}
+}
+
+/*
+ * If the ring buffer has wrapped, the data is not in order.  Rearrange it
+ * so that it is.  Note, we need to preserve the alignment of the data at
+ * dtbd_oldest, which is only 4-byte aligned.
+ */
+static int
+dt_unring_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf)
+{
+	int misalign;
+	char *newdata, *ndp;
+
+	if (buf->dtbd_oldest == 0)
+		return (0);
+
+	misalign = buf->dtbd_oldest & (sizeof (uint64_t) - 1);
+	newdata = ndp = dt_alloc(dtp, buf->dtbd_size + misalign);
+
+	if (newdata == NULL)
+		return (-1);
+
+	assert(0 == (buf->dtbd_size & (sizeof (uint64_t) - 1)));
+
+	bzero(ndp, misalign);
+	ndp += misalign;
+
+	bcopy(buf->dtbd_data + buf->dtbd_oldest, ndp,
+	    buf->dtbd_size - buf->dtbd_oldest);
+	ndp += buf->dtbd_size - buf->dtbd_oldest;
+
+	bcopy(buf->dtbd_data, ndp, buf->dtbd_oldest);
+
+	dt_free(dtp, buf->dtbd_data);
+	buf->dtbd_oldest = 0;
+	buf->dtbd_data = newdata;
+	buf->dtbd_size += misalign;
+
+	return (0);
+}
+
+static void
+dt_put_buf(dtrace_hdl_t *dtp, dtrace_bufdesc_t *buf)
+{
+	dt_free(dtp, buf->dtbd_data);
+	dt_free(dtp, buf);
+}
+
+/*
+ * Returns 0 on success, in which case *cbp will be filled in if we retrieved
+ * data, or NULL if there is no data for this CPU.
+ * Returns -1 on failure and sets dt_errno.
+ */
+static int
+dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
+{
+	dtrace_optval_t size;
+	dtrace_bufdesc_t *buf = dt_zalloc(dtp, sizeof (*buf));
+	int error, rval;
+
+	if (buf == NULL)
+		return (-1);
+
+	(void) dtrace_getopt(dtp, "bufsize", &size);
+	buf->dtbd_data = dt_alloc(dtp, size);
+	if (buf->dtbd_data == NULL) {
+		dt_free(dtp, buf);
+		return (-1);
+	}
+	buf->dtbd_size = size;
+	buf->dtbd_cpu = cpu;
+
+#ifdef illumos
+	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
+#else
+	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
+#endif
+		/*
+		 * If we failed with ENOENT, it may be because the
+		 * CPU was unconfigured -- this is okay.  Any other
+		 * error, however, is unexpected.
+		 */
+		if (errno == ENOENT) {
+			*bufp = NULL;
+			rval = 0;
+		} else
+			rval = dt_set_errno(dtp, errno);
+
+		dt_put_buf(dtp, buf);
+		return (rval);
+	}
+
+	error = dt_unring_buf(dtp, buf);
+	if (error != 0) {
+		dt_put_buf(dtp, buf);
+		return (error);
+	}
+	dt_realloc_buf(dtp, buf, size);
+
+	*bufp = buf;
+	return (0);
 }
 
 typedef struct dt_begin {
@@ -2432,7 +3004,7 @@ typedef struct dt_begin {
 static int
 dt_consume_begin_probe(const dtrace_probedata_t *data, void *arg)
 {
-	dt_begin_t *begin = (dt_begin_t *)arg;
+	dt_begin_t *begin = arg;
 	dtrace_probedesc_t *pd = data->dtpda_pdesc;
 
 	int r1 = (strcmp(pd->dtpd_provider, "dtrace") == 0);
@@ -2457,7 +3029,7 @@ static int
 dt_consume_begin_record(const dtrace_probedata_t *data,
     const dtrace_recdesc_t *rec, void *arg)
 {
-	dt_begin_t *begin = (dt_begin_t *)arg;
+	dt_begin_t *begin = arg;
 
 	return (begin->dtbgn_recfunc(data, rec, begin->dtbgn_arg));
 }
@@ -2483,7 +3055,7 @@ dt_consume_begin_error(const dtrace_errdata_t *data, void *arg)
 }
 
 static int
-dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
+dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp,
     dtrace_consume_probe_f *pf, dtrace_consume_rec_f *rf, void *arg)
 {
 	/*
@@ -2507,33 +3079,19 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	 * first pass, and that we only process ERROR enablings _not_ induced
 	 * by BEGIN enablings in the second pass.
 	 */
+
 	dt_begin_t begin;
 	processorid_t cpu = dtp->dt_beganon;
-	dtrace_bufdesc_t nbuf;
-#if !defined(sun)
-	dtrace_bufdesc_t *pbuf;
-#endif
 	int rval, i;
 	static int max_ncpus;
-	dtrace_optval_t size;
+	dtrace_bufdesc_t *buf;
 
 	dtp->dt_beganon = -1;
 
-#if defined(sun)
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
-		/*
-		 * We really don't expect this to fail, but it is at least
-		 * technically possible for this to fail with ENOENT.  In this
-		 * case, we just drive on...
-		 */
-		if (errno == ENOENT)
-			return (0);
-
-		return (dt_set_errno(dtp, errno));
-	}
+	if (dt_get_buf(dtp, cpu, &buf) != 0)
+		return (-1);
+	if (buf == NULL)
+		return (0);
 
 	if (!dtp->dt_stopped || buf->dtbd_cpu != dtp->dt_endedon) {
 		/*
@@ -2541,7 +3099,10 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 		 * we are, we actually processed any END probes on another
 		 * CPU.  We can simply consume this buffer and return.
 		 */
-		return (dt_consume_cpu(dtp, fp, cpu, buf, pf, rf, arg));
+		rval = dt_consume_cpu(dtp, fp, cpu, buf, B_FALSE,
+		    pf, rf, arg);
+		dt_put_buf(dtp, buf);
+		return (rval);
 	}
 
 	begin.dtbgn_probefunc = pf;
@@ -2558,60 +3119,40 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	dtp->dt_errhdlr = dt_consume_begin_error;
 	dtp->dt_errarg = &begin;
 
-	rval = dt_consume_cpu(dtp, fp, cpu, buf, dt_consume_begin_probe,
-	    dt_consume_begin_record, &begin);
+	rval = dt_consume_cpu(dtp, fp, cpu, buf, B_FALSE,
+	    dt_consume_begin_probe, dt_consume_begin_record, &begin);
 
 	dtp->dt_errhdlr = begin.dtbgn_errhdlr;
 	dtp->dt_errarg = begin.dtbgn_errarg;
 
-	if (rval != 0)
+	if (rval != 0) {
+		dt_put_buf(dtp, buf);
 		return (rval);
-
-	/*
-	 * Now allocate a new buffer.  We'll use this to deal with every other
-	 * CPU.
-	 */
-	bzero(&nbuf, sizeof (dtrace_bufdesc_t));
-	(void) dtrace_getopt(dtp, "bufsize", &size);
-	if ((nbuf.dtbd_data = malloc(size)) == NULL)
-		return (dt_set_errno(dtp, EDT_NOMEM));
+	}
 
 	if (max_ncpus == 0)
 		max_ncpus = dt_sysconf(dtp, _SC_CPUID_MAX) + 1;
 
 	for (i = 0; i < max_ncpus; i++) {
-		nbuf.dtbd_cpu = i;
-
+		dtrace_bufdesc_t *nbuf;
 		if (i == cpu)
 			continue;
 
-#if defined(sun)
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &nbuf) == -1) {
-#else
-		pbuf = &nbuf;
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &pbuf) == -1) {
-#endif
-			/*
-			 * If we failed with ENOENT, it may be because the
-			 * CPU was unconfigured -- this is okay.  Any other
-			 * error, however, is unexpected.
-			 */
-			if (errno == ENOENT)
-				continue;
-
-			free(nbuf.dtbd_data);
-
-			return (dt_set_errno(dtp, errno));
+		if (dt_get_buf(dtp, i, &nbuf) != 0) {
+			dt_put_buf(dtp, buf);
+			return (-1);
 		}
+		if (nbuf == NULL)
+			continue;
 
-		if ((rval = dt_consume_cpu(dtp, fp,
-		    i, &nbuf, pf, rf, arg)) != 0) {
-			free(nbuf.dtbd_data);
+		rval = dt_consume_cpu(dtp, fp, i, nbuf, B_FALSE,
+		    pf, rf, arg);
+		dt_put_buf(dtp, nbuf);
+		if (rval != 0) {
+			dt_put_buf(dtp, buf);
 			return (rval);
 		}
 	}
-
-	free(nbuf.dtbd_data);
 
 	/*
 	 * Okay -- we're done with the other buffers.  Now we want to
@@ -2627,8 +3168,8 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	dtp->dt_errhdlr = dt_consume_begin_error;
 	dtp->dt_errarg = &begin;
 
-	rval = dt_consume_cpu(dtp, fp, cpu, buf, dt_consume_begin_probe,
-	    dt_consume_begin_record, &begin);
+	rval = dt_consume_cpu(dtp, fp, cpu, buf, B_FALSE,
+	    dt_consume_begin_probe, dt_consume_begin_record, &begin);
 
 	dtp->dt_errhdlr = begin.dtbgn_errhdlr;
 	dtp->dt_errarg = begin.dtbgn_errarg;
@@ -2636,11 +3177,32 @@ dt_consume_begin(dtrace_hdl_t *dtp, FILE *fp, dtrace_bufdesc_t *buf,
 	return (rval);
 }
 
+/* ARGSUSED */
+static uint64_t
+dt_buf_oldest(void *elem, void *arg)
+{
+	dtrace_bufdesc_t *buf = elem;
+	size_t offs = buf->dtbd_oldest;
+
+	while (offs < buf->dtbd_size) {
+		dtrace_rechdr_t *dtrh =
+		    /* LINTED - alignment */
+		    (dtrace_rechdr_t *)(buf->dtbd_data + offs);
+		if (dtrh->dtrh_epid == DTRACE_EPIDNONE) {
+			offs += sizeof (dtrace_epid_t);
+		} else {
+			return (DTRACE_RECORD_LOAD_TIMESTAMP(dtrh));
+		}
+	}
+
+	/* There are no records left; use the time the buffer was retrieved. */
+	return (buf->dtbd_timestamp);
+}
+
 int
 dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
     dtrace_consume_probe_f *pf, dtrace_consume_rec_f *rf, void *arg)
 {
-	dtrace_bufdesc_t *buf = &dtp->dt_buf;
 	dtrace_optval_t size;
 	static int max_ncpus;
 	int i, rval;
@@ -2668,79 +3230,158 @@ dtrace_consume(dtrace_hdl_t *dtp, FILE *fp,
 	if (rf == NULL)
 		rf = (dtrace_consume_rec_f *)dt_nullrec;
 
-	if (buf->dtbd_data == NULL) {
-		(void) dtrace_getopt(dtp, "bufsize", &size);
-		if ((buf->dtbd_data = malloc(size)) == NULL)
-			return (dt_set_errno(dtp, EDT_NOMEM));
-
-		buf->dtbd_size = size;
-	}
-
-	/*
-	 * If we have just begun, we want to first process the CPU that
-	 * executed the BEGIN probe (if any).
-	 */
-	if (dtp->dt_active && dtp->dt_beganon != -1) {
-		buf->dtbd_cpu = dtp->dt_beganon;
-		if ((rval = dt_consume_begin(dtp, fp, buf, pf, rf, arg)) != 0)
-			return (rval);
-	}
-
-	for (i = 0; i < max_ncpus; i++) {
-		buf->dtbd_cpu = i;
-
+	if (dtp->dt_options[DTRACEOPT_TEMPORAL] == DTRACEOPT_UNSET) {
 		/*
-		 * If we have stopped, we want to process the CPU on which the
-		 * END probe was processed only _after_ we have processed
-		 * everything else.
+		 * The output will not be in the order it was traced.  Rather,
+		 * we will consume all of the data from each CPU's buffer in
+		 * turn.  We apply special handling for the records from BEGIN
+		 * and END probes so that they are consumed first and last,
+		 * respectively.
+		 *
+		 * If we have just begun, we want to first process the CPU that
+		 * executed the BEGIN probe (if any).
 		 */
-		if (dtp->dt_stopped && (i == dtp->dt_endedon))
-			continue;
+		if (dtp->dt_active && dtp->dt_beganon != -1 &&
+		    (rval = dt_consume_begin(dtp, fp, pf, rf, arg)) != 0)
+			return (rval);
 
-#if defined(sun)
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-		if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
+		for (i = 0; i < max_ncpus; i++) {
+			dtrace_bufdesc_t *buf;
+
 			/*
-			 * If we failed with ENOENT, it may be because the
-			 * CPU was unconfigured -- this is okay.  Any other
-			 * error, however, is unexpected.
+			 * If we have stopped, we want to process the CPU on
+			 * which the END probe was processed only _after_ we
+			 * have processed everything else.
 			 */
-			if (errno == ENOENT)
+			if (dtp->dt_stopped && (i == dtp->dt_endedon))
 				continue;
 
-			return (dt_set_errno(dtp, errno));
+			if (dt_get_buf(dtp, i, &buf) != 0)
+				return (-1);
+			if (buf == NULL)
+				continue;
+
+			dtp->dt_flow = 0;
+			dtp->dt_indent = 0;
+			dtp->dt_prefix = NULL;
+			rval = dt_consume_cpu(dtp, fp, i,
+			    buf, B_FALSE, pf, rf, arg);
+			dt_put_buf(dtp, buf);
+			if (rval != 0)
+				return (rval);
+		}
+		if (dtp->dt_stopped) {
+			dtrace_bufdesc_t *buf;
+
+			if (dt_get_buf(dtp, dtp->dt_endedon, &buf) != 0)
+				return (-1);
+			if (buf == NULL)
+				return (0);
+
+			rval = dt_consume_cpu(dtp, fp, dtp->dt_endedon,
+			    buf, B_FALSE, pf, rf, arg);
+			dt_put_buf(dtp, buf);
+			return (rval);
+		}
+	} else {
+		/*
+		 * The output will be in the order it was traced (or for
+		 * speculations, when it was committed).  We retrieve a buffer
+		 * from each CPU and put it into a priority queue, which sorts
+		 * based on the first entry in the buffer.  This is sufficient
+		 * because entries within a buffer are already sorted.
+		 *
+		 * We then consume records one at a time, always consuming the
+		 * oldest record, as determined by the priority queue.  When
+		 * we reach the end of the time covered by these buffers,
+		 * we need to stop and retrieve more records on the next pass.
+		 * The kernel tells us the time covered by each buffer, in
+		 * dtbd_timestamp.  The first buffer's timestamp tells us the
+		 * time covered by all buffers, as subsequently retrieved
+		 * buffers will cover to a more recent time.
+		 */
+
+		uint64_t *drops = alloca(max_ncpus * sizeof (uint64_t));
+		uint64_t first_timestamp = 0;
+		uint_t cookie = 0;
+		dtrace_bufdesc_t *buf;
+
+		bzero(drops, max_ncpus * sizeof (uint64_t));
+
+		if (dtp->dt_bufq == NULL) {
+			dtp->dt_bufq = dt_pq_init(dtp, max_ncpus * 2,
+			    dt_buf_oldest, NULL);
+			if (dtp->dt_bufq == NULL) /* ENOMEM */
+				return (-1);
 		}
 
-		if ((rval = dt_consume_cpu(dtp, fp, i, buf, pf, rf, arg)) != 0)
-			return (rval);
-	}
+		/* Retrieve data from each CPU. */
+		(void) dtrace_getopt(dtp, "bufsize", &size);
+		for (i = 0; i < max_ncpus; i++) {
+			dtrace_bufdesc_t *buf;
 
-	if (!dtp->dt_stopped)
-		return (0);
+			if (dt_get_buf(dtp, i, &buf) != 0)
+				return (-1);
+			if (buf != NULL) {
+				if (first_timestamp == 0)
+					first_timestamp = buf->dtbd_timestamp;
+				assert(buf->dtbd_timestamp >= first_timestamp);
 
-	buf->dtbd_cpu = dtp->dt_endedon;
+				dt_pq_insert(dtp->dt_bufq, buf);
+				drops[i] = buf->dtbd_drops;
+				buf->dtbd_drops = 0;
+			}
+		}
 
-#if defined(sun)
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, buf) == -1) {
-#else
-	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
-#endif
+		/* Consume records. */
+		for (;;) {
+			dtrace_bufdesc_t *buf = dt_pq_pop(dtp->dt_bufq);
+			uint64_t timestamp;
+
+			if (buf == NULL)
+				break;
+
+			timestamp = dt_buf_oldest(buf, dtp);
+			assert(timestamp >= dtp->dt_last_timestamp);
+			dtp->dt_last_timestamp = timestamp;
+
+			if (timestamp == buf->dtbd_timestamp) {
+				/*
+				 * We've reached the end of the time covered
+				 * by this buffer.  If this is the oldest
+				 * buffer, we must do another pass
+				 * to retrieve more data.
+				 */
+				dt_put_buf(dtp, buf);
+				if (timestamp == first_timestamp &&
+				    !dtp->dt_stopped)
+					break;
+				continue;
+			}
+
+			if ((rval = dt_consume_cpu(dtp, fp,
+			    buf->dtbd_cpu, buf, B_TRUE, pf, rf, arg)) != 0)
+				return (rval);
+			dt_pq_insert(dtp->dt_bufq, buf);
+		}
+
+		/* Consume drops. */
+		for (i = 0; i < max_ncpus; i++) {
+			if (drops[i] != 0) {
+				int error = dt_handle_cpudrop(dtp, i,
+				    DTRACEDROP_PRINCIPAL, drops[i]);
+				if (error != 0)
+					return (error);
+			}
+		}
+
 		/*
-		 * This _really_ shouldn't fail, but it is strictly speaking
-		 * possible for this to return ENOENT if the CPU that called
-		 * the END enabling somehow managed to become unconfigured.
-		 * It's unclear how the user can possibly expect anything
-		 * rational to happen in this case -- the state has been thrown
-		 * out along with the unconfigured CPU -- so we'll just drive
-		 * on...
+		 * Reduce memory usage by re-allocating smaller buffers
+		 * for the "remnants".
 		 */
-		if (errno == ENOENT)
-			return (0);
-
-		return (dt_set_errno(dtp, errno));
+		while (buf = dt_pq_walk(dtp->dt_bufq, &cookie))
+			dt_realloc_buf(dtp, buf, buf->dtbd_size);
 	}
 
-	return (dt_consume_cpu(dtp, fp, dtp->dt_endedon, buf, pf, rf, arg));
+	return (0);
 }

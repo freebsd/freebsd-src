@@ -35,9 +35,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
-#include "opt_kdtrace.h"
 
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 
 /*
  * generally, I don't like #includes inside .h files, but it seems to
@@ -199,7 +198,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	}
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
-	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
+	error = getnewvnode("nfs", mntp, &newnfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(newnfsnode_zone, np);
 		FREE((caddr_t)nfhp, M_NFSFH);
@@ -361,6 +360,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	struct timespec mtime_save;
+	u_quad_t nsize;
+	int setnsize;
 
 	/*
 	 * If v_type == VNON it is a new node, so fill in the v_type,
@@ -418,6 +419,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 	} else
 		vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	np->n_attrstamp = time_second;
+	setnsize = 0;
+	nsize = 0;
 	if (vap->va_size != np->n_size) {
 		if (vap->va_type == VREG) {
 			if (dontshrink && vap->va_size < np->n_size) {
@@ -429,6 +432,7 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 				vap->va_size = np->n_size;
 				np->n_attrstamp = 0;
 				KDTRACE_NFS_ATTRCACHE_FLUSH_DONE(vp);
+				vnode_pager_setsize(vp, np->n_size);
 			} else if (np->n_flag & NMODIFIED) {
 				/*
 				 * We've modified the file: Use the larger
@@ -440,11 +444,22 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 					np->n_size = vap->va_size;
 					np->n_flag |= NSIZECHANGED;
 				}
+				vnode_pager_setsize(vp, np->n_size);
+			} else if (vap->va_size < np->n_size) {
+				/*
+				 * When shrinking the size, the call to
+				 * vnode_pager_setsize() cannot be done
+				 * with the mutex held, so delay it until
+				 * after the mtx_unlock call.
+				 */
+				nsize = np->n_size = vap->va_size;
+				np->n_flag |= NSIZECHANGED;
+				setnsize = 1;
 			} else {
 				np->n_size = vap->va_size;
 				np->n_flag |= NSIZECHANGED;
+				vnode_pager_setsize(vp, np->n_size);
 			}
-			vnode_pager_setsize(vp, np->n_size);
 		} else {
 			np->n_size = vap->va_size;
 		}
@@ -480,6 +495,8 @@ nfscl_loadattrcache(struct vnode **vpp, struct nfsvattr *nap, void *nvaper,
 		KDTRACE_NFS_ATTRCACHE_LOAD_DONE(vp, vap, 0);
 #endif
 	NFSUNLOCKNODE(np);
+	if (setnsize)
+		vnode_pager_setsize(vp, nsize);
 	return (0);
 }
 
@@ -1079,9 +1096,16 @@ nfscl_checksattr(struct vattr *vap, struct nfsvattr *nvap)
 	 * us to do a SETATTR RPC. FreeBSD servers store the verifier
 	 * in atime, but we can't really assume that all servers will
 	 * so we ensure that our SETATTR sets both atime and mtime.
+	 * Set the VA_UTIMES_NULL flag for this case, so that
+	 * the server's time will be used.  This is needed to
+	 * work around a bug in some Solaris servers, where
+	 * setting the time TOCLIENT causes the Setattr RPC
+	 * to return NFS_OK, but not set va_mode.
 	 */
-	if (vap->va_mtime.tv_sec == VNOVAL)
+	if (vap->va_mtime.tv_sec == VNOVAL) {
 		vfs_timestamp(&vap->va_mtime);
+		vap->va_vaflags |= VA_UTIMES_NULL;
+	}
 	if (vap->va_atime.tv_sec == VNOVAL)
 		vap->va_atime = vap->va_mtime;
 	return (1);
@@ -1201,10 +1225,11 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
-	int error;
 	struct nameidata nd;
 	struct nfscl_dumpmntopts dumpmntopts;
+	cap_rights_t rights;
 	char *buf;
+	int error;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1215,10 +1240,10 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		 * pretend that we need them all. It is better to be too
 		 * careful than too reckless.
 		 */
-		if ((error = fget(td, nfscbdarg.sock, CAP_SOCK_CLIENT, &fp))
-		    != 0) {
+		error = fget(td, nfscbdarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_CLIENT), &fp);
+		if (error)
 			return (error);
-		}
 		if (fp->f_type != DTYPE_SOCKET) {
 			fdrop(fp, td);
 			return (EPERM);

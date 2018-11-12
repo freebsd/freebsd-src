@@ -10,11 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)seq.c	10.10 (Berkeley) 3/30/96";
+static const char sccsid[] = "$Id: seq.c,v 10.18 2011/12/11 23:13:00 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -34,12 +35,16 @@ static const char sccsid[] = "@(#)seq.c	10.10 (Berkeley) 3/30/96";
  * PUBLIC:    size_t, CHAR_T *, size_t, CHAR_T *, size_t, seq_t, int));
  */
 int
-seq_set(sp, name, nlen, input, ilen, output, olen, stype, flags)
-	SCR *sp;
-	CHAR_T *name, *input, *output;
-	size_t nlen, ilen, olen;
-	seq_t stype;
-	int flags;
+seq_set(
+	SCR *sp,
+	CHAR_T *name,
+	size_t nlen,
+	CHAR_T *input,
+	size_t ilen,
+	CHAR_T *output,
+	size_t olen,
+	seq_t stype,
+	int flags)
 {
 	CHAR_T *p;
 	SEQ *lastqp, *qp;
@@ -59,7 +64,7 @@ seq_set(sp, name, nlen, input, ilen, output, olen, stype, flags)
 		if (output == NULL || olen == 0) {
 			p = NULL;
 			olen = 0;
-		} else if ((p = v_strdup(sp, output, olen)) == NULL) {
+		} else if ((p = v_wstrdup(sp, output, olen)) == NULL) {
 			sv_errno = errno;
 			goto mem1;
 		}
@@ -80,14 +85,14 @@ seq_set(sp, name, nlen, input, ilen, output, olen, stype, flags)
 	/* Name. */
 	if (name == NULL || nlen == 0)
 		qp->name = NULL;
-	else if ((qp->name = v_strdup(sp, name, nlen)) == NULL) {
+	else if ((qp->name = v_wstrdup(sp, name, nlen)) == NULL) {
 		sv_errno = errno;
 		goto mem2;
 	}
 	qp->nlen = nlen;
 
 	/* Input. */
-	if ((qp->input = v_strdup(sp, input, ilen)) == NULL) {
+	if ((qp->input = v_wstrdup(sp, input, ilen)) == NULL) {
 		sv_errno = errno;
 		goto mem3;
 	}
@@ -97,7 +102,7 @@ seq_set(sp, name, nlen, input, ilen, output, olen, stype, flags)
 	if (output == NULL) {
 		qp->output = NULL;
 		olen = 0;
-	} else if ((qp->output = v_strdup(sp, output, olen)) == NULL) {
+	} else if ((qp->output = v_wstrdup(sp, output, olen)) == NULL) {
 		sv_errno = errno;
 		free(qp->input);
 mem3:		if (qp->name != NULL)
@@ -115,13 +120,13 @@ mem1:		errno = sv_errno;
 
 	/* Link into the chain. */
 	if (lastqp == NULL) {
-		LIST_INSERT_HEAD(&sp->gp->seqq, qp, q);
+		SLIST_INSERT_HEAD(sp->gp->seqq, qp, q);
 	} else {
-		LIST_INSERT_AFTER(lastqp, qp, q);
+		SLIST_INSERT_AFTER(lastqp, qp, q);
 	}
 
 	/* Set the fast lookup bit. */
-	if (qp->input[0] < MAX_BIT_SEQ)
+	if ((qp->input[0] & ~MAX_BIT_SEQ) == 0)
 		bit_set(sp->gp->seqb, qp->input[0]);
 
 	return (0);
@@ -134,33 +139,48 @@ mem1:		errno = sv_errno;
  * PUBLIC: int seq_delete __P((SCR *, CHAR_T *, size_t, seq_t));
  */
 int
-seq_delete(sp, input, ilen, stype)
-	SCR *sp;
-	CHAR_T *input;
-	size_t ilen;
-	seq_t stype;
+seq_delete(
+	SCR *sp,
+	CHAR_T *input,
+	size_t ilen,
+	seq_t stype)
 {
-	SEQ *qp;
+	SEQ *qp, *pre_qp = NULL;
+	int diff;
 
-	if ((qp = seq_find(sp, NULL, NULL, input, ilen, stype, NULL)) == NULL)
-		return (1);
-	return (seq_mdel(qp));
+	SLIST_FOREACH(qp, sp->gp->seqq, q) {
+		if (qp->stype == stype && qp->ilen == ilen) {
+			diff = MEMCMP(qp->input, input, ilen);
+			if (!diff) {
+				if (F_ISSET(qp, SEQ_FUNCMAP))
+					break;
+				if (qp == SLIST_FIRST(sp->gp->seqq))
+					SLIST_REMOVE_HEAD(sp->gp->seqq, q);
+				else
+					SLIST_REMOVE_AFTER(pre_qp, q);
+				return (seq_free(qp));
+			}
+			if (diff > 0)
+				break;
+		}
+		pre_qp = qp;
+	}
+	return (1);
 }
 
 /*
- * seq_mdel --
- *	Delete a map entry, without lookup.
+ * seq_free --
+ *	Free a map entry.
  *
- * PUBLIC: int seq_mdel __P((SEQ *));
+ * PUBLIC: int seq_free __P((SEQ *));
  */
 int
-seq_mdel(qp)
-	SEQ *qp;
+seq_free(SEQ *qp)
 {
-	LIST_REMOVE(qp, q);
 	if (qp->name != NULL)
 		free(qp->name);
-	free(qp->input);
+	if (qp->input != NULL)
+		free(qp->input);
 	if (qp->output != NULL)
 		free(qp->output);
 	free(qp);
@@ -176,16 +196,16 @@ seq_mdel(qp)
  * PUBLIC:    __P((SCR *, SEQ **, EVENT *, CHAR_T *, size_t, seq_t, int *));
  */
 SEQ *
-seq_find(sp, lastqp, e_input, c_input, ilen, stype, ispartialp)
-	SCR *sp;
-	SEQ **lastqp;
-	EVENT *e_input;
-	CHAR_T *c_input;
-	size_t ilen;
-	seq_t stype;
-	int *ispartialp;
+seq_find(
+	SCR *sp,
+	SEQ **lastqp,
+	EVENT *e_input,
+	CHAR_T *c_input,
+	size_t ilen,
+	seq_t stype,
+	int *ispartialp)
 {
-	SEQ *lqp, *qp;
+	SEQ *lqp = NULL, *qp;
 	int diff;
 
 	/*
@@ -200,8 +220,8 @@ seq_find(sp, lastqp, e_input, c_input, ilen, stype, ispartialp)
 	 */
 	if (ispartialp != NULL)
 		*ispartialp = 0;
-	for (lqp = NULL, qp = sp->gp->seqq.lh_first;
-	    qp != NULL; lqp = qp, qp = qp->q.le_next) {
+	for (qp = SLIST_FIRST(sp->gp->seqq); qp != NULL;
+	    lqp = qp, qp = SLIST_NEXT(qp, q)) {
 		/*
 		 * Fast checks on the first character and type, and then
 		 * a real comparison.
@@ -212,7 +232,7 @@ seq_find(sp, lastqp, e_input, c_input, ilen, stype, ispartialp)
 			if (qp->input[0] < c_input[0] ||
 			    qp->stype != stype || F_ISSET(qp, SEQ_FUNCMAP))
 				continue;
-			diff = memcmp(qp->input, c_input, MIN(qp->ilen, ilen));
+			diff = MEMCMP(qp->input, c_input, MIN(qp->ilen, ilen));
 		} else {
 			if (qp->input[0] > e_input->e_c)
 				break;
@@ -261,20 +281,13 @@ seq_find(sp, lastqp, e_input, c_input, ilen, stype, ispartialp)
  * PUBLIC: void seq_close __P((GS *));
  */
 void
-seq_close(gp)
-	GS *gp;
+seq_close(GS *gp)
 {
 	SEQ *qp;
 
-	while ((qp = gp->seqq.lh_first) != NULL) {
-		if (qp->name != NULL)
-			free(qp->name);
-		if (qp->input != NULL)
-			free(qp->input);
-		if (qp->output != NULL)
-			free(qp->output);
-		LIST_REMOVE(qp, q);
-		free(qp);
+	while ((qp = SLIST_FIRST(gp->seqq)) != NULL) {
+		SLIST_REMOVE_HEAD(gp->seqq, q);
+		(void)seq_free(qp);
 	}
 }
 
@@ -285,10 +298,10 @@ seq_close(gp)
  * PUBLIC: int seq_dump __P((SCR *, seq_t, int));
  */
 int
-seq_dump(sp, stype, isname)
-	SCR *sp;
-	seq_t stype;
-	int isname;
+seq_dump(
+	SCR *sp,
+	seq_t stype,
+	int isname)
 {
 	CHAR_T *p;
 	GS *gp;
@@ -297,7 +310,7 @@ seq_dump(sp, stype, isname)
 
 	cnt = 0;
 	gp = sp->gp;
-	for (qp = gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next) {
+	SLIST_FOREACH(qp, sp->gp->seqq, q) {
 		if (stype != qp->stype || F_ISSET(qp, SEQ_FUNCMAP))
 			continue;
 		++cnt;
@@ -333,11 +346,11 @@ seq_dump(sp, stype, isname)
  * PUBLIC: int seq_save __P((SCR *, FILE *, char *, seq_t));
  */
 int
-seq_save(sp, fp, prefix, stype)
-	SCR *sp;
-	FILE *fp;
-	char *prefix;
-	seq_t stype;
+seq_save(
+	SCR *sp,
+	FILE *fp,
+	char *prefix,
+	seq_t stype)
 {
 	CHAR_T *p;
 	SEQ *qp;
@@ -345,7 +358,7 @@ seq_save(sp, fp, prefix, stype)
 	int ch;
 
 	/* Write a sequence command for all keys the user defined. */
-	for (qp = sp->gp->seqq.lh_first; qp != NULL; qp = qp->q.le_next) {
+	SLIST_FOREACH(qp, sp->gp->seqq, q) {
 		if (stype != qp->stype || !F_ISSET(qp, SEQ_USERDEF))
 			continue;
 		if (prefix)
@@ -353,7 +366,7 @@ seq_save(sp, fp, prefix, stype)
 		for (p = qp->input, olen = qp->ilen; olen > 0; --olen) {
 			ch = *p++;
 			if (ch == CH_LITERAL || ch == '|' ||
-			    isblank(ch) || KEY_VAL(sp, ch) == K_NL)
+			    cmdskip(ch) || KEY_VAL(sp, ch) == K_NL)
 				(void)putc(CH_LITERAL, fp);
 			(void)putc(ch, fp);
 		}
@@ -379,10 +392,10 @@ seq_save(sp, fp, prefix, stype)
  * PUBLIC: int e_memcmp __P((CHAR_T *, EVENT *, size_t));
  */
 int
-e_memcmp(p1, ep, n)
-	CHAR_T *p1;
-	EVENT *ep;
-	size_t n;
+e_memcmp(
+	CHAR_T *p1,
+	EVENT *ep,
+	size_t n)
 {
 	if (n != 0) {
                 do {

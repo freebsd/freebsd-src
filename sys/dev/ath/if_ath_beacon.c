@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -322,7 +323,7 @@ ath_beacon_setup(struct ath_softc *sc, struct ath_buf *bf)
 		, m->m_len + IEEE80211_CRC_LEN	/* frame length */
 		, sizeof(struct ieee80211_frame)/* header length */
 		, HAL_PKT_TYPE_BEACON		/* Atheros packet type */
-		, ni->ni_txpower		/* txpower XXX */
+		, ieee80211_get_node_txpower(ni)	/* txpower XXX */
 		, rate, 1			/* series 0 rate/tries */
 		, HAL_TXKEYIX_INVALID		/* no encryption */
 		, antenna			/* antenna mode */
@@ -379,6 +380,44 @@ ath_beacon_update(struct ieee80211vap *vap, int item)
 }
 
 /*
+ * Handle a beacon miss.
+ */
+void
+ath_beacon_miss(struct ath_softc *sc)
+{
+	HAL_SURVEY_SAMPLE hs;
+	HAL_BOOL ret;
+	uint32_t hangs;
+
+	bzero(&hs, sizeof(hs));
+
+	ret = ath_hal_get_mib_cycle_counts(sc->sc_ah, &hs);
+
+	if (ath_hal_gethangstate(sc->sc_ah, 0xffff, &hangs) && hangs != 0) {
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: hang=0x%08x\n",
+		    __func__,
+		    hangs);
+	}
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_MISSED_BEACON))
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_MISSED_BEACON, 0, NULL);
+#endif
+
+	DPRINTF(sc, ATH_DEBUG_BEACON,
+	    "%s: valid=%d, txbusy=%u, rxbusy=%u, chanbusy=%u, "
+	    "extchanbusy=%u, cyclecount=%u\n",
+	    __func__,
+	    ret,
+	    hs.tx_busy,
+	    hs.rx_busy,
+	    hs.chan_busy,
+	    hs.ext_chan_busy,
+	    hs.cycle_count);
+}
+
+/*
  * Transmit a beacon frame at SWBA.  Dynamic updates to the
  * frame contents are done as needed and the slot time is
  * also adjusted based on current state.
@@ -405,6 +444,7 @@ ath_beacon_proc(void *arg, int pending)
 	if (ath_hal_numtxpending(ah, sc->sc_bhalq) != 0) {
 		sc->sc_bmisscount++;
 		sc->sc_stats.ast_be_missed++;
+		ath_beacon_miss(sc);
 		DPRINTF(sc, ATH_DEBUG_BEACON,
 			"%s: missed %u consecutive beacons\n",
 			__func__, sc->sc_bmisscount);
@@ -417,6 +457,10 @@ ath_beacon_proc(void *arg, int pending)
 			"%s: resume beacon xmit after %u misses\n",
 			__func__, sc->sc_bmisscount);
 		sc->sc_bmisscount = 0;
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_RESUME_BEACON))
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_RESUME_BEACON, 0, NULL);
+#endif
 	}
 
 	if (sc->sc_stagbeacons) {			/* staggered beacons */
@@ -440,6 +484,10 @@ ath_beacon_proc(void *arg, int pending)
 			vap = sc->sc_bslot[slot];
 			if (vap != NULL && vap->iv_state >= IEEE80211_S_RUN) {
 				bf = ath_beacon_generate(sc, vap);
+				/*
+				 * XXX TODO: this should use settxdesclinkptr()
+				 * otherwise it won't work for EDMA chipsets!
+				 */
 				if (bf != NULL) {
 					/* XXX should do this using the ds */
 					*bflink = bf->bf_daddr;
@@ -448,6 +496,10 @@ ath_beacon_proc(void *arg, int pending)
 				}
 			}
 		}
+		/*
+		 * XXX TODO: this should use settxdesclinkptr()
+		 * otherwise it won't work for EDMA chipsets!
+		 */
 		*bflink = 0;				/* terminate list */
 	}
 
@@ -478,6 +530,12 @@ ath_beacon_proc(void *arg, int pending)
 		sc->sc_ant_tx[1] = sc->sc_ant_tx[2] = 0;
 	}
 
+	/* Program the CABQ with the contents of the CABQ txq and start it */
+	ATH_TXQ_LOCK(sc->sc_cabq);
+	ath_beacon_cabq_start(sc);
+	ATH_TXQ_UNLOCK(sc->sc_cabq);
+
+	/* Program the new beacon frame if we have one for this interval */
 	if (bfaddr != 0) {
 		/*
 		 * Stop any current dma and put the new frame on the queue.
@@ -498,6 +556,137 @@ ath_beacon_proc(void *arg, int pending)
 
 		sc->sc_stats.ast_be_xmit++;
 	}
+}
+
+static void
+ath_beacon_cabq_start_edma(struct ath_softc *sc)
+{
+	struct ath_buf *bf, *bf_last;
+	struct ath_txq *cabq = sc->sc_cabq;
+#if 0
+	struct ath_buf *bfi;
+	int i = 0;
+#endif
+
+	ATH_TXQ_LOCK_ASSERT(cabq);
+
+	if (TAILQ_EMPTY(&cabq->axq_q))
+		return;
+	bf = TAILQ_FIRST(&cabq->axq_q);
+	bf_last = TAILQ_LAST(&cabq->axq_q, axq_q_s);
+
+	/*
+	 * This is a dirty, dirty hack to push the contents of
+	 * the cabq staging queue into the FIFO.
+	 *
+	 * This ideally should live in the EDMA code file
+	 * and only push things into the CABQ if there's a FIFO
+	 * slot.
+	 *
+	 * We can't treat this like a normal TX queue because
+	 * in the case of multi-VAP traffic, we may have to flush
+	 * the CABQ each new (staggered) beacon that goes out.
+	 * But for non-staggered beacons, we could in theory
+	 * handle multicast traffic for all VAPs in one FIFO
+	 * push.  Just keep all of this in mind if you're wondering
+	 * how to correctly/better handle multi-VAP CABQ traffic
+	 * with EDMA.
+	 */
+
+	/*
+	 * Is the CABQ FIFO free? If not, complain loudly and
+	 * don't queue anything.  Maybe we'll flush the CABQ
+	 * traffic, maybe we won't.  But that'll happen next
+	 * beacon interval.
+	 */
+	if (cabq->axq_fifo_depth >= HAL_TXFIFO_DEPTH) {
+		device_printf(sc->sc_dev,
+		    "%s: Q%d: CAB FIFO queue=%d?\n",
+		    __func__,
+		    cabq->axq_qnum,
+		    cabq->axq_fifo_depth);
+		return;
+	}
+
+	/*
+	 * Ok, so here's the gymnastics reqiured to make this
+	 * all sensible.
+	 */
+
+	/*
+	 * Tag the first/last buffer appropriately.
+	 */
+	bf->bf_flags |= ATH_BUF_FIFOPTR;
+	bf_last->bf_flags |= ATH_BUF_FIFOEND;
+
+#if 0
+	i = 0;
+	TAILQ_FOREACH(bfi, &cabq->axq_q, bf_list) {
+		ath_printtxbuf(sc, bf, cabq->axq_qnum, i, 0);
+		i++;
+	}
+#endif
+
+	/*
+	 * We now need to push this set of frames onto the tail
+	 * of the FIFO queue.  We don't adjust the aggregate
+	 * count, only the queue depth counter(s).
+	 * We also need to blank the link pointer now.
+	 */
+	TAILQ_CONCAT(&cabq->fifo.axq_q, &cabq->axq_q, bf_list);
+	cabq->axq_link = NULL;
+	cabq->fifo.axq_depth += cabq->axq_depth;
+	cabq->axq_depth = 0;
+
+	/* Bump FIFO queue */
+	cabq->axq_fifo_depth++;
+
+	/* Push the first entry into the hardware */
+	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+	cabq->axq_flags |= ATH_TXQ_PUTRUNNING;
+
+	/* NB: gated by beacon so safe to start here */
+	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
+
+}
+
+static void
+ath_beacon_cabq_start_legacy(struct ath_softc *sc)
+{
+	struct ath_buf *bf;
+	struct ath_txq *cabq = sc->sc_cabq;
+
+	ATH_TXQ_LOCK_ASSERT(cabq);
+	if (TAILQ_EMPTY(&cabq->axq_q))
+		return;
+	bf = TAILQ_FIRST(&cabq->axq_q);
+
+	/* Push the first entry into the hardware */
+	ath_hal_puttxbuf(sc->sc_ah, cabq->axq_qnum, bf->bf_daddr);
+	cabq->axq_flags |= ATH_TXQ_PUTRUNNING;
+
+	/* NB: gated by beacon so safe to start here */
+	ath_hal_txstart(sc->sc_ah, cabq->axq_qnum);
+}
+
+/*
+ * Start CABQ transmission - this assumes that all frames are prepped
+ * and ready in the CABQ.
+ */
+void
+ath_beacon_cabq_start(struct ath_softc *sc)
+{
+	struct ath_txq *cabq = sc->sc_cabq;
+
+	ATH_TXQ_LOCK_ASSERT(cabq);
+
+	if (TAILQ_EMPTY(&cabq->axq_q))
+		return;
+
+	if (sc->sc_isedma)
+		ath_beacon_cabq_start_edma(sc);
+	else
+		ath_beacon_cabq_start_legacy(sc);
 }
 
 struct ath_buf *
@@ -550,6 +739,21 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 			 * frames from a different vap.
 			 * XXX could be slow causing us to miss DBA
 			 */
+			/*
+			 * XXX TODO: this doesn't stop CABQ DMA - it assumes
+			 * that since we're about to transmit a beacon, we've
+			 * already stopped transmitting on the CABQ.  But this
+			 * doesn't at all mean that the CABQ DMA QCU will
+			 * accept a new TXDP!  So what, should we do a DMA
+			 * stop? What if it fails?
+			 *
+			 * More thought is required here.
+			 */
+			/*
+			 * XXX can we even stop TX DMA here? Check what the
+			 * reference driver does for cabq for beacons, given
+			 * that stopping TX requires RX is paused.
+			 */
 			ath_tx_draintxq(sc, cabq);
 		}
 	}
@@ -561,31 +765,47 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	 * insure cab frames are triggered by this beacon.
 	 */
 	if (avp->av_boff.bo_tim[4] & 1) {
-		struct ath_hal *ah = sc->sc_ah;
 
 		/* NB: only at DTIM */
-		ATH_TX_LOCK(sc);
+		ATH_TXQ_LOCK(&avp->av_mcastq);
 		if (nmcastq) {
-			struct ath_buf *bfm;
+			struct ath_buf *bfm, *bfc_last;
 
 			/*
 			 * Move frames from the s/w mcast q to the h/w cab q.
-			 * XXX MORE_DATA bit
+			 *
+			 * XXX TODO: if we chain together multiple VAPs
+			 * worth of CABQ traffic, should we keep the
+			 * MORE data bit set on the last frame of each
+			 * intermediary VAP (ie, only clear the MORE
+			 * bit of the last frame on the last vap?)
 			 */
 			bfm = TAILQ_FIRST(&avp->av_mcastq.axq_q);
-			if (cabq->axq_link != NULL) {
-				*cabq->axq_link = bfm->bf_daddr;
-			} else
-				ath_hal_puttxbuf(ah, cabq->axq_qnum,
-					bfm->bf_daddr);
-			ath_txqmove(cabq, &avp->av_mcastq);
+			ATH_TXQ_LOCK(cabq);
 
+			/*
+			 * If there's already a frame on the CABQ, we
+			 * need to link to the end of the last frame.
+			 * We can't use axq_link here because
+			 * EDMA descriptors require some recalculation
+			 * (checksum) to occur.
+			 */
+			bfc_last = ATH_TXQ_LAST(cabq, axq_q_s);
+			if (bfc_last != NULL) {
+				ath_hal_settxdesclink(sc->sc_ah,
+				    bfc_last->bf_lastds,
+				    bfm->bf_daddr);
+			}
+			ath_txqmove(cabq, &avp->av_mcastq);
+			ATH_TXQ_UNLOCK(cabq);
+			/*
+			 * XXX not entirely accurate, in case a mcast
+			 * queue frame arrived before we grabbed the TX
+			 * lock.
+			 */
 			sc->sc_stats.ast_cabq_xmit += nmcastq;
 		}
-		/* NB: gated by beacon so safe to start here */
-		if (! TAILQ_EMPTY(&(cabq->axq_q)))
-			ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TX_UNLOCK(sc);
+		ATH_TXQ_UNLOCK(&avp->av_mcastq);
 	}
 	return bf;
 }
@@ -701,7 +921,7 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	struct ieee80211_node *ni;
 	u_int32_t nexttbtt, intval, tsftu;
 	u_int32_t nexttbtt_u8, intval_u8;
-	u_int64_t tsf;
+	u_int64_t tsf, tsf_beacon;
 
 	if (vap == NULL)
 		vap = TAILQ_FIRST(&ic->ic_vaps);	/* XXX */
@@ -717,9 +937,17 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 
 	ni = ieee80211_ref_node(vap->iv_bss);
 
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	ATH_UNLOCK(sc);
+
 	/* extract tstamp from last beacon and convert to TU */
 	nexttbtt = TSF_TO_TU(LE_READ_4(ni->ni_tstamp.data + 4),
 			     LE_READ_4(ni->ni_tstamp.data));
+
+	tsf_beacon = ((uint64_t) LE_READ_4(ni->ni_tstamp.data + 4)) << 32;
+	tsf_beacon |= LE_READ_4(ni->ni_tstamp.data);
+
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP ||
 	    ic->ic_opmode == IEEE80211_M_MBSS) {
 		/*
@@ -765,14 +993,63 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		 */
 		tsf = ath_hal_gettsf64(ah);
 		tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
-		do {
-			nexttbtt += intval;
-			if (--dtimcount < 0) {
-				dtimcount = dtimperiod - 1;
-				if (--cfpcount < 0)
-					cfpcount = cfpperiod - 1;
+
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: beacon tsf=%llu, hw tsf=%llu, nexttbtt=%u, tsftu=%u\n",
+		    __func__,
+		    (unsigned long long) tsf_beacon,
+		    (unsigned long long) tsf,
+		    nexttbtt,
+		    tsftu);
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: beacon tsf=%llu, hw tsf=%llu, tsf delta=%lld\n",
+		    __func__,
+		    (unsigned long long) tsf_beacon,
+		    (unsigned long long) tsf,
+		    (long long) tsf -
+		    (long long) tsf_beacon);
+
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: nexttbtt=%llu, beacon tsf delta=%lld\n",
+		    __func__,
+		    (unsigned long long) nexttbtt,
+		    (long long) ((long long) nexttbtt * 1024LL) - (long long) tsf_beacon);
+
+		/* XXX cfpcount? */
+
+		if (nexttbtt > tsftu) {
+			uint32_t countdiff, oldtbtt, remainder;
+
+			oldtbtt = nexttbtt;
+			remainder = (nexttbtt - tsftu) % intval;
+			nexttbtt = tsftu + remainder;
+
+			countdiff = (oldtbtt - nexttbtt) / intval % dtimperiod;
+			if (dtimcount > countdiff) {
+				dtimcount -= countdiff;
+			} else {
+				dtimcount += dtimperiod - countdiff;
 			}
-		} while (nexttbtt < tsftu);
+		} else { //nexttbtt <= tsftu
+			uint32_t countdiff, oldtbtt, remainder;
+
+			oldtbtt = nexttbtt;
+			remainder = (tsftu - nexttbtt) % intval;
+			nexttbtt = tsftu - remainder + intval;
+			countdiff = (nexttbtt - oldtbtt) / intval % dtimperiod;
+			if (dtimcount > countdiff) {
+				dtimcount -= countdiff;
+			} else {
+				dtimcount += dtimperiod - countdiff;
+			}
+		}
+
+		DPRINTF(sc, ATH_DEBUG_BEACON,
+		    "%s: adj nexttbtt=%llu, rx tsf delta=%lld\n",
+		    __func__,
+		    (unsigned long long) nexttbtt,
+		    (long long) ((long long)nexttbtt * 1024LL) - (long long)tsf);
+
 		memset(&bs, 0, sizeof(bs));
 		bs.bs_intval = intval;
 		bs.bs_nexttbtt = nexttbtt;
@@ -819,9 +1096,12 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 			bs.bs_sleepduration = roundup(bs.bs_sleepduration, bs.bs_dtimperiod);
 
 		DPRINTF(sc, ATH_DEBUG_BEACON,
-			"%s: tsf %ju tsf:tu %u intval %u nexttbtt %u dtim %u nextdtim %u bmiss %u sleep %u cfp:period %u maxdur %u next %u timoffset %u\n"
+			"%s: tsf %ju tsf:tu %u intval %u nexttbtt %u dtim %u "
+			"nextdtim %u bmiss %u sleep %u cfp:period %u "
+			"maxdur %u next %u timoffset %u\n"
 			, __func__
-			, tsf, tsftu
+			, tsf
+			, tsftu
 			, bs.bs_intval
 			, bs.bs_nexttbtt
 			, bs.bs_dtimperiod
@@ -898,8 +1178,11 @@ ath_beacon_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		if (ic->ic_opmode == IEEE80211_M_IBSS && sc->sc_hasveol)
 			ath_beacon_start_adhoc(sc, vap);
 	}
-	sc->sc_syncbeacon = 0;
 	ieee80211_free_node(ni);
+
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
 #undef FUDGE
 #undef TSF_TO_TU
 }

@@ -61,11 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/proc.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfs/nfsdiskless.h>
 #include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -76,6 +71,8 @@ __FBSDID("$FreeBSD$");
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
+ASSYM(PM_SAVE, offsetof(struct pmap, pm_save));
+ASSYM(PM_PCID, offsetof(struct pmap, pm_pcid));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
@@ -109,7 +106,6 @@ ASSYM(addr_PML4map, addr_PML4map);
 ASSYM(addr_PML4pml4e, addr_PML4pml4e);
 ASSYM(PDESIZE, sizeof(pd_entry_t));
 ASSYM(PTESIZE, sizeof(pt_entry_t));
-ASSYM(PTESHIFT, PTESHIFT);
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_MASK, PAGE_MASK);
 ASSYM(PDRSHIFT, PDRSHIFT);
@@ -155,19 +151,14 @@ ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 ASSYM(PCB_TSSP, offsetof(struct pcb, pcb_tssp));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
-ASSYM(PCB_SAVEFPU_SIZE, sizeof(struct savefpu));
-ASSYM(PCB_USERFPU, sizeof(struct pcb));
 ASSYM(PCB_EFER, offsetof(struct pcb, pcb_efer));
 ASSYM(PCB_STAR, offsetof(struct pcb, pcb_star));
 ASSYM(PCB_LSTAR, offsetof(struct pcb, pcb_lstar));
 ASSYM(PCB_CSTAR, offsetof(struct pcb, pcb_cstar));
 ASSYM(PCB_SFMASK, offsetof(struct pcb, pcb_sfmask));
-ASSYM(PCB_XSMASK, offsetof(struct pcb, pcb_xsmask));
-ASSYM(PCB_FPUSUSPEND, offsetof(struct pcb, pcb_fpususpend));
 ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_FULL_IRET, PCB_FULL_IRET);
 ASSYM(PCB_DBREGS, PCB_DBREGS);
-ASSYM(PCB_GS32BIT, PCB_GS32BIT);
 ASSYM(PCB_32BIT, PCB_32BIT);
 
 ASSYM(COMMON_TSS_RSP0, offsetof(struct amd64tss, tss_rsp0));
@@ -227,14 +218,10 @@ ASSYM(PC_GS32P, offsetof(struct pcpu, pc_gs32p));
 ASSYM(PC_LDT, offsetof(struct pcpu, pc_ldt));
 ASSYM(PC_COMMONTSSP, offsetof(struct pcpu, pc_commontssp));
 ASSYM(PC_TSS, offsetof(struct pcpu, pc_tss));
+ASSYM(PC_PM_SAVE_CNT, offsetof(struct pcpu, pc_pm_save_cnt));
  
-ASSYM(LA_VER, offsetof(struct LAPIC, version));
-ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
-ASSYM(LA_EOI, offsetof(struct LAPIC, eoi));
-ASSYM(LA_SVR, offsetof(struct LAPIC, svr));
-ASSYM(LA_ICR_LO, offsetof(struct LAPIC, icr_lo));
-ASSYM(LA_ICR_HI, offsetof(struct LAPIC, icr_hi));
-ASSYM(LA_ISR, offsetof(struct LAPIC, isr0));
+ASSYM(LA_EOI, LAPIC_EOI * LAPIC_MEM_MUL);
+ASSYM(LA_ISR, LAPIC_ISR0 * LAPIC_MEM_MUL);
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
 ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
@@ -246,6 +233,8 @@ ASSYM(KUG32SEL, GSEL(GUGS32_SEL, SEL_UPL));
 ASSYM(TSSSEL, GSEL(GPROC0_SEL, SEL_KPL));
 ASSYM(LDTSEL, GSEL(GUSERLDT_SEL, SEL_KPL));
 ASSYM(SEL_RPL_MASK, SEL_RPL_MASK);
+
+ASSYM(__FreeBSD_version, __FreeBSD_version);
 
 #ifdef	HWPMC_HOOKS
 ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);

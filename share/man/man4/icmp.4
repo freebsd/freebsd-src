@@ -9,11 +9,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -32,7 +28,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2007
+.Dd March 26, 2015
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -181,13 +177,11 @@ Defaults to 0.
 .It Va icmplim
 .Pq Vt integer
 Bandwidth limit for ICMP replies in packets/second.
-Used when
-.Va icmplim_output
-is non-zero.
+If set to zero, no limiting will occur.
 Defaults to 200.
 .It Va icmplim_output
 .Pq Vt boolean
-Enable/disable bandwidth limiting of ICMP replies.
+Enable/disable logging of ICMP replies bandwidth limiting.
 Defaults to true.
 .It Va drop_redirect
 .Pq Vt boolean
@@ -220,6 +214,10 @@ instead of the possibly different return path.
 Number of bytes from original packet to quote in ICMP reply.
 This number is internally enforced to be at least 8 bytes (per RFC792)
 and at most the maximal space left in the ICMP reply mbuf.
+.It Va tstamprepl
+.Pq Vt boolean
+Enable/disable replies to ICMP Timestamp packets.
+Defaults to true.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:

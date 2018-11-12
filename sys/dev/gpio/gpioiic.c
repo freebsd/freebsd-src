@@ -28,20 +28,25 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_platform.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/mutex.h>
 
 #include <sys/gpio.h>
 #include "gpiobus_if.h"
+
+#ifdef FDT
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#include <dev/fdt/fdt_common.h>
+#endif
+
+#include <dev/gpio/gpiobusvar.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -55,7 +60,6 @@ struct gpioiic_softc
 {
 	device_t	sc_dev;
 	device_t	sc_busdev;
-	struct cdev	*sc_leddev;
 	int		scl_pin;
 	int		sda_pin;
 };
@@ -72,21 +76,31 @@ static int gpioiic_getsda(device_t);
 static int gpioiic_getscl(device_t);
 static int gpioiic_reset(device_t, u_char, u_char, u_char *);
 
-
 static int
 gpioiic_probe(device_t dev)
 {
 
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "gpioiic"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "GPIO I2C bit-banging driver");
+
 	return (0);
 }
 
 static int
 gpioiic_attach(device_t dev)
 {
-	struct gpioiic_softc	*sc = device_get_softc(dev);
 	device_t		bitbang;
+#ifdef FDT
+	phandle_t		node;
+	pcell_t			pin;
+#endif
+	struct gpiobus_ivar	*devi;
+	struct gpioiic_softc	*sc;
 
+	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
 	if (resource_int_value(device_get_name(dev),
@@ -95,6 +109,24 @@ gpioiic_attach(device_t dev)
 	if (resource_int_value(device_get_name(dev),
 		device_get_unit(dev), "sda", &sc->sda_pin))
 		sc->sda_pin = SDA_PIN_DEFAULT;
+
+#ifdef FDT
+	if ((node = ofw_bus_get_node(dev)) == -1)
+		return (ENXIO);
+	if (OF_getencprop(node, "scl", &pin, sizeof(pin)) > 0)
+		sc->scl_pin = (int)pin;
+	if (OF_getencprop(node, "sda", &pin, sizeof(pin)) > 0)
+		sc->sda_pin = (int)pin;
+#endif
+
+	if (sc->scl_pin < 0 || sc->scl_pin > 1)
+		sc->scl_pin = SCL_PIN_DEFAULT;
+	if (sc->sda_pin < 0 || sc->sda_pin > 1)
+		sc->sda_pin = SDA_PIN_DEFAULT;
+
+	devi = GPIOBUS_IVAR(dev);
+	device_printf(dev, "SCL pin: %d, SDA pin: %d\n",
+	    devi->pins[sc->scl_pin], devi->pins[sc->sda_pin]);
 
 	/* add generic bit-banging code */
 	bitbang = device_add_child(dev, "iicbb", -1);
@@ -122,24 +154,24 @@ static int
 gpioiic_callback(device_t dev, int index, caddr_t data)
 {
 	struct gpioiic_softc	*sc = device_get_softc(dev);
-	int			error = 0;
+	int error, how;
 
+	how = GPIOBUS_DONTWAIT;
+	if (data != NULL && (int)*data == IIC_WAIT)
+		how = GPIOBUS_WAIT;
+	error = 0;
 	switch (index) {
 	case IIC_REQUEST_BUS:
-		GPIOBUS_LOCK_BUS(sc->sc_busdev);
-		GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
-		GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
+		error = GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev, how);
 		break;
 	case IIC_RELEASE_BUS:
-		GPIOBUS_LOCK_BUS(sc->sc_busdev);
 		GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
-		GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 		break;
 	default:
 		error = EINVAL;
 	}
 
-	return(error);
+	return (error);
 }
 
 static void
@@ -201,18 +233,23 @@ gpioiic_getsda(device_t dev)
 static int
 gpioiic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
-	struct gpioiic_softc		*sc = device_get_softc(dev);
+	struct gpioiic_softc		*sc;
 
-	GPIOBUS_LOCK_BUS(sc->sc_busdev);
-	GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
-
+	sc = device_get_softc(dev);
 	gpioiic_reset_bus(sc->sc_dev);
-
-	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
-	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 
 	return (IIC_ENOADDR);
 }
+
+#ifdef FDT
+static phandle_t
+gpioiic_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the iicbb, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+#endif
 
 static devclass_t gpioiic_devclass;
 
@@ -229,6 +266,11 @@ static device_method_t gpioiic_methods[] = {
 	DEVMETHOD(iicbb_getsda,		gpioiic_getsda),
 	DEVMETHOD(iicbb_getscl,		gpioiic_getscl),
 	DEVMETHOD(iicbb_reset,		gpioiic_reset),
+
+#ifdef FDT
+	/* OFW bus interface */
+	DEVMETHOD(ofw_bus_get_node,	gpioiic_get_node),
+#endif
 
 	{ 0, 0 }
 };

@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2010 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,12 +22,14 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
+
+: ${ATF_SH:="__ATF_SH__"}
 
 create_test_program() {
-    echo '#! /usr/bin/env atf-sh' >"${1}"
-    cat >>"${1}"
-    chmod +x "${1}"
+    local output="${1}"; shift
+    echo "#! ${ATF_SH} ${*}" >"${output}"
+    cat >>"${output}"
+    chmod +x "${output}"
 }
 
 atf_test_case no_args
@@ -38,9 +37,9 @@ no_args_body()
 {
     cat >experr <<EOF
 atf-sh: ERROR: No test program provided
-atf-sh: Type \`atf-sh -h' for more details.
+atf-sh: See atf-sh(1) for usage details.
 EOF
-    atf_check -s eq:1 -o ignore -e file:experr atf-sh
+    atf_check -s eq:1 -o ignore -e file:experr "${ATF_SH}"
 }
 
 atf_test_case missing_script
@@ -49,7 +48,7 @@ missing_script_body()
     cat >experr <<EOF
 atf-sh: ERROR: The test program 'non-existent' does not exist
 EOF
-    atf_check -s eq:1 -o ignore -e file:experr atf-sh non-existent
+    atf_check -s eq:1 -o ignore -e file:experr "${ATF_SH}" non-existent
 }
 
 atf_test_case arguments
@@ -78,7 +77,74 @@ EOF
 >>> hello bye <<<
 >>>foo bar<<<
 EOF
-    atf_check -s eq:0 -o file:expout -e empty atf-sh tp ' hello bye ' 'foo bar'
+    atf_check -s eq:0 -o file:expout -e empty "${ATF_SH}" tp \
+        ' hello bye ' 'foo bar'
+}
+
+atf_test_case custom_shell__command_line
+custom_shell__command_line_body()
+{
+    cat >expout <<EOF
+This is the custom shell
+This is the test program
+EOF
+
+    cat >custom-shell <<EOF
+#! /bin/sh
+echo "This is the custom shell"
+exec /bin/sh "\${@}"
+EOF
+    chmod +x custom-shell
+
+    echo 'main() { echo "This is the test program"; }' | create_test_program tp
+    atf_check -s eq:0 -o file:expout -e empty "${ATF_SH}" -s ./custom-shell tp
+}
+
+atf_test_case custom_shell__shebang
+custom_shell__shebang_body()
+{
+    cat >expout <<EOF
+This is the custom shell
+This is the test program
+EOF
+
+    cat >custom-shell <<EOF
+#! /bin/sh
+echo "This is the custom shell"
+exec /bin/sh "\${@}"
+EOF
+    chmod +x custom-shell
+
+    echo 'main() { echo "This is the test program"; }' | create_test_program \
+        tp "-s$(pwd)/custom-shell"
+    atf_check -s eq:0 -o file:expout -e empty ./tp
+}
+
+atf_test_case set_e
+set_e_head()
+{
+    atf_set "descr" "Simple test to validate that atf-sh works even when" \
+        "set -e is enabled"
+}
+set_e_body()
+{
+    cat >custom-shell <<EOF
+#! /bin/sh
+exec /bin/sh -e "\${@}"
+EOF
+    chmod +x custom-shell
+
+    cat >tp <<EOF
+atf_test_case helper
+helper_body() {
+    atf_skip "reached"
+}
+atf_init_test_cases() {
+    atf_add_test_case helper
+}
+EOF
+    atf_check -s eq:0 -o match:skipped.*reached \
+        "${ATF_SH}" -s ./custom-shell tp helper
 }
 
 atf_init_test_cases()
@@ -86,6 +152,9 @@ atf_init_test_cases()
     atf_add_test_case no_args
     atf_add_test_case missing_script
     atf_add_test_case arguments
+    atf_add_test_case custom_shell__command_line
+    atf_add_test_case custom_shell__shebang
+    atf_add_test_case set_e
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

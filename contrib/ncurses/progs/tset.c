@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,6 +33,22 @@
  ****************************************************************************/
 
 /*
+ * Notes:
+ * The initial adaptation from 4.4BSD Lite sources in September 1995 used 686
+ * lines from that version, and made changes/additions for 150 lines.  There
+ * was no reformatting, so with/without ignoring whitespace, the amount of
+ * change is the same.
+ *
+ * Comparing with current (2009) source, excluding this comment:
+ * a) 209 lines match identically to the 4.4BSD Lite sources, with 771 lines
+ *    changed/added.
+ * a) Ignoring whitespace, the current version still uses 516 lines from the
+ *    4.4BSD Lite sources, with 402 lines changed/added.
+ *
+ * Raymond's original comment on this follows...
+ */
+
+/*
  * tset.c - terminal initialization utility
  *
  * This code was mostly swiped from 4.4BSD tset, with some obsolescent
@@ -52,11 +68,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -107,7 +119,7 @@ char *ttyname(int fd);
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 1.76 2008/10/11 19:26:19 tom Exp $")
+MODULE_ID("$Id: tset.c,v 1.93 2013/12/15 01:05:56 tom Exp $")
 
 /*
  * SCO defines TIOCGSIZE and the corresponding struct.  Other systems (SunOS,
@@ -129,10 +141,16 @@ MODULE_ID("$Id: tset.c,v 1.76 2008/10/11 19:26:19 tom Exp $")
 # endif
 #endif
 
+#ifndef environ
 extern char **environ;
+#endif
 
 #undef CTRL
 #define CTRL(x)	((x) & 0x1f)
+
+static void failed(const char *) GCC_NORETURN;
+static void exit_error(void) GCC_NORETURN;
+static void err(const char *,...) GCC_NORETURN;
 
 const char *_nc_progname = "tset";
 
@@ -146,7 +164,10 @@ static bool isreset = FALSE;	/* invoked as reset */
 static int terasechar = -1;	/* new erase character */
 static int intrchar = -1;	/* new interrupt character */
 static int tkillchar = -1;	/* new kill character */
+
+#if HAVE_SIZECHANGE
 static int tlines, tcolumns;	/* window size */
+#endif
 
 #define LOWERCASE(c) ((isalpha(UChar(c)) && isupper(UChar(c))) ? tolower(UChar(c)) : (c))
 
@@ -189,13 +210,13 @@ static void
 failed(const char *msg)
 {
     char temp[BUFSIZ];
-    unsigned len = strlen(_nc_progname) + 2;
+    size_t len = strlen(_nc_progname) + 2;
 
     if ((int) len < (int) sizeof(temp) - 12) {
-	strcpy(temp, _nc_progname);
-	strcat(temp, ": ");
+	_nc_STRCPY(temp, _nc_progname, sizeof(temp));
+	_nc_STRCAT(temp, ": ", sizeof(temp));
     } else {
-	strcpy(temp, "tset: ");
+	_nc_STRCPY(temp, "tset: ", sizeof(temp));
     }
     perror(strncat(temp, msg, sizeof(temp) - strlen(temp) - 2));
     exit_error();
@@ -385,9 +406,13 @@ add_mapping(const char *port, char *arg)
     char *base = 0;
 
     copy = strdup(arg);
-    mapp = (MAP *) malloc(sizeof(MAP));
+    mapp = typeMalloc(MAP, 1);
     if (copy == 0 || mapp == 0)
 	failed("malloc");
+
+    assert(copy != 0);
+    assert(mapp != 0);
+
     mapp->next = 0;
     if (maplist == 0)
 	cur = maplist = mapp;
@@ -449,9 +474,6 @@ add_mapping(const char *port, char *arg)
 	mapp->speed = tbaudrate(p);
     }
 
-    if (arg == (char *) 0)	/* Non-optional type. */
-	goto badmopt;
-
     mapp->type = arg;
 
     /* Terminate porttype, if specified. */
@@ -509,19 +531,19 @@ mapped(const char *type)
 		match = TRUE;
 		break;
 	    case EQ:
-		match = (ospeed == mapp->speed);
+		match = ((int) ospeed == mapp->speed);
 		break;
 	    case GE:
-		match = (ospeed >= mapp->speed);
+		match = ((int) ospeed >= mapp->speed);
 		break;
 	    case GT:
-		match = (ospeed > mapp->speed);
+		match = ((int) ospeed > mapp->speed);
 		break;
 	    case LE:
-		match = (ospeed <= mapp->speed);
+		match = ((int) ospeed <= mapp->speed);
 		break;
 	    case LT:
-		match = (ospeed < mapp->speed);
+		match = ((int) ospeed < mapp->speed);
 		break;
 	    default:
 		match = FALSE;
@@ -613,13 +635,14 @@ get_termcap_entry(char *userarg)
      * real entry from /etc/termcap.  This prevents us from being fooled
      * by out of date stuff in the environment.
      */
-  found:if ((p = getenv("TERMCAP")) != 0 && !_nc_is_abs_path(p)) {
+  found:
+    if ((p = getenv("TERMCAP")) != 0 && !_nc_is_abs_path(p)) {
 	/* 'unsetenv("TERMCAP")' is not portable.
 	 * The 'environ' array is better.
 	 */
 	int n;
 	for (n = 0; environ[n] != 0; n++) {
-	    if (!strncmp("TERMCAP=", environ[n], 8)) {
+	    if (!strncmp("TERMCAP=", environ[n], (size_t) 8)) {
 		while ((environ[n] = environ[n + 1]) != 0) {
 		    n++;
 		}
@@ -770,14 +793,14 @@ reset_mode(void)
     mode.c_cc[VWERASE] = CHK(mode.c_cc[VWERASE], CWERASE);
 #endif
 
-    mode.c_iflag &= ~(IGNBRK | PARMRK | INPCK | ISTRIP | INLCR | IGNCR
+    mode.c_iflag &= ~((unsigned) (IGNBRK | PARMRK | INPCK | ISTRIP | INLCR | IGNCR
 #ifdef IUCLC
-		      | IUCLC
+				  | IUCLC
 #endif
 #ifdef IXANY
-		      | IXANY
+				  | IXANY
 #endif
-		      | IXOFF);
+				  | IXOFF));
 
     mode.c_iflag |= (BRKINT | IGNPAR | ICRNL | IXON
 #ifdef IMAXBEL
@@ -785,44 +808,44 @@ reset_mode(void)
 #endif
 	);
 
-    mode.c_oflag &= ~(0
+    mode.c_oflag &= ~((unsigned) (0
 #ifdef OLCUC
-		      | OLCUC
+				  | OLCUC
 #endif
 #ifdef OCRNL
-		      | OCRNL
+				  | OCRNL
 #endif
 #ifdef ONOCR
-		      | ONOCR
+				  | ONOCR
 #endif
 #ifdef ONLRET
-		      | ONLRET
+				  | ONLRET
 #endif
 #ifdef OFILL
-		      | OFILL
+				  | OFILL
 #endif
 #ifdef OFDEL
-		      | OFDEL
+				  | OFDEL
 #endif
 #ifdef NLDLY
-		      | NLDLY
+				  | NLDLY
 #endif
 #ifdef CRDLY
-		      | CRDLY
+				  | CRDLY
 #endif
 #ifdef TABDLY
-		      | TABDLY
+				  | TABDLY
 #endif
 #ifdef BSDLY
-		      | BSDLY
+				  | BSDLY
 #endif
 #ifdef VTDLY
-		      | VTDLY
+				  | VTDLY
 #endif
 #ifdef FFDLY
-		      | FFDLY
+				  | FFDLY
 #endif
-	);
+		      ));
 
     mode.c_oflag |= (OPOST
 #ifdef ONLCR
@@ -830,19 +853,19 @@ reset_mode(void)
 #endif
 	);
 
-    mode.c_cflag &= ~(CSIZE | CSTOPB | PARENB | PARODD | CLOCAL);
+    mode.c_cflag &= ~((unsigned) (CSIZE | CSTOPB | PARENB | PARODD | CLOCAL));
     mode.c_cflag |= (CS8 | CREAD);
-    mode.c_lflag &= ~(ECHONL | NOFLSH
+    mode.c_lflag &= ~((unsigned) (ECHONL | NOFLSH
 #ifdef TOSTOP
-		      | TOSTOP
+				  | TOSTOP
 #endif
 #ifdef ECHOPTR
-		      | ECHOPRT
+				  | ECHOPRT
 #endif
 #ifdef XCASE
-		      | XCASE
+				  | XCASE
 #endif
-	);
+		      ));
 
     mode.c_lflag |= (ISIG | ICANON | ECHO | ECHOE | ECHOK
 #ifdef ECHOCTL
@@ -889,14 +912,23 @@ static void
 set_control_chars(void)
 {
 #ifdef TERMIOS
-    if (DISABLED(mode.c_cc[VERASE]) || terasechar >= 0)
-	mode.c_cc[VERASE] = (terasechar >= 0) ? terasechar : default_erase();
+    if (DISABLED(mode.c_cc[VERASE]) || terasechar >= 0) {
+	mode.c_cc[VERASE] = UChar((terasechar >= 0)
+				  ? terasechar
+				  : default_erase());
+    }
 
-    if (DISABLED(mode.c_cc[VINTR]) || intrchar >= 0)
-	mode.c_cc[VINTR] = (intrchar >= 0) ? intrchar : CINTR;
+    if (DISABLED(mode.c_cc[VINTR]) || intrchar >= 0) {
+	mode.c_cc[VINTR] = UChar((intrchar >= 0)
+				 ? intrchar
+				 : CINTR);
+    }
 
-    if (DISABLED(mode.c_cc[VKILL]) || tkillchar >= 0)
-	mode.c_cc[VKILL] = (tkillchar >= 0) ? tkillchar : CKILL;
+    if (DISABLED(mode.c_cc[VKILL]) || tkillchar >= 0) {
+	mode.c_cc[VKILL] = UChar((tkillchar >= 0)
+				 ? tkillchar
+				 : CKILL);
+    }
 #endif
 }
 
@@ -952,9 +984,9 @@ set_conversions(void)
     if (newline != (char *) 0 && newline[0] == '\n' && !newline[1]) {
 	/* Newline, not linefeed. */
 #ifdef ONLCR
-	mode.c_oflag &= ~ONLCR;
+	mode.c_oflag &= ~((unsigned) ONLCR);
 #endif
-	mode.c_iflag &= ~ICRNL;
+	mode.c_iflag &= ~((unsigned) ICRNL);
     }
 #ifdef __OBSOLETE__
     if (tgetflag("HD"))		/* Half duplex. */
@@ -1025,11 +1057,18 @@ set_tabs(void)
 {
     if (set_tab && clear_all_tabs) {
 	int c;
+	int lim =
+#if HAVE_SIZECHANGE
+	tcolumns
+#else
+	columns
+#endif
+	 ;
 
 	(void) putc('\r', stderr);	/* Force to left margin. */
 	tputs(clear_all_tabs, 0, outc);
 
-	for (c = 8; c < tcolumns; c += 8) {
+	for (c = 8; c < lim; c += 8) {
 	    /* Get to the right column.  In BSD tset, this
 	     * used to try a bunch of half-clever things
 	     * with cup and hpa, for an average saving of
@@ -1247,18 +1286,18 @@ main(int argc, char **argv)
     ospeed = (NCURSES_OSPEED) mode.sg_ospeed;
 #endif
 
-    if (!strcmp(_nc_progname, PROG_RESET)) {
+    if (same_program(_nc_progname, PROG_RESET)) {
 	isreset = TRUE;
 	reset_mode();
     }
 
-    ttype = get_termcap_entry(*argv);
+    (void) get_termcap_entry(*argv);
 
     if (!noset) {
+#if HAVE_SIZECHANGE
 	tcolumns = columns;
 	tlines = lines;
 
-#if HAVE_SIZECHANGE
 	if (opt_w) {
 	    STRUCT_WINSIZE win;
 	    /* Set window size if not set already */

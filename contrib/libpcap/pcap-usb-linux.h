@@ -29,12 +29,10 @@
  *
  * USB sniffing API implementation for Linux platform
  * By Paolo Abeni <paolo.abeni@email.it>
- *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-usb-linux.h,v 1.5 2008-04-04 19:37:45 guy Exp $ (LBL)
  */
 
 /*
  * Prototypes for USB-related functions
  */
-int usb_platform_finddevs(pcap_if_t **alldevsp, char *err_str);
-pcap_t *usb_create(const char *device, char *ebuf);
+int usb_findalldevs(pcap_if_t **alldevsp, char *err_str);
+pcap_t *usb_create(const char *device, char *ebuf, int *is_ours);

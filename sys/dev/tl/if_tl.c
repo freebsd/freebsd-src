@@ -187,6 +187,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -1429,7 +1430,7 @@ tl_intvec_rxeof(xsc, type)
 		total_len = cur_rx->tl_ptr->tlist_frsize;
 
 		if (tl_newbuf(sc, cur_rx) == ENOBUFS) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			cur_rx->tl_ptr->tlist_frsize = MCLBYTES;
 			cur_rx->tl_ptr->tlist_cstat = TL_CSTAT_READY;
 			cur_rx->tl_ptr->tl_frag.tlist_dcnt = MCLBYTES;
@@ -1725,13 +1726,13 @@ tl_stats_update(xsc)
 	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
 	*p++ = CSR_READ_4(sc, TL_DIO_DATA);
 
-	ifp->if_opackets += tl_tx_goodframes(tl_stats);
-	ifp->if_collisions += tl_stats.tl_tx_single_collision +
-				tl_stats.tl_tx_multi_collision;
-	ifp->if_ipackets += tl_rx_goodframes(tl_stats);
-	ifp->if_ierrors += tl_stats.tl_crc_errors + tl_stats.tl_code_errors +
-			    tl_rx_overrun(tl_stats);
-	ifp->if_oerrors += tl_tx_underrun(tl_stats);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, tl_tx_goodframes(tl_stats));
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+	    tl_stats.tl_tx_single_collision + tl_stats.tl_tx_multi_collision);
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, tl_rx_goodframes(tl_stats));
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, tl_stats.tl_crc_errors +
+	    tl_stats.tl_code_errors + tl_rx_overrun(tl_stats));
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, tl_tx_underrun(tl_stats));
 
 	if (tl_tx_underrun(tl_stats)) {
 		u_int8_t		tx_thresh;
@@ -1812,8 +1813,7 @@ tl_encap(sc, c, m_head)
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_NOWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
+			if (!(MCLGET(m_new, M_NOWAIT))) {
 				m_freem(m_new);
 				if_printf(ifp, "no memory for tx list\n");
 				return(1);
@@ -2185,7 +2185,7 @@ tl_watchdog(sc)
 
 	if_printf(ifp, "device timeout\n");
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	tl_softreset(sc, 1);
 	tl_init_locked(sc);

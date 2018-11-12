@@ -11,11 +11,13 @@
 //  construction of macro definitions from some external source.
 //
 //===----------------------------------------------------------------------===//
-#ifndef LLVM_CLANG_LEX_EXTERNAL_PREPROCESSOR_SOURCE_H
-#define LLVM_CLANG_LEX_EXTERNAL_PREPROCESSOR_SOURCE_H
+#ifndef LLVM_CLANG_LEX_EXTERNALPREPROCESSORSOURCE_H
+#define LLVM_CLANG_LEX_EXTERNALPREPROCESSORSOURCE_H
 
 namespace clang {
-  
+
+class IdentifierInfo;
+
 /// \brief Abstract interface for external sources of preprocessor 
 /// information.
 ///
@@ -34,4 +36,4 @@ public:
   
 }
 
-#endif // LLVM_CLANG_LEX_EXTERNAL_PREPROCESSOR_SOURCE_H
+#endif

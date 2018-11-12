@@ -15,7 +15,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 STD8X16FONT?=	iso
 
@@ -39,8 +39,6 @@ KERNLOADADDR?=0x80001000
 # To be changed later
 TRAMPLOADADDR?=0x807963c0
 
-MKMODULESENV+=	MACHINE=${MACHINE} MACHINE_ARCH=${MACHINE_ARCH}
-
 # We default to the MIPS32 ISA, if none specified in the
 # kernel configuration file.
 ARCH_FLAGS?=-march=mips32
@@ -60,7 +58,6 @@ TRAMP_ELFSIZE=64
 TRAMP_ELFSIZE=32
 .endif
 
-# XXX hardcoded kernel entry point
 ASM_CFLAGS+=${CFLAGS} -D_LOCORE -DLOCORE
 
 .if !defined(WITHOUT_KERNEL_TRAMPOLINE)

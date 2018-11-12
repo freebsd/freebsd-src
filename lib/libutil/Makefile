@@ -3,7 +3,7 @@
 
 SHLIBDIR?= /lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	util
 SHLIB_MAJOR= 9
@@ -80,5 +80,9 @@ MLINKS+=pw_util.3 pw_copy.3 \
 	pw_util.3 pw_scan.3 \
 	pw_util.3 pw_tempname.3 \
 	pw_util.3 pw_tmp.3
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.lib.mk>

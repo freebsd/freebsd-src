@@ -31,13 +31,13 @@ class TargetSelectionDAGInfo {
   TargetSelectionDAGInfo(const TargetSelectionDAGInfo &) LLVM_DELETED_FUNCTION;
   void operator=(const TargetSelectionDAGInfo &) LLVM_DELETED_FUNCTION;
 
-  const DataLayout *TD;
+  const DataLayout *DL;
 
 protected:
-  const DataLayout *getDataLayout() const { return TD; }
+  const DataLayout *getDataLayout() const { return DL; }
 
 public:
-  explicit TargetSelectionDAGInfo(const TargetMachine &TM);
+  explicit TargetSelectionDAGInfo(const DataLayout *DL);
   virtual ~TargetSelectionDAGInfo();
 
   /// EmitTargetCodeForMemcpy - Emit target-specific code that performs a
@@ -46,7 +46,7 @@ public:
   /// more efficient than using a library call. This function can return a null
   /// SDValue if the target declines to use custom code and a different
   /// lowering strategy should be used.
-  /// 
+  ///
   /// If AlwaysInline is true, the size is constant and the target should not
   /// emit any calls and is strongly encouraged to attempt to emit inline code
   /// even if it is beyond the usual threshold because this intrinsic is being
@@ -54,7 +54,7 @@ public:
   /// for another call). If the target chooses to decline an AlwaysInline
   /// request here, legalize will resort to using simple loads and stores.
   virtual SDValue
-  EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
+  EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                           SDValue Chain,
                           SDValue Op1, SDValue Op2,
                           SDValue Op3, unsigned Align, bool isVolatile,
@@ -71,7 +71,7 @@ public:
   /// SDValue if the target declines to use custom code and a different
   /// lowering strategy should be used.
   virtual SDValue
-  EmitTargetCodeForMemmove(SelectionDAG &DAG, DebugLoc dl,
+  EmitTargetCodeForMemmove(SelectionDAG &DAG, SDLoc dl,
                            SDValue Chain,
                            SDValue Op1, SDValue Op2,
                            SDValue Op3, unsigned Align, bool isVolatile,
@@ -87,12 +87,80 @@ public:
   /// SDValue if the target declines to use custom code and a different
   /// lowering strategy should be used.
   virtual SDValue
-  EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
+  EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
                           SDValue Chain,
                           SDValue Op1, SDValue Op2,
                           SDValue Op3, unsigned Align, bool isVolatile,
                           MachinePointerInfo DstPtrInfo) const {
     return SDValue();
+  }
+
+  /// EmitTargetCodeForMemcmp - Emit target-specific code that performs a
+  /// memcmp, in cases where that is faster than a libcall.  The first
+  /// returned SDValue is the result of the memcmp and the second is
+  /// the chain.  Both SDValues can be null if a normal libcall should
+  /// be used.
+  virtual std::pair<SDValue, SDValue>
+  EmitTargetCodeForMemcmp(SelectionDAG &DAG, SDLoc dl,
+                          SDValue Chain,
+                          SDValue Op1, SDValue Op2,
+                          SDValue Op3, MachinePointerInfo Op1PtrInfo,
+                          MachinePointerInfo Op2PtrInfo) const {
+    return std::make_pair(SDValue(), SDValue());
+  }
+
+  /// EmitTargetCodeForMemchr - Emit target-specific code that performs a
+  /// memchr, in cases where that is faster than a libcall.  The first
+  /// returned SDValue is the result of the memchr and the second is
+  /// the chain.  Both SDValues can be null if a normal libcall should
+  /// be used.
+  virtual std::pair<SDValue, SDValue>
+  EmitTargetCodeForMemchr(SelectionDAG &DAG, SDLoc dl, SDValue Chain,
+                          SDValue Src, SDValue Char, SDValue Length,
+                          MachinePointerInfo SrcPtrInfo) const {
+    return std::make_pair(SDValue(), SDValue());
+  }
+
+  /// EmitTargetCodeForStrcpy - Emit target-specific code that performs a
+  /// strcpy or stpcpy, in cases where that is faster than a libcall.
+  /// The first returned SDValue is the result of the copy (the start
+  /// of the destination string for strcpy, a pointer to the null terminator
+  /// for stpcpy) and the second is the chain.  Both SDValues can be null
+  /// if a normal libcall should be used.
+  virtual std::pair<SDValue, SDValue>
+  EmitTargetCodeForStrcpy(SelectionDAG &DAG, SDLoc DL, SDValue Chain,
+                          SDValue Dest, SDValue Src,
+                          MachinePointerInfo DestPtrInfo,
+                          MachinePointerInfo SrcPtrInfo,
+                          bool isStpcpy) const {
+    return std::make_pair(SDValue(), SDValue());
+  }
+
+  /// EmitTargetCodeForStrcmp - Emit target-specific code that performs a
+  /// strcmp, in cases where that is faster than a libcall.  The first
+  /// returned SDValue is the result of the strcmp and the second is
+  /// the chain.  Both SDValues can be null if a normal libcall should
+  /// be used.
+  virtual std::pair<SDValue, SDValue>
+  EmitTargetCodeForStrcmp(SelectionDAG &DAG, SDLoc dl,
+                          SDValue Chain,
+                          SDValue Op1, SDValue Op2,
+                          MachinePointerInfo Op1PtrInfo,
+                          MachinePointerInfo Op2PtrInfo) const {
+    return std::make_pair(SDValue(), SDValue());
+  }
+
+  virtual std::pair<SDValue, SDValue>
+  EmitTargetCodeForStrlen(SelectionDAG &DAG, SDLoc DL, SDValue Chain,
+                          SDValue Src, MachinePointerInfo SrcPtrInfo) const {
+    return std::make_pair(SDValue(), SDValue());
+  }
+
+  virtual std::pair<SDValue, SDValue>
+  EmitTargetCodeForStrnlen(SelectionDAG &DAG, SDLoc DL, SDValue Chain,
+                           SDValue Src, SDValue MaxLength,
+                           MachinePointerInfo SrcPtrInfo) const {
+    return std::make_pair(SDValue(), SDValue());
   }
 };
 

@@ -63,7 +63,7 @@ struct urtw_rx_radiotap_header {
 	uint16_t	wr_chan_freq;
 	uint16_t	wr_chan_flags;
 	int8_t		wr_dbm_antsignal;
-} __packed;
+} __packed __aligned(8);
 
 #define URTW_RX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\
@@ -75,7 +75,7 @@ struct urtw_tx_radiotap_header {
 	uint8_t		wt_flags;
 	uint16_t	wt_chan_freq;
 	uint16_t	wt_chan_flags;
-} __packed;
+} __packed __aligned(8);
 
 #define URTW_TX_RADIOTAP_PRESENT					\
 	((1 << IEEE80211_RADIOTAP_FLAGS) |				\

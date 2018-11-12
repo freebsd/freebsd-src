@@ -12,56 +12,61 @@
 //===----------------------------------------------------------------------===//
 
 //----------------------------------------------------------------------------//
-//                         Hexagon Intruction Flags +
+//                         Hexagon Instruction Flags
 //
 //                        *** Must match BaseInfo.h ***
 //----------------------------------------------------------------------------//
 
-def TypeMEMOP  : Type<9>;
-def TypeNV     : Type<10>;
-def TypePREFIX : Type<30>;
+def TypeMEMOP  : IType<9>;
+def TypeNV     : IType<10>;
+def TypeCOMPOUND : IType<12>;
+def TypePREFIX : IType<30>;
 
 //----------------------------------------------------------------------------//
-//                         Intruction Classes Definitions +
+//                         Instruction Classes Definitions
 //----------------------------------------------------------------------------//
 
 //
 // NV type instructions.
 //
-class NVInst_V4<dag outs, dag ins, string asmstr, list<dag> pattern>
-  : InstHexagon<outs, ins, asmstr, pattern, "", NV_V4, TypeNV> {
-  bits<5> rd;
-  bits<5> rs;
-  bits<13> imm13;
-}
+class NVInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+             string cstr = "", InstrItinClass itin = NCJ_tc_3or4stall_SLOT0>
+  : InstHexagon<outs, ins, asmstr, pattern, cstr, itin, TypeNV>;
+
+class NVInst_V4<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+                string cstr = "", InstrItinClass itin = NCJ_tc_3or4stall_SLOT0>
+  : NVInst<outs, ins, asmstr, pattern, cstr, itin>;
 
 // Definition of Post increment new value store.
-class NVInstPost_V4<dag outs, dag ins, string asmstr, list<dag> pattern,
-                    string cstr>
-  : InstHexagon<outs, ins, asmstr, pattern, cstr, NV_V4, TypeNV> {
-  bits<5> rd;
-  bits<5> rs;
-  bits<5> rt;
-  bits<13> imm13;
-}
+class NVInstPost_V4<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+               string cstr = "", InstrItinClass itin = ST_tc_st_SLOT0>
+  : NVInst<outs, ins, asmstr, pattern, cstr, itin>;
 
 // Post increment ST Instruction.
-class NVInstPI_V4<dag outs, dag ins, string asmstr, list<dag> pattern,
-                  string cstr>
-  : NVInstPost_V4<outs, ins, asmstr, pattern, cstr> {
-  let rt{0-4} = 0;
-}
+let mayStore = 1 in
+class NVInstPI_V4<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+               string cstr = "", InstrItinClass itin = ST_tc_st_SLOT0>
+  : NVInst<outs, ins, asmstr, pattern, cstr, itin>;
 
-class MEMInst_V4<dag outs, dag ins, string asmstr, list<dag> pattern>
-  : InstHexagon<outs, ins, asmstr, pattern, "", MEM_V4, TypeMEMOP> {
-  bits<5> rd;
-  bits<5> rs;
-  bits<6> imm6;
-}
+// New-value conditional branch.
+class NCJInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+              string cstr = "">
+  : NVInst<outs, ins, asmstr, pattern, cstr>;
 
-class Immext<dag outs, dag ins, string asmstr, list<dag> pattern>
-  : InstHexagon<outs, ins, asmstr, pattern, "", PREFIX, TypePREFIX> {
-  let isCodeGenOnly = 1;
+let mayLoad = 1, mayStore = 1 in
+class MEMInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+              string cstr = "", InstrItinClass itin = V4LDST_tc_st_SLOT0>
+  : InstHexagon<outs, ins, asmstr, pattern, cstr, itin, TypeMEMOP>;
 
-  bits<26> imm26;
-}
+class MEMInst_V4<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+                 string cstr = "", InstrItinClass itin = V4LDST_tc_st_SLOT0>
+  : MEMInst<outs, ins, asmstr, pattern, cstr, itin>;
+
+let isCodeGenOnly = 1 in
+class EXTENDERInst<dag outs, dag ins, string asmstr, list<dag> pattern = []>
+  : InstHexagon<outs, ins, asmstr, pattern, "", EXTENDER_tc_1_SLOT0123,
+                TypePREFIX>;
+
+class CJInst<dag outs, dag ins, string asmstr, list<dag> pattern = [],
+              string cstr = "">
+  : InstHexagon<outs, ins, asmstr, pattern, cstr, COMPOUND, TypeCOMPOUND>;

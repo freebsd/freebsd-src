@@ -40,9 +40,11 @@
 #include <unistd.h>
 #include "mfiutil.h"
 
+static const char* foreign_state = " (FOREIGN)";
+
 MFI_TABLE(top, show);
 
-static void
+void
 format_stripe(char *buf, size_t buflen, uint8_t stripe)
 {
 
@@ -140,9 +142,11 @@ show_battery(int ac, char **av __unused)
 {
 	struct mfi_bbu_capacity_info cap;
 	struct mfi_bbu_design_info design;
+	struct mfi_bbu_properties props;
 	struct mfi_bbu_status stat;
 	uint8_t status;
-	int comma, error, fd, show_capacity;
+	int comma, error, fd, show_capacity, show_props;
+	char buf[32];
 
 	if (ac != 1) {
 		warnx("show battery: extra arguments");
@@ -186,6 +190,14 @@ show_battery(int ac, char **av __unused)
 		return (error);
 	}
 
+	if (mfi_bbu_get_props(fd, &props, &status) < 0) {
+		error = errno;
+		warn("Failed to get properties");
+		close(fd);
+		return (error);
+	}
+	show_props = (status == MFI_STAT_OK);
+
 	printf("mfi%d: Battery State:\n", mfi_unit);
 	printf("     Manufacture Date: %d/%d/%d\n", design.mfg_date >> 5 & 0x0f,
 	    design.mfg_date & 0x1f, design.mfg_date >> 9 & 0xffff);
@@ -205,6 +217,23 @@ show_battery(int ac, char **av __unused)
 	printf("       Design Voltage: %d mV\n", design.design_voltage);
 	printf("      Current Voltage: %d mV\n", stat.voltage);
 	printf("          Temperature: %d C\n", stat.temperature);
+	if (show_props) {
+		mfi_autolearn_period(props.auto_learn_period, buf, sizeof(buf));
+		printf("     Autolearn period: %s\n", buf);
+		if (props.auto_learn_mode != 0)
+			snprintf(buf, sizeof(buf), "never");
+		else
+			mfi_next_learn_time(props.next_learn_time, buf,
+			    sizeof(buf));
+		printf("      Next learn time: %s\n", buf);
+		printf(" Learn delay interval: %u hour%s\n",
+		    props.learn_delay_interval,
+		    props.learn_delay_interval != 1 ? "s" : "");
+		mfi_autolearn_mode(props.auto_learn_mode, buf, sizeof(buf));
+		printf("       Autolearn mode: %s\n", buf);
+		if (props.bbu_mode != 0)
+			printf("             BBU Mode: %d\n", props.bbu_mode);
+	}
 	printf("               Status:");
 	comma = 0;
 	if (stat.fw_status & MFI_BBU_STATE_PACK_MISSING) {
@@ -264,7 +293,7 @@ show_battery(int ac, char **av __unused)
 }
 MFI_COMMAND(show, battery, show_battery);
 
-static void
+void
 print_ld(struct mfi_ld_info *info, int state_len)
 {
 	struct mfi_ld_params *params = &info->ld_config.params;
@@ -285,19 +314,24 @@ print_ld(struct mfi_ld_info *info, int state_len)
 		    mfi_ldstate(params->state));
 }
 
-static void
+void
 print_pd(struct mfi_pd_info *info, int state_len)
 {
 	const char *s;
-	char buf[6];
+	char buf[256];
 
-	humanize_number(buf, sizeof(buf), info->raw_size * 512, "",
+	humanize_number(buf, 6, info->raw_size * 512, "",
 	    HN_AUTOSCALE, HN_B | HN_NOSPACE |HN_DECIMAL);
 	printf("(%6s) ", buf);
+	if (info->state.ddf.v.pd_type.is_foreign) {
+		sprintf(buf, "%s%s", mfi_pdstate(info->fw_state), foreign_state);
+		s = buf;
+	} else
+		s = mfi_pdstate(info->fw_state);
 	if (state_len > 0)
-		printf("%-*s", state_len, mfi_pdstate(info->fw_state));
+		printf("%-*s", state_len, s);
 	else
-		printf("%s", mfi_pdstate(info->fw_state));
+		printf("%s",s);
 	s = mfi_pd_inq_string(info);
 	if (s != NULL)
 		printf(" %s", s);
@@ -533,6 +567,8 @@ show_drives(int ac, char **av __unused)
 			goto error;
 		}
 		len = strlen(mfi_pdstate(info.fw_state));
+		if (info.state.ddf.v.pd_type.is_foreign)
+			len += strlen(foreign_state);
 		if (len > state_len)
 			state_len = len;
 	}
@@ -743,3 +779,10 @@ show_progress(int ac, char **av __unused)
 	return (0);
 }
 MFI_COMMAND(show, progress, show_progress);
+
+static int
+show_foreign(int ac, char **av)
+{
+	return(display_format(ac, av, 0/*normal display*/, MFI_DCMD_CFG_FOREIGN_DISPLAY));
+}
+MFI_COMMAND(show, foreign, show_foreign);

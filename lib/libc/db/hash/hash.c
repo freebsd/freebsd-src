@@ -121,9 +121,8 @@ __hash_open(const char *file, int flags, int mode,
 	hashp->flags = flags;
 
 	if (file) {
-		if ((hashp->fp = _open(file, flags, mode)) == -1)
+		if ((hashp->fp = _open(file, flags | O_CLOEXEC, mode)) == -1)
 			RETURN_ERROR(errno, error0);
-		(void)_fcntl(hashp->fp, F_SETFD, 1);
 		new_table = _fstat(hashp->fp, &statbuf) == 0 &&
 		    statbuf.st_size == 0 && (flags & O_ACCMODE) != O_RDONLY;
 	} else

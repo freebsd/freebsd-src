@@ -265,7 +265,7 @@ defaults(void)
 		opt_b = opt_m = opt_s = 1;
 
 	/* -b defaults to default path + /usr/libexec +
-	 * /usr/games + user's path */
+	 * user's path */
 	if (!bindirs) {
 		if (sysctlbyname("user.cs_path", (void *)NULL, &s,
 				 (void *)NULL, 0) == -1)
@@ -276,11 +276,10 @@ defaults(void)
 			err(EX_OSERR, "sysctlbyname(\"user.cs_path\")");
 		nele = 0;
 		decolonify(b, &bindirs, &nele);
-		bindirs = realloc(bindirs, (nele + 3) * sizeof(char *));
+		bindirs = realloc(bindirs, (nele + 2) * sizeof(char *));
 		if (bindirs == NULL)
 			abort();
 		bindirs[nele++] = PATH_LIBEXEC;
-		bindirs[nele++] = PATH_GAMES;
 		bindirs[nele] = NULL;
 		if ((cp = getenv("PATH")) != NULL) {
 			/* don't destroy the original environment... */

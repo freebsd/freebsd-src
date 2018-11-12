@@ -44,7 +44,7 @@ struct vtable_header
  * Simple macro that does pointer arithmetic in bytes but returns a value of
  * the same type as the original.
  */
-#define ADD_TO_PTR(x, off) (__typeof__(x))(((char*)x) + off)
+#define ADD_TO_PTR(x, off) reinterpret_cast<__typeof__(x)>(reinterpret_cast<char*>(x) + off)
 
 bool std::type_info::__do_catch(std::type_info const *ex_type,
                                 void **exception_object,
@@ -166,7 +166,7 @@ bool __vmi_class_type_info::__do_upcast(const __class_type_info *target,
 		if (info->isVirtual())
 		{
 			// Object's vtable
-			ptrdiff_t *off = *(ptrdiff_t**)obj;
+			ptrdiff_t *off = *static_cast<ptrdiff_t**>(obj);
 			// Offset location in vtable
 			off = ADD_TO_PTR(off, offset);
 			offset = *off;
@@ -202,9 +202,9 @@ extern "C" void* __dynamic_cast(const void *sub,
                                 const __class_type_info *dst,
                                 ptrdiff_t src2dst_offset)
 {
-	char *vtable_location = *(char**)sub;
+	const char *vtable_location = *static_cast<const char * const *>(sub);
 	const vtable_header *header =
-		(const vtable_header*)(vtable_location - sizeof(vtable_header));
-	void *leaf = ADD_TO_PTR((void*)sub, header->leaf_offset);
+		reinterpret_cast<const vtable_header*>(vtable_location - sizeof(vtable_header));
+	void *leaf = ADD_TO_PTR(const_cast<void *>(sub), header->leaf_offset);
 	return header->type->cast_to(leaf, dst);
 }

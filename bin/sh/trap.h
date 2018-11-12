@@ -34,8 +34,7 @@
  */
 
 extern volatile sig_atomic_t pendingsig;
-extern int in_dotrap;
-extern volatile sig_atomic_t gotwinch;
+extern volatile sig_atomic_t pendingsig_waitcmd;
 
 void clear_traps(void);
 int have_traps(void);

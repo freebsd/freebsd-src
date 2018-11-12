@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998,2006 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998-2006,2011 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: capconvert,v 1.4 2006/04/22 21:46:17 tom Exp $
+# $Id: capconvert,v 1.5 2011/11/12 23:28:07 Robert.Millan Exp $
 #
 # capconvert -- automated conversion from termcap to terminfo
 #
@@ -77,16 +77,18 @@ then
 		# Assumes the terminfo master covers all canned terminal types
 		exit;
 	fi
-	if test "$TERM" = "xterm"
-	then
+	case $TERM in
+	xterm | xterm-*)
 		echo "You are running xterm, which usually sets TERMCAP itself."
 		echo "We can ignore this, because terminfo knows about xterm."
 		echo "So you will just use the system-wide terminfo tree."
-		exit;
-	else
+		exit
+		;;
+	*)
 		echo "We will have to make a local one for you anyway, to capture the effect"
 		echo "of your TERMCAP variable."
-	fi
+		;;
+	esac
 else
 	echo "No system-wide terminfo tree.  We will make you a local one."
 fi
@@ -109,7 +111,7 @@ IFS="${IFS= 	}"; save_ifs="$IFS"; IFS="${IFS}:"
 for x in $PATH .
 do
 	if test $OPT $x/tic
-	then 
+	then
 		TIC=$x/tic
 		break
 	fi
@@ -141,7 +143,7 @@ if test -d $HOME/.terminfo
 then
 	echo "It appears you already have a private terminfo directory"
 	echo "at $HOME/.terminfo; this seems odd, because TERMINFO"
-	echo "is not defined.  I am not going to second-guess this -- if you" 
+	echo "is not defined.  I am not going to second-guess this -- if you"
 	echo "really want me to try auto-configuring for you, remove or"
 	echo "rename $HOME/terminfo and run me again."
 	exit;
@@ -214,7 +216,7 @@ trap 0 1 2 5 15
 #
 echo "You now have a private tree under $HOME/.terminfo;"
 echo "the ncurses library will automatically read from it,"
-echo "and ncurses tic will automatically compile entries to it." 
+echo "and ncurses tic will automatically compile entries to it."
 
 # We're done unless user has a .termcap file or equivalent named by TERMCAP
 if test -z "$TERMCAP"
@@ -235,7 +237,7 @@ then
 	echo "Done."
 	echo "Note that editing $HOME/.termcap will no longer change the data curses sees."
 elif test -f "$TERMCAP"
-then 
+then
 	echo "Your TERMCAP names the file $TERMCAP.  I will compile that."
 	eval $TIC $TERMCAP
 	echo "Done."

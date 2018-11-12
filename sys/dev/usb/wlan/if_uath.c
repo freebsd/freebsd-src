@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -114,18 +115,16 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
 
 static	int uath_countrycode = CTRY_DEFAULT;	/* country code */
-SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RW | CTLFLAG_TUN, &uath_countrycode,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RWTUN, &uath_countrycode,
     0, "country code");
-TUNABLE_INT("hw.usb.uath.countrycode", &uath_countrycode);
 static	int uath_regdomain = 0;			/* regulatory domain */
 SYSCTL_INT(_hw_usb_uath, OID_AUTO, regdomain, CTLFLAG_RD, &uath_regdomain,
     0, "regulatory domain");
 
 #ifdef UATH_DEBUG
 int uath_debug = 0;
-SYSCTL_INT(_hw_usb_uath, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uath_debug, 0,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, debug, CTLFLAG_RWTUN, &uath_debug, 0,
     "uath debug level");
-TUNABLE_INT("hw.usb.uath.debug", &uath_debug);
 enum {
 	UATH_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	UATH_DEBUG_XMIT_DUMP	= 0x00000002,	/* xmit dump */
@@ -1072,8 +1071,13 @@ uath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -1329,7 +1333,7 @@ uath_watchdog(void *arg)
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
 			/*uath_init(ifp); XXX needs a process context! */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			return;
 		}
 		callout_reset(&sc->watchdog_ch, hz, uath_watchdog, sc);
@@ -1620,7 +1624,7 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	}
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1810,7 +1814,7 @@ uath_start(struct ifnet *ifp)
 		next = m->m_nextpkt;
 		if (uath_tx_start(sc, m, ni, bf) != 0) {
 	bad:
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	reclaim:
 			STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 			UATH_STAT_INC(sc, st_tx_inactive);
@@ -1874,7 +1878,7 @@ uath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	sc->sc_seqnum = 0;
 	if (uath_tx_start(sc, m, ni, bf) != 0) {
 		ieee80211_free_node(ni);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		STAILQ_INSERT_HEAD(&sc->sc_tx_inactive, bf, next);
 		UATH_STAT_INC(sc, st_tx_inactive);
 		UATH_UNLOCK(sc);
@@ -2549,14 +2553,14 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	if (actlen < (int)UATH_MIN_RXBUFSZ) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
 		    "%s: wrong xfer size (len=%d)\n", __func__, actlen);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (NULL);
 	}
 
 	chunk = (struct uath_chunk *)data->buf;
 	if (chunk->seqnum == 0 && chunk->flags == 0 && chunk->length == 0) {
 		device_printf(sc->sc_dev, "%s: strange response\n", __func__);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		UATH_RESET_INTRX(sc);
 		return (NULL);
 	}
@@ -2589,7 +2593,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 		if ((sc->sc_intrx_len + sizeof(struct uath_rx_desc) +
 		    chunklen) > UATH_MAX_INTRX_SIZE) {
 			UATH_STAT_INC(sc, st_invalidlen);
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			if (sc->sc_intrx_head != NULL)
 				m_freem(sc->sc_intrx_head);
 			UATH_RESET_INTRX(sc);
@@ -2614,7 +2618,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	if (mnew == NULL) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
 		    "%s: can't get new mbuf, drop frame\n", __func__);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		if (sc->sc_intrx_head != NULL)
 			m_freem(sc->sc_intrx_head);
 		UATH_RESET_INTRX(sc);
@@ -2655,7 +2659,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
 		    "%s: bad descriptor (len=%d)\n", __func__,
 		    be32toh(desc->len));
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		UATH_STAT_INC(sc, st_toobigrxpkt);
 		if (sc->sc_intrx_head != NULL)
 			m_freem(sc->sc_intrx_head);
@@ -2699,7 +2703,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 		tap->wr_antnoise = -95;
 	}
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	UATH_RESET_INTRX(sc);
 
 	return (m);
@@ -2786,7 +2790,7 @@ setup:
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto setup;
 		}
 		break;
@@ -2822,7 +2826,7 @@ uath_data_txeof(struct usb_xfer *xfer, struct uath_data *data)
 		data->ni = NULL;
 	}
 	sc->sc_tx_timer = 0;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
@@ -2874,7 +2878,7 @@ setup:
 			if ((sc->sc_flags & UATH_FLAG_INVALID) == 0)
 				ieee80211_free_node(data->ni);
 			data->ni = NULL;
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2012, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,11 +61,6 @@ struct vtscsi_softc {
 	struct virtqueue	*vtscsi_control_vq;
 	struct virtqueue	*vtscsi_event_vq;
 	struct virtqueue	*vtscsi_request_vq;
-
-	struct taskqueue	*vtscsi_tq;
-	struct task		 vtscsi_control_intr_task;
-	struct task		 vtscsi_event_intr_task;
-	struct task		 vtscsi_request_intr_task;
 
 	struct cam_sim		*vtscsi_sim;
 	struct cam_path		*vtscsi_path;

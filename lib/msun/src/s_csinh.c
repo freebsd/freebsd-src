@@ -62,23 +62,23 @@ csinh(double complex z)
 	/* Handle the nearly-non-exceptional cases where x and y are finite. */
 	if (ix < 0x7ff00000 && iy < 0x7ff00000) {
 		if ((iy | ly) == 0)
-			return (cpack(sinh(x), y));
+			return (CMPLX(sinh(x), y));
 		if (ix < 0x40360000)	/* small x: normal case */
-			return (cpack(sinh(x) * cos(y), cosh(x) * sin(y)));
+			return (CMPLX(sinh(x) * cos(y), cosh(x) * sin(y)));
 
 		/* |x| >= 22, so cosh(x) ~= exp(|x|) */
 		if (ix < 0x40862e42) {
 			/* x < 710: exp(|x|) won't overflow */
 			h = exp(fabs(x)) * 0.5;
-			return (cpack(copysign(h, x) * cos(y), h * sin(y)));
+			return (CMPLX(copysign(h, x) * cos(y), h * sin(y)));
 		} else if (ix < 0x4096bbaa) {
 			/* x < 1455: scale to avoid overflow */
-			z = __ldexp_cexp(cpack(fabs(x), y), -1);
-			return (cpack(creal(z) * copysign(1, x), cimag(z)));
+			z = __ldexp_cexp(CMPLX(fabs(x), y), -1);
+			return (CMPLX(creal(z) * copysign(1, x), cimag(z)));
 		} else {
 			/* x >= 1455: the result always overflows */
 			h = huge * x;
-			return (cpack(h * cos(y), h * h * sin(y)));
+			return (CMPLX(h * cos(y), h * h * sin(y)));
 		}
 	}
 
@@ -92,7 +92,7 @@ csinh(double complex z)
 	 * the same as d(NaN).
 	 */
 	if ((ix | lx) == 0 && iy >= 0x7ff00000)
-		return (cpack(copysign(0, x * (y - y)), y - y));
+		return (CMPLX(copysign(0, x * (y - y)), y - y));
 
 	/*
 	 * sinh(+-Inf +- I 0) = +-Inf + I +-0.
@@ -101,8 +101,8 @@ csinh(double complex z)
 	 */
 	if ((iy | ly) == 0 && ix >= 0x7ff00000) {
 		if (((hx & 0xfffff) | lx) == 0)
-			return (cpack(x, y));
-		return (cpack(x, copysign(0, y)));
+			return (CMPLX(x, y));
+		return (CMPLX(x, copysign(0, y)));
 	}
 
 	/*
@@ -114,7 +114,7 @@ csinh(double complex z)
 	 * nonzero x.  Choice = don't raise (except for signaling NaNs).
 	 */
 	if (ix < 0x7ff00000 && iy >= 0x7ff00000)
-		return (cpack(y - y, x * (y - y)));
+		return (CMPLX(y - y, x * (y - y)));
 
 	/*
 	 * sinh(+-Inf + I NaN)  = +-Inf + I d(NaN).
@@ -129,8 +129,8 @@ csinh(double complex z)
 	 */
 	if (ix >= 0x7ff00000 && ((hx & 0xfffff) | lx) == 0) {
 		if (iy >= 0x7ff00000)
-			return (cpack(x * x, x * (y - y)));
-		return (cpack(x * cos(y), INFINITY * sin(y)));
+			return (CMPLX(x * x, x * (y - y)));
+		return (CMPLX(x * cos(y), INFINITY * sin(y)));
 	}
 
 	/*
@@ -144,7 +144,7 @@ csinh(double complex z)
 	 * Optionally raises the invalid floating-point exception for finite
 	 * nonzero y.  Choice = don't raise (except for signaling NaNs).
 	 */
-	return (cpack((x * x) * (y - y), (x + x) * (y - y)));
+	return (CMPLX((x * x) * (y - y), (x + x) * (y - y)));
 }
 
 double complex
@@ -152,6 +152,6 @@ csin(double complex z)
 {
 
 	/* csin(z) = -I * csinh(I * z) */
-	z = csinh(cpack(-cimag(z), creal(z)));
-	return (cpack(cimag(z), -creal(z)));
+	z = csinh(CMPLX(-cimag(z), creal(z)));
+	return (CMPLX(cimag(z), -creal(z)));
 }

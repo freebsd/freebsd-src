@@ -12,14 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "TableGenBackends.h" // Declares all backends.
-
-#include "SetTheory.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/SetTheory.h"
 
 using namespace llvm;
 
@@ -39,9 +38,10 @@ enum ActionType {
   GenSubtarget,
   GenIntrinsic,
   GenTgtIntrinsic,
-  GenEDInfo,
   PrintEnums,
-  PrintSets
+  PrintSets,
+  GenOptParserDefs,
+  GenCTags
 };
 
 namespace {
@@ -77,12 +77,14 @@ namespace {
                                "Generate intrinsic information"),
                     clEnumValN(GenTgtIntrinsic, "gen-tgt-intrinsic",
                                "Generate target intrinsic information"),
-                    clEnumValN(GenEDInfo, "gen-enhanced-disassembly-info",
-                               "Generate enhanced disassembly info"),
                     clEnumValN(PrintEnums, "print-enums",
                                "Print enum values for a class"),
                     clEnumValN(PrintSets, "print-sets",
                                "Print expanded sets for testing DAG exprs"),
+                    clEnumValN(GenOptParserDefs, "gen-opt-parser-defs",
+                               "Generate option definitions"),
+                    clEnumValN(GenCTags, "gen-ctags",
+                               "Generate ctags-compatible index"),
                     clEnumValEnd));
 
   cl::opt<std::string>
@@ -136,14 +138,13 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   case GenTgtIntrinsic:
     EmitIntrinsics(Records, OS, true);
     break;
-  case GenEDInfo:
-    EmitEnhancedDisassemblerInfo(Records, OS);
+  case GenOptParserDefs:
+    EmitOptParser(Records, OS);
     break;
   case PrintEnums:
   {
-    std::vector<Record*> Recs = Records.getAllDerivedDefinitions(Class);
-    for (unsigned i = 0, e = Recs.size(); i != e; ++i)
-      OS << Recs[i]->getName() << ", ";
+    for (Record *Rec : Records.getAllDerivedDefinitions(Class))
+      OS << Rec->getName() << ", ";
     OS << "\n";
     break;
   }
@@ -151,17 +152,19 @@ bool LLVMTableGenMain(raw_ostream &OS, RecordKeeper &Records) {
   {
     SetTheory Sets;
     Sets.addFieldExpander("Set", "Elements");
-    std::vector<Record*> Recs = Records.getAllDerivedDefinitions("Set");
-    for (unsigned i = 0, e = Recs.size(); i != e; ++i) {
-      OS << Recs[i]->getName() << " = [";
-      const std::vector<Record*> *Elts = Sets.expand(Recs[i]);
+    for (Record *Rec : Records.getAllDerivedDefinitions("Set")) {
+      OS << Rec->getName() << " = [";
+      const std::vector<Record*> *Elts = Sets.expand(Rec);
       assert(Elts && "Couldn't expand Set instance");
-      for (unsigned ei = 0, ee = Elts->size(); ei != ee; ++ei)
-        OS << ' ' << (*Elts)[ei]->getName();
+      for (Record *Elt : *Elts)
+        OS << ' ' << Elt->getName();
       OS << " ]\n";
     }
     break;
   }
+  case GenCTags:
+    EmitCTags(Records, OS);
+    break;
   }
 
   return false;
@@ -175,3 +178,12 @@ int main(int argc, char **argv) {
 
   return TableGenMain(argv[0], &LLVMTableGenMain);
 }
+
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+#include <sanitizer/lsan_interface.h>
+// Disable LeakSanitizer for this binary as it has too many leaks that are not
+// very interesting to fix. See compiler-rt/include/sanitizer/lsan_interface.h .
+int __lsan_is_turned_off() { return 1; }
+#endif  // __has_feature(address_sanitizer)
+#endif  // defined(__has_feature)

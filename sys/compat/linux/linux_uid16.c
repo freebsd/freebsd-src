@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 
 #include <sys/fcntl.h>
 #include <sys/param.h>
@@ -87,7 +86,7 @@ LIN_SDT_PROBE_DEFINE1(uid16, linux_setgid16, entry, "l_gid16_t");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_setgid16, return, "int");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_setuid16, entry, "l_uid16_t");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_setuid16, return, "int");
-LIN_SDT_PROBE_DEFINE2(uid16, linux_setregid16, entry, "l_git16_t", "l_git16_t");
+LIN_SDT_PROBE_DEFINE2(uid16, linux_setregid16, entry, "l_gid16_t", "l_gid16_t");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_setregid16, return, "int");
 LIN_SDT_PROBE_DEFINE2(uid16, linux_setreuid16, entry, "l_uid16_t", "l_uid16_t");
 LIN_SDT_PROBE_DEFINE1(uid16, linux_setreuid16, return, "int");
@@ -122,8 +121,8 @@ linux_chown16(struct thread *td, struct linux_chown16_args *args)
 	    args->gid);
 	LIN_SDT_PROBE1(uid16, linux_chown16, conv_path, path);
 
-	error = kern_chown(td, path, UIO_SYSSPACE, CAST_NOCHG(args->uid),
-	    CAST_NOCHG(args->gid));
+	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), 0);
 	LFREEPATH(path);
 
 	LIN_SDT_PROBE1(uid16, linux_chown16, return, error);
@@ -147,8 +146,8 @@ linux_lchown16(struct thread *td, struct linux_lchown16_args *args)
 	    args->gid);
 	LIN_SDT_PROBE1(uid16, linux_lchown16, conv_path, path);
 
-	error = kern_lchown(td, path, UIO_SYSSPACE, CAST_NOCHG(args->uid),
-	    CAST_NOCHG(args->gid));
+	error = kern_fchownat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    CAST_NOCHG(args->uid), CAST_NOCHG(args->gid), AT_SYMLINK_NOFOLLOW);
 	LFREEPATH(path);
 
 	LIN_SDT_PROBE1(uid16, linux_lchown16, return, error);
@@ -214,7 +213,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 		newcred->cr_ngroups = 1;
 
 	setsugid(td->td_proc);
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 	crfree(oldcred);
 	error = 0;

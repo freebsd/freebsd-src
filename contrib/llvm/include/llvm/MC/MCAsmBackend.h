@@ -1,4 +1,4 @@
-//===-- llvm/MC/MCAsmBack.h - MC Asm Backend --------------------*- C++ -*-===//
+//===-- llvm/MC/MCAsmBackend.h - MC Asm Backend -----------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -10,7 +10,9 @@
 #ifndef LLVM_MC_MCASMBACKEND_H
 #define LLVM_MC_MCASMBACKEND_H
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/MC/MCDirectives.h"
+#include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCFixup.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -22,7 +24,7 @@ class MCELFObjectTargetWriter;
 struct MCFixupKindInfo;
 class MCFragment;
 class MCInst;
-class MCInstFragment;
+class MCRelaxableFragment;
 class MCObjectWriter;
 class MCSection;
 class MCValue;
@@ -32,14 +34,17 @@ class raw_ostream;
 class MCAsmBackend {
   MCAsmBackend(const MCAsmBackend &) LLVM_DELETED_FUNCTION;
   void operator=(const MCAsmBackend &) LLVM_DELETED_FUNCTION;
+
 protected: // Can only create subclasses.
   MCAsmBackend();
 
-  unsigned HasReliableSymbolDifference : 1;
   unsigned HasDataInCodeSupport : 1;
 
 public:
   virtual ~MCAsmBackend();
+
+  /// lifetime management
+  virtual void reset() {}
 
   /// createObjectWriter - Create a new MCObjectWriter instance for use by the
   /// assembler backend to emit the final object file.
@@ -47,43 +52,19 @@ public:
 
   /// createELFObjectTargetWriter - Create a new ELFObjectTargetWriter to enable
   /// non-standard ELFObjectWriters.
-  virtual  MCELFObjectTargetWriter *createELFObjectTargetWriter() const {
+  virtual MCELFObjectTargetWriter *createELFObjectTargetWriter() const {
     llvm_unreachable("createELFObjectTargetWriter is not supported by asm "
                      "backend");
   }
 
-  /// hasReliableSymbolDifference - Check whether this target implements
-  /// accurate relocations for differences between symbols. If not, differences
-  /// between symbols will always be relocatable expressions and any references
-  /// to temporary symbols will be assumed to be in the same atom, unless they
-  /// reside in a different section.
-  ///
-  /// This should always be true (since it results in fewer relocations with no
-  /// loss of functionality), but is currently supported as a way to maintain
-  /// exact object compatibility with Darwin 'as' (on non-x86_64). It should
-  /// eventually should be eliminated.
-  bool hasReliableSymbolDifference() const {
-    return HasReliableSymbolDifference;
-  }
-
   /// hasDataInCodeSupport - Check whether this target implements data-in-code
   /// markers. If not, data region directives will be ignored.
-  bool hasDataInCodeSupport() const {
-    return HasDataInCodeSupport;
-  }
+  bool hasDataInCodeSupport() const { return HasDataInCodeSupport; }
 
   /// doesSectionRequireSymbols - Check whether the given section requires that
   /// all symbols (even temporaries) have symbol table entries.
   virtual bool doesSectionRequireSymbols(const MCSection &Section) const {
     return false;
-  }
-
-  /// isSectionAtomizable - Check whether the given section can be split into
-  /// atoms.
-  ///
-  /// \see MCAssembler::isSymbolLinkerVisible().
-  virtual bool isSectionAtomizable(const MCSection &Section) const {
-    return true;
   }
 
   /// @name Target Fixup Interfaces
@@ -101,16 +82,14 @@ public:
   virtual void processFixupValue(const MCAssembler &Asm,
                                  const MCAsmLayout &Layout,
                                  const MCFixup &Fixup, const MCFragment *DF,
-                                 MCValue &Target, uint64_t &Value,
+                                 const MCValue &Target, uint64_t &Value,
                                  bool &IsResolved) {}
-
-  /// @}
 
   /// applyFixup - Apply the \p Value for given \p Fixup into the provided
   /// data fragment, at the offset specified by the fixup and following the
   /// fixup kind as appropriate.
   virtual void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                          uint64_t Value) const = 0;
+                          uint64_t Value, bool IsPCRel) const = 0;
 
   /// @}
 
@@ -125,9 +104,8 @@ public:
 
   /// fixupNeedsRelaxation - Target specific predicate for whether a given
   /// fixup requires the associated instruction to be relaxed.
-  virtual bool fixupNeedsRelaxation(const MCFixup &Fixup,
-                                    uint64_t Value,
-                                    const MCInstFragment *DF,
+  virtual bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
+                                    const MCRelaxableFragment *DF,
                                     const MCAsmLayout &Layout) const = 0;
 
   /// RelaxInstruction - Relax the instruction in the given fragment to the next
@@ -157,6 +135,12 @@ public:
   /// handleAssemblerFlag - Handle any target-specific assembler flags.
   /// By default, do nothing.
   virtual void handleAssemblerFlag(MCAssemblerFlag Flag) {}
+
+  /// \brief Generate the compact unwind encoding for the CFI instructions.
+  virtual uint32_t
+      generateCompactUnwindEncoding(ArrayRef<MCCFIInstruction>) const {
+    return 0;
+  }
 };
 
 } // End llvm namespace

@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DES
 static DES_cblock ivec;			/* initialization vector */
 static DES_cblock pvec;			/* padding vector */
-#endif
 
 static char bits[] = {			/* used to extract bits from a char */
 	'\200', '\100', '\040', '\020', '\010', '\004', '\002', '\001'
@@ -79,13 +78,12 @@ static char bits[] = {			/* used to extract bits from a char */
 
 static int pflag;			/* 1 to preserve parity bits */
 
-#ifdef DES
 static DES_key_schedule schedule;	/* expanded DES key */
-#endif
 
 static unsigned char des_buf[8];/* shared buffer for get_des_char/put_des_char */
 static int des_ct = 0;		/* count for get_des_char/put_des_char */
 static int des_n = 0;		/* index for put_des_char/get_des_char */
+#endif
 
 /* init_des_cipher: initialize DES */
 void
@@ -239,7 +237,7 @@ expand_des_key(char *obuf, char *kbuf)
 		/*
 		 * now translate it, bombing on any illegal hex digit
 		 */
-		for (i = 0; kbuf[i] && i < 16; i++)
+		for (i = 0; i < 16 && kbuf[i]; i++)
 			if ((nbuf[i] = hex_to_binary((int) kbuf[i], 16)) == -1)
 				des_error("bad hex digit in key");
 		while (i < 16)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -39,9 +41,12 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>		/* beep, flash */
 
-MODULE_ID("$Id: lib_flash.c,v 1.6 2000/12/10 02:43:27 tom Exp $")
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
+
+MODULE_ID("$Id: lib_flash.c,v 1.13 2013/01/12 17:26:07 tom Exp $")
 
 /*
  *	flash()
@@ -52,22 +57,31 @@ MODULE_ID("$Id: lib_flash.c,v 1.6 2000/12/10 02:43:27 tom Exp $")
  */
 
 NCURSES_EXPORT(int)
-flash(void)
+NCURSES_SP_NAME(flash) (NCURSES_SP_DCL0)
 {
     int res = ERR;
 
-    T((T_CALLED("flash()")));
-
-    /* FIXME: should make sure that we are not in altchar mode */
-    if (flash_screen) {
-	TPUTS_TRACE("flash_screen");
-	res = putp(flash_screen);
-	_nc_flush();
-    } else if (bell) {
-	TPUTS_TRACE("bell");
-	res = putp(bell);
-	_nc_flush();
+    T((T_CALLED("flash(%p)"), (void *) SP_PARM));
+#ifdef USE_TERM_DRIVER
+    if (SP_PARM != 0)
+	res = CallDriver_1(SP_PARM, doBeepOrFlash, FALSE);
+#else
+    if (HasTerminal(SP_PARM)) {
+	/* FIXME: should make sure that we are not in altchar mode */
+	if (flash_screen) {
+	    res = NCURSES_PUTP2_FLUSH("flash_screen", flash_screen);
+	} else if (bell) {
+	    res = NCURSES_PUTP2_FLUSH("bell", bell);
+	}
     }
-
+#endif
     returnCode(res);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+flash(void)
+{
+    return NCURSES_SP_NAME(flash) (CURRENT_SCREEN);
+}
+#endif

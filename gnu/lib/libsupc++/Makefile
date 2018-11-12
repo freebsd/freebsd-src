@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 GCCVER=	4.2
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
@@ -30,7 +32,13 @@ HDRS=	exception new typeinfo cxxabi.h exception_defines.h
 INCS=	${HDRS:S;^;${SRCDIR}/;}
 INCSDIR=${INCLUDEDIR}/c++/${GCCVER}
 
+.if ${MACHINE_CPUARCH} == "arm"
+unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
+.else
 unwind.h: ${GCCDIR}/unwind-generic.h
+.endif
+
+unwind.h:
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 SRCS+=		unwind.h
@@ -40,6 +48,7 @@ CLEANFILES+=	unwind.h
 
 VERSION_MAP=	${.CURDIR}/Version.map
 
+CXXFLAGS.clang+= -stdlib=libstdc++
 
 .include <bsd.lib.mk>
 

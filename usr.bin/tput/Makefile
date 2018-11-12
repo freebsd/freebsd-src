@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	tput
-DPADD=	${LIBTERMCAP}
-LDADD=	-ltermcap
+LIBADD=	ncursesw
 SCRIPTS=clear.sh
 MLINKS=	tput.1 clear.1
 

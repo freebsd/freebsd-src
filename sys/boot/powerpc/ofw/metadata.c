@@ -33,34 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
+#include <sys/boot.h>
+#include <fdt_platform.h>
 
 #include <machine/metadata.h>
 
 #include "bootstrap.h"
-#include "libofw.h"
-
-/*
- * Return a 'boothowto' value corresponding to the kernel arguments in
- * (kargs) and any relevant environment variables.
- */
-static struct 
-{
-    const char	*ev;
-    int		mask;
-} howto_names[] = {
-    {"boot_askname",	RB_ASKNAME},
-    {"boot_cdrom",	RB_CDROM},
-    {"boot_ddb",	RB_KDB},
-    {"boot_dfltroot",	RB_DFLTROOT},
-    {"boot_gdb",	RB_GDB},
-    {"boot_multicons",	RB_MULTIPLE},
-    {"boot_mute",	RB_MUTE},
-    {"boot_pause",	RB_PAUSE},
-    {"boot_serial",	RB_SERIAL},
-    {"boot_single",	RB_SINGLE},
-    {"boot_verbose",	RB_VERBOSE},
-    {NULL,	0}
-};
 
 int
 md_getboothowto(char *kargs)
@@ -265,7 +243,7 @@ md_copymodules(vm_offset_t addr, int kern64)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-md_load_dual(char *args, vm_offset_t *modulep, int kern64)
+md_load_dual(char *args, vm_offset_t *modulep, vm_offset_t *dtb, int kern64)
 {
     struct preloaded_file	*kfp;
     struct preloaded_file	*xp;
@@ -273,6 +251,7 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     vm_offset_t			kernend;
     vm_offset_t			addr;
     vm_offset_t			envp;
+    vm_offset_t			fdtp;
     vm_offset_t			size;
     uint64_t			scratch64;
     char			*rootdevname;
@@ -308,6 +287,14 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
+    /* Copy out FDT */
+    *dtb = fdtp = 0;
+    if (getenv("usefdt") != NULL) {
+        size = fdt_copy(addr);
+        *dtb = fdtp = addr;
+        addr = roundup(addr + size, PAGE_SIZE);
+    }
+
     kernend = 0;
     kfp = file_findfile(NULL, kern64 ? "elf64 kernel" : "elf32 kernel");
     if (kfp == NULL)
@@ -318,10 +305,16 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
     if (kern64) {
 	scratch64 = envp;
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof scratch64, &scratch64);
+        if (fdtp != 0) {
+	    scratch64 = fdtp;
+	    file_addmetadata(kfp, MODINFOMD_DTBP, sizeof scratch64, &scratch64);
+        }
 	scratch64 = kernend;
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof scratch64, &scratch64);
     } else {
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+        if (fdtp != 0)
+	    file_addmetadata(kfp, MODINFOMD_DTBP, sizeof fdtp, &fdtp);
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
     }
 
@@ -343,14 +336,14 @@ md_load_dual(char *args, vm_offset_t *modulep, int kern64)
 }
 
 int
-md_load(char *args, vm_offset_t *modulep)
+md_load(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
-    return (md_load_dual(args, modulep, 0));
+    return (md_load_dual(args, modulep, dtb, 0));
 }
 
 int
-md_load64(char *args, vm_offset_t *modulep)
+md_load64(char *args, vm_offset_t *modulep, vm_offset_t *dtb)
 {
-    return (md_load_dual(args, modulep, 1));
+    return (md_load_dual(args, modulep, dtb, 1));
 }
 

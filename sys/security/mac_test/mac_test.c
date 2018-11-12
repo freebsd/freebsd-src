@@ -1018,17 +1018,6 @@ test_mount_init_label(struct label *label)
 	COUNTER_INC(mount_init_label);
 }
 
-COUNTER_DECL(netatalk_aarp_send);
-static void
-test_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-
-	LABEL_CHECK(ifplabel, MAGIC_IFNET);
-	LABEL_CHECK(mlabel, MAGIC_MBUF);
-	COUNTER_INC(netatalk_aarp_send);
-}
-
 COUNTER_DECL(netinet_arp_send);
 static void
 test_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
@@ -1423,6 +1412,21 @@ test_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 	return (0);
 }
 
+COUNTER_DECL(posixshm_check_read);
+static int
+test_posixshm_check_read(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shm, struct label *shmlabel)
+{
+
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	if (file_cred != NULL)
+		LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_read);
+
+	return (0);
+}
+
 COUNTER_DECL(posixshm_check_setmode);
 static int
 test_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
@@ -1482,6 +1486,21 @@ test_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
 	COUNTER_INC(posixshm_check_unlink);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_write);
+static int
+test_posixshm_check_write(struct ucred *active_cred,
+    struct ucred *file_cred, struct shmfd *shm, struct label *shmlabel)
+{
+
+	LABEL_CHECK(active_cred->cr_label, MAGIC_CRED);
+	if (file_cred != NULL)
+		LABEL_CHECK(file_cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_write);
+
 	return (0);
 }
 
@@ -3074,8 +3093,6 @@ static struct mac_policy_ops test_ops =
 	.mpo_mount_destroy_label = test_mount_destroy_label,
 	.mpo_mount_init_label = test_mount_init_label,
 
-	.mpo_netatalk_aarp_send = test_netatalk_aarp_send,
-
 	.mpo_netinet_arp_send = test_netinet_arp_send,
 	.mpo_netinet_fragment = test_netinet_fragment,
 	.mpo_netinet_icmp_reply = test_netinet_icmp_reply,
@@ -3114,11 +3131,13 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixshm_check_create = test_posixshm_check_create,
 	.mpo_posixshm_check_mmap = test_posixshm_check_mmap,
 	.mpo_posixshm_check_open = test_posixshm_check_open,
+	.mpo_posixshm_check_read = test_posixshm_check_read,
 	.mpo_posixshm_check_setmode = test_posixshm_check_setmode,
 	.mpo_posixshm_check_setowner = test_posixshm_check_setowner,
 	.mpo_posixshm_check_stat = test_posixshm_check_stat,
 	.mpo_posixshm_check_truncate = test_posixshm_check_truncate,
 	.mpo_posixshm_check_unlink = test_posixshm_check_unlink,
+	.mpo_posixshm_check_write = test_posixshm_check_write,
 	.mpo_posixshm_create = test_posixshm_create,
 	.mpo_posixshm_destroy_label = test_posixshm_destroy_label,
 	.mpo_posixshm_init_label = test_posixshm_init_label,

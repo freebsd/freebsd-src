@@ -50,11 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 #include <sys/sbuf.h>
 
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/evtchn.h>
 #include <xen/gnttab.h>
 #include <xen/xenbus/xenbusvar.h>
+
 #include <machine/stdarg.h>
 
 MALLOC_DEFINE(M_XENBUS, "xenbus", "XenBus Support");
@@ -219,42 +220,6 @@ xenbus_grant_ring(device_t dev, unsigned long ring_mfn, grant_ref_t *refp)
 		return (error);
 	}
 
-	return (0);
-}
-
-int
-xenbus_alloc_evtchn(device_t dev, evtchn_port_t *port)
-{
-	struct evtchn_alloc_unbound alloc_unbound;
-	int err;
-
-	alloc_unbound.dom        = DOMID_SELF;
-	alloc_unbound.remote_dom = xenbus_get_otherend_id(dev);
-
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
-					  &alloc_unbound);
-
-	if (err) {
-		xenbus_dev_fatal(dev, -err, "allocating event channel");
-		return (-err);
-	}
-	*port = alloc_unbound.port;
-	return (0);
-}
-
-int
-xenbus_free_evtchn(device_t dev, evtchn_port_t port)
-{
-	struct evtchn_close close;
-	int err;
-
-	close.port = port;
-
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
-	if (err) {
-		xenbus_dev_error(dev, -err, "freeing event channel %d", port);
-		return (-err);
-	}
 	return (0);
 }
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002,2004 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2002-2009,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_inwstr.c,v 1.4 2004/10/23 20:41:28 tom Exp $")
+MODULE_ID("$Id: lib_inwstr.c,v 1.6 2011/05/28 22:49:49 tom Exp $")
 
 NCURSES_EXPORT(int)
 winnwstr(WINDOW *win, wchar_t *wstr, int n)
@@ -50,7 +50,7 @@ winnwstr(WINDOW *win, wchar_t *wstr, int n)
     cchar_t *text;
     wchar_t wch;
 
-    T((T_CALLED("winnwstr(%p,%p,%d)"), win, wstr, n));
+    T((T_CALLED("winnwstr(%p,%p,%d)"), (void *) win, (void *) wstr, n));
     if (wstr != 0) {
 	if (win) {
 	    getyx(win, row, col);
@@ -93,8 +93,13 @@ NCURSES_EXPORT(int)
 winwstr(WINDOW *win, wchar_t *wstr)
 {
     int result = OK;
-    T((T_CALLED("winwstr(%p,%p)"), win, wstr));
-    if (winnwstr(win, wstr, CCHARW_MAX * (win->_maxx - win->_curx + 1)) == ERR)
+
+    T((T_CALLED("winwstr(%p,%p)"), (void *) win, (void *) wstr));
+    if (win == 0) {
 	result = ERR;
+    } else if (winnwstr(win, wstr,
+			CCHARW_MAX * (win->_maxx - win->_curx + 1)) == ERR) {
+	result = ERR;
+    }
     returnCode(result);
 }

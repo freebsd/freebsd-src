@@ -50,14 +50,22 @@
 #define VIRTIO_NET_F_CTRL_RX	0x40000 /* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN	0x80000 /* Control channel VLAN filtering */
 #define VIRTIO_NET_F_CTRL_RX_EXTRA 0x100000 /* Extra RX mode control support */
+#define VIRTIO_NET_F_GUEST_ANNOUNCE 0x200000 /* Announce device on network */
+#define VIRTIO_NET_F_MQ		0x400000 /* Device supports RFS */
+#define VIRTIO_NET_F_CTRL_MAC_ADDR 0x800000 /* Set MAC address */
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
 
 struct virtio_net_config {
 	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
-	uint8_t		mac[ETHER_ADDR_LEN]; 
+	uint8_t		mac[ETHER_ADDR_LEN];
 	/* See VIRTIO_NET_F_STATUS and VIRTIO_NET_S_* above */
 	uint16_t	status;
+	/* Maximum number of each of transmit and receive queues;
+	 * see VIRTIO_NET_F_MQ and VIRTIO_NET_CTRL_MQ.
+	 * Legal values are between 1 and 0x8000.
+	 */
+	uint16_t	max_virtqueue_pairs;
 } __packed;
 
 /*
@@ -66,6 +74,7 @@ struct virtio_net_config {
  */
 struct virtio_net_hdr {
 #define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	/* Use csum_start,csum_offset*/
+#define VIRTIO_NET_HDR_F_DATA_VALID	2	/* Csum is valid */
 	uint8_t	flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	/* Not a GSO frame */
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	/* GSO frame, IPv4 TCP (TSO) */
@@ -100,8 +109,6 @@ struct virtio_net_ctrl_hdr {
 	uint8_t cmd;
 } __packed;
 
-typedef uint8_t virtio_net_ctrl_ack;
-
 #define VIRTIO_NET_OK	0
 #define VIRTIO_NET_ERR	1
 
@@ -134,6 +141,10 @@ typedef uint8_t virtio_net_ctrl_ack;
  * first sg list contains unicast addresses, the second is for multicast.
  * This functionality is present if the VIRTIO_NET_F_CTRL_RX feature
  * is available.
+ *
+ * The ADDR_SET command requests one out scatterlist, it contains a
+ * 6 bytes MAC address. This functionality is present if the
+ * VIRTIO_NET_F_CTRL_MAC_ADDR feature is available.
  */
 struct virtio_net_ctrl_mac {
 	uint32_t	entries;
@@ -142,6 +153,7 @@ struct virtio_net_ctrl_mac {
 
 #define VIRTIO_NET_CTRL_MAC	1
 #define VIRTIO_NET_CTRL_MAC_TABLE_SET	0
+#define VIRTIO_NET_CTRL_MAC_ADDR_SET	1
 
 /*
  * Control VLAN filtering
@@ -155,5 +167,36 @@ struct virtio_net_ctrl_mac {
 #define VIRTIO_NET_CTRL_VLAN	2
 #define VIRTIO_NET_CTRL_VLAN_ADD	0
 #define VIRTIO_NET_CTRL_VLAN_DEL	1
+
+/*
+ * Control link announce acknowledgement
+ *
+ * The command VIRTIO_NET_CTRL_ANNOUNCE_ACK is used to indicate that
+ * driver has recevied the notification; device would clear the
+ * VIRTIO_NET_S_ANNOUNCE bit in the status field after it receives
+ * this command.
+ */
+#define VIRTIO_NET_CTRL_ANNOUNCE	3
+#define VIRTIO_NET_CTRL_ANNOUNCE_ACK	0
+
+/*
+ * Control Receive Flow Steering
+ *
+ * The command VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET enables Receive Flow
+ * Steering, specifying the number of the transmit and receive queues
+ * that will be used. After the command is consumed and acked by the
+ * device, the device will not steer new packets on receive virtqueues
+ * other than specified nor read from transmit virtqueues other than
+ * specified. Accordingly, driver should not transmit new packets on
+ * virtqueues other than specified.
+ */
+struct virtio_net_ctrl_mq {
+	uint16_t	virtqueue_pairs;
+} __packed;
+
+#define VIRTIO_NET_CTRL_MQ	4
+#define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET		0
+#define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN		1
+#define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX		0x8000
 
 #endif /* _VIRTIO_NET_H */

@@ -13,7 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -49,11 +49,9 @@ __FBSDID("$FreeBSD$");
  * Return 0 on error.
  */
 int
-__sflags(mode, optr)
-	const char *mode;
-	int *optr;
+__sflags(const char *mode, int *optr)
 {
-	int ret, m, o;
+	int ret, m, o, known;
 
 	switch (*mode++) {
 
@@ -80,34 +78,35 @@ __sflags(mode, optr)
 		return (0);
 	}
 
-	/* 'b' (binary) is ignored */
-	if (*mode == 'b')
-		mode++;
-
-	/* [rwa][b]\+ means read and write */
-	if (*mode == '+') {
-		mode++;
-		ret = __SRW;
-		m = O_RDWR;
-	}
-
-	/* 'b' (binary) can appear here, too -- and is ignored again */
-	if (*mode == 'b')
-		mode++;
-
-	/* 'x' means exclusive (fail if the file exists) */
-	if (*mode == 'x') {
-		mode++;
-		if (m == O_RDONLY) {
-			errno = EINVAL;
-			return (0);
+	do {
+		known = 1;
+		switch (*mode++) {
+		case 'b':
+			/* 'b' (binary) is ignored */
+			break;
+		case '+':
+			/* [rwa][b]\+ means read and write */
+			ret = __SRW;
+			m = O_RDWR;
+			break;
+		case 'x':
+			/* 'x' means exclusive (fail if the file exists) */
+			o |= O_EXCL;
+			break;
+		case 'e':
+			/* set close-on-exec */
+			o |= O_CLOEXEC;
+			break;
+		default:
+			known = 0;
+			break;
 		}
-		o |= O_EXCL;
-	}
+	} while (known);
 
-	/* set close-on-exec */
-	if (*mode == 'e')
-		o |= O_CLOEXEC;
+	if ((o & O_EXCL) != 0 && m == O_RDONLY) {
+		errno = EINVAL;
+		return (0);
+	}
 
 	*optr = m | o;
 	return (ret);

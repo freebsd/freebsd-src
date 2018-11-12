@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "api_public.h"
 #include "glue.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define	debugf(fmt, args...) do { printf("%s(): ", __func__); printf(fmt,##args); } while (0)
 #else
@@ -407,8 +404,8 @@ ub_stor_type(int type)
 	if (type & DT_STOR_MMC)
 		return ("MMC");
 
-	if (type & DT_STOR_NAND)
-		return ("NAND");
+	if (type & DT_STOR_SATA)
+		return ("SATA");
 
 	return ("Unknown");
 }

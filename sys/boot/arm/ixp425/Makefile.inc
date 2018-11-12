@@ -21,7 +21,7 @@ CFLAGS+=-Os -ffreestanding \
 
 # -Wstrict-prototypes 
 
-CFLAGS+=-DBOOT_${BOOT_FLAVOR:U}
+CFLAGS+=-DBOOT_${BOOT_FLAVOR:tu}
 
 LD ?= ld
 OBJCOPY ?= objcopy

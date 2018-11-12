@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
@@ -24,7 +24,7 @@ using namespace ento;
 namespace {
 class UndefinedAssignmentChecker
   : public Checker<check::Bind> {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
 
 public:
   void checkBind(SVal location, SVal val, const Stmt *S,
@@ -38,6 +38,14 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   if (!val.isUndef())
     return;
 
+  // Do not report assignments of uninitialized values inside swap functions.
+  // This should allow to swap partially uninitialized structs
+  // (radar://14129997)
+  if (const FunctionDecl *EnclosingFunctionDecl =
+      dyn_cast<FunctionDecl>(C.getStackFrame()->getDecl()))
+    if (C.getCalleeName(EnclosingFunctionDecl) == "swap")
+      return;
+
   ExplodedNode *N = C.generateSink();
 
   if (!N)
@@ -46,10 +54,10 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   const char *str = "Assigned value is garbage or undefined";
 
   if (!BT)
-    BT.reset(new BuiltinBug(str));
+    BT.reset(new BuiltinBug(this, str));
 
   // Generate a report for this bug.
-  const Expr *ex = 0;
+  const Expr *ex = nullptr;
 
   while (StoreE) {
     if (const BinaryOperator *B = dyn_cast<BinaryOperator>(StoreE)) {

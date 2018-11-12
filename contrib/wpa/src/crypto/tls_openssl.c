@@ -1,15 +1,9 @@
 /*
  * SSL/TLS interface functions for OpenSSL
- * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2011, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -27,6 +21,11 @@
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif /* OPENSSL_NO_ENGINE */
+
+#ifdef ANDROID
+#include <openssl/pem.h>
+#include "keystore_get.h"
+#endif /* ANDROID */
 
 #include "common.h"
 #include "crypto.h"
@@ -54,6 +53,7 @@ struct tls_global {
 	void (*event_cb)(void *ctx, enum tls_event ev,
 			 union tls_event_data *data);
 	void *cb_ctx;
+	int cert_in_cb;
 };
 
 static struct tls_global *tls_global = NULL;
@@ -81,6 +81,8 @@ struct tls_connection {
 	unsigned int server_cert_only:1;
 
 	u8 srv_cert_hash[32];
+
+	unsigned int flags;
 };
 
 
@@ -523,6 +525,15 @@ static void ssl_info_cb(const SSL *ssl, int where, int ret)
 			else
 				conn->write_alerts++;
 		}
+		if (tls_global->event_cb != NULL) {
+			union tls_event_data ev;
+			os_memset(&ev, 0, sizeof(ev));
+			ev.alert.is_local = !(where & SSL_CB_READ);
+			ev.alert.type = SSL_alert_type_string_long(ret);
+			ev.alert.description = SSL_alert_desc_string_long(ret);
+			tls_global->event_cb(tls_global->cb_ctx, TLS_ALERT,
+					     &ev);
+		}
 	} else if (where & SSL_CB_EXIT && ret <= 0) {
 		wpa_printf(MSG_DEBUG, "SSL: %s:%s in %s",
 			   str, ret == 0 ? "failed" : "error",
@@ -687,6 +698,7 @@ void * tls_init(const struct tls_config *conf)
 		if (conf) {
 			tls_global->event_cb = conf->event_cb;
 			tls_global->cb_ctx = conf->cb_ctx;
+			tls_global->cert_in_cb = conf->cert_in_cb;
 		}
 
 #ifdef CONFIG_FIPS
@@ -697,6 +709,8 @@ void * tls_init(const struct tls_config *conf)
 					   "mode");
 				ERR_load_crypto_strings();
 				ERR_print_errors_fp(stderr);
+				os_free(tls_global);
+				tls_global = NULL;
 				return NULL;
 			} else
 				wpa_printf(MSG_INFO, "Running in FIPS mode");
@@ -705,13 +719,15 @@ void * tls_init(const struct tls_config *conf)
 		if (conf && conf->fips_mode) {
 			wpa_printf(MSG_ERROR, "FIPS mode requested, but not "
 				   "supported");
+			os_free(tls_global);
+			tls_global = NULL;
 			return NULL;
 		}
 #endif /* OPENSSL_FIPS */
 #endif /* CONFIG_FIPS */
 		SSL_load_error_strings();
 		SSL_library_init();
-#ifndef OPENSSL_NO_SHA256
+#if (OPENSSL_VERSION_NUMBER >= 0x0090800fL) && !defined(OPENSSL_NO_SHA256)
 		EVP_add_digest(EVP_sha256());
 #endif /* OPENSSL_NO_SHA256 */
 		/* TODO: if /dev/urandom is available, PRNG is seeded
@@ -1137,7 +1153,7 @@ static void openssl_tls_cert_event(struct tls_connection *conn,
 		return;
 
 	os_memset(&ev, 0, sizeof(ev));
-	if (conn->cert_probe) {
+	if (conn->cert_probe || tls_global->cert_in_cb) {
 		cert = get_x509_cert(err_cert);
 		ev.peer_cert.cert = cert;
 	}
@@ -1178,13 +1194,22 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 	X509_NAME_oneline(X509_get_subject_name(err_cert), buf, sizeof(buf));
 
 	conn = SSL_get_app_data(ssl);
-	match = conn ? conn->subject_match : NULL;
-	altmatch = conn ? conn->altsubject_match : NULL;
+	if (conn == NULL)
+		return 0;
+	match = conn->subject_match;
+	altmatch = conn->altsubject_match;
 
 	if (!preverify_ok && !conn->ca_cert_verify)
 		preverify_ok = 1;
 	if (!preverify_ok && depth > 0 && conn->server_cert_only)
 		preverify_ok = 1;
+	if (!preverify_ok && (conn->flags & TLS_CONN_DISABLE_TIME_CHECKS) &&
+	    (err == X509_V_ERR_CERT_HAS_EXPIRED ||
+	     err == X509_V_ERR_CERT_NOT_YET_VALID)) {
+		wpa_printf(MSG_DEBUG, "OpenSSL: Ignore certificate validity "
+			   "time mismatch");
+		preverify_ok = 1;
+	}
 
 	err_str = X509_verify_cert_error_string(err);
 
@@ -1253,6 +1278,10 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 				       TLS_FAIL_SERVER_CHAIN_PROBE);
 	}
 
+	if (preverify_ok && tls_global->event_cb != NULL)
+		tls_global->event_cb(tls_global->cb_ctx,
+				     TLS_CERT_CHAIN_SUCCESS, NULL);
+
 	return preverify_ok;
 }
 
@@ -1288,6 +1317,19 @@ static int tls_load_ca_der(void *_ssl_ctx, const char *ca_cert)
 	return ret;
 }
 #endif /* OPENSSL_NO_STDIO */
+
+
+#ifdef ANDROID
+static BIO * BIO_from_keystore(const char *key)
+{
+	BIO *bio = NULL;
+	char value[KEYSTORE_MESSAGE_SIZE];
+	int length = keystore_get(key, strlen(key), value);
+	if (length != -1 && (bio = BIO_new(BIO_s_mem())) != NULL)
+		BIO_write(bio, value, length);
+	return bio;
+}
+#endif /* ANDROID */
 
 
 static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
@@ -1379,6 +1421,36 @@ static int tls_connection_ca_cert(void *_ssl_ctx, struct tls_connection *conn,
 			   "to certificate store", __func__);
 		return 0;
 	}
+
+#ifdef ANDROID
+	if (ca_cert && os_strncmp("keystore://", ca_cert, 11) == 0) {
+		BIO *bio = BIO_from_keystore(&ca_cert[11]);
+		STACK_OF(X509_INFO) *stack = NULL;
+		int i;
+
+		if (bio) {
+			stack = PEM_X509_INFO_read_bio(bio, NULL, NULL, NULL);
+			BIO_free(bio);
+		}
+		if (!stack)
+			return -1;
+
+		for (i = 0; i < sk_X509_INFO_num(stack); ++i) {
+			X509_INFO *info = sk_X509_INFO_value(stack, i);
+			if (info->x509) {
+				X509_STORE_add_cert(ssl_ctx->cert_store,
+						    info->x509);
+			}
+			if (info->crl) {
+				X509_STORE_add_crl(ssl_ctx->cert_store,
+						   info->crl);
+			}
+		}
+		sk_X509_INFO_pop_free(stack, X509_INFO_free);
+		SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, tls_verify_cb);
+		return 0;
+	}
+#endif /* ANDROID */
 
 #ifdef CONFIG_NATIVE_WINDOWS
 	if (ca_cert && tls_cryptoapi_ca_cert(ssl_ctx, conn->ssl, ca_cert) ==
@@ -1550,26 +1622,42 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 	if (client_cert == NULL)
 		return -1;
 
+#ifdef ANDROID
+	if (os_strncmp("keystore://", client_cert, 11) == 0) {
+		BIO *bio = BIO_from_keystore(&client_cert[11]);
+		X509 *x509 = NULL;
+		int ret = -1;
+		if (bio) {
+			x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+			BIO_free(bio);
+		}
+		if (x509) {
+			if (SSL_use_certificate(conn->ssl, x509) == 1)
+				ret = 0;
+			X509_free(x509);
+		}
+		return ret;
+	}
+#endif /* ANDROID */
+
 #ifndef OPENSSL_NO_STDIO
 	if (SSL_use_certificate_file(conn->ssl, client_cert,
 				     SSL_FILETYPE_ASN1) == 1) {
 		wpa_printf(MSG_DEBUG, "OpenSSL: SSL_use_certificate_file (DER)"
 			   " --> OK");
 		return 0;
-	} else {
-		tls_show_errors(MSG_DEBUG, __func__,
-				"SSL_use_certificate_file (DER) failed");
 	}
 
 	if (SSL_use_certificate_file(conn->ssl, client_cert,
 				     SSL_FILETYPE_PEM) == 1) {
+		ERR_clear_error();
 		wpa_printf(MSG_DEBUG, "OpenSSL: SSL_use_certificate_file (PEM)"
 			   " --> OK");
 		return 0;
-	} else {
-		tls_show_errors(MSG_DEBUG, __func__,
-				"SSL_use_certificate_file (PEM) failed");
 	}
+
+	tls_show_errors(MSG_DEBUG, __func__,
+			"SSL_use_certificate_file failed");
 #else /* OPENSSL_NO_STDIO */
 	wpa_printf(MSG_DEBUG, "OpenSSL: %s - OPENSSL_NO_STDIO", __func__);
 #endif /* OPENSSL_NO_STDIO */
@@ -1586,6 +1674,7 @@ static int tls_global_client_cert(SSL_CTX *ssl_ctx, const char *client_cert)
 
 	if (SSL_CTX_use_certificate_file(ssl_ctx, client_cert,
 					 SSL_FILETYPE_ASN1) != 1 &&
+	    SSL_CTX_use_certificate_chain_file(ssl_ctx, client_cert) != 1 &&
 	    SSL_CTX_use_certificate_file(ssl_ctx, client_cert,
 					 SSL_FILETYPE_PEM) != 1) {
 		tls_show_errors(MSG_INFO, __func__,
@@ -1837,6 +1926,8 @@ static int tls_connection_engine_ca_cert(void *_ssl_ctx,
 	wpa_printf(MSG_DEBUG, "OpenSSL: %s - added CA certificate from engine "
 		   "to certificate store", __func__);
 	SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, tls_verify_cb);
+	conn->ca_cert_verify = 1;
+
 	return 0;
 
 #else /* OPENSSL_NO_ENGINE */
@@ -1900,10 +1991,6 @@ static int tls_connection_private_key(void *_ssl_ctx,
 				   "ASN1(EVP_PKEY_RSA) --> OK");
 			ok = 1;
 			break;
-		} else {
-			tls_show_errors(MSG_DEBUG, __func__,
-					"SSL_use_PrivateKey_ASN1(EVP_PKEY_RSA)"
-					" failed");
 		}
 
 		if (SSL_use_PrivateKey_ASN1(EVP_PKEY_DSA, conn->ssl,
@@ -1913,10 +2000,6 @@ static int tls_connection_private_key(void *_ssl_ctx,
 				   "ASN1(EVP_PKEY_DSA) --> OK");
 			ok = 1;
 			break;
-		} else {
-			tls_show_errors(MSG_DEBUG, __func__,
-					"SSL_use_PrivateKey_ASN1(EVP_PKEY_DSA)"
-					" failed");
 		}
 
 		if (SSL_use_RSAPrivateKey_ASN1(conn->ssl,
@@ -1926,9 +2009,6 @@ static int tls_connection_private_key(void *_ssl_ctx,
 				   "SSL_use_RSAPrivateKey_ASN1 --> OK");
 			ok = 1;
 			break;
-		} else {
-			tls_show_errors(MSG_DEBUG, __func__,
-					"SSL_use_RSAPrivateKey_ASN1 failed");
 		}
 
 		if (tls_read_pkcs12_blob(ssl_ctx, conn->ssl, private_key_blob,
@@ -1942,6 +2022,26 @@ static int tls_connection_private_key(void *_ssl_ctx,
 		break;
 	}
 
+#ifdef ANDROID
+	if (!ok && private_key &&
+	    os_strncmp("keystore://", private_key, 11) == 0) {
+		BIO *bio = BIO_from_keystore(&private_key[11]);
+		EVP_PKEY *pkey = NULL;
+		if (bio) {
+			pkey = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+			BIO_free(bio);
+		}
+		if (pkey) {
+			if (SSL_use_PrivateKey(conn->ssl, pkey) == 1) {
+				wpa_printf(MSG_DEBUG, "OpenSSL: Private key "
+					   "from keystore");
+				ok = 1;
+			}
+			EVP_PKEY_free(pkey);
+		}
+	}
+#endif /* ANDROID */
+
 	while (!ok && private_key) {
 #ifndef OPENSSL_NO_STDIO
 		if (SSL_use_PrivateKey_file(conn->ssl, private_key,
@@ -1950,10 +2050,6 @@ static int tls_connection_private_key(void *_ssl_ctx,
 				   "SSL_use_PrivateKey_File (DER) --> OK");
 			ok = 1;
 			break;
-		} else {
-			tls_show_errors(MSG_DEBUG, __func__,
-					"SSL_use_PrivateKey_File (DER) "
-					"failed");
 		}
 
 		if (SSL_use_PrivateKey_file(conn->ssl, private_key,
@@ -1962,10 +2058,6 @@ static int tls_connection_private_key(void *_ssl_ctx,
 				   "SSL_use_PrivateKey_File (PEM) --> OK");
 			ok = 1;
 			break;
-		} else {
-			tls_show_errors(MSG_DEBUG, __func__,
-					"SSL_use_PrivateKey_File (PEM) "
-					"failed");
 		}
 #else /* OPENSSL_NO_STDIO */
 		wpa_printf(MSG_DEBUG, "OpenSSL: %s - OPENSSL_NO_STDIO",
@@ -1991,15 +2083,15 @@ static int tls_connection_private_key(void *_ssl_ctx,
 	}
 
 	if (!ok) {
-		wpa_printf(MSG_INFO, "OpenSSL: Failed to load private key");
+		tls_show_errors(MSG_INFO, __func__,
+				"Failed to load private key");
 		os_free(passwd);
-		ERR_clear_error();
 		return -1;
 	}
 	ERR_clear_error();
 	SSL_CTX_set_default_passwd_cb(ssl_ctx, NULL);
 	os_free(passwd);
-	
+
 	if (!SSL_check_private_key(conn->ssl)) {
 		tls_show_errors(MSG_INFO, __func__, "Private key failed "
 				"verification");
@@ -2045,7 +2137,7 @@ static int tls_global_private_key(SSL_CTX *ssl_ctx, const char *private_key,
 	os_free(passwd);
 	ERR_clear_error();
 	SSL_CTX_set_default_passwd_cb(ssl_ctx, NULL);
-	
+
 	if (!SSL_CTX_check_private_key(ssl_ctx)) {
 		tls_show_errors(MSG_INFO, __func__,
 				"Private key failed verification");
@@ -2207,6 +2299,11 @@ static int tls_global_dh(SSL_CTX *ssl_ctx, const char *dh_file)
 int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 			    struct tls_keys *keys)
 {
+#ifdef CONFIG_FIPS
+	wpa_printf(MSG_ERROR, "OpenSSL: TLS keys cannot be exported in FIPS "
+		   "mode");
+	return -1;
+#else /* CONFIG_FIPS */
 	SSL *ssl;
 
 	if (conn == NULL || keys == NULL)
@@ -2224,6 +2321,7 @@ int tls_connection_get_keys(void *ssl_ctx, struct tls_connection *conn,
 	keys->server_random_len = SSL3_RANDOM_SIZE;
 
 	return 0;
+#endif /* CONFIG_FIPS */
 }
 
 
@@ -2231,6 +2329,19 @@ int tls_connection_prf(void *tls_ctx, struct tls_connection *conn,
 		       const char *label, int server_random_first,
 		       u8 *out, size_t out_len)
 {
+#if OPENSSL_VERSION_NUMBER >= 0x10001000L
+	SSL *ssl;
+	if (conn == NULL)
+		return -1;
+	if (server_random_first)
+		return -1;
+	ssl = conn->ssl;
+	if (SSL_export_keying_material(ssl, out, out_len, label,
+				       os_strlen(label), NULL, 0, 0) == 1) {
+		wpa_printf(MSG_DEBUG, "OpenSSL: Using internal PRF");
+		return 0;
+	}
+#endif
 	return -1;
 }
 
@@ -2663,6 +2774,15 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
+#ifdef SSL_OP_NO_TICKET
+	if (params->flags & TLS_CONN_DISABLE_SESSION_TICKET)
+		SSL_set_options(conn->ssl, SSL_OP_NO_TICKET);
+	else
+		SSL_clear_options(conn->ssl, SSL_OP_NO_TICKET);
+#endif /*  SSL_OP_NO_TICKET */
+
+	conn->flags = params->flags;
+
 	tls_get_errors(tls_ctx);
 
 	return 0;
@@ -2696,6 +2816,13 @@ int tls_global_set_params(void *tls_ctx,
 		return -1;
 	}
 
+#ifdef SSL_OP_NO_TICKET
+	if (params->flags & TLS_CONN_DISABLE_SESSION_TICKET)
+		SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
+	else
+		SSL_CTX_clear_options(ssl_ctx, SSL_OP_NO_TICKET);
+#endif /*  SSL_OP_NO_TICKET */
+
 	return 0;
 }
 
@@ -2705,6 +2832,7 @@ int tls_connection_get_keyblock_size(void *tls_ctx,
 {
 	const EVP_CIPHER *c;
 	const EVP_MD *h;
+	int md_size;
 
 	if (conn == NULL || conn->ssl == NULL ||
 	    conn->ssl->enc_read_ctx == NULL ||
@@ -2718,9 +2846,20 @@ int tls_connection_get_keyblock_size(void *tls_ctx,
 #else
 	h = conn->ssl->read_hash;
 #endif
+	if (h)
+		md_size = EVP_MD_size(h);
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+	else if (conn->ssl->s3)
+		md_size = conn->ssl->s3->tmp.new_mac_secret_size;
+#endif
+	else
+		return -1;
 
+	wpa_printf(MSG_DEBUG, "OpenSSL: keyblock size: key_len=%d MD_size=%d "
+		   "IV_len=%d", EVP_CIPHER_key_length(c), md_size,
+		   EVP_CIPHER_iv_length(c));
 	return 2 * (EVP_CIPHER_key_length(c) +
-		    EVP_MD_size(h) +
+		    md_size +
 		    EVP_CIPHER_iv_length(c));
 }
 
@@ -2728,35 +2867,6 @@ int tls_connection_get_keyblock_size(void *tls_ctx,
 unsigned int tls_capabilities(void *tls_ctx)
 {
 	return 0;
-}
-
-
-int tls_connection_set_ia(void *tls_ctx, struct tls_connection *conn,
-			  int tls_ia)
-{
-	return -1;
-}
-
-
-struct wpabuf * tls_connection_ia_send_phase_finished(
-	void *tls_ctx, struct tls_connection *conn, int final)
-{
-	return NULL;
-}
-
-
-int tls_connection_ia_final_phase_finished(void *tls_ctx,
-					   struct tls_connection *conn)
-{
-	return -1;
-}
-
-
-int tls_connection_ia_permute_inner_secret(void *tls_ctx,
-					   struct tls_connection *conn,
-					   const u8 *key, size_t key_len)
-{
-	return -1;
 }
 
 

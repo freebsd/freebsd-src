@@ -1,19 +1,16 @@
-<?xml version="1.0" encoding="iso-8859-1" standalone="no"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.2-Based Extension//EN" [
-<!ENTITY % entities PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Entity Set//EN">
-%entities;
-
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
 %release;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "nonexistent">
 %devauto;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; Hardware Notes</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; Hardware Notes</title>
-
-    <corpauthor>The &os; Documentation Project</corpauthor>
+    <author><orgname>The &os; Documentation Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -31,10 +28,12 @@
       <year>2010</year>
       <year>2011</year>
       <year>2012</year>
+      <year>2013</year>
+      <year>2014</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.amd;
       &tm-attrib.fujitsu;
@@ -45,9 +44,9 @@
       &tm-attrib.general;
     </legalnotice>
 
-  </articleinfo>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Introduction</title>
 
     <para>This document contains the hardware compatibility notes for
@@ -57,14 +56,14 @@
       along with known working instances of these devices.</para>
   </sect1>
 
-  <sect1 id="proc">
+  <sect1 xml:id="proc">
     <title>Supported Processors and System Boards</title>
 
     <para>This section provides some architecture-specific information
       about the specific processors and systems that are supported by
       each architecture.</para>
 
-    <sect2 id="proc-amd64">
+    <sect2 xml:id="proc-amd64">
       <title>amd64</title>
 
       <para>Since mid-2003 &os;/&arch.amd64; has supported the AMD64
@@ -77,7 +76,7 @@
       <para>Note that there are two names for this architecture, AMD64
 	(AMD) and Intel EM64T (Extended Memory 64-bit Technology).
 	64-bit mode of the two architectures are almost compatible
-	with each other, and &os;/&arch.amd64; should support them
+	with each other, and &os;/&arch.amd64; supports them
 	both.</para>
 
       <para>As of this writing, the following processors are
@@ -93,6 +92,18 @@
 	</listitem>
 
 	<listitem>
+	  <para>&amd.sempron;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>&amd.turion;.</para>
+	</listitem>
+
+	<listitem>
+	  <para>&amd.phenom;.</para>
+	</listitem>
+
+	<listitem>
 	  <para>All multi-core &intel; &xeon; processors except
 	    Sossaman have EM64T support.</para>
 	</listitem>
@@ -105,8 +116,12 @@
 	</listitem>
 
 	<listitem>
-	  <para>All &intel; Core 2 (not Core Duo) and later
+	  <para>All &intel; &core; 2 (not &core; Duo) and later
 	    processors</para>
+	</listitem>
+
+	<listitem>
+	  <para>All &intel; &core; i range of processors</para>
 	</listitem>
 
 	<listitem>
@@ -114,45 +129,42 @@
 	</listitem>
 
 	<listitem>
-	  <para>&intel; &pentium; 4s and Celeron Ds using
+	  <para>All &intel; &centrino; Duo and &centrino; Pro platforms</para>
+	</listitem>
+
+	<listitem>
+	  <para>&intel; &pentium; 4s and &celeron; Ds using
 	    the <quote>Cedar Mill</quote> core have EM64T
 	    support.</para>
 	</listitem>
 
 	<listitem>
-	  <para>Some &intel; &pentium; 4s and Celeron Ds using
+	  <para>Some &intel; &pentium; 4s and &celeron; Ds using
 	    the <quote>Prescott</quote> core have EM64T support.  See
-	    the <ulink url="http://processorfinder.intel.com">Intel
-	    Processor Spec Finder</ulink> for the definitive answer about
+	    the <link xlink:href="http://processorfinder.intel.com">Intel
+	    Processor Spec Finder</link> for the definitive answer about
 	    EM64T support in Intel processors.</para>
 	</listitem>
 
       </itemizedlist>
 
       <para>&intel; EM64T is an extended version of IA-32 (x86) and
-	different from &intel; IA-64 (Itanium) architecture, which
-	&os;/ia64 supports.  Some &intel;'s old documentation refers
-	to &intel; EM64T as <quote>64-bit extension technology</quote>
-	or <quote>IA-32e</quote>.</para>
+	different from &intel; IA-64 (Itanium) architecture.  Some
+	&intel;'s old documentation refers to &intel; EM64T as
+	<quote>64-bit extension technology</quote> or
+	<quote>IA-32e</quote>.</para>
 
-      <para>The largest tested memory configuration to date is 64GB.
-	SMP support has been recently completed and is reasonably
-	robust.</para>
+      <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
+	configurations are supported.</para>
 
       <para>In many respects, &os;/&arch.amd64; is similar to
-	&os;/&arch.i386;, in terms of drivers supported.  There may be
-	some issues with 64-bit cleanliness in some (particularly
-	older) drivers.  Generally, drivers that already function
-	correctly on other 64-bit platforms should work.</para>
-
-      <para>&os;/&arch.amd64; is a very young platform on &os;.  While
-	the core &os; kernel and base system components are generally
-	fairly robust, there are likely to still be rough edges,
-	particularly with third party packages.</para>
+	&os;/&arch.i386;, in terms of drivers supported.  Generally,
+	drivers that already function correctly on other 64-bit
+	platforms should work.</para>
 
     </sect2>
 
-    <sect2 id="proc-i386">
+    <sect2 xml:id="proc-i386">
       <title>i386</title>
 
       <para>&os;/&arch.i386; runs on a wide variety of <quote>IBM PC
@@ -177,7 +189,7 @@
 
       <para>There is a wide variety of motherboards available for this
 	architecture.  Motherboards using the ISA, VLB, EISA, AGP, and
-	PCI expansion busses are well-supported.  There is some
+	PCI expansion buses are well-supported.  There is some
 	limited support for the MCA (<quote>MicroChannel</quote>)
 	expansion bus used in the IBM PS/2 line of PCs.</para>
 
@@ -186,18 +198,13 @@
 	bugs may generate some problems.  Perusal of the archives of
 	the &a.smp; may yield some clues.</para>
 
-      <para>&os; will take advantage of HyperThreading (HTT) support
-	on &intel; CPUs that support this feature.  A kernel with the
-	<literal>options&nbsp;SMP</literal> feature enabled will
-	automatically detect the additional logical processors.  The
-	default &os; scheduler treats the logical processors the same
-	as additional physical processors; in other words, no attempt
-	is made to optimize scheduling decisions given the shared
-	resources between logical processors within the same CPU.
-	Because this naive scheduling can result in suboptimal
-	performance, under certain circumstances it may be useful to
-	disable the logical processors with the
-	<varname>machdep.hyperthreading_allowed</varname> tunable.
+      <para>&os; will take advantage of SMT (Symmetric MultiThreading,
+	also known as HyperThreading on &intel; CPUs) on the supported
+	CPUs.  The <filename>GENERIC</filename> kernel which is
+	installed by default will automatically detect the additional
+	logical processors.  The default &os; scheduler recognizes
+	processor topology on the system and selects logical and
+	physical processors to obtain optimal performance.
 	The &man.smp.4; manual page has more details.</para>
 
       <para>&os; will take advantage of Physical Address Extensions
@@ -206,7 +213,7 @@
 	memory above 4 gigabytes and allow it to be used by the
 	system.  This feature places constraints on the device drivers
 	and other features of &os; which may be used; consult the
-	&man.pae.4; manpage for more details.</para>
+	&man.pae.4; manual page for more details.</para>
 
       <para>&os; will generally run on i386-based laptops, albeit with
 	varying levels of support for certain hardware features such
@@ -238,53 +245,14 @@
 	(DSDT) provided by each machine's BIOS.  Some machines have
 	bad or incomplete DSDTs, which prevents ACPI from functioning
 	correctly.  Replacement DSDTs for some machines can be found
-	at the <ulink
-	  url="http://acpi.sourceforge.net/dsdt/index.php">DSDT</ulink>
-	section of the <ulink
-	  url="http://acpi.sourceforge.net/">ACPI4Linux</ulink> project
+	at the <link xlink:href="http://acpi.sourceforge.net/dsdt/index.php">DSDT</link>
+	section of the <link xlink:href="http://acpi.sourceforge.net/">ACPI4Linux</link> project
 	Web site.  &os; can use these DSDTs to override the DSDT
 	provided by the BIOS; see the &man.acpi.4; manual page for
 	more information.</para>
     </sect2>
 
-    <sect2 id="proc-ia64">
-      <title>ia64</title>
-
-      <para>Currently supported processors are the <ulink
-	  url="http://people.freebsd.org/~marcel/refs/ia64/itanium/24532003.pdf">&itanium;</ulink>
-	and the <ulink
-	  url="http://people.freebsd.org/~marcel/refs/ia64/itanium2/25111003.pdf">&itanium;
-	  2</ulink>.</para>
-
-      <para>Supported chipsets include:</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>HP zx1</para>
-	</listitem>
-
-	<listitem>
-	  <para>&intel; 460GX</para>
-	</listitem>
-
-	<listitem>
-	  <para>&intel; E8870</para>
-	</listitem>
-      </itemizedlist>
-
-      <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
-	configurations are supported.</para>
-
-      <para>Most devices that can be found in or are compatible with
-	&arch.ia64; machines are fully supported.  The notable
-	exception is the VGA console. The &os; support for VGA
-	consoles is at this time too much based on PC hardware and not
-	all &arch.ia64; machines have chipsets that provide sufficient
-	PC legacy support. As such &man.syscons.4; can not be enabled
-	and the use of a serial console is required.</para>
-    </sect2>
-
-    <sect2 id="proc-pc98">
+    <sect2 xml:id="proc-pc98">
       <title>pc98</title>
 
       <para>NEC PC-9801/9821 series with almost all &i386;-compatible
@@ -313,77 +281,23 @@
 	FC-H98 series) is not supported.</para>
     </sect2>
 
-    <sect2 id="proc-powerpc">
+    <sect2 xml:id="proc-powerpc">
       <title>powerpc</title>
 
-      <para>This section describes the systems currently known to be
-	supported by &os; on the PowerPC platform. This list is not
-	exhaustive.</para>
+      <para>All Apple PowerPC machines with built-in USB are supported,
+	as well a limited selection of non-Apple machines,
+	including KVM on POWER7</para>
 
-      <para>In general, all New World architecture Apple hardware
-	is supported, as well a limited selection of non-Apple
-	machines.</para>
-
-      <para>All systems listed below are fully supported, with the
-	exception that software fan control is currently missing on
-	some Power Macintosh G5 models. SMP is supported on all systems
-	with more than 1 processor.</para>
-
-      <itemizedlist>
-	<listitem>
-	  <para>Apple iMac G3</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iMac G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iMac G5</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Power Macintosh G3 (Blue & White)</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Power Macintosh G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Power Macintosh G5</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iBook G3</para>
-	</listitem>
-	<listitem>
-	  <para>Apple iBook G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple PowerBook G3 (Lombard and Pismo)</para>
-	</listitem>
-	<listitem>
-	  <para>Apple PowerBook G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple XServe G4</para>
-	</listitem>
-	<listitem>
-	  <para>Apple XServe G5</para>
-	</listitem>
-	<listitem>
-	  <para>Apple Mac Mini</para>
-	</listitem>
-	<listitem>
-	  <para>Embedded boards based on MPC85XX</para>
-	</listitem>
-      </itemizedlist>
+      <para>SMP is supported on all systems with more than
+	1 processor.</para>
     </sect2>
 
-    <sect2 id="proc-sparc64">
+    <sect2 xml:id="proc-sparc64">
       <title>sparc64</title>
 
       <para>This section describes the systems currently known to be
 	supported by &os; on the Fujitsu &sparc64; and Sun &ultrasparc;
-	platforms.  For
-	background information on the various hardware designs see the
-	<ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System
-	  Handbook</ulink>.</para>
+	platforms.</para>
 
       <para>SMP is supported on all systems with more than 1
 	processor.</para>
@@ -539,9 +453,9 @@
       </itemizedlist>
 
       <para>The following systems are partially supported by &os;.  In
-	particular the fibre channel controllers in SBus-based systems are not
+	particular the fiber channel controllers in SBus-based systems are not
 	supported.  However, it is possible to use these with a SCSI controller
-	supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
+	supported by the &man.esp.4; driver (Sun ESP SCSI, Sun FAS Fast-SCSI
 	and Sun FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
@@ -697,7 +611,7 @@
   build.
   -->
 
-  <sect1 id="support">
+  <sect1 xml:id="support">
     <title>Supported Devices</title>
 
     <para>This section describes the devices currently known to be
@@ -719,12 +633,11 @@
 	multiple times.</para>
     </note>
 
-    <sect2 id="disk">
+    <sect2 xml:id="disk">
       <title>Disk Controllers</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;,
-	&arch.sparc64;] IDE/ATA controllers (&man.ata.4;
-	driver)</para>
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;, &arch.sparc64;]
+	IDE/ATA controllers (&man.ata.4; driver)</para>
 
       <para>[&arch.pc98;] IDE/ATA controllers (wdc driver)</para>
 
@@ -755,8 +668,6 @@
       &hwlist.amr;
 
       &hwlist.arcmsr;
-
-      &hwlist.asr;
 
       &hwlist.bt;
 
@@ -804,9 +715,13 @@
 
       &hwlist.mly;
 
+      &hwlist.mpr;
+
       &hwlist.mps;
 
       &hwlist.mpt;
+
+      &hwlist.mrsas;
 
       &hwlist.mvs;
 
@@ -830,6 +745,8 @@
 
       &hwlist.twe;
 
+      &hwlist.tws;
+
       &hwlist.vpo;
 
       <para>[&arch.i386;] The wds(4) driver supports the WD7000 SCSI
@@ -843,8 +760,7 @@
 	support CD-ROM commands are supported for read-only access by
 	the CD-ROM drivers (such as &man.cd.4;).  WORM/CD-R/CD-RW
 	writing support is provided by &man.cdrecord.1;, which is a
-	part of the <filename
-	  role="package">sysutils/cdrtools</filename> port in the Ports
+	part of the <package>sysutils/cdrtools</package> port in the Ports
 	Collection.</para>
 
       <para>The following CD-ROM type systems are supported at this
@@ -876,7 +792,7 @@
       </itemizedlist>
     </sect2>
 
-    <sect2 id="ethernet">
+    <sect2 xml:id="ethernet">
       <title>Ethernet Interfaces</title>
 
       &hwlist.ae;
@@ -888,6 +804,9 @@
       &hwlist.aue;
 
       &hwlist.axe;
+
+      <para>ASIX Electronics AX88178A/AX88179 USB Gigabit Ethernet
+	adapters (&man.axge.4; driver)</para>
 
       &hwlist.bce;
 
@@ -936,6 +855,8 @@
 
       &hwlist.igb;
 
+      &hwlist.ipheth;
+
       &hwlist.ixgb;
 
       &hwlist.ixgbe;
@@ -956,8 +877,6 @@
 
       &hwlist.nge;
 
-      &hwlist.nve;
-
       &hwlist.nxge;
 
       &hwlist.oce;
@@ -965,6 +884,10 @@
       &hwlist.pcn;
 
       &hwlist.qlxgb;
+
+      &hwlist.qlxgbe;
+
+      &hwlist.qlxge;
 
       &hwlist.re;
 
@@ -981,6 +904,8 @@
       &hwlist.sis;
 
       &hwlist.sk;
+
+      &hwlist.smsc;
 
       &hwlist.sn;
 
@@ -1001,9 +926,13 @@
 
       &hwlist.udav;
 
+      &hwlist.urndis;
+
       &hwlist.vge;
 
       &hwlist.vr;
+
+      &hwlist.vte;
 
       &hwlist.vx;
 
@@ -1017,7 +946,7 @@
 
     </sect2>
 
-    <sect2 id="fddi">
+    <sect2 xml:id="fddi">
       <title>FDDI Interfaces</title>
 
       <para>[&arch.i386;, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4;
@@ -1026,7 +955,7 @@
       <para>[&arch.i386;] DEC DEFEA EISA (&man.fpa.4; driver)</para>
     </sect2>
 
-    <sect2 id="atm">
+    <sect2 xml:id="atm">
       <title>ATM Interfaces</title>
 
       <para>[&arch.i386;, &arch.pc98;] Midway-based ATM interfaces
@@ -1047,7 +976,7 @@
 	(&man.patm.4; driver)</para>
     </sect2>
 
-    <sect2 id="wlan">
+    <sect2 xml:id="wlan">
       <title>Wireless Network Interfaces</title>
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Cisco/Aironet
@@ -1078,6 +1007,8 @@
 
       &hwlist.ral;
 
+      &hwlist.rsu;
+
       &hwlist.rum;
 
       &hwlist.run;
@@ -1089,6 +1020,8 @@
       &hwlist.ural;
 
       &hwlist.urtw;
+
+      &hwlist.urtwn;
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Lucent
 	Technologies WaveLAN/IEEE 802.11b wireless network adapters
@@ -1105,7 +1038,7 @@
       &hwlist.zyd;
     </sect2>
 
-    <sect2 id="misc-network">
+    <sect2 xml:id="misc-network">
       <title>Miscellaneous Networks</title>
 
       &hwlist.ce;
@@ -1119,7 +1052,7 @@
       &hwlist.cm;
     </sect2>
 
-    <sect2 id="serial">
+    <sect2 xml:id="serial">
       <title>Serial Interfaces</title>
 
       <para>[&arch.amd64;, &arch.i386;] <quote>PC standard</quote>
@@ -1179,8 +1112,8 @@
       <para>[&arch.i386;] DigiBoard intelligent serial cards (digi
 	driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;] PCI-Based
-	multi-port serial boards (&man.puc.4; driver)</para>
+      <para>[&arch.amd64;, &arch.i386;] PCI-Based multi-port serial
+	boards (&man.puc.4; driver)</para>
 
       <itemizedlist>
 	<listitem>
@@ -1199,10 +1132,6 @@
 	<listitem>
 	  <para>[&arch.amd64;, &arch.i386;] Decision Computers PCCOM
 	    4-port serial and dual port RS232/422/485</para>
-	</listitem>
-
-	<listitem>
-	  <para>[&arch.ia64;] Diva Serial (GSP) Multiport UART</para>
 	</listitem>
 
 	<listitem>
@@ -1378,7 +1307,7 @@
 
     </sect2>
 
-    <sect2 id="sound">
+    <sect2 xml:id="sound">
       <title>Sound Devices</title>
 
       &hwlist.snd.ad1816;
@@ -1472,7 +1401,7 @@
       </itemizedlist>
     </sect2>
 
-    <sect2 id="camera">
+    <sect2 xml:id="camera">
       <title>Camera and Video Capture Devices</title>
 
       &hwlist.bktr;
@@ -1480,10 +1409,10 @@
       <para>[&arch.i386;] Connectix QuickCam</para>
     </sect2>
 
-    <sect2 id="usb">
+    <sect2 xml:id="usb">
       <title>USB Devices</title>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] A
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] A
 	range of USB peripherals are supported; devices known to work
 	are listed in this section.  Owing to the generic nature of
 	most USB devices, with some exceptions any device of a given
@@ -1491,30 +1420,29 @@
 	here.</para>
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	  USB Ethernet adapters can be found in the section listing
 	  <link linkend="ethernet">Ethernet
 	    interfaces</link>.</para>
       </note>
 
       <note>
-	<para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
-	  USB Bluetooth adapters can be found in <link
-	    linkend="bluetooth">Bluetooth</link> section.</para>
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
+	  USB Bluetooth adapters can be found in <link linkend="bluetooth">Bluetooth</link> section.</para>
       </note>
 
       &hwlist.ohci;
 
       &hwlist.uhci;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] USB
 	2.0 controllers using the EHCI interface (&man.ehci.4;
 	driver)</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Hubs</para>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Keyboards (&man.ukbd.4; driver)</para>
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
@@ -1546,7 +1474,7 @@
 
       &hwlist.umodem;
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] Mice
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Mice
 	(&man.ums.4; driver)</para>
 
       &hwlist.ulpt;
@@ -1569,7 +1497,7 @@
       &hwlist.uvisor;
     </sect2>
 
-    <sect2 id="firewire">
+    <sect2 xml:id="firewire">
       <title>IEEE 1394 (Firewire) Devices</title>
 
       &hwlist.fwohci;
@@ -1578,7 +1506,7 @@
 	Protocol 2 (SBP-2) storage devices (&man.sbp.4; driver)</para>
     </sect2>
 
-    <sect2 id="bluetooth">
+    <sect2 xml:id="bluetooth">
       <title>Bluetooth Devices</title>
 
       &hwlist.ng.bt3c;
@@ -1586,7 +1514,7 @@
       &hwlist.ng.ubt;
     </sect2>
 
-    <sect2 id="crypto-accel">
+    <sect2 xml:id="crypto-accel">
       <title>Cryptographic Accelerators</title>
 
       &hwlist.hifn;
@@ -1596,7 +1524,7 @@
       &hwlist.ubsec;
     </sect2>
 
-    <sect2 id="misc">
+    <sect2 xml:id="misc">
       <title>Miscellaneous</title>
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
@@ -1622,10 +1550,10 @@
       <note>
 	<para>Information regarding specific video cards and
 	  compatibility with <application>Xorg</application> can be
-	  found at <ulink url="http://www.x.org/"></ulink>.</para>
+	  found at <uri xlink:href="http://www.x.org/">http://www.x.org/</uri>.</para>
       </note>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Keyboards including:</para>
 
       <itemizedlist>
@@ -1644,12 +1572,12 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	    USB keyboards (&man.ukbd.4; driver)</para>
 	</listitem>
       </itemizedlist>
 
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	Pointing devices including:</para>
 
       <itemizedlist>
@@ -1669,7 +1597,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;]
+	  <para>[&arch.amd64;, &arch.i386;, &arch.pc98;]
 	    USB mice (&man.ums.4; driver)</para>
 	</listitem>
       </itemizedlist>
@@ -1677,8 +1605,7 @@
       <note>
 	<para>&man.moused.8; has more information on using pointing
 	  devices with &os;.  Information on using pointing devices
-	  with <application>Xorg</application> can be found at <ulink
-	    url="http://www.x.org/"></ulink>.</para>
+	  with <application>Xorg</application> can be found at <uri xlink:href="http://www.x.org/">http://www.x.org/</uri>.</para>
       </note>
 
       <para>[&arch.amd64;, &arch.i386;] <quote>PC standard</quote>
@@ -1711,8 +1638,7 @@
       </itemizedlist>
 
       <para>[&arch.i386;] Xilinx XC6200-based reconfigurable hardware
-	cards compatible with the HOT1 from <ulink
-	  url="http://www.vcc.com/">Virtual Computers</ulink> (xrpu
+	cards compatible with the HOT1 from <link xlink:href="http://www.vcc.com/">Virtual Computers</link> (xrpu
 	driver).</para>
 
       <para>[&arch.pc98;] Power Management Controller of NEC PC-98

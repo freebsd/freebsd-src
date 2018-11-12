@@ -305,6 +305,7 @@ struct vattr {
 #define	IO_NORMAL	0x0800		/* operate on regular data */
 #define	IO_NOMACCHECK	0x1000		/* MAC checks unnecessary */
 #define	IO_BUFLOCKED	0x2000		/* ffs flag; indir buf is locked */
+#define	IO_RANGELOCKED	0x4000		/* range locked */
 
 #define IO_SEQMAX	0x7F		/* seq heuristic max value */
 #define IO_SEQSHIFT	16		/* seq heuristic in upper 16 bits */
@@ -398,6 +399,9 @@ extern int		vttoif_tab[];
 #define	VR_START_WRITE	0x0001	/* vfs_write_resume: start write atomically */
 #define	VR_NO_SUSPCLR	0x0002	/* vfs_write_resume: do not clear suspension */
 
+#define	VS_SKIP_UNMOUNT	0x0001	/* vfs_write_suspend: fail if the
+				   filesystem is being unmounted */
+
 #define	VREF(vp)	vref(vp)
 
 #ifdef DIAGNOSTIC
@@ -425,6 +429,7 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 
 #define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
 #define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
+#define	VN_LOCK_DSHARE(vp)	lockdisableshare((vp)->v_vnlock)
 
 #endif /* _KERNEL */
 
@@ -499,7 +504,9 @@ extern struct vnodeop_desc *vnodeop_descs[];
  * reliable since if the thread sleeps between changing the lock
  * state and checking it with the assert, some other thread could
  * change the state.  They are good enough for debugging a single
- * filesystem using a single-threaded test.
+ * filesystem using a single-threaded test.  Note that the unreliability is
+ * limited to false negatives; efforts were made to ensure that false
+ * positives cannot occur.
  */
 void	assert_vi_locked(struct vnode *vp, const char *str);
 void	assert_vi_unlocked(struct vnode *vp, const char *str);
@@ -567,11 +574,13 @@ vn_canvmio(struct vnode *vp)
 /*
  * Finally, include the default set of vnode operations.
  */
+typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #include "vnode_if.h"
 
 /* vn_open_flags */
 #define	VN_OPEN_NOAUDIT		0x00000001
 #define	VN_OPEN_NOCAPCHECK	0x00000002
+#define	VN_OPEN_NAMECACHE	0x00000004
 
 /*
  * Public vnode manipulation functions.
@@ -589,6 +598,8 @@ struct ucred;
 struct uio;
 struct vattr;
 struct vnode;
+
+typedef int (*vn_get_ino_t)(struct mount *, void *, int, struct vnode **);
 
 /* cache_* may belong in namei.h. */
 #define	cache_enter(dvp, vp, cnp)					\
@@ -622,6 +633,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
+struct vnode *
+	vn_dir_dd_ino(struct vnode *vp);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
 int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
 	    char *path, u_int pathlen);
@@ -691,6 +704,10 @@ int	vn_extattr_rm(struct vnode *vp, int ioflg, int attrnamespace,
 	    const char *attrname, struct thread *td);
 int	vn_vget_ino(struct vnode *vp, ino_t ino, int lkflags,
 	    struct vnode **rvp);
+int	vn_vget_ino_gen(struct vnode *vp, vn_get_ino_t alloc,
+	    void *alloc_arg, int lkflags, struct vnode **rvp);
+int	vn_utimes_perm(struct vnode *vp, struct vattr *vap,
+	    struct ucred *cred, struct thread *td);
 
 int	vn_io_fault_uiomove(char *data, int xfersize, struct uio *uio);
 int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
@@ -709,7 +726,8 @@ int	vn_io_fault_pgmove(vm_page_t ma[], vm_offset_t offset, int xfersize,
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 void	vfs_timestamp(struct timespec *);
 void	vfs_write_resume(struct mount *mp, int flags);
-int	vfs_write_suspend(struct mount *mp);
+int	vfs_write_suspend(struct mount *mp, int flags);
+int	vfs_write_suspend_umnt(struct mount *mp);
 int	vop_stdbmap(struct vop_bmap_args *);
 int	vop_stdfsync(struct vop_fsync_args *);
 int	vop_stdgetwritemount(struct vop_getwritemount_args *);
@@ -742,6 +760,9 @@ int	vop_enoent(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
+int	dead_poll(struct vop_poll_args *ap);
+int	dead_read(struct vop_read_args *ap);
+int	dead_write(struct vop_write_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_create_post(void *a, int rc);
@@ -801,6 +822,7 @@ void vnode_destroy_vobject(struct vnode *vp);
 extern struct vop_vector fifo_specops;
 extern struct vop_vector dead_vnodeops;
 extern struct vop_vector default_vnodeops;
+extern struct vop_vector devfs_specops;
 
 #define VOP_PANIC	((void*)(uintptr_t)vop_panic)
 #define VOP_NULL	((void*)(uintptr_t)vop_null)

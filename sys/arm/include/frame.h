@@ -59,10 +59,10 @@
  * Trap frame.  Pushed onto the kernel stack on a trap (synchronous exception).
  */
 
-typedef struct trapframe {
+struct trapframe {
 	register_t tf_spsr; /* Zero on arm26 */
 	register_t tf_r0;
- 	register_t tf_r1;
+	register_t tf_r1;
 	register_t tf_r2;
 	register_t tf_r3;
 	register_t tf_r4;
@@ -78,64 +78,24 @@ typedef struct trapframe {
 	register_t tf_usr_lr;
 	register_t tf_svc_sp; /* Not used on arm26 */
 	register_t tf_svc_lr; /* Not used on arm26 */
-        register_t tf_pc;
-} trapframe_t;
+	register_t tf_pc;
+	register_t tf_pad;
+};
 
 /* Register numbers */
 #define tf_r13 tf_usr_sp
 #define tf_r14 tf_usr_lr
 #define tf_r15 tf_pc
-/*
- *  * Scheduler activations upcall frame.  Pushed onto user stack before
- *   * calling an SA upcall.
- *    */
-
-struct saframe {
-#if 0 /* in registers on entry to upcall */
-	int             sa_type;
-	struct sa_t **  sa_sas;
-	int             sa_events;
-	int             sa_interrupted;
-#endif
-	void *          sa_arg;
-};
 
 /*
- *  * Signal frame.  Pushed onto user stack before calling sigcode.
- *   */
-
-/* the pointers are use in the trampoline code to locate the ucontext */
+ * Signal frame.  Pushed onto user stack before calling sigcode.
+ * The pointers are used in the trampoline code to locate the ucontext.
+ */
 struct sigframe {
-       	siginfo_t       sf_si;          /* actual saved siginfo */
+	siginfo_t       sf_si;          /* actual saved siginfo */
 	ucontext_t      sf_uc;          /* actual saved ucontext */
 };
 
-/*
- * System stack frames.
- */
-
-
-typedef struct irqframe {
-	unsigned int if_spsr;
-	unsigned int if_r0;
-	unsigned int if_r1;
-	unsigned int if_r2;
-	unsigned int if_r3;
-	unsigned int if_r4;
-	unsigned int if_r5;
-	unsigned int if_r6;
-	unsigned int if_r7;
-	unsigned int if_r8;
-	unsigned int if_r9;
-	unsigned int if_r10;
-	unsigned int if_r11;
-	unsigned int if_r12;
-	unsigned int if_usr_sp;
-	unsigned int if_usr_lr;
-	unsigned int if_svc_sp;
-	unsigned int if_svc_lr;
-	unsigned int if_pc;
-} irqframe_t;
 
 /*
  * Switch frame.
@@ -143,15 +103,22 @@ typedef struct irqframe {
  * It is important this is a multiple of 8 bytes so the stack is correctly
  * aligned when we create new threads.
  */
-
-struct switchframe {
-	u_int	pad;	/* Used to pad the struct to a multiple of 8-bytes */
-	u_int	sf_r4;
-	u_int	sf_r5;
-	u_int	sf_r6;
-	u_int	sf_r7;
-	u_int	sf_pc;
+struct switchframe
+{
+        register_t sf_r4;
+        register_t sf_r5;
+        register_t sf_r6;
+        register_t sf_r7;
+        register_t sf_r8;
+        register_t sf_r9;
+        register_t sf_r10;
+        register_t sf_r11;
+        register_t sf_r12;
+        register_t sf_sp;
+        register_t sf_lr;
+        register_t sf_pc;
 };
+
 
 /*
  * Stack frame. Used during stack traces (db_trace.c)

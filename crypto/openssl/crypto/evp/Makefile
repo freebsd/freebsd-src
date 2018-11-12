@@ -13,7 +13,7 @@ AR=		ar r
 CFLAGS= $(INCLUDES) $(CFLAG)
 
 GENERAL=Makefile
-TEST=evp_test.c
+TEST=evp_test.c evp_extra_test.c
 TESTDATA=evptests.txt
 APPS=
 
@@ -67,7 +67,7 @@ files:
 links:
 	@$(PERL) $(TOP)/util/mklink.pl ../../include/openssl $(EXHEADER)
 	@$(PERL) $(TOP)/util/mklink.pl ../../test $(TEST)
-	[ ! -f $(TESTDATA) ] || cp $(TESTDATA) ../../test
+	@[ -f $(TESTDATA) ] && cp $(TESTDATA) ../../test && echo "$(TESTDATA) -> ../../test/$(TESTDATA)"
 	@$(PERL) $(TOP)/util/mklink.pl ../../apps $(APPS)
 
 install:

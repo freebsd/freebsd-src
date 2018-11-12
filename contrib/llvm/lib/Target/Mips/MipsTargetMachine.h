@@ -11,77 +11,56 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSTARGETMACHINE_H
-#define MIPSTARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSTARGETMACHINE_H
+#define LLVM_LIB_TARGET_MIPS_MIPSTARGETMACHINE_H
 
-#include "MipsFrameLowering.h"
-#include "MipsInstrInfo.h"
-#include "MipsISelLowering.h"
-#include "MipsJITInfo.h"
-#include "MipsSelectionDAGInfo.h"
 #include "MipsSubtarget.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/DataLayout.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/SelectionDAGISel.h"
 #include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetTransformImpl.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 class formatted_raw_ostream;
 class MipsRegisterInfo;
 
 class MipsTargetMachine : public LLVMTargetMachine {
-  MipsSubtarget       Subtarget;
-  const DataLayout    DL; // Calculates type size & alignment
-  const MipsInstrInfo *InstrInfo;
-  const MipsFrameLowering *FrameLowering;
-  MipsTargetLowering  TLInfo;
-  MipsSelectionDAGInfo TSInfo;
-  MipsJITInfo JITInfo;
-  ScalarTargetTransformImpl STTI;
-  VectorTargetTransformImpl VTTI;
+  bool isLittle;
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
+  MipsSubtarget *Subtarget;
+  MipsSubtarget DefaultSubtarget;
+  MipsSubtarget NoMips16Subtarget;
+  MipsSubtarget Mips16Subtarget;
+
+  mutable StringMap<std::unique_ptr<MipsSubtarget>> SubtargetMap;
 
 public:
-  MipsTargetMachine(const Target &T, StringRef TT,
-                    StringRef CPU, StringRef FS, const TargetOptions &Options,
-                    Reloc::Model RM, CodeModel::Model CM,
-                    CodeGenOpt::Level OL,
-                    bool isLittle);
+  MipsTargetMachine(const Target &T, StringRef TT, StringRef CPU, StringRef FS,
+                    const TargetOptions &Options, Reloc::Model RM,
+                    CodeModel::Model CM, CodeGenOpt::Level OL, bool isLittle);
+  ~MipsTargetMachine() override;
 
-  virtual ~MipsTargetMachine() { delete InstrInfo; }
+  void addAnalysisPasses(PassManagerBase &PM) override;
 
-  virtual const MipsInstrInfo *getInstrInfo() const
-  { return InstrInfo; }
-  virtual const TargetFrameLowering *getFrameLowering() const
-  { return FrameLowering; }
-  virtual const MipsSubtarget *getSubtargetImpl() const
-  { return &Subtarget; }
-  virtual const DataLayout *getDataLayout()    const
-  { return &DL;}
-  virtual MipsJITInfo *getJITInfo()
-  { return &JITInfo; }
-
-  virtual const MipsRegisterInfo *getRegisterInfo()  const {
-    return &InstrInfo->getRegisterInfo();
+  const MipsSubtarget *getSubtargetImpl() const override {
+    if (Subtarget)
+      return Subtarget;
+    return &DefaultSubtarget;
   }
 
-  virtual const MipsTargetLowering *getTargetLowering() const {
-    return &TLInfo;
-  }
+  const MipsSubtarget *getSubtargetImpl(const Function &F) const override;
 
-  virtual const MipsSelectionDAGInfo* getSelectionDAGInfo() const {
-    return &TSInfo;
-  }
-
-  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
-    return &STTI;
-  }
-  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
-    return &VTTI;
-  }
+  /// \brief Reset the subtarget for the Mips target.
+  void resetSubtarget(MachineFunction *MF);
 
   // Pass Pipeline Configuration
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
-  virtual bool addCodeEmitter(PassManagerBase &PM, JITCodeEmitter &JCE);
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
+
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
+
+  bool isLittleEndian() const { return isLittle; }
 };
 
 /// MipsebTargetMachine - Mips32/64 big endian target machine.

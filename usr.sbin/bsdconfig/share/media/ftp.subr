@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_FTP_SUBR" ]; then _MEDIA_FTP_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_FTP_SUBR" ]; then _MEDIA_FTP_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -31,14 +31,13 @@ if [ ! "$_MEDIA_FTP_SUBR" ]; then _MEDIA_FTP_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/ftp.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/strings.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/common.subr
 f_include $BSDCFG_SHARE/media/tcpip.subr
-f_include $BSDCFG_SHARE/media/network.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -72,20 +71,16 @@ f_dialog_menu_media_ftp()
 	f_dialog_title "$msg_please_select_a_freebsd_ftp_distribution_site"
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
-
 	local prompt="$msg_please_select_the_site_closest_to_you_or_other"
-	local hline="$msg_select_a_site_thats_close"
 	local menu_list="
 		'$msg_main_site'          'ftp.freebsd.org'
 		'URL'                     '$msg_specify_some_other_ftp_site'
-		'$msg_snapshots_server_japan'
-		                          'snapshots.jp.freebsd.org'
-		'$msg_snapshots_server_sweden'
-		                          'snapshots.se.freebsd.org'
 		'IPv6 $msg_main_site'     'ftp.freebsd.org'
+		' IPv6 $msg_france'       'ftp4.fr.freebsd.org'
+		' IPv6 $msg_france #8'    'ftp8.fr.freebsd.org'
 		' IPv6 $msg_ireland'      'ftp3.ie.freebsd.org'
-		' IPv6 $msg_israel'       'ftp.il.freebsd.org'
 		' IPv6 $msg_japan'        'ftp2.jp.freebsd.org'
+		' IPv6 $msg_sweden'       'ftp4.se.freebsd.org'
 		' IPv6 $msg_usa'          'ftp4.us.freebsd.org'
 		' IPv6 $msg_turkey'       'ftp2.tr.freebsd.org'
 		'$msg_primary'            'ftp1.freebsd.org'
@@ -95,44 +90,34 @@ f_dialog_menu_media_ftp()
 		' $msg_primary #5'        'ftp5.freebsd.org'
 		' $msg_primary #6'        'ftp6.freebsd.org'
 		' $msg_primary #7'        'ftp7.freebsd.org'
-		' $msg_primary #8'        'ftp8.freebsd.org'
-		' $msg_primary #9'        'ftp9.freebsd.org'
 		' $msg_primary #10'       'ftp10.freebsd.org'
 		' $msg_primary #11'       'ftp11.freebsd.org'
 		' $msg_primary #12'       'ftp12.freebsd.org'
 		' $msg_primary #13'       'ftp13.freebsd.org'
 		' $msg_primary #14'       'ftp14.freebsd.org'
-		'$msg_argentina'          'ftp.ar.freebsd.org'
+		'$msg_armenia'            'ftp1.am.freebsd.org'
 		'$msg_australia'          'ftp.au.freebsd.org'
 		' $msg_australia #2'      'ftp2.au.freebsd.org'
 		' $msg_australia #3'      'ftp3.au.freebsd.org'
 		'$msg_austria'            'ftp.at.freebsd.org'
-		' $msg_austria #2'        'ftp2.at.freebsd.org'
-		'$msg_brazil'             'ftp.br.freebsd.org'
-		' $msg_brazil #2'         'ftp2.br.freebsd.org'
+		'$msg_brazil'             'ftp2.br.freebsd.org'
 		' $msg_brazil #3'         'ftp3.br.freebsd.org'
 		' $msg_brazil #4'         'ftp4.br.freebsd.org'
-		' $msg_brazil #5'         'ftp5.br.freebsd.org'
-		' $msg_brazil #6'         'ftp6.br.freebsd.org'
-		' $msg_brazil #7'         'ftp7.br.freebsd.org'
 		'$msg_canada'             'ftp.ca.freebsd.org'
 		'$msg_china'              'ftp.cn.freebsd.org'
-		' $msg_china #2'          'ftp2.cn.freebsd.org'
-		'$msg_croatia'            'ftp.hr.freebsd.org'
 		'$msg_czech_republic'     'ftp.cz.freebsd.org'
 		'$msg_denmark'            'ftp.dk.freebsd.org'
-		' $msg_denmark #2'        'ftp2.dk.freebsd.org'
 		'$msg_estonia'            'ftp.ee.freebsd.org'
 		'$msg_finland'            'ftp.fi.freebsd.org'
 		'$msg_france'             'ftp.fr.freebsd.org'
-		' $msg_france #2'         'ftp2.fr.freebsd.org'
 		' $msg_france #3'         'ftp3.fr.freebsd.org'
+		' $msg_france #4'         'ftp4.fr.freebsd.org'
 		' $msg_france #5'         'ftp5.fr.freebsd.org'
 		' $msg_france #6'         'ftp6.fr.freebsd.org'
+		' $msg_france #7'         'ftp7.fr.freebsd.org'
 		' $msg_france #8'         'ftp8.fr.freebsd.org'
 		'$msg_germany'            'ftp.de.freebsd.org'
 		' $msg_germany #2'        'ftp2.de.freebsd.org'
-		' $msg_germany #3'        'ftp3.de.freebsd.org'
 		' $msg_germany #4'        'ftp4.de.freebsd.org'
 		' $msg_germany #5'        'ftp5.de.freebsd.org'
 		' $msg_germany #6'        'ftp6.de.freebsd.org'
@@ -140,11 +125,7 @@ f_dialog_menu_media_ftp()
 		' $msg_germany #8'        'ftp8.de.freebsd.org'
 		'$msg_greece'             'ftp.gr.freebsd.org'
 		' $msg_greece #2'         'ftp2.gr.freebsd.org'
-		'$msg_hungary'            'ftp.hu.freebsd.org'
-		'$msg_iceland'            'ftp.is.freebsd.org'
-		'$msg_ireland'            'ftp.ie.freebsd.org'
-		' $msg_ireland #2'        'ftp2.ie.freebsd.org'
-		' $msg_ireland #3'        'ftp3.ie.freebsd.org'
+		'$msg_ireland'            'ftp3.ie.freebsd.org'
 		'$msg_israel'             'ftp.il.freebsd.org'
 		'$msg_italy'              'ftp.it.freebsd.org'
 		'$msg_japan'              'ftp.jp.freebsd.org'
@@ -158,110 +139,92 @@ f_dialog_menu_media_ftp()
 		' $msg_japan #9'          'ftp9.jp.freebsd.org'
 		'$msg_korea'              'ftp.kr.freebsd.org'
 		' $msg_korea #2'          'ftp2.kr.freebsd.org'
+		'$msg_latvia'             'ftp.lv.freebsd.org'
 		'$msg_lithuania'          'ftp.lt.freebsd.org'
 		'$msg_netherlands'        'ftp.nl.freebsd.org'
 		' $msg_netherlands #2'    'ftp2.nl.freebsd.org'
+		'$msg_new_zealand'        'ftp.nz.freebsd.org'
 		'$msg_norway'             'ftp.no.freebsd.org'
-		' $msg_norway #3'         'ftp3.no.freebsd.org'
 		'$msg_poland'             'ftp.pl.freebsd.org'
 		' $msg_poland #2'         'ftp2.pl.freebsd.org'
-		' $msg_poland #5'         'ftp5.pl.freebsd.org'
-		'$msg_portugal'           'ftp.pt.freebsd.org'
-		' $msg_portugal #2'       'ftp2.pt.freebsd.org'
-		' $msg_portugal #4'       'ftp4.pt.freebsd.org'
-		'$msg_romania'            'ftp.ro.freebsd.org'
 		'$msg_russia'             'ftp.ru.freebsd.org'
 		' $msg_russia #2'         'ftp2.ru.freebsd.org'
-		' $msg_russia #3'         'ftp3.ru.freebsd.org'
 		' $msg_russia #4'         'ftp4.ru.freebsd.org'
-		'$msg_singapore'          'ftp.sg.freebsd.org'
+		' $msg_russia #5'         'ftp5.ru.freebsd.org'
+		' $msg_russia #6'         'ftp6.ru.freebsd.org'
 		'$msg_slovak_republic'    'ftp.sk.freebsd.org'
+		' $msg_slovak_republic #2' 'ftp2.sk.freebsd.org'
 		'$msg_slovenia'           'ftp.si.freebsd.org'
-		' $msg_slovenia #2'       'ftp2.si.freebsd.org'
 		'$msg_south_africa'       'ftp.za.freebsd.org'
 		' $msg_south_africa #2'   'ftp2.za.freebsd.org'
-		' $msg_south_africa #3'   'ftp3.za.freebsd.org'
 		' $msg_south_africa #4'   'ftp4.za.freebsd.org'
 		'$msg_spain'              'ftp.es.freebsd.org'
-		' $msg_spain #2'          'ftp2.es.freebsd.org'
 		' $msg_spain #3'          'ftp3.es.freebsd.org'
 		'$msg_sweden'             'ftp.se.freebsd.org'
 		' $msg_sweden #2'         'ftp2.se.freebsd.org'
 		' $msg_sweden #3'         'ftp3.se.freebsd.org'
 		' $msg_sweden #4'         'ftp4.se.freebsd.org'
-		' $msg_sweden #5'         'ftp5.se.freebsd.org'
+		' $msg_sweden #6'         'ftp6.se.freebsd.org'
 		'$msg_switzerland'        'ftp.ch.freebsd.org'
-		' $msg_switzerland #2'    'ftp2.ch.freebsd.org'
 		'$msg_taiwan'             'ftp.tw.freebsd.org'
 		' $msg_taiwan #2'         'ftp2.tw.freebsd.org'
 		' $msg_taiwan #3'         'ftp3.tw.freebsd.org'
 		' $msg_taiwan #4'         'ftp4.tw.freebsd.org'
 		' $msg_taiwan #6'         'ftp6.tw.freebsd.org'
 		' $msg_taiwan #11'        'ftp11.tw.freebsd.org'
-		'$msg_turkey'             'ftp.tr.freebsd.org'
-		' $msg_turkey #2'         'ftp2.tr.freebsd.org'
 		'$msg_uk'                 'ftp.uk.freebsd.org'
 		' $msg_uk #2'             'ftp2.uk.freebsd.org'
 		' $msg_uk #3'             'ftp3.uk.freebsd.org'
 		' $msg_uk #4'             'ftp4.uk.freebsd.org'
 		' $msg_uk #5'             'ftp5.uk.freebsd.org'
-		' $msg_uk #6'             'ftp6.uk.freebsd.org'
 		'$msg_ukraine'            'ftp.ua.freebsd.org'
-		' $msg_ukraine #2'        'ftp2.ua.freebsd.org'
-		' $msg_ukraine #5'        'ftp5.ua.freebsd.org'
-		' $msg_ukraine #6'        'ftp6.ua.freebsd.org'
 		' $msg_ukraine #7'        'ftp7.ua.freebsd.org'
-		' $msg_ukraine #8'        'ftp8.ua.freebsd.org'
 		'$msg_usa #1'             'ftp1.us.freebsd.org'
 		' $msg_usa #2'            'ftp2.us.freebsd.org'
 		' $msg_usa #3'            'ftp3.us.freebsd.org'
 		' $msg_usa #4'            'ftp4.us.freebsd.org'
 		' $msg_usa #5'            'ftp5.us.freebsd.org'
 		' $msg_usa #6'            'ftp6.us.freebsd.org'
-		' $msg_usa #7'            'ftp7.us.freebsd.org'
 		' $msg_usa #8'            'ftp8.us.freebsd.org'
-		' $msg_usa #9'            'ftp9.us.freebsd.org'
 		' $msg_usa #10'           'ftp10.us.freebsd.org'
 		' $msg_usa #11'           'ftp11.us.freebsd.org'
-		' $msg_usa #12'           'ftp12.us.freebsd.org'
 		' $msg_usa #13'           'ftp13.us.freebsd.org'
 		' $msg_usa #14'           'ftp14.us.freebsd.org'
 		' $msg_usa #15'           'ftp15.us.freebsd.org'
 	" # END-QUOTE
+	local hline="$msg_select_a_site_thats_close"
 
-	local size
-	size=$( eval f_dialog_menu_size \
-	        	\"\$title\"  \
-	        	\"\$btitle\" \
-	        	\"\$prompt\" \
-	        	\"\$hline\"  \
-	        	$menu_list   )
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$title\"  \
+	                        \"\$btitle\" \
+	                        \"\$prompt\" \
+	                        \"\$hline\"  \
+	                        $menu_list
 
-	local dialog_menu retval mtag value
-	dialog_menu=$( eval $DIALOG \
+	local mtag
+	mtag=$( eval $DIALOG \
 		--title \"\$title\"             \
 		--backtitle \"\$btitle\"        \
 		--hline \"\$hline\"             \
 		--ok-label \"\$msg_ok\"         \
 		--cancel-label \"\$msg_cancel\" \
-		--menu \"\$prompt\" $size       \
+		--menu \"\$prompt\"             \
+		$height $width $rows            \
 		$menu_list                      \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-	retval=$?
-	setvar DIALOG_MENU_$$ "$dialog_menu"
-	mtag=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || return $FAILURE
+	) || return $DIALOG_CANCEL
+	f_dialog_data_sanitize mtag
 
 	case "$mtag" in
 	URL) setvar $VAR_FTP_PATH "other" ;;
 	*)
+		local value
 		value=$( eval f_dialog_menutag2item \"\$mtag\" $menu_list )
 		setvar $VAR_FTP_PATH "ftp://$value"
 	esac
 	
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_media_set_ftp
@@ -290,7 +253,7 @@ f_dialog_menu_media_ftp()
 #
 # 	VAR_FTP_HOST
 # 		The FTP host to connect to, parsed from VAR_FTP_PATH. In the
-# 		example case of IPv6 where VAR_FTP_PATH is a "ftp://[::1]" this
+# 		example case of IPv6 where VAR_FTP_PATH is "ftp://[::1]", this
 # 		variable will be set to "::1" (the outer brackets are removed).
 # 	VAR_FTP_PORT
 # 		The TCP port to connect to, parsed from VAR_FTP_PATH. Usually
@@ -365,16 +328,17 @@ f_media_set_ftp()
 	   ! f_dialog_yesno "$msg_youve_already_done_the_network_configuration"
 	then
 		f_struct device_network &&
-			f_device_shutdown network
+			f_device_shutdown device_network
 		if ! f_device_select_tcp; then
 			unset $VAR_FTP_PATH
 			return $FAILURE
 		fi
-		local dev
-		f_getvar $VAR_NETWORK_DEVICE dev
-		f_struct_copy "device_$dev" device_network
+		local dev if
+		f_getvar $VAR_NETWORK_DEVICE if
+		f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+		f_struct_copy "$dev" device_network
 	fi
-	if ! f_device_init network; then
+	if ! f_device_init device_network; then
 		f_dprintf "f_media_set_ftp: %s" "$msg_net_device_init_failed"
 		unset $VAR_FTP_PATH
 		return $FAILURE
@@ -382,27 +346,62 @@ f_media_set_ftp()
 
 	local hostname="${url#*://}" port=21 dir=/
 	case "$hostname" in
-	"["*"]")
+	#
+	# The order in-which the below individual cases appear is important!
+	#
+	"["*"]":*/*) # IPv6 address with port and directory
+		f_dprintf "Looks like an IPv6 addr with port/dir: %s" \
+		          "$hostname"
 		hostname="${hostname#\[}"
-		hostname="${hostname%%\]*}"
-		;;
-	"["*"]/"*)
-		hostname="${hostname#\[}"
+		port="${hostname#*\]:}"
+		port="${port%%[!0-9]*}"
 		dir="/${hostname#*/}"
-		hostname="${hostname%%\]*}"
+		hostname="${hostname%%\]:*}"
 		;;
-	*"/"*)
-		dir="/${hostname#*/}"
-		hostname="${hostname%%/*}"
-		;;
-	"["*"]:"*)
+	"["*"]":*) # IPv6 address with port
+		f_dprintf "Looks like an IPv6 addr with port: %s" "$hostname"
 		hostname="${hostname#\[}"
 		port="${hostname#*\]:}"
 		port="${port%%[!0-9]*}"
 		hostname="${hostname%%\]:*}"
 		;;
-	*)
+	"["*"]"/*) # IPv6 address with directory
+		f_dprintf "Looks like an IPv6 addr with dir: %s" "$hostname"
+		hostname="${hostname#\[}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%\]*}"
+		;;
+	"["*"]") # IPv6 address
+		f_dprintf "Looks like an IPv6 addr: %s" "$hostname"
+		hostname="${hostname#\[}"
+		hostname="${hostname%\]}"
+		;;
+	#
+	# ^^^ IPv6 above / DNS Name or IPv4 below vvv
+	#
+	*:*/*) # DNS name or IPv4 address with port and directory
+		f_dprintf "Looks like a %s with port/dir: %s" \
+		          "DNS name or IPv4 addr" "$hostname"
+		port="${hostname#*:}"
+		port="${port%%[!0-9]*}"
+		dir="/${hostname#*/}"
+		hostname="${hostname%%:*}"
+		;;
+	*:*) # DNS name or IPv4 address with port
+		f_dprintf "Looks like a DNS name or IPv4 addr with port: %s" \
+		          "$hostname"
+		port="${hostname#*:}"
+		hostname="${hostname%%:*}"
+		;;
+	*/*) # DNS name or IPv4 address with directory
+		f_dprintf "Looks like a DNS name or IPv4 addr with dir: %s" \
+		          "$hostname"
+		dir="/${hostname#*/}"
 		hostname="${hostname%%/*}"
+		;;
+	*) # DNS name or IPv4 address
+		f_dprintf "Looks like a DNS name or IPv4 addr: %s" "$hostname"
+		: leave hostname as-is
 	esac
 
 	f_dprintf "hostname = \`%s'" "$hostname"
@@ -422,7 +421,7 @@ f_media_set_ftp()
 		if ! f_quietly f_host_lookup "$hostname"; then
 			f_show_msg "$msg_cannot_resolve_hostname" "$hostname"
 			f_struct device_network &&
-				f_device_shutdown network
+				f_device_shutdown device_network
 			f_struct_free device_network
 			unset $VAR_FTP_PATH
 			return $FAILURE
@@ -438,7 +437,7 @@ f_media_set_ftp()
 	device_ftp set init     f_media_init_ftp
 	device_ftp set get      f_media_get_ftp
 	device_ftp set shutdown f_media_shutdown_ftp
-	device_ftp set private  network
+	device_ftp set private  device_network
 	f_struct_copy device_ftp device_media
 	f_struct_free device_ftp
 
@@ -505,7 +504,9 @@ f_media_set_ftp_userpass()
 f_device_network_up()
 {
 	local dev="$1" netDev
-	device_$dev get private netDev || return $SUCCESS # No net == happy net
+	f_struct "$dev" || return $FAILURE
+	$dev get private netDev || return $SUCCESS # No net == happy net
+debug=1 f_dprintf "netDev=[$netDev]"
 	f_device_init $netDev
 }
 
@@ -516,7 +517,8 @@ f_device_network_up()
 f_device_network_down()
 {
 	local dev="$1" netDev
-	device_$dev get private netDev || return $SUCCESS
+	f_struct "$dev" || return $FAILURE
+	$dev get private netDev || return $SUCCESS
 	f_device_shutdown $netDev
 }
 
@@ -576,9 +578,9 @@ f_device_network_down()
 f_media_init_ftp()
 {
 	local dev="$1"
-
 	local url
-	device_$dev get name url
+
+	$dev get name url
 	f_dprintf "Init routine called for FTP device. url=[%s]" "$url"
 
 	if [ "$FTP_INITIALIZED" ]; then
@@ -597,8 +599,7 @@ f_media_init_ftp()
 			   ! f_getvar $VAR_FTP_PATH cp ||
 			   [ ! "$cp" ]
 			then
-				f_dialog_msgbox \
-					"$msg_unable_to_get_proper_ftp_path"
+				f_show_msg "$msg_unable_to_get_proper_ftp_path"
 				f_device_network_down $dev
 				return $FAILURE
 			fi
@@ -609,7 +610,7 @@ f_media_init_ftp()
 			f_getvar $VAR_FTP_HOST ftp_host &&
 			f_getvar $VAR_FTP_DIR ftp_dir
 		}; then
-			f_dialog_msgbox "$msg_missing_ftp_host_or_directory"
+			f_show_msg "$msg_missing_ftp_host_or_directory"
 			f_device_network_down $dev
 			return $FAILURE
 		fi
@@ -619,7 +620,7 @@ f_media_init_ftp()
 		local host="$ftp_host" port="${ftp_port:+:$ftp_port}"
 		case "$host" in *:*) host="[$host]"; esac
 
-		local user pass use_anon=""
+		local user pass use_anon=
 		f_getvar $VAR_FTP_USER user
 		if [ ! "$user" ]; then
 			user="anonymous"
@@ -661,7 +662,10 @@ f_media_init_ftp()
 				break # to failure
 			fi
 			if echo "$rx" | awk -v dir="/${ftp_dir#/}" '
-				BEGIN { found = 0 }
+				BEGIN {
+					found = 0
+					if ( dir != "/" ) sub("/$", "", dir)
+				}
 				/^Remote directory: / {
 					sub(/^[^:]*:[[:space:]]*/, "")
 					if ($0 != dir) next
@@ -722,7 +726,6 @@ f_media_init_ftp()
 
 			local fdir
 			if fdir=$( echo "$rx" | awk '
-				BEGIN { found = 0 }
 				/^Remote directory: / {
 					sub(/^[^:]*:[[:space:]]*/, "")
 					if ($0 == "/") next
@@ -738,7 +741,7 @@ f_media_init_ftp()
 			else
 				f_yesno "$msg_cant_find_distribution" \
 				        "$rel" "$ftp_host"
-				if [ $? -eq $SUCCESS ]; then
+				if [ $? -eq $DIALOG_OK ]; then
 					unset $VAR_FTP_PATH
 					f_media_set_ftp && continue
 				fi
@@ -752,12 +755,13 @@ f_media_init_ftp()
 	return $FAILURE
 }
 
-# f_media_get_ftp $device $file [$probe_only]
+# f_media_get_ftp $device $file [$probe_type]
 #
 # Returns data from $file on an FTP server using ftp(1). Please note that
 # $device is unused but must be present (even if null). Information is instead
-# gathered from the environment. $probe_only is currently unused by this media
-# type.
+# gathered from the environment. If $probe_type is present and non-NULL,
+# returns success if $file exists. If $probe_type is equal to $PROBE_SIZE,
+# prints the size of $file in bytes to standard-out.
 #
 # Variables from variable.subr used to configure the connection are as follows
 # (all of which are configured by f_media_set_ftp above):
@@ -791,10 +795,11 @@ f_media_init_ftp()
 #
 f_media_get_ftp()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local funcname=f_media_get_ftp
+	local dev="$1" file="$2" probe_type="$3" hosts=
 
-	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_type=%s" \
+	          "$dev" "$file" "$probe_type"
 
 	local ftp_host ftp_port
 	f_getvar $VAR_FTP_HOST ftp_host
@@ -833,7 +838,7 @@ f_media_get_ftp()
 		return $FAILURE
 	fi
 
-	local user pass use_anon=""
+	local user pass use_anon=
 	f_getvar $VAR_FTP_USER user
 	if [ ! "$user" ]; then
 		user="anonymous"
@@ -855,15 +860,28 @@ f_media_get_ftp()
 		userpass="$userpass${userpass:+@}"
 	fi
 
-	local ftp_dir mode rx
-	f_getvar $VAR_FTP_DIR ftp_dir
+	local dir mode rx
+	f_getvar $VAR_FTP_DIR\#/ dir
 	f_getvar $VAR_FTP_STATE mode
 
-	local dir="${ftp_dir#/}"
 	local port="${ftp_port:+:$ftp_port}"
 	case "$host" in *:*) host="[$host]"; esac
 
 	f_dprintf "sending ftp request for: %s" "ftp://$host$port/$dir/$file"
+
+	if [ "$probe_type" ]; then
+		local url="ftp://$userpass$host$port/$dir/$file" size
+		[ "$use_anon" ] && url="ftp://$host$port/$dir/$file"
+		if ! f_eval_catch -dk size $funcname fetch \
+			'fetch -s "%s"' "$url" || ! f_isinteger "$size"
+		then
+			f_dprintf "size request failed!"
+			[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
+			return $FAILURE
+		fi
+		[ "$probe_type" = "$PROBE_SIZE" ] && echo "$size"
+		return $SUCCESS
+	fi
 
 	eval FTPMODE=\"\$mode\" ${use_anon:+FTPANONPASS=\"\$pass\"} \
 	     ftp -V ${use_anon:+-a} -o - \

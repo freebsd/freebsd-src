@@ -69,6 +69,15 @@ struct timespec32 {
 	CP((src).fld,(dst).fld,tv_nsec);	\
 } while (0)
 
+struct itimerspec32 {
+	struct timespec32  it_interval;
+	struct timespec32  it_value;
+};
+#define ITS_CP(src, dst) do {			\
+	TS_CP((src), (dst), it_interval);	\
+	TS_CP((src), (dst), it_value);		\
+} while (0)
+
 struct rusage32 {
 	struct timeval32 ru_utime;
 	struct timeval32 ru_stime;
@@ -166,6 +175,7 @@ struct stat32 {
 	u_int32_t st_blksize;
 	u_int32_t st_flags;
 	u_int32_t st_gen;
+	int32_t	st_lspare;
 	struct timespec32 st_birthtim;
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
 	unsigned int :(8 / 2) * (16 - (int)sizeof(struct timespec32));
@@ -322,8 +332,8 @@ struct kinfo_proc32 {
 	signed char ki_nice;
 	char	ki_lock;
 	char	ki_rqindex;
-	u_char	ki_oncpu;
-	u_char	ki_lastcpu;
+	u_char	ki_oncpu_old;
+	u_char	ki_lastcpu_old;
 	char	ki_tdname[TDNAMLEN+1];
 	char	ki_wmesg[WMESGLEN+1];
 	char	ki_login[LOGNAMELEN+1];
@@ -333,6 +343,11 @@ struct kinfo_proc32 {
 	char	ki_loginclass[LOGINCLASSLEN+1];
 	char	ki_sparestrings[50];
 	int	ki_spareints[KI_NSPARE_INT];
+	int	ki_oncpu;
+	int	ki_lastcpu;
+	int	ki_tracer;
+	int	ki_flag2;
+	int	ki_fibnum;
 	u_int	ki_cr_flags;
 	int	ki_jid;
 	int	ki_numthreads;
@@ -348,6 +363,12 @@ struct kinfo_proc32 {
 	int	ki_sparelongs[KI_NSPARE_LONG];
 	int	ki_sflag;
 	int	ki_tdflags;
+};
+
+struct kinfo_sigtramp32 {
+	uint32_t ksigtramp_start;
+	uint32_t ksigtramp_end;
+	uint32_t ksigtramp_spare[4];
 };
 
 struct kld32_file_stat_1 {
@@ -367,6 +388,12 @@ struct kld32_file_stat {
 	uint32_t address;	/* load address */
 	uint32_t size;		/* size in bytes */
 	char	pathname[MAXPATHLEN];
+};
+
+struct procctl_reaper_pids32 {
+	u_int	rp_count;
+	u_int	rp_pad0[15];
+	uint32_t rp_pids;
 };
 
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */

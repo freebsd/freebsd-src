@@ -35,11 +35,8 @@ struct upnp_wps_device_ctx {
 
 struct upnp_wps_device_sm *
 upnp_wps_device_init(struct upnp_wps_device_ctx *ctx, struct wps_context *wps,
-		     void *priv);
-void upnp_wps_device_deinit(struct upnp_wps_device_sm *sm);
-
-int upnp_wps_device_start(struct upnp_wps_device_sm *sm, char *net_if);
-void upnp_wps_device_stop(struct upnp_wps_device_sm *sm);
+		     void *priv, char *net_if);
+void upnp_wps_device_deinit(struct upnp_wps_device_sm *sm, void *priv);
 
 int upnp_wps_device_send_wlan_event(struct upnp_wps_device_sm *sm,
 				    const u8 from_mac_addr[ETH_ALEN],

@@ -10,6 +10,9 @@
 
 MACHINE=`uname -m`
 
+# resolv.conf from DHCP ends up in here, so make sure the directory exists
+mkdir /tmp/bsdinstall_etc
+
 kbdcontrol -d >/dev/null 2>&1
 if [ $? -eq 0 ]; then
 	# Syscons: use xterm, start interesting things on other VTYs
@@ -18,6 +21,10 @@ if [ $? -eq 0 ]; then
 	else
 		TERM=xterm
 	fi
+
+	# Don't send ESC on function-key 62/63 (left/right command key)
+	kbdcontrol -f 62 '' > /dev/null 2>&1
+	kbdcontrol -f 63 '' > /dev/null 2>&1
 
 	if [ -z "$EXTERNAL_VTY_STARTED" ]; then
 		# Init will clean these processes up if/when the system

@@ -14,6 +14,7 @@ SRCS=	HeaderMap.cpp \
 	ModuleMap.cpp \
 	PPCaching.cpp \
 	PPCallbacks.cpp \
+	PPConditionalDirectiveRecord.cpp \
 	PPDirectives.cpp \
 	PPExpressions.cpp \
 	PPLexerChange.cpp \
@@ -27,7 +28,7 @@ SRCS=	HeaderMap.cpp \
 	TokenConcatenation.cpp \
 	TokenLexer.cpp
 
-TGHDRS=	AttrSpellings \
+TGHDRS=	AttrSpellingListIndex \
 	DiagnosticCommonKinds \
 	DiagnosticLexKinds
 

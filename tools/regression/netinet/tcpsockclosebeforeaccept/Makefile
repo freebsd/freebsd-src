@@ -3,7 +3,7 @@
 #
 
 PROG=	tcpsockclosebeforeaccept
-NO_MAN=
+MAN=
 WARNS?=	3
 
 .include <bsd.prog.mk>

@@ -59,23 +59,14 @@ static int ips_pci_probe(device_t dev)
 
 static int ips_pci_attach(device_t dev)
 {
-        u_int32_t command;
         ips_softc_t *sc;
 
-
-	if (resource_disabled(device_get_name(dev), device_get_unit(dev))) {
-		device_printf(dev, "device is disabled\n");
-		/* but return 0 so the !$)$)*!$*) unit isn't reused */
-		return (0);
-	}
         DEVICE_PRINTF(1, dev, "in attach.\n");
         sc = (ips_softc_t *)device_get_softc(dev);
-        if(!sc){
-                printf("how is sc NULL?!\n");
-                return (ENXIO);
-        }
-        bzero(sc, sizeof(ips_softc_t));
         sc->dev = dev;
+	mtx_init(&sc->queue_mtx, "IPS bioqueue lock", NULL, MTX_DEF);
+	sema_init(&sc->cmd_sema, 0, "IPS Command Semaphore");
+	callout_init_mtx(&sc->timer, &sc->queue_mtx, 0);
 
         if(pci_get_device(dev) == IPS_MORPHEUS_DEVICE_ID){
 		sc->ips_adapter_reinit = ips_morpheus_reinit;
@@ -95,22 +86,18 @@ static int ips_pci_attach(device_t dev)
 	} else
                 goto error;
         /* make sure busmastering is on */
-        command = pci_read_config(dev, PCIR_COMMAND, 1);
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 1);
-        /* seting up io space */
+	pci_enable_busmaster(dev);
+        /* setting up io space */
         sc->iores = NULL;
-        if(command & PCIM_CMD_MEMEN){
-                PRINTF(10, "trying MEMIO\n");
-		if(pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID)
-                	sc->rid = PCIR_BAR(1);
-		else
-			sc->rid = PCIR_BAR(0);
-                sc->iotype = SYS_RES_MEMORY;
-                sc->iores = bus_alloc_resource_any(dev, sc->iotype,
-			&sc->rid, RF_ACTIVE);
-        }
-        if(!sc->iores && command & PCIM_CMD_PORTEN){
+	PRINTF(10, "trying MEMIO\n");
+	if(pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID)
+		sc->rid = PCIR_BAR(1);
+	else
+		sc->rid = PCIR_BAR(0);
+	sc->iotype = SYS_RES_MEMORY;
+	sc->iores = bus_alloc_resource_any(dev, sc->iotype, &sc->rid,
+	    RF_ACTIVE);
+        if(!sc->iores){
                 PRINTF(10, "trying PORTIO\n");
                 sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_IOPORT;
@@ -121,8 +108,6 @@ static int ips_pci_attach(device_t dev)
                 device_printf(dev, "resource allocation failed\n");
                 return (ENXIO);
         }
-        sc->bustag = rman_get_bustag(sc->iores);
-        sc->bushandle = rman_get_bushandle(sc->iores);
         /*allocate an interrupt. when does the irq become active? after leaving attach? */
         sc->irqrid = 0;
         if(!(sc->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -149,13 +134,11 @@ static int ips_pci_attach(device_t dev)
 				/* lockfunc  */ NULL,
 				/* lockarg   */ NULL,
 				&sc->adapter_dmatag) != 0) {
-                printf("IPS can't alloc dma tag\n");
+                device_printf(dev, "can't alloc dma tag\n");
                 goto error;
         }
 	sc->ips_ich.ich_func = ips_intrhook;
 	sc->ips_ich.ich_arg = sc;
-	mtx_init(&sc->queue_mtx, "IPS bioqueue lock", NULL, MTX_DEF);
-	sema_init(&sc->cmd_sema, 0, "IPS Command Semaphore");
 	bioq_init(&sc->queue);
 	if (config_intrhook_establish(&sc->ips_ich) != 0) {
 		printf("IPS can't establish configuration hook\n");

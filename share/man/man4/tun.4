@@ -2,7 +2,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd February 4, 2007
+.Dd November 30, 2014
 .Dt TUN 4
 .Os
 .Sh NAME
@@ -33,6 +33,17 @@ it is simulating
 or a terminal for
 .Xr pty 4 ) ,
 and a character-special device
+.Dq control
+interface.
+A client program transfers IP (by default) packets to or from the
+.Nm
+.Dq control
+interface.
+The
+.Xr tap 4
+interface provides similar functionality at the Ethernet layer:
+a client will transfer Ethernet frames to or from a
+.Xr tap 4
 .Dq control
 interface.
 .Pp
@@ -307,6 +318,7 @@ them pile up.
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr pty 4 ,
+.Xr tap 4 ,
 .Xr ifconfig 8
 .Sh AUTHORS
 This manual page was originally obtained from

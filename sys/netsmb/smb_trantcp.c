@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -79,13 +80,17 @@ static int
 nb_setsockopt_int(struct socket *so, int level, int name, int val)
 {
 	struct sockopt sopt;
+	int error;
 
 	bzero(&sopt, sizeof(sopt));
 	sopt.sopt_level = level;
 	sopt.sopt_name = name;
 	sopt.sopt_val = &val;
 	sopt.sopt_valsize = sizeof(val);
-	return sosetopt(so, &sopt);
+	CURVNET_SET(so->so_vnet);
+	error = sosetopt(so, &sopt);
+	CURVNET_RESTORE();
+	return error;
 }
 
 static int
@@ -150,8 +155,8 @@ nb_connect_in(struct nbpcb *nbp, struct sockaddr_in *to, struct thread *td)
 	SOCKBUF_LOCK(&so->so_rcv);
 	soupcall_set(so, SO_RCV, nb_upcall, nbp);
 	SOCKBUF_UNLOCK(&so->so_rcv);
-	so->so_rcv.sb_timeo = (5 * hz);
-	so->so_snd.sb_timeo = (5 * hz);
+	so->so_rcv.sb_timeo = (5 * SBT_1S);
+	so->so_snd.sb_timeo = (5 * SBT_1S);
 	error = soreserve(so, nbp->nbp_sndbuf, nbp->nbp_rcvbuf);
 	if (error)
 		goto bad;
@@ -299,8 +304,10 @@ nbssn_recvhdr(struct nbpcb *nbp, int *lenp,
 	auio.uio_offset = 0;
 	auio.uio_resid = sizeof(len);
 	auio.uio_td = td;
+	CURVNET_SET(so->so_vnet);
 	error = soreceive(so, (struct sockaddr **)NULL, &auio,
 	    (struct mbuf **)NULL, (struct mbuf **)NULL, &flags);
+	CURVNET_RESTORE();
 	if (error)
 		return error;
 	if (auio.uio_resid > 0) {
@@ -384,8 +391,10 @@ nbssn_recv(struct nbpcb *nbp, struct mbuf **mpp, int *lenp,
 			 */
 			do {
 				rcvflg = MSG_WAITALL;
+				CURVNET_SET(so->so_vnet);
 				error = soreceive(so, (struct sockaddr **)NULL,
 				    &auio, &tm, (struct mbuf **)NULL, &rcvflg);
+				CURVNET_RESTORE();
 			} while (error == EWOULDBLOCK || error == EINTR ||
 				 error == ERESTART);
 			if (error)

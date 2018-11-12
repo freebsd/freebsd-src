@@ -30,14 +30,14 @@
 /*	  All Rights Reserved	*/
 
 
-#if defined(sun)
+#ifdef illumos
 #pragma ident	"@(#)instr_size.c	1.14	05/07/08 SMI"
 #endif
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/proc.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/cmn_err.h>
 #include <sys/archsystm.h>
 #include <sys/copyops.h>
@@ -104,7 +104,7 @@ dtrace_dis_isize(uchar_t *instr, dis_isize_t which, model_t model, int *rmindex)
 	dis86_t	x;
 	uint_t mode = SIZE32;
 
-#if defined(sun)
+#ifdef illumos
 	mode = (model == DATAMODEL_LP64) ? SIZE64 : SIZE32;
 #endif
 

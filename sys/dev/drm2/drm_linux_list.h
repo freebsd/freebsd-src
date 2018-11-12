@@ -144,6 +144,11 @@ list_del_init(struct list_head *entry) {
 	    &pos->member != (head);					\
 	    pos = n, n = list_entry(n->member.next, __typeof(*n), member))
 
+#define list_for_each_entry_safe_from(pos, n, head, member) 			\
+	for (n = list_entry(pos->member.next, __typeof(*pos), member);		\
+	     &pos->member != (head);						\
+	     pos = n, n = list_entry(n->member.next, __typeof(*n), member))
+
 #define list_first_entry(ptr, type, member) \
 	list_entry((ptr)->next, type, member)
 

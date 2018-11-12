@@ -2789,18 +2789,19 @@ void process_input_stack()
     case token::TOKEN_TRANSPARENT:
       {
 	if (bol) {
-	  if (possibly_handle_first_page_transition())
+	  if (possibly_handle_first_page_transition()) {
 	    ;
-	  else {
+	  } else {
 	    int cc;
 	    do {
 	      node *n;
 	      cc = get_copy(&n);
-	      if (cc != EOF)
+	      if (cc != EOF) {
 		if (cc != '\0')
 		  curdiv->transparent_output(transparent_translate(cc));
 		else
 		  curdiv->transparent_output(n);
+	      }
 	    } while (cc != '\n' && cc != EOF);
 	    if (cc == EOF)
 	      curdiv->transparent_output('\n');
@@ -2811,9 +2812,9 @@ void process_input_stack()
     case token::TOKEN_NEWLINE:
       {
 	if (bol && !old_have_input
-	    && !curenv->get_prev_line_interrupted())
+	    && !curenv->get_prev_line_interrupted()) {
 	  trapping_blank_line();
-	else {
+	} else {
 	  curenv->newline();
 	  bol = 1;
 	}

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __UTIDS_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -375,14 +373,17 @@ AcpiUtExecute_CID (
         switch (CidObjects[i]->Common.Type)
         {
         case ACPI_TYPE_INTEGER:
+
             StringAreaSize += ACPI_EISAID_STRING_SIZE;
             break;
 
         case ACPI_TYPE_STRING:
+
             StringAreaSize += CidObjects[i]->String.Length + 1;
             break;
 
         default:
+
             Status = AE_TYPE;
             goto Cleanup;
         }

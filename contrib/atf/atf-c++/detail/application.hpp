@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_APPLICATION_HPP_)
-#define _ATF_CXX_APPLICATION_HPP_
+#if !defined(ATF_CXX_DETAIL_APPLICATION_HPP)
+#define ATF_CXX_DETAIL_APPLICATION_HPP
 
 #include <ostream>
 #include <set>
@@ -74,8 +70,6 @@ public:
 // ------------------------------------------------------------------------
 
 class app {
-    bool m_hflag;
-
     void process_options(void);
     void usage(std::ostream&);
 
@@ -90,8 +84,7 @@ protected:
     const char* m_argv0;
     const char* m_prog_name;
     std::string m_description;
-    std::string m_manpage, m_global_manpage;
-    const bool m_use_ui;
+    std::string m_manpage;
 
     options_set options(void);
 
@@ -102,8 +95,7 @@ protected:
     virtual int main(void) = 0;
 
 public:
-    app(const std::string&, const std::string&, const std::string&,
-        bool = true);
+    app(const std::string&, const std::string&);
     virtual ~app(void);
 
     int run(int, char* const*);
@@ -112,4 +104,4 @@ public:
 } // namespace application
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_APPLICATION_HPP_)
+#endif // !defined(ATF_CXX_DETAIL_APPLICATION_HPP)

@@ -1,4 +1,4 @@
-/*	$NetBSD: iso9660_rrip.c,v 1.10 2011/05/29 17:07:58 tsutsui Exp $	*/
+/*	$NetBSD: iso9660_rrip.c,v 1.11 2012/04/29 13:32:21 joerg Exp $	*/
 
 /*
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
@@ -419,9 +419,9 @@ cd9660_rrip_initialize_node(cd9660node *node, cd9660node *parent,
 		}
 		else if ((node->node != NULL) &&
 			((strlen(node->node->name) !=
-			    (int)node->isoDirRecord->name_len[0]) ||
+			    (uint8_t)node->isoDirRecord->name_len[0]) ||
 			(memcmp(node->node->name,node->isoDirRecord->name,
-				(int) node->isoDirRecord->name_len[0]) != 0))) {
+				(uint8_t)node->isoDirRecord->name_len[0]) != 0))) {
 			cd9660_rrip_NM(node);
 		}
 
@@ -634,7 +634,7 @@ cd9660_createSL(cd9660node *node)
 int
 cd9660node_rrip_px(struct ISO_SUSP_ATTRIBUTES *v, fsnode *pxinfo)
 {
-	v->attr.rr_entry.PX.h.length[0] = 36;
+	v->attr.rr_entry.PX.h.length[0] = 44;
 	v->attr.rr_entry.PX.h.version[0] = 1;
 	cd9660_bothendian_dword(pxinfo->inode->st.st_mode,
 	    v->attr.rr_entry.PX.mode);
@@ -644,8 +644,9 @@ cd9660node_rrip_px(struct ISO_SUSP_ATTRIBUTES *v, fsnode *pxinfo)
 	    v->attr.rr_entry.PX.uid);
 	cd9660_bothendian_dword(pxinfo->inode->st.st_gid,
 	    v->attr.rr_entry.PX.gid);
+	cd9660_bothendian_dword(pxinfo->inode->st.st_ino,
+	    v->attr.rr_entry.PX.serial);
 
-	/* Ignoring the serial number for now */
 	return 1;
 }
 
@@ -685,7 +686,7 @@ int
 cd9660node_rrip_tf(struct ISO_SUSP_ATTRIBUTES *p, fsnode *_node)
 {
 	p->attr.rr_entry.TF.flags[0] = TF_MODIFY | TF_ACCESS | TF_ATTRIBUTES;
-	p->attr.rr_entry.TF.h.length[0] = 4;
+	p->attr.rr_entry.TF.h.length[0] = 5;
 	p->attr.rr_entry.TF.h.version[0] = 1;
 
 	/*

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Lawrence Stewart <lstewart@freebsd.org>
+ * Copyright (c) 2010,2013 Lawrence Stewart <lstewart@freebsd.org>
  * Copyright (c) 2010 The FreeBSD Foundation
  * All rights reserved.
  *
@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/hhook.h>
-#include <sys/jail.h>
 #include <sys/khelp.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -52,8 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 
-#include <net/vnet.h>
-
 static struct rwlock khelp_list_lock;
 RW_SYSINIT(khelplistlock, &khelp_list_lock, "helper list lock");
 
@@ -61,6 +58,7 @@ static TAILQ_HEAD(helper_head, helper) helpers = TAILQ_HEAD_INITIALIZER(helpers)
 
 /* Private function prototypes. */
 static inline void khelp_remove_osd(struct helper *h, struct osd *hosd);
+void khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags);
 
 #define	KHELP_LIST_WLOCK() rw_wlock(&khelp_list_lock)
 #define	KHELP_LIST_WUNLOCK() rw_wunlock(&khelp_list_lock)
@@ -74,33 +72,32 @@ khelp_register_helper(struct helper *h)
 	struct helper *tmph;
 	int error, i, inserted;
 
-	error = 0;
-	inserted = 0;
+	error = inserted = 0;
 	refcount_init(&h->h_refcount, 0);
 	h->h_id = osd_register(OSD_KHELP, NULL, NULL);
 
 	/* It's only safe to add the hooks after osd_register(). */
-	if (h->h_nhooks > 0) {
-		for (i = 0; i < h->h_nhooks && !error; i++) {
-			/* We don't require the module to assign hook_helper. */
-			h->h_hooks[i].hook_helper = h;
-			error = khelp_add_hhook(&h->h_hooks[i], HHOOK_NOWAIT);
-		}
-
-		if (error) {
-			for (i--; i >= 0; i--)
-				khelp_remove_hhook(&h->h_hooks[i]);
-
-			osd_deregister(OSD_KHELP, h->h_id);
-		}
+	for (i = 0; i < h->h_nhooks && !error; i++) {
+		/* We don't require the module to assign hook_helper. */
+		h->h_hooks[i].hook_helper = h;
+		error = hhook_add_hook_lookup(&h->h_hooks[i], HHOOK_WAITOK);
+		if (error)
+			printf("%s: \"%s\" khelp module unable to "
+			    "hook type %d id %d due to error %d\n", __func__,
+			    h->h_name, h->h_hooks[i].hook_type,
+			    h->h_hooks[i].hook_id, error);
 	}
 
-	if (!error) {
+	if (error) {
+		for (i--; i >= 0; i--)
+			hhook_remove_hook_lookup(&h->h_hooks[i]);
+		osd_deregister(OSD_KHELP, h->h_id);
+	} else {
 		KHELP_LIST_WLOCK();
 		/*
 		 * Keep list of helpers sorted in descending h_id order. Due to
 		 * the way osd_set() works, a sorted list ensures
-		 * init_helper_osd() will operate with improved efficiency.
+		 * khelp_init_osd() will operate with improved efficiency.
 		 */
 		TAILQ_FOREACH(tmph, &helpers, h_next) {
 			if (tmph->h_id < h->h_id) {
@@ -124,8 +121,6 @@ khelp_deregister_helper(struct helper *h)
 	struct helper *tmph;
 	int error, i;
 
-	error = 0;
-
 	KHELP_LIST_WLOCK();
 	if (h->h_refcount > 0)
 		error = EBUSY;
@@ -142,10 +137,8 @@ khelp_deregister_helper(struct helper *h)
 	KHELP_LIST_WUNLOCK();
 
 	if (!error) {
-		if (h->h_nhooks > 0) {
-			for (i = 0; i < h->h_nhooks; i++)
-				khelp_remove_hhook(&h->h_hooks[i]);
-		}
+		for (i = 0; i < h->h_nhooks; i++)
+			hhook_remove_hook_lookup(&h->h_hooks[i]);
 		osd_deregister(OSD_KHELP, h->h_id);
 	}
 
@@ -263,28 +256,13 @@ khelp_get_id(char *hname)
 int
 khelp_add_hhook(struct hookinfo *hki, uint32_t flags)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
 	int error;
 
-	error = 0;
-
 	/*
-	 * XXXLAS: If a helper is dynamically adding a helper hook function at
-	 * runtime using this function, we should update the helper's h_hooks
-	 * struct member to include the additional hookinfo struct.
+	 * XXXLAS: Should probably include the functionality to update the
+	 * helper's h_hooks struct member.
 	 */
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		error = hhook_add_hook_lookup(hki, flags);
-		CURVNET_RESTORE();
-#ifdef VIMAGE
-		if (error)
-			break;
-#endif
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
+	error = hhook_add_hook_lookup(hki, flags);
 
 	return (error);
 }
@@ -292,30 +270,45 @@ khelp_add_hhook(struct hookinfo *hki, uint32_t flags)
 int
 khelp_remove_hhook(struct hookinfo *hki)
 {
-	VNET_ITERATOR_DECL(vnet_iter);
 	int error;
 
-	error = 0;
-
 	/*
-	 * XXXLAS: If a helper is dynamically removing a helper hook function at
-	 * runtime using this function, we should update the helper's h_hooks
-	 * struct member to remove the defunct hookinfo struct.
+	 * XXXLAS: Should probably include the functionality to update the
+	 * helper's h_hooks struct member.
 	 */
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-		error = hhook_remove_hook_lookup(hki);
-		CURVNET_RESTORE();
-#ifdef VIMAGE
-		if (error)
-			break;
-#endif
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
+	error = hhook_remove_hook_lookup(hki);
 
 	return (error);
+}
+
+/*
+ * Private KPI between hhook and khelp that allows khelp modules to insert hook
+ * functions into hhook points which register after the modules were loaded.
+ */
+void
+khelp_new_hhook_registered(struct hhook_head *hhh, uint32_t flags)
+{
+	struct helper *h;
+	int error, i;
+
+	KHELP_LIST_RLOCK();
+	TAILQ_FOREACH(h, &helpers, h_next) {
+		for (i = 0; i < h->h_nhooks; i++) {
+			if (hhh->hhh_type != h->h_hooks[i].hook_type ||
+			    hhh->hhh_id != h->h_hooks[i].hook_id)
+				continue;
+			error = hhook_add_hook(hhh, &h->h_hooks[i], flags);
+			if (error) {
+				printf("%s: \"%s\" khelp module unable to "
+				    "hook type %d id %d due to error %d\n",
+				    __func__, h->h_name,
+				    h->h_hooks[i].hook_type,
+				    h->h_hooks[i].hook_id, error);
+				error = 0;
+			}
+		}
+	}
+	KHELP_LIST_RUNLOCK();
 }
 
 int
@@ -377,95 +370,3 @@ khelp_modevent(module_t mod, int event_type, void *data)
 
 	return (error);
 }
-
-/*
- * This function is called in two separate situations:
- *
- * - When the kernel is booting, it is called directly by the SYSINIT framework
- * to allow Khelp modules which were compiled into the kernel or loaded by the
- * boot loader to insert their non-virtualised hook functions into the kernel.
- *
- * - When the kernel is booting or a vnet is created, this function is also
- * called indirectly through khelp_vnet_init() by the vnet initialisation code.
- * In this situation, Khelp modules are able to insert their virtualised hook
- * functions into the virtualised hook points in the vnet which is being
- * initialised. In the case where the kernel is not compiled with "options
- * VIMAGE", this step is still run once at boot, but the hook functions get
- * transparently inserted into the standard unvirtualised network stack.
- */
-static void
-khelp_init(const void *vnet)
-{
-	struct helper *h;
-	int error, i, vinit;
-	int32_t htype, hid;
-
-	error = 0;
-	vinit = vnet != NULL;
-
-	KHELP_LIST_RLOCK();
-	TAILQ_FOREACH(h, &helpers, h_next) {
-		for (i = 0; i < h->h_nhooks && !error; i++) {
-			htype = h->h_hooks[i].hook_type;
-			hid = h->h_hooks[i].hook_id;
-
-			/*
-			 * If we're doing a virtualised init (vinit != 0) and
-			 * the hook point is virtualised, or we're doing a plain
-			 * sysinit at boot and the hook point is not
-			 * virtualised, insert the hook.
-			 */
-			if ((hhook_head_is_virtualised_lookup(htype, hid) ==
-			    HHOOK_HEADISINVNET && vinit) ||
-			    (!hhook_head_is_virtualised_lookup(htype, hid) &&
-			    !vinit)) {
-				error = hhook_add_hook_lookup(&h->h_hooks[i],
-				    HHOOK_NOWAIT);
-			}
-		}
-
-		if (error) {
-			 /* Remove any helper's hooks we successfully added. */
-			for (i--; i >= 0; i--)
-				hhook_remove_hook_lookup(&h->h_hooks[i]);
-
-			printf("%s: Failed to add hooks for helper \"%s\" (%p)",
-				__func__, h->h_name, h);
-			if (vinit)
-				    printf(" to vnet %p.\n", vnet);
-			else
-				printf(".\n");
-
-			error = 0;
-		}
-	}
-	KHELP_LIST_RUNLOCK();
-}
-
-/*
- * Vnet created and being initialised.
- */
-static void
-khelp_vnet_init(const void *unused __unused)
-{
-
-	khelp_init(TD_TO_VNET(curthread));
-}
-
-
-/*
- * As the kernel boots, allow Khelp modules which were compiled into the kernel
- * or loaded by the boot loader to insert their non-virtualised hook functions
- * into the kernel.
- */
-SYSINIT(khelp_init, SI_SUB_PROTO_END, SI_ORDER_FIRST, khelp_init, NULL);
-
-/*
- * When a vnet is created and being initialised, we need to insert the helper
- * hook functions for all currently registered Khelp modules into the vnet's
- * helper hook points.  The hhook KPI provides a mechanism for subsystems which
- * export helper hook points to clean up on vnet shutdown, so we don't need a
- * VNET_SYSUNINIT for Khelp.
- */
-VNET_SYSINIT(khelp_vnet_init, SI_SUB_PROTO_END, SI_ORDER_FIRST,
-    khelp_vnet_init, NULL);

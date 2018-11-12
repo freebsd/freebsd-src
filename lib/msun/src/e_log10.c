@@ -22,6 +22,8 @@ __FBSDID("$FreeBSD$");
  * in not-quite-routine extra precision.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 #include "k_log.h"
@@ -34,6 +36,7 @@ log10_2hi  =  3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
 log10_2lo  =  3.69423907715893078616e-13; /* 0x3D59FEF3, 0x11F12B36 */
 
 static const double zero   =  0.0;
+static volatile double vzero = 0.0;
 
 double
 __ieee754_log10(double x)
@@ -47,7 +50,7 @@ __ieee754_log10(double x)
 	k=0;
 	if (hx < 0x00100000) {			/* x < 2**-1022  */
 	    if (((hx&0x7fffffff)|lx)==0)
-		return -two54/zero;		/* log(+-0)=-inf */
+		return -two54/vzero;		/* log(+-0)=-inf */
 	    if (hx<0) return (x-x)/zero;	/* log(-#) = NaN */
 	    k -= 54; x *= two54; /* subnormal number, scale up x */
 	    GET_HIGH_WORD(hx,x);
@@ -85,3 +88,7 @@ __ieee754_log10(double x)
 
 	return val_lo + val_hi;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(log10, log10l);
+#endif

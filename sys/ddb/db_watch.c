@@ -67,7 +67,7 @@ static void		db_set_watchpoint(vm_map_t map, db_addr_t addr,
 				       vm_size_t size);
 
 static db_watchpoint_t
-db_watchpoint_alloc()
+db_watchpoint_alloc(void)
 {
 	register db_watchpoint_t	watch;
 
@@ -86,18 +86,14 @@ db_watchpoint_alloc()
 }
 
 static void
-db_watchpoint_free(watch)
-	register db_watchpoint_t	watch;
+db_watchpoint_free(db_watchpoint_t watch)
 {
 	watch->link = db_free_watchpoints;
 	db_free_watchpoints = watch;
 }
 
 static void
-db_set_watchpoint(map, addr, size)
-	vm_map_t	map;
-	db_addr_t	addr;
-	vm_size_t	size;
+db_set_watchpoint(vm_map_t map, db_addr_t addr, vm_size_t size)
 {
 	register db_watchpoint_t	watch;
 
@@ -137,9 +133,7 @@ db_set_watchpoint(map, addr, size)
 }
 
 static void
-db_delete_watchpoint(map, addr)
-	vm_map_t	map;
-	db_addr_t	addr;
+db_delete_watchpoint(vm_map_t map, db_addr_t addr)
 {
 	register db_watchpoint_t	watch;
 	register db_watchpoint_t	*prev;
@@ -159,7 +153,7 @@ db_delete_watchpoint(map, addr)
 }
 
 static void
-db_list_watchpoints()
+db_list_watchpoints(void)
 {
 	register db_watchpoint_t	watch;
 
@@ -189,11 +183,8 @@ db_list_watchpoints()
 /* Delete watchpoint */
 /*ARGSUSED*/
 void
-db_deletewatch_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_deletewatch_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+   char *modif)
 {
 	db_delete_watchpoint(db_map_addr(addr), addr);
 }
@@ -201,11 +192,8 @@ db_deletewatch_cmd(addr, have_addr, count, modif)
 /* Set watchpoint */
 /*ARGSUSED*/
 void
-db_watchpoint_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_watchpoint_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+   char *modif)
 {
 	vm_size_t	size;
 	db_expr_t	value;
@@ -230,7 +218,7 @@ DB_SHOW_COMMAND(watches, db_listwatch_cmd)
 }
 
 void
-db_set_watchpoints()
+db_set_watchpoints(void)
 {
 	register db_watchpoint_t	watch;
 
@@ -248,17 +236,14 @@ db_set_watchpoints()
 }
 
 void
-db_clear_watchpoints()
+db_clear_watchpoints(void)
 {
 	db_watchpoints_inserted = FALSE;
 }
 
 #ifdef notused
 static boolean_t
-db_find_watchpoint(map, addr, regs)
-	vm_map_t	map;
-	db_addr_t	addr;
-	db_regs_t	*regs;
+db_find_watchpoint(vm_map_t map, db_addr_t addr, db_regs_t regs)
 {
 	register db_watchpoint_t watch;
 	db_watchpoint_t found = 0;
@@ -295,16 +280,13 @@ db_find_watchpoint(map, addr, regs)
 /* Delete hardware watchpoint */
 /*ARGSUSED*/
 void
-db_deletehwatch_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_deletehwatch_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+   char *modif)
 {
 	int rc;
 
-        if (count < 0)
-                count = 4;
+	if (count < 0)
+		count = 4;
 
 	rc = db_md_clr_watchpoint(addr, count);
 	if (rc < 0)
@@ -314,16 +296,13 @@ db_deletehwatch_cmd(addr, have_addr, count, modif)
 /* Set hardware watchpoint */
 /*ARGSUSED*/
 void
-db_hwatchpoint_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_hwatchpoint_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+   char *modif)
 {
 	int rc;
 
-        if (count < 0)
-                count = 4;
+	if (count < 0)
+		count = 4;
 
 	rc = db_md_set_watchpoint(addr, count);
 	if (rc < 0)

@@ -13,6 +13,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <math.h>
+#include <ctype.h>
 #include <err.h>
 #include <string.h>
 #include <stdlib.h>
@@ -328,10 +329,8 @@ PlotSet(struct dataset *ds, int val)
 	else
 		bar = 0;
 
-	if (pl->bar == NULL) {
-		pl->bar = malloc(sizeof(char *) * pl->num_datasets);
-		memset(pl->bar, 0, sizeof(char*) * pl->num_datasets);
-	}
+	if (pl->bar == NULL)
+		pl->bar = calloc(sizeof(char *), pl->num_datasets);
 	if (pl->bar[bar] == NULL) {
 		pl->bar[bar] = malloc(pl->width);
 		memset(pl->bar[bar], 0, pl->width);
@@ -475,8 +474,8 @@ ReadSet(const char *n, int column, const char *delim)
 		line++;
 
 		i = strlen(buf);
-		if (buf[i-1] == '\n')
-			buf[i-1] = '\0';
+		while (i > 0 && isspace(buf[i - 1]))
+			buf[--i] = '\0';
 		for (i = 1, t = strtok(buf, delim);
 		     t != NULL && *t != '#';
 		     i++, t = strtok(NULL, delim)) {

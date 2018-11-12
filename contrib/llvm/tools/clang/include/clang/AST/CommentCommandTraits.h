@@ -13,12 +13,13 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_CLANG_AST_COMMENT_COMMAND_TRAITS_H
-#define LLVM_CLANG_AST_COMMENT_COMMAND_TRAITS_H
+#ifndef LLVM_CLANG_AST_COMMENTCOMMANDTRAITS_H
+#define LLVM_CLANG_AST_COMMENTCOMMANDTRAITS_H
 
+#include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/LLVM.h"
-#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -39,7 +40,11 @@ struct CommandInfo {
   /// Name of the command that ends the verbatim block.
   const char *EndCommandName;
 
-  unsigned ID : 8;
+  /// DRY definition of the number of bits used for a command ID.
+  enum { NumCommandIDBits = 20 };
+
+  /// The ID of the command.
+  unsigned ID : NumCommandIDBits;
 
   /// Number of word-like arguments for a given block command, except for
   /// \\param and \\tparam commands -- these have special argument parsers.
@@ -66,8 +71,14 @@ struct CommandInfo {
   /// a template parameter (\\tparam or an alias).
   unsigned IsTParamCommand : 1;
 
+  /// True if this command is \\throws or an alias.
+  unsigned IsThrowsCommand : 1;
+
   /// True if this command is \\deprecated or an alias.
   unsigned IsDeprecatedCommand : 1;
+
+  /// \brief True if this is a \\headerfile-like command.
+  unsigned IsHeaderfileCommand : 1;
 
   /// True if we don't want to warn about this command being passed an empty
   /// paragraph.  Meaningful only for block commands.
@@ -96,7 +107,17 @@ struct CommandInfo {
   ///   \fn void f(int a);
   /// \endcode
   unsigned IsDeclarationCommand : 1;
+  
+  /// \brief True if verbatim-like line command is a function declaration.
+  unsigned IsFunctionDeclarationCommand : 1;
 
+  /// \brief True if block command is further describing a container API; such
+  /// as \@coclass, \@classdesign, etc.
+  unsigned IsRecordLikeDetailCommand : 1;
+  
+  /// \brief True if block command is a container API; such as \@interface.
+  unsigned IsRecordLikeDeclarationCommand : 1;
+  
   /// \brief True if this command is unknown.  This \c CommandInfo object was
   /// created during parsing.
   unsigned IsUnknownCommand : 1;
@@ -106,7 +127,17 @@ struct CommandInfo {
 /// in comments.
 class CommandTraits {
 public:
-  CommandTraits(llvm::BumpPtrAllocator &Allocator);
+  enum KnownCommandIDs {
+#define COMMENT_COMMAND(NAME) KCI_##NAME,
+#include "clang/AST/CommentCommandList.inc"
+#undef COMMENT_COMMAND
+    KCI_Last
+  };
+
+  CommandTraits(llvm::BumpPtrAllocator &Allocator,
+                const CommentOptions &CommentOptions);
+
+  void registerCommentOptions(const CommentOptions &CommentOptions);
 
   /// \returns a CommandInfo object for a given command name or
   /// NULL if no CommandInfo object exists for this command.
@@ -118,9 +149,13 @@ public:
     llvm_unreachable("the command should be known");
   }
 
+  const CommandInfo *getTypoCorrectCommandInfo(StringRef Typo) const;
+  
   const CommandInfo *getCommandInfo(unsigned CommandID) const;
 
   const CommandInfo *registerUnknownCommand(StringRef CommandName);
+
+  const CommandInfo *registerBlockCommand(StringRef CommandName);
 
   /// \returns a CommandInfo object for a given command name or
   /// NULL if \c Name is not a builtin command.
@@ -136,6 +171,8 @@ private:
 
   const CommandInfo *getRegisteredCommandInfo(StringRef Name) const;
   const CommandInfo *getRegisteredCommandInfo(unsigned CommandID) const;
+
+  CommandInfo *createCommandInfoWithName(StringRef CommandName);
 
   unsigned NextID;
 

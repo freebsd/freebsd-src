@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,6 +77,7 @@ idr_destroy(struct idr *idr)
 {
 	struct idr_layer *il, *iln;
 
+	idr_remove_all(idr);
 	mtx_lock(&idr->lock);
 	for (il = idr->free; il != NULL; il = iln) {
 		iln = il->ary[0];
@@ -221,7 +223,7 @@ idr_pre_get(struct idr *idr, gfp_t gfp_mask)
 		for (il = idr->free; il != NULL; il = il->ary[0])
 			need--;
 		mtx_unlock(&idr->lock);
-		if (need == 0)
+		if (need <= 0)
 			break;
 		for (head = NULL; need; need--) {
 			iln = malloc(sizeof(*il), M_IDR, M_ZERO | gfp_mask);
@@ -406,7 +408,7 @@ restart:
 		 * to be rare.
 		 */
 		if (idx == IDR_SIZE) {
-			starting_id = id + (1 << (layer+1 * IDR_BITS));
+			starting_id = id + (1 << ((layer + 1) * IDR_BITS));
 			goto restart;
 		}
 		if (idx > sidx)

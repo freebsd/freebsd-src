@@ -44,6 +44,7 @@ YY_BUFFER_STATE include_stack[MAX_INCLUDE_NESTING];
 int include_stack_pointer = 0;
 
 YYLTYPE yylloc;
+extern bool treesource_error;
 
 /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
 #define	YY_USER_ACTION \
@@ -65,7 +66,8 @@ static int dts_version = 1;
 				BEGIN(V1); \
 
 static void push_input_file(const char *filename);
-static int pop_input_file(void);
+static bool pop_input_file(void);
+static void lexical_error(const char *fmt, ...);
 %}
 
 %%
@@ -73,6 +75,27 @@ static int pop_input_file(void);
 			char *name = strchr(yytext, '\"') + 1;
 			yytext[yyleng-1] = '\0';
 			push_input_file(name);
+		}
+
+<*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)? {
+			char *line, *tmp, *fn;
+			/* skip text before line # */
+			line = yytext;
+			while (!isdigit((unsigned char)*line))
+				line++;
+			/* skip digits in line # */
+			tmp = line;
+			while (!isspace((unsigned char)*tmp))
+				tmp++;
+			/* "NULL"-terminate line # */
+			*tmp = '\0';
+			/* start of filename */
+			fn = strchr(tmp + 1, '"') + 1;
+			/* strip trailing " from filename */
+			tmp = strchr(fn, '"');
+			*tmp = 0;
+			/* -1 since #line is the number of the next line */
+			srcpos_set_line(xstrdup(fn), atoi(line) - 1);
 		}
 
 <*><<EOF>>		{
@@ -107,6 +130,20 @@ static int pop_input_file(void);
 			return DT_BITS;
 		}
 
+<*>"/delete-property/"	{
+			DPRINT("Keyword: /delete-property/\n");
+			DPRINT("<PROPNODENAME>\n");
+			BEGIN(PROPNODENAME);
+			return DT_DEL_PROP;
+		}
+
+<*>"/delete-node/"	{
+			DPRINT("Keyword: /delete-node/\n");
+			DPRINT("<PROPNODENAME>\n");
+			BEGIN(PROPNODENAME);
+			return DT_DEL_NODE;
+		}
+
 <*>{LABEL}:	{
 			DPRINT("Label: %s\n", yytext);
 			yylval.labelref = xstrdup(yytext);
@@ -115,15 +152,42 @@ static int pop_input_file(void);
 		}
 
 <V1>([0-9]+|0[xX][0-9a-fA-F]+)(U|L|UL|LL|ULL)? {
-			yylval.literal = xstrdup(yytext);
-			DPRINT("Literal: '%s'\n", yylval.literal);
+			char *e;
+			DPRINT("Integer Literal: '%s'\n", yytext);
+
+			errno = 0;
+			yylval.integer = strtoull(yytext, &e, 0);
+
+			assert(!(*e) || !e[strspn(e, "UL")]);
+
+			if (errno == ERANGE)
+				lexical_error("Integer literal '%s' out of range",
+					      yytext);
+			else
+				/* ERANGE is the only strtoull error triggerable
+				 *  by strings matching the pattern */
+				assert(errno == 0);
 			return DT_LITERAL;
 		}
 
 <*>{CHAR_LITERAL}	{
-			yytext[yyleng-1] = '\0';
-			yylval.literal = xstrdup(yytext+1);
-			DPRINT("Character literal: %s\n", yylval.literal);
+			struct data d;
+			DPRINT("Character literal: %s\n", yytext);
+
+			d = data_copy_escape_string(yytext+1, yyleng-2);
+			if (d.len == 1) {
+				lexical_error("Empty character literal");
+				yylval.integer = 0;
+				return DT_CHAR_LITERAL;
+			}
+
+			yylval.integer = (unsigned char)d.val[0];
+
+			if (d.len > 2)
+				lexical_error("Character literal has %d"
+					      " characters instead of 1",
+					      d.len - 1);
+
 			return DT_CHAR_LITERAL;
 		}
 
@@ -152,9 +216,10 @@ static int pop_input_file(void);
 			return ']';
 		}
 
-<PROPNODENAME>{PROPNODECHAR}+ {
+<PROPNODENAME>\\?{PROPNODECHAR}+ {
 			DPRINT("PropNodeName: %s\n", yytext);
-			yylval.propnodename = xstrdup(yytext);
+			yylval.propnodename = xstrdup((yytext[0] == '\\') ?
+							yytext + 1 : yytext);
 			BEGIN_DEFAULT();
 			return DT_PROPNODENAME;
 		}
@@ -210,10 +275,10 @@ static void push_input_file(const char *filename)
 }
 
 
-static int pop_input_file(void)
+static bool pop_input_file(void)
 {
 	if (srcfile_pop() == 0)
-		return 0;
+		return false;
 
 	assert(include_stack_pointer > 0);
 
@@ -223,5 +288,16 @@ static int pop_input_file(void)
 
 	yyin = current_srcfile->f;
 
-	return 1;
+	return true;
+}
+
+static void lexical_error(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	srcpos_verror(&yylloc, "Lexical error", fmt, ap);
+	va_end(ap);
+
+	treesource_error = true;
 }

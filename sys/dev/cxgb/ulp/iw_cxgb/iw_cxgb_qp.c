@@ -551,18 +551,18 @@ int iwch_bind_mw(struct ib_qp *qp,
 	if (mw_bind->send_flags & IB_SEND_SIGNALED)
 		t3_wr_flags = T3_COMPLETION_FLAG;
 
-	sgl.addr = mw_bind->addr;
-	sgl.lkey = mw_bind->mr->lkey;
-	sgl.length = mw_bind->length;
+	sgl.addr = mw_bind->bind_info.addr;
+	sgl.lkey = mw_bind->bind_info.mr->lkey;
+	sgl.length = mw_bind->bind_info.length;
 	wqe->bind.reserved = 0;
 	wqe->bind.type = T3_VA_BASED_TO;
 
 	/* TBD: check perms */
-	wqe->bind.perms = iwch_ib_to_mwbind_access(mw_bind->mw_access_flags);
-	wqe->bind.mr_stag = htobe32(mw_bind->mr->lkey);
+	wqe->bind.perms = iwch_ib_to_mwbind_access(mw_bind->bind_info.mw_access_flags);
+	wqe->bind.mr_stag = htobe32(mw_bind->bind_info.mr->lkey);
 	wqe->bind.mw_stag = htobe32(mw->rkey);
-	wqe->bind.mw_len = htobe32(mw_bind->length);
-	wqe->bind.mw_va = htobe64(mw_bind->addr);
+	wqe->bind.mw_len = htobe32(mw_bind->bind_info.length);
+	wqe->bind.mw_va = htobe64(mw_bind->bind_info.addr);
 	err = iwch_sgl2pbl_map(rhp, &sgl, 1, &pbl_addr, &page_size);
 	if (err) {
 		mtx_unlock(&qhp->lock);
@@ -1097,9 +1097,8 @@ out:
 	 * If free is 1, then we've disassociated the EP from the QP
 	 * and we need to dereference the EP.
 	 */
-	if (free) 
+	if (free)
 		put_ep(&ep->com);
-	
 
 	CTR2(KTR_IW_CXGB, "%s exit state %d", __FUNCTION__, qhp->attr.state);
 	return ret;

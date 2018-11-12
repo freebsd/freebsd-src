@@ -18,10 +18,12 @@
 #ifndef LLVM_CODEGEN_MACHINEFUNCTION_H
 #define LLVM_CODEGEN_MACHINEFUNCTION_H
 
-#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/ADT/ilist.h"
-#include "llvm/Support/DebugLoc.h"
+#include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/IR/DebugLoc.h"
+#include "llvm/IR/Metadata.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/ArrayRecycler.h"
 #include "llvm/Support/Recycler.h"
 
 namespace llvm {
@@ -37,6 +39,7 @@ class MachineModuleInfo;
 class MCContext;
 class Pass;
 class TargetMachine;
+class TargetSubtargetInfo;
 class TargetRegisterClass;
 struct MachinePointerInfo;
 
@@ -69,15 +72,24 @@ private:
 /// MachineFunction is destroyed.
 struct MachineFunctionInfo {
   virtual ~MachineFunctionInfo();
+
+  /// \brief Factory function: default behavior is to call new using the
+  /// supplied allocator.
+  ///
+  /// This function can be overridden in a derive class.
+  template<typename Ty>
+  static Ty *create(BumpPtrAllocator &Allocator, MachineFunction &MF) {
+    return new (Allocator.Allocate<Ty>()) Ty(MF);
+  }
 };
 
 class MachineFunction {
   const Function *Fn;
   const TargetMachine &Target;
+  const TargetSubtargetInfo *STI;
   MCContext &Ctx;
   MachineModuleInfo &MMI;
-  GCModuleInfo *GMI;
-  
+
   // RegInfo - Information about each register in use in the function.
   MachineRegisterInfo *RegInfo;
 
@@ -105,6 +117,9 @@ class MachineFunction {
   // Allocation management for instructions in function.
   Recycler<MachineInstr> InstructionRecycler;
 
+  // Allocation management for operand arrays on instructions.
+  ArrayRecycler<MachineOperand> OperandRecycler;
+
   // Allocation management for basic blocks in function.
   Recycler<MachineBasicBlock> BasicBlockRecycler;
 
@@ -127,16 +142,17 @@ class MachineFunction {
   /// about the control flow of such functions.
   bool ExposesReturnsTwice;
 
+  /// True if the function includes any inline assembly.
+  bool HasInlineAsm;
+
   MachineFunction(const MachineFunction &) LLVM_DELETED_FUNCTION;
   void operator=(const MachineFunction&) LLVM_DELETED_FUNCTION;
 public:
   MachineFunction(const Function *Fn, const TargetMachine &TM,
-                  unsigned FunctionNum, MachineModuleInfo &MMI,
-                  GCModuleInfo* GMI);
+                  unsigned FunctionNum, MachineModuleInfo &MMI);
   ~MachineFunction();
 
   MachineModuleInfo &getMMI() const { return MMI; }
-  GCModuleInfo *getGMI() const { return GMI; }
   MCContext &getContext() const { return Ctx; }
 
   /// getFunction - Return the LLVM function that this machine code represents
@@ -154,6 +170,11 @@ public:
   /// getTarget - Return the target machine this machine code is compiled with
   ///
   const TargetMachine &getTarget() const { return Target; }
+
+  /// getSubtarget - Return the subtarget for which this machine code is being
+  /// compiled.
+  const TargetSubtargetInfo &getSubtarget() const { return *STI; }
+  void setSubtarget(const TargetSubtargetInfo *ST) { STI = ST; }
 
   /// getRegInfo - Return information about the registers currently in use.
   ///
@@ -210,19 +231,24 @@ public:
   void setExposesReturnsTwice(bool B) {
     ExposesReturnsTwice = B;
   }
-  
+
+  /// Returns true if the function contains any inline assembly.
+  bool hasInlineAsm() const {
+    return HasInlineAsm;
+  }
+
+  /// Set a flag that indicates that the function contains inline assembly.
+  void setHasInlineAsm(bool B) {
+    HasInlineAsm = B;
+  }
+
   /// getInfo - Keep track of various per-function pieces of information for
   /// backends that would like to do so.
   ///
   template<typename Ty>
   Ty *getInfo() {
-    if (!MFInfo) {
-        // This should be just `new (Allocator.Allocate<Ty>()) Ty(*this)', but
-        // that apparently breaks GCC 3.3.
-        Ty *Loc = static_cast<Ty*>(Allocator.Allocate(sizeof(Ty),
-                                                      AlignOf<Ty>::Alignment));
-        MFInfo = new (Loc) Ty(*this);
-    }
+    if (!MFInfo)
+      MFInfo = Ty::template create<Ty>(Allocator, *this);
     return static_cast<Ty*>(MFInfo);
   }
 
@@ -242,6 +268,9 @@ public:
     return MBBNumbering[N];
   }
 
+  /// Should we be emitting segmented stack stuff for the function
+  bool shouldSplitStack();
+
   /// getNumBlockIDs - Return the number of MBB ID's allocated.
   ///
   unsigned getNumBlockIDs() const { return (unsigned)MBBNumbering.size(); }
@@ -251,12 +280,12 @@ public:
   /// dense, and match the ordering of the blocks within the function.  If a
   /// specific MachineBasicBlock is specified, only that block and those after
   /// it are renumbered.
-  void RenumberBlocks(MachineBasicBlock *MBBFrom = 0);
+  void RenumberBlocks(MachineBasicBlock *MBBFrom = nullptr);
   
   /// print - Print out the MachineFunction in a format suitable for debugging
   /// to the specified stream.
   ///
-  void print(raw_ostream &OS, SlotIndexes* = 0) const;
+  void print(raw_ostream &OS, SlotIndexes* = nullptr) const;
 
   /// viewCFG - This function is meant for use from the debugger.  You can just
   /// say 'call F->viewCFG()' and a ghostview window should pop up from the
@@ -279,7 +308,7 @@ public:
 
   /// verify - Run the current MachineFunction through the machine code
   /// verifier, useful for debugger use.
-  void verify(Pass *p = NULL, const char *Banner = NULL) const;
+  void verify(Pass *p = nullptr, const char *Banner = nullptr) const;
 
   // Provide accessors for the MachineBasicBlock list...
   typedef BasicBlockListType::iterator iterator;
@@ -334,8 +363,8 @@ public:
   // Internal functions used to automatically number MachineBasicBlocks
   //
 
-  /// getNextMBBNumber - Returns the next unique number to be assigned
-  /// to a MachineBasicBlock in this MachineFunction.
+  /// \brief Adds the MBB to the internal numbering. Returns the unique number
+  /// assigned to the MBB.
   ///
   unsigned addToMBBNumbering(MachineBasicBlock *MBB) {
     MBBNumbering.push_back(MBB);
@@ -347,7 +376,7 @@ public:
   /// implementation.
   void removeFromMBBNumbering(unsigned N) {
     assert(N < MBBNumbering.size() && "Illegal basic block #");
-    MBBNumbering[N] = 0;
+    MBBNumbering[N] = nullptr;
   }
 
   /// CreateMachineInstr - Allocate a new MachineInstr. Use this instead
@@ -372,7 +401,7 @@ public:
   /// CreateMachineBasicBlock - Allocate a new MachineBasicBlock. Use this
   /// instead of `new MachineBasicBlock'.
   ///
-  MachineBasicBlock *CreateMachineBasicBlock(const BasicBlock *bb = 0);
+  MachineBasicBlock *CreateMachineBasicBlock(const BasicBlock *bb = nullptr);
 
   /// DeleteMachineBasicBlock - Delete the given MachineBasicBlock.
   ///
@@ -384,8 +413,8 @@ public:
   MachineMemOperand *getMachineMemOperand(MachinePointerInfo PtrInfo,
                                           unsigned f, uint64_t s,
                                           unsigned base_alignment,
-                                          const MDNode *TBAAInfo = 0,
-                                          const MDNode *Ranges = 0);
+                                          const AAMDNodes &AAInfo = AAMDNodes(),
+                                          const MDNode *Ranges = nullptr);
   
   /// getMachineMemOperand - Allocate a new MachineMemOperand by copying
   /// an existing one, adjusting by an offset and using the given size.
@@ -393,6 +422,30 @@ public:
   /// explicitly deallocated.
   MachineMemOperand *getMachineMemOperand(const MachineMemOperand *MMO,
                                           int64_t Offset, uint64_t Size);
+
+  typedef ArrayRecycler<MachineOperand>::Capacity OperandCapacity;
+
+  /// Allocate an array of MachineOperands. This is only intended for use by
+  /// internal MachineInstr functions.
+  MachineOperand *allocateOperandArray(OperandCapacity Cap) {
+    return OperandRecycler.allocate(Cap, Allocator);
+  }
+
+  /// Dellocate an array of MachineOperands and recycle the memory. This is
+  /// only intended for use by internal MachineInstr functions.
+  /// Cap must be the same capacity that was used to allocate the array.
+  void deallocateOperandArray(OperandCapacity Cap, MachineOperand *Array) {
+    OperandRecycler.deallocate(Cap, Array);
+  }
+
+  /// \brief Allocate and initialize a register mask with @p NumRegister bits.
+  uint32_t *allocateRegisterMask(unsigned NumRegister) {
+    unsigned Size = (NumRegister + 31) / 32;
+    uint32_t *Mask = Allocator.Allocate<uint32_t>(Size);
+    for (unsigned i = 0; i != Size; ++i)
+      Mask[i] = 0;
+    return Mask;
+  }
 
   /// allocateMemRefsArray - Allocate an array to hold MachineMemOperand
   /// pointers.  This array is owned by the MachineFunction.

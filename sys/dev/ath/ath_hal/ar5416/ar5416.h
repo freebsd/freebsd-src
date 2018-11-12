@@ -132,7 +132,12 @@ struct ath_hal_5416 {
 	struct ar5416NfLimits nf_2g;
 	struct ar5416NfLimits nf_5g;
 
+	/*
+	 * TX power configuration related structures
+	 */
 	int		initPDADC;
+	int		ah_ht40PowerIncForPdadc;
+	int16_t		ah_ratesArray[Ar5416RateSize];
 
 	int		ah_need_an_top2_fixup;	/* merlin or later chips that may need this workaround */
 

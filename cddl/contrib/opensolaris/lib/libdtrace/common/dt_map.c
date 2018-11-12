@@ -23,7 +23,9 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ */
 
 #include <stdlib.h>
 #include <strings.h>
@@ -35,10 +37,82 @@
 #include <dt_printf.h>
 
 static int
+dt_strdata_add(dtrace_hdl_t *dtp, dtrace_recdesc_t *rec, void ***data, int *max)
+{
+	int maxformat, rval;
+	dtrace_fmtdesc_t fmt;
+	void *result;
+
+	if (rec->dtrd_format == 0)
+		return (0);
+
+	if (rec->dtrd_format <= *max &&
+	    (*data)[rec->dtrd_format - 1] != NULL) {
+		return (0);
+	}
+
+	bzero(&fmt, sizeof (fmt));
+	fmt.dtfd_format = rec->dtrd_format;
+	fmt.dtfd_string = NULL;
+	fmt.dtfd_length = 0;
+
+	if (dt_ioctl(dtp, DTRACEIOC_FORMAT, &fmt) == -1)
+		return (dt_set_errno(dtp, errno));
+
+	if ((fmt.dtfd_string = dt_alloc(dtp, fmt.dtfd_length)) == NULL)
+		return (dt_set_errno(dtp, EDT_NOMEM));
+
+	if (dt_ioctl(dtp, DTRACEIOC_FORMAT, &fmt) == -1) {
+		rval = dt_set_errno(dtp, errno);
+		free(fmt.dtfd_string);
+		return (rval);
+	}
+
+	while (rec->dtrd_format > (maxformat = *max)) {
+		int new_max = maxformat ? (maxformat << 1) : 1;
+		size_t nsize = new_max * sizeof (void *);
+		size_t osize = maxformat * sizeof (void *);
+		void **new_data = dt_zalloc(dtp, nsize);
+
+		if (new_data == NULL) {
+			dt_free(dtp, fmt.dtfd_string);
+			return (dt_set_errno(dtp, EDT_NOMEM));
+		}
+
+		bcopy(*data, new_data, osize);
+		free(*data);
+
+		*data = new_data;
+		*max = new_max;
+	}
+
+	switch (rec->dtrd_action) {
+	case DTRACEACT_DIFEXPR:
+		result = fmt.dtfd_string;
+		break;
+	case DTRACEACT_PRINTA:
+		result = dtrace_printa_create(dtp, fmt.dtfd_string);
+		dt_free(dtp, fmt.dtfd_string);
+		break;
+	default:
+		result = dtrace_printf_create(dtp, fmt.dtfd_string);
+		dt_free(dtp, fmt.dtfd_string);
+		break;
+	}
+
+	if (result == NULL)
+		return (-1);
+
+	(*data)[rec->dtrd_format - 1] = result;
+
+	return (0);
+}
+
+static int
 dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 {
 	dtrace_id_t max;
-	int rval, i, maxformat;
+	int rval, i;
 	dtrace_eprobedesc_t *enabled, *nenabled;
 	dtrace_probedesc_t *probe;
 
@@ -82,7 +156,7 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 	enabled->dtepd_epid = id;
 	enabled->dtepd_nrecs = 1;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_EPROBE, enabled) == -1) {
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_EPROBE, &enabled) == -1) {
@@ -106,7 +180,7 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 		if ((enabled = nenabled) == NULL)
 			return (dt_set_errno(dtp, EDT_NOMEM));
 
-#if defined(sun)
+#ifdef illumos
 		rval = dt_ioctl(dtp, DTRACEIOC_EPROBE, enabled);
 #else
 		rval = dt_ioctl(dtp, DTRACEIOC_EPROBE, &enabled);
@@ -132,71 +206,23 @@ dt_epid_add(dtrace_hdl_t *dtp, dtrace_epid_t id)
 	}
 
 	for (i = 0; i < enabled->dtepd_nrecs; i++) {
-		dtrace_fmtdesc_t fmt;
 		dtrace_recdesc_t *rec = &enabled->dtepd_rec[i];
 
-		if (!DTRACEACT_ISPRINTFLIKE(rec->dtrd_action))
-			continue;
-
-		if (rec->dtrd_format == 0)
-			continue;
-
-		if (rec->dtrd_format <= dtp->dt_maxformat &&
-		    dtp->dt_formats[rec->dtrd_format - 1] != NULL)
-			continue;
-
-		bzero(&fmt, sizeof (fmt));
-		fmt.dtfd_format = rec->dtrd_format;
-		fmt.dtfd_string = NULL;
-		fmt.dtfd_length = 0;
-
-		if (dt_ioctl(dtp, DTRACEIOC_FORMAT, &fmt) == -1) {
-			rval = dt_set_errno(dtp, errno);
-			goto err;
-		}
-
-		if ((fmt.dtfd_string = malloc(fmt.dtfd_length)) == NULL) {
-			rval = dt_set_errno(dtp, EDT_NOMEM);
-			goto err;
-		}
-
-		if (dt_ioctl(dtp, DTRACEIOC_FORMAT, &fmt) == -1) {
-			rval = dt_set_errno(dtp, errno);
-			free(fmt.dtfd_string);
-			goto err;
-		}
-
-		while (rec->dtrd_format > (maxformat = dtp->dt_maxformat)) {
-			int new_max = maxformat ? (maxformat << 1) : 1;
-			size_t nsize = new_max * sizeof (void *);
-			size_t osize = maxformat * sizeof (void *);
-			void **new_formats = malloc(nsize);
-
-			if (new_formats == NULL) {
-				rval = dt_set_errno(dtp, EDT_NOMEM);
-				free(fmt.dtfd_string);
+		if (DTRACEACT_ISPRINTFLIKE(rec->dtrd_action)) {
+			if (dt_strdata_add(dtp, rec, &dtp->dt_formats,
+			    &dtp->dt_maxformat) != 0) {
+				rval = -1;
 				goto err;
 			}
-
-			bzero(new_formats, nsize);
-			bcopy(dtp->dt_formats, new_formats, osize);
-			free(dtp->dt_formats);
-
-			dtp->dt_formats = new_formats;
-			dtp->dt_maxformat = new_max;
+		} else if (rec->dtrd_action == DTRACEACT_DIFEXPR) {
+			if (dt_strdata_add(dtp, rec,
+			    (void ***)&dtp->dt_strdata,
+			    &dtp->dt_maxstrdata) != 0) {
+				rval = -1;
+				goto err;
+			}
 		}
 
-		dtp->dt_formats[rec->dtrd_format - 1] =
-		    rec->dtrd_action == DTRACEACT_PRINTA ?
-		    dtrace_printa_create(dtp, fmt.dtfd_string) :
-		    dtrace_printf_create(dtp, fmt.dtfd_string);
-
-		free(fmt.dtfd_string);
-
-		if (dtp->dt_formats[rec->dtrd_format - 1] == NULL) {
-			rval = -1; /* dt_errno is set for us */
-			goto err;
-		}
 	}
 
 	dtp->dt_pdesc[id] = probe;
@@ -330,7 +356,7 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 		agg->dtagd_id = id;
 		agg->dtagd_nrecs = 1;
 
-#if defined(sun)
+#ifdef illumos
 		if (dt_ioctl(dtp, DTRACEIOC_AGGDESC, agg) == -1) {
 #else
 		if (dt_ioctl(dtp, DTRACEIOC_AGGDESC, &agg) == -1) {
@@ -353,7 +379,7 @@ dt_aggid_add(dtrace_hdl_t *dtp, dtrace_aggid_t id)
 			if ((agg = nagg) == NULL)
 				return (dt_set_errno(dtp, EDT_NOMEM));
 
-#if defined(sun)
+#ifdef illumos
 			rval = dt_ioctl(dtp, DTRACEIOC_AGGDESC, agg);
 #else
 			rval = dt_ioctl(dtp, DTRACEIOC_AGGDESC, &agg);
@@ -439,4 +465,29 @@ dt_aggid_destroy(dtrace_hdl_t *dtp)
 	free(dtp->dt_aggdesc);
 	dtp->dt_aggdesc = NULL;
 	dtp->dt_maxagg = 0;
+}
+
+const char *
+dt_strdata_lookup(dtrace_hdl_t *dtp, int idx)
+{
+	if (idx == 0 || idx > dtp->dt_maxstrdata)
+		return (NULL);
+
+	if (dtp->dt_strdata == NULL)
+		return (NULL);
+
+	return (dtp->dt_strdata[idx - 1]);
+}
+
+void
+dt_strdata_destroy(dtrace_hdl_t *dtp)
+{
+	int i;
+
+	for (i = 0; i < dtp->dt_maxstrdata; i++) {
+		free(dtp->dt_strdata[i]);
+	}
+
+	free(dtp->dt_strdata);
+	dtp->dt_strdata = NULL;
 }

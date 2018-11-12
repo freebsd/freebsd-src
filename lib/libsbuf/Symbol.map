@@ -22,3 +22,8 @@ FBSD_1.2 {
 	sbuf_done;
 	sbuf_delete;
 };
+
+FBSD_1.3 {
+	sbuf_start_section;
+	sbuf_end_section;
+};

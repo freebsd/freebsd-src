@@ -1,7 +1,8 @@
 # $Whistle: Makefile,v 1.5 1999/01/24 06:48:37 archie Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+SYSDIR?=${.CURDIR}/../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
 SUBDIR=	async \
 	atm \
@@ -18,7 +19,6 @@ SUBDIR=	async \
 	etf \
 	ether \
 	ether_echo \
-	fec \
 	frame_relay \
 	gif \
 	gif_demux \
@@ -58,7 +58,7 @@ SUBDIR=	async \
 _bluetooth=	bluetooth
 .endif
 
-.if ${MK_CRYPT} != "no" && exists(${.CURDIR}/../../crypto/rc4/rc4.c)
+.if ${MK_CRYPT} != "no" && exists(${SYSDIR}/crypto/rc4/rc4.c)
 _mppc=		mppc
 .endif
 

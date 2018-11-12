@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2012
+.Dd January 20, 2014
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -33,13 +33,13 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Op Fl bcev
+.Fl l Oo Fl bcevV Oc Op Ar device
 .Nm
-.Fl a Ar selector
+.Fl a Ar device
 .Nm
-.Fl r Oo Fl b | h Oc Ar selector addr Ns Op : Ns Ar addr2
+.Fl r Oo Fl b | h Oc Ar device addr Ns Op : Ns Ar addr2
 .Nm
-.Fl w Oo Fl b | h Oc Ar selector addr value
+.Fl w Oo Fl b | h Oc Ar device addr value
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,7 +54,9 @@ normally only the super-user.
 .Pp
 With the
 .Fl l
-option, it lists all devices found by the boot probe in the following format:
+option,
+.Nm
+lists PCI devices in the following format:
 .Bd -literal
 foo0@pci0:0:4:0: class=0x010000 card=0x00000000 chip=0x000f1000 rev=0x01 \
 hdr=0x00
@@ -65,16 +67,14 @@ hdr=0x00
 .Ed
 .Pp
 The first column gives the
-device name, unit number, and
-.Ar selector .
-If there is no device configured in the kernel for the
+driver name, unit number, and selector .
+If there is no driver attached to the
 .Tn PCI
-device in question, the device name will be
+device in question, the driver name will be
 .Dq none .
-Unit numbers for unconfigured devices start at zero and are incremented for
-each unconfigured device that is encountered.
-The
-.Ar selector
+Unit numbers for detached devices start at zero and are incremented for
+each detached device that is encountered.
+The selector
 is in a form which may directly be used for the other forms of the command.
 The second column is the class code, with the class byte printed as two
 hex digits, followed by the sub-class and the interface bytes.
@@ -182,18 +182,58 @@ option is supplied,
 will attempt to load the vendor/device information database, and print
 vendor, device, class and subclass identification strings for each device.
 .Pp
+If the
+.Fl V
+option is supplied,
+.Nm
+will list any vital product data
+.Pq VPD
+provided by each device.
+Each VPD keyword is enumerated via a line in the following format:
+.Bd -literal
+    VPD ro PN  = '110114640C0     '
+.Ed
+.Pp
+The first string after the
+.Dq Li VPD
+prefix indicates if the keyword is read-only
+.Dq ro
+or read-write
+.Dq rw .
+The second string provides the keyword name.
+The text after the the equals sign lists the value of the keyword which is
+usually an ASCII string.
+.Pp
+If the optional
+.Ar device
+argument is given with the
+.Fl l
+flag,
+.Nm
+will only list details about a single device instead of all devices.
+.Pp
 All invocations of
 .Nm
 except for
 .Fl l
 require a
-.Ar selector
-of the form
+.Ar device .
+The device can be identified either by a device name if the device is
+attached to a driver or by a selector.
+Selectors identify a PCI device by its address in PCI config space and
+can take one of the following forms:
+.Pp
+.Bl -bullet -offset indent -compact
+.It
 .Li pci Ns Va domain Ns \&: Ns Va bus Ns \&: Ns Va device Ns \&: \
-Ns Va function Ns ,
-.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns , or
-.Li pci Ns Va bus Ns \&: Ns Va device Ns .
-In case of an abridged form, omitted selector components are assumed to be 0.
+Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns \&: Ns Va function Ns
+.It
+.Li pci Ns Va bus Ns \&: Ns Va device Ns
+.El
+.Pp
+In the case of an abridged form, omitted selector components are assumed to be 0.
 An optional leading device name followed by @ and an optional final colon
 will be ignored; this is so that the first column in the output of
 .Nm

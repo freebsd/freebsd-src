@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -148,6 +148,7 @@ acl_copyin(void *user_acl, struct acl *kernel_acl, acl_type_t type)
 static int
 acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
 {
+	uint32_t am;
 	int error;
 	struct oldacl old;
 
@@ -162,8 +163,11 @@ acl_copyout(struct acl *kernel_acl, void *user_acl, acl_type_t type)
 		break;
 
 	default:
-		if (fuword32((char *)user_acl +
-		    offsetof(struct acl, acl_maxcnt)) != ACL_MAX_ENTRIES)
+		error = fueword32((char *)user_acl +
+		    offsetof(struct acl, acl_maxcnt), &am);
+		if (error == -1)
+			return (EFAULT);
+		if (am != ACL_MAX_ENTRIES)
 			return (EINVAL);
 
 		error = copyout(kernel_acl, user_acl, sizeof(*kernel_acl));
@@ -399,9 +403,11 @@ int
 sys___acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_GET, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes,
+	    cap_rights_init(&rights, CAP_ACL_GET), &fp);
 	if (error == 0) {
 		error = vacl_get_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
@@ -416,9 +422,11 @@ int
 sys___acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_SET, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes,
+	    cap_rights_init(&rights, CAP_ACL_SET), &fp);
 	if (error == 0) {
 		error = vacl_set_acl(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
@@ -469,10 +477,11 @@ int
 sys___acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_DELETE,
-	    &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes,
+	    cap_rights_init(&rights, CAP_ACL_DELETE), &fp);
 	if (error == 0) {
 		error = vacl_delete(td, fp->f_vnode, uap->type);
 		fdrop(fp, td);
@@ -523,10 +532,11 @@ int
 sys___acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = getvnode(td->td_proc->p_fd, uap->filedes, CAP_ACL_CHECK,
-	    &fp);
+	error = getvnode(td->td_proc->p_fd, uap->filedes,
+	    cap_rights_init(&rights, CAP_ACL_CHECK), &fp);
 	if (error == 0) {
 		error = vacl_aclcheck(td, fp->f_vnode, uap->type, uap->aclp);
 		fdrop(fp, td);
@@ -540,6 +550,9 @@ acl_alloc(int flags)
 	struct acl *aclp;
 
 	aclp = malloc(sizeof(*aclp), M_ACL, flags);
+	if (aclp == NULL)
+		return (NULL);
+
 	aclp->acl_maxcnt = ACL_MAX_ENTRIES;
 
 	return (aclp);

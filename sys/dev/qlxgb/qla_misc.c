@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2011 Qlogic Corporation
+ * Copyright (c) 2011-2013 Qlogic Corporation
  * All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -344,6 +344,17 @@ qla_rd_flash32(qla_host_t *ha, uint32_t addr, uint32_t *data)
 	return 0;
 }
 
+static int
+qla_p3p_sem_lock2(qla_host_t *ha)
+{
+        if (qla_sem_lock(ha, Q8_SEM2_LOCK, 0, 0)) {
+                device_printf(ha->pci_dev, "%s: SEM2_LOCK failed\n", __func__);
+                return (-1);
+        }
+        WRITE_OFFSET32(ha, Q8_ROM_LOCKID, 0xa5a5a5a5);
+        return (0);
+}
+
 /*
  * Name: qla_int_to_pci_addr_map
  * Function: Convert's Internal(CRB) Address to Indirect Address
@@ -402,7 +413,7 @@ qla_filter_pci_addr(qla_host_t *ha, uint32_t addr)
 static int
 qla_crb_init(qla_host_t *ha)
 {
-	uint32_t val, sig;
+	uint32_t val = 0, sig = 0;
 	uint32_t offset, count, i;
 	addr_val_t *addr_val_map, *avmap;
 
@@ -611,6 +622,21 @@ qla_init_hw(qla_host_t *ha)
 	if (val != CMDPEG_PHAN_INIT_COMPLETE) {
         	ret = qla_init_from_flash(ha);
 		qla_mdelay(__func__, 100);
+	} else {
+        	ha->fw_ver_major = READ_OFFSET32(ha, Q8_FW_VER_MAJOR);
+        	ha->fw_ver_minor = READ_OFFSET32(ha, Q8_FW_VER_MINOR);
+		ha->fw_ver_sub = READ_OFFSET32(ha, Q8_FW_VER_SUB);
+
+		if (qla_rd_flash32(ha, 0x100004, &val) == 0) {
+
+			if (((val & 0xFF) != ha->fw_ver_major) ||
+				(((val >> 8) & 0xFF) != ha->fw_ver_minor) ||
+				(((val >> 16) & 0xFF) != ha->fw_ver_sub)) {
+
+        			ret = qla_init_from_flash(ha);
+				qla_mdelay(__func__, 100);
+			}
+		}
 	}
 
 qla_init_exit:
@@ -620,5 +646,405 @@ qla_init_exit:
         ha->fw_ver_build = READ_OFFSET32(ha, Q8_FW_VER_BUILD);
 
         return (ret);
+}
+
+static int
+qla_wait_for_flash_busy(qla_host_t *ha)
+{
+	uint32_t count = 100;
+	uint32_t val;
+
+	QLA_USEC_DELAY(100);
+
+	while (count--) {
+		val = READ_OFFSET32(ha, Q8_ROM_STATUS);
+
+		if (val & BIT_1)
+			return 0;
+		qla_mdelay(__func__, 1);
+	}
+	return -1;
+}
+
+static int
+qla_flash_write_enable(qla_host_t *ha)
+{
+	uint32_t val, rval;
+
+	val = 0;
+	qla_rdwr_indreg32(ha, Q8_ROM_ADDR_BYTE_COUNT, &val, 0);
+
+	val = ROM_OPCODE_WR_ENABLE;
+	qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+
+	rval = qla_wait_for_flash_busy(ha);
+
+	if (rval)
+		device_printf(ha->pci_dev, "%s: failed \n", __func__);
+
+	return (rval);
+}
+
+static int
+qla_flash_unprotect(qla_host_t *ha)
+{
+	uint32_t val, rval;
+
+	if (qla_flash_write_enable(ha) != 0) 
+		return(-1);
+
+	val = 0;
+	qla_rdwr_indreg32(ha, Q8_ROM_WR_DATA, &val, 0);
+
+	val = ROM_OPCODE_WR_STATUS_REG;
+	qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+	
+	rval = qla_wait_for_flash_busy(ha);
+
+	if (rval) {
+		device_printf(ha->pci_dev, "%s: failed \n", __func__);
+		return rval;
+	}
+
+	if (qla_flash_write_enable(ha) != 0) 
+		return(-1);
+
+	val = 0;
+	qla_rdwr_indreg32(ha, Q8_ROM_WR_DATA, &val, 0);
+
+	val = ROM_OPCODE_WR_STATUS_REG;
+	qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+	
+	rval = qla_wait_for_flash_busy(ha);
+
+	if (rval)
+		device_printf(ha->pci_dev, "%s: failed \n", __func__);
+
+	return rval;
+}
+
+static int
+qla_flash_protect(qla_host_t *ha)
+{
+	uint32_t val, rval;
+
+	if (qla_flash_write_enable(ha) != 0) 
+		return(-1);
+
+	val = 0x9C;
+	qla_rdwr_indreg32(ha, Q8_ROM_WR_DATA, &val, 0);
+
+	val = ROM_OPCODE_WR_STATUS_REG;
+	qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+	
+	rval = qla_wait_for_flash_busy(ha);
+
+	if (rval)
+		device_printf(ha->pci_dev, "%s: failed \n", __func__);
+
+	return rval;
+}
+
+static uint32_t
+qla_flash_get_status(qla_host_t *ha)
+{
+	uint32_t count = 1000;
+	uint32_t val, rval;
+
+	while (count--) {
+		val = 0;
+		qla_rdwr_indreg32(ha, Q8_ROM_ADDR_BYTE_COUNT, &val, 0);
+			
+		val = ROM_OPCODE_RD_STATUS_REG;
+		qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+	
+		rval = qla_wait_for_flash_busy(ha);
+
+		if (rval == 0) {
+			qla_rdwr_indreg32(ha, Q8_ROM_RD_DATA, &val, 1);
+
+			if ((val & BIT_0) == 0)
+				return (val);
+		}
+		qla_mdelay(__func__, 1);
+	}
+	return -1;
+}
+
+static int
+qla_wait_for_flash_unprotect(qla_host_t *ha)
+{
+	uint32_t delay = 1000;
+
+	while (delay--) {
+
+		if (qla_flash_get_status(ha) == 0)
+			return 0;
+
+		qla_mdelay(__func__, 1);
+	}
+
+	return -1;
+}
+
+static int
+qla_wait_for_flash_protect(qla_host_t *ha)
+{
+	uint32_t delay = 1000;
+
+	while (delay--) {
+
+		if (qla_flash_get_status(ha) == 0x9C)
+			return 0;
+
+		qla_mdelay(__func__, 1);
+	}
+
+	return -1;
+}
+
+static int
+qla_erase_flash_sector(qla_host_t *ha, uint32_t start)
+{
+	uint32_t val;
+	int rval;
+
+	if (qla_flash_write_enable(ha) != 0) 
+		return(-1);
+
+        val = start;
+        qla_rdwr_indreg32(ha, Q8_ROM_ADDRESS, &val, 0);
+
+        val = 3;
+        qla_rdwr_indreg32(ha, Q8_ROM_ADDR_BYTE_COUNT, &val, 0);
+
+        val = ROM_OPCODE_SECTOR_ERASE;
+        qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+
+	rval = qla_wait_for_flash_busy(ha);
+
+	if (rval)
+		device_printf(ha->pci_dev, "%s: failed \n", __func__);
+	return rval;
+}
+
+#define Q8_FLASH_SECTOR_SIZE 0x10000
+int
+qla_erase_flash(qla_host_t *ha, uint32_t off, uint32_t size)
+{
+	int rval = 0;
+	uint32_t start;
+
+	if (off & (Q8_FLASH_SECTOR_SIZE -1))
+		return -1;
+
+	if ((rval = qla_p3p_sem_lock2(ha)))
+		goto qla_erase_flash_exit;
+
+	if ((rval = qla_flash_unprotect(ha)))
+		goto qla_erase_flash_unlock_exit;
+
+	if ((rval = qla_wait_for_flash_unprotect(ha)))
+		goto qla_erase_flash_unlock_exit;
+
+	for (start = off; start < (off + size); start = start + 0x10000) {
+		if (qla_erase_flash_sector(ha, start)) {
+			rval = -1;
+			break;
+		}
+	}
+
+	rval = qla_flash_protect(ha);
+
+qla_erase_flash_unlock_exit:
+	qla_sem_unlock(ha, Q8_SEM2_UNLOCK);
+
+qla_erase_flash_exit:
+	return (rval);
+}
+
+static int
+qla_flash_write32(qla_host_t *ha, uint32_t off, uint32_t data)
+{
+	uint32_t val;
+	int rval = 0;
+
+        val = data;
+        qla_rdwr_indreg32(ha, Q8_ROM_WR_DATA, &val, 0);
+
+        val = off;
+        qla_rdwr_indreg32(ha, Q8_ROM_ADDRESS, &val, 0);
+
+        val = 3;
+        qla_rdwr_indreg32(ha, Q8_ROM_ADDR_BYTE_COUNT, &val, 0);
+
+        val = ROM_OPCODE_PROG_PAGE;
+        qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+
+	rval = qla_wait_for_flash_busy(ha);
+
+	if (rval)
+		device_printf(ha->pci_dev, "%s: failed \n", __func__);
+
+	return rval;
+}
+
+static int
+qla_flash_wait_for_write_complete(qla_host_t *ha)
+{
+	uint32_t val, count = 1000;
+	int rval = 0;
+
+	while (count--) {
+
+		val = 0;
+		qla_rdwr_indreg32(ha, Q8_ROM_ADDR_BYTE_COUNT, &val, 0);
+
+		val = ROM_OPCODE_RD_STATUS_REG;
+		qla_rdwr_indreg32(ha, Q8_ROM_INSTR_OPCODE, &val, 0);
+
+		
+		rval = qla_wait_for_flash_busy(ha);
+
+		if (rval == 0) {
+			qla_rdwr_indreg32(ha, Q8_ROM_RD_DATA, &val, 1);
+
+			if ((val & BIT_0) == 0)
+				return (0);
+		}
+		qla_mdelay(__func__, 1);
+	}
+	return -1;
+}
+
+static int
+qla_flash_write(qla_host_t *ha, uint32_t off, uint32_t data)
+{
+	if (qla_flash_write_enable(ha) != 0) 
+		return(-1);
+
+	if (qla_flash_write32(ha, off, data) != 0)
+		return -1;
+
+	if (qla_flash_wait_for_write_complete(ha))
+		return -1;
+
+	return 0;
+}
+
+
+static int
+qla_flash_write_pattern(qla_host_t *ha, uint32_t off, uint32_t size,
+	uint32_t pattern)
+{
+	int rval = 0;
+	uint32_t start;
+
+
+	if ((rval = qla_p3p_sem_lock2(ha)))
+		goto qla_wr_pattern_exit;
+
+	if ((rval = qla_flash_unprotect(ha)))
+		goto qla_wr_pattern_unlock_exit;
+
+	if ((rval = qla_wait_for_flash_unprotect(ha)))
+		goto qla_wr_pattern_unlock_exit;
+
+	for (start = off; start < (off + size); start = start + 4) {
+		if (qla_flash_write(ha, start, pattern)) {
+			rval = -1;
+			break;
+		}
+	}
+
+	rval = qla_flash_protect(ha);
+
+	if (rval == 0)
+		rval = qla_wait_for_flash_protect(ha);
+
+qla_wr_pattern_unlock_exit:
+	qla_sem_unlock(ha, Q8_SEM2_UNLOCK);
+
+qla_wr_pattern_exit:
+	return (rval);
+}
+
+static int
+qla_flash_write_data(qla_host_t *ha, uint32_t off, uint32_t size,
+	void *data)
+{
+	int rval = 0;
+	uint32_t start;
+	uint32_t *data32 = data;
+
+
+	if ((rval = qla_p3p_sem_lock2(ha)))
+		goto qla_wr_pattern_exit;
+
+	if ((rval = qla_flash_unprotect(ha)))
+		goto qla_wr_pattern_unlock_exit;
+
+	if ((rval = qla_wait_for_flash_unprotect(ha)))
+		goto qla_wr_pattern_unlock_exit;
+
+	for (start = off; start < (off + size); start = start + 4) {
+		
+		if (*data32 != 0xFFFFFFFF) {
+			if (qla_flash_write(ha, start, *data32)) {
+				rval = -1;
+				break;
+			}
+		}
+		data32++;
+	}
+
+	rval = qla_flash_protect(ha);
+
+	if (rval == 0)
+		rval = qla_wait_for_flash_protect(ha);
+
+qla_wr_pattern_unlock_exit:
+	qla_sem_unlock(ha, Q8_SEM2_UNLOCK);
+
+qla_wr_pattern_exit:
+	return (rval);
+}
+ 
+int
+qla_wr_flash_buffer(qla_host_t *ha, uint32_t off, uint32_t size, void *buf,
+	uint32_t pattern)
+{
+	int rval = 0;
+	void *data;
+
+
+	if (size == 0)
+		return 0;
+
+	size = size << 2;
+
+	if (buf == NULL) {
+		rval = qla_flash_write_pattern(ha, off, size, pattern);
+		return (rval);
+	}
+
+	if ((data = malloc(size, M_QLA8XXXBUF, M_NOWAIT)) == NULL) {
+		device_printf(ha->pci_dev, "%s: malloc failed \n", __func__);
+		rval = -1;
+		goto qla_wr_flash_buffer_exit;
+	}
+
+	if ((rval = copyin(buf, data, size))) {
+		device_printf(ha->pci_dev, "%s copyin failed\n", __func__);
+		goto qla_wr_flash_buffer_free_exit;
+	}
+
+	rval = qla_flash_write_data(ha, off, size, data);
+
+qla_wr_flash_buffer_free_exit:
+	free(data, M_QLA8XXXBUF);
+
+qla_wr_flash_buffer_exit:
+	return (rval);
 }
 

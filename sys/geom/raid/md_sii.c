@@ -277,15 +277,13 @@ sii_meta_read(struct g_consumer *cp)
 		    pp->name, error);
 		return (NULL);
 	}
-	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK);
-	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
-	g_free(buf);
+	meta = (struct sii_raid_conf *)buf;
 
 	/* Check vendor ID. */
 	if (meta->vendor_id != 0x1095) {
 		G_RAID_DEBUG(1, "SiI vendor ID check failed on %s (0x%04x)",
 		    pp->name, meta->vendor_id);
-		free(meta, M_MD_SII);
+		g_free(buf);
 		return (NULL);
 	}
 
@@ -293,9 +291,12 @@ sii_meta_read(struct g_consumer *cp)
 	if (meta->version_major != 2) {
 		G_RAID_DEBUG(1, "SiI version check failed on %s (%d.%d)",
 		    pp->name, meta->version_major, meta->version_minor);
-		free(meta, M_MD_SII);
+		g_free(buf);
 		return (NULL);
 	}
+	meta = malloc(sizeof(*meta), M_MD_SII, M_WAITOK);
+	memcpy(meta, buf, min(sizeof(*meta), pp->sectorsize));
+	g_free(buf);
 
 	/* Check metadata checksum. */
 	for (checksum = 0, ptr = (uint16_t *)meta, i = 0; i <= 159; i++)
@@ -922,16 +923,13 @@ g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
 
 	/* Read metadata from device. */
 	meta = NULL;
-	vendor = 0xffff;
-	if (g_access(cp, 1, 0, 0) != 0)
-		return (G_RAID_MD_TASTE_FAIL);
 	g_topology_unlock();
-	len = 2;
+	vendor = 0xffff;
+	len = sizeof(vendor);
 	if (pp->geom->rank == 1)
 		g_io_getattr("GEOM::hba_vendor", cp, &len, &vendor);
 	meta = sii_meta_read(cp);
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
 			if (vendor == 0x1095) {
@@ -1011,7 +1009,11 @@ search:
 		G_RAID_DEBUG1(1, sc, "root_mount_hold %p", mdi->mdio_rootmount);
 	}
 
+	/* There is no return after this point, so we close passed consumer. */
+	g_access(cp, -1, 0, 0);
+
 	rcp = g_new_consumer(geom);
+	rcp->flags |= G_CF_DIRECT_RECEIVE;
 	g_attach(rcp, pp);
 	if (g_access(rcp, 1, 1, 1) != 0)
 		; //goto fail1;

@@ -43,19 +43,26 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 
+#include <machine/armreg.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/smp.h>
 #include <machine/pcb.h>
+#include <machine/pmap.h>
 #include <machine/pte.h>
+#include <machine/physmem.h>
 #include <machine/intr.h>
 #include <machine/vmparam.h>
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 #include <machine/vfp.h>
+#endif
+#ifdef CPU_MV_PJ4B
+#include <arm/mv/mvwin.h>
+#include <dev/fdt/fdt_common.h>
 #endif
 
 #include "opt_smp.h"
 
-void *temp_pagetable;
 extern struct pcpu __pcpu[];
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -105,31 +112,17 @@ void
 cpu_mp_start(void)
 {
 	int error, i;
-	vm_offset_t temp_pagetable_va;
-	vm_paddr_t addr, addr_end;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* Reserve memory for application processors */
 	for(i = 0; i < (mp_ncpus - 1); i++)
-		dpcpu[i] = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
-	temp_pagetable_va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE,
-	    M_TEMP, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
-	addr = KERNPHYSADDR;
-	addr_end = (vm_offset_t)&_end - KERNVIRTADDR + KERNPHYSADDR;
-	addr_end &= ~L1_S_OFFSET;
-	addr_end += L1_S_SIZE;
-	bzero((void *)temp_pagetable_va,  L1_TABLE_SIZE);
-	for (addr = KERNPHYSADDR; addr <= addr_end; addr += L1_S_SIZE) { 
-		((int *)(temp_pagetable_va))[addr >> L1_S_SHIFT] =
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
-		((int *)(temp_pagetable_va))[(addr -
-			KERNPHYSADDR + KERNVIRTADDR) >> L1_S_SHIFT] = 
-		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
-	}
-	temp_pagetable = (void*)(vtophys(temp_pagetable_va));
+		dpcpu[i] = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
+
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
+	cpu_idcache_wbinv_all();
 
 	/* Initialize boot code and start up processors */
 	platform_mp_start_ap();
@@ -142,7 +135,6 @@ cpu_mp_start(void)
 		for (i = 1; i < mp_ncpus; i++)
 			CPU_SET(i, &all_cpus);
 
-	contigfree((void *)temp_pagetable_va, L1_TABLE_SIZE, M_TEMP);
 }
 
 /* Introduce rest of cores to the world */
@@ -160,19 +152,35 @@ init_secondary(int cpu)
 	uint32_t loop_counter;
 	int start = 0, end = 0;
 
-	cpu_setup(NULL);
-	setttb(pmap_pa);
-	cpu_tlb_flushID();
-
-	pc = &__pcpu[cpu];
-	set_pcpu(pc);
-	pcpu_init(pc, cpu, sizeof(struct pcpu));
-
-	dpcpu_init(dpcpu[cpu - 1], cpu);
+#ifdef ARM_NEW_PMAP
+	pmap_set_tex();
+	reinit_mmu(pmap_kern_ttb, (1<<6) | (1<< 0), (1<<6) | (1<< 0));
+	cpu_setup("");
 
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);
 
+	enable_interrupts(PSR_A);
+#else /* ARM_NEW_PMAP */
+	cpu_setup(NULL);
+	setttb(pmap_pa);
+	cpu_tlb_flushID();
+#endif /* ARM_NEW_PMAP */
+	pc = &__pcpu[cpu];
+
+	/*
+	 * pcpu_init() updates queue, so it should not be executed in parallel
+	 * on several cores
+	 */
+	while(mp_naps < (cpu - 1))
+		;
+
+	pcpu_init(pc, cpu, sizeof(struct pcpu));
+	dpcpu_init(dpcpu[cpu - 1], cpu);
+#ifndef ARM_NEW_PMAP
+	/* Provide stack pointers for other processor modes. */
+	set_stackptrs(cpu);
+#endif
 	/* Signal our startup to BSP */
 	atomic_add_rel_32(&mp_naps, 1);
 
@@ -184,7 +192,8 @@ init_secondary(int cpu)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pc->pc_curthread = pc->pc_idlethread;
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
-#ifdef ARM_VFP_SUPPORT
+	set_curthread(pc->pc_idlethread);
+#ifdef VFP
 	pc->pc_cpu = cpu;
 
 	vfp_init();
@@ -197,7 +206,6 @@ init_secondary(int cpu)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
@@ -214,7 +222,7 @@ init_secondary(int cpu)
 				
 	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
-	enable_interrupts(I32_bit);
+	enable_interrupts(PSR_I);
 
 	loop_counter = 0;
 	while (smp_started == 0) {
@@ -243,7 +251,7 @@ ipi_handler(void *arg)
 
 	cpu = PCPU_GET(cpuid);
 
-	ipi = pic_ipi_get((int)arg);
+	ipi = pic_ipi_read((int)arg);
 
 	while ((ipi != 0x3ff)) {
 		switch (ipi) {
@@ -257,7 +265,6 @@ ipi_handler(void *arg)
 			break;
 
 		case IPI_STOP:
-		case IPI_STOP_HARD:
 			/*
 			 * IPI_STOP_HARD is mapped to IPI_STOP so it is not
 			 * necessary to add it in the switch.
@@ -265,6 +272,19 @@ ipi_handler(void *arg)
 			CTR0(KTR_SMP, "IPI_STOP or IPI_STOP_HARD");
 
 			savectx(&stoppcbs[cpu]);
+
+			/*
+			 * CPUs are stopped when entering the debugger and at
+			 * system shutdown, both events which can precede a
+			 * panic dump.  For the dump to be correct, all caches
+			 * must be flushed and invalidated, but on ARM there's
+			 * no way to broadcast a wbinv_all to other cores.
+			 * Instead, we have each core do the local wbinv_all as
+			 * part of stopping the core.  The core requesting the
+			 * stop will do the l2 cache flush after all other cores
+			 * have done their l1 flushes and stopped.
+			 */
+			cpu_idcache_wbinv_all();
 
 			/* Indicate we are stopped */
 			CPU_SET_ATOMIC(cpu, &stopped_cpus);
@@ -289,12 +309,18 @@ ipi_handler(void *arg)
 			CTR1(KTR_SMP, "%s: IPI_TLB", __func__);
 			cpufuncs.cf_tlb_flushID();
 			break;
+#ifdef ARM_NEW_PMAP
+		case IPI_LAZYPMAP:
+			CTR1(KTR_SMP, "%s: IPI_LAZYPMAP", __func__);
+			pmap_lazyfix_action();
+			break;
+#endif
 		default:
 			panic("Unknown IPI 0x%0x on cpu %d", ipi, curcpu);
 		}
 
 		pic_ipi_clear(ipi);
-		ipi = pic_ipi_get(-1);
+		ipi = pic_ipi_read(-1);
 	}
 
 	return (FILTER_HANDLED);
@@ -350,7 +376,7 @@ struct cpu_group *
 cpu_topo(void)
 {
 
-	return (smp_topo_1level(CG_SHARE_L2, 1, 0));
+	return (smp_topo_1level(CG_SHARE_L2, mp_ncpus, 0));
 }
 
 void

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1999-2000,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,12 +34,11 @@
  */
 
 #include <curses.priv.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: trace_xnames.c,v 1.5 2000/12/10 03:02:45 tom Exp $")
+MODULE_ID("$Id: trace_xnames.c,v 1.6 2010/01/23 17:59:27 tom Exp $")
 
 NCURSES_EXPORT(void)
-_nc_trace_xnames(TERMTYPE * tp GCC_UNUSED)
+_nc_trace_xnames(TERMTYPE *tp GCC_UNUSED)
 {
 #ifdef TRACE
 #if NCURSES_XNAMES

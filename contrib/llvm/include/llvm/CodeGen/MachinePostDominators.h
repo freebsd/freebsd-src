@@ -15,16 +15,14 @@
 #ifndef LLVM_CODEGEN_MACHINEPOSTDOMINATORS_H
 #define LLVM_CODEGEN_MACHINEPOSTDOMINATORS_H
 
-#include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/Analysis/Dominators.h"
-#include "llvm/Analysis/DominatorInternals.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
 
 namespace llvm {
 
 ///
 /// PostDominatorTree Class - Concrete subclass of DominatorTree that is used
-/// to compute the a post-dominator tree.
+/// to compute the post-dominator tree.
 ///
 struct MachinePostDominatorTree : public MachineFunctionPass {
 private:
@@ -55,32 +53,33 @@ public:
     return DT->getNode(BB);
   }
 
-  bool dominates(MachineDomTreeNode *A, MachineDomTreeNode *B) const {
+  bool dominates(const MachineDomTreeNode *A,
+                 const MachineDomTreeNode *B) const {
     return DT->dominates(A, B);
   }
 
-  bool dominates(MachineBasicBlock *A, MachineBasicBlock *B) const {
+  bool dominates(const MachineBasicBlock *A, const MachineBasicBlock *B) const {
     return DT->dominates(A, B);
   }
 
-  bool
-  properlyDominates(const MachineDomTreeNode *A, MachineDomTreeNode *B) const {
+  bool properlyDominates(const MachineDomTreeNode *A,
+                         const MachineDomTreeNode *B) const {
     return DT->properlyDominates(A, B);
   }
 
-  bool
-  properlyDominates(MachineBasicBlock *A, MachineBasicBlock *B) const {
+  bool properlyDominates(const MachineBasicBlock *A,
+                         const MachineBasicBlock *B) const {
     return DT->properlyDominates(A, B);
   }
 
   MachineBasicBlock *findNearestCommonDominator(MachineBasicBlock *A,
-                                                       MachineBasicBlock *B) {
+                                                MachineBasicBlock *B) {
     return DT->findNearestCommonDominator(A, B);
   }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-  virtual void print(llvm::raw_ostream &OS, const Module *M = 0) const;
+  bool runOnMachineFunction(MachineFunction &MF) override;
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  void print(llvm::raw_ostream &OS, const Module *M = nullptr) const override;
 };
 } //end of namespace llvm
 

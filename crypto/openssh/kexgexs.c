@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.14 2010/11/10 01:33:07 djm Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.19 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -68,10 +68,6 @@ kexgex_server(Kex *kex)
 	if (server_host_public == NULL)
 		fatal("Unsupported hostkey type %d", kex->hostkey_type);
 	server_host_private = kex->load_host_private_key(kex->hostkey_type);
-	if (server_host_private == NULL)
-		fatal("Missing private key for hostkey type %d",
-		    kex->hostkey_type);
-
 
 	type = packet_read();
 	switch (type) {
@@ -154,8 +150,8 @@ kexgex_server(Kex *kex)
 		fatal("kexgex_server: BN_new failed");
 	if (BN_bin2bn(kbuf, kout, shared_secret) == NULL)
 		fatal("kexgex_server: BN_bin2bn failed");
-	memset(kbuf, 0, klen);
-	xfree(kbuf);
+	explicit_bzero(kbuf, klen);
+	free(kbuf);
 
 	key_to_blob(server_host_public, &server_host_key_blob, &sbloblen);
 
@@ -164,7 +160,7 @@ kexgex_server(Kex *kex)
 
 	/* calc H */
 	kexgex_hash(
-	    kex->evp_md,
+	    kex->hash_alg,
 	    kex->client_version_string,
 	    kex->server_version_string,
 	    buffer_ptr(&kex->peer), buffer_len(&kex->peer),
@@ -187,9 +183,8 @@ kexgex_server(Kex *kex)
 	}
 
 	/* sign H */
-	if (PRIVSEP(key_sign(server_host_private, &signature, &slen, hash,
-	    hashlen)) < 0)
-		fatal("kexgex_server: key_sign failed");
+	kex->sign(server_host_private, server_host_public, &signature, &slen,
+	    hash, hashlen);
 
 	/* destroy_sensitive_data(); */
 
@@ -201,12 +196,12 @@ kexgex_server(Kex *kex)
 	packet_put_string(signature, slen);
 	packet_send();
 
-	xfree(signature);
-	xfree(server_host_key_blob);
+	free(signature);
+	free(server_host_key_blob);
 	/* have keys, free DH */
 	DH_free(dh);
 
-	kex_derive_keys(kex, hash, hashlen, shared_secret);
+	kex_derive_keys_bn(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 
 	kex_finish(kex);

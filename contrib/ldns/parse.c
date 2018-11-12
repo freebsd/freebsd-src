@@ -135,7 +135,7 @@ ldns_fget_token_l(FILE *f, char *token, const char *delim, size_t limit, int *li
 		if (c != '\0' && c != '\n') {
 			i++;
 		}
-		if (limit > 0 && i >= limit) {
+		if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
 			*t = '\0';
 			return -1;
 		}
@@ -308,7 +308,7 @@ ldns_bget_token(ldns_buffer *b, char *token, const char *delim, size_t limit)
 		}
 
 		i++;
-		if (limit > 0 && i >= limit) {
+		if (limit > 0 && (i >= limit || (size_t)(t-token) >= limit)) {
 			*t = '\0';
 			return -1;
 		}
@@ -340,20 +340,6 @@ tokenread:
 	return (ssize_t)i;
 }
 
-#if 0
-static void
-ldns_bskipc(ldns_buffer *buffer, char c)
-{
-        while (c == (char) ldns_buffer_read_u8_at(buffer, ldns_buffer_position(buffer))) {
-                if (ldns_buffer_available_at(buffer,
-					buffer->_position + sizeof(char), sizeof(char))) {
-                        buffer->_position += sizeof(char);
-                } else {
-                        return;
-                }
-        }
-}
-#endif
 
 void
 ldns_bskipcs(ldns_buffer *buffer, const char *s)
@@ -377,13 +363,6 @@ ldns_bskipcs(ldns_buffer *buffer, const char *s)
                 }
         }
 }
-
-#if 0
-static void
-ldns_fskipc(ATTR_UNUSED(FILE *fp), ATTR_UNUSED(char c))
-{
-}
-#endif
 
 void
 ldns_fskipcs(FILE *fp, const char *s)

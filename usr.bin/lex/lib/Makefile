@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
+
+.PATH:	${.CURDIR}/../../../contrib/flex
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c
 NO_PIC=
-
-WARNS?=	2
 
 .if ${MK_INSTALLLIB} != "no"
 LINKS=  ${LIBDIR}/libln.a ${LIBDIR}/libl.a

@@ -39,6 +39,7 @@
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
 #include <sys/_mutex.h>
+#include <sys/_sx.h>
 #endif
 
 /*
@@ -259,6 +260,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_NOCLUSTERR	0x0000000040000000ULL /* disable cluster read */
 #define	MNT_NOCLUSTERW	0x0000000080000000ULL /* disable cluster write */
 #define	MNT_SUJ		0x0000000100000000ULL /* using journaled soft updates */
+#define	MNT_AUTOMOUNTED	0x0000000200000000ULL /* mounted by automountd(8) */
 
 /*
  * NFS export related mount flags.
@@ -295,7 +297,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
 			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS	| \
-			MNT_NFS4ACLS)
+			MNT_NFS4ACLS	| MNT_AUTOMOUNTED)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -303,7 +305,8 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| \
 			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
-			MNT_ACLS	| MNT_USER | MNT_NFS4ACLS)
+			MNT_ACLS	| MNT_USER	| MNT_NFS4ACLS	| \
+			MNT_AUTOMOUNTED)
 
 /*
  * External filesystem command modifier flags.
@@ -351,18 +354,32 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNTK_VGONE_WAITER	0x00000400
 #define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
 #define	MNTK_MARKER		0x00001000
+#define	MNTK_UNMAPPED_BUFS	0x00002000
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
+#define	MNTK_SUSPENDABLE	0x20000000 /* writes can be suspended */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
-#define	MNT_SHARED_WRITES(mp) (((mp) != NULL) && 	\
-				((mp)->mnt_kern_flag & MNTK_SHARED_WRITES))
+#ifdef _KERNEL
+static inline int
+MNT_SHARED_WRITES(struct mount *mp)
+{
+
+	return (mp != NULL && (mp->mnt_kern_flag & MNTK_SHARED_WRITES) != 0);
+}
+
+static inline int
+MNT_EXTENDED_SHARED(struct mount *mp)
+{
+
+	return (mp != NULL && (mp->mnt_kern_flag & MNTK_EXTENDED_SHARED) != 0);
+}
+#endif
 
 /*
  * Sysctl CTL_VFS definitions.
@@ -607,7 +624,8 @@ typedef	int vfs_mount_t(struct mount *mp);
 typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
 typedef void vfs_susp_clean_t(struct mount *mp);
-typedef void vfs_reclaim_lowervp_t(struct mount *mp, struct vnode *lowervp);
+typedef void vfs_notify_lowervp_t(struct mount *mp, struct vnode *lowervp);
+typedef void vfs_purge_t(struct mount *mp);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -625,16 +643,21 @@ struct vfsops {
 	vfs_extattrctl_t	*vfs_extattrctl;
 	vfs_sysctl_t		*vfs_sysctl;
 	vfs_susp_clean_t	*vfs_susp_clean;
-	vfs_reclaim_lowervp_t	*vfs_reclaim_lowervp;
+	vfs_notify_lowervp_t	*vfs_reclaim_lowervp;
+	vfs_notify_lowervp_t	*vfs_unlink_lowervp;
+	vfs_purge_t		*vfs_purge;
+	vfs_mount_t		*vfs_spare[6];	/* spares for ABI compat */
 };
 
 vfs_statfs_t	__vfs_statfs;
 
 #define	VFS_PROLOGUE(MP)	do {					\
+	struct mount *mp__;						\
 	int _enable_stops;						\
 									\
-	_enable_stops = ((MP) != NULL &&				\
-	    ((MP)->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
+	mp__ = (MP);							\
+	_enable_stops = (mp__ != NULL &&				\
+	    (mp__->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
 
 #define	VFS_EPILOGUE(MP)						\
 	if (_enable_stops)						\
@@ -746,6 +769,22 @@ vfs_statfs_t	__vfs_statfs;
 	}								\
 } while (0)
 
+#define	VFS_UNLINK_LOWERVP(MP, VP) do {					\
+	if (*(MP)->mnt_op->vfs_unlink_lowervp != NULL) {		\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_unlink_lowervp)((MP), (VP));	\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
+#define	VFS_PURGE(MP) do {						\
+	if (*(MP)->mnt_op->vfs_purge != NULL) {				\
+		VFS_PROLOGUE(MP);					\
+		(*(MP)->mnt_op->vfs_purge)(MP);				\
+		VFS_EPILOGUE(MP);					\
+	}								\
+} while (0)
+
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
@@ -757,6 +796,9 @@ vfs_statfs_t	__vfs_statfs;
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
 		VN_KNOTE((vp), (hint), 0);				\
 } while (0)
+
+#define	VFS_NOTIFY_UPPER_RECLAIM	1
+#define	VFS_NOTIFY_UPPER_UNLINK		2
 
 #include <sys/module.h>
 
@@ -781,8 +823,6 @@ vfs_statfs_t	__vfs_statfs;
 		& fsname ## _vfsconf				\
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
-
-extern	char *mountrootfsname;
 
 /*
  * exported vnode operations
@@ -839,6 +879,7 @@ int	vfs_modevent(module_t, int, void *);
 void	vfs_mount_error(struct mount *, const char *, ...);
 void	vfs_mountroot(void);			/* mount our root filesystem */
 void	vfs_mountedfrom(struct mount *, const char *from);
+void	vfs_notify_upper(struct vnode *, int);
 void	vfs_oexport_conv(const struct oexport_args *oexp,
 	    struct export_args *exp);
 void	vfs_ref(struct mount *);
@@ -851,6 +892,11 @@ void	vfs_unmountall(void);
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct mtx mountlist_mtx;
 extern	struct nfs_public nfs_pub;
+extern	struct sx vfsconf_sx;
+#define	vfsconf_lock()		sx_xlock(&vfsconf_sx)
+#define	vfsconf_unlock()	sx_xunlock(&vfsconf_sx)
+#define	vfsconf_slock()		sx_slock(&vfsconf_sx)
+#define	vfsconf_sunlock()	sx_sunlock(&vfsconf_sx)
 
 /*
  * Declarations for these vfs default operations are located in
@@ -870,6 +916,9 @@ vfs_init_t		vfs_stdinit;
 vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
 vfs_sysctl_t		vfs_stdsysctl;
+
+void	syncer_suspend(void);
+void	syncer_resume(void);
 
 #else /* !_KERNEL */
 

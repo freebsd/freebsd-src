@@ -13,6 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_UTILS_TABLEGEN_TABLEGENBACKENDS_H
+#define LLVM_UTILS_TABLEGEN_TABLEGENBACKENDS_H
 
 // A TableGen backend is a function that looks like
 //
@@ -68,12 +70,15 @@ void EmitCodeEmitter(RecordKeeper &RK, raw_ostream &OS);
 void EmitDAGISel(RecordKeeper &RK, raw_ostream &OS);
 void EmitDFAPacketizer(RecordKeeper &RK, raw_ostream &OS);
 void EmitDisassembler(RecordKeeper &RK, raw_ostream &OS);
-void EmitEnhancedDisassemblerInfo(RecordKeeper &RK, raw_ostream &OS);
 void EmitFastISel(RecordKeeper &RK, raw_ostream &OS);
 void EmitInstrInfo(RecordKeeper &RK, raw_ostream &OS);
 void EmitPseudoLowering(RecordKeeper &RK, raw_ostream &OS);
 void EmitRegisterInfo(RecordKeeper &RK, raw_ostream &OS);
 void EmitSubtarget(RecordKeeper &RK, raw_ostream &OS);
 void EmitMapTable(RecordKeeper &RK, raw_ostream &OS);
+void EmitOptParser(RecordKeeper &RK, raw_ostream &OS);
+void EmitCTags(RecordKeeper &RK, raw_ostream &OS);
 
 } // End llvm namespace
+
+#endif

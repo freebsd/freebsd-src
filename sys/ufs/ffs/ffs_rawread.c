@@ -71,8 +71,6 @@ static int ffs_rawread_sync(struct vnode *vp);
 
 int ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 
-void ffs_rawread_setup(void);
-
 SYSCTL_DECL(_vfs_ffs);
 
 static int ffsrawbufcnt = 4;
@@ -87,13 +85,13 @@ static int rawreadahead = 1;
 SYSCTL_INT(_vfs_ffs, OID_AUTO, rawreadahead, CTLFLAG_RW, &rawreadahead, 0,
 	   "Flag to enable readahead for long raw reads");
 
-
-void
-ffs_rawread_setup(void)
+static void
+ffs_rawread_setup(void *arg __unused)
 {
+
 	ffsrawbufcnt = (nswbuf > 100 ) ? (nswbuf - (nswbuf >> 4)) : nswbuf - 8;
 }
-
+SYSINIT(ffs_raw, SI_SUB_VM_CONF, SI_ORDER_ANY, ffs_rawread_setup, NULL);
 
 static int
 ffs_rawread_sync(struct vnode *vp)
@@ -241,7 +239,7 @@ ffs_rawread_readahead(struct vnode *vp,
 			bp->b_bcount = bsize - blockoff * DEV_BSIZE;
 		bp->b_bufsize = bp->b_bcount;
 		
-		if (vmapbuf(bp) < 0)
+		if (vmapbuf(bp, 1) < 0)
 			return EFAULT;
 		
 		maybe_yield();
@@ -260,7 +258,7 @@ ffs_rawread_readahead(struct vnode *vp,
 		bp->b_bcount = bsize * (1 + bforwards) - blockoff * DEV_BSIZE;
 	bp->b_bufsize = bp->b_bcount;
 	
-	if (vmapbuf(bp) < 0)
+	if (vmapbuf(bp, 1) < 0)
 		return EFAULT;
 	
 	BO_STRATEGY(&dp->v_bufobj, bp);

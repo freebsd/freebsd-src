@@ -1,4 +1,4 @@
-These are Instructions for Configuring A FreeBSD Box For NAT 
+These are Instructions for Configuring A FreeBSD Box For NAT
 After you have installed IpFilter.
 
 You will need to change three files:
@@ -54,7 +54,7 @@ fpx0 is the interface with the real internet address.
 
 /32 is the subnet mask 255.255.255.255, ie only use this ip address.
 
-portmap tcp/udp 10000:65000 
+portmap tcp/udp 10000:65000
         tells it to use the ports to redirect the tcp/udp calls through
 
 
@@ -67,7 +67,7 @@ reboots.
 
 In your /etc/rc.local put the line:
 
-ipnat -f /etc/natrules 
+ipnat -f /etc/natrules
 
 To check and see if it is loaded, as root type
     ipnat -ls

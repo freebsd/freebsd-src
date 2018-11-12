@@ -29,6 +29,6 @@
  * $FreeBSD$
  */
 
-extern const HASHINFO hinfo;
+extern HASHINFO hinfo;
 
 void uniq(const char *);

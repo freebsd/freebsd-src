@@ -101,23 +101,20 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, label_size, CTLFLAG_RD,
     &mls_label_size, 0, "Size of struct mac_mls");
 
 static int	mls_enabled = 1;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RW, &mls_enabled, 0,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, enabled, CTLFLAG_RWTUN, &mls_enabled, 0,
     "Enforce MAC/MLS policy");
-TUNABLE_INT("security.mac.mls.enabled", &mls_enabled);
 
 static int	destroyed_not_inited;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, destroyed_not_inited, CTLFLAG_RD,
     &destroyed_not_inited, 0, "Count of labels destroyed but not inited");
 
 static int	ptys_equal = 0;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, ptys_equal, CTLFLAG_RWTUN,
     &ptys_equal, 0, "Label pty devices as mls/equal on create");
-TUNABLE_INT("security.mac.mls.ptys_equal", &ptys_equal);
 
 static int	revocation_enabled = 0;
-SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_mac_mls, OID_AUTO, revocation_enabled, CTLFLAG_RWTUN,
     &revocation_enabled, 0, "Revoke access to objects on relabel");
-TUNABLE_INT("security.mac.mls.revocation_enabled", &revocation_enabled);
 
 static int	max_compartments = MAC_MLS_MAX_COMPARTMENTS;
 SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,
@@ -1250,17 +1247,6 @@ mls_mount_create(struct ucred *cred, struct mount *mp, struct label *mplabel)
 }
 
 static void
-mls_netatalk_aarp_send(struct ifnet *ifp, struct label *ifplabel,
-    struct mbuf *m, struct label *mlabel)
-{
-	struct mac_mls *dest;
-
-	dest = SLOT(mlabel);
-
-	mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
-}
-
-static void
 mls_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
     struct mbuf *m, struct label *mlabel)
 {
@@ -1651,6 +1637,24 @@ mls_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 }
 
 static int
+mls_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shm, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mls_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
     struct label *shmlabel, mode_t mode)
 {
@@ -1737,6 +1741,24 @@ mls_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
 	if (!mls_dominate_effective(obj, subj))
 		return (EACCES);
     
+	return (0);
+}
+
+static int
+mls_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shm, struct label *shmlabel)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mls_enabled || !revocation_enabled)
+		return (0);
+
+	subj = SLOT(active_cred->cr_label);
+	obj = SLOT(shmlabel);
+
+	if (!mls_dominate_effective(subj, obj))
+		return (EACCES);
+
 	return (0);
 }
 
@@ -3241,8 +3263,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_mount_destroy_label = mls_destroy_label,
 	.mpo_mount_init_label = mls_init_label,
 
-	.mpo_netatalk_aarp_send = mls_netatalk_aarp_send,
-
 	.mpo_netinet_arp_send = mls_netinet_arp_send,
 	.mpo_netinet_firewall_reply = mls_netinet_firewall_reply,
 	.mpo_netinet_firewall_send = mls_netinet_firewall_send,
@@ -3280,11 +3300,13 @@ static struct mac_policy_ops mls_ops =
 
 	.mpo_posixshm_check_mmap = mls_posixshm_check_mmap,
 	.mpo_posixshm_check_open = mls_posixshm_check_open,
+	.mpo_posixshm_check_read = mls_posixshm_check_read,
 	.mpo_posixshm_check_setmode = mls_posixshm_check_setmode,
 	.mpo_posixshm_check_setowner = mls_posixshm_check_setowner,
 	.mpo_posixshm_check_stat = mls_posixshm_check_stat,
 	.mpo_posixshm_check_truncate = mls_posixshm_check_truncate,
 	.mpo_posixshm_check_unlink = mls_posixshm_check_unlink,
+	.mpo_posixshm_check_write = mls_posixshm_check_write,
 	.mpo_posixshm_create = mls_posixshm_create,
 	.mpo_posixshm_destroy_label = mls_destroy_label,
 	.mpo_posixshm_init_label = mls_init_label,

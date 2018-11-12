@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1096 2012/11/16 20:25:03 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1104 2013-11-22 20:51:56 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -124,7 +124,11 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1096 2012/11/16 20:2
 #if STARTTLS
 #  include <openssl/ssl.h>
 # if !TLS_NO_RSA
-#  define RSA_KEYLENGTH	512
+#  if _FFR_FIPSMODE
+#   define RSA_KEYLENGTH	1024
+#  else /* _FFR_FIPSMODE  */
+#   define RSA_KEYLENGTH	512
+#  endif /* _FFR_FIPSMODE  */
 # endif /* !TLS_NO_RSA */
 #endif /* STARTTLS */
 
@@ -137,7 +141,7 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1096 2012/11/16 20:2
 #  include <sasl/saslutil.h>
 #  if SASL_VERSION_FULL < 0x020119
 typedef int (*sasl_callback_ft)(void);
-#  endif
+#  endif /* SASL_VERSION_FULL < 0x020119 */
 # else /* SASL == 2 || SASL >= 20000 */
 #  include <sasl.h>
 #  include <saslutil.h>
@@ -479,6 +483,7 @@ struct mailer
 #define M_HOLD		'%'	/* Hold delivery until ETRN/-qI/-qR/-qS */
 #define M_PLUS		'+'	/* Reserved: Used in mc for adding new flags */
 #define M_MINUS		'-'	/* Reserved: Used in mc for removing flags */
+#define M_NOMHHACK	'!'	/* Don't perform HM hack dropping explicit from */
 
 /* functions */
 extern void	initerrmailers __P((void));
@@ -1842,7 +1847,7 @@ extern void	setup_daemon_milters __P((void));
 #define VENDOR_SUN	2	/* Sun-native configuration file */
 #define VENDOR_HP	3	/* Hewlett-Packard specific config syntax */
 #define VENDOR_IBM	4	/* IBM specific config syntax */
-#define VENDOR_SENDMAIL	5	/* Sendmail, Inc. specific config syntax */
+#define VENDOR_SENDMAIL	5	/* Proofpoint, Inc. specific config syntax */
 #define VENDOR_DEC	6	/* Compaq, DEC, Digital */
 
 /* prototypes for vendor-specific hook routines */
@@ -1941,14 +1946,14 @@ struct termescape
 #define TLS_AUTH_FAIL	(-1)
 
 /* functions */
-extern bool	init_tls_library __P((void));
+extern bool	init_tls_library __P((bool _fipsmode));
 extern bool	inittls __P((SSL_CTX **, unsigned long, long, bool, char *, char *, char *, char *, char *));
 extern bool	initclttls __P((bool));
 extern void	setclttls __P((bool));
 extern bool	initsrvtls __P((bool));
 extern int	tls_get_info __P((SSL *, bool, char *, MACROS_T *, bool));
 extern int	endtls __P((SSL *, char *));
-extern void	tlslogerr __P((const char *));
+extern void	tlslogerr __P((int, const char *));
 
 
 EXTERN char	*CACertPath;	/* path to CA certificates (dir. with hashes) */
@@ -2296,6 +2301,7 @@ EXTERN bool	DontLockReadFiles;	/* don't read lock support files */
 EXTERN bool	DontPruneRoutes;	/* don't prune source routes */
 EXTERN bool	ForkQueueRuns;	/* fork for each job when running the queue */
 EXTERN bool	FromFlag;	/* if set, "From" person is explicit */
+EXTERN bool	FipsMode;
 EXTERN bool	GrabTo;		/* if set, get recipients from msg */
 EXTERN bool	EightBitAddrOK;	/* we'll let 8-bit addresses through */
 EXTERN bool	HasEightBits;	/* has at least one eight bit input byte */
@@ -2310,6 +2316,9 @@ EXTERN bool	NoAlias;	/* suppress aliasing */
 EXTERN bool	NoConnect;	/* don't connect to non-local mailers */
 EXTERN bool	OnlyOneError;	/*  .... or only want to give one SMTP reply */
 EXTERN bool	QuickAbort;	/*  .... but only if we want a quick abort */
+#if _FFR_REJECT_NUL_BYTE
+EXTERN bool	RejectNUL;	/* reject NUL input byte? */
+#endif /* _FFR_REJECT_NUL_BYTE */
 #if REQUIRES_DIR_FSYNC
 EXTERN bool	RequiresDirfsync;	/* requires fsync() for directory */
 #endif /* REQUIRES_DIR_FSYNC */
@@ -2655,6 +2664,7 @@ extern void	initmacros __P((ENVELOPE *));
 extern void	initsetproctitle __P((int, char **, char **));
 extern void	init_vendor_macros __P((ENVELOPE *));
 extern SIGFUNC_DECL	intsig __P((int));
+extern bool	isatom __P((const char *));
 extern bool	isloopback __P((SOCKADDR sa));
 extern void	load_if_names __P((void));
 extern bool	lockfile __P((int, char *, char *, int));

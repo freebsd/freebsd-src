@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -49,7 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -83,9 +86,8 @@ static SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
     "Marvell 88W8335 driver PCI parameters");
 
 static int msi_disable = 0;				/* MSI disabled  */
-SYSCTL_INT(_hw_malo_pci, OID_AUTO, msi_disable, CTLFLAG_RW, &msi_disable,
+SYSCTL_INT(_hw_malo_pci, OID_AUTO, msi_disable, CTLFLAG_RWTUN, &msi_disable,
 	    0, "MSI disabled");
-TUNABLE_INT("hw.malo.pci.msi_disable", &msi_disable);
 
 /*
  * Devices supported by this driver.
@@ -223,9 +225,9 @@ malo_pci_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       BUS_SPACE_MAXADDR,	/* maxsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsize */
 			       0,			/* nsegments */
-			       BUS_SPACE_MAXADDR,	/* maxsegsize */
+			       BUS_SPACE_MAXSIZE,	/* maxsegsize */
 			       0,			/* flags */
 			       NULL,			/* lockfunc */
 			       NULL,			/* lockarg */

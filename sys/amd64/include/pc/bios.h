@@ -51,6 +51,14 @@ struct bios_smap {
     u_int32_t	type;
 } __packed;
 
+/* Structure extended to include extended attribute field in ACPI 3.0. */
+struct bios_smap_xattr {
+    u_int64_t	base;
+    u_int64_t	length;
+    u_int32_t	type;
+    u_int32_t	xattr;
+} __packed;
+	
 /*
  * System Management BIOS
  */
@@ -106,6 +114,8 @@ struct bios_oem {
 int	bios_oem_strings(struct bios_oem *oem, u_char *buffer, size_t maxlen);
 uint32_t bios_sigsearch(uint32_t start, u_char *sig, int siglen, int paralen,
 	    int sigofs);
+void bios_add_smap_entries(struct bios_smap *smapbase, u_int32_t smapsize,
+	    vm_paddr_t *physmap, int *physmap_idx);
 #endif
 
 #endif /* _MACHINE_PC_BIOS_H_ */

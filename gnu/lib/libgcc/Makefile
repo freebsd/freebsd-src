@@ -6,7 +6,7 @@ GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 #
 # libgcc is linked in last and thus cannot depend on ssp symbols coming
 # from earlier libraries. Disable stack protection for this library.
@@ -15,12 +15,8 @@ MK_SSP=	no
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
-.endif
-
-.if ${TARGET_CPUARCH} == "mips"
-LIB=		gcc
 .endif
 
 .PATH: ${GCCDIR}/config/${GCC_CPU} ${GCCDIR}/config ${GCCDIR}
@@ -32,15 +28,15 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
-LDADD+=		-lc
+LIBADD+=	c
 
 OBJS=		# added to below in various ways depending on TARGET_CPUARCH
 
 #---------------------------------------------------------------------------
 #
-# When upgrading GCC, get the following defintions straight from Makefile.in
-#
 # Library members defined in libgcc2.c.
+# When upgrading GCC, obtain the following list from mklibgcc.in
+#
 LIB2FUNCS= _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 \
 	_cmpdi2 _ucmpdi2 \
 	_enable_execute_stack _trampoline __main _absvsi2 _absvdi2 _addvsi3 \
@@ -48,7 +44,7 @@ LIB2FUNCS= _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 \
 	_ffssi2 _ffsdi2 _clz _clzsi2 _clzdi2 _ctzsi2 _ctzdi2 _popcount_tab \
 	_popcountsi2 _popcountdi2 _paritysi2 _paritydi2 _powisf2 _powidf2 \
 	_powixf2 _powitf2 _mulsc3 _muldc3 _mulxc3 _multc3 _divsc3 _divdc3 \
-	_divxc3 _divtc3
+	_divxc3 _divtc3 _bswapsi2 _bswapdi2
 .if ${COMPILER_TYPE} != "clang" || ${TARGET_CPUARCH} != "arm"
 LIB2FUNCS+= _clear_cache
 .endif
@@ -59,7 +55,7 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
-.if ${TARGET_CPUARCH} != "arm" || ${MK_ARM_EABI} == "no"
+.if ${TARGET_CPUARCH} != "arm"
 # These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
@@ -116,20 +112,13 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 .if ${TARGET_CPUARCH} == "arm"
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-fheinous-gnu-extensions
-.endif
+CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-.if ${MK_ARM_EABI} != "no"
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
-DPADD+=		${LIBGCC}
-LDADD+=		-lgcc
-.else
-LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
-.endif
+LIBADD+=	compiler_rt
 .endif
 
 .if ${TARGET_CPUARCH} == mips
@@ -141,17 +130,6 @@ LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
 LIB2FUNCS_EXTRA+= fixdfdi.c fixunssfsi.c
 .endif
-.endif
-
-.if ${TARGET_CPUARCH} == "ia64"
-#	from config/ia64/t-ia64
-LIB1ASMSRC   = lib1funcs.asm
-LIB1ASMFUNCS = __divxf3 __divdf3 __divsf3 \
-	__divdi3 __moddi3 __udivdi3 __umoddi3 \
-	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
-	__nonlocal_goto __restore_stack_nonlocal __trampoline \
-	_fixtfdi _fixunstfdi _floatditf
-LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 .endif
 
 .if ${TARGET_ARCH} == "powerpc"
@@ -323,7 +301,7 @@ ${_src:R:S/$/.So/}: ${_src} ${COMMONHDRS}
 # Generated headers
 #
 ${COMMONHDRS}: ${.CURDIR}/../../usr.bin/cc/cc_tools/Makefile
-	${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET}
+	(cd ${.CURDIR}; ${MAKE} -f ${.ALLSRC} MFILE=${.ALLSRC} GCCDIR=${GCCDIR} ${.TARGET})
 
 CLEANFILES += ${COMMONHDRS}
 CLEANFILES += cs-*.h option*
@@ -335,7 +313,7 @@ CLEANFILES += cs-*.h option*
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
 SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
 .endif
 VERSION_MAP      = libgcc.map
@@ -358,7 +336,7 @@ libgcc_eh.a:	${EH_OBJS_T}
 	@${ECHO} building static gcc_eh library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 
 all:	libgcc_eh.a
 
@@ -367,7 +345,7 @@ libgcc_eh_p.a:	${EH_OBJS_P}
 	@${ECHO} building profiled gcc_eh library
 	@rm -f ${.TARGET}
 	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
-	${RANLIB} ${.TARGET}
+	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 all:	libgcc_eh_p.a
 .endif
 

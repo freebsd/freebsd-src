@@ -31,7 +31,9 @@ SRCS=		dt_aggregate.c \
 		dt_parser.c \
 		dt_pcb.c \
 		dt_pid.c \
+		dt_pq.c \
 		dt_pragma.c \
+		dt_print.c \
 		dt_printf.c \
 		dt_proc.c \
 		dt_program.c \
@@ -46,8 +48,11 @@ SRCS=		dt_aggregate.c \
 
 DSRCS=		errno.d			\
 		io.d			\
+		ip.d			\
 		psinfo.d		\
 		signal.d		\
+		tcp.d			\
+		udp.d			\
 		unistd.d
 
 WARNS?=		1
@@ -64,9 +69,11 @@ CFLAGS+=	-I${.OBJDIR} -I${.CURDIR} \
 #CFLAGS+=	-DYYDEBUG
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/dev/dtrace/x86
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/intel -DDIS_MEM
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/i386
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/${MACHINE_ARCH}
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/x86
 .elif ${MACHINE_CPUARCH} == "sparc64"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/sparc
@@ -74,6 +81,10 @@ CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/sparc
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/mips
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/mips
 .PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/mips
+.elif ${MACHINE_CPUARCH} == "arm"
+CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/arm
+.PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/arm
+.PATH:		${.CURDIR}/../../../sys/cddl/dev/dtrace/arm
 .elif ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-I${OPENSOLARIS_SYS_DISTDIR}/uts/powerpc
 .PATH:		${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libdtrace/powerpc

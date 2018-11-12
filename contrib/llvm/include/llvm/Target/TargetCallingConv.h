@@ -14,6 +14,7 @@
 #ifndef LLVM_TARGET_TARGETCALLINGCONV_H
 #define LLVM_TARGET_TARGETCALLINGCONV_H
 
+#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/MathExtras.h"
 #include <string>
@@ -36,14 +37,22 @@ namespace ISD {
     static const uint64_t ByValOffs      = 4;
     static const uint64_t Nest           = 1ULL<<5;  ///< Nested fn static chain
     static const uint64_t NestOffs       = 5;
-    static const uint64_t ByValAlign     = 0xFULL << 6; ///< Struct alignment
-    static const uint64_t ByValAlignOffs = 6;
-    static const uint64_t Split          = 1ULL << 10;
-    static const uint64_t SplitOffs      = 10;
+    static const uint64_t Returned       = 1ULL<<6;  ///< Always returned
+    static const uint64_t ReturnedOffs   = 6;
+    static const uint64_t ByValAlign     = 0xFULL<<7; ///< Struct alignment
+    static const uint64_t ByValAlignOffs = 7;
+    static const uint64_t Split          = 1ULL<<11;
+    static const uint64_t SplitOffs      = 11;
+    static const uint64_t InAlloca       = 1ULL<<12; ///< Passed with inalloca
+    static const uint64_t InAllocaOffs   = 12;
     static const uint64_t OrigAlign      = 0x1FULL<<27;
     static const uint64_t OrigAlignOffs  = 27;
-    static const uint64_t ByValSize      = 0xffffffffULL << 32; ///< Struct size
+    static const uint64_t ByValSize      = 0x3fffffffULL<<32; ///< Struct size
     static const uint64_t ByValSizeOffs  = 32;
+    static const uint64_t InConsecutiveRegsLast      = 0x1ULL<<62; ///< Struct size
+    static const uint64_t InConsecutiveRegsLastOffs  = 62;
+    static const uint64_t InConsecutiveRegs      = 0x1ULL<<63; ///< Struct size
+    static const uint64_t InConsecutiveRegsOffs  = 63;
 
     static const uint64_t One            = 1ULL; ///< 1 of this type, for shifts
 
@@ -51,23 +60,35 @@ namespace ISD {
   public:
     ArgFlagsTy() : Flags(0) { }
 
-    bool isZExt()   const { return Flags & ZExt; }
-    void setZExt()  { Flags |= One << ZExtOffs; }
+    bool isZExt()      const { return Flags & ZExt; }
+    void setZExt()     { Flags |= One << ZExtOffs; }
 
-    bool isSExt()   const { return Flags & SExt; }
-    void setSExt()  { Flags |= One << SExtOffs; }
+    bool isSExt()      const { return Flags & SExt; }
+    void setSExt()     { Flags |= One << SExtOffs; }
 
-    bool isInReg()  const { return Flags & InReg; }
-    void setInReg() { Flags |= One << InRegOffs; }
+    bool isInReg()     const { return Flags & InReg; }
+    void setInReg()    { Flags |= One << InRegOffs; }
 
-    bool isSRet()   const { return Flags & SRet; }
-    void setSRet()  { Flags |= One << SRetOffs; }
+    bool isSRet()      const { return Flags & SRet; }
+    void setSRet()     { Flags |= One << SRetOffs; }
 
-    bool isByVal()  const { return Flags & ByVal; }
-    void setByVal() { Flags |= One << ByValOffs; }
+    bool isByVal()     const { return Flags & ByVal; }
+    void setByVal()    { Flags |= One << ByValOffs; }
 
-    bool isNest()   const { return Flags & Nest; }
-    void setNest()  { Flags |= One << NestOffs; }
+    bool isInAlloca()  const { return Flags & InAlloca; }
+    void setInAlloca() { Flags |= One << InAllocaOffs; }
+
+    bool isNest()      const { return Flags & Nest; }
+    void setNest()     { Flags |= One << NestOffs; }
+
+    bool isReturned()  const { return Flags & Returned; }
+    void setReturned() { Flags |= One << ReturnedOffs; }
+
+    bool isInConsecutiveRegs()  const { return Flags & InConsecutiveRegs; }
+    void setInConsecutiveRegs() { Flags |= One << InConsecutiveRegsOffs; }
+
+    bool isInConsecutiveRegsLast()  const { return Flags & InConsecutiveRegsLast; }
+    void setInConsecutiveRegsLast() { Flags |= One << InConsecutiveRegsLastOffs; }
 
     unsigned getByValAlign() const {
       return (unsigned)
@@ -97,9 +118,6 @@ namespace ISD {
       Flags = (Flags & ~ByValSize) | (uint64_t(S) << ByValSizeOffs);
     }
 
-    /// getArgFlagsString - Returns the flags as a string, eg: "zext align:4".
-    std::string getArgFlagsString();
-
     /// getRawBits - Represent the flags as a bunch of bits.
     uint64_t getRawBits() const { return Flags; }
   };
@@ -111,6 +129,7 @@ namespace ISD {
   struct InputArg {
     ArgFlagsTy Flags;
     MVT VT;
+    EVT ArgVT;
     bool Used;
 
     /// Index original Function's argument.
@@ -122,10 +141,11 @@ namespace ISD {
     unsigned PartOffset;
 
     InputArg() : VT(MVT::Other), Used(false) {}
-    InputArg(ArgFlagsTy flags, EVT vt, bool used,
+    InputArg(ArgFlagsTy flags, EVT vt, EVT argvt, bool used,
              unsigned origIdx, unsigned partOffs)
       : Flags(flags), Used(used), OrigArgIndex(origIdx), PartOffset(partOffs) {
       VT = vt.getSimpleVT();
+      ArgVT = argvt;
     }
   };
 
@@ -136,6 +156,7 @@ namespace ISD {
   struct OutputArg {
     ArgFlagsTy Flags;
     MVT VT;
+    EVT ArgVT;
 
     /// IsFixed - Is this a "fixed" value, ie not passed through a vararg "...".
     bool IsFixed;
@@ -149,11 +170,12 @@ namespace ISD {
     unsigned PartOffset;
 
     OutputArg() : IsFixed(false) {}
-    OutputArg(ArgFlagsTy flags, EVT vt, bool isfixed,
+    OutputArg(ArgFlagsTy flags, EVT vt, EVT argvt, bool isfixed,
               unsigned origIdx, unsigned partOffs)
       : Flags(flags), IsFixed(isfixed), OrigArgIndex(origIdx),
         PartOffset(partOffs) {
       VT = vt.getSimpleVT();
+      ArgVT = argvt;
     }
   };
 }

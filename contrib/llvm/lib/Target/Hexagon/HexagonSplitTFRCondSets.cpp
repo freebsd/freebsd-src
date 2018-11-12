@@ -26,43 +26,52 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "xfer"
-#include "HexagonTargetMachine.h"
-#include "HexagonSubtarget.h"
+#include "Hexagon.h"
 #include "HexagonMachineFunctionInfo.h"
-#include "llvm/CodeGen/Passes.h"
+#include "HexagonSubtarget.h"
+#include "HexagonTargetMachine.h"
 #include "llvm/CodeGen/LatencyPriorityQueue.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/ScheduleHazardRecognizer.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "xfer"
+
+namespace llvm {
+  void initializeHexagonSplitTFRCondSetsPass(PassRegistry&);
+}
+
 
 namespace {
 
 class HexagonSplitTFRCondSets : public MachineFunctionPass {
-    HexagonTargetMachine& QTM;
+    const HexagonTargetMachine &QTM;
     const HexagonSubtarget &QST;
 
  public:
     static char ID;
-    HexagonSplitTFRCondSets(HexagonTargetMachine& TM) :
-      MachineFunctionPass(ID), QTM(TM), QST(*TM.getSubtargetImpl()) {}
+    HexagonSplitTFRCondSets(const HexagonTargetMachine& TM) :
+      MachineFunctionPass(ID), QTM(TM), QST(*TM.getSubtargetImpl()) {
+      initializeHexagonSplitTFRCondSetsPass(*PassRegistry::getPassRegistry());
+    }
 
-    const char *getPassName() const {
+    const char *getPassName() const override {
       return "Hexagon Split TFRCondSets";
     }
-    bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 };
 
 
@@ -71,7 +80,7 @@ char HexagonSplitTFRCondSets::ID = 0;
 
 bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
 
-  const TargetInstrInfo *TII = QTM.getInstrInfo();
+  const TargetInstrInfo *TII = QTM.getSubtargetImpl()->getInstrInfo();
 
   // Loop over all of the basic blocks.
   for (MachineFunction::iterator MBBb = Fn.begin(), MBBe = Fn.end();
@@ -83,21 +92,19 @@ bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
       MachineInstr *MI = MII;
       int Opc1, Opc2;
       switch(MI->getOpcode()) {
-        case Hexagon::TFR_condset_rr:
         case Hexagon::TFR_condset_rr_f:
         case Hexagon::TFR_condset_rr64_f: {
           int DestReg = MI->getOperand(0).getReg();
           int SrcReg1 = MI->getOperand(2).getReg();
           int SrcReg2 = MI->getOperand(3).getReg();
 
-          if (MI->getOpcode() == Hexagon::TFR_condset_rr ||
-              MI->getOpcode() == Hexagon::TFR_condset_rr_f) {
-            Opc1 = Hexagon::TFR_cPt;
-            Opc2 = Hexagon::TFR_cNotPt;
+          if (MI->getOpcode() == Hexagon::TFR_condset_rr_f) {
+            Opc1 = Hexagon::A2_tfrt;
+            Opc2 = Hexagon::A2_tfrf;
           }
           else if (MI->getOpcode() == Hexagon::TFR_condset_rr64_f) {
-            Opc1 = Hexagon::TFR64_cPt;
-            Opc2 = Hexagon::TFR64_cNotPt;
+            Opc1 = Hexagon::A2_tfrpt;
+            Opc2 = Hexagon::A2_tfrpf;
           }
 
           // Minor optimization: do not emit the predicated copy if the source
@@ -123,12 +130,12 @@ bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
           // is the same register.
           if (DestReg != SrcReg1) {
             BuildMI(*MBB, MII, MI->getDebugLoc(),
-              TII->get(Hexagon::TFR_cPt), DestReg).
+              TII->get(Hexagon::A2_tfrt), DestReg).
               addReg(MI->getOperand(1).getReg()).addReg(SrcReg1);
           }
           if (MI->getOpcode() ==  Hexagon::TFR_condset_ri ) {
             BuildMI(*MBB, MII, MI->getDebugLoc(),
-              TII->get(Hexagon::TFRI_cNotPt), DestReg).
+              TII->get(Hexagon::C2_cmoveif), DestReg).
               addReg(MI->getOperand(1).getReg()).
               addImm(MI->getOperand(3).getImm());
           } else if (MI->getOpcode() ==  Hexagon::TFR_condset_ri_f ) {
@@ -149,7 +156,7 @@ bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
 
           if (MI->getOpcode() ==  Hexagon::TFR_condset_ir ) {
             BuildMI(*MBB, MII, MI->getDebugLoc(),
-              TII->get(Hexagon::TFRI_cPt), DestReg).
+              TII->get(Hexagon::C2_cmoveit), DestReg).
               addReg(MI->getOperand(1).getReg()).
               addImm(MI->getOperand(2).getImm());
           } else if (MI->getOpcode() ==  Hexagon::TFR_condset_ir_f ) {
@@ -163,7 +170,7 @@ bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
           // the destination is the same register.
           if (DestReg != SrcReg2) {
             BuildMI(*MBB, MII, MI->getDebugLoc(),
-              TII->get(Hexagon::TFR_cNotPt), DestReg).
+              TII->get(Hexagon::A2_tfrf), DestReg).
               addReg(MI->getOperand(1).getReg()).addReg(SrcReg2);
           }
           MII = MBB->erase(MI);
@@ -179,10 +186,10 @@ bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
             int Immed1 = MI->getOperand(2).getImm();
             int Immed2 = MI->getOperand(3).getImm();
             BuildMI(*MBB, MII, MI->getDebugLoc(),
-                    TII->get(Hexagon::TFRI_cPt),
+                    TII->get(Hexagon::C2_cmoveit),
                     DestReg).addReg(SrcReg1).addImm(Immed1);
             BuildMI(*MBB, MII, MI->getDebugLoc(),
-                    TII->get(Hexagon::TFRI_cNotPt),
+                    TII->get(Hexagon::C2_cmoveif),
                     DestReg).addReg(SrcReg1).addImm(Immed2);
           } else if (MI->getOpcode() ==  Hexagon::TFR_condset_ii_f ) {
             BuildMI(*MBB, MII, MI->getDebugLoc(),
@@ -210,6 +217,19 @@ bool HexagonSplitTFRCondSets::runOnMachineFunction(MachineFunction &Fn) {
 //                         Public Constructor Functions
 //===----------------------------------------------------------------------===//
 
-FunctionPass *llvm::createHexagonSplitTFRCondSets(HexagonTargetMachine &TM) {
+static void initializePassOnce(PassRegistry &Registry) {
+  const char *Name = "Hexagon Split TFRCondSets";
+  PassInfo *PI = new PassInfo(Name, "hexagon-split-tfr",
+                              &HexagonSplitTFRCondSets::ID, nullptr, false,
+                              false);
+  Registry.registerPass(*PI, true);
+}
+
+void llvm::initializeHexagonSplitTFRCondSetsPass(PassRegistry &Registry) {
+  CALL_ONCE_INITIALIZATION(initializePassOnce)
+}
+
+FunctionPass*
+llvm::createHexagonSplitTFRCondSets(const HexagonTargetMachine &TM) {
   return new HexagonSplitTFRCondSets(TM);
 }

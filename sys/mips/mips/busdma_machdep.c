@@ -878,6 +878,16 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	return (0);
 }
 
+int
+_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp)
+{
+
+	return (bus_dmamap_load_ma_triv(dmat, map, ma, tlen, ma_offs, flags,
+	    segs, segp));
+}
+
 /*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrance, and the ending segment on exit.
@@ -1252,9 +1262,9 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	SYSCTL_ADD_STRING(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "lowaddr", CTLFLAG_RD, bz->lowaddrid, 0, "");
-	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
+	SYSCTL_ADD_UAUTO(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
-	    "alignment", CTLFLAG_RD, &bz->alignment, 0, "");
+	    "alignment", CTLFLAG_RD, &bz->alignment, "");
 
 	return (0);
 }

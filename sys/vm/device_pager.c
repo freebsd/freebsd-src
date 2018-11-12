@@ -169,18 +169,20 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 			 */
 			if (pindex > object->size)
 				object->size = pindex;
+			KASSERT(object->type == tp,
+		    ("Inconsistent device pager type %p %d", object, tp));
 		} else {
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
-			KASSERT(object->type == tp,
-		("Inconsistent device pager type %p %d", object, tp));
 		}
 	} else {
 		if (pindex > object->size)
 			object->size = pindex;
+		KASSERT(object->type == tp,
+		    ("Inconsistent device pager type %p %d", object, tp));
 	}
 	mtx_unlock(&dev_pager_mtx);
 	if (object1 != NULL) {
@@ -226,7 +228,7 @@ dev_pager_free_page(vm_object_t object, vm_page_t m)
 	KASSERT((object->type == OBJT_DEVICE &&
 	    (m->oflags & VPO_UNMANAGED) != 0),
 	    ("Managed device or page obj %p m %p", object, m));
-	TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
+	TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, plinks.q);
 	vm_page_putfake(m);
 }
 
@@ -281,7 +283,7 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 		    ("Wrong page type %p %p", ma[reqpage], object));
 		if (object->type == OBJT_DEVICE) {
 			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
-			    ma[reqpage], pageq);
+			    ma[reqpage], plinks.q);
 		}
 	}
 
@@ -348,11 +350,12 @@ old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
 		 */
 		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_WLOCK(object);
+		if (vm_page_replace(page, object, (*mres)->pindex) != *mres)
+			panic("old_dev_pager_fault: invalid page replacement");
 		vm_page_lock(*mres);
 		vm_page_free(*mres);
 		vm_page_unlock(*mres);
 		*mres = page;
-		vm_page_insert(page, object, pidx);
 	}
 	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);
@@ -411,6 +414,7 @@ old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * XXX assumes VM_PROT_* == PROT_*
 	 */
 	npages = OFF_TO_IDX(size);
+	paddr = 0; /* Make paddr initialized for the case of size == 0. */
 	for (off = foff; npages--; off += PAGE_SIZE) {
 		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
 			dev_relthread(dev, ref);

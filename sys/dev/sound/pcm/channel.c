@@ -42,14 +42,13 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 int report_soft_formats = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_formats, CTLFLAG_RW,
-	&report_soft_formats, 1, "report software-emulated formats");
+	&report_soft_formats, 0, "report software-emulated formats");
 
 int report_soft_matrix = 1;
 SYSCTL_INT(_hw_snd, OID_AUTO, report_soft_matrix, CTLFLAG_RW,
-	&report_soft_matrix, 1, "report software-emulated channel matrixing");
+	&report_soft_matrix, 0, "report software-emulated channel matrixing");
 
 int chn_latency = CHN_LATENCY_DEFAULT;
-TUNABLE_INT("hw.snd.latency", &chn_latency);
 
 static int
 sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
@@ -67,12 +66,11 @@ sysctl_hw_snd_latency(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, latency, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, latency, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_latency, "I",
 	"buffering latency (0=low ... 10=high)");
 
 int chn_latency_profile = CHN_LATENCY_PROFILE_DEFAULT;
-TUNABLE_INT("hw.snd.latency_profile", &chn_latency_profile);
 
 static int
 sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
@@ -90,13 +88,12 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_latency_profile, "I",
-	"buffering latency profile (0=aggresive 1=safe)");
+	"buffering latency profile (0=aggressive 1=safe)");
 
 static int chn_timeout = CHN_TIMEOUT;
-TUNABLE_INT("hw.snd.timeout", &chn_timeout);
-#ifdef SND_DEBUG
+
 static int
 sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 {
@@ -113,18 +110,15 @@ sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
 
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_timeout, "I",
 	"interrupt timeout (1 - 10) seconds");
-#endif
 
 static int chn_vpc_autoreset = 1;
-TUNABLE_INT("hw.snd.vpc_autoreset", &chn_vpc_autoreset);
-SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, vpc_autoreset, CTLFLAG_RWTUN,
 	&chn_vpc_autoreset, 0, "automatically reset channels volume to 0db");
 
 static int chn_vol_0db_pcm = SND_VOL_0DB_PCM;
-TUNABLE_INT("hw.snd.vpc_0db", &chn_vol_0db_pcm);
 
 static void
 chn_vpc_proc(int reset, int db)
@@ -170,7 +164,7 @@ sysctl_hw_snd_vpc_0db(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_0db, CTLTYPE_INT | CTLFLAG_RWTUN,
 	0, sizeof(int), sysctl_hw_snd_vpc_0db, "I",
 	"0db relative level");
 
@@ -194,16 +188,13 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, vpc_reset, CTLTYPE_INT | CTLFLAG_RW,
 	"reset volume on all channels");
 
 static int chn_usefrags = 0;
-TUNABLE_INT("hw.snd.usefrags", &chn_usefrags);
 static int chn_syncdelay = -1;
-TUNABLE_INT("hw.snd.syncdelay", &chn_syncdelay);
-#ifdef SND_DEBUG
-SYSCTL_INT(_hw_snd, OID_AUTO, usefrags, CTLFLAG_RW,
-	&chn_usefrags, 1, "prefer setfragments() over setblocksize()");
-SYSCTL_INT(_hw_snd, OID_AUTO, syncdelay, CTLFLAG_RW,
-	&chn_syncdelay, 1,
+
+SYSCTL_INT(_hw_snd, OID_AUTO, usefrags, CTLFLAG_RWTUN,
+	&chn_usefrags, 0, "prefer setfragments() over setblocksize()");
+SYSCTL_INT(_hw_snd, OID_AUTO, syncdelay, CTLFLAG_RWTUN,
+	&chn_syncdelay, 0,
 	"append (0-1000) millisecond trailing buffer delay on each sync");
-#endif
 
 /**
  * @brief Channel sync group lock

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG_CXX=clang
 
@@ -28,25 +28,21 @@ MLINKS+= clang.1 cc.1 \
 	clang.1 cpp.1
 .endif
 
-TGHDRS=	CC1AsOptions \
-	DiagnosticCommonKinds \
+TGHDRS=	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticLexKinds \
 	DiagnosticSemaKinds \
 	Options
 
-.if !defined(EARLY_BUILD) && defined(MK_CLANG_FULL) && ${MK_CLANG_FULL} != "no"
+.if ${MK_CLANG_FULL} != "no"
 _clangstaticanalyzer= \
 	clangstaticanalyzerfrontend \
 	clangstaticanalyzercheckers \
 	clangstaticanalyzercore
 _clangarcmigrate= \
 	clangarcmigrate
-_clangrewriter= \
-	clangrewritefrontend \
-	clangrewritecore
-.endif # !EARLY_BUILD && MK_CLANG_FULL
+.endif # MK_CLANG_FULL
 
 LIBDEPS=clangfrontendtool \
 	clangfrontend \
@@ -55,58 +51,81 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
+	clangrewritefrontend \
+	clangrewrite \
 	${_clangstaticanalyzer} \
-	clanganalysis \
 	${_clangarcmigrate} \
-	${_clangrewriter} \
+	clanganalysis \
 	clangedit \
 	clangast \
 	clanglex \
 	clangbasic \
+	llvmoption \
+	llvmobjcarcopts \
 	llvmlinker \
-	llvmarchive \
+	llvmirreader \
 	llvmipo \
 	llvmvectorize \
 	llvminstrumentation \
 	llvmbitwriter \
-	llvmbitreader \
 	llvmasmparser \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
-	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinstprinter \
 	llvmmipsdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
+	llvmmipsdesc \
 	llvmmipsinfo \
+	llvmmipsinstprinter \
+	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
+	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
+	llvmsparcdisassembler \
+	llvmsparccodegen \
+	llvmsparcasmparser \
+	llvmsparcdesc \
+	llvmsparcinfo \
+	llvmsparcinstprinter \
+	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvmcodegen \
 	llvmscalaropts \
+	llvmprofiledata \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86disassembler \
-	llvmx86desc \
-	llvmx86info \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmmcdisassembler \
+	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
-	llvmobject \
 	llvmx86utils \
 	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

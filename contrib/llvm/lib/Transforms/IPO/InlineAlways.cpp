@@ -12,48 +12,65 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "inline"
-#include "llvm/CallingConv.h"
-#include "llvm/Instructions.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Module.h"
-#include "llvm/Type.h"
+#include "llvm/Transforms/IPO.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/InlineCost.h"
-#include "llvm/Support/CallSite.h"
-#include "llvm/Transforms/IPO.h"
+#include "llvm/IR/CallSite.h"
+#include "llvm/IR/CallingConv.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
-#include "llvm/DataLayout.h"
-#include "llvm/ADT/SmallPtrSet.h"
 
 using namespace llvm;
 
+#define DEBUG_TYPE "inline"
+
 namespace {
 
-  // AlwaysInliner only inlines functions that are mark as "always inline".
-  class AlwaysInliner : public Inliner {
-  public:
-    // Use extremely low threshold.
-    AlwaysInliner() : Inliner(ID, -2000000000, /*InsertLifetime*/true) {
-      initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
-    }
-    AlwaysInliner(bool InsertLifetime) : Inliner(ID, -2000000000,
-                                                 InsertLifetime) {
-      initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
-    }
-    static char ID; // Pass identification, replacement for typeid
-    virtual InlineCost getInlineCost(CallSite CS);
-    virtual bool doFinalization(CallGraph &CG) {
-      return removeDeadFunctions(CG, /*AlwaysInlineOnly=*/true);
-    }
-    virtual bool doInitialization(CallGraph &CG);
-  };
+/// \brief Inliner pass which only handles "always inline" functions.
+class AlwaysInliner : public Inliner {
+  InlineCostAnalysis *ICA;
+
+public:
+  // Use extremely low threshold.
+  AlwaysInliner() : Inliner(ID, -2000000000, /*InsertLifetime*/ true),
+                    ICA(nullptr) {
+    initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
+  }
+
+  AlwaysInliner(bool InsertLifetime)
+      : Inliner(ID, -2000000000, InsertLifetime), ICA(nullptr) {
+    initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
+  }
+
+  static char ID; // Pass identification, replacement for typeid
+
+  InlineCost getInlineCost(CallSite CS) override;
+
+  void getAnalysisUsage(AnalysisUsage &AU) const override;
+  bool runOnSCC(CallGraphSCC &SCC) override;
+
+  using llvm::Pass::doFinalization;
+  bool doFinalization(CallGraph &CG) override {
+    return removeDeadFunctions(CG, /*AlwaysInlineOnly=*/ true);
+  }
+};
+
 }
 
 char AlwaysInliner::ID = 0;
 INITIALIZE_PASS_BEGIN(AlwaysInliner, "always-inline",
                 "Inliner for always_inline functions", false, false)
-INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
+INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(InlineCostAnalysis)
 INITIALIZE_PASS_END(AlwaysInliner, "always-inline",
                 "Inliner for always_inline functions", false, false)
 
@@ -61,35 +78,6 @@ Pass *llvm::createAlwaysInlinerPass() { return new AlwaysInliner(); }
 
 Pass *llvm::createAlwaysInlinerPass(bool InsertLifetime) {
   return new AlwaysInliner(InsertLifetime);
-}
-
-/// \brief Minimal filter to detect invalid constructs for inlining.
-static bool isInlineViable(Function &F) {
-  bool ReturnsTwice =F.getFnAttributes().hasAttribute(Attributes::ReturnsTwice);
-  for (Function::iterator BI = F.begin(), BE = F.end(); BI != BE; ++BI) {
-    // Disallow inlining of functions which contain an indirect branch.
-    if (isa<IndirectBrInst>(BI->getTerminator()))
-      return false;
-
-    for (BasicBlock::iterator II = BI->begin(), IE = BI->end(); II != IE;
-         ++II) {
-      CallSite CS(II);
-      if (!CS)
-        continue;
-
-      // Disallow recursive calls.
-      if (&F == CS.getCalledFunction())
-        return false;
-
-      // Disallow calls which expose returns-twice to a function not previously
-      // attributed as such.
-      if (!ReturnsTwice && CS.isCall() &&
-          cast<CallInst>(CS.getInstruction())->canReturnTwice())
-        return false;
-    }
-  }
-
-  return true;
 }
 
 /// \brief Get the inline cost for the always-inliner.
@@ -106,27 +94,24 @@ static bool isInlineViable(Function &F) {
 /// likely not worth it in practice.
 InlineCost AlwaysInliner::getInlineCost(CallSite CS) {
   Function *Callee = CS.getCalledFunction();
-  // We assume indirect calls aren't calling an always-inline function.
-  if (!Callee) return InlineCost::getNever();
 
-  // We can't inline calls to external functions.
-  // FIXME: We shouldn't even get here.
-  if (Callee->isDeclaration()) return InlineCost::getNever();
+  // Only inline direct calls to functions with always-inline attributes
+  // that are viable for inlining. FIXME: We shouldn't even get here for
+  // declarations.
+  if (Callee && !Callee->isDeclaration() &&
+      CS.hasFnAttr(Attribute::AlwaysInline) &&
+      ICA->isInlineViable(*Callee))
+    return InlineCost::getAlways();
 
-  // Return never for anything not marked as always inline.
-  if (!Callee->getFnAttributes().hasAttribute(Attributes::AlwaysInline))
-    return InlineCost::getNever();
-
-  // Do some minimal analysis to preclude non-viable functions.
-  if (!isInlineViable(*Callee))
-    return InlineCost::getNever();
-
-  // Otherwise, force inlining.
-  return InlineCost::getAlways();
+  return InlineCost::getNever();
 }
 
-// doInitialization - Initializes the vector of functions that have not
-// been annotated with the "always inline" attribute.
-bool AlwaysInliner::doInitialization(CallGraph &CG) {
-  return false;
+bool AlwaysInliner::runOnSCC(CallGraphSCC &SCC) {
+  ICA = &getAnalysis<InlineCostAnalysis>();
+  return Inliner::runOnSCC(SCC);
+}
+
+void AlwaysInliner::getAnalysisUsage(AnalysisUsage &AU) const {
+  AU.addRequired<InlineCostAnalysis>();
+  Inliner::getAnalysisUsage(AU);
 }

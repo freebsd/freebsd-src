@@ -4,14 +4,8 @@
  * Copyright (c) 2003-2004, Instant802 Networks, Inc.
  * Copyright (c) 2006, Devicescape Software, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef AP_LIST_H
@@ -40,12 +34,11 @@ struct ap_info {
 
 	int channel;
 	int datarate; /* in 100 kbps */
-	int ssi_signal;
 
 	int ht_support;
 
 	unsigned int num_beacons; /* number of beacon frames received */
-	time_t last_beacon;
+	os_time_t last_beacon;
 
 	int already_seen; /* whether API call AP-NEW has already fetched
 			   * information about this AP */

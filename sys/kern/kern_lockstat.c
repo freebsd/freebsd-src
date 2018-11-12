@@ -32,8 +32,6 @@
  *
  */
 
-#include "opt_kdtrace.h"
-
 #ifdef KDTRACE_HOOKS
 
 #include <sys/time.h>

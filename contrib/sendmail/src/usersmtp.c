@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.485 2010/07/23 21:09:38 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.488 2013-11-22 20:51:57 ca Exp $")
 
 #include <sysexits.h>
 
@@ -801,7 +801,7 @@ readauth(filename, safe, sai, rpool)
 
 	lc = 0;
 	while (lc <= SASL_MECHLIST &&
-		sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+		sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		if (buf[0] != '#')
 		{

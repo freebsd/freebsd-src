@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
 #include "opt_stack.h"
@@ -92,33 +91,18 @@ __FBSDID("$FreeBSD$");
 #endif
 
 SDT_PROVIDER_DEFINE(proc);
-SDT_PROBE_DEFINE(proc, kernel, ctor, entry, entry);
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 2, "void *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, entry, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, ctor, return, return);
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 2, "void *");
-SDT_PROBE_ARGTYPE(proc, kernel, ctor, return, 3, "int");
-SDT_PROBE_DEFINE(proc, kernel, dtor, entry, entry);
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 2, "void *");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, entry, 3, "struct thread *");
-SDT_PROBE_DEFINE(proc, kernel, dtor, return, return);
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, dtor, return, 2, "void *");
-SDT_PROBE_DEFINE(proc, kernel, init, entry, entry);
-SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, init, entry, 2, "int");
-SDT_PROBE_DEFINE(proc, kernel, init, return, return);
-SDT_PROBE_ARGTYPE(proc, kernel, init, return, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, init, return, 1, "int");
-SDT_PROBE_ARGTYPE(proc, kernel, init, return, 2, "int");
+SDT_PROBE_DEFINE4(proc, kernel, ctor, entry, "struct proc *", "int",
+    "void *", "int");
+SDT_PROBE_DEFINE4(proc, kernel, ctor, return, "struct proc *", "int",
+    "void *", "int");
+SDT_PROBE_DEFINE4(proc, kernel, dtor, entry, "struct proc *", "int",
+    "void *", "struct thread *");
+SDT_PROBE_DEFINE3(proc, kernel, dtor, return, "struct proc *", "int",
+    "void *");
+SDT_PROBE_DEFINE3(proc, kernel, init, entry, "struct proc *", "int",
+    "int");
+SDT_PROBE_DEFINE3(proc, kernel, init, return, "struct proc *", "int",
+    "int");
 
 MALLOC_DEFINE(M_PGRP, "pgrp", "process group header");
 MALLOC_DEFINE(M_SESSION, "session", "session header");
@@ -157,6 +141,10 @@ uma_zone_t proc_zone;
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
     "Kernel stack size in pages");
+static int vmmap_skip_res_cnt = 0;
+SYSCTL_INT(_kern, OID_AUTO, proc_vmmap_skip_resident_count, CTLFLAG_RW,
+    &vmmap_skip_res_cnt, 0,
+    "Skip calculation of the pages resident count in kern.proc.vmmap");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
@@ -237,9 +225,11 @@ proc_init(void *mem, int size, int flags)
 	p = (struct proc *)mem;
 	SDT_PROBE(proc, kernel, init, entry, p, size, flags, 0, 0);
 	p->p_sched = (struct p_sched *)&p[1];
-	bzero(&p->p_mtx, sizeof(struct mtx));
-	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK | MTX_NEW);
+	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&p->p_itimmtx, "pitiml", NULL, MTX_SPIN | MTX_NEW);
+	mtx_init(&p->p_profmtx, "pprofl", NULL, MTX_SPIN | MTX_NEW);
 	cv_init(&p->p_pwait, "ppwait");
 	cv_init(&p->p_dbgwait, "dbgwait");
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
@@ -275,14 +265,15 @@ proc_fini(void *mem, int size)
  * Is p an inferior of the current process?
  */
 int
-inferior(p)
-	register struct proc *p;
+inferior(struct proc *p)
 {
 
 	sx_assert(&proctree_lock, SX_LOCKED);
-	for (; p != curproc; p = p->p_pptr)
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	for (; p != curproc; p = proc_realparent(p)) {
 		if (p->p_pid == 0)
 			return (0);
+	}
 	return (1);
 }
 
@@ -802,6 +793,8 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	struct ucred *cred;
 	struct sigacts *ps;
 
+	/* For proc_realparent. */
+	sx_assert(&proctree_lock, SX_LOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	bzero(kp, sizeof(*kp));
 
@@ -817,6 +810,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
 	kp->ki_flag = p->p_flag;
+	kp->ki_flag2 = p->p_flag2;
 	cred = p->p_ucred;
 	if (cred) {
 		kp->ki_uid = cred->cr_uid;
@@ -877,13 +871,14 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_swtime = (ticks - p->p_swtick) / hz;
 	kp->ki_pid = p->p_pid;
 	kp->ki_nice = p->p_nice;
+	kp->ki_fibnum = p->p_fibnum;
 	kp->ki_start = p->p_stats->p_start;
 	timevaladd(&kp->ki_start, &boottime);
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	rufetch(p, &kp->ki_rusage);
 	kp->ki_runtime = cputick2usec(p->p_rux.rux_runtime);
 	calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 	calccru(p, &kp->ki_childutime, &kp->ki_childstime);
 	/* Some callers want child times in a single value. */
 	kp->ki_childtime = kp->ki_childstime;
@@ -928,8 +923,11 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_xstat = p->p_xstat;
 	kp->ki_acflag = p->p_acflag;
 	kp->ki_lock = p->p_lock;
-	if (p->p_pptr)
-		kp->ki_ppid = p->p_pptr->p_pid;
+	if (p->p_pptr) {
+		kp->ki_ppid = proc_realparent(p)->p_pid;
+		if (p->p_flag & P_TRACED)
+			kp->ki_tracer = p->p_pptr->p_pid;
+	}
 }
 
 /*
@@ -948,7 +946,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
 	if (preferthread)
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 	thread_lock(td);
 	if (td->td_wmesg != NULL)
 		strlcpy(kp->ki_wmesg, td->td_wmesg, sizeof(kp->ki_wmesg));
@@ -988,6 +986,25 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_wchan = td->td_wchan;
 	kp->ki_pri.pri_level = td->td_priority;
 	kp->ki_pri.pri_native = td->td_base_pri;
+
+	/*
+	 * Note: legacy fields; clamp at the old NOCPU value and/or
+	 * the maximum u_char CPU value.
+	 */
+	if (td->td_lastcpu == NOCPU)
+		kp->ki_lastcpu_old = NOCPU_OLD;
+	else if (td->td_lastcpu > MAXCPU_OLD)
+		kp->ki_lastcpu_old = MAXCPU_OLD;
+	else
+		kp->ki_lastcpu_old = td->td_lastcpu;
+
+	if (td->td_oncpu == NOCPU)
+		kp->ki_oncpu_old = NOCPU_OLD;
+	else if (td->td_oncpu > MAXCPU_OLD)
+		kp->ki_oncpu_old = MAXCPU_OLD;
+	else
+		kp->ki_oncpu_old = td->td_oncpu;
+
 	kp->ki_lastcpu = td->td_lastcpu;
 	kp->ki_oncpu = td->td_oncpu;
 	kp->ki_tdflags = td->td_flags;
@@ -1015,7 +1032,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 	kp->ki_sigmask = td->td_sigmask;
 	thread_unlock(td);
 	if (preferthread)
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 }
 
 /*
@@ -1088,9 +1105,6 @@ zpfind(pid_t pid)
 	sx_sunlock(&allproc_lock);
 	return (p);
 }
-
-#define KERN_PROC_ZOMBMASK	0x3
-#define KERN_PROC_NOTHREADS	0x4
 
 #ifdef COMPAT_FREEBSD32
 
@@ -1171,6 +1185,11 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_rqindex);
 	CP(*ki, *ki32, ki_oncpu);
 	CP(*ki, *ki32, ki_lastcpu);
+
+	/* XXX TODO: wrap cpu value as appropriate */
+	CP(*ki, *ki32, ki_oncpu_old);
+	CP(*ki, *ki32, ki_lastcpu_old);
+
 	bcopy(ki->ki_tdname, ki32->ki_tdname, TDNAMLEN + 1);
 	bcopy(ki->ki_wmesg, ki32->ki_wmesg, WMESGLEN + 1);
 	bcopy(ki->ki_login, ki32->ki_login, LOGNAMELEN + 1);
@@ -1178,6 +1197,9 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
 	bcopy(ki->ki_loginclass, ki32->ki_loginclass, LOGINCLASSLEN + 1);
+	CP(*ki, *ki32, ki_tracer);
+	CP(*ki, *ki32, ki_flag2);
+	CP(*ki, *ki32, ki_fibnum);
 	CP(*ki, *ki32, ki_cr_flags);
 	CP(*ki, *ki32, ki_jid);
 	CP(*ki, *ki32, ki_numthreads);
@@ -1191,59 +1213,74 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_sflag);
 	CP(*ki, *ki32, ki_tdflags);
 }
-
-static int
-sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
-{
-	struct kinfo_proc32 ki32;
-	int error;
-
-	if (req->flags & SCTL_MASK32) {
-		freebsd32_kinfo_proc_out(ki, &ki32);
-		error = SYSCTL_OUT(req, &ki32, sizeof(struct kinfo_proc32));
-	} else
-		error = SYSCTL_OUT(req, ki, sizeof(struct kinfo_proc));
-	return (error);
-}
-#else
-static int
-sysctl_out_proc_copyout(struct kinfo_proc *ki, struct sysctl_req *req)
-{
-
-	return (SYSCTL_OUT(req, ki, sizeof(struct kinfo_proc)));
-}
 #endif
 
-/*
- * Must be called with the process locked and will return with it unlocked.
- */
-static int
-sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
+int
+kern_proc_out(struct proc *p, struct sbuf *sb, int flags)
 {
 	struct thread *td;
-	struct kinfo_proc kinfo_proc;
-	int error = 0;
-	struct proc *np;
-	pid_t pid = p->p_pid;
+	struct kinfo_proc ki;
+#ifdef COMPAT_FREEBSD32
+	struct kinfo_proc32 ki32;
+#endif
+	int error;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
 
-	fill_kinfo_proc(p, &kinfo_proc);
-	if (flags & KERN_PROC_NOTHREADS)
-		error = sysctl_out_proc_copyout(&kinfo_proc, req);
-	else {
+	error = 0;
+	fill_kinfo_proc(p, &ki);
+	if ((flags & KERN_PROC_NOTHREADS) != 0) {
+#ifdef COMPAT_FREEBSD32
+		if ((flags & KERN_PROC_MASK32) != 0) {
+			freebsd32_kinfo_proc_out(&ki, &ki32);
+			if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+				error = ENOMEM;
+		} else
+#endif
+			if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
+				error = ENOMEM;
+	} else {
 		FOREACH_THREAD_IN_PROC(p, td) {
-			fill_kinfo_thread(td, &kinfo_proc, 1);
-			error = sysctl_out_proc_copyout(&kinfo_proc, req);
-			if (error)
+			fill_kinfo_thread(td, &ki, 1);
+#ifdef COMPAT_FREEBSD32
+			if ((flags & KERN_PROC_MASK32) != 0) {
+				freebsd32_kinfo_proc_out(&ki, &ki32);
+				if (sbuf_bcat(sb, &ki32, sizeof(ki32)) != 0)
+					error = ENOMEM;
+			} else
+#endif
+				if (sbuf_bcat(sb, &ki, sizeof(ki)) != 0)
+					error = ENOMEM;
+			if (error != 0)
 				break;
 		}
 	}
 	PROC_UNLOCK(p);
-	if (error)
+	return (error);
+}
+
+static int
+sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags,
+    int doingzomb)
+{
+	struct sbuf sb;
+	struct kinfo_proc ki;
+	struct proc *np;
+	int error, error2;
+	pid_t pid;
+
+	pid = p->p_pid;
+	sbuf_new_for_sysctl(&sb, (char *)&ki, sizeof(ki), req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
+	error = kern_proc_out(p, &sb, flags);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	if (error != 0)
 		return (error);
-	if (flags & KERN_PROC_ZOMBMASK)
+	else if (error2 != 0)
+		return (error2);
+	if (doingzomb)
 		np = zpfind(pid);
 	else {
 		if (pid == 0)
@@ -1277,16 +1314,21 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		flags = 0;
 		oid_number &= ~KERN_PROC_INC_THREAD;
 	}
+#ifdef COMPAT_FREEBSD32
+	if (req->flags & SCTL_MASK32)
+		flags |= KERN_PROC_MASK32;
+#endif
 	if (oid_number == KERN_PROC_PID) {
 		if (namelen != 1)
 			return (EINVAL);
 		error = sysctl_wire_old_buffer(req, 0);
 		if (error)
 			return (error);
+		sx_slock(&proctree_lock);
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
-		if (error != 0)
-			return (error);
-		error = sysctl_out_proc(p, req, flags);
+		if (error == 0)
+			error = sysctl_out_proc(p, req, flags, 0);
+		sx_sunlock(&proctree_lock);
 		return (error);
 	}
 
@@ -1314,6 +1356,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error != 0)
 		return (error);
+	sx_slock(&proctree_lock);
 	sx_slock(&allproc_lock);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
@@ -1415,14 +1458,16 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 
 			}
 
-			error = sysctl_out_proc(p, req, flags | doingzomb);
+			error = sysctl_out_proc(p, req, flags, doingzomb);
 			if (error) {
 				sx_sunlock(&allproc_lock);
+				sx_sunlock(&proctree_lock);
 				return (error);
 			}
 		}
 	}
 	sx_sunlock(&allproc_lock);
+	sx_sunlock(&proctree_lock);
 	return (0);
 }
 
@@ -1748,6 +1793,28 @@ proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb)
 	return (get_ps_strings(curthread, p, sb, PROC_ENV));
 }
 
+int
+proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb)
+{
+	size_t vsize, size;
+	char **auxv;
+	int error;
+
+	error = get_proc_vector(td, p, &auxv, &vsize, PROC_AUX);
+	if (error == 0) {
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
+			size = vsize * sizeof(Elf32_Auxinfo);
+		else
+#endif
+			size = vsize * sizeof(Elf_Auxinfo);
+		if (sbuf_bcat(sb, auxv, size) != 0)
+			error = ENOMEM;
+		free(auxv, M_TEMP);
+	}
+	return (error);
+}
+
 /*
  * This sysctl allows a process to retrieve the argument list or process
  * title for another process without groping around in the address space
@@ -1784,6 +1851,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		_PHOLD(p);
 		PROC_UNLOCK(p);
 		sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+		sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 		error = proc_getargv(curthread, p, &sb);
 		error2 = sbuf_finish(&sb);
 		PRELE(p);
@@ -1836,6 +1904,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 	}
 
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
 	error = proc_getenvv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
@@ -1853,9 +1922,8 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	size_t vsize, size;
-	char **auxv;
-	int error;
+	struct sbuf sb;
+	int error, error2;
 
 	if (namelen != 1)
 		return (EINVAL);
@@ -1867,21 +1935,13 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 		PRELE(p);
 		return (0);
 	}
-	error = get_proc_vector(curthread, p, &auxv, &vsize, PROC_AUX);
-	if (error == 0) {
-#ifdef COMPAT_FREEBSD32
-		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
-			size = vsize * sizeof(Elf32_Auxinfo);
-		else
-#endif
-		size = vsize * sizeof(Elf_Auxinfo);
-		PRELE(p);
-		error = SYSCTL_OUT(req, auxv, size);
-		free(auxv, M_TEMP);
-	} else {
-		PRELE(p);
-	}
-	return (error);
+	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
+	error = proc_getauxv(curthread, p, &sb);
+	error2 = sbuf_finish(&sb);
+	PRELE(p);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
 }
 
 /*
@@ -1995,7 +2055,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		kve->kve_private_resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_WLOCK(obj);
+			VM_OBJECT_RLOCK(obj);
 			if (obj->shadow_count == 1)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
@@ -2010,9 +2070,9 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 
@@ -2072,11 +2132,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				break;
 			}
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
@@ -2119,25 +2179,89 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 CTASSERT(sizeof(struct kinfo_vmentry) == KINFO_VMENTRY_SIZE);
 #endif
 
-static int
-sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
+static void
+kern_proc_vmmap_resident(vm_map_t map, vm_map_entry_t entry,
+    struct kinfo_vmentry *kve)
+{
+	vm_object_t obj, tobj;
+	vm_page_t m, m_adv;
+	vm_offset_t addr;
+	vm_paddr_t locked_pa;
+	vm_pindex_t pi, pi_adv, pindex;
+
+	locked_pa = 0;
+	obj = entry->object.vm_object;
+	addr = entry->start;
+	m_adv = NULL;
+	pi = OFF_TO_IDX(entry->offset);
+	for (; addr < entry->end; addr += IDX_TO_OFF(pi_adv), pi += pi_adv) {
+		if (m_adv != NULL) {
+			m = m_adv;
+		} else {
+			pi_adv = OFF_TO_IDX(entry->end - addr);
+			pindex = pi;
+			for (tobj = obj;; tobj = tobj->backing_object) {
+				m = vm_page_find_least(tobj, pindex);
+				if (m != NULL) {
+					if (m->pindex == pindex)
+						break;
+					if (pi_adv > m->pindex - pindex) {
+						pi_adv = m->pindex - pindex;
+						m_adv = m;
+					}
+				}
+				if (tobj->backing_object == NULL)
+					goto next;
+				pindex += OFF_TO_IDX(tobj->
+				    backing_object_offset);
+			}
+		}
+		m_adv = NULL;
+		if (m->psind != 0 && addr + pagesizes[1] <= entry->end &&
+		    (addr & (pagesizes[1] - 1)) == 0 &&
+		    (pmap_mincore(map->pmap, addr, &locked_pa) &
+		    MINCORE_SUPER) != 0) {
+			kve->kve_flags |= KVME_FLAG_SUPER;
+			pi_adv = OFF_TO_IDX(pagesizes[1]);
+		} else {
+			/*
+			 * We do not test the found page on validity.
+			 * Either the page is busy and being paged in,
+			 * or it was invalidated.  The first case
+			 * should be counted as resident, the second
+			 * is not so clear; we do account both.
+			 */
+			pi_adv = 1;
+		}
+		kve->kve_resident += pi_adv;
+next:;
+	}
+	PA_UNLOCK_COND(locked_pa);
+}
+
+/*
+ * Must be called with the process locked and will return unlocked.
+ */
+int
+kern_proc_vmmap_out(struct proc *p, struct sbuf *sb)
 {
 	vm_map_entry_t entry, tmp_entry;
-	unsigned int last_timestamp;
+	struct vattr va;
+	vm_map_t map;
+	vm_object_t obj, tobj, lobj;
 	char *fullpath, *freepath;
 	struct kinfo_vmentry *kve;
-	struct vattr va;
 	struct ucred *cred;
-	int error, *name;
 	struct vnode *vp;
-	struct proc *p;
 	struct vmspace *vm;
-	vm_map_t map;
+	vm_offset_t addr;
+	unsigned int last_timestamp;
+	int error;
 
-	name = (int *)arg1;
-	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
-	if (error != 0)
-		return (error);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	_PHOLD(p);
+	PROC_UNLOCK(p);
 	vm = vmspace_acquire_ref(p);
 	if (vm == NULL) {
 		PRELE(p);
@@ -2145,48 +2269,35 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
+	error = 0;
 	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
-		vm_object_t obj, tobj, lobj;
-		vm_offset_t addr;
-		vm_paddr_t locked_pa;
-		int mincoreinfo;
-
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
 
+		addr = entry->end;
 		bzero(kve, sizeof(*kve));
-
-		kve->kve_private_resident = 0;
 		obj = entry->object.vm_object;
 		if (obj != NULL) {
-			VM_OBJECT_WLOCK(obj);
-			if (obj->shadow_count == 1)
+			for (tobj = obj; tobj != NULL;
+			    tobj = tobj->backing_object) {
+				VM_OBJECT_RLOCK(tobj);
+				lobj = tobj;
+			}
+			if (obj->backing_object == NULL)
 				kve->kve_private_resident =
 				    obj->resident_page_count;
-		}
-		kve->kve_resident = 0;
-		addr = entry->start;
-		while (addr < entry->end) {
-			locked_pa = 0;
-			mincoreinfo = pmap_mincore(map->pmap, addr, &locked_pa);
-			if (locked_pa != 0)
-				vm_page_unlock(PHYS_TO_VM_PAGE(locked_pa));
-			if (mincoreinfo & MINCORE_INCORE)
-				kve->kve_resident++;
-			if (mincoreinfo & MINCORE_SUPER)
-				kve->kve_flags |= KVME_FLAG_SUPER;
-			addr += PAGE_SIZE;
-		}
-
-		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
-			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
-			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			lobj = tobj;
+			if (!vmmap_skip_res_cnt)
+				kern_proc_vmmap_resident(map, entry, kve);
+			for (tobj = obj; tobj != NULL;
+			    tobj = tobj->backing_object) {
+				if (tobj != obj && tobj != lobj)
+					VM_OBJECT_RUNLOCK(tobj);
+			}
+		} else {
+			lobj = NULL;
 		}
 
 		kve->kve_start = entry->start;
@@ -2216,7 +2327,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 
 		freepath = NULL;
 		fullpath = "";
-		if (lobj) {
+		if (lobj != NULL) {
 			vp = NULL;
 			switch (lobj->type) {
 			case OBJT_DEFAULT:
@@ -2242,16 +2353,19 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			case OBJT_SG:
 				kve->kve_type = KVME_TYPE_SG;
 				break;
+			case OBJT_MGTDEVICE:
+				kve->kve_type = KVME_TYPE_MGTDEVICE;
+				break;
 			default:
 				kve->kve_type = KVME_TYPE_UNKNOWN;
 				break;
 			}
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 
 			kve->kve_ref_count = obj->ref_count;
 			kve->kve_shadow_count = obj->shadow_count;
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			if (vp != NULL) {
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
@@ -2284,9 +2398,10 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		    strlen(kve->kve_path) + 1;
 		kve->kve_structsize = roundup(kve->kve_structsize,
 		    sizeof(uint64_t));
-		error = SYSCTL_OUT(req, kve, kve->kve_structsize);
+		if (sbuf_bcat(sb, kve, kve->kve_structsize) != 0)
+			error = ENOMEM;
 		vm_map_lock_read(map);
-		if (error)
+		if (error != 0)
 			break;
 		if (last_timestamp != map->timestamp) {
 			vm_map_lookup_entry(map, addr - 1, &tmp_entry);
@@ -2298,6 +2413,27 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	PRELE(p);
 	free(kve, M_TEMP);
 	return (error);
+}
+
+static int
+sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+	struct sbuf sb;
+	int error, error2, *name;
+
+	name = (int *)arg1;
+	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_vmentry), req);
+	sbuf_clear_flags(&sb, SBUF_INCLUDENUL);
+	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
+	if (error != 0) {
+		sbuf_delete(&sb);
+		return (error);
+	}
+	error = kern_proc_vmmap_out(p, &sb);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
 }
 
 #if defined(STACK) || defined(DDB)
@@ -2409,6 +2545,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 		return (EINVAL);
 	if (*pidp == -1) {	/* -1 means this process */
 		p = req->td->td_proc;
+		PROC_LOCK(p);
 	} else {
 		error = pget(*pidp, PGET_CANSEE, &p);
 		if (error != 0)
@@ -2416,8 +2553,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	}
 
 	cred = crhold(p->p_ucred);
-	if (*pidp != -1)
-		PROC_UNLOCK(p);
+	PROC_UNLOCK(p);
 
 	error = SYSCTL_OUT(req, cred->cr_groups,
 	    cred->cr_ngroups * sizeof(gid_t));
@@ -2598,6 +2734,60 @@ errout:
 	return (error);
 }
 
+static int
+sysctl_kern_proc_sigtramp(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int *)arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	struct kinfo_sigtramp kst;
+	const struct sysentvec *sv;
+	int error;
+#ifdef COMPAT_FREEBSD32
+	struct kinfo_sigtramp32 kst32;
+#endif
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	if (error != 0)
+		return (error);
+	sv = p->p_sysent;
+#ifdef COMPAT_FREEBSD32
+	if ((req->flags & SCTL_MASK32) != 0) {
+		bzero(&kst32, sizeof(kst32));
+		if (SV_PROC_FLAG(p, SV_ILP32)) {
+			if (sv->sv_sigcode_base != 0) {
+				kst32.ksigtramp_start = sv->sv_sigcode_base;
+				kst32.ksigtramp_end = sv->sv_sigcode_base +
+				    *sv->sv_szsigcode;
+			} else {
+				kst32.ksigtramp_start = sv->sv_psstrings -
+				    *sv->sv_szsigcode;
+				kst32.ksigtramp_end = sv->sv_psstrings;
+			}
+		}
+		PROC_UNLOCK(p);
+		error = SYSCTL_OUT(req, &kst32, sizeof(kst32));
+		return (error);
+	}
+#endif
+	bzero(&kst, sizeof(kst));
+	if (sv->sv_sigcode_base != 0) {
+		kst.ksigtramp_start = (char *)sv->sv_sigcode_base;
+		kst.ksigtramp_end = (char *)sv->sv_sigcode_base +
+		    *sv->sv_szsigcode;
+	} else {
+		kst.ksigtramp_start = (char *)sv->sv_psstrings -
+		    *sv->sv_szsigcode;
+		kst.ksigtramp_end = (char *)sv->sv_psstrings;
+	}
+	PROC_UNLOCK(p);
+	error = SYSCTL_OUT(req, &kst, sizeof(kst));
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2706,3 +2896,146 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_OSREL, osrel, CTLFLAG_RW |
 	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_osrel,
 	"Process binary osreldate");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_SIGTRAMP, sigtramp, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_sigtramp,
+	"Process signal trampoline location");
+
+int allproc_gen;
+
+void
+stop_all_proc(void)
+{
+	struct proc *cp, *p;
+	int r, gen;
+	bool restart, seen_stopped, seen_exiting, stopped_some;
+
+	cp = curproc;
+	/*
+	 * stop_all_proc() assumes that all process which have
+	 * usermode must be stopped, except current process, for
+	 * obvious reasons.  Since other threads in the process
+	 * establishing global stop could unstop something, disable
+	 * calls from multithreaded processes as precaution.  The
+	 * service must not be user-callable anyway.
+	 */
+	KASSERT((cp->p_flag & P_HADTHREADS) == 0 ||
+	    (cp->p_flag & P_KTHREAD) != 0, ("mt stop_all_proc"));
+
+allproc_loop:
+	sx_xlock(&allproc_lock);
+	gen = allproc_gen;
+	seen_exiting = seen_stopped = stopped_some = restart = false;
+	LIST_REMOVE(cp, p_list);
+	LIST_INSERT_HEAD(&allproc, cp, p_list);
+	for (;;) {
+		p = LIST_NEXT(cp, p_list);
+		if (p == NULL)
+			break;
+		LIST_REMOVE(cp, p_list);
+		LIST_INSERT_AFTER(p, cp, p_list);
+		PROC_LOCK(p);
+		if ((p->p_flag & (P_KTHREAD | P_SYSTEM |
+		    P_TOTAL_STOP)) != 0) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		if ((p->p_flag & P_WEXIT) != 0) {
+			seen_exiting = true;
+			PROC_UNLOCK(p);
+			continue;
+		}
+		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
+			/*
+			 * Stopped processes are tolerated when there
+			 * are no other processes which might continue
+			 * them.  P_STOPPED_SINGLE but not
+			 * P_TOTAL_STOP process still has at least one
+			 * thread running.
+			 */
+			seen_stopped = true;
+			PROC_UNLOCK(p);
+			continue;
+		}
+		_PHOLD(p);
+		sx_xunlock(&allproc_lock);
+		r = thread_single(p, SINGLE_ALLPROC);
+		if (r != 0)
+			restart = true;
+		else
+			stopped_some = true;
+		_PRELE(p);
+		PROC_UNLOCK(p);
+		sx_xlock(&allproc_lock);
+	}
+	/* Catch forked children we did not see in iteration. */
+	if (gen != allproc_gen)
+		restart = true;
+	sx_xunlock(&allproc_lock);
+	if (restart || stopped_some || seen_exiting || seen_stopped) {
+		kern_yield(PRI_USER);
+		goto allproc_loop;
+	}
+}
+
+void
+resume_all_proc(void)
+{
+	struct proc *cp, *p;
+
+	cp = curproc;
+	sx_xlock(&allproc_lock);
+	LIST_REMOVE(cp, p_list);
+	LIST_INSERT_HEAD(&allproc, cp, p_list);
+	for (;;) {
+		p = LIST_NEXT(cp, p_list);
+		if (p == NULL)
+			break;
+		LIST_REMOVE(cp, p_list);
+		LIST_INSERT_AFTER(p, cp, p_list);
+		PROC_LOCK(p);
+		if ((p->p_flag & P_TOTAL_STOP) != 0) {
+			sx_xunlock(&allproc_lock);
+			_PHOLD(p);
+			thread_single_end(p, SINGLE_ALLPROC);
+			_PRELE(p);
+			PROC_UNLOCK(p);
+			sx_xlock(&allproc_lock);
+		} else {
+			PROC_UNLOCK(p);
+		}
+	}
+	sx_xunlock(&allproc_lock);
+}
+
+#define	TOTAL_STOP_DEBUG	1
+#ifdef TOTAL_STOP_DEBUG
+volatile static int ap_resume;
+#include <sys/mount.h>
+
+static int
+sysctl_debug_stop_all_proc(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = 0;
+	ap_resume = 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val != 0) {
+		stop_all_proc();
+		syncer_suspend();
+		while (ap_resume == 0)
+			;
+		syncer_resume();
+		resume_all_proc();
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_debug, OID_AUTO, stop_all_proc, CTLTYPE_INT | CTLFLAG_RW |
+    CTLFLAG_MPSAFE, __DEVOLATILE(int *, &ap_resume), 0,
+    sysctl_debug_stop_all_proc, "I",
+    "");
+#endif

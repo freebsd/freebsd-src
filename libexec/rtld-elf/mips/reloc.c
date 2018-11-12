@@ -275,6 +275,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	if (obj == obj_rtld)
 		return (0);
 
+	if ((flags & SYMLOOK_IFUNC) != 0)
+		/* XXX not implemented */
+		return (0);
+
 #ifdef SUPPORT_OLD_BROKEN_LD
 	broken = 0;
 	sym = obj->symtab;

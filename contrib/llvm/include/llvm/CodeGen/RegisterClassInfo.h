@@ -19,7 +19,6 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
@@ -29,16 +28,21 @@ class RegisterClassInfo {
     unsigned Tag;
     unsigned NumRegs;
     bool ProperSubClass;
-    OwningArrayPtr<unsigned> Order;
+    uint8_t MinCost;
+    uint16_t LastCostChange;
+    std::unique_ptr<MCPhysReg[]> Order;
 
-    RCInfo() : Tag(0), NumRegs(0), ProperSubClass(false) {}
-    operator ArrayRef<unsigned>() const {
+    RCInfo()
+      : Tag(0), NumRegs(0), ProperSubClass(false), MinCost(0),
+        LastCostChange(0) {}
+
+    operator ArrayRef<MCPhysReg>() const {
       return makeArrayRef(Order.get(), NumRegs);
     }
   };
 
   // Brief cached information for each register class.
-  OwningArrayPtr<RCInfo> RegClass;
+  std::unique_ptr<RCInfo[]> RegClass;
 
   // Tag changes whenever cached information needs to be recomputed. An RCInfo
   // entry is valid when its tag matches.
@@ -49,13 +53,15 @@ class RegisterClassInfo {
 
   // Callee saved registers of last MF. Assumed to be valid until the next
   // runOnFunction() call.
-  const uint16_t *CalleeSaved;
+  const MCPhysReg *CalleeSaved;
 
   // Map register number to CalleeSaved index + 1;
   SmallVector<uint8_t, 4> CSRNum;
 
   // Reserved registers in the current MF.
   BitVector Reserved;
+
+  std::unique_ptr<unsigned[]> PSetLimits;
 
   // Compute all information about RC.
   void compute(const TargetRegisterClass *RC) const;
@@ -84,7 +90,7 @@ public:
   /// getOrder - Returns the preferred allocation order for RC. The order
   /// contains no reserved registers, and registers that alias callee saved
   /// registers come last.
-  ArrayRef<unsigned> getOrder(const TargetRegisterClass *RC) const {
+  ArrayRef<MCPhysReg> getOrder(const TargetRegisterClass *RC) const {
     return get(RC);
   }
 
@@ -106,8 +112,34 @@ public:
       return CalleeSaved[N-1];
     return 0;
   }
+
+  /// Get the minimum register cost in RC's allocation order.
+  /// This is the smallest value returned by TRI->getCostPerUse(Reg) for all
+  /// the registers in getOrder(RC).
+  unsigned getMinCost(const TargetRegisterClass *RC) {
+    return get(RC).MinCost;
+  }
+
+  /// Get the position of the last cost change in getOrder(RC).
+  ///
+  /// All registers in getOrder(RC).slice(getLastCostChange(RC)) will have the
+  /// same cost according to TRI->getCostPerUse().
+  unsigned getLastCostChange(const TargetRegisterClass *RC) {
+    return get(RC).LastCostChange;
+  }
+
+  /// Get the register unit limit for the given pressure set index.
+  ///
+  /// RegisterClassInfo adjusts this limit for reserved registers.
+  unsigned getRegPressureSetLimit(unsigned Idx) const {
+    if (!PSetLimits[Idx])
+      PSetLimits[Idx] = computePSetLimit(Idx);
+    return PSetLimits[Idx];
+  }
+
+protected:
+  unsigned computePSetLimit(unsigned Idx) const;
 };
 } // end namespace llvm
 
 #endif
-

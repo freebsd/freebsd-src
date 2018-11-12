@@ -1,7 +1,7 @@
 #ifdef __STDC__
-#define __P(X) X
+#define	__P(X) X
 #else
-#define __P(X) ()
+#define	__P(X) ()
 #endif
 
 extern int t_sync __P((int));

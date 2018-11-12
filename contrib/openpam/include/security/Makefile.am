@@ -1,8 +1,8 @@
-# $Id: Makefile.am 405 2007-12-19 11:38:27Z des $
+# $Id: Makefile.am 714 2013-08-19 15:30:21Z des $
 
-openpamdir = $(includedir)/security
+securitydir = $(includedir)/security
 
-openpam_HEADERS = \
+security_HEADERS = \
 	openpam.h \
 	openpam_attr.h \
 	openpam_version.h \

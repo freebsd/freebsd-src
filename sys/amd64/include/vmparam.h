@@ -87,7 +87,7 @@
  * largest physical address that is accessible by ISA DMA is split
  * into two PHYSSEG entries. 
  */
-#define	VM_PHYSSEG_MAX		31
+#define	VM_PHYSSEG_MAX		63
 
 /*
  * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
@@ -101,14 +101,22 @@
 #define	VM_FREEPOOL_DIRECT	1
 
 /*
- * Create two free page lists: VM_FREELIST_DEFAULT is for physical
- * pages that are above the largest physical address that is
- * accessible by ISA DMA and VM_FREELIST_ISADMA is for physical pages
- * that are below that address.
+ * Create up to three free page lists: VM_FREELIST_DMA32 is for physical pages
+ * that have physical addresses below 4G but are not accessible by ISA DMA,
+ * and VM_FREELIST_ISADMA is for physical pages that are accessible by ISA
+ * DMA.
  */
-#define	VM_NFREELIST		2
+#define	VM_NFREELIST		3
 #define	VM_FREELIST_DEFAULT	0
-#define	VM_FREELIST_ISADMA	1
+#define	VM_FREELIST_DMA32	1
+#define	VM_FREELIST_ISADMA	2
+
+/*
+ * Create the DMA32 free list only if the number of physical pages above
+ * physical address 4G is at least 16M, which amounts to 64GB of physical
+ * memory.
+ */
+#define	VM_DMA32_NPAGES_THRESHOLD	16777216
 
 /*
  * An allocation size of 16MB is supported in order to optimize the
@@ -119,13 +127,6 @@
  * page TLB misses and cache misses caused by 2MB page TLB misses.
  */
 #define	VM_NFREEORDER		13
-
-/*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
 
 /*
  * Enable superpage reservations: 1 level.
@@ -152,18 +153,19 @@
  * 0x0000000000000000 - 0x00007fffffffffff   user map
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
- * 0xffff804020101000 - 0xfffffdffffffffff   unused
- * 0xfffffe0000000000 - 0xfffffeffffffffff   1TB direct map
- * 0xffffff0000000000 - 0xffffff7fffffffff   unused
- * 0xffffff8000000000 - 0xffffffffffffffff   512GB kernel map
+ * 0xffff804020101000 - 0xfffff7ffffffffff   unused
+ * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
+ * 0xfffffc0000000000 - 0xfffffdffffffffff   unused
+ * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
  *
  * Within the kernel map:
  *
  * 0xffffffff80000000                        KERNBASE
  */
 
-#define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-1, NPDEPG-1, NPTEPG-1)
-#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-512, 0, 0)
+#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4BASE, 0, 0, 0)
+#define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4BASE + NKPML4E - 1, \
+					NPDPEPG-1, NPDEPG-1, NPTEPG-1)
 
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I + NDMPML4E, 0, 0, 0)
@@ -181,26 +183,35 @@
 #define	VM_MAX_ADDRESS		UPT_MAX_ADDRESS
 #define	VM_MIN_ADDRESS		(0)
 
-#define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
-#define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
+/*
+ * XXX Allowing dmaplimit == 0 is a temporary workaround for vt(4) efifb's
+ * early use of PHYS_TO_DMAP before the mapping is actually setup. This works
+ * because the result is not actually accessed until later, but the early
+ * vt fb startup needs to be reworked.
+ */
+#define	PHYS_TO_DMAP(x)	({						\
+	KASSERT(dmaplimit == 0 || (x) < dmaplimit,			\
+	    ("physical address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) | DMAP_MIN_ADDRESS; })
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
+#define	DMAP_TO_PHYS(x)	({						\
+	KASSERT((x) < (DMAP_MIN_ADDRESS + dmaplimit) &&			\
+	    (x) >= DMAP_MIN_ADDRESS,					\
+	    ("virtual address %#jx not covered by the DMAP",		\
+	    (uintmax_t)x));						\
+	(x) & ~DMAP_MIN_ADDRESS; })
 
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(1)
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Optional ceiling (in bytes) on the size of the kmem arena: 60% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \

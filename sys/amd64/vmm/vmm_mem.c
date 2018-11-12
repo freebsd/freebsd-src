@@ -30,39 +30,23 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/linker.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/sglist.h>
+#include <sys/lock.h>
+#include <sys/rwlock.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
-#include <vm/vm_pageout.h>
+#include <vm/vm_pager.h>
 
 #include <machine/md_var.h>
-#include <machine/metadata.h>
-#include <machine/pc/bios.h>
-#include <machine/vmparam.h>
-#include <machine/pmap.h>
 
-#include "vmm_util.h"
 #include "vmm_mem.h"
-
-SYSCTL_DECL(_hw_vmm);
-
-static u_long pages_allocated;
-SYSCTL_ULONG(_hw_vmm, OID_AUTO, pages_allocated, CTLFLAG_RD,
-	     &pages_allocated, 0, "4KB pages allocated");
-
-static void
-update_pages_allocated(int howmany)
-{
-	pages_allocated += howmany;	/* XXX locking? */
-}
 
 int
 vmm_mem_init(void)
@@ -71,60 +55,95 @@ vmm_mem_init(void)
 	return (0);
 }
 
-vm_paddr_t
-vmm_mem_alloc(size_t size)
+vm_object_t
+vmm_mmio_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len,
+	       vm_paddr_t hpa)
 {
-	int flags;
-	vm_page_t m;
-	vm_paddr_t pa;
+	int error;
+	vm_object_t obj;
+	struct sglist *sg;
 
-	if (size != PAGE_SIZE)
-		panic("vmm_mem_alloc: invalid allocation size %lu", size);
+	sg = sglist_alloc(1, M_WAITOK);
+	error = sglist_append_phys(sg, hpa, len);
+	KASSERT(error == 0, ("error %d appending physaddr to sglist", error));
 
-	flags = VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		VM_ALLOC_ZERO;
-
-	while (1) {
+	obj = vm_pager_allocate(OBJT_SG, sg, len, VM_PROT_RW, 0, NULL);
+	if (obj != NULL) {
 		/*
-		 * XXX need policy to determine when to back off the allocation
+		 * VT-x ignores the MTRR settings when figuring out the
+		 * memory type for translations obtained through EPT.
+		 *
+		 * Therefore we explicitly force the pages provided by
+		 * this object to be mapped as uncacheable.
 		 */
-		m = vm_page_alloc(NULL, 0, flags);
-		if (m == NULL)
-			VM_WAIT;
-		else
-			break;
+		VM_OBJECT_WLOCK(obj);
+		error = vm_object_set_memattr(obj, VM_MEMATTR_UNCACHEABLE);
+		VM_OBJECT_WUNLOCK(obj);
+		if (error != KERN_SUCCESS) {
+			panic("vmm_mmio_alloc: vm_object_set_memattr error %d",
+				error);
+		}
+		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
+				    VMFS_NO_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
+		if (error != KERN_SUCCESS) {
+			vm_object_deallocate(obj);
+			obj = NULL;
+		}
 	}
 
-	pa = VM_PAGE_TO_PHYS(m);
-	
-	if ((m->flags & PG_ZERO) == 0)
-		pagezero((void *)PHYS_TO_DMAP(pa));
-	m->valid = VM_PAGE_BITS_ALL;
+	/*
+	 * Drop the reference on the sglist.
+	 *
+	 * If the scatter/gather object was successfully allocated then it
+	 * has incremented the reference count on the sglist. Dropping the
+	 * initial reference count ensures that the sglist will be freed
+	 * when the object is deallocated.
+	 * 
+	 * If the object could not be allocated then we end up freeing the
+	 * sglist.
+	 */
+	sglist_free(sg);
 
-	update_pages_allocated(1);
-
-	return (pa);
+	return (obj);
 }
 
 void
-vmm_mem_free(vm_paddr_t base, size_t length)
+vmm_mmio_free(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
 {
-	vm_page_t m;
 
-	if (base & PAGE_MASK) {
-		panic("vmm_mem_free: base 0x%0lx must be aligned on a "
-		      "0x%0x boundary\n", base, PAGE_SIZE);
+	vm_map_remove(&vmspace->vm_map, gpa, gpa + len);
+}
+
+vm_object_t
+vmm_mem_alloc(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
+{
+	int error;
+	vm_object_t obj;
+
+	if (gpa & PAGE_MASK)
+		panic("vmm_mem_alloc: invalid gpa %#lx", gpa);
+
+	if (len == 0 || (len & PAGE_MASK) != 0)
+		panic("vmm_mem_alloc: invalid allocation size %lu", len);
+
+	obj = vm_object_allocate(OBJT_DEFAULT, len >> PAGE_SHIFT);
+	if (obj != NULL) {
+		error = vm_map_find(&vmspace->vm_map, obj, 0, &gpa, len, 0,
+				    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0);
+		if (error != KERN_SUCCESS) {
+			vm_object_deallocate(obj);
+			obj = NULL;
+		}
 	}
 
-	if (length != PAGE_SIZE)
-		panic("vmm_mem_free: invalid length %lu", length);
+	return (obj);
+}
 
-	m = PHYS_TO_VM_PAGE(base);
-	m->wire_count--;
-	vm_page_free(m);
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+void
+vmm_mem_free(struct vmspace *vmspace, vm_paddr_t gpa, size_t len)
+{
 
-	update_pages_allocated(-1);
+	vm_map_remove(&vmspace->vm_map, gpa, gpa + len);
 }
 
 vm_paddr_t

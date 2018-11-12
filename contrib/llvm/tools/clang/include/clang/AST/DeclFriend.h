@@ -17,6 +17,7 @@
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
+#include "clang/AST/TypeLoc.h"
 #include "llvm/Support/Compiler.h"
 
 namespace clang {
@@ -54,26 +55,44 @@ private:
   /// True if this 'friend' declaration is unsupported.  Eventually we
   /// will support every possible friend declaration, but for now we
   /// silently ignore some and set this flag to authorize all access.
-  bool UnsupportedFriend;
+  bool UnsupportedFriend : 1;
+
+  // The number of "outer" template parameter lists in non-templatic
+  // (currently unsupported) friend type declarations, such as
+  //     template <class T> friend class A<T>::B;
+  unsigned NumTPLists : 31;
+
+  // The tail-allocated friend type template parameter lists (if any).
+  TemplateParameterList* const *getTPLists() const {
+    return reinterpret_cast<TemplateParameterList* const *>(this + 1);
+  }
+  TemplateParameterList **getTPLists() {
+    return reinterpret_cast<TemplateParameterList**>(this + 1);
+  }
 
   friend class CXXRecordDecl::friend_iterator;
   friend class CXXRecordDecl;
 
   FriendDecl(DeclContext *DC, SourceLocation L, FriendUnion Friend,
-             SourceLocation FriendL)
+             SourceLocation FriendL,
+             ArrayRef<TemplateParameterList*> FriendTypeTPLists)
     : Decl(Decl::Friend, DC, L),
       Friend(Friend),
       NextFriend(),
       FriendLoc(FriendL),
-      UnsupportedFriend(false) {
+      UnsupportedFriend(false),
+      NumTPLists(FriendTypeTPLists.size()) {
+    for (unsigned i = 0; i < NumTPLists; ++i)
+      getTPLists()[i] = FriendTypeTPLists[i];
   }
 
-  explicit FriendDecl(EmptyShell Empty)
-    : Decl(Decl::Friend, Empty), NextFriend() { }
+  FriendDecl(EmptyShell Empty, unsigned NumFriendTypeTPLists)
+    : Decl(Decl::Friend, Empty), NextFriend(),
+      NumTPLists(NumFriendTypeTPLists) { }
 
   FriendDecl *getNextFriend() {
     if (!NextFriend.isOffset())
-      return cast_or_null<FriendDecl>(NextFriend.get(0));
+      return cast_or_null<FriendDecl>(NextFriend.get(nullptr));
     return getNextFriendSlowCase();
   }
   FriendDecl *getNextFriendSlowCase();
@@ -81,8 +100,11 @@ private:
 public:
   static FriendDecl *Create(ASTContext &C, DeclContext *DC,
                             SourceLocation L, FriendUnion Friend_,
-                            SourceLocation FriendL);
-  static FriendDecl *CreateDeserialized(ASTContext &C, unsigned ID);
+                            SourceLocation FriendL,
+                            ArrayRef<TemplateParameterList*> FriendTypeTPLists
+                            = None);
+  static FriendDecl *CreateDeserialized(ASTContext &C, unsigned ID,
+                                        unsigned FriendTypeNumTPLists);
 
   /// If this friend declaration names an (untemplated but possibly
   /// dependent) type, return the type; otherwise return null.  This
@@ -90,6 +112,13 @@ public:
   /// arbitrary friend type declarations.
   TypeSourceInfo *getFriendType() const {
     return Friend.dyn_cast<TypeSourceInfo*>();
+  }
+  unsigned getFriendTypeNumTemplateParameterLists() const {
+    return NumTPLists;
+  }
+  TemplateParameterList *getFriendTypeTemplateParameterList(unsigned N) const {
+    assert(N < NumTPLists);
+    return getTPLists()[N];
   }
 
   /// If this friend declaration doesn't name a type, return the inner
@@ -104,18 +133,26 @@ public:
   }
 
   /// Retrieves the source range for the friend declaration.
-  SourceRange getSourceRange() const LLVM_READONLY {
+  SourceRange getSourceRange() const override LLVM_READONLY {
     if (NamedDecl *ND = getFriendDecl()) {
+      if (FunctionDecl *FD = dyn_cast<FunctionDecl>(ND))
+        return FD->getSourceRange();
       if (FunctionTemplateDecl *FTD = dyn_cast<FunctionTemplateDecl>(ND))
         return FTD->getSourceRange();
+      if (ClassTemplateDecl *CTD = dyn_cast<ClassTemplateDecl>(ND))
+        return CTD->getSourceRange();
       if (DeclaratorDecl *DD = dyn_cast<DeclaratorDecl>(ND)) {
         if (DD->getOuterLocStart() != DD->getInnerLocStart())
           return DD->getSourceRange();
       }
       return SourceRange(getFriendLoc(), ND->getLocEnd());
     }
-    else if (TypeSourceInfo *TInfo = getFriendType())
-      return SourceRange(getFriendLoc(), TInfo->getTypeLoc().getEndLoc());
+    else if (TypeSourceInfo *TInfo = getFriendType()) {
+      SourceLocation StartL = (NumTPLists == 0)
+        ? getFriendLoc()
+        : getTPLists()[0]->getTemplateLoc();
+      return SourceRange(StartL, TInfo->getTypeLoc().getEndLoc());
+    }
     else
       return SourceRange(getFriendLoc(), getLocation());
   }
@@ -188,15 +225,19 @@ public:
 };
 
 inline CXXRecordDecl::friend_iterator CXXRecordDecl::friend_begin() const {
-  return friend_iterator(data().FirstFriend);
+  return friend_iterator(getFirstFriend());
 }
 
 inline CXXRecordDecl::friend_iterator CXXRecordDecl::friend_end() const {
-  return friend_iterator(0);
+  return friend_iterator(nullptr);
+}
+
+inline CXXRecordDecl::friend_range CXXRecordDecl::friends() const {
+  return friend_range(friend_begin(), friend_end());
 }
 
 inline void CXXRecordDecl::pushFriendDecl(FriendDecl *FD) {
-  assert(FD->NextFriend == 0 && "friend already has next friend?");
+  assert(!FD->NextFriend && "friend already has next friend?");
   FD->NextFriend = data().FirstFriend;
   data().FirstFriend = FD;
 }

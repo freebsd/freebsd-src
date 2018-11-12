@@ -12,11 +12,8 @@
 #include "stdexcept"
 #include "type_traits"
 
-// Don't silence a non-existent warning if clang doesn't yet have this warning.
 #ifdef __clang__
-#if (__clang_major__ > 3) || ((__clang_major__ == 3) && (__clang_minor__ >= 2))
 #pragma clang diagnostic ignored "-Wtautological-constant-out-of-range-compare"
-#endif
 #endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
@@ -139,7 +136,7 @@ const unsigned indices[] =
 // The algorithm creates a list of small primes, plus an open-ended list of
 // potential primes.  All prime numbers are potential prime numbers.  However
 // some potential prime numbers are not prime.  In an ideal world, all potential
-// prime numbers would be prime.  Candiate prime numbers are chosen as the next
+// prime numbers would be prime.  Candidate prime numbers are chosen as the next
 // highest potential prime.  Then this number is tested for prime by dividing it
 // by all potential prime numbers less than the sqrt of the candidate.
 //
@@ -160,6 +157,8 @@ __check_for_overflow(size_t N)
 #ifndef _LIBCPP_NO_EXCEPTIONS
     if (N > 0xFFFFFFFB)
         throw overflow_error("__next_prime overflow");
+#else
+    (void)N;
 #endif
 }
 
@@ -171,6 +170,8 @@ __check_for_overflow(size_t N)
 #ifndef _LIBCPP_NO_EXCEPTIONS
     if (N > 0xFFFFFFFFFFFFFFC5ull)
         throw overflow_error("__next_prime overflow");
+#else
+    (void)N;
 #endif
 }
 

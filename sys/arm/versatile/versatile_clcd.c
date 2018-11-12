@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -233,6 +232,9 @@ static int
 versatile_clcdc_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "arm,pl110")) {
 		device_set_desc(dev, "PL110 CLCD controller");
 		return (BUS_PROBE_DEFAULT);
@@ -361,8 +363,6 @@ versatile_clcdc_attach(device_t dev)
 fail:
 	if (sc->fb_base)
 		bus_dmamem_free(sc->dma_tag, sc->fb_base, sc->dma_map);
-	if (sc->dma_map)
-		bus_dmamap_destroy(sc->dma_tag, sc->dma_map);
 	if (sc->dma_tag)
 		bus_dma_tag_destroy(sc->dma_tag);
 	return (err);

@@ -68,14 +68,13 @@ struct localvar {
 };
 
 
-struct localvar *localvars;
+extern struct localvar *localvars;
 extern int forcelocal;
 
 extern struct var vifs;
 extern struct var vmail;
 extern struct var vmpath;
 extern struct var vpath;
-extern struct var vppid;
 extern struct var vps1;
 extern struct var vps2;
 extern struct var vps4;

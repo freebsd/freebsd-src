@@ -7,12 +7,20 @@
 .
     bin
     ..
-    games
-    ..
     include
     ..
     lib
         aout
+        ..
+        clang
+            3.6.0
+                include
+                ..
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
         ..
         compat
             aout
@@ -22,14 +30,18 @@
         ..
         engines
         ..
-	i18n
-	..
+        i18n
+        ..
+        private
+        ..
     ..
     lib32
-	dtrace
-	..
-	i18n
-	..
+        dtrace
+        ..
+        i18n
+        ..
+        private
+        ..
     ..
     libdata
         gcc
@@ -38,10 +50,74 @@
         ..
         lint
         ..
+        pkgconfig
+        ..
     ..
     libexec
-	bsdinstall
-	..
+        bsdconfig
+            020.docsinstall
+                include
+                ..
+            ..
+            030.packages
+                include
+                ..
+            ..
+            040.password
+                include
+                ..
+            ..
+            050.diskmgmt
+                include
+                ..
+            ..
+            070.usermgmt
+                include
+                ..
+            ..
+            080.console
+                include
+                ..
+            ..
+            090.timezone
+                include
+                ..
+            ..
+            110.mouse
+                include
+                ..
+            ..
+            120.networking
+                include
+                ..
+            ..
+            130.security
+                include
+                ..
+            ..
+            140.startup
+                include
+                ..
+            ..
+            150.ttys
+                include
+                ..
+            ..
+            dot
+                include
+                ..
+            ..
+            include
+            ..
+            includes
+                include
+                ..
+            ..
+        ..
+        bsdinstall
+        ..
+        hyperv
+        ..
         lpr
             ru
             ..
@@ -60,7 +136,25 @@
     share
         atf
         ..
+        bsdconfig
+            media
+            ..
+            networking
+            ..
+            packages
+            ..
+            password
+            ..
+            startup
+            ..
+            timezone
+            ..
+            usermgmt
+            ..
+        ..
         calendar
+            de_AT.ISO_8859-15
+            ..
             de_DE.ISO8859-1
             ..
             fr_FR.ISO8859-1
@@ -69,7 +163,13 @@
             ..
             hu_HU.ISO8859-2
             ..
+            pt_BR.ISO8859-1
+            ..
+            pt_BR.UTF-8
+            ..
             ru_RU.KOI8-R
+            ..
+            ru_RU.UTF-8
             ..
             uk_UA.KOI8-U
             ..
@@ -82,12 +182,6 @@
             atf
             ..
             atm
-            ..
-            bind9
-                arm
-                ..
-                misc
-                ..
             ..
             legal
                 intel_ipw
@@ -106,6 +200,8 @@
             ntp
             ..
             papers
+            ..
+            pjdfstest
             ..
             psd
                 01.cacm
@@ -147,8 +243,6 @@
                 26.rpcrfc
                 ..
                 27.nfsrfc
-                ..
-                28.cvs
                 ..
             ..
             smm
@@ -207,7 +301,7 @@
         dtrace
             toolkit
             ..
-        ..  
+        ..
         examples
             BSD_daemon
             ..
@@ -215,21 +309,17 @@
             ..
             IPv6
             ..
-            atf
-            ..
             bhyve
             ..
             bootforth
             ..
+            bsdconfig
+            ..
             csh
             ..
-            cvs
-                contrib
-                ..
-            ..
-            cvsup
-            ..
             diskless
+            ..
+            dma
             ..
             drivers
             ..
@@ -250,8 +340,6 @@
             ipfilter
             ..
             ipfw
-            ..
-            iscsi
             ..
             jails
             ..
@@ -286,8 +374,6 @@
             mdoc
             ..
             netgraph
-                bluetooth
-                ..
             ..
             pc-sysinstall
             ..
@@ -315,6 +401,10 @@
                 srcs
                 ..
             ..
+            smbfs
+                print
+                ..
+            ..
             sunrpc
                 dir
                 ..
@@ -325,84 +415,94 @@
             ..
             tcsh
             ..
+            uefisign
+            ..
         ..
         games
             fortune
             ..
         ..
+        i18n
+            csmapper
+                APPLE
+                ..
+                AST
+                ..
+                BIG5
+                ..
+                CNS
+                ..
+                CP
+                ..
+                EBCDIC
+                ..
+                GB
+                ..
+                GEORGIAN
+                ..
+                ISO-8859
+                ..
+                ISO646
+                ..
+                JIS
+                ..
+                KAZAKH
+                ..
+                KOI
+                ..
+                KS
+                ..
+                MISC
+                ..
+                TCVN
+                ..
+            ..
+            esdb
+                APPLE
+                ..
+                AST
+                ..
+                BIG5
+                ..
+                CP
+                ..
+                DEC
+                ..
+                EBCDIC
+                ..
+                EUC
+                ..
+                GB
+                ..
+                GEORGIAN
+                ..
+                ISO-2022
+                ..
+                ISO-8859
+                ..
+                ISO646
+                ..
+                KAZAKH
+                ..
+                KOI
+                ..
+                MISC
+                ..
+                TCVN
+                ..
+                UTF
+                ..
+            ..
+        ..
         info
-	..
-	i18n
-	    csmapper
-		APPLE
-		..
-		AST
-		..
-		BIG5
-		..
-		CNS
-		..
-		CP
-		..
-		EBCDIC
-		..
-		GB
-		..
-		GEORGIAN
-		..
-		ISO-8859
-		..
-		ISO646
-		..
-		JIS
-		..
-		KAZAKH
-		..
-		KOI
-		..
-		KS
-		..
-		MISC
-		..
-		TCVN
-		..
-	    ..
-	    esdb
-		APPLE
-		..
-		AST
-		..
-		BIG5
-		..
-		CP
-		..
-		DEC
-		..
-		EBCDIC
-		..
-		EUC
-		..
-		GB
-		..
-		GEORGIAN
-		..
-		ISO-2022
-		..
-		ISO-8859
-		..
-		ISO646
-		..
-		KAZAKH
-		..
-		KOI
-		..
-		MISC
-		..
-		TCVN
-		..
-		UTF
-		..
-	    ..
+        ..
+        keys
+            pkg
+                revoked
+                ..
+                trusted
+                ..
+            ..
         ..
         locale
             UTF-8
@@ -429,25 +529,25 @@
             ..
             ca_AD.ISO8859-1
             ..
-            ca_ES.ISO8859-1
-            ..
-            ca_FR.ISO8859-1
-            ..
-            ca_IT.ISO8859-1
-            ..
             ca_AD.ISO8859-15
-            ..
-            ca_ES.ISO8859-15
-            ..
-            ca_FR.ISO8859-15
-            ..
-            ca_IT.ISO8859-15
             ..
             ca_AD.UTF-8
             ..
+            ca_ES.ISO8859-1
+            ..
+            ca_ES.ISO8859-15
+            ..
             ca_ES.UTF-8
             ..
+            ca_FR.ISO8859-1
+            ..
+            ca_FR.ISO8859-15
+            ..
             ca_FR.UTF-8
+            ..
+            ca_IT.ISO8859-1
+            ..
+            ca_IT.ISO8859-15
             ..
             ca_IT.UTF-8
             ..
@@ -1324,12 +1424,10 @@
             catalog
             ..
         ..
-        xml
-            atf
+        vt
+            fonts
             ..
-        ..
-        xsl
-            atf
+            keymaps
             ..
         ..
         zoneinfo
@@ -1368,7 +1466,5 @@
         ..
     ..
     src             nochange
-    ..
-    tests
     ..
 ..

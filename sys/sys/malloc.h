@@ -51,6 +51,8 @@
 #define	M_NOVM		0x0200		/* don't ask VM for pages */
 #define	M_USE_RESERVE	0x0400		/* can alloc out of reserve memory */
 #define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
+#define	M_FIRSTFIT	0x1000		/* Only for vmem, fast fit. */
+#define	M_BESTFIT	0x2000		/* Only for vmem, low fragmentation. */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
@@ -132,7 +134,7 @@ struct malloc_type_header {
 	struct malloc_type type[1] = {					\
 		{ NULL, M_MAGIC, shortdesc, NULL }			\
 	};								\
-	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_SECOND, malloc_init,	\
+	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_THIRD, malloc_init,	\
 	    type);							\
 	SYSUNINIT(type##_uninit, SI_SUB_KMEM, SI_ORDER_ANY,		\
 	    malloc_uninit, type)

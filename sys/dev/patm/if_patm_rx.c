@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/route.h>
@@ -253,7 +254,7 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 
 	} else if (vcc->vcc.aal == ATMIO_AAL_5) {
 		if (stat & IDT_RSQE_CRC) {
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 			if (vcc->chain != NULL) {
 				m_freem(vcc->chain);
 				vcc->chain = vcc->last = NULL;
@@ -311,9 +312,9 @@ patm_rx(struct patm_softc *sc, struct idt_rsqe *rsqe)
 	}
 #endif
 
-	sc->ifp->if_ipackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 	/* this is in if_atmsubr.c */
-	/* sc->ifp->if_ibytes += m->m_pkthdr.len; */
+	/* if_inc_counter(sc->ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len); */
 
 	vcc->ibytes += m->m_pkthdr.len;
 	vcc->ipackets++;
@@ -470,7 +471,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 	  default:
 	  case PATM_RAW_CELL:
 		m->m_len = m->m_pkthdr.len = 53;
-		MH_ALIGN(m, 53);
+		M_ALIGN(m, 53);
 		dst = mtod(m, u_char *);
 		*dst++ = *cell++;
 		*dst++ = *cell++;
@@ -482,7 +483,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 
 	  case PATM_RAW_NOHEC:
 		m->m_len = m->m_pkthdr.len = 52;
-		MH_ALIGN(m, 52);
+		M_ALIGN(m, 52);
 		dst = mtod(m, u_char *);
 		*dst++ = *cell++;
 		*dst++ = *cell++;
@@ -493,7 +494,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 
 	  case PATM_RAW_CS:
 		m->m_len = m->m_pkthdr.len = 64;
-		MH_ALIGN(m, 64);
+		M_ALIGN(m, 64);
 		dst = mtod(m, u_char *);
 		*dst++ = *cell++;
 		*dst++ = *cell++;
@@ -510,9 +511,9 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 		break;
 	}
 
-	sc->ifp->if_ipackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 	/* this is in if_atmsubr.c */
-	/* sc->ifp->if_ibytes += m->m_pkthdr.len; */
+	/* if_inc_counter(sc->ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len); */
 
 	vcc->ibytes += m->m_pkthdr.len;
 	vcc->ipackets++;

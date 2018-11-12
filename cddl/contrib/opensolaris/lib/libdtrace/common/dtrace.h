@@ -25,7 +25,8 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #ifndef	_DTRACE_H
@@ -36,7 +37,7 @@
 #include <stdio.h>
 #include <gelf.h>
 #include <libproc.h>
-#if !defined(sun)
+#ifndef illumos
 #include <rtld_db.h>
 #endif
 
@@ -154,6 +155,7 @@ typedef struct dtrace_stmtdesc {
 	dtrace_actdesc_t *dtsd_action_last;	/* last action in action list */
 	void *dtsd_aggdata;			/* aggregation data */
 	void *dtsd_fmtdata;			/* type-specific output data */
+	void *dtsd_strdata;			/* type-specific string data */
 	void (*dtsd_callback)(void);		/* callback function for EPID */
 	void *dtsd_data;			/* callback data pointer */
 	dtrace_attribute_t dtsd_descattr;	/* probedesc attributes */
@@ -244,6 +246,18 @@ extern int dtrace_system(dtrace_hdl_t *, FILE *, void *,
 extern int dtrace_freopen(dtrace_hdl_t *, FILE *, void *,
     const dtrace_probedata_t *, const dtrace_recdesc_t *, uint_t,
     const void *, size_t);
+
+/*
+ * Type-specific output printing
+ *
+ * The print() action will associate a string data record that is actually the
+ * fully-qualified type name of the data traced by the DIFEXPR action.  This is
+ * stored in the same 'format' record from the kernel, but we know by virtue of
+ * the fact that the action is still DIFEXPR that it is actually a reference to
+ * plain string data.
+ */
+extern int dtrace_print(dtrace_hdl_t *, FILE *, const char *,
+    caddr_t, size_t);
 
 /*
  * DTrace Work Interface
@@ -343,6 +357,12 @@ extern int dtrace_handle_setopt(dtrace_hdl_t *,
 #define	DTRACE_A_PERCPU		0x0001
 #define	DTRACE_A_KEEPDELTA	0x0002
 #define	DTRACE_A_ANONYMOUS	0x0004
+#define	DTRACE_A_TOTAL		0x0008
+#define	DTRACE_A_MINMAXBIN	0x0010
+#define	DTRACE_A_HASNEGATIVES	0x0020
+#define	DTRACE_A_HASPOSITIVES	0x0040
+
+#define	DTRACE_AGGZOOM_MAX		0.95	/* height of max bar */
 
 #define	DTRACE_AGGWALK_ERROR		-1	/* error while processing */
 #define	DTRACE_AGGWALK_NEXT		0	/* proceed to next element */
@@ -363,6 +383,10 @@ struct dtrace_aggdata {
 	caddr_t dtada_delta;			/* delta data, if available */
 	caddr_t *dtada_percpu;			/* per CPU data, if avail */
 	caddr_t *dtada_percpu_delta;		/* per CPU delta, if avail */
+	int64_t dtada_total;			/* per agg total, if avail */
+	uint16_t dtada_minbin;			/* minimum bin, if avail */
+	uint16_t dtada_maxbin;			/* maximum bin, if avail */
+	uint32_t dtada_flags;			/* flags */
 };
 
 typedef int dtrace_aggregate_f(const dtrace_aggdata_t *, void *);
@@ -482,7 +506,10 @@ typedef struct dtrace_typeinfo {
 	const char *dtt_object;			/* object containing type */
 	ctf_file_t *dtt_ctfp;			/* CTF container handle */
 	ctf_id_t dtt_type;			/* CTF type identifier */
+	uint_t dtt_flags;			/* Misc. flags */
 } dtrace_typeinfo_t;
+
+#define	DTT_FL_USER	0x1			/* user type */
 
 extern int dtrace_lookup_by_type(dtrace_hdl_t *, const char *, const char *,
     dtrace_typeinfo_t *);
@@ -527,7 +554,7 @@ extern int dtrace_probe_info(dtrace_hdl_t *,
  * entry point to obtain a library handle.
  */
 struct dtrace_vector {
-#if defined(sun)
+#ifdef illumos
 	int (*dtv_ioctl)(void *, int, void *);
 #else
 	int (*dtv_ioctl)(void *, u_long, void *);
@@ -578,7 +605,7 @@ extern int _dtrace_debug;
 }
 #endif
 
-#if !defined(sun)
+#ifndef illumos
 #define _SC_CPUID_MAX		_SC_NPROCESSORS_CONF
 #define _SC_NPROCESSORS_MAX	_SC_NPROCESSORS_CONF
 #endif

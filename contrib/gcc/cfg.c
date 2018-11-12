@@ -830,7 +830,7 @@ dump_cfg_bb_info (FILE *file, basic_block bb)
 	else
 	  fprintf (file, ", ");
 	first = false;
-	fputs (bb_bitnames[i], file);
+	fprintf (file, "%s", bb_bitnames[i]);
       }
   if (!first)
     fprintf (file, ")");

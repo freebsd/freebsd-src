@@ -17,8 +17,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_INTERVAL_H
-#define LLVM_INTERVAL_H
+#ifndef LLVM_ANALYSIS_INTERVAL_H
+#define LLVM_ANALYSIS_INTERVAL_H
 
 #include "llvm/ADT/GraphTraits.h"
 #include <vector>
@@ -47,9 +47,6 @@ public:
   inline Interval(BasicBlock *Header) : HeaderNode(Header) {
     Nodes.push_back(Header);
   }
-
-  inline Interval(const Interval &I) // copy ctor
-    : HeaderNode(I.HeaderNode), Nodes(I.Nodes), Successors(I.Successors) {}
 
   inline BasicBlock *getHeaderNode() const { return HeaderNode; }
 

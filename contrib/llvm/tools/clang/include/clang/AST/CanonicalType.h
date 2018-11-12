@@ -12,12 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_CANONICAL_TYPE_H
-#define LLVM_CLANG_AST_CANONICAL_TYPE_H
+#ifndef LLVM_CLANG_AST_CANONICALTYPE_H
+#define LLVM_CLANG_AST_CANONICALTYPE_H
 
 #include "clang/AST/Type.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/type_traits.h"
 #include <iterator>
 
 namespace clang {
@@ -60,9 +59,9 @@ public:
 
   /// \brief Converting constructor that permits implicit upcasting of
   /// canonical type pointers.
-  template<typename U>
-  CanQual(const CanQual<U>& Other,
-          typename llvm::enable_if<llvm::is_base_of<T, U>, int>::type = 0);
+  template <typename U>
+  CanQual(const CanQual<U> &Other,
+          typename std::enable_if<std::is_base_of<T, U>::value, int>::type = 0);
 
   /// \brief Retrieve the underlying type pointer, which refers to a
   /// canonical type.
@@ -81,7 +80,7 @@ public:
   operator QualType() const { return Stored; }
 
   /// \brief Implicit conversion to bool.
-  operator bool() const { return !isNull(); }
+  LLVM_EXPLICIT operator bool() const { return !isNull(); }
   
   bool isNull() const {
     return Stored.isNull();
@@ -351,15 +350,12 @@ namespace llvm {
 /// CanQual<T> to a specific Type class. We're prefer isa/dyn_cast/cast/etc.
 /// to return smart pointer (proxies?).
 template<typename T>
-struct simplify_type<const ::clang::CanQual<T> > {
+struct simplify_type< ::clang::CanQual<T> > {
   typedef const T *SimpleType;
-  static SimpleType getSimplifiedValue(const ::clang::CanQual<T> &Val) {
+  static SimpleType getSimplifiedValue(::clang::CanQual<T> Val) {
     return Val.getTypePtr();
   }
 };
-template<typename T>
-struct simplify_type< ::clang::CanQual<T> >
-: public simplify_type<const ::clang::CanQual<T> > {};
 
 // Teach SmallPtrSet that CanQual<T> is "basically a pointer".
 template<typename T>
@@ -514,55 +510,13 @@ struct CanProxyAdaptor<MemberPointerType>
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(const Type *, getClass)
 };
 
-template<>
-struct CanProxyAdaptor<ArrayType> : public CanProxyBase<ArrayType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getElementType)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(ArrayType::ArraySizeModifier,
-                                      getSizeModifier)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(Qualifiers, getIndexTypeQualifiers)
-};
-
-template<>
-struct CanProxyAdaptor<ConstantArrayType>
-  : public CanProxyBase<ConstantArrayType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getElementType)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(ArrayType::ArraySizeModifier,
-                                      getSizeModifier)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(Qualifiers, getIndexTypeQualifiers)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(const llvm::APInt &, getSize)
-};
-
-template<>
-struct CanProxyAdaptor<IncompleteArrayType>
-  : public CanProxyBase<IncompleteArrayType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getElementType)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(ArrayType::ArraySizeModifier,
-                                      getSizeModifier)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(Qualifiers, getIndexTypeQualifiers)
-};
-
-template<>
-struct CanProxyAdaptor<VariableArrayType>
-  : public CanProxyBase<VariableArrayType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getElementType)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(ArrayType::ArraySizeModifier,
-                                      getSizeModifier)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(Qualifiers, getIndexTypeQualifiers)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(Expr *, getSizeExpr)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(SourceRange, getBracketsRange)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(SourceLocation, getLBracketLoc)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(SourceLocation, getRBracketLoc)
-};
-
-template<>
-struct CanProxyAdaptor<DependentSizedArrayType>
-  : public CanProxyBase<DependentSizedArrayType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getElementType)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(Expr *, getSizeExpr)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(SourceRange, getBracketsRange)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(SourceLocation, getLBracketLoc)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(SourceLocation, getRBracketLoc)
-};
+// CanProxyAdaptors for arrays are intentionally unimplemented because
+// they are not safe.
+template<> struct CanProxyAdaptor<ArrayType>;
+template<> struct CanProxyAdaptor<ConstantArrayType>;
+template<> struct CanProxyAdaptor<IncompleteArrayType>;
+template<> struct CanProxyAdaptor<VariableArrayType>;
+template<> struct CanProxyAdaptor<DependentSizedArrayType>;
 
 template<>
 struct CanProxyAdaptor<DependentSizedExtVectorType>
@@ -586,39 +540,39 @@ struct CanProxyAdaptor<ExtVectorType> : public CanProxyBase<ExtVectorType> {
 
 template<>
 struct CanProxyAdaptor<FunctionType> : public CanProxyBase<FunctionType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
+  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getReturnType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(FunctionType::ExtInfo, getExtInfo)
 };
 
 template<>
 struct CanProxyAdaptor<FunctionNoProtoType>
   : public CanProxyBase<FunctionNoProtoType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
+  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getReturnType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(FunctionType::ExtInfo, getExtInfo)
 };
 
 template<>
 struct CanProxyAdaptor<FunctionProtoType>
   : public CanProxyBase<FunctionProtoType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
+  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getReturnType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(FunctionType::ExtInfo, getExtInfo)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getNumArgs)
-  CanQualType getArgType(unsigned i) const {
-    return CanQualType::CreateUnsafe(this->getTypePtr()->getArgType(i));
+  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getNumParams)
+  CanQualType getParamType(unsigned i) const {
+    return CanQualType::CreateUnsafe(this->getTypePtr()->getParamType(i));
   }
 
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, isVariadic)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getTypeQuals)
 
-  typedef CanTypeIterator<FunctionProtoType::arg_type_iterator>
-    arg_type_iterator;
+  typedef CanTypeIterator<FunctionProtoType::param_type_iterator>
+  param_type_iterator;
 
-  arg_type_iterator arg_type_begin() const {
-    return arg_type_iterator(this->getTypePtr()->arg_type_begin());
+  param_type_iterator param_type_begin() const {
+    return param_type_iterator(this->getTypePtr()->param_type_begin());
   }
 
-  arg_type_iterator arg_type_end() const {
-    return arg_type_iterator(this->getTypePtr()->arg_type_end());
+  param_type_iterator param_type_end() const {
+    return param_type_iterator(this->getTypePtr()->param_type_end());
   }
 
   // Note: canonical function types never have exception specifications
@@ -746,6 +700,9 @@ CanQual<T> CanQual<T>::CreateUnsafe(QualType Other) {
 template<typename T>
 template<typename U>
 CanProxy<U> CanQual<T>::getAs() const {
+  ArrayType_cannot_be_used_with_getAs<U> at;
+  (void)at;
+
   if (Stored.isNull())
     return CanProxy<U>();
 
@@ -758,6 +715,9 @@ CanProxy<U> CanQual<T>::getAs() const {
 template<typename T>
 template<typename U>
 CanProxy<U> CanQual<T>::castAs() const {
+  ArrayType_cannot_be_used_with_getAs<U> at;
+  (void)at;
+
   assert(!Stored.isNull() && isa<U>(Stored.getTypePtr()));
   return CanQual<U>::CreateUnsafe(Stored);
 }
@@ -776,4 +736,4 @@ CanTypeIterator<InputIterator>::operator->() const {
 }
 
 
-#endif // LLVM_CLANG_AST_CANONICAL_TYPE_H
+#endif

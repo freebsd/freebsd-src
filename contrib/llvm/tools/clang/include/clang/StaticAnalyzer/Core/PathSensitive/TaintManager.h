@@ -11,10 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TAINTMANAGER_H
-#define LLVM_CLANG_TAINTMANAGER_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_TAINTMANAGER_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_TAINTMANAGER_H
 
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/TaintTag.h"
+#include "llvm/ADT/ImmutableMap.h"
 
 namespace clang {
 namespace ento {

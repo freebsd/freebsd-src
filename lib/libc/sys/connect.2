@@ -28,7 +28,7 @@
 .\"     @(#)connect.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2010
+.Dd September 29, 2014
 .Dt CONNECT 2
 .Os
 .Sh NAME
@@ -80,6 +80,10 @@ The
 .Fa s
 argument
 is not a valid descriptor.
+.It Bq Er EINVAL
+The
+.Fa namelen
+argument is not a valid length for the address family.
 .It Bq Er ENOTSOCK
 The
 .Fa s
@@ -156,6 +160,8 @@ Search permission is denied for a component of the path prefix.
 Write access to the named socket is denied.
 .It Bq Er ELOOP
 Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+Write access to the named socket is denied.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,

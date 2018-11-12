@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdebug.h>
@@ -62,7 +61,7 @@ AcpiDbExecuteMethod (
     ACPI_DB_METHOD_INFO     *Info,
     ACPI_BUFFER             *ReturnObj);
 
-static void
+static ACPI_STATUS
 AcpiDbExecuteSetup (
     ACPI_DB_METHOD_INFO     *Info);
 
@@ -109,6 +108,7 @@ AcpiDbDeleteObjects (
         switch (Objects[i].Type)
         {
         case ACPI_TYPE_BUFFER:
+
             ACPI_FREE (Objects[i].Buffer.Pointer);
             break;
 
@@ -125,6 +125,7 @@ AcpiDbDeleteObjects (
             break;
 
         default:
+
             break;
         }
     }
@@ -151,8 +152,7 @@ AcpiDbExecuteMethod (
 {
     ACPI_STATUS             Status;
     ACPI_OBJECT_LIST        ParamObjects;
-    ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
-    ACPI_DEVICE_INFO        *ObjInfo;
+    ACPI_OBJECT             Params[ACPI_DEBUGGER_MAX_ARGS + 1];
     UINT32                  i;
 
 
@@ -164,78 +164,30 @@ AcpiDbExecuteMethod (
         AcpiOsPrintf ("Warning: debug output is not enabled!\n");
     }
 
-    /* Get the object info for number of method parameters */
-
-    Status = AcpiGetObjectInfo (Info->Method, &ObjInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
+    ParamObjects.Count = 0;
     ParamObjects.Pointer = NULL;
-    ParamObjects.Count   = 0;
 
-    if (ObjInfo->Type == ACPI_TYPE_METHOD)
+    /* Pass through any command-line arguments */
+
+    if (Info->Args && Info->Args[0])
     {
-        /* Are there arguments to the method? */
+        /* Get arguments passed on the command line */
 
-        i = 0;
-        if (Info->Args && Info->Args[0])
+        for (i = 0; (Info->Args[i] && *(Info->Args[i])); i++)
         {
-            /* Get arguments passed on the command line */
+            /* Convert input string (token) to an actual ACPI_OBJECT */
 
-            for (; Info->Args[i] &&
-                (i < ACPI_METHOD_NUM_ARGS) &&
-                (i < ObjInfo->ParamCount);
-                i++)
+            Status = AcpiDbConvertToObject (Info->Types[i],
+                Info->Args[i], &Params[i]);
+            if (ACPI_FAILURE (Status))
             {
-                /* Convert input string (token) to an actual ACPI_OBJECT */
-
-                Status = AcpiDbConvertToObject (Info->Types[i],
-                    Info->Args[i], &Params[i]);
-                if (ACPI_FAILURE (Status))
-                {
-                    ACPI_EXCEPTION ((AE_INFO, Status,
-                        "While parsing method arguments"));
-                    goto Cleanup;
-                }
+                ACPI_EXCEPTION ((AE_INFO, Status,
+                    "While parsing method arguments"));
+                goto Cleanup;
             }
         }
 
-        /* Create additional "default" parameters as needed */
-
-        if (i < ObjInfo->ParamCount)
-        {
-            AcpiOsPrintf ("Adding %u arguments containing default values\n",
-                ObjInfo->ParamCount - i);
-
-            for (; i < ObjInfo->ParamCount; i++)
-            {
-                switch (i)
-                {
-                case 0:
-
-                    Params[0].Type           = ACPI_TYPE_INTEGER;
-                    Params[0].Integer.Value  = 0x01020304;
-                    break;
-
-                case 1:
-
-                    Params[1].Type           = ACPI_TYPE_STRING;
-                    Params[1].String.Length  = 12;
-                    Params[1].String.Pointer = "AML Debugger";
-                    break;
-
-                default:
-
-                    Params[i].Type           = ACPI_TYPE_INTEGER;
-                    Params[i].Integer.Value  = i * (UINT64) 0x1000;
-                    break;
-                }
-            }
-        }
-
-        ParamObjects.Count = ObjInfo->ParamCount;
+        ParamObjects.Count = i;
         ParamObjects.Pointer = Params;
     }
 
@@ -247,8 +199,8 @@ AcpiDbExecuteMethod (
     /* Do the actual method execution */
 
     AcpiGbl_MethodExecuting = TRUE;
-    Status = AcpiEvaluateObject (NULL,
-        Info->Pathname, &ParamObjects, ReturnObj);
+    Status = AcpiEvaluateObject (NULL, Info->Pathname,
+        &ParamObjects, ReturnObj);
 
     AcpiGbl_CmSingleStep = FALSE;
     AcpiGbl_MethodExecuting = FALSE;
@@ -267,9 +219,7 @@ AcpiDbExecuteMethod (
     }
 
 Cleanup:
-    AcpiDbDeleteObjects (ObjInfo->ParamCount, Params);
-    ACPI_FREE (ObjInfo);
-
+    AcpiDbDeleteObjects (ParamObjects.Count, Params);
     return_ACPI_STATUS (Status);
 }
 
@@ -286,10 +236,15 @@ Cleanup:
  *
  ******************************************************************************/
 
-static void
+static ACPI_STATUS
 AcpiDbExecuteSetup (
     ACPI_DB_METHOD_INFO     *Info)
 {
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_NAME (DbExecuteSetup);
+
 
     /* Catenate the current scope to the supplied name */
 
@@ -297,10 +252,21 @@ AcpiDbExecuteSetup (
     if ((Info->Name[0] != '\\') &&
         (Info->Name[0] != '/'))
     {
-        ACPI_STRCAT (Info->Pathname, AcpiGbl_DbScopeBuf);
+        if (AcpiUtSafeStrcat (Info->Pathname, sizeof (Info->Pathname),
+            AcpiGbl_DbScopeBuf))
+        {
+            Status = AE_BUFFER_OVERFLOW;
+            goto ErrorExit;
+        }
     }
 
-    ACPI_STRCAT (Info->Pathname, Info->Name);
+    if (AcpiUtSafeStrcat (Info->Pathname, sizeof (Info->Pathname),
+        Info->Name))
+    {
+        Status = AE_BUFFER_OVERFLOW;
+        goto ErrorExit;
+    }
+
     AcpiDbPrepNamestring (Info->Pathname);
 
     AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
@@ -318,6 +284,13 @@ AcpiDbExecuteSetup (
 
         AcpiDbSetOutputDestination (ACPI_DB_REDIRECTABLE_OUTPUT);
     }
+
+    return (AE_OK);
+
+ErrorExit:
+
+    ACPI_EXCEPTION ((AE_INFO, Status, "During setup for method execution"));
+    return (Status);
 }
 
 
@@ -478,7 +451,12 @@ AcpiDbExecute (
         ReturnObj.Pointer = NULL;
         ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
 
-        AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+        Status = AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+        if (ACPI_FAILURE (Status))
+        {
+            ACPI_FREE (NameString);
+            return;
+        }
 
         /* Get the NS node, determines existence also */
 
@@ -778,7 +756,11 @@ AcpiDbCreateExecutionThreads (
 
     AcpiDbUint32ToHexString (NumThreads, AcpiGbl_DbMethodInfo.NumThreadsStr);
 
-    AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+    Status = AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        goto CleanupAndExit;
+    }
 
     /* Get the NS node, determines existence also */
 

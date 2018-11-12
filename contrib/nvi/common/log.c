@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)log.c	10.8 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: log.c,v 10.27 2011/07/13 06:25:50 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -21,6 +21,7 @@ static const char sccsid[] = "@(#)log.c	10.8 (Berkeley) 3/6/96";
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,12 +68,23 @@ static void	log_err __P((SCR *, char *, int));
 #if defined(DEBUG) && 0
 static void	log_trace __P((SCR *, char *, recno_t, u_char *));
 #endif
+static int	apply_with __P((int (*)(SCR *, recno_t, CHAR_T *, size_t),
+					SCR *, recno_t, u_char *, size_t));
 
 /* Try and restart the log on failure, i.e. if we run out of memory. */
 #define	LOG_ERR {							\
 	log_err(sp, __FILE__, __LINE__);				\
 	return (1);							\
 }
+
+/* offset of CHAR_T string in log needs to be aligned on some systems
+ * because it is passed to db_set as a string
+ */
+typedef struct {
+    char    data[sizeof(u_char) /* type */ + sizeof(recno_t)];
+    CHAR_T  str[1];
+} log_t;
+#define CHAR_T_OFFSET ((char *)(((log_t*)0)->str) - (char *)0)
 
 /*
  * log_init --
@@ -81,9 +93,9 @@ static void	log_trace __P((SCR *, char *, recno_t, u_char *));
  * PUBLIC: int log_init __P((SCR *, EXF *));
  */
 int
-log_init(sp, ep)
-	SCR *sp;
-	EXF *ep;
+log_init(
+	SCR *sp,
+	EXF *ep)
 {
 	/*
 	 * !!!
@@ -117,9 +129,9 @@ log_init(sp, ep)
  * PUBLIC: int log_end __P((SCR *, EXF *));
  */
 int
-log_end(sp, ep)
-	SCR *sp;
-	EXF *ep;
+log_end(
+	SCR *sp,
+	EXF *ep)
 {
 	/*
 	 * !!!
@@ -147,8 +159,7 @@ log_end(sp, ep)
  * PUBLIC: int log_cursor __P((SCR *));
  */
 int
-log_cursor(sp)
-	SCR *sp;
+log_cursor(SCR *sp)
 {
 	EXF *ep;
 
@@ -175,15 +186,16 @@ log_cursor(sp)
  *	Actually push a cursor record out.
  */
 static int
-log_cursor1(sp, type)
-	SCR *sp;
-	int type;
+log_cursor1(
+	SCR *sp,
+	int type)
 {
 	DBT data, key;
 	EXF *ep;
 
 	ep = sp->ep;
-	BINC_RET(sp, ep->l_lp, ep->l_len, sizeof(u_char) + sizeof(MARK));
+
+	BINC_RETC(sp, ep->l_lp, ep->l_len, sizeof(u_char) + sizeof(MARK));
 	ep->l_lp[0] = type;
 	memmove(ep->l_lp + sizeof(u_char), &ep->l_cursor, sizeof(MARK));
 
@@ -212,15 +224,16 @@ log_cursor1(sp, type)
  * PUBLIC: int log_line __P((SCR *, recno_t, u_int));
  */
 int
-log_line(sp, lno, action)
-	SCR *sp;
-	recno_t lno;
-	u_int action;
+log_line(
+	SCR *sp,
+	recno_t lno,
+	u_int action)
 {
 	DBT data, key;
 	EXF *ep;
 	size_t len;
-	char *lp;
+	CHAR_T *lp;
+	recno_t lcur;
 
 	ep = sp->ep;
 	if (F_ISSET(ep, F_NOLOG))
@@ -254,28 +267,30 @@ log_line(sp, lno, action)
 				return (1);
 			}
 			len = 0;
-			lp = "";
+			lp = L("");
 		}
 	} else
 		if (db_get(sp, lno, DBG_FATAL, &lp, &len))
 			return (1);
-	BINC_RET(sp,
-	    ep->l_lp, ep->l_len, len + sizeof(u_char) + sizeof(recno_t));
+	BINC_RETC(sp,
+	    ep->l_lp, ep->l_len,
+	    len * sizeof(CHAR_T) + CHAR_T_OFFSET);
 	ep->l_lp[0] = action;
 	memmove(ep->l_lp + sizeof(u_char), &lno, sizeof(recno_t));
-	memmove(ep->l_lp + sizeof(u_char) + sizeof(recno_t), lp, len);
+	memmove(ep->l_lp + CHAR_T_OFFSET, lp, len * sizeof(CHAR_T));
 
-	key.data = &ep->l_cur;
+	lcur = ep->l_cur;
+	key.data = &lcur;
 	key.size = sizeof(recno_t);
 	data.data = ep->l_lp;
-	data.size = len + sizeof(u_char) + sizeof(recno_t);
+	data.size = len * sizeof(CHAR_T) + CHAR_T_OFFSET;
 	if (ep->log->put(ep->log, &key, &data, 0) == -1)
 		LOG_ERR;
 
 #if defined(DEBUG) && 0
 	switch (action) {
 	case LOG_LINE_APPEND:
-		TRACE(sp, "%u: log_line: append: %lu {%u}\n",
+		TRACE(sp, "%lu: log_line: append: %lu {%u}\n",
 		    ep->l_cur, lno, len);
 		break;
 	case LOG_LINE_DELETE:
@@ -312,9 +327,9 @@ log_line(sp, lno, action)
  * PUBLIC: int log_mark __P((SCR *, LMARK *));
  */
 int
-log_mark(sp, lmp)
-	SCR *sp;
-	LMARK *lmp;
+log_mark(
+	SCR *sp,
+	LMARK *lmp)
 {
 	DBT data, key;
 	EXF *ep;
@@ -330,7 +345,7 @@ log_mark(sp, lmp)
 		ep->l_cursor.lno = OOBLNO;
 	}
 
-	BINC_RET(sp, ep->l_lp,
+	BINC_RETC(sp, ep->l_lp,
 	    ep->l_len, sizeof(u_char) + sizeof(LMARK));
 	ep->l_lp[0] = LOG_MARK;
 	memmove(ep->l_lp + sizeof(u_char), lmp, sizeof(LMARK));
@@ -358,9 +373,9 @@ log_mark(sp, lmp)
  * PUBLIC: int log_backward __P((SCR *, MARK *));
  */
 int
-log_backward(sp, rp)
-	SCR *sp;
-	MARK *rp;
+log_backward(
+	SCR *sp,
+	MARK *rp)
 {
 	DBT key, data;
 	EXF *ep;
@@ -414,9 +429,8 @@ log_backward(sp, rp)
 		case LOG_LINE_DELETE:
 			didop = 1;
 			memmove(&lno, p + sizeof(u_char), sizeof(recno_t));
-			if (db_insert(sp, lno, p + sizeof(u_char) +
-			    sizeof(recno_t), data.size - sizeof(u_char) -
-			    sizeof(recno_t)))
+			if (apply_with(db_insert, sp, lno,
+				p + CHAR_T_OFFSET, data.size - CHAR_T_OFFSET))
 				goto err;
 			++sp->rptlines[L_ADDED];
 			break;
@@ -425,9 +439,8 @@ log_backward(sp, rp)
 		case LOG_LINE_RESET_B:
 			didop = 1;
 			memmove(&lno, p + sizeof(u_char), sizeof(recno_t));
-			if (db_set(sp, lno, p + sizeof(u_char) +
-			    sizeof(recno_t), data.size - sizeof(u_char) -
-			    sizeof(recno_t)))
+			if (apply_with(db_set, sp, lno,
+				p + CHAR_T_OFFSET, data.size - CHAR_T_OFFSET))
 				goto err;
 			if (sp->rptlchange != lno) {
 				sp->rptlchange = lno;
@@ -464,8 +477,7 @@ err:	F_CLR(ep, F_NOLOG);
  * PUBLIC: int log_setline __P((SCR *));
  */
 int
-log_setline(sp)
-	SCR *sp;
+log_setline(SCR *sp)
 {
 	DBT key, data;
 	EXF *ep;
@@ -488,7 +500,6 @@ log_setline(sp)
 
 	key.data = &ep->l_cur;		/* Initialize db request. */
 	key.size = sizeof(recno_t);
-
 	for (;;) {
 		--ep->l_cur;
 		if (ep->log->get(ep->log, &key, &data, 0))
@@ -520,9 +531,8 @@ log_setline(sp)
 		case LOG_LINE_RESET_B:
 			memmove(&lno, p + sizeof(u_char), sizeof(recno_t));
 			if (lno == sp->lno &&
-			    db_set(sp, lno, p + sizeof(u_char) +
-			    sizeof(recno_t), data.size - sizeof(u_char) -
-			    sizeof(recno_t)))
+				apply_with(db_set, sp, lno,
+				p + CHAR_T_OFFSET, data.size - CHAR_T_OFFSET))
 				goto err;
 			if (sp->rptlchange != lno) {
 				sp->rptlchange = lno;
@@ -551,9 +561,9 @@ err:	F_CLR(ep, F_NOLOG);
  * PUBLIC: int log_forward __P((SCR *, MARK *));
  */
 int
-log_forward(sp, rp)
-	SCR *sp;
-	MARK *rp;
+log_forward(
+	SCR *sp,
+	MARK *rp)
 {
 	DBT key, data;
 	EXF *ep;
@@ -601,9 +611,8 @@ log_forward(sp, rp)
 		case LOG_LINE_INSERT:
 			didop = 1;
 			memmove(&lno, p + sizeof(u_char), sizeof(recno_t));
-			if (db_insert(sp, lno, p + sizeof(u_char) +
-			    sizeof(recno_t), data.size - sizeof(u_char) -
-			    sizeof(recno_t)))
+			if (apply_with(db_insert, sp, lno,
+				p + CHAR_T_OFFSET, data.size - CHAR_T_OFFSET))
 				goto err;
 			++sp->rptlines[L_ADDED];
 			break;
@@ -619,9 +628,8 @@ log_forward(sp, rp)
 		case LOG_LINE_RESET_F:
 			didop = 1;
 			memmove(&lno, p + sizeof(u_char), sizeof(recno_t));
-			if (db_set(sp, lno, p + sizeof(u_char) +
-			    sizeof(recno_t), data.size - sizeof(u_char) -
-			    sizeof(recno_t)))
+			if (apply_with(db_set, sp, lno,
+				p + CHAR_T_OFFSET, data.size - CHAR_T_OFFSET))
 				goto err;
 			if (sp->rptlchange != lno) {
 				sp->rptlchange = lno;
@@ -650,10 +658,10 @@ err:	F_CLR(ep, F_NOLOG);
  *	Try and restart the log on failure, i.e. if we run out of memory.
  */
 static void
-log_err(sp, file, line)
-	SCR *sp;
-	char *file;
-	int line;
+log_err(
+	SCR *sp,
+	char *file,
+	int line)
 {
 	EXF *ep;
 
@@ -666,11 +674,11 @@ log_err(sp, file, line)
 
 #if defined(DEBUG) && 0
 static void
-log_trace(sp, msg, rno, p)
-	SCR *sp;
-	char *msg;
-	recno_t rno;
-	u_char *p;
+log_trace(
+	SCR *sp,
+	char *msg,
+	recno_t rno,
+	u_char *p)
 {
 	LMARK lm;
 	MARK m;
@@ -715,3 +723,45 @@ log_trace(sp, msg, rno, p)
 	}
 }
 #endif
+
+/*
+ * apply_with --
+ *	Apply a realigned line from the log db to the file db.
+ */
+static int
+apply_with(
+	int (*db_func)(SCR *, recno_t, CHAR_T *, size_t),
+	SCR *sp,
+	recno_t lno,
+	u_char *p,
+	size_t len)
+{
+#ifdef USE_WIDECHAR
+	typedef unsigned long nword;
+
+	static size_t blen;
+	static nword *bp;
+	nword *lp = (nword *)((uintptr_t)p / sizeof(nword) * sizeof(nword));
+
+	if (lp != (nword *)p) {
+		int offl = ((uintptr_t)p - (uintptr_t)lp) << 3;
+		int offr = (sizeof(nword) << 3) - offl;
+		size_t i, cnt = (len + sizeof(nword) / 2) / sizeof(nword);
+
+		if (len > blen) {
+			blen = p2roundup(MAX(len, 512));
+			REALLOC(sp, bp, nword *, blen);
+			if (bp == NULL)
+				return (1);
+		}
+		for (i = 0; i < cnt; ++i)
+#if BYTE_ORDER == BIG_ENDIAN
+			bp[i] = (lp[i] << offl) ^ (lp[i+1] >> offr);
+#else
+			bp[i] = (lp[i] >> offl) ^ (lp[i+1] << offr);
+#endif
+		p = (u_char *)bp;
+	}
+#endif
+	return db_func(sp, lno, (CHAR_T *)p, len / sizeof(CHAR_T));
+}

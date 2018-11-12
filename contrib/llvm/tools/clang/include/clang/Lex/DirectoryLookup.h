@@ -16,6 +16,7 @@
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Lex/ModuleMap.h"
 
 namespace clang {
 class HeaderMap;
@@ -50,34 +51,34 @@ private:
   /// SrcMgr::CharacteristicKind.
   unsigned DirCharacteristic : 2;
 
-  /// UserSupplied - True if this is a user-supplied directory.
-  ///
-  bool UserSupplied : 1;
-
   /// LookupType - This indicates whether this DirectoryLookup object is a
   /// normal directory, a framework, or a headermap.
   unsigned LookupType : 2;
   
   /// \brief Whether this is a header map used when building a framework.
   unsigned IsIndexHeaderMap : 1;
+
+  /// \brief Whether we've performed an exhaustive search for module maps
+  /// within the subdirectories of this directory.
+  unsigned SearchedAllModuleMaps : 1;
   
 public:
   /// DirectoryLookup ctor - Note that this ctor *does not take ownership* of
   /// 'dir'.
   DirectoryLookup(const DirectoryEntry *dir, SrcMgr::CharacteristicKind DT,
-                  bool isUser, bool isFramework)
-    : DirCharacteristic(DT), UserSupplied(isUser), 
+                  bool isFramework)
+    : DirCharacteristic(DT),
       LookupType(isFramework ? LT_Framework : LT_NormalDir),
-      IsIndexHeaderMap(false) {
+      IsIndexHeaderMap(false), SearchedAllModuleMaps(false) {
     u.Dir = dir;
   }
 
   /// DirectoryLookup ctor - Note that this ctor *does not take ownership* of
   /// 'map'.
   DirectoryLookup(const HeaderMap *map, SrcMgr::CharacteristicKind DT,
-                  bool isUser, bool isIndexHeaderMap)
-    : DirCharacteristic(DT), UserSupplied(isUser), LookupType(LT_HeaderMap),
-      IsIndexHeaderMap(isIndexHeaderMap) {
+                  bool isIndexHeaderMap)
+    : DirCharacteristic(DT), LookupType(LT_HeaderMap),
+      IsIndexHeaderMap(isIndexHeaderMap), SearchedAllModuleMaps(false) {
     u.Map = map;
   }
 
@@ -91,17 +92,21 @@ public:
 
   /// getDir - Return the directory that this entry refers to.
   ///
-  const DirectoryEntry *getDir() const { return isNormalDir() ? u.Dir : 0; }
+  const DirectoryEntry *getDir() const {
+    return isNormalDir() ? u.Dir : nullptr;
+  }
 
   /// getFrameworkDir - Return the directory that this framework refers to.
   ///
   const DirectoryEntry *getFrameworkDir() const {
-    return isFramework() ? u.Dir : 0;
+    return isFramework() ? u.Dir : nullptr;
   }
 
   /// getHeaderMap - Return the directory that this entry refers to.
   ///
-  const HeaderMap *getHeaderMap() const { return isHeaderMap() ? u.Map : 0; }
+  const HeaderMap *getHeaderMap() const {
+    return isHeaderMap() ? u.Map : nullptr;
+  }
 
   /// isNormalDir - Return true if this is a normal directory, not a header map.
   bool isNormalDir() const { return getLookupType() == LT_NormalDir; }
@@ -113,15 +118,26 @@ public:
   /// isHeaderMap - Return true if this is a header map, not a normal directory.
   bool isHeaderMap() const { return getLookupType() == LT_HeaderMap; }
 
+  /// \brief Determine whether we have already searched this entire
+  /// directory for module maps.
+  bool haveSearchedAllModuleMaps() const { return SearchedAllModuleMaps; }
+
+  /// \brief Specify whether we have already searched all of the subdirectories
+  /// for module maps.
+  void setSearchedAllModuleMaps(bool SAMM) {
+    SearchedAllModuleMaps = SAMM;
+  }
+
   /// DirCharacteristic - The type of directory this is, one of the DirType enum
   /// values.
   SrcMgr::CharacteristicKind getDirCharacteristic() const {
     return (SrcMgr::CharacteristicKind)DirCharacteristic;
   }
 
-  /// isUserSupplied - True if this is a user-supplied directory.
-  ///
-  bool isUserSupplied() const { return UserSupplied; }
+  /// \brief Whether this describes a system header directory.
+  bool isSystemHeaderDirectory() const {
+    return getDirCharacteristic() != SrcMgr::C_User;
+  }
 
   /// \brief Whether this header map is building a framework or not.
   bool isIndexHeaderMap() const { 
@@ -149,18 +165,24 @@ public:
   /// \param [out] InUserSpecifiedSystemFramework If the file is found,
   /// set to true if the file is located in a framework that has been
   /// user-specified to be treated as a system framework.
-  const FileEntry *LookupFile(StringRef Filename, HeaderSearch &HS,
+  ///
+  /// \param [out] MappedName if this is a headermap which maps the filename to
+  /// a framework include ("Foo.h" -> "Foo/Foo.h"), set the new name to this
+  /// vector and point Filename to it.
+  const FileEntry *LookupFile(StringRef &Filename, HeaderSearch &HS,
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
-                              Module **SuggestedModule,
-                              bool &InUserSpecifiedSystemFramework) const;
+                              ModuleMap::KnownHeader *SuggestedModule,
+                              bool &InUserSpecifiedSystemFramework,
+                              bool &HasBeenMapped,
+                              SmallVectorImpl<char> &MappedName) const;
 
 private:
   const FileEntry *DoFrameworkLookup(
       StringRef Filename, HeaderSearch &HS,
       SmallVectorImpl<char> *SearchPath,
       SmallVectorImpl<char> *RelativePath,
-      Module **SuggestedModule,
+      ModuleMap::KnownHeader *SuggestedModule,
       bool &InUserSpecifiedSystemHeader) const;
 
 };

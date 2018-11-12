@@ -11,14 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_PATH_DIAGNOSTIC_CLIENTS_H
-#define LLVM_CLANG_GR_PATH_DIAGNOSTIC_CLIENTS_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHDIAGNOSTICCONSUMERS_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHDIAGNOSTICCONSUMERS_H
 
 #include <string>
 #include <vector>
 
 namespace clang {
 
+class AnalyzerOptions;
 class Preprocessor;
 
 namespace ento {
@@ -26,21 +27,12 @@ namespace ento {
 class PathDiagnosticConsumer;
 typedef std::vector<PathDiagnosticConsumer*> PathDiagnosticConsumers;
 
-void createHTMLDiagnosticConsumer(PathDiagnosticConsumers &C,
-                                  const std::string& prefix,
-                                  const Preprocessor &PP);
-
-void createPlistDiagnosticConsumer(PathDiagnosticConsumers &C,
-                                   const std::string& prefix,
-                                   const Preprocessor &PP);
-
-void createPlistMultiFileDiagnosticConsumer(PathDiagnosticConsumers &C,
-                                            const std::string& prefix,
-                                            const Preprocessor &PP);
-
-void createTextPathDiagnosticConsumer(PathDiagnosticConsumers &C,
-                                      const std::string& prefix,
-                                      const Preprocessor &PP);
+#define ANALYSIS_DIAGNOSTICS(NAME, CMDFLAG, DESC, CREATEFN)\
+void CREATEFN(AnalyzerOptions &AnalyzerOpts,\
+              PathDiagnosticConsumers &C,\
+              const std::string &Prefix,\
+              const Preprocessor &PP);
+#include "clang/StaticAnalyzer/Core/Analyses.def"
 
 } // end 'ento' namespace
 } // end 'clang' namespace

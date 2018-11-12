@@ -61,7 +61,7 @@ struct group {
 };
 
 __BEGIN_DECLS
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 void		 endgrent(void);
 struct group	*getgrent(void);
 #endif
@@ -74,11 +74,11 @@ int		 pwcache_groupdb(int (*)(int), void (*)(void),
 		    struct group * (*)(const char *),
 		    struct group * (*)(gid_t));
 #endif
-#if __BSD_VISIBLE || __XSI_VISIBLE
+#if __XSI_VISIBLE
 /* XXX IEEE Std 1003.1, 2003 specifies `void setgrent(void)' */
 int		 setgrent(void);
 #endif
-#if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 int		 getgrgid_r(gid_t, struct group *, char *, size_t,
 		    struct group **);
 int		 getgrnam_r(const char *, struct group *, char *, size_t,

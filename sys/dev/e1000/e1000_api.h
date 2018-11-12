@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -69,7 +69,7 @@ s32 e1000_setup_link(struct e1000_hw *hw);
 s32 e1000_get_speed_and_duplex(struct e1000_hw *hw, u16 *speed, u16 *duplex);
 s32 e1000_disable_pcie_master(struct e1000_hw *hw);
 void e1000_config_collision_dist(struct e1000_hw *hw);
-void e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
+int e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
 u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr);
 void e1000_update_mc_addr_list(struct e1000_hw *hw, u8 *mc_addr_list,
 			       u32 mc_addr_count);

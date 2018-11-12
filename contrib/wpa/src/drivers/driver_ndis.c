@@ -2,14 +2,8 @@
  * WPA Supplicant - Windows/NDIS driver interface
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifdef __CYGWIN__
@@ -732,14 +726,6 @@ static int wpa_driver_ndis_deauthenticate(void *priv, const u8 *addr,
 }
 
 
-static int wpa_driver_ndis_disassociate(void *priv, const u8 *addr,
-					int reason_code)
-{
-	struct wpa_driver_ndis_data *drv = priv;
-	return wpa_driver_ndis_disconnect(drv);
-}
-
-
 static void wpa_driver_ndis_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	wpa_printf(MSG_DEBUG, "Scan timeout - try to get results");
@@ -865,7 +851,7 @@ static struct wpa_scan_results * wpa_driver_ndis_get_scan_results(void *priv)
 		os_free(b);
 		return NULL;
 	}
-	results->res = os_zalloc(count * sizeof(struct wpa_scan_res *));
+	results->res = os_calloc(count, sizeof(struct wpa_scan_res *));
 	if (results->res == NULL) {
 		os_free(results);
 		os_free(b);
@@ -1002,8 +988,7 @@ static int wpa_driver_ndis_set_key(const char *ifname, void *priv,
 	int res, pairwise;
 	u8 bssid[ETH_ALEN];
 
-	if (addr == NULL || os_memcmp(addr, "\xff\xff\xff\xff\xff\xff",
-				      ETH_ALEN) == 0) {
+	if (addr == NULL || is_broadcast_ether_addr(addr)) {
 		/* Group Key */
 		pairwise = 0;
 		if (wpa_driver_ndis_get_bssid(drv, bssid) < 0)
@@ -1067,6 +1052,7 @@ wpa_driver_ndis_associate(void *priv,
 {
 	struct wpa_driver_ndis_data *drv = priv;
 	u32 auth_mode, encr, priv_mode, mode;
+	u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	drv->mode = params->mode;
 
@@ -1092,7 +1078,6 @@ wpa_driver_ndis_associate(void *priv,
 	if (params->key_mgmt_suite == KEY_MGMT_NONE ||
 	    params->key_mgmt_suite == KEY_MGMT_802_1X_NO_WPA) {
 		/* Re-set WEP keys if static WEP configuration is used. */
-		u8 bcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 		int i;
 		for (i = 0; i < 4; i++) {
 			if (!params->wep_key[i])
@@ -1126,6 +1111,22 @@ wpa_driver_ndis_associate(void *priv,
 	} else if (params->key_mgmt_suite == KEY_MGMT_WPS) {
 		auth_mode = Ndis802_11AuthModeOpen;
 		priv_mode = Ndis802_11PrivFilterAcceptAll;
+		if (params->wps == WPS_MODE_PRIVACY) {
+			u8 dummy_key[5] = { 0x11, 0x22, 0x33, 0x44, 0x55 };
+			/*
+			 * Some NDIS drivers refuse to associate in open mode
+			 * configuration due to Privacy field mismatch, so use
+			 * a workaround to make the configuration look like
+			 * matching one for WPS provisioning.
+			 */
+			wpa_printf(MSG_DEBUG, "NDIS: Set dummy WEP key as a "
+				   "workaround to allow driver to associate "
+				   "for WPS");
+			wpa_driver_ndis_set_key(drv->ifname, drv, WPA_ALG_WEP,
+						bcast, 0, 1,
+						NULL, 0, dummy_key,
+						sizeof(dummy_key));
+		}
 #endif /* CONFIG_WPS */
 	} else {
 		priv_mode = Ndis802_11PrivFilter8021xWEP;
@@ -1149,6 +1150,12 @@ wpa_driver_ndis_associate(void *priv,
 		encr = Ndis802_11Encryption1Enabled;
 		break;
 	case CIPHER_NONE:
+#ifdef CONFIG_WPS
+		if (params->wps == WPS_MODE_PRIVACY) {
+			encr = Ndis802_11Encryption1Enabled;
+			break;
+		}
+#endif /* CONFIG_WPS */
 		if (params->group_suite == CIPHER_CCMP)
 			encr = Ndis802_11Encryption3Enabled;
 		else if (params->group_suite == CIPHER_TKIP)
@@ -1157,7 +1164,14 @@ wpa_driver_ndis_associate(void *priv,
 			encr = Ndis802_11EncryptionDisabled;
 		break;
 	default:
+#ifdef CONFIG_WPS
+		if (params->wps == WPS_MODE_PRIVACY) {
+			encr = Ndis802_11Encryption1Enabled;
+			break;
+		}
+#endif /* CONFIG_WPS */
 		encr = Ndis802_11EncryptionDisabled;
+		break;
 	};
 
 	if (ndis_set_oid(drv, OID_802_11_PRIVACY_FILTER,
@@ -3186,94 +3200,32 @@ wpa_driver_ndis_get_interfaces(void *global_priv)
 }
 
 
-const struct wpa_driver_ops wpa_driver_ndis_ops = {
-	"ndis",
-	"Windows NDIS driver",
-	wpa_driver_ndis_get_bssid,
-	wpa_driver_ndis_get_ssid,
-	wpa_driver_ndis_set_key,
-	wpa_driver_ndis_init,
-	wpa_driver_ndis_deinit,
-	NULL /* set_param */,
-	NULL /* set_countermeasures */,
-	wpa_driver_ndis_deauthenticate,
-	wpa_driver_ndis_disassociate,
-	wpa_driver_ndis_associate,
-	wpa_driver_ndis_add_pmkid,
-	wpa_driver_ndis_remove_pmkid,
-	wpa_driver_ndis_flush_pmkid,
-	wpa_driver_ndis_get_capa,
-	wpa_driver_ndis_poll,
-	wpa_driver_ndis_get_ifname,
-	wpa_driver_ndis_get_mac_addr,
-	NULL /* send_eapol */,
-	NULL /* set_operstate */,
-	NULL /* mlme_setprotection */,
-	NULL /* get_hw_feature_data */,
-	NULL /* set_channel */,
-	NULL /* set_ssid */,
-	NULL /* set_bssid */,
-	NULL /* send_mlme */,
-	NULL /* mlme_add_sta */,
-	NULL /* mlme_remove_sta */,
-	NULL /* update_ft_ies */,
-	NULL /* send_ft_action */,
-	wpa_driver_ndis_get_scan_results,
-	NULL /* set_country */,
-	NULL /* global_init */,
-	NULL /* global_deinit */,
-	NULL /* init2 */,
-	wpa_driver_ndis_get_interfaces,
-	wpa_driver_ndis_scan,
-	NULL /* authenticate */,
-	NULL /* set_beacon */,
-	NULL /* hapd_init */,
-	NULL /* hapd_deinit */,
-	NULL /* set_ieee8021x */,
-	NULL /* set_privacy */,
-	NULL /* get_seqnum */,
-	NULL /* flush */,
-	NULL /* set_generic_elem */,
-	NULL /* read_sta_data */,
-	NULL /* hapd_send_eapol */,
-	NULL /* sta_deauth */,
-	NULL /* sta_disassoc */,
-	NULL /* sta_remove */,
-	NULL /* hapd_get_ssid */,
-	NULL /* hapd_set_ssid */,
-	NULL /* hapd_set_countermeasures */,
-	NULL /* sta_add */,
-	NULL /* get_inact_sec */,
-	NULL /* sta_clear_stats */,
-	NULL /* set_freq */,
-	NULL /* set_rts */,
-	NULL /* set_frag */,
-	NULL /* sta_set_flags */,
-	NULL /* set_rate_sets */,
-	NULL /* set_cts_protect */,
-	NULL /* set_preamble */,
-	NULL /* set_short_slot_time */,
-	NULL /* set_tx_queue_params */,
-	NULL /* valid_bss_mask */,
-	NULL /* if_add */,
-	NULL /* if_remove */,
-	NULL /* set_sta_vlan */,
-	NULL /* commit */,
-	NULL /* send_ether */,
-	NULL /* set_radius_acl_auth */,
-	NULL /* set_radius_acl_expire */,
-	NULL /* set_ht_params */,
-	NULL /* set_ap_wps_ie */,
-	NULL /* set_supp_port */,
-	NULL /* set_wds_sta */,
-	NULL /* send_action */,
-	NULL /* remain_on_channel */,
-	NULL /* cancel_remain_on_channel */,
-	NULL /* probe_req_report */,
-	NULL /* disable_11b_rates */,
-	NULL /* deinit_ap */,
-	NULL /* suspend */,
-	NULL /* resume */,
-	NULL /* signal_monitor */,
-	NULL /* send_frame */
-};
+static const char *ndis_drv_name = "ndis";
+static const char *ndis_drv_desc = "Windows NDIS driver";
+
+struct wpa_driver_ops wpa_driver_ndis_ops;
+
+void driver_ndis_init_ops(void)
+{
+	os_memset(&wpa_driver_ndis_ops, 0, sizeof(wpa_driver_ndis_ops));
+	wpa_driver_ndis_ops.name = ndis_drv_name;
+	wpa_driver_ndis_ops.desc = ndis_drv_desc;
+	wpa_driver_ndis_ops.get_bssid = wpa_driver_ndis_get_bssid;
+	wpa_driver_ndis_ops.get_ssid = wpa_driver_ndis_get_ssid;
+	wpa_driver_ndis_ops.set_key = wpa_driver_ndis_set_key;
+	wpa_driver_ndis_ops.init = wpa_driver_ndis_init;
+	wpa_driver_ndis_ops.deinit = wpa_driver_ndis_deinit;
+	wpa_driver_ndis_ops.deauthenticate = wpa_driver_ndis_deauthenticate;
+	wpa_driver_ndis_ops.associate = wpa_driver_ndis_associate;
+	wpa_driver_ndis_ops.add_pmkid = wpa_driver_ndis_add_pmkid;
+	wpa_driver_ndis_ops.remove_pmkid = wpa_driver_ndis_remove_pmkid;
+	wpa_driver_ndis_ops.flush_pmkid = wpa_driver_ndis_flush_pmkid;
+	wpa_driver_ndis_ops.get_capa = wpa_driver_ndis_get_capa;
+	wpa_driver_ndis_ops.poll = wpa_driver_ndis_poll;
+	wpa_driver_ndis_ops.get_ifname = wpa_driver_ndis_get_ifname;
+	wpa_driver_ndis_ops.get_mac_addr = wpa_driver_ndis_get_mac_addr;
+	wpa_driver_ndis_ops.get_scan_results2 =
+		wpa_driver_ndis_get_scan_results;
+	wpa_driver_ndis_ops.get_interfaces = wpa_driver_ndis_get_interfaces;
+	wpa_driver_ndis_ops.scan2 = wpa_driver_ndis_scan;
+}

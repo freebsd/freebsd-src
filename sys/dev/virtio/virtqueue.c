@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -127,7 +127,7 @@ static uint16_t	vq_ring_enqueue_segments(struct virtqueue *,
 static int	vq_ring_use_indirect(struct virtqueue *, int);
 static void	vq_ring_enqueue_indirect(struct virtqueue *, void *,
 		    struct sglist *, int, int);
-static int 	vq_ring_enable_interrupt(struct virtqueue *, uint16_t);
+static int	vq_ring_enable_interrupt(struct virtqueue *, uint16_t);
 static int	vq_ring_must_notify_host(struct virtqueue *);
 static void	vq_ring_notify_host(struct virtqueue *);
 static void	vq_ring_free_chain(struct virtqueue *, uint16_t);
@@ -375,6 +375,13 @@ virtqueue_size(struct virtqueue *vq)
 }
 
 int
+virtqueue_nfree(struct virtqueue *vq)
+{
+
+	return (vq->vq_free_cnt);
+}
+
+int
 virtqueue_empty(struct virtqueue *vq)
 {
 
@@ -414,16 +421,22 @@ virtqueue_nused(struct virtqueue *vq)
 }
 
 int
+virtqueue_intr_filter(struct virtqueue *vq)
+{
+
+	if (vq->vq_used_cons_idx == vq->vq_ring.used->idx)
+		return (0);
+
+	virtqueue_disable_intr(vq);
+
+	return (1);
+}
+
+void
 virtqueue_intr(struct virtqueue *vq)
 {
 
-	if (vq->vq_intrhand == NULL ||
-	    vq->vq_used_cons_idx == vq->vq_ring.used->idx)
-		return (0);
-
 	vq->vq_intrhand(vq->vq_intrhand_arg);
-
-	return (1);
 }
 
 int
@@ -434,28 +447,38 @@ virtqueue_enable_intr(struct virtqueue *vq)
 }
 
 int
-virtqueue_postpone_intr(struct virtqueue *vq)
+virtqueue_postpone_intr(struct virtqueue *vq, vq_postpone_t hint)
 {
 	uint16_t ndesc, avail_idx;
 
-	/*
-	 * Request the next interrupt be postponed until at least half
-	 * of the available descriptors have been consumed.
-	 */
 	avail_idx = vq->vq_ring.avail->idx;
-	ndesc = (uint16_t)(avail_idx - vq->vq_used_cons_idx) / 2;
+	ndesc = (uint16_t)(avail_idx - vq->vq_used_cons_idx);
+
+	switch (hint) {
+	case VQ_POSTPONE_SHORT:
+		ndesc = ndesc / 4;
+		break;
+	case VQ_POSTPONE_LONG:
+		ndesc = (ndesc * 3) / 4;
+		break;
+	case VQ_POSTPONE_EMPTIED:
+		break;
+	}
 
 	return (vq_ring_enable_interrupt(vq, ndesc));
 }
 
+/*
+ * Note this is only considered a hint to the host.
+ */
 void
 virtqueue_disable_intr(struct virtqueue *vq)
 {
 
-	/*
-	 * Note this is only considered a hint to the host.
-	 */
-	if ((vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX) == 0)
+	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX) {
+		vring_used_event(&vq->vq_ring) = vq->vq_used_cons_idx -
+		    vq->vq_nentries - 1;
+	} else
 		vq->vq_ring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
 }
 
@@ -544,8 +567,11 @@ virtqueue_poll(struct virtqueue *vq, uint32_t *len)
 {
 	void *cookie;
 
-	while ((cookie = virtqueue_dequeue(vq, len)) == NULL)
+	VIRTIO_BUS_POLL(vq->vq_dev);
+	while ((cookie = virtqueue_dequeue(vq, len)) == NULL) {
 		cpu_spinwait();
+		VIRTIO_BUS_POLL(vq->vq_dev);
+	}
 
 	return (cookie);
 }
@@ -582,11 +608,13 @@ virtqueue_dump(struct virtqueue *vq)
 
 	printf("VQ: %s - size=%d; free=%d; used=%d; queued=%d; "
 	    "desc_head_idx=%d; avail.idx=%d; used_cons_idx=%d; "
-	    "used.idx=%d; avail.flags=0x%x; used.flags=0x%x\n",
+	    "used.idx=%d; used_event_idx=%d; avail.flags=0x%x; used.flags=0x%x\n",
 	    vq->vq_name, vq->vq_nentries, vq->vq_free_cnt,
 	    virtqueue_nused(vq), vq->vq_queued_cnt, vq->vq_desc_head_idx,
 	    vq->vq_ring.avail->idx, vq->vq_used_cons_idx,
-	    vq->vq_ring.used->idx, vq->vq_ring.avail->flags,
+	    vq->vq_ring.used->idx,
+		vring_used_event(&vq->vq_ring),
+	    vq->vq_ring.avail->flags,
 	    vq->vq_ring.used->flags);
 }
 

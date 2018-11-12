@@ -2,20 +2,15 @@
  * hostapd / EAP-MSCHAPv2 (draft-kamath-pppext-eap-mschapv2-00.txt) server
  * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
 #include "crypto/ms_funcs.h"
+#include "crypto/random.h"
 #include "eap_i.h"
 
 
@@ -109,7 +104,7 @@ static struct wpabuf * eap_mschapv2_build_challenge(
 	size_t ms_len;
 
 	if (!data->auth_challenge_from_tls &&
-	    os_get_random(data->auth_challenge, CHALLENGE_LEN)) {
+	    random_get_bytes(data->auth_challenge, CHALLENGE_LEN)) {
 		wpa_printf(MSG_ERROR, "EAP-MSCHAPV2: Failed to get random "
 			   "data");
 		data->state = FAILURE;
@@ -404,9 +399,12 @@ static void eap_mschapv2_process_response(struct eap_sm *sm,
 		if (sm->user->password_hash) {
 			pw_hash = sm->user->password;
 		} else {
-			nt_password_hash(sm->user->password,
-					 sm->user->password_len,
-					 pw_hash_buf);
+			if (nt_password_hash(sm->user->password,
+					     sm->user->password_len,
+					     pw_hash_buf) < 0) {
+				data->state = FAILURE;
+				return;
+			}
 			pw_hash = pw_hash_buf;
 		}
 		generate_authenticator_response_pwhash(

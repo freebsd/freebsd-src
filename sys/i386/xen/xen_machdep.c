@@ -46,8 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/rwlock.h>
 #include <sys/sysproto.h>
+#include <sys/boot.h>
 
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 
 #include <xen/hypervisor.h>
+#include <xen/xenstore/xenstorevar.h>
 #include <machine/xen/xenvar.h>
 #include <machine/xen/xenfunc.h>
 #include <machine/xen/xenpmap.h>
@@ -89,6 +91,7 @@ IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 
 int xendebug_flags; 
 start_info_t *xen_start_info;
+start_info_t *HYPERVISOR_start_info;
 shared_info_t *HYPERVISOR_shared_info;
 xen_pfn_t *xen_machine_phys = machine_to_phys_mapping;
 xen_pfn_t *xen_phys_machine;
@@ -96,6 +99,8 @@ xen_pfn_t *xen_pfn_to_mfn_frame_list[16];
 xen_pfn_t *xen_pfn_to_mfn_frame_list_list;
 int preemptable, init_first;
 extern unsigned int avail_space;
+int xen_vector_callback_enabled = 0;
+enum xen_domain_type xen_domain_type = XEN_PV_DOMAIN;
 
 void ni_cli(void);
 void ni_sti(void);
@@ -129,6 +134,12 @@ ni_sti(void)
 		);
 }
 
+void
+force_evtchn_callback(void)
+{
+    (void)HYPERVISOR_xen_version(0, NULL);
+}
+
 /*
  * Modify the cmd_line by converting ',' to NULLs so that it is in a  format 
  * suitable for the static env vars.
@@ -141,29 +152,11 @@ xen_setbootenv(char *cmd_line)
         /* Skip leading spaces */
         for (; *cmd_line == ' '; cmd_line++);
 
-	printk("xen_setbootenv(): cmd_line='%s'\n", cmd_line);
+	xc_printf("xen_setbootenv(): cmd_line='%s'\n", cmd_line);
 
 	for (cmd_line_next = cmd_line; strsep(&cmd_line_next, ",") != NULL;);
 	return cmd_line;
 }
-
-static struct 
-{
-	const char	*ev;
-	int		mask;
-} howto_names[] = {
-	{"boot_askname",	RB_ASKNAME},
-	{"boot_single",	RB_SINGLE},
-	{"boot_nosync",	RB_NOSYNC},
-	{"boot_halt",	RB_ASKNAME},
-	{"boot_serial",	RB_SERIAL},
-	{"boot_cdrom",	RB_CDROM},
-	{"boot_gdb",	RB_GDB},
-	{"boot_gdb_pause",	RB_RESERVED1},
-	{"boot_verbose",	RB_VERBOSE},
-	{"boot_multicons",	RB_MULTIPLE},
-	{NULL,	0}
-};
 
 int 
 xen_boothowto(char *envp)
@@ -172,24 +165,9 @@ xen_boothowto(char *envp)
 
 	/* get equivalents from the environment */
 	for (i = 0; howto_names[i].ev != NULL; i++)
-		if (getenv(howto_names[i].ev) != NULL)
+		if (kern_getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
 	return howto;
-}
-
-#define PRINTK_BUFSIZE 1024
-void
-printk(const char *fmt, ...)
-{
-        __va_list ap;
-        int retval;
-        static char buf[PRINTK_BUFSIZE];
-
-        va_start(ap, fmt);
-        retval = vsnprintf(buf, PRINTK_BUFSIZE - 1, fmt, ap);
-        va_end(ap);
-        buf[retval] = 0;
-        (void)HYPERVISOR_console_write(buf, retval);
 }
 
 
@@ -203,11 +181,11 @@ struct mmu_log {
 #ifdef SMP
 /* per-cpu queues and indices */
 #ifdef INVARIANTS
-static struct mmu_log xpq_queue_log[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+static struct mmu_log xpq_queue_log[XEN_LEGACY_MAX_VCPUS][XPQUEUE_SIZE];
 #endif
 
-static int xpq_idx[MAX_VIRT_CPUS];  
-static mmu_update_t xpq_queue[MAX_VIRT_CPUS][XPQUEUE_SIZE];
+static int xpq_idx[XEN_LEGACY_MAX_VCPUS];
+static mmu_update_t xpq_queue[XEN_LEGACY_MAX_VCPUS][XPQUEUE_SIZE];
 
 #define	XPQ_QUEUE_LOG xpq_queue_log[vcpu]
 #define	XPQ_QUEUE xpq_queue[vcpu]
@@ -239,9 +217,10 @@ xen_dump_queue(void)
 	if (_xpq_idx <= 1)
 		return;
 
-	printk("xen_dump_queue(): %u entries\n", _xpq_idx);
+	xc_printf("xen_dump_queue(): %u entries\n", _xpq_idx);
 	for (i = 0; i < _xpq_idx; i++) {
-		printk(" val: %llx ptr: %llx\n", XPQ_QUEUE[i].val, XPQ_QUEUE[i].ptr);
+		xc_printf(" val: %llx ptr: %llx\n", XPQ_QUEUE[i].val,
+		    XPQ_QUEUE[i].ptr);
 	}
 }
 #endif
@@ -732,11 +711,6 @@ char *bootmem_start, *bootmem_current, *bootmem_end;
 pteinfo_t *pteinfo_list;
 void initvalues(start_info_t *startinfo);
 
-struct xenstore_domain_interface;
-extern struct xenstore_domain_interface *xen_store;
-
-char *console_page;
-
 void *
 bootmem_alloc(unsigned int size) 
 {
@@ -918,6 +892,7 @@ initvalues(start_info_t *startinfo)
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments_notify);	
 #endif	
 	xen_start_info = startinfo;
+	HYPERVISOR_start_info = startinfo;
 	xen_phys_machine = (xen_pfn_t *)startinfo->mfn_list;
 
 	IdlePTD = (pd_entry_t *)((uint8_t *)startinfo->pt_base + PAGE_SIZE);
@@ -955,9 +930,10 @@ initvalues(start_info_t *startinfo)
 	cur_space = xen_start_info->pt_base +
 	    (l3_pages + l2_pages + l1_pages + 1)*PAGE_SIZE;
 
-	printk("initvalues(): wooh - availmem=%x,%x\n", avail_space, cur_space);
+	xc_printf("initvalues(): wooh - availmem=%x,%x\n", avail_space,
+	    cur_space);
 
-	printk("KERNBASE=%x,pt_base=%x, VTOPFN(base)=%x, nr_pt_frames=%x\n",
+	xc_printf("KERNBASE=%x,pt_base=%lx, VTOPFN(base)=%x, nr_pt_frames=%lx\n",
 	    KERNBASE,xen_start_info->pt_base, VTOPFN(xen_start_info->pt_base),
 	    xen_start_info->nr_pt_frames);
 	xendebug_flags = 0; /* 0xffffffff; */
@@ -966,7 +942,7 @@ initvalues(start_info_t *startinfo)
 	shift_phys_machine(xen_phys_machine, xen_start_info->nr_pages);
 #endif
 	XENPRINTF("IdlePTD %p\n", IdlePTD);
-	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%lx pt_base: 0x%lx "
+	XENPRINTF("nr_pages: %ld shared_info: 0x%lx flags: 0x%x pt_base: 0x%lx "
 		  "mod_start: 0x%lx mod_len: 0x%lx\n",
 		  xen_start_info->nr_pages, xen_start_info->shared_info, 
 		  xen_start_info->flags, xen_start_info->pt_base, 
@@ -1007,7 +983,7 @@ initvalues(start_info_t *startinfo)
 
 	/* Map proc0's KSTACK */
 	proc0kstack = cur_space; cur_space += (KSTACK_PAGES * PAGE_SIZE);
-	printk("proc0kstack=%u\n", proc0kstack);
+	xc_printf("proc0kstack=%u\n", proc0kstack);
 
 	/* vm86/bios stack */
 	cur_space += PAGE_SIZE;
@@ -1106,18 +1082,18 @@ initvalues(start_info_t *startinfo)
 	shinfo = xen_start_info->shared_info;
 	PT_SET_MA(HYPERVISOR_shared_info, shinfo | PG_KERNEL);
 	
-	printk("#4\n");
+	xc_printf("#4\n");
 
 	xen_store_ma = (((vm_paddr_t)xen_start_info->store_mfn) << PAGE_SHIFT);
 	PT_SET_MA(xen_store, xen_store_ma | PG_KERNEL);
 	console_page_ma = (((vm_paddr_t)xen_start_info->console.domU.mfn) << PAGE_SHIFT);
 	PT_SET_MA(console_page, console_page_ma | PG_KERNEL);
 
-	printk("#5\n");
+	xc_printf("#5\n");
 
 	set_iopl.iopl = 1;
 	PANIC_IF(HYPERVISOR_physdev_op(PHYSDEVOP_SET_IOPL, &set_iopl));
-	printk("#6\n");
+	xc_printf("#6\n");
 #if 0
 	/* add page table for KERNBASE */
 	xen_queue_pt_update(IdlePTDma + KPTDI*sizeof(vm_paddr_t), 
@@ -1132,7 +1108,7 @@ initvalues(start_info_t *startinfo)
 #endif	
 	xen_flush_queue();
 	cur_space += PAGE_SIZE;
-	printk("#6\n");
+	xc_printf("#6\n");
 #endif /* 0 */	
 #ifdef notyet
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
@@ -1150,13 +1126,13 @@ initvalues(start_info_t *startinfo)
 	     i < (((vm_offset_t)&etext) & ~PAGE_MASK); i += PAGE_SIZE)
 		PT_SET_MA(i, VTOM(i) | PG_V | PG_A);
 	
-	printk("#7\n");
+	xc_printf("#7\n");
 	physfree = VTOP(cur_space);
 	init_first = physfree >> PAGE_SHIFT;
 	IdlePTD = (pd_entry_t *)VTOP(IdlePTD);
 	IdlePDPT = (pd_entry_t *)VTOP(IdlePDPT);
 	setup_xen_features();
-	printk("#8, proc0kstack=%u\n", proc0kstack);
+	xc_printf("#8, proc0kstack=%u\n", proc0kstack);
 }
 
 
@@ -1200,9 +1176,9 @@ HYPERVISOR_multicall(struct multicall_entry * call_list, int nr_calls)
 
 	/* Check the results of individual hypercalls. */
 	for (i = 0; i < nr_calls; i++)
-		if (unlikely(call_list[i].result < 0))
+		if (__predict_false(call_list[i].result < 0))
 			ret++;
-	if (unlikely(ret > 0))
+	if (__predict_false(ret > 0))
 		panic("%d multicall(s) failed: cpu %d\n",
 		    ret, smp_processor_id());
 

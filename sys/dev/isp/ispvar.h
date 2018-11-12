@@ -421,7 +421,8 @@ typedef struct {
 			target_mode	: 1,
 			portid		: 24;
 	uint32_t
-					: 6,
+					: 5,
+			reported_gone	: 1,
 			announced	: 1,
 			dirty		: 1,	/* commands have been run */
 			new_portid	: 24;
@@ -614,8 +615,9 @@ struct ispsoftc {
 	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
-	volatile uint32_t	isp_residx;	/* index of next result */
+	volatile uint32_t	isp_residx;	/* index of last ISP write */
 	volatile uint32_t	isp_resodx;	/* index of next result */
+	volatile uint32_t	isp_atioodx;	/* index of next ATIO */
 	volatile uint32_t	isp_obits;	/* mailbox command output */
 	volatile uint32_t	isp_serno;	/* rolling serial number */
 	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];

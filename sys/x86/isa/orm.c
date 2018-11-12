@@ -58,7 +58,7 @@ static struct isa_pnp_id orm_ids[] = {
 	{ 0,		NULL },
 };
 
-#define MAX_ROMS	16
+#define MAX_ROMS	32
 
 struct orm_softc {
 	int		rnum;
@@ -97,7 +97,7 @@ orm_identify(driver_t* driver, device_t parent)
 	isa_set_vendorid(child, ORM_ID);
 	sc = device_get_softc(child);
 	sc->rnum = 0;
-	while (chunk < IOMEM_END) {
+	while (sc->rnum < MAX_ROMS && chunk < IOMEM_END) {
 		bus_set_resource(child, SYS_RES_MEMORY, sc->rnum, chunk,
 		    IOMEM_STEP);
 		rid = sc->rnum;

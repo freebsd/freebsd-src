@@ -217,8 +217,9 @@ union descriptor {
 #define	IDT_IO_INTS	NRSVIDT	/* Base of IDT entries for I/O interrupts. */
 #define	IDT_SYSCALL	0x80	/* System Call Interrupt Vector */
 #define	IDT_DTRACE_RET	0x92	/* DTrace pid provider Interrupt Vector */
+#define	IDT_EVTCHN	0x93	/* Xen HVM Event Channel Interrupt Vector */
 
-#if defined(__i386__) || defined(__ia64__)
+#if defined(__i386__)
 /*
  * Entries in the Global Descriptor Table (GDT)
  * Note that each 4 entries share a single 32 byte L1 cache line.
@@ -263,7 +264,7 @@ union descriptor {
 #define	LBSDICALLS_SEL	16	/* BSDI system call gate */
 #define	NLDT		(LBSDICALLS_SEL + 1)
 
-#else /* !__i386__ && !__ia64__ */
+#else /* !__i386__ */
 /*
  * Entries in the Global Descriptor Table (GDT)
  */
@@ -281,6 +282,6 @@ union descriptor {
 #define	GUSERLDT_SEL	11	/* LDT */
 /* slot 12 is second half of GUSERLDT_SEL */
 #define	NGDT 		13
-#endif /* __i386__ || __ia64__ */
+#endif /* __i386__ */
 
 #endif /* !_X86_SEGMENTS_H_ */

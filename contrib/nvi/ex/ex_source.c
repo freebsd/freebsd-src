@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_source.c	10.12 (Berkeley) 8/10/96";
+static const char sccsid[] = "$Id: ex_source.c,v 10.17 2011/12/19 16:17:06 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -35,15 +35,18 @@ static const char sccsid[] = "@(#)ex_source.c	10.12 (Berkeley) 8/10/96";
  * PUBLIC: int ex_source __P((SCR *, EXCMD *));
  */
 int
-ex_source(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_source(SCR *sp, EXCMD *cmdp)
 {
 	struct stat sb;
 	int fd, len;
-	char *bp, *name;
+	char *bp;
+	char *name, *np;
+	size_t nlen;
+	CHAR_T *wp;
+	size_t wlen;
+	int rc;
 
-	name = cmdp->argv[0]->bp;
+	INT2CHAR(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len + 1, name, nlen);
 	if ((fd = open(name, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
 		goto err;
 
@@ -80,6 +83,13 @@ err:		msgq_str(sp, M_SYSERR, name, "%s");
 		return (1);
 	}
 
+	np = strdup(name);
+	if (CHAR2INT(sp, bp, (size_t)sb.st_size + 1, wp, wlen))
+		msgq(sp, M_ERR, "323|Invalid input. Truncated.");
 	/* Put it on the ex queue. */
-	return (ex_run_str(sp, name, bp, (size_t)sb.st_size, 1, 1));
+	rc = ex_run_str(sp, np, wp, wlen - 1, 1, 0);
+	if (np != NULL)
+		free(np);
+	free(bp);
+	return (rc);
 }

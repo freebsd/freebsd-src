@@ -11,15 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_POST_DOMINATORS_H
-#define LLVM_ANALYSIS_POST_DOMINATORS_H
+#ifndef LLVM_ANALYSIS_POSTDOMINATORS_H
+#define LLVM_ANALYSIS_POSTDOMINATORS_H
 
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/Dominators.h"
 
 namespace llvm {
 
 /// PostDominatorTree Class - Concrete subclass of DominatorTree that is used to
-/// compute the a post-dominator tree.
+/// compute the post-dominator tree.
 ///
 struct PostDominatorTree : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
@@ -32,9 +32,9 @@ struct PostDominatorTree : public FunctionPass {
 
   ~PostDominatorTree();
 
-  virtual bool runOnFunction(Function &F);
+  bool runOnFunction(Function &F) override;
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
   }
 
@@ -74,11 +74,22 @@ struct PostDominatorTree : public FunctionPass {
     return DT->findNearestCommonDominator(A, B);
   }
 
-  virtual void releaseMemory() {
+  inline const BasicBlock *findNearestCommonDominator(const BasicBlock *A,
+                                                      const BasicBlock *B) {
+    return DT->findNearestCommonDominator(A, B);
+  }
+
+  /// Get all nodes post-dominated by R, including R itself.
+  void getDescendants(BasicBlock *R,
+                      SmallVectorImpl<BasicBlock *> &Result) const {
+    DT->getDescendants(R, Result);
+  }
+
+  void releaseMemory() override {
     DT->releaseMemory();
   }
 
-  virtual void print(raw_ostream &OS, const Module*) const;
+  void print(raw_ostream &OS, const Module*) const override;
 };
 
 FunctionPass* createPostDomTree();

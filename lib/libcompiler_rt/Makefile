@@ -1,12 +1,13 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	compiler_rt
 NO_PIC=
 WARNS?=	2
 
 CFLAGS+=${PICFLAG} -fvisibility=hidden -DVISIBILITY_HIDDEN
+CFLAGS+=-I${.CURDIR}/../../contrib/libcxxrt
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CRTARCH=x86_64
@@ -14,27 +15,28 @@ CRTARCH=x86_64
 CRTARCH=${MACHINE_CPUARCH}
 .endif
 
-CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib
+CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib/builtins
 
 .PATH: ${CRTSRC}/${CRTARCH} ${CRTSRC}
 
 SRCF=	absvdi2 \
 	absvsi2 \
 	absvti2 \
+	addtf3 \
 	addvdi3 \
 	addvsi3 \
 	addvti3 \
+	apple_versioning \
 	ashldi3 \
 	ashlti3 \
 	ashrdi3 \
 	ashrti3 \
+	clear_cache \
 	clzdi2 \
 	clzsi2 \
 	clzti2 \
 	cmpdi2 \
 	cmpti2 \
-	comparedf2 \
-	comparesf2 \
 	ctzdi2 \
 	ctzsi2 \
 	ctzti2 \
@@ -43,6 +45,7 @@ SRCF=	absvdi2 \
 	divmoddi4 \
 	divmodsi4 \
 	divsc3 \
+	divtf3 \
 	divti3 \
 	divxc3 \
 	enable_execute_stack \
@@ -53,12 +56,18 @@ SRCF=	absvdi2 \
 	fixdfti \
 	fixsfdi \
 	fixsfti \
+	fixtfdi \
+	fixtfsi \
+	fixtfti \
 	fixunsdfdi \
 	fixunsdfsi \
 	fixunsdfti \
 	fixunssfdi \
 	fixunssfsi \
 	fixunssfti \
+	fixunstfdi \
+	fixunstfsi \
+	fixunstfti \
 	fixunsxfdi \
 	fixunsxfsi \
 	fixunsxfti \
@@ -78,6 +87,7 @@ SRCF=	absvdi2 \
 	floatuntidf \
 	floatuntisf \
 	floatuntixf \
+	gcc_personality_v0 \
 	int_util \
 	lshrdi3 \
 	lshrti3 \
@@ -89,6 +99,7 @@ SRCF=	absvdi2 \
 	mulosi4 \
 	muloti4 \
 	mulsc3 \
+	multf3 \
 	multi3 \
 	mulvdi3 \
 	mulvsi3 \
@@ -111,6 +122,7 @@ SRCF=	absvdi2 \
 	powisf2 \
 	powitf2 \
 	powixf2 \
+	subtf3 \
 	subvdi3 \
 	subvsi3 \
 	subvti3 \
@@ -124,11 +136,6 @@ SRCF=	absvdi2 \
 	udivti3 \
 	umoddi3 \
 	umodti3
-
-# Don't build clear_cache on ARM with clang as it is a builtin there.
-.if ${MACHINE_CPUARCH} != "arm" || ${COMPILER_TYPE} != "clang"
-SRCF+=	clear_cache
-.endif
 
 # These are already shipped by libc.a on arm and mips
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
@@ -148,61 +155,64 @@ SRCF+=	adddf3 \
 	truncdfsf2
 .endif
 
-.if ${MACHINE_CPUARCH} != "mips" && \
-    (${MACHINE_CPUARCH} != "arm" || ${MK_ARM_EABI} != "no")
+.if ${MACHINE_CPUARCH} != "arm"
+SRCF+=	comparedf2 \
+	comparesf2
+.endif
+
+.if ${MACHINE_CPUARCH} != "mips"
 SRCF+=	divsi3 \
 	modsi3 \
 	udivsi3 \
 	umodsi3
 .endif
 
-# FreeBSD-specific atomic intrinsics. Clang provides them as a builtin.
-.if (${MACHINE_CPUARCH} == "arm" && ${COMPILER_TYPE} != "clang") || \
-    ${MACHINE_CPUARCH} == "mips"
-SRCF+=	__sync_fetch_and_add_4 \
-	__sync_fetch_and_and_4 \
-	__sync_fetch_and_or_4 \
-	__sync_fetch_and_sub_4 \
-	__sync_fetch_and_xor_4 \
-	__sync_lock_test_and_set_4 \
-	__sync_val_compare_and_swap_4
-.endif
-.if ${MACHINE_ARCH:Mmips64*} != ""
-SRCF+=	__sync_fetch_and_add_8 \
-	__sync_fetch_and_and_8 \
-	__sync_fetch_and_or_8 \
-	__sync_fetch_and_sub_8 \
-	__sync_fetch_and_xor_8 \
-	__sync_lock_test_and_set_8 \
-	__sync_val_compare_and_swap_8
+# FreeBSD-specific atomic intrinsics.
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "armv6"
+.PATH: ${.CURDIR}/../../sys/arm/arm
+
+SRCF+=	stdatomic
+CFLAGS+=	-DEMIT_SYNC_ATOMICS
+.elif ${MACHINE_CPUARCH} == "mips"
+.PATH: ${.CURDIR}/../../sys/mips/mips
+
+SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}
-. if ${MACHINE_CPUARCH} != "arm" && exists(${CRTSRC}/${CRTARCH}/${file}.S)
+. if ${MACHINE_ARCH:Marm*hf*} != "" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
+SRCS+= ${file}vfp.S
+. elif !(${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH:Marm*hf*} == "") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
 SRCS+=	${file}.S
 . else
 SRCS+=	${file}.c
 . endif
 .endfor
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
-SRCS+=	aeabi_idivmod.S \
+.if ${MACHINE_CPUARCH} == "arm"
+SRCS+=	aeabi_div0.c \
+	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_memcmp.S \
 	aeabi_memcpy.S \
 	aeabi_memmove.S \
 	aeabi_memset.S \
 	aeabi_uidivmod.S \
-	aeabi_uldivmod.S
+	aeabi_uldivmod.S \
+	bswapdi2.S \
+	bswapsi2.S \
+	switch16.S \
+	switch32.S \
+	switch8.S \
+	switchu8.S \
+	sync_synchronize.S
 .endif
 
-.if ${MACHINE_CPUARCH} != "mips"
-. if ${MK_INSTALLLIB} != "no"
+.if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=libcompiler_rt.a ${LIBDIR}/libgcc.a
-. endif
-. if ${MK_PROFILE} != "no"
+.endif
+.if ${MK_PROFILE} != "no"
 SYMLINKS+=libcompiler_rt_p.a ${LIBDIR}/libgcc_p.a
-. endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \

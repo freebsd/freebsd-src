@@ -45,7 +45,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -284,14 +283,14 @@ mac_proc_vm_revoke_recurse(struct thread *td, struct ucred *cred,
 		object = vme->object.vm_object;
 		if (object == NULL)
 			continue;
-		VM_OBJECT_WLOCK(object);
+		VM_OBJECT_RLOCK(object);
 		while ((backing_object = object->backing_object) != NULL) {
-			VM_OBJECT_WLOCK(backing_object);
+			VM_OBJECT_RLOCK(backing_object);
 			offset += object->backing_object_offset;
-			VM_OBJECT_WUNLOCK(object);
+			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
-		VM_OBJECT_WUNLOCK(object);
+		VM_OBJECT_RUNLOCK(object);
 		/*
 		 * At the moment, vm_maps and objects aren't considered by
 		 * the MAC system, so only things with backing by a normal

@@ -46,6 +46,7 @@ typedef enum {
 	ATH_AGGR_8K_LIMITED,
 	ATH_AGGR_ERROR,
 	ATH_AGGR_NONAGGR,
+	ATH_AGGR_LEAK_CLOSED,
 } ATH_AGGR_STATUS;
 
 extern int	ath_max_4ms_framelen[4][32];

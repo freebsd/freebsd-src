@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd February 20, 2013
+.Dd July 15, 2013
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl display
+.Op Ar display-commands
 .Op Ar refresh-interval
 .Sh DESCRIPTION
 The
@@ -67,7 +68,6 @@ statistics (a la
 .Xr iostat 8 ) ,
 virtual memory statistics (a la
 .Xr vmstat 8 ) ,
-network ``mbuf'' utilization,
 .Tn TCP/IP
 statistics,
 and network connections (a la
@@ -94,7 +94,6 @@ to be one of:
 .Ic iostat ,
 .Ic ip ,
 .Ic ip6 ,
-.Ic mbufs ,
 .Ic netstat ,
 .Ic pigs ,
 .Ic swap ,
@@ -110,6 +109,23 @@ The
 .Ar refresh-value
 specifies the screen refresh time interval in seconds.
 Time interval can be fractional.
+.It Ar display-commands
+A list of commands specific for this display. These commands can also
+be entered interactively and are described for each display separately
+below. If the command of the display requires an argument or arguments,
+it is possible to specify them as separate command line argument. To finish
+display commands it is possible to use double dash at the end
+of the list. For example:
+.Pp
+.Dl Nm Fl ifstat Fl match Ar bge0,em1 Fl pps
+.Pp
+This will display statistics of packets per second for network interfaces
+named as bge0 and em1.
+.Pp
+.Dl Nm Fl iostat Fl numeric Fl - Ar 2.1
+.Pp
+This will display all IO statistics in a numeric format and the information
+will be refreshed each 2.1 seconds.
 .El
 .Pp
 Certain characters cause immediate action by
@@ -280,9 +296,6 @@ the graph shows the percentage of space in use on each partition.
 If there are more than one swap partition in use,
 a total line is also shown.
 Areas known to the kernel, but not in use are shown as not available.
-.It Ic mbufs
-Display, in the lower window, the number of mbufs allocated
-for particular uses, i.e., data, socket structures, etc.
 .It Ic vmstat
 Take over the entire display and show a (rather crowded) compendium
 of statistics related to virtual memory usage, process scheduling,

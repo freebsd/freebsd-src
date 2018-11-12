@@ -29,6 +29,8 @@
  * handler.  The watchdog is halted in processor debug mode.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -44,6 +46,12 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_wdtreg.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 struct wdt_softc {
 	struct mtx	sc_mtx;
@@ -131,12 +139,12 @@ wdt_tick(void *argp)
 static int
 wdt_probe(device_t dev)
 {
-
-	if (at91_is_sam9() || at91_is_sam9xe()) {
-		device_set_desc(dev, "WDT");
-		return (0);
-	}
-	return (ENXIO);
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,at91sam9260-wdt"))
+		return (ENXIO);
+#endif
+	device_set_desc(dev, "WDT");
+	return (0);
 }
 
 static int
@@ -223,4 +231,8 @@ static driver_t wdt_driver = {
 
 static devclass_t wdt_devclass;
 
+#ifdef FDT
+DRIVER_MODULE(at91_wdt, simplebus, wdt_driver, wdt_devclass, NULL, NULL);
+#else
 DRIVER_MODULE(at91_wdt, atmelarm, wdt_driver, wdt_devclass, NULL, NULL);
+#endif

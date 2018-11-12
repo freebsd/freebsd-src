@@ -7,13 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This header file implements the operating system Program concept.
+//  This file implements the operating system Program concept.
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Program.h"
 #include "llvm/Config/config.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 using namespace llvm;
 using namespace sys;
 
@@ -22,30 +22,41 @@ using namespace sys;
 //===          independent code.
 //===----------------------------------------------------------------------===//
 
-int
-Program::ExecuteAndWait(const Path& path,
-                        const char** args,
-                        const char** envp,
-                        const Path** redirects,
-                        unsigned secondsToWait,
-                        unsigned memoryLimit,
-                        std::string* ErrMsg) {
-  Program prg;
-  if (prg.Execute(path, args, envp, redirects, memoryLimit, ErrMsg))
-    return prg.Wait(path, secondsToWait, ErrMsg);
-  else
-    return -1;
+static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
+                    const char **env, const StringRef **Redirects,
+                    unsigned memoryLimit, std::string *ErrMsg);
+
+int sys::ExecuteAndWait(StringRef Program, const char **args, const char **envp,
+                        const StringRef **redirects, unsigned secondsToWait,
+                        unsigned memoryLimit, std::string *ErrMsg,
+                        bool *ExecutionFailed) {
+  ProcessInfo PI;
+  if (Execute(PI, Program, args, envp, redirects, memoryLimit, ErrMsg)) {
+    if (ExecutionFailed)
+      *ExecutionFailed = false;
+    ProcessInfo Result = Wait(
+        PI, secondsToWait, /*WaitUntilTerminates=*/secondsToWait == 0, ErrMsg);
+    return Result.ReturnCode;
+  }
+
+  if (ExecutionFailed)
+    *ExecutionFailed = true;
+
+  return -1;
 }
 
-void
-Program::ExecuteNoWait(const Path& path,
-                       const char** args,
-                       const char** envp,
-                       const Path** redirects,
-                       unsigned memoryLimit,
-                       std::string* ErrMsg) {
-  Program prg;
-  prg.Execute(path, args, envp, redirects, memoryLimit, ErrMsg);
+ProcessInfo sys::ExecuteNoWait(StringRef Program, const char **args,
+                               const char **envp, const StringRef **redirects,
+                               unsigned memoryLimit, std::string *ErrMsg,
+                               bool *ExecutionFailed) {
+  ProcessInfo PI;
+  if (ExecutionFailed)
+    *ExecutionFailed = false;
+  if (!Execute(PI, Program, args, envp, redirects, memoryLimit, ErrMsg))
+    if (ExecutionFailed)
+      *ExecutionFailed = true;
+
+  return PI;
 }
 
 // Include the platform-specific parts of this class.

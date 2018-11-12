@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,14 +41,14 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_instr.c,v 1.16 2007/07/21 20:18:10 tom Exp $")
+MODULE_ID("$Id: lib_instr.c,v 1.21 2014/02/01 22:09:27 tom Exp $")
 
 NCURSES_EXPORT(int)
 winnstr(WINDOW *win, char *str, int n)
 {
     int i = 0, row, col;
 
-    T((T_CALLED("winnstr(%p,%p,%d)"), win, str, n));
+    T((T_CALLED("winnstr(%p,%p,%d)"), (void *) win, str, n));
 
     if (!str)
 	returnCode(0);
@@ -64,7 +64,7 @@ winnstr(WINDOW *win, char *str, int n)
 	    cchar_t *cell = &(win->_line[row].text[col]);
 	    wchar_t *wch;
 	    attr_t attrs;
-	    short pair;
+	    NCURSES_PAIRS_T pair;
 	    int n2;
 	    bool done = FALSE;
 	    mbstate_t state;
@@ -78,19 +78,23 @@ winnstr(WINDOW *win, char *str, int n)
 		    if (getcchar(cell, wch, &attrs, &pair, 0) == OK) {
 
 			init_mb(state);
-			n3 = wcstombs(0, wch, 0);
-			if (isEILSEQ(n3) || (n3 == 0)) {
-			    ;
-			} else if ((int) (n3 + i) > n) {
-			    done = TRUE;
-			} else if ((tmp = typeCalloc(char, n3 + 10)) == 0) {
-			    done = TRUE;
-			} else {
-			    init_mb(state);
-			    wcstombs(tmp, wch, n3);
-			    for (i3 = 0; i3 < n3; ++i3)
-				str[i++] = tmp[i3];
-			    free(tmp);
+			n3 = wcstombs(0, wch, (size_t) 0);
+			if (!isEILSEQ(n3) && (n3 != 0)) {
+			    size_t need = n3 + 10 + (size_t) i;
+			    int have = (int) n3 + i;
+
+			    /* check for loop-done as well as overflow */
+			    if (have > n || (int) need <= 0) {
+				done = TRUE;
+			    } else if ((tmp = typeCalloc(char, need)) == 0) {
+				done = TRUE;
+			    } else {
+				init_mb(state);
+				wcstombs(tmp, wch, n3);
+				for (i3 = 0; i3 < n3; ++i3)
+				    str[i++] = tmp[i3];
+				free(tmp);
+			    }
 			}
 		    }
 		    free(wch);

@@ -15,6 +15,43 @@
 
 #include "common.h"
 
+#if defined(HAVE_COMMONCRYPTO_COMMONDIGEST_H)
+#	include <CommonCrypto/CommonDigest.h>
+#elif defined(HAVE_SHA256_H)
+#	include <sys/types.h>
+#	include <sha256.h>
+#elif defined(HAVE_SHA2_H)
+#	include <sys/types.h>
+#	include <sha2.h>
+#elif defined(HAVE_MINIX_SHA2_H)
+#	include <sys/types.h>
+#	include <minix/sha2.h>
+#endif
+
+#if defined(HAVE_CC_SHA256_CTX)
+typedef CC_SHA256_CTX lzma_sha256_state;
+#elif defined(HAVE_SHA256_CTX)
+typedef SHA256_CTX lzma_sha256_state;
+#elif defined(HAVE_SHA2_CTX)
+typedef SHA2_CTX lzma_sha256_state;
+#else
+/// State for the internal SHA-256 implementation
+typedef struct {
+	/// Internal state
+	uint32_t state[8];
+
+	/// Size of the message excluding padding
+	uint64_t size;
+} lzma_sha256_state;
+#endif
+
+#if defined(HAVE_CC_SHA256_INIT)
+#	define LZMA_SHA256FUNC(x) CC_SHA256_ ## x
+#elif defined(HAVE_SHA256_INIT)
+#	define LZMA_SHA256FUNC(x) SHA256_ ## x
+#elif defined(HAVE_SHA256INIT)
+#	define LZMA_SHA256FUNC(x) SHA256 ## x
+#endif
 
 // Index hashing needs the best possible hash function (preferably
 // a cryptographic hash) for maximum reliability.
@@ -43,14 +80,7 @@ typedef struct {
 	union {
 		uint32_t crc32;
 		uint64_t crc64;
-
-		struct {
-			/// Internal state
-			uint32_t state[8];
-
-			/// Size of the message excluding padding
-			uint64_t size;
-		} sha256;
+		lzma_sha256_state sha256;
 	} state;
 
 } lzma_check_state;
@@ -82,6 +112,8 @@ extern void lzma_check_update(lzma_check_state *check, lzma_check type,
 extern void lzma_check_finish(lzma_check_state *check, lzma_check type);
 
 
+#ifndef LZMA_SHA256FUNC
+
 /// Prepare SHA-256 state for new input.
 extern void lzma_sha256_init(lzma_check_state *check);
 
@@ -91,5 +123,40 @@ extern void lzma_sha256_update(
 
 /// Finish the SHA-256 calculation and store the result to check->buffer.u8.
 extern void lzma_sha256_finish(lzma_check_state *check);
+
+
+#else
+
+static inline void
+lzma_sha256_init(lzma_check_state *check)
+{
+	LZMA_SHA256FUNC(Init)(&check->state.sha256);
+}
+
+
+static inline void
+lzma_sha256_update(const uint8_t *buf, size_t size, lzma_check_state *check)
+{
+#if defined(HAVE_CC_SHA256_INIT) && SIZE_MAX > UINT32_MAX
+	// Darwin's CC_SHA256_Update takes uint32_t as the buffer size,
+	// so use a loop to support size_t.
+	while (size > UINT32_MAX) {
+		LZMA_SHA256FUNC(Update)(&check->state.sha256, buf, UINT32_MAX);
+		buf += UINT32_MAX;
+		size -= UINT32_MAX;
+	}
+#endif
+
+	LZMA_SHA256FUNC(Update)(&check->state.sha256, buf, size);
+}
+
+
+static inline void
+lzma_sha256_finish(lzma_check_state *check)
+{
+	LZMA_SHA256FUNC(Final)(check->buffer.u8, &check->state.sha256);
+}
+
+#endif
 
 #endif

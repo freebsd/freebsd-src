@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/vnode.h>
 
 #include <geom/geom.h>
@@ -255,7 +256,8 @@ ffs_snapshot(mp, snapfile)
 	 * Create the snapshot file.
 	 */
 restart:
-	NDINIT(&nd, CREATE, LOCKPARENT | LOCKLEAF, UIO_SYSSPACE, snapfile, td);
+	NDINIT(&nd, CREATE, LOCKPARENT | LOCKLEAF | NOCACHE, UIO_SYSSPACE,
+	    snapfile, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -422,7 +424,7 @@ restart:
 	 */
 	for (;;) {
 		vn_finished_write(wrtmp);
-		if ((error = vfs_write_suspend(vp->v_mount)) != 0) {
+		if ((error = vfs_write_suspend(vp->v_mount, 0)) != 0) {
 			vn_start_write(NULL, &wrtmp, V_WAIT);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			goto out;
@@ -791,7 +793,7 @@ out1:
 		brelse(nbp);
 	} else {
 		loc = blkoff(fs, fs->fs_sblockloc);
-		bcopy((char *)copy_fs, &nbp->b_data[loc], fs->fs_bsize);
+		bcopy((char *)copy_fs, &nbp->b_data[loc], (u_int)fs->fs_sbsize);
 		bawrite(nbp);
 	}
 	/*
@@ -2204,10 +2206,8 @@ ffs_bdflush(bo, bp)
 			if (bp_bdskip) {
 				VI_LOCK(devvp);
 				if (!ffs_bp_snapblk(vp, nbp)) {
-					if (BO_MTX(bo) != VI_MTX(vp)) {
-						VI_UNLOCK(devvp);
-						BO_LOCK(bo);
-					}
+					VI_UNLOCK(devvp);
+					BO_LOCK(bo);
 					BUF_UNLOCK(nbp);
 					continue;
 				}
@@ -2643,7 +2643,7 @@ ffs_snapdata_acquire(struct vnode *devvp)
 	struct snapdata *sn;
 
 	/*
- 	 * Allocate a free snapdata.  This is done before acquiring the
+	 * Allocate a free snapdata.  This is done before acquiring the
 	 * devvp lock to avoid allocation while the devvp interlock is
 	 * held.
 	 */

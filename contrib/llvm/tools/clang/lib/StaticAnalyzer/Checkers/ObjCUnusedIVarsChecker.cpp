@@ -14,14 +14,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
-#include "clang/AST/ExprObjC.h"
-#include "clang/AST/Expr.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/Expr.h"
+#include "clang/AST/ExprObjC.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 
 using namespace clang;
 using namespace ento;
@@ -76,22 +77,18 @@ static void Scan(IvarUsageMap& M, const ObjCPropertyImplDecl *D) {
 
 static void Scan(IvarUsageMap& M, const ObjCContainerDecl *D) {
   // Scan the methods for accesses.
-  for (ObjCContainerDecl::instmeth_iterator I = D->instmeth_begin(),
-       E = D->instmeth_end(); I!=E; ++I)
-    Scan(M, (*I)->getBody());
+  for (const auto *I : D->instance_methods())
+    Scan(M, I->getBody());
 
   if (const ObjCImplementationDecl *ID = dyn_cast<ObjCImplementationDecl>(D)) {
     // Scan for @synthesized property methods that act as setters/getters
     // to an ivar.
-    for (ObjCImplementationDecl::propimpl_iterator I = ID->propimpl_begin(),
-         E = ID->propimpl_end(); I!=E; ++I)
-      Scan(M, *I);
+    for (const auto *I : ID->property_impls())
+      Scan(M, I);
 
     // Scan the associated categories as well.
-    for (const ObjCCategoryDecl *CD =
-          ID->getClassInterface()->getCategoryList(); CD ;
-          CD = CD->getNextClassCategory()) {
-      if (const ObjCCategoryImplDecl *CID = CD->getImplementation())
+    for (const auto *Cat : ID->getClassInterface()->visible_categories()) {
+      if (const ObjCCategoryImplDecl *CID = Cat->getImplementation())
         Scan(M, CID);
     }
   }
@@ -99,9 +96,8 @@ static void Scan(IvarUsageMap& M, const ObjCContainerDecl *D) {
 
 static void Scan(IvarUsageMap &M, const DeclContext *C, const FileID FID,
                  SourceManager &SM) {
-  for (DeclContext::decl_iterator I=C->decls_begin(), E=C->decls_end();
-       I!=E; ++I)
-    if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(*I)) {
+  for (const auto *I : C->decls())
+    if (const auto *FD = dyn_cast<FunctionDecl>(I)) {
       SourceLocation L = FD->getLocStart();
       if (SM.getFileID(L) == FID)
         Scan(M, FD->getBody());
@@ -109,29 +105,26 @@ static void Scan(IvarUsageMap &M, const DeclContext *C, const FileID FID,
 }
 
 static void checkObjCUnusedIvar(const ObjCImplementationDecl *D,
-                                BugReporter &BR) {
+                                BugReporter &BR,
+                                const CheckerBase *Checker) {
 
   const ObjCInterfaceDecl *ID = D->getClassInterface();
   IvarUsageMap M;
 
   // Iterate over the ivars.
-  for (ObjCInterfaceDecl::ivar_iterator I=ID->ivar_begin(),
-        E=ID->ivar_end(); I!=E; ++I) {
-
-    const ObjCIvarDecl *ID = *I;
-
+  for (const auto *Ivar : ID->ivars()) {
     // Ignore ivars that...
     // (a) aren't private
     // (b) explicitly marked unused
     // (c) are iboutlets
     // (d) are unnamed bitfields
-    if (ID->getAccessControl() != ObjCIvarDecl::Private ||
-        ID->getAttr<UnusedAttr>() || ID->getAttr<IBOutletAttr>() ||
-        ID->getAttr<IBOutletCollectionAttr>() ||
-        ID->isUnnamedBitfield())
+    if (Ivar->getAccessControl() != ObjCIvarDecl::Private ||
+        Ivar->hasAttr<UnusedAttr>() || Ivar->hasAttr<IBOutletAttr>() ||
+        Ivar->hasAttr<IBOutletCollectionAttr>() ||
+        Ivar->isUnnamedBitfield())
       continue;
 
-    M[ID] = Unused;
+    M[Ivar] = Unused;
   }
 
   if (M.empty())
@@ -170,7 +163,7 @@ static void checkObjCUnusedIvar(const ObjCImplementationDecl *D,
 
       PathDiagnosticLocation L =
         PathDiagnosticLocation::create(I->first, BR.getSourceManager());
-      BR.EmitBasicReport(D, "Unused instance variable", "Optimization",
+      BR.EmitBasicReport(D, Checker, "Unused instance variable", "Optimization",
                          os.str(), L);
     }
 }
@@ -185,7 +178,7 @@ class ObjCUnusedIvarsChecker : public Checker<
 public:
   void checkASTDecl(const ObjCImplementationDecl *D, AnalysisManager& mgr,
                     BugReporter &BR) const {
-    checkObjCUnusedIvar(D, BR);
+    checkObjCUnusedIvar(D, BR, this);
   }
 };
 }

@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 
 #include "libuserboot.h"
 
+#if defined(USERBOOT_ZFS_SUPPORT)
+#include "../zfs/libzfs.h"
+#endif
+
 /*
  * We could use linker sets for some or all of these, but
  * then we would have to control what ended up linked into
@@ -51,6 +55,9 @@ __FBSDID("$FreeBSD$");
 struct devsw *devsw[] = {
 	&host_dev,
 	&userboot_disk,
+#if defined(USERBOOT_ZFS_SUPPORT)
+	&zfs_dev,
+#endif
 	NULL
 };
 
@@ -59,6 +66,9 @@ struct fs_ops *file_system[] = {
 	&ufs_fsops,
 	&cd9660_fsops,
 	&gzipfs_fsops,
+#if defined(USERBOOT_ZFS_SUPPORT)
+	&zfs_fsops,
+#endif
 	NULL
 };
 
@@ -87,8 +97,10 @@ struct file_format *file_formats[] = {
  * data structures from bootstrap.h as well.
  */
 extern struct console userboot_console;
+extern struct console userboot_comconsole;
 
 struct console *consoles[] = {
 	&userboot_console,
+	&userboot_comconsole,
 	NULL
 };

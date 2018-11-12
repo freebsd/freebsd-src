@@ -56,6 +56,17 @@ static int		pcib_suspend(device_t dev);
 static int		pcib_resume(device_t dev);
 static int		pcib_power_for_sleep(device_t pcib, device_t dev,
 			    int *pstate);
+static uint16_t		pcib_ari_get_rid(device_t pcib, device_t dev);
+static uint32_t		pcib_read_config(device_t dev, u_int b, u_int s, 
+    u_int f, u_int reg, int width);
+static void		pcib_write_config(device_t dev, u_int b, u_int s,
+    u_int f, u_int reg, uint32_t val, int width);
+static int		pcib_ari_maxslots(device_t dev);
+static int		pcib_ari_maxfuncs(device_t dev);
+static int		pcib_try_enable_ari(device_t pcib, device_t dev);
+static int		pcib_ari_enabled(device_t pcib);
+static void		pcib_ari_decode_rid(device_t pcib, uint16_t rid,
+			    int *bus, int *slot, int *func);
 
 static device_method_t pcib_methods[] = {
     /* Device interface */
@@ -83,7 +94,8 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
     /* pcib interface */
-    DEVMETHOD(pcib_maxslots,		pcib_maxslots),
+    DEVMETHOD(pcib_maxslots,		pcib_ari_maxslots),
+    DEVMETHOD(pcib_maxfuncs,		pcib_ari_maxfuncs),
     DEVMETHOD(pcib_read_config,		pcib_read_config),
     DEVMETHOD(pcib_write_config,	pcib_write_config),
     DEVMETHOD(pcib_route_interrupt,	pcib_route_interrupt),
@@ -93,6 +105,10 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
     DEVMETHOD(pcib_map_msi,		pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
+    DEVMETHOD(pcib_get_rid,		pcib_ari_get_rid),
+    DEVMETHOD(pcib_try_enable_ari,	pcib_try_enable_ari),
+    DEVMETHOD(pcib_ari_enabled,		pcib_ari_enabled),
+    DEVMETHOD(pcib_decode_rid,		pcib_ari_decode_rid),
 
     DEVMETHOD_END
 };
@@ -100,16 +116,14 @@ static device_method_t pcib_methods[] = {
 static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
-DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL);
 
 #ifdef NEW_PCIB
-/*
- * XXX Todo:
- * - properly handle the ISA enable bit.  If it is set, we should change
- *   the behavior of the I/O window resource and rman to not allocate the
- *   blocked ranges (upper 768 bytes of each 1K in the first 64k of the
- *   I/O port address space).
- */
+SYSCTL_DECL(_hw_pci);
+
+static int pci_clear_pcib;
+SYSCTL_INT(_hw_pci, OID_AUTO, clear_pcib, CTLFLAG_RDTUN, &pci_clear_pcib, 0,
+    "Clear firmware-assigned resources for PCI-PCI bridge I/O windows.");
 
 /*
  * Is a resource from a child device sub-allocated from one of our
@@ -120,6 +134,10 @@ pcib_is_resource_managed(struct pcib_softc *sc, int type, struct resource *r)
 {
 
 	switch (type) {
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (rman_is_region_manager(r, &sc->bus.rman));
+#endif
 	case SYS_RES_IOPORT:
 		return (rman_is_region_manager(r, &sc->io.rman));
 	case SYS_RES_MEMORY:
@@ -189,10 +207,183 @@ pcib_write_windows(struct pcib_softc *sc, int mask)
 	}
 }
 
+/*
+ * This is used to reject I/O port allocations that conflict with an
+ * ISA alias range.
+ */
+static int
+pcib_is_isa_range(struct pcib_softc *sc, u_long start, u_long end, u_long count)
+{
+	u_long next_alias;
+
+	if (!(sc->bridgectl & PCIB_BCR_ISA_ENABLE))
+		return (0);
+
+	/* Only check fixed ranges for overlap. */
+	if (start + count - 1 != end)
+		return (0);
+
+	/* ISA aliases are only in the lower 64KB of I/O space. */
+	if (start >= 65536)
+		return (0);
+
+	/* Check for overlap with 0x000 - 0x0ff as a special case. */
+	if (start < 0x100)
+		goto alias;
+
+	/*
+	 * If the start address is an alias, the range is an alias.
+	 * Otherwise, compute the start of the next alias range and
+	 * check if it is before the end of the candidate range.
+	 */
+	if ((start & 0x300) != 0)
+		goto alias;
+	next_alias = (start & ~0x3fful) | 0x100;
+	if (next_alias <= end)
+		goto alias;
+	return (0);
+
+alias:
+	if (bootverbose)
+		device_printf(sc->dev,
+		    "I/O range %#lx-%#lx overlaps with an ISA alias\n", start,
+		    end);
+	return (1);
+}
+
+static void
+pcib_add_window_resources(struct pcib_window *w, struct resource **res,
+    int count)
+{
+	struct resource **newarray;
+	int error, i;
+
+	newarray = malloc(sizeof(struct resource *) * (w->count + count),
+	    M_DEVBUF, M_WAITOK);
+	if (w->res != NULL)
+		bcopy(w->res, newarray, sizeof(struct resource *) * w->count);
+	bcopy(res, newarray + w->count, sizeof(struct resource *) * count);
+	free(w->res, M_DEVBUF);
+	w->res = newarray;
+	w->count += count;
+	
+	for (i = 0; i < count; i++) {
+		error = rman_manage_region(&w->rman, rman_get_start(res[i]),
+		    rman_get_end(res[i]));
+		if (error)
+			panic("Failed to add resource to rman");
+	}
+}
+
+typedef void (nonisa_callback)(u_long start, u_long end, void *arg);
+
+static void
+pcib_walk_nonisa_ranges(u_long start, u_long end, nonisa_callback *cb,
+    void *arg)
+{
+	u_long next_end;
+
+	/*
+	 * If start is within an ISA alias range, move up to the start
+	 * of the next non-alias range.  As a special case, addresses
+	 * in the range 0x000 - 0x0ff should also be skipped since
+	 * those are used for various system I/O devices in ISA
+	 * systems.
+	 */
+	if (start <= 65535) {
+		if (start < 0x100 || (start & 0x300) != 0) {
+			start &= ~0x3ff;
+			start += 0x400;
+		}
+	}
+
+	/* ISA aliases are only in the lower 64KB of I/O space. */
+	while (start <= MIN(end, 65535)) {
+		next_end = MIN(start | 0xff, end);
+		cb(start, next_end, arg);
+		start += 0x400;
+	}
+
+	if (start <= end)
+		cb(start, end, arg);
+}
+
+static void
+count_ranges(u_long start, u_long end, void *arg)
+{
+	int *countp;
+
+	countp = arg;
+	(*countp)++;
+}
+
+struct alloc_state {
+	struct resource **res;
+	struct pcib_softc *sc;
+	int count, error;
+};
+
+static void
+alloc_ranges(u_long start, u_long end, void *arg)
+{
+	struct alloc_state *as;
+	struct pcib_window *w;
+	int rid;
+
+	as = arg;
+	if (as->error != 0)
+		return;
+
+	w = &as->sc->io;
+	rid = w->reg;
+	if (bootverbose)
+		device_printf(as->sc->dev,
+		    "allocating non-ISA range %#lx-%#lx\n", start, end);
+	as->res[as->count] = bus_alloc_resource(as->sc->dev, SYS_RES_IOPORT,
+	    &rid, start, end, end - start + 1, 0);
+	if (as->res[as->count] == NULL)
+		as->error = ENXIO;
+	else
+		as->count++;
+}
+
+static int
+pcib_alloc_nonisa_ranges(struct pcib_softc *sc, u_long start, u_long end)
+{
+	struct alloc_state as;
+	int i, new_count;
+
+	/* First, see how many ranges we need. */
+	new_count = 0;
+	pcib_walk_nonisa_ranges(start, end, count_ranges, &new_count);
+
+	/* Second, allocate the ranges. */
+	as.res = malloc(sizeof(struct resource *) * new_count, M_DEVBUF,
+	    M_WAITOK);
+	as.sc = sc;
+	as.count = 0;
+	as.error = 0;
+	pcib_walk_nonisa_ranges(start, end, alloc_ranges, &as);
+	if (as.error != 0) {
+		for (i = 0; i < as.count; i++)
+			bus_release_resource(sc->dev, SYS_RES_IOPORT,
+			    sc->io.reg, as.res[i]);
+		free(as.res, M_DEVBUF);
+		return (as.error);
+	}
+	KASSERT(as.count == new_count, ("%s: count mismatch", __func__));
+
+	/* Third, add the ranges to the window. */
+	pcib_add_window_resources(&sc->io, as.res, as.count);
+	free(as.res, M_DEVBUF);
+	return (0);
+}
+
 static void
 pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
     int flags, pci_addr_t max_address)
 {
+	struct resource *res;
 	char buf[64];
 	int error, rid;
 
@@ -217,9 +408,15 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		    "initial %s window has too many bits, ignoring\n", w->name);
 		return;
 	}
-	rid = w->reg;
-	w->res = bus_alloc_resource(sc->dev, type, &rid, w->base, w->limit,
-	    w->limit - w->base + 1, flags);
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE)
+		(void)pcib_alloc_nonisa_ranges(sc, w->base, w->limit);
+	else {
+		rid = w->reg;
+		res = bus_alloc_resource(sc->dev, type, &rid, w->base, w->limit,
+		    w->limit - w->base + 1, flags);
+		if (res != NULL)
+			pcib_add_window_resources(w, &res, 1);
+	}
 	if (w->res == NULL) {
 		device_printf(sc->dev,
 		    "failed to allocate initial %s window: %#jx-%#jx\n",
@@ -230,11 +427,6 @@ pcib_alloc_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		return;
 	}
 	pcib_activate_window(sc, type);
-
-	error = rman_manage_region(&w->rman, rman_get_start(w->res),
-	    rman_get_end(w->res));
-	if (error)
-		panic("Failed to initialize rman with resource");
 }
 
 /*
@@ -248,6 +440,19 @@ pcib_probe_windows(struct pcib_softc *sc)
 	uint32_t val;
 
 	dev = sc->dev;
+
+	if (pci_clear_pcib) {
+		pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
+		pci_write_config(dev, PCIR_IOBASEH_1, 0xffff, 2);
+		pci_write_config(dev, PCIR_IOLIMITL_1, 0, 1);
+		pci_write_config(dev, PCIR_IOLIMITH_1, 0, 2);
+		pci_write_config(dev, PCIR_MEMBASE_1, 0xffff, 2);
+		pci_write_config(dev, PCIR_MEMLIMIT_1, 0, 2);
+		pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
+		pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
+		pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
+		pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
+	}
 
 	/* Determine if the I/O port window is implemented. */
 	val = pci_read_config(dev, PCIR_IOBASEL_1, 1);
@@ -336,6 +541,173 @@ pcib_probe_windows(struct pcib_softc *sc)
 		    RF_PREFETCHABLE, max);
 	}
 }
+
+#ifdef PCI_RES_BUS
+/*
+ * Allocate a suitable secondary bus for this bridge if needed and
+ * initialize the resource manager for the secondary bus range.  Note
+ * that the minimum count is a desired value and this may allocate a
+ * smaller range.
+ */
+void
+pcib_setup_secbus(device_t dev, struct pcib_secbus *bus, int min_count)
+{
+	char buf[64];
+	int error, rid;
+
+	switch (pci_read_config(dev, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_BRIDGE:
+		bus->sub_reg = PCIR_SUBBUS_1;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		bus->sub_reg = PCIR_SUBBUS_2;
+		break;
+	default:
+		panic("not a PCI bridge");
+	}
+	bus->dev = dev;
+	bus->rman.rm_start = 0;
+	bus->rman.rm_end = PCI_BUSMAX;
+	bus->rman.rm_type = RMAN_ARRAY;
+	snprintf(buf, sizeof(buf), "%s bus numbers", device_get_nameunit(dev));
+	bus->rman.rm_descr = strdup(buf, M_DEVBUF);
+	error = rman_init(&bus->rman);
+	if (error)
+		panic("Failed to initialize %s bus number rman",
+		    device_get_nameunit(dev));
+
+	/*
+	 * Allocate a bus range.  This will return an existing bus range
+	 * if one exists, or a new bus range if one does not.
+	 */
+	rid = 0;
+	bus->res = bus_alloc_resource(dev, PCI_RES_BUS, &rid, 0ul, ~0ul,
+	    min_count, 0);
+	if (bus->res == NULL) {
+		/*
+		 * Fall back to just allocating a range of a single bus
+		 * number.
+		 */
+		bus->res = bus_alloc_resource(dev, PCI_RES_BUS, &rid, 0ul, ~0ul,
+		    1, 0);
+	} else if (rman_get_size(bus->res) < min_count)
+		/*
+		 * Attempt to grow the existing range to satisfy the
+		 * minimum desired count.
+		 */
+		(void)bus_adjust_resource(dev, PCI_RES_BUS, bus->res,
+		    rman_get_start(bus->res), rman_get_start(bus->res) +
+		    min_count - 1);
+
+	/*
+	 * Add the initial resource to the rman.
+	 */
+	if (bus->res != NULL) {
+		error = rman_manage_region(&bus->rman, rman_get_start(bus->res),
+		    rman_get_end(bus->res));
+		if (error)
+			panic("Failed to add resource to rman");
+		bus->sec = rman_get_start(bus->res);
+		bus->sub = rman_get_end(bus->res);
+	}
+}
+
+static struct resource *
+pcib_suballoc_bus(struct pcib_secbus *bus, device_t child, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+
+	res = rman_reserve_resource(&bus->rman, start, end, count, flags,
+	    child);
+	if (res == NULL)
+		return (NULL);
+
+	if (bootverbose)
+		device_printf(bus->dev,
+		    "allocated bus range (%lu-%lu) for rid %d of %s\n",
+		    rman_get_start(res), rman_get_end(res), *rid,
+		    pcib_child_name(child));
+	rman_set_rid(res, *rid);
+	return (res);
+}
+
+/*
+ * Attempt to grow the secondary bus range.  This is much simpler than
+ * for I/O windows as the range can only be grown by increasing
+ * subbus.
+ */
+static int
+pcib_grow_subbus(struct pcib_secbus *bus, u_long new_end)
+{
+	u_long old_end;
+	int error;
+
+	old_end = rman_get_end(bus->res);
+	KASSERT(new_end > old_end, ("attempt to shrink subbus"));
+	error = bus_adjust_resource(bus->dev, PCI_RES_BUS, bus->res,
+	    rman_get_start(bus->res), new_end);
+	if (error)
+		return (error);
+	if (bootverbose)
+		device_printf(bus->dev, "grew bus range to %lu-%lu\n",
+		    rman_get_start(bus->res), rman_get_end(bus->res));
+	error = rman_manage_region(&bus->rman, old_end + 1,
+	    rman_get_end(bus->res));
+	if (error)
+		panic("Failed to add resource to rman");
+	bus->sub = rman_get_end(bus->res);
+	pci_write_config(bus->dev, bus->sub_reg, bus->sub, 1);
+	return (0);
+}
+
+struct resource *
+pcib_alloc_subbus(struct pcib_secbus *bus, device_t child, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+	u_long start_free, end_free, new_end;
+
+	/*
+	 * First, see if the request can be satisified by the existing
+	 * bus range.
+	 */
+	res = pcib_suballoc_bus(bus, child, rid, start, end, count, flags);
+	if (res != NULL)
+		return (res);
+
+	/*
+	 * Figure out a range to grow the bus range.  First, find the
+	 * first bus number after the last allocated bus in the rman and
+	 * enforce that as a minimum starting point for the range.
+	 */
+	if (rman_last_free_region(&bus->rman, &start_free, &end_free) != 0 ||
+	    end_free != bus->sub)
+		start_free = bus->sub + 1;
+	if (start_free < start)
+		start_free = start;
+	new_end = start_free + count - 1;
+
+	/*
+	 * See if this new range would satisfy the request if it
+	 * succeeds.
+	 */
+	if (new_end > end)
+		return (NULL);
+
+	/* Finally, attempt to grow the existing resource. */
+	if (bootverbose) {
+		device_printf(bus->dev,
+		    "attempting to grow bus range for %lu buses\n", count);
+		printf("\tback candidate range: %lu-%lu\n", start_free,
+		    new_end);
+	}
+	if (pcib_grow_subbus(bus, new_end) == 0)
+		return (pcib_suballoc_bus(bus, child, rid, start, end, count,
+		    flags));
+	return (NULL);
+}
+#endif
 
 #else
 
@@ -483,8 +855,8 @@ pcib_cfg_save(struct pcib_softc *sc)
 
 	sc->command = pci_read_config(dev, PCIR_COMMAND, 2);
 	sc->pribus = pci_read_config(dev, PCIR_PRIBUS_1, 1);
-	sc->secbus = pci_read_config(dev, PCIR_SECBUS_1, 1);
-	sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+	sc->bus.sec = pci_read_config(dev, PCIR_SECBUS_1, 1);
+	sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	sc->bridgectl = pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
 	sc->seclat = pci_read_config(dev, PCIR_SECLAT_1, 1);
 #ifndef NEW_PCIB
@@ -507,8 +879,8 @@ pcib_cfg_restore(struct pcib_softc *sc)
 
 	pci_write_config(dev, PCIR_COMMAND, sc->command, 2);
 	pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
-	pci_write_config(dev, PCIR_SECBUS_1, sc->secbus, 1);
-	pci_write_config(dev, PCIR_SUBBUS_1, sc->subbus, 1);
+	pci_write_config(dev, PCIR_SECBUS_1, sc->bus.sec, 1);
+	pci_write_config(dev, PCIR_SUBBUS_1, sc->bus.sub, 1);
 	pci_write_config(dev, PCIR_BRIDGECTL_1, sc->bridgectl, 2);
 	pci_write_config(dev, PCIR_SECLAT_1, sc->seclat, 1);
 #ifdef NEW_PCIB
@@ -541,6 +913,7 @@ pcib_attach_common(device_t dev)
     struct pcib_softc	*sc;
     struct sysctl_ctx_list *sctx;
     struct sysctl_oid	*soid;
+    int comma;
 
     sc = device_get_softc(dev);
     sc->dev = dev;
@@ -553,6 +926,13 @@ pcib_attach_common(device_t dev)
     pcib_cfg_save(sc);
 
     /*
+     * The primary bus register should always be the bus of the
+     * parent.
+     */
+    sc->pribus = pci_get_bus(dev);
+    pci_write_config(dev, PCIR_PRIBUS_1, sc->pribus, 1);
+
+    /*
      * Setup sysctl reporting nodes
      */
     sctx = device_get_sysctl_ctx(dev);
@@ -562,25 +942,27 @@ pcib_attach_common(device_t dev)
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "pribus",
       CTLFLAG_RD, &sc->pribus, 0, "Primary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
-      CTLFLAG_RD, &sc->secbus, 0, "Secondary bus number");
+      CTLFLAG_RD, &sc->bus.sec, 0, "Secondary bus number");
     SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
-      CTLFLAG_RD, &sc->subbus, 0, "Subordinate bus number");
+      CTLFLAG_RD, &sc->bus.sub, 0, "Subordinate bus number");
 
     /*
      * Quirk handling.
      */
     switch (pci_get_devid(dev)) {
+#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
     case 0x12258086:		/* Intel 82454KX/GX (Orion) */
 	{
 	    uint8_t	supbus;
 
 	    supbus = pci_read_config(dev, 0x41, 1);
 	    if (supbus != 0xff) {
-		sc->secbus = supbus + 1;
-		sc->subbus = supbus + 1;
+		sc->bus.sec = supbus + 1;
+		sc->bus.sub = supbus + 1;
 	    }
 	    break;
 	}
+#endif
 
     /*
      * The i82380FB mobile docking controller is a PCI-PCI bridge,
@@ -594,35 +976,40 @@ pcib_attach_common(device_t dev)
 	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
 
+#if !defined(NEW_PCIB) && !defined(PCI_RES_BUS)
     /* Compaq R3000 BIOS sets wrong subordinate bus number. */
     case 0x00dd10de:
 	{
 	    char *cp;
 
-	    if ((cp = getenv("smbios.planar.maker")) == NULL)
+	    if ((cp = kern_getenv("smbios.planar.maker")) == NULL)
 		break;
 	    if (strncmp(cp, "Compal", 6) != 0) {
 		freeenv(cp);
 		break;
 	    }
 	    freeenv(cp);
-	    if ((cp = getenv("smbios.planar.product")) == NULL)
+	    if ((cp = kern_getenv("smbios.planar.product")) == NULL)
 		break;
 	    if (strncmp(cp, "08A0", 4) != 0) {
 		freeenv(cp);
 		break;
 	    }
 	    freeenv(cp);
-	    if (sc->subbus < 0xa) {
+	    if (sc->bus.sub < 0xa) {
 		pci_write_config(dev, PCIR_SUBBUS_1, 0xa, 1);
-		sc->subbus = pci_read_config(dev, PCIR_SUBBUS_1, 1);
+		sc->bus.sub = pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	    }
 	    break;
 	}
+#endif
     }
 
     if (pci_msi_device_blacklisted(dev))
 	sc->flags |= PCIB_DISABLE_MSI;
+
+    if (pci_msix_device_blacklisted(dev))
+	sc->flags |= PCIB_DISABLE_MSIX;
 
     /*
      * Intel 815, 845 and other chipsets say they are PCI-PCI bridges,
@@ -637,12 +1024,15 @@ pcib_attach_common(device_t dev)
 	sc->flags |= PCIB_SUBTRACTIVE;
 
 #ifdef NEW_PCIB
+#ifdef PCI_RES_BUS
+    pcib_setup_secbus(dev, &sc->bus, 1);
+#endif
     pcib_probe_windows(sc);
 #endif
     if (bootverbose) {
 	device_printf(dev, "  domain            %d\n", sc->domain);
-	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
-	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
+	device_printf(dev, "  secondary bus     %d\n", sc->bus.sec);
+	device_printf(dev, "  subordinate bus   %d\n", sc->bus.sub);
 #ifdef NEW_PCIB
 	if (pcib_is_window_open(&sc->io))
 	    device_printf(dev, "  I/O decode        0x%jx-0x%jx\n",
@@ -664,25 +1054,23 @@ pcib_attach_common(device_t dev)
 	    device_printf(dev, "  prefetched decode 0x%jx-0x%jx\n",
 	      (uintmax_t)sc->pmembase, (uintmax_t)sc->pmemlimit);
 #endif
-	else
-	    device_printf(dev, "  no prefetched decode\n");
-	if (sc->flags & PCIB_SUBTRACTIVE)
-	    device_printf(dev, "  Subtractively decoded bridge.\n");
+	if (sc->bridgectl & (PCIB_BCR_ISA_ENABLE | PCIB_BCR_VGA_ENABLE) ||
+	    sc->flags & PCIB_SUBTRACTIVE) {
+		device_printf(dev, "  special decode    ");
+		comma = 0;
+		if (sc->bridgectl & PCIB_BCR_ISA_ENABLE) {
+			printf("ISA");
+			comma = 1;
+		}
+		if (sc->bridgectl & PCIB_BCR_VGA_ENABLE) {
+			printf("%sVGA", comma ? ", " : "");
+			comma = 1;
+		}
+		if (sc->flags & PCIB_SUBTRACTIVE)
+			printf("%ssubtractive", comma ? ", " : "");
+		printf("\n");
+	}
     }
-
-    /*
-     * XXX If the secondary bus number is zero, we should assign a bus number
-     *     since the BIOS hasn't, then initialise the bridge.  A simple
-     *     bus_alloc_resource with the a couple of busses seems like the right
-     *     approach, but we don't know what busses the BIOS might have already
-     *     assigned to other bridges on this bus that probe later than we do.
-     *
-     *     If the subordinate bus number is less than the secondary bus number,
-     *     we should pick a better value.  One sensible alternative would be to
-     *     pick 255; the only tradeoff here is that configuration transactions
-     *     would be more widely routed than absolutely necessary.  We could
-     *     then do a walk of the tree later and fix it.
-     */
 
     /*
      * Always enable busmastering on bridges so that transactions
@@ -700,8 +1088,8 @@ pcib_attach(device_t dev)
 
     pcib_attach_common(dev);
     sc = device_get_softc(dev);
-    if (sc->secbus != 0) {
-	child = device_add_child(dev, "pci", sc->secbus);
+    if (sc->bus.sec != 0) {
+	child = device_add_child(dev, "pci", sc->bus.sec);
 	if (child != NULL)
 	    return(bus_generic_attach(dev));
     }
@@ -731,11 +1119,13 @@ int
 pcib_resume(device_t dev)
 {
 	device_t	pcib;
+	int dstate;
 
 	if (pci_do_power_resume) {
 		pcib = device_get_parent(device_get_parent(dev));
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, NULL) == 0)
-			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+		dstate = PCI_POWERSTATE_D0;
+		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+			pci_set_powerstate(dev, dstate);
 	}
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
@@ -751,7 +1141,7 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	*result = sc->domain;
 	return(0);
     case PCIB_IVAR_BUS:
-	*result = sc->secbus;
+	*result = sc->bus.sec;
 	return(0);
     }
     return(ENOENT);
@@ -760,14 +1150,12 @@ pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 int
 pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
-    struct pcib_softc	*sc = device_get_softc(dev);
 
     switch (which) {
     case PCIB_IVAR_DOMAIN:
 	return(EINVAL);
     case PCIB_IVAR_BUS:
-	sc->secbus = value;
-	return(0);
+	return(EINVAL);
     }
     return(ENOENT);
 }
@@ -814,23 +1202,197 @@ pcib_suballoc_resource(struct pcib_softc *sc, struct pcib_window *w,
 	return (res);
 }
 
+/* Allocate a fresh resource range for an unconfigured window. */
+static int
+pcib_alloc_new_window(struct pcib_softc *sc, struct pcib_window *w, int type,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct resource *res;
+	u_long base, limit, wmask;
+	int rid;
+
+	/*
+	 * If this is an I/O window on a bridge with ISA enable set
+	 * and the start address is below 64k, then try to allocate an
+	 * initial window of 0x1000 bytes long starting at address
+	 * 0xf000 and walking down.  Note that if the original request
+	 * was larger than the non-aliased range size of 0x100 our
+	 * caller would have raised the start address up to 64k
+	 * already.
+	 */
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE &&
+	    start < 65536) {
+		for (base = 0xf000; (long)base >= 0; base -= 0x1000) {
+			limit = base + 0xfff;
+
+			/*
+			 * Skip ranges that wouldn't work for the
+			 * original request.  Note that the actual
+			 * window that overlaps are the non-alias
+			 * ranges within [base, limit], so this isn't
+			 * quite a simple comparison.
+			 */
+			if (start + count > limit - 0x400)
+				continue;
+			if (base == 0) {
+				/*
+				 * The first open region for the window at
+				 * 0 is 0x400-0x4ff.
+				 */
+				if (end - count + 1 < 0x400)
+					continue;
+			} else {
+				if (end - count + 1 < base)
+					continue;
+			}
+
+			if (pcib_alloc_nonisa_ranges(sc, base, limit) == 0) {
+				w->base = base;
+				w->limit = limit;
+				return (0);
+			}
+		}
+		return (ENOSPC);		
+	}
+	
+	wmask = (1ul << w->step) - 1;
+	if (RF_ALIGNMENT(flags) < w->step) {
+		flags &= ~RF_ALIGNMENT_MASK;
+		flags |= RF_ALIGNMENT_LOG2(w->step);
+	}
+	start &= ~wmask;
+	end |= wmask;
+	count = roundup2(count, 1ul << w->step);
+	rid = w->reg;
+	res = bus_alloc_resource(sc->dev, type, &rid, start, end, count,
+	    flags & ~RF_ACTIVE);
+	if (res == NULL)
+		return (ENOSPC);
+	pcib_add_window_resources(w, &res, 1);
+	pcib_activate_window(sc, type);
+	w->base = rman_get_start(res);
+	w->limit = rman_get_end(res);
+	return (0);
+}
+
+/* Try to expand an existing window to the requested base and limit. */
+static int
+pcib_expand_window(struct pcib_softc *sc, struct pcib_window *w, int type,
+    u_long base, u_long limit)
+{
+	struct resource *res;
+	int error, i, force_64k_base;
+
+	KASSERT(base <= w->base && limit >= w->limit,
+	    ("attempting to shrink window"));
+
+	/*
+	 * XXX: pcib_grow_window() doesn't try to do this anyway and
+	 * the error handling for all the edge cases would be tedious.
+	 */
+	KASSERT(limit == w->limit || base == w->base,
+	    ("attempting to grow both ends of a window"));
+
+	/*
+	 * Yet more special handling for requests to expand an I/O
+	 * window behind an ISA-enabled bridge.  Since I/O windows
+	 * have to grow in 0x1000 increments and the end of the 0xffff
+	 * range is an alias, growing a window below 64k will always
+	 * result in allocating new resources and never adjusting an
+	 * existing resource.
+	 */
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE &&
+	    (limit <= 65535 || (base <= 65535 && base != w->base))) {
+		KASSERT(limit == w->limit || limit <= 65535,
+		    ("attempting to grow both ends across 64k ISA alias"));
+
+		if (base != w->base)
+			error = pcib_alloc_nonisa_ranges(sc, base, w->base - 1);
+		else
+			error = pcib_alloc_nonisa_ranges(sc, w->limit + 1,
+			    limit);
+		if (error == 0) {
+			w->base = base;
+			w->limit = limit;
+		}
+		return (error);
+	}
+
+	/*
+	 * Find the existing resource to adjust.  Usually there is only one,
+	 * but for an ISA-enabled bridge we might be growing the I/O window
+	 * above 64k and need to find the existing resource that maps all
+	 * of the area above 64k.
+	 */
+	for (i = 0; i < w->count; i++) {
+		if (rman_get_end(w->res[i]) == w->limit)
+			break;
+	}
+	KASSERT(i != w->count, ("did not find existing resource"));
+	res = w->res[i];
+
+	/*
+	 * Usually the resource we found should match the window's
+	 * existing range.  The one exception is the ISA-enabled case
+	 * mentioned above in which case the resource should start at
+	 * 64k.
+	 */
+	if (type == SYS_RES_IOPORT && sc->bridgectl & PCIB_BCR_ISA_ENABLE &&
+	    w->base <= 65535) {
+		KASSERT(rman_get_start(res) == 65536,
+		    ("existing resource mismatch"));
+		force_64k_base = 1;
+	} else {
+		KASSERT(w->base == rman_get_start(res),
+		    ("existing resource mismatch"));
+		force_64k_base = 0;
+	}	
+
+	error = bus_adjust_resource(sc->dev, type, res, force_64k_base ?
+	    rman_get_start(res) : base, limit);
+	if (error)
+		return (error);
+
+	/* Add the newly allocated region to the resource manager. */
+	if (w->base != base) {
+		error = rman_manage_region(&w->rman, base, w->base - 1);
+		w->base = base;
+	} else {
+		error = rman_manage_region(&w->rman, w->limit + 1, limit);
+		w->limit = limit;
+	}
+	if (error) {
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "failed to expand %s resource manager\n", w->name);
+		(void)bus_adjust_resource(sc->dev, type, res, force_64k_base ?
+		    rman_get_start(res) : w->base, w->limit);
+	}
+	return (error);
+}
+
 /*
  * Attempt to grow a window to make room for a given resource request.
- * The 'step' parameter is log_2 of the desired I/O window's alignment.
  */
 static int
 pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	u_long align, start_free, end_free, front, back, wmask;
-	int error, rid;
+	int error;
 
 	/*
 	 * Clamp the desired resource range to the maximum address
 	 * this window supports.  Reject impossible requests.
+	 *
+	 * For I/O port requests behind a bridge with the ISA enable
+	 * bit set, force large allocations to start above 64k.
 	 */
 	if (!w->valid)
 		return (EINVAL);
+	if (sc->bridgectl & PCIB_BCR_ISA_ENABLE && count > 0x100 &&
+	    start < 65536)
+		start = 65536;
 	if (end > w->rman.rm_end)
 		end = w->rman.rm_end;
 	if (start + count - 1 > end || start + count < start)
@@ -842,40 +1404,19 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	 * aligned space for this resource.
 	 */
 	if (w->res == NULL) {
-		if (RF_ALIGNMENT(flags) < w->step) {
-			flags &= ~RF_ALIGNMENT_MASK;
-			flags |= RF_ALIGNMENT_LOG2(w->step);
-		}
-		start &= ~wmask;
-		end |= wmask;
-		count = roundup2(count, 1ul << w->step);
-		rid = w->reg;
-		w->res = bus_alloc_resource(sc->dev, type, &rid, start, end,
-		    count, flags & ~RF_ACTIVE);
-		if (w->res == NULL) {
+		error = pcib_alloc_new_window(sc, w, type, start, end, count,
+		    flags);
+		if (error) {
 			if (bootverbose)
 				device_printf(sc->dev,
 		    "failed to allocate initial %s window (%#lx-%#lx,%#lx)\n",
 				    w->name, start, end, count);
-			return (ENXIO);
+			return (error);
 		}
 		if (bootverbose)
 			device_printf(sc->dev,
-			    "allocated initial %s window of %#lx-%#lx\n",
-			    w->name, rman_get_start(w->res),
-			    rman_get_end(w->res));
-		error = rman_manage_region(&w->rman, rman_get_start(w->res),
-		    rman_get_end(w->res));
-		if (error) {
-			if (bootverbose)
-				device_printf(sc->dev,
-				    "failed to add initial %s window to rman\n",
-				    w->name);
-			bus_release_resource(sc->dev, type, w->reg, w->res);
-			w->res = NULL;
-			return (error);
-		}
-		pcib_activate_window(sc, type);
+			    "allocated initial %s window of %#jx-%#jx\n",
+			    w->name, (uintmax_t)w->base, (uintmax_t)w->limit);
 		goto updatewin;
 	}
 
@@ -889,6 +1430,11 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	 * edge of the window, grow from the inner edge of the free
 	 * region.  Otherwise grow from the window boundary.
 	 *
+	 * Growing an I/O window below 64k for a bridge with the ISA
+	 * enable bit doesn't require any special magic as the step
+	 * size of an I/O window (1k) always includes multiple
+	 * non-alias ranges when it is grown in either direction.
+	 *
 	 * XXX: Special case: if w->res is completely empty and the
 	 * request size is larger than w->res, we should find the
 	 * optimal aligned buffer containing w->res and allocate that.
@@ -898,10 +1444,10 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		    "attempting to grow %s window for (%#lx-%#lx,%#lx)\n",
 		    w->name, start, end, count);
 	align = 1ul << RF_ALIGNMENT(flags);
-	if (start < rman_get_start(w->res)) {
+	if (start < w->base) {
 		if (rman_first_free_region(&w->rman, &start_free, &end_free) !=
-		    0 || start_free != rman_get_start(w->res))
-			end_free = rman_get_start(w->res);
+		    0 || start_free != w->base)
+			end_free = w->base;
 		if (end_free > end)
 			end_free = end + 1;
 
@@ -922,15 +1468,15 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 				printf("\tfront candidate range: %#lx-%#lx\n",
 				    front, end_free);
 			front &= ~wmask;
-			front = rman_get_start(w->res) - front;
+			front = w->base - front;
 		} else
 			front = 0;
 	} else
 		front = 0;
-	if (end > rman_get_end(w->res)) {
+	if (end > w->limit) {
 		if (rman_last_free_region(&w->rman, &start_free, &end_free) !=
-		    0 || end_free != rman_get_end(w->res))
-			start_free = rman_get_end(w->res) + 1;
+		    0 || end_free != w->limit)
+			start_free = w->limit + 1;
 		if (start_free < start)
 			start_free = start;
 
@@ -950,7 +1496,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 				printf("\tback candidate range: %#lx-%#lx\n",
 				    start_free, back);
 			back |= wmask;
-			back -= rman_get_end(w->res);
+			back -= w->limit;
 		} else
 			back = 0;
 	} else
@@ -963,16 +1509,14 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	error = ENOSPC;
 	while (front != 0 || back != 0) {
 		if (front != 0 && (front <= back || back == 0)) {
-			error = bus_adjust_resource(sc->dev, type, w->res,
-			    rman_get_start(w->res) - front,
-			    rman_get_end(w->res));
+			error = pcib_expand_window(sc, w, type, w->base - front,
+			    w->limit);
 			if (error == 0)
 				break;
 			front = 0;
 		} else {
-			error = bus_adjust_resource(sc->dev, type, w->res,
-			    rman_get_start(w->res),
-			    rman_get_end(w->res) + back);
+			error = pcib_expand_window(sc, w, type, w->base,
+			    w->limit + back);
 			if (error == 0)
 				break;
 			back = 0;
@@ -982,32 +1526,11 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	if (error)
 		return (error);
 	if (bootverbose)
-		device_printf(sc->dev, "grew %s window to %#lx-%#lx\n",
-		    w->name, rman_get_start(w->res), rman_get_end(w->res));
-
-	/* Add the newly allocated region to the resource manager. */
-	if (w->base != rman_get_start(w->res)) {
-		KASSERT(w->limit == rman_get_end(w->res), ("both ends moved"));
-		error = rman_manage_region(&w->rman, rman_get_start(w->res),
-		    w->base - 1);
-	} else {
-		KASSERT(w->limit != rman_get_end(w->res),
-		    ("neither end moved"));
-		error = rman_manage_region(&w->rman, w->limit + 1,
-		    rman_get_end(w->res));
-	}
-	if (error) {
-		if (bootverbose)
-			device_printf(sc->dev,
-			    "failed to expand %s resource manager\n", w->name);
-		bus_adjust_resource(sc->dev, type, w->res, w->base, w->limit);
-		return (error);
-	}
+		device_printf(sc->dev, "grew %s window to %#jx-%#jx\n",
+		    w->name, (uintmax_t)w->base, (uintmax_t)w->limit);
 
 updatewin:
-	/* Save the new window. */
-	w->base = rman_get_start(w->res);
-	w->limit = rman_get_end(w->res);
+	/* Write the new window. */
 	KASSERT((w->base & wmask) == 0, ("start address is not aligned"));
 	KASSERT((w->limit & wmask) == wmask, ("end address is not aligned"));
 	pcib_write_windows(sc, w->mask);
@@ -1042,7 +1565,14 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 
 	switch (type) {
+#ifdef PCI_RES_BUS
+	case PCI_RES_BUS:
+		return (pcib_alloc_subbus(&sc->bus, child, rid, start, end,
+		    count, flags));
+#endif
 	case SYS_RES_IOPORT:
+		if (pcib_is_isa_range(sc, start, end, count))
+			return (NULL);
 		r = pcib_suballoc_resource(sc, &sc->io, child, type, rid, start,
 		    end, count, flags);
 		if (r != NULL || (sc->flags & PCIB_SUBTRACTIVE) != 0)
@@ -1289,27 +1819,112 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 #endif
 
 /*
+ * If ARI is enabled on this downstream port, translate the function number
+ * to the non-ARI slot/function.  The downstream port will convert it back in
+ * hardware.  If ARI is not enabled slot and func are not modified.
+ */
+static __inline void
+pcib_xlate_ari(device_t pcib, int bus, int *slot, int *func)
+{
+	struct pcib_softc *sc;
+	int ari_func;
+
+	sc = device_get_softc(pcib);
+	ari_func = *func;
+
+	if (sc->flags & PCIB_ENABLE_ARI) {
+		KASSERT(*slot == 0,
+		    ("Non-zero slot number with ARI enabled!"));
+		*slot = PCIE_ARI_SLOT(ari_func);
+		*func = PCIE_ARI_FUNC(ari_func);
+	}
+}
+
+
+static void
+pcib_enable_ari(struct pcib_softc *sc, uint32_t pcie_pos)
+{
+	uint32_t ctl2;
+
+	ctl2 = pci_read_config(sc->dev, pcie_pos + PCIER_DEVICE_CTL2, 4);
+	ctl2 |= PCIEM_CTL2_ARI;
+	pci_write_config(sc->dev, pcie_pos + PCIER_DEVICE_CTL2, ctl2, 4);
+
+	sc->flags |= PCIB_ENABLE_ARI;
+}
+
+/*
  * PCIB interface.
  */
 int
 pcib_maxslots(device_t dev)
 {
-    return(PCI_SLOTMAX);
+	return (PCI_SLOTMAX);
+}
+
+static int
+pcib_ari_maxslots(device_t dev)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->flags & PCIB_ENABLE_ARI)
+		return (PCIE_ARI_SLOTMAX);
+	else
+		return (PCI_SLOTMAX);
+}
+
+static int
+pcib_ari_maxfuncs(device_t dev)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->flags & PCIB_ENABLE_ARI)
+		return (PCIE_ARI_FUNCMAX);
+	else
+		return (PCI_FUNCMAX);
+}
+
+static void
+pcib_ari_decode_rid(device_t pcib, uint16_t rid, int *bus, int *slot,
+    int *func)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(pcib);
+
+	*bus = PCI_RID2BUS(rid);
+	if (sc->flags & PCIB_ENABLE_ARI) {
+		*slot = PCIE_ARI_RID2SLOT(rid);
+		*func = PCIE_ARI_RID2FUNC(rid);
+	} else {
+		*slot = PCI_RID2SLOT(rid);
+		*func = PCI_RID2FUNC(rid);
+	}
 }
 
 /*
  * Since we are a child of a PCI bus, its parent must support the pcib interface.
  */
-uint32_t
+static uint32_t
 pcib_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 {
-    return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, width));
+
+	pcib_xlate_ari(dev, b, &s, &f);
+	return(PCIB_READ_CONFIG(device_get_parent(device_get_parent(dev)), b, s,
+	    f, reg, width));
 }
 
-void
+static void
 pcib_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, uint32_t val, int width)
 {
-    PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f, reg, val, width);
+
+	pcib_xlate_ari(dev, b, &s, &f);
+	PCIB_WRITE_CONFIG(device_get_parent(device_get_parent(dev)), b, s, f,
+	    reg, val, width);
 }
 
 /*
@@ -1379,7 +1994,7 @@ pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
 	struct pcib_softc *sc = device_get_softc(pcib);
 	device_t bus;
 
-	if (sc->flags & PCIB_DISABLE_MSI)
+	if (sc->flags & PCIB_DISABLE_MSIX)
 		return (ENXIO);
 	bus = device_get_parent(pcib);
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
@@ -1421,3 +2036,93 @@ pcib_power_for_sleep(device_t pcib, device_t dev, int *pstate)
 	bus = device_get_parent(pcib);
 	return (PCIB_POWER_FOR_SLEEP(bus, dev, pstate));
 }
+
+static int
+pcib_ari_enabled(device_t pcib)
+{
+	struct pcib_softc *sc;
+
+	sc = device_get_softc(pcib);
+
+	return ((sc->flags & PCIB_ENABLE_ARI) != 0);
+}
+
+static uint16_t
+pcib_ari_get_rid(device_t pcib, device_t dev)
+{
+	struct pcib_softc *sc;
+	uint8_t bus, slot, func;
+
+	sc = device_get_softc(pcib);
+
+	if (sc->flags & PCIB_ENABLE_ARI) {
+		bus = pci_get_bus(dev);
+		func = pci_get_function(dev);
+
+		return (PCI_ARI_RID(bus, func));
+	} else {
+		bus = pci_get_bus(dev);
+		slot = pci_get_slot(dev);
+		func = pci_get_function(dev);
+
+		return (PCI_RID(bus, slot, func));
+	}
+}
+
+/*
+ * Check that the downstream port (pcib) and the endpoint device (dev) both
+ * support ARI.  If so, enable it and return 0, otherwise return an error.
+ */
+static int
+pcib_try_enable_ari(device_t pcib, device_t dev)
+{
+	struct pcib_softc *sc;
+	int error;
+	uint32_t cap2;
+	int ari_cap_off;
+	uint32_t ari_ver;
+	uint32_t pcie_pos;
+
+	sc = device_get_softc(pcib);
+
+	/*
+	 * ARI is controlled in a register in the PCIe capability structure.
+	 * If the downstream port does not have the PCIe capability structure
+	 * then it does not support ARI.
+	 */
+	error = pci_find_cap(pcib, PCIY_EXPRESS, &pcie_pos);
+	if (error != 0)
+		return (ENODEV);
+
+	/* Check that the PCIe port advertises ARI support. */
+	cap2 = pci_read_config(pcib, pcie_pos + PCIER_DEVICE_CAP2, 4);
+	if (!(cap2 & PCIEM_CAP2_ARI))
+		return (ENODEV);
+
+	/*
+	 * Check that the endpoint device advertises ARI support via the ARI
+	 * extended capability structure.
+	 */
+	error = pci_find_extcap(dev, PCIZ_ARI, &ari_cap_off);
+	if (error != 0)
+		return (ENODEV);
+
+	/*
+	 * Finally, check that the endpoint device supports the same version
+	 * of ARI that we do.
+	 */
+	ari_ver = pci_read_config(dev, ari_cap_off, 4);
+	if (PCI_EXTCAP_VER(ari_ver) != PCIB_SUPPORTED_ARI_VER) {
+		if (bootverbose)
+			device_printf(pcib,
+			    "Unsupported version of ARI (%d) detected\n",
+			    PCI_EXTCAP_VER(ari_ver));
+
+		return (ENXIO);
+	}
+
+	pcib_enable_ari(sc, pcie_pos);
+
+	return (0);
+}
+

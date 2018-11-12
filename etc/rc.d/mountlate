@@ -21,19 +21,10 @@ mountlate_start()
 	# Mount "late" filesystems.
 	#
 	err=0
-	latefs=
-	# / (root) fs is always remounted, so remove from list
-	latefs="`/sbin/mount -d -a -l | grep -v ' /$'`"
-	case ${latefs} in
-	'')
-		;;
-	*)
-		echo -n 'Mounting late file systems:'
-		mount -a -l
-		err=$?
-		echo '.'
-		;;
-	esac
+	echo -n 'Mounting late file systems:'
+	mount -a -L
+	err=$?
+	echo '.'
 
 	case ${err} in
 	0)

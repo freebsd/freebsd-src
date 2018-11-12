@@ -181,7 +181,7 @@ g_raid_ctl_stop(struct gctl_req *req, struct g_class *mp)
 	sx_xlock(&sc->sc_lock);
 	error = g_raid_destroy(sc, how);
 	if (error != 0)
-		sx_xunlock(&sc->sc_lock);
+		gctl_error(req, "Array is busy.");
 	g_topology_lock();
 }
 

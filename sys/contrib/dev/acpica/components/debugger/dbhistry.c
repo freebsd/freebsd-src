@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/acdebug.h>
@@ -54,12 +53,12 @@
 
 #define HI_NO_HISTORY       0
 #define HI_RECORD_HISTORY   1
-#define HISTORY_SIZE        20
+#define HISTORY_SIZE        40
 
 
 typedef struct HistoryInfo
 {
-    char                    Command[80];
+    char                    *Command;
     UINT32                  CmdNum;
 
 } HISTORY_INFO;
@@ -69,7 +68,7 @@ static HISTORY_INFO         AcpiGbl_HistoryBuffer[HISTORY_SIZE];
 static UINT16               AcpiGbl_LoHistory = 0;
 static UINT16               AcpiGbl_NumHistory = 0;
 static UINT16               AcpiGbl_NextHistoryIndex = 0;
-static UINT32               AcpiGbl_NextCmdNum = 1;
+UINT32                      AcpiGbl_NextCmdNum = 1;
 
 
 /*******************************************************************************
@@ -88,13 +87,40 @@ void
 AcpiDbAddToHistory (
     char                    *CommandLine)
 {
+    UINT16                  CmdLen;
+    UINT16                  BufferLen;
 
     /* Put command into the next available slot */
+
+    CmdLen = (UINT16) ACPI_STRLEN (CommandLine);
+    if (!CmdLen)
+    {
+        return;
+    }
+
+    if (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command != NULL)
+    {
+        BufferLen = (UINT16) ACPI_STRLEN (
+            AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command);
+        if (CmdLen > BufferLen)
+        {
+            AcpiOsFree (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].
+                Command);
+            AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command =
+                AcpiOsAllocate (CmdLen + 1);
+        }
+    }
+    else
+    {
+        AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command =
+            AcpiOsAllocate (CmdLen + 1);
+    }
 
     ACPI_STRCPY (AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].Command,
         CommandLine);
 
-    AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].CmdNum = AcpiGbl_NextCmdNum;
+    AcpiGbl_HistoryBuffer[AcpiGbl_NextHistoryIndex].CmdNum =
+        AcpiGbl_NextCmdNum;
 
     /* Adjust indexes */
 
@@ -148,8 +174,12 @@ AcpiDbDisplayHistory (
 
     for (i = 0; i < AcpiGbl_NumHistory; i++)
     {
-        AcpiOsPrintf ("%ld  %s\n", AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum,
-                                   AcpiGbl_HistoryBuffer[HistoryIndex].Command);
+        if (AcpiGbl_HistoryBuffer[HistoryIndex].Command)
+        {
+            AcpiOsPrintf ("%3ld  %s\n",
+                AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum,
+                AcpiGbl_HistoryBuffer[HistoryIndex].Command);
+        }
 
         HistoryIndex++;
         if (HistoryIndex >= HISTORY_SIZE)
@@ -177,8 +207,6 @@ char *
 AcpiDbGetFromHistory (
     char                    *CommandNumArg)
 {
-    UINT32                  i;
-    UINT16                  HistoryIndex;
     UINT32                  CmdNum;
 
 
@@ -192,6 +220,31 @@ AcpiDbGetFromHistory (
         CmdNum = ACPI_STRTOUL (CommandNumArg, NULL, 0);
     }
 
+    return (AcpiDbGetHistoryByIndex (CmdNum));
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbGetHistoryByIndex
+ *
+ * PARAMETERS:  CmdNum              - Index of the desired history entry.
+ *                                    Values are 0...(AcpiGbl_NextCmdNum - 1)
+ *
+ * RETURN:      Pointer to the retrieved command. Null on error.
+ *
+ * DESCRIPTION: Get a command from the history buffer
+ *
+ ******************************************************************************/
+
+char *
+AcpiDbGetHistoryByIndex (
+    UINT32                  CmdNum)
+{
+    UINT32                  i;
+    UINT16                  HistoryIndex;
+
+
     /* Search history buffer */
 
     HistoryIndex = AcpiGbl_LoHistory;
@@ -199,11 +252,12 @@ AcpiDbGetFromHistory (
     {
         if (AcpiGbl_HistoryBuffer[HistoryIndex].CmdNum == CmdNum)
         {
-            /* Found the commnad, return it */
+            /* Found the command, return it */
 
             return (AcpiGbl_HistoryBuffer[HistoryIndex].Command);
         }
 
+        /* History buffer is circular */
 
         HistoryIndex++;
         if (HistoryIndex >= HISTORY_SIZE)

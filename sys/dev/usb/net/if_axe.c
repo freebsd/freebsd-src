@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
@@ -134,7 +135,7 @@ __FBSDID("$FreeBSD$");
 static int axe_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
-SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
+SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RWTUN, &axe_debug, 0,
     "Debug level");
 #endif
 
@@ -163,6 +164,7 @@ static const STRUCT_USB_HOST_ID axe_devs[] = {
 	AXE_DEV(GOODWAY, GWUSB2E, 0),
 	AXE_DEV(IODATA, ETGUS2, AXE_FLAG_178),
 	AXE_DEV(JVC, MP_PRX1, 0),
+	AXE_DEV(LENOVO, ETHERNET, AXE_FLAG_772B),
 	AXE_DEV(LINKSYS2, USB200M, 0),
 	AXE_DEV(LINKSYS4, USB1000, AXE_FLAG_178),
 	AXE_DEV(LOGITEC, LAN_GTJU2A, AXE_FLAG_178),
@@ -833,19 +835,15 @@ axe_attach_post(struct usb_ether *ue)
 	/* Initialize controller and get station address. */
 	if (sc->sc_flags & AXE_FLAG_178) {
 		axe_ax88178_init(sc);
-		sc->sc_tx_bufsz = 16 * 1024;
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772) {
 		axe_ax88772_init(sc);
-		sc->sc_tx_bufsz = 8 * 1024;
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772A) {
 		axe_ax88772a_init(sc);
-		sc->sc_tx_bufsz = 8 * 1024;
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	} else if (sc->sc_flags & AXE_FLAG_772B) {
 		axe_ax88772b_init(sc);
-		sc->sc_tx_bufsz = 8 * 1024;
 	} else
 		axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 
@@ -1099,7 +1097,7 @@ axe_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 		axe_rxeof(ue, pc, 0, actlen, NULL);
 
 	if (error != 0)
-		ue->ue_ifp->if_ierrors++;
+		if_inc_counter(ue->ue_ifp, IFCOUNTER_IERRORS, 1);
 	return (error);
 }
 
@@ -1111,13 +1109,13 @@ axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
 	struct mbuf *m;
 
 	if (len < ETHER_HDR_LEN || len > MCLBYTES - ETHER_ALIGN) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (EINVAL);
 	}
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		return (ENOMEM);
 	}
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1125,7 +1123,7 @@ axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
 
 	usbd_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
@@ -1231,7 +1229,7 @@ tr_setup:
 			 * multiple writes into single one if there is
 			 * room in TX buffer of controller.
 			 */
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 			/*
 			 * if there's a BPF listener, bounce a copy
@@ -1255,7 +1253,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (error != USB_ERR_CANCELLED) {
@@ -1355,15 +1353,14 @@ axe_init(struct usb_ether *ue)
 
 	if (AXE_IS_178_FAMILY(sc)) {
 		sc->sc_flags &= ~(AXE_FLAG_STD_FRAME | AXE_FLAG_CSUM_FRAME);
-		if ((sc->sc_flags & AXE_FLAG_772B) != 0)
-			sc->sc_lenmask = AXE_CSUM_HDR_LEN_MASK;
-		else
-			sc->sc_lenmask = AXE_HDR_LEN_MASK;
 		if ((sc->sc_flags & AXE_FLAG_772B) != 0 &&
-		    (ifp->if_capenable & IFCAP_RXCSUM) != 0)
+		    (ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+			sc->sc_lenmask = AXE_CSUM_HDR_LEN_MASK;
 			sc->sc_flags |= AXE_FLAG_CSUM_FRAME;
-		else
+		} else {
+			sc->sc_lenmask = AXE_HDR_LEN_MASK;
 			sc->sc_flags |= AXE_FLAG_STD_FRAME;
+		}
 	}
 
 	/* Configure TX/RX checksum offloading. */

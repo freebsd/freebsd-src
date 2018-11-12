@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net80211/ieee80211_radiotap.h,v 1.5 2005/01/22 20:12:05 sam Exp $ */
 /* $NetBSD: ieee80211_radiotap.h,v 1.11 2005/06/22 06:16:02 dyoung Exp $ */
 
 /*-
@@ -238,5 +238,6 @@ enum ieee80211_radiotap_type {
 						 * retries */
 #define IEEE80211_RADIOTAP_F_TX_CTS	0x0002	/* used cts 'protection' */
 #define IEEE80211_RADIOTAP_F_TX_RTS	0x0004	/* used rts/cts handshake */
+#define IEEE80211_RADIOTAP_F_TX_NOACK	0x0008	/* don't expect an ACK */
 
 #endif				/* IEEE80211_RADIOTAP_H */

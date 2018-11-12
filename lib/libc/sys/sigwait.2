@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2012
+.Dd September 6, 2013
 .Dt SIGWAIT 2
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ waits until one or more of the selected signals has been generated.
 Then
 .Fn sigwait
 atomically clears one of the selected signals from the set of pending signals
-for the process and sets the location pointed to by
+(for the process or for the current thread) and sets the location pointed to by
 .Fa sig
 to the signal number that was cleared.
 .Pp

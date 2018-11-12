@@ -30,7 +30,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)slinux.c	1.2 8/25/95";
-static const char rcsid[] = "@(#)$Id: slinux.c,v 2.3 2001/06/09 17:09:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #define	CHUNKSIZE	8192
@@ -46,8 +46,8 @@ static	char	*eth_dev = NULL;
 
 
 int	initdevice(dev, spare)
-char	*dev;
-int	spare;
+	char	*dev;
+	int	spare;
 {
 	int fd;
 
@@ -66,8 +66,8 @@ int	spare;
  * output an IP packet onto a fd opened for /dev/nit
  */
 int	sendip(fd, pkt, len)
-int	fd, len;
-char	*pkt;
+	int	fd, len;
+	char	*pkt;
 {
 	struct	sockaddr	s;
 	struct	ifreq	ifr;

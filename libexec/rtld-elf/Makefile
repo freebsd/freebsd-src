@@ -1,6 +1,10 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+# Use the following command to build local debug version of dynamic
+# linker:
+# make DEBUG_FLAGS=-g DEBUG=-DDEBUG MK_TESTS=no all
+
+.include <src.opts.mk>
 MK_SSP=		no
 
 PROG?=		ld-elf.so.1
@@ -39,15 +43,14 @@ CFLAGS+=	-fpic
 .endif
 CFLAGS+=	-DPIC $(DEBUG)
 LDFLAGS+=	-shared -Wl,-Bsymbolic
-DPADD=		${LIBC_PIC}
-LDADD=		-lc_pic
+LIBADD=		c_pic
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
-# Some of the required math functions (div & mod) are implemented in libgcc
-# on ARM. The library also needs to be placed first to be correctly linked.
-# As some of the functions are used before we have shared libraries.
-DPADD+=		${LIBGCC}
-LDADD+=		-lgcc
+.if ${MACHINE_CPUARCH} == "arm"
+# Some of the required math functions (div & mod) are implemented in
+# libcompiler_rt on ARM. The library also needs to be placed first to be
+# correctly linked. As some of the functions are used before we have
+# shared libraries.
+LIBADD+=	compiler_rt
 .endif
 
 
@@ -76,6 +79,10 @@ beforeinstall:
 .endif
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.symver.mk>
 .include <bsd.prog.mk>

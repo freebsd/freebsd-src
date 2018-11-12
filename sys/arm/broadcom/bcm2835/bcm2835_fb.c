@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -65,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 #include <arm/broadcom/bcm2835/bcm2835_vcbus.h>
+
+#include "mbox_if.h"
 
 #define	BCMFB_FONT_HEIGHT	16
 
@@ -173,6 +174,7 @@ bcm_fb_init(void *arg)
 	volatile struct bcm_fb_config*	fb_config = sc->fb_config;
 	phandle_t node;
 	pcell_t cell;
+	device_t mbox;
 
 	node = ofw_bus_get_node(sc->dev);
 
@@ -205,8 +207,12 @@ bcm_fb_init(void *arg)
 
 	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
 		BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
-	bcm_mbox_write(BCM2835_MBOX_CHAN_FB, sc->fb_config_phys);
-	bcm_mbox_read(BCM2835_MBOX_CHAN_FB, &err);
+
+	mbox = devclass_get_device(devclass_find("mbox"), 0);
+	if (mbox) {
+		MBOX_WRITE(mbox, BCM2835_MBOX_CHAN_FB, sc->fb_config_phys);
+		MBOX_READ(mbox, BCM2835_MBOX_CHAN_FB, &err);
+	}
 	bus_dmamap_sync(sc->dma_tag, sc->dma_map,
 		BUS_DMASYNC_POSTREAD);
 
@@ -234,7 +240,6 @@ bcm_fb_init(void *arg)
 	}
 	else {
 		device_printf(sc->dev, "Failed to set framebuffer info\n");
-		return;
 	}
 
 	config_intrhook_disestablish(&sc->init_hook);
@@ -355,7 +360,7 @@ static driver_t bcm_fb_driver = {
 	sizeof(struct bcmsc_softc),
 };
 
-DRIVER_MODULE(bcm2835fb, fdtbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
+DRIVER_MODULE(bcm2835fb, ofwbus, bcm_fb_driver, bcm_fb_devclass, 0, 0);
 
 /*
  * Video driver routines and glue.

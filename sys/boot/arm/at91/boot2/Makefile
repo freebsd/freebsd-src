@@ -4,8 +4,8 @@
 
 P=boot2
 FILES=${P}
-SRCS=arm_init.S boot2.c ${BOOT_FLAVOR:L}_board.c
-NO_MAN=
+SRCS=arm_init.S boot2.c ${BOOT_FLAVOR:tl}_board.c
+MAN=
 LDFLAGS=-e 0 -T ${.CURDIR}/../linker.cfg
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 

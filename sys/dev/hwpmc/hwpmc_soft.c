@@ -241,9 +241,6 @@ soft_pcpu_init(struct pmc_mdep *md, int cpu)
 	    __LINE__));
 
 	soft_pc = malloc(sizeof(struct soft_cpu), M_PMC, M_WAITOK|M_ZERO);
-	if (soft_pc == NULL)
-		return (ENOMEM);
-
 	pc = pmc_pcpu[cpu];
 
 	KASSERT(pc != NULL, ("[soft,%d] cpu %d null per-cpu", __LINE__, cpu));

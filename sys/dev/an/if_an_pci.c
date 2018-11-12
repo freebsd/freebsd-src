@@ -141,7 +141,6 @@ static int
 an_attach_pci(dev)
 	device_t		dev;
 {
-	u_int32_t		command;
 	struct an_softc		*sc;
 	int 			flags, error = 0;
 
@@ -153,19 +152,6 @@ an_attach_pci(dev)
 		sc->mpi350 = 1;
 		sc->port_rid = PCIR_BAR(0);
 	} else {
-		/*
-		 * Map control/status registers.
-	 	 */
-		command = pci_read_config(dev, PCIR_COMMAND, 4);
-		command |= PCIM_CMD_PORTEN;
-		pci_write_config(dev, PCIR_COMMAND, command, 4);
-		command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-		if (!(command & PCIM_CMD_PORTEN)) {
-			device_printf(dev, "failed to enable I/O ports!\n");
-			error = ENXIO;
-			goto fail;
-		}
 		sc->port_rid = AN_PCI_LOIO;
 	}
 	error = an_alloc_port(dev, sc->port_rid, 1);

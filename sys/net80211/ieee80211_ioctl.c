@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet.h"
-#include "opt_ipx.h"
 #include "opt_wlan.h"
 
 #include <sys/endian.h>
@@ -44,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
@@ -51,11 +51,6 @@ __FBSDID("$FreeBSD$");
 #ifdef INET
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #include <net80211/ieee80211_var.h>
@@ -607,7 +602,7 @@ ieee80211_ioctl_getcurchan(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	 * in use.  When in RUN state report the vap-specific channel.
 	 * Otherwise return curchan.
 	 */
-	if (vap->iv_state == IEEE80211_S_RUN)
+	if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
 		c = vap->iv_bss->ni_chan;
 	else
 		c = ic->ic_curchan;
@@ -925,7 +920,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_BSSID:
 		if (ireq->i_len != IEEE80211_ADDR_LEN)
 			return EINVAL;
-		if (vap->iv_state == IEEE80211_S_RUN) {
+		if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP) {
 			error = copyout(vap->iv_opmode == IEEE80211_M_WDS ?
 			    vap->iv_bss->ni_macaddr : vap->iv_bss->ni_bssid,
 			    ireq->i_data, ireq->i_len);
@@ -1031,7 +1026,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_AMPDU_LIMIT:
 		if (vap->iv_opmode == IEEE80211_M_HOSTAP)
 			ireq->i_val = vap->iv_ampdu_rxmax;
-		else if (vap->iv_state == IEEE80211_S_RUN)
+		else if (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MAXRXAMPDU);
 		else
@@ -1039,7 +1034,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_AMPDU_DENSITY:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN)
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
 			ireq->i_val = MS(vap->iv_bss->ni_htparam,
 			    IEEE80211_HTCAP_MPDUDENSITY);
 		else
@@ -1113,7 +1108,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_SMPS:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN) {
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP)) {
 			if (vap->iv_bss->ni_flags & IEEE80211_NODE_MIMO_RTS)
 				ireq->i_val = IEEE80211_HTCAP_SMPS_DYNAMIC;
 			else if (vap->iv_bss->ni_flags & IEEE80211_NODE_MIMO_PS)
@@ -1125,7 +1120,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_RIFS:
 		if (vap->iv_opmode == IEEE80211_M_STA &&
-		    vap->iv_state == IEEE80211_S_RUN)
+		    (vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP))
 			ireq->i_val =
 			    (vap->iv_bss->ni_flags & IEEE80211_NODE_RIFS) != 0;
 		else
@@ -1340,12 +1335,17 @@ setmlme_dropsta(struct ieee80211vap *vap,
 	if (!IEEE80211_ADDR_EQ(mac, ic->ic_ifp->if_broadcastaddr)) {
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_node_locked(nt, mac);
+		IEEE80211_NODE_UNLOCK(nt);
+		/*
+		 * Don't do the node update inside the node
+		 * table lock.  This unfortunately causes LORs
+		 * with drivers and their TX paths.
+		 */
 		if (ni != NULL) {
 			domlme(mlmeop, ni);
 			ieee80211_free_node(ni);
 		} else
 			error = ENOENT;
-		IEEE80211_NODE_UNLOCK(nt);
 	} else {
 		ieee80211_iterate_nodes(nt, domlme, mlmeop);
 	}
@@ -1400,13 +1400,18 @@ setmlme_common(struct ieee80211vap *vap, int op,
 		case IEEE80211_M_MBSS:
 			IEEE80211_NODE_LOCK(nt);
 			ni = ieee80211_find_node_locked(nt, mac);
+			/*
+			 * Don't do the node update inside the node
+			 * table lock.  This unfortunately causes LORs
+			 * with drivers and their TX paths.
+			 */
+			IEEE80211_NODE_UNLOCK(nt);
 			if (ni != NULL) {
 				ieee80211_node_leave(ni);
 				ieee80211_free_node(ni);
 			} else {
 				error = ENOENT;
 			}
-			IEEE80211_NODE_UNLOCK(nt);
 			break;
 		default:
 			error = EINVAL;
@@ -1422,6 +1427,12 @@ setmlme_common(struct ieee80211vap *vap, int op,
 		}
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_vap_node_locked(nt, vap, mac);
+		/*
+		 * Don't do the node update inside the node
+		 * table lock.  This unfortunately causes LORs
+		 * with drivers and their TX paths.
+		 */
+		IEEE80211_NODE_UNLOCK(nt);
 		if (ni != NULL) {
 			mlmedebug(vap, mac, op, reason);
 			if (op == IEEE80211_MLME_AUTHORIZE)
@@ -1431,7 +1442,6 @@ setmlme_common(struct ieee80211vap *vap, int op,
 			ieee80211_free_node(ni);
 		} else
 			error = ENOENT;
-		IEEE80211_NODE_UNLOCK(nt);
 		break;
 	case IEEE80211_MLME_AUTH:
 		if (vap->iv_opmode != IEEE80211_M_HOSTAP) {
@@ -1440,6 +1450,12 @@ setmlme_common(struct ieee80211vap *vap, int op,
 		}
 		IEEE80211_NODE_LOCK(nt);
 		ni = ieee80211_find_vap_node_locked(nt, vap, mac);
+		/*
+		 * Don't do the node update inside the node
+		 * table lock.  This unfortunately causes LORs
+		 * with drivers and their TX paths.
+		 */
+		IEEE80211_NODE_UNLOCK(nt);
 		if (ni != NULL) {
 			mlmedebug(vap, mac, op, reason);
 			if (reason == IEEE80211_STATUS_SUCCESS) {
@@ -1463,7 +1479,6 @@ setmlme_common(struct ieee80211vap *vap, int op,
 			ieee80211_free_node(ni);
 		} else
 			error = ENOENT;
-		IEEE80211_NODE_UNLOCK(nt);
 		break;
 	default:
 		error = EINVAL;
@@ -1569,7 +1584,9 @@ ieee80211_ioctl_setmlme(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	    mlme.im_op == IEEE80211_MLME_ASSOC)
 		return setmlme_assoc_sta(vap, mlme.im_macaddr,
 		    vap->iv_des_ssid[0].len, vap->iv_des_ssid[0].ssid);
-	else if (mlme.im_op == IEEE80211_MLME_ASSOC)
+	else if ((vap->iv_opmode == IEEE80211_M_IBSS || 
+	    vap->iv_opmode == IEEE80211_M_AHDEMO) && 
+	    mlme.im_op == IEEE80211_MLME_ASSOC)
 		return setmlme_assoc_adhoc(vap, mlme.im_macaddr,
 		    mlme.im_ssid_len, mlme.im_ssid);
 	else
@@ -1932,7 +1949,7 @@ setcurchan(struct ieee80211vap *vap, struct ieee80211_channel *c)
 			if (IEEE80211_IS_CHAN_NOADHOC(c))
 				return EINVAL;
 		}
-		if (vap->iv_state == IEEE80211_S_RUN &&
+		if ((vap->iv_state == IEEE80211_S_RUN || vap->iv_state == IEEE80211_S_SLEEP) &&
 		    vap->iv_bss->ni_chan == c)
 			return 0;	/* NB: nothing to do */
 	}
@@ -3396,24 +3413,6 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 			arp_ifinit(ifp, ifa);
 			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong,
-		 *	 but has been copied many times.
-		 */
-		case AF_IPX: {
-			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-			if (ipx_nullhost(*ina))
-				ina->x_host = *(union ipx_host *)
-				    IF_LLADDR(ifp);
-			else
-				bcopy((caddr_t) ina->x_host.c_host,
-				      (caddr_t) IF_LLADDR(ifp),
-				      ETHER_ADDR_LEN);
-			/* fall thru... */
-		}
 #endif
 		default:
 			if ((ifp->if_flags & IFF_UP) == 0) {

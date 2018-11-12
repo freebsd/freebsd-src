@@ -642,7 +642,7 @@ gen_md5(
 	for (i = 1; i <= MD5KEYS; i++) {
 		for (j = 0; j < 16; j++) {
 			while (1) {
-				temp = ntp_random() & 0xff;
+				temp = arc4random() & 0xff;
 				if (temp == '#')
 					continue;
 				if (temp > 0x20 && temp < 0x7f)
@@ -675,7 +675,7 @@ gen_rsa(
 	FILE	*str;
 
 	fprintf(stderr, "Generating RSA keys (%d bits)...\n", modulus);
-	rsa = RSA_generate_key(modulus, 3, cb, "RSA");
+	rsa = RSA_generate_key(modulus, 65537, cb, "RSA");
 	fprintf(stderr, "\n");
 	if (rsa == NULL) {
 		fprintf(stderr, "RSA generate keys fails\n%s\n",
@@ -954,7 +954,7 @@ gen_gqpar(
 	 */
 	fprintf(stderr,
 	    "Generating GQ parameters (%d bits)...\n", modulus);
-	rsa = RSA_generate_key(modulus, 3, cb, "GQ");
+	rsa = RSA_generate_key(modulus, 65537, cb, "GQ");
 	fprintf(stderr, "\n");
 	if (rsa == NULL) {
 		fprintf(stderr, "RSA generate keys fails\n%s\n",

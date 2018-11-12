@@ -35,8 +35,9 @@ struct ccb_ataio;
 struct cam_periph;
 union  ccb;
 
-#define	SID_AEN		0x04	/* Abuse inq_flags bit to track enabled AEN. */
-#define	SID_DMA		0x10	/* Abuse inq_flags bit to track enabled DMA. */
+#define	SID_DMA48	0x01 /* Abuse inq_flags bit to track enabled DMA48. */
+#define	SID_AEN		0x04 /* Abuse inq_flags bit to track enabled AEN. */
+#define	SID_DMA		0x10 /* Abuse inq_flags bit to track enabled DMA. */
 
 struct ata_cmd {
 	u_int8_t	flags;		/* ATA command flags */
@@ -108,6 +109,7 @@ int	ata_status_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
 int	ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb);
 
 void	ata_print_ident(struct ata_params *ident_data);
+void	ata_print_ident_short(struct ata_params *ident_data);
 
 uint32_t	ata_logical_sector_size(struct ata_params *ident_data);
 uint64_t	ata_physical_sector_size(struct ata_params *ident_data);
@@ -142,6 +144,7 @@ int	ata_identify_match(caddr_t identbuffer, caddr_t table_entry);
 int	ata_static_identify_match(caddr_t identbuffer, caddr_t table_entry);
 
 void	semb_print_ident(struct sep_identify_data *ident_data);
+void	semb_print_ident_short(struct sep_identify_data *ident_data);
 
 void semb_receive_diagnostic_results(struct ccb_ataio *ataio,
 	u_int32_t retries, void (*cbfcnp)(struct cam_periph *, union ccb*),

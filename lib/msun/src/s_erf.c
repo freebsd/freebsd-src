@@ -111,18 +111,25 @@ __FBSDID("$FreeBSD$");
 #include "math.h"
 #include "math_private.h"
 
+/* XXX Prevent compilers from erroneously constant folding: */
+static const volatile double tiny= 1e-300;
+
 static const double
-tiny	    = 1e-300,
-half=  5.00000000000000000000e-01, /* 0x3FE00000, 0x00000000 */
-one =  1.00000000000000000000e+00, /* 0x3FF00000, 0x00000000 */
-two =  2.00000000000000000000e+00, /* 0x40000000, 0x00000000 */
-	/* c = (float)0.84506291151 */
+half= 0.5,
+one = 1,
+two = 2,
+/* c = (float)0.84506291151 */
 erx =  8.45062911510467529297e-01, /* 0x3FEB0AC1, 0x60000000 */
 /*
- * Coefficients for approximation to  erf on [0,0.84375]
+ * In the domain [0, 2**-28], only the first term in the power series
+ * expansion of erf(x) is used.  The magnitude of the first neglected
+ * terms is less than 2**-84.
  */
 efx =  1.28379167095512586316e-01, /* 0x3FC06EBA, 0x8214DB69 */
 efx8=  1.02703333676410069053e+00, /* 0x3FF06EBA, 0x8214DB69 */
+/*
+ * Coefficients for approximation to erf on [0,0.84375]
+ */
 pp0  =  1.28379167095512558561e-01, /* 0x3FC06EBA, 0x8214DB68 */
 pp1  = -3.25042107247001499370e-01, /* 0xBFD4CD7D, 0x691CB913 */
 pp2  = -2.84817495755985104766e-02, /* 0xBF9D2A51, 0xDBD7194F */
@@ -134,7 +141,7 @@ qq3  =  5.08130628187576562776e-03, /* 0x3F74D022, 0xC4D36B0F */
 qq4  =  1.32494738004321644526e-04, /* 0x3F215DC9, 0x221C1A10 */
 qq5  = -3.96022827877536812320e-06, /* 0xBED09C43, 0x42A26120 */
 /*
- * Coefficients for approximation to  erf  in [0.84375,1.25]
+ * Coefficients for approximation to erf in [0.84375,1.25]
  */
 pa0  = -2.36211856075265944077e-03, /* 0xBF6359B8, 0xBEF77538 */
 pa1  =  4.14856118683748331666e-01, /* 0x3FDA8D00, 0xAD92B34D */
@@ -150,7 +157,7 @@ qa4  =  1.26171219808761642112e-01, /* 0x3FC02660, 0xE763351F */
 qa5  =  1.36370839120290507362e-02, /* 0x3F8BEDC2, 0x6B51DD1C */
 qa6  =  1.19844998467991074170e-02, /* 0x3F888B54, 0x5735151D */
 /*
- * Coefficients for approximation to  erfc in [1.25,1/0.35]
+ * Coefficients for approximation to erfc in [1.25,1/0.35]
  */
 ra0  = -9.86494403484714822705e-03, /* 0xBF843412, 0x600D6435 */
 ra1  = -6.93858572707181764372e-01, /* 0xBFE63416, 0xE4BA7360 */
@@ -169,7 +176,7 @@ sa6  =  1.08635005541779435134e+02, /* 0x405B28A3, 0xEE48AE2C */
 sa7  =  6.57024977031928170135e+00, /* 0x401A47EF, 0x8E484A93 */
 sa8  = -6.04244152148580987438e-02, /* 0xBFAEEFF2, 0xEE749A62 */
 /*
- * Coefficients for approximation to  erfc in [1/.35,28]
+ * Coefficients for approximation to erfc in [1/.35,28]
  */
 rb0  = -9.86494292470009928597e-03, /* 0xBF843412, 0x39E86F4A */
 rb1  = -7.99283237680523006574e-01, /* 0xBFE993BA, 0x70C285DE */
@@ -201,7 +208,7 @@ erf(double x)
 	if(ix < 0x3feb0000) {		/* |x|<0.84375 */
 	    if(ix < 0x3e300000) { 	/* |x|<2**-28 */
 	        if (ix < 0x00800000)
-		    return 0.125*(8.0*x+efx8*x);  /*avoid underflow */
+		    return (8*x+efx8*x)/8;	/* avoid spurious underflow */
 		return x + efx*x;
 	    }
 	    z = x*x;
@@ -222,21 +229,22 @@ erf(double x)
 	x = fabs(x);
  	s = one/(x*x);
 	if(ix< 0x4006DB6E) {	/* |x| < 1/0.35 */
-	    R=ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*(
-				ra5+s*(ra6+s*ra7))))));
-	    S=one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(
-				sa5+s*(sa6+s*(sa7+s*sa8)))))));
+	    R=ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*(ra5+s*(ra6+s*ra7))))));
+	    S=one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(sa5+s*(sa6+s*(sa7+
+		s*sa8)))))));
 	} else {	/* |x| >= 1/0.35 */
-	    R=rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(
-				rb5+s*rb6)))));
-	    S=one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(
-				sb5+s*(sb6+s*sb7))))));
+	    R=rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))));
+	    S=one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))));
 	}
 	z  = x;
 	SET_LOW_WORD(z,0);
 	r  =  __ieee754_exp(-z*z-0.5625)*__ieee754_exp((z-x)*(z+x)+R/S);
 	if(hx>=0) return one-r/x; else return  r/x-one;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(erf, erfl);
+#endif
 
 double
 erfc(double x)
@@ -279,23 +287,23 @@ erfc(double x)
 	    x = fabs(x);
  	    s = one/(x*x);
 	    if(ix< 0x4006DB6D) {	/* |x| < 1/.35 ~ 2.857143*/
-	        R=ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*(
-				ra5+s*(ra6+s*ra7))))));
-	        S=one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(
-				sa5+s*(sa6+s*(sa7+s*sa8)))))));
+		R=ra0+s*(ra1+s*(ra2+s*(ra3+s*(ra4+s*(ra5+s*(ra6+s*ra7))))));
+		S=one+s*(sa1+s*(sa2+s*(sa3+s*(sa4+s*(sa5+s*(sa6+s*(sa7+
+		    s*sa8)))))));
 	    } else {			/* |x| >= 1/.35 ~ 2.857143 */
 		if(hx<0&&ix>=0x40180000) return two-tiny;/* x < -6 */
-	        R=rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(
-				rb5+s*rb6)))));
-	        S=one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(
-				sb5+s*(sb6+s*sb7))))));
+		R=rb0+s*(rb1+s*(rb2+s*(rb3+s*(rb4+s*(rb5+s*rb6)))));
+		S=one+s*(sb1+s*(sb2+s*(sb3+s*(sb4+s*(sb5+s*(sb6+s*sb7))))));
 	    }
 	    z  = x;
 	    SET_LOW_WORD(z,0);
-	    r  =  __ieee754_exp(-z*z-0.5625)*
-			__ieee754_exp((z-x)*(z+x)+R/S);
+	    r  =  __ieee754_exp(-z*z-0.5625)*__ieee754_exp((z-x)*(z+x)+R/S);
 	    if(hx>0) return r/x; else return two-r/x;
 	} else {
 	    if(hx>0) return tiny*tiny; else return two-tiny;
 	}
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(erfc, erfcl);
+#endif

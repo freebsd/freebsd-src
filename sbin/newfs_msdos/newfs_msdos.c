@@ -51,50 +51,50 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-#define MAXU16	  0xffff	/* maximum unsigned 16-bit quantity */
-#define BPN	  4		/* bits per nibble */
-#define NPB	  2		/* nibbles per byte */
+#define	MAXU16	  0xffff	/* maximum unsigned 16-bit quantity */
+#define	BPN	  4		/* bits per nibble */
+#define	NPB	  2		/* nibbles per byte */
 
-#define DOSMAGIC  0xaa55	/* DOS magic number */
-#define MINBPS	  512		/* minimum bytes per sector */
-#define MAXSPC	  128		/* maximum sectors per cluster */
-#define MAXNFT	  16		/* maximum number of FATs */
-#define DEFBLK	  4096		/* default block size */
-#define DEFBLK16  2048		/* default block size FAT16 */
-#define DEFRDE	  512		/* default root directory entries */
-#define RESFTE	  2		/* reserved FAT entries */
-#define MINCLS12  1U		/* minimum FAT12 clusters */
-#define MINCLS16  0x1000U	/* minimum FAT16 clusters */
-#define MINCLS32  2U		/* minimum FAT32 clusters */
-#define MAXCLS12  0xfedU	/* maximum FAT12 clusters */
-#define MAXCLS16  0xfff5U	/* maximum FAT16 clusters */
-#define MAXCLS32  0xffffff5U	/* maximum FAT32 clusters */
+#define	DOSMAGIC  0xaa55	/* DOS magic number */
+#define	MINBPS	  512		/* minimum bytes per sector */
+#define	MAXSPC	  128		/* maximum sectors per cluster */
+#define	MAXNFT	  16		/* maximum number of FATs */
+#define	DEFBLK	  4096		/* default block size */
+#define	DEFBLK16  2048		/* default block size FAT16 */
+#define	DEFRDE	  512		/* default root directory entries */
+#define	RESFTE	  2		/* reserved FAT entries */
+#define	MINCLS12  1U		/* minimum FAT12 clusters */
+#define	MINCLS16  0xff5U	/* minimum FAT16 clusters */
+#define	MINCLS32  0xfff5U	/* minimum FAT32 clusters */
+#define	MAXCLS12  0xff4U	/* maximum FAT12 clusters */
+#define	MAXCLS16  0xfff4U	/* maximum FAT16 clusters */
+#define	MAXCLS32  0xffffff4U	/* maximum FAT32 clusters */
 
-#define mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
+#define	mincls(fat)  ((fat) == 12 ? MINCLS12 :	\
 		      (fat) == 16 ? MINCLS16 :	\
 				    MINCLS32)
 
-#define maxcls(fat)  ((fat) == 12 ? MAXCLS12 :	\
+#define	maxcls(fat)  ((fat) == 12 ? MAXCLS12 :	\
 		      (fat) == 16 ? MAXCLS16 :	\
 				    MAXCLS32)
 
-#define mk1(p, x)				\
+#define	mk1(p, x)				\
     (p) = (u_int8_t)(x)
 
-#define mk2(p, x)				\
+#define	mk2(p, x)				\
     (p)[0] = (u_int8_t)(x),			\
     (p)[1] = (u_int8_t)((x) >> 010)
 
-#define mk4(p, x)				\
+#define	mk4(p, x)				\
     (p)[0] = (u_int8_t)(x),			\
     (p)[1] = (u_int8_t)((x) >> 010),		\
     (p)[2] = (u_int8_t)((x) >> 020),		\
     (p)[3] = (u_int8_t)((x) >> 030)
 
-#define argto1(arg, lo, msg)  argtou(arg, lo, 0xff, msg)
-#define argto2(arg, lo, msg)  argtou(arg, lo, 0xffff, msg)
-#define argto4(arg, lo, msg)  argtou(arg, lo, 0xffffffff, msg)
-#define argtox(arg, lo, msg)  argtou(arg, lo, UINT_MAX, msg)
+#define	argto1(arg, lo, msg)  argtou(arg, lo, 0xff, msg)
+#define	argto2(arg, lo, msg)  argtou(arg, lo, 0xffff, msg)
+#define	argto4(arg, lo, msg)  argtou(arg, lo, 0xffffffff, msg)
+#define	argtox(arg, lo, msg)  argtou(arg, lo, UINT_MAX, msg)
 
 struct bs {
     u_int8_t bsJump[3];			/* bootstrap entry point */
@@ -131,7 +131,7 @@ struct bsx {
     u_int8_t exReserved1;		/* reserved */
     u_int8_t exBootSignature;		/* extended boot signature */
     u_int8_t exVolumeID[4];		/* volume ID number */
-    u_int8_t exVolumeLabel[11]; 	/* volume label */
+    u_int8_t exVolumeLabel[11];		/* volume label */
     u_int8_t exFileSysType[8];		/* file system type */
 } __packed;
 
@@ -139,8 +139,8 @@ struct de {
     u_int8_t deName[11];		/* name and extension */
     u_int8_t deAttributes;		/* attributes */
     u_int8_t rsvd[10];			/* reserved */
-    u_int8_t deMTime[2];		/* creation time */
-    u_int8_t deMDate[2];		/* creation date */
+    u_int8_t deMTime[2];		/* last-modified time */
+    u_int8_t deMDate[2];		/* last-modified date */
     u_int8_t deStartCluster[2];		/* starting cluster */
     u_int8_t deFileSize[4];		/* size */
 } __packed;
@@ -164,7 +164,7 @@ struct bpb {
     u_int bpbBackup; 			/* backup boot sector */
 };
 
-#define BPBGAP 0, 0, 0, 0, 0, 0
+#define	BPBGAP 0, 0, 0, 0, 0, 0
 
 static struct {
     const char *name;
@@ -174,10 +174,10 @@ static struct {
     {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
     {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
     {"360",  {512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2, BPBGAP}},
-    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},    
+    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},
     {"720",  {512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2, BPBGAP}},
     {"1200", {512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2, BPBGAP}},
-    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},    
+    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},
     {"1440", {512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2, BPBGAP}},
     {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
 };
@@ -689,7 +689,7 @@ main(int argc, char *argv[])
 			 ((u_int)tm->tm_hour << 8 |
 			  (u_int)tm->tm_min));
 		mk4(bsx->exVolumeID, x);
-		mklabel(bsx->exVolumeLabel, opt_L ? opt_L : "NO_NAME");
+		mklabel(bsx->exVolumeLabel, opt_L ? opt_L : "NO NAME");
 		sprintf(buf, "FAT%u", fat);
 		setstr(bsx->exFileSysType, buf, sizeof(bsx->exFileSysType));
 		if (!opt_B) {
@@ -829,28 +829,26 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
     if (lp == NULL) {
 	if (bpb->bpbBytesPerSec)
 	    dlp.d_secsize = bpb->bpbBytesPerSec;
-	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
-	    if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE,
-						  &dlp.d_secsize) == -1)
-		err(1, "cannot get sector size");
+	if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE,
+					      &dlp.d_secsize) == -1)
+	    err(1, "cannot get sector size");
 
-	    dlp.d_secperunit = ms / dlp.d_secsize;
+	dlp.d_secperunit = ms / dlp.d_secsize;
 
-	    if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS,
-						  &dlp.d_nsectors) == -1) {
-		warn("cannot get number of sectors per track");
-		dlp.d_nsectors = 63;
-	    }
-	    if (bpb->bpbHeads == 0 &&
-	        ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
-		warn("cannot get number of heads");
-		if (dlp.d_secperunit <= 63*1*1024)
-		    dlp.d_ntracks = 1;
-		else if (dlp.d_secperunit <= 63*16*1024)
-		    dlp.d_ntracks = 16;
-		else
-		    dlp.d_ntracks = 255;
-	    }
+	if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS,
+					      &dlp.d_nsectors) == -1) {
+	    warn("cannot get number of sectors per track");
+	    dlp.d_nsectors = 63;
+	}
+	if (bpb->bpbHeads == 0 &&
+	    ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
+	    warn("cannot get number of heads");
+	    if (dlp.d_secperunit <= 63*1*1024)
+		dlp.d_ntracks = 1;
+	    else if (dlp.d_secperunit <= 63*16*1024)
+		dlp.d_ntracks = 16;
+	    else
+		dlp.d_ntracks = 255;
 	}
 
 	hs = (ms / dlp.d_secsize) - dlp.d_secperunit;
@@ -1029,7 +1027,7 @@ usage(void)
 	fprintf(stderr,
 	    "usage: newfs_msdos [ -options ] special [disktype]\n"
 	    "where the options are:\n"
-	    "\t-@ create file system at specified offset\n"                         
+	    "\t-@ create file system at specified offset\n"
 	    "\t-B get bootstrap from file\n"
 	    "\t-C create image file with specified size\n"
 	    "\t-F FAT type (12, 16, or 32)\n"

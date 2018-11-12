@@ -13,10 +13,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Module.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Constant.h"
+#include "llvm/IR/Constant.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm-c/Core.h"
 using namespace llvm;
 
 /// CloneModule - Return an exact copy of the specified module.  This is not as
@@ -38,10 +39,6 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
   New->setTargetTriple(M->getTargetTriple());
   New->setModuleInlineAsm(M->getModuleInlineAsm());
    
-  // Copy all of the dependent libraries over.
-  for (Module::lib_iterator I = M->lib_begin(), E = M->lib_end(); I != E; ++I)
-    New->addLibrary(*I);
-
   // Loop over all of the global variables, making corresponding globals in the
   // new module.  Here we add them to the VMap and to the new Module.  We
   // don't worry about attributes or initializers, they will come later.
@@ -51,8 +48,8 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
     GlobalVariable *GV = new GlobalVariable(*New, 
                                             I->getType()->getElementType(),
                                             I->isConstant(), I->getLinkage(),
-                                            (Constant*) 0, I->getName(),
-                                            (GlobalVariable*) 0,
+                                            (Constant*) nullptr, I->getName(),
+                                            (GlobalVariable*) nullptr,
                                             I->getThreadLocalMode(),
                                             I->getType()->getAddressSpace());
     GV->copyAttributesFrom(I);
@@ -71,8 +68,10 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
   // Loop over the aliases in the module
   for (Module::const_alias_iterator I = M->alias_begin(), E = M->alias_end();
        I != E; ++I) {
-    GlobalAlias *GA = new GlobalAlias(I->getType(), I->getLinkage(),
-                                      I->getName(), NULL, New);
+    auto *PTy = cast<PointerType>(I->getType());
+    auto *GA =
+        GlobalAlias::create(PTy->getElementType(), PTy->getAddressSpace(),
+                            I->getLinkage(), I->getName(), New);
     GA->copyAttributesFrom(I);
     VMap[I] = GA;
   }
@@ -119,8 +118,16 @@ Module *llvm::CloneModule(const Module *M, ValueToValueMapTy &VMap) {
     const NamedMDNode &NMD = *I;
     NamedMDNode *NewNMD = New->getOrInsertNamedMetadata(NMD.getName());
     for (unsigned i = 0, e = NMD.getNumOperands(); i != e; ++i)
-      NewNMD->addOperand(MapValue(NMD.getOperand(i), VMap));
+      NewNMD->addOperand(MapMetadata(NMD.getOperand(i), VMap));
   }
 
   return New;
+}
+
+extern "C" {
+
+LLVMModuleRef LLVMCloneModule(LLVMModuleRef M) {
+  return wrap(CloneModule(unwrap(M)));
+}
+
 }

@@ -160,7 +160,7 @@ usbd_update_max_frame_size(struct usb_xfer *xfer)
 usb_timeout_t
 usbd_get_dma_delay(struct usb_device *udev)
 {
-	struct usb_bus_methods *mtod;
+	const struct usb_bus_methods *mtod;
 	uint32_t temp;
 
 	mtod = udev->bus->methods;
@@ -237,7 +237,11 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		n_obj = 1;
 	} else {
 		/* compute number of objects per page */
+#ifdef USB_DMA_SINGLE_ALLOC
+		n_obj = 1;
+#else
 		n_obj = (USB_PAGE_SIZE / size);
+#endif
 		/*
 		 * Compute number of DMA chunks, rounded up
 		 * to nearest one:
@@ -273,15 +277,33 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		    &parm->curr_xfer->xroot->dma_parent_tag;
 	}
 
-	if (ppc) {
-		*ppc = parm->xfer_page_cache_ptr;
+	if (ppc != NULL) {
+		if (n_obj != 1)
+			*ppc = parm->xfer_page_cache_ptr;
+		else
+			*ppc = parm->dma_page_cache_ptr;
 	}
 	r = count;			/* set remainder count */
 	z = n_obj * size;		/* set allocation size */
 	pc = parm->xfer_page_cache_ptr;
 	pg = parm->dma_page_ptr;
 
-	for (x = 0; x != n_dma_pc; x++) {
+	if (n_obj == 1) {
+	    /*
+	     * Avoid mapping memory twice if only a single object
+	     * should be allocated per page cache:
+	     */
+	    for (x = 0; x != n_dma_pc; x++) {
+		if (usb_pc_alloc_mem(parm->dma_page_cache_ptr,
+		    pg, z, align)) {
+			return (1);	/* failure */
+		}
+		/* Make room for one DMA page cache and "n_dma_pg" pages */
+		parm->dma_page_cache_ptr++;
+		pg += n_dma_pg;
+	    }
+	} else {
+	    for (x = 0; x != n_dma_pc; x++) {
 
 		if (r < n_obj) {
 			/* compute last remainder */
@@ -294,7 +316,7 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		}
 		/* Set beginning of current buffer */
 		buf = parm->dma_page_cache_ptr->buffer;
-		/* Make room for one DMA page cache and one page */
+		/* Make room for one DMA page cache and "n_dma_pg" pages */
 		parm->dma_page_cache_ptr++;
 		pg += n_dma_pg;
 
@@ -314,6 +336,7 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 			}
 			mtx_unlock(pc->tag_parent->mtx);
 		}
+	    }
 	}
 
 	parm->xfer_page_cache_ptr = pc;
@@ -346,6 +369,7 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 	usb_frcount_t n_frlengths;
 	usb_frcount_t n_frbuffers;
 	usb_frcount_t x;
+	uint16_t maxp_old;
 	uint8_t type;
 	uint8_t zmps;
 
@@ -433,6 +457,11 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 	if (xfer->max_packet_count > parm->hc_max_packet_count) {
 		xfer->max_packet_count = parm->hc_max_packet_count;
 	}
+
+	/* store max packet size value before filtering */
+
+	maxp_old = xfer->max_packet_size;
+
 	/* filter "wMaxPacketSize" according to HC capabilities */
 
 	if ((xfer->max_packet_size > parm->hc_max_packet_size) ||
@@ -465,6 +494,13 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 		}
 	}
 
+	/*
+	 * Check if the max packet size was outside its allowed range
+	 * and clamped to a valid value:
+	 */
+	if (maxp_old != xfer->max_packet_size)
+		xfer->flags_int.maxp_was_clamped = 1;
+	
 	/* compute "max_frame_size" */
 
 	usbd_update_max_frame_size(xfer);
@@ -947,7 +983,8 @@ usbd_transfer_setup(struct usb_device *udev,
 #if USB_HAVE_BUSDMA
 			usb_dma_tag_setup(&info->dma_parent_tag,
 			    parm->dma_tag_p, udev->bus->dma_parent_tag[0].tag,
-			    xfer_mtx, &usb_bdma_done_event, 32, parm->dma_tag_max);
+			    xfer_mtx, &usb_bdma_done_event, udev->bus->dma_bits,
+			    parm->dma_tag_max);
 #endif
 
 			info->bus = udev->bus;
@@ -1395,6 +1432,29 @@ usbd_control_transfer_init(struct usb_xfer *xfer)
 }
 
 /*------------------------------------------------------------------------*
+ *	usbd_control_transfer_did_data
+ *
+ * This function returns non-zero if a control endpoint has
+ * transferred the first DATA packet after the SETUP packet.
+ * Else it returns zero.
+ *------------------------------------------------------------------------*/
+static uint8_t
+usbd_control_transfer_did_data(struct usb_xfer *xfer)
+{
+	struct usb_device_request req;
+
+	/* SETUP packet is not yet sent */
+	if (xfer->flags_int.control_hdr != 0)
+		return (0);
+
+	/* copy out the USB request header */
+	usbd_copy_out(xfer->frbuffers, 0, &req, sizeof(req));
+
+	/* compare remainder to the initial value */
+	return (xfer->flags_int.control_rem != UGETW(req.wLength));
+}
+
+/*------------------------------------------------------------------------*
  *	usbd_setup_ctrl_transfer
  *
  * This function handles initialisation of control transfers. Control
@@ -1498,6 +1558,11 @@ usbd_setup_ctrl_transfer(struct usb_xfer *xfer)
 
 		len = (xfer->sumlen - sizeof(struct usb_device_request));
 	}
+
+	/* update did data flag */
+
+	xfer->flags_int.control_did_data =
+	    usbd_control_transfer_did_data(xfer);
 
 	/* check if there is a length mismatch */
 
@@ -2432,7 +2497,9 @@ usbd_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 void
 usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
+	struct usb_xfer_root *info = xfer->xroot;
+
+	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
 
 	DPRINTF("err=%s\n", usbd_errstr(error));
 
@@ -2446,10 +2513,10 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 		xfer->flags_int.control_act = 0;
 		return;
 	}
-	/* only set transfer error if not already set */
-	if (!xfer->error) {
+	/* only set transfer error, if not already set */
+	if (xfer->error == USB_ERR_NORMAL_COMPLETION)
 		xfer->error = error;
-	}
+
 	/* stop any callouts */
 	usb_callout_stop(&xfer->timeout_handle);
 
@@ -2461,14 +2528,14 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 	usbd_transfer_dequeue(xfer);
 
 #if USB_HAVE_BUSDMA
-	if (mtx_owned(xfer->xroot->xfer_mtx)) {
+	if (mtx_owned(info->xfer_mtx)) {
 		struct usb_xfer_queue *pq;
 
 		/*
 		 * If the private USB lock is not locked, then we assume
 		 * that the BUS-DMA load stage has been passed:
 		 */
-		pq = &xfer->xroot->dma_q;
+		pq = &info->dma_q;
 
 		if (pq->curr == xfer) {
 			/* start the next BUS-DMA load, if any */
@@ -2478,10 +2545,10 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 #endif
 	/* keep some statistics */
 	if (xfer->error) {
-		xfer->xroot->bus->stats_err.uds_requests
+		info->bus->stats_err.uds_requests
 		    [xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE]++;
 	} else {
-		xfer->xroot->bus->stats_ok.uds_requests
+		info->bus->stats_ok.uds_requests
 		    [xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE]++;
 	}
 
@@ -2721,7 +2788,7 @@ usbd_transfer_timeout_ms(struct usb_xfer *xfer,
 
 	/* defer delay */
 	usb_callout_reset(&xfer->timeout_handle,
-	    USB_MS_TO_TICKS(ms), cb, xfer);
+	    USB_MS_TO_TICKS(ms) + USB_CALLOUT_ZERO_TICKS, cb, xfer);
 }
 
 /*------------------------------------------------------------------------*
@@ -2847,6 +2914,22 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 		/* end of control transfer, if any */
 		xfer->flags_int.control_act = 0;
 
+#if USB_HAVE_TT_SUPPORT
+		switch (xfer->error) {
+		case USB_ERR_NORMAL_COMPLETION:
+		case USB_ERR_SHORT_XFER:
+		case USB_ERR_STALLED:
+		case USB_ERR_CANCELLED:
+			/* nothing to do */
+			break;
+		default:
+			/* try to reset the TT, if any */
+			USB_BUS_LOCK(bus);
+			uhub_tt_buffer_reset_async_locked(xfer->xroot->udev, xfer->endpoint);
+			USB_BUS_UNLOCK(bus);
+			break;
+		}
+#endif
 		/* check if we should block the execution queue */
 		if ((xfer->error != USB_ERR_CANCELLED) &&
 		    (xfer->flags.pipe_bof)) {
@@ -3413,4 +3496,14 @@ uint16_t
 usbd_xfer_get_timestamp(struct usb_xfer *xfer)
 {
 	return (xfer->isoc_time_complete);
+}
+
+/*
+ * The following function returns non-zero if the max packet size
+ * field was clamped to a valid value. Else it returns zero.
+ */
+uint8_t
+usbd_xfer_maxp_was_clamped(struct usb_xfer *xfer)
+{
+	return (xfer->flags_int.maxp_was_clamped);
 }

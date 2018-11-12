@@ -423,11 +423,11 @@ _GLIBCXX_BEGIN_NAMESPACE(__gnu_cxx)
     s += buf;
     s += tab;
     s += "label: ";
-    sprintf(buf, "%u", ref.second.first);
+    sprintf(buf, "%lu", ref.second.first);
     s += buf;
     s += tab;
     s += "size: ";
-    sprintf(buf, "%u", ref.second.second);
+    sprintf(buf, "%lu", ref.second.second);
     s += buf;
     s += '\n';
   }

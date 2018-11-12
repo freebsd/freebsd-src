@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2011
+.Dd March 16, 2015
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -219,6 +219,8 @@ look at by bytes (8 bits)
 look at by half words (16 bits)
 .It Cm l
 look at by long words (32 bits)
+.It Cm g
+look at by quad words (64 bits)
 .It Cm a
 print the location being displayed
 .It Cm A
@@ -249,19 +251,7 @@ The location is also displayed in hex at the beginning of each line.
 display as an instruction
 .It Cm I
 display as an instruction with possible alternate formats depending on the
-machine:
-.Bl -tag -width ".Tn powerpc" -compact
-.It Tn amd64
-No alternate format.
-.It Tn i386
-No alternate format.
-.It Tn ia64
-No alternate format.
-.It Tn powerpc
-No alternate format.
-.It Tn sparc64
-No alternate format.
-.El
+machine, but none of the supported architectures have an alternate format.
 .It Cm S
 display a symbol name for the pointer stored at the address
 .El
@@ -582,17 +572,26 @@ Dump data about APIC IDT vector mappings.
 Show breakpoints set with the "break" command.
 .\"
 .Pp
-.It Ic show Cm buffer
-Show buffer structure of
+.It Ic show Cm bio Ar addr
+Show information about the bio structure
+.Vt struct bio
+present at
+.Ar addr .
+See the
+.Pa sys/bio.h
+header file and
+.Xr g_bio 9
+for more details on the exact meaning of the structure fields.
+.\"
+.Pp
+.It Ic show Cm buffer Ar addr
+Show information about the buf structure
 .Vt struct buf
-type.
-Such a structure is used within the
-.Fx
-kernel for the I/O subsystem
-implementation.
-For an exact interpretation of the output, please see the
+present at
+.Ar addr .
+See the
 .Pa sys/buf.h
-header file.
+header file for more details on the exact meaning of the structure fields.
 .\"
 .Pp
 .It Ic show Cm cbstat
@@ -619,6 +618,13 @@ for more details.
 .Pp
 .It Ic show Cm cyrixreg
 Show registers specific to the Cyrix processor.
+.\"
+.Pp
+.It Ic show Cm devmap
+Prints the contents of the static device mapping table.
+Currently only available on the
+ARM
+architecture.
 .\"
 .Pp
 .It Ic show Cm domain Ar addr
@@ -1125,7 +1131,7 @@ abbreviations.
 .It Ic capture status
 .Nm
 supports a basic output capture facility, which can be used to retrieve the
-results of debugging commands from userpsace using
+results of debugging commands from userspace using
 .Xr sysctl 2 .
 .Ic capture on
 enables output capture;
@@ -1430,7 +1436,7 @@ diagnose problems.
 Other bus' bridge chipsets may be able to generate NMI using bus specific
 methods.
 .Sh FILES
-Header files mention in this manual page can be found below
+Header files mentioned in this manual page can be found below
 .Pa /usr/include
 directory.
 .Pp

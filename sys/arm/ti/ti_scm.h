@@ -59,8 +59,8 @@ struct ti_scm_padstate {
 struct ti_scm_device {
 	uint16_t		padconf_muxmode_mask;
 	uint16_t		padconf_sate_mask;
-	struct ti_scm_padstate	*padstate;
-	struct ti_scm_padconf	*padconf;
+	const struct ti_scm_padstate	*padstate;
+	const struct ti_scm_padconf	*padconf;
 };
 
 struct ti_scm_softc {
@@ -76,8 +76,6 @@ int ti_scm_padconf_get(const char *padname, const char **muxmode,
     unsigned int *state);
 int ti_scm_padconf_set_gpiomode(uint32_t gpio, unsigned int state);
 int ti_scm_padconf_get_gpiomode(uint32_t gpio, unsigned int *state);
-int ti_scm_padconf_set_gpioflags(uint32_t gpio, uint32_t flags);
-void ti_scm_padconf_get_gpioflags(uint32_t gpio, uint32_t *flags);
 int ti_scm_reg_read_4(uint32_t reg, uint32_t *val);
 int ti_scm_reg_write_4(uint32_t reg, uint32_t val);
 

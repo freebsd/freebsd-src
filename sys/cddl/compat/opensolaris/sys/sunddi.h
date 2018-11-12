@@ -35,7 +35,6 @@
 #include <sys/libkern.h>
 #include <sys/sysevent.h>
 
-#define	strdup(ptr)				strdup((ptr), M_SOLARIS)
 #define	ddi_driver_major(zfs_dip)		(0)
 #define	ddi_copyin(from, to, size, flag)				\
 	(copyin((from), (to), (size)), 0)

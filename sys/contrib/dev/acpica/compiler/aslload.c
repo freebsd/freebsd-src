@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __ASLLOAD_C__
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/amlcode.h>
@@ -129,6 +127,7 @@ LdLoadNamespace (
     /* Dump the namespace if debug is enabled */
 
     AcpiNsDumpTables (ACPI_NS_ALL, ACPI_UINT32_MAX);
+    ACPI_FREE (WalkState);
     return (AE_OK);
 }
 
@@ -177,7 +176,9 @@ LdLoadFieldElements (
         break;
 
     default:
+
         /* No other opcodes should arrive here */
+
         return (AE_BAD_PARAMETER);
     }
 
@@ -357,7 +358,6 @@ LdNamespace1Begin (
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Op %p [%s]\n",
         Op, Op->Asl.ParseOpName));
 
-
     /*
      * We are only interested in opcodes that have an associated name
      * (or multiple names)
@@ -371,9 +371,38 @@ LdNamespace1Begin (
         Status = LdLoadFieldElements (Op, WalkState);
         return (Status);
 
+    case AML_INT_CONNECTION_OP:
+
+
+        if (Op->Asl.Child->Asl.AmlOpcode != AML_INT_NAMEPATH_OP)
+        {
+            break;
+        }
+        Arg = Op->Asl.Child;
+
+        Status = AcpiNsLookup (WalkState->ScopeInfo, Arg->Asl.ExternalName,
+            ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE, ACPI_NS_SEARCH_PARENT,
+            WalkState, &Node);
+        if (ACPI_FAILURE (Status))
+        {
+            break;
+        }
+
+        if (Node->Type == ACPI_TYPE_BUFFER)
+        {
+            Arg->Asl.Node = Node;
+
+            Arg = Node->Op->Asl.Child;  /* Get namepath */
+            Arg = Arg->Asl.Next;        /* Get actual buffer */
+            Arg = Arg->Asl.Child;       /* Buffer length */
+            Arg = Arg->Asl.Next;        /* RAW_DATA buffer */
+        }
+        break;
+
     default:
 
         /* All other opcodes go below */
+
         break;
     }
 
@@ -422,7 +451,6 @@ LdNamespace1Begin (
 
 
     case PARSEOP_EXTERNAL:
-
         /*
          * "External" simply enters a name and type into the namespace.
          * We must be careful to not open a new scope, however, no matter
@@ -464,9 +492,7 @@ LdNamespace1Begin (
         ObjectType = AslMapNamedOpcodeToDataType (Op->Asl.AmlOpcode);
         break;
 
-
     case PARSEOP_SCOPE:
-
         /*
          * The name referenced by Scope(Name) must already exist at this point.
          * In other words, forward references for Scope() are not supported.
@@ -486,6 +512,10 @@ LdNamespace1Begin (
                             ACPI_TYPE_LOCAL_SCOPE,
                             ACPI_IMODE_LOAD_PASS1, Flags,
                             WalkState, &(Node));
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
 
                 /*
                  * However, this is an error -- primarily because the MS
@@ -521,7 +551,6 @@ LdNamespace1Begin (
         case ACPI_TYPE_INTEGER:
         case ACPI_TYPE_STRING:
         case ACPI_TYPE_BUFFER:
-
             /*
              * These types we will allow, but we will change the type.
              * This enables some existing code of the form:

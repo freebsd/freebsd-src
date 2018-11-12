@@ -2,7 +2,7 @@
 
 PROG=	semtest
 SRCS=	semtest.c
-NO_MAN=
+MAN=
 
 WARNS?=	3
 

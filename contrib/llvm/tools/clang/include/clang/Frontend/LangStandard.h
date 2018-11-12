@@ -23,12 +23,13 @@ enum LangFeatures {
   C99 = (1 << 2),
   C11 = (1 << 3),
   CPlusPlus = (1 << 4),
-  CPlusPlus0x = (1 << 5),
-  CPlusPlus1y = (1 << 6),
-  Digraphs = (1 << 7),
-  GNUMode = (1 << 8),
-  HexFloat = (1 << 9),
-  ImplicitInt = (1 << 10)
+  CPlusPlus11 = (1 << 5),
+  CPlusPlus14 = (1 << 6),
+  CPlusPlus1z = (1 << 7),
+  Digraphs = (1 << 8),
+  GNUMode = (1 << 9),
+  HexFloat = (1 << 10),
+  ImplicitInt = (1 << 11)
 };
 
 }
@@ -69,11 +70,14 @@ public:
   /// isCPlusPlus - Language is a C++ variant.
   bool isCPlusPlus() const { return Flags & frontend::CPlusPlus; }
 
-  /// isCPlusPlus0x - Language is a C++0x variant.
-  bool isCPlusPlus0x() const { return Flags & frontend::CPlusPlus0x; }
+  /// isCPlusPlus11 - Language is a C++11 variant (or later).
+  bool isCPlusPlus11() const { return Flags & frontend::CPlusPlus11; }
 
-  /// isCPlusPlus1y - Language is a C++1y variant.
-  bool isCPlusPlus1y() const { return Flags & frontend::CPlusPlus1y; }
+  /// isCPlusPlus14 - Language is a C++14 variant (or later).
+  bool isCPlusPlus14() const { return Flags & frontend::CPlusPlus14; }
+
+  /// isCPlusPlus1z - Language is a C++17 variant (or later).
+  bool isCPlusPlus1z() const { return Flags & frontend::CPlusPlus1z; }
 
   /// hasDigraphs - Language supports digraphs.
   bool hasDigraphs() const { return Flags & frontend::Digraphs; }

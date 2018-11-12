@@ -80,7 +80,7 @@ lm_init(char *libmap_override)
 
 	if (libmap_override) {
 		/*
-		 * Do some character replacement to make $LIBMAP look
+		 * Do some character replacement to make $LDLIBMAP look
 		 * like a text file, then parse it.
 		 */
 		libmap_override = xstrdup(libmap_override);
@@ -94,8 +94,8 @@ lm_init(char *libmap_override)
 				break;
 			}
 		}
-		lmc_parse(p, strlen(p));
-		free(p);
+		lmc_parse(libmap_override, p - libmap_override);
+		free(libmap_override);
 	}
 
 	return (lm_count == 0);
@@ -216,14 +216,14 @@ lmc_parse(char *lm_p, size_t lm_len)
 	p = NULL;
 	while (cnt < lm_len) {
 		i = 0;
-		while (lm_p[cnt] != '\n' && cnt < lm_len &&
+		while (cnt < lm_len && lm_p[cnt] != '\n' &&
 		    i < sizeof(line) - 1) {
 			line[i] = lm_p[cnt];
 			cnt++;
 			i++;
 		}
 		line[i] = '\0';
-		while (lm_p[cnt] != '\n' && cnt < lm_len)
+		while (cnt < lm_len && lm_p[cnt] != '\n')
 			cnt++;
 		/* skip over nl */
 		cnt++;
@@ -396,7 +396,6 @@ lm_find (const char *p, const char *f)
 
 /* Given a libmap translation list and a library name, return the
    replacement library, or NULL */
-#ifdef COMPAT_32BIT
 char *
 lm_findn (const char *p, const char *f, const int n)
 {
@@ -413,7 +412,6 @@ lm_findn (const char *p, const char *f, const int n)
 		free(s);
 	return (t);
 }
-#endif
 
 static char *
 lml_find (struct lm_list *lmh, const char *f)

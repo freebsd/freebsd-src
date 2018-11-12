@@ -83,7 +83,7 @@ struct zap_stats;
  */
 #define	ZAP_LEAF_CHUNK(l, idx) \
 	((zap_leaf_chunk_t *) \
-	((l)->l_phys->l_hash + ZAP_LEAF_HASH_NUMENTRIES(l)))[idx]
+	(zap_leaf_phys(l)->l_hash + ZAP_LEAF_HASH_NUMENTRIES(l)))[idx]
 #define	ZAP_LEAF_ENTRY(l, idx) (&ZAP_LEAF_CHUNK(l, idx).l_entry)
 
 typedef enum zap_chunk_type {
@@ -101,6 +101,7 @@ typedef enum zap_chunk_type {
  */
 typedef struct zap_leaf_phys {
 	struct zap_leaf_header {
+		/* Public to ZAP */
 		uint64_t lh_block_type;		/* ZBT_LEAF */
 		uint64_t lh_pad1;
 		uint64_t lh_prefix;		/* hash prefix of this leaf */
@@ -109,8 +110,7 @@ typedef struct zap_leaf_phys {
 		uint16_t lh_nentries;		/* number of entries */
 		uint16_t lh_prefix_len;		/* num bits used to id this */
 
-/* above is accessable to zap, below is zap_leaf private */
-
+		/* Private to zap_leaf */
 		uint16_t lh_freelist;		/* chunk head of free list */
 		uint8_t lh_flags;		/* ZLF_* flags */
 		uint8_t lh_pad2[11];
@@ -156,18 +156,22 @@ typedef struct zap_leaf {
 	uint64_t l_blkid;		/* 1<<ZAP_BLOCK_SHIFT byte block off */
 	int l_bs;			/* block size shift */
 	dmu_buf_t *l_dbuf;
-	zap_leaf_phys_t *l_phys;
 } zap_leaf_t;
 
+inline zap_leaf_phys_t *
+zap_leaf_phys(zap_leaf_t *l)
+{
+	return (l->l_dbuf->db_data);
+}
 
 typedef struct zap_entry_handle {
-	/* below is set by zap_leaf.c and is public to zap.c */
+	/* Set by zap_leaf and public to ZAP */
 	uint64_t zeh_num_integers;
 	uint64_t zeh_hash;
 	uint32_t zeh_cd;
 	uint8_t zeh_integer_size;
 
-	/* below is private to zap_leaf.c */
+	/* Private to zap_leaf */
 	uint16_t zeh_fakechunk;
 	uint16_t *zeh_chunkp;
 	zap_leaf_t *zeh_leaf;
@@ -202,7 +206,7 @@ extern int zap_entry_read_name(struct zap *zap, const zap_entry_handle_t *zeh,
 /*
  * Replace the value of an existing entry.
  *
- * zap_entry_update may fail if it runs out of space (ENOSPC).
+ * May fail if it runs out of space (ENOSPC).
  */
 extern int zap_entry_update(zap_entry_handle_t *zeh,
     uint8_t integer_size, uint64_t num_integers, const void *buf);
@@ -221,10 +225,7 @@ extern int zap_entry_create(zap_leaf_t *l, struct zap_name *zn, uint32_t cd,
     uint8_t integer_size, uint64_t num_integers, const void *buf,
     zap_entry_handle_t *zeh);
 
-/*
- * Return true if there are additional entries with the same normalized
- * form.
- */
+/* Determine whether there is another entry with the same normalized form. */
 extern boolean_t zap_entry_normalization_conflict(zap_entry_handle_t *zeh,
     struct zap_name *zn, const char *name, struct zap *zap);
 

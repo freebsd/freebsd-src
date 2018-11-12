@@ -52,19 +52,23 @@ __FBSDID("$FreeBSD$");
 
 #define	MEVENT_MAX	64
 
-#define MEV_ENABLE	1
-#define MEV_DISABLE	2
-#define MEV_DEL_PENDING	3
+#define	MEV_ADD		1
+#define	MEV_ENABLE	2
+#define	MEV_DISABLE	3
+#define	MEV_DEL_PENDING	4
 
 extern char *vmname;
 
 static pthread_t mevent_tid;
+static int mevent_timid = 43;
 static int mevent_pipefd[2];
 static pthread_mutex_t mevent_lmutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct mevent {	
 	void	(*me_func)(int, enum ev_type, void *);
+#define me_msecs me_fd
 	int	me_fd;
+	int	me_timid;
 	enum ev_type me_type;
 	void    *me_param;
 	int	me_cq;
@@ -129,6 +133,12 @@ mevent_kq_filter(struct mevent *mevp)
 	if (mevp->me_type == EVF_WRITE)
 		retval = EVFILT_WRITE;
 
+	if (mevp->me_type == EVF_TIMER)
+		retval = EVFILT_TIMER;
+
+	if (mevp->me_type == EVF_SIGNAL)
+		retval = EVFILT_SIGNAL;
+
 	return (retval);
 }
 
@@ -138,14 +148,20 @@ mevent_kq_flags(struct mevent *mevp)
 	int ret;
 
 	switch (mevp->me_state) {
+	case MEV_ADD:
+		ret = EV_ADD;		/* implicitly enabled */
+		break;
 	case MEV_ENABLE:
-		ret = EV_ADD;
+		ret = EV_ENABLE;
 		break;
 	case MEV_DISABLE:
 		ret = EV_DISABLE;
 		break;
 	case MEV_DEL_PENDING:
 		ret = EV_DELETE;
+		break;
+	default:
+		assert(0);
 		break;
 	}
 
@@ -177,11 +193,16 @@ mevent_build(int mfd, struct kevent *kev)
 			 */
 			close(mevp->me_fd);
 		} else {
-			kev[i].ident = mevp->me_fd;
+			if (mevp->me_type == EVF_TIMER) {
+				kev[i].ident = mevp->me_timid;
+				kev[i].data = mevp->me_msecs;
+			} else {
+				kev[i].ident = mevp->me_fd;
+				kev[i].data = 0;
+			}
 			kev[i].filter = mevent_kq_filter(mevp);
 			kev[i].flags = mevent_kq_flags(mevp);
 			kev[i].fflags = mevent_kq_fflags(mevp);
-			kev[i].data = 0;
 			kev[i].udata = mevp;
 			i++;
 		}
@@ -219,12 +240,12 @@ mevent_handle(struct kevent *kev, int numev)
 }
 
 struct mevent *
-mevent_add(int fd, enum ev_type type,
+mevent_add(int tfd, enum ev_type type,
 	   void (*func)(int, enum ev_type, void *), void *param)
 {
 	struct mevent *lp, *mevp;
 
-	if (fd < 0 || func == NULL) {
+	if (tfd < 0 || func == NULL) {
 		return (NULL);
 	}
 
@@ -236,13 +257,15 @@ mevent_add(int fd, enum ev_type type,
 	 * Verify that the fd/type tuple is not present in any list
 	 */
 	LIST_FOREACH(lp, &global_head, me_list) {
-		if (lp->me_fd == fd && lp->me_type == type) {
+		if (type != EVF_TIMER && lp->me_fd == tfd &&
+		    lp->me_type == type) {
 			goto exit;
 		}
 	}
 
 	LIST_FOREACH(lp, &change_head, me_list) {
-		if (lp->me_fd == fd && lp->me_type == type) {
+		if (type != EVF_TIMER && lp->me_fd == tfd &&
+		    lp->me_type == type) {
 			goto exit;
 		}
 	}
@@ -250,20 +273,23 @@ mevent_add(int fd, enum ev_type type,
 	/*
 	 * Allocate an entry, populate it, and add it to the change list.
 	 */
-	mevp = malloc(sizeof(struct mevent));
+	mevp = calloc(1, sizeof(struct mevent));
 	if (mevp == NULL) {
 		goto exit;
 	}
 
-	memset(mevp, 0, sizeof(struct mevent));
-	mevp->me_fd = fd;
+	if (type == EVF_TIMER) {
+		mevp->me_msecs = tfd;
+		mevp->me_timid = mevent_timid++;
+	} else
+		mevp->me_fd = tfd;
 	mevp->me_type = type;
 	mevp->me_func = func;
 	mevp->me_param = param;
 
 	LIST_INSERT_HEAD(&change_head, mevp, me_list);
 	mevp->me_cq = 1;
-	mevp->me_state = MEV_ENABLE;
+	mevp->me_state = MEV_ADD;
 	mevent_notify();
 
 exit:
@@ -362,10 +388,8 @@ mevent_delete_close(struct mevent *evp)
 static void
 mevent_set_name(void)
 {
-	char tname[MAXCOMLEN + 1];
 
-	snprintf(tname, sizeof(tname), "%s mevent", vmname);
-	pthread_set_name_np(mevent_tid, tname);
+	pthread_set_name_np(mevent_tid, "mevent");
 }
 
 void
@@ -420,7 +444,7 @@ mevent_dispatch(void)
 		 * Block awaiting events
 		 */
 		ret = kevent(mfd, NULL, 0, eventlist, MEVENT_MAX, NULL);
-		if (ret == -1) {
+		if (ret == -1 && errno != EINTR) {
 			perror("Error return from kevent monitor");
 		}
 		

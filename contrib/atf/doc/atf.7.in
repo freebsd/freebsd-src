@@ -1,6 +1,3 @@
-.\"
-.\" Automated Testing Framework (atf)
-.\"
 .\" Copyright (c) 2007 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
@@ -25,96 +22,54 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.Dd August 28, 2010
+.Dd September 14, 2014
 .Dt ATF 7
 .Os
 .Sh NAME
 .Nm ATF
 .Nd introduction to the Automated Testing Framework
 .Sh DESCRIPTION
-.Em IMPORTANT: If you are here because you want to know how to run the tests in
-.Em Pa __TESTSDIR__ ,
-.Em you most likely want to read the
-.Em Xr tests 7
-.Em manual page instead.
-.Pp
 The Automated Testing Framework
 .Pf ( Nm )
-is a collection of libraries and utilities designed to ease unattended
-application testing in the hands of developers and end users of a specific
-piece of software.
+is a
+.Em collection of libraries
+to implement test programs in a variety of languages.
+These libraries all offer similar functionality and any test program
+written with them exposes a consistent user interface.
 .Pp
-As regards developers,
+Test programs using the
 .Nm
-provides the necessary means to easily create
-test suites composed of multiple test programs, which in turn are a
-collection of test cases.
-It also attempts to simplify the debugging of problems when these test
-cases detect an error by providing as much information as possible
-about the failure.
-.Pp
-As regards users, it simplifies the process of running the test suites and,
-in special, encourages end users to run them often: they do not need to
-have source trees around nor any other development tools installed to be
-able to certify that a given piece of software works on their machine as
-advertised.
+libraries rely on a separate runtime engine to execute them in a
+deterministic fashion.
+The runtime engine isolates the test programs from the rest of the system
+and ensures some common side-effects are cleaned up.
+The runtime engine is also responsible for gathering the results of all
+tests and composing reports.
+The current runtime of choice is Kyua, described in
+.Xr kyua 1 .
 .Pp
 If your operating systems distributes
 .Nm ,
-it is possible that it provides an introductory
+it should also provide an introductory
 .Xr tests 7
 manual page.
 You are encouraged to read it now.
-.Ss License
-.Nm
-is distributed under the terms of the TNF License, a 2-clause BSD license.
-For more details please see:
-.Bd -literal -offset indent
-.Pa __DOCDIR__/COPYING
-.Ed
-.Ss Components
-.Nm
-is a highly modular piece of software.
-It provides a couple of libraries to ease the implementation of test
-programs: one for the C and C++ languages and another one for shell
-scripts.
-It also includes multiple small utilities that follow the principle of
-doing a single thing but doing it right.
-This section outlines which these components are.
 .Pp
-Public utilities:
+The rest of this manual page serves as a cross-reference to all the other
+documentation shipped with
+.Nm .
+.Ss Language bindings
 .Bl -tag -width atfXtestXprogramXXXXX
-.It Xr atf-check 1
-Executes a command and checks that its exit code, its standard output
-and its standard error output match pre-specified expected values.
-.It Xr atf-config 1
-Queries static configuration information.
-.It Xr atf-report 1
-Converts the output of
-.Nm atf-run
-to user-friendly and/or machine-parseable reports.
-.It Xr atf-run 1
-Automates the execution of a series of test programs and collects their
-results in a unified report.
-.It Xr atf-sh 1
-Shell interpreter for shell-based test programs.
+.It Xr atf-c 3
+C programming interface.
+.It Xr atf-c++ 3
+C++ programming interface.
+.It Xr atf-sh 3
+.Xr sh 1
+programming interface.
 .El
-.Pp
-Programming interfaces:
+.Ss Miscellaneous pages
 .Bl -tag -width atfXtestXprogramXXXXX
-.It Xr atf-c-api 3
-C programming interface for test programs.
-.It Xr atf-c++-api 3
-C++ programming interface for test programs.
-.It Xr atf-sh-api 3
-POSIX shell programming interface for test programs.
-.El
-.Pp
-Other:
-.Bl -tag -width atfXtestXprogramXXXXX
-.It Xr atf-formats 5
-Description of the machine-parseable data formats used by the tools.
 .It Xr atf-test-case 4
 Generic description of test cases, independent of the language they are
 implemented in.
@@ -123,70 +78,43 @@ Common interface provided by the test programs written using the
 .Nm
 libraries.
 .El
-.Ss Recommended reading order
-For end users wishing to run tests:
-.Bl -enum -compact
-.It
-.Xr tests 7
-(only if provided by your operating system).
-.It
-.Xr atf-test-program 1
-.It
-.Xr atf-run 1
-.It
-.Xr atf-report 1
-.It
-.Xr atf-config 1
-.El
-.Pp
-For developers wanting to write their own tests:
-.Bl -enum -compact
-.It
-Everything recommended to users.
-.It
-.Xr atf-test-case 4
-.It
-.Xr atf-c-api 3
-.It
-.Xr atf-c++-api 3
-.It
-.Xr atf-sh-api 3
-.It
-.Xr atf-sh 1
-.It
-.Xr atf-check 1
-.El
-.Pp
-For those interested in
-.Nm
-internals:
-.Bl -enum -compact
-.It
-Everything recommended to users.
-.It
-Everything recommended to developers.
-.It
-.Xr atf-formats 5
-.El
 .Sh SEE ALSO
+.Xr kyua 1 ,
 .Xr tests 7
 .Sh HISTORY
 .Nm
 started as a Google Summer of Code 2007 project mentored by The NetBSD
 Foundation.
-Its original goal was to provide a testing framework for The NetBSD
-Operating System, but it grew as an independent project because the
+Its original goal was to provide a testing framework for the
+.Nx
+operating system, but it grew as an independent project because the
 framework itself did not need to be tied to a specific operating system.
 .Pp
-For more details on this subject, please see:
+Originally,
+.Nm
+shipped the collection of libraries described in this manual page as well
+as a runtime engine.
+The runtime engine has since been replaced by Kyua and the old tools were
+removed in
+.Nm 0.20 ,
+which shipped in early 2014.
+.Pp
+As of late 2014, both
+.Fx
+and
+.Nx
+ship
+.Nm
+in their base systems and provide extensive test suites based on it.
+.Pp
+For more details on historical changes, refer to:
 .Bd -literal -offset indent
 .Pa __DOCDIR__/NEWS
-.Pa __DOCDIR__/ROADMAP
 .Ed
 .Sh AUTHORS
 For more details on the people that made
 .Nm
-possible, please see:
+possible, refer to:
 .Bd -literal -offset indent
 .Pa __DOCDIR__/AUTHORS
 .Ed

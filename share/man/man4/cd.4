@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd April 9, 2014
 .Dt CD 4
 .Os
 .Sh NAME
@@ -33,8 +33,6 @@
 .Nd SCSI CD-ROM driver
 .Sh SYNOPSIS
 .Cd device cd
-.Cd "options ""CHANGER_MIN_BUSY_SECONDS=3"""
-.Cd "options ""CHANGER_MAX_BUSY_SECONDS=11"""
 .Sh DESCRIPTION
 The
 .Nm
@@ -103,79 +101,6 @@ in the header files
 and
 .In sys/disklabel.h .
 .Bl -tag -width CDIOCREADSUBCHANNEL
-.It Dv DIOCGDINFO
-.It Dv DIOCSDINFO
-.Pq Li "struct disklabel"
-Read or write the in-core copy of the disklabel for the
-drive.
-The disklabel is initialized with information
-read from the scsi inquiry commands, and should be the same as
-the information printed at boot.
-This structure is defined in the header file
-.In sys/disklabel.h .
-.It Dv CDIOCCAPABILITY
-.Pq Li "struct ioc_capability"
-Retrieve information from the drive on what features it supports.
-The information is returned in the following structure:
-.Bd -literal -offset indent
-struct ioc_capability {
-	u_long	play_function;
-#define CDDOPLAYTRK	0x00000001
-	/* Can play tracks/index */
-#define	CDDOPLAYMSF	0x00000002
-	/* Can play msf to msf */
-#define	CDDOPLAYBLOCKS	0x00000004
-	/* Can play range of blocks */
-#define	CDDOPAUSE	0x00000100
-	/* Output can be paused */
-#define	CDDORESUME	0x00000200
-	/* Output can be resumed */
-#define	CDDORESET	0x00000400
-	/* Drive can be completely reset */
-#define	CDDOSTART	0x00000800
-	/* Audio can be started */
-#define CDDOSTOP	0x00001000
-	/* Audio can be stopped */
-#define CDDOPITCH	0x00002000
-	/* Audio pitch can be changed */
-
-	u_long	routing_function;
-#define CDREADVOLUME	0x00000001
-	/* Volume settings can be read */
-#define CDSETVOLUME	0x00000002
-	/* Volume settings can be set */
-#define	CDSETMONO	0x00000100
-	/* Output can be set to mono */
-#define CDSETSTEREO	0x00000200
-	/* Output can be set to stereo (def) */
-#define	CDSETLEFT	0x00000400
-	/* Output can be set to left only */
-#define	CDSETRIGHT	0x00000800
-	/* Output can be set to right only */
-#define	CDSETMUTE	0x00001000
-	/* Output can be muted */
-#define CDSETPATCH	0x00008000
-	/* Direct routing control allowed */
-
-	u_long	special_function;
-#define	CDDOEJECT	0x00000001
-	/* The tray can be opened */
-#define	CDDOCLOSE	0x00000002
-	/* The tray can be closed */
-#define	CDDOLOCK	0x00000004
-	/* The tray can be locked */
-#define CDREADHEADER	0x00000100
-	/* Can read Table of Contents */
-#define	CDREADENTRIES	0x00000200
-	/* Can read TOC Entries */
-#define	CDREADSUBQ	0x00000200
-	/* Can read Subchannel info */
-#define CDREADRW	0x00000400
-	/* Can read subcodes R-W */
-#define	CDHASDEBUG	0x00004000
-	/* The tray has dynamic debugging */
-};
-.Ed
 .It Dv CDIOCPLAYTRACKS
 .Pq Li "struct ioc_play_track"
 Start audio playback given a track address and length.
@@ -320,24 +245,6 @@ Eject the
 .It Dv CDIOCCLOSE
 Tell the drive to close its door and load the media.
 Not all drives support this feature.
-.It Dv CDIOCPITCH
-.Pq Li "struct ioc_pitch"
-For drives that support it, this command instructs the drive to play
-the audio at a faster or slower rate than normal.
-Values of
-.Li speed
-between -32767 and -1 result in slower playback; a zero value
-indicates normal speed; and values from 1 to 32767 give faster
-playback.
-Drives with less than 16 bits of resolution will silently
-ignore less-significant bits.
-The structure is defined thusly:
-.Bd -literal -offset indent
-struct	ioc_pitch
-{
-	short	speed;
-};
-.Ed
 .El
 .Sh NOTES
 When a
@@ -369,65 +276,6 @@ Some work is planned to support
 some of the more common `broken'
 .Tn CD-ROM
 drives; however, this is not yet under way.
-.Sh CHANGER OPERATION
-This driver has built-in support for LUN-based CD changers.
-A LUN-based CD
-changer is a drive that can hold two or more CDs, but only has one CD
-player mechanism.
-Each CD in the drive shows up as a separate logical unit
-on the
-.Tn SCSI
-bus.
-The
-.Nm
-driver automatically recognizes LUN-based changers, and routes commands for
-changers through an internal scheduler.
-The scheduler prevents changer
-"thrashing", which is caused by sending commands to different LUNs in the
-changer at the same time.
-.Pp
-The scheduler honors minimum and maximum time
-quanta that the driver will spend on a particular LUN.
-The minimum time
-is the guaranteed minimum amount of time that the driver will spend on a
-given LUN, even if there is no outstanding I/O for that LUN.
-The maximum
-time is the maximum amount of time the changer will spend on a LUN if there
-is outstanding I/O for another LUN.
-If there is no outstanding I/O for
-another LUN, the driver will allow indefinite access to a given LUN.
-.Pp
-The minimum and maximum time quanta are configurable via kernel options and
-also via sysctl and kernel tunable variables.
-The kernel options are:
-.Pp
-.Bl -item -compact
-.It
-.Cd "options ""CHANGER_MIN_BUSY_SECONDS=3"""
-.It
-.Cd "options ""CHANGER_MAX_BUSY_SECONDS=11"""
-.El
-.Pp
-The sysctl/kernel tunable variables are:
-.Pp
-.Bl -item -compact
-.It
-.Va kern.cam.cd.changer.min_busy_seconds
-.It
-.Va kern.cam.cd.changer.max_busy_seconds
-.El
-.Pp
-It is suggested that the user try experimenting with the minimum and
-maximum timeouts via the sysctl variables to arrive at the proper values
-for your changer.
-Once you have settled on the proper timeouts for your
-changer, you can then put them in your kernel config file.
-.Pp
-If your system does have a LUN-based changer, you may notice that the
-probe messages for the various LUNs of the changer will continue to appear
-while the boot process is going on.
-This is normal, and is caused by the
-changer scheduling code.
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
@@ -478,12 +326,6 @@ Valid minimum command sizes
 are 6 and 10.
 Any value above 6 will be rounded to 10, and any value below
 6 will be rounded to 6.
-.It kern.cam.cd.changer.min_busy_seconds
-.It kern.cam.cd.changer.max_busy_seconds
-.Pp
-Tune how long individual LUNs are 'locked' for I/O operations to
-optimize changer operation.
-See CHANGER OPERATION section for information on how to use these items.
 .El
 .Sh FILES
 .Bl -tag -width /dev/cd[0-9][a-h] -compact
@@ -518,21 +360,3 @@ were poorly chosen, and a number of spelling errors have survived in
 the names of the
 .Fn ioctl
 commands.
-.Pp
-There is no mechanism currently to set different minimum and maximum
-timeouts for different CD changers; the timeout values set by the kernel
-options or the sysctl variables apply to all LUN-based CD changers in the
-system.
-It is possible to implement such support, but the sysctl
-implementation at least would be rather inelegant, because of the current
-inability of the sysctl code to handle the addition of nodes after compile
-time.
-Thus, it would take one dynamically sized sysctl variable and a
-userland utility to get/set the timeout values.
-Implementation of separate
-timeouts for different CD devices in the kernel config file would likely
-require modification of
-.Xr config 8
-to support the two timeouts when hardwiring
-.Nm
-devices.

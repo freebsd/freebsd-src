@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/pioctl.h>
 #include <sys/proc.h>
-#include <sys/sf_buf.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -81,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_param.h>
 
-#include <x86/isa/isa.h>
+#include <isa/isareg.h>
 
 static void	cpu_reset_real(void);
 #ifdef SMP
@@ -90,9 +89,10 @@ static u_int	cpu_reset_proxyid;
 static volatile u_int	cpu_reset_proxy_active;
 #endif
 
-CTASSERT((struct thread **)OFFSETOF_CURTHREAD ==
-    &((struct pcpu *)NULL)->pc_curthread);
-CTASSERT((struct pcb **)OFFSETOF_CURPCB == &((struct pcpu *)NULL)->pc_curpcb);
+_Static_assert(OFFSETOF_CURTHREAD == offsetof(struct pcpu, pc_curthread),
+    "OFFSETOF_CURTHREAD does not correspond with offset of pc_curthread.");
+_Static_assert(OFFSETOF_CURPCB == offsetof(struct pcpu, pc_curpcb),
+    "OFFSETOF_CURPCB does not correspond with offset of pc_curpcb.");
 
 struct savefpu *
 get_pcb_user_save_td(struct thread *td)
@@ -127,7 +127,7 @@ get_pcb_td(struct thread *td)
 void *
 alloc_fpusave(int flags)
 {
-	struct pcb *res;
+	void *res;
 	struct savefpu_ymm *sf;
 
 	res = malloc(cpu_max_ext_state_size, M_DEVBUF, flags);
@@ -219,7 +219,7 @@ cpu_fork(td1, p2, td2, flags)
 	 * return address on stack.  These are the kernel mode register values.
 	 */
 	pmap2 = vmspace_pmap(p2->p_vmspace);
-	pcb2->pcb_cr3 = DMAP_TO_PHYS((vm_offset_t)pmap2->pm_pml4);
+	pcb2->pcb_cr3 = pmap2->pm_cr3;
 	pcb2->pcb_r12 = (register_t)fork_return;	/* fork_trampoline argument */
 	pcb2->pcb_rbp = 0;
 	pcb2->pcb_rsp = (register_t)td2->td_frame - sizeof(void *);
@@ -341,7 +341,7 @@ cpu_thread_clean(struct thread *td)
 	 * Clean TSS/iomap
 	 */
 	if (pcb->pcb_tssp != NULL) {
-		kmem_free(kernel_map, (vm_offset_t)pcb->pcb_tssp,
+		kmem_free(kernel_arena, (vm_offset_t)pcb->pcb_tssp,
 		    ctob(IOPAGES + 1));
 		pcb->pcb_tssp = NULL;
 	}
@@ -400,9 +400,13 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		 * for the next iteration.
 		 * %r10 restore is only required for freebsd/amd64 processes,
 		 * but shall be innocent for any ia32 ABI.
+		 *
+		 * Require full context restore to get the arguments
+		 * in the registers reloaded at return to usermode.
 		 */
 		td->td_frame->tf_rip -= td->td_frame->tf_err;
 		td->td_frame->tf_r10 = td->td_frame->tf_rcx;
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		break;
 
 	case EJUSTRETURN:
@@ -442,7 +446,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+	clear_pcb_flags(pcb2, PCB_FPUINITDONE | PCB_USERFPUINITDONE |
+	    PCB_KERNFPU);
 	pcb2->pcb_save = get_pcb_user_save_pcb(pcb2);
 	bcopy(get_pcb_user_save_td(td0), pcb2->pcb_save,
 	    cpu_max_ext_state_size);
@@ -592,7 +597,7 @@ cpu_reset()
 	cpuset_t map;
 	u_int cnt;
 
-	if (smp_active) {
+	if (smp_started) {
 		map = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &map);
 		CPU_NAND(&map, &stopped_cpus);
@@ -691,27 +696,6 @@ cpu_reset_real()
 
 	/* NOTREACHED */
 	while(1);
-}
-
-/*
- * Allocate an sf_buf for the given vm_page.  On this machine, however, there
- * is no sf_buf object.  Instead, an opaque pointer to the given vm_page is
- * returned.
- */
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int pri)
-{
-
-	return ((struct sf_buf *)m);
-}
-
-/*
- * Free the sf_buf.  In fact, do nothing because there are no resources
- * associated with the sf_buf.
- */
-void
-sf_buf_free(struct sf_buf *sf)
-{
 }
 
 /*

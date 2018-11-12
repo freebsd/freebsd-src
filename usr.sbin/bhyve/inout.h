@@ -32,25 +32,37 @@
 #include <sys/linker_set.h>
 
 struct vmctx;
+struct vm_exit;
 
+/*
+ * inout emulation handlers return 0 on success and -1 on failure.
+ */
 typedef int (*inout_func_t)(struct vmctx *ctx, int vcpu, int in, int port,
 			    int bytes, uint32_t *eax, void *arg);
 
 struct inout_port {
 	const char 	*name;
 	int		port;
+	int		size;
 	int		flags;
 	inout_func_t	handler;
 	void		*arg;
 };
 #define	IOPORT_F_IN		0x1
 #define	IOPORT_F_OUT		0x2
-#define	IOPORT_F_INOUT		0x3
+#define	IOPORT_F_INOUT		(IOPORT_F_IN | IOPORT_F_OUT)
+
+/*
+ * The following flags are used internally and must not be used by
+ * device models.
+ */
+#define	IOPORT_F_DEFAULT	0x80000000	/* claimed by default handler */
 
 #define	INOUT_PORT(name, port, flags, handler)				\
 	static struct inout_port __CONCAT(__inout_port, __LINE__) = {	\
 		#name,							\
 		(port),							\
+		1,							\
 		(flags),						\
 		(handler),						\
 		0							\
@@ -58,10 +70,10 @@ struct inout_port {
 	DATA_SET(inout_port_set, __CONCAT(__inout_port, __LINE__))
 	
 void	init_inout(void);
-int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
-		      uint32_t *eax, int strict);
+int	emulate_inout(struct vmctx *, int vcpu, struct vm_exit *vmexit,
+		      int strict);
 int	register_inout(struct inout_port *iop);
-
+int	unregister_inout(struct inout_port *iop);
 void	init_bvmcons(void);
 
 #endif	/* _INOUT_H_ */

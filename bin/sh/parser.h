@@ -68,18 +68,17 @@
 
 /*
  * NEOF is returned by parsecmd when it encounters an end of file.  It
- * must be distinct from NULL, so we use the address of a variable that
- * happens to be handy.
+ * must be distinct from NULL.
  */
-extern int tokpushback;
-#define NEOF ((union node *)&tokpushback)
+#define NEOF ((union node *)-1)
 extern int whichprompt;		/* 1 == PS1, 2 == PS2 */
 extern const char *const parsekwd[];
 
 
 union node *parsecmd(int);
+void forcealias(void);
 void fixredir(union node *, const char *, int);
 int goodname(const char *);
 int isassignment(const char *);
 char *getprompt(void *);
-const char *expandstr(char *);
+const char *expandstr(const char *);

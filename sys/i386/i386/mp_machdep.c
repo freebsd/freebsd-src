@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
+#include <machine/cpu.h>
 
 #define WARMBOOT_TARGET		0
 #define WARMBOOT_OFF		(KERNBASE + 0x0467)
@@ -146,7 +147,7 @@ void *bootstacks[MAXCPU];
 static void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct susppcb **susppcbs;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -165,6 +166,9 @@ u_long *ipi_rendezvous_counts[MAXCPU];
 u_long *ipi_lazypmap_counts[MAXCPU];
 static u_long *ipi_hardclock_counts[MAXCPU];
 #endif
+
+/* Default cpu_ops implementation. */
+struct cpu_ops cpu_ops;
 
 /*
  * Local data and functions.
@@ -192,7 +196,7 @@ int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
 
 /* Holds pending bitmap based IPIs per CPU */
-static volatile u_int cpu_ipi_pending[MAXCPU];
+volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
 static int cpu_logical;			/* logical cpus per core */
@@ -715,9 +719,6 @@ init_secondary(void)
 	load_cr0(cr0);
 	CHECK_WRITE(0x38, 5);
 	
-	/* Disable local APIC just to be sure. */
-	lapic_disable();
-
 	/* signal our startup to the BSP. */
 	mp_naps++;
 	CHECK_WRITE(0x39, 6);
@@ -735,27 +736,28 @@ init_secondary(void)
 	lidt(&r_idt);
 #endif
 
+	/*
+	 * On real hardware, switch to x2apic mode if possible.  Do it
+	 * after aps_ready was signalled, to avoid manipulating the
+	 * mode while BSP might still want to send some IPI to us
+	 * (second startup IPI is ignored on modern hardware etc).
+	 */
+	lapic_xapic_mode();
+
 	/* Initialize the PAT MSR if present. */
 	pmap_init_pat();
 
 	/* set up CPU registers and state */
 	cpu_setregs();
 
+	/* set up SSE/NX */
+	initializecpu();
+
 	/* set up FPU state on the AP */
-	npxinit();
+	npxinit(false);
 
-	/* set up SSE registers */
-	enable_sse();
-
-#ifdef PAE
-	/* Enable the PTE no-execute bit. */
-	if ((amd_feature & AMDID_NX) != 0) {
-		uint64_t msr;
-
-		msr = rdmsr(MSR_EFER) | EFER_NXE;
-		wrmsr(MSR_EFER, msr);
-	}
-#endif
+	if (cpu_ops.cpu_init)
+		cpu_ops.cpu_init();
 
 	/* A quick check from sanity claus */
 	cpuid = PCPU_GET(cpuid);
@@ -796,7 +798,6 @@ init_secondary(void)
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
 		atomic_store_rel_int(&smp_started, 1);
-		smp_active = 1;	 /* historic */
 	}
 
 	mtx_unlock_spin(&ap_boot_mtx);
@@ -841,8 +842,8 @@ set_interrupt_apic_ids(void)
 			continue;
 
 		/* Don't let hyperthreads service interrupts. */
-		if (hyperthreading_cpus > 1 &&
-		    apic_id % hyperthreading_cpus != 0)
+		if (cpu_logical > 1 &&
+		    apic_id % cpu_logical != 0)
 			continue;
 
 		intr_add_cpu(i);
@@ -959,8 +960,10 @@ start_all_aps(void)
 
 		/* allocate and set up a boot stack data page */
 		bootstacks[cpu] =
-		    (char *)kmem_alloc(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		    (char *)kmem_malloc(kernel_arena, KSTACK_PAGES * PAGE_SIZE,
+		    M_WAITOK | M_ZERO);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
 		*((volatile u_short *) WARMBOOT_SEG) = (boot_address >> 4);
@@ -1140,14 +1143,27 @@ ipi_startup(int apic_id, int vector)
 {
 
 	/*
+	 * This attempts to follow the algorithm described in the
+	 * Intel Multiprocessor Specification v1.4 in section B.4.
+	 * For each IPI, we allow the local APIC ~20us to deliver the
+	 * IPI.  If that times out, we panic.
+	 */
+
+	/*
 	 * first we do an INIT IPI: this INIT IPI might be run, resetting
 	 * and running the target CPU. OR this INIT IPI might be latched (P5
 	 * bug), CPU waiting for STARTUP IPI. OR this INIT IPI might be
 	 * ignored.
 	 */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-	lapic_ipi_wait(-1);
+	lapic_ipi_wait(20);
+
+	/* Explicitly deassert the INIT IPI. */
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_LEVEL |
+	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT,
+	    apic_id);
+
 	DELAY(10000);		/* wait ~10mS */
 
 	/*
@@ -1159,9 +1175,11 @@ ipi_startup(int apic_id, int vector)
 	 * will run.
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
+	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	lapic_ipi_wait(-1);
+	if (!lapic_ipi_wait(20))
+		panic("Failed to deliver first STARTUP IPI to APIC %d",
+		    apic_id);
 	DELAY(200);		/* wait ~200uS */
 
 	/*
@@ -1171,9 +1189,12 @@ ipi_startup(int apic_id, int vector)
 	 * recognized after hardware RESET or INIT IPI.
 	 */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
+	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
-	lapic_ipi_wait(-1);
+	if (!lapic_ipi_wait(20))
+		panic("Failed to deliver second STARTUP IPI to APIC %d",
+		    apic_id);
+
 	DELAY(200);		/* wait ~200uS */
 }
 
@@ -1249,7 +1270,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_of
 		ipi_all_but_self(vector);
 	} else {
 		ncpu = 0;
-		while ((cpu = cpusetobj_ffs(&mask)) != 0) {
+		while ((cpu = CPU_FFS(&mask)) != 0) {
 			cpu--;
 			CPU_CLR(cpu, &mask);
 			CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu,
@@ -1398,7 +1419,7 @@ ipi_selected(cpuset_t cpus, u_int ipi)
 	if (ipi == IPI_STOP_HARD)
 		CPU_OR_ATOMIC(&ipi_nmi_pending, &cpus);
 
-	while ((cpu = cpusetobj_ffs(&cpus)) != 0) {
+	while ((cpu = CPU_FFS(&cpus)) != 0) {
 		cpu--;
 		CPU_CLR(cpu, &cpus);
 		CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
@@ -1510,13 +1531,17 @@ cpususpend_handler(void)
 {
 	u_int cpu;
 
-	cpu = PCPU_GET(cpuid);
+	mtx_assert(&smp_ipi_mtx, MA_NOTOWNED);
 
-	if (savectx(susppcbs[cpu])) {
+	cpu = PCPU_GET(cpuid);
+	if (savectx(&susppcbs[cpu]->sp_pcb)) {
+		npxsuspend(susppcbs[cpu]->sp_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
+		npxresume(susppcbs[cpu]->sp_fpususpend);
 		pmap_init_pat();
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 
@@ -1528,12 +1553,84 @@ cpususpend_handler(void)
 	while (!CPU_ISSET(cpu, &started_cpus))
 		ia32_pause();
 
+	if (cpu_ops.cpu_resume)
+		cpu_ops.cpu_resume();
+
 	/* Resume MCA and local APIC */
+	lapic_xapic_mode();
 	mca_resume();
 	lapic_setup(0);
 
+	/* Indicate that we are resumed */
+	CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 }
+
+/*
+ * Handlers for TLB related IPIs
+ */
+void
+invltlb_handler(void)
+{
+	uint64_t cr3;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_gbl[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invltlb_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	cr3 = rcr3();
+	load_cr3(cr3);
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlpg_handler(void)
+{
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_pg[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlpg_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	invlpg(smp_tlb_addr1);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlrng_handler(void)
+{
+	vm_offset_t addr;
+#ifdef COUNT_XINVLTLB_HITS
+	xhits_rng[PCPU_GET(cpuid)]++;
+#endif /* COUNT_XINVLTLB_HITS */
+#ifdef COUNT_IPIS
+	(*ipi_invlrng_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	addr = smp_tlb_addr1;
+	do {
+		invlpg(addr);
+		addr += PAGE_SIZE;
+	} while (addr < smp_tlb_addr2);
+
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
+void
+invlcache_handler(void)
+{
+#ifdef COUNT_IPIS
+	(*ipi_invlcache_counts[PCPU_GET(cpuid)])++;
+#endif /* COUNT_IPIS */
+
+	wbinvd();
+	atomic_add_int(&smp_tlb_wait, 1);
+}
+
 /*
  * This is called once the rest of the system is up and running and we're
  * ready to let the AP's out of the pen.

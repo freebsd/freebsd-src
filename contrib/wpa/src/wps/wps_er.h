@@ -2,14 +2,8 @@
  * Wi-Fi Protected Setup - External Registrar
  * Copyright (c) 2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef WPS_ER_H
@@ -73,6 +67,12 @@ struct wps_er_ap {
 	void (*m1_handler)(struct wps_er_ap *ap, struct wpabuf *m1);
 };
 
+struct wps_er_ap_settings {
+	struct dl_list list;
+	u8 uuid[WPS_UUID_LEN];
+	struct wps_credential ap_settings;
+};
+
 struct wps_er {
 	struct wps_context *wps;
 	char ifname[17];
@@ -83,6 +83,7 @@ struct wps_er {
 	int ssdp_sd;
 	struct dl_list ap;
 	struct dl_list ap_unsubscribing;
+	struct dl_list ap_settings;
 	struct http_server *http_srv;
 	int http_port;
 	unsigned int next_ap_id;
@@ -90,6 +91,9 @@ struct wps_er {
 	int deinitializing;
 	void (*deinit_done_cb)(void *ctx);
 	void *deinit_done_ctx;
+	struct in_addr filter_addr;
+	int skip_set_sel_reg;
+	const u8 *set_sel_reg_uuid_filter;
 };
 
 
@@ -97,6 +101,7 @@ struct wps_er {
 void wps_er_ap_add(struct wps_er *er, const u8 *uuid, struct in_addr *addr,
 		   const char *location, int max_age);
 void wps_er_ap_remove(struct wps_er *er, struct in_addr *addr);
+int wps_er_ap_cache_settings(struct wps_er *er, struct in_addr *addr);
 
 /* wps_er_ssdp.c */
 int wps_er_ssdp_init(struct wps_er *er);

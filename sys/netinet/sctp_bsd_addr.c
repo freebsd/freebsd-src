@@ -96,22 +96,15 @@ sctp_iterator_thread(void *v SCTP_UNUSED)
 void
 sctp_startup_iterator(void)
 {
-	static int called = 0;
-	int ret;
-
-	if (called) {
+	if (sctp_it_ctl.thread_proc) {
 		/* You only get one */
 		return;
 	}
-	/* init the iterator head */
-	called = 1;
-	sctp_it_ctl.iterator_running = 0;
-	sctp_it_ctl.iterator_flags = 0;
-	sctp_it_ctl.cur_it = NULL;
+	/* Initialize global locks here, thus only once. */
 	SCTP_ITERATOR_LOCK_INIT();
 	SCTP_IPI_ITERATOR_WQ_INIT();
 	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
-	ret = kproc_create(sctp_iterator_thread,
+	kproc_create(sctp_iterator_thread,
 	    (void *)NULL,
 	    &sctp_it_ctl.thread_proc,
 	    RFPROC,
@@ -388,17 +381,7 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 		return (m);
 	}
 	if (allonebuf) {
-		int siz;
-
-		if (SCTP_BUF_IS_EXTENDED(m)) {
-			siz = SCTP_BUF_EXTEND_SIZE(m);
-		} else {
-			if (want_header)
-				siz = MHLEN;
-			else
-				siz = MLEN;
-		}
-		if (siz < space_needed) {
+		if (SCTP_BUF_SIZE(m) < space_needed) {
 			m_freem(m);
 			return (NULL);
 		}
@@ -409,9 +392,7 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		if (SCTP_BUF_IS_EXTENDED(m)) {
-			sctp_log_mb(m, SCTP_MBUF_IALLOC);
-		}
+		sctp_log_mb(m, SCTP_MBUF_IALLOC);
 	}
 #endif
 	return (m);

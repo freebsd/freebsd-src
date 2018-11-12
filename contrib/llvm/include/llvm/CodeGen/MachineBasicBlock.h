@@ -14,8 +14,8 @@
 #ifndef LLVM_CODEGEN_MACHINEBASICBLOCK_H
 #define LLVM_CODEGEN_MACHINEBASICBLOCK_H
 
-#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/ADT/GraphTraits.h"
+#include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/Support/DataTypes.h"
 #include <functional>
 
@@ -71,7 +71,6 @@ class MachineBasicBlock : public ilist_node<MachineBasicBlock> {
   std::vector<MachineBasicBlock *> Predecessors;
   std::vector<MachineBasicBlock *> Successors;
 
-
   /// Weights - Keep track of the weights to the successors. This vector
   /// has the same order as Successors, or it is empty if we don't use it
   /// (disable optimization).
@@ -95,6 +94,10 @@ class MachineBasicBlock : public ilist_node<MachineBasicBlock> {
   /// AddressTaken - Indicate that this basic block is potentially the
   /// target of an indirect branch.
   bool AddressTaken;
+
+  /// \brief since getSymbol is a relatively heavy-weight operation, the symbol
+  /// is only computed once and is cached.
+  mutable MCSymbol *CachedMCSymbol;
 
   // Intrusive list support
   MachineBasicBlock() {}
@@ -146,18 +149,18 @@ public:
     bundle_iterator(IterTy mii) : MII(mii) {}
 
     bundle_iterator(Ty &mi) : MII(mi) {
-      assert(!mi.isInsideBundle() &&
+      assert(!mi.isBundledWithPred() &&
              "It's not legal to initialize bundle_iterator with a bundled MI");
     }
     bundle_iterator(Ty *mi) : MII(mi) {
-      assert((!mi || !mi->isInsideBundle()) &&
+      assert((!mi || !mi->isBundledWithPred()) &&
              "It's not legal to initialize bundle_iterator with a bundled MI");
     }
     // Template allows conversion from const to nonconst.
     template<class OtherTy, class OtherIterTy>
     bundle_iterator(const bundle_iterator<OtherTy, OtherIterTy> &I)
       : MII(I.getInstrIterator()) {}
-    bundle_iterator() : MII(0) {}
+    bundle_iterator() : MII(nullptr) {}
 
     Ty &operator*() const { return *MII; }
     Ty *operator->() const { return &operator*(); }
@@ -174,13 +177,13 @@ public:
     // Increment and decrement operators...
     bundle_iterator &operator--() {      // predecrement - Back up
       do --MII;
-      while (MII->isInsideBundle());
+      while (MII->isBundledWithPred());
       return *this;
     }
     bundle_iterator &operator++() {      // preincrement - Advance
-      IterTy E = MII->getParent()->instr_end();
-      do ++MII;
-      while (MII != E && MII->isInsideBundle());
+      while (MII->isBundledWithSucc())
+        ++MII;
+      ++MII;
       return *this;
     }
     bundle_iterator operator--(int) {    // postdecrement operators...
@@ -216,10 +219,15 @@ public:
   unsigned size() const { return (unsigned)Insts.size(); }
   bool empty() const { return Insts.empty(); }
 
-  MachineInstr& front() { return Insts.front(); }
-  MachineInstr& back()  { return Insts.back(); }
-  const MachineInstr& front() const { return Insts.front(); }
-  const MachineInstr& back()  const { return Insts.back(); }
+  MachineInstr       &instr_front()       { return Insts.front(); }
+  MachineInstr       &instr_back()        { return Insts.back();  }
+  const MachineInstr &instr_front() const { return Insts.front(); }
+  const MachineInstr &instr_back()  const { return Insts.back();  }
+
+  MachineInstr       &front()             { return Insts.front(); }
+  MachineInstr       &back()              { return *--end();      }
+  const MachineInstr &front()       const { return Insts.front(); }
+  const MachineInstr &back()        const { return *--end();      }
 
   instr_iterator                instr_begin()       { return Insts.begin();  }
   const_instr_iterator          instr_begin() const { return Insts.begin();  }
@@ -239,6 +247,12 @@ public:
   reverse_iterator       rend  ()       { return instr_rend();   }
   const_reverse_iterator rend  () const { return instr_rend();   }
 
+  inline iterator_range<iterator> terminators() {
+    return iterator_range<iterator>(getFirstTerminator(), end());
+  }
+  inline iterator_range<const_iterator> terminators() const {
+    return iterator_range<const_iterator>(getFirstTerminator(), end());
+  }
 
   // Machine-CFG iterators
   typedef std::vector<MachineBasicBlock *>::iterator       pred_iterator;
@@ -253,7 +267,6 @@ public:
                                                          succ_reverse_iterator;
   typedef std::vector<MachineBasicBlock *>::const_reverse_iterator
                                                    const_succ_reverse_iterator;
-
   pred_iterator        pred_begin()       { return Predecessors.begin(); }
   const_pred_iterator  pred_begin() const { return Predecessors.begin(); }
   pred_iterator        pred_end()         { return Predecessors.end();   }
@@ -287,11 +300,29 @@ public:
   }
   bool                 succ_empty() const { return Successors.empty();   }
 
+  inline iterator_range<pred_iterator> predecessors() {
+    return iterator_range<pred_iterator>(pred_begin(), pred_end());
+  }
+  inline iterator_range<const_pred_iterator> predecessors() const {
+    return iterator_range<const_pred_iterator>(pred_begin(), pred_end());
+  }
+  inline iterator_range<succ_iterator> successors() {
+    return iterator_range<succ_iterator>(succ_begin(), succ_end());
+  }
+  inline iterator_range<const_succ_iterator> successors() const {
+    return iterator_range<const_succ_iterator>(succ_begin(), succ_end());
+  }
+
   // LiveIn management methods.
 
   /// addLiveIn - Add the specified register as a live in.  Note that it
   /// is an error to add the same register to the same set more than once.
   void addLiveIn(unsigned Reg)  { LiveIns.push_back(Reg); }
+
+  /// Add PhysReg as live in to this block, and ensure that there is a copy of
+  /// PhysReg to a virtual register of class RC. Return the virtual register
+  /// that is a copy of the live in PhysReg.
+  unsigned addLiveIn(unsigned PhysReg, const TargetRegisterClass *RC);
 
   /// removeLiveIn - Remove the specified register from the live in set.
   ///
@@ -355,6 +386,9 @@ public:
   ///
   void addSuccessor(MachineBasicBlock *succ, uint32_t weight = 0);
 
+  /// Set successor weight of a given iterator.
+  void setSuccWeight(succ_iterator I, uint32_t weight);
+
   /// removeSuccessor - Remove successor from the successors list of this
   /// MachineBasicBlock. The Predecessors list of succ is automatically updated.
   ///
@@ -402,8 +436,8 @@ public:
   /// branch to do so (e.g., a table jump).  True is a conservative answer.
   bool canFallThrough();
 
-  /// Returns a pointer to the first instructon in this block that is not a
-  /// PHINode instruction. When adding instruction to the beginning of the
+  /// Returns a pointer to the first instruction in this block that is not a
+  /// PHINode instruction. When adding instructions to the beginning of the
   /// basic block, they should be added before the returned value, not before
   /// the first instruction, which might be PHI.
   /// Returns end() is there's no non-PHI instruction.
@@ -441,80 +475,113 @@ public:
   void pop_back() { Insts.pop_back(); }
   void push_back(MachineInstr *MI) { Insts.push_back(MI); }
 
-  template<typename IT>
-  void insert(instr_iterator I, IT S, IT E) {
-    Insts.insert(I, S, E);
-  }
-  instr_iterator insert(instr_iterator I, MachineInstr *M) {
-    return Insts.insert(I, M);
-  }
-  instr_iterator insertAfter(instr_iterator I, MachineInstr *M) {
-    return Insts.insertAfter(I, M);
-  }
+  /// Insert MI into the instruction list before I, possibly inside a bundle.
+  ///
+  /// If the insertion point is inside a bundle, MI will be added to the bundle,
+  /// otherwise MI will not be added to any bundle. That means this function
+  /// alone can't be used to prepend or append instructions to bundles. See
+  /// MIBundleBuilder::insert() for a more reliable way of doing that.
+  instr_iterator insert(instr_iterator I, MachineInstr *M);
 
+  /// Insert a range of instructions into the instruction list before I.
   template<typename IT>
   void insert(iterator I, IT S, IT E) {
+    assert((I == end() || I->getParent() == this) &&
+           "iterator points outside of basic block");
     Insts.insert(I.getInstrIterator(), S, E);
   }
-  iterator insert(iterator I, MachineInstr *M) {
-    return Insts.insert(I.getInstrIterator(), M);
-  }
-  iterator insertAfter(iterator I, MachineInstr *M) {
-    return Insts.insertAfter(I.getInstrIterator(), M);
+
+  /// Insert MI into the instruction list before I.
+  iterator insert(iterator I, MachineInstr *MI) {
+    assert((I == end() || I->getParent() == this) &&
+           "iterator points outside of basic block");
+    assert(!MI->isBundledWithPred() && !MI->isBundledWithSucc() &&
+           "Cannot insert instruction with bundle flags");
+    return Insts.insert(I.getInstrIterator(), MI);
   }
 
-  /// erase - Remove the specified element or range from the instruction list.
-  /// These functions delete any instructions removed.
+  /// Insert MI into the instruction list after I.
+  iterator insertAfter(iterator I, MachineInstr *MI) {
+    assert((I == end() || I->getParent() == this) &&
+           "iterator points outside of basic block");
+    assert(!MI->isBundledWithPred() && !MI->isBundledWithSucc() &&
+           "Cannot insert instruction with bundle flags");
+    return Insts.insertAfter(I.getInstrIterator(), MI);
+  }
+
+  /// Remove an instruction from the instruction list and delete it.
   ///
-  instr_iterator erase(instr_iterator I) {
-    return Insts.erase(I);
-  }
-  instr_iterator erase(instr_iterator I, instr_iterator E) {
-    return Insts.erase(I, E);
-  }
+  /// If the instruction is part of a bundle, the other instructions in the
+  /// bundle will still be bundled after removing the single instruction.
+  instr_iterator erase(instr_iterator I);
+
+  /// Remove an instruction from the instruction list and delete it.
+  ///
+  /// If the instruction is part of a bundle, the other instructions in the
+  /// bundle will still be bundled after removing the single instruction.
   instr_iterator erase_instr(MachineInstr *I) {
-    instr_iterator MII(I);
-    return erase(MII);
+    return erase(instr_iterator(I));
   }
 
-  iterator erase(iterator I);
+  /// Remove a range of instructions from the instruction list and delete them.
   iterator erase(iterator I, iterator E) {
     return Insts.erase(I.getInstrIterator(), E.getInstrIterator());
   }
-  iterator erase(MachineInstr *I) {
-    iterator MII(I);
-    return erase(MII);
+
+  /// Remove an instruction or bundle from the instruction list and delete it.
+  ///
+  /// If I points to a bundle of instructions, they are all erased.
+  iterator erase(iterator I) {
+    return erase(I, std::next(I));
   }
 
-  /// remove - Remove the instruction from the instruction list. This function
-  /// does not delete the instruction. WARNING: Note, if the specified
-  /// instruction is a bundle this function will remove all the bundled
-  /// instructions as well. It is up to the caller to keep a list of the
-  /// bundled instructions and re-insert them if desired. This function is
-  /// *not recommended* for manipulating instructions with bundles. Use
-  /// splice instead.
-  MachineInstr *remove(MachineInstr *I);
+  /// Remove an instruction from the instruction list and delete it.
+  ///
+  /// If I is the head of a bundle of instructions, the whole bundle will be
+  /// erased.
+  iterator erase(MachineInstr *I) {
+    return erase(iterator(I));
+  }
+
+  /// Remove the unbundled instruction from the instruction list without
+  /// deleting it.
+  ///
+  /// This function can not be used to remove bundled instructions, use
+  /// remove_instr to remove individual instructions from a bundle.
+  MachineInstr *remove(MachineInstr *I) {
+    assert(!I->isBundled() && "Cannot remove bundled instructions");
+    return Insts.remove(I);
+  }
+
+  /// Remove the possibly bundled instruction from the instruction list
+  /// without deleting it.
+  ///
+  /// If the instruction is part of a bundle, the other instructions in the
+  /// bundle will still be bundled after removing the single instruction.
+  MachineInstr *remove_instr(MachineInstr *I);
+
   void clear() {
     Insts.clear();
   }
 
-  /// splice - Take an instruction from MBB 'Other' at the position From,
-  /// and insert it into this MBB right before 'where'.
-  void splice(instr_iterator where, MachineBasicBlock *Other,
-              instr_iterator From) {
-    Insts.splice(where, Other->Insts, From);
+  /// Take an instruction from MBB 'Other' at the position From, and insert it
+  /// into this MBB right before 'Where'.
+  ///
+  /// If From points to a bundle of instructions, the whole bundle is moved.
+  void splice(iterator Where, MachineBasicBlock *Other, iterator From) {
+    // The range splice() doesn't allow noop moves, but this one does.
+    if (Where != From)
+      splice(Where, Other, From, std::next(From));
   }
-  void splice(iterator where, MachineBasicBlock *Other, iterator From);
 
-  /// splice - Take a block of instructions from MBB 'Other' in the range [From,
-  /// To), and insert them into this MBB right before 'where'.
-  void splice(instr_iterator where, MachineBasicBlock *Other, instr_iterator From,
-              instr_iterator To) {
-    Insts.splice(where, Other->Insts, From, To);
-  }
-  void splice(iterator where, MachineBasicBlock *Other, iterator From,
-              iterator To) {
-    Insts.splice(where.getInstrIterator(), Other->Insts,
+  /// Take a block of instructions from MBB 'Other' in the range [From, To),
+  /// and insert them into this MBB right before 'Where'.
+  ///
+  /// The instruction at 'Where' must not be included in the range of
+  /// instructions to move.
+  void splice(iterator Where, MachineBasicBlock *Other,
+              iterator From, iterator To) {
+    Insts.splice(Where.getInstrIterator(), Other->Insts,
                  From.getInstrIterator(), To.getInstrIterator());
   }
 
@@ -559,7 +626,7 @@ public:
 
   /// computeRegisterLiveness - Return whether (physical) register \c Reg
   /// has been <def>ined and not <kill>ed as of just before \c MI.
-  /// 
+  ///
   /// Search is localised to a neighborhood of
   /// \c Neighborhood instructions before (searching for defs or kills) and
   /// Neighborhood instructions after (searching just for defs) MI.
@@ -571,7 +638,10 @@ public:
 
   // Debugging methods.
   void dump() const;
-  void print(raw_ostream &OS, SlotIndexes* = 0) const;
+  void print(raw_ostream &OS, SlotIndexes* = nullptr) const;
+
+  // Printing method used by LoopInfo.
+  void printAsOperand(raw_ostream &OS, bool PrintType = true) const;
 
   /// getNumber - MachineBasicBlocks are uniquely numbered at the function
   /// level, unless they're not in a MachineFunction yet, in which case this
@@ -619,8 +689,6 @@ private:
 };
 
 raw_ostream& operator<<(raw_ostream &OS, const MachineBasicBlock &MBB);
-
-void WriteAsOperand(raw_ostream &, const MachineBasicBlock*, bool t);
 
 // This is useful when building IndexedMaps keyed on basic block pointers.
 struct MBB2NumberFunctor :
@@ -696,6 +764,31 @@ template <> struct GraphTraits<Inverse<const MachineBasicBlock*> > {
   static inline ChildIteratorType child_end(NodeType *N) {
     return N->pred_end();
   }
+};
+
+
+
+/// MachineInstrSpan provides an interface to get an iteration range
+/// containing the instruction it was initialized with, along with all
+/// those instructions inserted prior to or following that instruction
+/// at some point after the MachineInstrSpan is constructed.
+class MachineInstrSpan {
+  MachineBasicBlock &MBB;
+  MachineBasicBlock::iterator I, B, E;
+public:
+  MachineInstrSpan(MachineBasicBlock::iterator I)
+    : MBB(*I->getParent()),
+      I(I),
+      B(I == MBB.begin() ? MBB.end() : std::prev(I)),
+      E(std::next(I)) {}
+
+  MachineBasicBlock::iterator begin() {
+    return B == MBB.end() ? MBB.begin() : std::next(B);
+  }
+  MachineBasicBlock::iterator end() { return E; }
+  bool empty() { return begin() == end(); }
+
+  MachineBasicBlock::iterator getInitial() { return I; }
 };
 
 } // End llvm namespace

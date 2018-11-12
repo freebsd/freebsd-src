@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h> 
 
 #include <netinet/in.h>
@@ -171,12 +173,14 @@ div_destroy(void)
  * IPPROTO_DIVERT is not in the real IP protocol number space; this
  * function should never be called.  Just in case, drop any packets.
  */
-static void
-div_input(struct mbuf *m, int off)
+static int
+div_input(struct mbuf **mp, int *offp, int proto)
 {
+	struct mbuf *m = *mp;
 
 	KMOD_IPSTAT_INC(ips_noproto);
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 /*
@@ -832,5 +836,5 @@ static moduledata_t ipdivertmod = {
 };
 
 DECLARE_MODULE(ipdivert, ipdivertmod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
-MODULE_DEPEND(ipdivert, ipfw, 2, 2, 2);
+MODULE_DEPEND(ipdivert, ipfw, 3, 3, 3);
 MODULE_VERSION(ipdivert, 1);

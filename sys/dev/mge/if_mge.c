@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -1139,6 +1140,8 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 			mb->m_pkthdr.len -= 2;
 			mb->m_data += 2;
 
+			mb->m_pkthdr.rcvif = ifp;
+
 			mge_offload_process_frame(ifp, mb, status,
 			    bufsize);
 
@@ -1157,6 +1160,8 @@ mge_intr_rx_locked(struct mge_softc *sc, int count)
 		if (count > 0)
 			count -= 1;
 	}
+
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, rx_npkts);
 
 	return (rx_npkts);
 }
@@ -1231,9 +1236,9 @@ mge_intr_tx_locked(struct mge_softc *sc)
 		/* Update collision statistics */
 		if (status & MGE_ERR_SUMMARY) {
 			if ((status & MGE_ERR_MASK) == MGE_TX_ERROR_LC)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if ((status & MGE_ERR_MASK) == MGE_TX_ERROR_RL)
-				ifp->if_collisions += 16;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 16);
 		}
 
 		bus_dmamap_sync(sc->mge_tx_dtag, dw->buffer_dmap,
@@ -1243,7 +1248,7 @@ mge_intr_tx_locked(struct mge_softc *sc)
 		dw->buffer = (struct mbuf*)NULL;
 		send++;
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
 	if (send) {
@@ -1386,6 +1391,9 @@ static int
 mge_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "mrvl,ge"))
 		return (ENXIO);
 
@@ -1433,12 +1441,6 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 
 	ifp = sc->ifp;
 
-	/* Check for free descriptors */
-	if (sc->tx_desc_used_count + 1 >= MGE_TX_DESC_NUM) {
-		/* No free descriptors */
-		return (-1);
-	}
-
 	/* Fetch unused map */
 	desc_no = sc->tx_desc_curr;
 	dw = &sc->mge_tx_desc[desc_no];
@@ -1447,9 +1449,16 @@ mge_encap(struct mge_softc *sc, struct mbuf *m0)
 	/* Create mapping in DMA memory */
 	error = bus_dmamap_load_mbuf_sg(sc->mge_tx_dtag, mapp, m0, segs, &nsegs,
 	    BUS_DMA_NOWAIT);
-	if (error != 0 || nsegs != 1 ) {
+	if (error != 0) {
+		m_freem(m0);
+		return (error);
+	}
+
+	/* Only one segment is supported. */
+	if (nsegs != 1) {
 		bus_dmamap_unload(sc->mge_tx_dtag, mapp);
-		return ((error != 0) ? error : -1);
+		m_freem(m0);
+		return (-1);
 	}
 
 	bus_dmamap_sync(sc->mge_tx_dtag, mapp, BUS_DMASYNC_PREWRITE);
@@ -1507,7 +1516,7 @@ mge_watchdog(struct mge_softc *sc)
 		return;
 	}
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	mge_stop(sc);
@@ -1549,15 +1558,33 @@ mge_start_locked(struct ifnet *ifp)
 		if (m0 == NULL)
 			break;
 
-		mtmp = m_defrag(m0, M_NOWAIT);
-		if (mtmp)
-			m0 = mtmp;
+		if (m0->m_pkthdr.csum_flags & (CSUM_IP|CSUM_TCP|CSUM_UDP) ||
+		    m0->m_flags & M_VLANTAG) {
+			if (M_WRITABLE(m0) == 0) {
+				mtmp = m_dup(m0, M_NOWAIT);
+				m_freem(m0);
+				if (mtmp == NULL)
+					continue;
+				m0 = mtmp;
+			}
+		}
+		/* The driver support only one DMA fragment. */
+		if (m0->m_next != NULL) {
+			mtmp = m_defrag(m0, M_NOWAIT);
+			if (mtmp)
+				m0 = mtmp;
+		}
 
-		if (mge_encap(sc, m0)) {
+		/* Check for free descriptors */
+		if (sc->tx_desc_used_count + 1 >= MGE_TX_DESC_NUM) {
 			IF_PREPEND(&ifp->if_snd, m0);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
+
+		if (mge_encap(sc, m0) != 0)
+			break;
+
 		queued++;
 		BPF_MTAP(ifp, m0);
 	}
@@ -1703,9 +1730,7 @@ mge_offload_setup_descriptor(struct mge_softc *sc, struct mge_desc_wrapper *dw)
 
 		ip = (struct ip *)(m0->m_data + ehlen);
 		cmd_status |= MGE_TX_IP_HDR_SIZE(ip->ip_hl);
-
-		if ((m0->m_flags & M_FRAG) == 0)
-			cmd_status |= MGE_TX_NOT_FRAGMENT;
+		cmd_status |= MGE_TX_NOT_FRAGMENT;
 	}
 
 	if (csum_flags & CSUM_IP)

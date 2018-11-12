@@ -13,12 +13,8 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb|hf)?/arm/:C/powerpc64/powerpc/}
 .endif
-
-# Set any local definitions first. Place this early, but it needs
-# MACHINE_CPUARCH to be defined.
-.sinclude <local.sys.mk>
 
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
@@ -39,9 +35,12 @@ AR		?=	ar
 .if defined(%POSIX)
 ARFLAGS		?=	-rv
 .else
-ARFLAGS		?=	cru
+ARFLAGS		?=	-crD
 .endif
 RANLIB		?=	ranlib
+.if !defined(%POSIX)
+RANLIBFLAGS	?=	-D
+.endif
 
 AS		?=	as
 AFLAGS		?=
@@ -68,13 +67,14 @@ CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
 CTFMERGE	?=	ctfmerge
+
+# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
+# read-only files as non-root by passing -f.
+CP		?=	cp -f
+
 DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
-.else
-# XXX: What to do here? Is removing the CFLAGS part completely ok here?
-# For now comment it out to not compile with -g unconditionally.
-#CFLAGS		+=	-g
 .endif
 
 CXX		?=	c++
@@ -95,7 +95,13 @@ ECHODIR		?=	true
 .endif
 .endif
 
-.if !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+.if defined(.PARSEDIR)
+# _+_ appears to be a workaround for the special src .MAKE not working.
+# setting it to + interferes with -N
+_+_		?=
+.elif !empty(.MAKEFLAGS:M-n) && ${.MAKEFLAGS:M-n} == "-n"
+# the check above matches only a single -n, so -n -n will result
+# in _+_ = +
 _+_		?=
 .else
 _+_		?=	+
@@ -116,7 +122,8 @@ LEX		?=	lex
 LFLAGS		?=
 
 LD		?=	ld
-LDFLAGS		?=
+LDFLAGS		?=				# LDFLAGS is for CC, 
+_LDFLAGS	=	${LDFLAGS:S/-Wl,//g}	# strip -Wl, for LD
 
 LINT		?=	lint
 LINTFLAGS	?=	-cghapbx
@@ -135,6 +142,8 @@ OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
 
 OBJCOPY		?=	objcopy
 
+OBJDUMP		?=	objdump
+
 PC		?=	pc
 PFLAGS		?=
 
@@ -143,6 +152,10 @@ RFLAGS		?=
 .endif
 
 SHELL		?=	sh
+
+.if !defined(%POSIX)
+SIZE		?=	size
+.endif
 
 YACC		?=	yacc
 .if defined(%POSIX)
@@ -162,11 +175,9 @@ YFLAGS		?=	-d
 # SINGLE SUFFIX RULES
 .c:
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .f:
 	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .sh:
 	cp -f ${.IMPSRC} ${.TARGET}
@@ -176,25 +187,21 @@ YFLAGS		?=	-d
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .f.o:
 	${FC} ${FFLAGS} -c ${.IMPSRC}
-	${CTFCONVERT_CMD}
 
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c
 	rm -f y.tab.c
 	mv y.tab.o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .l.o:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c lex.yy.c
 	rm -f lex.yy.c
 	mv lex.yy.o ${.TARGET}
-	${CTFCONVERT_CMD}
 
 .y.c:
 	${YACC} ${YFLAGS} ${.IMPSRC}
@@ -235,21 +242,21 @@ YFLAGS		?=	-d
 	${CTFCONVERT_CMD}
 
 .c.o:
-	${CC} ${CFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .cc .cpp .cxx .C:
 	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
 
 .cc.o .cpp.o .cxx.o .C.o:
-	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
+	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .m.o:
-	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC}
+	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .p.o:
-	${PC} ${PFLAGS} -c ${.IMPSRC}
+	${PC} ${PFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .e .r .F .f:
@@ -257,14 +264,15 @@ YFLAGS		?=	-d
 	    -o ${.TARGET}
 
 .e.o .r.o .F.o .f.o:
-	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
+	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .S.o:
-	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
+	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .asm.o:
-	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
+	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} \
+	    -o ${.TARGET}
 	${CTFCONVERT_CMD}
 
 .s.o:
@@ -315,23 +323,25 @@ YFLAGS		?=	-d
 	rm -f ${.PREFIX}.tmp.c
 	${CTFCONVERT_CMD}
 
-# FreeBSD build pollution.  Hide it in the non-POSIX part of the ifdef.
+# Pull in global settings.
 __MAKE_CONF?=/etc/make.conf
 .if exists(${__MAKE_CONF})
 .include "${__MAKE_CONF}"
 .endif
 
+# Setup anything for the FreeBSD source build, if we're building
+# inside the source tree. Needs to be after make.conf, but before
+# local stuff.
+.sinclude <src.sys.mk>
+
+# Set any local definitions first. Place this early, but it needs
+# MACHINE_CPUARCH to be defined.
+.sinclude <local.sys.mk>
+
 .if defined(__MAKE_SHELL) && !empty(__MAKE_SHELL)
 SHELL=	${__MAKE_SHELL}
 .SHELL: path=${__MAKE_SHELL}
 .endif
-
-# Default executable format
-# XXX hint for bsd.port.mk
-OBJFORMAT?=	elf
-
-# Tell bmake to expand -V VAR by default
-.MAKE.EXPAND_VARIABLES= yes
 
 .if !defined(.PARSEDIR)
 # We are not bmake, which is more aggressive about searching .PATH
@@ -342,8 +352,25 @@ OBJFORMAT?=	elf
 
 # Toggle on warnings
 .WARN: dirsyntax
-.endif
+.else # is bmake
+# Tell bmake to expand -V VAR by default
+.MAKE.EXPAND_VARIABLES= yes
 
+# Tell bmake the makefile preference
+.MAKE.MAKEFILE_PREFERENCE= BSDmakefile makefile Makefile
+
+# By default bmake does *not* use set -e
+# when running target scripts, this is a problem for many makefiles here.
+# So define a shell that will do what FreeBSD expects.
+.ifndef WITHOUT_SHELL_ERRCTL
+.SHELL: name=sh \
+	quiet="set -" echo="set -v" filter="set -" \
+	hasErrCtl=yes check="set -e" ignore="set +e" \
+	echoFlag=v errFlag=e \
+	path=${__MAKE_SHELL:U/bin/sh}
 .endif
+.endif # bmake
 
 .include <bsd.cpu.mk>
+
+.endif # ! Posix

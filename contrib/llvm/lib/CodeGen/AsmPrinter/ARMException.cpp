@@ -12,81 +12,139 @@
 //===----------------------------------------------------------------------===//
 
 #include "DwarfException.h"
-#include "llvm/Module.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/CodeGen/AsmPrinter.h"
-#include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineModuleInfo.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Mangler.h"
+#include "llvm/IR/Module.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/DataLayout.h"
-#include "llvm/Target/TargetFrameLowering.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Twine.h"
+#include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
-cl::opt<bool>
-EnableARMEHABIDescriptors("arm-enable-ehabi-descriptors", cl::Hidden,
-  cl::desc("Generate ARM EHABI tables with unwinding descriptors"),
-  cl::init(false));
-
-
 ARMException::ARMException(AsmPrinter *A)
-  : DwarfException(A) {}
+  : EHStreamer(A), shouldEmitCFI(false) {}
 
 ARMException::~ARMException() {}
 
-void ARMException::EndModule() {
+ARMTargetStreamer &ARMException::getTargetStreamer() {
+  MCTargetStreamer &TS = *Asm->OutStreamer.getTargetStreamer();
+  return static_cast<ARMTargetStreamer &>(TS);
 }
 
-/// BeginFunction - Gather pre-function exception information. Assumes it's
+/// endModule - Emit all exception information that should come after the
+/// content.
+void ARMException::endModule() {
+  if (shouldEmitCFI)
+    Asm->OutStreamer.EmitCFISections(false, true);
+}
+
+/// beginFunction - Gather pre-function exception information. Assumes it's
 /// being emitted immediately after the function entry point.
-void ARMException::BeginFunction(const MachineFunction *MF) {
-  Asm->OutStreamer.EmitFnStart();
-  if (Asm->MF->getFunction()->needsUnwindTableEntry())
-    Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_begin",
-                                                  Asm->getFunctionNumber()));
+void ARMException::beginFunction(const MachineFunction *MF) {
+  if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+    getTargetStreamer().emitFnStart();
+  Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_begin",
+                                                Asm->getFunctionNumber()));
+  // See if we need call frame info.
+  AsmPrinter::CFIMoveType MoveType = Asm->needsCFIMoves();
+  assert(MoveType != AsmPrinter::CFI_M_EH &&
+         "non-EH CFI not yet supported in prologue with EHABI lowering");
+  if (MoveType == AsmPrinter::CFI_M_Debug) {
+    shouldEmitCFI = true;
+    Asm->OutStreamer.EmitCFIStartProc(false);
+  }
 }
 
-/// EndFunction - Gather and emit post-function exception information.
+/// endFunction - Gather and emit post-function exception information.
 ///
-void ARMException::EndFunction() {
-  if (!Asm->MF->getFunction()->needsUnwindTableEntry())
-    Asm->OutStreamer.EmitCantUnwind();
+void ARMException::endFunction(const MachineFunction *) {
+  if (shouldEmitCFI)
+    Asm->OutStreamer.EmitCFIEndProc();
+
+  // Map all labels and get rid of any dead landing pads.
+  MMI->TidyLandingPads();
+
+  ARMTargetStreamer &ATS = getTargetStreamer();
+  if (!Asm->MF->getFunction()->needsUnwindTableEntry() &&
+      MMI->getLandingPads().empty())
+    ATS.emitCantUnwind();
   else {
     Asm->OutStreamer.EmitLabel(Asm->GetTempSymbol("eh_func_end",
                                                   Asm->getFunctionNumber()));
+    if (!MMI->getLandingPads().empty()) {
+      // Emit references to personality.
+      if (const Function * Personality =
+          MMI->getPersonalities()[MMI->getPersonalityIndex()]) {
+        MCSymbol *PerSym = Asm->getSymbol(Personality);
+        Asm->OutStreamer.EmitSymbolAttribute(PerSym, MCSA_Global);
+        ATS.emitPersonality(PerSym);
+      }
 
-    // Emit references to personality.
-    if (const Function * Personality =
-        MMI->getPersonalities()[MMI->getPersonalityIndex()]) {
-      MCSymbol *PerSym = Asm->Mang->getSymbol(Personality);
-      Asm->OutStreamer.EmitSymbolAttribute(PerSym, MCSA_Global);
-      Asm->OutStreamer.EmitPersonality(PerSym);
-    }
-
-    if (EnableARMEHABIDescriptors) {
-      // Map all labels and get rid of any dead landing pads.
-      MMI->TidyLandingPads();
-
-      Asm->OutStreamer.EmitHandlerData();
+      // Emit .handlerdata directive.
+      ATS.emitHandlerData();
 
       // Emit actual exception table
-      EmitExceptionTable();
+      emitExceptionTable();
     }
   }
 
-  Asm->OutStreamer.EmitFnEnd();
+  if (Asm->MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+    ATS.emitFnEnd();
+}
+
+void ARMException::emitTypeInfos(unsigned TTypeEncoding) {
+  const std::vector<const GlobalValue *> &TypeInfos = MMI->getTypeInfos();
+  const std::vector<unsigned> &FilterIds = MMI->getFilterIds();
+
+  bool VerboseAsm = Asm->OutStreamer.isVerboseAsm();
+
+  int Entry = 0;
+  // Emit the Catch TypeInfos.
+  if (VerboseAsm && !TypeInfos.empty()) {
+    Asm->OutStreamer.AddComment(">> Catch TypeInfos <<");
+    Asm->OutStreamer.AddBlankLine();
+    Entry = TypeInfos.size();
+  }
+
+  for (std::vector<const GlobalValue *>::const_reverse_iterator
+         I = TypeInfos.rbegin(), E = TypeInfos.rend(); I != E; ++I) {
+    const GlobalValue *GV = *I;
+    if (VerboseAsm)
+      Asm->OutStreamer.AddComment("TypeInfo " + Twine(Entry--));
+    Asm->EmitTTypeReference(GV, TTypeEncoding);
+  }
+
+  // Emit the Exception Specifications.
+  if (VerboseAsm && !FilterIds.empty()) {
+    Asm->OutStreamer.AddComment(">> Filter TypeInfos <<");
+    Asm->OutStreamer.AddBlankLine();
+    Entry = 0;
+  }
+  for (std::vector<unsigned>::const_iterator
+         I = FilterIds.begin(), E = FilterIds.end(); I < E; ++I) {
+    unsigned TypeID = *I;
+    if (VerboseAsm) {
+      --Entry;
+      if (TypeID != 0)
+        Asm->OutStreamer.AddComment("FilterInfo " + Twine(Entry));
+    }
+
+    Asm->EmitTTypeReference((TypeID == 0 ? nullptr : TypeInfos[TypeID - 1]),
+                            TTypeEncoding);
+  }
 }

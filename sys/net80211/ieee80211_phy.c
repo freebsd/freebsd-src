@@ -35,11 +35,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 
 #include <sys/socket.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
+
+#include <net/ethernet.h>
+#include <net/route.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_phy.h>
@@ -60,8 +64,11 @@ struct ieee80211_ds_plcp_hdr {
 #define	TURBO	IEEE80211_T_TURBO
 #define	HALF	IEEE80211_T_OFDM_HALF
 #define	QUART	IEEE80211_T_OFDM_QUARTER
+#define	HT	IEEE80211_T_HT
+/* XXX the 11n and the basic rate flag are unfortunately overlapping. Grr. */
+#define	N(r)	(IEEE80211_RATE_MCS | r)
 #define	PBCC	(IEEE80211_T_OFDM_QUARTER+1)		/* XXX */
-#define	B(r)	(0x80 | r)
+#define	B(r)	(IEEE80211_RATE_BASIC | r)
 #define	Mb(x)	(x*1000)
 
 static struct ieee80211_rate_table ieee80211_11b_table = {
@@ -176,6 +183,98 @@ static struct ieee80211_rate_table ieee80211_turboa_table = {
     },
 };
 
+static struct ieee80211_rate_table ieee80211_11ng_table = {
+    .rateCount = 36,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = CCK,     1000,    0x00,      B(2),   0 },
+     [1] = { .phy = CCK,     2000,    0x04,      B(4),   1 },
+     [2] = { .phy = CCK,     5500,    0x04,     B(11),   2 },
+     [3] = { .phy = CCK,    11000,    0x04,     B(22),   3 },
+     [4] = { .phy = OFDM,    6000,    0x00,        12,   4 },
+     [5] = { .phy = OFDM,    9000,    0x00,        18,   4 },
+     [6] = { .phy = OFDM,   12000,    0x00,        24,   6 },
+     [7] = { .phy = OFDM,   18000,    0x00,        36,   6 },
+     [8] = { .phy = OFDM,   24000,    0x00,        48,   8 },
+     [9] = { .phy = OFDM,   36000,    0x00,        72,   8 },
+    [10] = { .phy = OFDM,   48000,    0x00,        96,   8 },
+    [11] = { .phy = OFDM,   54000,    0x00,       108,   8 },
+
+    [12] = { .phy = HT,      6500,    0x00,      N(0),   4 },
+    [13] = { .phy = HT,     13000,    0x00,      N(1),   6 },
+    [14] = { .phy = HT,     19500,    0x00,      N(2),   6 },
+    [15] = { .phy = HT,     26000,    0x00,      N(3),   8 },
+    [16] = { .phy = HT,     39000,    0x00,      N(4),   8 },
+    [17] = { .phy = HT,     52000,    0x00,      N(5),   8 },
+    [18] = { .phy = HT,     58500,    0x00,      N(6),   8 },
+    [19] = { .phy = HT,     65000,    0x00,      N(7),   8 },
+
+    [20] = { .phy = HT,     13000,    0x00,      N(8),   4 },
+    [21] = { .phy = HT,     26000,    0x00,      N(9),   6 },
+    [22] = { .phy = HT,     39000,    0x00,     N(10),   6 },
+    [23] = { .phy = HT,     52000,    0x00,     N(11),   8 },
+    [24] = { .phy = HT,     78000,    0x00,     N(12),   8 },
+    [25] = { .phy = HT,    104000,    0x00,     N(13),   8 },
+    [26] = { .phy = HT,    117000,    0x00,     N(14),   8 },
+    [27] = { .phy = HT,    130000,    0x00,     N(15),   8 },
+
+    [28] = { .phy = HT,     19500,    0x00,     N(16),   4 },
+    [29] = { .phy = HT,     39000,    0x00,     N(17),   6 },
+    [30] = { .phy = HT,     58500,    0x00,     N(18),   6 },
+    [31] = { .phy = HT,     78000,    0x00,     N(19),   8 },
+    [32] = { .phy = HT,    117000,    0x00,     N(20),   8 },
+    [33] = { .phy = HT,    156000,    0x00,     N(21),   8 },
+    [34] = { .phy = HT,    175500,    0x00,     N(22),   8 },
+    [35] = { .phy = HT,    195000,    0x00,     N(23),   8 },
+
+    },
+};
+
+static struct ieee80211_rate_table ieee80211_11na_table = {
+    .rateCount = 32,
+    .info = {
+/*                                   short            ctrl  */
+/*                                Preamble  dot11Rate Rate */
+     [0] = { .phy = OFDM,    6000,    0x00,     B(12),   0 },
+     [1] = { .phy = OFDM,    9000,    0x00,        18,   0 },
+     [2] = { .phy = OFDM,   12000,    0x00,     B(24),   2 },
+     [3] = { .phy = OFDM,   18000,    0x00,        36,   2 },
+     [4] = { .phy = OFDM,   24000,    0x00,     B(48),   4 },
+     [5] = { .phy = OFDM,   36000,    0x00,        72,   4 },
+     [6] = { .phy = OFDM,   48000,    0x00,        96,   4 },
+     [7] = { .phy = OFDM,   54000,    0x00,       108,   4 },
+
+     [8] = { .phy = HT,      6500,    0x00,      N(0),   0 },
+     [9] = { .phy = HT,     13000,    0x00,      N(1),   2 },
+    [10] = { .phy = HT,     19500,    0x00,      N(2),   2 },
+    [11] = { .phy = HT,     26000,    0x00,      N(3),   4 },
+    [12] = { .phy = HT,     39000,    0x00,      N(4),   4 },
+    [13] = { .phy = HT,     52000,    0x00,      N(5),   4 },
+    [14] = { .phy = HT,     58500,    0x00,      N(6),   4 },
+    [15] = { .phy = HT,     65000,    0x00,      N(7),   4 },
+
+    [16] = { .phy = HT,     13000,    0x00,      N(8),   0 },
+    [17] = { .phy = HT,     26000,    0x00,      N(9),   2 },
+    [18] = { .phy = HT,     39000,    0x00,     N(10),   2 },
+    [19] = { .phy = HT,     52000,    0x00,     N(11),   4 },
+    [20] = { .phy = HT,     78000,    0x00,     N(12),   4 },
+    [21] = { .phy = HT,    104000,    0x00,     N(13),   4 },
+    [22] = { .phy = HT,    117000,    0x00,     N(14),   4 },
+    [23] = { .phy = HT,    130000,    0x00,     N(15),   4 },
+
+    [24] = { .phy = HT,     19500,    0x00,     N(16),   0 },
+    [25] = { .phy = HT,     39000,    0x00,     N(17),   2 },
+    [26] = { .phy = HT,     58500,    0x00,     N(18),   2 },
+    [27] = { .phy = HT,     78000,    0x00,     N(19),   4 },
+    [28] = { .phy = HT,    117000,    0x00,     N(20),   4 },
+    [29] = { .phy = HT,    156000,    0x00,     N(21),   4 },
+    [30] = { .phy = HT,    175500,    0x00,     N(22),   4 },
+    [31] = { .phy = HT,    195000,    0x00,     N(23),   4 },
+
+    },
+};
+
 #undef	Mb
 #undef	B
 #undef	OFDM
@@ -184,6 +283,8 @@ static struct ieee80211_rate_table ieee80211_turboa_table = {
 #undef	CCK
 #undef	TURBO
 #undef	XR
+#undef	HT
+#undef	N
 
 /*
  * Setup a rate table's reverse lookup table and fill in
@@ -197,27 +298,34 @@ static struct ieee80211_rate_table ieee80211_turboa_table = {
 static void
 ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 #define	WLAN_CTRL_FRAME_SIZE \
 	(sizeof(struct ieee80211_frame_ack) + IEEE80211_CRC_LEN)
 
 	int i;
 
-	for (i = 0; i < N(rt->rateCodeToIndex); i++)
+	for (i = 0; i < nitems(rt->rateCodeToIndex); i++)
 		rt->rateCodeToIndex[i] = (uint8_t) -1;
 	for (i = 0; i < rt->rateCount; i++) {
 		uint8_t code = rt->info[i].dot11Rate;
 		uint8_t cix = rt->info[i].ctlRateIndex;
 		uint8_t ctl_rate = rt->info[cix].dot11Rate;
 
-		rt->rateCodeToIndex[code] = i;
-		if (code & IEEE80211_RATE_BASIC) {
-			/*
-			 * Map w/o basic rate bit too.
-			 */
-			code &= IEEE80211_RATE_VAL;
-			rt->rateCodeToIndex[code] = i;
+		/*
+		 * Map without the basic rate bit.
+		 *
+		 * It's up to the caller to ensure that the basic
+		 * rate bit is stripped here.
+		 *
+		 * For HT, use the MCS rate bit.
+		 */
+		code &= IEEE80211_RATE_VAL;
+		if (rt->info[i].phy == IEEE80211_T_HT) {
+			code |= IEEE80211_RATE_MCS;
 		}
+
+		/* XXX assume the control rate is non-MCS? */
+		ctl_rate &= IEEE80211_RATE_VAL;
+		rt->rateCodeToIndex[code] = i;
 
 		/*
 		 * XXX for 11g the control rate to use for 5.5 and 11 Mb/s
@@ -236,21 +344,18 @@ ieee80211_setup_ratetable(struct ieee80211_rate_table *rt)
 	}
 
 #undef WLAN_CTRL_FRAME_SIZE
-#undef N
 }
 
 /* Setup all rate tables */
 static void
 ieee80211_phy_init(void)
 {
-#define N(arr)	(int)(sizeof(arr) / sizeof(arr[0]))
 	static struct ieee80211_rate_table * const ratetables[] = {
 		&ieee80211_half_table,
 		&ieee80211_quarter_table,
-		&ieee80211_11a_table,
-		&ieee80211_11g_table,
+		&ieee80211_11na_table,
+		&ieee80211_11ng_table,
 		&ieee80211_turbog_table,
-		&ieee80211_turboa_table,
 		&ieee80211_turboa_table,
 		&ieee80211_11a_table,
 		&ieee80211_11g_table,
@@ -258,10 +363,9 @@ ieee80211_phy_init(void)
 	};
 	int i;
 
-	for (i = 0; i < N(ratetables); ++i)
+	for (i = 0; i < nitems(ratetables); ++i)
 		ieee80211_setup_ratetable(ratetables[i]);
 
-#undef N
 }
 SYSINIT(wlan_phy, SI_SUB_DRIVERS, SI_ORDER_FIRST, ieee80211_phy_init, NULL);
 
@@ -276,9 +380,9 @@ ieee80211_get_ratetable(struct ieee80211_channel *c)
 	else if (IEEE80211_IS_CHAN_QUARTER(c))
 		rt = &ieee80211_quarter_table;
 	else if (IEEE80211_IS_CHAN_HTA(c))
-		rt = &ieee80211_11a_table;	/* XXX */
+		rt = &ieee80211_11na_table;
 	else if (IEEE80211_IS_CHAN_HTG(c))
-		rt = &ieee80211_11g_table;	/* XXX */
+		rt = &ieee80211_11ng_table;
 	else if (IEEE80211_IS_CHAN_108G(c))
 		rt = &ieee80211_turbog_table;
 	else if (IEEE80211_IS_CHAN_ST(c))
@@ -463,3 +567,66 @@ ieee80211_compute_duration(const struct ieee80211_rate_table *rt,
 	}
 	return txTime;
 }
+
+static const uint16_t ht20_bps[32] = {
+	26, 52, 78, 104, 156, 208, 234, 260,
+	52, 104, 156, 208, 312, 416, 468, 520,
+	78, 156, 234, 312, 468, 624, 702, 780,
+	104, 208, 312, 416, 624, 832, 936, 1040
+};
+static const uint16_t ht40_bps[32] = {
+	54, 108, 162, 216, 324, 432, 486, 540,
+	108, 216, 324, 432, 648, 864, 972, 1080,
+	162, 324, 486, 648, 972, 1296, 1458, 1620,
+	216, 432, 648, 864, 1296, 1728, 1944, 2160
+};
+
+
+#define	OFDM_PLCP_BITS	22
+#define	HT_L_STF	8
+#define	HT_L_LTF	8
+#define	HT_L_SIG	4
+#define	HT_SIG		8
+#define	HT_STF		4
+#define	HT_LTF(n)	((n) * 4)
+
+#define	HT_RC_2_MCS(_rc)	((_rc) & 0xf)
+#define	HT_RC_2_STREAMS(_rc)	((((_rc) & 0x78) >> 3) + 1)
+#define	IS_HT_RATE(_rc)		( (_rc) & IEEE80211_RATE_MCS)
+
+/*
+ * Calculate the transmit duration of an 11n frame.
+ */
+uint32_t
+ieee80211_compute_duration_ht(uint32_t frameLen, uint16_t rate,
+    int streams, int isht40, int isShortGI)
+{
+	uint32_t bitsPerSymbol, numBits, numSymbols, txTime;
+
+	KASSERT(rate & IEEE80211_RATE_MCS, ("not mcs %d", rate));
+	KASSERT((rate &~ IEEE80211_RATE_MCS) < 31, ("bad mcs 0x%x", rate));
+
+	if (isht40)
+		bitsPerSymbol = ht40_bps[rate & 0x1f];
+	else
+		bitsPerSymbol = ht20_bps[rate & 0x1f];
+	numBits = OFDM_PLCP_BITS + (frameLen << 3);
+	numSymbols = howmany(numBits, bitsPerSymbol);
+	if (isShortGI)
+		txTime = ((numSymbols * 18) + 4) / 5;   /* 3.6us */
+	else
+		txTime = numSymbols * 4;                /* 4us */
+	return txTime + HT_L_STF + HT_L_LTF +
+	    HT_L_SIG + HT_SIG + HT_STF + HT_LTF(streams);
+}
+
+#undef	IS_HT_RATE
+#undef	HT_RC_2_STREAMS
+#undef	HT_RC_2_MCS
+#undef	HT_LTF
+#undef	HT_STF
+#undef	HT_SIG
+#undef	HT_L_SIG
+#undef	HT_L_LTF
+#undef	HT_L_STF
+#undef	OFDM_PLCP_BITS

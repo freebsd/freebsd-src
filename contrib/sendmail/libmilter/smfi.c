@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 1999-2007 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 1999-2007 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: smfi.c,v 8.83 2007/04/23 16:44:39 ca Exp $")
+SM_RCSID("@(#)$Id: smfi.c,v 8.84 2013-11-22 20:51:36 ca Exp $")
 #include <sm/varargs.h>
 #include "libmilter.h"
 

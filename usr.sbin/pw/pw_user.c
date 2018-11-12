@@ -200,7 +200,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			strlcpy(dbuf, cnf->home, sizeof(dbuf));
 			p = dbuf;
 			if (stat(dbuf, &st) == -1) {
-				while ((p = strchr(++p, '/')) != NULL) {
+				while ((p = strchr(p + 1, '/')) != NULL) {
 					*p = '\0';
 					if (stat(dbuf, &st) == -1) {
 						if (mkdir(dbuf, _DEF_DIRMODE) == -1)
@@ -321,6 +321,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			(a_uid = a_name)->ch = 'u';
 			a_name = NULL;
 		}
+	} else {
+		if (strspn(a_uid->val, "0123456789") != strlen(a_uid->val))
+			errx(EX_USAGE, "-u expects a number");
 	}
 
 	/*
@@ -380,6 +383,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			char            file[MAXPATHLEN];
 			char            home[MAXPATHLEN];
 			uid_t           uid = pwd->pw_uid;
+			struct group    *gr;
+			char            grname[LOGNAMESIZE];
 
 			if (strcmp(pwd->pw_name, "root") == 0)
 				errx(EX_DATAERR, "cannot remove user 'root'");
@@ -406,6 +411,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			 */
 			sprintf(file, "%s/%s", _PATH_MAILDIR, pwd->pw_name);
 			strlcpy(home, pwd->pw_dir, sizeof(home));
+			gr = GETGRGID(pwd->pw_gid);
+			if (gr != NULL)
+				strlcpy(grname, gr->gr_name, LOGNAMESIZE);
+			else
+				grname[0] = '\0';
 
 			rc = delpwent(pwd);
 			if (rc == -1)
@@ -425,19 +435,22 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 
 			grp = GETGRNAM(a_name->val);
-			if (grp != NULL && *grp->gr_mem == NULL)
+			if (grp != NULL &&
+			    (grp->gr_mem == NULL || *grp->gr_mem == NULL) &&
+			    strcmp(a_name->val, grname) == 0)
 				delgrent(GETGRNAM(a_name->val));
 			SETGRENT();
 			while ((grp = GETGRENT()) != NULL) {
-				int i;
+				int i, j;
 				char group[MAXLOGNAME];
-				for (i = 0; grp->gr_mem[i] != NULL; i++) {
-					if (!strcmp(grp->gr_mem[i], a_name->val)) {
-						while (grp->gr_mem[i] != NULL) {
-							grp->gr_mem[i] = grp->gr_mem[i+1];
-						}	
-						strlcpy(group, grp->gr_name, MAXLOGNAME);
-						chggrent(group, grp);
+				if (grp->gr_mem != NULL) {
+					for (i = 0; grp->gr_mem[i] != NULL; i++) {
+						if (!strcmp(grp->gr_mem[i], a_name->val)) {
+							for (j = i; grp->gr_mem[j] != NULL; j++)
+								grp->gr_mem[j] = grp->gr_mem[j+1];
+							strlcpy(group, grp->gr_name, MAXLOGNAME);
+							chggrent(group, grp);
+						}
 					}
 				}
 			}
@@ -513,8 +526,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid password change date `%s'", arg->val);
 				if (pwd->pw_change != expire) {
 					pwd->pw_change = expire;
 					edited = 1;
@@ -533,8 +544,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          now = time(NULL);
 				time_t          expire = parse_date(now, arg->val);
 
-				if (now == expire)
-					errx(EX_DATAERR, "invalid account expiry date `%s'", arg->val);
 				if (pwd->pw_expire != expire) {
 					pwd->pw_expire = expire;
 					edited = 1;
@@ -577,7 +586,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 			lc = login_getpwclass(pwd);
 			if (lc == NULL ||
-			    login_setcryptfmt(lc, "md5", NULL) == NULL)
+			    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 				warn("setting crypt(3) format");
 			login_close(lc);
 			pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
@@ -609,7 +618,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pwd->pw_dir = pw_homepolicy(cnf, args, pwd->pw_name);
 		pwd->pw_shell = pw_shellpolicy(cnf, args, NULL);
 		lc = login_getpwclass(pwd);
-		if (lc == NULL || login_setcryptfmt(lc, "md5", NULL) == NULL)
+		if (lc == NULL || login_setcryptfmt(lc, "sha512", NULL) == NULL)
 			warn("setting crypt(3) format");
 		login_close(lc);
 		pwd->pw_passwd = pw_password(cnf, args, pwd->pw_name);
@@ -684,7 +693,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			} else {
 				lc = login_getpwclass(pwd);
 				if (lc == NULL ||
-				    login_setcryptfmt(lc, "md5", NULL) == NULL)
+				    login_setcryptfmt(lc, "sha512", NULL) == NULL)
 					warn("setting crypt(3) format");
 				login_close(lc);
 				pwd->pw_passwd = pw_pwcrypt(line);
@@ -745,7 +754,25 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 
 	if (mode == M_ADD || getarg(args, 'G') != NULL) {
-		int i;
+		int i, j;
+		/* First remove the user from all group */
+		SETGRENT();
+		while ((grp = GETGRENT()) != NULL) {
+			char group[MAXLOGNAME];
+			if (grp->gr_mem == NULL)
+				continue;
+			for (i = 0; grp->gr_mem[i] != NULL; i++) {
+				if (strcmp(grp->gr_mem[i] , pwd->pw_name) != 0)
+					continue;
+				for (j = i; grp->gr_mem[j] != NULL ; j++)
+					grp->gr_mem[j] = grp->gr_mem[j+1];
+				strlcpy(group, grp->gr_name, MAXLOGNAME);
+				chggrent(group, grp);
+			}
+		}
+		ENDGRENT();
+
+		/* now add to group where needed */
 		for (i = 0; cnf->groups[i] != NULL; i++) {
 			grp = GETGRNAM(cnf->groups[i]);
 			grp = gr_add(grp, pwd->pw_name);
@@ -912,7 +939,8 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 				errx(EX_NOUSER, "group `%s' is not defined", a_gid->val);
 		}
 		gid = grp->gr_gid;
-	} else if ((grp = GETGRNAM(nam)) != NULL && grp->gr_mem[0] == NULL) {
+	} else if ((grp = GETGRNAM(nam)) != NULL &&
+	    (grp->gr_mem == NULL || grp->gr_mem[0] == NULL)) {
 		gid = grp->gr_gid;  /* Already created? Use it anyway... */
 	} else {
 		struct cargs    grpargs;
@@ -1186,14 +1214,16 @@ print_user(struct passwd * pwd, int pretty, int v7)
 		while ((grp=GETGRENT()) != NULL)
 		{
 			int     i = 0;
-			while (grp->gr_mem[i] != NULL)
-			{
-				if (strcmp(grp->gr_mem[i], pwd->pw_name)==0)
+			if (grp->gr_mem != NULL) {
+				while (grp->gr_mem[i] != NULL)
 				{
-					printf(j++ == 0 ? "    Groups: %s" : ",%s", grp->gr_name);
-					break;
+					if (strcmp(grp->gr_mem[i], pwd->pw_name)==0)
+					{
+						printf(j++ == 0 ? "    Groups: %s" : ",%s", grp->gr_name);
+						break;
+					}
+					++i;
 				}
-				++i;
 			}
 		}
 		ENDGRENT();

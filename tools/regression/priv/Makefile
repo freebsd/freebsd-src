@@ -2,7 +2,7 @@
 # $FreeBSD$
 #
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	priv
 SRCS=	main.c				\
@@ -45,7 +45,7 @@ SRCS=	main.c				\
 	priv_vm_mlock.c			\
 	priv_vm_munlock.c
 
-NO_MAN=
+MAN=
 WARNS?=	3
 
 DPADD+= ${LIBIPSEC}

@@ -156,7 +156,7 @@ feupdateenv(const fenv_t *__envp)
 
 /* We currently provide no external definitions of the functions below. */
 
-static inline int
+__fenv_static inline int
 feenableexcept(int __mask)
 {
 	int __omask = __softfloat_float_exception_mask;
@@ -165,7 +165,7 @@ feenableexcept(int __mask)
 	return (__omask);
 }
 
-static inline int
+__fenv_static inline int
 fedisableexcept(int __mask)
 {
 	int __omask = __softfloat_float_exception_mask;
@@ -174,7 +174,7 @@ fedisableexcept(int __mask)
 	return (__omask);
 }
 
-static inline int
+__fenv_static inline int
 fegetexcept(void)
 {
 

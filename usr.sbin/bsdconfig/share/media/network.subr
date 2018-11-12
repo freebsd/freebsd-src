@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_NETWORK_SUBR" ]; then _MEDIA_NETWORK_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_NETWORK_SUBR" ]; then _MEDIA_NETWORK_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -110,7 +110,7 @@ f_media_init_network()
 			local rp
 			f_getvar $VAR_GATEWAY rp
 			if [ ! "$rp" ]; then
-				f_dialog_msgbox "$msg_no_gateway_has_been_set"
+				f_show_msg "$msg_no_gateway_has_been_set"
 			else
 				#
 				# Explicitly flush all routes to get back to a
@@ -121,7 +121,7 @@ f_media_init_network()
 				f_quietly route -n flush
 				f_dprintf "Adding default route to %s." "$rp"
 				if ! f_quietly route -n add default "$rp"; then
-					f_dialog_msgbox \
+					f_show_msg \
 					    "$msg_failed_to_add_default_route"
 					return $FAILURE
 				fi

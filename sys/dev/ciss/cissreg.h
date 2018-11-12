@@ -615,26 +615,124 @@ struct ciss_bmic_id_table {
     char	running_firmware_revision[4];
     char	stored_firmware_revision[4];
     u_int8_t	hardware_revision;
-    u_int8_t	res1[4];
+    u_int8_t	boot_block_revision[4];
     u_int32_t	deprecated_drive_present_map;
     u_int32_t	deprecated_external_drive_present_map;
     u_int32_t	board_id;
-    u_int8_t	res2;
+    u_int8_t	swapped_error_cable;
     u_int32_t	deprecated_non_disk_map;
-    u_int8_t	res3[5];
+    u_int8_t	bad_host_ram_addr;
+    u_int8_t	cpu_revision;
+    u_int8_t	res3[3];
     char	marketting_revision;
-    u_int8_t	res4:3;
-    u_int8_t	more_than_seven_supported:1;
-    u_int8_t	res5:3;
-    u_int8_t	big_map_supported:1;		/* must be set! */
-    u_int8_t	res6[2];
-    u_int8_t	scsi_bus_count;
-    u_int32_t	res7;
+    u_int8_t	controller_flags;
+#define	CONTROLLER_FLAGS_FLASH_ROM_INSTALLED	0x01
+#define	CONTROLLER_FLAGS_DIAGS_MODE_BIT		0x02
+#define	CONTROLLER_FLAGS_EXPAND_32MB_FX 	0x04
+#define	CONTROLLER_FLAGS_MORE_THAN_7_SUPPORT 	0x08
+#define	CONTROLLER_FLAGS_DAISY_SUPPORT_BIT 	0x10
+#define	CONTROLLER_FLAGS_RES6 			0x20
+#define	CONTROLLER_FLAGS_RES7 			0x40
+#define	CONTROLLER_FLAGS_BIG_MAP_SUPPORT 	0x80
+    u_int8_t	host_flags;
+#define HOST_FLAGS_SDB_ASIC_WORK_AROUND 	0x01
+#define HOST_FLAGS_PCI_DATA_BUS_PARITY_SUPPORT	0x02
+#define HOST_FLAGS_RES3				0x04
+#define HOST_FLAGS_RES4				0x08
+#define HOST_FLAGS_RES5				0x10
+#define HOST_FLAGS_RES6				0x20
+#define HOST_FLAGS_RES7				0x30
+#define HOST_FLAGS_RES8				0x40
+    u_int8_t	expand_disable_code;
+#define EXPAND_DISABLE_NOT_NEEDED		0x01
+#define EXPAND_DISABLE_MISSING_CACHE_BOARD	0x02
+#define EXPAND_DISABLE_WCXC_FATAL_CACHE_BITS	0x04
+#define EXPAND_DISABLE_CACHE_PERM_DISABLED	0x08
+#define EXPAND_DISABLE_RAM_ALLOCATION_FAILED	0x10
+#define EXPAND_DISABLE_BATTEREIS_DISCHARGED	0x20
+#define EXPAND_DISABLE_RES7			0x40
+#define EXPAND_DISABLE_REBUILD_RUNNING		0x80
+    u_int8_t	scsi_chip_count;
+    u_int32_t	maximum_blocks;
     u_int32_t	controller_clock;
     u_int8_t	drives_per_scsi_bus;
     u_int8_t	big_drive_present_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	big_external_drive_present_map[CISS_BIG_MAP_ENTRIES / 8];
     u_int8_t	big_non_disk_map[CISS_BIG_MAP_ENTRIES / 8];
+
+    u_int16_t	task_flags;		/* used for FW debugging */
+    u_int8_t	ICL_bus_map;		/* Bitmap used for ICL between controllers */
+    u_int8_t	redund_ctlr_modes_support;	/* See REDUNDANT MODE VALUES */
+    u_int8_t	curr_redund_ctlr_mode;
+    u_int8_t	redund_ctlr_status;
+    u_int8_t	redund_op_failure_code;
+
+    u_int8_t	unsupported_nile_bus;
+    u_int8_t	host_i2c_autorev;
+    u_int8_t	cpld_revision;
+    u_int8_t	fibre_chip_count;
+    u_int8_t	daughterboard_type;
+    u_int8_t	more_swapped_config_cable_error;
+
+    u_int8_t	license_key_status;
+    u_int8_t	access_module_status;
+    u_int8_t	features_supported[12];
+    u_int8_t	rec_rom_inact_rev[4];    /* Recovery ROM inactive f/w revision  */
+    u_int8_t	rec_rom_act_status;      /* Recovery ROM flags                  */
+    u_int8_t	pci_to_pci_status;       /* PCI to PCI bridge status            */
+    u_int32_t	redundant_server_info;   /* Reserved for future use             */
+    u_int8_t	percent_write_cache;     /* Percent of memory allocated to write cache */
+    u_int16_t	daughterboard_size_mb;   /* Total size (MB) of cache board      */
+    u_int8_t	cache_batter_count;      /* Number of cache batteries           */
+    u_int16_t	total_controller_mem_mb; /* Total size (MB) of atttached memory */
+    u_int8_t	more_controller_flags;   /* Additional controller flags byte    */
+    u_int8_t	x_board_host_i2c_rev;    /* 2nd byte of 3 byte autorev field    */
+    u_int8_t	battery_pic_rev;         /* BBWC PIC revision                   */
+/*
+ * Below here I have no documentation on the rest of this data structure.  It is
+ * inferred from the opensource cciss_vol_status application.  I assume that this 
+ * data strucutre is 512 bytes in total size, do not exceed it.
+ */
+    u_int8_t	bDdffVersion[4];         /* DDFF update engine version          */
+    u_int16_t	usMaxLogicalUnits;       /* Maximum logical units supported */
+    u_int16_t	usExtLogicalUnitCount;   /* Big num configured logical units */
+    u_int16_t	usMaxPhysicalDevices;    /* Maximum physical devices supported */
+    u_int16_t	usMaxPhyDrvPerLogicalUnit; /* Max physical drive per logical unit */
+    u_int8_t	bEnclosureCount;         /* Number of attached enclosures */
+    u_int8_t	bExpanderCount;          /* Number of expanders detected */
+    u_int16_t	usOffsetToEDPbitmap;     /* Offset to extended drive present map*/
+    u_int16_t	usOffsetToEEDPbitmap;    /* Offset to extended external drive present map */
+    u_int16_t	usOffsetToENDbitmap;     /* Offset to extended non-disk map */
+    u_int8_t	bInternalPortStatus[8];  /* Internal port status bytes */
+    u_int8_t	bExternalPortStatus[8];  /* External port status bytes */
+    u_int32_t	uiYetMoreControllerFlags;/* Yet More Controller flags  */
+#define YMORE_CONTROLLER_FLAGS_JBOD_SUPPORTED \
+	( 1 << 25 )			 /* Controller has JBOD support */
+
+    u_int8_t	bLastLockup;              /* Last lockup code */
+    u_int8_t	bSlot;                    /* PCI slot according to option ROM*/
+    u_int16_t	usBuildNum;               /* Build number */
+    u_int32_t	uiMaxSafeFullStripeSize;  /* Maximum safe full stripe size */
+    u_int32_t	uiTotalLength;            /* Total structure length */
+    u_int8_t	bVendorID[8];             /* Vendor ID */
+    u_int8_t	bProductID[16];           /* Product ID */
+/*
+ * These are even more obscure as they seem to only be available in cciss_vol_status
+ */
+    u_int32_t	ExtendedLastLockupCode;
+    u_int16_t	MaxRaid;
+    u_int16_t	MaxParity;
+    u_int16_t	MaxADGStripSize;
+    u_int16_t	YetMoreSwappedCables;
+    u_int8_t	MaxDevicePaths;
+    u_int8_t	PowerUPNvramFlags;
+#define PWR_UP_FLAG_JBOD_ENABLED	0x08	/*JBOD mode is enabled, all RAID features off */
+
+    u_int16_t	ZonedOffset;
+    u_int32_t   FixedFieldsLength;
+    u_int8_t	FWCompileTimeStamp[24];
+    u_int32_t	EvenMoreControllerFlags;
+    u_int8_t	padding[240];
 } __packed;
 
 /* CISS_BMIC_ID_PDRIVE */

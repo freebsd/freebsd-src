@@ -88,7 +88,7 @@ mvs_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s SATA controller",
 			    mvs_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return (ENXIO);
@@ -111,6 +111,7 @@ mvs_attach(device_t dev)
 		i++;
 	ctlr->channels = mvs_ids[i].ports;
 	ctlr->quirks = mvs_ids[i].quirks;
+	ctlr->ccc = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "ccc", &ctlr->ccc);
 	ctlr->cccc = 8;
@@ -488,6 +489,13 @@ mvs_child_location_str(device_t dev, device_t child, char *buf,
 	return (0);
 }
 
+static bus_dma_tag_t
+mvs_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (bus_get_dma_tag(bus));
+}
+
 static device_method_t mvs_methods[] = {
 	DEVMETHOD(device_probe,     mvs_probe),
 	DEVMETHOD(device_attach,    mvs_attach),
@@ -500,6 +508,7 @@ static device_method_t mvs_methods[] = {
 	DEVMETHOD(bus_setup_intr,   mvs_setup_intr),
 	DEVMETHOD(bus_teardown_intr,mvs_teardown_intr),
 	DEVMETHOD(bus_child_location_str, mvs_child_location_str),
+	DEVMETHOD(bus_get_dma_tag,  mvs_get_dma_tag),
 	DEVMETHOD(mvs_edma,         mvs_edma),
 	{ 0, 0 }
 };

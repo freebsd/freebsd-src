@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -130,18 +130,18 @@ report_dnode(struct diffarg *da, uint64_t object, dnode_phys_t *dnp)
 /* ARGSUSED */
 static int
 diff_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	struct diffarg *da = arg;
 	int err = 0;
 
 	if (issig(JUSTLOOKING) && issig(FORREAL))
-		return (EINTR);
+		return (SET_ERROR(EINTR));
 
 	if (zb->zb_object != DMU_META_DNODE_OBJECT)
 		return (0);
 
-	if (bp == NULL) {
+	if (BP_IS_HOLE(bp)) {
 		uint64_t span = DBP_SPAN(dnp, zb->zb_level);
 		uint64_t dnobj = (zb->zb_blkid * span) >> DNODE_SHIFT;
 
@@ -152,14 +152,14 @@ diff_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	} else if (zb->zb_level == 0) {
 		dnode_phys_t *blk;
 		arc_buf_t *abuf;
-		uint32_t aflags = ARC_WAIT;
+		arc_flags_t aflags = ARC_FLAG_WAIT;
 		int blksz = BP_GET_LSIZE(bp);
 		int i;
 
 		if (arc_read(NULL, spa, bp, arc_getbuf_func, &abuf,
 		    ZIO_PRIORITY_ASYNC_READ, ZIO_FLAG_CANFAIL,
 		    &aflags, zb) != 0)
-			return (EIO);
+			return (SET_ERROR(EIO));
 
 		blk = abuf->b_data;
 		for (i = 0; i < blksz >> DNODE_SHIFT; i++) {
@@ -195,7 +195,7 @@ dmu_diff(const char *tosnap_name, const char *fromsnap_name,
 
 	if (strchr(tosnap_name, '@') == NULL ||
 	    strchr(fromsnap_name, '@') == NULL)
-		return (EINVAL);
+		return (SET_ERROR(EINVAL));
 
 	error = dsl_pool_hold(tosnap_name, FTAG, &dp);
 	if (error != 0)
@@ -214,14 +214,14 @@ dmu_diff(const char *tosnap_name, const char *fromsnap_name,
 		return (error);
 	}
 
-	if (!dsl_dataset_is_before(tosnap, fromsnap)) {
+	if (!dsl_dataset_is_before(tosnap, fromsnap, 0)) {
 		dsl_dataset_rele(fromsnap, FTAG);
 		dsl_dataset_rele(tosnap, FTAG);
 		dsl_pool_rele(dp, FTAG);
-		return (EXDEV);
+		return (SET_ERROR(EXDEV));
 	}
 
-	fromtxg = fromsnap->ds_phys->ds_creation_txg;
+	fromtxg = dsl_dataset_phys(fromsnap)->ds_creation_txg;
 	dsl_dataset_rele(fromsnap, FTAG);
 
 	dsl_dataset_long_hold(tosnap, FTAG);

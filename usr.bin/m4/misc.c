@@ -1,4 +1,4 @@
-/*	$OpenBSD: misc.c,v 1.42 2010/09/07 19:58:09 marco Exp $	*/
+/*	$OpenBSD: misc.c,v 1.44 2014/05/12 19:11:19 espie Exp $	*/
 /*	$NetBSD: misc.c,v 1.6 1995/09/28 05:37:41 tls Exp $	*/
 
 /*
@@ -32,6 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <string.h>
@@ -62,6 +64,7 @@ unsigned char *bbase[MAXINP];		/* the base for each ilevel    */
 unsigned char *bp;			/* first available character   */
 unsigned char *endpbb;			/* end of push-back buffer     */
 
+static void *reallocarray(void *, size_t, size_t);
 
 /*
  * find the index of second str in the first str.
@@ -165,7 +168,7 @@ initspaces(void)
 	strspace = xalloc(strsize+1, NULL);
 	ep = strspace;
 	endest = strspace+strsize;
-	buf = (unsigned char *)xalloc(bufsize, NULL);
+	buf = xalloc(bufsize, NULL);
 	bufbase = buf;
 	bp = buf;
 	endpbb = buf + bufsize;
@@ -239,7 +242,7 @@ getdiv(int n)
 }
 
 void
-onintr(__unused int signo)
+onintr(int signo __unused)
 {
 #define intrmessage	"m4: interrupted.\n"
 	write(STDERR_FILENO, intrmessage, sizeof(intrmessage)-1);
@@ -263,7 +266,7 @@ killdiv(void)
 extern char *__progname;
 
 void
-m4errx(int evaluation, const char *fmt, ...)
+m4errx(int exitstatus, const char *fmt, ...)
 {
 	fprintf(stderr, "%s: ", __progname);
 	fprintf(stderr, "%s at line %lu: ", CURRENT_NAME, CURRENT_LINE);
@@ -275,7 +278,7 @@ m4errx(int evaluation, const char *fmt, ...)
 		va_end(ap);
 	}
 	fprintf(stderr, "\n");
-	exit(evaluation);
+	exit(exitstatus);
 }
 
 /*
@@ -285,7 +288,7 @@ resizedivs(int n)
 {
 	int i;
 
-	outfile = (FILE **)xrealloc(outfile, sizeof(FILE *) * n,
+	outfile = xreallocarray(outfile, n, sizeof(FILE *),
 	    "too many diverts %d", n);
 	for (i = maxout; i < n; i++)
 		outfile[i] = NULL;
@@ -312,6 +315,25 @@ xalloc(size_t n, const char *fmt, ...)
 }
 
 void *
+xcalloc(size_t n, size_t s, const char *fmt, ...)
+{
+	void *p = calloc(n, s);
+
+	if (p == NULL) {
+		if (fmt == NULL)
+			err(1, "calloc");
+		else {
+			va_list va;
+
+			va_start(va, fmt);
+			verr(1, fmt, va);
+			va_end(va);
+		}
+	}
+	return p;
+}
+
+void *
 xrealloc(void *old, size_t n, const char *fmt, ...)
 {
 	char *p = realloc(old, n);
@@ -320,6 +342,26 @@ xrealloc(void *old, size_t n, const char *fmt, ...)
 		free(old);
 		if (fmt == NULL)
 			err(1, "realloc");
+		else {
+			va_list va;
+
+			va_start(va, fmt);
+			verr(1, fmt, va);
+			va_end(va);
+		}
+	}
+	return p;
+}
+
+void *
+xreallocarray(void *old, size_t s1, size_t s2, const char *fmt, ...)
+{
+	void *p = reallocarray(old, s1, s2);
+
+	if (p == NULL) {
+		free(old);
+		if (fmt == NULL)
+			err(1, "reallocarray");
 		else {
 			va_list va;
 
@@ -424,4 +466,38 @@ dump_buffer(FILE *f, size_t m)
 
 	for (s = bp; s-buf > (long)m;)
 		fputc(*--s, f);
+}
+
+/*	$OpenBSD: reallocarray.c,v 1.2 2014/12/08 03:45:00 bcook Exp $	*/
+/*
+ * Copyright (c) 2008 Otto Moerbeek <otto@drijf.net>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * This is sqrt(SIZE_MAX+1), as s1*s2 <= SIZE_MAX
+ * if both s1 < MUL_NO_OVERFLOW and s2 < MUL_NO_OVERFLOW
+ */
+#define MUL_NO_OVERFLOW	((size_t)1 << (sizeof(size_t) * 4))
+
+void *
+reallocarray(void *optr, size_t nmemb, size_t size)
+{
+	if ((nmemb >= MUL_NO_OVERFLOW || size >= MUL_NO_OVERFLOW) &&
+	    nmemb > 0 && SIZE_MAX / nmemb < size) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	return realloc(optr, size * nmemb);
 }

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2006
+.Dd July 25, 2014
 .Dt SETKEY 8
 .Os
 .\"
@@ -514,7 +514,7 @@ the SA from the key exchange daemon.
 A value of
 .Li default
 tells the kernel to use the system wide default protocol
-e.g.\& the one from the
+e.g.,\& the one from the
 .Li esp_trans_deflev
 sysctl variable, when the kernel processes the packet.
 A value of
@@ -627,7 +627,7 @@ des-deriv	64		ipsec-ciph-des-derived-01
 3des-deriv	192		no document
 rijndael-cbc	128/192/256	rfc3602
 aes-ctr		160/224/288	draft-ietf-ipsec-ciph-aes-ctr-03
-camllia-cbc	128/192/256	rfc4312
+camellia-cbc	128/192/256	rfc4312
 .Ed
 .Pp
 Note that the first 128/192/256 bits of a key for
@@ -656,47 +656,46 @@ des-cbc encryption algorithm.
 .Bd -literal -offset indent
 add 3ffe:501:4819::1 3ffe:501:481d::1 esp 123457
 	-E des-cbc 0x3ffe05014819ffff ;
-
+.Pp
 .Ed
 .\"
 Add an authentication SA between two FQDN specified hosts:
 .Bd -literal -offset indent
 add -6 myhost.example.com yourhost.example.com ah 123456
 	-A hmac-sha1 "AH SA configuration!" ;
-
+.Pp
 .Ed
 Use both ESP and AH between two numerically specified hosts:
 .Bd -literal -offset indent
 add 10.0.11.41 10.0.11.33 esp 0x10001
 	-E des-cbc 0x3ffe05014819ffff
 	-A hmac-md5 "authentication!!" ;
-
+.Pp
 .Ed
 Get the SA information associated with first example above:
 .Bd -literal -offset indent
 get 3ffe:501:4819::1 3ffe:501:481d::1 ah 123456 ;
-
+.Pp
 .Ed
 Flush all entries from the database:
 .Bd -literal -offset indent
 flush ;
-
+.Pp
 .Ed
 Dump the ESP entries from the database:
 .Bd -literal -offset indent
 dump esp ;
-
+.Pp
 .Ed
 Add a security policy between two networks that uses ESP in tunnel mode:
 .Bd -literal -offset indent
 spdadd 10.0.11.41/32[21] 10.0.11.33/32[any] any
 	-P out ipsec esp/tunnel/192.168.0.1-192.168.1.2/require ;
-
+.Pp
 .Ed
 Use TCP MD5 between two numerically specified hosts:
 .Bd -literal -offset indent
 add 10.1.10.34 10.1.10.36 tcp 0x1000 -A tcp-md5 "TCP-MD5 BGP secret" ;
-
 .Ed
 .\"
 .Sh SEE ALSO

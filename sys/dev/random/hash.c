@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,54 +28,73 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include <sys/param.h>
 #include <sys/systm.h>
+#else /* !_KERNEL */
+#include <sys/param.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <threads.h>
+#include "unit_test.h"
+#endif /* _KERNEL */
 
 #include <crypto/rijndael/rijndael-api-fst.h>
 #include <crypto/sha2/sha2.h>
 
 #include <dev/random/hash.h>
 
-/* initialise the hash */
+/* This code presumes that KEYSIZE is twice as large as BLOCKSIZE */
+CTASSERT(KEYSIZE == 2*BLOCKSIZE);
+
+/* Initialise the hash */
 void
-yarrow_hash_init(struct yarrowhash *context)
+randomdev_hash_init(struct randomdev_hash *context)
 {
+
 	SHA256_Init(&context->sha);
 }
 
-/* iterate the hash */
+/* Iterate the hash */
 void
-yarrow_hash_iterate(struct yarrowhash *context, void *data, size_t size)
+randomdev_hash_iterate(struct randomdev_hash *context, const void *data, size_t size)
 {
+
 	SHA256_Update(&context->sha, data, size);
 }
 
-/* Conclude by returning the hash in the supplied /buf/ which must be
+/* Conclude by returning the hash in the supplied <*buf> which must be
  * KEYSIZE bytes long.
  */
 void
-yarrow_hash_finish(struct yarrowhash *context, void *buf)
+randomdev_hash_finish(struct randomdev_hash *context, void *buf)
 {
+
 	SHA256_Final(buf, &context->sha);
 }
 
 /* Initialise the encryption routine by setting up the key schedule
- * from the supplied /data/ which must be KEYSIZE bytes of binary
- * data.
+ * from the supplied <*data> which must be KEYSIZE bytes of binary
+ * data. Use CBC mode for better avalanche.
  */
 void
-yarrow_encrypt_init(struct yarrowkey *context, void *data)
+randomdev_encrypt_init(struct randomdev_key *context, const void *data)
 {
+
 	rijndael_cipherInit(&context->cipher, MODE_CBC, NULL);
 	rijndael_makeKey(&context->key, DIR_ENCRYPT, KEYSIZE*8, data);
 }
 
 /* Encrypt the supplied data using the key schedule preset in the context.
- * KEYSIZE bytes are encrypted from /d_in/ to /d_out/.
+ * <length> bytes are encrypted from <*d_in> to <*d_out>. <length> must be
+ * a multiple of BLOCKSIZE.
  */
 void
-yarrow_encrypt(struct yarrowkey *context, void *d_in, void *d_out)
+randomdev_encrypt(struct randomdev_key *context, const void *d_in, void *d_out, u_int length)
 {
-	rijndael_blockEncrypt(&context->cipher, &context->key, d_in,
-	    KEYSIZE*8, d_out);
+
+	rijndael_blockEncrypt(&context->cipher, &context->key, d_in, length*8, d_out);
 }

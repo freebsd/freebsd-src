@@ -172,7 +172,7 @@ static char *pnp_classes[] = {
 /*
  * search_token()
  *
- * Search the first occurence of a token within a string
+ * Search the first occurrence of a token within a string
  */
 static char *
 search_token(char *str, int slen, char *token)
@@ -531,7 +531,7 @@ ppb_request_bus(device_t bus, device_t dev, int how)
 
 			/* restore the context of the device
 			 * The first time, ctx.valid is certainly false
-			 * then do not change anything. This is usefull for
+			 * then do not change anything. This is useful for
 			 * drivers that do not set there operating mode
 			 * during attachement
 			 */

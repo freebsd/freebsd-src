@@ -184,6 +184,10 @@ static void format_wps_device_xml(struct upnp_wps_device_sm *sm,
 {
 	const char *s;
 	char uuid_string[80];
+	struct upnp_wps_device_interface *iface;
+
+	iface = dl_list_first(&sm->interfaces,
+			      struct upnp_wps_device_interface, list);
 
 	wpabuf_put_str(buf, wps_device_xml_prefix);
 
@@ -191,38 +195,38 @@ static void format_wps_device_xml(struct upnp_wps_device_sm *sm,
 	 * Add required fields with default values if not configured. Add
 	 * optional and recommended fields only if configured.
 	 */
-	s = sm->wps->friendly_name;
+	s = iface->wps->friendly_name;
 	s = ((s && *s) ? s : "WPS Access Point");
 	xml_add_tagged_data(buf, "friendlyName", s);
 
-	s = sm->wps->dev.manufacturer;
+	s = iface->wps->dev.manufacturer;
 	s = ((s && *s) ? s : "");
 	xml_add_tagged_data(buf, "manufacturer", s);
 
-	if (sm->wps->manufacturer_url)
+	if (iface->wps->manufacturer_url)
 		xml_add_tagged_data(buf, "manufacturerURL",
-				    sm->wps->manufacturer_url);
+				    iface->wps->manufacturer_url);
 
-	if (sm->wps->model_description)
+	if (iface->wps->model_description)
 		xml_add_tagged_data(buf, "modelDescription",
-				    sm->wps->model_description);
+				    iface->wps->model_description);
 
-	s = sm->wps->dev.model_name;
+	s = iface->wps->dev.model_name;
 	s = ((s && *s) ? s : "");
 	xml_add_tagged_data(buf, "modelName", s);
 
-	if (sm->wps->dev.model_number)
+	if (iface->wps->dev.model_number)
 		xml_add_tagged_data(buf, "modelNumber",
-				    sm->wps->dev.model_number);
+				    iface->wps->dev.model_number);
 
-	if (sm->wps->model_url)
-		xml_add_tagged_data(buf, "modelURL", sm->wps->model_url);
+	if (iface->wps->model_url)
+		xml_add_tagged_data(buf, "modelURL", iface->wps->model_url);
 
-	if (sm->wps->dev.serial_number)
+	if (iface->wps->dev.serial_number)
 		xml_add_tagged_data(buf, "serialNumber",
-				    sm->wps->dev.serial_number);
+				    iface->wps->dev.serial_number);
 
-	uuid_bin2str(sm->wps->uuid, uuid_string, sizeof(uuid_string));
+	uuid_bin2str(iface->wps->uuid, uuid_string, sizeof(uuid_string));
 	s = uuid_string;
 	/* Need "uuid:" prefix, thus we can't use xml_add_tagged_data()
 	 * easily...
@@ -231,8 +235,8 @@ static void format_wps_device_xml(struct upnp_wps_device_sm *sm,
 	xml_data_encode(buf, s, os_strlen(s));
 	wpabuf_put_str(buf, "</UDN>\n");
 
-	if (sm->wps->upc)
-		xml_add_tagged_data(buf, "UPC", sm->wps->upc);
+	if (iface->wps->upc)
+		xml_add_tagged_data(buf, "UPC", iface->wps->upc);
 
 	wpabuf_put_str(buf, wps_device_xml_postfix);
 }
@@ -311,6 +315,10 @@ static void web_connection_parse_get(struct upnp_wps_device_sm *sm,
 	size_t extra_len = 0;
 	int body_length;
 	char len_buf[10];
+	struct upnp_wps_device_interface *iface;
+
+	iface = dl_list_first(&sm->interfaces,
+			      struct upnp_wps_device_interface, list);
 
 	/*
 	 * It is not required that filenames be case insensitive but it is
@@ -322,16 +330,16 @@ static void web_connection_parse_get(struct upnp_wps_device_sm *sm,
 		wpa_printf(MSG_DEBUG, "WPS UPnP: HTTP GET for device XML");
 		req = GET_DEVICE_XML_FILE;
 		extra_len = 3000;
-		if (sm->wps->friendly_name)
-			extra_len += os_strlen(sm->wps->friendly_name);
-		if (sm->wps->manufacturer_url)
-			extra_len += os_strlen(sm->wps->manufacturer_url);
-		if (sm->wps->model_description)
-			extra_len += os_strlen(sm->wps->model_description);
-		if (sm->wps->model_url)
-			extra_len += os_strlen(sm->wps->model_url);
-		if (sm->wps->upc)
-			extra_len += os_strlen(sm->wps->upc);
+		if (iface->wps->friendly_name)
+			extra_len += os_strlen(iface->wps->friendly_name);
+		if (iface->wps->manufacturer_url)
+			extra_len += os_strlen(iface->wps->manufacturer_url);
+		if (iface->wps->model_description)
+			extra_len += os_strlen(iface->wps->model_description);
+		if (iface->wps->model_url)
+			extra_len += os_strlen(iface->wps->model_url);
+		if (iface->wps->upc)
+			extra_len += os_strlen(iface->wps->upc);
 	} else if (!os_strcasecmp(filename, UPNP_WPS_SCPD_XML_FILE)) {
 		wpa_printf(MSG_DEBUG, "WPS UPnP: HTTP GET for SCPD XML");
 		req = GET_SCPD_XML_FILE;
@@ -408,11 +416,16 @@ web_process_get_device_info(struct upnp_wps_device_sm *sm,
 {
 	static const char *name = "NewDeviceInfo";
 	struct wps_config cfg;
-	struct upnp_wps_peer *peer = &sm->peer;
+	struct upnp_wps_device_interface *iface;
+	struct upnp_wps_peer *peer;
+
+	iface = dl_list_first(&sm->interfaces,
+			      struct upnp_wps_device_interface, list);
+	peer = &iface->peer;
 
 	wpa_printf(MSG_DEBUG, "WPS UPnP: GetDeviceInfo");
 
-	if (sm->ctx->ap_pin == NULL)
+	if (iface->ctx->ap_pin == NULL)
 		return HTTP_INTERNAL_SERVER_ERROR;
 
 	/*
@@ -427,9 +440,9 @@ web_process_get_device_info(struct upnp_wps_device_sm *sm,
 		wps_deinit(peer->wps);
 
 	os_memset(&cfg, 0, sizeof(cfg));
-	cfg.wps = sm->wps;
-	cfg.pin = (u8 *) sm->ctx->ap_pin;
-	cfg.pin_len = os_strlen(sm->ctx->ap_pin);
+	cfg.wps = iface->wps;
+	cfg.pin = (u8 *) iface->ctx->ap_pin;
+	cfg.pin_len = os_strlen(iface->ctx->ap_pin);
 	peer->wps = wps_init(&cfg);
 	if (peer->wps) {
 		enum wsc_op_code op_code;
@@ -458,6 +471,10 @@ web_process_put_message(struct upnp_wps_device_sm *sm, char *data,
 	enum http_reply_code ret;
 	enum wps_process_res res;
 	enum wsc_op_code op_code;
+	struct upnp_wps_device_interface *iface;
+
+	iface = dl_list_first(&sm->interfaces,
+			      struct upnp_wps_device_interface, list);
 
 	/*
 	 * PutMessage is used by external UPnP-based Registrar to perform WPS
@@ -468,11 +485,11 @@ web_process_put_message(struct upnp_wps_device_sm *sm, char *data,
 	msg = xml_get_base64_item(data, "NewInMessage", &ret);
 	if (msg == NULL)
 		return ret;
-	res = wps_process_msg(sm->peer.wps, WSC_UPnP, msg);
+	res = wps_process_msg(iface->peer.wps, WSC_UPnP, msg);
 	if (res == WPS_FAILURE)
 		*reply = NULL;
 	else
-		*reply = wps_get_msg(sm->peer.wps, &op_code);
+		*reply = wps_get_msg(iface->peer.wps, &op_code);
 	wpabuf_free(msg);
 	if (*reply == NULL)
 		return HTTP_INTERNAL_SERVER_ERROR;
@@ -491,6 +508,8 @@ web_process_put_wlan_response(struct upnp_wps_device_sm *sm, char *data,
 	int ev_type;
 	int type;
 	char *val;
+	struct upnp_wps_device_interface *iface;
+	int ok = 0;
 
 	/*
 	 * External UPnP-based Registrar is passing us a message to be proxied
@@ -523,6 +542,16 @@ web_process_put_wlan_response(struct upnp_wps_device_sm *sm, char *data,
 	if (hwaddr_aton(val, macaddr)) {
 		wpa_printf(MSG_DEBUG, "WPS UPnP: Invalid NewWLANEventMAC in "
 			   "PutWLANResponse: '%s'", val);
+#ifdef CONFIG_WPS_STRICT
+		{
+			struct wps_parse_attr attr;
+			if (wps_parse_msg(msg, &attr) < 0 || attr.version2) {
+				wpabuf_free(msg);
+				os_free(val);
+				return UPNP_ARG_VALUE_INVALID;
+			}
+		}
+#endif /* CONFIG_WPS_STRICT */
 		if (hwaddr_aton2(val, macaddr) > 0) {
 			/*
 			 * At least some versions of Intel PROset seem to be
@@ -530,7 +559,8 @@ web_process_put_wlan_response(struct upnp_wps_device_sm *sm, char *data,
 			 */
 			wpa_printf(MSG_DEBUG, "WPS UPnP: Workaround - allow "
 				   "incorrect MAC address format in "
-				   "NewWLANEventMAC");
+				   "NewWLANEventMAC: %s -> " MACSTR,
+				   val, MAC2STR(macaddr));
 		} else {
 			wpabuf_free(msg);
 			os_free(val);
@@ -548,9 +578,16 @@ web_process_put_wlan_response(struct upnp_wps_device_sm *sm, char *data,
 		wpa_printf(MSG_DEBUG, "WPS UPnP: Message Type %d", type);
 	} else
 		type = -1;
-	if (!sm->ctx->rx_req_put_wlan_response ||
-	    sm->ctx->rx_req_put_wlan_response(sm->priv, ev_type, macaddr, msg,
-					      type)) {
+	dl_list_for_each(iface, &sm->interfaces,
+			 struct upnp_wps_device_interface, list) {
+		if (iface->ctx->rx_req_put_wlan_response &&
+		    iface->ctx->rx_req_put_wlan_response(iface->priv, ev_type,
+							 macaddr, msg, type)
+		    == 0)
+			ok = 1;
+	}
+
+	if (!ok) {
 		wpa_printf(MSG_INFO, "WPS UPnP: Fail: sm->ctx->"
 			   "rx_req_put_wlan_response");
 		wpabuf_free(msg);
@@ -595,6 +632,8 @@ web_process_set_selected_registrar(struct upnp_wps_device_sm *sm,
 	struct wpabuf *msg;
 	enum http_reply_code ret;
 	struct subscription *s;
+	struct upnp_wps_device_interface *iface;
+	int err = 0;
 
 	wpa_printf(MSG_DEBUG, "WPS UPnP: SetSelectedRegistrar");
 	s = find_er(sm, cli);
@@ -606,11 +645,15 @@ web_process_set_selected_registrar(struct upnp_wps_device_sm *sm,
 	msg = xml_get_base64_item(data, "NewMessage", &ret);
 	if (msg == NULL)
 		return ret;
-	if (upnp_er_set_selected_registrar(sm->wps->registrar, s, msg)) {
-		wpabuf_free(msg);
-		return HTTP_INTERNAL_SERVER_ERROR;
+	dl_list_for_each(iface, &sm->interfaces,
+			 struct upnp_wps_device_interface, list) {
+		if (upnp_er_set_selected_registrar(iface->wps->registrar, s,
+						   msg))
+			err = 1;
 	}
 	wpabuf_free(msg);
+	if (err)
+		return HTTP_INTERNAL_SERVER_ERROR;
 	*replyname = NULL;
 	*reply = NULL;
 	return HTTP_OK;
@@ -890,6 +933,9 @@ static void web_connection_parse_subscribe(struct upnp_wps_device_sm *sm,
 		return;
 	}
 
+	wpa_hexdump_ascii(MSG_DEBUG, "WPS UPnP: HTTP SUBSCRIBE",
+			  (u8 *) hdr, os_strlen(hdr));
+
 	/* Parse/validate headers */
 	h = hdr;
 	/* First line: SUBSCRIBE /wps_event HTTP/1.1
@@ -910,7 +956,7 @@ static void web_connection_parse_subscribe(struct upnp_wps_device_sm *sm,
 			break; /* no unterminated lines allowed */
 
 		/* NT assures that it is our type of subscription;
-		 * not used for a renewl.
+		 * not used for a renewal.
 		 **/
 		match = "NT:";
 		match_len = os_strlen(match);
@@ -989,16 +1035,22 @@ static void web_connection_parse_subscribe(struct upnp_wps_device_sm *sm,
 
 	if (got_uuid) {
 		/* renewal */
+		wpa_printf(MSG_DEBUG, "WPS UPnP: Subscription renewal");
 		if (callback_urls) {
 			ret = HTTP_BAD_REQUEST;
 			goto error;
 		}
 		s = subscription_renew(sm, uuid);
 		if (s == NULL) {
+			char str[80];
+			uuid_bin2str(uuid, str, sizeof(str));
+			wpa_printf(MSG_DEBUG, "WPS UPnP: Could not find "
+				   "SID %s", str);
 			ret = HTTP_PRECONDITION_FAILED;
 			goto error;
 		}
 	} else if (callback_urls) {
+		wpa_printf(MSG_DEBUG, "WPS UPnP: New subscription");
 		if (!got_nt) {
 			ret = HTTP_PRECONDITION_FAILED;
 			goto error;
@@ -1022,6 +1074,7 @@ static void web_connection_parse_subscribe(struct upnp_wps_device_sm *sm,
 	/* subscription id */
 	b = wpabuf_put(buf, 0);
 	uuid_bin2str(s->uuid, b, 80);
+	wpa_printf(MSG_DEBUG, "WPS UPnP: Assigned SID %s", b);
 	wpabuf_put(buf, os_strlen(b));
 	wpabuf_put_str(buf, "\r\n");
 	wpabuf_printf(buf, "Timeout: Second-%d\r\n", UPNP_SUBSCRIBE_SEC);
@@ -1055,6 +1108,7 @@ error:
 	*     HTTP 500-series error code.
 	*   599 Too many subscriptions (not a standard HTTP error)
 	*/
+	wpa_printf(MSG_DEBUG, "WPS UPnP: SUBSCRIBE failed - return %d", ret);
 	http_put_empty(buf, ret);
 	http_request_send_and_deinit(req, buf);
 	os_free(callback_urls);

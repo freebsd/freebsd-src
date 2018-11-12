@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __PSTREE_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -322,7 +319,6 @@ AcpiPsGetChild (
         Child = AcpiPsGetArg (Op, 0);
         break;
 
-
     case AML_BUFFER_OP:
     case AML_PACKAGE_OP:
     case AML_METHOD_OP:
@@ -333,13 +329,11 @@ AcpiPsGetChild (
         Child = AcpiPsGetArg (Op, 1);
         break;
 
-
     case AML_POWER_RES_OP:
     case AML_INDEX_FIELD_OP:
 
         Child = AcpiPsGetArg (Op, 2);
         break;
-
 
     case AML_PROCESSOR_OP:
     case AML_BANK_FIELD_OP:
@@ -347,9 +341,10 @@ AcpiPsGetChild (
         Child = AcpiPsGetArg (Op, 3);
         break;
 
-
     default:
+
         /* All others have no children */
+
         break;
     }
 

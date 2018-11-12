@@ -135,7 +135,7 @@ archive_write_add_filter_compress(struct archive *_a)
 	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_compress");
 	f->open = &archive_compressor_compress_open;
-	f->code = ARCHIVE_COMPRESSION_COMPRESS;
+	f->code = ARCHIVE_FILTER_COMPRESS;
 	f->name = "compress";
 	return (ARCHIVE_OK);
 }
@@ -150,7 +150,7 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 	struct private_data *state;
 	size_t bs = 65536, bpb;
 
-	f->code = ARCHIVE_COMPRESSION_COMPRESS;
+	f->code = ARCHIVE_FILTER_COMPRESS;
 	f->name = "compress";
 
 	ret = __archive_write_open_filter(f->next_filter);

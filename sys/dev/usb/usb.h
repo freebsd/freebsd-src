@@ -55,7 +55,6 @@ SYSCTL_DECL(_hw_usb);
 
 MALLOC_DECLARE(M_USB);
 MALLOC_DECLARE(M_USBDEV);
-MALLOC_DECLARE(M_USBHC);
 #endif /* _KERNEL */
 
 #ifndef USB_GLOBAL_INCLUDE_FILE
@@ -113,7 +112,7 @@ MALLOC_DECLARE(M_USBHC);
 
 /* Allow for marginal and non-conforming devices. */
 #define	USB_PORT_RESET_DELAY		50	/* ms */
-#define	USB_PORT_ROOT_RESET_DELAY	250	/* ms */
+#define	USB_PORT_ROOT_RESET_DELAY	200	/* ms */
 #define	USB_PORT_RESET_RECOVERY		250	/* ms */
 #define	USB_PORT_POWERUP_DELAY		300	/* ms */
 #define	USB_PORT_RESUME_DELAY		(20*2)	/* ms */
@@ -441,6 +440,7 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UISUBCLASS_ETHERNET_EMULATION_MODEL 12
 #define	UISUBCLASS_NETWORK_CONTROL_MODEL 13
 
+#define	UIPROTO_CDC_NONE		0
 #define	UIPROTO_CDC_AT			1
 
 #define	UICLASS_HID		0x03
@@ -499,8 +499,11 @@ typedef struct usb_interface_assoc_descriptor usb_interface_assoc_descriptor_t;
 #define	UICLASS_WIRELESS	0xe0
 #define	UISUBCLASS_RF			0x01
 #define	UIPROTO_BLUETOOTH		0x01
+#define	UIPROTO_RNDIS			0x03
 
 #define	UICLASS_IAD		0xEF	/* Interface Association Descriptor */
+#define	UISUBCLASS_SYNC			0x01
+#define	UIPROTO_ACTIVESYNC		0x01
 
 #define	UICLASS_APPL_SPEC	0xfe
 #define	UISUBCLASS_FIRMWARE_DOWNLOAD	1
@@ -539,6 +542,11 @@ struct usb_endpoint_descriptor {
 #define	UE_ISO_ADAPT	0x08
 #define	UE_ISO_SYNC	0x0c
 #define	UE_GET_ISO_TYPE(a)	((a) & UE_ISO_TYPE)
+#define	UE_ISO_USAGE	0x30
+#define	UE_ISO_USAGE_DATA	0x00
+#define	UE_ISO_USAGE_FEEDBACK	0x10
+#define	UE_ISO_USAGE_IMPLICT_FB	0x20
+#define	UE_GET_ISO_USAGE(a)	((a) & UE_ISO_USAGE)
 	uWord	wMaxPacketSize;
 #define	UE_ZERO_MPS 0xFFFF		/* for internal use only */
 	uByte	bInterval;

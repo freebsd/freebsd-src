@@ -36,6 +36,7 @@
 #include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/dirent.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
@@ -418,7 +419,6 @@ smbfs_getpages(ap)
 		vm_page_t *a_m;
 		int a_count;
 		int a_reqpage;
-		vm_ooffset_t a_offset;
 	} */ *ap;
 {
 #ifdef SMBFS_RWGENERIC
@@ -460,7 +460,7 @@ smbfs_getpages(ap)
 	 */
 	m = pages[reqpage];
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	if (m->valid != 0) {
 		for (i = 0; i < npages; ++i) {
 			if (i != reqpage) {
@@ -469,10 +469,10 @@ smbfs_getpages(ap)
 				vm_page_unlock(pages[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return 0;
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, td, cred);
@@ -500,7 +500,7 @@ smbfs_getpages(ap)
 
 	relpbuf(bp, &smbfs_pbuf_freecnt);
 
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_WLOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
 		for (i = 0; i < npages; i++) {
@@ -510,7 +510,7 @@ smbfs_getpages(ap)
 				vm_page_unlock(pages[i]);
 			}
 		}
-		VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_WUNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
@@ -548,7 +548,7 @@ smbfs_getpages(ap)
 		if (i != reqpage)
 			vm_page_readahead_finish(m);
 	}
-	VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_WUNLOCK(object);
 	return 0;
 #endif /* SMBFS_RWGENERIC */
 }
@@ -567,7 +567,6 @@ smbfs_putpages(ap)
 		int a_count;
 		int a_sync;
 		int *a_rtvals;
-		vm_ooffset_t a_offset;
 	} */ *ap;
 {
 	int error;
@@ -667,9 +666,9 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 	np->n_flag |= NFLUSHINPROG;
 
 	if (vp->v_bufobj.bo_object != NULL) {
-		VM_OBJECT_LOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WLOCK(vp->v_bufobj.bo_object);
 		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
-		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
+		VM_OBJECT_WUNLOCK(vp->v_bufobj.bo_object);
 	}
 
 	error = vinvalbuf(vp, V_SAVE, PCATCH, 0);

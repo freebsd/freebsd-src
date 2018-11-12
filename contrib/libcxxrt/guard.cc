@@ -41,124 +41,153 @@
  * initialised.  
  */
 #include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <pthread.h>
 #include <assert.h>
+#include "atomic.h"
 
+// Older GCC doesn't define __LITTLE_ENDIAN__
+#ifndef __LITTLE_ENDIAN__
+	// If __BYTE_ORDER__ is defined, use that instead
+#	ifdef __BYTE_ORDER__
+#		if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#			define __LITTLE_ENDIAN__
+#		endif
+	// x86 and ARM are the most common little-endian CPUs, so let's have a
+	// special case for them (ARM is already special cased).  Assume everything
+	// else is big endian.
+#	elif defined(__x86_64) || defined(__i386)
+#		define __LITTLE_ENDIAN__
+#	endif
+#endif
+
+
+/*
+ * The least significant bit of the guard variable indicates that the object
+ * has been initialised, the most significant bit is used for a spinlock.
+ */
 #ifdef __arm__
 // ARM ABI - 32-bit guards.
-
-/**
- * Acquires a lock on a guard, returning 0 if the object has already been
- * initialised, and 1 if it has not.  If the object is already constructed then
- * this function just needs to read a byte from memory and return.
- */
-extern "C" int __cxa_guard_acquire(volatile int32_t *guard_object)
-{
-	if ((1<<31) == *guard_object) { return 0; }
-	// If we can atomically move the value from 0 -> 1, then this is
-	// uninitialised.
-	if (__sync_bool_compare_and_swap(guard_object, 0, 1))
-	{
-		return 1;
-	}
-	// If the value is not 0, some other thread was initialising this.  Spin
-	// until it's finished.
-	while (__sync_bool_compare_and_swap(guard_object, (1<<31), (1<<31)))
-	{
-		// If the other thread aborted, then we grab the lock
-		if (__sync_bool_compare_and_swap(guard_object, 0, 1))
-		{
-			return 1;
-		}
-		sched_yield();
-	}
-	return 0;
-}
-
-/**
- * Releases the lock without marking the object as initialised.  This function
- * is called if initialising a static causes an exception to be thrown.
- */
-extern "C" void __cxa_guard_abort(int32_t *guard_object)
-{
-	assert(__sync_bool_compare_and_swap(guard_object, 1, 0));
-}
-/**
- * Releases the guard and marks the object as initialised.  This function is
- * called after successful initialisation of a static.
- */
-extern "C" void __cxa_guard_release(int32_t *guard_object)
-{
-	assert(__sync_bool_compare_and_swap(guard_object, 1, (1<<31)));
-}
-
-
+typedef uint32_t guard_t;
+typedef uint32_t guard_lock_t;
+static const uint32_t LOCKED = static_cast<guard_t>(1) << 31;
+static const uint32_t INITIALISED = 1;
+#define LOCK_PART(guard) (guard)
+#define INIT_PART(guard) (guard)
+#elif defined(_LP64)
+typedef uint64_t guard_t;
+typedef uint64_t guard_lock_t;
+#	if defined(__LITTLE_ENDIAN__)
+static const guard_t LOCKED = static_cast<guard_t>(1) << 63;
+static const guard_t INITIALISED = 1;
+#	else
+static const guard_t LOCKED = 1;
+static const guard_t INITIALISED = static_cast<guard_t>(1) << 56;
+#	endif
+#define LOCK_PART(guard) (guard)
+#define INIT_PART(guard) (guard)
 #else
-// Itanium ABI: 64-bit guards
-
-/**
- * Returns a pointer to the low 32 bits in a 64-bit value, respecting the
- * platform's byte order.
- */
-static int32_t *low_32_bits(volatile int64_t *ptr)
-{
-	int32_t *low= (int32_t*)ptr;
-	// Test if the machine is big endian - constant propagation at compile time
-	// should eliminate this completely.
-	int one = 1;
-	if (*(char*)&one != 1)
-	{
-		low++;
-	}
-	return low;
-}
+typedef uint32_t guard_lock_t;
+#	if defined(__LITTLE_ENDIAN__)
+typedef struct {
+	uint32_t init_half;
+	uint32_t lock_half;
+} guard_t;
+static const uint32_t LOCKED = static_cast<guard_lock_t>(1) << 31;
+static const uint32_t INITIALISED = 1;
+#	else
+typedef struct {
+	uint32_t init_half;
+	uint32_t lock_half;
+} guard_t;
+_Static_assert(sizeof(guard_t) == sizeof(uint64_t), "");
+static const uint32_t LOCKED = 1;
+static const uint32_t INITIALISED = static_cast<guard_lock_t>(1) << 24;
+#	endif
+#define LOCK_PART(guard) (&(guard)->lock_half)
+#define INIT_PART(guard) (&(guard)->init_half)
+#endif
+static const guard_lock_t INITIAL = 0;
 
 /**
  * Acquires a lock on a guard, returning 0 if the object has already been
  * initialised, and 1 if it has not.  If the object is already constructed then
  * this function just needs to read a byte from memory and return.
  */
-extern "C" int __cxa_guard_acquire(volatile int64_t *guard_object)
+extern "C" int __cxa_guard_acquire(volatile guard_t *guard_object)
 {
-	char first_byte = (*guard_object) >> 56;
-	if (1 == first_byte) { return 0; }
-	int32_t *lock = low_32_bits(guard_object);
-	// Simple spin lock using the low 32 bits.  We assume that concurrent
-	// attempts to initialize statics are very rare, so we don't need to
-	// optimise for the case where we have lots of threads trying to acquire
-	// the lock at the same time.
-	while (!__sync_bool_compare_and_swap_4(lock, 0, 1))
+	guard_lock_t old;
+	// Not an atomic read, doesn't establish a happens-before relationship, but
+	// if one is already established and we end up seeing an initialised state
+	// then it's a fast path, otherwise we'll do something more expensive than
+	// this test anyway...
+	if (INITIALISED == *INIT_PART(guard_object))
+		return 0;
+	// Spin trying to do the initialisation
+	for (;;)
 	{
-		if (1 == ((*guard_object) >> 56))
-		{
-			break;
+		// Loop trying to move the value of the guard from 0 (not
+		// locked, not initialised) to the locked-uninitialised
+		// position.
+		old = __sync_val_compare_and_swap(LOCK_PART(guard_object),
+		    INITIAL, LOCKED);
+		if (old == INITIAL) {
+			// Lock obtained.  If lock and init bit are
+			// in separate words, check for init race.
+			if (INIT_PART(guard_object) == LOCK_PART(guard_object))
+				return 1;
+			if (INITIALISED != *INIT_PART(guard_object))
+				return 1;
+
+			// No need for a memory barrier here,
+			// see first comment.
+			*LOCK_PART(guard_object) = INITIAL;
+			return 0;
 		}
+		// If lock and init bit are in the same word, check again
+		// if we are done.
+		if (INIT_PART(guard_object) == LOCK_PART(guard_object) &&
+		    old == INITIALISED)
+			return 0;
+
+		assert(old == LOCKED);
+		// Another thread holds the lock.
+		// If lock and init bit are in different words, check
+		// if we are done before yielding and looping.
+		if (INIT_PART(guard_object) != LOCK_PART(guard_object) &&
+		    INITIALISED == *INIT_PART(guard_object))
+			return 0;
 		sched_yield();
 	}
-	// We have to test the guard again, in case another thread has performed
-	// the initialisation while we were trying to acquire the lock.
-	first_byte = (*guard_object) >> 56;
-	return (1 != first_byte);
 }
 
 /**
  * Releases the lock without marking the object as initialised.  This function
  * is called if initialising a static causes an exception to be thrown.
  */
-extern "C" void __cxa_guard_abort(int64_t *guard_object)
+extern "C" void __cxa_guard_abort(volatile guard_t *guard_object)
 {
-	int32_t *lock = low_32_bits(guard_object);
-	*lock = 0;
+	__attribute__((unused))
+	bool reset = __sync_bool_compare_and_swap(LOCK_PART(guard_object),
+	    LOCKED, INITIAL);
+	assert(reset);
 }
 /**
  * Releases the guard and marks the object as initialised.  This function is
  * called after successful initialisation of a static.
  */
-extern "C" void __cxa_guard_release(int64_t *guard_object)
+extern "C" void __cxa_guard_release(volatile guard_t *guard_object)
 {
-	// Set the first byte to 1
-	*guard_object |= ((int64_t)1) << 56;
-	__cxa_guard_abort(guard_object);
+	guard_lock_t old;
+	if (INIT_PART(guard_object) == LOCK_PART(guard_object))
+		old = LOCKED;
+	else
+		old = INITIAL;
+	__attribute__((unused))
+	bool reset = __sync_bool_compare_and_swap(INIT_PART(guard_object),
+	    old, INITIALISED);
+	assert(reset);
+	if (INIT_PART(guard_object) != LOCK_PART(guard_object))
+		*LOCK_PART(guard_object) = INITIAL;
 }
-
-#endif

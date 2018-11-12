@@ -27,13 +27,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define __RMAN_RESOURCE_VISIBLE
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
-#include <sys/endian.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/serial.h>
@@ -47,9 +44,13 @@ __FBSDID("$FreeBSD$");
 
 #define	quicc_read2(bas, reg)		\
 	bus_space_read_2((bas)->bst, (bas)->bsh, reg)
+#define	quicc_read4(bas, reg)		\
+	bus_space_read_4((bas)->bst, (bas)->bsh, reg)
 
 #define	quicc_write2(bas, reg, val)	\
 	bus_space_write_2((bas)->bst, (bas)->bsh, reg, val)
+#define	quicc_write4(bas, reg, val)	\
+	bus_space_write_4((bas)->bst, (bas)->bsh, reg, val)
 
 static int quicc_bfe_attach(struct scc_softc *, int);
 static int quicc_bfe_enabled(struct scc_softc *, struct scc_chan *);
@@ -63,7 +64,7 @@ static kobj_method_t quicc_methods[] = {
 	KOBJMETHOD(scc_iclear,	quicc_bfe_iclear),
 	KOBJMETHOD(scc_ipend,	quicc_bfe_ipend),
 	KOBJMETHOD(scc_probe,	quicc_bfe_probe),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct scc_class scc_quicc_class = {
@@ -77,11 +78,9 @@ struct scc_class scc_quicc_class = {
 };
 
 static int
-quicc_bfe_attach(struct scc_softc *sc, int reset)
+quicc_bfe_attach(struct scc_softc *sc __unused, int reset __unused)
 {
-	struct scc_bas *bas;
 
-	bas = &sc->sc_bas;
 	return (0);
 }
 
@@ -104,7 +103,18 @@ quicc_bfe_enabled(struct scc_softc *sc, struct scc_chan *ch)
 static int
 quicc_bfe_iclear(struct scc_softc *sc, struct scc_chan *ch)
 {
+	struct scc_bas *bas;
+	uint16_t rb, st;
 
+	bas = &sc->sc_bas;
+	mtx_lock_spin(&sc->sc_hwmtx);
+	if (ch->ch_ipend & SER_INT_RXREADY) {
+		rb = quicc_read2(bas, QUICC_PRAM_SCC_RBASE(ch->ch_nr - 1));
+		st = quicc_read2(bas, rb);
+		(void)quicc_read4(bas, rb + 4);
+		quicc_write2(bas, rb, st | 0x9000);
+	}
+	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
 
@@ -142,10 +152,8 @@ quicc_bfe_ipend(struct scc_softc *sc)
 }
 
 static int
-quicc_bfe_probe(struct scc_softc *sc)
+quicc_bfe_probe(struct scc_softc *sc __unused)
 {
-	struct scc_bas *bas;
 
-	bas = &sc->sc_bas;
 	return (0);
 }

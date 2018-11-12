@@ -30,7 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -71,7 +71,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		default:
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+				ktrcapfail(CAPFAIL_SYSCALL, NULL, NULL);
 #endif
 			return (ECAPMODE);
 		}

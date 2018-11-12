@@ -86,9 +86,7 @@ static int csa_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
 static int csa_setup_intr(device_t bus, device_t child,
 			  struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
 			  driver_filter_t *filter,
-#endif
 			  driver_intr_t *intr,  void *arg, void **cookiep);
 static int csa_teardown_intr(device_t bus, device_t child,
 			     struct resource *irq, void *cookie);
@@ -242,7 +240,6 @@ csa_probe(device_t dev)
 static int
 csa_attach(device_t dev)
 {
-	u_int32_t stcmd;
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
@@ -254,12 +251,7 @@ csa_attach(device_t dev)
 	bzero(scp, sizeof(*scp));
 	scp->dev = dev;
 
-	/* Wake up the device. */
-	stcmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	if ((stcmd & PCIM_CMD_MEMEN) == 0 || (stcmd & PCIM_CMD_BUSMASTEREN) == 0) {
-		stcmd |= (PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
-		pci_write_config(dev, PCIR_COMMAND, stcmd, 2);
-	}
+	pci_enable_busmaster(dev);
 
 	/* Allocate the resources. */
 	resp = &scp->res;
@@ -456,21 +448,17 @@ csa_release_resource(device_t bus, device_t child, int type, int rid,
 static int
 csa_setup_intr(device_t bus, device_t child,
 	       struct resource *irq, int flags,
-#if __FreeBSD_version >= 700031
 	       driver_filter_t *filter,
-#endif
 	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
 
-#if __FreeBSD_version >= 700031
 	if (filter != NULL) {
 		printf("ata-csa.c: we cannot use a filter here\n");
 		return (EINVAL);
 	}
-#endif
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 

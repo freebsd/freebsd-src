@@ -209,12 +209,7 @@ int
 mii_phy_tick(struct mii_softc *sc)
 {
 	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
-	struct ifnet *ifp = sc->mii_pdata->mii_ifp;
 	int reg;
-
-	/* Just bail now if the interface is down. */
-	if ((ifp->if_flags & IFF_UP) == 0)
-		return (EJUSTRETURN);
 
 	/*
 	 * If we're not doing autonegotiation, we don't need to do
@@ -281,12 +276,6 @@ mii_phy_reset(struct mii_softc *sc)
 		reg |= BMCR_ISO;
 	if (PHY_READ(sc, MII_BMCR) != reg)
 		PHY_WRITE(sc, MII_BMCR, reg);
-}
-
-void
-mii_phy_down(struct mii_softc *sc)
-{
-
 }
 
 void
@@ -484,7 +473,6 @@ mii_phy_detach(device_t dev)
 	struct mii_softc *sc;
 
 	sc = device_get_softc(dev);
-	mii_phy_down(sc);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
 	return (0);

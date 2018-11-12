@@ -116,6 +116,8 @@ dev_free_devlocked(struct cdev *cdev)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	cdp = cdev2priv(cdev);
+	KASSERT((cdp->cdp_flags & CDP_UNREF_DTR) == 0,
+	    ("destroy_dev() was not called after delist_dev(%p)", cdev));
 	TAILQ_INSERT_HEAD(&cdevp_free_list, cdp, cdp_list);
 }
 
@@ -193,7 +195,7 @@ dev_refthread(struct cdev *dev, int *ref)
 	if (csw != NULL) {
 		cdp = cdev2priv(dev);
 		if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0)
-			dev->si_threadcount++;
+			atomic_add_long(&dev->si_threadcount, 1);
 		else
 			csw = NULL;
 	}
@@ -234,7 +236,7 @@ devvn_refthread(struct vnode *vp, struct cdev **devp, int *ref)
 	if ((cdp->cdp_flags & CDP_SCHED_DTR) == 0) {
 		csw = dev->si_devsw;
 		if (csw != NULL)
-			dev->si_threadcount++;
+			atomic_add_long(&dev->si_threadcount, 1);
 	}
 	dev_unlock();
 	if (csw != NULL) {
@@ -251,11 +253,9 @@ dev_relthread(struct cdev *dev, int ref)
 	mtx_assert(&devmtx, MA_NOTOWNED);
 	if (!ref)
 		return;
-	dev_lock();
 	KASSERT(dev->si_threadcount > 0,
 	    ("%s threadcount is wrong", dev->si_name));
-	dev->si_threadcount--;
-	dev_unlock();
+	atomic_subtract_rel_long(&dev->si_threadcount, 1);
 }
 
 int
@@ -1037,6 +1037,7 @@ destroy_devl(struct cdev *dev)
 {
 	struct cdevsw *csw;
 	struct cdev_privdata *p;
+	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
@@ -1045,12 +1046,21 @@ destroy_devl(struct cdev *dev)
 	    ("WARNING: Driver mistake: destroy_dev on eternal %d\n",
 	     dev2unit(dev)));
 
-	devfs_destroy(dev);
+	cdp = cdev2priv(dev);
+	if ((cdp->cdp_flags & CDP_UNREF_DTR) == 0) {
+		/*
+		 * Avoid race with dev_rel(), e.g. from the populate
+		 * loop.  If CDP_UNREF_DTR flag is set, the reference
+		 * to be dropped at the end of destroy_devl() was
+		 * already taken by delist_dev_locked().
+		 */
+		dev_refl(dev);
+
+		devfs_destroy(dev);
+	}
 
 	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
-
-	dev->si_refcount++;	/* Avoid race with dev_rel() */
 
 	/* If we are a child, remove us from the parents list */
 	if (dev->si_flags & SI_CHILD) {
@@ -1083,9 +1093,12 @@ destroy_devl(struct cdev *dev)
 	}
 
 	dev_unlock();
-	notify_destroy(dev);
+	if ((cdp->cdp_flags & CDP_UNREF_DTR) == 0) {
+		/* avoid out of order notify events */
+		notify_destroy(dev);
+	}
 	mtx_lock(&cdevpriv_mtx);
-	while ((p = LIST_FIRST(&cdev2priv(dev)->cdp_fdpriv)) != NULL) {
+	while ((p = LIST_FIRST(&cdp->cdp_fdpriv)) != NULL) {
 		devfs_destroy_cdevpriv(p);
 		mtx_lock(&cdevpriv_mtx);
 	}
@@ -1107,13 +1120,52 @@ destroy_devl(struct cdev *dev)
 		}
 	}
 	dev->si_flags &= ~SI_ALIAS;
-	dev->si_refcount--;	/* Avoid race with dev_rel() */
+	cdp->cdp_flags &= ~CDP_UNREF_DTR;
+	dev->si_refcount--;
 
-	if (dev->si_refcount > 0) {
+	if (dev->si_refcount > 0)
 		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
-	} else {
+	else
 		dev_free_devlocked(dev);
-	}
+}
+
+static void
+delist_dev_locked(struct cdev *dev)
+{
+	struct cdev_priv *cdp;
+	struct cdev *child;
+
+	mtx_assert(&devmtx, MA_OWNED);
+	cdp = cdev2priv(dev);
+	if ((cdp->cdp_flags & CDP_UNREF_DTR) != 0)
+		return;
+	cdp->cdp_flags |= CDP_UNREF_DTR;
+	dev_refl(dev);
+	devfs_destroy(dev);
+	LIST_FOREACH(child, &dev->si_children, si_siblings)
+		delist_dev_locked(child);
+	dev_unlock();	
+	/* ensure the destroy event is queued in order */
+	notify_destroy(dev);
+	dev_lock();
+}
+
+/*
+ * This function will delist a character device and its children from
+ * the directory listing and create a destroy event without waiting
+ * for all character device references to go away. At some later point
+ * destroy_dev() must be called to complete the character device
+ * destruction. After calling this function the character device name
+ * can instantly be re-used.
+ */
+void
+delist_dev(struct cdev *dev)
+{
+
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "delist_dev");
+	dev_lock();
+	delist_dev_locked(dev);
+	dev_unlock();
 }
 
 void
@@ -1294,7 +1346,8 @@ clone_cleanup(struct clonedevs **cdp)
 		if (!(cp->cdp_flags & CDP_SCHED_DTR)) {
 			cp->cdp_flags |= CDP_SCHED_DTR;
 			KASSERT(dev->si_flags & SI_NAMED,
-				("Driver has goofed in cloning underways udev %x unit %x", dev2udev(dev), dev2unit(dev)));
+				("Driver has goofed in cloning underways udev %jx unit %x",
+				(uintmax_t)dev2udev(dev), dev2unit(dev)));
 			destroy_devl(dev);
 		}
 	}

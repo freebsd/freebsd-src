@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_MCASMPARSEREXTENSION_H
-#define LLVM_MC_MCASMPARSEREXTENSION_H
+#ifndef LLVM_MC_MCPARSER_MCASMPARSEREXTENSION_H
+#define LLVM_MC_MCPARSER_MCASMPARSEREXTENSION_H
 
-#include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/Support/SMLoc.h"
 
 namespace llvm {
@@ -52,8 +52,17 @@ public:
   /// @{
 
   MCContext &getContext() { return getParser().getContext(); }
+
   MCAsmLexer &getLexer() { return getParser().getLexer(); }
+  const MCAsmLexer &getLexer() const {
+    return const_cast<MCAsmParserExtension *>(this)->getLexer();
+  }
+
   MCAsmParser &getParser() { return *Parser; }
+  const MCAsmParser &getParser() const {
+    return const_cast<MCAsmParserExtension*>(this)->getParser();
+  }
+
   SourceMgr &getSourceManager() { return getParser().getSourceManager(); }
   MCStreamer &getStreamer() { return getParser().getStreamer(); }
   bool Warning(SMLoc L, const Twine &Msg) {

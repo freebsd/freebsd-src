@@ -28,7 +28,7 @@
 .\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd December 13, 2014
 .Dt MUTEX 9
 .Os
 .Sh NAME
@@ -177,13 +177,17 @@ It may contain either
 or
 .Dv MTX_SPIN
 but not both.
-See below for additional initialization options.
-It is not permissible to pass the same
-.Fa mutex
-to
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
 .Fn mtx_init
-multiple times without intervening calls to
-.Fn mtx_destroy .
+will assert that the
+.Fa mutex
+has not been initialized multiple times without intervening calls to
+.Fn mtx_destroy
+unless the
+.Dv MTX_NEW
+option is specified.
+See below for additional initialization options.
 .Pp
 The
 .Fn mtx_lock
@@ -225,8 +229,10 @@ or
 lock, respectively, and also accept a
 .Fa flags
 argument.
-In both cases, the only flag presently available for lock acquires is
-.Dv MTX_QUIET .
+In both cases, the only flags presently available for lock acquires are
+.Dv MTX_QUIET
+and
+.Dv MTX_RECURSE .
 If the
 .Dv MTX_QUIET
 bit is turned on in the
@@ -235,6 +241,11 @@ argument, then if
 .Dv KTR_LOCK
 tracing is being done,
 it will be silenced during the lock acquire.
+If the
+.Dv MTX_RECURSE
+bit is turned on in the
+.Fa flags
+argument, then the mutex can be acquired recursively.
 .Pp
 The
 .Fn mtx_trylock
@@ -446,6 +457,8 @@ to ignore this lock.
 Witness should not log messages about duplicate locks being acquired.
 .It Dv MTX_NOPROFILE
 Do not profile this lock.
+.It Dv MTX_NEW
+Do not check for double-init.
 .El
 .Ss Lock and Unlock Flags
 The flags passed to the

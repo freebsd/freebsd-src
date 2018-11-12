@@ -367,6 +367,7 @@ writefile(time_t runtimer, char queue)
 
 	if (export)
 	{
+	    (void)fputs("export ", fp);
 	    fwrite(*atenv, sizeof(char), eqp-*atenv, fp);
 	    for(ap = eqp;*ap != '\0'; ap++)
 	    {
@@ -389,8 +390,6 @@ writefile(time_t runtimer, char queue)
 		    fputc(*ap, fp);
 		}
 	    }
-	    fputs("; export ", fp);
-	    fwrite(*atenv, sizeof(char), eqp-*atenv -1, fp);
 	    fputc('\n', fp);
 	    
 	}
@@ -531,12 +530,19 @@ process_jobs(int argc, char **argv, int what)
     /* Delete every argument (job - ID) given
      */
     int i;
+    int rc;
+    int nofJobs;
+    int nofDone;
+    int statErrno;
     struct stat buf;
     DIR *spool;
     struct dirent *dirent;
     unsigned long ctm;
     char queue;
     long jobno;
+
+    nofJobs = argc - optind;
+    nofDone = 0;
 
     PRIV_START
 
@@ -553,9 +559,20 @@ process_jobs(int argc, char **argv, int what)
     while((dirent = readdir(spool)) != NULL) {
 
 	PRIV_START
-	if (stat(dirent->d_name, &buf) != 0)
-	    perr("cannot stat in " ATJOB_DIR);
+	rc = stat(dirent->d_name, &buf);
+	statErrno = errno;
 	PRIV_END
+	/* There's a race condition between readdir above and stat here:
+	 * another atrm process could have removed the file from the spool
+	 * directory under our nose. If this happens, stat will set errno to
+	 * ENOENT, which we shouldn't treat as fatal.
+	 */
+	if (rc != 0) {
+	    if (statErrno == ENOENT)
+		continue;
+	    else
+		perr("cannot stat in " ATJOB_DIR);
+	}
 
 	if(sscanf(dirent->d_name, "%c%5lx%8lx", &queue, &jobno, &ctm)!=3)
 	    continue;
@@ -601,9 +618,15 @@ process_jobs(int argc, char **argv, int what)
 		    errx(EXIT_FAILURE, "internal error, process_jobs = %d",
 			what);
 	        }
+
+		/* All arguments have been processed
+		 */
+		if (++nofDone == nofJobs)
+		    goto end;
 	    }
 	}
     }
+end:
     closedir(spool);
 } /* delete_jobs */
 

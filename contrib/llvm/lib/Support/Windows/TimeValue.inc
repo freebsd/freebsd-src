@@ -11,11 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Windows.h"
+#include "WindowsSupport.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cctype>
 #include <time.h>
 
-namespace llvm {
-using namespace sys;
+using namespace llvm;
+using namespace llvm::sys;
 
 //===----------------------------------------------------------------------===//
 //=== WARNING: Implementation here must contain only Win32 specific code.
@@ -31,21 +34,27 @@ TimeValue TimeValue::now() {
 }
 
 std::string TimeValue::str() const {
+  std::string S;
+  struct tm *LT;
 #ifdef __MINGW32__
-  // This ban may be lifted by either:
-  // (i) a future MinGW version other than 1.0 inherents the __time64_t type, or
-  // (ii) configure tests for either the time_t or __time64_t type.
-  time_t ourTime = time_t(this->toEpochTime());
-  struct tm *lt = ::localtime(&ourTime);
+  // Old versions of mingw don't have _localtime64_s. Remove this once we drop support
+  // for them.
+  time_t OurTime = time_t(this->toEpochTime());
+  LT = ::localtime(&OurTime);
+  assert(LT);
 #else
-  __time64_t ourTime = this->toEpochTime();
-  struct tm *lt = ::_localtime64(&ourTime);
+  struct tm Storage;
+  __time64_t OurTime = this->toEpochTime();
+  int Error = ::_localtime64_s(&Storage, &OurTime);
+  assert(!Error);
+  LT = &Storage;
 #endif
 
-  char buffer[25];
-  strftime(buffer, 25, "%a %b %d %H:%M:%S %Y", lt);
-  return std::string(buffer);
-}
-
-
+  char Buffer[sizeof("YYYY-MM-DD HH:MM:SS")];
+  strftime(Buffer, sizeof(Buffer), "%Y-%m-%d %H:%M:%S", LT);
+  raw_string_ostream OS(S);
+  OS << format("%s.%.9u", static_cast<const char *>(Buffer),
+               this->nanoseconds());
+  OS.flush();
+  return S;
 }

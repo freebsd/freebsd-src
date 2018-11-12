@@ -601,7 +601,7 @@ at_cmd(struct ctx *ctx, const char *resp, resp_cb cb, resp_arg *ra, const char *
 	if (resp != NULL) {
 		l = strlen(resp);
 #ifdef DEBUG
-		fprintf(stderr, "SYNC_EXP: %s (%d)\n", resp, l);
+		fprintf(stderr, "SYNC_EXP: %s (%zu)\n", resp, l);
 #endif
 	}
 

@@ -5,10 +5,9 @@
 PROG=	bhyvectl
 SRCS=	bhyvectl.c
 
-NO_MAN=
+MAN=
 
-DPADD=	${LIBVMMAPI}
-LDADD=	-lvmmapi
+LIBADD=	vmmapi util
 
 WARNS?=	3
 

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ptrace.h>
@@ -382,7 +383,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 
 		obj = entry->object.vm_object;
 		if (obj != NULL)
-			VM_OBJECT_WLOCK(obj);
+			VM_OBJECT_RLOCK(obj);
 	} while (0);
 
 	vm_map_unlock_read(map);
@@ -395,9 +396,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		lobj = obj;
 		for (tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 			pve->pve_offset += tobj->backing_object_offset;
 		}
@@ -405,8 +406,8 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 		if (vp != NULL)
 			vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_WUNLOCK(lobj);
-		VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(lobj);
+		VM_OBJECT_RUNLOCK(obj);
 
 		if (vp != NULL) {
 			freepath = NULL;
@@ -915,19 +916,11 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		case PT_DETACH:
 			/* reset process parent */
 			if (p->p_oppid != p->p_pptr->p_pid) {
-				struct proc *pp;
-
 				PROC_LOCK(p->p_pptr);
 				sigqueue_take(p->p_ksi);
 				PROC_UNLOCK(p->p_pptr);
 
-				PROC_UNLOCK(p);
-				pp = pfind(p->p_oppid);
-				if (pp == NULL)
-					pp = initproc;
-				else
-					PROC_UNLOCK(pp);
-				PROC_LOCK(p);
+				pp = proc_realparent(p);
 				proc_reparent(p, pp);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;

@@ -237,6 +237,21 @@ FBSD_1.3 {
 	fegetround;
 	fesetround;
 	fesetenv;
+	acoshl;
+	asinhl;
+	atanhl;
+	cacos;
+	cacosf;
+	cacosh;
+	cacoshf;
+	casin;
+	casinf;
+	casinh;
+	casinhf;
+	catan;
+	catanf;
+	catanh;
+	catanhf;
 	csin;
 	csinf;
 	csinh;
@@ -245,9 +260,28 @@ FBSD_1.3 {
 	ccosf;
 	ccosh;
 	ccoshf;
+	coshl;
 	ctan;
 	ctanf;
 	ctanh;
 	ctanhf;
+	erfcl;
+	erfl;
 	expl;
+	expm1l;
+	lgammal;
+	log10l;
+	log1pl;
+	log2l;
+	logl;
+	sinhl;
+	tanhl;
+	/* Implemented as weak aliases for imprecise versions */
+	powl;
+	tgammal;
+};
+
+/* First added in 11.0-CURRENT */
+FBSD_1.4 {
+	lgammal_r;
 };

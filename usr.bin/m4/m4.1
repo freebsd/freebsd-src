@@ -1,5 +1,5 @@
-.\"	$NetBSD: m4.1,v 1.22 2010/05/14 17:14:28 joerg Exp $
-.\"	@(#) $OpenBSD: m4.1,v 1.56 2009/10/14 17:19:47 sthen Exp $
+.\"	$NetBSD: m4.1,v 1.23 2012/04/08 22:00:39 wiz Exp $
+.\"	@(#) $OpenBSD: m4.1,v 1.62 2014/04/14 07:00:47 jmc Exp $
 .\"
 .\" Copyright (c) 1989, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -33,14 +33,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2009
+.Dd January 12, 2014
 .Dt M4 1
 .Os
 .Sh NAME
 .Nm m4
 .Nd macro language processor
 .Sh SYNOPSIS
-.Nm m4
+.Nm
 .Op Fl gPs
 .Oo
 .Sm off
@@ -50,18 +50,16 @@
 .Op Fl d Ar flags
 .Op Fl I Ar dirname
 .Op Fl o Ar filename
-.Bk -words
 .Op Fl t Ar macro
 .Op Fl U Ns Ar name
 .Op Ar
-.Ek
 .Sh DESCRIPTION
 The
-.Nm m4
+.Nm
 utility is a macro processor that can be used as a front end to any
 language (e.g., C, ratfor, fortran, lex, and yacc).
 If no input files are given,
-.Nm m4
+.Nm
 reads from the standard input,
 otherwise files specified on the command line are
 processed in the given order.
@@ -69,7 +67,7 @@ Input files can be regular files, files in the m4 include paths, or a
 single dash
 .Pq Sq - ,
 denoting standard input.
-.Nm m4
+.Nm
 writes
 the processed text to the standard output, unless told otherwise.
 .Pp
@@ -77,7 +75,7 @@ Macro calls have the form name(argument1[, argument2, ..., argumentN]).
 .Pp
 There cannot be any space following the macro name and the open
 parenthesis
-.Sq \&( .
+.Pq Sq \&( .
 If the macro name is not followed by an open
 parenthesis it is processed with no arguments.
 .Pp
@@ -90,9 +88,7 @@ In arguments to macros, leading unquoted space, tab, and newline
 .Pq Sq \en
 characters are ignored.
 To quote strings, use left and right single quotes
-.Po e.g.,\ \&
-.Sq "\ this is a string with a leading space"
-.Pc .
+.Pq e.g., Sq \ \&this is a string with a leading space .
 You can change the quote characters with the
 .Ic changequote
 built-in macro.
@@ -169,7 +165,7 @@ Undefine the symbol
 .Ar name .
 .El
 .Sh SYNTAX
-.Nm m4
+.Nm
 provides the following built-in macros.
 They may be redefined, losing their original meaning.
 Return values are null unless otherwise stated.
@@ -240,7 +236,7 @@ macro definitions (even for built-in macros).
 .It Fn divert num
 There are 10 output queues (numbered 0-9).
 At the end of processing
-.Nm m4
+.Nm
 concatenates all the queues in numerical order to produce the
 final output.
 Initially the output queue is 0.
@@ -259,16 +255,18 @@ Prints the first argument on the standard error output stream.
 .It Fn esyscmd cmd
 Passes its first argument to a shell and returns the shell's standard output.
 Note that the shell shares its standard input and standard error with
-.Nm m4 .
-.It Fn eval expr
+.Nm .
+.It Fn eval expr[,radix[,minimum]]
 Computes the first argument as an arithmetic expression using 32-bit
 arithmetic.
 Operators are the standard C ternary, arithmetic, logical,
 shift, relational, bitwise, and parentheses operators.
 You can specify
 octal, decimal, and hexadecimal numbers as in C.
-The second argument (if any)
-specifies the radix for the result and the third argument (if any)
+The optional second argument
+.Fa radix
+specifies the radix for the result and the optional third argument
+.Fa minimum
 specifies the minimum number of digits in the result.
 .It Fn expr expr
 This is an alias for
@@ -348,6 +346,9 @@ Multiple calls to
 get inserted in sequence at the final
 .Dv EOF .
 .It Fn maketemp template
+Like
+.Ic mkstemp .
+.It Fn mkstemp template
 Invokes
 .Xr mkstemp 3
 on the first argument, and returns the modified string.
@@ -431,6 +432,12 @@ Returns the current file's line number.
 .It Ic __file__
 Returns the current file's name.
 .El
+.Sh EXIT STATUS
+.Ex -std m4
+.Pp
+But note that the
+.Ic m4exit
+macro can modify the exit status.
 .Sh STANDARDS
 The
 .Nm
@@ -439,7 +446,7 @@ utility is compliant with the
 specification.
 .Pp
 The flags
-.Op Fl dgIot
+.Op Fl dgIPot
 and the macros
 .Ic builtin ,
 .Ic esyscmd ,
@@ -456,7 +463,17 @@ and
 .Ic __file__
 are extensions to that specification.
 .Pp
-The output format of tracing and of
+.Ic maketemp
+is not supposed to be a synonym for
+.Ic mkstemp ,
+but instead to be an insecure temporary file name creation function.
+It is marked by
+.St -p1003.1-2008
+as being obsolescent and should not be used if portability is a concern.
+.Pp
+The output format of
+.Ic traceon
+and
 .Ic dumpdef
 are not specified in any standard,
 are likely to change and should not be relied upon.
@@ -480,16 +497,16 @@ replaces the top-most definition only.
 Other implementations may erase all definitions on the stack instead.
 .Pp
 All built-ins do expand without arguments in many other
-.Nm m4 .
+.Nm .
 .Pp
 Many other
 .Nm
 have dire size limitations with respect to buffer sizes.
 .Sh AUTHORS
 .An -nosplit
-.An Ozan Yigit Aq oz@sis.yorku.ca
+.An Ozan Yigit Aq Mt oz@sis.yorku.ca
 and
-.An Richard A. O'Keefe Aq ok@goanna.cs.rmit.OZ.AU .
+.An Richard A. O'Keefe Aq Mt ok@goanna.cs.rmit.OZ.AU .
 .Pp
 GNU-m4 compatibility extensions by
-.An Marc Espie Aq espie@cvs.openbsd.org .
+.An Marc Espie Aq Mt espie@cvs.openbsd.org .

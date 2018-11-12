@@ -152,7 +152,7 @@ rndtest_harvest(struct rndtest_state *rsp, void *buf, u_int len)
 		for (len /= sizeof (u_int32_t); len; len--)
 			add_true_randomness(*p++);
 #else
-		random_harvest(buf, len, len*NBBY, 0, RANDOM_PURE);
+		random_harvest(buf, len, len*NBBY/2, RANDOM_PURE_RNDTEST);
 #endif
 	}
 }
@@ -360,7 +360,7 @@ rndtest_chi_4(struct rndtest_state *rsp)
 	for (i = 0; i < RNDTEST_CHI4_K; i++)
 		freq[i] = 0;
 
-	/* Get number of occurances of each 4 bit pattern */
+	/* Get number of occurrences of each 4 bit pattern */
 	for (i = 0; i < RNDTEST_NBYTES; i++) {
 		freq[(rsp->rs_buf[i] >> 4) & RNDTEST_CHI4_K_MASK]++;
 		freq[(rsp->rs_buf[i] >> 0) & RNDTEST_CHI4_K_MASK]++;

@@ -38,7 +38,7 @@
  */
 
 #include <pthread.h>
-#if defined(sun)
+#ifdef illumos
 #include <synch.h>
 #endif
 #include <stdio.h>
@@ -49,7 +49,7 @@ void
 barrier_init(barrier_t *bar, int nthreads)
 {
 	pthread_mutex_init(&bar->bar_lock, NULL);
-#if defined(sun)
+#ifdef illumos
 	sema_init(&bar->bar_sem, 0, USYNC_THREAD, NULL);
 #else
 	sem_init(&bar->bar_sem, 0, 0);
@@ -66,7 +66,7 @@ barrier_wait(barrier_t *bar)
 
 	if (++bar->bar_numin < bar->bar_nthr) {
 		pthread_mutex_unlock(&bar->bar_lock);
-#if defined(sun)
+#ifdef illumos
 		sema_wait(&bar->bar_sem);
 #else
 		sem_wait(&bar->bar_sem);
@@ -80,7 +80,7 @@ barrier_wait(barrier_t *bar)
 		/* reset for next use */
 		bar->bar_numin = 0;
 		for (i = 1; i < bar->bar_nthr; i++)
-#if defined(sun)
+#ifdef illumos
 			sema_post(&bar->bar_sem);
 #else
 			sem_post(&bar->bar_sem);

@@ -29,23 +29,26 @@
 #ifndef PROCSTAT_H
 #define	PROCSTAT_H
 
-extern int	hflag, nflag, Cflag;
+extern int	hflag, nflag, Cflag, Hflag;
 
 struct kinfo_proc;
 void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
 
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_auxv(struct kinfo_proc *kipp);
+void	procstat_args(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_auxv(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_env(struct kinfo_proc *kipp);
+void	procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_cred(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_cs(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_env(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_rlimit(struct kinfo_proc *kipp);
+void	procstat_kstack(struct procstat *prstat, struct kinfo_proc *kipp,
+    int kflag);
+void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_rusage(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
+void	procstat_threads(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
+void	procstat_vm(struct procstat *prstat, struct kinfo_proc *kipp);
 
 #endif /* !PROCSTAT_H */

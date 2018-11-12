@@ -125,6 +125,7 @@ scd_alloc_resources (device_t dev)
 
 	sc = device_get_softc(dev);
 	error = 0;
+	mtx_init(&sc->mtx, "scd", NULL, MTX_DEF);
 
 	if (sc->port_type) {
 		sc->port = bus_alloc_resource_any(dev, sc->port_type, 
@@ -134,12 +135,7 @@ scd_alloc_resources (device_t dev)
 			error = ENOMEM;
 			goto bad;
 		}
-		sc->port_bst = rman_get_bustag(sc->port);
-		sc->port_bsh = rman_get_bushandle(sc->port);
 	}
-
-	mtx_init(&sc->mtx, device_get_nameunit(dev),
-		"Interrupt lock", MTX_DEF | MTX_RECURSE);
 
 bad:
 	return (error);
@@ -152,14 +148,10 @@ scd_release_resources (device_t dev)
 
 	sc = device_get_softc(dev);
 
-	if (sc->port) {
+	if (sc->port)
 		bus_release_resource(dev, sc->port_type, sc->port_rid, sc->port);
-		sc->port_bst = 0;
-		sc->port_bsh = 0;
-	}
 
-	if (mtx_initialized(&sc->mtx) != 0)
-		mtx_destroy(&sc->mtx);
+	mtx_destroy(&sc->mtx);
 
 	return;
 }

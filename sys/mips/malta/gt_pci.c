@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <sys/bus.h>
+#include <sys/endian.h>
 #include <sys/interrupt.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -74,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
+#include <mips/malta/gt_pci_bus_space.h>
 
 #define	ICU_LEN		16	/* number of ISA IRQs */
 
@@ -90,6 +92,14 @@ __FBSDID("$FreeBSD$");
 
 #define OCW3_POLL_IRQ(x) ((x) & 0x7f)
 #define OCW3_POLL_PENDING (1U << 7)
+
+/*
+ * Galileo controller's registers are LE so convert to then
+ * to/from native byte order. We rely on boot loader or emulator
+ * to set "swap bytes" configuration correctly for us
+ */
+#define	GT_PCI_DATA(v)	htole32((v))
+#define	GT_HOST_DATA(v)	le32toh((v))
 
 struct gt_pci_softc;
 
@@ -266,8 +276,12 @@ gt_pci_attach(device_t dev)
 	sc->sc_io = MIPS_PHYS_TO_KSEG1(MALTA_PCI0_IO_BASE);
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "GT64120 PCI I/O Ports";
+	/* 
+	 * First 256 bytes are ISA's registers: e.g. i8259's
+	 * So do not use them for general purpose PCI I/O window
+	 */
 	if (rman_init(&sc->sc_io_rman) != 0 ||
-		rman_manage_region(&sc->sc_io_rman, 0, 0xffff) != 0) {
+	    rman_manage_region(&sc->sc_io_rman, 0x100, 0xffff) != 0) {
 		panic("gt_pci_attach: failed to set up I/O rman");
 	}
 
@@ -433,20 +447,20 @@ gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		return (uint32_t)(-1);
 
 	/* Clear cause register bits. */
-	GT_REGVAL(GT_INTR_CAUSE) = 0;
-
-	GT_REGVAL(GT_PCI0_CFG_ADDR) = (1 << 31) | addr;
-	data = GT_REGVAL(GT_PCI0_CFG_DATA);
+	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
+	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1U << 31) | addr);
+	/* 
+	 * Galileo system controller is special
+	 */
+	if ((bus == 0) && (slot == 0))
+		data = GT_PCI_DATA(GT_REGVAL(GT_PCI0_CFG_DATA));
+	else
+		data = GT_REGVAL(GT_PCI0_CFG_DATA);
 
 	/* Check for master abort. */
-	if (GT_REGVAL(GT_INTR_CAUSE) & (GTIC_MASABORT0 | GTIC_TARABORT0))
+	if (GT_HOST_DATA(GT_REGVAL(GT_INTR_CAUSE)) & (GTIC_MASABORT0 | GTIC_TARABORT0))
 		data = (uint32_t) -1;
 
-	/*
-	 * XXX: We assume that words readed from GT chip are BE.
-	 *	Should we set the mode explicitly during chip
-	 *	Initialization?
-	 */ 
 	switch(reg % 4)
 	{
 	case 3:
@@ -503,11 +517,6 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	{
 		reg_data = gt_pci_read_config(dev, bus, slot, func, reg, 4);
 
-		/*
-		* XXX: We assume that words readed from GT chip are BE.
-		*	Should we set the mode explicitly during chip
-		*	Initialization?
-		*/ 
 		shift = 8 * (reg & 3);
 
 		switch(bytes)
@@ -544,10 +553,23 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		return;
 
 	/* Clear cause register bits. */
-	GT_REGVAL(GT_INTR_CAUSE) = 0;
+	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
 
-	GT_REGVAL(GT_PCI0_CFG_ADDR) = (1 << 31) | addr;
-	GT_REGVAL(GT_PCI0_CFG_DATA) = data;
+	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1U << 31) | addr);
+
+	/* 
+	 * Galileo system controller is special
+	 */
+	if ((bus == 0) && (slot == 0))
+		GT_REGVAL(GT_PCI0_CFG_DATA) = GT_PCI_DATA(data);
+	else
+		GT_REGVAL(GT_PCI0_CFG_DATA) = data;
+
+#if 0
+	printf("PCICONF_WRITE(%02x:%02x.%02x[%04x] -> %02x(%d)\n", 
+	  bus, slot, func, reg, data, bytes);
+#endif
+
 }
 
 static int
@@ -568,8 +590,10 @@ gt_pci_route_interrupt(device_t pcib, device_t dev, int pin)
 		 * PIIX4 IDE adapter. HW IRQ0
 		 */
 		return 0;
+	case 11: /* Ethernet */
+		return 10;
 	default:
-		printf("No mapping for %d/%d/%d/%d\n", bus, device, func, pin);
+		device_printf(pcib, "no IRQ mapping for %d/%d/%d/%d\n", bus, device, func, pin);
 		
 	}
 	return (0);
@@ -612,7 +636,6 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct gt_pci_softc *sc = device_get_softc(bus);	
 	struct resource *rv = NULL;
 	struct rman *rm;
-	bus_space_tag_t bt = 0;
 	bus_space_handle_t bh = 0;
 
 	switch (type) {
@@ -621,12 +644,10 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
-		bt = sc->sc_st;
 		bh = sc->sc_mem;
 		break;
 	case SYS_RES_IOPORT:
 		rm = &sc->sc_io_rman;
-		bt = sc->sc_st;
 		bh = sc->sc_io;
 		break;
 	default:
@@ -640,7 +661,7 @@ gt_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (type != SYS_RES_IRQ) {
 		bh += (rman_get_start(rv));
 
-		rman_set_bustag(rv, bt);
+		rman_set_bustag(rv, gt_pci_bus_space);
 		rman_set_bushandle(rv, bh);
 		if (flags & RF_ACTIVE) {
 			if (bus_activate_resource(child, type, *rid, rv)) {

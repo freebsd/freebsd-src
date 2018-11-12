@@ -1,4 +1,4 @@
-/*	$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $	*/
+/*	$NetBSD: spec.c,v 1.89 2014/04/24 17:22:41 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -67,7 +67,7 @@
 #if 0
 static char sccsid[] = "@(#)spec.c	8.2 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $");
+__RCSID("$NetBSD: spec.c,v 1.89 2014/04/24 17:22:41 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -81,6 +81,7 @@ __RCSID("$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $");
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -101,7 +102,7 @@ static	void	set(char *, NODE *);
 static	void	unset(char *, NODE *);
 static	void	addchild(NODE *, NODE *);
 static	int	nodecmp(const NODE *, const NODE *);
-static	int	appendfield(int, const char *, ...) __printflike(2, 3);
+static	int	appendfield(FILE *, int, const char *, ...) __printflike(3, 4);
 
 #define REPLACEPTR(x,v)	do { if ((x)) free((x)); (x) = (v); } while (0)
 
@@ -217,6 +218,12 @@ noparent:		mtree_err("no parent node");
 				/*
 				 * empty tree
 				 */
+			/*
+			 * Allow a bare "." root node by forcing it to
+			 * type=dir for compatibility with FreeBSD.
+			 */
+			if (strcmp(centry->name, ".") == 0 && centry->type == 0)
+				centry->type = F_DIR;
 			if (strcmp(centry->name, ".") != 0 ||
 			    centry->type != F_DIR)
 				mtree_err(
@@ -283,21 +290,21 @@ free_nodes(NODE *root)
 
 /*
  * appendfield --
- *	Like printf(), but output a space either before or after
+ *	Like fprintf(), but output a space either before or after
  *	the regular output, according to the pathlast flag.
  */
 static int
-appendfield(int pathlast, const char *fmt, ...)
+appendfield(FILE *fp, int pathlast, const char *fmt, ...)
 {
 	va_list ap;
 	int result;
 
 	va_start(ap, fmt);
 	if (!pathlast)
-		printf(" ");
+		fprintf(fp, " ");
 	result = vprintf(fmt, ap);
 	if (pathlast)
-		printf(" ");
+		fprintf(fp, " ");
 	va_end(ap);
 	return result;
 }
@@ -309,7 +316,7 @@ appendfield(int pathlast, const char *fmt, ...)
  *	it first.
  */
 void
-dump_nodes(const char *dir, NODE *root, int pathlast)
+dump_nodes(FILE *fp, const char *dir, NODE *root, int pathlast)
 {
 	NODE	*cur;
 	char	path[MAXPATHLEN];
@@ -327,68 +334,75 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 			mtree_err("Pathname too long.");
 
 		if (!pathlast)
-			printf("%s", vispath(path));
+			fprintf(fp, "%s", vispath(path));
 
 #define MATCHFLAG(f)	((keys & (f)) && (cur->flags & (f)))
 		if (MATCHFLAG(F_TYPE))
-			appendfield(pathlast, "type=%s", nodetype(cur->type));
+			appendfield(fp, pathlast, "type=%s",
+			    nodetype(cur->type));
 		if (MATCHFLAG(F_UID | F_UNAME)) {
 			if (keys & F_UNAME &&
 			    (name = user_from_uid(cur->st_uid, 1)) != NULL)
-				appendfield(pathlast, "uname=%s", name);
+				appendfield(fp, pathlast, "uname=%s", name);
 			else
-				appendfield(pathlast, "uid=%u", cur->st_uid);
+				appendfield(fp, pathlast, "uid=%u",
+				    cur->st_uid);
 		}
 		if (MATCHFLAG(F_GID | F_GNAME)) {
 			if (keys & F_GNAME &&
 			    (name = group_from_gid(cur->st_gid, 1)) != NULL)
-				appendfield(pathlast, "gname=%s", name);
+				appendfield(fp, pathlast, "gname=%s", name);
 			else
-				appendfield(pathlast, "gid=%u", cur->st_gid);
+				appendfield(fp, pathlast, "gid=%u",
+				    cur->st_gid);
 		}
 		if (MATCHFLAG(F_MODE))
-			appendfield(pathlast, "mode=%#o", cur->st_mode);
+			appendfield(fp, pathlast, "mode=%#o", cur->st_mode);
 		if (MATCHFLAG(F_DEV) &&
 		    (cur->type == F_BLOCK || cur->type == F_CHAR))
-			appendfield(pathlast, "device=%#llx", (long long)cur->st_rdev);
+			appendfield(fp, pathlast, "device=%#jx",
+			    (uintmax_t)cur->st_rdev);
 		if (MATCHFLAG(F_NLINK))
-			appendfield(pathlast, "nlink=%d", cur->st_nlink);
+			appendfield(fp, pathlast, "nlink=%d", cur->st_nlink);
 		if (MATCHFLAG(F_SLINK))
-			appendfield(pathlast, "link=%s", vispath(cur->slink));
+			appendfield(fp, pathlast, "link=%s",
+			    vispath(cur->slink));
 		if (MATCHFLAG(F_SIZE))
-			appendfield(pathlast, "size=%lld", (long long)cur->st_size);
+			appendfield(fp, pathlast, "size=%ju",
+			    (uintmax_t)cur->st_size);
 		if (MATCHFLAG(F_TIME))
-			appendfield(pathlast, "time=%lld.%09ld",
-			    (long long)cur->st_mtimespec.tv_sec,
+			appendfield(fp, pathlast, "time=%jd.%09ld",
+			    (intmax_t)cur->st_mtimespec.tv_sec,
 			    cur->st_mtimespec.tv_nsec);
 		if (MATCHFLAG(F_CKSUM))
-			appendfield(pathlast, "cksum=%lu", cur->cksum);
+			appendfield(fp, pathlast, "cksum=%lu", cur->cksum);
 		if (MATCHFLAG(F_MD5))
-			appendfield(pathlast, "%s=%s", MD5KEY, cur->md5digest);
+			appendfield(fp, pathlast, "%s=%s", MD5KEY,
+			    cur->md5digest);
 		if (MATCHFLAG(F_RMD160))
-			appendfield(pathlast, "%s=%s", RMD160KEY,
+			appendfield(fp, pathlast, "%s=%s", RMD160KEY,
 			    cur->rmd160digest);
 		if (MATCHFLAG(F_SHA1))
-			appendfield(pathlast, "%s=%s", SHA1KEY,
+			appendfield(fp, pathlast, "%s=%s", SHA1KEY,
 			    cur->sha1digest);
 		if (MATCHFLAG(F_SHA256))
-			appendfield(pathlast, "%s=%s", SHA256KEY,
+			appendfield(fp, pathlast, "%s=%s", SHA256KEY,
 			    cur->sha256digest);
 		if (MATCHFLAG(F_SHA384))
-			appendfield(pathlast, "%s=%s", SHA384KEY,
+			appendfield(fp, pathlast, "%s=%s", SHA384KEY,
 			    cur->sha384digest);
 		if (MATCHFLAG(F_SHA512))
-			appendfield(pathlast, "%s=%s", SHA512KEY,
+			appendfield(fp, pathlast, "%s=%s", SHA512KEY,
 			    cur->sha512digest);
 		if (MATCHFLAG(F_FLAGS)) {
 			str = flags_to_string(cur->st_flags, "none");
-			appendfield(pathlast, "flags=%s", str);
+			appendfield(fp, pathlast, "flags=%s", str);
 			free(str);
 		}
 		if (MATCHFLAG(F_IGN))
-			appendfield(pathlast, "ignore");
+			appendfield(fp, pathlast, "ignore");
 		if (MATCHFLAG(F_OPT))
-			appendfield(pathlast, "optional");
+			appendfield(fp, pathlast, "optional");
 		if (MATCHFLAG(F_TAGS)) {
 			/* don't output leading or trailing commas */
 			p = cur->tags;
@@ -397,12 +411,12 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 			q = p + strlen(p);
 			while(q > p && q[-1] == ',')
 				q--;
-			appendfield(pathlast, "tags=%.*s", (int)(q - p), p);
+			appendfield(fp, pathlast, "tags=%.*s", (int)(q - p), p);
 		}
 		puts(pathlast ? vispath(path) : "");
 
 		if (cur->child)
-			dump_nodes(path, cur->child, pathlast);
+			dump_nodes(fp, path, cur->child, pathlast);
 	}
 }
 

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: redirect.m4,v 8.15 1999/08/06 01:47:36 gshapiro Exp $')
+VERSIONID(`$Id: redirect.m4,v 8.16 2013-11-22 20:51:11 ca Exp $')
 divert(-1)
 
 LOCAL_RULE_0

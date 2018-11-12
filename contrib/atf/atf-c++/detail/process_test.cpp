@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2008 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,15 +22,15 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/detail/process.hpp"
 
 #include <cstdlib>
 #include <cstring>
 
-#include "../macros.hpp"
+#include <atf-c++.hpp>
 
-#include "process.hpp"
-#include "test_helpers.hpp"
+#include "atf-c++/detail/test_helpers.hpp"
 
 // TODO: Testing the fork function is a huge task and I'm afraid of
 // copy/pasting tons of stuff from the C version.  I'd rather not do that
@@ -64,10 +61,10 @@ exec_process_helpers(const atf::tests::tc& tc, const char* helper_name)
     using atf::process::exec;
 
     std::vector< std::string > argv;
-    argv.push_back(get_process_helpers_path(tc).leaf_name());
+    argv.push_back(get_process_helpers_path(tc, true).leaf_name());
     argv.push_back(helper_name);
 
-    return exec(get_process_helpers_path(tc),
+    return exec(get_process_helpers_path(tc, true),
                 atf::process::argv_array(argv),
                 atf::process::stream_inherit(),
                 atf::process::stream_inherit());

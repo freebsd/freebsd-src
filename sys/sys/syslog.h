@@ -69,7 +69,7 @@ typedef struct _code {
 	int		c_val;
 } CODE;
 
-CODE prioritynames[] = {
+static const CODE prioritynames[] = {
 	{ "alert",	LOG_ALERT,	},
 	{ "crit",	LOG_CRIT,	},
 	{ "debug",	LOG_DEBUG,	},
@@ -122,7 +122,7 @@ CODE prioritynames[] = {
 #define	LOG_FAC(p)	(((p) & LOG_FACMASK) >> 3)
 
 #ifdef SYSLOG_NAMES
-CODE facilitynames[] = {
+static const CODE facilitynames[] = {
 	{ "auth",	LOG_AUTH,	},
 	{ "authpriv",	LOG_AUTHPRIV,	},
 	{ "console", 	LOG_CONSOLE,	},

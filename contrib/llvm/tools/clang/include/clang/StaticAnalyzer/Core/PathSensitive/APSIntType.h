@@ -7,10 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SA_CORE_APSINTTYPE_H
-#define LLVM_CLANG_SA_CORE_APSINTTYPE_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_APSINTTYPE_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_APSINTTYPE_H
 
 #include "llvm/ADT/APSInt.h"
+#include <tuple>
 
 namespace clang {
 namespace ento {
@@ -81,9 +82,12 @@ public:
 
   /// Tests whether a given value is losslessly representable using this type.
   ///
-  /// Note that signedness conversions will be rejected, even with the same bit
-  /// pattern. For example, -1s8 is not in range for 'unsigned char' (u8).
-  RangeTestResultKind testInRange(const llvm::APSInt &Val) const LLVM_READONLY;
+  /// \param Val The value to test.
+  /// \param AllowMixedSign Whether or not to allow signedness conversions.
+  ///                       This determines whether -1s8 is considered in range
+  ///                       for 'unsigned char' (u8).
+  RangeTestResultKind testInRange(const llvm::APSInt &Val,
+                                  bool AllowMixedSign) const LLVM_READONLY;
   
   bool operator==(const APSIntType &Other) const {
     return BitWidth == Other.BitWidth && IsUnsigned == Other.IsUnsigned;
@@ -94,13 +98,8 @@ public:
   /// Unsigned integers are considered to be better conversion types than
   /// signed integers of the same width.
   bool operator<(const APSIntType &Other) const {
-    if (BitWidth < Other.BitWidth)
-      return true;
-    if (BitWidth > Other.BitWidth)
-      return false;
-    if (!IsUnsigned && Other.IsUnsigned)
-      return true;
-    return false;
+    return std::tie(BitWidth, IsUnsigned) <
+           std::tie(Other.BitWidth, Other.IsUnsigned);
   }
 };
     

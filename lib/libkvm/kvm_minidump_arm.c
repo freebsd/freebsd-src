@@ -34,7 +34,9 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
+#ifndef CROSS_LIBKVM
 #include <sys/user.h>
+#endif
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -45,12 +47,18 @@ __FBSDID("$FreeBSD$");
 #include <nlist.h>
 #include <kvm.h>
 
+#ifndef CROSS_LIBKVM
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
 #include <machine/elf.h>
 #include <machine/cpufunc.h>
 #include <machine/minidump.h>
+#else
+#include "../../sys/arm/include/pte.h"
+#include "../../sys/arm/include/vmparam.h"
+#include "../../sys/arm/include/minidump.h"
+#endif
 
 #include <limits.h>
 

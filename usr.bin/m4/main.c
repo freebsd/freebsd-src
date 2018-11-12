@@ -1,4 +1,4 @@
-/*	$OpenBSD: main.c,v 1.80 2011/09/27 07:24:02 espie Exp $	*/
+/*	$OpenBSD: main.c,v 1.83 2014/05/12 19:11:19 espie Exp $ */
 /*	$NetBSD: main.c,v 1.12 1997/02/08 23:54:49 cgd Exp $	*/
 
 /*-
@@ -180,8 +180,8 @@ main(int argc, char *argv[])
 	initspaces();
 	STACKMAX = INITSTACKMAX;
 
-	mstack = (stae *)xalloc(sizeof(stae) * STACKMAX, NULL);
-	sstack = (char *)xalloc(STACKMAX, NULL);
+	mstack = xreallocarray(NULL, STACKMAX, sizeof(stae), NULL);
+	sstack = xalloc(STACKMAX, NULL);
 
 	maxout = 0;
 	outfile = NULL;
@@ -415,7 +415,8 @@ macro(void)
 				}
 			}
 		} else if (t == EOF) {
-			if (sp > -1 && ilevel <= 0) {
+			if (!mimic_gnu /* you can puke right there */
+			    && sp > -1 && ilevel <= 0) {
 				warnx( "unexpected end of input, unclosed parenthesis:");
 				dump_stack(paren, PARLEV);
 				exit(1);
@@ -625,7 +626,7 @@ static void
 enlarge_stack(void)
 {
 	STACKMAX += STACKMAX/2;
-	mstack = xrealloc(mstack, sizeof(stae) * STACKMAX,
+	mstack = xreallocarray(mstack, STACKMAX, sizeof(stae),
 	    "Evaluation stack overflow (%lu)",
 	    (unsigned long)STACKMAX);
 	sstack = xrealloc(sstack, STACKMAX,

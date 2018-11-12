@@ -64,9 +64,8 @@ struct sockopt;
  * similar to the vnode VOP interface.
  */
 /* USE THESE FOR YOUR PROTOTYPES ! */
-typedef void	pr_input_t (struct mbuf *, int);
-typedef int	pr_input6_t (struct mbuf **, int*, int);  /* XXX FIX THIS */
-typedef int	pr_output_t (struct mbuf *, struct socket *);
+typedef int	pr_input_t (struct mbuf **, int*, int);
+typedef int	pr_output_t (struct mbuf *, struct socket *, ...);
 typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
 typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
 typedef	void	pr_init_t (void);
@@ -209,6 +208,8 @@ struct pr_usrreqs {
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
+#define	PRUS_NOTREADY	0x8
+	int	(*pru_ready)(struct socket *so, struct mbuf *m, int count);
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
 	int	(*pru_shutdown)(struct socket *so);
 	int	(*pru_flush)(struct socket *so, int direction);
@@ -252,6 +253,7 @@ int	pru_rcvd_notsupp(struct socket *so, int flags);
 int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
 int	pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 	    struct sockaddr *addr, struct mbuf *control, struct thread *td);
+int	pru_ready_notsupp(struct socket *so, struct mbuf *m, int count);
 int	pru_sense_null(struct socket *so, struct stat *sb);
 int	pru_shutdown_notsupp(struct socket *so);
 int	pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam);
@@ -275,8 +277,8 @@ int	pru_sopoll_notsupp(struct socket *so, int events, struct ucred *cred,
 #define	PRC_IFDOWN		0	/* interface transition */
 #define	PRC_ROUTEDEAD		1	/* select new route if possible ??? */
 #define	PRC_IFUP		2	/* interface has come back up */
-#define	PRC_QUENCH2		3	/* DEC congestion bit says slow down */
-#define	PRC_QUENCH		4	/* some one said to slow down */
+/* was	PRC_QUENCH2		3	DEC congestion bit says slow down */
+/* was	PRC_QUENCH		4	Deprecated by RFC 6633 */
 #define	PRC_MSGSIZE		5	/* message size forced drop */
 #define	PRC_HOSTDEAD		6	/* host appears to be down */
 #define	PRC_HOSTUNREACH		7	/* deprecated (use PRC_UNREACH_HOST) */

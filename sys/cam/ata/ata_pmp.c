@@ -64,6 +64,9 @@ __FBSDID("$FreeBSD$");
 typedef enum {
 	PMP_STATE_NORMAL,
 	PMP_STATE_PORTS,
+	PMP_STATE_PM_QUIRKS_1,
+	PMP_STATE_PM_QUIRKS_2,
+	PMP_STATE_PM_QUIRKS_3,
 	PMP_STATE_PRECONFIG,
 	PMP_STATE_RESET,
 	PMP_STATE_CONNECT,
@@ -136,15 +139,12 @@ static int pmp_hide_special = PMP_DEFAULT_HIDE_SPECIAL;
 
 static SYSCTL_NODE(_kern_cam, OID_AUTO, pmp, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
-SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, retry_count, CTLFLAG_RWTUN,
            &pmp_retry_count, 0, "Normal I/O retry count");
-TUNABLE_INT("kern.cam.pmp.retry_count", &pmp_retry_count);
-SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, default_timeout, CTLFLAG_RWTUN,
            &pmp_default_timeout, 0, "Normal I/O timeout (in seconds)");
-TUNABLE_INT("kern.cam.pmp.default_timeout", &pmp_default_timeout);
-SYSCTL_INT(_kern_cam_pmp, OID_AUTO, hide_special, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_pmp, OID_AUTO, hide_special, CTLFLAG_RWTUN,
            &pmp_hide_special, 0, "Hide extra ports");
-TUNABLE_INT("kern.cam.pmp.hide_special", &pmp_hide_special);
 
 static struct periph_driver pmpdriver =
 {
@@ -190,8 +190,7 @@ pmpfreeze(struct cam_periph *periph, int mask)
 		    i, 0) == CAM_REQ_CMP) {
 			softc->frozen |= (1 << i);
 			xpt_acquire_device(dpath->device);
-			cam_freeze_devq_arg(dpath,
-			    RELSIM_RELEASE_RUNLEVEL, CAM_RL_BUS + 1);
+			cam_freeze_devq(dpath);
 			xpt_free_path(dpath);
 		}
 	}
@@ -212,8 +211,7 @@ pmprelease(struct cam_periph *periph, int mask)
 		    xpt_path_path_id(periph->path),
 		    i, 0) == CAM_REQ_CMP) {
 			softc->frozen &= ~(1 << i);
-			cam_release_devq(dpath,
-			    RELSIM_RELEASE_RUNLEVEL, 0, CAM_RL_BUS + 1, FALSE);
+			cam_release_devq(dpath, 0, 0, 0, FALSE);
 			xpt_release_device(dpath->device);
 			xpt_free_path(dpath);
 		}
@@ -240,7 +238,6 @@ pmponinvalidate(struct cam_periph *periph)
 		}
 	}
 	pmprelease(periph, -1);
-	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -250,7 +247,6 @@ pmpcleanup(struct cam_periph *periph)
 
 	softc = (struct pmp_softc *)periph->softc;
 
-	xpt_print(periph->path, "removing device entry\n");
 	cam_periph_unlock(periph);
 
 	/*
@@ -294,7 +290,7 @@ pmpasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(pmpregister, pmponinvalidate,
 					  pmpcleanup, pmpstart,
 					  "pmp", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, pmpasync,
+					  path, pmpasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -319,9 +315,17 @@ pmpasync(void *callback_arg, u_int32_t code,
 		if (code == AC_SENT_BDR || code == AC_BUS_RESET)
 			softc->found = 0; /* We have to reset everything. */
 		if (softc->state == PMP_STATE_NORMAL) {
-			softc->state = PMP_STATE_PRECONFIG;
-			cam_periph_acquire(periph);
-			xpt_schedule(periph, CAM_PRIORITY_DEV);
+			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+				if (softc->pm_pid == 0x37261095 ||
+				    softc->pm_pid == 0x38261095)
+					softc->state = PMP_STATE_PM_QUIRKS_1;
+				else
+					softc->state = PMP_STATE_PRECONFIG;
+				xpt_schedule(periph, CAM_PRIORITY_DEV);
+			} else {
+				pmprelease(periph, softc->found);
+				xpt_release_boot();
+			}
 		} else
 			softc->restart = 1;
 		break;
@@ -429,7 +433,10 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	if (softc->restart) {
 		softc->restart = 0;
-		softc->state = min(softc->state, PMP_STATE_PRECONFIG);
+		if (softc->pm_pid == 0x37261095 || softc->pm_pid == 0x38261095)
+			softc->state = min(softc->state, PMP_STATE_PM_QUIRKS_1);
+		else
+			softc->state = min(softc->state, PMP_STATE_PRECONFIG);
 	}
 	/* Fetch user wanted device speed. */
 	if (softc->state == PMP_STATE_RESET ||
@@ -459,6 +466,32 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		      pmp_default_timeout * 1000);
 		ata_pm_read_cmd(ataio, 2, 15);
 		break;
+
+	case PMP_STATE_PM_QUIRKS_1:
+	case PMP_STATE_PM_QUIRKS_3:
+		cam_fill_ataio(ataio,
+		      pmp_retry_count,
+		      pmpdone,
+		      /*flags*/CAM_DIR_NONE,
+		      0,
+		      /*data_ptr*/NULL,
+		      /*dxfer_len*/0,
+		      pmp_default_timeout * 1000);
+		ata_pm_read_cmd(ataio, 129, 15);
+		break;
+
+	case PMP_STATE_PM_QUIRKS_2:
+		cam_fill_ataio(ataio,
+		      pmp_retry_count,
+		      pmpdone,
+		      /*flags*/CAM_DIR_NONE,
+		      0,
+		      /*data_ptr*/NULL,
+		      /*dxfer_len*/0,
+		      pmp_default_timeout * 1000);
+		ata_pm_write_cmd(ataio, 129, 15, softc->caps & ~0x1);
+		break;
+
 	case PMP_STATE_PRECONFIG:
 		/* Get/update host SATA capabilities. */
 		bzero(&cts, sizeof(cts));
@@ -468,6 +501,8 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 		xpt_action((union ccb *)&cts);
 		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			softc->caps = cts.xport_specific.sata.caps;
+		else
+			softc->caps = 0;
 		cam_fill_ataio(ataio,
 		      pmp_retry_count,
 		      pmpdone,
@@ -577,7 +612,10 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	if (softc->restart) {
 		softc->restart = 0;
 		xpt_release_ccb(done_ccb);
-		softc->state = min(softc->state, PMP_STATE_PRECONFIG);
+		if (softc->pm_pid == 0x37261095 || softc->pm_pid == 0x38261095)
+			softc->state = min(softc->state, PMP_STATE_PM_QUIRKS_1);
+		else
+			softc->state = min(softc->state, PMP_STATE_PRECONFIG);
 		xpt_schedule(periph, priority);
 		return;
 	}
@@ -620,10 +658,48 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 		printf("%s%d: %d fan-out ports\n",
 		    periph->periph_name, periph->unit_number,
 		    softc->pm_ports);
+		if (softc->pm_pid == 0x37261095 || softc->pm_pid == 0x38261095)
+			softc->state = PMP_STATE_PM_QUIRKS_1;
+		else
+			softc->state = PMP_STATE_PRECONFIG;
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+
+	case PMP_STATE_PM_QUIRKS_1:
+		softc->caps = (ataio->res.lba_high << 24) +
+		    (ataio->res.lba_mid << 16) +
+		    (ataio->res.lba_low << 8) +
+		    ataio->res.sector_count;
+		if (softc->caps & 0x1)
+			softc->state = PMP_STATE_PM_QUIRKS_2;
+		else
+			softc->state = PMP_STATE_PRECONFIG;
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+
+	case PMP_STATE_PM_QUIRKS_2:
+		if (bootverbose)
+			softc->state = PMP_STATE_PM_QUIRKS_3;
+		else
+			softc->state = PMP_STATE_PRECONFIG;
+		xpt_release_ccb(done_ccb);
+		xpt_schedule(periph, priority);
+		return;
+
+	case PMP_STATE_PM_QUIRKS_3:
+		res = (ataio->res.lba_high << 24) +
+		    (ataio->res.lba_mid << 16) +
+		    (ataio->res.lba_low << 8) +
+		    ataio->res.sector_count;
+		printf("%s%d: Disabling SiI3x26 R_OK in GSCR_POLL: %x->%x\n",
+		    periph->periph_name, periph->unit_number, softc->caps, res);
 		softc->state = PMP_STATE_PRECONFIG;
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
 		return;
+
 	case PMP_STATE_PRECONFIG:
 		softc->pm_step = 0;
 		softc->state = PMP_STATE_RESET;

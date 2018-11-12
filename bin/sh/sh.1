@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2013
+.Dd February 22, 2015
 .Dt SH 1
 .Os
 .Sh NAME
@@ -40,14 +40,14 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+abCEefhIimnPpTuVvx
 .Op Fl /+o Ar longname
 .Oo
 .Ar script
 .Op Ar arg ...
 .Oc
 .Nm
-.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+abCEefhIimnPpTuVvx
 .Op Fl /+o Ar longname
 .Fl c Ar string
 .Oo
@@ -55,7 +55,7 @@
 .Op Ar arg ...
 .Oc
 .Nm
-.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+abCEefhIimnPpTuVvx
 .Op Fl /+o Ar longname
 .Fl s
 .Op Ar arg ...
@@ -235,10 +235,16 @@ or
 .Dq Li ||
 operator; or if the command is a pipeline preceded by the
 .Ic !\&
-operator.
+keyword.
 If a shell function is executed and its exit status is explicitly
 tested, all commands of the function are considered to be tested as
 well.
+.Pp
+It is recommended to check for failures explicitly
+instead of relying on
+.Fl e
+because it tends to behave in unexpected ways,
+particularly in larger scripts.
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl h Li trackall
@@ -253,6 +259,12 @@ from input when in interactive mode.
 Force the shell to behave interactively.
 .It Fl m Li monitor
 Turn on job control (set automatically when interactive).
+A new process group is created for each pipeline (called a job).
+It is possible to suspend jobs or to have them run in the foreground or
+in the background.
+In a non-interactive shell,
+this option can be set even if no terminal is available
+and is useful to place processes in separate process groups.
 .It Fl n Li noexec
 If not interactive, read commands but do not
 execute them.
@@ -527,6 +539,20 @@ would become
 .Pp
 .Dl "ls -F foobar"
 .Pp
+Aliases are also recognized after an alias
+whose value ends with a space or tab.
+For example, if there is also an alias called
+.Dq Li nohup
+with the value
+.Dq Li "nohup " ,
+then the input
+.Pp
+.Dl "nohup lf foobar"
+.Pp
+would become
+.Pp
+.Dl "nohup ls -F foobar"
+.Pp
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how
 to create functions with arguments.
@@ -564,7 +590,8 @@ the following actions:
 Leading words of the form
 .Dq Li name=value
 are stripped off and assigned to the environment of
-the simple command.
+the simple command
+(they do not affect expansions).
 Redirection operators and
 their arguments (as described below) are stripped
 off and saved for processing.
@@ -768,10 +795,13 @@ should indicate the various exit codes and what they mean.
 Additionally, the built-in commands return exit codes, as does
 an executed shell function.
 .Pp
-If a command is terminated by a signal, its exit status is 128 plus
-the signal number.
-Signal numbers are defined in the header file
-.In sys/signal.h .
+If a command is terminated by a signal, its exit status is greater than 128.
+The signal name can be found by passing the exit status to
+.Li kill -l .
+.Pp
+If there is no command word,
+the exit status is the exit status of the last command substitution executed,
+or zero if the command does not contain any command substitutions.
 .Ss Complex Commands
 Complex commands are combinations of simple commands
 with control operators or keywords, together creating a larger complex
@@ -791,7 +821,8 @@ function definition
 .El
 .Pp
 Unless otherwise stated, the exit status of a command is
-that of the last simple command executed by the command.
+that of the last simple command executed by the command,
+or zero if no simple command was executed.
 .Ss Pipelines
 A pipeline is a sequence of one or more commands separated
 by the control operator
@@ -875,6 +906,8 @@ The format for running a command in background is:
 If the shell is not interactive, the standard input of an
 asynchronous command is set to
 .Pa /dev/null .
+.Pp
+The exit status is zero.
 .Ss Lists (Generally Speaking)
 A list is a sequence of zero or more commands separated by
 newlines, semicolons, or ampersands,
@@ -913,6 +946,13 @@ command is:
 .Ic fi
 .Ed
 .Pp
+The exit status is that of selected
+.Ic then
+or
+.Ic else
+list,
+or zero if no list was selected.
+.Pp
 The syntax of the
 .Ic while
 command is:
@@ -932,6 +972,9 @@ in place of
 .Ic while ,
 which causes it to
 repeat until the exit status of the first list is zero.
+.Pp
+The exit status is that of the last execution of the second list,
+or zero if it was never executed.
 .Pp
 The syntax of the
 .Ic for
@@ -1013,10 +1056,6 @@ continuing until a list terminated with
 or the end of the
 .Ic case
 command.
-The exit code of the
-.Ic case
-command is the exit code of the last command executed in the list or
-zero if no patterns were matched.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Pp
@@ -1035,6 +1074,9 @@ The current working directory as set by
 .It
 The file creation mask as set by
 .Ic umask .
+.It
+Resource limits as set by
+.Ic ulimit .
 .It
 References to open files.
 .It
@@ -1060,6 +1102,9 @@ Any changes do not affect the parent shell environment.
 A subshell environment may be implemented as a child process or differently.
 If job control is enabled in an interactive shell,
 commands grouped in parentheses can be suspended and continued as a unit.
+.Pp
+For compatibility with other shells,
+two open parentheses in sequence should be separated by whitespace.
 .Pp
 The second form never forks another shell,
 so it is slightly more efficient.
@@ -1098,6 +1143,8 @@ and the syntax is:
 The
 .Ic local
 command is implemented as a built-in command.
+The exit status is zero
+unless the command is not in a function or a variable name is invalid.
 .Pp
 When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
@@ -1139,25 +1186,28 @@ command is
 .Pp
 .D1 Ic return Op Ar exitstatus
 .Pp
-It terminates the current executional scope, returning from the previous
-nested function, sourced script, or shell instance, in that order.
+It terminates the current executional scope, returning from the closest
+nested function or sourced script;
+if no function or sourced script is being executed,
+it exits the shell instance.
 The
 .Ic return
 command is implemented as a special built-in command.
 .Ss Variables and Parameters
 The shell maintains a set of parameters.
 A parameter
-denoted by a name is called a variable.
+denoted by a name
+(consisting solely
+of alphabetics, numerics, and underscores,
+and starting with an alphabetic or an underscore)
+is called a variable.
 When starting up,
-the shell turns all the environment variables into shell
+the shell turns all environment variables with valid names into shell
 variables.
 New variables can be set using the form
 .Pp
 .D1 Ar name Ns = Ns Ar value
 .Pp
-Variables set by the user must have a name consisting solely
-of alphabetics, numerics, and underscores.
-The first letter of a variable name must not be numeric.
 A parameter can also be denoted by a number
 or a special character as explained below.
 .Pp
@@ -1320,6 +1370,10 @@ This variable overrides the
 .Va MAIL
 setting.
 There is a maximum of 10 mailboxes that can be monitored at once.
+.It Va OPTIND
+The index of the next argument to be processed by
+.Ic getopts .
+This is initialized to 1 at startup.
 .It Va PATH
 The default search path for executables.
 See the
@@ -1337,9 +1391,33 @@ The primary prompt string, which defaults to
 .Dq Li "$ " ,
 unless you are the superuser, in which case it defaults to
 .Dq Li "# " .
+.Va PS1
+may include any of the following formatting sequences,
+which are replaced by the given information:
+.Bl -tag -width indent
+.It Li \eH
+The local hostname.
+.It Li \eh
+The fully-qualified hostname.
+.It Li \eW
+The final component of the current working directory.
+.It Li \ew
+The entire path of the current working directory.
+.It Li \e$
+Superuser status.
+.Dq Li "$ "
+for normal users and
+.Dq Li "# "
+for superusers.
+.It Li \e\e
+A literal backslash.
+.El
 .It Va PS2
 The secondary prompt string, which defaults to
 .Dq Li "> " .
+.Va PS2
+may include any of the formatting sequences from
+.Va PS1 .
 .It Va PS4
 The prefix for the trace output (if
 .Fl x
@@ -1618,6 +1696,16 @@ and
 .Ic times
 returns information about the same process
 if they are the only command in a command substitution.
+.Pp
+If a command substitution of the
+.Li $(
+form begins with a subshell,
+the
+.Li $(
+and
+.Li (\&
+must be separated by whitespace
+to avoid ambiguity with arithmetic expansion.
 .Ss Arithmetic Expansion
 Arithmetic expansion provides a mechanism for evaluating an arithmetic
 expression and substituting its value.
@@ -2214,6 +2302,8 @@ If an invalid option is encountered,
 is set to
 .Ql \&? .
 It returns a false value (1) when it encounters the end of the options.
+A new set of arguments may be parsed by assigning
+.Li OPTIND=1 .
 .It Ic hash Oo Fl rv Oc Op Ar command ...
 The shell maintains a hash table which remembers the locations of commands.
 With no arguments whatsoever, the
@@ -2335,7 +2425,9 @@ option is specified and the
 elapses before a complete line of input is supplied,
 the
 .Ic read
-command will return an exit status of 1 without assigning any values.
+command will return an exit status as if terminated by
+.Dv SIGALRM
+without assigning any values.
 The
 .Ar timeout
 value may optionally be followed by one of
@@ -2351,6 +2443,11 @@ is assumed.
 The
 .Fl e
 option exists only for backward compatibility with older scripts.
+.Pp
+The exit status is 0 on success, 1 on end of file,
+between 2 and 128 if an error occurs
+and greater than 128 if a trapped signal interrupts
+.Ic read .
 .It Ic readonly Oo Fl p Oc Op Ar name ...
 Each specified
 .Ar name
@@ -2446,7 +2543,8 @@ and so on,
 decreasing the value of
 .Li $#
 by one.
-If there are zero positional parameters, shifting does not do anything.
+For portability, shifting if there are zero positional parameters
+should be avoided, since the shell may abort.
 .It Ic test
 A built-in equivalent of
 .Xr test 1 .
@@ -2502,7 +2600,7 @@ and not found.
 For aliases the alias expansion is printed;
 for commands and tracked aliases
 the complete pathname of the command is printed.
-.It Ic ulimit Oo Fl HSabcdflmnpstuvw Oc Op Ar limit
+.It Ic ulimit Oo Fl HSabcdfklmnpstuvw Oc Op Ar limit
 Set or display resource limits (see
 .Xr getrlimit 2 ) .
 If
@@ -2549,6 +2647,11 @@ The maximal size of core dump files, in 512-byte blocks.
 The maximal size of the data segment of a process, in kilobytes.
 .It Fl f Ar filesize
 The maximal size of a file, in 512-byte blocks.
+.It Fl k Ar kqueues
+The maximal number of kqueues
+(see
+.Xr kqueue 2 )
+for this user ID.
 .It Fl l Ar lockedmem
 The maximal size of memory that can be locked by a process, in
 kilobytes.
@@ -2598,12 +2701,17 @@ If the
 option is specified, the
 .Ar name
 arguments are treated as function names.
-.It Ic wait Op Ar job
-Wait for the specified
+.It Ic wait Op Ar job ...
+Wait for each specified
 .Ar job
 to complete and return the exit status of the last process in the
+last specified
 .Ar job .
-If the argument is omitted, wait for all jobs to complete
+If any
+.Ar job
+specified is unknown to the shell, it is treated as if it
+were a known job that exited with exit status 127.
+If no operands are given, wait for all jobs to complete
 and return an exit status of zero.
 .El
 .Ss Commandline Editing
@@ -2670,7 +2778,7 @@ This is inherited by children of the shell, and is used in the history
 editing modes.
 .El
 .Pp
-Additionally, all environment variables are turned into shell variables
+Additionally, environment variables are turned into shell variables
 at startup,
 which may affect the shell as described under
 .Sx Special Variables .

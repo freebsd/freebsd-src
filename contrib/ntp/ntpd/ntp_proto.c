@@ -649,6 +649,7 @@ receive(
 		    has_mac)) {
 			is_authentic = AUTH_ERROR;
 			sys_badauth++;
+			return;
 		} else {
 			is_authentic = AUTH_OK;
 		}

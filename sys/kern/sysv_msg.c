@@ -196,13 +196,7 @@ msginit()
 {
 	int i, error;
 
-	TUNABLE_INT_FETCH("kern.ipc.msgseg", &msginfo.msgseg);
-	TUNABLE_INT_FETCH("kern.ipc.msgssz", &msginfo.msgssz);
 	msginfo.msgmax = msginfo.msgseg * msginfo.msgssz;
-	TUNABLE_INT_FETCH("kern.ipc.msgmni", &msginfo.msgmni);
-	TUNABLE_INT_FETCH("kern.ipc.msgmnb", &msginfo.msgmnb);
-	TUNABLE_INT_FETCH("kern.ipc.msgtql", &msginfo.msgtql);
-
 	msgpool = malloc(msginfo.msgmax, M_MSG, M_WAITOK);
 	msgmaps = malloc(sizeof(struct msgmap) * msginfo.msgseg, M_MSG, M_WAITOK);
 	msghdrs = malloc(sizeof(struct msg) * msginfo.msgtql, M_MSG, M_WAITOK);
@@ -258,11 +252,11 @@ msginit()
 	}
 	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
 
-	error = syscall_helper_register(msg_syscalls);
+	error = syscall_helper_register(msg_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(msg32_syscalls);
+	error = syscall32_helper_register(msg32_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #endif

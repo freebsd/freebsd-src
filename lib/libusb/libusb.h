@@ -33,6 +33,8 @@
 #include <sys/types.h>
 #endif
 
+#define	LIBUSB_CALL
+
 #ifdef __cplusplus
 extern	"C" {
 #endif
@@ -49,10 +51,18 @@ enum libusb_class_code {
 	LIBUSB_CLASS_COMM = 2,
 	LIBUSB_CLASS_HID = 3,
 	LIBUSB_CLASS_PTP = 6,
+	LIBUSB_CLASS_IMAGE = 6,
 	LIBUSB_CLASS_PRINTER = 7,
 	LIBUSB_CLASS_MASS_STORAGE = 8,
 	LIBUSB_CLASS_HUB = 9,
 	LIBUSB_CLASS_DATA = 10,
+	LIBUSB_CLASS_SMART_CARD = 11,
+	LIBUSB_CLASS_CONTENT_SECURITY = 13,
+	LIBUSB_CLASS_VIDEO = 14,
+	LIBUSB_CLASS_PERSONAL_HEALTHCARE = 15,
+	LIBUSB_CLASS_DIAGNOSTIC_DEVICE = 0xdc,
+	LIBUSB_CLASS_WIRELESS = 0xe0,
+	LIBUSB_CLASS_APPLICATION = 0xfe,
 	LIBUSB_CLASS_VENDOR_SPEC = 0xff,
 };
 
@@ -118,6 +128,8 @@ enum libusb_standard_request {
 	LIBUSB_REQUEST_GET_INTERFACE = 0x0A,
 	LIBUSB_REQUEST_SET_INTERFACE = 0x0B,
 	LIBUSB_REQUEST_SYNCH_FRAME = 0x0C,
+	LIBUSB_REQUEST_SET_SEL = 0x30,
+	LIBUSB_REQUEST_SET_ISOCH_DELAY = 0x31,
 };
 
 enum libusb_request_type {
@@ -192,6 +204,19 @@ enum libusb_transfer_flags {
 	LIBUSB_TRANSFER_FREE_TRANSFER = 1 << 2,
 };
 
+enum libusb_log_level {
+       LIBUSB_LOG_LEVEL_NONE = 0,
+       LIBUSB_LOG_LEVEL_ERROR,
+       LIBUSB_LOG_LEVEL_WARNING,
+       LIBUSB_LOG_LEVEL_INFO,
+       LIBUSB_LOG_LEVEL_DEBUG
+};
+
+/* XXX */
+/* libusb_set_debug should take parameters from libusb_log_level
+ * above according to
+ *   http://libusb.sourceforge.net/api-1.0/group__lib.html
+ */
 enum libusb_debug_level {
 	LIBUSB_DEBUG_NO=0,
 	LIBUSB_DEBUG_FUNCTION=1,
@@ -369,6 +394,8 @@ void	libusb_exit(struct libusb_context *ctx);
 ssize_t libusb_get_device_list(libusb_context * ctx, libusb_device *** list);
 void	libusb_free_device_list(libusb_device ** list, int unref_devices);
 uint8_t	libusb_get_bus_number(libusb_device * dev);
+int	libusb_get_port_numbers(libusb_device *dev, uint8_t *buf, uint8_t bufsize);
+int	libusb_get_port_path(libusb_context *ctx, libusb_device *dev, uint8_t *buf, uint8_t bufsize);
 uint8_t	libusb_get_device_address(libusb_device * dev);
 enum libusb_speed libusb_get_device_speed(libusb_device * dev);
 int	libusb_clear_halt(libusb_device_handle *devh, uint8_t endpoint);
@@ -436,12 +463,14 @@ int	libusb_event_handler_active(libusb_context * ctx);
 void	libusb_lock_event_waiters(libusb_context * ctx);
 void	libusb_unlock_event_waiters(libusb_context * ctx);
 int	libusb_wait_for_event(libusb_context * ctx, struct timeval *tv);
+int	libusb_handle_events_timeout_completed(libusb_context * ctx, struct timeval *tv, int *completed);
+int	libusb_handle_events_completed(libusb_context * ctx, int *completed);
 int	libusb_handle_events_timeout(libusb_context * ctx, struct timeval *tv);
 int	libusb_handle_events(libusb_context * ctx);
 int	libusb_handle_events_locked(libusb_context * ctx, struct timeval *tv);
 int	libusb_get_next_timeout(libusb_context * ctx, struct timeval *tv);
 void	libusb_set_pollfd_notifiers(libusb_context * ctx, libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb, void *user_data);
-struct libusb_pollfd **libusb_get_pollfds(libusb_context * ctx);
+const struct libusb_pollfd **libusb_get_pollfds(libusb_context * ctx);
 
 /* Synchronous device I/O */
 

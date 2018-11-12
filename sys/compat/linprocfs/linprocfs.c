@@ -72,11 +72,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/tty.h>
 #include <sys/user.h>
+#include <sys/uuid.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <vm/vm.h>
@@ -157,14 +159,14 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	/*
 	 * The correct thing here would be:
 	 *
-	memfree = cnt.v_free_count * PAGE_SIZE;
+	memfree = vm_cnt.v_free_count * PAGE_SIZE;
 	memused = memtotal - memfree;
 	 *
 	 * but it might mislead linux binaries into thinking there
 	 * is very little memory left, so we cheat and tell them that
 	 * all memory that isn't wired down is free.
 	 */
-	memused = cnt.v_wire_count * PAGE_SIZE;
+	memused = vm_cnt.v_wire_count * PAGE_SIZE;
 	memfree = memtotal - memused;
 	swap_pager_status(&i, &j);
 	swaptotal = (unsigned long long)i * PAGE_SIZE;
@@ -186,7 +188,7 @@ linprocfs_domeminfo(PFS_FILL_ARGS)
 	 * like unstaticizing it just for linprocfs's sake.
 	 */
 	buffers = 0;
-	cached = cnt.v_cache_count * PAGE_SIZE;
+	cached = vm_cnt.v_cache_count * PAGE_SIZE;
 
 	sbuf_printf(sb,
 	    "	     total:    used:	free:  shared: buffers:	 cached:\n"
@@ -484,12 +486,12 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    "intr %u\n"
 	    "ctxt %u\n"
 	    "btime %lld\n",
-	    cnt.v_vnodepgsin,
-	    cnt.v_vnodepgsout,
-	    cnt.v_swappgsin,
-	    cnt.v_swappgsout,
-	    cnt.v_intr,
-	    cnt.v_swtch,
+	    vm_cnt.v_vnodepgsin,
+	    vm_cnt.v_vnodepgsout,
+	    vm_cnt.v_swappgsin,
+	    vm_cnt.v_swappgsout,
+	    vm_cnt.v_intr,
+	    vm_cnt.v_swtch,
 	    (long long)boottime.tv_sec);
 	return (0);
 }
@@ -643,8 +645,10 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	static int ratelimit = 0;
 	vm_offset_t startcode, startdata;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
+	sx_sunlock(&proctree_lock);
 	if (p->p_vmspace) {
 	   startcode = (vm_offset_t)p->p_vmspace->vm_taddr;
 	   startdata = (vm_offset_t)p->p_vmspace->vm_daddr;
@@ -670,7 +674,7 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
 	PROC_UNLOCK(p);
-	PS_ADD("tty",		"%d",	kp.ki_tdev);
+	PS_ADD("tty",		"%ju",	(uintmax_t)kp.ki_tdev);
 	PS_ADD("tpgid",		"%d",	kp.ki_tpgid);
 	PS_ADD("flags",		"%u",	0); /* XXX */
 	PS_ADD("minflt",	"%lu",	kp.ki_rusage.ru_minflt);
@@ -720,9 +724,11 @@ linprocfs_doprocstatm(PFS_FILL_ARGS)
 	struct kinfo_proc kp;
 	segsz_t lsize;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	PROC_UNLOCK(p);
+	sx_sunlock(&proctree_lock);
 
 	/*
 	 * See comments in linprocfs_doprocstatus() regarding the
@@ -755,6 +761,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	struct sigacts *ps;
 	int i;
 
+	sx_slock(&proctree_lock);
 	PROC_LOCK(p);
 	td2 = FIRST_THREAD_IN_PROC(p); /* XXXKSE pretend only one thread */
 
@@ -793,6 +800,8 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	fill_kinfo_proc(p, &kp);
+	sx_sunlock(&proctree_lock);
+
 	sbuf_printf(sb, "Name:\t%s\n",		p->p_comm); /* XXX escape */
 	sbuf_printf(sb, "State:\t%s\n",		state);
 
@@ -1031,9 +1040,9 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		e_end = entry->end;
 		obj = entry->object.vm_object;
 		for (lobj = tobj = obj; tobj; tobj = tobj->backing_object) {
-			VM_OBJECT_WLOCK(tobj);
+			VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 		last_timestamp = map->timestamp;
@@ -1049,11 +1058,11 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			else
 				vp = NULL;
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			if (vp) {
 				vn_fullpath(td, vp, &name, &freename);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
@@ -1129,31 +1138,32 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		linux_ifname(ifp, ifname, sizeof ifname);
 		sbuf_printf(sb, "%6.6s: ", ifname);
-		sbuf_printf(sb, "%7lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu ",
-		    ifp->if_ibytes,	/* rx_bytes */
-		    ifp->if_ipackets,	/* rx_packets */
-		    ifp->if_ierrors,	/* rx_errors */
-		    ifp->if_iqdrops,	/* rx_dropped +
-					 * rx_missed_errors */
-		    0UL,		/* rx_fifo_errors */
-		    0UL,		/* rx_length_errors +
-					 * rx_over_errors +
-		    			 * rx_crc_errors +
-					 * rx_frame_errors */
-		    0UL,		/* rx_compressed */
-		    ifp->if_imcasts);	/* multicast, XXX-BZ rx only? */
-		sbuf_printf(sb, "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
-		    ifp->if_obytes,	/* tx_bytes */
-		    ifp->if_opackets,	/* tx_packets */
-		    ifp->if_oerrors,	/* tx_errors */
-		    0UL,		/* tx_dropped */
-		    0UL,		/* tx_fifo_errors */
-		    ifp->if_collisions,	/* collisions */
-		    0UL,		/* tx_carrier_errors +
-					 * tx_aborted_errors +
-					 * tx_window_errors +
-					 * tx_heartbeat_errors */
-		    0UL);		/* tx_compressed */
+		sbuf_printf(sb, "%7ju %7ju %4ju %4ju %4lu %5lu %10lu %9ju ",
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IBYTES),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IERRORS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IQDROPS),
+							/* rx_missed_errors */
+		    0UL,				/* rx_fifo_errors */
+		    0UL,				/* rx_length_errors +
+							 * rx_over_errors +
+							 * rx_crc_errors +
+							 * rx_frame_errors */
+		    0UL,				/* rx_compressed */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_IMCASTS));
+							/* XXX-BZ rx only? */
+		sbuf_printf(sb, "%8ju %7ju %4ju %4ju %4lu %5ju %7lu %10lu\n",
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OBYTES),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OERRORS),
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS),
+		    0UL,				/* tx_fifo_errors */
+		    (uintmax_t )ifp->if_get_counter(ifp, IFCOUNTER_COLLISIONS),
+		    0UL,				/* tx_carrier_errors +
+							 * tx_aborted_errors +
+							 * tx_window_errors +
+							 * tx_heartbeat_errors*/
+		    0UL);				/* tx_compressed */
 	}
 	IFNET_RUNLOCK();
 	CURVNET_RESTORE();
@@ -1336,6 +1346,22 @@ linprocfs_dofdescfs(PFS_FILL_ARGS)
 	return (0);
 }
 
+
+/*
+ * Filler function for proc/sys/kernel/random/uuid
+ */
+static int
+linprocfs_douuid(PFS_FILL_ARGS)
+{
+	struct uuid uuid;
+
+	kern_uuidgen(&uuid, 1);
+	sbuf_printf_uuid(sb, &uuid);
+	sbuf_printf(sb, "\n");
+	return(0);
+}
+
+
 /*
  * Constructor
  */
@@ -1433,6 +1459,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "sem", &linprocfs_dosem,
+	    NULL, NULL, NULL, PFS_RD);
+
+	/* /proc/sys/kernel/random/... */
+	dir = pfs_create_dir(dir, "random", NULL, NULL, NULL, 0);
+	pfs_create_file(dir, "uuid", &linprocfs_douuid,
 	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);

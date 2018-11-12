@@ -45,9 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/nexusvar.h>
 
 int acpi_resume_beep;
-TUNABLE_INT("debug.acpi.resume_beep", &acpi_resume_beep);
-SYSCTL_INT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RW, &acpi_resume_beep,
-    0, "Beep the PC speaker when resuming");
+SYSCTL_INT(_debug_acpi, OID_AUTO, resume_beep, CTLFLAG_RWTUN,
+    &acpi_resume_beep, 0, "Beep the PC speaker when resuming");
 
 int acpi_reset_video;
 TUNABLE_INT("hw.acpi.reset_video", &acpi_reset_video);

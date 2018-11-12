@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2004 Mark R V Murray
+ * Copyright (c) 2000-2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,34 +26,19 @@
  * $FreeBSD$
  */
 
-/* This contains Yarrow-specific declarations.
- * See http://www.counterpane.com/yarrow.html
- */
+#ifndef SYS_DEV_RANDOM_YARROW_H_INCLUDED
+#define SYS_DEV_RANDOM_YARROW_H_INCLUDED
 
-#define TIMEBIN		16	/* max value for Pt/t */
+#ifdef _KERNEL
+typedef struct mtx mtx_t;
+#endif
 
-#define FAST		0
-#define SLOW		1
+void random_yarrow_init_alg(void);
+void random_yarrow_deinit_alg(void);
+void random_yarrow_read(uint8_t *, u_int);
+void random_yarrow_write(uint8_t *, u_int);
+void random_yarrow_reseed(void);
+int random_yarrow_seeded(void);
+void random_yarrow_process_event(struct harvest_event *event);
 
-/* This is the beastie that needs protecting. It contains all of the
- * state that we are excited about.
- * Exactly one will be instantiated.
- */
-struct random_state {
-	u_int64_t counter[4];	/* C - 256 bits */
-	struct yarrowkey key;	/* K */
-	u_int gengateinterval;	/* Pg */
-	u_int bins;		/* Pt/t */
-	u_int outputblocks;	/* count output blocks for gates */
-	u_int slowoverthresh;	/* slow pool overthreshhold reseed count */
-	struct pool {
-		struct source {
-			u_int bits;	/* estimated bits of entropy */
-			u_int frac;	/* fractional bits of entropy
-					   (given as 1024/n) */
-		} source[ENTROPYSOURCE];
-		u_int thresh;	/* pool reseed threshhold */
-		struct yarrowhash hash;	/* accumulated entropy */
-	} pool[2];		/* pool[0] is fast, pool[1] is slow */
-	u_int which;		/* toggle - sets the current insertion pool */
-};
+#endif

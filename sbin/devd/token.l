@@ -37,8 +37,6 @@
 #include "y.tab.h"
 
 int lineno = 1;
-#define YY_NO_UNPUT
-#define YY_NO_INPUT
 
 static void
 update_lineno(const char *cp)
@@ -49,6 +47,9 @@ update_lineno(const char *cp)
 }
 
 %}
+
+%option nounput
+%option noinput
 
 %%
 

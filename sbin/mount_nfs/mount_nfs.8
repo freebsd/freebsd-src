@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2012
+.Dd October 30, 2014
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -118,6 +118,15 @@ for regular files, and 30 -> 60 seconds for directories.
 The algorithm to calculate the timeout is based on the age of the file.
 The older the file,
 the longer the cache is considered valid, subject to the limits above.
+.It Cm actimeo Ns = Ns Aq Ar seconds
+Set four cache timeouts above to specified value.
+.It Cm allgssname
+This option can be used along with
+.Fl o Cm gssname
+to specify that all operations should use the host-based initiator
+credential.
+This may be used for clients that run system daemons that need to
+access files on the NFSv4 mounted volume.
 .It Cm bg
 If an initial attempt to contact the server fails, fork off a child to keep
 trying the mount in the background.
@@ -138,6 +147,23 @@ short.
 .It Cm fg
 Same as not specifying
 .Cm bg .
+.It Cm gssname Ns = Ns Aq Ar service-principal-name
+This option can be used with the KerberosV security flavors for NFSv4 mounts
+to specify the
+.Dq "service-principal-name"
+of a host-based entry in the default
+keytab file that is used for system operations.
+It allows the mount to be performed by
+.Dq "root"
+and avoids problems with
+cached credentials for the system operations expiring.
+The
+.Dq "service-prinicpal-name"
+should be specified without instance or domain and is typically
+.Dq "host" ,
+.Dq "nfs"
+or
+.Dq "root" .
 .It Cm hard
 Same as not specifying
 .Cm soft .
@@ -187,6 +213,8 @@ NFS Version 4 protocol.
 This option is only meaningful when used with the
 .Cm minorversion
 option.
+.It Cm noac
+Disable attribute caching.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -233,6 +261,19 @@ servers on the client.
 Note that this option will only be honored when performing the
 initial mount, it will be silently ignored if used while updating
 the mount options.
+.It Cm noncontigwr
+This mount option allows the NFS client to
+combine non-contiguous byte ranges being written
+such that the dirty byte range becomes a superset of the bytes
+that are dirty.
+This reduces the number of writes significantly for software
+builds.
+The merging of byte ranges isn't done if the file has been file
+locked, since most applications modifying a file from multiple
+clients will use file locking.
+As such, this option could result in a corrupted file for the
+rare case of an application modifying the file from multiple
+clients concurrently without using file locking.
 .It Cm principal
 For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
 this option sets the name of the host based principal name expected
@@ -245,6 +286,15 @@ use a reserved socket port number (see below).
 .It Cm port Ns = Ns Aq Ar port_number
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
+.It Cm proto Ns = Ns Aq Ar protocol
+Specify transport protocol version to use.
+Currently, they are:
+.Bd -literal
+udp -   Use UDP over IPv4
+tcp -   Use TCP over IPv4
+udp6 -  Use UDP over IPv6
+tcp6 -  Use TCP over IPv6
+.Ed
 .It Cm rdirplus
 Used with NFSV3 to specify that the \fBReaddirPlus\fR RPC should
 be used.
@@ -320,7 +370,8 @@ LAN and WAN configurations compared to UDP.
 Some old NFS servers do not support this method; UDP mounts may be required
 for interoperability.
 .It Cm timeout Ns = Ns Aq Ar value
-Set the initial retransmit timeout to the specified value.
+Set the initial retransmit timeout to the specified value,
+expressed in tenths of a second.
 May be useful for fine tuning UDP mounts over internetworks
 with high packet loss rates or an overloaded server.
 Try increasing the interval if
@@ -332,8 +383,19 @@ value if there is a low retransmit rate but long response delay observed.
 option should be specified when using this option to manually
 tune the timeout
 interval.)
+.It Cm timeo Ns = Ns Aq Ar value
+Alias for
+.Cm timeout .
 .It Cm udp
 Use UDP transport.
+.It Cm vers Ns = Ns Aq Ar vers_number
+Use the specified version number for NFS requests.
+See the
+.Cm nfsv2 ,
+.Cm nfsv3 ,
+and
+.Cm nfsv4
+options for details.
 .It Cm wcommitsize Ns = Ns Aq Ar value
 Set the maximum pending write commit size to the specified value.
 This determines the maximum amount of pending write data that the NFS
@@ -428,6 +490,26 @@ Same as
 .It Fl x
 Same as
 .Fl o Cm retrans Ns = Ns Aq Ar value
+.El
+.Pp
+The following
+.Fl o
+named options are equivalent to other
+.Fl o
+named options and are supported for compatibility with other
+operating systems (e.g., Linux, Solaris, and OSX) to ease usage of
+.Xr autofs 5
+support.
+.Bl -tag -width indent
+.It Fl o Cm vers Ns = Ns 2
+Same as
+.Fl o Cm nfsv2
+.It Fl o Cm vers Ns = Ns 3
+Same as
+.Fl o Cm nfsv3
+.It Fl o Cm vers Ns = Ns 4
+Same as
+.Fl o Cm nfsv4
 .El
 .Sh SEE ALSO
 .Xr nmount 2 ,

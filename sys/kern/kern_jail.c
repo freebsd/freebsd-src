@@ -68,9 +68,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
-#ifdef INET6
-#include <netinet6/in6_var.h>
-#endif /* INET6 */
 #endif /* DDB */
 
 #include <security/mac/mac_framework.h>
@@ -134,7 +131,7 @@ static void prison_racct_modify(struct prison *pr);
 static void prison_racct_detach(struct prison *pr);
 #endif
 #ifdef INET
-static int _prison_check_ip4(struct prison *pr, struct in_addr *ia);
+static int _prison_check_ip4(const struct prison *, const struct in_addr *);
 static int prison_restrict_ip4(struct prison *pr, struct in_addr *newip4);
 #endif
 #ifdef INET6
@@ -186,10 +183,10 @@ struct jailsys_flags {
 	{ "vnet", 0, PR_VNET },
 #endif
 #ifdef INET
-	{ "ip4", PR_IP4_USER | PR_IP4_DISABLE, PR_IP4_USER },
+	{ "ip4", PR_IP4_USER, PR_IP4_USER },
 #endif
 #ifdef INET6
-	{ "ip6", PR_IP6_USER | PR_IP6_DISABLE, PR_IP6_USER },
+	{ "ip6", PR_IP6_USER, PR_IP6_USER },
 #endif
 };
 const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
@@ -206,6 +203,8 @@ static char *pr_allow_names[] = {
 	"allow.mount.nullfs",
 	"allow.mount.zfs",
 	"allow.mount.procfs",
+	"allow.mount.tmpfs",
+	"allow.mount.fdescfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -221,6 +220,8 @@ static char *pr_allow_nonames[] = {
 	"allow.mount.nonullfs",
 	"allow.mount.nozfs",
 	"allow.mount.noprocfs",
+	"allow.mount.notmpfs",
+	"allow.mount.nofdescfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -233,6 +234,19 @@ static int jail_default_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
 #if defined(INET) || defined(INET6)
 static unsigned jail_max_af_ips = 255;
 #endif
+
+/*
+ * Initialize the parts of prison0 that can't be static-initialized with
+ * constants.  This is called from proc0_init() after creating thread0 cpuset.
+ */
+void
+prison0_init(void)
+{
+
+	prison0.pr_cpuset = cpuset_ref(thread0.td_cpuset);
+	prison0.pr_osreldate = osreldate;
+	strlcpy(prison0.pr_osrelease, osrelease, sizeof(prison0.pr_osrelease));
+}
 
 #ifdef INET
 static int
@@ -311,7 +325,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 		j.version = j0.version;
 		j.path = j0.path;
 		j.hostname = j0.hostname;
-		j.ip4s = j0.ip_number;
+		j.ip4s = htonl(j0.ip_number);	/* jail_v0 is host order */
 		break;
 	}
 
@@ -533,7 +547,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
 	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
-	char *g_path;
+	char *g_path, *osrelstr;
 #if defined(INET) || defined(INET6)
 	struct prison *tppr;
 	void *op;
@@ -543,7 +557,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
 	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int fi, jid, jsys, len, level;
-	int childmax, rsnum, slevel;
+	int childmax, osreldt, rsnum, slevel;
 	int fullpath_disabled;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
@@ -797,18 +811,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET
 	error = vfs_getopt(opts, "ip4.addr", &op, &ip4s);
 	if (error == ENOENT)
-		ip4s = (pr_flags & PR_IP4_DISABLE) ? 0 : -1;
+		ip4s = 0;
 	else if (error != 0)
 		goto done_free;
 	else if (ip4s & (sizeof(*ip4) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
-		ch_flags |= PR_IP4_USER | PR_IP4_DISABLE;
-		if (ip4s == 0)
-			pr_flags |= PR_IP4_USER | PR_IP4_DISABLE;
-		else {
-			pr_flags = (pr_flags & ~PR_IP4_DISABLE) | PR_IP4_USER;
+		ch_flags |= PR_IP4_USER;
+		pr_flags |= PR_IP4_USER;
+		if (ip4s > 0) {
 			ip4s /= sizeof(*ip4);
 			if (ip4s > jail_max_af_ips) {
 				error = EINVAL;
@@ -855,18 +867,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	error = vfs_getopt(opts, "ip6.addr", &op, &ip6s);
 	if (error == ENOENT)
-		ip6s = (pr_flags & PR_IP6_DISABLE) ? 0 : -1;
+		ip6s = 0;
 	else if (error != 0)
 		goto done_free;
 	else if (ip6s & (sizeof(*ip6) - 1)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
-		ch_flags |= PR_IP6_USER | PR_IP6_DISABLE;
-		if (ip6s == 0)
-			pr_flags |= PR_IP6_USER | PR_IP6_DISABLE;
-		else {
-			pr_flags = (pr_flags & ~PR_IP6_DISABLE) | PR_IP6_USER;
+		ch_flags |= PR_IP6_USER;
+		pr_flags |= PR_IP6_USER;
+		if (ip6s > 0) {
 			ip6s /= sizeof(*ip6);
 			if (ip6s > jail_max_af_ips) {
 				error = EINVAL;
@@ -955,6 +965,46 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				error = ENAMETOOLONG;
 				goto done_free;
 			}
+		}
+	}
+
+	error = vfs_getopt(opts, "osrelease", (void **)&osrelstr, &len);
+	if (error == ENOENT)
+		osrelstr = NULL;
+	else if (error != 0)
+		goto done_free;
+	else {
+		if (flags & JAIL_UPDATE) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osrelease cannot be changed after creation");
+			goto done_errmsg;
+		}
+		if (len == 0 || len >= OSRELEASELEN) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osrelease string must be 1-%d bytes long",
+			    OSRELEASELEN - 1);
+			goto done_errmsg;
+		}
+	}
+
+	error = vfs_copyopt(opts, "osreldate", &osreldt, sizeof(osreldt));
+	if (error == ENOENT)
+		osreldt = 0;
+	else if (error != 0)
+		goto done_free;
+	else {
+		if (flags & JAIL_UPDATE) {
+			error = EINVAL;
+			vfs_opterror(opts,
+			    "osreldate cannot be changed after creation");
+			goto done_errmsg;
+		}
+		if (osreldt == 0) {
+			error = EINVAL;
+			vfs_opterror(opts, "osreldate cannot be 0");
+			goto done_errmsg;
 		}
 	}
 
@@ -1246,8 +1296,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		{
 #ifdef INET
 			if (!(ch_flags & PR_IP4_USER))
-				pr->pr_flags |=
-				    PR_IP4 | PR_IP4_USER | PR_IP4_DISABLE;
+				pr->pr_flags |= PR_IP4 | PR_IP4_USER;
 			else if (!(pr_flags & PR_IP4_USER)) {
 				pr->pr_flags |= ppr->pr_flags & PR_IP4;
 				if (ppr->pr_ip4 != NULL) {
@@ -1262,8 +1311,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 #ifdef INET6
 			if (!(ch_flags & PR_IP6_USER))
-				pr->pr_flags |=
-				    PR_IP6 | PR_IP6_USER | PR_IP6_DISABLE;
+				pr->pr_flags |= PR_IP6 | PR_IP6_USER;
 			else if (!(pr_flags & PR_IP6_USER)) {
 				pr->pr_flags |= ppr->pr_flags & PR_IP6;
 				if (ppr->pr_ip6 != NULL) {
@@ -1285,6 +1333,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
 		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
 		pr->pr_devfs_rsnum = ppr->pr_devfs_rsnum;
+
+		pr->pr_osreldate = osreldt ? osreldt : ppr->pr_osreldate;
+		if (osrelstr == NULL)
+		    strcpy(pr->pr_osrelease, ppr->pr_osrelease);
+		else
+		    strcpy(pr->pr_osrelease, osrelstr);
 
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
@@ -1809,9 +1863,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 #ifdef RACCT
 	if (!created) {
-		sx_sunlock(&allprison_lock);
+		if (!(flags & JAIL_ATTACH))
+			sx_sunlock(&allprison_lock);
 		prison_racct_modify(pr);
-		sx_slock(&allprison_lock);
+		if (!(flags & JAIL_ATTACH))
+			sx_slock(&allprison_lock);
 	}
 #endif
 
@@ -2120,6 +2176,13 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 	error = vfs_setopt(opts, "nodying", &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
+	error = vfs_setopt(opts, "osreldate", &pr->pr_osreldate,
+	    sizeof(pr->pr_osreldate));
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopts(opts, "osrelease", pr->pr_osrelease);
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
 
 	/* Get the module parameters. */
 	mtx_unlock(&pr->pr_mtx);
@@ -2378,7 +2441,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	setsugid(p);
 	crcopy(newcred, oldcred);
 	newcred->cr_prison = pr;
-	p->p_ucred = newcred;
+	proc_set_cred(p, newcred);
 	PROC_UNLOCK(p);
 #ifdef RACCT
 	racct_proc_ucred_changed(p, oldcred, newcred);
@@ -2719,7 +2782,6 @@ prison_restrict_ip4(struct prison *pr, struct in_addr *newip4)
 			}
 		}
 		if (pr->pr_ip4s == 0) {
-			pr->pr_flags |= PR_IP4_DISABLE;
 			free(pr->pr_ip4, M_PRISON);
 			pr->pr_ip4 = NULL;
 		}
@@ -2927,7 +2989,7 @@ prison_remote_ip4(struct ucred *cred, struct in_addr *ia)
  * doesn't allow IPv4.  Address passed in in NBO.
  */
 static int
-_prison_check_ip4(struct prison *pr, struct in_addr *ia)
+_prison_check_ip4(const struct prison *pr, const struct in_addr *ia)
 {
 	int i, a, z, d;
 
@@ -2957,7 +3019,7 @@ _prison_check_ip4(struct prison *pr, struct in_addr *ia)
 }
 
 int
-prison_check_ip4(struct ucred *cred, struct in_addr *ia)
+prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
 {
 	struct prison *pr;
 	int error;
@@ -3044,7 +3106,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 				ii++;
 				continue;
 			}
-			switch (ij >= ppr->pr_ip4s ? -1 :
+			switch (ij >= ppr->pr_ip6s ? -1 :
 				qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
 			case -1:
 				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
@@ -3060,7 +3122,6 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 			}
 		}
 		if (pr->pr_ip6s == 0) {
-			pr->pr_flags |= PR_IP6_DISABLE;
 			free(pr->pr_ip6, M_PRISON);
 			pr->pr_ip6 = NULL;
 		}
@@ -3696,11 +3757,6 @@ prison_priv_check(struct ucred *cred, int priv)
 
 #ifdef notyet
 		/*
-		 * AppleTalk privileges.
-		 */
-	case PRIV_NETATALK_RESERVEDPORT:
-
-		/*
 		 * ATM privileges.
 		 */
 	case PRIV_NETATM_CFG:
@@ -3740,12 +3796,6 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_NETINET_BINDANY:
 
 #ifdef notyet
-		/*
-		 * IPX/SPX privileges.
-		 */
-	case PRIV_NETIPX_RESERVEDPORT:
-	case PRIV_NETIPX_RAW:
-
 		/*
 		 * NCP privileges.
 		 */
@@ -3883,6 +3933,13 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_SETGID:
 	case PRIV_VFS_STAT:
 	case PRIV_VFS_STICKYFILE:
+
+		/*
+		 * As in the non-jail case, non-root users are expected to be
+		 * able to read kernel/phyiscal memory (provided /dev/[k]mem
+		 * exists in the jail and they have permission to access it).
+		 */
+	case PRIV_KMEM_READ:
 		return (0);
 
 		/*
@@ -4132,6 +4189,26 @@ SYSCTL_PROC(_security_jail, OID_AUTO, jailed,
     CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_jail_jailed, "I", "Process in jail?");
 
+static int
+sysctl_jail_vnet(SYSCTL_HANDLER_ARGS)
+{
+	int error, havevnet;
+#ifdef VIMAGE
+	struct ucred *cred = req->td->td_ucred;
+
+	havevnet = jailed(cred) && prison_owns_vnet(cred);
+#else
+	havevnet = 0;
+#endif
+	error = SYSCTL_OUT(req, &havevnet, sizeof(havevnet));
+
+	return (error);
+}
+
+SYSCTL_PROC(_security_jail, OID_AUTO, vnet,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_jail_vnet, "I", "Jail owns VNET?");
+
 #if defined(INET) || defined(INET6)
 SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
     &jail_max_af_ips, 0,
@@ -4200,6 +4277,10 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
     "Processes in jail can mount the devfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_fdescfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_FDESCFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the fdescfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
@@ -4208,6 +4289,10 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
     "Processes in jail can mount the procfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_tmpfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_TMPFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the tmpfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
@@ -4280,12 +4365,20 @@ sysctl_jail_param(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
+/*
+ * CTLFLAG_RDTUN in the following indicates jail parameters that can be set at
+ * jail creation time but cannot be changed in an existing jail.
+ */
 SYSCTL_JAIL_PARAM(, jid, CTLTYPE_INT | CTLFLAG_RDTUN, "I", "Jail ID");
 SYSCTL_JAIL_PARAM(, parent, CTLTYPE_INT | CTLFLAG_RD, "I", "Jail parent ID");
 SYSCTL_JAIL_PARAM_STRING(, name, CTLFLAG_RW, MAXHOSTNAMELEN, "Jail name");
 SYSCTL_JAIL_PARAM_STRING(, path, CTLFLAG_RDTUN, MAXPATHLEN, "Jail root path");
 SYSCTL_JAIL_PARAM(, securelevel, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail secure level");
+SYSCTL_JAIL_PARAM(, osreldate, CTLTYPE_INT | CTLFLAG_RDTUN, "I", 
+    "Jail value for kern.osreldate and uname -K");
+SYSCTL_JAIL_PARAM_STRING(, osrelease, CTLFLAG_RDTUN, OSRELEASELEN, 
+    "Jail value for kern.osrelease and uname -r");
 SYSCTL_JAIL_PARAM(, enforce_statfs, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail cannot see all mounted file systems");
 SYSCTL_JAIL_PARAM(, devfs_ruleset, CTLTYPE_INT | CTLFLAG_RW,
@@ -4356,10 +4449,14 @@ SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems in general");
 SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the devfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, fdescfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the fdescfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the nullfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the procfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, tmpfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the tmpfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the zfs file system");
 

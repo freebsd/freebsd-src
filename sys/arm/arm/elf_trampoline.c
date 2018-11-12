@@ -49,43 +49,50 @@ void _start(void);
 void __start(void);
 void __startC(void);
 
+extern unsigned int cpufunc_id(void);
+extern void armv6_idcache_wbinv_all(void);
+extern void armv7_idcache_wbinv_all(void);
+extern void do_call(void *, void *, void *, int);
+
 #define GZ_HEAD	0xa
 
-#ifdef CPU_ARM7TDMI
-#define cpu_idcache_wbinv_all	arm7tdmi_cache_flushID
-#elif defined(CPU_ARM8)
-#define cpu_idcache_wbinv_all	arm8_cache_purgeID
-#elif defined(CPU_ARM9)
+#if defined(CPU_ARM9)
 #define cpu_idcache_wbinv_all	arm9_idcache_wbinv_all
+extern void arm9_idcache_wbinv_all(void);
 #elif defined(CPU_FA526) || defined(CPU_FA626TE)
 #define cpu_idcache_wbinv_all	fa526_idcache_wbinv_all
+extern void fa526_idcache_wbinv_all(void);
 #elif defined(CPU_ARM9E)
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
+extern void armv5_ec_idcache_wbinv_all(void);
 #elif defined(CPU_ARM10)
 #define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
+extern void arm10_idcache_wbinv_all(void);
 #elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
-#elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
-    defined(CPU_IXP12X0)
-#define cpu_idcache_wbinv_all	sa1_cache_purgeID
 #elif defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
   defined(CPU_XSCALE_80219)
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
+extern void xscale_cache_purgeID(void);
 #elif defined(CPU_XSCALE_81342)
 #define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
+extern void xscalec3_cache_purgeID(void);
 #elif defined(CPU_MV_PJ4B)
 #if !defined(SOC_MV_ARMADAXP)
 #define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
+extern void armv6_idcache_wbinv_all(void);
 #else
 #define cpu_idcache_wbinv_all()	armadaxp_idcache_wbinv_all
 #endif
 #endif /* CPU_MV_PJ4B */
 #ifdef CPU_XSCALE_81342
 #define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
+extern void xscalec3_l2cache_purge(void);
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
-#elif defined(CPU_CORTEXA)
+extern void sheeva_l2cache_wbinv_all(void);
+#elif defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 #define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
 #define cpu_l2cache_wbinv_all()
 #else
@@ -107,6 +114,10 @@ int     arm_pcache_unified;
 
 int     arm_dcache_align;
 int     arm_dcache_align_mask;
+
+int     arm_dcache_min_line_size = 32;
+int     arm_icache_min_line_size = 32;
+int     arm_idcache_min_line_size = 32;
 
 u_int	arm_cache_level;
 u_int	arm_cache_type[14];
@@ -169,14 +180,20 @@ static void arm9_setup(void);
 void
 _startC(void)
 {
-	int physaddr = KERNPHYSADDR;
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
-#if defined(FLASHADDR) && defined(LOADERRAMADDR)
-	unsigned int pc;
+	unsigned int pc, kernphysaddr;
 
+	/*
+	 * Figure out the physical address the kernel was loaded at.  This
+	 * assumes the entry point (this code right here) is in the first page,
+	 * which will always be the case for this trampoline code.
+	 */
 	__asm __volatile("mov %0, pc\n"
 	    : "=r" (pc));
+	kernphysaddr = pc & ~PAGE_MASK;
+
+#if defined(FLASHADDR) && defined(PHYSADDR) && defined(LOADERRAMADDR)
 	if ((FLASHADDR > LOADERRAMADDR && pc >= FLASHADDR) ||
 	    (FLASHADDR < LOADERRAMADDR && pc < LOADERRAMADDR)) {
 		/*
@@ -230,7 +247,7 @@ _startC(void)
 			 "mov pc, %0\n"
 			 "2: nop\n"
 			 "mov sp, %2\n"
-			 : "=r" (tmp1), "+r" (physaddr), "+r" (sp));
+			 : "=r" (tmp1), "+r" (kernphysaddr), "+r" (sp));
 #ifndef KZIP
 #ifdef CPU_ARM9
 	/* So that idcache_wbinv works; */
@@ -264,6 +281,13 @@ get_cachetype_cp15()
 		goto out;
 
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
+		/* Resolve minimal cache line sizes */
+		arm_dcache_min_line_size = 1 << (CPU_CT_DMINLINE(ctype) + 2);
+		arm_icache_min_line_size = 1 << (CPU_CT_IMINLINE(ctype) + 2);
+		arm_idcache_min_line_size =
+		    (arm_dcache_min_line_size > arm_icache_min_line_size ?
+		    arm_icache_min_line_size : arm_dcache_min_line_size);
+
 		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
 		    : "=r" (clevel));
 		arm_cache_level = clevel;
@@ -434,11 +458,11 @@ static void *
 inflate_kernel(void *kernel, void *startaddr)
 {
 	struct inflate infl;
-	char slide[GZ_WSIZE];
+	unsigned char slide[GZ_WSIZE];
 
 	orig_input = kernel;
 	memcnt = memtot = 0;
-	i_input = (char *)kernel + GZ_HEAD;
+	i_input = (unsigned char *)kernel + GZ_HEAD;
 	if (((char *)kernel)[3] & 0x18) {
 		while (*i_input)
 			i_input++;
@@ -590,6 +614,8 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 	__asm __volatile(".globl func_end\n"
 	    "func_end:");
 	
+	/* NOTREACHED */
+	return NULL;
 }
 
 extern char func_end[];

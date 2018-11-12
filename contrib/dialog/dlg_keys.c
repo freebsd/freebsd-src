@@ -1,9 +1,9 @@
 /*
- *  $Id: dlg_keys.c,v 1.26 2009/02/22 16:19:51 tom Exp $
+ *  $Id: dlg_keys.c,v 1.34 2011/10/14 00:41:08 tom Exp $
  *
- * dlg_keys.c -- runtime binding support for dialog
+ *  dlg_keys.c -- runtime binding support for dialog
  *
- * Copyright 2006-2007,2009 Thomas E. Dickey
+ *  Copyright 2006-2009,2011 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -34,6 +34,7 @@ LIST_BINDINGS {
     DLG_KEYS_BINDING *binding;	/* list of bindings */
 };
 
+#define WILDNAME "*"
 static LIST_BINDINGS *all_bindings;
 static const DLG_KEYS_BINDING end_keys_binding = END_KEYS_BINDING;
 
@@ -61,6 +62,17 @@ dlg_register_window(WINDOW *win, const char *name, DLG_KEYS_BINDING * binding)
 	else
 	    all_bindings = p;
     }
+#if defined(HAVE_DLG_TRACE) && defined(HAVE_RC_FILE)
+    /*
+     * Trace the binding information assigned to this window.  For most widgets
+     * there is only one binding table.  forms have two, so the trace will be
+     * longer.  Since compiled-in bindings are only visible when the widget is
+     * registered, there is no other way to see what bindings are available,
+     * than by running dialog and tracing it.
+     */
+    dlg_trace_msg("# dlg_register_window %s\n", name);
+    dlg_dump_window_keys(dialog_state.trace_output, win);
+#endif
 }
 
 /*
@@ -189,7 +201,7 @@ int
 dlg_lookup_key(WINDOW *win, int curses_key, int *fkey)
 {
     LIST_BINDINGS *p;
-    int n;
+    DLG_KEYS_BINDING *q;
 
     /*
      * Ignore mouse clicks, since they are already encoded properly.
@@ -208,19 +220,28 @@ dlg_lookup_key(WINDOW *win, int curses_key, int *fkey)
     } else
 #endif
     if (*fkey == 0 || curses_key < KEY_MAX) {
+	const char *name = WILDNAME;
+	if (win != 0) {
+	    for (p = all_bindings; p != 0; p = p->link) {
+		if (p->win == win) {
+		    name = p->name;
+		    break;
+		}
+	    }
+	}
 	for (p = all_bindings; p != 0; p = p->link) {
-	    if (p->win == win || p->win == 0) {
+	    if (p->win == win || (p->win == 0 && !strcmp(p->name, name))) {
 		int function_key = (*fkey != 0);
-		for (n = 0; p->binding[n].is_function_key >= 0; ++n) {
+		for (q = p->binding; q->is_function_key >= 0; ++q) {
 		    if (p->buttons
 			&& !function_key
-			&& p->binding[n].curses_key == (int) dlg_toupper(curses_key)) {
+			&& q->curses_key == (int) dlg_toupper(curses_key)) {
 			*fkey = 0;
-			return p->binding[n].dialog_key;
+			return q->dialog_key;
 		    }
-		    if (p->binding[n].curses_key == curses_key
-			&& p->binding[n].is_function_key == function_key) {
-			*fkey = p->binding[n].dialog_key;
+		    if (q->curses_key == curses_key
+			&& q->is_function_key == function_key) {
+			*fkey = q->dialog_key;
 			return *fkey;
 		    }
 		}
@@ -295,10 +316,18 @@ typedef struct {
     int code;
 } CODENAME;
 
+#define ASCII_NAME(name,code)  { #name, code }
 #define CURSES_NAME(upper) { #upper, KEY_ ## upper }
 #define COUNT_CURSES  sizeof(curses_names)/sizeof(curses_names[0])
 static const CODENAME curses_names[] =
 {
+    ASCII_NAME(ESC, '\033'),
+    ASCII_NAME(CR, '\r'),
+    ASCII_NAME(LF, '\n'),
+    ASCII_NAME(FF, '\f'),
+    ASCII_NAME(TAB, '\t'),
+    ASCII_NAME(DEL, '\177'),
+
     CURSES_NAME(DOWN),
     CURSES_NAME(UP),
     CURSES_NAME(LEFT),
@@ -408,6 +437,10 @@ static const CODENAME dialog_names[] =
     DIALOG_NAME(FIELD_LAST),
     DIALOG_NAME(FIELD_NEXT),
     DIALOG_NAME(FIELD_PREV),
+    DIALOG_NAME(FORM_FIRST),
+    DIALOG_NAME(FORM_LAST),
+    DIALOG_NAME(FORM_NEXT),
+    DIALOG_NAME(FORM_PREV),
     DIALOG_NAME(GRID_UP),
     DIALOG_NAME(GRID_DOWN),
     DIALOG_NAME(GRID_LEFT),
@@ -418,7 +451,9 @@ static const CODENAME dialog_names[] =
     DIALOG_NAME(ENTER),
     DIALOG_NAME(BEGIN),
     DIALOG_NAME(FINAL),
-    DIALOG_NAME(SELECT)
+    DIALOG_NAME(SELECT),
+    DIALOG_NAME(HELPFILE),
+    DIALOG_NAME(TRACE)
 };
 
 static char *
@@ -472,9 +507,9 @@ compare_bindings(LIST_BINDINGS * a, LIST_BINDINGS * b)
     if (a->win == b->win) {
 	if (!strcmp(a->name, b->name)) {
 	    result = a->binding[0].curses_key - b->binding[0].curses_key;
-	} else if (!strcmp(b->name, "*")) {
+	} else if (!strcmp(b->name, WILDNAME)) {
 	    result = -1;
-	} else if (!strcmp(a->name, "*")) {
+	} else if (!strcmp(a->name, WILDNAME)) {
 	    result = 1;
 	} else {
 	    result = dlg_strcmp(a->name, b->name);
@@ -572,6 +607,7 @@ dlg_parse_bindkey(char *params)
     p = skip_black(p);
     if (p != widget && *p != '\0') {
 	*p++ = '\0';
+	p = skip_white(p);
 	q = p;
 	while (*p != '\0' && curses_key < 0) {
 	    if (escaped) {
@@ -613,7 +649,7 @@ dlg_parse_bindkey(char *params)
 		    for (xx = 0; xx < COUNT_CURSES; ++xx) {
 			if (!dlg_strcmp(curses_names[xx].name, q)) {
 			    curses_key = curses_names[xx].code;
-			    is_function = TRUE;
+			    is_function = (curses_key >= KEY_MIN);
 			    break;
 			}
 		    }
@@ -700,29 +736,52 @@ dump_one_binding(FILE *fp, const char *widget, DLG_KEYS_BINDING * binding)
     fputc('\n', fp);
 }
 
+/*
+ * Dump bindings for the given window.  If it is a null, then this dumps the
+ * initial bindings which were loaded from the rc-file that are used as
+ * overall defaults.
+ */
+void
+dlg_dump_window_keys(FILE *fp, WINDOW *win)
+{
+    if (fp != 0) {
+	LIST_BINDINGS *p;
+	DLG_KEYS_BINDING *q;
+	const char *last = "";
+
+	for (p = all_bindings; p != 0; p = p->link) {
+	    if (p->win == win) {
+		if (dlg_strcmp(last, p->name)) {
+		    fprintf(fp, "\n# key bindings for %s widgets\n",
+			    !strcmp(p->name, WILDNAME) ? "all" : p->name);
+		    last = p->name;
+		}
+		for (q = p->binding; q->is_function_key >= 0; ++q) {
+		    dump_one_binding(fp, p->name, q);
+		}
+	    }
+	}
+    }
+}
+
+/*
+ * Dump all of the bindings which are not specific to a given widget, i.e.,
+ * the "win" member is null.
+ */
 void
 dlg_dump_keys(FILE *fp)
 {
-    LIST_BINDINGS *p;
-    const char *last = "";
-    unsigned n;
-    unsigned count = 0;
+    if (fp != 0) {
+	LIST_BINDINGS *p;
+	unsigned count = 0;
 
-    for (p = all_bindings; p != 0; p = p->link) {
-	if (p->win == 0) {
-	    ++count;
-	}
-    }
-    if (count != 0) {
-	for (p = all_bindings, n = 0; p != 0; p = p->link) {
+	for (p = all_bindings; p != 0; p = p->link) {
 	    if (p->win == 0) {
-		if (dlg_strcmp(last, p->name)) {
-		    fprintf(fp, "\n# key bindings for %s widgets\n",
-			    !strcmp(p->name, "*") ? "all" : p->name);
-		    last = p->name;
-		}
-		dump_one_binding(fp, p->name, p->binding);
+		++count;
 	    }
+	}
+	if (count != 0) {
+	    dlg_dump_window_keys(fp, 0);
 	}
     }
 }

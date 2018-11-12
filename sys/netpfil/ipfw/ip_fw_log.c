@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/vnet.h>
 #include <net/if_types.h>	/* for IFT_PFLOG */
@@ -84,8 +85,15 @@ __FBSDID("$FreeBSD$");
 #define	ICMP(p)		((struct icmphdr *)(p))
 #define	ICMP6(p)	((struct icmp6_hdr *)(p))
 
+#ifdef __APPLE__
+#undef snprintf
+#define snprintf	sprintf
+#define SNPARGS(buf, len) buf + len
+#define SNP(buf) buf
+#else	/* !__APPLE__ */
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
+#endif /* !__APPLE__ */
 
 #ifdef WITHOUT_BPF
 void
@@ -113,7 +121,7 @@ log_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
 
 static int
 ipfw_log_output(struct ifnet *ifp, struct mbuf *m,
-	struct sockaddr *dst, struct route *ro)
+	const struct sockaddr *dst, struct route *ro)
 {
 	if (m != NULL)
 		FREE_PKT(m);
@@ -232,14 +240,15 @@ ipfw_log_bpf(int onoff)
 }
 #endif /* !WITHOUT_BPF */
 
+#define	TARG(k, f)	IP_FW_ARG_TABLEARG(chain, k, f)
 /*
  * We enter here when we have a rule with O_LOG.
  * XXX this function alone takes about 2Kbytes of code!
  */
 void
-ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
-    struct mbuf *m, struct ifnet *oif, u_short offset, uint32_t tablearg,
-    struct ip *ip)
+ipfw_log(struct ip_fw_chain *chain, struct ip_fw *f, u_int hlen,
+    struct ip_fw_args *args, struct mbuf *m, struct ifnet *oif,
+    u_short offset, uint32_t tablearg, struct ip *ip)
 {
 	char *action;
 	int limit_reached = 0;
@@ -255,11 +264,18 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 
 		if (args->eh) /* layer2, use orig hdr */
 			BPF_MTAP2(log_if, args->eh, ETHER_HDR_LEN, m);
-		else
+		else {
 			/* Add fake header. Later we will store
 			 * more info in the header.
 			 */
-			BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
+			if (ip->ip_v == 4)
+				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x08\x00", ETHER_HDR_LEN, m);
+			else if  (ip->ip_v == 6)
+				BPF_MTAP2(log_if, "DDDDDDSSSSSS\x86\xdd", ETHER_HDR_LEN, m);
+			else
+				/* Obviously bogus EtherType. */
+				BPF_MTAP2(log_if, "DDDDDDSSSSSS\xff\xff", ETHER_HDR_LEN, m);
+		}
 		LOGIF_RUNLOCK();
 #endif /* !WITHOUT_BPF */
 		return;
@@ -292,10 +308,8 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 				altq->qid);
 			cmd += F_LEN(cmd);
 		}
-		if (cmd->opcode == O_PROB)
-			cmd += F_LEN(cmd);
-
-		if (cmd->opcode == O_TAG)
+		if (cmd->opcode == O_PROB || cmd->opcode == O_TAG ||
+		    cmd->opcode == O_SETDSCP)
 			cmd += F_LEN(cmd);
 
 		action = action2;
@@ -330,27 +344,27 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 			break;
 		case O_DIVERT:
 			snprintf(SNPARGS(action2, 0), "Divert %d",
-				cmd->arg1);
+				TARG(cmd->arg1, divert));
 			break;
 		case O_TEE:
 			snprintf(SNPARGS(action2, 0), "Tee %d",
-				cmd->arg1);
+				TARG(cmd->arg1, divert));
 			break;
 		case O_SETFIB:
 			snprintf(SNPARGS(action2, 0), "SetFib %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, fib));
 			break;
 		case O_SKIPTO:
 			snprintf(SNPARGS(action2, 0), "SkipTo %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, skipto));
 			break;
 		case O_PIPE:
 			snprintf(SNPARGS(action2, 0), "Pipe %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, pipe));
 			break;
 		case O_QUEUE:
 			snprintf(SNPARGS(action2, 0), "Queue %d",
-				IP_FW_ARG_TABLEARG(cmd->arg1));
+				TARG(cmd->arg1, pipe));
 			break;
 		case O_FORWARD_IP: {
 			ipfw_insn_sa *sa = (ipfw_insn_sa *)cmd;

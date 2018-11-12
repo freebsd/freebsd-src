@@ -11,10 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 
 using namespace clang;
 using namespace ento;
@@ -22,7 +22,7 @@ using namespace ento;
 namespace {
 class TaintTesterChecker : public Checker< check::PostStmt<Expr> > {
 
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
   void initBugType() const;
 
   /// Given a pointer argument, get the symbol of the value it contains
@@ -38,7 +38,7 @@ public:
 
 inline void TaintTesterChecker::initBugType() const {
   if (!BT)
-    BT.reset(new BugType("Tainted data", "General"));
+    BT.reset(new BugType(this, "Tainted data", "General"));
 }
 
 void TaintTesterChecker::checkPostStmt(const Expr *E,

@@ -53,9 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -63,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
+#include <net/vnet.h>
 #include <net/route.h>
 #include <net/pfil.h>
 #include <net/pfvar.h>
@@ -72,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
+#include <netinet6/ip6_var.h>
 #include <netinet/ip_icmp.h>
 
 #ifdef INET6
@@ -151,6 +156,7 @@ struct cdev *pf_dev;
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_src_node *);
+static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
 
 /*
@@ -186,6 +192,7 @@ static volatile VNET_DEFINE(int, pf_pfil_hooked);
 VNET_DEFINE(int,		pf_end_threads);
 
 struct rwlock			pf_rules_lock;
+struct sx			pf_ioctl_lock;
 
 /* pfsync */
 pfsync_state_import_t 		*pfsync_state_import_ptr = NULL;
@@ -203,6 +210,8 @@ pfattach(void)
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
 	int error;
 
+	if (IS_DEFAULT_VNET(curvnet))
+		pf_mtag_initialize();
 	pf_initialize();
 	pfr_initialize();
 	pfi_initialize();
@@ -223,6 +232,10 @@ pfattach(void)
 #endif
 	V_pf_default_rule.nr = -1;
 	V_pf_default_rule.rtableid = -1;
+
+	V_pf_default_rule.states_cur = counter_u64_alloc(M_WAITOK);
+	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
+	V_pf_default_rule.src_nodes = counter_u64_alloc(M_WAITOK);
 
 	/* initialize default timeouts */
 	my_timeout[PFTM_TCP_FIRST_PACKET] = PFTM_TCP_FIRST_PACKET_VAL;
@@ -253,6 +266,15 @@ pfattach(void)
 
 	/* XXX do our best to avoid a conflict */
 	V_pf_status.hostid = arc4random();
+
+	for (int i = 0; i < PFRES_MAX; i++)
+		V_pf_status.counters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < LCNT_MAX; i++)
+		V_pf_status.lcounters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < FCNT_MAX; i++)
+		V_pf_status.fcounters[i] = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < SCNT_MAX; i++)
+		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
 	if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
 	    "pf purge")) != 0)
@@ -332,7 +354,9 @@ pf_empty_pool(struct pf_palist *poola)
 			pfi_dynaddr_remove(pa->addr.p.dyn);
 			break;
 		case PF_ADDR_TABLE:
-			pfr_detach_table(pa->addr.p.tbl);
+			/* XXX: this could be unfinished pooladdr on pabuf */
+			if (pa->addr.p.tbl != NULL)
+				pfr_detach_table(pa->addr.p.tbl);
 			break;
 		}
 		if (pa->kif)
@@ -393,6 +417,9 @@ pf_free_rule(struct pf_rule *rule)
 		pfi_kif_unref(rule->kif);
 	pf_anchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
+	counter_u64_free(rule->states_cur);
+	counter_u64_free(rule->states_tot);
+	counter_u64_free(rule->src_nodes);
 	free(rule, M_PFRULE);
 }
 
@@ -1070,20 +1097,18 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 	switch (cmd) {
 	case DIOCSTART:
-		PF_RULES_WLOCK();
+		sx_xlock(&pf_ioctl_lock);
 		if (V_pf_status.running)
 			error = EEXIST;
 		else {
 			int cpu;
 
-			PF_RULES_WUNLOCK();
 			error = hook_pf();
 			if (error) {
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: pfil registration failed\n"));
 				break;
 			}
-			PF_RULES_WLOCK();
 			V_pf_status.running = 1;
 			V_pf_status.since = time_second;
 
@@ -1092,27 +1117,23 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}
-		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCSTOP:
-		PF_RULES_WLOCK();
+		sx_xlock(&pf_ioctl_lock);
 		if (!V_pf_status.running)
 			error = ENOENT;
 		else {
 			V_pf_status.running = 0;
-			PF_RULES_WUNLOCK();
 			error = dehook_pf();
 			if (error) {
 				V_pf_status.running = 1;
 				DPFPRINTF(PF_DEBUG_MISC,
 				    ("pf: pfil unregistration failed\n"));
 			}
-			PF_RULES_WLOCK();
 			V_pf_status.since = time_second;
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
-		PF_RULES_WUNLOCK();
 		break;
 
 	case DIOCADDRULE: {
@@ -1144,6 +1165,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		bcopy(&pr->rule, rule, sizeof(struct pf_rule));
 		if (rule->ifname[0])
 			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		rule->states_cur = counter_u64_alloc(M_WAITOK);
+		rule->states_tot = counter_u64_alloc(M_WAITOK);
+		rule->src_nodes = counter_u64_alloc(M_WAITOK);
 		rule->cuid = td->td_ucred->cr_ruid;
 		rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 		TAILQ_INIT(&rule->rpool.list);
@@ -1260,6 +1284,9 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #undef ERROUT
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
+		counter_u64_free(rule->states_cur);
+		counter_u64_free(rule->states_tot);
+		counter_u64_free(rule->src_nodes);
 		free(rule, M_PFRULE);
 		if (kif)
 			free(kif, PFI_MTYPE);
@@ -1331,6 +1358,9 @@ DIOCADDRULE_error:
 			break;
 		}
 		bcopy(rule, &pr->rule, sizeof(struct pf_rule));
+		pr->rule.u_states_cur = counter_u64_fetch(rule->states_cur);
+		pr->rule.u_states_tot = counter_u64_fetch(rule->states_tot);
+		pr->rule.u_src_nodes = counter_u64_fetch(rule->src_nodes);
 		if (pf_anchor_copyout(ruleset, rule, pr)) {
 			PF_RULES_WUNLOCK();
 			error = EBUSY;
@@ -1349,7 +1379,7 @@ DIOCADDRULE_error:
 			rule->evaluations = 0;
 			rule->packets[0] = rule->packets[1] = 0;
 			rule->bytes[0] = rule->bytes[1] = 0;
-			rule->states_tot = 0;
+			counter_u64_zero(rule->states_tot);
 		}
 		PF_RULES_WUNLOCK();
 		break;
@@ -1389,15 +1419,14 @@ DIOCADDRULE_error:
 #endif /* INET6 */
 			newrule = malloc(sizeof(*newrule), M_PFRULE, M_WAITOK);
 			bcopy(&pcr->rule, newrule, sizeof(struct pf_rule));
+			if (newrule->ifname[0])
+				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			newrule->states_cur = counter_u64_alloc(M_WAITOK);
+			newrule->states_tot = counter_u64_alloc(M_WAITOK);
+			newrule->src_nodes = counter_u64_alloc(M_WAITOK);
 			newrule->cuid = td->td_ucred->cr_ruid;
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 			TAILQ_INIT(&newrule->rpool.list);
-			/* Initialize refcounting. */
-			newrule->states_cur = 0;
-			newrule->entries.tqe_prev = NULL;
-
-			if (newrule->ifname[0])
-				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 		}
 
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGERULE_error; }
@@ -1565,8 +1594,12 @@ DIOCADDRULE_error:
 #undef ERROUT
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
-		if (newrule != NULL)
+		if (newrule != NULL) {
+			counter_u64_free(newrule->states_cur);
+			counter_u64_free(newrule->states_tot);
+			counter_u64_free(newrule->src_nodes);
 			free(newrule, M_PFRULE);
+		}
 		if (kif != NULL)
 			free(kif, PFI_MTYPE);
 		break;
@@ -1577,7 +1610,7 @@ DIOCCHANGERULE_error:
 		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
 		u_int			 i, killed = 0;
 
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 relock_DIOCCLRSTATES:
@@ -1622,7 +1655,7 @@ relock_DIOCCLRSTATES:
 			break;
 		}
 
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 relock_DIOCKILLSTATES:
@@ -1682,8 +1715,7 @@ relock_DIOCKILLSTATES:
 		struct pfioc_state	*ps = (struct pfioc_state *)addr;
 		struct pfsync_state	*sp = &ps->state;
 
-		if (sp->timeout >= PFTM_MAX &&
-		    sp->timeout != PFTM_UNTIL_PACKET) {
+		if (sp->timeout >= PFTM_MAX) {
 			error = EINVAL;
 			break;
 		}
@@ -1691,7 +1723,7 @@ relock_DIOCKILLSTATES:
 			PF_RULES_RLOCK();
 			error = pfsync_state_import_ptr(sp, PFSYNC_SI_IOCTL);
 			PF_RULES_RUNLOCK();
-		}
+		} else
 			error = EOPNOTSUPP;
 		break;
 	}
@@ -1726,7 +1758,7 @@ relock_DIOCKILLSTATES:
 		p = pstore = malloc(ps->ps_len, M_TEMP, M_WAITOK);
 		nr = 0;
 
-		for (i = 0; i <= V_pf_hashmask; i++) {
+		for (i = 0; i <= pf_hashmask; i++) {
 			struct pf_idhash *ih = &V_pf_idhash[i];
 
 			PF_HASHROW_LOCK(ih);
@@ -1760,8 +1792,32 @@ DIOCGETSTATES_full:
 
 	case DIOCGETSTATUS: {
 		struct pf_status *s = (struct pf_status *)addr;
+
 		PF_RULES_RLOCK();
-		bcopy(&V_pf_status, s, sizeof(struct pf_status));
+		s->running = V_pf_status.running;
+		s->since   = V_pf_status.since;
+		s->debug   = V_pf_status.debug;
+		s->hostid  = V_pf_status.hostid;
+		s->states  = V_pf_status.states;
+		s->src_nodes = V_pf_status.src_nodes;
+
+		for (int i = 0; i < PFRES_MAX; i++)
+			s->counters[i] =
+			    counter_u64_fetch(V_pf_status.counters[i]);
+		for (int i = 0; i < LCNT_MAX; i++)
+			s->lcounters[i] =
+			    counter_u64_fetch(V_pf_status.lcounters[i]);
+		for (int i = 0; i < FCNT_MAX; i++)
+			s->fcounters[i] =
+			    counter_u64_fetch(V_pf_status.fcounters[i]);
+		for (int i = 0; i < SCNT_MAX; i++)
+			s->scounters[i] =
+			    counter_u64_fetch(V_pf_status.scounters[i]);
+
+		bcopy(V_pf_status.ifname, s->ifname, IFNAMSIZ);
+		bcopy(V_pf_status.pf_chksum, s->pf_chksum,
+		    PF_MD5_DIGEST_LENGTH);
+
 		pfi_update_status(s->ifname, s);
 		PF_RULES_RUNLOCK();
 		break;
@@ -1782,9 +1838,12 @@ DIOCGETSTATES_full:
 
 	case DIOCCLRSTATUS: {
 		PF_RULES_WLOCK();
-		bzero(V_pf_status.counters, sizeof(V_pf_status.counters));
-		bzero(V_pf_status.fcounters, sizeof(V_pf_status.fcounters));
-		bzero(V_pf_status.scounters, sizeof(V_pf_status.scounters));
+		for (int i = 0; i < PFRES_MAX; i++)
+			counter_u64_zero(V_pf_status.counters[i]);
+		for (int i = 0; i < FCNT_MAX; i++)
+			counter_u64_zero(V_pf_status.fcounters[i]);
+		for (int i = 0; i < SCNT_MAX; i++)
+			counter_u64_zero(V_pf_status.scounters[i]);
 		V_pf_status.since = time_second;
 		if (*V_pf_status.ifname)
 			pfi_update_status(V_pf_status.ifname, NULL);
@@ -2277,6 +2336,7 @@ DIOCGETSTATES_full:
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 			if (newpa->ifname[0])
 				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			newpa->kif = NULL;
 		}
 
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGEADDR_error; }
@@ -2294,8 +2354,8 @@ DIOCGETSTATES_full:
 			if (newpa->ifname[0]) {
 				newpa->kif = pfi_kif_attach(kif, newpa->ifname);
 				pfi_kif_ref(newpa->kif);
-			} else
-				newpa->kif = NULL;
+				kif = NULL;
+			}
 
 			switch (newpa->addr.type) {
 			case PF_ADDR_DYNIFTL:
@@ -2309,32 +2369,24 @@ DIOCGETSTATES_full:
 					error = ENOMEM;
 				break;
 			}
-			if (error) {
-				if (newpa->kif)
-					pfi_kif_unref(newpa->kif);
-				PF_RULES_WUNLOCK();
-				free(newpa, M_PFRULE);
-				break;
-			}
+			if (error)
+				goto DIOCCHANGEADDR_error;
 		}
 
-		if (pca->action == PF_CHANGE_ADD_HEAD)
+		switch (pca->action) {
+		case PF_CHANGE_ADD_HEAD:
 			oldpa = TAILQ_FIRST(&pool->list);
-		else if (pca->action == PF_CHANGE_ADD_TAIL)
+			break;
+		case PF_CHANGE_ADD_TAIL:
 			oldpa = TAILQ_LAST(&pool->list, pf_palist);
-		else {
-			int	i = 0;
-
+			break;
+		default:
 			oldpa = TAILQ_FIRST(&pool->list);
-			while ((oldpa != NULL) && (i < pca->nr)) {
+			for (int i = 0; oldpa && i < pca->nr; i++)
 				oldpa = TAILQ_NEXT(oldpa, entries);
-				i++;
-			}
-			if (oldpa == NULL) {
-				PF_RULES_WUNLOCK();
-				error = EINVAL;
-				break;
-			}
+
+			if (oldpa == NULL)
+				ERROUT(EINVAL);
 		}
 
 		if (pca->action == PF_CHANGE_REMOVE) {
@@ -2362,13 +2414,14 @@ DIOCGETSTATES_full:
 		}
 
 		pool->cur = TAILQ_FIRST(&pool->list);
-		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr,
-		    pca->af);
+		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr, pca->af);
 		PF_RULES_WUNLOCK();
 		break;
 
 #undef ERROUT
 DIOCCHANGEADDR_error:
+		if (newpa->kif)
+			pfi_kif_unref(newpa->kif);
 		PF_RULES_WUNLOCK();
 		if (newpa != NULL)
 			free(newpa, M_PFRULE);
@@ -3078,7 +3131,7 @@ DIOCCHANGEADDR_error:
 		uint32_t		 i, nr = 0;
 
 		if (psn->psn_len == 0) {
-			for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+			for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 			    i++, sh++) {
 				PF_HASHROW_LOCK(sh);
 				LIST_FOREACH(n, &sh->nodes, entry)
@@ -3090,7 +3143,7 @@ DIOCCHANGEADDR_error:
 		}
 
 		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
 		    LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3136,49 +3189,12 @@ DIOCCHANGEADDR_error:
 
 		pf_clear_srcnodes(NULL);
 		pf_purge_expired_src_nodes();
-		V_pf_status.src_nodes = 0;
 		break;
 	}
 
-	case DIOCKILLSRCNODES: {
-		struct pfioc_src_node_kill *psnk =
-		    (struct pfioc_src_node_kill *)addr;
-		struct pf_srchash	*sh;
-		struct pf_src_node	*sn;
-		u_int			i, killed = 0;
-
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
-		    i++, sh++) {
-		    /*
-		     * XXXGL: we don't ever acquire sources hash lock
-		     * but if we ever do, the below call to pf_clear_srcnodes()
-		     * would lead to a LOR.
-		     */
-		    PF_HASHROW_LOCK(sh);
-		    LIST_FOREACH(sn, &sh->nodes, entry)
-			if (PF_MATCHA(psnk->psnk_src.neg,
-				&psnk->psnk_src.addr.v.a.addr,
-				&psnk->psnk_src.addr.v.a.mask,
-				&sn->addr, sn->af) &&
-			    PF_MATCHA(psnk->psnk_dst.neg,
-				&psnk->psnk_dst.addr.v.a.addr,
-				&psnk->psnk_dst.addr.v.a.mask,
-				&sn->raddr, sn->af)) {
-				/* Handle state to src_node linkage */
-				if (sn->states != 0)
-					pf_clear_srcnodes(sn);
-				sn->expire = 1;
-				killed++;
-			}
-		    PF_HASHROW_UNLOCK(sh);
-		}
-
-		if (killed > 0)
-			pf_purge_expired_src_nodes();
-
-		psnk->psnk_killed = killed;
+	case DIOCKILLSRCNODES:
+		pf_kill_srcnodes((struct pfioc_src_node_kill *)addr);
 		break;
-	}
 
 	case DIOCSETHOSTID: {
 		u_int32_t	*hostid = (u_int32_t *)addr;
@@ -3241,6 +3257,8 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 fail:
+	if (sx_xlocked(&pf_ioctl_lock))
+		sx_xunlock(&pf_ioctl_lock);
 	CURVNET_RESTORE();
 
 	return (error);
@@ -3331,7 +3349,7 @@ pf_clear_states(void)
 	struct pf_state	*s;
 	u_int i;
 
-	for (i = 0; i <= V_pf_hashmask; i++) {
+	for (i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 relock:
 		PF_HASHROW_LOCK(ih);
@@ -3366,7 +3384,7 @@ pf_clear_srcnodes(struct pf_src_node *n)
 	struct pf_state *s;
 	int i;
 
-	for (i = 0; i <= V_pf_hashmask; i++) {
+	for (i = 0; i <= pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
 
 		PF_HASHROW_LOCK(ih);
@@ -3382,7 +3400,7 @@ pf_clear_srcnodes(struct pf_src_node *n)
 	if (n == NULL) {
 		struct pf_srchash *sh;
 
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
 		    i++, sh++) {
 			PF_HASHROW_LOCK(sh);
 			LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3397,6 +3415,51 @@ pf_clear_srcnodes(struct pf_src_node *n)
 		n->states = 0;
 	}
 }
+
+static void
+pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
+{
+	struct pf_src_node_list	 kill;
+
+	LIST_INIT(&kill);
+	for (int i = 0; i <= pf_srchashmask; i++) {
+		struct pf_srchash *sh = &V_pf_srchash[i];
+		struct pf_src_node *sn, *tmp;
+
+		PF_HASHROW_LOCK(sh);
+		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)
+			if (PF_MATCHA(psnk->psnk_src.neg,
+			      &psnk->psnk_src.addr.v.a.addr,
+			      &psnk->psnk_src.addr.v.a.mask,
+			      &sn->addr, sn->af) &&
+			    PF_MATCHA(psnk->psnk_dst.neg,
+			      &psnk->psnk_dst.addr.v.a.addr,
+			      &psnk->psnk_dst.addr.v.a.mask,
+			      &sn->raddr, sn->af)) {
+				pf_unlink_src_node(sn);
+				LIST_INSERT_HEAD(&kill, sn, entry);
+				sn->expire = 1;
+			}
+		PF_HASHROW_UNLOCK(sh);
+	}
+
+	for (int i = 0; i <= pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+		struct pf_state *s;
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			if (s->src_node && s->src_node->expire == 1)
+				s->src_node = NULL;
+			if (s->nat_src_node && s->nat_src_node->expire == 1)
+				s->nat_src_node = NULL;
+		}
+		PF_HASHROW_UNLOCK(ih);
+	}
+
+	psnk->psnk_killed = pf_free_src_nodes(&kill);
+}
+
 /*
  * XXX - Check for version missmatch!!!
  */
@@ -3412,6 +3475,20 @@ shutdown_pf(void)
 	char nn = '\0';
 
 	V_pf_status.running = 0;
+
+	counter_u64_free(V_pf_default_rule.states_cur);
+	counter_u64_free(V_pf_default_rule.states_tot);
+	counter_u64_free(V_pf_default_rule.src_nodes);
+
+	for (int i = 0; i < PFRES_MAX; i++)
+		counter_u64_free(V_pf_status.counters[i]);
+	for (int i = 0; i < LCNT_MAX; i++)
+		counter_u64_free(V_pf_status.lcounters[i]);
+	for (int i = 0; i < FCNT_MAX; i++)
+		counter_u64_free(V_pf_status.fcounters[i]);
+	for (int i = 0; i < SCNT_MAX; i++)
+		counter_u64_free(V_pf_status.scounters[i]);
+
 	do {
 		if ((error = pf_begin_rules(&t[0], PF_RULESET_SCRUB, &nn))
 		    != 0) {
@@ -3535,12 +3612,11 @@ pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	int chk;
 
 	/* We need a proper CSUM before we start (s. OpenBSD ip_output) */
-	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-#ifdef INET
-		/* XXX-BZ copy&paste error from r126261? */
-		in_delayed_cksum(*m);
-#endif
-		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA_IPV6) {
+		in6_delayed_cksum(*m,
+		    (*m)->m_pkthdr.len - sizeof(struct ip6_hdr),
+		    sizeof(struct ip6_hdr));
+		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA_IPV6;
 	}
 	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test6(PF_OUT, ifp, m, inp);
@@ -3647,6 +3723,7 @@ pf_load(void)
 	VNET_LIST_RUNLOCK();
 
 	rw_init(&pf_rules_lock, "pf rulesets");
+	sx_init(&pf_ioctl_lock, "pf ioctl");
 
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
 	if ((error = pfattach()) != 0)
@@ -3660,9 +3737,7 @@ pf_unload(void)
 {
 	int error = 0;
 
-	PF_RULES_WLOCK();
 	V_pf_status.running = 0;
-	PF_RULES_WUNLOCK();
 	swi_remove(V_pf_swi_cookie);
 	error = dehook_pf();
 	if (error) {
@@ -3686,9 +3761,12 @@ pf_unload(void)
 	pfr_cleanup();
 	pf_osfp_flush();
 	pf_cleanup();
+	if (IS_DEFAULT_VNET(curvnet))
+		pf_mtag_cleanup();
 	PF_RULES_WUNLOCK();
 	destroy_dev(pf_dev);
 	rw_destroy(&pf_rules_lock);
+	sx_destroy(&pf_ioctl_lock);
 
 	return (error);
 }

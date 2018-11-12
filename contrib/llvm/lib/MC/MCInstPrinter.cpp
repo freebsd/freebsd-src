@@ -8,10 +8,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCInstPrinter.h"
-#include "llvm/MC/MCInstrInfo.h"
-#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -30,9 +31,13 @@ void MCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
 
 void MCInstPrinter::printAnnotation(raw_ostream &OS, StringRef Annot) {
   if (!Annot.empty()) {
-    if (CommentStream)
+    if (CommentStream) {
       (*CommentStream) << Annot;
-    else
+      // By definition (see MCInstPrinter.h), CommentStream must end with
+      // a newline after each comment.
+      if (Annot.back() != '\n')
+        (*CommentStream) << '\n';
+    } else
       OS << " " << MAI.getCommentString() << " " << Annot;
   }
 }
@@ -49,4 +54,57 @@ StringRef MCInstPrinter::markup(StringRef a, StringRef b) const {
     return a;
   else
     return b;
+}
+
+// For asm-style hex (e.g. 0ffh) the first digit always has to be a number.
+static bool needsLeadingZero(uint64_t Value)
+{
+  while(Value)
+  {
+    uint64_t digit = (Value >> 60) & 0xf;
+    if (digit != 0)
+      return (digit >= 0xa);
+    Value <<= 4;
+  }
+  return false;
+}
+
+format_object1<int64_t> MCInstPrinter::formatDec(const int64_t Value) const {
+  return format("%" PRId64, Value);
+}
+
+format_object1<int64_t> MCInstPrinter::formatHex(const int64_t Value) const {
+  switch(PrintHexStyle) {
+  case HexStyle::C:
+    if (Value < 0)
+      return format("-0x%" PRIx64, -Value);
+    else
+      return format("0x%" PRIx64, Value);
+  case HexStyle::Asm:
+    if (Value < 0) {
+      if (needsLeadingZero((uint64_t)(-Value)))
+        return format("-0%" PRIx64 "h", -Value);
+      else
+        return format("-%" PRIx64 "h", -Value);
+    } else {
+      if (needsLeadingZero((uint64_t)(Value)))
+        return format("0%" PRIx64 "h", Value);
+      else
+        return format("%" PRIx64 "h", Value);
+    }
+  }
+  llvm_unreachable("unsupported print style");
+}
+
+format_object1<uint64_t> MCInstPrinter::formatHex(const uint64_t Value) const {
+  switch(PrintHexStyle) {
+  case HexStyle::C:
+     return format("0x%" PRIx64, Value);
+  case HexStyle::Asm:
+    if (needsLeadingZero(Value))
+      return format("0%" PRIx64 "h", Value);
+    else
+      return format("%" PRIx64 "h", Value);
+  }
+  llvm_unreachable("unsupported print style");
 }

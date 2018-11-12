@@ -575,6 +575,7 @@ execute_stack_op (struct dwarf_expr_context *ctx, unsigned char *op_ptr,
 		break;
 	      case DW_OP_div:
 		binop = BINOP_DIV;
+                break;
 	      case DW_OP_minus:
 		binop = BINOP_SUB;
 		break;
@@ -595,6 +596,7 @@ execute_stack_op (struct dwarf_expr_context *ctx, unsigned char *op_ptr,
 		break;
 	      case DW_OP_shr:
 		binop = BINOP_RSH;
+                break;
 	      case DW_OP_shra:
 		binop = BINOP_RSH;
 		val1 = value_from_longest (signed_address_type (), first);

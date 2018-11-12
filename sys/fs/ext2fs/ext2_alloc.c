@@ -46,10 +46,10 @@
 #include <sys/syslog.h>
 #include <sys/buf.h>
 
+#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/inode.h>
 #include <fs/ext2fs/ext2_mount.h>
 #include <fs/ext2fs/ext2fs.h>
-#include <fs/ext2fs/fs.h>
 #include <fs/ext2fs/ext2_extern.h>
 
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
@@ -63,7 +63,7 @@ static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
 
 /*
- * Allocate a block in the file system.
+ * Allocate a block in the filesystem.
  *
  * A preference may be optionally specified. If a preference is given
  * the following hierarchy is used to allocate a block:
@@ -80,8 +80,8 @@ static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
  *        available block is located.
  */
 int
-ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
-    struct ucred *cred, int32_t *bnp)
+ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
+    struct ucred *cred, e4fs_daddr_t *bnp)
 {
 	struct m_ext2fs *fs;
 	struct ext2mount *ump;
@@ -91,7 +91,7 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
 	mtx_assert(EXT2_MTX(ump), MA_OWNED);
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if ((u_int)size > fs->e2fs_bsize || blkoff(fs, size) != 0) {
 		vn_printf(ip->i_devvp, "bsize = %lu, size = %d, fs = %s\n",
 		    (long unsigned int)fs->e2fs_bsize, size, fs->e2fs_fsmnt);
@@ -99,7 +99,7 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 	}
 	if (cred == NOCRED)
 		panic("ext2_alloc: missing credential");
-#endif /* DIAGNOSTIC */
+#endif /* INVARIANTS */
 	if (size == fs->e2fs_bsize && fs->e2fs->e2fs_fbcount == 0)
 		goto nospace;
 	if (cred->cr_uid != 0 && 
@@ -122,11 +122,11 @@ ext2_alloc(struct inode *ip, int32_t lbn, int32_t bpref, int size,
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bnp = bno;
 		return (0);
-        }
+	}
 nospace:
 	EXT2_UNLOCK(ump);
-	ext2_fserr(fs, cred->cr_uid, "file system full");
-	uprintf("\n%s: write failed, file system is full\n", fs->e2fs_fsmnt);
+	ext2_fserr(fs, cred->cr_uid, "filesystem full");
+	uprintf("\n%s: write failed, filesystem is full\n", fs->e2fs_fsmnt);
 	return (ENOSPC);
 }
 
@@ -147,11 +147,11 @@ nospace:
 
 static SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
 
-static int doasyncfree = 0;
+static int doasyncfree = 1;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
     "Use asychronous writes to update block pointers when freeing blocks");
 
-static int doreallocblks = 0;
+static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
 int
@@ -165,7 +165,9 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	struct ext2mount *ump;
 	struct cluster_save *buflist;
 	struct indir start_ap[NIADDR + 1], end_ap[NIADDR + 1], *idp;
-	int32_t start_lbn, end_lbn, soff, newblk, blkno;
+	e2fs_lbn_t start_lbn, end_lbn;
+	int soff;
+	e2fs_daddr_t newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
 	if (doreallocblks == 0)
@@ -183,7 +185,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
 	end_lbn = start_lbn + len - 1;
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	for (i = 1; i < len; i++)
 		if (buflist->bs_children[i]->b_lblkno != start_lbn + i)
 			panic("ext2_reallocblks: non-cluster");
@@ -223,7 +225,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			brelse(sbp);
 			return (ENOSPC);
 		}
-		sbap = (int32_t *)sbp->b_data;
+		sbap = (u_int *)sbp->b_data;
 		soff = idp->in_off;
 	}
 	/*
@@ -232,14 +234,14 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
 		ssize = len;
 	} else {
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (start_ap[start_lvl-1].in_lbn == idp->in_lbn)
 			panic("ext2_reallocblks: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
 		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp))
 			goto fail;
-		ebap = (int32_t *)ebp->b_data;
+		ebap = (u_int *)ebp->b_data;
 	}
 	/*
 	 * Find the preferred location for the cluster.
@@ -249,7 +251,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
-	if ((newblk = (int32_t)ext2_hashalloc(ip, dtog(fs, pref), pref,
+	if ((newblk = (e2fs_daddr_t)ext2_hashalloc(ip, dtog(fs, pref), pref,
 	    len, ext2_clusteralloc)) == 0){
 		EXT2_UNLOCK(ump);
 		goto fail;
@@ -262,8 +264,8 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	 * with the file.
 	 */
 #ifdef DEBUG
-	printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
-	    (intmax_t)start_lbn, (intmax_t)end_lbn);
+	printf("realloc: ino %ju, lbns %jd-%jd\n\told:",
+	    (uintmax_t)ip->i_number, (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif /* DEBUG */
 	blkno = newblk;
 	for (bap = &sbap[soff], i = 0; i < len; i++, blkno += fs->e2fs_fpb) {
@@ -271,7 +273,7 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 			bap = ebap;
 			soff = -i;
 		}
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 		if (buflist->bs_children[i]->b_blkno != fsbtodb(fs, *bap))
 			panic("ext2_reallocblks: alloc mismatch");
 #endif
@@ -338,7 +340,7 @@ fail:
 }
 
 /*
- * Allocate an inode in the file system.
+ * Allocate an inode in the filesystem.
  * 
  */
 int
@@ -395,11 +397,11 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_blocks = 0;
 	ip->i_mode = 0;
 	ip->i_flags = 0;
-        /* now we want to make sure that the block pointers are zeroed out */
-        for (i = 0; i < NDADDR; i++)
-                ip->i_db[i] = 0;
-        for (i = 0; i < NIADDR; i++)
-                ip->i_ib[i] = 0;
+	/* now we want to make sure that the block pointers are zeroed out */
+	for (i = 0; i < NDADDR; i++)
+		ip->i_db[i] = 0;
+	for (i = 0; i < NIADDR; i++)
+		ip->i_ib[i] = 0;
 
 	/*
 	 * Set up a new generation number for this inode.
@@ -441,16 +443,16 @@ static u_long
 ext2_dirpref(struct inode *pip)
 {
 	struct m_ext2fs *fs;
-        int cg, prefcg, dirsize, cgsize;
-	int avgifree, avgbfree, avgndir, curdirsize;
-	int minifree, minbfree, maxndir;
-	int mincg, minndir;
-	int maxcontigdirs;
+	int cg, prefcg, cgsize;
+	u_int avgifree, avgbfree, avgndir, curdirsize;
+	u_int minifree, minbfree, maxndir;
+	u_int mincg, minndir;
+	u_int dirsize, maxcontigdirs;
 
 	mtx_assert(EXT2_MTX(pip->i_ump), MA_OWNED);
 	fs = pip->i_e2fs;
 
- 	avgifree = fs->e2fs->e2fs_ficount / fs->e2fs_gcount;
+	avgifree = fs->e2fs->e2fs_ficount / fs->e2fs_gcount;
 	avgbfree = fs->e2fs->e2fs_fbcount / fs->e2fs_gcount;
 	avgndir  = fs->e2fs_total_dir / fs->e2fs_gcount;
 
@@ -471,11 +473,11 @@ ext2_dirpref(struct inode *pip)
 			}
 		for (cg = 0; cg < prefcg; cg++)
 			if (fs->e2fs_gd[cg].ext2bgd_ndirs < minndir &&
-                            fs->e2fs_gd[cg].ext2bgd_nifree >= avgifree &&
-                            fs->e2fs_gd[cg].ext2bgd_nbfree >= avgbfree) {
-                                mincg = cg;
-                                minndir = fs->e2fs_gd[cg].ext2bgd_ndirs;
-                        }
+			    fs->e2fs_gd[cg].ext2bgd_nifree >= avgifree &&
+			    fs->e2fs_gd[cg].ext2bgd_nbfree >= avgbfree) {
+				mincg = cg;
+				minndir = fs->e2fs_gd[cg].ext2bgd_ndirs;
+			}
 
 		return (mincg);
 	}
@@ -496,10 +498,7 @@ ext2_dirpref(struct inode *pip)
 	curdirsize = avgndir ? (cgsize - avgbfree * fs->e2fs_bsize) / avgndir : 0;
 	if (dirsize < curdirsize)
 		dirsize = curdirsize;
-	if (dirsize <= 0)
-		maxcontigdirs = 0;		/* dirsize overflowed */
-	else
-		maxcontigdirs = min((avgbfree * fs->e2fs_bsize) / dirsize, 255);
+	maxcontigdirs = min((avgbfree * fs->e2fs_bsize) / dirsize, 255);
 	maxcontigdirs = min(maxcontigdirs, fs->e2fs_ipg / AFPDIR);
 	if (maxcontigdirs == 0)
 		maxcontigdirs = 1;
@@ -513,14 +512,14 @@ ext2_dirpref(struct inode *pip)
 	for (cg = prefcg; cg < fs->e2fs_gcount; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_ndirs < maxndir &&
 		    fs->e2fs_gd[cg].ext2bgd_nifree >= minifree &&
-	    	    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
+		    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
 			if (fs->e2fs_contigdirs[cg] < maxcontigdirs)
 				return (cg);
 		}
 	for (cg = 0; cg < prefcg; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_ndirs < maxndir &&
 		    fs->e2fs_gd[cg].ext2bgd_nifree >= minifree &&
-	    	    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
+		    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
 			if (fs->e2fs_contigdirs[cg] < maxcontigdirs)
 				return (cg);
 		}
@@ -549,9 +548,9 @@ ext2_dirpref(struct inode *pip)
  * of the above. Then, blocknr tells us the number of the block
  * that will hold the pointer
  */
-int32_t
-ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
-    int32_t blocknr)
+e4fs_daddr_t
+ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
+    e2fs_daddr_t blocknr)
 {
 	int	tmp;
 	mtx_assert(EXT2_MTX(ip->i_ump), MA_OWNED);
@@ -565,8 +564,8 @@ ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
 	/* now check whether we were provided with an array that basically
 	   tells us previous blocks to which we want to stay closeby
 	*/
-	if (bap) 
-                for (tmp = indx - 1; tmp >= 0; tmp--) 
+	if (bap)
+		for (tmp = indx - 1; tmp >= 0; tmp--) 
 			if (bap[tmp]) 
 				return bap[tmp];
 
@@ -574,7 +573,7 @@ ext2_blkpref(struct inode *ip, int32_t lbn, int indx, int32_t *bap,
 	   follow the rule that a block should be allocated near its inode
 	*/
 	return blocknr ? blocknr :
-			(int32_t)(ip->i_block_group * 
+			(e2fs_daddr_t)(ip->i_block_group * 
 			EXT2_BLOCKS_PER_GROUP(ip->i_e2fs)) + 
 			ip->i_e2fs->e2fs->e2fs_first_dblock;
 }
@@ -748,7 +747,7 @@ retry:
 		return (0);
 	}
 gotit:
-#ifdef DIAGNOSTIC
+#ifdef INVARIANTS
 	if (isset(bbp, bno)) {
 		printf("ext2fs_alloccgblk: cg=%d bno=%jd fs=%s\n",
 			cg, (intmax_t)bno, fs->e2fs_fsmnt);
@@ -794,8 +793,6 @@ ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
 		goto fail_lock;
 
 	bbp = (char *)bp->b_data;
-	bp->b_xflags |= BX_BKGRDWRITE;
-
 	EXT2_LOCK(ump);
 	/*
 	 * Check to see if a cluster of the needed size (or bigger) is
@@ -934,7 +931,7 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 			panic("ext2fs_nodealloccg: map corrupted");
 			/* NOTREACHED */
 		}
-	} 
+	}
 	ipref = (loc - ibp) * NBBY + ffs(~*loc) - 1;
 gotit:
 	setbit(ibp, ipref);
@@ -956,7 +953,7 @@ gotit:
  *
  */
 void
-ext2_blkfree(struct inode *ip, int32_t bno, long size)
+ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 {
 	struct m_ext2fs *fs;
 	struct buf *bp;
@@ -968,33 +965,33 @@ ext2_blkfree(struct inode *ip, int32_t bno, long size)
 	ump = ip->i_ump;
 	cg = dtog(fs, bno);
 	if ((u_int)bno >= fs->e2fs->e2fs_bcount) {
-                printf("bad block %lld, ino %llu\n", (long long)bno,
-                    (unsigned long long)ip->i_number);
-                ext2_fserr(fs, ip->i_uid, "bad block");
-                return;
-        }
-        error = bread(ip->i_devvp,
-                fsbtodb(fs, fs->e2fs_gd[cg].ext2bgd_b_bitmap),
-                (int)fs->e2fs_bsize, NOCRED, &bp);
-        if (error) {
-                brelse(bp);
-                return;
-        }
-        bbp = (char *)bp->b_data;
-        bno = dtogd(fs, bno);
-        if (isclr(bbp, bno)) {
-                printf("block = %lld, fs = %s\n",
-                     (long long)bno, fs->e2fs_fsmnt);
-                panic("ext2_blkfree: freeing free block");
-        }
-        clrbit(bbp, bno);
+		printf("bad block %lld, ino %ju\n", (long long)bno,
+		    (uintmax_t)ip->i_number);
+		ext2_fserr(fs, ip->i_uid, "bad block");
+		return;
+	}
+	error = bread(ip->i_devvp,
+		fsbtodb(fs, fs->e2fs_gd[cg].ext2bgd_b_bitmap),
+		(int)fs->e2fs_bsize, NOCRED, &bp);
+	if (error) {
+		brelse(bp);
+		return;
+	}
+	bbp = (char *)bp->b_data;
+	bno = dtogd(fs, bno);
+	if (isclr(bbp, bno)) {
+		printf("block = %lld, fs = %s\n",
+		     (long long)bno, fs->e2fs_fsmnt);
+		panic("ext2_blkfree: freeing free block");
+	}
+	clrbit(bbp, bno);
 	EXT2_LOCK(ump);
 	ext2_clusteracct(fs, bbp, cg, bno, 1);
-        fs->e2fs->e2fs_fbcount++;
-        fs->e2fs_gd[cg].ext2bgd_nbfree++;
-        fs->e2fs_fmod = 1;
+	fs->e2fs->e2fs_fbcount++;
+	fs->e2fs_gd[cg].ext2bgd_nbfree++;
+	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
-        bdwrite(bp);
+	bdwrite(bp);
 }
 
 /*
@@ -1085,7 +1082,7 @@ ext2_mapsearch(struct m_ext2fs *fs, char *bbp, daddr_t bpref)
 }
 
 /*
- * Fserr prints the name of a file system with an error diagnostic.
+ * Fserr prints the name of a filesystem with an error diagnostic.
  * 
  * The form of the error message is:
  *	fs: error message
@@ -1100,14 +1097,14 @@ ext2_fserr(struct m_ext2fs *fs, uid_t uid, char *cp)
 int
 cg_has_sb(int i)
 {
-        int a3, a5, a7;
+	int a3, a5, a7;
 
-        if (i == 0 || i == 1)
-                return 1;
-        for (a3 = 3, a5 = 5, a7 = 7;
-            a3 <= i || a5 <= i || a7 <= i;
-            a3 *= 3, a5 *= 5, a7 *= 7)
-                if (i == a3 || i == a5 || i == a7)
-                        return 1;
-        return 0;
+	if (i == 0 || i == 1)
+		return 1;
+	for (a3 = 3, a5 = 5, a7 = 7;
+	    a3 <= i || a5 <= i || a7 <= i;
+	    a3 *= 3, a5 *= 5, a7 *= 7)
+		if (i == a3 || i == a5 || i == a7)
+			return 1;
+	return 0;
 }

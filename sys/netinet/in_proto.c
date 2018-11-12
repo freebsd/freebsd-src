@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipx.h"
 #include "opt_mrouting.h"
 #include "opt_ipsec.h"
 #include "opt_inet.h"
@@ -58,6 +57,7 @@ __FBSDID("$FreeBSD$");
  */
 #ifdef INET
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
@@ -183,6 +183,20 @@ struct protosw inetsw[] = {
 	.pr_usrreqs =		&sctp_usrreqs
 },
 #endif /* SCTP */
+{
+	.pr_type =		SOCK_DGRAM,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_UDPLITE,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		udp_input,
+	.pr_ctlinput =		udplite_ctlinput,
+	.pr_ctloutput =		udp_ctloutput,
+	.pr_init =		udplite_init,
+#ifdef VIMAGE
+	.pr_destroy =		udplite_destroy,
+#endif
+	.pr_usrreqs =		&udp_usrreqs
+},
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
@@ -351,8 +365,6 @@ struct domain inetdomain = {
 #ifdef VIMAGE
 	.dom_rtdetach =		in_detachhead,
 #endif
-	.dom_rtoffset =		32,
-	.dom_maxrtkey =		sizeof(struct sockaddr_in),
 	.dom_ifattach =		in_domifattach,
 	.dom_ifdetach =		in_domifdetach
 };
@@ -380,3 +392,5 @@ SYSCTL_NODE(_net_inet, IPPROTO_IPCOMP,	ipcomp,	CTLFLAG_RW, 0,	"IPCOMP");
 SYSCTL_NODE(_net_inet, IPPROTO_IPIP,	ipip,	CTLFLAG_RW, 0,	"IPIP");
 #endif /* IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
+SYSCTL_NODE(_net_inet, OID_AUTO,	accf,	CTLFLAG_RW, 0,
+    "Accept filters");

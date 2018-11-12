@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/time.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 
@@ -44,6 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <search.h>
+#include <time.h>
 #include <netdb.h>
 
 #include "rtadvd.h"
@@ -52,13 +52,15 @@
 
 struct rtadvd_timer_head_t ra_timer =
     TAILQ_HEAD_INITIALIZER(ra_timer);
-static struct timeval tm_limit = {0x7fffffff, 0x7fffffff};
-static struct timeval tm_max;
+static struct timespec tm_limit;
+static struct timespec tm_max;
 
 void
 rtadvd_timer_init(void)
 {
-
+	/* Generate maximum time in timespec. */
+	tm_limit.tv_sec = (-1) & ~((time_t)1 << ((sizeof(tm_max.tv_sec) * 8) - 1));
+	tm_limit.tv_nsec = (-1) & ~((long)1 << ((sizeof(tm_max.tv_nsec) * 8) - 1));
 	tm_max = tm_limit;
 	TAILQ_INIT(&ra_timer);
 }
@@ -102,7 +104,7 @@ rtadvd_update_timeout_handler(void)
 
 struct rtadvd_timer *
 rtadvd_add_timer(struct rtadvd_timer *(*timeout)(void *),
-    void (*update)(void *, struct timeval *),
+    void (*update)(void *, struct timespec *),
     void *timeodata, void *updatedata)
 {
 	struct rtadvd_timer *rat;
@@ -149,48 +151,48 @@ rtadvd_remove_timer(struct rtadvd_timer *rat)
  * call the expire function for the timer and update the timer.
  * Return the next interval for select() call.
  */
-struct timeval *
+struct timespec *
 rtadvd_check_timer(void)
 {
-	static struct timeval returnval;
-	struct timeval now;
+	static struct timespec returnval;
+	struct timespec now;
 	struct rtadvd_timer *rat;
 
-	gettimeofday(&now, NULL);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
 	tm_max = tm_limit;
 	TAILQ_FOREACH(rat, &ra_timer, rat_next) {
-		if (TIMEVAL_LEQ(&rat->rat_tm, &now)) {
+		if (TS_CMP(&rat->rat_tm, &now, <=)) {
 			if (((*rat->rat_expire)(rat->rat_expire_data) == NULL))
 				continue; /* the timer was removed */
 			if (rat->rat_update)
 				(*rat->rat_update)(rat->rat_update_data, &rat->rat_tm);
-			TIMEVAL_ADD(&rat->rat_tm, &now, &rat->rat_tm);
+			TS_ADD(&rat->rat_tm, &now, &rat->rat_tm);
 		}
-		if (TIMEVAL_LT(&rat->rat_tm, &tm_max))
+		if (TS_CMP(&rat->rat_tm, &tm_max, <))
 			tm_max = rat->rat_tm;
 	}
-	if (TIMEVAL_EQUAL(&tm_max, &tm_limit)) {
+	if (TS_CMP(&tm_max, &tm_limit, ==)) {
 		/* no need to timeout */
 		return (NULL);
-	} else if (TIMEVAL_LT(&tm_max, &now)) {
+	} else if (TS_CMP(&tm_max, &now, <)) {
 		/* this may occur when the interval is too small */
-		returnval.tv_sec = returnval.tv_usec = 0;
+		returnval.tv_sec = returnval.tv_nsec = 0;
 	} else
-		TIMEVAL_SUB(&tm_max, &now, &returnval);
+		TS_SUB(&tm_max, &now, &returnval);
 	return (&returnval);
 }
 
 void
-rtadvd_set_timer(struct timeval *tm, struct rtadvd_timer *rat)
+rtadvd_set_timer(struct timespec *tm, struct rtadvd_timer *rat)
 {
-	struct timeval now;
+	struct timespec now;
 
 	/* reset the timer */
-	gettimeofday(&now, NULL);
-	TIMEVAL_ADD(&now, tm, &rat->rat_tm);
+	clock_gettime(CLOCK_MONOTONIC_FAST, &now);
+	TS_ADD(&now, tm, &rat->rat_tm);
 
 	/* update the next expiration time */
-	if (TIMEVAL_LT(&rat->rat_tm, &tm_max))
+	if (TS_CMP(&rat->rat_tm, &tm_max, <))
 		tm_max = rat->rat_tm;
 
 	return;

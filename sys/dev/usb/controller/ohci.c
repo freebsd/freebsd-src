@@ -84,9 +84,8 @@
 static int ohcidebug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
-SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ohcidebug, 0, "ohci debug level");
-TUNABLE_INT("hw.usb.ohci.debug", &ohcidebug);
 
 static void ohci_dumpregs(ohci_softc_t *);
 static void ohci_dump_tds(ohci_td_t *);
@@ -111,11 +110,11 @@ static void ohci_dump_itds(ohci_itd_t *);
 
 #define	OHCI_INTR_ENDPT 1
 
-extern struct usb_bus_methods ohci_bus_methods;
-extern struct usb_pipe_methods ohci_device_bulk_methods;
-extern struct usb_pipe_methods ohci_device_ctrl_methods;
-extern struct usb_pipe_methods ohci_device_intr_methods;
-extern struct usb_pipe_methods ohci_device_isoc_methods;
+static const struct usb_bus_methods ohci_bus_methods;
+static const struct usb_pipe_methods ohci_device_bulk_methods;
+static const struct usb_pipe_methods ohci_device_ctrl_methods;
+static const struct usb_pipe_methods ohci_device_intr_methods;
+static const struct usb_pipe_methods ohci_device_isoc_methods;
 
 static void ohci_do_poll(struct usb_bus *bus);
 static void ohci_device_done(struct usb_xfer *xfer, usb_error_t error);
@@ -1393,7 +1392,7 @@ static void
 ohci_setup_standard_chain(struct usb_xfer *xfer, ohci_ed_t **ed_last)
 {
 	struct ohci_std_temp temp;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 	ohci_td_t *td;
 	uint32_t ed_flags;
@@ -1632,7 +1631,7 @@ ohci_root_intr(ohci_softc_t *sc)
 static void
 ohci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	ohci_softc_t *sc = OHCI_BUS2SC(xfer->xroot->bus);
 	ohci_ed_t *ed;
 
@@ -1698,7 +1697,7 @@ ohci_device_bulk_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_bulk_methods =
+static const struct usb_pipe_methods ohci_device_bulk_methods =
 {
 	.open = ohci_device_bulk_open,
 	.close = ohci_device_bulk_close,
@@ -1739,7 +1738,7 @@ ohci_device_ctrl_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_ctrl_methods =
+static const struct usb_pipe_methods ohci_device_ctrl_methods =
 {
 	.open = ohci_device_ctrl_open,
 	.close = ohci_device_ctrl_close,
@@ -1811,7 +1810,7 @@ ohci_device_intr_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_intr_methods =
+static const struct usb_pipe_methods ohci_device_intr_methods =
 {
 	.open = ohci_device_intr_open,
 	.close = ohci_device_intr_close,
@@ -2019,7 +2018,7 @@ ohci_device_isoc_start(struct usb_xfer *xfer)
 	ohci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ohci_device_isoc_methods =
+static const struct usb_pipe_methods ohci_device_isoc_methods =
 {
 	.open = ohci_device_isoc_open,
 	.close = ohci_device_isoc_close,
@@ -2598,7 +2597,7 @@ ohci_device_resume(struct usb_device *udev)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 
 	DPRINTF("\n");
@@ -2636,7 +2635,7 @@ ohci_device_suspend(struct usb_device *udev)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ohci_ed_t *ed;
 
 	DPRINTF("\n");
@@ -2720,7 +2719,7 @@ ohci_set_hw_power(struct usb_bus *bus)
 	return;
 }
 
-struct usb_bus_methods ohci_bus_methods =
+static const struct usb_bus_methods ohci_bus_methods =
 {
 	.endpoint_init = ohci_ep_init,
 	.xfer_setup = ohci_xfer_setup,

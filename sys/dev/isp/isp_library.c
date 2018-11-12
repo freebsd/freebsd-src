@@ -144,7 +144,9 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 	while (seg < nsegs) {
 		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
 		if (nxtnxt == isp->isp_reqodx) {
-			return (CMD_EAGAIN);
+			isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
+			if (nxtnxt == isp->isp_reqodx)
+				return (CMD_EAGAIN);
 		}
 		ISP_MEMZERO(storage, QENTRY_LEN);
 		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
@@ -322,9 +324,13 @@ isp_destroy_handle(ispsoftc_t *isp, uint32_t handle)
 void *
 isp_getrqentry(ispsoftc_t *isp)
 {
-	isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
-	if (ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp)) == isp->isp_reqodx) {
-		return (NULL);
+	uint32_t next;
+
+	next = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
+	if (next == isp->isp_reqodx) {
+		isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
+		if (next == isp->isp_reqodx)
+			return (NULL);
 	}
 	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
 }
@@ -2206,7 +2212,9 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_
 	while (seg < nsegs) {
 		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
 		if (nxtnxt == isp->isp_reqodx) {
-			return (CMD_EAGAIN);
+			isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
+			if (nxtnxt == isp->isp_reqodx)
+				return (CMD_EAGAIN);
 		}
 		ISP_MEMZERO(storage, QENTRY_LEN);
 		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
@@ -2361,7 +2369,7 @@ isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
 
 	if (chan < isp->isp_nchan) {
 		fcp = FCPARAM(isp, chan);
-		for (i = 0; i < MAX_FC_TARG; i++) {
+		for (i = MAX_FC_TARG - 1; i >= 0; i--) {
 			fcportdb_t *lp = &fcp->portdb[i];
 
 			if (lp->target_mode == 0) {
@@ -2384,7 +2392,7 @@ isp_find_pdb_by_loopid(ispsoftc_t *isp, int chan, uint32_t loopid, fcportdb_t **
 
 	if (chan < isp->isp_nchan) {
 		fcp = FCPARAM(isp, chan);
-		for (i = 0; i < MAX_FC_TARG; i++) {
+		for (i = MAX_FC_TARG - 1; i >= 0; i--) {
 			fcportdb_t *lp = &fcp->portdb[i];
 
 			if (lp->target_mode == 0) {
@@ -2410,7 +2418,7 @@ isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
 	}
 
 	fcp = FCPARAM(isp, chan);
-	for (i = 0; i < MAX_FC_TARG; i++) {
+	for (i = MAX_FC_TARG - 1; i >= 0; i--) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
 		if (lp->target_mode == 0) {
@@ -2464,7 +2472,8 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 
 	lp = NULL;
 	if (fcp->isp_tgt_map[nphdl]) {
-		lp = &fcp->portdb[fcp->isp_tgt_map[nphdl] - 1];
+		i = fcp->isp_tgt_map[nphdl] - 1;
+		lp = &fcp->portdb[i];
 	} else {
 		/*
 		 * Make sure the addition of a new target mode entry doesn't duplicate entries
@@ -2532,6 +2541,10 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 			isp_prt(isp, ISP_LOGWARN, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x reentered", chan,
 			    (unsigned long long) lp->port_wwn, lp->handle, lp->portid);
 		}
+		if (fcp->isp_tgt_map[nphdl] == 0) {
+			fcp->isp_tgt_map[nphdl] = i + 1;
+			goto notify;
+		}
 		return;
 	}
 
@@ -2565,6 +2578,7 @@ isp_add_wwn_entry(ispsoftc_t *isp, int chan, uint64_t ini, uint16_t nphdl, uint3
 	isp_prt(isp, ISP_LOGTINFO, "Chan %d IID 0x%016llx N-Port Handle 0x%04x Port ID 0x%06x vtgt %d %s added", chan,
 	    (unsigned long long) ini, nphdl, s_id, fcp->isp_tgt_map[nphdl] - 1, buf);
 
+notify:
 	ISP_MEMZERO(&nt, sizeof (nt));
 	nt.nt_hba = isp;
 	nt.nt_wwn = ini;

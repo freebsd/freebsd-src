@@ -1106,9 +1106,7 @@ output_keyword_entry (KeywordExt *temp, int stringpool_index, const char *indent
   if (option[TYPE])
     printf ("{");
   if (option[SHAREDLIB])
-    printf ("(int)(long)&((struct %s_t *)0)->%s_str%d",
-            option.get_stringpool_name (), option.get_stringpool_name (),
-            stringpool_index);
+    printf("offsetof(struct %s_t, %s_str%d)", option.get_stringpool_name (), option.get_stringpool_name (), stringpool_index);
   else
     output_string (temp->_allchars, temp->_allchars_length);
   if (option[TYPE])
@@ -2035,8 +2033,11 @@ Output::output ()
       printf ("%s\n", _struct_decl);
     }
 
-  if (option[INCLUDE])
+  if (option[INCLUDE]) {
     printf ("#include <string.h>\n"); /* Declare strlen(), strcmp(), strncmp(). */
+    if (option[SHAREDLIB])
+      printf("#include <stddef.h>\n"); /* Declare offsetof() */
+  }
 
   if (!option[ENUM])
     {

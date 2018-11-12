@@ -54,12 +54,12 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 
 	mc = &ucp->uc_mcontext;
 	if (ucp == NULL ||
-	    (mc->mc_flags & ((1L << _MC_VERSION_BITS) - 1)) != _MC_VERSION)
+	    (mc->_mc_flags & ((1L << _MC_VERSION_BITS) - 1)) != _MC_VERSION)
 		return;
 	if ((argc < 0) || (argc > 6) ||
 	    (ucp->uc_stack.ss_sp == NULL) ||
 	    (ucp->uc_stack.ss_size < MINSIGSTKSZ)) {
-		mc->mc_flags = 0;
+		mc->_mc_flags = 0;
 		return;
 	}
 	mc = &ucp->uc_mcontext;
@@ -71,8 +71,8 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	mc->mc_global[1] = (uint64_t)start;
 	mc->mc_global[2] = (uint64_t)ucp;
 	mc->mc_out[6] = sp - SPOFF - sizeof(struct frame);
-	mc->mc_tnpc = (uint64_t)_ctx_start + 4;
-	mc->mc_tpc = (uint64_t)_ctx_start;
+	mc->_mc_tnpc = (uint64_t)_ctx_start + 4;
+	mc->_mc_tpc = (uint64_t)_ctx_start;
 }
 
 void
@@ -82,7 +82,7 @@ _ctx_done(ucontext_t *ucp)
 	if (ucp->uc_link == NULL)
 		exit(0);
 	else {
-		ucp->uc_mcontext.mc_flags = 0;
+		ucp->uc_mcontext._mc_flags = 0;
 		setcontext((const ucontext_t *)ucp->uc_link);
 		abort();
 	}

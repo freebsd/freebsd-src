@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/types.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
@@ -83,6 +84,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -166,7 +170,7 @@ static void	kue_reset(struct kue_softc *);
 static int kue_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
-SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RW, &kue_debug, 0,
+SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RWTUN, &kue_debug, 0,
     "Debug level");
 #endif
 
@@ -546,7 +550,7 @@ kue_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		if (actlen <= (int)(2 + sizeof(struct ether_header))) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		pc = usbd_xfer_get_frame(xfer, 0);
@@ -592,7 +596,7 @@ kue_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -634,7 +638,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */

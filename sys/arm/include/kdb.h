@@ -33,6 +33,8 @@
 #include <machine/psl.h>
 #include <machine/cpufunc.h>
 
+#define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
+
 static __inline void
 kdb_cpu_clear_singlestep(void)
 {
@@ -47,14 +49,12 @@ static __inline void
 kdb_cpu_sync_icache(unsigned char *addr, size_t size)
 {
 
-	cpu_icache_sync_all();
+	cpu_icache_sync_range((vm_offset_t)addr, size);
 }
 
 static __inline void
 kdb_cpu_trap(int type, int code)
 {
-
-	cpu_idcache_wbinv_all();
 }
 
 #endif /* _MACHINE_KDB_H_ */

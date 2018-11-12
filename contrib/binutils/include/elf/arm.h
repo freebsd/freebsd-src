@@ -271,6 +271,8 @@ enum
   Tag_ABI_optimization_goals,
   Tag_ABI_FP_optimization_goals,
   /* 32 is generic.  */
+
+  Tag_Virtualization_use = 68,
 };
 
 #endif

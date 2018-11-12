@@ -29,10 +29,14 @@
 #ifndef _XEN_XENFUNC_H_
 #define _XEN_XENFUNC_H_
 
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
+
+#include <vm/pmap.h>
+
 #include <machine/xen/xenpmap.h>
 #include <machine/segments.h>
+
 #include <sys/pcpu.h>
 #define BKPT __asm__("int3");
 #define XPQ_CALL_DEPTH 5

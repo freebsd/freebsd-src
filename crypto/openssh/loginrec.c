@@ -180,10 +180,6 @@
 # include <util.h>
 #endif
 
-#ifdef HAVE_LIBUTIL_H
-# include <libutil.h>
-#endif
-
 /**
  ** prototypes for helper functions in this file
  **/
@@ -314,16 +310,19 @@ login_get_lastlog(struct logininfo *li, const uid_t uid)
 		fatal("%s: Cannot find account for uid %ld", __func__,
 		    (long)uid);
 
-	/* No MIN_SIZEOF here - we absolutely *must not* truncate the
-	 * username (XXX - so check for trunc!) */
-	strlcpy(li->username, pw->pw_name, sizeof(li->username));
+	if (strlcpy(li->username, pw->pw_name, sizeof(li->username)) >=
+	    sizeof(li->username)) {
+		error("%s: username too long (%lu > max %lu)", __func__,
+		    (unsigned long)strlen(pw->pw_name),
+		    (unsigned long)sizeof(li->username) - 1);
+		return NULL;
+	}
 
 	if (getlast_entry(li))
 		return (li);
 	else
 		return (NULL);
 }
-
 
 /*
  * login_alloc_entry(int, char*, char*, char*)    - Allocate and initialise
@@ -351,7 +350,7 @@ logininfo *login_alloc_entry(pid_t pid, const char *username,
 void
 login_free_entry(struct logininfo *li)
 {
-	xfree(li);
+	free(li);
 }
 
 

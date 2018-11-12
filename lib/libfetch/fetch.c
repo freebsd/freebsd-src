@@ -376,7 +376,7 @@ fetchParseURL(const char *URL)
 
 		/* password */
 		if (*q == ':')
-			q = fetch_pctdecode(u->pwd, ++q, URL_PWDLEN);
+			q = fetch_pctdecode(u->pwd, q + 1, URL_PWDLEN);
 
 		p++;
 	} else {

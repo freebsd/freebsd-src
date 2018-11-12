@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 .PATH:	${.CURDIR}/../hastd
 
@@ -21,6 +21,7 @@ MAN=	hastctl.8
 
 NO_WFORMAT=
 NO_WCAST_ALIGN=
+NO_WMISSING_VARIABLE_DECLARATIONS=
 CFLAGS+=-I${.CURDIR}/../hastd
 CFLAGS+=-DHAVE_CAPSICUM
 CFLAGS+=-DINET
@@ -31,11 +32,9 @@ CFLAGS+=-DINET6
 CFLAGS+=-DYY_NO_UNPUT
 CFLAGS+=-DYY_NO_INPUT
 
-DPADD=	${LIBL} ${LIBUTIL}
-LDADD=	-ll -lutil
+LIBADD=	util
 .if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD+=	crypto
 CFLAGS+=-DHAVE_CRYPTO
 .endif
 

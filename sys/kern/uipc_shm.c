@@ -45,14 +45,19 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
+#include "opt_ktrace.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
+#include <sys/uio.h>
+#include <sys/signal.h>
+#include <sys/ktrace.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
@@ -69,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
+#include <sys/unistd.h>
+#include <sys/user.h>
 
 #include <security/mac/mac_framework.h>
 
@@ -96,12 +103,14 @@ static LIST_HEAD(, shm_mapping) *shm_dictionary;
 static struct sx shm_dict_lock;
 static struct mtx shm_timestamp_lock;
 static u_long shm_hash;
+static struct unrhdr *shm_ino_unr;
+static dev_t shm_dev_ino;
 
 #define	SHM_HASH(fnv)	(&shm_dictionary[(fnv) & shm_hash])
 
 static int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
 static struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
-static void	shm_dict_init(void *arg);
+static void	shm_init(void *arg);
 static void	shm_drop(struct shmfd *shmfd);
 static struct shmfd *shm_hold(struct shmfd *shmfd);
 static void	shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd);
@@ -112,45 +121,219 @@ static int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 static fo_rdwr_t	shm_read;
 static fo_rdwr_t	shm_write;
 static fo_truncate_t	shm_truncate;
-static fo_ioctl_t	shm_ioctl;
-static fo_poll_t	shm_poll;
-static fo_kqfilter_t	shm_kqfilter;
 static fo_stat_t	shm_stat;
 static fo_close_t	shm_close;
 static fo_chmod_t	shm_chmod;
 static fo_chown_t	shm_chown;
+static fo_seek_t	shm_seek;
+static fo_fill_kinfo_t	shm_fill_kinfo;
 
 /* File descriptor operations. */
 static struct fileops shm_ops = {
 	.fo_read = shm_read,
 	.fo_write = shm_write,
 	.fo_truncate = shm_truncate,
-	.fo_ioctl = shm_ioctl,
-	.fo_poll = shm_poll,
-	.fo_kqfilter = shm_kqfilter,
+	.fo_ioctl = invfo_ioctl,
+	.fo_poll = invfo_poll,
+	.fo_kqfilter = invfo_kqfilter,
 	.fo_stat = shm_stat,
 	.fo_close = shm_close,
 	.fo_chmod = shm_chmod,
 	.fo_chown = shm_chown,
-	.fo_flags = DFLAG_PASSABLE
+	.fo_sendfile = vn_sendfile,
+	.fo_seek = shm_seek,
+	.fo_fill_kinfo = shm_fill_kinfo,
+	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
 FEATURE(posix_shm, "POSIX shared memory");
 
 static int
+uiomove_object_page(vm_object_t obj, size_t len, struct uio *uio)
+{
+	vm_page_t m;
+	vm_pindex_t idx;
+	size_t tlen;
+	int error, offset, rv;
+
+	idx = OFF_TO_IDX(uio->uio_offset);
+	offset = uio->uio_offset & PAGE_MASK;
+	tlen = MIN(PAGE_SIZE - offset, len);
+
+	VM_OBJECT_WLOCK(obj);
+
+	/*
+	 * Parallel reads of the page content from disk are prevented
+	 * by exclusive busy.
+	 *
+	 * Although the tmpfs vnode lock is held here, it is
+	 * nonetheless safe to sleep waiting for a free page.  The
+	 * pageout daemon does not need to acquire the tmpfs vnode
+	 * lock to page out tobj's pages because tobj is a OBJT_SWAP
+	 * type object.
+	 */
+	m = vm_page_grab(obj, idx, VM_ALLOC_NORMAL);
+	if (m->valid != VM_PAGE_BITS_ALL) {
+		if (vm_pager_has_page(obj, idx, NULL, NULL)) {
+			rv = vm_pager_get_pages(obj, &m, 1, 0);
+			m = vm_page_lookup(obj, idx);
+			if (m == NULL) {
+				printf(
+		    "uiomove_object: vm_obj %p idx %jd null lookup rv %d\n",
+				    obj, idx, rv);
+				VM_OBJECT_WUNLOCK(obj);
+				return (EIO);
+			}
+			if (rv != VM_PAGER_OK) {
+				printf(
+	    "uiomove_object: vm_obj %p idx %jd valid %x pager error %d\n",
+				    obj, idx, m->valid, rv);
+				vm_page_lock(m);
+				vm_page_free(m);
+				vm_page_unlock(m);
+				VM_OBJECT_WUNLOCK(obj);
+				return (EIO);
+			}
+		} else
+			vm_page_zero_invalid(m, TRUE);
+	}
+	vm_page_xunbusy(m);
+	vm_page_lock(m);
+	vm_page_hold(m);
+	if (m->queue == PQ_NONE) {
+		vm_page_deactivate(m);
+	} else {
+		/* Requeue to maintain LRU ordering. */
+		vm_page_requeue(m);
+	}
+	vm_page_unlock(m);
+	VM_OBJECT_WUNLOCK(obj);
+	error = uiomove_fromphys(&m, offset, tlen, uio);
+	if (uio->uio_rw == UIO_WRITE && error == 0) {
+		VM_OBJECT_WLOCK(obj);
+		vm_page_dirty(m);
+		vm_pager_page_unswapped(m);
+		VM_OBJECT_WUNLOCK(obj);
+	}
+	vm_page_lock(m);
+	vm_page_unhold(m);
+	vm_page_unlock(m);
+
+	return (error);
+}
+
+int
+uiomove_object(vm_object_t obj, off_t obj_size, struct uio *uio)
+{
+	ssize_t resid;
+	size_t len;
+	int error;
+
+	error = 0;
+	while ((resid = uio->uio_resid) > 0) {
+		if (obj_size <= uio->uio_offset)
+			break;
+		len = MIN(obj_size - uio->uio_offset, resid);
+		if (len == 0)
+			break;
+		error = uiomove_object_page(obj, len, uio);
+		if (error != 0 || resid == uio->uio_resid)
+			break;
+	}
+	return (error);
+}
+
+static int
+shm_seek(struct file *fp, off_t offset, int whence, struct thread *td)
+{
+	struct shmfd *shmfd;
+	off_t foffset;
+	int error;
+
+	shmfd = fp->f_data;
+	foffset = foffset_lock(fp, 0);
+	error = 0;
+	switch (whence) {
+	case L_INCR:
+		if (foffset < 0 ||
+		    (offset > 0 && foffset > OFF_MAX - offset)) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += foffset;
+		break;
+	case L_XTND:
+		if (offset > 0 && shmfd->shm_size > OFF_MAX - offset) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += shmfd->shm_size;
+		break;
+	case L_SET:
+		break;
+	default:
+		error = EINVAL;
+	}
+	if (error == 0) {
+		if (offset < 0 || offset > shmfd->shm_size)
+			error = EINVAL;
+		else
+			td->td_uretoff.tdu_off = offset;
+	}
+	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
+	return (error);
+}
+
+static int
 shm_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	int error;
 
-	return (EOPNOTSUPP);
+	shmfd = fp->f_data;
+	foffset_lock_uio(fp, uio, flags);
+	rl_cookie = rangelock_rlock(&shmfd->shm_rl, uio->uio_offset,
+	    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+#ifdef MAC
+	error = mac_posixshm_check_read(active_cred, fp->f_cred, shmfd);
+	if (error)
+		return (error);
+#endif
+	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	foffset_unlock_uio(fp, uio, flags);
+	return (error);
 }
 
 static int
 shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
     int flags, struct thread *td)
 {
+	struct shmfd *shmfd;
+	void *rl_cookie;
+	int error;
 
-	return (EOPNOTSUPP);
+	shmfd = fp->f_data;
+#ifdef MAC
+	error = mac_posixshm_check_write(active_cred, fp->f_cred, shmfd);
+	if (error)
+		return (error);
+#endif
+	foffset_lock_uio(fp, uio, flags);
+	if ((flags & FOF_OFFSET) == 0) {
+		rl_cookie = rangelock_wlock(&shmfd->shm_rl, 0, OFF_MAX,
+		    &shmfd->shm_mtx);
+	} else {
+		rl_cookie = rangelock_wlock(&shmfd->shm_rl, uio->uio_offset,
+		    uio->uio_offset + uio->uio_resid, &shmfd->shm_mtx);
+	}
+
+	error = uiomove_object(shmfd->shm_object, shmfd->shm_size, uio);
+	rangelock_unlock(&shmfd->shm_rl, rl_cookie, &shmfd->shm_mtx);
+	foffset_unlock_uio(fp, uio, flags);
+	return (error);
 }
 
 static int
@@ -169,29 +352,6 @@ shm_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 		return (error);
 #endif
 	return (shm_dotruncate(shmfd, length));
-}
-
-static int
-shm_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-shm_poll(struct file *fp, int events, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-shm_kqfilter(struct file *fp, struct knote *kn)
-{
-
-	return (EOPNOTSUPP);
 }
 
 static int
@@ -228,6 +388,8 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sb->st_uid = shmfd->shm_uid;
 	sb->st_gid = shmfd->shm_gid;
 	mtx_unlock(&shm_timestamp_lock);
+	sb->st_dev = shm_dev_ino;
+	sb->st_ino = shmfd->shm_ino;
 
 	return (0);
 }
@@ -281,11 +443,8 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 retry:
 			m = vm_page_lookup(object, idx);
 			if (m != NULL) {
-				if ((m->oflags & VPO_BUSY) != 0 ||
-				    m->busy != 0) {
-					vm_page_sleep(m, "shmtrc");
+				if (vm_page_sleep_if_busy(m, "shmtrc"))
 					goto retry;
-				}
 			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
 				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
@@ -305,7 +464,7 @@ retry:
 				if (rv == VM_PAGER_OK) {
 					vm_page_deactivate(m);
 					vm_page_unlock(m);
-					vm_page_wakeup(m);
+					vm_page_xunbusy(m);
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
@@ -362,6 +521,7 @@ static struct shmfd *
 shm_alloc(struct ucred *ucred, mode_t mode)
 {
 	struct shmfd *shmfd;
+	int ino;
 
 	shmfd = malloc(sizeof(*shmfd), M_SHMFD, M_WAITOK | M_ZERO);
 	shmfd->shm_size = 0;
@@ -371,14 +531,22 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	shmfd->shm_object = vm_pager_allocate(OBJT_DEFAULT, NULL,
 	    shmfd->shm_size, VM_PROT_DEFAULT, 0, ucred);
 	KASSERT(shmfd->shm_object != NULL, ("shm_create: vm_pager_allocate"));
+	shmfd->shm_object->pg_color = 0;
 	VM_OBJECT_WLOCK(shmfd->shm_object);
 	vm_object_clear_flag(shmfd->shm_object, OBJ_ONEMAPPING);
-	vm_object_set_flag(shmfd->shm_object, OBJ_NOSPLIT);
+	vm_object_set_flag(shmfd->shm_object, OBJ_COLORED | OBJ_NOSPLIT);
 	VM_OBJECT_WUNLOCK(shmfd->shm_object);
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
+	ino = alloc_unr(shm_ino_unr);
+	if (ino == -1)
+		shmfd->shm_ino = 0;
+	else
+		shmfd->shm_ino = ino;
 	refcount_init(&shmfd->shm_refs, 1);
+	mtx_init(&shmfd->shm_mtx, "shmrl", NULL, MTX_DEF);
+	rangelock_init(&shmfd->shm_rl);
 #ifdef MAC
 	mac_posixshm_init(shmfd);
 	mac_posixshm_create(ucred, shmfd);
@@ -403,7 +571,11 @@ shm_drop(struct shmfd *shmfd)
 #ifdef MAC
 		mac_posixshm_destroy(shmfd);
 #endif
+		rangelock_destroy(&shmfd->shm_rl);
+		mtx_destroy(&shmfd->shm_mtx);
 		vm_object_deallocate(shmfd->shm_object);
+		if (shmfd->shm_ino != 0)
+			free_unr(shm_ino_unr, shmfd->shm_ino);
 		free(shmfd, M_SHMFD);
 	}
 }
@@ -436,14 +608,18 @@ shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
  * the mappings in a hash table.
  */
 static void
-shm_dict_init(void *arg)
+shm_init(void *arg)
 {
 
 	mtx_init(&shm_timestamp_lock, "shm timestamps", NULL, MTX_DEF);
 	sx_init(&shm_dict_lock, "shm dictionary");
 	shm_dictionary = hashinit(1024, M_SHMFD, &shm_hash);
+	shm_ino_unr = new_unrhdr(1, INT32_MAX, NULL);
+	KASSERT(shm_ino_unr != NULL, ("shm fake inodes not initialized"));
+	shm_dev_ino = devfs_alloc_cdp_inode();
+	KASSERT(shm_dev_ino > 0, ("shm dev inode not initialized"));
 }
-SYSINIT(shm_dict_init, SI_SUB_SYSV_SHM, SI_ORDER_ANY, shm_dict_init, NULL);
+SYSINIT(shm_init, SI_SUB_SYSV_SHM, SI_ORDER_ANY, shm_init, NULL);
 
 static struct shmfd *
 shm_lookup(char *path, Fnv32_t fnv)
@@ -528,13 +704,13 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	    (uap->flags & O_ACCMODE) != O_RDWR)
 		return (EINVAL);
 
-	if ((uap->flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC)) != 0)
+	if ((uap->flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC | O_CLOEXEC)) != 0)
 		return (EINVAL);
 
 	fdp = td->td_proc->p_fd;
 	cmode = (uap->mode & ~fdp->fd_cmask) & ACCESSPERMS;
 
-	error = falloc(td, &fp, &fd, 0);
+	error = falloc(td, &fp, &fd, O_CLOEXEC);
 	if (error)
 		return (error);
 
@@ -550,7 +726,10 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	} else {
 		path = malloc(MAXPATHLEN, M_SHMFD, M_WAITOK);
 		error = copyinstr(uap->path, path, MAXPATHLEN, NULL);
-
+#ifdef KTRACE
+		if (error == 0 && KTRPOINT(curthread, KTR_NAMEI))
+			ktrnamei(path);
+#endif
 		/* Require paths to start with a '/' character. */
 		if (error == 0 && path[0] != '/')
 			error = EINVAL;
@@ -629,10 +808,6 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 
 	finit(fp, FFLAGS(uap->flags & O_ACCMODE), DTYPE_SHM, shmfd, &shm_ops);
 
-	FILEDESC_XLOCK(fdp);
-	if (fdp->fd_ofiles[fd].fde_file == fp)
-		fdp->fd_ofiles[fd].fde_flags |= UF_EXCLOSE;
-	FILEDESC_XUNLOCK(fdp);
 	td->td_retval[0] = fd;
 	fdrop(fp, td);
 
@@ -652,7 +827,10 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 		free(path, M_TEMP);
 		return (error);
 	}
-
+#ifdef KTRACE
+	if (KTRPOINT(curthread, KTR_NAMEI))
+		ktrnamei(path);
+#endif
 	fnv = fnv_32_str(path, FNV1_32_INIT);
 	sx_xlock(&shm_dict_lock);
 	error = shm_remove(path, fnv, td->td_ucred);
@@ -782,8 +960,8 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 	ofs = offset & PAGE_MASK;
 	offset = trunc_page(offset);
 	size = round_page(size + ofs);
-	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
-	    VMFS_ALIGNED_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	rv = vm_map_find(kernel_map, obj, offset, &kva, size, 0,
+	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv == KERN_SUCCESS) {
 		rv = vm_map_wire(kernel_map, kva, kva + size,
@@ -848,14 +1026,24 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	return (0);
 }
 
-void
-shm_path(struct shmfd *shmfd, char *path, size_t size)
+static int
+shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
+	struct shmfd *shmfd;
 
-	if (shmfd->shm_path == NULL)
-		return;
-	sx_slock(&shm_dict_lock);
-	if (shmfd->shm_path != NULL)
-		strlcpy(path, shmfd->shm_path, size);
-	sx_sunlock(&shm_dict_lock);
+	kif->kf_type = KF_TYPE_SHM;
+	shmfd = fp->f_data;
+
+	mtx_lock(&shm_timestamp_lock);
+	kif->kf_un.kf_file.kf_file_mode = S_IFREG | shmfd->shm_mode;	/* XXX */
+	mtx_unlock(&shm_timestamp_lock);
+	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
+	if (shmfd->shm_path != NULL) {
+		sx_slock(&shm_dict_lock);
+		if (shmfd->shm_path != NULL)
+			strlcpy(kif->kf_path, shmfd->shm_path,
+			    sizeof(kif->kf_path));
+		sx_sunlock(&shm_dict_lock);
+	}
+	return (0);
 }

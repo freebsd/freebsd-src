@@ -11,23 +11,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "hexagon-selectiondag-info"
 #include "HexagonTargetMachine.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "hexagon-selectiondag-info"
+
 bool llvm::flag_aligned_memcpy;
 
-HexagonSelectionDAGInfo::HexagonSelectionDAGInfo(const HexagonTargetMachine
-                                                 &TM)
-  : TargetSelectionDAGInfo(TM) {
-}
+HexagonSelectionDAGInfo::HexagonSelectionDAGInfo(const DataLayout &DL)
+    : TargetSelectionDAGInfo(&DL) {}
 
 HexagonSelectionDAGInfo::~HexagonSelectionDAGInfo() {
 }
 
 SDValue
 HexagonSelectionDAGInfo::
-EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl, SDValue Chain,
+EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl, SDValue Chain,
                         SDValue Dst, SDValue Src, SDValue Size, unsigned Align,
                         bool isVolatile, bool AlwaysInline,
                         MachinePointerInfo DstPtrInfo,

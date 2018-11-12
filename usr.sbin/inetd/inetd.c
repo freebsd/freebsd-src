@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
  *					or name a tcpmux service 
  *					or specify a unix domain socket
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			tcp[4][6][/faith], udp[4][6], unix
+ *	protocol			tcp[4][6], udp[4][6], unix
  *	wait/nowait			single-threaded/multi-threaded
  *	user[:group][/login-class]	user/group/login-class to run daemon as
  *	server program			full path name
@@ -1305,14 +1305,6 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 			syslog(LOG_ERR, "setsockopt (IPV6_V6ONLY): %m");
 	}
 #undef turnon
-#ifdef IPV6_FAITH
-	if (sep->se_type == FAITH_TYPE) {
-		if (setsockopt(sep->se_fd, IPPROTO_IPV6, IPV6_FAITH, &on,
-				sizeof(on)) < 0) {
-			syslog(LOG_ERR, "setsockopt (IPV6_FAITH): %m");
-		}
-	}
-#endif
 #ifdef IPSEC
 	ipsecsetup(sep);
 #endif
@@ -1744,15 +1736,15 @@ more:
 	arg = sskip(&cp);
 	if (strncmp(arg, "tcp", 3) == 0) {
 		sep->se_proto = newstr(strsep(&arg, "/"));
-		if (arg != NULL) {
-			if (strcmp(arg, "faith") == 0)
-				sep->se_type = FAITH_TYPE;
+		if (arg != NULL && (strcmp(arg, "faith") == 0)) {
+			syslog(LOG_ERR, "faith has been deprecated");
+			goto more;
 		}
 	} else {
 		if (sep->se_type == NORM_TYPE &&
 		    strncmp(arg, "faith/", 6) == 0) {
-			arg += 6;
-			sep->se_type = FAITH_TYPE;
+			syslog(LOG_ERR, "faith has been deprecated");
+			goto more;
 		}
 		sep->se_proto = newstr(arg);
 	}

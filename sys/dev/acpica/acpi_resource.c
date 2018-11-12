@@ -135,6 +135,17 @@ acpi_config_intr(device_t dev, ACPI_RESOURCE *res)
     default:
 	panic("%s: bad resource type %u", __func__, res->Type);
     }
+
+#if defined(__amd64__) || defined(__i386__)
+    /*
+     * XXX: Certain BIOSes have buggy AML that specify an IRQ that is
+     * edge-sensitive and active-lo.  However, edge-sensitive IRQs
+     * should be active-hi.  Force IRQs with an ISA IRQ value to be
+     * active-hi instead.
+     */
+    if (irq < 16 && trig == ACPI_EDGE_SENSITIVE && pol == ACPI_ACTIVE_LOW)
+	pol = ACPI_ACTIVE_HIGH;
+#endif
     BUS_CONFIG_INTR(dev, irq, (trig == ACPI_EDGE_SENSITIVE) ?
 	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
 	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
@@ -172,7 +183,9 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
     struct acpi_parse_resource_set *set;
     struct acpi_resource_context *arc;
     UINT64 min, max, length, gran;
+#ifdef ACPI_DEBUG
     const char *name;
+#endif
     device_t dev;
 
     arc = context;
@@ -289,21 +302,27 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	    min = res->Data.Address16.Minimum;
 	    max = res->Data.Address16.Maximum;
 	    length = res->Data.Address16.AddressLength;
+#ifdef ACPI_DEBUG
 	    name = "Address16";
+#endif
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 	    gran = res->Data.Address32.Granularity;
 	    min = res->Data.Address32.Minimum;
 	    max = res->Data.Address32.Maximum;
 	    length = res->Data.Address32.AddressLength;
+#ifdef ACPI_DEBUG
 	    name = "Address32";
+#endif
 	    break;
 	case ACPI_RESOURCE_TYPE_ADDRESS64:
 	    gran = res->Data.Address64.Granularity;
 	    min = res->Data.Address64.Minimum;
 	    max = res->Data.Address64.Maximum;
 	    length = res->Data.Address64.AddressLength;
+#ifdef ACPI_DEBUG
 	    name = "Address64";
+#endif
 	    break;
 	default:
 	    KASSERT(res->Type == ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64,
@@ -312,7 +331,9 @@ acpi_parse_resource(ACPI_RESOURCE *res, void *context)
 	    min = res->Data.ExtAddress64.Minimum;
 	    max = res->Data.ExtAddress64.Maximum;
 	    length = res->Data.ExtAddress64.AddressLength;
+#ifdef ACPI_DEBUG
 	    name = "ExtAddress64";
+#endif
 	    break;
 	}
 	if (length <= 0)

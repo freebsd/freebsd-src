@@ -12,11 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef SCHEDULEDAGSDNODES_H
-#define SCHEDULEDAGSDNODES_H
+#ifndef LLVM_LIB_CODEGEN_SELECTIONDAG_SCHEDULEDAGSDNODES_H
+#define LLVM_LIB_CODEGEN_SELECTIONDAG_SCHEDULEDAGSDNODES_H
 
+#include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/CodeGen/SelectionDAG.h"
 
 namespace llvm {
   /// ScheduleDAGSDNodes - A ScheduleDAG for scheduling SDNode-based DAGs.
@@ -117,13 +117,13 @@ namespace llvm {
     virtual MachineBasicBlock*
     EmitSchedule(MachineBasicBlock::iterator &InsertPos);
 
-    virtual void dumpNode(const SUnit *SU) const;
+    void dumpNode(const SUnit *SU) const override;
 
     void dumpSchedule() const;
 
-    virtual std::string getGraphNodeLabel(const SUnit *SU) const;
+    std::string getGraphNodeLabel(const SUnit *SU) const override;
 
-    virtual std::string getDAGName() const;
+    std::string getDAGName() const override;
 
     virtual void getCustomGraphFeatures(GraphWriter<ScheduleDAG*> &GW) const;
 
@@ -135,13 +135,13 @@ namespace llvm {
       const SDNode *Node;
       unsigned DefIdx;
       unsigned NodeNumDefs;
-      EVT ValueType;
+      MVT ValueType;
     public:
       RegDefIter(const SUnit *SU, const ScheduleDAGSDNodes *SD);
 
-      bool IsValid() const { return Node != NULL; }
+      bool IsValid() const { return Node != nullptr; }
 
-      EVT GetValue() const {
+      MVT GetValue() const {
         assert(IsValid() && "bad iterator");
         return ValueType;
       }

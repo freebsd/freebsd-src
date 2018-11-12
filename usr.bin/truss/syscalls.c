@@ -39,12 +39,14 @@ static const char rcsid[] =
  * arguments.
  */
 
-#include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
+#include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/ioccom.h>
@@ -93,8 +95,15 @@ static struct syscall syscalls[] = {
 	{ .name = "fcntl", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 } , { Fcntl, 1 }, { Fcntlflag | OUT, 2 } } },
 	{ .name = "fork", .ret_type = 1, .nargs = 0 },
+	{ .name = "vfork", .ret_type = 1, .nargs = 0 },
+	{ .name = "rfork", .ret_type = 1, .nargs = 1,
+	  .args = { { Rforkflags, 0 } } },
 	{ .name = "getegid", .ret_type = 1, .nargs = 0 },
 	{ .name = "geteuid", .ret_type = 1, .nargs = 0 },
+	{ .name = "linux_readlink", .ret_type = 1, .nargs = 3,
+	  .args = { { Name, 0 } , { Name | OUT, 1 }, { Int, 2 }}},
+	{ .name = "linux_socketcall", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 } , { LinuxSockArgs, 1 }}},
 	{ .name = "getgid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getpid", .ret_type = 1, .nargs = 0 },
 	{ .name = "getpgid", .ret_type = 1, .nargs = 1,
@@ -112,6 +121,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Int, 0 }, { Int, 1 }, { Whence, 2 } } },
 	{ .name = "mmap", .ret_type = 2, .nargs = 6,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 }, { Mmapflags, 3 }, { Int, 4 }, { Quad, 5 + QUAD_ALIGN } } },
+	{ .name = "linux_mkdir", .ret_type = 1, .nargs = 2,
+	  .args = { { Name | IN, 0} , {Int, 1}}},
 	{ .name = "mprotect", .ret_type = 1, .nargs = 3,
 	  .args = { { Ptr, 0 }, { Int, 1 }, { Mprot, 2 } } },
 	{ .name = "open", .ret_type = 1, .nargs = 3,
@@ -136,6 +147,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Name, 0 }, { Octal, 1 } } },
 	{ .name = "chown", .ret_type = 0, .nargs = 3,
 	  .args = { { Name, 0 }, { Int, 1 }, { Int, 2 } } },
+	{ .name = "linux_stat64", .ret_type = 1, .nargs = 3,
+	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 }, { Ptr | IN, 1 }}},
 	{ .name = "mount", .ret_type = 0, .nargs = 4,
 	  .args = { { Name, 0 }, { Name, 1 }, { Int, 2 }, { Ptr, 3 } } },
 	{ .name = "umount", .ret_type = 0, .nargs = 2,
@@ -148,6 +161,8 @@ static struct syscall syscalls[] = {
 	  .args = { { Name | IN, 0 }, { Stat | OUT, 1 } } },
 	{ .name = "linux_newstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Ptr | OUT, 1 } } },
+	{ .name = "linux_access", .ret_type = 1, .nargs = 2,
+	  .args = { { Name, 0 }, { Int, 1 }}},
 	{ .name = "linux_newfstat", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Ptr | OUT, 1 } } },
 	{ .name = "write", .ret_type = 1, .nargs = 3,
@@ -210,10 +225,6 @@ static struct syscall syscalls[] = {
 	  .args = { { Timespec, 0 } } },
 	{ .name = "kevent", .ret_type = 0, .nargs = 6,
 	  .args = { { Int, 0 }, { Kevent, 1 }, { Int, 2 }, { Kevent | OUT, 3 }, { Int, 4 }, { Timespec, 5 } } },
-	{ .name = "_umtx_lock", .ret_type = 0, .nargs = 1,
-	  .args = { { Umtx, 0 } } },
-	{ .name = "_umtx_unlock", .ret_type = 0, .nargs = 1,
-	  .args = { { Umtx, 0 } } },
 	{ .name = "sigprocmask", .ret_type = 0, .nargs = 3,
 	  .args = { { Sigprocmask, 0 }, { Sigset, 1 }, { Sigset | OUT, 2 } } },
 	{ .name = "unmount", .ret_type = 1, .nargs = 2,
@@ -260,6 +271,17 @@ static struct syscall syscalls[] = {
 	  .args = { { Name , 0 } , { Name, 1 } } },
 	{ .name = "posix_openpt", .ret_type = 1, .nargs = 1,
 	  .args = { { Open, 0 } } },
+	{ .name = "wait4", .ret_type = 1, .nargs = 4,
+	  .args = { { Int, 0 }, { ExitStatus | OUT, 1 }, { Waitoptions, 2 },
+		    { Rusage | OUT, 3 } } },
+	{ .name = "wait6", .ret_type = 1, .nargs = 6,
+	  .args = { { Idtype, 0 }, { Int, 1 }, { ExitStatus | OUT, 2 },
+		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
+	{ .name = "procctl", .ret_type = 1, .nargs = 4,
+	  .args = { { Idtype, 0 }, { Int, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
+	{ .name = "_umtx_op", .ret_type = 1, .nargs = 5,
+	  .args = { { Ptr, 0 }, { Umtxop, 1 }, { LongHex, 2 }, { Ptr, 3 },
+		    { Ptr, 4 } } },
 	{ .name = 0 },
 };
 
@@ -290,10 +312,14 @@ static struct xlat poll_flags[] = {
 };
 
 static struct xlat mmap_flags[] = {
-	X(MAP_SHARED) X(MAP_PRIVATE) X(MAP_FIXED) X(MAP_RENAME)
-	X(MAP_NORESERVE) X(MAP_RESERVED0080) X(MAP_RESERVED0100)
+	X(MAP_SHARED) X(MAP_PRIVATE) X(MAP_FIXED) X(MAP_RESERVED0020)
+	X(MAP_RESERVED0040) X(MAP_RESERVED0080) X(MAP_RESERVED0100)
 	X(MAP_HASSEMAPHORE) X(MAP_STACK) X(MAP_NOSYNC) X(MAP_ANON)
-	X(MAP_NOCORE) XEND
+	X(MAP_NOCORE) X(MAP_PREFAULT_READ)
+#ifdef MAP_32BIT
+	X(MAP_32BIT)
+#endif
+	XEND
 };
 
 static struct xlat mprot_flags[] = {
@@ -343,7 +369,7 @@ static struct xlat open_flags[] = {
 	X(O_RDONLY) X(O_WRONLY) X(O_RDWR) X(O_ACCMODE) X(O_NONBLOCK)
 	X(O_APPEND) X(O_SHLOCK) X(O_EXLOCK) X(O_ASYNC) X(O_FSYNC)
 	X(O_NOFOLLOW) X(O_CREAT) X(O_TRUNC) X(O_EXCL) X(O_NOCTTY)
-	X(O_DIRECT) XEND
+	X(O_DIRECT) X(O_DIRECTORY) X(O_EXEC) X(O_TTY_INIT) X(O_CLOEXEC) XEND
 };
 
 static struct xlat shutdown_arg[] = {
@@ -366,6 +392,39 @@ static struct xlat pathconf_arg[] = {
 	X(_PC_REC_MIN_XFER_SIZE) X(_PC_REC_XFER_ALIGN)
 	X(_PC_SYMLINK_MAX) X(_PC_ACL_EXTENDED) X(_PC_ACL_PATH_MAX)
 	X(_PC_CAP_PRESENT) X(_PC_INF_PRESENT) X(_PC_MAC_PRESENT)
+	XEND
+};
+
+static struct xlat rfork_flags[] = {
+	X(RFPROC) X(RFNOWAIT) X(RFFDG) X(RFCFDG) X(RFTHREAD) X(RFMEM)
+	X(RFSIGSHARE) X(RFTSIGZMB) X(RFLINUXTHPN) XEND
+};
+
+static struct xlat wait_options[] = {
+	X(WNOHANG) X(WUNTRACED) X(WCONTINUED) X(WNOWAIT) X(WEXITED)
+	X(WTRAPPED) XEND
+};
+
+static struct xlat idtype_arg[] = {
+	X(P_PID) X(P_PPID) X(P_PGID) X(P_SID) X(P_CID) X(P_UID) X(P_GID)
+	X(P_ALL) X(P_LWPID) X(P_TASKID) X(P_PROJID) X(P_POOLID) X(P_JAILID)
+	X(P_CTID) X(P_CPUID) X(P_PSETID) XEND
+};
+
+static struct xlat procctl_arg[] = {
+	X(PROC_SPROTECT) XEND
+};
+
+static struct xlat umtx_ops[] = {
+	X(UMTX_OP_RESERVED0) X(UMTX_OP_RESERVED1) X(UMTX_OP_WAIT)
+	X(UMTX_OP_WAKE) X(UMTX_OP_MUTEX_TRYLOCK) X(UMTX_OP_MUTEX_LOCK)
+	X(UMTX_OP_MUTEX_UNLOCK) X(UMTX_OP_SET_CEILING) X(UMTX_OP_CV_WAIT)
+	X(UMTX_OP_CV_SIGNAL) X(UMTX_OP_CV_BROADCAST) X(UMTX_OP_WAIT_UINT)
+	X(UMTX_OP_RW_RDLOCK) X(UMTX_OP_RW_WRLOCK) X(UMTX_OP_RW_UNLOCK)
+	X(UMTX_OP_WAIT_UINT_PRIVATE) X(UMTX_OP_WAKE_PRIVATE)
+	X(UMTX_OP_MUTEX_WAIT) X(UMTX_OP_MUTEX_WAKE) X(UMTX_OP_SEM_WAIT)
+	X(UMTX_OP_SEM_WAKE) X(UMTX_OP_NWAKE_PRIVATE) X(UMTX_OP_MUTEX_WAKE2)
+	X(UMTX_OP_SEM2_WAIT) X(UMTX_OP_SEM2_WAKE)
 	XEND
 };
 
@@ -525,6 +584,16 @@ get_string(pid_t pid, void *offset, int max)
 	}
 }
 
+static char *
+strsig2(int sig)
+{
+	char *tmp;
+
+	tmp = strsig(sig);
+	if (tmp == NULL)
+		asprintf(&tmp, "%d", sig);
+	return (tmp);
+}
 
 /*
  * print_arg
@@ -555,6 +624,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Int:
 		asprintf(&tmp, "%d", (int)args[sc->offset]);
 		break;
+	case LongHex:
+		asprintf(&tmp, "0x%lx", args[sc->offset]);
+		break;		
 	case Name: {
 		/* NULL-terminated string. */
 		char *tmp2;
@@ -676,15 +748,6 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		}
 		break;
 	}
-	case Umtx: {
-		struct umtx umtx;
-		if (get_struct(pid, (void *)args[sc->offset], &umtx,
-		    sizeof(umtx)) != -1)
-			asprintf(&tmp, "{ 0x%lx }", (long)umtx.u_owner);
-		else
-			asprintf(&tmp, "0x%lx", args[sc->offset]);
-		break;
-	}
 	case Timespec: {
 		struct timespec ts;
 		if (get_struct(pid, (void *)args[sc->offset], &ts,
@@ -727,6 +790,76 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			    itv.it_value.tv_usec);
 		else
 			asprintf(&tmp, "0x%lx", args[sc->offset]);
+		break;
+	}
+	case LinuxSockArgs:
+	{
+		struct linux_socketcall_args largs;
+		if (get_struct(pid, (void *)args[sc->offset], (void *)&largs,
+		    sizeof(largs)) == -1) {
+			err(1, "get_struct %p", (void *)args[sc->offset]);
+		}
+		const char *what;
+		char buf[30];
+
+		switch (largs.what) {
+		case LINUX_SOCKET:
+			what = "LINUX_SOCKET";
+			break;
+		case LINUX_BIND:
+			what = "LINUX_BIND";
+			break;
+		case LINUX_CONNECT:
+			what = "LINUX_CONNECT";
+			break;
+		case LINUX_LISTEN:
+			what = "LINUX_LISTEN";
+			break;
+		case LINUX_ACCEPT:
+			what = "LINUX_ACCEPT";
+			break;
+		case LINUX_GETSOCKNAME:
+			what = "LINUX_GETSOCKNAME";
+			break;
+		case LINUX_GETPEERNAME:
+			what = "LINUX_GETPEERNAME";
+			break;
+		case LINUX_SOCKETPAIR:
+			what = "LINUX_SOCKETPAIR";
+			break;
+		case LINUX_SEND:   
+			what = "LINUX_SEND";
+			break;
+		case LINUX_RECV: 
+			what = "LINUX_RECV";
+			break;
+		case LINUX_SENDTO:
+			what = "LINUX_SENDTO";
+			break;
+		case LINUX_RECVFROM:
+			what = "LINUX_RECVFROM";
+			break;
+		case LINUX_SHUTDOWN:
+			what = "LINUX_SHUTDOWN";
+			break;
+		case LINUX_SETSOCKOPT:
+			what = "LINUX_SETSOCKOPT";
+			break;
+		case LINUX_GETSOCKOPT:
+			what = "LINUX_GETSOCKOPT";
+			break;
+		case LINUX_SENDMSG:
+			what = "LINUX_SENDMSG";
+			break;
+		case LINUX_RECVMSG:
+			what = "LINUX_RECVMSG";
+			break;
+		default:
+			sprintf(buf, "%d", largs.what);
+			what = buf;
+			break;
+		}
+		asprintf(&tmp, "(0x%lx)%s, 0x%lx", args[sc->offset], what, (long unsigned int)largs.args);
 		break;
 	}
 	case Pollfd: {
@@ -810,19 +943,14 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		free(fds);
 		break;
 	}
-	case Signal: {
-		long sig;
-
-		sig = args[sc->offset];
-		tmp = strsig(sig);
-		if (tmp == NULL)
-			asprintf(&tmp, "%ld", sig);
+	case Signal:
+		tmp = strsig2(args[sc->offset]);
 		break;
-	}
 	case Sigset: {
 		long sig;
 		sigset_t ss;
 		int i, used;
+		char *signame;
 
 		sig = args[sc->offset];
 		if (get_struct(pid, (void *)args[sc->offset], (void *)&ss,
@@ -833,8 +961,11 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		tmp = malloc(sys_nsig * 8); /* 7 bytes avg per signal name */
 		used = 0;
 		for (i = 1; i < sys_nsig; i++) {
-			if (sigismember(&ss, i))
-				used += sprintf(tmp + used, "%s|", strsig(i));
+			if (sigismember(&ss, i)) {
+				signame = strsig(i);
+				used += sprintf(tmp + used, "%s|", signame);
+				free(signame);
+			}
 		}
 		if (used)
 			tmp[used-1] = 0;
@@ -885,9 +1016,41 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 	case Mprot:
 		tmp = strdup(xlookup_bits(mprot_flags, args[sc->offset]));
 		break;
-	case Mmapflags:
-		tmp = strdup(xlookup_bits(mmap_flags, args[sc->offset]));
+	case Mmapflags: {
+		char *base, *alignstr;
+		int align, flags;
+
+		/*
+		 * MAP_ALIGNED can't be handled by xlookup_bits(), so
+		 * generate that string manually and prepend it to the
+		 * string from xlookup_bits().  Have to be careful to
+		 * avoid outputting MAP_ALIGNED|0 if MAP_ALIGNED is
+		 * the only flag.
+		 */
+		flags = args[sc->offset] & ~MAP_ALIGNMENT_MASK;
+		align = args[sc->offset] & MAP_ALIGNMENT_MASK;
+		if (align != 0) {
+			if (align == MAP_ALIGNED_SUPER)
+				alignstr = strdup("MAP_ALIGNED_SUPER");
+			else
+				asprintf(&alignstr, "MAP_ALIGNED(%d)",
+				    align >> MAP_ALIGNMENT_SHIFT);
+			if (flags == 0) {
+				tmp = alignstr;
+				break;
+			}
+		} else
+			alignstr = NULL;
+		base = strdup(xlookup_bits(mmap_flags, flags));
+		if (alignstr == NULL) {
+			tmp = base;
+			break;
+		}
+		asprintf(&tmp, "%s|%s", alignstr, base);
+		free(alignstr);
+		free(base);
 		break;
+	}
 	case Whence:
 		tmp = strdup(xlookup(whence_arg, args[sc->offset]));
 		break;
@@ -905,6 +1068,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	case Pathconf:
 		tmp = strdup(xlookup(pathconf_arg, args[sc->offset]));
+		break;
+	case Rforkflags:
+		tmp = strdup(xlookup_bits(rfork_flags, args[sc->offset]));
 		break;
 	case Sockaddr: {
 		struct sockaddr_storage ss;
@@ -1096,6 +1262,41 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 			asprintf(&tmp, "0x%lx", args[sc->offset]);
 		break;
 	}
+	case ExitStatus: {
+		char *signame;
+		int status;
+		signame = NULL;
+		if (get_struct(pid, (void *)args[sc->offset], &status,
+		    sizeof(status)) != -1) {
+			if (WIFCONTINUED(status))
+				tmp = strdup("{ CONTINUED }");
+			else if (WIFEXITED(status))
+				asprintf(&tmp, "{ EXITED,val=%d }",
+				    WEXITSTATUS(status));
+			else if (WIFSIGNALED(status))
+				asprintf(&tmp, "{ SIGNALED,sig=%s%s }",
+				    signame = strsig2(WTERMSIG(status)),
+				    WCOREDUMP(status) ? ",cored" : "");
+			else
+				asprintf(&tmp, "{ STOPPED,sig=%s }",
+				    signame = strsig2(WTERMSIG(status)));
+		} else
+			asprintf(&tmp, "0x%lx", args[sc->offset]);
+		free(signame);
+		break;
+	}
+	case Waitoptions:
+		tmp = strdup(xlookup_bits(wait_options, args[sc->offset]));
+		break;
+	case Idtype:
+		tmp = strdup(xlookup(idtype_arg, args[sc->offset]));
+		break;
+	case Procctl:
+		tmp = strdup(xlookup(procctl_arg, args[sc->offset]));
+		break;
+	case Umtxop:
+		tmp = strdup(xlookup(umtx_ops, args[sc->offset]));
+		break;
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);
 	}

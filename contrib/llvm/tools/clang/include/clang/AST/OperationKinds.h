@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_OPERATION_KINDS_H
-#define LLVM_CLANG_AST_OPERATION_KINDS_H
+#ifndef LLVM_CLANG_AST_OPERATIONKINDS_H
+#define LLVM_CLANG_AST_OPERATIONKINDS_H
 
 namespace clang {
   
@@ -292,7 +292,13 @@ enum CastKind {
 
   // Convert a builtin function to a function pointer; only allowed in the
   // callee of a call expression.
-  CK_BuiltinFnToFnPtr
+  CK_BuiltinFnToFnPtr,
+
+  // Convert a zero value for OpenCL event_t initialization.
+  CK_ZeroToOCLEvent,
+
+  // Convert a pointer to a different address space.
+  CK_AddressSpaceConversion
 };
 
 static const CastKind CK_Invalid = static_cast<CastKind>(-1);

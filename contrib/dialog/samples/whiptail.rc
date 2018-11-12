@@ -1,4 +1,4 @@
-# $Id: whiptail.rc,v 1.3 2011/01/17 00:15:54 tom Exp $
+# $Id: whiptail.rc,v 1.6 2012/12/01 01:15:04 tom Exp $
 # vile:confmode
 # Run-time configuration file for dialog, matches whiptail's color scheme.
 #
@@ -46,79 +46,79 @@ border_color = (WHITE,WHITE,ON)
 button_active_color = (WHITE,RED,ON)
 
 # Inactive button color
-button_inactive_color = (BLACK,WHITE,OFF)
+button_inactive_color = dialog_color
 
 # Active button key color
-button_key_active_color = (WHITE,RED,ON)
+button_key_active_color = button_active_color
 
 # Inactive button key color
-button_key_inactive_color = (BLACK,WHITE,OFF)
+button_key_inactive_color = dialog_color
 
 # Active button label color
-button_label_active_color = (WHITE,RED,ON)
+button_label_active_color = button_active_color
 
 # Inactive button label color
 button_label_inactive_color = (BLACK,WHITE,ON)
 
 # Input box color
-inputbox_color = (BLACK,WHITE,OFF)
+inputbox_color = dialog_color
 
 # Input box border color
-inputbox_border_color = (BLACK,WHITE,OFF)
+inputbox_border_color = dialog_color
 
 # Search box color
-searchbox_color = (BLACK,WHITE,OFF)
+searchbox_color = dialog_color
 
 # Search box title color
-searchbox_title_color = (RED,WHITE,ON)
+searchbox_title_color = title_color
 
 # Search box border color
-searchbox_border_color = (WHITE,WHITE,ON)
+searchbox_border_color = border_color
 
 # File position indicator color
-position_indicator_color = (RED,WHITE,ON)
+position_indicator_color = title_color
 
 # Menu box color
 menubox_color = (YELLOW,BLUE,OFF)
 
 # Menu box border color
-menubox_border_color = (YELLOW,BLUE,ON)
+menubox_border_color = screen_color
 
 # Item color
-item_color = (YELLOW,BLUE,OFF)
+item_color = menubox_color
 
 # Selected item color
-item_selected_color = (YELLOW,BLUE,ON)
+item_selected_color = screen_color
 
 # Tag color
-tag_color = (YELLOW,BLUE,ON)
+tag_color = screen_color
 
 # Selected tag color
-tag_selected_color = (YELLOW,BLUE,ON)
+tag_selected_color = screen_color
 
 # Tag key color
-tag_key_color = (YELLOW,BLUE,OFF)
+tag_key_color = menubox_color
 
 # Selected tag key color
 tag_key_selected_color = (WHITE,BLUE,ON)
 
 # Check box color
-check_color = (YELLOW,BLUE,OFF)
+check_color = menubox_color
 
 # Selected check box color
-check_selected_color = (YELLOW,BLUE,ON)
+check_selected_color = screen_color
 
 # Up arrow color
-uarrow_color = (YELLOW,BLUE,ON)
+uarrow_color = screen_color
 
 # Down arrow color
-darrow_color = (YELLOW,BLUE,ON)
+darrow_color = screen_color
 
 # Item help-text color
 itemhelp_color = (WHITE,BLACK,OFF)
 
 # Active form text color
-form_active_text_color = (WHITE,BLUE,ON)
+form_active_text_color = tag_key_selected_color
 
 # Form text color
 form_text_color = (WHITE,CYAN,ON)
@@ -128,3 +128,15 @@ form_item_readonly_color = (CYAN,WHITE,ON)
 
 # Dialog box gauge color
 gauge_color = (BLUE,WHITE,ON)
+
+# Dialog box border2 color
+border2_color = dialog_color
+
+# Input box border2 color
+inputbox_border2_color = dialog_color
+
+# Search box border2 color
+searchbox_border2_color = dialog_color
+
+# Menu box border2 color
+menubox_border2_color = screen_color

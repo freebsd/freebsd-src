@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd May 17, 2014
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ are not supported.
 is provided as a set of
 .Xr cc 1
 settings suggested by
-.An "Bruce Evans" Aq bde@FreeBSD.org
+.An Bruce Evans Aq Mt bde@FreeBSD.org
 for developing and testing changes.
 They can be used, if set, by:
 .Bd -literal -offset indent
@@ -177,16 +177,6 @@ Refer to
 for a list of recognized
 .Va CPUTYPE
 options.
-.It Va CVS_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr cvs 1
-to update your
-.Pa src , ports
-and
-.Pa doc
-trees with
-.Dq Li "make update" .
 .It Va CXXFLAGS
 .Pq Vt str
 Controls the compiler settings when compiling C++ code.
@@ -205,7 +195,7 @@ instead of
 the default install command.
 To install only files for which the target differs or does not exist, use
 .Bd -literal -offset indent
-INSTALL="install -C"
+INSTALL+= -C
 .Ed
 Note that some makefiles (including those in
 .Pa /usr/share/mk )
@@ -255,61 +245,6 @@ Set this to not update the doc tree during
 .Pq Vt bool
 Set this to not update the ports tree during
 .Dq Li "make update" .
-.It Va SUP
-.Pq Vt str
-The location of the
-.Xr csup 1
-or
-.Xr cvsup 1
-command for
-.Dq Li "make update" .
-.It Va SUPFILE
-.Pq Vt str
-The first
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/standard-supfile .
-.It Va SUPFILE1
-.Pq Vt str
-The second
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-.It Va SUPFILE2
-.Pq Vt str
-The third
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-.It Va SUPFLAGS
-.Pq Vt str
-The flag for the
-.Xr sup 1
-command when doing
-.Dq Li "make update" .
-This defaults to
-.Op Fl g L Ar 2 .
-.It Va SUPHOST
-.Pq Vt str
-The hostname of the sup server to use when doing
-.Dq Li "make update" .
-.It Va SUP_UPDATE
-.Pq Vt bool
-Set this to use
-.Xr csup 1
-to update your
-.Pa src ,
-and
-.Pa ports
-trees with
-.Dq Li "make update" .
-This option is deprecated.
-Please use
-.Va SVN_UPDATE
-or
-.Xr freebsd-update 8 .
 .It Va SVN_UPDATE
 .Pq Vt bool
 Set this to use
@@ -454,11 +389,6 @@ with the set-user-ID bit set.
 Otherwise,
 .Xr newgrp 1
 will not be able to change users' groups.
-.It Va ENABLE_SUID_SSH
-.Pq Vt bool
-Set this to install
-.Xr ssh 1
-with the set-user-ID bit turned on.
 .It Va LOADER_TFTP_SUPPORT
 .Pq Vt bool
 By default the
@@ -504,8 +434,11 @@ Set this to run
 .Dq Li "${MAKE} clean"
 instead of
 .Dq Li "${MAKE} cleandir" .
-.It Va NO_MANCOMPRESS
-.Pq Vt bool
+.It Va WITH_MANCOMPRESS
+.Pq Vt defined
+Set to install manual pages compressed.
+.It Va WITHOUT_MANCOMPRESS
+.Pq Vt defined
 Set to install manual pages uncompressed.
 .It Va NO_SHARE
 .Pq Vt bool
@@ -725,6 +658,14 @@ for simple printers, or
 for postscript or graphics printers with a ghostscript
 filter, or both.
 .El
+.Ss "BUILDING PORTS"
+Several make variables can be set that affect the building of ports.
+These variables and their effects are documented in
+.Xr ports 7 ,
+.Pa ${PORTSDIR}/Mk/*
+and the
+.Fx
+Porter's Handbook.
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/examples/etc/make.conf" -compact
 .It Pa /etc/make.conf
@@ -751,7 +692,7 @@ file appeared sometime before
 .Sh AUTHORS
 This
 manual page was written by
-.An Mike W. Meyer Aq mwm@mired.org .
+.An Mike W. Meyer Aq Mt mwm@mired.org .
 .Sh CAVEATS
 Note, that
 .Ev MAKEOBJDIRPREFIX
@@ -759,6 +700,8 @@ and
 .Ev MAKEOBJDIR
 are environment variables and should not be set in
 .Nm
+or as command line arguments to
+.Xr make 1 ,
 but in make's environment.
 .Sh BUGS
 This manual page may occasionally be out of date with respect to

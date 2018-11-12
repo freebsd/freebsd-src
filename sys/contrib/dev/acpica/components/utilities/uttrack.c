@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -51,8 +51,6 @@
  * AcpiUtTrackAllocation to add an element to the list; deletion
  * occurs in the body of AcpiUtFree.
  */
-
-#define __UTTRACK_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -151,10 +149,23 @@ AcpiUtAllocateAndTrack (
     ACPI_STATUS             Status;
 
 
-    Allocation = AcpiUtAllocate (Size + sizeof (ACPI_DEBUG_MEM_HEADER),
-                    Component, Module, Line);
+    /* Check for an inadvertent size of zero bytes */
+
+    if (!Size)
+    {
+        ACPI_WARNING ((Module, Line,
+            "Attempt to allocate zero bytes, allocating 1 byte"));
+        Size = 1;
+    }
+
+    Allocation = AcpiOsAllocate (Size + sizeof (ACPI_DEBUG_MEM_HEADER));
     if (!Allocation)
     {
+        /* Report allocation error */
+
+        ACPI_WARNING ((Module, Line,
+            "Could not allocate size %u", (UINT32) Size));
+
         return (NULL);
     }
 
@@ -204,8 +215,16 @@ AcpiUtAllocateZeroedAndTrack (
     ACPI_STATUS             Status;
 
 
-    Allocation = AcpiUtAllocateZeroed (Size + sizeof (ACPI_DEBUG_MEM_HEADER),
-                    Component, Module, Line);
+    /* Check for an inadvertent size of zero bytes */
+
+    if (!Size)
+    {
+        ACPI_WARNING ((Module, Line,
+            "Attempt to allocate zero bytes, allocating 1 byte"));
+        Size = 1;
+    }
+
+    Allocation = AcpiOsAllocateZeroed (Size + sizeof (ACPI_DEBUG_MEM_HEADER));
     if (!Allocation)
     {
         /* Report allocation error */
@@ -286,7 +305,8 @@ AcpiUtFreeAndTrack (
     }
 
     AcpiOsFree (DebugBlock);
-    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "%p freed\n", Allocation));
+    ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "%p freed (block %p)\n",
+        Allocation, DebugBlock));
     return_VOID;
 }
 
@@ -675,6 +695,7 @@ AcpiUtDumpAllocations (
                     switch (ACPI_GET_DESCRIPTOR_TYPE (Descriptor))
                     {
                     case ACPI_DESC_TYPE_OPERAND:
+
                         if (Element->Size == sizeof (ACPI_OPERAND_OBJECT))
                         {
                             DescriptorType = ACPI_DESC_TYPE_OPERAND;
@@ -682,6 +703,7 @@ AcpiUtDumpAllocations (
                         break;
 
                     case ACPI_DESC_TYPE_PARSER:
+
                         if (Element->Size == sizeof (ACPI_PARSE_OBJECT))
                         {
                             DescriptorType = ACPI_DESC_TYPE_PARSER;
@@ -689,6 +711,7 @@ AcpiUtDumpAllocations (
                         break;
 
                     case ACPI_DESC_TYPE_NAMED:
+
                         if (Element->Size == sizeof (ACPI_NAMESPACE_NODE))
                         {
                             DescriptorType = ACPI_DESC_TYPE_NAMED;
@@ -696,6 +719,7 @@ AcpiUtDumpAllocations (
                         break;
 
                     default:
+
                         break;
                     }
 
@@ -704,22 +728,26 @@ AcpiUtDumpAllocations (
                     switch (DescriptorType)
                     {
                     case ACPI_DESC_TYPE_OPERAND:
+
                         AcpiOsPrintf ("%12.12s  RefCount 0x%04X\n",
                             AcpiUtGetTypeName (Descriptor->Object.Common.Type),
                             Descriptor->Object.Common.ReferenceCount);
                         break;
 
                     case ACPI_DESC_TYPE_PARSER:
+
                         AcpiOsPrintf ("AmlOpcode 0x%04hX\n",
                             Descriptor->Op.Asl.AmlOpcode);
                         break;
 
                     case ACPI_DESC_TYPE_NAMED:
+
                         AcpiOsPrintf ("%4.4s\n",
                             AcpiUtGetNodeName (&Descriptor->Node));
                         break;
 
                     default:
+
                         AcpiOsPrintf ( "\n");
                         break;
                     }

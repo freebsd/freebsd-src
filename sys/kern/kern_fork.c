@@ -37,10 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_kstack_pages.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -89,10 +87,8 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , create, create);
-SDT_PROBE_ARGTYPE(proc, kernel, , create, 0, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, , create, 1, "struct proc *");
-SDT_PROBE_ARGTYPE(proc, kernel, , create, 2, "int");
+SDT_PROBE_DEFINE3(proc, kernel, , create, "struct proc *",
+    "struct proc *", "int");
 
 #ifndef _SYS_SYSPROTO_H_
 struct fork_args {
@@ -121,7 +117,6 @@ sys_pdfork(td, uap)
 	struct thread *td;
 	struct pdfork_args *uap;
 {
-#ifdef PROCDESC
 	int error, fd;
 	struct proc *p2;
 
@@ -138,9 +133,6 @@ sys_pdfork(td, uap)
 		error = copyout(&fd, uap->fdp, sizeof(fd));
 	}
 	return (error);
-#else
-	return (ENOSYS);
-#endif
 }
 
 /* ARGSUSED */
@@ -269,11 +261,21 @@ retry:
 		 * Scan the active and zombie procs to check whether this pid
 		 * is in use.  Remember the lowest pid that's greater
 		 * than trypid, so we can avoid checking for a while.
+		 *
+		 * Avoid reuse of the process group id, session id or
+		 * the reaper subtree id.  Note that for process group
+		 * and sessions, the amount of reserved pids is
+		 * limited by process limit.  For the subtree ids, the
+		 * id is kept reserved only while there is a
+		 * non-reaped process in the subtree, so amount of
+		 * reserved pids is limited by process limit times
+		 * two.
 		 */
 		p = LIST_FIRST(&allproc);
 again:
 		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
 			while (p->p_pid == trypid ||
+			    p->p_reapsubtree == trypid ||
 			    (p->p_pgrp != NULL &&
 			    (p->p_pgrp->pg_id == trypid ||
 			    (p->p_session != NULL &&
@@ -325,7 +327,7 @@ fork_norfproc(struct thread *td, int flags)
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
-		if (thread_single(SINGLE_BOUNDARY)) {
+		if (thread_single(p1, SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p1);
 			return (ERESTART);
 		}
@@ -341,7 +343,7 @@ fork_norfproc(struct thread *td, int flags)
 	 */
 	if (flags & RFCFDG) {
 		struct filedesc *fdtmp;
-		fdtmp = fdinit(td->td_proc->p_fd);
+		fdtmp = fdinit(td->td_proc->p_fd, false);
 		fdescfree(td);
 		p1->p_fd = fdtmp;
 	}
@@ -349,14 +351,14 @@ fork_norfproc(struct thread *td, int flags)
 	/*
 	 * Unshare file descriptors (from parent).
 	 */
-	if (flags & RFFDG) 
-		fdunshare(p1, td);
+	if (flags & RFFDG)
+		fdunshare(td);
 
 fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
-		thread_single_end();
+		thread_single_end(p1, SINGLE_BOUNDARY);
 		PROC_UNLOCK(p1);
 	}
 	return (error);
@@ -392,6 +394,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_pid = trypid;
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
+	allproc_gen++;
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 	tidhash_add(td2);
 	PROC_LOCK(p2);
@@ -406,8 +409,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 	bzero(&p2->p_startzero,
 	    __rangeof(struct proc, p_startzero, p_endzero));
-
-	p2->p_ucred = crhold(td->td_ucred);
 
 	/* Tell the prison that we exist. */
 	prison_proc_hold(p2->p_ucred->cr_prison);
@@ -426,7 +427,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Copy filedesc.
 	 */
 	if (flags & RFCFDG) {
-		fd = fdinit(p1->p_fd);
+		fd = fdinit(p1->p_fd, false);
 		fdtol = NULL;
 	} else if (flags & RFFDG) {
 		fd = fdcopy(p1->p_fd);
@@ -491,6 +492,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * Increase reference counts on shared objects.
 	 */
 	p2->p_flag = P_INMEM;
+	p2->p_flag2 = p1->p_flag2 & (P2_NOTRACE | P2_NOTRACE_EXEC);
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
@@ -513,6 +515,11 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_textvp = p1->p_textvp;
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
+
+	if (p1->p_flag2 & P2_INHERIT_PROTECTED) {
+		p2->p_flag |= P_PROTECTED;
+		p2->p_flag2 |= P2_INHERIT_PROTECTED;
+	}
 
 	/*
 	 * p_limit is copy-on-write.  Bump its refcount.
@@ -612,12 +619,20 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * of init.  This effectively disassociates the child from the
 	 * parent.
 	 */
-	if (flags & RFNOWAIT)
-		pptr = initproc;
-	else
+	if ((flags & RFNOWAIT) != 0) {
+		pptr = p1->p_reaper;
+		p2->p_reaper = pptr;
+	} else {
+		p2->p_reaper = (p1->p_treeflag & P_TREE_REAPER) != 0 ?
+		    p1 : p1->p_reaper;
 		pptr = p1;
+	}
 	p2->p_pptr = pptr;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
+	LIST_INIT(&p2->p_reaplist);
+	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
+	if (p2->p_reaper == p1)
+		p2->p_reapsubtree = p2->p_pid;
 	sx_xunlock(&proctree_lock);
 
 	/* Inform accounting that we have forked. */
@@ -652,7 +667,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		    p2->p_vmspace->vm_ssize);
 	}
 
-#ifdef PROCDESC
 	/*
 	 * Associate the process descriptor with the process before anything
 	 * can happen that might cause that process to need the descriptor.
@@ -660,7 +674,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 */
 	if (flags & RFPROCDESC)
 		procdesc_new(p2, pdflags);
-#endif
 
 	/*
 	 * Both processes are set up, now check if any loadable modules want
@@ -680,12 +693,12 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 #ifdef KDTRACE_HOOKS
 	/*
-	 * Tell the DTrace fasttrap provider about the new process
-	 * if it has registered an interest. We have to do this only after
-	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
-	 * later on.
+	 * Tell the DTrace fasttrap provider about the new process so that any
+	 * tracepoints inherited from the parent can be removed. We have to do
+	 * this only after p_state is PRS_NORMAL since the fasttrap module will
+	 * use pfind() later on.
 	 */
-	if (dtrace_fasttrap_fork)
+	if ((flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |
@@ -755,9 +768,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	int error;
 	static int curfail;
 	static struct timeval lastfail;
-#ifdef PROCDESC
 	struct file *fp_procdesc = NULL;
-#endif
 
 	/* Check for the undefined or unimplemented flags. */
 	if ((flags & ~(RFFLAGS | RFTSIGFLAGS(RFTSIGMASK))) != 0)
@@ -775,7 +786,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	if ((flags & RFTSIGZMB) != 0 && (u_int)RFTSIGNUM(flags) > _SIG_MAXSIG)
 		return (EINVAL);
 
-#ifdef PROCDESC
 	if ((flags & RFPROCDESC) != 0) {
 		/* Can't not create a process yet get a process descriptor. */
 		if ((flags & RFPROC) == 0)
@@ -785,7 +795,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		if (procdescp == NULL)
 			return (EINVAL);
 	}
-#endif
 
 	p1 = td->td_proc;
 
@@ -798,7 +807,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		return (fork_norfproc(td, flags));
 	}
 
-#ifdef PROCDESC
 	/*
 	 * If required, create a process descriptor in the parent first; we
 	 * will abandon it if something goes wrong. We don't finit() until
@@ -809,7 +817,6 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		if (error != 0)
 			return (error);
 	}
-#endif
 
 	mem_charged = 0;
 	vm2 = NULL;
@@ -822,7 +829,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		td2 = thread_alloc(pages);
 		if (td2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		proc_linkup(newproc, td2);
 	} else {
@@ -831,7 +838,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 				vm_thread_dispose(td2);
 			if (!thread_alloc_stack(td2, pages)) {
 				error = ENOMEM;
-				goto fail1;
+				goto fail2;
 			}
 		}
 	}
@@ -840,7 +847,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		vm2 = vmspace_fork(p1->p_vmspace, &mem_charged);
 		if (vm2 == NULL) {
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 		if (!swap_reserve(mem_charged)) {
 			/*
@@ -851,7 +858,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 			 */
 			swap_reserve_force(mem_charged);
 			error = ENOMEM;
-			goto fail1;
+			goto fail2;
 		}
 	} else
 		vm2 = NULL;
@@ -860,7 +867,7 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 	 * XXX: This is ugly; when we copy resource usage, we need to bump
 	 *      per-cred resource counters.
 	 */
-	newproc->p_ucred = p1->p_ucred;
+	proc_set_cred_init(newproc, crhold(td->td_ucred));
 
 	/*
 	 * Initialize resource accounting for the child process.
@@ -916,12 +923,10 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 		 * Return child proc pointer to parent.
 		 */
 		*procp = newproc;
-#ifdef PROCDESC
 		if (flags & RFPROCDESC) {
 			procdesc_finit(newproc->p_procdesc, fp_procdesc);
 			fdrop(fp_procdesc, td);
 		}
-#endif
 		racct_proc_fork_done(newproc);
 		return (0);
 	}
@@ -930,23 +935,23 @@ fork1(struct thread *td, int flags, int pages, struct proc **procp,
 fail:
 	sx_sunlock(&proctree_lock);
 	if (ppsratecheck(&lastfail, &curfail, 1))
-		printf("maxproc limit exceeded by uid %i, please see tuning(7) and login.conf(5).\n",
-		    td->td_ucred->cr_ruid);
+		printf("maxproc limit exceeded by uid %u (pid %d); see tuning(7) and login.conf(5)\n",
+		    td->td_ucred->cr_ruid, p1->p_pid);
 	sx_xunlock(&allproc_lock);
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif
 	racct_proc_exit(newproc);
 fail1:
+	crfree(proc_set_cred(newproc, NULL));
+fail2:
 	if (vm2 != NULL)
 		vmspace_free(vm2);
 	uma_zfree(proc_zone, newproc);
-#ifdef PROCDESC
 	if ((flags & RFPROCDESC) != 0 && fp_procdesc != NULL) {
 		fdclose(td->td_proc->p_fd, fp_procdesc, *procdescp, td);
 		fdrop(fp_procdesc, td);
 	}
-#endif
 	pause("fork", hz / 2);
 	return (error);
 }

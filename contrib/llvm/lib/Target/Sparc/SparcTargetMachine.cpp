@@ -11,9 +11,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "SparcTargetMachine.h"
+#include "SparcTargetObjectFile.h"
 #include "Sparc.h"
-#include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/PassManager.h"
 #include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
@@ -32,12 +33,12 @@ SparcTargetMachine::SparcTargetMachine(const Target &T, StringRef TT,
                                        CodeGenOpt::Level OL,
                                        bool is64bit)
   : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
-    Subtarget(TT, CPU, FS, is64bit),
-    DL(Subtarget.getDataLayout()),
-    InstrInfo(Subtarget),
-    TLInfo(*this), TSInfo(*this),
-    FrameLowering(Subtarget), STTI(&TLInfo), VTTI(&TLInfo) {
+    TLOF(make_unique<SparcELFTargetObjectFile>()),
+    Subtarget(TT, CPU, FS, *this, is64bit) {
+  initAsmInfo();
 }
+
+SparcTargetMachine::~SparcTargetMachine() {}
 
 namespace {
 /// Sparc Code Generator Pass Configuration Options.
@@ -50,8 +51,9 @@ public:
     return getTM<SparcTargetMachine>();
   }
 
-  virtual bool addInstSelector();
-  virtual bool addPreEmitPass();
+  void addIRPasses() override;
+  bool addInstSelector() override;
+  void addPreEmitPass() override;
 };
 } // namespace
 
@@ -59,18 +61,19 @@ TargetPassConfig *SparcTargetMachine::createPassConfig(PassManagerBase &PM) {
   return new SparcPassConfig(this, PM);
 }
 
+void SparcPassConfig::addIRPasses() {
+  addPass(createAtomicExpandPass(&getSparcTargetMachine()));
+
+  TargetPassConfig::addIRPasses();
+}
+
 bool SparcPassConfig::addInstSelector() {
   addPass(createSparcISelDag(getSparcTargetMachine()));
   return false;
 }
 
-/// addPreEmitPass - This pass may be implemented by targets that want to run
-/// passes immediately before machine code is emitted.  This should return
-/// true if -print-machineinstrs should print out the code after the passes.
-bool SparcPassConfig::addPreEmitPass(){
-  addPass(createSparcFPMoverPass(getSparcTargetMachine()));
+void SparcPassConfig::addPreEmitPass(){
   addPass(createSparcDelaySlotFillerPass(getSparcTargetMachine()));
-  return true;
 }
 
 void SparcV8TargetMachine::anchor() { }

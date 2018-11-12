@@ -1,20 +1,15 @@
 /*
  * hostapd / EAP-SIM (RFC 4186)
- * Copyright (c) 2005-2008, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/random.h"
 #include "eap_server/eap_i.h"
 #include "eap_common/eap_sim_common.h"
 #include "eap_server/eap_sim_db.h"
@@ -41,6 +36,8 @@ struct eap_sim_data {
 	struct eap_sim_reauth *reauth;
 	u16 notification;
 	int use_result_ind;
+	int start_round;
+	char permanent[20]; /* Permanent username */
 };
 
 
@@ -110,17 +107,33 @@ static struct wpabuf * eap_sim_build_start(struct eap_sm *sm,
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Generating Start");
 	msg = eap_sim_msg_init(EAP_CODE_REQUEST, id, EAP_TYPE_SIM,
 			       EAP_SIM_SUBTYPE_START);
-	if (eap_sim_db_identity_known(sm->eap_sim_db_priv, sm->identity,
-				      sm->identity_len)) {
-		wpa_printf(MSG_DEBUG, "   AT_PERMANENT_ID_REQ");
-		eap_sim_msg_add(msg, EAP_SIM_AT_PERMANENT_ID_REQ, 0, NULL, 0);
-	} else {
+	data->start_round++;
+	if (data->start_round == 1) {
 		/*
 		 * RFC 4186, Chap. 4.2.4 recommends that identity from EAP is
 		 * ignored and the SIM/Start is used to request the identity.
 		 */
 		wpa_printf(MSG_DEBUG, "   AT_ANY_ID_REQ");
 		eap_sim_msg_add(msg, EAP_SIM_AT_ANY_ID_REQ, 0, NULL, 0);
+	} else if (data->start_round > 3) {
+		/* Cannot use more than three rounds of Start messages */
+		eap_sim_msg_free(msg);
+		return NULL;
+	} else if (data->start_round == 0) {
+		/*
+		 * This is a special case that is used to recover from
+		 * AT_COUNTER_TOO_SMALL during re-authentication. Since we
+		 * already know the identity of the peer, there is no need to
+		 * request any identity in this case.
+		 */
+	} else if (sm->identity && sm->identity_len > 0 &&
+		   sm->identity[0] == EAP_SIM_REAUTH_ID_PREFIX) {
+		/* Reauth id may have expired - try fullauth */
+		wpa_printf(MSG_DEBUG, "   AT_FULLAUTH_ID_REQ");
+		eap_sim_msg_add(msg, EAP_SIM_AT_FULLAUTH_ID_REQ, 0, NULL, 0);
+	} else {
+		wpa_printf(MSG_DEBUG, "   AT_PERMANENT_ID_REQ");
+		eap_sim_msg_add(msg, EAP_SIM_AT_PERMANENT_ID_REQ, 0, NULL, 0);
 	}
 	wpa_printf(MSG_DEBUG, "   AT_VERSION_LIST");
 	ver[0] = 0;
@@ -136,12 +149,19 @@ static int eap_sim_build_encr(struct eap_sm *sm, struct eap_sim_data *data,
 			      const u8 *nonce_s)
 {
 	os_free(data->next_pseudonym);
-	data->next_pseudonym =
-		eap_sim_db_get_next_pseudonym(sm->eap_sim_db_priv, 0);
+	if (nonce_s == NULL) {
+		data->next_pseudonym =
+			eap_sim_db_get_next_pseudonym(sm->eap_sim_db_priv,
+						      EAP_SIM_DB_SIM);
+	} else {
+		/* Do not update pseudonym during re-authentication */
+		data->next_pseudonym = NULL;
+	}
 	os_free(data->next_reauth_id);
 	if (data->counter <= EAP_SIM_MAX_FAST_REAUTHS) {
 		data->next_reauth_id =
-			eap_sim_db_get_next_reauth_id(sm->eap_sim_db_priv, 0);
+			eap_sim_db_get_next_reauth_id(sm->eap_sim_db_priv,
+						      EAP_SIM_DB_SIM);
 	} else {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Max fast re-authentication "
 			   "count exceeded - force full authentication");
@@ -232,7 +252,7 @@ static struct wpabuf * eap_sim_build_reauth(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Generating Re-authentication");
 
-	if (os_get_random(data->nonce_s, EAP_SIM_NONCE_S_LEN))
+	if (random_get_bytes(data->nonce_s, EAP_SIM_NONCE_S_LEN))
 		return NULL;
 	wpa_hexdump_key(MSG_MSGDUMP, "EAP-SIM: NONCE_S",
 			data->nonce_s, EAP_SIM_NONCE_S_LEN);
@@ -326,18 +346,22 @@ static struct wpabuf * eap_sim_buildReq(struct eap_sm *sm, void *priv, u8 id)
 static Boolean eap_sim_check(struct eap_sm *sm, void *priv,
 			     struct wpabuf *respData)
 {
-	struct eap_sim_data *data = priv;
 	const u8 *pos;
 	size_t len;
-	u8 subtype;
 
 	pos = eap_hdr_validate(EAP_VENDOR_IETF, EAP_TYPE_SIM, respData, &len);
 	if (pos == NULL || len < 3) {
 		wpa_printf(MSG_INFO, "EAP-SIM: Invalid frame");
 		return TRUE;
 	}
-	subtype = *pos;
 
+	return FALSE;
+}
+
+
+static Boolean eap_sim_unexpected_subtype(struct eap_sim_data *data,
+					  u8 subtype)
+{
 	if (subtype == EAP_SIM_SUBTYPE_CLIENT_ERROR)
 		return FALSE;
 
@@ -391,85 +415,113 @@ static void eap_sim_process_start(struct eap_sm *sm,
 				  struct wpabuf *respData,
 				  struct eap_sim_attrs *attr)
 {
-	const u8 *identity;
 	size_t identity_len;
 	u8 ver_list[2];
+	u8 *new_identity;
+	char *username;
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Receive start response");
 
-	if (attr->identity) {
-		os_free(sm->identity);
-		sm->identity = os_malloc(attr->identity_len);
-		if (sm->identity) {
-			os_memcpy(sm->identity, attr->identity,
-				  attr->identity_len);
-			sm->identity_len = attr->identity_len;
-		}
+	if (data->start_round == 0) {
+		/*
+		 * Special case for AT_COUNTER_TOO_SMALL recovery - no identity
+		 * was requested since we already know it.
+		 */
+		goto skip_id_update;
 	}
 
-	identity = NULL;
-	identity_len = 0;
-
-	if (sm->identity && sm->identity_len > 0 &&
-	    sm->identity[0] == EAP_SIM_PERMANENT_PREFIX) {
-		identity = sm->identity;
-		identity_len = sm->identity_len;
-	} else {
-		identity = eap_sim_db_get_permanent(sm->eap_sim_db_priv,
-						    sm->identity,
-						    sm->identity_len,
-						    &identity_len);
-		if (identity == NULL) {
-			data->reauth = eap_sim_db_get_reauth_entry(
-				sm->eap_sim_db_priv, sm->identity,
-				sm->identity_len);
-			if (data->reauth) {
-				wpa_printf(MSG_DEBUG, "EAP-SIM: Using fast "
-					   "re-authentication");
-				identity = data->reauth->identity;
-				identity_len = data->reauth->identity_len;
-				data->counter = data->reauth->counter;
-				os_memcpy(data->mk, data->reauth->mk,
-					  EAP_SIM_MK_LEN);
-			}
-		}
+	/*
+	 * We always request identity in SIM/Start, so the peer is required to
+	 * have replied with one.
+	 */
+	if (!attr->identity || attr->identity_len == 0) {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Peer did not provide any "
+			   "identity");
+		goto failed;
 	}
 
-	if (identity == NULL) {
-		wpa_printf(MSG_DEBUG, "EAP-SIM: Could not get proper permanent"
-			   " user name");
-		eap_sim_state(data, FAILURE);
-		return;
-	}
+	new_identity = os_malloc(attr->identity_len);
+	if (new_identity == NULL)
+		goto failed;
+	os_free(sm->identity);
+	sm->identity = new_identity;
+	os_memcpy(sm->identity, attr->identity, attr->identity_len);
+	sm->identity_len = attr->identity_len;
 
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-SIM: Identity",
-			  identity, identity_len);
+			  sm->identity, sm->identity_len);
+	username = sim_get_username(sm->identity, sm->identity_len);
+	if (username == NULL)
+		goto failed;
 
-	if (data->reauth) {
+	if (username[0] == EAP_SIM_REAUTH_ID_PREFIX) {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Reauth username '%s'",
+			   username);
+		data->reauth = eap_sim_db_get_reauth_entry(
+			sm->eap_sim_db_priv, username);
+		os_free(username);
+		if (data->reauth == NULL) {
+			wpa_printf(MSG_DEBUG, "EAP-SIM: Unknown reauth "
+				   "identity - request full auth identity");
+			/* Remain in START state for another round */
+			return;
+		}
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Using fast re-authentication");
+		os_strlcpy(data->permanent, data->reauth->permanent,
+			   sizeof(data->permanent));
+		data->counter = data->reauth->counter;
+		os_memcpy(data->mk, data->reauth->mk, EAP_SIM_MK_LEN);
 		eap_sim_state(data, REAUTH);
 		return;
 	}
 
+	if (username[0] == EAP_SIM_PSEUDONYM_PREFIX) {
+		const char *permanent;
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Pseudonym username '%s'",
+			   username);
+		permanent = eap_sim_db_get_permanent(
+			sm->eap_sim_db_priv, username);
+		os_free(username);
+		if (permanent == NULL) {
+			wpa_printf(MSG_DEBUG, "EAP-SIM: Unknown pseudonym "
+				   "identity - request permanent identity");
+			/* Remain in START state for another round */
+			return;
+		}
+		os_strlcpy(data->permanent, permanent,
+			   sizeof(data->permanent));
+	} else if (username[0] == EAP_SIM_PERMANENT_PREFIX) {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Permanent username '%s'",
+			   username);
+		os_strlcpy(data->permanent, username, sizeof(data->permanent));
+		os_free(username);
+	} else {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Unrecognized username '%s'",
+			   username);
+		os_free(username);
+		goto failed;
+	}
+
+skip_id_update:
+	/* Full authentication */
+
 	if (attr->nonce_mt == NULL || attr->selected_version < 0) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Start/Response missing "
 			   "required attributes");
-		eap_sim_state(data, FAILURE);
-		return;
+		goto failed;
 	}
 
 	if (!eap_sim_supported_ver(data, attr->selected_version)) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Peer selected unsupported "
 			   "version %d", attr->selected_version);
-		eap_sim_state(data, FAILURE);
-		return;
+		goto failed;
 	}
 
 	data->counter = 0; /* reset re-auth counter since this is full auth */
 	data->reauth = NULL;
 
 	data->num_chal = eap_sim_db_get_gsm_triplets(
-		sm->eap_sim_db_priv, identity, identity_len,
-		EAP_SIM_MAX_CHAL,
+		sm->eap_sim_db_priv, data->permanent, EAP_SIM_MAX_CHAL,
 		(u8 *) data->rand, (u8 *) data->kc, (u8 *) data->sres, sm);
 	if (data->num_chal == EAP_SIM_DB_PENDING) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: GSM authentication triplets "
@@ -480,8 +532,7 @@ static void eap_sim_process_start(struct eap_sm *sm,
 	if (data->num_chal < 2) {
 		wpa_printf(MSG_INFO, "EAP-SIM: Failed to get GSM "
 			   "authentication triplets for the peer");
-		eap_sim_state(data, FAILURE);
-		return;
+		goto failed;
 	}
 
 	identity_len = sm->identity_len;
@@ -502,6 +553,11 @@ static void eap_sim_process_start(struct eap_sm *sm,
 			    data->emsk);
 
 	eap_sim_state(data, CHALLENGE);
+	return;
+
+failed:
+	data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
+	eap_sim_state(data, NOTIFICATION);
 }
 
 
@@ -510,16 +566,14 @@ static void eap_sim_process_challenge(struct eap_sm *sm,
 				      struct wpabuf *respData,
 				      struct eap_sim_attrs *attr)
 {
-	const u8 *identity;
-	size_t identity_len;
-
 	if (attr->mac == NULL ||
 	    eap_sim_verify_mac(data->k_aut, respData, attr->mac,
 			       (u8 *) data->sres,
 			       data->num_chal * EAP_SIM_SRES_LEN)) {
 		wpa_printf(MSG_WARNING, "EAP-SIM: Challenge message "
 			   "did not include valid AT_MAC");
-		eap_sim_state(data, FAILURE);
+		data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
+		eap_sim_state(data, NOTIFICATION);
 		return;
 	}
 
@@ -532,22 +586,13 @@ static void eap_sim_process_challenge(struct eap_sm *sm,
 	} else
 		eap_sim_state(data, SUCCESS);
 
-	identity = eap_sim_db_get_permanent(sm->eap_sim_db_priv, sm->identity,
-					    sm->identity_len, &identity_len);
-	if (identity == NULL) {
-		identity = sm->identity;
-		identity_len = sm->identity_len;
-	}
-
 	if (data->next_pseudonym) {
-		eap_sim_db_add_pseudonym(sm->eap_sim_db_priv, identity,
-					 identity_len,
+		eap_sim_db_add_pseudonym(sm->eap_sim_db_priv, data->permanent,
 					 data->next_pseudonym);
 		data->next_pseudonym = NULL;
 	}
 	if (data->next_reauth_id) {
-		eap_sim_db_add_reauth(sm->eap_sim_db_priv, identity,
-				      identity_len,
+		eap_sim_db_add_reauth(sm->eap_sim_db_priv, data->permanent,
 				      data->next_reauth_id, data->counter + 1,
 				      data->mk);
 		data->next_reauth_id = NULL;
@@ -562,8 +607,6 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 {
 	struct eap_sim_attrs eattr;
 	u8 *decrypted = NULL;
-	const u8 *identity, *id2;
-	size_t identity_len, id2_len;
 
 	if (attr->mac == NULL ||
 	    eap_sim_verify_mac(data->k_aut, respData, attr->mac, data->nonce_s,
@@ -599,6 +642,16 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-SIM: Re-authentication response includes "
 		   "the correct AT_MAC");
+
+	if (eattr.counter_too_small) {
+		wpa_printf(MSG_DEBUG, "EAP-AKA: Re-authentication response "
+			   "included AT_COUNTER_TOO_SMALL - starting full "
+			   "authentication");
+		data->start_round = -1;
+		eap_sim_state(data, START);
+		return;
+	}
+
 	if (sm->eap_sim_aka_result_ind && attr->result_ind) {
 		data->use_result_ind = 1;
 		data->notification = EAP_SIM_SUCCESS;
@@ -606,29 +659,9 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 	} else
 		eap_sim_state(data, SUCCESS);
 
-	if (data->reauth) {
-		identity = data->reauth->identity;
-		identity_len = data->reauth->identity_len;
-	} else {
-		identity = sm->identity;
-		identity_len = sm->identity_len;
-	}
-
-	id2 = eap_sim_db_get_permanent(sm->eap_sim_db_priv, identity,
-				       identity_len, &id2_len);
-	if (id2) {
-		identity = id2;
-		identity_len = id2_len;
-	}
-
-	if (data->next_pseudonym) {
-		eap_sim_db_add_pseudonym(sm->eap_sim_db_priv, identity,
-					 identity_len, data->next_pseudonym);
-		data->next_pseudonym = NULL;
-	}
 	if (data->next_reauth_id) {
-		eap_sim_db_add_reauth(sm->eap_sim_db_priv, identity,
-				      identity_len, data->next_reauth_id,
+		eap_sim_db_add_reauth(sm->eap_sim_db_priv, data->permanent,
+				      data->next_reauth_id,
 				      data->counter + 1, data->mk);
 		data->next_reauth_id = NULL;
 	} else {
@@ -639,7 +672,8 @@ static void eap_sim_process_reauth(struct eap_sm *sm,
 	return;
 
 fail:
-	eap_sim_state(data, FAILURE);
+	data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
+	eap_sim_state(data, NOTIFICATION);
 	eap_sim_db_remove_reauth(sm->eap_sim_db_priv, data->reauth);
 	data->reauth = NULL;
 	os_free(decrypted);
@@ -690,8 +724,24 @@ static void eap_sim_process(struct eap_sm *sm, void *priv,
 	subtype = *pos;
 	pos += 3;
 
+	if (eap_sim_unexpected_subtype(data, subtype)) {
+		wpa_printf(MSG_DEBUG, "EAP-SIM: Unrecognized or unexpected "
+			   "EAP-SIM Subtype in EAP Response");
+		data->notification = EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
+		eap_sim_state(data, NOTIFICATION);
+		return;
+	}
+
 	if (eap_sim_parse_attr(pos, end, &attr, 0, 0)) {
 		wpa_printf(MSG_DEBUG, "EAP-SIM: Failed to parse attributes");
+		if (subtype != EAP_SIM_SUBTYPE_CLIENT_ERROR &&
+		    (data->state == START || data->state == CHALLENGE ||
+		     data->state == REAUTH)) {
+			data->notification =
+				EAP_SIM_GENERAL_FAILURE_BEFORE_AUTH;
+			eap_sim_state(data, NOTIFICATION);
+			return;
+		}
 		eap_sim_state(data, FAILURE);
 		return;
 	}

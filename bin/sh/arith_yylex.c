@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #error Arithmetic tokens are out of order.
 #endif
 
-extern const char *arith_buf;
-
 int
 yylex(void)
 {
@@ -218,9 +216,13 @@ checkeqcur:
 			value += ARITH_REM - '%';
 			goto checkeq;
 		case '+':
+			if (buf[1] == '+')
+				return ARITH_BAD;
 			value += ARITH_ADD - '+';
 			goto checkeq;
 		case '-':
+			if (buf[1] == '-')
+				return ARITH_BAD;
 			value += ARITH_SUB - '-';
 			goto checkeq;
 		case '~':

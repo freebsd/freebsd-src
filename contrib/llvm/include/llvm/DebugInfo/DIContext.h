@@ -17,44 +17,36 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/RelocVisitor.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
+#include <string>
 
 namespace llvm {
 
 class raw_ostream;
 
 /// DILineInfo - a format-neutral container for source line information.
-class DILineInfo {
-  SmallString<16> FileName;
-  SmallString<16> FunctionName;
+struct DILineInfo {
+  std::string FileName;
+  std::string FunctionName;
   uint32_t Line;
   uint32_t Column;
-public:
-  DILineInfo()
-    : FileName("<invalid>"), FunctionName("<invalid>"),
-      Line(0), Column(0) {}
-  DILineInfo(const SmallString<16> &fileName,
-             const SmallString<16> &functionName,
-             uint32_t line, uint32_t column)
-    : FileName(fileName), FunctionName(functionName),
-      Line(line), Column(column) {}
 
-  const char *getFileName() { return FileName.c_str(); }
-  const char *getFunctionName() { return FunctionName.c_str(); }
-  uint32_t getLine() const { return Line; }
-  uint32_t getColumn() const { return Column; }
+  DILineInfo()
+      : FileName("<invalid>"), FunctionName("<invalid>"), Line(0), Column(0) {}
 
   bool operator==(const DILineInfo &RHS) const {
     return Line == RHS.Line && Column == RHS.Column &&
-           FileName.equals(RHS.FileName) &&
-           FunctionName.equals(RHS.FunctionName);
+           FileName == RHS.FileName && FunctionName == RHS.FunctionName;
   }
   bool operator!=(const DILineInfo &RHS) const {
     return !(*this == RHS);
   }
 };
+
+typedef SmallVector<std::pair<uint64_t, DILineInfo>, 16> DILineInfoTable;
 
 /// DIInliningInfo - a format-neutral container for inlined code description.
 class DIInliningInfo {
@@ -73,21 +65,52 @@ class DIInliningInfo {
   }
 };
 
+/// A DINameKind is passed to name search methods to specify a
+/// preference regarding the type of name resolution the caller wants.
+enum class DINameKind { None, ShortName, LinkageName };
+
 /// DILineInfoSpecifier - controls which fields of DILineInfo container
 /// should be filled with data.
-class DILineInfoSpecifier {
-  const uint32_t Flags;  // Or'ed flags that set the info we want to fetch.
-public:
-  enum Specification {
-    FileLineInfo = 1 << 0,
-    AbsoluteFilePath = 1 << 1,
-    FunctionName = 1 << 2
-  };
-  // Use file/line info by default.
-  DILineInfoSpecifier(uint32_t flags = FileLineInfo) : Flags(flags) {}
-  bool needs(Specification spec) const {
-    return (Flags & spec) > 0;
-  }
+struct DILineInfoSpecifier {
+  enum class FileLineInfoKind { None, Default, AbsoluteFilePath };
+  typedef DINameKind FunctionNameKind;
+
+  FileLineInfoKind FLIKind;
+  FunctionNameKind FNKind;
+
+  DILineInfoSpecifier(FileLineInfoKind FLIKind = FileLineInfoKind::Default,
+                      FunctionNameKind FNKind = FunctionNameKind::None)
+      : FLIKind(FLIKind), FNKind(FNKind) {}
+};
+
+/// Selects which debug sections get dumped.
+enum DIDumpType {
+  DIDT_Null,
+  DIDT_All,
+  DIDT_Abbrev,
+  DIDT_AbbrevDwo,
+  DIDT_Aranges,
+  DIDT_Frames,
+  DIDT_Info,
+  DIDT_InfoDwo,
+  DIDT_Types,
+  DIDT_TypesDwo,
+  DIDT_Line,
+  DIDT_LineDwo,
+  DIDT_Loc,
+  DIDT_LocDwo,
+  DIDT_Ranges,
+  DIDT_Pubnames,
+  DIDT_Pubtypes,
+  DIDT_GnuPubnames,
+  DIDT_GnuPubtypes,
+  DIDT_Str,
+  DIDT_StrDwo,
+  DIDT_StrOffsetsDwo,
+  DIDT_AppleNames,
+  DIDT_AppleTypes,
+  DIDT_AppleNamespaces,
+  DIDT_AppleObjC
 };
 
 // In place of applying the relocations to the data we've read from disk we use
@@ -99,24 +122,27 @@ typedef DenseMap<uint64_t, std::pair<uint8_t, int64_t> > RelocAddrMap;
 
 class DIContext {
 public:
+  enum DIContextKind {
+    CK_DWARF
+  };
+  DIContextKind getKind() const { return Kind; }
+
+  DIContext(DIContextKind K) : Kind(K) {}
   virtual ~DIContext();
 
   /// getDWARFContext - get a context for binary DWARF data.
-  static DIContext *getDWARFContext(bool isLittleEndian,
-                                    StringRef infoSection,
-                                    StringRef abbrevSection,
-                                    StringRef aRangeSection = StringRef(),
-                                    StringRef lineSection = StringRef(),
-                                    StringRef stringSection = StringRef(),
-                                    StringRef rangeSection = StringRef(),
-                                    const RelocAddrMap &Map = RelocAddrMap());
+  static DIContext *getDWARFContext(const object::ObjectFile &Obj);
 
-  virtual void dump(raw_ostream &OS) = 0;
+  virtual void dump(raw_ostream &OS, DIDumpType DumpType = DIDT_All) = 0;
 
   virtual DILineInfo getLineInfoForAddress(uint64_t Address,
       DILineInfoSpecifier Specifier = DILineInfoSpecifier()) = 0;
+  virtual DILineInfoTable getLineInfoForAddressRange(uint64_t Address,
+      uint64_t Size, DILineInfoSpecifier Specifier = DILineInfoSpecifier()) = 0;
   virtual DIInliningInfo getInliningInfoForAddress(uint64_t Address,
       DILineInfoSpecifier Specifier = DILineInfoSpecifier()) = 0;
+private:
+  const DIContextKind Kind;
 };
 
 }

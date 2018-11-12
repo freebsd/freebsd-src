@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -657,7 +658,7 @@ ale_attach(device_t dev)
 	ifp->if_capenable &= ~IFCAP_RXCSUM;
 
 	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/* Create local taskq. */
 	sc->ale_tq = taskqueue_create_fast("ale_taskq", M_WAITOK,
@@ -945,8 +946,6 @@ ale_sysctl_node(struct ale_softc *sc)
 	    &stats->tx_late_colls, "Late collisions");
 	ALE_SYSCTL_STAT_ADD32(ctx, child, "excess_colls",
 	    &stats->tx_excess_colls, "Excessive collisions");
-	ALE_SYSCTL_STAT_ADD32(ctx, child, "abort",
-	    &stats->tx_abort, "Aborted frames due to Excessive collisions");
 	ALE_SYSCTL_STAT_ADD32(ctx, child, "underruns",
 	    &stats->tx_underrun, "FIFO underruns");
 	ALE_SYSCTL_STAT_ADD32(ctx, child, "desc_underruns",
@@ -1329,34 +1328,32 @@ ale_dma_free(struct ale_softc *sc)
 	}
 	/* Tx descriptor ring. */
 	if (sc->ale_cdata.ale_tx_ring_tag != NULL) {
-		if (sc->ale_cdata.ale_tx_ring_map != NULL)
+		if (sc->ale_cdata.ale_tx_ring_paddr != 0)
 			bus_dmamap_unload(sc->ale_cdata.ale_tx_ring_tag,
 			    sc->ale_cdata.ale_tx_ring_map);
-		if (sc->ale_cdata.ale_tx_ring_map != NULL &&
-		    sc->ale_cdata.ale_tx_ring != NULL)
+		if (sc->ale_cdata.ale_tx_ring != NULL)
 			bus_dmamem_free(sc->ale_cdata.ale_tx_ring_tag,
 			    sc->ale_cdata.ale_tx_ring,
 			    sc->ale_cdata.ale_tx_ring_map);
+		sc->ale_cdata.ale_tx_ring_paddr = 0;
 		sc->ale_cdata.ale_tx_ring = NULL;
-		sc->ale_cdata.ale_tx_ring_map = NULL;
 		bus_dma_tag_destroy(sc->ale_cdata.ale_tx_ring_tag);
 		sc->ale_cdata.ale_tx_ring_tag = NULL;
 	}
 	/* Rx page block. */
 	for (i = 0; i < ALE_RX_PAGES; i++) {
 		if (sc->ale_cdata.ale_rx_page[i].page_tag != NULL) {
-			if (sc->ale_cdata.ale_rx_page[i].page_map != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].page_paddr != 0)
 				bus_dmamap_unload(
 				    sc->ale_cdata.ale_rx_page[i].page_tag,
 				    sc->ale_cdata.ale_rx_page[i].page_map);
-			if (sc->ale_cdata.ale_rx_page[i].page_map != NULL &&
-			    sc->ale_cdata.ale_rx_page[i].page_addr != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].page_addr != NULL)
 				bus_dmamem_free(
 				    sc->ale_cdata.ale_rx_page[i].page_tag,
 				    sc->ale_cdata.ale_rx_page[i].page_addr,
 				    sc->ale_cdata.ale_rx_page[i].page_map);
+			sc->ale_cdata.ale_rx_page[i].page_paddr = 0;
 			sc->ale_cdata.ale_rx_page[i].page_addr = NULL;
-			sc->ale_cdata.ale_rx_page[i].page_map = NULL;
 			bus_dma_tag_destroy(
 			    sc->ale_cdata.ale_rx_page[i].page_tag);
 			sc->ale_cdata.ale_rx_page[i].page_tag = NULL;
@@ -1365,18 +1362,17 @@ ale_dma_free(struct ale_softc *sc)
 	/* Rx CMB. */
 	for (i = 0; i < ALE_RX_PAGES; i++) {
 		if (sc->ale_cdata.ale_rx_page[i].cmb_tag != NULL) {
-			if (sc->ale_cdata.ale_rx_page[i].cmb_map != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].cmb_paddr != 0)
 				bus_dmamap_unload(
 				    sc->ale_cdata.ale_rx_page[i].cmb_tag,
 				    sc->ale_cdata.ale_rx_page[i].cmb_map);
-			if (sc->ale_cdata.ale_rx_page[i].cmb_map != NULL &&
-			    sc->ale_cdata.ale_rx_page[i].cmb_addr != NULL)
+			if (sc->ale_cdata.ale_rx_page[i].cmb_addr != NULL)
 				bus_dmamem_free(
 				    sc->ale_cdata.ale_rx_page[i].cmb_tag,
 				    sc->ale_cdata.ale_rx_page[i].cmb_addr,
 				    sc->ale_cdata.ale_rx_page[i].cmb_map);
+			sc->ale_cdata.ale_rx_page[i].cmb_paddr = 0;
 			sc->ale_cdata.ale_rx_page[i].cmb_addr = NULL;
-			sc->ale_cdata.ale_rx_page[i].cmb_map = NULL;
 			bus_dma_tag_destroy(
 			    sc->ale_cdata.ale_rx_page[i].cmb_tag);
 			sc->ale_cdata.ale_rx_page[i].cmb_tag = NULL;
@@ -1384,16 +1380,15 @@ ale_dma_free(struct ale_softc *sc)
 	}
 	/* Tx CMB. */
 	if (sc->ale_cdata.ale_tx_cmb_tag != NULL) {
-		if (sc->ale_cdata.ale_tx_cmb_map != NULL)
+		if (sc->ale_cdata.ale_tx_cmb_paddr != 0)
 			bus_dmamap_unload(sc->ale_cdata.ale_tx_cmb_tag,
 			    sc->ale_cdata.ale_tx_cmb_map);
-		if (sc->ale_cdata.ale_tx_cmb_map != NULL &&
-		    sc->ale_cdata.ale_tx_cmb != NULL)
+		if (sc->ale_cdata.ale_tx_cmb != NULL)
 			bus_dmamem_free(sc->ale_cdata.ale_tx_cmb_tag,
 			    sc->ale_cdata.ale_tx_cmb,
 			    sc->ale_cdata.ale_tx_cmb_map);
+		sc->ale_cdata.ale_tx_cmb_paddr = 0;
 		sc->ale_cdata.ale_tx_cmb = NULL;
-		sc->ale_cdata.ale_tx_cmb_map = NULL;
 		bus_dma_tag_destroy(sc->ale_cdata.ale_tx_cmb_tag);
 		sc->ale_cdata.ale_tx_cmb_tag = NULL;
 	}
@@ -1659,6 +1654,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 		    (mtod(m, intptr_t) & 3) != 0) {
 			m = m_defrag(*m_head, M_NOWAIT);
 			if (m == NULL) {
+				m_freem(*m_head);
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
@@ -1955,13 +1951,13 @@ ale_watchdog(struct ale_softc *sc)
 	ifp = sc->ale_ifp;
 	if ((sc->ale_flags & ALE_FLAG_LINK) == 0) {
 		if_printf(sc->ale_ifp, "watchdog timeout (lost link)\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		ale_init_locked(sc);
 		return;
 	}
 	if_printf(sc->ale_ifp, "watchdog timeout -- resetting\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ale_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2199,7 +2195,6 @@ ale_stats_update(struct ale_softc *sc)
 	stat->tx_multi_colls += smb->tx_multi_colls;
 	stat->tx_late_colls += smb->tx_late_colls;
 	stat->tx_excess_colls += smb->tx_excess_colls;
-	stat->tx_abort += smb->tx_abort;
 	stat->tx_underrun += smb->tx_underrun;
 	stat->tx_desc_underrun += smb->tx_desc_underrun;
 	stat->tx_lenerrs += smb->tx_lenerrs;
@@ -2208,28 +2203,22 @@ ale_stats_update(struct ale_softc *sc)
 	stat->tx_mcast_bytes += smb->tx_mcast_bytes;
 
 	/* Update counters in ifnet. */
-	ifp->if_opackets += smb->tx_frames;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, smb->tx_frames);
 
-	ifp->if_collisions += smb->tx_single_colls +
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, smb->tx_single_colls +
 	    smb->tx_multi_colls * 2 + smb->tx_late_colls +
-	    smb->tx_abort * HDPX_CFG_RETRY_DEFAULT;
+	    smb->tx_excess_colls * HDPX_CFG_RETRY_DEFAULT);
 
-	/*
-	 * XXX
-	 * tx_pkts_truncated counter looks suspicious. It constantly
-	 * increments with no sign of Tx errors. This may indicate
-	 * the counter name is not correct one so I've removed the
-	 * counter in output errors.
-	 */
-	ifp->if_oerrors += smb->tx_abort + smb->tx_late_colls +
-	    smb->tx_underrun;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, smb->tx_late_colls +
+	    smb->tx_excess_colls + smb->tx_underrun + smb->tx_pkts_truncated);
 
-	ifp->if_ipackets += smb->rx_frames;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, smb->rx_frames);
 
-	ifp->if_ierrors += smb->rx_crcerrs + smb->rx_lenerrs +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
+	    smb->rx_crcerrs + smb->rx_lenerrs +
 	    smb->rx_runts + smb->rx_pkts_truncated +
 	    smb->rx_fifo_oflows + smb->rx_rrs_errs +
-	    smb->rx_alignerrs;
+	    smb->rx_alignerrs);
 }
 
 static int
@@ -2551,7 +2540,7 @@ ale_rxeof(struct ale_softc *sc, int count)
 		m = m_devget((char *)(rs + 1), length - ETHER_CRC_LEN,
 		    ETHER_ALIGN, ifp, NULL);
 		if (m == NULL) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			ale_rx_update_page(sc, &rx_page, length, &prod);
 			continue;
 		}

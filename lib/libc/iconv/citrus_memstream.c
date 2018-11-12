@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $NetBSD: citrus_memstream.c,v 1.4 2009/02/03 05:02:12 lukem Exp $ */
+/*	$NetBSD: citrus_memstream.c,v 1.5 2012/03/13 21:13:31 christos Exp $	*/
 
 /*-
  * Copyright (c)2003 Citrus Project,
@@ -44,8 +44,7 @@ _citrus_memory_stream_getln(struct _citrus_memory_stream * __restrict ms,
     size_t * __restrict rlen)
 {
 	const uint8_t *h, *p;
-	size_t ret;
-	int i;
+	size_t i, ret;
 
 	if (ms->ms_pos>=_region_size(&ms->ms_region))
 		return (NULL);

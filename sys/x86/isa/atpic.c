@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -36,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_auto_eoi.h"
 #include "opt_isa.h"
+#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -57,9 +55,12 @@ __FBSDID("$FreeBSD$");
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
-#include <x86/isa/isa.h>
+#include <isa/isareg.h>
 #endif
 #include <isa/isavar.h>
+#ifdef DEV_MCA
+#include <i386/bios/mca_machdep.h>
+#endif
 
 #ifdef __amd64__
 #define	SDT_ATPIC	SDT_SYSIGT
@@ -123,7 +124,7 @@ static void atpic_eoi_slave(struct intsrc *isrc);
 static void atpic_enable_intr(struct intsrc *isrc);
 static void atpic_disable_intr(struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
-static void atpic_resume(struct pic *pic);
+static void atpic_resume(struct pic *pic, bool suspend_cancelled);
 static int atpic_source_pending(struct intsrc *isrc);
 static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol);
@@ -276,7 +277,7 @@ atpic_source_pending(struct intsrc *isrc)
 }
 
 static void
-atpic_resume(struct pic *pic)
+atpic_resume(struct pic *pic, bool suspend_cancelled)
 {
 	struct atpic *ap = (struct atpic *)pic;
 
@@ -527,7 +528,7 @@ atpic_init(void *dummy __unused)
 		intr_register_source(&ai->at_intsrc);
 	}
 }
-SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL);
+SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_FOURTH, atpic_init, NULL);
 
 void
 atpic_handle_intr(u_int vector, struct trapframe *frame)

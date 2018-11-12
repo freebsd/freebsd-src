@@ -10,13 +10,12 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_txt.c	10.87 (Berkeley) 10/13/96";
+static const char sccsid[] = "$Id: v_txt.c,v 11.5 2013/05/19 20:37:45 bentley Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -63,11 +62,7 @@ static void	 txt_unmap __P((SCR *, TEXT *, u_int32_t *));
  * PUBLIC: int v_tcmd __P((SCR *, VICMD *, ARG_CHAR_T, u_int));
  */
 int
-v_tcmd(sp, vp, prompt, flags)
-	SCR *sp;
-	VICMD *vp;
-	ARG_CHAR_T prompt;
-	u_int flags;
+v_tcmd(SCR *sp, VICMD *vp, ARG_CHAR_T prompt, u_int flags)
 {
 	/* Normally, we end up where we started. */
 	vp->m_final.lno = sp->lno;
@@ -118,8 +113,7 @@ v_tcmd(sp, vp, prompt, flags)
  *	Initialize the screen map for colon command-line input.
  */
 static int
-txt_map_init(sp)
-	SCR *sp;
+txt_map_init(SCR *sp)
 {
 	SMAP *esmp;
 	VI_PRIVATE *vip;
@@ -171,8 +165,7 @@ txt_map_init(sp)
  *	Reset the screen map for colon command-line input.
  */
 static int
-txt_map_end(sp)
-	SCR *sp;
+txt_map_end(SCR *sp)
 {
 	VI_PRIVATE *vip;
 	size_t cnt;
@@ -242,26 +235,26 @@ txt_map_end(sp)
  *	Vi text input.
  *
  * PUBLIC: int v_txt __P((SCR *, VICMD *, MARK *,
- * PUBLIC:    const char *, size_t, ARG_CHAR_T, recno_t, u_long, u_int32_t));
+ * PUBLIC:    const CHAR_T *, size_t, ARG_CHAR_T, recno_t, u_long, u_int32_t));
  */
 int
-v_txt(sp, vp, tm, lp, len, prompt, ai_line, rcount, flags)
-	SCR *sp;
-	VICMD *vp;
-	MARK *tm;		/* To MARK. */
-	const char *lp;		/* Input line. */
-	size_t len;		/* Input line length. */
-	ARG_CHAR_T prompt;	/* Prompt to display. */
-	recno_t ai_line;	/* Line number to use for autoindent count. */
-	u_long rcount;		/* Replay count. */
-	u_int32_t flags;	/* TXT_* flags. */
+v_txt(
+	SCR *sp,
+	VICMD *vp,
+	MARK *tm,		/* To MARK. */
+	const CHAR_T *lp,	/* Input line. */
+	size_t len,		/* Input line length. */
+	ARG_CHAR_T prompt,	/* Prompt to display. */
+	recno_t ai_line,	/* Line number to use for autoindent count. */
+	u_long rcount,		/* Replay count. */
+	u_int32_t flags)	/* TXT_* flags. */
 {
-	EVENT ev, *evp;		/* Current event. */
+	EVENT ev, *evp = NULL;	/* Current event. */
 	EVENT fc;		/* File name completion event. */
 	GS *gp;
 	TEXT *ntp, *tp;		/* Input text structures. */
 	TEXT ait;		/* Autoindent text structure. */
-	TEXT wmt;		/* Wrapmargin text structure. */
+	TEXT wmt = {{ 0 }};	/* Wrapmargin text structure. */
 	TEXTH *tiqh;
 	VI_PRIVATE *vip;
 	abb_t abb;		/* State of abbreviation checks. */
@@ -281,7 +274,8 @@ v_txt(sp, vp, tm, lp, len, prompt, ai_line, rcount, flags)
 	int showmatch;		/* Showmatch set on this character. */
 	int wm_set, wm_skip;	/* Wrapmargin happened, blank skip flags. */
 	int max, tmp;
-	char *p;
+	int nochange;
+	CHAR_T *p;
 
 	gp = sp->gp;
 	vip = VIP(sp);
@@ -298,23 +292,25 @@ v_txt(sp, vp, tm, lp, len, prompt, ai_line, rcount, flags)
 	 * default to 0 -- text_init() handles this.)  If changing a line,
 	 * copy it into the TEXT buffer.
 	 */
-	tiqh = &sp->tiq;
-	if (tiqh->cqh_first != (void *)tiqh) {
-		tp = tiqh->cqh_first;
-		if (tp->q.cqe_next != (void *)tiqh || tp->lb_len < len + 32) {
+	tiqh = sp->tiq;
+	if (!TAILQ_EMPTY(tiqh)) {
+		tp = TAILQ_FIRST(tiqh);
+		if (TAILQ_NEXT(tp, q) != NULL ||
+		    tp->lb_len < (len + 32) * sizeof(CHAR_T)) {
 			text_lfree(tiqh);
 			goto newtp;
 		}
 		tp->ai = tp->insert = tp->offset = tp->owrite = 0;
 		if (lp != NULL) {
 			tp->len = len;
-			memmove(tp->lb, lp, len);
+			BINC_RETW(sp, tp->lb, tp->lb_len, len);
+			MEMMOVE(tp->lb, lp, len);
 		} else
 			tp->len = 0;
 	} else {
 newtp:		if ((tp = text_init(sp, lp, len, len + 32)) == NULL)
 			return (1);
-		CIRCLEQ_INSERT_HEAD(tiqh, tp, q);
+		TAILQ_INSERT_HEAD(tiqh, tp, q);
 	}
 
 	/* Set default termination condition. */
@@ -463,6 +459,7 @@ newtp:		if ((tp = text_init(sp, lp, len, len + 32)) == NULL)
 	/* Other text input mode setup. */
 	quote = Q_NOTSET;
 	carat = C_NOTSET;
+	nochange = 0;
 	FL_INIT(is_flags,
 	    LF_ISSET(TXT_SEARCHINCR) ? IS_RESTART | IS_RUNNING : 0);
 	filec_redraw = hexcnt = showmatch = 0;
@@ -510,17 +507,7 @@ next:	if (v_event_get(sp, evp, 0, ec_flags))
 	case E_EOF:
 		F_SET(sp, SC_EXIT_FORCE);
 		return (1);
-	case E_REPAINT:
-		if (vs_repaint(sp, &ev))
-			return (1);
-		goto next;
-	case E_WRESIZE:
-		/* <resize> interrupts the input mode. */
-		v_emsg(sp, NULL, VIM_WRESIZE);
-		/* FALLTHROUGH */
-	default:
-		if (evp->e_event != E_INTERRUPT && evp->e_event != E_WRESIZE)
-			v_event_err(sp, evp);
+	case E_INTERRUPT:
 		/*
 		 * !!!
 		 * Historically, <interrupt> exited the user from text input
@@ -528,26 +515,18 @@ next:	if (v_event_get(sp, evp, 0, ec_flags))
 		 * mode.  It also beeped the terminal, but that seems a bit
 		 * excessive.
 		 */
-		/*
-		 * If we are recording, morph into <escape> key so that
-		 * we can repeat the command safely: there is no way to
-		 * invalidate the repetition of an instance of a command,
-		 * which would be the alternative possibility.
-		 * If we are not recording (most likely on the command line),
-		 * simply discard the input and return to command mode
-		 * so that an INTERRUPT doesn't become for example a file
-		 * completion request. -aymeric
-		 */
-		if (LF_ISSET(TXT_RECORD)) {
-			evp->e_event = E_CHARACTER;
-			evp->e_c = 033;
-			evp->e_flags = 0;
-			evp->e_value = K_ESCAPE;
-			break;
-		} else {
-			tp->term = TERM_ESC;
-			goto k_escape;
-		}
+		goto k_escape;
+	case E_REPAINT:
+		if (vs_repaint(sp, &ev))
+			return (1);
+		goto next;
+	case E_WRESIZE:
+		/* <resize> interrupts the input mode. */
+		v_emsg(sp, NULL, VIM_WRESIZE);
+		goto k_escape;
+	default:
+		v_event_err(sp, evp);
+		goto k_escape;
 	}
 
 	/*
@@ -612,13 +591,16 @@ next:	if (v_event_get(sp, evp, 0, ec_flags))
 
 	/* Check to see if the character fits into the replay buffers. */
 	if (LF_ISSET(TXT_RECORD)) {
-		BINC_GOTO(sp, vip->rep,
+		BINC_GOTO(sp, EVENT, vip->rep,
 		    vip->rep_len, (rcol + 1) * sizeof(EVENT));
 		vip->rep[rcol++] = *evp;
 	}
 
-replay:	if (LF_ISSET(TXT_REPLAY))
+replay:	if (LF_ISSET(TXT_REPLAY)) {
+		if (rcol == vip->rep_cnt)
+			goto k_escape;
 		evp = vip->rep + rcol++;
+	}
 
 	/* Wrapmargin check for leading space. */
 	if (wm_skip) {
@@ -669,7 +651,7 @@ replay:	if (LF_ISSET(TXT_REPLAY))
 	 * this test delimits the value by any non-hex character.  Offset by
 	 * one, we use 0 to mean that we've found <CH_HEX>.
 	 */
-	if (hexcnt > 1 && !isxdigit(evp->e_c)) {
+	if (hexcnt > 1 && !ISXDIGIT(evp->e_c)) {
 		hexcnt = 0;
 		if (txt_hex(sp, tp))
 			goto err;
@@ -691,7 +673,7 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 				if (vs_change(sp, tp->lno, LINE_RESET))
 					goto err;
 			} else if (F_ISSET(sp, SC_SCRIPT))
-				(void)v_event_push(sp, NULL, "\r", 1, CH_NOMAP);
+				(void)v_event_push(sp, NULL, L("\r"), 1, CH_NOMAP);
 
 			/* Set term condition: if empty. */
 			if (tp->cno <= tp->offset)
@@ -789,7 +771,7 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 		if ((ntp = text_init(sp, p,
 		    insert + owrite, insert + owrite + 32)) == NULL)
 			goto err;
-		CIRCLEQ_INSERT_TAIL(&sp->tiq, ntp, q);
+		TAILQ_INSERT_TAIL(sp->tiq, ntp, q);
 
 		/* Set up bookkeeping for the new line. */
 		ntp->insert = insert;
@@ -804,10 +786,11 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 		 * characters may have been erased.
 		 */
 		if (LF_ISSET(TXT_AUTOINDENT)) {
-			if (carat == C_NOCHANGE) {
+			if (nochange) {
+				nochange = 0;
 				if (v_txt_auto(sp, OOBLNO, &ait, ait.ai, ntp))
 					goto err;
-				FREE_SPACE(sp, ait.lb, ait.lb_len);
+				FREE_SPACEW(sp, ait.lb, ait.lb_len);
 			} else
 				if (v_txt_auto(sp, OOBLNO, tp, tp->cno, ntp))
 					goto err;
@@ -826,9 +809,9 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 			if (wmt.offset != 0 ||
 			    wmt.owrite != 0 || wmt.insert != 0) {
 #define	WMTSPACE	wmt.offset + wmt.owrite + wmt.insert
-				BINC_GOTO(sp, ntp->lb,
+				BINC_GOTOW(sp, ntp->lb,
 				    ntp->lb_len, ntp->len + WMTSPACE + 32);
-				memmove(ntp->lb + ntp->cno, wmt.lb, WMTSPACE);
+				MEMMOVE(ntp->lb + ntp->cno, wmt.lb, WMTSPACE);
 				ntp->len += WMTSPACE;
 				ntp->cno += wmt.offset;
 				ntp->owrite = wmt.owrite;
@@ -839,7 +822,7 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 
 		/* New lines are TXT_APPENDEOL. */
 		if (ntp->owrite == 0 && ntp->insert == 0) {
-			BINC_GOTO(sp, ntp->lb, ntp->lb_len, ntp->len + 1);
+			BINC_GOTOW(sp, ntp->lb, ntp->lb_len, ntp->len + 1);
 			LF_SET(TXT_APPENDEOL);
 			ntp->lb[ntp->cno] = CH_CURSOR;
 			++ntp->insert;
@@ -860,6 +843,7 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 		if (rcount > 1) {
 			--rcount;
 
+			vip->rep_cnt = rcol;
 			rcol = 0;
 			abb = AB_NOTSET;
 			LF_CLR(TXT_RECORD);
@@ -902,7 +886,7 @@ k_escape:	LINE_RESOLVE;
 		 * characters, and making them into insert characters.
 		 */
 		if (LF_ISSET(TXT_REPLACE))
-			txt_Rresolve(sp, &sp->tiq, tp, len);
+			txt_Rresolve(sp, sp->tiq, tp, len);
 
 		/*
 		 * If there are any overwrite characters, copy down
@@ -910,7 +894,7 @@ k_escape:	LINE_RESOLVE;
 		 */
 		if (tp->owrite) {
 			if (tp->insert)
-				memmove(tp->lb + tp->cno,
+				MEMMOVE(tp->lb + tp->cno,
 				    tp->lb + tp->cno + tp->owrite, tp->insert);
 			tp->len -= tp->owrite;
 		}
@@ -925,10 +909,10 @@ k_escape:	LINE_RESOLVE;
 		 * This is wrong, should pass back a length.
 		 */
 		if (LF_ISSET(TXT_RESOLVE)) {
-			if (txt_resolve(sp, &sp->tiq, flags))
+			if (txt_resolve(sp, sp->tiq, flags))
 				goto err;
 		} else {
-			BINC_GOTO(sp, tp->lb, tp->lb_len, tp->len + 1);
+			BINC_GOTOW(sp, tp->lb, tp->lb_len, tp->len + 1);
 			tp->lb[tp->len] = '\0';
 		}
 
@@ -972,11 +956,12 @@ k_escape:	LINE_RESOLVE;
 			/* Save the ai string for later. */
 			ait.lb = NULL;
 			ait.lb_len = 0;
-			BINC_GOTO(sp, ait.lb, ait.lb_len, tp->ai);
-			memmove(ait.lb, tp->lb, tp->ai);
+			BINC_GOTOW(sp, ait.lb, ait.lb_len, tp->ai);
+			MEMMOVE(ait.lb, tp->lb, tp->ai);
 			ait.ai = ait.len = tp->ai;
 
-			carat = C_NOCHANGE;
+			carat = C_NOTSET;
+			nochange = 1;
 			goto leftmargin;
 		case C_ZEROSET:		/* 0^D */
 			if (tp->ai == 0 || tp->cno > tp->ai + tp->offset + 1)
@@ -1011,7 +996,7 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		 */
 		if (tp->cno == 0) {
 			if ((ntp =
-			    txt_backup(sp, &sp->tiq, tp, &flags)) == NULL)
+			    txt_backup(sp, sp->tiq, tp, &flags)) == NULL)
 				goto err;
 			tp = ntp;
 			break;
@@ -1063,7 +1048,7 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		 */
 		if (tp->cno == 0) {
 			if ((ntp =
-			    txt_backup(sp, &sp->tiq, tp, &flags)) == NULL)
+			    txt_backup(sp, sp->tiq, tp, &flags)) == NULL)
 				goto err;
 			tp = ntp;
 		}
@@ -1093,7 +1078,7 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		}
 
 		/* Skip over trailing space characters. */
-		while (tp->cno > max && isblank(tp->lb[tp->cno - 1])) {
+		while (tp->cno > max && ISBLANK(tp->lb[tp->cno - 1])) {
 			--tp->cno;
 			++tp->owrite;
 		}
@@ -1122,12 +1107,12 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		 */
 		if (LF_ISSET(TXT_TTYWERASE))
 			while (tp->cno > max) {
+				if (ISBLANK(tp->lb[tp->cno - 1]))
+					break;
 				--tp->cno;
 				++tp->owrite;
 				if (FL_ISSET(is_flags, IS_RUNNING))
 					tp->lb[tp->cno] = ' ';
-				if (isblank(tp->lb[tp->cno - 1]))
-					break;
 			}
 		else {
 			if (LF_ISSET(TXT_ALTWERASE)) {
@@ -1135,19 +1120,17 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 				++tp->owrite;
 				if (FL_ISSET(is_flags, IS_RUNNING))
 					tp->lb[tp->cno] = ' ';
-				if (isblank(tp->lb[tp->cno - 1]))
-					break;
 			}
 			if (tp->cno > max)
 				tmp = inword(tp->lb[tp->cno - 1]);
 			while (tp->cno > max) {
+				if (tmp != inword(tp->lb[tp->cno - 1])
+				    || ISBLANK(tp->lb[tp->cno - 1]))
+					break;
 				--tp->cno;
 				++tp->owrite;
 				if (FL_ISSET(is_flags, IS_RUNNING))
 					tp->lb[tp->cno] = ' ';
-				if (tmp != inword(tp->lb[tp->cno - 1])
-				    || isblank(tp->lb[tp->cno - 1]))
-					break;
 			}
 		}
 
@@ -1164,7 +1147,7 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		 */
 		if (tp->cno == 0) {
 			if ((ntp =
-			    txt_backup(sp, &sp->tiq, tp, &flags)) == NULL)
+			    txt_backup(sp, sp->tiq, tp, &flags)) == NULL)
 				goto err;
 			tp = ntp;
 		}
@@ -1213,11 +1196,6 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		if (txt_dent(sp, tp, 1))
 			goto err;
 		goto ebuf_chk;
-	case K_RIGHTBRACE:
-	case K_RIGHTPAREN:
-		if (LF_ISSET(TXT_SHOWMATCH))
-			showmatch = 1;
-		goto ins_ch;
 	case K_BACKSLASH:		/* Quote next erase/kill. */
 		/*
 		 * !!!
@@ -1265,6 +1243,14 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		hexcnt = 1;
 		goto insq_ch;
 	default:			/* Insert the character. */
+		if (LF_ISSET(TXT_SHOWMATCH)) {
+			CHAR_T *match_chars, *cp;
+
+			match_chars = VIP(sp)->mcs;
+			cp = STRCHR(match_chars, evp->e_c);
+			if (cp != NULL && (cp - match_chars) & 1)
+				showmatch = 1;
+		}
 ins_ch:		/*
 		 * Historically, vi eliminated nul's out of hand.  If the
 		 * beautify option was set, it also deleted any unknown
@@ -1278,7 +1264,7 @@ ins_ch:		/*
 		 * wasn't a replay and wasn't handled specially, except
 		 * <tab> or <ff>.
 		 */
-		if (LF_ISSET(TXT_BEAUTIFY) && iscntrl(evp->e_c) &&
+		if (LF_ISSET(TXT_BEAUTIFY) && ISCNTRL(evp->e_c) &&
 		    evp->e_value != K_FORMFEED && evp->e_value != K_TAB) {
 			msgq(sp, M_BERR,
 			    "192|Illegal character; quote to enter");
@@ -1331,7 +1317,7 @@ insl_ch:	if (txt_insch(sp, tp, &evp->e_c, flags))
 		 * number of hex bytes.  Offset by one, we use 0 to mean
 		 * that we've found <CH_HEX>.
 		 */
-		if (hexcnt != 0 && hexcnt++ == sizeof(CHAR_T) * 2 + 1) {
+		if (hexcnt != 0 && hexcnt++ == 3) {
 			hexcnt = 0;
 			if (txt_hex(sp, tp))
 				goto err;
@@ -1370,7 +1356,7 @@ insl_ch:	if (txt_insch(sp, tp, &evp->e_c, flags))
 		 * the length of the motion.
 		 */
 ebuf_chk:	if (tp->cno >= tp->len) {
-			BINC_GOTO(sp, tp->lb, tp->lb_len, tp->len + 1);
+			BINC_GOTOW(sp, tp->lb, tp->lb_len, tp->len + 1);
 			LF_SET(TXT_APPENDEOL);
 
 			tp->lb[tp->cno] = CH_CURSOR;
@@ -1391,7 +1377,7 @@ ebuf_chk:	if (tp->cno >= tp->len) {
 #ifdef DEBUG
 	if (tp->cno + tp->insert + tp->owrite != tp->len) {
 		msgq(sp, M_ERR,
-		    "len %u != cno: %u ai: %u insert %u overwrite %u",
+		    "len %zu != cno: %zu ai: %zu insert %zu overwrite %zu",
 		    tp->len, tp->cno, tp->ai, tp->insert, tp->owrite);
 		if (LF_ISSET(TXT_REPLAY))
 			goto done;
@@ -1475,7 +1461,7 @@ done:	/* Leave input mode. */
 err:
 alloc_err:
 	F_CLR(sp, SC_TINPUT);
-	txt_err(sp, &sp->tiq);
+	txt_err(sp, sp->tiq);
 	return (1);
 }
 
@@ -1484,11 +1470,7 @@ alloc_err:
  *	Handle abbreviations.
  */
 static int
-txt_abbrev(sp, tp, pushcp, isinfoline, didsubp, turnoffp)
-	SCR *sp;
-	TEXT *tp;
-	CHAR_T *pushcp;
-	int isinfoline, *didsubp, *turnoffp;
+txt_abbrev(SCR *sp, TEXT *tp, CHAR_T *pushcp, int isinfoline, int *didsubp, int *turnoffp)
 {
 	VI_PRIVATE *vip;
 	CHAR_T ch, *p;
@@ -1632,7 +1614,7 @@ search:	if (isinfoline)
 		tp->owrite += len;
 	else {
 		if (tp->insert)
-			memmove(tp->lb + tp->cno + qp->olen,
+			MEMMOVE(tp->lb + tp->cno + qp->olen,
 			    tp->lb + tp->cno + tp->owrite + len, tp->insert);
 		tp->owrite += qp->olen;
 		tp->len -= len - qp->olen;
@@ -1654,13 +1636,10 @@ search:	if (isinfoline)
  *	Handle the unmap command.
  */
 static void
-txt_unmap(sp, tp, ec_flagsp)
-	SCR *sp;
-	TEXT *tp;
-	u_int32_t *ec_flagsp;
+txt_unmap(SCR *sp, TEXT *tp, u_int32_t *ec_flagsp)
 {
 	size_t len, off;
-	char *p;
+	CHAR_T *p;
 
 	/* Find the beginning of this "word". */
 	for (off = tp->cno - 1, p = tp->lb + off, len = 0;; --p, --off) {
@@ -1697,15 +1676,12 @@ txt_unmap(sp, tp, ec_flagsp)
  *	When a line is resolved by <esc>, review autoindent characters.
  */
 static void
-txt_ai_resolve(sp, tp, changedp)
-	SCR *sp;
-	TEXT *tp;
-	int *changedp;
+txt_ai_resolve(SCR *sp, TEXT *tp, int *changedp)
 {
 	u_long ts;
 	int del;
 	size_t cno, len, new, old, scno, spaces, tab_after_sp, tabs;
-	char *p;
+	CHAR_T *p;
 
 	*changedp = 0;
 
@@ -1748,7 +1724,7 @@ txt_ai_resolve(sp, tp, changedp)
 	 * If there are no spaces, or no tabs after spaces and less than
 	 * ts spaces, it's already minimal.
 	 */
-	if (!spaces || !tab_after_sp && spaces < ts)
+	if (!spaces || (!tab_after_sp && spaces < ts))
 		return;
 
 	/* Count up spaces/tabs needed to get to the target. */
@@ -1767,7 +1743,7 @@ txt_ai_resolve(sp, tp, changedp)
 
 	/* Shift the rest of the characters down, adjust the counts. */
 	del = old - new;
-	memmove(p - del, p, tp->len - old);
+	MEMMOVE(p - del, p, tp->len - old);
 	tp->len -= del;
 	tp->cno -= del;
 
@@ -1787,14 +1763,10 @@ txt_ai_resolve(sp, tp, changedp)
  * PUBLIC: int v_txt_auto __P((SCR *, recno_t, TEXT *, size_t, TEXT *));
  */
 int
-v_txt_auto(sp, lno, aitp, len, tp)
-	SCR *sp;
-	recno_t lno;
-	TEXT *aitp, *tp;
-	size_t len;
+v_txt_auto(SCR *sp, recno_t lno, TEXT *aitp, size_t len, TEXT *tp)
 {
 	size_t nlen;
-	char *p, *t;
+	CHAR_T *p, *t;
 
 	if (aitp == NULL) {
 		/*
@@ -1821,15 +1793,15 @@ v_txt_auto(sp, lno, aitp, len, tp)
 		return (0);
 
 	/* Make sure the buffer's big enough. */
-	BINC_RET(sp, tp->lb, tp->lb_len, tp->len + nlen);
+	BINC_RETW(sp, tp->lb, tp->lb_len, tp->len + nlen);
 
 	/* Copy the buffer's current contents up. */
 	if (tp->len != 0)
-		memmove(tp->lb + nlen, tp->lb, tp->len);
+		MEMMOVE(tp->lb + nlen, tp->lb, tp->len);
 	tp->len += nlen;
 
 	/* Copy the indentation into the new buffer. */
-	memmove(tp->lb, t, nlen);
+	MEMMOVE(tp->lb, t, nlen);
 
 	/* Set the autoindent count. */
 	tp->ai = nlen;
@@ -1841,17 +1813,13 @@ v_txt_auto(sp, lno, aitp, len, tp)
  *	Back up to the previously edited line.
  */
 static TEXT *
-txt_backup(sp, tiqh, tp, flagsp)
-	SCR *sp;
-	TEXTH *tiqh;
-	TEXT *tp;
-	u_int32_t *flagsp;
+txt_backup(SCR *sp, TEXTH *tiqh, TEXT *tp, u_int32_t *flagsp)
 {
 	VI_PRIVATE *vip;
 	TEXT *ntp;
 
 	/* Get a handle on the previous TEXT structure. */
-	if ((ntp = tp->q.cqe_prev) == (void *)tiqh) {
+	if ((ntp = TAILQ_PREV(tp, _texth, q)) == NULL) {
 		if (!FL_ISSET(*flagsp, TXT_REPLAY))
 			msgq(sp, M_BERR,
 			    "193|Already at the beginning of the insert");
@@ -1872,7 +1840,7 @@ txt_backup(sp, tiqh, tp, flagsp)
 		FL_CLR(*flagsp, TXT_APPENDEOL);
 
 	/* Release the current TEXT. */
-	CIRCLEQ_REMOVE(tiqh, tp, q);
+	TAILQ_REMOVE(tiqh, tp, q);
 	text_free(tp);
 
 	/* Update the old line on the screen. */
@@ -1910,7 +1878,7 @@ txt_backup(sp, tiqh, tp, flagsp)
  * Technically, txt_dent should be part of the screen interface, as it requires
  * knowledge of character sizes, including <space>s, on the screen.  It's here
  * because it's a complicated little beast, and I didn't want to shove it down
- * into the screen.  It's probable that KEY_LEN will call into the screen once
+ * into the screen.  It's probable that KEY_COL will call into the screen once
  * there are screens with different character representations.
  *
  * txt_dent --
@@ -1920,14 +1888,11 @@ txt_backup(sp, tiqh, tp, flagsp)
  * changes.
  */
 static int
-txt_dent(sp, tp, isindent)
-	SCR *sp;
-	TEXT *tp;
-	int isindent;
+txt_dent(SCR *sp, TEXT *tp, int isindent)
 {
 	CHAR_T ch;
 	u_long sw, ts;
-	size_t cno, current, spaces, target, tabs, off;
+	size_t cno, current, spaces, target, tabs;
 	int ai_reset;
 
 	ts = O_VAL(sp, O_TABSTOP);
@@ -1951,7 +1916,7 @@ txt_dent(sp, tp, isindent)
 	 */
 	for (current = cno = 0; cno < tp->cno; ++cno)
 		current += tp->lb[cno] == '\t' ?
-		    COL_OFF(current, ts) : KEY_LEN(sp, tp->lb[cno]);
+		    COL_OFF(current, ts) : KEY_COL(sp, tp->lb[cno]);
 
 	target = current;
 	if (isindent)
@@ -1981,7 +1946,7 @@ txt_dent(sp, tp, isindent)
 	    --tp->cno, ++tp->owrite);
 	for (current = cno = 0; cno < tp->cno; ++cno)
 		current += tp->lb[cno] == '\t' ?
-		    COL_OFF(current, ts) : KEY_LEN(sp, tp->lb[cno]);
+		    COL_OFF(current, ts) : KEY_COL(sp, tp->lb[cno]);
 
 	/*
 	 * If we didn't move up to or past the target, it's because there
@@ -2021,24 +1986,23 @@ txt_dent(sp, tp, isindent)
 
 /*
  * txt_fc --
- *	File name completion.
+ *	File name and ex command completion.
  */
 static int
-txt_fc(sp, tp, redrawp)
-	SCR *sp;
-	TEXT *tp;
-	int *redrawp;
+txt_fc(SCR *sp, TEXT *tp, int *redrawp)
 {
 	struct stat sb;
 	ARGS **argv;
-	CHAR_T s_ch;
 	EXCMD cmd;
 	size_t indx, len, nlen, off;
-	int argc, trydir;
-	char *p, *t;
+	int argc;
+	CHAR_T *p, *t, *bp;
+	char *np, *epd = NULL;
+	size_t nplen;
+	int fstwd = 1;
 
-	trydir = 0;
 	*redrawp = 0;
+	ex_cinit(sp, &cmd, 0, 0, OOBLNO, OOBLNO, 0);
 
 	/*
 	 * Find the beginning of this "word" -- if we're at the beginning
@@ -2047,67 +2011,53 @@ txt_fc(sp, tp, redrawp)
 	if (tp->cno == 1) {
 		len = 0;
 		p = tp->lb;
-	} else
-retry:		for (len = 0,
-		    off = tp->cno - 1, p = tp->lb + off;; --off, --p) {
-			if (isblank(*p)) {
-				++p;
-				break;
-			}
-			++len;
-			if (off == tp->ai || off == tp->offset)
-				break;
+	} else {
+		CHAR_T *ap;
+
+		for (len = 0,
+		    off = MAX(tp->ai, tp->offset), ap = tp->lb + off, p = ap;
+		    off < tp->cno; ++off, ++ap) {
+			if (IS_ESCAPE(sp, &cmd, *ap)) {
+				if (++off == tp->cno)
+					break;
+				++ap;
+				len += 2;
+			} else if (cmdskip(*ap)) {
+				p = ap + 1;
+				if (len > 0)
+					fstwd = 0;
+				len = 0;
+			} else
+				++len;
 		}
+	}
 
 	/*
-	 * Get enough space for a wildcard character.
-	 *
-	 * XXX
-	 * This won't work for "foo\", since the \ will escape the expansion
-	 * character.  I'm not sure if that's a bug or not...
+	 * If we are at the first word, do ex command completion instead of
+	 * file name completion.
 	 */
-	off = p - tp->lb;
-	BINC_RET(sp, tp->lb, tp->lb_len, tp->len + 1);
-	p = tp->lb + off;
-
-	s_ch = p[len];
-	p[len] = '*';
-
-	/* Build an ex command, and call the ex expansion routines. */
-	ex_cinit(&cmd, 0, 0, OOBLNO, OOBLNO, 0, NULL);
-	if (argv_init(sp, &cmd))
-		return (1);
-	if (argv_exp2(sp, &cmd, p, len + 1)) {
-		p[len] = s_ch;
-		return (0);
+	if (fstwd)
+		(void)argv_flt_ex(sp, &cmd, p, len);
+	else {
+		if ((bp = argv_uesc(sp, &cmd, p, len)) == NULL)
+			return (1);
+		if (argv_flt_path(sp, &cmd, bp, STRLEN(bp))) {
+			FREE_SPACEW(sp, bp, 0);
+			return (0);
+		}
+		FREE_SPACEW(sp, bp, 0);
 	}
 	argc = cmd.argc;
 	argv = cmd.argv;
 
-	p[len] = s_ch;
-
 	switch (argc) {
 	case 0:				/* No matches. */
-		if (!trydir)
-			(void)sp->gp->scr_bell(sp);
+		(void)sp->gp->scr_bell(sp);
 		return (0);
 	case 1:				/* One match. */
-		/* If something changed, do the exchange. */
-		nlen = strlen(cmd.argv[0]->bp);
-		if (len != nlen || memcmp(cmd.argv[0]->bp, p, len))
-			break;
-
-		/* If haven't done a directory test, do it now. */
-		if (!trydir &&
-		    !stat(cmd.argv[0]->bp, &sb) && S_ISDIR(sb.st_mode)) {
-			p += len;
-			goto isdir;
-		}
-
-		/* If nothing changed, period, ring the bell. */
-		if (!trydir)
-			(void)sp->gp->scr_bell(sp);
-		return (0);
+		/* Always overwrite the old text. */
+		nlen = STRLEN(cmd.argv[0]->bp);
+		break;
 	default:			/* Multiple matches. */
 		*redrawp = 1;
 		if (txt_fc_col(sp, argc, argv))
@@ -2125,8 +2075,17 @@ retry:		for (len = 0,
 		break;
 	}
 
+	/* Escape the matched part of the path. */
+	if (fstwd)
+		bp = cmd.argv[0]->bp;
+	else {
+		if ((bp = argv_esc(sp, &cmd, cmd.argv[0]->bp, nlen)) == NULL)
+			return (1);
+		nlen = STRLEN(bp);
+	}
+
 	/* Overwrite the expanded text first. */
-	for (t = cmd.argv[0]->bp; len > 0 && nlen > 0; --len, --nlen)
+	for (t = bp; len > 0 && nlen > 0; --len, --nlen)
 		*p++ = *t++;
 
 	/* If lost text, make the remaining old text overwrite characters. */
@@ -2142,36 +2101,44 @@ retry:		for (len = 0,
 	/* Shift remaining text up, and move the cursor to the end. */
 	if (nlen) {
 		off = p - tp->lb;
-		BINC_RET(sp, tp->lb, tp->lb_len, tp->len + nlen);
+		BINC_RETW(sp, tp->lb, tp->lb_len, tp->len + nlen);
 		p = tp->lb + off;
 
 		tp->cno += nlen;
 		tp->len += nlen;
 
 		if (tp->insert != 0)
-			(void)memmove(p + nlen, p, tp->insert);
+			(void)MEMMOVE(p + nlen, p, tp->insert);
 		while (nlen--)
 			*p++ = *t++;
 	}
 
-	/* If a single match and it's a directory, retry it. */
-	if (argc == 1 && !stat(cmd.argv[0]->bp, &sb) && S_ISDIR(sb.st_mode)) {
-isdir:		if (tp->owrite == 0) {
+	if (!fstwd)
+		FREE_SPACEW(sp, bp, 0);
+
+	/* If not a single match of path, we've done. */
+	if (argc != 1 || fstwd)
+		return (0);
+
+	/* If a single match and it's a directory, append a '/'. */
+	INT2CHAR(sp, cmd.argv[0]->bp, cmd.argv[0]->len + 1, np, nplen);
+	if ((epd = expanduser(np)) != NULL)
+		np = epd;
+	if (!stat(np, &sb) && S_ISDIR(sb.st_mode)) {
+		if (tp->owrite == 0) {
 			off = p - tp->lb;
-			BINC_RET(sp, tp->lb, tp->lb_len, tp->len + 1);
+			BINC_RETW(sp, tp->lb, tp->lb_len, tp->len + 1);
 			p = tp->lb + off;
 			if (tp->insert != 0)
-				(void)memmove(p + 1, p, tp->insert);
+				(void)MEMMOVE(p + 1, p, tp->insert);
 			++tp->len;
 		} else
 			--tp->owrite;
 
 		++tp->cno;
 		*p++ = '/';
-
-		trydir = 1;
-		goto retry;
 	}
+	free(epd);
 	return (0);
 }
 
@@ -2180,27 +2147,28 @@ isdir:		if (tp->owrite == 0) {
  *	Display file names for file name completion.
  */
 static int
-txt_fc_col(sp, argc, argv)
-	SCR *sp;
-	int argc;
-	ARGS **argv;
+txt_fc_col(SCR *sp, int argc, ARGS **argv)
 {
 	ARGS **av;
 	CHAR_T *p;
 	GS *gp;
 	size_t base, cnt, col, colwidth, numrows, numcols, prefix, row;
 	int ac, nf, reset;
+	char *np, *pp;
+	size_t nlen;
 
 	gp = sp->gp;
 
 	/* Trim any directory prefix common to all of the files. */
-	if ((p = strrchr(argv[0]->bp, '/')) == NULL)
+	INT2CHAR(sp, argv[0]->bp, argv[0]->len + 1, np, nlen);
+	if ((pp = strrchr(np, '/')) == NULL)
 		prefix = 0;
 	else {
-		prefix = (p - argv[0]->bp) + 1;
+		prefix = (pp - np) + 1;
 		for (ac = argc - 1, av = argv + 1; ac > 0; --ac, ++av)
 			if (av[0]->len < prefix ||
-			    memcmp(av[0]->bp, argv[0]->bp, prefix)) {
+			    MEMCMP(av[0]->bp, argv[0]->bp, 
+				   prefix)) {
 				prefix = 0;
 				break;
 			}
@@ -2215,7 +2183,7 @@ txt_fc_col(sp, argc, argv)
 	 */
 	for (ac = argc, av = argv, colwidth = 0; ac > 0; --ac, ++av) {
 		for (col = 0, p = av[0]->bp + prefix; *p != '\0'; ++p)
-			col += KEY_LEN(sp, *p);
+			col += KEY_COL(sp, *p);
 		if (col > colwidth)
 			colwidth = col;
 	}
@@ -2236,15 +2204,17 @@ txt_fc_col(sp, argc, argv)
 		goto intr;
 
 	/* If the largest file name is too large, just print them. */
-	if (colwidth > sp->cols) {
+	if (colwidth >= sp->cols) {
 		for (ac = argc, av = argv; ac > 0; --ac, ++av) {
-			p = msg_print(sp, av[0]->bp + prefix, &nf);
-			(void)ex_printf(sp, "%s\n", p);
+			INT2CHAR(sp, av[0]->bp+prefix, av[0]->len+1-prefix,
+				 np, nlen);
+			pp = msg_print(sp, np, &nf);
+			(void)ex_printf(sp, "%s\n", pp);
+			if (nf)
+				FREE_SPACE(sp, pp, 0);
 			if (F_ISSET(gp, G_INTERRUPTED))
 				break;
 		}
-		if (nf)
-			FREE_SPACE(sp, p, 0);
 		CHK_INTR;
 	} else {
 		/* Figure out the number of columns. */
@@ -2259,10 +2229,12 @@ txt_fc_col(sp, argc, argv)
 		/* Display the files in sorted order. */
 		for (row = 0; row < numrows; ++row) {
 			for (base = row, col = 0; col < numcols; ++col) {
-				p = msg_print(sp, argv[base]->bp + prefix, &nf);
-				cnt = ex_printf(sp, "%s", p);
+				INT2CHAR(sp, argv[base]->bp+prefix, 
+					argv[base]->len+1-prefix, np, nlen);
+				pp = msg_print(sp, np, &nf);
+				cnt = ex_printf(sp, "%s", pp);
 				if (nf)
-					FREE_SPACE(sp, p, 0);
+					FREE_SPACE(sp, pp, 0);
 				CHK_INTR;
 				if ((base += numrows) >= argc)
 					break;
@@ -2292,14 +2264,12 @@ intr:		F_CLR(gp, G_INTERRUPTED);
  *	Set the end mark on the line.
  */
 static int
-txt_emark(sp, tp, cno)
-	SCR *sp;
-	TEXT *tp;
-	size_t cno;
+txt_emark(SCR *sp, TEXT *tp, size_t cno)
 {
-	CHAR_T ch, *kp;
+	CHAR_T ch;
+	u_char *kp;
 	size_t chlen, nlen, olen;
-	char *p;
+	CHAR_T *p;
 
 	ch = CH_ENDMARK;
 
@@ -2307,11 +2277,11 @@ txt_emark(sp, tp, cno)
 	 * The end mark may not be the same size as the current character.
 	 * Don't let the line shift.
 	 */
-	nlen = KEY_LEN(sp, ch);
+	nlen = KEY_COL(sp, ch);
 	if (tp->lb[cno] == '\t')
 		(void)vs_columns(sp, tp->lb, tp->lno, &cno, &olen);
 	else
-		olen = KEY_LEN(sp, tp->lb[cno]);
+		olen = KEY_COL(sp, tp->lb[cno]);
 
 	/*
 	 * If the line got longer, well, it's weird, but it's easy.  If
@@ -2319,20 +2289,22 @@ txt_emark(sp, tp, cno)
 	 * to fix it up.
 	 */
 	if (olen > nlen) {
-		BINC_RET(sp, tp->lb, tp->lb_len, tp->len + olen);
+		BINC_RETW(sp, tp->lb, tp->lb_len, tp->len + olen);
 		chlen = olen - nlen;
 		if (tp->insert != 0)
-			memmove(tp->lb + cno + 1 + chlen,
+			MEMMOVE(tp->lb + cno + 1 + chlen,
 			    tp->lb + cno + 1, tp->insert);
 
 		tp->len += chlen;
 		tp->owrite += chlen;
 		p = tp->lb + cno;
-		if (tp->lb[cno] == '\t')
+		if (tp->lb[cno] == '\t' ||
+		    KEY_NEEDSWIDE(sp, tp->lb[cno]))
 			for (cno += chlen; chlen--;)
 				*p++ = ' ';
 		else
-			for (kp = KEY_NAME(sp, tp->lb[cno]),
+			for (kp = (u_char *)
+			    KEY_NAME(sp, tp->lb[cno]),
 			    cno += chlen; chlen--;)
 				*p++ = *kp++;
 	}
@@ -2345,9 +2317,7 @@ txt_emark(sp, tp, cno)
  *	Handle an error during input processing.
  */
 static void
-txt_err(sp, tiqh)
-	SCR *sp;
-	TEXTH *tiqh;
+txt_err(SCR *sp, TEXTH *tiqh)
 {
 	recno_t lno;
 
@@ -2360,7 +2330,7 @@ txt_err(sp, tiqh)
 	 * We depend on at least one line number being set in the text
 	 * chain.
 	 */
-	for (lno = tiqh->cqh_first->lno;
+	for (lno = TAILQ_FIRST(tiqh)->lno;
 	    !db_exist(sp, lno) && lno > 0; --lno);
 
 	sp->lno = lno == 0 ? 1 : lno;
@@ -2380,14 +2350,12 @@ txt_err(sp, tiqh)
  * may not be able to enter.
  */
 static int
-txt_hex(sp, tp)
-	SCR *sp;
-	TEXT *tp;
+txt_hex(SCR *sp, TEXT *tp)
 {
 	CHAR_T savec;
 	size_t len, off;
 	u_long value;
-	char *p, *wp;
+	CHAR_T *p, *wp;
 
 	/*
 	 * Null-terminate the string.  Since nul isn't a legal hex value,
@@ -2414,8 +2382,8 @@ txt_hex(sp, tp)
 
 	/* Get the value. */
 	errno = 0;
-	value = strtol(wp, NULL, 16);
-	if (errno || value > MAX_CHAR_T) {
+	value = STRTOL(wp, NULL, 16);
+	if (errno || value > UCHAR_MAX) {
 nothex:		tp->lb[tp->cno] = savec;
 		return (0);
 	}
@@ -2430,12 +2398,14 @@ nothex:		tp->lb[tp->cno] = savec;
 
 	/* Copy down any overwrite characters. */
 	if (tp->owrite)
-		memmove(tp->lb + tp->cno, tp->lb + tp->cno + len, tp->owrite);
+		MEMMOVE(tp->lb + tp->cno, tp->lb + tp->cno + len, 
+		    tp->owrite);
 
 	/* Copy down any insert characters. */
 	if (tp->insert)
-		memmove(tp->lb + tp->cno + tp->owrite,
-		    tp->lb + tp->cno + tp->owrite + len, tp->insert);
+		MEMMOVE(tp->lb + tp->cno + tp->owrite,
+		    tp->lb + tp->cno + tp->owrite + len, 
+		    tp->insert);
 
 	return (0);
 }
@@ -2460,15 +2430,12 @@ nothex:		tp->lb[tp->cno] = savec;
  * of the screen space they require, but that it not overwrite other characters.
  */
 static int
-txt_insch(sp, tp, chp, flags)
-	SCR *sp;
-	TEXT *tp;
-	CHAR_T *chp;
-	u_int flags;
+txt_insch(SCR *sp, TEXT *tp, CHAR_T *chp, u_int flags)
 {
-	CHAR_T *kp, savech;
+	u_char *kp;
+	CHAR_T savech;
 	size_t chlen, cno, copydown, olen, nlen;
-	char *p;
+	CHAR_T *p;
 
 	/*
 	 * The 'R' command does one-for-one replacement, because there's
@@ -2494,7 +2461,7 @@ txt_insch(sp, tp, chp, flags)
 			(void)vs_columns(sp, tp->lb, tp->lno, &cno, &nlen);
 			tp->lb[cno] = savech;
 		} else
-			nlen = KEY_LEN(sp, *chp);
+			nlen = KEY_COL(sp, *chp);
 
 		/*
 		 * Eat overwrite characters until we run out of them or we've
@@ -2509,7 +2476,7 @@ txt_insch(sp, tp, chp, flags)
 				(void)vs_columns(sp,
 				    tp->lb, tp->lno, &cno, &olen);
 			else
-				olen = KEY_LEN(sp, tp->lb[cno]);
+				olen = KEY_COL(sp, tp->lb[cno]);
 
 			if (olen == nlen) {
 				nlen = 0;
@@ -2519,19 +2486,21 @@ txt_insch(sp, tp, chp, flags)
 				++copydown;
 				nlen -= olen;
 			} else {
-				BINC_RET(sp,
+				BINC_RETW(sp,
 				    tp->lb, tp->lb_len, tp->len + olen);
 				chlen = olen - nlen;
-				memmove(tp->lb + cno + 1 + chlen,
-				    tp->lb + cno + 1, tp->owrite + tp->insert);
+				MEMMOVE(tp->lb + cno + 1 + chlen,
+				    tp->lb + cno + 1, 
+				    tp->owrite + tp->insert);
 
 				tp->len += chlen;
 				tp->owrite += chlen;
-				if (tp->lb[cno] == '\t')
+				if (tp->lb[cno] == '\t' ||
+				   KEY_NEEDSWIDE(sp, tp->lb[cno]))
 					for (p = tp->lb + cno + 1; chlen--;)
 						*p++ = ' ';
 				else
-					for (kp =
+					for (kp = (u_char *)
 					    KEY_NAME(sp, tp->lb[cno]) + nlen,
 					    p = tp->lb + cno + 1; chlen--;)
 						*p++ = *kp++;
@@ -2546,7 +2515,7 @@ txt_insch(sp, tp, chp, flags)
 		 * into position.
 		 */
 		if (copydown != 0 && (tp->len -= copydown) != 0)
-			memmove(tp->lb + cno, tp->lb + cno + copydown,
+			MEMMOVE(tp->lb + cno, tp->lb + cno + copydown,
 			    tp->owrite + tp->insert + copydown);
 
 		/* If we had enough overwrite characters, we're done. */
@@ -2557,14 +2526,14 @@ txt_insch(sp, tp, chp, flags)
 	}
 
 	/* Check to see if the character fits into the input buffer. */
-	BINC_RET(sp, tp->lb, tp->lb_len, tp->len + 1);
+	BINC_RETW(sp, tp->lb, tp->lb_len, tp->len + 1);
 
 	++tp->len;
 	if (tp->insert) {			/* Insert a character. */
 		if (tp->insert == 1)
 			tp->lb[tp->cno + 1] = tp->lb[tp->cno];
 		else
-			memmove(tp->lb + tp->cno + 1,
+			MEMMOVE(tp->lb + tp->cno + 1,
 			    tp->lb + tp->cno, tp->owrite + tp->insert);
 	}
 	tp->lb[tp->cno++] = *chp;
@@ -2576,11 +2545,7 @@ txt_insch(sp, tp, chp, flags)
  *	Do an incremental search.
  */
 static int
-txt_isrch(sp, vp, tp, is_flagsp)
-	SCR *sp;
-	VICMD *vp;
-	TEXT *tp;
-	u_int8_t *is_flagsp;
+txt_isrch(SCR *sp, VICMD *vp, TEXT *tp, u_int8_t *is_flagsp)
 {
 	MARK start;
 	recno_t lno;
@@ -2613,7 +2578,7 @@ txt_isrch(sp, vp, tp, is_flagsp)
 	 * If it's a magic shell character, and not quoted, reset the cursor
 	 * to the starting point.
 	 */
-	if (strchr(O_STR(sp, O_SHELLMETA), tp->lb[tp->cno - 1]) != NULL &&
+	if (IS_SHELLMETA(sp, tp->lb[tp->cno - 1]) &&
 	    (tp->cno == 2 || tp->lb[tp->cno - 2] != '\\'))
 		vp->m_final = vp->m_start;
 
@@ -2700,10 +2665,7 @@ txt_isrch(sp, vp, tp, is_flagsp)
  *	Resolve the input text chain into the file.
  */
 static int
-txt_resolve(sp, tiqh, flags)
-	SCR *sp;
-	TEXTH *tiqh;
-	u_int32_t flags;
+txt_resolve(SCR *sp, TEXTH *tiqh, u_int32_t flags)
 {
 	VI_PRIVATE *vip;
 	TEXT *tp;
@@ -2718,23 +2680,23 @@ txt_resolve(sp, tiqh, flags)
 	 * about the line will be wrong.
 	 */
 	vip = VIP(sp);
-	tp = tiqh->cqh_first;
+	tp = TAILQ_FIRST(tiqh);
 
 	if (LF_ISSET(TXT_AUTOINDENT))
 		txt_ai_resolve(sp, tp, &changed);
 	else
 		changed = 0;
 	if (db_set(sp, tp->lno, tp->lb, tp->len) ||
-	    changed && vs_change(sp, tp->lno, LINE_RESET))
+	    (changed && vs_change(sp, tp->lno, LINE_RESET)))
 		return (1);
 
-	for (lno = tp->lno; (tp = tp->q.cqe_next) != (void *)&sp->tiq; ++lno) {
+	for (lno = tp->lno; (tp = TAILQ_NEXT(tp, q)) != NULL; ++lno) {
 		if (LF_ISSET(TXT_AUTOINDENT))
 			txt_ai_resolve(sp, tp, &changed);
 		else
 			changed = 0;
 		if (db_append(sp, 0, lno, tp->lb, tp->len) ||
-		    changed && vs_change(sp, tp->lno, LINE_RESET))
+		    (changed && vs_change(sp, tp->lno, LINE_RESET)))
 			return (1);
 	}
 
@@ -2757,9 +2719,7 @@ txt_resolve(sp, tiqh, flags)
  * I think not.
  */
 static int
-txt_showmatch(sp, tp)
-	SCR *sp;
-	TEXT *tp;
+txt_showmatch(SCR *sp, TEXT *tp)
 {
 	GS *gp;
 	VCS cs;
@@ -2788,7 +2748,7 @@ txt_showmatch(sp, tp)
 	cs.cs_cno = tp->cno - 1;
 	if (cs_init(sp, &cs))
 		return (1);
-	startc = (endc = cs.cs_ch)  == ')' ? '(' : '{';
+	startc = STRCHR(VIP(sp)->mcs, endc = cs.cs_ch)[-1];
 
 	/* Search for the match. */
 	for (cnt = 1;;) {
@@ -2809,7 +2769,7 @@ txt_showmatch(sp, tp)
 	}
 
 	/* If the match is on the screen, move to it. */
-	if (cs.cs_lno < m.lno || cs.cs_lno == m.lno && cs.cs_cno < m.cno)
+	if (cs.cs_lno < m.lno || (cs.cs_lno == m.lno && cs.cs_cno < m.cno))
 		return (0);
 	sp->lno = cs.cs_lno;
 	sp->cno = cs.cs_cno;
@@ -2826,15 +2786,11 @@ txt_showmatch(sp, tp)
  *	Handle margin wrap.
  */
 static int
-txt_margin(sp, tp, wmtp, didbreak, flags)
-	SCR *sp;
-	TEXT *tp, *wmtp;
-	int *didbreak;
-	u_int32_t flags;
+txt_margin(SCR *sp, TEXT *tp, TEXT *wmtp, int *didbreak, u_int32_t flags)
 {
 	VI_PRIVATE *vip;
 	size_t len, off;
-	char *p, *wp;
+	CHAR_T *p, *wp;
 
 	/* Find the nearest previous blank. */
 	for (off = tp->cno - 1, p = tp->lb + off, len = 0;; --off, --p, ++len) {
@@ -2906,15 +2862,11 @@ txt_margin(sp, tp, wmtp, didbreak, flags)
  *	Resolve the input line for the 'R' command.
  */
 static void
-txt_Rresolve(sp, tiqh, tp, orig_len)
-	SCR *sp;
-	TEXTH *tiqh;
-	TEXT *tp;
-	const size_t orig_len;
+txt_Rresolve(SCR *sp, TEXTH *tiqh, TEXT *tp, const size_t orig_len)
 {
 	TEXT *ttp;
 	size_t input_len, retain;
-	char *p;
+	CHAR_T *p;
 
 	/*
 	 * Check to make sure that the cursor hasn't moved beyond
@@ -2927,9 +2879,9 @@ txt_Rresolve(sp, tiqh, tp, orig_len)
 	 * Calculate how many characters the user has entered,
 	 * plus the blanks erased by <carriage-return>/<newline>s.
 	 */
-	for (ttp = tiqh->cqh_first, input_len = 0;;) {
+	for (ttp = TAILQ_FIRST(tiqh), input_len = 0;;) {
 		input_len += ttp == tp ? tp->cno : ttp->len + ttp->R_erase;
-		if ((ttp = ttp->q.cqe_next) == (void *)&sp->tiq)
+		if ((ttp = TAILQ_NEXT(ttp, q)) == NULL)
 			break;
 	}
 
@@ -2950,9 +2902,9 @@ txt_Rresolve(sp, tiqh, tp, orig_len)
 	if (input_len < orig_len) {
 		retain = MIN(tp->owrite, orig_len - input_len);
 		if (db_get(sp,
-		    tiqh->cqh_first->lno, DBG_FATAL | DBG_NOCACHE, &p, NULL))
+		    TAILQ_FIRST(tiqh)->lno, DBG_FATAL | DBG_NOCACHE, &p, NULL))
 			return;
-		memcpy(tp->lb + tp->cno, p + input_len, retain);
+		MEMCPY(tp->lb + tp->cno, p + input_len, retain);
 		tp->len -= tp->owrite - retain;
 		tp->owrite = 0;
 		tp->insert += retain;
@@ -2964,8 +2916,7 @@ txt_Rresolve(sp, tiqh, tp, orig_len)
  *	No more characters message.
  */
 static void
-txt_nomorech(sp)
-	SCR *sp;
+txt_nomorech(SCR *sp)
 {
 	msgq(sp, M_BERR, "194|No more characters to erase");
 }

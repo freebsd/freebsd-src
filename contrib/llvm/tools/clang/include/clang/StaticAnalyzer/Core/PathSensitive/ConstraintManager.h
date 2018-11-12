@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_CONSTRAINT_MANAGER_H
-#define LLVM_CLANG_GR_CONSTRAINT_MANAGER_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CONSTRAINTMANAGER_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_CONSTRAINTMANAGER_H
 
-#include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
 #include "llvm/Support/SaveAndRestore.h"
 
 namespace llvm {
@@ -28,7 +28,7 @@ namespace ento {
 class SubEngine;
 
 class ConditionTruthVal {
-  llvm::Optional<bool> Val;
+  Optional<bool> Val;
 public:
   /// Construct a ConditionTruthVal indicating the constraint is constrained
   /// to either true or false, depending on the boolean value provided.
@@ -78,10 +78,14 @@ public:
     // If StTrue is infeasible, asserting the falseness of Cond is unnecessary
     // because the existing constraints already establish this.
     if (!StTrue) {
-      // FIXME: This is fairly expensive and should be disabled even in
-      // Release+Asserts builds.
+#ifndef __OPTIMIZE__
+      // This check is expensive and should be disabled even in Release+Asserts
+      // builds.
+      // FIXME: __OPTIMIZE__ is a GNU extension that Clang implements but MSVC
+      // does not. Is there a good equivalent there?
       assert(assume(State, Cond, false) && "System is over constrained.");
-      return ProgramStatePair((ProgramStateRef)NULL, State);
+#endif
+      return ProgramStatePair((ProgramStateRef)nullptr, State);
     }
 
     ProgramStateRef StFalse = assume(State, Cond, false);
@@ -89,7 +93,7 @@ public:
       // We are careful to return the original state, /not/ StTrue,
       // because we want to avoid having callers generate a new node
       // in the ExplodedGraph.
-      return ProgramStatePair(State, (ProgramStateRef)NULL);
+      return ProgramStatePair(State, (ProgramStateRef)nullptr);
     }
 
     return ProgramStatePair(StTrue, StFalse);
@@ -102,7 +106,7 @@ public:
   /// value for a symbol, even if it is perfectly constrained.
   virtual const llvm::APSInt* getSymVal(ProgramStateRef state,
                                         SymbolRef sym) const {
-    return 0;
+    return nullptr;
   }
 
   virtual ProgramStateRef removeDeadBindings(ProgramStateRef state,
@@ -118,7 +122,7 @@ public:
   /// Convenience method to query the state to see if a symbol is null or
   /// not null, or if neither assumption can be made.
   ConditionTruthVal isNull(ProgramStateRef State, SymbolRef Sym) {
-    llvm::SaveAndRestore<bool> DisableNotify(NotifyAssumeClients, false);
+    SaveAndRestore<bool> DisableNotify(NotifyAssumeClients, false);
 
     return checkNull(State, Sym);
   }
@@ -144,8 +148,9 @@ protected:
   virtual ConditionTruthVal checkNull(ProgramStateRef State, SymbolRef Sym);
 };
 
-ConstraintManager* CreateRangeConstraintManager(ProgramStateManager& statemgr,
-                                                SubEngine *subengine);
+std::unique_ptr<ConstraintManager>
+CreateRangeConstraintManager(ProgramStateManager &statemgr,
+                             SubEngine *subengine);
 
 } // end GR namespace
 

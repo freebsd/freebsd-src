@@ -589,6 +589,7 @@
 #define	AUE_POSIX_OPENPT	43185	/* FreeBSD. */
 #define	AUE_CAP_NEW		43186	/* TrustedBSD. */
 #define	AUE_CAP_RIGHTS_GET	43187	/* TrustedBSD. */
+#define	AUE_CAP_GETRIGHTS	AUE_CAP_RIGHTS_GET
 #define	AUE_CAP_ENTER		43188	/* TrustedBSD. */
 #define	AUE_CAP_GETMODE		43189	/* TrustedBSD. */
 #define	AUE_POSIX_SPAWN		43190	/* Darwin. */
@@ -610,6 +611,7 @@
 #define	AUE_CAP_FCNTLS_GET	43206	/* TrustedBSD. */
 #define	AUE_BINDAT		43207	/* TrustedBSD. */
 #define	AUE_CONNECTAT		43208	/* TrustedBSD. */
+#define	AUE_CHFLAGSAT		43209	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

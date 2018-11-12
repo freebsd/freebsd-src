@@ -46,15 +46,6 @@ VNET_DECLARE(int, tcp_do_rfc1323);
 
 #endif /* _KERNEL */
 
-/* TCP segment queue entry */
-struct tseg_qent {
-	LIST_ENTRY(tseg_qent) tqe_q;
-	int	tqe_len;		/* TCP segment data length */
-	struct	tcphdr *tqe_th;		/* a pointer to tcp header */
-	struct	mbuf	*tqe_m;		/* mbuf contains packet */
-};
-LIST_HEAD(tsegqe_head, tseg_qent);
-
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
 	tcp_seq end;		/* end seq no. */
@@ -100,7 +91,7 @@ do {								\
  * Organized for 16 byte cacheline efficiency.
  */
 struct tcpcb {
-	struct	tsegqe_head t_segq;	/* segment reassembly queue */
+	struct	mbuf *t_segq;		/* segment reassembly queue */
 	void	*t_pspare[2];		/* new reassembly queue */
 	int	t_segqlen;		/* segment reassembly queue length */
 	int	t_dupacks;		/* consecutive dup acks recd */
@@ -208,8 +199,14 @@ struct tcpcb {
 	u_int	t_keepintvl;		/* interval between keepalives */
 	u_int	t_keepcnt;		/* number of keepalives before close */
 
+	u_int	t_tsomax;		/* TSO total burst length limit in bytes */
+	u_int	t_tsomaxsegcount;	/* TSO maximum segment count */
+	u_int	t_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+	u_int	t_pmtud_saved_maxopd;	/* pre-blackhole MSS */
+	u_int	t_flags2;		/* More tcpcb flags storage */
+
 	uint32_t t_ispare[8];		/* 5 UTO, 3 TBD */
-	void	*t_pspare2[4];		/* 4 TBD */
+	void	*t_pspare2[4];		/* 1 TCP_SIGNATURE, 3 TBD */
 	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
 
@@ -282,6 +279,13 @@ struct tcpcb {
 #endif /* TCP_SIGNATURE */
 
 /*
+ * Flags for PLPMTU handling, t_flags2
+ */
+#define	TF2_PLPMTU_BLACKHOLE	0x00000001 /* Possible PLPMTUD Black Hole. */
+#define	TF2_PLPMTU_PMTUD	0x00000002 /* Allowed to attempt PLPMTUD. */
+#define	TF2_PLPMTU_MAXSEGSNT	0x00000004 /* Last seg sent was full seg. */
+
+/*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
  * It's basically used to reduce the number of parameters
@@ -324,6 +328,17 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
 	u_long	rmx_recvpipe;   /* inbound delay-bandwidth product */
 };
 
+/*
+ * Used by tcp_maxmtu() to communicate interface specific features
+ * and limits at the time of connection setup.
+ */
+struct tcp_ifcap {
+	int	ifcap;
+	u_int	tsomax;
+	u_int	tsomaxsegcount;
+	u_int	tsomaxsegsize;
+};
+
 #ifndef _NETINET_IN_PCB_H_
 struct in_conninfo;
 #endif /* _NETINET_IN_PCB_H_ */
@@ -342,6 +357,8 @@ struct tcptw {
 	u_int		t_starttime;
 	int		tw_time;
 	TAILQ_ENTRY(tcptw) tw_2msl;
+	void		*tw_pspare;	/* TCP_SIGNATURE */
+	u_int		*tw_spare;	/* TCP_SIGNATURE */
 };
 
 #define	intotcpcb(ip)	((struct tcpcb *)(ip)->inp_ppcb)
@@ -389,125 +406,131 @@ struct tcptw {
  * but that's inconvenient at the moment.
  */
 struct	tcpstat {
-	u_long	tcps_connattempt;	/* connections initiated */
-	u_long	tcps_accepts;		/* connections accepted */
-	u_long	tcps_connects;		/* connections established */
-	u_long	tcps_drops;		/* connections dropped */
-	u_long	tcps_conndrops;		/* embryonic connections dropped */
-	u_long	tcps_minmssdrops;	/* average minmss too low drops */
-	u_long	tcps_closed;		/* conn. closed (includes drops) */
-	u_long	tcps_segstimed;		/* segs where we tried to get rtt */
-	u_long	tcps_rttupdated;	/* times we succeeded */
-	u_long	tcps_delack;		/* delayed acks sent */
-	u_long	tcps_timeoutdrop;	/* conn. dropped in rxmt timeout */
-	u_long	tcps_rexmttimeo;	/* retransmit timeouts */
-	u_long	tcps_persisttimeo;	/* persist timeouts */
-	u_long	tcps_keeptimeo;		/* keepalive timeouts */
-	u_long	tcps_keepprobe;		/* keepalive probes sent */
-	u_long	tcps_keepdrops;		/* connections dropped in keepalive */
+	uint64_t tcps_connattempt;	/* connections initiated */
+	uint64_t tcps_accepts;		/* connections accepted */
+	uint64_t tcps_connects;		/* connections established */
+	uint64_t tcps_drops;		/* connections dropped */
+	uint64_t tcps_conndrops;	/* embryonic connections dropped */
+	uint64_t tcps_minmssdrops;	/* average minmss too low drops */
+	uint64_t tcps_closed;		/* conn. closed (includes drops) */
+	uint64_t tcps_segstimed;	/* segs where we tried to get rtt */
+	uint64_t tcps_rttupdated;	/* times we succeeded */
+	uint64_t tcps_delack;		/* delayed acks sent */
+	uint64_t tcps_timeoutdrop;	/* conn. dropped in rxmt timeout */
+	uint64_t tcps_rexmttimeo;	/* retransmit timeouts */
+	uint64_t tcps_persisttimeo;	/* persist timeouts */
+	uint64_t tcps_keeptimeo;	/* keepalive timeouts */
+	uint64_t tcps_keepprobe;	/* keepalive probes sent */
+	uint64_t tcps_keepdrops;	/* connections dropped in keepalive */
 
-	u_long	tcps_sndtotal;		/* total packets sent */
-	u_long	tcps_sndpack;		/* data packets sent */
-	u_long	tcps_sndbyte;		/* data bytes sent */
-	u_long	tcps_sndrexmitpack;	/* data packets retransmitted */
-	u_long	tcps_sndrexmitbyte;	/* data bytes retransmitted */
-	u_long	tcps_sndrexmitbad;	/* unnecessary packet retransmissions */
-	u_long	tcps_sndacks;		/* ack-only packets sent */
-	u_long	tcps_sndprobe;		/* window probes sent */
-	u_long	tcps_sndurg;		/* packets sent with URG only */
-	u_long	tcps_sndwinup;		/* window update-only packets sent */
-	u_long	tcps_sndctrl;		/* control (SYN|FIN|RST) packets sent */
+	uint64_t tcps_sndtotal;		/* total packets sent */
+	uint64_t tcps_sndpack;		/* data packets sent */
+	uint64_t tcps_sndbyte;		/* data bytes sent */
+	uint64_t tcps_sndrexmitpack;	/* data packets retransmitted */
+	uint64_t tcps_sndrexmitbyte;	/* data bytes retransmitted */
+	uint64_t tcps_sndrexmitbad;	/* unnecessary packet retransmissions */
+	uint64_t tcps_sndacks;		/* ack-only packets sent */
+	uint64_t tcps_sndprobe;		/* window probes sent */
+	uint64_t tcps_sndurg;		/* packets sent with URG only */
+	uint64_t tcps_sndwinup;		/* window update-only packets sent */
+	uint64_t tcps_sndctrl;		/* control (SYN|FIN|RST) packets sent */
 
-	u_long	tcps_rcvtotal;		/* total packets received */
-	u_long	tcps_rcvpack;		/* packets received in sequence */
-	u_long	tcps_rcvbyte;		/* bytes received in sequence */
-	u_long	tcps_rcvbadsum;		/* packets received with ccksum errs */
-	u_long	tcps_rcvbadoff;		/* packets received with bad offset */
-	u_long	tcps_rcvmemdrop;	/* packets dropped for lack of memory */
-	u_long	tcps_rcvshort;		/* packets received too short */
-	u_long	tcps_rcvduppack;	/* duplicate-only packets received */
-	u_long	tcps_rcvdupbyte;	/* duplicate-only bytes received */
-	u_long	tcps_rcvpartduppack;	/* packets with some duplicate data */
-	u_long	tcps_rcvpartdupbyte;	/* dup. bytes in part-dup. packets */
-	u_long	tcps_rcvoopack;		/* out-of-order packets received */
-	u_long	tcps_rcvoobyte;		/* out-of-order bytes received */
-	u_long	tcps_rcvpackafterwin;	/* packets with data after window */
-	u_long	tcps_rcvbyteafterwin;	/* bytes rcvd after window */
-	u_long	tcps_rcvafterclose;	/* packets rcvd after "close" */
-	u_long	tcps_rcvwinprobe;	/* rcvd window probe packets */
-	u_long	tcps_rcvdupack;		/* rcvd duplicate acks */
-	u_long	tcps_rcvacktoomuch;	/* rcvd acks for unsent data */
-	u_long	tcps_rcvackpack;	/* rcvd ack packets */
-	u_long	tcps_rcvackbyte;	/* bytes acked by rcvd acks */
-	u_long	tcps_rcvwinupd;		/* rcvd window update packets */
-	u_long	tcps_pawsdrop;		/* segments dropped due to PAWS */
-	u_long	tcps_predack;		/* times hdr predict ok for acks */
-	u_long	tcps_preddat;		/* times hdr predict ok for data pkts */
-	u_long	tcps_pcbcachemiss;
-	u_long	tcps_cachedrtt;		/* times cached RTT in route updated */
-	u_long	tcps_cachedrttvar;	/* times cached rttvar updated */
-	u_long	tcps_cachedssthresh;	/* times cached ssthresh updated */
-	u_long	tcps_usedrtt;		/* times RTT initialized from route */
-	u_long	tcps_usedrttvar;	/* times RTTVAR initialized from rt */
-	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
-	u_long	tcps_persistdrop;	/* timeout in persist state */
-	u_long	tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
-	u_long	tcps_mturesent;		/* resends due to MTU discovery */
-	u_long	tcps_listendrop;	/* listen queue overflows */
-	u_long	tcps_badrst;		/* ignored RSTs in the window */
+	uint64_t tcps_rcvtotal;		/* total packets received */
+	uint64_t tcps_rcvpack;		/* packets received in sequence */
+	uint64_t tcps_rcvbyte;		/* bytes received in sequence */
+	uint64_t tcps_rcvbadsum;	/* packets received with ccksum errs */
+	uint64_t tcps_rcvbadoff;	/* packets received with bad offset */
+	uint64_t tcps_rcvreassfull;	/* packets dropped for no reass space */
+	uint64_t tcps_rcvshort;		/* packets received too short */
+	uint64_t tcps_rcvduppack;	/* duplicate-only packets received */
+	uint64_t tcps_rcvdupbyte;	/* duplicate-only bytes received */
+	uint64_t tcps_rcvpartduppack;	/* packets with some duplicate data */
+	uint64_t tcps_rcvpartdupbyte;	/* dup. bytes in part-dup. packets */
+	uint64_t tcps_rcvoopack;	/* out-of-order packets received */
+	uint64_t tcps_rcvoobyte;	/* out-of-order bytes received */
+	uint64_t tcps_rcvpackafterwin;	/* packets with data after window */
+	uint64_t tcps_rcvbyteafterwin;	/* bytes rcvd after window */
+	uint64_t tcps_rcvafterclose;	/* packets rcvd after "close" */
+	uint64_t tcps_rcvwinprobe;	/* rcvd window probe packets */
+	uint64_t tcps_rcvdupack;	/* rcvd duplicate acks */
+	uint64_t tcps_rcvacktoomuch;	/* rcvd acks for unsent data */
+	uint64_t tcps_rcvackpack;	/* rcvd ack packets */
+	uint64_t tcps_rcvackbyte;	/* bytes acked by rcvd acks */
+	uint64_t tcps_rcvwinupd;	/* rcvd window update packets */
+	uint64_t tcps_pawsdrop;		/* segments dropped due to PAWS */
+	uint64_t tcps_predack;		/* times hdr predict ok for acks */
+	uint64_t tcps_preddat;		/* times hdr predict ok for data pkts */
+	uint64_t tcps_pcbcachemiss;
+	uint64_t tcps_cachedrtt;	/* times cached RTT in route updated */
+	uint64_t tcps_cachedrttvar;	/* times cached rttvar updated */
+	uint64_t tcps_cachedssthresh;	/* times cached ssthresh updated */
+	uint64_t tcps_usedrtt;		/* times RTT initialized from route */
+	uint64_t tcps_usedrttvar;	/* times RTTVAR initialized from rt */
+	uint64_t tcps_usedssthresh;	/* times ssthresh initialized from rt*/
+	uint64_t tcps_persistdrop;	/* timeout in persist state */
+	uint64_t tcps_badsyn;		/* bogus SYN, e.g. premature ACK */
+	uint64_t tcps_mturesent;	/* resends due to MTU discovery */
+	uint64_t tcps_listendrop;	/* listen queue overflows */
+	uint64_t tcps_badrst;		/* ignored RSTs in the window */
 
-	u_long	tcps_sc_added;		/* entry added to syncache */
-	u_long	tcps_sc_retransmitted;	/* syncache entry was retransmitted */
-	u_long	tcps_sc_dupsyn;		/* duplicate SYN packet */
-	u_long	tcps_sc_dropped;	/* could not reply to packet */
-	u_long	tcps_sc_completed;	/* successful extraction of entry */
-	u_long	tcps_sc_bucketoverflow;	/* syncache per-bucket limit hit */
-	u_long	tcps_sc_cacheoverflow;	/* syncache cache limit hit */
-	u_long	tcps_sc_reset;		/* RST removed entry from syncache */
-	u_long	tcps_sc_stale;		/* timed out or listen socket gone */
-	u_long	tcps_sc_aborted;	/* syncache entry aborted */
-	u_long	tcps_sc_badack;		/* removed due to bad ACK */
-	u_long	tcps_sc_unreach;	/* ICMP unreachable received */
-	u_long	tcps_sc_zonefail;	/* zalloc() failed */
-	u_long	tcps_sc_sendcookie;	/* SYN cookie sent */
-	u_long	tcps_sc_recvcookie;	/* SYN cookie received */
+	uint64_t tcps_sc_added;		/* entry added to syncache */
+	uint64_t tcps_sc_retransmitted;	/* syncache entry was retransmitted */
+	uint64_t tcps_sc_dupsyn;	/* duplicate SYN packet */
+	uint64_t tcps_sc_dropped;	/* could not reply to packet */
+	uint64_t tcps_sc_completed;	/* successful extraction of entry */
+	uint64_t tcps_sc_bucketoverflow;/* syncache per-bucket limit hit */
+	uint64_t tcps_sc_cacheoverflow;	/* syncache cache limit hit */
+	uint64_t tcps_sc_reset;		/* RST removed entry from syncache */
+	uint64_t tcps_sc_stale;		/* timed out or listen socket gone */
+	uint64_t tcps_sc_aborted;	/* syncache entry aborted */
+	uint64_t tcps_sc_badack;	/* removed due to bad ACK */
+	uint64_t tcps_sc_unreach;	/* ICMP unreachable received */
+	uint64_t tcps_sc_zonefail;	/* zalloc() failed */
+	uint64_t tcps_sc_sendcookie;	/* SYN cookie sent */
+	uint64_t tcps_sc_recvcookie;	/* SYN cookie received */
 
-	u_long	tcps_hc_added;		/* entry added to hostcache */
-	u_long	tcps_hc_bucketoverflow;	/* hostcache per bucket limit hit */
+	uint64_t tcps_hc_added;		/* entry added to hostcache */
+	uint64_t tcps_hc_bucketoverflow;/* hostcache per bucket limit hit */
 
-	u_long  tcps_finwait2_drops;    /* Drop FIN_WAIT_2 connection after time limit */
+	uint64_t tcps_finwait2_drops;    /* Drop FIN_WAIT_2 connection after time limit */
 
 	/* SACK related stats */
-	u_long	tcps_sack_recovery_episode; /* SACK recovery episodes */
-	u_long  tcps_sack_rexmits;	    /* SACK rexmit segments   */
-	u_long  tcps_sack_rexmit_bytes;	    /* SACK rexmit bytes      */
-	u_long  tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
-	u_long  tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
-	u_long  tcps_sack_sboverflow;	    /* times scoreboard overflowed */
+	uint64_t tcps_sack_recovery_episode; /* SACK recovery episodes */
+	uint64_t tcps_sack_rexmits;	    /* SACK rexmit segments   */
+	uint64_t tcps_sack_rexmit_bytes;    /* SACK rexmit bytes      */
+	uint64_t tcps_sack_rcv_blocks;	    /* SACK blocks (options) received */
+	uint64_t tcps_sack_send_blocks;	    /* SACK blocks (options) sent     */
+	uint64_t tcps_sack_sboverflow;	    /* times scoreboard overflowed */
 	
 	/* ECN related stats */
-	u_long	tcps_ecn_ce;		/* ECN Congestion Experienced */
-	u_long	tcps_ecn_ect0;		/* ECN Capable Transport */
-	u_long	tcps_ecn_ect1;		/* ECN Capable Transport */
-	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
-	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
+	uint64_t tcps_ecn_ce;		/* ECN Congestion Experienced */
+	uint64_t tcps_ecn_ect0;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_ect1;		/* ECN Capable Transport */
+	uint64_t tcps_ecn_shs;		/* ECN successful handshakes */
+	uint64_t tcps_ecn_rcwnd;	/* # times ECN reduced the cwnd */
 
 	/* TCP_SIGNATURE related stats */
-	u_long	tcps_sig_rcvgoodsig;	/* Total matching signature received */
-	u_long	tcps_sig_rcvbadsig;	/* Total bad signature received */
-	u_long	tcps_sig_err_buildsig;	/* Mismatching signature received */
-	u_long	tcps_sig_err_sigopt;	/* No signature expected by socket */
-	u_long	tcps_sig_err_nosigopt;	/* No signature provided by segment */
+	uint64_t tcps_sig_rcvgoodsig;	/* Total matching signature received */
+	uint64_t tcps_sig_rcvbadsig;	/* Total bad signature received */
+	uint64_t tcps_sig_err_buildsig;	/* Mismatching signature received */
+	uint64_t tcps_sig_err_sigopt;	/* No signature expected by socket */
+	uint64_t tcps_sig_err_nosigopt;	/* No signature provided by segment */
 
-	u_long	_pad[12];		/* 6 UTO, 6 TBD */
+	uint64_t _pad[12];		/* 6 UTO, 6 TBD */
 };
 
+#define	tcps_rcvmemdrop	tcps_rcvreassfull	/* compat */
+
 #ifdef _KERNEL
+#include <sys/counter.h>
+
+VNET_PCPUSTAT_DECLARE(struct tcpstat, tcpstat);	/* tcp statistics */
 /*
  * In-kernel consumers can use these accessor macros directly to update
  * stats.
  */
-#define	TCPSTAT_ADD(name, val)	V_tcpstat.name += (val)
+#define	TCPSTAT_ADD(name, val)	\
+    VNET_PCPUSTAT_ADD(struct tcpstat, tcpstat, name, (val))
 #define	TCPSTAT_INC(name)	TCPSTAT_ADD(name, 1)
 
 /*
@@ -515,7 +538,7 @@ struct	tcpstat {
  */
 void	kmod_tcpstat_inc(int statnum);
 #define	KMOD_TCPSTAT_INC(name)						\
-	kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(u_long))
+    kmod_tcpstat_inc(offsetof(struct tcpstat, name) / sizeof(uint64_t))
 
 /*
  * TCP specific helper hook point identifiers.
@@ -559,7 +582,7 @@ struct	xtcpcb {
 #endif
 
 /*
- * Names for TCP sysctl objects
+ * Identifiers for TCP sysctl nodes
  */
 #define	TCPCTL_DO_RFC1323	1	/* use RFC-1323 extensions */
 #define	TCPCTL_MSSDFLT		3	/* MSS default */
@@ -575,26 +598,6 @@ struct	xtcpcb {
 #define	TCPCTL_V6MSSDFLT	13	/* MSS default for IPv6 */
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
-#define	TCPCTL_MAXID		16
-#define TCPCTL_FINWAIT2_TIMEOUT        17
-
-#define TCPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "rfc1323", CTLTYPE_INT }, \
-	{ "mssdflt", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-	{ "rttdflt", CTLTYPE_INT }, \
-	{ "keepidle", CTLTYPE_INT }, \
-	{ "keepintvl", CTLTYPE_INT }, \
-	{ "sendspace", CTLTYPE_INT }, \
-	{ "recvspace", CTLTYPE_INT }, \
-	{ "keepinit", CTLTYPE_INT }, \
-	{ "pcblist", CTLTYPE_STRUCT }, \
-	{ "delacktime", CTLTYPE_INT }, \
-	{ "v6mssdflt", CTLTYPE_INT }, \
-	{ "maxid", CTLTYPE_INT }, \
-}
-
 
 #ifdef _KERNEL
 #ifdef SYSCTL_DECL
@@ -605,7 +608,6 @@ MALLOC_DECLARE(M_TCPLOG);
 
 VNET_DECLARE(struct inpcbhead, tcb);		/* queue of active tcpcb's */
 VNET_DECLARE(struct inpcbinfo, tcbinfo);
-VNET_DECLARE(struct tcpstat, tcpstat);		/* tcp statistics */
 extern	int tcp_log_in_vain;
 VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
@@ -619,7 +621,6 @@ VNET_DECLARE(int, tcp_do_rfc3465);
 VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcb			VNET(tcb)
 #define	V_tcbinfo		VNET(tcbinfo)
-#define	V_tcpstat		VNET(tcpstat)
 #define	V_tcp_mssdflt		VNET(tcp_mssdflt)
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
@@ -650,10 +651,7 @@ struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
 void	 tcp_twstart(struct tcpcb *);
-#if 0
-int	 tcp_twrecycleable(struct tcptw *tw);
-#endif
-void	 tcp_twclose(struct tcptw *_tw, int _reuse);
+void	 tcp_twclose(struct tcptw *, int);
 void	 tcp_ctlinput(int, struct sockaddr *, void *);
 int	 tcp_ctloutput(struct socket *, struct sockopt *);
 struct tcpcb *
@@ -669,16 +667,12 @@ char	*tcp_log_addrs(struct in_conninfo *, struct tcphdr *, void *,
 char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
-void	 tcp_reass_init(void);
 void	 tcp_reass_flush(struct tcpcb *);
-#ifdef VIMAGE
-void	 tcp_reass_destroy(void);
-#endif
-void	 tcp_input(struct mbuf *, int);
-u_long	 tcp_maxmtu(struct in_conninfo *, int *);
-u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
+int	 tcp_input(struct mbuf **, int *, int);
+u_long	 tcp_maxmtu(struct in_conninfo *, struct tcp_ifcap *);
+u_long	 tcp_maxmtu6(struct in_conninfo *, struct tcp_ifcap *);
 void	 tcp_mss_update(struct tcpcb *, int, int, struct hc_metrics_lite *,
-	    int *);
+	    struct tcp_ifcap *);
 void	 tcp_mss(struct tcpcb *, int);
 int	 tcp_mssopt(struct in_conninfo *);
 struct inpcb *
@@ -688,6 +682,7 @@ struct inpcb *
 struct tcpcb *
 	 tcp_newtcpcb(struct inpcb *);
 int	 tcp_output(struct tcpcb *);
+void	 tcp_state_change(struct tcpcb *, int);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 void	 tcp_tw_init(void);
@@ -697,12 +692,17 @@ void	 tcp_tw_destroy(void);
 void	 tcp_tw_zone_change(void);
 int	 tcp_twcheck(struct inpcb *, struct tcpopt *, struct tcphdr *,
 	    struct mbuf *, int);
-int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
+struct secasvar;
+struct secasvar *tcp_get_sav(struct mbuf *, u_int);
+int	 tcp_signature_do_compute(struct mbuf *, int, int, u_char *,
+	    struct secasvar *);
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
 int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
 	    struct tcphdr *, u_int);
+int	tcp_signature_check(struct mbuf *m, int off0, int tlen, int optlen,
+	    struct tcpopt *to, struct tcphdr *th, u_int tcpbflag);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *
@@ -738,6 +738,27 @@ u_long	 tcp_seq_subtract(u_long, u_long );
 
 void	cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type);
 
+static inline void
+tcp_fields_to_host(struct tcphdr *th)
+{
+
+	th->th_seq = ntohl(th->th_seq);
+	th->th_ack = ntohl(th->th_ack);
+	th->th_win = ntohs(th->th_win);
+	th->th_urp = ntohs(th->th_urp);
+}
+
+#ifdef TCP_SIGNATURE
+static inline void
+tcp_fields_to_net(struct tcphdr *th)
+{
+
+	th->th_seq = htonl(th->th_seq);
+	th->th_ack = htonl(th->th_ack);
+	th->th_win = htons(th->th_win);
+	th->th_urp = htons(th->th_urp);
+}
+#endif
 #endif /* _KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */

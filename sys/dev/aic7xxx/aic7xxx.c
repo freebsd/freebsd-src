@@ -73,7 +73,6 @@ char *ahc_chip_names[] =
 	"aic7892",
 	"aic7899"
 };
-static const u_int num_chip_names = NUM_ELEMENTS(ahc_chip_names);
 
 /*
  * Hardware error codes.
@@ -4062,8 +4061,6 @@ ahc_free(struct ahc_softc *ahc)
 	case 3:
 		aic_dmamem_free(ahc, ahc->shared_data_dmat, ahc->qoutfifo,
 				ahc->shared_data_dmamap);
-		aic_dmamap_destroy(ahc, ahc->shared_data_dmat,
-				   ahc->shared_data_dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		aic_dma_tag_destroy(ahc, ahc->shared_data_dmat);
@@ -4502,8 +4499,6 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 	case 5:
 		aic_dmamem_free(ahc, scb_data->sense_dmat, scb_data->sense,
 				scb_data->sense_dmamap);
-		aic_dmamap_destroy(ahc, scb_data->sense_dmat,
-				   scb_data->sense_dmamap);
 	case 4:
 		aic_dma_tag_destroy(ahc, scb_data->sense_dmat);
 	case 3:
@@ -4512,8 +4507,6 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 	case 2:
 		aic_dmamem_free(ahc, scb_data->hscb_dmat, scb_data->hscbs,
 				scb_data->hscb_dmamap);
-		aic_dmamap_destroy(ahc, scb_data->hscb_dmat,
-				   scb_data->hscb_dmamap);
 	case 1:
 		aic_dma_tag_destroy(ahc, scb_data->hscb_dmat);
 		break;
@@ -7843,9 +7836,9 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		/* Tag was included */
 		atio->tag_action = *byte++;
 		atio->tag_id = *byte++;
-		atio->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atio->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 	} else {
-		atio->ccb_h.flags = 0;
+		atio->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
 	}
 	byte++;
 

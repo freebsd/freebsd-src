@@ -117,8 +117,7 @@ ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req,
 	if (mb == NULL)
 		return (NULL);
 	for (i = 0, m = mb; m != NULL; m = m->m_next, i++) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-		    ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 		rx_req->mapping[i] = ib_dma_map_single(priv->ca,
 		    mtod(m, void *), m->m_len, DMA_FROM_DEVICE);
@@ -240,7 +239,7 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	 */
 	if (unlikely(!ipoib_alloc_rx_mb(priv, wr_id))) {
 		memcpy(&priv->rx_ring[wr_id], &saverx, sizeof(saverx));
-		dev->if_iqdrops++;
+		if_inc_counter(dev, IFCOUNTER_IQDROPS, 1);
 		goto repost;
 	}
 
@@ -250,8 +249,8 @@ ipoib_ib_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	ipoib_dma_unmap_rx(priv, &saverx);
 	ipoib_dma_mb(priv, mb, wc->byte_len);
 
-	++dev->if_ipackets;
-	dev->if_ibytes += mb->m_pkthdr.len;
+	if_inc_counter(dev, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(dev, IFCOUNTER_IBYTES, mb->m_pkthdr.len);
 	mb->m_pkthdr.rcvif = dev;
 	m_adj(mb, sizeof(struct ib_grh) - INFINIBAND_ALEN);
 	eh = mtod(mb, struct ipoib_header *);
@@ -344,7 +343,7 @@ static void ipoib_ib_handle_tx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	ipoib_dma_unmap_tx(priv->ca, tx_req);
 
-	++dev->if_opackets;
+	if_inc_counter(dev, IFCOUNTER_OPACKETS, 1);
 
 	m_freem(tx_req->mb);
 
@@ -384,6 +383,7 @@ ipoib_poll(struct ipoib_dev_priv *priv)
 	int n, i;
 
 poll_more:
+	spin_lock(&priv->drain_lock);
 	for (;;) {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 
@@ -402,6 +402,7 @@ poll_more:
 		if (n != IPOIB_NUM_WC)
 			break;
 	}
+	spin_unlock(&priv->drain_lock);
 
 	if (ib_req_notify_cq(priv->recv_cq,
 	    IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS))
@@ -487,7 +488,7 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		phead = mtod(mb, void *);
 		if (mb->m_len < hlen) {
 			ipoib_warn(priv, "linear data too small\n");
-			++dev->if_oerrors;
+			if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 			m_freem(mb);
 			return;
 		}
@@ -496,7 +497,7 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		if (unlikely(mb->m_pkthdr.len - IPOIB_ENCAP_LEN > priv->mcast_mtu)) {
 			ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 				   mb->m_pkthdr.len, priv->mcast_mtu);
-			++dev->if_oerrors;
+			if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 			ipoib_cm_mb_too_long(priv, mb, priv->mcast_mtu);
 			return;
 		}
@@ -517,7 +518,7 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 	tx_req = &priv->tx_ring[priv->tx_head & (ipoib_sendq_size - 1)];
 	tx_req->mb = mb;
 	if (unlikely(ipoib_dma_map_tx(priv->ca, tx_req, IPOIB_UD_TX_SG))) {
-		++dev->if_oerrors;
+		if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 		if (tx_req->mb)
 			m_freem(tx_req->mb);
 		return;
@@ -539,7 +540,7 @@ ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 	    priv->tx_head & (ipoib_sendq_size - 1), address->ah, qpn,
 	    tx_req, phead, hlen))) {
 		ipoib_warn(priv, "post_send failed\n");
-		++dev->if_oerrors;
+		if_inc_counter(dev, IFCOUNTER_OERRORS, 1);
 		--priv->tx_outstanding;
 		ipoib_dma_unmap_tx(priv->ca, tx_req);
 		m_freem(mb);
@@ -708,6 +709,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 {
 	int i, n;
 
+	spin_lock(&priv->drain_lock);
 	do {
 		n = ib_poll_cq(priv->recv_cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
@@ -728,6 +730,7 @@ void ipoib_drain_cq(struct ipoib_dev_priv *priv)
 				ipoib_ib_handle_rx_wc(priv, priv->ibwc + i);
 		}
 	} while (n == IPOIB_NUM_WC);
+	spin_unlock(&priv->drain_lock);
 
 	spin_lock(&priv->lock);
 	while (ipoib_poll_tx(priv))

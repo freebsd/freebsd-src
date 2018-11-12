@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,6 +74,7 @@ struct linux_file {
 	struct dentry	f_dentry_store;
 	struct selinfo	f_selinfo;
 	struct sigio	*f_sigio;
+	struct vnode	*f_vnode;
 };
 
 #define	file		linux_file
@@ -105,6 +107,12 @@ struct file_operations {
 	int (*open)(struct inode *, struct file *);
 	int (*release)(struct inode *, struct file *);
 	int (*fasync)(int, struct file *, int);
+
+/* Although not supported in FreeBSD, to align with Linux code
+ * we are adding llseek() only when it is mapped to no_llseek which returns 
+ * an illegal seek error
+ */
+	loff_t (*llseek)(struct file *, loff_t, int);
 #if 0
 	/* We do not support these methods.  Don't permit them to compile. */
 	loff_t (*llseek)(struct file *, loff_t, int);
@@ -153,6 +161,21 @@ unregister_chrdev_region(dev_t dev, unsigned range)
 	return;
 }
 
+static inline int
+alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count,
+			const char *name)
+{
+
+	return 0;
+}
+
+/* No current support for seek op in FreeBSD */
+static inline int
+nonseekable_open(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
 static inline dev_t
 iminor(struct inode *inode)
 {
@@ -179,4 +202,10 @@ iput(struct inode *inode)
 	vrele(inode);
 }
 
-#endif	/* _LINUX_FS_H_ */
+static inline loff_t 
+no_llseek(struct file *file, loff_t offset, int whence)
+{
+        return -ESPIPE;
+}
+
+#endif /* _LINUX_FS_H_ */

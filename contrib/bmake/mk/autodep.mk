@@ -1,6 +1,6 @@
 #
 # RCSid:
-#	$Id: autodep.mk,v 1.32 2010/04/19 17:37:56 sjg Exp $
+#	$Id: autodep.mk,v 1.33 2014/04/05 22:56:54 sjg Exp $
 #
 #	@(#) Copyright (c) 1999-2010, Simon J. Gerraty
 #
@@ -16,7 +16,7 @@
 
 # This module provides automagic dependency generation along the
 # lines suggested in the GNU make.info
-# The depend target is mainly for backwards compatability,
+# The depend target is mainly for backwards compatibility,
 # dependencies are normally updated as part of compilation.
 
 # set MKDEP=autodep and dep.mk will include us

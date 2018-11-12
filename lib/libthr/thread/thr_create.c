@@ -40,6 +40,7 @@
 #include <pthread_np.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
 #include "thr_private.h"
 
 static int  create_stack(struct pthread_attr *pattr);
@@ -66,8 +67,11 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	/*
 	 * Tell libc and others now they need lock to protect their data.
 	 */
-	if (_thr_isthreaded() == 0 && _thr_setthreaded(1))
-		return (EAGAIN);
+	if (_thr_isthreaded() == 0) {
+		_malloc_first_thread();
+		if (_thr_setthreaded(1))
+			return (EAGAIN);
+	}
 
 	curthread = _get_curthread();
 	if ((new_thread = _thr_alloc(curthread)) == NULL)

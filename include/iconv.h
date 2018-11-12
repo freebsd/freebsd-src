@@ -35,53 +35,46 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <stdbool.h>
 #include <wchar.h>
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#define iconv_open		libiconv_open
-#define iconv_close		libiconv_close
-#define iconv(cd, in, insize, out, outsize)	libiconv(cd, __DECONST(char **, in), insize, out, outsize)
-#define iconv_t			libiconv_t
+#ifdef __cplusplus
+typedef	bool	__iconv_bool;
+#elif __STDC_VERSION__ >= 199901L
+typedef	_Bool	__iconv_bool;
+#else
+typedef	int	__iconv_bool;
+#endif
 
 struct __tag_iconv_t;
 typedef	struct __tag_iconv_t	*iconv_t;
 
 __BEGIN_DECLS
-iconv_t	libiconv_open(const char *, const char *);
-size_t	libiconv(iconv_t, char ** __restrict,
-		     size_t * __restrict, char ** __restrict,
-		     size_t * __restrict);
-int	libiconv_close(iconv_t);
+iconv_t	iconv_open(const char *, const char *);
+size_t	iconv(iconv_t, const char ** __restrict,
+	      size_t * __restrict, char ** __restrict,
+	      size_t * __restrict);
+int	iconv_close(iconv_t);
 /*
  * non-portable interfaces for iconv
  */
-int	__iconv_get_list(char ***, size_t *, bool);
+int	__iconv_get_list(char ***, size_t *, __iconv_bool);
 void	__iconv_free_list(char **, size_t);
-size_t	__iconv(iconv_t, char **, size_t *, char **,
+size_t	__iconv(iconv_t, const char **, size_t *, char **,
 		     size_t *, __uint32_t, size_t *);
 #define __ICONV_F_HIDE_INVALID	0x0001
 
 /*
  * GNU interfaces for iconv
  */
-#define iconv_open_into		libiconv_open_into
-#define iconvctl		libiconvctl
-#define iconvlist		libiconvlist
-
-/* We have iconvctl() */
-#define _LIBICONV_VERSION	0x0108
-extern int _libiconv_version;
-
 typedef struct {
 	void	*spaceholder[64];
 } iconv_allocation_t;
 
 int	 iconv_open_into(const char *, const char *, iconv_allocation_t *);
-void	 libiconv_set_relocation_prefix (const char *orig_prefix,
-	     const char *curr_prefix);
+void	 iconv_set_relocation_prefix(const char *, const char *);
 
 /*
  * iconvctl() request macros
@@ -93,6 +86,8 @@ void	 libiconv_set_relocation_prefix (const char *orig_prefix,
 #define ICONV_SET_DISCARD_ILSEQ	4
 #define ICONV_SET_HOOKS		5
 #define ICONV_SET_FALLBACKS	6
+#define ICONV_GET_ILSEQ_INVALID	128
+#define ICONV_SET_ILSEQ_INVALID	129
 
 typedef void (*iconv_unicode_char_hook) (unsigned int mbr, void *data);
 typedef void (*iconv_wide_char_hook) (wchar_t wc, void *data);

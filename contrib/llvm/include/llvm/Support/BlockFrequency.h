@@ -23,21 +23,34 @@ class BranchProbability;
 
 // This class represents Block Frequency as a 64-bit value.
 class BlockFrequency {
-
   uint64_t Frequency;
-  static const int64_t ENTRY_FREQ = 1024;
 
 public:
   BlockFrequency(uint64_t Freq = 0) : Frequency(Freq) { }
 
-  static uint64_t getEntryFrequency() { return ENTRY_FREQ; }
+  /// \brief Returns the maximum possible frequency, the saturation value.
+  static uint64_t getMaxFrequency() { return -1ULL; }
+
+  /// \brief Returns the frequency as a fixpoint number scaled by the entry
+  /// frequency.
   uint64_t getFrequency() const { return Frequency; }
 
+  /// \brief Multiplies with a branch probability. The computation will never
+  /// overflow.
   BlockFrequency &operator*=(const BranchProbability &Prob);
   const BlockFrequency operator*(const BranchProbability &Prob) const;
 
+  /// \brief Divide by a non-zero branch probability using saturating
+  /// arithmetic.
+  BlockFrequency &operator/=(const BranchProbability &Prob);
+  BlockFrequency operator/(const BranchProbability &Prob) const;
+
+  /// \brief Adds another block frequency using saturating arithmetic.
   BlockFrequency &operator+=(const BlockFrequency &Freq);
   const BlockFrequency operator+(const BlockFrequency &Freq) const;
+
+  /// \brief Shift block frequency to the right by count digits saturating to 1.
+  BlockFrequency &operator>>=(const unsigned count);
 
   bool operator<(const BlockFrequency &RHS) const {
     return Frequency < RHS.Frequency;
@@ -54,11 +67,7 @@ public:
   bool operator>=(const BlockFrequency &RHS) const {
     return Frequency >= RHS.Frequency;
   }
-
-  void print(raw_ostream &OS) const;
 };
-
-raw_ostream &operator<<(raw_ostream &OS, const BlockFrequency &Freq);
 
 }
 

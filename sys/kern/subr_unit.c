@@ -68,8 +68,8 @@
  */
 
 #include <sys/types.h>
-#include <sys/queue.h>
 #include <sys/bitstring.h>
+#include <sys/_unrhdr.h>
 
 #ifdef _KERNEL
 
@@ -187,22 +187,6 @@ CTASSERT(sizeof(struct unr) == sizeof(struct unrb));
 /* Number of bits in the bitmap */
 #define NBITS	((int)sizeof(((struct unrb *)NULL)->map) * 8)
 
-/* Header element for a unr number space. */
-
-struct unrhdr {
-	TAILQ_HEAD(unrhd,unr)	head;
-	u_int			low;	/* Lowest item */
-	u_int			high;	/* Highest item */
-	u_int			busy;	/* Count of allocated items */
-	u_int			alloc;	/* Count of memory allocations */
-	u_int			first;	/* items in allocated from start */
-	u_int			last;	/* items free at end */
-	struct mtx		*mtx;
-	TAILQ_HEAD(unrfr,unr)	ppfree;	/* Items to be freed after mtx
-					   lock dropped */
-};
-
-
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
 /*
  * Consistency check function.
@@ -315,20 +299,12 @@ clean_unrhdr(struct unrhdr *uh)
 	mtx_unlock(uh->mtx);
 }
 
-/*
- * Allocate a new unrheader set.
- *
- * Highest and lowest valid values given as parameters.
- */
-
-struct unrhdr *
-new_unrhdr(int low, int high, struct mtx *mutex)
+void
+init_unrhdr(struct unrhdr *uh, int low, int high, struct mtx *mutex)
 {
-	struct unrhdr *uh;
 
 	KASSERT(low >= 0 && low <= high,
 	    ("UNR: use error: new_unrhdr(%d, %d)", low, high));
-	uh = Malloc(sizeof *uh);
 	if (mutex != NULL)
 		uh->mtx = mutex;
 	else
@@ -340,6 +316,21 @@ new_unrhdr(int low, int high, struct mtx *mutex)
 	uh->first = 0;
 	uh->last = 1 + (high - low);
 	check_unrhdr(uh, __LINE__);
+}
+
+/*
+ * Allocate a new unrheader set.
+ *
+ * Highest and lowest valid values given as parameters.
+ */
+
+struct unrhdr *
+new_unrhdr(int low, int high, struct mtx *mutex)
+{
+	struct unrhdr *uh;
+
+	uh = Malloc(sizeof *uh);
+	init_unrhdr(uh, low, high, mutex);
 	return (uh);
 }
 

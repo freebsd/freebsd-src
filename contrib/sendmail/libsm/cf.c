@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: cf.c,v 1.6 2001/09/11 04:04:47 gshapiro Exp $")
+SM_RCSID("@(#)$Id: cf.c,v 1.8 2013-11-22 20:51:42 ca Exp $")
 
 #include <ctype.h>
 #include <errno.h>
@@ -54,7 +54,7 @@ sm_cf_getopt(path, optc, optv)
 	if (cfp == NULL)
 		return errno;
 
-	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		p = strchr(buf, '\n');
 		if (p != NULL)

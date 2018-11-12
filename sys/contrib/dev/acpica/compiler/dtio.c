@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,10 +41,9 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTIO_C__
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
+#include <contrib/dev/acpica/include/acapps.h>
 
 #define _COMPONENT          DT_COMPILER
         ACPI_MODULE_NAME    ("dtio")
@@ -132,7 +131,7 @@ DtTrim (
 
     if (!ACPI_STRCMP (String, " "))
     {
-        ReturnString = UtLocalCalloc (1);
+        ReturnString = UtStringCacheCalloc (1);
         return (ReturnString);
     }
 
@@ -180,7 +179,7 @@ DtTrim (
     /* Create the trimmed return string */
 
     Length = ACPI_PTR_DIFF (End, Start) + 1;
-    ReturnString = UtLocalCalloc (Length + 1);
+    ReturnString = UtStringCacheCalloc (Length + 1);
     if (ACPI_STRLEN (Start))
     {
         ACPI_STRNCPY (ReturnString, Start, Length);
@@ -287,31 +286,21 @@ DtParseLine (
 
     while (Start < Colon)
     {
-        if (*Start == ' ')
-        {
-            Start++;
-            continue;
-        }
-
-        /* Found left bracket, go to the right bracket */
-
         if (*Start == '[')
         {
+            /* Found left bracket, go to the right bracket */
+
             while (Start < Colon && *Start != ']')
             {
                 Start++;
             }
-
-            if (Start == Colon)
-            {
-                break;
-            }
-
-            Start++;
-            continue;
+        }
+        else if (*Start != ' ')
+        {
+            break;
         }
 
-        break;
+        Start++;
     }
 
     /*
@@ -379,7 +368,7 @@ DtParseLine (
 
     if ((Value && *Value) || IsNullString)
     {
-        Field = UtLocalCalloc (sizeof (DT_FIELD));
+        Field = UtFieldCacheCalloc ();
         Field->Name = Name;
         Field->Value = Value;
         Field->Line = Line;
@@ -389,11 +378,7 @@ DtParseLine (
 
         DtLinkField (Field);
     }
-    else /* Ignore this field, it has no valid data */
-    {
-        ACPI_FREE (Name);
-        ACPI_FREE (Value);
-    }
+    /* Else -- Ignore this field, it has no valid data */
 
     return (AE_OK);
 }
@@ -426,7 +411,7 @@ DtGetNextLine (
     UINT32                  State = DT_NORMAL_TEXT;
     UINT32                  CurrentLineOffset;
     UINT32                  i;
-    char                    c;
+    int                     c;
 
 
     for (i = 0; ;)
@@ -440,7 +425,7 @@ DtGetNextLine (
             UtExpandLineBuffers ();
         }
 
-        c = (char) getc (Handle);
+        c = getc (Handle);
         if (c == EOF)
         {
             switch (State)
@@ -452,6 +437,7 @@ DtGetNextLine (
                 break;
 
             default:
+
                 break;
             }
 
@@ -479,14 +465,16 @@ DtGetNextLine (
 
             /* Normal text, insert char into line buffer */
 
-            Gbl_CurrentLineBuffer[i] = c;
+            Gbl_CurrentLineBuffer[i] = (char) c;
             switch (c)
             {
             case '/':
+
                 State = DT_START_COMMENT;
                 break;
 
             case '"':
+
                 State = DT_START_QUOTED_STRING;
                 LineNotAllBlanks = TRUE;
                 i++;
@@ -501,6 +489,7 @@ DtGetNextLine (
                 break;
 
             case '\n':
+
                 CurrentLineOffset = Gbl_NextLineOffset;
                 Gbl_NextLineOffset = (UINT32) ftell (Handle);
                 Gbl_CurrentLineNumber++;
@@ -527,6 +516,7 @@ DtGetNextLine (
                 break;
 
             default:
+
                 if (c != ' ')
                 {
                     LineNotAllBlanks = TRUE;
@@ -541,26 +531,30 @@ DtGetNextLine (
 
             /* Insert raw chars until end of quoted string */
 
-            Gbl_CurrentLineBuffer[i] = c;
+            Gbl_CurrentLineBuffer[i] = (char) c;
             i++;
 
             switch (c)
             {
             case '"':
+
                 State = DT_NORMAL_TEXT;
                 break;
 
             case '\\':
+
                 State = DT_ESCAPE_SEQUENCE;
                 break;
 
             case '\n':
+
                 AcpiOsPrintf ("ERROR at line %u: Unterminated quoted string\n",
                     Gbl_CurrentLineNumber++);
                 State = DT_NORMAL_TEXT;
                 break;
 
             default:    /* Get next character */
+
                 break;
             }
             break;
@@ -569,7 +563,7 @@ DtGetNextLine (
 
             /* Just copy the escaped character. TBD: sufficient for table compiler? */
 
-            Gbl_CurrentLineBuffer[i] = c;
+            Gbl_CurrentLineBuffer[i] = (char) c;
             i++;
             State = DT_START_QUOTED_STRING;
             break;
@@ -581,21 +575,24 @@ DtGetNextLine (
             switch (c)
             {
             case '*':
+
                 State = DT_SLASH_ASTERISK_COMMENT;
                 break;
 
             case '/':
+
                 State = DT_SLASH_SLASH_COMMENT;
                 break;
 
             default:    /* Not a comment */
+
                 i++;    /* Save the preceding slash */
                 if (i >= Gbl_LineBufferSize)
                 {
                     UtExpandLineBuffers ();
                 }
 
-                Gbl_CurrentLineBuffer[i] = c;
+                Gbl_CurrentLineBuffer[i] = (char) c;
                 i++;
                 State = DT_NORMAL_TEXT;
                 break;
@@ -609,15 +606,18 @@ DtGetNextLine (
             switch (c)
             {
             case '\n':
+
                 Gbl_NextLineOffset = (UINT32) ftell (Handle);
                 Gbl_CurrentLineNumber++;
                 break;
 
             case '*':
+
                 State = DT_END_COMMENT;
                 break;
 
             default:
+
                 break;
             }
             break;
@@ -642,20 +642,24 @@ DtGetNextLine (
             switch (c)
             {
             case '/':
+
                 State = DT_NORMAL_TEXT;
                 break;
 
             case '\n':
+
                 CurrentLineOffset = Gbl_NextLineOffset;
                 Gbl_NextLineOffset = (UINT32) ftell (Handle);
                 Gbl_CurrentLineNumber++;
                 break;
 
             case '*':
+
                 /* Consume all adjacent asterisks */
                 break;
 
             default:
+
                 State = DT_SLASH_ASTERISK_COMMENT;
                 break;
             }
@@ -694,6 +698,7 @@ DtGetNextLine (
             break;
 
         default:
+
             DtFatal (ASL_MSG_COMPILER_INTERNAL, NULL, "Unknown input state");
             return (ASL_EOF);
         }
@@ -727,7 +732,11 @@ DtScanFile (
 
     /* Get the file size */
 
-    Gbl_InputByteCount = DtGetFileSize (Handle);
+    Gbl_InputByteCount = CmGetFileSize (Handle);
+    if (Gbl_InputByteCount == ACPI_UINT32_MAX)
+    {
+        AslAbort ();
+    }
 
     Gbl_CurrentLineNumber = 0;
     Gbl_CurrentLineOffset = 0;
@@ -806,7 +815,12 @@ DtOutputBinary (
     /* Walk the entire parse tree, emitting the binary data */
 
     DtWalkTableTree (RootTable, DtWriteBinary, NULL, NULL);
-    Gbl_TableLength = DtGetFileSize (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+
+    Gbl_TableLength = CmGetFileSize (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+    if (Gbl_TableLength == ACPI_UINT32_MAX)
+    {
+        AslAbort ();
+    }
 }
 
 
@@ -1015,6 +1029,8 @@ DtDumpSubtableList (
     DbgPrint (ASL_DEBUG_OUTPUT,
         "\nSubtable Tree: (Depth, Subtable, Length, TotalLength)\n\n");
     DtWalkTableTree (Gbl_RootTable, DtDumpSubtableTree, NULL, NULL);
+
+    DbgPrint (ASL_DEBUG_OUTPUT, "\n");
 }
 
 
@@ -1118,4 +1134,5 @@ DtWriteTableToListing (
     AcpiUtDumpBuffer (Buffer, Gbl_TableLength, DB_BYTE_DISPLAY, 0);
 
     AcpiOsRedirectOutput (stdout);
+    ACPI_FREE (Buffer);
 }

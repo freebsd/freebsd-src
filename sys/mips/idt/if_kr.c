@@ -40,7 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/taskqueue.h>
 
@@ -50,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <net/bpf.h>
 
@@ -1146,31 +1149,29 @@ kr_dma_free(struct kr_softc *sc)
 
 	/* Tx ring. */
 	if (sc->kr_cdata.kr_tx_ring_tag) {
-		if (sc->kr_cdata.kr_tx_ring_map)
+		if (sc->kr_rdata.kr_tx_ring_paddr)
 			bus_dmamap_unload(sc->kr_cdata.kr_tx_ring_tag,
 			    sc->kr_cdata.kr_tx_ring_map);
-		if (sc->kr_cdata.kr_tx_ring_map &&
-		    sc->kr_rdata.kr_tx_ring)
+		if (sc->kr_rdata.kr_tx_ring)
 			bus_dmamem_free(sc->kr_cdata.kr_tx_ring_tag,
 			    sc->kr_rdata.kr_tx_ring,
 			    sc->kr_cdata.kr_tx_ring_map);
 		sc->kr_rdata.kr_tx_ring = NULL;
-		sc->kr_cdata.kr_tx_ring_map = NULL;
+		sc->kr_rdata.kr_tx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->kr_cdata.kr_tx_ring_tag);
 		sc->kr_cdata.kr_tx_ring_tag = NULL;
 	}
 	/* Rx ring. */
 	if (sc->kr_cdata.kr_rx_ring_tag) {
-		if (sc->kr_cdata.kr_rx_ring_map)
+		if (sc->kr_rdata.kr_rx_ring_paddr)
 			bus_dmamap_unload(sc->kr_cdata.kr_rx_ring_tag,
 			    sc->kr_cdata.kr_rx_ring_map);
-		if (sc->kr_cdata.kr_rx_ring_map &&
-		    sc->kr_rdata.kr_rx_ring)
+		if (sc->kr_rdata.kr_rx_ring)
 			bus_dmamem_free(sc->kr_cdata.kr_rx_ring_tag,
 			    sc->kr_rdata.kr_rx_ring,
 			    sc->kr_cdata.kr_rx_ring_map);
 		sc->kr_rdata.kr_rx_ring = NULL;
-		sc->kr_cdata.kr_rx_ring_map = NULL;
+		sc->kr_rdata.kr_rx_ring_paddr = 0;
 		bus_dma_tag_destroy(sc->kr_cdata.kr_rx_ring_tag);
 		sc->kr_cdata.kr_rx_ring_tag = NULL;
 	}
@@ -1394,13 +1395,13 @@ kr_tx(struct kr_softc *sc)
 		txd = &sc->kr_cdata.kr_txdesc[cons];
 
 		if (devcs & KR_DMATX_DEVCS_TOK)
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		else {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			/* collisions: medium busy, late collision */
 			if ((devcs & KR_DMATX_DEVCS_EC) || 
 			    (devcs & KR_DMATX_DEVCS_LC))
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 
 		bus_dmamap_sync(sc->kr_cdata.kr_tx_tag, txd->tx_dmamap,
@@ -1459,11 +1460,11 @@ kr_rx(struct kr_softc *sc)
 		error = 1;
 
 		if (packet_len != count)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if (count < 64)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if ((cur_rx->kr_devcs & KR_DMARX_DEVCS_LD) == 0)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if ((cur_rx->kr_devcs & KR_DMARX_DEVCS_ROK) != 0) {
 			error = 0;
 			bus_dmamap_sync(sc->kr_cdata.kr_rx_tag, rxd->rx_dmamap,
@@ -1473,7 +1474,7 @@ kr_rx(struct kr_softc *sc)
 			m->m_pkthdr.rcvif = ifp;
 			/* Skip 4 bytes of CRC */
 			m->m_pkthdr.len = m->m_len = packet_len - ETHER_CRC_LEN;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			KR_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);

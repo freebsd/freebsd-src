@@ -226,9 +226,8 @@ static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
 
 int emulate_array_devices = 1;
 SYSCTL_DECL(_kern_cam_enc);
-SYSCTL_INT(_kern_cam_enc, OID_AUTO, emulate_array_devices, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_enc, OID_AUTO, emulate_array_devices, CTLFLAG_RWTUN,
            &emulate_array_devices, 0, "Emulate Array Devices for SAF-TE");
-TUNABLE_INT("kern.cam.enc.emulate_array_devices", &emulate_array_devices);
 
 static int
 safte_fill_read_buf_io(enc_softc_t *enc, struct enc_fsm_state *state,
@@ -243,12 +242,12 @@ safte_fill_read_buf_io(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	if (enc->enc_type == ENC_SEMB_SAFT) {
 		semb_read_buffer(&ccb->ataio, /*retries*/5,
-				enc_done, MSG_SIMPLE_Q_TAG,
+				NULL, MSG_SIMPLE_Q_TAG,
 				state->page_code, buf, state->buf_size,
 				state->timeout);
 	} else {
 		scsi_read_buffer(&ccb->csio, /*retries*/5,
-				enc_done, MSG_SIMPLE_Q_TAG, 1,
+				NULL, MSG_SIMPLE_Q_TAG, 1,
 				state->page_code, 0, buf, state->buf_size,
 				SSD_FULL_SIZE, state->timeout);
 	}
@@ -942,11 +941,11 @@ safte_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	if (enc->enc_type == ENC_SEMB_SAFT) {
 		semb_write_buffer(&ccb->ataio, /*retries*/5,
-				enc_done, MSG_SIMPLE_Q_TAG,
+				NULL, MSG_SIMPLE_Q_TAG,
 				buf, xfer_len, state->timeout);
 	} else {
 		scsi_write_buffer(&ccb->csio, /*retries*/5,
-				enc_done, MSG_SIMPLE_Q_TAG, 1,
+				NULL, MSG_SIMPLE_Q_TAG, 1,
 				0, 0, buf, xfer_len,
 				SSD_FULL_SIZE, state->timeout);
 	}

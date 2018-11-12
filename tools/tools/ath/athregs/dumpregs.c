@@ -182,8 +182,9 @@ main(int argc, char *argv[])
 	dp = (u_int32_t *)atd.ad_out_data;
 	ep = (u_int32_t *)(atd.ad_out_data + atd.ad_out_size);
 	while (dp < ep) {
-		u_int r = dp[0] >> 16;		/* start of range */
-		u_int e = dp[0] & 0xffff;	/* end of range */
+		u_int r = dp[0];	/* start of range */
+		u_int e = dp[1];	/* end of range */
+		dp++;
 		dp++;
 		/* convert offsets to indices */
 		r >>= 2; e >>= 2;
@@ -611,7 +612,7 @@ ath_hal_setupdiagregs(const HAL_REGRANGE regs[], u_int nr)
 
 	space = 0;
 	for (i = 0; i < nr; i++) {
-		u_int n = 2 * sizeof(u_int32_t);	/* reg range + first */
+		u_int n = sizeof(HAL_REGRANGE) + sizeof(u_int32_t);	/* reg range + first */
 		if (regs[i].end) {
 			if (regs[i].end < regs[i].start) {
 				fprintf(stderr, "%s: bad register range, "

@@ -87,7 +87,7 @@ for (i = 0; i < n_extra_masks; i++) {
 }
 
 for (var in masknum) {
-	if (masknum[var] > 31) {
+	if (masknum[var] > 32) {
 		if (var == "")
 			print "#error too many target masks"
 		else

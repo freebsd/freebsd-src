@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-rsa.c,v 1.45 2010/08/31 09:58:37 djm Exp $ */
+/* $OpenBSD: ssh-rsa.c,v 1.51 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2000, 2003 Markus Friedl <markus@openbsd.org>
  *
@@ -32,6 +32,7 @@
 #include "compat.h"
 #include "misc.h"
 #include "ssh.h"
+#include "digest.h"
 
 static int openssh_RSA_verify(int, u_char *, u_int, u_char *, u_int, RSA *);
 
@@ -40,49 +41,53 @@ int
 ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
     const u_char *data, u_int datalen)
 {
-	const EVP_MD *evp_md;
-	EVP_MD_CTX md;
-	u_char digest[EVP_MAX_MD_SIZE], *sig;
+	int hash_alg;
+	u_char digest[SSH_DIGEST_MAX_LENGTH], *sig;
 	u_int slen, dlen, len;
 	int ok, nid;
 	Buffer b;
 
-	if (key == NULL || key->rsa == NULL || (key->type != KEY_RSA &&
-	    key->type != KEY_RSA_CERT && key->type != KEY_RSA_CERT_V00)) {
-		error("ssh_rsa_sign: no RSA key");
+	if (key == NULL || key_type_plain(key->type) != KEY_RSA ||
+	    key->rsa == NULL) {
+		error("%s: no RSA key", __func__);
 		return -1;
 	}
-	nid = (datafellows & SSH_BUG_RSASIGMD5) ? NID_md5 : NID_sha1;
-	if ((evp_md = EVP_get_digestbynid(nid)) == NULL) {
-		error("ssh_rsa_sign: EVP_get_digestbynid %d failed", nid);
+
+	/* hash the data */
+	hash_alg = SSH_DIGEST_SHA1;
+	nid = NID_sha1;
+	if ((dlen = ssh_digest_bytes(hash_alg)) == 0) {
+		error("%s: bad hash algorithm %d", __func__, hash_alg);
 		return -1;
 	}
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, data, datalen);
-	EVP_DigestFinal(&md, digest, &dlen);
+	if (ssh_digest_memory(hash_alg, data, datalen,
+	    digest, sizeof(digest)) != 0) {
+		error("%s: ssh_digest_memory failed", __func__);
+		return -1;
+	}
 
 	slen = RSA_size(key->rsa);
 	sig = xmalloc(slen);
 
 	ok = RSA_sign(nid, digest, dlen, sig, &len, key->rsa);
-	memset(digest, 'd', sizeof(digest));
+	explicit_bzero(digest, sizeof(digest));
 
 	if (ok != 1) {
 		int ecode = ERR_get_error();
 
-		error("ssh_rsa_sign: RSA_sign failed: %s",
+		error("%s: RSA_sign failed: %s", __func__,
 		    ERR_error_string(ecode, NULL));
-		xfree(sig);
+		free(sig);
 		return -1;
 	}
 	if (len < slen) {
 		u_int diff = slen - len;
 		debug("slen %u > len %u", slen, len);
 		memmove(sig + diff, sig, len);
-		memset(sig, 0, diff);
+		explicit_bzero(sig, diff);
 	} else if (len > slen) {
-		error("ssh_rsa_sign: slen %u slen2 %u", slen, len);
-		xfree(sig);
+		error("%s: slen %u slen2 %u", __func__, slen, len);
+		free(sig);
 		return -1;
 	}
 	/* encode signature */
@@ -97,8 +102,8 @@ ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
 		memcpy(*sigp, buffer_ptr(&b), len);
 	}
 	buffer_free(&b);
-	memset(sig, 's', slen);
-	xfree(sig);
+	explicit_bzero(sig, slen);
+	free(sig);
 
 	return 0;
 }
@@ -108,71 +113,75 @@ ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
     const u_char *data, u_int datalen)
 {
 	Buffer b;
-	const EVP_MD *evp_md;
-	EVP_MD_CTX md;
+	int hash_alg;
 	char *ktype;
-	u_char digest[EVP_MAX_MD_SIZE], *sigblob;
+	u_char digest[SSH_DIGEST_MAX_LENGTH], *sigblob;
 	u_int len, dlen, modlen;
-	int rlen, ret, nid;
+	int rlen, ret;
 
-	if (key == NULL || key->rsa == NULL || (key->type != KEY_RSA &&
-	    key->type != KEY_RSA_CERT && key->type != KEY_RSA_CERT_V00)) {
-		error("ssh_rsa_verify: no RSA key");
+	if (key == NULL || key_type_plain(key->type) != KEY_RSA ||
+	    key->rsa == NULL) {
+		error("%s: no RSA key", __func__);
 		return -1;
 	}
+
 	if (BN_num_bits(key->rsa->n) < SSH_RSA_MINIMUM_MODULUS_SIZE) {
-		error("ssh_rsa_verify: RSA modulus too small: %d < minimum %d bits",
-		    BN_num_bits(key->rsa->n), SSH_RSA_MINIMUM_MODULUS_SIZE);
+		error("%s: RSA modulus too small: %d < minimum %d bits",
+		    __func__, BN_num_bits(key->rsa->n),
+		    SSH_RSA_MINIMUM_MODULUS_SIZE);
 		return -1;
 	}
 	buffer_init(&b);
 	buffer_append(&b, signature, signaturelen);
 	ktype = buffer_get_cstring(&b, NULL);
 	if (strcmp("ssh-rsa", ktype) != 0) {
-		error("ssh_rsa_verify: cannot handle type %s", ktype);
+		error("%s: cannot handle type %s", __func__, ktype);
 		buffer_free(&b);
-		xfree(ktype);
+		free(ktype);
 		return -1;
 	}
-	xfree(ktype);
+	free(ktype);
 	sigblob = buffer_get_string(&b, &len);
 	rlen = buffer_len(&b);
 	buffer_free(&b);
 	if (rlen != 0) {
-		error("ssh_rsa_verify: remaining bytes in signature %d", rlen);
-		xfree(sigblob);
+		error("%s: remaining bytes in signature %d", __func__, rlen);
+		free(sigblob);
 		return -1;
 	}
 	/* RSA_verify expects a signature of RSA_size */
 	modlen = RSA_size(key->rsa);
 	if (len > modlen) {
-		error("ssh_rsa_verify: len %u > modlen %u", len, modlen);
-		xfree(sigblob);
+		error("%s: len %u > modlen %u", __func__, len, modlen);
+		free(sigblob);
 		return -1;
 	} else if (len < modlen) {
 		u_int diff = modlen - len;
-		debug("ssh_rsa_verify: add padding: modlen %u > len %u",
+		debug("%s: add padding: modlen %u > len %u", __func__,
 		    modlen, len);
 		sigblob = xrealloc(sigblob, 1, modlen);
 		memmove(sigblob + diff, sigblob, len);
-		memset(sigblob, 0, diff);
+		explicit_bzero(sigblob, diff);
 		len = modlen;
 	}
-	nid = (datafellows & SSH_BUG_RSASIGMD5) ? NID_md5 : NID_sha1;
-	if ((evp_md = EVP_get_digestbynid(nid)) == NULL) {
-		error("ssh_rsa_verify: EVP_get_digestbynid %d failed", nid);
-		xfree(sigblob);
+	/* hash the data */
+	hash_alg = SSH_DIGEST_SHA1;
+	if ((dlen = ssh_digest_bytes(hash_alg)) == 0) {
+		error("%s: bad hash algorithm %d", __func__, hash_alg);
 		return -1;
 	}
-	EVP_DigestInit(&md, evp_md);
-	EVP_DigestUpdate(&md, data, datalen);
-	EVP_DigestFinal(&md, digest, &dlen);
+	if (ssh_digest_memory(hash_alg, data, datalen,
+	    digest, sizeof(digest)) != 0) {
+		error("%s: ssh_digest_memory failed", __func__);
+		return -1;
+	}
 
-	ret = openssh_RSA_verify(nid, digest, dlen, sigblob, len, key->rsa);
-	memset(digest, 'd', sizeof(digest));
-	memset(sigblob, 's', len);
-	xfree(sigblob);
-	debug("ssh_rsa_verify: signature %scorrect", (ret==0) ? "in" : "");
+	ret = openssh_RSA_verify(hash_alg, digest, dlen, sigblob, len,
+	    key->rsa);
+	explicit_bzero(digest, sizeof(digest));
+	explicit_bzero(sigblob, len);
+	free(sigblob);
+	debug("%s: signature %scorrect", __func__, (ret == 0) ? "in" : "");
 	return ret;
 }
 
@@ -193,21 +202,9 @@ static const u_char id_sha1[] = {
 	0x05, 0x00, /* NULL */
 	0x04, 0x14  /* Octet string, length 0x14 (20), followed by sha1 hash */
 };
-/*
- * id-md5 OBJECT IDENTIFIER ::= { iso(1) member-body(2) us(840)
- *	rsadsi(113549) digestAlgorithm(2) 5 }
- */
-static const u_char id_md5[] = {
-	0x30, 0x20, /* type Sequence, length 0x20 (32) */
-	0x30, 0x0c, /* type Sequence, length 0x09 */
-	0x06, 0x08, /* type OID, length 0x05 */
-	0x2a, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x02, 0x05, /* id-md5 */
-	0x05, 0x00, /* NULL */
-	0x04, 0x10  /* Octet string, length 0x10 (16), followed by md5 hash */
-};
 
 static int
-openssh_RSA_verify(int type, u_char *hash, u_int hashlen,
+openssh_RSA_verify(int hash_alg, u_char *hash, u_int hashlen,
     u_char *sigbuf, u_int siglen, RSA *rsa)
 {
 	u_int ret, rsasize, oidlen = 0, hlen = 0;
@@ -216,16 +213,11 @@ openssh_RSA_verify(int type, u_char *hash, u_int hashlen,
 	u_char *decrypted = NULL;
 
 	ret = 0;
-	switch (type) {
-	case NID_sha1:
+	switch (hash_alg) {
+	case SSH_DIGEST_SHA1:
 		oid = id_sha1;
 		oidlen = sizeof(id_sha1);
 		hlen = 20;
-		break;
-	case NID_md5:
-		oid = id_md5;
-		oidlen = sizeof(id_md5);
-		hlen = 16;
 		break;
 	default:
 		goto done;
@@ -262,7 +254,6 @@ openssh_RSA_verify(int type, u_char *hash, u_int hashlen,
 	}
 	ret = 1;
 done:
-	if (decrypted)
-		xfree(decrypted);
+	free(decrypted);
 	return ret;
 }

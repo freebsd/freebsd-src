@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <net/bpf.h>
 
@@ -63,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/lpc/if_lpereg.h>
 
 #include "miibus_if.h"
-
-#define	DEBUG
-#undef	DEBUG
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -191,6 +189,9 @@ static void lpe_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int
 lpe_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "lpc,ethernet"))
 		return (ENXIO);
@@ -753,7 +754,7 @@ lpe_rxintr(struct lpe_softc *sc)
 
 		/* Check received frame for errors */
 		if (hws->lhs_info & LPE_HWDESC_RXERRS) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			lpe_discard_rxbuf(sc, cons);
 			lpe_init_rxbuf(sc, cons);
 			goto skip;
@@ -763,7 +764,7 @@ lpe_rxintr(struct lpe_softc *sc)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_data += 2;
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		lpe_unlock(sc);
 		(*ifp->if_input)(ifp, m);	
@@ -799,12 +800,12 @@ lpe_txintr(struct lpe_softc *sc)
 		bus_dmamap_sync(sc->lpe_cdata.lpe_tx_buf_tag,
 		    txd->lpe_txdesc_dmamap, BUS_DMASYNC_POSTWRITE);
 
-		ifp->if_collisions += LPE_HWDESC_COLLISIONS(hws->lhs_info);
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, LPE_HWDESC_COLLISIONS(hws->lhs_info));
 
 		if (hws->lhs_info & LPE_HWDESC_TXERRS)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		else
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		if (txd->lpe_txdesc_first) {
 			bus_dmamap_unload(sc->lpe_cdata.lpe_tx_buf_tag,

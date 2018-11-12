@@ -23,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -191,6 +191,8 @@ int create_parents(libzfs_handle_t *, char *, int);
 boolean_t isa_child_of(const char *dataset, const char *parent);
 
 zfs_handle_t *make_dataset_handle(libzfs_handle_t *, const char *);
+zfs_handle_t *make_bookmark_handle(zfs_handle_t *, const char *,
+    nvlist_t *props);
 
 int zpool_open_silent(libzfs_handle_t *, const char *, zpool_handle_t **);
 

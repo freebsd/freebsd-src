@@ -1,7 +1,16 @@
 # $FreeBSD$
 
-TESTS=	test-fmemopen test-getdelim test-open_memstream test-open_wmemstream \
-	test-perror test-print-positional test-printbasic test-printfloat \
+TESTS=	test-fdopen \
+	test-fopen \
+	test-freopen \
+	test-getdelim \
+	test-mkostemp \
+	test-open_memstream \
+	test-open_wmemstream \
+	test-perror \
+	test-print-positional \
+	test-printbasic \
+	test-printfloat \
 	test-scanfloat 
 CFLAGS+= -lm
 

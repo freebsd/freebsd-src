@@ -30,25 +30,23 @@
  * SOFTWARE.
  */
 
-#include "mlx4_ib.h"
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <rdma/ib_addr.h>
-#include <linux/inet.h>
-#include <linux/string.h>
 #include <rdma/ib_cache.h>
+
+#include <linux/slab.h>
+#include <linux/string.h>
+
+#include "mlx4_ib.h"
 
 int mlx4_ib_resolve_grh(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah_attr,
 			u8 *mac, int *is_mcast, u8 port)
 {
-	struct mlx4_ib_iboe *iboe = &dev->iboe;
 	struct in6_addr in6;
 
 	*is_mcast = 0;
-	spin_lock(&iboe->lock);
-	if (!iboe->netdevs[port - 1]) {
-		spin_unlock(&iboe->lock);
-		return -EINVAL;
-	}
-	spin_unlock(&iboe->lock);
 
 	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof in6);
 	if (rdma_link_local_addr(&in6))
@@ -92,25 +90,22 @@ static struct ib_ah *create_ib_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
 }
 
 static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-				   struct mlx4_ib_ah *ah)
+				    struct mlx4_ib_ah *ah)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(pd->device);
 	struct mlx4_dev *dev = ibdev->dev;
-	u8 mac[6];
-	int err;
-	int is_mcast;
+	int is_mcast = 0;
+	struct in6_addr in6;
 	u16 vlan_tag;
-	union ib_gid sgid;
 
-	err = mlx4_ib_resolve_grh(ibdev, ah_attr, mac, &is_mcast, ah_attr->port_num);
-	if (err)
-		return ERR_PTR(err);
-
-	memcpy(ah->av.eth.mac, mac, 6);
-	err = ib_get_cached_gid(pd->device, ah_attr->port_num, ah_attr->grh.sgid_index, &sgid);
-	if (err)
-		return ERR_PTR(err);
-	vlan_tag = rdma_get_vlan_id(&sgid);
+	memcpy(&in6, ah_attr->grh.dgid.raw, sizeof(in6));
+	if (rdma_is_multicast_addr(&in6)) {
+		is_mcast = 1;
+		resolve_mcast_mac(&in6, ah->av.eth.mac);
+	} else {
+		memcpy(ah->av.eth.mac, ah_attr->dmac, 6);
+	}
+	vlan_tag = ah_attr->vlan_id;
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (ah_attr->sl & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn | (ah_attr->port_num << 24));
@@ -130,7 +125,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr
 		ah->av.ib.dlid = cpu_to_be16(0xc000);
 
 	memcpy(ah->av.eth.dgid, ah_attr->grh.dgid.raw, 16);
-	ah->av.eth.sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 28);
+	ah->av.eth.sl_tclass_flowlabel = cpu_to_be32(ah_attr->sl << 29);
 
 	return &ah->ibah;
 }
@@ -147,25 +142,24 @@ struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	if (rdma_port_get_link_layer(pd->device, ah_attr->port_num) == IB_LINK_LAYER_ETHERNET) {
 		if (!(ah_attr->ah_flags & IB_AH_GRH)) {
 			ret = ERR_PTR(-EINVAL);
-			goto out;
 		} else {
-			/* TBD: need to handle the case when we get called
-			in an atomic context and there we might sleep. We
-			don't expect this currently since we're working with
-			link local addresses which we can translate without
-			going to sleep */
+			/*
+			 * TBD: need to handle the case when we get
+			 * called in an atomic context and there we
+			 * might sleep.  We don't expect this
+			 * currently since we're working with link
+			 * local addresses which we can translate
+			 * without going to sleep.
+			 */
 			ret = create_iboe_ah(pd, ah_attr, ah);
-			if (IS_ERR(ret))
-				goto out;
-			else
-				return ret;
 		}
+
+		if (IS_ERR(ret))
+			kfree(ah);
+
+		return ret;
 	} else
 		return create_ib_ah(pd, ah_attr, ah); /* never fails */
-
-out:
-	kfree(ah);
-	return ret;
 }
 
 int mlx4_ib_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
@@ -202,4 +196,3 @@ int mlx4_ib_destroy_ah(struct ib_ah *ah)
 	kfree(to_mah(ah));
 	return 0;
 }
-

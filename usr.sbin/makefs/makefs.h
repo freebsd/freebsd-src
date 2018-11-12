@@ -282,22 +282,4 @@ void   ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
 
 fsinode *link_check(fsinode *);
 
-/*
- * Declarations for compat routines.
- */
-long long strsuftoll(const char *, const char *, long long, long long);
-long long strsuftollx(const char *, const char *,
-                       long long, long long, char *, size_t);
-
-struct passwd;
-int uid_from_user(const char *, uid_t *);
-int pwcache_userdb(int (*)(int), void (*)(void),
-               struct passwd * (*)(const char *), struct passwd * (*)(uid_t));
-struct group;
-int gid_from_group(const char *, gid_t *);
-int pwcache_groupdb(int (*)(int), void (*)(void),
-               struct group * (*)(const char *), struct group * (*)(gid_t));
-
-int setup_getid(const char *dir);
-
 #endif	/* _MAKEFS_H */

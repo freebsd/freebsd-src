@@ -43,11 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_global.h"
 #include "opt_ktrace.h"
-#include "opt_kdtrace.h"
 
-#define	NO_REG_DEFS	1	/* Prevent asm.h from including regdef.h */
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
@@ -85,7 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/regnum.h>
 #include <machine/tls.h>
-#include <machine/asm.h>
 
 #ifdef DDB
 #include <machine/db_machdep.h>
@@ -96,29 +92,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
-
-/*
- * This is a hook which is initialised by the dtrace module
- * to handle traps which might occur during DTrace probe
- * execution.
- */
-dtrace_trap_func_t	dtrace_trap_func;
-
-dtrace_doubletrap_func_t	dtrace_doubletrap_func;
-
-/*
- * This is a hook which is initialised by the systrace module
- * when it is loaded. This keeps the DTrace syscall provider
- * implementation opaque. 
- */
-systrace_probe_func_t	systrace_probe_func;
-
-/*
- * These hooks are necessary for the pid, usdt and fasttrap providers.
- */
-dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
-dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
-dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
 
 #ifdef TRAP_DEBUG
@@ -126,6 +99,61 @@ int trap_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, trap_debug, CTLFLAG_RW,
     &trap_debug, 0, "Debug information on all traps");
 #endif
+
+#define	lbu_macro(data, addr)						\
+	__asm __volatile ("lbu %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lb_macro(data, addr)						\
+	__asm __volatile ("lb %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lwl_macro(data, addr)						\
+	__asm __volatile ("lwl %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	lwr_macro(data, addr)						\
+	__asm __volatile ("lwr %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	ldl_macro(data, addr)						\
+	__asm __volatile ("ldl %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	ldr_macro(data, addr)						\
+	__asm __volatile ("ldr %0, 0x0(%1)"				\
+			: "=r" (data)	/* outputs */			\
+			: "r" (addr));	/* inputs */
+
+#define	sb_macro(data, addr)						\
+	__asm __volatile ("sb %0, 0x0(%1)"				\
+			:				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	swl_macro(data, addr)						\
+	__asm __volatile ("swl %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	swr_macro(data, addr)						\
+	__asm __volatile ("swr %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	sdl_macro(data, addr)						\
+	__asm __volatile ("sdl %0, 0x0(%1)"				\
+			: 				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
+
+#define	sdr_macro(data, addr)						\
+	__asm __volatile ("sdr %0, 0x0(%1)"				\
+			:				/* outputs */	\
+			: "r" (data), "r" (addr));	/* inputs */
 
 static void log_illegal_instruction(const char *, struct trapframe *);
 static void log_bad_page_fault(char *, struct trapframe *, int);
@@ -363,10 +391,10 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			/*
 			 * Non-o32 ABIs support more arguments in registers.
 			 */
-			sa->args[3] = locr0->t4;
-			sa->args[4] = locr0->t5;
-			sa->args[5] = locr0->t6;
-			sa->args[6] = locr0->t7;
+			sa->args[3] = locr0->a4;
+			sa->args[4] = locr0->a5;
+			sa->args[5] = locr0->a6;
+			sa->args[6] = locr0->a7;
 			nsaved += 4;
 #ifdef COMPAT_FREEBSD32
 		}
@@ -389,10 +417,10 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			/*
 			 * Non-o32 ABIs support more arguments in registers.
 			 */
-			sa->args[4] = locr0->t4;
-			sa->args[5] = locr0->t5;
-			sa->args[6] = locr0->t6;
-			sa->args[7] = locr0->t7;
+			sa->args[4] = locr0->a4;
+			sa->args[5] = locr0->a5;
+			sa->args[6] = locr0->a6;
+			sa->args[7] = locr0->a7;
 			nsaved += 4;
 #ifdef COMPAT_FREEBSD32
 		}
@@ -447,7 +475,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 				    (caddr_t)&arg, sizeof arg);
 				if (error != 0)
 					break;
-			       sa->args[i] = arg;
+				sa->args[i] = arg;
 			}
 		} else
 #endif
@@ -576,7 +604,7 @@ trap(struct trapframe *trapframe)
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
 	 * executing the probe, DTrace blocks re-scheduling and sets
-	 * a flag in it's per-cpu flags to indicate that it doesn't
+	 * a flag in its per-cpu flags to indicate that it doesn't
 	 * want to fault. On returning from the probe, the no-fault
 	 * flag is cleared and finally re-scheduling is enabled.
 	 *
@@ -586,10 +614,11 @@ trap(struct trapframe *trapframe)
 	 * function can return normally.
 	 */
 	/*
-	 * XXXDTRACE: add fasttrap and pid  probes handlers here (if ever)
+	 * XXXDTRACE: add pid probe handler here (if ever)
 	 */
 	if (!usermode) {
-		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(trapframe, type))
+		if (dtrace_trap_func != NULL &&
+		    (*dtrace_trap_func)(trapframe, type) != 0)
 			return (trapframe->pc);
 	}
 #endif
@@ -1294,12 +1323,19 @@ log_frame_dump(struct trapframe *frame)
 	log(LOG_ERR, "\ta0: %#jx\ta1: %#jx\ta2: %#jx\ta3: %#jx\n",
 	    (intmax_t)frame->a0, (intmax_t)frame->a1, (intmax_t)frame->a2, (intmax_t)frame->a3);
 
+#if defined(__mips_n32) || defined(__mips_n64)
+	log(LOG_ERR, "\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta6: %#jx\n",
+	    (intmax_t)frame->a4, (intmax_t)frame->a5, (intmax_t)frame->a6, (intmax_t)frame->a7);
+
+	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
+	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
+#else
 	log(LOG_ERR, "\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
 	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
 
 	log(LOG_ERR, "\tt4: %#jx\tt5: %#jx\tt6: %#jx\tt7: %#jx\n",
 	    (intmax_t)frame->t4, (intmax_t)frame->t5, (intmax_t)frame->t6, (intmax_t)frame->t7);
-
+#endif
 	log(LOG_ERR, "\tt8: %#jx\tt9: %#jx\ts0: %#jx\ts1: %#jx\n",
 	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->s0, (intmax_t)frame->s1);
 
@@ -1334,13 +1370,19 @@ trap_frame_dump(struct trapframe *frame)
 
 	printf("\ta0: %#jx\ta1: %#jx\ta2: %#jx\ta3: %#jx\n",
 	    (intmax_t)frame->a0, (intmax_t)frame->a1, (intmax_t)frame->a2, (intmax_t)frame->a3);
+#if defined(__mips_n32) || defined(__mips_n64)
+	printf("\ta4: %#jx\ta5: %#jx\ta6: %#jx\ta7: %#jx\n",
+	    (intmax_t)frame->a4, (intmax_t)frame->a5, (intmax_t)frame->a6, (intmax_t)frame->a7);
 
+	printf("\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
+	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
+#else
 	printf("\tt0: %#jx\tt1: %#jx\tt2: %#jx\tt3: %#jx\n",
 	    (intmax_t)frame->t0, (intmax_t)frame->t1, (intmax_t)frame->t2, (intmax_t)frame->t3);
 
 	printf("\tt4: %#jx\tt5: %#jx\tt6: %#jx\tt7: %#jx\n",
 	    (intmax_t)frame->t4, (intmax_t)frame->t5, (intmax_t)frame->t6, (intmax_t)frame->t7);
-
+#endif
 	printf("\tt8: %#jx\tt9: %#jx\ts0: %#jx\ts1: %#jx\n",
 	    (intmax_t)frame->t8, (intmax_t)frame->t9, (intmax_t)frame->s0, (intmax_t)frame->s1);
 
@@ -1454,6 +1496,7 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 	switch (trap_type) {
+	case T_TLB_MOD:
 	case T_TLB_ST_MISS:
 	case T_ADDR_ERR_ST:
 		read_or_write = "write";

@@ -29,28 +29,14 @@
 #ifndef _VMX_MSR_H_
 #define	_VMX_MSR_H_
 
-#define	MSR_VMX_BASIC			0x480
-#define	MSR_VMX_EPT_VPID_CAP		0x48C
+struct vmx;
 
-#define	MSR_VMX_PROCBASED_CTLS		0x482
-#define	MSR_VMX_TRUE_PROCBASED_CTLS	0x48E
-
-#define	MSR_VMX_PINBASED_CTLS		0x481
-#define	MSR_VMX_TRUE_PINBASED_CTLS	0x48D
-
-#define	MSR_VMX_PROCBASED_CTLS2		0x48B
-
-#define	MSR_VMX_EXIT_CTLS		0x483
-#define	MSR_VMX_TRUE_EXIT_CTLS		0x48f
-
-#define	MSR_VMX_ENTRY_CTLS		0x484
-#define	MSR_VMX_TRUE_ENTRY_CTLS		0x490
-
-#define	MSR_VMX_CR0_FIXED0		0x486
-#define	MSR_VMX_CR0_FIXED1		0x487
-
-#define	MSR_VMX_CR4_FIXED0		0x488
-#define	MSR_VMX_CR4_FIXED1		0x489
+void vmx_msr_init(void);
+void vmx_msr_guest_init(struct vmx *vmx, int vcpuid);
+void vmx_msr_guest_enter(struct vmx *vmx, int vcpuid);
+void vmx_msr_guest_exit(struct vmx *vmx, int vcpuid);
+int vmx_rdmsr(struct vmx *, int vcpuid, u_int num, uint64_t *val, bool *retu);
+int vmx_wrmsr(struct vmx *, int vcpuid, u_int num, uint64_t val, bool *retu);
 
 uint32_t vmx_revision(void);
 
@@ -74,5 +60,11 @@ int vmx_set_ctlreg(int ctl_reg, int true_ctl_reg, uint32_t ones_mask,
 #define	MSR_BITMAP_ACCESS_RW	(MSR_BITMAP_ACCESS_READ|MSR_BITMAP_ACCESS_WRITE)
 void	msr_bitmap_initialize(char *bitmap);
 int	msr_bitmap_change_access(char *bitmap, u_int msr, int access);
+
+#define	guest_msr_rw(vmx, msr) \
+    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_RW)
+
+#define	guest_msr_ro(vmx, msr) \
+    msr_bitmap_change_access((vmx)->msr_bitmap, (msr), MSR_BITMAP_ACCESS_READ)
 
 #endif

@@ -12,16 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_SVALBUILDER
-#define LLVM_CLANG_GR_SVALBUILDER
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SVALBUILDER_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SVALBUILDER_H
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
-#include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/BasicValueFactory.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 
 namespace clang {
 
@@ -79,7 +78,8 @@ public:
     // FIXME: Remove the second disjunct when we support symbolic
     // truncation/extension.
     return (Context.getCanonicalType(Ty1) == Context.getCanonicalType(Ty2) ||
-            (Ty1->isIntegerType() && Ty2->isIntegerType()));
+            (Ty1->isIntegralOrEnumerationType() &&
+             Ty2->isIntegralOrEnumerationType()));
   }
 
   SVal evalCast(SVal val, QualType castTy, QualType originalType);
@@ -88,7 +88,7 @@ public:
 
   virtual SVal evalComplement(NonLoc val) = 0;
 
-  /// Create a new value which represents a binary expression with two non
+  /// Create a new value which represents a binary expression with two non-
   /// location operands.
   virtual SVal evalBinOpNN(ProgramStateRef state, BinaryOperator::Opcode op,
                            NonLoc lhs, NonLoc rhs, QualType resultTy) = 0;
@@ -99,7 +99,7 @@ public:
                            Loc lhs, Loc rhs, QualType resultTy) = 0;
 
   /// Create a new value which represents a binary expression with a memory
-  /// location and non location operands. For example, this would be used to
+  /// location and non-location operands. For example, this would be used to
   /// evaluate a pointer arithmetic operation.
   virtual SVal evalBinOpLN(ProgramStateRef state, BinaryOperator::Opcode op,
                            Loc lhs, NonLoc rhs, QualType resultTy) = 0;
@@ -124,7 +124,7 @@ public:
   ProgramStateManager &getStateManager() { return StateMgr; }
   
   QualType getConditionType() const {
-    return  getContext().IntTy;
+    return Context.getLangOpts().CPlusPlus ? Context.BoolTy : Context.IntTy;
   }
   
   QualType getArrayIndexType() const {
@@ -146,14 +146,14 @@ public:
                                       const LocationContext *LCtx,
                                       QualType type,
                                       unsigned visitCount,
-                                      const void *symbolTag = 0) {
+                                      const void *symbolTag = nullptr) {
     return SymMgr.conjureSymbol(stmt, LCtx, type, visitCount, symbolTag);
   }
 
   const SymbolConjured* conjureSymbol(const Expr *expr,
                                       const LocationContext *LCtx,
                                       unsigned visitCount,
-                                      const void *symbolTag = 0) {
+                                      const void *symbolTag = nullptr) {
     return SymMgr.conjureSymbol(expr, LCtx, visitCount, symbolTag);
   }
 
@@ -200,7 +200,14 @@ public:
   DefinedSVal getFunctionPointer(const FunctionDecl *func);
   
   DefinedSVal getBlockPointer(const BlockDecl *block, CanQualType locTy,
-                              const LocationContext *locContext);
+                              const LocationContext *locContext,
+                              unsigned blockCount);
+
+  /// Returns the value of \p E, if it can be determined in a non-path-sensitive
+  /// manner.
+  ///
+  /// If \p E is not a constant or cannot be modeled, returns \c None.
+  Optional<SVal> getConstantVal(const Expr *E);
 
   NonLoc makeCompoundVal(QualType type, llvm::ImmutableList<SVal> vals) {
     return nonloc::CompoundVal(BasicVals.getCompoundValData(type, vals));

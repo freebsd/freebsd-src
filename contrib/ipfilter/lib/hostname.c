@@ -1,18 +1,18 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2003 by Darren Reed.
- * 
- * See the IPFILTER.LICENCE file for details on licencing.  
- *   
- * $Id: hostname.c,v 1.6.2.2 2007/01/16 02:25:22 darrenr Exp $ 
- */     
+ * Copyright (C) 2012 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ *
+ * $Id$
+ */
 
 #include "ipf.h"
 
-char *hostname(v, ip)
-int v;
-void *ip;
+char *hostname(family, ip)
+	int family;
+	void *ip;
 {
 	static char hostbuf[MAXHOSTNAMELEN+1];
 	struct hostent *hp;
@@ -21,14 +21,14 @@ void *ip;
 
 	memset(&ipa, 0, sizeof(ipa));	/* XXX gcc */
 
-	if (v == 4) {
+	if (family == AF_INET) {
 		ipa.s_addr = *(u_32_t *)ip;
 		if (ipa.s_addr == htonl(0xfedcba98))
 			return "test.host.dots";
 	}
 
 	if ((opts & OPT_NORESOLVE) == 0) {
-		if (v == 4) {
+		if (family == AF_INET) {
 			hp = gethostbyaddr(ip, 4, AF_INET);
 			if (hp != NULL && hp->h_name != NULL &&
 			    *hp->h_name != '\0') {
@@ -47,7 +47,7 @@ void *ip;
 		}
 	}
 
-	if (v == 4) {
+	if (family == AF_INET) {
 		return inet_ntoa(ipa);
 	}
 #ifdef  USE_INET6

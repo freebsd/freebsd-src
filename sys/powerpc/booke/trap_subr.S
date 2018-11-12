@@ -219,7 +219,8 @@
 	lwz	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
 	lwz	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
 	stw	%r30, FRAME_SRR0+8(%r1);				\
-	stw	%r31, FRAME_SRR1+8(%r1)
+	stw	%r31, FRAME_SRR1+8(%r1);				\
+	lwz	%r2,PC_CURTHREAD(%r2)	/* set curthread pointer */
 
 /*
  *
@@ -541,8 +542,11 @@ INTERRUPT(int_data_tlb_error)
 
 search_kernel_pmap:
 	/* Load r26 with kernel_pmap address */
-	lis	%r26, kernel_pmap_store@h
-	ori	%r26, %r26, kernel_pmap_store@l
+	bl	1f
+	.long kernel_pmap_store-.
+1:	mflr	%r21
+	lwz	%r26, 0(%r21)
+	add	%r26, %r21, %r26	/* kernel_pmap_store in r26 */
 
 	/* Force kernel tid, set TID to 0 in MAS1. */
 	li	%r21, 0
@@ -734,13 +738,19 @@ interrupt_vector_top:
 INTERRUPT(int_debug)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
-	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r2);
-	lis	%r4, interrupt_vector_base@ha
-	addi	%r4, %r4, interrupt_vector_base@l
+	GET_CPUINFO(%r3)
+	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
+	bl	0f
+	.long	interrupt_vector_base-.
+	.long	interrupt_vector_top-.
+0:	mflr	%r5
+	lwz	%r4,0(%r5)	/* interrupt_vector_base in r4 */
+	add	%r4,%r4,%r5
 	cmplw	cr0, %r3, %r4
 	blt	1f
-	lis	%r4, interrupt_vector_top@ha
-	addi	%r4, %r4, interrupt_vector_top@l
+	lwz	%r4,4(%r5)	/* interrupt_vector_top in r4 */
+	add	%r4,%r4,%r5
+	addi	%r4,%r4,4
 	cmplw	cr0, %r3, %r4
 	bge	1f
 	/* Disable single-stepping for the interrupt handlers. */
@@ -748,9 +758,10 @@ INTERRUPT(int_debug)
 	rlwinm	%r3, %r3, 0, 23, 21
 	stw	%r3, FRAME_SRR1+8(%r1);
 	/* Restore srr0 and srr1 as they could have been clobbered. */
-	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0+8)(%r2);
+	GET_CPUINFO(%r4)
+	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0+8)(%r4);
 	mtspr	SPR_SRR0, %r3
-	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r2);
+	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r4);
 	mtspr	SPR_SRR1, %r4
 	b	9f
 1:

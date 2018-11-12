@@ -18,6 +18,7 @@
 namespace llvm {
 class BasicBlock;
 class BasicBlockPass;
+class Pass;
 
 //===----------------------------------------------------------------------===//
 /// @brief Vectorize configuration.
@@ -45,6 +46,9 @@ struct VectorizeConfig {
 
   /// @brief Vectorize floating-point math intrinsics.
   bool VectorizeMath;
+
+  /// @brief Vectorize bit intrinsics.
+  bool VectorizeBitManipulations;
 
   /// @brief Vectorize the fused-multiply-add intrinsic.
   bool VectorizeFMA;
@@ -83,6 +87,9 @@ struct VectorizeConfig {
   /// @brief The maximum number of pairable instructions per group.
   unsigned MaxInsts;
 
+  /// @brief The maximum number of candidate instruction pairs per group.
+  unsigned MaxPairs;
+
   /// @brief The maximum number of pairing iterations.
   unsigned MaxIter;
 
@@ -110,7 +117,14 @@ createBBVectorizePass(const VectorizeConfig &C = VectorizeConfig());
 //
 // LoopVectorize - Create a loop vectorization pass.
 //
-Pass * createLoopVectorizePass();
+Pass *createLoopVectorizePass(bool NoUnrolling = false,
+                              bool AlwaysVectorize = true);
+
+//===----------------------------------------------------------------------===//
+//
+// SLPVectorizer - Create a bottom-up SLP vectorizer pass.
+//
+Pass *createSLPVectorizerPass();
 
 //===----------------------------------------------------------------------===//
 /// @brief Vectorize the BasicBlock.

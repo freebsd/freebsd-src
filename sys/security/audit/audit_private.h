@@ -41,6 +41,7 @@
 #error "no user-serviceable parts inside"
 #endif
 
+#include <sys/caprights.h>
 #include <sys/ipc.h>
 #include <sys/socket.h>
 #include <sys/ucred.h>

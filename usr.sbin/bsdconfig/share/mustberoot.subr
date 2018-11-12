@@ -1,7 +1,7 @@
 if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
 #
-# Copyright (c) 2006-2012 Devin Teske
-# All Rights Reserved.
+# Copyright (c) 2006-2013 Devin Teske
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MUSTBEROOT_SUBR" ]; then _MUSTBEROOT_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -32,6 +32,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." mustberoot.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -77,7 +78,8 @@ SECURE_DIVULGE_UNKNOWN_USER=
 #
 f_become_root_via_sudo()
 {
-	local msg hline size
+	local funcname=f_become_root_via_sudo
+	local prompt hline height width rows msg
 
 	[ "$( id -u )" = "0" ] && return $SUCCESS
 
@@ -90,48 +92,43 @@ f_become_root_via_sudo()
 	#
 	local checkpath="${HOME%/}/.bsdconfig_uses_sudo"
 	if [ ! -e "$checkpath" ]; then
-		msg=$( printf "$msg_always_try_sudo_when_run_as" "$USER" )
+		f_sprintf prompt "$msg_you_are_not_root_but" bsdconfig
+		f_sprintf msg "$msg_always_try_sudo_when_run_as" "$USER"
 		local menu_list="
 			'X' '$msg_cancel_exit'
 			'1' '$msg'
 			'2' '$msg_try_sudo_only_this_once'
 		" # END-QUOTE
-		msg=$( printf "$msg_you_are_not_root_but" bsdconfig )
 		hline="$hline_arrows_tab_enter"
-		size=$( eval f_dialog_menu_size \
-		        	\"\$DIALOG_TITLE\"     \
-		        	\"\$DIALOG_BACKTITLE\" \
-		        	\"\$msg\"              \
-		        	\"\$hline\"            \
-		        	$menu_list             )
 
-		local dialog_menu mtag retval
-		dialog_menu=$( eval $DIALOG \
+		eval f_dialog_menu_size height width rows \
+		                        \"\$DIALOG_TITLE\"     \
+		                        \"\$DIALOG_BACKTITLE\" \
+		                        \"\$prompt\"           \
+		                        \"\$hline\"            \
+		                        $menu_list
+
+		local mtag
+		mtag=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--menu \"\$msg\" $size             \
+			--menu \"\$prompt\"                \
+			$height $width $rows               \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-		retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-		mtag=$( f_dialog_menutag )
-
-		[ $retval -eq 0 ] || f_die
+		) || f_die
+		f_dialog_data_sanitize mtag
 
 		case "$mtag" in
 		X) # Cancel/Exit
 		   f_die ;;
 		1) # Always try sudo(8) when run as $user
-			local err
-			if ! err=$( touch "$checkpath" 2>&1 ); then
-				f_dialog_msgbox "$err"
-			else
+			f_eval_catch $funcname touch \
+				'touch "%s"' "$checkpath" &&
 				f_show_msg "$msg_created_path" "$checkpath"
-			fi
 		esac
 	else
 		#
@@ -150,13 +147,13 @@ f_become_root_via_sudo()
 		#
 		# sudo(8) access denied. Prompt for their password.
 		#
-		msg="$msg_please_enter_password"
+		prompt="$msg_please_enter_password"
 		hline="$hline_alnum_punc_tab_enter"
-		size=$( f_dialog_inputbox_size \
-		        	"$DIALOG_TITLE"     \
-		        	"$DIALOG_BACKTITLE" \
-		        	"$msg"              \
-		        	"$hline"            )
+		f_dialog_inputbox_size height width \
+		                       "$DIALOG_TITLE"     \
+		                       "$DIALOG_BACKTITLE" \
+		                       "$prompt"           \
+		                       "$hline"
 
 		#
 		# Continue prompting until they either Cancel, succeed
@@ -166,37 +163,38 @@ f_become_root_via_sudo()
 		while [ $nfailures -lt $PASSWD_TRIES ]; do
 			if [ "$USE_XDIALOG" ]; then
 				password=$( $DIALOG \
-					--title "$DIALOG_TITLE"            \
-					--backtitle "$DIALOG_BACKTITLE"    \
-					--hline "$hline"                   \
-					--ok-label "$msg_ok"               \
-					--cancel-label "$msg_cancel"       \
-					--password --inputbox "$msg" $size \
-					2>&1 > /dev/null )
+					--title "$DIALOG_TITLE"         \
+					--backtitle "$DIALOG_BACKTITLE" \
+					--hline "$hline"                \
+					--ok-label "$msg_ok"            \
+					--cancel-label "$msg_cancel"    \
+					--password --inputbox "$prompt" \
+					$height $width                  \
+					2>&1 > /dev/null
+				)
 				retval=$?
 
 				# Catch X11-related errors
-				[ $retval -eq 255 ] &&
+				if [ $retval -eq $DIALOG_ESC ]; then
 					f_die $retval "$password"
+				elif [ $retval -ne $DIALOG_OK ]; then
+					# User cancelled
+					exit $retval
+				fi
 			else
-				local dialog_inputbox
-				dialog_inputbox=$( $DIALOG \
+				password=$( $DIALOG \
 					--title "$DIALOG_TITLE"         \
 					--backtitle "$DIALOG_BACKTITLE" \
 					--hline "$hline"                \
 					--ok-label "$msg_ok"            \
 					--cancel-label "$msg_cancel"    \
 					--insecure                      \
-					--passwordbox "$msg" $size      \
+					--passwordbox "$prompt"         \
+					$height $width                  \
 					2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-				)
-				retval=$?
-				setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-				password=$( f_dialog_inputstr )
+				) || exit $?
 			fi
-
-			# Exit if the user cancelled.
-			[ $retval -eq $SUCCESS ] || exit $retval
+			debug= f_dialog_line_sanitize password
 
 			#
 			# Validate sudo(8) credentials
@@ -226,7 +224,7 @@ f_become_root_via_sudo()
 		# the security event and exit immediately.
 		#
 		if [ $nfailures -ge $PASSWD_TRIES ]; then
-			msg=$( printf "$msg_nfailed_attempts" "$nfailures" )
+			f_sprintf msg "$msg_nfailed_attempts" "$nfailures"
 			logger -p auth.notice -t sudo " " \
 				"$USER : $msg" \
 				"; TTY=$(tty)" \
@@ -250,6 +248,7 @@ f_become_root_via_sudo()
 	fi
 
 	# Re-execute ourselves with sudo(8)
+	f_dprintf "%s: Becoming root via sudo(8)..." mustberoot.subr
 	if [ $ARGC -gt 0 ]; then
 		exec sudo "$0" $ARGV
 	else
@@ -271,7 +270,7 @@ f_become_root_via_sudo()
 #
 f_authenticate_some_user()
 {
-	local msg hline size width height
+	local msg hline height width
 
 	f_have sudo || f_die 1 "$msg_must_be_root_to_execute" "$pgm"
 
@@ -288,14 +287,12 @@ f_authenticate_some_user()
 
 	msg="$msg_please_enter_username_password"
 	hline="$hline_alnum_punc_tab_enter"
-	size=$( f_xdialog_2inputsbox_size \
-	        	"$DIALOG_TITLE"      \
-	        	"$DIALOG_BACKTITLE"  \
-	        	"$msg"               \
-	        	"$field_username" "" \
-	        	"$field_password" "" )
-	width="${size##*[$IFS]}"
-	height="${size%%[$IFS]*}"
+	f_xdialog_2inputsbox_size height width \
+	                          "$DIALOG_TITLE"      \
+	                          "$DIALOG_BACKTITLE"  \
+	                          "$msg"               \
+	                          "$field_username" "" \
+	                          "$field_password" ""
 	height=$(( $height + 2 )) # Add height for --password
 
 	#
@@ -318,10 +315,10 @@ f_authenticate_some_user()
 		retval=$?
 
 		# Catch X11-related errors
-		[ $retval -eq 255 ] && f_die $retval "$user_pass"
+		[ $retval -eq $DIALOG_ESC ] && f_die $retval "$user_pass"
 
 		# Exit if the user cancelled.
-		[ $retval -eq $SUCCESS ] || exit $retval
+		[ $retval -eq $DIALOG_OK ] || exit $retval
 
 		#
 		# Make sure the user exists and is non-root
@@ -332,7 +329,7 @@ f_authenticate_some_user()
 		unset user_pass # scrub memory
 		if [ ! "$user" ]; then
 			nfailures=$(( $nfailures + 1 ))
-			f_dialog_msgbox "$msg_no_username"
+			f_show_msg "$msg_no_username"
 			continue
 		fi
 		if [ ! "$SECURE_ALLOW_ROOT" ]; then
@@ -389,7 +386,7 @@ f_authenticate_some_user()
 	# the security event and exit immediately.
 	#
 	if [ $nfailures -ge $PASSWD_TRIES ]; then
-		msg=$( printf "$msg_nfailed_attempts" "$nfailures" )
+		f_sprintf msg "$msg_nfailed_attempts" "$nfailures"
 		logger -p auth.notice -t sudo " " \
 			"${SUDO_USER:-$USER} : $msg" \
 			"; TTY=$(tty)"               \

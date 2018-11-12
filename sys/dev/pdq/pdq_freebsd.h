@@ -53,6 +53,7 @@
 #include <sys/rman.h>
         
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -189,8 +190,7 @@ typedef struct _pdq_os_ctx_t {
     PDQ_OS_DATABUF_T *x_m0; \
     MGETHDR(x_m0, M_NOWAIT, MT_DATA); \
     if (x_m0 != NULL) { \
-	MCLGET(x_m0, M_NOWAIT);	\
-	if ((x_m0->m_flags & M_EXT) == 0) { \
+	if (!(MCLGET(x_m0, M_NOWAIT))) { \
 	    m_free(x_m0); \
 	    (b) = NULL; \
 	} else { \

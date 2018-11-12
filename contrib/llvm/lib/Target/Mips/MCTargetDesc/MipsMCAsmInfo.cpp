@@ -18,25 +18,29 @@ using namespace llvm;
 
 void MipsMCAsmInfo::anchor() { }
 
-MipsMCAsmInfo::MipsMCAsmInfo(const Target &T, StringRef TT) {
+MipsMCAsmInfo::MipsMCAsmInfo(StringRef TT) {
   Triple TheTriple(TT);
   if ((TheTriple.getArch() == Triple::mips) ||
       (TheTriple.getArch() == Triple::mips64))
     IsLittleEndian = false;
+
+  if ((TheTriple.getArch() == Triple::mips64el) ||
+      (TheTriple.getArch() == Triple::mips64)) {
+    PointerSize = CalleeSaveStackSlotSize = 8;
+  }
 
   AlignmentIsInBytes          = false;
   Data16bitsDirective         = "\t.2byte\t";
   Data32bitsDirective         = "\t.4byte\t";
   Data64bitsDirective         = "\t.8byte\t";
   PrivateGlobalPrefix         = "$";
+  PrivateLabelPrefix          = "$";
   CommentString               = "#";
   ZeroDirective               = "\t.space\t";
   GPRel32Directive            = "\t.gpword\t";
   GPRel64Directive            = "\t.gpdword\t";
-  WeakRefDirective            = "\t.weak\t";
-
+  UseAssignmentForEHBegin = true;
   SupportsDebugInformation = true;
   ExceptionsType = ExceptionHandling::DwarfCFI;
-  HasLEB128 = true;
   DwarfRegNumForCFI = true;
 }

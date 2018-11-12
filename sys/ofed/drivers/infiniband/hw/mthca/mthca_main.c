@@ -33,7 +33,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -48,7 +47,9 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox InfiniBand HCA low-level driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
+MODULE_VERSION(mthca, 1);
+MODULE_DEPEND(mthca, linuxapi, 1, 1, 1);
+MODULE_DEPEND(mthca, ibcore, 1, 1, 1);
 
 #ifdef CONFIG_INFINIBAND_MTHCA_DEBUG
 
@@ -1325,7 +1326,7 @@ static void __init mthca_validate_profile(void)
 	if (log_mtts_per_seg == 0)
 		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
-		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %ld\n",
+		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %d\n",
 		       log_mtts_per_seg, ilog2(MTHCA_MTT_SEG_SIZE / 8));
 		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	}

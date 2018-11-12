@@ -1,4 +1,4 @@
- /*
+/*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include "telnetd.h"
 #include "pathnames.h"
+#include "types.h"
+#include "baud.h"
 
 #ifdef	AUTHENTICATION
 #include <libtelnet/auth.h>
@@ -743,56 +745,6 @@ tty_iscrnl(void)
 #endif
 }
 
-/*
- * Try to guess whether speeds are "encoded" (4.2BSD) or just numeric (4.4BSD).
- */
-#if B4800 != 4800
-#define	DECODE_BAUD
-#endif
-
-#ifdef	DECODE_BAUD
-
-/*
- * A table of available terminal speeds
- */
-struct termspeeds {
-	int	speed;
-	int	value;
-} termspeeds[] = {
-	{ 0,      B0 },      { 50,    B50 },    { 75,     B75 },
-	{ 110,    B110 },    { 134,   B134 },   { 150,    B150 },
-	{ 200,    B200 },    { 300,   B300 },   { 600,    B600 },
-	{ 1200,   B1200 },   { 1800,  B1800 },  { 2400,   B2400 },
-	{ 4800,   B4800 },
-#ifdef	B7200
-	{ 7200,  B7200 },
-#endif
-	{ 9600,   B9600 },
-#ifdef	B14400
-	{ 14400,  B14400 },
-#endif
-#ifdef	B19200
-	{ 19200,  B19200 },
-#endif
-#ifdef	B28800
-	{ 28800,  B28800 },
-#endif
-#ifdef	B38400
-	{ 38400,  B38400 },
-#endif
-#ifdef	B57600
-	{ 57600,  B57600 },
-#endif
-#ifdef	B115200
-	{ 115200, B115200 },
-#endif
-#ifdef	B230400
-	{ 230400, B230400 },
-#endif
-	{ -1,     0 }
-};
-#endif	/* DECODE_BAUD */
-
 void
 tty_tspeed(int val)
 {
@@ -1026,6 +978,10 @@ void
 start_login(char *host undef1, int autologin undef1, char *name undef1)
 {
 	char **argv;
+	char *user;
+
+	user = getenv("USER");
+	user = (user != NULL) ? strdup(user) : NULL;
 
 	scrub_env();
 
@@ -1048,11 +1004,11 @@ start_login(char *host undef1, int autologin undef1, char *name undef1)
 	 */
 	if ((auth_level < 0) || (autologin != AUTH_VALID))
 # endif
+#endif /* AUTHENTICATION */
 	{
 		argv = addarg(argv, "-h");
 		argv = addarg(argv, host);
 	}
-#endif /* AUTHENTICATION */
 #endif
 #if	!defined(NO_LOGIN_P)
 	argv = addarg(argv, "-p");
@@ -1160,9 +1116,9 @@ start_login(char *host undef1, int autologin undef1, char *name undef1)
 # endif
 	} else
 #endif
-	if (getenv("USER")) {
+	if (user != NULL) {
  		argv = addarg(argv, "--");
-		argv = addarg(argv, getenv("USER"));
+		argv = addarg(argv, user);
 #if	defined(LOGIN_ARGS) && defined(NO_LOGIN_P)
 		{
 			char **cpp;
@@ -1170,17 +1126,6 @@ start_login(char *host undef1, int autologin undef1, char *name undef1)
 				argv = addarg(argv, *cpp);
 		}
 #endif
-		/*
-		 * Assume that login will set the USER variable
-		 * correctly.  For SysV systems, this means that
-		 * USER will no longer be set, just LOGNAME by
-		 * login.  (The problem is that if the auto-login
-		 * fails, and the user then specifies a different
-		 * account name, he can get logged in with both
-		 * LOGNAME and USER in his environment, but the
-		 * USER value will be wrong.
-		 */
-		unsetenv("USER");
 	}
 #ifdef	AUTHENTICATION
 #if	defined(NO_LOGIN_F) && defined(LOGIN_R)
@@ -1189,6 +1134,9 @@ start_login(char *host undef1, int autologin undef1, char *name undef1)
 #endif
 #endif /* AUTHENTICATION */
 	closelog();
+
+	if (user != NULL)
+		free(user);
 
 	if (altlogin == NULL) {
 		altlogin = _PATH_LOGIN;

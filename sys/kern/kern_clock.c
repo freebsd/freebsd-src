@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdb.h"
 #include "opt_device_polling.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_ntp.h"
 #include "opt_watchdog.h"
 
@@ -93,7 +92,7 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL);
 static struct mtx time_lock;
 
 SDT_PROVIDER_DECLARE(sched);
-SDT_PROBE_DEFINE2(sched, , , tick, tick, "struct thread *", "struct proc *");
+SDT_PROBE_DEFINE2(sched, , , tick, "struct thread *", "struct proc *");
 
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
@@ -216,13 +215,8 @@ deadlkres(void)
 			}
 			FOREACH_THREAD_IN_PROC(p, td) {
 
-				/*
-				 * Once a thread is found in "interesting"
-				 * state a possible ticks wrap-up needs to be
-				 * checked.
-				 */
 				thread_lock(td);
-				if (TD_ON_LOCK(td) && ticks < td->td_blktick) {
+				if (TD_ON_LOCK(td)) {
 
 					/*
 					 * The thread should be blocked on a
@@ -247,8 +241,7 @@ deadlkres(void)
 						    __func__, td, tticks);
 					}
 				} else if (TD_IS_SLEEPING(td) &&
-				    TD_ON_SLEEPQ(td) &&
-				    ticks < td->td_blktick) {
+				    TD_ON_SLEEPQ(td)) {
 
 					/*
 					 * Check if the thread is sleeping on a
@@ -417,6 +410,11 @@ initclocks(dummy)
 #ifdef SW_WATCHDOG
 	EVENTHANDLER_REGISTER(watchdog_list, watchdog_config, NULL, 0);
 #endif
+	/*
+	 * Arrange for ticks to wrap 10 minutes after boot to help catch
+	 * sign problems sooner.
+	 */
+	ticks = INT_MAX - (hz * 10 * 60);
 }
 
 /*
@@ -439,16 +437,16 @@ hardclock_cpu(int usermode)
 	flags = 0;
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
 			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
 	sched_tick(1);
@@ -527,18 +525,18 @@ hardclock_cnt(int cnt, int usermode)
 	flags = 0;
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL],
 		    tick * cnt) == 0)
 			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_PROF],
 		    tick * cnt) == 0)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
 	sched_tick(cnt);
@@ -675,11 +673,11 @@ stopprofclock(p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (p->p_flag & P_PROFIL) {
 		if (p->p_profthreads != 0) {
-			p->p_flag |= P_STOPPROF;
-			while (p->p_profthreads != 0)
+			while (p->p_profthreads != 0) {
+				p->p_flag |= P_STOPPROF;
 				msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
 				    "stopprof", 0);
-			p->p_flag &= ~P_STOPPROF;
+			}
 		}
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;

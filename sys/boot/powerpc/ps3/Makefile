@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 MK_SSP=		no
 
 PROG=		loader.ps3
@@ -87,18 +87,16 @@ CFLAGS+=	-DRELOC=${RELOC}
 
 LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.powerpc
 
-# 64-bit bridge extensions
-CFLAGS+= -Wa,-mppc64bridge
-
 # Pull in common loader code
 #.PATH:		${.CURDIR}/../../ofw/common
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
 # where to get libstand from
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} -lstand
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
 
 SC_DFLT_FONT=cp437
 

@@ -51,7 +51,7 @@ MALLOC_DEFINE(M_TTM_ZONE, "ttm_zone", "TTM Zone");
 static void ttm_mem_zone_kobj_release(struct ttm_mem_zone *zone)
 {
 
-	printf("pTTM] Zone %7s: Used memory at exit: %llu kiB\n",
+	printf("[TTM] Zone %7s: Used memory at exit: %llu kiB\n",
 		zone->name, (unsigned long long)zone->used_mem >> 10);
 	free(zone, M_TTM_ZONE);
 }

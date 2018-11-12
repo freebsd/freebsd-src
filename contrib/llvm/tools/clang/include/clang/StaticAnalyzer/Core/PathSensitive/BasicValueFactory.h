@@ -13,12 +13,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_BASICVALUEFACTORY_H
-#define LLVM_CLANG_GR_BASICVALUEFACTORY_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_BASICVALUEFACTORY_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_BASICVALUEFACTORY_H
 
+#include "clang/AST/ASTContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/APSIntType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/StoreRef.h"
 
 namespace clang {
 namespace ento {
@@ -78,9 +79,9 @@ class BasicValueFactory {
   const llvm::APSInt& getValue(uint64_t X, unsigned BitWidth, bool isUnsigned);
 
 public:
-  BasicValueFactory(ASTContext &ctx, llvm::BumpPtrAllocator& Alloc)
-  : Ctx(ctx), BPAlloc(Alloc), PersistentSVals(0), PersistentSValPairs(0),
-    SValListFactory(Alloc) {}
+  BasicValueFactory(ASTContext &ctx, llvm::BumpPtrAllocator &Alloc)
+    : Ctx(ctx), BPAlloc(Alloc), PersistentSVals(nullptr),
+      PersistentSValPairs(nullptr), SValListFactory(Alloc) {}
 
   ~BasicValueFactory();
 
@@ -92,7 +93,7 @@ public:
 
   /// Returns the type of the APSInt used to store values of the given QualType.
   APSIntType getAPSIntType(QualType T) const {
-    assert(T->isIntegerType() || Loc::isLocType(T));
+    assert(T->isIntegralOrEnumerationType() || Loc::isLocType(T));
     return APSIntType(Ctx.getTypeSize(T),
                       !T->isSignedIntegerOrEnumerationType());
   }

@@ -54,24 +54,18 @@ SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, mirror, CTLFLAG_RW, 0,
     "GEOM_MIRROR stuff");
 u_int g_mirror_debug = 0;
-TUNABLE_INT("kern.geom.mirror.debug", &g_mirror_debug);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RW, &g_mirror_debug, 0,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, debug, CTLFLAG_RWTUN, &g_mirror_debug, 0,
     "Debug level");
 static u_int g_mirror_timeout = 4;
-TUNABLE_INT("kern.geom.mirror.timeout", &g_mirror_timeout);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RW, &g_mirror_timeout,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, timeout, CTLFLAG_RWTUN, &g_mirror_timeout,
     0, "Time to wait on all mirror components");
 static u_int g_mirror_idletime = 5;
-TUNABLE_INT("kern.geom.mirror.idletime", &g_mirror_idletime);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, idletime, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, idletime, CTLFLAG_RWTUN,
     &g_mirror_idletime, 0, "Mark components as clean when idling");
 static u_int g_mirror_disconnect_on_failure = 1;
-TUNABLE_INT("kern.geom.mirror.disconnect_on_failure",
-    &g_mirror_disconnect_on_failure);
-SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RW,
+SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, disconnect_on_failure, CTLFLAG_RWTUN,
     &g_mirror_disconnect_on_failure, 0, "Disconnect component on I/O failure.");
 static u_int g_mirror_syncreqs = 2;
-TUNABLE_INT("kern.geom.mirror.sync_requests", &g_mirror_syncreqs);
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, sync_requests, CTLFLAG_RDTUN,
     &g_mirror_syncreqs, 0, "Parallel synchronization I/O requests.");
 
@@ -87,6 +81,7 @@ static int g_mirror_shutdown = 0;
 static int g_mirror_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
 static g_taste_t g_mirror_taste;
+static g_resize_t g_mirror_resize;
 static void g_mirror_init(struct g_class *mp);
 static void g_mirror_fini(struct g_class *mp);
 
@@ -97,7 +92,8 @@ struct g_class g_mirror_class = {
 	.taste = g_mirror_taste,
 	.destroy_geom = g_mirror_destroy_geom,
 	.init = g_mirror_init,
-	.fini = g_mirror_fini
+	.fini = g_mirror_fini,
+	.resize = g_mirror_resize
 };
 
 
@@ -394,6 +390,7 @@ g_mirror_connect_disk(struct g_mirror_disk *disk, struct g_provider *pp)
 
 	g_topology_lock();
 	cp = g_new_consumer(disk->d_softc->sc_geom);
+	cp->flags |= G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		g_destroy_consumer(cp);
@@ -554,6 +551,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	g_topology_unlock();
 	mtx_destroy(&sc->sc_queue_mtx);
 	mtx_destroy(&sc->sc_events_mtx);
+	mtx_destroy(&sc->sc_done_mtx);
 	sx_xunlock(&sc->sc_lock);
 	sx_destroy(&sc->sc_lock);
 }
@@ -638,9 +636,18 @@ g_mirror_write_metadata(struct g_mirror_disk *disk,
 	length = cp->provider->sectorsize;
 	offset = cp->provider->mediasize - length;
 	sector = malloc((size_t)length, M_MIRROR, M_WAITOK | M_ZERO);
-	if (md != NULL)
-		mirror_metadata_encode(md, sector);
-	error = g_write_data(cp, offset, sector, length);
+	if (md != NULL &&
+	    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_WIPE) == 0) {
+		/*
+		 * Handle the case, when the size of parent provider reduced.
+		 */
+		if (offset < md->md_mediasize)
+			error = ENOSPC;
+		else
+			mirror_metadata_encode(md, sector);
+	}
+	if (error == 0)
+		error = g_write_data(cp, offset, sector, length);
 	free(sector, M_MIRROR);
 	if (error != 0) {
 		if ((disk->d_flags & G_MIRROR_DISK_FLAG_BROKEN) == 0) {
@@ -737,7 +744,8 @@ g_mirror_update_metadata(struct g_mirror_disk *disk)
 	sc = disk->d_softc;
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
-	g_mirror_fill_metadata(sc, disk, &md);
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_WIPE) == 0)
+		g_mirror_fill_metadata(sc, disk, &md);
 	error = g_mirror_write_metadata(disk, &md);
 	if (error == 0) {
 		G_MIRROR_DEBUG(2, "Metadata on %s updated.",
@@ -849,6 +857,27 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
 	}
+}
+
+static void
+g_mirror_flush_done(struct bio *bp)
+{
+	struct g_mirror_softc *sc;
+	struct bio *pbp;
+
+	pbp = bp->bio_parent;
+	sc = pbp->bio_to->geom->softc;
+	mtx_lock(&sc->sc_done_mtx);
+	if (pbp->bio_error == 0)
+		pbp->bio_error = bp->bio_error;
+	pbp->bio_completed += bp->bio_completed;
+	pbp->bio_inbed++;
+	if (pbp->bio_children == pbp->bio_inbed) {
+		mtx_unlock(&sc->sc_done_mtx);
+		g_io_deliver(pbp, pbp->bio_error);
+	} else
+		mtx_unlock(&sc->sc_done_mtx);
+	g_destroy_bio(bp);
 }
 
 static void
@@ -992,6 +1021,23 @@ g_mirror_sync_done(struct bio *bp)
 }
 
 static void
+g_mirror_candelete(struct bio *bp)
+{
+	struct g_mirror_softc *sc;
+	struct g_mirror_disk *disk;
+	int *val;
+
+	sc = bp->bio_to->geom->softc;
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_flags & G_MIRROR_DISK_FLAG_CANDELETE)
+			break;
+	}
+	val = (int *)bp->bio_data;
+	*val = (disk != NULL);
+	g_io_deliver(bp, 0);
+}
+
+static void
 g_mirror_kernel_dump(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
@@ -1037,23 +1083,19 @@ g_mirror_flush(struct g_mirror_softc *sc, struct bio *bp)
 			continue;
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
-			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
-				bioq_remove(&queue, cbp);
+			while ((cbp = bioq_takefirst(&queue)) != NULL)
 				g_destroy_bio(cbp);
-			}
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
 			return;
 		}
 		bioq_insert_tail(&queue, cbp);
-		cbp->bio_done = g_std_done;
+		cbp->bio_done = g_mirror_flush_done;
 		cbp->bio_caller1 = disk;
 		cbp->bio_to = disk->d_consumer->provider;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 		disk = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -1089,9 +1131,10 @@ g_mirror_start(struct bio *bp)
 		g_mirror_flush(sc, bp);
 		return;
 	case BIO_GETATTR:
-		if (g_handleattr_int(bp, "GEOM::candelete", 1))
+		if (!strcmp(bp->bio_attribute, "GEOM::candelete")) {
+			g_mirror_candelete(bp);
 			return;
-		else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
+		} else if (strcmp("GEOM::kerneldump", bp->bio_attribute) == 0) {
 			g_mirror_kernel_dump(bp);
 			return;
 		}
@@ -1304,7 +1347,7 @@ g_mirror_sync_request(struct bio *bp)
 		}
 		G_MIRROR_LOGREQ(3, bp, "Synchronization request finished.");
 		sync = &disk->d_sync;
-		if (sync->ds_offset == sc->sc_mediasize ||
+		if (sync->ds_offset >= sc->sc_mediasize ||
 		    sync->ds_consumer == NULL ||
 		    (sc->sc_flags & G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
 			/* Don't send more synchronization requests. */
@@ -1538,11 +1581,8 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 			continue;
 		cbp = g_clone_bio(bp);
 		if (cbp == NULL) {
-			for (cbp = bioq_first(&queue); cbp != NULL;
-			    cbp = bioq_first(&queue)) {
+			while ((cbp = bioq_takefirst(&queue)) != NULL)
 				bioq_remove(&queue, cbp);
-				g_destroy_bio(cbp);
-			}
 			if (bp->bio_error == 0)
 				bp->bio_error = ENOMEM;
 			g_io_deliver(bp, bp->bio_error);
@@ -1561,8 +1601,7 @@ g_mirror_request_split(struct g_mirror_softc *sc, struct bio *bp)
 		offset += cbp->bio_length;
 		data += cbp->bio_length;
 	}
-	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 		disk = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
@@ -1643,11 +1682,8 @@ g_mirror_register_request(struct bio *bp)
 				continue;
 			cbp = g_clone_bio(bp);
 			if (cbp == NULL) {
-				for (cbp = bioq_first(&queue); cbp != NULL;
-				    cbp = bioq_first(&queue)) {
-					bioq_remove(&queue, cbp);
+				while ((cbp = bioq_takefirst(&queue)) != NULL)
 					g_destroy_bio(cbp);
-				}
 				if (bp->bio_error == 0)
 					bp->bio_error = ENOMEM;
 				g_io_deliver(bp, bp->bio_error);
@@ -1662,9 +1698,11 @@ g_mirror_register_request(struct bio *bp)
 			    ("Consumer %s not opened (r%dw%de%d).",
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
 		}
-		for (cbp = bioq_first(&queue); cbp != NULL;
-		    cbp = bioq_first(&queue)) {
-			bioq_remove(&queue, cbp);
+		if (bioq_first(&queue) == NULL) {
+			g_io_deliver(bp, EOPNOTSUPP);
+			return;
+		}
+		while ((cbp = bioq_takefirst(&queue)) != NULL) {
 			G_MIRROR_LOGREQ(3, cbp, "Sending request.");
 			cp = cbp->bio_caller1;
 			cbp->bio_caller1 = NULL;
@@ -1920,6 +1958,7 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
 	cp = g_new_consumer(sc->sc_sync.ds_geom);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, sc->sc_provider);
 	KASSERT(error == 0,
 	    ("Cannot attach to %s (error=%d).", sc->sc_name, error));
@@ -2028,21 +2067,35 @@ static void
 g_mirror_launch_provider(struct g_mirror_softc *sc)
 {
 	struct g_mirror_disk *disk;
-	struct g_provider *pp;
+	struct g_provider *pp, *dp;
 
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
 	g_topology_lock();
 	pp = g_new_providerf(sc->sc_geom, "mirror/%s", sc->sc_name);
+	pp->flags |= G_PF_DIRECT_RECEIVE;
 	pp->mediasize = sc->sc_mediasize;
 	pp->sectorsize = sc->sc_sectorsize;
 	pp->stripesize = 0;
 	pp->stripeoffset = 0;
+
+	/* Splitting of unmapped BIO's could work but isn't implemented now */
+	if (sc->sc_balance != G_MIRROR_BALANCE_SPLIT)
+		pp->flags |= G_PF_ACCEPT_UNMAPPED;
+
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
-		if (disk->d_consumer && disk->d_consumer->provider &&
-		    disk->d_consumer->provider->stripesize > pp->stripesize) {
-			pp->stripesize = disk->d_consumer->provider->stripesize;
-			pp->stripeoffset = disk->d_consumer->provider->stripeoffset;
+		if (disk->d_consumer && disk->d_consumer->provider) {
+			dp = disk->d_consumer->provider;
+			if (dp->stripesize > pp->stripesize) {
+				pp->stripesize = dp->stripesize;
+				pp->stripeoffset = dp->stripeoffset;
+			}
+			/* A provider underneath us doesn't support unmapped */
+			if ((dp->flags & G_PF_ACCEPT_UNMAPPED) == 0) {
+				G_MIRROR_DEBUG(0, "Cancelling unmapped "
+				    "because of %s.", dp->name);
+				pp->flags &= ~G_PF_ACCEPT_UNMAPPED;
+			}
 		}
 	}
 	sc->sc_provider = pp;
@@ -2069,10 +2122,8 @@ g_mirror_destroy_provider(struct g_mirror_softc *sc)
 	g_topology_lock();
 	g_error_provider(sc->sc_provider, ENXIO);
 	mtx_lock(&sc->sc_queue_mtx);
-	while ((bp = bioq_first(&sc->sc_queue)) != NULL) {
-		bioq_remove(&sc->sc_queue, bp);
+	while ((bp = bioq_takefirst(&sc->sc_queue)) != NULL)
 		g_io_deliver(bp, ENXIO);
-	}
 	mtx_unlock(&sc->sc_queue_mtx);
 	G_MIRROR_DEBUG(0, "Device %s: provider %s destroyed.", sc->sc_name,
 	    sc->sc_provider->name);
@@ -2694,12 +2745,14 @@ g_mirror_check_metadata(struct g_mirror_softc *sc, struct g_provider *pp,
 		    "md_balance", pp->name, sc->sc_name);
 		return (EINVAL);
 	}
+#if 0
 	if (md->md_mediasize != sc->sc_mediasize) {
 		G_MIRROR_DEBUG(1,
 		    "Invalid '%s' field on disk %s (device %s), skipping.",
 		    "md_mediasize", pp->name, sc->sc_name);
 		return (EINVAL);
 	}
+#endif
 	if (sc->sc_mediasize > pp->mediasize) {
 		G_MIRROR_DEBUG(1,
 		    "Invalid size of disk %s (device %s), skipping.", pp->name,
@@ -2787,7 +2840,8 @@ g_mirror_destroy_delayed(void *arg, int flag)
 	G_MIRROR_DEBUG(1, "Destroying %s (delayed).", sc->sc_name);
 	error = g_mirror_destroy(sc, G_MIRROR_DESTROY_SOFT);
 	if (error != 0) {
-		G_MIRROR_DEBUG(0, "Cannot destroy %s.", sc->sc_name);
+		G_MIRROR_DEBUG(0, "Cannot destroy %s (error=%d).",
+		    sc->sc_name, error);
 		sx_xunlock(&sc->sc_lock);
 	}
 	g_topology_lock();
@@ -2883,6 +2937,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 	TAILQ_INIT(&sc->sc_events);
 	mtx_init(&sc->sc_events_mtx, "gmirror:events", NULL, MTX_DEF);
 	callout_init(&sc->sc_callout, CALLOUT_MPSAFE);
+	mtx_init(&sc->sc_done_mtx, "gmirror:done", NULL, MTX_DEF);
 	sc->sc_state = G_MIRROR_DEVICE_STATE_STARTING;
 	gp->softc = sc;
 	sc->sc_geom = gp;
@@ -2901,6 +2956,7 @@ g_mirror_create(struct g_class *mp, const struct g_mirror_metadata *md)
 		G_MIRROR_DEBUG(1, "Cannot create kernel thread for %s.",
 		    sc->sc_name);
 		g_destroy_geom(sc->sc_sync.ds_geom);
+		mtx_destroy(&sc->sc_done_mtx);
 		mtx_destroy(&sc->sc_events_mtx);
 		mtx_destroy(&sc->sc_queue_mtx);
 		sx_destroy(&sc->sc_lock);
@@ -3088,6 +3144,22 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	sx_xunlock(&sc->sc_lock);
 	g_topology_lock();
 	return (gp);
+}
+
+static void
+g_mirror_resize(struct g_consumer *cp)
+{
+	struct g_mirror_disk *disk;
+
+	g_topology_assert();
+	g_trace(G_T_TOPOLOGY, "%s(%s)", __func__, cp->provider->name);
+
+	disk = cp->private;
+	if (disk == NULL)
+		return;
+	g_topology_unlock();
+	g_mirror_update_metadata(disk);
+	g_topology_lock();
 }
 
 static int

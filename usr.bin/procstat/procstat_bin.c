@@ -40,40 +40,19 @@
 #include "procstat.h"
 
 void
-procstat_bin(struct kinfo_proc *kipp)
+procstat_bin(struct procstat *prstat, struct kinfo_proc *kipp)
 {
-	char pathname[PATH_MAX];
-	int error, osrel, name[4];
-	size_t len;
+	int osrel;
+	static char pathname[PATH_MAX];
 
 	if (!hflag)
 		printf("%5s %-16s %8s %s\n", "PID", "COMM", "OSREL", "PATH");
 
-	name[0] = CTL_KERN;
-	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_PATHNAME;
-	name[3] = kipp->ki_pid;
-
-	len = sizeof(pathname);
-	error = sysctl(name, 4, pathname, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.pathname: %d", kipp->ki_pid);
+	if (procstat_getpathname(prstat, kipp, pathname, sizeof(pathname)) != 0)
 		return;
-	}
-	if (error < 0)
-		return;
-	if (len == 0 || strlen(pathname) == 0)
+	if (strlen(pathname) == 0)
 		strcpy(pathname, "-");
-
-	name[2] = KERN_PROC_OSREL;
-
-	len = sizeof(osrel);
-	error = sysctl(name, 4, &osrel, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.osrel: %d", kipp->ki_pid);
-		return;
-	}
-	if (error < 0)
+	if (procstat_getosrel(prstat, kipp, &osrel) != 0)
 		return;
 
 	printf("%5d ", kipp->ki_pid);

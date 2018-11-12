@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "mystring.h"
 #include "syntax.h"
+#include "trap.h"
 
 #undef eflag
 
@@ -102,6 +103,8 @@ readcmd(int argc __unused, char **argv __unused)
 	struct timeval tv;
 	char *tvptr;
 	fd_set ifds;
+	ssize_t nread;
+	int sig;
 
 	rflag = 0;
 	prompt = NULL;
@@ -156,8 +159,10 @@ readcmd(int argc __unused, char **argv __unused)
 		/*
 		 * If there's nothing ready, return an error.
 		 */
-		if (status <= 0)
-			return(1);
+		if (status <= 0) {
+			sig = pendingsig;
+			return (128 + (sig != 0 ? sig : SIGALRM));
+		}
 	}
 
 	status = 0;
@@ -165,7 +170,19 @@ readcmd(int argc __unused, char **argv __unused)
 	backslash = 0;
 	STARTSTACKSTR(p);
 	for (;;) {
-		if (read(STDIN_FILENO, &c, 1) != 1) {
+		nread = read(STDIN_FILENO, &c, 1);
+		if (nread == -1) {
+			if (errno == EINTR) {
+				sig = pendingsig;
+				if (sig == 0)
+					continue;
+				status = 128 + sig;
+				break;
+			}
+			warning("read error: %s", strerror(errno));
+			status = 2;
+			break;
+		} else if (nread != 1) {
 			status = 1;
 			break;
 		}
@@ -248,7 +265,7 @@ readcmd(int argc __unused, char **argv __unused)
 
 	/* Set any remaining args to "" */
 	while (*++ap != NULL)
-		setvar(*ap, nullstr, 0);
+		setvar(*ap, "", 0);
 	return status;
 }
 
@@ -388,23 +405,45 @@ static const struct limits limits[] = {
 #ifdef RLIMIT_NPTS
 	{ "pseudo-terminals",	(char *)0,	RLIMIT_NPTS,	   1, 'p' },
 #endif
+#ifdef RLIMIT_KQUEUES
+	{ "kqueues",		(char *)0,	RLIMIT_KQUEUES,	   1, 'k' },
+#endif
 	{ (char *) 0,		(char *)0,	0,		   0, '\0' }
 };
+
+enum limithow { SOFT = 0x1, HARD = 0x2 };
+
+static void
+printlimit(enum limithow how, const struct rlimit *limit,
+    const struct limits *l)
+{
+	rlim_t val = 0;
+
+	if (how & SOFT)
+		val = limit->rlim_cur;
+	else if (how & HARD)
+		val = limit->rlim_max;
+	if (val == RLIM_INFINITY)
+		out1str("unlimited\n");
+	else
+	{
+		val /= l->factor;
+		out1fmt("%jd\n", (intmax_t)val);
+	}
+}
 
 int
 ulimitcmd(int argc __unused, char **argv __unused)
 {
-	int	c;
 	rlim_t val = 0;
-	enum { SOFT = 0x1, HARD = 0x2 }
-			how = SOFT | HARD;
+	enum limithow how = SOFT | HARD;
 	const struct limits	*l;
 	int		set, all = 0;
 	int		optc, what;
 	struct rlimit	limit;
 
 	what = 'f';
-	while ((optc = nextopt("HSatfdsmcnuvlbpw")) != '\0')
+	while ((optc = nextopt("HSatfdsmcnuvlbpwk")) != '\0')
 		switch (optc) {
 		case 'H':
 			how = HARD;
@@ -433,17 +472,22 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
-			val = 0;
+			char *end;
+			uintmax_t uval;
 
-			while ((c = *p++) >= '0' && c <= '9')
-			{
-				val = (val * 10) + (long)(c - '0');
-				if (val < 0)
-					break;
-			}
-			if (c)
+			if (*p < '0' || *p > '9')
 				error("bad number");
-			val *= l->factor;
+			errno = 0;
+			uval = strtoumax(p, &end, 10);
+			if (errno != 0 || *end != '\0')
+				error("bad number");
+			if (uval > UINTMAX_MAX / l->factor)
+				error("bad number");
+			uval *= l->factor;
+			val = (rlim_t)uval;
+			if (val < 0 || (uintmax_t)val != uval ||
+			    val == RLIM_INFINITY)
+				error("bad number");
 		}
 	}
 	if (all) {
@@ -451,10 +495,6 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			char optbuf[40];
 			if (getrlimit(l->cmd, &limit) < 0)
 				error("can't get limit: %s", strerror(errno));
-			if (how & SOFT)
-				val = limit.rlim_cur;
-			else if (how & HARD)
-				val = limit.rlim_max;
 
 			if (l->units)
 				snprintf(optbuf, sizeof(optbuf),
@@ -463,13 +503,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 				snprintf(optbuf, sizeof(optbuf),
 					"(-%c) ", l->option);
 			out1fmt("%-18s %18s ", l->name, optbuf);
-			if (val == RLIM_INFINITY)
-				out1str("unlimited\n");
-			else
-			{
-				val /= l->factor;
-				out1fmt("%jd\n", (intmax_t)val);
-			}
+			printlimit(how, &limit, l);
 		}
 		return 0;
 	}
@@ -483,19 +517,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 			limit.rlim_max = val;
 		if (setrlimit(l->cmd, &limit) < 0)
 			error("bad limit: %s", strerror(errno));
-	} else {
-		if (how & SOFT)
-			val = limit.rlim_cur;
-		else if (how & HARD)
-			val = limit.rlim_max;
-
-		if (val == RLIM_INFINITY)
-			out1str("unlimited\n");
-		else
-		{
-			val /= l->factor;
-			out1fmt("%jd\n", (intmax_t)val);
-		}
-	}
+	} else
+		printlimit(how, &limit, l);
 	return 0;
 }

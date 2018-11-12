@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@
 
 #include <sys/param.h>
 
+#include <machine/atomic.h>
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 

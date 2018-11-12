@@ -14,8 +14,9 @@
 #ifndef LLVM_ADT_STRINGEXTRAS_H
 #define LLVM_ADT_STRINGEXTRAS_H
 
-#include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/DataTypes.h"
+#include <iterator>
 
 namespace llvm {
 template<typename T> class SmallVectorImpl;
@@ -27,6 +28,22 @@ static inline char hexdigit(unsigned X, bool LowerCase = false) {
   return X < 10 ? '0' + X : HexChar + X - 10;
 }
 
+/// Construct a string ref from a boolean.
+static inline StringRef toStringRef(bool B) {
+  return StringRef(B ? "true" : "false");
+}
+
+/// Interpret the given character \p C as a hexadecimal digit and return its
+/// value.
+///
+/// If \p C is not a valid hex digit, -1U is returned.
+static inline unsigned hexDigitValue(char C) {
+  if (C >= '0' && C <= '9') return C-'0';
+  if (C >= 'a' && C <= 'f') return C-'a'+10U;
+  if (C >= 'A' && C <= 'F') return C-'A'+10U;
+  return -1U;
+}
+
 /// utohex_buffer - Emit the specified number into the buffer specified by
 /// BufferEnd, returning a pointer to the start of the string.  This can be used
 /// like this: (note that the buffer must be large enough to handle any number):
@@ -36,7 +53,7 @@ static inline char hexdigit(unsigned X, bool LowerCase = false) {
 /// This should only be used with unsigned types.
 ///
 template<typename IntTy>
-static inline char *utohex_buffer(IntTy X, char *BufferEnd) {
+static inline char *utohex_buffer(IntTy X, char *BufferEnd, bool LowerCase = false) {
   char *BufPtr = BufferEnd;
   *--BufPtr = 0;      // Null terminate buffer.
   if (X == 0) {
@@ -46,15 +63,15 @@ static inline char *utohex_buffer(IntTy X, char *BufferEnd) {
 
   while (X) {
     unsigned char Mod = static_cast<unsigned char>(X) & 15;
-    *--BufPtr = hexdigit(Mod);
+    *--BufPtr = hexdigit(Mod, LowerCase);
     X >>= 4;
   }
   return BufPtr;
 }
 
-static inline std::string utohexstr(uint64_t X) {
+static inline std::string utohexstr(uint64_t X, bool LowerCase = false) {
   char Buffer[17];
-  return utohex_buffer(X, Buffer+17);
+  return utohex_buffer(X, Buffer+17, LowerCase);
 }
 
 static inline std::string utostr_32(uint32_t X, bool isNeg = false) {
@@ -124,7 +141,7 @@ void SplitString(StringRef Source,
 // better: http://eternallyconfuzzled.com/tuts/algorithms/jsw_tut_hashing.aspx
 //   X*33+c -> X*33^c
 static inline unsigned HashString(StringRef Str, unsigned Result = 0) {
-  for (unsigned i = 0, e = Str.size(); i != e; ++i)
+  for (StringRef::size_type i = 0, e = Str.size(); i != e; ++i)
     Result = Result * 33 + (unsigned char)Str[i];
   return Result;
 }
@@ -146,6 +163,48 @@ static inline StringRef getOrdinalSuffix(unsigned Val) {
       default: return "th";
     }
   }
+}
+
+template <typename IteratorT>
+inline std::string join_impl(IteratorT Begin, IteratorT End,
+                             StringRef Separator, std::input_iterator_tag) {
+  std::string S;
+  if (Begin == End)
+    return S;
+
+  S += (*Begin);
+  while (++Begin != End) {
+    S += Separator;
+    S += (*Begin);
+  }
+  return S;
+}
+
+template <typename IteratorT>
+inline std::string join_impl(IteratorT Begin, IteratorT End,
+                             StringRef Separator, std::forward_iterator_tag) {
+  std::string S;
+  if (Begin == End)
+    return S;
+
+  size_t Len = (std::distance(Begin, End) - 1) * Separator.size();
+  for (IteratorT I = Begin; I != End; ++I)
+    Len += (*Begin).size();
+  S.reserve(Len);
+  S += (*Begin);
+  while (++Begin != End) {
+    S += Separator;
+    S += (*Begin);
+  }
+  return S;
+}
+
+/// Joins the strings in the range [Begin, End), adding Separator between
+/// the elements.
+template <typename IteratorT>
+inline std::string join(IteratorT Begin, IteratorT End, StringRef Separator) {
+  typedef typename std::iterator_traits<IteratorT>::iterator_category tag;
+  return join_impl(Begin, End, Separator, tag());
 }
 
 } // End llvm namespace

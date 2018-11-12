@@ -28,7 +28,7 @@
 .\"	@(#)sysctl.3	8.4 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2012
+.Dd May 17, 2013
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -547,14 +547,14 @@ The length of each message is contained in the message header.
 The third level name is a protocol number, which is currently always 0.
 The fourth level name is an address family, which may be set to 0 to
 select all address families.
-The fifth and sixth level names are as follows:
-.Bl -column "Fifth level nameXXXXXX" "Sixth level is:XXX" -offset indent
-.It Sy "Fifth level name	Sixth level is:"
-.It "NET_RT_FLAGS	rtflags"
-.It "NET_RT_DUMP	None"
-.It "NET_RT_IFLIST	0 or if_index"
-.It "NET_RT_IFMALIST	0 or if_index"
-.It "NET_RT_IFLISTL	0 or if_index"
+The fifth, sixth, and seventh level names are as follows:
+.Bl -column -offset indent "Fifth level      Sixth level" "Seventh level"
+.It Sy "Fifth level      Sixth level" Ta Sy "Seventh level"
+.It "NET_RT_FLAGS     rtflags" Ta "None"
+.It "NET_RT_DUMP      None" Ta "None or fib number"
+.It "NET_RT_IFLIST    0 or if_index" Ta None
+.It "NET_RT_IFMALIST  0 or if_index" Ta None
+.It "NET_RT_IFLISTL   0 or if_index" Ta None
 .El
 .Pp
 The
@@ -735,7 +735,6 @@ privilege may change the value.
 .It Sy "Second level name	Type	Changeable"
 .It "VM_LOADAVG	struct loadavg	no"
 .It "VM_TOTAL	struct vmtotal	no"
-.It "VM_PAGEOUT_ALGORITHM	integer	yes"
 .It "VM_SWAPPING_ENABLED	integer	maybe"
 .It "VM_V_CACHE_MAX	integer	yes"
 .It "VM_V_CACHE_MIN	integer	yes"
@@ -754,9 +753,6 @@ The returned data consists of a
 Return the system wide virtual memory statistics.
 The returned data consists of a
 .Va struct vmtotal .
-.It Li VM_PAGEOUT_ALGORITHM
-0 if the statistics-based page management algorithm is in use
-or 1 if the near-LRU algorithm is in use.
 .It Li VM_SWAPPING_ENABLED
 1 if process swapping is enabled or 0 if disabled.
 This variable is

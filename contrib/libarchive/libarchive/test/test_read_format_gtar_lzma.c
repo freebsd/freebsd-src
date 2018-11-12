@@ -64,7 +64,7 @@ DEFINE_TEST(test_read_format_gtar_lzma)
 	}
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_next_header(a, &ae));
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_LZMA);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_LZMA);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_GNUTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 finish:

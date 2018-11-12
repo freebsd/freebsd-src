@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: signal.h,v 1.16 2001/07/20 19:48:21 gshapiro Exp $
+ *	$Id: signal.h,v 1.17 2013-11-22 20:51:31 ca Exp $
  */
 
 /*

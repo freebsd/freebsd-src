@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_llc.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
@@ -250,14 +251,17 @@ ieee80211_deliver_data(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	/* clear driver/net80211 flags before passing up */
-	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+	m->m_flags &= ~(M_MCAST | M_BCAST);
+#if __FreeBSD_version >= 1000046
+	m_clrprotoflags(m);
+#endif
 
 	/* NB: see hostap_deliver_data, this path doesn't handle hostap */
 	KASSERT(vap->iv_opmode != IEEE80211_M_HOSTAP, ("gack, hostap"));
 	/*
 	 * Do accounting.
 	 */
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	IEEE80211_NODE_STAT(ni, rx_data);
 	IEEE80211_NODE_STAT_ADD(ni, rx_bytes, m->m_pkthdr.len);
 	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {

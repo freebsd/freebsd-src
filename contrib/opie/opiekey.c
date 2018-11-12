@@ -45,6 +45,7 @@ $FreeBSD$
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "opie.h"
 
@@ -144,7 +145,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   int type = RESPONSE_STANDARD;
   int force = 0;
 
-  if (slash = strchr(argv[0], '/'))
+  if (slash = strrchr(argv[0], '/'))
     slash++;
   else
     slash = argv[0];

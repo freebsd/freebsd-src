@@ -40,7 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/filedesc.h>
@@ -247,6 +247,28 @@ loop:
 	return (0);
 }
 
+struct fdesc_get_ino_args {
+	fdntype ftype;
+	unsigned fd_fd;
+	int ix;
+	struct file *fp;
+	struct thread *td;
+};
+
+static int
+fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
+    struct vnode **rvp)
+{
+	struct fdesc_get_ino_args *a;
+	int error;
+
+	a = arg;
+	error = fdesc_allocvp(a->ftype, a->fd_fd, a->ix, mp, rvp);
+	fdrop(a->fp, a->td);
+	return (error);
+}
+
+
 /*
  * vp is the current namei directory
  * ndp is the name to locate in that directory...
@@ -265,6 +287,7 @@ fdesc_lookup(ap)
 	char *pname = cnp->cn_nameptr;
 	struct thread *td = cnp->cn_thread;
 	struct file *fp;
+	struct fdesc_get_ino_args arg;
 	int nlen = cnp->cn_namelen;
 	u_int fd, fd1;
 	int error;
@@ -309,7 +332,7 @@ fdesc_lookup(ap)
 	/*
 	 * No rights to check since 'fp' isn't actually used.
 	 */
-	if ((error = fget(td, fd, 0, &fp)) != 0)
+	if ((error = fget(td, fd, NULL, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
@@ -326,6 +349,8 @@ fdesc_lookup(ap)
 		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
 		vdrop(dvp);
 		fvp = dvp;
+		if ((dvp->v_iflag & VI_DOOMED) != 0)
+			error = ENOENT;
 	} else {
 		/*
 		 * Unlock our root node (dvp) when doing this, since we might
@@ -333,18 +358,15 @@ fdesc_lookup(ap)
 		 * and the root vnode lock will be obtained afterwards (in case
 		 * we're looking up the fd of the root vnode), which will be the
 		 * opposite lock order. Vhold the root vnode first so we don't
-		 * loose it.
+		 * lose it.
 		 */
-		vhold(dvp);
-		VOP_UNLOCK(dvp, 0);
-		error = fdesc_allocvp(Fdesc, fd, FD_DESC + fd, dvp->v_mount,
-		    &fvp);
-		fdrop(fp, td);
-		/*
-		 * The root vnode must be locked last to prevent deadlock condition.
-		 */
-		vn_lock(dvp, LK_RETRY | LK_EXCLUSIVE);
-		vdrop(dvp);
+		arg.ftype = Fdesc;
+		arg.fd_fd = fd;
+		arg.ix = FD_DESC + fd;
+		arg.fp = fp;
+		arg.td = td;
+		error = vn_vget_ino_gen(dvp, fdesc_get_ino_alloc, &arg,
+		    LK_EXCLUSIVE, &fvp);
 	}
 	
 	if (error)
@@ -445,6 +467,7 @@ fdesc_setattr(ap)
 	struct mount *mp;
 	struct file *fp;
 	struct thread *td = curthread;
+	cap_rights_t rights;
 	unsigned fd;
 	int error;
 
@@ -459,7 +482,8 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(td->td_proc->p_fd, fd, CAP_EXTATTR_SET, &fp);
+	error = getvnode(td->td_proc->p_fd, fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
@@ -538,7 +562,7 @@ fdesc_readdir(ap)
 				break;
 			dp->d_namlen = sprintf(dp->d_name, "%d", fcnt);
 			dp->d_reclen = UIO_MX;
-			dp->d_type = DT_UNKNOWN;
+			dp->d_type = DT_CHR;
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}

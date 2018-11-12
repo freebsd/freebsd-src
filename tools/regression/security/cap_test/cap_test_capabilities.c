@@ -38,7 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/errno.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -293,14 +293,12 @@ try_file_ops(int filefd, int dirfd, cap_rights_t rights)
 	CHECK_RESULT(fchflags, CAP_FCHFLAGS,
 	    ret == 0 || (is_nfs && errno == EOPNOTSUPP));
 
-#ifdef TODO	/* No such syscalls yet. */
-	ret = openat(dirfd, "cap_fchflagsat", O_CREAT, 0600);
+	ret = openat(dirfd, "cap_chflagsat", O_CREAT, 0600);
 	CHECK(ret >= 0);
 	CHECK(close(ret) == 0);
-	ret = fchflagsat(dfd_cap, "cap_fchflagsat", UF_NODUMP, 0);
-	CHECK_RESULT(fchflagsat, CAP_FCHFLAGSAT | CAP_LOOKUP, ret == 0);
-	CHECK(unlinkat(dirfd, "cap_fchflagsat", 0) == 0);
-#endif
+	ret = chflagsat(dfd_cap, "cap_chflagsat", UF_NODUMP, 0);
+	CHECK_RESULT(chflagsat, CAP_CHFLAGSAT | CAP_LOOKUP, ret == 0);
+	CHECK(unlinkat(dirfd, "cap_chflagsat", 0) == 0);
 
 	ret = fchown(fd_cap, -1, -1);
 	CHECK_RESULT(fchown, CAP_FCHOWN, ret == 0);
@@ -398,7 +396,7 @@ try_file_ops(int filefd, int dirfd, cap_rights_t rights)
 	pollfd.revents = 0;
 
 	ret = poll(&pollfd, 1, 0);
-	if (rights & CAP_POLL_EVENT)
+	if (rights & CAP_EVENT)
 		CHECK((pollfd.revents & POLLNVAL) == 0);
 	else
 		CHECK((pollfd.revents & POLLNVAL) != 0);
@@ -548,7 +546,7 @@ test_capabilities(void)
 	TRY(CAP_SEM_POST);
 	TRY(CAP_SEM_WAIT);
 	TRY(CAP_POST_EVENT);
-	TRY(CAP_POLL_EVENT);
+	TRY(CAP_EVENT);
 	TRY(CAP_IOCTL);
 	TRY(CAP_TTYHOOK);
 	TRY(CAP_PDGETPID);

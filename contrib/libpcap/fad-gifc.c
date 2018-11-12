@@ -32,11 +32,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-gifc.c,v 1.12 2008-08-06 07:34:09 guy Exp $ (LBL)";
-#endif
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -133,10 +128,11 @@ struct rtentry;		/* declarations in <net/if.h> */
  *
  * XXX - or platforms that have other, better mechanisms but for which
  * we don't yet have code to use that mechanism; I think there's a better
- * way on Linux, for example.
+ * way on Linux, for example, but if that better way is "getifaddrs()",
+ * we already have that.
  */
 int
-pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
+pcap_findalldevs_interfaces(pcap_if_t **alldevsp, char *errbuf)
 {
 	pcap_if_t *devlist = NULL;
 	register int fd;
@@ -241,8 +237,7 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 			continue;
 
 		/*
-		 * Get the flags for this interface, and skip it if it's
-		 * not up.
+		 * Get the flags for this interface.
 		 */
 		strncpy(ifrflags.ifr_name, ifrp->ifr_name,
 		    sizeof(ifrflags.ifr_name));
@@ -257,8 +252,6 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 			ret = -1;
 			break;
 		}
-		if (!(ifrflags.ifr_flags & IFF_UP))
-			continue;
 
 		/*
 		 * Get the netmask for this address on this interface.
@@ -408,15 +401,6 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	}
 	free(buf);
 	(void)close(fd);
-
-	if (ret != -1) {
-		/*
-		 * We haven't had any errors yet; do any platform-specific
-		 * operations to add devices.
-		 */
-		if (pcap_platform_finddevs(&devlist, errbuf) < 0)
-			ret = -1;
-	}
 
 	if (ret == -1) {
 		/*

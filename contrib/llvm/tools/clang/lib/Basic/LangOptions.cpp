@@ -26,7 +26,13 @@ void LangOptions::resetNonModularOptions() {
 #define BENIGN_ENUM_LANGOPT(Name, Type, Bits, Default, Description) \
   Name = Default;
 #include "clang/Basic/LangOptions.def"
-  
+
+  // FIXME: This should not be reset; modules can be different with different
+  // sanitizer options (this affects __has_feature(address_sanitizer) etc).
+  Sanitize.clear();
+  SanitizerBlacklistFile.clear();
+
   CurrentModule.clear();
+  ImplementationOfModule.clear();
 }
 

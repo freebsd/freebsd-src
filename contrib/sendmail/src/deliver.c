@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010, 2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1027 2012/12/19 02:49:21 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1030 2013-11-22 20:51:55 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>
@@ -6159,7 +6159,7 @@ starttls(m, mci, e)
 			sm_syslog(LOG_ERR, NOQID,
 				  "STARTTLS=client, error: SSL_new failed");
 			if (LogLevel > 9)
-				tlslogerr("client");
+				tlslogerr(LOG_WARNING, "client");
 		}
 		return EX_SOFTWARE;
 	}
@@ -6178,7 +6178,7 @@ starttls(m, mci, e)
 				  "STARTTLS=client, error: SSL_set_xfd failed=%d",
 				  result);
 			if (LogLevel > 9)
-				tlslogerr("client");
+				tlslogerr(LOG_WARNING, "client");
 		}
 		return EX_SOFTWARE;
 	}
@@ -6208,7 +6208,7 @@ ssl_retry:
 				  result, sr == NULL ? "unknown" : sr, ssl_err,
 				  errno, i);
 			if (LogLevel > 9)
-				tlslogerr("client");
+				tlslogerr(LOG_WARNING, "client");
 		}
 
 		SSL_free(clt_ssl);

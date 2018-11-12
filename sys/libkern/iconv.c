@@ -137,7 +137,7 @@ iconv_unregister_converter(struct iconv_converter_class *dcp)
 {
 	dcp->refs--;
 	if (dcp->refs > 1) {
-		ICDEBUG("converter have %d referenses left\n", dcp->refs);
+		ICDEBUG("converter has %d references left\n", dcp->refs);
 		return EBUSY;
 	}
 	TAILQ_REMOVE(&iconv_converters, dcp, cc_link);
@@ -168,8 +168,8 @@ iconv_lookupcs(const char *to, const char *from, struct iconv_cspair **cspp)
 	struct iconv_cspair *csp;
 
 	TAILQ_FOREACH(csp, &iconv_cslist, cp_link) {
-		if (strcmp(csp->cp_to, to) == 0 &&
-		    strcmp(csp->cp_from, from) == 0) {
+		if (strcasecmp(csp->cp_to, to) == 0 &&
+		    strcasecmp(csp->cp_from, from) == 0) {
 			if (cspp)
 				*cspp = csp;
 			return 0;

@@ -11,6 +11,7 @@ SRCS=	Commit.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentCommandList \
 	CommentNodes \
 	DeclNodes \
 	StmtNodes \

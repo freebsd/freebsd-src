@@ -207,7 +207,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_btCoexSetQcuThresh	= ar5416BTCoexSetQcuThresh;
 	ah->ah_btCoexSetWeights		= ar5416BTCoexSetWeights;
 	ah->ah_btCoexSetBmissThresh	= ar5416BTCoexSetupBmissThresh;
-	ah->ah_btcoexSetParameter	= ar5416BTCoexSetParameter;
+	ah->ah_btCoexSetParameter	= ar5416BTCoexSetParameter;
 	ah->ah_btCoexDisable		= ar5416BTCoexDisable;
 	ah->ah_btCoexEnable		= ar5416BTCoexEnable;
 	AH5416(ah)->ah_btCoexSetDiversity = ar5416BTCoexAntennaDiversity;
@@ -297,7 +297,7 @@ ar5416GetRadioRev(struct ath_hal *ah)
 static struct ath_hal *
 ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_BUS_TAG st, HAL_BUS_HANDLE sh, uint16_t *eepromdata,
-	HAL_STATUS *status)
+	HAL_OPS_CONFIG *ah_config, HAL_STATUS *status)
 {
 	struct ath_hal_5416 *ahp5416;
 	struct ath_hal_5212 *ahp;
@@ -1058,6 +1058,11 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	 */
 	if (! AH_PRIVATE(ah)->ah_ispcie)
 		pCap->halSerialiseRegWar = 1;
+
+	/*
+	 * AR5416 and later NICs support MYBEACON filtering.
+	 */
+	pCap->halRxDoMyBeacon = AH_TRUE;
 
 	return AH_TRUE;
 }

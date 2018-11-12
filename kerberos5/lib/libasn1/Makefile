@@ -3,8 +3,7 @@
 LIB=	asn1
 LDFLAGS=	-Wl,--no-undefined
 INCS=	asn1_err.h asn1-common.h heim_asn1.h der.h der-protos.h der-private.h
-LDADD=	-lcom_err -lroken
-DPADD=	${LIBCOM_ERR} ${LIBROKEN}
+LIBADD=	com_err roken
 VERSION_MAP=	${.CURDIR}/version.map
 
 SRCS=	asn1_err.c \
@@ -56,10 +55,12 @@ INCS+=	krb5_asn1.h \
 	digest_asn1.h \
 	kx509_asn1.h
 
+.ORDER: ${GEN_CMS}
 ${GEN_CMS}: cms.asn1 cms.opt
 	${ASN1_COMPILE} --one-code-file \
 		--option-file=${.ALLSRC:M*.opt} ${.ALLSRC:M*.asn1} cms_asn1
 
+.ORDER: ${GEN_RFC2459}
 ${GEN_RFC2459}: rfc2459.asn1
 	${ASN1_COMPILE} \
 		--one-code-file \
@@ -70,32 +71,39 @@ ${GEN_RFC2459}: rfc2459.asn1
 		--sequence=Extensions \
 		--sequence=CRLDistributionPoints ${.ALLSRC:M*.asn1} rfc2459_asn1
 
+.ORDER: ${GEN_K5}
 ${GEN_K5}: krb5.asn1 krb5.opt
 	${ASN1_COMPILE} \
 		--one-code-file \
 		--option-file=${.ALLSRC:M*.opt} \
 		${.ALLSRC:M*.asn1} krb5_asn1
 
+.ORDER: ${GEN_PKINIT}
 ${GEN_PKINIT}: pkinit.asn1
 	${ASN1_COMPILE} --one-code-file \
 		${.ALLSRC:M*.asn1} pkinit_asn1
 
+.ORDER: ${GEN_PKCS8}
 ${GEN_PKCS8}: pkcs8.asn1
 	${ASN1_COMPILE} --one-code-file \
 		${.ALLSRC:M*.asn1} pkcs8_asn1
 
+.ORDER: ${GEN_PKCS9}
 ${GEN_PKCS9}: pkcs9.asn1
 	${ASN1_COMPILE} --one-code-file \
 		${.ALLSRC:M*.asn1} pkcs9_asn1
 
+.ORDER: ${GEN_PKCS12}
 ${GEN_PKCS12}: pkcs12.asn1
 	${ASN1_COMPILE} --one-code-file \
 		${.ALLSRC:M*.asn1} pkcs12_asn1
 
+.ORDER: ${GEN_DIGEST}
 ${GEN_DIGEST}: digest.asn1
 	${ASN1_COMPILE} --one-code-file \
 		${.ALLSRC:M*.asn1} digest_asn1
 
+.ORDER: ${GEN_KX509}
 ${GEN_KX509}: kx509.asn1
 	${ASN1_COMPILE} --one-code-file \
 		${.ALLSRC:M*.asn1} kx509_asn1
@@ -103,10 +111,10 @@ ${GEN_KX509}: kx509.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 	
 .include <bsd.lib.mk>
 

@@ -271,10 +271,6 @@ typedef void	(*mpo_mount_create_t)(struct ucred *cred, struct mount *mp,
 typedef void	(*mpo_mount_destroy_label_t)(struct label *label);
 typedef void	(*mpo_mount_init_label_t)(struct label *label);
 
-typedef void	(*mpo_netatalk_aarp_send_t)(struct ifnet *ifp,
-		    struct label *ifplabel, struct mbuf *m,
-		    struct label *mlabel);
-
 typedef void	(*mpo_netinet_arp_send_t)(struct ifnet *ifp,
 		    struct label *ifplabel, struct mbuf *m,
 		    struct label *mlabel);
@@ -363,6 +359,9 @@ typedef int	(*mpo_posixshm_check_mmap_t)(struct ucred *cred,
 typedef int	(*mpo_posixshm_check_open_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel,
 		    accmode_t accmode);
+typedef int	(*mpo_posixshm_check_read_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct shmfd *shmfd,
+		    struct label *shmlabel);
 typedef int	(*mpo_posixshm_check_setmode_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel,
 		    mode_t mode);
@@ -377,6 +376,9 @@ typedef int	(*mpo_posixshm_check_truncate_t)(struct ucred *active_cred,
 		    struct label *shmlabel);
 typedef int	(*mpo_posixshm_check_unlink_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel);
+typedef int	(*mpo_posixshm_check_write_t)(struct ucred *active_cred,
+		    struct ucred *file_cred, struct shmfd *shmfd,
+		    struct label *shmlabel);
 typedef void	(*mpo_posixshm_create_t)(struct ucred *cred,
 		    struct shmfd *shmfd, struct label *shmlabel);
 typedef void	(*mpo_posixshm_destroy_label_t)(struct label *label);
@@ -776,8 +778,6 @@ struct mac_policy_ops {
 	mpo_mount_destroy_label_t		mpo_mount_destroy_label;
 	mpo_mount_init_label_t			mpo_mount_init_label;
 
-	mpo_netatalk_aarp_send_t		mpo_netatalk_aarp_send;
-
 	mpo_netinet_arp_send_t			mpo_netinet_arp_send;
 	mpo_netinet_firewall_reply_t		mpo_netinet_firewall_reply;
 	mpo_netinet_firewall_send_t		mpo_netinet_firewall_send;
@@ -818,11 +818,13 @@ struct mac_policy_ops {
 	mpo_posixshm_check_create_t		mpo_posixshm_check_create;
 	mpo_posixshm_check_mmap_t		mpo_posixshm_check_mmap;
 	mpo_posixshm_check_open_t		mpo_posixshm_check_open;
+	mpo_posixshm_check_read_t		mpo_posixshm_check_read;
 	mpo_posixshm_check_setmode_t		mpo_posixshm_check_setmode;
 	mpo_posixshm_check_setowner_t		mpo_posixshm_check_setowner;
 	mpo_posixshm_check_stat_t		mpo_posixshm_check_stat;
 	mpo_posixshm_check_truncate_t		mpo_posixshm_check_truncate;
 	mpo_posixshm_check_unlink_t		mpo_posixshm_check_unlink;
+	mpo_posixshm_check_write_t		mpo_posixshm_check_write;
 	mpo_posixshm_create_t			mpo_posixshm_create;
 	mpo_posixshm_destroy_label_t		mpo_posixshm_destroy_label;
 	mpo_posixshm_init_label_t		mpo_posixshm_init_label;

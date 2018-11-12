@@ -81,7 +81,7 @@ int	tcflow(int, int);
 int	tcflush(int, int);
 int	tcsendbreak(int, int);
 
-#if __POSIX_VISIBLE >= 200112 || __BSD_VISIBLE
+#if __POSIX_VISIBLE >= 200112
 pid_t	tcgetsid(int);
 #endif
 #if __BSD_VISIBLE

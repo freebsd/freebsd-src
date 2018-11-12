@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
  * Shell command parser.
  */
 
-#define	EOFMARKLEN	79
 #define	PROMPTLEN	128
 
 /* values of checkkwd variable */
@@ -96,9 +95,9 @@ static struct heredoc *heredoclist;	/* list of here documents to read */
 static int doprompt;		/* if set, prompt the user */
 static int needprompt;		/* true if interactive and at start of line */
 static int lasttoken;		/* last token read */
-MKINIT int tokpushback;		/* last token pushed back */
+static int tokpushback;		/* last token pushed back */
 static char *wordtext;		/* text of last word returned by readtoken */
-MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
+static int checkkwd;
 static struct nodelist *backquotelist;
 static union node *redirnode;
 static struct heredoc *heredoc;
@@ -108,22 +107,25 @@ static int funclinno;		/* line # where the current function started */
 static struct parser_temp *parser_temp;
 
 
-static union node *list(int, int);
+static union node *list(int);
 static union node *andor(void);
 static union node *pipeline(void);
 static union node *command(void);
 static union node *simplecmd(union node **, union node *);
 static union node *makename(void);
+static union node *makebinary(int type, union node *n1, union node *n2);
 static void parsefname(void);
 static void parseheredoc(void);
 static int peektoken(void);
 static int readtoken(void);
 static int xxreadtoken(void);
-static int readtoken1(int, char const *, char *, int);
+static int readtoken1(int, const char *, const char *, int);
 static int noexpand(char *);
+static void consumetoken(int);
 static void synexpect(int) __dead2;
 static void synerror(const char *) __dead2;
 static void setprompt(int);
+static int pgetc_linecont(void);
 
 
 static void *
@@ -210,6 +212,7 @@ parsecmd(int interact)
 	heredoclist = NULL;
 
 	tokpushback = 0;
+	checkkwd = 0;
 	doprompt = interact;
 	if (doprompt)
 		setprompt(1);
@@ -222,18 +225,18 @@ parsecmd(int interact)
 	if (t == TNL)
 		return NULL;
 	tokpushback++;
-	return list(1, 1);
+	return list(1);
 }
 
 
 static union node *
-list(int nlflag, int erflag)
+list(int nlflag)
 {
 	union node *ntop, *n1, *n2, *n3;
 	int tok;
 
 	checkkwd = CHKNL | CHKKWD | CHKALIAS;
-	if (!nlflag && !erflag && tokendlist[peektoken()])
+	if (!nlflag && tokendlist[peektoken()])
 		return NULL;
 	ntop = n1 = NULL;
 	for (;;) {
@@ -255,17 +258,11 @@ list(int nlflag, int erflag)
 		if (ntop == NULL)
 			ntop = n2;
 		else if (n1 == NULL) {
-			n1 = (union node *)stalloc(sizeof (struct nbinary));
-			n1->type = NSEMI;
-			n1->nbinary.ch1 = ntop;
-			n1->nbinary.ch2 = n2;
+			n1 = makebinary(NSEMI, ntop, n2);
 			ntop = n1;
 		}
 		else {
-			n3 = (union node *)stalloc(sizeof (struct nbinary));
-			n3->type = NSEMI;
-			n3->nbinary.ch1 = n1->nbinary.ch2;
-			n3->nbinary.ch2 = n2;
+			n3 = makebinary(NSEMI, n1->nbinary.ch2, n2);
 			n1->nbinary.ch2 = n3;
 			n1 = n3;
 		}
@@ -286,8 +283,7 @@ list(int nlflag, int erflag)
 				tokpushback++;
 			}
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
-			if (!nlflag && (erflag ? peektoken() == TEOF :
-			    tokendlist[peektoken()]))
+			if (!nlflag && tokendlist[peektoken()])
 				return ntop;
 			break;
 		case TEOF:
@@ -297,7 +293,7 @@ list(int nlflag, int erflag)
 				pungetc();		/* push back EOF on input */
 			return ntop;
 		default:
-			if (nlflag || erflag)
+			if (nlflag)
 				synexpect(-1);
 			tokpushback++;
 			return ntop;
@@ -310,10 +306,10 @@ list(int nlflag, int erflag)
 static union node *
 andor(void)
 {
-	union node *n1, *n2, *n3;
+	union node *n;
 	int t;
 
-	n1 = pipeline();
+	n = pipeline();
 	for (;;) {
 		if ((t = readtoken()) == TAND) {
 			t = NAND;
@@ -321,14 +317,9 @@ andor(void)
 			t = NOR;
 		} else {
 			tokpushback++;
-			return n1;
+			return n;
 		}
-		n2 = pipeline();
-		n3 = (union node *)stalloc(sizeof (struct nbinary));
-		n3->type = t;
-		n3->nbinary.ch1 = n1;
-		n3->nbinary.ch2 = n2;
-		n1 = n3;
+		n = makebinary(t, n, pipeline());
 	}
 }
 
@@ -410,49 +401,39 @@ command(void)
 	case TIF:
 		n1 = (union node *)stalloc(sizeof (struct nif));
 		n1->type = NIF;
-		if ((n1->nif.test = list(0, 0)) == NULL)
+		if ((n1->nif.test = list(0)) == NULL)
 			synexpect(-1);
-		if (readtoken() != TTHEN)
-			synexpect(TTHEN);
-		n1->nif.ifpart = list(0, 0);
+		consumetoken(TTHEN);
+		n1->nif.ifpart = list(0);
 		n2 = n1;
 		while (readtoken() == TELIF) {
 			n2->nif.elsepart = (union node *)stalloc(sizeof (struct nif));
 			n2 = n2->nif.elsepart;
 			n2->type = NIF;
-			if ((n2->nif.test = list(0, 0)) == NULL)
+			if ((n2->nif.test = list(0)) == NULL)
 				synexpect(-1);
-			if (readtoken() != TTHEN)
-				synexpect(TTHEN);
-			n2->nif.ifpart = list(0, 0);
+			consumetoken(TTHEN);
+			n2->nif.ifpart = list(0);
 		}
 		if (lasttoken == TELSE)
-			n2->nif.elsepart = list(0, 0);
+			n2->nif.elsepart = list(0);
 		else {
 			n2->nif.elsepart = NULL;
 			tokpushback++;
 		}
-		if (readtoken() != TFI)
-			synexpect(TFI);
+		consumetoken(TFI);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TWHILE:
-	case TUNTIL: {
-		int got;
-		n1 = (union node *)stalloc(sizeof (struct nbinary));
-		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
-		if ((n1->nbinary.ch1 = list(0, 0)) == NULL)
+	case TUNTIL:
+		t = lasttoken;
+		if ((n1 = list(0)) == NULL)
 			synexpect(-1);
-		if ((got=readtoken()) != TDO) {
-TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
-			synexpect(TDO);
-		}
-		n1->nbinary.ch2 = list(0, 0);
-		if (readtoken() != TDONE)
-			synexpect(TDONE);
+		consumetoken(TDO);
+		n1 = makebinary((t == TWHILE)? NWHILE : NUNTIL, n1, list(0));
+		consumetoken(TDONE);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
-	}
 	case TFOR:
 		if (readtoken() != TWORD || quoteflag || ! goodname(wordtext))
 			synerror("Bad for loop variable");
@@ -464,10 +445,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		if (lasttoken == TWORD && ! quoteflag && equal(wordtext, "in")) {
 			app = &ap;
 			while (readtoken() == TWORD) {
-				n2 = (union node *)stalloc(sizeof (struct narg));
-				n2->type = NARG;
-				n2->narg.text = wordtext;
-				n2->narg.backquote = backquotelist;
+				n2 = makename();
 				*app = n2;
 				app = &n2->narg.next;
 			}
@@ -499,21 +477,15 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			t = TEND;
 		else
 			synexpect(-1);
-		n1->nfor.body = list(0, 0);
-		if (readtoken() != t)
-			synexpect(t);
+		n1->nfor.body = list(0);
+		consumetoken(t);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TCASE:
 		n1 = (union node *)stalloc(sizeof (struct ncase));
 		n1->type = NCASE;
-		if (readtoken() != TWORD)
-			synexpect(TWORD);
-		n1->ncase.expr = n2 = (union node *)stalloc(sizeof (struct narg));
-		n2->type = NARG;
-		n2->narg.text = wordtext;
-		n2->narg.backquote = backquotelist;
-		n2->narg.next = NULL;
+		consumetoken(TWORD);
+		n1->ncase.expr = makename();
 		while (readtoken() == TNL);
 		if (lasttoken != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
@@ -526,10 +498,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			if (lasttoken == TLP)
 				readtoken();
 			for (;;) {
-				*app = ap = (union node *)stalloc(sizeof (struct narg));
-				ap->type = NARG;
-				ap->narg.text = wordtext;
-				ap->narg.backquote = backquotelist;
+				*app = ap = makename();
 				checkkwd = CHKNL | CHKKWD;
 				if (readtoken() != TPIPE)
 					break;
@@ -539,7 +508,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
 				synexpect(TRP);
-			cp->nclist.body = list(0, 0);
+			cp->nclist.body = list(0);
 
 			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if ((t = readtoken()) != TESAC) {
@@ -559,34 +528,31 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TLP:
 		n1 = (union node *)stalloc(sizeof (struct nredir));
 		n1->type = NSUBSHELL;
-		n1->nredir.n = list(0, 0);
+		n1->nredir.n = list(0);
 		n1->nredir.redirect = NULL;
-		if (readtoken() != TRP)
-			synexpect(TRP);
+		consumetoken(TRP);
 		checkkwd = CHKKWD | CHKALIAS;
 		is_subshell = 1;
 		break;
 	case TBEGIN:
-		n1 = list(0, 0);
-		if (readtoken() != TEND)
-			synexpect(TEND);
+		n1 = list(0);
+		consumetoken(TEND);
 		checkkwd = CHKKWD | CHKALIAS;
 		break;
-	/* Handle an empty command like other simple commands.  */
+	/* A simple command must have at least one redirection or word. */
 	case TBACKGND:
 	case TSEMI:
 	case TAND:
 	case TOR:
-		/*
-		 * An empty command before a ; doesn't make much sense, and
-		 * should certainly be disallowed in the case of `if ;'.
-		 */
+	case TPIPE:
+	case TENDCASE:
+	case TFALLTHRU:
+	case TEOF:
+	case TNL:
+	case TRP:
 		if (!redir)
 			synexpect(-1);
-	case TNL:
-	case TEOF:
 	case TWORD:
-	case TRP:
 		tokpushback++;
 		n1 = simplecmd(rpp, redir);
 		return n1;
@@ -644,10 +610,7 @@ simplecmd(union node **rpp, union node *redir)
 	for (;;) {
 		checkkwd = savecheckkwd;
 		if (readtoken() == TWORD) {
-			n = (union node *)stalloc(sizeof (struct narg));
-			n->type = NARG;
-			n->narg.text = wordtext;
-			n->narg.backquote = backquotelist;
+			n = makename();
 			*app = n;
 			app = &n->narg.next;
 			if (savecheckkwd != 0 && !isassignment(wordtext))
@@ -659,8 +622,7 @@ simplecmd(union node **rpp, union node *redir)
 		} else if (lasttoken == TLP && app == &args->narg.next
 					    && rpp == orig_rpp) {
 			/* We have a function */
-			if (readtoken() != TRP)
-				synexpect(TRP);
+			consumetoken(TRP);
 			funclinno = plinno;
 			/*
 			 * - Require plain text.
@@ -708,6 +670,24 @@ makename(void)
 	return n;
 }
 
+static union node *
+makebinary(int type, union node *n1, union node *n2)
+{
+	union node *n;
+
+	n = (union node *)stalloc(sizeof (struct nbinary));
+	n->type = type;
+	n->nbinary.ch1 = n1;
+	n->nbinary.ch2 = n2;
+	return (n);
+}
+
+void
+forcealias(void)
+{
+	checkkwd |= CHKALIAS;
+}
+
 void
 fixredir(union node *n, const char *text, int err)
 {
@@ -734,12 +714,10 @@ parsefname(void)
 {
 	union node *n = redirnode;
 
-	if (readtoken() != TWORD)
-		synexpect(-1);
+	consumetoken(TWORD);
 	if (n->type == NHERE) {
 		struct heredoc *here = heredoc;
 		struct heredoc *p;
-		int i;
 
 		if (quoteflag == 0)
 			n->type = NXHERE;
@@ -748,7 +726,7 @@ parsefname(void)
 			while (*wordtext == '\t')
 				wordtext++;
 		}
-		if (! noexpand(wordtext) || (i = strlen(wordtext)) == 0 || i > EOFMARKLEN)
+		if (! noexpand(wordtext))
 			synerror("Illegal eof marker for << redirection");
 		rmescapes(wordtext);
 		here->eofmark = wordtext;
@@ -786,11 +764,7 @@ parseheredoc(void)
 		}
 		readtoken1(pgetc(), here->here->type == NHERE? SQSYNTAX : DQSYNTAX,
 				here->eofmark, here->striptabs);
-		n = (union node *)stalloc(sizeof (struct narg));
-		n->narg.type = NARG;
-		n->narg.next = NULL;
-		n->narg.text = wordtext;
-		n->narg.backquote = backquotelist;
+		n = makename();
 		here->here->nhere.doc = n;
 	}
 }
@@ -916,7 +890,9 @@ xxreadtoken(void)
 				continue;
 			}
 			pungetc();
-			goto breakloop;
+			/* FALLTHROUGH */
+		default:
+			return readtoken1(c, BASESYNTAX, (char *)NULL, 0);
 		case '\n':
 			plinno++;
 			needprompt = doprompt;
@@ -924,17 +900,17 @@ xxreadtoken(void)
 		case PEOF:
 			RETURN(TEOF);
 		case '&':
-			if (pgetc() == '&')
+			if (pgetc_linecont() == '&')
 				RETURN(TAND);
 			pungetc();
 			RETURN(TBACKGND);
 		case '|':
-			if (pgetc() == '|')
+			if (pgetc_linecont() == '|')
 				RETURN(TOR);
 			pungetc();
 			RETURN(TPIPE);
 		case ';':
-			c = pgetc();
+			c = pgetc_linecont();
 			if (c == ';')
 				RETURN(TENDCASE);
 			else if (c == '&')
@@ -945,12 +921,8 @@ xxreadtoken(void)
 			RETURN(TLP);
 		case ')':
 			RETURN(TRP);
-		default:
-			goto breakloop;
 		}
 	}
-breakloop:
-	return readtoken1(c, BASESYNTAX, (char *)NULL, 0);
 #undef RETURN
 }
 
@@ -971,6 +943,98 @@ struct tokenstate
 
 
 /*
+ * Check to see whether we are at the end of the here document.  When this
+ * is called, c is set to the first character of the next input line.  If
+ * we are at the end of the here document, this routine sets the c to PEOF.
+ * The new value of c is returned.
+ */
+
+static int
+checkend(int c, const char *eofmark, int striptabs)
+{
+	if (striptabs) {
+		while (c == '\t')
+			c = pgetc();
+	}
+	if (c == *eofmark) {
+		int c2;
+		const char *q;
+
+		for (q = eofmark + 1; c2 = pgetc(), *q != '\0' && c2 == *q; q++)
+			;
+		if ((c2 == PEOF || c2 == '\n') && *q == '\0') {
+			c = PEOF;
+			if (c2 == '\n') {
+				plinno++;
+				needprompt = doprompt;
+			}
+		} else {
+			pungetc();
+			pushstring(eofmark + 1, q - (eofmark + 1), NULL);
+		}
+	}
+	return (c);
+}
+
+
+/*
+ * Parse a redirection operator.  The variable "out" points to a string
+ * specifying the fd to be redirected.  The variable "c" contains the
+ * first character of the redirection operator.
+ */
+
+static void
+parseredir(char *out, int c)
+{
+	char fd = *out;
+	union node *np;
+
+	np = (union node *)stalloc(sizeof (struct nfile));
+	if (c == '>') {
+		np->nfile.fd = 1;
+		c = pgetc_linecont();
+		if (c == '>')
+			np->type = NAPPEND;
+		else if (c == '&')
+			np->type = NTOFD;
+		else if (c == '|')
+			np->type = NCLOBBER;
+		else {
+			np->type = NTO;
+			pungetc();
+		}
+	} else {	/* c == '<' */
+		np->nfile.fd = 0;
+		c = pgetc_linecont();
+		if (c == '<') {
+			if (sizeof (struct nfile) != sizeof (struct nhere)) {
+				np = (union node *)stalloc(sizeof (struct nhere));
+				np->nfile.fd = 0;
+			}
+			np->type = NHERE;
+			heredoc = (struct heredoc *)stalloc(sizeof (struct heredoc));
+			heredoc->here = np;
+			if ((c = pgetc_linecont()) == '-') {
+				heredoc->striptabs = 1;
+			} else {
+				heredoc->striptabs = 0;
+				pungetc();
+			}
+		} else if (c == '&')
+			np->type = NFROMFD;
+		else if (c == '>')
+			np->type = NFROMTO;
+		else {
+			np->type = NFROM;
+			pungetc();
+		}
+	}
+	if (fd != '\0')
+		np->nfile.fd = digit_val(fd);
+	redirnode = np;
+}
+
+/*
  * Called to parse command substitutions.
  */
 
@@ -983,7 +1047,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 	char *volatile str;
 	struct jmploc jmploc;
 	struct jmploc *const savehandler = handler;
-	int savelen;
+	size_t savelen;
 	int saveprompt;
 	const int bq_startlinno = plinno;
 	char *volatile ostr = NULL;
@@ -1031,25 +1095,12 @@ parsebackq(char *out, struct nodelist **pbqlist,
 				needprompt = 0;
 			}
 			CHECKSTRSPACE(2, oout);
-			switch (c = pgetc()) {
-			case '`':
-				goto done;
-
+			c = pgetc_linecont();
+			if (c == '`')
+				break;
+			switch (c) {
 			case '\\':
-                                if ((c = pgetc()) == '\n') {
-					plinno++;
-					if (doprompt)
-						setprompt(2);
-					else
-						setprompt(0);
-					/*
-					 * If eating a newline, avoid putting
-					 * the newline into the new character
-					 * stream (via the USTPUTC after the
-					 * switch).
-					 */
-					continue;
-				}
+				c = pgetc();
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
                                         USTPUTC('\\', oout);
@@ -1070,7 +1121,6 @@ parsebackq(char *out, struct nodelist **pbqlist,
 			}
 			USTPUTC(c, oout);
                 }
-done:
                 USTPUTC('\0', oout);
                 olen = oout - stackblock();
 		INTOFF;
@@ -1090,14 +1140,14 @@ done:
 		doprompt = 0;
 	}
 
-	n = list(0, oldstyle);
+	n = list(0);
 
-	if (oldstyle)
+	if (oldstyle) {
+		if (peektoken() != TEOF)
+			synexpect(-1);
 		doprompt = saveprompt;
-	else {
-		if (readtoken() != TRP)
-			synexpect(TRP);
-	}
+	} else
+		consumetoken(TRP);
 
 	(*nlpp)->n = n;
         if (oldstyle) {
@@ -1271,6 +1321,13 @@ readcstyleesc(char *out)
 				c = pgetc();
 			if (c == PEOF)
 				synerror("Unterminated quoted string");
+			if (c == '\n') {
+				plinno++;
+				if (doprompt)
+					setprompt(2);
+				else
+					setprompt(0);
+			}
 		}
 		pungetc();
 		return out;
@@ -1294,18 +1351,16 @@ readcstyleesc(char *out)
  * will run code that appears at the end of readtoken1.
  */
 
-#define CHECKEND()	{goto checkend; checkend_return:;}
-#define PARSEREDIR()	{goto parseredir; parseredir_return:;}
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
 static int
-readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
+readtoken1(int firstc, char const *initialsyntax, const char *eofmark,
+    int striptabs)
 {
 	int c = firstc;
 	char *out;
 	int len;
-	char line[EOFMARKLEN + 1];
 	struct nodelist *bqlist;
 	int quotef;
 	int newvarnest;
@@ -1327,7 +1382,9 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 
 	STARTSTACKSTR(out);
 	loop: {	/* for each line, until end of word */
-		CHECKEND();	/* set c to PEOF if at end of here document */
+		if (eofmark)
+			/* set c to PEOF if at end of here document */
+			c = checkend(c, eofmark, striptabs);
 		for (;;) {	/* until end of line or end of word */
 			CHECKSTRSPACE(4, out);	/* permit 4 calls to USTPUTC */
 
@@ -1438,7 +1495,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 					USTPUTC(c, out);
 					--state[level].parenlevel;
 				} else {
-					if (pgetc() == ')') {
+					if (pgetc_linecont() == ')') {
 						if (level > 0 &&
 						    state[level].category == TSTATE_ARITH) {
 							level--;
@@ -1493,7 +1550,7 @@ endword:
 		 && quotef == 0
 		 && len <= 2
 		 && (*out == '\0' || is_digit(*out))) {
-			PARSEREDIR();
+			parseredir(out, c);
 			return lasttoken = TREDIR;
 		} else {
 			pungetc();
@@ -1505,97 +1562,6 @@ endword:
 	wordtext = out;
 	return lasttoken = TWORD;
 /* end of readtoken routine */
-
-
-/*
- * Check to see whether we are at the end of the here document.  When this
- * is called, c is set to the first character of the next input line.  If
- * we are at the end of the here document, this routine sets the c to PEOF.
- */
-
-checkend: {
-	if (eofmark) {
-		if (striptabs) {
-			while (c == '\t')
-				c = pgetc();
-		}
-		if (c == *eofmark) {
-			if (pfgets(line, sizeof line) != NULL) {
-				char *p, *q;
-
-				p = line;
-				for (q = eofmark + 1 ; *q && *p == *q ; p++, q++);
-				if ((*p == '\0' || *p == '\n') && *q == '\0') {
-					c = PEOF;
-					if (*p == '\n') {
-						plinno++;
-						needprompt = doprompt;
-					}
-				} else {
-					pushstring(line, strlen(line), NULL);
-				}
-			}
-		}
-	}
-	goto checkend_return;
-}
-
-
-/*
- * Parse a redirection operator.  The variable "out" points to a string
- * specifying the fd to be redirected.  The variable "c" contains the
- * first character of the redirection operator.
- */
-
-parseredir: {
-	char fd = *out;
-	union node *np;
-
-	np = (union node *)stalloc(sizeof (struct nfile));
-	if (c == '>') {
-		np->nfile.fd = 1;
-		c = pgetc();
-		if (c == '>')
-			np->type = NAPPEND;
-		else if (c == '&')
-			np->type = NTOFD;
-		else if (c == '|')
-			np->type = NCLOBBER;
-		else {
-			np->type = NTO;
-			pungetc();
-		}
-	} else {	/* c == '<' */
-		np->nfile.fd = 0;
-		c = pgetc();
-		if (c == '<') {
-			if (sizeof (struct nfile) != sizeof (struct nhere)) {
-				np = (union node *)stalloc(sizeof (struct nhere));
-				np->nfile.fd = 0;
-			}
-			np->type = NHERE;
-			heredoc = (struct heredoc *)stalloc(sizeof (struct heredoc));
-			heredoc->here = np;
-			if ((c = pgetc()) == '-') {
-				heredoc->striptabs = 1;
-			} else {
-				heredoc->striptabs = 0;
-				pungetc();
-			}
-		} else if (c == '&')
-			np->type = NFROMFD;
-		else if (c == '>')
-			np->type = NFROMTO;
-		else {
-			np->type = NFROM;
-			pungetc();
-		}
-	}
-	if (fd != '\0')
-		np->nfile.fd = digit_val(fd);
-	redirnode = np;
-	goto parseredir_return;
-}
 
 
 /*
@@ -1615,9 +1581,9 @@ parsesub: {
 	int length;
 	int c1;
 
-	c = pgetc();
+	c = pgetc_linecont();
 	if (c == '(') {	/* $(command) or $((arith)) */
-		if (pgetc() == '(') {
+		if (pgetc_linecont() == '(') {
 			PARSEARITH();
 		} else {
 			pungetc();
@@ -1635,7 +1601,7 @@ parsesub: {
 		flags = 0;
 		if (c == '{') {
 			bracketed_name = 1;
-			c = pgetc();
+			c = pgetc_linecont();
 			subtype = 0;
 		}
 varname:
@@ -1643,7 +1609,7 @@ varname:
 			length = 0;
 			do {
 				STPUTC(c, out);
-				c = pgetc();
+				c = pgetc_linecont();
 				length++;
 			} while (!is_eof(c) && is_in_name(c));
 			if (length == 6 &&
@@ -1662,22 +1628,22 @@ varname:
 			if (bracketed_name) {
 				do {
 					STPUTC(c, out);
-					c = pgetc();
+					c = pgetc_linecont();
 				} while (is_digit(c));
 			} else {
 				STPUTC(c, out);
-				c = pgetc();
+				c = pgetc_linecont();
 			}
 		} else if (is_special(c)) {
 			c1 = c;
-			c = pgetc();
+			c = pgetc_linecont();
 			if (subtype == 0 && c1 == '#') {
 				subtype = VSLENGTH;
 				if (strchr(types, c) == NULL && c != ':' &&
 				    c != '#' && c != '%')
 					goto varname;
 				c1 = c;
-				c = pgetc();
+				c = pgetc_linecont();
 				if (c1 != '}' && c == '}') {
 					pungetc();
 					c = c1;
@@ -1702,7 +1668,7 @@ varname:
 			switch (c) {
 			case ':':
 				flags |= VSNUL;
-				c = pgetc();
+				c = pgetc_linecont();
 				/*FALLTHROUGH*/
 			default:
 				p = strchr(types, c);
@@ -1722,7 +1688,7 @@ varname:
 					int cc = c;
 					subtype = c == '#' ? VSTRIMLEFT :
 							     VSTRIMRIGHT;
-					c = pgetc();
+					c = pgetc_linecont();
 					if (c == cc)
 						subtype++;
 					else
@@ -1818,14 +1784,6 @@ parsearith: {
 } /* end of readtoken */
 
 
-
-#ifdef mkinit
-RESET {
-	tokpushback = 0;
-	checkkwd = 0;
-}
-#endif
-
 /*
  * Returns true if the text contains nothing to expand (no dollar signs
  * or backquotes).
@@ -1887,6 +1845,14 @@ isassignment(const char *p)
 }
 
 
+static void
+consumetoken(int token)
+{
+	if (readtoken() != token)
+		synexpect(token);
+}
+
+
 /*
  * Called when an unexpected token is read during the parse.  The argument
  * is the token that is expected, or -1 if more than one type of token can
@@ -1913,6 +1879,8 @@ synerror(const char *msg)
 {
 	if (commandname)
 		outfmt(out2, "%s: %d: ", commandname, startlinno);
+	else if (arg0)
+		outfmt(out2, "%s: ", arg0);
 	outfmt(out2, "Syntax error: %s\n", msg);
 	error((char *)NULL);
 }
@@ -1931,6 +1899,29 @@ setprompt(int which)
 	}
 }
 
+static int
+pgetc_linecont(void)
+{
+	int c;
+
+	while ((c = pgetc_macro()) == '\\') {
+		c = pgetc();
+		if (c == '\n') {
+			plinno++;
+			if (doprompt)
+				setprompt(2);
+			else
+				setprompt(0);
+		} else {
+			pungetc();
+			/* Allow the backslash to be pushed back. */
+			pushstring("\\", 1, NULL);
+			return (pgetc());
+		}
+	}
+	return (c);
+}
+
 /*
  * called by editline -- any expansions to the prompt
  *    should be added here.
@@ -1939,7 +1930,7 @@ char *
 getprompt(void *unused __unused)
 {
 	static char ps[PROMPTLEN];
-	char *fmt;
+	const char *fmt;
 	const char *pwd;
 	int i, trim;
 	static char internal_error[] = "??";
@@ -1949,7 +1940,7 @@ getprompt(void *unused __unused)
 	 */
 	switch (whichprompt) {
 	case 0:
-		fmt = nullstr;
+		fmt = "";
 		break;
 	case 1:
 		fmt = ps1val();
@@ -2038,7 +2029,7 @@ getprompt(void *unused __unused)
 
 
 const char *
-expandstr(char *ps)
+expandstr(const char *ps)
 {
 	union node n;
 	struct jmploc jmploc;
@@ -2053,7 +2044,7 @@ expandstr(char *ps)
 		parser_temp = NULL;
 		setinputstring(ps, 1);
 		doprompt = 0;
-		readtoken1(pgetc(), DQSYNTAX, "\n\n", 0);
+		readtoken1(pgetc(), DQSYNTAX, "", 0);
 		if (backquotelist != NULL)
 			error("Command substitution not allowed here");
 

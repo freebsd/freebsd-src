@@ -47,6 +47,22 @@ pci_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	return (0);
 }
 
+static int
+pci_amd_hostbridge_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
+{
+	(void) pci_hostbridge_init(ctx, pi, opts);
+	pci_set_cfgdata16(pi, PCIR_VENDOR, 0x1022);	/* AMD */
+	pci_set_cfgdata16(pi, PCIR_DEVICE, 0x7432);	/* made up */
+
+	return (0);
+}
+
+struct pci_devemu pci_de_amd_hostbridge = {
+	.pe_emu = "amd_hostbridge",
+	.pe_init = pci_amd_hostbridge_init,
+};
+PCI_EMUL_SET(pci_de_amd_hostbridge);
+
 struct pci_devemu pci_de_hostbridge = {
 	.pe_emu = "hostbridge",
 	.pe_init = pci_hostbridge_init,

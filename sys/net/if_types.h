@@ -246,9 +246,7 @@
 /* not based on IANA assignments */
 #define	IFT_GIF		0xf0
 #define	IFT_PVC		0xf1
-#define	IFT_FAITH	0xf2
 #define	IFT_ENC		0xf4
 #define	IFT_PFLOG	0xf6
 #define	IFT_PFSYNC	0xf7
-#define IFT_IPXIP	0xf9	/* IPX over IP tunneling; no longer used. */
 #endif /* !_NET_IF_TYPES_H_ */

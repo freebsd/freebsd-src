@@ -20,7 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
 #include <sys/dsl_pool.h>
@@ -45,43 +46,187 @@
 #include <sys/zil_impl.h>
 #include <sys/dsl_userhold.h>
 
-int zfs_no_write_throttle = 0;
-int zfs_write_limit_shift = 3;			/* 1/8th of physical memory */
-int zfs_txg_synctime_ms = 1000;		/* target millisecs to sync a txg */
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#endif
 
-uint64_t zfs_write_limit_min = 32 << 20;	/* min write limit is 32MB */
-uint64_t zfs_write_limit_max = 0;		/* max data payload per txg */
-uint64_t zfs_write_limit_inflated = 0;
-uint64_t zfs_write_limit_override = 0;
+/*
+ * ZFS Write Throttle
+ * ------------------
+ *
+ * ZFS must limit the rate of incoming writes to the rate at which it is able
+ * to sync data modifications to the backend storage. Throttling by too much
+ * creates an artificial limit; throttling by too little can only be sustained
+ * for short periods and would lead to highly lumpy performance. On a per-pool
+ * basis, ZFS tracks the amount of modified (dirty) data. As operations change
+ * data, the amount of dirty data increases; as ZFS syncs out data, the amount
+ * of dirty data decreases. When the amount of dirty data exceeds a
+ * predetermined threshold further modifications are blocked until the amount
+ * of dirty data decreases (as data is synced out).
+ *
+ * The limit on dirty data is tunable, and should be adjusted according to
+ * both the IO capacity and available memory of the system. The larger the
+ * window, the more ZFS is able to aggregate and amortize metadata (and data)
+ * changes. However, memory is a limited resource, and allowing for more dirty
+ * data comes at the cost of keeping other useful data in memory (for example
+ * ZFS data cached by the ARC).
+ *
+ * Implementation
+ *
+ * As buffers are modified dsl_pool_willuse_space() increments both the per-
+ * txg (dp_dirty_pertxg[]) and poolwide (dp_dirty_total) accounting of
+ * dirty space used; dsl_pool_dirty_space() decrements those values as data
+ * is synced out from dsl_pool_sync(). While only the poolwide value is
+ * relevant, the per-txg value is useful for debugging. The tunable
+ * zfs_dirty_data_max determines the dirty space limit. Once that value is
+ * exceeded, new writes are halted until space frees up.
+ *
+ * The zfs_dirty_data_sync tunable dictates the threshold at which we
+ * ensure that there is a txg syncing (see the comment in txg.c for a full
+ * description of transaction group stages).
+ *
+ * The IO scheduler uses both the dirty space limit and current amount of
+ * dirty data as inputs. Those values affect the number of concurrent IOs ZFS
+ * issues. See the comment in vdev_queue.c for details of the IO scheduler.
+ *
+ * The delay is also calculated based on the amount of dirty data.  See the
+ * comment above dmu_tx_delay() for details.
+ */
 
-kmutex_t zfs_write_limit_lock;
+/*
+ * zfs_dirty_data_max will be set to zfs_dirty_data_max_percent% of all memory,
+ * capped at zfs_dirty_data_max_max.  It can also be overridden in /etc/system.
+ */
+uint64_t zfs_dirty_data_max;
+uint64_t zfs_dirty_data_max_max = 4ULL * 1024 * 1024 * 1024;
+int zfs_dirty_data_max_percent = 10;
 
-static pgcnt_t old_physmem = 0;
+/*
+ * If there is at least this much dirty data, push out a txg.
+ */
+uint64_t zfs_dirty_data_sync = 64 * 1024 * 1024;
+
+/*
+ * Once there is this amount of dirty data, the dmu_tx_delay() will kick in
+ * and delay each transaction.
+ * This value should be >= zfs_vdev_async_write_active_max_dirty_percent.
+ */
+int zfs_delay_min_dirty_percent = 60;
+
+/*
+ * This controls how quickly the delay approaches infinity.
+ * Larger values cause it to delay more for a given amount of dirty data.
+ * Therefore larger values will cause there to be less dirty data for a
+ * given throughput.
+ *
+ * For the smoothest delay, this value should be about 1 billion divided
+ * by the maximum number of operations per second.  This will smoothly
+ * handle between 10x and 1/10th this number.
+ *
+ * Note: zfs_delay_scale * zfs_dirty_data_max must be < 2^64, due to the
+ * multiply in dmu_tx_delay().
+ */
+uint64_t zfs_delay_scale = 1000 * 1000 * 1000 / 2000;
+
+
+#ifdef __FreeBSD__
+
+extern int zfs_vdev_async_write_active_max_dirty_percent;
 
 SYSCTL_DECL(_vfs_zfs);
-TUNABLE_INT("vfs.zfs.no_write_throttle", &zfs_no_write_throttle);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, no_write_throttle, CTLFLAG_RDTUN,
-    &zfs_no_write_throttle, 0, "");
-TUNABLE_INT("vfs.zfs.write_limit_shift", &zfs_write_limit_shift);
-SYSCTL_INT(_vfs_zfs, OID_AUTO, write_limit_shift, CTLFLAG_RDTUN,
-    &zfs_write_limit_shift, 0, "2^N of physical memory");
-SYSCTL_DECL(_vfs_zfs_txg);
-TUNABLE_INT("vfs.zfs.txg.synctime_ms", &zfs_txg_synctime_ms);
-SYSCTL_INT(_vfs_zfs_txg, OID_AUTO, synctime_ms, CTLFLAG_RDTUN,
-    &zfs_txg_synctime_ms, 0, "Target milliseconds to sync a txg");
 
-TUNABLE_QUAD("vfs.zfs.write_limit_min", &zfs_write_limit_min);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_min, CTLFLAG_RDTUN,
-    &zfs_write_limit_min, 0, "Minimum write limit");
-TUNABLE_QUAD("vfs.zfs.write_limit_max", &zfs_write_limit_max);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_max, CTLFLAG_RDTUN,
-    &zfs_write_limit_max, 0, "Maximum data payload per txg");
-TUNABLE_QUAD("vfs.zfs.write_limit_inflated", &zfs_write_limit_inflated);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_inflated, CTLFLAG_RDTUN,
-    &zfs_write_limit_inflated, 0, "");
-TUNABLE_QUAD("vfs.zfs.write_limit_override", &zfs_write_limit_override);
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, write_limit_override, CTLFLAG_RDTUN,
-    &zfs_write_limit_override, 0, "");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max, CTLFLAG_RWTUN,
+    &zfs_dirty_data_max, 0,
+    "The maximum amount of dirty data in bytes after which new writes are "
+    "halted until space becomes available");
+
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_max_max, CTLFLAG_RDTUN,
+    &zfs_dirty_data_max_max, 0,
+    "The absolute cap on dirty_data_max when auto calculating");
+
+static int sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, dirty_data_max_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_dirty_data_max_percent, "I",
+    "The percent of physical memory used to auto calculate dirty_data_max");
+
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, dirty_data_sync, CTLFLAG_RWTUN,
+    &zfs_dirty_data_sync, 0,
+    "Force a txg if the number of dirty buffer bytes exceed this value");
+
+static int sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS);
+/* No zfs_delay_min_dirty_percent tunable due to limit requirements */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_min_dirty_percent,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(int),
+    sysctl_zfs_delay_min_dirty_percent, "I",
+    "The limit of outstanding dirty data before transations are delayed");
+
+static int sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS);
+/* No zfs_delay_scale tunable due to limit requirements */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, delay_scale,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
+    sysctl_zfs_delay_scale, "QU",
+    "Controls how quickly the delay approaches infinity");
+
+static int
+sysctl_zfs_dirty_data_max_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_dirty_data_max_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100)
+		return (EINVAL);
+
+	zfs_dirty_data_max_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_delay_min_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_delay_min_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < zfs_vdev_async_write_active_max_dirty_percent)
+		return (EINVAL);
+
+	zfs_delay_min_dirty_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_delay_scale(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = zfs_delay_scale;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val > UINT64_MAX / zfs_dirty_data_max)
+		return (EINVAL);
+
+	zfs_delay_scale = val;
+
+	return (0);
+}
+#endif
+
+hrtime_t zfs_throttle_delay = MSEC2NSEC(10);
+hrtime_t zfs_throttle_resolution = MSEC2NSEC(10);
 
 int
 dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
@@ -90,7 +235,7 @@ dsl_pool_open_special_dir(dsl_pool_t *dp, const char *name, dsl_dir_t **ddp)
 	int err;
 
 	err = zap_lookup(dp->dp_meta_objset,
-	    dp->dp_root_dir->dd_phys->dd_child_dir_zapobj,
+	    dsl_dir_phys(dp->dp_root_dir)->dd_child_dir_zapobj,
 	    name, sizeof (obj), 1, &obj);
 	if (err)
 		return (err);
@@ -108,7 +253,6 @@ dsl_pool_open_impl(spa_t *spa, uint64_t txg)
 	dp->dp_spa = spa;
 	dp->dp_meta_rootbp = *bp;
 	rrw_init(&dp->dp_config_rwlock, B_TRUE);
-	dp->dp_write_limit = zfs_write_limit_min;
 	txg_init(dp, txg);
 
 	txg_list_create(&dp->dp_dirty_datasets,
@@ -121,6 +265,7 @@ dsl_pool_open_impl(spa_t *spa, uint64_t txg)
 	    offsetof(dsl_sync_task_t, dst_node));
 
 	mutex_init(&dp->dp_lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&dp->dp_spaceavail_cv, NULL, CV_DEFAULT, NULL);
 
 	dp->dp_vnrele_taskq = taskq_create("zfs_vn_rele_taskq", 1, minclsyspri,
 	    1, 4, 0);
@@ -172,11 +317,11 @@ dsl_pool_open(dsl_pool_t *dp)
 		err = dsl_pool_open_special_dir(dp, ORIGIN_DIR_NAME, &dd);
 		if (err)
 			goto out;
-		err = dsl_dataset_hold_obj(dp, dd->dd_phys->dd_head_dataset_obj,
-		    FTAG, &ds);
+		err = dsl_dataset_hold_obj(dp,
+		    dsl_dir_phys(dd)->dd_head_dataset_obj, FTAG, &ds);
 		if (err == 0) {
 			err = dsl_dataset_hold_obj(dp,
-			    ds->ds_phys->ds_prev_snap_obj, dp,
+			    dsl_dataset_phys(ds)->ds_prev_snap_obj, dp,
 			    &dp->dp_origin_snap);
 			dsl_dataset_rele(ds, FTAG);
 		}
@@ -199,8 +344,14 @@ dsl_pool_open(dsl_pool_t *dp)
 		    dp->dp_meta_objset, obj));
 	}
 
-	if (spa_feature_is_active(dp->dp_spa,
-	    &spa_feature_table[SPA_FEATURE_ASYNC_DESTROY])) {
+	/*
+	 * Note: errors ignored, because the leak dir will not exist if we
+	 * have not encountered a leak yet.
+	 */
+	(void) dsl_pool_open_special_dir(dp, LEAK_DIR_NAME,
+	    &dp->dp_leak_dir);
+
+	if (spa_feature_is_active(dp->dp_spa, SPA_FEATURE_ASYNC_DESTROY)) {
 		err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_BPTREE_OBJ, sizeof (uint64_t), 1,
 		    &dp->dp_bptree_obj);
@@ -208,8 +359,7 @@ dsl_pool_open(dsl_pool_t *dp)
 			goto out;
 	}
 
-	if (spa_feature_is_active(dp->dp_spa,
-	    &spa_feature_table[SPA_FEATURE_EMPTY_BPOBJ])) {
+	if (spa_feature_is_active(dp->dp_spa, SPA_FEATURE_EMPTY_BPOBJ)) {
 		err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_EMPTY_BPOBJ, sizeof (uint64_t), 1,
 		    &dp->dp_empty_bpobj);
@@ -235,9 +385,9 @@ out:
 void
 dsl_pool_close(dsl_pool_t *dp)
 {
-	/* drop our references from dsl_pool_open() */
-
 	/*
+	 * Drop our references from dsl_pool_open().
+	 *
 	 * Since we held the origin_snap from "syncing" context (which
 	 * includes pool-opening context), it actually only got a "ref"
 	 * and not a hold, so just drop that here.
@@ -248,6 +398,8 @@ dsl_pool_close(dsl_pool_t *dp)
 		dsl_dir_rele(dp->dp_mos_dir, dp);
 	if (dp->dp_free_dir)
 		dsl_dir_rele(dp->dp_free_dir, dp);
+	if (dp->dp_leak_dir)
+		dsl_dir_rele(dp->dp_leak_dir, dp);
 	if (dp->dp_root_dir)
 		dsl_dir_rele(dp->dp_root_dir, dp);
 
@@ -315,7 +467,7 @@ dsl_pool_create(spa_t *spa, nvlist_t *zplprops, uint64_t txg)
 		    FREE_DIR_NAME, &dp->dp_free_dir));
 
 		/* create and open the free_bplist */
-		obj = bpobj_alloc(dp->dp_meta_objset, SPA_MAXBLOCKSIZE, tx);
+		obj = bpobj_alloc(dp->dp_meta_objset, SPA_OLD_MAXBLOCKSIZE, tx);
 		VERIFY(zap_add(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 		    DMU_POOL_FREE_BPOBJ, sizeof (uint64_t), 1, &obj, tx) == 0);
 		VERIFY0(bpobj_open(&dp->dp_free_bpobj,
@@ -367,6 +519,34 @@ deadlist_enqueue_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 	return (0);
 }
 
+static void
+dsl_pool_sync_mos(dsl_pool_t *dp, dmu_tx_t *tx)
+{
+	zio_t *zio = zio_root(dp->dp_spa, NULL, NULL, ZIO_FLAG_MUSTSUCCEED);
+	dmu_objset_sync(dp->dp_meta_objset, zio, tx);
+	VERIFY0(zio_wait(zio));
+	dprintf_bp(&dp->dp_meta_rootbp, "meta objset rootbp is %s", "");
+	spa_set_rootblkptr(dp->dp_spa, &dp->dp_meta_rootbp);
+}
+
+static void
+dsl_pool_dirty_delta(dsl_pool_t *dp, int64_t delta)
+{
+	ASSERT(MUTEX_HELD(&dp->dp_lock));
+
+	if (delta < 0)
+		ASSERT3U(-delta, <=, dp->dp_dirty_total);
+
+	dp->dp_dirty_total += delta;
+
+	/*
+	 * Note: we signal even when increasing dp_dirty_total.
+	 * This ensures forward progress -- each thread wakes the next waiter.
+	 */
+	if (dp->dp_dirty_total <= zfs_dirty_data_max)
+		cv_signal(&dp->dp_spaceavail_cv);
+}
+
 void
 dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 {
@@ -375,29 +555,18 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	dsl_dir_t *dd;
 	dsl_dataset_t *ds;
 	objset_t *mos = dp->dp_meta_objset;
-	hrtime_t start, write_time;
-	uint64_t data_written;
-	int err;
 	list_t synced_datasets;
 
 	list_create(&synced_datasets, sizeof (dsl_dataset_t),
 	    offsetof(dsl_dataset_t, ds_synced_link));
 
-	/*
-	 * We need to copy dp_space_towrite() before doing
-	 * dsl_sync_task_sync(), because
-	 * dsl_dataset_snapshot_reserve_space() will increase
-	 * dp_space_towrite but not actually write anything.
-	 */
-	data_written = dp->dp_space_towrite[txg & TXG_MASK];
-
 	tx = dmu_tx_create_assigned(dp, txg);
 
-	dp->dp_read_overhead = 0;
-	start = gethrtime();
-
+	/*
+	 * Write out all dirty blocks of dirty datasets.
+	 */
 	zio = zio_root(dp->dp_spa, NULL, NULL, ZIO_FLAG_MUSTSUCCEED);
-	while (ds = txg_list_remove(&dp->dp_dirty_datasets, txg)) {
+	while ((ds = txg_list_remove(&dp->dp_dirty_datasets, txg)) != NULL) {
 		/*
 		 * We must not sync any non-MOS datasets twice, because
 		 * we may have taken a snapshot of them.  However, we
@@ -407,20 +576,25 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 		list_insert_tail(&synced_datasets, ds);
 		dsl_dataset_sync(ds, zio, tx);
 	}
-	DTRACE_PROBE(pool_sync__1setup);
-	err = zio_wait(zio);
+	VERIFY0(zio_wait(zio));
 
-	write_time = gethrtime() - start;
-	ASSERT(err == 0);
-	DTRACE_PROBE(pool_sync__2rootzio);
+	/*
+	 * We have written all of the accounted dirty data, so our
+	 * dp_space_towrite should now be zero.  However, some seldom-used
+	 * code paths do not adhere to this (e.g. dbuf_undirty(), also
+	 * rounding error in dbuf_write_physdone).
+	 * Shore up the accounting of any dirtied space now.
+	 */
+	dsl_pool_undirty_space(dp, dp->dp_dirty_pertxg[txg & TXG_MASK], txg);
 
 	/*
 	 * After the data blocks have been written (ensured by the zio_wait()
 	 * above), update the user/group space accounting.
 	 */
-	for (ds = list_head(&synced_datasets); ds;
-	    ds = list_next(&synced_datasets, ds))
+	for (ds = list_head(&synced_datasets); ds != NULL;
+	    ds = list_next(&synced_datasets, ds)) {
 		dmu_objset_do_userquota_updates(ds->ds_objset, tx);
+	}
 
 	/*
 	 * Sync the datasets again to push out the changes due to
@@ -430,12 +604,12 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	 * about which blocks are part of the snapshot).
 	 */
 	zio = zio_root(dp->dp_spa, NULL, NULL, ZIO_FLAG_MUSTSUCCEED);
-	while (ds = txg_list_remove(&dp->dp_dirty_datasets, txg)) {
+	while ((ds = txg_list_remove(&dp->dp_dirty_datasets, txg)) != NULL) {
 		ASSERT(list_link_active(&ds->ds_synced_link));
 		dmu_buf_rele(ds->ds_dbuf, ds);
 		dsl_dataset_sync(ds, zio, tx);
 	}
-	err = zio_wait(zio);
+	VERIFY0(zio_wait(zio));
 
 	/*
 	 * Now that the datasets have been completely synced, we can
@@ -444,18 +618,16 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	 *  - move dead blocks from the pending deadlist to the on-disk deadlist
 	 *  - release hold from dsl_dataset_dirty()
 	 */
-	while (ds = list_remove_head(&synced_datasets)) {
+	while ((ds = list_remove_head(&synced_datasets)) != NULL) {
 		objset_t *os = ds->ds_objset;
 		bplist_iterate(&ds->ds_pending_deadlist,
 		    deadlist_enqueue_cb, &ds->ds_deadlist, tx);
 		ASSERT(!dmu_objset_is_dirty(os, txg));
 		dmu_buf_rele(ds->ds_dbuf, ds);
 	}
-
-	start = gethrtime();
-	while (dd = txg_list_remove(&dp->dp_dirty_dirs, txg))
+	while ((dd = txg_list_remove(&dp->dp_dirty_dirs, txg)) != NULL) {
 		dsl_dir_sync(dd, tx);
-	write_time += gethrtime() - start;
+	}
 
 	/*
 	 * The MOS's space is accounted for in the pool/$MOS
@@ -473,20 +645,10 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 		dp->dp_mos_uncompressed_delta = 0;
 	}
 
-	start = gethrtime();
 	if (list_head(&mos->os_dirty_dnodes[txg & TXG_MASK]) != NULL ||
 	    list_head(&mos->os_free_dnodes[txg & TXG_MASK]) != NULL) {
-		zio = zio_root(dp->dp_spa, NULL, NULL, ZIO_FLAG_MUSTSUCCEED);
-		dmu_objset_sync(mos, zio, tx);
-		err = zio_wait(zio);
-		ASSERT(err == 0);
-		dprintf_bp(&dp->dp_meta_rootbp, "meta objset rootbp is %s", "");
-		spa_set_rootblkptr(dp->dp_spa, &dp->dp_meta_rootbp);
+		dsl_pool_sync_mos(dp, tx);
 	}
-	write_time += gethrtime() - start;
-	DTRACE_PROBE2(pool_sync__4io, hrtime_t, write_time,
-	    hrtime_t, dp->dp_read_overhead);
-	write_time -= dp->dp_read_overhead;
 
 	/*
 	 * If we modify a dataset in the same txg that we want to destroy it,
@@ -497,71 +659,29 @@ dsl_pool_sync(dsl_pool_t *dp, uint64_t txg)
 	 * The MOS data dirtied by the sync_tasks will be synced on the next
 	 * pass.
 	 */
-	DTRACE_PROBE(pool_sync__3task);
 	if (!txg_list_empty(&dp->dp_sync_tasks, txg)) {
 		dsl_sync_task_t *dst;
 		/*
 		 * No more sync tasks should have been added while we
 		 * were syncing.
 		 */
-		ASSERT(spa_sync_pass(dp->dp_spa) == 1);
-		while (dst = txg_list_remove(&dp->dp_sync_tasks, txg))
+		ASSERT3U(spa_sync_pass(dp->dp_spa), ==, 1);
+		while ((dst = txg_list_remove(&dp->dp_sync_tasks, txg)) != NULL)
 			dsl_sync_task_sync(dst, tx);
 	}
 
 	dmu_tx_commit(tx);
 
-	dp->dp_space_towrite[txg & TXG_MASK] = 0;
-	ASSERT(dp->dp_tempreserved[txg & TXG_MASK] == 0);
-
-	/*
-	 * If the write limit max has not been explicitly set, set it
-	 * to a fraction of available physical memory (default 1/8th).
-	 * Note that we must inflate the limit because the spa
-	 * inflates write sizes to account for data replication.
-	 * Check this each sync phase to catch changing memory size.
-	 */
-	if (physmem != old_physmem && zfs_write_limit_shift) {
-		mutex_enter(&zfs_write_limit_lock);
-		old_physmem = physmem;
-		zfs_write_limit_max = ptob(physmem) >> zfs_write_limit_shift;
-		zfs_write_limit_inflated = MAX(zfs_write_limit_min,
-		    spa_get_asize(dp->dp_spa, zfs_write_limit_max));
-		mutex_exit(&zfs_write_limit_lock);
-	}
-
-	/*
-	 * Attempt to keep the sync time consistent by adjusting the
-	 * amount of write traffic allowed into each transaction group.
-	 * Weight the throughput calculation towards the current value:
-	 * 	thru = 3/4 old_thru + 1/4 new_thru
-	 *
-	 * Note: write_time is in nanosecs, so write_time/MICROSEC
-	 * yields millisecs
-	 */
-	ASSERT(zfs_write_limit_min > 0);
-	if (data_written > zfs_write_limit_min / 8 && write_time > MICROSEC) {
-		uint64_t throughput = data_written / (write_time / MICROSEC);
-
-		if (dp->dp_throughput)
-			dp->dp_throughput = throughput / 4 +
-			    3 * dp->dp_throughput / 4;
-		else
-			dp->dp_throughput = throughput;
-		dp->dp_write_limit = MIN(zfs_write_limit_inflated,
-		    MAX(zfs_write_limit_min,
-		    dp->dp_throughput * zfs_txg_synctime_ms));
-	}
+	DTRACE_PROBE2(dsl_pool_sync__done, dsl_pool_t *dp, dp, uint64_t, txg);
 }
 
 void
 dsl_pool_sync_done(dsl_pool_t *dp, uint64_t txg)
 {
 	zilog_t *zilog;
-	dsl_dataset_t *ds;
 
 	while (zilog = txg_list_remove(&dp->dp_dirty_zilogs, txg)) {
-		ds = dmu_objset_ds(zilog->zl_os);
+		dsl_dataset_t *ds = dmu_objset_ds(zilog->zl_os);
 		zil_clean(zilog, txg);
 		ASSERT(!dmu_objset_is_dirty(zilog->zl_os, txg));
 		dmu_buf_rele(ds->ds_dbuf, zilog);
@@ -586,97 +706,60 @@ dsl_pool_adjustedsize(dsl_pool_t *dp, boolean_t netfree)
 	uint64_t space, resv;
 
 	/*
-	 * Reserve about 1.6% (1/64), or at least 32MB, for allocation
-	 * efficiency.
-	 * XXX The intent log is not accounted for, so it must fit
-	 * within this slop.
-	 *
 	 * If we're trying to assess whether it's OK to do a free,
 	 * cut the reservation in half to allow forward progress
 	 * (e.g. make it possible to rm(1) files from a full pool).
 	 */
 	space = spa_get_dspace(dp->dp_spa);
-	resv = MAX(space >> 6, SPA_MINDEVSIZE >> 1);
+	resv = spa_get_slop_space(dp->dp_spa);
 	if (netfree)
 		resv >>= 1;
 
 	return (space - resv);
 }
 
-int
-dsl_pool_tempreserve_space(dsl_pool_t *dp, uint64_t space, dmu_tx_t *tx)
+boolean_t
+dsl_pool_need_dirty_delay(dsl_pool_t *dp)
 {
-	uint64_t reserved = 0;
-	uint64_t write_limit = (zfs_write_limit_override ?
-	    zfs_write_limit_override : dp->dp_write_limit);
+	uint64_t delay_min_bytes =
+	    zfs_dirty_data_max * zfs_delay_min_dirty_percent / 100;
+	boolean_t rv;
 
-	if (zfs_no_write_throttle) {
-		atomic_add_64(&dp->dp_tempreserved[tx->tx_txg & TXG_MASK],
-		    space);
-		return (0);
-	}
-
-	/*
-	 * Check to see if we have exceeded the maximum allowed IO for
-	 * this transaction group.  We can do this without locks since
-	 * a little slop here is ok.  Note that we do the reserved check
-	 * with only half the requested reserve: this is because the
-	 * reserve requests are worst-case, and we really don't want to
-	 * throttle based off of worst-case estimates.
-	 */
-	if (write_limit > 0) {
-		reserved = dp->dp_space_towrite[tx->tx_txg & TXG_MASK]
-		    + dp->dp_tempreserved[tx->tx_txg & TXG_MASK] / 2;
-
-		if (reserved && reserved > write_limit)
-			return (ERESTART);
-	}
-
-	atomic_add_64(&dp->dp_tempreserved[tx->tx_txg & TXG_MASK], space);
-
-	/*
-	 * If this transaction group is over 7/8ths capacity, delay
-	 * the caller 1 clock tick.  This will slow down the "fill"
-	 * rate until the sync process can catch up with us.
-	 */
-	if (reserved && reserved > (write_limit - (write_limit >> 3)))
-		txg_delay(dp, tx->tx_txg, 1);
-
-	return (0);
+	mutex_enter(&dp->dp_lock);
+	if (dp->dp_dirty_total > zfs_dirty_data_sync)
+		txg_kick(dp);
+	rv = (dp->dp_dirty_total > delay_min_bytes);
+	mutex_exit(&dp->dp_lock);
+	return (rv);
 }
 
 void
-dsl_pool_tempreserve_clear(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx)
-{
-	ASSERT(dp->dp_tempreserved[tx->tx_txg & TXG_MASK] >= space);
-	atomic_add_64(&dp->dp_tempreserved[tx->tx_txg & TXG_MASK], -space);
-}
-
-void
-dsl_pool_memory_pressure(dsl_pool_t *dp)
-{
-	uint64_t space_inuse = 0;
-	int i;
-
-	if (dp->dp_write_limit == zfs_write_limit_min)
-		return;
-
-	for (i = 0; i < TXG_SIZE; i++) {
-		space_inuse += dp->dp_space_towrite[i];
-		space_inuse += dp->dp_tempreserved[i];
-	}
-	dp->dp_write_limit = MAX(zfs_write_limit_min,
-	    MIN(dp->dp_write_limit, space_inuse / 4));
-}
-
-void
-dsl_pool_willuse_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx)
+dsl_pool_dirty_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx)
 {
 	if (space > 0) {
 		mutex_enter(&dp->dp_lock);
-		dp->dp_space_towrite[tx->tx_txg & TXG_MASK] += space;
+		dp->dp_dirty_pertxg[tx->tx_txg & TXG_MASK] += space;
+		dsl_pool_dirty_delta(dp, space);
 		mutex_exit(&dp->dp_lock);
 	}
+}
+
+void
+dsl_pool_undirty_space(dsl_pool_t *dp, int64_t space, uint64_t txg)
+{
+	ASSERT3S(space, >=, 0);
+	if (space == 0)
+		return;
+	mutex_enter(&dp->dp_lock);
+	if (dp->dp_dirty_pertxg[txg & TXG_MASK] < space) {
+		/* XXX writing something we didn't dirty? */
+		space = dp->dp_dirty_pertxg[txg & TXG_MASK];
+	}
+	ASSERT3U(dp->dp_dirty_pertxg[txg & TXG_MASK], >=, space);
+	dp->dp_dirty_pertxg[txg & TXG_MASK] -= space;
+	ASSERT3U(dp->dp_dirty_total, >=, space);
+	dsl_pool_dirty_delta(dp, -space);
+	mutex_exit(&dp->dp_lock);
 }
 
 /* ARGSUSED */
@@ -691,15 +774,15 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 	if (err)
 		return (err);
 
-	while (ds->ds_phys->ds_prev_snap_obj != 0) {
-		err = dsl_dataset_hold_obj(dp, ds->ds_phys->ds_prev_snap_obj,
-		    FTAG, &prev);
+	while (dsl_dataset_phys(ds)->ds_prev_snap_obj != 0) {
+		err = dsl_dataset_hold_obj(dp,
+		    dsl_dataset_phys(ds)->ds_prev_snap_obj, FTAG, &prev);
 		if (err) {
 			dsl_dataset_rele(ds, FTAG);
 			return (err);
 		}
 
-		if (prev->ds_phys->ds_next_snap_obj != ds->ds_object)
+		if (dsl_dataset_phys(prev)->ds_next_snap_obj != ds->ds_object)
 			break;
 		dsl_dataset_rele(ds, FTAG);
 		ds = prev;
@@ -713,7 +796,7 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 		 * The $ORIGIN can't have any data, or the accounting
 		 * will be wrong.
 		 */
-		ASSERT0(prev->ds_phys->ds_bp.blk_birth);
+		ASSERT0(dsl_dataset_phys(prev)->ds_bp.blk_birth);
 
 		/* The origin doesn't get attached to itself */
 		if (ds->ds_object == prev->ds_object) {
@@ -722,33 +805,35 @@ upgrade_clones_cb(dsl_pool_t *dp, dsl_dataset_t *hds, void *arg)
 		}
 
 		dmu_buf_will_dirty(ds->ds_dbuf, tx);
-		ds->ds_phys->ds_prev_snap_obj = prev->ds_object;
-		ds->ds_phys->ds_prev_snap_txg = prev->ds_phys->ds_creation_txg;
+		dsl_dataset_phys(ds)->ds_prev_snap_obj = prev->ds_object;
+		dsl_dataset_phys(ds)->ds_prev_snap_txg =
+		    dsl_dataset_phys(prev)->ds_creation_txg;
 
 		dmu_buf_will_dirty(ds->ds_dir->dd_dbuf, tx);
-		ds->ds_dir->dd_phys->dd_origin_obj = prev->ds_object;
+		dsl_dir_phys(ds->ds_dir)->dd_origin_obj = prev->ds_object;
 
 		dmu_buf_will_dirty(prev->ds_dbuf, tx);
-		prev->ds_phys->ds_num_children++;
+		dsl_dataset_phys(prev)->ds_num_children++;
 
-		if (ds->ds_phys->ds_next_snap_obj == 0) {
+		if (dsl_dataset_phys(ds)->ds_next_snap_obj == 0) {
 			ASSERT(ds->ds_prev == NULL);
 			VERIFY0(dsl_dataset_hold_obj(dp,
-			    ds->ds_phys->ds_prev_snap_obj, ds, &ds->ds_prev));
+			    dsl_dataset_phys(ds)->ds_prev_snap_obj,
+			    ds, &ds->ds_prev));
 		}
 	}
 
-	ASSERT3U(ds->ds_dir->dd_phys->dd_origin_obj, ==, prev->ds_object);
-	ASSERT3U(ds->ds_phys->ds_prev_snap_obj, ==, prev->ds_object);
+	ASSERT3U(dsl_dir_phys(ds->ds_dir)->dd_origin_obj, ==, prev->ds_object);
+	ASSERT3U(dsl_dataset_phys(ds)->ds_prev_snap_obj, ==, prev->ds_object);
 
-	if (prev->ds_phys->ds_next_clones_obj == 0) {
+	if (dsl_dataset_phys(prev)->ds_next_clones_obj == 0) {
 		dmu_buf_will_dirty(prev->ds_dbuf, tx);
-		prev->ds_phys->ds_next_clones_obj =
+		dsl_dataset_phys(prev)->ds_next_clones_obj =
 		    zap_create(dp->dp_meta_objset,
 		    DMU_OT_NEXT_CLONES, DMU_OT_NONE, 0, tx);
 	}
 	VERIFY0(zap_add_int(dp->dp_meta_objset,
-	    prev->ds_phys->ds_next_clones_obj, ds->ds_object, tx));
+	    dsl_dataset_phys(prev)->ds_next_clones_obj, ds->ds_object, tx));
 
 	dsl_dataset_rele(ds, FTAG);
 	if (prev != dp->dp_origin_snap)
@@ -773,20 +858,22 @@ upgrade_dir_clones_cb(dsl_pool_t *dp, dsl_dataset_t *ds, void *arg)
 	dmu_tx_t *tx = arg;
 	objset_t *mos = dp->dp_meta_objset;
 
-	if (ds->ds_dir->dd_phys->dd_origin_obj != 0) {
+	if (dsl_dir_phys(ds->ds_dir)->dd_origin_obj != 0) {
 		dsl_dataset_t *origin;
 
 		VERIFY0(dsl_dataset_hold_obj(dp,
-		    ds->ds_dir->dd_phys->dd_origin_obj, FTAG, &origin));
+		    dsl_dir_phys(ds->ds_dir)->dd_origin_obj, FTAG, &origin));
 
-		if (origin->ds_dir->dd_phys->dd_clones == 0) {
+		if (dsl_dir_phys(origin->ds_dir)->dd_clones == 0) {
 			dmu_buf_will_dirty(origin->ds_dir->dd_dbuf, tx);
-			origin->ds_dir->dd_phys->dd_clones = zap_create(mos,
-			    DMU_OT_DSL_CLONES, DMU_OT_NONE, 0, tx);
+			dsl_dir_phys(origin->ds_dir)->dd_clones =
+			    zap_create(mos, DMU_OT_DSL_CLONES, DMU_OT_NONE,
+			    0, tx);
 		}
 
 		VERIFY0(zap_add_int(dp->dp_meta_objset,
-		    origin->ds_dir->dd_phys->dd_clones, ds->ds_object, tx));
+		    dsl_dir_phys(origin->ds_dir)->dd_clones,
+		    ds->ds_object, tx));
 
 		dsl_dataset_rele(origin, FTAG);
 	}
@@ -809,7 +896,7 @@ dsl_pool_upgrade_dir_clones(dsl_pool_t *dp, dmu_tx_t *tx)
 	 * subobj support.  So call dmu_object_alloc() directly.
 	 */
 	obj = dmu_object_alloc(dp->dp_meta_objset, DMU_OT_BPOBJ,
-	    SPA_MAXBLOCKSIZE, DMU_OT_BPOBJ_HDR, sizeof (bpobj_phys_t), tx);
+	    SPA_OLD_MAXBLOCKSIZE, DMU_OT_BPOBJ_HDR, sizeof (bpobj_phys_t), tx);
 	VERIFY0(zap_add(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 	    DMU_POOL_FREE_BPOBJ, sizeof (uint64_t), 1, &obj, tx));
 	VERIFY0(bpobj_open(&dp->dp_free_bpobj, dp->dp_meta_objset, obj));
@@ -833,7 +920,7 @@ dsl_pool_create_origin(dsl_pool_t *dp, dmu_tx_t *tx)
 	    NULL, 0, kcred, tx);
 	VERIFY0(dsl_dataset_hold_obj(dp, dsobj, FTAG, &ds));
 	dsl_dataset_snapshot_sync_impl(ds, ORIGIN_DIR_NAME, tx);
-	VERIFY0(dsl_dataset_hold_obj(dp, ds->ds_phys->ds_prev_snap_obj,
+	VERIFY0(dsl_dataset_hold_obj(dp, dsl_dataset_phys(ds)->ds_prev_snap_obj,
 	    dp, &dp->dp_origin_snap));
 	dsl_dataset_rele(ds, FTAG);
 }
@@ -855,23 +942,34 @@ dsl_pool_clean_tmp_userrefs(dsl_pool_t *dp)
 	zap_cursor_t zc;
 	objset_t *mos = dp->dp_meta_objset;
 	uint64_t zapobj = dp->dp_tmp_userrefs_obj;
+	nvlist_t *holds;
 
 	if (zapobj == 0)
 		return;
 	ASSERT(spa_version(dp->dp_spa) >= SPA_VERSION_USERREFS);
 
+	holds = fnvlist_alloc();
+
 	for (zap_cursor_init(&zc, mos, zapobj);
 	    zap_cursor_retrieve(&zc, &za) == 0;
 	    zap_cursor_advance(&zc)) {
 		char *htag;
-		uint64_t dsobj;
+		nvlist_t *tags;
 
 		htag = strchr(za.za_name, '-');
 		*htag = '\0';
 		++htag;
-		dsobj = strtonum(za.za_name, NULL);
-		dsl_dataset_user_release_tmp(dp, dsobj, htag);
+		if (nvlist_lookup_nvlist(holds, za.za_name, &tags) != 0) {
+			tags = fnvlist_alloc();
+			fnvlist_add_boolean(tags, htag);
+			fnvlist_add_nvlist(holds, za.za_name, tags);
+			fnvlist_free(tags);
+		} else {
+			fnvlist_add_boolean(tags, htag);
+		}
 	}
+	dsl_dataset_user_release_tmp(dp, holds);
+	fnvlist_free(holds);
 	zap_cursor_fini(&zc);
 }
 
@@ -911,7 +1009,7 @@ dsl_pool_user_hold_rele_impl(dsl_pool_t *dp, uint64_t dsobj,
 			dsl_pool_user_hold_create_obj(dp, tx);
 			zapobj = dp->dp_tmp_userrefs_obj;
 		} else {
-			return (ENOENT);
+			return (SET_ERROR(ENOENT));
 		}
 	}
 

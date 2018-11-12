@@ -15,11 +15,12 @@
 #include "ClangSACheckers.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/StmtVisitor.h"
-#include "llvm/Support/SaveAndRestore.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/SaveAndRestore.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -27,6 +28,7 @@ using namespace ento;
 namespace {
 
 class WalkAST : public StmtVisitor<WalkAST> {
+  const CheckerBase *Checker;
   BugReporter &BR;
   AnalysisDeclContext *AC;
 
@@ -57,11 +59,10 @@ class WalkAST : public StmtVisitor<WalkAST> {
   const CallExpr *visitingCallExpr;
   
 public:
-  WalkAST(BugReporter &br, AnalysisDeclContext *ac)
-    : BR(br),
-      AC(ac),
-      visitingCallExpr(0) {}
-  
+  WalkAST(const CheckerBase *checker, BugReporter &br,
+          AnalysisDeclContext *ac)
+      : Checker(checker), BR(br), AC(ac), visitingCallExpr(nullptr) {}
+
   bool hasWork() const { return !WList.empty(); }
 
   /// This method adds a CallExpr to the worklist and marks the callee as
@@ -145,15 +146,22 @@ void WalkAST::VisitCXXMemberCallExpr(CallExpr *CE) {
     if (CME->getQualifier())
       callIsNonVirtual = true;
 
-    // Elide analyzing the call entirely if the base pointer is not 'this'.
-    if (Expr *base = CME->getBase()->IgnoreImpCasts())
+    if (Expr *base = CME->getBase()->IgnoreImpCasts()) {
+      // Elide analyzing the call entirely if the base pointer is not 'this'.
       if (!isa<CXXThisExpr>(base))
         return;
+
+      // If the most derived class is marked final, we know that now subclass
+      // can override this member.
+      if (base->getBestDynamicClassType()->hasAttr<FinalAttr>())
+        callIsNonVirtual = true;
+    }
   }
 
   // Get the callee.
   const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(CE->getDirectCallee());
-  if (MD && MD->isVirtual() && !callIsNonVirtual)
+  if (MD && MD->isVirtual() && !callIsNonVirtual && !MD->hasAttr<FinalAttr>() &&
+      !MD->getParent()->hasAttr<FinalAttr>())
     ReportVirtualCall(CE, MD->isPure());
 
   Enqueue(CE);
@@ -186,21 +194,19 @@ void WalkAST::ReportVirtualCall(const CallExpr *CE, bool isPure) {
   if (isPure) {
     os << "\n" <<  "Call pure virtual functions during construction or "
        << "destruction may leads undefined behaviour";
-    BR.EmitBasicReport(AC->getDecl(),
+    BR.EmitBasicReport(AC->getDecl(), Checker,
                        "Call pure virtual function during construction or "
                        "Destruction",
-                       "Cplusplus",
-                       os.str(), CELoc, &R, 1);
+                       "Cplusplus", os.str(), CELoc, R);
     return;
   }
   else {
     os << "\n" << "Call virtual functions during construction or "
        << "destruction will never go to a more derived class";
-    BR.EmitBasicReport(AC->getDecl(),
+    BR.EmitBasicReport(AC->getDecl(), Checker,
                        "Call virtual function during construction or "
                        "Destruction",
-                       "Cplusplus",
-                       os.str(), CELoc, &R, 1);
+                       "Cplusplus", os.str(), CELoc, R);
     return;
   }
 }
@@ -214,11 +220,10 @@ class VirtualCallChecker : public Checker<check::ASTDecl<CXXRecordDecl> > {
 public:
   void checkASTDecl(const CXXRecordDecl *RD, AnalysisManager& mgr,
                     BugReporter &BR) const {
-    WalkAST walker(BR, mgr.getAnalysisDeclContext(RD));
+    WalkAST walker(this, BR, mgr.getAnalysisDeclContext(RD));
 
     // Check the constructors.
-    for (CXXRecordDecl::ctor_iterator I = RD->ctor_begin(), E = RD->ctor_end();
-         I != E; ++I) {
+    for (const auto *I : RD->ctors()) {
       if (!I->isCopyOrMoveConstructor())
         if (Stmt *Body = I->getBody()) {
           walker.Visit(Body);

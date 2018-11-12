@@ -132,7 +132,8 @@ static int		*pmc_pmcdisp;	 /* PMC row dispositions */
 
 
 /* various event handlers */
-static eventhandler_tag	pmc_exit_tag, pmc_fork_tag;
+static eventhandler_tag	pmc_exit_tag, pmc_fork_tag, pmc_kld_load_tag,
+    pmc_kld_unload_tag;
 
 /* Module statistics */
 struct pmc_op_getdriverstats pmc_stats;
@@ -191,6 +192,7 @@ static int	pmc_detach_process(struct proc *p, struct pmc *pm);
 static int	pmc_detach_one_process(struct proc *p, struct pmc *pm,
     int flags);
 static void	pmc_destroy_owner_descriptor(struct pmc_owner *po);
+static void	pmc_destroy_pmc_descriptor(struct pmc *pm);
 static struct pmc_owner *pmc_find_owner_descriptor(struct proc *p);
 static int	pmc_find_pmc(pmc_id_t pmcid, struct pmc **pm);
 static struct pmc *pmc_find_pmc_descriptor_in_process(struct pmc_owner *po,
@@ -233,8 +235,7 @@ static void pmc_generic_cpu_finalize(struct pmc_mdep *md);
 SYSCTL_DECL(_kern_hwpmc);
 
 static int pmc_callchaindepth = PMC_CALLCHAIN_DEPTH;
-TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "callchaindepth", &pmc_callchaindepth);
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, callchaindepth, CTLFLAG_TUN|CTLFLAG_RD,
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, callchaindepth, CTLFLAG_RDTUN,
     &pmc_callchaindepth, 0, "depth of call chain records");
 
 #ifdef	DEBUG
@@ -243,7 +244,7 @@ char	pmc_debugstr[PMC_DEBUG_STRSIZE];
 TUNABLE_STR(PMC_SYSCTL_NAME_PREFIX "debugflags", pmc_debugstr,
     sizeof(pmc_debugstr));
 SYSCTL_PROC(_kern_hwpmc, OID_AUTO, debugflags,
-    CTLTYPE_STRING|CTLFLAG_RW|CTLFLAG_TUN,
+    CTLTYPE_STRING | CTLFLAG_RWTUN | CTLFLAG_NOFETCH,
     0, 0, pmc_debugflags_sysctl_handler, "A", "debug flags");
 #endif
 
@@ -253,8 +254,7 @@ SYSCTL_PROC(_kern_hwpmc, OID_AUTO, debugflags,
  */
 
 static int pmc_hashsize = PMC_HASH_SIZE;
-TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "hashsize", &pmc_hashsize);
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, hashsize, CTLFLAG_TUN|CTLFLAG_RD,
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, hashsize, CTLFLAG_RDTUN,
     &pmc_hashsize, 0, "rows in hash tables");
 
 /*
@@ -262,8 +262,7 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, hashsize, CTLFLAG_TUN|CTLFLAG_RD,
  */
 
 static int pmc_nsamples = PMC_NSAMPLES;
-TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "nsamples", &pmc_nsamples);
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, nsamples, CTLFLAG_TUN|CTLFLAG_RD,
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, nsamples, CTLFLAG_RDTUN,
     &pmc_nsamples, 0, "number of PC samples per CPU");
 
 
@@ -272,8 +271,7 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, nsamples, CTLFLAG_TUN|CTLFLAG_RD,
  */
 
 static int pmc_mtxpool_size = PMC_MTXPOOL_SIZE;
-TUNABLE_INT(PMC_SYSCTL_NAME_PREFIX "mtxpoolsize", &pmc_mtxpool_size);
-SYSCTL_INT(_kern_hwpmc, OID_AUTO, mtxpoolsize, CTLFLAG_TUN|CTLFLAG_RD,
+SYSCTL_INT(_kern_hwpmc, OID_AUTO, mtxpoolsize, CTLFLAG_RDTUN,
     &pmc_mtxpool_size, 0, "size of spin mutex pool");
 
 
@@ -287,8 +285,7 @@ SYSCTL_INT(_kern_hwpmc, OID_AUTO, mtxpoolsize, CTLFLAG_TUN|CTLFLAG_RD,
  */
 
 static int pmc_unprivileged_syspmcs = 0;
-TUNABLE_INT("security.bsd.unprivileged_syspmcs", &pmc_unprivileged_syspmcs);
-SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RW,
+SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_syspmcs, CTLFLAG_RWTUN,
     &pmc_unprivileged_syspmcs, 0,
     "allow unprivileged process to allocate system PMCs");
 
@@ -323,7 +320,12 @@ static struct syscall_module_data pmc_syscall_mod = {
 	NULL,
 	&pmc_syscall_num,
 	&pmc_sysent,
+#if (__FreeBSD_version >= 1100000)
+	{ 0, NULL },
+	SY_THR_STATIC_KLD,
+#else
 	{ 0, NULL }
+#endif
 };
 
 static moduledata_t pmc_mod = {
@@ -752,6 +754,7 @@ pmc_remove_owner(struct pmc_owner *po)
 		    ("[pmc,%d] owner %p != po %p", __LINE__, pm->pm_owner, po));
 
 		pmc_release_pmc_descriptor(pm);	/* will unlink from the list */
+		pmc_destroy_pmc_descriptor(pm);
 	}
 
 	KASSERT(po->po_sscount == 0,
@@ -1476,50 +1479,6 @@ pmc_process_csw_out(struct thread *td)
 }
 
 /*
- * Log a KLD operation.
- */
-
-static void
-pmc_process_kld_load(struct pmckern_map_in *pkm)
-{
-	struct pmc_owner *po;
-
-	sx_assert(&pmc_sx, SX_LOCKED);
-
-	/*
-	 * Notify owners of system sampling PMCs about KLD operations.
-	 */
-
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
-	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-	    	pmclog_process_map_in(po, (pid_t) -1, pkm->pm_address,
-		    (char *) pkm->pm_file);
-
-	/*
-	 * TODO: Notify owners of (all) process-sampling PMCs too.
-	 */
-
-	return;
-}
-
-static void
-pmc_process_kld_unload(struct pmckern_map_out *pkm)
-{
-	struct pmc_owner *po;
-
-	sx_assert(&pmc_sx, SX_LOCKED);
-
-	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
-	    if (po->po_flags & PMC_PO_OWNS_LOGFILE)
-		pmclog_process_map_out(po, (pid_t) -1,
-		    pkm->pm_address, pkm->pm_address + pkm->pm_size);
-
-	/*
-	 * TODO: Notify owners of process-sampling PMCs.
-	 */
-}
-
-/*
  * A mapping change for a process.
  */
 
@@ -1672,7 +1631,7 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		}
 
 		obj = entry->object.vm_object;
-		VM_OBJECT_WLOCK(obj);
+		VM_OBJECT_RLOCK(obj);
 
 		/* 
 		 * Walk the backing_object list to find the base
@@ -1680,9 +1639,9 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		 */
 		for (lobj = tobj = obj; tobj != NULL; tobj = tobj->backing_object) {
 			if (tobj != obj)
-				VM_OBJECT_WLOCK(tobj);
+				VM_OBJECT_RLOCK(tobj);
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
+				VM_OBJECT_RUNLOCK(lobj);
 			lobj = tobj;
 		}
 
@@ -1692,14 +1651,14 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		if (lobj == NULL) {
 			PMCDBG(LOG,OPS,2, "hwpmc: lobj unexpectedly NULL! pid=%d "
 			    "vm_map=%p vm_obj=%p\n", p->p_pid, map, obj);
-			VM_OBJECT_WUNLOCK(obj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
 		if (lobj->type != OBJT_VNODE || lobj->handle == NULL) {
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
@@ -1711,8 +1670,8 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		if (entry->start == last_end && lobj->handle == last_vp) {
 			last_end = entry->end;
 			if (lobj != obj)
-				VM_OBJECT_WUNLOCK(lobj);
-			VM_OBJECT_WUNLOCK(obj);
+				VM_OBJECT_RUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(obj);
 			continue;
 		}
 
@@ -1734,9 +1693,9 @@ pmc_log_process_mappings(struct pmc_owner *po, struct proc *p)
 		vp = lobj->handle;
 		vref(vp);
 		if (lobj != obj)
-			VM_OBJECT_WUNLOCK(lobj);
+			VM_OBJECT_RUNLOCK(lobj);
 
-		VM_OBJECT_WUNLOCK(obj);
+		VM_OBJECT_RUNLOCK(obj);
 
 		freepath = NULL;
 		pmc_getfilename(vp, &fullpath, &freepath);
@@ -1833,8 +1792,8 @@ const char *pmc_hooknames[] = {
 	"CSW-IN",
 	"CSW-OUT",
 	"SAMPLE",
-	"KLDLOAD",
-	"KLDUNLOAD",
+	"UNUSED1",
+	"UNUSED2",
 	"MMAP",
 	"MUNMAP",
 	"CALLCHAIN-NMI",
@@ -2002,17 +1961,6 @@ pmc_hook_handler(struct thread *td, int function, void *arg)
 		pmc_process_samples(PCPU_GET(cpuid), PMC_SR);
 		break;
 
-
-	case PMC_FN_KLD_LOAD:
-		sx_assert(&pmc_sx, SX_LOCKED);
-		pmc_process_kld_load((struct pmckern_map_in *) arg);
-		break;
-
-	case PMC_FN_KLD_UNLOAD:
-		sx_assert(&pmc_sx, SX_LOCKED);
-		pmc_process_kld_unload((struct pmckern_map_out *) arg);
-		break;
-
 	case PMC_FN_MMAP:
 		sx_assert(&pmc_sx, SX_LOCKED);
 		pmc_process_mmap(td, (struct pmckern_map_in *) arg);
@@ -2080,11 +2028,7 @@ pmc_allocate_owner_descriptor(struct proc *p)
 
 	/* allocate space for N pointers and one descriptor struct */
 	po = malloc(sizeof(struct pmc_owner), M_PMC, M_WAITOK|M_ZERO);
-	po->po_sscount = po->po_error = po->po_flags = po->po_logprocmaps = 0;
-	po->po_file  = NULL;
 	po->po_owner = p;
-	po->po_kthread = NULL;
-	LIST_INIT(&po->po_pmcs);
 	LIST_INSERT_HEAD(poh, po, po_next); /* insert into hash table */
 
 	TAILQ_INIT(&po->po_logbuffers);
@@ -2211,11 +2155,6 @@ pmc_allocate_pmc_descriptor(void)
 
 	pmc = malloc(sizeof(struct pmc), M_PMC, M_WAITOK|M_ZERO);
 
-	if (pmc != NULL) {
-		pmc->pm_owner = NULL;
-		LIST_INIT(&pmc->pm_targets);
-	}
-
 	PMCDBG(PMC,ALL,1, "allocate-pmc -> pmc=%p", pmc);
 
 	return pmc;
@@ -2228,9 +2167,7 @@ pmc_allocate_pmc_descriptor(void)
 static void
 pmc_destroy_pmc_descriptor(struct pmc *pm)
 {
-	(void) pm;
 
-#ifdef	DEBUG
 	KASSERT(pm->pm_state == PMC_STATE_DELETED ||
 	    pm->pm_state == PMC_STATE_FREE,
 	    ("[pmc,%d] destroying non-deleted PMC", __LINE__));
@@ -2241,7 +2178,8 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 	KASSERT(pm->pm_runcount == 0,
 	    ("[pmc,%d] pmc has non-zero run count %d", __LINE__,
 		pm->pm_runcount));
-#endif
+
+	free(pm, M_PMC);
 }
 
 static void
@@ -2274,10 +2212,10 @@ pmc_wait_for_pmc_idle(struct pmc *pm)
  *  - detaches the PMC from hardware
  *  - unlinks all target threads that were attached to it
  *  - removes the PMC from its owner's list
- *  - destroy's the PMC private mutex
+ *  - destroys the PMC private mutex
  *
- * Once this function completes, the given pmc pointer can be safely
- * FREE'd by the caller.
+ * Once this function completes, the given pmc pointer can be freed by
+ * calling pmc_destroy_pmc_descriptor().
  */
 
 static void
@@ -2427,8 +2365,6 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		LIST_REMOVE(pm, pm_next);
 		pm->pm_owner = NULL;
 	}
-
-	pmc_destroy_pmc_descriptor(pm);
 }
 
 /*
@@ -3435,7 +3371,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		if (n == (int) md->pmd_npmc) {
 			pmc_destroy_pmc_descriptor(pmc);
-			free(pmc, M_PMC);
 			pmc = NULL;
 			error = EINVAL;
 			break;
@@ -3471,7 +3406,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			    (error = pcd->pcd_config_pmc(cpu, adjri, pmc)) != 0) {
 				(void) pcd->pcd_release_pmc(cpu, adjri, pmc);
 				pmc_destroy_pmc_descriptor(pmc);
-				free(pmc, M_PMC);
 				pmc = NULL;
 				pmc_restore_cpu_binding(&pb);
 				error = EPERM;
@@ -3499,7 +3433,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if ((error =
 		    pmc_register_owner(curthread->td_proc, pmc)) != 0) {
 			pmc_release_pmc_descriptor(pmc);
-			free(pmc, M_PMC);
+			pmc_destroy_pmc_descriptor(pmc);
 			pmc = NULL;
 			break;
 		}
@@ -3742,8 +3676,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		po = pm->pm_owner;
 		pmc_release_pmc_descriptor(pm);
 		pmc_maybe_remove_owner(po);
-
-		free(pm, M_PMC);
+		pmc_destroy_pmc_descriptor(pm);
 	}
 	break;
 
@@ -4647,6 +4580,47 @@ pmc_process_fork(void *arg __unused, struct proc *p1, struct proc *newproc,
 	sx_xunlock(&pmc_sx);
 }
 
+static void
+pmc_kld_load(void *arg __unused, linker_file_t lf)
+{
+	struct pmc_owner *po;
+
+	sx_slock(&pmc_sx);
+
+	/*
+	 * Notify owners of system sampling PMCs about KLD operations.
+	 */
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_map_in(po, (pid_t) -1,
+			    (uintfptr_t) lf->address, lf->filename);
+
+	/*
+	 * TODO: Notify owners of (all) process-sampling PMCs too.
+	 */
+
+	sx_sunlock(&pmc_sx);
+}
+
+static void
+pmc_kld_unload(void *arg __unused, const char *filename __unused,
+    caddr_t address, size_t size)
+{
+	struct pmc_owner *po;
+
+	sx_slock(&pmc_sx);
+
+	LIST_FOREACH(po, &pmc_ss_owners, po_ssnext)
+		if (po->po_flags & PMC_PO_OWNS_LOGFILE)
+			pmclog_process_map_out(po, (pid_t) -1,
+			    (uintfptr_t) address, (uintfptr_t) address + size);
+
+	/*
+	 * TODO: Notify owners of process-sampling PMCs.
+	 */
+
+	sx_sunlock(&pmc_sx);
+}
 
 /*
  * initialization
@@ -4671,13 +4645,10 @@ pmc_mdep_alloc(int nclasses)
 	n = 1 + nclasses;
 	md = malloc(sizeof(struct pmc_mdep) + n *
 	    sizeof(struct pmc_classdep), M_PMC, M_WAITOK|M_ZERO);
-	if (md != NULL) {
-		md->pmd_nclass = n;
+	md->pmd_nclass = n;
 
-		/* Add base class. */
-		pmc_soft_initialize(md);
-	}
-
+	/* Add base class. */
+	pmc_soft_initialize(md);
 	return md;
 }
 
@@ -4782,8 +4753,9 @@ pmc_initialize(void)
 	if (pmc_callchaindepth <= 0 ||
 	    pmc_callchaindepth > PMC_CALLCHAIN_DEPTH_MAX) {
 		(void) printf("hwpmc: tunable \"callchaindepth\"=%d out of "
-		    "range.\n", pmc_callchaindepth);
-		pmc_callchaindepth = PMC_CALLCHAIN_DEPTH;
+		    "range - using %d.\n", pmc_callchaindepth,
+		    PMC_CALLCHAIN_DEPTH_MAX);
+		pmc_callchaindepth = PMC_CALLCHAIN_DEPTH_MAX;
 	}
 
 	md = pmc_md_initialize();
@@ -4889,9 +4861,6 @@ pmc_initialize(void)
 	pmc_pmcdisp = malloc(sizeof(enum pmc_mode) * md->pmd_npmc,
 	    M_PMC, M_WAITOK|M_ZERO);
 
-	KASSERT(pmc_pmcdisp != NULL,
-	    ("[pmc,%d] pmcdisp allocation returned NULL", __LINE__));
-
 	/* mark all PMCs as available */
 	for (n = 0; n < (int) md->pmd_npmc; n++)
 		PMC_MARK_ROW_FREE(n);
@@ -4921,6 +4890,12 @@ pmc_initialize(void)
 	    pmc_process_exit, NULL, EVENTHANDLER_PRI_ANY);
 	pmc_fork_tag = EVENTHANDLER_REGISTER(process_fork,
 	    pmc_process_fork, NULL, EVENTHANDLER_PRI_ANY);
+
+	/* register kld event handlers */
+	pmc_kld_load_tag = EVENTHANDLER_REGISTER(kld_load, pmc_kld_load,
+	    NULL, EVENTHANDLER_PRI_ANY);
+	pmc_kld_unload_tag = EVENTHANDLER_REGISTER(kld_unload, pmc_kld_unload,
+	    NULL, EVENTHANDLER_PRI_ANY);
 
 	/* initialize logging */
 	pmclog_initialize();
@@ -4979,6 +4954,8 @@ pmc_cleanup(void)
 	/* deregister event handlers */
 	EVENTHANDLER_DEREGISTER(process_fork, pmc_fork_tag);
 	EVENTHANDLER_DEREGISTER(process_exit, pmc_exit_tag);
+	EVENTHANDLER_DEREGISTER(kld_load, pmc_kld_load_tag);
+	EVENTHANDLER_DEREGISTER(kld_unload, pmc_kld_unload_tag);
 
 	/* send SIGBUS to all owner threads, free up allocations */
 	if (pmc_ownerhash)

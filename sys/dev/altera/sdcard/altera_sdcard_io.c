@@ -390,20 +390,23 @@ altera_sdcard_io_complete(struct altera_sdcard_softc *sc, uint16_t asr)
 		break;
 	}
 	if (error) {
+		sc->as_retriesleft--;
+		if (sc->as_retriesleft == 0 || bootverbose)
+			device_printf(sc->as_dev, "%s: %s operation block %ju "
+			    "length %ju failed; asr 0x%08x (rr1: 0x%04x)%s\n",
+			    __func__, bp->bio_cmd == BIO_READ ? "BIO_READ" :
+			    (bp->bio_cmd == BIO_WRITE ? "BIO_WRITE" :
+			    "unknown"),
+			    bp->bio_pblkno, bp->bio_bcount, asr, rr1,
+			    sc->as_retriesleft != 0 ? " retrying" : "");
 		/*
 		 * This attempt experienced an error; possibly retry.
 		 */
-		sc->as_retriesleft--;
 		if (sc->as_retriesleft != 0) {
 			sc->as_flags |= ALTERA_SDCARD_FLAG_IOERROR;
 			altera_sdcard_io_start_internal(sc, bp);
 			return (0);
 		}
-		device_printf(sc->as_dev, "%s: %s operation block %ju length "
-		    "%ju failed; asr 0x%08x (rr1: 0x%04x)\n", __func__,
-		    bp->bio_cmd == BIO_READ ? "BIO_READ" :
-		    (bp->bio_cmd == BIO_WRITE ? "BIO_WRITE" : "unknown"),
-		    bp->bio_pblkno, bp->bio_bcount, asr, rr1);
 		sc->as_flags &= ~ALTERA_SDCARD_FLAG_IOERROR;
 	} else {
 		/*

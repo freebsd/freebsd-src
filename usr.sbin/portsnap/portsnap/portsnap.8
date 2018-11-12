@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2012
+.Dd October 22, 2013
 .Dt PORTSNAP 8
 .Os FreeBSD
 .Sh NAME
@@ -161,6 +161,18 @@ or
 commands.
 Again, note that in the parts of the ports tree which are being
 updated, any local changes or additions will be removed.
+.It auto
+Run
+.Cm fetch
+or
+.Cm cron
+depending on whether stdin is a terminal; then run
+.Cm update
+or
+.Cm extract
+depending on whether
+.Ar portsdir
+exists.
 .El
 .Sh TIPS
 .Bl -bullet
@@ -169,7 +181,9 @@ If your clock is set to local time, adding the line
 .Pp
 .Dl 0 3 * * * root /usr/sbin/portsnap cron
 .Pp
-to /etc/crontab is a good way to make sure you always have
+to
+.Pa /etc/crontab
+is a good way to make sure you always have
 an up-to-date snapshot of the ports tree available which
 can quickly be extracted into
 .Pa /usr/ports .
@@ -247,11 +261,11 @@ may be published, but only in aggregate and after anonymizing the
 individual systems.
 .Sh FILES
 .Bl -tag -width "/etc/portsnap.conf"
-.It /etc/portsnap.conf
+.It Pa /etc/portsnap.conf
 Default location of the portsnap configuration file.
-.It /var/db/portsnap
+.It Pa /var/db/portsnap
 Default location where compressed snapshots are stored.
-.It /usr/ports
+.It Pa /usr/ports
 Default location where the ports tree is extracted.
 .El
 .Sh SEE ALSO
@@ -260,4 +274,4 @@ Default location where the ports tree is extracted.
 .Xr fetch 3 ,
 .Xr portsnap.conf 5
 .Sh AUTHORS
-.An Colin Percival Aq cperciva@FreeBSD.org
+.An Colin Percival Aq Mt cperciva@FreeBSD.org

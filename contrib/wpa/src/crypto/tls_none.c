@@ -2,14 +2,8 @@
  * SSL/TLS interface functions for no TLS case
  * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -79,13 +73,6 @@ int tls_global_set_verify(void *tls_ctx, int check_crl)
 
 int tls_connection_set_verify(void *tls_ctx, struct tls_connection *conn,
 			      int verify_peer)
-{
-	return -1;
-}
-
-
-int tls_connection_set_ia(void *tls_ctx, struct tls_connection *conn,
-			  int tls_ia)
 {
 	return -1;
 }
@@ -204,26 +191,4 @@ int tls_connection_get_keyblock_size(void *tls_ctx,
 unsigned int tls_capabilities(void *tls_ctx)
 {
 	return 0;
-}
-
-
-struct wpabuf * tls_connection_ia_send_phase_finished(
-	void *tls_ctx, struct tls_connection *conn, int final)
-{
-	return NULL;
-}
-
-
-int tls_connection_ia_final_phase_finished(void *tls_ctx,
-					   struct tls_connection *conn)
-{
-	return -1;
-}
-
-
-int tls_connection_ia_permute_inner_secret(void *tls_ctx,
-					   struct tls_connection *conn,
-					   const u8 *key, size_t key_len)
-{
-	return -1;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2013, Intel Corporation 
+  Copyright (c) 2001-2014, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -63,7 +63,9 @@ void e1000_init_nvm_ops_generic(struct e1000_hw *hw)
  *  e1000_null_nvm_read - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c)
+s32 e1000_null_read_nvm(struct e1000_hw E1000_UNUSEDARG *hw,
+			u16 E1000_UNUSEDARG a, u16 E1000_UNUSEDARG b,
+			u16 E1000_UNUSEDARG *c)
 {
 	DEBUGFUNC("e1000_null_read_nvm");
 	return E1000_SUCCESS;
@@ -73,7 +75,7 @@ s32 e1000_null_read_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c)
  *  e1000_null_nvm_generic - No-op function, return void
  *  @hw: pointer to the HW structure
  **/
-void e1000_null_nvm_generic(struct e1000_hw *hw)
+void e1000_null_nvm_generic(struct e1000_hw E1000_UNUSEDARG *hw)
 {
 	DEBUGFUNC("e1000_null_nvm_generic");
 	return;
@@ -83,7 +85,8 @@ void e1000_null_nvm_generic(struct e1000_hw *hw)
  *  e1000_null_led_default - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_null_led_default(struct e1000_hw *hw, u16 *data)
+s32 e1000_null_led_default(struct e1000_hw E1000_UNUSEDARG *hw,
+			   u16 E1000_UNUSEDARG *data)
 {
 	DEBUGFUNC("e1000_null_led_default");
 	return E1000_SUCCESS;
@@ -93,7 +96,9 @@ s32 e1000_null_led_default(struct e1000_hw *hw, u16 *data)
  *  e1000_null_write_nvm - No-op function, return 0
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_null_write_nvm(struct e1000_hw *hw, u16 a, u16 b, u16 *c)
+s32 e1000_null_write_nvm(struct e1000_hw E1000_UNUSEDARG *hw,
+			 u16 E1000_UNUSEDARG a, u16 E1000_UNUSEDARG b,
+			 u16 E1000_UNUSEDARG *c)
 {
 	DEBUGFUNC("e1000_null_write_nvm");
 	return E1000_SUCCESS;
@@ -577,6 +582,9 @@ s32 e1000_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 			   E1000_NVM_RW_REG_DATA);
 	}
 
+	if (ret_val)
+		DEBUGOUT1("NVM read error: %d\n", ret_val);
+
 	return ret_val;
 }
 
@@ -766,6 +774,12 @@ s32 e1000_read_pba_string_generic(struct e1000_hw *hw, u8 *pba_num,
 	u16 length;
 
 	DEBUGFUNC("e1000_read_pba_string_generic");
+
+	if ((hw->mac.type >= e1000_i210) &&
+	    !e1000_get_flash_presence_i210(hw)) {
+		DEBUGOUT("Flashless no PBA string\n");
+		return -E1000_ERR_NVM_PBA_SECTION;
+	}
 
 	if (pba_num == NULL) {
 		DEBUGOUT("PBA string buffer was null\n");
@@ -974,7 +988,7 @@ s32 e1000_read_pba_raw(struct e1000_hw *hw, u16 *eeprom_buf,
 				return ret_val;
 		} else {
 			if (eeprom_buf_size > (u32)(pba->word[1] +
-					      pba->pba_block[0])) {
+					      pba_block_size)) {
 				memcpy(pba->pba_block,
 				       &eeprom_buf[pba->word[1]],
 				       pba_block_size * sizeof(u16));

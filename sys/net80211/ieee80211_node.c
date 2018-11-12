@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
 
@@ -985,7 +986,6 @@ ieee80211_ies_expand(struct ieee80211_ies *ies)
 static void
 node_cleanup(struct ieee80211_node *ni)
 {
-#define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
 	int i;
@@ -1052,7 +1052,7 @@ node_cleanup(struct ieee80211_node *ni)
 	 *
 	 * XXX does this leave us open to inheriting old state?
 	 */
-	for (i = 0; i < N(ni->ni_rxfrag); i++)
+	for (i = 0; i < nitems(ni->ni_rxfrag); i++)
 		if (ni->ni_rxfrag[i] != NULL) {
 			m_freem(ni->ni_rxfrag[i]);
 			ni->ni_rxfrag[i] = NULL;
@@ -1061,7 +1061,6 @@ node_cleanup(struct ieee80211_node *ni)
 	 * Must be careful here to remove any key map entry w/o a LOR.
 	 */
 	ieee80211_node_delucastkey(ni);
-#undef N
 }
 
 static void

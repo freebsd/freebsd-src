@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -82,7 +83,7 @@ __FBSDID("$FreeBSD$");
 static int ural_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ural, CTLFLAG_RW, 0, "USB ural");
-SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RW, &ural_debug, 0,
+SYSCTL_INT(_hw_usb_ural, OID_AUTO, debug, CTLFLAG_RWTUN, &ural_debug, 0,
     "Debug level");
 #endif
 
@@ -589,8 +590,13 @@ ural_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return NULL;
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -799,7 +805,7 @@ ural_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		ural_tx_free(data, 0);
 		usbd_xfer_set_priv(xfer, NULL);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		/* FALLTHROUGH */
@@ -853,7 +859,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		data = usbd_xfer_get_priv(xfer);
 		if (data != NULL) {
 			ural_tx_free(data, error);
@@ -894,7 +900,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (len < (int)(RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 
@@ -913,14 +919,14 @@ ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		         * filled RAL_TXRX_CSR2:
 		         */
 			DPRINTFN(5, "PHY or CRC error\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF("could not allocate mbuf\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		usbd_copy_out(pc, 0, mtod(m, uint8_t *), len);
@@ -1032,6 +1038,8 @@ ural_setup_tx_desc(struct ural_softc *sc, struct ural_tx_desc *desc,
 		desc->plcp_length_hi = plcp_length >> 6;
 		desc->plcp_length_lo = plcp_length & 0x3f;
 	} else {
+		if (rate == 0)
+			rate = 2;	/* avoid division by zero */
 		plcp_length = (16 * len + rate - 1) / rate;
 		if (rate == 22) {
 			remainder = (16 * len) % 22;
@@ -1114,7 +1122,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_curchan)];
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1133,7 +1141,7 @@ ural_tx_mgt(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 
 		/* tell hardware to add timestamp for probe responses */
 		if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
@@ -1283,7 +1291,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	else
 		rate = ni->ni_txrate;
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1324,7 +1332,7 @@ ural_tx_data(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, rate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	ural_setup_tx_desc(sc, &data->desc, flags, m0->m_pkthdr.len, rate);
@@ -1362,7 +1370,7 @@ ural_start(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (ural_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 	}
@@ -2202,7 +2210,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return EIO;
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	if (params == NULL) {
 		/*
@@ -2222,7 +2230,7 @@ ural_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	RAL_UNLOCK(sc);
 	return 0;
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	RAL_UNLOCK(sc);
 	ieee80211_free_node(ni);
 	return EIO;		/* XXX */
@@ -2276,7 +2284,7 @@ ural_ratectl_task(void *arg, int pending)
 	ieee80211_ratectl_tx_update(vap, ni, &sum, &ok, &retrycnt);
 	(void) ieee80211_ratectl_rate(ni, NULL, 0);
 
-	ifp->if_oerrors += fail;	/* count TX retry-fail as Tx errors */
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, fail);	/* count TX retry-fail as Tx errors */
 
 	usb_callout_reset(&uvp->ratectl_ch, hz, ural_ratectl_timeout, uvp);
 	RAL_UNLOCK(sc);

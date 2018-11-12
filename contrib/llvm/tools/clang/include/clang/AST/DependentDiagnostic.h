@@ -15,14 +15,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_DEPENDENT_DIAGNOSTIC_H
-#define LLVM_CLANG_AST_DEPENDENT_DIAGNOSTIC_H
+#ifndef LLVM_CLANG_AST_DEPENDENTDIAGNOSTIC_H
+#define LLVM_CLANG_AST_DEPENDENTDIAGNOSTIC_H
 
-#include "clang/Basic/PartialDiagnostic.h"
-#include "clang/Basic/SourceLocation.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclContextInternals.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/PartialDiagnostic.h"
+#include "clang/Basic/SourceLocation.h"
 
 namespace clang {
 
@@ -108,16 +108,14 @@ private:
 
   PartialDiagnostic Diag;
 
-  union {
-    struct {
-      unsigned Loc;
-      unsigned Access : 2;
-      unsigned IsMember : 1;
-      NamedDecl *TargetDecl;
-      CXXRecordDecl *NamingClass;
-      void *BaseObjectType;
-    } AccessData;
-  };
+  struct {
+    unsigned Loc;
+    unsigned Access : 2;
+    unsigned IsMember : 1;
+    NamedDecl *TargetDecl;
+    CXXRecordDecl *NamingClass;
+    void *BaseObjectType;
+  } AccessData;
 };
 
 /// 
@@ -125,7 +123,7 @@ private:
 /// An iterator over the dependent diagnostics in a dependent context.
 class DeclContext::ddiag_iterator {
 public:
-  ddiag_iterator() : Ptr(0) {}
+  ddiag_iterator() : Ptr(nullptr) {}
   explicit ddiag_iterator(DependentDiagnostic *Ptr) : Ptr(Ptr) {}
 
   typedef DependentDiagnostic *value_type;
@@ -173,18 +171,17 @@ private:
   DependentDiagnostic *Ptr;
 };
 
-inline DeclContext::ddiag_iterator DeclContext::ddiag_begin() const {
+inline DeclContext::ddiag_range DeclContext::ddiags() const {
   assert(isDependentContext()
          && "cannot iterate dependent diagnostics of non-dependent context");
   const DependentStoredDeclsMap *Map
     = static_cast<DependentStoredDeclsMap*>(getPrimaryContext()->getLookupPtr());
 
-  if (!Map) return ddiag_iterator();
-  return ddiag_iterator(Map->FirstDiagnostic);
-}
+  if (!Map)
+    // Return an empty range using the always-end default constructor.
+    return ddiag_range(ddiag_iterator(), ddiag_iterator());
 
-inline DeclContext::ddiag_iterator DeclContext::ddiag_end() const {
-  return ddiag_iterator();
+  return ddiag_range(ddiag_iterator(Map->FirstDiagnostic), ddiag_iterator());
 }
 
 }

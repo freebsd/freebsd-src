@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # stdio sources
-.PATH: ${.CURDIR}/stdio
+.PATH: ${LIBC_SRCTOP}/stdio
 
 SRCS+=	_flock_stub.c asprintf.c clrerr.c dprintf.c \
 	fclose.c fcloseall.c fdopen.c \
@@ -31,7 +31,7 @@ SRCS+=	xprintf.c xprintf_float.c xprintf_int.c xprintf_str.c
 SRCS+=	xprintf_errno.c xprintf_hexdump.c xprintf_quote.c 
 SRCS+=	xprintf_time.c xprintf_vis.c
 
-SYM_MAPS+=	${.CURDIR}/stdio/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/stdio/Symbol.map
 
 MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetwln.3 fgetws.3 \
 	flockfile.3 \
@@ -60,7 +60,8 @@ MLINKS+=getc.3 fgetc.3 getc.3 getc_unlocked.3 getc.3 getchar.3 \
 	getc.3 getchar_unlocked.3 getc.3 getw.3
 MLINKS+=getline.3 getdelim.3
 MLINKS+=getwc.3 fgetwc.3 getwc.3 getwchar.3
-MLINKS+=mktemp.3 mkdtemp.3 mktemp.3 mkstemp.3 mktemp.3 mkstemps.3
+MLINKS+=mktemp.3 mkdtemp.3 mktemp.3 mkstemp.3 mktemp.3 mkstemps.3 \
+	mktemp.3 mkostemp.3 mktemp.3 mkostemps.3
 MLINKS+=open_memstream.3 open_wmemstream.3
 MLINKS+=printf.3 asprintf.3 printf.3 dprintf.3 printf.3 fprintf.3 \
 	printf.3 snprintf.3 printf.3 sprintf.3 \

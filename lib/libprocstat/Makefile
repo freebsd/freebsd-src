@@ -1,13 +1,15 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 LIB=	procstat
 
 SRCS=	cd9660.c	\
 	common_kvm.c	\
+	core.c		\
 	libprocstat.c	\
         msdosfs.c	\
+	smbfs.c		\
 	udf.c
 
 VERSION_DEF=	${.CURDIR}/Versions.def
@@ -17,8 +19,7 @@ INCS=		libprocstat.h
 CFLAGS+=	-I. -I${.CURDIR} -D_KVM_VNODE
 SHLIB_MAJOR=	1
 
-DPADD=		${LIBKVM} ${LIBUTIL}
-LDADD=		-lkvm -lutil
+LIBADD=		elf kvm util
 
 MAN=		libprocstat.3
 

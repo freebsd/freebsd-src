@@ -54,7 +54,7 @@ static int	db_run_mode;
 #define	STEP_RETURN	2
 #define	STEP_CALLT	3
 #define	STEP_CONTINUE	4
-#define STEP_INVISIBLE	5
+#define	STEP_INVISIBLE	5
 #define	STEP_COUNT	6
 
 static boolean_t	db_sstep_print;
@@ -78,8 +78,7 @@ db_breakpoint_t	db_taken_bkpt = 0;
 #endif
 
 boolean_t
-db_stop_at_pc(is_breakpoint)
-	boolean_t	*is_breakpoint;
+db_stop_at_pc(boolean_t *is_breakpoint)
 {
 	register db_addr_t	pc;
 	register db_breakpoint_t bkpt;
@@ -180,22 +179,21 @@ db_stop_at_pc(is_breakpoint)
 }
 
 void
-db_restart_at_pc(watchpt)
-	boolean_t watchpt;
+db_restart_at_pc(boolean_t watchpt)
 {
 	register db_addr_t	pc = PC_REGS();
 
 	if ((db_run_mode == STEP_COUNT) ||
 	    (db_run_mode == STEP_RETURN) ||
 	    (db_run_mode == STEP_CALLT)) {
-	    db_expr_t		ins;
-
 	    /*
 	     * We are about to execute this instruction,
 	     * so count it now.
 	     */
-
-	    ins = db_get_value(pc, sizeof(int), FALSE);
+#ifdef	SOFTWARE_SSTEP
+	    db_expr_t		ins =
+#endif
+	    db_get_value(pc, sizeof(int), FALSE);
 	    db_inst_count++;
 	    db_load_count += inst_load(ins);
 	    db_store_count += inst_store(ins);
@@ -328,11 +326,8 @@ db_single_step_cmd(addr, have_addr, count, modif)
 /* trace and print until call/return */
 /*ARGSUSED*/
 void
-db_trace_until_call_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_trace_until_call_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
 	boolean_t	print = FALSE;
 
@@ -350,11 +345,8 @@ db_trace_until_call_cmd(addr, have_addr, count, modif)
 
 /*ARGSUSED*/
 void
-db_trace_until_matching_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_trace_until_matching_cmd(db_expr_t addr, boolean_t have_addr,
+    db_expr_t count, char *modif)
 {
 	boolean_t	print = FALSE;
 
@@ -374,11 +366,8 @@ db_trace_until_matching_cmd(addr, have_addr, count, modif)
 /* continue */
 /*ARGSUSED*/
 void
-db_continue_cmd(addr, have_addr, count, modif)
-	db_expr_t	addr;
-	boolean_t	have_addr;
-	db_expr_t	count;
-	char *		modif;
+db_continue_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+    char *modif)
 {
 	if (modif[0] == 'c')
 	    db_run_mode = STEP_COUNT;

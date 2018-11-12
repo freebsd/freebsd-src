@@ -110,7 +110,6 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 				printf(" <OUT>\n");
 			return;
 		}
-
 		if (strcmp(field, "bmAttributes") == 0) {
 			switch (value & 0x03) {
 			case 0:
@@ -142,7 +141,6 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 			return;
 		}
 	}
-
 	if ((field[0] == 'i') && (field[1] != 'd')) {
 		/* Indirect String Descriptor */
 		if (value == 0) {
@@ -157,7 +155,84 @@ dump_field(struct libusb20_device *pdev, const char *plevel,
 		printf(" <%s>\n", temp_string);
 		return;
 	}
+	if (strlen(plevel) == 2 || strlen(plevel) == 6) {
 
+		/* Device and Interface Descriptor class codes */
+
+		if (strcmp(field, "bInterfaceClass") == 0 ||
+		    strcmp(field, "bDeviceClass") == 0) {
+
+			switch (value) {
+			case 0x00:
+				printf(" <Probed by interface class>\n");
+				break;
+			case 0x01:
+				printf(" <Audio device>\n");
+				break;
+			case 0x02:
+				printf(" <Communication device>\n");
+				break;
+			case 0x03:
+				printf(" <HID device>\n");
+				break;
+			case 0x05:
+				printf(" <Physical device>\n");
+				break;
+			case 0x06:
+				printf(" <Still imaging>\n");
+				break;
+			case 0x07:
+				printf(" <Printer device>\n");
+				break;
+			case 0x08:
+				printf(" <Mass storage>\n");
+				break;
+			case 0x09:
+				printf(" <HUB>\n");
+				break;
+			case 0x0A:
+				printf(" <CDC-data>\n");
+				break;
+			case 0x0B:
+				printf(" <Smart card>\n");
+				break;
+			case 0x0D:
+				printf(" <Content security>\n");
+				break;
+			case 0x0E:
+				printf(" <Video device>\n");
+				break;
+			case 0x0F:
+				printf(" <Personal healthcare>\n");
+				break;
+			case 0x10:
+				printf(" <Audio and video device>\n");
+				break;
+			case 0x11:
+				printf(" <Billboard device>\n");
+				break;
+			case 0xDC:
+				printf(" <Diagnostic device>\n");
+				break;
+			case 0xE0:
+				printf(" <Wireless controller>\n");
+				break;
+			case 0xEF:
+				printf(" <Miscellaneous device>\n");
+				break;
+			case 0xFE:
+				printf(" <Application specific>\n");
+				break;
+			case 0xFF:
+				printf(" <Vendor specific>\n");
+				break;
+			default:
+				printf(" <Unknown>\n");
+				break;
+			}
+			return;
+		}
+	}
 	/* No additional information */
 	printf("\n");
 }
@@ -390,8 +465,8 @@ dump_string_by_index(struct libusb20_device *pdev, uint8_t str_index)
 			printf("STRING_0x%02x = ", str_index);
 			len = (uint8_t)pbuf[0];
 			for (n = 0; n != len; n++) {
-				printf("0x%02x%s", (uint8_t)pbuf[n], 
-				    (n != (len-1)) ? ", " : "");
+				printf("0x%02x%s", (uint8_t)pbuf[n],
+				    (n != (len - 1)) ? ", " : "");
 			}
 			printf("\n");
 		}

@@ -207,7 +207,6 @@ aha_free(struct aha_softc *aha)
 	case 7:
 		bus_dmamap_unload(aha->ccb_dmat, aha->ccb_dmamap);
 	case 6:
-		bus_dmamap_destroy(aha->ccb_dmat, aha->ccb_dmamap);
 		bus_dmamem_free(aha->ccb_dmat, aha->aha_ccb_array,
 		    aha->ccb_dmamap);
 	case 5:
@@ -217,7 +216,6 @@ aha_free(struct aha_softc *aha)
 	case 3:
 		bus_dmamem_free(aha->mailbox_dmat, aha->in_boxes,
 		    aha->mailbox_dmamap);
-		bus_dmamap_destroy(aha->mailbox_dmat, aha->mailbox_dmamap);
 	case 2:
 		bus_dma_tag_destroy(aha->buffer_dmat);
 	case 1:
@@ -460,7 +458,7 @@ aha_init(struct aha_softc* aha)
 				/* highaddr	*/ BUS_SPACE_MAXADDR,
 				/* filter	*/ NULL,
 				/* filterarg	*/ NULL,
-				/* maxsize	*/ MAXBSIZE,
+				/* maxsize	*/ DFLTPHYS,
 				/* nsegments	*/ AHA_NSEG,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
@@ -1049,8 +1047,8 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&aha->pending_ccbs, &ccb->ccb_h, sim_links.le);
 
-	callout_reset(&accb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    ahatimeout, accb);
+	callout_reset_sbt(&accb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    ahatimeout, accb, 0);
 
 	/* Tell the adapter about this command */
 	if (aha->cur_outbox->action_code != AMBO_FREE) {
@@ -1168,8 +1166,10 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		    cam_sim_path(aha->sim), accb->hccb.target,
 		    CAM_LUN_WILDCARD);
 
-		if (error == CAM_REQ_CMP)
+		if (error == CAM_REQ_CMP) {
 			xpt_async(AC_SENT_BDR, path, NULL);
+			xpt_free_path(path);
+		}
 
 		ccb_h = LIST_FIRST(&aha->pending_ccbs);
 		while (ccb_h != NULL) {
@@ -1181,9 +1181,9 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 				ahadone(aha, pending_accb, AMBI_ERROR);
 			} else {
-				callout_reset(&pending_accb->timer,
-				    (ccb_h->timeout * hz) / 1000,
-				    ahatimeout, pending_accb);
+				callout_reset_sbt(&pending_accb->timer,
+				    SBT_1MS * ccb_h->timeout, 0, ahatimeout,
+				    pending_accb, 0);
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 			}
 		}

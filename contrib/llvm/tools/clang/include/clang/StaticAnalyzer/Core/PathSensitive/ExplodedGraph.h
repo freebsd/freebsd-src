@@ -16,22 +16,22 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_EXPLODEDGRAPH
-#define LLVM_CLANG_GR_EXPLODEDGRAPH
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_EXPLODEDGRAPH_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_EXPLODEDGRAPH_H
 
-#include "clang/Analysis/ProgramPoint.h"
-#include "clang/Analysis/AnalysisContext.h"
 #include "clang/AST/Decl.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/FoldingSet.h"
-#include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Support/Allocator.h"
-#include "llvm/ADT/OwningPtr.h"
-#include "llvm/ADT/GraphTraits.h"
-#include "llvm/ADT/DepthFirstIterator.h"
-#include "llvm/Support/Casting.h"
+#include "clang/Analysis/AnalysisContext.h"
+#include "clang/Analysis/ProgramPoint.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "llvm/ADT/DepthFirstIterator.h"
+#include "llvm/ADT/FoldingSet.h"
+#include "llvm/ADT/GraphTraits.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/Casting.h"
+#include <memory>
 #include <vector>
 
 namespace clang {
@@ -152,22 +152,25 @@ public:
     return *getLocationContext()->getAnalysis<T>();
   }
 
-  ProgramStateRef getState() const { return State; }
+  const ProgramStateRef &getState() const { return State; }
 
   template <typename T>
-  const T* getLocationAs() const { return llvm::dyn_cast<T>(&Location); }
+  Optional<T> getLocationAs() const LLVM_LVALUE_FUNCTION {
+    return Location.getAs<T>();
+  }
 
   static void Profile(llvm::FoldingSetNodeID &ID,
                       const ProgramPoint &Loc,
                       const ProgramStateRef &state,
                       bool IsSink) {
     ID.Add(Loc);
-    ID.AddPointer(state.getPtr());
+    ID.AddPointer(state.get());
     ID.AddBoolean(IsSink);
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
-    Profile(ID, getLocation(), getState(), isSink());
+    // We avoid copy constructors by not using accessors.
+    Profile(ID, Location, State, isSink());
   }
 
   /// addPredeccessor - Adds a predecessor to the current node, and
@@ -181,16 +184,20 @@ public:
 
   bool isSink() const { return Succs.getFlag(); }
 
-   bool hasSinglePred() const {
+  bool hasSinglePred() const {
     return (pred_size() == 1);
   }
 
   ExplodedNode *getFirstPred() {
-    return pred_empty() ? NULL : *(pred_begin());
+    return pred_empty() ? nullptr : *(pred_begin());
   }
 
   const ExplodedNode *getFirstPred() const {
     return const_cast<ExplodedNode*>(this)->getFirstPred();
+  }
+
+  const ExplodedNode *getFirstSucc() const {
+    return succ_empty() ? nullptr : *(succ_begin());
   }
 
   // Iterators over successor and predecessor vertices.
@@ -236,18 +243,8 @@ private:
   void replacePredecessor(ExplodedNode *node) { Preds.replaceNode(node); }
 };
 
-// FIXME: Is this class necessary?
-class InterExplodedGraphMap {
-  virtual void anchor();
-  llvm::DenseMap<const ExplodedNode*, ExplodedNode*> M;
-  friend class ExplodedGraph;
-
-public:
-  ExplodedNode *getMappedNode(const ExplodedNode *N) const;
-
-  InterExplodedGraphMap() {}
-  virtual ~InterExplodedGraphMap() {}
-};
+typedef llvm::DenseMap<const ExplodedNode *, const ExplodedNode *>
+        InterExplodedGraphMap;
 
 class ExplodedGraph {
 protected:
@@ -298,10 +295,10 @@ public:
   ///  the node was freshly created.
   ExplodedNode *getNode(const ProgramPoint &L, ProgramStateRef State,
                         bool IsSink = false,
-                        bool* IsNew = 0);
+                        bool* IsNew = nullptr);
 
-  ExplodedGraph* MakeEmptyGraph() const {
-    return new ExplodedGraph();
+  std::unique_ptr<ExplodedGraph> MakeEmptyGraph() const {
+    return llvm::make_unique<ExplodedGraph>();
   }
 
   /// addRoot - Add an untyped node to the set of roots.
@@ -365,14 +362,20 @@ public:
 
   typedef llvm::DenseMap<const ExplodedNode*, ExplodedNode*> NodeMap;
 
-  std::pair<ExplodedGraph*, InterExplodedGraphMap*>
-  Trim(const NodeTy* const* NBeg, const NodeTy* const* NEnd,
-       llvm::DenseMap<const void*, const void*> *InverseMap = 0) const;
-
-  ExplodedGraph* TrimInternal(const ExplodedNode* const * NBeg,
-                              const ExplodedNode* const * NEnd,
-                              InterExplodedGraphMap *M,
-                    llvm::DenseMap<const void*, const void*> *InverseMap) const;
+  /// Creates a trimmed version of the graph that only contains paths leading
+  /// to the given nodes.
+  ///
+  /// \param Nodes The nodes which must appear in the final graph. Presumably
+  ///              these are end-of-path nodes (i.e. they have no successors).
+  /// \param[out] ForwardMap A optional map from nodes in this graph to nodes in
+  ///                        the returned graph.
+  /// \param[out] InverseMap An optional map from nodes in the returned graph to
+  ///                        nodes in this graph.
+  /// \returns The trimmed graph
+  std::unique_ptr<ExplodedGraph>
+  trim(ArrayRef<const NodeTy *> Nodes,
+       InterExplodedGraphMap *ForwardMap = nullptr,
+       InterExplodedGraphMap *InverseMap = nullptr) const;
 
   /// Enable tracking of recently allocated nodes for potential reclamation
   /// when calling reclaimRecentlyAllocatedNodes().
@@ -383,6 +386,10 @@ public:
   /// Reclaim "uninteresting" nodes created since the last time this method
   /// was called.
   void reclaimRecentlyAllocatedNodes();
+
+  /// \brief Returns true if nodes for the given expression kind are always
+  ///        kept around.
+  static bool isInterestingLValueExpr(const Expr *Ex);
 
 private:
   bool shouldCollect(const ExplodedNode *node);

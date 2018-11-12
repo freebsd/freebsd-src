@@ -16,13 +16,19 @@
 
 .MAIN: all
 
-.if defined(PROGS)
+.if defined(PROGS) || defined(PROGS_CXX)
+# we really only use PROGS below...
+PROGS += ${PROGS_CXX}
 
 # In meta mode, we can capture dependenices for _one_ of the progs.
 # if makefile doesn't nominate one, we use the first.
+.if defined(.PARSEDIR)
 .ifndef UPDATE_DEPENDFILE_PROG
 UPDATE_DEPENDFILE_PROG = ${PROGS:[1]}
 .export UPDATE_DEPENDFILE_PROG
+.endif
+.else
+UPDATE_DEPENDFILE_PROG?= no
 .endif
 
 .ifndef PROG
@@ -36,13 +42,22 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD MAN SRCS
+PROG_OVERRIDE_VARS += BINDIR DPSRCS MAN SRCS
+PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD LIBADD LDFLAGS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
-$v += ${${v}_${PROG}:U${${v}.${PROG}}}
+.if empty(${PROG_OVERRIDE_VARS:M$v})
+.if defined(${v}.${PROG})
+$v += ${${v}.${PROG}}
+.elif defined(${v}_${PROG})
+$v += ${${v}_${PROG}}
+.endif
+.else
+$v ?=
+.endif
 .endfor
 
 # for meta mode, there can be only one!
-.if ${PROG} == ${UPDATE_DEPENDFILE_PROG:Uno}
+.if ${PROG} == ${UPDATE_DEPENDFILE_PROG}
 UPDATE_DEPENDFILE ?= yes
 .endif
 UPDATE_DEPENDFILE ?= NO
@@ -51,7 +66,7 @@ UPDATE_DEPENDFILE ?= NO
 DEPENDFILE?= .depend.${PROG}
 # prog.mk will do the rest
 .else
-all: ${PROGS}
+all: ${FILES} ${PROGS} ${SCRIPTS}
 
 # We cannot capture dependencies for meta mode here
 UPDATE_DEPENDFILE = NO
@@ -60,11 +75,18 @@ UPDATE_DEPENDFILE = NO
 .endif
 .endif
 
-# handle being called [bsd.]progs.mk
-.include <${.PARSEFILE:S,progs,prog,}>
+# The non-recursive call to bsd.progs.mk will handle FILES; NUL out
+# FILESGROUPS so recursive calls don't duplicate the work
+.ifdef _RECURSING_PROGS
+FILESGROUPS=
+.endif
 
-.ifndef PROG
-PROGS_TARGETS += clean
+# handle being called [bsd.]progs.mk
+.include <bsd.prog.mk>
+
+.ifndef _RECURSING_PROGS
+# tell progs.mk we might want to install things
+PROGS_TARGETS+= checkdpadd clean cleandepend cleandir cleanobj depend install
 
 .for p in ${PROGS}
 .if defined(PROGS_CXX) && !empty(PROGS_CXX:M$p)
@@ -73,16 +95,35 @@ x.$p= PROG_CXX=$p
 .endif
 
 $p ${p}_p: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p})
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p \
+	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
+	    ${x.$p})
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p} ${@:E})
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p \
+	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
+	    ${x.$p} ${@:E})
 .endfor
 .endfor
 
+.if !empty(PROGS)
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
+.endif
+
+.if empty(PROGS) && !empty(SCRIPTS)
+
+.for t in ${PROGS_TARGETS:O:u}
+scripts.$t: .PHONY .MAKE
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} SUBDIR= _RECURSING_PROGS= \
+	    $t)
+$t: scripts.$t
+.endfor
+
+.endif
 
 .endif

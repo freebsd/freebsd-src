@@ -52,6 +52,7 @@ oui AMD				0x00001a	Advanced Micro Devices
 oui BROADCOM			0x001018	Broadcom Corporation
 oui BROADCOM2			0x000af7	Broadcom Corporation
 oui BROADCOM3			0x001be9	Broadcom Corporation
+oui BROADCOM4			0x18c086	Broadcom Corporation
 oui CICADA			0x0003f1	Cicada Semiconductor
 oui DAVICOM			0x00606e	Davicom Semiconductor
 oui ENABLESEMI			0x0010dd	Enable Semiconductor
@@ -61,6 +62,7 @@ oui INTEL			0x00aa00	Intel Corporation
 oui JMICRON			0x00d831	JMicron Technologies
 oui LEVEL1			0x00207b	Level 1
 oui MARVELL			0x005043	Marvell Semiconductor
+oui MICREL			0x0010a1	Micrel
 oui MYSON			0x00c0b4	Myson Technology
 oui NATSEMI			0x080017	National Semiconductor
 oui PMCSIERRA			0x00e004	PMC-Sierra
@@ -135,6 +137,7 @@ model yyAMD 79c901home		0x0039 Am79C901 HomePNA 1.0 interface
 /* Atheros Communications/Attansic PHYs */
 model xxATHEROS F1		0x0001 Atheros F1 10/100/1000 PHY
 model xxATHEROS F2		0x0002 Atheros F2 10/100 PHY
+model xxATHEROS AR8021		0x0004 Atheros AR8021 10/100/1000 PHY
 model xxATHEROS F1_7		0x0007 Atheros F1 10/100/1000 PHY
 
 /* Asix semiconductor PHYs */
@@ -186,6 +189,7 @@ model BROADCOM3 BCM5717C	0x0020 BCM5717C 1000BASE-T media interface
 model BROADCOM3 BCM5719C	0x0022 BCM5719C 1000BASE-T media interface
 model BROADCOM3 BCM57765	0x0024 BCM57765 1000BASE-T media interface
 model BROADCOM3 BCM5720C	0x0036 BCM5720C 1000BASE-T media interface
+model BROADCOM4 BCM5725C	0x0038 BCM5725C 1000BASE-T media interface
 model xxBROADCOM_ALT1 BCM5906	0x0004 BCM5906 10/100baseTX media interface
 
 /* Cicada Semiconductor PHYs (now owned by Vitesse?) */
@@ -271,6 +275,9 @@ model MARVELL E1000_3		0x0003 Marvell 88E1000 Gigabit PHY
 model MARVELL E1000_5		0x0005 Marvell 88E1000 Gigabit PHY
 model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
 
+/* Micrel PHYs */
+model MICREL KSZ9021		0x0021 Micrel KSZ9021 10/100/1000 PHY
+
 /* Myson Technology PHYs */
 model xxMYSON MTD972		0x0000 MTD972 10/100 media interface
 model MYSON MTD803		0x0000 MTD803 3-in-1 media interface
@@ -302,6 +309,7 @@ model yyREALTEK RTL8201L	0x0020 RTL8201L 10/100 media interface
 model xxREALTEK RTL8169S	0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 model REALTEK RTL8305SC		0x0005 RTL8305SC 10/100 802.1q switch
 model REALTEK RTL8201E		0x0008 RTL8201E 10/100 media interface
+model REALTEK RTL8251		0x0000 RTL8251 1000BASE-T media interface
 model REALTEK RTL8169S		0x0011 RTL8169S/8110S/8211 1000BASE-T media interface
 
 /* Seeq Seeq PHYs */

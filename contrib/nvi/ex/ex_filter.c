@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_filter.c	10.34 (Berkeley) 10/23/96";
+static const char sccsid[] = "$Id: ex_filter.c,v 10.44 2003/11/05 17:11:54 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -36,21 +36,18 @@ static int filter_ldisplay __P((SCR *, FILE *));
  *	the utility.
  *
  * PUBLIC: int ex_filter __P((SCR *, 
- * PUBLIC:    EXCMD *, MARK *, MARK *, MARK *, char *, enum filtertype));
+ * PUBLIC:    EXCMD *, MARK *, MARK *, MARK *, CHAR_T *, enum filtertype));
  */
 int
-ex_filter(sp, cmdp, fm, tm, rp, cmd, ftype)
-	SCR *sp;
-	EXCMD *cmdp;
-	MARK *fm, *tm, *rp;
-	char *cmd;
-	enum filtertype ftype;
+ex_filter(SCR *sp, EXCMD *cmdp, MARK *fm, MARK *tm, MARK *rp, CHAR_T *cmd, enum filtertype ftype)
 {
 	FILE *ifp, *ofp;
 	pid_t parent_writer_pid, utility_pid;
 	recno_t nread;
 	int input[2], output[2], rval;
 	char *name;
+	char *np;
+	size_t nlen;
 
 	rval = 0;
 
@@ -141,7 +138,8 @@ err:		if (input[0] != -1)
 		else
 			++name;
 
-		execl(O_STR(sp, O_SHELL), name, "-c", cmd, NULL);
+		INT2CHAR(sp, cmd, STRLEN(cmd)+1, np, nlen);
+		execl(O_STR(sp, O_SHELL), name, "-c", np, (char *)NULL);
 		msgq_str(sp, M_SYSERR, O_STR(sp, O_SHELL), "execl: %s");
 		_exit (127);
 		/* NOTREACHED */
@@ -285,7 +283,8 @@ err:		if (input[0] != -1)
 	 * Ignore errors on vi file reads, to make reads prettier.  It's
 	 * completely inconsistent, and historic practice.
 	 */
-uwait:	return (proc_wait(sp, (long)utility_pid, cmd,
+uwait:	INT2CHAR(sp, cmd, STRLEN(cmd) + 1, np, nlen);
+	return (proc_wait(sp, (long)utility_pid, np,
 	    ftype == FILTER_READ && F_ISSET(sp, SC_VI) ? 1 : 0, 0) || rval);
 }
 
@@ -298,17 +297,19 @@ uwait:	return (proc_wait(sp, (long)utility_pid, cmd,
  * We use the ex print routines to make sure they're printable.
  */
 static int
-filter_ldisplay(sp, fp)
-	SCR *sp;
-	FILE *fp;
+filter_ldisplay(SCR *sp, FILE *fp)
 {
 	size_t len;
+	size_t wlen;
+	CHAR_T *wp;
 
 	EX_PRIVATE *exp;
 
-	for (exp = EXP(sp); !ex_getline(sp, fp, &len) && !INTERRUPTED(sp);)
-		if (ex_ldisplay(sp, exp->ibp, len, 0, 0))
+	for (exp = EXP(sp); !ex_getline(sp, fp, &len) && !INTERRUPTED(sp);) {
+		FILE2INT5(sp, exp->ibcw, exp->ibp, len, wp, wlen);
+		if (ex_ldisplay(sp, wp, wlen, 0, 0))
 			break;
+	}
 	if (ferror(fp))
 		msgq(sp, M_SYSERR, "filter read");
 	(void)fclose(fp);

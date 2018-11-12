@@ -31,18 +31,16 @@
 #include <sys/bus.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 
 #include <machine/bus.h>
 #include <dev/iicbus/iic.h>
@@ -69,15 +67,51 @@ static SYSCTL_NODE(_debug, OID_AUTO, arswitch, CTLFLAG_RD, 0, "arswitch");
 #endif
 
 /*
- * access PHYs integrated into the switch chip through the switch's MDIO
+ * Access PHYs integrated into the switch by going direct
+ * to the PHY space itself, rather than through the switch
+ * MDIO register.
+ */
+int
+arswitch_readphy_external(device_t dev, int phy, int reg)
+{
+	int ret;
+	struct arswitch_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK(sc);
+	ret = (MDIO_READREG(device_get_parent(dev), phy, reg));
+	ARSWITCH_UNLOCK(sc);
+
+	return (ret);
+}
+
+int
+arswitch_writephy_external(device_t dev, int phy, int reg, int data)
+{
+	struct arswitch_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK(sc);
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    reg, data);
+	ARSWITCH_UNLOCK(sc);
+
+	return (0);
+}
+
+/*
+ * Access PHYs integrated into the switch chip through the switch's MDIO
  * control register.
  */
 int
-arswitch_readphy(device_t dev, int phy, int reg)
+arswitch_readphy_internal(device_t dev, int phy, int reg)
 {
 	struct arswitch_softc *sc;
 	uint32_t data = 0, ctrl;
 	int err, timeout;
+	uint32_t a;
 
 	sc = device_get_softc(dev);
 	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
@@ -87,8 +121,13 @@ arswitch_readphy(device_t dev, int phy, int reg)
 	if (reg < 0 || reg >= 32)
 		return (ENXIO);
 
+	if (AR8X16_IS_SWITCH(sc, AR8327))
+		a = AR8327_REG_MDIO_CTRL;
+	else
+		a = AR8X16_REG_MDIO_CTRL;
+
 	ARSWITCH_LOCK(sc);
-	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
+	err = arswitch_writereg_msb(dev, a,
 	    AR8X16_MDIO_CTRL_BUSY | AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_READ |
 	    (phy << AR8X16_MDIO_CTRL_PHY_ADDR_SHIFT) |
@@ -97,13 +136,15 @@ arswitch_readphy(device_t dev, int phy, int reg)
 	if (err != 0)
 		goto fail;
 	for (timeout = 100; timeout--; ) {
-		ctrl = arswitch_readreg_msb(dev, AR8X16_REG_MDIO_CTRL);
+		ctrl = arswitch_readreg_msb(dev, a);
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
 			break;
 	}
-	if (timeout < 0)
+	if (timeout < 0) {
+		DPRINTF(dev, "arswitch_readphy(): phy=%d.%02x; timeout=%d\n", phy, reg, timeout);
 		goto fail;
-	data = arswitch_readreg_lsb(dev, AR8X16_REG_MDIO_CTRL) &
+	}
+	data = arswitch_readreg_lsb(dev, a) &
 	    AR8X16_MDIO_CTRL_DATA_MASK;
 	ARSWITCH_UNLOCK(sc);
 	return (data);
@@ -114,11 +155,12 @@ fail:
 }
 
 int
-arswitch_writephy(device_t dev, int phy, int reg, int data)
+arswitch_writephy_internal(device_t dev, int phy, int reg, int data)
 {
 	struct arswitch_softc *sc;
 	uint32_t ctrl;
 	int err, timeout;
+	uint32_t a;
 
 	sc = device_get_softc(dev);
 	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
@@ -126,21 +168,23 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 	if (reg < 0 || reg >= 32)
 		return (ENXIO);
 
+	if (AR8X16_IS_SWITCH(sc, AR8327))
+		a = AR8327_REG_MDIO_CTRL;
+	else
+		a = AR8X16_REG_MDIO_CTRL;
+
 	ARSWITCH_LOCK(sc);
-	err = arswitch_writereg_lsb(dev, AR8X16_REG_MDIO_CTRL,
-	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
-	if (err != 0)
-		goto out;
-	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
+	err = arswitch_writereg(dev, a,
 	    AR8X16_MDIO_CTRL_BUSY |
 	    AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_WRITE |
 	    (phy << AR8X16_MDIO_CTRL_PHY_ADDR_SHIFT) |
-	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT));
+	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT) |
+	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
 	if (err != 0)
 		goto out;
 	for (timeout = 100; timeout--; ) {
-		ctrl = arswitch_readreg(dev, AR8X16_REG_MDIO_CTRL);
+		ctrl = arswitch_readreg(dev, a);
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
 			break;
 	}

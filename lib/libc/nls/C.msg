@@ -191,6 +191,12 @@ $ EPROTO
 92 Protocol error
 $ ENOTCAPABLE
 93 Capabilities insufficient
+$ ECAPMODE
+94 Not permitted in capability mode
+$ ENOTRECOVERABLE
+95 State not recoverable
+$ EOWNERDEAD
+96 Previous owner died
 $
 $ strsignal() support catalog
 $

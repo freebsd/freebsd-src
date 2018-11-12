@@ -6,22 +6,16 @@
 .PATH: ${.CURDIR}/../../usr.bin/cksum
 
 PROG=	fmtree
-MAN=	fmtree.8 mtree.5
+MAN=	fmtree.8
 SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
 SRCS+=	specspec.c
 
 CFLAGS+= -DMD5 -DSHA1 -DRMD160 -DSHA256
-DPADD=	${LIBMD}
-LDADD=	-lmd
-
-.if ${MK_NMTREE} == "no"
-LINKS=	${BINDIR}/fmtree ${BINDIR}/mtree
-MLINKS=	fmtree.8 mtree.8
-.endif
+LIBADD=	md
 
 CLEANFILES+=	fmtree.8
 
 fmtree.8: mtree.8
-	cp ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

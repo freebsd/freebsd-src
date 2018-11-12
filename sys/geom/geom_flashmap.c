@@ -174,7 +174,7 @@ g_flashmap_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_topology_assert();
 
 	if (flags == G_TF_NORMAL &&
-	    !strcmp(pp->geom->class->name, FLASHMAP_CLASS_NAME))
+	    strcmp(pp->geom->class->name, G_DISK_CLASS_NAME) != 0)
 		return (NULL);
 
 	gp = g_slice_new(mp, FLASH_SLICES_MAX_NUM, pp, &cp, NULL, 0,
@@ -186,8 +186,11 @@ g_flashmap_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 	do {
 		size = sizeof(device_t);
-		if (g_io_getattr("NAND::device", cp, &size, &dev))
-			break;
+		if (g_io_getattr("NAND::device", cp, &size, &dev)) {
+			size = sizeof(device_t);
+			if (g_io_getattr("CFI::device", cp, &size, &dev))
+				break;
+		}
 
 		nslices = g_flashmap_load(dev, &head);
 		if (nslices == 0)

@@ -24,33 +24,7 @@ MCELFObjectTargetWriter::MCELFObjectTargetWriter(bool Is64Bit_,
     IsN64(IsN64_){
 }
 
-/// Default e_flags = 0
-unsigned MCELFObjectTargetWriter::getEFlags() const {
-  return 0;
-}
-
-const MCSymbol *MCELFObjectTargetWriter::ExplicitRelSym(const MCAssembler &Asm,
-                                                        const MCValue &Target,
-                                                        const MCFragment &F,
-                                                        const MCFixup &Fixup,
-                                                        bool IsPCRel) const {
-  return NULL;
-}
-
-const MCSymbol *MCELFObjectTargetWriter::undefinedExplicitRelSym(const MCValue &Target,
-                                                                 const MCFixup &Fixup,
-                                                                 bool IsPCRel) const {
-  const MCSymbol &Symbol = Target.getSymA()->getSymbol();
-  return &Symbol.AliasedSymbol();
-}
-
-void MCELFObjectTargetWriter::adjustFixupOffset(const MCFixup &Fixup,
-                                                uint64_t &RelocOffset) {
-}
-
-void
-MCELFObjectTargetWriter::sortRelocs(const MCAssembler &Asm,
-                                    std::vector<ELFRelocationEntry> &Relocs) {
-  // Sort by the r_offset, just like gnu as does.
-  array_pod_sort(Relocs.begin(), Relocs.end());
+bool MCELFObjectTargetWriter::needsRelocateWithSymbol(const MCSymbolData &SD,
+                                                      unsigned Type) const {
+  return false;
 }

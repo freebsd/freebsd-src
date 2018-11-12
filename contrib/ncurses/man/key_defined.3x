@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2003-2004,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2003-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
 .\"
 .\" Author: Thomas E. Dickey 2003
 .\"
-.\" $Id: key_defined.3x,v 1.4 2006/02/25 21:50:01 tom Exp $
+.\" $Id: key_defined.3x,v 1.6 2010/12/04 18:40:45 tom Exp $
 .TH key_defined 3X ""
 .SH NAME
 \fBkey_defined\fP \- check if a keycode is defined
@@ -43,7 +43,7 @@ to any keycode.
 .SH RETURN VALUE
 If the string is bound to a keycode, its value (greater than zero) is returned.
 If no keycode is bound, zero is returned.
-If the string conflicts with longer strings which are bound to keys, -1 is returned.
+If the string conflicts with longer strings which are bound to keys, \-1 is returned.
 .SH PORTABILITY
 These routines are specific to ncurses.  They were not supported on
 Version 7, BSD or System V implementations.  It is recommended that
@@ -52,9 +52,3 @@ any code depending on them be conditioned using NCURSES_VERSION.
 \fBdefine_key\fR(3X).
 .SH AUTHOR
 Thomas Dickey.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

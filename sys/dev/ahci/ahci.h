@@ -93,13 +93,14 @@
 #define         ATA_SS_SPD_NO_SPEED     0x00000000
 #define         ATA_SS_SPD_GEN1         0x00000010
 #define         ATA_SS_SPD_GEN2         0x00000020
-#define         ATA_SS_SPD_GEN3         0x00000040
+#define         ATA_SS_SPD_GEN3         0x00000030
 
 #define         ATA_SS_IPM_MASK         0x00000f00
 #define         ATA_SS_IPM_NO_DEVICE    0x00000000
 #define         ATA_SS_IPM_ACTIVE       0x00000100
 #define         ATA_SS_IPM_PARTIAL      0x00000200
 #define         ATA_SS_IPM_SLUMBER      0x00000600
+#define         ATA_SS_IPM_DEVSLEEP     0x00000800
 
 #define ATA_SERROR                      14
 #define         ATA_SE_DATA_CORRECTED   0x00000001
@@ -130,17 +131,19 @@
 #define         ATA_SC_SPD_NO_SPEED     0x00000000
 #define         ATA_SC_SPD_SPEED_GEN1   0x00000010
 #define         ATA_SC_SPD_SPEED_GEN2   0x00000020
-#define         ATA_SC_SPD_SPEED_GEN3   0x00000040
+#define         ATA_SC_SPD_SPEED_GEN3   0x00000030
 
 #define         ATA_SC_IPM_MASK         0x00000f00
 #define         ATA_SC_IPM_NONE         0x00000000
 #define         ATA_SC_IPM_DIS_PARTIAL  0x00000100
 #define         ATA_SC_IPM_DIS_SLUMBER  0x00000200
+#define         ATA_SC_IPM_DIS_DEVSLEEP 0x00000400
 
 #define ATA_SACTIVE                     16
 
 #define AHCI_MAX_PORTS			32
 #define AHCI_MAX_SLOTS			32
+#define AHCI_MAX_IRQS			16
 
 /* SATA AHCI v1.0 register defines */
 #define AHCI_CAP                    0x00
@@ -205,6 +208,9 @@
 #define		AHCI_CAP2_BOH	0x00000001
 #define		AHCI_CAP2_NVMP	0x00000002
 #define		AHCI_CAP2_APST	0x00000004
+#define		AHCI_CAP2_SDS	0x00000008
+#define		AHCI_CAP2_SADM	0x00000010
+#define		AHCI_CAP2_DESO	0x00000020
 
 #define AHCI_OFFSET                 0x100
 #define AHCI_STEP                   0x80
@@ -262,6 +268,7 @@
 #define         AHCI_P_CMD_ACTIVE   0x10000000
 #define         AHCI_P_CMD_PARTIAL  0x20000000
 #define         AHCI_P_CMD_SLUMBER  0x60000000
+#define         AHCI_P_CMD_DEVSLEEP 0x80000000
 
 #define AHCI_P_TFD                  0x20
 #define AHCI_P_SIG                  0x24
@@ -281,6 +288,17 @@
 #define 	AHCI_P_FBS_ADO_SHIFT 12
 #define 	AHCI_P_FBS_DWE      0x000f0000
 #define 	AHCI_P_FBS_DWE_SHIFT 16
+#define AHCI_P_DEVSLP               0x44
+#define 	AHCI_P_DEVSLP_ADSE  0x00000001
+#define 	AHCI_P_DEVSLP_DSP   0x00000002
+#define 	AHCI_P_DEVSLP_DETO  0x000003fc
+#define 	AHCI_P_DEVSLP_DETO_SHIFT 2
+#define 	AHCI_P_DEVSLP_MDAT  0x00007c00
+#define 	AHCI_P_DEVSLP_MDAT_SHIFT 10
+#define 	AHCI_P_DEVSLP_DITO  0x01ff8000
+#define 	AHCI_P_DEVSLP_DITO_SHIFT 15
+#define 	AHCI_P_DEVSLP_DM    0x0e000000
+#define 	AHCI_P_DEVSLP_DM_SHIFT 25
 
 /* Just to be sure, if building as module. */
 #if MAXPHYS < 512 * 1024
@@ -304,7 +322,7 @@ struct ahci_dma_prd {
     u_int32_t                   dbc;            /* 0 based */
 #define AHCI_PRD_MASK		0x003fffff      /* max 4MB */
 #define AHCI_PRD_MAX		(AHCI_PRD_MASK + 1)
-#define AHCI_PRD_IPC		(1 << 31)
+#define AHCI_PRD_IPC		(1U << 31)
 } __packed;
 
 struct ahci_cmd_tab {
@@ -348,7 +366,6 @@ struct ata_dma {
     uint8_t                     *rfis;          /* FIS receive area */
     bus_addr_t                  rfis_bus;       /* bus address of rfis */
     bus_dma_tag_t               data_tag;       /* data DMA tag */
-    u_int64_t                   max_address;    /* highest DMA'able address */
 };
 
 enum ahci_slot_states {
@@ -359,7 +376,7 @@ enum ahci_slot_states {
 };
 
 struct ahci_slot {
-    device_t                    dev;            /* Device handle */
+    struct ahci_channel		*ch;		/* Channel */
     u_int8_t			slot;           /* Number of this slot */
     enum ahci_slot_states	state;          /* Slot state */
     union ccb			*ccb;		/* CCB occupying slot */
@@ -398,21 +415,27 @@ struct ahci_channel {
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		chcaps;		/* Channel capabilities */
+	uint32_t		chscaps;	/* Channel sleep capabilities */
+	uint16_t		vendorid;	/* Vendor ID from the bus */
+	uint16_t		deviceid;	/* Device ID from the bus */
+	uint16_t		subvendorid;	/* Subvendor ID from the bus */
+	uint16_t		subdeviceid;	/* Subdevice ID from the bus */
 	int			quirks;
 	int			numslots;	/* Number of present slots */
 	int			pm_level;	/* power management level */
-
-	struct ahci_slot	slot[AHCI_MAX_SLOTS];
-	union ccb		*hold[AHCI_MAX_SLOTS];
-	struct mtx		mtx;		/* state lock */
 	int			devices;        /* What is present */
 	int			pm_present;	/* PM presence reported */
 	int			fbs_enabled;	/* FIS-based switching enabled */
+
+	union ccb		*hold[AHCI_MAX_SLOTS];
+	struct ahci_slot	slot[AHCI_MAX_SLOTS];
 	uint32_t		oslots;		/* Occupied slots */
 	uint32_t		rslots;		/* Running slots */
 	uint32_t		aslots;		/* Slots with atomic commands  */
 	uint32_t		eslots;		/* Slots in error */
 	uint32_t		toslots;	/* Slots in timeout */
+	int			lastslot;	/* Last used slot */
+	int			taggedtarget;	/* Last tagged target */
 	int			numrslots;	/* Number of running slots */
 	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */
@@ -420,8 +443,6 @@ struct ahci_channel {
 	int			numhslots;	/* Number of held slots */
 	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
-	int			lastslot;	/* Last used slot */
-	int			taggedtarget;	/* Last tagged target */
 	int			resetting;	/* Hard-reset in progress. */
 	int			resetpolldiv;	/* Hard-reset poll divider. */
 	int			listening;	/* SUD bit is cleared. */
@@ -432,6 +453,10 @@ struct ahci_channel {
 
 	struct ahci_device	user[16];	/* User-specified settings */
 	struct ahci_device	curr[16];	/* Current settings */
+
+	struct mtx_padalign	mtx;		/* state lock */
+	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
+	int			batch;		/* doneq is in use */
 };
 
 struct ahci_enclosure {
@@ -453,7 +478,12 @@ struct ahci_enclosure {
 /* structure describing a AHCI controller */
 struct ahci_controller {
 	device_t		dev;
+	bus_dma_tag_t		dma_tag;
 	int			r_rid;
+	uint16_t		vendorid;	/* Vendor ID from the bus */
+	uint16_t		deviceid;	/* Device ID from the bus */
+	uint16_t		subvendorid;	/* Subvendor ID from the bus */
+	uint16_t		subdeviceid;	/* Subdevice ID from the bus */
 	struct resource		*r_mem;
 	struct rman		sc_iomem;
 	struct ahci_controller_irq {
@@ -465,7 +495,7 @@ struct ahci_controller {
 #define	AHCI_IRQ_MODE_ALL	0
 #define	AHCI_IRQ_MODE_AFTER	1
 #define	AHCI_IRQ_MODE_ONE	2
-	} irqs[16];
+	} irqs[AHCI_MAX_IRQS];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		capsem;		/* Controller capabilities */
@@ -476,6 +506,8 @@ struct ahci_controller {
 	int			ichannels;
 	int			ccc;		/* CCC timeout */
 	int			cccv;		/* CCC vector */
+	int			direct;		/* Direct command completion */
+	int			msi;		/* MSI interupts */
 	struct {
 		void			(*function)(void *);
 		void			*argument;
@@ -522,3 +554,67 @@ enum ahci_err_type {
 	bus_write_multi_4((res), (offset), (addr), (count))
 #define ATA_OUTSL_STRM(res, offset, addr, count) \
 	bus_write_multi_stream_4((res), (offset), (addr), (count))
+
+
+#define AHCI_Q_NOFORCE		0x00000001
+#define AHCI_Q_NOPMP		0x00000002
+#define AHCI_Q_NONCQ		0x00000004
+#define AHCI_Q_1CH		0x00000008
+#define AHCI_Q_2CH		0x00000010
+#define AHCI_Q_4CH		0x00000020
+#define AHCI_Q_EDGEIS		0x00000040
+#define AHCI_Q_SATA2		0x00000080
+#define AHCI_Q_NOBSYRES		0x00000100
+#define AHCI_Q_NOAA		0x00000200
+#define AHCI_Q_NOCOUNT		0x00000400
+#define AHCI_Q_ALTSIG		0x00000800
+#define AHCI_Q_NOMSI		0x00001000
+#define AHCI_Q_ATI_PMP_BUG	0x00002000
+#define AHCI_Q_MAXIO_64K	0x00004000
+#define AHCI_Q_SATA1_UNIT0	0x00008000	/* need better method for this */
+#define AHCI_Q_ABAR0		0x00010000
+#define AHCI_Q_1MSI		0x00020000
+#define AHCI_Q_FORCE_PI		0x00040000
+#define AHCI_Q_RESTORE_CAP	0x00080000
+
+#define AHCI_Q_BIT_STRING	\
+	"\021"			\
+	"\001NOFORCE"		\
+	"\002NOPMP"		\
+	"\003NONCQ"		\
+	"\0041CH"		\
+	"\0052CH"		\
+	"\0064CH"		\
+	"\007EDGEIS"		\
+	"\010SATA2"		\
+	"\011NOBSYRES"		\
+	"\012NOAA"		\
+	"\013NOCOUNT"		\
+	"\014ALTSIG"		\
+	"\015NOMSI"		\
+	"\016ATI_PMP_BUG"	\
+	"\017MAXIO_64K"		\
+	"\020SATA1_UNIT0"	\
+	"\021ABAR0"		\
+	"\0221MSI"              \
+	"\022FORCE_PI"          \
+	"\023RESTORE_CAP"
+
+int ahci_attach(device_t dev);
+int ahci_detach(device_t dev);
+int ahci_setup_interrupt(device_t dev);
+int ahci_print_child(device_t dev, device_t child);
+struct resource *ahci_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags);
+int ahci_release_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r);
+int ahci_setup_intr(device_t dev, device_t child, struct resource *irq, 
+    int flags, driver_filter_t *filter, driver_intr_t *function, 
+    void *argument, void **cookiep);
+int ahci_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie);
+int ahci_child_location_str(device_t dev, device_t child, char *buf,
+    size_t buflen);
+bus_dma_tag_t ahci_get_dma_tag(device_t dev, device_t child);
+int ahci_ctlr_reset(device_t dev);
+int ahci_ctlr_setup(device_t dev);

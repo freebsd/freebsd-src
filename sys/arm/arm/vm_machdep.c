@@ -50,11 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/socketvar.h>
-#include <sys/sf_buf.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 #include <sys/lock.h>
@@ -72,40 +73,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 
 #include <machine/md_var.h>
+#include <machine/vfp.h>
 
 /*
- * struct switchframe must be a multiple of 8 for correct stack alignment
+ * struct switchframe and trapframe must both be a multiple of 8
+ * for correct stack alignment.
  */
-CTASSERT(sizeof(struct switchframe) == 24);
-CTASSERT(sizeof(struct trapframe) == 76);
-
-#ifndef NSFBUFS
-#define NSFBUFS		(512 + maxusers * 16)
-#endif
-
-#ifndef ARM_USE_SMALL_ALLOC
-static void     sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
-
-LIST_HEAD(sf_head, sf_buf);
-	
-
-/*
- * A hash table of active sendfile(2) buffers
- */
-static struct sf_head *sf_buf_active;
-static u_long sf_buf_hashmask;
-
-#define SF_BUF_HASH(m)  (((m) - vm_page_array) & sf_buf_hashmask)
-
-static TAILQ_HEAD(, sf_buf) sf_buf_freelist;
-static u_int    sf_buf_alloc_want;
-
-/*
- * A lock used to synchronize access to the hash table and free list
- */
-static struct mtx sf_buf_lock;
-#endif
+CTASSERT(sizeof(struct switchframe) == 48);
+CTASSERT(sizeof(struct trapframe) == 80);
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -118,46 +93,59 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
-	struct switchframe *sf;
 	struct mdproc *mdp2;
 
 	if ((flags & RFPROC) == 0)
 		return;
-	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
+
+	/* Point the pcb to the top of the stack */
+	pcb2 = (struct pcb *)
+	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
 #endif
 #endif
 	td2->td_pcb = pcb2;
+	
+	/* Clone td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+	
+	/* Point to mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
-	pcb2->un_32.pcb32_und_sp = td2->td_kstack + USPACE_UNDEF_STACK_TOP;
-	pcb2->un_32.pcb32_sp = td2->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
-	pmap_activate(td2);
-	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
-	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));
-	*tf = *td1->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)fork_return;
-	sf->sf_r5 = (u_int)td2;
-	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C_bit;
+
+	/* Point the frame to the stack in front of pcb and copy td1's frame */
+	td2->td_frame = (struct trapframe *)pcb2 - 1;
+	*td2->td_frame = *td1->td_frame;
+
+	/*
+	 * Create a new fresh stack for the new process.
+	 * Copy the trap frame for the return to user mode as if from a
+	 * syscall.  This copies most of the user mode register values.
+	 */
+	pmap_set_pcb_pagedir(vmspace_pmap(p2->p_vmspace), pcb2);
+	pcb2->pcb_regs.sf_r4 = (register_t)fork_return;
+	pcb2->pcb_regs.sf_r5 = (register_t)td2;
+	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
+
+	pcb2->pcb_vfpcpu = -1;
+	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
+	
+	tf = td2->td_frame;
+	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
 	tf->tf_r1 = 0;
-	pcb2->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((pcb2->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_fork: Incorrect stack alignment"));
+
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_cspr = 0;
+	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
 #ifdef ARM_TP_ADDRESS
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #else
-	td2->td_md.md_tp = (register_t) get_tls();
+	td2->td_md.md_tp = td1->td_md.md_tp;
 #endif
 }
 				
@@ -171,128 +159,31 @@ cpu_thread_swapout(struct thread *td)
 {
 }
 
-/*
- * Detatch mapped page and release resources back to the system.
- */
-void
-sf_buf_free(struct sf_buf *sf)
-{
-#ifndef ARM_USE_SMALL_ALLOC
-	 mtx_lock(&sf_buf_lock);
-	 sf->ref_count--;
-	 if (sf->ref_count == 0) {
-		 TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
-		 nsfbufsused--;
-		 pmap_kremove(sf->kva);
-		 sf->m = NULL;
-		 LIST_REMOVE(sf, list_entry);
-		 if (sf_buf_alloc_want > 0)
-			 wakeup(&sf_buf_freelist);
-	 }
-	 mtx_unlock(&sf_buf_lock);
-#endif
-}
-
-#ifndef ARM_USE_SMALL_ALLOC
-/*
- * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- */
-static void
-sf_buf_init(void *arg)
-{
-	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
-	int i;
-
-	nsfbufs = NSFBUFS;
-	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
-		
-	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
-	TAILQ_INIT(&sf_buf_freelist);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
-	}
-	sf_buf_alloc_want = 0;
-	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
-}
-#endif
-
-/*
- * Get an sf_buf from the freelist. Will block if none are available.
- */
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int flags)
-{
-#ifdef ARM_USE_SMALL_ALLOC
-	return ((struct sf_buf *)m);
-#else
-	struct sf_head *hash_list;
-	struct sf_buf *sf;
-	int error;
-
-	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
-	mtx_lock(&sf_buf_lock);
-	LIST_FOREACH(sf, hash_list, list_entry) {
-		if (sf->m == m) {
-			sf->ref_count++;
-			if (sf->ref_count == 1) {
-				TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
-				nsfbufsused++;
-				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-			}
-			goto done;
-		}
-	}
-	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
-		if (flags & SFB_NOWAIT)
-			goto done;
-		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
-		error = msleep(&sf_buf_freelist, &sf_buf_lock,
-		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
-		sf_buf_alloc_want--;
-	
-
-		/*
-		 * If we got a signal, don't risk going back to sleep.
-		 */
-		if (error)
-			goto done;
-	}
-	TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
-	if (sf->m != NULL)
-		LIST_REMOVE(sf, list_entry);
-	LIST_INSERT_HEAD(hash_list, sf, list_entry);
-	sf->ref_count = 1;
-	sf->m = m;
-	nsfbufsused++;
-	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
-done:
-	mtx_unlock(&sf_buf_lock);
-	return (sf);
-#endif
-}
-
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
-	trapframe_t *frame;
+	struct trapframe *frame;
 	int fixup;
 #ifdef __ARMEB__
-	uint32_t insn;
+	u_int call;
 #endif
 
 	frame = td->td_frame;
 	fixup = 0;
 
 #ifdef __ARMEB__
-	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
-	if ((insn & 0x000fffff) == SYS___syscall) {
+	/*
+	 * __syscall returns an off_t while most other syscalls return an
+	 * int. As an off_t is 64-bits and an int is 32-bits we need to
+	 * place the returned data into r1. As the lseek and frerebsd6_lseek
+	 * syscalls also return an off_t they do not need this fixup.
+	 */
+#ifdef __ARM_EABI__
+	call = frame->tf_r7;
+#else
+	call = *(u_int32_t *)(frame->tf_pc - INSN_SIZE) & 0x000fffff;
+#endif
+	if (call == SYS___syscall) {
 		register_t *ap = &frame->tf_r0;
 		register_t code = ap[_QUAD_LOWWORD];
 		if (td->td_proc->p_sysent->sv_mask)
@@ -311,7 +202,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 			frame->tf_r0 = td->td_retval[0];
 			frame->tf_r1 = td->td_retval[1];
 		}
-		frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
+		frame->tf_spsr &= ~PSR_C;   /* carry bit */
 		break;
 	case ERESTART:
 		/*
@@ -324,7 +215,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 	default:
 		frame->tf_r0 = error;
-		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
+		frame->tf_spsr |= PSR_C;    /* carry bit */
 		break;
 	}
 }
@@ -339,26 +230,21 @@ cpu_set_syscall_retval(struct thread *td, int error)
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
-	struct trapframe *tf;
-	struct switchframe *sf;
 
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 	bcopy(td0->td_pcb, td->td_pcb, sizeof(struct pcb));
-	tf = td->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)fork_return;
-	sf->sf_r5 = (u_int)td;
-	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C_bit;
-	tf->tf_r0 = 0;
-	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	td->td_pcb->un_32.pcb32_und_sp = td->td_kstack + USPACE_UNDEF_STACK_TOP;
-	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_set_upcall: Incorrect stack alignment"));
+
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)fork_return;
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)td;
+	td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	td->td_pcb->pcb_regs.sf_sp = STACKALIGN(td->td_frame);
+
+	td->td_frame->tf_spsr &= ~PSR_C;
+	td->td_frame->tf_r0 = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_cspr = 0;
+	td->td_md.md_saved_cspr = PSR_SVC32_MODE;
 }
 
 /*
@@ -372,8 +258,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 {
 	struct trapframe *tf = td->td_frame;
 
-	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size
-	    - sizeof(struct trapframe));
+	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size);
 	tf->tf_pc = (int)entry;
 	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
@@ -389,7 +274,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 #ifdef ARM_TP_ADDRESS
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
 #else
-		set_tls((void *)tls_base);
+		set_tls(tls_base);
 #endif
 		critical_exit();
 	}
@@ -411,9 +296,8 @@ cpu_thread_alloc(struct thread *td)
 	 * placed into the stack pointer which must be 8 byte aligned in
 	 * the ARM EABI.
 	 */
-	td->td_frame = (struct trapframe *)STACKALIGN((u_int)td->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(struct pcb) -
-	    sizeof(struct trapframe));
+	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
+
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
@@ -440,16 +324,8 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
-	struct switchframe *sf;
-	struct trapframe *tf;
-	
-	tf = td->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)func;
-	sf->sf_r5 = (u_int)arg;
-	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_set_fork_handler: Incorrect stack alignment"));
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */
 }
 
 /*
@@ -468,267 +344,3 @@ cpu_exit(struct thread *td)
 {
 }
 
-#define BITS_PER_INT	(8 * sizeof(int))
-vm_offset_t arm_nocache_startaddr;
-static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE *
-    BITS_PER_INT)];
-
-/*
- * Functions to map and unmap memory non-cached into KVA the kernel won't try
- * to allocate. The goal is to provide uncached memory to busdma, to honor
- * BUS_DMA_COHERENT.
- * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes.
- * The allocator is rather dummy, each page is represented by a bit in
- * a bitfield, 0 meaning the page is not allocated, 1 meaning it is.
- * As soon as it finds enough contiguous pages to satisfy the request,
- * it returns the address.
- */
-void *
-arm_remap_nocache(void *addr, vm_size_t size)
-{
-	int i, j;
-
-	size = round_page(size);
-	for (i = 0; i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE; i++) {
-		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i %
-		    BITS_PER_INT)))) {
-			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
-				if (arm_nocache_allocated[j / BITS_PER_INT] &
-				    (1 << (j % BITS_PER_INT)))
-					break;
-			if (j == i + (size / (PAGE_SIZE)))
-				break;
-		}
-	}
-	if (i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE) {
-		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
-		void *ret = (void *)tomap;
-		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
-		vm_offset_t vaddr = (vm_offset_t) addr;
-		
-		vaddr = vaddr & ~PAGE_MASK;
-		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
-		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
-			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-			cpu_l2cache_wbinv_range(physaddr, PAGE_SIZE);
-#else
-			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
-#endif
-			pmap_kenter_nocache(tomap, physaddr);
-			cpu_tlb_flushID_SE(vaddr);
-			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i %
-			    BITS_PER_INT);
-		}
-		return (ret);
-	}
-
-	return (NULL);
-}
-
-void
-arm_unmap_nocache(void *addr, vm_size_t size)
-{
-	vm_offset_t raddr = (vm_offset_t)addr;
-	int i;
-
-	size = round_page(size);
-	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
-	for (; size > 0; size -= PAGE_SIZE, i++) {
-		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i %
-		    BITS_PER_INT));
-		pmap_kremove(raddr);
-		raddr += PAGE_SIZE;
-	}
-}
-
-#ifdef ARM_USE_SMALL_ALLOC
-
-static TAILQ_HEAD(,arm_small_page) pages_normal =
-	TAILQ_HEAD_INITIALIZER(pages_normal);
-static TAILQ_HEAD(,arm_small_page) pages_wt =
-	TAILQ_HEAD_INITIALIZER(pages_wt);
-static TAILQ_HEAD(,arm_small_page) free_pgdesc =
-	TAILQ_HEAD_INITIALIZER(free_pgdesc);
-
-extern uma_zone_t l2zone;
-
-struct mtx smallalloc_mtx;
-
-vm_offset_t alloc_firstaddr;
-
-#ifdef ARM_HAVE_SUPERSECTIONS
-#define S_FRAME	L1_SUP_FRAME
-#define S_SIZE	L1_SUP_SIZE
-#else
-#define S_FRAME	L1_S_FRAME
-#define S_SIZE	L1_S_SIZE
-#endif
-
-vm_offset_t
-arm_ptovirt(vm_paddr_t pa)
-{
-	int i;
-	vm_offset_t addr = alloc_firstaddr;
-
-	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called too early ?"));
-	for (i = 0; dump_avail[i + 1]; i += 2) {
-		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
-			break;
-		addr += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
-		    (dump_avail[i] & S_FRAME);
-	}
-	KASSERT(dump_avail[i + 1] != 0, ("Trying to access invalid physical address"));
-	return (addr + (pa - (dump_avail[i] & S_FRAME)));
-}
-
-void
-arm_init_smallalloc(void)
-{
-	vm_offset_t to_map = 0, mapaddr;
-	int i;
-	
-	/*
-	 * We need to use dump_avail and not phys_avail, since we want to
-	 * map the whole memory and not just the memory available to the VM
-	 * to be able to do a pa => va association for any address.
-	 */
-
-	for (i = 0; dump_avail[i + 1]; i+= 2) {
-		to_map += (dump_avail[i + 1] & S_FRAME) + S_SIZE -
-		    (dump_avail[i] & S_FRAME);
-	}
-	alloc_firstaddr = mapaddr = KERNBASE - to_map;
-	for (i = 0; dump_avail[i + 1]; i+= 2) {
-		vm_offset_t size = (dump_avail[i + 1] & S_FRAME) +
-		    S_SIZE - (dump_avail[i] & S_FRAME);
-		vm_offset_t did = 0;
-		while (size > 0) {
-#ifdef ARM_HAVE_SUPERSECTIONS
-			pmap_kenter_supersection(mapaddr,
-			    (dump_avail[i] & L1_SUP_FRAME) + did,
-			    SECTION_CACHE);
-#else
-			pmap_kenter_section(mapaddr,
-			    (dump_avail[i] & L1_S_FRAME) + did, SECTION_CACHE);
-#endif
-			mapaddr += S_SIZE;
-			did += S_SIZE;
-			size -= S_SIZE;
-		}
-	}
-}
-
-void
-arm_add_smallalloc_pages(void *list, void *mem, int bytes, int pagetable)
-{
-	struct arm_small_page *pg;
-	
-	bytes &= ~PAGE_MASK;
-	while (bytes > 0) {
-		pg = (struct arm_small_page *)list;
-		pg->addr = mem;
-		if (pagetable)
-			TAILQ_INSERT_HEAD(&pages_wt, pg, pg_list);
-		else
-			TAILQ_INSERT_HEAD(&pages_normal, pg, pg_list);
-		list = (char *)list + sizeof(*pg);
-		mem = (char *)mem + PAGE_SIZE;
-		bytes -= PAGE_SIZE;
-	}
-}
-
-void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-	void *ret;
-	struct arm_small_page *sp;
-	TAILQ_HEAD(,arm_small_page) *head;
-	vm_page_t m;
-
-	*flags = UMA_SLAB_PRIV;
-	/*
-	 * For CPUs where we setup page tables as write back, there's no
-	 * need to maintain two separate pools.
-	 */
-	if (zone == l2zone && pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt)
-		head = (void *)&pages_wt;
-	else
-		head = (void *)&pages_normal;
-
-	mtx_lock(&smallalloc_mtx);
-	sp = TAILQ_FIRST(head);
-
-	if (!sp) {
-		int pflags;
-
-		mtx_unlock(&smallalloc_mtx);
-		if (zone == l2zone &&
-		    pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt) {
-			*flags = UMA_SLAB_KMEM;
-			ret = ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
-			return (ret);
-		}
-		pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
-		for (;;) {
-			m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
-			if (m == NULL) {
-				if (wait & M_NOWAIT)
-					return (NULL);
-				VM_WAIT;
-			} else
-				break;
-		}
-		ret = (void *)arm_ptovirt(VM_PAGE_TO_PHYS(m));
-		if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
-			bzero(ret, PAGE_SIZE);
-		return (ret);
-	}
-	TAILQ_REMOVE(head, sp, pg_list);
-	TAILQ_INSERT_HEAD(&free_pgdesc, sp, pg_list);
-	ret = sp->addr;
-	mtx_unlock(&smallalloc_mtx);
-	if ((wait & M_ZERO))
-		bzero(ret, bytes);
-	return (ret);
-}
-
-void
-uma_small_free(void *mem, int size, u_int8_t flags)
-{
-	pd_entry_t *pd;
-	pt_entry_t *pt;
-
-	if (flags & UMA_SLAB_KMEM)
-		kmem_free(kmem_map, (vm_offset_t)mem, size);
-	else {
-		struct arm_small_page *sp;
-
-		if ((vm_offset_t)mem >= KERNBASE) {
-			mtx_lock(&smallalloc_mtx);
-			sp = TAILQ_FIRST(&free_pgdesc);
-			KASSERT(sp != NULL, ("No more free page descriptor ?"));
-			TAILQ_REMOVE(&free_pgdesc, sp, pg_list);
-			sp->addr = mem;
-			pmap_get_pde_pte(kernel_pmap, (vm_offset_t)mem, &pd,
-			    &pt);
-			if ((*pd & pte_l1_s_cache_mask) ==
-			    pte_l1_s_cache_mode_pt &&
-			    pte_l1_s_cache_mode_pt != pte_l1_s_cache_mode)
-				TAILQ_INSERT_HEAD(&pages_wt, sp, pg_list);
-			else
-				TAILQ_INSERT_HEAD(&pages_normal, sp, pg_list);
-			mtx_unlock(&smallalloc_mtx);
-		} else {
-			vm_page_t m;
-			vm_paddr_t pa = vtophys((vm_offset_t)mem);
-
-			m = PHYS_TO_VM_PAGE(pa);
-			m->wire_count--;
-			vm_page_free(m);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
-		}
-	}
-}
-
-#endif

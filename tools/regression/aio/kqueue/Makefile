@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	aio_kqueue
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

@@ -105,8 +105,6 @@ struct ipw_softc {
 #define	IPW_FLAG_ASSOCIATING		0x0080
 #define	IPW_FLAG_ASSOCIATED		0x0100
 
-	int				irq_rid;
-	int				mem_rid;
 	struct resource			*irq;
 	struct resource			*mem;
 	bus_space_tag_t			sc_st;

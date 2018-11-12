@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
+#include <sys/endian.h>
 
 #include <net/ethernet.h>
 
@@ -59,18 +60,37 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/platform.h>
 #include <machine/ofw_machdep.h>
+#include <machine/trap.h>
 
-static struct mem_region OFmem[PHYS_AVAIL_SZ], OFavail[PHYS_AVAIL_SZ];
-static struct mem_region OFfree[PHYS_AVAIL_SZ];
-
+#ifdef AIM
 extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
+char		save_trap_init[0x2f00];          /* EXC_LAST */
+char		save_trap_of[0x2f00];            /* EXC_LAST */
 
 int		ofwcall(void *);
-static void	ofw_quiesce(void);
 static int	openfirmware(void *args);
+
+__inline void
+ofw_save_trap_vec(char *save_trap_vec)
+{
+	if (!ofw_real_mode)
+                return;
+
+	bcopy((void *)EXC_RST, save_trap_vec, EXC_LAST - EXC_RST);
+}
+
+static __inline void
+ofw_restore_trap_vec(char *restore_trap_vec)
+{
+	if (!ofw_real_mode)
+                return;
+
+	bcopy(restore_trap_vec, (void *)EXC_RST, EXC_LAST - EXC_RST);
+	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
+}
 
 /*
  * Saved SPRG0-3 from OpenFirmware. Will be restored prior to the callback.
@@ -80,6 +100,9 @@ register_t	ofw_sprg0_save;
 static __inline void
 ofw_sprg_prepare(void)
 {
+	if (ofw_real_mode)
+		return;
+	
 	/*
 	 * Assume that interrupt are disabled at this point, or
 	 * SPRG1-3 could be trashed
@@ -99,6 +122,9 @@ ofw_sprg_prepare(void)
 static __inline void
 ofw_sprg_restore(void)
 {
+	if (ofw_real_mode)
+		return;
+	
 	/*
 	 * Note that SPRG1-3 contents are irrelevant. They are scratch
 	 * registers used in the early portion of trap handling when
@@ -108,50 +134,7 @@ ofw_sprg_restore(void)
 	 */
 	__asm __volatile("mtsprg0 %0" :: "r"(ofw_sprg0_save));
 }
-
-/*
- * Memory region utilities: determine if two regions overlap,
- * and merge two overlapping regions into one
- */
-static int
-memr_overlap(struct mem_region *r1, struct mem_region *r2)
-{
-	if ((r1->mr_start + r1->mr_size) < r2->mr_start ||
-	    (r2->mr_start + r2->mr_size) < r1->mr_start)
-		return (FALSE);
-	
-	return (TRUE);	
-}
-
-static void
-memr_merge(struct mem_region *from, struct mem_region *to)
-{
-	vm_offset_t end;
-	end = ulmax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
-	to->mr_start = ulmin(from->mr_start, to->mr_start);
-	to->mr_size = end - to->mr_start;
-}
-
-/*
- * Quick sort callout for comparing memory regions.
- */
-static int	mr_cmp(const void *a, const void *b);
-
-static int
-mr_cmp(const void *a, const void *b)
-{
-	const struct	mem_region *regiona;
-	const struct	mem_region *regionb;
-
-	regiona = a;
-	regionb = b;
-	if (regiona->mr_start < regionb->mr_start)
-		return (-1);
-	else if (regiona->mr_start > regionb->mr_start)
-		return (1);
-	else
-		return (0);
-}
+#endif
 
 static int
 parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
@@ -159,11 +142,9 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	cell_t address_cells, size_cells;
 	cell_t OFmem[4 * PHYS_AVAIL_SZ];
 	int sz, i, j;
-	int apple_hack_mode;
 	phandle_t phandle;
 
 	sz = 0;
-	apple_hack_mode = 0;
 
 	/*
 	 * Get #address-cells from root node, defaulting to 1 if it cannot
@@ -176,19 +157,6 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	if (OF_getprop(phandle, "#size-cells", &size_cells, 
 	    sizeof(size_cells)) < (ssize_t)sizeof(size_cells))
 		size_cells = 1;
-
-	/*
-	 * On Apple hardware, address_cells is always 1 for "available",
-	 * even when it is explicitly set to 2. Then all memory above 4 GB
-	 * should be added by hand to the available list. Detect Apple hardware
-	 * by seeing if ofw_real_mode is set -- only Apple seems to use
-	 * virtual-mode OF.
-	 */
-	if (strcmp(prop, "available") == 0 && !ofw_real_mode)
-		apple_hack_mode = 1;
-	
-	if (apple_hack_mode)
-		address_cells = 1;
 
 	/*
 	 * Get memory.
@@ -241,118 +209,100 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	}
 	sz = j*sizeof(output[0]);
 
-	#ifdef __powerpc64__
-	if (apple_hack_mode) {
-		/* Add in regions above 4 GB to the available list */
-		struct mem_region himem[16];
-		int hisz;
-
-		hisz = parse_ofw_memory(node, "reg", himem);
-		for (i = 0; i < hisz/sizeof(himem[0]); i++) {
-			if (himem[i].mr_start > BUS_SPACE_MAXADDR_32BIT) {
-				output[j].mr_start = himem[i].mr_start;
-				output[j].mr_size = himem[i].mr_size;
-				j++;
-			}
-		}
-		sz = j*sizeof(output[0]);
-	}
-	#endif
-
 	return (sz);
 }
 
 static int
-parse_drconf_memory(int *msz, int *asz, struct mem_region *ofmem,
-		    struct mem_region *ofavail)
+excise_fdt_reserved(struct mem_region *avail, int asz)
 {
-	phandle_t phandle;
-	vm_offset_t base;
-	int i, idx, len, lasz, lmsz, res;
-	uint32_t lmb_size[2];
-	unsigned long *dmem, flags;
+	struct {
+		uint64_t address;
+		uint64_t size;
+	} fdtmap[16];
+	ssize_t fdtmapsize;
+	phandle_t chosen;
+	int i, j, k;
 
-	lmsz = *msz;
-	lasz = *asz;
+	chosen = OF_finddevice("/chosen");
+	fdtmapsize = OF_getprop(chosen, "fdtmemreserv", fdtmap, sizeof(fdtmap));
 
-	phandle = OF_finddevice("/ibm,dynamic-reconfiguration-memory");
-	if (phandle == -1)
-		/* No drconf node, return. */
-		return (0);
+	for (j = 0; j < fdtmapsize/sizeof(fdtmap[0]); j++) {
+		fdtmap[j].address = be64toh(fdtmap[j].address);
+		fdtmap[j].size = be64toh(fdtmap[j].size);
+	}
 
-	res = OF_getprop(phandle, "ibm,lmb-size", lmb_size, sizeof(lmb_size));
-	if (res == -1)
-		return (0);
-
-	/* Parse the /ibm,dynamic-memory.
-	   The first position gives the # of entries. The next two words
- 	   reflect the address of the memory block. The next four words are
-	   the DRC index, reserved, list index and flags.
-	   (see PAPR C.6.6.2 ibm,dynamic-reconfiguration-memory)
-	   
-	    #el  Addr   DRC-idx  res   list-idx  flags
-	   -------------------------------------------------
-	   | 4 |   8   |   4   |   4   |   4   |   4   |....
-	   -------------------------------------------------
-	*/
-
-	len = OF_getproplen(phandle, "ibm,dynamic-memory");
-	if (len > 0) {
-
-		/* We have to use a variable length array on the stack
-		   since we have very limited stack space.
-		*/
-		cell_t arr[len/sizeof(cell_t)];
-
-		res = OF_getprop(phandle, "ibm,dynamic-memory", &arr,
-				 sizeof(arr));
-		if (res == -1)
-			return (0);
-
-		/* Number of elements */
-		idx = arr[0];
-
-		/* First address. */
-		dmem = (void*)&arr[1];
-	
-		for (i = 0; i < idx; i++) {
-			base = *dmem;
-			dmem += 2;
-			flags = *dmem;
-			/* Use region only if available and not reserved. */
-			if ((flags & 0x8) && !(flags & 0x80)) {
-				ofmem[lmsz].mr_start = base;
-				ofmem[lmsz].mr_size = (vm_size_t)lmb_size[1];
-				ofavail[lasz].mr_start = base;
-				ofavail[lasz].mr_size = (vm_size_t)lmb_size[1];
-				lmsz++;
-				lasz++;
+	for (i = 0; i < asz; i++) {
+		for (j = 0; j < fdtmapsize/sizeof(fdtmap[0]); j++) {
+			/*
+			 * Case 1: Exclusion region encloses complete
+			 * available entry. Drop it and move on.
+			 */
+			if (fdtmap[j].address <= avail[i].mr_start &&
+			    fdtmap[j].address + fdtmap[j].size >=
+			    avail[i].mr_start + avail[i].mr_size) {
+				for (k = i+1; k < asz; k++)
+					avail[k-1] = avail[k];
+				asz--;
+				i--; /* Repeat some entries */
+				continue;
 			}
-			dmem++;
+
+			/*
+			 * Case 2: Exclusion region starts in available entry.
+			 * Trim it to where the entry begins and append
+			 * a new available entry with the region after
+			 * the excluded region, if any.
+			 */
+			if (fdtmap[j].address >= avail[i].mr_start &&
+			    fdtmap[j].address < avail[i].mr_start +
+			    avail[i].mr_size) {
+				if (fdtmap[j].address + fdtmap[j].size < 
+				    avail[i].mr_start + avail[i].mr_size) {
+					avail[asz].mr_start =
+					    fdtmap[j].address + fdtmap[j].size;
+					avail[asz].mr_size = avail[i].mr_start +
+					     avail[i].mr_size -
+					     avail[asz].mr_start;
+					asz++;
+				}
+
+				avail[i].mr_size = fdtmap[j].address -
+				    avail[i].mr_start;
+			}
+
+			/*
+			 * Case 3: Exclusion region ends in available entry.
+			 * Move start point to where the exclusion zone ends.
+			 * The case of a contained exclusion zone has already
+			 * been caught in case 2.
+			 */
+			if (fdtmap[j].address + fdtmap[j].size >=
+			    avail[i].mr_start && fdtmap[j].address +
+			    fdtmap[j].size < avail[i].mr_start +
+			    avail[i].mr_size) {
+				avail[i].mr_size += avail[i].mr_start;
+				avail[i].mr_start =
+				    fdtmap[j].address + fdtmap[j].size;
+				avail[i].mr_size -= avail[i].mr_start;
+			}
 		}
 	}
 
-	*msz = lmsz;
-	*asz = lasz;
-
-	return (1);
+	return (asz);
 }
+
 /*
  * This is called during powerpc_init, before the system is really initialized.
  * It shall provide the total and the available regions of RAM.
- * Both lists must have a zero-size entry as terminator.
- * The available regions need not take the kernel into account, but needs
- * to provide space for two additional entry beyond the terminating one.
+ * The available regions need not take the kernel into account.
  */
 void
-ofw_mem_regions(struct mem_region **memp, int *memsz,
-		struct mem_region **availp, int *availsz)
+ofw_mem_regions(struct mem_region *memp, int *memsz,
+		struct mem_region *availp, int *availsz)
 {
 	phandle_t phandle;
-	vm_offset_t maxphysaddr;
-	int asz, msz, fsz;
-	int i, j, res;
-	int still_merging;
+	int asz, msz;
+	int res;
 	char name[31];
 
 	asz = msz = 0;
@@ -364,92 +314,56 @@ ofw_mem_regions(struct mem_region **memp, int *memsz,
 	    phandle = OF_peer(phandle)) {
 		if (OF_getprop(phandle, "name", name, sizeof(name)) <= 0)
 			continue;
-		if (strncmp(name, "memory", sizeof(name)) != 0)
+		if (strncmp(name, "memory", sizeof(name)) != 0 &&
+		    strncmp(name, "memory@", strlen("memory@")) != 0)
 			continue;
 
-		res = parse_ofw_memory(phandle, "reg", &OFmem[msz]);
+		res = parse_ofw_memory(phandle, "reg", &memp[msz]);
 		msz += res/sizeof(struct mem_region);
 		if (OF_getproplen(phandle, "available") >= 0)
 			res = parse_ofw_memory(phandle, "available",
-			    &OFavail[asz]);
+			    &availp[asz]);
 		else
-			res = parse_ofw_memory(phandle, "reg", &OFavail[asz]);
+			res = parse_ofw_memory(phandle, "reg", &availp[asz]);
 		asz += res/sizeof(struct mem_region);
 	}
 
-	/* Check for memory in ibm,dynamic-reconfiguration-memory */
-	parse_drconf_memory(&msz, &asz, OFmem, OFavail);
+	phandle = OF_finddevice("/chosen");
+	if (OF_hasprop(phandle, "fdtmemreserv"))
+		asz = excise_fdt_reserved(availp, asz);
 
-	qsort(OFmem, msz, sizeof(*OFmem), mr_cmp);
-	qsort(OFavail, asz, sizeof(*OFavail), mr_cmp);
-
-	*memp = OFmem;
 	*memsz = msz;
-
-	/*
-	 * On some firmwares (SLOF), some memory may be marked available that
-	 * doesn't actually exist. This manifests as an extension of the last
-	 * available segment past the end of physical memory, so truncate that
-	 * one.
-	 */
-	maxphysaddr = 0;
-	for (i = 0; i < msz; i++)
-		if (OFmem[i].mr_start + OFmem[i].mr_size > maxphysaddr)
-			maxphysaddr = OFmem[i].mr_start + OFmem[i].mr_size;
-
-	if (OFavail[asz - 1].mr_start + OFavail[asz - 1].mr_size > maxphysaddr)
-		OFavail[asz - 1].mr_size = maxphysaddr -
-		    OFavail[asz - 1].mr_start;
-
-	/*
-	 * OFavail may have overlapping regions - collapse these
-	 * and copy out remaining regions to OFfree
-	 */
-	do {
-		still_merging = FALSE;
-		for (i = 0; i < asz; i++) {
-			if (OFavail[i].mr_size == 0)
-				continue;
-			for (j = i+1; j < asz; j++) {
-				if (OFavail[j].mr_size == 0)
-					continue;
-				if (memr_overlap(&OFavail[j], &OFavail[i])) {
-					memr_merge(&OFavail[j], &OFavail[i]);
-					/* mark inactive */
-					OFavail[j].mr_size = 0;
-					still_merging = TRUE;
-				}
-			}
-		}
-	} while (still_merging == TRUE);
-
-	/* evict inactive ranges */
-	for (i = 0, fsz = 0; i < asz; i++) {
-		if (OFavail[i].mr_size != 0) {
-			OFfree[fsz] = OFavail[i];
-			fsz++;
-		}
-	}
-
-	*availp = OFfree;
-	*availsz = fsz;
+	*availsz = asz;
 }
 
+#ifdef AIM
 void
 OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 {
+	ofmsr[0] = mfmsr();
+	#ifdef __powerpc64__
+	ofmsr[0] &= ~PSL_SF;
+	#endif
+	__asm __volatile("mfsprg0 %0" : "=&r"(ofmsr[1]));
+	__asm __volatile("mfsprg1 %0" : "=&r"(ofmsr[2]));
+	__asm __volatile("mfsprg2 %0" : "=&r"(ofmsr[3]));
+	__asm __volatile("mfsprg3 %0" : "=&r"(ofmsr[4]));
+
 	if (ofmsr[0] & PSL_DR)
 		ofw_real_mode = 0;
 	else
 		ofw_real_mode = 1;
 
 	fdt = fdt_ptr;
+	openfirmware_entry = openfirm;
 
 	#ifdef FDT_DTB_STATIC
 	/* Check for a statically included blob */
 	if (fdt == NULL)
 		fdt = &fdt_static_dtb;
 	#endif
+
+	ofw_save_trap_vec(save_trap_init);
 }
 
 boolean_t
@@ -472,12 +386,6 @@ OF_bootstrap()
 			return status;
 
 		OF_init(openfirmware);
-
-		/*
-		 * On some machines, we need to quiesce OF to turn off
-		 * background processes.
-		 */
-		ofw_quiesce();
 	} else if (fdt != NULL) {
 		status = OF_install(OFW_FDT, 0);
 
@@ -490,37 +398,21 @@ OF_bootstrap()
 	return (status);
 }
 
-static void
+void
 ofw_quiesce(void)
 {
-	phandle_t rootnode;
-	char model[32];
 	struct {
 		cell_t name;
 		cell_t nargs;
 		cell_t nreturns;
 	} args;
 
-	/*
-	 * Only quiesce Open Firmware on PowerMac11,2 and 12,1. It is
-	 * necessary there to shut down a background thread doing fan
-	 * management, and is harmful on other machines.
-	 *
-	 * Note: we don't need to worry about which OF module we are
-	 * using since this is called only from very early boot, within
-	 * OF's boot context.
-	 */
+	KASSERT(!pmap_bootstrapped, ("Cannot call ofw_quiesce after VM is up"));
 
-	rootnode = OF_finddevice("/");
-	if (OF_getprop(rootnode, "model", model, sizeof(model)) > 0) {
-		if (strcmp(model, "PowerMac11,2") == 0 ||
-		    strcmp(model, "PowerMac12,1") == 0) {
-			args.name = (cell_t)(uintptr_t)"quiesce";
-			args.nargs = 0;
-			args.nreturns = 0;
-			openfirmware(&args);
-		}
-	}
+	args.name = (cell_t)(uintptr_t)"quiesce";
+	args.nargs = 0;
+	args.nreturns = 0;
+	openfirmware(&args);
 }
 
 static int
@@ -528,6 +420,9 @@ openfirmware_core(void *args)
 {
 	int		result;
 	register_t	oldmsr;
+
+	if (openfirmware_entry == NULL)
+		return (-1);
 
 	/*
 	 * Turn off exceptions - we really don't want to end up
@@ -537,6 +432,12 @@ openfirmware_core(void *args)
 	oldmsr = intr_disable();
 
 	ofw_sprg_prepare();
+
+	/* Save trap vectors */
+	ofw_save_trap_vec(save_trap_of);
+
+	/* Restore initially saved trap vectors */
+	ofw_restore_trap_vec(save_trap_init);
 
 #if defined(AIM) && !defined(__powerpc64__)
 	/*
@@ -549,6 +450,10 @@ openfirmware_core(void *args)
 #endif
 
 	result = ofwcall(args);
+
+	/* Restore trap vecotrs */
+	ofw_restore_trap_vec(save_trap_of);
+
 	ofw_sprg_restore();
 
 	intr_restore(oldmsr);
@@ -593,7 +498,12 @@ openfirmware(void *args)
 	int result;
 	#ifdef SMP
 	struct ofw_rv_args rv_args;
+	#endif
 
+	if (openfirmware_entry == NULL)
+		return (-1);
+
+	#ifdef SMP
 	rv_args.args = args;
 	rv_args.in_progress = 1;
 	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,
@@ -625,6 +535,8 @@ OF_reboot()
 	for (;;);	/* just in case */
 }
 
+#endif /* AIM */
+
 void
 OF_getetheraddr(device_t dev, u_char *addr)
 {
@@ -645,7 +557,7 @@ OF_getetheraddr(device_t dev, u_char *addr)
 static void
 OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 {
-	char name[16];
+	char type[64];
 	uint32_t addr, size;
 	int pci, res;
 
@@ -657,10 +569,10 @@ OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
 		size = 1;
 	pci = 0;
 	if (addr == 3 && size == 2) {
-		res = OF_getprop(node, "name", name, sizeof(name));
+		res = OF_getprop(node, "device_type", type, sizeof(type));
 		if (res != -1) {
-			name[sizeof(name) - 1] = '\0';
-			pci = (strcmp(name, "pci") == 0) ? 1 : 0;
+			type[sizeof(type) - 1] = '\0';
+			pci = (strcmp(type, "pci") == 0) ? 1 : 0;
 		}
 	}
 	if (addrp != NULL)
@@ -680,7 +592,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	bus_size_t size, rsize;
 	uint32_t c, nbridge, naddr, nsize;
 	phandle_t bridge, parent;
-	u_int spc, rspc;
+	u_int spc, rspc, prefetch;
 	int pci, pcib, res;
 
 	/* Sanity checking. */
@@ -694,8 +606,13 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (tag == NULL || handle == NULL)
 		return (EINVAL);
 
+	/* Assume big-endian unless we find a PCI device */
+	*tag = &bs_be_tag;
+
 	/* Get the requested register. */
 	OF_get_addr_props(bridge, &naddr, &nsize, &pci);
+	if (pci)
+		*tag = &bs_le_tag;
 	res = OF_getprop(dev, (pci) ? "assigned-addresses" : "reg",
 	    cell, sizeof(cell));
 	if (res == -1)
@@ -707,6 +624,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	if (regno + naddr + nsize > res)
 		return (EINVAL);
 	spc = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK : ~0;
+	prefetch = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_PREFETCHABLE : 0;
 	addr = 0;
 	for (c = 0; c < naddr; c++)
 		addr = ((uint64_t)addr << 32) | cell[regno++];
@@ -722,6 +640,8 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	parent = OF_parent(bridge);
 	while (parent != 0) {
 		OF_get_addr_props(parent, &nbridge, NULL, &pcib);
+		if (pcib)
+			*tag = &bs_le_tag;
 		res = OF_getprop(bridge, "ranges", cell, sizeof(cell));
 		if (res == -1)
 			goto next;
@@ -762,7 +682,7 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 		OF_get_addr_props(bridge, &naddr, &nsize, &pci);
 	}
 
-	*tag = &bs_le_tag;
-	return (bus_space_map(*tag, addr, size, 0, handle));
+	return (bus_space_map(*tag, addr, size,
+	    prefetch ? BUS_SPACE_MAP_PREFETCHABLE : 0, handle));
 }
 

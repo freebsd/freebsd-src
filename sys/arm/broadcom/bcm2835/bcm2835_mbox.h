@@ -36,9 +36,7 @@
 #define	BCM2835_MBOX_CHAN_LEDS		4
 #define	BCM2835_MBOX_CHAN_BUTTONS	5
 #define	BCM2835_MBOX_CHAN_TS		6
-#define	BCM2835_MBOX_CHANS		7
-
-int bcm_mbox_write(int chan, uint32_t data);
-int bcm_mbox_read(int chan, uint32_t *data);
+#define	BCM2835_MBOX_CHAN_PROP		8
+#define	BCM2835_MBOX_CHANS		9
 
 #endif /* _BCM2835_MBOX_H_ */

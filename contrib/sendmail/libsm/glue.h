@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -11,7 +11,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $Id: glue.h,v 1.6 2001/01/22 23:09:49 ca Exp $
+ * $Id: glue.h,v 1.7 2013-11-22 20:51:43 ca Exp $
  */
 
 /*

@@ -8,18 +8,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "Internals.h"
+#include "clang/AST/ASTConsumer.h"
+#include "clang/Basic/DiagnosticCategories.h"
 #include "clang/Frontend/ASTUnit.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Frontend/Utils.h"
-#include "clang/AST/ASTConsumer.h"
+#include "clang/Lex/Preprocessor.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Sema/SemaDiagnostic.h"
-#include "clang/Basic/DiagnosticCategories.h"
-#include "clang/Lex/Preprocessor.h"
-#include "llvm/Support/MemoryBuffer.h"
+#include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Support/MemoryBuffer.h"
 using namespace clang;
 using namespace arcmt;
 
@@ -39,8 +40,9 @@ bool CapturedDiagList::clearDiagnostic(ArrayRef<unsigned> IDs,
            diagLoc.isBeforeInTranslationUnitThan(range.getEnd()))) {
       cleared = true;
       ListTy::iterator eraseS = I++;
-      while (I != List.end() && I->getLevel() == DiagnosticsEngine::Note)
-        ++I;
+      if (eraseS->getLevel() != DiagnosticsEngine::Note)
+        while (I != List.end() && I->getLevel() == DiagnosticsEngine::Note)
+          ++I;
       // Clear the diagnostic and any notes following it.
       I = List.erase(eraseS, I);
       continue;
@@ -101,8 +103,8 @@ public:
     : Diags(diags), DiagClient(client), CapturedDiags(capturedDiags),
       HasBegunSourceFile(false) { }
 
-  virtual void BeginSourceFile(const LangOptions &Opts,
-                               const Preprocessor *PP) {
+  void BeginSourceFile(const LangOptions &Opts,
+                       const Preprocessor *PP) override {
     // Pass BeginSourceFile message onto DiagClient on first call.
     // The corresponding EndSourceFile call will be made from an
     // explicit call to FinishCapture.
@@ -126,22 +128,17 @@ public:
     assert(!HasBegunSourceFile && "FinishCapture not called!");
   }
 
-  virtual void HandleDiagnostic(DiagnosticsEngine::Level level,
-                                const Diagnostic &Info) {
+  void HandleDiagnostic(DiagnosticsEngine::Level level,
+                        const Diagnostic &Info) override {
     if (DiagnosticIDs::isARCDiagnostic(Info.getID()) ||
         level >= DiagnosticsEngine::Error || level == DiagnosticsEngine::Note) {
-      CapturedDiags.push_back(StoredDiagnostic(level, Info));
+      if (Info.getLocation().isValid())
+        CapturedDiags.push_back(StoredDiagnostic(level, Info));
       return;
     }
 
     // Non-ARC warnings are ignored.
     Diags.setLastDiagnosticIgnored();
-  }
-  
-  DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const {
-    // Just drop any diagnostics that come from cloned consumers; they'll
-    // have different source managers anyway.
-    return new IgnoringDiagConsumer();
   }
 };
 
@@ -153,7 +150,7 @@ static bool HasARCRuntime(CompilerInvocation &origCI) {
   // and avoid unrelated complications.
   llvm::Triple triple(origCI.getTargetOpts().Triple);
 
-  if (triple.getOS() == llvm::Triple::IOS)
+  if (triple.isiOS())
     return triple.getOSMajorVersion() >= 5;
 
   if (triple.getOS() == llvm::Triple::Darwin)
@@ -170,10 +167,26 @@ static bool HasARCRuntime(CompilerInvocation &origCI) {
 
 static CompilerInvocation *
 createInvocationForMigration(CompilerInvocation &origCI) {
-  OwningPtr<CompilerInvocation> CInvok;
+  std::unique_ptr<CompilerInvocation> CInvok;
   CInvok.reset(new CompilerInvocation(origCI));
-  CInvok->getPreprocessorOpts().ImplicitPCHInclude = std::string();
-  CInvok->getPreprocessorOpts().ImplicitPTHInclude = std::string();
+  PreprocessorOptions &PPOpts = CInvok->getPreprocessorOpts();
+  if (!PPOpts.ImplicitPCHInclude.empty()) {
+    // We can't use a PCH because it was likely built in non-ARC mode and we
+    // want to parse in ARC. Include the original header.
+    FileManager FileMgr(origCI.getFileSystemOpts());
+    IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+    IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
+        new DiagnosticsEngine(DiagID, &origCI.getDiagnosticOpts(),
+                              new IgnoringDiagConsumer()));
+    std::string OriginalFile =
+        ASTReader::getOriginalSourceFile(PPOpts.ImplicitPCHInclude,
+                                         FileMgr, *Diags);
+    if (!OriginalFile.empty())
+      PPOpts.Includes.insert(PPOpts.Includes.begin(), OriginalFile);
+    PPOpts.ImplicitPCHInclude.clear();
+  }
+  // FIXME: Get the original header of a PTH as well.
+  CInvok->getPreprocessorOpts().ImplicitPTHInclude.clear();
   std::string define = getARCMTMacroName();
   define += '=';
   CInvok->getPreprocessorOpts().addMacroDef(define);
@@ -191,11 +204,11 @@ createInvocationForMigration(CompilerInvocation &origCI) {
       WarnOpts.push_back(*I);
   }
   WarnOpts.push_back("error=arc-unsafe-retained-assign");
-  CInvok->getDiagnosticOpts().Warnings = llvm_move(WarnOpts);
+  CInvok->getDiagnosticOpts().Warnings = std::move(WarnOpts);
 
   CInvok->getLangOpts()->ObjCARCWeak = HasARCRuntime(origCI);
 
-  return CInvok.take();
+  return CInvok.release();
 }
 
 static void emitPremigrationErrors(const CapturedDiagList &arcDiags,
@@ -233,7 +246,7 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
                                                                      NoFinalizeRemoval);
   assert(!transforms.empty());
 
-  OwningPtr<CompilerInvocation> CInvok;
+  std::unique_ptr<CompilerInvocation> CInvok;
   CInvok.reset(createInvocationForMigration(origCI));
   CInvok->getFrontendOpts().Inputs.clear();
   CInvok->getFrontendOpts().Inputs.push_back(Input);
@@ -250,8 +263,8 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
   CaptureDiagnosticConsumer errRec(*Diags, *DiagClient, capturedDiags);
   Diags->setClient(&errRec, /*ShouldOwnClient=*/false);
 
-  OwningPtr<ASTUnit> Unit(
-      ASTUnit::LoadFromCompilerInvocationAction(CInvok.take(), Diags));
+  std::unique_ptr<ASTUnit> Unit(
+      ASTUnit::LoadFromCompilerInvocationAction(CInvok.release(), Diags));
   if (!Unit) {
     errRec.FinishCapture();
     return true;
@@ -295,9 +308,12 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
   std::vector<SourceLocation> ARCMTMacroLocs;
 
   TransformActions testAct(*Diags, capturedDiags, Ctx, Unit->getPreprocessor());
-  MigrationPass pass(Ctx, OrigGCMode, Unit->getSema(), testAct, ARCMTMacroLocs);
-  pass.setNSAllocReallocError(NoNSAllocReallocError);
+  MigrationPass pass(Ctx, OrigGCMode, Unit->getSema(), testAct, capturedDiags,
+                     ARCMTMacroLocs);
   pass.setNoFinalizeRemoval(NoFinalizeRemoval);
+  if (!NoNSAllocReallocError)
+    Diags->setSeverity(diag::warn_arcmt_nsalloc_realloc, diag::Severity::Error,
+                       SourceLocation());
 
   for (unsigned i=0, e = transforms.size(); i != e; ++i)
     transforms[i](pass);
@@ -306,10 +322,6 @@ bool arcmt::checkForManualIssues(CompilerInvocation &origCI,
 
   DiagClient->EndSourceFile();
   errRec.FinishCapture();
-
-  // If we are migrating code that gets the '-fobjc-arc' flag, make sure
-  // to remove it so that we don't get errors from normal compilation.
-  origCI.getLangOpts()->ObjCAutoRefCount = false;
 
   return capturedDiags.hasErrors() || testAct.hasReportedErrors();
 }
@@ -360,9 +372,6 @@ static bool applyTransforms(CompilerInvocation &origCI,
     origCI.getLangOpts()->ObjCAutoRefCount = true;
     return migration.getRemapper().overwriteOriginal(*Diags);
   } else {
-    // If we are migrating code that gets the '-fobjc-arc' flag, make sure
-    // to remove it so that we don't get errors from normal compilation.
-    origCI.getLangOpts()->ObjCAutoRefCount = false;
     return migration.getRemapper().flushToDisk(outputDir, *Diags);
   }
 }
@@ -409,44 +418,6 @@ bool arcmt::getFileRemappings(std::vector<std::pair<std::string,std::string> > &
   return false;
 }
 
-bool arcmt::getFileRemappingsFromFileList(
-                        std::vector<std::pair<std::string,std::string> > &remap,
-                        ArrayRef<StringRef> remapFiles,
-                        DiagnosticConsumer *DiagClient) {
-  bool hasErrorOccurred = false;
-  llvm::StringMap<bool> Uniquer;
-
-  llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-  llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
-      new DiagnosticsEngine(DiagID, new DiagnosticOptions,
-                            DiagClient, /*ShouldOwnClient=*/false));
-
-  for (ArrayRef<StringRef>::iterator
-         I = remapFiles.begin(), E = remapFiles.end(); I != E; ++I) {
-    StringRef file = *I;
-
-    FileRemapper remapper;
-    bool err = remapper.initFromFile(file, *Diags,
-                                     /*ignoreIfFilesChanged=*/true);
-    hasErrorOccurred = hasErrorOccurred || err;
-    if (err)
-      continue;
-
-    PreprocessorOptions PPOpts;
-    remapper.applyMappings(PPOpts);
-    for (PreprocessorOptions::remapped_file_iterator
-           RI = PPOpts.remapped_file_begin(), RE = PPOpts.remapped_file_end();
-           RI != RE; ++RI) {
-      bool &inserted = Uniquer[RI->first];
-      if (inserted)
-        continue;
-      inserted = true;
-      remap.push_back(*RI);
-    }
-  }
-
-  return hasErrorOccurred;
-}
 
 //===----------------------------------------------------------------------===//
 // CollectTransformActions.
@@ -461,8 +432,8 @@ public:
   ARCMTMacroTrackerPPCallbacks(std::vector<SourceLocation> &ARCMTMacroLocs)
     : ARCMTMacroLocs(ARCMTMacroLocs) { }
 
-  virtual void MacroExpands(const Token &MacroNameTok, const MacroInfo *MI,
-                            SourceRange Range) {
+  void MacroExpands(const Token &MacroNameTok, const MacroDirective *MD,
+                    SourceRange Range, const MacroArgs *Args) override {
     if (MacroNameTok.getIdentifierInfo()->getName() == getARCMTMacroName())
       ARCMTMacroLocs.push_back(MacroNameTok.getLocation());
   }
@@ -475,11 +446,11 @@ public:
   ARCMTMacroTrackerAction(std::vector<SourceLocation> &ARCMTMacroLocs)
     : ARCMTMacroLocs(ARCMTMacroLocs) { }
 
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile) {
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override {
     CI.getPreprocessor().addPPCallbacks(
-                              new ARCMTMacroTrackerPPCallbacks(ARCMTMacroLocs));
-    return new ASTConsumer();
+               llvm::make_unique<ARCMTMacroTrackerPPCallbacks>(ARCMTMacroLocs));
+    return llvm::make_unique<ASTConsumer>();
   }
 };
 
@@ -499,14 +470,14 @@ public:
       Listener->finish();
   }
 
-  virtual void insert(SourceLocation loc, StringRef text) {
+  void insert(SourceLocation loc, StringRef text) override {
     bool err = rewriter.InsertText(loc, text, /*InsertAfter=*/true,
                                    /*indentNewLines=*/true);
     if (!err && Listener)
       Listener->insert(loc, text);
   }
 
-  virtual void remove(CharSourceRange range) {
+  void remove(CharSourceRange range) override {
     Rewriter::RewriteOptions removeOpts;
     removeOpts.IncludeInsertsAtBeginOfRange = false;
     removeOpts.IncludeInsertsAtEndOfRange = false;
@@ -517,8 +488,8 @@ public:
       Listener->remove(range);
   }
 
-  virtual void increaseIndentation(CharSourceRange range,
-                                    SourceLocation parentIndent) {
+  void increaseIndentation(CharSourceRange range,
+                            SourceLocation parentIndent) override {
     rewriter.IncreaseIndentation(range, parentIndent);
   }
 };
@@ -531,7 +502,7 @@ MigrationProcess::RewriteListener::~RewriteListener() { }
 MigrationProcess::MigrationProcess(const CompilerInvocation &CI,
                                    DiagnosticConsumer *diagClient,
                                    StringRef outputDir)
-  : OrigCI(CI), DiagClient(diagClient) {
+  : OrigCI(CI), DiagClient(diagClient), HadARCErrors(false) {
   if (!outputDir.empty()) {
     IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
@@ -543,7 +514,7 @@ MigrationProcess::MigrationProcess(const CompilerInvocation &CI,
 
 bool MigrationProcess::applyTransform(TransformFn trans,
                                       RewriteListener *listener) {
-  OwningPtr<CompilerInvocation> CInvok;
+  std::unique_ptr<CompilerInvocation> CInvok;
   CInvok.reset(createInvocationForMigration(OrigCI));
   CInvok->getDiagnosticOpts().IgnoreWarnings = true;
 
@@ -562,17 +533,18 @@ bool MigrationProcess::applyTransform(TransformFn trans,
   CaptureDiagnosticConsumer errRec(*Diags, *DiagClient, capturedDiags);
   Diags->setClient(&errRec, /*ShouldOwnClient=*/false);
 
-  OwningPtr<ARCMTMacroTrackerAction> ASTAction;
+  std::unique_ptr<ARCMTMacroTrackerAction> ASTAction;
   ASTAction.reset(new ARCMTMacroTrackerAction(ARCMTMacroLocs));
 
-  OwningPtr<ASTUnit> Unit(
-      ASTUnit::LoadFromCompilerInvocationAction(CInvok.take(), Diags,
-                                                ASTAction.get()));
+  std::unique_ptr<ASTUnit> Unit(ASTUnit::LoadFromCompilerInvocationAction(
+      CInvok.release(), Diags, ASTAction.get()));
   if (!Unit) {
     errRec.FinishCapture();
     return true;
   }
   Unit->setOwnsRemappedFileBuffers(false); // FileRemapper manages that.
+
+  HadARCErrors = HadARCErrors || capturedDiags.hasErrors();
 
   // Don't filter diagnostics anymore.
   Diags->setClient(DiagClient, /*ShouldOwnClient=*/false);
@@ -598,7 +570,7 @@ bool MigrationProcess::applyTransform(TransformFn trans,
   Rewriter rewriter(Ctx.getSourceManager(), Ctx.getLangOpts());
   TransformActions TA(*Diags, capturedDiags, Ctx, Unit->getPreprocessor());
   MigrationPass pass(Ctx, OrigCI.getLangOpts()->getGC(),
-                     Unit->getSema(), TA, ARCMTMacroLocs);
+                     Unit->getSema(), TA, capturedDiags, ARCMTMacroLocs);
 
   trans(pass);
 
@@ -625,11 +597,12 @@ bool MigrationProcess::applyTransform(TransformFn trans,
     llvm::raw_svector_ostream vecOS(newText);
     buf.write(vecOS);
     vecOS.flush();
-    llvm::MemoryBuffer *memBuf = llvm::MemoryBuffer::getMemBufferCopy(
-                   StringRef(newText.data(), newText.size()), newFname);
+    std::unique_ptr<llvm::MemoryBuffer> memBuf(
+        llvm::MemoryBuffer::getMemBufferCopy(
+            StringRef(newText.data(), newText.size()), newFname));
     SmallString<64> filePath(file->getName());
     Unit->getFileManager().FixupRelativePath(filePath);
-    Remapper.remap(filePath.str(), memBuf);
+    Remapper.remap(filePath.str(), std::move(memBuf));
   }
 
   return false;

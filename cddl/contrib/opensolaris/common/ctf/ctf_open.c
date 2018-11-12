@@ -24,8 +24,9 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+/*
+ * Copyright (c) 2013, Joyent, Inc.  All rights reserved.
+ */
 
 #include <ctf_impl.h>
 #include <sys/mman.h>
@@ -787,6 +788,92 @@ bad:
 }
 
 /*
+ * Dupliate a ctf_file_t and its underlying section information into a new
+ * container. This works by copying the three ctf_sect_t's of the original
+ * container if they exist and passing those into ctf_bufopen. To copy those, we
+ * mmap anonymous memory with ctf_data_alloc and bcopy the data across. It's not
+ * the cheapest thing, but it's what we've got.
+ */
+ctf_file_t *
+ctf_dup(ctf_file_t *ofp)
+{
+	ctf_file_t *fp;
+	ctf_sect_t ctfsect, symsect, strsect;
+	ctf_sect_t *ctp, *symp, *strp;
+	void *cbuf, *symbuf, *strbuf;
+	int err;
+
+	cbuf = symbuf = strbuf = NULL;
+	/*
+	 * The ctfsect isn't allowed to not exist, but the symbol and string
+	 * section might not. We only need to copy the data of the section, not
+	 * the name, as ctf_bufopen will take care of that.
+	 */
+	bcopy(&ofp->ctf_data, &ctfsect, sizeof (ctf_sect_t));
+	cbuf = ctf_data_alloc(ctfsect.cts_size);
+	if (cbuf == NULL) {
+		(void) ctf_set_errno(ofp, ECTF_MMAP);
+		return (NULL);
+	}
+
+	bcopy(ctfsect.cts_data, cbuf, ctfsect.cts_size);
+	ctf_data_protect(cbuf, ctfsect.cts_size);
+	ctfsect.cts_data = cbuf;
+	ctfsect.cts_offset = 0;
+	ctp = &ctfsect;
+
+	if (ofp->ctf_symtab.cts_data != NULL) {
+		bcopy(&ofp->ctf_symtab, &symsect, sizeof (ctf_sect_t));
+		symbuf = ctf_data_alloc(symsect.cts_size);
+		if (symbuf == NULL) {
+			(void) ctf_set_errno(ofp, ECTF_MMAP);
+			goto err;
+		}
+		bcopy(symsect.cts_data, symbuf, symsect.cts_size);
+		ctf_data_protect(symbuf, symsect.cts_size);
+		symsect.cts_data = symbuf;
+		symsect.cts_offset = 0;
+		symp = &symsect;
+	} else {
+		symp = NULL;
+	}
+
+	if (ofp->ctf_strtab.cts_data != NULL) {
+		bcopy(&ofp->ctf_strtab, &strsect, sizeof (ctf_sect_t));
+		strbuf = ctf_data_alloc(strsect.cts_size);
+		if (strbuf == NULL) {
+			(void) ctf_set_errno(ofp, ECTF_MMAP);
+			goto err;
+		}
+		bcopy(strsect.cts_data, strbuf, strsect.cts_size);
+		ctf_data_protect(strbuf, strsect.cts_size);
+		strsect.cts_data = strbuf;
+		strsect.cts_offset = 0;
+		strp = &strsect;
+	} else {
+		strp = NULL;
+	}
+
+	fp = ctf_bufopen(ctp, symp, strp, &err);
+	if (fp == NULL) {
+		(void) ctf_set_errno(ofp, err);
+		goto err;
+	}
+
+	fp->ctf_flags |= LCTF_MMAP;
+
+	return (fp);
+
+err:
+	ctf_data_free(cbuf, ctfsect.cts_size);
+	if (symbuf != NULL)
+		ctf_data_free(symbuf, symsect.cts_size);
+	if (strbuf != NULL)
+		ctf_data_free(strbuf, strsect.cts_size);
+	return (NULL);
+}
+
+/*
  * Close the specified CTF container and free associated data structures.  Note
  * that ctf_close() is a reference counted operation: if the specified file is
  * the parent of other active containers, its reference count will be greater
@@ -810,8 +897,12 @@ ctf_close(ctf_file_t *fp)
 	if (fp->ctf_parent != NULL)
 		ctf_close(fp->ctf_parent);
 
-	for (dtd = ctf_list_next(&fp->ctf_dtdefs); dtd != NULL; dtd = ntd) {
-		ntd = ctf_list_next(dtd);
+	/*
+	 * Note, to work properly with reference counting on the dynamic
+	 * section, we must delete the list in reverse.
+	 */
+	for (dtd = ctf_list_prev(&fp->ctf_dtdefs); dtd != NULL; dtd = ntd) {
+		ntd = ctf_list_prev(dtd);
 		ctf_dtd_delete(fp, dtd);
 	}
 

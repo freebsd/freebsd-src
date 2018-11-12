@@ -183,7 +183,7 @@ static HAL_BOOL ar5210FillCapabilityInfo(struct ath_hal *ah);
  */
 static struct ath_hal *
 ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
-	uint16_t *eepromdata, HAL_STATUS *status)
+	uint16_t *eepromdata, HAL_OPS_CONFIG *ah_config, HAL_STATUS *status)
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	struct ath_hal_5210 *ahp;
@@ -219,7 +219,7 @@ ar5210Attach(uint16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
 	AH_PRIVATE(ah)->ah_powerLimit = AR5210_MAX_RATE_POWER;
 	AH_PRIVATE(ah)->ah_tpScale = HAL_TP_SCALE_MAX;	/* no scaling */
 
-	ahp->ah_powerMode = HAL_PM_UNDEFINED;
+	ah->ah_powerMode = HAL_PM_UNDEFINED;
 	ahp->ah_staId1Defaults = 0;
 	ahp->ah_rssiThr = INIT_RSSI_THR;
 	ahp->ah_sifstime = (u_int) -1;

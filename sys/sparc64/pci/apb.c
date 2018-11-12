@@ -177,9 +177,9 @@ apb_attach(device_t dev)
 	    pci_read_config(dev, PCIR_COMMAND, 2);
 	sc->sc_bsc.ops_pcib_sc.pribus =
 	    pci_read_config(dev, PCIR_PRIBUS_1, 1);
-	sc->sc_bsc.ops_pcib_sc.secbus =
+	sc->sc_bsc.ops_pcib_sc.bus.sec =
 	    pci_read_config(dev, PCIR_SECBUS_1, 1);
-	sc->sc_bsc.ops_pcib_sc.subbus =
+	sc->sc_bsc.ops_pcib_sc.bus.sub =
 	    pci_read_config(dev, PCIR_SUBBUS_1, 1);
 	sc->sc_bsc.ops_pcib_sc.bridgectl =
 	    pci_read_config(dev, PCIR_BRIDGECTL_1, 2);
@@ -200,10 +200,10 @@ apb_attach(device_t dev)
 	    CTLFLAG_RD, &sc->sc_bsc.ops_pcib_sc.pribus, 0,
 	    "Primary bus number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "secbus",
-	    CTLFLAG_RD, &sc->sc_bsc.ops_pcib_sc.secbus, 0,
+	    CTLFLAG_RD, &sc->sc_bsc.ops_pcib_sc.bus.sec, 0,
 	    "Secondary bus number");
 	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "subbus",
-	    CTLFLAG_RD, &sc->sc_bsc.ops_pcib_sc.subbus, 0,
+	    CTLFLAG_RD, &sc->sc_bsc.ops_pcib_sc.bus.sub, 0,
 	    "Subordinate bus number");
 
 	ofw_pcib_gen_setup(dev);
@@ -212,9 +212,9 @@ apb_attach(device_t dev)
 		device_printf(dev, "  domain            %d\n",
 		    sc->sc_bsc.ops_pcib_sc.domain);
 		device_printf(dev, "  secondary bus     %d\n",
-		    sc->sc_bsc.ops_pcib_sc.secbus);
+		    sc->sc_bsc.ops_pcib_sc.bus.sec);
 		device_printf(dev, "  subordinate bus   %d\n",
-		    sc->sc_bsc.ops_pcib_sc.subbus);
+		    sc->sc_bsc.ops_pcib_sc.bus.sub);
 		device_printf(dev, "  I/O decode        ");
 		apb_map_print(sc->sc_iomap, APB_IO_SCALE);
 		printf("\n");

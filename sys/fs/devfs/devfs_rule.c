@@ -101,7 +101,7 @@ struct devfs_ruleset {
 static devfs_rid devfs_rid_input(devfs_rid rid, struct devfs_mount *dm);
 
 static void devfs_rule_applyde_recursive(struct devfs_krule *dk,
-		struct devfs_dirent *de);
+		struct devfs_mount *dm, struct devfs_dirent *de);
 static void devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm);
 static int  devfs_rule_autonumber(struct devfs_ruleset *ds, devfs_rnum *rnp);
 static struct devfs_krule *devfs_rule_byid(devfs_rid rid);
@@ -109,13 +109,16 @@ static int  devfs_rule_delete(struct devfs_krule *dkp);
 static struct cdev *devfs_rule_getdev(struct devfs_dirent *de);
 static int  devfs_rule_input(struct devfs_rule *dr, struct devfs_mount *dm);
 static int  devfs_rule_insert(struct devfs_rule *dr);
-static int  devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de);
-static int  devfs_rule_matchpath(struct devfs_krule *dk,
+static int  devfs_rule_match(struct devfs_krule *dk, struct devfs_mount *dm,
 		struct devfs_dirent *de);
-static void devfs_rule_run(struct devfs_krule *dk, struct devfs_dirent *de, unsigned depth);
+static int  devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_mount *dm,
+		struct devfs_dirent *de);
+static void devfs_rule_run(struct devfs_krule *dk, struct devfs_mount *dm,
+		struct devfs_dirent *de, unsigned depth);
 
 static void devfs_ruleset_applyde(struct devfs_ruleset *ds,
-		struct devfs_dirent *de, unsigned depth);
+		struct devfs_mount *dm, struct devfs_dirent *de,
+		unsigned depth);
 static void devfs_ruleset_applydm(struct devfs_ruleset *ds,
 		struct devfs_mount *dm);
 static struct devfs_ruleset *devfs_ruleset_bynum(devfs_rsnum rsnum);
@@ -146,7 +149,7 @@ devfs_rules_apply(struct devfs_mount *dm, struct devfs_dirent *de)
 	sx_slock(&sx_rules);
 	ds = devfs_ruleset_bynum(dm->dm_ruleset);
 	KASSERT(ds != NULL, ("mount-point has NULL ruleset"));
-	devfs_ruleset_applyde(ds, de, devfs_rule_depth);
+	devfs_ruleset_applyde(ds, dm, de, devfs_rule_depth);
 	sx_sunlock(&sx_rules);
 }
 
@@ -337,13 +340,14 @@ devfs_rid_input(devfs_rid rid, struct devfs_mount *dm)
  * XXX: a linear search could be done through the cdev list instead.
  */
 static void
-devfs_rule_applyde_recursive(struct devfs_krule *dk, struct devfs_dirent *de)
+devfs_rule_applyde_recursive(struct devfs_krule *dk, struct devfs_mount *dm,
+    struct devfs_dirent *de)
 {
 	struct devfs_dirent *de2;
 
 	TAILQ_FOREACH(de2, &de->de_dlist, de_list)
-		devfs_rule_applyde_recursive(dk, de2);
-	devfs_rule_run(dk, de, devfs_rule_depth);
+		devfs_rule_applyde_recursive(dk, dm, de2);
+	devfs_rule_run(dk, dm, de, devfs_rule_depth);
 }
 
 /*
@@ -353,7 +357,7 @@ static void
 devfs_rule_applydm(struct devfs_krule *dk, struct devfs_mount *dm)
 {
 
-	devfs_rule_applyde_recursive(dk, dm->dm_rootdir);
+	devfs_rule_applyde_recursive(dk, dm, dm->dm_rootdir);
 }
 
 /*
@@ -525,7 +529,8 @@ devfs_rule_insert(struct devfs_rule *dr)
  * de; 0, otherwise.
  */
 static int
-devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
+devfs_rule_match(struct devfs_krule *dk, struct devfs_mount *dm,
+    struct devfs_dirent *de)
 {
 	struct devfs_rule *dr = &dk->dk_rule;
 	struct cdev *dev;
@@ -558,7 +563,7 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
 		dev_relthread(dev, ref);
 	}
 	if (dr->dr_icond & DRC_PATHPTRN)
-		if (!devfs_rule_matchpath(dk, de))
+		if (!devfs_rule_matchpath(dk, dm, de))
 			return (0);
 
 	return (1);
@@ -568,35 +573,43 @@ devfs_rule_match(struct devfs_krule *dk, struct devfs_dirent *de)
  * Determine whether dk matches de on account of dr_pathptrn.
  */
 static int
-devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_dirent *de)
+devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_mount *dm,
+    struct devfs_dirent *de)
 {
 	struct devfs_rule *dr = &dk->dk_rule;
-	char *pname;
 	struct cdev *dev;
+	int match;
+	char *pname, *specname;
 
+	specname = NULL;
 	dev = devfs_rule_getdev(de);
 	if (dev != NULL)
 		pname = dev->si_name;
 	else if (de->de_dirent->d_type == DT_LNK ||
-	    de->de_dirent->d_type == DT_DIR)
-		pname = de->de_dirent->d_name;
-	else
+	    (de->de_dirent->d_type == DT_DIR && de != dm->dm_rootdir &&
+	    (de->de_flags & (DE_DOT | DE_DOTDOT)) == 0)) {
+		specname = malloc(SPECNAMELEN + 1, M_TEMP, M_WAITOK);
+		pname = devfs_fqpn(specname, dm, de, NULL);
+	} else
 		return (0);
-	KASSERT(pname != NULL, ("devfs_rule_matchpath: NULL pname"));
 
-	return (fnmatch(dr->dr_pathptrn, pname, 0) == 0);
+	KASSERT(pname != NULL, ("devfs_rule_matchpath: NULL pname"));
+	match = fnmatch(dr->dr_pathptrn, pname, FNM_PATHNAME) == 0;
+	free(specname, M_TEMP);
+	return (match);
 }
 
 /*
  * Run dk on de.
  */
 static void
-devfs_rule_run(struct devfs_krule *dk, struct devfs_dirent *de, unsigned depth)
+devfs_rule_run(struct devfs_krule *dk,  struct devfs_mount *dm,
+    struct devfs_dirent *de, unsigned depth)
 {
 	struct devfs_rule *dr = &dk->dk_rule;
 	struct devfs_ruleset *ds;
 
-	if (!devfs_rule_match(dk, de))
+	if (!devfs_rule_match(dk, dm, de))
 		return;
 	if (dr->dr_iacts & DRA_BACTS) {
 		if (dr->dr_bacts & DRB_HIDE)
@@ -623,7 +636,7 @@ devfs_rule_run(struct devfs_krule *dk, struct devfs_dirent *de, unsigned depth)
 		if (depth > 0) {
 			ds = devfs_ruleset_bynum(dk->dk_rule.dr_incset);
 			KASSERT(ds != NULL, ("DRA_INCSET but bad dr_incset"));
-			devfs_ruleset_applyde(ds, de, depth - 1);
+			devfs_ruleset_applyde(ds, dm, de, depth - 1);
 		}
 	}
 }
@@ -632,12 +645,13 @@ devfs_rule_run(struct devfs_krule *dk, struct devfs_dirent *de, unsigned depth)
  * Apply all the rules in ds to de.
  */
 static void
-devfs_ruleset_applyde(struct devfs_ruleset *ds, struct devfs_dirent *de, unsigned depth)
+devfs_ruleset_applyde(struct devfs_ruleset *ds, struct devfs_mount *dm,
+    struct devfs_dirent *de, unsigned depth)
 {
 	struct devfs_krule *dk;
 
 	TAILQ_FOREACH(dk, &ds->ds_rules, dk_list)
-		devfs_rule_run(dk, de, depth);
+		devfs_rule_run(dk, dm, de, depth);
 }
 
 /*

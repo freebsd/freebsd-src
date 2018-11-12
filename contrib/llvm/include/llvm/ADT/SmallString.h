@@ -34,9 +34,6 @@ public:
   template<typename ItTy>
   SmallString(ItTy S, ItTy E) : SmallVector<char, InternalLen>(S, E) {}
 
-  /// Copy ctor.
-  SmallString(const SmallString &RHS) : SmallVector<char, InternalLen>(RHS) {}
-
   // Note that in order to add new overloads for append & assign, we have to
   // duplicate the inherited versions so as not to inadvertently hide them.
 
@@ -77,7 +74,7 @@ public:
   void append(in_iter S, in_iter E) {
     SmallVectorImpl<char>::append(S, E);
   }
-  
+
   void append(size_t NumInputs, char Elt) {
     SmallVectorImpl<char>::append(NumInputs, Elt);
   }

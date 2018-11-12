@@ -147,4 +147,7 @@ void dbdma_insert_branch(dbdma_channel_t *chan, int slot, int to_slot);
 
 void dbdma_sync_commands(dbdma_channel_t *chan, bus_dmasync_op_t op);
 
+void dbdma_save_state(dbdma_channel_t *chan);
+void dbdma_restore_state(dbdma_channel_t *chan);
+
 #endif /* _MACHINE_DBDMA_H_ */

@@ -44,12 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/ttm/ttm_bo_driver.h>
 #include <dev/drm2/ttm/ttm_page_alloc.h>
-
-#ifdef TTM_HAS_AGP
-#include <asm/agp.h>
-#endif
-
-#define	VM_ALLOC_DMA32	VM_ALLOC_RESERVED1
+#include <vm/vm_pageout.h>
 
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(vm_page_t))
 #define SMALL_ALLOCATION		16
@@ -141,7 +136,7 @@ ttm_vm_page_free(vm_page_t m)
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0, ("ttm got unmanaged %p", m));
 	m->flags &= ~PG_FICTITIOUS;
 	m->oflags |= VPO_UNMANAGED;
-	vm_page_unwire(m, 0);
+	vm_page_unwire(m, PQ_INACTIVE);
 	vm_page_free(m);
 }
 
@@ -222,46 +217,34 @@ static struct ttm_pool_manager *_manager;
 
 static int set_pages_array_wb(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		unmap_page_from_agp(m);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_WRITE_BACK);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_WRITE_BACK);
-	}
 	return 0;
 }
 
 static int set_pages_array_wc(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		map_page_into_agp(pages[i]);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_WRITE_COMBINING);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_WRITE_COMBINING);
-	}
 	return 0;
 }
 
 static int set_pages_array_uc(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		map_page_into_agp(pages[i]);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_UNCACHEABLE);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_UNCACHEABLE);
-	}
 	return 0;
 }
 
@@ -320,6 +303,7 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free)
 	vm_page_t *pages_to_free;
 	unsigned freed_pages = 0,
 		 npages_to_free = nr_free;
+	unsigned i;
 
 	if (NUM_PAGES_TO_ALLOC < nr_free)
 		npages_to_free = NUM_PAGES_TO_ALLOC;
@@ -330,7 +314,7 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free)
 restart:
 	mtx_lock(&pool->lock);
 
-	TAILQ_FOREACH_REVERSE_SAFE(p, &pool->list, pglist, pageq, p1) {
+	TAILQ_FOREACH_REVERSE_SAFE(p, &pool->list, pglist, plinks.q, p1) {
 		if (freed_pages >= npages_to_free)
 			break;
 
@@ -338,7 +322,8 @@ restart:
 		/* We can only remove NUM_PAGES_TO_ALLOC at a time. */
 		if (freed_pages >= NUM_PAGES_TO_ALLOC) {
 			/* remove range of pages from the pool */
-			TAILQ_REMOVE(&pool->list, p, pageq);
+			for (i = 0; i < freed_pages; i++)
+				TAILQ_REMOVE(&pool->list, pages_to_free[i], plinks.q);
 
 			ttm_pool_update_free_locked(pool, freed_pages);
 			/**
@@ -373,7 +358,8 @@ restart:
 
 	/* remove range of pages from the pool */
 	if (freed_pages) {
-		TAILQ_REMOVE(&pool->list, p, pageq);
+		for (i = 0; i < freed_pages; i++)
+			TAILQ_REMOVE(&pool->list, pages_to_free[i], plinks.q);
 
 		ttm_pool_update_free_locked(pool, freed_pages);
 		nr_free -= freed_pages;
@@ -470,9 +456,17 @@ static void ttm_handle_caching_state_failure(struct pglist *pages,
 	unsigned i;
 	/* Failed pages have to be freed */
 	for (i = 0; i < cpages; ++i) {
-		TAILQ_REMOVE(pages, failed_pages[i], pageq);
+		TAILQ_REMOVE(pages, failed_pages[i], plinks.q);
 		ttm_vm_page_free(failed_pages[i]);
 	}
+}
+
+static vm_paddr_t
+ttm_alloc_high_bound(int ttm_alloc_flags)
+{
+
+	return ((ttm_alloc_flags & TTM_PAGE_FLAG_DMA32) ? 0xffffffff :
+	    VM_MAX_ADDRESS);
 }
 
 /**
@@ -490,6 +484,7 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 	unsigned i, cpages, aflags;
 	unsigned max_cpages = min(count,
 			(unsigned)(PAGE_SIZE/sizeof(vm_page_t)));
+	int tries;
 
 	aflags = VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_NOOBJ |
 	    ((ttm_alloc_flags & TTM_PAGE_FLAG_ZERO_ALLOC) != 0 ?
@@ -500,11 +495,18 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 	    M_WAITOK | M_ZERO);
 
 	for (i = 0, cpages = 0; i < count; ++i) {
+		tries = 0;
+retry:
 		p = vm_page_alloc_contig(NULL, 0, aflags, 1, 0,
-		    (ttm_alloc_flags & TTM_PAGE_FLAG_DMA32) ? 0xffffffff :
-		    VM_MAX_ADDRESS, PAGE_SIZE, 0,
-		    ttm_caching_state_to_vm(cstate));
+		    ttm_alloc_high_bound(ttm_alloc_flags),
+		    PAGE_SIZE, 0, ttm_caching_state_to_vm(cstate));
 		if (!p) {
+			if (tries < 3) {
+				vm_pageout_grow_cache(tries, 0,
+				    ttm_alloc_high_bound(ttm_alloc_flags));
+				tries++;
+				goto retry;
+			}
 			printf("[TTM] Unable to get page %u\n", i);
 
 			/* store already allocated pages in the pool after
@@ -545,7 +547,7 @@ static int ttm_alloc_new_pages(struct pglist *pages, int ttm_alloc_flags,
 			}
 		}
 
-		TAILQ_INSERT_HEAD(pages, p, pageq);
+		TAILQ_INSERT_HEAD(pages, p, plinks.q);
 	}
 
 	if (cpages) {
@@ -600,16 +602,16 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 		mtx_lock(&pool->lock);
 
 		if (!r) {
-			TAILQ_CONCAT(&pool->list, &new_pages, pageq);
+			TAILQ_CONCAT(&pool->list, &new_pages, plinks.q);
 			++pool->nrefills;
 			pool->npages += alloc_size;
 		} else {
 			printf("[TTM] Failed to fill pool (%p)\n", pool);
 			/* If we have any pages left put them to the pool. */
-			TAILQ_FOREACH(p, &pool->list, pageq) {
+			TAILQ_FOREACH(p, &pool->list, plinks.q) {
 				++cpages;
 			}
-			TAILQ_CONCAT(&pool->list, &new_pages, pageq);
+			TAILQ_CONCAT(&pool->list, &new_pages, plinks.q);
 			pool->npages += cpages;
 		}
 
@@ -636,15 +638,15 @@ static unsigned ttm_page_pool_get_pages(struct ttm_page_pool *pool,
 
 	if (count >= pool->npages) {
 		/* take all pages from the pool */
-		TAILQ_CONCAT(pages, &pool->list, pageq);
+		TAILQ_CONCAT(pages, &pool->list, plinks.q);
 		count -= pool->npages;
 		pool->npages = 0;
 		goto out;
 	}
 	for (i = 0; i < count; i++) {
 		p = TAILQ_FIRST(&pool->list);
-		TAILQ_REMOVE(&pool->list, p, pageq);
-		TAILQ_INSERT_TAIL(pages, p, pageq);
+		TAILQ_REMOVE(&pool->list, p, plinks.q);
+		TAILQ_INSERT_TAIL(pages, p, plinks.q);
 	}
 	pool->npages -= count;
 	count = 0;
@@ -674,7 +676,7 @@ static void ttm_put_pages(vm_page_t *pages, unsigned npages, int flags,
 	mtx_lock(&pool->lock);
 	for (i = 0; i < npages; i++) {
 		if (pages[i]) {
-			TAILQ_INSERT_TAIL(&pool->list, pages[i], pageq);
+			TAILQ_INSERT_TAIL(&pool->list, pages[i], plinks.q);
 			pages[i] = NULL;
 			pool->npages++;
 		}
@@ -706,6 +708,7 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 	int gfp_flags, aflags;
 	unsigned count;
 	int r;
+	int tries;
 
 	aflags = VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 	    ((flags & TTM_PAGE_FLAG_ZERO_ALLOC) != 0 ? VM_ALLOC_ZERO : 0);
@@ -713,11 +716,18 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 	/* No pool for cached pages */
 	if (pool == NULL) {
 		for (r = 0; r < npages; ++r) {
+			tries = 0;
+retry:
 			p = vm_page_alloc_contig(NULL, 0, aflags, 1, 0,
-			    (flags & TTM_PAGE_FLAG_DMA32) ? 0xffffffff :
-			    VM_MAX_ADDRESS, PAGE_SIZE,
+			    ttm_alloc_high_bound(flags), PAGE_SIZE,
 			    0, ttm_caching_state_to_vm(cstate));
 			if (!p) {
+				if (tries < 3) {
+					vm_pageout_grow_cache(tries, 0,
+					    ttm_alloc_high_bound(flags));
+					tries++;
+					goto retry;
+				}
 				printf("[TTM] Unable to allocate page\n");
 				return -ENOMEM;
 			}
@@ -735,13 +745,13 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 	TAILQ_INIT(&plist);
 	npages = ttm_page_pool_get_pages(pool, &plist, flags, cstate, npages);
 	count = 0;
-	TAILQ_FOREACH(p, &plist, pageq) {
+	TAILQ_FOREACH(p, &plist, plinks.q) {
 		pages[count++] = p;
 	}
 
 	/* clear the pages coming from the pool if requested */
 	if (flags & TTM_PAGE_FLAG_ZERO_ALLOC) {
-		TAILQ_FOREACH(p, &plist, pageq) {
+		TAILQ_FOREACH(p, &plist, plinks.q) {
 			pmap_zero_page(p);
 		}
 	}
@@ -754,7 +764,7 @@ static int ttm_get_pages(vm_page_t *pages, unsigned npages, int flags,
 		TAILQ_INIT(&plist);
 		r = ttm_alloc_new_pages(&plist, gfp_flags, flags, cstate,
 		    npages);
-		TAILQ_FOREACH(p, &plist, pageq) {
+		TAILQ_FOREACH(p, &plist, plinks.q) {
 			pages[count++] = p;
 		}
 		if (r) {

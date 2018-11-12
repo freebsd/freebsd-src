@@ -1,0 +1,6 @@
+# $FreeBSD$
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+

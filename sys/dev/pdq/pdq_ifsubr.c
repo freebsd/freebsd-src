@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h> 
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h> 
@@ -228,7 +229,7 @@ pdq_os_receive_pdu(
     struct ifnet *ifp = PDQ_IFNET(sc);
     struct fddi_header *fh;
 
-    ifp->if_ipackets++;
+    if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 #if defined(PDQ_BUS_DMA)
     {
 	/*
@@ -250,8 +251,8 @@ pdq_os_receive_pdu(
     m->m_pkthdr.len = pktlen;
     fh = mtod(m, struct fddi_header *);
     if (drop || (fh->fddi_fc & (FDDIFC_L|FDDIFC_F)) != FDDIFC_LLC_ASYNC) {
-	ifp->if_iqdrops++;
-	ifp->if_ierrors++;
+	if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	PDQ_OS_DATABUF_FREE(pdq, m);
 	return;
     }
@@ -288,7 +289,7 @@ pdq_os_transmit_done(
 	PDQ_BPF_MTAP(sc, m);
 #endif
     PDQ_OS_DATABUF_FREE(pdq, m);
-    PDQ_IFNET(sc)->if_opackets++;
+    if_inc_counter(PDQ_IFNET(sc), IFCOUNTER_OPACKETS, 1);
 }
 
 void
@@ -747,8 +748,7 @@ pdq_os_databuf_alloc(
 	printf("%s: can't alloc small buf\n", sc->sc_dev.dv_xname);
 	return NULL;
     }
-    MCLGET(m, M_NOWAIT);
-    if ((m->m_flags & M_EXT) == 0) {
+    if (!(MCLGET(m, M_NOWAIT))) {
 	printf("%s: can't alloc cluster\n", sc->sc_dev.dv_xname);
         m_free(m);
 	return NULL;

@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2014 by Delphix. All rights reserved.
  */
 
 /*
@@ -34,7 +35,7 @@
  * deleted from the log when the scrub completes.
  *
  * The log is stored using a ZAP object whose key is a string form of the
- * zbookmark tuple (objset, object, level, blkid), and whose contents is an
+ * zbookmark_phys tuple (objset, object, level, blkid), and whose contents is an
  * optional 'objset:object' human-readable string describing the data.  When an
  * error is first logged, this string will be empty, indicating that no name is
  * known.  This prevents us from having to issue a potentially large amount of
@@ -58,7 +59,7 @@
  * Convert a bookmark to a string.
  */
 static void
-bookmark_to_name(zbookmark_t *zb, char *buf, size_t len)
+bookmark_to_name(zbookmark_phys_t *zb, char *buf, size_t len)
 {
 	(void) snprintf(buf, len, "%llx:%llx:%llx:%llx",
 	    (u_longlong_t)zb->zb_objset, (u_longlong_t)zb->zb_object,
@@ -70,7 +71,7 @@ bookmark_to_name(zbookmark_t *zb, char *buf, size_t len)
  */
 #ifdef _KERNEL
 static void
-name_to_bookmark(char *buf, zbookmark_t *zb)
+name_to_bookmark(char *buf, zbookmark_phys_t *zb)
 {
 	zb->zb_objset = strtonum(buf, &buf);
 	ASSERT(*buf == ':');
@@ -91,7 +92,7 @@ name_to_bookmark(char *buf, zbookmark_t *zb)
 void
 spa_log_error(spa_t *spa, zio_t *zio)
 {
-	zbookmark_t *zb = &zio->io_logical->io_bookmark;
+	zbookmark_phys_t *zb = &zio->io_logical->io_bookmark;
 	spa_error_entry_t search;
 	spa_error_entry_t *new;
 	avl_tree_t *tree;
@@ -164,7 +165,7 @@ process_error_log(spa_t *spa, uint64_t obj, void *addr, size_t *count)
 {
 	zap_cursor_t zc;
 	zap_attribute_t za;
-	zbookmark_t zb;
+	zbookmark_phys_t zb;
 
 	if (obj == 0)
 		return (0);
@@ -175,15 +176,17 @@ process_error_log(spa_t *spa, uint64_t obj, void *addr, size_t *count)
 
 		if (*count == 0) {
 			zap_cursor_fini(&zc);
-			return (ENOMEM);
+			return (SET_ERROR(ENOMEM));
 		}
 
 		name_to_bookmark(za.za_name, &zb);
 
 		if (copyout(&zb, (char *)addr +
-		    (*count - 1) * sizeof (zbookmark_t),
-		    sizeof (zbookmark_t)) != 0)
-			return (EFAULT);
+		    (*count - 1) * sizeof (zbookmark_phys_t),
+		    sizeof (zbookmark_phys_t)) != 0) {
+			zap_cursor_fini(&zc);
+			return (SET_ERROR(EFAULT));
+		}
 
 		*count -= 1;
 	}
@@ -201,12 +204,12 @@ process_error_list(avl_tree_t *list, void *addr, size_t *count)
 	for (se = avl_first(list); se != NULL; se = AVL_NEXT(list, se)) {
 
 		if (*count == 0)
-			return (ENOMEM);
+			return (SET_ERROR(ENOMEM));
 
 		if (copyout(&se->se_bookmark, (char *)addr +
-		    (*count - 1) * sizeof (zbookmark_t),
-		    sizeof (zbookmark_t)) != 0)
-			return (EFAULT);
+		    (*count - 1) * sizeof (zbookmark_phys_t),
+		    sizeof (zbookmark_phys_t)) != 0)
+			return (SET_ERROR(EFAULT));
 
 		*count -= 1;
 	}

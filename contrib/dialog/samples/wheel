@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: wheel,v 1.7 2010/01/13 01:44:12 tom Exp $
+# $Id: wheel,v 1.8 2012/06/29 09:59:40 tom Exp $
 
 . ./setup-vars
 
@@ -17,10 +17,10 @@ COLS=`expr $COLS - 30`
 
 # Takes an integer, multiplies it for COLS, divides for 132
 scalex() {
-  echo $[$1*$COLS/132]
+  expr $1 \* $COLS / 132
 }
 scaley() {
-  echo $[$1*$ROWS/60]
+  expr $1 \* $ROWS / 60
 }
 
 $DIALOG --backtitle "$TITLE" --no-shadow \

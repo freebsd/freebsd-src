@@ -12,12 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "NVPTXMCTargetDesc.h"
+#include "InstPrinter/NVPTXInstPrinter.h"
 #include "NVPTXMCAsmInfo.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
+
+using namespace llvm;
 
 #define GET_INSTRINFO_MC_DESC
 #include "NVPTXGenInstrInfo.inc"
@@ -27,9 +30,6 @@
 
 #define GET_REGINFO_MC_DESC
 #include "NVPTXGenRegisterInfo.inc"
-
-
-using namespace llvm;
 
 static MCInstrInfo *createNVPTXMCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
@@ -44,21 +44,30 @@ static MCRegisterInfo *createNVPTXMCRegisterInfo(StringRef TT) {
   return X;
 }
 
-static MCSubtargetInfo *createNVPTXMCSubtargetInfo(StringRef TT, StringRef CPU,
-                                                   StringRef FS) {
+static MCSubtargetInfo *
+createNVPTXMCSubtargetInfo(StringRef TT, StringRef CPU, StringRef FS) {
   MCSubtargetInfo *X = new MCSubtargetInfo();
   InitNVPTXMCSubtargetInfo(X, TT, CPU, FS);
   return X;
 }
 
-static MCCodeGenInfo *createNVPTXMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                               CodeModel::Model CM,
-                                               CodeGenOpt::Level OL) {
+static MCCodeGenInfo *createNVPTXMCCodeGenInfo(
+    StringRef TT, Reloc::Model RM, CodeModel::Model CM, CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
   X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
+static MCInstPrinter *createNVPTXMCInstPrinter(const Target &T,
+                                               unsigned SyntaxVariant,
+                                               const MCAsmInfo &MAI,
+                                               const MCInstrInfo &MII,
+                                               const MCRegisterInfo &MRI,
+                                               const MCSubtargetInfo &STI) {
+  if (SyntaxVariant == 0)
+    return new NVPTXInstPrinter(MAI, MII, MRI, STI);
+  return nullptr;
+}
 
 // Force static initialization.
 extern "C" void LLVMInitializeNVPTXTargetMC() {
@@ -88,4 +97,9 @@ extern "C" void LLVMInitializeNVPTXTargetMC() {
   TargetRegistry::RegisterMCSubtargetInfo(TheNVPTXTarget64,
                                           createNVPTXMCSubtargetInfo);
 
+  // Register the MCInstPrinter.
+  TargetRegistry::RegisterMCInstPrinter(TheNVPTXTarget32,
+                                        createNVPTXMCInstPrinter);
+  TargetRegistry::RegisterMCInstPrinter(TheNVPTXTarget64,
+                                        createNVPTXMCInstPrinter);
 }

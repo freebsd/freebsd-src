@@ -33,6 +33,9 @@
  *
  * $FreeBSD$
  */
+#ifdef ARM_NEW_PMAP
+#include <machine/pte-v6.h>
+#else /* ARM_NEW_PMAP */
 
 #ifndef _MACHINE_PTE_H_
 #define _MACHINE_PTE_H_
@@ -159,6 +162,9 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  */
 #define	L2_TABLE_SIZE_REAL	0x400	/* 1K */
 
+/* Total number of page table entries in L2 table */
+#define	L2_PTE_NUM_TOTAL	(L2_TABLE_SIZE_REAL / sizeof(pt_entry_t))
+
 /*
  * ARM L1 Descriptors
  */
@@ -173,6 +179,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 #define	L1_S_B		0x00000004	/* bufferable Section */
 #define	L1_S_C		0x00000008	/* cacheable Section */
 #define	L1_S_IMP	0x00000010	/* implementation defined */
+#define	L1_S_XN		(1 << 4)	/* execute not */
 #define	L1_S_DOM(x)	((x) << 5)	/* domain */
 #define	L1_S_DOM_MASK	L1_S_DOM(0xf)
 #define	L1_S_AP(x)	((x) << 10)	/* access permissions */
@@ -248,6 +255,7 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * Access Permissions for L1 and L2 Descriptors.
  */
 #define	AP_W		0x01		/* writable */
+#define	AP_REF		0x01		/* referenced flag */
 #define	AP_U		0x02		/* user */
 
 /*
@@ -347,5 +355,6 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
  * 1 X 1 1 1	Y	  Y		WT	Y		Y
  */
 #endif /* !_MACHINE_PTE_H_ */
+#endif /* !ARM_NEW_PMAP */
 
 /* End of pte.h */

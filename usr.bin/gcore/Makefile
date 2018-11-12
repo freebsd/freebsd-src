@@ -3,8 +3,11 @@
 
 PROG=	gcore
 SRCS=	elfcore.c gcore.c
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	sbuf util
+
+.if ${MACHINE_ARCH} == "amd64"
+SRCS+=	elf32core.c
+.endif
 
 WARNS?=	1
 

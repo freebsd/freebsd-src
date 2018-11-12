@@ -870,7 +870,8 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 
 	new_state = attr_mask & IB_QP_STATE ? attr->qp_state : cur_state;
 
-	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, attr_mask)) {
+	if (!ib_modify_qp_is_ok(cur_state, new_state, ibqp->qp_type, 
+				attr_mask, IB_LINK_LAYER_UNSPECIFIED)) {
 		mthca_dbg(dev, "Bad QP transition (transport %d) "
 			  "%d->%d with attr 0x%08x\n",
 			  qp->transport, cur_state, new_state,
@@ -1756,7 +1757,7 @@ int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		/* Add one more inline data segment for ICRC */
 		if (qp->transport == MLX) {
 			((struct mthca_data_seg *) wqe)->byte_count =
-				cpu_to_be32((1 << 31) | 4);
+				cpu_to_be32((1U << 31) | 4);
 			((u32 *) wqe)[1] = 0;
 			wqe += sizeof (struct mthca_data_seg);
 			size += sizeof (struct mthca_data_seg) / 16;
@@ -2097,7 +2098,7 @@ int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		/* Add one more inline data segment for ICRC */
 		if (qp->transport == MLX) {
 			((struct mthca_data_seg *) wqe)->byte_count =
-				cpu_to_be32((1 << 31) | 4);
+				cpu_to_be32((1U << 31) | 4);
 			((u32 *) wqe)[1] = 0;
 			wqe += sizeof (struct mthca_data_seg);
 			size += sizeof (struct mthca_data_seg) / 16;

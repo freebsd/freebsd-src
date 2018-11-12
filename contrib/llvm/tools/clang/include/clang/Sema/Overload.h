@@ -22,8 +22,10 @@
 #include "clang/AST/Type.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/Sema/SemaFixItUtils.h"
+#include "clang/Sema/TemplateDeduction.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Allocator.h"
 
 namespace clang {
@@ -78,25 +80,11 @@ namespace clang {
     ICK_Vector_Splat,          ///< A vector splat from an arithmetic type
     ICK_Complex_Real,          ///< Complex-real conversions (C99 6.3.1.7)
     ICK_Block_Pointer_Conversion,    ///< Block Pointer conversions 
-    ICK_TransparentUnionConversion, /// Transparent Union Conversions
+    ICK_TransparentUnionConversion, ///< Transparent Union Conversions
     ICK_Writeback_Conversion,  ///< Objective-C ARC writeback conversion
+    ICK_Zero_Event_Conversion, ///< Zero constant to event (OpenCL1.2 6.12.10)
     ICK_Num_Conversion_Kinds   ///< The number of conversion kinds
   };
-
-  /// ImplicitConversionCategory - The category of an implicit
-  /// conversion kind. The enumerator values match with Table 9 of
-  /// (C++ 13.3.3.1.1) and are listed such that better conversion
-  /// categories have smaller values.
-  enum ImplicitConversionCategory {
-    ICC_Identity = 0,              ///< Identity
-    ICC_Lvalue_Transformation,     ///< Lvalue transformation
-    ICC_Qualification_Adjustment,  ///< Qualification adjustment
-    ICC_Promotion,                 ///< Promotion
-    ICC_Conversion                 ///< Conversion
-  };
-
-  ImplicitConversionCategory
-  GetConversionCategory(ImplicitConversionKind Kind);
 
   /// ImplicitConversionRank - The rank of an implicit conversion
   /// kind. The enumerator values match with Table 9 of (C++
@@ -240,7 +228,7 @@ namespace clang {
                                    QualType &ConstantType) const;
     bool isPointerConversionToBool() const;
     bool isPointerConversionToVoidPointer(ASTContext& Context) const;
-    void DebugPrint() const;
+    void dump() const;
   };
 
   /// UserDefinedConversionSequence - Represents a user-defined
@@ -260,7 +248,7 @@ namespace clang {
     StandardConversionSequence Before;
 
     /// EllipsisConversion - When this is true, it means user-defined
-    /// conversion sequence starts with a ... (elipsis) conversion, instead of 
+    /// conversion sequence starts with a ... (ellipsis) conversion, instead of
     /// a standard conversion. In this case, 'Before' field must be ignored.
     // FIXME. I much rather put this as the first field. But there seems to be
     // a gcc code gen. bug which causes a crash in a test. Putting it here seems
@@ -286,7 +274,7 @@ namespace clang {
     /// that refers to \c ConversionFunction.
     DeclAccessPair FoundConversionFunction;
 
-    void DebugPrint() const;
+    void dump() const;
   };
 
   /// Represents an ambiguous user-defined conversion sequence.
@@ -337,7 +325,6 @@ namespace clang {
     enum FailureKind {
       no_conversion,
       unrelated_class,
-      suppressed_user,
       bad_qualifiers,
       lvalue_ref_to_rvalue,
       rvalue_ref_to_lvalue
@@ -362,7 +349,7 @@ namespace clang {
     }
     void init(FailureKind K, QualType From, QualType To) {
       Kind = K;
-      FromExpr = 0;
+      FromExpr = nullptr;
       setFromType(From);
       setToType(To);
     }
@@ -404,9 +391,6 @@ namespace clang {
     /// ConversionKind - The kind of implicit conversion sequence.
     unsigned ConversionKind : 30;
 
-    /// \brief Whether the argument is an initializer list.
-    bool ListInitializationSequence : 1;
-
     /// \brief Whether the target is really a std::initializer_list, and the
     /// sequence only represents the worst element conversion.
     bool StdInitializerListElement : 1;
@@ -439,16 +423,14 @@ namespace clang {
       BadConversionSequence Bad;
     };
 
-    ImplicitConversionSequence() 
-      : ConversionKind(Uninitialized), ListInitializationSequence(false),
-        StdInitializerListElement(false)
+    ImplicitConversionSequence()
+      : ConversionKind(Uninitialized), StdInitializerListElement(false)
     {}
     ~ImplicitConversionSequence() {
       destruct();
     }
     ImplicitConversionSequence(const ImplicitConversionSequence &Other)
-      : ConversionKind(Other.ConversionKind), 
-        ListInitializationSequence(Other.ListInitializationSequence),
+      : ConversionKind(Other.ConversionKind),
         StdInitializerListElement(Other.StdInitializerListElement)
     {
       switch (ConversionKind) {
@@ -534,16 +516,6 @@ namespace clang {
       Ambiguous.construct();
     }
 
-    /// \brief Whether this sequence was created by the rules of
-    /// list-initialization sequences.
-    bool isListInitializationSequence() const {
-      return ListInitializationSequence;
-    }
-
-    void setListInitializationSequence() {
-      ListInitializationSequence = true;
-    }
-
     /// \brief Whether the target is really a std::initializer_list, and the
     /// sequence only represents the worst element conversion.
     bool isStdInitializerListElement() const {
@@ -567,7 +539,7 @@ namespace clang {
                                      SourceLocation CaretLoc,
                                      const PartialDiagnostic &PDiag) const;
 
-    void DebugPrint() const;
+    void dump() const;
   };
 
   enum OverloadFailureKind {
@@ -581,6 +553,17 @@ namespace clang {
     /// conversion.
     ovl_fail_trivial_conversion,
 
+    /// This conversion candidate was not considered because it is
+    /// an illegal instantiation of a constructor temploid: it is
+    /// callable with one argument, we only have one argument, and
+    /// its first parameter type is exactly the type of the class.
+    ///
+    /// Defining such a constructor directly is illegal, and
+    /// template-argument deduction is supposed to ignore such
+    /// instantiations, but we can still get one with the right
+    /// kind of implicit instantiation.
+    ovl_fail_illegal_constructor,
+
     /// This conversion candidate is not viable because its result
     /// type is not implicitly convertible to the desired type.
     ovl_fail_bad_final_conversion,
@@ -592,7 +575,11 @@ namespace clang {
     /// (CUDA) This candidate was not viable because the callee
     /// was not accessible from the caller's target (i.e. host->device,
     /// global->host, device->host).
-    ovl_fail_bad_target
+    ovl_fail_bad_target,
+
+    /// This candidate function was not viable because an enable_if
+    /// attribute disabled it.
+    ovl_fail_enable_if
   };
 
   /// OverloadCandidate - A single candidate in an overload set (C++ 13.3).
@@ -655,49 +642,6 @@ namespace clang {
     /// \brief The number of call arguments that were explicitly provided,
     /// to be used while performing partial ordering of function templates.
     unsigned ExplicitCallArguments;
-    
-    /// A structure used to record information about a failed
-    /// template argument deduction.
-    struct DeductionFailureInfo {
-      /// A Sema::TemplateDeductionResult.
-      unsigned Result : 8;
-
-      /// \brief Indicates whether a diagnostic is stored in Diagnostic.
-      unsigned HasDiagnostic : 1;
-
-      /// \brief Opaque pointer containing additional data about
-      /// this deduction failure.
-      void *Data;
-
-      /// \brief A diagnostic indicating why deduction failed.
-      union {
-        void *Align;
-        char Diagnostic[sizeof(PartialDiagnosticAt)];
-      };
-
-      /// \brief Retrieve the diagnostic which caused this deduction failure,
-      /// if any.
-      PartialDiagnosticAt *getSFINAEDiagnostic();
-      
-      /// \brief Retrieve the template parameter this deduction failure
-      /// refers to, if any.
-      TemplateParameter getTemplateParameter();
-      
-      /// \brief Retrieve the template argument list associated with this
-      /// deduction failure, if any.
-      TemplateArgumentList *getTemplateArgumentList();
-      
-      /// \brief Return the first template argument this deduction failure
-      /// refers to, if any.
-      const TemplateArgument *getFirstArg();
-
-      /// \brief Return the second template argument this deduction failure
-      /// refers to, if any.
-      const TemplateArgument *getSecondArg();
-      
-      /// \brief Free any memory associated with this deduction failure.
-      void Destroy();
-    };
 
     union {
       DeductionFailureInfo DeductionFailure;
@@ -731,11 +675,35 @@ namespace clang {
 
       return CanFix;
     }
+
+    unsigned getNumParams() const {
+      if (IsSurrogate) {
+        auto STy = Surrogate->getConversionType();
+        while (STy->isPointerType() || STy->isReferenceType())
+          STy = STy->getPointeeType();
+        return STy->getAs<FunctionProtoType>()->getNumParams();
+      }
+      if (Function)
+        return Function->getNumParams();
+      return ExplicitCallArguments;
+    }
   };
 
   /// OverloadCandidateSet - A set of overload candidates, used in C++
   /// overload resolution (C++ 13.3).
   class OverloadCandidateSet {
+  public:
+    enum CandidateSetKind {
+      /// Normal lookup.
+      CSK_Normal,
+      /// Lookup for candidates for a call using operator syntax. Candidates
+      /// that have no parameters of class type will be skipped unless there
+      /// is a parameter of (reference to) enum type and the corresponding
+      /// argument is of the same enum type.
+      CSK_Operator
+    };
+
+  private:
     SmallVector<OverloadCandidate, 16> Candidates;
     llvm::SmallPtrSet<Decl *, 16> Functions;
 
@@ -744,9 +712,11 @@ namespace clang {
     llvm::BumpPtrAllocator ConversionSequenceAllocator;
 
     SourceLocation Loc;
+    CandidateSetKind Kind;
 
     unsigned NumInlineSequences;
-    char InlineSpace[16 * sizeof(ImplicitConversionSequence)];
+    llvm::AlignedCharArray<llvm::AlignOf<ImplicitConversionSequence>::Alignment,
+                           16 * sizeof(ImplicitConversionSequence)> InlineSpace;
 
     OverloadCandidateSet(const OverloadCandidateSet &) LLVM_DELETED_FUNCTION;
     void operator=(const OverloadCandidateSet &) LLVM_DELETED_FUNCTION;
@@ -754,21 +724,23 @@ namespace clang {
     void destroyCandidates();
 
   public:
-    OverloadCandidateSet(SourceLocation Loc) : Loc(Loc), NumInlineSequences(0){}
+    OverloadCandidateSet(SourceLocation Loc, CandidateSetKind CSK)
+        : Loc(Loc), Kind(CSK), NumInlineSequences(0) {}
     ~OverloadCandidateSet() { destroyCandidates(); }
 
     SourceLocation getLocation() const { return Loc; }
+    CandidateSetKind getKind() const { return Kind; }
 
     /// \brief Determine when this overload candidate will be new to the
     /// overload set.
-    bool isNewCandidate(Decl *F) { 
-      return Functions.insert(F->getCanonicalDecl()); 
+    bool isNewCandidate(Decl *F) {
+      return Functions.insert(F->getCanonicalDecl()).second;
     }
 
     /// \brief Clear out all of the candidates.
     void clear();
 
-    typedef SmallVector<OverloadCandidate, 16>::iterator iterator;
+    typedef SmallVectorImpl<OverloadCandidate>::iterator iterator;
     iterator begin() { return Candidates.begin(); }
     iterator end() { return Candidates.end(); }
 
@@ -785,7 +757,7 @@ namespace clang {
       // available.
       if (NumConversions + NumInlineSequences <= 16) {
         ImplicitConversionSequence *I =
-          (ImplicitConversionSequence*)InlineSpace;
+            (ImplicitConversionSequence *)InlineSpace.buffer;
         C.Conversions = &I[NumInlineSequences];
         NumInlineSequences += NumConversions;
       } else {
@@ -809,7 +781,7 @@ namespace clang {
 
     void NoteCandidates(Sema &S,
                         OverloadCandidateDisplayKind OCD,
-                        llvm::ArrayRef<Expr *> Args,
+                        ArrayRef<Expr *> Args,
                         StringRef Opc = "",
                         SourceLocation Loc = SourceLocation());
   };

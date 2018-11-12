@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Johann 'Myrkraverk' Oskarsson.
  * Copyright (c) 1992 Diomidis Spinellis.
  * Copyright (c) 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -57,6 +58,7 @@ static const char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #include <locale.h>
 #include <regex.h>
 #include <stddef.h>
+#define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -130,7 +132,7 @@ main(int argc, char *argv[])
 	fflag = 0;
 	inplace = NULL;
 
-	while ((c = getopt(argc, argv, "EI:ae:f:i:lnr")) != -1)
+	while ((c = getopt(argc, argv, "EI:ae:f:i:lnru")) != -1)
 		switch (c) {
 		case 'r':		/* Gnu sed compat */
 		case 'E':
@@ -160,11 +162,15 @@ main(int argc, char *argv[])
 			ispan = 0;	/* don't span across input files */
 			break;
 		case 'l':
-			if(setlinebuf(stdout) != 0)
-				warnx("setlinebuf() failed");
+			if(setvbuf(stdout, NULL, _IOLBF, 0) != 0)
+				warnx("setting line buffered output failed");
 			break;
 		case 'n':
 			nflag = 1;
+			break;
+		case 'u':
+			if(setvbuf(stdout, NULL, _IONBF, 0) != 0)
+				warnx("setting unbuffered output failed");
 			break;
 		default:
 		case '?':
@@ -197,9 +203,10 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n",
-		"usage: sed script [-Ealn] [-i extension] [file ...]",
-		"       sed [-Ealn] [-i extension] [-e script] ... [-f script_file] ... [file ...]");
+	(void)fprintf(stderr,
+	    "usage: %s script [-Ealnru] [-i extension] [file ...]\n"
+	    "\t%s [-Ealnu] [-i extension] [-e script] ... [-f script_file]"
+	    " ... [file ...]\n", getprogname(), getprogname());
 	exit(1);
 }
 
@@ -307,8 +314,9 @@ int
 mf_fgets(SPACE *sp, enum e_spflag spflag)
 {
 	struct stat sb;
-	size_t len;
-	char *p;
+	ssize_t len;
+	static char *p = NULL;
+	static size_t plen = 0;
 	int c;
 	static int firstfile;
 
@@ -392,15 +400,17 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 				    sizeof(oldfname));
 				len = strlcat(oldfname, inplace,
 				    sizeof(oldfname));
-				if (len > sizeof(oldfname))
+				if (len > (ssize_t)sizeof(oldfname))
 					errx(1, "%s: name too long", fname);
 			}
 			len = snprintf(tmpfname, sizeof(tmpfname),
 			    "%s/.!%ld!%s", dirname(fname), (long)getpid(),
 			    basename(fname));
-			if (len >= sizeof(tmpfname))
+			if (len >= (ssize_t)sizeof(tmpfname))
 				errx(1, "%s: name too long", fname);
 			unlink(tmpfname);
+			if (outfile != NULL && outfile != stdout)
+				fclose(outfile);
 			if ((outfile = fopen(tmpfname, "w")) == NULL)
 				err(1, "%s", fname);
 			fchown(fileno(outfile), sb.st_uid, sb.st_gid);
@@ -424,15 +434,21 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 	 * We are here only when infile is open and we still have something
 	 * to read from it.
 	 *
-	 * Use fgetln so that we can handle essentially infinite input data.
-	 * Can't use the pointer into the stdio buffer as the process space
-	 * because the ungetc() can cause it to move.
+	 * Use getline() so that we can handle essentially infinite input
+	 * data.  The p and plen are static so each invocation gives
+	 * getline() the same buffer which is expanded as needed.
 	 */
-	p = fgetln(infile, &len);
-	if (ferror(infile))
-		errx(1, "%s: %s", fname, strerror(errno ? errno : EIO));
-	if (len != 0 && p[len - 1] == '\n')
+	len = getline(&p, &plen, infile);
+	if (len == -1)
+		err(1, "%s", fname);
+	if (len != 0 && p[len - 1] == '\n') {
+		sp->append_newline = 1;
 		len--;
+	} else if (!lastline()) {
+		sp->append_newline = 1;
+	} else {
+		sp->append_newline = 0;
+	}
 	cspace(sp, p, len, spflag);
 
 	linenum++;
@@ -473,15 +489,49 @@ add_file(char *s)
 	fl_nextp = &fp->next;
 }
 
+static int
+next_files_have_lines(void)
+{
+	struct s_flist *file;
+	FILE *file_fd;
+	int ch;
+
+	file = files;
+	while ((file = file->next) != NULL) {
+		if ((file_fd = fopen(file->fname, "r")) == NULL)
+			continue;
+
+		if ((ch = getc(file_fd)) != EOF) {
+			/*
+			 * This next file has content, therefore current
+			 * file doesn't contains the last line.
+			 */
+			ungetc(ch, file_fd);
+			fclose(file_fd);
+			return (1);
+		}
+
+		fclose(file_fd);
+	}
+
+	return (0);
+}
+
 int
 lastline(void)
 {
 	int ch;
 
-	if (files->next != NULL && (inplace == NULL || ispan))
-		return (0);
-	if ((ch = getc(infile)) == EOF)
-		return (1);
+	if (feof(infile)) {
+		return !(
+		    (inplace == NULL || ispan) &&
+		    next_files_have_lines());
+	}
+	if ((ch = getc(infile)) == EOF) {
+		return !(
+		    (inplace == NULL || ispan) &&
+		    next_files_have_lines());
+	}
 	ungetc(ch, infile);
 	return (0);
 }

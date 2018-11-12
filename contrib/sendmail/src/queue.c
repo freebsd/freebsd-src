@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2009, 2011, 2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009, 2011, 2012 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.997 2012/06/14 23:54:03 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.1000 2013-11-22 20:51:56 ca Exp $")
 
 #include <dirent.h>
 
@@ -2746,7 +2746,7 @@ gatherq(qgrp, qdir, doall, full, more, pnentries)
 			i |= NEED_QUARANTINE;
 		while (cf != NULL && i != 0 &&
 		       sm_io_fgets(cf, SM_TIME_DEFAULT, lbuf,
-				   sizeof(lbuf)) != NULL)
+				   sizeof(lbuf)) >= 0)
 		{
 			int c;
 			time_t age;
@@ -2940,7 +2940,7 @@ gatherq(qgrp, qdir, doall, full, more, pnentries)
 **
 **	First the old WorkQ is cleared away. Then the WorkList is sorted
 **	for all items so that important (higher sorting value) items are not
-**	trunctated off. Then the most important items are moved from
+**	truncated off. Then the most important items are moved from
 **	WorkList to WorkQ. The lower count of 'max' or MaxListCount items
 **	are moved.
 **
@@ -4981,7 +4981,7 @@ print_single_queue(qgrp, qdir)
 		quarmsg[0] = '\0';
 		statmsg[0] = bodytype[0] = '\0';
 		qfver = 0;
-		while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+		while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 		{
 			register int i;
 			register char *p;

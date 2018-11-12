@@ -26,26 +26,24 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#include <err.h>
 #include <unistd.h>
-#ifndef __FreeBSD__
-#include <sys/uadmin.h>
-#endif
 
 int
 main(int argc, char **argv)
 {
-#ifdef __FreeBSD__
-	return (1);
-#else
+	int val = 1;
+
 	while (1) {
-		if (uadmin(A_SDTTEST, 0, 0) < 0) {
-			perror("uadmin");
-			return (1);
-		}
+		if (sysctlbyname("debug.dtracetest.sdttest", NULL, NULL, &val,
+		    sizeof(val)))
+			err(1, "sysctlbyname");
 
 		sleep(1);
 	}
 
 	return (0);
-#endif
 }

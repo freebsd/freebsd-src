@@ -13,14 +13,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/CharUnits.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/AST/CharUnits.h"
 #include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -28,8 +28,8 @@ using namespace ento;
 namespace {
 class ArrayBoundCheckerV2 : 
     public Checker<check::Location> {
-  mutable OwningPtr<BuiltinBug> BT;
-      
+  mutable std::unique_ptr<BuiltinBug> BT;
+
   enum OOB_Kind { OOB_Precedes, OOB_Excedes, OOB_Tainted };
   
   void reportOOB(CheckerContext &C, ProgramStateRef errorState,
@@ -45,15 +45,15 @@ class RegionRawOffsetV2 {
 private:
   const SubRegion *baseRegion;
   SVal byteOffset;
-  
+
   RegionRawOffsetV2()
-    : baseRegion(0), byteOffset(UnknownVal()) {}
+    : baseRegion(nullptr), byteOffset(UnknownVal()) {}
 
 public:
   RegionRawOffsetV2(const SubRegion* base, SVal offset)
     : baseRegion(base), byteOffset(offset) {}
 
-  NonLoc getByteOffset() const { return cast<NonLoc>(byteOffset); }
+  NonLoc getByteOffset() const { return byteOffset.castAs<NonLoc>(); }
   const SubRegion *getRegion() const { return baseRegion; }
   
   static RegionRawOffsetV2 computeOffset(ProgramStateRef state,
@@ -110,18 +110,17 @@ void ArrayBoundCheckerV2::checkLocation(SVal location, bool isLoad,
 
   SVal extentBegin = computeExtentBegin(svalBuilder, rawOffset.getRegion());
   
-  if (isa<NonLoc>(extentBegin)) {
-    SVal lowerBound
-      = svalBuilder.evalBinOpNN(state, BO_LT, rawOffset.getByteOffset(),
-                                cast<NonLoc>(extentBegin),
+  if (Optional<NonLoc> NV = extentBegin.getAs<NonLoc>()) {
+    SVal lowerBound =
+        svalBuilder.evalBinOpNN(state, BO_LT, rawOffset.getByteOffset(), *NV,
                                 svalBuilder.getConditionType());
 
-    NonLoc *lowerBoundToCheck = dyn_cast<NonLoc>(&lowerBound);
+    Optional<NonLoc> lowerBoundToCheck = lowerBound.getAs<NonLoc>();
     if (!lowerBoundToCheck)
       return;
     
     ProgramStateRef state_precedesLowerBound, state_withinLowerBound;
-    llvm::tie(state_precedesLowerBound, state_withinLowerBound) =
+    std::tie(state_precedesLowerBound, state_withinLowerBound) =
       state->assume(*lowerBoundToCheck);
 
     // Are we constrained enough to definitely precede the lower bound?
@@ -140,20 +139,20 @@ void ArrayBoundCheckerV2::checkLocation(SVal location, bool isLoad,
     // we are doing a load/store after the last valid offset.
     DefinedOrUnknownSVal extentVal =
       rawOffset.getRegion()->getExtent(svalBuilder);
-    if (!isa<NonLoc>(extentVal))
+    if (!extentVal.getAs<NonLoc>())
       break;
 
     SVal upperbound
       = svalBuilder.evalBinOpNN(state, BO_GE, rawOffset.getByteOffset(),
-                                cast<NonLoc>(extentVal),
+                                extentVal.castAs<NonLoc>(),
                                 svalBuilder.getConditionType());
   
-    NonLoc *upperboundToCheck = dyn_cast<NonLoc>(&upperbound);
+    Optional<NonLoc> upperboundToCheck = upperbound.getAs<NonLoc>();
     if (!upperboundToCheck)
       break;
   
     ProgramStateRef state_exceedsUpperBound, state_withinUpperBound;
-    llvm::tie(state_exceedsUpperBound, state_withinUpperBound) =
+    std::tie(state_exceedsUpperBound, state_withinUpperBound) =
       state->assume(*upperboundToCheck);
 
     // If we are under constrained and the index variables are tainted, report.
@@ -188,7 +187,7 @@ void ArrayBoundCheckerV2::reportOOB(CheckerContext &checkerContext,
     return;
 
   if (!BT)
-    BT.reset(new BuiltinBug("Out-of-bound access"));
+    BT.reset(new BuiltinBug(this, "Out-of-bound access"));
 
   // FIXME: This diagnostics are preliminary.  We should get far better
   // diagnostics for explaining buffer overruns.
@@ -219,23 +218,12 @@ void RegionRawOffsetV2::dumpToStream(raw_ostream &os) const {
   os << "raw_offset_v2{" << getRegion() << ',' << getByteOffset() << '}';
 }
 
-// FIXME: Merge with the implementation of the same method in Store.cpp
-static bool IsCompleteType(ASTContext &Ctx, QualType Ty) {
-  if (const RecordType *RT = Ty->getAs<RecordType>()) {
-    const RecordDecl *D = RT->getDecl();
-    if (!D->getDefinition())
-      return false;
-  }
-
-  return true;
-}
-
 
 // Lazily computes a value to be used by 'computeOffset'.  If 'val'
 // is unknown or undefined, we lazily substitute '0'.  Otherwise,
 // return 'val'.
 static inline SVal getValue(SVal val, SValBuilder &svalBuilder) {
-  return isa<UndefinedVal>(val) ? svalBuilder.makeArrayIndex(0) : val;
+  return val.getAs<UndefinedVal>() ? svalBuilder.makeArrayIndex(0) : val;
 }
 
 // Scale a base value by a scaling factor, and return the scaled
@@ -256,9 +244,9 @@ static SVal addValue(ProgramStateRef state, SVal x, SVal y,
   // only care about computing offsets.
   if (x.isUnknownOrUndef() || y.isUnknownOrUndef())
     return UnknownVal();
-  
-  return svalBuilder.evalBinOpNN(state, BO_Add,                                 
-                                 cast<NonLoc>(x), cast<NonLoc>(y),
+
+  return svalBuilder.evalBinOpNN(state, BO_Add, x.castAs<NonLoc>(),
+                                 y.castAs<NonLoc>(),
                                  svalBuilder.getArrayIndexType());
 }
 
@@ -284,19 +272,19 @@ RegionRawOffsetV2 RegionRawOffsetV2::computeOffset(ProgramStateRef state,
       case MemRegion::ElementRegionKind: {
         const ElementRegion *elemReg = cast<ElementRegion>(region);
         SVal index = elemReg->getIndex();
-        if (!isa<NonLoc>(index))
+        if (!index.getAs<NonLoc>())
           return RegionRawOffsetV2();
         QualType elemType = elemReg->getElementType();
         // If the element is an incomplete type, go no further.
         ASTContext &astContext = svalBuilder.getContext();
-        if (!IsCompleteType(astContext, elemType))
+        if (elemType->isIncompleteType())
           return RegionRawOffsetV2();
         
         // Update the offset.
         offset = addValue(state,
                           getValue(offset, svalBuilder),
                           scaleValue(state,
-                          cast<NonLoc>(index),
+                          index.castAs<NonLoc>(),
                           astContext.getTypeSizeInChars(elemType),
                           svalBuilder),
                           svalBuilder);
@@ -311,7 +299,6 @@ RegionRawOffsetV2 RegionRawOffsetV2::computeOffset(ProgramStateRef state,
   }
   return RegionRawOffsetV2();
 }
-
 
 void ento::registerArrayBoundCheckerV2(CheckerManager &mgr) {
   mgr.registerChecker<ArrayBoundCheckerV2>();

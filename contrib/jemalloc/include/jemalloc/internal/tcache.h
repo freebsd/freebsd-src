@@ -297,6 +297,7 @@ tcache_alloc_small(tcache_t *tcache, size_t size, bool zero)
 	binind = SMALL_SIZE2BIN(size);
 	assert(binind < NBINS);
 	tbin = &tcache->tbins[binind];
+	size = arena_bin_info[binind].reg_size;
 	ret = tcache_alloc_easy(tbin);
 	if (ret == NULL) {
 		ret = tcache_alloc_small_hard(tcache, tbin, binind);
@@ -313,6 +314,7 @@ tcache_alloc_small(tcache_t *tcache, size_t size, bool zero)
 			} else if (opt_zero)
 				memset(ret, 0, size);
 		}
+		VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 	} else {
 		if (config_fill && opt_junk) {
 			arena_alloc_junk_small(ret, &arena_bin_info[binind],
@@ -320,7 +322,6 @@ tcache_alloc_small(tcache_t *tcache, size_t size, bool zero)
 		}
 		VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 		memset(ret, 0, size);
-		VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 	}
 
 	if (config_stats)
@@ -368,10 +369,10 @@ tcache_alloc_large(tcache_t *tcache, size_t size, bool zero)
 				else if (opt_zero)
 					memset(ret, 0, size);
 			}
+			VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 		} else {
 			VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 			memset(ret, 0, size);
-			VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
 		}
 
 		if (config_stats)

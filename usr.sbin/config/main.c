@@ -110,14 +110,24 @@ main(int argc, char **argv)
 	int ch, len;
 	char *p;
 	char *kernfile;
+	struct includepath* ipath;
 	int printmachine;
 
 	printmachine = 0;
 	kernfile = NULL;
-	while ((ch = getopt(argc, argv, "Cd:gmpVx:")) != -1)
+	SLIST_INIT(&includepath);
+	while ((ch = getopt(argc, argv, "CI:d:gmpsVx:")) != -1)
 		switch (ch) {
 		case 'C':
 			filebased = 1;
+			break;
+		case 'I':
+			ipath = (struct includepath *) \
+			    	calloc(1, sizeof (struct includepath));
+			if (ipath == NULL)
+				err(EXIT_FAILURE, "calloc");
+			ipath->path = optarg;
+			SLIST_INSERT_HEAD(&includepath, ipath, path_next);
 			break;
 		case 'm':
 			printmachine = 1;
@@ -133,6 +143,12 @@ main(int argc, char **argv)
 			break;
 		case 'p':
 			profiling++;
+			break;
+		case 's':
+			if (*srcdir == '\0')
+				strlcpy(srcdir, optarg, sizeof(srcdir));
+			else
+				errx(EXIT_FAILURE, "src directory already set");
 			break;
 		case 'V':
 			printf("%d\n", CONFIGVERS);
@@ -170,7 +186,8 @@ main(int argc, char **argv)
 		len = strlen(destdir);
 		while (len > 1 && destdir[len - 1] == '/')
 			destdir[--len] = '\0';
-		get_srcdir();
+		if (*srcdir == '\0')
+			get_srcdir();
 	} else {
 		strlcpy(destdir, CDIR, sizeof(destdir));
 		strlcat(destdir, PREFIX, sizeof(destdir));
@@ -265,7 +282,8 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: config [-CgmpV] [-d destdir] sysname\n");
+	fprintf(stderr,
+	    "usage: config [-CgmpV] [-d destdir] [-s srcdir] sysname\n");
 	fprintf(stderr, "       config -x kernel\n");
 	exit(EX_USAGE);
 }
@@ -304,6 +322,11 @@ begin:
 	}
 	cp = line;
 	*cp++ = ch;
+	/* Negation operator is a word by itself. */
+	if (ch == '!') {
+		*cp = 0;
+		return (line);
+	}
 	while ((ch = getc(fp)) != EOF) {
 		if (isspace(ch))
 			break;
@@ -351,16 +374,24 @@ begin:
 	if (ch == '"' || ch == '\'') {
 		int quote = ch;
 
+		escaped_nl = 0;
 		while ((ch = getc(fp)) != EOF) {
-			if (ch == quote)
+			if (ch == quote && !escaped_nl)
 				break;
-			if (ch == '\n') {
+			if (ch == '\n' && !escaped_nl) {
 				*cp = 0;
 				printf("config: missing quote reading `%s'\n",
 					line);
 				exit(2);
 			}
+			if (ch == '\\' && !escaped_nl) {
+				escaped_nl = 1;
+				continue;
+			}
+			if (ch != quote && escaped_nl)
+				*cp++ = '\\';
 			*cp++ = ch;
+			escaped_nl = 0;
 		}
 	} else {
 		*cp++ = ch;
@@ -698,17 +729,11 @@ kernconfdump(const char *file)
 		r = fgetc(fp);
 		if (r == EOF)
 			break;
-		/* 
-		 * If '\0' is present in the middle of the configuration
-		 * string, this means something very weird is happening.
-		 * Make such case very visible.  However, some architectures
-		 * pad the length of the section with NULs to a multiple of
-		 * sh_addralign, allow a NUL in that part of the section.
-		 */
-		if (r == '\0' && (size - i) < align)
+		if (r == '\0') {
+			assert(i == size - 1 &&
+			    ("\\0 found in the middle of a file"));
 			break;
-		assert(r != '\0' && ("Char present in the configuration "
-		    "string mustn't be equal to 0"));
+		}
 		fputc(r, stdout);
 	}
 	fclose(fp);

@@ -96,6 +96,7 @@ typedef enum {
 	CTL_FLAG_CONTROL_DEV	= 0x00000080,	/* processor device */
 	CTL_FLAG_ALLOCATED	= 0x00000100,	/* data space allocated */
 	CTL_FLAG_BLOCKED	= 0x00000200,	/* on the blocked queue */
+	CTL_FLAG_ABORT_STATUS	= 0x00000400,	/* return TASK ABORTED status */
 	CTL_FLAG_ABORT		= 0x00000800,	/* this I/O should be aborted */
 	CTL_FLAG_DMA_INPROG	= 0x00001000,	/* DMA in progress */
 	CTL_FLAG_NO_DATASYNC	= 0x00002000,	/* don't cache flush data */
@@ -123,15 +124,34 @@ typedef enum {
 	CTL_FLAG_FAILOVER	= 0x04000000,	/* Killed by a failover */
 	CTL_FLAG_IO_ACTIVE	= 0x08000000,	/* I/O active on this SC */
 	CTL_FLAG_RDMA_MASK	= CTL_FLAG_NO_DATASYNC | CTL_FLAG_BUS_ADDR |
-				  CTL_FLAG_AUTO_MIRROR | CTL_FLAG_REDIR_DONE
+				  CTL_FLAG_AUTO_MIRROR | CTL_FLAG_REDIR_DONE,
 						/* Flags we care about for
 						   remote DMA */
+	CTL_FLAG_STATUS_SENT	= 0x10000000	/* Status sent by datamove */
 } ctl_io_flags;
 
 
 struct ctl_lba_len {
 	uint64_t lba;
 	uint32_t len;
+};
+
+struct ctl_lba_len_flags {
+	uint64_t lba;
+	uint32_t len;
+	uint32_t flags;
+#define CTL_LLF_FUA	0x04000000
+#define CTL_LLF_DPO	0x08000000
+#define CTL_LLF_READ	0x10000000
+#define CTL_LLF_WRITE	0x20000000
+#define CTL_LLF_VERIFY	0x40000000
+#define CTL_LLF_COMPARE	0x80000000
+};
+
+struct ctl_ptr_len_flags {
+	uint8_t *ptr;
+	uint32_t len;
+	uint32_t flags;
 };
 
 union ctl_priv {
@@ -204,6 +224,7 @@ struct ctl_nexus {
 	uint32_t targ_port;		/* Target port, filled in by PORT */
 	struct ctl_id targ_target;	/* Destination target */
 	uint32_t targ_lun;		/* Destination lun */
+	uint32_t targ_mapped_lun;	/* Destination lun CTL-wide */
 };
 
 typedef enum {
@@ -214,7 +235,6 @@ typedef enum {
 	CTL_MSG_MANAGE_TASKS,
 	CTL_MSG_PERS_ACTION,
 	CTL_MSG_SYNC_FE,
-	CTL_MSG_APS_LOCK,
 	CTL_MSG_DATAMOVE,
 	CTL_MSG_DATAMOVE_DONE
 } ctl_msg_type;
@@ -279,21 +299,60 @@ union ctl_io;
  */
 struct ctl_scsiio {
 	struct ctl_io_hdr io_hdr;	/* common to all I/O types */
+
+	/*
+	 * The ext_* fields are generally intended for frontend use; CTL itself
+	 * doesn't modify or use them.
+	 */
 	uint32_t   ext_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
 	uint8_t	   *ext_data_ptr;	/* data buffer or S/G list */
 	uint32_t   ext_data_len;	/* Data transfer length */
 	uint32_t   ext_data_filled;	/* Amount of data filled so far */
-	uint32_t   kern_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
-	uint32_t   rem_sg_entries;	/* 0 = no S/G list, > 0 = num entries */
-	uint8_t    *kern_data_ptr;	/* data buffer or S/G list */
-	uint32_t   kern_data_len;	/* Length of this S/G list/buffer */
-	uint32_t   kern_total_len;	/* Total length of this transaction */
-	uint32_t   kern_data_resid;	/* Length left to transfer after this*/
-	uint32_t   kern_rel_offset;	/* Byte Offset of this transfer */
+
+	/*
+	 * The number of scatter/gather entries in the list pointed to
+	 * by kern_data_ptr.  0 means there is no list, just a data pointer.
+	 */
+	uint32_t   kern_sg_entries;
+
+	uint32_t   rem_sg_entries;	/* Unused. */
+
+	/*
+	 * The data pointer or a pointer to the scatter/gather list.
+	 */
+	uint8_t    *kern_data_ptr;
+
+	/*
+	 * Length of the data buffer or scatter/gather list.  It's also
+	 * the length of this particular piece of the data transfer,
+	 * ie. number of bytes expected to be transferred by the current
+	 * invocation of frontend's datamove() callback.  It's always
+	 * less than or equal to kern_total_len.
+	 */
+	uint32_t   kern_data_len;
+
+	/*
+	 * Total length of data to be transferred during this particular
+	 * SCSI command, as decoded from SCSI CDB.
+	 */
+	uint32_t   kern_total_len;
+
+	/*
+	 * Amount of data left after the current data transfer.
+	 */
+	uint32_t   kern_data_resid;
+
+	/*
+	 * Byte offset of this transfer, equal to the amount of data
+	 * already transferred for this SCSI command during previous
+	 * datamove() invocations.
+	 */
+	uint32_t   kern_rel_offset;
+
 	struct     scsi_sense_data sense_data;	/* sense data */
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
-	uint8_t	   sense_residual;	/* sense residual length */
+	uint8_t	   sense_residual;	/* Unused. */
 	uint32_t   residual;		/* data residual length */
 	uint32_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
@@ -308,6 +367,7 @@ typedef enum {
 	CTL_TASK_ABORT_TASK_SET,
 	CTL_TASK_CLEAR_ACA,
 	CTL_TASK_CLEAR_TASK_SET,
+	CTL_TASK_I_T_NEXUS_RESET,
 	CTL_TASK_LUN_RESET,
 	CTL_TASK_TARGET_RESET,
 	CTL_TASK_BUS_RESET,
@@ -349,7 +409,7 @@ struct ctl_pr_info {
 	ctl_pr_action        action;
 	uint8_t              sa_res_key[8];
 	uint8_t              res_type;
-	uint16_t             residx;
+	uint32_t             residx;
 };
 
 struct ctl_ha_msg_hdr {
@@ -362,14 +422,6 @@ struct ctl_ha_msg_hdr {
 };
 
 #define	CTL_HA_MAX_SG_ENTRIES	16
-
-/*
- * Used for CTL_MSG_APS_LOCK.
- */
-struct ctl_ha_msg_aps {
-	struct ctl_ha_msg_hdr	hdr;
-	uint8_t			lock_flag;
-};
 
 /*
  * Used for CTL_MSG_PERS_ACTION.
@@ -440,7 +492,6 @@ union ctl_ha_msg {
 	struct ctl_ha_msg_scsi	scsi;
 	struct ctl_ha_msg_dt	dt;
 	struct ctl_ha_msg_pr	pr;
-	struct ctl_ha_msg_aps	aps;
 };
 
 
@@ -461,6 +512,7 @@ union ctl_io {
 #ifdef _KERNEL
 
 union ctl_io *ctl_alloc_io(void *pool_ref);
+union ctl_io *ctl_alloc_io_nowait(void *pool_ref);
 void ctl_free_io(union ctl_io *io);
 void ctl_zero_io(union ctl_io *io);
 void ctl_copy_io(union ctl_io *src, union ctl_io *dest);

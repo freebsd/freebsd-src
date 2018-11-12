@@ -1,6 +1,6 @@
 PUSHDIVERT(-1)
 #
-# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -42,7 +42,7 @@ POPDIVERT
 ###   UTK-MAIL11 Mailer specification   ###
 ###########################################
 
-VERSIONID(`$Id: mail11.m4,v 8.22 2001/11/12 23:11:34 ca Exp $')
+VERSIONID(`$Id: mail11.m4,v 8.23 2013-11-22 20:51:14 ca Exp $')
 
 SMail11To
 R$+ < @ $- .UUCP >	$: $2 ! $1		back to old style

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -363,12 +364,12 @@ bfe_dma_free(struct bfe_softc *sc)
 
 	/* Tx ring. */
 	if (sc->bfe_tx_tag != NULL) {
-		if (sc->bfe_tx_map != NULL)
+		if (sc->bfe_tx_dma != 0)
 			bus_dmamap_unload(sc->bfe_tx_tag, sc->bfe_tx_map);
-		if (sc->bfe_tx_map != NULL && sc->bfe_tx_list != NULL)
+		if (sc->bfe_tx_list != NULL)
 			bus_dmamem_free(sc->bfe_tx_tag, sc->bfe_tx_list,
 			    sc->bfe_tx_map);
-		sc->bfe_tx_map = NULL;
+		sc->bfe_tx_dma = 0;
 		sc->bfe_tx_list = NULL;
 		bus_dma_tag_destroy(sc->bfe_tx_tag);
 		sc->bfe_tx_tag = NULL;
@@ -376,12 +377,12 @@ bfe_dma_free(struct bfe_softc *sc)
 
 	/* Rx ring. */
 	if (sc->bfe_rx_tag != NULL) {
-		if (sc->bfe_rx_map != NULL)
+		if (sc->bfe_rx_dma != 0)
 			bus_dmamap_unload(sc->bfe_rx_tag, sc->bfe_rx_map);
-		if (sc->bfe_rx_map != NULL && sc->bfe_rx_list != NULL)
+		if (sc->bfe_rx_list != NULL)
 			bus_dmamem_free(sc->bfe_rx_tag, sc->bfe_rx_list,
 			    sc->bfe_rx_map);
-		sc->bfe_rx_map = NULL;
+		sc->bfe_rx_dma = 0;
 		sc->bfe_rx_list = NULL;
 		bus_dma_tag_destroy(sc->bfe_rx_tag);
 		sc->bfe_rx_tag = NULL;
@@ -513,7 +514,7 @@ bfe_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 
@@ -1309,22 +1310,22 @@ bfe_stats_update(struct bfe_softc *sc)
 	stats->rx_control_frames += mib[MIB_RX_NPAUSE];
 
 	/* Update counters in ifnet. */
-	ifp->if_opackets += (u_long)mib[MIB_TX_GOOD_P];
-	ifp->if_collisions += (u_long)mib[MIB_TX_TCOLS];
-	ifp->if_oerrors += (u_long)mib[MIB_TX_URUNS] +
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, (u_long)mib[MIB_TX_GOOD_P]);
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (u_long)mib[MIB_TX_TCOLS]);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, (u_long)mib[MIB_TX_URUNS] +
 	    (u_long)mib[MIB_TX_ECOLS] +
 	    (u_long)mib[MIB_TX_DEFERED] +
-	    (u_long)mib[MIB_TX_CLOST];
+	    (u_long)mib[MIB_TX_CLOST]);
 
-	ifp->if_ipackets += (u_long)mib[MIB_RX_GOOD_P];
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, (u_long)mib[MIB_RX_GOOD_P]);
 
-	ifp->if_ierrors += mib[MIB_RX_JABBER] +
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, mib[MIB_RX_JABBER] +
 	    mib[MIB_RX_MISS] +
 	    mib[MIB_RX_CRCA] +
 	    mib[MIB_RX_USIZE] +
 	    mib[MIB_RX_CRC] +
 	    mib[MIB_RX_ALIGN] +
-	    mib[MIB_RX_SYM];
+	    mib[MIB_RX_SYM]);
 }
 
 static void
@@ -1402,7 +1403,7 @@ bfe_rxeof(struct bfe_softc *sc)
 		 * reuse mapped buffer from errored frame. 
 		 */
 		if (bfe_list_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			bfe_discard_buf(sc, cons);
 			continue;
 		}
@@ -1817,7 +1818,7 @@ bfe_watchdog(struct bfe_softc *sc)
 
 	device_printf(sc->bfe_dev, "watchdog timeout -- resetting\n");
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	bfe_init_locked(sc);
 

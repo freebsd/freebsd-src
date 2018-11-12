@@ -2,19 +2,14 @@
  * hostapd / EAP-PAX (RFC 4746) server
  * Copyright (c) 2005-2007, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
 
 #include "common.h"
+#include "crypto/random.h"
 #include "eap_server/eap_i.h"
 #include "eap_common/eap_pax_common.h"
 
@@ -82,7 +77,7 @@ static struct wpabuf * eap_pax_build_std_1(struct eap_sm *sm,
 
 	wpa_printf(MSG_DEBUG, "EAP-PAX: PAX_STD-1 (sending)");
 
-	if (os_get_random(data->rand.r.x, EAP_PAX_RAND_LEN)) {
+	if (random_get_bytes(data->rand.r.x, EAP_PAX_RAND_LEN)) {
 		wpa_printf(MSG_ERROR, "EAP-PAX: Failed to get random data");
 		data->state = FAILURE;
 		return NULL;

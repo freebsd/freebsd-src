@@ -20,7 +20,8 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2013 Steven Hartland. All rights reserved.
  */
 
 /*
@@ -333,7 +334,6 @@ lzc_destroy_snaps(nvlist_t *snaps, boolean_t defer, nvlist_t **errlist)
 	nvlist_free(args);
 
 	return (error);
-
 }
 
 int
@@ -393,11 +393,17 @@ lzc_exists(const char *dataset)
  * uncleanly, the holds will be released when the pool is next opened
  * or imported.
  *
- * The return value will be 0 if all holds were created. Otherwise the return
- * value will be the errno of a (unspecified) hold that failed, no holds will
- * be created, and the errlist will have an entry for each hold that
- * failed (name = snapshot).  The value in the errlist will be the error
- * code (int32).
+ * Holds for snapshots which don't exist will be skipped and have an entry
+ * added to errlist, but will not cause an overall failure.
+ *
+ * The return value will be 0 if all holds, for snapshots that existed,
+ * were succesfully created.
+ *
+ * Otherwise the return value will be the errno of a (unspecified) hold that
+ * failed and no holds will be created.
+ *
+ * In all cases the errlist will have an entry for each hold that failed
+ * (name = snapshot), with its value being the error code (int32).
  */
 int
 lzc_hold(nvlist_t *holds, int cleanup_fd, nvlist_t **errlist)
@@ -434,11 +440,17 @@ lzc_hold(nvlist_t *holds, int cleanup_fd, nvlist_t **errlist)
  * The snapshots must all be in the same pool.
  * The value is a nvlist whose keys are the holds to remove.
  *
- * The return value will be 0 if all holds were removed.
- * Otherwise the return value will be the errno of a (unspecified) release
- * that failed, no holds will be released, and the errlist will have an
- * entry for each snapshot that has failed releases (name = snapshot).
- * The value in the errlist will be the error code (int32) of a failed release.
+ * Holds which failed to release because they didn't exist will have an entry
+ * added to errlist, but will not cause an overall failure.
+ *
+ * The return value will be 0 if the nvl holds was empty or all holds that
+ * existed, were successfully removed.
+ *
+ * Otherwise the return value will be the errno of a (unspecified) hold that
+ * failed to release and no holds will be released.
+ *
+ * In all cases the errlist will have an entry for each hold that failed to
+ * to release.
  */
 int
 lzc_release(nvlist_t *holds, nvlist_t **errlist)
@@ -474,18 +486,46 @@ lzc_get_holds(const char *snapname, nvlist_t **holdsp)
 }
 
 /*
- * If fromsnap is NULL, a full (non-incremental) stream will be sent.
+ * Generate a zfs send stream for the specified snapshot and write it to
+ * the specified file descriptor.
+ *
+ * "snapname" is the full name of the snapshot to send (e.g. "pool/fs@snap")
+ *
+ * If "from" is NULL, a full (non-incremental) stream will be sent.
+ * If "from" is non-NULL, it must be the full name of a snapshot or
+ * bookmark to send an incremental from (e.g. "pool/fs@earlier_snap" or
+ * "pool/fs#earlier_bmark").  If non-NULL, the specified snapshot or
+ * bookmark must represent an earlier point in the history of "snapname").
+ * It can be an earlier snapshot in the same filesystem or zvol as "snapname",
+ * or it can be the origin of "snapname"'s filesystem, or an earlier
+ * snapshot in the origin, etc.
+ *
+ * "fd" is the file descriptor to write the send stream to.
+ *
+ * If "flags" contains LZC_SEND_FLAG_LARGE_BLOCK, the stream is permitted
+ * to contain DRR_WRITE records with drr_length > 128K, and DRR_OBJECT
+ * records with drr_blksz > 128K.
+ *
+ * If "flags" contains LZC_SEND_FLAG_EMBED_DATA, the stream is permitted
+ * to contain DRR_WRITE_EMBEDDED records with drr_etype==BP_EMBEDDED_TYPE_DATA,
+ * which the receiving system must support (as indicated by support
+ * for the "embedded_data" feature).
  */
 int
-lzc_send(const char *snapname, const char *fromsnap, int fd)
+lzc_send(const char *snapname, const char *from, int fd,
+    enum lzc_send_flags flags)
 {
 	nvlist_t *args;
 	int err;
 
 	args = fnvlist_alloc();
 	fnvlist_add_int32(args, "fd", fd);
-	if (fromsnap != NULL)
-		fnvlist_add_string(args, "fromsnap", fromsnap);
+	if (from != NULL)
+		fnvlist_add_string(args, "fromsnap", from);
+	if (flags & LZC_SEND_FLAG_LARGE_BLOCK)
+		fnvlist_add_boolean(args, "largeblockok");
+	if (flags & LZC_SEND_FLAG_EMBED_DATA)
+		fnvlist_add_boolean(args, "embedok");
 	err = lzc_ioctl(ZFS_IOC_SEND_NEW, snapname, args, NULL);
 	nvlist_free(args);
 	return (err);
@@ -614,5 +654,123 @@ out:
 	if (packed != NULL)
 		fnvlist_pack_free(packed, size);
 	free((void*)(uintptr_t)zc.zc_nvlist_dst);
+	return (error);
+}
+
+/*
+ * Roll back this filesystem or volume to its most recent snapshot.
+ * If snapnamebuf is not NULL, it will be filled in with the name
+ * of the most recent snapshot.
+ *
+ * Return 0 on success or an errno on failure.
+ */
+int
+lzc_rollback(const char *fsname, char *snapnamebuf, int snapnamelen)
+{
+	nvlist_t *args;
+	nvlist_t *result;
+	int err;
+
+	args = fnvlist_alloc();
+	err = lzc_ioctl(ZFS_IOC_ROLLBACK, fsname, args, &result);
+	nvlist_free(args);
+	if (err == 0 && snapnamebuf != NULL) {
+		const char *snapname = fnvlist_lookup_string(result, "target");
+		(void) strlcpy(snapnamebuf, snapname, snapnamelen);
+	}
+	return (err);
+}
+
+/*
+ * Creates bookmarks.
+ *
+ * The bookmarks nvlist maps from name of the bookmark (e.g. "pool/fs#bmark") to
+ * the name of the snapshot (e.g. "pool/fs@snap").  All the bookmarks and
+ * snapshots must be in the same pool.
+ *
+ * The returned results nvlist will have an entry for each bookmark that failed.
+ * The value will be the (int32) error code.
+ *
+ * The return value will be 0 if all bookmarks were created, otherwise it will
+ * be the errno of a (undetermined) bookmarks that failed.
+ */
+int
+lzc_bookmark(nvlist_t *bookmarks, nvlist_t **errlist)
+{
+	nvpair_t *elem;
+	int error;
+	char pool[MAXNAMELEN];
+
+	/* determine the pool name */
+	elem = nvlist_next_nvpair(bookmarks, NULL);
+	if (elem == NULL)
+		return (0);
+	(void) strlcpy(pool, nvpair_name(elem), sizeof (pool));
+	pool[strcspn(pool, "/#")] = '\0';
+
+	error = lzc_ioctl(ZFS_IOC_BOOKMARK, pool, bookmarks, errlist);
+
+	return (error);
+}
+
+/*
+ * Retrieve bookmarks.
+ *
+ * Retrieve the list of bookmarks for the given file system. The props
+ * parameter is an nvlist of property names (with no values) that will be
+ * returned for each bookmark.
+ *
+ * The following are valid properties on bookmarks, all of which are numbers
+ * (represented as uint64 in the nvlist)
+ *
+ * "guid" - globally unique identifier of the snapshot it refers to
+ * "createtxg" - txg when the snapshot it refers to was created
+ * "creation" - timestamp when the snapshot it refers to was created
+ *
+ * The format of the returned nvlist as follows:
+ * <short name of bookmark> -> {
+ *     <name of property> -> {
+ *         "value" -> uint64
+ *     }
+ *  }
+ */
+int
+lzc_get_bookmarks(const char *fsname, nvlist_t *props, nvlist_t **bmarks)
+{
+	return (lzc_ioctl(ZFS_IOC_GET_BOOKMARKS, fsname, props, bmarks));
+}
+
+/*
+ * Destroys bookmarks.
+ *
+ * The keys in the bmarks nvlist are the bookmarks to be destroyed.
+ * They must all be in the same pool.  Bookmarks are specified as
+ * <fs>#<bmark>.
+ *
+ * Bookmarks that do not exist will be silently ignored.
+ *
+ * The return value will be 0 if all bookmarks that existed were destroyed.
+ *
+ * Otherwise the return value will be the errno of a (undetermined) bookmark
+ * that failed, no bookmarks will be destroyed, and the errlist will have an
+ * entry for each bookmarks that failed.  The value in the errlist will be
+ * the (int32) error code.
+ */
+int
+lzc_destroy_bookmarks(nvlist_t *bmarks, nvlist_t **errlist)
+{
+	nvpair_t *elem;
+	int error;
+	char pool[MAXNAMELEN];
+
+	/* determine the pool name */
+	elem = nvlist_next_nvpair(bmarks, NULL);
+	if (elem == NULL)
+		return (0);
+	(void) strlcpy(pool, nvpair_name(elem), sizeof (pool));
+	pool[strcspn(pool, "/#")] = '\0';
+
+	error = lzc_ioctl(ZFS_IOC_DESTROY_BOOKMARKS, pool, bmarks, errlist);
+
 	return (error);
 }

@@ -23,7 +23,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: patch.c,v 1.50 2012/05/15 19:32:02 millert Exp $
+ * $OpenBSD: patch.c,v 1.54 2014/12/13 10:31:07 tobias Exp $
  * $FreeBSD$
  *
  */
@@ -145,13 +145,13 @@ int
 main(int argc, char *argv[])
 {
 	int	error = 0, hunk, failed, i, fd;
-	bool	patch_seen;
+	bool	patch_seen, reverse_seen;
 	LINENUM	where = 0, newwhere, fuzz, mymaxfuzz;
 	const	char *tmpdir;
 	char	*v;
 
-	setlinebuf(stdout);
-	setlinebuf(stderr);
+	setvbuf(stdout, NULL, _IOLBF, 0);
+	setvbuf(stderr, NULL, _IOLBF, 0);
 	for (i = 0; i < MAXFILEC; i++)
 		filearg[i] = NULL;
 
@@ -215,13 +215,13 @@ main(int argc, char *argv[])
 	for (open_patch_file(filearg[1]); there_is_another_patch();
 	    reinitialize_almost_everything()) {
 		/* for each patch in patch file */
-		
+
 		patch_seen = true;
 
 		warn_on_invalid_line = true;
 
 		if (outname == NULL)
-			outname = savestr(filearg[0]);
+			outname = xstrdup(filearg[0]);
 
 		/* for ed script just up and do it and exit */
 		if (diff_type == ED_DIFF) {
@@ -239,12 +239,15 @@ main(int argc, char *argv[])
 		if (!skip_rest_of_patch)
 			scan_input(filearg[0]);
 
-		/* from here on, open no standard i/o files, because malloc */
-		/* might misfire and we can't catch it easily */
+		/*
+		 * from here on, open no standard i/o files, because
+		 * malloc might misfire and we can't catch it easily
+		 */
 
 		/* apply each hunk of patch */
 		hunk = 0;
 		failed = 0;
+		reverse_seen = false;
 		out_of_mem = false;
 		while (another_hunk()) {
 			hunk++;
@@ -255,7 +258,7 @@ main(int argc, char *argv[])
 			if (!skip_rest_of_patch) {
 				do {
 					where = locate_hunk(fuzz);
-					if (hunk == 1 && where == 0 && !force) {
+					if (hunk == 1 && where == 0 && !force && !reverse_seen) {
 						/* dwim for reversed patch? */
 						if (!pch_swap()) {
 							if (fuzz == 0)
@@ -291,6 +294,8 @@ main(int argc, char *argv[])
 								ask("Apply anyway? [n] ");
 								if (*buf != 'y')
 									skip_rest_of_patch = true;
+								else
+									reverse_seen = true;
 								where = 0;
 								reverse = !reverse;
 								if (!pch_swap())
@@ -404,14 +409,14 @@ main(int argc, char *argv[])
 				say("%d out of %d hunks %s--saving rejects to %s\n",
 				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed", rejname);
 			else
-				say("%d out of %d hunks %s\n",
-				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed");
+				say("%d out of %d hunks %s while patching %s\n",
+				    failed, hunk, skip_rest_of_patch ? "ignored" : "failed", filearg[0]);
 			if (!check_only && move_file(TMPREJNAME, rejname) < 0)
 				trejkeep = true;
 		}
 		set_signals(1);
 	}
-	
+
 	if (!patch_seen)
 		error = 2;
 
@@ -464,6 +469,7 @@ get_some_switches(void)
 		{"context",		no_argument,		0,	'c'},
 		{"debug",		required_argument,	0,	'x'},
 		{"directory",		required_argument,	0,	'd'},
+		{"dry-run",		no_argument,		0,	'C'},
 		{"ed",			no_argument,		0,	'e'},
 		{"force",		no_argument,		0,	'f'},
 		{"forward",		no_argument,		0,	'N'},
@@ -508,10 +514,10 @@ get_some_switches(void)
 			/* FALLTHROUGH */
 		case 'z':
 			/* must directly follow 'b' case for backwards compat */
-			simple_backup_suffix = savestr(optarg);
+			simple_backup_suffix = xstrdup(optarg);
 			break;
 		case 'B':
-			origprae = savestr(optarg);
+			origprae = xstrdup(optarg);
 			break;
 		case 'c':
 			diff_type = CONTEXT_DIFF;
@@ -549,7 +555,7 @@ get_some_switches(void)
 		case 'i':
 			if (++filec == MAXFILEC)
 				fatal("too many file arguments\n");
-			filearg[filec] = savestr(optarg);
+			filearg[filec] = xstrdup(optarg);
 			break;
 		case 'l':
 			canonicalize = true;
@@ -561,7 +567,7 @@ get_some_switches(void)
 			noreverse = true;
 			break;
 		case 'o':
-			outname = savestr(optarg);
+			outname = xstrdup(optarg);
 			break;
 		case 'p':
 			strippath = atoi(optarg);
@@ -605,12 +611,12 @@ get_some_switches(void)
 	Argv += optind;
 
 	if (Argc > 0) {
-		filearg[0] = savestr(*Argv++);
+		filearg[0] = xstrdup(*Argv++);
 		Argc--;
 		while (Argc > 0) {
 			if (++filec == MAXFILEC)
 				fatal("too many file arguments\n");
-			filearg[filec] = savestr(*Argv++);
+			filearg[filec] = xstrdup(*Argv++);
 			Argc--;
 		}
 	}
@@ -628,7 +634,7 @@ usage(void)
 "             [-r rej-name] [-V t | nil | never] [-x number] [-z backup-ext]\n"
 "             [--posix] [origfile [patchfile]]\n"
 "       patch <patchfile\n");
-	my_exit(EXIT_SUCCESS);
+	my_exit(EXIT_FAILURE);
 }
 
 /*
@@ -737,14 +743,18 @@ abort_context_hunk(void)
 static void
 rej_line(int ch, LINENUM i)
 {
-	size_t len;
+	unsigned short len;
 	const char *line = pfetch(i);
 
-	len = strlen(line);
+	len = strnlen(line, USHRT_MAX);
 
 	fprintf(rejfp, "%c%s", ch, line);
-	if (len == 0 || line[len-1] != '\n')
-		fprintf(rejfp, "\n\\ No newline at end of file\n");
+	if (len == 0 || line[len-1] != '\n') {
+		if (len >= USHRT_MAX)
+			fprintf(rejfp, "\n\\ Line too long\n");
+		else
+			fprintf(rejfp, "\n\\ No newline at end of line\n");
+	}
 }
 
 static void
@@ -1011,7 +1021,7 @@ patch_match(LINENUM base, LINENUM offset, LINENUM fuzz)
 	LINENUM		pat_lines = pch_ptrn_lines() - fuzz;
 	const char	*ilineptr;
 	const char	*plineptr;
-	short		plinelen;
+	unsigned short	plinelen;
 
 	for (iline = base + offset + fuzz; pline <= pat_lines; pline++, iline++) {
 		ilineptr = ifetch(iline, offset >= 0);

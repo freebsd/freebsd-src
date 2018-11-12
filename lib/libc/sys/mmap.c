@@ -44,18 +44,13 @@ __FBSDID("$FreeBSD$");
  * is not supplied by GCC 1.X but is supplied by GCC 2.X.
  */
 void *
-mmap(addr, len, prot, flags, fd, offset)
-	void *	addr;
-	size_t	len;
-	int	prot;
-	int	flags;
-	int	fd;
-	off_t	offset;
+mmap(void *addr, size_t len, int prot, int flags, int fd, off_t offset)
 {
 
-	if (__getosreldate() >= 700051)
+	if (__getosreldate() >= 700051) {
 		return (__sys_mmap(addr, len, prot, flags, fd, offset));
-	else
-
-		return (__sys_freebsd6_mmap(addr, len, prot, flags, fd, 0, offset));
+	} else {
+		return (__sys_freebsd6_mmap(addr, len, prot, flags, fd, 0,
+		    offset));
+	}
 }

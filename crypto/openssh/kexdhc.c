@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdhc.c,v 1.12 2010/11/10 01:33:07 djm Exp $ */
+/* $OpenBSD: kexdhc.c,v 1.15 2014/02/02 03:44:31 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -124,8 +124,8 @@ kexdh_client(Kex *kex)
 		fatal("kexdh_client: BN_new failed");
 	if (BN_bin2bn(kbuf, kout, shared_secret) == NULL)
 		fatal("kexdh_client: BN_bin2bn failed");
-	memset(kbuf, 0, klen);
-	xfree(kbuf);
+	explicit_bzero(kbuf, klen);
+	free(kbuf);
 
 	/* calc and verify H */
 	kex_dh_hash(
@@ -139,14 +139,14 @@ kexdh_client(Kex *kex)
 	    shared_secret,
 	    &hash, &hashlen
 	);
-	xfree(server_host_key_blob);
+	free(server_host_key_blob);
 	BN_clear_free(dh_server_pub);
 	DH_free(dh);
 
 	if (key_verify(server_host_key, signature, slen, hash, hashlen) != 1)
 		fatal("key_verify failed for server_host_key");
 	key_free(server_host_key);
-	xfree(signature);
+	free(signature);
 
 	/* save session id */
 	if (kex->session_id == NULL) {
@@ -155,7 +155,7 @@ kexdh_client(Kex *kex)
 		memcpy(kex->session_id, hash, kex->session_id_len);
 	}
 
-	kex_derive_keys(kex, hash, hashlen, shared_secret);
+	kex_derive_keys_bn(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 	kex_finish(kex);
 }

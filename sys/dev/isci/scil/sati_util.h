@@ -62,6 +62,8 @@
  *        structure data, fill in sense data, etc.
  */
 
+#include <sys/param.h>
+
 #include <dev/isci/scil/sati_types.h>
 #include <dev/isci/scil/sati_translator_sequence.h>
 
@@ -143,15 +145,6 @@
 
 #define ATA_MICROCODE_OFFSET_DOWNLOAD        0x03
 #define ATA_MICROCODE_DOWNLOAD_SAVE          0x07
-
-#ifndef MIN
-#define MIN(x,y) ((x) < (y) ? (x) : (y))
-#endif
-
-#ifndef MAX
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
-#endif
-
 
 void sati_ata_non_data_command(
    void                        * ata_io,

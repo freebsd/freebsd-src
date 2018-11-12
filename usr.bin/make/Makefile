@@ -2,7 +2,7 @@
 #	$Id: Makefile,v 1.6 1994/06/30 05:33:39 cgd Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	make
 CFLAGS+=-I${.CURDIR}
@@ -110,5 +110,11 @@ CFLAGS+=	-DDEFSHELLNAME=\"${MAKE_SHELL}\"
 .else
 .error "MAKE_SHELL must be set to one of \"csh\", \"sh\" or \"ksh\"."
 .endif
+
+# if we are here we don't want this called 'make'
+PROG=	fmake
+CLEANFILES+=	fmake.1
+fmake.1: make.1
+	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

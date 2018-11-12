@@ -53,10 +53,10 @@ This emulation is often inefficient.
 .Pp
 VirtIO defines an interface for efficient I/O between the hypervisor and VM.
 The
-.Xr virtio 4
+.Nm
 module provides a shared memory transport called a virtqueue.
 The
-.Xr virtio_pci 4
+.Xr virtio_pci
 device driver represents an emulated PCI device that the hypervisor makes
 available to the VM.
 This device provides the probing, configuration, and
@@ -85,6 +85,7 @@ device driver.
 .Sh SEE ALSO
 .Xr virtio_balloon 4 ,
 .Xr virtio_blk 4 ,
+.Xr virtio_console 4 ,
 .Xr virtio_scsi 4 ,
 .Xr vtnet 4
 .Sh HISTORY
@@ -94,4 +95,4 @@ Support for VirtIO first appeared in
 .An -nosplit
 .Fx
 support for VirtIO was first added by
-.An Bryan Venteicher Aq bryanv@daemoninthecloset.org .
+.An Bryan Venteicher Aq Mt bryanv@FreeBSD.org .

@@ -211,7 +211,7 @@ safe_partname(struct safe_softc *sc)
 static void
 default_harvest(struct rndtest_state *rsp, void *buf, u_int count)
 {
-	random_harvest(buf, count, count*NBBY, 0, RANDOM_PURE);
+	random_harvest(buf, count, count*NBBY/2, RANDOM_PURE_SAFE);
 }
 #endif /* SAFE_NO_RNG */
 
@@ -220,28 +220,15 @@ safe_attach(device_t dev)
 {
 	struct safe_softc *sc = device_get_softc(dev);
 	u_int32_t raddr;
-	u_int32_t cmd, i, devinfo;
+	u_int32_t i, devinfo;
 	int rid;
 
 	bzero(sc, sizeof (*sc));
 	sc->sc_dev = dev;
 
 	/* XXX handle power management */
- 
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 
-	if (!(cmd & PCIM_CMD_MEMEN)) {
-		device_printf(dev, "failed to enable memory mapping\n");
-		goto bad;
-	}
-
-	if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
-		device_printf(dev, "failed to enable bus mastering\n");
-		goto bad;
-	}
+	pci_enable_busmaster(dev);
 
 	/* 
 	 * Setup memory-mapping of PCI registers.
@@ -1341,8 +1328,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 					goto errout;
 				}
 				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_NOWAIT);
-					if ((m->m_flags & M_EXT) == 0) {
+					if (!(MCLGET(m, M_NOWAIT))) {
 						m_free(m);
 						safestats.st_nomcl++;
 						err = sc->sc_nqchip ?
@@ -1368,8 +1354,7 @@ safe_process(device_t dev, struct cryptop *crp, int hint)
 						len = MLEN;
 					}
 					if (top && totlen >= MINCLSIZE) {
-						MCLGET(m, M_NOWAIT);
-						if ((m->m_flags & M_EXT) == 0) {
+						if (!(MCLGET(m, M_NOWAIT))) {
 							*mp = m;
 							m_freem(top);
 							safestats.st_nomcl++;
@@ -1820,20 +1805,13 @@ safe_dma_malloc(
 		goto fail_0;
 	}
 
-	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0) {
-		device_printf(sc->sc_dev, "safe_dma_malloc: "
-			"bus_dmamap_create failed; error %u\n", r);
-		goto fail_1;
-	}
-
 	r = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
 			     BUS_DMA_NOWAIT, &dma->dma_map);
 	if (r != 0) {
 		device_printf(sc->sc_dev, "safe_dma_malloc: "
-			"bus_dmammem_alloc failed; size %zu, error %u\n",
-			size, r);
-		goto fail_2;
+			"bus_dmammem_alloc failed; size %ju, error %u\n",
+			(uintmax_t)size, r);
+		goto fail_1;
 	}
 
 	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
@@ -1844,21 +1822,18 @@ safe_dma_malloc(
 	if (r != 0) {
 		device_printf(sc->sc_dev, "safe_dma_malloc: "
 			"bus_dmamap_load failed; error %u\n", r);
-		goto fail_3;
+		goto fail_2;
 	}
 
 	dma->dma_size = size;
 	return (0);
 
-fail_3:
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 fail_2:
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
-	dma->dma_map = NULL;
 	dma->dma_tag = NULL;
 	return (r);
 }
@@ -1868,7 +1843,6 @@ safe_dma_free(struct safe_softc *sc, struct safe_dma_alloc *dma)
 {
 	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
 	bus_dma_tag_destroy(dma->dma_tag);
 }
 

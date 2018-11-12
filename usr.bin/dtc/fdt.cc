@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
+#define __STDC_LIMIT_MACROS 1
+
 #include "fdt.hh"
 
 #include <algorithm>
@@ -40,6 +42,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "dtb.hh"
 
 namespace dtc
@@ -135,7 +139,7 @@ property_value::resolve_type()
 				break;
 			}
 		}
-		if (is_all_printable && (bytes > nuls))
+		if ((is_all_printable && (bytes > nuls)) || bytes == 0)
 		{
 			type = STRING;
 			if (nuls > 0)
@@ -202,7 +206,7 @@ property_value::write_as_bytes(FILE *file)
 	putc('[', file);
 	for (byte_buffer::iterator i=byte_data.begin(), e=byte_data.end(); i!=e ; i++)
 	{
-		fprintf(file, "%hhx", *i);
+		fprintf(file, "%02hhx", *i);
 		if (i+1 != e)
 		{
 			putc(' ', file);
@@ -278,6 +282,12 @@ property::parse_cells(input_buffer &input)
 			if (!input.consume_integer(val))
 			{
 				input.parse_error("Expected numbers in array of cells");
+				valid = false;
+				return;
+			}
+			if ((val < 0) || (val > UINT32_MAX))
+			{
+				input.parse_error("Value out of range");
 				valid = false;
 				return;
 			}
@@ -359,6 +369,11 @@ property::property(input_buffer &structs, input_buffer &strings)
 		return;
 	}
 	key = string(name_buffer);
+
+	// If we're empty, do not push anything as value.
+	if (!length)
+		return;
+
 	// Read the value
 	uint8_t byte;
 	property_value v;
@@ -374,13 +389,45 @@ property::property(input_buffer &structs, input_buffer &strings)
 	values.push_back(v);
 }
 
-property::property(input_buffer &input, string k, string l) : key(k), label(l),
-	valid(true)
+void property::parse_define(input_buffer &input, define_map *defines)
+{
+	input.consume('$');
+	if (!defines)
+	{
+		input.parse_error("No predefined properties to match name\n");
+		valid = false;
+		return;
+	}
+	string name = string::parse_property_name(input);
+	define_map::iterator found;
+	if ((name == string()) ||
+	    ((found = defines->find(name)) == defines->end()))
+	{
+		input.parse_error("Undefined property name\n");
+		valid = false;
+		return;
+	}
+	values.push_back((*found).second->values[0]);
+}
+
+property::property(input_buffer &input,
+                   string k,
+                   string l,
+                   bool semicolonTerminated,
+                   define_map *defines) : key(k), label(l), valid(true)
 {
 	do {
 		input.next_token();
 		switch (input[0])
 		{
+			case '$':
+			{
+				parse_define(input, defines);
+				if (valid)
+				{
+					break;
+				}
+			}
 			default:
 				input.parse_error("Invalid property value.");
 				valid = false;
@@ -404,7 +451,7 @@ property::property(input_buffer &input, string k, string l) : key(k), label(l),
 		}
 		input.next_token();
 	} while (input.consume(','));
-	if (!input.consume(';'))
+	if (semicolonTerminated && !input.consume(';'))
 	{
 		input.parse_error("Expected ; at end of property");
 		valid = false;
@@ -424,9 +471,10 @@ property::parse_dtb(input_buffer &structs, input_buffer &strings)
 }
 
 property*
-property::parse(input_buffer &input, string key, string label)
+property::parse(input_buffer &input, string key, string label,
+                bool semicolonTerminated, define_map *defines)
 {
-	property *p = new property(input, key, label);
+	property *p = new property(input, key, label, semicolonTerminated, defines);
 	if (!p->valid)
 	{
 		delete p;
@@ -583,7 +631,7 @@ node::node(input_buffer &structs, input_buffer &strings) : valid(true)
 	return;
 }
 
-node::node(input_buffer &input, string n, string l, string a) : 
+node::node(input_buffer &input, string n, string l, string a, define_map *defines) : 
 	label(l), name(n), unit_address(a), valid(true)
 {
 	if (!input.consume('{'))
@@ -620,7 +668,7 @@ node::node(input_buffer &input, string n, string l, string a) :
 		if (input.consume('='))
 		{
 			property *p= property::parse(input, child_name,
-					child_label);
+					child_label, true, defines);
 			if (p == 0)
 			{
 				valid = false;
@@ -633,7 +681,7 @@ node::node(input_buffer &input, string n, string l, string a) :
 		else if (!is_property && input[0] == ('{'))
 		{
 			node *child = node::parse(input, child_name,
-					child_label, child_address);
+					child_label, child_address, defines);
 			if (child)
 			{
 				children.push_back(child);
@@ -685,9 +733,13 @@ node::sort()
 }
 
 node*
-node::parse(input_buffer &input, string name, string label, string address)
+node::parse(input_buffer &input,
+            string name,
+            string label,
+            string address,
+            define_map *defines)
 {
-	node *n = new node(input, name, label, address);
+	node *n = new node(input, name, label, address, defines);
 	if (!n->valid)
 	{
 		delete n;
@@ -1000,7 +1052,7 @@ device_tree::parse_roots(input_buffer &input, std::vector<node*> &roots)
 	while (valid && input.consume('/'))
 	{
 		input.next_token();
-		node *n = node::parse(input, string("", 1));
+		node *n = node::parse(input, string("", 1), string(), string(), &defines);
 		if (n)
 		{
 			roots.push_back(n);
@@ -1009,6 +1061,7 @@ device_tree::parse_roots(input_buffer &input, std::vector<node*> &roots)
 		{
 			valid = false;
 		}
+		input.next_token();
 	}
 }
 
@@ -1025,6 +1078,13 @@ device_tree::buffer_for_file(const char *path)
 	if (source == -1)
 	{
 		fprintf(stderr, "Unable to open file %s\n", path);
+		return 0;
+	}
+	struct stat st;
+	if (fstat(source, &st) == 0 && S_ISDIR(st.st_mode))
+	{
+		fprintf(stderr, "File %s is a directory\n", path);
+		close(source);
 		return 0;
 	}
 	input_buffer *b = new mmap_input_buffer(source);
@@ -1136,7 +1196,7 @@ void
 device_tree::write_dts(int fd)
 {
 	FILE *file = fdopen(fd, "w");
-	fputs("/dtc-v1/;\n\n", file);
+	fputs("/dts-v1/;\n\n", file);
 
 	if (!reservations.empty())
 	{
@@ -1145,7 +1205,7 @@ device_tree::write_dts(int fd)
 		for (std::vector<reservation>::iterator i=reservations.begin(),
 		     e=reservations.end() ; i!=e ; ++i)
 		{
-			fprintf(stderr, " %" PRIx64 " %" PRIx64, i->first, i->second);
+			fprintf(file, " %" PRIx64 " %" PRIx64, i->first, i->second);
 		}
 		fputs(";\n\n", file);
 	}
@@ -1233,6 +1293,18 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 	input.next_token();
 	while(input.consume("/include/"))
 	{
+		bool reallyInclude = true;
+		if (input.consume("if "))
+		{
+			input.next_token();
+			string name = string::parse_property_name(input);
+			// XXX: Error handling
+			if (defines.find(name) == defines.end())
+			{
+				reallyInclude = false;
+			}
+			input.consume('/');
+		}
 		input.next_token();
 		if (!input.consume('"'))
 		{
@@ -1251,6 +1323,14 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 		include_file[dir_length] = '/';
 		memcpy(include_file+dir_length+1, file, length);
 		include_file[dir_length+length+1] = 0;
+
+		input.consume(include_file+dir_length+1);
+		input.consume('"');
+		if (!reallyInclude)
+		{
+			continue;
+		}
+
 		input_buffer *include_buffer = buffer_for_file(include_file);
 
 		if (include_buffer == 0)
@@ -1284,8 +1364,6 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 			return;
 		}
 		input_buffer &include = *include_buffer;
-		input.consume(include_file+dir_length+1);
-		input.consume('"');
 		free((void*)include_file);
 
 		if (!read_header)
@@ -1310,7 +1388,7 @@ device_tree::parse_dts(const char *fn, FILE *depfile)
 		    (input.next_token(),
 		    input.consume_integer(len))))
 		{
-			input.parse_error("Expected /dts-v1/; version string");
+			input.parse_error("Expected size on /memreserve/ node.");
 		}
 		input.next_token();
 		input.consume(';');
@@ -1353,6 +1431,33 @@ device_tree::~device_tree()
 		delete buffers.back();
 		buffers.pop_back();
 	}
+	for (define_map::iterator i=defines.begin(), e=defines.end() ;
+	     i!=e ; ++i)
+	{
+		delete i->second;
+	}
+}
+
+bool device_tree::parse_define(const char *def)
+{
+	char *val = strchr(def, '=');
+	if (!val)
+	{
+		if (strlen(def) != 0)
+		{
+			string name(def);
+			defines[name];
+			return true;
+		}
+		return false;
+	}
+	string name(def, val-def);
+	val++;
+	input_buffer in = input_buffer(val, strlen(val));
+	property *p = property::parse(in, name, string(), false);
+	if (p)
+		defines[name] = p;
+	return p;
 }
 
 } // namespace fdt

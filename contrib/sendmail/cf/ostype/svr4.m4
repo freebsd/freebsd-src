@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: svr4.m4,v 8.17 1999/10/21 00:31:41 gshapiro Exp $')
+VERSIONID(`$Id: svr4.m4,v 8.18 2013-11-22 20:51:15 ca Exp $')
 
 define(`LOCAL_MAILER_PATH', `/usr/ucblib/binmail')dnl
 define(`LOCAL_SHELL_FLAGS', `ehuP')dnl

@@ -58,8 +58,7 @@ static struct ttydevsw bvm_ttydevsw = {
 };
 
 static int			polltime;
-static struct callout_handle	bvm_timeouthandle
-    = CALLOUT_HANDLE_INITIALIZER(&bvm_timeouthandle);
+static struct callout		bvm_timer;
 
 #if defined(KDB)
 static int			alt_break_state;
@@ -107,9 +106,9 @@ cn_drvinit(void *unused)
 {
 	struct tty *tp;
 
-	if (bvm_consdev.cn_pri != CN_DEAD &&
-	    bvm_consdev.cn_name[0] != '\0') {
+	if (bvm_consdev.cn_pri != CN_DEAD) {
 		tp = tty_alloc(&bvm_ttydevsw, NULL);
+		callout_init_mtx(&bvm_timer, tty_getlock(tp), 0);
 		tty_makedev(tp, NULL, "bvmcons");
 	}
 }
@@ -120,7 +119,7 @@ bvm_tty_open(struct tty *tp)
 	polltime = hz / BVMCONS_POLL_HZ;
 	if (polltime < 1)
 		polltime = 1;
-	bvm_timeouthandle = timeout(bvm_timeout, tp, polltime);
+	callout_reset(&bvm_timer, polltime, bvm_timeout, tp);
 
 	return (0);
 }
@@ -129,8 +128,8 @@ static void
 bvm_tty_close(struct tty *tp)
 {
 
-	/* XXX Should be replaced with callout_stop(9) */
-	untimeout(bvm_timeout, tp, bvm_timeouthandle);
+	tty_lock_assert(tp, MA_OWNED);
+	callout_stop(&bvm_timer);
 }
 
 static void
@@ -158,13 +157,12 @@ bvm_timeout(void *v)
 
 	tp = (struct tty *)v;
 
-	tty_lock(tp);
+	tty_lock_assert(tp, MA_OWNED);
 	while ((c = bvm_cngetc(NULL)) != -1)
 		ttydisc_rint(tp, c, 0);
 	ttydisc_rint_done(tp);
-	tty_unlock(tp);
 
-	bvm_timeouthandle = timeout(bvm_timeout, tp, polltime);
+	callout_reset(&bvm_timer, polltime, bvm_timeout, tp);
 }
 
 static void
@@ -174,6 +172,7 @@ bvm_cnprobe(struct consdev *cp)
 
 	disabled = 0;
 	cp->cn_pri = CN_DEAD;
+	strcpy(cp->cn_name, "bvmcons");
 
 	resource_int_value("bvmconsole", 0, "disabled", &disabled);
 	if (!disabled) {
@@ -195,8 +194,6 @@ bvm_cninit(struct consdev *cp)
 		for (i = 0; i < strlen(bootmsg); i++)
 			bvm_cnputc(cp, bootmsg[i]);
 	}
-
-	strcpy(cp->cn_name, "bvmcons");
 }
 
 static void

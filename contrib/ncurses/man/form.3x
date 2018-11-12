@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form.3x,v 1.22 2008/10/11 20:48:11 tom Exp $
+.\" $Id: form.3x,v 1.24 2010/12/04 18:40:45 tom Exp $
 .TH form 3X ""
 .SH NAME
-\fBform\fR - curses extension for programming forms
+\fBform\fR \- curses extension for programming forms
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
@@ -43,7 +43,7 @@ user.
 .PP
 The \fBform\fR library uses the \fBcurses\fR libraries.
 To use the \fBform\fR library, link with the options
-\fB-lform -lcurses\fR.
+\fB\-lform \-lcurses\fR.
 .PP
 Your program should set up the locale, e.g.,
 .sp
@@ -197,7 +197,7 @@ The header file \fB<form.h>\fR automatically includes the header files
 \fB<curses.h>\fR and \fB<eti.h>\fR.
 .PP
 In your library list, libform.a should be before libncurses.a; that is,
-you want to say `-lform -lncurses', not the other way around (which would
+you want to say `\-lform \-lncurses', not the other way around (which would
 give you a link error using most linkers).
 .SH PORTABILITY
 These routines emulate the System V forms library.  They were not supported on
@@ -208,9 +208,3 @@ S. Raymond.
 .SH SEE ALSO
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

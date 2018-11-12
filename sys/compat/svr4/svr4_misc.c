@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
@@ -236,6 +236,7 @@ svr4_sys_getdents64(td, uap)
 	int len, reclen;		/* BSD-format */
 	caddr_t outp;			/* SVR4-format */
 	int resid, svr4reclen=0;	/* SVR4-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -247,7 +248,9 @@ svr4_sys_getdents64(td, uap)
 
 	DPRINTF(("svr4_sys_getdents64(%d, *, %d)\n",
 		uap->fd, uap->nbytes));
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -412,6 +415,7 @@ svr4_sys_getdents(td, uap)
 	int len, reclen;	/* BSD-format */
 	caddr_t outp;		/* SVR4-format */
 	int resid, svr4_reclen;	/* SVR4-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -424,7 +428,9 @@ svr4_sys_getdents(td, uap)
 	if (uap->nbytes < 0)
 		return (EINVAL);
 
-	if ((error = getvnode(td->td_proc->p_fd, uap->fd, CAP_READ, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -647,10 +653,13 @@ svr4_mknod(td, retval, path, mode, dev)
 
 	CHECKALTEXIST(td, path, &newpath);
 
-	if (S_ISFIFO(mode))
-		error = kern_mkfifo(td, newpath, UIO_SYSSPACE, mode);
-	else
-		error = kern_mknod(td, newpath, UIO_SYSSPACE, mode, dev);
+	if (S_ISFIFO(mode)) {
+		error = kern_mkfifoat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+		    mode);
+	} else {
+		error = kern_mknodat(td, AT_FDCWD, newpath, UIO_SYSSPACE,
+		    mode, dev);
+	}
 	free(newpath, M_TEMP);
 	return (error);
 }
@@ -767,14 +776,14 @@ svr4_sys_sysconfig(td, uap)
 #if defined(UVM)
 		*retval = uvmexp.free;	/* XXX: free instead of total */
 #else
-		*retval = cnt.v_free_count;	/* XXX: free instead of total */
+		*retval = vm_cnt.v_free_count;	/* XXX: free instead of total */
 #endif
 		break;
 	case SVR4_CONFIG_AVPHYS_PAGES:
 #if defined(UVM)
 		*retval = uvmexp.active;	/* XXX: active instead of avg */
 #else
-		*retval = cnt.v_active_count;	/* XXX: active instead of avg */
+		*retval = vm_cnt.v_active_count;/* XXX: active instead of avg */
 #endif
 		break;
 #endif /* NOTYET */
@@ -855,9 +864,9 @@ svr4_sys_times(td, uap)
 
 	p = td->td_proc;
 	PROC_LOCK(p);
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	calcru(p, &utime, &stime);
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 	calccru(p, &cutime, &cstime);
 	PROC_UNLOCK(p);
 
@@ -1268,9 +1277,9 @@ loop:
 			pid = p->p_pid;
 			status = p->p_xstat;
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 			sx_sunlock(&proctree_lock);
 
@@ -1295,9 +1304,9 @@ loop:
 			pid = p->p_pid;
 			status = W_STOPCODE(p->p_xstat);
 			ru = p->p_ru;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {
@@ -1319,9 +1328,9 @@ loop:
 			pid = p->p_pid;
 			ru = p->p_ru;
 			status = SIGCONT;
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			calcru(p, &ru.ru_utime, &ru.ru_stime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 			PROC_UNLOCK(p);
 
 		        if (((uap->options & SVR4_WNOWAIT)) == 0) {

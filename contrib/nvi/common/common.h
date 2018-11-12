@@ -6,14 +6,8 @@
  *
  * See the LICENSE file for redistribution information.
  *
- *	@(#)common.h	10.13 (Berkeley) 9/25/96
+ *	$Id: common.h,v 10.22 2012/04/13 05:21:50 zy Exp $
  */
-
-/*
- * Porting information built at configuration time.  Included before
- * any of nvi's include files.
- */
-#include "port.h"
 
 /*
  * Pseudo-local includes.  These are files that are unlikely to exist
@@ -29,6 +23,8 @@
  */
 typedef struct _cb		CB;
 typedef struct _csc		CSC;
+typedef struct _conv	    	CONV;
+typedef struct _conv_win    	CONVWIN;
 typedef struct _event		EVENT;
 typedef struct _excmd		EXCMD;
 typedef struct _exf		EXF;
@@ -48,7 +44,7 @@ typedef struct _tagq		TAGQ;
 typedef struct _text		TEXT;
 
 /* Autoindent state. */
-typedef enum { C_NOTSET, C_CARATSET, C_NOCHANGE, C_ZEROSET } carat_t;
+typedef enum { C_NOTSET, C_CARATSET, C_ZEROSET } carat_t;
 
 /* Busy message types. */
 typedef enum { BUSY_ON = 1, BUSY_OFF, BUSY_UPDATE } busy_t;
@@ -86,6 +82,7 @@ typedef enum { SEQ_ABBREV, SEQ_COMMAND, SEQ_INPUT } seq_t;
 #include "seq.h"		/* Required by screen.h. */
 #include "util.h"		/* Required by ex.h. */
 #include "mark.h"		/* Required by gs.h. */
+#include "conv.h"		/* Required by ex.h and screen.h */
 #include "../ex/ex.h"		/* Required by gs.h. */
 #include "gs.h"			/* Required by screen.h. */
 #include "screen.h"		/* Required by exf.h. */
@@ -93,4 +90,4 @@ typedef enum { SEQ_ABBREV, SEQ_COMMAND, SEQ_INPUT } seq_t;
 #include "log.h"
 #include "mem.h"
 
-#include "com_extern.h"
+#include "extern.h"

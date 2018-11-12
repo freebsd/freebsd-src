@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2013 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,7 @@ struct nvme_io_test_thread {
 	void			*buf;
 	uint32_t		size;
 	uint32_t		time;
-	uint32_t		io_completed;
+	uint64_t		io_completed;
 };
 
 struct nvme_io_test_internal {
@@ -66,7 +66,7 @@ struct nvme_io_test_internal {
 	uint32_t		td_active;
 	uint32_t		td_idx;
 	uint32_t		flags;
-	uint32_t		io_completed[NVME_TEST_MAX_THREADS];
+	uint64_t		io_completed[NVME_TEST_MAX_THREADS];
 };
 
 static void
@@ -90,13 +90,13 @@ nvme_ns_bio_test(void *arg)
 	struct cdev			*dev;
 	void				*buf;
 	struct timeval			t;
-	uint64_t			offset;
-	uint32_t			idx, io_completed = 0;
+	uint64_t			io_completed = 0, offset;
+	uint32_t			idx;
 #if __FreeBSD_version >= 900017
 	int				ref;
 #endif
 
-	buf = malloc(io_test->size, M_NVME, M_NOWAIT);
+	buf = malloc(io_test->size, M_NVME, M_WAITOK);
 	idx = atomic_fetchadd_int(&io_test->td_idx, 1);
 	dev = io_test->ns->cdev;
 
@@ -172,14 +172,14 @@ nvme_ns_bio_test(void *arg)
 }
 
 static void
-nvme_ns_io_test_cb(void *arg, const struct nvme_completion *status)
+nvme_ns_io_test_cb(void *arg, const struct nvme_completion *cpl)
 {
 	struct nvme_io_test_thread	*tth = arg;
 	struct timeval			t;
 
 	tth->io_completed++;
 
-	if (status->sf_sc || status->sf_sct) {
+	if (nvme_completion_is_error(cpl)) {
 		printf("%s: error occurred\n", __func__);
 		wakeup_one(tth);
 		return;
@@ -217,11 +217,11 @@ nvme_ns_io_test(void *arg)
 	struct nvme_completion		cpl;
 	int				error;
 
-	tth = malloc(sizeof(*tth), M_NVME, M_NOWAIT | M_ZERO);
+	tth = malloc(sizeof(*tth), M_NVME, M_WAITOK | M_ZERO);
 	tth->ns = io_test->ns;
 	tth->opc = io_test->opc;
 	memcpy(&tth->start, &io_test->start, sizeof(tth->start));
-	tth->buf = malloc(io_test->size, M_NVME, M_NOWAIT);
+	tth->buf = malloc(io_test->size, M_NVME, M_WAITOK);
 	tth->size = io_test->size;
 	tth->time = io_test->time;
 	tth->idx = atomic_fetchadd_int(&io_test->td_idx, 1);
@@ -269,7 +269,7 @@ nvme_ns_test(struct nvme_namespace *ns, u_long cmd, caddr_t arg)
 		return;
 
 	io_test_internal = malloc(sizeof(*io_test_internal), M_NVME,
-	    M_NOWAIT | M_ZERO);
+	    M_WAITOK | M_ZERO);
 	io_test_internal->opc = io_test->opc;
 	io_test_internal->ns = ns;
 	io_test_internal->td_active = io_test->num_threads;

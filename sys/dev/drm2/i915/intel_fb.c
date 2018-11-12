@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_syscons.h"
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_crtc.h>
@@ -41,8 +42,8 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_device *dev = ifbdev->helper.dev;
 #if 0
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct fb_info *info;
 #endif
+	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_i915_gem_object *obj;
@@ -72,20 +73,27 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	DRM_LOCK(dev);
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	ret = intel_pin_and_fence_fb_obj(dev, obj, false);
+	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
 	}
 
-#if 0
-	info = framebuffer_alloc(0, device);
+	info = framebuffer_alloc();
 	if (!info) {
 		ret = -ENOMEM;
 		goto out_unpin;
 	}
 
+#if 0
 	info->par = ifbdev;
+#else
+	info->fb_size = size;
+	info->fb_bpp = sizes->surface_bpp;
+	info->fb_pbase = dev->agp->base + obj->gtt_offset;
+	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
+	    PAT_WRITE_COMBINING);
+
 #endif
 
 	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
@@ -95,8 +103,8 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	fb = &ifbdev->ifb.base;
 
 	ifbdev->helper.fb = fb;
-#if 0
 	ifbdev->helper.fbdev = info;
+#if 0
 
 	strcpy(info->fix.id, "inteldrmfb");
 
@@ -129,15 +137,14 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->screen_size = size;
 
 //	memset(info->screen_base, 0, size);
+#endif
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
-#endif
-
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
-		      fb->width, fb->height,
+	DRM_DEBUG_KMS("allocated %dx%d (s %dbits) fb: 0x%08x, bo %p\n",
+		      fb->width, fb->height, fb->depth,
 		      obj->gtt_offset, obj);
 
 	DRM_UNLOCK(dev);
@@ -182,21 +189,19 @@ static struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 static void intel_fbdev_destroy(struct drm_device *dev,
 				struct intel_fbdev *ifbdev)
 {
-#if 0
 	struct fb_info *info;
-#endif
 	struct intel_framebuffer *ifb = &ifbdev->ifb;
 
-#if 0
 	if (ifbdev->helper.fbdev) {
 		info = ifbdev->helper.fbdev;
+#if 0
 		unregister_framebuffer(info);
 		iounmap(info->screen_base);
 		if (info->cmap.len)
 			fb_dealloc_cmap(&info->cmap);
+#endif
 		framebuffer_release(info);
 	}
-#endif
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
@@ -206,6 +211,10 @@ static void intel_fbdev_destroy(struct drm_device *dev,
 		ifb->obj = NULL;
 	}
 }
+
+#ifdef DEV_SC
+extern int sc_txtmouse_no_retrace_wait;
+#endif
 
 int intel_fbdev_init(struct drm_device *dev)
 {
@@ -229,6 +238,9 @@ int intel_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
 	drm_fb_helper_initial_config(&ifbdev->helper, 32);
+#ifdef DEV_SC
+	sc_txtmouse_no_retrace_wait = 1;
+#endif
 	return 0;
 }
 

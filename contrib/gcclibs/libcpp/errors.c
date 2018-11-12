@@ -153,7 +153,20 @@ cpp_error (cpp_reader * pfile, int level, const char *msgid, ...)
 	}
       else
 	{
-	  src_loc = pfile->cur_token[-1].src_loc;
+	  /* Find actual previous token.  */
+	  cpp_token *t;
+
+	  if (pfile->cur_token != pfile->cur_run->base)
+	    t = pfile->cur_token - 1;
+	  else
+	    {
+	      if (pfile->cur_run->prev != NULL)
+	        t = pfile->cur_run->prev->limit;
+	      else
+	        t = NULL;
+	    }
+	  /* Retrieve corresponding source location, unless we failed.  */
+	  src_loc = t ? t->src_loc : 0;
 	}
 
       if (_cpp_begin_message (pfile, level, src_loc, 0))

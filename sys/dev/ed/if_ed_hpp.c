@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>		/* XXX: ed_hpp_set_physical_link() */
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_mib.h>
@@ -564,7 +565,11 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 	int use_32bit_accesses = !(sc->hpp_id & ED_HPP_ID_16_BIT_ACCESS);
 
 	/* select page 0 registers */
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	ed_nic_outb(sc, ED_P0_CR, sc->cr_proto | ED_CR_STA);
+	ed_nic_barrier(sc, ED_P0_CR, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
 	/* reset remote DMA complete flag */
 	ed_nic_outb(sc, ED_P0_ISR, ED_ISR_RDC);

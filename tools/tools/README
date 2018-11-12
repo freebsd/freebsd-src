@@ -18,6 +18,7 @@ cxgbetool	A tool for the cxgbe(4) driver.
 cxgbtool	A tool for the cxgb(4) driver.
 diffburst	OBSOLETE: equivalent functionality is available via split -p.
 		For example: "split -p ^diff < patchfile". See split(1).
+drm		Tools specific to the DRM/KMS device drivers.
 editing		Editor modes and the like to help editing FreeBSD code.
 epfe 		Extract printing filter examples from printing.sgml.
 ether_reflect	An Ethernet packet reflector for low level testing.
@@ -54,7 +55,6 @@ pciid		Generate src/share/misc/pci_vendors.
 pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 portsinfo 	Generate list of new ports for last two weeks.
-prstats		Generate statistics about the PR database.
 recoverdisk	Copy as much data as possible from a defective disk.
 scsi-defects	Get at the primary or grown defect list of a SCSI disk.
 sysdoc		Build a manual page with available sysctls for a specific

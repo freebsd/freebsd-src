@@ -5,10 +5,10 @@
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMAsmPrinter.cpp \
+SRCS=	A15SDOptimizer.cpp \
+	ARMAsmPrinter.cpp \
 	ARMBaseInstrInfo.cpp \
 	ARMBaseRegisterInfo.cpp \
-	ARMCodeEmitter.cpp \
 	ARMConstantIslandPass.cpp \
 	ARMConstantPoolValue.cpp \
 	ARMExpandPseudoInsts.cpp \
@@ -18,15 +18,16 @@ SRCS=	ARMAsmPrinter.cpp \
 	ARMISelDAGToDAG.cpp \
 	ARMISelLowering.cpp \
 	ARMInstrInfo.cpp \
-	ARMJITInfo.cpp \
 	ARMLoadStoreOptimizer.cpp \
 	ARMMCInstLower.cpp \
 	ARMMachineFunctionInfo.cpp \
 	ARMRegisterInfo.cpp \
+	ARMOptimizeBarriersPass.cpp \
 	ARMSelectionDAGInfo.cpp \
 	ARMSubtarget.cpp \
 	ARMTargetMachine.cpp \
 	ARMTargetObjectFile.cpp \
+	ARMTargetTransformInfo.cpp \
 	MLxExpansionPass.cpp \
 	Thumb1FrameLowering.cpp \
 	Thumb1InstrInfo.cpp \

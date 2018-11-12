@@ -26,14 +26,6 @@ include "NVPTXInstrInfo.td"
 //===----------------------------------------------------------------------===//
 
 // SM Versions
-def SM10 : SubtargetFeature<"sm_10", "SmVersion", "10",
-                            "Target SM 1.0">;
-def SM11 : SubtargetFeature<"sm_11", "SmVersion", "11",
-                            "Target SM 1.1">;
-def SM12 : SubtargetFeature<"sm_12", "SmVersion", "12",
-                            "Target SM 1.2">;
-def SM13 : SubtargetFeature<"sm_13", "SmVersion", "13",
-                            "Target SM 1.3">;
 def SM20 : SubtargetFeature<"sm_20", "SmVersion", "20",
                             "Target SM 2.0">;
 def SM21 : SubtargetFeature<"sm_21", "SmVersion", "21",
@@ -42,12 +34,18 @@ def SM30 : SubtargetFeature<"sm_30", "SmVersion", "30",
                             "Target SM 3.0">;
 def SM35 : SubtargetFeature<"sm_35", "SmVersion", "35",
                             "Target SM 3.5">;
+def SM50 : SubtargetFeature<"sm_50", "SmVersion", "50",
+                            "Target SM 5.0">;
 
 // PTX Versions
 def PTX30 : SubtargetFeature<"ptx30", "PTXVersion", "30",
                              "Use PTX version 3.0">;
 def PTX31 : SubtargetFeature<"ptx31", "PTXVersion", "31",
                              "Use PTX version 3.1">;
+def PTX32 : SubtargetFeature<"ptx32", "PTXVersion", "32",
+                             "Use PTX version 3.2">;
+def PTX40 : SubtargetFeature<"ptx40", "PTXVersion", "40",
+                             "Use PTX version 4.0">;
 
 //===----------------------------------------------------------------------===//
 // NVPTX supported processors.
@@ -56,14 +54,11 @@ def PTX31 : SubtargetFeature<"ptx31", "PTXVersion", "31",
 class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, NoItineraries, Features>;
 
-def : Proc<"sm_10", [SM10]>;
-def : Proc<"sm_11", [SM11]>;
-def : Proc<"sm_12", [SM12]>;
-def : Proc<"sm_13", [SM13]>;
 def : Proc<"sm_20", [SM20]>;
 def : Proc<"sm_21", [SM21]>;
 def : Proc<"sm_30", [SM30]>;
 def : Proc<"sm_35", [SM35]>;
+def : Proc<"sm_50", [SM50]>;
 
 
 def NVPTXInstrInfo : InstrInfo {

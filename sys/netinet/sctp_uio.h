@@ -249,18 +249,23 @@ struct sctp_snd_all_completes {
 					SCTP_SACK_IMMEDIATELY)) != 0)
 /* for the endpoint */
 
-/* The lower byte is an enumeration of PR-SCTP policies */
+/* The lower four bits is an enumeration of PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE 0x0000/* Reliable transfer */
 #define SCTP_PR_SCTP_TTL  0x0001/* Time based PR-SCTP */
 #define SCTP_PR_SCTP_BUF  0x0002/* Buffer based PR-SCTP */
 #define SCTP_PR_SCTP_RTX  0x0003/* Number of retransmissions based PR-SCTP */
+#define SCTP_PR_SCTP_MAX  SCTP_PR_SCTP_RTX
+#define SCTP_PR_SCTP_ALL  0x000f/* Used for aggregated stats */
 
 #define PR_SCTP_POLICY(x)         ((x) & 0x0f)
-#define PR_SCTP_ENABLED(x)        (PR_SCTP_POLICY(x) != SCTP_PR_SCTP_NONE)
+#define PR_SCTP_ENABLED(x)        ((PR_SCTP_POLICY(x) != SCTP_PR_SCTP_NONE) && \
+                                   (PR_SCTP_POLICY(x) != SCTP_PR_SCTP_ALL))
 #define PR_SCTP_TTL_ENABLED(x)    (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_TTL)
 #define PR_SCTP_BUF_ENABLED(x)    (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_BUF)
 #define PR_SCTP_RTX_ENABLED(x)    (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_RTX)
-#define PR_SCTP_INVALID_POLICY(x) (PR_SCTP_POLICY(x) > SCTP_PR_SCTP_RTX)
+#define PR_SCTP_INVALID_POLICY(x) (PR_SCTP_POLICY(x) > SCTP_PR_SCTP_MAX)
+#define PR_SCTP_VALID_POLICY(x)   (PR_SCTP_POLICY(x) <= SCTP_PR_SCTP_MAX)
+
 /* Stat's */
 struct sctp_pcbinfo {
 	uint32_t ep_count;
@@ -323,7 +328,6 @@ struct sctp_paddr_change {
 	uint32_t spc_state;
 	uint32_t spc_error;
 	sctp_assoc_t spc_assoc_id;
-	uint8_t spc_padding[4];
 };
 
 /* paddr state values */
@@ -346,7 +350,7 @@ struct sctp_remote_error {
 	uint32_t sre_length;
 	uint16_t sre_error;
 	sctp_assoc_t sre_assoc_id;
-	uint8_t sre_data[4];
+	uint8_t sre_data[];
 };
 
 /* data send failure event (deprecated) */
@@ -662,10 +666,6 @@ struct sctp_hmacalgo {
 #define SCTP_AUTH_HMAC_ID_RSVD		0x0000
 #define SCTP_AUTH_HMAC_ID_SHA1		0x0001	/* default, mandatory */
 #define SCTP_AUTH_HMAC_ID_SHA256	0x0003
-#define SCTP_AUTH_HMAC_ID_SHA224	0x0004
-#define SCTP_AUTH_HMAC_ID_SHA384	0x0005
-#define SCTP_AUTH_HMAC_ID_SHA512	0x0006
-
 
 /* SCTP_AUTH_ACTIVE_KEY / SCTP_AUTH_DELETE_KEY */
 struct sctp_authkeyid {
@@ -722,6 +722,14 @@ struct sctp_udpencaps {
 	struct sockaddr_storage sue_address;
 	sctp_assoc_t sue_assoc_id;
 	uint16_t sue_port;
+};
+
+struct sctp_prstatus {
+	sctp_assoc_t sprstat_assoc_id;
+	uint16_t sprstat_sid;
+	uint16_t sprstat_policy;
+	uint64_t sprstat_abandoned_unsent;
+	uint64_t sprstat_abandoned_sent;
 };
 
 struct sctp_cwnd_args {
@@ -1149,7 +1157,7 @@ union sctp_sockstore {
 struct xsctp_inpcb {
 	uint32_t last;
 	uint32_t flags;
-	uint32_t features;
+	uint64_t features;
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t total_nospaces;
@@ -1157,7 +1165,7 @@ struct xsctp_inpcb {
 	uint16_t local_port;
 	uint16_t qlen;
 	uint16_t maxqlen;
-	uint32_t extra_padding[32];	/* future */
+	uint32_t extra_padding[31];	/* future */
 };
 
 struct xsctp_tcb {

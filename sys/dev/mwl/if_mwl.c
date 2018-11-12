@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -187,31 +188,25 @@ static	int mwl_rxdesc = MWL_RXDESC;		/* # rx desc's to allocate */
 SYSCTL_INT(_hw_mwl, OID_AUTO, rxdesc, CTLFLAG_RW, &mwl_rxdesc,
 	    0, "rx descriptors allocated");
 static	int mwl_rxbuf = MWL_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxbuf, CTLFLAG_RW, &mwl_rxbuf,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxbuf, CTLFLAG_RWTUN, &mwl_rxbuf,
 	    0, "rx buffers allocated");
-TUNABLE_INT("hw.mwl.rxbuf", &mwl_rxbuf);
 static	int mwl_txbuf = MWL_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_mwl, OID_AUTO, txbuf, CTLFLAG_RW, &mwl_txbuf,
+SYSCTL_INT(_hw_mwl, OID_AUTO, txbuf, CTLFLAG_RWTUN, &mwl_txbuf,
 	    0, "tx buffers allocated");
-TUNABLE_INT("hw.mwl.txbuf", &mwl_txbuf);
 static	int mwl_txcoalesce = 8;		/* # tx packets to q before poking f/w*/
-SYSCTL_INT(_hw_mwl, OID_AUTO, txcoalesce, CTLFLAG_RW, &mwl_txcoalesce,
+SYSCTL_INT(_hw_mwl, OID_AUTO, txcoalesce, CTLFLAG_RWTUN, &mwl_txcoalesce,
 	    0, "tx buffers to send at once");
-TUNABLE_INT("hw.mwl.txcoalesce", &mwl_txcoalesce);
 static	int mwl_rxquota = MWL_RXBUF;		/* # max buffers to process */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxquota, CTLFLAG_RW, &mwl_rxquota,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxquota, CTLFLAG_RWTUN, &mwl_rxquota,
 	    0, "max rx buffers to process per interrupt");
-TUNABLE_INT("hw.mwl.rxquota", &mwl_rxquota);
 static	int mwl_rxdmalow = 3;			/* # min buffers for wakeup */
-SYSCTL_INT(_hw_mwl, OID_AUTO, rxdmalow, CTLFLAG_RW, &mwl_rxdmalow,
+SYSCTL_INT(_hw_mwl, OID_AUTO, rxdmalow, CTLFLAG_RWTUN, &mwl_rxdmalow,
 	    0, "min free rx buffers before restarting traffic");
-TUNABLE_INT("hw.mwl.rxdmalow", &mwl_rxdmalow);
 
 #ifdef MWL_DEBUG
 static	int mwl_debug = 0;
-SYSCTL_INT(_hw_mwl, OID_AUTO, debug, CTLFLAG_RW, &mwl_debug,
+SYSCTL_INT(_hw_mwl, OID_AUTO, debug, CTLFLAG_RWTUN, &mwl_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.mwl.debug", &mwl_debug);
 enum {
 	MWL_DEBUG_XMIT		= 0x00000001,	/* basic xmit operation */
 	MWL_DEBUG_XMIT_DESC	= 0x00000002,	/* xmit descriptors */
@@ -281,11 +276,13 @@ struct mwltxrec {
  * that all BAR 1 operations are done in the "hal" and
  * there should be no reference to them here.
  */
+#ifdef MWL_DEBUG
 static __inline uint32_t
 RD4(struct mwl_softc *sc, bus_size_t off)
 {
 	return bus_space_read_4(sc->sc_io0t, sc->sc_io0h, off);
 }
+#endif
 
 static __inline void
 WR4(struct mwl_softc *sc, bus_size_t off, uint32_t val)
@@ -1437,7 +1434,7 @@ mwl_start(struct ifnet *ifp)
 		 * Pass the frame to the h/w for transmission.
 		 */
 		if (mwl_tx_start(sc, ni, bf, m)) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			mwl_puttxbuf_head(txq, bf);
 			ieee80211_free_node(ni);
 			continue;
@@ -1507,7 +1504,7 @@ mwl_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 * Pass the frame to the h/w for transmission.
 	 */
 	if (mwl_tx_start(sc, ni, bf, m)) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		mwl_puttxbuf_head(txq, bf);
 
 		ieee80211_free_node(ni);
@@ -2038,13 +2035,6 @@ mwl_desc_setup(struct mwl_softc *sc, const char *name,
 	}
 
 	/* allocate descriptors */
-	error = bus_dmamap_create(dd->dd_dmat, BUS_DMA_NOWAIT, &dd->dd_dmamap);
-	if (error != 0) {
-		if_printf(ifp, "unable to create dmamap for %s descriptors, "
-			"error %u\n", dd->dd_name, error);
-		goto fail0;
-	}
-
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
 				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
 				 &dd->dd_dmamap);
@@ -2066,16 +2056,15 @@ mwl_desc_setup(struct mwl_softc *sc, const char *name,
 
 	ds = dd->dd_desc;
 	memset(ds, 0, dd->dd_desc_len);
-	DPRINTF(sc, MWL_DEBUG_RESET, "%s: %s DMA map: %p (%lu) -> %p (%lu)\n",
+	DPRINTF(sc, MWL_DEBUG_RESET,
+	    "%s: %s DMA map: %p (%lu) -> 0x%jx (%lu)\n",
 	    __func__, dd->dd_name, ds, (u_long) dd->dd_desc_len,
-	    (caddr_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
+	    (uintmax_t) dd->dd_desc_paddr, /*XXX*/ (u_long) dd->dd_desc_len);
 
 	return 0;
 fail2:
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
 fail1:
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
-fail0:
 	bus_dma_tag_destroy(dd->dd_dmat);
 	memset(dd, 0, sizeof(*dd));
 	return error;
@@ -2087,7 +2076,6 @@ mwl_desc_cleanup(struct mwl_softc *sc, struct mwl_descdma *dd)
 {
 	bus_dmamap_unload(dd->dd_dmat, dd->dd_dmamap);
 	bus_dmamem_free(dd->dd_dmat, dd->dd_desc, dd->dd_dmamap);
-	bus_dmamap_destroy(dd->dd_dmat, dd->dd_dmamap);
 	bus_dma_tag_destroy(dd->dd_dmat);
 
 	memset(dd, 0, sizeof(*dd));
@@ -2226,9 +2214,8 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 		       NULL,			/* lockfunc */
 		       NULL,			/* lockarg */
 		       &sc->sc_rxdmat);
-	error = bus_dmamap_create(sc->sc_rxdmat, BUS_DMA_NOWAIT, &sc->sc_rxmap);
 	if (error != 0) {
-		if_printf(ifp, "could not create rx DMA map\n");
+		if_printf(ifp, "could not create rx DMA tag\n");
 		return error;
 	}
 
@@ -2289,15 +2276,13 @@ mwl_rxdma_setup(struct mwl_softc *sc)
 static void
 mwl_rxdma_cleanup(struct mwl_softc *sc)
 {
-	if (sc->sc_rxmap != NULL)
+	if (sc->sc_rxmem_paddr != 0) {
 		bus_dmamap_unload(sc->sc_rxdmat, sc->sc_rxmap);
+		sc->sc_rxmem_paddr = 0;
+	}
 	if (sc->sc_rxmem != NULL) {
 		bus_dmamem_free(sc->sc_rxdmat, sc->sc_rxmem, sc->sc_rxmap);
 		sc->sc_rxmem = NULL;
-	}
-	if (sc->sc_rxmap != NULL) {
-		bus_dmamap_destroy(sc->sc_rxdmat, sc->sc_rxmap);
-		sc->sc_rxmap = NULL;
 	}
 	if (sc->sc_rxdma.dd_bufptr != NULL) {
 		free(sc->sc_rxdma.dd_bufptr, M_MWLDEV);
@@ -2622,7 +2607,7 @@ mwl_rxbuf_init(struct mwl_softc *sc, struct mwl_rxbuf *bf)
 }
 
 static void
-mwl_ext_free(void *data, void *arg)
+mwl_ext_free(struct mbuf *m, void *data, void *arg)
 {
 	struct mwl_softc *sc = arg;
 
@@ -2757,7 +2742,7 @@ mwl_rx_proc(void *arg, int npending)
 #endif
 		status = ds->Status;
 		if (status & EAGLE_RXD_STATUS_DECRYPT_ERR_MASK) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			sc->sc_stats.mst_rx_crypto++;
 			/*
 			 * NB: Check EAGLE_RXD_STATUS_GENERAL_DECRYPT_ERR
@@ -2882,12 +2867,13 @@ mwl_rx_proc(void *arg, int npending)
 		 * upper layer to put a station in power save
 		 * (except when configured with MWL_HOST_PS_SUPPORT).
 		 */
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			m->m_flags |= M_WEP;
 #ifdef MWL_HOST_PS_SUPPORT
-		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 #else
-		wh->i_fc[1] &= ~(IEEE80211_FC1_WEP | IEEE80211_FC1_PWR_MGT);
+		wh->i_fc[1] &= ~(IEEE80211_FC1_PROTECTED |
+		    IEEE80211_FC1_PWR_MGT);
 #endif
 
 		if (ieee80211_radiotap_active(ic)) {
@@ -2902,7 +2888,7 @@ mwl_rx_proc(void *arg, int npending)
 			ieee80211_dump_pkt(ic, mtod(m, caddr_t),
 			    len, ds->Rate, rssi);
 		}
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		/* dispatch */
 		ni = ieee80211_find_rxnode(ic,
@@ -3201,7 +3187,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 #endif
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
+	iswep = wh->i_fc[1] & IEEE80211_FC1_PROTECTED;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	hdrlen = ieee80211_anyhdrsize(wh);
 	copyhdrlen = hdrlen;
@@ -3420,7 +3406,7 @@ mwl_tx_start(struct mwl_softc *sc, struct ieee80211_node *ni, struct mwl_txbuf *
 	STAILQ_INSERT_TAIL(&txq->active, bf, bf_list);
 	MWL_TXDESC_SYNC(txq, ds, BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	sc->sc_tx_timer = 5;
 	MWL_TXQ_UNLOCK(txq);
 
@@ -4703,11 +4689,10 @@ mwl_printrxbuf(const struct mwl_rxbuf *bf, u_int ix)
 	const struct mwl_rxdesc *ds = bf->bf_desc;
 	uint32_t status = le32toh(ds->Status);
 
-	printf("R[%2u] (DS.V:%p DS.P:%p) NEXT:%08x DATA:%08x RC:%02x%s\n"
+	printf("R[%2u] (DS.V:%p DS.P:0x%jx) NEXT:%08x DATA:%08x RC:%02x%s\n"
 	       "      STAT:%02x LEN:%04x RSSI:%02x CHAN:%02x RATE:%02x QOS:%04x HT:%04x\n",
-	    ix, ds, (const struct mwl_desc *)bf->bf_daddr,
-	    le32toh(ds->pPhysNext), le32toh(ds->pPhysBuffData),
-	    ds->RxControl, 
+	    ix, ds, (uintmax_t)bf->bf_daddr, le32toh(ds->pPhysNext),
+	    le32toh(ds->pPhysBuffData), ds->RxControl, 
 	    ds->RxControl != EAGLE_RXD_CTRL_DRIVER_OWN ?
 	        "" : (status & EAGLE_RXD_STATUS_OK) ? " *" : " !",
 	    ds->Status, le16toh(ds->PktLen), ds->RSSI, ds->Channel,
@@ -4721,8 +4706,7 @@ mwl_printtxbuf(const struct mwl_txbuf *bf, u_int qnum, u_int ix)
 	uint32_t status = le32toh(ds->Status);
 
 	printf("Q%u[%3u]", qnum, ix);
-	printf(" (DS.V:%p DS.P:%p)\n",
-	    ds, (const struct mwl_txdesc *)bf->bf_daddr);
+	printf(" (DS.V:%p DS.P:0x%jx)\n", ds, (uintmax_t)bf->bf_daddr);
 	printf("    NEXT:%08x DATA:%08x LEN:%04x STAT:%08x%s\n",
 	    le32toh(ds->pPhysNext),
 	    le32toh(ds->PktPtr), le16toh(ds->PktLen), status,
@@ -4800,7 +4784,7 @@ mwl_watchdog(void *arg)
 		mwl_reset(ifp);
 mwl_txq_dump(&sc->sc_txq[0]);/*XXX*/
 #endif
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		sc->sc_stats.mst_watchdog++;
 	}
 }
@@ -4943,8 +4927,10 @@ mwl_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCGMVSTATS:
 		mwl_hal_gethwstats(sc->sc_mh, &sc->sc_stats.hw_stats);
 		/* NB: embed these numbers to get a consistent view */
-		sc->sc_stats.mst_tx_packets = ifp->if_opackets;
-		sc->sc_stats.mst_rx_packets = ifp->if_ipackets;
+		sc->sc_stats.mst_tx_packets =
+		    ifp->if_get_counter(ifp, IFCOUNTER_OPACKETS);
+		sc->sc_stats.mst_rx_packets =
+		    ifp->if_get_counter(ifp, IFCOUNTER_IPACKETS);
 		/*
 		 * NB: Drop the softc lock in case of a page fault;
 		 * we'll accept any potential inconsisentcy in the

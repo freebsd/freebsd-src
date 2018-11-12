@@ -64,9 +64,15 @@
 #endif
 
 /*
- * The physical address space is densely populated.
+ * Choose between DENSE and SPARSE based on whether lower execution time or
+ * lower kernel address space consumption is desired.  Under PAE, kernel
+ * address space is often in short supply.
  */
+#ifdef PAE
+#define	VM_PHYSSEG_SPARSE
+#else
 #define	VM_PHYSSEG_DENSE
+#endif
 
 /*
  * The number of PHYSSEG entries must be one greater than the number
@@ -104,13 +110,6 @@
 #define	VM_NFREEORDER		10
 #else
 #define	VM_NFREEORDER		11
-#endif
-
-/*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
 #endif
 
 /*
@@ -171,24 +170,23 @@
 #define VM_MAX_ADDRESS		VADDR(PTDPTDI, PTDPTDI)
 #define VM_MIN_ADDRESS		((vm_offset_t)0)
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
 /*
- * Ceiling on the amount of kmem_map KVA space: 40% of the entire KVA space
- * rounded to the nearest multiple of the superpage size.
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(12 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 40% of the
+ * kernel map rounded to the nearest multiple of the superpage size.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	(((((VM_MAX_KERNEL_ADDRESS - \
@@ -205,5 +203,10 @@
 #ifndef VM_MAX_AUTOTUNE_MAXUSERS
 #define VM_MAX_AUTOTUNE_MAXUSERS 384
 #endif
+
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_CPUSET
+#define	SFBUF_PROCESS_PAGE
 
 #endif /* _MACHINE_VMPARAM_H_ */

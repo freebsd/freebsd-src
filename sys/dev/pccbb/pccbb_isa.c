@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isavar.h>
 
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
+
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 
@@ -71,8 +74,7 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
 static int isa_intr_mask = EXCA_INT_MASK_ALLOWED;
-TUNABLE_INT("hw.cbb.intr_mask", &isa_intr_mask);
-SYSCTL_INT(_hw_pcic, OID_AUTO, intr_mask, CTLFLAG_RD, &isa_intr_mask, 0,
+SYSCTL_INT(_hw_pcic, OID_AUTO, intr_mask, CTLFLAG_RDTUN, &isa_intr_mask, 0,
     "Mask of allowable interrupts for this laptop.  The default is generally\n\
 correct, but some laptops do not route all the IRQ pins to the bridge to\n\
 save wires.  Sometimes you need a more restrictive mask because some of the\n\
@@ -86,7 +88,6 @@ allocated.");
  *     2: 6729's method
  */
 int pcic_pd6722_vsense = 1;
-TUNABLE_INT("hw.pcic.pd6722_vsense", &pcic_pd6722_vsense);
 SYSCTL_INT(_hw_pcic, OID_AUTO, pd6722_vsense, CTLFLAG_RDTUN,
     &pcic_pd6722_vsense, 1,
     "Select CL-PD6722's VSENSE method.  VSENSE is used to determine the\n\
@@ -202,13 +203,25 @@ cbb_isa_attach(device_t dev)
 	return (ENOMEM);
 }
 
+static int
+cbb_isa_suspend(device_t dev)
+{
+	return (0);
+}
+
+static int
+cbb_isa_resume(device_t dev)
+{
+	return (0);
+}
+
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_isa_probe),
 	DEVMETHOD(device_attach,		cbb_isa_attach),
 	DEVMETHOD(device_detach,		cbb_detach),
-	DEVMETHOD(device_suspend,		cbb_suspend),
-	DEVMETHOD(device_resume,		cbb_resume),
+	DEVMETHOD(device_suspend,		cbb_isa_suspend),
+	DEVMETHOD(device_resume,		cbb_isa_resume),
 
 	/* bus methods */
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),

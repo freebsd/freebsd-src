@@ -37,13 +37,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/AST/ParentMap.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/AST/ParentMap.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace clang;
 using namespace ento;
@@ -61,7 +62,13 @@ class ObjCSelfInitChecker : public Checker<  check::PostObjCMessage,
                                              check::PostCall,
                                              check::Location,
                                              check::Bind > {
+  mutable std::unique_ptr<BugType> BT;
+
+  void checkForInvalidSelf(const Expr *E, CheckerContext &C,
+                           const char *errorStr) const;
+
 public:
+  ObjCSelfInitChecker() {}
   void checkPostObjCMessage(const ObjCMethodCall &Msg, CheckerContext &C) const;
   void checkPostStmt(const ObjCIvarRefExpr *E, CheckerContext &C) const;
   void checkPreStmt(const ReturnStmt *S, CheckerContext &C) const;
@@ -73,19 +80,8 @@ public:
   void checkPostCall(const CallEvent &CE, CheckerContext &C) const;
 
   void printState(raw_ostream &Out, ProgramStateRef State,
-                  const char *NL, const char *Sep) const;
+                  const char *NL, const char *Sep) const override;
 };
-} // end anonymous namespace
-
-namespace {
-
-class InitSelfBug : public BugType {
-  const std::string desc;
-public:
-  InitSelfBug() : BugType("Missing \"self = [(super or self) init...]\"",
-                          categories::CoreFoundationObjectiveC) {}
-};
-
 } // end anonymous namespace
 
 namespace {
@@ -122,9 +118,10 @@ static SelfFlagEnum getSelfFlags(SVal val, CheckerContext &C) {
 static void addSelfFlag(ProgramStateRef state, SVal val,
                         SelfFlagEnum flag, CheckerContext &C) {
   // We tag the symbol that the SVal wraps.
-  if (SymbolRef sym = val.getAsSymbol())
+  if (SymbolRef sym = val.getAsSymbol()) {
     state = state->set<SelfFlag>(sym, getSelfFlags(val, state) | flag);
-  C.addTransition(state);
+    C.addTransition(state);
+  }
 }
 
 static bool hasSelfFlag(SVal val, SelfFlagEnum flag, CheckerContext &C) {
@@ -144,8 +141,8 @@ static bool isInvalidSelf(const Expr *E, CheckerContext &C) {
   return true;
 }
 
-static void checkForInvalidSelf(const Expr *E, CheckerContext &C,
-                                const char *errorStr) {
+void ObjCSelfInitChecker::checkForInvalidSelf(const Expr *E, CheckerContext &C,
+                                              const char *errorStr) const {
   if (!E)
     return;
   
@@ -160,8 +157,10 @@ static void checkForInvalidSelf(const Expr *E, CheckerContext &C,
   if (!N)
     return;
 
-  BugReport *report =
-    new BugReport(*new InitSelfBug(), errorStr, N);
+  if (!BT)
+    BT.reset(new BugType(this, "Missing \"self = [(super or self) init...]\"",
+                         categories::CoreFoundationObjectiveC));
+  BugReport *report = new BugReport(*BT, errorStr, N);
   C.emitReport(report);
 }
 
@@ -203,9 +202,10 @@ void ObjCSelfInitChecker::checkPostStmt(const ObjCIvarRefExpr *E,
                                  C.getCurrentAnalysisDeclContext()->getDecl())))
     return;
 
-  checkForInvalidSelf(E->getBase(), C,
-    "Instance variable used while 'self' is not set to the result of "
-                                                 "'[(super or self) init...]'");
+  checkForInvalidSelf(
+      E->getBase(), C,
+      "Instance variable used while 'self' is not set to the result of "
+      "'[(super or self) init...]'");
 }
 
 void ObjCSelfInitChecker::checkPreStmt(const ReturnStmt *S,
@@ -216,8 +216,8 @@ void ObjCSelfInitChecker::checkPreStmt(const ReturnStmt *S,
     return;
 
   checkForInvalidSelf(S->getRetValue(), C,
-    "Returning 'self' while it is not set to the result of "
-                                                 "'[(super or self) init...]'");
+                      "Returning 'self' while it is not set to the result of "
+                      "'[(super or self) init...]'");
 }
 
 // When a call receives a reference to 'self', [Pre/Post]Call pass
@@ -253,7 +253,7 @@ void ObjCSelfInitChecker::checkPreCall(const CallEvent &CE,
   for (unsigned i = 0; i < NumArgs; ++i) {
     SVal argV = CE.getArgSVal(i);
     if (isSelfVar(argV, C)) {
-      unsigned selfFlags = getSelfFlags(state->getSVal(cast<Loc>(argV)), C);
+      unsigned selfFlags = getSelfFlags(state->getSVal(argV.castAs<Loc>()), C);
       C.addTransition(state->set<PreCallSelfFlags>(selfFlags));
       return;
     } else if (hasSelfFlag(argV, SelfFlag_Self, C)) {
@@ -284,7 +284,7 @@ void ObjCSelfInitChecker::checkPostCall(const CallEvent &CE,
       // If the address of 'self' is being passed to the call, assume that the
       // 'self' after the call will have the same flags.
       // EX: log(&self)
-      addSelfFlag(state, state->getSVal(cast<Loc>(argV)), prevFlags, C);
+      addSelfFlag(state, state->getSVal(argV.castAs<Loc>()), prevFlags, C);
       return;
     } else if (hasSelfFlag(argV, SelfFlag_Self, C)) {
       // If 'self' is passed to the call by value, assume that the function
@@ -302,11 +302,16 @@ void ObjCSelfInitChecker::checkPostCall(const CallEvent &CE,
 void ObjCSelfInitChecker::checkLocation(SVal location, bool isLoad,
                                         const Stmt *S,
                                         CheckerContext &C) const {
+  if (!shouldRunOnFunctionOrMethod(dyn_cast<NamedDecl>(
+        C.getCurrentAnalysisDeclContext()->getDecl())))
+    return;
+
   // Tag the result of a load from 'self' so that we can easily know that the
   // value is the object that 'self' points to.
   ProgramStateRef state = C.getState();
   if (isSelfVar(location, C))
-    addSelfFlag(state, state->getSVal(cast<Loc>(location)), SelfFlag_Self, C);
+    addSelfFlag(state, state->getSVal(location.castAs<Loc>()), SelfFlag_Self,
+                C);
 }
 
 
@@ -340,7 +345,7 @@ void ObjCSelfInitChecker::printState(raw_ostream &Out, ProgramStateRef State,
   if (FlagMap.isEmpty() && !DidCallInit && !PreCallFlags)
     return;
 
-  Out << Sep << NL << "ObjCSelfInitChecker:" << NL;
+  Out << Sep << NL << *this << " :" << NL;
 
   if (DidCallInit)
     Out << "  An init method has been called." << NL;
@@ -411,10 +416,10 @@ static bool isSelfVar(SVal location, CheckerContext &C) {
   AnalysisDeclContext *analCtx = C.getCurrentAnalysisDeclContext(); 
   if (!analCtx->getSelfDecl())
     return false;
-  if (!isa<loc::MemRegionVal>(location))
+  if (!location.getAs<loc::MemRegionVal>())
     return false;
 
-  loc::MemRegionVal MRV = cast<loc::MemRegionVal>(location);
+  loc::MemRegionVal MRV = location.castAs<loc::MemRegionVal>();
   if (const DeclRegion *DR = dyn_cast<DeclRegion>(MRV.stripCasts()))
     return (DR->getDecl() == analCtx->getSelfDecl());
 

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_quota.h"
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -254,7 +254,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	struct buf *bp;
 	struct ufsmount *ump;
 	u_int cg, request, reclaimed;
-	int error;
+	int error, gbflags;
 	ufs2_daddr_t bno;
 	static struct timeval lastfail;
 	static int curfail;
@@ -265,6 +265,8 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 	fs = ip->i_fs;
 	bp = NULL;
 	ump = ip->i_ump;
+	gbflags = (flags & BA_UNMAPPED) != 0 ? GB_UNMAPPED : 0;
+
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 #ifdef INVARIANTS
 	if (vp->v_mount->mnt_kern_flag & MNTK_SUSPENDED)
@@ -296,7 +298,7 @@ retry:
 	/*
 	 * Allocate the extra space in the buffer.
 	 */
-	error = bread(vp, lbprev, osize, NOCRED, &bp);
+	error = bread_gb(vp, lbprev, osize, NOCRED, gbflags, &bp);
 	if (error) {
 		brelse(bp);
 		return (error);
@@ -332,7 +334,7 @@ retry:
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
-		bzero(bp->b_data + osize, nsize - osize);
+		vfs_bio_bzero_buf(bp, osize, nsize - osize);
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) == B_VMIO)
 			vfs_bio_set_valid(bp, osize, nsize - osize);
 		*bpp = bp;
@@ -400,7 +402,7 @@ retry:
 			ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
-		bzero(bp->b_data + osize, nsize - osize);
+		vfs_bio_bzero_buf(bp, osize, nsize - osize);
 		if ((bp->b_flags & (B_MALLOC | B_VMIO)) == B_VMIO)
 			vfs_bio_set_valid(bp, osize, nsize - osize);
 		*bpp = bp;
@@ -514,7 +516,13 @@ ffs_reallocblks_ufs1(ap)
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	ump = ip->i_ump;
-	if (fs->fs_contigsumsize <= 0)
+	/*
+	 * If we are not tracking block clusters or if we have less than 4%
+	 * free blocks left, then do not attempt to cluster. Running with
+	 * less than 5% free block reserve is not recommended and those that
+	 * choose to do so do not expect to have good file layout.
+	 */
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 4) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -735,7 +743,13 @@ ffs_reallocblks_ufs2(ap)
 	ip = VTOI(vp);
 	fs = ip->i_fs;
 	ump = ip->i_ump;
-	if (fs->fs_contigsumsize <= 0)
+	/*
+	 * If we are not tracking block clusters or if we have less than 4%
+	 * free blocks left, then do not attempt to cluster. Running with
+	 * less than 5% free block reserve is not recommended and those that
+	 * choose to do so do not expect to have good file layout.
+	 */
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 4) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -815,15 +829,6 @@ ffs_reallocblks_ufs2(ap)
 	UFS_LOCK(ump);
 	pref = ffs_blkpref_ufs2(ip, start_lbn, soff, sbap);
 	/*
-	 * Skip a block for the first indirect block.  Indirect blocks are
-	 * usually initially laid out in a good position between the data
-	 * blocks, but block reallocation would usually destroy locality by
-	 * moving them out of the way to make room for data blocks if we
-	 * didn't compensate here.
-	 */
-	if (start_lbn == NDADDR)
-		pref += fs->fs_frag;
-	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
 	if ((newblk = ffs_hashalloc(ip, dtog(fs, pref), pref,
@@ -840,7 +845,7 @@ ffs_reallocblks_ufs2(ap)
 	 */
 #ifdef DEBUG
 	if (prtrealloc)
-		printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
+		printf("realloc: ino %ju, lbns %jd-%jd\n\told:", (uintmax_t)ip->i_number,
 		    (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif
 	blkno = newblk;
@@ -1024,8 +1029,8 @@ retry:
 	ip = VTOI(*vpp);
 	if (ip->i_mode) {
 dup_alloc:
-		printf("mode = 0%o, inum = %lu, fs = %s\n",
-		    ip->i_mode, (u_long)ip->i_number, fs->fs_fsmnt);
+		printf("mode = 0%o, inum = %ju, fs = %s\n",
+		    ip->i_mode, (uintmax_t)ip->i_number, fs->fs_fsmnt);
 		panic("ffs_valloc: dup alloc");
 	}
 	if (DIP(ip, i_blocks) && (fs->fs_flags & FS_UNCLEAN) == 0) {  /* XXX */
@@ -1088,7 +1093,7 @@ ffs_dirpref(pip)
 	struct inode *pip;
 {
 	struct fs *fs;
-	u_int cg, prefcg, dirsize, cgsize;
+	int cg, prefcg, dirsize, cgsize;
 	u_int avgifree, avgbfree, avgndir, curdirsize;
 	u_int minifree, minbfree, maxndir;
 	u_int mincg, minndir;
@@ -1156,19 +1161,36 @@ ffs_dirpref(pip)
 	 * Limit number of dirs in one cg and reserve space for 
 	 * regular files, but only if we have no deficit in
 	 * inodes or space.
+	 *
+	 * We are trying to find a suitable cylinder group nearby
+	 * our preferred cylinder group to place a new directory.
+	 * We scan from our preferred cylinder group forward looking
+	 * for a cylinder group that meets our criterion. If we get
+	 * to the final cylinder group and do not find anything,
+	 * we start scanning forwards from the beginning of the
+	 * filesystem. While it might seem sensible to start scanning
+	 * backwards or even to alternate looking forward and backward,
+	 * this approach fails badly when the filesystem is nearly full.
+	 * Specifically, we first search all the areas that have no space
+	 * and finally try the one preceeding that. We repeat this on
+	 * every request and in the case of the final block end up
+	 * searching the entire filesystem. By jumping to the front
+	 * of the filesystem, our future forward searches always look
+	 * in new cylinder groups so finds every possible block after
+	 * one pass over the filesystem.
 	 */
 	prefcg = ino_to_cg(fs, pip->i_number);
 	for (cg = prefcg; cg < fs->fs_ncg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&
-	    	    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
+		    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
 			if (fs->fs_contigdirs[cg] < maxcontigdirs)
 				return ((ino_t)(fs->fs_ipg * cg));
 		}
 	for (cg = 0; cg < prefcg; cg++)
 		if (fs->fs_cs(fs, cg).cs_ndir < maxndir &&
 		    fs->fs_cs(fs, cg).cs_nifree >= minifree &&
-	    	    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
+		    fs->fs_cs(fs, cg).cs_nbfree >= minbfree) {
 			if (fs->fs_contigdirs[cg] < maxcontigdirs)
 				return ((ino_t)(fs->fs_ipg * cg));
 		}
@@ -1187,26 +1209,31 @@ ffs_dirpref(pip)
 /*
  * Select the desired position for the next block in a file.  The file is
  * logically divided into sections. The first section is composed of the
- * direct blocks. Each additional section contains fs_maxbpg blocks.
+ * direct blocks and the next fs_maxbpg blocks. Each additional section
+ * contains fs_maxbpg blocks.
  *
  * If no blocks have been allocated in the first section, the policy is to
  * request a block in the same cylinder group as the inode that describes
- * the file. If no blocks have been allocated in any other section, the
- * policy is to place the section in a cylinder group with a greater than
- * average number of free blocks.  An appropriate cylinder group is found
+ * the file. The first indirect is allocated immediately following the last
+ * direct block and the data blocks for the first indirect immediately
+ * follow it.
+ *
+ * If no blocks have been allocated in any other section, the indirect 
+ * block(s) are allocated in the same cylinder group as its inode in an
+ * area reserved immediately following the inode blocks. The policy for
+ * the data blocks is to place them in a cylinder group with a greater than
+ * average number of free blocks. An appropriate cylinder group is found
  * by using a rotor that sweeps the cylinder groups. When a new group of
  * blocks is needed, the sweep begins in the cylinder group following the
  * cylinder group from which the previous allocation was made. The sweep
  * continues until a cylinder group with greater than the average number
  * of free blocks is found. If the allocation is for the first block in an
- * indirect block, the information on the previous allocation is unavailable;
- * here a best guess is made based upon the logical block number being
- * allocated.
+ * indirect block or the previous block is a hole, then the information on
+ * the previous allocation is unavailable; here a best guess is made based
+ * on the logical block number being allocated.
  *
  * If a section is already partially allocated, the policy is to
- * contiguously allocate fs_maxcontig blocks. The end of one of these
- * contiguous blocks and the beginning of the next is laid out
- * contiguously if possible.
+ * allocate blocks contiguously within the section if possible.
  */
 ufs2_daddr_t
 ffs_blkpref_ufs1(ip, lbn, indx, bap)
@@ -1216,39 +1243,78 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	ufs1_daddr_t *bap;
 {
 	struct fs *fs;
-	u_int cg;
+	u_int cg, inocg;
 	u_int avgbfree, startcg;
 	ufs2_daddr_t pref;
 
+	KASSERT(indx <= 0 || bap != NULL, ("need non-NULL bap"));
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
 	fs = ip->i_fs;
 	/*
-	 * If we are allocating the first indirect block, try to place it
-	 * immediately following the last direct block.
-	 *
+	 * Allocation of indirect blocks is indicated by passing negative
+	 * values in indx: -1 for single indirect, -2 for double indirect,
+	 * -3 for triple indirect. As noted below, we attempt to allocate
+	 * the first indirect inline with the file data. For all later
+	 * indirect blocks, the data is often allocated in other cylinder
+	 * groups. However to speed random file access and to speed up
+	 * fsck, the filesystem reserves the first fs_metaspace blocks
+	 * (typically half of fs_minfree) of the data area of each cylinder
+	 * group to hold these later indirect blocks.
+	 */
+	inocg = ino_to_cg(fs, ip->i_number);
+	if (indx < 0) {
+		/*
+		 * Our preference for indirect blocks is the zone at the
+		 * beginning of the inode's cylinder group data area that
+		 * we try to reserve for indirect blocks.
+		 */
+		pref = cgmeta(fs, inocg);
+		/*
+		 * If we are allocating the first indirect block, try to
+		 * place it immediately following the last direct block.
+		 */
+		if (indx == -1 && lbn < NDADDR + NINDIR(fs) &&
+		    ip->i_din1->di_db[NDADDR - 1] != 0)
+			pref = ip->i_din1->di_db[NDADDR - 1] + fs->fs_frag;
+		return (pref);
+	}
+	/*
 	 * If we are allocating the first data block in the first indirect
-	 * block, try to place it immediately following the indirect block.
+	 * block and the indirect has been allocated in the data block area,
+	 * try to place it immediately following the indirect block.
 	 */
 	if (lbn == NDADDR) {
-		pref = ip->i_din1->di_db[NDADDR - 1];
-		if (bap == NULL && pref != 0)
-			return (pref + fs->fs_frag);
 		pref = ip->i_din1->di_ib[0];
-		if (pref != 0)
+		if (pref != 0 && pref >= cgdata(fs, inocg) &&
+		    pref < cgbase(fs, inocg + 1))
 			return (pref + fs->fs_frag);
 	}
+	/*
+	 * If we are at the beginning of a file, or we have already allocated
+	 * the maximum number of blocks per cylinder group, or we do not
+	 * have a block allocated immediately preceeding us, then we need
+	 * to decide where to start allocating new blocks.
+	 */
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
-		if (lbn < NDADDR + NINDIR(fs)) {
-			cg = ino_to_cg(fs, ip->i_number);
-			return (cgbase(fs, cg) + fs->fs_frag);
-		}
+		/*
+		 * If we are allocating a directory data block, we want
+		 * to place it in the metadata area.
+		 */
+		if ((ip->i_mode & IFMT) == IFDIR)
+			return (cgmeta(fs, inocg));
+		/*
+		 * Until we fill all the direct and all the first indirect's
+		 * blocks, we try to allocate in the data area of the inode's
+		 * cylinder group.
+		 */
+		if (lbn < NDADDR + NINDIR(fs))
+			return (cgdata(fs, inocg));
 		/*
 		 * Find a cylinder with greater than average number of
 		 * unused data blocks.
 		 */
 		if (indx == 0 || bap[indx - 1] == 0)
-			startcg =
-			    ino_to_cg(fs, ip->i_number) + lbn / fs->fs_maxbpg;
+			startcg = inocg + lbn / fs->fs_maxbpg;
 		else
 			startcg = dtog(fs, bap[indx - 1]) + 1;
 		startcg %= fs->fs_ncg;
@@ -1256,17 +1322,17 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 		for (cg = startcg; cg < fs->fs_ncg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (cgbase(fs, cg) + fs->fs_frag);
+				return (cgdata(fs, cg));
 			}
 		for (cg = 0; cg <= startcg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (cgbase(fs, cg) + fs->fs_frag);
+				return (cgdata(fs, cg));
 			}
 		return (0);
 	}
 	/*
-	 * We just always try to lay things out contiguously.
+	 * Otherwise, we just always try to lay things out contiguously.
 	 */
 	return (bap[indx - 1] + fs->fs_frag);
 }
@@ -1282,39 +1348,78 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	ufs2_daddr_t *bap;
 {
 	struct fs *fs;
-	u_int cg;
+	u_int cg, inocg;
 	u_int avgbfree, startcg;
 	ufs2_daddr_t pref;
 
+	KASSERT(indx <= 0 || bap != NULL, ("need non-NULL bap"));
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
 	fs = ip->i_fs;
 	/*
-	 * If we are allocating the first indirect block, try to place it
-	 * immediately following the last direct block.
-	 *
+	 * Allocation of indirect blocks is indicated by passing negative
+	 * values in indx: -1 for single indirect, -2 for double indirect,
+	 * -3 for triple indirect. As noted below, we attempt to allocate
+	 * the first indirect inline with the file data. For all later
+	 * indirect blocks, the data is often allocated in other cylinder
+	 * groups. However to speed random file access and to speed up
+	 * fsck, the filesystem reserves the first fs_metaspace blocks
+	 * (typically half of fs_minfree) of the data area of each cylinder
+	 * group to hold these later indirect blocks.
+	 */
+	inocg = ino_to_cg(fs, ip->i_number);
+	if (indx < 0) {
+		/*
+		 * Our preference for indirect blocks is the zone at the
+		 * beginning of the inode's cylinder group data area that
+		 * we try to reserve for indirect blocks.
+		 */
+		pref = cgmeta(fs, inocg);
+		/*
+		 * If we are allocating the first indirect block, try to
+		 * place it immediately following the last direct block.
+		 */
+		if (indx == -1 && lbn < NDADDR + NINDIR(fs) &&
+		    ip->i_din2->di_db[NDADDR - 1] != 0)
+			pref = ip->i_din2->di_db[NDADDR - 1] + fs->fs_frag;
+		return (pref);
+	}
+	/*
 	 * If we are allocating the first data block in the first indirect
-	 * block, try to place it immediately following the indirect block.
+	 * block and the indirect has been allocated in the data block area,
+	 * try to place it immediately following the indirect block.
 	 */
 	if (lbn == NDADDR) {
-		pref = ip->i_din1->di_db[NDADDR - 1];
-		if (bap == NULL && pref != 0)
-			return (pref + fs->fs_frag);
-		pref = ip->i_din1->di_ib[0];
-		if (pref != 0)
+		pref = ip->i_din2->di_ib[0];
+		if (pref != 0 && pref >= cgdata(fs, inocg) &&
+		    pref < cgbase(fs, inocg + 1))
 			return (pref + fs->fs_frag);
 	}
+	/*
+	 * If we are at the beginning of a file, or we have already allocated
+	 * the maximum number of blocks per cylinder group, or we do not
+	 * have a block allocated immediately preceeding us, then we need
+	 * to decide where to start allocating new blocks.
+	 */
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
-		if (lbn < NDADDR + NINDIR(fs)) {
-			cg = ino_to_cg(fs, ip->i_number);
-			return (cgbase(fs, cg) + fs->fs_frag);
-		}
+		/*
+		 * If we are allocating a directory data block, we want
+		 * to place it in the metadata area.
+		 */
+		if ((ip->i_mode & IFMT) == IFDIR)
+			return (cgmeta(fs, inocg));
+		/*
+		 * Until we fill all the direct and all the first indirect's
+		 * blocks, we try to allocate in the data area of the inode's
+		 * cylinder group.
+		 */
+		if (lbn < NDADDR + NINDIR(fs))
+			return (cgdata(fs, inocg));
 		/*
 		 * Find a cylinder with greater than average number of
 		 * unused data blocks.
 		 */
 		if (indx == 0 || bap[indx - 1] == 0)
-			startcg =
-			    ino_to_cg(fs, ip->i_number) + lbn / fs->fs_maxbpg;
+			startcg = inocg + lbn / fs->fs_maxbpg;
 		else
 			startcg = dtog(fs, bap[indx - 1]) + 1;
 		startcg %= fs->fs_ncg;
@@ -1322,17 +1427,17 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 		for (cg = startcg; cg < fs->fs_ncg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (cgbase(fs, cg) + fs->fs_frag);
+				return (cgdata(fs, cg));
 			}
 		for (cg = 0; cg <= startcg; cg++)
 			if (fs->fs_cs(fs, cg).cs_nbfree >= avgbfree) {
 				fs->fs_cgrotor = cg;
-				return (cgbase(fs, cg) + fs->fs_frag);
+				return (cgdata(fs, cg));
 			}
 		return (0);
 	}
 	/*
-	 * We just always try to lay things out contiguously.
+	 * Otherwise, we just always try to lay things out contiguously.
 	 */
 	return (bap[indx - 1] + fs->fs_frag);
 }
@@ -1609,31 +1714,37 @@ ffs_alloccgblk(ip, bp, bpref, size)
 	ufs1_daddr_t bno;
 	ufs2_daddr_t blkno;
 	u_int8_t *blksfree;
-	int i;
+	int i, cgbpref;
 
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	cgp = (struct cg *)bp->b_data;
 	blksfree = cg_blksfree(cgp);
-	if (bpref == 0 || dtog(fs, bpref) != cgp->cg_cgx) {
-		bpref = cgp->cg_rotor;
-	} else {
-		bpref = blknum(fs, bpref);
-		bno = dtogd(fs, bpref);
-		/*
-		 * if the requested block is available, use it
-		 */
-		if (ffs_isblock(fs, blksfree, fragstoblks(fs, bno)))
-			goto gotit;
+	if (bpref == 0) {
+		bpref = cgbase(fs, cgp->cg_cgx) + cgp->cg_rotor + fs->fs_frag;
+	} else if ((cgbpref = dtog(fs, bpref)) != cgp->cg_cgx) {
+		/* map bpref to correct zone in this cg */
+		if (bpref < cgdata(fs, cgbpref))
+			bpref = cgmeta(fs, cgp->cg_cgx);
+		else
+			bpref = cgdata(fs, cgp->cg_cgx);
 	}
+	/*
+	 * if the requested block is available, use it
+	 */
+	bno = dtogd(fs, blknum(fs, bpref));
+	if (ffs_isblock(fs, blksfree, fragstoblks(fs, bno)))
+		goto gotit;
 	/*
 	 * Take the next available block in this cylinder group.
 	 */
 	bno = ffs_mapsearch(fs, cgp, bpref, (int)fs->fs_frag);
 	if (bno < 0)
 		return (0);
-	cgp->cg_rotor = bno;
+	/* Update cg_rotor only if allocated from the data zone */
+	if (bno >= dtogd(fs, cgdata(fs, cgp->cg_cgx)))
+		cgp->cg_rotor = bno;
 gotit:
 	blkno = fragstoblks(fs, bno);
 	ffs_clrblock(fs, blksfree, (long)blkno);
@@ -1740,9 +1851,10 @@ ffs_clusteralloc(ip, cg, bpref, len, unused)
 	 * be recalled to try an allocation in the next cylinder group.
 	 */
 	if (dtog(fs, bpref) != cg)
-		bpref = 0;
+		bpref = cgdata(fs, cg);
 	else
-		bpref = fragstoblks(fs, dtogd(fs, blknum(fs, bpref)));
+		bpref = blknum(fs, bpref);
+	bpref = fragstoblks(fs, dtogd(fs, bpref));
 	mapp = &cg_clustersfree(cgp)[bpref / NBBY];
 	map = *mapp++;
 	bit = 1 << (bpref % NBBY);
@@ -2598,6 +2710,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	long blkcnt, blksize;
 	struct filedesc *fdp;
 	struct file *fp, *vfp;
+	cap_rights_t rights;
 	int filetype, error;
 	static struct fileops *origops, bufferedops;
 
@@ -2607,8 +2720,8 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		return (error);
 	if (cmd.version != FFS_CMD_VERSION)
 		return (ERPCMISMATCH);
-	if ((error = getvnode(td->td_proc->p_fd, cmd.handle, CAP_FSCK,
-	     &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, cmd.handle,
+	    cap_rights_init(&rights, CAP_FSCK), &fp)) != 0)
 		return (error);
 	vp = fp->f_data;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
@@ -2922,7 +3035,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		}
 #endif /* DEBUG */
 		if ((error = getvnode(td->td_proc->p_fd, cmd.value,
-		    CAP_FSCK, &vfp)) != 0)
+		    cap_rights_init(&rights, CAP_FSCK), &vfp)) != 0)
 			break;
 		if (vfp->f_vnode->v_type != VCHR) {
 			fdrop(vfp, td);

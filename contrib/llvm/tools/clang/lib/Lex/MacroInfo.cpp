@@ -17,61 +17,20 @@ using namespace clang;
 
 MacroInfo::MacroInfo(SourceLocation DefLoc)
   : Location(DefLoc),
-    PreviousDefinition(0),
-    ArgumentList(0),
+    ArgumentList(nullptr),
     NumArguments(0),
     IsDefinitionLengthCached(false),
     IsFunctionLike(false),
     IsC99Varargs(false),
     IsGNUVarargs(false),
     IsBuiltinMacro(false),
-    IsFromAST(false),
-    ChangedAfterLoad(false),
+    HasCommaPasting(false),
     IsDisabled(false),
     IsUsed(false),
     IsAllowRedefinitionsWithoutWarning(false),
     IsWarnIfUnused(false),
-    IsPublic(true),
-    IsHidden(false),
-    IsAmbiguous(false) {
-}
-
-MacroInfo::MacroInfo(const MacroInfo &MI, llvm::BumpPtrAllocator &PPAllocator)
-  : Location(MI.Location),
-    EndLocation(MI.EndLocation),
-    UndefLocation(MI.UndefLocation),
-    PreviousDefinition(0),
-    ArgumentList(0),
-    NumArguments(0),
-    ReplacementTokens(MI.ReplacementTokens),
-    DefinitionLength(MI.DefinitionLength),
-    IsDefinitionLengthCached(MI.IsDefinitionLengthCached),
-    IsFunctionLike(MI.IsFunctionLike),
-    IsC99Varargs(MI.IsC99Varargs),
-    IsGNUVarargs(MI.IsGNUVarargs),
-    IsBuiltinMacro(MI.IsBuiltinMacro),
-    IsFromAST(MI.IsFromAST),
-    ChangedAfterLoad(MI.ChangedAfterLoad),
-    IsDisabled(MI.IsDisabled),
-    IsUsed(MI.IsUsed),
-    IsAllowRedefinitionsWithoutWarning(MI.IsAllowRedefinitionsWithoutWarning),
-    IsWarnIfUnused(MI.IsWarnIfUnused),
-    IsPublic(MI.IsPublic),
-    IsHidden(MI.IsHidden),
-    IsAmbiguous(MI.IsAmbiguous) {
-  setArgumentList(MI.ArgumentList, MI.NumArguments, PPAllocator);
-}
-
-const MacroInfo *MacroInfo::findDefinitionAtLoc(SourceLocation L,
-                                                SourceManager &SM) const {
-  assert(L.isValid() && "SourceLocation is invalid.");
-  for (const MacroInfo *MI = this; MI; MI = MI->PreviousDefinition) {
-    if (MI->Location.isInvalid() ||  // For macros defined on the command line.
-        SM.isBeforeInTranslationUnit(MI->Location, L))
-      return (MI->UndefLocation.isInvalid() ||
-              SM.isBeforeInTranslationUnit(L, MI->UndefLocation)) ? MI : NULL;
-  }
-  return NULL;
+    FromASTFile(false),
+    UsedForHeaderGuard(false) {
 }
 
 unsigned MacroInfo::getDefinitionLengthSlow(SourceManager &SM) const {
@@ -103,11 +62,17 @@ unsigned MacroInfo::getDefinitionLengthSlow(SourceManager &SM) const {
   return DefinitionLength;
 }
 
-/// isIdenticalTo - Return true if the specified macro definition is equal to
-/// this macro in spelling, arguments, and whitespace.  This is used to emit
-/// duplicate definition warnings.  This implements the rules in C99 6.10.3.
+/// \brief Return true if the specified macro definition is equal to
+/// this macro in spelling, arguments, and whitespace.
 ///
-bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP) const {
+/// \param Syntactically if true, the macro definitions can be identical even
+/// if they use different identifiers for the function macro parameters.
+/// Otherwise the comparison is lexical and this implements the rules in
+/// C99 6.10.3.
+bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP,
+                              bool Syntactically) const {
+  bool Lexically = !Syntactically;
+
   // Check # tokens in replacement, number of args, and various flags all match.
   if (ReplacementTokens.size() != Other.ReplacementTokens.size() ||
       getNumArgs() != Other.getNumArgs() ||
@@ -116,10 +81,12 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP) const {
       isGNUVarargs() != Other.isGNUVarargs())
     return false;
 
-  // Check arguments.
-  for (arg_iterator I = arg_begin(), OI = Other.arg_begin(), E = arg_end();
-       I != E; ++I, ++OI)
-    if (*I != *OI) return false;
+  if (Lexically) {
+    // Check arguments.
+    for (arg_iterator I = arg_begin(), OI = Other.arg_begin(), E = arg_end();
+         I != E; ++I, ++OI)
+      if (*I != *OI) return false;
+  }
 
   // Check all the tokens.
   for (unsigned i = 0, e = ReplacementTokens.size(); i != e; ++i) {
@@ -137,7 +104,16 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP) const {
 
     // If this is an identifier, it is easy.
     if (A.getIdentifierInfo() || B.getIdentifierInfo()) {
-      if (A.getIdentifierInfo() != B.getIdentifierInfo())
+      if (A.getIdentifierInfo() == B.getIdentifierInfo())
+        continue;
+      if (Lexically)
+        return false;
+      // With syntactic equivalence the parameter names can be different as long
+      // as they are used in the same place.
+      int AArgNum = getArgumentNum(A.getIdentifierInfo());
+      if (AArgNum == -1)
+        return false;
+      if (AArgNum != Other.getArgumentNum(B.getIdentifierInfo()))
         return false;
       continue;
     }
@@ -148,4 +124,113 @@ bool MacroInfo::isIdenticalTo(const MacroInfo &Other, Preprocessor &PP) const {
   }
 
   return true;
+}
+
+void MacroInfo::dump() const {
+  llvm::raw_ostream &Out = llvm::errs();
+
+  // FIXME: Dump locations.
+  Out << "MacroInfo " << this;
+  if (IsBuiltinMacro) Out << " builtin";
+  if (IsDisabled) Out << " disabled";
+  if (IsUsed) Out << " used";
+  if (IsAllowRedefinitionsWithoutWarning)
+    Out << " allow_redefinitions_without_warning";
+  if (IsWarnIfUnused) Out << " warn_if_unused";
+  if (FromASTFile) Out << " imported";
+  if (UsedForHeaderGuard) Out << " header_guard";
+
+  Out << "\n    #define <macro>";
+  if (IsFunctionLike) {
+    Out << "(";
+    for (unsigned I = 0; I != NumArguments; ++I) {
+      if (I) Out << ", ";
+      Out << ArgumentList[I]->getName();
+    }
+    if (IsC99Varargs || IsGNUVarargs) {
+      if (NumArguments && IsC99Varargs) Out << ", ";
+      Out << "...";
+    }
+    Out << ")";
+  }
+
+  for (const Token &Tok : ReplacementTokens) {
+    Out << " ";
+    if (const char *Punc = tok::getPunctuatorSpelling(Tok.getKind()))
+      Out << Punc;
+    else if (const char *Kwd = tok::getKeywordSpelling(Tok.getKind()))
+      Out << Kwd;
+    else if (Tok.is(tok::identifier))
+      Out << Tok.getIdentifierInfo()->getName();
+    else if (Tok.isLiteral() && Tok.getLiteralData())
+      Out << StringRef(Tok.getLiteralData(), Tok.getLength());
+    else
+      Out << Tok.getName();
+  }
+}
+
+MacroDirective::DefInfo MacroDirective::getDefinition() {
+  MacroDirective *MD = this;
+  SourceLocation UndefLoc;
+  Optional<bool> isPublic;
+  for (; MD; MD = MD->getPrevious()) {
+    if (DefMacroDirective *DefMD = dyn_cast<DefMacroDirective>(MD))
+      return DefInfo(DefMD, UndefLoc,
+                     !isPublic.hasValue() || isPublic.getValue());
+
+    if (UndefMacroDirective *UndefMD = dyn_cast<UndefMacroDirective>(MD)) {
+      UndefLoc = UndefMD->getLocation();
+      continue;
+    }
+
+    VisibilityMacroDirective *VisMD = cast<VisibilityMacroDirective>(MD);
+    if (!isPublic.hasValue())
+      isPublic = VisMD->isPublic();
+  }
+
+  return DefInfo(nullptr, UndefLoc,
+                 !isPublic.hasValue() || isPublic.getValue());
+}
+
+const MacroDirective::DefInfo
+MacroDirective::findDirectiveAtLoc(SourceLocation L, SourceManager &SM) const {
+  assert(L.isValid() && "SourceLocation is invalid.");
+  for (DefInfo Def = getDefinition(); Def; Def = Def.getPreviousDefinition()) {
+    if (Def.getLocation().isInvalid() ||  // For macros defined on the command line.
+        SM.isBeforeInTranslationUnit(Def.getLocation(), L))
+      return (!Def.isUndefined() ||
+              SM.isBeforeInTranslationUnit(L, Def.getUndefLocation()))
+                  ? Def : DefInfo();
+  }
+  return DefInfo();
+}
+
+void MacroDirective::dump() const {
+  llvm::raw_ostream &Out = llvm::errs();
+
+  switch (getKind()) {
+  case MD_Define: Out << "DefMacroDirective"; break;
+  case MD_Undefine: Out << "UndefMacroDirective"; break;
+  case MD_Visibility: Out << "VisibilityMacroDirective"; break;
+  }
+  Out << " " << this;
+  // FIXME: Dump SourceLocation.
+  if (auto *Prev = getPrevious())
+    Out << " prev " << Prev;
+  if (IsFromPCH) Out << " from_pch";
+  if (IsImported) Out << " imported";
+  if (IsAmbiguous) Out << " ambiguous";
+
+  if (IsPublic)
+    Out << " public";
+  else if (isa<VisibilityMacroDirective>(this))
+    Out << " private";
+
+  if (auto *DMD = dyn_cast<DefMacroDirective>(this)) {
+    if (auto *Info = DMD->getInfo()) {
+      Out << "\n  ";
+      Info->dump();
+    }
+  }
+  Out << "\n";
 }

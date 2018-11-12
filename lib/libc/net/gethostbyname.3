@@ -51,7 +51,7 @@
 .Ft struct hostent *
 .Fn gethostbyname2 "const char *name" "int af"
 .Ft struct hostent *
-.Fn gethostbyaddr "const void *addr" "socklen_t len" "int type"
+.Fn gethostbyaddr "const void *addr" "socklen_t len" "int af"
 .Ft struct hostent *
 .Fn gethostent void
 .Ft void
@@ -107,7 +107,7 @@ in binary form
 .Tn ASCII
 form).
 The
-.Fa type
+.Fa af
 argument specifies the address family
 (e.g.\&
 .Dv AF_INET , AF_INET6 ,

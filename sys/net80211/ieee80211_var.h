@@ -55,7 +55,7 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <net80211/ieee80211_scan.h>
 
-#define	IEEE80211_TXPOWER_MAX	100	/* .5 dbM (XXX units?) */
+#define	IEEE80211_TXPOWER_MAX	100	/* .5 dBm (XXX units?) */
 #define	IEEE80211_TXPOWER_MIN	0	/* kill radio */
 
 #define	IEEE80211_DTIM_DEFAULT	1	/* default DTIM period */
@@ -496,8 +496,13 @@ struct ieee80211vap {
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
 	/* 802.3 output method for raw frame xmit */
+#if __FreeBSD_version >= 1000031
+	int			(*iv_output)(struct ifnet *, struct mbuf *,
+				    const struct sockaddr *, struct route *);
+#else
 	int			(*iv_output)(struct ifnet *, struct mbuf *,
 				    struct sockaddr *, struct route *);
+#endif
 	uint64_t		iv_spare[6];
 };
 MALLOC_DECLARE(M_80211_VAP);
@@ -624,6 +629,7 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_C_MONITOR	0x00010000	/* CAPABILITY: monitor mode */
 #define	IEEE80211_C_DFS		0x00020000	/* CAPABILITY: DFS/radar avail*/
 #define	IEEE80211_C_MBSS	0x00040000	/* CAPABILITY: MBSS available */
+#define	IEEE80211_C_SWSLEEP	0x00080000	/* CAPABILITY: do sleep here */
 /* 0x7c0000 available */
 #define	IEEE80211_C_WPA1	0x00800000	/* CAPABILITY: WPA1 avail */
 #define	IEEE80211_C_WPA2	0x01000000	/* CAPABILITY: WPA2 avail */
@@ -705,6 +711,7 @@ int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(const struct ieee80211_channel *);
 uint32_t ieee80211_mac_hash(const struct ieee80211com *,
 		const uint8_t addr[IEEE80211_ADDR_LEN]);
+char	ieee80211_channel_type_char(const struct ieee80211_channel *c);
 
 void	ieee80211_radiotap_attach(struct ieee80211com *,
 	    struct ieee80211_radiotap_header *th, int tlen,
@@ -819,6 +826,28 @@ ieee80211_htchanflags(const struct ieee80211_channel *c)
 	return IEEE80211_IS_CHAN_HT40(c) ?
 	    IEEE80211_FHT_HT | IEEE80211_FHT_USEHT40 :
 	    IEEE80211_IS_CHAN_HT(c) ?  IEEE80211_FHT_HT : 0;
+}
+
+/*
+ * Fetch the current TX power (cap) for the given node.
+ *
+ * This includes the node and ic/vap TX power limit as needed,
+ * but it doesn't take into account any per-rate limit.
+ */
+static __inline uint16_t
+ieee80211_get_node_txpower(struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	uint16_t txpower;
+
+	txpower = ni->ni_txpower;
+	txpower = MIN(txpower, ic->ic_txpowlimit);
+	if (ic->ic_curchan != NULL) {
+		txpower = MIN(txpower, 2 * ic->ic_curchan->ic_maxregpower);
+		txpower = MIN(txpower, ic->ic_curchan->ic_maxpower);
+	}
+
+	return (txpower);
 }
 
 /*

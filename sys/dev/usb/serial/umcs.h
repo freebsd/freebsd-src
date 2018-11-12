@@ -596,7 +596,7 @@
 #define	MCS7840_UART_LSR_RHROVERRUN	0x02	/* Data FIFO/register overflow */
 #define	MCS7840_UART_LSR_PARITYERR	0x04	/* Parity error */
 #define	MCS7840_UART_LSR_FRAMEERR	0x10	/* Framing error */
-#define	MCS7840_UART_LSR_BREAKERR	0x20	/* BREAK sigmal received */
+#define	MCS7840_UART_LSR_BREAKERR	0x20	/* BREAK signal received */
 #define	MCS7840_UART_LSR_THREMPTY	0x40	/* THR register is empty,
 						 * ready for transmit */
 #define	MCS7840_UART_LSR_HASERR		0x80	/* Has error in receiver FIFO */

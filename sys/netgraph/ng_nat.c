@@ -145,6 +145,14 @@ static const struct ng_parse_type ng_nat_list_redirects_type = {
 	&ng_nat_list_redirects_fields
 };
 
+/* Parse type for struct ng_nat_libalias_info. */
+static const struct ng_parse_struct_field ng_nat_libalias_info_fields[]
+	= NG_NAT_LIBALIAS_INFO;
+static const struct ng_parse_type ng_nat_libalias_info_type = {
+	&ng_parse_struct_type,
+	&ng_nat_libalias_info_fields
+};
+
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	{
@@ -223,6 +231,13 @@ static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	  "proxyrule",
 	  &ng_parse_string_type,
 	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_LIBALIAS_INFO,
+	  "libaliasinfo",
+	  NULL,
+	  &ng_nat_libalias_info_type
 	},
 	{ 0 }
 };
@@ -645,6 +660,36 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			if (LibAliasProxyRule(priv->lib, cmd) != 0)
 				error = ENOMEM;
+		    }
+			break;
+		case NGM_NAT_LIBALIAS_INFO:
+		    {
+			struct ng_nat_libalias_info *i;
+
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(struct ng_nat_libalias_info), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				break;
+			}
+			i = (struct ng_nat_libalias_info *)resp->data;
+#define	COPY(F)	do {						\
+	if (priv->lib->F >= 0 && priv->lib->F < UINT32_MAX)	\
+		i->F = priv->lib->F;				\
+	else							\
+		i->F = UINT32_MAX;				\
+} while (0)
+		
+			COPY(icmpLinkCount);
+			COPY(udpLinkCount);
+			COPY(tcpLinkCount);
+			COPY(pptpLinkCount);
+			COPY(sctpLinkCount);
+			COPY(protoLinkCount);
+			COPY(fragmentIdLinkCount);
+			COPY(fragmentPtrLinkCount);
+			COPY(sockCount);
+#undef COPY
 		    }
 			break;
 		default:

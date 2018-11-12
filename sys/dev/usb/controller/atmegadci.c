@@ -88,7 +88,7 @@ static int atmegadci_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0,
     "USB ATMEGA DCI");
-SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
 
@@ -96,9 +96,9 @@ SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods atmegadci_bus_methods;
-struct usb_pipe_methods atmegadci_device_non_isoc_methods;
-struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
+static const struct usb_bus_methods atmegadci_bus_methods;
+static const struct usb_pipe_methods atmegadci_device_non_isoc_methods;
+static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
 
 static atmegadci_cmd_t atmegadci_setup_rx;
 static atmegadci_cmd_t atmegadci_data_rx;
@@ -804,7 +804,8 @@ atmegadci_setup_standard_chain(struct usb_xfer *xfer)
 	temp.td = NULL;
 	temp.td_next = xfer->td_start[0];
 	temp.offset = 0;
-	temp.setup_alt_next = xfer->flags_int.short_frames_ok;
+	temp.setup_alt_next = xfer->flags_int.short_frames_ok ||
+	    xfer->flags_int.isochronous_xfr;
 	temp.did_stall = !xfer->flags_int.control_stall;
 
 	sc = ATMEGA_BUS2SC(xfer->xroot->bus);
@@ -1010,7 +1011,8 @@ atmegadci_standard_done_sub(struct usb_xfer *xfer)
 		}
 		/* Check for short transfer */
 		if (len > 0) {
-			if (xfer->flags_int.short_frames_ok) {
+			if (xfer->flags_int.short_frames_ok ||
+			    xfer->flags_int.isochronous_xfr) {
 				/* follow alt next */
 				if (td->alt_next) {
 					td = td->obj_next;
@@ -1380,9 +1382,9 @@ atmegadci_do_poll(struct usb_bus *bus)
 }
 
 /*------------------------------------------------------------------------*
- * at91dci bulk support
- * at91dci control support
- * at91dci interrupt support
+ * atmegadci bulk support
+ * atmegadci control support
+ * atmegadci interrupt support
  *------------------------------------------------------------------------*/
 static void
 atmegadci_device_non_isoc_open(struct usb_xfer *xfer)
@@ -1410,7 +1412,7 @@ atmegadci_device_non_isoc_start(struct usb_xfer *xfer)
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods atmegadci_device_non_isoc_methods =
+static const struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 {
 	.open = atmegadci_device_non_isoc_open,
 	.close = atmegadci_device_non_isoc_close,
@@ -1419,7 +1421,7 @@ struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci full speed isochronous support
+ * atmegadci full speed isochronous support
  *------------------------------------------------------------------------*/
 static void
 atmegadci_device_isoc_fs_open(struct usb_xfer *xfer)
@@ -1496,7 +1498,7 @@ atmegadci_device_isoc_fs_start(struct usb_xfer *xfer)
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
+static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 {
 	.open = atmegadci_device_isoc_fs_open,
 	.close = atmegadci_device_isoc_fs_close,
@@ -1505,7 +1507,7 @@ struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 };
 
 /*------------------------------------------------------------------------*
- * at91dci root control support
+ * atmegadci root control support
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
@@ -2140,7 +2142,7 @@ atmegadci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods atmegadci_bus_methods =
+static const struct usb_bus_methods atmegadci_bus_methods =
 {
 	.endpoint_init = &atmegadci_ep_init,
 	.xfer_setup = &atmegadci_xfer_setup,

@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 // Protocols
 #define PASSTHROUGH_PIO_DATA_IN            0x4
 #define PASSTHROUGH_PIO_DATA_OUT           0x5
+#define PASSTHROUGH_DMA                    0x6
 #define PASSTHROUGH_UDMA_DATA_IN           0xA
 #define PASSTHROUGH_UDMA_DATA_OUT          0xB
 #define PASSTHROUGH_RETURN_RESPONSE        0xF
@@ -252,8 +253,8 @@ SATI_STATUS sati_passthrough_check_direction(
    U8           * cdb
 )
 {
-   if ((PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_PIO_DATA_IN) ||
-       (PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_UDMA_DATA_IN))
+   if ((sequence->protocol == PASSTHROUGH_PIO_DATA_IN) ||
+       (sequence->protocol == PASSTHROUGH_UDMA_DATA_IN))
    {
       if (PASSTHROUGH_CDB_T_DIR(cdb) == 0x0)
       {
@@ -264,8 +265,8 @@ SATI_STATUS sati_passthrough_check_direction(
          sequence->data_direction = SATI_DATA_DIRECTION_IN;
       }
    }
-   else if ((PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_PIO_DATA_OUT) ||
-            (PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_UDMA_DATA_OUT))
+   else if ((sequence->protocol == PASSTHROUGH_PIO_DATA_OUT) ||
+            (sequence->protocol == PASSTHROUGH_UDMA_DATA_OUT))
    {
       if (PASSTHROUGH_CDB_T_DIR(cdb) == 0x1)
       {
@@ -317,6 +318,26 @@ SATI_STATUS sati_passthrough_12_translate_command(
    cdb = sati_cb_get_cdb_address(scsi_io);
    sequence->protocol = PASSTHROUGH_CDB_PROTOCOL (cdb);
    register_fis = sati_cb_get_h2d_register_fis_address(ata_io);
+
+   /*
+    * CAM will send passthrough commands with protocol set to multiword
+    * DMA even though no multiword DMA mode is selected on the device.
+    * This is because some controllers (LSI) will only accept
+    * ATA_PASSTHROUGH commands with DMA mode - not UDMA_IN/OUT.
+    *
+    * Since isci does not support multiword DMA, fix this up here.
+    */
+   if (sequence->protocol == PASSTHROUGH_DMA)
+   {
+      if (PASSTHROUGH_CDB_T_DIR(cdb) == 0x1)
+      {
+         sequence->protocol = PASSTHROUGH_UDMA_DATA_IN;
+      }
+      else
+      {
+         sequence->protocol = PASSTHROUGH_UDMA_DATA_OUT;
+      }
+   }
 
    if (sati_passthrough_check_direction(sequence, cdb) != SATI_COMPLETE
        || sati_passthrough_multiple_count_error(cdb)
@@ -376,6 +397,26 @@ SATI_STATUS sati_passthrough_16_translate_command(
    sequence->protocol = PASSTHROUGH_CDB_PROTOCOL(cdb);
    register_fis = sati_cb_get_h2d_register_fis_address(ata_io);
 
+   /*
+    * CAM will send passthrough commands with protocol set to multiword
+    * DMA even though no multiword DMA mode is selected on the device.
+    * This is because some controllers (LSI) will only accept
+    * ATA_PASSTHROUGH commands with DMA mode - not UDMA_IN/OUT.
+    *
+    * Since isci does not support multiword DMA, fix this up here.
+    */
+   if (sequence->protocol == PASSTHROUGH_DMA)
+   {
+      if (PASSTHROUGH_CDB_T_DIR(cdb) == 0x1)
+      {
+         sequence->protocol = PASSTHROUGH_UDMA_DATA_IN;
+      }
+      else
+      {
+         sequence->protocol = PASSTHROUGH_UDMA_DATA_OUT;
+      }
+   }
+
    if (sati_passthrough_check_direction(sequence, cdb) != SATI_COMPLETE
        || sati_passthrough_multiple_count_error(cdb)
       )
@@ -400,6 +441,13 @@ SATI_STATUS sati_passthrough_16_translate_command(
       sati_set_ata_lba_mid_exp(register_fis, sati_get_cdb_byte(cdb, 9));
       sati_set_ata_lba_high_exp(register_fis, sati_get_cdb_byte(cdb, 11));
    }
+
+   if (PASSTHROUGH_CDB_CK_COND(cdb) ||
+       PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_RETURN_RESPONSE)
+   {
+      sequence->is_translate_response_required = TRUE;
+   }
+
    sati_set_ata_features(register_fis, sati_get_cdb_byte(cdb, 4));
    sati_set_ata_sector_count(register_fis, sati_get_cdb_byte(cdb, 6));
    sati_set_ata_lba_low(register_fis, sati_get_cdb_byte(cdb, 8));
@@ -442,6 +490,8 @@ SATI_STATUS sati_passthrough_translate_response(
       return SATI_FAILURE_CHECK_RESPONSE_DATA;
    }
 
+   sequence->state = SATI_SEQUENCE_STATE_FINAL;
+
    // If the user set the check condition bit, fill out the sense data
    if (PASSTHROUGH_CDB_CK_COND(cdb) ||
        PASSTHROUGH_CDB_PROTOCOL(cdb) == PASSTHROUGH_RETURN_RESPONSE)
@@ -455,9 +505,8 @@ SATI_STATUS sati_passthrough_translate_response(
          SCSI_ASC_NO_ADDITIONAL_SENSE,
          SCSI_ASCQ_ATA_PASS_THROUGH_INFORMATION_AVAILABLE
       );
+      return SATI_FAILURE_CHECK_RESPONSE_DATA;
    }
-
-   sequence->state = SATI_SEQUENCE_STATE_FINAL;
 
    return SATI_COMPLETE;
 }

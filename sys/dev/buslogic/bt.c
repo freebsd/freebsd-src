@@ -246,7 +246,6 @@ bt_free_softc(device_t dev)
 	case 6:
 		bus_dmamem_free(bt->ccb_dmat, bt->bt_ccb_array,
 				bt->ccb_dmamap);
-		bus_dmamap_destroy(bt->ccb_dmat, bt->ccb_dmamap);
 		/* FALLTHROUGH */
 	case 5:
 		bus_dma_tag_destroy(bt->ccb_dmat);
@@ -257,7 +256,6 @@ bt_free_softc(device_t dev)
 	case 3:
 		bus_dmamem_free(bt->mailbox_dmat, bt->in_boxes,
 				bt->mailbox_dmamap);
-		bus_dmamap_destroy(bt->mailbox_dmat, bt->mailbox_dmamap);
 		/* FALLTHROUGH */
 	case 2:
 		bus_dma_tag_destroy(bt->buffer_dmat);
@@ -728,7 +726,7 @@ bt_init(device_t dev)
 				/* highaddr	*/ BUS_SPACE_MAXADDR,
 				/* filter	*/ NULL,
 				/* filterarg	*/ NULL,
-				/* maxsize	*/ MAXBSIZE,
+				/* maxsize	*/ DFLTPHYS,
 				/* nsegments	*/ BT_NSEG,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ BUS_DMA_ALLOCNOW,
@@ -1467,8 +1465,8 @@ btexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&bt->pending_ccbs, &ccb->ccb_h, sim_links.le);
 
-	callout_reset(&bccb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    bttimeout, bccb);
+	callout_reset_sbt(&bccb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    bttimeout, bccb, 0);
 
 	/* Tell the adapter about this command */
 	bt->cur_outbox->ccb_addr = btccbvtop(bt, bccb);
@@ -1586,8 +1584,10 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 					bccb->hccb.target_id,
 					CAM_LUN_WILDCARD);
 		
-		if (error == CAM_REQ_CMP)
+		if (error == CAM_REQ_CMP) {
 			xpt_async(AC_SENT_BDR, path, NULL);
+			xpt_free_path(path);
+		}
 
 		ccb_h = LIST_FIRST(&bt->pending_ccbs);
 		while (ccb_h != NULL) {
@@ -1600,9 +1600,9 @@ btdone(struct bt_softc *bt, struct bt_ccb *bccb, bt_mbi_comp_code_t comp_code)
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 				btdone(bt, pending_bccb, BMBI_ERROR);
 			} else {
-				callout_reset(&pending_bccb->timer,
-				    (ccb_h->timeout * hz) / 1000,
-				    bttimeout, pending_bccb);
+				callout_reset_sbt(&pending_bccb->timer,
+				    SBT_1MS * ccb_h->timeout, 0, bttimeout,
+				    pending_bccb, 0);
 				ccb_h = LIST_NEXT(ccb_h, sim_links.le);
 			}
 		}

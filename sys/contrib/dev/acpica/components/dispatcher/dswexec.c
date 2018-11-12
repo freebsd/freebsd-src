@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DSWEXEC_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -318,7 +316,6 @@ AcpiDsExecBeginOp (
         Status = AcpiDsExecBeginControlOp (WalkState, Op);
         break;
 
-
     case AML_CLASS_NAMED_OBJECT:
 
         if (WalkState->WalkType & ACPI_WALK_METHOD)
@@ -350,14 +347,13 @@ AcpiDsExecBeginOp (
         }
         break;
 
-
     case AML_CLASS_EXECUTE:
     case AML_CLASS_CREATE:
 
         break;
 
-
     default:
+
         break;
     }
 
@@ -441,7 +437,6 @@ AcpiDsExecEndOp (
         }
         break;
 
-
     case AML_CLASS_EXECUTE:     /* Most operators with arguments */
 
         /* Build resolved operand stack */
@@ -514,7 +509,6 @@ AcpiDsExecEndOp (
         }
         break;
 
-
     default:
 
         switch (OpType)
@@ -527,9 +521,7 @@ AcpiDsExecEndOp (
 
             break;
 
-
         case AML_TYPE_METHOD_CALL:
-
             /*
              * If the method is referenced from within a package
              * declaration, it is not a invocation of the method, just
@@ -547,7 +539,8 @@ AcpiDsExecEndOp (
                 return_ACPI_STATUS (AE_OK);
             }
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Method invocation, Op=%p\n", Op));
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+                "Method invocation, Op=%p\n", Op));
 
             /*
              * (AML_METHODCALL) Op->Asl.Value.Arg->Asl.Node contains
@@ -596,7 +589,6 @@ AcpiDsExecEndOp (
              */
             return_ACPI_STATUS (Status);
 
-
         case AML_TYPE_CREATE_FIELD:
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
@@ -620,7 +612,6 @@ AcpiDsExecEndOp (
             switch (Op->Common.Parent->Common.AmlOpcode)
             {
             case AML_NAME_OP:
-
                 /*
                  * Put the Node on the object stack (Contains the ACPI Name
                  * of this object)
@@ -660,7 +651,6 @@ AcpiDsExecEndOp (
                 Status = AcpiDsResultPush (WalkState->ResultObj, WalkState);
             }
             break;
-
 
         case AML_TYPE_NAMED_FIELD:
         case AML_TYPE_NAMED_COMPLEX:
@@ -708,13 +698,11 @@ AcpiDsExecEndOp (
             }
             break;
 
-
         case AML_TYPE_UNDEFINED:
 
             ACPI_ERROR ((AE_INFO,
                 "Undefined opcode type Op=%p", Op));
             return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
-
 
         case AML_TYPE_BOGUS:
 
@@ -723,11 +711,10 @@ AcpiDsExecEndOp (
                 WalkState->Opcode, Op));
             break;
 
-
         default:
 
             ACPI_ERROR ((AE_INFO,
-                "Unimplemented opcode, class=0x%X type=0x%X Opcode=-0x%X Op=%p",
+                "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
                 OpClass, OpType, Op->Common.AmlOpcode, Op));
 
             Status = AE_NOT_IMPLEMENTED;

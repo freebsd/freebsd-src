@@ -476,7 +476,7 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* Default maximum number of tasks to enqueue. */
 #ifndef ACPI_MAX_TASKS
-#define	ACPI_MAX_TASKS		MAX(32, MAXCPU * 2)
+#define	ACPI_MAX_TASKS		MAX(32, MAXCPU * 4)
 #endif
 
 /* Default number of task queue threads to start. */
@@ -488,6 +488,17 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 #define	KTR_ACPI		KTR_DEV
 
 SYSCTL_DECL(_debug_acpi);
+
+/*
+ * Map a PXM to a VM domain.
+ *
+ * Returns the VM domain ID if found, or -1 if not found / invalid.
+ */
+#if MAXMEMDOM > 1
+extern	int acpi_map_pxm_to_vm_domainid(int pxm);
+#endif
+
+extern	int acpi_get_domain(device_t dev, device_t child, int *domain);
 
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

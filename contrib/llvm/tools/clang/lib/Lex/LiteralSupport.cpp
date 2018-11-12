@@ -13,28 +13,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/LiteralSupport.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Lex/LexDiagnostic.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/Basic/ConvertUTF.h"
+#include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Support/ConvertUTF.h"
 #include "llvm/Support/ErrorHandling.h"
-using namespace clang;
 
-/// HexDigitValue - Return the value of the specified hex digit, or -1 if it's
-/// not valid.
-static int HexDigitValue(char C) {
-  if (C >= '0' && C <= '9') return C-'0';
-  if (C >= 'a' && C <= 'f') return C-'a'+10;
-  if (C >= 'A' && C <= 'F') return C-'A'+10;
-  return -1;
-}
+using namespace clang;
 
 static unsigned getCharWidth(tok::TokenKind kind, const TargetInfo &Target) {
   switch (kind) {
   default: llvm_unreachable("Unknown token type!");
   case tok::char_constant:
   case tok::string_literal:
+  case tok::utf8_char_constant:
   case tok::utf8_string_literal:
     return Target.getCharWidth();
   case tok::wide_char_constant:
@@ -136,10 +130,10 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
     break;
   case 'x': { // Hex escape.
     ResultChar = 0;
-    if (ThisTokBuf == ThisTokEnd || !isxdigit(*ThisTokBuf)) {
+    if (ThisTokBuf == ThisTokEnd || !isHexDigit(*ThisTokBuf)) {
       if (Diags)
         Diag(Diags, Features, Loc, ThisTokBegin, EscapeBegin, ThisTokBuf,
-             diag::err_hex_escape_no_digits);
+             diag::err_hex_escape_no_digits) << "x";
       HadError = 1;
       break;
     }
@@ -147,7 +141,7 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
     // Hex escapes are a maximal series of hex digits.
     bool Overflow = false;
     for (; ThisTokBuf != ThisTokEnd; ++ThisTokBuf) {
-      int CharVal = HexDigitValue(ThisTokBuf[0]);
+      int CharVal = llvm::hexDigitValue(ThisTokBuf[0]);
       if (CharVal == -1) break;
       // About to shift out a digit?
       Overflow |= (ResultChar & 0xF0000000) ? true : false;
@@ -164,7 +158,7 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
     // Check for overflow.
     if (Overflow && Diags)   // Too many digits to fit in
       Diag(Diags, Features, Loc, ThisTokBegin, EscapeBegin, ThisTokBuf,
-           diag::warn_hex_escape_too_large);
+           diag::err_hex_escape_too_large);
     break;
   }
   case '0': case '1': case '2': case '3':
@@ -187,7 +181,7 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
     if (CharWidth != 32 && (ResultChar >> CharWidth) != 0) {
       if (Diags)
         Diag(Diags, Features, Loc, ThisTokBegin, EscapeBegin, ThisTokBuf,
-             diag::warn_octal_escape_too_large);
+             diag::err_octal_escape_too_large);
       ResultChar &= ~0U >> (32-CharWidth);
     }
     break;
@@ -202,10 +196,10 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
         << std::string(1, ResultChar);
     break;
   default:
-    if (Diags == 0)
+    if (!Diags)
       break;
 
-    if (isgraph(ResultChar))
+    if (isPrintable(ResultChar))
       Diag(Diags, Features, Loc, ThisTokBegin, EscapeBegin, ThisTokBuf,
            diag::ext_unknown_escape)
         << std::string(1, ResultChar);
@@ -217,6 +211,48 @@ static unsigned ProcessCharEscape(const char *ThisTokBegin,
   }
 
   return ResultChar;
+}
+
+static void appendCodePoint(unsigned Codepoint,
+                            llvm::SmallVectorImpl<char> &Str) {
+  char ResultBuf[4];
+  char *ResultPtr = ResultBuf;
+  bool Res = llvm::ConvertCodePointToUTF8(Codepoint, ResultPtr);
+  (void)Res;
+  assert(Res && "Unexpected conversion failure");
+  Str.append(ResultBuf, ResultPtr);
+}
+
+void clang::expandUCNs(SmallVectorImpl<char> &Buf, StringRef Input) {
+  for (StringRef::iterator I = Input.begin(), E = Input.end(); I != E; ++I) {
+    if (*I != '\\') {
+      Buf.push_back(*I);
+      continue;
+    }
+
+    ++I;
+    assert(*I == 'u' || *I == 'U');
+
+    unsigned NumHexDigits;
+    if (*I == 'u')
+      NumHexDigits = 4;
+    else
+      NumHexDigits = 8;
+
+    assert(I + NumHexDigits <= E);
+
+    uint32_t CodePoint = 0;
+    for (++I; NumHexDigits != 0; ++I, --NumHexDigits) {
+      unsigned Value = llvm::hexDigitValue(*I);
+      assert(Value != -1U);
+
+      CodePoint <<= 4;
+      CodePoint += Value;
+    }
+
+    appendCodePoint(CodePoint, Buf);
+    --I;
+  }
 }
 
 /// ProcessUCNEscape - Read the Universal Character Name, check constraints and
@@ -232,16 +268,16 @@ static bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
   // Skip the '\u' char's.
   ThisTokBuf += 2;
 
-  if (ThisTokBuf == ThisTokEnd || !isxdigit(*ThisTokBuf)) {
+  if (ThisTokBuf == ThisTokEnd || !isHexDigit(*ThisTokBuf)) {
     if (Diags)
       Diag(Diags, Features, Loc, ThisTokBegin, UcnBegin, ThisTokBuf,
-           diag::err_ucn_escape_no_digits);
+           diag::err_hex_escape_no_digits) << StringRef(&ThisTokBuf[-1], 1);
     return false;
   }
   UcnLen = (ThisTokBuf[-1] == 'u' ? 4 : 8);
   unsigned short UcnLenSave = UcnLen;
   for (; ThisTokBuf != ThisTokEnd && UcnLenSave; ++ThisTokBuf, UcnLenSave--) {
-    int CharVal = HexDigitValue(ThisTokBuf[0]);
+    int CharVal = llvm::hexDigitValue(ThisTokBuf[0]);
     if (CharVal == -1) break;
     UcnVal <<= 4;
     UcnVal |= CharVal;
@@ -267,7 +303,7 @@ static bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
   // characters inside character and string literals
   if (UcnVal < 0xa0 &&
       (UcnVal != 0x24 && UcnVal != 0x40 && UcnVal != 0x60)) {  // $, @, `
-    bool IsError = (!Features.CPlusPlus0x || !in_char_string_literal);
+    bool IsError = (!Features.CPlusPlus11 || !in_char_string_literal);
     if (Diags) {
       char BasicSCSChar = UcnVal;
       if (UcnVal >= 0x20 && UcnVal < 0x7f)
@@ -286,7 +322,7 @@ static bool ProcessUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 
   if (!Features.CPlusPlus && !Features.C99 && Diags)
     Diag(Diags, Features, Loc, ThisTokBegin, UcnBegin, ThisTokBuf,
-         diag::warn_ucn_not_valid_in_c89);
+         diag::warn_ucn_not_valid_in_c89_literal);
 
   return true;
 }
@@ -305,7 +341,7 @@ static int MeasureUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
   FullSourceLoc Loc;
 
   if (!ProcessUCNEscape(ThisTokBegin, ThisTokBuf, ThisTokEnd, UcnVal,
-                        UcnLen, Loc, 0, Features, true)) {
+                        UcnLen, Loc, nullptr, Features, true)) {
     HadError = true;
     return 0;
   }
@@ -343,7 +379,7 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
     return;
   }
 
-  assert((CharByteWidth == 1 || CharByteWidth == 2 || CharByteWidth) &&
+  assert((CharByteWidth == 1 || CharByteWidth == 2 || CharByteWidth == 4) &&
          "only character widths of 1, 2, or 4 bytes supported");
 
   (void)UcnLen;
@@ -420,10 +456,12 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 ///         decimal-constant integer-suffix
 ///         octal-constant integer-suffix
 ///         hexadecimal-constant integer-suffix
+///         binary-literal integer-suffix [GNU, C++1y]
 ///       user-defined-integer-literal: [C++11 lex.ext]
 ///         decimal-literal ud-suffix
 ///         octal-literal ud-suffix
 ///         hexadecimal-literal ud-suffix
+///         binary-literal ud-suffix [GNU, C++1y]
 ///       decimal-constant:
 ///         nonzero-digit
 ///         decimal-constant digit
@@ -435,6 +473,10 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 ///         hexadecimal-constant hexadecimal-digit
 ///       hexadecimal-prefix: one of
 ///         0x 0X
+///       binary-literal:
+///         0b binary-digit
+///         0B binary-digit
+///         binary-literal binary-digit
 ///       integer-suffix:
 ///         unsigned-suffix [long-suffix]
 ///         unsigned-suffix [long-long-suffix]
@@ -448,6 +490,9 @@ static void EncodeUCNEscape(const char *ThisTokBegin, const char *&ThisTokBuf,
 ///         0 1 2 3 4 5 6 7 8 9
 ///         a b c d e f
 ///         A B C D E F
+///       binary-digit:
+///         0
+///         1
 ///       unsigned-suffix: one of
 ///         u U
 ///       long-suffix: one of
@@ -467,8 +512,7 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
   // and FP constants (specifically, the 'pp-number' regex), and assumes that
   // the byte at "*end" is both valid and not part of the regex.  Because of
   // this, it doesn't have to check for 'overscan' in various places.
-  assert(!isalnum(*ThisTokEnd) && *ThisTokEnd != '.' && *ThisTokEnd != '_' &&
-         "Lexer didn't maximally munch?");
+  assert(!isPreprocessingNumberBody(*ThisTokEnd) && "didn't maximally munch?");
 
   s = DigitsBegin = ThisTokBegin;
   saw_exponent = false;
@@ -479,7 +523,7 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
   isLongLong = false;
   isFloat = false;
   isImaginary = false;
-  isMicrosoftInteger = false;
+  MicrosoftInteger = 0;
   hadError = false;
 
   if (*s == '0') { // parse radix
@@ -491,21 +535,25 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
     s = SkipDigits(s);
     if (s == ThisTokEnd) {
       // Done.
-    } else if (isxdigit(*s) && !(*s == 'e' || *s == 'E')) {
+    } else if (isHexDigit(*s) && !(*s == 'e' || *s == 'E')) {
       PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, s - ThisTokBegin),
               diag::err_invalid_decimal_digit) << StringRef(s, 1);
       hadError = true;
       return;
     } else if (*s == '.') {
+      checkSeparator(TokLoc, s, CSK_AfterDigits);
       s++;
       saw_period = true;
+      checkSeparator(TokLoc, s, CSK_BeforeDigits);
       s = SkipDigits(s);
     }
     if ((*s == 'e' || *s == 'E')) { // exponent
+      checkSeparator(TokLoc, s, CSK_AfterDigits);
       const char *Exponent = s;
       s++;
       saw_exponent = true;
       if (*s == '+' || *s == '-')  s++; // sign
+      checkSeparator(TokLoc, s, CSK_BeforeDigits);
       const char *first_non_digit = SkipDigits(s);
       if (first_non_digit != s) {
         s = first_non_digit;
@@ -519,10 +567,12 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
   }
 
   SuffixBegin = s;
+  checkSeparator(TokLoc, s, CSK_AfterDigits);
 
   // Parse the suffix.  At this point we can classify whether we have an FP or
   // integer constant.
   bool isFPConstant = isFloatingLiteral();
+  const char *ImaginarySuffixLoc = nullptr;
 
   // Loop over all of the characters of the suffix.  If we see something bad,
   // we break out of the loop.
@@ -557,58 +607,64 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
     case 'i':
     case 'I':
       if (PP.getLangOpts().MicrosoftExt) {
-        if (isFPConstant || isLong || isLongLong) break;
+        if (isLong || isLongLong || MicrosoftInteger)
+          break;
 
         // Allow i8, i16, i32, i64, and i128.
         if (s + 1 != ThisTokEnd) {
           switch (s[1]) {
             case '8':
+              if (isFPConstant) break;
               s += 2; // i8 suffix
-              isMicrosoftInteger = true;
+              MicrosoftInteger = 8;
               break;
             case '1':
+              if (isFPConstant) break;
               if (s + 2 == ThisTokEnd) break;
               if (s[2] == '6') {
                 s += 3; // i16 suffix
-                isMicrosoftInteger = true;
+                MicrosoftInteger = 16;
               }
               else if (s[2] == '2') {
                 if (s + 3 == ThisTokEnd) break;
                 if (s[3] == '8') {
                   s += 4; // i128 suffix
-                  isMicrosoftInteger = true;
+                  MicrosoftInteger = 128;
                 }
               }
               break;
             case '3':
+              if (isFPConstant) break;
               if (s + 2 == ThisTokEnd) break;
               if (s[2] == '2') {
                 s += 3; // i32 suffix
-                isLong = true;
-                isMicrosoftInteger = true;
+                MicrosoftInteger = 32;
               }
               break;
             case '6':
+              if (isFPConstant) break;
               if (s + 2 == ThisTokEnd) break;
               if (s[2] == '4') {
                 s += 3; // i64 suffix
-                isLongLong = true;
-                isMicrosoftInteger = true;
+                MicrosoftInteger = 64;
               }
               break;
             default:
               break;
           }
-          break;
+          if (MicrosoftInteger)
+            break;
         }
       }
+      // "i", "if", and "il" are user-defined suffixes in C++1y.
+      if (PP.getLangOpts().CPlusPlus14 && *s == 'i')
+        break;
       // fall through.
     case 'j':
     case 'J':
       if (isImaginary) break;   // Cannot be repeated.
-      PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, s - ThisTokBegin),
-              diag::ext_imaginary_constant);
       isImaginary = true;
+      ImaginarySuffixLoc = s;
       continue;  // Success.
     }
     // If we reached here, there was an error or a ud-suffix.
@@ -616,9 +672,18 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
   }
 
   if (s != ThisTokEnd) {
-    if (PP.getLangOpts().CPlusPlus0x && s == SuffixBegin && *s == '_') {
-      // We have a ud-suffix! By C++11 [lex.ext]p10, ud-suffixes not starting
-      // with an '_' are ill-formed.
+    // FIXME: Don't bother expanding UCNs if !tok.hasUCN().
+    expandUCNs(UDSuffixBuf, StringRef(SuffixBegin, ThisTokEnd - SuffixBegin));
+    if (isValidUDSuffix(PP.getLangOpts(), UDSuffixBuf)) {
+      // Any suffix pieces we might have parsed are actually part of the
+      // ud-suffix.
+      isLong = false;
+      isUnsigned = false;
+      isLongLong = false;
+      isFloat = false;
+      isImaginary = false;
+      MicrosoftInteger = 0;
+
       saw_ud_suffix = true;
       return;
     }
@@ -631,6 +696,53 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
     hadError = true;
     return;
   }
+
+  if (isImaginary) {
+    PP.Diag(PP.AdvanceToTokenCharacter(TokLoc,
+                                       ImaginarySuffixLoc - ThisTokBegin),
+            diag::ext_imaginary_constant);
+  }
+}
+
+/// Determine whether a suffix is a valid ud-suffix. We avoid treating reserved
+/// suffixes as ud-suffixes, because the diagnostic experience is better if we
+/// treat it as an invalid suffix.
+bool NumericLiteralParser::isValidUDSuffix(const LangOptions &LangOpts,
+                                           StringRef Suffix) {
+  if (!LangOpts.CPlusPlus11 || Suffix.empty())
+    return false;
+
+  // By C++11 [lex.ext]p10, ud-suffixes starting with an '_' are always valid.
+  if (Suffix[0] == '_')
+    return true;
+
+  // In C++11, there are no library suffixes.
+  if (!LangOpts.CPlusPlus14)
+    return false;
+
+  // In C++1y, "s", "h", "min", "ms", "us", and "ns" are used in the library.
+  // Per tweaked N3660, "il", "i", and "if" are also used in the library.
+  return llvm::StringSwitch<bool>(Suffix)
+      .Cases("h", "min", "s", true)
+      .Cases("ms", "us", "ns", true)
+      .Cases("il", "i", "if", true)
+      .Default(false);
+}
+
+void NumericLiteralParser::checkSeparator(SourceLocation TokLoc,
+                                          const char *Pos,
+                                          CheckSeparatorKind IsAfterDigits) {
+  if (IsAfterDigits == CSK_AfterDigits) {
+    if (Pos == ThisTokBegin)
+      return;
+    --Pos;
+  } else if (Pos == ThisTokEnd)
+    return;
+
+  if (isDigitSeparator(*Pos))
+    PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, Pos - ThisTokBegin),
+            diag::err_digit_separator_not_between_digits)
+      << IsAfterDigits;
 }
 
 /// ParseNumberStartingWithZero - This method is called when the first character
@@ -642,8 +754,11 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
   assert(s[0] == '0' && "Invalid method call");
   s++;
 
+  int c1 = s[0];
+  int c2 = s[1];
+
   // Handle a hex number like 0x1234.
-  if ((*s == 'x' || *s == 'X') && (isxdigit(s[1]) || s[1] == '.')) {
+  if ((c1 == 'x' || c1 == 'X') && (isHexDigit(c2) || c2 == '.')) {
     s++;
     radix = 16;
     DigitsBegin = s;
@@ -655,6 +770,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
       s++;
       saw_period = true;
       const char *floatDigitsBegin = s;
+      checkSeparator(TokLoc, s, CSK_BeforeDigits);
       s = SkipHexDigits(s);
       noSignificand &= (floatDigitsBegin == s);
     }
@@ -669,6 +785,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
     // A binary exponent can appear with or with a '.'. If dotted, the
     // binary exponent is required.
     if (*s == 'p' || *s == 'P') {
+      checkSeparator(TokLoc, s, CSK_AfterDigits);
       const char *Exponent = s;
       s++;
       saw_exponent = true;
@@ -680,6 +797,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
         hadError = true;
         return;
       }
+      checkSeparator(TokLoc, s, CSK_BeforeDigits);
       s = first_non_digit;
 
       if (!PP.getLangOpts().HexFloats)
@@ -693,16 +811,21 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
   }
 
   // Handle simple binary numbers 0b01010
-  if (*s == 'b' || *s == 'B') {
-    // 0b101010 is a GCC extension.
-    PP.Diag(TokLoc, diag::ext_binary_literal);
+  if ((c1 == 'b' || c1 == 'B') && (c2 == '0' || c2 == '1')) {
+    // 0b101010 is a C++1y / GCC extension.
+    PP.Diag(TokLoc,
+            PP.getLangOpts().CPlusPlus14
+              ? diag::warn_cxx11_compat_binary_literal
+              : PP.getLangOpts().CPlusPlus
+                ? diag::ext_binary_literal_cxx14
+                : diag::ext_binary_literal);
     ++s;
     radix = 2;
     DigitsBegin = s;
     s = SkipBinaryDigits(s);
     if (s == ThisTokEnd) {
       // Done.
-    } else if (isxdigit(*s)) {
+    } else if (isHexDigit(*s)) {
       PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, s-ThisTokBegin),
               diag::err_invalid_binary_digit) << StringRef(s, 1);
       hadError = true;
@@ -722,7 +845,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
 
   // If we have some other non-octal digit that *is* a decimal digit, see if
   // this is part of a floating point number like 094.123 or 09e1.
-  if (isdigit(*s)) {
+  if (isDigit(*s)) {
     const char *EndDecimal = SkipDigits(s);
     if (EndDecimal[0] == '.' || EndDecimal[0] == 'e' || EndDecimal[0] == 'E') {
       s = EndDecimal;
@@ -732,7 +855,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
 
   // If we have a hex digit other than 'e' (which denotes a FP exponent) then
   // the code is using an incorrect base.
-  if (isxdigit(*s) && *s != 'e' && *s != 'E') {
+  if (isHexDigit(*s) && *s != 'e' && *s != 'E') {
     PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, s-ThisTokBegin),
             diag::err_invalid_octal_digit) << StringRef(s, 1);
     hadError = true;
@@ -743,9 +866,11 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
     s++;
     radix = 10;
     saw_period = true;
+    checkSeparator(TokLoc, s, CSK_BeforeDigits);
     s = SkipDigits(s); // Skip suffix.
   }
   if (*s == 'e' || *s == 'E') { // exponent
+    checkSeparator(TokLoc, s, CSK_AfterDigits);
     const char *Exponent = s;
     s++;
     radix = 10;
@@ -753,6 +878,7 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
     if (*s == '+' || *s == '-')  s++; // sign
     const char *first_non_digit = SkipDigits(s);
     if (first_non_digit != s) {
+      checkSeparator(TokLoc, s, CSK_BeforeDigits);
       s = first_non_digit;
     } else {
       PP.Diag(PP.AdvanceToTokenCharacter(TokLoc, Exponent-ThisTokBegin),
@@ -792,7 +918,8 @@ bool NumericLiteralParser::GetIntegerValue(llvm::APInt &Val) {
   if (alwaysFitsInto64Bits(radix, NumDigits)) {
     uint64_t N = 0;
     for (const char *Ptr = DigitsBegin; Ptr != SuffixBegin; ++Ptr)
-      N = N * radix + HexDigitValue(*Ptr);
+      if (!isDigitSeparator(*Ptr))
+        N = N * radix + llvm::hexDigitValue(*Ptr);
 
     // This will truncate the value to Val's input width. Simply check
     // for overflow by comparing.
@@ -809,7 +936,12 @@ bool NumericLiteralParser::GetIntegerValue(llvm::APInt &Val) {
 
   bool OverflowOccurred = false;
   while (Ptr < SuffixBegin) {
-    unsigned C = HexDigitValue(*Ptr++);
+    if (isDigitSeparator(*Ptr)) {
+      ++Ptr;
+      continue;
+    }
+
+    unsigned C = llvm::hexDigitValue(*Ptr++);
 
     // If this letter is out of bound for this radix, reject it.
     assert(C < radix && "NumericLiteralParser ctor should have rejected this");
@@ -837,8 +969,17 @@ NumericLiteralParser::GetFloatValue(llvm::APFloat &Result) {
   using llvm::APFloat;
 
   unsigned n = std::min(SuffixBegin - ThisTokBegin, ThisTokEnd - ThisTokBegin);
-  return Result.convertFromString(StringRef(ThisTokBegin, n),
-                                  APFloat::rmNearestTiesToEven);
+
+  llvm::SmallString<16> Buffer;
+  StringRef Str(ThisTokBegin, n);
+  if (Str.find('\'') != StringRef::npos) {
+    Buffer.reserve(n);
+    std::remove_copy_if(Str.begin(), Str.end(), std::back_inserter(Buffer),
+                        &isDigitSeparator);
+    Str = Buffer;
+  }
+
+  return Result.convertFromString(Str, APFloat::rmNearestTiesToEven);
 }
 
 
@@ -891,9 +1032,10 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   const char *TokBegin = begin;
 
   // Skip over wide character determinant.
-  if (Kind != tok::char_constant) {
+  if (Kind != tok::char_constant)
     ++begin;
-  }
+  if (Kind == tok::utf8_char_constant)
+    ++begin;
 
   // Skip over the entry quote.
   assert(begin[0] == '\'' && "Invalid token lexed");
@@ -905,7 +1047,8 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
     do {
       --end;
     } while (end[-1] != '\'');
-    UDSuffixBuf.assign(end, UDSuffixEnd);
+    // FIXME: Don't bother with this if !tok.hasUCN().
+    expandUCNs(UDSuffixBuf, StringRef(end, UDSuffixEnd - end));
     UDSuffixOffset = end - TokBegin;
   }
 
@@ -924,8 +1067,8 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   assert(PP.getTargetInfo().getWCharWidth() <= 64 &&
          "Assumes sizeof(wchar) on target is <= 64");
 
-  SmallVector<uint32_t,4> codepoint_buffer;
-  codepoint_buffer.resize(end-begin);
+  SmallVector<uint32_t, 4> codepoint_buffer;
+  codepoint_buffer.resize(end - begin);
   uint32_t *buffer_begin = &codepoint_buffer.front();
   uint32_t *buffer_end = buffer_begin + codepoint_buffer.size();
 
@@ -934,7 +1077,10 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   // by this implementation.
   uint32_t largest_character_for_kind;
   if (tok::wide_char_constant == Kind) {
-    largest_character_for_kind = 0xFFFFFFFFu >> (32-PP.getTargetInfo().getWCharWidth());
+    largest_character_for_kind =
+        0xFFFFFFFFu >> (32-PP.getTargetInfo().getWCharWidth());
+  } else if (tok::utf8_char_constant == Kind) {
+    largest_character_for_kind = 0x7F;
   } else if (tok::utf16_char_constant == Kind) {
     largest_character_for_kind = 0xFFFF;
   } else if (tok::utf32_char_constant == Kind) {
@@ -943,7 +1089,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
     largest_character_for_kind = 0x7Fu;
   }
 
-  while (begin!=end) {
+  while (begin != end) {
     // Is this a span of non-escape characters?
     if (begin[0] != '\\') {
       char const *start = begin;
@@ -954,12 +1100,12 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
       char const *tmp_in_start = start;
       uint32_t *tmp_out_start = buffer_begin;
       ConversionResult res =
-      ConvertUTF8toUTF32(reinterpret_cast<UTF8 const **>(&start),
-                         reinterpret_cast<UTF8 const *>(begin),
-                         &buffer_begin,buffer_end,strictConversion);
-      if (res!=conversionOK) {
-        // If we see bad encoding for unprefixed character literals, warn and 
-        // simply copy the byte values, for compatibility with gcc and 
+          ConvertUTF8toUTF32(reinterpret_cast<UTF8 const **>(&start),
+                             reinterpret_cast<UTF8 const *>(begin),
+                             &buffer_begin, buffer_end, strictConversion);
+      if (res != conversionOK) {
+        // If we see bad encoding for unprefixed character literals, warn and
+        // simply copy the byte values, for compatibility with gcc and
         // older versions of clang.
         bool NoErrorOnBadEncoding = isAscii();
         unsigned Msg = diag::err_bad_character_encoding;
@@ -969,13 +1115,13 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
         if (NoErrorOnBadEncoding) {
           start = tmp_in_start;
           buffer_begin = tmp_out_start;
-          for ( ; start != begin; ++start, ++buffer_begin)
+          for (; start != begin; ++start, ++buffer_begin)
             *buffer_begin = static_cast<uint8_t>(*start);
         } else {
           HadError = true;
         }
       } else {
-        for (; tmp_out_start <buffer_begin; ++tmp_out_start) {
+        for (; tmp_out_start < buffer_begin; ++tmp_out_start) {
           if (*tmp_out_start > largest_character_for_kind) {
             HadError = true;
             PP.Diag(Loc, diag::err_character_too_large);
@@ -985,14 +1131,12 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
 
       continue;
     }
-    // Is this a Universal Character Name excape?
+    // Is this a Universal Character Name escape?
     if (begin[1] == 'u' || begin[1] == 'U') {
       unsigned short UcnLen = 0;
       if (!ProcessUCNEscape(TokBegin, begin, end, *buffer_begin, UcnLen,
                             FullSourceLoc(Loc, PP.getSourceManager()),
-                            &PP.getDiagnostics(), PP.getLangOpts(),
-                            true))
-      {
+                            &PP.getDiagnostics(), PP.getLangOpts(), true)) {
         HadError = true;
       } else if (*buffer_begin > largest_character_for_kind) {
         HadError = true;
@@ -1010,7 +1154,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
     *buffer_begin++ = result;
   }
 
-  unsigned NumCharsSoFar = buffer_begin-&codepoint_buffer.front();
+  unsigned NumCharsSoFar = buffer_begin - &codepoint_buffer.front();
 
   if (NumCharsSoFar > 1) {
     if (isWide())
@@ -1022,8 +1166,9 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
     else
       PP.Diag(Loc, diag::err_multichar_utf_character_literal);
     IsMultiChar = true;
-  } else
+  } else {
     IsMultiChar = false;
+  }
 
   llvm::APInt LitVal(PP.getTargetInfo().getIntWidth(), 0);
 
@@ -1032,7 +1177,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   bool multi_char_too_long = false;
   if (isAscii() && isMultiChar()) {
     LitVal = 0;
-    for (size_t i=0;i<NumCharsSoFar;++i) {
+    for (size_t i = 0; i < NumCharsSoFar; ++i) {
       // check for enough leading zeros to shift into
       multi_char_too_long |= (LitVal.countLeadingZeros() < 8);
       LitVal <<= 8;
@@ -1044,7 +1189,7 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   }
 
   if (!HadError && multi_char_too_long) {
-    PP.Diag(Loc,diag::warn_char_constant_too_large);
+    PP.Diag(Loc, diag::warn_char_constant_too_large);
   }
 
   // Transfer the value from APInt to uint64_t
@@ -1114,26 +1259,26 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
 /// \endverbatim
 ///
 StringLiteralParser::
-StringLiteralParser(const Token *StringToks, unsigned NumStringToks,
+StringLiteralParser(ArrayRef<Token> StringToks,
                     Preprocessor &PP, bool Complain)
   : SM(PP.getSourceManager()), Features(PP.getLangOpts()),
-    Target(PP.getTargetInfo()), Diags(Complain ? &PP.getDiagnostics() : 0),
+    Target(PP.getTargetInfo()), Diags(Complain ? &PP.getDiagnostics() :nullptr),
     MaxTokenLength(0), SizeBound(0), CharByteWidth(0), Kind(tok::unknown),
     ResultPtr(ResultBuf.data()), hadError(false), Pascal(false) {
-  init(StringToks, NumStringToks);
+  init(StringToks);
 }
 
-void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
+void StringLiteralParser::init(ArrayRef<Token> StringToks){
   // The literal token may have come from an invalid source location (e.g. due
   // to a PCH error), in which case the token length will be 0.
-  if (NumStringToks == 0 || StringToks[0].getLength() < 2)
+  if (StringToks.empty() || StringToks[0].getLength() < 2)
     return DiagnoseLexingError(SourceLocation());
 
   // Scan all of the string portions, remember the max individual token length,
   // computing a bound on the concatenated string length, and see whether any
   // piece is a wide-string.  If any of the string portions is a wide-string
   // literal, the result is a wide-string literal [C99 6.4.5p4].
-  assert(NumStringToks && "expected at least one token");
+  assert(!StringToks.empty() && "expected at least one token");
   MaxTokenLength = StringToks[0].getLength();
   assert(StringToks[0].getLength() >= 2 && "literal token is invalid!");
   SizeBound = StringToks[0].getLength()-2;  // -2 for "".
@@ -1143,7 +1288,7 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
 
   // Implement Translation Phase #6: concatenation of string literals
   /// (C99 5.1.1.2p1).  The common case is only one string fragment.
-  for (unsigned i = 1; i != NumStringToks; ++i) {
+  for (unsigned i = 1; i != StringToks.size(); ++i) {
     if (StringToks[i].getLength() < 2)
       return DiagnoseLexingError(StringToks[i].getLocation());
 
@@ -1199,7 +1344,7 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
 
   SourceLocation UDSuffixTokLoc;
 
-  for (unsigned i = 0, e = NumStringToks; i != e; ++i) {
+  for (unsigned i = 0, e = StringToks.size(); i != e; ++i) {
     const char *ThisTokBuf = &TokenBuf[0];
     // Get the spelling of the token, which eliminates trigraphs, etc.  We know
     // that ThisTokBuf points to a buffer that is big enough for the whole token
@@ -1224,23 +1369,34 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
       StringRef UDSuffix(ThisTokEnd, UDSuffixEnd - ThisTokEnd);
 
       if (UDSuffixBuf.empty()) {
-        UDSuffixBuf.assign(UDSuffix);
+        if (StringToks[i].hasUCN())
+          expandUCNs(UDSuffixBuf, UDSuffix);
+        else
+          UDSuffixBuf.assign(UDSuffix);
         UDSuffixToken = i;
         UDSuffixOffset = ThisTokEnd - ThisTokBuf;
         UDSuffixTokLoc = StringToks[i].getLocation();
-      } else if (!UDSuffixBuf.equals(UDSuffix)) {
+      } else {
+        SmallString<32> ExpandedUDSuffix;
+        if (StringToks[i].hasUCN()) {
+          expandUCNs(ExpandedUDSuffix, UDSuffix);
+          UDSuffix = ExpandedUDSuffix;
+        }
+
         // C++11 [lex.ext]p8: At the end of phase 6, if a string literal is the
         // result of a concatenation involving at least one user-defined-string-
         // literal, all the participating user-defined-string-literals shall
         // have the same ud-suffix.
-        if (Diags) {
-          SourceLocation TokLoc = StringToks[i].getLocation();
-          Diags->Report(TokLoc, diag::err_string_concat_mixed_suffix)
-            << UDSuffixBuf << UDSuffix
-            << SourceRange(UDSuffixTokLoc, UDSuffixTokLoc)
-            << SourceRange(TokLoc, TokLoc);
+        if (UDSuffixBuf != UDSuffix) {
+          if (Diags) {
+            SourceLocation TokLoc = StringToks[i].getLocation();
+            Diags->Report(TokLoc, diag::err_string_concat_mixed_suffix)
+              << UDSuffixBuf << UDSuffix
+              << SourceRange(UDSuffixTokLoc, UDSuffixTokLoc)
+              << SourceRange(TokLoc, TokLoc);
+          }
+          hadError = true;
         }
-        hadError = true;
       }
     }
 
@@ -1362,10 +1518,10 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
     // Verify that pascal strings aren't too large.
     if (GetStringLength() > 256) {
       if (Diags)
-        Diags->Report(StringToks[0].getLocation(),
+        Diags->Report(StringToks.front().getLocation(),
                       diag::err_pascal_string_too_long)
-          << SourceRange(StringToks[0].getLocation(),
-                         StringToks[NumStringToks-1].getLocation());
+          << SourceRange(StringToks.front().getLocation(),
+                         StringToks.back().getLocation());
       hadError = true;
       return;
     }
@@ -1374,12 +1530,12 @@ void StringLiteralParser::init(const Token *StringToks, unsigned NumStringToks){
     unsigned MaxChars = Features.CPlusPlus? 65536 : Features.C99 ? 4095 : 509;
 
     if (GetNumStringChars() > MaxChars)
-      Diags->Report(StringToks[0].getLocation(),
+      Diags->Report(StringToks.front().getLocation(),
                     diag::ext_string_too_long)
         << GetNumStringChars() << MaxChars
         << (Features.CPlusPlus ? 2 : Features.C99 ? 1 : 0)
-        << SourceRange(StringToks[0].getLocation(),
-                       StringToks[NumStringToks-1].getLocation());
+        << SourceRange(StringToks.front().getLocation(),
+                       StringToks.back().getLocation());
   }
 }
 
@@ -1429,8 +1585,7 @@ bool StringLiteralParser::CopyStringFragment(const Token &Tok,
     Dummy.reserve(Fragment.size() * CharByteWidth);
     char *Ptr = Dummy.data();
 
-    while (!Builder.hasMaxRanges() &&
-           !ConvertUTF8toWide(CharByteWidth, NextFragment, Ptr, ErrorPtrTmp)) {
+    while (!ConvertUTF8toWide(CharByteWidth, NextFragment, Ptr, ErrorPtrTmp)) {
       const char *ErrorPtr = reinterpret_cast<const char *>(ErrorPtrTmp);
       NextStart = resyncUTF8(ErrorPtr, Fragment.end());
       Builder << MakeCharSourceRange(Features, SourceLoc, TokBegin,

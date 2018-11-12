@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <camlib.h>
 
-#include <dev/iscsi/initiator/iscsi.h>
+#include <dev/iscsi_initiator/iscsi.h>
 #include "iscontrol.h"
 
 static char version[] = "2.3.1"; // keep in sync with iscsi_initiator

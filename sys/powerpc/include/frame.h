@@ -56,14 +56,13 @@ struct trapframe {
 	register_t srr0;
 	register_t srr1;
 	register_t exc;
+	register_t dar;	/* DAR/DEAR filled in on DSI traps */
 	union {
 		struct {
-			/* dar & dsisr are only filled on a DSI trap */
-			register_t dar;
+			/* dsisr only filled on a DSI trap */
 			register_t dsisr;
 		} aim;
 		struct {
-			register_t dear;
 			register_t esr;
 			register_t dbcr0;
 		} booke;
@@ -94,6 +93,7 @@ struct callframe {
 	register_t	cf_func;
 	register_t	cf_arg0;
 	register_t	cf_arg1;
+	register_t	_padding;	/* Maintain 16-byte alignment */
 };
 #else
 struct callframe {
@@ -102,6 +102,7 @@ struct callframe {
 	register_t	cf_func;
 	register_t	cf_arg0;
 	register_t	cf_arg1;
+	register_t	_padding;	/* Maintain 16-byte alignment */
 };
 #endif
 

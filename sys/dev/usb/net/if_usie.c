@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
+#include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/module.h>
@@ -43,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/taskqueue.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <machine/bus.h>
 
@@ -78,7 +82,7 @@ __FBSDID("$FreeBSD$");
 static int usie_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, usie, CTLFLAG_RW, 0, "sierra USB modem");
-SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RW, &usie_debug, 0,
+SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RWTUN, &usie_debug, 0,
     "usie debug level");
 #endif
 
@@ -121,7 +125,8 @@ static void usie_if_sync_cb(void *, int);
 static void usie_if_status_cb(void *, int);
 
 static void usie_if_start(struct ifnet *);
-static int usie_if_output(struct ifnet *, struct mbuf *, struct sockaddr *, struct route *);
+static int usie_if_output(struct ifnet *, struct mbuf *,
+	const struct sockaddr *, struct route *);
 static void usie_if_init(void *);
 static void usie_if_stop(struct usie_softc *);
 static int usie_if_ioctl(struct ifnet *, u_long, caddr_t);
@@ -801,7 +806,7 @@ tr_setup:
 		}
 		if (sc->sc_rxm == NULL) {
 			DPRINTF("could not allocate Rx mbuf\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			usbd_xfer_set_stall(xfer);
 			usbd_xfer_set_frames(xfer, 0);
 		} else {
@@ -823,7 +828,7 @@ tr_setup:
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		if (sc->sc_rxm != NULL) {
@@ -912,8 +917,8 @@ tr_setup:
 
 	mtx_lock(&sc->sc_mtx);
 
-	ifp->if_ierrors += err;
-	ifp->if_ipackets += pkt;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, err);
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, pkt);
 }
 
 static void
@@ -929,7 +934,7 @@ usie_if_tx_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* fall though */
 	case USB_ST_SETUP:
@@ -969,11 +974,11 @@ tr_setup:
 	default:			/* Error */
 		DPRINTF("USB transfer error, %s\n",
 		    usbd_errstr(error));
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			usbd_xfer_set_stall(xfer);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto tr_setup;
 		}
 		break;
@@ -1181,7 +1186,7 @@ usie_if_start(struct ifnet *ifp)
 }
 
 static int
-usie_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+usie_if_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	int err;
@@ -1209,10 +1214,10 @@ usie_if_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	err = (ifp->if_transmit)(ifp, m);
 	if (err) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	return (0);
 }
@@ -1323,7 +1328,6 @@ usie_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFADDR:
-	case SIOCSIFDSTADDR:
 		break;
 
 	default:
@@ -1391,7 +1395,7 @@ usie_cns_req(struct usie_softc *sc, uint32_t id, uint16_t obj)
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
 		DPRINTF("could not allocate mbuf\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	/* to align usie_hip{} on 32 bit */

@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -457,7 +457,7 @@
 #define	XLP8XX_MS_FIFO_SZ		2048
 #define	XLP8XX_PKT_FIFO_SZ		16384
 #define	XLP8XX_PKTLEN_FIFO_SZ		2048
-        
+
 #define	XLP8XX_MAX_STG2_OFFSET		0x7F
 #define	XLP8XX_MAX_EH_OFFSET		0x7F
 #define	XLP8XX_MAX_FREE_OUT_OFFSET	0x7F
@@ -472,6 +472,9 @@
 #define	MAX_CAL_SLOTS			64
 #define	XLP_MAX_PORTS			18
 #define	XLP_STORM_MAX_PORTS		8
+
+#define	MAX_FREE_FIFO_POOL_8XX		20
+#define	MAX_FREE_FIFO_POOL_3XX		9
 
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 
@@ -494,6 +497,7 @@ enum XLPNAE_TX_TYPE {
 };
 
 enum nblock_type {
+	UNKNOWN	= 0, /* DONT MAKE IT NON-ZERO */
 	SGMIIC	= 1,
 	XAUIC	= 2,
 	ILC	= 3
@@ -550,6 +554,12 @@ nae_num_context(uint64_t nae_pcibase)
 
 /* per port config structure */
 struct nae_port_config {
+	int		node;	/* node id (quickread) */
+	int		block;	/* network block id (quickread) */
+	int		port;	/* port id - among the 18 in XLP */
+	int		type;	/* port type - see xlp_gmac_port_types */
+	int		mdio_bus;
+	int		phy_addr;
 	int		num_channels;
 	int		num_free_descs;
 	int		free_desc_sizes;
@@ -605,7 +615,7 @@ void nlm_setup_flow_crc_poly(uint64_t, uint32_t);
 void nlm_setup_iface_fifo_cfg(uint64_t, int, struct nae_port_config *);
 void nlm_setup_rx_base_config(uint64_t, int, struct nae_port_config *);
 void nlm_setup_rx_buf_config(uint64_t, int, struct nae_port_config *);
-void nlm_setup_freein_fifo_cfg(uint64_t, int, struct nae_port_config *);
+void nlm_setup_freein_fifo_cfg(uint64_t, struct nae_port_config *);
 int nlm_get_flow_mask(int);
 void nlm_program_flow_cfg(uint64_t, int, uint32_t, uint32_t);
 void xlp_ax_nae_lane_reset_txpll(uint64_t, int, int, int);

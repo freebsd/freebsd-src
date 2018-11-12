@@ -42,20 +42,7 @@
 #ifndef _MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
-#include <machine/frame.h>
-
 /*
- * MIPS process control block
- */
-struct pcb
-{
-	struct trapframe pcb_regs;	/* saved CPU and registers */
-	__register_t pcb_context[14];	/* kernel context for resume */
-	void *pcb_onfault;		/* for copyin/copyout faults */
-	register_t pcb_tpc;
-};
-
-/* these match the regnum's in regnum.h
  * used by switch.S
  */
 #define	PCB_REG_S0	0
@@ -73,12 +60,82 @@ struct pcb
 #define	PCB_REG_GP	12
 #define	PCB_REG_PC	13
 
+/*
+ * Call ast if required
+ *
+ * XXX Do we really need to disable interrupts?
+ */
+#define DO_AST				             \
+44:				                     \
+	mfc0	t0, MIPS_COP_0_STATUS               ;\
+	and	a0, t0, MIPS_SR_INT_IE              ;\
+	xor	t0, a0, t0                          ;\
+	mtc0	t0, MIPS_COP_0_STATUS               ;\
+	COP0_SYNC                                   ;\
+	GET_CPU_PCPU(s1)                            ;\
+	PTR_L	s3, PC_CURPCB(s1)                   ;\
+	PTR_L	s1, PC_CURTHREAD(s1)                ;\
+	lw	s2, TD_FLAGS(s1)                    ;\
+	li	s0, TDF_ASTPENDING | TDF_NEEDRESCHED;\
+	and	s2, s0                              ;\
+	mfc0	t0, MIPS_COP_0_STATUS               ;\
+	or	t0, a0, t0                          ;\
+	mtc0	t0, MIPS_COP_0_STATUS               ;\
+	COP0_SYNC                                   ;\
+	beq	s2, zero, 4f                        ;\
+	nop                                         ;\
+	PTR_LA	s0, _C_LABEL(ast)                   ;\
+	jalr	s0                                  ;\
+	PTR_ADDU a0, s3, U_PCB_REGS                 ;\
+	j	44b		                    ;\
+        nop                                         ;\
+4:
+
+#define	SAVE_U_PCB_REG(reg, offs, base) \
+	REG_S	reg, U_PCB_REGS + (SZREG * offs) (base)
+
+#define	RESTORE_U_PCB_REG(reg, offs, base) \
+	REG_L	reg, U_PCB_REGS + (SZREG * offs) (base)
+
+#define	SAVE_U_PCB_FPREG(reg, offs, base) \
+	FP_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
+
+#define	RESTORE_U_PCB_FPREG(reg, offs, base) \
+	FP_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
+
+#define	SAVE_U_PCB_FPSR(reg, offs, base) \
+	REG_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
+
+#define	RESTORE_U_PCB_FPSR(reg, offs, base) \
+	REG_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
+
+#define	SAVE_U_PCB_CONTEXT(reg, offs, base) \
+	REG_S	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
+
+#define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
+	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
+
+#ifndef LOCORE
+#include <machine/frame.h>
+
+/*
+ * MIPS process control block
+ */
+struct pcb
+{
+	struct trapframe pcb_regs;	/* saved CPU and registers */
+	__register_t pcb_context[14];	/* kernel context for resume */
+	void *pcb_onfault;		/* for copyin/copyout faults */
+	register_t pcb_tpc;
+};
 
 #ifdef _KERNEL
 extern struct pcb *curpcb;		/* the current running pcb */
 
 void makectx(struct trapframe *, struct pcb *);
 int savectx(struct pcb *) __returns_twice;
+
+#endif
 #endif
 
 #endif	/* !_MACHINE_PCB_H_ */

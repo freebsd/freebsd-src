@@ -121,19 +121,19 @@ struct mf6cctl {
  * The kernel's multicast routing statistics.
  */
 struct mrt6stat {
-	u_quad_t mrt6s_mfc_lookups;	/* # forw. cache hash table hits   */
-	u_quad_t mrt6s_mfc_misses;	/* # forw. cache hash table misses */
-	u_quad_t mrt6s_upcalls;		/* # calls to multicast routing daemon */
-	u_quad_t mrt6s_no_route;	/* no route for packet's origin    */
-	u_quad_t mrt6s_bad_tunnel;	/* malformed tunnel options        */
-	u_quad_t mrt6s_cant_tunnel;	/* no room for tunnel options      */
-	u_quad_t mrt6s_wrong_if;	/* arrived on wrong interface	   */
-	u_quad_t mrt6s_upq_ovflw;	/* upcall Q overflow		   */
-	u_quad_t mrt6s_cache_cleanups;	/* # entries with no upcalls	   */
-	u_quad_t mrt6s_drop_sel;	/* pkts dropped selectively        */
-	u_quad_t mrt6s_q_overflow;	/* pkts dropped - Q overflow       */
-	u_quad_t mrt6s_pkt2large;	/* pkts dropped - size > BKT SIZE  */
-	u_quad_t mrt6s_upq_sockfull;	/* upcalls dropped - socket full   */
+	uint64_t mrt6s_mfc_lookups;	/* # forw. cache hash table hits   */
+	uint64_t mrt6s_mfc_misses;	/* # forw. cache hash table misses */
+	uint64_t mrt6s_upcalls;		/* # calls to multicast routing daemon */
+	uint64_t mrt6s_no_route;	/* no route for packet's origin    */
+	uint64_t mrt6s_bad_tunnel;	/* malformed tunnel options        */
+	uint64_t mrt6s_cant_tunnel;	/* no room for tunnel options      */
+	uint64_t mrt6s_wrong_if;	/* arrived on wrong interface	   */
+	uint64_t mrt6s_upq_ovflw;	/* upcall Q overflow		   */
+	uint64_t mrt6s_cache_cleanups;	/* # entries with no upcalls	   */
+	uint64_t mrt6s_drop_sel;	/* pkts dropped selectively        */
+	uint64_t mrt6s_q_overflow;	/* pkts dropped - Q overflow       */
+	uint64_t mrt6s_pkt2large;	/* pkts dropped - size > BKT SIZE  */
+	uint64_t mrt6s_upq_sockfull;	/* upcalls dropped - socket full   */
 };
 
 #ifdef MRT6_OINIT
@@ -145,11 +145,6 @@ struct mrt6stat {
 struct omrt6msg {
 	u_long	    unused1;
 	u_char	    im6_msgtype;		/* what type of message	    */
-#if 0
-#define MRT6MSG_NOCACHE	1
-#define MRT6MSG_WRONGMIF	2
-#define MRT6MSG_WHOLEPKT	3		/* used for user level encap*/
-#endif
 	u_char	    im6_mbz;			/* must be zero		    */
 	u_char	    im6_mif;			/* mif rec'd on		    */
 	u_char	    unused2;

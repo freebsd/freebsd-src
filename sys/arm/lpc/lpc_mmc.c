@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -64,9 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/lpc/lpcreg.h>
 #include <arm/lpc/lpcvar.h>
-
-#define	DEBUG
-#undef	DEBUG
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);   \
@@ -170,6 +166,10 @@ static struct lpc_dmac_channel_config lpc_mmc_dma_txconf = {
 static int
 lpc_mmc_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,mmc"))
 		return (ENXIO);
 
@@ -511,14 +511,14 @@ lpc_mmc_setup_xfer(struct lpc_mmc_softc *sc, struct mmc_data *data)
 	if (data->flags & MMC_DATA_READ) {
 		sc->lm_xfer_direction = DIRECTION_READ;
 		lpc_dmac_setup_transfer(sc->lm_dev, LPC_MMC_DMACH_READ,
-		    LPC_SD_BASE + LPC_SD_FIFO, sc->lm_buffer_phys,
+		    LPC_SD_PHYS_BASE + LPC_SD_FIFO, sc->lm_buffer_phys,
 		    data_words, 0);
 	}
 
 	if (data->flags & MMC_DATA_WRITE) {
 		sc->lm_xfer_direction = DIRECTION_WRITE;
 		lpc_dmac_setup_transfer(sc->lm_dev, LPC_MMC_DMACH_WRITE,
-		    sc->lm_buffer_phys, LPC_SD_BASE + LPC_SD_FIFO,
+		    sc->lm_buffer_phys, LPC_SD_PHYS_BASE + LPC_SD_FIFO,
 		    data_words, 0);
 	}
 

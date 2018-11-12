@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_OPTIONS_SUBR" ]; then _MEDIA_OPTIONS_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_OPTIONS_SUBR" ]; then _MEDIA_OPTIONS_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -32,10 +32,10 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/options.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/struct.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/any.subr
 f_include $BSDCFG_SHARE/media/ftp.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -53,9 +53,10 @@ f_media_options_menu()
 	f_dialog_title "$msg_options_editor"
 	local title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 	f_dialog_title_restore
-	local prompt=""
+	local prompt=
+	local menu_list # Calculated below
+	local defaultitem=
 	local hline="$hline_arrows_tab_enter"
-	local menu_list size cp
 
 	#
 	# A hack so that the dialogs below are always interactive in a script
@@ -66,8 +67,9 @@ f_media_options_menu()
 		unset $VAR_NONINTERACTIVE
 	fi
 
+	local cp
 	while :; do
-		menu_list=""
+		menu_list=
 
 		f_getvar $VAR_NFS_SECURE cp
 		if [ "$cp" = "YES" ]; then menu_list="$menu_list
@@ -110,6 +112,15 @@ f_media_options_menu()
 			    '$msg_emit_extra_debugging_output'"
 		fi
 
+		f_getvar $VAR_NO_CONFIRM cp
+		if [ "$cp" ]; then menu_list="$menu_list
+			' $msg_yes_to_all' 'YES'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		else menu_list="$menu_list
+			' $msg_yes_to_all' 'NO'
+			    '$msg_assume_yes_to_all_non_critical_dialogs'"
+		fi
+
 		f_getvar $VAR_TRY_DHCP cp
 		if [ "$cp" = "YES" ]; then menu_list="$menu_list
 			' $msg_dhcp' 'YES'
@@ -146,23 +157,16 @@ f_media_options_menu()
 			device_media get type cp
 			case "$cp" in
 			$DEVICE_TYPE_UFS|$DEVICE_TYPE_DISK)
-				cp="$msg_file_system";;
-			$DEVICE_TYPE_DIRECTORY)
-				cp="$msg_directory";;
-			$DEVICE_TYPE_FLOPPY)
-				cp="$msg_floppy";;
-			$DEVICE_TYPE_FTP)
-				cp="$msg_ftp";;
-			$DEVICE_TYPE_HTTP_PROXY)
-				cp="$msg_http_proxy";;
-			$DEVICE_TYPE_CDROM)
-				cp="$msg_cdrom";;
-			$DEVICE_TYPE_USB)
-				cp="$msg_usb";;
-			$DEVICE_TYPE_DOS)
-				cp="$msg_dos";;
-			$DEVICE_TYPE_NFS)
-				cp="$msg_nfs";;
+				cp="$msg_file_system" ;;
+			$DEVICE_TYPE_DIRECTORY)  cp="$msg_directory"   ;;
+			$DEVICE_TYPE_FLOPPY)     cp="$msg_floppy"      ;;
+			$DEVICE_TYPE_FTP)        cp="$msg_ftp"         ;;
+			$DEVICE_TYPE_HTTP_PROXY) cp="$msg_http_proxy"  ;;
+			$DEVICE_TYPE_HTTP)       cp="$msg_http_direct" ;;
+			$DEVICE_TYPE_CDROM)      cp="$msg_cdrom"       ;;
+			$DEVICE_TYPE_USB)        cp="$msg_usb"         ;;
+			$DEVICE_TYPE_DOS)        cp="$msg_dos"         ;;
+			$DEVICE_TYPE_NFS)        cp="$msg_nfs"         ;;
 			*)
 				cp="<$msg_unknown>"
 			esac
@@ -178,6 +182,11 @@ f_media_options_menu()
 			' $msg_media_timeout' '$cp'
 			    '$msg_timeout_value_in_seconds_for_slow_media'"
 
+		f_getvar $VAR_PKG_TMPDIR cp
+		menu_list="$menu_list
+			' $msg_package_temp' '$cp'
+			    '$msg_directory_where_package_temporary_files_go'"
+
 		menu_list="$menu_list
 			' $msg_rescan_devices' '<*>'
 			    '$msg_rerun_bsdconfig_initial_device_probe'
@@ -185,40 +194,40 @@ f_media_options_menu()
 			    '$msg_reset_all_values_to_startup_defaults'
 		" # END-QUOTE
 
-		size=$( eval f_dialog_menu_with_help_size \
-		        	\"\$title\"  \
-		        	\"\$btitle\" \
-		        	\"\$prompt\" \
-		        	\"\$hline\"  \
-		        	$menu_list   )
+		local height width rows
+		eval f_dialog_menu_with_help_size height width rows \
+		                                  \"\$title\"  \
+		                                  \"\$btitle\" \
+		                                  \"\$prompt\" \
+		                                  \"\$hline\"  \
+		                                  $menu_list
 
-		local dialog_menu
-
-		dialog_menu=$( eval $DIALOG \
-			--title \"\$title\"                  \
-			--backtitle \"\$btitle\"             \
-			--hline \"\$hline\"                  \
-			--item-help                          \
-			--ok-label \"\$msg_ok\"              \
-			--cancel-label \"\$msg_done\"        \
-			--help-button                        \
-			--help-label \"\$msg_help\"          \
-			${USE_XDIALOG:+--help \"\"}          \
-			--menu \"\$prompt\" $size $menu_list \
+		local mtag
+		mtag=$( eval $DIALOG \
+			--title \"\$title\"              \
+			--backtitle \"\$btitle\"         \
+			--hline \"\$hline\"              \
+			--item-help                      \
+			--ok-label \"\$msg_ok\"          \
+			--cancel-label \"\$msg_done\"    \
+			--help-button                    \
+			--help-label \"\$msg_help\"      \
+			--default-item \"\$defaultitem\" \
+			${USE_XDIALOG:+--help \"\"}      \
+			--menu \"\$prompt\"              \
+			$height $width $rows             \
+			$menu_list                       \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
 		local retval=$?
-		setvar DIALOG_MENU_$$ "$dialog_menu"
-
-		local mtag
-		mtag=$( f_dialog_menutag )
+		f_dialog_data_sanitize mtag
+		defaultitem="$mtag"
 		f_dprintf "retval=%s mtag=[%s]" $retval "$mtag"
 
-		if [ $retval -eq 2 ]; then
-			# The Help button was pressed
+		if [ $retval -eq $DIALOG_HELP ]; then
 			f_show_help "$OPTIONS_HELPFILE"
 			continue
-		elif [ $retval -ne 0 ]; then
+		elif [ $retval -ne $DIALOG_OK ]; then
 			break # to success
 		fi
 
@@ -257,6 +266,12 @@ f_media_options_menu()
 			else
 				export $VAR_DEBUG=1
 			fi ;;
+		" $msg_yes_to_all")
+			if f_getvar $VAR_NO_CONFIRM cp && [ "$cp" ]; then
+				unset $VAR_NO_CONFIRM
+			else
+				export $VAR_NO_CONFIRM=1
+			fi ;;
 		" $msg_dhcp")
 			f_getvar $VAR_TRY_DHCP cp
 			if [ "$cp" = "YES" ]; then
@@ -286,6 +301,10 @@ f_media_options_menu()
 		" $msg_media_timeout")
 			f_variable_get_value $VAR_MEDIA_TIMEOUT \
 			    "$msg_please_specify_the_number_of_seconds_to_wait"
+			;;
+		" $msg_package_temp")
+			f_variable_get_value $VAR_PKG_TMPDIR \
+			    "$msg_please_specify_a_temporary_directory"
 			;;
 		" $msg_rescan_devices")
 			f_device_rescan ;;

@@ -503,11 +503,13 @@ pmcstat_show_usage(void)
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
+	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
 	    "\t -d\t\t (toggle) track descendants\n"
 	    "\t -f spec\t pass \"spec\" to as plugin option\n"
 	    "\t -g\t\t produce gprof(1) compatible profiles\n"
 	    "\t -k dir\t\t set the path to the kernel\n"
+	    "\t -l secs\t set duration time\n"
 	    "\t -m file\t print sampled PCs to \"file\"\n"
 	    "\t -n rate\t set sampling rate\n"
 	    "\t -o file\t send print output to \"file\"\n"
@@ -550,6 +552,7 @@ main(int argc, char **argv)
 {
 	cpuset_t cpumask;
 	double interval;
+	double duration;
 	int hcpu, option, npmc, ncpu;
 	int c, check_driver_stats, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
@@ -599,6 +602,7 @@ main(int argc, char **argv)
 	args.pa_toptty		= 0;
 	args.pa_topcolor	= 0;
 	args.pa_mergepmc	= 0;
+	args.pa_duration	= 0.0;
 	STAILQ_INIT(&args.pa_events);
 	SLIST_INIT(&args.pa_targets);
 	bzero(&ds_start, sizeof(ds_start));
@@ -617,8 +621,14 @@ main(int argc, char **argv)
 		CPU_SET(hcpu, &cpumask);
 
 	while ((option = getopt(argc, argv,
-	    "CD:EF:G:M:NO:P:R:S:TWc:df:gk:m:n:o:p:qr:s:t:vw:z:")) != -1)
+	    "CD:EF:G:M:NO:P:R:S:TWa:c:df:gk:l:m:n:o:p:qr:s:t:vw:z:")) != -1)
 		switch (option) {
+		case 'a':	/* Annotate + callgraph */
+			args.pa_flags |= FLAG_DO_ANNOTATE;
+			args.pa_plugin = PMCSTAT_PL_ANNOTATE_CG;
+			graphfilename  = optarg;
+			break;
+
 		case 'C':	/* cumulative values */
 			use_cumulative_counts = !use_cumulative_counts;
 			args.pa_required |= FLAG_HAS_COUNTING_PMCS;
@@ -683,6 +693,15 @@ main(int argc, char **argv)
 			args.pa_kernel = strdup(optarg);
 			args.pa_required |= FLAG_DO_ANALYSIS;
 			args.pa_flags    |= FLAG_HAS_KERNELPATH;
+			break;
+
+		case 'l':	/* time duration in seconds */
+			duration = strtod(optarg, &end);
+			if (*end != '\0' || duration <= 0)
+				errx(EX_USAGE, "ERROR: Illegal duration time "
+				    "value \"%s\".", optarg);
+			args.pa_flags |= FLAG_HAS_DURATION;
+			args.pa_duration = duration;
 			break;
 
 		case 'm':
@@ -915,9 +934,16 @@ main(int argc, char **argv)
 		errx(EX_USAGE,
 		    "ERROR: options -O and -R are mutually exclusive.");
 
+	/* disallow -T and -l together */
+	if ((args.pa_flags & FLAG_HAS_DURATION) &&
+	    (args.pa_flags & FLAG_DO_TOP))
+		errx(EX_USAGE, "ERROR: options -T and -l are mutually "
+		    "exclusive.");
+
 	/* -m option is allowed with -R only. */
 	if (args.pa_flags & FLAG_DO_ANNOTATE && args.pa_inputpath == NULL)
-		errx(EX_USAGE, "ERROR: option -m requires an input file");
+		errx(EX_USAGE, "ERROR: option %s requires an input file",
+		    args.pa_plugin == PMCSTAT_PL_ANNOTATE ? "-m" : "-a");
 
 	/* -m option is not allowed combined with -g or -G. */
 	if (args.pa_flags & FLAG_DO_ANNOTATE &&
@@ -1271,6 +1297,20 @@ main(int argc, char **argv)
 			    "ERROR: Cannot register kevent for timer");
 	}
 
+	/*
+	 * Setup a duration timer if we have sampling mode PMCs and
+	 * a duration time is set
+	 */
+	if ((args.pa_flags & FLAG_HAS_SAMPLING_PMCS) &&
+	    (args.pa_flags & FLAG_HAS_DURATION)) {
+		EV_SET(&kev, 0, EVFILT_TIMER, EV_ADD, 0,
+		    args.pa_duration * 1000, NULL);
+
+		if (kevent(pmcstat_kq, &kev, 1, NULL, 0, NULL) < 0)
+			err(EX_OSERR, "ERROR: Cannot register kevent for "
+			    "time duration");
+	}
+
 	/* attach PMCs to the target process, starting it if specified */
 	if (args.pa_flags & FLAG_HAS_COMMANDLINE)
 		pmcstat_create_process();
@@ -1347,7 +1387,7 @@ main(int argc, char **argv)
 
 	/*
 	 * loop till either the target process (if any) exits, or we
-	 * are killed by a SIGINT.
+	 * are killed by a SIGINT or we reached the time duration.
 	 */
 	runstate = PMCSTAT_RUNNING;
 	do_print = do_read = 0;
@@ -1414,7 +1454,13 @@ main(int argc, char **argv)
 
 			break;
 
-		case EVFILT_TIMER: /* print out counting PMCs */
+		case EVFILT_TIMER:
+			/* time duration reached, exit */
+			if (args.pa_flags & FLAG_HAS_DURATION) {
+				runstate = PMCSTAT_FINISHED;
+				break;
+			}
+			/* print out counting PMCs */
 			if ((args.pa_flags & FLAG_DO_TOP) &&
 			     pmc_flush_logfile() == 0)
 				do_read = 1;

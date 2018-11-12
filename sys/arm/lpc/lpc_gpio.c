@@ -76,10 +76,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/resource.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 #include <machine/fdt.h>
 
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 struct lpc_gpio_softc
 {
 	device_t		lg_dev;
+	device_t		lg_busdev;
 	struct resource *	lg_res;
 	bus_space_tag_t		lg_bst;
 	bus_space_handle_t	lg_bsh;
@@ -136,6 +137,7 @@ static int lpc_gpio_probe(device_t);
 static int lpc_gpio_attach(device_t);
 static int lpc_gpio_detach(device_t);
 
+static device_t lpc_gpio_get_bus(device_t);
 static int lpc_gpio_pin_max(device_t, int *);
 static int lpc_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int lpc_gpio_pin_getflags(device_t, uint32_t, uint32_t *);
@@ -161,6 +163,10 @@ static struct lpc_gpio_softc *lpc_gpio_sc = NULL;
 static int
 lpc_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,gpio"))
 		return (ENXIO);
 
@@ -189,16 +195,29 @@ lpc_gpio_attach(device_t dev)
 
 	lpc_gpio_sc = sc;
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	sc->lg_busdev = gpiobus_attach_bus(dev);
+	if (sc->lg_busdev == NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->lg_res);
+		return (ENXIO);
+	}
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
 lpc_gpio_detach(device_t dev)
 {
 	return (EBUSY);
+}
+
+static device_t
+lpc_gpio_get_bus(device_t dev)
+{
+	struct lpc_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->lg_busdev);
 }
 
 static int
@@ -501,14 +520,20 @@ lpc_gpio_get_state(device_t dev, int pin, int *state)
 }
 
 void
-platform_gpio_init()
+lpc_gpio_init()
 {
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+
+	bst = fdtbus_bs_tag;
+
 	/* Preset SPI devices CS pins to one */
-	bus_space_write_4(fdtbus_bs_tag, 
-	    LPC_GPIO_BASE, LPC_GPIO_P3_OUTP_SET,
+	bus_space_map(bst, LPC_GPIO_PHYS_BASE, LPC_GPIO_SIZE, 0, &bsh);
+	bus_space_write_4(bst, bsh, LPC_GPIO_P3_OUTP_SET,
 	    1 << (SSD1289_CS_PIN - LPC_GPIO_GPO_00(0)) |
 	    1 << (SSD1289_DC_PIN - LPC_GPIO_GPO_00(0)) |
 	    1 << (ADS7846_CS_PIN - LPC_GPIO_GPO_00(0)));	
+	bus_space_unmap(bst, bsh, LPC_GPIO_SIZE);
 }
 
 static device_method_t lpc_gpio_methods[] = {
@@ -518,6 +543,7 @@ static device_method_t lpc_gpio_methods[] = {
 	DEVMETHOD(device_detach,	lpc_gpio_detach),
 
 	/* GPIO interface */
+	DEVMETHOD(gpio_get_bus,		lpc_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		lpc_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getcaps,	lpc_gpio_pin_getcaps),
 	DEVMETHOD(gpio_pin_getflags,	lpc_gpio_pin_getflags),

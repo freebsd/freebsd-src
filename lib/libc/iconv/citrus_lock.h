@@ -27,9 +27,7 @@
 
 #include <pthread.h>
 
-static pthread_rwlock_t	lock;
-
-#define WLOCK	if (__isthreaded)		\
-		    pthread_rwlock_wrlock(&lock);
-#define UNLOCK	if (__isthreaded)		\
-		    pthread_rwlock_unlock(&lock);
+#define WLOCK(lock)	if (__isthreaded)		\
+			    pthread_rwlock_wrlock(lock);
+#define UNLOCK(lock)	if (__isthreaded)		\
+			    pthread_rwlock_unlock(lock);

@@ -159,8 +159,8 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
 
-#define WDSTOPHYS(wp, a)	( ((u_long)a) - ((u_long)wp->dx) + ((u_long)wp->dx_p) )
-#define WDSTOVIRT(wp, a)	( ((char *)a) - ((char*)wp->dx_p) + ((char *)wp->dx) )
+#define WDSTOPHYS(wp, a)	( ((uintptr_t)a) - ((uintptr_t)wp->dx) + (wp->dx_p) )
+#define WDSTOVIRT(wp, a)	( ((a) - (wp->dx_p)) + ((char *)wp->dx) )
 
 /* 0x10000 (64k) should be enough. But just to be sure... */
 #define BUFSIZ 		0x12000
@@ -298,8 +298,8 @@ struct wdsdx {
 
 struct wds {
 	device_t	 dev;
+	struct mtx	 lock;
 	int		 unit;
-	int		 addr;
 	int		 drq;
 	struct cam_sim	*sim;	/* SIM descriptor for this card */
 	struct cam_path	*path;	/* wildcard path for this card */
@@ -307,7 +307,7 @@ struct wds {
 	u_int32_t	 data_free;
 	u_int32_t	 wdsr_free;
 	struct wdsdx	*dx;
-	struct wdsdx	*dx_p; /* physical address */
+	bus_addr_t	 dx_p; /* physical address */
 	struct resource	*port_r;
 	int		 port_rid;
 	struct resource	*drq_r;
@@ -323,7 +323,8 @@ struct wds {
 
 static int      wds_probe(device_t dev);
 static int      wds_attach(device_t dev);
-static void     wds_intr(struct wds *wp);
+static void     wds_intr(void *arg);
+static void     wds_intr_locked(struct wds *wp);
 
 static void     wds_action(struct cam_sim * sim, union ccb * ccb);
 static void     wds_poll(struct cam_sim * sim);
@@ -345,8 +346,8 @@ static void     wds_done(struct wds *wp, struct wds_req *r, u_int8_t stat);
 static int      wds_runsense(struct wds *wp, struct wds_req *r);
 static int      wds_getvers(struct wds *wp);
 
-static int      wds_cmd(int base, u_int8_t * p, int l);
-static void     wds_wait(int reg, int mask, int val);
+static int      wds_cmd(struct wds *wp, u_int8_t * p, int l);
+static void     wds_wait(struct wds *wp, int reg, int mask, int val);
 
 static struct wds_req *cmdtovirt(struct wds *wp, u_int32_t phys);
 
@@ -455,6 +456,7 @@ static int
 wds_probe(device_t dev)
 {
 	struct	wds *wp;
+	unsigned long addr;
 	int	error = 0;
 	int	irq;
 
@@ -466,14 +468,13 @@ wds_probe(device_t dev)
 	wp->unit = device_get_unit(dev);
 	wp->dev = dev;
 
-	wp->addr = bus_get_resource_start(dev, SYS_RES_IOPORT, 0 /*rid*/);
-	if (wp->addr == 0 || wp->addr <0x300
-	 || wp->addr > 0x3f8 || wp->addr & 0x7) {
-		device_printf(dev, "invalid port address 0x%x\n", wp->addr);
+	addr = bus_get_resource_start(dev, SYS_RES_IOPORT, 0 /*rid*/);
+	if (addr == 0 || addr <0x300 || addr > 0x3f8 || addr & 0x7) {
+		device_printf(dev, "invalid port address 0x%lx\n", addr);
 		return (ENXIO);
 	}
 
-	if (bus_set_resource(dev, SYS_RES_IOPORT, 0, wp->addr, WDS_NPORTS) < 0)
+	if (bus_set_resource(dev, SYS_RES_IOPORT, 0, addr, WDS_NPORTS) < 0)
 		return (ENXIO);
 
 	/* get the DRQ */
@@ -491,9 +492,8 @@ wds_probe(device_t dev)
 	}
 
 	wp->port_rid = 0;
-	wp->port_r = bus_alloc_resource(dev, SYS_RES_IOPORT,  &wp->port_rid,
-				        /*start*/ 0, /*end*/ ~0,
-					/*count*/ 0, RF_ACTIVE);
+	wp->port_r = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &wp->port_rid,
+	    RF_ACTIVE);
 	if (wp->port_r == NULL)
 		return (ENXIO);
 
@@ -519,32 +519,29 @@ wds_attach(device_t dev)
 	int	error = 0;
 
 	wp = (struct wds *)device_get_softc(dev);
+	mtx_init(&wp->lock, "wds", NULL, MTX_DEF);
 
 	wp->port_rid = 0;
-	wp->port_r = bus_alloc_resource(dev, SYS_RES_IOPORT,  &wp->port_rid,
-					/*start*/ 0, /*end*/ ~0,
-					/*count*/ 0, RF_ACTIVE);
+	wp->port_r = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &wp->port_rid,
+	    RF_ACTIVE);
 	if (wp->port_r == NULL)
-		return (ENXIO);
+		goto bad;
 
 	/* We must now release resources on error. */
 
 	wp->drq_rid = 0;
-	wp->drq_r = bus_alloc_resource(dev, SYS_RES_DRQ,  &wp->drq_rid,
-				       /*start*/ 0, /*end*/ ~0,
-				       /*count*/ 0, RF_ACTIVE);
+	wp->drq_r = bus_alloc_resource_any(dev, SYS_RES_DRQ, &wp->drq_rid,
+	    RF_ACTIVE);
 	if (wp->drq_r == NULL)
 		goto bad;
 
 	wp->intr_rid = 0;
-	wp->intr_r = bus_alloc_resource(dev, SYS_RES_IRQ,  &wp->intr_rid,
-					/*start*/ 0, /*end*/ ~0,
-					/*count*/ 0, RF_ACTIVE);
+	wp->intr_r = bus_alloc_resource_any(dev, SYS_RES_IRQ, &wp->intr_rid,
+	    RF_ACTIVE);
 	if (wp->intr_r == NULL)
 		goto bad;
-	error = bus_setup_intr(dev, wp->intr_r, INTR_TYPE_CAM | INTR_ENTROPY,
-			       NULL, (driver_intr_t *)wds_intr, (void *)wp,
-			       &wp->intr_cookie);
+	error = bus_setup_intr(dev, wp->intr_r, INTR_TYPE_CAM | INTR_ENTROPY |
+	    INTR_MPSAFE, NULL, wds_intr, wp, &wp->intr_cookie);
 	if (error)
 		goto bad;
 
@@ -557,8 +554,8 @@ wds_attach(device_t dev)
 				   /*maxsize*/ sizeof(* wp->dx),
 				   /*nsegments*/ 1,
 				   /*maxsegsz*/ sizeof(* wp->dx), /*flags*/ 0,
-				   /*lockfunc*/busdma_lock_mutex,
-				   /*lockarg*/&Giant,
+				   /*lockfunc*/NULL,
+				   /*lockarg*/NULL,
 				   &wp->bustag);
 	if (error)
 		goto bad;
@@ -607,15 +604,17 @@ wds_attach(device_t dev)
 		goto bad;
 
 	sim = cam_sim_alloc(wds_action, wds_poll, "wds", (void *) wp,
-			    wp->unit, &Giant, 1, 1, devq);
+			    wp->unit, &wp->lock, 1, 1, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		goto bad;
 	}
 	wp->sim = sim;
 
+	mtx_lock(&wp->lock);
 	if (xpt_bus_register(sim, dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(sim, /* free_devq */ TRUE);
+		mtx_unlock(&wp->lock);
 		goto bad;
 	}
 	if (xpt_create_path(&pathp, /* periph */ NULL,
@@ -623,14 +622,17 @@ wds_attach(device_t dev)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(sim));
 		cam_sim_free(sim, /* free_devq */ TRUE);
+		mtx_unlock(&wp->lock);
 		goto bad;
 	}
+	mtx_unlock(&wp->lock);
 	wp->path = pathp;
 
 	return (0);
 
 bad:
 	wds_free_resources(wp);
+	mtx_destroy(&wp->lock);
 	if (error)  
 		return (error);
 	else /* exact error is unknown */
@@ -759,19 +761,29 @@ wdsr_alloc(struct wds *wp)
 }
 
 static void
-wds_intr(struct wds *wp)
+wds_intr(void *arg)
+{
+	struct wds *wp;
+
+	wp = arg;
+	mtx_lock(&wp->lock);
+	wds_intr_locked(wp);
+	mtx_unlock(&wp->lock);
+}
+
+static void
+wds_intr_locked(struct wds *wp)
 {
 	struct	 wds_req *rp;
 	struct	 wds_mb *in;
 	u_int8_t stat;
 	u_int8_t c;
-	int	 addr = wp->addr;
 
 	DBG(DBX "wds%d: interrupt [\n", wp->unit);
 	smallog('[');
 
-	if (inb(addr + WDS_STAT) & WDS_IRQ) {
-		c = inb(addr + WDS_IRQSTAT);
+	if (bus_read_1(wp->port_r, WDS_STAT) & WDS_IRQ) {
+		c = bus_read_1(wp->port_r, WDS_IRQSTAT);
 		if ((c & WDSI_MASK) == WDSI_MSVC) {
 			c = c & ~WDSI_MASK;
 			in = &wp->dx->imbs[c];
@@ -790,7 +802,7 @@ wds_intr(struct wds *wp)
 		} else
 			device_printf(wp->dev,
 				      "weird interrupt, irqstat=0x%x\n", c);
-		outb(addr + WDS_IRQACK, 0);
+		bus_write_1(wp->port_r, WDS_IRQACK, 0);
 	} else {
 		smallog('?');
 	}
@@ -934,12 +946,12 @@ wds_runsense(struct wds *wp, struct wds_req *r)
 	scsi_ulto3b(sizeof(struct scsi_sense_data), r->cmd.len);
 	r->cmd.write = 0x80;
 
-	outb(wp->addr + WDS_HCR, WDSH_IRQEN | WDSH_DRQEN);
+	bus_write_1(wp->port_r, WDS_HCR, WDSH_IRQEN | WDSH_DRQEN);
 
 	wp->dx->ombs[r->ombn].stat = 1;
 	c = WDSC_MSTART(r->ombn);
 
-	if (wds_cmd(wp->addr, &c, sizeof c) != 0) {
+	if (wds_cmd(wp, &c, sizeof c) != 0) {
 		device_printf(wp->dev, "unable to start outgoing sense mbox\n");
 		wp->dx->ombs[r->ombn].stat = 0;
 		wdsr_ccb_done(wp, r, r->ccb, CAM_AUTOSENSE_FAIL);
@@ -958,11 +970,8 @@ static int
 wds_getvers(struct wds *wp)
 {
 	struct	 wds_req *r;
-	int	 base;
 	u_int8_t c;
 	int	 i;
-
-	base = wp->addr;
 
 	r = wdsr_alloc(wp);
 	if (!r) {
@@ -978,10 +987,10 @@ wds_getvers(struct wds *wp)
 	bzero(&r->cmd, sizeof r->cmd);
 	r->cmd.cmd = WDSX_GETFIRMREV;
 
-	outb(base + WDS_HCR, WDSH_DRQEN);
+	bus_write_1(wp->port_r, WDS_HCR, WDSH_DRQEN);
 
 	c = WDSC_MSTART(r->ombn);
-	if (wds_cmd(base, (u_int8_t *) & c, sizeof c)) {
+	if (wds_cmd(wp, (u_int8_t *) & c, sizeof c)) {
 		device_printf(wp->dev, "version request failed\n");
 		wp->wdsr_free |= (1 << r->id);
 		wp->dx->ombs[r->ombn].stat = 0;
@@ -989,14 +998,14 @@ wds_getvers(struct wds *wp)
 	}
 	while (1) {
 		i = 0;
-		while ((inb(base + WDS_STAT) & WDS_IRQ) == 0) {
+		while ((bus_read_1(wp->port_r, WDS_STAT) & WDS_IRQ) == 0) {
 			DELAY(9000);
 			if (++i == 100) {
 				device_printf(wp->dev, "getvers timeout\n");
 				return (-1);
 			}
 		}
-		wds_intr(wp);
+		wds_intr_locked(wp);
 		if (r->flags & WR_DONE) {
 			device_printf(wp->dev, "firmware version %d.%02d\n",
 			       r->cmd.targ, r->cmd.scb[0]);
@@ -1016,9 +1025,8 @@ wdsr_ccb_done(struct wds *wp, struct wds_req *r,
 		/* To implement timeouts we would need to know how to abort the
 		 * command on controller, and this is a great mystery.
 		 * So for now we just pass the responsibility for timeouts
-		 * to the controlles itself, it does that reasonably good.
+		 * to the controller itself, it does that reasonably good.
 		 */
-		/* untimeout(_timeout, (caddr_t) hcb, ccb->ccb_h.timeout_ch); */
 		/* we're about to free a hcb, so the shortage has ended */
 		frag_free(wp, r->mask);
 		if (wp->want_wdsr && status != CAM_REQUEUE_REQ) {
@@ -1040,7 +1048,6 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 	struct	 wds *wp;
 	struct	 ccb_hdr *ccb_h;
 	struct	 wds_req *r;
-	int	 base;
 	u_int8_t c;
 	int	 error;
 	int	 n;
@@ -1048,8 +1055,8 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 	wp = (struct wds *)cam_sim_softc(sim);
 	ccb_h = &csio->ccb_h;
 
-	DBG(DBX "wds%d: cmd TARG=%d LUN=%d\n", unit, ccb_h->target_id,
-	    ccb_h->target_lun);
+	DBG(DBX "wds%d: cmd TARG=%d LUN=%jx\n", unit, ccb_h->target_id,
+	    (uintmax_t)ccb_h->target_lun);
 
 	if (ccb_h->target_id > 7 || ccb_h->target_id == WDS_HBA_ID) {
 		ccb_h->status = CAM_TID_INVALID;
@@ -1072,7 +1079,6 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 		xpt_done((union ccb *) csio);
 		return;
 	}
-	base = wp->addr;
 
 	/*
 	 * this check is mostly for debugging purposes,
@@ -1150,11 +1156,11 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 
 	scsi_ulto3b(0, r->cmd.next);
 
-	outb(base + WDS_HCR, WDSH_IRQEN | WDSH_DRQEN);
+	bus_write_1(wp->port_r, WDS_HCR, WDSH_IRQEN | WDSH_DRQEN);
 
 	c = WDSC_MSTART(r->ombn);
 
-	if (wds_cmd(base, &c, sizeof c) != 0) {
+	if (wds_cmd(wp, &c, sizeof c) != 0) {
 		device_printf(wp->dev, "unable to start outgoing mbox\n");
 		wp->dx->ombs[r->ombn].stat = 0;
 		wdsr_ccb_done(wp, r, r->ccb, CAM_RESRC_UNAVAIL);
@@ -1170,16 +1176,13 @@ static void
 wds_action(struct cam_sim * sim, union ccb * ccb)
 {
 	int	unit = cam_sim_unit(sim);
-	int	s;
 
 	DBG(DBX "wds%d: action 0x%x\n", unit, ccb->ccb_h.func_code);
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
-		s = splcam();
 		DBG(DBX "wds%d: SCSI IO entered\n", unit);
 		wds_scsi_io(sim, &ccb->csio);
 		DBG(DBX "wds%d: SCSI IO returned\n", unit);
-		splx(s);
 		break;
 	case XPT_RESET_BUS:
 		/* how to do it right ? */
@@ -1242,7 +1245,7 @@ wds_action(struct cam_sim * sim, union ccb * ccb)
 static void
 wds_poll(struct cam_sim * sim)
 {
-	wds_intr((struct wds *)cam_sim_softc(sim));
+	wds_intr_locked(cam_sim_softc(sim));
 }
 
 /* part of initialization done in probe() */
@@ -1251,32 +1254,29 @@ wds_poll(struct cam_sim * sim)
 static int
 wds_preinit(struct wds *wp)
 {
-	int	base;
 	int	i;
-
-	base = wp->addr;
 
 	/*
 	 * Sending a command causes the CMDRDY bit to clear.
 	 */
-	outb(base + WDS_CMD, WDSC_NOOP);
-	if (inb(base + WDS_STAT) & WDS_RDY)
+	bus_write_1(wp->port_r, WDS_CMD, WDSC_NOOP);
+	if (bus_read_1(wp->port_r, WDS_STAT) & WDS_RDY)
 		return (ENXIO);
 
 	/*
 	 * the controller exists. reset and init.
 	 */
-	outb(base + WDS_HCR, WDSH_ASCRESET | WDSH_SCSIRESET);
+	bus_write_1(wp->port_r, WDS_HCR, WDSH_ASCRESET | WDSH_SCSIRESET);
 	DELAY(30);
-	outb(base + WDS_HCR, 0);
+	bus_write_1(wp->port_r, WDS_HCR, 0);
 
-	if ((inb(base + WDS_STAT) & (WDS_RDY)) != WDS_RDY) {
+	if ((bus_read_1(wp->port_r, WDS_STAT) & (WDS_RDY)) != WDS_RDY) {
 		for (i = 0; i < 10; i++) {
-			if ((inb(base + WDS_STAT) & (WDS_RDY)) == WDS_RDY)
+			if ((bus_read_1(wp->port_r, WDS_STAT) & (WDS_RDY)) == WDS_RDY)
 				break;
 			DELAY(40000);
 		}
-		if ((inb(base + WDS_STAT) & (WDS_RDY)) != WDS_RDY)
+		if ((bus_read_1(wp->port_r, WDS_STAT) & (WDS_RDY)) != WDS_RDY)
 			/* probe timeout */
 			return (ENXIO);
 	}
@@ -1291,23 +1291,20 @@ static int
 wds_init(struct wds *wp)
 {
 	struct	wds_setup init;
-	int	base;
 	int	i;
 	struct	wds_cmd  wc;
 
-	base = wp->addr;
-
-	outb(base + WDS_HCR, WDSH_DRQEN);
+	bus_write_1(wp->port_r, WDS_HCR, WDSH_DRQEN);
 
 	isa_dmacascade(wp->drq);
 
-	if ((inb(base + WDS_STAT) & (WDS_RDY)) != WDS_RDY) {
+	if ((bus_read_1(wp->port_r, WDS_STAT) & (WDS_RDY)) != WDS_RDY) {
 		for (i = 0; i < 10; i++) {
-			if ((inb(base + WDS_STAT) & (WDS_RDY)) == WDS_RDY)
+			if ((bus_read_1(wp->port_r, WDS_STAT) & (WDS_RDY)) == WDS_RDY)
 				break;
 			DELAY(40000);
 		}
-		if ((inb(base + WDS_STAT) & (WDS_RDY)) != WDS_RDY)
+		if ((bus_read_1(wp->port_r, WDS_STAT) & (WDS_RDY)) != WDS_RDY)
 			/* probe timeout */
 			return (1);
 	}
@@ -1321,18 +1318,18 @@ wds_init(struct wds *wp)
 	init.nomb = WDS_NOMB;
 	init.nimb = WDS_NIMB;
 
-	wds_wait(base + WDS_STAT, WDS_RDY, WDS_RDY);
-	if (wds_cmd(base, (u_int8_t *) & init, sizeof init) != 0) {
+	wds_wait(wp, WDS_STAT, WDS_RDY, WDS_RDY);
+	if (wds_cmd(wp, (u_int8_t *) & init, sizeof init) != 0) {
 		device_printf(wp->dev, "wds_cmd init failed\n");
 		return (1);
 	}
-	wds_wait(base + WDS_STAT, WDS_INIT, WDS_INIT);
+	wds_wait(wp, WDS_STAT, WDS_INIT, WDS_INIT);
 
-	wds_wait(base + WDS_STAT, WDS_RDY, WDS_RDY);
+	wds_wait(wp, WDS_STAT, WDS_RDY, WDS_RDY);
 
 	bzero(&wc, sizeof wc);
 	wc.cmd = WDSC_DISUNSOL;
-	if (wds_cmd(base, (char *) &wc, sizeof wc) != 0) {
+	if (wds_cmd(wp, (char *) &wc, sizeof wc) != 0) {
 		device_printf(wp->dev, "wds_cmd init2 failed\n");
 		return (1);
 	}
@@ -1340,29 +1337,26 @@ wds_init(struct wds *wp)
 }
 
 static int
-wds_cmd(int base, u_int8_t * p, int l)
+wds_cmd(struct wds *wp, u_int8_t * p, int l)
 {
-	int	s = splcam();
 
 	while (l--) {
 		do {
-			outb(base + WDS_CMD, *p);
-			wds_wait(base + WDS_STAT, WDS_RDY, WDS_RDY);
-		} while (inb(base + WDS_STAT) & WDS_REJ);
+			bus_write_1(wp->port_r, WDS_CMD, *p);
+			wds_wait(wp, WDS_STAT, WDS_RDY, WDS_RDY);
+		} while (bus_read_1(wp->port_r, WDS_STAT) & WDS_REJ);
 		p++;
 	}
 
-	wds_wait(base + WDS_STAT, WDS_RDY, WDS_RDY);
-
-	splx(s);
+	wds_wait(wp, WDS_STAT, WDS_RDY, WDS_RDY);
 
 	return (0);
 }
 
 static void
-wds_wait(int reg, int mask, int val)
+wds_wait(struct wds *wp, int reg, int mask, int val)
 {
-	while ((inb(reg) & mask) != val)
+	while ((bus_read_1(wp->port_r, reg) & mask) != val)
 		;
 }
 
@@ -1394,9 +1388,9 @@ wds_print(void)
 		if (wp == NULL)
 			continue;
 		printf("wds%d: want_wdsr=0x%x stat=0x%x irq=%s irqstat=0x%x\n",
-		       unit, wp->want_wdsr, inb(wp->addr + WDS_STAT) & 0xff,
-		       (inb(wp->addr + WDS_STAT) & WDS_IRQ) ? "ready" : "no",
-		       inb(wp->addr + WDS_IRQSTAT) & 0xff);
+		       unit, wp->want_wdsr, bus_read_1(wp->port_r, WDS_STAT) & 0xff,
+		       (bus_read_1(wp->port_r, WDS_STAT) & WDS_IRQ) ? "ready" : "no",
+		       bus_read_1(wp->port_r, WDS_IRQSTAT) & 0xff);
 		for (i = 0; i < MAXSIMUL; i++) {
 			r = &wp->dx->req[i];
 			if( wp->wdsr_free & (1 << r->id) ) {

@@ -59,7 +59,7 @@ extern char	command_errbuf[];	/* XXX blah, length */
 #define CMD_ERROR	1
 
 /* interp.c */
-void	interact(void);
+void	interact(const char *rc);
 int	include(const char *filename);
 
 /* interp_backslash.c */
@@ -69,7 +69,7 @@ char	*backslash(char *str);
 int	parse(int *argc, char ***argv, char *str);
 
 /* interp_forth.c */
-void	bf_init(void);
+void	bf_init(const char *rc);
 int	bf_run(char *line);
 
 /* boot.c */
@@ -229,10 +229,12 @@ extern struct preloaded_file	*preloaded_files;
 
 int			mod_load(char *name, struct mod_depend *verinfo, int argc, char *argv[]);
 int			mod_loadkld(const char *name, int argc, char *argv[]);
+void			unload(void);
 
 struct preloaded_file *file_alloc(void);
-struct preloaded_file *file_findfile(char *name, char *type);
+struct preloaded_file *file_findfile(const char *name, const char *type);
 struct file_metadata *file_findmetadata(struct preloaded_file *fp, int type);
+struct preloaded_file *file_loadraw(char *name, char *type, int insert);
 void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p);
 int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
@@ -256,6 +258,9 @@ int	__elfN(obj_loadfile)(char *filename, u_int64_t dest,
 int	__elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr,
 	    const void *reldata, int reltype, Elf_Addr relbase,
 	    Elf_Addr dataaddr, void *data, size_t len);
+int __elfN(loadfile_raw)(char *filename, u_int64_t dest,
+	    struct preloaded_file **result, int multiboot);
+int __elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest);
 #endif
 
 /*

@@ -36,8 +36,11 @@
 
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/fs.h>
+#include <linux/printk.h>
 
 #include <rdma/ib_mad.h>
+#include <rdma/ib_pma.h>
 
 struct ib_port {
 	struct kobject         kobj;
@@ -178,19 +181,18 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 {
 	struct ib_port_attr attr;
 	char *speed = "";
-	int rate;
+	int rate;		/* in deci-Gb/sec */
 	ssize_t ret;
 
 	ret = ib_query_port(p->ibdev, p->port_num, &attr);
 	if (ret)
 		return ret;
 
-	switch (attr.active_speed) {
-	case 2: speed = " DDR"; break;
-	case 4: speed = " QDR"; break;
-	}
+	ib_active_speed_enum_to_rate(attr.active_speed,
+				     &rate,
+				     &speed);
 
-	rate = 25 * ib_width_enum_to_int(attr.active_width) * attr.active_speed;
+	rate *= ib_width_enum_to_int(attr.active_width);
 	if (rate < 0)
 		return -EINVAL;
 
@@ -227,9 +229,11 @@ static ssize_t link_layer_show(struct ib_port *p, struct port_attribute *unused,
 {
 	switch (rdma_port_get_link_layer(p->ibdev, p->port_num)) {
 	case IB_LINK_LAYER_INFINIBAND:
-		return sprintf(buf, "%s\n", "IB");
+		return sprintf(buf, "%s\n", "InfiniBand");
 	case IB_LINK_LAYER_ETHERNET:
 		return sprintf(buf, "%s\n", "Ethernet");
+	case IB_LINK_LAYER_SCIF:
+		return sprintf(buf, "%s\n", "SCIF");
 	default:
 		return sprintf(buf, "%s\n", "Unknown");
 	}
@@ -265,16 +269,12 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		container_of(attr, struct port_table_attribute, attr);
 	union ib_gid gid;
 	ssize_t ret;
-	u16 *raw;
 
 	ret = ib_query_gid(p->ibdev, p->port_num, tab_attr->index, &gid);
 	if (ret)
 		return ret;
 
-	raw = (u16 *)gid.raw;
-	return sprintf(buf, "%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x:%.4x\n",
-	    htons(raw[0]), htons(raw[1]), htons(raw[2]), htons(raw[3]),
-	    htons(raw[4]), htons(raw[5]), htons(raw[6]), htons(raw[7]));
+	return sprintf(buf, GID_PRINT_FMT"\n",GID_PRINT_ARGS(gid.raw));
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
@@ -292,123 +292,167 @@ static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
 	return sprintf(buf, "0x%04x\n", pkey);
 }
 
-#define PORT_PMA_ATTR(_name, _counter, _width, _offset)			\
-struct port_table_attribute port_pma_attr_##_name = {			\
-	.attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),	\
-	.index = (_offset) | ((_width) << 16) | ((_counter) << 24)	\
+static ssize_t get_pma_counters(struct ib_port *p, struct port_attribute *attr,
+                                char *buf, int c_ext)
+{
+        struct port_table_attribute *tab_attr =
+                container_of(attr, struct port_table_attribute, attr);
+        int offset = tab_attr->index & 0xffff;
+        int width  = (tab_attr->index >> 16) & 0xff;
+        struct ib_mad *in_mad  = NULL;
+        struct ib_mad *out_mad = NULL;
+        ssize_t ret;
+
+        if (!p->ibdev->process_mad)
+                return -ENXIO;
+
+        in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
+        out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+        if (!in_mad || !out_mad) {
+                ret = -ENOMEM;
+                goto out;
+        }
+
+        in_mad->mad_hdr.base_version  = 1;
+        in_mad->mad_hdr.mgmt_class    = IB_MGMT_CLASS_PERF_MGMT;
+        in_mad->mad_hdr.class_version = 1;
+        in_mad->mad_hdr.method        = IB_MGMT_METHOD_GET;
+        if (c_ext)
+                in_mad->mad_hdr.attr_id = IB_PMA_PORT_COUNTERS_EXT;
+        else
+                in_mad->mad_hdr.attr_id = IB_PMA_PORT_COUNTERS;
+
+        in_mad->data[41] = p->port_num; /* PortSelect field */
+
+        if ((p->ibdev->process_mad(p->ibdev, IB_MAD_IGNORE_MKEY,
+                 p->port_num, NULL, NULL, in_mad, out_mad) &
+             (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) !=
+            (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) {
+                ret = -EINVAL;
+                goto out;
+        }
+
+        switch (width) {
+        case 4:
+                ret = sprintf(buf, "%u\n", (out_mad->data[40 + offset / 8] >>
+                                            (4 - (offset % 8))) & 0xf);
+                break;
+        case 8:
+                ret = sprintf(buf, "%u\n", out_mad->data[40 + offset / 8]);
+                break;
+        case 16:
+                ret = sprintf(buf, "%u\n",
+                              be16_to_cpup((__be16 *)(out_mad->data + 40 + offset / 8)));
+                break;
+        case 32:
+                ret = sprintf(buf, "%u\n",
+                              be32_to_cpup((__be32 *)(out_mad->data + 40 + offset / 8)));
+                break;
+        case 64:
+		ret = sprintf(buf, "%llu\n",
+                              (unsigned long long)be64_to_cpup((__be64 *)(out_mad->data + 40 + offset / 8)));
+                break;
+        default:
+                ret = 0;
+        }
+
+out:
+        kfree(in_mad);
+        kfree(out_mad);
+
+        return ret;
+}
+
+#define PORT_PMA_ATTR(_name, _counter, _width, _offset)                 \
+struct port_table_attribute port_pma_attr_##_name = {                   \
+        .attr  = __ATTR(_name, S_IRUGO, show_pma_counter, NULL),        \
+        .index = (_offset) | ((_width) << 16) | ((_counter) << 24)      \
 }
 
 static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
-				char *buf)
+                                char *buf)
 {
-	struct port_table_attribute *tab_attr =
-		container_of(attr, struct port_table_attribute, attr);
-	int offset = tab_attr->index & 0xffff;
-	int width  = (tab_attr->index >> 16) & 0xff;
-	struct ib_mad *in_mad  = NULL;
-	struct ib_mad *out_mad = NULL;
-	ssize_t ret;
-
-	if (!p->ibdev->process_mad)
-		return sprintf(buf, "N/A (no PMA)\n");
-
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
-	if (!in_mad || !out_mad) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	in_mad->mad_hdr.base_version  = 1;
-	in_mad->mad_hdr.mgmt_class    = IB_MGMT_CLASS_PERF_MGMT;
-	in_mad->mad_hdr.class_version = 1;
-	in_mad->mad_hdr.method        = IB_MGMT_METHOD_GET;
-	in_mad->mad_hdr.attr_id       = cpu_to_be16(0x12); /* PortCounters */
-
-	in_mad->data[41] = p->port_num;	/* PortSelect field */
-
-	if ((p->ibdev->process_mad(p->ibdev, IB_MAD_IGNORE_MKEY,
-		 p->port_num, NULL, NULL, in_mad, out_mad) &
-	     (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) !=
-	    (IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_REPLY)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	switch (width) {
-	case 4:
-		ret = sprintf(buf, "%u\n", (out_mad->data[40 + offset / 8] >>
-					    (4 - (offset % 8))) & 0xf);
-		break;
-	case 8:
-		ret = sprintf(buf, "%u\n", out_mad->data[40 + offset / 8]);
-		break;
-	case 16:
-		ret = sprintf(buf, "%u\n",
-			      be16_to_cpup((__be16 *)(out_mad->data + 40 + offset / 8)));
-		break;
-	case 32:
-		ret = sprintf(buf, "%u\n",
-			      be32_to_cpup((__be32 *)(out_mad->data + 40 + offset / 8)));
-		break;
-	default:
-		ret = 0;
-	}
-
-out:
-	kfree(in_mad);
-	kfree(out_mad);
-
-	return ret;
+        return get_pma_counters(p, attr, buf, 0);
 }
 
-static PORT_PMA_ATTR(symbol_error		    ,  0, 16,  32);
-static PORT_PMA_ATTR(link_error_recovery	    ,  1,  8,  48);
-static PORT_PMA_ATTR(link_downed		    ,  2,  8,  56);
-static PORT_PMA_ATTR(port_rcv_errors		    ,  3, 16,  64);
+static PORT_PMA_ATTR(symbol_error                   ,  0, 16,  32);
+static PORT_PMA_ATTR(link_error_recovery            ,  1,  8,  48);
+static PORT_PMA_ATTR(link_downed                    ,  2,  8,  56);
+static PORT_PMA_ATTR(port_rcv_errors                ,  3, 16,  64);
 static PORT_PMA_ATTR(port_rcv_remote_physical_errors,  4, 16,  80);
 static PORT_PMA_ATTR(port_rcv_switch_relay_errors   ,  5, 16,  96);
-static PORT_PMA_ATTR(port_xmit_discards		    ,  6, 16, 112);
+static PORT_PMA_ATTR(port_xmit_discards             ,  6, 16, 112);
 static PORT_PMA_ATTR(port_xmit_constraint_errors    ,  7,  8, 128);
-static PORT_PMA_ATTR(port_rcv_constraint_errors	    ,  8,  8, 136);
+static PORT_PMA_ATTR(port_rcv_constraint_errors     ,  8,  8, 136);
 static PORT_PMA_ATTR(local_link_integrity_errors    ,  9,  4, 152);
 static PORT_PMA_ATTR(excessive_buffer_overrun_errors, 10,  4, 156);
-static PORT_PMA_ATTR(VL15_dropped		    , 11, 16, 176);
-static PORT_PMA_ATTR(port_xmit_data		    , 12, 32, 192);
-static PORT_PMA_ATTR(port_rcv_data		    , 13, 32, 224);
-static PORT_PMA_ATTR(port_xmit_packets		    , 14, 32, 256);
-static PORT_PMA_ATTR(port_rcv_packets		    , 15, 32, 288);
-/*
- * There is no bit allocated for port_xmit_wait in the CounterSelect field
- * (IB spec). However, since this bit is ignored when reading
- * (show_pma_counter), the _counter field of port_xmit_wait can be set to zero.
- */
-static PORT_PMA_ATTR(port_xmit_wait		    ,  0, 32, 320);
+static PORT_PMA_ATTR(VL15_dropped                   , 11, 16, 176);
+static PORT_PMA_ATTR(port_xmit_data                 , 12, 32, 192);
+static PORT_PMA_ATTR(port_rcv_data                  , 13, 32, 224);
+static PORT_PMA_ATTR(port_xmit_packets              , 14, 32, 256);
+static PORT_PMA_ATTR(port_rcv_packets               , 15, 32, 288);
 
 static struct attribute *pma_attrs[] = {
-	&port_pma_attr_symbol_error.attr.attr,
-	&port_pma_attr_link_error_recovery.attr.attr,
-	&port_pma_attr_link_downed.attr.attr,
-	&port_pma_attr_port_rcv_errors.attr.attr,
-	&port_pma_attr_port_rcv_remote_physical_errors.attr.attr,
-	&port_pma_attr_port_rcv_switch_relay_errors.attr.attr,
-	&port_pma_attr_port_xmit_discards.attr.attr,
-	&port_pma_attr_port_xmit_constraint_errors.attr.attr,
-	&port_pma_attr_port_rcv_constraint_errors.attr.attr,
-	&port_pma_attr_local_link_integrity_errors.attr.attr,
-	&port_pma_attr_excessive_buffer_overrun_errors.attr.attr,
-	&port_pma_attr_VL15_dropped.attr.attr,
-	&port_pma_attr_port_xmit_data.attr.attr,
-	&port_pma_attr_port_rcv_data.attr.attr,
-	&port_pma_attr_port_xmit_packets.attr.attr,
-	&port_pma_attr_port_rcv_packets.attr.attr,
-	&port_pma_attr_port_xmit_wait.attr.attr,
-	NULL
+        &port_pma_attr_symbol_error.attr.attr,
+        &port_pma_attr_link_error_recovery.attr.attr,
+        &port_pma_attr_link_downed.attr.attr,
+        &port_pma_attr_port_rcv_errors.attr.attr,
+        &port_pma_attr_port_rcv_remote_physical_errors.attr.attr,
+        &port_pma_attr_port_rcv_switch_relay_errors.attr.attr,
+        &port_pma_attr_port_xmit_discards.attr.attr,
+        &port_pma_attr_port_xmit_constraint_errors.attr.attr,
+        &port_pma_attr_port_rcv_constraint_errors.attr.attr,
+        &port_pma_attr_local_link_integrity_errors.attr.attr,
+        &port_pma_attr_excessive_buffer_overrun_errors.attr.attr,
+        &port_pma_attr_VL15_dropped.attr.attr,
+        &port_pma_attr_port_xmit_data.attr.attr,
+        &port_pma_attr_port_rcv_data.attr.attr,
+        &port_pma_attr_port_xmit_packets.attr.attr,
+        &port_pma_attr_port_rcv_packets.attr.attr,
+        NULL
 };
 
 static struct attribute_group pma_group = {
 	.name  = "counters",
 	.attrs  = pma_attrs
+};
+
+#define PORT_PMA_ATTR_EXT(_name, _counter, _width, _offset)             \
+struct port_table_attribute port_pma_attr_ext_##_name = {               \
+        .attr  = __ATTR(_name, S_IRUGO, show_pma_counter_ext, NULL),    \
+        .index = (_offset) | ((_width) << 16) | ((_counter) << 24)      \
+}
+
+static ssize_t show_pma_counter_ext(struct ib_port *p,
+                                    struct port_attribute *attr, char *buf)
+{
+        return get_pma_counters(p, attr, buf, 1);
+}
+
+static PORT_PMA_ATTR_EXT(port_xmit_data_64           ,  0, 64,  64);
+static PORT_PMA_ATTR_EXT(port_rcv_data_64            ,  0, 64,  128);
+static PORT_PMA_ATTR_EXT(port_xmit_packets_64        ,  0, 64,  192);
+static PORT_PMA_ATTR_EXT(port_rcv_packets_64         ,  0, 64,  256);
+static PORT_PMA_ATTR_EXT(port_unicast_xmit_packets   ,  0, 64,  320);
+static PORT_PMA_ATTR_EXT(port_unicast_rcv_packets    ,  0, 64,  384);
+static PORT_PMA_ATTR_EXT(port_multicast_xmit_packets ,  0, 64,  448);
+static PORT_PMA_ATTR_EXT(port_multicast_rcv_packets  ,  0, 64,  512);
+
+static struct attribute *pma_attrs_ext[] = {
+        &port_pma_attr_ext_port_xmit_data_64.attr.attr,
+        &port_pma_attr_ext_port_rcv_data_64.attr.attr,
+        &port_pma_attr_ext_port_xmit_packets_64.attr.attr,
+        &port_pma_attr_ext_port_rcv_packets_64.attr.attr,
+        &port_pma_attr_ext_port_unicast_xmit_packets.attr.attr,
+        &port_pma_attr_ext_port_unicast_rcv_packets.attr.attr,
+        &port_pma_attr_ext_port_multicast_xmit_packets.attr.attr,
+        &port_pma_attr_ext_port_multicast_rcv_packets.attr.attr,
+        NULL
+};
+
+static struct attribute_group pma_ext_group = {
+        .name  = "counters_ext",
+        .attrs  = pma_attrs_ext
 };
 
 static void ib_port_release(struct kobject *kobj)
@@ -490,6 +534,7 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 		element->attr.attr.mode  = S_IRUGO;
 		element->attr.show       = show;
 		element->index		 = i;
+		sysfs_attr_init(&element->attr.attr);
 
 		tab_attr[i] = &element->attr.attr;
 	}
@@ -503,7 +548,9 @@ err:
 	return NULL;
 }
 
-static int add_port(struct ib_device *device, int port_num)
+static int add_port(struct ib_device *device, int port_num,
+                    int (*port_callback)(struct ib_device *,
+                                         u8, struct kobject *))
 {
 	struct ib_port *p;
 	struct ib_port_attr attr;
@@ -531,10 +578,14 @@ static int add_port(struct ib_device *device, int port_num)
 	if (ret)
 		goto err_put;
 
+        ret = sysfs_create_group(&p->kobj, &pma_ext_group);
+        if (ret)
+                goto err_remove_pma;
+
 	p->gid_group.name  = "gids";
 	p->gid_group.attrs = alloc_group_attrs(show_port_gid, attr.gid_tbl_len);
 	if (!p->gid_group.attrs)
-		goto err_remove_pma;
+		goto err_remove_pma_ext;
 
 	ret = sysfs_create_group(&p->kobj, &p->gid_group);
 	if (ret)
@@ -550,12 +601,20 @@ static int add_port(struct ib_device *device, int port_num)
 	if (ret)
 		goto err_free_pkey;
 
-	list_add_tail(&p->kobj.entry, &device->port_list);
+        if (port_callback) {
+                ret = port_callback(device, port_num, &p->kobj);
+                if (ret)
+                        goto err_remove_pkey;
+        }
 
+	list_add_tail(&p->kobj.entry, &device->port_list);
 #ifdef __linux__
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 #endif
 	return 0;
+
+err_remove_pkey:
+        sysfs_remove_group(&p->kobj, &p->pkey_group);
 
 err_free_pkey:
 	for (i = 0; i < attr.pkey_tbl_len; ++i)
@@ -571,6 +630,9 @@ err_free_gid:
 		kfree(p->gid_group.attrs[i]);
 
 	kfree(p->gid_group.attrs);
+
+err_remove_pma_ext:
+        sysfs_remove_group(&p->kobj, &pma_ext_group);
 
 err_remove_pma:
 	sysfs_remove_group(&p->kobj, &pma_group);
@@ -591,6 +653,7 @@ static ssize_t show_node_type(struct device *device,
 	case RDMA_NODE_RNIC:	  return sprintf(buf, "%d: RNIC\n", dev->node_type);
 	case RDMA_NODE_IB_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
 	case RDMA_NODE_IB_ROUTER: return sprintf(buf, "%d: router\n", dev->node_type);
+	case RDMA_NODE_MIC:	  return sprintf(buf, "%d: MIC\n", dev->node_type);
 	default:		  return sprintf(buf, "%d: <unknown>\n", dev->node_type);
 	}
 }
@@ -652,16 +715,75 @@ static ssize_t set_node_desc(struct device *device,
 	return count;
 }
 
+static ssize_t show_cmd_perf(struct device *device,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	return sprintf(buf, "%d\n", dev->cmd_perf);
+}
+
+static ssize_t set_cmd_perf(struct device *device,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+	u32 val;
+
+	if (sscanf(buf, "0x%x", &val) != 1)
+		return -EINVAL;
+
+	dev->cmd_perf = val;
+
+	return count;
+}
+
+static ssize_t show_cmd_avg(struct device *device,
+			    struct device_attribute *attr, char *buf)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	return sprintf(buf, "%llu\n", (unsigned long long)dev->cmd_avg);
+}
+
+static ssize_t set_cmd_avg(struct device *device,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	spin_lock(&dev->cmd_perf_lock);
+	dev->cmd_avg = 0;
+	dev->cmd_n = 0;
+	spin_unlock(&dev->cmd_perf_lock);
+
+	return count;
+}
+
+static ssize_t show_cmd_n(struct device *device,
+			 struct device_attribute *attr, char *buf)
+{
+	struct ib_device *dev = container_of(device, struct ib_device, dev);
+
+	return sprintf(buf, "%d\n", dev->cmd_n);
+}
+
 static DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);
 static DEVICE_ATTR(sys_image_guid, S_IRUGO, show_sys_image_guid, NULL);
 static DEVICE_ATTR(node_guid, S_IRUGO, show_node_guid, NULL);
 static DEVICE_ATTR(node_desc, S_IRUGO | S_IWUSR, show_node_desc, set_node_desc);
+static DEVICE_ATTR(cmd_perf, S_IRUGO | S_IWUSR, show_cmd_perf, set_cmd_perf);
+static DEVICE_ATTR(cmd_avg, S_IRUGO | S_IWUSR, show_cmd_avg, set_cmd_avg);
+static DEVICE_ATTR(cmd_n, S_IRUGO, show_cmd_n, NULL);
 
 static struct device_attribute *ib_class_attributes[] = {
 	&dev_attr_node_type,
 	&dev_attr_sys_image_guid,
 	&dev_attr_node_guid,
-	&dev_attr_node_desc
+	&dev_attr_node_desc,
+	&dev_attr_cmd_perf,
+	&dev_attr_cmd_avg,
+	&dev_attr_cmd_n,
 };
 
 static struct class ib_class = {
@@ -786,16 +908,18 @@ static struct attribute_group iw_stats_group = {
 	.attrs	= iw_proto_stats_attrs,
 };
 
-int ib_device_register_sysfs(struct ib_device *device)
+int ib_device_register_sysfs(struct ib_device *device,
+			     int (*port_callback)(struct ib_device *,
+						  u8, struct kobject *))
 {
 	struct device *class_dev = &device->dev;
 	int ret;
 	int i;
 
 	class_dev->class      = &ib_class;
-	class_dev->driver_data = device;
 	class_dev->parent     = device->dma_device;
-	dev_set_name(class_dev, device->name);
+        dev_set_name(class_dev, device->name);
+        dev_set_drvdata(class_dev, device);
 
 	INIT_LIST_HEAD(&device->port_list);
 
@@ -809,20 +933,19 @@ int ib_device_register_sysfs(struct ib_device *device)
 			goto err_unregister;
 	}
 
-	device->ports_parent = kobject_create_and_add("ports",
-						      &class_dev->kobj);
-	if (!device->ports_parent) {
+	device->ports_parent = kobject_create_and_add("ports",&class_dev->kobj);
+        if (!device->ports_parent) {
 		ret = -ENOMEM;
 		goto err_put;
 	}
 
 	if (device->node_type == RDMA_NODE_IB_SWITCH) {
-		ret = add_port(device, 0);
+		ret = add_port(device, 0, port_callback);
 		if (ret)
 			goto err_put;
 	} else {
 		for (i = 1; i <= device->phys_port_cnt; ++i) {
-			ret = add_port(device, i);
+			ret = add_port(device, i, port_callback);
 			if (ret)
 				goto err_put;
 		}
@@ -854,6 +977,11 @@ err_put:
 	kobject_put(&class_dev->kobj);
 
 err_unregister:
+
+	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i) {
+		device_remove_file(class_dev, ib_class_attributes[i]);
+        }
+
 	device_unregister(class_dev);
 
 err:
@@ -862,11 +990,17 @@ err:
 
 void ib_device_unregister_sysfs(struct ib_device *device)
 {
+	int i;
 	struct kobject *p, *t;
 	struct ib_port *port;
+	struct device *class_dev = &device->dev;
 
 	/* Hold kobject until ib_dealloc_device() */
 	kobject_get(&device->dev.kobj);
+
+	for (i = 0; i < ARRAY_SIZE(ib_class_attributes); ++i) {
+		device_remove_file(class_dev, ib_class_attributes[i]);
+	}
 
 	list_for_each_entry_safe(p, t, &device->port_list, entry) {
 		list_del(&p->entry);
@@ -890,22 +1024,3 @@ void ib_sysfs_cleanup(void)
 {
 	class_unregister(&ib_class);
 }
-
-int ib_sysfs_create_port_files(struct ib_device *device,
-			       int (*create)(struct ib_device *dev, u8 port_num,
-					     struct kobject *kobj))
-{
-	struct kobject *p;
-	struct ib_port *port;
-	int ret = 0;
-
-	list_for_each_entry(p, &device->port_list, entry) {
-		port = container_of(p, struct ib_port, kobj);
-		ret = create(device, port->port_num, &port->kobj);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL(ib_sysfs_create_port_files);

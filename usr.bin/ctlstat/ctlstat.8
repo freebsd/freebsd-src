@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.bin/ctlstat/ctlstat.8#2 $
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2010
+.Dd March 8, 2015
 .Dt CTLSTAT 8
 .Os
 .Sh NAME
@@ -69,7 +69,7 @@ and a combined total column that also includes non I/O operations.
 .It Fl c Ar count
 Display statistics this many times.
 .It Fl C
-Disable display of CPU statistics.
+Disable CPU statistics display.
 .It Fl d
 Display DMA operation time (latency) instead of overall I/O time (latency).
 .It Fl D
@@ -113,10 +113,11 @@ every 10 seconds.
 .Sh SEE ALSO
 .Xr cam 3 ,
 .Xr cam 4 ,
+.Xr ctl 4 ,
 .Xr xpt 4 ,
 .Xr camcontrol 8 ,
 .Xr ctladm 8 ,
 .Xr iostat 8
 .Sh AUTHORS
-.An Ken Merry Aq ken@FreeBSD.org
-.An Will Andrews Aq will@FreeBSD.org
+.An Ken Merry Aq Mt ken@FreeBSD.org
+.An Will Andrews Aq Mt will@FreeBSD.org

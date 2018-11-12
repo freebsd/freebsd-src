@@ -143,13 +143,11 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 {
 	struct	resource *regs;
 	struct	resource *regs2;
-	u_int	command;
 	int	regs_type;
 	int	regs_id;
 	int	regs_id2;
 	int	allow_memio;
 
-	command = aic_pci_read_config(ahd->dev_softc, PCIR_COMMAND, /*bytes*/1);
 	regs = NULL;
 	regs2 = NULL;
 	regs_type = 0;
@@ -165,8 +163,7 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 		allow_memio = 1;
 	}
 
-	if ((command & PCIM_CMD_MEMEN) != 0
-	 && (ahd->bugs & AHD_PCIX_MMAPIO_BUG) == 0
+	if ((ahd->bugs & AHD_PCIX_MMAPIO_BUG) == 0
 	 && allow_memio != 0) {
 
 		regs_type = SYS_RES_MEMORY;
@@ -199,15 +196,10 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 						     regs_id, regs);
 				regs = NULL;
 				AHD_CORRECTABLE_ERROR(ahd);
-			} else {
-				command &= ~PCIM_CMD_PORTEN;
-				aic_pci_write_config(ahd->dev_softc,
-						     PCIR_COMMAND,
-						     command, /*bytes*/1);
 			}
 		}
 	}
-	if (regs == NULL && (command & PCIM_CMD_PORTEN) != 0) {
+	if (regs == NULL) {
 		regs_type = SYS_RES_IOPORT;
 		regs_id = AHD_PCI_IOADDR0;
 		regs = bus_alloc_resource_any(ahd->dev_softc, regs_type,
@@ -233,9 +225,6 @@ ahd_pci_map_registers(struct ahd_softc *ahd)
 		}
 		ahd->tags[1] = rman_get_bustag(regs2);
 		ahd->bshs[1] = rman_get_bushandle(regs2);
-		command &= ~PCIM_CMD_MEMEN;
-		aic_pci_write_config(ahd->dev_softc, PCIR_COMMAND,
-				     command, /*bytes*/1);
 		ahd->platform_data->regs_res_type[1] = regs_type;
 		ahd->platform_data->regs_res_id[1] = regs_id2;
 		ahd->platform_data->regs[1] = regs2;

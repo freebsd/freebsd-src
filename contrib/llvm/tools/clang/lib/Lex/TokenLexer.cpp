@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Lex/TokenLexer.h"
-#include "MacroArgs.h"
-#include "clang/Lex/MacroInfo.h"
-#include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/LexDiagnostic.h"
+#include "clang/Lex/MacroArgs.h"
+#include "clang/Lex/MacroInfo.h"
+#include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/SmallString.h"
 using namespace clang;
 
@@ -37,6 +37,7 @@ void TokenLexer::Init(Token &Tok, SourceLocation ELEnd, MacroInfo *MI,
   ExpandLocEnd = ELEnd;
   AtStartOfLine = Tok.isAtStartOfLine();
   HasLeadingSpace = Tok.hasLeadingSpace();
+  NextTokGetsSpace = false;
   Tokens = &*Macro->tokens_begin();
   OwnsTokens = false;
   DisableMacroExpansion = false;
@@ -85,8 +86,8 @@ void TokenLexer::Init(const Token *TokArray, unsigned NumToks,
   // associated with it.
   destroy();
 
-  Macro = 0;
-  ActualArgs = 0;
+  Macro = nullptr;
+  ActualArgs = nullptr;
   Tokens = TokArray;
   OwnsTokens = ownsTokens;
   DisableMacroExpansion = disableMacroExpansion;
@@ -95,6 +96,7 @@ void TokenLexer::Init(const Token *TokArray, unsigned NumToks,
   ExpandLocStart = ExpandLocEnd = SourceLocation();
   AtStartOfLine = false;
   HasLeadingSpace = false;
+  NextTokGetsSpace = false;
   MacroExpansionStart = SourceLocation();
 
   // Set HasLeadingSpace/AtStartOfLine so that the first token will be
@@ -111,7 +113,7 @@ void TokenLexer::destroy() {
   // the expanded tokens.
   if (OwnsTokens) {
     delete [] Tokens;
-    Tokens = 0;
+    Tokens = nullptr;
     OwnsTokens = false;
   }
 
@@ -119,13 +121,9 @@ void TokenLexer::destroy() {
   if (ActualArgs) ActualArgs->destroy(PP);
 }
 
-/// Remove comma ahead of __VA_ARGS__, if present, according to compiler dialect
-/// settings.  Returns true if the comma is removed.
-static bool MaybeRemoveCommaBeforeVaArgs(SmallVector<Token, 128> &ResultToks,
-                                         bool &NextTokGetsSpace,
-                                         bool HasPasteOperator,
-                                         MacroInfo *Macro, unsigned MacroArgNo,
-                                         Preprocessor &PP) {
+bool TokenLexer::MaybeRemoveCommaBeforeVaArgs(
+    SmallVectorImpl<Token> &ResultToks, bool HasPasteOperator, MacroInfo *Macro,
+    unsigned MacroArgNo, Preprocessor &PP) {
   // Is the macro argument __VA_ARGS__?
   if (!Macro->isVariadic() || MacroArgNo != Macro->getNumArgs()-1)
     return false;
@@ -133,7 +131,7 @@ static bool MaybeRemoveCommaBeforeVaArgs(SmallVector<Token, 128> &ResultToks,
   // In Microsoft-compatibility mode, a comma is removed in the expansion
   // of " ... , __VA_ARGS__ " if __VA_ARGS__ is empty.  This extension is
   // not supported by gcc.
-  if (!HasPasteOperator && !PP.getLangOpts().MicrosoftMode)
+  if (!HasPasteOperator && !PP.getLangOpts().MSVCCompat)
     return false;
 
   // GCC removes the comma in the expansion of " ... , ## __VA_ARGS__ " if
@@ -179,16 +177,14 @@ void TokenLexer::ExpandFunctionArguments() {
   // we install the newly expanded sequence as the new 'Tokens' list.
   bool MadeChange = false;
 
-  // NextTokGetsSpace - When this is true, the next token appended to the
-  // output list will get a leading space, regardless of whether it had one to
-  // begin with or not.  This is used for placemarker support.
-  bool NextTokGetsSpace = false;
-
   for (unsigned i = 0, e = NumTokens; i != e; ++i) {
     // If we found the stringify operator, get the argument stringified.  The
     // preprocessor already verified that the following token is a macro name
     // when the #define was parsed.
     const Token &CurTok = Tokens[i];
+    if (i != 0 && !Tokens[i-1].is(tok::hashhash) && CurTok.hasLeadingSpace())
+      NextTokGetsSpace = true;
+
     if (CurTok.is(tok::hash) || CurTok.is(tok::hashat)) {
       int ArgNo = Macro->getArgumentNum(Tokens[i+1].getIdentifierInfo());
       assert(ArgNo != -1 && "Token following # is not an argument?");
@@ -210,10 +206,11 @@ void TokenLexer::ExpandFunctionArguments() {
                                            ExpansionLocStart,
                                            ExpansionLocEnd);
       }
+      Res.setFlag(Token::StringifiedInMacro);
 
       // The stringified/charified string leading space flag gets set to match
       // the #/#@ operator.
-      if (CurTok.hasLeadingSpace() || NextTokGetsSpace)
+      if (NextTokGetsSpace)
         Res.setFlag(Token::LeadingSpace);
 
       ResultToks.push_back(Res);
@@ -222,6 +219,13 @@ void TokenLexer::ExpandFunctionArguments() {
       NextTokGetsSpace = false;
       continue;
     }
+
+    // Find out if there is a paste (##) operator before or after the token.
+    bool NonEmptyPasteBefore =
+      !ResultToks.empty() && ResultToks.back().is(tok::hashhash);
+    bool PasteBefore = i != 0 && Tokens[i-1].is(tok::hashhash);
+    bool PasteAfter = i+1 != e && Tokens[i+1].is(tok::hashhash);
+    assert(!NonEmptyPasteBefore || PasteBefore);
 
     // Otherwise, if this is not an argument token, just add the token to the
     // output buffer.
@@ -234,7 +238,9 @@ void TokenLexer::ExpandFunctionArguments() {
       if (NextTokGetsSpace) {
         ResultToks.back().setFlag(Token::LeadingSpace);
         NextTokGetsSpace = false;
-      }
+      } else if (PasteBefore && !NonEmptyPasteBefore)
+        ResultToks.back().clearFlag(Token::LeadingSpace);
+
       continue;
     }
 
@@ -242,16 +248,12 @@ void TokenLexer::ExpandFunctionArguments() {
     // input.
     MadeChange = true;
 
-    // Otherwise, this is a use of the argument.  Find out if there is a paste
-    // (##) operator before or after the argument.
-    bool PasteBefore =
-      !ResultToks.empty() && ResultToks.back().is(tok::hashhash);
-    bool PasteAfter = i+1 != e && Tokens[i+1].is(tok::hashhash);
+    // Otherwise, this is a use of the argument.
 
     // In Microsoft mode, remove the comma before __VA_ARGS__ to ensure there
     // are no trailing commas if __VA_ARGS__ is empty.
     if (!PasteBefore && ActualArgs->isVarargsElidedUse() &&
-        MaybeRemoveCommaBeforeVaArgs(ResultToks, NextTokGetsSpace,
+        MaybeRemoveCommaBeforeVaArgs(ResultToks,
                                      /*HasPasteOperator=*/false,
                                      Macro, ArgNo, PP))
       continue;
@@ -276,6 +278,14 @@ void TokenLexer::ExpandFunctionArguments() {
         unsigned NumToks = MacroArgs::getArgLength(ResultArgToks);
         ResultToks.append(ResultArgToks, ResultArgToks+NumToks);
 
+        // In Microsoft-compatibility mode, we follow MSVC's preprocessing
+        // behavior by not considering single commas from nested macro
+        // expansions as argument separators. Set a flag on the token so we can
+        // test for this later when the macro expansion is processed.
+        if (PP.getLangOpts().MSVCCompat && NumToks == 1 &&
+            ResultToks.back().is(tok::comma))
+          ResultToks.back().setFlag(Token::IgnoredComma);
+
         // If the '##' came from expanding an argument, turn it into 'unknown'
         // to avoid pasting.
         for (unsigned i = FirstResult, e = ResultToks.size(); i != e; ++i) {
@@ -294,13 +304,8 @@ void TokenLexer::ExpandFunctionArguments() {
         // before the first token should match the whitespace of the arg
         // identifier.
         ResultToks[FirstResult].setFlagValue(Token::LeadingSpace,
-                                             CurTok.hasLeadingSpace() ||
                                              NextTokGetsSpace);
         NextTokGetsSpace = false;
-      } else {
-        // If this is an empty argument, and if there was whitespace before the
-        // formal token, make sure the next token gets whitespace before it.
-        NextTokGetsSpace = CurTok.hasLeadingSpace();
       }
       continue;
     }
@@ -314,13 +319,12 @@ void TokenLexer::ExpandFunctionArguments() {
       // that __VA_ARGS__ expands to multiple tokens, avoid a pasting error when
       // the expander trys to paste ',' with the first token of the __VA_ARGS__
       // expansion.
-      if (PasteBefore && ResultToks.size() >= 2 &&
+      if (NonEmptyPasteBefore && ResultToks.size() >= 2 &&
           ResultToks[ResultToks.size()-2].is(tok::comma) &&
           (unsigned)ArgNo == Macro->getNumArgs()-1 &&
           Macro->isVariadic()) {
         // Remove the paste operator, report use of the extension.
-        PP.Diag(ResultToks.back().getLocation(), diag::ext_paste_comma);
-        ResultToks.pop_back();
+        PP.Diag(ResultToks.pop_back_val().getLocation(), diag::ext_paste_comma);
       }
 
       ResultToks.append(ArgToks, ArgToks+NumToks);
@@ -349,8 +353,7 @@ void TokenLexer::ExpandFunctionArguments() {
       // assembler-with-cpp mode, invalid pastes are allowed through: in this
       // case, we do not want the extra whitespace to be added.  For example,
       // we want ". ## foo" -> ".foo" not ". foo".
-      if ((CurTok.hasLeadingSpace() || NextTokGetsSpace) &&
-          !PasteBefore)
+      if (NextTokGetsSpace)
         ResultToks[ResultToks.size()-NumToks].setFlag(Token::LeadingSpace);
 
       NextTokGetsSpace = false;
@@ -361,27 +364,28 @@ void TokenLexer::ExpandFunctionArguments() {
     // 6.10.3.3p2,3) calls for a bunch of placemarker stuff to occur.  We
     // implement this by eating ## operators when a LHS or RHS expands to
     // empty.
-    NextTokGetsSpace |= CurTok.hasLeadingSpace();
     if (PasteAfter) {
       // Discard the argument token and skip (don't copy to the expansion
       // buffer) the paste operator after it.
-      NextTokGetsSpace |= Tokens[i+1].hasLeadingSpace();
       ++i;
       continue;
     }
 
     // If this is on the RHS of a paste operator, we've already copied the
-    // paste operator to the ResultToks list.  Remove it.
-    assert(PasteBefore && ResultToks.back().is(tok::hashhash));
-    NextTokGetsSpace |= ResultToks.back().hasLeadingSpace();
-    ResultToks.pop_back();
+    // paste operator to the ResultToks list, unless the LHS was empty too.
+    // Remove it.
+    assert(PasteBefore);
+    if (NonEmptyPasteBefore) {
+      assert(ResultToks.back().is(tok::hashhash));
+      ResultToks.pop_back();
+    }
 
     // If this is the __VA_ARGS__ token, and if the argument wasn't provided,
     // and if the macro had at least one real argument, and if the token before
     // the ## was a comma, remove the comma.  This is a GCC extension which is
     // disabled when using -std=c99.
     if (ActualArgs->isVarargsElidedUse())
-      MaybeRemoveCommaBeforeVaArgs(ResultToks, NextTokGetsSpace,
+      MaybeRemoveCommaBeforeVaArgs(ResultToks,
                                    /*HasPasteOperator=*/true,
                                    Macro, ArgNo, PP);
 
@@ -402,24 +406,29 @@ void TokenLexer::ExpandFunctionArguments() {
   }
 }
 
+/// \brief Checks if two tokens form wide string literal.
+static bool isWideStringLiteralFromMacro(const Token &FirstTok,
+                                         const Token &SecondTok) {
+  return FirstTok.is(tok::identifier) &&
+         FirstTok.getIdentifierInfo()->isStr("L") && SecondTok.isLiteral() &&
+         SecondTok.stringifiedInMacro();
+}
+
 /// Lex - Lex and return a token from this macro stream.
 ///
-void TokenLexer::Lex(Token &Tok) {
+bool TokenLexer::Lex(Token &Tok) {
   // Lexing off the end of the macro, pop this macro off the expansion stack.
   if (isAtEnd()) {
     // If this is a macro (not a token stream), mark the macro enabled now
     // that it is no longer being expanded.
     if (Macro) Macro->EnableMacro();
 
-    // Pop this context off the preprocessors lexer stack and get the next
-    // token.  This will delete "this" so remember the PP instance var.
-    Preprocessor &PPCache = PP;
-    if (PP.HandleEndOfTokenLexer(Tok))
-      return;
-
-    // HandleEndOfTokenLexer may not return a token.  If it doesn't, lex
-    // whatever is next.
-    return PPCache.Lex(Tok);
+    Tok.startToken();
+    Tok.setFlagValue(Token::StartOfLine , AtStartOfLine);
+    Tok.setFlagValue(Token::LeadingSpace, HasLeadingSpace || NextTokGetsSpace);
+    if (CurToken == 0)
+      Tok.setFlag(Token::LeadingEmptyMacro);
+    return PP.HandleEndOfTokenLexer(Tok);
   }
 
   SourceManager &SM = PP.getSourceManager();
@@ -435,11 +444,17 @@ void TokenLexer::Lex(Token &Tok) {
 
   // If this token is followed by a token paste (##) operator, paste the tokens!
   // Note that ## is a normal token when not expanding a macro.
-  if (!isAtEnd() && Tokens[CurToken].is(tok::hashhash) && Macro) {
+  if (!isAtEnd() && Macro &&
+      (Tokens[CurToken].is(tok::hashhash) ||
+       // Special processing of L#x macros in -fms-compatibility mode.
+       // Microsoft compiler is able to form a wide string literal from
+       // 'L#macro_arg' construct in a function-like macro.
+       (PP.getLangOpts().MSVCCompat &&
+        isWideStringLiteralFromMacro(Tok, Tokens[CurToken])))) {
     // When handling the microsoft /##/ extension, the final token is
     // returned by PasteTokens, not the pasted token.
     if (PasteTokens(Tok))
-      return;
+      return true;
 
     TokenIsFromPaste = true;
   }
@@ -470,10 +485,17 @@ void TokenLexer::Lex(Token &Tok) {
   if (isFirstToken) {
     Tok.setFlagValue(Token::StartOfLine , AtStartOfLine);
     Tok.setFlagValue(Token::LeadingSpace, HasLeadingSpace);
+  } else {
+    // If this is not the first token, we may still need to pass through
+    // leading whitespace if we've expanded a macro.
+    if (AtStartOfLine) Tok.setFlag(Token::StartOfLine);
+    if (HasLeadingSpace) Tok.setFlag(Token::LeadingSpace);
   }
+  AtStartOfLine = false;
+  HasLeadingSpace = false;
 
   // Handle recursive expansion!
-  if (!Tok.isAnnotation() && Tok.getIdentifierInfo() != 0) {
+  if (!Tok.isAnnotation() && Tok.getIdentifierInfo() != nullptr) {
     // Change the kind of this identifier to the appropriate token kind, e.g.
     // turning "for" into a keyword.
     IdentifierInfo *II = Tok.getIdentifierInfo();
@@ -487,10 +509,11 @@ void TokenLexer::Lex(Token &Tok) {
     }
 
     if (!DisableMacroExpansion && II->isHandleIdentifierCase())
-      PP.HandleIdentifier(Tok);
+      return PP.HandleIdentifier(Tok);
   }
 
   // Otherwise, return a normal token.
+  return true;
 }
 
 /// PasteTokens - Tok is the LHS of a ## operator, and CurToken is the ##
@@ -499,13 +522,14 @@ void TokenLexer::Lex(Token &Tok) {
 /// If this returns true, the caller should immediately return the token.
 bool TokenLexer::PasteTokens(Token &Tok) {
   SmallString<128> Buffer;
-  const char *ResultTokStrPtr = 0;
+  const char *ResultTokStrPtr = nullptr;
   SourceLocation StartLoc = Tok.getLocation();
   SourceLocation PasteOpLoc;
   do {
-    // Consume the ## operator.
+    // Consume the ## operator if any.
     PasteOpLoc = Tokens[CurToken].getLocation();
-    ++CurToken;
+    if (Tokens[CurToken].is(tok::hashhash))
+      ++CurToken;
     assert(!isAtEnd() && "No token on the RHS of a paste operator!");
 
     // Get the RHS token.
@@ -523,12 +547,13 @@ bool TokenLexer::PasteTokens(Token &Tok) {
       memcpy(&Buffer[0], BufPtr, LHSLen);
     if (Invalid)
       return true;
-    
-    BufPtr = &Buffer[LHSLen];
+
+    BufPtr = Buffer.data() + LHSLen;
     unsigned RHSLen = PP.getSpelling(RHS, BufPtr, &Invalid);
     if (Invalid)
       return true;
-    if (BufPtr != &Buffer[LHSLen])   // Really, we want the chars in Buffer!
+    if (RHSLen && BufPtr != &Buffer[LHSLen])
+      // Really, we want the chars in Buffer!
       memcpy(&Buffer[LHSLen], BufPtr, RHSLen);
 
     // Trim excess space.
@@ -608,12 +633,11 @@ bool TokenLexer::PasteTokens(Token &Tok) {
           SourceLocation Loc =
             SM.createExpansionLoc(PasteOpLoc, ExpandLocStart, ExpandLocEnd, 2);
           // If we're in microsoft extensions mode, downgrade this from a hard
-          // error to a warning that defaults to an error.  This allows
+          // error to an extension that defaults to an error.  This allows
           // disabling it.
-          PP.Diag(Loc,
-                  PP.getLangOpts().MicrosoftExt ? diag::err_pp_bad_paste_ms 
-                                                   : diag::err_pp_bad_paste)
-            << Buffer.str();
+          PP.Diag(Loc, PP.getLangOpts().MicrosoftExt ? diag::ext_pp_bad_paste_ms
+                                                     : diag::err_pp_bad_paste)
+              << Buffer.str();
         }
 
         // An error has occurred so exit loop.
@@ -647,6 +671,12 @@ bool TokenLexer::PasteTokens(Token &Tok) {
     StartLoc = getExpansionLocForMacroDefLoc(StartLoc);
   if (EndLoc.isFileID())
     EndLoc = getExpansionLocForMacroDefLoc(EndLoc);
+  FileID MacroFID = SM.getFileID(MacroExpansionStart);
+  while (SM.getFileID(StartLoc) != MacroFID)
+    StartLoc = SM.getImmediateExpansionRange(StartLoc).first;
+  while (SM.getFileID(EndLoc) != MacroFID)
+    EndLoc = SM.getImmediateExpansionRange(EndLoc).second;
+    
   Tok.setLocation(SM.createExpansionLoc(Tok.getLocation(), StartLoc, EndLoc,
                                         Tok.getLength()));
 
@@ -743,14 +773,18 @@ static void updateConsecutiveMacroArgTokens(SourceManager &SM,
 
   Token *NextTok = begin_tokens + 1;
   for (; NextTok < end_tokens; ++NextTok) {
+    SourceLocation NextLoc = NextTok->getLocation();
+    if (CurLoc.isFileID() != NextLoc.isFileID())
+      break; // Token from different kind of FileID.
+
     int RelOffs;
-    if (!SM.isInSameSLocAddrSpace(CurLoc, NextTok->getLocation(), &RelOffs))
+    if (!SM.isInSameSLocAddrSpace(CurLoc, NextLoc, &RelOffs))
       break; // Token from different local/loaded location.
     // Check that token is not before the previous token or more than 50
     // "characters" away.
     if (RelOffs < 0 || RelOffs > 50)
       break;
-    CurLoc = NextTok->getLocation();
+    CurLoc = NextLoc;
   }
 
   // For the consecutive tokens, find the length of the SLocEntry to contain
@@ -801,4 +835,9 @@ void TokenLexer::updateLocForMacroArgTokens(SourceLocation ArgIdSpellLoc,
 
     updateConsecutiveMacroArgTokens(SM, InstLoc, begin_tokens, end_tokens);
   }
+}
+
+void TokenLexer::PropagateLineStartLeadingSpaceInfo(Token &Result) {
+  AtStartOfLine = Result.isAtStartOfLine();
+  HasLeadingSpace = Result.hasLeadingSpace();
 }

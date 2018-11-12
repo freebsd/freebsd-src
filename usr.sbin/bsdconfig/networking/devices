@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2006-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -27,6 +27,12 @@
 # $FreeBSD$
 #
 ############################################################ INCLUDES
+
+# Prevent device.subr (included indirectly) from auto scanning; this will be
+# performed indirectly later via f_dialog_menu_netdev() -- but only after we've
+# successfully completed f_mustberoot_init().
+#
+DEVICE_SELF_SCAN_ALL=NO
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
@@ -43,8 +49,8 @@ f_include $BSDCFG_SHARE/networking/netmask.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ MAIN
 
@@ -54,9 +60,9 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 # Process command-line options
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -71,12 +77,11 @@ f_mustberoot_init
 #
 # Launch application main menu
 #
+defaultitem=
 while :; do
-	f_dialog_menu_netdev
-	retval=$?
-	interface=$( f_dialog_menutag )
-
-	[ $retval -eq 0 ] || break
+	f_dialog_menu_netdev "$defaultitem" || break
+	f_dialog_menutag_fetch interface
+	defaultitem="$interface"
 
 	#
 	# dialog_menu_netdev adds an asterisk (*) to the right of the
@@ -84,7 +89,7 @@ while :; do
 	# from the device name if present.
 	#
 	case "$interface" in
-	*\*) interface="${interface%?}";;
+	*\*) interface="${interface%?}" ;;
 	esac
 
 	#
@@ -97,38 +102,39 @@ while :; do
 	# fallback to reading the active configuration if not configured in
 	# the rc.conf(5) file(s).
 	#
+	dhcp=
 	_ipaddr=
 	_netmask=
 	_ifconfig=$( f_sysrc_get ifconfig_$interface )
 	if [ "$_ifconfig" ]; then
-		# If DHCP get IP address/netmask later from ifconfig(8)
+		# If DHCP, get IP address/netmask later from ifconfig(8)
 		glob="[Dd][Hh][Cc][Pp]"
 		case "$_ifconfig" in
-		$glob) dhcp=1;;
-		[Ss][Yy][Nn][Cc]$glob) dhcp=1;;
-		[Nn][Oo][Ss][Yy][Nn][Cc]$glob) dhcp=1;;
+		$glob) dhcp=1 ;;
+		[Ss][Yy][Nn][Cc]$glob) dhcp=1 ;;
+		[Nn][Oo][Ss][Yy][Nn][Cc]$glob) dhcp=1 ;;
 		*)
 			#
-			# Get IP address/netmask from rc.conf(5)
-			# configuration
+			# Get IP address/netmask from rc.conf(5) configuration
 			#
 			dhcp=
-			eval "$( exec 2> /dev/null
-			         set -- $_ifconfig
-			         while [ $# -gt 0 ]; do
-			         	case "$1" in
-			         	inet)
-			         		shift 1
-			         		echo "_ipaddr='$1'"
-			         		;;
-			         	netmask)
-			         		shift 1
-			         		echo "_netmask='$1'"
-			         		;;
-			         	esac
-			         	shift 1
-			         done
-			       )"
+			eval "$(
+				exec 2> /dev/null
+				set -- $_ifconfig
+				while [ $# -gt 0 ]; do
+					case "$1" in
+					inet)
+						shift 1
+						echo "_ipaddr='$1'"
+						;;
+					netmask)
+						shift 1
+						echo "_netmask='$1'"
+						;;
+					esac
+					shift 1
+				done
+			)"
 			;;
 		esac
 	fi
@@ -137,19 +143,18 @@ while :; do
 	# Fill in IP address/netmask from active settings if no
 	# configuration could be extrapolated from rc.conf(5)
 	#
-	[ "$_ipaddr"  ] || _ipaddr=$( f_ifconfig_inet $interface )
-	[ "$_netmask" ] || _netmask=$( f_ifconfig_netmask $interface )
+	[ "$_ipaddr"  ] || f_ifconfig_inet $interface _ipaddr
+	[ "$_netmask" ] || f_ifconfig_netmask $interface _netmask
 
 	# Get the extra options (this always comes from rc.conf(5))
 	_options=$( f_ifconfig_options $interface )
 
 	# Block on user-configuration of the probed settings
 	f_dialog_menu_netdev_edit \
-		$interface $_ipaddr $_netmask "$_options" $dhcp
+		"$interface" "$_ipaddr" "$_netmask" "$_options" $dhcp
 
 	# Return to root menu if above returns success
-	[ $? -eq $SUCCESS ] && break
-
+	[ $? -eq $DIALOG_OK ] && break
 done
 
 exit $SUCCESS

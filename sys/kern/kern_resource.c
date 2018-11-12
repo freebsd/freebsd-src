@@ -80,6 +80,8 @@ static int	donice(struct thread *td, struct proc *chgp, int n);
 static struct uidinfo *uilookup(uid_t uid);
 static void	ruxagg_locked(struct rusage_ext *rux, struct thread *td);
 
+static __inline int	lim_shared(struct plimit *limp);
+
 /*
  * Resource controls and accounting.
  */
@@ -90,9 +92,7 @@ struct getpriority_args {
 };
 #endif
 int
-sys_getpriority(td, uap)
-	struct thread *td;
-	register struct getpriority_args *uap;
+sys_getpriority(struct thread *td, register struct getpriority_args *uap)
 {
 	struct proc *p;
 	struct pgrp *pg;
@@ -175,9 +175,7 @@ struct setpriority_args {
 };
 #endif
 int
-sys_setpriority(td, uap)
-	struct thread *td;
-	struct setpriority_args *uap;
+sys_setpriority(struct thread *td, struct setpriority_args *uap)
 {
 	struct proc *curp, *p;
 	struct pgrp *pg;
@@ -371,9 +369,7 @@ struct rtprio_args {
 };
 #endif
 int
-sys_rtprio(td, uap)
-	struct thread *td;		/* curthread */
-	register struct rtprio_args *uap;
+sys_rtprio(struct thread *td, register struct rtprio_args *uap)
 {
 	struct proc *p;
 	struct thread *tdp;
@@ -539,9 +535,7 @@ struct osetrlimit_args {
 };
 #endif
 int
-osetrlimit(td, uap)
-	struct thread *td;
-	register struct osetrlimit_args *uap;
+osetrlimit(struct thread *td, register struct osetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit lim;
@@ -562,9 +556,7 @@ struct ogetrlimit_args {
 };
 #endif
 int
-ogetrlimit(td, uap)
-	struct thread *td;
-	register struct ogetrlimit_args *uap;
+ogetrlimit(struct thread *td, register struct ogetrlimit_args *uap)
 {
 	struct orlimit olim;
 	struct rlimit rl;
@@ -601,9 +593,7 @@ struct __setrlimit_args {
 };
 #endif
 int
-sys_setrlimit(td, uap)
-	struct thread *td;
-	register struct __setrlimit_args *uap;
+sys_setrlimit(struct thread *td, register struct __setrlimit_args *uap)
 {
 	struct rlimit alim;
 	int error;
@@ -629,11 +619,11 @@ lim_cb(void *arg)
 	 */
 	if (p->p_cpulimit == RLIM_INFINITY)
 		return;
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	FOREACH_THREAD_IN_PROC(p, td) {
 		ruxagg(p, td);
 	}
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 	if (p->p_rux.rux_runtime > p->p_cpulimit * cpu_tickrate()) {
 		lim_rlimit(p, RLIMIT_CPU, &rlim);
 		if (p->p_rux.rux_runtime >= rlim.rlim_max * cpu_tickrate()) {
@@ -677,21 +667,29 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	newlim = lim_alloc();
+	newlim = NULL;
 	PROC_LOCK(p);
+	if (lim_shared(p->p_limit)) {
+		PROC_UNLOCK(p);
+		newlim = lim_alloc();
+		PROC_LOCK(p);
+	}
 	oldlim = p->p_limit;
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
 		if ((error = priv_check(td, PRIV_PROC_SETRLIMIT))) {
 			PROC_UNLOCK(p);
-			lim_free(newlim);
+			if (newlim != NULL)
+				lim_free(newlim);
 			return (error);
 		}
 	if (limp->rlim_cur > limp->rlim_max)
 		limp->rlim_cur = limp->rlim_max;
-	lim_copy(newlim, oldlim);
-	alimp = &newlim->pl_rlimit[which];
+	if (newlim != NULL) {
+		lim_copy(newlim, oldlim);
+		alimp = &newlim->pl_rlimit[which];
+	}
 
 	switch (which) {
 
@@ -741,9 +739,11 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	if (p->p_sysent->sv_fixlimit != NULL)
 		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
-	p->p_limit = newlim;
+	if (newlim != NULL)
+		p->p_limit = newlim;
 	PROC_UNLOCK(p);
-	lim_free(oldlim);
+	if (newlim != NULL)
+		lim_free(oldlim);
 
 	if (which == RLIMIT_STACK) {
 		/*
@@ -785,9 +785,7 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-sys_getrlimit(td, uap)
-	struct thread *td;
-	register struct __getrlimit_args *uap;
+sys_getrlimit(struct thread *td, register struct __getrlimit_args *uap)
 {
 	struct rlimit rlim;
 	struct proc *p;
@@ -808,10 +806,7 @@ sys_getrlimit(td, uap)
  * into user and system time usage.
  */
 void
-calccru(p, up, sp)
-	struct proc *p;
-	struct timeval *up;
-	struct timeval *sp;
+calccru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -830,7 +825,7 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	uint64_t runtime, u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	PROC_STATLOCK_ASSERT(p, MA_OWNED);
 	/*
 	 * If we are getting stats for the current process, then add in the
 	 * stats that this thread has accumulated in its current time slice.
@@ -862,7 +857,7 @@ rufetchtd(struct thread *td, struct rusage *ru)
 	uint64_t runtime, u;
 
 	p = td->td_proc;
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	PROC_STATLOCK_ASSERT(p, MA_OWNED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
 	 * If we are getting stats for the current thread, then add in the
@@ -964,9 +959,7 @@ struct getrusage_args {
 };
 #endif
 int
-sys_getrusage(td, uap)
-	register struct thread *td;
-	register struct getrusage_args *uap;
+sys_getrusage(register struct thread *td, register struct getrusage_args *uap)
 {
 	struct rusage ru;
 	int error;
@@ -998,11 +991,11 @@ kern_getrusage(struct thread *td, int who, struct rusage *rup)
 		break;
 
 	case RUSAGE_THREAD:
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 		thread_lock(td);
 		rufetchtd(td, rup);
 		thread_unlock(td);
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 		break;
 
 	default:
@@ -1049,7 +1042,7 @@ ruxagg_locked(struct rusage_ext *rux, struct thread *td)
 {
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	PROC_SLOCK_ASSERT(td->td_proc, MA_OWNED);
+	PROC_STATLOCK_ASSERT(td->td_proc, MA_OWNED);
 	rux->rux_runtime += td->td_incruntime;
 	rux->rux_uticks += td->td_uticks;
 	rux->rux_sticks += td->td_sticks;
@@ -1079,7 +1072,7 @@ rufetch(struct proc *p, struct rusage *ru)
 {
 	struct thread *td;
 
-	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	PROC_STATLOCK_ASSERT(p, MA_OWNED);
 
 	*ru = p->p_ru;
 	if (p->p_numthreads > 0)  {
@@ -1100,10 +1093,10 @@ rufetchcalc(struct proc *p, struct rusage *ru, struct timeval *up,
     struct timeval *sp)
 {
 
-	PROC_SLOCK(p);
+	PROC_STATLOCK(p);
 	rufetch(p, ru);
 	calcru(p, up, sp);
-	PROC_SUNLOCK(p);
+	PROC_STATUNLOCK(p);
 }
 
 /*
@@ -1121,12 +1114,18 @@ lim_alloc()
 }
 
 struct plimit *
-lim_hold(limp)
-	struct plimit *limp;
+lim_hold(struct plimit *limp)
 {
 
 	refcount_acquire(&limp->pl_refcnt);
 	return (limp);
+}
+
+static __inline int
+lim_shared(struct plimit *limp)
+{
+
+	return (limp->pl_refcnt > 1);
 }
 
 void
@@ -1144,11 +1143,9 @@ lim_fork(struct proc *p1, struct proc *p2)
 }
 
 void
-lim_free(limp)
-	struct plimit *limp;
+lim_free(struct plimit *limp)
 {
 
-	KASSERT(limp->pl_refcnt > 0, ("plimit refcnt underflow"));
 	if (refcount_release(&limp->pl_refcnt))
 		free((void *)limp, M_PLIMIT);
 }
@@ -1158,11 +1155,10 @@ lim_free(limp)
  * We share these structures copy-on-write after fork.
  */
 void
-lim_copy(dst, src)
-	struct plimit *dst, *src;
+lim_copy(struct plimit *dst, struct plimit *src)
 {
 
-	KASSERT(dst->pl_refcnt == 1, ("lim_copy to shared limit"));
+	KASSERT(!lim_shared(dst), ("lim_copy to shared limit"));
 	bcopy(src->pl_rlimit, dst->pl_rlimit, sizeof(src->pl_rlimit));
 }
 
@@ -1219,10 +1215,10 @@ uihashinit()
 /*
  * Look up a uidinfo struct for the parameter uid.
  * uihashtbl_lock must be locked.
+ * Increase refcount on uidinfo struct returned.
  */
 static struct uidinfo *
-uilookup(uid)
-	uid_t uid;
+uilookup(uid_t uid)
 {
 	struct uihashhead *uipp;
 	struct uidinfo *uip;
@@ -1230,50 +1226,52 @@ uilookup(uid)
 	rw_assert(&uihashtbl_lock, RA_LOCKED);
 	uipp = UIHASH(uid);
 	LIST_FOREACH(uip, uipp, ui_hash)
-		if (uip->ui_uid == uid)
+		if (uip->ui_uid == uid) {
+			uihold(uip);
 			break;
+		}
 
 	return (uip);
 }
 
 /*
  * Find or allocate a struct uidinfo for a particular uid.
- * Increase refcount on uidinfo struct returned.
+ * Returns with uidinfo struct referenced.
  * uifree() should be called on a struct uidinfo when released.
  */
 struct uidinfo *
-uifind(uid)
-	uid_t uid;
+uifind(uid_t uid)
 {
-	struct uidinfo *old_uip, *uip;
+	struct uidinfo *new_uip, *uip;
 
 	rw_rlock(&uihashtbl_lock);
 	uip = uilookup(uid);
-	if (uip == NULL) {
-		rw_runlock(&uihashtbl_lock);
-		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
-		racct_create(&uip->ui_racct);
-		rw_wlock(&uihashtbl_lock);
-		/*
-		 * There's a chance someone created our uidinfo while we
-		 * were in malloc and not holding the lock, so we have to
-		 * make sure we don't insert a duplicate uidinfo.
-		 */
-		if ((old_uip = uilookup(uid)) != NULL) {
-			/* Someone else beat us to it. */
-			racct_destroy(&uip->ui_racct);
-			free(uip, M_UIDINFO);
-			uip = old_uip;
-		} else {
-			refcount_init(&uip->ui_ref, 0);
-			uip->ui_uid = uid;
-			mtx_init(&uip->ui_vmsize_mtx, "ui_vmsize", NULL,
-			    MTX_DEF);
-			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
-		}
+	rw_runlock(&uihashtbl_lock);
+	if (uip != NULL)
+		return (uip);
+
+	new_uip = malloc(sizeof(*new_uip), M_UIDINFO, M_WAITOK | M_ZERO);
+	racct_create(&new_uip->ui_racct);
+	refcount_init(&new_uip->ui_ref, 1);
+	new_uip->ui_uid = uid;
+	mtx_init(&new_uip->ui_vmsize_mtx, "ui_vmsize", NULL, MTX_DEF);
+
+	rw_wlock(&uihashtbl_lock);
+	/*
+	 * There's a chance someone created our uidinfo while we
+	 * were in malloc and not holding the lock, so we have to
+	 * make sure we don't insert a duplicate uidinfo.
+	 */
+	if ((uip = uilookup(uid)) == NULL) {
+		LIST_INSERT_HEAD(UIHASH(uid), new_uip, ui_hash);
+		rw_wunlock(&uihashtbl_lock);
+		uip = new_uip;
+	} else {
+		rw_wunlock(&uihashtbl_lock);
+		racct_destroy(&new_uip->ui_racct);
+		mtx_destroy(&new_uip->ui_vmsize_mtx);
+		free(new_uip, M_UIDINFO);
 	}
-	uihold(uip);
-	rw_unlock(&uihashtbl_lock);
 	return (uip);
 }
 
@@ -1281,8 +1279,7 @@ uifind(uid)
  * Place another refcount on a uidinfo struct.
  */
 void
-uihold(uip)
-	struct uidinfo *uip;
+uihold(struct uidinfo *uip)
 {
 
 	refcount_acquire(&uip->ui_ref);
@@ -1304,8 +1301,7 @@ uihold(uip)
  *   order to try again.
  */
 void
-uifree(uip)
-	struct uidinfo *uip;
+uifree(struct uidinfo *uip)
 {
 	int old;
 
@@ -1316,30 +1312,29 @@ uifree(uip)
 
 	/* Prepare for suboptimal case. */
 	rw_wlock(&uihashtbl_lock);
-	if (refcount_release(&uip->ui_ref)) {
-		racct_destroy(&uip->ui_racct);
-		LIST_REMOVE(uip, ui_hash);
+	if (refcount_release(&uip->ui_ref) == 0) {
 		rw_wunlock(&uihashtbl_lock);
-		if (uip->ui_sbsize != 0)
-			printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
-			    uip->ui_uid, uip->ui_sbsize);
-		if (uip->ui_proccnt != 0)
-			printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
-			    uip->ui_uid, uip->ui_proccnt);
-		if (uip->ui_vmsize != 0)
-			printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
-			    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
-		mtx_destroy(&uip->ui_vmsize_mtx);
-		free(uip, M_UIDINFO);
 		return;
 	}
-	/*
-	 * Someone added a reference between atomic_cmpset_int() and
-	 * rw_wlock(&uihashtbl_lock).
-	 */
+
+	racct_destroy(&uip->ui_racct);
+	LIST_REMOVE(uip, ui_hash);
 	rw_wunlock(&uihashtbl_lock);
+
+	if (uip->ui_sbsize != 0)
+		printf("freeing uidinfo: uid = %d, sbsize = %ld\n",
+		    uip->ui_uid, uip->ui_sbsize);
+	if (uip->ui_proccnt != 0)
+		printf("freeing uidinfo: uid = %d, proccnt = %ld\n",
+		    uip->ui_uid, uip->ui_proccnt);
+	if (uip->ui_vmsize != 0)
+		printf("freeing uidinfo: uid = %d, swapuse = %lld\n",
+		    uip->ui_uid, (unsigned long long)uip->ui_vmsize);
+	mtx_destroy(&uip->ui_vmsize_mtx);
+	free(uip, M_UIDINFO);
 }
 
+#ifdef RACCT
 void
 ui_racct_foreach(void (*callback)(struct racct *racct,
     void *arg2, void *arg3), void *arg2, void *arg3)
@@ -1355,16 +1350,14 @@ ui_racct_foreach(void (*callback)(struct racct *racct,
 	}
 	rw_runlock(&uihashtbl_lock);
 }
+#endif
 
 /*
  * Change the count associated with number of processes
  * a given user is using.  When 'max' is 0, don't enforce a limit
  */
 int
-chgproccnt(uip, diff, max)
-	struct	uidinfo	*uip;
-	int	diff;
-	rlim_t	max;
+chgproccnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
 	/* Don't allow them to exceed max, but allow subtraction. */
@@ -1385,11 +1378,7 @@ chgproccnt(uip, diff, max)
  * Change the total socket buffer size a user has used.
  */
 int
-chgsbsize(uip, hiwat, to, max)
-	struct	uidinfo	*uip;
-	u_int  *hiwat;
-	u_int	to;
-	rlim_t	max;
+chgsbsize(struct uidinfo *uip, u_int *hiwat, u_int to, rlim_t max)
 {
 	int diff;
 
@@ -1413,10 +1402,7 @@ chgsbsize(uip, hiwat, to, max)
  * a given user is using.  When 'max' is 0, don't enforce a limit
  */
 int
-chgptscnt(uip, diff, max)
-	struct	uidinfo	*uip;
-	int	diff;
-	rlim_t	max;
+chgptscnt(struct uidinfo *uip, int diff, rlim_t max)
 {
 
 	/* Don't allow them to exceed max, but allow subtraction. */
@@ -1429,6 +1415,24 @@ chgptscnt(uip, diff, max)
 		atomic_add_long(&uip->ui_ptscnt, (long)diff);
 		if (uip->ui_ptscnt < 0)
 			printf("negative ptscnt for uid = %d\n", uip->ui_uid);
+	}
+	return (1);
+}
+
+int
+chgkqcnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	if (diff > 0 && max != 0) {
+		if (atomic_fetchadd_long(&uip->ui_kqcnt, (long)diff) +
+		    diff > max) {
+			atomic_subtract_long(&uip->ui_kqcnt, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(&uip->ui_kqcnt, (long)diff);
+		if (uip->ui_kqcnt < 0)
+			printf("negative kqcnt for uid = %d\n", uip->ui_uid);
 	}
 	return (1);
 }

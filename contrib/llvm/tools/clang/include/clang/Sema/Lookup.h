@@ -15,8 +15,8 @@
 #ifndef LLVM_CLANG_SEMA_LOOKUP_H
 #define LLVM_CLANG_SEMA_LOOKUP_H
 
-#include "clang/Sema/Sema.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/Sema/Sema.h"
 
 namespace clang {
 
@@ -130,15 +130,17 @@ public:
                Sema::LookupNameKind LookupKind,
                Sema::RedeclarationKind Redecl = Sema::NotForRedeclaration)
     : ResultKind(NotFound),
-      Paths(0),
-      NamingClass(0),
-      SemaRef(SemaRef),
+      Paths(nullptr),
+      NamingClass(nullptr),
+      SemaPtr(&SemaRef),
       NameInfo(NameInfo),
       LookupKind(LookupKind),
       IDNS(0),
       Redecl(Redecl != Sema::NotForRedeclaration),
       HideTags(true),
-      Diagnose(Redecl == Sema::NotForRedeclaration)
+      Diagnose(Redecl == Sema::NotForRedeclaration),
+      AllowHidden(Redecl == Sema::ForRedeclaration),
+      Shadowed(false)
   {
     configure();
   }
@@ -150,15 +152,17 @@ public:
                SourceLocation NameLoc, Sema::LookupNameKind LookupKind,
                Sema::RedeclarationKind Redecl = Sema::NotForRedeclaration)
     : ResultKind(NotFound),
-      Paths(0),
-      NamingClass(0),
-      SemaRef(SemaRef),
+      Paths(nullptr),
+      NamingClass(nullptr),
+      SemaPtr(&SemaRef),
       NameInfo(Name, NameLoc),
       LookupKind(LookupKind),
       IDNS(0),
       Redecl(Redecl != Sema::NotForRedeclaration),
       HideTags(true),
-      Diagnose(Redecl == Sema::NotForRedeclaration)
+      Diagnose(Redecl == Sema::NotForRedeclaration),
+      AllowHidden(Redecl == Sema::ForRedeclaration),
+      Shadowed(false)
   {
     configure();
   }
@@ -168,15 +172,17 @@ public:
   /// disabled.
   LookupResult(TemporaryToken _, const LookupResult &Other)
     : ResultKind(NotFound),
-      Paths(0),
-      NamingClass(0),
-      SemaRef(Other.SemaRef),
+      Paths(nullptr),
+      NamingClass(nullptr),
+      SemaPtr(Other.SemaPtr),
       NameInfo(Other.NameInfo),
       LookupKind(Other.LookupKind),
       IDNS(Other.IDNS),
       Redecl(Other.Redecl),
       HideTags(Other.HideTags),
-      Diagnose(false)
+      Diagnose(false),
+      AllowHidden(Other.AllowHidden),
+      Shadowed(false)
   {}
 
   ~LookupResult() {
@@ -214,10 +220,16 @@ public:
     return Redecl;
   }
 
+  /// \brief Specify whether hidden declarations are visible, e.g.,
+  /// for recovery reasons.
+  void setAllowHidden(bool AH) {
+    AllowHidden = AH;
+  }
+
   /// \brief Determine whether this lookup is permitted to see hidden
   /// declarations, such as those in modules that have not yet been imported.
   bool isHiddenDeclarationVisible() const {
-    return Redecl || LookupKind == Sema::LookupTagName;
+    return AllowHidden || LookupKind == Sema::LookupTagName;
   }
   
   /// Sets whether tag declarations should be hidden by non-tag
@@ -247,7 +259,7 @@ public:
   }
 
   LookupResultKind getResultKind() const {
-    sanity();
+    assert(sanity());
     return ResultKind;
   }
 
@@ -274,33 +286,36 @@ public:
 
   /// \brief Determine whether the given declaration is visible to the
   /// program.
-  static bool isVisible(NamedDecl *D) {
+  static bool isVisible(Sema &SemaRef, NamedDecl *D) {
     // If this declaration is not hidden, it's visible.
     if (!D->isHidden())
       return true;
-    
-    // FIXME: We should be allowed to refer to a module-private name from 
-    // within the same module, e.g., during template instantiation.
-    // This requires us know which module a particular declaration came from.
-    return false;
+
+    if (SemaRef.ActiveTemplateInstantiations.empty())
+      return false;
+
+    // During template instantiation, we can refer to hidden declarations, if
+    // they were visible in any module along the path of instantiation.
+    return isVisibleSlow(SemaRef, D);
   }
-  
+
   /// \brief Retrieve the accepted (re)declaration of the given declaration,
   /// if there is one.
   NamedDecl *getAcceptableDecl(NamedDecl *D) const {
     if (!D->isInIdentifierNamespace(IDNS))
-      return 0;
-    
-    if (isHiddenDeclarationVisible() || isVisible(D))
+      return nullptr;
+
+    if (isHiddenDeclarationVisible() || isVisible(getSema(), D))
       return D;
-    
+
     return getAcceptableDeclSlow(D);
   }
-  
+
 private:
+  static bool isVisibleSlow(Sema &SemaRef, NamedDecl *D);
   NamedDecl *getAcceptableDeclSlow(NamedDecl *D) const;
+
 public:
-  
   /// \brief Returns the identifier namespace mask for this lookup.
   unsigned getIdentifierNamespace() const {
     return IDNS;
@@ -309,7 +324,7 @@ public:
   /// \brief Returns whether these results arose from performing a
   /// lookup into a class.
   bool isClassLookup() const {
-    return NamingClass != 0;
+    return NamingClass != nullptr;
   }
 
   /// \brief Returns the 'naming class' for this lookup, i.e. the
@@ -381,7 +396,15 @@ public:
     assert(ResultKind == NotFound && Decls.empty());
     ResultKind = NotFoundInCurrentInstantiation;
   }
-  
+
+  /// \brief Determine whether the lookup result was shadowed by some other
+  /// declaration that lookup ignored.
+  bool isShadowed() const { return Shadowed; }
+
+  /// \brief Note that we found and ignored a declaration while performing
+  /// lookup.
+  void setShadowed() { Shadowed = true; }
+
   /// \brief Resolves the result kind of the lookup, possibly hiding
   /// decls.
   ///
@@ -398,27 +421,34 @@ public:
 
       if (Paths) {
         deletePaths(Paths);
-        Paths = 0;
+        Paths = nullptr;
       }
     } else {
-      AmbiguityKind SavedAK = Ambiguity;
+      AmbiguityKind SavedAK;
+      bool WasAmbiguous = false;
+      if (ResultKind == Ambiguous) {
+        SavedAK = Ambiguity;
+        WasAmbiguous = true;
+      }
       ResultKind = Found;
       resolveKind();
 
       // If we didn't make the lookup unambiguous, restore the old
       // ambiguity kind.
       if (ResultKind == Ambiguous) {
+        (void)WasAmbiguous;
+        assert(WasAmbiguous);
         Ambiguity = SavedAK;
       } else if (Paths) {
         deletePaths(Paths);
-        Paths = 0;
+        Paths = nullptr;
       }
     }
   }
 
   template <class DeclClass>
   DeclClass *getAsSingle() const {
-    if (getResultKind() != Found) return 0;
+    if (getResultKind() != Found) return nullptr;
     return dyn_cast<DeclClass>(getFoundDecl());
   }
 
@@ -468,8 +498,9 @@ public:
     ResultKind = NotFound;
     Decls.clear();
     if (Paths) deletePaths(Paths);
-    Paths = NULL;
-    NamingClass = 0;
+    Paths = nullptr;
+    NamingClass = nullptr;
+    Shadowed = false;
   }
 
   /// \brief Clears out any current state and re-initializes for a
@@ -483,6 +514,7 @@ public:
   /// \brief Change this lookup's redeclaration kind.
   void setRedeclarationKind(Sema::RedeclarationKind RK) {
     Redecl = RK;
+    AllowHidden = (RK == Sema::ForRedeclaration);
     configure();
   }
 
@@ -519,7 +551,7 @@ public:
 
   /// \brief Get the Sema object that this lookup result is searching
   /// with.
-  Sema &getSema() const { return SemaRef; }
+  Sema &getSema() const { return *SemaPtr; }
 
   /// A class for iterating through a result set and possibly
   /// filtering out results.  The results returned are possibly
@@ -588,12 +620,19 @@ public:
     return Filter(*this);
   }
 
+  void setFindLocalExtern(bool FindLocalExtern) {
+    if (FindLocalExtern)
+      IDNS |= Decl::IDNS_LocalExtern;
+    else
+      IDNS &= ~Decl::IDNS_LocalExtern;
+  }
+
 private:
   void diagnose() {
     if (isAmbiguous())
-      SemaRef.DiagnoseAmbiguousLookup(*this);
-    else if (isClassLookup() && SemaRef.getLangOpts().AccessControl)
-      SemaRef.CheckLookupAccess(*this);
+      getSema().DiagnoseAmbiguousLookup(*this);
+    else if (isClassLookup() && getSema().getLangOpts().AccessControl)
+      getSema().CheckLookupAccess(*this);
   }
 
   void setAmbiguous(AmbiguityKind AK) {
@@ -605,17 +644,11 @@ private:
   void configure();
 
   // Sanity checks.
-  void sanityImpl() const;
-
-  void sanity() const {
-#ifndef NDEBUG
-    sanityImpl();
-#endif
-  }
+  bool sanity() const;
 
   bool sanityCheckUnresolved() const {
     for (iterator I = begin(), E = end(); I != E; ++I)
-      if (isa<UnresolvedUsingValueDecl>(*I))
+      if (isa<UnresolvedUsingValueDecl>((*I)->getUnderlyingDecl()))
         return true;
     return false;
   }
@@ -631,7 +664,7 @@ private:
   QualType BaseObjectType;
 
   // Parameters.
-  Sema &SemaRef;
+  Sema *SemaPtr;
   DeclarationNameInfo NameInfo;
   SourceRange NameContextRange;
   Sema::LookupNameKind LookupKind;
@@ -644,34 +677,47 @@ private:
   bool HideTags;
 
   bool Diagnose;
+
+  /// \brief True if we should allow hidden declarations to be 'visible'.
+  bool AllowHidden;
+
+  /// \brief True if the found declarations were shadowed by some other
+  /// declaration that we skipped. This only happens when \c LookupKind
+  /// is \c LookupRedeclarationWithLinkage.
+  bool Shadowed;
 };
 
-  /// \brief Consumes visible declarations found when searching for
-  /// all visible names within a given scope or context.
-  ///
-  /// This abstract class is meant to be subclassed by clients of \c
-  /// Sema::LookupVisibleDecls(), each of which should override the \c
-  /// FoundDecl() function to process declarations as they are found.
-  class VisibleDeclConsumer {
-  public:
-    /// \brief Destroys the visible declaration consumer.
-    virtual ~VisibleDeclConsumer();
+/// \brief Consumes visible declarations found when searching for
+/// all visible names within a given scope or context.
+///
+/// This abstract class is meant to be subclassed by clients of \c
+/// Sema::LookupVisibleDecls(), each of which should override the \c
+/// FoundDecl() function to process declarations as they are found.
+class VisibleDeclConsumer {
+public:
+  /// \brief Destroys the visible declaration consumer.
+  virtual ~VisibleDeclConsumer();
 
-    /// \brief Invoked each time \p Sema::LookupVisibleDecls() finds a
-    /// declaration visible from the current scope or context.
-    ///
-    /// \param ND the declaration found.
-    ///
-    /// \param Hiding a declaration that hides the declaration \p ND,
-    /// or NULL if no such declaration exists.
-    ///
-    /// \param Ctx the original context from which the lookup started.
-    ///
-    /// \param InBaseClass whether this declaration was found in base
-    /// class of the context we searched.
-    virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, DeclContext *Ctx,
-                           bool InBaseClass) = 0;
-  };
+  /// \brief Determine whether hidden declarations (from unimported
+  /// modules) should be given to this consumer. By default, they
+  /// are not included.
+  virtual bool includeHiddenDecls() const;
+
+  /// \brief Invoked each time \p Sema::LookupVisibleDecls() finds a
+  /// declaration visible from the current scope or context.
+  ///
+  /// \param ND the declaration found.
+  ///
+  /// \param Hiding a declaration that hides the declaration \p ND,
+  /// or NULL if no such declaration exists.
+  ///
+  /// \param Ctx the original context from which the lookup started.
+  ///
+  /// \param InBaseClass whether this declaration was found in base
+  /// class of the context we searched.
+  virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, DeclContext *Ctx,
+                         bool InBaseClass) = 0;
+};
 
 /// \brief A class for storing results from argument-dependent lookup.
 class ADLResult {
@@ -688,7 +734,8 @@ public:
     Decls.erase(cast<NamedDecl>(D->getCanonicalDecl()));
   }
 
-  class iterator {
+  class iterator
+      : public std::iterator<std::forward_iterator_tag, NamedDecl *> {
     typedef llvm::DenseMap<NamedDecl*,NamedDecl*>::iterator inner_iterator;
     inner_iterator iter;
 
@@ -700,7 +747,7 @@ public:
     iterator &operator++() { ++iter; return *this; }
     iterator operator++(int) { return iterator(iter++); }
 
-    NamedDecl *operator*() const { return iter->second; }
+    value_type operator*() const { return iter->second; }
 
     bool operator==(const iterator &other) const { return iter == other.iter; }
     bool operator!=(const iterator &other) const { return iter != other.iter; }

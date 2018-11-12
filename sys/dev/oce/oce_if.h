@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,11 @@
  * Costa Mesa, CA 92626
  */
 
-
 /* $FreeBSD$ */
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/eventhandler.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
@@ -65,6 +65,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
 #include <net/if_vlan_var.h>
@@ -88,7 +89,8 @@
 
 #include "oce_hw.h"
 
-#define COMPONENT_REVISION "4.6.95.0"
+/* OCE device driver module component revision informaiton */
+#define COMPONENT_REVISION "10.0.664.0"
 
 /* OCE devices supported by this driver */
 #define PCI_VENDOR_EMULEX		0x10df	/* Emulex */
@@ -97,11 +99,21 @@
 #define PCI_PRODUCT_BE3			0x0710	/* BE3 network adapter */
 #define PCI_PRODUCT_XE201		0xe220	/* XE201 network adapter */
 #define PCI_PRODUCT_XE201_VF		0xe228	/* XE201 with VF in Lancer */
+#define PCI_PRODUCT_SH			0x0720	/* Skyhawk network adapter */
 
 #define IS_BE(sc)	(((sc->flags & OCE_FLAGS_BE3) | \
 			 (sc->flags & OCE_FLAGS_BE2))? 1:0)
+#define IS_BE3(sc)	(sc->flags & OCE_FLAGS_BE3)
+#define IS_BE2(sc)	(sc->flags & OCE_FLAGS_BE2)
 #define IS_XE201(sc)	((sc->flags & OCE_FLAGS_XE201) ? 1:0)
 #define HAS_A0_CHIP(sc)	((sc->flags & OCE_FLAGS_HAS_A0_CHIP) ? 1:0)
+#define IS_SH(sc)	((sc->flags & OCE_FLAGS_SH) ? 1 : 0)
+
+#define is_be_mode_mc(sc)	((sc->function_mode & FNM_FLEX10_MODE) ||	\
+				(sc->function_mode & FNM_UMC_MODE)    ||	\
+				(sc->function_mode & FNM_VNIC_MODE))
+#define OCE_FUNCTION_CAPS_SUPER_NIC	0x40
+#define IS_PROFILE_SUPER_NIC(sc) (sc->function_caps & OCE_FUNCTION_CAPS_SUPER_NIC)
 
 
 /* proportion Service Level Interface queues */
@@ -113,8 +125,9 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_NCPUS			mp_ncpus
 
 /* This should be powers of 2. Like 2,4,8 & 16 */
-#define OCE_MAX_RSS			4 /* TODO: 8*/ 
+#define OCE_MAX_RSS			8
 #define OCE_LEGACY_MODE_RSS		4 /* For BE3 Legacy mode*/
+#define is_rss_enabled(sc)		((sc->function_caps & FNC_RSS) && !is_be_mode_mc(sc))
 
 #define OCE_MIN_RQ			1
 #define OCE_MIN_WQ			1
@@ -149,6 +162,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define RSS_ENABLE_IPV6			0x4
 #define RSS_ENABLE_TCP_IPV6		0x8
 
+#define INDIRECTION_TABLE_ENTRIES	128
 
 /* flow control definitions */
 #define OCE_FC_NONE			0x00000000
@@ -161,6 +175,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define  OCE_CAPAB_FLAGS 		(MBX_RX_IFACE_FLAGS_BROADCAST    | \
 					MBX_RX_IFACE_FLAGS_UNTAGGED      | \
 					MBX_RX_IFACE_FLAGS_PROMISCUOUS      | \
+					MBX_RX_IFACE_FLAGS_VLAN_PROMISCUOUS |	\
 					MBX_RX_IFACE_FLAGS_MCAST_PROMISCUOUS   | \
 					MBX_RX_IFACE_FLAGS_RSS | \
 					MBX_RX_IFACE_FLAGS_PASS_L3L4_ERR)
@@ -194,6 +209,9 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 		for (i = 0, wq = sc->wq[0]; i < sc->nwqs; i++, wq = sc->wq[i])
 #define for_all_rq_queues(sc, rq, i) 	\
 		for (i = 0, rq = sc->rq[0]; i < sc->nrqs; i++, rq = sc->rq[i])
+#define for_all_rss_queues(sc, rq, i) 	\
+		for (i = 0, rq = sc->rq[i + 1]; i < (sc->nrqs - 1); \
+		     i++, rq = sc->rq[i + 1])
 #define for_all_evnt_queues(sc, eq, i) 	\
 		for (i = 0, eq = sc->eq[0]; i < sc->neqs; i++, eq = sc->eq[i])
 #define for_all_cq_queues(sc, cq, i) 	\
@@ -671,8 +689,8 @@ struct oce_wq {
 	struct oce_cq *cq;
 	bus_dma_tag_t tag;
 	struct oce_packet_desc pckts[OCE_WQ_PACKET_ARRAY_SIZE];
-	uint32_t packets_in;
-	uint32_t packets_out;
+	uint32_t pkt_desc_tail;
+	uint32_t pkt_desc_head;
 	uint32_t wqm_used;
 	boolean_t resched;
 	uint32_t wq_free;
@@ -685,6 +703,7 @@ struct oce_wq {
 	struct oce_tx_queue_stats tx_stats;
 	struct buf_ring *br;
 	struct task txtask;
+	uint32_t db_offset;
 };
 
 struct rq_config {
@@ -741,14 +760,9 @@ struct oce_rq {
 };
 
 struct link_status {
-	uint8_t physical_port;
-	uint8_t mac_duplex;
-	uint8_t mac_speed;
-	uint8_t mac_fault;
-	uint8_t mgmt_mac_duplex;
-	uint8_t mgmt_mac_speed;
+	uint8_t phys_port_speed;
+	uint8_t logical_link_status;
 	uint16_t qos_link_speed;
-	uint32_t logical_link_status;
 };
 
 
@@ -765,6 +779,7 @@ struct link_status {
 #define OCE_FLAGS_BE3			0x00000200
 #define OCE_FLAGS_XE201			0x00000400
 #define OCE_FLAGS_BE2			0x00000800
+#define OCE_FLAGS_SH			0x00001000
 
 #define OCE_DEV_BE2_CFG_BAR		1
 #define OCE_DEV_CFG_BAR			0
@@ -833,11 +848,11 @@ typedef struct oce_softc {
 	uint32_t ncqs;
 	uint32_t nrqs;
 	uint32_t nwqs;
+	uint32_t nrssqs;
 
 	uint32_t tx_ring_size;
 	uint32_t rx_ring_size;
 	uint32_t rq_frag_size;
-	uint32_t rss_enable;
 
 	uint32_t if_id;		/* interface ID */
 	uint32_t nifs;		/* number of adapter interfaces, 0 or 1 */
@@ -846,7 +861,7 @@ typedef struct oce_softc {
 	uint32_t if_cap_flags;
 
 	uint32_t flow_control;
-	uint32_t promisc;
+	uint8_t  promisc;
 
 	struct oce_aic_obj aic_obj[OCE_MAX_EQ];
 
@@ -860,9 +875,11 @@ typedef struct oce_softc {
 	struct oce_drv_stats oce_stats_info;
 	struct callout  timer;
 	int8_t be3_native;
+	uint8_t hw_error;
 	uint16_t qnq_debug_event;
 	uint16_t qnqid;
-	uint16_t pvid;
+	uint32_t pvid;
+	uint32_t max_vlans;
 
 } OCE_SOFTC, *POCE_SOFTC;
 
@@ -873,37 +890,47 @@ typedef struct oce_softc {
  * BE3: accesses three BAR spaces (CFG, CSR, DB)
  * Lancer: accesses one BAR space (CFG)
  **************************************************/
-#define OCE_READ_REG32(sc, space, o) \
+#define OCE_READ_CSR_MPU(sc, space, o) \
 	((IS_BE(sc)) ? (bus_space_read_4((sc)->space##_btag, \
-				      (sc)->space##_bhandle,o)) \
-		  : (bus_space_read_4((sc)->devcfg_btag, \
-				      (sc)->devcfg_bhandle,o)))
+					(sc)->space##_bhandle,o)) \
+				: (bus_space_read_4((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o)))
+#define OCE_READ_REG32(sc, space, o) \
+	((IS_BE(sc) || IS_SH(sc)) ? (bus_space_read_4((sc)->space##_btag, \
+					(sc)->space##_bhandle,o)) \
+				: (bus_space_read_4((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o)))
 #define OCE_READ_REG16(sc, space, o) \
-	((IS_BE(sc)) ? (bus_space_read_2((sc)->space##_btag, \
-				      (sc)->space##_bhandle,o)) \
-		  : (bus_space_read_2((sc)->devcfg_btag, \
-				      (sc)->devcfg_bhandle,o)))
+	((IS_BE(sc) || IS_SH(sc)) ? (bus_space_read_2((sc)->space##_btag, \
+					(sc)->space##_bhandle,o)) \
+				: (bus_space_read_2((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o)))
 #define OCE_READ_REG8(sc, space, o) \
-	((IS_BE(sc)) ? (bus_space_read_1((sc)->space##_btag, \
-				      (sc)->space##_bhandle,o)) \
-		  : (bus_space_read_1((sc)->devcfg_btag, \
-				      (sc)->devcfg_bhandle,o)))
+	((IS_BE(sc) || IS_SH(sc)) ? (bus_space_read_1((sc)->space##_btag, \
+					(sc)->space##_bhandle,o)) \
+				: (bus_space_read_1((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o)))
 
-#define OCE_WRITE_REG32(sc, space, o, v) \
+#define OCE_WRITE_CSR_MPU(sc, space, o, v) \
 	((IS_BE(sc)) ? (bus_space_write_4((sc)->space##_btag, \
 				       (sc)->space##_bhandle,o,v)) \
-		  : (bus_space_write_4((sc)->devcfg_btag, \
-				       (sc)->devcfg_bhandle,o,v)))
+				: (bus_space_write_4((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o,v)))
+#define OCE_WRITE_REG32(sc, space, o, v) \
+	((IS_BE(sc) || IS_SH(sc)) ? (bus_space_write_4((sc)->space##_btag, \
+				       (sc)->space##_bhandle,o,v)) \
+				: (bus_space_write_4((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o,v)))
 #define OCE_WRITE_REG16(sc, space, o, v) \
-	((IS_BE(sc)) ? (bus_space_write_2((sc)->space##_btag, \
+	((IS_BE(sc) || IS_SH(sc)) ? (bus_space_write_2((sc)->space##_btag, \
 				       (sc)->space##_bhandle,o,v)) \
-		  : (bus_space_write_2((sc)->devcfg_btag, \
-				       (sc)->devcfg_bhandle,o,v)))
+				: (bus_space_write_2((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o,v)))
 #define OCE_WRITE_REG8(sc, space, o, v) \
-	((IS_BE(sc)) ? (bus_space_write_1((sc)->space##_btag, \
+	((IS_BE(sc) || IS_SH(sc)) ? (bus_space_write_1((sc)->space##_btag, \
 				       (sc)->space##_bhandle,o,v)) \
-		  : (bus_space_write_1((sc)->devcfg_btag, \
-				       (sc)->devcfg_bhandle,o,v)))
+				: (bus_space_write_1((sc)->devcfg_btag, \
+					(sc)->devcfg_bhandle,o,v)))
 
 
 /***********************************************************
@@ -983,7 +1010,7 @@ int oce_config_vlan(POCE_SOFTC sc, uint32_t if_id,
 		uint32_t untagged, uint32_t enable_promisc);
 int oce_set_flow_control(POCE_SOFTC sc, uint32_t flow_control);
 int oce_config_nic_rss(POCE_SOFTC sc, uint32_t if_id, uint16_t enable_rss);
-int oce_rxf_set_promiscuous(POCE_SOFTC sc, uint32_t enable);
+int oce_rxf_set_promiscuous(POCE_SOFTC sc, uint8_t enable);
 int oce_set_common_iface_rx_filter(POCE_SOFTC sc, POCE_DMA_MEM sgl);
 int oce_get_link_status(POCE_SOFTC sc, struct link_status *link);
 int oce_mbox_get_nic_stats_v0(POCE_SOFTC sc, POCE_DMA_MEM pstats_dma_mem);
@@ -1024,6 +1051,8 @@ int oce_mbox_cq_create(struct oce_cq *cq, uint32_t ncoalesce,
 int oce_mbox_read_transrecv_data(POCE_SOFTC sc, uint32_t page_num);
 void oce_mbox_eqd_modify_periodic(POCE_SOFTC sc, struct oce_set_eqd *set_eqd,
 					int num);
+int oce_get_profile_config(POCE_SOFTC sc, uint32_t max_rss);
+int oce_get_func_config(POCE_SOFTC sc);
 void mbx_common_req_hdr_init(struct mbx_hdr *hdr,
 			     uint8_t dom,
 			     uint8_t port,
@@ -1066,12 +1095,18 @@ extern uint32_t oce_max_rsp_handled;	/* max responses */
 #define OCE_ONE_PORT_EXT_LOOPBACK	0x2
 #define OCE_NO_LOOPBACK			0xff
 
+#undef IFM_40G_SR4
+#define IFM_40G_SR4			28
+
 #define atomic_inc_32(x)		atomic_add_32(x, 1)
 #define atomic_dec_32(x)		atomic_subtract_32(x, 1)
 
 #define LE_64(x)			htole64(x)
 #define LE_32(x)			htole32(x)
 #define LE_16(x)			htole16(x)
+#define HOST_64(x)			le64toh(x)
+#define HOST_32(x)			le32toh(x)
+#define HOST_16(x)			le16toh(x)
 #define DW_SWAP(x, l)
 #define IS_ALIGNED(x,a)			((x % a) == 0)
 #define ADDR_HI(x)			((uint32_t)((uint64_t)(x) >> 32))
@@ -1102,6 +1137,16 @@ static inline uint32_t oce_highbit(uint32_t x)
 		return b;
 
 	return 0;
+}
+
+static inline int MPU_EP_SEMAPHORE(POCE_SOFTC sc)
+{
+	if (IS_BE(sc))
+		return MPU_EP_SEMAPHORE_BE3;
+	else if (IS_SH(sc))
+		return MPU_EP_SEMAPHORE_SH;
+	else
+		return MPU_EP_SEMAPHORE_XE201;
 }
 
 #define TRANSCEIVER_DATA_NUM_ELE 64

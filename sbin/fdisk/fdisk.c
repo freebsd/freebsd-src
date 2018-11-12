@@ -75,7 +75,8 @@ static int secsize = 0;		/* the sensed sector size */
 
 static char *disk;
 
-static int cyls, sectors, heads, cylsecs, disksecs;
+static int cyls, sectors, heads, cylsecs;
+static u_int32_t disksecs;
 
 struct mboot {
 	unsigned char *bootinst;  /* boot code */
@@ -506,7 +507,6 @@ print_part(const struct dos_partition *partp)
 static void
 init_boot(void)
 {
-#ifndef __ia64__
 	const char *fname;
 	int fdesc, n;
 	struct stat sb;
@@ -528,15 +528,6 @@ init_boot(void)
 		err(1, "%s", fname);
 	if (n != mboot.bootinst_size)
 		errx(1, "%s: short read", fname);
-#else
-	if (mboot.bootinst != NULL)
-		free(mboot.bootinst);
-	mboot.bootinst_size = secsize;
-	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL)
-		errx(1, "unable to allocate boot block buffer");
-	memset(mboot.bootinst, 0, mboot.bootinst_size);
-	le16enc(&mboot.bootinst[DOSMAGICOFFSET], DOSMAGIC);
-#endif
 }
 
 
@@ -873,10 +864,13 @@ get_params()
 	o = g_mediasize(fd);
 	if (o < 0)
 		return (-1);
-	disksecs = o / u;
+	if (o / u <= NO_DISK_SECTORS)
+		disksecs = o / u;
+	else
+		disksecs = NO_DISK_SECTORS;
 	cyls = dos_cyls = o / (u * dos_heads * dos_sectors);
 
-	return (disksecs);
+	return (0);
 }
 
 static int

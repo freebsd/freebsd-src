@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
@@ -208,7 +209,7 @@ ieee80211_sysctl_parent(SYSCTL_HANDLER_ARGS)
 	struct ieee80211com *ic = arg1;
 	const char *name = ic->ic_ifp->if_xname;
 
-	return SYSCTL_OUT(req, name, strlen(name));
+	return SYSCTL_OUT_STR(req, name);
 }
 
 static int
@@ -419,7 +420,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 		 * frames which all fit in MHLEN.
 		 */
 		if (m != NULL)
-			MH_ALIGN(m, len);
+			M_ALIGN(m, len);
 	} else {
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m != NULL)
@@ -511,7 +512,7 @@ ieee80211_process_callback(struct ieee80211_node *ni,
  *   (the callers will first need modifying.)
  */
 int
-ieee80211_parent_transmit(struct ieee80211com *ic,
+ieee80211_parent_xmitpkt(struct ieee80211com *ic,
 	struct mbuf *m)
 {
 	struct ifnet *parent = ic->ic_ifp;
@@ -528,7 +529,7 @@ ieee80211_parent_transmit(struct ieee80211com *ic,
  * Transmit a frame to the VAP interface.
  */
 int
-ieee80211_vap_transmit(struct ieee80211vap *vap, struct mbuf *m)
+ieee80211_vap_xmitpkt(struct ieee80211vap *vap, struct mbuf *m)
 {
 	struct ifnet *ifp = vap->iv_ifp;
 
@@ -702,7 +703,9 @@ ieee80211_notify_csa(struct ieee80211com *ic,
 	iev.iev_ieee = c->ic_ieee;
 	iev.iev_mode = mode;
 	iev.iev_count = count;
+	CURVNET_SET(ifp->if_vnet);
 	rt_ieee80211msg(ifp, RTM_IEEE80211_CSA, &iev, sizeof(iev));
+	CURVNET_RESTORE();
 }
 
 void
@@ -716,7 +719,9 @@ ieee80211_notify_radar(struct ieee80211com *ic,
 	iev.iev_flags = c->ic_flags;
 	iev.iev_freq = c->ic_freq;
 	iev.iev_ieee = c->ic_ieee;
+	CURVNET_SET(ifp->if_vnet);
 	rt_ieee80211msg(ifp, RTM_IEEE80211_RADAR, &iev, sizeof(iev));
+	CURVNET_RESTORE();
 }
 
 void
@@ -731,7 +736,9 @@ ieee80211_notify_cac(struct ieee80211com *ic,
 	iev.iev_freq = c->ic_freq;
 	iev.iev_ieee = c->ic_ieee;
 	iev.iev_type = type;
+	CURVNET_SET(ifp->if_vnet);
 	rt_ieee80211msg(ifp, RTM_IEEE80211_CAC, &iev, sizeof(iev));
+	CURVNET_RESTORE();
 }
 
 void
@@ -767,7 +774,9 @@ ieee80211_notify_country(struct ieee80211vap *vap,
 	IEEE80211_ADDR_COPY(iev.iev_addr, bssid);
 	iev.iev_cc[0] = cc[0];
 	iev.iev_cc[1] = cc[1];
+	CURVNET_SET(ifp->if_vnet);
 	rt_ieee80211msg(ifp, RTM_IEEE80211_COUNTRY, &iev, sizeof(iev));
+	CURVNET_RESTORE();
 }
 
 void
@@ -778,7 +787,9 @@ ieee80211_notify_radio(struct ieee80211com *ic, int state)
 
 	memset(&iev, 0, sizeof(iev));
 	iev.iev_state = state;
+	CURVNET_SET(ifp->if_vnet);
 	rt_ieee80211msg(ifp, RTM_IEEE80211_RADIO, &iev, sizeof(iev));
+	CURVNET_RESTORE();
 }
 
 void
@@ -798,8 +809,9 @@ static eventhandler_tag wlan_ifllevent;
 static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 {
-	/* NB: identify vap's by if_start */
-	if (dlt == DLT_IEEE802_11_RADIO && ifp->if_start == ieee80211_start) {
+	/* NB: identify vap's by if_init */
+	if (dlt == DLT_IEEE802_11_RADIO &&
+	    ifp->if_init == ieee80211_init) {
 		struct ieee80211vap *vap = ifp->if_softc;
 		/*
 		 * Track bpf radiotap listener state.  We mark the vap

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010, 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.684 2011/03/15 17:29:29 guenther Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.692 2013-11-22 20:51:56 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -124,6 +124,11 @@ readcf(cfname, safe, e)
 		| SSL_OP_NO_TICKET
 #endif
 		;
+# ifdef SSL_OP_TLSEXT_PADDING
+	/* SSL_OP_TLSEXT_PADDING breaks compatibility with some sites */
+	Srv_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
+	Clt_SSL_Options &= ~SSL_OP_TLSEXT_PADDING;
+# endif /* SSL_OP_TLSEXT_PADDING */
 #endif /* STARTTLS */
 	if (DontLockReadFiles)
 		sff |= SFF_NOLOCK;
@@ -1141,7 +1146,7 @@ fileclass(class, filename, fmt, ismap, safe, optional)
 		return;
 	}
 
-	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(f, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 #if SCANF
 		char wordbuf[MAXLINE + 1];
@@ -2284,6 +2289,14 @@ static struct optioninfo
 # define O_INETQOS	0xe7	/* reserved for FFR_QOS */
 	{ "InetQoS",			O_INETQOS,	OI_NONE },
 #endif
+#if STARTTLS && _FFR_FIPSMODE
+# define O_FIPSMODE	0xe8
+	{ "FIPSMode",		O_FIPSMODE,	OI_NONE	},
+#endif /* STARTTLS && _FFR_FIPSMODE  */
+#if _FFR_REJECT_NUL_BYTE
+# define O_REJECTNUL	0xe9
+	{ "RejectNUL",	O_REJECTNUL,	OI_SAFE	},
+#endif /* _FFR_REJECT_NUL_BYTE */
 
 	{ NULL,				'\0',		OI_NONE	}
 };
@@ -2295,12 +2308,15 @@ static struct ssl_options
 	long		sslopt_bits;	/* bits to set/clear */
 } SSL_Option[] =
 {
-/* these are turned on by default */
+/* Workaround for bugs are turned on by default (as well as some others) */
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
 	{ "SSL_OP_MICROSOFT_SESS_ID_BUG",	SSL_OP_MICROSOFT_SESS_ID_BUG	},
 #endif
 #ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
 	{ "SSL_OP_NETSCAPE_CHALLENGE_BUG",	SSL_OP_NETSCAPE_CHALLENGE_BUG	},
+#endif
+#ifdef SSL_OP_LEGACY_SERVER_CONNECT
+	{ "SSL_OP_LEGACY_SERVER_CONNECT",	SSL_OP_LEGACY_SERVER_CONNECT	},
 #endif
 #ifdef SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG
 	{ "SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG	},
@@ -2338,8 +2354,17 @@ static struct ssl_options
 #ifdef SSL_OP_NO_TICKET
 	{ "SSL_OP_NO_TICKET",	SSL_OP_NO_TICKET	},
 #endif
+#ifdef SSL_OP_CISCO_ANYCONNECT
+	{ "SSL_OP_CISCO_ANYCONNECT",	SSL_OP_CISCO_ANYCONNECT	},
+#endif
 #ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 	{ "SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION",	SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION	},
+#endif
+#ifdef SSL_OP_NO_COMPRESSION
+	{ "SSL_OP_NO_COMPRESSION",	SSL_OP_NO_COMPRESSION	},
+#endif
+#ifdef SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
+	{ "SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION",	SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION	},
 #endif
 #ifdef SSL_OP_SINGLE_ECDH_USE
 	{ "SSL_OP_SINGLE_ECDH_USE",	SSL_OP_SINGLE_ECDH_USE	},
@@ -2365,6 +2390,12 @@ static struct ssl_options
 #ifdef SSL_OP_NO_TLSv1
 	{ "SSL_OP_NO_TLSv1",	SSL_OP_NO_TLSv1	},
 #endif
+#ifdef SSL_OP_NO_TLSv1_2
+	{ "SSL_OP_NO_TLSv1_2",	SSL_OP_NO_TLSv1_2	},
+#endif
+#ifdef SSL_OP_NO_TLSv1_1
+	{ "SSL_OP_NO_TLSv1_1",	SSL_OP_NO_TLSv1_1	},
+#endif
 #ifdef SSL_OP_PKCS1_CHECK_1
 	{ "SSL_OP_PKCS1_CHECK_1",	SSL_OP_PKCS1_CHECK_1	},
 #endif
@@ -2376,6 +2407,12 @@ static struct ssl_options
 #endif
 #ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
 	{ "SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG",	SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG	},
+#endif
+#ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
+	{ "SSL_OP_CRYPTOPRO_TLSEXT_BUG",	SSL_OP_CRYPTOPRO_TLSEXT_BUG	},
+#endif
+#ifdef SSL_OP_TLSEXT_PADDING
+	{ "SSL_OP_TLSEXT_PADDING",	SSL_OP_TLSEXT_PADDING	},
 #endif
 	{ NULL,		0		}
 };
@@ -3862,6 +3899,11 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 #endif /* STARTTLS */
+#if STARTTLS && _FFR_FIPSMODE
+	  case O_FIPSMODE:
+		FipsMode = atobool(val);
+		break;
+#endif /* STARTTLS && _FFR_FIPSMODE  */
 
 	  case O_CLIENTPORT:
 		setclientoptions(val);
@@ -4015,6 +4057,12 @@ setoption(opt, val, safe, sticky, e)
 		BadRcptShutdownGood = atoi(val);
 		break;
 #endif /* _FFR_BADRCPT_SHUTDOWN */
+
+#if _FFR_REJECT_NUL_BYTE
+	  case O_REJECTNUL:
+		RejectNUL = atobool(val);
+		break;
+#endif /* _FFR_REJECT_NUL_BYTE */
 
 	  default:
 		if (tTd(37, 1))

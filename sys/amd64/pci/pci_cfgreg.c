@@ -65,7 +65,6 @@ static int pcie_minbus, pcie_maxbus;
 static uint32_t pcie_badslots;
 static struct mtx pcicfg_mtx;
 static int mcfg_enable = 1;
-TUNABLE_INT("hw.pci.mcfg", &mcfg_enable);
 SYSCTL_INT(_hw_pci, OID_AUTO, mcfg, CTLFLAG_RDTUN, &mcfg_enable, 0,
     "Enable support for PCI-e memory mapped config access");
 
@@ -184,7 +183,7 @@ pci_cfgenable(unsigned bus, unsigned slot, unsigned func, int reg, int bytes)
 	if (bus <= PCI_BUSMAX && slot <= PCI_SLOTMAX && func <= PCI_FUNCMAX &&
 	    (unsigned)reg <= PCI_REGMAX && bytes != 3 &&
 	    (unsigned)bytes <= 4 && (reg & (bytes - 1)) == 0) {
-		outl(CONF1_ADDR_PORT, (1 << 31) | (bus << 16) | (slot << 11) 
+		outl(CONF1_ADDR_PORT, (1U << 31) | (bus << 16) | (slot << 11) 
 		    | (func << 8) | (reg & ~0x03));
 		dataport = CONF1_DATA_PORT + (reg & 0x03);
 	}

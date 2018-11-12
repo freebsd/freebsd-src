@@ -789,7 +789,7 @@ eli_init(struct gctl_req *req)
 	if (val == 0)
 		md.md_sectorsize = secsize;
 	else {
-		if (val < 0 || (val % secsize) != 0) {
+		if (val < 0 || (val % secsize) != 0 || !powerof2(val)) {
 			gctl_error(req, "Invalid sector size.");
 			return;
 		}

@@ -64,8 +64,6 @@
 ./etc/defaults/rc.conf
 ./etc/devd
 ./etc/devd/asus.conf
-./etc/gnats
-./etc/gnats/freefall
 ./etc/gss
 ./etc/gss/mech
 ./etc/gss/qop
@@ -199,7 +197,6 @@
 ./etc/rc.d/dmesg
 ./etc/rc.d/dumpon
 ./etc/rc.d/encswap
-./etc/rc.d/faith
 ./etc/rc.d/fsck
 ./etc/rc.d/ftp-proxy
 ./etc/rc.d/ftpd
@@ -222,7 +219,6 @@
 ./etc/rc.d/ipmon
 ./etc/rc.d/ipnat
 ./etc/rc.d/ipsec
-./etc/rc.d/ipxrouted
 ./etc/rc.d/jail
 ./etc/rc.d/kadmind
 ./etc/rc.d/kerberos
@@ -437,7 +433,6 @@
 ./lib/libbsdxml.so.4
 ./lib/libgeom.so.5
 ./lib/libipsec.so.4
-./lib/libipx.so.5
 ./lib/libjail.so.1
 ./lib/libkiconv.so.4
 ./lib/libpcap.so.7

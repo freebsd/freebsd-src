@@ -84,8 +84,8 @@ g_ctl_init(void)
 }
 
 /*
- * Report an error back to the user in ascii format.  Return whatever copyout
- * returned, or EINVAL if it succeeded.
+ * Report an error back to the user in ascii format.  Return nerror
+ * or EINVAL if nerror isn't specified.
  */
 int
 gctl_error(struct gctl_req *req, const char *fmt, ...)
@@ -99,9 +99,10 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 	if (sbuf_done(req->serror)) {
 		if (!req->nerror)
 			req->nerror = EEXIST;
-	}
-	if (req->nerror)
 		return (req->nerror);
+	}
+	if (!req->nerror)
+		req->nerror = EINVAL;
 
 	va_start(ap, fmt);
 	sbuf_vprintf(req->serror, fmt, ap);
@@ -109,7 +110,7 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 	sbuf_finish(req->serror);
 	if (g_debugflags & G_F_CTLDUMP)
 		printf("gctl %p error \"%s\"\n", req, sbuf_data(req->serror));
-	return (0);
+	return (req->nerror);
 }
 
 /*
@@ -122,27 +123,23 @@ geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len)
 	void *ptr;
 
 	ptr = g_malloc(len, M_WAITOK);
-	if (ptr == NULL)
-		req->nerror = ENOMEM;
-	else
-		req->nerror = copyin(uaddr, ptr, len);
+	req->nerror = copyin(uaddr, ptr, len);
 	if (!req->nerror)
 		return (ptr);
-	if (ptr != NULL)
-		g_free(ptr);
+	g_free(ptr);
 	return (NULL);
 }
 
 static void
 gctl_copyin(struct gctl_req *req)
 {
-	int error, i;
 	struct gctl_req_arg *ap;
 	char *p;
+	int i;
 
 	ap = geom_alloc_copyin(req, req->arg, req->narg * sizeof(*ap));
 	if (ap == NULL) {
-		req->nerror = ENOMEM;
+		gctl_error(req, "bad control request");
 		req->arg = NULL;
 		return;
 	}
@@ -154,10 +151,9 @@ gctl_copyin(struct gctl_req *req)
 		ap[i].kvalue = NULL;
 	}
 
-	error = 0;
 	for (i = 0; i < req->narg; i++) {
 		if (ap[i].nlen < 1 || ap[i].nlen > SPECNAMELEN) {
-			error = gctl_error(req,
+			gctl_error(req,
 			    "wrong param name length %d: %d", i, ap[i].nlen);
 			break;
 		}
@@ -165,14 +161,14 @@ gctl_copyin(struct gctl_req *req)
 		if (p == NULL)
 			break;
 		if (p[ap[i].nlen - 1] != '\0') {
-			error = gctl_error(req, "unterminated param name");
+			gctl_error(req, "unterminated param name");
 			g_free(p);
 			break;
 		}
 		ap[i].name = p;
 		ap[i].flag |= GCTL_PARAM_NAMEKERNEL;
 		if (ap[i].len <= 0) {
-			error = gctl_error(req, "negative param length");
+			gctl_error(req, "negative param length");
 			break;
 		}
 		p = geom_alloc_copyin(req, ap[i].value, ap[i].len);
@@ -180,7 +176,7 @@ gctl_copyin(struct gctl_req *req)
 			break;
 		if ((ap[i].flag & GCTL_PARAM_ASCII) &&
 		    p[ap[i].len - 1] != '\0') {
-			error = gctl_error(req, "unterminated param value");
+			gctl_error(req, "unterminated param value");
 			g_free(p);
 			break;
 		}
@@ -218,6 +214,7 @@ gctl_free(struct gctl_req *req)
 {
 	int i;
 
+	sbuf_delete(req->serror);
 	if (req->arg == NULL)
 		return;
 	for (i = 0; i < req->narg; i++) {
@@ -228,15 +225,14 @@ gctl_free(struct gctl_req *req)
 			g_free(req->arg[i].kvalue);
 	}
 	g_free(req->arg);
-	sbuf_delete(req->serror);
 }
 
 static void
 gctl_dump(struct gctl_req *req)
 {
+	struct gctl_req_arg *ap;
 	u_int i;
 	int j;
-	struct gctl_req_arg *ap;
 
 	printf("Dump of gctl request at %p:\n", req);
 	if (req->nerror > 0) {
@@ -244,6 +240,8 @@ gctl_dump(struct gctl_req *req)
 		if (sbuf_len(req->serror) > 0)
 			printf("  error:\t\"%s\"\n", sbuf_data(req->serror));
 	}
+	if (req->arg == NULL)
+		return;
 	for (i = 0; i < req->narg; i++) {
 		ap = &req->arg[i];
 		if (!(ap->flag & GCTL_PARAM_NAMEKERNEL))
@@ -464,30 +462,31 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 
 	req = (void *)data;
 	req->nerror = 0;
-	req->serror = sbuf_new_auto();
 	/* It is an error if we cannot return an error text */
 	if (req->lerror < 2)
 		return (EINVAL);
 	if (!useracc(req->error, req->lerror, VM_PROT_WRITE))
 		return (EINVAL);
 
+	req->serror = sbuf_new_auto();
 	/* Check the version */
-	if (req->version != GCTL_VERSION)
-		return (gctl_error(req,
-		    "kernel and libgeom version mismatch."));
-	
-	/* Get things on board */
-	gctl_copyin(req);
+	if (req->version != GCTL_VERSION) {
+		gctl_error(req, "kernel and libgeom version mismatch.");
+		req->arg = NULL;
+	} else {
+		/* Get things on board */
+		gctl_copyin(req);
 
-	if (g_debugflags & G_F_CTLDUMP)
-		gctl_dump(req);
+		if (g_debugflags & G_F_CTLDUMP)
+			gctl_dump(req);
 
-	if (!req->nerror) {
-		g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
-		gctl_copyout(req);
+		if (!req->nerror) {
+			g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
+			gctl_copyout(req);
+		}
 	}
 	if (sbuf_done(req->serror)) {
-		req->nerror = copyout(sbuf_data(req->serror), req->error,
+		copyout(sbuf_data(req->serror), req->error,
 		    imin(req->lerror, sbuf_len(req->serror) + 1));
 	}
 

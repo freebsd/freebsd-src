@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -174,11 +175,10 @@ static const int npagers = sizeof(pagertab) / sizeof(pagertab[0]);
  * cleaning requests (NPENDINGIO == 64) * the maximum swap cluster size
  * (MAXPHYS == 64k) if you want to get the most efficiency.
  */
-vm_map_t pager_map;
-static int bswneeded;
-static vm_offset_t swapbkva;		/* swap buffers kva */
-struct mtx pbuf_mtx;
+struct mtx_padalign pbuf_mtx;
 static TAILQ_HEAD(swqueue, buf) bswlist;
+static int bswneeded;
+vm_offset_t swapbkva;		/* swap buffers kva */
 
 void
 vm_pager_init()
@@ -215,10 +215,7 @@ vm_pager_bufferinit()
 
 	cluster_pbuf_freecnt = nswbuf / 2;
 	vnode_pbuf_freecnt = nswbuf / 2 + 1;
-
-	swapbkva = kmem_alloc_nofault(pager_map, nswbuf * MAXPHYS);
-	if (!swapbkva)
-		panic("Not enough pager_map VM space for physical buffers");
+	vnode_async_pbuf_freecnt = nswbuf / 2;
 }
 
 /*
@@ -283,6 +280,39 @@ vm_pager_object_lookup(struct pagerlst *pg_list, void *handle)
 		}
 	}
 	return (object);
+}
+
+/*
+ * Free the non-requested pages from the given array.  To remove all pages,
+ * caller should provide out of range reqpage number.
+ */
+void
+vm_pager_free_nonreq(vm_object_t object, vm_page_t ma[], int reqpage,
+    int npages, boolean_t object_locked)
+{
+	enum { UNLOCKED, CALLER_LOCKED, INTERNALLY_LOCKED } locked;
+	int i;
+
+	if (object_locked) {
+		VM_OBJECT_ASSERT_WLOCKED(object);
+		locked = CALLER_LOCKED;
+	} else {
+		VM_OBJECT_ASSERT_UNLOCKED(object);
+		locked = UNLOCKED;
+	}
+	for (i = 0; i < npages; ++i) {
+		if (i != reqpage) {
+			if (locked == UNLOCKED) {
+				VM_OBJECT_WLOCK(object);
+				locked = INTERNALLY_LOCKED;
+			}
+			vm_page_lock(ma[i]);
+			vm_page_free(ma[i]);
+			vm_page_unlock(ma[i]);
+		}
+	}
+	if (locked == INTERNALLY_LOCKED)
+		VM_OBJECT_WUNLOCK(object);
 }
 
 /*
@@ -469,17 +499,9 @@ pbrelvp(struct buf *bp)
 
 	KASSERT(bp->b_vp != NULL, ("pbrelvp: NULL"));
 	KASSERT(bp->b_bufobj != NULL, ("pbrelvp: NULL bufobj"));
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("pbrelvp: pager buf on vnode list."));
 
-	/* XXX REMOVE ME */
-	BO_LOCK(bp->b_bufobj);
-	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
-		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
-		    bp,
-		    (int)bp->b_flags
-		);
-	}
-	BO_UNLOCK(bp->b_bufobj);
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
@@ -494,17 +516,9 @@ pbrelbo(struct buf *bp)
 
 	KASSERT(bp->b_vp == NULL, ("pbrelbo: vnode"));
 	KASSERT(bp->b_bufobj != NULL, ("pbrelbo: NULL bufobj"));
+	KASSERT((bp->b_xflags & (BX_VNDIRTY | BX_VNCLEAN)) == 0,
+	    ("pbrelbo: pager buf on vnode list."));
 
-	/* XXX REMOVE ME */
-	BO_LOCK(bp->b_bufobj);
-	if (TAILQ_NEXT(bp, b_bobufs) != NULL) {
-		panic(
-		    "relpbuf(): b_vp was probably reassignbuf()d %p %x",
-		    bp,
-		    (int)bp->b_flags
-		);
-	}
-	BO_UNLOCK(bp->b_bufobj);
 	bp->b_bufobj = NULL;
 	bp->b_flags &= ~B_PAGING;
 }

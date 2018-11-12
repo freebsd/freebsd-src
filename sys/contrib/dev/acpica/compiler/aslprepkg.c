@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,12 +54,12 @@
 
 static void
 ApCheckPackageElements (
-    const char              *PredefinedName,
-    ACPI_PARSE_OBJECT       *Op,
-    UINT8                   Type1,
-    UINT32                  Count1,
-    UINT8                   Type2,
-    UINT32                  Count2);
+    const char                  *PredefinedName,
+    ACPI_PARSE_OBJECT           *Op,
+    UINT8                       Type1,
+    UINT32                      Count1,
+    UINT8                       Type2,
+    UINT32                      Count2);
 
 static void
 ApCheckPackageList (
@@ -93,8 +93,9 @@ ApPackageTooLarge (
  *
  * FUNCTION:    ApCheckPackage
  *
- * PARAMETERS:  ParentOp        - Parser op for the package
- *              Predefined      - Pointer to package-specific info for method
+ * PARAMETERS:  ParentOp            - Parser op for the package
+ *              Predefined          - Pointer to package-specific info for
+ *                                    the method
  *
  * RETURN:      None
  *
@@ -126,15 +127,35 @@ ApCheckPackage (
     Count = (UINT32) Op->Asl.Value.Integer;
 
     /*
-     * Most packages must have at least one element. The only exception
-     * is the variable-length package (ACPI_PTYPE1_VAR).
+     * Many of the variable-length top-level packages are allowed to simply
+     * have zero elements. This allows the BIOS to tell the host that even
+     * though the predefined name/method exists, the feature is not supported.
+     * Other package types require one or more elements. In any case, there
+     * is no need to continue validation.
      */
     if (!Count)
     {
-        if (Package->RetInfo.Type != ACPI_PTYPE1_VAR)
+        switch (Package->RetInfo.Type)
         {
+        case ACPI_PTYPE1_FIXED:
+        case ACPI_PTYPE1_OPTION:
+        case ACPI_PTYPE2_PKG_COUNT:
+        case ACPI_PTYPE2_REV_FIXED:
+
             ApZeroLengthPackage (Predefined->Info.Name, ParentOp);
+            break;
+
+        case ACPI_PTYPE1_VAR:
+        case ACPI_PTYPE2:
+        case ACPI_PTYPE2_COUNT:
+        case ACPI_PTYPE2_FIXED:
+        case ACPI_PTYPE2_MIN:
+        case ACPI_PTYPE2_FIX_VAR:
+        default:
+
+            break;
         }
+
         return;
     }
 
@@ -148,7 +169,7 @@ ApCheckPackage (
     {
     case ACPI_PTYPE1_FIXED:
         /*
-         * The package count is fixed and there are no sub-packages
+         * The package count is fixed and there are no subpackages
          *
          * If package is too small, exit.
          * If package is larger than expected, issue warning but continue
@@ -173,8 +194,8 @@ ApCheckPackage (
 
     case ACPI_PTYPE1_VAR:
         /*
-         * The package count is variable, there are no sub-packages, and all
-         * elements must be of the same type
+         * The package count is variable, there are no subpackages,
+         * and all elements must be of the same type
          */
         for (i = 0; i < Count; i++)
         {
@@ -186,9 +207,9 @@ ApCheckPackage (
 
     case ACPI_PTYPE1_OPTION:
         /*
-         * The package count is variable, there are no sub-packages. There are
-         * a fixed number of required elements, and a variable number of
-         * optional elements.
+         * The package count is variable, there are no subpackages.
+         * There are a fixed number of required elements, and a variable
+         * number of optional elements.
          *
          * Check if package is at least as large as the minimum required
          */
@@ -230,7 +251,7 @@ ApCheckPackage (
         Op = Op->Asl.Next;
         Count--;
 
-        /* Examine the sub-packages */
+        /* Examine the subpackages */
 
         ApCheckPackageList (Predefined->Info.Name, Op,
             Package, 1, Count);
@@ -238,7 +259,7 @@ ApCheckPackage (
 
     case ACPI_PTYPE2_PKG_COUNT:
 
-        /* First element is the (Integer) count of sub-packages to follow */
+        /* First element is the (Integer) count of subpackages to follow */
 
         Status = ApCheckObjectType (Predefined->Info.Name, Op,
             ACPI_RTYPE_INTEGER, 0);
@@ -248,8 +269,8 @@ ApCheckPackage (
         if (ACPI_SUCCESS (Status))
         {
             /*
-             * Count cannot be larger than the parent package length, but allow it
-             * to be smaller. The >= accounts for the Integer above.
+             * Count cannot be larger than the parent package length, but
+             * allow it to be smaller. The >= accounts for the Integer above.
              */
             ExpectedCount = (UINT32) Op->Asl.Value.Integer;
             if (ExpectedCount >= Count)
@@ -262,10 +283,45 @@ ApCheckPackage (
 
         Op = Op->Asl.Next;
 
-        /* Examine the sub-packages */
+        /* Examine the subpackages */
 
         ApCheckPackageList (Predefined->Info.Name, Op,
             Package, 1, Count);
+        break;
+
+    case ACPI_PTYPE2_UUID_PAIR:
+
+        /* The package contains a variable list of UUID Buffer/Package pairs */
+
+        /* The length of the package must be even */
+
+        if (Count & 1)
+        {
+            sprintf (MsgBuffer, "%4.4s: Package length, %d, must be even.",
+                Predefined->Info.Name, Count);
+
+            AslError (ASL_ERROR, ASL_MSG_RESERVED_PACKAGE_LENGTH,
+                ParentOp->Asl.Child, MsgBuffer);
+        }
+
+        /* Validate the alternating types */
+
+        for (i = 0; i < Count; ++i)
+        {
+            if (i & 1)
+            {
+                ApCheckObjectType (Predefined->Info.Name, Op,
+                    Package->RetInfo.ObjectType2, i);
+            }
+            else
+            {
+                ApCheckObjectType (Predefined->Info.Name, Op,
+                    Package->RetInfo.ObjectType1, i);
+            }
+
+            Op = Op->Asl.Next;
+        }
+
         break;
 
     case ACPI_PTYPE2:
@@ -275,10 +331,10 @@ ApCheckPackage (
     case ACPI_PTYPE2_FIX_VAR:
         /*
          * These types all return a single Package that consists of a
-         * variable number of sub-Packages.
+         * variable number of subpackages.
          */
 
-        /* Examine the sub-packages */
+        /* Examine the subpackages */
 
         ApCheckPackageList (Predefined->Info.Name, Op,
             Package, 0, Count);
@@ -300,12 +356,12 @@ PackageTooSmall:
  *
  * FUNCTION:    ApCheckPackageElements
  *
- * PARAMETERS:  PredefinedName  - Pointer to validation data structure
- *              Op              - Parser op for the package
- *              Type1           - Object type for first group
- *              Count1          - Count for first group
- *              Type2           - Object type for second group
- *              Count2          - Count for second group
+ * PARAMETERS:  PredefinedName      - Name of the predefined object
+ *              Op                  - Parser op for the package
+ *              Type1               - Object type for first group
+ *              Count1              - Count for first group
+ *              Type2               - Object type for second group
+ *              Count2              - Count for second group
  *
  * RETURN:      None
  *
@@ -446,6 +502,12 @@ ApCheckPackageList (
                     Count, ExpectedCount);
                 break;
             }
+            if (Count > ExpectedCount)
+            {
+                ApPackageTooLarge (PredefinedName, SubPackageOp,
+                    Count, ExpectedCount);
+                break;
+            }
 
             ApCheckPackageElements (PredefinedName, Op,
                 Package->RetInfo.ObjectType1, Package->RetInfo.Count1,
@@ -473,12 +535,18 @@ ApCheckPackageList (
 
         case ACPI_PTYPE2_FIXED:
 
-            /* Each sub-package has a fixed length */
+            /* Each subpackage has a fixed length */
 
             ExpectedCount = Package->RetInfo2.Count;
             if (Count < ExpectedCount)
             {
                 ApPackageTooSmall (PredefinedName, SubPackageOp,
+                    Count, ExpectedCount);
+                break;
+            }
+            if (Count > ExpectedCount)
+            {
+                ApPackageTooLarge (PredefinedName, SubPackageOp,
                     Count, ExpectedCount);
                 break;
             }
@@ -496,7 +564,7 @@ ApCheckPackageList (
 
         case ACPI_PTYPE2_MIN:
 
-            /* Each sub-package has a variable but minimum length */
+            /* Each subpackage has a variable but minimum length */
 
             ExpectedCount = Package->RetInfo.Count1;
             if (Count < ExpectedCount)
@@ -506,7 +574,7 @@ ApCheckPackageList (
                 break;
             }
 
-            /* Check the type of each sub-package element */
+            /* Check the type of each subpackage element */
 
             ApCheckPackageElements (PredefinedName, Op,
                 Package->RetInfo.ObjectType1, Count, 0, 0);
@@ -555,7 +623,7 @@ ApCheckPackageList (
                 Count = ExpectedCount;
             }
 
-            /* Check the type of each sub-package element */
+            /* Check the type of each subpackage element */
 
             Op = Op->Asl.Next;
             ApCheckPackageElements (PredefinedName, Op,

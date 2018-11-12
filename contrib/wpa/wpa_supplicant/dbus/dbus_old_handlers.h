@@ -2,14 +2,8 @@
  * WPA Supplicant / dbus-based control interface
  * Copyright (c) 2006, Dan Williams <dcbw@redhat.com> and Red Hat, Inc.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #ifndef CTRL_IFACE_DBUS_HANDLERS_H
@@ -95,6 +89,9 @@ DBusMessage * wpas_dbus_iface_wps_pin(DBusMessage *message,
 
 DBusMessage * wpas_dbus_iface_wps_reg(DBusMessage *message,
 				      struct wpa_supplicant *wpa_s);
+
+DBusMessage * wpas_dbus_iface_flush(DBusMessage *message,
+				    struct wpa_supplicant *wpa_s);
 
 DBusMessage * wpas_dbus_new_success_reply(DBusMessage *message);
 DBusMessage * wpas_dbus_new_invalid_opts_error(DBusMessage *message,

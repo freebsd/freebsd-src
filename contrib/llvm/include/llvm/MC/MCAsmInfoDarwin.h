@@ -12,18 +12,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_DARWIN_TARGET_ASM_INFO_H
-#define LLVM_DARWIN_TARGET_ASM_INFO_H
+#ifndef LLVM_MC_MCASMINFODARWIN_H
+#define LLVM_MC_MCASMINFODARWIN_H
 
 #include "llvm/MC/MCAsmInfo.h"
 
 namespace llvm {
   class MCAsmInfoDarwin : public MCAsmInfo {
-    virtual void anchor();
   public:
     explicit MCAsmInfoDarwin();
+    bool isSectionAtomizableBySymbols(const MCSection &Section) const override;
   };
 }
 
 
-#endif // LLVM_DARWIN_TARGET_ASM_INFO_H
+#endif // LLVM_MC_MCASMINFODARWIN_H

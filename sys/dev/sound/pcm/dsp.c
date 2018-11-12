@@ -44,7 +44,7 @@
 SND_DECLARE_FILE("$FreeBSD$");
 
 static int dsp_mmap_allow_prot_exec = 0;
-SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RW,
+SYSCTL_INT(_hw_snd, OID_AUTO, compat_linux_mmap, CTLFLAG_RWTUN,
     &dsp_mmap_allow_prot_exec, 0,
     "linux mmap compatibility (-1=force disable 0=auto 1=force enable)");
 
@@ -2011,7 +2011,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 * OSSv4 docs:  "All errors and counters will automatically be
 	 * cleared to zeroes after the call so each call will return only
 	 * the errors that occurred after the previous invocation. ... The
-	 * play_underruns and rec_overrun fields are the only usefull fields
+	 * play_underruns and rec_overrun fields are the only useful fields
 	 * returned by OSS 4.0."
 	 */
 		{
@@ -2324,9 +2324,7 @@ dsp_stdclone(char *name, char *namep, char *sep, int use_sep, int *u, int *c)
 
 static void
 dsp_clone(void *arg,
-#if __FreeBSD_version >= 600034
     struct ucred *cred,
-#endif
     char *name, int namelen, struct cdev **dev)
 {
 	struct snddev_info *d;

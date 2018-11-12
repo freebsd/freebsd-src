@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 #include <sys/uio.h>
 #include <sys/queue.h>
 
@@ -102,41 +103,51 @@ probe_init(void)
 void
 defrouter_probe(struct ifinfo *ifinfo)
 {
-	u_char ntopbuf[INET6_ADDRSTRLEN];
-	struct in6_drlist dr;
-	int s, i;
-	int ifindex = ifinfo->sdl->sdl_index;
+	struct in6_defrouter *p, *ep;
+	int ifindex, mib[4];
+	char *buf, ntopbuf[INET6_ADDRSTRLEN];
+	size_t l;
 
-	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
-		warnmsg(LOG_ERR, __func__, "socket: %s", strerror(errno));
+	ifindex = ifinfo->sdl->sdl_index;
+	if (ifindex == 0)
+		return;
+	mib[0] = CTL_NET;
+	mib[1] = PF_INET6;
+	mib[2] = IPPROTO_ICMPV6;
+	mib[3] = ICMPV6CTL_ND6_DRLIST;
+	if (sysctl(mib, nitems(mib), NULL, &l, NULL, 0) < 0) {
+		warnmsg(LOG_ERR, __func__, "sysctl(ICMPV6CTL_ND6_DRLIST): %s",
+		    strerror(errno));
 		return;
 	}
-	memset(&dr, 0, sizeof(dr));
-	strlcpy(dr.ifname, "lo0", sizeof dr.ifname); /* dummy interface */
-	if (ioctl(s, SIOCGDRLST_IN6, (caddr_t)&dr) < 0) {
-		warnmsg(LOG_ERR, __func__, "ioctl(SIOCGDRLST_IN6): %s",
+	if (l == 0)
+		return;
+	buf = malloc(l);
+	if (buf == NULL) {
+		warnmsg(LOG_ERR, __func__, "malloc(): %s", strerror(errno));
+		return;
+	}
+	if (sysctl(mib, nitems(mib), buf, &l, NULL, 0) < 0) {
+		warnmsg(LOG_ERR, __func__, "sysctl(ICMPV6CTL_ND6_DRLIST): %s",
 		    strerror(errno));
-		goto closeandend;
+		free(buf);
+		return;
 	}
-
-	for (i = 0; i < DRLSTSIZ && dr.defrouter[i].if_index; i++) {
-		if (ifindex && dr.defrouter[i].if_index == ifindex) {
-			/* sanity check */
-			if (!IN6_IS_ADDR_LINKLOCAL(&dr.defrouter[i].rtaddr)) {
-				warnmsg(LOG_ERR, __func__,
-				    "default router list contains a "
-				    "non-link-local address(%s)",
-				    inet_ntop(AF_INET6,
-				    &dr.defrouter[i].rtaddr,
-				    ntopbuf, INET6_ADDRSTRLEN));
-				continue; /* ignore the address */
-			}
-			sendprobe(&dr.defrouter[i].rtaddr, ifinfo);
+	ep = (struct in6_defrouter *)(void *)(buf + l);
+	for (p = (struct in6_defrouter *)(void *)buf; p < ep; p++) {
+		if (ifindex != p->if_index)
+			continue;
+		if (!IN6_IS_ADDR_LINKLOCAL(&p->rtaddr.sin6_addr)) {
+			warnmsg(LOG_ERR, __func__,
+			    "default router list contains a "
+			    "non-link-local address(%s)",
+			    inet_ntop(AF_INET6, &p->rtaddr.sin6_addr, ntopbuf,
+			    INET6_ADDRSTRLEN));
+			continue; /* ignore the address */
 		}
+		sendprobe(&p->rtaddr.sin6_addr, ifinfo);
 	}
-
-closeandend:
-	close(s);
+	free(buf);
 }
 
 static void
@@ -164,7 +175,7 @@ sendprobe(struct in6_addr *addr, struct ifinfo *ifinfo)
 	cm->cmsg_level = IPPROTO_IPV6;
 	cm->cmsg_type = IPV6_PKTINFO;
 	cm->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
-	pi = (struct in6_pktinfo *)CMSG_DATA(cm);
+	pi = (struct in6_pktinfo *)(void *)CMSG_DATA(cm);
 	memset(&pi->ipi6_addr, 0, sizeof(pi->ipi6_addr));	/*XXX*/
 	pi->ipi6_ifindex = ifindex;
 

@@ -108,6 +108,8 @@ Please see
 for a complete description of this sysctl.
 .It Dv RLIMIT_NPTS
 The maximum number of pseudo-terminals created by this user id.
+.It Dv RLIMIT_KQUEUES
+The maximum number of kqueues created by this user id.
 .El
 .Pp
 A resource limit is specified as a soft limit and a hard limit.
@@ -192,8 +194,8 @@ raised the maximum limit value, and the caller is not the super-user.
 .Xr csh 1 ,
 .Xr quota 1 ,
 .Xr quotactl 2 ,
-.Xr sigaltstack 2 ,
 .Xr sigaction 2 ,
+.Xr sigaltstack 2 ,
 .Xr sysctl 3 ,
 .Xr ulimit 3
 .Sh HISTORY

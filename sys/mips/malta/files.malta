@@ -1,6 +1,7 @@
 # $FreeBSD$
 mips/malta/gt.c				standard
 mips/malta/gt_pci.c			standard
+mips/malta/gt_pci_bus_space.c			standard
 mips/malta/obio.c			optional uart
 mips/malta/uart_cpu_maltausart.c	optional uart
 mips/malta/uart_bus_maltausart.c	optional uart

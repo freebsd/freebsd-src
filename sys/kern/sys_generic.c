@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/fcntl.h>
@@ -75,9 +75,27 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-int iosize_max_clamp = 1;
+/*
+ * The following macro defines how many bytes will be allocated from
+ * the stack instead of memory allocated when passing the IOCTL data
+ * structures from userspace and to the kernel. Some IOCTLs having
+ * small data structures are used very frequently and this small
+ * buffer on the stack gives a significant speedup improvement for
+ * those requests. The value of this define should be greater or equal
+ * to 64 bytes and should also be power of two. The data structure is
+ * currently hard-aligned to a 8-byte boundary on the stack. This
+ * should currently be sufficient for all supported platforms.
+ */
+#define	SYS_IOCTL_SMALL_SIZE	128	/* bytes */
+#define	SYS_IOCTL_SMALL_ALIGN	8	/* bytes */
+
+int iosize_max_clamp = 0;
 SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
     &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
+int devfs_iosize_max_clamp = 1;
+SYSCTL_INT(_debug, OID_AUTO, devfs_iosize_max_clamp, CTLFLAG_RW,
+    &devfs_iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX for devices");
+
 /*
  * Assert that the return value of read(2) and write(2) syscalls fits
  * into a register.  If not, an architecture will need to provide the
@@ -243,9 +261,10 @@ int
 kern_readv(struct thread *td, int fd, struct uio *auio)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_read(td, fd, CAP_READ, &fp);
+	error = fget_read(td, fd, cap_rights_init(&rights, CAP_READ), &fp);
 	if (error)
 		return (error);
 	error = dofileread(td, fd, fp, auio, (off_t)-1, 0);
@@ -286,9 +305,10 @@ kern_preadv(td, fd, auio, offset)
 	off_t offset;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_read(td, fd, CAP_PREAD, &fp);
+	error = fget_read(td, fd, cap_rights_init(&rights, CAP_PREAD), &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -452,9 +472,10 @@ int
 kern_writev(struct thread *td, int fd, struct uio *auio)
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_write(td, fd, CAP_WRITE, &fp);
+	error = fget_write(td, fd, cap_rights_init(&rights, CAP_WRITE), &fp);
 	if (error)
 		return (error);
 	error = dofilewrite(td, fd, fp, auio, (off_t)-1, 0);
@@ -495,9 +516,10 @@ kern_pwritev(td, fd, auio, offset)
 	off_t offset;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
-	error = fget_write(td, fd, CAP_PWRITE, &fp);
+	error = fget_write(td, fd, cap_rights_init(&rights, CAP_PWRITE), &fp);
 	if (error)
 		return (error);
 	if (!(fp->f_ops->fo_flags & DFLAG_SEEKABLE))
@@ -575,12 +597,13 @@ kern_ftruncate(td, fd, length)
 	off_t length;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(fd);
 	if (length < 0)
 		return (EINVAL);
-	error = fget(td, fd, CAP_FTRUNCATE, &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_FTRUNCATE), &fp);
 	if (error)
 		return (error);
 	AUDIT_ARG_FILE(td->td_proc, fp);
@@ -637,6 +660,7 @@ struct ioctl_args {
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
+	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
 	u_long com;
 	int arg, error;
 	u_int size;
@@ -671,17 +695,18 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 			arg = (intptr_t)uap->data;
 			data = (void *)&arg;
 			size = 0;
-		} else
-			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		} else {
+			if (size > SYS_IOCTL_SMALL_SIZE)
+				data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+			else
+				data = smalldata;
+		}
 	} else
 		data = (void *)&uap->data;
 	if (com & IOC_IN) {
 		error = copyin(uap->data, data, (u_int)size);
-		if (error) {
-			if (size > 0)
-				free(data, M_IOCTLOPS);
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 	} else if (com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
@@ -695,7 +720,8 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	if (error == 0 && (com & IOC_OUT))
 		error = copyout(data, uap->data, (u_int)size);
 
-	if (size > 0)
+out:
+	if (size > SYS_IOCTL_SMALL_SIZE)
 		free(data, M_IOCTLOPS);
 	return (error);
 }
@@ -705,6 +731,9 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 {
 	struct file *fp;
 	struct filedesc *fdp;
+#ifndef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	int error, tmp, locked;
 
 	AUDIT_ARG_FD(fd);
@@ -743,7 +772,8 @@ kern_ioctl(struct thread *td, int fd, u_long com, caddr_t data)
 		locked = LA_UNLOCKED;
 	}
 #else
-	if ((error = fget(td, fd, CAP_IOCTL, &fp)) != 0) {
+	error = fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	if (error != 0) {
 		fp = NULL;
 		goto out;
 	}
@@ -1059,7 +1089,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			precision >>= tc_precexp;
 			if (TIMESEL(&asbt, rsbt))
 				asbt += tc_tick_sbt;
-			if (asbt <= INT64_MAX - rsbt)
+			if (asbt <= SBT_MAX - rsbt)
 				asbt += rsbt;
 			else
 				asbt = -1;
@@ -1180,8 +1210,11 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 static __inline int
 getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
+	cap_rights_t rights;
 
-	return (fget_unlocked(fdp, fd, CAP_POLL_EVENT, 0, fpp, NULL));
+	cap_rights_init(&rights, CAP_EVENT);
+
+	return (fget_unlocked(fdp, fd, &rights, fpp, NULL));
 }
 
 /*
@@ -1267,26 +1300,60 @@ selscan(td, ibits, obits, nfd)
 	return (0);
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct poll_args {
-	struct pollfd *fds;
-	u_int	nfds;
-	int	timeout;
-};
-#endif
 int
-sys_poll(td, uap)
-	struct thread *td;
-	struct poll_args *uap;
+sys_poll(struct thread *td, struct poll_args *uap)
+{
+	struct timespec ts, *tsp;
+
+	if (uap->timeout != INFTIM) {
+		if (uap->timeout < 0)
+			return (EINVAL);
+		ts.tv_sec = uap->timeout / 1000;
+		ts.tv_nsec = (uap->timeout % 1000) * 1000000;
+		tsp = &ts;
+	} else
+		tsp = NULL;
+
+	return (kern_poll(td, uap->fds, uap->nfds, tsp, NULL));
+}
+
+int
+kern_poll(struct thread *td, struct pollfd *fds, u_int nfds,
+    struct timespec *tsp, sigset_t *uset)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	sbintime_t asbt, precision, rsbt;
-	u_int nfds;
+	sbintime_t sbt, precision, tmp;
+	time_t over;
+	struct timespec ts;
 	int error;
 	size_t ni;
 
-	nfds = uap->nfds;
+	precision = 0;
+	if (tsp != NULL) {
+		if (tsp->tv_sec < 0)
+			return (EINVAL);
+		if (tsp->tv_nsec < 0 || tsp->tv_nsec >= 1000000000)
+			return (EINVAL);
+		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
+			sbt = 0;
+		else {
+			ts = *tsp;
+			if (ts.tv_sec > INT32_MAX / 2) {
+				over = ts.tv_sec - INT32_MAX / 2;
+				ts.tv_sec -= over;
+			} else
+				over = 0;
+			tmp = tstosbt(ts);
+			precision = tmp;
+			precision >>= tc_precexp;
+			if (TIMESEL(&sbt, tmp))
+				sbt += tc_tick_sbt;
+			sbt += tmp;
+		}
+	} else
+		sbt = -1;
+
 	if (nfds > maxfilesperproc && nfds > FD_SETSIZE) 
 		return (EINVAL);
 	ni = nfds * sizeof(struct pollfd);
@@ -1294,34 +1361,33 @@ sys_poll(td, uap)
 		bits = malloc(ni, M_TEMP, M_WAITOK);
 	else
 		bits = smallbits;
-	error = copyin(uap->fds, bits, ni);
+	error = copyin(fds, bits, ni);
 	if (error)
 		goto done;
-	precision = 0;
-	if (uap->timeout != INFTIM) {
-		if (uap->timeout < 0) {
-			error = EINVAL;
+
+	if (uset != NULL) {
+		error = kern_sigprocmask(td, SIG_SETMASK, uset,
+		    &td->td_oldsigmask, 0);
+		if (error)
 			goto done;
-		}
-		if (uap->timeout == 0)
-			asbt = 0;
-		else {
-			rsbt = SBT_1MS * uap->timeout;
-			precision = rsbt;
-			precision >>= tc_precexp;
-			if (TIMESEL(&asbt, rsbt))
-				asbt += tc_tick_sbt;
-			asbt += rsbt;
-		}
-	} else
-		asbt = -1;
+		td->td_pflags |= TDP_OLDMASK;
+		/*
+		 * Make sure that ast() is called on return to
+		 * usermode and TDP_OLDMASK is cleared, restoring old
+		 * sigmask.
+		 */
+		thread_lock(td);
+		td->td_flags |= TDF_ASTPENDING;
+		thread_unlock(td);
+	}
+
 	seltdinit(td);
 	/* Iterate until the timeout expires or descriptors become ready. */
 	for (;;) {
 		error = pollscan(td, bits, nfds);
 		if (error || td->td_retval[0] != 0)
 			break;
-		error = seltdwait(td, asbt, precision);
+		error = seltdwait(td, sbt, precision);
 		if (error)
 			break;
 		error = pollrescan(td);
@@ -1337,7 +1403,7 @@ done:
 	if (error == EWOULDBLOCK)
 		error = 0;
 	if (error == 0) {
-		error = pollout(td, bits, uap->fds, nfds);
+		error = pollout(td, bits, fds, nfds);
 		if (error)
 			goto out;
 	}
@@ -1345,6 +1411,35 @@ out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
 	return (error);
+}
+
+int
+sys_ppoll(struct thread *td, struct ppoll_args *uap)
+{
+	struct timespec ts, *tsp;
+	sigset_t set, *ssp;
+	int error;
+
+	if (uap->ts != NULL) {
+		error = copyin(uap->ts, &ts, sizeof(ts));
+		if (error)
+			return (error);
+		tsp = &ts;
+	} else
+		tsp = NULL;
+	if (uap->set != NULL) {
+		error = copyin(uap->set, &set, sizeof(set));
+		if (error)
+			return (error);
+		ssp = &set;
+	} else
+		ssp = NULL;
+	/*
+	 * fds is still a pointer to user space. kern_poll() will
+	 * take care of copyin that array to the kernel space.
+	 */
+
+	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
 }
 
 static int
@@ -1357,6 +1452,9 @@ pollrescan(struct thread *td)
 	struct filedesc *fdp;
 	struct file *fp;
 	struct pollfd *fd;
+#ifdef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	int n;
 
 	n = 0;
@@ -1373,7 +1471,8 @@ pollrescan(struct thread *td)
 		fp = fdp->fd_ofiles[fd->fd].fde_file;
 #ifdef CAPABILITIES
 		if (fp == NULL ||
-		    cap_check(cap_rights(fdp, fd->fd), CAP_POLL_EVENT) != 0)
+		    cap_check(cap_rights(fdp, fd->fd),
+		    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 		if (fp == NULL)
 #endif
@@ -1431,11 +1530,14 @@ pollscan(td, fds, nfd)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct file *fp;
+#ifdef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	int i, n = 0;
 
 	FILEDESC_SLOCK(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
-		if (fds->fd >= fdp->fd_nfiles) {
+		if (fds->fd > fdp->fd_lastfile) {
 			fds->revents = POLLNVAL;
 			n++;
 		} else if (fds->fd < 0) {
@@ -1445,7 +1547,7 @@ pollscan(td, fds, nfd)
 #ifdef CAPABILITIES
 			if (fp == NULL ||
 			    cap_check(cap_rights(fdp, fds->fd),
-			    CAP_POLL_EVENT) != 0)
+			    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 			if (fp == NULL)
 #endif
@@ -1498,6 +1600,62 @@ sys_openbsd_poll(td, uap)
 }
 
 /*
+ * XXX This was created specifically to support netncp and netsmb.  This
+ * allows the caller to specify a socket to wait for events on.  It returns
+ * 0 if any events matched and an error otherwise.  There is no way to
+ * determine which events fired.
+ */
+int
+selsocket(struct socket *so, int events, struct timeval *tvp, struct thread *td)
+{
+	struct timeval rtv;
+	sbintime_t asbt, precision, rsbt;
+	int error;
+
+	precision = 0;	/* stupid gcc! */
+	if (tvp != NULL) {
+		rtv = *tvp;
+		if (rtv.tv_sec < 0 || rtv.tv_usec < 0 || 
+		    rtv.tv_usec >= 1000000)
+			return (EINVAL);
+		if (!timevalisset(&rtv))
+			asbt = 0;
+		else if (rtv.tv_sec <= INT32_MAX) {
+			rsbt = tvtosbt(rtv);
+			precision = rsbt;
+			precision >>= tc_precexp;
+			if (TIMESEL(&asbt, rsbt))
+				asbt += tc_tick_sbt;
+			if (asbt <= SBT_MAX - rsbt)
+				asbt += rsbt;
+			else
+				asbt = -1;
+		} else
+			asbt = -1;
+	} else
+		asbt = -1;
+	seltdinit(td);
+	/*
+	 * Iterate until the timeout expires or the socket becomes ready.
+	 */
+	for (;;) {
+		selfdalloc(td, NULL);
+		error = sopoll(so, events, NULL, td);
+		/* error here is actually the ready events. */
+		if (error)
+			return (0);
+		error = seltdwait(td, asbt, precision);
+		if (error)
+			break;
+	}
+	seltdclear(td);
+	/* XXX Duplicates ncp/smb behavior. */
+	if (error == ERESTART)
+		error = 0;
+	return (error);
+}
+
+/*
  * Preallocate two selfds associated with 'cookie'.  Some fo_poll routines
  * have two select sets, one for read and another for write.
  */
@@ -1521,10 +1679,12 @@ static void
 selfdfree(struct seltd *stp, struct selfd *sfp)
 {
 	STAILQ_REMOVE(&stp->st_selq, sfp, selfd, sf_link);
-	mtx_lock(sfp->sf_mtx);
-	if (sfp->sf_si)
-		TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
-	mtx_unlock(sfp->sf_mtx);
+	if (sfp->sf_si != NULL) {
+		mtx_lock(sfp->sf_mtx);
+		if (sfp->sf_si != NULL)
+			TAILQ_REMOVE(&sfp->sf_si->si_tdlist, sfp, sf_threads);
+		mtx_unlock(sfp->sf_mtx);
+	}
 	uma_zfree(selfd_zone, sfp);
 }
 

@@ -27,7 +27,7 @@
  */
 
 #include <sys/param.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
@@ -114,7 +114,7 @@ addr_to_string(struct sockaddr_storage *ss, char *buffer, int buflen)
 			snprintf(buffer, buflen, "%s.%d", buffer2,
 			    ntohs(sin6->sin6_port));
 		else
-			strlcpy(buffer, "-", sizeof(buffer));
+			strlcpy(buffer, "-", buflen);
 		break;
 
 	default:
@@ -133,7 +133,7 @@ print_address(struct sockaddr_storage *ss)
 }
 
 static struct cap_desc {
-	cap_rights_t	 cd_right;
+	uint64_t	 cd_right;
 	const char	*cd_desc;
 } cap_desc[] = {
 	/* General file I/O. */
@@ -203,8 +203,9 @@ static struct cap_desc {
 	{ CAP_SEM_WAIT,		"sw" },
 
 	/* Event monitoring and posting. */
-	{ CAP_POLL_EVENT,	"po" },
-	{ CAP_POST_EVENT,	"ev" },
+	{ CAP_EVENT,		"ev" },
+	{ CAP_KQUEUE_EVENT,	"ke" },
+	{ CAP_KQUEUE_CHANGE,	"kc" },
 
 	/* Strange and powerful rights that should not be given lightly. */
 	{ CAP_IOCTL,		"io" },
@@ -244,14 +245,14 @@ static const u_int	cap_desc_count = sizeof(cap_desc) /
 			    sizeof(cap_desc[0]);
 
 static u_int
-width_capability(cap_rights_t rights)
+width_capability(cap_rights_t *rightsp)
 {
 	u_int count, i, width;
 
 	count = 0;
 	width = 0;
 	for (i = 0; i < cap_desc_count; i++) {
-		if ((cap_desc[i].cd_right & ~rights) == 0) {
+		if (cap_rights_is_set(rightsp, cap_desc[i].cd_right)) {
 			width += strlen(cap_desc[i].cd_desc);
 			if (count)
 				width++;
@@ -262,20 +263,20 @@ width_capability(cap_rights_t rights)
 }
 
 static void
-print_capability(cap_rights_t rights, u_int capwidth)
+print_capability(cap_rights_t *rightsp, u_int capwidth)
 {
 	u_int count, i, width;
 
 	count = 0;
 	width = 0;
-	for (i = width_capability(rights); i < capwidth; i++) {
-		if (rights || i != 0)
+	for (i = width_capability(rightsp); i < capwidth; i++) {
+		if (i != 0)
 			printf(" ");
 		else
 			printf("-");
 	}
 	for (i = 0; i < cap_desc_count; i++) {
-		if ((cap_desc[i].cd_right & ~rights) == 0) {
+		if (cap_rights_is_set(rightsp, cap_desc[i].cd_right)) {
 			printf("%s%s", count ? "," : "", cap_desc[i].cd_desc);
 			width += strlen(cap_desc[i].cd_desc);
 			if (count)
@@ -306,7 +307,7 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 	head = procstat_getfiles(procstat, kipp, 0);
 	if (head != NULL && Cflag) {
 		STAILQ_FOREACH(fst, head, next) {
-			width = width_capability(fst->fs_cap_rights);
+			width = width_capability(&fst->fs_cap_rights);
 			if (width > capwidth)
 				capwidth = width;
 		}
@@ -316,12 +317,12 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 
 	if (!hflag) {
 		if (Cflag)
-			printf("%5s %-16s %4s %1s %-9s %-*s "
+			printf("%5s %-16s %5s %1s %-8s %-*s "
 			    "%-3s %-12s\n", "PID", "COMM", "FD", "T",
 			    "FLAGS", capwidth, "CAPABILITIES", "PRO",
 			    "NAME");
 		else
-			printf("%5s %-16s %4s %1s %1s %-9s "
+			printf("%5s %-16s %5s %1s %1s %-8s "
 			    "%3s %7s %-3s %-12s\n", "PID", "COMM", "FD", "T",
 			    "V", "FLAGS", "REF", "OFFSET", "PRO", "NAME");
 	}
@@ -332,19 +333,19 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%5d ", kipp->ki_pid);
 		printf("%-16s ", kipp->ki_comm);
 		if (fst->fs_uflags & PS_FST_UFLAG_CTTY)
-			printf("ctty ");
+			printf(" ctty ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_CDIR)
-			printf(" cwd ");
+			printf("  cwd ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_JAIL)
-			printf("jail ");
+			printf(" jail ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_RDIR)
-			printf("root ");
+			printf(" root ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_TEXT)
-			printf("text ");
+			printf(" text ");
 		else if (fst->fs_uflags & PS_FST_UFLAG_TRACE)
 			printf("trace ");
 		else
-			printf("%4d ", fst->fs_fd);
+			printf("%5d ", fst->fs_fd);
 
 		switch (fst->fs_type) {
 		case PS_FST_TYPE_VNODE:
@@ -449,6 +450,7 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_NONBLOCK ? "n" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_DIRECT ? "d" : "-");
 		printf("%s", fst->fs_fflags & PS_FST_FFLAG_HASLOCK ? "l" : "-");
+		printf(" ");
 		if (!Cflag) {
 			if (fst->fs_ref_count > -1)
 				printf("%3d ", fst->fs_ref_count);
@@ -460,7 +462,7 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 				printf("%7c ", '-');
 		}
 		if (Cflag) {
-			print_capability(fst->fs_cap_rights, capwidth);
+			print_capability(&fst->fs_cap_rights, capwidth);
 			printf(" ");
 		}
 		switch (fst->fs_type) {

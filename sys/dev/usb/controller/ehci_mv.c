@@ -103,6 +103,9 @@ static int
 mv_ehci_probe(device_t self)
 {
 
+	if (!ofw_bus_status_okay(self))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(self, "mrvl,usb-ehci"))
 		return (ENXIO);
 
@@ -123,6 +126,7 @@ mv_ehci_attach(device_t self)
 	sc->sc_bus.parent = self;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,

@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/errno.h>
 
@@ -61,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>		/* XXX for ether_sprintf */
@@ -889,8 +891,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
-			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d\n",
-			    __func__, ts->ts_rate, ts->ts_finaltsi);
+			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d, final_rix=%d\n",
+			    __func__, ts->ts_rate, ts->ts_finaltsi, final_rix);
 			badrate(ifp, 0, ts->ts_rate, long_tries, status);
 			return;
 		}

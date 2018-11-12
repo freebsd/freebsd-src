@@ -10,8 +10,8 @@
 #ifndef LLVM_CLANG_BASIC_DIAGNOSTICOPTIONS_H
 #define LLVM_CLANG_BASIC_DIAGNOSTICOPTIONS_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-
 #include <string>
 #include <vector>
 
@@ -19,14 +19,13 @@ namespace clang {
 
 /// \brief Specifies which overload candidates to display when overload
 /// resolution fails.
-enum OverloadsShown {
+enum OverloadsShown : unsigned {
   Ovl_All,  ///< Show all overloads.
   Ovl_Best  ///< Show just the "best" overload candidates.
 };
 
-/// DiagnosticOptions - Options for controlling the compiler diagnostics
-/// engine.
-class DiagnosticOptions : public llvm::RefCountedBase<DiagnosticOptions>{
+/// \brief Options for controlling the compiler diagnostics engine.
+class DiagnosticOptions : public RefCountedBase<DiagnosticOptions>{
 public:
   enum TextDiagnosticFormat { Clang, Msvc, Vi };
 
@@ -34,7 +33,8 @@ public:
   enum { DefaultTabStop = 8, MaxTabStop = 100,
     DefaultMacroBacktraceLimit = 6,
     DefaultTemplateBacktraceLimit = 10,
-    DefaultConstexprBacktraceLimit = 10 };
+    DefaultConstexprBacktraceLimit = 10,
+    DefaultSpellCheckingLimit = 50 };
 
   // Define simple diagnostic options (with no accessors).
 #define DIAGOPT(Name, Bits, Default) unsigned Name : Bits;
@@ -49,19 +49,19 @@ protected:
 #include "clang/Basic/DiagnosticOptions.def"
 
 public:
-  /// If non-empty, a file to log extended build information to, for development
-  /// testing and analysis.
-  std::string DumpBuildInformation;
-
-  /// The file to log diagnostic output to.
+  /// \brief The file to log diagnostic output to.
   std::string DiagnosticLogFile;
   
-  /// The file to serialize diagnostics to (non-appending).
+  /// \brief The file to serialize diagnostics to (non-appending).
   std::string DiagnosticSerializationFile;
 
   /// The list of -W... options used to alter the diagnostic mappings, with the
   /// prefixes removed.
   std::vector<std::string> Warnings;
+
+  /// The list of -R... options used to alter the diagnostic mappings, with the
+  /// prefixes removed.
+  std::vector<std::string> Remarks;
 
 public:
   // Define accessors/mutators for diagnostic options of enumeration type.

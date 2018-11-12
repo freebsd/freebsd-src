@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 #include <net/if_atm.h>
@@ -1104,7 +1105,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 				LIST_INSERT_HEAD(&sc->rbuf_free, rb, link);
 				break;
 			}
-			MH_ALIGN(m, SMALL_BUFFER_LEN);
+			M_ALIGN(m, SMALL_BUFFER_LEN);
 			error = bus_dmamap_load(sc->rbuf_tag, rb->map,
 			    m->m_data, SMALL_BUFFER_LEN, dmaload_helper,
 			    &phys, BUS_DMA_NOWAIT);
@@ -1563,7 +1564,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 			ATM_PH_SETVCI(&aph, vci);
 
 			ifp = sc->ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			vc->ipackets++;
 			vc->ibytes += m0->m_pkthdr.len;
@@ -1973,7 +1974,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	error = bus_dmamap_load_mbuf(sc->tx_tag, q->map, m,
 	    fatm_tpd_load, tpd, BUS_DMA_NOWAIT);
 	if(error) {
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		if_printf(sc->ifp, "mbuf loaded error=%d\n", error);
 		m_freem(m);
 		return (0);
@@ -2024,7 +2025,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	BARRIER_W(sc);
 
 	sc->txcnt++;
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	vc->obytes += m->m_pkthdr.len;
 	vc->opackets++;
 
@@ -2829,21 +2830,13 @@ fatm_attach(device_t dev)
 	ifp->if_linkmiblen = sizeof(IFP2IFATM(sc->ifp)->mib);
 
 	/*
-	 * Enable memory and bustmaster
+	 * Enable busmaster
 	 */
-	cfg = pci_read_config(dev, PCIR_COMMAND, 2);
-	cfg |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, cfg, 2);
+	pci_enable_busmaster(dev);
 
 	/*
 	 * Map memory
 	 */
-	cfg = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (!(cfg & PCIM_CMD_MEMEN)) {
-		if_printf(ifp, "failed to enable memory mapping\n");
-		error = ENXIO;
-		goto fail;
-	}
 	sc->memid = 0x10;
 	sc->memres = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->memid,
 	    RF_ACTIVE);

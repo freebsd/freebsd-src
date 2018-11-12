@@ -790,7 +790,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 114: {
 		struct linux_wait4_args *p = params;
 		iarg[0] = p->pid; /* l_pid_t */
-		uarg[1] = (intptr_t) p->status; /* l_uint * */
+		uarg[1] = (intptr_t) p->status; /* l_int * */
 		iarg[2] = p->options; /* l_int */
 		uarg[3] = (intptr_t) p->rusage; /* struct l_rusage * */
 		*n_args = 4;
@@ -1781,9 +1781,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 260: {
 		struct linux_timer_settime_args *p = params;
 		iarg[0] = p->timerid; /* l_timer_t */
-		uarg[1] = (intptr_t) p->new; /* const struct itimerspec * */
-		uarg[2] = (intptr_t) p->old; /* struct itimerspec * */
-		*n_args = 3;
+		iarg[1] = p->flags; /* l_int */
+		uarg[2] = (intptr_t) p->new; /* const struct itimerspec * */
+		uarg[3] = (intptr_t) p->old; /* struct itimerspec * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timer_gettime */
@@ -3541,7 +3542,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_pid_t";
 			break;
 		case 1:
-			p = "l_uint *";
+			p = "l_int *";
 			break;
 		case 2:
 			p = "l_int";
@@ -5012,9 +5013,12 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "l_timer_t";
 			break;
 		case 1:
-			p = "const struct itimerspec *";
+			p = "l_int";
 			break;
 		case 2:
+			p = "const struct itimerspec *";
+			break;
+		case 3:
 			p = "struct itimerspec *";
 			break;
 		default:

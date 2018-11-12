@@ -133,7 +133,7 @@ extern "C" void __cxa_bad_typeid ();
 // throws, and if bad_exception needs to be thrown.  Called from the
 // compiler.
 extern "C" void __cxa_call_unexpected (void *) __attribute__((noreturn));
-extern "C" void __cxa_call_terminate (void*) __attribute__((noreturn));
+extern "C" void __cxa_call_terminate (_Unwind_Exception*) __attribute__((noreturn));
 
 #ifdef __ARM_EABI_UNWINDER__
 // Arm EABI specified routines.
@@ -142,9 +142,9 @@ typedef enum {
   ctm_succeeded = 1,
   ctm_succeeded_with_ptr_to_base = 2
 } __cxa_type_match_result;
-extern "C" bool __cxa_type_match(_Unwind_Exception*, const std::type_info*,
+extern "C" __cxa_type_match_result __cxa_type_match(_Unwind_Exception*, const std::type_info*,
 				 bool, void**);
-extern "C" void __cxa_begin_cleanup (_Unwind_Exception*);
+extern "C" bool __cxa_begin_cleanup (_Unwind_Exception*);
 extern "C" void __cxa_end_cleanup (void);
 #endif
 

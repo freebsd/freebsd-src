@@ -41,11 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-rng.h>
 
-/*
- * XXX
- * random_harvest(9) says to call it with no more than 16 bytes, but at least
- * safe(4) seems to violate that rule.
- */
 #define	OCTEON_RND_WORDS	2
 
 struct octeon_rnd_softc {
@@ -91,7 +86,7 @@ octeon_rnd_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Cavium Octeon Random Number Generator");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -131,7 +126,7 @@ octeon_rnd_harvest(void *arg)
 	for (i = 0; i < OCTEON_RND_WORDS; i++)
 		sc->sc_entropy[i] = cvmx_rng_get_random64();
 	random_harvest(sc->sc_entropy, sizeof sc->sc_entropy,
-		       sizeof sc->sc_entropy * 8, 0, RANDOM_PURE);
+		       (sizeof(sc->sc_entropy)*8)/2, RANDOM_PURE_OCTEON);
 
 	callout_reset(&sc->sc_callout, hz * 5, octeon_rnd_harvest, sc);
 }

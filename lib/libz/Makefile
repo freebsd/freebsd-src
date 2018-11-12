@@ -1,11 +1,11 @@
 #
-# $FreeBSD: head/lib/libz/Makefile 232263 2012-02-28 18:30:18Z dim $
+# $FreeBSD$
 #
 
 LIB=		z
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
-MAN=		zlib.3
+MAN=		zlib.3 zopen.3
 
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
@@ -55,6 +55,8 @@ CFLAGS+=	-DSYMBOL_VERSIONING
 
 INCS=		zconf.h zlib.h
 
+.PATH:		${.CURDIR}/test
+
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
 
@@ -65,6 +67,12 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; ./example )
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
+
+.ifndef COMPAT_32BIT
+beforeinstall:
+	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		${.CURDIR}/zlib.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+.endif
 
 .include <bsd.lib.mk>
 

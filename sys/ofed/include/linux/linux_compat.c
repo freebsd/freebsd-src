@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +56,8 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#include <linux/netdevice.h>
+#include <linux/timer.h>
 
 #include <vm/vm_pager.h>
 
@@ -66,19 +69,16 @@ MALLOC_DEFINE(M_KMALLOC, "linux", "Linux kmalloc compat");
 #undef file
 #undef cdev
 #define	RB_ROOT(head)	(head)->rbh_root
-#undef LIST_HEAD
-/* From sys/queue.h */
-#define LIST_HEAD(name, type)						\
-struct name {								\
-	struct type *lh_first;	/* first element */			\
-}
 
 struct kobject class_root;
 struct device linux_rootdev;
 struct class miscclass;
 struct list_head pci_drivers;
 struct list_head pci_devices;
+struct net init_net;
 spinlock_t pci_lock;
+
+unsigned long linux_timer_hz_mask;
 
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
@@ -160,11 +160,25 @@ kobject_release(struct kref *kref)
 static void
 kobject_kfree(struct kobject *kobj)
 {
-
 	kfree(kobj);
 }
 
+static void
+kobject_kfree_name(struct kobject *kobj)
+{
+	if (kobj) {
+		kfree(kobj->name);
+	}
+}
+
 struct kobj_type kfree_type = { .release = kobject_kfree };
+
+static void
+dev_release(struct device *dev)
+{
+	pr_debug("dev_release: %s\n", dev_name(dev));
+	kfree(dev);
+}
 
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
@@ -178,6 +192,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 	dev->class = class;
 	dev->devt = devt;
 	dev->driver_data = drvdata;
+	dev->release = dev_release;
 	va_start(args, fmt);
 	kobject_set_name_vargs(&dev->kobj, fmt, args);
 	va_end(args);
@@ -212,7 +227,8 @@ linux_file_dtor(void *cdp)
 	struct linux_file *filp;
 
 	filp = cdp;
-	filp->f_op->release(curthread->td_fpop->f_vnode, filp);
+	filp->f_op->release(filp->f_vnode, filp);
+	vdrop(filp->f_vnode);
 	kfree(filp);
 }
 
@@ -232,6 +248,8 @@ linux_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	filp->f_dentry = &filp->f_dentry_store;
 	filp->f_op = ldev->ops;
 	filp->f_flags = file->f_flag;
+	vhold(file->f_vnode);
+	filp->f_vnode = file->f_vnode;
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
@@ -264,6 +282,8 @@ linux_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	if ((error = devfs_get_cdevpriv((void **)&filp)) != 0)
 		return (error);
 	filp->f_flags = file->f_flag;
+        devfs_clear_cdevpriv();
+        
 
 	return (0);
 }
@@ -322,7 +342,8 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -356,7 +377,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -477,7 +499,8 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -555,13 +578,35 @@ linux_file_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *cred,
 	return (error);
 }
 
+static int
+linux_file_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
+{
+
+	return (EOPNOTSUPP);
+}
+
+static int
+linux_file_fill_kinfo(struct file *fp, struct kinfo_file *kif,
+    struct filedesc *fdp)
+{
+
+	return (0);
+}
+
 struct fileops linuxfileops = {
 	.fo_read = linux_file_read,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
+	.fo_kqfilter = invfo_kqfilter,
+	.fo_stat = linux_file_stat,
+	.fo_fill_kinfo = linux_file_fill_kinfo,
 	.fo_poll = linux_file_poll,
 	.fo_close = linux_file_close,
 	.fo_ioctl = linux_file_ioctl,
 	.fo_chmod = invfo_chmod,
 	.fo_chown = invfo_chown,
+	.fo_sendfile = invfo_sendfile,
 };
 
 /*
@@ -575,7 +620,9 @@ struct vmmap {
 	unsigned long		vm_size;
 };
 
-LIST_HEAD(vmmaphd, vmmap);
+struct vmmaphd {
+	struct vmmap *lh_first;
+};
 #define	VMMAP_HASH_SIZE	64
 #define	VMMAP_HASH_MASK	(VMMAP_HASH_SIZE - 1)
 #define	VM_HASH(addr)	((uintptr_t)(addr) >> PAGE_SHIFT) & VMMAP_HASH_MASK
@@ -644,7 +691,7 @@ vmap(struct page **pages, unsigned int count, unsigned long flags, int prot)
 	size_t size;
 
 	size = count * PAGE_SIZE;
-	off = kmem_alloc_nofault(kernel_map, size);
+	off = kva_alloc(size);
 	if (off == 0)
 		return (NULL);
 	vmmap_add((void *)off, size);
@@ -662,17 +709,85 @@ vunmap(void *addr)
 	if (vmmap == NULL)
 		return;
 	pmap_qremove((vm_offset_t)addr, vmmap->vm_size / PAGE_SIZE);
-	kmem_free(kernel_map, (vm_offset_t)addr, vmmap->vm_size);
+	kva_free((vm_offset_t)addr, vmmap->vm_size);
 	kfree(vmmap);
 }
 
+
+char *
+kasprintf(gfp_t gfp, const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+
+	va_start(ap, fmt);
+	p = kvasprintf(gfp, fmt, ap);
+	va_end(ap);
+
+	return p;
+}
+
+static int
+linux_timer_jiffies_until(unsigned long expires)
+{
+	int delta = expires - jiffies;
+	/* guard against already expired values */
+	if (delta < 1)
+		delta = 1;
+	return (delta);
+}
+
 static void
-linux_compat_init(void)
+linux_timer_callback_wrapper(void *context)
+{
+	struct timer_list *timer;
+
+	timer = context;
+	timer->function(timer->data);
+}
+
+void
+mod_timer(struct timer_list *timer, unsigned long expires)
+{
+
+	timer->expires = expires;
+	callout_reset(&timer->timer_callout,		      
+	    linux_timer_jiffies_until(expires),
+	    &linux_timer_callback_wrapper, timer);
+}
+
+void
+add_timer(struct timer_list *timer)
+{
+
+	callout_reset(&timer->timer_callout,
+	    linux_timer_jiffies_until(timer->expires),
+	    &linux_timer_callback_wrapper, timer);
+}
+
+static void
+linux_timer_init(void *arg)
+{
+
+	/*
+	 * Compute an internal HZ value which can divide 2**32 to
+	 * avoid timer rounding problems when the tick value wraps
+	 * around 2**32:
+	 */
+	linux_timer_hz_mask = 1;
+	while (linux_timer_hz_mask < (unsigned long)hz)
+		linux_timer_hz_mask *= 2;
+	linux_timer_hz_mask--;
+}
+SYSINIT(linux_timer, SI_SUB_DRIVERS, SI_ORDER_FIRST, linux_timer_init, NULL);
+
+static void
+linux_compat_init(void *arg)
 {
 	struct sysctl_oid *rootoid;
 	int i;
 
-	rootoid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(),
+	rootoid = SYSCTL_ADD_ROOT_NODE(NULL,
 	    OID_AUTO, "sys", CTLFLAG_RD|CTLFLAG_MPSAFE, NULL, "sys");
 	kobject_init(&class_root, &class_ktype);
 	kobject_set_name(&class_root, "class");
@@ -693,5 +808,13 @@ linux_compat_init(void)
 	for (i = 0; i < VMMAP_HASH_SIZE; i++)
 		LIST_INIT(&vmmaphead[i]);
 }
-
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
+
+static void
+linux_compat_uninit(void *arg)
+{
+	kobject_kfree_name(&class_root);
+	kobject_kfree_name(&linux_rootdev.kobj);
+	kobject_kfree_name(&miscclass.kobj);
+}
+SYSUNINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_uninit, NULL);

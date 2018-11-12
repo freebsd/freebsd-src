@@ -1,4 +1,4 @@
-/* 
+/*
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code
  * distributions retain the above copyright notice and this paragraph
@@ -13,11 +13,7 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/nlpid.c,v 1.4 2004-10-19 15:27:55 hannes Exp $ (LBL)";
-#endif
-
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -36,6 +32,7 @@ const struct tok nlpid_values[] = {
     { NLPID_ISIS, "IS-IS" },
     { NLPID_CONS, "CONS" },
     { NLPID_IDRP, "IDRP" },
+    { NLPID_SPB, "ISIS_SPB" },
     { NLPID_MFR, "FRF.15" },
     { NLPID_IP, "IPv4" },
     { NLPID_PPP, "PPP" },

@@ -212,13 +212,13 @@
 #define HAVE_LOG10F 1
 
 /* Define to 1 if you have the `log10l' function. */
-/* #undef HAVE_LOG10L */
+#define HAVE_LOG10L 1
 
 /* Define to 1 if you have the `logf' function. */
 #define HAVE_LOGF 1
 
 /* Define to 1 if you have the `logl' function. */
-/* #undef HAVE_LOGL */
+#define HAVE_LOGL 1
 
 /* Define to 1 if you have the <machine/endian.h> header file. */
 #define HAVE_MACHINE_ENDIAN_H 1

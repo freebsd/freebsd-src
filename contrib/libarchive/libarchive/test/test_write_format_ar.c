@@ -98,9 +98,9 @@ DEFINE_TEST(test_write_format_ar)
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(archive_position_compressed(a),
-	    archive_position_uncompressed(a));
-	assertEqualInt(used, archive_position_uncompressed(a));
+	assertEqualInt(archive_filter_bytes(a, -1),
+	    archive_filter_bytes(a, 0));
+	assertEqualInt(used, archive_filter_bytes(a, 0));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*

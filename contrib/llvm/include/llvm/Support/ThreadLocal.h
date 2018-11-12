@@ -11,11 +11,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_THREAD_LOCAL_H
-#define LLVM_SYSTEM_THREAD_LOCAL_H
+#ifndef LLVM_SUPPORT_THREADLOCAL_H
+#define LLVM_SUPPORT_THREADLOCAL_H
 
-#include "llvm/Support/Threading.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/Threading.h"
 #include <cassert>
 
 namespace llvm {
@@ -36,7 +36,7 @@ namespace llvm {
       ThreadLocalImpl();
       virtual ~ThreadLocalImpl();
       void setInstance(const void* d);
-      const void* getInstance();
+      void *getInstance();
       void removeInstance();
     };
 

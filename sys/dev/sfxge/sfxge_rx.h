@@ -30,25 +30,32 @@
  */
 
 #ifndef _SFXGE_RX_H
-#define _SFXGE_RX_H
+#define	_SFXGE_RX_H
 
-#define SFXGE_MAGIC_RESERVED    0x8000
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
-#define SFXGE_MAGIC_DMAQ_LABEL_WIDTH  6
-#define SFXGE_MAGIC_DMAQ_LABEL_MASK   \
-        ((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
+#if defined(INET) || defined(INET6)
+#define	SFXGE_LRO	1
+#endif
 
-#define SFXGE_MAGIC_RX_QFLUSH_DONE                                      \
-        (SFXGE_MAGIC_RESERVED | (1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_RESERVED	0x8000
 
-#define SFXGE_MAGIC_RX_QFLUSH_FAILED                                    \
-        (SFXGE_MAGIC_RESERVED | (2 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_DMAQ_LABEL_WIDTH	6
+#define	SFXGE_MAGIC_DMAQ_LABEL_MASK					\
+	((1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH) - 1)
 
-#define SFXGE_MAGIC_RX_QREFILL                                          \
-        (SFXGE_MAGIC_RESERVED | (3 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_RX_QFLUSH_DONE					\
+	(SFXGE_MAGIC_RESERVED | (1 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
-#define SFXGE_MAGIC_TX_QFLUSH_DONE                                      \
-        (SFXGE_MAGIC_RESERVED | (4 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+#define	SFXGE_MAGIC_RX_QFLUSH_FAILED					\
+	(SFXGE_MAGIC_RESERVED | (2 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+
+#define	SFXGE_MAGIC_RX_QREFILL						\
+	(SFXGE_MAGIC_RESERVED | (3 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
+
+#define	SFXGE_MAGIC_TX_QFLUSH_DONE					\
+	(SFXGE_MAGIC_RESERVED | (4 << SFXGE_MAGIC_DMAQ_LABEL_WIDTH))
 
 #define	SFXGE_RX_SCALE_MAX	EFX_MAXRSS
 
@@ -58,6 +65,8 @@ struct sfxge_rx_sw_desc {
 	int		flags;
 	int		size;
 };
+
+#ifdef SFXGE_LRO
 
 /**
  * struct sfxge_lro_conn - Connection state for software LRO
@@ -139,6 +148,8 @@ struct sfxge_lro_state {
 	unsigned n_drop_closed;
 };
 
+#endif	/* SFXGE_LRO */
+
 enum sfxge_flush_state {
 	SFXGE_FLUSH_DONE = 0,
 	SFXGE_FLUSH_PENDING,
@@ -159,13 +170,18 @@ struct sfxge_rxq {
 	efsys_mem_t			mem;
 	unsigned int			buf_base_id;
 	enum sfxge_rxq_state		init_state;
+	unsigned int			entries;
+	unsigned int			ptr_mask;
 
 	struct sfxge_rx_sw_desc		*queue __aligned(CACHE_LINE_SIZE);
 	unsigned int			added;
 	unsigned int			pending;
 	unsigned int			completed;
 	unsigned int			loopback;
+#ifdef SFXGE_LRO
 	struct sfxge_lro_state		lro;
+#endif
+	unsigned int			refill_threshold;
 	struct callout			refill_callout;
 	unsigned int			refill_delay;
 

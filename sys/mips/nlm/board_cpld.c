@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -55,13 +55,13 @@ int nlm_cpld_read(uint64_t base, int reg)
 	uint16_t val;
 
 	val = *(volatile uint16_t *)(long)(base + reg * 2);
-	return bswap16(val);
+	return le16toh(val);
 }
 
 static __inline void
 nlm_cpld_write(uint64_t base, int reg, uint16_t data)
 {
-	bswap16(data);
+	data = htole16(data);
 	*(volatile uint16_t *)(long)(base + reg * 2) = data;
 }
 

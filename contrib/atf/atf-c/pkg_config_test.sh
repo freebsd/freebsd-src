@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2008 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 # The following tests assume that the atf-c.pc file is installed in a
 # directory that is known by pkg-config.  Otherwise they will fail,
@@ -43,10 +39,8 @@ require_pc()
 
 check_version()
 {
-    atf_check -s eq:0 -o save:stdout -e empty -x \
-              "atf-version | head -n 1 | cut -d ' ' -f 4"
-    ver1=$(cat stdout)
-    echo "Version reported by atf-version: ${ver1}"
+    ver1=$($(atf_get_srcdir)/detail/version_helper)
+    echo "Version reported by builtin PACKAGE_VERSION: ${ver1}"
 
     atf_check -s eq:0 -o save:stdout -e empty pkg-config --modversion "${1}"
     ver2=$(cat stdout)

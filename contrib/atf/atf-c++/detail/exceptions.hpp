@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_EXCEPTIONS_HPP_)
-#define _ATF_CXX_EXCEPTIONS_HPP_
+#if !defined(ATF_CXX_DETAIL_EXCEPTIONS_HPP)
+#define ATF_CXX_DETAIL_EXCEPTIONS_HPP
 
 #include <stdexcept>
 #include <string>
@@ -38,47 +34,6 @@ struct atf_error;
 }
 
 namespace atf {
-
-template< class T >
-class not_found_error :
-    public std::runtime_error
-{
-    T m_value;
-
-public:
-    not_found_error(const std::string& message, const T& value) throw();
-
-    virtual ~not_found_error(void) throw();
-
-    const T& get_value(void) const throw();
-};
-
-template< class T >
-inline
-not_found_error< T >::not_found_error(const std::string& message,
-                                      const T& value)
-    throw() :
-    std::runtime_error(message),
-    m_value(value)
-{
-}
-
-template< class T >
-inline
-not_found_error< T >::~not_found_error(void)
-    throw()
-{
-}
-
-template< class T >
-inline
-const T&
-not_found_error< T >::get_value(void)
-    const
-    throw()
-{
-    return m_value;
-}
 
 class system_error : public std::runtime_error {
     int m_sys_err;
@@ -96,4 +51,4 @@ void throw_atf_error(struct atf_error *);
 
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_EXCEPTIONS_HPP_)
+#endif // !defined(ATF_CXX_DETAIL_EXCEPTIONS_HPP)

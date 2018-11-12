@@ -66,7 +66,7 @@
 #include <netgraph/ng_ksocket.h>
 
 #include <netinet/in.h>
-#include <netatalk/at.h>
+#include <netinet/ip.h>
 
 #ifdef NG_SEPARATE_MALLOC
 static MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock",
@@ -120,8 +120,6 @@ static const struct ng_ksocket_alias ng_ksocket_families[] = {
 	{ "local",	PF_LOCAL	},
 	{ "inet",	PF_INET		},
 	{ "inet6",	PF_INET6	},
-	{ "atalk",	PF_APPLETALK	},
-	{ "ipx",	PF_IPX		},
 	{ "atm",	PF_ATM		},
 	{ NULL,		-1		},
 };
@@ -151,8 +149,6 @@ static const struct ng_ksocket_alias ng_ksocket_protos[] = {
 	{ "encap",	IPPROTO_ENCAP,		PF_INET		},
 	{ "divert",	IPPROTO_DIVERT,		PF_INET		},
 	{ "pim",	IPPROTO_PIM,		PF_INET		},
-	{ "ddp",	ATPROTO_DDP,		PF_APPLETALK	},
-	{ "aarp",	ATPROTO_AARP,		PF_APPLETALK	},
 	{ NULL,		-1					},
 };
 
@@ -300,9 +296,7 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 	    }
 
 #if 0
-	case PF_APPLETALK:	/* XXX implement these someday */
-	case PF_INET6:
-	case PF_IPX:
+	case PF_INET6:	/* XXX implement this someday */
 #endif
 
 	default:
@@ -364,9 +358,7 @@ ng_ksocket_sockaddr_unparse(const struct ng_parse_type *type,
 	    }
 
 #if 0
-	case PF_APPLETALK:	/* XXX implement these someday */
-	case PF_INET6:
-	case PF_IPX:
+	case PF_INET6:	/* XXX implement this someday */
 #endif
 
 	default:
@@ -647,7 +639,7 @@ ng_ksocket_connect(hook_p hook)
 	 * This is a bad byproduct of the complicated way in which hooks
 	 * are now created (3 daisy chained async events).
 	 *
-	 * Since we are a netgraph operation 
+	 * Since we are a netgraph operation
 	 * We know that we hold a lock on this node. This forces the
 	 * request we make below to be queued rather than implemented
 	 * immediatly which will cause the upcall function to be called a bit
@@ -787,7 +779,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Get function */
 			if (msg->header.cmd == NGM_KSOCKET_GETPEERNAME) {
 				if ((so->so_state
-				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0) 
+				    & (SS_ISCONNECTED|SS_ISCONFIRMING)) == 0)
 					ERROUT(ENOTCONN);
 				func = so->so_proto->pr_usrreqs->pru_peeraddr;
 			} else
@@ -815,7 +807,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_KSOCKET_GETOPT:
 		    {
-			struct ng_ksocket_sockopt *ksopt = 
+			struct ng_ksocket_sockopt *ksopt =
 			    (struct ng_ksocket_sockopt *)msg->data;
 			struct sockopt sopt;
 
@@ -852,7 +844,7 @@ ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		case NGM_KSOCKET_SETOPT:
 		    {
-			struct ng_ksocket_sockopt *const ksopt = 
+			struct ng_ksocket_sockopt *const ksopt =
 			    (struct ng_ksocket_sockopt *)msg->data;
 			const int valsize = msg->header.arglen - sizeof(*ksopt);
 			struct sockopt sopt;
@@ -997,11 +989,11 @@ ng_ksocket_disconnect(hook_p hook)
 /************************************************************************
 			HELPER STUFF
  ************************************************************************/
-/* 
+/*
  * You should not "just call" a netgraph node function from an external
  * asynchronous event. This is because in doing so you are ignoring the
  * locking on the netgraph nodes. Instead call your function via ng_send_fn().
- * This will call the function you chose, but will first do all the 
+ * This will call the function you chose, but will first do all the
  * locking rigmarole. Your function MAY only be called at some distant future
  * time (several millisecs away) so don't give it any arguments
  * that may be revoked soon (e.g. on your stack).
@@ -1033,7 +1025,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 /*
  * When incoming data is appended to the socket, we get notified here.
  * This is also called whenever a significant event occurs for the socket.
- * Our original caller may have queued this even some time ago and 
+ * Our original caller may have queued this even some time ago and
  * we cannot trust that he even still exists. The node however is being
  * held with a reference by the queueing code and guarantied to be valid.
  */
@@ -1042,14 +1034,11 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 {
 	struct socket *so = arg1;
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	struct mbuf *m;
 	struct ng_mesg *response;
-	struct uio auio;
-	int flags, error;
+	int error;
 
-	/* so = priv->so; *//* XXX could have derived this like so */
 	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
-	
+
 	/* Allow next incoming event to be queued. */
 	atomic_store_rel_int(&priv->fn_sent, 0);
 
@@ -1066,7 +1055,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 				response->header.flags |= NGF_RESP;
 				response->header.token = priv->response_token;
 				*(int32_t *)response->data = error;
-				/* 
+				/*
 				 * send an async "response" message
 				 * to the node that set us up
 				 * (if it still exists)
@@ -1095,37 +1084,55 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	if (priv->hook == NULL)
 		return;
 
-	/* Read and forward available mbuf's */
-	auio.uio_td = NULL;
-	auio.uio_resid = 1000000000;
-	flags = MSG_DONTWAIT;
+	/* Read and forward available mbufs. */
 	while (1) {
-		struct sockaddr *sa = NULL;
-		struct mbuf *n;
+		struct uio uio;
+		struct sockaddr *sa;
+		struct mbuf *m;
+		int flags;
 
-		/* Try to get next packet from socket */
+		/* Try to get next packet from socket. */
+		uio.uio_td = NULL;
+		uio.uio_resid = IP_MAXPACKET;
+		flags = MSG_DONTWAIT;
+		sa = NULL;
 		if ((error = soreceive(so, (so->so_state & SS_ISCONNECTED) ?
-		    NULL : &sa, &auio, &m, (struct mbuf **)0, &flags)) != 0)
+		    NULL : &sa, &uio, &m, NULL, &flags)) != 0)
 			break;
 
-		/* See if we got anything */
+		/* See if we got anything. */
+		if (flags & MSG_TRUNC) {
+			m_freem(m);
+			m = NULL;
+		}
 		if (m == NULL) {
 			if (sa != NULL)
 				free(sa, M_SONAME);
 			break;
 		}
 
+		KASSERT(m->m_nextpkt == NULL, ("%s: nextpkt", __func__));
+
 		/*
-		 * Don't trust the various socket layers to get the
-		 * packet header and length correct (e.g. kern/15175).
-		 *
-		 * Also, do not trust that soreceive() will clear m_nextpkt
-		 * for us (e.g. kern/84952, kern/82413).
+		 * Stream sockets do not have packet boundaries, so
+		 * we have to allocate a header mbuf and attach the
+		 * stream of data to it.
 		 */
-		m->m_pkthdr.csum_flags = 0;
-		for (n = m, m->m_pkthdr.len = 0; n != NULL; n = n->m_next) {
-			m->m_pkthdr.len += n->m_len;
-			n->m_nextpkt = NULL;
+		if (so->so_type == SOCK_STREAM) {
+			struct mbuf *mh;
+
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
+			if (mh == NULL) {
+				m_freem(m);
+				if (sa != NULL)
+					free(sa, M_SONAME);
+				break;
+			}
+
+			mh->m_next = m;
+			for (; m; m = m->m_next)
+				mh->m_pkthdr.len += m->m_len;
+			m = mh;
 		}
 
 		/* Put peer's socket address (if any) into a tag */
@@ -1153,12 +1160,13 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 	 * If the peer has closed the connection, forward a 0-length mbuf
 	 * to indicate end-of-file.
 	 */
-	if (so->so_rcv.sb_state & SBS_CANTRCVMORE && !(priv->flags & KSF_EOFSEEN)) {
-		MGETHDR(m, M_NOWAIT, MT_DATA);
-		if (m != NULL) {
-			m->m_len = m->m_pkthdr.len = 0;
+	if (so->so_rcv.sb_state & SBS_CANTRCVMORE &&
+	    !(priv->flags & KSF_EOFSEEN)) {
+		struct mbuf *m;
+
+		m = m_gethdr(M_NOWAIT, MT_DATA);
+		if (m != NULL)
 			NG_SEND_DATA_ONLY(error, priv->hook, m);
-		}
 		priv->flags |= KSF_EOFSEEN;
 	}
 }
@@ -1237,8 +1245,8 @@ ng_ksocket_finish_accept(priv_p priv)
 	resp->header.token = priv->response_token;
 
 	/* Clone a ksocket node to wrap the new socket */
-        error = ng_make_node_common(&ng_ksocket_typestruct, &node);
-        if (error) {
+	error = ng_make_node_common(&ng_ksocket_typestruct, &node);
+	if (error) {
 		free(resp, M_NETGRAPH);
 		soclose(so);
 		goto out;

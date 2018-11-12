@@ -2,7 +2,7 @@
 
 /*-
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
- * Copyright (C) 2012 Oleg Moskalenko <oleg.moskalenko@citrix.com>
+ * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  */
 
 #if !defined(__SORT_FILE_H__)
-#define __SORT_FILE_H__
+#define	__SORT_FILE_H__
 
 #include "coll.h"
 #include "sort.h"
@@ -39,8 +39,8 @@
 #define	SORT_HEAPSORT	3
 #define	SORT_RADIXSORT  4
 
-#define DEFAULT_SORT_ALGORITHM SORT_HEAPSORT
-#define DEFAULT_SORT_FUNC heapsort
+#define	DEFAULT_SORT_ALGORITHM SORT_HEAPSORT
+#define	DEFAULT_SORT_FUNC heapsort
 
 /*
  * List of data to be sorted.

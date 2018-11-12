@@ -1,6 +1,3 @@
-#
-# Automated Testing Framework (atf)
-#
 # Copyright (c) 2007 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
@@ -25,7 +22,6 @@
 # IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 # OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
 
 # TODO: Bring in the checks in the bootstrap testsuite for atf_check.
 
@@ -54,7 +50,7 @@ atf_test_case expout_mismatch
 expout_mismatch_head()
 {
     atf_set "descr" "Verifies that atf_check prints a diff of the" \
-                    "stdout and the expected stdout of the two do not" \
+                    "stdout and the expected stdout if the two do not" \
                     "match"
 }
 expout_mismatch_body()
@@ -79,7 +75,7 @@ atf_test_case experr_mismatch
 experr_mismatch_head()
 {
     atf_set "descr" "Verifies that atf_check prints a diff of the" \
-                    "stderr and the expected stderr of the two do not" \
+                    "stderr and the expected stderr if the two do not" \
                     "match"
 }
 experr_mismatch_body()
@@ -168,6 +164,21 @@ equal_body()
         grep '^failed: \${x} != \${y} (a != b)$' resfile
 }
 
+atf_test_case flush_stdout_on_timeout
+flush_stdout_on_timeout_body()
+{
+    "$(atf_get_srcdir)/misc_helpers" -s "$(atf_get_srcdir)" atf_check_timeout \
+        >out 2>err &
+    pid="${!}"
+    sleep 1
+    kill "${pid}"
+
+    grep 'Executing command.*true' out \
+        || atf_fail 'First command not in output'
+    grep 'Executing command.*sleep 42' out \
+        || atf_fail 'Second command not in output'
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case info_ok
@@ -176,6 +187,7 @@ atf_init_test_cases()
     atf_add_test_case null_stdout
     atf_add_test_case null_stderr
     atf_add_test_case equal
+    atf_add_test_case flush_stdout_on_timeout
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

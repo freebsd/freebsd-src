@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.89 2012/06/12 19:21:51 joerg Exp $	*/
+/*	$NetBSD: make.h,v 1.92 2013/09/04 15:38:26 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -103,7 +103,7 @@
 	((__GNUC__ == (x) && __GNUC_MINOR__ >= (y)) ||			\
 	 (__GNUC__ > (x)))
 #else /* defined(__GNUC__) */
-#define	MAKE_GNUC_PREREQx, y)	0
+#define	MAKE_GNUC_PREREQ(x, y)	0
 #endif /* defined(__GNUC__) */
 
 #if MAKE_GNUC_PREREQ(2, 7)
@@ -404,6 +404,10 @@ extern Boolean	varNoExportEnv;	/* TRUE if we should not export variables
 
 extern GNode    *DEFAULT;    	/* .DEFAULT rule */
 
+extern GNode	*VAR_INTERNAL;	/* Variables defined internally by make
+				 * which should not override those set by
+				 * makefiles.
+				 */
 extern GNode    *VAR_GLOBAL;   	/* Variables defined in a global context, e.g
 				 * in the Makefile itself */
 extern GNode    *VAR_CMD;    	/* Variables defined on the command line */
@@ -442,9 +446,8 @@ extern pid_t	myPid;
 #define MAKEFILE_PREFERENCE ".MAKE.MAKEFILE_PREFERENCE"
 #define MAKE_DEPENDFILE	".MAKE.DEPENDFILE" /* .depend */
 #define MAKE_MODE	".MAKE.MODE"
-
-#ifdef NEED_MAKE_LEVEL_SAFE
-# define MAKE_LEVEL_SAFE "_MAKE_LEVEL"	/* some shells will not pass .MAKE. */
+#ifndef MAKE_LEVEL_ENV
+# define MAKE_LEVEL_ENV	"MAKELEVEL"
 #endif
 
 /*
@@ -513,6 +516,10 @@ int str2Lst_Append(Lst, char *, const char *);
 #endif
 #ifndef MAX
 #define MAX(a, b) ((a > b) ? a : b)
+#endif
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN BMAKE_PATH_MAX
 #endif
 
 #endif /* _MAKE_H_ */

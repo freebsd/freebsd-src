@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Emulex
+ * Copyright (C) 2013 Emulex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,7 @@
  * Costa Mesa, CA 92626
  */
 
-
-
 /* $FreeBSD$ */
-
 
 #include "oce_if.h"
 
@@ -106,7 +103,7 @@ oce_queue_init_all(POCE_SOFTC sc)
 	for_all_rq_queues(sc, rq, i) {
 		sc->rq[i] = oce_rq_init(sc, sc->rx_ring_size, sc->rq_frag_size,
 					OCE_MAX_JUMBO_FRAME_SIZE,
-					(i == 0) ? 0 : sc->rss_enable);
+					(i == 0) ? 0 : is_rss_enabled(sc));
 		if (!sc->rq[i]) 
 			goto error;
 	}
@@ -1225,7 +1222,7 @@ oce_start_rx(POCE_SOFTC sc)
 	DELAY(1);
 	
 	/* RSS config */
-	if (sc->rss_enable) {
+	if (is_rss_enabled(sc)) {
 		rc = oce_config_nic_rss(sc, (uint8_t) sc->if_id, RSS_ENABLE);
 		if (rc)
 			goto error;

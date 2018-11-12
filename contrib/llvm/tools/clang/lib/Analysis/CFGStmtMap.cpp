@@ -42,15 +42,15 @@ CFGBlock *CFGStmtMap::getBlock(Stmt *S) {
 
     X = PM->getParentIgnoreParens(X);
   }
-  
-  return 0;
+
+  return nullptr;
 }
 
 static void Accumulate(SMap &SM, CFGBlock *B) {
   // First walk the block-level expressions.
   for (CFGBlock::iterator I = B->begin(), E = B->end(); I != E; ++I) {
     const CFGElement &CE = *I;
-    const CFGStmt *CS = CE.getAs<CFGStmt>();
+    Optional<CFGStmt> CS = CE.getAs<CFGStmt>();
     if (!CS)
       continue;
     
@@ -77,7 +77,7 @@ static void Accumulate(SMap &SM, CFGBlock *B) {
 
 CFGStmtMap *CFGStmtMap::Build(CFG *C, ParentMap *PM) {
   if (!C || !PM)
-    return 0;
+    return nullptr;
 
   SMap *SM = new SMap();
 

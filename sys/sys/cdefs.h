@@ -36,6 +36,26 @@
 #ifndef	_SYS_CDEFS_H_
 #define	_SYS_CDEFS_H_
 
+/*
+ * Testing against Clang-specific extensions.
+ */
+
+#ifndef	__has_attribute
+#define	__has_attribute(x)	0
+#endif
+#ifndef	__has_extension
+#define	__has_extension		__has_feature
+#endif
+#ifndef	__has_feature
+#define	__has_feature(x)	0
+#endif
+#ifndef	__has_include
+#define	__has_include(x)	0
+#endif
+#ifndef	__has_builtin
+#define	__has_builtin(x)	0
+#endif
+
 #if defined(__cplusplus)
 #define	__BEGIN_DECLS	extern "C" {
 #define	__END_DECLS	}
@@ -53,33 +73,33 @@
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
 #if __GNUC__ >= 3 || defined(__INTEL_COMPILER)
-#define __GNUCLIKE_ASM 3
-#define __GNUCLIKE_MATH_BUILTIN_CONSTANTS
+#define	__GNUCLIKE_ASM 3
+#define	__GNUCLIKE_MATH_BUILTIN_CONSTANTS
 #else
-#define __GNUCLIKE_ASM 2
+#define	__GNUCLIKE_ASM 2
 #endif
-#define __GNUCLIKE___TYPEOF 1
-#define __GNUCLIKE___OFFSETOF 1
-#define __GNUCLIKE___SECTION 1
+#define	__GNUCLIKE___TYPEOF 1
+#define	__GNUCLIKE___OFFSETOF 1
+#define	__GNUCLIKE___SECTION 1
 
 #ifndef __INTEL_COMPILER
-# define __GNUCLIKE_CTOR_SECTION_HANDLING 1
+#define	__GNUCLIKE_CTOR_SECTION_HANDLING 1
 #endif
 
-#define __GNUCLIKE_BUILTIN_CONSTANT_P 1
-# if defined(__INTEL_COMPILER) && defined(__cplusplus) \
-    && __INTEL_COMPILER < 800
-#  undef __GNUCLIKE_BUILTIN_CONSTANT_P
-# endif
+#define	__GNUCLIKE_BUILTIN_CONSTANT_P 1
+#if defined(__INTEL_COMPILER) && defined(__cplusplus) && \
+   __INTEL_COMPILER < 800
+#undef __GNUCLIKE_BUILTIN_CONSTANT_P
+#endif
 
 #if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3) && !defined(__INTEL_COMPILER)
-# define __GNUCLIKE_BUILTIN_VARARGS 1
-# define __GNUCLIKE_BUILTIN_STDARG 1
-# define __GNUCLIKE_BUILTIN_VAALIST 1
+#define	__GNUCLIKE_BUILTIN_VARARGS 1
+#define	__GNUCLIKE_BUILTIN_STDARG 1
+#define	__GNUCLIKE_BUILTIN_VAALIST 1
 #endif
 
 #if defined(__GNUC__)
-# define __GNUC_VA_LIST_COMPATIBILITY 1
+#define	__GNUC_VA_LIST_COMPATIBILITY 1
 #endif
 
 /*
@@ -90,23 +110,23 @@
 #endif
 
 #ifndef __INTEL_COMPILER
-# define __GNUCLIKE_BUILTIN_NEXT_ARG 1
-# define __GNUCLIKE_MATH_BUILTIN_RELOPS
+#define	__GNUCLIKE_BUILTIN_NEXT_ARG 1
+#define	__GNUCLIKE_MATH_BUILTIN_RELOPS
 #endif
 
-#define __GNUCLIKE_BUILTIN_MEMCPY 1
+#define	__GNUCLIKE_BUILTIN_MEMCPY 1
 
 /* XXX: if __GNUC__ >= 2: not tested everywhere originally, where replaced */
-#define __CC_SUPPORTS_INLINE 1
-#define __CC_SUPPORTS___INLINE 1
-#define __CC_SUPPORTS___INLINE__ 1
+#define	__CC_SUPPORTS_INLINE 1
+#define	__CC_SUPPORTS___INLINE 1
+#define	__CC_SUPPORTS___INLINE__ 1
 
-#define __CC_SUPPORTS___FUNC__ 1
-#define __CC_SUPPORTS_WARNING 1
+#define	__CC_SUPPORTS___FUNC__ 1
+#define	__CC_SUPPORTS_WARNING 1
 
-#define __CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
+#define	__CC_SUPPORTS_VARADIC_XXX 1 /* see varargs.h */
 
-#define __CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
+#define	__CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
 
 #endif /* __GNUC__ || __INTEL_COMPILER */
 
@@ -192,8 +212,11 @@
 #define	__unused
 #define	__packed
 #define	__aligned(x)
+#define	__alloc_size(...)
 #define	__section(x)
+#define	__weak
 #else
+#define	__weak		__attribute__((__weak__))
 #if !__GNUC_PREREQ__(2, 5) && !defined(__INTEL_COMPILER)
 #define	__dead2
 #define	__pure2
@@ -214,16 +237,21 @@
 #define	__aligned(x)	__attribute__((__aligned__(x)))
 #define	__section(x)	__attribute__((__section__(x)))
 #endif
+#if __has_attribute(alloc_size) || __GNUC_PREREQ__(4, 3)
+#define	__alloc_size(...)	__attribute__((alloc_size(__VA_ARGS__)))
+#else
+#define	__alloc_size(...)
+#endif
 #if defined(__INTEL_COMPILER)
-#define __dead2		__attribute__((__noreturn__))
-#define __pure2		__attribute__((__const__))
-#define __unused	__attribute__((__unused__))
-#define __used		__attribute__((__used__))
-#define __packed	__attribute__((__packed__))
-#define __aligned(x)	__attribute__((__aligned__(x)))
-#define __section(x)	__attribute__((__section__(x)))
+#define	__dead2		__attribute__((__noreturn__))
+#define	__pure2		__attribute__((__const__))
+#define	__unused	__attribute__((__unused__))
+#define	__used		__attribute__((__used__))
+#define	__packed	__attribute__((__packed__))
+#define	__aligned(x)	__attribute__((__aligned__(x)))
+#define	__section(x)	__attribute__((__section__(x)))
 #endif
-#endif
+#endif /* lint */
 
 #if !__GNUC_PREREQ__(2, 95)
 #define	__alignof(x)	__offsetof(struct { char __a; x __b; }, __b)
@@ -232,29 +260,70 @@
 /*
  * Keywords added in C11.
  */
-#if defined(__cplusplus) && __cplusplus >= 201103L
-#define	_Alignas(e)		alignas(e)
-#define	_Alignof(e)		alignof(e)
-#define	_Noreturn		[[noreturn]]
-#define	_Static_assert(e, s)	static_assert(e, s)
-/* FIXME: change this to thread_local when clang in base supports it */
-#define	_Thread_local		__thread
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-/* Do nothing.  They are language keywords. */
+
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 201112L || defined(lint)
+
+#if !__has_extension(c_alignas)
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
+    __has_extension(cxx_alignas)
+#define	_Alignas(x)		alignas(x)
 #else
-/* Not supported.  Implement them using our versions. */
+/* XXX: Only emulates _Alignas(constant-expression); not _Alignas(type-name). */
 #define	_Alignas(x)		__aligned(x)
+#endif
+#endif
+
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignof(x)		alignof(x)
+#else
 #define	_Alignof(x)		__alignof(x)
+#endif
+
+#if !__has_extension(c_atomic) && !__has_extension(cxx_atomic)
+/*
+ * No native support for _Atomic(). Place object in structure to prevent
+ * most forms of direct non-atomic access.
+ */
+#define	_Atomic(T)		struct { T volatile __val; }
+#endif
+
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Noreturn		[[noreturn]]
+#else
 #define	_Noreturn		__dead2
-#define	_Thread_local		__thread
-#ifdef __COUNTER__
+#endif
+
+#if !__has_extension(c_static_assert)
+#if (defined(__cplusplus) && __cplusplus >= 201103L) || \
+    __has_extension(cxx_static_assert)
+#define	_Static_assert(x, y)	static_assert(x, y)
+#elif __GNUC_PREREQ__(4,6)
+/* Nothing, gcc 4.6 and higher has _Static_assert built-in */
+#elif defined(__COUNTER__)
 #define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
 #define	__Static_assert(x, y)	___Static_assert(x, y)
-#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1]
+#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1] \
+				__unused
 #else
 #define	_Static_assert(x, y)	struct __hack
 #endif
 #endif
+
+#if !__has_extension(c_thread_local)
+/*
+ * XXX: Some compilers (Clang 3.3, GCC 4.7) falsely announce C++11 mode
+ * without actually supporting the thread_local keyword. Don't check for
+ * the presence of C++11 when defining _Thread_local.
+ */
+#if /* (defined(__cplusplus) && __cplusplus >= 201103L) || */ \
+    __has_extension(cxx_thread_local)
+#define	_Thread_local		thread_local
+#else
+#define	_Thread_local		__thread
+#endif
+#endif
+
+#endif /* __STDC_VERSION__ || __STDC_VERSION__ < 201112L */
 
 /*
  * Emulation of C11 _Generic().  Unlike the previously defined C11
@@ -265,7 +334,8 @@
  * distinguish multiple cases.
  */
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
+    __has_extension(c_generic_selections)
 #define	__generic(expr, t, yes, no)					\
 	_Generic(expr, t: yes, default: no)
 #elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
@@ -295,15 +365,17 @@
 #endif
 
 #if __GNUC_PREREQ__(3, 3)
-#define __nonnull(x)	__attribute__((__nonnull__(x)))
+#define	__nonnull(...)	__attribute__((__nonnull__(__VA_ARGS__)))
 #else
-#define __nonnull(x)
+#define	__nonnull(...)
 #endif
 
 #if __GNUC_PREREQ__(3, 4)
 #define	__fastcall	__attribute__((__fastcall__))
+#define	__result_use_check	__attribute__((__warn_unused_result__))
 #else
 #define	__fastcall
+#define	__result_use_check
 #endif
 
 #if __GNUC_PREREQ__(4, 1)
@@ -375,11 +447,11 @@
  *	  larger code.
  */
 #if __GNUC_PREREQ__(2, 96)
-#define __predict_true(exp)     __builtin_expect((exp), 1)
-#define __predict_false(exp)    __builtin_expect((exp), 0)
+#define	__predict_true(exp)     __builtin_expect((exp), 1)
+#define	__predict_false(exp)    __builtin_expect((exp), 0)
 #else
-#define __predict_true(exp)     (exp)
-#define __predict_false(exp)    (exp)
+#define	__predict_true(exp)     (exp)
+#define	__predict_false(exp)    (exp)
 #endif
 
 #if __GNUC_PREREQ__(4, 2)
@@ -395,13 +467,13 @@
  * require it.
  */
 #if __GNUC_PREREQ__(4, 1)
-#define __offsetof(type, field)	 __builtin_offsetof(type, field)
+#define	__offsetof(type, field)	 __builtin_offsetof(type, field)
 #else
 #ifndef __cplusplus
 #define	__offsetof(type, field) \
 	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->field))
 #else
-#define __offsetof(type, field)					\
+#define	__offsetof(type, field)					\
   (__offsetof__ (reinterpret_cast <__size_t>			\
                  (&reinterpret_cast <const volatile char &>	\
                   (static_cast<type *> (0)->field))))
@@ -501,7 +573,7 @@
  * The following definition might not work well if used in header files,
  * but it should be better than nothing.  If you want a "do nothing"
  * version, then it should generate some harmless declaration, such as:
- *    #define __IDSTRING(name,string)	struct __hack
+ *    #define	__IDSTRING(name,string)	struct __hack
  */
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 #endif
@@ -682,21 +754,65 @@
 #endif
 #endif
 
-#ifndef	__has_extension
-#define	__has_extension  __has_feature
-#endif
-#ifndef	__has_feature
-#define	__has_feature(x) 0
-#endif
-#ifndef	__has_include
-#define	__has_include(x) 0
-#endif
-#ifndef	__has_builtin
-#define	__has_builtin(x) 0
+#if defined(__mips) || defined(__powerpc64__)
+#define	__NO_TLS 1
 #endif
 
-#if defined(__mips) || defined(__powerpc64__)
-#define __NO_TLS 1
+/*
+ * Lock annotations.
+ *
+ * Clang provides support for doing basic thread-safety tests at
+ * compile-time, by marking which locks will/should be held when
+ * entering/leaving a functions.
+ *
+ * Furthermore, it is also possible to annotate variables and structure
+ * members to enforce that they are only accessed when certain locks are
+ * held.
+ */
+
+#if __has_extension(c_thread_safety_attributes)
+#define	__lock_annotate(x)	__attribute__((x))
+#else
+#define	__lock_annotate(x)
 #endif
+
+/* Structure implements a lock. */
+#define	__lockable		__lock_annotate(lockable)
+
+/* Function acquires an exclusive or shared lock. */
+#define	__locks_exclusive(...) \
+	__lock_annotate(exclusive_lock_function(__VA_ARGS__))
+#define	__locks_shared(...) \
+	__lock_annotate(shared_lock_function(__VA_ARGS__))
+
+/* Function attempts to acquire an exclusive or shared lock. */
+#define	__trylocks_exclusive(...) \
+	__lock_annotate(exclusive_trylock_function(__VA_ARGS__))
+#define	__trylocks_shared(...) \
+	__lock_annotate(shared_trylock_function(__VA_ARGS__))
+
+/* Function releases a lock. */
+#define	__unlocks(...)		__lock_annotate(unlock_function(__VA_ARGS__))
+
+/* Function asserts that an exclusive or shared lock is held. */
+#define	__asserts_exclusive(...) \
+	__lock_annotate(assert_exclusive_lock(__VA_ARGS__))
+#define	__asserts_shared(...) \
+	__lock_annotate(assert_shared_lock(__VA_ARGS__))
+
+/* Function requires that an exclusive or shared lock is or is not held. */
+#define	__requires_exclusive(...) \
+	__lock_annotate(exclusive_locks_required(__VA_ARGS__))
+#define	__requires_shared(...) \
+	__lock_annotate(shared_locks_required(__VA_ARGS__))
+#define	__requires_unlocked(...) \
+	__lock_annotate(locks_excluded(__VA_ARGS__))
+
+/* Function should not be analyzed. */
+#define	__no_lock_analysis	__lock_annotate(no_thread_safety_analysis)
+
+/* Guard variables and structure members by lock. */
+#define	__guarded_by(x)		__lock_annotate(guarded_by(x))
+#define	__pt_guarded_by(x)	__lock_annotate(pt_guarded_by(x))
 
 #endif /* !_SYS_CDEFS_H_ */

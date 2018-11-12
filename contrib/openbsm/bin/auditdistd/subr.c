@@ -228,6 +228,11 @@ wait_for_file_init(int fd)
 	PJDLOG_ASSERT(fd != -1);
 
 #ifdef HAVE_KQUEUE
+	if (wait_for_file_kq != -1) {
+		close(wait_for_file_kq);
+		wait_for_file_kq = -1;
+	}
+
 	kq = kqueue();
 	if (kq == -1) {
 		pjdlog_errno(LOG_WARNING, "kqueue() failed");

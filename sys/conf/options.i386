@@ -109,7 +109,6 @@ NETGRAPH_CRONYX		opt_ng_cronyx.h
 DEV_APIC		opt_apic.h
 DEV_ATPIC		opt_atpic.h
 DEV_NPX			opt_npx.h
-ASR_COMPAT		opt_asr.h
 
 # Debugging
 NPX_DEBUG		opt_npx.h
@@ -123,7 +122,3 @@ XENHVM			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h
-
-# hw random number generators for random(4)
-PADLOCK_RNG		opt_cpu.h
-RDRAND_RNG		opt_cpu.h

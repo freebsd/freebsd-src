@@ -1,0 +1,9 @@
+{
+  "linters": {
+    "python": {
+      "type": "pep8",
+      "exclude": "(contrib)",
+      "include": "(\\.py$)"
+    }
+  }
+}

@@ -1,4 +1,4 @@
-//===--- TransBlockObjCVariable.cpp - Tranformations to ARC mode ----------===//
+//===--- TransBlockObjCVariable.cpp - Transformations to ARC mode ---------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -28,6 +28,7 @@
 #include "Transforms.h"
 #include "Internals.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attr.h"
 #include "clang/Basic/SourceManager.h"
 
 using namespace clang;
@@ -77,10 +78,9 @@ public:
   bool VisitBlockDecl(BlockDecl *block) {
     SmallVector<VarDecl *, 4> BlockVars;
     
-    for (BlockDecl::capture_iterator
-           I = block->capture_begin(), E = block->capture_end(); I != E; ++I) {
-      VarDecl *var = I->getVariable();
-      if (I->isByRef() &&
+    for (const auto &I : block->captures()) {
+      VarDecl *var = I.getVariable();
+      if (I.isByRef() &&
           var->getType()->isObjCObjectPointerType() &&
           isImplicitStrong(var->getType())) {
         BlockVars.push_back(var);

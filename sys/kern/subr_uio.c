@@ -7,6 +7,11 @@
  * Co. or Unix System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
+ * Copyright (c) 2014 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -37,8 +42,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_zero.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -56,79 +59,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
-#ifdef SOCKET_SEND_COW
-#include <vm/vm_object.h>
-#endif
 
-SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
+SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault);
-
-#ifdef SOCKET_SEND_COW
-/* Declared in uipc_socket.c */
-extern int so_zero_copy_receive;
-
-/*
- * Identify the physical page mapped at the given kernel virtual
- * address.  Insert this physical page into the given address space at
- * the given virtual address, replacing the physical page, if any,
- * that already exists there.
- */
-static int
-vm_pgmoveco(vm_map_t mapa, vm_offset_t kaddr, vm_offset_t uaddr)
-{
-	vm_map_t map = mapa;
-	vm_page_t kern_pg, user_pg;
-	vm_object_t uobject;
-	vm_map_entry_t entry;
-	vm_pindex_t upindex;
-	vm_prot_t prot;
-	boolean_t wired;
-
-	KASSERT((uaddr & PAGE_MASK) == 0,
-	    ("vm_pgmoveco: uaddr is not page aligned"));
-
-	/*
-	 * Herein the physical page is validated and dirtied.  It is
-	 * unwired in sf_buf_mext().
-	 */
-	kern_pg = PHYS_TO_VM_PAGE(vtophys(kaddr));
-	kern_pg->valid = VM_PAGE_BITS_ALL;
-	KASSERT(kern_pg->queue == PQ_NONE && kern_pg->wire_count == 1,
-	    ("vm_pgmoveco: kern_pg is not correctly wired"));
-
-	if ((vm_map_lookup(&map, uaddr,
-			   VM_PROT_WRITE, &entry, &uobject,
-			   &upindex, &prot, &wired)) != KERN_SUCCESS) {
-		return(EFAULT);
-	}
-	VM_OBJECT_WLOCK(uobject);
-retry:
-	if ((user_pg = vm_page_lookup(uobject, upindex)) != NULL) {
-		if (vm_page_sleep_if_busy(user_pg, TRUE, "vm_pgmoveco"))
-			goto retry;
-		vm_page_lock(user_pg);
-		pmap_remove_all(user_pg);
-		vm_page_free(user_pg);
-		vm_page_unlock(user_pg);
-	} else {
-		/*
-		 * Even if a physical page does not exist in the
-		 * object chain's first object, a physical page from a
-		 * backing object may be mapped read only.
-		 */
-		if (uobject->backing_object != NULL)
-			pmap_remove(map->pmap, uaddr, uaddr + PAGE_SIZE);
-	}
-	vm_page_insert(kern_pg, uobject, upindex);
-	vm_page_dirty(kern_pg);
-	VM_OBJECT_WUNLOCK(uobject);
-	vm_map_lookup_done(map, entry);
-	return(KERN_SUCCESS);
-}
-#endif /* SOCKET_SEND_COW */
 
 int
 copyin_nofault(const void *udaddr, void *kaddr, size_t len)
@@ -306,103 +243,6 @@ uiomove_frombuf(void *buf, int buflen, struct uio *uio)
 		return (EINVAL);
 	return (uiomove((char *)buf + offset, n, uio));
 }
-
-#ifdef SOCKET_RECV_PFLIP
-/*
- * Experimental support for zero-copy I/O
- */
-static int
-userspaceco(void *cp, u_int cnt, struct uio *uio, int disposable)
-{
-	struct iovec *iov;
-	int error;
-
-	iov = uio->uio_iov;
-	if (uio->uio_rw == UIO_READ) {
-		if ((so_zero_copy_receive != 0)
-		 && ((cnt & PAGE_MASK) == 0)
-		 && ((((intptr_t) iov->iov_base) & PAGE_MASK) == 0)
-		 && ((uio->uio_offset & PAGE_MASK) == 0)
-		 && ((((intptr_t) cp) & PAGE_MASK) == 0)
-		 && (disposable != 0)) {
-			/* SOCKET: use page-trading */
-			/*
-			 * We only want to call vm_pgmoveco() on
-			 * disposeable pages, since it gives the
-			 * kernel page to the userland process.
-			 */
-			error =	vm_pgmoveco(&curproc->p_vmspace->vm_map,
-			    (vm_offset_t)cp, (vm_offset_t)iov->iov_base);
-
-			/*
-			 * If we get an error back, attempt
-			 * to use copyout() instead.  The
-			 * disposable page should be freed
-			 * automatically if we weren't able to move
-			 * it into userland.
-			 */
-			if (error != 0)
-				error = copyout(cp, iov->iov_base, cnt);
-		} else {
-			error = copyout(cp, iov->iov_base, cnt);
-		}
-	} else {
-		error = copyin(iov->iov_base, cp, cnt);
-	}
-	return (error);
-}
-
-int
-uiomoveco(void *cp, int n, struct uio *uio, int disposable)
-{
-	struct iovec *iov;
-	u_int cnt;
-	int error;
-
-	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
-	    ("uiomoveco: mode"));
-	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
-	    ("uiomoveco proc"));
-
-	while (n > 0 && uio->uio_resid) {
-		iov = uio->uio_iov;
-		cnt = iov->iov_len;
-		if (cnt == 0) {
-			uio->uio_iov++;
-			uio->uio_iovcnt--;
-			continue;
-		}
-		if (cnt > n)
-			cnt = n;
-
-		switch (uio->uio_segflg) {
-
-		case UIO_USERSPACE:
-			maybe_yield();
-			error = userspaceco(cp, cnt, uio, disposable);
-			if (error)
-				return (error);
-			break;
-
-		case UIO_SYSSPACE:
-			if (uio->uio_rw == UIO_READ)
-				bcopy(cp, iov->iov_base, cnt);
-			else
-				bcopy(iov->iov_base, cp, cnt);
-			break;
-		case UIO_NOCOPY:
-			break;
-		}
-		iov->iov_base = (char *)iov->iov_base + cnt;
-		iov->iov_len -= cnt;
-		uio->uio_resid -= cnt;
-		uio->uio_offset += cnt;
-		cp = (char *)cp + cnt;
-		n -= cnt;
-	}
-	return (0);
-}
-#endif /* SOCKET_RECV_PFLIP */
 
 /*
  * Give next character to user as result of read.
@@ -603,3 +443,128 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 
 	return (0);
 }
+
+#ifdef NO_FUEWORD
+/*
+ * XXXKIB The temporal implementation of fue*() functions which do not
+ * handle usermode -1 properly, mixing it with the fault code.  Keep
+ * this until MD code is written.  Currently sparc64, mips and arm do
+ * not have proper implementation.
+ */
+
+int
+fueword(volatile const void *base, long *val)
+{
+	long res;
+
+	res = fuword(base);
+	if (res == -1)
+		return (-1);
+	*val = res;
+	return (0);
+}
+
+int
+fueword32(volatile const void *base, int32_t *val)
+{
+	int32_t res;
+
+	res = fuword32(base);
+	if (res == -1)
+		return (-1);
+	*val = res;
+	return (0);
+}
+
+#ifdef _LP64
+int
+fueword64(volatile const void *base, int64_t *val)
+{
+	int32_t res;
+
+	res = fuword64(base);
+	if (res == -1)
+		return (-1);
+	*val = res;
+	return (0);
+}
+#endif
+
+int
+casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
+    uint32_t newval)
+{
+	int32_t ov;
+
+	ov = casuword32(base, oldval, newval);
+	if (ov == -1)
+		return (-1);
+	*oldvalp = ov;
+	return (0);
+}
+
+int
+casueword(volatile u_long *p, u_long oldval, u_long *oldvalp, u_long newval)
+{
+	u_long ov;
+
+	ov = casuword(p, oldval, newval);
+	if (ov == -1)
+		return (-1);
+	*oldvalp = ov;
+	return (0);
+}
+#else /* NO_FUEWORD */
+int32_t
+fuword32(volatile const void *addr)
+{
+	int rv;
+	int32_t val;
+
+	rv = fueword32(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+
+#ifdef _LP64
+int64_t
+fuword64(volatile const void *addr)
+{
+	int rv;
+	int64_t val;
+
+	rv = fueword64(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+#endif /* _LP64 */
+
+long
+fuword(volatile const void *addr)
+{
+	long val;
+	int rv;
+
+	rv = fueword(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+
+uint32_t
+casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
+{
+	int rv;
+	uint32_t val;
+
+	rv = casueword32(addr, old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+u_long
+casuword(volatile u_long *addr, u_long old, u_long new)
+{
+	int rv;
+	u_long val;
+
+	rv = casueword(addr, old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+#endif /* NO_FUEWORD */

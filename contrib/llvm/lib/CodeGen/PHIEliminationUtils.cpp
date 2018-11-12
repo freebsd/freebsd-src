@@ -8,10 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "PHIEliminationUtils.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/ADT/SmallPtrSet.h"
 using namespace llvm;
 
 // findCopyInsertPoint - Find a safe place in MBB to insert a copy from SrcReg
@@ -34,11 +34,9 @@ llvm::findPHICopyInsertPoint(MachineBasicBlock* MBB, MachineBasicBlock* SuccMBB,
   // Discover any defs/uses in this basic block.
   SmallPtrSet<MachineInstr*, 8> DefUsesInMBB;
   MachineRegisterInfo& MRI = MBB->getParent()->getRegInfo();
-  for (MachineRegisterInfo::reg_iterator RI = MRI.reg_begin(SrcReg),
-         RE = MRI.reg_end(); RI != RE; ++RI) {
-    MachineInstr* DefUseMI = &*RI;
-    if (DefUseMI->getParent() == MBB)
-      DefUsesInMBB.insert(DefUseMI);
+  for (MachineInstr &RI : MRI.reg_instructions(SrcReg)) {
+    if (RI.getParent() == MBB)
+      DefUsesInMBB.insert(&RI);
   }
 
   MachineBasicBlock::iterator InsertPoint;

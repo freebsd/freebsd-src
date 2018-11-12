@@ -130,7 +130,7 @@ spitfire_icache_page_inval(vm_paddr_t pa)
 		    : "=r" (tag) : "r" (addr), "n" (ASI_ICACHE_TAG));
 		if (((tag >> IC_VALID_SHIFT) & IC_VALID_MASK) == 0)
 			continue;
-		tag &= IC_TAG_MASK << IC_TAG_SHIFT;
+		tag &= (u_long)IC_TAG_MASK << IC_TAG_SHIFT;
 		if (tag == target) {
 			PMAP_STATS_INC(spitfire_icache_npage_inval_match);
 			stxa_sync(addr, ASI_ICACHE_TAG, tag);

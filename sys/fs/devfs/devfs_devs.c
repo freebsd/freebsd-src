@@ -61,7 +61,7 @@ static MALLOC_DEFINE(M_DEVFS2, "DEVFS2", "DEVFS data 2");
 static MALLOC_DEFINE(M_DEVFS3, "DEVFS3", "DEVFS data 3");
 static MALLOC_DEFINE(M_CDEVP, "DEVFS1", "DEVFS cdev_priv storage");
 
-static SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
+SYSCTL_NODE(_vfs, OID_AUTO, devfs, CTLFLAG_RW, 0, "DEVFS filesystem");
 
 static unsigned devfs_generation;
 SYSCTL_UINT(_vfs_devfs, OID_AUTO, generation, CTLFLAG_RD,
@@ -109,10 +109,10 @@ SYSCTL_PROC(_kern, OID_AUTO, devname,
     NULL, 0, sysctl_devname, "", "devname(3) handler");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
-    0, sizeof(struct cdev), "sizeof(struct cdev)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct cdev), "sizeof(struct cdev)");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev_priv, CTLFLAG_RD,
-    0, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
 
 struct cdev *
 devfs_alloc(int flags)
@@ -186,6 +186,16 @@ devfs_find(struct devfs_dirent *dd, const char *name, int namelen, int type)
 			continue;
 		if (type != 0 && type != de->de_dirent->d_type)
 			continue;
+
+		/*
+		 * The race with finding non-active name is not
+		 * completely closed by the check, but it is similar
+		 * to the devfs_allocv() in making it unlikely enough.
+		 */
+		if (de->de_dirent->d_type == DT_CHR &&
+		    (de->de_cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
+
 		if (bcmp(name, de->de_dirent->d_name, namelen) != 0)
 			continue;
 		break;
@@ -486,9 +496,9 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 {
 	struct cdev_priv *cdp;
 	struct devfs_dirent *de;
-	struct devfs_dirent *dd;
+	struct devfs_dirent *dd, *dt;
 	struct cdev *pdev;
-	int de_flags, j;
+	int de_flags, depth, j;
 	char *q, *s;
 
 	sx_assert(&dm->dm_lock, SX_XLOCKED);
@@ -589,9 +599,17 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			de->de_mode = 0755;
 			de->de_dirent->d_type = DT_LNK;
 			pdev = cdp->cdp_c.si_parent;
-			j = strlen(pdev->si_name) + 1;
+			dt = dd;
+			depth = 0;
+			while (dt != dm->dm_rootdir &&
+			    (dt = devfs_parent_dirent(dt)) != NULL)
+				depth++;
+			j = depth * 3 + strlen(pdev->si_name) + 1;
 			de->de_symlink = malloc(j, M_DEVFS, M_WAITOK);
-			bcopy(pdev->si_name, de->de_symlink, j);
+			de->de_symlink[0] = 0;
+			while (depth-- > 0)
+				strcat(de->de_symlink, "../");
+			strcat(de->de_symlink, pdev->si_name);
 		} else {
 			de->de_uid = cdp->cdp_c.si_uid;
 			de->de_gid = cdp->cdp_c.si_gid;
@@ -655,7 +673,7 @@ devfs_cleanup(struct devfs_mount *dm)
 /*
  * devfs_create() and devfs_destroy() are called from kern_conf.c and
  * in both cases the devlock() mutex is held, so no further locking
- * is necesary and no sleeping allowed.
+ * is necessary and no sleeping allowed.
  */
 
 void

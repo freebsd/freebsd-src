@@ -7,7 +7,7 @@ XZ Embedded
 
     XZ Embedded was written for use in the Linux kernel, but the code can
     be easily used in other environments too, including regular userspace
-    applications.
+    applications. See userspace/xzminidec.c for an example program.
 
     This README contains information that is useful only when the copy
     of XZ Embedded isn't part of the Linux kernel tree. You should also
@@ -83,6 +83,42 @@ Embedding into userspace applications
     You may want to modify xz_config.h to be more suitable for your build
     environment. Probably you should at least skim through it even if the
     default file works as is.
+
+Integrity check support
+
+    XZ Embedded always supports the integrity check types None and
+    CRC32. Support for CRC64 is optional. SHA-256 is currently not
+    supported in XZ Embedded although the .xz format does support it.
+    The xz tool from XZ Utils uses CRC64 by default, but CRC32 is usually
+    enough in embedded systems to keep the code size smaller.
+
+    If you want support for CRC64, you need to copy linux/lib/xz/xz_crc64.c
+    into your application, and #define XZ_USE_CRC64 in xz_config.h or in
+    compiler flags.
+
+    When using the internal CRC32 or CRC64, their lookup tables need to be
+    initialized with xz_crc32_init() and xz_crc64_init(), respectively.
+    See xz.h for details.
+
+    To use external CRC32 or CRC64 code instead of the code from
+    xz_crc32.c or xz_crc64.c, the following #defines may be used
+    in xz_config.h or in compiler flags:
+
+        #define XZ_INTERNAL_CRC32 0
+        #define XZ_INTERNAL_CRC64 0
+
+    Then it is up to you to provide compatible xz_crc32() or xz_crc64()
+    functions.
+
+    If the .xz file being decompressed uses an integrity check type that
+    isn't supported by XZ Embedded, it is treated as an error and the
+    file cannot be decompressed. For multi-call mode, this can be modified
+    by #defining XZ_DEC_ANY_CHECK. Then xz_dec_run() will return
+    XZ_UNSUPPORTED_CHECK when unsupported check type is detected. After
+    that decompression can be continued normally except that the
+    integrity check won't be verified. In single-call mode there's
+    no way to continue decoding, so XZ_DEC_ANY_CHECK is almost useless
+    in single-call mode.
 
 BCJ filter support
 

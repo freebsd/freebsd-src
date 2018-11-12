@@ -42,12 +42,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 
@@ -55,16 +57,36 @@ __FBSDID("$FreeBSD$");
 
 #include "sfxge.h"
 #include "sfxge_rx.h"
+#include "sfxge_version.h"
 
-#define SFXGE_CAP (IFCAP_VLAN_MTU | \
+#define	SFXGE_CAP (IFCAP_VLAN_MTU | \
 		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
-		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
-#define SFXGE_CAP_ENABLE SFXGE_CAP
-#define SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
-			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE)
+		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWSTATS)
+#define	SFXGE_CAP_ENABLE SFXGE_CAP
+#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
+			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE | IFCAP_HWSTATS)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
+
+
+SYSCTL_NODE(_hw, OID_AUTO, sfxge, CTLFLAG_RD, 0,
+	    "SFXGE driver parameters");
+
+#define	SFXGE_PARAM_RX_RING	SFXGE_PARAM(rx_ring)
+static int sfxge_rx_ring_entries = SFXGE_NDESCS;
+TUNABLE_INT(SFXGE_PARAM_RX_RING, &sfxge_rx_ring_entries);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, rx_ring, CTLFLAG_RDTUN,
+	   &sfxge_rx_ring_entries, 0,
+	   "Maximum number of descriptors in a receive ring");
+
+#define	SFXGE_PARAM_TX_RING	SFXGE_PARAM(tx_ring)
+static int sfxge_tx_ring_entries = SFXGE_NDESCS;
+TUNABLE_INT(SFXGE_PARAM_TX_RING, &sfxge_tx_ring_entries);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
+	   &sfxge_tx_ring_entries, 0,
+	   "Maximum number of descriptors in a transmit ring");
+
 
 static void
 sfxge_reset(void *arg, int npending);
@@ -74,10 +96,10 @@ sfxge_start(struct sfxge_softc *sc)
 {
 	int rc;
 
-	sx_assert(&sc->softc_lock, LA_XLOCKED);
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	if (sc->init_state == SFXGE_STARTED)
-		return 0;
+		return (0);
 
 	if (sc->init_state != SFXGE_REGISTERED) {
 		rc = EINVAL;
@@ -143,15 +165,15 @@ sfxge_if_init(void *arg)
 
 	sc = (struct sfxge_softc *)arg;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 	(void)sfxge_start(sc);
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 static void
 sfxge_stop(struct sfxge_softc *sc)
 {
-	sx_assert(&sc->softc_lock, LA_XLOCKED);
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	if (sc->init_state != SFXGE_STARTED)
 		return;
@@ -191,7 +213,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFFLAGS:
-		sx_xlock(&sc->softc_lock);
+		SFXGE_ADAPTER_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc->if_flags) &
@@ -204,7 +226,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sfxge_stop(sc);
 		sc->if_flags = ifp->if_flags;
-		sx_xunlock(&sc->softc_lock);
+		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu == ifp->if_mtu) {
@@ -217,12 +239,12 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			error = 0;
 		} else {
 			/* Restart required */
-			sx_xlock(&sc->softc_lock);
+			SFXGE_ADAPTER_LOCK(sc);
 			sfxge_stop(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			error = sfxge_start(sc);
-			sx_xunlock(&sc->softc_lock);
-			if (error) {
+			SFXGE_ADAPTER_UNLOCK(sc);
+			if (error != 0) {
 				ifp->if_flags &= ~IFF_UP;
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				if_down(ifp);
@@ -235,7 +257,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			sfxge_mac_filter_set(sc);
 		break;
 	case SIOCSIFCAP:
-		sx_xlock(&sc->softc_lock);
+		SFXGE_ADAPTER_LOCK(sc);
 
 		/*
 		 * The networking core already rejects attempts to
@@ -245,7 +267,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 */
 		if (~ifr->ifr_reqcap & SFXGE_CAP_FIXED) {
 			error = EINVAL;
-			sx_xunlock(&sc->softc_lock);
+			SFXGE_ADAPTER_UNLOCK(sc);
 			break;
 		}
 
@@ -259,7 +281,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		else
 			ifp->if_hwassist &= ~CSUM_TSO;
 
-		sx_xunlock(&sc->softc_lock);
+		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -277,16 +299,16 @@ sfxge_ifnet_fini(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc = ifp->if_softc;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 	sfxge_stop(sc);
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 
 	ifmedia_removeall(&sc->media);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 }
 
-static int 
+static int
 sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 {
 	const efx_nic_cfg_t *encp = efx_nic_cfg_get(sc->enp);
@@ -308,26 +330,19 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 
 	ether_ifattach(ifp, encp->enc_mac_addr);
 
-#ifdef SFXGE_HAVE_MQ
 	ifp->if_transmit = sfxge_if_transmit;
 	ifp->if_qflush = sfxge_if_qflush;
-#else
-	ifp->if_start = sfxge_if_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, SFXGE_NDESCS - 1);
-	ifp->if_snd.ifq_drv_maxlen = SFXGE_NDESCS - 1;
-	IFQ_SET_READY(&ifp->if_snd);
 
-	mtx_init(&sc->tx_lock, "txq", NULL, MTX_DEF);
-#endif
+	ifp->if_get_counter = sfxge_get_counter;
 
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
 
-	return 0;
+	return (0);
 
 fail:
 	ether_ifdetach(sc->ifnet);
-	return rc;
+	return (rc);
 }
 
 void
@@ -346,7 +361,7 @@ sfxge_bar_init(struct sfxge_softc *sc)
 {
 	efsys_bar_t *esbp = &sc->bar;
 
-	esbp->esb_rid = PCIR_BAR(EFX_MEM_BAR);	
+	esbp->esb_rid = PCIR_BAR(EFX_MEM_BAR);
 	if ((esbp->esb_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
 	    &esbp->esb_rid, RF_ACTIVE)) == NULL) {
 		device_printf(sc->dev, "Cannot allocate BAR region %d\n",
@@ -355,7 +370,8 @@ sfxge_bar_init(struct sfxge_softc *sc)
 	}
 	esbp->esb_tag = rman_get_bustag(esbp->esb_res);
 	esbp->esb_handle = rman_get_bushandle(esbp->esb_res);
-	mtx_init(&esbp->esb_lock, "sfxge_efsys_bar", NULL, MTX_DEF);
+
+	SFXGE_BAR_LOCK_INIT(esbp, device_get_nameunit(sc->dev));
 
 	return (0);
 }
@@ -367,7 +383,7 @@ sfxge_bar_fini(struct sfxge_softc *sc)
 
 	bus_release_resource(sc->dev, SYS_RES_MEMORY, esbp->esb_rid,
 	    esbp->esb_res);
-	mtx_destroy(&esbp->esb_lock);
+	SFXGE_BAR_LOCK_DESTROY(esbp);
 }
 
 static int
@@ -376,16 +392,23 @@ sfxge_create(struct sfxge_softc *sc)
 	device_t dev;
 	efx_nic_t *enp;
 	int error;
+	char rss_param_name[sizeof(SFXGE_PARAM(%d.max_rss_channels))];
 
 	dev = sc->dev;
 
-	sx_init(&sc->softc_lock, "sfxge_softc");
+	SFXGE_ADAPTER_LOCK_INIT(sc, device_get_nameunit(sc->dev));
+
+	sc->max_rss_channels = 0;
+	snprintf(rss_param_name, sizeof(rss_param_name),
+		 SFXGE_PARAM(%d.max_rss_channels),
+		 (int)device_get_unit(dev));
+	TUNABLE_INT_FETCH(rss_param_name, &sc->max_rss_channels);
 
 	sc->stats_node = SYSCTL_ADD_NODE(
 		device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		OID_AUTO, "stats", CTLFLAG_RD, NULL, "Statistics");
-	if (!sc->stats_node) {
+	if (sc->stats_node == NULL) {
 		error = ENOMEM;
 		goto fail;
 	}
@@ -407,11 +430,32 @@ sfxge_create(struct sfxge_softc *sc)
 	KASSERT(error == 0, ("Family should be filtered by sfxge_probe()"));
 
 	/* Create the common code nic object. */
-	mtx_init(&sc->enp_lock, "sfxge_nic", NULL, MTX_DEF);
+	SFXGE_EFSYS_LOCK_INIT(&sc->enp_lock,
+			      device_get_nameunit(sc->dev), "nic");
 	if ((error = efx_nic_create(sc->family, (efsys_identifier_t *)sc,
 	    &sc->bar, &sc->enp_lock, &enp)) != 0)
 		goto fail3;
 	sc->enp = enp;
+
+	if (!ISP2(sfxge_rx_ring_entries) ||
+	    !(sfxge_rx_ring_entries & EFX_RXQ_NDESCS_MASK)) {
+		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
+		    SFXGE_PARAM_RX_RING, sfxge_rx_ring_entries,
+		    EFX_RXQ_MINNDESCS, EFX_RXQ_MAXNDESCS);
+		error = EINVAL;
+		goto fail_rx_ring_entries;
+	}
+	sc->rxq_entries = sfxge_rx_ring_entries;
+
+	if (!ISP2(sfxge_tx_ring_entries) ||
+	    !(sfxge_tx_ring_entries & EFX_TXQ_NDESCS_MASK)) {
+		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
+		    SFXGE_PARAM_TX_RING, sfxge_tx_ring_entries,
+		    EFX_TXQ_MINNDESCS, EFX_TXQ_MAXNDESCS);
+		error = EINVAL;
+		goto fail_tx_ring_entries;
+	}
+	sc->txq_entries = sfxge_tx_ring_entries;
 
 	/* Initialize MCDI to talk to the microcontroller. */
 	if ((error = sfxge_mcdi_init(sc)) != 0)
@@ -420,6 +464,12 @@ sfxge_create(struct sfxge_softc *sc)
 	/* Probe the NIC and build the configuration data area. */
 	if ((error = efx_nic_probe(enp)) != 0)
 		goto fail5;
+
+	SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
+			  SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			  OID_AUTO, "version", CTLFLAG_RD,
+			  SFXGE_VERSION_STRING, 0,
+			  "Driver version");
 
 	/* Initialize the NVRAM. */
 	if ((error = efx_nvram_init(enp)) != 0)
@@ -485,9 +535,11 @@ fail5:
 	sfxge_mcdi_fini(sc);
 
 fail4:
+fail_tx_ring_entries:
+fail_rx_ring_entries:
 	sc->enp = NULL;
 	efx_nic_destroy(enp);
-	mtx_destroy(&sc->enp_lock);
+	SFXGE_EFSYS_LOCK_DESTROY(&sc->enp_lock);
 
 fail3:
 	sfxge_bar_fini(sc);
@@ -495,7 +547,7 @@ fail3:
 
 fail:
 	sc->dev = NULL;
-	sx_destroy(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 	return (error);
 }
 
@@ -544,7 +596,7 @@ sfxge_destroy(struct sfxge_softc *sc)
 	taskqueue_drain(taskqueue_thread, &sc->task_reset);
 
 	/* Destroy the softc lock. */
-	sx_destroy(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 }
 
 static int
@@ -553,14 +605,14 @@ sfxge_vpd_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc = arg1;
 	efx_vpd_value_t value;
 	int rc;
-	
+
 	value.evv_tag = arg2 >> 16;
 	value.evv_keyword = arg2 & 0xffff;
 	if ((rc = efx_vpd_get(sc->enp, sc->vpd_data, sc->vpd_size, &value))
 	    != 0)
-		return rc;
+		return (rc);
 
-	return SYSCTL_OUT(req, value.evv_value, value.evv_length);
+	return (SYSCTL_OUT(req, value.evv_value, value.evv_length));
 }
 
 static void
@@ -622,12 +674,12 @@ sfxge_vpd_init(struct sfxge_softc *sc)
 	for (keyword[1] = 'A'; keyword[1] <= 'Z'; keyword[1]++)
 		sfxge_vpd_try_add(sc, vpd_list, EFX_VPD_RO, keyword);
 
-	return 0;
-	
+	return (0);
+
 fail2:
 	free(sc->vpd_data, M_SFXGE);
 fail:
-	return rc;
+	return (rc);
 }
 
 static void
@@ -646,7 +698,7 @@ sfxge_reset(void *arg, int npending)
 
 	sc = (struct sfxge_softc *)arg;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	if (sc->init_state != SFXGE_STARTED)
 		goto done;
@@ -659,7 +711,7 @@ sfxge_reset(void *arg, int npending)
 			      rc);
 
 done:
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 void
@@ -744,12 +796,12 @@ sfxge_probe(device_t dev)
 	pci_device_id = pci_get_device(dev);
 
 	rc = efx_family(pci_vendor_id, pci_device_id, &family);
-	if (rc)
-		return ENXIO;
+	if (rc != 0)
+		return (ENXIO);
 
 	KASSERT(family == EFX_FAMILY_SIENA, ("impossible controller family"));
 	device_set_desc(dev, "Solarflare SFC9000 family");
-	return 0;
+	return (0);
 }
 
 static device_method_t sfxge_methods[] = {

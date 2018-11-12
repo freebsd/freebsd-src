@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_TARGET_ARM_TARGETOBJECTFILE_H
-#define LLVM_TARGET_ARM_TARGETOBJECTFILE_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMTARGETOBJECTFILE_H
+#define LLVM_LIB_TARGET_ARM_ARMTARGETOBJECTFILE_H
 
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 
@@ -23,14 +23,19 @@ protected:
 public:
   ARMElfTargetObjectFile() :
     TargetLoweringObjectFileELF(),
-    AttributesSection(NULL)
+    AttributesSection(nullptr)
   {}
 
-  virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
+  void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
-  virtual const MCSection *getAttributesSection() const {
-    return AttributesSection;
-  }
+  const MCExpr *
+  getTTypeGlobalReference(const GlobalValue *GV, unsigned Encoding,
+                          Mangler &Mang, const TargetMachine &TM,
+                          MachineModuleInfo *MMI,
+                          MCStreamer &Streamer) const override;
+
+  /// \brief Describe a TLS variable address within debug info.
+  const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const override;
 };
 
 } // end namespace llvm

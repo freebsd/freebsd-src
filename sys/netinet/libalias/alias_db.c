@@ -146,6 +146,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/rwlock.h>
@@ -348,24 +349,16 @@ MODULE_VERSION(libalias, 1);
 static int
 alias_mod_handler(module_t mod, int type, void *data)
 {
-	int error;
 
 	switch (type) {
-	case MOD_LOAD:
-		error = 0;
-		handler_chain_init();
-		break;
 	case MOD_QUIESCE:
 	case MOD_UNLOAD:
-	        handler_chain_destroy();
 	        finishoff();
-		error = 0;
-		break;
+	case MOD_LOAD:
+		return (0);
 	default:
-		error = EINVAL;
+		return (EINVAL);
 	}
-
-	return (error);
 }
 
 static moduledata_t alias_mod = {

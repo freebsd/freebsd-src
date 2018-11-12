@@ -567,8 +567,8 @@ ses_cache_free_elm_addlstatus(enc_softc_t *enc, enc_cache_t *cache)
 		return;
 
 	for (cur_elm = cache->elm_map,
-	     last_elm = &cache->elm_map[cache->nelms - 1];
-	     cur_elm <= last_elm; cur_elm++) {
+	     last_elm = &cache->elm_map[cache->nelms];
+	     cur_elm != last_elm; cur_elm++) {
 		ses_element_t *elmpriv;
 
 		elmpriv = cur_elm->elm_private;
@@ -598,8 +598,8 @@ ses_cache_free_elm_descs(enc_softc_t *enc, enc_cache_t *cache)
 		return;
 
 	for (cur_elm = cache->elm_map,
-	     last_elm = &cache->elm_map[cache->nelms - 1];
-	     cur_elm <= last_elm; cur_elm++) {
+	     last_elm = &cache->elm_map[cache->nelms];
+	     cur_elm != last_elm; cur_elm++) {
 		ses_element_t *elmpriv;
 
 		elmpriv = cur_elm->elm_private;
@@ -644,8 +644,8 @@ ses_cache_free_elm_map(enc_softc_t *enc, enc_cache_t *cache)
 	ses_cache_free_elm_descs(enc, cache);
 	ses_cache_free_elm_addlstatus(enc, cache);
 	for (cur_elm = cache->elm_map,
-	     last_elm = &cache->elm_map[cache->nelms - 1];
-	     cur_elm <= last_elm; cur_elm++) {
+	     last_elm = &cache->elm_map[cache->nelms];
+	     cur_elm != last_elm; cur_elm++) {
 
 		ENC_FREE_AND_NULL(cur_elm->elm_private);
 	}
@@ -717,8 +717,8 @@ ses_cache_clone(enc_softc_t *enc, enc_cache_t *src, enc_cache_t *dst)
 	dst->elm_map = ENC_MALLOCZ(dst->nelms * sizeof(enc_element_t));
 	memcpy(dst->elm_map, src->elm_map, dst->nelms * sizeof(enc_element_t));
 	for (dst_elm = dst->elm_map, src_elm = src->elm_map,
-	     last_elm = &src->elm_map[src->nelms - 1];
-	     src_elm <= last_elm; src_elm++, dst_elm++) {
+	     last_elm = &src->elm_map[src->nelms];
+	     src_elm != last_elm; src_elm++, dst_elm++) {
 
 		dst_elm->elm_private = ENC_MALLOCZ(sizeof(ses_element_t));
 		memcpy(dst_elm->elm_private, src_elm->elm_private,
@@ -888,7 +888,6 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	struct device_match_result  *device_match;
 	struct device_match_pattern *device_pattern;
 	ses_path_iter_args_t	    *args;
-	struct cam_sim		    *sim;
 
 	args = (ses_path_iter_args_t *)arg;
 	match_pattern.type = DEV_MATCH_DEVICE;
@@ -901,10 +900,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	       device_pattern->data.devid_pat.id_len);
 
 	memset(&cdm, 0, sizeof(cdm));
-	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
-				     CAM_XPT_PATH_ID,
-				     CAM_TARGET_WILDCARD,
-				     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
+			     CAM_XPT_PATH_ID,
+			     CAM_TARGET_WILDCARD,
+			     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return;
 
 	cdm.ccb_h.func_code = XPT_DEV_MATCH;
@@ -914,11 +913,8 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.match_buf_len   = sizeof(match_result);
 	cdm.matches         = &match_result;
 
-	sim = xpt_path_sim(cdm.ccb_h.path);
-	CAM_SIM_LOCK(sim);
 	xpt_action((union ccb *)&cdm);
 	xpt_free_path(cdm.ccb_h.path);
-	CAM_SIM_UNLOCK(sim);
 
 	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 || (cdm.status != CAM_DEV_MATCH_LAST
@@ -927,18 +923,15 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 		return;
 
 	device_match = &match_result.result.device_result;
-	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
-				     device_match->path_id,
-				     device_match->target_id,
-				     device_match->target_lun) != CAM_REQ_CMP)
+	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
+			     device_match->path_id,
+			     device_match->target_id,
+			     device_match->target_lun) != CAM_REQ_CMP)
 		return;
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
 
-	sim = xpt_path_sim(cdm.ccb_h.path);
-	CAM_SIM_LOCK(sim);
 	xpt_free_path(cdm.ccb_h.path);
-	CAM_SIM_UNLOCK(sim);
 }
 
 /**
@@ -1014,7 +1007,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_PHYS_PATH;
-	cdai.flags = 0;
+	cdai.flags = CDAI_FLAG_NONE;
 	cdai.bufsiz = MAXPATHLEN;
 	cdai.buf = old_physpath;
 	xpt_action((union ccb *)&cdai);
@@ -1026,7 +1019,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.buftype = CDAI_TYPE_PHYS_PATH;
-		cdai.flags |= CDAI_FLAG_STORE;
+		cdai.flags = CDAI_FLAG_STORE;
 		cdai.bufsiz = sbuf_len(args->physpath);
 		cdai.buf = sbuf_data(args->physpath);
 		xpt_action((union ccb *)&cdai);
@@ -1056,7 +1049,8 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	ses_setphyspath_callback_args_t args;
 	int i, ret;
 	struct sbuf sb;
-	uint8_t *devid, *elmaddr;
+	struct scsi_vpd_id_descriptor *idd;
+	uint8_t *devid;
 	ses_element_t *elmpriv;
 	const char *c;
 
@@ -1084,9 +1078,9 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	if (cdai.ccb_h.status != CAM_REQ_CMP)
 		goto out;
 
-	elmaddr = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
+	idd = scsi_get_devid((struct scsi_vpd_device_id *)cdai.buf,
 	    cdai.provsiz, scsi_devid_is_naa_ieee_reg);
-	if (elmaddr == NULL)
+	if (idd == NULL)
 		goto out;
 
 	if (sbuf_new(&sb, NULL, 128, SBUF_AUTOEXTEND) == NULL) {
@@ -1095,7 +1089,7 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 	}
 	/* Next, generate the physical path string */
 	sbuf_printf(&sb, "id1,enc@n%jx/type@%x/slot@%x",
-	    scsi_8btou64(elmaddr), iter->type_index,
+	    scsi_8btou64(idd->identifier), iter->type_index,
 	    iter->type_element_index);
 	/* Append the element descriptor if one exists */
 	elmpriv = elm->elm_private;
@@ -1168,7 +1162,6 @@ ses_page_cdb(char *cdb, int bufsiz, SesDiagPageCodes pagenum, int dir)
 static int
 ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 {
-	int err;
 	union ccb *ccb;
 	struct cam_periph *periph;
 	struct ses_mgmt_mode_page *mgmt;
@@ -1185,7 +1178,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	if (mode_buf == NULL)
 		goto out;
 
-	scsi_mode_sense(&ccb->csio, /*retries*/4, enc_done, MSG_SIMPLE_Q_TAG,
+	scsi_mode_sense(&ccb->csio, /*retries*/4, NULL, MSG_SIMPLE_Q_TAG,
 	    /*dbd*/FALSE, SMS_PAGE_CTRL_CURRENT, SES_MGMT_MODE_PAGE_CODE,
 	    mode_buf, mode_buf_len, SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
@@ -1193,7 +1186,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	 * Ignore illegal request errors, as they are quite common and we
 	 * will print something out in that case anyway.
 	 */
-	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS,
+	cam_periph_runccb(ccb, enc_error, ENC_CFLAGS,
 	    ENC_FLAGS|SF_QUIET_IR, NULL);
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		ENC_VLOG(enc, "Timed Completion Unsupported\n");
@@ -1213,11 +1206,11 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	/* SES2r20: a completion time of zero means as long as possible */
 	bzero(&mgmt->max_comp_time, sizeof(mgmt->max_comp_time));
 
-	scsi_mode_select(&ccb->csio, 5, enc_done, MSG_SIMPLE_Q_TAG,
+	scsi_mode_select(&ccb->csio, 5, NULL, MSG_SIMPLE_Q_TAG,
 	    /*page_fmt*/FALSE, /*save_pages*/TRUE, mode_buf, mode_buf_len,
 	    SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
-	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
+	cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		ENC_VLOG(enc, "Timed Completion Set Failed\n");
 		goto release;
@@ -1554,6 +1547,18 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		ENC_VLOG(enc, "Enclosure Status Page Too Long\n");
 		goto out;
 	}
+
+	/* Check for simple enclosure reporting short enclosure status. */
+	if (length >= 4 && page->hdr.page_code == SesShortStatus) {
+		ENC_DLOG(enc, "Got Short Enclosure Status page\n");
+		ses->ses_flags &= ~(SES_FLAG_ADDLSTATUS | SES_FLAG_DESC);
+		ses_cache_free(enc, enc_cache);
+		enc_cache->enc_status = page->hdr.page_specific_flags;
+		enc_update_request(enc, SES_PUBLISH_CACHE);
+		err = 0;
+		goto out;
+	}
+
 	/* Make sure the length contains at least one header and status */
 	if (length < (sizeof(*page) + sizeof(*page->elements))) {
 		ENC_VLOG(enc, "Enclosure Status Page Too Short\n");
@@ -1875,11 +1880,9 @@ ses_publish_physpaths(enc_softc_t *enc, struct enc_fsm_state *state,
 {
 	struct ses_iterator iter;
 	enc_cache_t *enc_cache;
-	ses_cache_t *ses_cache;
 	enc_element_t *element;
 
 	enc_cache = &enc->enc_daemon_cache;
-	ses_cache = enc_cache->private;
 
 	ses_iter_init(enc, enc_cache, &iter);
 	while ((element = ses_iter_next(&iter)) != NULL) {
@@ -2017,12 +2020,12 @@ ses_fill_rcv_diag_io(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	if (enc->enc_type == ENC_SEMB_SES) {
 		semb_receive_diagnostic_results(&ccb->ataio, /*retries*/5,
-					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					NULL, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					state->timeout);
 	} else {
 		scsi_receive_diagnostic_results(&ccb->csio, /*retries*/5,
-					enc_done, MSG_SIMPLE_Q_TAG, /*pcv*/1,
+					NULL, MSG_SIMPLE_Q_TAG, /*pcv*/1,
 					state->page_code, buf, state->buf_size,
 					SSD_FULL_SIZE, state->timeout);
 	}
@@ -2140,12 +2143,12 @@ ses_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	/* Fill out the ccb */
 	if (enc->enc_type == ENC_SEMB_SES) {
-		semb_send_diagnostic(&ccb->ataio, /*retries*/5, enc_done,
+		semb_send_diagnostic(&ccb->ataio, /*retries*/5, NULL,
 			     MSG_SIMPLE_Q_TAG,
 			     buf, ses_page_length(&ses_cache->status_page->hdr),
 			     state->timeout);
 	} else {
-		scsi_send_diagnostic(&ccb->csio, /*retries*/5, enc_done,
+		scsi_send_diagnostic(&ccb->csio, /*retries*/5, NULL,
 			     MSG_SIMPLE_Q_TAG, /*unit_offline*/0,
 			     /*device_offline*/0, /*self_test*/0,
 			     /*page_format*/1, /*self_test_code*/0,

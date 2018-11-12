@@ -118,9 +118,8 @@ static int	hwpstate_get_info_from_msr(device_t dev);
 static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
 
 static int	hwpstate_verbose = 0;
-SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RWTUN,
        &hwpstate_verbose, 0, "Debug hwpstate");
-TUNABLE_INT("debug.hwpstate_verbose", &hwpstate_verbose);
 
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
@@ -184,16 +183,21 @@ hwpstate_goto_pstate(device_t dev, int pstate)
 			id, PCPU_GET(cpuid));
 		/* Go To Px-state */
 		wrmsr(MSR_AMD_10H_11H_CONTROL, id);
+	}
+	CPU_FOREACH(i) {
+		/* Bind to each cpu. */
+		thread_lock(curthread);
+		sched_bind(curthread, i);
+		thread_unlock(curthread);
 		/* wait loop (100*100 usec is enough ?) */
 		for(j = 0; j < 100; j++){
+			/* get the result. not assure msr=id */
 			msr = rdmsr(MSR_AMD_10H_11H_STATUS);
 			if(msr == id){
 				break;
 			}
 			DELAY(100);
 		}
-		/* get the result. not assure msr=id */
-		msr = rdmsr(MSR_AMD_10H_11H_STATUS);
 		HWPSTATE_DEBUG(dev, "result  P%d-state on cpu%d\n",
 		    (int)msr, PCPU_GET(cpuid));
 		if (msr != id) {

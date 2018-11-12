@@ -273,7 +273,6 @@ audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 	case KERN_USRSTACK:
 	case KERN_LOGSIGEXIT:
 	case KERN_IOV_MAX:
-	case KERN_MAXID:
 		return ((valid_arg & ARG_VALUE) ?
 		    AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
 
@@ -496,8 +495,9 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 			vhold(cvnp);
 		} else {
 			/* XXX: fgetvp() that vhold()s vnode instead of vref()ing it would be better */
-			error = fgetvp(td, dirfd, 0, &cvnp);
+			error = fgetvp(td, dirfd, NULL, &cvnp);
 			if (error) {
+				FILEDESC_SUNLOCK(fdp);
 				cpath[0] = '\0';
 				if (rvnp != NULL)
 					vdrop(rvnp);

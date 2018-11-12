@@ -1,4 +1,5 @@
-/* $OpenBSD: auth.c,v 1.96 2012/05/13 01:42:32 dtucker Exp $ */
+/* $OpenBSD: auth.c,v 1.103 2013/05/19 02:42:42 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -72,6 +73,8 @@ __RCSID("$FreeBSD$");
 #endif
 #include "authfile.h"
 #include "monitor_wrap.h"
+#include "krl.h"
+#include "compat.h"
 
 /* import */
 extern ServerOptions options;
@@ -165,17 +168,17 @@ allowed_user(struct passwd * pw)
 		if (stat(shell, &st) != 0) {
 			logit("User %.100s not allowed because shell %.100s "
 			    "does not exist", pw->pw_name, shell);
-			xfree(shell);
+			free(shell);
 			return 0;
 		}
 		if (S_ISREG(st.st_mode) == 0 ||
 		    (st.st_mode & (S_IXOTH|S_IXUSR|S_IXGRP)) == 0) {
 			logit("User %.100s not allowed because shell %.100s "
 			    "is not executable", pw->pw_name, shell);
-			xfree(shell);
+			free(shell);
 			return 0;
 		}
-		xfree(shell);
+		free(shell);
 	}
 
 	if (options.num_deny_users > 0 || options.num_allow_users > 0 ||
@@ -252,7 +255,25 @@ allowed_user(struct passwd * pw)
 }
 
 void
-auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
+auth_info(Authctxt *authctxt, const char *fmt, ...)
+{
+	va_list ap;
+        int i;
+
+	free(authctxt->info);
+	authctxt->info = NULL;
+
+	va_start(ap, fmt);
+	i = vasprintf(&authctxt->info, fmt, ap);
+	va_end(ap);
+
+	if (i < 0 || authctxt->info == NULL)
+		fatal("vasprintf failed");
+}
+
+void
+auth_log(Authctxt *authctxt, int authenticated, int partial,
+    const char *method, const char *submethod)
 {
 	void (*authlog) (const char *fmt,...) = verbose;
 	char *authmsg;
@@ -269,17 +290,24 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 
 	if (authctxt->postponed)
 		authmsg = "Postponed";
+	else if (partial)
+		authmsg = "Partial";
 	else
 		authmsg = authenticated ? "Accepted" : "Failed";
 
-	authlog("%s %s for %s%.100s from %.200s port %d%s",
+	authlog("%s %s%s%s for %s%.100s from %.200s port %d %s%s%s",
 	    authmsg,
 	    method,
+	    submethod != NULL ? "/" : "", submethod == NULL ? "" : submethod,
 	    authctxt->valid ? "" : "invalid user ",
 	    authctxt->user,
 	    get_remote_ipaddr(),
 	    get_remote_port(),
-	    info);
+	    compat20 ? "ssh2" : "ssh1",
+	    authctxt->info != NULL ? ": " : "",
+	    authctxt->info != NULL ? authctxt->info : "");
+	free(authctxt->info);
+	authctxt->info = NULL;
 
 #ifdef CUSTOM_FAILED_LOGIN
 	if (authenticated == 0 && !authctxt->postponed &&
@@ -304,7 +332,7 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
  * Check whether root logins are disallowed.
  */
 int
-auth_root_allowed(char *method)
+auth_root_allowed(const char *method)
 {
 	switch (options.permit_root_login) {
 	case PERMIT_YES:
@@ -351,7 +379,7 @@ expand_authorized_keys(const char *filename, struct passwd *pw)
 	i = snprintf(ret, sizeof(ret), "%s/%s", pw->pw_dir, file);
 	if (i < 0 || (size_t)i >= sizeof(ret))
 		fatal("expand_authorized_keys: path too long");
-	xfree(file);
+	free(file);
 	return (xstrdup(ret));
 }
 
@@ -393,7 +421,7 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 			load_hostkeys(hostkeys, host, user_hostfile);
 			restore_uid();
 		}
-		xfree(user_hostfile);
+		free(user_hostfile);
 	}
 	host_status = check_key_in_hostkeys(hostkeys, key, &found);
 	if (host_status == HOST_REVOKED)
@@ -410,41 +438,42 @@ check_key_in_hostfiles(struct passwd *pw, Key *key, const char *host,
 	return host_status;
 }
 
-
 /*
- * Check a given file for security. This is defined as all components
+ * Check a given path for security. This is defined as all components
  * of the path to the file must be owned by either the owner of
  * of the file or root and no directories must be group or world writable.
  *
  * XXX Should any specific check be done for sym links ?
  *
- * Takes an open file descriptor, the file name, a uid and and
+ * Takes a file name, its stat information (preferably from fstat() to
+ * avoid races), the uid of the expected owner, their home directory and an
  * error buffer plus max size as arguments.
  *
  * Returns 0 on success and -1 on failure
  */
-static int
-secure_filename(FILE *f, const char *file, struct passwd *pw,
-    char *err, size_t errlen)
+int
+auth_secure_path(const char *name, struct stat *stp, const char *pw_dir,
+    uid_t uid, char *err, size_t errlen)
 {
-	uid_t uid = pw->pw_uid;
 	char buf[MAXPATHLEN], homedir[MAXPATHLEN];
 	char *cp;
 	int comparehome = 0;
 	struct stat st;
 
-	if (realpath(file, buf) == NULL) {
-		snprintf(err, errlen, "realpath %s failed: %s", file,
+	if (realpath(name, buf) == NULL) {
+		snprintf(err, errlen, "realpath %s failed: %s", name,
 		    strerror(errno));
 		return -1;
 	}
-	if (realpath(pw->pw_dir, homedir) != NULL)
+	if (pw_dir != NULL && realpath(pw_dir, homedir) != NULL)
 		comparehome = 1;
 
-	/* check the open file to avoid races */
-	if (fstat(fileno(f), &st) < 0 ||
-	    (st.st_uid != 0 && st.st_uid != uid) ||
-	    (st.st_mode & 022) != 0) {
+	if (!S_ISREG(stp->st_mode)) {
+		snprintf(err, errlen, "%s is not a regular file", buf);
+		return -1;
+	}
+	if ((!platform_sys_dir_uid(stp->st_uid) && stp->st_uid != uid) ||
+	    (stp->st_mode & 022) != 0) {
 		snprintf(err, errlen, "bad ownership or modes for file %s",
 		    buf);
 		return -1;
@@ -459,7 +488,7 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 		strlcpy(buf, cp, sizeof(buf));
 
 		if (stat(buf, &st) < 0 ||
-		    (st.st_uid != 0 && st.st_uid != uid) ||
+		    (!platform_sys_dir_uid(st.st_uid) && st.st_uid != uid) ||
 		    (st.st_mode & 022) != 0) {
 			snprintf(err, errlen,
 			    "bad ownership or modes for directory %s", buf);
@@ -478,6 +507,27 @@ secure_filename(FILE *f, const char *file, struct passwd *pw,
 			break;
 	}
 	return 0;
+}
+
+/*
+ * Version of secure_path() that accepts an open file descriptor to
+ * avoid races.
+ *
+ * Returns 0 on success and -1 on failure
+ */
+static int
+secure_filename(FILE *f, const char *file, struct passwd *pw,
+    char *err, size_t errlen)
+{
+	struct stat st;
+
+	/* check the open file to avoid races */
+	if (fstat(fileno(f), &st) < 0) {
+		snprintf(err, errlen, "cannot stat file %s: %s",
+		    file, strerror(errno));
+		return -1;
+	}
+	return auth_secure_path(file, &st, pw->pw_dir, pw->pw_uid, err, errlen);
 }
 
 static FILE *
@@ -615,7 +665,16 @@ auth_key_is_revoked(Key *key)
 
 	if (options.revoked_keys_file == NULL)
 		return 0;
-
+	switch (ssh_krl_file_contains_key(options.revoked_keys_file, key)) {
+	case 0:
+		return 0;	/* Not revoked */
+	case -2:
+		break;		/* Not a KRL */
+	default:
+		goto revoked;
+	}
+	debug3("%s: treating %s as a key list", __func__,
+	    options.revoked_keys_file);
 	switch (key_in_file(key, options.revoked_keys_file, 0)) {
 	case 0:
 		/* key not revoked */
@@ -626,11 +685,12 @@ auth_key_is_revoked(Key *key)
 		    "authentication");
 		return 1;
 	case 1:
+ revoked:
 		/* Key revoked */
 		key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
 		error("WARNING: authentication attempt with a revoked "
 		    "%s key %s ", key_type(key), key_fp);
-		xfree(key_fp);
+		free(key_fp);
 		return 1;
 	}
 	fatal("key_in_file returned junk");
@@ -661,7 +721,7 @@ auth_debug_send(void)
 	while (buffer_len(&auth_debug)) {
 		msg = buffer_get_string(&auth_debug, NULL);
 		packet_send_debug("%s", msg);
-		xfree(msg);
+		free(msg);
 	}
 }
 
@@ -685,10 +745,12 @@ fakepw(void)
 	fake.pw_name = "NOUSER";
 	fake.pw_passwd =
 	    "$2a$06$r3.juUaHZDlIbQaO2dS9FuYxL1W9M81R1Tc92PoSNmzvpEqLkLGrK";
+#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
 	fake.pw_gecos = "NOUSER";
+#endif
 	fake.pw_uid = privsep_pw == NULL ? (uid_t)-1 : privsep_pw->pw_uid;
 	fake.pw_gid = privsep_pw == NULL ? (gid_t)-1 : privsep_pw->pw_gid;
-#ifdef HAVE_PW_CLASS_IN_PASSWD
+#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
 	fake.pw_class = "";
 #endif
 	fake.pw_dir = "/nonexist";

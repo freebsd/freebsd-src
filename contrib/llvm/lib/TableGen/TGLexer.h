@@ -11,16 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TGLEXER_H
-#define TGLEXER_H
+#ifndef LLVM_LIB_TABLEGEN_TGLEXER_H
+#define LLVM_LIB_TABLEGEN_TGLEXER_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
-#include <string>
-#include <vector>
+#include "llvm/Support/SMLoc.h"
 #include <cassert>
+#include <map>
+#include <string>
 
 namespace llvm {
-class MemoryBuffer;
 class SourceMgr;
 class SMLoc;
 class Twine;
@@ -46,11 +47,15 @@ namespace tgtok {
     MultiClass, String,
     
     // !keywords.
-    XConcat, XSRA, XSRL, XSHL, XStrConcat, XCast, XSubst,
-    XForEach, XHead, XTail, XEmpty, XIf, XEq,
+    XConcat, XADD, XAND, XSRA, XSRL, XSHL, XListConcat, XStrConcat, XCast,
+    XSubst, XForEach, XHead, XTail, XEmpty, XIf, XEq,
 
     // Integer value.
     IntVal,
+
+    // Binary constant.  Note that these are sized according to the number of
+    // bits given.
+    BinaryIntVal,
     
     // String valued tokens.
     Id, StrVal, VarName, CodeFragment
@@ -62,7 +67,7 @@ class TGLexer {
   SourceMgr &SrcMgr;
   
   const char *CurPtr;
-  const MemoryBuffer *CurBuf;
+  StringRef CurBuf;
 
   // Information about the current token.
   const char *TokStart;
@@ -72,10 +77,14 @@ class TGLexer {
 
   /// CurBuffer - This is the current buffer index we're lexing from as managed
   /// by the SourceMgr object.
-  int CurBuffer;
+  unsigned CurBuffer;
+
+public:
+  typedef std::map<std::string, SMLoc> DependenciesMapTy;
+private:
   /// Dependencies - This is the list of all included files.
-  std::vector<std::string> Dependencies;
-  
+  DependenciesMapTy Dependencies;
+
 public:
   TGLexer(SourceMgr &SrcMgr);
   ~TGLexer() {}
@@ -84,7 +93,7 @@ public:
     return CurCode = LexToken();
   }
 
-  const std::vector<std::string> &getDependencies() const {
+  const DependenciesMapTy &getDependencies() const {
     return Dependencies;
   }
   
@@ -99,6 +108,11 @@ public:
   int64_t getCurIntVal() const {
     assert(CurCode == tgtok::IntVal && "This token isn't an integer");
     return CurIntVal;
+  }
+  std::pair<int64_t, unsigned> getCurBinaryIntVal() const {
+    assert(CurCode == tgtok::BinaryIntVal &&
+           "This token isn't a binary integer");
+    return std::make_pair(CurIntVal, (CurPtr - TokStart)-2);
   }
 
   SMLoc getLoc() const;

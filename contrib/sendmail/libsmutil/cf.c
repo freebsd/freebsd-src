@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sendmail.h>
-SM_RCSID("@(#)$Id: cf.c,v 8.19 2002/09/24 20:40:59 ca Exp $")
+SM_RCSID("@(#)$Id: cf.c,v 8.20 2013-11-22 20:51:50 ca Exp $")
 #include <sendmail/pathnames.h>
 
 /*

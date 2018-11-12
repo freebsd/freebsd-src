@@ -130,6 +130,7 @@ _citrus_MSKanji_init_state(_MSKanjiEncodingInfo * __restrict ei __unused,
 	s->chlen = 0;
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_MSKanji_pack_state(_MSKanjiEncodingInfo * __restrict ei __unused,
@@ -147,14 +148,15 @@ _citrus_MSKanji_unpack_state(_MSKanjiEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static int
 /*ARGSUSED*/
 _citrus_MSKanji_mbrtowc_priv(_MSKanjiEncodingInfo * __restrict ei,
-    wchar_t * __restrict pwc, char ** __restrict s, size_t n,
+    wchar_t * __restrict pwc, const char ** __restrict s, size_t n,
     _MSKanjiState * __restrict psenc, size_t * __restrict nresult)
 {
-	char *s0;
+	const char *s0;
 	wchar_t wchar;
 	int chlenbak, len;
 

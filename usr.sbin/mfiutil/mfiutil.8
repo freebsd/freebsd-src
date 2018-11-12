@@ -63,6 +63,9 @@
 .Cm show firmware
 .Nm
 .Op Fl u Ar unit
+.Cm show foreign Op Ar volume
+.Nm
+.Op Fl u Ar unit
 .Cm show logstate
 .Nm
 .Op Fl d
@@ -86,6 +89,9 @@
 .Nm
 .Op Fl u Ar unit
 .Cm rebuild Ar drive
+.Nm
+.Op Fl u Ar unit
+.Cm syspd Ar drive
 .Nm
 .Op Fl u Ar unit
 .Cm drive progress Ar drive
@@ -140,7 +146,34 @@
 .Cm patrol Ar command Op Ar interval Op Ar start
 .Nm
 .Op Fl u Ar unit
+.Cm foreign scan
+.Nm
+.Op Fl u Ar unit
+.Cm foreign clear Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign diag Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign preview Op Ar config
+.Nm
+.Op Fl u Ar unit
+.Cm foreign import Op Ar config
+.Nm
+.Op Fl u Ar unit
 .Cm flash Ar file
+.Nm
+.Op Fl u Ar unit
+.Cm start learn
+.Nm
+.Op Fl u Ar unit
+.Cm bbu Ar setting Ar value
+.Nm
+.Op Fl u Ar unit
+.Cm ctrlprop Ar rebuild Op Ar rate
+.Nm
+.Op Fl u Ar unit
+.Cm ctrlprop Ar alarm Op Ar 0/1
 .Sh DESCRIPTION
 The
 .Nm
@@ -315,6 +348,8 @@ The entry in the event log corresponding to the most recent boot.
 .El
 .It Cm show firmware
 Lists all of the firmware images present on the controller.
+.It Cm show foreign
+Displays detected foreign configurations on disks for importation or removal.
 .It Cm show logstate
 Display the various sequence numbers associated with the event log.
 .It Cm show patrol
@@ -346,6 +381,11 @@ Mark a failed
 that is still part of an array as a good drive suitable for a rebuild.
 The firmware should kick off an array rebuild on its own if a failed drive
 is marked as a rebuild drive.
+.It Cm syspd Ar drive
+Present the drive to the host operating system as a disk SYSPD block device in
+the format /dev/mfisyspdX.  Clear this flag with
+.Cm good
+.Ar drive
 .It Cm drive progress Ar drive
 Report the current progress and estimated completion time of drive operations
 such as rebuilds or patrol reads.
@@ -561,10 +601,76 @@ Enable manual patrol reads that are only initiated by the user.
 Start a patrol read operation.
 .It Cm stop patrol
 Stop a currently running patrol read operation.
+.It Cm foreign scan
+Scan for foreign configurations and display the number found. The
+.Ar config
+argument for the commands below takes the form of a number from 0 to the total
+configurations found.
+.It Cm foreign clear Op config
+Clear the specifed foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm foreign diag Op config
+Display a diagnostic display of the specifed foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
+.It Cm foreign preview Op config
+Preview the specifed foreign
+.Ar config
+after import or all if no
+.Ar config
+argument is provided.
+.It Cm foreign import Op config
+Import the specifed foreign
+.Ar config
+or all if no
+.Ar config
+argument is provided.
 .It Cm flash Ar file
 Updates the flash on the controller with the firmware stored in
 .Ar file .
 A reboot is required for the new firmware to take effect.
+.It Cm start learn
+Start a battery relearn.
+Note that this seems to always result in the battery being completely drained,
+regardless of the BBU mode.
+In particular, the controller write cache will be disabled during the relearn
+even if transparent learning mode is enabled.
+.It Cm bbu Ar setting Ar value
+Update battery backup unit (BBU) properties related to battery relearning.
+The following settings are configurable:
+.Bl -tag -width indent
+.It Cm learn-delay
+Add a delay to the next scheduled battery relearn event. This setting is
+given in hours and must lie in the range of 0 to 255.
+.It Cm autolearn-mode
+Enable or disable automatic periodic battery relearning.
+The setting may be set to
+.Dq enable
+or
+.Dq disable
+to respectively enable or disable the relearn cycle.
+Alternatively, a mode of 0, 1 or 2 may be given.
+Mode 0 enables periodic relearning, mode 1 disables it, and mode 2 disables
+it and logs a warning to the event log when it detects that a battery relearn
+should be performed.
+.It Cm bbu-mode
+Set the BBU's mode of operation. This setting is not supported by all BBUs.
+Where it is supported, the possible values are the integers between 1 and 5
+inclusive.
+Modes 1, 2 and 3 enable a transparent learn cycle, whereas modes 4 and 5 do not.
+The BBU's data retention time is greater when transparent learning is not used.
+.El
+.It Cm ctrlprop Ar rebuild Op Ar rate
+With no arguments display the rate of rebuild (percentage)a for volumes.
+With an integer argument (0-100), set that value as the new rebuild rate for volumes.
+.It Cm ctrlprop Ar alarm Op Ar 0/1
+With no arguments display the current alarm enable/disable status.
+With a 0, disable alarms.  With a 1, enable alarms.
 .El
 .Sh EXAMPLES
 Configure the cache for volume mfid0 to cache only writes:
@@ -593,10 +699,21 @@ Add the drive in slot 2 in the main chassis as a hot spare for volume mfid0:
 .Pp
 .Dl Nm Cm add s2 mfid0
 .Pp
+Reconfigure a disk as a SYSPD block device with no RAID
+.Pp
+.Dl Nm Cm syspd 0
+.Pp
 Configure the adapter to run periodic patrol reads once a week with the first
 patrol read starting in 5 minutes:
 .Pp
 .Dl Nm Cm patrol auto 604800 300
+.Pp
+Display the second detected foreign configuration:
+.Pp
+.Dl Nm Cm show foreign 1
+.Pp
+Set the current rebuild rate for volumes to 40%:
+.Dl Nm Cm ctrlprop rebuild 40
 .Sh SEE ALSO
 .Xr mfi 4
 .Sh HISTORY

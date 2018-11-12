@@ -541,11 +541,9 @@ siena_vpd_write(
 
 	/* Copy in new vpd and update header */
 	vpd_offset = dcfg_size - vpd_length;
-	EFX_POPULATE_DWORD_1(dcfg->dynamic_vpd_offset,
-			     EFX_DWORD_0, vpd_offset);
+	EFX_POPULATE_DWORD_1(dcfg->dynamic_vpd_offset, EFX_DWORD_0, vpd_offset);
 	memcpy((caddr_t)dcfg + vpd_offset, data, vpd_length);
-	EFX_POPULATE_DWORD_1(dcfg->dynamic_vpd_length,
-			    EFX_DWORD_0, vpd_length);
+	EFX_POPULATE_DWORD_1(dcfg->dynamic_vpd_length, EFX_DWORD_0, vpd_length);
 
 	/* Update the checksum */
 	cksum = 0;

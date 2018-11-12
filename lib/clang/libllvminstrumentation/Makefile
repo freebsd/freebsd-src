@@ -6,14 +6,13 @@ LIB=	llvminstrumentation
 
 SRCDIR=	lib/Transforms/Instrumentation
 SRCS=	AddressSanitizer.cpp \
-	BlackList.cpp \
 	BoundsChecking.cpp \
-	EdgeProfiling.cpp \
+	DataFlowSanitizer.cpp \
 	GCOVProfiling.cpp \
+	MemorySanitizer.cpp \
 	Instrumentation.cpp \
-	OptimalEdgeProfiling.cpp \
-	PathProfiling.cpp \
-	ProfilingUtils.cpp \
+	InstrProfiling.cpp \
+	SanitizerCoverage.cpp \
 	ThreadSanitizer.cpp
 
 TGHDRS=	Intrinsics

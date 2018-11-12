@@ -1,9 +1,9 @@
-# $Id: Makefile.am 471 2011-11-03 09:44:40Z des $
+# $Id: Makefile.am 648 2013-03-05 17:54:27Z des $
 
-INCLUDES = -I$(top_srcdir)/include
+AM_CPPFLAGS = -I$(top_srcdir)/include
 
 bin_PROGRAMS = pamtest
 pamtest_SOURCES = pamtest.c
-pamtest_LDADD = $(top_builddir)/lib/libpam.la
+pamtest_LDADD = $(top_builddir)/lib/libpam/libpam.la
 
 dist_man1_MANS = pamtest.1

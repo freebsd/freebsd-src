@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -210,7 +209,7 @@ ata_promise_probe(device_t dev)
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_promise_chipinit;
-    return (BUS_PROBE_DEFAULT);
+    return (BUS_PROBE_LOW_PRIORITY);
 }
 
 static int
@@ -288,6 +287,10 @@ ata_promise_chipinit(device_t dev)
 	    /* setup host packet controls */
 	    hpkt = malloc(sizeof(struct ata_promise_sx4),
 			  M_ATAPCI, M_NOWAIT | M_ZERO);
+	    if (hpkt == NULL) {
+		device_printf(dev, "Cannot allocate HPKT\n");
+		goto failnfree;
+	    }
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;
@@ -954,9 +957,9 @@ ata_promise_mio_softreset(device_t dev, int port)
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 100; timeout++) {
-	u_int8_t err, stat;
+	u_int8_t /* err, */ stat;
 
-	err = ATA_IDX_INB(ch, ATA_ERROR);
+	/* err = */ ATA_IDX_INB(ch, ATA_ERROR);
 	stat = ATA_IDX_INB(ch, ATA_STATUS);
 
 	//if (stat == err && timeout > (stat & ATA_S_BUSY ? 100 : 10))

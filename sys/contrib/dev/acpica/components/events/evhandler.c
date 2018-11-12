@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __EVHANDLER_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -393,36 +390,43 @@ AcpiEvInstallSpaceHandler (
         switch (SpaceId)
         {
         case ACPI_ADR_SPACE_SYSTEM_MEMORY:
+
             Handler = AcpiExSystemMemorySpaceHandler;
             Setup   = AcpiEvSystemMemoryRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_SYSTEM_IO:
+
             Handler = AcpiExSystemIoSpaceHandler;
             Setup   = AcpiEvIoSpaceRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_PCI_CONFIG:
+
             Handler = AcpiExPciConfigSpaceHandler;
             Setup   = AcpiEvPciConfigRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_CMOS:
+
             Handler = AcpiExCmosSpaceHandler;
             Setup   = AcpiEvCmosRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_PCI_BAR_TARGET:
+
             Handler = AcpiExPciBarSpaceHandler;
             Setup   = AcpiEvPciBarRegionSetup;
             break;
 
         case ACPI_ADR_SPACE_DATA_TABLE:
+
             Handler = AcpiExDataTableSpaceHandler;
             Setup   = NULL;
             break;
 
         default:
+
             Status = AE_BAD_PARAMETER;
             goto UnlockAndExit;
         }

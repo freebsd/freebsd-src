@@ -28,7 +28,6 @@
 #if defined(__FreeBSD__)
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipx.h"
 #endif
 
 #ifdef NetBSD1_3
@@ -58,6 +57,7 @@
 #endif
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -82,11 +82,6 @@
 #  include <netinet/if_ether.h>
 #else
 #  include <net/ethertypes.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #include <net/if_sppp.h>
@@ -255,25 +250,15 @@ bad:            m_freem (m);
 
 	switch (proto) {
 	default:
-		++ifp->if_noproto;
-drop:		++ifp->if_ierrors;
-		++ifp->if_iqdrops;
+		if_inc_counter(ifp, IFCOUNTER_NOPROTO, 1);
+drop:		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		m_freem (m);
 		return;
 #ifdef INET
 	case ETHERTYPE_IP:
 		isr = NETISR_IP;
 		break;
-#endif
-#ifdef IPX
-	case ETHERTYPE_IPX:
-		isr = NETISR_IPX;
-		break;
-#endif
-#ifdef NETATALK
-        case ETHERTYPE_AT:
-		isr = NETISR_ATALK;
-                break;
 #endif
 	}
 
@@ -344,19 +329,9 @@ struct mbuf *sppp_fr_header (struct sppp *sp, struct mbuf *m,
 		h[3] = FR_IP;
 		return m;
 #endif
-#ifdef IPX
-	case AF_IPX:
-		type = ETHERTYPE_IPX;
-		break;
-#endif
 #ifdef NS
 	case AF_NS:
 		type = 0x8137;
-		break;
-#endif
-#ifdef NETATALK
-	case AF_APPLETALK:
-		type = ETHERTYPE_AT;
 		break;
 #endif
 	}
@@ -419,7 +394,7 @@ void sppp_fr_keepalive (struct sppp *sp)
 			(u_char) sp->pp_rseq[IDX_LCP]);
 
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*
@@ -533,7 +508,7 @@ static void sppp_fr_arp (struct sppp *sp, struct arp_req *req,
 	reply->ptarget2 = htonl (his_ip_address) >> 16;
 
 	if (! IF_HANDOFF_ADJ(&sp->pp_cpq, m, ifp, 3))
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 }
 
 /*

@@ -1,11 +1,11 @@
 /******************************************************************************
  *
- * Module Name: dsopcode - Dispatcher suport for regions and fields
+ * Module Name: dsopcode - Dispatcher support for regions and fields
  *
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DSOPCODE_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -680,6 +678,7 @@ AcpiDsEvalDataObjectOperands (
         break;
 
     default:
+
         return_ACPI_STATUS (AE_AML_BAD_OPCODE);
     }
 

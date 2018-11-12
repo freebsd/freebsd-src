@@ -1,2 +1,1 @@
-#define	VI_VERSION \
-	"Version 1.79 (10/23/96) The CSRG, University of California, Berkeley."
+#define VI_VERSION "2.1.2 (2012-11-02)"

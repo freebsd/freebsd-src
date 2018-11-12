@@ -21,15 +21,17 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #endif
 
 #include <strings.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <assert.h>
@@ -467,7 +469,7 @@ dof_add_probe(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 		 * locally so an alternate symbol is added for the purpose
 		 * of this relocation.
 		 */
-		if (pip->pi_rname[0] == '\0')
+		if (pip->pi_rname == NULL)
 			dofr.dofr_name = dofpr.dofpr_func;
 		else
 			dofr.dofr_name = dof_add_string(ddo, pip->pi_rname);
@@ -485,7 +487,7 @@ dof_add_probe(dt_idhash_t *dhp, dt_ident_t *idp, void *data)
 	return (0);
 }
 
-static void
+static int
 dof_add_provider(dt_dof_t *ddo, const dt_provider_t *pvp)
 {
 	dtrace_hdl_t *dtp = ddo->ddo_hdl;
@@ -496,8 +498,12 @@ dof_add_provider(dt_dof_t *ddo, const dt_provider_t *pvp)
 	size_t sz;
 	id_t i;
 
-	if (pvp->pv_flags & DT_PROVIDER_IMPL)
-		return; /* ignore providers that are exported by dtrace(7D) */
+	if (pvp->pv_flags & DT_PROVIDER_IMPL) {
+		/*
+		 * ignore providers that are exported by dtrace(7D)
+		 */
+		return (0);
+	}
 
 	nxr = dt_popcb(pvp->pv_xrefs, pvp->pv_xrmax);
 	dofs = alloca(sizeof (dof_secidx_t) * (nxr + 1));
@@ -523,6 +529,9 @@ dof_add_provider(dt_dof_t *ddo, const dt_provider_t *pvp)
 	dt_buf_reset(dtp, &ddo->ddo_rels);
 
 	(void) dt_idhash_iter(pvp->pv_probes, dof_add_probe, ddo);
+
+	if (dt_buf_len(&ddo->ddo_probes) == 0)
+		return (dt_set_errno(dtp, EDT_NOPROBES));
 
 	dofpv.dofpv_probes = dof_add_lsect(ddo, NULL, DOF_SECT_PROBES,
 	    sizeof (uint64_t), 0, sizeof (dof_probe_t),
@@ -578,6 +587,8 @@ dof_add_provider(dt_dof_t *ddo, const dt_provider_t *pvp)
 		    sizeof (dof_secidx_t), 0, sizeof (dof_secidx_t),
 		    sizeof (dof_secidx_t) * (nxr + 1));
 	}
+
+	return (0);
 }
 
 static int
@@ -758,16 +769,23 @@ dtrace_dof_create(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t flags)
 				dofa[i].dofa_difo = DOF_SECIDX_NONE;
 
 			/*
-			 * If the first action in a statement has format data,
-			 * add the format string to the global string table.
+			 * If the first action in a statement has string data,
+			 * add the string to the global string table.  This can
+			 * be due either to a printf() format string
+			 * (dtsd_fmtdata) or a print() type string
+			 * (dtsd_strdata).
 			 */
 			if (sdp != NULL && ap == sdp->dtsd_action) {
 				if (sdp->dtsd_fmtdata != NULL) {
 					(void) dtrace_printf_format(dtp,
 					    sdp->dtsd_fmtdata, fmt, maxfmt + 1);
 					strndx = dof_add_string(ddo, fmt);
-				} else
+				} else if (sdp->dtsd_strdata != NULL) {
+					strndx = dof_add_string(ddo,
+					    sdp->dtsd_strdata);
+				} else {
 					strndx = 0; /* use dtad_arg instead */
+				}
 
 				if ((next = dt_list_next(next)) != NULL)
 					sdp = next->ds_desc;
@@ -814,8 +832,10 @@ dtrace_dof_create(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t flags)
 	 */
 	if (flags & DTRACE_D_PROBES) {
 		for (pvp = dt_list_next(&dtp->dt_provlist);
-		    pvp != NULL; pvp = dt_list_next(pvp))
-			dof_add_provider(ddo, pvp);
+		    pvp != NULL; pvp = dt_list_next(pvp)) {
+			if (dof_add_provider(ddo, pvp) != 0)
+				return (NULL);
+		}
 	}
 
 	/*

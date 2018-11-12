@@ -875,9 +875,9 @@ int cx_get_port (cx_chan_t *c)
 
 		if (iftype)
 			switch (c->type) {
-			case T_UNIV_V35:   return 1; break;
-			case T_UNIV_RS449: return 2; break;
-			default:	   return -1; break;
+			case T_UNIV_V35:   return 1;
+			case T_UNIV_RS449: return 2;
+			default:	   return -1;
 			}
 		else
 			return 0;

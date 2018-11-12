@@ -30,8 +30,8 @@
 
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
+#include <sys/vmem.h>
 
-#define KTR_CXGBE	KTR_SPARE3
 #define LISTEN_HASH_SIZE 32
 
 /*
@@ -48,8 +48,6 @@
 
 #define	DDP_RSVD_WIN (16 * 1024U)
 #define	SB_DDP_INDICATE	SB_IN_TOE	/* soreceive must respond to indicate */
-
-#define	M_DDP	M_PROTO1
 
 #define USE_DDP_RX_FLOW_CONTROL
 
@@ -83,25 +81,19 @@ struct ofld_tx_sdesc {
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
 };
 
-struct ppod_region {
-	TAILQ_ENTRY(ppod_region) link;
-	int used;	/* # of pods used by this region */
-	int free;	/* # of contiguous pods free right after this region */
-};
-
 struct ddp_buffer {
 	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+	u_int ppod_addr;
 	int nppods;
 	int offset;
 	int len;
-	struct ppod_region ppod_region;
 	int npages;
 	vm_page_t *pages;
 };
 
 struct toepcb {
 	TAILQ_ENTRY(toepcb) link; /* toep_list */
-	unsigned int flags;	/* miscellaneous flags */
+	u_int flags;		/* miscellaneous flags */
 	struct tom_data *td;
 	struct inpcb *inp;	/* backpointer to host stack's PCB */
 	struct port_info *port;	/* physical port */
@@ -111,13 +103,20 @@ struct toepcb {
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
 	struct clip_entry *ce;	/* CLIP table entry used by this tid */
 	int tid;		/* Connection identifier */
-	unsigned int tx_credits;/* tx WR credits (in 16 byte units) remaining */
-	unsigned int sb_cc;	/* last noted value of so_rcv->sb_cc */
+
+	/* tx credit handling */
+	u_int tx_total;		/* total tx WR credits (in 16B units) */
+	u_int tx_credits;	/* tx WR credits (in 16B units) available */
+	u_int tx_nocompl;	/* tx WR credits since last compl request */
+	u_int plen_nocompl;	/* payload since last compl request */
+
+	/* rx credit handling */
+	u_int sb_cc;		/* last noted value of so_rcv->sb_cc */
 	int rx_credits;		/* rx credits (in bytes) to be returned to hw */
 
-	unsigned int ulp_mode;	/* ULP mode */
+	u_int ulp_mode;	/* ULP mode */
 
-	unsigned int ddp_flags;
+	u_int ddp_flags;
 	struct ddp_buffer *db[2];
 	time_t ddp_disabled;
 	uint8_t ddp_score;
@@ -171,10 +170,9 @@ struct listen_ctx {
 	struct inpcb *inp;		/* listening socket's inp */
 	struct sge_wrq *ctrlq;
 	struct sge_ofld_rxq *ofld_rxq;
+	struct clip_entry *ce;
 	TAILQ_HEAD(, synq_entry) synq;
 };
-
-TAILQ_HEAD(ppod_head, ppod_region);
 
 struct clip_entry {
 	TAILQ_ENTRY(clip_entry) link;
@@ -182,6 +180,7 @@ struct clip_entry {
 	u_int refcount;
 };
 
+TAILQ_HEAD(clip_head, clip_entry);
 struct tom_data {
 	struct toedev tod;
 
@@ -194,14 +193,17 @@ struct tom_data {
 	u_long listen_mask;
 	int lctx_count;		/* # of lctx in the hash table */
 
-	struct mtx ppod_lock;
-	int nppods;
-	int nppods_free;	/* # of available ppods */
-	int nppods_free_head;	/* # of available ppods at the begining */
-	struct ppod_head ppods;
+	u_int ppod_start;
+	vmem_t *ppod_arena;
 
 	struct mtx clip_table_lock;
-	TAILQ_HEAD(, clip_entry) clip_table;
+	struct clip_head clip_table;
+	int clip_gen;
+
+	/* WRs that will not be sent to the chip because L2 resolution failed */
+	struct mtx unsent_wr_lock;
+	STAILQ_HEAD(, wrqe) unsent_wr_list;
+	struct task reclaim_wr_resources;
 };
 
 static inline struct tom_data *
@@ -234,7 +236,7 @@ u_long select_rcv_wnd(struct socket *);
 int select_rcv_wscale(void);
 uint64_t calc_opt0(struct socket *, struct port_info *, struct l2t_entry *,
     int, int, int, int);
-uint32_t select_ntuple(struct port_info *, struct l2t_entry *, uint32_t);
+uint64_t select_ntuple(struct port_info *, struct l2t_entry *);
 void set_tcpddp_ulp_mode(struct toepcb *);
 int negative_advice(int);
 struct clip_entry *hold_lip(struct tom_data *, struct in6_addr *);
@@ -244,6 +246,7 @@ void release_lip(struct tom_data *, struct clip_entry *);
 void t4_init_connect_cpl_handlers(struct adapter *);
 int t4_connect(struct toedev *, struct socket *, struct rtentry *,
     struct sockaddr *);
+void act_open_failure_cleanup(struct adapter *, u_int, u_int);
 
 /* t4_listen.c */
 void t4_init_listen_cpl_handlers(struct adapter *);
@@ -269,8 +272,9 @@ void t4_rcvd(struct toedev *, struct tcpcb *);
 int t4_tod_output(struct toedev *, struct tcpcb *);
 int t4_send_fin(struct toedev *, struct tcpcb *);
 int t4_send_rst(struct toedev *, struct tcpcb *);
-void t4_set_tcb_field(struct adapter *, struct toepcb *, uint16_t, uint64_t,
-    uint64_t);
+void t4_set_tcb_field(struct adapter *, struct toepcb *, int, uint16_t,
+    uint64_t, uint64_t);
+void t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop);
 
 /* t4_ddp.c */
 void t4_init_ddp(struct adapter *, struct tom_data *);
@@ -279,5 +283,23 @@ int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
 void enable_ddp(struct adapter *, struct toepcb *toep);
 void release_ddp_resources(struct toepcb *toep);
+void handle_ddp_close(struct toepcb *, struct tcpcb *, struct sockbuf *,
+    uint32_t);
 void insert_ddp_data(struct toepcb *, uint32_t);
+
+/* ULP related */
+#define CXGBE_ISCSI_MBUF_TAG          50
+int t4tom_cpl_handler_registered(struct adapter *, unsigned int);
+void t4tom_register_cpl_iscsi_callback(void (*fp)(struct tom_data *,
+    struct socket *, void *, unsigned int));
+void t4tom_register_queue_iscsi_callback(struct mbuf *(*fp)(struct socket *,
+    unsigned int, int *));
+void t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int);
+int t4_cpl_iscsi_callback(struct tom_data *, struct toepcb *, void *, uint32_t);
+struct mbuf *t4_queue_iscsi_callback(struct socket *, struct toepcb *, uint32_t,
+    int *);
+extern void (*tom_cpl_iscsi_callback)(struct tom_data *, struct socket *,
+    void *, unsigned int);
+extern struct mbuf *(*tom_queue_iscsi_callback)(struct socket*, unsigned int,
+    int *);
 #endif

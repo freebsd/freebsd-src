@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 
 using namespace clang;
@@ -25,7 +25,8 @@ using namespace ento;
 namespace {
 class ArrayBoundChecker : 
     public Checker<check::Location> {
-  mutable OwningPtr<BuiltinBug> BT;
+  mutable std::unique_ptr<BuiltinBug> BT;
+
 public:
   void checkLocation(SVal l, bool isLoad, const Stmt* S,
                      CheckerContext &C) const;
@@ -44,7 +45,7 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
     return;
 
   // Get the index of the accessed element.
-  DefinedOrUnknownSVal Idx = cast<DefinedOrUnknownSVal>(ER->getIndex());
+  DefinedOrUnknownSVal Idx = ER->getIndex().castAs<DefinedOrUnknownSVal>();
 
   // Zero index is always in bound, this also passes ElementRegions created for
   // pointer casts.
@@ -66,8 +67,9 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
       return;
   
     if (!BT)
-      BT.reset(new BuiltinBug("Out-of-bound array access",
-                       "Access out-of-bound array element (buffer overflow)"));
+      BT.reset(new BuiltinBug(
+          this, "Out-of-bound array access",
+          "Access out-of-bound array element (buffer overflow)"));
 
     // FIXME: It would be nice to eventually make this diagnostic more clear,
     // e.g., by referencing the original declaration or by saying *why* this

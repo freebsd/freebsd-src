@@ -44,6 +44,7 @@ static const char copyright[] =
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
+#include <sys/queue.h>
 
 #include <err.h>
 #include <limits.h>
@@ -53,6 +54,7 @@ static const char copyright[] =
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "systat.h"
@@ -77,17 +79,73 @@ int     use_kvm = 1;
 
 static	WINDOW *wload;			/* one line window for load average */
 
+struct cmdentry {
+	SLIST_ENTRY(cmdentry) link;
+	char		*cmd;		/* Command name	*/
+	char		*argv;		/* Arguments vector for a command */
+};
+SLIST_HEAD(, cmdentry) commands;
+
+static void
+parse_cmd_args (int argc, char **argv)
+{
+	int in_command = 0;
+	struct cmdentry *cmd = NULL;
+	double t;
+
+	while (argc) {
+		if (argv[0][0] == '-') {
+			if (in_command)
+					SLIST_INSERT_HEAD(&commands, cmd, link);
+
+			if (memcmp(argv[0], "--", 3) == 0) {
+				in_command = 0; /*-- ends a command explicitly*/
+				argc --, argv ++;
+				continue;
+			}
+			cmd = calloc(1, sizeof(struct cmdentry));
+			if (cmd == NULL)
+				errx(1, "memory allocating failure");
+			cmd->cmd = strdup(&argv[0][1]);
+			if (cmd->cmd == NULL)
+				errx(1, "memory allocating failure");
+			in_command = 1;
+		}
+		else if (!in_command) {
+			t = strtod(argv[0], NULL) * 1000000.0;
+			if (t > 0 && t < (double)UINT_MAX)
+				delay = (unsigned int)t;
+		}
+		else if (cmd != NULL) {
+			cmd->argv = strdup(argv[0]);
+			if (cmd->argv == NULL)
+				errx(1, "memory allocating failure");
+			in_command = 0;
+			SLIST_INSERT_HEAD(&commands, cmd, link);
+		}
+		else
+			errx(1, "invalid arguments list");
+
+		argc--, argv++;
+	}
+	if (in_command && cmd != NULL)
+		SLIST_INSERT_HEAD(&commands, cmd, link);
+
+}
+
 int
 main(int argc, char **argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
 	double t;
+	struct cmdentry *cmd = NULL;
 
 	(void) setlocale(LC_ALL, "");
 
+	SLIST_INIT(&commands);
 	argc--, argv++;
-	while (argc > 0) {
+	if (argc > 0) {
 		if (argv[0][0] == '-') {
 			struct cmdtab *p;
 
@@ -97,12 +155,10 @@ main(int argc, char **argv)
 			if (p == (struct cmdtab *)0)
 				errx(1, "%s: unknown request", &argv[0][1]);
 			curcmd = p;
-		} else {
-			t = strtod(argv[0], NULL) * 1000000.0;
-			if (t > 0 && t < (double)UINT_MAX)
-				delay = (unsigned int)t;
+			argc--, argv++;
 		}
-		argc--, argv++;
+		parse_cmd_args (argc, argv);
+		
 	}
 	kd = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, errbuf);
 	if (kd != NULL) {
@@ -165,8 +221,12 @@ main(int argc, char **argv)
 	curcmd->c_flags |= CF_INIT;
 	labels();
 
-	dellave = 0.0;
+	if (curcmd->c_cmd != NULL)
+		SLIST_FOREACH (cmd, &commands, link)
+			if (!curcmd->c_cmd(cmd->cmd, cmd->argv))
+				warnx("command is not understood");
 
+	dellave = 0.0;
 	display();
 	noecho();
 	crmode();

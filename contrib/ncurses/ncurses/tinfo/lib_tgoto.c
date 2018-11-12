@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2000-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2000-2008,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <termcap.h>
 
-MODULE_ID("$Id: lib_tgoto.c,v 1.13 2008/08/16 19:29:32 tom Exp $")
+MODULE_ID("$Id: lib_tgoto.c,v 1.16 2012/02/24 02:08:08 tom Exp $")
 
 #if !PURE_TERMINFO
 static bool
@@ -159,7 +159,8 @@ tgoto_internal(const char *string, int x, int y)
 		break;
 	    }
 	    if (fmt != 0) {
-		sprintf(result + used, fmt, *value++);
+		_nc_SPRINTF(result + used, _nc_SLIMIT(length - used)
+			    fmt, *value++);
 		used += strlen(result + used);
 		fmt = 0;
 	    }
@@ -174,7 +175,7 @@ tgoto_internal(const char *string, int x, int y)
     }
     if (result != 0) {
 	if (need_BC) {
-	    strcpy(result + used, BC);
+	    _nc_STRCPY(result + used, BC, length - used);
 	    used += strlen(BC);
 	}
 	result[used] = '\0';

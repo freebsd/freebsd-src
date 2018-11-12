@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -277,9 +278,19 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 		rix = ath_tx_findrix(sc, tp->ucastrate);
 	else
 		rix = ath_tx_findrix(sc, tp->mcastrate);
-	/* XXX short preamble assumed */
-	sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
-		ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
+
+	/*
+	 * If the chip supports enforcing TxOP on transmission,
+	 * we can just delete the guard window.  It isn't at all required.
+	 */
+	if (sc->sc_hasenforcetxop) {
+		sc->sc_tdmaguard = 0;
+	} else {
+		/* XXX short preamble assumed */
+		/* XXX non-11n rate assumed */
+		sc->sc_tdmaguard = ath_hal_computetxtime(ah, sc->sc_currates,
+			ifp->if_mtu + IEEE80211_MAXOVERHEAD, rix, AH_TRUE);
+	}
 
 	ath_hal_intrset(ah, 0);
 
@@ -392,8 +403,35 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * the packet just received.
 	 */
 	rix = rt->rateCodeToIndex[rs->rs_rate];
-	txtime = ath_hal_computetxtime(ah, rt, rs->rs_datalen, rix,
-	    rt->info[rix].shortPreamble);
+
+	/*
+	 * To calculate the packet duration for legacy rates, we
+	 * only need the rix and preamble.
+	 *
+	 * For 11n non-aggregate frames, we also need the channel
+	 * width and short/long guard interval.
+	 *
+	 * For 11n aggregate frames, the required hacks are a little
+	 * more subtle.  You need to figure out the frame duration
+	 * for each frame, including the delimiters.  However, when
+	 * a frame isn't received successfully, we won't hear it
+	 * (unless you enable reception of CRC errored frames), so
+	 * your duration calculation is going to be off.
+	 *
+	 * However, we can assume that the beacon frames won't be
+	 * transmitted as aggregate frames, so we should be okay.
+	 * Just add a check to ensure that we aren't handed something
+	 * bad.
+	 *
+	 * For ath_hal_pkt_txtime() - for 11n rates, shortPreamble is
+	 * actually short guard interval. For legacy rates,
+	 * it's short preamble.
+	 */
+	txtime = ath_hal_pkt_txtime(ah, rt, rs->rs_datalen,
+	    rix,
+	    !! (rs->rs_flags & HAL_RX_2040),
+	    (rix & 0x80) ?
+	      (! (rs->rs_flags & HAL_RX_GI)) : rt->info[rix].shortPreamble);
 	/* NB: << 9 is to cvt to TU and /2 */
 	nextslot = (rstamp - txtime) + (sc->sc_tdmabintval << 9);
 
@@ -439,16 +477,19 @@ ath_tdma_update(struct ieee80211_node *ni,
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "rs->rstamp %llu rstamp %llu tsf %llu txtime %d, nextslot %llu, "
 	    "nextslottu %d, nextslottume %d\n",
-	    (unsigned long long) rs->rs_tstamp, rstamp, tsf, txtime,
-	    nextslot, nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
+	    (unsigned long long) rs->rs_tstamp,
+	    (unsigned long long) rstamp,
+	    (unsigned long long) tsf, txtime,
+	    (unsigned long long) nextslot,
+	    nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
 	DPRINTF(sc, ATH_DEBUG_TDMA,
 	    "  beacon tstamp: %llu (0x%016llx)\n",
-	    le64toh(ni->ni_tstamp.tsf),
-	    le64toh(ni->ni_tstamp.tsf));
+	    (unsigned long long) le64toh(ni->ni_tstamp.tsf),
+	    (unsigned long long) le64toh(ni->ni_tstamp.tsf));
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "nexttbtt %llu (0x%08llx) tsfdelta %d avg +%d/-%d\n",
-	    nexttbtt,
+	    (unsigned long long) nexttbtt,
 	    (long long) nexttbtt,
 	    tsfdelta,
 	    TDMA_AVG(sc->sc_avgtsfdeltap), TDMA_AVG(sc->sc_avgtsfdeltam));
@@ -542,7 +583,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 		DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 		    "%s: calling ath_hal_adjusttsf: TSF=%llu, tsfdelta=%d\n",
 		    __func__,
-		    tsf,
+		    (unsigned long long) tsf,
 		    tsfdelta);
 
 #ifdef	ATH_DEBUG_ALQ
@@ -612,13 +653,19 @@ ath_tdma_beacon_send(struct ath_softc *sc, struct ieee80211vap *vap)
 	}
 
 	bf = ath_beacon_generate(sc, vap);
+	/* XXX We don't do cabq traffic, but just for completeness .. */
+	ATH_TXQ_LOCK(sc->sc_cabq);
+	ath_beacon_cabq_start(sc);
+	ATH_TXQ_UNLOCK(sc->sc_cabq);
+
 	if (bf != NULL) {
 		/*
 		 * Stop any current dma and put the new frame on the queue.
 		 * This should never fail since we check above that no frames
 		 * are still pending on the queue.
 		 */
-		if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
+		if ((! sc->sc_isedma) &&
+		    (! ath_hal_stoptxdma(ah, sc->sc_bhalq))) {
 			DPRINTF(sc, ATH_DEBUG_ANY,
 				"%s: beacon queue %u did not stop?\n",
 				__func__, sc->sc_bhalq);

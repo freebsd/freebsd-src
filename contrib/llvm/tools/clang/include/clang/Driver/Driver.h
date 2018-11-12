@@ -7,47 +7,59 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_DRIVER_DRIVER_H_
-#define CLANG_DRIVER_DRIVER_H_
+#ifndef LLVM_CLANG_DRIVER_DRIVER_H
+#define LLVM_CLANG_DRIVER_DRIVER_H
 
 #include "clang/Basic/Diagnostic.h"
-
+#include "clang/Basic/LLVM.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/Types.h"
 #include "clang/Driver/Util.h"
-
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Path.h" // FIXME: Kill when CompilationInfo
+#include <memory>
                               // lands.
 #include <list>
 #include <set>
 #include <string>
 
 namespace llvm {
-  template<typename T> class ArrayRef;
-}
-namespace clang {
-namespace driver {
-  class Action;
+namespace opt {
   class Arg;
   class ArgList;
-  class Command;
-  class Compilation;
   class DerivedArgList;
   class InputArgList;
-  class InputInfo;
-  class JobAction;
   class OptTable;
+}
+}
+
+namespace clang {
+namespace driver {
+
+  class Action;
+  class Command;
+  class Compilation;
+  class InputInfo;
+  class Job;
+  class JobAction;
+  class SanitizerArgs;
   class ToolChain;
 
 /// Driver - Encapsulate logic for constructing compilation processes
 /// from a set of gcc-driver-like command line arguments.
 class Driver {
-  OptTable *Opts;
+  llvm::opt::OptTable *Opts;
 
   DiagnosticsEngine &Diags;
+
+  enum DriverMode {
+    GCCMode,
+    GXXMode,
+    CPPMode,
+    CLMode
+  } Mode;
 
 public:
   // Diag - Forwarding function for diagnostics.
@@ -83,14 +95,14 @@ public:
   /// sysroot, if present
   std::string SysRoot;
 
+  /// Dynamic loader prefix, if present
+  std::string DyldPrefix;
+
   /// If the standard library is used
   bool UseStdLib;
 
   /// Default target triple.
   std::string DefaultTargetTriple;
-
-  /// Default name for linked images (e.g., "a.out").
-  std::string DefaultImageName;
 
   /// Driver title to use with help.
   std::string DriverTitle;
@@ -108,16 +120,17 @@ public:
   const char *CCLogDiagnosticsFilename;
 
   /// A list of inputs and their types for the given arguments.
-  typedef SmallVector<std::pair<types::ID, const Arg*>, 16> InputList;
+  typedef SmallVector<std::pair<types::ID, const llvm::opt::Arg *>, 16>
+      InputList;
 
   /// Whether the driver should follow g++ like behavior.
-  unsigned CCCIsCXX : 1;
+  bool CCCIsCXX() const { return Mode == GXXMode; }
 
   /// Whether the driver is just the preprocessor.
-  unsigned CCCIsCPP : 1;
+  bool CCCIsCPP() const { return Mode == CPPMode; }
 
-  /// Echo commands while executing (in -v style).
-  unsigned CCCEcho : 1;
+  /// Whether the driver should follow cl.exe like behavior.
+  bool IsCLMode() const { return Mode == CLMode; }
 
   /// Only print tool bindings, don't build any jobs.
   unsigned CCCPrintBindings : 1;
@@ -167,18 +180,23 @@ private:
 private:
   /// TranslateInputArgs - Create a new derived argument list from the input
   /// arguments, after applying the standard argument translations.
-  DerivedArgList *TranslateInputArgs(const InputArgList &Args) const;
+  llvm::opt::DerivedArgList *
+  TranslateInputArgs(const llvm::opt::InputArgList &Args) const;
 
   // getFinalPhase - Determine which compilation mode we are in and record 
   // which option we used to determine the final phase.
-  phases::ID getFinalPhase(const DerivedArgList &DAL, Arg **FinalPhaseArg = 0)
-    const;
+  phases::ID getFinalPhase(const llvm::opt::DerivedArgList &DAL,
+                           llvm::opt::Arg **FinalPhaseArg = nullptr) const;
+
+  // Before executing jobs, sets up response files for commands that need them.
+  void setUpResponseFiles(Compilation &C, Job &J);
+
+  void generatePrefixedToolNames(const char *Tool, const ToolChain &TC,
+                                 SmallVectorImpl<std::string> &Names) const;
 
 public:
   Driver(StringRef _ClangExecutable,
          StringRef _DefaultTargetTriple,
-         StringRef _DefaultImageName,
-         bool IsProduction,
          DiagnosticsEngine &_Diags);
   ~Driver();
 
@@ -188,8 +206,7 @@ public:
   /// Name to use when invoking gcc/g++.
   const std::string &getCCCGenericGCCName() const { return CCCGenericGCCName; }
 
-
-  const OptTable &getOpts() const { return *Opts; }
+  const llvm::opt::OptTable &getOpts() const { return *Opts; }
 
   const DiagnosticsEngine &getDiags() const { return Diags; }
 
@@ -231,9 +248,12 @@ public:
   /// @name Driver Steps
   /// @{
 
+  /// ParseDriverMode - Look for and handle the driver mode option in Args.
+  void ParseDriverMode(ArrayRef<const char *> Args);
+
   /// ParseArgStrings - Parse the given list of strings into an
   /// ArgList.
-  InputArgList *ParseArgStrings(ArrayRef<const char *> Args);
+  llvm::opt::InputArgList *ParseArgStrings(ArrayRef<const char *> Args);
 
   /// BuildInputs - Construct the list of inputs and their types from 
   /// the given arguments.
@@ -242,7 +262,7 @@ public:
   /// \param Args - The input arguments.
   /// \param Inputs - The list to store the resulting compilation 
   /// inputs onto.
-  void BuildInputs(const ToolChain &TC, const DerivedArgList &Args,
+  void BuildInputs(const ToolChain &TC, llvm::opt::DerivedArgList &Args,
                    InputList &Inputs) const;
 
   /// BuildActions - Construct the list of actions to perform for the
@@ -251,7 +271,7 @@ public:
   /// \param TC - The default host tool chain.
   /// \param Args - The input arguments.
   /// \param Actions - The list to store the resulting actions onto.
-  void BuildActions(const ToolChain &TC, const DerivedArgList &Args,
+  void BuildActions(const ToolChain &TC, llvm::opt::DerivedArgList &Args,
                     const InputList &Inputs, ActionList &Actions) const;
 
   /// BuildUniversalActions - Construct the list of actions to perform
@@ -260,7 +280,8 @@ public:
   /// \param TC - The default host tool chain.
   /// \param Args - The input arguments.
   /// \param Actions - The list to store the resulting actions onto.
-  void BuildUniversalActions(const ToolChain &TC, const DerivedArgList &Args,
+  void BuildUniversalActions(const ToolChain &TC,
+                             llvm::opt::DerivedArgList &Args,
                              const InputList &BAInputs,
                              ActionList &Actions) const;
 
@@ -274,16 +295,16 @@ public:
   /// arguments and return an appropriate exit code.
   ///
   /// This routine handles additional processing that must be done in addition
-  /// to just running the subprocesses, for example reporting errors, removing
-  /// temporary files, etc.
-  int ExecuteCompilation(const Compilation &C,
-                         const Command *&FailingCommand) const;
+  /// to just running the subprocesses, for example reporting errors, setting
+  /// up response files, removing temporary files, etc.
+  int ExecuteCompilation(Compilation &C,
+     SmallVectorImpl< std::pair<int, const Command *> > &FailingCommands);
   
   /// generateCompilationDiagnostics - Generate diagnostics information 
   /// including preprocessed source file(s).
   /// 
   void generateCompilationDiagnostics(Compilation &C,
-                                      const Command *FailingCommand);
+                                      const Command &FailingCommand);
 
   /// @}
   /// @name Helper Methods
@@ -296,9 +317,6 @@ public:
   ///
   /// \param ShowHidden - Show hidden options.
   void PrintHelp(bool ShowHidden) const;
-
-  /// PrintOptions - Print the list of arguments.
-  void PrintOptions(const ArgList &Args) const;
 
   /// PrintVersion - Print the driver version.
   void PrintVersion(const Compilation &C, raw_ostream &OS) const;
@@ -329,9 +347,9 @@ public:
   /// ConstructAction - Construct the appropriate action to do for
   /// \p Phase on the \p Input, taking in to account arguments
   /// like -fsyntax-only or --analyze.
-  Action *ConstructPhaseAction(const ArgList &Args, phases::ID Phase,
-                               Action *Input) const;
-
+  std::unique_ptr<Action>
+  ConstructPhaseAction(const llvm::opt::ArgList &Args, phases::ID Phase,
+                       std::unique_ptr<Action> Input) const;
 
   /// BuildJobsForAction - Construct the jobs to perform for the
   /// action \p A.
@@ -340,8 +358,12 @@ public:
                           const ToolChain *TC,
                           const char *BoundArch,
                           bool AtTopLevel,
+                          bool MultipleArchs,
                           const char *LinkingOutput,
                           InputInfo &Result) const;
+
+  /// Returns the default name for linked images (e.g., "a.out").
+  const char *getDefaultImageName() const;
 
   /// GetNamedOutputPath - Return the name to use for the output of
   /// the action \p JA. The result is appended to the compilation's
@@ -351,11 +373,15 @@ public:
   /// \param JA - The action of interest.
   /// \param BaseInput - The original input file that this action was
   /// triggered by.
+  /// \param BoundArch - The bound architecture. 
   /// \param AtTopLevel - Whether this is a "top-level" action.
+  /// \param MultipleArchs - Whether multiple -arch options were supplied.
   const char *GetNamedOutputPath(Compilation &C,
                                  const JobAction &JA,
                                  const char *BaseInput,
-                                 bool AtTopLevel) const;
+                                 const char *BoundArch,
+                                 bool AtTopLevel,
+                                 bool MultipleArchs) const;
 
   /// GetTemporaryPath - Return the pathname of a temporary file to use 
   /// as part of compilation; the file will have the given prefix and suffix.
@@ -363,22 +389,25 @@ public:
   /// GCC goes to extra lengths here to be a bit more robust.
   std::string GetTemporaryPath(StringRef Prefix, const char *Suffix) const;
 
-  /// ShouldUseClangCompilar - Should the clang compiler be used to
+  /// ShouldUseClangCompiler - Should the clang compiler be used to
   /// handle this action.
-  bool ShouldUseClangCompiler(const Compilation &C, const JobAction &JA,
-                              const llvm::Triple &ArchName) const;
+  bool ShouldUseClangCompiler(const JobAction &JA) const;
 
-  bool IsUsingLTO(const ArgList &Args) const;
+  bool IsUsingLTO(const llvm::opt::ArgList &Args) const;
 
 private:
   /// \brief Retrieves a ToolChain for a particular target triple.
   ///
   /// Will cache ToolChains for the life of the driver object, and create them
   /// on-demand.
-  const ToolChain &getToolChain(const ArgList &Args,
+  const ToolChain &getToolChain(const llvm::opt::ArgList &Args,
                                 StringRef DarwinArchName = "") const;
 
   /// @}
+
+  /// \brief Get bitmasks for which option flags to include and exclude based on
+  /// the driver mode.
+  std::pair<unsigned, unsigned> getIncludeExcludeOptionFlagMasks() const;
 
 public:
   /// GetReleaseVersion - Parse (([0-9]+)(.([0-9]+)(.([0-9]+)?))?)? and
@@ -392,6 +421,10 @@ public:
                                 unsigned &Minor, unsigned &Micro,
                                 bool &HadExtra);
 };
+
+/// \return True if the last defined optimization level is -Ofast.
+/// And False otherwise.
+bool isOptimizationLevelFast(const llvm::opt::ArgList &Args);
 
 } // end namespace driver
 } // end namespace clang

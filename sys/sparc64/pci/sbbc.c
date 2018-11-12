@@ -835,13 +835,6 @@ sbbc_uart_bus_attach(struct uart_softc *sc)
 	bst = bas->bst;
 	bsh = bas->bsh;
 
-	sc->sc_rxfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_in_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_in_begin)) - 1;
-	sc->sc_txfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_out_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
-	    SBBC_CONS_OFF(cons_out_begin)) - 1;
-
 	uart_lock(sc->sc_hwmtx);
 
 	/*
@@ -995,11 +988,24 @@ sbbc_uart_bus_param(struct uart_softc *sc __unused, int baudrate __unused,
 }
 
 static int
-sbbc_uart_bus_probe(struct uart_softc *sc __unused)
+sbbc_uart_bus_probe(struct uart_softc *sc)
 {
+	struct uart_bas *bas;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
 
-	if (sbbc_console != 0)
+	if (sbbc_console != 0) {
+		bas = &sc->sc_bas;
+		bst = bas->bst;
+		bsh = bas->bsh;
+		sc->sc_rxfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_in_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_in_begin)) - 1;
+		sc->sc_txfifosz = SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_out_end)) - SBBC_SRAM_READ_4(sbbc_solcons +
+		    SBBC_CONS_OFF(cons_out_begin)) - 1;
 		return (0);
+	}
 	return (ENXIO);
 }
 

@@ -18,10 +18,6 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/bpf_dump.c,v 1.15 2008-01-02 04:16:46 guy Exp $ (LBL)";
-#endif
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -31,7 +27,7 @@ static const char rcsid[] _U_ =
 #include <stdio.h>
 
 void
-bpf_dump(struct bpf_program *p, int option)
+bpf_dump(const struct bpf_program *p, int option)
 {
 	const struct bpf_insn *insn;
 	int i;

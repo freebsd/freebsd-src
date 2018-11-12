@@ -75,7 +75,7 @@ struct padlock_sha_ctx {
 CTASSERT(sizeof(struct padlock_sha_ctx) <= sizeof(union authctx));
 
 static void padlock_sha_init(struct padlock_sha_ctx *ctx);
-static int padlock_sha_update(struct padlock_sha_ctx *ctx, uint8_t *buf,
+static int padlock_sha_update(struct padlock_sha_ctx *ctx, const uint8_t *buf,
     uint16_t bufsize);
 static void padlock_sha1_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
 static void padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
@@ -83,16 +83,16 @@ static void padlock_sha256_final(uint8_t *hash, struct padlock_sha_ctx *ctx);
 static struct auth_hash padlock_hmac_sha1 = {
 	CRYPTO_SHA1_HMAC, "HMAC-SHA1",
 	20, SHA1_HASH_LEN, SHA1_HMAC_BLOCK_LEN, sizeof(struct padlock_sha_ctx),
-        (void (*)(void *))padlock_sha_init,
-	(int (*)(void *, uint8_t *, uint16_t))padlock_sha_update,
+        (void (*)(void *))padlock_sha_init, NULL, NULL,
+	(int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
 	(void (*)(uint8_t *, void *))padlock_sha1_final
 };
 
 static struct auth_hash padlock_hmac_sha256 = {
 	CRYPTO_SHA2_256_HMAC, "HMAC-SHA2-256",
 	32, SHA2_256_HASH_LEN, SHA2_256_HMAC_BLOCK_LEN, sizeof(struct padlock_sha_ctx),
-        (void (*)(void *))padlock_sha_init,
-	(int (*)(void *, uint8_t *, uint16_t))padlock_sha_update,
+        (void (*)(void *))padlock_sha_init, NULL, NULL,
+	(int (*)(void *, const uint8_t *, uint16_t))padlock_sha_update,
 	(void (*)(uint8_t *, void *))padlock_sha256_final
 };
 
@@ -167,7 +167,7 @@ padlock_sha_init(struct padlock_sha_ctx *ctx)
 }
 
 static int
-padlock_sha_update(struct padlock_sha_ctx *ctx, uint8_t *buf, uint16_t bufsize)
+padlock_sha_update(struct padlock_sha_ctx *ctx, const uint8_t *buf, uint16_t bufsize)
 {
 
 	if (ctx->psc_size - ctx->psc_offset < bufsize) {
@@ -366,24 +366,18 @@ padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
     struct cryptop *crp)
 {
 	struct thread *td;
-	int error, saved_ctx;
+	int error;
 
 	td = curthread;
-	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL);
-		saved_ctx = 1;
-	} else {
-		error = 0;
-		saved_ctx = 0;
-	}
+	error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL |
+	    FPU_KERN_KTHR);
 	if (error != 0)
 		return (error);
 	if ((maccrd->crd_flags & CRD_F_KEY_EXPLICIT) != 0)
 		padlock_hash_key_setup(ses, maccrd->crd_key, maccrd->crd_klen);
 
 	error = padlock_authcompute(ses, maccrd, crp->crp_buf, crp->crp_flags);
-	if (saved_ctx)
-		fpu_kern_leave(td, ses->ses_fpu_ctx);
+	fpu_kern_leave(td, ses->ses_fpu_ctx);
 	return (error);
 }
 

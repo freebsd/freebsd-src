@@ -29,19 +29,27 @@ __FBSDID("$FreeBSD$");
 
 /*
  * U-Boot-specific module functionality.
- *
- * XXX not much for now...
- *
  */
 
 #include <stand.h>
 #include <string.h>
 
+#if defined(LOADER_FDT_SUPPORT)
+#include <fdt_platform.h>
+#endif
+
 #include "bootstrap.h"
+#include "libuboot.h"
 
 int
 uboot_autoload(void)
 {
+#if defined(LOADER_FDT_SUPPORT)
+	int err;
+
+	if ((err = fdt_setup_fdtp()) != 0)
+		return (err);
+#endif
 
 	return(0);
 }

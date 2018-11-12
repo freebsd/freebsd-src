@@ -9,13 +9,14 @@ SRCS=	APValue.cpp \
 	ASTConsumer.cpp \
 	ASTContext.cpp \
 	ASTDiagnostic.cpp \
+	ASTDumper.cpp \
 	ASTImporter.cpp \
+	ASTTypeTraits.cpp \
 	AttrImpl.cpp \
 	CXXInheritance.cpp \
 	Comment.cpp \
 	CommentBriefParser.cpp \
 	CommentCommandTraits.cpp \
-	CommentDumper.cpp \
 	CommentLexer.cpp \
 	CommentParser.cpp \
 	CommentSema.cpp \
@@ -25,10 +26,10 @@ SRCS=	APValue.cpp \
 	DeclFriend.cpp \
 	DeclGroup.cpp \
 	DeclObjC.cpp \
+	DeclOpenMP.cpp \
 	DeclPrinter.cpp \
 	DeclTemplate.cpp \
 	DeclarationName.cpp \
-	DumpXML.cpp \
 	Expr.cpp \
 	ExprCXX.cpp \
 	ExprClassification.cpp \
@@ -37,19 +38,17 @@ SRCS=	APValue.cpp \
 	InheritViz.cpp \
 	ItaniumCXXABI.cpp \
 	ItaniumMangle.cpp \
-	LambdaMangleContext.cpp \
 	Mangle.cpp \
 	MicrosoftCXXABI.cpp \
 	MicrosoftMangle.cpp \
-	NestedNameSpecifier.cpp \
 	NSAPI.cpp \
+	NestedNameSpecifier.cpp \
 	ParentMap.cpp \
 	RawCommentList.cpp \
 	RecordLayout.cpp \
 	RecordLayoutBuilder.cpp \
 	SelectorLocationsKind.cpp \
 	Stmt.cpp \
-	StmtDumper.cpp \
 	StmtIterator.cpp \
 	StmtPrinter.cpp \
 	StmtProfile.cpp \
@@ -62,10 +61,14 @@ SRCS=	APValue.cpp \
 	VTTBuilder.cpp \
 	VTableBuilder.cpp
 
-TGHDRS=	AttrImpl \
+TGHDRS=	AttrDump \
+	AttrImpl \
 	AttrList \
+	AttrVisitor \
 	Attrs \
 	CommentCommandInfo \
+	CommentCommandList \
+	CommentHTMLNamedCharacterReferences \
 	CommentHTMLTags \
 	CommentHTMLTagsProperties \
 	CommentNodes \
@@ -73,6 +76,7 @@ TGHDRS=	AttrImpl \
 	DiagnosticASTKinds \
 	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \
+	DiagnosticFrontendKinds \
 	DiagnosticSemaKinds \
 	StmtNodes
 

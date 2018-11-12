@@ -15,11 +15,12 @@
 #include "Hexagon.h"
 #include "HexagonAsmPrinter.h"
 #include "HexagonMachineFunctionInfo.h"
-#include "llvm/Constants.h"
+#include "MCTargetDesc/HexagonMCInst.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/Mangler.h"
 
 using namespace llvm;
 
@@ -38,7 +39,7 @@ static MCOperand GetSymbolRef(const MachineOperand& MO, const MCSymbol* Symbol,
 }
 
 // Create an MCInst from a MachineInstr
-void llvm::HexagonLowerToMC(const MachineInstr* MI, MCInst& MCI,
+void llvm::HexagonLowerToMC(const MachineInstr* MI, HexagonMCInst& MCI,
                             HexagonAsmPrinter& AP) {
   MCI.setOpcode(MI->getOpcode());
 
@@ -71,7 +72,7 @@ void llvm::HexagonLowerToMC(const MachineInstr* MI, MCInst& MCI,
                AP.OutContext));
       break;
     case MachineOperand::MO_GlobalAddress:
-      MCO = GetSymbolRef(MO, AP.Mang->getSymbol(MO.getGlobal()), AP);
+      MCO = GetSymbolRef(MO, AP.getSymbol(MO.getGlobal()), AP);
       break;
     case MachineOperand::MO_ExternalSymbol:
       MCO = GetSymbolRef(MO, AP.GetExternalSymbolSymbol(MO.getSymbolName()),

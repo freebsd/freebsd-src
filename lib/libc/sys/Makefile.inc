@@ -2,35 +2,89 @@
 # $FreeBSD$
 
 # sys sources
-.PATH: ${.CURDIR}/${LIBC_ARCH}/sys ${.CURDIR}/sys
+.PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/sys ${LIBC_SRCTOP}/sys
 
 # Include the generated makefile containing the *complete* list
 # of syscall names in MIASM.
-.include "${.CURDIR}/../../sys/sys/syscall.mk"
+.include "${LIBC_SRCTOP}/../../sys/sys/syscall.mk"
 
 # Include machine dependent definitions.
 #
 # MDASM names override the default syscall names in MIASM.
 # NOASM will prevent the default syscall code from being generated.
 #
-.sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
+.sinclude "${LIBC_SRCTOP}/${LIBC_ARCH}/sys/Makefile.inc"
 
 SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
 NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c stack_protector_compat.c __error.c
-.if !defined(WITHOUT_SYSCALL_COMPAT)
-SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
-	pwrite.c truncate.c
+SRCS+=	\
+	stack_protector.c \
+	stack_protector_compat.c \
+	__error.c \
+	interposing_table.c
+
+.if ${MK_SYSCALL_COMPAT} != "no"
+SYSCALL_COMPAT_SRCS= \
+	ftruncate.c \
+	lseek.c \
+	mmap.c \
+	pread.c \
+	pwrite.c \
+	truncate.c
 SRCS+=	${SYSCALL_COMPAT_SRCS}
 NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
-PSEUDO+= _fcntl.o
 .endif
-SRCS+= sigwait.c
-NOASM+= sigwait.o
-PSEUDO+= _sigwait.o
+
+SRCS+= futimens.c utimensat.c
+NOASM+= futimens.o utimensat.o
+PSEUDO+= _futimens.o _utimensat.o
+
+INTERPOSED = \
+	accept \
+	accept4 \
+	aio_suspend \
+	close \
+	connect \
+	fcntl \
+	fsync \
+	fork \
+	msync \
+	nanosleep \
+	open \
+	openat \
+	poll \
+	pselect \
+	read \
+	readv \
+	recvfrom \
+	recvmsg \
+	select \
+	sendmsg \
+	sendto \
+	setcontext \
+	sigprocmask \
+	sigsuspend \
+	sigtimedwait \
+	sigwait \
+	sigwaitinfo \
+	swapcontext \
+	wait4 \
+	write \
+	writev
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+SRCS+=	sigaction.c
+NOASM+=	sigaction.o
+.else
+INTERPOSED+= sigaction
+.endif
+
+SRCS+=	${INTERPOSED:S/$/.c/}
+NOASM+=	${INTERPOSED:S/$/.o/}
+PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}
@@ -55,7 +109,7 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 
 SRCS+=	${SASM} ${SPSEUDO}
 
-SYM_MAPS+=	${.CURDIR}/sys/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/sys/Symbol.map
 
 # Generated files
 CLEANFILES+=	${SASM} ${SPSEUDO}
@@ -85,6 +139,8 @@ MAN+=	abort2.2 \
 	adjtime.2 \
 	aio_cancel.2 \
 	aio_error.2 \
+	aio_fsync.2 \
+	aio_mlock.2 \
 	aio_read.2 \
 	aio_return.2 \
 	aio_suspend.2 \
@@ -196,6 +252,7 @@ MAN+=	abort2.2 \
 	posix_fadvise.2 \
 	posix_fallocate.2 \
 	posix_openpt.2 \
+	procctl.2 \
 	profil.2 \
 	pselect.2 \
 	ptrace.2 \
@@ -263,6 +320,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	umask.2 \
 	undelete.2 \
 	unlink.2 \
+	utimensat.2 \
 	utimes.2 \
 	utrace.2 \
 	uuidgen.2 \
@@ -270,6 +328,7 @@ MAN+=	sctp_generic_recvmsg.2 \
 	wait.2 \
 	write.2
 
+MLINKS+=accept.2 accept4.2
 MLINKS+=access.2 eaccess.2 \
 	access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
@@ -278,7 +337,8 @@ MLINKS+=cap_fcntls_limit.2 cap_fcntls_get.2
 MLINKS+=cap_ioctls_limit.2 cap_ioctls_get.2
 MLINKS+=cap_rights_limit.2 cap_rights_get.2
 MLINKS+=chdir.2 fchdir.2
-MLINKS+=chflags.2 fchflags.2 \
+MLINKS+=chflags.2 chflagsat.2 \
+	chflags.2 fchflags.2 \
 	chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 \
 	chmod.2 fchmodat.2 \
@@ -296,9 +356,9 @@ MLINKS+=execve.2 fexecve.2
 MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_delete_fd.2 \
 	extattr_get_file.2 extattr_delete_file.2 \
-	extattr_get_file.2 extattr_delete_list.2 \
+	extattr_get_file.2 extattr_delete_link.2 \
 	extattr_get_file.2 extattr_get_fd.2 \
-	extattr_get_file.2 extattr_get_list.2 \
+	extattr_get_file.2 extattr_get_link.2 \
 	extattr_get_file.2 extattr_list_fd.2 \
 	extattr_get_file.2 extattr_list_file.2 \
 	extattr_get_file.2 extattr_list_link.2 \
@@ -350,6 +410,8 @@ MLINKS+=pathconf.2 lpathconf.2
 MLINKS+=pdfork.2 pdgetpid.2\
 	pdfork.2 pdkill.2 \
 	pdfork.2 pdwait4.2
+MLINKS+=pipe.2 pipe2.2
+MLINKS+=poll.2 ppoll.2
 MLINKS+=read.2 pread.2 \
 	read.2 preadv.2 \
 	read.2 readv.2
@@ -391,6 +453,7 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 \
 	timer_settime.2 timer_gettime.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
+MLINKS+=utimensat.2 futimens.2
 MLINKS+=utimes.2 futimes.2 \
 	utimes.2 futimesat.2 \
 	utimes.2 lutimes.2

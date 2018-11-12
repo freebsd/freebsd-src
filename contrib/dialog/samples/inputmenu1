@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: inputmenu1,v 1.8 2010/01/13 10:31:02 tom Exp $
+# $Id: inputmenu1,v 1.9 2012/07/01 00:59:54 tom Exp $
 #
 # "inputmenu" rewritten into Bourne shell.
 
@@ -58,7 +58,7 @@ exec 3>&-
 		;;
 	$DIALOG_EXTRA)
 		tag=`echo "$value" |sed -e 's/^RENAMED //' -e 's/:.*//'`
-		item=`echo "$value" |sed -e 's/^.*:[ ]*//' -e 's/[ ]*$//'`
+		item=`echo "$value" |sed -e 's/^[^:]*:[ ]*//' -e 's/[ ]*$//'`
 
 		case "$tag" in
 		Username)

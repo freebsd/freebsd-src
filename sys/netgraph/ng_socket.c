@@ -301,7 +301,7 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 
-	item = ng_package_msg(msg, M_WAITOK);
+	item = ng_package_msg(msg, NG_WAITOK);
 	if ((error = ng_address_path((pcbp->sockdata->node), item, path, 0))
 	    != 0) {
 #ifdef TRACE_MESSAGES
@@ -1199,9 +1199,9 @@ ngs_mod_event(module_t mod, int event, void *data)
 
 VNET_DOMAIN_SET(ng);
 
-SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
+SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, AF_NETGRAPH, "");
 static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
-SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, 0, NG_DATA, "");
+SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_DATA, "");
 static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
-SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, 0, NG_CONTROL, "");
+SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_CONTROL, "");
 

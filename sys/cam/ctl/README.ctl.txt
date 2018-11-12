@@ -227,9 +227,6 @@ Revision 1.2 Changes
 To Do List:
 ==========
 
- - Make CTL buildable as a module.  Work needs to be done on initialization,
-   and on freeing resources and LUNs when it is built as a module.
-
  - Use devstat(9) for CTL's statistics collection.  CTL uses a home-grown
    statistics collection system that is similar to devstat(9).  ctlstat
    should be retired in favor of iostat, etc., once aggregation modes are
@@ -396,14 +393,6 @@ ctl_ioctl.h:
 
 This defines all ioctls available through the CTL character device, and
 the data structures needed for those ioctls.
-
-ctl_mem_pool.c
-ctl_mem_pool.h:
---------------
-
-Generic memory pool implementation.  This is currently only used by the
-internal frontend.  The internal frontend can probably be rewritten to use
-UMA zones and this can be removed.
 
 ctl_private.h:
 -------------

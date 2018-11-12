@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/uma.h>
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 #include <vm/uma_int.h>
 #include <vm/memguard.h>
@@ -65,9 +67,9 @@ static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
  * reserved for MemGuard.
  */
 static u_int vm_memguard_divisor;
-SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN,
+SYSCTL_UINT(_vm_memguard, OID_AUTO, divisor, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &vm_memguard_divisor,
-    0, "(kmem_size/memguard_divisor) == memguard submap size");     
+    0, "(kmem_size/memguard_divisor) == memguard submap size");
 
 /*
  * Short description (ks_shortdesc) of memory type to monitor.
@@ -87,9 +89,7 @@ memguard_sysctl_desc(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	mtx_lock(&malloc_mtx);
-	/*
-	 * If mtp is NULL, it will be initialized in memguard_cmp().
-	 */
+	/* If mtp is NULL, it will be initialized in memguard_cmp() */
 	vm_memguard_mtype = malloc_desc2type(desc);
 	strlcpy(vm_memguard_desc, desc, sizeof(vm_memguard_desc));
 	mtx_unlock(&malloc_mtx);
@@ -99,8 +99,8 @@ SYSCTL_PROC(_vm_memguard, OID_AUTO, desc,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
     memguard_sysctl_desc, "A", "Short description of memory type to monitor");
 
-static vm_map_t memguard_map = NULL;
 static vm_offset_t memguard_cursor;
+static vm_offset_t memguard_base;
 static vm_size_t memguard_mapsize;
 static vm_size_t memguard_physlimit;
 static u_long memguard_wasted;
@@ -112,7 +112,7 @@ static u_long memguard_fail_pgs;
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, cursor, CTLFLAG_RD,
     &memguard_cursor, 0, "MemGuard cursor");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, mapsize, CTLFLAG_RD,
-    &memguard_mapsize, 0, "MemGuard private vm_map size");
+    &memguard_mapsize, 0, "MemGuard private arena size");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, phys_limit, CTLFLAG_RD,
     &memguard_physlimit, 0, "Limit on MemGuard memory consumption");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, wasted, CTLFLAG_RD,
@@ -130,8 +130,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, fail_pgs, CTLFLAG_RD,
 #define MG_GUARD_ALLLARGE	0x002
 #define MG_GUARD_NOFREE		0x004
 static int memguard_options = MG_GUARD_AROUND;
-TUNABLE_INT("vm.memguard.options", &memguard_options);
-SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RW,
+SYSCTL_INT(_vm_memguard, OID_AUTO, options, CTLFLAG_RWTUN,
     &memguard_options, 0,
     "MemGuard options:\n"
     "\t0x001 - add guard pages around each allocation\n"
@@ -147,8 +146,7 @@ SYSCTL_ULONG(_vm_memguard, OID_AUTO, minsize_reject, CTLFLAG_RD,
 
 static u_int memguard_frequency;
 static u_long memguard_frequency_hits;
-TUNABLE_INT("vm.memguard.frequency", &memguard_frequency);
-SYSCTL_UINT(_vm_memguard, OID_AUTO, frequency, CTLFLAG_RW,
+SYSCTL_UINT(_vm_memguard, OID_AUTO, frequency, CTLFLAG_RWTUN,
     &memguard_frequency, 0, "Times in 100000 that MemGuard will randomly run");
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
     &memguard_frequency_hits, 0, "# times MemGuard randomly chose");
@@ -164,6 +162,7 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 	u_long mem_pgs, parent_size;
 
 	vm_memguard_divisor = 10;
+	/* CTFLAG_RDTUN doesn't work during the early boot process. */
 	TUNABLE_INT_FETCH("vm.memguard.divisor", &vm_memguard_divisor);
 
 	parent_size = vm_map_max(parent_map) - vm_map_min(parent_map) +
@@ -179,7 +178,7 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
 	 * This prevents memguard's page promotions from completely
 	 * using up memory, since most malloc(9) calls are sub-page.
 	 */
-	mem_pgs = cnt.v_page_count;
+	mem_pgs = vm_cnt.v_page_count;
 	memguard_physlimit = (mem_pgs / vm_memguard_divisor) * PAGE_SIZE;
 	/*
 	 * We want as much KVA as we can take safely.  Use at most our
@@ -200,21 +199,18 @@ memguard_fudge(unsigned long km_size, const struct vm_map *parent_map)
  * out of a single VM map (contiguous chunk of address space).
  */
 void
-memguard_init(vm_map_t parent_map)
+memguard_init(vmem_t *parent)
 {
-	vm_offset_t base, limit;
+	vm_offset_t base;
 
-	memguard_map = kmem_suballoc(parent_map, &base, &limit,
-	    memguard_mapsize, FALSE);
-	memguard_map->system_map = 1;
-	KASSERT(memguard_mapsize == limit - base,
-	    ("Expected %lu, got %lu", (u_long)memguard_mapsize,
-	     (u_long)(limit - base)));
+	vmem_alloc(parent, memguard_mapsize, M_BESTFIT | M_WAITOK, &base);
+	vmem_init(memguard_arena, "memguard arena", base, memguard_mapsize,
+	    PAGE_SIZE, 0, M_WAITOK);
 	memguard_cursor = base;
+	memguard_base = base;
 
 	printf("MEMGUARD DEBUGGING ALLOCATOR INITIALIZED:\n");
 	printf("\tMEMGUARD map base: 0x%lx\n", (u_long)base);
-	printf("\tMEMGUARD map limit: 0x%lx\n", (u_long)limit);
 	printf("\tMEMGUARD map size: %jd KBytes\n",
 	    (uintmax_t)memguard_mapsize >> 10);
 }
@@ -229,12 +225,14 @@ memguard_sysinit(void)
 
 	parent = SYSCTL_STATIC_CHILDREN(_vm_memguard);
 
-	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
-	    &memguard_map->min_offset, "MemGuard KVA base");
-	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
-	    &memguard_map->max_offset, "MemGuard KVA end");
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "mapstart", CTLFLAG_RD,
+	    &memguard_base, "MemGuard KVA base");
+	SYSCTL_ADD_UAUTO(NULL, parent, OID_AUTO, "maplimit", CTLFLAG_RD,
+	    &memguard_mapsize, "MemGuard KVA size");
+#if 0
 	SYSCTL_ADD_ULONG(NULL, parent, OID_AUTO, "mapused", CTLFLAG_RD,
 	    &memguard_map->size, "MemGuard KVA used");
+#endif
 }
 SYSINIT(memguard, SI_SUB_KLD, SI_ORDER_ANY, memguard_sysinit, NULL);
 
@@ -260,7 +258,22 @@ v2sizep(vm_offset_t va)
 	p = PHYS_TO_VM_PAGE(pa);
 	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
 	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
-	return ((u_long *)&p->pageq.tqe_next);
+	return (&p->plinks.memguard.p);
+}
+
+static u_long *
+v2sizev(vm_offset_t va)
+{
+	vm_paddr_t pa;
+	struct vm_page *p;
+
+	pa = pmap_kextract(va);
+	if (pa == 0)
+		panic("MemGuard detected double-free of %p", (void *)va);
+	p = PHYS_TO_VM_PAGE(pa);
+	KASSERT(p->wire_count != 0 && p->queue == PQ_NONE,
+	    ("MEMGUARD: Expected wired page %p in vtomgfifo!", p));
+	return (&p->plinks.memguard.v);
 }
 
 /*
@@ -289,14 +302,13 @@ memguard_alloc(unsigned long req_size, int flags)
 	if (do_guard)
 		size_v += 2 * PAGE_SIZE;
 
-	vm_map_lock(memguard_map);
 	/*
 	 * When we pass our memory limit, reject sub-page allocations.
 	 * Page-size and larger allocations will use the same amount
 	 * of physical memory whether we allocate or hand off to
 	 * uma_large_alloc(), so keep those.
 	 */
-	if (memguard_map->size >= memguard_physlimit &&
+	if (vmem_size(memguard_arena, VMEM_ALLOC) >= memguard_physlimit &&
 	    req_size < PAGE_SIZE) {
 		addr = (vm_offset_t)NULL;
 		memguard_fail_pgs++;
@@ -313,33 +325,35 @@ memguard_alloc(unsigned long req_size, int flags)
 	 * map, unless vm_map_findspace() is tweaked.
 	 */
 	for (;;) {
-		rv = vm_map_findspace(memguard_map, memguard_cursor,
-		    size_v, &addr);
-		if (rv == KERN_SUCCESS)
+		if (vmem_xalloc(memguard_arena, size_v, 0, 0, 0,
+		    memguard_cursor, VMEM_ADDR_MAX,
+		    M_BESTFIT | M_NOWAIT, &addr) == 0)
 			break;
 		/*
 		 * The map has no space.  This may be due to
 		 * fragmentation, or because the cursor is near the
 		 * end of the map.
 		 */
-		if (memguard_cursor == vm_map_min(memguard_map)) {
+		if (memguard_cursor == memguard_base) {
 			memguard_fail_kva++;
 			addr = (vm_offset_t)NULL;
 			goto out;
 		}
 		memguard_wrap++;
-		memguard_cursor = vm_map_min(memguard_map);
+		memguard_cursor = memguard_base;
 	}
 	if (do_guard)
 		addr += PAGE_SIZE;
-	rv = kmem_back(memguard_map, addr, size_p, flags);
+	rv = kmem_back(kmem_object, addr, size_p, flags);
 	if (rv != KERN_SUCCESS) {
+		vmem_xfree(memguard_arena, addr, size_v);
 		memguard_fail_pgs++;
 		addr = (vm_offset_t)NULL;
 		goto out;
 	}
-	memguard_cursor = addr + size_p;
+	memguard_cursor = addr + size_v;
 	*v2sizep(trunc_page(addr)) = req_size;
+	*v2sizev(trunc_page(addr)) = size_v;
 	memguard_succ++;
 	if (req_size < PAGE_SIZE) {
 		memguard_wasted += (PAGE_SIZE - req_size);
@@ -354,7 +368,6 @@ memguard_alloc(unsigned long req_size, int flags)
 		}
 	}
 out:
-	vm_map_unlock(memguard_map);
 	return ((void *)addr);
 }
 
@@ -363,7 +376,7 @@ is_memguard_addr(void *addr)
 {
 	vm_offset_t a = (vm_offset_t)(uintptr_t)addr;
 
-	return (a >= memguard_map->min_offset && a < memguard_map->max_offset);
+	return (a >= memguard_base && a < memguard_base + memguard_mapsize);
 }
 
 /*
@@ -373,12 +386,13 @@ void
 memguard_free(void *ptr)
 {
 	vm_offset_t addr;
-	u_long req_size, size;
+	u_long req_size, size, sizev;
 	char *temp;
 	int i;
 
 	addr = trunc_page((uintptr_t)ptr);
 	req_size = *v2sizep(addr);
+	sizev = *v2sizev(addr);
 	size = round_page(req_size);
 
 	/*
@@ -400,11 +414,12 @@ memguard_free(void *ptr)
 	 * vm_map lock to serialize updates to memguard_wasted, since
 	 * we had the lock at increment.
 	 */
-	vm_map_lock(memguard_map);
+	kmem_unback(kmem_object, addr, size);
+	if (sizev > size)
+		addr -= PAGE_SIZE;
+	vmem_xfree(memguard_arena, addr, sizev);
 	if (req_size < PAGE_SIZE)
 		memguard_wasted -= (PAGE_SIZE - req_size);
-	(void)vm_map_delete(memguard_map, addr, addr + size);
-	vm_map_unlock(memguard_map);
 }
 
 /*
@@ -486,7 +501,7 @@ int
 memguard_cmp_zone(uma_zone_t zone)
 {
 
-	 if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
+	if ((memguard_options & MG_GUARD_NOFREE) == 0 &&
 	    zone->uz_flags & UMA_ZONE_NOFREE)
 		return (0);
 

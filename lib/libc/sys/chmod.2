@@ -28,7 +28,7 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2008
+.Dd December 1, 2013
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -139,21 +139,24 @@ defined in
 
 #define S_ISUID 0004000    /* set user id on execution */
 #define S_ISGID 0002000    /* set group id on execution */
-#ifndef __BSD_VISIBLE
-#define S_ISTXT 0001000    /* sticky bit */
-#endif
+#define S_ISVTX 0001000    /* sticky bit */
 .Ed
+.Pp
+The non-standard
+.Dv S_ISTXT
+is a synonym for
+.Dv S_ISVTX .
 .Pp
 The
 .Fx
 VM system totally ignores the sticky bit
-.Pq Dv ISTXT
+.Pq Dv S_ISVTX
 for executables.
 On UFS-based file systems (FFS, LFS) the sticky
 bit may only be set upon directories.
 .Pp
 If mode
-.Dv ISTXT
+.Dv S_ISVTX
 (the `sticky bit') is set on a directory,
 an unprivileged user may not delete or rename
 files of other users in that directory.
@@ -296,12 +299,15 @@ The
 system call is expected to conform to
 .St -p1003.1-90 ,
 except for the return of
-.Er EFTYPE
-and the use of
-.Dv S_ISTXT .
+.Er EFTYPE .
+The
+.Dv S_ISVTX
+bit on directories is expected to conform to
+.St -susv3 .
 The
 .Fn fchmodat
-system call follows The Open Group Extended API Set 2 specification.
+system call is expected to conform to
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn chmod

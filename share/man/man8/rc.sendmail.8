@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2002
+.Dd October 19, 2013
 .Dt RC.SENDMAIL 8
 .Os
 .Sh NAME
@@ -119,6 +119,42 @@ The
 .Dq Li NONE
 option is deprecated and should not be used.
 It will be removed in a future release.
+.It Va sendmail_cert_create
+.Pq Vt str
+If
+.Va sendmail_enable
+is set to
+.Dq Li YES ,
+create a signed certificate
+.Pa /etc/mail/certs/host.cert
+representing
+.Pa /etc/mail/certs/host.key
+by the CA certificate in
+.Pa /etc/mail/certs/cacert.pem .
+This will enable connecting hosts to negotiate STARTTLS allowing incoming
+email to be encrypted in transit.
+.Xr sendmail 8
+needs to be configured to use these generated files.
+The default configuration in
+.Pa /etc/mail/freebsd.mc
+has the required options in it.
+.It Va sendmail_cert_cn
+.Pq Vt str
+If
+.Va sendmail_enable
+is set to
+.Dq Li YES
+and
+.Va sendmail_cert_create
+is set to
+.Dq Li YES ,
+this is the Common Name (CN) of the certificate that will be created.
+If
+.Va sendmail_cert_cn
+is not set, the system's hostname will be used.
+If there is no hostname set,
+.Dq Li amnesiac
+will be used.
 .It Va sendmail_flags
 .Pq Vt str
 If

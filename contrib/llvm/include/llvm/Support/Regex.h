@@ -7,13 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements a POSIX regular expression matcher.
+// This file implements a POSIX regular expression matcher.  Both Basic and
+// Extended POSIX regular expressions (ERE) are supported.  EREs were extended
+// to support backreferences in matches.
+// This implementation also supports matching strings with embedded NUL chars.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_SUPPORT_REGEX_H
 #define LLVM_SUPPORT_REGEX_H
 
+#include "llvm/Support/Compiler.h"
 #include <string>
 
 struct llvm_regex;
@@ -33,13 +37,26 @@ namespace llvm {
       /// null string after any newline in the string in addition to its normal
       /// function, and the $ anchor matches the null string before any
       /// newline in the string in addition to its normal function.
-      Newline=2
+      Newline=2,
+      /// By default, the POSIX extended regular expression (ERE) syntax is
+      /// assumed. Pass this flag to turn on basic regular expressions (BRE)
+      /// instead.
+      BasicRegex=4
     };
 
-    /// Compiles the given POSIX Extended Regular Expression \p Regex.
-    /// This implementation supports regexes and matching strings with embedded
-    /// NUL characters.
+    /// Compiles the given regular expression \p Regex.
     Regex(StringRef Regex, unsigned Flags = NoFlags);
+    Regex(const Regex &) LLVM_DELETED_FUNCTION;
+    Regex &operator=(Regex regex) {
+      std::swap(preg, regex.preg);
+      std::swap(error, regex.error);
+      return *this;
+    }
+    Regex(Regex &&regex) {
+      preg = regex.preg;
+      error = regex.error;
+      regex.preg = nullptr;
+    }
     ~Regex();
 
     /// isValid - returns the error encountered during regex compilation, or
@@ -58,7 +75,7 @@ namespace llvm {
     /// the first group is always the entire pattern.
     ///
     /// This returns true on a successful match.
-    bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = 0);
+    bool match(StringRef String, SmallVectorImpl<StringRef> *Matches = nullptr);
 
     /// sub - Return the result of replacing the first match of the regex in
     /// \p String with the \p Repl string. Backreferences like "\0" in the
@@ -70,7 +87,15 @@ namespace llvm {
     /// \param Error If non-null, any errors in the substitution (invalid
     /// backreferences, trailing backslashes) will be recorded as a non-empty
     /// string.
-    std::string sub(StringRef Repl, StringRef String, std::string *Error = 0);
+    std::string sub(StringRef Repl, StringRef String,
+                    std::string *Error = nullptr);
+
+    /// \brief If this function returns true, ^Str$ is an extended regular
+    /// expression that matches Str and only Str.
+    static bool isLiteralERE(StringRef Str);
+
+    /// \brief Turn String into a regex by escaping its special characters.
+    static std::string escape(StringRef String);
 
   private:
     struct llvm_regex *preg;

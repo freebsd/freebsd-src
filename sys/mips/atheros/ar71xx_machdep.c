@@ -92,9 +92,9 @@ parse_argv(char *str)
 		} else {
 			n = strsep(&v, "=");
 			if (v == NULL)
-				setenv(n, "1");
+				kern_setenv(n, "1");
 			else
-				setenv(n, v);
+				kern_setenv(n, v);
 		}
 	}
 }
@@ -127,8 +127,8 @@ ar71xx_redboot_get_macaddr(void)
 	 * "ethaddr" is passed via envp on RedBoot platforms
 	 * "kmac" is passed via argv on RouterBOOT platforms
 	 */
-	if ((var = getenv("ethaddr")) != NULL ||
-	    (var = getenv("kmac")) != NULL) {
+	if ((var = kern_getenv("ethaddr")) != NULL ||
+	    (var = kern_getenv("kmac")) != NULL) {
 		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
 		    &ar711_base_mac[0], &ar711_base_mac[1],
 		    &ar711_base_mac[2], &ar711_base_mac[3],
@@ -139,6 +139,34 @@ ar71xx_redboot_get_macaddr(void)
 		freeenv(var);
 	}
 }
+
+#ifdef	AR71XX_ENV_ROUTERBOOT
+/*
+ * RouterBoot gives us the board memory in a command line argument.
+ */
+static int
+ar71xx_routerboot_get_mem(int argc, char **argv)
+{
+	int i, board_mem;
+
+	/*
+	 * Protect ourselves from garbage in registers.
+	 */
+	if (!MIPS_IS_VALID_PTR(argv))
+		return (0);
+
+	for (i = 0; i < argc; i++) {
+		if (argv[i] == NULL)
+			continue;
+		if (strncmp(argv[i], "mem=", 4) == 0) {
+			if (sscanf(argv[i] + 4, "%dM", &board_mem) == 1)
+				return (btoc(board_mem * 1024 * 1024));
+		}
+	}
+
+	return (0);
+}
+#endif
 
 void
 platform_start(__register_t a0 __unused, __register_t a1 __unused, 
@@ -182,6 +210,14 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 				realmem = btoc(strtoul(envp[i+1], NULL, 16));
 		}
 	}
+
+#ifdef	AR71XX_ENV_ROUTERBOOT
+	/*
+	 * RouterBoot informs the board memory as a command line argument.
+	 */
+	if (realmem == 0)
+		realmem = ar71xx_routerboot_get_mem(argc, argv);
+#endif
 
 	/*
 	 * Just wild guess. RedBoot let us down and didn't reported 
@@ -232,9 +268,10 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("CPU platform: %s\n", ar71xx_get_system_type());
 	printf("CPU Frequency=%d MHz\n", u_ar71xx_cpu_freq / 1000000);
 	printf("CPU DDR Frequency=%d MHz\n", u_ar71xx_ddr_freq / 1000000);
-	printf("CPU AHB Frequency=%d MHz\n", u_ar71xx_ahb_freq / 1000000); 
-
-	printf("platform frequency: %lld\n", platform_counter_freq);
+	printf("CPU AHB Frequency=%d MHz\n", u_ar71xx_ahb_freq / 1000000);
+	printf("platform frequency: %lld MHz\n", platform_counter_freq / 1000000);
+	printf("CPU reference clock: %d MHz\n", u_ar71xx_refclk / 1000000);
+	printf("CPU MDIO clock: %d MHz\n", u_ar71xx_mdio_freq / 1000000);
 	printf("arguments: \n");
 	printf("  a0 = %08x\n", a0);
 	printf("  a1 = %08x\n", a1);
@@ -259,7 +296,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i+=2) {
 			printf("  %s = %s\n", envp[i], envp[i+1]);
-			setenv(envp[i], envp[i+1]);
+			kern_setenv(envp[i], envp[i+1]);
 		}
 	}
 	else 
@@ -278,6 +315,16 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * Reset USB devices 
 	 */
 	ar71xx_init_usb_peripheral();
+
+	/*
+	 * Reset internal ethernet switch, if one exists
+	 */
+	ar71xx_reset_ethernet_switch();
+
+	/*
+	 * Initialise the gmac driver.
+	 */
+	ar71xx_init_gmac();
 
 	kdb_init();
 #ifdef KDB

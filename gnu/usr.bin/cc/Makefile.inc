@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include "../Makefile.inc"
 
 # Sometimes this is .include'd several times...
@@ -23,10 +24,10 @@ CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"
 CSTD?=	gnu89
 
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
-CFLAGS+=	-DCROSS_COMPILE
+CFLAGS+=	-DCROSS_DIRECTORY_STRUCTURE
 .endif
 
-.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${TARGET_CPUARCH} == "arm"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 

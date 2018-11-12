@@ -36,14 +36,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -295,7 +298,8 @@ ndis_attach_pci(dev)
 			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
                         BUS_SPACE_MAXADDR,	/* highaddr */
 			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, NDIS_NSEG_NEW,/* maxsize, nsegments */
+			BUS_SPACE_MAXSIZE_32BIT, /* maxsize */
+			NDIS_NSEG_NEW,		/* nsegments */
 			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			BUS_DMA_ALLOCNOW,       /* flags */
 			NULL, NULL,		/* lockfunc, lockarg */

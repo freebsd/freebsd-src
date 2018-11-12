@@ -163,13 +163,13 @@ _mcleanup(void)
 	else
 		snprintf(outname, sizeof(outname), "%s.gmon", _getprogname());
 
-	fd = _open(outname, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+	fd = _open(outname, O_CREAT|O_TRUNC|O_WRONLY|O_CLOEXEC, 0666);
 	if (fd < 0) {
 		_warn("_mcleanup: %s", outname);
 		return;
 	}
 #ifdef DEBUG
-	log = _open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY, 0664);
+	log = _open("gmon.log", O_CREAT|O_TRUNC|O_WRONLY|O_CLOEXEC, 0664);
 	if (log < 0) {
 		_warn("_mcleanup: gmon.log");
 		return;

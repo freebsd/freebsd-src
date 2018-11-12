@@ -53,7 +53,6 @@
 #include <sys/priv.h>
 
 #include <dev/usb/usb.h>
-#include <dev/usb/usb_ioctl.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 
@@ -75,22 +74,37 @@
 #endif			/* USB_GLOBAL_INCLUDE_FILE */
 
 #define	UHUB_INTR_INTERVAL 250		/* ms */
-#define	UHUB_N_TRANSFER 1
+enum {
+	UHUB_INTR_TRANSFER,
+#if USB_HAVE_TT_SUPPORT
+	UHUB_RESET_TT_TRANSFER,
+#endif
+	UHUB_N_TRANSFER,
+};
 
 #ifdef USB_DEBUG
 static int uhub_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
-SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uhub_debug, 0,
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RWTUN, &uhub_debug, 0,
     "Debug level");
-TUNABLE_INT("hw.usb.uhub.debug", &uhub_debug);
 #endif
 
 #if USB_HAVE_POWERD
 static int usb_power_timeout = 30;	/* seconds */
 
-SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RWTUN,
     &usb_power_timeout, 0, "USB power timeout");
+#endif
+
+#if USB_HAVE_DISABLE_ENUM
+static int usb_disable_enumeration = 0;
+SYSCTL_INT(_hw_usb, OID_AUTO, disable_enumeration, CTLFLAG_RWTUN,
+    &usb_disable_enumeration, 0, "Set to disable all USB device enumeration.");
+
+static int usb_disable_port_power = 0;
+SYSCTL_INT(_hw_usb, OID_AUTO, disable_port_power, CTLFLAG_RWTUN,
+    &usb_disable_port_power, 0, "Set to disable all USB port power.");
 #endif
 
 struct uhub_current_state {
@@ -100,10 +114,17 @@ struct uhub_current_state {
 
 struct uhub_softc {
 	struct uhub_current_state sc_st;/* current state */
+#if (USB_HAVE_FIXED_PORT != 0)
+	struct usb_hub sc_hub;
+#endif
 	device_t sc_dev;		/* base device */
 	struct mtx sc_mtx;		/* our mutex */
 	struct usb_device *sc_udev;	/* USB device */
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
+#if USB_HAVE_DISABLE_ENUM
+	int sc_disable_enumeration;
+	int sc_disable_port_power;
+#endif
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
 };
@@ -127,6 +148,9 @@ static bus_child_location_str_t uhub_child_location_string;
 static bus_child_pnpinfo_str_t uhub_child_pnpinfo_string;
 
 static usb_callback_t uhub_intr_callback;
+#if USB_HAVE_TT_SUPPORT
+static usb_callback_t uhub_reset_tt_callback;
+#endif
 
 static void usb_dev_resume_peer(struct usb_device *udev);
 static void usb_dev_suspend_peer(struct usb_device *udev);
@@ -134,7 +158,7 @@ static uint8_t usb_peer_should_wakeup(struct usb_device *udev);
 
 static const struct usb_config uhub_config[UHUB_N_TRANSFER] = {
 
-	[0] = {
+	[UHUB_INTR_TRANSFER] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_ANY,
@@ -144,6 +168,17 @@ static const struct usb_config uhub_config[UHUB_N_TRANSFER] = {
 		.callback = &uhub_intr_callback,
 		.interval = UHUB_INTR_INTERVAL,
 	},
+#if USB_HAVE_TT_SUPPORT
+	[UHUB_RESET_TT_TRANSFER] = {
+		.type = UE_CONTROL,
+		.endpoint = 0x00,	/* Control pipe */
+		.direction = UE_DIR_ANY,
+		.bufsize = sizeof(struct usb_device_request),
+		.callback = &uhub_reset_tt_callback,
+		.timeout = 1000,	/* 1 second */
+		.usb_mode = USB_MODE_HOST,
+	},
+#endif
 };
 
 /*
@@ -213,6 +248,279 @@ uhub_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 }
 
 /*------------------------------------------------------------------------*
+ *      uhub_reset_tt_proc
+ *
+ * This function starts the TT reset USB request
+ *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
+static void
+uhub_reset_tt_proc(struct usb_proc_msg *_pm)
+{
+	struct usb_udev_msg *pm = (void *)_pm;
+	struct usb_device *udev = pm->udev;
+	struct usb_hub *hub;
+	struct uhub_softc *sc;
+
+	hub = udev->hub;
+	if (hub == NULL)
+		return;
+	sc = hub->hubsoftc;
+	if (sc == NULL)
+		return;
+
+	/* Change lock */
+	USB_BUS_UNLOCK(udev->bus);
+	mtx_lock(&sc->sc_mtx);
+	/* Start transfer */
+	usbd_transfer_start(sc->sc_xfer[UHUB_RESET_TT_TRANSFER]);
+	/* Change lock */
+	mtx_unlock(&sc->sc_mtx);
+	USB_BUS_LOCK(udev->bus);
+}
+#endif
+
+/*------------------------------------------------------------------------*
+ *      uhub_tt_buffer_reset_async_locked
+ *
+ * This function queues a TT reset for the given USB device and endpoint.
+ *------------------------------------------------------------------------*/
+#if USB_HAVE_TT_SUPPORT
+void
+uhub_tt_buffer_reset_async_locked(struct usb_device *child, struct usb_endpoint *ep)
+{
+	struct usb_device_request req;
+	struct usb_device *udev;
+	struct usb_hub *hub;
+	struct usb_port *up;
+	uint16_t wValue;
+	uint8_t port;
+
+	if (child == NULL || ep == NULL)
+		return;
+
+	udev = child->parent_hs_hub;
+	port = child->hs_port_no;
+
+	if (udev == NULL)
+		return;
+
+	hub = udev->hub;
+	if ((hub == NULL) ||
+	    (udev->speed != USB_SPEED_HIGH) ||
+	    (child->speed != USB_SPEED_LOW &&
+	     child->speed != USB_SPEED_FULL) ||
+	    (child->flags.usb_mode != USB_MODE_HOST) ||
+	    (port == 0) || (ep->edesc == NULL)) {
+		/* not applicable */
+		return;
+	}
+
+	USB_BUS_LOCK_ASSERT(udev->bus, MA_OWNED);
+
+	up = hub->ports + port - 1;
+
+	if (udev->ddesc.bDeviceClass == UDCLASS_HUB &&
+	    udev->ddesc.bDeviceProtocol == UDPROTO_HSHUBSTT)
+		port = 1;
+
+	/* if we already received a clear buffer request, reset the whole TT */
+	if (up->req_reset_tt.bRequest != 0) {
+		req.bmRequestType = UT_WRITE_CLASS_OTHER;
+		req.bRequest = UR_RESET_TT;
+		USETW(req.wValue, 0);
+		req.wIndex[0] = port;
+		req.wIndex[1] = 0;
+		USETW(req.wLength, 0);
+	} else {
+		wValue = (ep->edesc->bEndpointAddress & 0xF) |
+		      ((child->address & 0x7F) << 4) |
+		      ((ep->edesc->bEndpointAddress & 0x80) << 8) |
+		      ((ep->edesc->bmAttributes & 3) << 12);
+
+		req.bmRequestType = UT_WRITE_CLASS_OTHER;
+		req.bRequest = UR_CLEAR_TT_BUFFER;
+		USETW(req.wValue, wValue);
+		req.wIndex[0] = port;
+		req.wIndex[1] = 0;
+		USETW(req.wLength, 0);
+	}
+	up->req_reset_tt = req;
+	/* get reset transfer started */
+	usb_proc_msignal(USB_BUS_NON_GIANT_PROC(udev->bus),
+	    &hub->tt_msg[0], &hub->tt_msg[1]);
+}
+#endif
+
+#if USB_HAVE_TT_SUPPORT
+static void
+uhub_reset_tt_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uhub_softc *sc;
+	struct usb_device *udev;
+	struct usb_port *up;
+	uint8_t x;
+
+	DPRINTF("TT buffer reset\n");
+
+	sc = usbd_xfer_softc(xfer);
+	udev = sc->sc_udev;
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+	case USB_ST_SETUP:
+tr_setup:
+		USB_BUS_LOCK(udev->bus);
+		/* find first port which needs a TT reset */
+		for (x = 0; x != udev->hub->nports; x++) {
+			up = udev->hub->ports + x;
+
+			if (up->req_reset_tt.bRequest == 0)
+				continue;
+
+			/* copy in the transfer */
+			usbd_copy_in(xfer->frbuffers, 0, &up->req_reset_tt,
+			    sizeof(up->req_reset_tt));
+			/* reset buffer */
+			memset(&up->req_reset_tt, 0, sizeof(up->req_reset_tt));
+
+			/* set length */
+			usbd_xfer_set_frame_len(xfer, 0, sizeof(up->req_reset_tt));
+			xfer->nframes = 1;
+			USB_BUS_UNLOCK(udev->bus);
+
+			usbd_transfer_submit(xfer);
+			return;
+		}
+		USB_BUS_UNLOCK(udev->bus);
+		break;
+
+	default:
+		if (error == USB_ERR_CANCELLED)
+			break;
+
+		DPRINTF("TT buffer reset failed (%s)\n", usbd_errstr(error));
+		goto tr_setup;
+	}
+}
+#endif
+
+/*------------------------------------------------------------------------*
+ *      uhub_count_active_host_ports
+ *
+ * This function counts the number of active ports at the given speed.
+ *------------------------------------------------------------------------*/
+uint8_t
+uhub_count_active_host_ports(struct usb_device *udev, enum usb_dev_speed speed)
+{
+	struct uhub_softc *sc;
+	struct usb_device *child;
+	struct usb_hub *hub;
+	struct usb_port *up;
+	uint8_t retval = 0;
+	uint8_t x;
+
+	if (udev == NULL)
+		goto done;
+	hub = udev->hub;
+	if (hub == NULL)
+		goto done;
+	sc = hub->hubsoftc;
+	if (sc == NULL)
+		goto done;
+
+	for (x = 0; x != hub->nports; x++) {
+		up = hub->ports + x;
+		child = usb_bus_port_get_device(udev->bus, up);
+		if (child != NULL &&
+		    child->flags.usb_mode == USB_MODE_HOST &&
+		    child->speed == speed)
+			retval++;
+	}
+done:
+	return (retval);
+}
+
+void
+uhub_explore_handle_re_enumerate(struct usb_device *child)
+{
+	uint8_t do_unlock;
+	usb_error_t err;
+
+	/* check if device should be re-enumerated */
+	if (child->flags.usb_mode != USB_MODE_HOST)
+		return;
+
+	do_unlock = usbd_enum_lock(child);
+	switch (child->re_enumerate_wait) {
+	case USB_RE_ENUM_START:
+		err = usbd_set_config_index(child,
+		    USB_UNCONFIG_INDEX);
+		if (err != 0) {
+			DPRINTF("Unconfigure failed: %s: Ignored.\n",
+			    usbd_errstr(err));
+		}
+		if (child->parent_hub == NULL) {
+			/* the root HUB cannot be re-enumerated */
+			DPRINTFN(6, "cannot reset root HUB\n");
+			err = 0;
+		} else {
+			err = usbd_req_re_enumerate(child, NULL);
+		}
+		if (err == 0)
+			err = usbd_set_config_index(child, 0);
+		if (err == 0) {
+			err = usb_probe_and_attach(child,
+			    USB_IFACE_INDEX_ANY);
+		}
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+
+	case USB_RE_ENUM_PWR_OFF:
+		/* get the device unconfigured */
+		err = usbd_set_config_index(child,
+		    USB_UNCONFIG_INDEX);
+		if (err) {
+			DPRINTFN(0, "Could not unconfigure "
+			    "device (ignored)\n");
+		}
+		if (child->parent_hub == NULL) {
+			/* the root HUB cannot be re-enumerated */
+			DPRINTFN(6, "cannot set port feature\n");
+			err = 0;
+		} else {
+			/* clear port enable */
+			err = usbd_req_clear_port_feature(child->parent_hub,
+			    NULL, child->port_no, UHF_PORT_ENABLE);
+			if (err) {
+				DPRINTFN(0, "Could not disable port "
+				    "(ignored)\n");
+			}
+		}
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+
+	case USB_RE_ENUM_SET_CONFIG:
+		err = usbd_set_config_index(child,
+		    child->next_config_index);
+		if (err != 0) {
+			DPRINTF("Configure failed: %s: Ignored.\n",
+			    usbd_errstr(err));
+		} else {
+			err = usb_probe_and_attach(child,
+			    USB_IFACE_INDEX_ANY);
+		}
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+
+	default:
+		child->re_enumerate_wait = USB_RE_ENUM_DONE;
+		break;
+	}
+	if (do_unlock)
+		usbd_enum_unlock(child);
+}
+
+/*------------------------------------------------------------------------*
  *	uhub_explore_sub - subroutine
  *
  * Return values:
@@ -240,33 +548,7 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 		goto done;
 	}
 
-	/* check if device should be re-enumerated */
-
-	if (child->flags.usb_mode == USB_MODE_HOST) {
-		uint8_t do_unlock;
-		
-		do_unlock = usbd_enum_lock(child);
-		if (child->re_enumerate_wait) {
-			err = usbd_set_config_index(child,
-			    USB_UNCONFIG_INDEX);
-			if (err != 0) {
-				DPRINTF("Unconfigure failed: "
-				    "%s: Ignored.\n",
-				    usbd_errstr(err));
-			}
-			err = usbd_req_re_enumerate(child, NULL);
-			if (err == 0)
-				err = usbd_set_config_index(child, 0);
-			if (err == 0) {
-				err = usb_probe_and_attach(child,
-				    USB_IFACE_INDEX_ANY);
-			}
-			child->re_enumerate_wait = 0;
-			err = 0;
-		}
-		if (do_unlock)
-			usbd_enum_unlock(child);
-	}
+	uhub_explore_handle_re_enumerate(child);
 
 	/* check if probe and attach should be done */
 
@@ -338,7 +620,6 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 
 	DPRINTF("reattaching port %d\n", portno);
 
-	err = 0;
 	timeout = 0;
 	udev = sc->sc_udev;
 	child = usb_bus_port_get_device(udev->bus,
@@ -351,9 +632,9 @@ repeat:
 	err = usbd_req_clear_port_feature(udev, NULL,
 	    portno, UHF_C_PORT_CONNECTION);
 
-	if (err) {
+	if (err)
 		goto error;
-	}
+
 	/* check if there is a child */
 
 	if (child != NULL) {
@@ -366,14 +647,22 @@ repeat:
 	/* get fresh status */
 
 	err = uhub_read_port_status(sc, portno);
-	if (err) {
+	if (err)
+		goto error;
+
+#if USB_HAVE_DISABLE_ENUM
+	/* check if we should skip enumeration from this USB HUB */
+	if (usb_disable_enumeration != 0 ||
+	    sc->sc_disable_enumeration != 0) {
+		DPRINTF("Enumeration is disabled!\n");
 		goto error;
 	}
+#endif
 	/* check if nothing is connected to the port */
 
-	if (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS)) {
+	if (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS))
 		goto error;
-	}
+
 	/* check if there is no power on the port and print a warning */
 
 	switch (udev->speed) {
@@ -921,9 +1210,13 @@ uhub_attach(device_t dev)
 	struct usb_hub *hub;
 	struct usb_hub_descriptor hubdesc20;
 	struct usb_hub_ss_descriptor hubdesc30;
+#if USB_HAVE_DISABLE_ENUM
+	struct sysctl_ctx_list *sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+#endif
 	uint16_t pwrdly;
+	uint16_t nports;
 	uint8_t x;
-	uint8_t nports;
 	uint8_t portno;
 	uint8_t removable;
 	uint8_t iface_index;
@@ -1067,12 +1360,19 @@ uhub_attach(device_t dev)
 		DPRINTFN(0, "portless HUB\n");
 		goto error;
 	}
+	if (nports > USB_MAX_PORTS) {
+		DPRINTF("Port limit exceeded\n");
+		goto error;
+	}
+#if (USB_HAVE_FIXED_PORT == 0)
 	hub = malloc(sizeof(hub[0]) + (sizeof(hub->ports[0]) * nports),
 	    M_USBDEV, M_WAITOK | M_ZERO);
 
-	if (hub == NULL) {
+	if (hub == NULL)
 		goto error;
-	}
+#else
+	hub = &sc->sc_hub;
+#endif
 	udev->hub = hub;
 
 	/* initialize HUB structure */
@@ -1080,7 +1380,12 @@ uhub_attach(device_t dev)
 	hub->explore = &uhub_explore;
 	hub->nports = nports;
 	hub->hubudev = udev;
-
+#if USB_HAVE_TT_SUPPORT
+	hub->tt_msg[0].hdr.pm_callback = &uhub_reset_tt_proc;
+	hub->tt_msg[0].udev = udev;
+	hub->tt_msg[1].hdr.pm_callback = &uhub_reset_tt_proc;
+	hub->tt_msg[1].udev = udev;
+#endif
 	/* if self powered hub, give ports maximum current */
 	if (udev->flags.self_powered) {
 		hub->portpower = USB_MAX_POWER;
@@ -1106,6 +1411,24 @@ uhub_attach(device_t dev)
 	/* wait with power off for a while */
 	usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_POWER_DOWN_TIME));
 
+#if USB_HAVE_DISABLE_ENUM
+	/* Add device sysctls */
+
+	sysctl_ctx = device_get_sysctl_ctx(dev);
+	sysctl_tree = device_get_sysctl_tree(dev);
+
+	if (sysctl_ctx != NULL && sysctl_tree != NULL) {
+		(void) SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+		    OID_AUTO, "disable_enumeration", CTLFLAG_RWTUN,
+		    &sc->sc_disable_enumeration, 0,
+		    "Set to disable enumeration on this USB HUB.");
+
+		(void) SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+		    OID_AUTO, "disable_port_power", CTLFLAG_RWTUN,
+		    &sc->sc_disable_port_power, 0,
+		    "Set to disable USB port power on this USB HUB.");
+	}
+#endif
 	/*
 	 * To have the best chance of success we do things in the exact same
 	 * order as Windoze98.  This should not be necessary, but some
@@ -1160,13 +1483,27 @@ uhub_attach(device_t dev)
 			removable++;
 			break;
 		}
-		if (!err) {
-			/* turn the power on */
-			err = usbd_req_set_port_feature(udev, NULL,
-			    portno, UHF_PORT_POWER);
+		if (err == 0) {
+#if USB_HAVE_DISABLE_ENUM
+			/* check if we should disable USB port power or not */
+			if (usb_disable_port_power != 0 ||
+			    sc->sc_disable_port_power != 0) {
+				/* turn the power off */
+				DPRINTFN(2, "Turning port %d power off\n", portno);
+				err = usbd_req_clear_port_feature(udev, NULL,
+				    portno, UHF_PORT_POWER);
+			} else {
+#endif
+				/* turn the power on */
+				DPRINTFN(2, "Turning port %d power on\n", portno);
+				err = usbd_req_set_port_feature(udev, NULL,
+				    portno, UHF_PORT_POWER);
+#if USB_HAVE_DISABLE_ENUM
+			}
+#endif
 		}
-		if (err) {
-			DPRINTFN(0, "port %d power on failed, %s\n",
+		if (err != 0) {
+			DPRINTFN(0, "port %d power on or off failed, %s\n",
 			    portno, usbd_errstr(err));
 		}
 		DPRINTF("turn on port %d power\n",
@@ -1182,11 +1519,9 @@ uhub_attach(device_t dev)
 
 	/* Start the interrupt endpoint, if any */
 
-	if (sc->sc_xfer[0] != NULL) {
-		mtx_lock(&sc->sc_mtx);
-		usbd_transfer_start(sc->sc_xfer[0]);
-		mtx_unlock(&sc->sc_mtx);
-	}
+	mtx_lock(&sc->sc_mtx);
+	usbd_transfer_start(sc->sc_xfer[UHUB_INTR_TRANSFER]);
+	mtx_unlock(&sc->sc_mtx);
 
 	/* Enable automatic power save on all USB HUBs */
 
@@ -1197,10 +1532,10 @@ uhub_attach(device_t dev)
 error:
 	usbd_transfer_unsetup(sc->sc_xfer, UHUB_N_TRANSFER);
 
-	if (udev->hub) {
-		free(udev->hub, M_USBDEV);
-		udev->hub = NULL;
-	}
+#if (USB_HAVE_FIXED_PORT == 0)
+	free(udev->hub, M_USBDEV);
+#endif
+	udev->hub = NULL;
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -1216,6 +1551,7 @@ uhub_detach(device_t dev)
 {
 	struct uhub_softc *sc = device_get_softc(dev);
 	struct usb_hub *hub = sc->sc_udev->hub;
+	struct usb_bus *bus = sc->sc_udev->bus;
 	struct usb_device *child;
 	uint8_t x;
 
@@ -1228,7 +1564,7 @@ uhub_detach(device_t dev)
 	/* Detach all ports */
 	for (x = 0; x != hub->nports; x++) {
 
-		child = usb_bus_port_get_device(sc->sc_udev->bus, hub->ports + x);
+		child = usb_bus_port_get_device(bus, hub->ports + x);
 
 		if (child == NULL) {
 			continue;
@@ -1240,7 +1576,17 @@ uhub_detach(device_t dev)
 		usb_free_device(child, 0);
 	}
 
+#if USB_HAVE_TT_SUPPORT
+	/* Make sure our TT messages are not queued anywhere */
+	USB_BUS_LOCK(bus);
+	usb_proc_mwait(USB_BUS_NON_GIANT_PROC(bus),
+	    &hub->tt_msg[0], &hub->tt_msg[1]);
+	USB_BUS_UNLOCK(bus);
+#endif
+
+#if (USB_HAVE_FIXED_PORT == 0)
 	free(hub, M_USBDEV);
+#endif
 	sc->sc_udev->hub = NULL;
 
 	mtx_destroy(&sc->sc_mtx);
@@ -1335,10 +1681,19 @@ uhub_child_location_string(device_t parent, device_t child,
 		}
 		goto done;
 	}
-	snprintf(buf, buflen, "bus=%u hubaddr=%u port=%u devaddr=%u interface=%u",
-	    (res.udev->parent_hub != NULL) ? res.udev->parent_hub->device_index : 0,
-	    res.portno, device_get_unit(res.udev->bus->bdev),
-	    res.udev->device_index, res.iface_index);
+	snprintf(buf, buflen, "bus=%u hubaddr=%u port=%u devaddr=%u"
+	    " interface=%u"
+#if USB_HAVE_UGEN
+	    " ugen=%s"
+#endif
+	    , device_get_unit(res.udev->bus->bdev)
+	    , (res.udev->parent_hub != NULL) ?
+	    res.udev->parent_hub->device_index : 0
+	    , res.portno, res.udev->device_index, res.iface_index
+#if USB_HAVE_UGEN
+	    , res.udev->ugen_name
+#endif
+	    );
 done:
 	mtx_unlock(&Giant);
 
@@ -1380,7 +1735,7 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "release=0x%04x "
 		    "mode=%s "
 		    "intclass=0x%02x intsubclass=0x%02x "
-		    "intprotocol=0x%02x " "%s%s",
+		    "intprotocol=0x%02x" "%s%s",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
@@ -2073,9 +2428,10 @@ usbd_transfer_power_ref(struct usb_xfer *xfer, int val)
 static uint8_t
 usb_peer_should_wakeup(struct usb_device *udev)
 {
-	return ((udev->power_mode == USB_POWER_MODE_ON) ||
+	return (((udev->power_mode == USB_POWER_MODE_ON) &&
+	    (udev->flags.usb_mode == USB_MODE_HOST)) ||
 	    (udev->driver_added_refcount != udev->bus->driver_added_refcount) ||
-	    (udev->re_enumerate_wait != 0) ||
+	    (udev->re_enumerate_wait != USB_RE_ENUM_DONE) ||
 	    (udev->pwr_save.type_refs[UE_ISOCHRONOUS] != 0) ||
 	    (udev->pwr_save.write_refs != 0) ||
 	    ((udev->pwr_save.read_refs != 0) &&
@@ -2491,6 +2847,8 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 
 #if USB_HAVE_POWERD
 	usb_bus_power_update(udev->bus);
+#else
+	usb_needs_explore(udev->bus, 0 /* no probe */ );
 #endif
 }
 
@@ -2502,7 +2860,7 @@ usbd_set_power_mode(struct usb_device *udev, uint8_t power_mode)
 uint8_t
 usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 {
-	struct usb_bus_methods *mtod;
+	const struct usb_bus_methods *mtod;
 	int8_t temp;
 
 	mtod = udev->bus->methods;
@@ -2529,8 +2887,36 @@ usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 void
 usbd_start_re_enumerate(struct usb_device *udev)
 {
-	if (udev->re_enumerate_wait == 0) {
-		udev->re_enumerate_wait = 1;
+	if (udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+		udev->re_enumerate_wait = USB_RE_ENUM_START;
 		usb_needs_explore(udev->bus, 0);
 	}
+}
+
+/*-----------------------------------------------------------------------*
+ *	usbd_start_set_config
+ *
+ * This function starts setting a USB configuration. This function
+ * does not need to be called BUS-locked. This function does not wait
+ * until the set USB configuratino is completed.
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_start_set_config(struct usb_device *udev, uint8_t index)
+{
+	if (udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+		if (udev->curr_config_index == index) {
+			/* no change needed */
+			return (0);
+		}
+		udev->next_config_index = index;
+		udev->re_enumerate_wait = USB_RE_ENUM_SET_CONFIG;
+		usb_needs_explore(udev->bus, 0);
+		return (0);
+	} else if (udev->re_enumerate_wait == USB_RE_ENUM_SET_CONFIG) {
+		if (udev->next_config_index == index) {
+			/* no change needed */
+			return (0);
+		}
+	}
+	return (USB_ERR_PENDING_REQUESTS);
 }

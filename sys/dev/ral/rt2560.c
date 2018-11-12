@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -958,7 +959,7 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 				ieee80211_ratectl_tx_complete(vap, ni,
 				    IEEE80211_RATECTL_TX_SUCCESS,
 				    &retrycnt, NULL);
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			break;
 
 		case RT2560_TX_SUCCESS_RETRY:
@@ -970,7 +971,7 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 				ieee80211_ratectl_tx_complete(vap, ni,
 				    IEEE80211_RATECTL_TX_SUCCESS,
 				    &retrycnt, NULL);
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			break;
 
 		case RT2560_TX_FAIL_RETRY:
@@ -982,7 +983,7 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 				ieee80211_ratectl_tx_complete(vap, ni,
 				    IEEE80211_RATECTL_TX_FAILURE,
 				    &retrycnt, NULL);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 
 		case RT2560_TX_FAIL_INVALID:
@@ -990,7 +991,7 @@ rt2560_tx_intr(struct rt2560_softc *sc)
 		default:
 			device_printf(sc->sc_dev, "sending data frame failed "
 			    "0x%08x\n", flags);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		}
 
 		bus_dmamap_sync(sc->txq.data_dmat, data->map,
@@ -1143,13 +1144,13 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 			break;
 
 		if (data->drop) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
 		if ((le32toh(desc->flags) & RT2560_RX_CIPHER_MASK) != 0 &&
 		    (le32toh(desc->flags) & RT2560_RX_ICV_ERROR)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1162,7 +1163,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		 */
 		mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (mnew == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1185,7 +1186,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 				panic("%s: could not load old rx mbuf",
 				    device_get_name(sc->sc_dev));
 			}
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto skip;
 		}
 
@@ -1557,7 +1558,7 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1803,7 +1804,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		rate = ni->ni_txrate;
 	}
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1935,7 +1936,7 @@ rt2560_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (rt2560_tx_data(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 
@@ -1972,7 +1973,7 @@ rt2560_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0 && --sc->sc_tx_timer == 0) {
 		if_printf(ifp, "device timeout\n");
 		rt2560_init_locked(sc);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		/* NB: callout is reset in rt2560_init() */
 		return;
 	}
@@ -2370,7 +2371,7 @@ rt2560_set_basicrates(struct rt2560_softc *sc,
 		if (!(rate & IEEE80211_RATE_BASIC))
 			continue;
 
-		mask |= 1 << ic->ic_rt->rateCodeToIndex[RV(rate)];
+		mask |= 1 << ieee80211_legacy_rate_lookup(ic->ic_rt, RV(rate));
 	}
 
 	RAL_WRITE(sc, RT2560_ARSP_PLCP_1, mask);
@@ -2795,7 +2796,7 @@ rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return ENOBUFS;		/* XXX */
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	if (params == NULL) {
 		/*
@@ -2818,7 +2819,7 @@ rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 
 	return 0;
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ieee80211_free_node(ni);
 	RAL_UNLOCK(sc);
 	return EIO;		/* XXX */

@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 10, 2013
+.Dd March 6, 2015
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -141,13 +141,13 @@ The link-level
 .Pq Dq link
 address
 is specified as a series of colon-separated hex digits.
-This can be used to
-e.g.,\& set a new MAC address on an ethernet interface, though the
-mechanism used is not ethernet-specific.
+This can be used to, for example,
+set a new MAC address on an Ethernet interface, though the
+mechanism used is not Ethernet specific.
 If the interface is already
 up when this option is used, it will be briefly brought down and
 then brought back up again in order to ensure that the receive
-filter in the underlying ethernet hardware is properly reprogrammed.
+filter in the underlying Ethernet hardware is properly reprogrammed.
 .It Ar address_family
 Specify the
 address family
@@ -158,13 +158,8 @@ The address or protocol families currently
 supported are
 .Dq inet ,
 .Dq inet6 ,
-.Dq atalk ,
-.Dq ipx ,
-.\" .Dq iso ,
 and
 .Dq link .
-.\" and
-.\" .Dq ns .
 The default if available is
 .Dq inet
 or otherwise
@@ -174,6 +169,18 @@ and
 .Dq lladdr
 are synonyms for
 .Dq link .
+When using the
+.Fl l
+flag, the
+.Dq ether
+address family has special meaning and is no longer synonymous with
+.Dq link
+or
+.Dq lladdr .
+Specifying
+.Fl l Dq ether
+will list only Ethernet interfaces, excluding all other interface types,
+including the loopback interface.
 .It Ar dest_address
 Specify the address of the correspondent on the other end
 of a point to point link.
@@ -309,12 +316,6 @@ using the
 kernel configuration option, or the
 .Va net.fibs
 tunable.
-.It Cm ipdst
-This is used to specify an Internet host who is willing to receive
-IP packets encapsulating IPX packets bound for a remote network.
-An apparent point to point link is constructed, and
-the address specified will be taken as the IPX address and network
-of the destination.
 .It Cm maclabel Ar label
 If Mandatory Access Control support is enabled in the kernel,
 set the MAC label to
@@ -572,42 +573,6 @@ The prefix can also be specified using the slash notation after the address.
 See the
 .Ar address
 option above for more information.
-.\" see
-.\" Xr eon 5 .
-.\" .It Cm nsellength Ar n
-.\" .Pf ( Tn ISO
-.\" only)
-.\" This specifies a trailing number of bytes for a received
-.\" .Tn NSAP
-.\" used for local identification, the remaining leading part of which is
-.\" taken to be the
-.\" .Tn NET
-.\" (Network Entity Title).
-.\" The default value is 1, which is conformant to US
-.\" .Tn GOSIP .
-.\" When an ISO address is set in an ifconfig command,
-.\" it is really the
-.\" .Tn NSAP
-.\" which is being specified.
-.\" For example, in
-.\" .Tn US GOSIP ,
-.\" 20 hex digits should be
-.\" specified in the
-.\" .Tn ISO NSAP
-.\" to be assigned to the interface.
-.\" There is some evidence that a number different from 1 may be useful
-.\" for
-.\" .Tn AFI
-.\" 37 type addresses.
-.It Cm range Ar netrange
-Under appletalk, set the interface to respond to a
-.Ar netrange
-of the form
-.Ar startnet Ns - Ns Ar endnet .
-Appletalk uses this scheme instead of
-netmasks though
-.Fx
-implements it internally as a set of netmasks.
 .It Cm remove
 Another name for the
 .Fl alias
@@ -615,10 +580,6 @@ parameter.
 Introduced for compatibility
 with
 .Bsx .
-.It Cm phase
-The argument following this specifies the version (phase) of the
-Appletalk network attached to the interface.
-Values of 1 or 2 are permitted.
 .Sm off
 .It Cm link Op Cm 0 No - Cm 2
 .Sm on
@@ -700,7 +661,8 @@ Clear a flag
 .Cm defaultif .
 .It Cm ifdisabled
 Set a flag to disable all of IPv6 network communications on the
-specified interface.  Note that if there are already configured IPv6
+specified interface.
+Note that if there are already configured IPv6
 addresses on that interface, all of them are marked as
 .Dq tentative
 and DAD will be performed when this flag is cleared.
@@ -717,12 +679,41 @@ Set a flag to enable Neighbor Unreachability Detection.
 Clear a flag
 .Cm nud .
 .It Cm no_prefer_iface
-Set a flag to not prefer address on the interface as candidates of the
-source address for outgoing packets, even when the interface is
-outgoing interface.
+Set a flag to not honor rule 5 of source address selection in RFC 3484.
+In practice this means the address on the outgoing interface will not be
+preferred, effectively yielding the decision to the address selection
+policy table, configurable with
+.Xr ip6addrctl 8 .
 .It Cm -no_prefer_iface
 Clear a flag
 .Cm no_prefer_iface .
+.It Cm no_dad
+Set a flag to disable Duplicate Address Detection.
+.It Cm -no_dad
+Clear a flag
+.Cm no_dad .
+.It Cm ignoreloop
+Set a flag to disable loopback detection in Enhanced Duplicate Address
+Detection Algorithm.
+When this flag is set,
+Duplicate Address Detection will stop in a finite number of probings
+even if a loopback configuration is detected.
+.It Cm -ignoreloop
+Clear a flag
+.Cm ignoreloop .
+.El
+.Pp
+The following parameters are specific for IPv6 addresses.
+Note that the address family keyword
+.Dq Li inet6
+is needed for them:
+.Bl -tag -width indent
+.It Cm prefer_source
+Set a flag to prefer address as a candidate of the source address for
+outgoing packets.
+.It Cm -prefer_source
+Clear a flag
+.Cm prefer_source .
 .El
 .Pp
 The following parameters are specific to cloning
@@ -1054,7 +1045,9 @@ can be used on a channel are defined by this setting.
 Country/Region codes are specified as a 2-character abbreviation
 defined by ISO 3166 or using a longer, but possibly ambiguous, spelling;
 e.g., "ES" and "Spain".
-The set of country codes are taken from /etc/regdomain.xml and can also
+The set of country codes are taken from
+.Pa /etc/regdomain.xml
+and can also
 be viewed with the ``list countries'' request.
 Note that not all devices support changing the country code from a default
 setting; typically stored in EEPROM.
@@ -1072,7 +1065,9 @@ according to a least-congested criteria.
 DFS support is mandatory for some 5GHz frequencies in certain
 locales (e.g., ETSI).
 By default DFS is enabled according to the regulatory definitions
-specified in /etc/regdomain.xml and the current country code, regdomain,
+specified in
+.Pa /etc/regdomain.xml
+and the current country code, regdomain,
 and channel.
 Note the underlying device (and driver) must support radar detection
 for full DFS support to work.
@@ -1122,7 +1117,8 @@ specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
 .It Cm quiet
-Enable the use of quiet IE.  Hostap will use this to silence other
+Enable the use of quiet IE.
+Hostap will use this to silence other
 stations to reduce interference for radar detection when
 operating on 5GHz frequency and doth support is enabled.
 Use
@@ -1137,9 +1133,11 @@ scheduled quiet intervals defined by Quiet element.
 Set the QUIET
 .Ar count
 to the number of TBTTs until the beacon interval during which the
-next quiet interval shall start.  A value of 1 indicates the quiet
+next quiet interval shall start.
+A value of 1 indicates the quiet
 interval will start during the beacon interval starting at the next
-TBTT. A value 0 is reserved.
+TBTT.
+A value 0 is reserved.
 .It Cm quiet_offset Ar offset
 Set the QUIET
 .Ar offset
@@ -1578,7 +1576,9 @@ for operation.
 In particular the set of available channels, how the wireless device
 will operation on the channels, and the maximum transmit power that
 can be used on a channel are defined by this setting.
-Regdomain codes (SKU's) are taken from /etc/regdomain.xml and can also
+Regdomain codes (SKU's) are taken from
+.Pa /etc/regdomain.xml
+and can also
 be viewed with the ``list countries'' request.
 Note that not all devices support changing the regdomain from a default
 setting; typically stored in EEPROM.
@@ -2345,9 +2345,16 @@ Remove the interface named by
 from the aggregation interface.
 .It Cm laggproto Ar proto
 Set the aggregation protocol.
-The default is failover.
-The available options are failover, fec, lacp, loadbalance, roundrobin and
-none.
+The default is
+.Li failover .
+The available options are
+.Li failover ,
+.Li lacp ,
+.Li loadbalance ,
+.Li roundrobin ,
+.Li broadcast
+and
+.Li none .
 .It Cm lagghash Ar option Ns Oo , Ns Ar option Oc
 Set the packet layers to hash for aggregation protocols which load balance.
 The default is
@@ -2362,7 +2369,34 @@ src/dst address for IPv4 or IPv6.
 .It Cm l4
 src/dst port for TCP/UDP/SCTP.
 .El
-.Pp
+.It Cm use_flowid
+Enable local hash computation for RSS hash on the interface.
+The
+.Li loadbalance
+and
+.Li lacp
+modes will use the RSS hash from the network card if available
+to avoid computing one, this may give poor traffic distribution
+if the hash is invalid or uses less of the protocol header information.
+.Cm use_flowid
+disables use of RSS hash from the network card.
+The default value can be set via the
+.Va net.link.lagg.default_use_flowid
+.Xr sysctl 8
+variable.
+.Li 0
+means
+.Dq disabled
+and
+.Li 1
+means
+.Dq enabled .
+.It Cm -use_flowid
+Disable local hash computation for RSS hash on the interface.
+.It Cm flowid_shift Ar number
+Set a shift parameter for RSS local hash computation.
+Hash is calculated by using flowid bits in a packet header mbuf
+which are shifted by the number of this parameter.
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,
@@ -2387,7 +2421,8 @@ Another name for the
 parameter.
 .It Cm accept_rev_ethip_ver
 Set a flag to accept both correct EtherIP packets and ones
-with reversed version field.  Enabled by default.
+with reversed version field.
+Enabled by default.
 This is for backward compatibility with
 .Fx 6.1 ,
 6.2, 6.3, 7.0, and 7.1.
@@ -2396,7 +2431,8 @@ Clear a flag
 .Cm accept_rev_ethip_ver .
 .It Cm send_rev_ethip_ver
 Set a flag to send EtherIP packets with reversed version
-field intentionally.  Disabled by default.
+field intentionally.
+Disabled by default.
 This is for backward compatibility with
 .Fx 6.1 ,
 6.2, 6.3, 7.0, and 7.1.
@@ -2479,7 +2515,7 @@ pseudo-interface.
 The
 .Xr vlan 4
 interface is assigned a
-copy of the parent interface's flags and the parent's ethernet address.
+copy of the parent interface's flags and the parent's Ethernet address.
 The
 .Cm vlandev
 and
@@ -2516,6 +2552,76 @@ down.
 The
 .Ar iface
 argument is useless and hence deprecated.
+.El
+.Pp
+The following parameters are used to configure
+.Xr vxlan 4
+interfaces.
+.Bl -tag -width indent
+.It Cm vxlanid Ar identifier
+This value is a 24-bit VXLAN Network Identifier (VNI) that identifies the
+virtual network segment membership of the interface.
+.It Cm vxlanlocal Ar address
+The source address used in the encapsulating IPv4/IPv6 header.
+The address should already be assigned to an existing interface.
+When the interface is configured in unicast mode, the listening socket
+is bound to this address.
+.It Cm vxlanremote Ar address
+The interface can be configured in a unicast, or point-to-point, mode
+to create a tunnel between two hosts.
+This is the IP address of the remote end of the tunnel.
+.It Cm vxlangroup Ar address
+The interface can be configured in a multicast mode
+to create a virtual network of hosts.
+This is the IP multicast group address the interface will join.
+.It Cm vxlanlocalport Ar port
+The port number the interface will listen on.
+The default port number is 4789.
+.It Cm vxlanremoteport Ar port
+The destination port number used in the encapsulating IPv4/IPv6 header.
+The remote host should be listening on this port.
+The default port number is 4789.
+Note some other implementations, such as Linux,
+do not default to the IANA assigned port,
+but instead listen on port 8472.
+.It Cm vxlanportrange Ar low high
+The range of source ports used in the encapsulating IPv4/IPv6 header.
+The port selected within the range is based on a hash of the inner frame.
+A range is useful to provide entropy within the outer IP header
+for more effective load balancing.
+The default range is between the
+.Xr sysctl 8
+variables
+.Va net.inet.ip.portrange.first
+and
+.Va net.inet.ip.portrange.last
+.It Cm vxlantimeout Ar timeout
+The maximum time, in seconds, before an entry in the forwarding table
+is pruned.
+The default is 1200 seconds (20 minutes).
+.It Cm vxlanmaxaddr Ar max
+The maximum number of entries in the forwarding table.
+The default is 2000.
+.It Cm vxlandev Ar dev
+When the interface is configured in multicast mode, the
+.Cm dev
+interface is used to transmit IP multicast packets.
+.It Cm vxlanttl Ar ttl
+The TTL used in the encapsulating IPv4/IPv6 header.
+The default is 64.
+.It Cm vxlanlearn
+The source IP address and inner source Ethernet MAC address of
+received packets are used to dynamically populate the forwarding table.
+When in multicast mode, an entry in the forwarding table allows the
+interface to send the frame directly to the remote host instead of
+broadcasting the frame to the multicast group.
+This is the default.
+.It Fl vxlanlearn
+The forwarding table is not populated by recevied packets.
+.It Cm vxlanflush
+Delete all dynamically-learned addresses from the forwarding table.
+.It Cm vxlanflushall
+Delete all addresses, including static addresses, from the forwarding table.
 .El
 .Pp
 The following parameters are used to configure
@@ -2599,6 +2705,11 @@ The
 .Fl l
 flag may be used to list all available interfaces on the system, with
 no other additional information.
+If an
+.Ar address_family
+is specified, only interfaces of that type will be listed.
+.Fl l Dq ether
+will list only Ethernet adapters, excluding the loopback interface.
 Use of this flag is mutually exclusive
 with all other flags and commands, except for
 .Fl d
@@ -2684,7 +2795,7 @@ as a synonym for the canonical form of the option
 .Pp
 Configure a single CARP redundant address on igb0, and then switch it
 to be master:
-.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar up
 .Dl # ifconfig igb0 vhid 1 state master
 .Pp
 Configure the interface
@@ -2718,12 +2829,13 @@ tried to alter an interface's configuration.
 .Xr pfsync 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
+.Xr vxlan 4 ,
 .Xr devd.conf 5 ,
 .\" .Xr eon 5 ,
 .Xr devd 8 ,
+.Xr jail 8 ,
 .Xr rc 8 ,
 .Xr routed 8 ,
-.Xr jail 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The

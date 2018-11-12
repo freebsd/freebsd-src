@@ -166,9 +166,10 @@ sethistsize(const char *hs)
 	HistEvent he;
 
 	if (hist != NULL) {
-		if (hs == NULL || *hs == '\0' ||
-		   (histsize = atoi(hs)) < 0)
+		if (hs == NULL || !is_number(hs))
 			histsize = 100;
+		else
+			histsize = atoi(hs);
 		history(hist, &he, H_SETSIZE, histsize);
 		history(hist, &he, H_SETUNIQUE, 1);
 	}
@@ -337,8 +338,8 @@ histcmd(int argc, char **argv __unused)
 				out1fmt("%5d ", he.num);
 			out1str(he.str);
 		} else {
-			char *s = pat ?
-			   fc_replace(he.str, pat, repl) : (char *)he.str;
+			const char *s = pat ?
+			   fc_replace(he.str, pat, repl) : he.str;
 
 			if (sflg) {
 				if (displayhist) {
@@ -476,7 +477,7 @@ bindcmd(int argc, char **argv)
 
 	if (el == NULL)
 		error("line editing is disabled");
-	return (el_parse(el, argc, (const char **)argv));
+	return (el_parse(el, argc, __DECONST(const char **, argv)));
 }
 
 #else

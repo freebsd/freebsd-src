@@ -1,11 +1,12 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/12/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	netstat
 SRCS=	if.c inet.c main.c mbuf.c mroute.c netisr.c route.c \
-	unix.c atalk.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c
+	unix.c mroute6.c ipsec.c bpf.c pfkey.c sctp.c \
+	flowtable.c
 
 WARNS?=	3
 CFLAGS+=-fno-strict-aliasing
@@ -26,23 +27,20 @@ CFLAGS+=-DINET6
 CFLAGS+=-DSDP
 .endif
 
+.if ${MK_PF} != "no"
+CFLAGS+=-DPF
+.endif
+
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
-LDADD=	-lkvm -lmemstat -lutil
+LIBADD=	kvm memstat util
 
 .if ${MK_NETGRAPH_SUPPORT} != "no"
 SRCS+=	netgraph.c
-DPADD+=	${LIBNETGRAPH}
-LDADD+=	-lnetgraph
+LIBADD+=	netgraph
 CFLAGS+=-DNETGRAPH
 .endif
 
-.if ${MK_IPX_SUPPORT} != "no"
-SRCS+=	ipx.c
-DPADD+=	${LIBIPX}
-LDADD+=	-lipx
-CFLAGS+=-DIPX
-.endif
+LIBADD+= xo
 
 .include <bsd.prog.mk>

@@ -165,7 +165,6 @@ main(int argc, char *argv[])
 			case 'm':
 				if (!strcmp(optarg, "i386") ||
 				    !strcmp(optarg, "amd64") ||
-				    !strcmp(optarg, "ia64") ||
 				    !strcmp(optarg, "pc98")) {
 					labelsoffset = 1;
 					labeloffset = 0;

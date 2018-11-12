@@ -11,8 +11,9 @@ kernconf.c: kernconf.tmpl
 
 CFLAGS+= -I. -I${.CURDIR}
 
-DPADD=	${LIBL} ${LIBSBUF}
-LDADD=	-ll -lsbuf
+NO_WMISSING_VARIABLE_DECLARATIONS=
+
+LIBADD=	l sbuf
 
 CLEANFILES+=	kernconf.c
 

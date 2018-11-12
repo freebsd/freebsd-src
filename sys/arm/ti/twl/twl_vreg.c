@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
@@ -139,6 +138,7 @@ static const uint16_t twl4030_vsim_voltages[] = {
 static const uint16_t twl4030_vdac_voltages[] = {
 	1200, 1300, 1800, 1800
 };
+#if 0 /* vdd1, vdd2, vdio, not currently used. */
 static const uint16_t twl4030_vdd1_voltages[] = {
 	800, 1450
 };
@@ -148,6 +148,7 @@ static const uint16_t twl4030_vdd2_voltages[] = {
 static const uint16_t twl4030_vio_voltages[] = {
 	1800, 1850
 };
+#endif
 static const uint16_t twl4030_vintana2_voltages[] = {
 	2500, 2750
 };

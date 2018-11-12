@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DTFIELD_C__
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
@@ -104,14 +102,17 @@ DtCompileOneField (
     switch (Type)
     {
     case DT_FIELD_TYPE_INTEGER:
+
         DtCompileInteger (Buffer, Field, ByteLength, Flags);
         break;
 
     case DT_FIELD_TYPE_STRING:
+
         DtCompileString (Buffer, Field, ByteLength);
         break;
 
     case DT_FIELD_TYPE_UUID:
+
         Status = DtCompileUuid (Buffer, Field, ByteLength);
         if (ACPI_SUCCESS (Status))
         {
@@ -121,17 +122,21 @@ DtCompileOneField (
         /* Fall through. */
 
     case DT_FIELD_TYPE_BUFFER:
+
         DtCompileBuffer (Buffer, Field->Value, Field, ByteLength);
         break;
 
     case DT_FIELD_TYPE_UNICODE:
+
         DtCompileUnicode (Buffer, Field, ByteLength);
         break;
 
     case DT_FIELD_TYPE_DEVICE_PATH:
+
         break;
 
     default:
+
         DtFatal (ASL_MSG_COMPILER_INTERNAL, Field, "Invalid field type");
         break;
     }
@@ -252,7 +257,7 @@ DtCompileUuid (
     }
     else
     {
-        Status = AuConvertStringToUuid (InString, (char *) Buffer);
+        AcpiUtConvertStringToUuid (InString, Buffer);
     }
 
     return (Status);
@@ -304,21 +309,37 @@ DtCompileInteger (
         return;
     }
 
-    /* Ensure that reserved fields are set to zero */
-    /* TBD: should we set to zero, or just make this an ERROR? */
-    /* TBD: Probably better to use a flag */
+    /*
+     * Ensure that reserved fields are set properly. Note: uses
+     * the DT_NON_ZERO flag to indicate that the reserved value
+     * must be exactly one. Otherwise, the value must be zero.
+     * This is sufficient for now.
+     */
 
-    if (!ACPI_STRCMP (Field->Name, "Reserved") &&
-        (Value != 0))
+    /* TBD: Should use a flag rather than compare "Reserved" */
+
+    if (!ACPI_STRCMP (Field->Name, "Reserved"))
     {
-        DtError (ASL_WARNING, ASL_MSG_RESERVED_VALUE, Field,
-            "Setting to zero");
-        Value = 0;
+        if (Flags & DT_NON_ZERO)
+        {
+            if (Value != 1)
+            {
+                DtError (ASL_WARNING, ASL_MSG_RESERVED_VALUE, Field,
+                    "Must be one, setting to one");
+                Value = 1;
+            }
+        }
+        else if (Value != 0)
+        {
+            DtError (ASL_WARNING, ASL_MSG_RESERVED_VALUE, Field,
+                "Must be zero, setting to zero");
+            Value = 0;
+        }
     }
 
     /* Check if the value must be non-zero */
 
-    if ((Value == 0) && (Flags & DT_NON_ZERO))
+    else if ((Flags & DT_NON_ZERO) && (Value == 0))
     {
         DtError (ASL_ERROR, ASL_MSG_ZERO_VALUE, Field, NULL);
     }
@@ -333,7 +354,8 @@ DtCompileInteger (
 
     if (Value > MaxValue)
     {
-        sprintf (MsgBuffer, "%8.8X%8.8X", ACPI_FORMAT_UINT64 (Value));
+        sprintf (MsgBuffer, "%8.8X%8.8X - max %u bytes",
+            ACPI_FORMAT_UINT64 (Value), ByteLength);
         DtError (ASL_ERROR, ASL_MSG_INTEGER_SIZE, Field, MsgBuffer);
     }
 
@@ -382,10 +404,12 @@ DtNormalizeBuffer (
         case ']':
         case ' ':
         case ',':
+
             Separator = TRUE;
             break;
 
         default:
+
             if (Separator)
             {
                 /* Insert blank as the standard separator */
@@ -458,12 +482,13 @@ DtCompileBuffer (
         if (ACPI_FAILURE (Status))
         {
             DtError (ASL_ERROR, ASL_MSG_BUFFER_ELEMENT, Field, MsgBuffer);
-            return (ByteLength - Count);
+            goto Exit;
         }
 
         Buffer[i] = (UINT8) Value;
     }
 
+Exit:
     ACPI_FREE (StringValue);
     return (ByteLength - Count);
 }

@@ -86,17 +86,12 @@ int	in6_pcbconnect(struct inpcb *, struct sockaddr *, struct ucred *);
 int	in6_pcbconnect_mbuf(struct inpcb *, struct sockaddr *,
 	    struct ucred *, struct mbuf *);
 void	in6_pcbdisconnect(struct inpcb *);
-int	in6_pcbladdr(struct inpcb *, struct sockaddr *, struct in6_addr *);
 struct	inpcb *
 	in6_pcblookup_local(struct inpcbinfo *,
 				 struct in6_addr *, u_short, int,
 				 struct ucred *);
 struct	inpcb *
 	in6_pcblookup(struct inpcbinfo *, struct in6_addr *,
-			   u_int, struct in6_addr *, u_int, int,
-			   struct ifnet *);
-struct	inpcb *
-	in6_pcblookup_hash_locked(struct inpcbinfo *, struct in6_addr *,
 			   u_int, struct in6_addr *, u_int, int,
 			   struct ifnet *);
 struct	inpcb *

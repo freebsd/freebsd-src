@@ -21,10 +21,11 @@
 
 /*
  * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  */
 
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #else
 #define	ABS(a)		((a) < 0 ? -(a) : (a))
@@ -32,7 +33,7 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <assert.h>
@@ -161,7 +162,7 @@ static int
 pfcheck_dint(dt_pfargv_t *pfv, dt_pfargd_t *pfd, dt_node_t *dnp)
 {
 	if (dnp->dn_flags & DT_NF_SIGNED)
-		pfd->pfd_flags |= DT_PFCONV_SIGNED;
+		pfd->pfd_fmt[strlen(pfd->pfd_fmt) - 1] = 'i';
 	else
 		pfd->pfd_fmt[strlen(pfd->pfd_fmt) - 1] = 'u';
 
@@ -466,7 +467,7 @@ pfprint_time(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	 * Below, we turn this into the canonical adb/mdb /[yY] format,
 	 * "1973 Dec  3 17:20:00".
 	 */
-#if defined(sun)
+#ifdef illumos
 	(void) ctime_r(&sec, src, sizeof (src));
 #else
 	(void) ctime_r(&sec, src);
@@ -517,7 +518,7 @@ pfprint_port(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	char buf[256];
 	struct servent *sv, res;
 
-#if defined(sun)
+#ifdef illumos
 	if ((sv = getservbyport_r(port, NULL, &res, buf, sizeof (buf))) != NULL)
 #else
 	if (getservbyport_r(port, NULL, &res, buf, sizeof (buf), &sv) > 0)
@@ -543,7 +544,7 @@ pfprint_inetaddr(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 	s[size] = '\0';
 
 	if (strchr(s, ':') == NULL && inet_pton(AF_INET, s, inetaddr) != -1) {
-#if defined(sun)
+#ifdef illumos
 		if ((host = gethostbyaddr_r(inetaddr, NS_INADDRSZ,
 		    AF_INET, &res, buf, sizeof (buf), &e)) != NULL)
 #else
@@ -664,7 +665,7 @@ static const dt_pfconv_t _dtrace_conversions[] = {
 { "hu", "u", "unsigned short", pfcheck_type, pfprint_uint },
 { "hx", "x", "short", pfcheck_xshort, pfprint_uint },
 { "hX", "X", "short", pfcheck_xshort, pfprint_uint },
-{ "i", "i", pfproto_xint, pfcheck_dint, pfprint_dint },
+{ "i", "i", pfproto_xint, pfcheck_xint, pfprint_sint },
 { "I", "s", pfproto_cstr, pfcheck_str, pfprint_inetaddr },
 { "k", "s", "stack", pfcheck_stack, pfprint_stack },
 { "lc", "lc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wint_t */
@@ -693,8 +694,13 @@ static const dt_pfconv_t _dtrace_conversions[] = {
 { "S", "s", pfproto_cstr, pfcheck_str, pfprint_estr },
 { "T", "s", "int64_t", pfcheck_time, pfprint_time822 },
 { "u", "u", pfproto_xint, pfcheck_xint, pfprint_uint },
+#ifdef illumos
 { "wc",	"wc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wchar_t */
 { "ws", "ws", pfproto_wstr, pfcheck_wstr, pfprint_wstr },
+#else
+{ "wc", "lc", "int", pfcheck_type, pfprint_sint }, /* a.k.a. wchar_t */
+{ "ws", "ls", pfproto_wstr, pfcheck_wstr, pfprint_wstr },
+#endif
 { "x", "x", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "X", "X", pfproto_xint, pfcheck_xint, pfprint_uint },
 { "Y", "s", "int64_t", pfcheck_time, pfprint_time },
@@ -1069,7 +1075,7 @@ dt_printf_validate(dt_pfargv_t *pfv, uint_t flags,
 		xyerror(D_TYPE_ERR, "failed to lookup agg type %s\n", aggtype);
 
 	bzero(&aggnode, sizeof (aggnode));
-	dt_node_type_assign(&aggnode, dtt.dtt_ctfp, dtt.dtt_type);
+	dt_node_type_assign(&aggnode, dtt.dtt_ctfp, dtt.dtt_type, B_FALSE);
 
 	for (i = 0, j = 0; i < pfv->pfv_argc; i++, pfd = pfd->pfd_next) {
 		const dt_pfconv_t *pfc = pfd->pfd_conv;
@@ -1651,7 +1657,7 @@ dtrace_freopen(dtrace_hdl_t *dtp, FILE *fp, void *fmtdata,
 	if (rval == -1 || fp == NULL)
 		return (rval);
 
-#if defined(sun)
+#ifdef illumos
 	if (pfd->pfd_preflen != 0 &&
 	    strcmp(pfd->pfd_prefix, DT_FREOPEN_RESTORE) == 0) {
 		/*
@@ -1733,7 +1739,7 @@ dtrace_freopen(dtrace_hdl_t *dtp, FILE *fp, void *fmtdata,
 	}
 
 	(void) fclose(nfp);
-#else
+#else	/* !illumos */
 	/*
 	 * The 'standard output' (which is not necessarily stdout)
 	 * treatment on FreeBSD is implemented differently than on
@@ -1808,7 +1814,7 @@ dtrace_freopen(dtrace_hdl_t *dtp, FILE *fp, void *fmtdata,
 
 	/* Remember that the output has been redirected to the new file. */
 	dtp->dt_freopen_fp = nfp;
-#endif
+#endif	/* illumos */
 
 	return (rval);
 }

@@ -483,6 +483,7 @@ if [ ! -f ${SOURCEDIR}/Makefile.inc1 -a \
   sleep 3
   SOURCEDIR=${SOURCEDIR}/..
 fi
+SOURCEDIR=$(realpath "$SOURCEDIR")
 
 # Setup make to use system files from SOURCEDIR
 MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
@@ -491,8 +492,14 @@ MM_MAKE="make ${ARCHSTRING} -m ${SOURCEDIR}/share/mk"
 # files the user changed from the reference files.
 #
 if [ -n "${AUTO_UPGRADE}" -a -s "${MTREEFILE}" ]; then
+	# Force FreeBSD 9 compatible output when available.
+	if mtree -F freebsd9 -c -p /var/empty/ > /dev/null 2>&1; then
+		MTREE_FLAVOR="-F freebsd9"
+	else
+		MTREE_FLAVOR=
+	fi
 	CHANGED=:
-	for file in `mtree -eqL -f ${MTREEFILE} -p ${DESTDIR}/ \
+	for file in `mtree -eqL ${MTREE_FLAVOR} -f ${MTREEFILE} -p ${DESTDIR}/ \
 		2>/dev/null | awk '($2 == "changed") {print $1}'`; do
 		if [ -f "${DESTDIR}/$file" ]; then
 			CHANGED="${CHANGED}${DESTDIR}/${file}:"
@@ -629,11 +636,10 @@ case "${RERUN}" in
         ${MM_MAKE} DESTDIR=${DESTDIR} distrib-dirs >/dev/null
         ;;
       esac
-      od=${TEMPROOT}/usr/obj
       ${MM_MAKE} DESTDIR=${TEMPROOT} distrib-dirs >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
-      MAKEOBJDIRPREFIX=$od ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
+      ${MM_MAKE} _obj SUBDIR_OVERRIDE=etc >/dev/null &&
+      ${MM_MAKE} everything SUBDIR_OVERRIDE=etc >/dev/null &&
+      ${MM_MAKE} DESTDIR=${TEMPROOT} distribution >/dev/null;} ||
     { echo '';
      echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
       echo "      the temproot environment";
@@ -693,7 +699,8 @@ case "${RERUN}" in
   # or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
   # Prompt the user to do so below, as needed.
   #
-  rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
+  rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd \
+      ${TEMPROOT}/var/db/services.db
 
   # We only need to compare things like freebsd.cf once
   find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
@@ -702,12 +709,12 @@ case "${RERUN}" in
   # and to make the actual comparison faster.
   find ${TEMPROOT}/usr -type l -delete 2>/dev/null
   find ${TEMPROOT} -type f -size 0 -delete 2>/dev/null
-  find -d ${TEMPROOT} -type d -empty -delete 2>/dev/null
+  find -d ${TEMPROOT} -type d -empty -mindepth 1 -delete 2>/dev/null
 
   # Build the mtree database in a temporary location.
   case "${PRE_WORLD}" in
   '') MTREENEW=`mktemp -t mergemaster.mtree`
-      mtree -ci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
+      mtree -nci -p ${TEMPROOT} -k size,md5digest > ${MTREENEW} 2>/dev/null
       ;;
   *) # We don't want to mess with the mtree database on a pre-world run or
      # when re-scanning a previously-built tree.
@@ -753,7 +760,7 @@ CONFIRMED_UMASK=${NEW_UMASK:-0022}
 # Warn users who still have old rc files
 #
 for file in atm devfs diskless1 diskless2 network network6 pccard \
-  serial syscons sysctl alpha amd64 i386 ia64 sparc64; do
+  serial syscons sysctl alpha amd64 i386 sparc64; do
   if [ -f "${DESTDIR}/etc/rc.${file}" ]; then
     OLD_RC_PRESENT=1
     break
@@ -779,7 +786,7 @@ case "${OLD_RC_PRESENT}" in
     *)
       mkdir -p /var/tmp/mergemaster/old_rc
         for file in atm devfs diskless1 diskless2 network network6 pccard \
-          serial syscons sysctl alpha amd64 i386 ia64 sparc64; do
+          serial syscons sysctl alpha amd64 i386 sparc64; do
           if [ -f "${DESTDIR}/etc/rc.${file}" ]; then
             mv ${DESTDIR}/etc/rc.${file} /var/tmp/mergemaster/old_rc/
           fi
@@ -1327,7 +1334,7 @@ case "${NEED_PWD_MKDB}" in
   ;;
 esac
 
-if [ -e "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
+if [ -e "${DESTDIR}/etc/localtime" -a ! -L "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
   echo ''
   [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
   if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then

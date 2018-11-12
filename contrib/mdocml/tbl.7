@@ -1,6 +1,7 @@
-.\"	$Id: tbl.7,v 1.16 2011/09/03 00:29:21 kristaps Exp $
+.\"	$Id: tbl.7,v 1.26 2015/01/29 00:33:57 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2014, 2015 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 3 2011 $
+.Dd $Mdocdate: January 29 2015 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -49,7 +50,7 @@ macro tags, whose precise syntax is documented in
 Tables consist of a series of options on a single line, followed by the
 table layout, followed by data.
 .Pp
-For example, the following creates a boxed table with digits centred in
+For example, the following creates a boxed table with digits centered in
 the cells.
 .Bd -literal -offset indent
 \&.TS
@@ -69,13 +70,6 @@ c5 c5 c5.
 4:5:6
 .TE
 .Ed
-.Pp
-The
-.Nm
-implementation in
-.Xr mandoc 1
-is
-.Ud
 .Sh TABLE STRUCTURE
 Tables are enclosed by the
 .Sq TS
@@ -139,57 +133,59 @@ c c c.
 in the case of
 .Xr man 7 .
 .Ss Options
-The first line of a table consists of space-separated option keys and
-modifiers terminated by a semicolon.
+The first line of a table may contain options separated by spaces, tabs,
+or commas and terminated by a semicolon.
 If the first line does not have a terminating semicolon, it is assumed
 that no options are specified and instead a
 .Sx Layout
 is processed.
-Some options accept arguments enclosed by parenthesis.
+Some options require arguments enclosed by parentheses.
 The following case-insensitive options are available:
 .Bl -tag -width Ds
-.It Cm center
-This option is not supported by
-.Xr mandoc 1 .
-This may also be invoked with
-.Cm centre .
-.It Cm delim
-Accepts a two-character argument.
-This option is not supported by
-.Xr mandoc 1 .
-.It Cm expand
-This option is not supported by
-.Xr mandoc 1 .
+.It Cm allbox
+Draw a single-line box around each table cell.
+Currently treated as a synonym for
+.Cm box .
 .It Cm box
 Draw a single-line box around the table.
-This may also be invoked with
+For GNU compatibility, this may also be invoked with
 .Cm frame .
-.It Cm doublebox
-Draw a double-line box around the table.
-This may also be invoked with
-.Cm doubleframe .
-.It Cm allbox
-This option is not supported by
-.Xr mandoc 1 .
-.It Cm tab
-Accepts a single-character argument.
-This character is used as a delimiter between data cells, which otherwise
-defaults to the tab character.
-.It Cm linesize
-Accepts a natural number (all digits).
-This option is not supported by
-.Xr mandoc 1 .
-.It Cm nokeep
-This option is not supported by
-.Xr mandoc 1 .
+.It Cm center
+Center the table instead of left-adjusting it.
+For GNU compatibility, this may also be invoked with
+.Cm centre .
 .It Cm decimalpoint
-Accepts a single-character argument.
-This character will be used as the decimal point with the
+Use the single-character argument as the decimal point with the
 .Cm n
 layout key.
+This is a GNU extension.
+.It Cm delim
+Use the two characters of the argument as
+.Xr eqn 7
+delimiters.
+Currently unsupported.
+.It Cm doublebox
+Draw a double-line box around the table.
+For GNU compatibility, this may also be invoked with
+.Cm doubleframe .
+.It Cm expand
+Increase the width of the table to the current line length.
+Currently ignored.
+.It Cm linesize
+Draw lines with the point size given by the unsigned integer argument.
+Currently ignored.
+.It Cm nokeep
+Allow page breaks within the table.
+This is a GNU extension and currently ignored.
 .It Cm nospaces
-This option is not supported by
-.Xr mandoc 1 .
+Ignore leading and trailing spaces in data cells.
+This is a GNU extension and currently ignored.
+.It Cm nowarn
+Suppress warnings about tables exceeding the current line length.
+This is a GNU extension and currently ignored.
+.It Cm tab
+Use the single-character argument as a delimiter between data cells.
+By default, the tab character is used.
 .El
 .Ss Layout
 The table layout follows
@@ -202,9 +198,9 @@ Each layout line corresponds to a line of data; the last layout line
 applies to all remaining data lines.
 Layout lines may also be separated by a comma.
 Each layout cell consists of one of the following case-insensitive keys:
-.Bl -tag -width Ds
+.Bl -tag -width 2n
 .It Cm c
-Centre a literal string within its column.
+Center a literal string within its column.
 .It Cm r
 Right-justify a literal string within its column.
 .It Cm l
@@ -251,35 +247,60 @@ Keys may be followed by a set of modifiers.
 A modifier is either a modifier key or a natural number for specifying
 the minimum width of a column.
 The following case-insensitive modifier keys are available:
-.Cm z ,
-.Cm u ,
-.Cm e ,
-.Cm t ,
-.Cm d ,
-.Cm b ,
-.Cm i ,
-.Cm r ,
-and
-.Cm f
-.Po
-followed by
-.Cm b ,
-.Cm i ,
-.Cm r ,
-.Cm 3 ,
-.Cm 2 ,
-or
-.Cm 1
-.Pc .
-All of these are ignored by
-.Xr mandoc 1 .
+.Bl -tag -width 2n
+.It Cm b
+Use a bold font for the contents of this column.
+.It Cm d
+Move cell content down to the last cell of a vertical span.
+Currently ignored.
+.It Cm e
+Make this column wider to match the maximum width
+of any other column also having the
+.Cm e
+modifier.
+.It Cm f
+The next character selects the font to use for this column.
+See the
+.Xr roff 7
+manual for supported one-character font names.
+.It Cm i
+Use an italic font for the contents of this column.
+.It Cm m
+Specify a cell start macro.
+This is a GNU extension and currently unsupported.
+.It Cm p
+Set the point size to the following unsigned argument,
+or change it by the following signed argument.
+Currently ignored.
+.It Cm v
+Set the vertical line spacing to the following unsigned argument,
+or change it by the following signed argument.
+Currently ignored.
+.It Cm t
+Do not vertically center cell content in the vertical span,
+leave it at the top.
+Currently ignored.
+.It Cm u
+Move cell content up by half a table line.
+Currently ignored.
+.It Cm w
+Specify minimum column width.
+Currently ignored.
+.It Cm x
+After determining the width of all other columns, distribute the
+rest of the line length among all columns having the
+.Cm x
+modifier.
+.It Cm z
+Do not use this cell for determining the width of this column.
+.El
 .Pp
-For example, the following layout specifies a centre-justified column of
+For example, the following layout specifies a center-justified column of
 minimum width 10, followed by vertical bar, followed by a left-justified
-column of minimum width 10, another vertical bar, then a column
-justified about the decimal point in numbers:
+column of minimum width 10, another vertical bar, then a column using
+bold font justified about the decimal point in numbers:
 .Pp
-.Dl c10 | l10 | n
+.Dl c10 | l10 | nfB
 .Ss Data
 The data section follows the last layout row.
 By default, cells in a data section are delimited by a tab.
@@ -307,18 +328,17 @@ It may then be followed by a tab
 .Pq or as designated by Cm tab
 or an end-of-line to terminate the row.
 .Sh COMPATIBILITY
-This section documents compatibility between mandoc and other
-.Nm
-implementations, at this time limited to GNU tbl.
-.Pp
-.Bl -dash -compact
-.It
-In GNU tbl, comments and macros are disallowed prior to the data block
-of a table.
 The
 .Xr mandoc 1
-implementation allows them.
-.El
+implementation of
+.Nm
+doesn't support
+.Xr mdoc 7
+and
+.Xr man 7
+macros and
+.Xr eqn 7
+equations inside tables.
 .Sh SEE ALSO
 .Xr mandoc 1 ,
 .Xr man 7 ,
@@ -344,5 +364,4 @@ utility.
 This
 .Nm
 reference was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .

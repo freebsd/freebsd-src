@@ -43,6 +43,7 @@
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/if_llc.h>
@@ -75,7 +76,7 @@ struct fw_hwaddr firewire_broadcastaddr = {
 };
 
 static int
-firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
 {
 	struct fw_com *fc = IFP2FWC(ifp);
@@ -88,8 +89,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct mbuf *mtail;
 	int unicast, dgl, foff;
 	static int next_dgl;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
+#ifdef INET
+	int is_gw;
 #endif
 
 #ifdef MAC
@@ -139,7 +140,11 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			error = arpresolve(ifp, ro ? ro->ro_rt : NULL, m, dst, (u_char *) destfw, &lle);
+			is_gw = 0;
+			if (ro != NULL && ro->ro_rt != NULL &&
+			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+				is_gw = 1;
+			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -169,7 +174,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	case AF_INET6:
 		if (unicast) {
 			error = nd6_storelladdr(fc->fc_ifp, m, dst,
-			    (u_char *) destfw, &lle);
+			    (u_char *) destfw, NULL);
 			if (error)
 				return (error);
 		}
@@ -536,7 +541,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 
 	if (m->m_pkthdr.rcvif == NULL) {
 		if_printf(ifp, "discard frame w/o interface pointer\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		m_freem(m);
 		return;
 	}
@@ -581,7 +586,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 		return;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	/* Discard packet if interface is not up */
 	if ((ifp->if_flags & IFF_UP) == 0) {
@@ -590,7 +595,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 	}
 
 	if (m->m_flags & (M_BCAST|M_MCAST))
-		ifp->if_imcasts++;
+		if_inc_counter(ifp, IFCOUNTER_IMCASTS, 1);
 
 	switch (type) {
 #ifdef INET

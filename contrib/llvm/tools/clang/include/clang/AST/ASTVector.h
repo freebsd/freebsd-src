@@ -15,57 +15,60 @@
 // FIXME: Most of this is copy-and-paste from BumpVector.h and SmallVector.h.
 // We can refactor this core logic into something common.
 
-#ifndef LLVM_CLANG_AST_VECTOR
-#define LLVM_CLANG_AST_VECTOR
+#ifndef LLVM_CLANG_AST_ASTVECTOR_H
+#define LLVM_CLANG_AST_ASTVECTOR_H
 
-#include "llvm/Support/type_traits.h"
-#include "llvm/Support/Allocator.h"
+#include "clang/AST/AttrIterator.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/type_traits.h"
 #include <algorithm>
-#include <memory>
 #include <cstring>
-
-#ifdef _MSC_VER
-namespace std {
-#if _MSC_VER <= 1310
-  // Work around flawed VC++ implementation of std::uninitialized_copy.  Define
-  // additional overloads so that elements with pointer types are recognized as
-  // scalars and not objects, causing bizarre type conversion errors.
-  template<class T1, class T2>
-  inline _Scalar_ptr_iterator_tag _Ptr_cat(T1 **, T2 **) {
-    _Scalar_ptr_iterator_tag _Cat;
-    return _Cat;
-  }
-
-  template<class T1, class T2>
-  inline _Scalar_ptr_iterator_tag _Ptr_cat(T1* const *, T2 **) {
-    _Scalar_ptr_iterator_tag _Cat;
-    return _Cat;
-  }
-#else
-  // FIXME: It is not clear if the problem is fixed in VS 2005.  What is clear
-  // is that the above hack won't work if it wasn't fixed.
-#endif
-}
-#endif
+#include <memory>
 
 namespace clang {
+  class ASTContext;
 
 template<typename T>
 class ASTVector {
-  T *Begin, *End, *Capacity;
+private:
+  T *Begin, *End;
+  llvm::PointerIntPair<T*, 1, bool> Capacity;
 
   void setEnd(T *P) { this->End = P; }
 
+protected:
+  // Make a tag bit available to users of this class.
+  // FIXME: This is a horrible hack.
+  bool getTag() const { return Capacity.getInt(); }
+  void setTag(bool B) { Capacity.setInt(B); }
+
 public:
   // Default ctor - Initialize to empty.
-  explicit ASTVector(ASTContext &C, unsigned N = 0)
-  : Begin(NULL), End(NULL), Capacity(NULL) {
+  ASTVector() : Begin(nullptr), End(nullptr), Capacity(nullptr, false) {}
+
+  ASTVector(ASTVector &&O) : Begin(O.Begin), End(O.End), Capacity(O.Capacity) {
+    O.Begin = O.End = nullptr;
+    O.Capacity.setPointer(nullptr);
+    O.Capacity.setInt(false);
+  }
+
+  ASTVector(const ASTContext &C, unsigned N)
+      : Begin(nullptr), End(nullptr), Capacity(nullptr, false) {
     reserve(C, N);
   }
 
+  ASTVector &operator=(ASTVector &&RHS) {
+    ASTVector O(std::move(RHS));
+    using std::swap;
+    swap(Begin, O.Begin);
+    swap(End, O.End);
+    swap(Capacity, O.Capacity);
+    return *this;
+  }
+
   ~ASTVector() {
-    if (llvm::is_class<T>::value) {
+    if (std::is_class<T>::value) {
       // Destroy the constructed elements in the vector.
       destroy_range(Begin, End);
     }
@@ -135,7 +138,7 @@ public:
   }
 
   void clear() {
-    if (llvm::is_class<T>::value) {
+    if (std::is_class<T>::value) {
       destroy_range(Begin, End);
     }
     End = Begin;
@@ -151,8 +154,8 @@ public:
     return const_pointer(Begin);
   }
 
-  void push_back(const_reference Elt, ASTContext &C) {
-    if (End < Capacity) {
+  void push_back(const_reference Elt, const ASTContext &C) {
+    if (End < this->capacity_ptr()) {
     Retry:
       new (End) T(Elt);
       ++End;
@@ -162,19 +165,19 @@ public:
     goto Retry;
   }
 
-  void reserve(ASTContext &C, unsigned N) {
-    if (unsigned(Capacity-Begin) < N)
+  void reserve(const ASTContext &C, unsigned N) {
+    if (unsigned(this->capacity_ptr()-Begin) < N)
       grow(C, N);
   }
 
   /// capacity - Return the total number of elements in the currently allocated
   /// buffer.
-  size_t capacity() const { return Capacity - Begin; }
+  size_t capacity() const { return this->capacity_ptr() - Begin; }
 
   /// append - Add the specified range to the end of the SmallVector.
   ///
   template<typename in_iter>
-  void append(ASTContext &C, in_iter in_start, in_iter in_end) {
+  void append(const ASTContext &C, in_iter in_start, in_iter in_end) {
     size_type NumInputs = std::distance(in_start, in_end);
 
     if (NumInputs == 0)
@@ -193,7 +196,7 @@ public:
 
   /// append - Add the specified range to the end of the SmallVector.
   ///
-  void append(ASTContext &C, size_type NumInputs, const T &Elt) {
+  void append(const ASTContext &C, size_type NumInputs, const T &Elt) {
     // Grow allocated space if needed.
     if (NumInputs > size_type(this->capacity_ptr()-this->end()))
       this->grow(C, this->size()+NumInputs);
@@ -210,13 +213,13 @@ public:
     std::uninitialized_copy(I, E, Dest);
   }
 
-  iterator insert(ASTContext &C, iterator I, const T &Elt) {
+  iterator insert(const ASTContext &C, iterator I, const T &Elt) {
     if (I == this->end()) {  // Important special case for empty vector.
-      push_back(Elt);
+      push_back(Elt, C);
       return this->end()-1;
     }
 
-    if (this->EndX < this->CapacityX) {
+    if (this->End < this->capacity_ptr()) {
     Retry:
       new (this->end()) T(this->back());
       this->setEnd(this->end()+1);
@@ -231,15 +234,15 @@ public:
     goto Retry;
   }
 
-  iterator insert(ASTContext &C, iterator I, size_type NumToInsert,
+  iterator insert(const ASTContext &C, iterator I, size_type NumToInsert,
                   const T &Elt) {
-    if (I == this->end()) {  // Important special case for empty vector.
-      append(C, NumToInsert, Elt);
-      return this->end()-1;
-    }
-
     // Convert iterator to elt# to avoid invalidating iterator when we reserve()
     size_t InsertElt = I - this->begin();
+
+    if (I == this->end()) { // Important special case for empty vector.
+      append(C, NumToInsert, Elt);
+      return this->begin() + InsertElt;
+    }
 
     // Ensure there is enough space.
     reserve(C, static_cast<unsigned>(this->size() + NumToInsert));
@@ -280,15 +283,16 @@ public:
   }
 
   template<typename ItTy>
-  iterator insert(ASTContext &C, iterator I, ItTy From, ItTy To) {
-    if (I == this->end()) {  // Important special case for empty vector.
+  iterator insert(const ASTContext &C, iterator I, ItTy From, ItTy To) {
+    // Convert iterator to elt# to avoid invalidating iterator when we reserve()
+    size_t InsertElt = I - this->begin();
+
+    if (I == this->end()) { // Important special case for empty vector.
       append(C, From, To);
-      return this->end()-1;
+      return this->begin() + InsertElt;
     }
 
     size_t NumToInsert = std::distance(From, To);
-    // Convert iterator to elt# to avoid invalidating iterator when we reserve()
-    size_t InsertElt = I - this->begin();
 
     // Ensure there is enough space.
     reserve(C, static_cast<unsigned>(this->size() + NumToInsert));
@@ -331,7 +335,7 @@ public:
     return I;
   }
 
-  void resize(ASTContext &C, unsigned N, const T &NV) {
+  void resize(const ASTContext &C, unsigned N, const T &NV) {
     if (N < this->size()) {
       this->destroy_range(this->begin()+N, this->end());
       this->setEnd(this->begin()+N);
@@ -346,7 +350,7 @@ public:
 private:
   /// grow - double the size of the allocated memory, guaranteeing space for at
   /// least one more element or MinSize if specified.
-  void grow(ASTContext &C, size_type MinSize = 1);
+  void grow(const ASTContext &C, size_type MinSize = 1);
 
   void construct_range(T *S, T *E, const T &Elt) {
     for (; S != E; ++S)
@@ -361,13 +365,16 @@ private:
   }
 
 protected:
-  iterator capacity_ptr() { return (iterator)this->Capacity; }
+  const_iterator capacity_ptr() const {
+    return (iterator) Capacity.getPointer();
+  }
+  iterator capacity_ptr() { return (iterator)Capacity.getPointer(); }
 };
 
 // Define this out-of-line to dissuade the C++ compiler from inlining it.
 template <typename T>
-void ASTVector<T>::grow(ASTContext &C, size_t MinSize) {
-  size_t CurCapacity = Capacity-Begin;
+void ASTVector<T>::grow(const ASTContext &C, size_t MinSize) {
+  size_t CurCapacity = this->capacity();
   size_t CurSize = size();
   size_t NewCapacity = 2*CurCapacity;
   if (NewCapacity < MinSize)
@@ -377,7 +384,7 @@ void ASTVector<T>::grow(ASTContext &C, size_t MinSize) {
   T *NewElts = new (C, llvm::alignOf<T>()) T[NewCapacity];
 
   // Copy the elements over.
-  if (llvm::is_class<T>::value) {
+  if (std::is_class<T>::value) {
     std::uninitialized_copy(Begin, End, NewElts);
     // Destroy the original elements.
     destroy_range(Begin, End);
@@ -390,7 +397,7 @@ void ASTVector<T>::grow(ASTContext &C, size_t MinSize) {
   // ASTContext never frees any memory.
   Begin = NewElts;
   End = NewElts+CurSize;
-  Capacity = Begin+NewCapacity;
+  Capacity.setPointer(Begin+NewCapacity);
 }
 
 } // end: clang namespace

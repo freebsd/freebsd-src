@@ -1,4 +1,4 @@
-# $Id: dpadd.mk,v 1.18 2011/11/10 05:13:37 sjg Exp $
+# $Id: dpadd.mk,v 1.19 2014/04/05 22:56:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
@@ -68,7 +68,7 @@ DPLIBS+= ${LIBDMALLOC}
 .endif
 .endif
 
-# Order -L's to seach ours first.
+# Order -L's to search ours first.
 # Avoids picking up old versions already installed.
 __dpadd_libdirs := ${__dpadd_libs:R:H:S/^/-L/g:O:u:N-L}
 LDADD += ${__dpadd_libdirs:M-L${OBJTOP}/*}
@@ -99,9 +99,9 @@ SRC_LIBS+= ${_OBJDIR}/lib${LIB}.a
 # This little bit of magic, assumes that SRC_libfoo will be
 # set if it cannot be correctly derrived from ${LIBFOO}
 # Note that SRC_libfoo and INCLUDES_libfoo should be named for the
-# actual libary name not the variable name that might refer to it.
+# actual library name not the variable name that might refer to it.
 # 99% of the time the two are the same, but the DPADD logic
-# only has the libary name available, so stick to that.
+# only has the library name available, so stick to that.
 # 
 
 SRC_LIBS?=

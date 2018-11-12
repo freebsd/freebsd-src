@@ -175,7 +175,7 @@ nfs_setup_diskless(void)
 		return;
 
 	/* get handle size. If this succeeds, it's an NFSv3 setup. */
-	if ((cp = getenv("boot.nfsroot.nfshandlelen")) != NULL) {
+	if ((cp = kern_getenv("boot.nfsroot.nfshandlelen")) != NULL) {
 		cnt = sscanf(cp, "%d", &len);
 		freeenv(cp);
 		if (cnt != 1 || len == 0 || len > NFSX_V3FHMAX) {
@@ -237,7 +237,7 @@ nfs_setup_diskless(void)
 	printf("nfs_diskless: no interface\n");
 	return;	/* no matching interface */
 match_done:
-	setenv("boot.netif.name", ifp->if_xname);
+	kern_setenv("boot.netif.name", ifp->if_xname);
 	if (is_nfsv3 != 0) {
 		strlcpy(nd3->myif.ifra_name, ifp->if_xname,
 		    sizeof(nd3->myif.ifra_name));
@@ -267,11 +267,11 @@ match_done:
 			printf("nfs_diskless: bad NFS handle len=%d\n", fhlen);
 			return;
 		}
-		if ((cp = getenv("boot.nfsroot.path")) != NULL) {
+		if ((cp = kern_getenv("boot.nfsroot.path")) != NULL) {
 			strncpy(nd3->root_hostnam, cp, MNAMELEN - 1);
 			freeenv(cp);
 		}
-		if ((cp = getenv("boot.nfsroot.options")) != NULL) {
+		if ((cp = kern_getenv("boot.nfsroot.options")) != NULL) {
 			nfs_parse_options(cp, &nd3->root_args);
 			freeenv(cp);
 		}
@@ -301,11 +301,11 @@ match_done:
 			printf("nfs_diskless: no NFS handle\n");
 			return;
 		}
-		if ((cp = getenv("boot.nfsroot.path")) != NULL) {
+		if ((cp = kern_getenv("boot.nfsroot.path")) != NULL) {
 			strncpy(nd->root_hostnam, cp, MNAMELEN - 1);
 			freeenv(cp);
 		}
-		if ((cp = getenv("boot.nfsroot.options")) != NULL) {
+		if ((cp = kern_getenv("boot.nfsroot.options")) != NULL) {
 			struct nfs_args args;
 	
 			/*
@@ -339,7 +339,7 @@ inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa)
 	sa->sin_len = sizeof(*sa);
 	sa->sin_family = AF_INET;
 
-	if ((cp = getenv(ev)) == NULL)
+	if ((cp = kern_getenv(ev)) == NULL)
 		return (1);
 	count = sscanf(cp, "%d.%d.%d.%d", &a[0], &a[1], &a[2], &a[3]);
 	freeenv(cp);
@@ -362,7 +362,7 @@ hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa)
 	sa->sdl_family = AF_LINK;
 	sa->sdl_type = IFT_ETHER;
 	sa->sdl_alen = ETHER_ADDR_LEN;
-	if ((cp = getenv(ev)) == NULL)
+	if ((cp = kern_getenv(ev)) == NULL)
 		return (1);
 	count = sscanf(cp, "%x:%x:%x:%x:%x:%x",
 	    &a[0], &a[1], &a[2], &a[3], &a[4], &a[5]);
@@ -384,7 +384,7 @@ decode_nfshandle(char *ev, u_char *fh, int maxfh)
 	u_char *cp, *ep;
 	int len, val;
 
-	ep = cp = getenv(ev);
+	ep = cp = kern_getenv(ev);
 	if (cp == NULL)
 		return (0);
 	if ((strlen(cp) < 2) || (*cp != 'X')) {

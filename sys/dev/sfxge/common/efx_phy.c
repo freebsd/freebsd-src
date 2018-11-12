@@ -427,6 +427,7 @@ efx_phy_adv_cap_set(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_phy_ops_t *epop = epp->ep_epop;
+	uint32_t old_mask;
 	int rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -440,6 +441,7 @@ efx_phy_adv_cap_set(
 	if (epp->ep_adv_cap_mask == mask)
 		goto done;
 
+	old_mask = epp->ep_adv_cap_mask;
 	epp->ep_adv_cap_mask = mask;
 
 	if ((rc = epop->epo_reconfigure(enp)) != 0)
@@ -450,6 +452,17 @@ done:
 
 fail2:
 	EFSYS_PROBE(fail2);
+
+	epp->ep_adv_cap_mask = old_mask;
+	/* Reconfigure for robustness */
+	if (epop->epo_reconfigure(enp) != 0) {
+		/*
+		 * We may have an inconsistent view of our advertised speed
+		 * capabilities.
+		 */
+		EFSYS_ASSERT(0);
+	}
+
 fail1:
 	EFSYS_PROBE1(fail1, int, rc);
 

@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #define	PRINT_QUOTED	0x08
 #define	PRINT_SKIP	0x10
 #define	PRINT_VERBOSE	0x20
+#define	PRINT_JAIL_NAME	0x40
 
 static struct jailparam *params;
 static int *param_parent;
@@ -77,12 +78,12 @@ static void quoted_print(char *str);
 int
 main(int argc, char **argv)
 {
-	char *dot, *ep, *jname;
+	char *dot, *ep, *jname, *pname;
 	int c, i, jflags, jid, lastjid, pflags, spc;
 
 	jname = NULL;
 	pflags = jflags = jid = 0;
-	while ((c = getopt(argc, argv, "adj:hnqsv")) >= 0)
+	while ((c = getopt(argc, argv, "adj:hNnqsv")) >= 0)
 		switch (c) {
 		case 'a':
 		case 'd':
@@ -98,6 +99,9 @@ main(int argc, char **argv)
 		case 'h':
 			pflags = (pflags & ~(PRINT_SKIP | PRINT_VERBOSE)) |
 			    PRINT_HEADER;
+			break;
+		case 'N':
+			pflags |= PRINT_JAIL_NAME;
 			break;
 		case 'n':
 			pflags = (pflags & ~PRINT_VERBOSE) | PRINT_NAMEVAL;
@@ -115,7 +119,7 @@ main(int argc, char **argv)
 			    PRINT_VERBOSE;
 			break;
 		default:
-			errx(1, "usage: jls [-dhnqv] [-j jail] [param ...]");
+			errx(1, "usage: jls [-dhNnqv] [-j jail] [param ...]");
 		}
 
 #ifdef INET6
@@ -149,7 +153,10 @@ main(int argc, char **argv)
 #endif
 		} else {
 			pflags |= PRINT_DEFAULT;
-			add_param("jid", NULL, (size_t)0, NULL, JP_USER);
+			if (pflags & PRINT_JAIL_NAME)
+				add_param("name", NULL, (size_t)0, NULL, JP_USER);
+			else
+				add_param("jid", NULL, (size_t)0, NULL, JP_USER);
 #ifdef INET
 			if (ip4_ok)
 				add_param("ip4.addr", NULL, (size_t)0, NULL,
@@ -159,20 +166,23 @@ main(int argc, char **argv)
 			    JP_USER);
 			add_param("path", NULL, (size_t)0, NULL, JP_USER);
 		}
-	} else
+	} else {
+		pflags &= ~PRINT_VERBOSE;
 		while (optind < argc)
 			add_param(argv[optind++], NULL, (size_t)0, NULL,
 			    JP_USER);
+	}
 
 	if (pflags & PRINT_SKIP) {
 		/* Check for parameters with jailsys parents. */
 		for (i = 0; i < nparams; i++) {
 			if ((params[i].jp_flags & JP_USER) &&
 			    (dot = strchr(params[i].jp_name, '.'))) {
-				*dot = 0;
-				param_parent[i] = add_param(params[i].jp_name,
+				pname = alloca((dot - params[i].jp_name) + 1);
+				strlcpy(pname, params[i].jp_name,
+				    (dot - params[i].jp_name) + 1);
+				param_parent[i] = add_param(pname,
 				    NULL, (size_t)0, NULL, JP_OPT);
-				*dot = '.';
 			}
 		}
 	}
@@ -192,8 +202,12 @@ main(int argc, char **argv)
 		       "        CPUSetID\n"
 		       "        IP Address(es)\n");
 	else if (pflags & PRINT_DEFAULT)
-		printf("   JID  IP Address      "
-		       "Hostname                      Path\n");
+		if (pflags & PRINT_JAIL_NAME)
+			printf(" JID             IP Address      "
+			    "Hostname                      Path\n");
+		else
+			printf("   JID  IP Address      "
+			    "Hostname                      Path\n");
 	else if (pflags & PRINT_HEADER) {
 		for (i = spc = 0; i < nparams; i++)
 			if (params[i].jp_flags & JP_USER) {
@@ -280,10 +294,8 @@ add_param(const char *name, void *value, size_t valuelen,
 		param->jp_flags |= flags;
 		return param - params;
 	}
-	if (jailparam_init(param, name) < 0)
-		errx(1, "%s", jail_errmsg);
-	param->jp_flags = flags;
-	if ((value != NULL ? jailparam_import_raw(param, value, valuelen)
+	if (jailparam_init(param, name) < 0 ||
+	    (value != NULL ? jailparam_import_raw(param, value, valuelen)
 	     : jailparam_import(param, value)) < 0) {
 		if (flags & JP_OPT) {
 			nparams--;
@@ -291,6 +303,7 @@ add_param(const char *name, void *value, size_t valuelen,
 		}
 		errx(1, "%s", jail_errmsg);
 	}
+	param->jp_flags = flags;
 	return param - params;
 }
 
@@ -397,9 +410,12 @@ print_jail(int pflags, int jflags)
 			n++;
 		}
 #endif
-	} else if (pflags & PRINT_DEFAULT)
-		printf("%6d  %-15.15s %-29.29s %.74s\n",
-		    *(int *)params[0].jp_value,
+	} else if (pflags & PRINT_DEFAULT) {
+		if (pflags & PRINT_JAIL_NAME)
+			printf(" %-15s ", (char *)params[0].jp_value);
+		else
+			printf("%6d  ", *(int *)params[0].jp_value);
+		printf("%-15.15s %-29.29s %.74s\n",
 #ifdef INET
 		    (!ip4_ok || params[1].jp_valuelen == 0) ? "-"
 		    : inet_ntoa(*(struct in_addr *)params[1].jp_value),
@@ -410,7 +426,7 @@ print_jail(int pflags, int jflags)
 		    (char *)params[1].jp_value,
 		    (char *)params[2].jp_value);
 #endif
-	else {
+	} else {
 		param_values = alloca(nparams * sizeof(*param_values));
 		for (i = 0; i < nparams; i++) {
 			if (!(params[i].jp_flags & JP_USER))

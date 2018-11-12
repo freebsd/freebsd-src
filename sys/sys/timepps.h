@@ -133,12 +133,17 @@ struct pps_kcbind_args {
 
 #ifdef _KERNEL
 
+struct mtx;
+
 struct pps_state {
 	/* Capture information. */
 	struct timehands *capth;
 	struct fftimehands *capffth;
 	unsigned	capgen;
 	unsigned	capcount;
+
+	/* pointer to mutex protecting this state, if any */
+	struct mtx	*mtx;
 
 	/* State information. */
 	pps_params_t	ppsparam;

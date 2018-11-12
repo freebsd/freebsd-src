@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ADT_VARIADIC_FUNCTION_H
-#define LLVM_ADT_VARIADIC_FUNCTION_H
+#ifndef LLVM_ADT_VARIADICFUNCTION_H
+#define LLVM_ADT_VARIADICFUNCTION_H
 
 #include "llvm/ADT/ArrayRef.h"
 
@@ -105,7 +105,7 @@ template <typename ResultT, typename ArgT,
           ResultT (*Func)(ArrayRef<const ArgT *>)>
 struct VariadicFunction {
   ResultT operator()() const {
-    return Func(ArrayRef<const ArgT *>());
+    return Func(None);
   }
 
 #define LLVM_DEFINE_OVERLOAD(N) \
@@ -152,7 +152,7 @@ template <typename ResultT, typename Param0T, typename ArgT,
           ResultT (*Func)(Param0T, ArrayRef<const ArgT *>)>
 struct VariadicFunction1 {
   ResultT operator()(Param0T P0) const {
-    return Func(P0, ArrayRef<const ArgT *>());
+    return Func(P0, None);
   }
 
 #define LLVM_DEFINE_OVERLOAD(N) \
@@ -199,7 +199,7 @@ template <typename ResultT, typename Param0T, typename Param1T, typename ArgT,
           ResultT (*Func)(Param0T, Param1T, ArrayRef<const ArgT *>)>
 struct VariadicFunction2 {
   ResultT operator()(Param0T P0, Param1T P1) const {
-    return Func(P0, P1, ArrayRef<const ArgT *>());
+    return Func(P0, P1, None);
   }
 
 #define LLVM_DEFINE_OVERLOAD(N) \
@@ -248,7 +248,7 @@ template <typename ResultT, typename Param0T, typename Param1T,
           ResultT (*Func)(Param0T, Param1T, Param2T, ArrayRef<const ArgT *>)>
 struct VariadicFunction3 {
   ResultT operator()(Param0T P0, Param1T P1, Param2T P2) const {
-    return Func(P0, P1, P2, ArrayRef<const ArgT *>());
+    return Func(P0, P1, P2, None);
   }
 
 #define LLVM_DEFINE_OVERLOAD(N) \
@@ -328,4 +328,4 @@ struct VariadicFunction3 {
 
 } // end namespace llvm
 
-#endif  // LLVM_ADT_VARIADIC_FUNCTION_H
+#endif  // LLVM_ADT_VARIADICFUNCTION_H

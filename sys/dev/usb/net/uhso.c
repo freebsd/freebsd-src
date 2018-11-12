@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/bpf.h>
@@ -268,6 +269,8 @@ static const STRUCT_USB_HOST_ID uhso_devs[] = {
 	UHSO_DEV(OPTION, ICON401, UHSO_AUTO_IFACE),
 	/* Option GlobeTrotter Module 382 */
 	UHSO_DEV(OPTION, GMT382, UHSO_AUTO_IFACE),
+	/* Option GTM661W */
+	UHSO_DEV(OPTION, GTM661W, UHSO_AUTO_IFACE),
 	/* Option iCON EDGE */
 	UHSO_DEV(OPTION, ICONEDGE, UHSO_STATIC_IFACE),
 	/* Option Module HSxPA */
@@ -285,7 +288,7 @@ static const STRUCT_USB_HOST_ID uhso_devs[] = {
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
 static int uhso_autoswitch = 1;
-SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RWTUN,
     &uhso_autoswitch, 0, "Automatically switch to modem mode");
 
 #ifdef USB_DEBUG
@@ -295,7 +298,7 @@ static int uhso_debug = UHSO_DEBUG;
 static int uhso_debug = -1;
 #endif
 
-SYSCTL_INT(_hw_usb_uhso, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhso, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uhso_debug, 0, "Debug level");
 
 #define UHSO_DPRINTF(n, x, ...) {\
@@ -467,8 +470,8 @@ static void uhso_if_init(void *);
 static void uhso_if_start(struct ifnet *);
 static void uhso_if_stop(struct uhso_softc *);
 static int  uhso_if_ioctl(struct ifnet *, u_long, caddr_t);
-static int  uhso_if_output(struct ifnet *, struct mbuf *, struct sockaddr *,
-    struct route *);
+static int  uhso_if_output(struct ifnet *, struct mbuf *,
+    const struct sockaddr *, struct route *);
 static void uhso_if_rxflush(void *);
 
 static device_probe_t uhso_probe;
@@ -556,8 +559,6 @@ uhso_attach(device_t self)
 	mtx_init(&sc->sc_mtx, "uhso", NULL, MTX_DEF);
 	ucom_ref(&sc->sc_super_ucom);
 
-	sc->sc_ucom = NULL;
-	sc->sc_ttys = 0;
 	sc->sc_radio = 1;
 
 	id = usbd_get_interface_descriptor(uaa->iface);
@@ -594,7 +595,7 @@ uhso_attach(device_t self)
 	    CTLFLAG_RD, uhso_port[UHSO_IFACE_PORT(sc->sc_type)], 0,
 	    "Port available at this interface");
 	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "radio",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, uhso_radio_sysctl, "I", "Enable radio");
+	    CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0, uhso_radio_sysctl, "I", "Enable radio");
 
 	/*
 	 * The default interface description on most Option devices isn't
@@ -677,9 +678,6 @@ uhso_detach(device_t self)
 				    UHSO_CTRL_MAX);
 			}
 		}
-
-		free(sc->sc_tty, M_USBDEV);
-		free(sc->sc_ucom, M_USBDEV);
 	}
 
 	if (sc->sc_ifp != NULL) {
@@ -707,6 +705,8 @@ static void
 uhso_free_softc(struct uhso_softc *sc)
 {
 	if (ucom_unref(&sc->sc_super_ucom)) {
+		free(sc->sc_tty, M_USBDEV);
+		free(sc->sc_ucom, M_USBDEV);
 		mtx_destroy(&sc->sc_mtx);
 		device_free_softc(sc);
 	}
@@ -814,6 +814,8 @@ uhso_probe_iface_auto(struct usb_device *udev, int index)
 		    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, port));
 	case UHSO_PORT_TYPE_DIAG:
 	case UHSO_PORT_TYPE_DIAG2:
+	case UHSO_PORT_TYPE_GPS:
+	case UHSO_PORT_TYPE_GPSCTL:
 	case UHSO_PORT_TYPE_CTL:
 	case UHSO_PORT_TYPE_APP:
 	case UHSO_PORT_TYPE_APP2:
@@ -1692,7 +1694,7 @@ uhso_if_rxflush(void *arg)
 
 			m = m_pullup(m0, sizeof(struct ip));
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				UHSO_DPRINTF(0, "m_pullup failed\n");
 				mtx_lock(&sc->sc_mtx);
 				continue;
@@ -1722,7 +1724,7 @@ uhso_if_rxflush(void *arg)
 		else {
 			UHSO_DPRINTF(0, "got unexpected ip version %d, "
 			    "m=%p, len=%d\n", (*cp & 0xf0) >> 4, m, m->m_len);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			UHSO_HEXDUMP(cp, 4);
 			m_freem(m);
 			m = NULL;
@@ -1732,7 +1734,7 @@ uhso_if_rxflush(void *arg)
 
 		if (iplen == 0) {
 			UHSO_DPRINTF(0, "Zero IP length\n");
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			m = NULL;
 			mtx_lock(&sc->sc_mtx);
@@ -1773,7 +1775,7 @@ uhso_if_rxflush(void *arg)
 			continue;
 		}
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Dispatch to IP layer */
@@ -1801,7 +1803,7 @@ uhso_ifnet_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	case USB_ST_SETUP:
 tr_setup:
@@ -1854,7 +1856,6 @@ uhso_if_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case SIOCSIFADDR:
-	case SIOCSIFDSTADDR:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;
@@ -1881,7 +1882,7 @@ uhso_if_init(void *priv)
 }
 
 static int
-uhso_if_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
+uhso_if_output(struct ifnet *ifp, struct mbuf *m0, const struct sockaddr *dst,
     struct route *ro)
 {
 	int error;
@@ -1897,10 +1898,10 @@ uhso_if_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 
 	error = (ifp->if_transmit)(ifp, m0);
 	if (error) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (ENOBUFS);
 	}
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	return (0);
 }
 

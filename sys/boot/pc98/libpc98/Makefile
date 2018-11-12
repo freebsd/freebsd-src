@@ -44,4 +44,7 @@ CFLAGS+=	-I${.CURDIR}/../../common \
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
+# Handle FreeBSD specific %b and %D printf format specifiers
+CFLAGS+= ${FORMAT_EXTENSIONS}
+
 .include <bsd.lib.mk>

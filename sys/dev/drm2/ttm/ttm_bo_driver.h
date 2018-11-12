@@ -791,16 +791,7 @@ extern void ttm_mem_io_unlock(struct ttm_mem_type_manager *man);
  * to make room for a buffer already reserved. (Buffers are reserved before
  * they are evicted). The following algorithm prevents such deadlocks from
  * occurring:
- * 1) Buffers are reserved with the lru spinlock held. Upon successful
- * reservation they are removed from the lru list. This stops a reserved buffer
- * from being evicted. However the lru spinlock is released between the time
- * a buffer is selected for eviction and the time it is reserved.
- * Therefore a check is made when a buffer is reserved for eviction, that it
- * is still the first buffer in the lru list, before it is removed from the
- * list. @check_lru == 1 forces this check. If it fails, the function returns
- * -EINVAL, and the caller should then choose a new buffer to evict and repeat
- * the procedure.
- * 2) Processes attempting to reserve multiple buffers other than for eviction,
+ * Processes attempting to reserve multiple buffers other than for eviction,
  * (typically execbuf), should first obtain a unique 32-bit
  * validation sequence number,
  * and call this function with @use_sequence == 1 and @sequence == the unique
@@ -831,9 +822,39 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
 			  bool interruptible,
 			  bool no_wait, bool use_sequence, uint32_t sequence);
 
+/**
+ * ttm_bo_reserve_slowpath_nolru:
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @sequence: Set (@bo)->sequence to this value after lock
+ *
+ * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
+ * from all our other reservations. Because there are no other reservations
+ * held by us, this function cannot deadlock any more.
+ *
+ * Will not remove reserved buffers from the lru lists.
+ * Otherwise identical to ttm_bo_reserve_slowpath.
+ */
+extern int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
+					 bool interruptible,
+					 uint32_t sequence);
+
 
 /**
- * ttm_bo_reserve_locked:
+ * ttm_bo_reserve_slowpath:
+ * @bo: A pointer to a struct ttm_buffer_object.
+ * @interruptible: Sleep interruptible if waiting.
+ * @sequence: Set (@bo)->sequence to this value after lock
+ *
+ * This is called after ttm_bo_reserve returns -EAGAIN and we backed off
+ * from all our other reservations. Because there are no other reservations
+ * held by us, this function cannot deadlock any more.
+ */
+extern int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
+				   bool interruptible, uint32_t sequence);
+
+/**
+ * ttm_bo_reserve_nolru:
  *
  * @bo: A pointer to a struct ttm_buffer_object.
  * @interruptible: Sleep interruptible if waiting.
@@ -841,9 +862,7 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * @use_sequence: If @bo is already reserved, Only sleep waiting for
  * it to become unreserved if @sequence < (@bo)->sequence.
  *
- * Must be called with struct ttm_bo_global::lru_lock held,
- * and will not remove reserved buffers from the lru lists.
- * The function may release the LRU spinlock if it needs to sleep.
+ * Will not remove reserved buffers from the lru lists.
  * Otherwise identical to ttm_bo_reserve.
  *
  * Returns:
@@ -856,7 +875,7 @@ extern int ttm_bo_reserve(struct ttm_buffer_object *bo,
  * -EDEADLK: Bo already reserved using @sequence. This error code will only
  * be returned if @use_sequence is set to true.
  */
-extern int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
+extern int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 				 bool interruptible,
 				 bool no_wait, bool use_sequence,
 				 uint32_t sequence);
@@ -879,18 +898,6 @@ extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
  * Needs to be called with struct ttm_bo_global::lru_lock held.
  */
 extern void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo);
-
-/**
- * ttm_bo_wait_unreserved
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Wait for a struct ttm_buffer_object to become unreserved.
- * This is typically used in the execbuf code to relax cpu-usage when
- * a potential deadlock condition backoff.
- */
-extern int ttm_bo_wait_unreserved_locked(struct ttm_buffer_object *bo,
-				  bool interruptible);
 
 /*
  * ttm_bo_util.c
@@ -983,9 +990,8 @@ extern vm_memattr_t ttm_io_prot(uint32_t caching_flags);
 
 extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
 
-#if (defined(CONFIG_AGP) || (defined(CONFIG_AGP_MODULE) && defined(MODULE)))
+#if __OS_HAS_AGP
 #define TTM_HAS_AGP
-#include <linux/agp_backend.h>
 
 /**
  * ttm_agp_tt_create
@@ -1002,7 +1008,7 @@ extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
  * bind and unbind memory backing a ttm_tt.
  */
 extern struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
-					struct agp_bridge_data *bridge,
+					device_t bridge,
 					unsigned long size, uint32_t page_flags,
 					struct vm_page *dummy_read_page);
 int ttm_agp_tt_populate(struct ttm_tt *ttm);

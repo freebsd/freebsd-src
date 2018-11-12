@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2005, 2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2005, 2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.223 2010/03/10 04:35:28 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.225 2013-11-22 20:51:56 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -972,7 +972,7 @@ mci_read_persistent(fp, mci)
 	sm_io_rewind(fp, SM_TIME_DEFAULT);
 	ver = -1;
 	LineNumber = 0;
-	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) != NULL)
+	while (sm_io_fgets(fp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
 	{
 		LineNumber++;
 		p = strchr(buf, '\n');

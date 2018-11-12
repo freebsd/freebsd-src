@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
 
@@ -59,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <rpc/rpc.h>
+#include <rpc/krpc.h>
 
 #include <kgssapi/krb5/kcrypto.h>
 
@@ -102,7 +102,6 @@ static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
 static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
-static int	nfs_keytab_enctype = ETYPE_DES_CBC_CRC;
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -114,8 +113,6 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_del
     "Number of seconds to delay a retry after receiving EJUKEBOX");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0,
     "Disable weak cache consistency checking when server returns an error");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, keytab_enctype, CTLFLAG_RW, &nfs_keytab_enctype, 0,
-    "Encryption type for the keytab entry used by nfs");
 
 static void	nfs_down(struct nfsmount *, struct thread *, const char *,
     int, int);
@@ -263,7 +260,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 
 	client = clnt_reconnect_create(nconf, saddr, nrp->nr_prog,
 	    nrp->nr_vers, sndreserve, rcvreserve);
-	CLNT_CONTROL(client, CLSET_WAITCHAN, "newnfsreq");
+	CLNT_CONTROL(client, CLSET_WAITCHAN, "nfsreq");
 	if (nmp != NULL) {
 		if ((nmp->nm_flag & NFSMNT_INT))
 			CLNT_CONTROL(client, CLSET_INTERRUPTIBLE, &one);
@@ -339,24 +336,25 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 
 	mtx_lock(&nrp->nr_mtx);
 	if (nrp->nr_client != NULL) {
+		mtx_unlock(&nrp->nr_mtx);
 		/*
 		 * Someone else already connected.
 		 */
 		CLNT_RELEASE(client);
 	} else {
 		nrp->nr_client = client;
+		/*
+		 * Protocols that do not require connections may be optionally
+		 * left unconnected for servers that reply from a port other
+		 * than NFS_PORT.
+		 */
+		if (nmp == NULL || (nmp->nm_flag & NFSMNT_NOCONN) == 0) {
+			mtx_unlock(&nrp->nr_mtx);
+			CLNT_CONTROL(client, CLSET_CONNECT, &one);
+		} else
+			mtx_unlock(&nrp->nr_mtx);
 	}
 
-	/*
-	 * Protocols that do not require connections may be optionally left
-	 * unconnected for servers that reply from a port other than NFS_PORT.
-	 */
-	if (nmp == NULL || (nmp->nm_flag & NFSMNT_NOCONN) == 0) {
-		mtx_unlock(&nrp->nr_mtx);
-		CLNT_CONTROL(client, CLSET_CONNECT, &one);
-	} else {
-		mtx_unlock(&nrp->nr_mtx);
-	}
 
 	/* Restore current thread's credentials. */
 	td->td_ucred = origcred;
@@ -393,9 +391,6 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 {
 	rpc_gss_service_t svc;
 	AUTH *auth;
-#ifdef notyet
-	rpc_gss_options_req_t req_options;
-#endif
 
 	switch (secflavour) {
 	case RPCSEC_GSS_KRB5:
@@ -411,28 +406,16 @@ nfs_getauth(struct nfssockreq *nrp, int secflavour, char *clnt_principal,
 			svc = rpc_gss_svc_integrity;
 		else
 			svc = rpc_gss_svc_privacy;
-#ifdef notyet
-		req_options.req_flags = GSS_C_MUTUAL_FLAG;
-		req_options.time_req = 0;
-		req_options.my_cred = GSS_C_NO_CREDENTIAL;
-		req_options.input_channel_bindings = NULL;
-		req_options.enc_type = nfs_keytab_enctype;
 
-		auth = rpc_gss_secfind_call(nrp->nr_client, cred,
-		    clnt_principal, srv_principal, mech_oid, svc,
-		    &req_options);
-#else
-		/*
-		 * Until changes to the rpcsec_gss code are committed,
-		 * there is no support for host based initiator
-		 * principals. As such, that case cannot yet be handled.
-		 */
 		if (clnt_principal == NULL)
 			auth = rpc_gss_secfind_call(nrp->nr_client, cred,
 			    srv_principal, mech_oid, svc);
-		else
-			auth = NULL;
-#endif
+		else {
+			auth = rpc_gss_seccreate_call(nrp->nr_client, cred,
+			    clnt_principal, srv_principal, "kerberosv5",
+			    svc, NULL, NULL, NULL);
+			return (auth);
+		}
 		if (auth != NULL)
 			return (auth);
 		/* fallthrough */
@@ -505,7 +488,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	struct rpc_callextra ext;
 	enum clnt_stat stat;
 	struct nfsreq *rep = NULL;
-	char *srv_principal = NULL;
+	char *srv_principal = NULL, *clnt_principal = NULL;
 	sigset_t oldset;
 	struct ucred *authcred;
 
@@ -568,6 +551,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 			 */
 			if (nmp->nm_krbnamelen > 0) {
 				usegssname = 1;
+				clnt_principal = nmp->nm_krbname;
 			} else if (nmp->nm_uid != (uid_t)-1) {
 				KASSERT(nmp->nm_sockreq.nr_cred != NULL,
 				    ("newnfs_request: NULL nr_cred"));
@@ -622,10 +606,19 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 
 	if (nd->nd_procnum == NFSPROC_NULL)
 		auth = authnone_create();
-	else if (usegssname)
-		auth = nfs_getauth(nrp, secflavour, nmp->nm_krbname,
-		    srv_principal, NULL, authcred);
-	else
+	else if (usegssname) {
+		/*
+		 * For this case, the authenticator is held in the
+		 * nfssockreq structure, so don't release the reference count
+		 * held on it. --> Don't AUTH_DESTROY() it in this function.
+		 */
+		if (nrp->nr_auth == NULL)
+			nrp->nr_auth = nfs_getauth(nrp, secflavour,
+			    clnt_principal, srv_principal, NULL, authcred);
+		else
+			rpc_gss_refresh_auth_call(nrp->nr_auth);
+		auth = nrp->nr_auth;
+	} else
 		auth = nfs_getauth(nrp, secflavour, NULL,
 		    srv_principal, NULL, authcred);
 	crfree(authcred);
@@ -746,8 +739,12 @@ tryagain:
 	}
 
 	nd->nd_mrep = NULL;
-	stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum, nd->nd_mreq,
-	    &nd->nd_mrep, timo);
+	if (clp != NULL && sep != NULL)
+		stat = clnt_bck_call(nrp->nr_client, &ext, procnum,
+		    nd->nd_mreq, &nd->nd_mrep, timo, sep->nfsess_xprt);
+	else
+		stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum,
+		    nd->nd_mreq, &nd->nd_mrep, timo);
 
 	if (rep != NULL) {
 		/*
@@ -781,7 +778,8 @@ tryagain:
 	}
 	if (error) {
 		m_freem(nd->nd_mreq);
-		AUTH_DESTROY(auth);
+		if (usegssname == 0)
+			AUTH_DESTROY(auth);
 		if (rep != NULL)
 			FREE((caddr_t)rep, M_NFSDREQ);
 		if (set_sigset)
@@ -797,11 +795,12 @@ tryagain:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	newnfs_realign(&nd->nd_mrep);
+	newnfs_realign(&nd->nd_mrep, M_WAITOK);
 	nd->nd_md = nd->nd_mrep;
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
-	if (nd->nd_procnum != NFSPROC_NULL) {
+	if (nd->nd_procnum != NFSPROC_NULL &&
+	    nd->nd_procnum != NFSV4PROC_CBNULL) {
 		/* If sep == NULL, set it to the default in nmp. */
 		if (sep == NULL && nmp != NULL)
 			sep = NFSMNT_MDSSESSION(nmp);
@@ -833,11 +832,20 @@ tryagain:
 			/*
 			 * If the first op is Sequence, free up the slot.
 			 */
-			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0)
+			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) ||
+			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0))
 				NFSCL_DEBUG(1, "failed seq=%d\n", j);
-			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) {
-				NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
-				    5 * NFSX_UNSIGNED);
+			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) ||
+			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j == 0)
+			    ) {
+				if (i == NFSV4OP_SEQUENCE)
+					NFSM_DISSECT(tl, uint32_t *,
+					    NFSX_V4SESSIONID +
+					    5 * NFSX_UNSIGNED);
+				else
+					NFSM_DISSECT(tl, uint32_t *,
+					    NFSX_V4SESSIONID +
+					    4 * NFSX_UNSIGNED);
 				mtx_lock(&sep->nfsess_mtx);
 				tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 				retseq = fxdr_unsigned(uint32_t, *tl++);
@@ -991,7 +999,8 @@ tryagain:
 #endif
 
 	m_freem(nd->nd_mreq);
-	AUTH_DESTROY(auth);
+	if (usegssname == 0)
+		AUTH_DESTROY(auth);
 	if (rep != NULL)
 		FREE((caddr_t)rep, M_NFSDREQ);
 	if (set_sigset)
@@ -1000,7 +1009,8 @@ tryagain:
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
 	mbuf_freem(nd->nd_mreq);
-	AUTH_DESTROY(auth);
+	if (usegssname == 0)
+		AUTH_DESTROY(auth);
 	if (rep != NULL)
 		FREE((caddr_t)rep, M_NFSDREQ);
 	if (set_sigset)
@@ -1156,10 +1166,10 @@ nfs_msg(struct thread *td, const char *server, const char *msg, int error)
 
 	p = td ? td->td_proc : NULL;
 	if (error) {
-		tprintf(p, LOG_INFO, "newnfs server %s: %s, error %d\n",
+		tprintf(p, LOG_INFO, "nfs server %s: %s, error %d\n",
 		    server, msg, error);
 	} else {
-		tprintf(p, LOG_INFO, "newnfs server %s: %s\n", server, msg);
+		tprintf(p, LOG_INFO, "nfs server %s: %s\n", server, msg);
 	}
 	return (0);
 }

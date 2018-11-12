@@ -210,37 +210,40 @@ spicds_init(struct spicds_info *codec)
 	snd_mtxlock(codec->lock);
 	if (codec->type == SPICDS_TYPE_AK4524 ||\
 	    codec->type == SPICDS_TYPE_AK4528) {
-	/* power off */
-	spicds_wrcd(codec, AK4524_POWER, 0);
-	/* set parameter */
-	spicds_wrcd(codec, AK4524_FORMAT, codec->format);
-	spicds_wrcd(codec, AK4524_DVC, codec->dvc);
-	/* power on */
-	spicds_wrcd(codec, AK4524_POWER, AK452X_POWER_PWDA | AK452X_POWER_PWAD | AK452X_POWER_PWVR);
-	/* free reset register */
-	spicds_wrcd(codec, AK4524_RESET, AK452X_RESET_RSDA | AK452X_RESET_RSAD);
+		/* power off */
+		spicds_wrcd(codec, AK4524_POWER, 0);
+		/* set parameter */
+		spicds_wrcd(codec, AK4524_FORMAT, codec->format);
+		spicds_wrcd(codec, AK4524_DVC, codec->dvc);
+		/* power on */
+		spicds_wrcd(codec, AK4524_POWER,
+		    AK452X_POWER_PWDA | AK452X_POWER_PWAD | AK452X_POWER_PWVR);
+		/* free reset register */
+		spicds_wrcd(codec, AK4524_RESET,
+		    AK452X_RESET_RSDA | AK452X_RESET_RSAD);
 	}
 	if (codec->type == SPICDS_TYPE_WM8770) {
-	/* WM8770 init values are taken from ALSA */
-        /* These come first to reduce init pop noise */
-	spicds_wrcd(codec, 0x1b, 0x044);	/* ADC Mux (AC'97 source) */
-	spicds_wrcd(codec, 0x1c, 0x00B);	/* Out Mux1 (VOUT1 = DAC+AUX, VOUT2 = DAC) */
-	spicds_wrcd(codec, 0x1d, 0x009);	/* Out Mux2 (VOUT2 = DAC, VOUT3 = DAC) */
+		/* WM8770 init values are taken from ALSA */
 
-	spicds_wrcd(codec, 0x18, 0x000);	/* All power-up */
+		/* These come first to reduce init pop noise */
+		spicds_wrcd(codec, 0x1b, 0x044);	/* ADC Mux (AC'97 source) */
+		spicds_wrcd(codec, 0x1c, 0x00B);	/* Out Mux1 (VOUT1 = DAC+AUX, VOUT2 = DAC) */
+		spicds_wrcd(codec, 0x1d, 0x009);	/* Out Mux2 (VOUT2 = DAC, VOUT3 = DAC) */
 
-	spicds_wrcd(codec, 0x16, 0x122);	/* I2S, normal polarity, 24bit */
-	spicds_wrcd(codec, 0x17, 0x022);	/* 256fs, slave mode */
+		spicds_wrcd(codec, 0x18, 0x000);	/* All power-up */
 
-	spicds_wrcd(codec, 0x19, 0x000);	/* -12dB ADC/L */
-	spicds_wrcd(codec, 0x1a, 0x000);	/* -12dB ADC/R */ 
+		spicds_wrcd(codec, 0x16, 0x122);	/* I2S, normal polarity, 24bit */
+		spicds_wrcd(codec, 0x17, 0x022);	/* 256fs, slave mode */
+
+		spicds_wrcd(codec, 0x19, 0x000);	/* -12dB ADC/L */
+		spicds_wrcd(codec, 0x1a, 0x000);	/* -12dB ADC/R */
 	}
-	if (codec->type == SPICDS_TYPE_AK4358) 
-	spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
+	if (codec->type == SPICDS_TYPE_AK4358)
+		spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
 	if (codec->type == SPICDS_TYPE_AK4381)
-	spicds_wrcd(codec, 0x00, 0x8f);		/* I2S, 24bit, power-up */
+		spicds_wrcd(codec, 0x00, 0x8f);		/* I2S, 24bit, power-up */
 	if (codec->type == SPICDS_TYPE_AK4396)
-	spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
+		spicds_wrcd(codec, 0x00, 0x07);		/* I2S, 24bit, power-up */
 	snd_mtxunlock(codec->lock);
 }
 
@@ -249,18 +252,18 @@ spicds_reinit(struct spicds_info *codec)
 {
 	snd_mtxlock(codec->lock);
 	if (codec->type != SPICDS_TYPE_WM8770) {
-	/* reset */
-	spicds_wrcd(codec, AK4524_RESET, 0);
-	/* set parameter */
-	spicds_wrcd(codec, AK4524_FORMAT, codec->format);
-	spicds_wrcd(codec, AK4524_DVC, codec->dvc);
-	/* free reset register */
-	spicds_wrcd(codec, AK4524_RESET, AK452X_RESET_RSDA | AK452X_RESET_RSAD);
-	}
-	else {
-	/* WM8770 reinit */
-	/* AK4358 reinit */
-	/* AK4381 reinit */
+		/* reset */
+		spicds_wrcd(codec, AK4524_RESET, 0);
+		/* set parameter */
+		spicds_wrcd(codec, AK4524_FORMAT, codec->format);
+		spicds_wrcd(codec, AK4524_DVC, codec->dvc);
+		/* free reset register */
+		spicds_wrcd(codec, AK4524_RESET,
+		    AK452X_RESET_RSDA | AK452X_RESET_RSAD);
+	} else {
+		/* WM8770 reinit */
+		/* AK4358 reinit */
+		/* AK4381 reinit */
 	}
 	snd_mtxunlock(codec->lock);
 }
@@ -301,11 +304,11 @@ spicds_set(struct spicds_info *codec, int dir, unsigned int left, unsigned int r
 		case SPICDS_TYPE_WM8770:
                         right = right + 27;
 			break;
-		case SPICDS_TYPE_AK4381: 
+		case SPICDS_TYPE_AK4381:
 		case SPICDS_TYPE_AK4396:
 			right = right * 255 / 100;
 			break;
-                default:   
+                default:
                         right = right * 127 / 100;
 		}
 	if (dir == PCMDIR_REC && codec->type == SPICDS_TYPE_AK4524) {

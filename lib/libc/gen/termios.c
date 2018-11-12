@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
 int
 tcgetattr(int fd, struct termios *t)
 {
@@ -208,13 +210,23 @@ tcsendbreak(int fd, int len __unused)
 }
 
 int
-__tcdrain(int fd)
+__libc_tcdrain(int fd)
 {
+
 	return (_ioctl(fd, TIOCDRAIN, 0));
 }
 
-__weak_reference(__tcdrain, tcdrain);
-__weak_reference(__tcdrain, _tcdrain);
+#pragma weak tcdrain
+int
+tcdrain(int fd)
+{
+
+	return (((int (*)(int))
+	    __libc_interposing[INTERPOS_tcdrain])(fd));
+}
+
+__weak_reference(__libc_tcdrain, __tcdrain);
+__weak_reference(__libc_tcdrain, _tcdrain);
 
 int
 tcflush(int fd, int which)

@@ -400,10 +400,14 @@ tftp_open(const char *path, struct open_file *f)
 	struct iodesc  *io;
 	int             res;
 
-#ifndef __i386__
-	if (strcmp(f->f_dev->dv_name, "net") != 0)
+	if (strcmp(f->f_dev->dv_name, "net") != 0) {
+#ifdef __i386__
+		if (strcmp(f->f_dev->dv_name, "pxe") != 0)
+			return (EINVAL);
+#else
 		return (EINVAL);
 #endif
+	}
 
 	if (is_open)
 		return (EBUSY);
@@ -443,14 +447,12 @@ tftp_read(struct open_file *f, void *addr, size_t size,
     size_t *resid /* out */)
 {
 	struct tftp_handle *tftpfile;
-	static int      tc = 0;
 	tftpfile = (struct tftp_handle *) f->f_fsdata;
 
 	while (size > 0) {
 		int needblock, count;
 
-		if (!(tc++ % 16))
-			twiddle();
+		twiddle(32);
 
 		needblock = tftpfile->off / tftpfile->tftp_blksize + 1;
 

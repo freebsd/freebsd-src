@@ -10,27 +10,26 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)cl_main.c	10.36 (Berkeley) 10/14/96";
+static const char sccsid[] = "$Id: cl_main.c,v 10.55 2011/08/15 19:52:28 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/queue.h>
 
 #include <bitstring.h>
-#include <curses.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef HAVE_TERM_H
+#include <term.h>
+#endif
 #include <termios.h>
 #include <unistd.h>
 
 #include "../common/common.h"
-#ifdef RUNNING_IP
-#include "../ip/ip.h"
-#endif
 #include "cl.h"
 #include "pathnames.h"
 
@@ -50,16 +49,14 @@ static void	   term_init __P((char *, char *));
  *	This is the main loop for the standalone curses editor.
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char **argv)
 {
 	static int reenter;
 	CL_PRIVATE *clp;
 	GS *gp;
 	size_t rows, cols;
 	int rval;
-	char *ip_arg, **p_av, **t_av, *ttype;
+	char **p_av, **t_av, *ttype;
 
 	/* If loaded at 0 and jumping through a NULL pointer, stop. */
 	if (reenter++)
@@ -73,8 +70,6 @@ main(argc, argv)
 	 * no way to portably call getopt twice, so arguments parsed here must
 	 * be removed from the argument list.
 	 */
-#ifdef RUNNING_IP
-	ip_arg = NULL;
 	for (p_av = t_av = argv;;) {
 		if (*t_av == NULL) {
 			*p_av = NULL;
@@ -84,33 +79,9 @@ main(argc, argv)
 			while ((*p_av++ = *t_av++) != NULL);
 			break;
 		}
-		if (!memcmp(*t_av, "-I", sizeof("-I") - 1)) {
-			if (t_av[0][2] != '\0') {
-				ip_arg = t_av[0] + 2;
-				++t_av;
-				--argc;
-				continue;
-			}
-			if (t_av[1] != NULL) {
-				ip_arg = t_av[1];
-				t_av += 2;
-				argc -= 2;
-				continue;
-			}
-		}
 		*p_av++ = *t_av++;
 	}
 
-	/*
-	 * If we're being called as an editor library, we're done here, we
-	 * get loaded with the curses screen, we don't share much code.
-	 */
-	if (ip_arg != NULL)
-		exit (ip_main(argc, argv, gp, ip_arg));
-#else
-	ip_arg = argv[0];
-#endif
-		
 	/* Create and initialize the CL_PRIVATE structure. */
 	clp = cl_init(gp);
 
@@ -164,10 +135,8 @@ main(argc, argv)
 	 * XXX
 	 * Reset the X11 xterm icon/window name.
 	 */
-	if (F_ISSET(clp, CL_RENAME)) {
-		(void)printf(XTERM_RENAME, ttype);
-		(void)fflush(stdout);
-	}
+	if (F_ISSET(clp, CL_RENAME))
+		cl_setname(gp, clp->oname);
 
 	/* If a killer signal arrived, pretend we just got it. */
 	if (clp->killersig) {
@@ -178,7 +147,10 @@ main(argc, argv)
 
 	/* Free the global and CL private areas. */
 #if defined(DEBUG) || defined(PURIFY) || defined(LIBRARY)
+	if (clp->oname != NULL)
+		free(clp->oname);
 	free(clp);
+	free(OG_STR(gp, GO_TERM));
 	free(gp);
 #endif
 
@@ -190,10 +162,8 @@ main(argc, argv)
  *	Create and partially initialize the GS structure.
  */
 static GS *
-gs_init(name)
-	char *name;
+gs_init(char *name)
 {
-	CL_PRIVATE *clp;
 	GS *gp;
 	char *p;
 
@@ -206,7 +176,6 @@ gs_init(name)
 	if (gp == NULL)
 		perr(name, NULL);
 
-
 	gp->progname = name;
 	return (gp);
 }
@@ -216,8 +185,7 @@ gs_init(name)
  *	Create and partially initialize the CL structure.
  */
 static CL_PRIVATE *
-cl_init(gp)
-	GS *gp;
+cl_init(GS *gp)
 {
 	CL_PRIVATE *clp;
 	int fd;
@@ -265,8 +233,7 @@ tcfail:			perr(gp->progname, "tcgetattr");
  *	Initialize terminal information.
  */
 static void
-term_init(name, ttype)
-	char *name, *ttype;
+term_init(char *name, char *ttype)
 {
 	int err;
 
@@ -287,8 +254,7 @@ term_init(name, ttype)
 #define	GLOBAL_CLP \
 	CL_PRIVATE *clp = GCLP(__global_list);
 static void
-h_hup(signo)
-	int signo;
+h_hup(int signo)
 {
 	GLOBAL_CLP;
 
@@ -297,8 +263,7 @@ h_hup(signo)
 }
 
 static void
-h_int(signo)
-	int signo;
+h_int(int signo)
 {
 	GLOBAL_CLP;
 
@@ -306,8 +271,7 @@ h_int(signo)
 }
 
 static void
-h_term(signo)
-	int signo;
+h_term(int signo)
 {
 	GLOBAL_CLP;
 
@@ -316,8 +280,7 @@ h_term(signo)
 }
 
 static void
-h_winch(signo)
-	int signo;
+h_winch(int signo)
 {
 	GLOBAL_CLP;
 
@@ -332,9 +295,7 @@ h_winch(signo)
  * PUBLIC: int sig_init __P((GS *, SCR *));
  */
 int
-sig_init(gp, sp)
-	GS *gp;
-	SCR *sp;
+sig_init(GS *gp, SCR *sp)
 {
 	CL_PRIVATE *clp;
 
@@ -376,10 +337,7 @@ sig_init(gp, sp)
  *	Set a signal handler.
  */
 static int
-setsig(signo, oactp, handler)
-	int signo;
-	struct sigaction *oactp;
-	void (*handler) __P((int));
+setsig(int signo, struct sigaction *oactp, void (*handler) (int))
 {
 	struct sigaction act;
 
@@ -410,8 +368,7 @@ setsig(signo, oactp, handler)
  *	End signal setup.
  */
 static void
-sig_end(gp)
-	GS *gp;
+sig_end(GS *gp)
 {
 	CL_PRIVATE *clp;
 
@@ -429,17 +386,20 @@ sig_end(gp)
  *	Initialize the standard curses functions.
  */
 static void
-cl_func_std(gp)
-	GS *gp;
+cl_func_std(GS *gp)
 {
 	gp->scr_addstr = cl_addstr;
+	gp->scr_waddstr = cl_waddstr;
 	gp->scr_attr = cl_attr;
 	gp->scr_baud = cl_baud;
 	gp->scr_bell = cl_bell;
 	gp->scr_busy = NULL;
+	gp->scr_child = NULL;
 	gp->scr_clrtoeol = cl_clrtoeol;
 	gp->scr_cursor = cl_cursor;
 	gp->scr_deleteln = cl_deleteln;
+	gp->scr_reply = NULL;
+	gp->scr_discard = cl_discard;
 	gp->scr_event = cl_event;
 	gp->scr_ex_adjust = cl_ex_adjust;
 	gp->scr_fmap = cl_fmap;
@@ -451,6 +411,7 @@ cl_func_std(gp)
 	gp->scr_refresh = cl_refresh;
 	gp->scr_rename = cl_rename;
 	gp->scr_screen = cl_screen;
+	gp->scr_split = cl_split;
 	gp->scr_suspend = cl_suspend;
 	gp->scr_usage = cl_usage;
 }
@@ -460,8 +421,7 @@ cl_func_std(gp)
  *	Print system error.
  */
 static void
-perr(name, msg)
-	char *name, *msg;
+perr(char *name, char *msg)
 {
 	(void)fprintf(stderr, "%s:", name);
 	if (msg != NULL)

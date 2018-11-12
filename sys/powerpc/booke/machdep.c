@@ -137,11 +137,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/reboot.h>
 
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
 #ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
+#include <ddb/ddb.h>
 #endif
 
 #ifdef  DEBUG
@@ -186,13 +187,57 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_booke_startup, NULL);
 void print_kernel_section_addr(void);
 void print_kenv(void);
 u_int booke_init(uint32_t, uint32_t);
+void ivor_setup(void);
 
-extern int elf32_nxstack;
+extern void *interrupt_vector_base;
+extern void *int_critical_input;
+extern void *int_machine_check;
+extern void *int_data_storage;
+extern void *int_instr_storage;
+extern void *int_external_input;
+extern void *int_alignment;
+extern void *int_program;
+extern void *int_syscall;
+extern void *int_decrementer;
+extern void *int_fixed_interval_timer;
+extern void *int_watchdog;
+extern void *int_data_tlb_error;
+extern void *int_inst_tlb_error;
+extern void *int_debug;
+
+#define SET_TRAP(ivor, handler) \
+	KASSERT(((uintptr_t)(&handler) & ~0xffffUL) == \
+	    ((uintptr_t)(&interrupt_vector_base) & ~0xffffUL), \
+	    ("Handler " #handler " too far from interrupt vector base")); \
+	mtspr(ivor, (uintptr_t)(&handler) & 0xffffUL);
+
+void
+ivor_setup(void)
+{
+
+	mtspr(SPR_IVPR, ((uintptr_t)&interrupt_vector_base) & 0xffff0000);
+
+	SET_TRAP(SPR_IVOR0, int_critical_input);
+	SET_TRAP(SPR_IVOR1, int_machine_check);
+	SET_TRAP(SPR_IVOR2, int_data_storage);
+	SET_TRAP(SPR_IVOR3, int_instr_storage);
+	SET_TRAP(SPR_IVOR4, int_external_input);
+	SET_TRAP(SPR_IVOR5, int_alignment);
+	SET_TRAP(SPR_IVOR6, int_program);
+	SET_TRAP(SPR_IVOR8, int_syscall);
+	SET_TRAP(SPR_IVOR10, int_decrementer);
+	SET_TRAP(SPR_IVOR11, int_fixed_interval_timer);
+	SET_TRAP(SPR_IVOR12, int_watchdog);
+	SET_TRAP(SPR_IVOR13, int_data_tlb_error);
+	SET_TRAP(SPR_IVOR14, int_inst_tlb_error);
+	SET_TRAP(SPR_IVOR15, int_debug);
+}
 
 static void
 cpu_booke_startup(void *dummy)
 {
-	int indx, size;
+	int indx;
+	unsigned long size;
 
 	/* Initialise the decrementer-based clock. */
 	decr_init();
@@ -200,7 +245,7 @@ cpu_booke_startup(void *dummy)
 	/* Good {morning,afternoon,evening,night}. */
 	cpu_setup(PCPU_GET(cpuid));
 
-	printf("real memory  = %ld (%ld MB)\n", ptoa(physmem),
+	printf("real memory  = %lu (%ld MB)\n", ptoa(physmem),
 	    ptoa(physmem) / 1048576);
 	realmem = physmem;
 
@@ -210,7 +255,7 @@ cpu_booke_startup(void *dummy)
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			size = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
+			printf("0x%08x - 0x%08x, %lu bytes (%lu pages)\n",
 			    phys_avail[indx], phys_avail[indx + 1] - 1,
 			    size, size / PAGE_SIZE);
 		}
@@ -218,15 +263,12 @@ cpu_booke_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
-	    ptoa(cnt.v_free_count) / 1048576);
+	printf("avail memory = %lu (%ld MB)\n", ptoa(vm_cnt.v_free_count),
+	    ptoa(vm_cnt.v_free_count) / 1048576);
 
 	/* Set up buffers, so they can be used to read disk labels. */
 	bufinit();
 	vm_pager_bufferinit();
-
-	/* Cpu supports execution permissions on the pages. */
-	elf32_nxstack = 1;
 }
 
 static char *
@@ -275,17 +317,42 @@ print_kernel_section_addr(void)
 	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
 }
 
+static int
+booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
+{
+	void *ptr;
+
+	if (arg1 % 8 != 0)
+		return (-1);
+
+	ptr = (void *)pmap_early_io_map(arg1, PAGE_SIZE);
+	if (fdt_check_header(ptr) != 0)
+		return (-1);
+
+	*dtbp = (vm_offset_t)ptr;
+
+	return (0);
+}
+
 u_int
 booke_init(uint32_t arg1, uint32_t arg2)
 {
 	struct pcpu *pc;
 	void *kmdp, *mdp;
 	vm_offset_t dtbp, end;
+#ifdef DDB
+	vm_offset_t ksym_start;
+	vm_offset_t ksym_end;
+#endif
 
 	kmdp = NULL;
 
 	end = (uintptr_t)_end;
 	dtbp = (vm_offset_t)NULL;
+
+	/* Set up TLB initially */
+	bootinfo = NULL;
+	tlb1_init();
 
 	/*
 	 * Handle the various ways we can get loaded and started:
@@ -301,11 +368,21 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	 *	in arg1 and arg2 (resp). arg1 is between 1 and some
 	 *	relatively small number, such as 64K. arg2 is the
 	 *	physical address of the argv vector.
+	 *  -   ePAPR loaders pass an FDT blob in r3 (arg1) and the magic hex
+	 *      string 0x45504150 ('ePAP') in r6 (which has been lost by now).
+	 *      r4 (arg2) is supposed to be set to zero, but is not always.
 	 */
-	if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
-		mdp = (void *)arg1;
-	else if (arg1 == 0)			/* Juniper loader */
+	
+	if (arg1 == 0)				/* Juniper loader */
 		mdp = (void *)arg2;
+	else if (booke_check_for_fdt(arg1, &dtbp) == 0) { /* ePAPR */
+		end = roundup(end, 8);
+		memmove((void *)end, (void *)dtbp, fdt_totalsize((void *)dtbp));
+		dtbp = end;
+		end += fdt_totalsize((void *)dtbp);
+		mdp = NULL;
+	} else if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
+		mdp = (void *)arg1;
 	else					/* U-Boot */
 		mdp = NULL;
 
@@ -327,6 +404,7 @@ booke_init(uint32_t arg1, uint32_t arg2)
 #ifdef DDB
 			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+			db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 		}
 	} else {
@@ -349,13 +427,10 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
 
-	if (fdt_immr_addr(CCSRBAR_VA) != 0)
-		while (1);
-
 	OF_interpret("perform-fixup", 0);
 	
-	/* Set up TLB initially */
-	booke_init_tlb(fdt_immr_pa);
+	/* Reset TLB1 to get rid of temporary mappings */
+	tlb1_init();
 
 	/* Reset Time Base */
 	mttb(0);
@@ -371,6 +446,11 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	pc = &__pcpu[0];
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+#else
+	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+#endif
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/* Initialize system mutexes. */
@@ -414,7 +494,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	/* Initialise virtual memory. */
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
 	pmap_bootstrap((uintptr_t)kernel_text, end);
-	pmap_bootstrapped = 1;
 	debugf("MSR = 0x%08x\n", mfmsr());
 #if defined(BOOKE_E500)
 	//tlb1_print_entries();

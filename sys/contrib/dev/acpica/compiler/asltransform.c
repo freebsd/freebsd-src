@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -299,15 +298,16 @@ TrTransformSubtree (
     switch (Op->Asl.ParseOpcode)
     {
     case PARSEOP_DEFINITIONBLOCK:
+
         TrDoDefinitionBlock (Op);
         break;
 
     case PARSEOP_SWITCH:
+
         TrDoSwitch (Op);
         break;
 
     case PARSEOP_METHOD:
-
         /*
          * TBD: Zero the tempname (_T_x) count. Probably shouldn't be a global,
          * however
@@ -316,7 +316,9 @@ TrTransformSubtree (
         break;
 
     default:
+
         /* Nothing to do here for other opcodes */
+
         break;
     }
 }
@@ -373,7 +375,6 @@ TrDoDefinitionBlock (
  * PARAMETERS:  StartNode        - Parse node for SWITCH
  *
  * RETURN:      None
- *
  *
  * DESCRIPTION: Translate ASL SWITCH statement to if/else pairs. There is
  *              no actual AML opcode for SWITCH -- it must be simulated.
@@ -447,10 +448,6 @@ TrDoSwitch (
             {
                 /* Add an ELSE to complete the previous CASE */
 
-                if (!Conditional)
-                {
-                    return;
-                }
                 NewOp             = TrCreateLeafNode (PARSEOP_ELSE);
                 NewOp->Asl.Parent = Conditional->Asl.Parent;
                 TrAmlInitLineNumbers (NewOp, NewOp->Asl.Parent);
@@ -617,11 +614,6 @@ TrDoSwitch (
         {
             /* Convert the DEFAULT node to an ELSE */
 
-            if (!Conditional)
-            {
-                return;
-            }
-
             TrAmlInitNode (DefaultOp, PARSEOP_ELSE);
             DefaultOp->Asl.Parent = Conditional->Asl.Parent;
 
@@ -700,18 +692,21 @@ TrDoSwitch (
     switch (Btype)
     {
     case ACPI_BTYPE_INTEGER:
+
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_ZERO,
                                 (UINT64) 0);
         TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_STRING:
+
         NewOp2->Asl.Next = TrCreateValuedLeafNode (PARSEOP_STRING_LITERAL,
                                 (UINT64) ACPI_TO_INTEGER (""));
         TrAmlInitLineNumbers (NewOp2->Asl.Next, NewOp);
         break;
 
     case ACPI_BTYPE_BUFFER:
+
         (void) TrLinkPeerNode (NewOp2, TrCreateValuedLeafNode (PARSEOP_BUFFER,
                                     (UINT64) 0));
         Next = NewOp2->Asl.Next;
@@ -728,6 +723,7 @@ TrDoSwitch (
         break;
 
     default:
+
         break;
     }
 

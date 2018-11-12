@@ -209,8 +209,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->buf; /* caddr_t */
 		uarg[2] = p->len; /* size_t */
 		iarg[3] = p->flags; /* int */
-		uarg[4] = (intptr_t) p->from; /* struct sockaddr *__restrict */
-		uarg[5] = (intptr_t) p->fromlenaddr; /* __socklen_t *__restrict */
+		uarg[4] = (intptr_t) p->from; /* struct sockaddr * */
+		uarg[5] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
 		*n_args = 6;
 		break;
 	}
@@ -218,8 +218,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 30: {
 		struct accept_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* struct sockaddr *__restrict */
-		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t *__restrict */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -227,8 +227,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 31: {
 		struct getpeername_args *p = params;
 		iarg[0] = p->fdes; /* int */
-		uarg[1] = (intptr_t) p->asa; /* struct sockaddr *__restrict */
-		uarg[2] = (intptr_t) p->alen; /* __socklen_t *__restrict */
+		uarg[1] = (intptr_t) p->asa; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->alen; /* __socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -236,8 +236,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 32: {
 		struct getsockname_args *p = params;
 		iarg[0] = p->fdes; /* int */
-		uarg[1] = (intptr_t) p->asa; /* struct sockaddr *__restrict */
-		uarg[2] = (intptr_t) p->alen; /* __socklen_t *__restrict */
+		uarg[1] = (intptr_t) p->asa; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->alen; /* __socklen_t * */
 		*n_args = 3;
 		break;
 	}
@@ -252,8 +252,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* chflags */
 	case 34: {
 		struct chflags_args *p = params;
-		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		uarg[0] = (intptr_t) p->path; /* const char * */
+		uarg[1] = p->flags; /* u_long */
 		*n_args = 2;
 		break;
 	}
@@ -261,7 +261,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 35: {
 		struct fchflags_args *p = params;
 		iarg[0] = p->fd; /* int */
-		iarg[1] = p->flags; /* int */
+		uarg[1] = p->flags; /* u_long */
 		*n_args = 2;
 		break;
 	}
@@ -1712,7 +1712,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* __getcwd */
 	case 326: {
 		struct __getcwd_args *p = params;
-		uarg[0] = (intptr_t) p->buf; /* u_char * */
+		uarg[0] = (intptr_t) p->buf; /* char * */
 		uarg[1] = p->buflen; /* u_int */
 		*n_args = 2;
 		break;
@@ -2134,7 +2134,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 391: {
 		struct lchflags_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* const char * */
-		iarg[1] = p->flags; /* int */
+		uarg[1] = p->flags; /* u_long */
 		*n_args = 2;
 		break;
 	}
@@ -2452,20 +2452,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[0] = p->id; /* long */
 		iarg[1] = p->sig; /* int */
 		*n_args = 2;
-		break;
-	}
-	/* _umtx_lock */
-	case 434: {
-		struct _umtx_lock_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
-		*n_args = 1;
-		break;
-	}
-	/* _umtx_unlock */
-	case 435: {
-		struct _umtx_unlock_args *p = params;
-		uarg[0] = (intptr_t) p->umtx; /* struct umtx * */
-		*n_args = 1;
 		break;
 	}
 	/* jail_attach */
@@ -3126,20 +3112,13 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cap_new */
-	case 514: {
-		struct cap_new_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* uint64_t */
-		*n_args = 2;
-		break;
-	}
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515: {
-		struct cap_rights_get_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
-		*n_args = 2;
+		struct __cap_rights_get_args *p = params;
+		iarg[0] = p->version; /* int */
+		iarg[1] = p->fd; /* int */
+		uarg[2] = (intptr_t) p->rightsp; /* cap_rights_t * */
+		*n_args = 3;
 		break;
 	}
 	/* cap_enter */
@@ -3277,8 +3256,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* wait6 */
 	case 532: {
 		struct wait6_args *p = params;
-		iarg[0] = p->idtype; /* int */
-		iarg[1] = p->id; /* int */
+		iarg[0] = p->idtype; /* idtype_t */
+		iarg[1] = p->id; /* id_t */
 		uarg[2] = (intptr_t) p->status; /* int * */
 		iarg[3] = p->options; /* int */
 		uarg[4] = (intptr_t) p->wrusage; /* struct __wrusage * */
@@ -3290,7 +3269,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 533: {
 		struct cap_rights_limit_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* uint64_t */
+		uarg[1] = (intptr_t) p->rightsp; /* cap_rights_t * */
 		*n_args = 2;
 		break;
 	}
@@ -3345,6 +3324,79 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		iarg[1] = p->s; /* int */
 		uarg[2] = (intptr_t) p->name; /* caddr_t */
 		iarg[3] = p->namelen; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* chflagsat */
+	case 540: {
+		struct chflagsat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* const char * */
+		uarg[2] = p->flags; /* u_long */
+		iarg[3] = p->atflag; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* accept4 */
+	case 541: {
+		struct accept4_args *p = params;
+		iarg[0] = p->s; /* int */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t * */
+		iarg[3] = p->flags; /* int */
+		*n_args = 4;
+		break;
+	}
+	/* pipe2 */
+	case 542: {
+		struct pipe2_args *p = params;
+		uarg[0] = (intptr_t) p->fildes; /* int * */
+		iarg[1] = p->flags; /* int */
+		*n_args = 2;
+		break;
+	}
+	/* aio_mlock */
+	case 543: {
+		struct aio_mlock_args *p = params;
+		uarg[0] = (intptr_t) p->aiocbp; /* struct aiocb * */
+		*n_args = 1;
+		break;
+	}
+	/* procctl */
+	case 544: {
+		struct procctl_args *p = params;
+		iarg[0] = p->idtype; /* idtype_t */
+		iarg[1] = p->id; /* id_t */
+		iarg[2] = p->com; /* int */
+		uarg[3] = (intptr_t) p->data; /* void * */
+		*n_args = 4;
+		break;
+	}
+	/* ppoll */
+	case 545: {
+		struct ppoll_args *p = params;
+		uarg[0] = (intptr_t) p->fds; /* struct pollfd * */
+		uarg[1] = p->nfds; /* u_int */
+		uarg[2] = (intptr_t) p->ts; /* const struct timespec * */
+		uarg[3] = (intptr_t) p->set; /* const sigset_t * */
+		*n_args = 4;
+		break;
+	}
+	/* futimens */
+	case 546: {
+		struct futimens_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->times; /* struct timespec * */
+		*n_args = 2;
+		break;
+	}
+	/* utimensat */
+	case 547: {
+		struct utimensat_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = (intptr_t) p->path; /* char * */
+		uarg[2] = (intptr_t) p->times; /* struct timespec * */
+		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;
 	}
@@ -3667,10 +3719,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 4:
-			p = "struct sockaddr *__restrict";
+			p = "struct sockaddr *";
 			break;
 		case 5:
-			p = "__socklen_t *__restrict";
+			p = "__socklen_t *";
 			break;
 		default:
 			break;
@@ -3683,10 +3735,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct sockaddr *__restrict";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *__restrict";
+			p = "__socklen_t *";
 			break;
 		default:
 			break;
@@ -3699,10 +3751,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct sockaddr *__restrict";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *__restrict";
+			p = "__socklen_t *";
 			break;
 		default:
 			break;
@@ -3715,10 +3767,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct sockaddr *__restrict";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *__restrict";
+			p = "__socklen_t *";
 			break;
 		default:
 			break;
@@ -3741,10 +3793,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 34:
 		switch(ndx) {
 		case 0:
-			p = "char *";
+			p = "const char *";
 			break;
 		case 1:
-			p = "int";
+			p = "u_long";
 			break;
 		default:
 			break;
@@ -3757,7 +3809,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "int";
+			p = "u_long";
 			break;
 		default:
 			break;
@@ -6074,7 +6126,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 326:
 		switch(ndx) {
 		case 0:
-			p = "u_char *";
+			p = "char *";
 			break;
 		case 1:
 			p = "u_int";
@@ -6799,7 +6851,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 1:
-			p = "int";
+			p = "u_long";
 			break;
 		default:
 			break;
@@ -7330,26 +7382,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "int";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* _umtx_lock */
-	case 434:
-		switch(ndx) {
-		case 0:
-			p = "struct umtx *";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* _umtx_unlock */
-	case 435:
-		switch(ndx) {
-		case 0:
-			p = "struct umtx *";
 			break;
 		default:
 			break;
@@ -8526,27 +8558,17 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cap_new */
-	case 514:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "uint64_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "uint64_t *";
+			p = "int";
+			break;
+		case 2:
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
@@ -8786,10 +8808,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 532:
 		switch(ndx) {
 		case 0:
-			p = "int";
+			p = "idtype_t";
 			break;
 		case 1:
-			p = "int";
+			p = "id_t";
 			break;
 		case 2:
 			p = "int *";
@@ -8814,7 +8836,7 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "uint64_t";
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
@@ -8908,6 +8930,137 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 2:
 			p = "caddr_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* chflagsat */
+	case 540:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "const char *";
+			break;
+		case 2:
+			p = "u_long";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* accept4 */
+	case 541:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct sockaddr *";
+			break;
+		case 2:
+			p = "__socklen_t *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* pipe2 */
+	case 542:
+		switch(ndx) {
+		case 0:
+			p = "int *";
+			break;
+		case 1:
+			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* aio_mlock */
+	case 543:
+		switch(ndx) {
+		case 0:
+			p = "struct aiocb *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* procctl */
+	case 544:
+		switch(ndx) {
+		case 0:
+			p = "idtype_t";
+			break;
+		case 1:
+			p = "id_t";
+			break;
+		case 2:
+			p = "int";
+			break;
+		case 3:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ppoll */
+	case 545:
+		switch(ndx) {
+		case 0:
+			p = "struct pollfd *";
+			break;
+		case 1:
+			p = "u_int";
+			break;
+		case 2:
+			p = "const struct timespec *";
+			break;
+		case 3:
+			p = "const sigset_t *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* futimens */
+	case 546:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "struct timespec *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* utimensat */
+	case 547:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "char *";
+			break;
+		case 2:
+			p = "struct timespec *";
 			break;
 		case 3:
 			p = "int";
@@ -10048,7 +10201,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_file */
 	case 356:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_file */
 	case 357:
@@ -10085,7 +10238,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_fd */
 	case 371:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_fd */
 	case 372:
@@ -10255,7 +10408,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	/* extattr_set_link */
 	case 412:
 		if (ndx == 0 || ndx == 1)
-			p = "int";
+			p = "ssize_t";
 		break;
 	/* extattr_get_link */
 	case 413:
@@ -10344,16 +10497,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* thr_kill */
 	case 433:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* _umtx_lock */
-	case 434:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* _umtx_unlock */
-	case 435:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -10722,12 +10865,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_new */
-	case 514:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
@@ -10841,6 +10979,46 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* connectat */
 	case 539:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* chflagsat */
+	case 540:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* accept4 */
+	case 541:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* pipe2 */
+	case 542:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* aio_mlock */
+	case 543:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* procctl */
+	case 544:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ppoll */
+	case 545:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* futimens */
+	case 546:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* utimensat */
+	case 547:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

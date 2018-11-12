@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __DTEXPRESS_C__
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
@@ -127,18 +125,22 @@ DtDoOperator (
     switch (Operator)
     {
     case EXPOP_ONES_COMPLIMENT:
+
         Result = ~RightValue;
         break;
 
     case EXPOP_LOGICAL_NOT:
+
         Result = !RightValue;
         break;
 
     case EXPOP_MULTIPLY:
+
         Result = LeftValue * RightValue;
         break;
 
     case EXPOP_DIVIDE:
+
         if (!RightValue)
         {
             DtError (ASL_ERROR, ASL_MSG_DIVIDE_BY_ZERO,
@@ -149,6 +151,7 @@ DtDoOperator (
         break;
 
     case EXPOP_MODULO:
+
         if (!RightValue)
         {
             DtError (ASL_ERROR, ASL_MSG_DIVIDE_BY_ZERO,
@@ -163,58 +166,72 @@ DtDoOperator (
         break;
 
     case EXPOP_SUBTRACT:
+
         Result = LeftValue - RightValue;
         break;
 
     case EXPOP_SHIFT_RIGHT:
+
         Result = LeftValue >> RightValue;
         break;
 
     case EXPOP_SHIFT_LEFT:
+
         Result = LeftValue << RightValue;
         break;
 
     case EXPOP_LESS:
+
         Result = LeftValue < RightValue;
         break;
 
     case EXPOP_GREATER:
+
         Result = LeftValue > RightValue;
         break;
 
     case EXPOP_LESS_EQUAL:
+
         Result = LeftValue <= RightValue;
         break;
 
     case EXPOP_GREATER_EQUAL:
+
         Result = LeftValue >= RightValue;
         break;
 
     case EXPOP_EQUAL:
+
         Result = LeftValue == RightValue;
         break;
 
     case EXPOP_NOT_EQUAL:
+
         Result = LeftValue != RightValue;
         break;
 
     case EXPOP_AND:
+
         Result = LeftValue & RightValue;
         break;
 
     case EXPOP_XOR:
+
         Result = LeftValue ^ RightValue;
         break;
 
     case EXPOP_OR:
+
         Result = LeftValue | RightValue;
         break;
 
     case EXPOP_LOGICAL_AND:
+
         Result = LeftValue && RightValue;
         break;
 
     case EXPOP_LOGICAL_OR:
+
         Result = LeftValue || RightValue;
         break;
 

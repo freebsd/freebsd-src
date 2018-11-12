@@ -43,13 +43,13 @@ __FBSDID("$FreeBSD$");
 #define SCTP_PACKED __attribute__((packed))
 
 /*
- * SCTP protocol - RFC2960.
+ * SCTP protocol - RFC4960.
  */
 struct sctphdr {
 	uint16_t src_port;	/* source port */
 	uint16_t dest_port;	/* destination port */
 	uint32_t v_tag;		/* verification tag of packet */
-	uint32_t checksum;	/* Adler32 C-Sum */
+	uint32_t checksum;	/* CRC32C checksum */
 	/* chunks follow... */
 }       SCTP_PACKED;
 
@@ -121,6 +121,14 @@ struct sctp_paramhdr {
 #define SCTP_DEFAULT_PRINFO             0x00000022
 #define SCTP_PEER_ADDR_THLDS            0x00000023
 #define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
+#define SCTP_ECN_SUPPORTED              0x00000025
+#define SCTP_PR_SUPPORTED               0x00000026
+#define SCTP_AUTH_SUPPORTED             0x00000027
+#define SCTP_ASCONF_SUPPORTED           0x00000028
+#define SCTP_RECONFIG_SUPPORTED         0x00000029
+#define SCTP_NRSACK_SUPPORTED           0x00000030
+#define SCTP_PKTDROP_SUPPORTED          0x00000031
+#define SCTP_MAX_CWND                   0x00000032
 
 /*
  * read-only options
@@ -133,6 +141,8 @@ struct sctp_paramhdr {
 #define SCTP_GET_ASSOC_NUMBER           0x00000104	/* ro */
 #define SCTP_GET_ASSOC_ID_LIST          0x00000105	/* ro */
 #define SCTP_TIMEOUTS                   0x00000106
+#define SCTP_PR_STREAM_STATUS           0x00000107
+#define SCTP_PR_ASSOC_STATUS            0x00000108
 
 /*
  * user socket options: BSD implementation specific
@@ -365,6 +375,12 @@ struct sctp_paramhdr {
 /*
  * error cause parameters (user visible)
  */
+struct sctp_gen_error_cause {
+	uint16_t code;
+	uint16_t length;
+	uint8_t info[];
+}                    SCTP_PACKED;
+
 struct sctp_error_cause {
 	uint16_t code;
 	uint16_t length;
@@ -402,6 +418,11 @@ struct sctp_error_unrecognized_chunk {
 	struct sctp_chunkhdr ch;/* header from chunk in error */
 }                             SCTP_PACKED;
 
+struct sctp_error_no_user_data {
+	struct sctp_error_cause cause;	/* code=SCTP_CAUSE_NO_USER_DATA */
+	uint32_t tsn;		/* TSN of the empty data chunk */
+}                       SCTP_PACKED;
+
 /*
  * Main SCTP chunk types we place these here so natd and f/w's in user land
  * can find them.
@@ -425,7 +446,7 @@ struct sctp_error_unrecognized_chunk {
 /* RFC4895 */
 #define SCTP_AUTHENTICATION     0x0f
 /* EY nr_sack chunk id*/
-#define SCTP_NR_SELECTIVE_ACK 0x10
+#define SCTP_NR_SELECTIVE_ACK	0x10
 /************0x40 series ***********/
 /************0x80 series ***********/
 /* RFC5061 */
@@ -509,38 +530,38 @@ struct sctp_error_unrecognized_chunk {
 /*
  * PCB Features (in sctp_features bitmask)
  */
-#define SCTP_PCB_FLAGS_DO_NOT_PMTUD      0x00000001
-#define SCTP_PCB_FLAGS_EXT_RCVINFO       0x00000002	/* deprecated */
-#define SCTP_PCB_FLAGS_DONOT_HEARTBEAT   0x00000004
-#define SCTP_PCB_FLAGS_FRAG_INTERLEAVE   0x00000008
-#define SCTP_PCB_FLAGS_INTERLEAVE_STRMS  0x00000010
-#define SCTP_PCB_FLAGS_DO_ASCONF         0x00000020
-#define SCTP_PCB_FLAGS_AUTO_ASCONF       0x00000040
-#define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE  0x00000080
+#define SCTP_PCB_FLAGS_DO_NOT_PMTUD      0x0000000000000001
+#define SCTP_PCB_FLAGS_EXT_RCVINFO       0x0000000000000002	/* deprecated */
+#define SCTP_PCB_FLAGS_DONOT_HEARTBEAT   0x0000000000000004
+#define SCTP_PCB_FLAGS_FRAG_INTERLEAVE   0x0000000000000008
+#define SCTP_PCB_FLAGS_INTERLEAVE_STRMS  0x0000000000000010
+#define SCTP_PCB_FLAGS_DO_ASCONF         0x0000000000000020
+#define SCTP_PCB_FLAGS_AUTO_ASCONF       0x0000000000000040
+#define SCTP_PCB_FLAGS_ZERO_COPY_ACTIVE  0x0000000000000080
 /* socket options */
-#define SCTP_PCB_FLAGS_NODELAY           0x00000100
-#define SCTP_PCB_FLAGS_AUTOCLOSE         0x00000200
-#define SCTP_PCB_FLAGS_RECVDATAIOEVNT    0x00000400	/* deprecated */
-#define SCTP_PCB_FLAGS_RECVASSOCEVNT     0x00000800
-#define SCTP_PCB_FLAGS_RECVPADDREVNT     0x00001000
-#define SCTP_PCB_FLAGS_RECVPEERERR       0x00002000
-#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x00004000	/* deprecated */
-#define SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT  0x00008000
-#define SCTP_PCB_FLAGS_ADAPTATIONEVNT    0x00010000
-#define SCTP_PCB_FLAGS_PDAPIEVNT         0x00020000
-#define SCTP_PCB_FLAGS_AUTHEVNT          0x00040000
-#define SCTP_PCB_FLAGS_STREAM_RESETEVNT  0x00080000
-#define SCTP_PCB_FLAGS_NO_FRAGMENT       0x00100000
-#define SCTP_PCB_FLAGS_EXPLICIT_EOR      0x00400000
-#define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4   0x00800000
-#define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS  0x01000000
-#define SCTP_PCB_FLAGS_PORTREUSE         0x02000000
-#define SCTP_PCB_FLAGS_DRYEVNT           0x04000000
-#define SCTP_PCB_FLAGS_RECVRCVINFO       0x08000000
-#define SCTP_PCB_FLAGS_RECVNXTINFO       0x10000000
-#define SCTP_PCB_FLAGS_ASSOC_RESETEVNT   0x20000000
-#define SCTP_PCB_FLAGS_STREAM_CHANGEEVNT 0x40000000
-#define SCTP_PCB_FLAGS_RECVNSENDFAILEVNT 0x80000000
+#define SCTP_PCB_FLAGS_NODELAY           0x0000000000000100
+#define SCTP_PCB_FLAGS_AUTOCLOSE         0x0000000000000200
+#define SCTP_PCB_FLAGS_RECVDATAIOEVNT    0x0000000000000400	/* deprecated */
+#define SCTP_PCB_FLAGS_RECVASSOCEVNT     0x0000000000000800
+#define SCTP_PCB_FLAGS_RECVPADDREVNT     0x0000000000001000
+#define SCTP_PCB_FLAGS_RECVPEERERR       0x0000000000002000
+#define SCTP_PCB_FLAGS_RECVSENDFAILEVNT  0x0000000000004000	/* deprecated */
+#define SCTP_PCB_FLAGS_RECVSHUTDOWNEVNT  0x0000000000008000
+#define SCTP_PCB_FLAGS_ADAPTATIONEVNT    0x0000000000010000
+#define SCTP_PCB_FLAGS_PDAPIEVNT         0x0000000000020000
+#define SCTP_PCB_FLAGS_AUTHEVNT          0x0000000000040000
+#define SCTP_PCB_FLAGS_STREAM_RESETEVNT  0x0000000000080000
+#define SCTP_PCB_FLAGS_NO_FRAGMENT       0x0000000000100000
+#define SCTP_PCB_FLAGS_EXPLICIT_EOR      0x0000000000400000
+#define SCTP_PCB_FLAGS_NEEDS_MAPPED_V4   0x0000000000800000
+#define SCTP_PCB_FLAGS_MULTIPLE_ASCONFS  0x0000000001000000
+#define SCTP_PCB_FLAGS_PORTREUSE         0x0000000002000000
+#define SCTP_PCB_FLAGS_DRYEVNT           0x0000000004000000
+#define SCTP_PCB_FLAGS_RECVRCVINFO       0x0000000008000000
+#define SCTP_PCB_FLAGS_RECVNXTINFO       0x0000000010000000
+#define SCTP_PCB_FLAGS_ASSOC_RESETEVNT   0x0000000020000000
+#define SCTP_PCB_FLAGS_STREAM_CHANGEEVNT 0x0000000040000000
+#define SCTP_PCB_FLAGS_RECVNSENDFAILEVNT 0x0000000080000000
 
 /*-
  * mobility_features parameters (by micchie).Note

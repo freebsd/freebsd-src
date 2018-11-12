@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2007, Juniper Networks, Inc.
+ * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * (FA8750-10-C-0237) ("CTSRD"), as part of the DARPA CRASH research
+ * programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -72,7 +78,8 @@ struct cdevsw cfi_cdevsw = {
  * Begin writing into a new block/sector.  We read the sector into
  * memory and keep updating that, until we move into another sector
  * or the process stops writing. At that time we write the whole
- * sector to flash (see cfi_block_finish).
+ * sector to flash (see cfi_block_finish).  To avoid unneeded erase
+ * cycles, keep a pristine copy of the sector on hand.
  */
 int
 cfi_block_start(struct cfi_softc *sc, u_int ofs)
@@ -116,6 +123,8 @@ cfi_block_start(struct cfi_softc *sc, u_int ofs)
 			break;
 		}
 	}
+	sc->sc_wrbufcpy = malloc(sc->sc_wrbufsz, M_TEMP, M_WAITOK);
+	memcpy(sc->sc_wrbufcpy, sc->sc_wrbuf, sc->sc_wrbufsz);
 	sc->sc_writing = 1;
 	return (0);
 }
@@ -131,6 +140,7 @@ cfi_block_finish(struct cfi_softc *sc)
 
 	error = cfi_write_block(sc);
 	free(sc->sc_wrbuf, M_TEMP);
+	free(sc->sc_wrbufcpy, M_TEMP);
 	sc->sc_wrbuf = NULL;
 	sc->sc_wrbufsz = 0;
 	sc->sc_wrofs = 0;

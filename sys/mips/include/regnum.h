@@ -42,28 +42,10 @@
 #ifndef _MACHINE_REGNUM_H_
 #define	_MACHINE_REGNUM_H_
 
-/* This must match the numbers
- * in pcb.h and is used by
- * swtch.S
- */
-#define PREG_S0	0
-#define PREG_S1	1
-#define PREG_S2	2
-#define PREG_S3	3
-#define PREG_S4	4
-#define PREG_S5	5
-#define PREG_S6	6
-#define PREG_S7	7
-#define PREG_SP	8
-#define PREG_S8	9
-#define PREG_RA	10
-#define PREG_SR	11
-#define PREG_GP	12
-#define PREG_PC	13
-
 /*
  * Location of the saved registers relative to ZERO.
  * This must match struct trapframe defined in frame.h exactly.
+ * This must also match regdef.h.
  */
 #define	ZERO	0
 #define	AST	1
@@ -73,14 +55,25 @@
 #define	A1	5
 #define	A2	6
 #define	A3	7
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	A4	8
+#define	A5	9
+#define	A6	10
+#define	A7	11
+#define	T0	12
+#define	T1	13
+#define	T2	14
+#define	T3	15
+#else
 #define	T0	8
 #define	T1	9
 #define	T2	10
 #define	T3	11
-#define	TA0	12
-#define	TA1	13
-#define	TA2	14
-#define	TA3	15
+#define	T4	12
+#define	T5	13
+#define	T6	14
+#define	T7	15
+#endif
 #define	S0	16
 #define	S1	17
 #define	S2	18
@@ -111,6 +104,23 @@
 #define	IC	38
 #define	DUMMY	39	/* for 8 byte alignment */
 #define	NUMSAVEREGS 40
+
+/*
+ * Pseudo registers so we save a complete set of registers regardless of
+ * the ABI. See regdef.h for a more complete explanation.
+ */
+#if defined(__mips_n32) || defined(__mips_n64)
+#define	TA0	8
+#define	TA1	9
+#define	TA2	10
+#define	TA3	11
+#else
+#define	TA0	12
+#define	TA1	13
+#define	TA2	14
+#define	TA3	15
+#endif
+
 
 /*
  * Index of FP registers in 'struct frame', counting from the beginning

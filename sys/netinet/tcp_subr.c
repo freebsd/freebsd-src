@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -62,10 +63,12 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -135,8 +138,8 @@ sysctl_net_inet_tcp_mss_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
-    CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_mssdflt), 0,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, &VNET_NAME(tcp_mssdflt), 0,
     &sysctl_net_inet_tcp_mss_check, "I",
     "Default TCP Maximum Segment Size");
 
@@ -157,8 +160,8 @@ sysctl_net_inet_tcp_mss_v6_check(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
-    CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_v6mssdflt), 0,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, &VNET_NAME(tcp_v6mssdflt), 0,
     &sysctl_net_inet_tcp_mss_v6_check, "I",
    "Default TCP Maximum Segment Size for IPv6");
 #endif /* INET6 */
@@ -172,12 +175,12 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
  * checking. This setting prevents us from sending too small packets.
  */
 VNET_DEFINE(int, tcp_minmss) = TCP_MINMSS;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_VNET | CTLFLAG_RW,
      &VNET_NAME(tcp_minmss), 0,
-    "Minmum TCP Maximum Segment Size");
+    "Minimum TCP Maximum Segment Size");
 
 VNET_DEFINE(int, tcp_do_rfc1323) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc1323), 0,
     "Enable rfc1323 (high performance TCP) extensions");
 
@@ -185,30 +188,30 @@ static int	tcp_log_debug = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_debug, CTLFLAG_RW,
     &tcp_log_debug, 0, "Log errors caused by incoming TCP segments");
 
-static int	tcp_tcbhashsize = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN,
+static int	tcp_tcbhashsize;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
     &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
 static int	do_tcpdrain = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
     "Enable tcp_drain routine for extra help when low on mbufs");
 
-SYSCTL_VNET_UINT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
+SYSCTL_UINT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcbinfo.ipi_count), 0, "Number of active PCBs");
 
 static VNET_DEFINE(int, icmp_may_rst) = 1;
 #define	V_icmp_may_rst			VNET(icmp_may_rst)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(icmp_may_rst), 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
 static VNET_DEFINE(int, tcp_isn_reseed_interval) = 0;
 #define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
     "Seconds between reseeding of ISN secret");
 
-static int	tcp_soreceive_stream = 0;
+static int	tcp_soreceive_stream;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
     &tcp_soreceive_stream, 0, "Using soreceive_stream for TCP sockets");
 
@@ -372,7 +375,6 @@ tcp_init(void)
 	tcp_tw_init();
 	syncache_init();
 	tcp_hc_init();
-	tcp_reass_init();
 
 	TUNABLE_INT_FETCH("net.inet.tcp.sack.enable", &V_tcp_do_sack);
 	V_sack_hole_zone = uma_zcreate("sackhole", sizeof(struct sackhole),
@@ -396,7 +398,6 @@ tcp_init(void)
 	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 	tcp_tcbhashsize = hashsize;
 
-	TUNABLE_INT_FETCH("net.inet.tcp.soreceive_stream", &tcp_soreceive_stream);
 	if (tcp_soreceive_stream) {
 #ifdef INET
 		tcp_usrreqs.pru_soreceive = soreceive_stream;
@@ -428,14 +429,27 @@ tcp_init(void)
 void
 tcp_destroy(void)
 {
+	int error;
 
-	tcp_reass_destroy();
 	tcp_hc_destroy();
 	syncache_destroy();
 	tcp_tw_destroy();
 	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
+
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN, error);
+	}
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_OUT]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
+	}
 }
 #endif
 
@@ -525,16 +539,16 @@ tcpip_maketemplate(struct inpcb *inp)
 /*
  * Send a single message to the TCP at address specified by
  * the given TCP/IP header.  If m == NULL, then we make a copy
- * of the tcpiphdr at ti and send directly to the addressed host.
+ * of the tcpiphdr at th and send directly to the addressed host.
  * This is used to force keep alive messages out using the TCP
  * template for a connection.  If flags are given then we send
- * a message back to the TCP which originated the * segment ti,
+ * a message back to the TCP which originated the segment th,
  * and discard the mbuf containing it and any other attached mbufs.
  *
  * In any case the ack and sequence number of the transmitted
  * segment are as specified by the parameters.
  *
- * NOTE: If m != NULL, then ti must point to *inside* the mbuf.
+ * NOTE: If m != NULL, then th must point to *inside* the mbuf.
  */
 void
 tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
@@ -632,8 +646,8 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		ip6->ip6_flow = 0;
 		ip6->ip6_vfc = IPV6_VERSION;
 		ip6->ip6_nxt = IPPROTO_TCP;
-		ip6->ip6_plen = 0;		/* Set in ip6_output(). */
 		tlen += sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
+		ip6->ip6_plen = htons(tlen - sizeof(*ip6));
 	}
 #endif
 #if defined(INET) && defined(INET6)
@@ -702,6 +716,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 	if (tp == NULL || (inp->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
+	if (flags & TH_RST)
+		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
+		    tp, nth);
+
+	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
@@ -882,7 +901,7 @@ tcp_drop(struct tcpcb *tp, int errno)
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if (TCPS_HAVERCVDSYN(tp->t_state)) {
-		tp->t_state = TCPS_CLOSED;
+		tcp_state_change(tp, TCPS_CLOSED);
 		(void) tcp_output(tp);
 		TCPSTAT_INC(tcps_drops);
 	} else
@@ -1060,7 +1079,7 @@ tcp_drain(void)
 	 * XXX: The "Net/3" implementation doesn't imply that the TCP
 	 *      reassembly queue should be flushed, but in a situation
 	 *	where we're really low on mbufs, this is potentially
-	 *	usefull.
+	 *	useful.
 	 */
 		INP_INFO_RLOCK(&V_tcbinfo);
 		LIST_FOREACH(inpb, V_tcbinfo.ipi_listhead, inp_list) {
@@ -1411,11 +1430,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (PRC_IS_REDIRECT(cmd))
 		return;
 	/*
-	 * Source quench is depreciated.
-	 */
-	else if (cmd == PRC_QUENCH)
-		return;
-	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
 	 * excellent DoS attack on machines with many connections.
@@ -1519,9 +1533,6 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		notify = tcp_mtudisc_notify;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
-		return;
-	/* Source quench is depreciated. */
-	else if (cmd == PRC_QUENCH)
 		return;
 
 	/* if the parameter is from icmp6, decode it. */
@@ -1770,7 +1781,7 @@ tcp_mtudisc(struct inpcb *inp, int mtuoffer)
  * tcp_mss_update to get the peer/interface MTU.
  */
 u_long
-tcp_maxmtu(struct in_conninfo *inc, int *flags)
+tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct route sro;
 	struct sockaddr_in *dst;
@@ -1789,16 +1800,20 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 	}
 	if (sro.ro_rt != NULL) {
 		ifp = sro.ro_rt->rt_ifp;
-		if (sro.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro.ro_rt->rt_mtu == 0)
 			maxmtu = ifp->if_mtu;
 		else
-			maxmtu = min(sro.ro_rt->rt_rmx.rmx_mtu, ifp->if_mtu);
+			maxmtu = min(sro.ro_rt->rt_mtu, ifp->if_mtu);
 
 		/* Report additional interface capabilities. */
-		if (flags != NULL) {
+		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO4 &&
-			    ifp->if_hwassist & CSUM_TSO)
-				*flags |= CSUM_TSO;
+			    ifp->if_hwassist & CSUM_TSO) {
+				cap->ifcap |= CSUM_TSO;
+				cap->tsomax = ifp->if_hw_tsomax;
+				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+			}
 		}
 		RTFREE(sro.ro_rt);
 	}
@@ -1808,7 +1823,7 @@ tcp_maxmtu(struct in_conninfo *inc, int *flags)
 
 #ifdef INET6
 u_long
-tcp_maxmtu6(struct in_conninfo *inc, int *flags)
+tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 {
 	struct route_in6 sro6;
 	struct ifnet *ifp;
@@ -1825,17 +1840,21 @@ tcp_maxmtu6(struct in_conninfo *inc, int *flags)
 	}
 	if (sro6.ro_rt != NULL) {
 		ifp = sro6.ro_rt->rt_ifp;
-		if (sro6.ro_rt->rt_rmx.rmx_mtu == 0)
+		if (sro6.ro_rt->rt_mtu == 0)
 			maxmtu = IN6_LINKMTU(sro6.ro_rt->rt_ifp);
 		else
-			maxmtu = min(sro6.ro_rt->rt_rmx.rmx_mtu,
+			maxmtu = min(sro6.ro_rt->rt_mtu,
 				     IN6_LINKMTU(sro6.ro_rt->rt_ifp));
 
 		/* Report additional interface capabilities. */
-		if (flags != NULL) {
+		if (cap != NULL) {
 			if (ifp->if_capenable & IFCAP_TSO6 &&
-			    ifp->if_hwassist & CSUM_TSO)
-				*flags |= CSUM_TSO;
+			    ifp->if_hwassist & CSUM_TSO) {
+				cap->ifcap |= CSUM_TSO;
+				cap->tsomax = ifp->if_hw_tsomax;
+				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
+				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
+			}
 		}
 		RTFREE(sro6.ro_rt);
 	}
@@ -1901,55 +1920,20 @@ tcp_signature_apply(void *fstate, void *data, u_int len)
 }
 
 /*
- * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
- *
- * Parameters:
- * m		pointer to head of mbuf chain
- * _unused	
- * len		length of TCP segment data, excluding options
- * optlen	length of TCP segment options
- * buf		pointer to storage for computed MD5 digest
- * direction	direction of flow (IPSEC_DIR_INBOUND or OUTBOUND)
- *
- * We do this over ip, tcphdr, segment data, and the key in the SADB.
- * When called from tcp_input(), we can be sure that th_sum has been
- * zeroed out and verified already.
- *
- * Return 0 if successful, otherwise return -1.
- *
  * XXX The key is retrieved from the system's PF_KEY SADB, by keying a
  * search with the destination IP address, and a 'magic SPI' to be
  * determined by the application. This is hardcoded elsewhere to 1179
- * right now. Another branch of this code exists which uses the SPD to
- * specify per-application flows but it is unstable.
- */
-int
-tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
-    u_char *buf, u_int direction)
+*/
+struct secasvar *
+tcp_get_sav(struct mbuf *m, u_int direction)
 {
 	union sockaddr_union dst;
-#ifdef INET
-	struct ippseudo ippseudo;
-#endif
-	MD5_CTX ctx;
-	int doff;
-	struct ip *ip;
-#ifdef INET
-	struct ipovly *ipovly;
-#endif
 	struct secasvar *sav;
-	struct tcphdr *th;
+	struct ip *ip;
 #ifdef INET6
 	struct ip6_hdr *ip6;
-	struct in6_addr in6;
 	char ip6buf[INET6_ADDRSTRLEN];
-	uint32_t plen;
-	uint16_t nhdr;
 #endif
-	u_short savecsum;
-
-	KASSERT(m != NULL, ("NULL mbuf chain"));
-	KASSERT(buf != NULL, ("NULL signature pointer"));
 
 	/* Extract the destination from the IP header in the mbuf. */
 	bzero(&dst, sizeof(union sockaddr_union));
@@ -1976,7 +1960,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (NULL);
 		/* NOTREACHED */
 		break;
 	}
@@ -1991,8 +1975,60 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 			    ip6_sprintf(ip6buf, &dst.sin6.sin6_addr) :
 #endif
 			"(unsupported)"));
-		return (EINVAL);
 	}
+
+	return (sav);
+}
+
+/*
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Parameters:
+ * m		pointer to head of mbuf chain
+ * len		length of TCP segment data, excluding options
+ * optlen	length of TCP segment options
+ * buf		pointer to storage for computed MD5 digest
+ * sav		pointer to security assosiation
+ *
+ * We do this over ip, tcphdr, segment data, and the key in the SADB.
+ * When called from tcp_input(), we can be sure that th_sum has been
+ * zeroed out and verified already.
+ *
+ * Releases reference to SADB key before return. 
+ *
+ * Return 0 if successful, otherwise return -1.
+ *
+ */
+int
+tcp_signature_do_compute(struct mbuf *m, int len, int optlen,
+    u_char *buf, struct secasvar *sav)
+{
+#ifdef INET
+	struct ippseudo ippseudo;
+#endif
+	MD5_CTX ctx;
+	int doff;
+	struct ip *ip;
+#ifdef INET
+	struct ipovly *ipovly;
+#endif
+	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+	struct in6_addr in6;
+	uint32_t plen;
+	uint16_t nhdr;
+#endif
+	u_short savecsum;
+
+	KASSERT(m != NULL, ("NULL mbuf chain"));
+	KASSERT(buf != NULL, ("NULL signature pointer"));
+
+	/* Extract the destination from the IP header in the mbuf. */
+	ip = mtod(m, struct ip *);
+#ifdef INET6
+	ip6 = NULL;	/* Make the compiler happy. */
+#endif
 
 	MD5Init(&ctx);
 	/*
@@ -2050,7 +2086,7 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 		break;
 #endif
 	default:
-		return (EINVAL);
+		return (-1);
 		/* NOTREACHED */
 		break;
 	}
@@ -2081,6 +2117,23 @@ tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
 	key_sa_recordxfer(sav, m);
 	KEY_FREESAV(&sav);
 	return (0);
+}
+
+/*
+ * Compute TCP-MD5 hash of a TCP segment. (RFC2385)
+ *
+ * Return 0 if successful, otherwise return -1.
+ */
+int
+tcp_signature_compute(struct mbuf *m, int _unused, int len, int optlen,
+    u_char *buf, u_int direction)
+{
+	struct secasvar *sav;
+
+	if ((sav = tcp_get_sav(m, direction)) == NULL)
+		return (-1);
+
+	return (tcp_signature_do_compute(m, len, optlen, buf, sav));
 }
 
 /*
@@ -2255,8 +2308,8 @@ sysctl_drop(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
-    CTLTYPE_STRUCT|CTLFLAG_WR|CTLFLAG_SKIP, NULL,
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
+    CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_WR | CTLFLAG_SKIP, NULL,
     0, sysctl_drop, "", "Drop TCP connection");
 
 /*
@@ -2373,4 +2426,20 @@ tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 	if (*(s + size - 1) != '\0')
 		panic("%s: string too long", __func__);
 	return (s);
+}
+
+/*
+ * A subroutine which makes it easy to track TCP state changes with DTrace.
+ * This function shouldn't be called for t_state initializations that don't
+ * correspond to actual TCP state transitions.
+ */
+void
+tcp_state_change(struct tcpcb *tp, int newstate)
+{
+#if defined(KDTRACE_HOOKS)
+	int pstate = tp->t_state;
+#endif
+
+	tp->t_state = newstate;
+	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

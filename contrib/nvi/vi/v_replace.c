@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_replace.c	10.17 (Berkeley) 6/30/96";
+static const char sccsid[] = "$Id: v_replace.c,v 10.24 2001/06/25 15:19:34 skimo Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -43,9 +43,7 @@ static const char sccsid[] = "@(#)v_replace.c	10.17 (Berkeley) 6/30/96";
  * PUBLIC: int v_replace __P((SCR *, VICMD *));
  */
 int
-v_replace(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_replace(SCR *sp, VICMD *vp)
 {
 	EVENT ev;
 	VI_PRIVATE *vip;
@@ -53,7 +51,8 @@ v_replace(sp, vp)
 	size_t blen, len;
 	u_long cnt;
 	int quote, rval;
-	char *bp, *p;
+	CHAR_T *bp;
+	CHAR_T *p;
 
 	vip = VIP(sp);
 
@@ -144,8 +143,8 @@ next:		if (v_event_get(sp, &ev, 0, 0))
 	}
 
 	/* Copy the line. */
-	GET_SPACE_RET(sp, bp, blen, len);
-	memmove(bp, p, len);
+	GET_SPACE_RETW(sp, bp, blen, len);
+	MEMMOVE(bp, p, len);
 	p = bp;
 
 	/*
@@ -154,7 +153,7 @@ next:		if (v_event_get(sp, &ev, 0, 0))
 	 * is different from the historic vi, which replaced N characters with
 	 * a single new line.  Users complained, so we match historic practice.
 	 */
-	if (!quote && vip->rvalue == K_CR || vip->rvalue == K_NL) {
+	if ((!quote && vip->rvalue == K_CR) || vip->rvalue == K_NL) {
 		/* Set return line. */
 		vp->m_stop.lno = vp->m_start.lno + 1;
 		vp->m_stop.cno = 0;
@@ -193,10 +192,10 @@ err_ret:		rval = 1;
 			rval = 0;
 		}
 	} else {
-		memset(bp + vp->m_start.cno, vip->rlast, cnt);
+		STRSET(bp + vp->m_start.cno, vip->rlast, cnt);
 		rval = db_set(sp, vp->m_start.lno, bp, len);
 	}
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 
 	vp->m_final = vp->m_stop;
 	return (rval);

@@ -99,8 +99,8 @@ gid_t real_gid, effective_gid;
 	PRIV_START \
 	effective_uid = (a); \
 	effective_gid = (b); \
-	if (setreuid((uid_t)-1, effective_uid) != 0) err(1, "setreuid failed"); \
 	if (setregid((gid_t)-1, effective_gid) != 0) err(1, "setregid failed"); \
+	if (setreuid((uid_t)-1, effective_uid) != 0) err(1, "setreuid failed"); \
 	PRIV_END \
 }
 #endif

@@ -38,13 +38,12 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_capsicum.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
@@ -70,9 +69,9 @@ __FBSDID("$FreeBSD$");
 #undef NAMEI_DIAGNOSTIC
 
 SDT_PROVIDER_DECLARE(vfs);
-SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, entry, "struct vnode *", "char *",
+SDT_PROBE_DEFINE3(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long");
-SDT_PROBE_DEFINE2(vfs, namei, lookup, return, return, "int", "struct vnode *");
+SDT_PROBE_DEFINE2(vfs, namei, lookup, return, "int", "struct vnode *");
 
 /*
  * Allocation zone for namei
@@ -97,9 +96,8 @@ nameiinit(void *dummy __unused)
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL);
 
 static int lookup_shared = 1;
-SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RW, &lookup_shared, 0,
+SYSCTL_INT(_vfs, OID_AUTO, lookup_shared, CTLFLAG_RWTUN, &lookup_shared, 0,
     "Enables/Disables shared locks for path name translation");
-TUNABLE_INT("vfs.lookup_shared", &lookup_shared);
 
 /*
  * Convert a pathname into a pointer to a locked vnode.
@@ -121,6 +119,16 @@ TUNABLE_INT("vfs.lookup_shared", &lookup_shared);
  *		if symbolic link, massage name in buffer and continue
  *	}
  */
+static void
+namei_cleanup_cnp(struct componentname *cnp)
+{
+	uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+	cnp->cn_pnbuf = NULL;
+	cnp->cn_nameptr = NULL;
+#endif
+}
+
 int
 namei(struct nameidata *ndp)
 {
@@ -172,23 +180,20 @@ namei(struct nameidata *ndp)
 	 * not an absolute path, and not containing '..' components) to
 	 * a real file descriptor, not the pseudo-descriptor AT_FDCWD.
 	 */
-	if (IN_CAPABILITY_MODE(td) && (cnp->cn_flags & NOCAPCHECK) == 0) {
+	if (error == 0 && IN_CAPABILITY_MODE(td) &&
+	    (cnp->cn_flags & NOCAPCHECK) == 0) {
 		ndp->ni_strictrelative = 1;
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
+				ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
 			error = ECAPMODE;
 		}
 	}
 #endif
 	if (error) {
-		uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-		cnp->cn_pnbuf = NULL;
-		cnp->cn_nameptr = NULL;
-#endif
+		namei_cleanup_cnp(cnp);
 		ndp->ni_vp = NULL;
 		return (error);
 	}
@@ -221,20 +226,26 @@ namei(struct nameidata *ndp)
 			dp = ndp->ni_startdir;
 			error = 0;
 		} else if (ndp->ni_dirfd != AT_FDCWD) {
+			cap_rights_t rights;
+
+			rights = ndp->ni_rightsneeded;
+			cap_rights_set(&rights, CAP_LOOKUP);
+
 			if (cnp->cn_flags & AUDITVNODE1)
 				AUDIT_ARG_ATFD1(ndp->ni_dirfd);
 			if (cnp->cn_flags & AUDITVNODE2)
 				AUDIT_ARG_ATFD2(ndp->ni_dirfd);
 			error = fgetvp_rights(td, ndp->ni_dirfd,
-			    ndp->ni_rightsneeded | CAP_LOOKUP,
-			    &ndp->ni_filecaps, &dp);
+			    &rights, &ndp->ni_filecaps, &dp);
 #ifdef CAPABILITIES
 			/*
 			 * If file descriptor doesn't have all rights,
 			 * all lookups relative to it must also be
 			 * strictly relative.
 			 */
-			if (ndp->ni_filecaps.fc_rights != CAP_ALL ||
+			CAP_ALL(&rights);
+			if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights,
+			    &rights) ||
 			    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
 			    ndp->ni_filecaps.fc_nioctls != -1) {
 				ndp->ni_strictrelative = 1;
@@ -249,11 +260,7 @@ namei(struct nameidata *ndp)
 			}
 		}
 		if (error) {
-			uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-			cnp->cn_pnbuf = NULL;
-			cnp->cn_nameptr = NULL;
-#endif
+			namei_cleanup_cnp(cnp);
 			return (error);
 		}
 	}
@@ -277,8 +284,9 @@ namei(struct nameidata *ndp)
 			if (ndp->ni_strictrelative != 0) {
 #ifdef KTRACE
 				if (KTRPOINT(curthread, KTR_CAPFAIL))
-					ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
+					ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
+				namei_cleanup_cnp(cnp);
 				return (ENOTCAPABLE);
 			}
 			while (*(cnp->cn_nameptr) == '/') {
@@ -291,11 +299,7 @@ namei(struct nameidata *ndp)
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
-			uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-			cnp->cn_pnbuf = NULL;
-			cnp->cn_nameptr = NULL;
-#endif
+			namei_cleanup_cnp(cnp);
 			SDT_PROBE(vfs, namei, lookup, return, error, NULL, 0,
 			    0, 0);
 			return (error);
@@ -305,11 +309,7 @@ namei(struct nameidata *ndp)
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
-				uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-				cnp->cn_pnbuf = NULL;
-				cnp->cn_nameptr = NULL;
-#endif
+				namei_cleanup_cnp(cnp);
 			} else
 				cnp->cn_flags |= HASBUF;
 
@@ -371,11 +371,7 @@ namei(struct nameidata *ndp)
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
 	}
-	uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-	cnp->cn_pnbuf = NULL;
-	cnp->cn_nameptr = NULL;
-#endif
+	namei_cleanup_cnp(cnp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;
 	vrele(ndp->ni_dvp);
@@ -394,6 +390,7 @@ compute_cn_lkflags(struct mount *mp, int lkflags, int cnflags)
 		lkflags &= ~LK_SHARED;
 		lkflags |= LK_EXCLUSIVE;
 	}
+	lkflags |= LK_NODDLKTREAT;
 	return (lkflags);
 }
 
@@ -417,13 +414,8 @@ needs_exclusive_leaf(struct mount *mp, int flags)
 	 * extended shared operations, then use a shared lock for the
 	 * leaf node, otherwise use an exclusive lock.
 	 */
-	if (flags & ISOPEN) {
-		if (mp != NULL &&
-		    (mp->mnt_kern_flag & MNTK_EXTENDED_SHARED))
-			return (0);
-		else
-			return (1);
-	}
+	if ((flags & ISOPEN) != 0)
+		return (!MNT_EXTENDED_SHARED(mp));
 
 	/*
 	 * Lookup requests outside of open() that specify LOCKSHARED
@@ -633,7 +625,7 @@ dirloop:
 		if (ndp->ni_strictrelative != 0) {
 #ifdef KTRACE
 			if (KTRPOINT(curthread, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_LOOKUP, 0, 0);
+				ktrcapfail(CAPFAIL_LOOKUP, NULL, NULL);
 #endif
 			error = ENOTCAPABLE;
 			goto bad;
@@ -698,6 +690,10 @@ unionlookup:
 	    VOP_ISLOCKED(dp) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
 		vn_lock(dp, LK_UPGRADE|LK_RETRY);
+	if ((dp->v_iflag & VI_DOOMED) != 0) {
+		error = ENOENT;
+		goto bad;
+	}
 	/*
 	 * If we're looking up the last component and we need an exclusive
 	 * lock, adjust our lkflags.
@@ -1052,6 +1048,27 @@ bad:
 	vput(dp);
 	*vpp = NULL;
 	return (error);
+}
+
+void
+NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
+    const char *namep, int dirfd, struct vnode *startdir, cap_rights_t *rightsp,
+    struct thread *td)
+{
+
+	ndp->ni_cnd.cn_nameiop = op;
+	ndp->ni_cnd.cn_flags = flags;
+	ndp->ni_segflg = segflg;
+	ndp->ni_dirp = namep;
+	ndp->ni_dirfd = dirfd;
+	ndp->ni_startdir = startdir;
+	ndp->ni_strictrelative = 0;
+	if (rightsp != NULL)
+		ndp->ni_rightsneeded = *rightsp;
+	else
+		cap_rights_init(&ndp->ni_rightsneeded);
+	filecaps_init(&ndp->ni_filecaps);
+	ndp->ni_cnd.cn_thread = td;
 }
 
 /*

@@ -80,7 +80,8 @@ int	swapcontext(ucontext_t *, const ucontext_t *);
 
 #if __BSD_VISIBLE
 int __getcontextx_size(void);
-int __fillcontextx(char *ctx);
+int __fillcontextx(char *ctx) __returns_twice;
+int __fillcontextx2(char *ctx);
 #endif
 
 __END_DECLS
@@ -98,7 +99,7 @@ struct thread;
 
 /* Machine-dependent functions: */
 int	get_mcontext(struct thread *, mcontext_t *, int);
-int	set_mcontext(struct thread *, const mcontext_t *);
+int	set_mcontext(struct thread *, mcontext_t *);
 
 #endif /* !_KERNEL */
 

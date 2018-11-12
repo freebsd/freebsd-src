@@ -1,0 +1,106 @@
+.\" Copyright (c) 2014 Andriy Gapon <avg@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 15, 2014
+.Dt ZFSLOADER 8
+.Os
+.Sh NAME
+.Nm zfsloader
+.Nd kernel bootstrapping final stage
+.Sh DESCRIPTION
+.Nm
+is an extended variant of
+.Xr loader 8
+with added support for booting from ZFS.
+This document describes only differences from
+.Xr loader 8 .
+.Sh ZFS FEATURES
+.Nm
+supports the following format for specifying ZFS filesystems which
+can be used wherever
+.Xr loader 8
+refers to a device specification:
+.Pp
+.Ar zfs:pool/filesystem:
+.Pp
+where
+.Pa pool/filesystem
+is a ZFS filesystem name as described in
+.Xr zfs 8 .
+.Pp
+If
+.Pa /etc/fstab
+does not have an entry for the root filesystem and
+.Va vfs.root.mountfrom
+is not set, but
+.Va currdev
+refers to a ZFS filesystem, then
+.Nm
+will instruct kernel to use that filesystem as the root filesystem.
+.Sh ZFS COMMAND EXTENSIONS
+.Bl -tag -width Ds -compact
+.It Ic lsdev Op Fl v
+Lists ZFS pools in addition to disks and partitions.
+Adding
+.Fl v
+shows more ZFS pool details in a format that resembles
+.Nm zpool Cm status
+output.
+.Pp
+.It Ic lszfs Ar filesystem
+A ZFS extended command that can be used to explore the ZFS filesystem
+hierarchy in a pool.
+Lists the immediate children of the
+.Ar filesystem .
+The filesystem hierarchy is rooted at a filesystem with the same name
+as the pool.
+.El
+.Sh FILES
+.Bl -tag -width /boot/zfsloader -compact
+.It Pa /boot/zfsloader
+.Nm
+itself.
+.El
+.Sh EXAMPLES
+Set the default device used for loading a kernel from a ZFS filesystem:
+.Bd -literal -offset indent
+set currdev=zfs:tank/ROOT/knowngood:
+.Ed
+.Sh SEE ALSO
+.Xr gptzfsboot 8 ,
+.Xr loader 8 ,
+.Xr zfs 8 ,
+.Xr zfsboot 8 ,
+.Xr zfsloader 8 ,
+.Xr zpool 8
+.Sh HISTORY
+The
+.Nm
+first appeared in
+.Fx 7.3 .
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq avg@FreeBSD.org .

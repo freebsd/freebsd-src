@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd February 11, 2014
 .Dt LIBMEMSTAT 3
 .Os
 .Sh NAME
@@ -79,6 +79,8 @@
 .Fn memstat_get_sizemask "const struct memory_type *mtp"
 .Ft uint64_t
 .Fn memstat_get_size "const struct memory_type *mtp"
+.Ft uint64_t
+.Fn memstat_get_rsize "const struct memory_type *mtp"
 .Ft uint64_t
 .Fn memstat_get_memalloced "const struct memory_type *mtp"
 .Ft uint64_t
@@ -287,6 +289,11 @@ If the memory type supports variable allocation sizes, return a bitmask of
 sizes allocated for the memory type.
 .It Fn memstat_get_size
 If the memory type supports a fixed allocation size, return that size.
+.It Fn memstat_get_rsize
+If the memory type supports a fixed allocation size, return real size
+of an allocation.
+Real size can exceed requested size due to alignment constraints or
+implicit padding.
 .It Fn memstat_get_memalloced
 Return the total number of bytes allocated for the memory type over its
 lifetime.
@@ -477,7 +484,7 @@ library appeared in
 .Sh AUTHORS
 The kernel memory allocator changes necessary to support a general purpose
 monitoring library, along with the library, were written by
-.An Robert Watson Aq rwatson@FreeBSD.org .
+.An Robert Watson Aq Mt rwatson@FreeBSD.org .
 .Sh BUGS
 There are memory allocators in the kernel, such as the VM page allocator
 and

@@ -31,7 +31,7 @@ where
   closest to your internal network in terms of network hops.
 
 * "int-net" is the internal network IP# subnet address range.  This might
-   be something like 10.1.0.0/16, or 128.33.1.0/24 
+   be something like 10.1.0.0/16, or 128.33.1.0/24
 
 * "ext-service" is the service to which you wish to connect or if it doesn't
   have a proper name, a number can be used.  The translation of "ext-service"

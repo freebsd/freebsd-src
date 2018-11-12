@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2011
+.Dd October 7, 2012
 .Dt CPIO 1
 .Os
 .Sh NAME
@@ -176,11 +176,21 @@ With this option, the target of the link will be archived or copied instead.
 (p mode only)
 Create links from the target directory to the original files,
 instead of copying.
+.It Fl Fl lrzip
+(o mode only)
+Compress the resulting archive with
+.Xr lrzip 1 .
+In input mode, this option is ignored.
 .It Fl Fl lzma
 (o mode only)
 Compress the file with lzma-compatible compression before writing it.
 In input mode, this option is ignored; lzma compression is recognized
 automatically on input.
+.It Fl Fl lzop
+(o mode only)
+Compress the resulting archive with
+.Xr lzop 1 .
+In input mode, this option is ignored.
 .It Fl m , Fl Fl preserve-modification-time
 (i and p modes)
 Set file modification time on created files to match

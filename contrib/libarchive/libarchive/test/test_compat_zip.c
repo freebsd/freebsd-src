@@ -62,7 +62,7 @@ test_compat_zip_1(void)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_NONE);
+	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ZIP);
 
 finish:

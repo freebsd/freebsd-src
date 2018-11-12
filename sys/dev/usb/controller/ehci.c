@@ -98,19 +98,14 @@ static int ehciiaadbug = 0;
 static int ehcilostintrbug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ehcidebug, 0, "Debug level");
-TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RWTUN,
     &ehcinohighspeed, 0, "Disable High Speed USB");
-TUNABLE_INT("hw.usb.ehci.no_hs", &ehcinohighspeed);
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, iaadbug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, iaadbug, CTLFLAG_RWTUN,
     &ehciiaadbug, 0, "Enable doorbell bug workaround");
-TUNABLE_INT("hw.usb.ehci.iaadbug", &ehciiaadbug);
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, lostintrbug, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, lostintrbug, CTLFLAG_RWTUN,
     &ehcilostintrbug, 0, "Enable lost interrupt bug workaround");
-TUNABLE_INT("hw.usb.ehci.lostintrbug", &ehcilostintrbug);
-
 
 static void ehci_dump_regs(ehci_softc_t *sc);
 static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
@@ -119,12 +114,12 @@ static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
 
 #define	EHCI_INTR_ENDPT 1
 
-extern struct usb_bus_methods ehci_bus_methods;
-extern struct usb_pipe_methods ehci_device_bulk_methods;
-extern struct usb_pipe_methods ehci_device_ctrl_methods;
-extern struct usb_pipe_methods ehci_device_intr_methods;
-extern struct usb_pipe_methods ehci_device_isoc_fs_methods;
-extern struct usb_pipe_methods ehci_device_isoc_hs_methods;
+static const struct usb_bus_methods ehci_bus_methods;
+static const struct usb_pipe_methods ehci_device_bulk_methods;
+static const struct usb_pipe_methods ehci_device_ctrl_methods;
+static const struct usb_pipe_methods ehci_device_intr_methods;
+static const struct usb_pipe_methods ehci_device_isoc_fs_methods;
+static const struct usb_pipe_methods ehci_device_isoc_hs_methods;
 
 static void ehci_do_poll(struct usb_bus *);
 static void ehci_device_done(struct usb_xfer *, usb_error_t);
@@ -215,7 +210,7 @@ ehci_reset(ehci_softc_t *sc)
 			return (0);
 		}
 	}
-	device_printf(sc->sc_bus.bdev, "Reset timeout\n");
+	device_printf(sc->sc_bus.bdev, "reset timeout\n");
 	return (USB_ERR_IOERROR);
 }
 
@@ -259,7 +254,7 @@ ehci_init_sub(struct ehci_softc *sc)
 		DPRINTF("HCC uses 64-bit structures\n");
 
 		/* MUST clear segment register if 64 bit capable */
-		EWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
+		EOWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
 	}
 
 	usbd_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
@@ -290,7 +285,7 @@ ehci_init_sub(struct ehci_softc *sc)
 		}
 	}
 	if (hcr) {
-		device_printf(sc->sc_bus.bdev, "Run timeout\n");
+		device_printf(sc->sc_bus.bdev, "run timeout\n");
 		return (USB_ERR_IOERROR);
 	}
 	return (USB_ERR_NORMAL_COMPLETION);
@@ -1198,9 +1193,16 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 		    (status & EHCI_QTD_PINGSTATE) ? "[PING]" : "");
 	}
 #endif
-
-	return ((status & EHCI_QTD_HALTED) ?
-	    USB_ERR_STALLED : USB_ERR_NORMAL_COMPLETION);
+	if (status & EHCI_QTD_HALTED) {
+		if ((xfer->xroot->udev->parent_hs_hub != NULL) ||
+		    (xfer->xroot->udev->address != 0)) {
+			/* try to separate I/O errors from STALL */
+			if (EHCI_QTD_GET_CERR(status) == 0)
+				return (USB_ERR_IOERROR);
+		}
+		return (USB_ERR_STALLED);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
@@ -1275,7 +1277,7 @@ done:
 static uint8_t
 ehci_check_transfer(struct usb_xfer *xfer)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 
 	uint32_t status;
@@ -1654,12 +1656,17 @@ restart:
 			}
 			td->len = 0;
 
+			/* properly reset reserved fields */
 			td->qtd_buffer[0] = 0;
-			td->qtd_buffer_hi[0] = 0;
-
 			td->qtd_buffer[1] = 0;
+			td->qtd_buffer[2] = 0;
+			td->qtd_buffer[3] = 0;
+			td->qtd_buffer[4] = 0;
+			td->qtd_buffer_hi[0] = 0;
 			td->qtd_buffer_hi[1] = 0;
-
+			td->qtd_buffer_hi[2] = 0;
+			td->qtd_buffer_hi[3] = 0;
+			td->qtd_buffer_hi[4] = 0;
 		} else {
 
 			uint8_t x;
@@ -1714,6 +1721,12 @@ restart:
 			    htohc32(temp->sc,
 			    buf_res.physaddr & (~0xFFF));
 			td->qtd_buffer_hi[x] = 0;
+
+			/* properly reset reserved fields */
+			while (++x < EHCI_QTD_NBUFFERS) {
+				td->qtd_buffer[x] = 0;
+				td->qtd_buffer_hi[x] = 0;
+			}
 		}
 
 		if (td_next) {
@@ -1756,7 +1769,7 @@ static void
 ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 {
 	struct ehci_std_temp temp;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ehci_qh_t *qh;
 	ehci_qtd_t *td;
 	uint32_t qh_endp;
@@ -2001,6 +2014,18 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	qh->qh_qtd.qtd_altnext =
 	    htohc32(temp.sc, EHCI_LINK_TERMINATE);
 
+	/* properly reset reserved fields */
+	qh->qh_qtd.qtd_buffer[0] = 0;
+	qh->qh_qtd.qtd_buffer[1] = 0;
+	qh->qh_qtd.qtd_buffer[2] = 0;
+	qh->qh_qtd.qtd_buffer[3] = 0;
+	qh->qh_qtd.qtd_buffer[4] = 0;
+	qh->qh_qtd.qtd_buffer_hi[0] = 0;
+	qh->qh_qtd.qtd_buffer_hi[1] = 0;
+	qh->qh_qtd.qtd_buffer_hi[2] = 0;
+	qh->qh_qtd.qtd_buffer_hi[3] = 0;
+	qh->qh_qtd.qtd_buffer_hi[4] = 0;
+
 	usb_pc_cpu_flush(qh->page_cache);
 
 	if (xfer->xroot->udev->flags.self_suspended == 0) {
@@ -2164,7 +2189,7 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 static void
 ehci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -2231,10 +2256,26 @@ ehci_device_bulk_enter(struct usb_xfer *xfer)
 }
 
 static void
+ehci_doorbell_async(struct ehci_softc *sc)
+{
+	uint32_t temp;
+
+	/*
+	 * XXX Performance quirk: Some Host Controllers have a too low
+	 * interrupt rate. Issue an IAAD to stimulate the Host
+	 * Controller after queueing the BULK transfer.
+	 *
+	 * XXX Force the host controller to refresh any QH caches.
+	 */
+	temp = EOREAD4(sc, EHCI_USBCMD);
+	if (!(temp & EHCI_CMD_IAAD))
+		EOWRITE4(sc, EHCI_USBCMD, temp | EHCI_CMD_IAAD);
+}
+
+static void
 ehci_device_bulk_start(struct usb_xfer *xfer)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 
 	/* setup TD's and QH */
 	ehci_setup_standard_chain(xfer, &sc->sc_async_p_last);
@@ -2249,16 +2290,10 @@ ehci_device_bulk_start(struct usb_xfer *xfer)
 	if (sc->sc_flags & EHCI_SCFLG_IAADBUG)
 		return;
 
-	/* XXX Performance quirk: Some Host Controllers have a too low
-	 * interrupt rate. Issue an IAAD to stimulate the Host
-	 * Controller after queueing the BULK transfer.
-	 */
-	temp = EOREAD4(sc, EHCI_USBCMD);
-	if (!(temp & EHCI_CMD_IAAD))
-		EOWRITE4(sc, EHCI_USBCMD, temp | EHCI_CMD_IAAD);
+	ehci_doorbell_async(sc);
 }
 
-struct usb_pipe_methods ehci_device_bulk_methods =
+static const struct usb_pipe_methods ehci_device_bulk_methods =
 {
 	.open = ehci_device_bulk_open,
 	.close = ehci_device_bulk_close,
@@ -2299,7 +2334,7 @@ ehci_device_ctrl_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_ctrl_methods =
+static const struct usb_pipe_methods ehci_device_ctrl_methods =
 {
 	.open = ehci_device_ctrl_open,
 	.close = ehci_device_ctrl_close,
@@ -2380,7 +2415,7 @@ ehci_device_intr_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_intr_methods =
+static const struct usb_pipe_methods ehci_device_intr_methods =
 {
 	.open = ehci_device_intr_open,
 	.close = ehci_device_intr_close,
@@ -2672,7 +2707,7 @@ ehci_device_isoc_fs_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_isoc_fs_methods =
+static const struct usb_pipe_methods ehci_device_isoc_fs_methods =
 {
 	.open = ehci_device_isoc_fs_open,
 	.close = ehci_device_isoc_fs_close,
@@ -2952,7 +2987,7 @@ ehci_device_isoc_hs_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_isoc_hs_methods =
+static const struct usb_pipe_methods ehci_device_isoc_hs_methods =
 {
 	.open = ehci_device_isoc_hs_open,
 	.close = ehci_device_isoc_hs_close,
@@ -3751,7 +3786,7 @@ ehci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 	 * Wait until the hardware has finished any possible use of
 	 * the transfer descriptor(s) and QH
 	 */
-	*pus = (188);			/* microseconds */
+	*pus = (1125);			/* microseconds */
 }
 
 static void
@@ -3759,7 +3794,7 @@ ehci_device_resume(struct usb_device *udev)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 
 	DPRINTF("\n");
 
@@ -3793,7 +3828,7 @@ ehci_device_suspend(struct usb_device *udev)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 
 	DPRINTF("\n");
 
@@ -3872,7 +3907,42 @@ ehci_set_hw_power(struct usb_bus *bus)
 	return;
 }
 
-struct usb_bus_methods ehci_bus_methods =
+static void
+ehci_start_dma_delay_second(struct usb_xfer *xfer)
+{
+	struct ehci_softc *sc = EHCI_BUS2SC(xfer->xroot->bus);
+
+	DPRINTF("\n");
+
+	/* trigger doorbell */
+	ehci_doorbell_async(sc);
+
+	/* give the doorbell 4ms */
+	usbd_transfer_timeout_ms(xfer,
+	    (void (*)(void *))&usb_dma_delay_done_cb, 4);
+}
+
+/*
+ * Ring the doorbell twice before freeing any DMA descriptors. Some host
+ * controllers apparently cache the QH descriptors and need a message
+ * that the cache needs to be discarded.
+ */
+static void
+ehci_start_dma_delay(struct usb_xfer *xfer)
+{
+	struct ehci_softc *sc = EHCI_BUS2SC(xfer->xroot->bus);
+
+	DPRINTF("\n");
+
+	/* trigger doorbell */
+	ehci_doorbell_async(sc);
+
+	/* give the doorbell 4ms */
+	usbd_transfer_timeout_ms(xfer,
+	    (void (*)(void *))&ehci_start_dma_delay_second, 4);
+}
+
+static const struct usb_bus_methods ehci_bus_methods =
 {
 	.endpoint_init = ehci_ep_init,
 	.xfer_setup = ehci_xfer_setup,
@@ -3884,4 +3954,5 @@ struct usb_bus_methods ehci_bus_methods =
 	.set_hw_power_sleep = ehci_set_hw_power_sleep,
 	.roothub_exec = ehci_roothub_exec,
 	.xfer_poll = ehci_do_poll,
+	.start_dma_delay = ehci_start_dma_delay,
 };

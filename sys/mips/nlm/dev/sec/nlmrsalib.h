@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -30,12 +30,10 @@
 #ifndef _NLMRSALIB_H_
 #define _NLMRSALIB_H_
 
-#define XLP_RSA_SESSION(sid)   ((sid) & 0x000007ff)
-#define XLP_RSA_SID(crd,ses)   (((crd) << 28) | ((ses) & 0x7ff))
+#define	XLP_RSA_SESSION(sid)	((sid) & 0x000007ff)
+#define	XLP_RSA_SID(crd,ses)	(((crd) << 28) | ((ses) & 0x7ff))
 
-#define	NUM_RSAECC_VC	9
-
-#define	RSA_ERROR(__msg0) ((__msg0 >> 53) & 0x1f)
+#define	RSA_ERROR(msg0)		(((msg0) >> 53) & 0x1f)
 
 struct xlp_rsa_session {
 	uint32_t sessionid;
@@ -64,5 +62,9 @@ struct xlp_rsa_softc {
 	int rsaecc_vc_start;
 	int rsaecc_vc_end;
 };
+
+void
+nlm_xlprsaecc_msgring_handler(int vc, int size, int code, int src_id,
+    struct nlm_fmn_msg *msg, void *data);
 
 #endif /* _NLMRSALIB_H_ */

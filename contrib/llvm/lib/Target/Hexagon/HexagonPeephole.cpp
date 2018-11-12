@@ -29,41 +29,38 @@
 //
 // Note: The peephole pass makes the instrucstions like
 // %vreg170<def> = SXTW %vreg166 or %vreg16<def> = NOT_p %vreg15<kill>
-// redundant and relies on some form of dead removal instrucions, like
+// redundant and relies on some form of dead removal instructions, like
 // DCE or DIE to actually eliminate them.
 
 
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "hexagon-peephole"
 #include "Hexagon.h"
 #include "HexagonTargetMachine.h"
-#include "llvm/Constants.h"
-#include "llvm/PassSupport.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/PassSupport.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetInstrInfo.h"
 #include <algorithm>
 
 using namespace llvm;
 
+#define DEBUG_TYPE "hexagon-peephole"
+
 static cl::opt<bool> DisableHexagonPeephole("disable-hexagon-peephole",
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
     cl::desc("Disable Peephole Optimization"));
-
-static cl::opt<int>
-DbgPNPCount("pnp-count", cl::init(-1), cl::Hidden,
-  cl::desc("Maximum number of P=NOT(P) to be optimized"));
 
 static cl::opt<bool> DisablePNotP("disable-hexagon-pnotp",
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
@@ -73,6 +70,14 @@ static cl::opt<bool> DisableOptSZExt("disable-hexagon-optszext",
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
     cl::desc("Disable Optimization of Sign/Zero Extends"));
 
+static cl::opt<bool> DisableOptExtTo64("disable-hexagon-opt-ext-to-64",
+    cl::Hidden, cl::ZeroOrMore, cl::init(false),
+    cl::desc("Disable Optimization of extensions to i64."));
+
+namespace llvm {
+  void initializeHexagonPeepholePass(PassRegistry&);
+}
+
 namespace {
   struct HexagonPeephole : public MachineFunctionPass {
     const HexagonInstrInfo    *QII;
@@ -81,15 +86,17 @@ namespace {
 
   public:
     static char ID;
-    HexagonPeephole() : MachineFunctionPass(ID) { }
+    HexagonPeephole() : MachineFunctionPass(ID) {
+      initializeHexagonPeepholePass(*PassRegistry::getPassRegistry());
+    }
 
-    bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
-    const char *getPassName() const {
+    const char *getPassName() const override {
       return "Hexagon optimize redundant zero and size extends";
     }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 
@@ -100,12 +107,12 @@ namespace {
 
 char HexagonPeephole::ID = 0;
 
-bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
+INITIALIZE_PASS(HexagonPeephole, "hexagon-peephole", "Hexagon Peephole",
+                false, false)
 
-  QII = static_cast<const HexagonInstrInfo *>(MF.getTarget().
-                                        getInstrInfo());
-  QRI = static_cast<const HexagonRegisterInfo *>(MF.getTarget().
-                                       getRegisterInfo());
+bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
+  QII = static_cast<const HexagonInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  QRI = MF.getTarget().getSubtarget<HexagonSubtarget>().getRegisterInfo();
   MRI = &MF.getRegInfo();
 
   DenseMap<unsigned, unsigned> PeepholeMap;
@@ -126,7 +133,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
       MachineInstr *MI = MII;
       // Look for sign extends:
       // %vreg170<def> = SXTW %vreg166
-      if (!DisableOptSZExt && MI->getOpcode() == Hexagon::SXTW) {
+      if (!DisableOptSZExt && MI->getOpcode() == Hexagon::A2_sxtw) {
         assert (MI->getNumOperands() == 2);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src  = MI->getOperand(1);
@@ -142,12 +149,27 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
         }
       }
 
+      // Look for  %vreg170<def> = COMBINE_ir_V4 (0, %vreg169)
+      // %vreg170:DoublRegs, %vreg169:IntRegs
+      if (!DisableOptExtTo64 &&
+          MI->getOpcode () == Hexagon::A4_combineir) {
+        assert (MI->getNumOperands() == 3);
+        MachineOperand &Dst = MI->getOperand(0);
+        MachineOperand &Src1 = MI->getOperand(1);
+        MachineOperand &Src2 = MI->getOperand(2);
+        if (Src1.getImm() != 0)
+          continue;
+        unsigned DstReg = Dst.getReg();
+        unsigned SrcReg = Src2.getReg();
+        PeepholeMap[DstReg] = SrcReg;
+      }
+
       // Look for this sequence below
       // %vregDoubleReg1 = LSRd_ri %vregDoubleReg0, 32
       // %vregIntReg = COPY %vregDoubleReg1:subreg_loreg.
       // and convert into
       // %vregIntReg = COPY %vregDoubleReg0:subreg_hireg.
-      if (MI->getOpcode() == Hexagon::LSRd_ri) {
+      if (MI->getOpcode() == Hexagon::S2_lsr_i_p) {
         assert(MI->getNumOperands() == 3);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src1 = MI->getOperand(1);
@@ -162,7 +184,7 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
 
       // Look for P=NOT(P).
       if (!DisablePNotP &&
-          (MI->getOpcode() == Hexagon::NOT_p)) {
+          (MI->getOpcode() == Hexagon::C2_not)) {
         assert (MI->getNumOperands() == 2);
         MachineOperand &Dst = MI->getOperand(0);
         MachineOperand &Src  = MI->getOperand(1);
@@ -247,10 +269,9 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
           unsigned PR = 1, S1 = 2, S2 = 3;   // Operand indices.
 
           switch (Op) {
-            case Hexagon::TFR_condset_rr:
+            case Hexagon::C2_mux:
+            case Hexagon::C2_muxii:
             case Hexagon::TFR_condset_ii:
-            case Hexagon::MUX_ii:
-            case Hexagon::MUX_rr:
               NewOp = Op;
               break;
             case Hexagon::TFR_condset_ri:
@@ -259,11 +280,11 @@ bool HexagonPeephole::runOnMachineFunction(MachineFunction &MF) {
             case Hexagon::TFR_condset_ir:
               NewOp = Hexagon::TFR_condset_ri;
               break;
-            case Hexagon::MUX_ri:
-              NewOp = Hexagon::MUX_ir;
+            case Hexagon::C2_muxri:
+              NewOp = Hexagon::C2_muxir;
               break;
-            case Hexagon::MUX_ir:
-              NewOp = Hexagon::MUX_ri;
+            case Hexagon::C2_muxir:
+              NewOp = Hexagon::C2_muxri;
               break;
           }
           if (NewOp) {

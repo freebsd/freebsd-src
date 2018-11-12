@@ -1,0 +1,98 @@
+.\" Copyright (c) 2010  Peter Pentchev
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd May 11, 2009
+.Dt dma-migrate 8
+.Os
+.Sh NAME
+.Nm dma-migrate
+.Nd convert the DragonFly Mail Agent's queue files
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl d Ar spooldir
+.Nm
+.Op Fl h | Fl V
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to convert the mail queue files in the
+.Xr dma 8
+spool directory to the latest spool directory format supported by
+the installed version of
+.Xr dma 8 .
+Currently it only handles the conversion from a single file containing
+both message and delivery metadata to the M/Q format.
+.Pp
+The following command-line options are available:
+.Bl -tag -width indent
+.It Fl d
+Specify the location of the
+.Xr dma 8
+spool directory, default
+.Pa /var/spool/dma .
+.It Fl h
+Display usage information and exit.
+.It Fl V
+Display program version information and exit.
+.It Fl v
+Verbose output - display diagnostic messages.
+.El
+.Sh ENVIRONMENT
+The operation of the
+.Nm
+utility is currently not influenced by environment variables.
+.Sh FILES
+The
+.Nm
+utility looks for the
+.Xr dma 8
+mail queue files in the
+.Pa /var/spool/dma
+directory, unless another location is specified by the
+.Fl d
+command-line option.
+.Sh EXIT STATUS
+The
+.Nm
+utility will scan the whole spool directory and attempt to convert all
+suitable files there.
+If there are no files to be converted, or if all the conversions are
+successful, it will complete with an exit code of zero.
+If any conversion errors are encountered, a message will be displayed
+to the standard error stream and
+.Nm
+will exit with an exit code of 1 after attempting to convert the rest of
+the suitable files in the spool directory.
+.Sh SEE ALSO
+.Xr dma 8
+.Sh STANDARDS
+No standards documentation was harmed in the process of creating
+.Nm .
+.Sh BUGS
+Please report any bugs in
+.Nm
+to the author.
+.Sh AUTHOR
+.An Peter Pentchev Aq roam@ringlet.net

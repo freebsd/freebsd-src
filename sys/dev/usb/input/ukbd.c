@@ -92,14 +92,15 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ukbd_debug = 0;
 static int ukbd_no_leds = 0;
+static int ukbd_pollrate = 0;
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB ukbd");
-SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ukbd, CTLFLAG_RW, 0, "USB keyboard");
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, debug, CTLFLAG_RWTUN,
     &ukbd_debug, 0, "Debug level");
-TUNABLE_INT("hw.usb.ukbd.debug", &ukbd_debug);
-SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RW | CTLFLAG_TUN,
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, no_leds, CTLFLAG_RWTUN,
     &ukbd_no_leds, 0, "Disables setting of keyboard leds");
-TUNABLE_INT("hw.usb.ukbd.no_leds", &ukbd_no_leds);
+SYSCTL_INT(_hw_usb_ukbd, OID_AUTO, pollrate, CTLFLAG_RWTUN,
+    &ukbd_pollrate, 0, "Force this polling rate, 1-1000Hz");
 #endif
 
 #define	UKBD_EMULATE_ATSCANCODE	       1
@@ -469,7 +470,8 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 	    || (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
 	    ("not polling in kdb or panic\n"));
 
-	if (sc->sc_inputs == 0) {
+	if (sc->sc_inputs == 0 &&
+	    (sc->sc_flags & UKBD_FLAG_GONE) == 0) {
 		/* start transfer, if not already started */
 		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
@@ -1126,8 +1128,12 @@ ukbd_parse_hid(struct ukbd_softc *sc, const uint8_t *ptr, uint32_t len)
 	    HID_USAGE2(HUP_KEYBOARD, 0x00),
 	    hid_input, 0, &sc->sc_loc_events, &flags,
 	    &sc->sc_id_events)) {
-		sc->sc_flags |= UKBD_FLAG_EVENTS;
-		DPRINTFN(1, "Found keyboard events\n");
+		if (flags & HIO_VARIABLE) {
+			DPRINTFN(1, "Ignoring keyboard event control\n");
+		} else {
+			sc->sc_flags |= UKBD_FLAG_EVENTS;
+			DPRINTFN(1, "Found keyboard event array\n");
+		}
 	}
 
 	/* figure out leds on keyboard */
@@ -1165,13 +1171,15 @@ ukbd_attach(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	int32_t unit = device_get_unit(dev);
+	int unit = device_get_unit(dev);
 	keyboard_t *kbd = &sc->sc_kbd;
 	void *hid_ptr = NULL;
 	usb_error_t err;
 	uint16_t n;
 	uint16_t hid_len;
-
+#ifdef USB_DEBUG
+	int rate;
+#endif
 	UKBD_LOCK_ASSERT();
 
 	kbd_init_struct(kbd, UKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
@@ -1272,6 +1280,19 @@ ukbd_attach(device_t dev)
 		genkbd_diag(kbd, bootverbose);
 	}
 
+#ifdef USB_DEBUG
+	/* check for polling rate override */
+	rate = ukbd_pollrate;
+	if (rate > 0) {
+		if (rate > 1000)
+			rate = 1;
+		else
+			rate = 1000 / rate;
+
+		/* set new polling interval in ms */
+		usbd_xfer_set_interval(sc->sc_xfer[UKBD_INTR_DT], rate);
+	}
+#endif
 	/* start the keyboard */
 	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 
@@ -1295,6 +1316,18 @@ ukbd_detach(device_t dev)
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
 	usb_callout_stop(&sc->sc_callout);
+
+	/* kill any stuck keys */
+	if (sc->sc_flags & UKBD_FLAG_ATTACHED) {
+		/* stop receiving events from the USB keyboard */
+		usbd_transfer_stop(sc->sc_xfer[UKBD_INTR_DT]);
+
+		/* release all leftover keys, if any */
+		memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
+
+		/* process releasing of all keys */
+		ukbd_interrupt(sc);
+	}
 
 	ukbd_disable(&sc->sc_kbd);
 
@@ -1871,6 +1904,12 @@ static int
 ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
 	int result;
+
+	/*
+	 * XXX Check if someone is calling us from a critical section:
+	 */
+	if (curthread->td_critnest != 0)
+		return (EDEADLK);
 
 	/*
 	 * XXX KDGKBSTATE, KDSKBSTATE and KDSETLED can be called from any

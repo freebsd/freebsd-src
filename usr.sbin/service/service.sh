@@ -109,7 +109,7 @@ fi
 if [ -n "$LIST" ]; then
 	for dir in /etc/rc.d $local_startup; do
 		[ -n "$VERBOSE" ] && echo "From ${dir}:"
-		cd $dir && for file in *; do echo $file; done
+		[ -d ${dir} ] && /bin/ls -1 ${dir}
 	done
 	exit 0
 fi
@@ -145,5 +145,5 @@ done
 
 # If the script was not found
 echo "$script does not exist in /etc/rc.d or the local startup"
-echo "directories (${local_startup})"
+echo "directories (${local_startup}), or is not executable"
 exit 1

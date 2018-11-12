@@ -191,10 +191,6 @@ smb_ctx_parseunc(struct smb_ctx *ctx, const char *unc, int sharetype,
 			smb_error("no user name required", 0);
 			return EINVAL;
 		}
-		if (*p1 == 0) {
-			smb_error("empty user name", 0);
-			return EINVAL;
-		}
 		error = smb_ctx_setuser(ctx, tmp);
 		if (error)
 			return error;
@@ -521,11 +517,6 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 		smb_error("no server name specified", 0);
 		return EINVAL;
 	}
-	if (ssn->ioc_user[0] == 0) {
-		smb_error("no user name specified for server %s",
-		    0, ssn->ioc_srvname);
-		return EINVAL;
-	}
 	if (ctx->ct_minlevel >= SMBL_SHARE && sh->ioc_share[0] == 0) {
 		smb_error("no share name specified for %s@%s",
 		    0, ssn->ioc_user, ssn->ioc_srvname);
@@ -602,40 +593,12 @@ smb_ctx_gethandle(struct smb_ctx *ctx)
 	int fd, i;
 	char buf[20];
 
-	/*
-	 * First, try to open as cloned device
-	 */
 	fd = open("/dev/"NSMB_NAME, O_RDWR);
 	if (fd >= 0) {
 		ctx->ct_fd = fd;
 		return 0;
 	}
-	/*
-	 * well, no clone capabilities available - we have to scan
-	 * all devices in order to get free one
-	 */
-	 for (i = 0; i < 1024; i++) {
-	         snprintf(buf, sizeof(buf), "/dev/%s%d", NSMB_NAME, i);
-		 fd = open(buf, O_RDWR);
-		 if (fd >= 0) {
-			ctx->ct_fd = fd;
-			return 0;
-		 }
-	 }
-	 /*
-	  * This is a compatibility with old /dev/net/nsmb device
-	  */
-	 for (i = 0; i < 1024; i++) {
-	         snprintf(buf, sizeof(buf), "/dev/net/%s%d", NSMB_NAME, i);
-		 fd = open(buf, O_RDWR);
-		 if (fd >= 0) {
-			ctx->ct_fd = fd;
-			return 0;
-		 }
-		 if (errno == ENOENT)
-		         return ENOENT;
-	 }
-	 return ENOENT;
+	return ENOENT;
 }
 
 int

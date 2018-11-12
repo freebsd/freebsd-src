@@ -33,7 +33,13 @@
 *******************************************************************/
 
 #ifdef TESTMAIN
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #else
 #include <stand.h>
 #endif
@@ -135,9 +141,9 @@ void
 ficlGetenv(FICL_VM *pVM)
 {
 #ifndef TESTMAIN
-	char	*name;
+	char	*name, *value;
 #endif
-	char	*namep, *value;
+	char	*namep;
 	int	names;
 
 #if FICL_ROBUST > 1
@@ -243,9 +249,9 @@ void
 ficlFindfile(FICL_VM *pVM)
 {
 #ifndef TESTMAIN
-	char	*name;
+	char	*name, *type;
 #endif
-	char	*type, *namep, *typep;
+	char	*namep, *typep;
 	struct	preloaded_file* fp;
 	int	names, types;
 
@@ -404,6 +410,34 @@ static void displayCellNoPad(FICL_VM *pVM)
     return;
 }
 
+/*      isdir? - Return whether an fd corresponds to a directory.
+ *
+ * isdir? ( fd -- bool )
+ */
+static void isdirQuestion(FICL_VM *pVM)
+{
+    struct stat sb;
+    FICL_INT flag;
+    int fd;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 1);
+#endif
+
+    fd = stackPopINT(pVM->pStack);
+    flag = FICL_FALSE;
+    do {
+        if (fd < 0)
+            break;
+        if (fstat(fd, &sb) < 0)
+            break;
+        if (!S_ISDIR(sb.st_mode))
+            break;
+        flag = FICL_TRUE;
+    } while (0);
+    stackPushINT(pVM->pStack, flag);
+}
+
 /*          fopen - open a file and return new fd on stack.
  *
  * fopen ( ptr count mode -- fd )
@@ -475,6 +509,79 @@ static void pfread(FICL_VM *pVM)
     else
 	stackPushINT(pVM->pStack, -1);
     return;
+}
+
+/*      freaddir - read directory contents
+ *
+ * freaddir ( fd -- ptr len TRUE | FALSE )
+ */
+static void pfreaddir(FICL_VM *pVM)
+{
+#ifdef TESTMAIN
+    static struct dirent dirent;
+    struct stat sb;
+    char *buf;
+    off_t off, ptr;
+    u_int blksz;
+    int bufsz;
+#endif
+    struct dirent *d;
+    int fd;
+
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 3);
+#endif
+
+    fd = stackPopINT(pVM->pStack);
+#if TESTMAIN
+    /*
+     * The readdirfd() function is specific to the loader environment.
+     * We do the best we can to make freaddir work, but it's not at
+     * all guaranteed.
+     */
+    d = NULL;
+    buf = NULL;
+    do {
+	if (fd == -1)
+	    break;
+	if (fstat(fd, &sb) == -1)
+	    break;
+	blksz = (sb.st_blksize) ? sb.st_blksize : getpagesize();
+	if ((blksz & (blksz - 1)) != 0)
+	    break;
+	buf = malloc(blksz);
+	if (buf == NULL)
+	    break;
+	off = lseek(fd, 0LL, SEEK_CUR);
+	if (off == -1)
+	    break;
+	ptr = off;
+	if (lseek(fd, 0, SEEK_SET) == -1)
+	    break;
+	bufsz = getdents(fd, buf, blksz);
+	while (bufsz > 0 && bufsz <= ptr) {
+	    ptr -= bufsz;
+	    bufsz = getdents(fd, buf, blksz);
+	}
+	if (bufsz <= 0)
+	    break;
+	d = (void *)(buf + ptr);
+	dirent = *d;
+	off += d->d_reclen;
+	d = (lseek(fd, off, SEEK_SET) != off) ? NULL : &dirent;
+    } while (0);
+    if (buf != NULL)
+	free(buf);
+#else
+    d = readdirfd(fd);
+#endif
+    if (d != NULL) {
+        stackPushPtr(pVM->pStack, d->d_name);
+        stackPushINT(pVM->pStack, strlen(d->d_name));
+        stackPushINT(pVM->pStack, FICL_TRUE);
+    } else {
+        stackPushINT(pVM->pStack, FICL_FALSE);
+    }
 }
 
 /*          fload - interpret file contents
@@ -620,6 +727,142 @@ static void fkey(FICL_VM *pVM)
     return;
 }
 
+
+#ifdef __i386__
+/*
+ * pcibios-device-count (devid -- count)
+ *
+ * Returns the PCI BIOS' count of how many devices matching devid are in the system.
+ * devid is the 32-bit vendor + device.
+ */
+static void
+ficlPciBiosCountDevices(FICL_VM *pVM)
+{
+	uint32_t devid;
+	int i;
+
+	devid = stackPopINT(pVM->pStack);
+
+	i = biospci_count_device_type(devid);
+
+	stackPushINT(pVM->pStack, i);
+}
+
+/*
+ * pcibios-write-config (locator offset width value -- )
+ *
+ * Writes the specified config register.
+ * Locator is bus << 8 | device << 3 | fuction
+ * offset is the pci config register
+ * width is 0 for byte, 1 for word, 2 for dword
+ * value is the value to write
+ */
+static void
+ficlPciBiosWriteConfig(FICL_VM *pVM)
+{
+	uint32_t value, width, offset, locator;
+
+	value = stackPopINT(pVM->pStack);
+	width = stackPopINT(pVM->pStack);
+	offset = stackPopINT(pVM->pStack);
+	locator = stackPopINT(pVM->pStack);
+
+	biospci_write_config(locator, offset, width, value);
+}
+
+/*
+ * pcibios-read-config (locator offset width -- value)
+ *
+ * Reads the specified config register.
+ * Locator is bus << 8 | device << 3 | fuction
+ * offset is the pci config register
+ * width is 0 for byte, 1 for word, 2 for dword
+ * value is the value to read from the register
+ */
+static void
+ficlPciBiosReadConfig(FICL_VM *pVM)
+{
+	uint32_t value, width, offset, locator;
+
+	width = stackPopINT(pVM->pStack);
+	offset = stackPopINT(pVM->pStack);
+	locator = stackPopINT(pVM->pStack);
+
+	biospci_read_config(locator, offset, width, &value);
+
+	stackPushINT(pVM->pStack, value);
+}
+
+/*
+ * pcibios-find-devclass (class index -- locator)
+ *
+ * Finds the index'th instance of class in the pci tree.
+ * must be an exact match.
+ * class is the class to search for.
+ * index 0..N (set to 0, increment until error)
+ *
+ * Locator is bus << 8 | device << 3 | fuction (or -1 on error)
+ */
+static void
+ficlPciBiosFindDevclass(FICL_VM *pVM)
+{
+	uint32_t index, class, locator;
+
+	index = stackPopINT(pVM->pStack);
+	class = stackPopINT(pVM->pStack);
+
+	if (biospci_find_devclass(class, index, &locator))
+		locator = 0xffffffff;
+
+	stackPushINT(pVM->pStack, locator);
+}
+
+/*
+ * pcibios-find-device(devid index -- locator)
+ *
+ * Finds the index'th instance of devid in the pci tree.
+ * must be an exact match.
+ * class is the class to search for.
+ * index 0..N (set to 0, increment until error)
+ *
+ * Locator is bus << 8 | device << 3 | fuction (or -1 on error)
+ */
+static void
+ficlPciBiosFindDevice(FICL_VM *pVM)
+{
+	uint32_t index, devid, locator;
+
+	index = stackPopINT(pVM->pStack);
+	devid = stackPopINT(pVM->pStack);
+
+	if (biospci_find_device(devid, index, &locator))
+		locator = 0xffffffff;
+
+	stackPushINT(pVM->pStack, locator);
+}
+
+/*
+ * pcibios-find-device(bus device function -- locator)
+ *
+ * converts bus, device, function to locator.
+ *
+ * Locator is bus << 8 | device << 3 | fuction
+ */
+static void
+ficlPciBiosLocator(FICL_VM *pVM)
+{
+	uint32_t bus, device, function, locator;
+
+	function = stackPopINT(pVM->pStack);
+	device = stackPopINT(pVM->pStack);
+	bus = stackPopINT(pVM->pStack);
+
+	locator = biospci_locator(bus, device, function);
+
+	stackPushINT(pVM->pStack, locator);
+}
+#endif
+
 /*
 ** Retrieves free space remaining on the dictionary
 */
@@ -642,7 +885,6 @@ static void ficlDictIncrease(FICL_VM *pVM)
     stackPushPtr(pVM->pStack, &dictIncrease);
 }
 
-
 /**************************************************************************
                         f i c l C o m p i l e P l a t f o r m
 ** Build FreeBSD platform extensions into the system dictionary
@@ -653,9 +895,11 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     assert (dp);
 
     dictAppendWord(dp, ".#",        displayCellNoPad,    FW_DEFAULT);
+    dictAppendWord(dp, "isdir?",    isdirQuestion,  FW_DEFAULT);
     dictAppendWord(dp, "fopen",	    pfopen,	    FW_DEFAULT);
     dictAppendWord(dp, "fclose",    pfclose,	    FW_DEFAULT);
     dictAppendWord(dp, "fread",	    pfread,	    FW_DEFAULT);
+    dictAppendWord(dp, "freaddir",  pfreaddir,	    FW_DEFAULT);
     dictAppendWord(dp, "fload",	    pfload,	    FW_DEFAULT);
     dictAppendWord(dp, "fkey",	    fkey,	    FW_DEFAULT);
     dictAppendWord(dp, "fseek",     pfseek,	    FW_DEFAULT);
@@ -686,23 +930,24 @@ void ficlCompilePlatform(FICL_SYSTEM *pSys)
     dictAppendWord(dp, "pnphandlers",ficlPnphandlers, FW_DEFAULT);
 #endif
 #endif
+#ifdef __i386__
+    dictAppendWord(dp, "pcibios-device-count", ficlPciBiosCountDevices, FW_DEFAULT);
+    dictAppendWord(dp, "pcibios-read-config", ficlPciBiosReadConfig, FW_DEFAULT);
+    dictAppendWord(dp, "pcibios-write-config", ficlPciBiosWriteConfig, FW_DEFAULT);
+    dictAppendWord(dp, "pcibios-find-devclass", ficlPciBiosFindDevclass, FW_DEFAULT);
+    dictAppendWord(dp, "pcibios-find-device", ficlPciBiosFindDevice, FW_DEFAULT);
+    dictAppendWord(dp, "pcibios-locator", ficlPciBiosLocator, FW_DEFAULT);
+#endif
 
 #if defined(PC98)
     ficlSetEnv(pSys, "arch-pc98",         FICL_TRUE);
 #elif defined(__i386__)
     ficlSetEnv(pSys, "arch-i386",         FICL_TRUE);
-    ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
-    ficlSetEnv(pSys, "arch-powerpc",      FICL_FALSE);
-#elif defined(__ia64__)
-    ficlSetEnv(pSys, "arch-i386",         FICL_FALSE);
-    ficlSetEnv(pSys, "arch-ia64",         FICL_TRUE);
     ficlSetEnv(pSys, "arch-powerpc",      FICL_FALSE);
 #elif defined(__powerpc__)
     ficlSetEnv(pSys, "arch-i386",         FICL_FALSE);
-    ficlSetEnv(pSys, "arch-ia64",         FICL_FALSE);
     ficlSetEnv(pSys, "arch-powerpc",      FICL_TRUE);
 #endif
 
     return;
 }
-

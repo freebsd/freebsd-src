@@ -37,6 +37,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
+#include <strings.h>
 #include <sys/agpio.h>
 #include <sys/pciio.h>
 
@@ -276,6 +277,18 @@ cap_ht(int fd, struct pci_conf *p, uint8_t ptr)
 		case PCIM_HTCAP_X86_ENCODING:
 			printf("X86 encoding");
 			break;
+		case PCIM_HTCAP_GEN3:
+			printf("Gen3");
+			break;
+		case PCIM_HTCAP_FLE:
+			printf("function-level extension");
+			break;
+		case PCIM_HTCAP_PM:
+			printf("power management");
+			break;
+		case PCIM_HTCAP_HIGH_NODE_COUNT:
+			printf("high node count");
+			break;
 		default:
 			printf("unknown %02x", command);
 			break;
@@ -379,11 +392,27 @@ link_speed_string(uint8_t speed)
 	}
 }
 
+static const char *
+aspm_string(uint8_t aspm)
+{
+
+	switch (aspm) {
+	case 1:
+		return ("L0s");
+	case 2:
+		return ("L1");
+	case 3:
+		return ("L0s/L1");
+	default:
+		return ("disabled");
+	}
+}
+
 static void
 cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 {
-	uint32_t val;
-	uint16_t flags;
+	uint32_t cap, cap2;
+	uint16_t ctl, flags, sta;
 
 	flags = read_config(fd, &p->pc_sel, ptr + PCIER_FLAGS, 2);
 	printf("PCI-Express %d ", flags & PCIEM_FLAGS_VERSION);
@@ -423,26 +452,34 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 		printf(" slot");
 	if (flags & PCIEM_FLAGS_IRQ)
 		printf(" IRQ %d", (flags & PCIEM_FLAGS_IRQ) >> 9);
-	val = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
-	flags = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
+	cap = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP, 4);
+	cap2 = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CAP2, 4);
+	ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL, 2);
 	printf(" max data %d(%d)",
-	    MAX_PAYLOAD((flags & PCIEM_CTL_MAX_PAYLOAD) >> 5),
-	    MAX_PAYLOAD(val & PCIEM_CAP_MAX_PAYLOAD));
-	if (val & PCIEM_CAP_FLR)
+	    MAX_PAYLOAD((ctl & PCIEM_CTL_MAX_PAYLOAD) >> 5),
+	    MAX_PAYLOAD(cap & PCIEM_CAP_MAX_PAYLOAD));
+	if ((cap & PCIEM_CAP_FLR) != 0)
 		printf(" FLR");
-	val = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
-	flags = read_config(fd, &p->pc_sel, ptr+ PCIER_LINK_STA, 2);
-	printf(" link x%d(x%d)", (flags & PCIEM_LINK_STA_WIDTH) >> 4,
-	    (val & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
-	/*
-	 * Only print link speed info if the link's max width is
-	 * greater than 0.
-	 */ 
-	if ((val & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
-		printf("\n                 speed");
-		printf(" %s(%s)", (flags & PCIEM_LINK_STA_WIDTH) == 0 ?
-		    "0.0" : link_speed_string(flags & PCIEM_LINK_STA_SPEED),
-	    	    link_speed_string(val & PCIEM_LINK_CAP_MAX_SPEED));
+	cap = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
+	sta = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_STA, 2);
+	printf(" link x%d(x%d)", (sta & PCIEM_LINK_STA_WIDTH) >> 4,
+	    (cap & PCIEM_LINK_CAP_MAX_WIDTH) >> 4);
+	if ((cap & (PCIEM_LINK_CAP_MAX_WIDTH | PCIEM_LINK_CAP_ASPM)) != 0)
+		printf("\n                ");
+	if ((cap & PCIEM_LINK_CAP_MAX_WIDTH) != 0) {
+		printf(" speed %s(%s)", (sta & PCIEM_LINK_STA_WIDTH) == 0 ?
+		    "0.0" : link_speed_string(sta & PCIEM_LINK_STA_SPEED),
+	    	    link_speed_string(cap & PCIEM_LINK_CAP_MAX_SPEED));
+	}
+	if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
+		ctl = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CTL, 2);
+		printf(" ASPM %s(%s)", aspm_string(ctl & PCIEM_LINK_CTL_ASPMC),
+		    aspm_string((cap & PCIEM_LINK_CAP_ASPM) >> 10));
+	}
+	if ((cap2 & PCIEM_CAP2_ARI) != 0) {
+		ctl = read_config(fd, &p->pc_sel, ptr + PCIER_DEVICE_CTL2, 4);
+		printf(" ARI %s",
+		    (ctl & PCIEM_CTL2_ARI) ? "enabled" : "disabled");
 	}
 }
 
@@ -600,7 +637,7 @@ ecap_aer(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	printf(" %d fatal", bitcount32(sta & mask));
 	printf(" %d non-fatal", bitcount32(sta & ~mask));
 	sta = read_config(fd, &p->pc_sel, ptr + PCIR_AER_COR_STATUS, 4);
-	printf(" %d corrected", bitcount32(sta));
+	printf(" %d corrected\n", bitcount32(sta));
 }
 
 static void
@@ -616,6 +653,7 @@ ecap_vc(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if ((cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) != 0)
 		printf(" lowpri VC0-VC%d",
 		    (cap1 & PCIM_VC_CAP1_LOWPRI_EXT_COUNT) >> 4);
+	printf("\n");
 }
 
 static void
@@ -628,7 +666,7 @@ ecap_sernum(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 		return;
 	low = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_LOW, 4);
 	high = read_config(fd, &p->pc_sel, ptr + PCIR_SERIAL_HIGH, 4);
-	printf(" %08x%08x", high, low);
+	printf(" %08x%08x\n", high, low);
 }
 
 static void
@@ -640,7 +678,7 @@ ecap_vendor(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if (ver < 1)
 		return;
 	val = read_config(fd, &p->pc_sel, ptr + 4, 4);
-	printf(" ID %d", val & 0xffff);
+	printf(" ID %d\n", val & 0xffff);
 }
 
 static void
@@ -652,7 +690,69 @@ ecap_sec_pcie(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
 	if (ver < 1)
 		return;
 	val = read_config(fd, &p->pc_sel, ptr + 8, 4);
-	printf(" lane errors %#x", val);
+	printf(" lane errors %#x\n", val);
+}
+
+static const char *
+check_enabled(int value)
+{
+
+	return (value ? "enabled" : "disabled");
+}
+
+static void
+ecap_sriov(int fd, struct pci_conf *p, uint16_t ptr, uint8_t ver)
+{
+	const char *comma, *enabled;
+	uint16_t iov_ctl, total_vfs, num_vfs, vf_offset, vf_stride, vf_did;
+	uint32_t page_caps, page_size, page_shift, size;
+	int i;
+
+	printf("SR-IOV %d ", ver);
+
+	iov_ctl = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_CTL, 2);
+	printf("IOV %s, Memory Space %s, ARI %s\n",
+	    check_enabled(iov_ctl & PCIM_SRIOV_VF_EN),
+	    check_enabled(iov_ctl & PCIM_SRIOV_VF_MSE),
+	    check_enabled(iov_ctl & PCIM_SRIOV_ARI_EN));
+
+	total_vfs = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_TOTAL_VFS, 2);
+	num_vfs = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_NUM_VFS, 2);
+	printf("                     ");
+	printf("%d VFs configured out of %d supported\n", num_vfs, total_vfs);
+
+	vf_offset = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_VF_OFF, 2);
+	vf_stride = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_VF_STRIDE, 2);
+	printf("                     ");
+	printf("First VF RID Offset 0x%04x, VF RID Stride 0x%04x\n", vf_offset,
+	    vf_stride);
+
+	vf_did = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_VF_DID, 2);
+	printf("                     VF Device ID 0x%04x\n", vf_did);
+
+	page_caps = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_PAGE_CAP, 4);
+	page_size = read_config(fd, &p->pc_sel, ptr + PCIR_SRIOV_PAGE_SIZE, 4);
+	printf("                     ");
+	printf("Page Sizes: ");
+	comma = "";
+	while (page_caps != 0) {
+		page_shift = ffs(page_caps) - 1;
+
+		if (page_caps & page_size)
+			enabled = " (enabled)";
+		else
+			enabled = "";
+
+		size = (1 << (page_shift + PCI_SRIOV_BASE_PAGE_SHIFT));
+		printf("%s%d%s", comma, size, enabled);
+		comma = ", ";
+
+		page_caps &= ~(1 << page_shift);
+	}
+	printf("\n");
+
+	for (i = 0; i <= PCIR_MAX_BAR_0; i++)
+		print_bar(fd, p, "iov bar  ", ptr + PCIR_SRIOV_BAR(i));
 }
 
 struct {
@@ -668,7 +768,6 @@ struct {
 	{ PCIZ_ACS, "ACS" },
 	{ PCIZ_ARI, "ARI" },
 	{ PCIZ_ATS, "ATS" },
-	{ PCIZ_SRIOV, "SRIOV" },
 	{ PCIZ_MULTICAST, "Multicast" },
 	{ PCIZ_RESIZE_BAR, "Resizable BAR" },
 	{ PCIZ_DPA, "DPA" },
@@ -707,6 +806,9 @@ list_ecaps(int fd, struct pci_conf *p)
 		case PCIZ_SEC_PCIE:
 			ecap_sec_pcie(fd, p, ptr, PCI_EXTCAP_VER(ecap));
 			break;
+		case PCIZ_SRIOV:
+			ecap_sriov(fd, p, ptr, PCI_EXTCAP_VER(ecap));
+			break;
 		default:
 			name = "unknown";
 			for (i = 0; ecap_names[i].name != NULL; i++)
@@ -714,10 +816,9 @@ list_ecaps(int fd, struct pci_conf *p)
 					name = ecap_names[i].name;
 					break;
 				}
-			printf("%s %d", name, PCI_EXTCAP_VER(ecap));
+			printf("%s %d\n", name, PCI_EXTCAP_VER(ecap));
 			break;
 		}
-		printf("\n");
 		ptr = PCI_EXTCAP_NEXTPTR(ecap);
 		if (ptr == 0)
 			break;

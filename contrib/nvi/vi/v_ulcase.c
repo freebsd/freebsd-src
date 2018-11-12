@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_ulcase.c	10.7 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_ulcase.c,v 10.12 2011/12/02 19:58:32 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -47,14 +47,12 @@ static int ulcase __P((SCR *, recno_t, CHAR_T *, size_t, size_t, size_t));
  * PUBLIC: int v_ulcase __P((SCR *, VICMD *));
  */
 int
-v_ulcase(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_ulcase(SCR *sp, VICMD *vp)
 {
 	recno_t lno;
 	size_t cno, lcnt, len;
 	u_long cnt;
-	char *p;
+	CHAR_T *p;
 
 	lno = vp->m_start.lno;
 	cno = vp->m_start.cno;
@@ -107,9 +105,7 @@ v_ulcase(sp, vp)
  * PUBLIC: int v_mulcase __P((SCR *, VICMD *));
  */
 int
-v_mulcase(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_mulcase(SCR *sp, VICMD *vp)
 {
 	CHAR_T *p;
 	size_t len;
@@ -145,28 +141,24 @@ v_mulcase(sp, vp)
  *	Change part of a line's case.
  */
 static int
-ulcase(sp, lno, lp, len, scno, ecno)
-	SCR *sp;
-	recno_t lno;
-	CHAR_T *lp;
-	size_t len, scno, ecno;
+ulcase(SCR *sp, recno_t lno, CHAR_T *lp, size_t len, size_t scno, size_t ecno)
 {
 	size_t blen;
 	int change, rval;
-	CHAR_T ch, *p, *t;
-	char *bp;
+	ARG_CHAR_T ch;
+	CHAR_T *p, *t, *bp;
 
-	GET_SPACE_RET(sp, bp, blen, len);
-	memmove(bp, lp, len);
+	GET_SPACE_RETW(sp, bp, blen, len);
+	MEMMOVE(bp, lp, len);
 
 	change = rval = 0;
 	for (p = bp + scno, t = bp + ecno + 1; p < t; ++p) {
-		ch = *(u_char *)p;
-		if (islower(ch)) {
-			*p = toupper(ch);
+		ch = (UCHAR_T)*p;
+		if (ISLOWER(ch)) {
+			*p = TOUPPER(ch);
 			change = 1;
-		} else if (isupper(ch)) {
-			*p = tolower(ch);
+		} else if (ISUPPER(ch)) {
+			*p = TOLOWER(ch);
 			change = 1;
 		}
 	}
@@ -174,6 +166,6 @@ ulcase(sp, lno, lp, len, scno, ecno)
 	if (change && db_set(sp, lno, bp, len))
 		rval = 1;
 
-	FREE_SPACE(sp, bp, blen);
+	FREE_SPACEW(sp, bp, blen);
 	return (rval);
 }

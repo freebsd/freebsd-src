@@ -6,6 +6,8 @@
 
 #GFSDBG=
 
+.include <src.opts.mk>
+
 .PATH:	${.CURDIR}/../mount
 
 PROG=   growfs
@@ -17,7 +19,10 @@ CFLAGS+=-I${.CURDIR}/../mount
 SRCS+=  debug.c
 .endif  
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
-.include <bsd.prog.mk>      
+.if ${MK_TESTS} != "no"
+SUBDIR+=    tests
+.endif
+
+.include <bsd.prog.mk>

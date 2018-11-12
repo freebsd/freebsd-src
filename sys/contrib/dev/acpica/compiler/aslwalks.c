@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -122,6 +121,7 @@ AnMethodTypingWalkEnd (
         break;
 
     default:
+
         break;
     }
 
@@ -176,6 +176,7 @@ AnOperandTypecheckWalkEnd (
         return (AE_OK);
 
     default:
+
         break;
     }
 
@@ -252,6 +253,7 @@ AnOperandTypecheckWalkEnd (
         return (AE_OK);
 
     default:
+
         break;
     }
 
@@ -291,6 +293,13 @@ AnOperandTypecheckWalkEnd (
         while ((ArgType = GET_CURRENT_ARG_TYPE (RuntimeArgTypes2)))
         {
             RequiredBtypes = AnMapArgTypeToBtype (ArgType);
+
+            if (!ArgOp)
+            {
+                AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL, Op,
+                    "Null ArgOp in argument loop");
+                AslAbort ();
+            }
 
             ThisNodeBtype = AnGetBtype (ArgOp);
             if (ThisNodeBtype == ACPI_UINT32_MAX)
@@ -379,11 +388,13 @@ AnOperandTypecheckWalkEnd (
                     break;
 
                 case PARSEOP_DEBUG:
+
                     break;
 
                 case PARSEOP_REFOF:
                 case PARSEOP_INDEX:
                 default:
+
                     break;
 
                 }
@@ -391,6 +402,7 @@ AnOperandTypecheckWalkEnd (
 
             case ARGI_INTEGER:
             default:
+
                 break;
             }
 
@@ -434,6 +446,7 @@ AnOperandTypecheckWalkEnd (
         break;
 
     default:
+
         break;
     }
 
@@ -499,13 +512,13 @@ AnOtherSemanticAnalysisWalkBegin (
                     (PrevArgNode) &&
                     (PrevArgNode->Asl.ParseOpcode == PARSEOP_ZERO))
                 {
-                    AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                    AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                         Op, Op->Asl.ExternalName);
                 }
             }
             else if (ArgNode->Asl.ParseOpcode == PARSEOP_ZERO)
             {
-                AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+                AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                     Op, Op->Asl.ExternalName);
             }
         }
@@ -520,10 +533,12 @@ AnOtherSemanticAnalysisWalkBegin (
             case PARSEOP_ACQUIRE:
             case PARSEOP_WAIT:
             case PARSEOP_LOADTABLE:
+
                 break;
 
             default:
-                AslError (ASL_WARNING, ASL_MSG_RESULT_NOT_USED,
+
+                AslError (ASL_ERROR, ASL_MSG_RESULT_NOT_USED,
                     Op, Op->Asl.ExternalName);
                 break;
             }
@@ -596,6 +611,10 @@ AnOtherSemanticAnalysisWalkBegin (
         ArgNode = Op->Asl.Parent;       /* Field definition */
         ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */
         Node = ArgNode->Asl.Node;       /* OpRegion namespace node */
+        if (!Node)
+        {
+            break;
+        }
 
         ArgNode = Node->Op;             /* OpRegion definition */
         ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */
@@ -661,6 +680,7 @@ AnOtherSemanticAnalysisWalkBegin (
         break;
 
     default:
+
         break;
     }
 

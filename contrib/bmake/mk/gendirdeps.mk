@@ -1,6 +1,7 @@
-# $Id: gendirdeps.mk,v 1.10 2012/06/30 00:37:50 sjg Exp $
+# $Id: gendirdeps.mk,v 1.25 2014/03/14 21:28:37 sjg Exp $
 
-# Copyright (c) 2010, Juniper Networks, Inc.
+# Copyright (c) 2010-2013, Juniper Networks, Inc.
+# All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions 
@@ -50,7 +51,12 @@ _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
 _OBJTOP ?= ${OBJTOP}
 _OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
-_objroot ?= ${_OBJROOT:tA}
+.if ${_OBJROOT:M*/}
+_slash=/
+.else
+_slash=
+.endif
+_objroot ?= ${_OBJROOT:tA}${_slash}
 
 _this = ${.PARSEDIR}/${.PARSEFILE}
 
@@ -105,33 +111,38 @@ _py_d =
 .if ${META2DEPS:E} == "py"
 # we can afford to do this all the time.
 DPDEPS ?= no
-META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} \
-	-R ${RELDIR} -H ${HOST_TARGET} -O ${M2D_OBJROOT}
+META2DEPS_CMD = ${_time} ${PYTHON} ${META2DEPS} ${_py_d} 
 .if ${DPDEPS:tl} != "no"
 META2DEPS_CMD += -D ${DPDEPS}
+.endif
+META2DEPS_FILTER = sed 's,^src:,${SRCTOP}/,;s,^\([^/]\),${OBJTOP}/\1,' |
+.elif ${META2DEPS:E} == "sh"
+META2DEPS_CMD = ${_time} ${_sh_x} ${META2DEPS} OBJTOP=${_OBJTOP}
+.else
+META2DEPS_CMD ?= ${META2DEPS}
+.endif
+
+.if ${TARGET_OBJ_SPEC:U${MACHINE}} != ${MACHINE}
+META2DEPS_CMD += -T ${TARGET_OBJ_SPEC}
+.endif
+META2DEPS_CMD += \
+	-R ${RELDIR} -H ${HOST_TARGET} \
+	${M2D_OBJROOTS:O:u:@o@-O $o@}
+
+
+M2D_OBJROOTS += ${OBJTOP} ${_OBJROOT} ${_objroot}
+.if defined(SB_OBJROOT)
+M2D_OBJROOTS += ${SB_OBJROOT}
 .endif
 .if ${.MAKE.DEPENDFILE_PREFERENCE:U${.MAKE.DEPENDFILE}:M*.${MACHINE}} == ""
 # meta2deps.py only groks objroot
 # so we need to give it what it expects
-M2D_OBJROOT = ${OBJTOP}/
 # and tell it not to add machine qualifiers
 META2DEPS_ARGS += MACHINE=none
-.else
-.if defined(SB_OBJROOT)
-M2D_OBJROOT ?= ${SB_OBJROOT}
-.else
-M2D_OBJROOT = ${OBJTOP}/
-.endif
 .endif
 .if defined(SB_BACKING_SB) 
-META2DEPS_CMD += -S ${SB_BACKING_SB}/src -O ${SB_BACKING_SB}/${SB_OBJPREFIX}
-.endif
-META2DEPS_FILTER = sed 's,^src:,${SRCTOP}/,;s,^\([^/]\),${OBJTOP}/\1,' |
-.elif ${META2DEPS:E} == "sh"
-META2DEPS_CMD = ${_time} ${_sh_x} ${META2DEPS} \
-	OBJTOP=${_objtop} SB_OBJROOT=${_objroot}
-.else
-META2DEPS_CMD ?= ${META2DEPS}
+META2DEPS_CMD += -S ${SB_BACKING_SB}/src 
+M2D_OBJROOTS += ${SB_BACKING_SB}/${SB_OBJPREFIX}
 .endif
 
 # we are only interested in the dirs
@@ -151,11 +162,31 @@ dir_list != cd ${_OBJDIR} && \
 .warning Skipping ${_DEPENDFILE:S,${SRCTOP}/,,}
 # we are not going to update anything
 .else
-
+dpadd_dir_list=
 .if !empty(DPADD)
 _nonlibs := ${DPADD:T:Nlib*:N*include}
 .if !empty(_nonlibs)
-dir_list += ${_nonlibs:@x@${DPADD:M*/$x}@:H:tA}
+ddep_list =
+.for f in ${_nonlibs:@x@${DPADD:M*/$x}@}
+.if exists($f.dirdep)
+ddep_list += $f.dirdep
+.elif exists(${f:H}.dirdep)
+ddep_list += ${f:H}.dirdep
+.else
+dir_list += ${f:H:tA}
+dpadd_dir_list += ${f:H:tA}
+.endif
+.endfor
+.if !empty(ddep_list)
+ddeps != cat ${ddep_list:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
+        sed 's,//*$$,,;s,\.${HOST_TARGET}$$,.host,;s,\.${MACHINE}$$,,'
+
+.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: raw_dir_list='${dir_list}'
+.info ${RELDIR}: ddeps='${ddeps}'
+.endif
+dir_list += ${ddeps}
+.endif
 .endif
 .endif
 
@@ -167,33 +198,38 @@ dir_list += ${_nonlibs:@x@${DPADD:M*/$x}@:H:tA}
 # so we add 
 # ${"${dir_list:M*bsd/sys/${MACHINE_ARCH}/include}":?bsd/include:}
 # to GENDIRDEPS_DIR_LIST_XTRAS
+_objtops = ${OBJTOP} ${_OBJTOP} ${_objtop}
+_objtops := ${_objtops:O:u}
 dirdep_list = \
-	${dir_list:M${_objtop}*/*:C,${_objtop}[^/]*/,,} \
+	${_objtops:@o@${dir_list:M$o*/*:C,$o[^/]*/,,}@} \
 	${GENDIRDEPS_DIR_LIST_XTRAS}
+
+# sort longest first
+M2D_OBJROOTS := ${M2D_OBJROOTS:O:u:[-1..1]}
 
 # anything we use from an object dir other than ours
 # needs to be qualified with its .<machine> suffix
 # (we used the pseudo machine "host" for the HOST_TARGET).
-qualdir_list = \
-	${dir_list:M${_objroot}*/*/*:N${SRCTOP}*:N${_objtop}*:C,${_objroot}([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
-
-.if ${_OBJROOT} != ${_objroot}
-dirdep_list += \
-	${dir_list:M${_OBJTOP}*/*:C,${_OBJTOP}[^/]*/,,}
-
-qualdir_list += \
-	${dir_list:M${_OBJROOT}*/*/*:N${SRCTOP}*:N${_OBJTOP}*:C,${_OBJROOT}([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+skip_ql= ${SRCTOP}* ${_objtops:@o@$o*@}
+.for o in ${M2D_OBJROOTS:${skip_ql:${M_ListToSkip}}}
+# we need := so only skip_ql to this point applies
+ql.$o := ${dir_list:${skip_ql:${M_ListToSkip}}:M$o*/*/*:C,$o([^/]+)/(.*),\2.\1,:S,.${HOST_TARGET},.host,}
+qualdir_list += ${ql.$o}
+.if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: o=$o ${ql.$o qualdir_list:L:@v@$v=${$v}@}
 .endif
+skip_ql+= $o*
+.endfor
 
 dirdep_list := ${dirdep_list:O:u}
-qualdir_list := ${qualdir_list:O:u}
+qualdir_list := ${qualdir_list:N*.${MACHINE}:O:u}
 
 DIRDEPS = \
 	${dirdep_list:N${RELDIR}:N${RELDIR}/*} \
 	${qualdir_list:N${RELDIR}.*:N${RELDIR}/*}
 
 # We only consider things below $RELDIR/ if they have a makefile.
-# This is the same test that _DIRDEPS_USE applies.
+# This is the same test that _DIRDEP_USE applies.
 # We have do a double test with dirdep_list as it _may_ contain 
 # qualified dirs - if we got anything from a stage dir.
 # qualdir_list we know are all qualified.
@@ -204,10 +240,12 @@ DIRDEPS += \
 	${dirdep_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/$d/$m):?$d:${exists(${SRCTOP}/${d:R}/$m):?$d:}}@}@} \
 	${qualdir_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/${d:R}/$m):?$d:}@}@}
 
-DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:O:u}
+DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:C,//+,/,g:O:u}
 
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
+.info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
 .info ${RELDIR}: dir_list='${dir_list}'
+.info ${RELDIR}: dpadd_dir_list='${dpadd_dir_list}'
 .info ${RELDIR}: dirdep_list='${dirdep_list}'
 .info ${RELDIR}: qualdir_list='${qualdir_list}'
 .info ${RELDIR}: SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS}'
@@ -223,7 +261,7 @@ src_dirdep_list = \
 SRC_DIRDEPS = \
 	${src_dirdep_list:N${RELDIR}:N${RELDIR}/*:C,(/h)/.*,,}
 
-SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:O:u}
+SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:C,//+,/,g:O:u}
 
 # if you want to capture SRC_DIRDEPS in .MAKE.DEPENDFILE put
 # SRC_DIRDEPS_FILE = ${_DEPENDFILE} 
@@ -263,7 +301,6 @@ CAT_DEPEND ?= .depend
 ${_DEPENDFILE}: ${CAT_DEPEND:M.depend} ${META_FILES:O:u:@m@${exists($m):?$m:}@} ${_this} ${META2DEPS}
 	@(echo '# Autogenerated - do NOT edit!'; echo; \
 	echo 'DEP_RELDIR := $${_PARSEDIR:S,$${SRCTOP}/,,}'; echo; \
-	echo 'DEP_MACHINE := $${.PARSEFILE:E}'; echo; \
 	echo 'DIRDEPS = \'; \
 	echo '${DIRDEPS:@d@	$d \\${.newline}@}'; echo; \
 	${_include_src_dirdeps} \
@@ -285,7 +322,6 @@ all:	${_DEPENDFILE}
 ${_DEPENDFILE}: ${MAKEFILE} ${_this}
 	@(echo '# Autogenerated - do NOT edit!'; echo; \
 	echo 'DEP_RELDIR := $${_PARSEDIR:S,$${SRCTOP}/,,}'; echo; \
-	echo 'DEP_MACHINE := $${.PARSEFILE:E}'; echo; \
 	echo 'DIRDEPS = \'; \
 	echo '${DIRDEPS:@d@	$d \\${.newline}@}'; echo; \
 	echo '.include <dirdeps.mk>'; \

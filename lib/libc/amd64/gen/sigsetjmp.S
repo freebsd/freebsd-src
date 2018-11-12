@@ -80,8 +80,7 @@ ENTRY(sigsetjmp)
 	ret
 END(sigsetjmp)
 
-	.weak CNAME(siglongjmp)
-	.set CNAME(siglongjmp),CNAME(__siglongjmp)
+	WEAK_REFERENCE(__siglongjmp, siglongjmp)
 ENTRY(__siglongjmp)
 	cmpl	$0,88(%rdi)
 	jz	2f
@@ -106,7 +105,6 @@ ENTRY(__siglongjmp)
 	movq	40(%rdx),%r13
 	movq	48(%rdx),%r14
 	movq	56(%rdx),%r15
-	fninit
 	fldcw	64(%rdx)
 	testq	%rax,%rax
 	jnz	1f

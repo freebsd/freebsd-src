@@ -8,16 +8,15 @@ SCRIPTSDIR?=	/usr/bin
 PROG=		zfsboottest
 SCRIPTS=	zfsboottest.sh
 SCRIPTSNAME=	zfsboottest.sh
-NO_MAN=
+MAN=
 
 CFLAGS=	-O1 \
 	-I${.CURDIR}/../../../sys/boot/zfs \
 	-I${.CURDIR}/../../../sys/cddl/boot/zfs \
 	-I. \
 	-fdiagnostics-show-option \
-	-W -Wextra -Wno-sign-compare -Wno-unused-parameter \
-	-Werror
-LDFLAGS+=-lmd
+	-W -Wextra -Wno-sign-compare -Wno-unused-parameter
+LDADD+=	-lmd
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboottest.o: machine

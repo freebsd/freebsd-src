@@ -48,7 +48,9 @@ my $MULTICAST = "FF02::1";		# IPv6 multicast address
 #
 my $local = "";
 my $remote = "";
+my $interf = "";
 my %Local;
+my %Addr;
 my $up;
 open IFCONFIG, '/sbin/ifconfig -a inet6 |'
     or die "Couldn't run ifconfig: $!\n";
@@ -59,27 +61,34 @@ while (<IFCONFIG>) {
 	$up = 1 if /^[a-z].*<UP,/;
 	$up = 0 if /^[a-z].*<,/;
 
+	if (m:(\S+\d+)\: :) {
+		$interf = $1;
+	}
+
 	# assume output is "inet6 ...":
-	if (m:inet6 (\S+)/:) {
+	if (m:inet6 (\S+) :) {
 		my $addr = $1;
                 $Local{$addr} = 1;
-                $local = $addr if $up and $local eq "";
+                $Addr{$interf} = $addr;
 		$up = 0;
+		$interf = "";
 	}
 }
 close IFCONFIG;
-exit 1 if $local eq "";
 
 #
 # Find the first remote host that responds to an icmp echo,
-# which isn't a local address.
+# which isn't a local address. Try each IPv6-enabled interface.
 #
-open PING, "/sbin/ping -ns -A inet6 $MULTICAST 56 $MAXHOSTS |" or
-    die "Couldn't run ping: $!\n";
-while (<PING>) {
-	if (/bytes from (.*): / and not defined $Local{$1}) {
-		$remote = $1;
-		last;
+foreach $interf (split(' ', `ifconfig -l -u inet6`)) {
+	next if $interf =~ /lo[0-9]+/;
+	open PING, "/sbin/ping6 -n -s 56 -c $MAXHOSTS $MULTICAST\%$interf |" or next;
+	while (<PING>) {
+		if (/bytes from (.*), / and not defined $Local{$1}) {
+			$remote = $1;
+			$local = $Addr{$interf};
+			last;
+		}
 	}
 }
 close PING;

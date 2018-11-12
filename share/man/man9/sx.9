@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd December 13, 2014
 .Dt SX 9
 .Os
 .Sh NAME
@@ -144,6 +144,15 @@ Allow threads to recursively acquire exclusive locks for
 .It Dv SX_QUIET
 Do not log any operations for this lock via
 .Xr ktr 4 .
+.It Dv SX_NEW
+If the kernel has been compiled with
+.Cd "options INVARIANTS" ,
+.Fn sx_init
+will assert that the
+.Fa sx
+has not been initialized multiple times without intervening calls to
+.Fn sx_destroy
+unless this option is specified.
 .El
 .Pp
 Shared/exclusive locks are destroyed with
@@ -306,8 +315,8 @@ lock while another thread blocked on the same
 lock after acquiring a mutex, then the second thread would effectively
 end up sleeping while holding a mutex, which is not allowed.
 .Sh SEE ALSO
-.Xr locking 9 ,
 .Xr lock 9 ,
+.Xr locking 9 ,
 .Xr mutex 9 ,
 .Xr panic 9 ,
 .Xr rwlock 9 ,

@@ -7,9 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_AST_RAW_COMMENT_LIST_H
-#define LLVM_CLANG_AST_RAW_COMMENT_LIST_H
+#ifndef LLVM_CLANG_AST_RAWCOMMENTLIST_H
+#define LLVM_CLANG_AST_RAWCOMMENTLIST_H
 
+#include "clang/Basic/CommentOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/ArrayRef.h"
 
@@ -40,7 +41,7 @@ public:
   RawComment() : Kind(RCK_Invalid), IsAlmostTrailingComment(false) { }
 
   RawComment(const SourceManager &SourceMgr, SourceRange SR,
-             bool Merged = false);
+             bool Merged, bool ParseAllComments);
 
   CommentKind getKind() const LLVM_READONLY {
     return (CommentKind) Kind;
@@ -82,12 +83,18 @@ public:
 
   /// Returns true if this comment is not a documentation comment.
   bool isOrdinary() const LLVM_READONLY {
-    return (Kind == RCK_OrdinaryBCPL) || (Kind == RCK_OrdinaryC);
+    return ((Kind == RCK_OrdinaryBCPL) || (Kind == RCK_OrdinaryC)) &&
+        !ParseAllComments;
   }
 
   /// Returns true if this comment any kind of a documentation comment.
   bool isDocumentation() const LLVM_READONLY {
     return !isInvalid() && !isOrdinary();
+  }
+
+  /// Returns whether we are parsing all comments.
+  bool isParseAllComments() const LLVM_READONLY {
+    return ParseAllComments;
   }
 
   /// Returns raw comment text with comment markers.
@@ -100,12 +107,9 @@ public:
     return RawText;
   }
 
-  SourceRange getSourceRange() const LLVM_READONLY {
-    return Range;
-  }
-
-  unsigned getBeginLine(const SourceManager &SM) const;
-  unsigned getEndLine(const SourceManager &SM) const;
+  SourceRange getSourceRange() const LLVM_READONLY { return Range; }
+  SourceLocation getLocStart() const LLVM_READONLY { return Range.getBegin(); }
+  SourceLocation getLocEnd() const LLVM_READONLY { return Range.getEnd(); }
 
   const char *getBriefText(const ASTContext &Context) const {
     if (BriefTextValid)
@@ -135,18 +139,18 @@ private:
   bool IsTrailingComment : 1;
   bool IsAlmostTrailingComment : 1;
 
-  mutable bool BeginLineValid : 1; ///< True if BeginLine is valid
-  mutable bool EndLineValid : 1;   ///< True if EndLine is valid
-  mutable unsigned BeginLine;      ///< Cached line number
-  mutable unsigned EndLine;        ///< Cached line number
+  /// When true, ordinary comments starting with "//" and "/*" will be
+  /// considered as documentation comments.
+  bool ParseAllComments : 1;
 
   /// \brief Constructor for AST deserialization.
   RawComment(SourceRange SR, CommentKind K, bool IsTrailingComment,
-             bool IsAlmostTrailingComment) :
+             bool IsAlmostTrailingComment,
+             bool ParseAllComments) :
     Range(SR), RawTextValid(false), BriefTextValid(false), Kind(K),
     IsAttached(false), IsTrailingComment(IsTrailingComment),
     IsAlmostTrailingComment(IsAlmostTrailingComment),
-    BeginLineValid(false), EndLineValid(false)
+    ParseAllComments(ParseAllComments)
   { }
 
   StringRef getRawTextSlow(const SourceManager &SourceMgr) const;
@@ -165,8 +169,7 @@ public:
   explicit BeforeThanCompare(const SourceManager &SM) : SM(SM) { }
 
   bool operator()(const RawComment &LHS, const RawComment &RHS) {
-    return SM.isBeforeInTranslationUnit(LHS.getSourceRange().getBegin(),
-                                        RHS.getSourceRange().getBegin());
+    return SM.isBeforeInTranslationUnit(LHS.getLocStart(), RHS.getLocStart());
   }
 
   bool operator()(const RawComment *LHS, const RawComment *RHS) {
@@ -178,8 +181,7 @@ public:
 /// sorted in order of appearance in the translation unit.
 class RawCommentList {
 public:
-  RawCommentList(SourceManager &SourceMgr) :
-    SourceMgr(SourceMgr), OnlyWhitespaceSeen(true) { }
+  RawCommentList(SourceManager &SourceMgr) : SourceMgr(SourceMgr) {}
 
   void addComment(const RawComment &RC, llvm::BumpPtrAllocator &Allocator);
 
@@ -190,16 +192,8 @@ public:
 private:
   SourceManager &SourceMgr;
   std::vector<RawComment *> Comments;
-  SourceLocation PrevCommentEndLoc;
-  bool OnlyWhitespaceSeen;
 
-  void addCommentsToFront(const std::vector<RawComment *> &C) {
-    size_t OldSize = Comments.size();
-    Comments.resize(C.size() + OldSize);
-    std::copy_backward(Comments.begin(), Comments.begin() + OldSize,
-                       Comments.end());
-    std::copy(C.begin(), C.end(), Comments.begin());
-  }
+  void addDeserializedComments(ArrayRef<RawComment *> DeserializedComments);
 
   friend class ASTReader;
 };
@@ -207,4 +201,3 @@ private:
 } // end namespace clang
 
 #endif
-

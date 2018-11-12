@@ -44,12 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -82,7 +86,7 @@ static uether_fn_t ipheth_setpromisc;
 static int ipheth_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ipheth, CTLFLAG_RW, 0, "USB iPhone ethernet");
-SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RW, &ipheth_debug, 0, "Debug level");
+SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RWTUN, &ipheth_debug, 0, "Debug level");
 #endif
 
 static const struct usb_config ipheth_config[IPHETH_N_TRANSFER] = {
@@ -149,6 +153,7 @@ static const struct usb_ether_methods ipheth_ue_methods = {
     USB_IFACE_PROTOCOL(pt)
 
 static const STRUCT_USB_HOST_ID ipheth_devs[] = {
+#if 0
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
@@ -161,9 +166,19 @@ static const STRUCT_USB_HOST_ID ipheth_devs[] = {
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_4,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
+	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_4S,
+	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
+	    IPHETH_USBINTF_PROTO)},
 	{IPHETH_ID(USB_VENDOR_APPLE, USB_PRODUCT_APPLE_IPHONE_5,
 	    IPHETH_USBINTF_CLASS, IPHETH_USBINTF_SUBCLASS,
 	    IPHETH_USBINTF_PROTO)},
+#else
+	/* product agnostic interface match */
+	{USB_VENDOR(USB_VENDOR_APPLE),
+	 USB_IFACE_CLASS(IPHETH_USBINTF_CLASS),
+	 USB_IFACE_SUBCLASS(IPHETH_USBINTF_SUBCLASS),
+	 USB_IFACE_PROTOCOL(IPHETH_USBINTF_PROTO)},
+#endif
 };
 
 static int
@@ -385,7 +400,7 @@ ipheth_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTFN(11, "transfer complete: %u bytes in %u frames\n",
 		    actlen, aframes);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		/* free all previous TX buffers */
 		ipheth_free_queue(sc->sc_tx_buf, IPHETH_TX_FRAMES_MAX);
@@ -440,7 +455,7 @@ tr_setup:
 		ipheth_free_queue(sc->sc_tx_buf, IPHETH_TX_FRAMES_MAX);
 
 		/* count output errors */
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */

@@ -345,7 +345,7 @@ struct rx_ring {
 
 /* Our adapter structure */
 struct adapter {
-	struct ifnet	*ifp;
+	if_t 		ifp;
 	struct e1000_hw	hw;
 
 	/* FreeBSD operating-system-specific structures. */
@@ -429,6 +429,7 @@ struct adapter {
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;
 	struct em_int_delay_info rx_abs_int_delay;
+	struct em_int_delay_info tx_itr;
 
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;

@@ -46,24 +46,19 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-nvenetlib.o			optional	nve pci			\
-	dependency	"$S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu"	\
-	compile-with	"uudecode $S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
-	no-implicit-rule
-#
-os+%DIKED-nve.h		optional	nve pci				\
-	dependency	"$S/contrib/dev/nve/os.h"			\
-	compile-with	"sed -e 's/^.*#include.*phy\.h.*$$//' $S/contrib/dev/nve/os.h > os+%DIKED-nve.h" \
-	no-implicit-rule no-obj before-depend				\
-	clean		"os+%DIKED-nve.h"
-#
 hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
 	no-implicit-rule
+#
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu"	\
+	no-implicit-rule
+#
+hptnr_lib.o			optional	hptnr			\
+	dependency	"$S/dev/hptnr/i386-elf.hptnr_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/hptnr/i386-elf.hptnr_lib.o.uu" \
 	no-implicit-rule
 #
 hptrr_lib.o			optional	hptrr			\
@@ -88,6 +83,7 @@ compat/linux/linux_socket.c	optional compat_linux
 compat/linux/linux_stats.c	optional compat_linux
 compat/linux/linux_sysctl.c	optional compat_linux
 compat/linux/linux_time.c	optional compat_linux
+compat/linux/linux_timer.c	optional compat_linux
 compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/ndis/kern_ndis.c		optional ndisapi pci
@@ -118,11 +114,19 @@ bf_enc.o			optional crypto | ipsec	\
 	dependency	"$S/crypto/blowfish/arch/i386/bf_enc.S $S/crypto/blowfish/arch/i386/bf_enc_586.S $S/crypto/blowfish/arch/i386/bf_enc_686.S" \
 	compile-with	"${CC} -c -I$S/crypto/blowfish/arch/i386 ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}" \
 	no-implicit-rule
-crypto/aesni/aesencdec_i386.S	optional aesni
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
-crypto/aesni/aesni_wrap.c	optional aesni
-crypto/des/arch/i386/des_enc.S	optional crypto | ipsec
+aesni_ghash.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ghash.o"
+aesni_wrap.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${NO_WCAST_QUAL} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_wrap.o"
+crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
@@ -147,6 +151,14 @@ dev/atkbdc/atkbdc.c		optional atkbdc
 dev/atkbdc/atkbdc_isa.c		optional atkbdc isa
 dev/atkbdc/atkbdc_subr.c	optional atkbdc
 dev/atkbdc/psm.c		optional psm atkbdc
+dev/bxe/bxe.c                   optional bxe pci
+dev/bxe/bxe_stats.c             optional bxe pci
+dev/bxe/bxe_debug.c             optional bxe pci
+dev/bxe/ecore_sp.c              optional bxe pci
+dev/bxe/bxe_elink.c             optional bxe pci
+dev/bxe/57710_init_values.c     optional bxe pci
+dev/bxe/57711_init_values.c     optional bxe pci
+dev/bxe/57712_init_values.c     optional bxe pci
 dev/ce/ceddk.c			optional ce
 dev/ce/if_ce.c			optional ce
 dev/ce/tau32-ddk.c		optional ce \
@@ -176,18 +188,22 @@ dev/fdc/fdc.c			optional fdc
 dev/fdc/fdc_acpi.c		optional fdc
 dev/fdc/fdc_isa.c		optional fdc isa
 dev/fdc/fdc_pccard.c		optional fdc pccard
+dev/fdt/fdt_x86.c		optional fdt
 dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
-dev/hpt27xx/os_bsd.c		optional hpt27xx
-dev/hpt27xx/osm_bsd.c		optional hpt27xx
+dev/hpt27xx/hpt27xx_os_bsd.c	optional hpt27xx
+dev/hpt27xx/hpt27xx_osm_bsd.c	optional hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
 dev/hptmv/entry.c		optional hptmv
 dev/hptmv/mv.c			optional hptmv
 dev/hptmv/gui_lib.c		optional hptmv
 dev/hptmv/hptproc.c		optional hptmv
 dev/hptmv/ioctl.c		optional hptmv
+dev/hptnr/hptnr_os_bsd.c	optional hptnr
+dev/hptnr/hptnr_osm_bsd.c	optional hptnr
+dev/hptnr/hptnr_config.c	optional hptnr
 dev/hptrr/hptrr_os_bsd.c	optional hptrr
 dev/hptrr/hptrr_osm_bsd.c	optional hptrr
 dev/hptrr/hptrr_config.c	optional hptrr
@@ -200,6 +216,19 @@ dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional hwpmc
 dev/hwpmc/hwpmc_x86.c		optional hwpmc
+dev/hyperv/netvsc/hv_net_vsc.c				optional	hyperv
+dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
+dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
+dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_kvp.c				optional	hyperv
+dev/hyperv/utilities/hv_util.c				optional	hyperv
+dev/hyperv/vmbus/hv_channel.c				optional	hyperv
+dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
+dev/hyperv/vmbus/hv_connection.c			optional	hyperv
+dev/hyperv/vmbus/hv_hv.c				optional	hyperv
+dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
+dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
@@ -216,15 +245,12 @@ dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
-dev/kbd/kbd.c			optional atkbd | sc | ukbd
+dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/le/if_le_isa.c		optional le isa
-dev/lindev/full.c		optional lindev
-dev/lindev/lindev.c		optional lindev
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nfe/if_nfe.c		optional nfe pci
 dev/nvd/nvd.c			optional nvd nvme
-dev/nve/if_nve.c		optional nve pci
 dev/nvme/nvme.c			optional nvme
 dev/nvme/nvme_ctrlr.c		optional nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional nvme
@@ -233,11 +259,11 @@ dev/nvme/nvme_ns_cmd.c		optional nvme
 dev/nvme/nvme_qpair.c		optional nvme
 dev/nvme/nvme_sysctl.c		optional nvme
 dev/nvme/nvme_test.c		optional nvme
-dev/nvme/nvme_uio.c		optional nvme
+dev/nvme/nvme_util.c		optional nvme
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
-dev/random/ivy.c		optional random rdrand_rng
-dev/random/nehemiah.c		optional random padlock_rng
+dev/random/ivy.c		optional rdrand_rng
+dev/random/nehemiah.c		optional padlock_rng
 dev/sbni/if_sbni.c		optional sbni
 dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci
@@ -257,6 +283,7 @@ dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_x86.c		optional uart
 dev/viawd/viawd.c		optional viawd
+dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
@@ -370,15 +397,6 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
-dev/virtio/virtio.c			optional	virtio
-dev/virtio/virtqueue.c			optional	virtio
-dev/virtio/virtio_bus_if.m		optional	virtio
-dev/virtio/virtio_if.m			optional	virtio
-dev/virtio/pci/virtio_pci.c		optional	virtio_pci
-dev/virtio/network/if_vtnet.c		optional	vtnet
-dev/virtio/block/virtio_blk.c		optional	virtio_blk
-dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
-dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\
 	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
@@ -422,7 +440,6 @@ i386/xen/exception.s		optional xen
 i386/i386/gdb_machdep.c		optional gdb
 i386/i386/geode.c		optional cpu_geode
 i386/i386/i686_mem.c		optional mem
-i386/i386/identcpu.c		standard
 i386/i386/in_cksum.c		optional inet | inet6
 i386/i386/initcpu.c		standard
 i386/i386/io.c			optional io
@@ -472,8 +489,6 @@ i386/ibcs2/ibcs2_xenix.c	optional ibcs2
 i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
 i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/xen/clock.c		optional xen
-i386/xen/xen_clock_util.c	optional xen
-i386/xen/xen_rtc.c		optional xen
 i386/isa/elink.c		optional ep | ie
 i386/isa/npx.c			optional npx
 i386/isa/pmtimer.c		optional pmtimer
@@ -501,9 +516,9 @@ isa/vga_isa.c			optional vga
 kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
+kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
-libkern/ffsl.c			standard
-libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard
@@ -516,9 +531,14 @@ i386/xbox/xboxfb.c		optional xboxfb
 dev/fb/boot_font.c		optional xboxfb
 i386/xbox/pic16l.s		optional xbox
 #
-# x86 real mode BIOS support, required by atkbdc/dpms/vesa
+# x86 real mode BIOS support, required by atkbdc/dpms/pci/vesa
 #
-compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
+compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | pci | vesa
+#
+# bvm console
+#
+dev/bvm/bvm_console.c		optional	bvmconsole
+dev/bvm/bvm_dbg.c		optional	bvmdebug
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
@@ -534,6 +554,16 @@ x86/cpufreq/hwpstate.c		optional cpufreq
 x86/cpufreq/p4tcc.c		optional cpufreq
 x86/cpufreq/powernow.c		optional cpufreq
 x86/cpufreq/smist.c		optional cpufreq
+x86/iommu/busdma_dmar.c		optional acpi acpi_dmar pci
+x86/iommu/intel_ctx.c		optional acpi acpi_dmar pci
+x86/iommu/intel_drv.c		optional acpi acpi_dmar pci
+x86/iommu/intel_fault.c		optional acpi acpi_dmar pci
+x86/iommu/intel_gas.c		optional acpi acpi_dmar pci
+x86/iommu/intel_idpgtbl.c	optional acpi acpi_dmar pci
+x86/iommu/intel_intrmap.c	optional acpi acpi_dmar pci
+x86/iommu/intel_qi.c		optional acpi acpi_dmar pci
+x86/iommu/intel_quirks.c	optional acpi acpi_dmar pci
+x86/iommu/intel_utils.c		optional acpi acpi_dmar pci
 x86/isa/atpic.c			optional atpic
 x86/isa/atrtc.c			optional native
 x86/isa/clock.c			optional native
@@ -544,8 +574,11 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional isa
 x86/pci/pci_bus.c		optional pci
 x86/pci/qpi.c			optional pci
+x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
+x86/x86/fdt_machdep.c		optional fdt
+x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/legacy.c		optional native
@@ -556,3 +589,11 @@ x86/x86/mptable_pci.c		optional apic native pci
 x86/x86/msi.c			optional apic pci
 x86/x86/nexus.c			standard
 x86/x86/tsc.c			standard
+x86/x86/pvclock.c		standard
+x86/x86/delay.c			standard
+x86/xen/hvm.c			optional xenhvm
+x86/xen/xen_intr.c		optional xen | xenhvm
+x86/xen/xen_apic.c		optional xenhvm
+x86/xen/xenpv.c			optional xen | xenhvm
+x86/xen/xen_nexus.c		optional xen | xenhvm
+x86/xen/xen_msi.c		optional xen | xenhvm

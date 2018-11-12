@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -211,12 +211,10 @@ nlm_config_xaui(uint64_t nae_base, int nblock,
 	nlm_write_nae_reg(nae_base, XAUI_CONFIG0(nblock), 0);
 
 	/* Enable tx/rx frame */
-	val = 0xF00010A8;
+	val = 0x000010A8;
 	val |= XAUI_CONFIG_LENCHK;
 	val |= XAUI_CONFIG_GENFCS;
 	val |= XAUI_CONFIG_PAD_64;
-	val |= XAUI_CONFIG_TFEN;
-	val |= XAUI_CONFIG_RFEN;
 	nlm_write_nae_reg(nae_base, XAUI_CONFIG1(nblock), val);
 
 	/* write max frame length */

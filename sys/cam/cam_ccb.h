@@ -42,7 +42,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/ata/ata_all.h>
 
-
 /* General allocation length definitions for CCB structures */
 #define	IOCDBLEN	CAM_MAX_CDBLEN	/* Space for CDB bytes/pointer */
 #define	VUHBALEN	14		/* Vendor Unique HBA length */
@@ -100,12 +99,14 @@ typedef enum {
 	CAM_MSGB_VALID		= 0x10000000,/* Message buffer valid	      */
 	CAM_STATUS_VALID	= 0x20000000,/* Status buffer valid	      */
 	CAM_DATAB_VALID		= 0x40000000,/* Data buffer valid	      */
-	
+
 /* Host target Mode flags */
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
 	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
 	CAM_DISCONNECT		= 0x20000000,/* Disconnects are mandatory     */
-	CAM_SEND_STATUS		= 0x40000000 /* Send status after data phase  */
+	CAM_SEND_STATUS		= 0x40000000,/* Send status after data phase  */
+
+	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
 } ccb_flags;
 
 /* XPT Opcodes for xpt_action */
@@ -146,10 +147,11 @@ typedef enum {
 				/* Path statistics (error counts, etc.) */
 	XPT_GDEV_STATS		= 0x0c,
 				/* Device statistics (error counts, etc.) */
-	XPT_FREEZE_QUEUE	= 0x0d,
-				/* Freeze device queue */
 	XPT_DEV_ADVINFO		= 0x0e,
 				/* Get/Set Device advanced information */
+	XPT_ASYNC		= 0x0f | XPT_FC_QUEUED | XPT_FC_USER_CCB
+				       | XPT_FC_XPT_ONLY,
+				/* Asynchronous event */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -261,6 +263,7 @@ typedef enum {
 	XPORT_SAS,	/* Serial Attached SCSI */
 	XPORT_SATA,	/* Serial AT Attachment */
 	XPORT_ISCSI,	/* iSCSI */
+	XPORT_SRP,	/* SCSI RDMA Protocol */
 } cam_xport;
 
 #define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
@@ -299,6 +302,12 @@ typedef union {
 	u_int8_t	bytes[CCB_SIM_PRIV_SIZE * sizeof(ccb_priv_entry)];
 } ccb_spriv_area;
 
+typedef struct {
+	struct timeval	*etime;
+	uintptr_t	sim_data;
+	uintptr_t	periph_data;
+} ccb_qos_area;
+
 struct ccb_hdr {
 	cam_pinfo	pinfo;		/* Info for priority scheduling */
 	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
@@ -314,15 +323,12 @@ struct ccb_hdr {
 	target_id_t	target_id;	/* Target device ID */
 	lun_id_t	target_lun;	/* Target LUN number */
 	u_int32_t	flags;		/* ccb_flags */
+	u_int32_t	xflags;		/* Extended flags */
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
-	u_int32_t	timeout;	/* Timeout value */
-
-	/*
-	 * Deprecated, only for use by non-MPSAFE SIMs.  All others must
-	 * allocate and initialize their own callout storage.
-	 */
-	struct		callout_handle timeout_ch;
+	ccb_qos_area	qos;
+	u_int32_t	timeout;	/* Hard timeout value in mseconds */
+	struct timeval	softtimeout;	/* Soft timeout value in sec + usec */
 };
 
 /* Get Device Information CCB */
@@ -341,8 +347,8 @@ struct ccb_getdevstats {
 	struct	ccb_hdr	ccb_h;
 	int	dev_openings;	/* Space left for more work on device*/	
 	int	dev_active;	/* Transactions running on the device */
-	int	devq_openings;	/* Space left for more queued work */
-	int	devq_queued;	/* Transactions queued to be sent */
+	int	allocated;	/* CCBs allocated for the device */
+	int	queued;		/* CCBs queued to be sent to the device */
 	int	held;		/*
 				 * CCBs held by peripheral drivers
 				 * for this device
@@ -544,7 +550,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x16	/* Hex value for current version */
+#define CAM_VERSION	0x19	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -567,12 +573,15 @@ typedef enum {
 } pi_tmflag;
 
 typedef enum {
+	PIM_EXTLUNS	= 0x100,/* 64bit extended LUNs supported */
 	PIM_SCANHILO	= 0x80,	/* Bus scans from high ID to low ID */
 	PIM_NOREMOVE	= 0x40,	/* Removeable devices not included in scan */
 	PIM_NOINITIATOR	= 0x20,	/* Initiator role not supported. */
 	PIM_NOBUSRESET	= 0x10,	/* User has disabled initial BUS RESET */
 	PIM_NO_6_BYTE	= 0x08,	/* Do not send 6-byte commands */
-	PIM_SEQSCAN	= 0x04	/* Do bus scans sequentially, not in parallel */
+	PIM_SEQSCAN	= 0x04,	/* Do bus scans sequentially, not in parallel */
+	PIM_UNMAPPED	= 0x02,
+	PIM_NOSCAN	= 0x01	/* SIM does its own scanning */
 } pi_miscflag;
 
 /* Path Inquiry CCB */
@@ -596,8 +605,8 @@ struct ccb_pathinq {
 	struct 	    ccb_hdr ccb_h;
 	u_int8_t    version_num;	/* Version number for the SIM/HBA */
 	u_int8_t    hba_inquiry;	/* Mimic of INQ byte 7 for the HBA */
-	u_int8_t    target_sprt;	/* Flags for target mode support */
-	u_int8_t    hba_misc;		/* Misc HBA features */
+	u_int16_t   target_sprt;	/* Flags for target mode support */
+	u_int32_t   hba_misc;		/* Misc HBA features */
 	u_int16_t   hba_eng_cnt;	/* HBA engine count */
 					/* Vendor Unique capabilities */
 	u_int8_t    vuhba_flags[VUHBALEN];
@@ -749,7 +758,6 @@ struct ccb_relsim {
 #define RELSIM_RELEASE_AFTER_TIMEOUT	0x02
 #define RELSIM_RELEASE_AFTER_CMDCMPLT	0x04
 #define RELSIM_RELEASE_AFTER_QEMPTY	0x08
-#define RELSIM_RELEASE_RUNLEVEL		0x10
 	u_int32_t      openings;
 	u_int32_t      release_timeout;	/* Abstract argument. */
 	u_int32_t      qfrozen_cnt;
@@ -896,9 +904,14 @@ struct ccb_trans_settings_pata {
 #define	CTS_ATA_VALID_MODE		0x01
 #define	CTS_ATA_VALID_BYTECOUNT		0x02
 #define	CTS_ATA_VALID_ATAPI		0x20
+#define	CTS_ATA_VALID_CAPS		0x40
 	int		mode;		/* Mode */
 	u_int 		bytecount;	/* Length of PIO transaction */
 	u_int 		atapi;		/* Length of ATAPI CDB */
+	u_int 		caps;		/* Device and host SATA caps. */
+#define	CTS_ATA_CAPS_H			0x0000ffff
+#define	CTS_ATA_CAPS_H_DMA48		0x00000001 /* 48-bit DMA */
+#define	CTS_ATA_CAPS_D			0xffff0000
 };
 
 struct ccb_trans_settings_sata {
@@ -1127,6 +1140,7 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 struct ccb_dev_advinfo {
 	struct ccb_hdr ccb_h;
 	uint32_t flags;
+#define	CDAI_FLAG_NONE		0x0	/* No flags set */
 #define	CDAI_FLAG_STORE		0x1	/* If set, action becomes store */
 	uint32_t buftype;		/* IN: Type of data being requested */
 	/* NB: buftype is interpreted on a per-transport basis */
@@ -1134,10 +1148,21 @@ struct ccb_dev_advinfo {
 #define	CDAI_TYPE_SERIAL_NUM	2
 #define	CDAI_TYPE_PHYS_PATH	3
 #define	CDAI_TYPE_RCAPLONG	4
+#define	CDAI_TYPE_EXT_INQ	5
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */
 	uint8_t *buf;			/* IN/OUT: Buffer for requested data */
+};
+
+/*
+ * CCB for sending async events
+ */
+struct ccb_async {
+	struct ccb_hdr ccb_h;
+	uint32_t async_code;
+	off_t async_arg_size;
+	void *async_arg_ptr;
 };
 
 /*
@@ -1179,6 +1204,7 @@ union ccb {
 	struct  ccb_debug		cdbg;
 	struct	ccb_ataio		ataio;
 	struct	ccb_dev_advinfo		cdai;
+	struct	ccb_async		casync;
 };
 
 __BEGIN_DECLS
@@ -1221,6 +1247,7 @@ cam_fill_csio(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	csio->ccb_h.func_code = XPT_SCSI_IO;
 	csio->ccb_h.flags = flags;
+	csio->ccb_h.xflags = 0;
 	csio->ccb_h.retry_count = retries;	
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
@@ -1240,6 +1267,7 @@ cam_fill_ctio(struct ccb_scsiio *csio, u_int32_t retries,
 {
 	csio->ccb_h.func_code = XPT_CONT_TARGET_IO;
 	csio->ccb_h.flags = flags;
+	csio->ccb_h.xflags = 0;
 	csio->ccb_h.retry_count = retries;	
 	csio->ccb_h.cbfcnp = cbfcnp;
 	csio->ccb_h.timeout = timeout;
@@ -1292,6 +1320,19 @@ cam_fill_smpio(struct ccb_smpio *smpio, uint32_t retries,
 	smpio->smp_request_len = smp_request_len;
 	smpio->smp_response = smp_response;
 	smpio->smp_response_len = smp_response_len;
+}
+
+static __inline void
+cam_set_ccbstatus(union ccb *ccb, cam_status status)
+{
+	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+	ccb->ccb_h.status |= status;
+}
+
+static __inline cam_status
+cam_ccb_status(union ccb *ccb)
+{
+	return ((cam_status)(ccb->ccb_h.status & CAM_STATUS_MASK));
 }
 
 void cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended);

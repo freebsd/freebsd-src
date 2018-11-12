@@ -42,7 +42,6 @@
 #include "opt_bootp.h"
 #include "opt_compat.h"
 #include "opt_nfsroot.h"
-#include "opt_global.h"
 #include "opt_pmap.h"
 
 #include <sys/syscall.h>
@@ -76,7 +75,7 @@
 	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .long,  KERNBASE)
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .long,  btext)
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .long,  hypercall_page)
-	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .long,  HYPERVISOR_VIRT_START)
+	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .long,  XEN_HYPERVISOR_VIRT_START)
 #if 0
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
 #endif

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,9 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-
-#define __EXFLDIO_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -480,9 +477,7 @@ AcpiExFieldDatumIo (
         Status = AE_OK;
         break;
 
-
     case ACPI_TYPE_LOCAL_BANK_FIELD:
-
         /*
          * Ensure that the BankValue is not beyond the capacity of
          * the register
@@ -512,7 +507,6 @@ AcpiExFieldDatumIo (
 
         /*lint -fallthrough */
 
-
     case ACPI_TYPE_LOCAL_REGION_FIELD:
         /*
          * For simple RegionFields, we just directly access the owning
@@ -522,10 +516,7 @@ AcpiExFieldDatumIo (
                     ReadWrite);
         break;
 
-
     case ACPI_TYPE_LOCAL_INDEX_FIELD:
-
-
         /*
          * Ensure that the IndexValue is not beyond the capacity of
          * the register
@@ -574,7 +565,6 @@ AcpiExFieldDatumIo (
                         Value, sizeof (UINT64));
         }
         break;
-
 
     default:
 
@@ -766,7 +756,18 @@ AcpiExExtractFromField (
     if ((ObjDesc->CommonField.StartFieldBitOffset == 0) &&
         (ObjDesc->CommonField.BitLength == AccessBitWidth))
     {
-        Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        if (BufferLength >= sizeof (UINT64))
+        {
+            Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        }
+        else
+        {
+            /* Use RawDatum (UINT64) to handle buffers < 64 bits */
+
+            Status = AcpiExFieldDatumIo (ObjDesc, 0, &RawDatum, ACPI_READ);
+            ACPI_MEMCPY (Buffer, &RawDatum, BufferLength);
+        }
+
         return_ACPI_STATUS (Status);
     }
 

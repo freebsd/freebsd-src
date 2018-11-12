@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011, Bryan Venteicher <bryanv@daemoninthecloset.org>
+ * Copyright (c) 2011, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,14 +32,18 @@
 struct virtqueue;
 struct sglist;
 
-/* Support for indirect buffer descriptors. */
-#define VIRTIO_RING_F_INDIRECT_DESC	(1 << 28)
-
-/* Support to suppress interrupt until specific index is reached. */
-#define VIRTIO_RING_F_EVENT_IDX		(1 << 29)
-
 /* Device callback for a virtqueue interrupt. */
-typedef int virtqueue_intr_t(void *);
+typedef void virtqueue_intr_t(void *);
+
+/*
+ * Hint on how long the next interrupt should be postponed. This is
+ * only used when the EVENT_IDX feature is negotiated.
+ */
+typedef enum {
+	VQ_POSTPONE_SHORT,
+	VQ_POSTPONE_LONG,
+	VQ_POSTPONE_EMPTIED	/* Until all available desc are used. */
+} vq_postpone_t;
 
 #define VIRTQUEUE_MAX_NAME_SZ	32
 
@@ -70,9 +74,10 @@ void	*virtqueue_drain(struct virtqueue *vq, int *last);
 void	 virtqueue_free(struct virtqueue *vq);
 int	 virtqueue_reinit(struct virtqueue *vq, uint16_t size);
 
-int	 virtqueue_intr(struct virtqueue *vq);
+int	 virtqueue_intr_filter(struct virtqueue *vq);
+void	 virtqueue_intr(struct virtqueue *vq);
 int	 virtqueue_enable_intr(struct virtqueue *vq);
-int	 virtqueue_postpone_intr(struct virtqueue *vq);
+int	 virtqueue_postpone_intr(struct virtqueue *vq, vq_postpone_t hint);
 void	 virtqueue_disable_intr(struct virtqueue *vq);
 
 /* Get physical address of the virtqueue ring. */
@@ -81,6 +86,7 @@ vm_paddr_t virtqueue_paddr(struct virtqueue *vq);
 int	 virtqueue_full(struct virtqueue *vq);
 int	 virtqueue_empty(struct virtqueue *vq);
 int	 virtqueue_size(struct virtqueue *vq);
+int	 virtqueue_nfree(struct virtqueue *vq);
 int	 virtqueue_nused(struct virtqueue *vq);
 void	 virtqueue_notify(struct virtqueue *vq);
 void	 virtqueue_dump(struct virtqueue *vq);

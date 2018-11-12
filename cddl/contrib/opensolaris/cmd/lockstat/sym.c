@@ -42,14 +42,16 @@
 #include <libelf.h>
 #include <link.h>
 #include <elf.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/machelf.h>
 
 #include <kstat.h>
 #else
-/* FreeBSD */
 #include <sys/elf.h>
 #include <sys/ksyms.h>
+#include <sys/param.h>
+#include <sys/module.h>
+#include <sys/linker.h>
 #endif
 #include <sys/cpuvar.h>
 
@@ -63,7 +65,7 @@ static syment_t *symbol_table;
 static int nsyms, maxsyms;
 static char maxsymname[64];
 
-#if defined(sun)
+#ifdef illumos
 #ifdef _ELF64
 #define	elf_getshdr elf64_getshdr
 #else
@@ -102,7 +104,7 @@ remove_symbol(uintptr_t addr)
 			sep->addr = 0;
 }
 
-#if defined(sun)
+#ifdef illumos
 static void
 fake_up_certain_popular_kernel_symbols(void)
 {
@@ -130,8 +132,7 @@ fake_up_certain_popular_kernel_symbols(void)
 	}
 	(void) kstat_close(kc);
 }
-#else
-/* FreeBSD */
+#else /* !illumos */
 static void
 fake_up_certain_popular_kernel_symbols(void)
 {
@@ -148,7 +149,7 @@ fake_up_certain_popular_kernel_symbols(void)
 		add_symbol(name, addr, sizeof (uintptr_t));
 	}
 }
-#endif /* !defined(sun) */
+#endif /* illumos */
 
 static int
 symcmp(const void *p1, const void *p2)
@@ -174,20 +175,30 @@ symtab_init(void)
 	int		fd;
 	int		i;
 	int		strindex = -1;
-#if !defined(sun)
+#ifndef illumos
 	void		*ksyms;
 	size_t		sz;
 #endif
 
+#ifndef illumos
+	if ((fd = open("/dev/ksyms", O_RDONLY)) == -1) {
+		if (errno == ENOENT && modfind("ksyms") == -1) {
+			kldload("ksyms");
+			fd = open("/dev/ksyms", O_RDONLY);
+		}
+		if (fd == -1)
+			return (-1);
+	}
+#else
 	if ((fd = open("/dev/ksyms", O_RDONLY)) == -1)
 		return (-1);
+#endif
 
-#if defined(sun)
+#ifdef illumos
 	(void) elf_version(EV_CURRENT);
 
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 #else
-	/* FreeBSD */
 	/* 
 	 * XXX - libelf needs to be fixed so it will work with
 	 * non 'ordinary' files like /dev/ksyms.  The following

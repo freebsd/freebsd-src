@@ -27,52 +27,33 @@ void SymExpr::dump() const {
   dumpToStream(llvm::errs());
 }
 
-static void print(raw_ostream &os, BinaryOperator::Opcode Op) {
-  switch (Op) {
-    default:
-      llvm_unreachable("operator printing not implemented");
-    case BO_Mul: os << '*'  ; break;
-    case BO_Div: os << '/'  ; break;
-    case BO_Rem: os << '%'  ; break;
-    case BO_Add: os << '+'  ; break;
-    case BO_Sub: os << '-'  ; break;
-    case BO_Shl: os << "<<" ; break;
-    case BO_Shr: os << ">>" ; break;
-    case BO_LT:  os << "<"  ; break;
-    case BO_GT:  os << '>'  ; break;
-    case BO_LE:  os << "<=" ; break;
-    case BO_GE:  os << ">=" ; break;
-    case BO_EQ:  os << "==" ; break;
-    case BO_NE:  os << "!=" ; break;
-    case BO_And: os << '&'  ; break;
-    case BO_Xor: os << '^'  ; break;
-    case BO_Or:  os << '|'  ; break;
-  }
-}
-
 void SymIntExpr::dumpToStream(raw_ostream &os) const {
   os << '(';
   getLHS()->dumpToStream(os);
-  os << ") ";
-  print(os, getOpcode());
-  os << ' ' << getRHS().getZExtValue();
-  if (getRHS().isUnsigned()) os << 'U';
+  os << ") "
+     << BinaryOperator::getOpcodeStr(getOpcode()) << ' '
+     << getRHS().getZExtValue();
+  if (getRHS().isUnsigned())
+    os << 'U';
 }
 
 void IntSymExpr::dumpToStream(raw_ostream &os) const {
-  os << ' ' << getLHS().getZExtValue();
-  if (getLHS().isUnsigned()) os << 'U';
-  print(os, getOpcode());
-  os << '(';
+  os << getLHS().getZExtValue();
+  if (getLHS().isUnsigned())
+    os << 'U';
+  os << ' '
+     << BinaryOperator::getOpcodeStr(getOpcode())
+     << " (";
   getRHS()->dumpToStream(os);
-  os << ") ";
+  os << ')';
 }
 
 void SymSymExpr::dumpToStream(raw_ostream &os) const {
   os << '(';
   getLHS()->dumpToStream(os);
-  os << ") ";
-  os << '(';
+  os << ") "
+     << BinaryOperator::getOpcodeStr(getOpcode())
+     << " (";
   getRHS()->dumpToStream(os);
   os << ')';
 }
@@ -131,8 +112,7 @@ SymbolRef SymExpr::symbol_iterator::operator*() {
 }
 
 void SymExpr::symbol_iterator::expand() {
-  const SymExpr *SE = itr.back();
-  itr.pop_back();
+  const SymExpr *SE = itr.pop_back_val();
 
   switch (SE->getKind()) {
     case SymExpr::RegionValueKind:
@@ -346,11 +326,7 @@ QualType SymbolRegionValue::getType() const {
 }
 
 SymbolManager::~SymbolManager() {
-  for (SymbolDependTy::const_iterator I = SymbolDependencies.begin(),
-       E = SymbolDependencies.end(); I != E; ++I) {
-    delete I->second;
-  }
-
+  llvm::DeleteContainerSeconds(SymbolDependencies);
 }
 
 bool SymbolManager::canSymbolicate(QualType T) {
@@ -359,8 +335,8 @@ bool SymbolManager::canSymbolicate(QualType T) {
   if (Loc::isLocType(T))
     return true;
 
-  if (T->isIntegerType())
-    return T->isScalarType();
+  if (T->isIntegralOrEnumerationType())
+    return true;
 
   if (T->isRecordType() && !T->isUnionType())
     return true;
@@ -371,7 +347,7 @@ bool SymbolManager::canSymbolicate(QualType T) {
 void SymbolManager::addSymbolDependency(const SymbolRef Primary,
                                         const SymbolRef Dependent) {
   SymbolDependTy::iterator I = SymbolDependencies.find(Primary);
-  SymbolRefSmallVectorTy *dependencies = 0;
+  SymbolRefSmallVectorTy *dependencies = nullptr;
   if (I == SymbolDependencies.end()) {
     dependencies = new SymbolRefSmallVectorTy();
     SymbolDependencies[Primary] = dependencies;
@@ -385,7 +361,7 @@ const SymbolRefSmallVectorTy *SymbolManager::getDependentSymbols(
                                                      const SymbolRef Primary) {
   SymbolDependTy::const_iterator I = SymbolDependencies.find(Primary);
   if (I == SymbolDependencies.end())
-    return 0;
+    return nullptr;
   return I->second;
 }
 
@@ -455,6 +431,9 @@ bool SymbolReaper::isLiveRegion(const MemRegion *MR) {
   if (isa<MemSpaceRegion>(MR))
     return true;
 
+  if (isa<CodeTextRegion>(MR))
+    return true;
+
   return false;
 }
 
@@ -468,9 +447,7 @@ bool SymbolReaper::isLive(SymbolRef sym) {
   
   switch (sym->getKind()) {
   case SymExpr::RegionValueKind:
-    // FIXME: We should be able to use isLiveRegion here (this behavior
-    // predates isLiveRegion), but doing so causes test failures. Investigate.
-    KnownLive = true;
+    KnownLive = isLiveRegion(cast<SymbolRegionValue>(sym)->getRegion());
     break;
   case SymExpr::ConjuredKind:
     KnownLive = false;
@@ -510,7 +487,7 @@ bool SymbolReaper::isLive(SymbolRef sym) {
 
 bool
 SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
-  if (LCtx == 0)
+  if (LCtx == nullptr)
     return false;
 
   if (LCtx != ELCtx) {

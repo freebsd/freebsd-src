@@ -46,6 +46,7 @@ extern u_int32_t newnfs_true, newnfs_false;
 extern int nfs_pubfhset;
 extern struct nfsclienthashhead nfsclienthash[NFSCLIENTHASHSIZE];
 extern struct nfslockhashhead nfslockhash[NFSLOCKHASHSIZE];
+extern struct nfssessionhash nfssessionhash[NFSSESSIONHASHSIZE];
 extern int nfsrv_useacl;
 extern uid_t nfsrv_defaultuid;
 extern gid_t nfsrv_defaultgid;
@@ -56,28 +57,40 @@ static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
 extern nfstype nfsv34_type[9];
 #endif	/* !APPLEKEXT */
 
+static u_int32_t nfsrv_isannfserr(u_int32_t);
+
 SYSCTL_DECL(_vfs_nfsd);
 
-static int	disable_checkutf8 = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
-    &disable_checkutf8, 0,
-    "Disable the NFSv4 check for a UTF8 compliant name");
+static int	enable_checkutf8 = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_checkutf8, CTLFLAG_RW,
+    &enable_checkutf8, 0,
+    "Enable the NFSv4 check for the UTF8 compliant name required by rfc3530");
+
+static int    enable_nobodycheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nobodycheck, CTLFLAG_RW,
+    &enable_nobodycheck, 0,
+    "Enable the NFSv4 check when setting user nobody as owner");
+
+static int    enable_nogroupcheck = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_nogroupcheck, CTLFLAG_RW,
+    &enable_nogroupcheck, 0,
+    "Enable the NFSv4 check when setting group nogroup as owner");
 
 static char nfsrv_hexdigit(char, int *);
 
 /*
  * Maps errno values to nfs error numbers.
  * Use NFSERR_IO as the catch all for ones not specifically defined in
- * RFC 1094.
+ * RFC 1094. (It now includes the errors added for NFSv3.)
  */
-static u_char nfsrv_v2errmap[ELAST] = {
+static u_char nfsrv_v2errmap[NFSERR_REMOTE] = {
   NFSERR_PERM,	NFSERR_NOENT,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_NXIO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_ACCES,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_EXIST,	NFSERR_IO,	NFSERR_NODEV,	NFSERR_NOTDIR,
-  NFSERR_ISDIR,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
+  NFSERR_IO,	NFSERR_EXIST,	NFSERR_XDEV,	NFSERR_NODEV,	NFSERR_NOTDIR,
+  NFSERR_ISDIR,	NFSERR_INVAL,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_FBIG,	NFSERR_NOSPC,	NFSERR_IO,	NFSERR_ROFS,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
+  NFSERR_MLINK,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
@@ -85,9 +98,7 @@ static u_char nfsrv_v2errmap[ELAST] = {
   NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
   NFSERR_IO,	NFSERR_IO,	NFSERR_NAMETOL,	NFSERR_IO,	NFSERR_IO,
   NFSERR_NOTEMPTY, NFSERR_IO,	NFSERR_IO,	NFSERR_DQUOT,	NFSERR_STALE,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,	NFSERR_IO,
-  NFSERR_IO,
+  NFSERR_REMOTE,
 };
 
 /*
@@ -1493,16 +1504,38 @@ nfsd_errmap(struct nfsrv_descript *nd)
 		else if (nd->nd_repstat == NFSERR_MINORVERMISMATCH ||
 			 nd->nd_repstat == NFSERR_OPILLEGAL)
 			return (txdr_unsigned(nd->nd_repstat));
-		else
+		else if ((nd->nd_flag & ND_NFSV41) != 0) {
+			if (nd->nd_repstat == EOPNOTSUPP)
+				nd->nd_repstat = NFSERR_NOTSUPP;
+			nd->nd_repstat = nfsrv_isannfserr(nd->nd_repstat);
+			return (txdr_unsigned(nd->nd_repstat));
+		} else
 		    errp = defaulterrp = nfsrv_v4errmap[nd->nd_procnum];
 		while (*++errp)
 			if (*errp == nd->nd_repstat)
 				return (txdr_unsigned(nd->nd_repstat));
 		return (txdr_unsigned(*defaulterrp));
 	}
-	if (nd->nd_repstat <= ELAST)
+	if (nd->nd_repstat <= NFSERR_REMOTE)
 		return (txdr_unsigned(nfsrv_v2errmap[nd->nd_repstat - 1]));
 	return (txdr_unsigned(NFSERR_IO));
+}
+
+/*
+ * Check to see if the error is a valid NFS one. If not, replace it with
+ * NFSERR_IO.
+ */
+static u_int32_t
+nfsrv_isannfserr(u_int32_t errval)
+{
+
+	if (errval == NFSERR_OK)
+		return (errval);
+	if (errval >= NFSERR_BADHANDLE && errval <= NFSERR_DELEGREVOKED)
+		return (errval);
+	if (errval > 0 && errval <= NFSERR_REMOTE)
+		return (nfsrv_v2errmap[errval - 1]);
+	return (NFSERR_IO);
 }
 
 /*
@@ -1520,8 +1553,10 @@ nfsrv_checkuidgid(struct nfsrv_descript *nd, struct nfsvattr *nvap)
 	 */
 	if (NFSVNO_NOTSETUID(nvap) && NFSVNO_NOTSETGID(nvap))
 		goto out;
-	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid)
-	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid)) {
+	if ((NFSVNO_ISSETUID(nvap) && nvap->na_uid == nfsrv_defaultuid &&
+           enable_nobodycheck == 1)
+	    || (NFSVNO_ISSETGID(nvap) && nvap->na_gid == nfsrv_defaultgid &&
+           enable_nogroupcheck == 1)) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
@@ -1970,7 +2005,7 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		    error = 0;
 		    goto nfsmout;
 		}
-		if (disable_checkutf8 == 0 &&
+		if (enable_checkutf8 == 1 &&
 		    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
 		    nd->nd_repstat = NFSERR_INVAL;
 		    error = 0;
@@ -1985,47 +2020,6 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 nfsmout:
 	NFSEXITCODE2(error, nd);
 	return (error);
-}
-
-/*
- * Check the tcp socket sequence number has been acknowledged.
- */
-int
-nfsrv_checksockseqnum(struct socket *so, tcp_seq tcpseqval)
-{
-	tcp_seq maxseq, unaseq;
-	int error, ret;
-
-	error = nfsrv_getsocksndseq(so, &maxseq, &unaseq);
-	if (error)
-		return (0);
-	ret = SEQ_GEQ(unaseq, tcpseqval);
-	return (ret);
-}
-
-/*
- * Get the tcp sequence number to be acknowledged.
- */
-int
-nfsrv_getsockseqnum(struct socket *so, tcp_seq *tcpseqp)
-{
-	tcp_seq maxseq, unaseq;
-	u_int sbcc;
-	int error;
-
-	sbcc = so->so_snd.sb_cc;
-	error = nfsrv_getsocksndseq(so, &maxseq, &unaseq);
-	if (error)
-		return (0);
-	/*
-	 * Set the seq# to a value that will
-	 * be at least the end of the reply.
-	 * When this sequence# is acknowledged
-	 * by the client, the client has received
-	 * the reply.
-	 */
-	*tcpseqp = sbcc + maxseq;
-	return (1);
 }
 
 void
@@ -2046,6 +2040,8 @@ nfsd_init(void)
 		LIST_INIT(&nfsclienthash[i]);
 	for (i = 0; i < NFSLOCKHASHSIZE; i++)
 		LIST_INIT(&nfslockhash[i]);
+	for (i = 0; i < NFSSESSIONHASHSIZE; i++)
+		LIST_INIT(&nfssessionhash[i].list);
 
 	/* and the v2 pubfh should be all zeros */
 	NFSBZERO(nfs_v2pubfh, NFSX_V2FH);
@@ -2071,5 +2067,44 @@ nfsd_checkrootexp(struct nfsrv_descript *nd)
 	     ND_EXGSS)) == (ND_GSS | ND_EXGSS))
 		return (0);
 	return (1);
+}
+
+/*
+ * Parse the first part of an NFSv4 compound to find out what the minor
+ * version# is.
+ */
+void
+nfsd_getminorvers(struct nfsrv_descript *nd, u_char *tag, u_char **tagstrp,
+    int *taglenp, u_int32_t *minversp)
+{
+	uint32_t *tl;
+	int error = 0, taglen = -1;
+	u_char *tagstr = NULL;
+
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	taglen = fxdr_unsigned(int, *tl);
+	if (taglen < 0 || taglen > NFSV4_OPAQUELIMIT) {
+		error = EBADRPC;
+		goto nfsmout;
+	}
+	if (taglen <= NFSV4_SMALLSTR)
+		tagstr = tag;
+	else
+		tagstr = malloc(taglen + 1, M_TEMP, M_WAITOK);
+	error = nfsrv_mtostr(nd, tagstr, taglen);
+	if (error != 0)
+		goto nfsmout;
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	*minversp = fxdr_unsigned(u_int32_t, *tl);
+	*tagstrp = tagstr;
+	if (*minversp == NFSV41_MINORVERSION)
+		nd->nd_flag |= ND_NFSV41;
+nfsmout:
+	if (error != 0) {
+		if (tagstr != NULL && taglen > NFSV4_SMALLSTR)
+			free(tagstr, M_TEMP);
+		taglen = -1;
+	}
+	*taglenp = taglen;
 }
 

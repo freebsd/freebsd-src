@@ -16,7 +16,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 
 #include <machine/stdarg.h>
-#include <machine/xen/xen-os.h>
+
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <sys/cons.h>
@@ -30,9 +31,11 @@ __FBSDID("$FreeBSD$");
 #include <xen/interface/io/console.h>
 
 #define console_evtchn	console.domU.evtchn
-static unsigned int console_irq;
-extern char *console_page;
+xen_intr_handle_t console_handle;
 extern struct mtx              cn_mtx;
+extern device_t xencons_dev;
+extern bool cnsl_evt_reg;
+#define DOM0_BUFFER_SIZE	16
 
 static inline struct xencons_interface *
 xencons_interface(void)
@@ -46,6 +49,18 @@ xencons_has_input(void)
 {
 	struct xencons_interface *intf; 
 
+	if (xen_initial_domain()) {
+		/*
+		 * Since the Dom0 console works with hypercalls
+		 * there's no way to know if there's input unless
+		 * we actually try to retrieve it, so always return
+		 * like there's pending data. Then if the hypercall
+		 * returns no input, we can handle it without problems
+		 * in xencons_handle_input().
+		 */
+		return 1;
+	}
+
 	intf = xencons_interface();		
 
 	return (intf->in_cons != intf->in_prod);
@@ -58,6 +73,9 @@ xencons_ring_send(const char *data, unsigned len)
 	struct xencons_interface *intf; 
 	XENCONS_RING_IDX cons, prod;
 	int sent;
+	struct evtchn_send send = {
+		.port = HYPERVISOR_start_info->console_evtchn
+	};
 
 	intf = xencons_interface();
 	cons = intf->out_cons;
@@ -74,7 +92,10 @@ xencons_ring_send(const char *data, unsigned len)
 	wmb();
 	intf->out_prod = prod;
 
-	notify_remote_via_evtchn(xen_start_info->console_evtchn);
+	if (cnsl_evt_reg)
+		xen_intr_signal(console_handle);
+	else
+		HYPERVISOR_event_channel_op(EVTCHNOP_send, &send);
 
 	return sent;
 
@@ -90,6 +111,19 @@ xencons_handle_input(void *unused)
 	XENCONS_RING_IDX cons, prod;
 
 	CN_LOCK(cn_mtx);
+
+	if (xen_initial_domain()) {
+		static char rbuf[DOM0_BUFFER_SIZE];
+		int         l;
+
+		while ((l = HYPERVISOR_console_io(CONSOLEIO_read,
+		    DOM0_BUFFER_SIZE, rbuf)) > 0)
+			xencons_rx(rbuf, l);
+
+		CN_UNLOCK(cn_mtx);
+		return;
+	}
+
 	intf = xencons_interface();
 
 	cons = intf->in_cons;
@@ -106,7 +140,7 @@ xencons_handle_input(void *unused)
 	intf->in_cons = cons;
 
 	CN_LOCK(cn_mtx);
-	notify_remote_via_evtchn(xen_start_info->console_evtchn);
+	xen_intr_signal(console_handle);
 
 	xencons_tx();
 	CN_UNLOCK(cn_mtx);
@@ -123,12 +157,12 @@ xencons_ring_init(void)
 {
 	int err;
 
-	if (!xen_start_info->console_evtchn)
+	if (HYPERVISOR_start_info->console_evtchn == 0)
 		return 0;
 
-	err = bind_caller_port_to_irqhandler(xen_start_info->console_evtchn,
-		"xencons", xencons_handle_input, NULL,
-		INTR_TYPE_MISC | INTR_MPSAFE, &console_irq);
+	err = xen_intr_bind_local_port(xencons_dev,
+	    HYPERVISOR_start_info->console_evtchn, NULL, xencons_handle_input, NULL,
+	    INTR_TYPE_MISC | INTR_MPSAFE, &console_handle);
 	if (err) {
 		return err;
 	}
@@ -143,10 +177,10 @@ void
 xencons_suspend(void)
 {
 
-	if (!xen_start_info->console_evtchn)
+	if (HYPERVISOR_start_info->console_evtchn == 0)
 		return;
 
-	unbind_from_irqhandler(console_irq);
+	xen_intr_unbind(&console_handle);
 }
 
 void 

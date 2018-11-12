@@ -28,7 +28,7 @@
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2012
+.Dd December 3, 2014
 .Dt MOUNT 8
 .Os
 .Sh NAME
@@ -106,11 +106,21 @@ a file system mount status from read-write to read-only.
 Also
 forces the R/W mount of an unclean file system (dangerous; use with
 caution).
+.It Fl L
+When used in conjunction with the
+.Fl a
+option, mount
+.Em only
+those file systems which are marked as
+.Dq Li late .
 .It Fl l
 When used in conjunction with the
 .Fl a
 option, also mount those file systems which are marked as
 .Dq Li late .
+.It Fl n
+For compatibility with some other implementations, this flag is
+currently a no-op.
 .It Fl o
 Options are specified with a
 .Fl o
@@ -140,16 +150,16 @@ For this reason, the
 .Cm async
 flag should be used sparingly, and only when some data recovery
 mechanism is present.
+.It Cm automounted
+This flag indicates that the file system was mounted by
+.Xr automountd 8 .
+Automounted file systems are automatically unmounted by
+.Xr autounmountd 8 .
 .It Cm current
 When used with the
 .Fl u
 flag, this is the same as specifying the options currently in effect for
 the mounted file system.
-.It Cm failok
-If this option is specified,
-.Nm
-will return 0 even if an error occurs
-during the mount of the filesystem.
 .It Cm force
 The same as
 .Fl f ;
@@ -448,6 +458,7 @@ However, for the following file system types:
 .Cm nfs ,
 .Cm nullfs ,
 .Cm oldnfs ,
+.Cm smbfs ,
 .Cm udf ,
 and
 .Cm unionfs .
@@ -537,11 +548,15 @@ support for a particular file system might be provided either on a static
 .Xr ext2fs 5 ,
 .Xr fstab 5 ,
 .Xr procfs 5 ,
+.Xr tmpfs 5 ,
+.Xr automount 8 ,
+.Xr fstyp 8 ,
 .Xr kldload 8 ,
 .Xr mount_cd9660 8 ,
 .Xr mount_msdosfs 8 ,
 .Xr mount_nfs 8 ,
 .Xr mount_nullfs 8 ,
+.Xr mount_smbfs 8 ,
 .Xr mount_udf 8 ,
 .Xr mount_unionfs 8 ,
 .Xr umount 8 ,

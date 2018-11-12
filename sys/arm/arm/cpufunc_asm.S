@@ -46,7 +46,7 @@
 __FBSDID("$FreeBSD$");
 
 	.text
-	.align	0
+	.align	2
 
 ENTRY(cpufunc_nullop)
 	RET
@@ -138,7 +138,7 @@ ENTRY(cpufunc_control)
 	RET
 .Lglou:
 	.asciz "plop %p\n"
-	.align 0
+	.align 2
 END(cpufunc_control)
 
 /*

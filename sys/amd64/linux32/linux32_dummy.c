@@ -30,7 +30,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -74,11 +73,6 @@ DUMMY(epoll_create);
 DUMMY(epoll_ctl);
 DUMMY(epoll_wait);
 DUMMY(remap_file_pages);
-DUMMY(timer_create);
-DUMMY(timer_settime);
-DUMMY(timer_gettime);
-DUMMY(timer_getoverrun);
-DUMMY(timer_delete);
 DUMMY(fstatfs64);
 DUMMY(mbind);
 DUMMY(get_mempolicy);

@@ -46,65 +46,58 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
+#include <md5.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "virtio.h"
+#include "block_if.h"
 
 #define VTBLK_RINGSZ	64
 
-#define VTBLK_CFGSZ	28
-
-#define VTBLK_R_CFG		VTCFG_R_CFG1 
-#define VTBLK_R_CFG_END		VTBLK_R_CFG + VTBLK_CFGSZ -1
-#define VTBLK_R_MAX		VTBLK_R_CFG_END
-
-#define VTBLK_REGSZ		VTBLK_R_MAX+1
-
-#define VTBLK_MAXSEGS	32
-
 #define VTBLK_S_OK	0
 #define VTBLK_S_IOERR	1
+#define	VTBLK_S_UNSUPP	2
+
+#define	VTBLK_BLK_ID_BYTES	20
+
+/* Capability bits */
+#define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
+#define	VTBLK_F_BLK_SIZE	(1 << 6)	/* cfg block size valid */
+#define	VTBLK_F_FLUSH		(1 << 9)	/* Cache flush support */
+#define	VTBLK_F_TOPOLOGY	(1 << 10)	/* Optimal I/O alignment */
 
 /*
  * Host capabilities
  */
 #define VTBLK_S_HOSTCAPS      \
-  ( 0x00000004 |	/* host maximum request segments */ \
-    0x10000000 )	/* supports indirect descriptors */
-
-static int use_msix = 1;
-
-struct vring_hqueue {
-	/* Internal state */
-	uint16_t	hq_size;
-	uint16_t	hq_cur_aidx;		/* trails behind 'avail_idx' */
-
-	 /* Host-context pointers to the queue */
-	struct virtio_desc *hq_dtable;
-	uint16_t	*hq_avail_flags;
-	uint16_t	*hq_avail_idx;		/* monotonically increasing */
-	uint16_t	*hq_avail_ring;
-
-	uint16_t	*hq_used_flags;
-	uint16_t	*hq_used_idx;		/* monotonically increasing */
-	struct virtio_used *hq_used_ring;
-};
+  ( VTBLK_F_SEG_MAX  |						    \
+    VTBLK_F_BLK_SIZE |						    \
+    VTBLK_F_FLUSH    |						    \
+    VTBLK_F_TOPOLOGY |						    \
+    VIRTIO_RING_F_INDIRECT_DESC )	/* indirect descriptors */
 
 /*
- * Config space
+ * Config space "registers"
  */
 struct vtblk_config {
 	uint64_t	vbc_capacity;
 	uint32_t	vbc_size_max;
 	uint32_t	vbc_seg_max;
-	uint16_t	vbc_geom_c;
-	uint8_t		vbc_geom_h;
-	uint8_t		vbc_geom_s;
+	struct {
+		uint16_t cylinders;
+		uint8_t heads;
+		uint8_t sectors;
+	} vbc_geometry;
 	uint32_t	vbc_blk_size;
-	uint32_t	vbc_sectors_max;
+	struct {
+		uint8_t physical_block_exp;
+		uint8_t alignment_offset;
+		uint16_t min_io_size;
+		uint32_t opt_io_size;
+	} vbc_topology;
+	uint8_t		vbc_writeback;
 } __packed;
-CTASSERT(sizeof(struct vtblk_config) == VTBLK_CFGSZ);
 
 /*
  * Fixed-size block header
@@ -112,6 +105,9 @@ CTASSERT(sizeof(struct vtblk_config) == VTBLK_CFGSZ);
 struct virtio_blk_hdr {
 #define	VBH_OP_READ		0
 #define	VBH_OP_WRITE		1
+#define	VBH_OP_FLUSH		4
+#define	VBH_OP_FLUSH_OUT	5
+#define	VBH_OP_IDENT		8		
 #define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
 	uint32_t       	vbh_type;
 	uint32_t	vbh_ioprio;
@@ -125,120 +121,111 @@ static int pci_vtblk_debug;
 #define DPRINTF(params) if (pci_vtblk_debug) printf params
 #define WPRINTF(params) printf params
 
+struct pci_vtblk_ioreq {
+	struct blockif_req		io_req;
+	struct pci_vtblk_softc	       *io_sc;
+	uint8_t			       *io_status;
+	uint16_t			io_idx;
+};
+
 /*
  * Per-device softc
  */
 struct pci_vtblk_softc {
-	struct pci_devinst *vbsc_pi;
-	int		vbsc_fd;
-	int		vbsc_status;
-	int		vbsc_isr;
-	int		vbsc_lastq;
-	uint32_t	vbsc_features;
-	uint64_t	vbsc_pfn;
-	struct vring_hqueue vbsc_q;
-	struct vtblk_config vbsc_cfg;	
-	uint16_t	msix_table_idx_req;
-	uint16_t	msix_table_idx_cfg;
+	struct virtio_softc vbsc_vs;
+	pthread_mutex_t vsc_mtx;
+	struct vqueue_info vbsc_vq;
+	struct vtblk_config vbsc_cfg;
+	struct blockif_ctxt *bc;
+	char vbsc_ident[VTBLK_BLK_ID_BYTES];
+	struct pci_vtblk_ioreq vbsc_ios[VTBLK_RINGSZ];
 };
-#define	vtblk_ctx(sc)	((sc)->vbsc_pi->pi_vmctx)
 
-/* 
- * Return the size of IO BAR that maps virtio header and device specific
- * region. The size would vary depending on whether MSI-X is enabled or 
- * not
- */ 
-static uint64_t
-pci_vtblk_iosize(struct pci_devinst *pi)
+static void pci_vtblk_reset(void *);
+static void pci_vtblk_notify(void *, struct vqueue_info *);
+static int pci_vtblk_cfgread(void *, int, int, uint32_t *);
+static int pci_vtblk_cfgwrite(void *, int, int, uint32_t);
+
+static struct virtio_consts vtblk_vi_consts = {
+	"vtblk",		/* our name */
+	1,			/* we support 1 virtqueue */
+	sizeof(struct vtblk_config), /* config reg size */
+	pci_vtblk_reset,	/* reset */
+	pci_vtblk_notify,	/* device-wide qnotify */
+	pci_vtblk_cfgread,	/* read PCI config */
+	pci_vtblk_cfgwrite,	/* write PCI config */
+	NULL,			/* apply negotiated features */
+	VTBLK_S_HOSTCAPS,	/* our capabilities */
+};
+
+static void
+pci_vtblk_reset(void *vsc)
 {
+	struct pci_vtblk_softc *sc = vsc;
 
-	if (pci_msix_enabled(pi)) 
-		return (VTBLK_REGSZ);
-	else
-		return (VTBLK_REGSZ - (VTCFG_R_CFG1 - VTCFG_R_MSIX));
+	DPRINTF(("vtblk: device reset requested !\n"));
+	vi_reset_dev(&sc->vbsc_vs);
 }
 
-/*
- * Return the number of available descriptors in the vring taking care
- * of the 16-bit index wraparound.
- */
-static int
-hq_num_avail(struct vring_hqueue *hq)
+static void
+pci_vtblk_done(struct blockif_req *br, int err)
 {
-	uint16_t ndesc;
+	struct pci_vtblk_ioreq *io = br->br_param;
+	struct pci_vtblk_softc *sc = io->io_sc;
+
+	/* convert errno into a virtio block error return */
+	if (err == EOPNOTSUPP || err == ENOSYS)
+		*io->io_status = VTBLK_S_UNSUPP;
+	else if (err != 0)
+		*io->io_status = VTBLK_S_IOERR;
+	else
+		*io->io_status = VTBLK_S_OK;
 
 	/*
-	 * We're just computing (a-b) in GF(216).
-	 *
-	 * The only glitch here is that in standard C,
-	 * uint16_t promotes to (signed) int when int has
-	 * more than 16 bits (pretty much always now), so
-	 * we have to force it back to unsigned.
+	 * Return the descriptor back to the host.
+	 * We wrote 1 byte (our status) to host.
 	 */
-	ndesc = (unsigned)*hq->hq_avail_idx - (unsigned)hq->hq_cur_aidx;
-
-	assert(ndesc <= hq->hq_size);
-
-	return (ndesc);
+	pthread_mutex_lock(&sc->vsc_mtx);
+	vq_relchain(&sc->vbsc_vq, io->io_idx, 1);
+	vq_endchains(&sc->vbsc_vq, 0);
+	pthread_mutex_unlock(&sc->vsc_mtx);
 }
 
 static void
-pci_vtblk_update_status(struct pci_vtblk_softc *sc, uint32_t value)
+pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 {
-	if (value == 0) {
-		DPRINTF(("vtblk: device reset requested !\n"));
-	}
-
-	sc->vbsc_status = value;
-}
-
-static void
-pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
-{
-	struct iovec iov[VTBLK_MAXSEGS];
 	struct virtio_blk_hdr *vbh;
-	struct virtio_desc *vd, *vid;
-	struct virtio_used *vu;
-	uint8_t *status;
-	int i;
+	struct pci_vtblk_ioreq *io;
+	int i, n;
 	int err;
 	int iolen;
-	int nsegs;
-	int uidx, aidx, didx;
 	int writeop, type;
 	off_t offset;
+	struct iovec iov[BLOCKIF_IOV_MAX + 2];
+	uint16_t idx, flags[BLOCKIF_IOV_MAX + 2];
 
-	uidx = *hq->hq_used_idx;
-	aidx = hq->hq_cur_aidx;
-	didx = hq->hq_avail_ring[aidx % hq->hq_size];
-	assert(didx >= 0 && didx < hq->hq_size);
-
-	vd = &hq->hq_dtable[didx];
+	n = vq_getchain(vq, &idx, iov, BLOCKIF_IOV_MAX + 2, flags);
 
 	/*
-	 * Verify that the descriptor is indirect, and obtain
-	 * the pointer to the indirect descriptor.
-	 * There has to be space for at least 3 descriptors
-	 * in the indirect descriptor array: the block header,
-	 * 1 or more data descriptors, and a status byte.
+	 * The first descriptor will be the read-only fixed header,
+	 * and the last is for status (hence +2 above and below).
+	 * The remaining iov's are the actual data I/O vectors.
+	 *
+	 * XXX - note - this fails on crash dump, which does a
+	 * VIRTIO_BLK_T_FLUSH with a zero transfer length
 	 */
-	assert(vd->vd_flags & VRING_DESC_F_INDIRECT);
+	assert(n >= 2 && n <= BLOCKIF_IOV_MAX + 2);
 
-	nsegs = vd->vd_len / sizeof(struct virtio_desc);
-	assert(nsegs >= 3);
-	assert(nsegs < VTBLK_MAXSEGS + 2);
-
-	vid = paddr_guest2host(vtblk_ctx(sc), vd->vd_addr, vd->vd_len);
-	assert((vid->vd_flags & VRING_DESC_F_INDIRECT) == 0);
-
-	/*
-	 * The first descriptor will be the read-only fixed header
-	 */
-	vbh = paddr_guest2host(vtblk_ctx(sc), vid[0].vd_addr,
-			    sizeof(struct virtio_blk_hdr));
-	assert(vid[0].vd_len == sizeof(struct virtio_blk_hdr));
-	assert(vid[0].vd_flags & VRING_DESC_F_NEXT);
-	assert((vid[0].vd_flags & VRING_DESC_F_WRITE) == 0);
+	io = &sc->vbsc_ios[idx];
+	assert((flags[0] & VRING_DESC_F_WRITE) == 0);
+	assert(iov[0].iov_len == sizeof(struct virtio_blk_hdr));
+	vbh = iov[0].iov_base;
+	memcpy(&io->io_req.br_iov, &iov[1], sizeof(struct iovec) * (n - 2));
+	io->io_req.br_iovcnt = n - 2;
+	io->io_req.br_offset = vbh->vbh_sector * DEV_BSIZE;
+	io->io_status = iov[--n].iov_base;
+	assert(iov[n].iov_len == 1);
+	assert(flags[n] & VRING_DESC_F_WRITE);
 
 	/*
 	 * XXX
@@ -248,132 +235,66 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vring_hqueue *hq)
 	type = vbh->vbh_type & ~VBH_FLAG_BARRIER;
 	writeop = (type == VBH_OP_WRITE);
 
-	offset = vbh->vbh_sector * DEV_BSIZE;
-
-	/*
-	 * Build up the iovec based on the guest's data descriptors
-	 */
-	for (i = 1, iolen = 0; i < nsegs - 1; i++) {
-		iov[i-1].iov_base = paddr_guest2host(vtblk_ctx(sc),
-						vid[i].vd_addr, vid[i].vd_len);
-		iov[i-1].iov_len = vid[i].vd_len;
-		iolen += vid[i].vd_len;
-
-		assert(vid[i].vd_flags & VRING_DESC_F_NEXT);
-		assert((vid[i].vd_flags & VRING_DESC_F_INDIRECT) == 0);
-
+	iolen = 0;
+	for (i = 1; i < n; i++) {
 		/*
 		 * - write op implies read-only descriptor,
-		 * - read op implies write-only descriptor,
+		 * - read/ident op implies write-only descriptor,
 		 * therefore test the inverse of the descriptor bit
 		 * to the op.
 		 */
-		assert(((vid[i].vd_flags & VRING_DESC_F_WRITE) == 0) ==
-		       writeop);
+		assert(((flags[i] & VRING_DESC_F_WRITE) == 0) == writeop);
+		iolen += iov[i].iov_len;
 	}
-
-	/* Lastly, get the address of the status byte */
-	status = paddr_guest2host(vtblk_ctx(sc), vid[nsegs - 1].vd_addr, 1);
-	assert(vid[nsegs - 1].vd_len == 1);
-	assert((vid[nsegs - 1].vd_flags & VRING_DESC_F_NEXT) == 0);
-	assert(vid[nsegs - 1].vd_flags & VRING_DESC_F_WRITE);
 
 	DPRINTF(("virtio-block: %s op, %d bytes, %d segs, offset %ld\n\r", 
-		 writeop ? "write" : "read", iolen, nsegs - 2, offset));
+		 writeop ? "write" : "read/ident", iolen, i - 1, offset));
 
-	if (writeop){
-		err = pwritev(sc->vbsc_fd, iov, nsegs - 2, offset);
-	} else {
-		err = preadv(sc->vbsc_fd, iov, nsegs - 2, offset);
-	}
-
-	*status = err < 0 ? VTBLK_S_IOERR : VTBLK_S_OK;
-
-	/*
-	 * Return the single indirect descriptor back to the host
-	 */
-	vu = &hq->hq_used_ring[uidx % hq->hq_size];
-	vu->vu_idx = didx;
-	vu->vu_tlen = 1;
-	hq->hq_cur_aidx++;
-	*hq->hq_used_idx += 1;
-}
-
-static void
-pci_vtblk_qnotify(struct pci_vtblk_softc *sc)
-{
-	struct vring_hqueue *hq = &sc->vbsc_q;
-	int i;
-	int ndescs;
-
-	/*
-	 * Calculate number of ring entries to process
-	 */
-	ndescs = hq_num_avail(hq);
-
-	if (ndescs == 0)
+	switch (type) {
+	case VBH_OP_READ:
+		err = blockif_read(sc->bc, &io->io_req);
+		break;
+	case VBH_OP_WRITE:
+		err = blockif_write(sc->bc, &io->io_req);
+		break;
+	case VBH_OP_FLUSH:
+	case VBH_OP_FLUSH_OUT:
+		err = blockif_flush(sc->bc, &io->io_req);
+		break;
+	case VBH_OP_IDENT:
+		/* Assume a single buffer */
+		/* S/n equal to buffer is not zero-terminated. */
+		memset(iov[1].iov_base, 0, iov[1].iov_len);
+		strncpy(iov[1].iov_base, sc->vbsc_ident,
+		    MIN(iov[1].iov_len, sizeof(sc->vbsc_ident)));
+		pci_vtblk_done(&io->io_req, 0);
 		return;
-
-	/*
-	 * Run through all the entries, placing them into iovecs and
-	 * sending when an end-of-packet is found
-	 */
-	for (i = 0; i < ndescs; i++)
-		pci_vtblk_proc(sc, hq);
-
-	/*
-	 * Generate an interrupt if able
-	 */
-	if ((*hq->hq_avail_flags & VRING_AVAIL_F_NO_INTERRUPT) == 0) { 
-		if (use_msix) {
-			pci_generate_msix(sc->vbsc_pi, sc->msix_table_idx_req);	
-		} else if (sc->vbsc_isr == 0) {
-			sc->vbsc_isr = 1;
-			pci_generate_msi(sc->vbsc_pi, 0);
-		}
+	default:
+		pci_vtblk_done(&io->io_req, EOPNOTSUPP);
+		return;
 	}
-	
+	assert(err == 0);
 }
 
 static void
-pci_vtblk_ring_init(struct pci_vtblk_softc *sc, uint64_t pfn)
+pci_vtblk_notify(void *vsc, struct vqueue_info *vq)
 {
-	struct vring_hqueue *hq;
+	struct pci_vtblk_softc *sc = vsc;
 
-	sc->vbsc_pfn = pfn << VRING_PFN;
-	
-	/*
-	 * Set up host pointers to the various parts of the
-	 * queue
-	 */
-	hq = &sc->vbsc_q;
-	hq->hq_size = VTBLK_RINGSZ;
-
-	hq->hq_dtable = paddr_guest2host(vtblk_ctx(sc), pfn << VRING_PFN,
-					 vring_size(VTBLK_RINGSZ));
-	hq->hq_avail_flags =  (uint16_t *)(hq->hq_dtable + hq->hq_size);
-	hq->hq_avail_idx = hq->hq_avail_flags + 1;
-	hq->hq_avail_ring = hq->hq_avail_flags + 2;
-	hq->hq_used_flags = (uint16_t *)roundup2((uintptr_t)hq->hq_avail_ring,
-						 VRING_ALIGN);
-	hq->hq_used_idx = hq->hq_used_flags + 1;
-	hq->hq_used_ring = (struct virtio_used *)(hq->hq_used_flags + 2);
-
-	/*
-	 * Initialize queue indexes
-	 */
-	hq->hq_cur_aidx = 0;
+	while (vq_has_descs(vq))
+		pci_vtblk_proc(sc, vq);
 }
 
 static int
 pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
-	struct stat sbuf;
+	char bident[sizeof("XX:X:X")];
+	struct blockif_ctxt *bctxt;
+	MD5_CTX mdctx;
+	u_char digest[16];
 	struct pci_vtblk_softc *sc;
-	off_t size;	
-	int fd;
-	int sectsz;
-	const char *env_msi;
+	off_t size;
+	int i, sectsz, sts, sto;
 
 	if (opts == NULL) {
 		printf("virtio-block: backing device required\n");
@@ -383,251 +304,107 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	/*
 	 * The supplied backing file has to exist
 	 */
-	fd = open(opts, O_RDWR);
-	if (fd < 0) {
+	snprintf(bident, sizeof(bident), "%d:%d", pi->pi_slot, pi->pi_func);
+	bctxt = blockif_open(opts, bident);
+	if (bctxt == NULL) {       	
 		perror("Could not open backing file");
 		return (1);
 	}
 
-	if (fstat(fd, &sbuf) < 0) {
-		perror("Could not stat backing file");
-		close(fd);
-		return (1);
+	size = blockif_size(bctxt);
+	sectsz = blockif_sectsz(bctxt);
+	blockif_psectsz(bctxt, &sts, &sto);
+
+	sc = calloc(1, sizeof(struct pci_vtblk_softc));
+	sc->bc = bctxt;
+	for (i = 0; i < VTBLK_RINGSZ; i++) {
+		struct pci_vtblk_ioreq *io = &sc->vbsc_ios[i];
+		io->io_req.br_callback = pci_vtblk_done;
+		io->io_req.br_param = io;
+		io->io_sc = sc;
+		io->io_idx = i;
 	}
+
+	pthread_mutex_init(&sc->vsc_mtx, NULL);
+
+	/* init virtio softc and virtqueues */
+	vi_softc_linkup(&sc->vbsc_vs, &vtblk_vi_consts, sc, pi, &sc->vbsc_vq);
+	sc->vbsc_vs.vs_mtx = &sc->vsc_mtx;
+
+	sc->vbsc_vq.vq_qsize = VTBLK_RINGSZ;
+	/* sc->vbsc_vq.vq_notify = we have no per-queue notify */
 
 	/*
-	 * Deal with raw devices
+	 * Create an identifier for the backing file. Use parts of the
+	 * md5 sum of the filename
 	 */
-	size = sbuf.st_size;
-	sectsz = DEV_BSIZE;
-	if (S_ISCHR(sbuf.st_mode)) {
-		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
-		    ioctl(fd, DIOCGSECTORSIZE, &sectsz)) {
-			perror("Could not fetch dev blk/sector size");
-			close(fd);
-			return (1);
-		}
-		assert(size != 0);
-		assert(sectsz != 0);
-	}
-
-	sc = malloc(sizeof(struct pci_vtblk_softc));
-	memset(sc, 0, sizeof(struct pci_vtblk_softc));
-
-	pi->pi_arg = sc;
-	sc->vbsc_pi = pi;
-	sc->vbsc_fd = fd;
+	MD5Init(&mdctx);
+	MD5Update(&mdctx, opts, strlen(opts));
+	MD5Final(digest, &mdctx);	
+	sprintf(sc->vbsc_ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
 
 	/* setup virtio block config space */
-	sc->vbsc_cfg.vbc_capacity = size / sectsz;
-	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
-	sc->vbsc_cfg.vbc_blk_size = sectsz;
+	sc->vbsc_cfg.vbc_capacity = size / DEV_BSIZE; /* 512-byte units */
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
-	sc->vbsc_cfg.vbc_geom_c = 0;	/* no geometry */
-	sc->vbsc_cfg.vbc_geom_h = 0;
-	sc->vbsc_cfg.vbc_geom_s = 0;
-	sc->vbsc_cfg.vbc_sectors_max = 0;
+	sc->vbsc_cfg.vbc_seg_max = BLOCKIF_IOV_MAX;
+	sc->vbsc_cfg.vbc_geometry.cylinders = 0;	/* no geometry */
+	sc->vbsc_cfg.vbc_geometry.heads = 0;
+	sc->vbsc_cfg.vbc_geometry.sectors = 0;
+	sc->vbsc_cfg.vbc_blk_size = sectsz;
+	sc->vbsc_cfg.vbc_topology.physical_block_exp =
+	    (sts > sectsz) ? (ffsll(sts / sectsz) - 1) : 0;
+	sc->vbsc_cfg.vbc_topology.alignment_offset =
+	    (sto != 0) ? ((sts - sto) / sectsz) : 0;
+	sc->vbsc_cfg.vbc_topology.min_io_size = 0;
+	sc->vbsc_cfg.vbc_topology.opt_io_size = 0;
+	sc->vbsc_cfg.vbc_writeback = 0;
 
-	/* initialize config space */
+	/*
+	 * Should we move some of this into virtio.c?  Could
+	 * have the device, class, and subdev_0 as fields in
+	 * the virtio constants structure.
+	 */
 	pci_set_cfgdata16(pi, PCIR_DEVICE, VIRTIO_DEV_BLOCK);
 	pci_set_cfgdata16(pi, PCIR_VENDOR, VIRTIO_VENDOR);
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
 
-	if ((env_msi = getenv("BHYVE_USE_MSI"))) {
-		if (strcasecmp(env_msi, "yes") == 0)
-			use_msix = 0;
-	} 
+	pci_lintr_request(pi);
 
-	if (use_msix) {
-		/* MSI-X Support */
-		sc->msix_table_idx_req = VIRTIO_MSI_NO_VECTOR;	
-		sc->msix_table_idx_cfg = VIRTIO_MSI_NO_VECTOR;	
-		
-		if (pci_emul_add_msixcap(pi, 2, 1))
-			return (1);
-	} else {
-		/* MSI Support */	
-		pci_emul_add_msicap(pi, 1);
-	}	
-	
-	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, VTBLK_REGSZ);
-
+	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix())) {
+		blockif_close(sc->bc);
+		free(sc);
+		return (1);
+	}
+	vi_set_io_bar(&sc->vbsc_vs, 0);
 	return (0);
 }
 
-static uint64_t
-vtblk_adjust_offset(struct pci_devinst *pi, uint64_t offset)
+static int
+pci_vtblk_cfgwrite(void *vsc, int offset, int size, uint32_t value)
 {
-	/*
-	 * Device specific offsets used by guest would change 
-	 * based on whether MSI-X capability is enabled or not
-	 */ 
-	if (!pci_msix_enabled(pi)) {
-		if (offset >= VTCFG_R_MSIX) 
-			return (offset + (VTCFG_R_CFG1 - VTCFG_R_MSIX));
-	}
 
-	return (offset);
+	DPRINTF(("vtblk: write to readonly reg %d\n\r", offset));
+	return (1);
 }
 
-static void
-pci_vtblk_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-		int baridx, uint64_t offset, int size, uint64_t value)
+static int
+pci_vtblk_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 {
-	struct pci_vtblk_softc *sc = pi->pi_arg;
-
-	if (use_msix) {
-		if (baridx == pci_msix_table_bar(pi) ||
-		    baridx == pci_msix_pba_bar(pi)) {
-			pci_emul_msix_twrite(pi, offset, size, value);
-			return;
-		}
-	}
-	
-	assert(baridx == 0);
-
-	if (offset + size > pci_vtblk_iosize(pi)) {
-		DPRINTF(("vtblk_write: 2big, offset %ld size %d\n",
-			 offset, size));
-		return;
-	}
-
-	offset = vtblk_adjust_offset(pi, offset);
-	
-	switch (offset) {
-	case VTCFG_R_GUESTCAP:
-		assert(size == 4);
-		sc->vbsc_features = value & VTBLK_S_HOSTCAPS;
-		break;
-	case VTCFG_R_PFN:
-		assert(size == 4);
-		pci_vtblk_ring_init(sc, value);
-		break;
-	case VTCFG_R_QSEL:
-		assert(size == 2);
-		sc->vbsc_lastq = value;
-		break;
-	case VTCFG_R_QNOTIFY:
-		assert(size == 2);
-		assert(value == 0);
-		pci_vtblk_qnotify(sc);
-		break;
-	case VTCFG_R_STATUS:
-		assert(size == 1);
-		pci_vtblk_update_status(sc, value);
-		break;
-	case VTCFG_R_CFGVEC:
-		assert(size == 2);
-		sc->msix_table_idx_cfg = value;	
-		break;	
-	case VTCFG_R_QVEC:
-		assert(size == 2);
-		sc->msix_table_idx_req = value;
-		break;	
-	case VTCFG_R_HOSTCAP:
-	case VTCFG_R_QNUM:
-	case VTCFG_R_ISR:
-	case VTBLK_R_CFG ... VTBLK_R_CFG_END:
-		DPRINTF(("vtblk: write to readonly reg %ld\n\r", offset));
-		break;
-	default:
-		DPRINTF(("vtblk: unknown i/o write offset %ld\n\r", offset));
-		value = 0;
-		break;
-	}
-}
-
-uint64_t
-pci_vtblk_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
-	       int baridx, uint64_t offset, int size)
-{
-	struct pci_vtblk_softc *sc = pi->pi_arg;
+	struct pci_vtblk_softc *sc = vsc;
 	void *ptr;
-	uint32_t value;
 
-	if (use_msix) {
-		if (baridx == pci_msix_table_bar(pi) ||
-		    baridx == pci_msix_pba_bar(pi)) {
-			return (pci_emul_msix_tread(pi, offset, size));
-		}
-	}
-
-	assert(baridx == 0);
-
-	if (offset + size > pci_vtblk_iosize(pi)) {
-		DPRINTF(("vtblk_read: 2big, offset %ld size %d\n",
-			 offset, size));
-		return (0);
-	}
-
-	offset = vtblk_adjust_offset(pi, offset);
-
-	switch (offset) {
-	case VTCFG_R_HOSTCAP:
-		assert(size == 4);
-		value = VTBLK_S_HOSTCAPS;
-		break;
-	case VTCFG_R_GUESTCAP:
-		assert(size == 4);
-		value = sc->vbsc_features; /* XXX never read ? */
-		break;
-	case VTCFG_R_PFN:
-		assert(size == 4);
-		value = sc->vbsc_pfn >> VRING_PFN;
-		break;
-	case VTCFG_R_QNUM:
-		value = (sc->vbsc_lastq == 0) ? VTBLK_RINGSZ: 0;
-		break;
-	case VTCFG_R_QSEL:
-		assert(size == 2);
-		value = sc->vbsc_lastq; /* XXX never read ? */
-		break;
-	case VTCFG_R_QNOTIFY:
-		assert(size == 2);
-		value = 0; /* XXX never read ? */
-		break;
-	case VTCFG_R_STATUS:
-		assert(size == 1);
-		value = sc->vbsc_status;
-		break;
-	case VTCFG_R_ISR:
-		assert(size == 1);
-		value = sc->vbsc_isr;
-		sc->vbsc_isr = 0;     /* a read clears this flag */
-		break;
-	case VTCFG_R_CFGVEC:
-		assert(size == 2);
-		value = sc->msix_table_idx_cfg;
-		break;
-	case VTCFG_R_QVEC:
-		assert(size == 2);
-		value = sc->msix_table_idx_req;
-		break;	
-	case VTBLK_R_CFG ... VTBLK_R_CFG_END:
-		assert(size + offset <= (VTBLK_R_CFG_END + 1));
-		ptr = (uint8_t *)&sc->vbsc_cfg + offset - VTBLK_R_CFG;
-		if (size == 1) {
-			value = *(uint8_t *) ptr;
-		} else if (size == 2) {
-			value = *(uint16_t *) ptr;
-		} else {
-			value = *(uint32_t *) ptr;
-		}
-		break;
-	default:
-		DPRINTF(("vtblk: unknown i/o read offset %ld\n\r", offset));
-		value = 0;
-		break;
-	}
-
-	return (value);
+	/* our caller has already verified offset and size */
+	ptr = (uint8_t *)&sc->vbsc_cfg + offset;
+	memcpy(retval, ptr, size);
+	return (0);
 }
 
 struct pci_devemu pci_de_vblk = {
 	.pe_emu =	"virtio-blk",
 	.pe_init =	pci_vtblk_init,
-	.pe_barwrite =	pci_vtblk_write,
-	.pe_barread =	pci_vtblk_read
+	.pe_barwrite =	vi_pci_write,
+	.pe_barread =	vi_pci_read
 };
 PCI_EMUL_SET(pci_de_vblk);

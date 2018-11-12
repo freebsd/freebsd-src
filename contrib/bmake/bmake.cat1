@@ -4,7 +4,7 @@ NNAAMMEE
      bbmmaakkee -- maintain program dependencies
 
 SSYYNNOOPPSSIISS
-     bbmmaakkee [--BBeeiikkNNnnqqrrssttWWXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
+     bbmmaakkee [--BBeeiikkNNnnqqrrssttWWwwXX] [--CC _d_i_r_e_c_t_o_r_y] [--DD _v_a_r_i_a_b_l_e] [--dd _f_l_a_g_s]
            [--ff _m_a_k_e_f_i_l_e] [--II _d_i_r_e_c_t_o_r_y] [--JJ _p_r_i_v_a_t_e] [--jj _m_a_x___j_o_b_s]
            [--mm _d_i_r_e_c_t_o_r_y] [--TT _f_i_l_e] [--VV _v_a_r_i_a_b_l_e] [_v_a_r_i_a_b_l_e_=_v_a_l_u_e]
            [_t_a_r_g_e_t _._._.]
@@ -121,6 +121,9 @@ DDEESSCCRRIIPPTTIIOONN
              _V       Force the --VV option to print raw values of variables.
 
              _v       Print debugging information about variable assignment.
+
+             _w       Print entering and leaving directory messages, pre and
+                     post processing.
 
              _x       Run shell commands with --xx so the actual commands are
                      printed as they are executed.
@@ -447,6 +450,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      _._C_U_R_D_I_R         A path to the directory where bbmmaakkee was executed.  Refer
                      to the description of `PWD' for more details.
 
+     _._I_N_C_L_U_D_E_D_F_R_O_M_D_I_R
+                     The directory of the file this Makefile was included
+                     from.
+
+     _._I_N_C_L_U_D_E_D_F_R_O_M_F_I_L_E
+                     The filename of the file this Makefile was included from.
+
      MAKE            The name that bbmmaakkee was executed with (_a_r_g_v_[_0_]).  For
                      compatibility bbmmaakkee also sets _._M_A_K_E with the same value.
                      The preferred variable to use is the environment variable
@@ -469,7 +479,8 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      _._M_A_K_E_._J_O_B_._P_R_E_F_I_X
                      If bbmmaakkee is run with _j then output for each target is
                      prefixed with a token `--- target ---' the first part of
-                     which can be controlled via _._M_A_K_E_._J_O_B_._P_R_E_F_I_X.
+                     which can be controlled via _._M_A_K_E_._J_O_B_._P_R_E_F_I_X.  If
+                     _._M_A_K_E_._J_O_B_._P_R_E_F_I_X is empty, no token is printed.
                      For example:
                      .MAKE.JOB.PREFIX=${.newline}---${.MAKE:T}[${.MAKE.PID}]
                      would produce tokens like `---make[1234] target ---' mak-
@@ -551,6 +562,12 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      to process the meta files to extract dependency informa-
                      tion.
 
+     _._M_A_K_E_._M_E_T_A_._I_G_N_O_R_E___P_A_T_H_S
+                     Provides a list of path prefixes that should be ignored;
+                     because the contents are expected to change over time.
+                     The default list includes: `_/_d_e_v _/_e_t_c _/_p_r_o_c _/_t_m_p _/_v_a_r_/_r_u_n
+                     _/_v_a_r_/_t_m_p'
+
      _._M_A_K_E_._M_E_T_A_._P_R_E_F_I_X
                      Defines the message printed for each meta file updated in
                      "meta verbose" mode.  The default value is:
@@ -564,6 +581,11 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
                      a makefile by appending their names to `_._M_A_K_E_O_V_E_R_R_I_D_E_S'.
                      `MAKEFLAGS' is re-exported whenever `_._M_A_K_E_O_V_E_R_R_I_D_E_S' is
                      modified.
+
+     _._M_A_K_E_._P_A_T_H___F_I_L_E_M_O_N
+                     If bbmmaakkee was built with filemon(4) support, this is set
+                     to the path of the device node.  This allows makefiles to
+                     test for this support.
 
      _._M_A_K_E_._P_I_D       The process-id of bbmmaakkee.
 
@@ -675,7 +697,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      ::MM_p_a_t_t_e_r_n
           Select only those words that match _p_a_t_t_e_r_n.  The standard shell
           wildcard characters (`*', `?', and `[]') may be used.  The wildcard
-          characters may be escaped with a backslash (`\').
+          characters may be escaped with a backslash (`\').  As a consequence
+          of the way values are split into words, matched, and then joined, a
+          construct like
+                ${VAR:M*}
+          will normalise the inter-word spacing, removing all leading and
+          trailing space, and converting multiple consecutive spaces to single
+          spaces.
 
      ::NN_p_a_t_t_e_r_n
           This is identical to `::MM', but selects all words which do not match
@@ -762,18 +790,21 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::CC/_p_a_t_t_e_r_n/_r_e_p_l_a_c_e_m_e_n_t/[11ggWW]
           The ::CC modifier is just like the ::SS modifier except that the old and
-          new strings, instead of being simple strings, are a regular expres-
-          sion (see regex(3)) string _p_a_t_t_e_r_n and an ed(1)-style string
-          _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern _p_a_t_t_e_r_n
-          in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.  The `1'
-          modifier causes the substitution to apply to at most one word; the
-          `g' modifier causes the substitution to apply to as many instances
-          of the search pattern _p_a_t_t_e_r_n as occur in the word or words it is
-          found in; the `W' modifier causes the value to be treated as a sin-
-          gle word (possibly containing embedded white space).  Note that `1'
-          and `g' are orthogonal; the former specifies whether multiple words
-          are potentially affected, the latter whether multiple substitutions
-          can potentially occur within each affected word.
+          new strings, instead of being simple strings, are an extended regu-
+          lar expression (see regex(3)) string _p_a_t_t_e_r_n and an ed(1)-style
+          string _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern
+          _p_a_t_t_e_r_n in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.
+          The `1' modifier causes the substitution to apply to at most one
+          word; the `g' modifier causes the substitution to apply to as many
+          instances of the search pattern _p_a_t_t_e_r_n as occur in the word or
+          words it is found in; the `W' modifier causes the value to be
+          treated as a single word (possibly containing embedded white space).
+          Note that `1' and `g' are orthogonal; the former specifies whether
+          multiple words are potentially affected, the latter whether multiple
+          substitutions can potentially occur within each affected word.
+
+          As for the ::SS modifier, the _p_a_t_t_e_r_n and _r_e_p_l_a_c_e_m_e_n_t are subjected to
+          variable expansion before being parsed as regular expressions.
 
      ::TT   Replaces each word in the variable with its last component.
 
@@ -813,7 +844,7 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
           period.  For example.
                 ${LINKS:@.LINK.@${LN} ${TARGET} ${.LINK.}@}
 
-          However a single character varaiable is often more readable:
+          However a single character variable is often more readable:
                 ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 
      ::UU_n_e_w_v_a_l
@@ -1092,7 +1123,7 @@ SSPPEECCIIAALL SSOOUURRCCEESS ((AATTTTRRIIBBUUTTEESS))
 
      ..MMAAKKEE     Execute the commands associated with this target even if the --nn
                or --tt options were specified.  Normally used to mark recursive
-               bbmmaakkee's.
+               bbmmaakkees.
 
      ..MMEETTAA     Create a meta file for the target, even if it is flagged as
                ..PPHHOONNYY, ..MMAAKKEE, or ..SSPPEECCIIAALL.  Usage in conjunction with ..MMAAKKEE is
@@ -1106,7 +1137,19 @@ SSPPEECCIIAALL SSOOUURRCCEESS ((AATTTTRRIIBBUUTTEESS))
                Ignore differences in commands when deciding if target is out
                of date.  This is useful if the command contains a value which
                always changes.  If the number of commands change, though, the
-               target will still be out of date.
+               target will still be out of date.  The same effect applies to
+               any command line that uses the variable _._O_O_D_A_T_E, which can be
+               used for that purpose even when not otherwise needed or
+               desired:
+
+
+                     skip-compare-for-some:
+                             @echo this will be compared
+                             @echo this will not ${.OODATE:M.NOMETA_CMP}
+                             @echo this will also be compared
+
+               The ::MM pattern suppresses any expansion of the unwanted vari-
+               able.
 
      ..NNOOPPAATTHH   Do not search for the target in the directories specified by
                ..PPAATTHH.
@@ -1230,6 +1273,10 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               source is the special ..DDOOTTLLAASSTT target, then the current working
               directory is searched last.
 
+     ..PPAATTHH.._s_u_f_f_i_x
+              Like ..PPAATTHH but applies only to files with a particular suffix.
+              The suffix must have been previously declared with ..SSUUFFFFIIXXEESS.
+
      ..PPHHOONNYY   Apply the ..PPHHOONNYY attribute to any specified sources.
 
      ..PPRREECCIIOOUUSS
@@ -1277,6 +1324,9 @@ SSPPEECCIIAALL TTAARRGGEETTSS
      ..SSIILLEENNTT  Apply the ..SSIILLEENNTT attribute to any specified sources.  If no
               sources are specified, the ..SSIILLEENNTT attribute is applied to every
               command in the file.
+
+     ..SSTTAALLEE   This target gets run when a dependency file contains stale
+              entries, having _._A_L_L_S_R_C set to the name of that dependency file.
 
      ..SSUUFFFFIIXXEESS
               Each source specifies a suffix to bbmmaakkee.  If no sources are
@@ -1331,6 +1381,10 @@ HHIISSTTOORRYY
      Berkeley.  It was designed to be a parallel distributed make running jobs
      on different machines using a daemon called ``customs''.
 
+     Historically the target/dependency ``FRC'' has been used to FoRCe
+     rebuilding (since the target/dependency does not exist... unless someone
+     creates an ``FRC'' file).
+
 BBUUGGSS
      The make syntax is difficult to parse without actually acting of the
      data.  For instance finding the end of a variable use should involve
@@ -1340,4 +1394,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                     January 23, 2013                     NetBSD 5.1
+NetBSD 5.1                     February 14, 2014                    NetBSD 5.1

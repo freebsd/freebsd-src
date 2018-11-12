@@ -1,4 +1,4 @@
-/* $Id: closure.c,v 1.9 2010/06/09 08:21:47 tom Exp $ */
+/* $Id: closure.c,v 1.11 2014/09/18 00:40:07 tom Exp $ */
 
 #include "defs.h"
 
@@ -6,15 +6,22 @@ Value_t *itemset;
 Value_t *itemsetend;
 unsigned *ruleset;
 
+static unsigned *first_base;
 static unsigned *first_derives;
 static unsigned *EFF;
+
+#ifdef	DEBUG
+static void print_closure(int);
+static void print_EFF(void);
+static void print_first_derives(void);
+#endif
 
 static void
 set_EFF(void)
 {
     unsigned *row;
     int symbol;
-    short *sp;
+    Value_t *sp;
     int rowsize;
     int i;
     int rule;
@@ -53,7 +60,7 @@ set_first_derives(void)
     int j;
     unsigned k;
     unsigned cword = 0;
-    short *rp;
+    Value_t *rp;
 
     int rule;
     int i;
@@ -62,7 +69,8 @@ set_first_derives(void)
 
     rulesetsize = WORDSIZE(nrules);
     varsetsize = WORDSIZE(nvars);
-    first_derives = NEW2(nvars * rulesetsize, unsigned) - ntokens * rulesetsize;
+    first_base = NEW2(nvars * rulesetsize, unsigned);
+    first_derives = first_base - ntokens * rulesetsize;
 
     set_EFF();
 
@@ -100,7 +108,7 @@ set_first_derives(void)
 }
 
 void
-closure(short *nucleus, int n)
+closure(Value_t *nucleus, int n)
 {
     unsigned ruleno;
     unsigned word;
@@ -170,22 +178,22 @@ finalize_closure(void)
 {
     FREE(itemset);
     FREE(ruleset);
-    FREE(first_derives + ntokens * WORDSIZE(nrules));
+    FREE(first_base);
 }
 
 #ifdef	DEBUG
 
-void
+static void
 print_closure(int n)
 {
-    short *isp;
+    Value_t *isp;
 
     printf("\n\nn = %d\n\n", n);
     for (isp = itemset; isp < itemsetend; isp++)
 	printf("   %d\n", *isp);
 }
 
-void
+static void
 print_EFF(void)
 {
     int i, j;
@@ -216,7 +224,7 @@ print_EFF(void)
     }
 }
 
-void
+static void
 print_first_derives(void)
 {
     int i;

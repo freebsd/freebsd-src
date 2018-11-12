@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <machine/smp.h>
 #include <machine/spr.h>
-#include <machine/trap_aim.h>
+#include <machine/trap.h>
 
 #include <dev/ofw/openfirm.h>
 #include <machine/ofw_machdep.h>
@@ -58,7 +58,9 @@ SYSINIT(cpu_save_config, SI_SUB_CPU, SI_ORDER_ANY, cpudep_save_config, NULL);
 void
 cpudep_ap_early_bootstrap(void)
 {
+#ifndef __powerpc64__
 	register_t reg;
+#endif
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(ap_pcpu));
 	powerpc_sync();
@@ -69,12 +71,17 @@ cpudep_ap_early_bootstrap(void)
 	case IBM970MP:
 		/* Restore HID4 and HID5, which are necessary for the MMU */
 
+#ifdef __powerpc64__
+		mtspr(SPR_HID4, bsp_state[2]); powerpc_sync(); isync();
+		mtspr(SPR_HID5, bsp_state[3]); powerpc_sync(); isync();
+#else
 		__asm __volatile("ld %0, 16(%2); sync; isync;	\
 		    mtspr %1, %0; sync; isync;"
 		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
 		__asm __volatile("ld %0, 24(%2); sync; isync;	\
 		    mtspr %1, %0; sync; isync;"
 		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
+#endif
 		powerpc_sync();
 		break;
 	}
@@ -273,6 +280,14 @@ cpudep_ap_setup()
 
 	vers = mfpvr() >> 16;
 
+	/* The following is needed for restoring from sleep. */
+#ifdef __powerpc64__
+	/* Writing to the time base register is hypervisor-privileged */
+	if (mfmsr() & PSL_HV)
+		mttb(0);
+#else
+	mttb(0);
+#endif
 	switch(vers) {
 	case IBM970:
 	case IBM970FX:
@@ -284,9 +299,24 @@ cpudep_ap_setup()
 		/*
 		 * The 970 has strange rules about how to update HID registers.
 		 * See Table 2-3, 970MP manual
+		 *
+		 * Note: HID4 and HID5 restored already in
+		 * cpudep_ap_early_bootstrap()
 		 */
 
 		__asm __volatile("mtasr %0; sync" :: "r"(0));
+	#ifdef __powerpc64__
+		__asm __volatile(" \
+			sync; isync;					\
+			mtspr	%1, %0;					\
+			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1;	\
+			mfspr	%0, %1;	mfspr	%0, %1;	mfspr	%0, %1; \
+			sync; isync" 
+		    :: "r"(bsp_state[0]), "K"(SPR_HID0));
+		__asm __volatile("sync; isync;	\
+		    mtspr %1, %0; mtspr %1, %0; sync; isync"
+		    :: "r"(bsp_state[1]), "K"(SPR_HID1));
+	#else
 		__asm __volatile(" \
 			ld	%0,0(%2);				\
 			sync; isync;					\
@@ -298,12 +328,7 @@ cpudep_ap_setup()
 		__asm __volatile("ld %0, 8(%2); sync; isync;	\
 		    mtspr %1, %0; mtspr %1, %0; sync; isync"
 		    : "=r"(reg) : "K"(SPR_HID1), "r"(bsp_state));
-		__asm __volatile("ld %0, 16(%2); sync; isync;	\
-		    mtspr %1, %0; sync; isync;"
-		    : "=r"(reg) : "K"(SPR_HID4), "r"(bsp_state));
-		__asm __volatile("ld %0, 24(%2); sync; isync;	\
-		    mtspr %1, %0; sync; isync;"
-		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
+	#endif
 
 		powerpc_sync();
 		break;
@@ -322,17 +347,13 @@ cpudep_ap_setup()
 		mtspr(SPR_CELL_TSRL, bsp_state[5]);
 
 		break;
-	case MPC7450:
-	case MPC7455:
-	case MPC7457:
-		/* Only MPC745x CPUs have an L3 cache. */
-		reg = mpc745x_l3_enable(bsp_state[3]);
-		
-		/* Fallthrough */
 	case MPC7400:
 	case MPC7410:
 	case MPC7447A:
 	case MPC7448:
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
 		/* XXX: Program the CPU ID into PIR */
 		__asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
 
@@ -342,6 +363,17 @@ cpudep_ap_setup()
 		mtspr(SPR_HID0, bsp_state[0]); isync();
 		mtspr(SPR_HID1, bsp_state[1]); isync();
 
+		/* Now enable the L3 cache. */
+		switch (vers) {
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+			/* Only MPC745x CPUs have an L3 cache. */
+			reg = mpc745x_l3_enable(bsp_state[3]);
+		default:
+			break;
+		}
+		
 		reg = mpc74xx_l2_enable(bsp_state[2]);
 		reg = mpc74xx_l1d_enable();
 		reg = mpc74xx_l1i_enable();

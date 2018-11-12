@@ -31,6 +31,7 @@
 
 #include <machine/_limits.h>
 #include <sys/_bus_dma.h>
+#include <sys/ioccom.h>
 
 /**
  * @defgroup NEWBUS newbus - a generic framework for managing devices
@@ -70,14 +71,61 @@ struct u_device {
 	char		dv_pnpinfo[128];	/**< @brief Plug and play info */
 	char		dv_location[128];	/**< @brief Where is the device? */
 	uint32_t	dv_devflags;		/**< @brief API Flags for device */
-	uint16_t	dv_flags;		/**< @brief flags for dev date */
+	uint16_t	dv_flags;		/**< @brief flags for dev state */
 	device_state_t	dv_state;		/**< @brief State of attachment */
 	/* XXX more driver info? */
 };
 
+/* Flags exported via dv_flags. */
+#define	DF_ENABLED	0x01		/* device should be probed/attached */
+#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
+#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
+#define	DF_DESCMALLOCED	0x08		/* description was malloced */
+#define	DF_QUIET	0x10		/* don't print verbose attach message */
+#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
+#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
+#define	DF_REBID	0x80		/* Can rebid after attach */
+#define	DF_SUSPENDED	0x100		/* Device is suspended. */
+
+/**
+ * @brief Device request structure used for ioctl's.
+ *
+ * Used for ioctl's on /dev/devctl2.  All device ioctl's
+ * must have parameter definitions which begin with dr_name.
+ */
+struct devreq_buffer {
+	void	*buffer;
+	size_t	length;
+};
+
+struct devreq {
+	char		dr_name[128];
+	int		dr_flags;		/* request-specific flags */
+	union {
+		struct devreq_buffer dru_buffer;
+		void	*dru_data;
+	} dr_dru;
+#define	dr_buffer	dr_dru.dru_buffer	/* variable-sized buffer */
+#define	dr_data		dr_dru.dru_data		/* fixed-size buffer */
+};
+
+#define	DEV_ATTACH	_IOW('D', 1, struct devreq)
+#define	DEV_DETACH	_IOW('D', 2, struct devreq)
+#define	DEV_ENABLE	_IOW('D', 3, struct devreq)
+#define	DEV_DISABLE	_IOW('D', 4, struct devreq)
+#define	DEV_SUSPEND	_IOW('D', 5, struct devreq)
+#define	DEV_RESUME	_IOW('D', 6, struct devreq)
+#define	DEV_SET_DRIVER	_IOW('D', 7, struct devreq)
+
+/* Flags for DEV_DETACH and DEV_DISABLE. */
+#define	DEVF_FORCE_DETACH	0x0000001
+
+/* Flags for DEV_SET_DRIVER. */
+#define	DEVF_SET_DRIVER_DETACH	0x0000001	/* Detach existing driver. */
+
 #ifdef _KERNEL
 
-#include <sys/queue.h>
+#include <sys/eventhandler.h>
 #include <sys/kobj.h>
 
 /**
@@ -92,6 +140,14 @@ void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 void devctl_queue_data_f(char *__data, int __flags);
 void devctl_queue_data(char *__data);
+
+/**
+ * Device name parsers.  Hook to allow device enumerators to map
+ * scheme-specific names to a device.
+ */
+typedef void (*dev_lookup_fn)(void *arg, const char *name,
+    device_t *result);
+EVENTHANDLER_DECLARE(dev_lookup, dev_lookup_fn);
 
 /**
  * @brief A device driver (included mainly for compatibility with
@@ -122,8 +178,7 @@ typedef struct kobj_class	driver_t;
 typedef struct devclass		*devclass_t;
 
 /**
- * @brief A device method (included mainly for compatibility with
- * FreeBSD 4.x).
+ * @brief A device method
  */
 #define device_method_t		kobj_method_t
 
@@ -178,11 +233,8 @@ typedef void driver_intr_t(void*);
  * spls implicit in names like INTR_TYPE_TTY. In the meantime, don't
  * confuse things by renaming them (Grog, 18 July 2000).
  *
- * We define this in terms of bits because some devices may belong
- * to multiple classes (and therefore need to be included in
- * multiple interrupt masks, which is what this really serves to
- * indicate. Buses which do interrupt remapping will want to
- * change their type to reflect what sort of devices are underneath.
+ * Buses which do interrupt remapping will want to change their type
+ * to reflect what sort of devices are underneath.
  */
 enum intr_type {
 	INTR_TYPE_TTY = 1,
@@ -276,6 +328,9 @@ struct resource *
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
+int	resource_list_release_active(struct resource_list *rl,
+				     device_t bus, device_t child,
+				     int type);
 struct resource *
 	resource_list_reserve(struct resource_list *rl,
 			      device_t bus, device_t child,
@@ -328,10 +383,12 @@ int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
 bus_dma_tag_t
 	bus_generic_get_dma_tag(device_t dev, device_t child);
+int	bus_generic_get_domain(device_t dev, device_t child, int *domain);
 struct resource_list *
 	bus_generic_get_resource_list (device_t, device_t);
 void	bus_generic_new_pass(device_t dev);
 int	bus_print_child_header(device_t dev, device_t child);
+int	bus_print_child_domain(device_t dev, device_t child);
 int	bus_print_child_footer(device_t dev, device_t child);
 int	bus_generic_print_child(device_t dev, device_t child);
 int	bus_generic_probe(device_t dev);
@@ -340,6 +397,7 @@ int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 int	bus_generic_release_resource(device_t bus, device_t child,
 				     int type, int rid, struct resource *r);
 int	bus_generic_resume(device_t dev);
+int	bus_generic_resume_child(device_t dev, device_t child);
 int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq, int flags,
 			       driver_filter_t *filter, driver_intr_t *intr, 
@@ -358,6 +416,7 @@ int	bus_generic_rl_release_resource (device_t, device_t, int, int,
 
 int	bus_generic_shutdown(device_t dev);
 int	bus_generic_suspend(device_t dev);
+int	bus_generic_suspend_child(device_t dev, device_t child);
 int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
 int	bus_generic_write_ivar(device_t dev, device_t child, int which,
@@ -389,6 +448,7 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
+int	bus_get_domain(device_t dev, int *domain);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);
@@ -450,6 +510,7 @@ struct sysctl_oid *device_get_sysctl_tree(device_t dev);
 int	device_is_alive(device_t dev);	/* did probe succeed? */
 int	device_is_attached(device_t dev);	/* did attach succeed? */
 int	device_is_enabled(device_t dev);
+int	device_is_suspended(device_t dev);
 int	device_is_quiet(device_t dev);
 int	device_print_prettyname(device_t dev);
 int	device_printf(device_t dev, const char *, ...) __printflike(2, 3);
@@ -461,6 +522,7 @@ void	device_quiet(device_t dev);
 void	device_set_desc(device_t dev, const char* desc);
 void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);
+int	device_set_devclass_fixed(device_t dev, const char *classname);
 int	device_set_driver(device_t dev, driver_t *driver);
 void	device_set_flags(device_t dev, u_int32_t flags);
 void	device_set_softc(device_t dev, void *softc);
@@ -513,6 +575,8 @@ int	resource_set_long(const char *name, int unit, const char *resname,
 			  long value);
 int	resource_set_string(const char *name, int unit, const char *resname,
 			    const char *value);
+int	resource_unset_value(const char *name, int unit, const char *resname);
+
 /*
  * Functions for maintaining and checking consistency of
  * bus information exported to userspace.
@@ -568,6 +632,12 @@ void	bus_data_generation_update(void);
 #define	BUS_PASS_TIMER		50	/* Timers and clocks. */
 #define	BUS_PASS_SCHEDULER	60	/* Start scheduler. */
 #define	BUS_PASS_DEFAULT	__INT_MAX /* Everything else. */
+
+#define	BUS_PASS_ORDER_FIRST	0
+#define	BUS_PASS_ORDER_EARLY	2
+#define	BUS_PASS_ORDER_MIDDLE	5
+#define	BUS_PASS_ORDER_LATE	7
+#define	BUS_PASS_ORDER_LAST	9
 
 extern int bus_current_pass;
 

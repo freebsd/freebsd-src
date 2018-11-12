@@ -23,21 +23,22 @@
 //===----------------------------------------------------------------------===//
 
 namespace clang {
-  class Attr;
   class CXXCtorInitializer;
   class CXXBaseSpecifier;
   class Decl;
-  class DeclGroupRef;
   class Expr;
-  class NestedNameSpecifier;
   class ParsedTemplateArgument;
   class QualType;
   class Stmt;
   class TemplateName;
   class TemplateParameterList;
 
-  /// OpaquePtr - This is a very simple POD type that wraps a pointer that the
-  /// Parser doesn't know about but that Sema or another client does.  The UID
+  /// \brief Wrapper for void* pointer.
+  /// \tparam PtrTy Either a pointer type like 'T*' or a type that behaves like
+  ///               a pointer.
+  ///
+  /// This is a very simple POD type that wraps a pointer that the Parser
+  /// doesn't know about but that Sema or another client does.  The PtrTy
   /// template argument is used to make sure that "Decl" pointers are not
   /// compatible with "Type" pointers for example.
   template <class PtrTy>
@@ -48,15 +49,25 @@ namespace clang {
     typedef llvm::PointerLikeTypeTraits<PtrTy> Traits;
 
   public:
-    OpaquePtr() : Ptr(0) {}
+    OpaquePtr() : Ptr(nullptr) {}
 
     static OpaquePtr make(PtrTy P) { OpaquePtr OP; OP.set(P); return OP; }
 
-    template <typename T> T* getAs() const {
+    /// \brief Returns plain pointer to the entity pointed by this wrapper.
+    /// \tparam PointeeT Type of pointed entity.
+    ///
+    /// It is identical to getPtrAs<PointeeT*>.
+    template <typename PointeeT> PointeeT* getPtrTo() const {
       return get();
     }
 
-    template <typename T> T getAsVal() const {
+    /// \brief Returns pointer converted to the specified type.
+    /// \tparam PtrT Result pointer type.  There must be implicit conversion
+    ///              from PtrTy to PtrT.
+    ///
+    /// In contrast to getPtrTo, this method allows the return type to be
+    /// a smart pointer.
+    template <typename PtrT> PtrT getPtrAs() const {
       return get();
     }
 
@@ -68,7 +79,7 @@ namespace clang {
       Ptr = Traits::getAsVoidPointer(P);
     }
 
-    operator bool() const { return Ptr != 0; }
+    LLVM_EXPLICIT operator bool() const { return Ptr != nullptr; }
 
     void *getAsOpaquePtr() const { return Ptr; }
     static OpaquePtr getFromOpaquePtr(void *P) { return OpaquePtr(P); }
@@ -147,12 +158,10 @@ namespace clang {
 
     bool isInvalid() const { return Invalid; }
     bool isUsable() const { return !Invalid && Val; }
+    bool isUnset() const { return !Invalid && !Val; }
 
     PtrTy get() const { return Val; }
-    // FIXME: Replace with get.
-    PtrTy release() const { return Val; }
-    PtrTy take() const { return Val; }
-    template <typename T> T *takeAs() { return static_cast<T*>(get()); }
+    template <typename T> T *getAs() { return static_cast<T*>(get()); }
 
     void set(PtrTy V) { Val = V; }
 
@@ -188,15 +197,13 @@ namespace clang {
 
     bool isInvalid() const { return PtrWithInvalid & 0x01; }
     bool isUsable() const { return PtrWithInvalid > 0x01; }
+    bool isUnset() const { return PtrWithInvalid == 0; }
 
     PtrTy get() const {
       void *VP = reinterpret_cast<void *>(PtrWithInvalid & ~0x01);
       return PtrTraits::getFromVoidPointer(VP);
     }
-    // FIXME: Replace with get.
-    PtrTy take() const { return get(); }
-    PtrTy release() const { return get(); }
-    template <typename T> T *takeAs() { return static_cast<T*>(get()); }
+    template <typename T> T *getAs() { return static_cast<T*>(get()); }
 
     void set(PtrTy V) {
       void *VP = PtrTraits::getAsVoidPointer(V);
@@ -210,6 +217,15 @@ namespace clang {
       assert((PtrWithInvalid & 0x01) == 0 && "Badly aligned pointer");
       return *this;
     }
+
+    // For types where we can fit a flag in with the pointer, provide
+    // conversions to/from pointer type.
+    static ActionResult getFromOpaquePointer(void *P) {
+      ActionResult Result;
+      Result.PtrWithInvalid = (uintptr_t)P;
+      return Result;
+    }
+    void *getAsOpaquePointer() const { return (void*)PtrWithInvalid; }
   };
 
   /// An opaque type for threading parsed type information through the
@@ -242,11 +258,11 @@ namespace clang {
   typedef ActionResult<Decl*> DeclResult;
   typedef OpaquePtr<TemplateName> ParsedTemplateTy;
 
-  typedef llvm::MutableArrayRef<Expr*> MultiExprArg;
-  typedef llvm::MutableArrayRef<Stmt*> MultiStmtArg;
-  typedef llvm::MutableArrayRef<ParsedTemplateArgument> ASTTemplateArgsPtr;
-  typedef llvm::MutableArrayRef<ParsedType> MultiTypeArg;
-  typedef llvm::MutableArrayRef<TemplateParameterList*> MultiTemplateParamsArg;
+  typedef MutableArrayRef<Expr*> MultiExprArg;
+  typedef MutableArrayRef<Stmt*> MultiStmtArg;
+  typedef MutableArrayRef<ParsedTemplateArgument> ASTTemplateArgsPtr;
+  typedef MutableArrayRef<ParsedType> MultiTypeArg;
+  typedef MutableArrayRef<TemplateParameterList*> MultiTemplateParamsArg;
 
   inline ExprResult ExprError() { return ExprResult(true); }
   inline StmtResult StmtError() { return StmtResult(true); }

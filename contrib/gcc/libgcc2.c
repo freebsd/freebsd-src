@@ -492,6 +492,30 @@ __ashrdi3 (DWtype u, word_type b)
 }
 #endif
 
+#ifdef L_bswapsi2
+UWtype
+__bswapsi2 (UWtype u)
+{
+  return ((((u) & 0xff000000) >> 24)
+	  | (((u) & 0x00ff0000) >>  8)
+	  | (((u) & 0x0000ff00) <<  8)
+	  | (((u) & 0x000000ff) << 24));
+}
+#endif
+#ifdef L_bswapdi2
+UDWtype
+__bswapdi2 (UDWtype u)
+{
+  return ((((u) & 0xff00000000000000ull) >> 56)
+	  | (((u) & 0x00ff000000000000ull) >> 40)
+	  | (((u) & 0x0000ff0000000000ull) >> 24)
+	  | (((u) & 0x000000ff00000000ull) >>  8)
+	  | (((u) & 0x00000000ff000000ull) <<  8)
+	  | (((u) & 0x0000000000ff0000ull) << 24)
+	  | (((u) & 0x000000000000ff00ull) << 40)
+	  | (((u) & 0x00000000000000ffull) << 56));
+}
+#endif
 #ifdef L_ffssi2
 #undef int
 int
@@ -1862,7 +1886,7 @@ CONCAT3(__div,MODE,3) (MTYPE a, MTYPE b, MTYPE c, MTYPE d)
 {
   MTYPE denom, ratio, x, y;
 
-  /* ??? We can get better behavior from logarithmic scaling instead of 
+  /* ??? We can get better behavior from logarithmic scaling instead of
      the division.  But that would mean starting to link libgcc against
      libm.  We could implement something akin to ldexp/frexp as gcc builtins
      fairly easily...  */
@@ -1983,8 +2007,8 @@ __eprintf (const char *string, const char *expression,
 /* Clear part of an instruction cache.  */
 
 void
-__clear_cache (char *beg __attribute__((__unused__)),
-	       char *end __attribute__((__unused__)))
+__clear_cache (void *beg __attribute__((__unused__)),
+	       void *end __attribute__((__unused__)))
 {
 #ifdef CLEAR_INSN_CACHE
   CLEAR_INSN_CACHE (beg, end);

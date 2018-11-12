@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 #include <net/if_vlan_var.h>
 
 #include <netinet/in_systm.h>
@@ -395,9 +396,9 @@ cpsw_dump_slot(struct cpsw_softc *sc, struct cpsw_slot *slot)
 	printf("\n");
 	if (slot->mbuf) {
 		printf("  Ether:  %14D\n",
-		    (char *)(slot->mbuf->m_hdr.mh_data), " ");
+		    (char *)(slot->mbuf->m_data), " ");
 		printf("  Packet: %16D\n",
-		    (char *)(slot->mbuf->m_hdr.mh_data) + 14, " ");
+		    (char *)(slot->mbuf->m_data) + 14, " ");
 	}
 }
 
@@ -443,6 +444,9 @@ cpsw_dump_queue(struct cpsw_softc *sc, struct cpsw_slots *q)
 static int
 cpsw_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "ti,cpsw"))
 		return (ENXIO);
@@ -607,7 +611,7 @@ cpsw_attach(device_t dev)
 
 	/* Allocate the null mbuf and pre-sync it. */
 	sc->null_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	memset(sc->null_mbuf->m_hdr.mh_data, 0, sc->null_mbuf->m_ext.ext_size);
+	memset(sc->null_mbuf->m_data, 0, sc->null_mbuf->m_ext.ext_size);
 	bus_dmamap_create(sc->mbuf_dtag, 0, &sc->null_mbuf_dmamap);
 	bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, sc->null_mbuf_dmamap,
 	    sc->null_mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -662,9 +666,6 @@ cpsw_attach(device_t dev)
 	sc->mac_addr[4] = reg & 0xFF;
 	sc->mac_addr[5] = (reg >>  8) & 0xFF;
 
-	ether_ifattach(ifp, sc->mac_addr);
-	callout_init(&sc->watchdog.callout, 0);
-
 	/* Initialze MDIO - ENABLE, PREAMBLE=0, FAULTENB, CLKDIV=0xFF */
 	/* TODO Calculate MDCLK=CLK/(CLKDIV+1) */
 	cpsw_write_4(sc, MDIOCONTROL, 1 << 30 | 1 << 18 | 0xFF);
@@ -698,6 +699,9 @@ cpsw_attach(device_t dev)
 		cpsw_detach(dev);
 		return (ENXIO);
 	}
+
+	ether_ifattach(ifp, sc->mac_addr);
+	callout_init(&sc->watchdog.callout, 0);
 
 	return (0);
 }
@@ -736,15 +740,21 @@ cpsw_detach(device_t dev)
 	}
 
 	bus_generic_detach(dev);
-	device_delete_child(dev, sc->miibus);
+	if (sc->miibus)
+		device_delete_child(dev, sc->miibus);
 
 	/* Stop and release all interrupts */
 	cpsw_detach_interrupts(sc);
 
 	/* Free dmamaps and mbufs */
-	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); ++i) {
+	for (i = 0; i < sizeof(sc->_slots) / sizeof(sc->_slots[0]); ++i)
 		cpsw_free_slot(sc, &sc->_slots[i]);
+	if (sc->null_mbuf_dmamap) {
+		error = bus_dmamap_destroy(sc->mbuf_dtag, sc->null_mbuf_dmamap);
+		KASSERT(error == 0, ("Mapping still active"));
 	}
+	if (sc->null_mbuf)
+		m_freem(sc->null_mbuf);
 
 	/* Free DMA tag */
 	error = bus_dma_tag_destroy(sc->mbuf_dtag);
@@ -752,6 +762,9 @@ cpsw_detach(device_t dev)
 
 	/* Free IO memory handler */
 	bus_release_resources(dev, res_spec, sc->res);
+
+	if (sc->ifp != NULL)
+		if_free(sc->ifp);
 
 	/* Destroy mutexes */
 	mtx_destroy(&sc->rx.lock);
@@ -1279,8 +1292,8 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		/* Set up mbuf */
 		/* TODO: track SOP/EOP bits to assemble a full mbuf
 		   out of received fragments. */
-		slot->mbuf->m_hdr.mh_data += bd.bufoff;
-		slot->mbuf->m_hdr.mh_len = bd.pktlen - 4;
+		slot->mbuf->m_data += bd.bufoff;
+		slot->mbuf->m_len = bd.pktlen - 4;
 		slot->mbuf->m_pkthdr.len = bd.pktlen - 4;
 		slot->mbuf->m_flags |= M_PKTHDR;
 		slot->mbuf->m_pkthdr.rcvif = ifp;
@@ -1448,7 +1461,7 @@ cpsw_tx_enqueue(struct cpsw_softc *sc)
 			bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
 			if (padlen > 0) /* May as well add padding. */
 				m_append(slot->mbuf, padlen,
-				    sc->null_mbuf->m_hdr.mh_data);
+				    sc->null_mbuf->m_data);
 			m0 = m_defrag(slot->mbuf, M_NOWAIT);
 			if (m0 == NULL) {
 				if_printf(sc->ifp,
@@ -1833,7 +1846,7 @@ cpsw_tx_watchdog(struct cpsw_softc *sc)
 		++sc->watchdog.timer;
 		if (sc->watchdog.timer > 2) {
 			sc->watchdog.timer = 0;
-			++ifp->if_oerrors;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			++sc->watchdog.resets;
 			cpsw_tx_watchdog_full_reset(sc);
 		}

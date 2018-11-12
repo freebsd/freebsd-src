@@ -14,11 +14,13 @@
 #ifndef LLVM_MC_MCSECTION_H
 #define LLVM_MC_MCSECTION_H
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/MC/SectionKind.h"
 #include "llvm/Support/Compiler.h"
 
 namespace llvm {
   class MCAsmInfo;
+  class MCExpr;
   class raw_ostream;
 
   /// MCSection - Instances of this class represent a uniqued identifier for a
@@ -47,7 +49,13 @@ namespace llvm {
     SectionVariant getVariant() const { return Variant; }
 
     virtual void PrintSwitchToSection(const MCAsmInfo &MAI,
-                                      raw_ostream &OS) const = 0;
+                                      raw_ostream &OS,
+                                      const MCExpr *Subsection) const = 0;
+
+    // Convenience routines to get label names for the beginning/end of a
+    // section.
+    virtual std::string getLabelBeginName() const = 0;
+    virtual std::string getLabelEndName() const = 0;
 
     /// isBaseAddressKnownZero - Return true if we know that this section will
     /// get a base address of zero.  In cases where we know that this is true we

@@ -466,12 +466,7 @@ done:
 	cv_broadcast(&scp->th_cv);
 	mtx_unlock(&scp->seq_lock);
 	SEQ_DEBUG(2, printf("seq_eventthread finished\n"));
-#if __FreeBSD_version >= 800002
 	kproc_exit(0);
-#else
-	mtx_lock(&Giant);
-	kthread_exit(0);
-#endif
 }
 
 /*
@@ -587,11 +582,7 @@ seq_addunit(void)
 	 */
 
 	ret =
-#if __FreeBSD_version >= 800002
 	    kproc_create
-#else
-	    kthread_create
-#endif
 	    (seq_eventthread, scp, NULL, RFHIGHPID, 0,
 	    "sequencer %02d", scp->unit);
 

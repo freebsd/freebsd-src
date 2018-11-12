@@ -17,18 +17,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "constmerge"
 #include "llvm/Transforms/IPO.h"
-#include "llvm/Constants.h"
-#include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
-#include "llvm/Pass.h"
-#include "llvm/DataLayout.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Pass.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "constmerge"
 
 STATISTIC(NumMerged, "Number of global constants merged");
 
@@ -41,7 +43,7 @@ namespace {
 
     // For this pass, process all of the globals in the module, eliminating
     // duplicate constants.
-    bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
     // Return true iff we can determine the alignment of this global variable.
     bool hasKnownAlignment(GlobalVariable *GV) const;
@@ -50,7 +52,7 @@ namespace {
     // alignment to a concrete value.
     unsigned getAlignment(GlobalVariable *GV) const;
 
-    const DataLayout *TD;
+    const DataLayout *DL;
   };
 }
 
@@ -64,20 +66,20 @@ ModulePass *llvm::createConstantMergePass() { return new ConstantMerge(); }
 
 /// Find values that are marked as llvm.used.
 static void FindUsedValues(GlobalVariable *LLVMUsed,
-                           SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
-  if (LLVMUsed == 0) return;
-  ConstantArray *Inits = dyn_cast<ConstantArray>(LLVMUsed->getInitializer());
-  if (Inits == 0) return;
-  
-  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i)
-    if (GlobalValue *GV = 
-        dyn_cast<GlobalValue>(Inits->getOperand(i)->stripPointerCasts()))
-      UsedValues.insert(GV);
+                           SmallPtrSetImpl<const GlobalValue*> &UsedValues) {
+  if (!LLVMUsed) return;
+  ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
+
+  for (unsigned i = 0, e = Inits->getNumOperands(); i != e; ++i) {
+    Value *Operand = Inits->getOperand(i)->stripPointerCastsNoFollowAliases();
+    GlobalValue *GV = cast<GlobalValue>(Operand);
+    UsedValues.insert(GV);
+  }
 }
 
 // True if A is better than B.
-static bool IsBetterCannonical(const GlobalVariable &A,
-                               const GlobalVariable &B) {
+static bool IsBetterCanonical(const GlobalVariable &A,
+                              const GlobalVariable &B) {
   if (!A.hasLocalLinkage() && B.hasLocalLinkage())
     return true;
 
@@ -88,17 +90,21 @@ static bool IsBetterCannonical(const GlobalVariable &A,
 }
 
 bool ConstantMerge::hasKnownAlignment(GlobalVariable *GV) const {
-  return TD || GV->getAlignment() != 0;
+  return DL || GV->getAlignment() != 0;
 }
 
 unsigned ConstantMerge::getAlignment(GlobalVariable *GV) const {
-  if (TD)
-    return TD->getPreferredAlignment(GV);
-  return GV->getAlignment();
+  unsigned Align = GV->getAlignment();
+  if (Align)
+    return Align;
+  if (DL)
+    return DL->getPreferredAlignment(GV);
+  return 0;
 }
 
 bool ConstantMerge::runOnModule(Module &M) {
-  TD = getAnalysisIfAvailable<DataLayout>();
+  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+  DL = DLP ? &DLP->getDataLayout() : nullptr;
 
   // Find all the globals that are marked "used".  These cannot be merged.
   SmallPtrSet<const GlobalValue*, 8> UsedGlobals;
@@ -156,7 +162,7 @@ bool ConstantMerge::runOnModule(Module &M) {
       // If this is the first constant we find or if the old one is local,
       // replace with the current one. If the current is externally visible
       // it cannot be replace, but can be the canonical constant we merge with.
-      if (Slot == 0 || IsBetterCannonical(*GV, *Slot))
+      if (!Slot || IsBetterCanonical(*GV, *Slot))
         Slot = GV;
     }
 
@@ -209,9 +215,9 @@ bool ConstantMerge::runOnModule(Module &M) {
       // Bump the alignment if necessary.
       if (Replacements[i].first->getAlignment() ||
           Replacements[i].second->getAlignment()) {
-        Replacements[i].second->setAlignment(std::max(
-            Replacements[i].first->getAlignment(),
-            Replacements[i].second->getAlignment()));
+        Replacements[i].second->setAlignment(
+            std::max(getAlignment(Replacements[i].first),
+                     getAlignment(Replacements[i].second)));
       }
 
       // Eliminate any uses of the dead global.

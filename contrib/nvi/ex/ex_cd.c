@@ -10,11 +10,11 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)ex_cd.c	10.10 (Berkeley) 8/12/96";
+static const char sccsid[] = "$Id: ex_cd.c,v 10.13 2012/04/12 06:28:27 zy Exp $";
 #endif /* not lint */
 
-#include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <errno.h>
@@ -34,15 +34,14 @@ static const char sccsid[] = "@(#)ex_cd.c	10.10 (Berkeley) 8/12/96";
  * PUBLIC: int ex_cd __P((SCR *, EXCMD *));
  */
 int
-ex_cd(sp, cmdp)
-	SCR *sp;
-	EXCMD *cmdp;
+ex_cd(SCR *sp, EXCMD *cmdp)
 {
 	struct passwd *pw;
 	ARGS *ap;
-	CHAR_T savech;
-	char *dir, *p, *t;	/* XXX: END OF THE STACK, DON'T TRUST GETCWD. */
-	char buf[MAXPATHLEN * 2];
+	int savech;
+	char *dir, *p, *t;
+	char *buf;
+	size_t dlen;
 
 	/*
 	 * !!!
@@ -71,7 +70,8 @@ ex_cd(sp, cmdp)
 		}
 		break;
 	case 1:
-		dir = cmdp->argv[0]->bp;
+		INT2CHAR(sp, cmdp->argv[0]->bp, cmdp->argv[0]->len + 1, 
+			 dir, dlen);
 		break;
 	default:
 		abort();
@@ -91,33 +91,35 @@ ex_cd(sp, cmdp)
 	 */
 	if (cmdp->argc == 0 ||
 	    (ap = cmdp->argv[0])->bp[0] == '/' ||
-	    ap->len == 1 && ap->bp[0] == '.' ||
-	    ap->len >= 2 && ap->bp[0] == '.' && ap->bp[1] == '.' &&
-	    (ap->bp[2] == '/' || ap->bp[2] == '\0'))
+	    (ap->len == 1 && ap->bp[0] == '.') ||
+	    (ap->len >= 2 && ap->bp[0] == '.' && ap->bp[1] == '.' &&
+	    (ap->bp[2] == '/' || ap->bp[2] == '\0')))
 		goto err;
 
 	/* Try the O_CDPATH option values. */
 	for (p = t = O_STR(sp, O_CDPATH);; ++p)
 		if (*p == '\0' || *p == ':') {
 			/*
-			 * Empty strings specify ".".  The only way to get an
-			 * empty string is a leading colon, colons in a row,
-			 * or a trailing colon.  Or, to put it the other way,
-			 * if the length is 1 or less, then we're dealing with
-			 * ":XXX", "XXX::XXXX" , "XXX:", or "".  Since we've
-			 * already tried dot, we ignore tham all.
+			 * Ignore the empty strings and ".", since we've already
+			 * tried the current directory.
 			 */
-			if (t < p - 1) {
+			if (t < p && (p - t != 1 || *t != '.')) {
 				savech = *p;
 				*p = '\0';
-				(void)snprintf(buf,
-				    sizeof(buf), "%s/%s", t, dir);
+				if ((buf = join(t, dir)) == NULL) {
+					msgq(sp, M_SYSERR, NULL);
+					return (1);
+				}
 				*p = savech;
 				if (!chdir(buf)) {
-					if (getcwd(buf, sizeof(buf)) != NULL)
+					free(buf);
+					if ((buf = getcwd(NULL, 0)) != NULL) {
 		msgq_str(sp, M_INFO, buf, "122|New current directory: %s");
+						free(buf);
+					}
 					return (0);
 				}
+				free(buf);
 			}
 			t = p + 1;
 			if (*p == '\0')

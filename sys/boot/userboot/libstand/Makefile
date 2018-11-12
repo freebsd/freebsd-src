@@ -6,17 +6,17 @@
 #   quite large.
 #
 
-WITHOUT_SSP=
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
+MK_SSP=		no
 
 S=		${.CURDIR}/../../../../lib/libstand
 
 .PATH:		${S}
 LIB=		stand
 INTERNALLIB=
-NO_PROFILE=
+MK_PROFILE=	no
 NO_PIC=
 
 WARNS?=		0
@@ -28,7 +28,7 @@ CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .endif
 .if ${MACHINE_CPUARCH} == "i386"
-CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-sse3
 .endif
 .if ${MACHINE} == "pc98"
@@ -43,7 +43,7 @@ CFLAGS+=	-msoft-float -D_STANDALONE
 
 # standalone components and stuff we have modified locally
 SRCS+=	gzguts.h zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
-	globals.c pager.c printf.c strdup.c strerror.c strtol.c random.c \
+	globals.c pager.c printf.c strdup.c strerror.c strtol.c strtoul.c random.c \
 	sbrk.c twiddle.c zalloc.c zalloc_malloc.c
 
 # private (pruned) versions of libc string functions
@@ -68,18 +68,6 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${LIBC}/arm/gen
 SRCS+= divsi3.S
-.endif
-.if ${MACHINE_CPUARCH} == "ia64"
-.PATH: ${LIBC}/ia64/string
-SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
-	memcpy.S memmove.S memset.c rindex.c strcat.c strchr.c \
-	strcmp.c strcpy.c strcspn.c strlen.c \
-	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
-	strspn.c strstr.c strtok.c swab.c
-
-.PATH: ${LIBC}/ia64/gen
-SRCS+= __divdi3.S __divsi3.S __moddi3.S __modsi3.S
-SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 .PATH: ${LIBC}/libc/quad

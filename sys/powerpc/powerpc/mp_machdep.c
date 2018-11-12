@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/platform.h>
 #include <machine/md_var.h>
+#include <machine/setjmp.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
@@ -65,12 +67,11 @@ volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
+int longfault(faultbuf, int);
 
 void
 machdep_ap_bootstrap(void)
 {
-	/* Set up important bits on the CPU (HID registers, etc.) */
-	cpudep_ap_setup();
 
 	/* Set PIR */
 	PCPU_SET(pir, mfspr(SPR_PIR));
@@ -89,6 +90,9 @@ machdep_ap_bootstrap(void)
 	mttb(ap_timebase);
 #endif
 	decr_ap_init();
+
+	/* Give platform code a chance to do anything necessary */
+	platform_smp_ap_init();
 
 	/* Serialize console output and AP count increment */
 	mtx_lock_spin(&ap_boot_mtx);
@@ -163,7 +167,8 @@ cpu_mp_start(void)
 			void *dpcpu;
 
 			pc = &__pcpu[cpu.cr_cpuid];
-			dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+			dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+			    M_WAITOK | M_ZERO);
 			pcpu_init(pc, cpu.cr_cpuid, sizeof(*pc));
 			dpcpu_init(dpcpu, cpu.cr_cpuid);
 		} else {
@@ -262,7 +267,7 @@ cpu_mp_unleash(void *dummy)
 	/* Let the APs get into the scheduler */
 	DELAY(10000);
 
-	smp_active = 1;
+	/* XXX Atomic set operation? */
 	smp_started = 1;
 }
 
@@ -331,6 +336,7 @@ ipi_send(struct pcpu *pc, int ipi)
 	    pc, pc->pc_cpuid, ipi);
 
 	atomic_set_32(&pc->pc_ipimask, (1 << ipi));
+	powerpc_sync();
 	PIC_IPI(root_pic, pc->pc_cpuid);
 
 	CTR1(KTR_SMP, "%s: sent", __func__);

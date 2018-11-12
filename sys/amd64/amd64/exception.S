@@ -37,7 +37,6 @@
 #include "opt_atpic.h"
 #include "opt_compat.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 
 #include <machine/asmacros.h>
 #include <machine/psl.h>
@@ -80,18 +79,22 @@ dtrace_invop_calltrap_addr:
  * This is equivalent to the i386 port's use of SDT_SYS386TGT.
  *
  * The cpu will push a certain amount of state onto the kernel stack for
- * the current process.  See amd64/include/frame.h.  
- * This includes the current RFLAGS (status register, which includes 
+ * the current process.  See amd64/include/frame.h.
+ * This includes the current RFLAGS (status register, which includes
  * the interrupt disable state prior to the trap), the code segment register,
- * and the return instruction pointer are pushed by the cpu.  The cpu 
- * will also push an 'error' code for certain traps.  We push a dummy 
- * error code for those traps where the cpu doesn't in order to maintain 
+ * and the return instruction pointer are pushed by the cpu.  The cpu
+ * will also push an 'error' code for certain traps.  We push a dummy
+ * error code for those traps where the cpu doesn't in order to maintain
  * a consistent frame.  We also push a contrived 'trap number'.
  *
- * The cpu does not push the general registers, we must do that, and we 
- * must restore them prior to calling 'iret'.  The cpu adjusts the %cs and
- * %ss segment registers, but does not mess with %ds, %es, or %fs.  Thus we
- * must load them with appropriate values for supervisor mode operation.
+ * The CPU does not push the general registers, so we must do that, and we
+ * must restore them prior to calling 'iret'.  The CPU adjusts %cs and %ss
+ * but does not mess with %ds, %es, %gs or %fs.  We swap the %gs base for
+ * for the kernel mode operation shortly, without changes to the selector
+ * loaded.  Since superuser long mode works with any selectors loaded into
+ * segment registers other then %cs, which makes them mostly unused in long
+ * mode, and kernel does not reference %fs, leave them alone.  The segment
+ * registers are reloaded on return to the usermode.
  */
 
 MCOUNT_LABEL(user)
@@ -150,9 +153,13 @@ IDTVEC(xmm)
 IDTVEC(tss)
 	TRAP_ERR(T_TSSFLT)
 IDTVEC(missing)
-	TRAP_ERR(T_SEGNPFLT)
+	subq	$TF_ERR,%rsp
+	movl	$T_SEGNPFLT,TF_TRAPNO(%rsp)
+	jmp	prot_addrf
 IDTVEC(stk)
-	TRAP_ERR(T_STKFLT)
+	subq	$TF_ERR,%rsp
+	movl	$T_STKFLT,TF_TRAPNO(%rsp)
+	jmp	prot_addrf
 IDTVEC(align)
 	TRAP_ERR(T_ALIGNFLT)
 
@@ -225,7 +232,7 @@ alltraps_pushregs_no_rdi:
 	.type	calltrap,@function
 calltrap:
 	movq	%rsp,%rdi
-	call	trap
+	call	trap_check
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
 
@@ -315,6 +322,7 @@ IDTVEC(page)
 IDTVEC(prot)
 	subq	$TF_ERR,%rsp
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+prot_addrf:
 	movq	$0,TF_ADDR(%rsp)
 	movq	%rdi,TF_RDI(%rsp)	/* free up a GP register */
 	leaq	doreti_iret(%rip),%rdi
@@ -503,7 +511,7 @@ nmi_calltrap:
 #ifdef HWPMC_HOOKS
 	/*
 	 * Capture a userspace callchain if needed.
-	 * 
+	 *
 	 * - Check if the current trap was from user mode.
 	 * - Check if the current thread is valid.
 	 * - Check if the thread requires a user call chain to be
@@ -549,7 +557,7 @@ outofnmi:
 	 * At this point the processor has exited NMI mode and is running
 	 * with interrupts turned off on the normal kernel stack.
 	 *
-	 * If a pending NMI gets recognized at or after this point, it 
+	 * If a pending NMI gets recognized at or after this point, it
 	 * will cause a kernel callchain to be traced.
 	 *
 	 * We turn interrupts back on, and call the user callchain capture hook.
@@ -567,7 +575,7 @@ nocallchain:
 #endif
 	testl	%ebx,%ebx
 	jnz	doreti_exit
-nmi_kernelexit:	
+nmi_kernelexit:
 	/*
 	 * Put back the preserved MSR_GSBASE value.
 	 */
@@ -718,21 +726,38 @@ ld_fsbase:
 	pushfq
 	cli
 	movl	$MSR_GSBASE,%ecx
+	/* Save current kernel %gs base into %r12d:%r13d */
 	rdmsr
+	movl	%eax,%r12d
+	movl	%edx,%r13d
 	.globl	ld_gs
 ld_gs:
 	movw	%si,%gs
+	/* Save user %gs base into %r14d:%r15d */
+	rdmsr
+	movl	%eax,%r14d
+	movl	%edx,%r15d
+	/* Restore kernel %gs base */
+	movl	%r12d,%eax
+	movl	%r13d,%edx
 	wrmsr
 	popfq
+	/*
+	 * Restore user %gs base, either from PCB if used for TLS, or
+	 * from the previously saved msr read.
+	 */
+	movl	$MSR_KGSBASE,%ecx
 	cmpw	$KUG32SEL,%si
 	jne	1f
-	movl	$MSR_KGSBASE,%ecx
 	movl	PCB_GSBASE(%r8),%eax
 	movl	PCB_GSBASE+4(%r8),%edx
+	jmp	ld_gsbase
+1:
+	movl	%r14d,%eax
+	movl	%r15d,%edx
 	.globl	ld_gsbase
 ld_gsbase:
-	wrmsr
-1:
+	wrmsr	/* May trap if non-canonical, but only for TLS. */
 	.globl	ld_es
 ld_es:
 	movw	TF_ES(%rsp),%es
@@ -818,6 +843,10 @@ doreti_iret_fault:
 	.globl	ds_load_fault
 ds_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movw	$KUDSEL,TF_DS(%rsp)
@@ -827,6 +856,10 @@ ds_load_fault:
 	.globl	es_load_fault
 es_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movw	$KUDSEL,TF_ES(%rsp)
@@ -835,6 +868,10 @@ es_load_fault:
 	ALIGN_TEXT
 	.globl	fs_load_fault
 fs_load_fault:
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
 	movq	%rsp,%rdi
 	call	trap
@@ -846,6 +883,10 @@ fs_load_fault:
 gs_load_fault:
 	popfq
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movw	$KUG32SEL,TF_GS(%rsp)
@@ -855,6 +896,10 @@ gs_load_fault:
 	.globl	fsbase_load_fault
 fsbase_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movq	PCPU(CURTHREAD),%r8
@@ -866,6 +911,10 @@ fsbase_load_fault:
 	.globl	gsbase_load_fault
 gsbase_load_fault:
 	movl	$T_PROTFLT,TF_TRAPNO(%rsp)
+	testl	$PSL_I,TF_RFLAGS(%rsp)
+	jz	1f
+	sti
+1:
 	movq	%rsp,%rdi
 	call	trap
 	movq	PCPU(CURTHREAD),%r8

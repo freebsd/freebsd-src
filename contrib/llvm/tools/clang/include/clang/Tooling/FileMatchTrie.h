@@ -12,13 +12,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TOOLING_FILE_MATCH_TRIE_H
-#define LLVM_CLANG_TOOLING_FILE_MATCH_TRIE_H
+#ifndef LLVM_CLANG_TOOLING_FILEMATCHTRIE_H
+#define LLVM_CLANG_TOOLING_FILEMATCHTRIE_H
 
 #include "clang/Basic/LLVM.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringRef.h"
-
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -77,14 +76,14 @@ public:
   /// matches, an empty \c StringRef is returned and a corresponding message
   /// written to 'Error'.
   StringRef findEquivalent(StringRef FileName,
-                           llvm::raw_ostream &Error) const;
+                           raw_ostream &Error) const;
 private:
   FileMatchTrieNode *Root;
-  OwningPtr<PathComparator> Comparator;
+  std::unique_ptr<PathComparator> Comparator;
 };
 
 
 } // end namespace tooling
 } // end namespace clang
 
-#endif // LLVM_CLANG_TOOLING_FILE_MATCH_TRIE_H
+#endif

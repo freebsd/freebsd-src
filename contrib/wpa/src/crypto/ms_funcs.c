@@ -1,15 +1,9 @@
 /*
  * WPA Supplicant / shared MSCHAPV2 helper functions / RFC 2433 / RFC 2759
- * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2012, Jouni Malinen <j@w1.fi>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Alternatively, this software may be distributed under the terms of BSD
- * license.
- *
- * See README and COPYING for more details.
+ * This software may be distributed under the terms of the BSD license.
+ * See README for more details.
  */
 
 #include "includes.h"
@@ -18,6 +12,60 @@
 #include "sha1.h"
 #include "ms_funcs.h"
 #include "crypto.h"
+
+/**
+ * utf8_to_ucs2 - Convert UTF-8 string to UCS-2 encoding
+ * @utf8_string: UTF-8 string (IN)
+ * @utf8_string_len: Length of utf8_string (IN)
+ * @ucs2_buffer: UCS-2 buffer (OUT)
+ * @ucs2_buffer_size: Length of UCS-2 buffer (IN)
+ * @ucs2_string_size: Number of 2-byte words in the resulting UCS-2 string
+ * Returns: 0 on success, -1 on failure
+ */
+static int utf8_to_ucs2(const u8 *utf8_string, size_t utf8_string_len,
+                        u8 *ucs2_buffer, size_t ucs2_buffer_size,
+                        size_t *ucs2_string_size)
+{
+	size_t i, j;
+
+	for (i = 0, j = 0; i < utf8_string_len; i++) {
+		u8 c = utf8_string[i];
+		if (j >= ucs2_buffer_size) {
+			/* input too long */
+			return -1;
+		}
+		if (c <= 0x7F) {
+			WPA_PUT_LE16(ucs2_buffer + j, c);
+			j += 2;
+		} else if (i == utf8_string_len - 1 ||
+			   j >= ucs2_buffer_size - 1) {
+			/* incomplete surrogate */
+			return -1;
+		} else {
+			u8 c2 = utf8_string[++i];
+			if ((c & 0xE0) == 0xC0) {
+				/* two-byte encoding */
+				WPA_PUT_LE16(ucs2_buffer + j,
+					     ((c & 0x1F) << 6) | (c2 & 0x3F));
+				j += 2;
+			} else if (i == utf8_string_len ||
+				   j >= ucs2_buffer_size - 1) {
+				/* incomplete surrogate */
+				return -1;
+			} else {
+				/* three-byte encoding */
+				u8 c3 = utf8_string[++i];
+				WPA_PUT_LE16(ucs2_buffer + j,
+					     ((c & 0xF) << 12) |
+					     ((c2 & 0x3F) << 6) | (c3 & 0x3F));
+			}
+		}
+	}
+
+	if (ucs2_string_size)
+		*ucs2_string_size = j / 2;
+	return 0;
+}
 
 
 /**
@@ -53,7 +101,7 @@ static int challenge_hash(const u8 *peer_challenge, const u8 *auth_challenge,
 
 /**
  * nt_password_hash - NtPasswordHash() - RFC 2759, Sect. 8.3
- * @password: 0-to-256-unicode-char Password (IN; ASCII)
+ * @password: 0-to-256-unicode-char Password (IN; UTF-8)
  * @password_len: Length of password
  * @password_hash: 16-octet PasswordHash (OUT)
  * Returns: 0 on success, -1 on failure
@@ -62,18 +110,13 @@ int nt_password_hash(const u8 *password, size_t password_len,
 		      u8 *password_hash)
 {
 	u8 buf[512], *pos;
-	size_t i, len;
+	size_t len, max_len;
 
-	if (password_len > 256)
-		password_len = 256;
+	max_len = sizeof(buf);
+	if (utf8_to_ucs2(password, password_len, buf, max_len, &len) < 0)
+		return -1;
 
-	/* Convert password into unicode */
-	for (i = 0; i < password_len; i++) {
-		buf[2 * i] = password[i];
-		buf[2 * i + 1] = 0;
-	}
-
-	len = password_len * 2;
+	len *= 2;
 	pos = buf;
 	return md4_vector(1, (const u8 **) &pos, &len, password_hash);
 }
@@ -117,7 +160,7 @@ void challenge_response(const u8 *challenge, const u8 *password_hash,
  * @peer_challenge: 16-octet PeerChallenge (IN)
  * @username: 0-to-256-char UserName (IN)
  * @username_len: Length of username
- * @password: 0-to-256-unicode-char Password (IN; ASCII)
+ * @password: 0-to-256-unicode-char Password (IN; UTF-8)
  * @password_len: Length of password
  * @response: 24-octet Response (OUT)
  * Returns: 0 on success, -1 on failure
@@ -130,8 +173,9 @@ int generate_nt_response(const u8 *auth_challenge, const u8 *peer_challenge,
 	u8 challenge[8];
 	u8 password_hash[16];
 
-	challenge_hash(peer_challenge, auth_challenge, username, username_len,
-		       challenge);
+	if (challenge_hash(peer_challenge, auth_challenge, username,
+			   username_len, challenge))
+		return -1;
 	if (nt_password_hash(password, password_len, password_hash))
 		return -1;
 	challenge_response(challenge, password_hash, response);
@@ -217,15 +261,16 @@ int generate_authenticator_response_pwhash(
 	if (sha1_vector(3, addr1, len1, response))
 		return -1;
 
-	challenge_hash(peer_challenge, auth_challenge, username, username_len,
-		       challenge);
+	if (challenge_hash(peer_challenge, auth_challenge, username,
+			   username_len, challenge))
+		return -1;
 	return sha1_vector(3, addr2, len2, response);
 }
 
 
 /**
  * generate_authenticator_response - GenerateAuthenticatorResponse() - RFC 2759, Sect. 8.7
- * @password: 0-to-256-unicode-char Password (IN; ASCII)
+ * @password: 0-to-256-unicode-char Password (IN; UTF-8)
  * @password_len: Length of password
  * @nt_response: 24-octet NT-Response (IN)
  * @peer_challenge: 16-octet PeerChallenge (IN)
@@ -254,7 +299,7 @@ int generate_authenticator_response(const u8 *password, size_t password_len,
 /**
  * nt_challenge_response - NtChallengeResponse() - RFC 2433, Sect. A.5
  * @challenge: 8-octet Challenge (IN)
- * @password: 0-to-256-unicode-char Password (IN; ASCII)
+ * @password: 0-to-256-unicode-char Password (IN; UTF-8)
  * @password_len: Length of password
  * @response: 24-octet Response (OUT)
  * Returns: 0 on success, -1 on failure
@@ -375,7 +420,7 @@ int get_asymetric_start_key(const u8 *master_key, u8 *session_key,
 
 /**
  * encrypt_pw_block_with_password_hash - EncryptPwBlockWithPasswordHash() - RFC 2759, Sect. 8.10
- * @password: 0-to-256-unicode-char Password (IN; ASCII)
+ * @password: 0-to-256-unicode-char Password (IN; UTF-8)
  * @password_len: Length of password
  * @password_hash: 16-octet PasswordHash (IN)
  * @pw_block: 516-byte PwBlock (OUT)
@@ -385,18 +430,23 @@ int encrypt_pw_block_with_password_hash(
 	const u8 *password, size_t password_len,
 	const u8 *password_hash, u8 *pw_block)
 {
-	size_t i, offset;
+	size_t ucs2_len, offset;
 	u8 *pos;
 
-	if (password_len > 256)
+	os_memset(pw_block, 0, PWBLOCK_LEN);
+
+	if (utf8_to_ucs2(password, password_len, pw_block, 512, &ucs2_len) < 0)
 		return -1;
 
-	os_memset(pw_block, 0, PWBLOCK_LEN);
-	offset = (256 - password_len) * 2;
-	if (os_get_random(pw_block, offset) < 0)
+	if (ucs2_len > 256)
 		return -1;
-	for (i = 0; i < password_len; i++)
-		pw_block[offset + i * 2] = password[i];
+
+	offset = (256 - ucs2_len) * 2;
+	if (offset != 0) {
+		os_memmove(pw_block + offset, pw_block, ucs2_len * 2);
+		if (os_get_random(pw_block, offset) < 0)
+			return -1;
+	}
 	/*
 	 * PasswordLength is 4 octets, but since the maximum password length is
 	 * 256, only first two (in little endian byte order) can be non-zero.
@@ -410,9 +460,9 @@ int encrypt_pw_block_with_password_hash(
 
 /**
  * new_password_encrypted_with_old_nt_password_hash - NewPasswordEncryptedWithOldNtPasswordHash() - RFC 2759, Sect. 8.9
- * @new_password: 0-to-256-unicode-char NewPassword (IN; ASCII)
+ * @new_password: 0-to-256-unicode-char NewPassword (IN; UTF-8)
  * @new_password_len: Length of new_password
- * @old_password: 0-to-256-unicode-char OldPassword (IN; ASCII)
+ * @old_password: 0-to-256-unicode-char OldPassword (IN; UTF-8)
  * @old_password_len: Length of old_password
  * @encrypted_pw_block: 516-octet EncryptedPwBlock (OUT)
  * Returns: 0 on success, -1 on failure
@@ -450,9 +500,9 @@ void nt_password_hash_encrypted_with_block(const u8 *password_hash,
 
 /**
  * old_nt_password_hash_encrypted_with_new_nt_password_hash - OldNtPasswordHashEncryptedWithNewNtPasswordHash() - RFC 2759, Sect. 8.12
- * @new_password: 0-to-256-unicode-char NewPassword (IN; ASCII)
+ * @new_password: 0-to-256-unicode-char NewPassword (IN; UTF-8)
  * @new_password_len: Length of new_password
- * @old_password: 0-to-256-unicode-char OldPassword (IN; ASCII)
+ * @old_password: 0-to-256-unicode-char OldPassword (IN; UTF-8)
  * @old_password_len: Length of old_password
  * @encrypted_password_hash: 16-octet EncryptedPasswordHash (OUT)
  * Returns: 0 on success, -1 on failure

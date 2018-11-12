@@ -202,10 +202,10 @@ Almost all objects in this implementation are preceded by a structure
 Files
 -----
 The dummynet code is split in several files.
-All kernel code is in sys/netinet/ipfw except ip_dummynet.h
+All kernel code is in sys/netpfil/ipfw except ip_dummynet.h
 All userland code is in sbin/ipfw.
 Files are
-- sys/netinet/ip_dummynet.h defines the kernel-userland API
+- sys/netpfil/ip_dummynet.h defines the kernel-userland API
 - ip_dn_private.h contains the kernel-specific APIs
   and data structures
 - dn_sched.h defines the scheduler API

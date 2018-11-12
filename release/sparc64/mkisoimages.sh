@@ -32,26 +32,28 @@ case $1 in
 esac
 LABEL=`echo $1 | tr '[:lower:]' '[:upper:]'`; shift
 NAME=$1; shift
+BASEBITSDIR=$1
 
 # Create an ISO image
 publisher="The FreeBSD Project.  http://www.FreeBSD.org/"
-echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > $1/etc/fstab
-makefs -t cd9660 -B be -o rockridge -o label="$LABEL" -o publisher="$publisher" ${NAME}.tmp $*
-rm $1/etc/fstab
+echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "${BASEBITSDIR}/etc/fstab"
+makefs -t cd9660 -o rockridge -o label="$LABEL" -o publisher="$publisher" ${NAME}.tmp $*
+rm "${BASEBITSDIR}/etc/fstab"
 
 if [ "x$BOPT" != "x-b" ]; then
 	mv ${NAME}.tmp ${NAME}
 	exit 0
 fi
+
 TMPIMGDIR=`mktemp -d /tmp/bootfs.XXXXXXXX` || exit 1
 BOOTFSDIR="${TMPIMGDIR}/bootfs"
 BOOTFSIMG="${TMPIMGDIR}/bootfs.img"
 
 # Create a boot filesystem
 mkdir -p "${BOOTFSDIR}/boot"
-cp $4/boot/loader "${BOOTFSDIR}/boot"
+cp -p "${BASEBITSDIR}/boot/loader" "${BOOTFSDIR}/boot"
 makefs -t ffs -B be -M 512k "${BOOTFSIMG}" "${BOOTFSDIR}"
-dd if=$4/boot/boot1 of="${BOOTFSIMG}" bs=512 conv=notrunc,sync
+dd if="${BASEBITSDIR}/boot/boot1" of="${BOOTFSIMG}" bs=512 conv=notrunc,sync
 
 # Create a boot ISO image
 : ${CYLSIZE:=640}

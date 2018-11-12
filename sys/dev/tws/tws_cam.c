@@ -217,17 +217,16 @@ tws_bus_scan(struct tws_softc *sc)
     TWS_TRACE_DEBUG(sc, "entry", sc, 0);
     if (!(sc->sim))
         return(ENXIO);
-    mtx_assert(&sc->sim_lock, MA_OWNED);
-    if ((ccb = xpt_alloc_ccb()) == NULL)
-		    return(ENOMEM);
-
-    if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sc->sim),
+    ccb = xpt_alloc_ccb();
+    mtx_lock(&sc->sim_lock);
+    if (xpt_create_path(&ccb->ccb_h.path, NULL, cam_sim_path(sc->sim),
                   CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	mtx_unlock(&sc->sim_lock);
         xpt_free_ccb(ccb);
         return(EIO);
     }
     xpt_rescan(ccb);
-    
+    mtx_unlock(&sc->sim_lock);
     return(0);
 }
 
@@ -342,7 +341,7 @@ tws_scsi_complete(struct tws_request *req)
     tws_q_remove_request(sc, req, TWS_BUSY_Q);
     mtx_unlock(&sc->q_lock);
 
-    untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+    callout_stop(&req->timeout);
     tws_unmap_request(req->sc, req);
 
 
@@ -363,7 +362,7 @@ tws_getset_param_complete(struct tws_request *req)
 
     TWS_TRACE_DEBUG(sc, "getset complete", req, req->request_id);
 
-    untimeout(tws_timeout, req, req->thandle);
+    callout_stop(&req->timeout);
     tws_unmap_request(sc, req);
 
     free(req->data, M_TWS);
@@ -381,7 +380,7 @@ tws_aen_complete(struct tws_request *req)
 
     TWS_TRACE_DEBUG(sc, "aen complete", 0, req->request_id);
 
-    untimeout(tws_timeout, req, req->thandle);
+    callout_stop(&req->timeout);
     tws_unmap_request(sc, req);
 
     sense = (struct tws_command_header *)req->data;
@@ -455,7 +454,7 @@ tws_cmd_complete(struct tws_request *req)
 {
     struct tws_softc *sc = req->sc;
 
-    untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+    callout_stop(&req->timeout);
     tws_unmap_request(sc, req);
 }
                                    
@@ -562,7 +561,7 @@ tws_scsi_err_complete(struct tws_request *req, struct tws_command_header *hdr)
     xpt_done(ccb);
     mtx_unlock(&sc->sim_lock);
 
-    untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+    callout_stop(&req->timeout);
     tws_unmap_request(req->sc, req);
     mtx_lock(&sc->q_lock);
     tws_q_remove_request(sc, req, TWS_BUSY_Q);
@@ -592,7 +591,7 @@ tws_drain_busy_queue(struct tws_softc *sc)
     mtx_unlock(&sc->q_lock);
     while ( req ) {
         TWS_TRACE_DEBUG(sc, "moved to TWS_COMPLETE_Q", 0, req->request_id);
-        untimeout(tws_timeout, req, req->ccb_ptr->ccb_h.timeout_ch);
+	callout_stop(&req->timeout);
 
         req->error_code = TWS_REQ_RET_RESET;
         ccb = (union ccb *)(req->ccb_ptr);
@@ -623,7 +622,7 @@ tws_drain_reserved_reqs(struct tws_softc *sc)
     r = &sc->reqs[TWS_REQ_TYPE_AEN_FETCH];
     if ( r->state != TWS_REQ_STATE_FREE ) {
         TWS_TRACE_DEBUG(sc, "reset aen req", 0, 0);
-        untimeout(tws_timeout, r, r->thandle);
+	callout_stop(&r->timeout);
         tws_unmap_request(sc, r);
         free(r->data, M_TWS);
         r->state = TWS_REQ_STATE_FREE;
@@ -639,7 +638,7 @@ tws_drain_reserved_reqs(struct tws_softc *sc)
     r = &sc->reqs[TWS_REQ_TYPE_GETSET_PARAM];
     if ( r->state != TWS_REQ_STATE_FREE ) {
         TWS_TRACE_DEBUG(sc, "reset setparam req", 0, 0);
-        untimeout(tws_timeout, r, r->thandle);
+	callout_stop(&r->timeout);
         tws_unmap_request(sc, r);
         free(r->data, M_TWS);
         r->state = TWS_REQ_STATE_FREE;
@@ -748,7 +747,8 @@ tws_execute_scsi(struct tws_softc *sc, union ccb *ccb)
      * and submit the I/O.
      */
     sc->stats.scsi_ios++;
-    ccb_h->timeout_ch = timeout(tws_timeout, req, (ccb_h->timeout * hz)/1000);
+    callout_reset_sbt(&req->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+      tws_timeout, req, 0);
     error = tws_map_request(sc, req);
     return(error);
 }
@@ -786,7 +786,7 @@ tws_send_scsi_cmd(struct tws_softc *sc, int cmd)
     bzero(req->data, TWS_SECTOR_SIZE);
     req->flags = TWS_DIR_IN;
 
-    req->thandle = timeout(tws_timeout, req, (TWS_IO_TIMEOUT * hz));
+    callout_reset(&req->timeout, (TWS_IO_TIMEOUT * hz), tws_timeout, req);
     error = tws_map_request(sc, req);
     return(error);
 
@@ -833,7 +833,7 @@ tws_set_param(struct tws_softc *sc, u_int32_t table_id, u_int32_t param_id,
     param->parameter_size_bytes = (u_int16_t)param_size;
     memcpy(param->data, data, param_size);
 
-    req->thandle = timeout(tws_timeout, req, (TWS_IOCTL_TIMEOUT * hz));
+    callout_reset(&req->timeout, (TWS_IOCTL_TIMEOUT * hz), tws_timeout, req);
     error = tws_map_request(sc, req);
     return(error);
 
@@ -1169,7 +1169,6 @@ tws_timeout(void *arg)
         return;
     }
 
-    tws_teardown_intr(sc);
     xpt_freeze_simq(sc->sim, 1);
 
     tws_send_event(sc, TWS_RESET_START);
@@ -1192,7 +1191,6 @@ tws_timeout(void *arg)
     mtx_unlock(&sc->gen_lock);
 
     xpt_release_simq(sc->sim, 1);
-    tws_setup_intr(sc, sc->irqs);
 }
 
 void
@@ -1206,7 +1204,6 @@ tws_reset(void *arg)
         return;
     }
 
-    tws_teardown_intr(sc);
     xpt_freeze_simq(sc->sim, 1);
 
     tws_send_event(sc, TWS_RESET_START);
@@ -1223,7 +1220,6 @@ tws_reset(void *arg)
     mtx_unlock(&sc->gen_lock);
 
     xpt_release_simq(sc->sim, 1);
-    tws_setup_intr(sc, sc->irqs);
 }
 
 static void
@@ -1298,7 +1294,7 @@ tws_reinit(void *arg)
 
     tws_turn_on_interrupts(sc);
 
-    wakeup_one(sc->chan);
+    wakeup_one(sc);
 }
 
 

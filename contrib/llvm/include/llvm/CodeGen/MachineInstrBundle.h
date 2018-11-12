@@ -45,16 +45,34 @@ bool finalizeBundles(MachineFunction &MF);
 ///
 inline MachineInstr *getBundleStart(MachineInstr *MI) {
   MachineBasicBlock::instr_iterator I = MI;
-  while (I->isInsideBundle())
+  while (I->isBundledWithPred())
     --I;
   return I;
 }
 
 inline const MachineInstr *getBundleStart(const MachineInstr *MI) {
   MachineBasicBlock::const_instr_iterator I = MI;
-  while (I->isInsideBundle())
+  while (I->isBundledWithPred())
     --I;
   return I;
+}
+
+/// Return an iterator pointing beyond the bundle containing MI.
+inline MachineBasicBlock::instr_iterator
+getBundleEnd(MachineInstr *MI) {
+  MachineBasicBlock::instr_iterator I = MI;
+  while (I->isBundledWithSucc())
+    ++I;
+  return ++I;
+}
+
+/// Return an iterator pointing beyond the bundle containing MI.
+inline MachineBasicBlock::const_instr_iterator
+getBundleEnd(const MachineInstr *MI) {
+  MachineBasicBlock::const_instr_iterator I = MI;
+  while (I->isBundledWithSucc())
+    ++I;
+  return ++I;
 }
 
 //===----------------------------------------------------------------------===//
@@ -149,15 +167,12 @@ public:
   /// PhysRegInfo - Information about a physical register used by a set of
   /// operands.
   struct PhysRegInfo {
-    /// Clobbers - Reg or an overlapping register is defined, or a regmask 
+    /// Clobbers - Reg or an overlapping register is defined, or a regmask
     /// clobbers Reg.
     bool Clobbers;
 
     /// Defines - Reg or a super-register is defined.
     bool Defines;
-
-    /// DefinesOverlap - Reg or an overlapping register is defined.
-    bool DefinesOverlap;
 
     /// Reads - Read or a super-register is read.
     bool Reads;
@@ -181,7 +196,7 @@ public:
   ///            each operand referring to Reg.
   /// @returns A filled-in RegInfo struct.
   VirtRegInfo analyzeVirtReg(unsigned Reg,
-                 SmallVectorImpl<std::pair<MachineInstr*, unsigned> > *Ops = 0);
+           SmallVectorImpl<std::pair<MachineInstr*, unsigned> > *Ops = nullptr);
 
   /// analyzePhysReg - Analyze how the current instruction or bundle uses a
   /// physical register.  This function should not be called after operator++(),

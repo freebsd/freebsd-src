@@ -14,9 +14,12 @@
 #ifndef LLVM_MC_MCSECTIONELF_H
 #define LLVM_MC_MCSECTIONELF_H
 
+#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCSection.h"
+#include "llvm/MC/MCSymbol.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ELF.h"
-#include "llvm/ADT/StringRef.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
 
@@ -50,6 +53,9 @@ private:
     : MCSection(SV_ELF, K), SectionName(Section), Type(type), Flags(flags),
       EntrySize(entrySize), Group(group) {}
   ~MCSectionELF();
+
+  void setSectionName(StringRef Name) { SectionName = Name; }
+
 public:
 
   /// ShouldOmitSectionDirective - Decides whether a '.section' directive
@@ -57,19 +63,29 @@ public:
   bool ShouldOmitSectionDirective(StringRef Name, const MCAsmInfo &MAI) const;
 
   StringRef getSectionName() const { return SectionName; }
+  std::string getLabelBeginName() const override {
+    if (Group)
+      return (SectionName.str() + '_' + Group->getName() + "_begin").str();
+    return SectionName.str() + "_begin";
+  }
+  std::string getLabelEndName() const override {
+    if (Group)
+      return (SectionName.str() + '_' + Group->getName() + "_end").str();
+    return SectionName.str() + "_end";
+  }
   unsigned getType() const { return Type; }
   unsigned getFlags() const { return Flags; }
   unsigned getEntrySize() const { return EntrySize; }
   const MCSymbol *getGroup() const { return Group; }
 
-  void PrintSwitchToSection(const MCAsmInfo &MAI,
-                            raw_ostream &OS) const;
-  virtual bool UseCodeAlign() const;
-  virtual bool isVirtualSection() const;
+  void PrintSwitchToSection(const MCAsmInfo &MAI, raw_ostream &OS,
+                            const MCExpr *Subsection) const override;
+  bool UseCodeAlign() const override;
+  bool isVirtualSection() const override;
 
   /// isBaseAddressKnownZero - We know that non-allocatable sections (like
   /// debug info) have a base of zero.
-  virtual bool isBaseAddressKnownZero() const {
+  bool isBaseAddressKnownZero() const override {
     return (getFlags() & ELF::SHF_ALLOC) == 0;
   }
 

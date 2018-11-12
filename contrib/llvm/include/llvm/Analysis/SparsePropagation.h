@@ -12,13 +12,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_SPARSE_PROPAGATION_H
-#define LLVM_ANALYSIS_SPARSE_PROPAGATION_H
+#ifndef LLVM_ANALYSIS_SPARSEPROPAGATION_H
+#define LLVM_ANALYSIS_SPARSEPROPAGATION_H
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include <vector>
 #include <set>
+#include <vector>
 
 namespace llvm {
   class Value;
@@ -82,7 +82,7 @@ public:
   /// constant value, return it.  Otherwise return null.  The returned value
   /// must be in the same LLVM type as Val.
   virtual Constant *GetConstant(LatticeVal LV, Value *Val, SparseSolver &SS) {
-    return 0;
+    return nullptr;
   }
 
   /// ComputeArgument - Given a formal argument value, compute and return a
@@ -203,4 +203,4 @@ private:
 
 } // end namespace llvm
 
-#endif // LLVM_ANALYSIS_SPARSE_PROPAGATION_H
+#endif // LLVM_ANALYSIS_SPARSEPROPAGATION_H

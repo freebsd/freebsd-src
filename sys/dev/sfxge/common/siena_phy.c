@@ -122,7 +122,7 @@ siena_phy_link_ev(
 	 * Convert the LINKCHANGE speed enumeration into mbit/s, in the
 	 * same way as GET_LINK encodes the speed
 	 */
-	switch (MCDI_EV_FIELD(*eqp, LINKCHANGE_SPEED)) {
+	switch (MCDI_EV_FIELD(eqp, LINKCHANGE_SPEED)) {
 	case MCDI_EVENT_LINKCHANGE_SPEED_100M:
 		speed = 100;
 		break;
@@ -137,11 +137,11 @@ siena_phy_link_ev(
 		break;
 	}
 
-	link_flags = MCDI_EV_FIELD(*eqp, LINKCHANGE_LINK_FLAGS);
+	link_flags = MCDI_EV_FIELD(eqp, LINKCHANGE_LINK_FLAGS);
 	siena_phy_decode_link_mode(enp, link_flags, speed,
-				    MCDI_EV_FIELD(*eqp, LINKCHANGE_FCNTL),
+				    MCDI_EV_FIELD(eqp, LINKCHANGE_FCNTL),
 				    &link_mode, &fcntl);
-	siena_phy_decode_cap(MCDI_EV_FIELD(*eqp, LINKCHANGE_LP_CAP),
+	siena_phy_decode_cap(MCDI_EV_FIELD(eqp, LINKCHANGE_LP_CAP),
 			    &lp_cap_mask);
 
 	/*

@@ -7,19 +7,22 @@ PROG_CXX=llvm-extract
 SRCDIR=	tools/llvm-extract
 SRCS=	llvm-extract.cpp
 
-LIBDEPS=llvmasmparser \
+LIBDEPS=llvmirreader \
+	llvmasmparser \
 	llvmbitwriter \
-	llvmbitreader \
 	llvmipo \
 	llvmvectorize \
 	llvmscalaropts \
+	llvmprofiledata \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
 	llvmtarget \
 	llvmmc \
-	llvmobject \
 	llvmcore \
 	llvmsupport
 

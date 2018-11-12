@@ -343,15 +343,13 @@ int insn_current_align;
    for each insn we'll call the alignment chain of this insn in the following
    comments.  */
 
-struct label_alignment
-{
-  short alignment;
-  short max_skip;
-};
-
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 static rtx *uid_align;
 static int *uid_shuid;
-static struct label_alignment *label_align;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 
 /* Indicate that branch shortening hasn't yet been done.  */
 
@@ -555,20 +553,16 @@ final_addr_vec_align (rtx addr_vec)
 
 #define INSN_SHUID(INSN) (uid_shuid[INSN_UID (INSN)])
 
-static int min_labelno, max_labelno;
-
-#define LABEL_TO_ALIGNMENT(LABEL) \
-  (label_align[CODE_LABEL_NUMBER (LABEL) - min_labelno].alignment)
-
-#define LABEL_TO_MAX_SKIP(LABEL) \
-  (label_align[CODE_LABEL_NUMBER (LABEL) - min_labelno].max_skip)
-
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 /* For the benefit of port specific code do this also as a function.  */
 
 int
 label_to_alignment (rtx label)
 {
-  return LABEL_TO_ALIGNMENT (label);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  return LABEL_ALIGN_LOG (label);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 }
 
 #ifdef HAVE_ATTR_length
@@ -617,7 +611,9 @@ align_fuzz (rtx start, rtx end, int known_align_log, unsigned int growth)
       align_addr = INSN_ADDRESSES (uid) - insn_lengths[uid];
       if (uid_shuid[uid] > end_shuid)
 	break;
-      known_align_log = LABEL_TO_ALIGNMENT (align_label);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      known_align_log = LABEL_ALIGN_LOG (align_label);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       new_align = 1 << known_align_log;
       if (new_align < known_align)
 	continue;
@@ -682,18 +678,12 @@ insn_current_reference_address (rtx branch)
 static unsigned int
 compute_alignments (void)
 {
-  int log, max_skip, max_log;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   basic_block bb;
 
-  if (label_align)
-    {
-      free (label_align);
-      label_align = 0;
-    }
-
-  max_labelno = max_label_num ();
-  min_labelno = get_first_label_num ();
-  label_align = XCNEWVEC (struct label_alignment, max_labelno - min_labelno + 1);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 
   /* If not optimizing or optimizing for size, don't assign any alignments.  */
   if (! optimize || optimize_size)
@@ -705,10 +695,19 @@ compute_alignments (void)
       int fallthru_frequency = 0, branch_frequency = 0, has_fallthru = 0;
       edge e;
       edge_iterator ei;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      int log, max_skip, max_log;
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       if (!LABEL_P (label)
 	  || probably_never_executed_bb_p (bb))
 	continue;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      /* If user has specified an alignment, honour it.  */
+      if (LABEL_ALIGN_LOG (label) > 0)
+	continue;
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       max_log = LABEL_ALIGN (label);
       max_skip = LABEL_ALIGN_MAX_SKIP;
 
@@ -757,8 +756,9 @@ compute_alignments (void)
 	      max_skip = LOOP_ALIGN_MAX_SKIP;
 	    }
 	}
-      LABEL_TO_ALIGNMENT (label) = max_log;
-      LABEL_TO_MAX_SKIP (label) = max_skip;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      SET_LABEL_ALIGN (label, max_log, max_skip);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
     }
   return 0;
 }
@@ -811,7 +811,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 
 #endif
 
-  /* Compute maximum UID and allocate label_align / uid_shuid.  */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  /* Compute maximum UID and allocate uid_shuid.  */
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   max_uid = get_max_uid ();
 
   /* Free uid_shuid before reallocating it.  */
@@ -819,29 +821,8 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 
   uid_shuid = XNEWVEC (int, max_uid);
 
-  if (max_labelno != max_label_num ())
-    {
-      int old = max_labelno;
-      int n_labels;
-      int n_old_labels;
-
-      max_labelno = max_label_num ();
-
-      n_labels = max_labelno - min_labelno + 1;
-      n_old_labels = old - min_labelno + 1;
-
-      label_align = xrealloc (label_align,
-			      n_labels * sizeof (struct label_alignment));
-
-      /* Range of labels grows monotonically in the function.  Failing here
-         means that the initialization of array got lost.  */
-      gcc_assert (n_old_labels <= n_labels);
-
-      memset (label_align + n_old_labels, 0,
-	      (n_labels - n_old_labels) * sizeof (struct label_alignment));
-    }
-
-  /* Initialize label_align and set up uid_shuid to be strictly
+  /* APPLE LOCAL for-fsf-4_4 3274130 5295549 */ \
+  /* Initialize set up uid_shuid to be strictly
      monotonically rising with insn order.  */
   /* We use max_log here to keep track of the maximum alignment we want to
      impose on the next CODE_LABEL (or the current one if we are processing
@@ -863,11 +844,15 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 	  rtx next;
 
 	  /* Merge in alignments computed by compute_alignments.  */
-	  log = LABEL_TO_ALIGNMENT (insn);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	  log = LABEL_ALIGN_LOG (insn);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	  if (max_log < log)
 	    {
 	      max_log = log;
-	      max_skip = LABEL_TO_MAX_SKIP (insn);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	      max_skip = LABEL_MAX_SKIP (insn);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	    }
 
 	  log = LABEL_ALIGN (insn);
@@ -895,8 +880,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 		      }
 		  }
 	      }
-	  LABEL_TO_ALIGNMENT (insn) = max_log;
-	  LABEL_TO_MAX_SKIP (insn) = max_skip;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	  SET_LABEL_ALIGN (insn, max_log, max_skip);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	  max_log = 0;
 	  max_skip = 0;
 	}
@@ -943,7 +929,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
     {
       int uid = INSN_UID (seq);
       int log;
-      log = (LABEL_P (seq) ? LABEL_TO_ALIGNMENT (seq) : 0);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      log = (LABEL_P (seq) ? LABEL_ALIGN_LOG (seq) : 0);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       uid_align[uid] = align_tab[0];
       if (log)
 	{
@@ -991,8 +979,10 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 		  max = shuid;
 		  max_lab = lab;
 		}
-	      if (min_align > LABEL_TO_ALIGNMENT (lab))
-		min_align = LABEL_TO_ALIGNMENT (lab);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	      if (min_align > (int) LABEL_ALIGN_LOG (lab))
+		min_align = LABEL_ALIGN_LOG (lab);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	    }
 	  XEXP (pat, 2) = gen_rtx_LABEL_REF (Pmode, min_lab);
 	  XEXP (pat, 3) = gen_rtx_LABEL_REF (Pmode, max_lab);
@@ -1021,7 +1011,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 
       if (LABEL_P (insn))
 	{
-	  int log = LABEL_TO_ALIGNMENT (insn);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	  int log = LABEL_ALIGN_LOG (insn);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	  if (log)
 	    {
 	      int align = 1 << log;
@@ -1127,7 +1119,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 
 	  if (LABEL_P (insn))
 	    {
-	      int log = LABEL_TO_ALIGNMENT (insn);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	      int log = LABEL_ALIGN_LOG (insn);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	      if (log > insn_current_align)
 		{
 		  int align = 1 << log;
@@ -1176,7 +1170,9 @@ shorten_branches (rtx first ATTRIBUTE_UNUSED)
 		   prev = PREV_INSN (prev))
 		if (varying_length[INSN_UID (prev)] & 2)
 		  {
-		    rel_align = LABEL_TO_ALIGNMENT (prev);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+		    rel_align = LABEL_ALIGN_LOG (prev);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 		    break;
 		  }
 
@@ -1424,6 +1420,15 @@ final_start_function (rtx first ATTRIBUTE_UNUSED, FILE *file,
 	 always needed.  */
       TREE_ASM_WRITTEN (DECL_INITIAL (current_function_decl)) = 1;
     }
+
+  if (warn_frame_larger_than
+    && get_frame_size () > frame_larger_than_size)
+  {
+      /* Issue a warning */
+      warning (OPT_Wframe_larger_than_,
+               "the frame size of %wd bytes is larger than %wd bytes",
+               get_frame_size (), frame_larger_than_size);
+  }
 
   /* First output the function prologue: code to set up the stack frame.  */
   targetm.asm_out.function_prologue (file, get_frame_size ());
@@ -1839,26 +1844,27 @@ final_scan_insn (rtx insn, FILE *file, int optimize ATTRIBUTE_UNUSED,
     case CODE_LABEL:
       /* The target port might emit labels in the output function for
 	 some insn, e.g. sh.c output_branchy_insn.  */
-      if (CODE_LABEL_NUMBER (insn) <= max_labelno)
-	{
-	  int align = LABEL_TO_ALIGNMENT (insn);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      {
+	int align = LABEL_ALIGN_LOG (insn);
 #ifdef ASM_OUTPUT_MAX_SKIP_ALIGN
-	  int max_skip = LABEL_TO_MAX_SKIP (insn);
+	int max_skip = LABEL_MAX_SKIP (insn);
 #endif
-
-	  if (align && NEXT_INSN (insn))
-	    {
+	
+	if (align && NEXT_INSN (insn))
+	  {
 #ifdef ASM_OUTPUT_MAX_SKIP_ALIGN
-	      ASM_OUTPUT_MAX_SKIP_ALIGN (file, align, max_skip);
+	    ASM_OUTPUT_MAX_SKIP_ALIGN (file, align, max_skip);
 #else
 #ifdef ASM_OUTPUT_ALIGN_WITH_NOP
-              ASM_OUTPUT_ALIGN_WITH_NOP (file, align);
+	    ASM_OUTPUT_ALIGN_WITH_NOP (file, align);
 #else
-	      ASM_OUTPUT_ALIGN (file, align);
+	    ASM_OUTPUT_ALIGN (file, align);
 #endif
 #endif
-	    }
-	}
+	  }
+      }
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 #ifdef HAVE_cc0
       CC_STATUS_INIT;
       /* If this label is reached from only one place, set the condition
@@ -4083,4 +4089,3 @@ struct tree_opt_pass pass_clean_state =
   0,                                    /* todo_flags_finish */
   0                                     /* letter */
 };
-

@@ -365,8 +365,19 @@ _rtld_atfork_pre(int *locks)
 {
 	RtldLockState ls[2];
 
+	if (locks == NULL)
+		return;
+
+	/*
+	 * Warning: this does not work with the rtld compat locks
+	 * above, since the thread signal mask is corrupted (set to
+	 * all signals blocked) if two locks are taken in write mode.
+	 * The caller of the _rtld_atfork_pre() must provide the
+	 * working implementation of the locks, and libthr locks are
+	 * fine.
+	 */
 	wlock_acquire(rtld_phdr_lock, &ls[0]);
-	rlock_acquire(rtld_bind_lock, &ls[1]);
+	wlock_acquire(rtld_bind_lock, &ls[1]);
 
 	/* XXXKIB: I am really sorry for this. */
 	locks[0] = ls[1].lockstate;
@@ -377,6 +388,9 @@ void
 _rtld_atfork_post(int *locks)
 {
 	RtldLockState ls[2];
+
+	if (locks == NULL)
+		return;
 
 	bzero(ls, sizeof(ls));
 	ls[0].lockstate = locks[2];

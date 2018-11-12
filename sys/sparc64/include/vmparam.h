@@ -106,13 +106,6 @@
 #define	VM_NFREEORDER		12
 
 /*
- * Only one memory domain.
- */
-#ifndef VM_NDOMAIN
-#define	VM_NDOMAIN		1
-#endif
-
-/*
  * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
@@ -205,24 +198,22 @@
 #define	USRSTACK		(VM_MAX_USER_ADDRESS)
 
 /*
- * Virtual size (bytes) for various kernel submaps.
- */
-#ifndef	VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(16*1024*1024)
-#endif
-
-/*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 2)
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(16 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 60% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \
@@ -247,5 +238,11 @@ extern vm_offset_t vm_max_kernel_address;
  * caching disabled.
  */
 #define	ZERO_REGION_SIZE	PAGE_SIZE
+
+#define	SFBUF
+#define	SFBUF_MAP
+#define	SFBUF_OPTIONAL_DIRECT_MAP	dcache_color_ignore
+#include <machine/tlb.h>
+#define	SFBUF_PHYS_DMAP(x)		TLB_PHYS_TO_DIRECT(x)
 
 #endif /* !_MACHINE_VMPARAM_H_ */

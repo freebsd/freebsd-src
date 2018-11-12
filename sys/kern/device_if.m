@@ -60,7 +60,7 @@ CODE {
 
 	static int null_quiesce(device_t dev)
 	{
-	    return EOPNOTSUPP;
+	    return 0;
 	}
 };
 	

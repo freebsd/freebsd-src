@@ -29,6 +29,8 @@
 # $FreeBSD$
 
 CPU_MIPS4KC	opt_global.h
+CPU_MIPS24KC	opt_global.h
+CPU_MIPS74KC	opt_global.h
 CPU_MIPS32	opt_global.h
 CPU_MIPS64	opt_global.h
 CPU_SENTRY5	opt_global.h
@@ -69,13 +71,29 @@ TICK_USE_MALTA_RTC	opt_global.h
 MAXMEM			opt_global.h
 
 #
+# Manual override of cache config
+#
+MIPS_DISABLE_L1_CACHE	opt_global.h
+
+#
 # Options that control the Cavium Simple Executive.
 #
 OCTEON_MODEL			opt_cvmx.h
 OCTEON_VENDOR_LANNER		opt_cvmx.h
 OCTEON_VENDOR_UBIQUITI		opt_cvmx.h
 OCTEON_VENDOR_RADISYS		opt_cvmx.h
+OCTEON_VENDOR_GEFES		opt_cvmx.h
 OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
+
+#
+# Options specific to the BERI platform. 
+#
+BERI_LARGE_TLB			opt_global.h
+
+#
+# Options that control the NetFPGA-10G Embedded CPU Ethernet Core.
+#
+NF10BMAC_64BIT			opt_netfpga.h
 
 #
 # Options that control the Atheros SoC peripherals
@@ -91,6 +109,7 @@ ARGE_MDIO			opt_arge.h
 AR71XX_REALMEM			opt_ar71xx.h
 AR71XX_ENV_UBOOT		opt_ar71xx.h
 AR71XX_ENV_REDBOOT		opt_ar71xx.h
+AR71XX_ENV_ROUTERBOOT		opt_ar71xx.h
 AR71XX_ATH_EEPROM		opt_ar71xx.h
 
 #

@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -107,13 +108,26 @@ static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int slottime = ath_hal_getslottime(sc->sc_ah);
+	u_int slottime;
 	int error;
+
+	ATH_LOCK(sc);
+	ath_power_set_power_state(sc, HAL_PM_AWAKE);
+	slottime = ath_hal_getslottime(sc->sc_ah);
+	ATH_UNLOCK(sc);
 
 	error = sysctl_handle_int(oidp, &slottime, 0, req);
 	if (error || !req->newptr)
-		return error;
-	return !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
+		goto finish;
+
+	error = !ath_hal_setslottime(sc->sc_ah, slottime) ? EINVAL : 0;
+
+finish:
+	ATH_LOCK(sc);
+	ath_power_restore_power_state(sc);
+	ATH_UNLOCK(sc);
+
+	return error;
 }
 
 static int
@@ -399,12 +413,14 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	ATH_RX_LOCK(sc);
 	for (i = 0; i < 2; i++) {
-		printf("%d: fifolen: %d/%d; head=%d; tail=%d\n",
+		printf("%d: fifolen: %d/%d; head=%d; tail=%d; m_pending=%p, m_holdbf=%p\n",
 		    i,
 		    sc->sc_rxedma[i].m_fifo_depth,
 		    sc->sc_rxedma[i].m_fifolen,
 		    sc->sc_rxedma[i].m_fifo_head,
-		    sc->sc_rxedma[i].m_fifo_tail);
+		    sc->sc_rxedma[i].m_fifo_tail,
+		    sc->sc_rxedma[i].m_rxpending,
+		    sc->sc_rxedma[i].m_holdbf);
 	}
 	i = 0;
 	TAILQ_FOREACH(bf, &sc->sc_rxbuf, bf_list) {
@@ -430,7 +446,15 @@ ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 		return error;
 	if (!ath_hal_setrfsilent(sc->sc_ah, rfsilent))
 		return EINVAL;
-	sc->sc_rfsilentpin = rfsilent & 0x1c;
+	/*
+	 * Earlier chips (< AR5212) have up to 8 GPIO
+	 * pins exposed.
+	 *
+	 * AR5416 and later chips have many more GPIO
+	 * pins (up to 16) so the mask is expanded to
+	 * four bits.
+	 */
+	sc->sc_rfsilentpin = rfsilent & 0x3c;
 	sc->sc_rfsilentpol = (rfsilent & 0x2) != 0;
 	return 0;
 }
@@ -722,8 +746,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"mask of error frames to pass when monitoring");
 
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
-		"Hardware queue depth before software-queuing TX frames");
+		"hwq_limit_nonaggr", CTLFLAG_RW, &sc->sc_hwq_limit_nonaggr, 0,
+		"Hardware non-AMPDU queue depth before software-queuing TX frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hwq_limit_aggr", CTLFLAG_RW, &sc->sc_hwq_limit_aggr, 0,
+		"Hardware AMPDU queue depth before software-queuing TX frames");
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
 		"");
@@ -748,11 +775,21 @@ ath_sysctlattach(struct ath_softc *sc)
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
 		0, "Minimum free buffers before adding a data frame"
 		" to the TX queue");
-
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_mcastq_maxdepth", CTLFLAG_RW,
 		&sc->sc_txq_mcastq_maxdepth, 0,
 		"Maximum buffer depth for multicast/broadcast frames");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_node_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_node_maxdepth, 0,
+		"Maximum buffer depth for a single node");
+
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"cabq_enable", CTLFLAG_RW,
+		&sc->sc_cabq_enable, 0,
+		"Whether to transmit on the CABQ or not");
+#endif
 
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
@@ -1066,6 +1103,9 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_keymiss, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_stbc",
+	    CTLFLAG_RD, &sc->sc_stats.ast_rx_stbc, 0,
+	    "Number of STBC frames received");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

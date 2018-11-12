@@ -5,8 +5,9 @@
 #
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-Wundef -Wno-pointer-sign -fformat-extensions \
+		-Wundef -Wno-pointer-sign ${FORMAT_EXTENSIONS} \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
+		-Wno-unknown-pragmas \
 		${CWARNEXTRA}
 #
 # The following flags are next up for working on:
@@ -17,19 +18,50 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # a false positive.
 .if ${COMPILER_TYPE} == "clang"
 NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
-NO_WARRAY_BOUNDS=		-Wno-array-bounds
 NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
 NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
-NO_WUNUSED_VALUE=		-Wno-unused-value
 NO_WSELF_ASSIGN=		-Wno-self-assign
-NO_WFORMAT_SECURITY=		-Wno-format-security
 NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
+NO_WCAST_QUAL=			-Wno-cast-qual
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality
+		-Wno-error-parentheses-equality -Wno-error-unused-function \
+		-Wno-error-pointer-sign
+
+CLANG_NO_IAS= -no-integrated-as
+.if ${COMPILER_VERSION} < 30500
+# XXX: clang < 3.5 integrated-as doesn't grok .codeNN directives
+CLANG_NO_IAS34= -no-integrated-as
+.endif
+.endif
+
+.if ${COMPILER_TYPE} == "gcc"
+.if ${COMPILER_VERSION} >= 40300
+# Catch-all for all the things that are in our tree, but for which we're
+# not yet ready for this compiler. Note: we likely only really "support"
+# building with gcc 4.8 and newer. Nothing older has been tested.
+CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set-variable \
+		-Wno-error=aggressive-loop-optimizations -Wno-error=maybe-uninitialized \
+		-Wno-error=array-bounds -Wno-error=address \
+		-Wno-error=cast-qual -Wno-error=sequence-point -Wno-error=attributes \
+		-Wno-error=strict-overflow -Wno-error=overflow
+.else
+# For gcc 4.2, eliminate the too-often-wrong warnings about uninitialized vars.
+CWARNEXTRA?=	-Wno-uninitialized
+.endif
+.endif
+
+# External compilers may not support our format extensions.  Allow them
+# to be disabled.  WARNING: format checking is disabled in this case.
+.if ${MK_FORMAT_EXTENSIONS} == "no"
+FORMAT_EXTENSIONS=	-Wno-format
+.elif ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
+.else
+FORMAT_EXTENSIONS=	-fformat-extensions
 .endif
 
 #
@@ -52,11 +84,8 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
-.if ${COMPILER_TYPE} != "clang"
-CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2
-.else
-CFLAGS+=	-mno-aes -mno-avx
-.endif
+CFLAGS.gcc+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
 .endif
@@ -66,22 +95,14 @@ INLINE_LIMIT?=	8000
 .endif
 
 #
-# For IA-64, we use r13 for the kernel globals pointer and we only use
-# a very small subset of float registers for integer divides.
-#
-.if ${MACHINE_CPUARCH} == "ia64"
-CFLAGS+=	-ffixed-r13 -mfixed-range=f32-f127 -fpic #-mno-sdata
-INLINE_LIMIT?=	15000
-.endif
-
-#
 # For sparc64 we want the medany code model so modules may be located
 # anywhere in the 64-bit address space.  We also tell GCC to use floating
 # point emulation.  This avoids using floating point registers for integer
 # operations which it has a tendency to do.
 #
 .if ${MACHINE_CPUARCH} == "sparc64"
-CFLAGS+=	-mcmodel=medany -msoft-float
+CFLAGS.clang+=	-mcmodel=large -fno-dwarf2-cfi-asm
+CFLAGS.gcc+=	-mcmodel=medany -msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -100,9 +121,7 @@ INLINE_LIMIT?=	15000
 # (-mfpmath= is not supported)
 #
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-mno-aes -mno-avx
-.endif
+CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mcmodel=kernel -mno-red-zone -mno-mmx -mno-sse -msoft-float \
 		-fno-asynchronous-unwind-tables
 INLINE_LIMIT?=	8000
@@ -114,7 +133,9 @@ INLINE_LIMIT?=	8000
 # Also explicitly disable Altivec instructions inside the kernel.
 #
 .if ${MACHINE_CPUARCH} == "powerpc"
-CFLAGS+=	-msoft-float -mno-altivec
+CFLAGS+=	-mno-altivec
+CFLAGS.clang+=	-mllvm -disable-ppc-float-in-variadic=true
+CFLAGS.gcc+=	-msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
@@ -122,7 +143,7 @@ INLINE_LIMIT?=	15000
 # Use dot symbols on powerpc64 to make ddb happy
 #
 .if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mcall-aixdesc
+CFLAGS.gcc+=	-mcall-aixdesc
 .endif
 
 #
@@ -140,9 +161,59 @@ INLINE_LIMIT?=	8000
 CFLAGS+=	-ffreestanding
 
 #
+# The C standard leaves signed integer overflow behavior undefined.
+# gcc and clang opimizers take advantage of this.  The kernel makes
+# use of signed integer wraparound mechanics so we need the compiler
+# to treat it as a wraparound and not take shortcuts.
+# 
+CFLAGS+=	-fwrapv
+
+#
 # GCC SSP support
 #
-.if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
+.if ${MK_SSP} != "no" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 CFLAGS+=	-fstack-protector
 .endif
+
+#
+# Add -gdwarf-2 when compiling -g. The default starting in clang v3.4
+# and gcc 4.8 is to generate DWARF version 4. However, our tools don't
+# cope well with DWARF 4, so force it to genereate DWARF2, which they
+# understand. Do this unconditionally as it is harmless when not needed,
+# but critical for these newer versions.
+#
+.if ${CFLAGS:M-g} != "" && ${CFLAGS:M-gdwarf*} == ""
+CFLAGS+=	-gdwarf-2
+.endif
+
+CFLAGS+= ${CWARNEXTRA} ${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
+CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC:T}}
+
+# Tell bmake not to mistake standard targets for things to be searched for
+# or expect to ever be up-to-date.
+PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+		beforelinking build build-tools buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanobj configure \
+		depend dependall distclean distribute exe \
+		html includes install installfiles installincludes lint \
+		obj objlink objs objwarn realall realdepend \
+		realinstall regress subdir-all subdir-depend subdir-install \
+		tags whereobj
+
+.PHONY: ${PHONY_NOTMAIN}
+.NOTMAIN: ${PHONY_NOTMAIN}
+
+CSTD=		c99
+
+.if ${CSTD} == "k&r"
+CFLAGS+=        -traditional
+.elif ${CSTD} == "c89" || ${CSTD} == "c90"
+CFLAGS+=        -std=iso9899:1990
+.elif ${CSTD} == "c94" || ${CSTD} == "c95"
+CFLAGS+=        -std=iso9899:199409
+.elif ${CSTD} == "c99"
+CFLAGS+=        -std=iso9899:1999
+.else # CSTD
+CFLAGS+=        -std=${CSTD}
+.endif # CSTD

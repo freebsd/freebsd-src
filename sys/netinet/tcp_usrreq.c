@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -182,6 +183,21 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 		 * present until timewait ends.
 		 *
 		 * XXXRW: Would it be cleaner to free the tcptw here?
+		 *
+		 * Astute question indeed, from twtcp perspective there are
+		 * three cases to consider:
+		 *
+		 * #1 tcp_detach is called at tcptw creation time by
+		 *  tcp_twstart, then do not discard the newly created tcptw
+		 *  and leave inpcb present until timewait ends
+		 * #2 tcp_detach is called at timewait end (or reuse) by
+		 *  tcp_twclose, then the tcptw has already been discarded
+		 *  and inpcb is freed here
+		 * #3 tcp_detach is called() after timewait ends (or reuse)
+		 *  (e.g. by soclose), then tcptw has already been discarded
+		 *  and inpcb is freed here
+		 *
+		 *  In all three cases the tcptw should not be freed here.
 		 */
 		if (inp->inp_flags & INP_DROPPED) {
 			KASSERT(tp == NULL, ("tcp_detach: INP_TIMEWAIT && "
@@ -367,7 +383,7 @@ tcp_usr_listen(struct socket *so, int backlog, struct thread *td)
 		error = in_pcbbind(inp, (struct sockaddr *)0, td->td_ucred);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
-		tp->t_state = TCPS_LISTEN;
+		tcp_state_change(tp, TCPS_LISTEN);
 		solisten_proto(so, backlog);
 #ifdef TCP_OFFLOAD
 		if ((so->so_options & SO_NO_OFFLOAD) == 0)
@@ -412,7 +428,7 @@ tcp6_usr_listen(struct socket *so, int backlog, struct thread *td)
 	}
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	if (error == 0) {
-		tp->t_state = TCPS_LISTEN;
+		tcp_state_change(tp, TCPS_LISTEN);
 		solisten_proto(so, backlog);
 #ifdef TCP_OFFLOAD
 		if ((so->so_options & SO_NO_OFFLOAD) == 0)
@@ -460,8 +476,12 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+	if (inp->inp_flags & INP_TIMEWAIT) {
+		error = EADDRINUSE;
+		goto out;
+	}
+	if (inp->inp_flags & INP_DROPPED) {
+		error = ECONNREFUSED;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -507,8 +527,12 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp6_usr_connect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+	if (inp->inp_flags & INP_TIMEWAIT) {
+		error = EADDRINUSE;
+		goto out;
+	}
+	if (inp->inp_flags & INP_DROPPED) {
+		error = ECONNREFUSED;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -591,7 +615,9 @@ tcp_usr_disconnect(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
 	INP_WLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+	if (inp->inp_flags & INP_TIMEWAIT)
+		goto out;
+	if (inp->inp_flags & INP_DROPPED) {
 		error = ECONNRESET;
 		goto out;
 	}
@@ -609,13 +635,6 @@ out:
 /*
  * Accept a connection.  Essentially all the work is done at higher levels;
  * just return the address of the peer, storing through addr.
- *
- * The rationale for acquiring the tcbinfo lock here is somewhat complicated,
- * and is described in detail in the commit log entry for r175612.  Acquiring
- * it delays an accept(2) racing with sonewconn(), which inserts the socket
- * before the inpcb address/port fields are initialized.  A better fix would
- * prevent the socket from being placed in the listen queue until all fields
- * are fully initialized.
  */
 static int
 tcp_usr_accept(struct socket *so, struct sockaddr **nam)
@@ -632,7 +651,6 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("tcp_usr_accept: inp == NULL"));
-	INP_INFO_RLOCK(&V_tcbinfo);
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		error = ECONNABORTED;
@@ -652,7 +670,6 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 out:
 	TCPDEBUG2(PRU_ACCEPT);
 	INP_WUNLOCK(inp);
-	INP_INFO_RUNLOCK(&V_tcbinfo);
 	if (error == 0)
 		*nam = in_sockaddr(port, &addr);
 	return error;
@@ -812,7 +829,11 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
 		if (control)
 			m_freem(control);
-		if (m)
+		/*
+		 * In case of PRUS_NOTREADY, tcp_usr_ready() is responsible
+		 * for freeing memory.
+		 */
+		if (m && (flags & PRUS_NOTREADY) == 0)
 			m_freem(m);
 		error = ECONNRESET;
 		goto out;
@@ -834,7 +855,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		m_freem(control);	/* empty control, just free it */
 	}
 	if (!(flags & PRUS_OOB)) {
-		sbappendstream(&so->so_snd, m);
+		sbappendstream(&so->so_snd, m, flags);
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
 			 * Do implied connect if not yet connected,
@@ -866,7 +887,8 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			socantsendmore(so);
 			tcp_usrclosed(tp);
 		}
-		if (!(inp->inp_flags & INP_DROPPED)) {
+		if (!(inp->inp_flags & INP_DROPPED) &&
+		    !(flags & PRUS_NOTREADY)) {
 			if (flags & PRUS_MORETOCOME)
 				tp->t_flags |= TF_MORETOCOME;
 			error = tcp_output(tp);
@@ -892,7 +914,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 		 * of data past the urgent section.
 		 * Otherwise, snd_up should be one lower.
 		 */
-		sbappendstream_locked(&so->so_snd, m);
+		sbappendstream_locked(&so->so_snd, m, flags);
 		SOCKBUF_UNLOCK(&so->so_snd);
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
@@ -916,10 +938,12 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
 			tcp_mss(tp, -1);
 		}
-		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
-		tp->t_flags |= TF_FORCEDATA;
-		error = tcp_output(tp);
-		tp->t_flags &= ~TF_FORCEDATA;
+		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
+		if (!(flags & PRUS_NOTREADY)) {
+			tp->t_flags |= TF_FORCEDATA;
+			error = tcp_output(tp);
+			tp->t_flags &= ~TF_FORCEDATA;
+		}
 	}
 out:
 	TCPDEBUG2((flags & PRUS_OOB) ? PRU_SENDOOB :
@@ -927,6 +951,33 @@ out:
 	INP_WUNLOCK(inp);
 	if (flags & PRUS_EOF)
 		INP_INFO_WUNLOCK(&V_tcbinfo);
+	return (error);
+}
+
+static int
+tcp_usr_ready(struct socket *so, struct mbuf *m, int count)
+{
+	struct inpcb *inp;
+	struct tcpcb *tp;
+	int error;
+
+	inp = sotoinpcb(so);
+	INP_WLOCK(inp);
+	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
+		INP_WUNLOCK(inp);
+		for (int i = 0; i < count; i++)
+			m = m_free(m);
+		return (ECONNRESET);
+	}
+	tp = intotcpcb(inp);
+
+	SOCKBUF_LOCK(&so->so_snd);
+	error = sbready(&so->so_snd, m, count);
+	SOCKBUF_UNLOCK(&so->so_snd);
+	if (error == 0)
+		error = tcp_output(tp);
+	INP_WUNLOCK(inp);
+
 	return (error);
 }
 
@@ -1064,6 +1115,7 @@ struct pr_usrreqs tcp_usrreqs = {
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
+	.pru_ready =		tcp_usr_ready,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in_getsockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
@@ -1086,6 +1138,7 @@ struct pr_usrreqs tcp6_usrreqs = {
 	.pru_rcvd =		tcp_usr_rcvd,
 	.pru_rcvoob =		tcp_usr_rcvoob,
 	.pru_send =		tcp_usr_send,
+	.pru_ready =		tcp_usr_ready,
 	.pru_shutdown =		tcp_usr_shutdown,
 	.pru_sockaddr =		in6_mapped_sockaddr,
 	.pru_sosetlabel =	in_pcbsosetlabel,
@@ -1152,7 +1205,7 @@ tcp_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 
 	soisconnecting(so);
 	TCPSTAT_INC(tcps_connattempt);
-	tp->t_state = TCPS_SYN_SENT;
+	tcp_state_change(tp, TCPS_SYN_SENT);
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1168,10 +1221,7 @@ out:
 static int
 tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 {
-	struct inpcb *inp = tp->t_inpcb, *oinp;
-	struct socket *so = inp->inp_socket;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
-	struct in6_addr addr6;
+	struct inpcb *inp = tp->t_inpcb;
 	int error;
 
 	INP_WLOCK_ASSERT(inp);
@@ -1182,39 +1232,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 		if (error)
 			goto out;
 	}
-
-	/*
-	 * Cannot simply call in_pcbconnect, because there might be an
-	 * earlier incarnation of this same connection still in
-	 * TIME_WAIT state, creating an ADDRINUSE error.
-	 * in6_pcbladdr() also handles scope zone IDs.
-	 *
-	 * XXXRW: We wouldn't need to expose in6_pcblookup_hash_locked()
-	 * outside of in6_pcb.c if there were an in6_pcbconnect_setup().
-	 */
-	error = in6_pcbladdr(inp, nam, &addr6);
-	if (error)
+	error = in6_pcbconnect(inp, nam, td->td_ucred);
+	if (error != 0)
 		goto out;
-	oinp = in6_pcblookup_hash_locked(inp->inp_pcbinfo,
-				  &sin6->sin6_addr, sin6->sin6_port,
-				  IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)
-				  ? &addr6
-				  : &inp->in6p_laddr,
-				  inp->inp_lport,  0, NULL);
-	if (oinp) {
-		error = EADDRINUSE;
-		goto out;
-	}
-	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
-		inp->in6p_laddr = addr6;
-	inp->in6p_faddr = sin6->sin6_addr;
-	inp->inp_fport = sin6->sin6_port;
-	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
-	inp->inp_flow &= ~IPV6_FLOWLABEL_MASK;
-	if (inp->inp_flags & IN6P_AUTOFLOWLABEL)
-		inp->inp_flow |=
-		    (htonl(ip6_randomflowlabel()) & IPV6_FLOWLABEL_MASK);
-	in_pcbrehash(inp);
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 
 	/* Compute window scaling to request.  */
@@ -1222,9 +1242,9 @@ tcp6_connect(struct tcpcb *tp, struct sockaddr *nam, struct thread *td)
 	    (TCP_MAXWIN << tp->request_r_scale) < sb_max)
 		tp->request_r_scale++;
 
-	soisconnecting(so);
+	soisconnecting(inp->inp_socket);
 	TCPSTAT_INC(tcps_connattempt);
-	tp->t_state = TCPS_SYN_SENT;
+	tcp_state_change(tp, TCPS_SYN_SENT);
 	tp->iss = tcp_new_isn(tp);
 	tcp_sendseqinit(tp);
 
@@ -1584,6 +1604,27 @@ unlock_and_done:
 			INP_WUNLOCK(inp);
 			error = sooptcopyout(sopt, buf, TCP_CA_NAME_MAX);
 			break;
+		case TCP_KEEPIDLE:
+		case TCP_KEEPINTVL:
+		case TCP_KEEPINIT:
+		case TCP_KEEPCNT:
+			switch (sopt->sopt_name) {
+			case TCP_KEEPIDLE:
+				ui = tp->t_keepidle / hz;
+				break;
+			case TCP_KEEPINTVL:
+				ui = tp->t_keepintvl / hz;
+				break;
+			case TCP_KEEPINIT:
+				ui = tp->t_keepinit / hz;
+				break;
+			case TCP_KEEPCNT:
+				ui = tp->t_keepcnt;
+				break;
+			}
+			INP_WUNLOCK(inp);
+			error = sooptcopyout(sopt, &ui, sizeof(ui));
+			break;
 		default:
 			INP_WUNLOCK(inp);
 			error = ENOPROTOOPT;
@@ -1704,7 +1745,7 @@ tcp_usrclosed(struct tcpcb *tp)
 #endif
 		/* FALLTHROUGH */
 	case TCPS_CLOSED:
-		tp->t_state = TCPS_CLOSED;
+		tcp_state_change(tp, TCPS_CLOSED);
 		tp = tcp_close(tp);
 		/*
 		 * tcp_close() should never return NULL here as the socket is
@@ -1720,11 +1761,11 @@ tcp_usrclosed(struct tcpcb *tp)
 		break;
 
 	case TCPS_ESTABLISHED:
-		tp->t_state = TCPS_FIN_WAIT_1;
+		tcp_state_change(tp, TCPS_FIN_WAIT_1);
 		break;
 
 	case TCPS_CLOSE_WAIT:
-		tp->t_state = TCPS_LAST_ACK;
+		tcp_state_change(tp, TCPS_LAST_ACK);
 		break;
 	}
 	if (tp->t_state >= TCPS_FIN_WAIT_2) {
@@ -1936,7 +1977,7 @@ db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
 
 	db_print_indent(indent);
 	db_printf("t_segq first: %p   t_segqlen: %d   t_dupacks: %d\n",
-	   LIST_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
+	   tp->t_segq, tp->t_segqlen, tp->t_dupacks);
 
 	db_print_indent(indent);
 	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",

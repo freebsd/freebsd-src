@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CODEGEN_INTRINSIC_H
-#define CODEGEN_INTRINSIC_H
+#ifndef LLVM_UTILS_TABLEGEN_CODEGENINTRINSICS_H
+#define LLVM_UTILS_TABLEGEN_CODEGENINTRINSICS_H
 
+#include "llvm/CodeGen/MachineValueType.h"
 #include <string>
 #include <vector>
-#include "llvm/CodeGen/ValueTypes.h"
 
 namespace llvm {
   class Record;
@@ -28,6 +28,7 @@ namespace llvm {
     std::string Name;          // The name of the LLVM function "llvm.bswap.i32"
     std::string EnumName;      // The name of the enum "bswap_i32"
     std::string GCCBuiltinName;// Name of the corresponding GCC builtin, or "".
+    std::string MSBuiltinName; // Name of the corresponding MS builtin, or "".
     std::string TargetPrefix;  // Target prefix, e.g. "ppc" for t-s intrinsics.
 
     /// IntrinsicSignature - This structure holds the return values and
@@ -73,11 +74,16 @@ namespace llvm {
     /// canThrow - True if the intrinsic can throw.
     bool canThrow;
 
+    /// isNoDuplicate - True if the intrinsic is marked as noduplicate.
+    bool isNoDuplicate;
+
     /// isNoReturn - True if the intrinsic is no-return.
     bool isNoReturn;
 
     enum ArgAttribute {
-      NoCapture
+      NoCapture,
+      ReadOnly,
+      ReadNone
     };
     std::vector<std::pair<unsigned, ArgAttribute> > ArgumentAttributes;
 

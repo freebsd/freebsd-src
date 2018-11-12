@@ -37,8 +37,8 @@
 #include "traverse.h"
 #include "memory.h"
 
-int (*tddescenders[])(tdesc_t *, tdtrav_data_t *);
-tdtrav_cb_f tdnops[];
+static int (*tddescenders[])(tdesc_t *, tdtrav_data_t *);
+static tdtrav_cb_f tdnops[];
 
 void
 tdtrav_init(tdtrav_data_t *tdtd, int *vgenp, tdtrav_cb_f *firstops,
@@ -111,7 +111,7 @@ tdtrav_assert(tdesc_t *node __unused, tdesc_t **nodep __unused, void *private __
 	return (-1);
 }
 
-tdtrav_cb_f tdnops[] = {
+static tdtrav_cb_f tdnops[] = {
 	NULL,
 	NULL,			/* intrinsic */
 	NULL,			/* pointer */
@@ -128,7 +128,7 @@ tdtrav_cb_f tdnops[] = {
 	NULL			/* restrict */
 };
 
-int (*tddescenders[])(tdesc_t *, tdtrav_data_t *) = {
+static int (*tddescenders[])(tdesc_t *, tdtrav_data_t *) = {
 	NULL,
 	NULL,			/* intrinsic */
 	tdtrav_plain,		/* pointer */

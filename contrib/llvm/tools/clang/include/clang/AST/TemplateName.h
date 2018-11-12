@@ -17,7 +17,6 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerUnion.h"
-#include "clang/Basic/OperatorKinds.h"
 
 namespace clang {
   
@@ -25,13 +24,14 @@ class ASTContext;
 class DependentTemplateName;
 class DiagnosticBuilder;
 class IdentifierInfo;
+class NamedDecl;
 class NestedNameSpecifier;
+enum OverloadedOperatorKind : int;
 class OverloadedTemplateStorage;
 struct PrintingPolicy;
 class QualifiedTemplateName;
-class NamedDecl;
-class SubstTemplateTemplateParmStorage;
 class SubstTemplateTemplateParmPackStorage;
+class SubstTemplateTemplateParmStorage;
 class TemplateArgument;
 class TemplateDecl;
 class TemplateTemplateParmDecl;
@@ -46,16 +46,17 @@ protected:
     SubstTemplateTemplateParmPack
   };
 
-  union {
-    struct {
-      /// \brief A Kind.
-      unsigned Kind : 2;
-      
-      /// \brief The number of stored templates or template arguments,
-      /// depending on which subclass we have.
-      unsigned Size : 30;
-    } Bits;
+  struct BitsTag {
+    /// \brief A Kind.
+    unsigned Kind : 2;
     
+    /// \brief The number of stored templates or template arguments,
+    /// depending on which subclass we have.
+    unsigned Size : 30;
+  };
+
+  union {
+    struct BitsTag Bits;
     void *PointerAlignment;
   };
   
@@ -70,19 +71,19 @@ public:
   OverloadedTemplateStorage *getAsOverloadedStorage()  {
     return Bits.Kind == Overloaded
              ? reinterpret_cast<OverloadedTemplateStorage *>(this) 
-             : 0;
+             : nullptr;
   }
   
   SubstTemplateTemplateParmStorage *getAsSubstTemplateTemplateParm() {
     return Bits.Kind == SubstTemplateTemplateParm
              ? reinterpret_cast<SubstTemplateTemplateParmStorage *>(this)
-             : 0;
+             : nullptr;
   }
 
   SubstTemplateTemplateParmPackStorage *getAsSubstTemplateTemplateParmPack() {
     return Bits.Kind == SubstTemplateTemplateParmPack
              ? reinterpret_cast<SubstTemplateTemplateParmPackStorage *>(this)
-             : 0;
+             : nullptr;
   }
 };
   
@@ -242,7 +243,7 @@ public:
                               Storage.dyn_cast<UncommonTemplateNameStorage *>())
       return Uncommon->getAsOverloadedStorage();
     
-    return 0;
+    return nullptr;
   }
 
   /// \brief Retrieve the substituted template template parameter, if 
@@ -255,7 +256,7 @@ public:
           Storage.dyn_cast<UncommonTemplateNameStorage *>())
       return uncommon->getAsSubstTemplateTemplateParm();
     
-    return 0;
+    return nullptr;
   }
 
   /// \brief Retrieve the substituted template template parameter pack, if 
@@ -269,7 +270,7 @@ public:
         Storage.dyn_cast<UncommonTemplateNameStorage *>())
       return Uncommon->getAsSubstTemplateTemplateParmPack();
     
-    return 0;
+    return nullptr;
   }
 
   /// \brief Retrieve the underlying qualified template name
@@ -307,6 +308,9 @@ public:
   /// one).
   void print(raw_ostream &OS, const PrintingPolicy &Policy,
              bool SuppressNNS = false) const;
+
+  /// \brief Debugging aid that dumps the template name.
+  void dump(raw_ostream &OS) const;
 
   /// \brief Debugging aid that dumps the template name to standard
   /// error.

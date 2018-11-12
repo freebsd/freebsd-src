@@ -22,10 +22,10 @@ block in log quick all with short
 # (especially for ed0) and needs to be further refined.
 #
 block in log on ppp0 all head 100
-block in log proto tcp all flags S/SA head 101 group 100 
+block in log proto tcp all flags S/SA head 101 group 100
 block out log on ppp0 all head 150
 block in log on ed0 from w.x.y.z/24 to any head 200
-block in log proto tcp all flags S/SA head 201 group 200 
+block in log proto tcp all flags S/SA head 201 group 200
 block in log proto udp all head 202 group 200
 block out log on ed0 all head 250
 #-------------------------------------------------------

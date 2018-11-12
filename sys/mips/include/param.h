@@ -101,6 +101,10 @@
 #define	MAXCPU		1
 #endif
 
+#ifndef MAXMEMDOM
+#define	MAXMEMDOM	1
+#endif
+
 /*
  * Round p (pointer or byte index) up to a correctly-aligned value for all
  * data types (int, long, ...).	  The result is u_int and must be cast to
@@ -173,5 +177,9 @@
 #define	ptoa(x)			((x) << PAGE_SHIFT)
 
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
+
+#ifdef _KERNEL
+#define	NO_FUEWORD	1
+#endif
 
 #endif /* !_MIPS_INCLUDE_PARAM_H_ */

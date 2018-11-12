@@ -22,6 +22,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -29,16 +31,7 @@
  */
 struct xenpci_softc {
 	int rid_ioport;
-	int rid_memory;
 	int rid_irq;
-	struct resource* res_memory;	/* Resource for mem range. */
 	struct resource* res_irq;	/* Resource for irq range. */
 	void	*intr_cookie;
-
-	vm_paddr_t phys_next;		/* next page from mem range */
 };
-
-extern int xenpci_irq_init(device_t device, struct xenpci_softc *scp);
-extern int xenpci_alloc_space(size_t sz, vm_paddr_t *pa);
-extern void xenpci_resume(void);
-extern void xen_suspend(void);

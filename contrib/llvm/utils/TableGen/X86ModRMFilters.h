@@ -15,8 +15,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86MODRMFILTERS_H
-#define X86MODRMFILTERS_H
+#ifndef LLVM_UTILS_TABLEGEN_X86MODRMFILTERS_H
+#define LLVM_UTILS_TABLEGEN_X86MODRMFILTERS_H
 
 #include "llvm/Support/DataTypes.h"
 
@@ -50,13 +50,13 @@ public:
 ///   require a ModR/M byte or instructions where the entire ModR/M byte is used
 ///   for operands.
 class DumbFilter : public ModRMFilter {
-  virtual void anchor();
+  void anchor() override;
 public:
-  bool isDumb() const {
+  bool isDumb() const override {
     return true;
   }
-  
-  bool accepts(uint8_t modRM) const {
+
+  bool accepts(uint8_t modRM) const override {
     return true;
   }
 };
@@ -65,7 +65,7 @@ public:
 ///   Some instructions are classified based on whether they are 11 or anything
 ///   else.  This filter performs that classification.
 class ModFilter : public ModRMFilter {
-  virtual void anchor();
+  void anchor() override;
   bool R;
 public:
   /// Constructor
@@ -78,74 +78,16 @@ public:
     ModRMFilter(),
     R(r) {
   }
-    
-  bool accepts(uint8_t modRM) const {
-    if (R == ((modRM & 0xc0) == 0xc0))
-      return true;
-    else
-      return false;
-  }
-};
 
-/// EscapeFilter - Filters escape opcodes, which are classified in two ways.  If
-///   the ModR/M byte is between 0xc0 and 0xff, then there is one slot for each
-///   possible value.  Otherwise, there is one instruction for each value of the
-///   nnn field [bits 5-3], known elsewhere as the reg field.
-class EscapeFilter : public ModRMFilter {
-  virtual void anchor();
-  bool C0_FF;
-  uint8_t NNN_or_ModRM;
-public:
-  /// Constructor
-  ///
-  /// \param c0_ff True if the ModR/M byte must fall between 0xc0 and 0xff;
-  ///              false otherwise.
-  ///
-  /// \param nnn_or_modRM If c0_ff is true, the required value of the entire
-  ///                     ModR/M byte.  If c0_ff is false, the required value
-  ///                     of the nnn field.
-  EscapeFilter(bool c0_ff, uint8_t nnn_or_modRM) :
-    ModRMFilter(),
-    C0_FF(c0_ff),
-    NNN_or_ModRM(nnn_or_modRM) {
-  }
-    
-  bool accepts(uint8_t modRM) const {
-    if ((C0_FF && modRM >= 0xc0 && (modRM == NNN_or_ModRM)) ||
-        (!C0_FF && modRM < 0xc0  && ((modRM & 0x38) >> 3) == NNN_or_ModRM))
-      return true;
-    else
-      return false;
-  }
-};
-
-/// AddRegEscapeFilter - Some escape opcodes have one of the register operands
-///   added to the ModR/M byte, meaning that a range of eight ModR/M values
-///   maps to a single instruction.  Such instructions require the ModR/M byte
-///   to fall between 0xc0 and 0xff.
-class AddRegEscapeFilter : public ModRMFilter {
-  virtual void anchor();
-  uint8_t ModRM;
-public:
-  /// Constructor
-  ///
-  /// \param modRM The value of the ModR/M byte when the register operand
-  ///              refers to the first register in the register set.
-  AddRegEscapeFilter(uint8_t modRM) : ModRM(modRM) {
-  }
-  
-  bool accepts(uint8_t modRM) const {
-    if (modRM >= ModRM && modRM < ModRM + 8)
-      return true;
-    else
-      return false;
+  bool accepts(uint8_t modRM) const override {
+    return (R == ((modRM & 0xc0) == 0xc0));
   }
 };
 
 /// ExtendedFilter - Extended opcodes are classified based on the value of the
 ///   mod field [bits 7-6] and the value of the nnn field [bits 5-3]. 
 class ExtendedFilter : public ModRMFilter {
-  virtual void anchor();
+  void anchor() override;
   bool R;
   uint8_t NNN;
 public:
@@ -159,21 +101,18 @@ public:
     R(r),
     NNN(nnn) {
   }
-    
-  bool accepts(uint8_t modRM) const {
-    if (((R  && ((modRM & 0xc0) == 0xc0)) ||
-        (!R && ((modRM & 0xc0) != 0xc0))) &&
-        (((modRM & 0x38) >> 3) == NNN))
-      return true;
-    else
-      return false;
+
+  bool accepts(uint8_t modRM) const override {
+    return (((R  && ((modRM & 0xc0) == 0xc0)) ||
+             (!R && ((modRM & 0xc0) != 0xc0))) &&
+            (((modRM & 0x38) >> 3) == NNN));
   }
 };
 
 /// ExactFilter - The occasional extended opcode (such as VMCALL or MONITOR)
 ///   requires the ModR/M byte to have a specific value.
 class ExactFilter : public ModRMFilter {
-  virtual void anchor();
+  void anchor() override;
   uint8_t ModRM;
 public:
   /// Constructor
@@ -183,12 +122,9 @@ public:
     ModRMFilter(),
     ModRM(modRM) {
   }
-    
-  bool accepts(uint8_t modRM) const {
-    if (ModRM == modRM)
-      return true;
-    else
-      return false;
+
+  bool accepts(uint8_t modRM) const override {
+    return (ModRM == modRM);
   }
 };
 

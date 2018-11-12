@@ -108,6 +108,9 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0x51: return ("CONFIGURE_STREAM");
 	case 0x60: return ("READ_FPDMA_QUEUED");
 	case 0x61: return ("WRITE_FPDMA_QUEUED");
+	case 0x63: return ("NCQ_NON_DATA");
+	case 0x64: return ("SEND_FPDMA_QUEUED");
+	case 0x65: return ("RECEIVE_FPDMA_QUEUED");
 	case 0x67:
 		if (cmd->features == 0xec)
 			return ("SEP_ATTN IDENTIFY");
@@ -272,28 +275,50 @@ ata_res_sbuf(struct ccb_ataio *ataio, struct sbuf *sb)
 void
 ata_print_ident(struct ata_params *ident_data)
 {
+	const char *proto;
+	char product[48], revision[16], ata[12], sata[12];
+
+	cam_strvis(product, ident_data->model, sizeof(ident_data->model),
+		   sizeof(product));
+	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
+		   sizeof(revision));
+	proto = (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
+		(ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA";
+	if (ata_version(ident_data->version_major) == 0) {
+		snprintf(ata, sizeof(ata), "%s", proto);
+	} else if (ata_version(ident_data->version_major) <= 7) {
+		snprintf(ata, sizeof(ata), "%s-%d", proto,
+		    ata_version(ident_data->version_major));
+	} else if (ata_version(ident_data->version_major) == 8) {
+		snprintf(ata, sizeof(ata), "%s8-ACS", proto);
+	} else {
+		snprintf(ata, sizeof(ata), "ACS-%d %s",
+		    ata_version(ident_data->version_major) - 7, proto);
+	}
+	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
+		if (ident_data->satacapabilities & ATA_SATA_GEN3)
+			snprintf(sata, sizeof(sata), " SATA 3.x");
+		else if (ident_data->satacapabilities & ATA_SATA_GEN2)
+			snprintf(sata, sizeof(sata), " SATA 2.x");
+		else if (ident_data->satacapabilities & ATA_SATA_GEN1)
+			snprintf(sata, sizeof(sata), " SATA 1.x");
+		else
+			snprintf(sata, sizeof(sata), " SATA");
+	} else
+		sata[0] = 0;
+	printf("<%s %s> %s%s device\n", product, revision, ata, sata);
+}
+
+void
+ata_print_ident_short(struct ata_params *ident_data)
+{
 	char product[48], revision[16];
 
 	cam_strvis(product, ident_data->model, sizeof(ident_data->model),
 		   sizeof(product));
 	cam_strvis(revision, ident_data->revision, sizeof(ident_data->revision),
 		   sizeof(revision));
-	printf("<%s %s> %s-%d",
-	    product, revision,
-	    (ident_data->config == ATA_PROTO_CFA) ? "CFA" :
-	    (ident_data->config & ATA_PROTO_ATAPI) ? "ATAPI" : "ATA",
-	    ata_version(ident_data->version_major));
-	if (ident_data->satacapabilities && ident_data->satacapabilities != 0xffff) {
-		if (ident_data->satacapabilities & ATA_SATA_GEN3)
-			printf(" SATA 3.x");
-		else if (ident_data->satacapabilities & ATA_SATA_GEN2)
-			printf(" SATA 2.x");
-		else if (ident_data->satacapabilities & ATA_SATA_GEN1)
-			printf(" SATA 1.x");
-		else
-			printf(" SATA");
-	}
-	printf(" device\n");
+	printf("<%s %s>", product, revision);
 }
 
 void
@@ -311,13 +336,25 @@ semb_print_ident(struct sep_identify_data *ident_data)
 	    vendor, product, revision, fw, in, ins);
 }
 
+void
+semb_print_ident_short(struct sep_identify_data *ident_data)
+{
+	char vendor[9], product[17], revision[5], fw[5];
+
+	cam_strvis(vendor, ident_data->vendor_id, 8, sizeof(vendor));
+	cam_strvis(product, ident_data->product_id, 16, sizeof(product));
+	cam_strvis(revision, ident_data->product_rev, 4, sizeof(revision));
+	cam_strvis(fw, ident_data->firmware_rev, 4, sizeof(fw));
+	printf("<%s %s %s %s>", vendor, product, revision, fw);
+}
+
 uint32_t
 ata_logical_sector_size(struct ata_params *ident_data)
 {
-	if ((ident_data->pss & 0xc000) == 0x4000 &&
+	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE &&
 	    (ident_data->pss & ATA_PSS_LSSABOVE512)) {
-		return ((u_int32_t)ident_data->lss_1 |
-		    ((u_int32_t)ident_data->lss_2 << 16));
+		return (((u_int32_t)ident_data->lss_1 |
+		    ((u_int32_t)ident_data->lss_2 << 16)) * 2);
 	}
 	return (512);
 }
@@ -325,10 +362,13 @@ ata_logical_sector_size(struct ata_params *ident_data)
 uint64_t
 ata_physical_sector_size(struct ata_params *ident_data)
 {
-	if ((ident_data->pss & 0xc000) == 0x4000 &&
-	    (ident_data->pss & ATA_PSS_MULTLS)) {
-		return ((uint64_t)ata_logical_sector_size(ident_data) *
-		    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+	if ((ident_data->pss & ATA_PSS_VALID_MASK) == ATA_PSS_VALID_VALUE) {
+		if (ident_data->pss & ATA_PSS_MULTLS) {
+			return ((uint64_t)ata_logical_sector_size(ident_data) *
+			    (1 << (ident_data->pss & ATA_PSS_LSPPS)));
+		} else {
+			return (uint64_t)ata_logical_sector_size(ident_data);
+		}
 	}
 	return (512);
 }
@@ -367,7 +407,7 @@ void
 ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
     uint64_t lba, uint16_t sector_count)
 {
-	bzero(&ataio->cmd, sizeof(ataio->cmd));
+
 	ataio->cmd.flags = CAM_ATAIO_48BIT;
 	if (cmd == ATA_READ_DMA48 ||
 	    cmd == ATA_READ_DMA_QUEUED48 ||
@@ -391,13 +431,14 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	ataio->cmd.features_exp = features >> 8;
 	ataio->cmd.sector_count = sector_count;
 	ataio->cmd.sector_count_exp = sector_count >> 8;
+	ataio->cmd.control = 0;
 }
 
 void
 ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
     uint64_t lba, uint16_t sector_count)
 {
-	bzero(&ataio->cmd, sizeof(ataio->cmd));
+
 	ataio->cmd.flags = CAM_ATAIO_48BIT | CAM_ATAIO_FPDMA;
 	ataio->cmd.command = cmd;
 	ataio->cmd.features = sector_count;
@@ -409,6 +450,9 @@ ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
 	ataio->cmd.lba_mid_exp = lba >> 32;
 	ataio->cmd.lba_high_exp = lba >> 40;
 	ataio->cmd.features_exp = sector_count >> 8;
+	ataio->cmd.sector_count = 0;
+	ataio->cmd.sector_count_exp = 0;
+	ataio->cmd.control = 0;
 }
 
 void

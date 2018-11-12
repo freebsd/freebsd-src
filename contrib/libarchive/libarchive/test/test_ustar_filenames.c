@@ -60,7 +60,7 @@ test_filename(const char *prefix, int dlen, int flen)
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
 	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_none(a));
+	assertA(0 == archive_write_add_filter_none(a));
 	assertA(0 == archive_write_set_bytes_per_block(a,0));
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 

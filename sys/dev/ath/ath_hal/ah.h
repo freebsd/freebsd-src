@@ -169,6 +169,7 @@ typedef enum {
 
 	HAL_CAP_RXTSTAMP_PREC	= 100,	/* rx desc tstamp precision (bits) */
 
+	HAL_CAP_ANT_DIV_COMB	= 105,	/* Enable antenna diversity/combining */
 	HAL_CAP_PHYRESTART_CLR_WAR	= 106,	/* in some cases, clear phy restart to fix bb hang */
 	HAL_CAP_ENTERPRISE_MODE	= 107,	/* Enterprise mode features */
 	HAL_CAP_LDPCWAR		= 108,
@@ -197,6 +198,8 @@ typedef enum {
 	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
+	HAL_CAP_RX_LNA_MIXING	= 247,	/* RX hardware uses LNA mixing */
+	HAL_CAP_DO_MYBEACON	= 248,	/* Supports HAL_RX_FILTER_MYBEACON */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -402,6 +405,7 @@ typedef enum {
 	HAL_RX_FILTER_PROM	= 0x00000020,	/* Promiscuous mode */
 	HAL_RX_FILTER_PROBEREQ	= 0x00000080,	/* Allow probe request frames */
 	HAL_RX_FILTER_PHYERR	= 0x00000100,	/* Allow phy errors */
+	HAL_RX_FILTER_MYBEACON  = 0x00000200,   /* Filter beacons other than mine */
 	HAL_RX_FILTER_COMPBAR	= 0x00000400,	/* Allow compressed BAR */
 	HAL_RX_FILTER_COMP_BA	= 0x00000800,	/* Allow compressed blockack */
 	HAL_RX_FILTER_PHYRADAR	= 0x00002000,	/* Allow phy radar errors */
@@ -566,7 +570,22 @@ typedef enum {
 	HAL_GPIO_OUTPUT_MUX_MAC_NETWORK_LED	= 3,
 	HAL_GPIO_OUTPUT_MUX_MAC_POWER_LED	= 4,
 	HAL_GPIO_OUTPUT_MUX_AS_WLAN_ACTIVE	= 5,
-	HAL_GPIO_OUTPUT_MUX_AS_TX_FRAME		= 6
+	HAL_GPIO_OUTPUT_MUX_AS_TX_FRAME		= 6,
+
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_WLAN_DATA,
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_WLAN_CLK,
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_BT_DATA,
+	HAL_GPIO_OUTPUT_MUX_AS_MCI_BT_CLK,
+	HAL_GPIO_OUTPUT_MUX_AS_WL_IN_TX,
+	HAL_GPIO_OUTPUT_MUX_AS_WL_IN_RX,
+	HAL_GPIO_OUTPUT_MUX_AS_BT_IN_TX,
+	HAL_GPIO_OUTPUT_MUX_AS_BT_IN_RX,
+	HAL_GPIO_OUTPUT_MUX_AS_RUCKUS_STROBE,
+	HAL_GPIO_OUTPUT_MUX_AS_RUCKUS_DATA,
+	HAL_GPIO_OUTPUT_MUX_AS_SMARTANT_CTRL0,
+	HAL_GPIO_OUTPUT_MUX_AS_SMARTANT_CTRL1,
+	HAL_GPIO_OUTPUT_MUX_AS_SMARTANT_CTRL2,
+	HAL_GPIO_OUTPUT_MUX_NUM_ENTRIES
 } HAL_GPIO_MUX_TYPE;
 
 typedef enum {
@@ -1074,6 +1093,8 @@ typedef enum {
 	HAL_BT_COEX_SET_ACK_PWR		= 0,	/* Change ACK power setting */
 	HAL_BT_COEX_LOWER_TX_PWR,		/* Change transmit power */
 	HAL_BT_COEX_ANTENNA_DIVERSITY,	/* Enable RX diversity for Kite */
+	HAL_BT_COEX_MCI_MAX_TX_PWR,	/* Set max tx power for concurrent tx */
+	HAL_BT_COEX_MCI_FTP_STOMP_RX,	/* Use a different weight for stomp low */
 } HAL_BT_COEX_SET_PARAMETER;
 
 #define	HAL_BT_COEX_FLAG_LOW_ACK_PWR	0x00000001
@@ -1243,7 +1264,9 @@ typedef struct
 	int ath_hal_show_bb_panic;
 	int ath_hal_ant_ctrl_comm2g_switch_enable;
 	int ath_hal_ext_atten_margin_cfg;
+	int ath_hal_min_gainidx;
 	int ath_hal_war70c;
+	uint32_t ath_hal_mci_config;
 } HAL_OPS_CONFIG;
 
 /*
@@ -1276,6 +1299,9 @@ struct ath_hal {
 
 	uint32_t	ah_intrstate[8];	/* last int state */
 	uint32_t	ah_syncstate;		/* last sync intr state */
+
+	/* Current powerstate from HAL calls */
+	HAL_POWER_MODE	ah_powerMode;
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
@@ -1382,9 +1408,6 @@ struct ath_hal {
 				const struct ieee80211_channel *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,
 				const HAL_NODE_STATS *);
-	void	  __ahdecl(*ah_rxAntCombDiversity)(struct ath_hal *,
-				struct ath_rx_status *,
-				unsigned long, int);
 
 	/* Misc Functions */
 	HAL_STATUS __ahdecl(*ah_getCapability)(struct ath_hal *,
@@ -1561,10 +1584,28 @@ struct ath_hal {
 				uint32_t);
 	void	    __ahdecl(*ah_btCoexSetBmissThresh)(struct ath_hal *,
 				uint32_t);
-	void	    __ahdecl(*ah_btcoexSetParameter)(struct ath_hal *,
+	void	    __ahdecl(*ah_btCoexSetParameter)(struct ath_hal *,
 				uint32_t, uint32_t);
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
+
+	/* Bluetooth MCI methods */
+	void	    __ahdecl(*ah_btMciSetup)(struct ath_hal *,
+				uint32_t, void *, uint16_t, uint32_t);
+	HAL_BOOL    __ahdecl(*ah_btMciSendMessage)(struct ath_hal *,
+				uint8_t, uint32_t, uint32_t *, uint8_t,
+				HAL_BOOL, HAL_BOOL);
+	uint32_t    __ahdecl(*ah_btMciGetInterrupt)(struct ath_hal *,
+				uint32_t *, uint32_t *);
+	uint32_t    __ahdecl(*ah_btMciGetState)(struct ath_hal *,
+				uint32_t, uint32_t *);
+	void	    __ahdecl(*ah_btMciDetach)(struct ath_hal *);
+
+	/* LNA diversity configuration */
+	void	    __ahdecl(*ah_divLnaConfGet)(struct ath_hal *,
+				HAL_ANT_COMB_CONFIG *);
+	void	    __ahdecl(*ah_divLnaConfSet)(struct ath_hal *,
+				HAL_ANT_COMB_CONFIG *);
 };
 
 /* 
@@ -1588,7 +1629,8 @@ extern	const char *__ahdecl ath_hal_probe(uint16_t vendorid, uint16_t devid);
  * be returned if the status parameter is non-zero.
  */
 extern	struct ath_hal * __ahdecl ath_hal_attach(uint16_t devid, HAL_SOFTC,
-		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata, HAL_STATUS* status);
+		HAL_BUS_TAG, HAL_BUS_HANDLE, uint16_t *eepromdata,
+		HAL_OPS_CONFIG *ah_config, HAL_STATUS* status);
 
 extern	const char *ath_hal_mac_name(struct ath_hal *);
 extern	const char *ath_hal_rf_name(struct ath_hal *);

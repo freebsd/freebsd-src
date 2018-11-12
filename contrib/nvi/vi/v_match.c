@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "@(#)v_match.c	10.8 (Berkeley) 3/6/96";
+static const char sccsid[] = "$Id: v_match.c,v 10.11 2012/02/11 00:33:46 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -18,8 +18,10 @@ static const char sccsid[] = "@(#)v_match.c	10.8 (Berkeley) 3/6/96";
 #include <sys/time.h>
 
 #include <bitstring.h>
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "../common/common.h"
@@ -32,15 +34,23 @@ static const char sccsid[] = "@(#)v_match.c	10.8 (Berkeley) 3/6/96";
  * PUBLIC: int v_match __P((SCR *, VICMD *));
  */
 int
-v_match(sp, vp)
-	SCR *sp;
-	VICMD *vp;
+v_match(SCR *sp, VICMD *vp)
 {
 	VCS cs;
 	MARK *mp;
 	size_t cno, len, off;
 	int cnt, isempty, matchc, startc, (*gc)__P((SCR *, VCS *));
-	char *p;
+	CHAR_T *p;
+	CHAR_T *cp;
+	const CHAR_T *match_chars;
+
+	/*
+	 * Historically vi would match (), {} and [] however
+	 * an update included <>.  This is ok for editing HTML
+	 * but a pain in the butt for C source.
+	 * Making it an option lets the user decide what is 'right'.
+	 */
+	match_chars = VIP(sp)->mcs;
 
 	/*
 	 * !!!
@@ -60,43 +70,14 @@ v_match(sp, vp)
 nomatch:		msgq(sp, M_BERR, "184|No match character on this line");
 			return (1);
 		}
-		switch (startc = p[off]) {
-		case '(':
-			matchc = ')';
-			gc = cs_next;
+		startc = p[off];
+		cp = STRCHR(match_chars, startc);
+		if (cp != NULL) {
+			cnt = cp - match_chars;
+			matchc = match_chars[cnt ^ 1];
+			gc = cnt & 1 ? cs_prev : cs_next;
 			break;
-		case ')':
-			matchc = '(';
-			gc = cs_prev;
-			break;
-		case '[':
-			matchc = ']';
-			gc = cs_next;
-			break;
-		case ']':
-			matchc = '[';
-			gc = cs_prev;
-			break;
-		case '{':
-			matchc = '}';
-			gc = cs_next;
-			break;
-		case '}':
-			matchc = '{';
-			gc = cs_prev;
-			break;
-		case '<':
-			matchc = '>';
-			gc = cs_next;
-			break;
-		case '>':
-			matchc = '<';
-			gc = cs_prev;
-			break;
-		default:
-			continue;
 		}
-		break;
 	}
 
 	cs.cs_lno = vp->m_start.lno;
@@ -135,8 +116,8 @@ nomatch:		msgq(sp, M_BERR, "184|No match character on this line");
 	 * starting cursor position when deleting to a match.
 	 */
 	if (vp->m_start.lno < vp->m_stop.lno ||
-	    vp->m_start.lno == vp->m_stop.lno &&
-	    vp->m_start.cno < vp->m_stop.cno)
+	    (vp->m_start.lno == vp->m_stop.lno &&
+	    vp->m_start.cno < vp->m_stop.cno))
 		vp->m_final = ISMOTION(vp) ? vp->m_start : vp->m_stop;
 	else
 		vp->m_final = vp->m_stop;
@@ -166,5 +147,31 @@ nomatch:		msgq(sp, M_BERR, "184|No match character on this line");
 		if (!isblank(*p))
 			return (0);
 	F_SET(vp, VM_LMODE);
+	return (0);
+}
+
+/*
+ * v_buildmcs --
+ *	Build the match character list.
+ *
+ * PUBLIC: int v_buildmcs __P((SCR *, char *));
+ */
+int
+v_buildmcs(SCR *sp, char *str)
+{
+	CHAR_T **mp = &VIP(sp)->mcs;
+	size_t len = strlen(str) + 1;
+
+	if (*mp != NULL)
+		free(*mp);
+	MALLOC(sp, *mp, CHAR_T *, len * sizeof(CHAR_T));
+	if (*mp == NULL)
+		return (1);
+#ifdef USE_WIDECHAR
+	if (mbstowcs(*mp, str, len) == (size_t)-1)
+		return (1);
+#else
+	memcpy(*mp, str, len);
+#endif
 	return (0);
 }

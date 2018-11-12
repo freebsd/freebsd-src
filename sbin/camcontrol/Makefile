@@ -3,7 +3,7 @@
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	fwdownload.c modeedit.c progress.c
+SRCS+=	fwdownload.c modeedit.c persist.c progress.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif
@@ -11,8 +11,7 @@ CFLAGS+= -DMINIMALISTIC
 .if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
 .endif
-DPADD=	${LIBCAM} ${LIBSBUF} ${LIBUTIL}
-LDADD=	-lcam -lsbuf -lutil
+LIBADD=	cam sbuf util
 MAN=	camcontrol.8
 
 .include <bsd.prog.mk>

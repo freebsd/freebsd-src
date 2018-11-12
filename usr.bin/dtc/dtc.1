@@ -51,6 +51,7 @@
 .Op Fl p Ar bytes
 .Op Fl V Ar blob_version
 .Op Fl W Ar [no-]checker_name
+.Op Fl P Ar predefined_properties
 .Ar input_file
 .Sh DESCRIPTION
 The
@@ -132,6 +133,22 @@ The ASCII representation of the FDT.
 .El
 .It Fl o Ar output_file
 The file to which to write the output.
+.It Fl P Ar predefined_macro
+Defines a macro, in the form
+.Ar name=value
+or
+.Ar name
+to be used for device tree source files that contain conditional components.
+This tool supports two extensions to the standard to support conditional
+compilation of device trees.
+The first is an
+.Ar /include/if [property]/ "file.dts"
+directive that is allowed at the start of a file and which will only include
+the specified file if it the specified property is passed with this flag.
+The second is the
+.Ar $NAME
+format for property values.
+These allow property value to be specified on the command line.
 .It Fl R Ar entries
 The number of empty reservation table entries to pad the table with.
 This is
@@ -214,6 +231,12 @@ property.
 Checks the type of the
 .Va compatible
 property.
+.It cells-attributes
+Checks that all nodes with children have both
+.Va #address-cells
+and
+.Va #size-cells
+properties.
 .El
 .Sh EXAMPLES
 The command:

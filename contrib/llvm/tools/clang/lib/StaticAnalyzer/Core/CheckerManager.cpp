@@ -12,11 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
-#include "clang/StaticAnalyzer/Core/Checker.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
-#include "clang/Analysis/ProgramPoint.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/Analysis/ProgramPoint.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 
 using namespace clang;
 using namespace ento;
@@ -30,7 +30,7 @@ bool CheckerManager::hasPathSensitiveCheckers() const {
          !LocationCheckers.empty()          ||
          !BindCheckers.empty()              ||
          !EndAnalysisCheckers.empty()       ||
-         !EndPathCheckers.empty()           ||
+         !EndFunctionCheckers.empty()           ||
          !BranchConditionCheckers.empty()   ||
          !LiveSymbolsCheckers.empty()       ||
          !DeadSymbolsCheckers.empty()       ||
@@ -58,7 +58,7 @@ void CheckerManager::runCheckersOnASTDecl(const Decl *D, AnalysisManager& mgr,
   assert(D);
 
   unsigned DeclKind = D->getKind();
-  CachedDeclCheckers *checkers = 0;
+  CachedDeclCheckers *checkers = nullptr;
   CachedDeclCheckersMapTy::iterator CCI = CachedDeclCheckersMap.find(DeclKind);
   if (CCI != CachedDeclCheckersMap.end()) {
     checkers = &(CCI->second);
@@ -109,7 +109,7 @@ static void expandGraphWithCheckers(CHECK_CTX checkCtx,
   const ExplodedNodeSet *PrevSet = &Src;
 
   for (; I != E; ++I) {
-    ExplodedNodeSet *CurrSet = 0;
+    ExplodedNodeSet *CurrSet = nullptr;
     if (I+1 == E)
       CurrSet = &Dst;
     else {
@@ -169,7 +169,7 @@ void CheckerManager::runCheckersForStmt(bool isPreVisit,
                                         const Stmt *S,
                                         ExprEngine &Eng,
                                         bool WasInlined) {
-  CheckStmtContext C(isPreVisit, *getCachedStmtCheckersFor(S, isPreVisit),
+  CheckStmtContext C(isPreVisit, getCachedStmtCheckersFor(S, isPreVisit),
                      S, Eng, WasInlined);
   expandGraphWithCheckers(C, Dst, Src);
 }
@@ -353,17 +353,17 @@ void CheckerManager::runCheckersForEndAnalysis(ExplodedGraph &G,
 /// \brief Run checkers for end of path.
 // Note, We do not chain the checker output (like in expandGraphWithCheckers)
 // for this callback since end of path nodes are expected to be final.
-void CheckerManager::runCheckersForEndPath(NodeBuilderContext &BC,
-                                           ExplodedNodeSet &Dst,
-                                           ExplodedNode *Pred,
-                                           ExprEngine &Eng) {
+void CheckerManager::runCheckersForEndFunction(NodeBuilderContext &BC,
+                                               ExplodedNodeSet &Dst,
+                                               ExplodedNode *Pred,
+                                               ExprEngine &Eng) {
   
   // We define the builder outside of the loop bacause if at least one checkers
   // creates a sucsessor for Pred, we do not need to generate an 
   // autotransition for it.
   NodeBuilder Bldr(Pred, Dst, BC);
-  for (unsigned i = 0, e = EndPathCheckers.size(); i != e; ++i) {
-    CheckEndPathFunc checkFn = EndPathCheckers[i];
+  for (unsigned i = 0, e = EndFunctionCheckers.size(); i != e; ++i) {
+    CheckEndFunctionFunc checkFn = EndFunctionCheckers[i];
 
     const ProgramPoint &L = BlockEntrance(BC.Block,
                                           Pred->getLocationContext(),
@@ -469,19 +469,40 @@ bool CheckerManager::wantsRegionChangeUpdate(ProgramStateRef state) {
 /// \brief Run checkers for region changes.
 ProgramStateRef 
 CheckerManager::runCheckersForRegionChanges(ProgramStateRef state,
-                            const StoreManager::InvalidatedSymbols *invalidated,
+                                    const InvalidatedSymbols *invalidated,
                                     ArrayRef<const MemRegion *> ExplicitRegions,
-                                          ArrayRef<const MemRegion *> Regions,
-                                          const CallEvent *Call) {
+                                    ArrayRef<const MemRegion *> Regions,
+                                    const CallEvent *Call) {
   for (unsigned i = 0, e = RegionChangesCheckers.size(); i != e; ++i) {
     // If any checker declares the state infeasible (or if it starts that way),
     // bail out.
     if (!state)
-      return NULL;
+      return nullptr;
     state = RegionChangesCheckers[i].CheckFn(state, invalidated, 
                                              ExplicitRegions, Regions, Call);
   }
   return state;
+}
+
+/// \brief Run checkers to process symbol escape event.
+ProgramStateRef
+CheckerManager::runCheckersForPointerEscape(ProgramStateRef State,
+                                   const InvalidatedSymbols &Escaped,
+                                   const CallEvent *Call,
+                                   PointerEscapeKind Kind,
+                                   RegionAndSymbolInvalidationTraits *ETraits) {
+  assert((Call != nullptr ||
+          (Kind != PSK_DirectEscapeOnCall &&
+           Kind != PSK_IndirectEscapeOnCall)) &&
+         "Call must not be NULL when escaping on call");
+    for (unsigned i = 0, e = PointerEscapeCheckers.size(); i != e; ++i) {
+      // If any checker declares the state infeasible (or if it starts that
+      //  way), bail out.
+      if (!State)
+        return nullptr;
+      State = PointerEscapeCheckers[i](State, Escaped, Call, Kind, ETraits);
+    }
+  return State;
 }
 
 /// \brief Run checkers for handling assumptions on symbolic values.
@@ -492,7 +513,7 @@ CheckerManager::runCheckersForEvalAssume(ProgramStateRef state,
     // If any checker declares the state infeasible (or if it starts that way),
     // bail out.
     if (!state)
-      return NULL;
+      return nullptr;
     state = EvalAssumeCheckers[i](state, Cond, Assumption);
   }
   return state;
@@ -618,8 +639,8 @@ void CheckerManager::_registerForEndAnalysis(CheckEndAnalysisFunc checkfn) {
   EndAnalysisCheckers.push_back(checkfn);
 }
 
-void CheckerManager::_registerForEndPath(CheckEndPathFunc checkfn) {
-  EndPathCheckers.push_back(checkfn);
+void CheckerManager::_registerForEndFunction(CheckEndFunctionFunc checkfn) {
+  EndFunctionCheckers.push_back(checkfn);
 }
 
 void CheckerManager::_registerForBranchCondition(
@@ -641,6 +662,15 @@ void CheckerManager::_registerForRegionChanges(CheckRegionChangesFunc checkfn,
   RegionChangesCheckers.push_back(info);
 }
 
+void CheckerManager::_registerForPointerEscape(CheckPointerEscapeFunc checkfn){
+  PointerEscapeCheckers.push_back(checkfn);
+}
+
+void CheckerManager::_registerForConstPointerEscape(
+                                          CheckPointerEscapeFunc checkfn) {
+  PointerEscapeCheckers.push_back(checkfn);
+}
+
 void CheckerManager::_registerForEvalAssume(EvalAssumeFunc checkfn) {
   EvalAssumeCheckers.push_back(checkfn);
 }
@@ -658,27 +688,23 @@ void CheckerManager::_registerForEndOfTranslationUnit(
 // Implementation details.
 //===----------------------------------------------------------------------===//
 
-CheckerManager::CachedStmtCheckers *
+const CheckerManager::CachedStmtCheckers &
 CheckerManager::getCachedStmtCheckersFor(const Stmt *S, bool isPreVisit) {
   assert(S);
 
-  CachedStmtCheckersKey key(S->getStmtClass(), isPreVisit);
-  CachedStmtCheckers *checkers = 0;
-  CachedStmtCheckersMapTy::iterator CCI = CachedStmtCheckersMap.find(key);
-  if (CCI != CachedStmtCheckersMap.end()) {
-    checkers = &(CCI->second);
-  } else {
-    // Find the checkers that should run for this Stmt and cache them.
-    checkers = &CachedStmtCheckersMap[key];
-    for (unsigned i = 0, e = StmtCheckers.size(); i != e; ++i) {
-      StmtCheckerInfo &info = StmtCheckers[i];
-      if (info.IsPreVisit == isPreVisit && info.IsForStmtFn(S))
-        checkers->push_back(info.CheckFn);
-    }
-  }
+  unsigned Key = (S->getStmtClass() << 1) | unsigned(isPreVisit);
+  CachedStmtCheckersMapTy::iterator CCI = CachedStmtCheckersMap.find(Key);
+  if (CCI != CachedStmtCheckersMap.end())
+    return CCI->second;
 
-  assert(checkers);
-  return checkers;
+  // Find the checkers that should run for this Stmt and cache them.
+  CachedStmtCheckers &Checkers = CachedStmtCheckersMap[Key];
+  for (unsigned i = 0, e = StmtCheckers.size(); i != e; ++i) {
+    StmtCheckerInfo &Info = StmtCheckers[i];
+    if (Info.IsPreVisit == isPreVisit && Info.IsForStmtFn(S))
+      Checkers.push_back(Info.CheckFn);
+  }
+  return Checkers;
 }
 
 CheckerManager::~CheckerManager() {

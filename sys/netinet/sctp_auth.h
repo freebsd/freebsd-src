@@ -36,28 +36,21 @@ __FBSDID("$FreeBSD$");
 #ifndef _NETINET_SCTP_AUTH_H_
 #define _NETINET_SCTP_AUTH_H_
 
+#include <netinet/sctp_os.h>
 
 /* digest lengths */
 #define SCTP_AUTH_DIGEST_LEN_SHA1	20
-#define SCTP_AUTH_DIGEST_LEN_SHA224	28
 #define SCTP_AUTH_DIGEST_LEN_SHA256	32
-#define SCTP_AUTH_DIGEST_LEN_SHA384	48
-#define SCTP_AUTH_DIGEST_LEN_SHA512	64
-#define SCTP_AUTH_DIGEST_LEN_MAX	64
+#define SCTP_AUTH_DIGEST_LEN_MAX	SCTP_AUTH_DIGEST_LEN_SHA256
 
 /* random sizes */
 #define SCTP_AUTH_RANDOM_SIZE_DEFAULT	32
 #define SCTP_AUTH_RANDOM_SIZE_REQUIRED	32
-#define SCTP_AUTH_RANDOM_SIZE_MAX	256
 
 /* union of all supported HMAC algorithm contexts */
 typedef union sctp_hash_context {
-	SHA1_CTX sha1;
-#ifdef HAVE_SHA2
-	SHA256_CTX sha256;
-	SHA384_CTX sha384;
-	SHA512_CTX sha512;
-#endif
+	SCTP_SHA1_CTX sha1;
+	SCTP_SHA256_CTX sha256;
 }                 sctp_hash_context_t;
 
 typedef struct sctp_key {
@@ -119,7 +112,6 @@ extern sctp_auth_chklist_t *sctp_copy_chunklist(sctp_auth_chklist_t * chklist);
 extern int sctp_auth_add_chunk(uint8_t chunk, sctp_auth_chklist_t * list);
 extern int sctp_auth_delete_chunk(uint8_t chunk, sctp_auth_chklist_t * list);
 extern size_t sctp_auth_get_chklist_size(const sctp_auth_chklist_t * list);
-extern void sctp_auth_set_default_chunks(sctp_auth_chklist_t * list);
 extern int 
 sctp_serialize_auth_chunks(const sctp_auth_chklist_t * list,
     uint8_t * ptr);
@@ -162,7 +154,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid,
 
 
 /* hmac list handling */
-extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint8_t num_hmacs);
+extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint16_t num_hmacs);
 extern void sctp_free_hmaclist(sctp_hmaclist_t * list);
 extern int sctp_auth_add_hmacid(sctp_hmaclist_t * list, uint16_t hmac_id);
 extern sctp_hmaclist_t *sctp_copy_hmaclist(sctp_hmaclist_t * list);

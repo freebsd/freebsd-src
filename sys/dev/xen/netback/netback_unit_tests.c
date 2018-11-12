@@ -104,10 +104,6 @@ struct test_fixture {
 
 typedef struct test_fixture test_fixture_t;
 
-static void	xnb_fill_eh_and_ip(struct mbuf *m, uint16_t ip_len,
-				   uint16_t ip_id, uint16_t ip_p,
-				   uint16_t ip_off, uint16_t ip_sum);
-static void	xnb_fill_tcp(struct mbuf *m);
 static int	xnb_get1pkt(struct xnb_pkt *pkt, size_t size, uint16_t flags);
 static int	xnb_unit_test_runner(test_fixture_t const tests[], int ntests,
 				     char *buffer, size_t buflen);
@@ -163,17 +159,24 @@ static testcase_t xnb_rxpkt2rsp_extra;
 static testcase_t xnb_rxpkt2rsp_2short;
 static testcase_t xnb_rxpkt2rsp_2slots;
 static testcase_t xnb_rxpkt2rsp_copyerror;
+static testcase_t xnb_sscanf_llu;
+static testcase_t xnb_sscanf_lld;
+static testcase_t xnb_sscanf_hhu;
+static testcase_t xnb_sscanf_hhd;
+static testcase_t xnb_sscanf_hhn;
+
+#if defined(INET) || defined(INET6)
 /* TODO: add test cases for xnb_add_mbuf_cksum for IPV6 tcp and udp */
 static testcase_t xnb_add_mbuf_cksum_arp;
 static testcase_t xnb_add_mbuf_cksum_tcp;
 static testcase_t xnb_add_mbuf_cksum_udp;
 static testcase_t xnb_add_mbuf_cksum_icmp;
 static testcase_t xnb_add_mbuf_cksum_tcp_swcksum;
-static testcase_t xnb_sscanf_llu;
-static testcase_t xnb_sscanf_lld;
-static testcase_t xnb_sscanf_hhu;
-static testcase_t xnb_sscanf_hhd;
-static testcase_t xnb_sscanf_hhn;
+static void	xnb_fill_eh_and_ip(struct mbuf *m, uint16_t ip_len,
+				   uint16_t ip_id, uint16_t ip_p,
+				   uint16_t ip_off, uint16_t ip_sum);
+static void	xnb_fill_tcp(struct mbuf *m);
+#endif /* INET || INET6 */
 
 /** Private data used by unit tests */
 static struct {
@@ -307,11 +310,13 @@ xnb_unit_test_main(SYSCTL_HANDLER_ARGS) {
 		{setup_pvt_data, xnb_rxpkt2rsp_2short, teardown_pvt_data},
 		{setup_pvt_data, xnb_rxpkt2rsp_2slots, teardown_pvt_data},
 		{setup_pvt_data, xnb_rxpkt2rsp_copyerror, teardown_pvt_data},
+#if defined(INET) || defined(INET6)
 		{null_setup, xnb_add_mbuf_cksum_arp, null_teardown},
 		{null_setup, xnb_add_mbuf_cksum_icmp, null_teardown},
 		{null_setup, xnb_add_mbuf_cksum_tcp, null_teardown},
 		{null_setup, xnb_add_mbuf_cksum_tcp_swcksum, null_teardown},
 		{null_setup, xnb_add_mbuf_cksum_udp, null_teardown},
+#endif
 		{null_setup, xnb_sscanf_hhd, null_teardown},
 		{null_setup, xnb_sscanf_hhu, null_teardown},
 		{null_setup, xnb_sscanf_lld, null_teardown},
@@ -2066,6 +2071,7 @@ xnb_rxpkt2rsp_copyerror(char *buffer, size_t buflen)
 	safe_m_freem(&mbuf);
 }
 
+#if defined(INET) || defined(INET6)
 /**
  * xnb_add_mbuf_cksum on an ARP request packet
  */
@@ -2430,6 +2436,7 @@ xnb_add_mbuf_cksum_tcp_swcksum(char *buffer, size_t buflen)
 
 	m_freem(mbufc);
 }
+#endif /* INET || INET6 */
 
 /**
  * sscanf on unsigned chars

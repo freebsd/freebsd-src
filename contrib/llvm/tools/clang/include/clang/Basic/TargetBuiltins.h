@@ -1,4 +1,4 @@
-//===--- TargetBuiltins.h - Target specific builtin IDs -------------------===//
+//===--- TargetBuiltins.h - Target specific builtin IDs ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,22 +13,43 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_BASIC_TARGET_BUILTINS_H
-#define LLVM_CLANG_BASIC_TARGET_BUILTINS_H
+#ifndef LLVM_CLANG_BASIC_TARGETBUILTINS_H
+#define LLVM_CLANG_BASIC_TARGETBUILTINS_H
 
 #include "clang/Basic/Builtins.h"
 #undef PPC
 
 namespace clang {
 
+  namespace NEON {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsNEON.def"
+    FirstTSBuiltin
+  };
+  }
+
   /// \brief ARM builtins
   namespace ARM {
     enum {
-        LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+      LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+      LastNEONBuiltin = NEON::FirstTSBuiltin - 1,
 #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
 #include "clang/Basic/BuiltinsARM.def"
-        LastTSBuiltin
+      LastTSBuiltin
     };
+  }
+
+  /// \brief AArch64 builtins
+  namespace AArch64 {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+    LastNEONBuiltin = NEON::FirstTSBuiltin - 1,
+  #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+  #include "clang/Basic/BuiltinsAArch64.def"
+    LastTSBuiltin
+  };
   }
 
   /// \brief PPC builtins
@@ -51,6 +72,15 @@ namespace clang {
     };
   }
 
+  /// \brief R600 builtins
+  namespace R600 {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+  #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+  #include "clang/Basic/BuiltinsR600.def"
+    LastTSBuiltin
+  };
+  }
 
   /// \brief X86 builtins
   namespace X86 {
@@ -81,8 +111,11 @@ namespace clang {
       Int64,
       Poly8,
       Poly16,
+      Poly64,
+      Poly128,
       Float16,
-      Float32
+      Float32,
+      Float64
     };
 
     NeonTypeFlags(unsigned F) : Flags(F) {}
@@ -121,6 +154,27 @@ namespace clang {
         LastTSBuiltin
     };
   }
+
+  /// \brief XCore builtins
+  namespace XCore {
+    enum {
+        LastTIBuiltin = clang::Builtin::FirstTSBuiltin-1,
+#define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+#include "clang/Basic/BuiltinsXCore.def"
+        LastTSBuiltin
+    };
+  }
+
+  /// \brief Le64 builtins
+  namespace Le64 {
+  enum {
+    LastTIBuiltin = clang::Builtin::FirstTSBuiltin - 1,
+  #define BUILTIN(ID, TYPE, ATTRS) BI##ID,
+  #include "clang/Basic/BuiltinsLe64.def"
+    LastTSBuiltin
+  };
+  }
+
 } // end namespace clang.
 
 #endif

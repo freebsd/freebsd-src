@@ -35,8 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/fcntl.h>
@@ -124,7 +122,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 	}
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
-	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
+	error = getnewvnode("nfs", mntp, &newnfs_vnodeops, &nvp);
 	if (error) {
 		uma_zfree(newnfsnode_zone, np);
 		return (error);

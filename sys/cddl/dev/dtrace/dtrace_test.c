@@ -25,14 +25,22 @@
  * $FreeBSD$
  *
  */
-
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
+
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/sdt.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
+
+SDT_PROVIDER_DEFINE(test);
+
+SDT_PROBE_DEFINE7(test, , , sdttest, "int", "int", "int", "int", "int",
+    "int", "int");
 
 /*
  * These are variables that the DTrace test suite references in the
@@ -44,6 +52,33 @@ int	kmem_flags;
 typedef struct vnode vnode_t;
 vnode_t dummy;
 vnode_t *rootvp = &dummy;
+
+/*
+ * Test SDT probes with more than 5 arguments. On amd64, such probes require
+ * special handling since only the first 5 arguments will be passed to
+ * dtrace_probe() in registers; the rest must be fetched off the stack.
+ */
+static int
+dtrace_test_sdttest(SYSCTL_HANDLER_ARGS)
+{
+	int val, error;
+
+	val = 0;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	else if (val == 0)
+		return (0);
+
+	SDT_PROBE7(test, , , sdttest, 1, 2, 3, 4, 5, 6, 7);
+
+	return (error);
+}
+
+static SYSCTL_NODE(_debug, OID_AUTO, dtracetest, CTLFLAG_RD, 0, "");
+
+SYSCTL_PROC(_debug_dtracetest, OID_AUTO, sdttest, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, dtrace_test_sdttest, "I", "Trigger the SDT test probe");
 
 static int
 dtrace_test_modevent(module_t mod, int type, void *data)

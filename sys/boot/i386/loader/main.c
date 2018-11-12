@@ -183,6 +183,9 @@ main(void)
     /* detect SMBIOS for future reference */
     smbios_detect();
 
+    /* detect PCI BIOS for future reference */
+    biospci_detect();
+
     printf("\n");
     printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
     printf("(%s, %s)\n", bootprog_maker, bootprog_date);
@@ -192,7 +195,12 @@ main(void)
     
     bios_getsmap();
 
-    interact();			/* doesn't return */
+#ifdef LOADER_TFTP_SUPPORT
+    if (kargs->bootflags & KARGS_FLAGS_PXE)
+	interact(pxe_default_rc());
+    else
+#endif
+    interact(NULL);
 
     /* if we ever get here, it is an error */
     return (1);

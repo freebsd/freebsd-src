@@ -24,7 +24,7 @@
  * Copyright (c) 2007 Citrix Systems, Inc.
  * 
  * Authors:
- *    Keir Fraser <keir.fraser@citrix.com>
+ *    Keir Fraser <keir@xen.org>
  */
 
 #ifndef __XEN_PUBLIC_ARCH_X86_CPUID_H__

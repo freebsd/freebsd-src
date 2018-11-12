@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2012 Intel Corporation
+ * Copyright (C) 2012-2014 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,13 +40,18 @@ __FBSDID("$FreeBSD$");
 #include "nvme_private.h"
 
 struct nvme_consumer {
-	nvme_consumer_cb_fn_t		cb_fn;
-	void				*cb_arg;
+	uint32_t		id;
+	nvme_cons_ns_fn_t	ns_fn;
+	nvme_cons_ctrlr_fn_t	ctrlr_fn;
+	nvme_cons_async_fn_t	async_fn;
+	nvme_cons_fail_fn_t	fail_fn;
 };
 
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
+#define	INVALID_CONSUMER_ID	0xFFFF
 
-uma_zone_t nvme_request_zone;
+uma_zone_t	nvme_request_zone;
+int32_t		nvme_retry_count;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 
@@ -118,8 +123,13 @@ nvme_probe (device_t device)
 static void
 nvme_init(void)
 {
+	uint32_t	i;
+
 	nvme_request_zone = uma_zcreate("nvme_request",
 	    sizeof(struct nvme_request), NULL, NULL, NULL, NULL, 0, 0);
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
+		nvme_consumer[i].id = INVALID_CONSUMER_ID;
 }
 
 SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
@@ -147,30 +157,14 @@ nvme_shutdown(void)
 {
 	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	union cc_register	cc;
-	union csts_register	csts;
 	int			dev, devcount;
 
 	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
 		return;
 
 	for (dev = 0; dev < devcount; dev++) {
-		/*
-		 * Only notify controller of shutdown when a real shutdown is
-		 *  in process, not when a module unload occurs.  It seems at
-		 *  least some controllers (Chatham at least) don't let you
-		 *  re-enable the controller after shutdown notification has
-		 *  been received.
-		 */
 		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		cc.raw = nvme_mmio_read_4(ctrlr, cc);
-		cc.bits.shn = NVME_SHN_NORMAL;
-		nvme_mmio_write_4(ctrlr, cc, cc.raw);
-		csts.raw = nvme_mmio_read_4(ctrlr, csts);
-		while (csts.bits.shst != NVME_SHST_COMPLETE) {
-			DELAY(5);
-			csts.raw = nvme_mmio_read_4(ctrlr, csts);
-		}
+		nvme_ctrlr_shutdown(ctrlr);
 	}
 
 	free(devlist, M_TEMP);
@@ -215,39 +209,8 @@ nvme_dump_completion(struct nvme_completion *cpl)
 	printf("cdw0:%08x sqhd:%04x sqid:%04x "
 	    "cid:%04x p:%x sc:%02x sct:%x m:%x dnr:%x\n",
 	    cpl->cdw0, cpl->sqhd, cpl->sqid,
-	    cpl->cid, cpl->p, cpl->sf_sc, cpl->sf_sct, cpl->sf_m,
-	    cpl->sf_dnr);
-}
-
-void
-nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
-{
-	struct nvme_tracker 	*tr = arg;
-	uint32_t		cur_nseg;
-
-	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
-
-	/*
-	 * Note that we specified PAGE_SIZE for alignment and max
-	 *  segment size when creating the bus dma tags.  So here
-	 *  we can safely just transfer each segment to its
-	 *  associated PRP entry.
-	 */
-	tr->req->cmd.prp1 = seg[0].ds_addr;
-
-	if (nseg == 2) {
-		tr->req->cmd.prp2 = seg[1].ds_addr;
-	} else if (nseg > 2) {
-		cur_nseg = 1;
-		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
-		while (cur_nseg < nseg) {
-			tr->prp[cur_nseg-1] =
-			    (uint64_t)seg[cur_nseg].ds_addr;
-			cur_nseg++;
-		}
-	}
-
-	nvme_qpair_submit_cmd(tr->qpair, tr);
+	    cpl->cid, cpl->status.p, cpl->status.sc, cpl->status.sct,
+	    cpl->status.m, cpl->status.dnr);
 }
 
 static int
@@ -258,23 +221,33 @@ nvme_attach(device_t dev)
 
 	status = nvme_ctrlr_construct(ctrlr, dev);
 
-	if (status != 0)
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
 	/*
 	 * Reset controller twice to ensure we do a transition from cc.en==1
 	 *  to cc.en==0.  This is because we don't really know what status
 	 *  the controller was left in when boot handed off to OS.
 	 */
-	status = nvme_ctrlr_reset(ctrlr);
-	if (status != 0)
+	status = nvme_ctrlr_hw_reset(ctrlr);
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
-	status = nvme_ctrlr_reset(ctrlr);
-	if (status != 0)
+	status = nvme_ctrlr_hw_reset(ctrlr);
+	if (status != 0) {
+		nvme_ctrlr_destruct(ctrlr, dev);
 		return (status);
+	}
 
-	ctrlr->config_hook.ich_func = nvme_ctrlr_start;
+	nvme_sysctl_initialize_ctrlr(ctrlr);
+
+	pci_enable_busmaster(dev);
+
+	ctrlr->config_hook.ich_func = nvme_ctrlr_start_config_hook;
 	ctrlr->config_hook.ich_arg = ctrlr;
 
 	config_intrhook_establish(&ctrlr->config_hook);
@@ -286,77 +259,121 @@ static int
 nvme_detach (device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
-	struct nvme_namespace	*ns;
-	int			i;
 
-	for (i = 0; i < NVME_MAX_NAMESPACES; i++) {
-		ns = &ctrlr->ns[i];
-		if (ns->cdev)
-			destroy_dev(ns->cdev);
-	}
-
-	if (ctrlr->cdev)
-		destroy_dev(ctrlr->cdev);
-
-	for (i = 0; i < ctrlr->num_io_queues; i++) {
-		nvme_io_qpair_destroy(&ctrlr->ioq[i]);
-	}
-
-	free(ctrlr->ioq, M_NVME);
-
-	nvme_admin_qpair_destroy(&ctrlr->adminq);
-
-	if (ctrlr->resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->resource_id, ctrlr->resource);
-	}
-
-	if (ctrlr->bar4_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
-	}
-
-#ifdef CHATHAM2
-	if (ctrlr->chatham_resource != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY,
-		    ctrlr->chatham_resource_id, ctrlr->chatham_resource);
-	}
-#endif
-
-	if (ctrlr->tag)
-		bus_teardown_intr(ctrlr->dev, ctrlr->res, ctrlr->tag);
-
-	if (ctrlr->res)
-		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
-		    rman_get_rid(ctrlr->res), ctrlr->res);
-
-	if (ctrlr->msix_enabled)
-		pci_release_msi(dev);
-
+	nvme_ctrlr_destruct(ctrlr, dev);
+	pci_disable_busmaster(dev);
 	return (0);
 }
 
 static void
-nvme_notify_consumer(struct nvme_consumer *consumer)
+nvme_notify(struct nvme_consumer *cons,
+	    struct nvme_controller *ctrlr)
+{
+	struct nvme_namespace	*ns;
+	void			*ctrlr_cookie;
+	int			cmpset, ns_idx;
+
+	/*
+	 * The consumer may register itself after the nvme devices
+	 *  have registered with the kernel, but before the
+	 *  driver has completed initialization.  In that case,
+	 *  return here, and when initialization completes, the
+	 *  controller will make sure the consumer gets notified.
+	 */
+	if (!ctrlr->is_initialized)
+		return;
+
+	cmpset = atomic_cmpset_32(&ctrlr->notification_sent, 0, 1);
+
+	if (cmpset == 0)
+		return;
+
+	if (cons->ctrlr_fn != NULL)
+		ctrlr_cookie = (*cons->ctrlr_fn)(ctrlr);
+	else
+		ctrlr_cookie = NULL;
+	ctrlr->cons_cookie[cons->id] = ctrlr_cookie;
+	if (ctrlr->is_failed) {
+		if (cons->fail_fn != NULL)
+			(*cons->fail_fn)(ctrlr_cookie);
+		/*
+		 * Do not notify consumers about the namespaces of a
+		 *  failed controller.
+		 */
+		return;
+	}
+	for (ns_idx = 0; ns_idx < ctrlr->cdata.nn; ns_idx++) {
+		ns = &ctrlr->ns[ns_idx];
+		if (cons->ns_fn != NULL)
+			ns->cons_cookie[cons->id] =
+			    (*cons->ns_fn)(ns, ctrlr_cookie);
+	}
+}
+
+void
+nvme_notify_new_controller(struct nvme_controller *ctrlr)
+{
+	int i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		if (nvme_consumer[i].id != INVALID_CONSUMER_ID) {
+			nvme_notify(&nvme_consumer[i], ctrlr);
+		}
+	}
+}
+
+static void
+nvme_notify_new_consumer(struct nvme_consumer *cons)
 {
 	device_t		*devlist;
 	struct nvme_controller	*ctrlr;
-	int			dev, ns, devcount;
+	int			dev_idx, devcount;
 
 	if (devclass_get_devices(nvme_devclass, &devlist, &devcount))
 		return;
 
-	for (dev = 0; dev < devcount; dev++) {
-		ctrlr = DEVICE2SOFTC(devlist[dev]);
-		for (ns = 0; ns < ctrlr->cdata.nn; ns++)
-			(*consumer->cb_fn)(consumer->cb_arg, &ctrlr->ns[ns]);
+	for (dev_idx = 0; dev_idx < devcount; dev_idx++) {
+		ctrlr = DEVICE2SOFTC(devlist[dev_idx]);
+		nvme_notify(cons, ctrlr);
 	}
 
 	free(devlist, M_TEMP);
 }
 
+void
+nvme_notify_async_consumers(struct nvme_controller *ctrlr,
+			    const struct nvme_completion *async_cpl,
+			    uint32_t log_page_id, void *log_page_buffer,
+			    uint32_t log_page_size)
+{
+	struct nvme_consumer	*cons;
+	uint32_t		i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->async_fn != NULL)
+			(*cons->async_fn)(ctrlr->cons_cookie[i], async_cpl,
+			    log_page_id, log_page_buffer, log_page_size);
+	}
+}
+
+void
+nvme_notify_fail_consumers(struct nvme_controller *ctrlr)
+{
+	struct nvme_consumer	*cons;
+	uint32_t		i;
+
+	for (i = 0; i < NVME_MAX_CONSUMERS; i++) {
+		cons = &nvme_consumer[i];
+		if (cons->id != INVALID_CONSUMER_ID && cons->fail_fn != NULL)
+			cons->fail_fn(ctrlr->cons_cookie[i]);
+	}
+}
+
 struct nvme_consumer *
-nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn, void *cb_arg)
+nvme_register_consumer(nvme_cons_ns_fn_t ns_fn, nvme_cons_ctrlr_fn_t ctrlr_fn,
+		       nvme_cons_async_fn_t async_fn,
+		       nvme_cons_fail_fn_t fail_fn)
 {
 	int i;
 
@@ -365,11 +382,14 @@ nvme_register_consumer(nvme_consumer_cb_fn_t cb_fn, void *cb_arg)
 	 *  right now since we only have one nvme consumer - nvd(4).
 	 */
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
-		if (nvme_consumer[i].cb_fn == NULL) {
-			nvme_consumer[i].cb_fn = cb_fn;
-			nvme_consumer[i].cb_arg = cb_arg;
+		if (nvme_consumer[i].id == INVALID_CONSUMER_ID) {
+			nvme_consumer[i].id = i;
+			nvme_consumer[i].ns_fn = ns_fn;
+			nvme_consumer[i].ctrlr_fn = ctrlr_fn;
+			nvme_consumer[i].async_fn = async_fn;
+			nvme_consumer[i].fail_fn = fail_fn;
 
-			nvme_notify_consumer(&nvme_consumer[i]);
+			nvme_notify_new_consumer(&nvme_consumer[i]);
 			return (&nvme_consumer[i]);
 		}
 
@@ -381,7 +401,20 @@ void
 nvme_unregister_consumer(struct nvme_consumer *consumer)
 {
 
-	consumer->cb_fn = NULL;
-	consumer->cb_arg = NULL;
+	consumer->id = INVALID_CONSUMER_ID;
 }
 
+void
+nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl)
+{
+	struct nvme_completion_poll_status	*status = arg;
+
+	/*
+	 * Copy status into the argument passed by the caller, so that
+	 *  the caller can check the status to determine if the
+	 *  the request passed or failed.
+	 */
+	memcpy(&status->cpl, cpl, sizeof(*cpl));
+	wmb();
+	status->done = TRUE;
+}

@@ -35,6 +35,9 @@ void TextDiagnosticBuffer::HandleDiagnostic(DiagnosticsEngine::Level Level,
   case DiagnosticsEngine::Warning:
     Warnings.push_back(std::make_pair(Info.getLocation(), Buf.str()));
     break;
+  case DiagnosticsEngine::Remark:
+    Remarks.push_back(std::make_pair(Info.getLocation(), Buf.str()));
+    break;
   case DiagnosticsEngine::Error:
   case DiagnosticsEngine::Fatal:
     Errors.push_back(std::make_pair(Info.getLocation(), Buf.str()));
@@ -45,16 +48,16 @@ void TextDiagnosticBuffer::HandleDiagnostic(DiagnosticsEngine::Level Level,
 void TextDiagnosticBuffer::FlushDiagnostics(DiagnosticsEngine &Diags) const {
   // FIXME: Flush the diagnostics in order.
   for (const_iterator it = err_begin(), ie = err_end(); it != ie; ++it)
-    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Error,
-                 it->second.c_str()));
+    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Error, "%0"))
+        << it->second;
   for (const_iterator it = warn_begin(), ie = warn_end(); it != ie; ++it)
-    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Warning,
-                 it->second.c_str()));
+    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Warning, "%0"))
+        << it->second;
+  for (const_iterator it = remark_begin(), ie = remark_end(); it != ie; ++it)
+    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Remark, "%0"))
+        << it->second;
   for (const_iterator it = note_begin(), ie = note_end(); it != ie; ++it)
-    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Note,
-                 it->second.c_str()));
+    Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Note, "%0"))
+        << it->second;
 }
 
-DiagnosticConsumer *TextDiagnosticBuffer::clone(DiagnosticsEngine &) const {
-  return new TextDiagnosticBuffer();
-}

@@ -12,6 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_MC_MCINSTRANALYSIS_H
+#define LLVM_MC_MCINSTRANALYSIS_H
+
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCInstrInfo.h"
@@ -52,10 +55,17 @@ public:
     return Info->get(Inst.getOpcode()).isReturn();
   }
 
+  virtual bool isTerminator(const MCInst &Inst) const {
+    return Info->get(Inst.getOpcode()).isTerminator();
+  }
+
   /// evaluateBranch - Given a branch instruction try to get the address the
-  /// branch targets. Otherwise return -1.
-  virtual uint64_t
-  evaluateBranch(const MCInst &Inst, uint64_t Addr, uint64_t Size) const;
+  /// branch targets. Return true on success, and the address in Target.
+  virtual bool
+  evaluateBranch(const MCInst &Inst, uint64_t Addr, uint64_t Size,
+                 uint64_t &Target) const;
 };
 
-}
+} // End llvm namespace
+
+#endif

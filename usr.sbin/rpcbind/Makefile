@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.3 2000/06/20 13:56:43 fvdl Exp $
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	rpcbind
 MAN=	rpcbind.8
@@ -16,7 +16,6 @@ CFLAGS+= -DINET6
 
 WARNS?=	1
 
-DPADD=	${LIBWRAP} ${LIBUTIL}
-LDADD=	-lwrap -lutil
+LIBADD=	wrap
 
 .include <bsd.prog.mk>

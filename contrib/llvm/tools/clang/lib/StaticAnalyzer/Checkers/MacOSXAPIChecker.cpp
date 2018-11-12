@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This defines MacOSXAPIChecker, which is an assortment of checks on calls
-// to various, widely used Mac OS X functions.
+// to various, widely used Apple APIs.
 //
 // FIXME: What's currently in BasicObjCFoundationChecks.cpp should be migrated
 // to here, using the new Checker interface.
@@ -16,12 +16,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/Basic/TargetInfo.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
-#include "clang/Basic/TargetInfo.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
@@ -31,7 +31,7 @@ using namespace ento;
 
 namespace {
 class MacOSXAPIChecker : public Checker< check::PreStmt<CallExpr> > {
-  mutable OwningPtr<BugType> BT_dispatchOnce;
+  mutable std::unique_ptr<BugType> BT_dispatchOnce;
 
 public:
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
@@ -67,8 +67,8 @@ void MacOSXAPIChecker::CheckDispatchOnce(CheckerContext &C, const CallExpr *CE,
     return;
 
   if (!BT_dispatchOnce)
-    BT_dispatchOnce.reset(new BugType("Improper use of 'dispatch_once'",
-                                      "Mac OS X API"));
+    BT_dispatchOnce.reset(new BugType(this, "Improper use of 'dispatch_once'",
+                                      "API Misuse (Apple)"));
 
   // Handle _dispatch_once.  In some versions of the OS X SDK we have the case
   // that dispatch_once is a macro that wraps a call to _dispatch_once.
@@ -113,7 +113,7 @@ void MacOSXAPIChecker::checkPreStmt(const CallExpr *CE,
              "_dispatch_once",
              "dispatch_once_f",
              &MacOSXAPIChecker::CheckDispatchOnce)
-      .Default(NULL);
+      .Default(nullptr);
 
   if (SC)
     (this->*SC)(C, CE, Name);

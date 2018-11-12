@@ -13,10 +13,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
-#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 
 using namespace clang;
@@ -25,7 +25,8 @@ using namespace ento;
 namespace {
 class ReturnPointerRangeChecker : 
     public Checker< check::PreStmt<ReturnStmt> > {
-  mutable OwningPtr<BuiltinBug> BT;
+  mutable std::unique_ptr<BuiltinBug> BT;
+
 public:
     void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
 };
@@ -46,7 +47,7 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
   if (!ER)
     return;
 
-  DefinedOrUnknownSVal Idx = cast<DefinedOrUnknownSVal>(ER->getIndex());
+  DefinedOrUnknownSVal Idx = ER->getIndex().castAs<DefinedOrUnknownSVal>();
   // Zero index is always in bound, this also passes ElementRegions created for
   // pointer casts.
   if (Idx.isZeroConstant())
@@ -69,9 +70,10 @@ void ReturnPointerRangeChecker::checkPreStmt(const ReturnStmt *RS,
     // FIXME: This bug correspond to CWE-466.  Eventually we should have bug
     // types explicitly reference such exploit categories (when applicable).
     if (!BT)
-      BT.reset(new BuiltinBug("Return of pointer value outside of expected range",
-           "Returned pointer value points outside the original object "
-           "(potential buffer overflow)"));
+      BT.reset(new BuiltinBug(
+          this, "Return of pointer value outside of expected range",
+          "Returned pointer value points outside the original object "
+          "(potential buffer overflow)"));
 
     // FIXME: It would be nice to eventually make this diagnostic more clear,
     // e.g., by referencing the original declaration or by saying *why* this

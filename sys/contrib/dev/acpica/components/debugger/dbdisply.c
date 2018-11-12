@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/amlcode.h>
@@ -68,6 +67,12 @@ static void *
 AcpiDbGetPointer (
     void                    *Target);
 
+static ACPI_STATUS
+AcpiDbDisplayNonRootHandlers (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue);
 
 /*
  * System handler information.
@@ -76,6 +81,7 @@ AcpiDbGetPointer (
 #define ACPI_PREDEFINED_PREFIX          "%25s (%.2X) : "
 #define ACPI_HANDLER_NAME_STRING               "%30s : "
 #define ACPI_HANDLER_PRESENT_STRING                    "%-9s (%p)\n"
+#define ACPI_HANDLER_PRESENT_STRING2                   "%-9s (%p)"
 #define ACPI_HANDLER_NOT_PRESENT_STRING                "%-9s\n"
 
 /* All predefined Address Space IDs */
@@ -132,9 +138,11 @@ AcpiDbGetPointer (
     void                    *Target)
 {
     void                    *ObjPtr;
+    ACPI_SIZE               Address;
 
 
-    ObjPtr = ACPI_TO_POINTER (ACPI_STRTOUL (Target, NULL, 16));
+    Address = ACPI_STRTOUL (Target, NULL, 16);
+    ObjPtr = ACPI_TO_POINTER (Address);
     return (ObjPtr);
 }
 
@@ -258,7 +266,6 @@ AcpiDbDecodeAndDisplayObject (
             Node = ObjPtr;
             goto DumpNode;
 
-
         case ACPI_DESC_TYPE_OPERAND:
 
             /* This is a ACPI OPERAND OBJECT */
@@ -274,7 +281,6 @@ AcpiDbDecodeAndDisplayObject (
                 ACPI_UINT32_MAX);
             AcpiExDumpObjectDescriptor (ObjPtr, 1);
             break;
-
 
         case ACPI_DESC_TYPE_PARSER:
 
@@ -292,10 +298,13 @@ AcpiDbDecodeAndDisplayObject (
             AcpiDbDumpParserDescriptor ((ACPI_PARSE_OBJECT *) ObjPtr);
             break;
 
-
         default:
 
             /* Is not a recognizeable object */
+
+            AcpiOsPrintf (
+                "Not a known ACPI internal object, descriptor type %2.2X\n",
+                ACPI_GET_DESCRIPTOR_TYPE (ObjPtr));
 
             Size = 16;
             if (AcpiOsReadable (ObjPtr, 64))
@@ -439,6 +448,7 @@ AcpiDbDisplayMethodInfo (
         switch (OpInfo->Class)
         {
         case AML_CLASS_ARGUMENT:
+
             if (CountRemaining)
             {
                 NumRemainingOperands++;
@@ -448,11 +458,13 @@ AcpiDbDisplayMethodInfo (
             break;
 
         case AML_CLASS_UNKNOWN:
+
             /* Bad opcode or ASCII character */
 
             continue;
 
         default:
+
             if (CountRemaining)
             {
                 NumRemainingOperators++;
@@ -888,7 +900,7 @@ AcpiDbDisplayGpes (
                     GpeIndex = (i * ACPI_GPE_REGISTER_WIDTH) + j;
                     GpeEventInfo = &GpeBlock->EventInfo[GpeIndex];
 
-                    if ((GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK) ==
+                    if (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags) ==
                         ACPI_GPE_DISPATCH_NONE)
                     {
                         /* This GPE is not used (no method or handler), ignore it */
@@ -921,18 +933,25 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("RunOnly, ");
                     }
 
-                    switch (GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK)
+                    switch (ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags))
                     {
                     case ACPI_GPE_DISPATCH_NONE:
+
                         AcpiOsPrintf ("NotUsed");
                         break;
+
                     case ACPI_GPE_DISPATCH_METHOD:
+
                         AcpiOsPrintf ("Method");
                         break;
+
                     case ACPI_GPE_DISPATCH_HANDLER:
+
                         AcpiOsPrintf ("Handler");
                         break;
+
                     case ACPI_GPE_DISPATCH_NOTIFY:
+
                         Count = 0;
                         Notify = GpeEventInfo->Dispatch.NotifyList;
                         while (Notify)
@@ -942,9 +961,16 @@ AcpiDbDisplayGpes (
                         }
                         AcpiOsPrintf ("Implicit Notify on %u devices", Count);
                         break;
+
+                    case ACPI_GPE_DISPATCH_RAW_HANDLER:
+
+                        AcpiOsPrintf ("RawHandler");
+                        break;
+
                     default:
+
                         AcpiOsPrintf ("UNKNOWN: %X",
-                            GpeEventInfo->Flags & ACPI_GPE_DISPATCH_MASK);
+                            ACPI_GPE_DISPATCH_TYPE (GpeEventInfo->Flags));
                         break;
                     }
 
@@ -984,7 +1010,7 @@ AcpiDbDisplayHandlers (
 
     /* Operation region handlers */
 
-    AcpiOsPrintf ("\nOperation Region Handlers:\n");
+    AcpiOsPrintf ("\nOperation Region Handlers at the namespace root:\n");
 
     ObjDesc = AcpiNsGetAttachedObject (AcpiGbl_RootNode);
     if (ObjDesc)
@@ -1076,6 +1102,77 @@ AcpiDbDisplayHandlers (
             AcpiOsPrintf (ACPI_HANDLER_NOT_PRESENT_STRING, "None");
         }
     }
+
+
+    /* Other handlers that are installed throughout the namespace */
+
+    AcpiOsPrintf ("\nOperation Region Handlers for specific devices:\n");
+
+    (void) AcpiWalkNamespace (ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+                ACPI_UINT32_MAX, AcpiDbDisplayNonRootHandlers,
+                NULL, NULL, NULL);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDisplayNonRootHandlers
+ *
+ * PARAMETERS:  ACPI_WALK_CALLBACK
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Display information about all handlers installed for a
+ *              device object.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiDbDisplayNonRootHandlers (
+    ACPI_HANDLE             ObjHandle,
+    UINT32                  NestingLevel,
+    void                    *Context,
+    void                    **ReturnValue)
+{
+    ACPI_NAMESPACE_NODE     *Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, ObjHandle);
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_OPERAND_OBJECT     *HandlerObj;
+    char                    *Pathname;
+
+
+    ObjDesc = AcpiNsGetAttachedObject (Node);
+    if (!ObjDesc)
+    {
+        return (AE_OK);
+    }
+
+    Pathname = AcpiNsGetExternalPathname (Node);
+    if (!Pathname)
+    {
+        return (AE_OK);
+    }
+
+    /* Display all handlers associated with this device */
+
+    HandlerObj = ObjDesc->Device.Handler;
+    while (HandlerObj)
+    {
+        AcpiOsPrintf (ACPI_PREDEFINED_PREFIX,
+            AcpiUtGetRegionName ((UINT8) HandlerObj->AddressSpace.SpaceId),
+            HandlerObj->AddressSpace.SpaceId);
+
+        AcpiOsPrintf (ACPI_HANDLER_PRESENT_STRING2,
+            (HandlerObj->AddressSpace.HandlerFlags &
+                ACPI_ADDR_HANDLER_DEFAULT_INSTALLED) ? "Default" : "User",
+            HandlerObj->AddressSpace.Handler);
+
+        AcpiOsPrintf (" Device Name: %s (%p)\n", Pathname, Node);
+
+        HandlerObj = HandlerObj->AddressSpace.Next;
+    }
+
+    ACPI_FREE (Pathname);
+    return (AE_OK);
 }
 
 #endif /* ACPI_DEBUGGER */

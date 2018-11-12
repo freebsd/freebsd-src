@@ -24,12 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2012
+.Dd November 3, 2013
 .Dt UTX 8
 .Os
 .Sh NAME
-.Nm utx ,
-.Nm utxrm
+.Nm utx
 .Nd manage the user accounting database
 .Sh SYNOPSIS
 .Nm
@@ -38,9 +37,6 @@
 .Cm shutdown
 .Nm
 .Cm rm
-.Ar identifier
-.Ar ...
-.Nm utxrm
 .Ar identifier
 .Ar ...
 .Sh DESCRIPTION
@@ -82,11 +78,6 @@ accounting database's active session table, including its identifiers:
 Identifiers can either be supplied in hexadecimal form as displayed by
 .Xr getent 1 ,
 or as a string if the identifier allows such a representation.
-.Pp
-To remain backward compatible, this action can also be invoked directly
-by using the
-.Nm utxrm
-command.
 .El
 .Pp
 Because this utility requires write-access to the user accounting
@@ -103,4 +94,4 @@ utility replaced
 in
 .Fx 10.0 .
 .Sh AUTHORS
-.An Ed Schouten Aq ed@FreeBSD.org
+.An Ed Schouten Aq Mt ed@FreeBSD.org

@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2010-2012 Devin Teske
+# Copyright (c) 2010-2015 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -13,7 +13,7 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
@@ -28,22 +28,24 @@
 #
 ############################################################ INCLUDES
 
+# Prevent `-d' from being interpreted as a debug flag by common.subr
+DEBUG_SELF_INITIALIZE=
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 [ "$_COMMON_SUBR" ] || . $BSDCFG_SHARE/common.subr || exit 1
 [ "$_SYSRC_SUBR"  ] || f_include $BSDCFG_SHARE/sysrc.subr
 
-############################################################ CONFIGURATION
-
-#
-# Default verbosity.
-#
-: ${SYSRC_VERBOSE:=}
-
 ############################################################ GLOBALS
+
+#
+# Version information
+#
+SYSRC_VERSION="6.3 Mar-4,2015"
 
 #
 # Options
 #
+CHECK_ONLY=
 DELETE=
 DESCRIBE=
 IGNORE_UNKNOWNS=
@@ -55,6 +57,7 @@ SHOW_EQUALS=
 SHOW_FILE=
 SHOW_NAME=1
 SHOW_VALUE=1
+SYSRC_VERBOSE=
 
 ############################################################ FUNCTIONS
 
@@ -77,7 +80,7 @@ die()
 #
 usage()
 {
-	f_err "Usage: %s [OPTIONS] name[=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+]=value] ...\n" "$pgm"
 	f_err "Try \`%s --help' for more information.\n" "$pgm"
 	die
 }
@@ -91,13 +94,15 @@ help()
 	local optfmt="\t%-11s%s\n"
 	local envfmt="\t%-17s%s\n"
 
-	f_err "Usage: %s [OPTIONS] name[=value] ...\n" "$pgm"
+	f_err "Usage: %s [OPTIONS] name[[+|-]=value] ...\n" "$pgm"
 
 	f_err "OPTIONS:\n"
 	f_err "$optfmt" "-a" \
 	      "Dump a list of all non-default configuration variables."
 	f_err "$optfmt" "-A" \
 	      "Dump a list of all configuration variables (incl. defaults)."
+	f_err "$optfmt" "-c" \
+	      "Check. Return success if set or no changes, else error."
 	f_err "$optfmt" "-d" \
 	      "Print a description of the given variable."
 	f_err "$optfmt" "-D" \
@@ -129,13 +134,15 @@ help()
 	f_err "$optfmt" "-N" \
 	      "Show only variable names, not their values."
 	f_err "$optfmt" "-q" \
-	      "Quiet. Ignore previous \`-v' and/or SYSRC_VERBOSE."
+	      "Quiet. Disable verbose and hide certain errors."
 	f_err "$optfmt" "-R dir" \
 	      "Operate within the root directory \`dir' rather than \`/'."
 	f_err "$optfmt" "-v" \
 	      "Verbose. Print the pathname of the specific rc.conf(5)"
 	f_err "$optfmt" "" \
 	      "file where the directive was found."
+	f_err "$optfmt" "--version" \
+	      "Print version information to stdout and exit."
 	f_err "$optfmt" "-x" \
 	      "Remove variable(s) from specified file(s)."
 	f_err "\n"
@@ -145,8 +152,6 @@ help()
 	      "Override default rc_conf_files (even if set to NULL)."
 	f_err "$envfmt" "RC_DEFAULTS" \
 	      "Location of \`/etc/defaults/rc.conf' file."
-	f_err "$envfmt" "SYSRC_VERBOSE" \
-	      "Default verbosity. Set to non-NULL to enable."
 
 	die
 }
@@ -185,6 +190,7 @@ jail_depend()
 	#
 	# Print include dependencies
 	#
+	echo DEBUG_SELF_INITIALIZE=
 	cat $BSDCFG_SHARE/common.subr
 	cat $BSDCFG_SHARE/sysrc.subr
 }
@@ -197,27 +203,31 @@ jail_depend()
 [ $# -gt 0 ] || usage
 
 #
-# Check for `--help' command-line option
+# Check for `--help' and `--version' command-line option
 #
 ( # Operate in sub-shell to protect $@ in parent
 	while [ $# -gt 0 ]; do
 		case "$1" in
-		--help) exit 1;;
+		--help) help ;;
+		--version) # see GLOBALS
+			echo "$SYSRC_VERSION"
+			exit 1 ;;
 		-[fRj]) # These flags take an argument
-			shift 1;;
+			shift 1 ;;
 		esac
 		shift 1
 	done
 	exit 0
-) || help
+) || die
 
 #
 # Process command-line flags
 #
-while getopts aAdDef:Fhij:nNqR:vxX flag; do
+while getopts aAcdDef:Fhij:nNqR:vxX flag; do
 	case "$flag" in
 	a) SHOW_ALL=${SHOW_ALL:-1};;
 	A) SHOW_ALL=2;;
+	c) CHECK_ONLY=1;;
 	d) DESCRIBE=1;;
 	D) RC_CONFS=;;
 	e) SHOW_EQUALS=1;;
@@ -279,16 +289,23 @@ if [ "$DELETE" -a "$SHOW_ALL" ]; then
 fi
 
 #
+# Pre-flight for `-c' command-line option
+#
+[ "$CHECK_ONLY" -a "$SHOW_ALL" ] &&
+	die "$pgm: \`-c' option incompatible with \`-a'/\`-A' options"
+
+#
 # Process `-e', `-n', and `-N' command-line options
 #
 SEP=': '
-[ "$SHOW_EQUALS" ] && SEP='="'
+[ "$SHOW_FILE" ] && SHOW_EQUALS=
 [ "$SHOW_NAME" ] || SHOW_EQUALS=
 [ "$SYSRC_VERBOSE" = "0" ] && SYSRC_VERBOSE=
 if [ ! "$SHOW_VALUE" ]; then
 	SHOW_NAME=1
 	SHOW_EQUALS=
 fi
+[ "$SHOW_EQUALS" ] && SEP='="'
 
 #
 # Process `-j jail' and `-R dir' command-line options
@@ -304,6 +321,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$DELETE" = "2" ] && echo \ -X )
 		$( [ "$SHOW_ALL" = "1" ] && echo \ -a )
 		$( [ "$SHOW_ALL" = "2" ] && echo \ -A )
+		${CHECK_ONLY:+-c}
 		${DESCRIBE:+-d}
 		${SHOW_EQUALS:+-e}
 		${IGNORE_UNKNOWNS:+-i}
@@ -414,7 +432,7 @@ if [ "$SHOW_ALL" ]; then
 		EXCEPT="IFS|EXCEPT|PATH|RC_DEFAULTS|OPTIND|DESCRIBE|SEP"
 		EXCEPT="$EXCEPT|DELETE|SHOW_ALL|SHOW_EQUALS|SHOW_NAME"
 		EXCEPT="$EXCEPT|SHOW_VALUE|SHOW_FILE|SYSRC_VERBOSE|RC_CONFS"
-		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE"
+		EXCEPT="$EXCEPT|pgm|SUCCESS|FAILURE|CHECK_ONLY"
 		EXCEPT="$EXCEPT|f_sysrc_desc_awk|f_sysrc_delete_awk"
 
 		#
@@ -507,8 +525,15 @@ fi
 #
 # Process command-line arguments
 #
+status=$SUCCESS
 while [ $# -gt 0 ]; do
 	NAME="${1%%=*}"
+
+	case "$NAME" in
+	*+) mode=APPEND NAME="${NAME%+}" ;;
+	*-) mode=REMOVE NAME="${NAME%-}" ;;
+	 *) mode=ASSIGN
+	esac
 
 	[ "$DESCRIBE" ] && \
 		echo "$NAME: $( f_sysrc_desc "$NAME" )"
@@ -517,14 +542,19 @@ while [ $# -gt 0 ]; do
 	*=*)
 		#
 		# Like sysctl(8), if both `-d' AND "name=value" is passed,
-		# first describe, then attempt to set
+		# first describe (done above), then attempt to set
 		#
 
-		if [ "$SYSRC_VERBOSE" ]; then
+		# If verbose, prefix line with where the directive lives
+		if [ "$SYSRC_VERBOSE" -a ! "$CHECK_ONLY" ]; then
 			file=$( f_sysrc_find "$NAME" )
 			[ "$file" = "$RC_DEFAULTS" -o ! "$file" ] && \
 				file=$( f_sysrc_get 'rc_conf_files%%[$IFS]*' )
-			echo -n "$file: "
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $file; "
+			else
+				echo -n "$file: "
+			fi
 		fi
 
 		#
@@ -532,48 +562,133 @@ while [ $# -gt 0 ]; do
 		# desire to set some value
 		#
 		if [ "$DELETE" ]; then
-			f_sysrc_delete "$NAME"
+			f_sysrc_delete "$NAME" || status=$FAILURE
 			shift 1
 			continue
 		fi
+
+		#
+		# If `-c' is passed, simply compare and move on
+		#
+		if [ "$CHECK_ONLY" ]; then
+			if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+				status=$FAILURE
+				[ "$SYSRC_VERBOSE" ] &&
+					echo "$NAME: not currently set"
+				shift 1
+				continue
+			fi
+			value=$( f_sysrc_get "$NAME" )
+			if [ "$value" != "${1#*=}" ]; then
+				status=$FAILURE
+				if [ "$SYSRC_VERBOSE" ]; then
+					echo -n "$( f_sysrc_find "$NAME" ): "
+					echo -n "$NAME: would change from "
+					echo "\`$value' to \`${1#*=}'"
+				fi
+			elif [ "$SYSRC_VERBOSE" ]; then
+				echo -n "$( f_sysrc_find "$NAME" ): "
+				echo "$NAME: already set to \`$value'"
+			fi
+			shift 1
+			continue
+		fi
+
+		#
+		# Determine both `before' value and appropriate `new' value
+		#
+		case "$mode" in
+		APPEND)
+			before=$( f_sysrc_get "$NAME" )
+			add="${1#*=}"
+			delim="${add%"${add#?}"}" # first character
+			oldIFS="$IFS"
+			case "$delim" in
+			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			*) IFS="$delim"
+			esac
+			new="$before"
+			for a in $add; do
+				[ "$a" ] || continue
+				skip=
+				for b in $before; do
+					[ "$b" = "$a" ] && skip=1 break
+				done
+				[ "$skip" ] || new="$new$delim$a"
+			done
+			new="${new#"$delim"}" IFS="$oldIFS"
+			unset add delim oldIFS a skip b
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		REMOVE)
+			before=$( f_sysrc_get "$NAME" )
+			remove="${1#*=}"
+			delim="${remove%"${remove#?}"}" # first character
+			oldIFS="$IFS"
+			case "$delim" in
+			""|[$IFS]|[a-zA-Z0-9]) delim=" " ;;
+			*) IFS="$delim"
+			esac
+			new=
+			for b in $before; do
+				[ "$b" ] || continue
+				add=1
+				for r in $remove; do
+					[ "$r" = "$b" ] && add= break
+				done
+				[ "$add" ] && new="$new$delim$b"
+			done
+			new="${new#"$delim"}" IFS="$oldIFS"
+			unset remove delim oldIFS b add r
+			[ "$SHOW_FILE" ] && before=$( f_sysrc_find "$NAME" )
+			;;
+		*)
+			if [ "$SHOW_FILE" ]; then
+				before=$( f_sysrc_find "$NAME" )
+			else
+				before=$( f_sysrc_get "$NAME" )
+			fi
+			new="${1#*=}"
+		esac
 
 		#
 		# If `-N' is passed, simplify the output
 		#
 		if [ ! "$SHOW_VALUE" ]; then
 			echo "$NAME"
-			f_sysrc_set "$NAME" "${1#*}"
+			f_sysrc_set "$NAME" "$new"
 		else
-			if [ "$SHOW_FILE" ]; then
-				before=$( f_sysrc_find "$NAME" )
-			else
-				before=$( f_sysrc_get "$NAME" )
-			fi
-			if f_sysrc_set "$NAME" "${1#*=}"; then
+			if f_sysrc_set "$NAME" "$new"; then
 				if [ "$SHOW_FILE" ]; then
 					after=$( f_sysrc_find "$NAME" )
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo -n "$before${SHOW_EQUALS:+\"}"
-					echo " -> $after"
 				else
 					after=$( f_sysrc_get "$NAME" )
-					echo -n "${SHOW_NAME:+$NAME$SEP}"
-					echo "$before -> $after"
 				fi
+				echo -n "${SHOW_NAME:+$NAME$SEP}"
+				echo -n "$before${SHOW_EQUALS:+\" #}"
+				echo -n " -> ${SHOW_EQUALS:+\"}$after"
+				echo "${SHOW_EQUALS:+\"}"
 			fi
 		fi
 		;;
 	*)
-		if ! IGNORED="$( f_sysrc_get "$NAME?" )"; then
-			[ "$IGNORE_UNKNOWNS" ] \
-				|| echo "$pgm: unknown variable '$NAME'"
+		if ! IGNORED=$( f_sysrc_get "$NAME?" ); then
+			[ "$IGNORE_UNKNOWNS" -o "$QUIET" ] ||
+				echo "$pgm: unknown variable '$NAME'"
+			shift 1
+			status=$FAILURE
+			continue
+		fi
+
+		# The above check told us what we needed for `-c'
+		if [ "$CHECK_ONLY" ]; then
 			shift 1
 			continue
 		fi
 
 		#
-		# Like sysctl(8), when `-d' is passed,
-		# desribe it rather than expanding it
+		# Like sysctl(8), when `-d' is passed, desribe it
+		# (already done above) rather than expanding it
 		#
 
 		if [ "$DESCRIBE" ]; then
@@ -585,7 +700,7 @@ while [ $# -gt 0 ]; do
 		# If `-x' or `-X' is passed, delete the variable
 		#
 		if [ "$DELETE" ]; then
-			f_sysrc_delete "$NAME"
+			f_sysrc_delete "$NAME" || status=$FAILURE
 			shift 1
 			continue
 		fi
@@ -600,8 +715,13 @@ while [ $# -gt 0 ]; do
 			continue
 		fi
 
-		[ "$SYSRC_VERBOSE" ] && \
-			echo -n "$( f_sysrc_find "$NAME" ): "
+		if [ "$SYSRC_VERBOSE" ]; then
+			if [ "$SHOW_EQUALS" ]; then
+				echo -n ": $( f_sysrc_find "$NAME" ); "
+			else
+				echo -n "$( f_sysrc_find "$NAME" ): "
+			fi
+		fi
 
 		#
 		# If `-N' is passed, simplify the output
@@ -615,3 +735,9 @@ while [ $# -gt 0 ]; do
 	esac
 	shift 1
 done
+
+exit $status # $SUCCESS unless error occurred with either `-c' or `-x'
+
+################################################################################
+# END
+################################################################################

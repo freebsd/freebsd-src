@@ -1,7 +1,7 @@
 #!/bin/sh
 #-
-# Copyright (c) 2012 Devin Teske
-# All Rights Reserved.
+# Copyright (c) 2012-2013 Devin Teske
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="110.mouse"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -56,9 +56,9 @@ MOUSED_PIDFILE=/var/run/moused.pid
 #
 # Process command-line arguments
 #
-while getopts hSX flag; do
+while getopts h$GETOPTS_STDARGS flag; do
 	case "$flag" in
-	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm" ;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
@@ -73,29 +73,22 @@ f_mustberoot_init
 #
 # Stop the mouse daemon
 #
-[ -r "$MOUSED_PIDFILE" ] &&
-	f_quietly kill "$( cat "$MOUSED_PIDFILE" )"
-f_sysrc_set moused_enable "NO" || f_die
-f_sysrc_set moused_type "NO" || f_die
-f_sysrc_delete moused_port || f_die
-f_sysrc_delete moused_flags || f_die
+if [ -r "$MOUSED_PIDFILE" ]; then
+	f_eval_catch -dk pid "$0" cat 'cat "%s"' "$MOUSED_PIDFILE" &&
+		f_isinteger "$pid" &&
+		[ $pid -gt 0 ] &&
+		f_eval_catch -d "$0" kill 'kill %s' $pid
+fi
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set moused_enable NO' || f_die
+f_eval_catch "$0" f_sysrc_set 'f_sysrc_set moused_type NO' || f_die
+f_eval_catch "$0" f_sysrc_delete 'f_sysrc_delete moused_port' || f_die
+f_eval_catch "$0" f_sysrc_delete 'f_sysrc_delete moused_flags' || f_die
 
 #
 # Message box
 #
 f_dialog_title "$msg_message"
-hline="$hline_press_enter_or_space"
-prompt="$msg_mouse_daemon_is_disabled"
-size=$( f_dialog_buttonbox_size \
-        	"$DIALOG_TITLE"     \
-        	"$DIALOG_BACKTITLE" \
-        	"$prompt"           )
-eval $DIALOG \
-	--title \"\$DIALOG_TITLE\"         \
-	--backtitle \"\$DIALOG_BACKTITLE\" \
-	--hline \"\$hline\"                \
-	--ok-label \"\$msg_ok\"            \
-	--msgbox \"\$prompt\" $size
+f_dialog_msgbox "$msg_mouse_daemon_is_disabled" "$hline_press_enter_or_space"
 
 exit $SUCCESS
 

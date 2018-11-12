@@ -222,7 +222,7 @@ extern "C" {
  * The following set of definitions characterize Solaris on AMD's
  * 64-bit systems.
  */
-#if defined(__x86_64) || defined(__amd64) || defined(__ia64__)
+#if defined(__x86_64) || defined(__amd64)
 
 #if !defined(__amd64)
 #define	__amd64		/* preferred guard */
@@ -235,7 +235,7 @@ extern "C" {
 /*
  * Define the appropriate "processor characteristics"
  */
-#if defined(sun)
+#ifdef illumos
 #define	_LITTLE_ENDIAN
 #endif
 #define	_STACK_GROWS_DOWNWARD
@@ -302,7 +302,7 @@ extern "C" {
 /*
  * Define the appropriate "processor characteristics"
  */
-#if defined(sun)
+#ifdef illumos
 #define	_LITTLE_ENDIAN
 #endif
 #define	_STACK_GROWS_DOWNWARD
@@ -331,7 +331,9 @@ extern "C" {
 /*
  * Define the appropriate "implementation choices".
  */
+#if !defined(_ILP32)
 #define	_ILP32
+#endif
 #if !defined(_I32LPx) && defined(_KERNEL)
 #define	_I32LPx
 #endif
@@ -375,7 +377,9 @@ extern "C" {
 /*
  * Define the appropriate "implementation choices".
  */
+#if !defined(_ILP32)
 #define	_ILP32
+#endif
 #if !defined(_I32LPx) && defined(_KERNEL)
 #define	_I32LPx
 #endif
@@ -504,7 +508,7 @@ extern "C" {
  * Define the appropriate "processor characteristics" shared between
  * all Solaris on SPARC systems.
  */
-#if defined(sun)
+#ifdef illumos
 #define	_BIG_ENDIAN
 #endif
 #define	_STACK_GROWS_DOWNWARD

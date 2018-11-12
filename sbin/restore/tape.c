@@ -260,9 +260,11 @@ setup(void)
 		fssize = TP_BSIZE;
 	if (stbuf.st_blksize >= TP_BSIZE && stbuf.st_blksize <= MAXBSIZE)
 		fssize = stbuf.st_blksize;
-	if (((fssize - 1) & fssize) != 0) {
-		fprintf(stderr, "bad block size %ld\n", fssize);
-		done(1);
+	if (((TP_BSIZE - 1) & stbuf.st_blksize) != 0) {
+		fprintf(stderr, "Warning: filesystem with non-multiple-of-%d "
+		    "blocksize (%d);\n", TP_BSIZE, stbuf.st_blksize);
+		fssize = roundup(fssize, TP_BSIZE);
+		fprintf(stderr, "\twriting using blocksize %ld\n", fssize);
 	}
 	if (spcl.c_volume != 1) {
 		fprintf(stderr, "Tape is not volume 1 of the dump\n");
@@ -567,20 +569,20 @@ extractfile(char *name)
 	gid_t gid;
 	mode_t mode;
 	int extsize;
-	struct timeval mtimep[2], ctimep[2];
+	struct timespec mtimep[2], ctimep[2];
 	struct entry *ep;
 	char *buf;
 
 	curfile.name = name;
 	curfile.action = USING;
 	mtimep[0].tv_sec = curfile.atime_sec;
-	mtimep[0].tv_usec = curfile.atime_nsec / 1000;
+	mtimep[0].tv_nsec = curfile.atime_nsec;
 	mtimep[1].tv_sec = curfile.mtime_sec;
-	mtimep[1].tv_usec = curfile.mtime_nsec / 1000;
+	mtimep[1].tv_nsec = curfile.mtime_nsec;
 	ctimep[0].tv_sec = curfile.atime_sec;
-	ctimep[0].tv_usec = curfile.atime_nsec / 1000;
+	ctimep[0].tv_nsec = curfile.atime_nsec;
 	ctimep[1].tv_sec = curfile.birthtime_sec;
-	ctimep[1].tv_usec = curfile.birthtime_nsec / 1000;
+	ctimep[1].tv_nsec = curfile.birthtime_nsec;
 	extsize = curfile.extsize;
 	uid = getuid();
 	if (uid == 0)
@@ -626,8 +628,10 @@ extractfile(char *name)
 				set_extattr_link(name, buf, extsize);
 			(void) lchown(name, uid, gid);
 			(void) lchmod(name, mode);
-			(void) lutimes(name, ctimep);
-			(void) lutimes(name, mtimep);
+			(void) utimensat(AT_FDCWD, name, ctimep,
+			    AT_SYMLINK_NOFOLLOW);
+			(void) utimensat(AT_FDCWD, name, mtimep,
+			    AT_SYMLINK_NOFOLLOW);
 			(void) lchflags(name, flags);
 			return (GOOD);
 		}
@@ -656,8 +660,8 @@ extractfile(char *name)
 		}
 		(void) chown(name, uid, gid);
 		(void) chmod(name, mode);
-		(void) utimes(name, ctimep);
-		(void) utimes(name, mtimep);
+		(void) utimensat(AT_FDCWD, name, ctimep, 0);
+		(void) utimensat(AT_FDCWD, name, mtimep, 0);
 		(void) chflags(name, flags);
 		return (GOOD);
 
@@ -686,8 +690,8 @@ extractfile(char *name)
 		}
 		(void) chown(name, uid, gid);
 		(void) chmod(name, mode);
-		(void) utimes(name, ctimep);
-		(void) utimes(name, mtimep);
+		(void) utimensat(AT_FDCWD, name, ctimep, 0);
+		(void) utimensat(AT_FDCWD, name, mtimep, 0);
 		(void) chflags(name, flags);
 		return (GOOD);
 
@@ -712,8 +716,8 @@ extractfile(char *name)
 			set_extattr_fd(ofile, name, buf, extsize);
 		(void) fchown(ofile, uid, gid);
 		(void) fchmod(ofile, mode);
-		(void) futimes(ofile, ctimep);
-		(void) futimes(ofile, mtimep);
+		(void) futimens(ofile, ctimep);
+		(void) futimens(ofile, mtimep);
 		(void) fchflags(ofile, flags);
 		(void) close(ofile);
 		return (GOOD);

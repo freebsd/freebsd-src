@@ -66,6 +66,7 @@ static struct thread *g_event_td;
 int g_debugflags;
 int g_collectstats = 1;
 int g_shutdown;
+int g_notaste;
 
 /*
  * G_UP and G_DOWN are the two threads which push I/O through the
@@ -121,6 +122,13 @@ g_event_procbody(void *arg)
 	thread_unlock(g_event_td);
 	g_run_events();
 	/* NOTREACHED */
+}
+
+int
+g_is_geom_thread(struct thread *td)
+{
+
+	return (td == g_up_td || td == g_down_td || td == g_event_td);
 }
 
 static void
@@ -204,21 +212,23 @@ SYSCTL_PROC(_kern_geom, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RD,
 	0, 0, sysctl_kern_geom_conftxt, "",
 	"Dump the GEOM config in txt");
 
-TUNABLE_INT("kern.geom.debugflags", &g_debugflags);
-SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RW,
+SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RWTUN,
 	&g_debugflags, 0, "Set various trace levels for GEOM debugging");
+
+SYSCTL_INT(_kern_geom, OID_AUTO, notaste, CTLFLAG_RW,
+	&g_notaste, 0, "Prevent GEOM tasting");
 
 SYSCTL_INT(_kern_geom, OID_AUTO, collectstats, CTLFLAG_RW,
 	&g_collectstats, 0,
 	"Control statistics collection on GEOM providers and consumers");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLFLAG_RD,
-	0, sizeof(struct g_class), "sizeof(struct g_class)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_class), "sizeof(struct g_class)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLFLAG_RD,
-	0, sizeof(struct g_geom), "sizeof(struct g_geom)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_geom), "sizeof(struct g_geom)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_provider, CTLFLAG_RD,
-	0, sizeof(struct g_provider), "sizeof(struct g_provider)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_provider), "sizeof(struct g_provider)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_consumer, CTLFLAG_RD,
-	0, sizeof(struct g_consumer), "sizeof(struct g_consumer)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_consumer), "sizeof(struct g_consumer)");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
-	0, sizeof(struct g_bioq), "sizeof(struct g_bioq)");
+	SYSCTL_NULL_INT_PTR, sizeof(struct g_bioq), "sizeof(struct g_bioq)");

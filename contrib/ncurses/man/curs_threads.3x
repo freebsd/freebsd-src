@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2008 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,20 +26,26 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_threads.3x,v 1.12 2008/04/12 18:22:51 tom Exp $
+.\" $Id: curs_threads.3x,v 1.19 2012/05/26 17:03:26 tom Exp $
 .TH curs_threads 3X ""
+.de bP
+.IP \(bu 4
+..
 .na
 .hy 0
 .SH NAME
 \fBuse_screen\fR,
-\fBuse_window\fR - \fBcurses\fR thread support
+\fBuse_window\fR \- \fBcurses\fR thread support
 .ad
 .hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
 \fBtypedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);\fR
+.br
 \fBtypedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);\fR
+.br
+\fBint get_escdelay(void);\fR
 .br
 \fBint set_escdelay(int size);\fR
 .br
@@ -89,6 +95,8 @@ To modify them in any configuration,
 use the \fBset_escdelay\fP or \fBset_tabsize\fP functions.
 Other global variables are not modifiable.
 .PP
+The \fBget_escdelay\fP function returns the value for ESCDELAY.
+.PP
 The \fBuse_window\fP and \fBuse_screen\fP functions provide coarse
 granularity mutexes for their respective \fBWINDOW\fP and \fBSCREEN\fP
 parameters, and call a user-supplied function,
@@ -100,26 +108,21 @@ All of the ncurses library functions assume that the locale is not
 altered during operation.
 In addition,
 they use data which is maintained within a hierarchy of scopes.
-.RS
-.TP 3
--
+.RS 3
+.bP
 global data, e.g., used in the low-level terminfo or termcap interfaces.
-.TP 3
--
+.bP
 terminal data, e.g., associated with a call to \fIset_curterm\fP.
 The terminal data are initialized when screens are created.
-.TP 3
--
+.bP
 screen data, e.g., associated with a call to \fInewterm\fP or \fIinitscr\fP.
-.TP 3
--
+.bP
 window data, e.g., associated with a call to \fInewwin\fP or \fIsubwin\fP.
 Windows are associated with screens.
 Pads are not necessarily associated with a particular screen.
 .IP
 Most curses applications operate on one or more windows within a single screen.
-.TP 3
--
+.bP
 reentrant, i.e., it uses only the data passed as parameters.
 .RE
 .PP
@@ -594,10 +597,5 @@ It is recommended that any code depending on ncurses extensions
 be conditioned using NCURSES_VERSION.
 .SH SEE ALSO
 \fBcurses\fR(3X),
-\fBcurs_opaque\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurs_opaque\fR(3X),
+\fBcurs_variables\fR(3X).

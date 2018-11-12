@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
  * 	  from this FreeBSD domain to other domains.
  */
 #include "opt_inet.h"
-#include "opt_global.h"
+#include "opt_inet6.h"
 
 #include "opt_sctp.h"
 
@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -79,13 +80,14 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/_inttypes.h>
-#include <machine/xen/xen-os.h>
-#include <machine/xen/xenvar.h>
 
-#include <xen/evtchn.h>
+#include <xen/xen-os.h>
+#include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/interface/io/netif.h>
 #include <xen/xenbus/xenbusvar.h>
+
+#include <machine/xen/xenvar.h>
 
 /*--------------------------- Compile-time Tunables --------------------------*/
 
@@ -96,7 +98,7 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_XENNETBACK, "xnb", "Xen Net Back Driver Data");
 
 #define	XNB_SG	1	/* netback driver supports feature-sg */
-#define	XNB_GSO_TCPV4 1	/* netback driver supports feature-gso-tcpv4 */
+#define	XNB_GSO_TCPV4 0	/* netback driver supports feature-gso-tcpv4 */
 #define	XNB_RX_COPY 1	/* netback driver supports feature-rx-copy */
 #define	XNB_RX_FLIP 0	/* netback driver does not support feature-rx-flip */
 
@@ -149,7 +151,6 @@ static void	xnb_attach_failed(struct xnb_softc *xnb,
 static int	xnb_shutdown(struct xnb_softc *xnb);
 static int	create_netdev(device_t dev);
 static int	xnb_detach(device_t dev);
-static int	xen_net_read_mac(device_t dev, uint8_t mac[]);
 static int	xnb_ifmedia_upd(struct ifnet *ifp);
 static void	xnb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
 static void 	xnb_intr(void *arg);
@@ -182,7 +183,6 @@ static int	xnb_rxpkt2gnttab(const struct xnb_pkt *pkt,
 static int	xnb_rxpkt2rsp(const struct xnb_pkt *pkt,
 			      const gnttab_copy_table gnttab, int n_entries,
 			      netif_rx_back_ring_t *ring);
-static void	xnb_add_mbuf_cksum(struct mbuf *mbufc);
 static void	xnb_stop(struct xnb_softc*);
 static int	xnb_ioctl(struct ifnet*, u_long, caddr_t);
 static void	xnb_start_locked(struct ifnet*);
@@ -192,6 +192,9 @@ static void	xnb_ifinit(void*);
 #ifdef XNB_DEBUG
 static int	xnb_unit_test_main(SYSCTL_HANDLER_ARGS);
 static int	xnb_dump_rings(SYSCTL_HANDLER_ARGS);
+#endif
+#if defined(INET) || defined(INET6)
+static void	xnb_add_mbuf_cksum(struct mbuf *mbufc);
 #endif
 /*------------------------------ Data Structures -----------------------------*/
 
@@ -433,8 +436,8 @@ struct xnb_softc {
 	/** Xen device handle.*/
 	long 			handle;
 
-	/** IRQ mapping for the communication ring event channel. */
-	int			irq;
+	/** Handle to the communication ring event channel. */
+	xen_intr_handle_t	xen_intr_handle;
 
 	/**
 	 * \brief Cached value of the front-end's domain id.
@@ -507,6 +510,9 @@ struct xnb_softc {
 
 	/** The size of the global kva pool. */
 	int			kva_size;
+
+	/** Name of the interface */
+	char			 if_name[IFNAMSIZ];
 };
 
 /*---------------------------- Debugging functions ---------------------------*/
@@ -587,14 +593,14 @@ xnb_dump_mbuf(const struct mbuf *m)
 	if (m->m_flags & M_PKTHDR) {
 		printf("    flowid=%10d, csum_flags=%#8x, csum_data=%#8x, "
 		       "tso_segsz=%5hd\n",
-		       m->m_pkthdr.flowid, m->m_pkthdr.csum_flags,
+		       m->m_pkthdr.flowid, (int)m->m_pkthdr.csum_flags,
 		       m->m_pkthdr.csum_data, m->m_pkthdr.tso_segsz);
-		printf("    rcvif=%16p,  header=%18p, len=%19d\n",
-		       m->m_pkthdr.rcvif, m->m_pkthdr.header, m->m_pkthdr.len);
+		printf("    rcvif=%16p,  len=%19d\n",
+		       m->m_pkthdr.rcvif, m->m_pkthdr.len);
 	}
 	printf("    m_next=%16p, m_nextpk=%16p, m_data=%16p\n",
 	       m->m_next, m->m_nextpkt, m->m_data);
-	printf("    m_len=%17d, m_flags=%#15x, m_type=%18hd\n",
+	printf("    m_len=%17d, m_flags=%#15x, m_type=%18u\n",
 	       m->m_len, m->m_flags, m->m_type);
 
 	len = m->m_len;
@@ -621,7 +627,7 @@ xnb_free_communication_mem(struct xnb_softc *xnb)
 {
 	if (xnb->kva != 0) {
 #ifndef XENHVM
-		kmem_free(kernel_map, xnb->kva, xnb->kva_size);
+		kva_free(xnb->kva, xnb->kva_size);
 #else
 		if (xnb->pseudo_phys_res != NULL) {
 			bus_release_resource(xnb->dev, SYS_RES_MEMORY,
@@ -647,10 +653,8 @@ xnb_disconnect(struct xnb_softc *xnb)
 	int error;
 	int i;
 
-	if (xnb->irq != 0) {
-		unbind_from_irqhandler(xnb->irq);
-		xnb->irq = 0;
-	}
+	if (xnb->xen_intr_handle != NULL)
+		xen_intr_unbind(&xnb->xen_intr_handle);
 
 	/*
 	 * We may still have another thread currently processing requests.  We
@@ -664,8 +668,10 @@ xnb_disconnect(struct xnb_softc *xnb)
 	mtx_unlock(&xnb->rx_lock);
 
 	/* Free malloc'd softc member variables */
-	if (xnb->bridge != NULL)
+	if (xnb->bridge != NULL) {
 		free(xnb->bridge, M_XENSTORE);
+		xnb->bridge = NULL;
+	}
 
 	/* All request processing has stopped, so unmap the rings */
 	for (i=0; i < XNB_NUM_RING_TYPES; i++) {
@@ -773,13 +779,13 @@ xnb_connect_comms(struct xnb_softc *xnb)
 
 	xnb->flags |= XNBF_RING_CONNECTED;
 
-	error =
-	    bind_interdomain_evtchn_to_irqhandler(xnb->otherend_id,
-						  xnb->evtchn,
-						  device_get_nameunit(xnb->dev),
-						  xnb_intr, /*arg*/xnb,
-						  INTR_TYPE_BIO | INTR_MPSAFE,
-						  &xnb->irq);
+	error = xen_intr_bind_remote_port(xnb->dev,
+					  xnb->otherend_id,
+					  xnb->evtchn,
+					  /*filter*/NULL,
+					  xnb_intr, /*arg*/xnb,
+					  INTR_TYPE_BIO | INTR_MPSAFE,
+					  &xnb->xen_intr_handle);
 	if (error != 0) {
 		(void)xnb_disconnect(xnb);
 		xenbus_dev_fatal(xnb->dev, error, "binding event channel");
@@ -811,7 +817,7 @@ xnb_alloc_communication_mem(struct xnb_softc *xnb)
 		xnb->kva_size += xnb->ring_configs[i].ring_pages * PAGE_SIZE;
 	}
 #ifndef XENHVM
-	xnb->kva = kmem_alloc_nofault(kernel_map, xnb->kva_size);
+	xnb->kva = kva_alloc(xnb->kva_size);
 	if (xnb->kva == 0)
 		return (ENOMEM);
 	xnb->gnt_base_addr = xnb->kva;
@@ -1197,6 +1203,7 @@ create_netdev(device_t dev)
 	struct ifnet *ifp;
 	struct xnb_softc *xnb;
 	int err = 0;
+	uint32_t handle;
 
 	xnb = device_get_softc(dev);
 	mtx_init(&xnb->sc_lock, "xnb_softc", "xen netback softc lock", MTX_DEF);
@@ -1209,12 +1216,36 @@ create_netdev(device_t dev)
 	ifmedia_add(&xnb->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 	ifmedia_set(&xnb->sc_media, IFM_ETHER|IFM_MANUAL);
 
-	err = xen_net_read_mac(dev, xnb->mac);
+	/*
+	 * Set the MAC address to a dummy value (00:00:00:00:00),
+	 * if the MAC address of the host-facing interface is set
+	 * to the same as the guest-facing one (the value found in
+	 * xenstore), the bridge would stop delivering packets to
+	 * us because it would see that the destination address of
+	 * the packet is the same as the interface, and so the bridge
+	 * would expect the packet has already been delivered locally
+	 * (and just drop it).
+	 */
+	bzero(&xnb->mac[0], sizeof(xnb->mac));
+
+	/* The interface will be named using the following nomenclature:
+	 *
+	 * xnb<domid>.<handle>
+	 *
+	 * Where handle is the oder of the interface referred to the guest.
+	 */
+	err = xs_scanf(XST_NIL, xenbus_get_node(xnb->dev), "handle", NULL,
+		       "%" PRIu32, &handle);
+	if (err != 0)
+		return (err);
+	snprintf(xnb->if_name, IFNAMSIZ, "xnb%" PRIu16 ".%" PRIu32,
+	    xenbus_get_otherend_id(dev), handle);
+
 	if (err == 0) {
 		/* Set up ifnet structure */
 		ifp = xnb->xnb_ifp = if_alloc(IFT_ETHER);
 		ifp->if_softc = xnb;
-		if_initname(ifp, "xnb",  device_get_unit(dev));
+		if_initname(ifp, xnb->if_name,  IF_DUNIT_NONE);
 		ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 		ifp->if_ioctl = xnb_ioctl;
 		ifp->if_output = ether_output;
@@ -1448,7 +1479,7 @@ xnb_intr(void *arg)
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(txb, notify);
 		if (notify != 0)
-			notify_remote_via_irq(xnb->irq);
+			xen_intr_signal(xnb->xen_intr_handle);
 
 		txb->sring->req_event = txb->req_cons + 1;
 		xen_mb();
@@ -1780,7 +1811,9 @@ xnb_update_mbufc(struct mbuf *mbufc, const gnttab_copy_table gnttab,
 	}
 	mbufc->m_pkthdr.len = total_size;
 
+#if defined(INET) || defined(INET6)
 	xnb_add_mbuf_cksum(mbufc);
+#endif
 }
 
 /**
@@ -1811,12 +1844,12 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 	if (num_consumed == 0)
 		return 0;	/* Nothing to receive */
 
-	/* update statistics indepdent of errors */
-	ifnet->if_ipackets++;
+	/* update statistics independent of errors */
+	if_inc_counter(ifnet, IFCOUNTER_IPACKETS, 1);
 
 	/*
 	 * if we got here, then 1 or more requests was consumed, but the packet
-	 * is not necesarily valid.
+	 * is not necessarily valid.
 	 */
 	if (xnb_pkt_is_valid(&pkt) == 0) {
 		/* got a garbage packet, respond and drop it */
@@ -1824,7 +1857,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		txb->req_cons += num_consumed;
 		DPRINTF("xnb_intr: garbage packet, num_consumed=%d\n",
 				num_consumed);
-		ifnet->if_ierrors++;
+		if_inc_counter(ifnet, IFCOUNTER_IERRORS, 1);
 		return EINVAL;
 	}
 
@@ -1838,7 +1871,7 @@ xnb_recv(netif_tx_back_ring_t *txb, domid_t otherend, struct mbuf **mbufc,
 		xnb_txpkt2rsp(&pkt, txb, 1);
 		DPRINTF("xnb_intr: Couldn't allocate mbufs, num_consumed=%d\n",
 		    num_consumed);
-		ifnet->if_iqdrops++;
+		if_inc_counter(ifnet, IFCOUNTER_IQDROPS, 1);
 		return ENOMEM;
 	}
 
@@ -2123,6 +2156,7 @@ xnb_rxpkt2rsp(const struct xnb_pkt *pkt, const gnttab_copy_table gnttab,
 	return n_responses;
 }
 
+#if defined(INET) || defined(INET6)
 /**
  * Add IP, TCP, and/or UDP checksums to every mbuf in a chain.  The first mbuf
  * in the chain must start with a struct ether_header.
@@ -2177,6 +2211,7 @@ xnb_add_mbuf_cksum(struct mbuf *mbufc)
 		break;
 	}
 }
+#endif /* INET || INET6 */
 
 static void
 xnb_stop(struct xnb_softc *xnb)
@@ -2193,8 +2228,8 @@ static int
 xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct xnb_softc *xnb = ifp->if_softc;
-#ifdef INET
 	struct ifreq *ifr = (struct ifreq*) data;
+#ifdef INET
 	struct ifaddr *ifa = (struct ifaddr*)data;
 #endif
 	int error = 0;
@@ -2216,7 +2251,6 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			mtx_unlock(&xnb->sc_lock);
 			break;
 		case SIOCSIFADDR:
-		case SIOCGIFADDR:
 #ifdef INET
 			mtx_lock(&xnb->sc_lock);
 			if (ifa->ifa_addr->sa_family == AF_INET) {
@@ -2345,12 +2379,12 @@ xnb_start_locked(struct ifnet *ifp)
 
 				case EINVAL:
 					/* OS gave a corrupt packet.  Drop it.*/
-					ifp->if_oerrors++;
+					if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 					/* FALLTHROUGH */
 				default:
 					/* Send succeeded, or packet had error.
 					 * Free the packet */
-					ifp->if_opackets++;
+					if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 					if (mbufc)
 						m_freem(mbufc);
 					break;
@@ -2361,7 +2395,7 @@ xnb_start_locked(struct ifnet *ifp)
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(rxb, notify);
 		if ((notify != 0) || (out_of_space != 0))
-			notify_remote_via_irq(xnb->irq);
+			xen_intr_signal(xnb->xen_intr_handle);
 		rxb->sring->req_event = req_prod_local + 1;
 		xen_mb();
 	} while (rxb->sring->req_prod != req_prod_local) ;
@@ -2446,42 +2480,6 @@ xnb_ifinit(void *xsc)
 	xnb_ifinit_locked(xnb);
 	mtx_unlock(&xnb->sc_lock);
 }
-
-
-/**
- * Read the 'mac' node at the given device's node in the store, and parse that
- * as colon-separated octets, placing result the given mac array.  mac must be
- * a preallocated array of length ETHER_ADDR_LEN ETH_ALEN (as declared in
- * net/ethernet.h).
- * Return 0 on success, or errno on error.
- */
-static int
-xen_net_read_mac(device_t dev, uint8_t mac[])
-{
-	char *s, *e, *macstr;
-	const char *path;
-	int error = 0;
-	int i;
-
-	path = xenbus_get_node(dev);
-	error = xs_read(XST_NIL, path, "mac", NULL, (void **) &macstr);
-	if (error != 0) {
-		xenbus_dev_fatal(dev, error, "parsing %s/mac", path);
-	} else {
-	        s = macstr;
-	        for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		        mac[i] = strtoul(s, &e, 16);
-		        if (s == e || (e[0] != ':' && e[0] != 0)) {
-				error = ENOENT;
-				break;
-		        }
-		        s = &e[1];
-	        }
-	        free(macstr, M_XENBUS);
-	}
-	return error;
-}
-
 
 /**
  * Callback used by the generic networking code to tell us when our carrier

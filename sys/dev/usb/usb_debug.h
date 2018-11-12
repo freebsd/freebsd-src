@@ -38,7 +38,7 @@ extern int usb_debug;
 #define	DPRINTFN(n,fmt,...) do {		\
   if ((USB_DEBUG_VAR) >= (n)) {			\
     printf("%s: " fmt,				\
-	   __FUNCTION__,## __VA_ARGS__);	\
+	   __FUNCTION__ ,##__VA_ARGS__);	\
   }						\
 } while (0)
 #define	DPRINTF(...)	DPRINTFN(1, __VA_ARGS__)

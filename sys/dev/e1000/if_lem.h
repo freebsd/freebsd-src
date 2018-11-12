@@ -265,6 +265,13 @@
 #define PICOSECS_PER_TICK	20833
 #define TSYNC_PORT		319 /* UDP port for the protocol */
 
+#ifdef NIC_PARAVIRT
+#define	E1000_PARA_SUBDEV	0x1101		/* special id */
+#define	E1000_CSBAL		0x02830		/* csb phys. addr. low */
+#define	E1000_CSBAH		0x02834		/* csb phys. addr. hi */
+#include <net/paravirt.h>
+#endif /* NIC_PARAVIRT */
+
 /*
  * Bus dma allocation structure used by
  * e1000_dma_malloc and e1000_dma_free.
@@ -288,7 +295,7 @@ struct em_int_delay_info {
 
 /* Our adapter structure */
 struct adapter {
-	struct ifnet	*ifp;
+	if_t		ifp;
 #if __FreeBSD_version >= 800000
 	struct buf_ring	*br;
 #endif
@@ -363,6 +370,7 @@ struct adapter {
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;
 	struct em_int_delay_info rx_abs_int_delay;
+	struct em_int_delay_info tx_itr;
 
 	/*
 	 * Transmit definitions
@@ -436,6 +444,26 @@ struct adapter {
 	boolean_t       pcix_82544;
 	boolean_t       in_detach;
 
+#ifdef NIC_SEND_COMBINING
+	/* 0 = idle; 1xxxx int-pending; 3xxxx int + d pending + tdt */
+#define MIT_PENDING_INT	0x10000	/* pending interrupt */
+#define MIT_PENDING_TDT	0x30000	/* both intr and tdt write are pending */
+	uint32_t shadow_tdt;
+	uint32_t sc_enable;
+#endif /* NIC_SEND_COMBINING */
+#ifdef BATCH_DISPATCH
+	uint32_t batch_enable;
+#endif /* BATCH_DISPATCH */
+
+#ifdef NIC_PARAVIRT
+	struct em_dma_alloc	csb_mem;	/* phys address */
+	struct paravirt_csb	*csb;		/* virtual addr */
+	uint32_t rx_retries;	/* optimize rx loop */
+	uint32_t		tdt_csb_count;// XXX stat
+	uint32_t		tdt_reg_count;// XXX stat
+	uint32_t		tdt_int_count;// XXX stat
+	uint32_t		guest_need_kick_count;// XXX stat
+#endif /* NIC_PARAVIRT */
 
 	struct e1000_hw_stats stats;
 };

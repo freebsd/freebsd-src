@@ -30,7 +30,7 @@ struct lzma_coder_s {
 
 
 static lzma_ret
-auto_decode(lzma_coder *coder, lzma_allocator *allocator,
+auto_decode(lzma_coder *coder, const lzma_allocator *allocator,
 		const uint8_t *restrict in, size_t *restrict in_pos,
 		size_t in_size, uint8_t *restrict out,
 		size_t *restrict out_pos, size_t out_size, lzma_action action)
@@ -54,7 +54,7 @@ auto_decode(lzma_coder *coder, lzma_allocator *allocator,
 					coder->memlimit, coder->flags));
 		} else {
 			return_if_error(lzma_alone_decoder_init(&coder->next,
-					allocator, coder->memlimit));
+					allocator, coder->memlimit, true));
 
 			// If the application wants to know about missing
 			// integrity check or about the check in general, we
@@ -100,7 +100,7 @@ auto_decode(lzma_coder *coder, lzma_allocator *allocator,
 
 
 static void
-auto_decoder_end(lzma_coder *coder, lzma_allocator *allocator)
+auto_decoder_end(lzma_coder *coder, const lzma_allocator *allocator)
 {
 	lzma_next_end(&coder->next, allocator);
 	lzma_free(coder, allocator);
@@ -143,7 +143,7 @@ auto_decoder_memconfig(lzma_coder *coder, uint64_t *memusage,
 
 
 static lzma_ret
-auto_decoder_init(lzma_next_coder *next, lzma_allocator *allocator,
+auto_decoder_init(lzma_next_coder *next, const lzma_allocator *allocator,
 		uint64_t memlimit, uint32_t flags)
 {
 	lzma_next_coder_init(&auto_decoder_init, next, allocator);

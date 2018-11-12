@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/atomic.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -62,7 +61,10 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 uint32_t *vm_page_dump;
 int vm_page_dump_size;
 
+#ifndef ARM_NEW_PMAP
+
 static struct kerneldumpheader kdh;
+
 static off_t dumplo;
 
 /* Handle chunked writes. */
@@ -155,7 +157,7 @@ blk_write(struct dumperinfo *di, char *ptr, vm_paddr_t pa, size_t sz)
 			sz -= len;
 		} else {
 			for (i = 0; i < len; i += PAGE_SIZE)
-				dump_va = pmap_kenter_temp(pa + i,
+				dump_va = pmap_kenter_temporary(pa + i,
 				    (i + fragsz) >> PAGE_SHIFT);
 			fragsz += len;
 			pa += len;
@@ -197,7 +199,7 @@ blk_write_cont(struct dumperinfo *di, vm_paddr_t pa, size_t sz)
 /* A fake page table page, to avoid having to handle both 4K and 2M pages */
 static pt_entry_t fakept[NPTEPG];
 
-void
+int
 minidumpsys(struct dumperinfo *di)
 {
 	struct minidumphdr mdhdr;
@@ -211,7 +213,15 @@ minidumpsys(struct dumperinfo *di)
 	int i, k, bit, error;
 	char *addr;
 
-	/* Flush cache */
+	/*
+	 * Flush caches.  Note that in the SMP case this operates only on the
+	 * current CPU's L1 cache.  Before we reach this point, code in either
+	 * the system shutdown or kernel debugger has called stop_cpus() to stop
+	 * all cores other than this one.  Part of the ARM handling of
+	 * stop_cpus() is to call wbinv_all() on that core's local L1 cache.  So
+	 * by time we get to here, all that remains is to flush the L1 for the
+	 * current CPU, then the L2.
+	 */
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
 
@@ -237,7 +247,7 @@ minidumpsys(struct dumperinfo *di)
 		}
 		if (pmap_pde_v(pdp) && pmap_pde_page(pdp)) {
 			/* Set bit for each valid page in this 1MB block */
-			addr = pmap_kenter_temp(*pdp & L1_C_ADDR_MASK, 0);
+			addr = pmap_kenter_temporary(*pdp & L1_C_ADDR_MASK, 0);
 			pt = (pt_entry_t*)(addr +
 			    (((uint32_t)*pdp  & L1_C_ADDR_MASK) & PAGE_MASK));
 			for (k = 0; k < 256; k++) {
@@ -453,7 +463,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Signal completion, signoff and exit stage left. */
 	dump_write(di, NULL, 0, 0, 0);
 	printf("\nDump complete\n");
-	return;
+	return (0);
 
 fail:
 	if (error < 0)
@@ -465,7 +475,20 @@ fail:
 		printf("\nDump failed. Partition too small.\n");
 	else
 		printf("\n** DUMP FAILED (ERROR %d) **\n", error);
+	return (error);
+	return (0);
 }
+
+#else /* ARM_NEW_PMAP */
+
+int
+minidumpsys(struct dumperinfo *di)
+{
+
+	return (0);
+}
+
+#endif
 
 void
 dump_add_page(vm_paddr_t pa)

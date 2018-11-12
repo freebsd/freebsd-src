@@ -132,7 +132,6 @@ ata_dmafini(device_t dev)
 	bus_dmamap_unload(ch->dma.work_tag, ch->dma.work_map);
 	bus_dmamem_free(ch->dma.work_tag, ch->dma.work, ch->dma.work_map);
 	ch->dma.work_bus = 0;
-	ch->dma.work_map = NULL;
 	ch->dma.work = NULL;
     }
     if (ch->dma.work_tag) {
@@ -224,11 +223,9 @@ ata_dmafree(device_t dev)
             bus_dmamap_unload(slot->sg_tag, slot->sg_map);
             slot->sg_bus = 0;
 	}
-	if (slot->sg_map) {
+	if (slot->sg) {
             bus_dmamem_free(slot->sg_tag, slot->sg, slot->sg_map);
-            bus_dmamap_destroy(slot->sg_tag, slot->sg_map);
             slot->sg = NULL;
-            slot->sg_map = NULL;
 	}
 	if (slot->data_map) {
             bus_dmamap_destroy(slot->data_tag, slot->data_map);
@@ -304,13 +301,11 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
     else
 	dspa.dmatab = request->dma->sg;
 
-#ifdef ATA_CAM
     if (request->flags & ATA_R_DATA_IN_CCB)
         error = bus_dmamap_load_ccb(request->dma->data_tag,
 				request->dma->data_map, request->ccb,
 				ch->dma.setprd, &dspa, BUS_DMA_NOWAIT);
     else
-#endif
         error = bus_dmamap_load(request->dma->data_tag, request->dma->data_map,
 				request->data, request->bytecount,
 				ch->dma.setprd, &dspa, BUS_DMA_NOWAIT);

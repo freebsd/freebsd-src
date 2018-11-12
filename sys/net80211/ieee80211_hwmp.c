@@ -168,7 +168,7 @@ struct ieee80211_hwmp_state {
 static SYSCTL_NODE(_net_wlan, OID_AUTO, hwmp, CTLFLAG_RD, 0,
     "IEEE 802.11s HWMP parameters");
 static int	ieee80211_hwmp_targetonly = 0;
-SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan_hwmp, OID_AUTO, targetonly, CTLFLAG_RW,
     &ieee80211_hwmp_targetonly, 0, "Set TO bit on generated PREQs");
 static int	ieee80211_hwmp_pathtimeout = -1;
 SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, pathlifetime, CTLTYPE_INT | CTLFLAG_RW,
@@ -1467,7 +1467,7 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		 * If the mbuf has M_ENCAP set, ensure we free it.
 		 * Note that after if_transmit() is called, m is invalid.
 		 */
-		(void) ieee80211_vap_transmit(vap, m);
+		(void) ieee80211_vap_xmitpkt(vap, m);
 	}
 #undef	IS_PROXY
 #undef	PROXIED_BY_US

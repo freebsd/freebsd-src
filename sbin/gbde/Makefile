@@ -10,6 +10,7 @@ SRCS+=	g_bde_lock.c
 # rijndael-fst.c does evil casting things which can results in warnings,
 # the test-vectors check out however, so it works right.
 NO_WCAST_ALIGN=
+NO_WMISSING_VARIABLE_DECLARATIONS=
 
 CFLAGS+= -I${.CURDIR}/../../sys
 .PATH:	${.CURDIR}/../../sys/geom/bde \
@@ -19,8 +20,7 @@ CFLAGS+= -I${.CURDIR}/../../sys
 CLEANFILES+= template.c
 
 MAN=	gbde.8
-DPADD=	${LIBMD} ${LIBUTIL} ${LIBGEOM}
-LDADD=	-lmd -lutil -lgeom
+LIBADD=	md util geom
 
 template.c: template.txt
 	file2c 'const char template[] = {' ',0};' \

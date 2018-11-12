@@ -1165,8 +1165,7 @@ mn_rx_intr(struct mn_softc *sc, u_int32_t vector)
 				mn_free_desc(dp);
 				return; /* ENOBUFS */
 			}
-			MCLGET(m, M_NOWAIT);
-			if((m->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				mn_free_desc(dp);
 				m_freem(m);
 				return; /* ENOBUFS */
@@ -1346,9 +1345,9 @@ mn_attach (device_t self)
 		return(ENXIO);
 	}
 
-	u = pci_read_config(self, PCIR_COMMAND, 1);
+	u = pci_read_config(self, PCIR_COMMAND, 2);
 	printf("%x\n", u);
-	pci_write_config(self, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN, 1);
+	pci_write_config(self, PCIR_COMMAND, u | PCIM_CMD_PERRESPEN | PCIM_CMD_BUSMASTEREN, 2);
 #if 0
 	pci_write_config(self, PCIR_COMMAND, 0x02800046, 4);
 #endif

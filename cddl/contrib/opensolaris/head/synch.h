@@ -20,6 +20,7 @@
  */
 
 /*
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
  * Copyright (c) 1992, 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
@@ -86,7 +87,6 @@ typedef struct _rwlock {
 	cond_t		writercv;	/* used only to indicate ownership */
 } rwlock_t;
 
-#ifdef	__STDC__
 int	_lwp_mutex_lock(lwp_mutex_t *);
 int	_lwp_mutex_unlock(lwp_mutex_t *);
 int	_lwp_mutex_trylock(lwp_mutex_t *);
@@ -126,50 +126,6 @@ int	sema_timedwait(sema_t *, const timespec_t *);
 int	sema_reltimedwait(sema_t *, const timespec_t *);
 int	sema_post(sema_t *);
 int	sema_trywait(sema_t *);
-
-#else	/* __STDC__ */
-
-int	_lwp_mutex_lock();
-int	_lwp_mutex_unlock();
-int	_lwp_mutex_trylock();
-int	_lwp_cond_wait();
-int	_lwp_cond_timedwait();
-int	_lwp_cond_reltimedwait();
-int	_lwp_cond_signal();
-int	_lwp_cond_broadcast();
-int	_lwp_sema_init();
-int	_lwp_sema_wait();
-int	_lwp_sema_trywait();
-int	_lwp_sema_post();
-int	cond_init();
-int	cond_destroy();
-int	cond_wait();
-int	cond_timedwait();
-int	cond_reltimedwait();
-int	cond_signal();
-int	cond_broadcast();
-int	mutex_init();
-int	mutex_destroy();
-int	mutex_consistent();
-int	mutex_lock();
-int	mutex_trylock();
-int	mutex_unlock();
-int	rwlock_init();
-int	rwlock_destroy();
-int	rw_rdlock();
-int	rw_wrlock();
-int	rw_unlock();
-int	rw_tryrdlock();
-int	rw_trywrlock();
-int	sema_init();
-int	sema_destroy();
-int	sema_wait();
-int	sema_timedwait();
-int	sema_reltimedwait();
-int	sema_post();
-int	sema_trywait();
-
-#endif	/* __STDC__ */
 
 #endif /* _ASM */
 
@@ -238,8 +194,6 @@ int	sema_trywait();
 
 #ifndef _ASM
 
-#ifdef	__STDC__
-
 /*
  * The *_held() functions apply equally well to Solaris threads
  * and to Posix threads synchronization objects, but the formal
@@ -252,21 +206,8 @@ int _rw_read_held(void *);		/* rwlock_t or pthread_rwlock_t */
 int _rw_write_held(void *);		/* rwlock_t or pthread_rwlock_t */
 int _mutex_held(void *);		/* mutex_t or pthread_mutex_t */
 
-#else	/* __STDC__ */
-
-int _sema_held();
-int _rw_read_held();
-int _rw_write_held();
-int _mutex_held();
-
-#endif	/* __STDC__ */
-
 /* Pause API */
-#ifdef	__STDC__
 void smt_pause(void);
-#else	/* __STDC__ */
-void smt_pause();
-#endif	/* __STDC__ */
 
 #endif /* _ASM */
 

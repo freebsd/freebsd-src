@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,8 +41,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-#define __DTUTILS_C__
-
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/compiler/dtcompiler.h>
 #include <contrib/dev/acpica/include/actables.h>
@@ -77,23 +75,16 @@ DtSum (
 void
 DtError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage)
 {
 
-    switch (Level)
-    {
-    case ASL_WARNING2:
-    case ASL_WARNING3:
-        if (Gbl_WarningLevel < Level)
-        {
-            return;
-        }
-        break;
+    /* Check if user wants to ignore this exception */
 
-    default:
-        break;
+    if (AslIsExceptionDisabled (Level, MessageId))
+    {
+        return;
     }
 
     if (FieldObject)
@@ -131,7 +122,7 @@ DtError (
 void
 DtNameError (
     UINT8                   Level,
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage)
 {
@@ -140,6 +131,7 @@ DtNameError (
     {
     case ASL_WARNING2:
     case ASL_WARNING3:
+
         if (Gbl_WarningLevel < Level)
         {
             return;
@@ -147,6 +139,7 @@ DtNameError (
         break;
 
     default:
+
         break;
     }
 
@@ -182,7 +175,7 @@ DtNameError (
 
 void
 DtFatal (
-    UINT8                   MessageId,
+    UINT16                  MessageId,
     DT_FIELD                *FieldObject,
     char                    *ExtraMessage)
 {
@@ -291,36 +284,6 @@ DtStrtoul64 (
 
 /******************************************************************************
  *
- * FUNCTION:    DtGetFileSize
- *
- * PARAMETERS:  Handle              - Open file handler
- *
- * RETURN:      Current file size
- *
- * DESCRIPTION: Get the current size of a file. Seek to the EOF and get the
- *              offset. Seek back to the original location.
- *
- *****************************************************************************/
-
-UINT32
-DtGetFileSize (
-    FILE                    *Handle)
-{
-    int                     CurrentOffset;
-    int                     LastOffset;
-
-
-    CurrentOffset = ftell (Handle);
-    fseek (Handle, 0, SEEK_END);
-    LastOffset = ftell (Handle);
-    fseek (Handle, CurrentOffset, SEEK_SET);
-
-    return ((UINT32) LastOffset);
-}
-
-
-/******************************************************************************
- *
  * FUNCTION:    DtGetFieldValue
  *
  * PARAMETERS:  Field               - Current field list pointer
@@ -387,6 +350,7 @@ DtGetFieldType (
     case ACPI_DMT_FLAGS1:
     case ACPI_DMT_FLAGS2:
     case ACPI_DMT_FLAGS4:
+
         Type = DT_FIELD_TYPE_FLAG;
         break;
 
@@ -395,39 +359,48 @@ DtGetFieldType (
     case ACPI_DMT_NAME6:
     case ACPI_DMT_NAME8:
     case ACPI_DMT_STRING:
+
         Type = DT_FIELD_TYPE_STRING;
         break;
 
     case ACPI_DMT_BUFFER:
     case ACPI_DMT_BUF7:
+    case ACPI_DMT_BUF10:
     case ACPI_DMT_BUF16:
     case ACPI_DMT_BUF128:
     case ACPI_DMT_PCI_PATH:
+
         Type = DT_FIELD_TYPE_BUFFER;
         break;
 
     case ACPI_DMT_GAS:
     case ACPI_DMT_HESTNTFY:
+
         Type = DT_FIELD_TYPE_INLINE_SUBTABLE;
         break;
 
     case ACPI_DMT_UNICODE:
+
         Type = DT_FIELD_TYPE_UNICODE;
         break;
 
     case ACPI_DMT_UUID:
+
         Type = DT_FIELD_TYPE_UUID;
         break;
 
     case ACPI_DMT_DEVICE_PATH:
+
         Type = DT_FIELD_TYPE_DEVICE_PATH;
         break;
 
     case ACPI_DMT_LABEL:
+
         Type = DT_FIELD_TYPE_LABEL;
         break;
 
     default:
+
         Type = DT_FIELD_TYPE_INTEGER;
         break;
     }
@@ -517,6 +490,7 @@ DtGetFieldLength (
     case ACPI_DMT_FLAGS4:
     case ACPI_DMT_LABEL:
     case ACPI_DMT_EXTRA_TEXT:
+
         ByteLength = 0;
         break;
 
@@ -525,7 +499,9 @@ DtGetFieldLength (
     case ACPI_DMT_SPACEID:
     case ACPI_DMT_ACCWIDTH:
     case ACPI_DMT_IVRS:
+    case ACPI_DMT_GTDT:
     case ACPI_DMT_MADT:
+    case ACPI_DMT_PCCT:
     case ACPI_DMT_PMTT:
     case ACPI_DMT_SRAT:
     case ACPI_DMT_ASF:
@@ -535,6 +511,8 @@ DtGetFieldLength (
     case ACPI_DMT_EINJINST:
     case ACPI_DMT_ERSTACT:
     case ACPI_DMT_ERSTINST:
+    case ACPI_DMT_DMAR_SCOPE:
+
         ByteLength = 1;
         break;
 
@@ -542,10 +520,12 @@ DtGetFieldLength (
     case ACPI_DMT_DMAR:
     case ACPI_DMT_HEST:
     case ACPI_DMT_PCI_PATH:
+
         ByteLength = 2;
         break;
 
     case ACPI_DMT_UINT24:
+
         ByteLength = 3;
         break;
 
@@ -553,29 +533,36 @@ DtGetFieldLength (
     case ACPI_DMT_NAME4:
     case ACPI_DMT_SLIC:
     case ACPI_DMT_SIG:
+    case ACPI_DMT_LPIT:
+
         ByteLength = 4;
         break;
 
     case ACPI_DMT_UINT40:
+
         ByteLength = 5;
         break;
 
     case ACPI_DMT_UINT48:
     case ACPI_DMT_NAME6:
+
         ByteLength = 6;
         break;
 
     case ACPI_DMT_UINT56:
     case ACPI_DMT_BUF7:
+
         ByteLength = 7;
         break;
 
     case ACPI_DMT_UINT64:
     case ACPI_DMT_NAME8:
+
         ByteLength = 8;
         break;
 
     case ACPI_DMT_STRING:
+
         Value = DtGetFieldValue (Field);
         if (Value)
         {
@@ -591,14 +578,17 @@ DtGetFieldLength (
         break;
 
     case ACPI_DMT_GAS:
+
         ByteLength = sizeof (ACPI_GENERIC_ADDRESS);
         break;
 
     case ACPI_DMT_HESTNTFY:
+
         ByteLength = sizeof (ACPI_HEST_NOTIFY);
         break;
 
     case ACPI_DMT_BUFFER:
+
         Value = DtGetFieldValue (Field);
         if (Value)
         {
@@ -613,16 +603,24 @@ DtGetFieldLength (
         }
         break;
 
+    case ACPI_DMT_BUF10:
+
+        ByteLength = 10;
+        break;
+
     case ACPI_DMT_BUF16:
     case ACPI_DMT_UUID:
+
         ByteLength = 16;
         break;
 
     case ACPI_DMT_BUF128:
+
         ByteLength = 128;
         break;
 
     case ACPI_DMT_UNICODE:
+
         Value = DtGetFieldValue (Field);
 
         /* TBD: error if Value is NULL? (as below?) */
@@ -631,6 +629,7 @@ DtGetFieldLength (
         break;
 
     default:
+
         DtFatal (ASL_MSG_COMPILER_INTERNAL, Field, "Invalid table opcode");
         return (0);
     }
@@ -844,39 +843,151 @@ DtWalkTableTree (
 }
 
 
-/******************************************************************************
+/*******************************************************************************
  *
- * FUNCTION:    DtFreeFieldList
+ * FUNCTION:    UtSubtableCacheCalloc
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a subtable object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_SUBTABLE *
+UtSubtableCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_SubtableCacheNext >= Gbl_SubtableCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_SubtableCacheList;
+        Gbl_SubtableCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_SubtableCacheNext = ACPI_CAST_PTR (DT_SUBTABLE, Cache->Buffer);
+        Gbl_SubtableCacheLast = Gbl_SubtableCacheNext + ASL_SUBTABLE_CACHE_SIZE;
+    }
+
+    Gbl_SubtableCount++;
+    return (Gbl_SubtableCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    UtFieldCacheCalloc
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Pointer to the buffer. Aborts on allocation failure
+ *
+ * DESCRIPTION: Allocate a field object buffer. Bypass the local
+ *              dynamic memory manager for performance reasons (This has a
+ *              major impact on the speed of the compiler.)
+ *
+ ******************************************************************************/
+
+DT_FIELD *
+UtFieldCacheCalloc (
+    void)
+{
+    ASL_CACHE_INFO          *Cache;
+
+
+    if (Gbl_FieldCacheNext >= Gbl_FieldCacheLast)
+    {
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_FieldCacheList;
+        Gbl_FieldCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_FieldCacheNext = ACPI_CAST_PTR (DT_FIELD, Cache->Buffer);
+        Gbl_FieldCacheLast = Gbl_FieldCacheNext + ASL_FIELD_CACHE_SIZE;
+    }
+
+    Gbl_FieldCount++;
+    return (Gbl_FieldCacheNext++);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    DtDeleteCaches
  *
  * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Free the field list
+ * DESCRIPTION: Delete all local cache buffer blocks
  *
- *****************************************************************************/
+ ******************************************************************************/
 
 void
-DtFreeFieldList (
+DtDeleteCaches (
     void)
 {
-    DT_FIELD                *Field = Gbl_FieldList;
-    DT_FIELD                *NextField;
+    UINT32                  BufferCount;
+    ASL_CACHE_INFO          *Next;
 
 
-    /* Walk and free entire field list */
+    /* Field cache */
 
-    while (Field)
+    BufferCount = 0;
+    while (Gbl_FieldCacheList)
     {
-        NextField = Field->Next; /* Save link */
-
-        if (!(Field->Flags & DT_FIELD_NOT_ALLOCATED))
-        {
-            ACPI_FREE (Field->Name);
-            ACPI_FREE (Field->Value);
-        }
-
-        ACPI_FREE (Field);
-        Field = NextField;
+        Next = Gbl_FieldCacheList->Next;
+        ACPI_FREE (Gbl_FieldCacheList);
+        Gbl_FieldCacheList = Next;
+        BufferCount++;
     }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Fields, Buffer size: %u fields (%u bytes), %u Buffers\n",
+        Gbl_FieldCount, ASL_FIELD_CACHE_SIZE,
+        (sizeof (DT_FIELD) * ASL_FIELD_CACHE_SIZE), BufferCount);
+
+    Gbl_FieldCount = 0;
+    Gbl_FieldCacheNext = NULL;
+    Gbl_FieldCacheLast = NULL;
+
+    /* Subtable cache */
+
+    BufferCount = 0;
+    while (Gbl_SubtableCacheList)
+    {
+        Next = Gbl_SubtableCacheList->Next;
+        ACPI_FREE (Gbl_SubtableCacheList);
+        Gbl_SubtableCacheList = Next;
+        BufferCount++;
+    }
+
+    DbgPrint (ASL_DEBUG_OUTPUT,
+        "%u Subtables, Buffer size: %u subtables (%u bytes), %u Buffers\n",
+        Gbl_SubtableCount, ASL_SUBTABLE_CACHE_SIZE,
+        (sizeof (DT_SUBTABLE) * ASL_SUBTABLE_CACHE_SIZE), BufferCount);
+
+    Gbl_SubtableCount = 0;
+    Gbl_SubtableCacheNext = NULL;
+    Gbl_SubtableCacheLast = NULL;
 }

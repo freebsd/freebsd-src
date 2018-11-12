@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/capability.h>
+#include <sys/capsicum.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/clock.h>
@@ -447,7 +447,7 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 		pcb->pcb_gsbase = (register_t)info.base_addr;
 /* XXXKIB	pcb->pcb_gs32sd = sd; */
 		td->td_frame->tf_gs = GSEL(GUGS32_SEL, SEL_UPL);
-		set_pcb_flags(pcb, PCB_GS32BIT | PCB_32BIT);
+		set_pcb_flags(pcb, PCB_32BIT);
 	}
 
 	return (error);
@@ -519,6 +519,7 @@ linux_mmap_common(struct thread *td, l_uintptr_t addr, l_size_t len, l_int prot,
 	} */ bsd_args;
 	int error;
 	struct file *fp;
+	cap_rights_t rights;
 
 	error = 0;
 	bsd_args.flags = 0;
@@ -567,7 +568,9 @@ linux_mmap_common(struct thread *td, l_uintptr_t addr, l_size_t len, l_int prot,
 		 * protection options specified.
 		 */
 
-		if ((error = fget(td, bsd_args.fd, CAP_MMAP, &fp)) != 0)
+		error = fget(td, bsd_args.fd,
+		    cap_rights_init(&rights, CAP_MMAP), &fp);
+		if (error != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);
@@ -1026,7 +1029,7 @@ linux_set_thread_area(struct thread *td,
 
 	pcb = td->td_pcb;
 	pcb->pcb_gsbase = (register_t)info.base_addr;
-	set_pcb_flags(pcb, PCB_32BIT | PCB_GS32BIT);
+	set_pcb_flags(pcb, PCB_32BIT);
 	update_gdt_gsbase(td, info.base_addr);
 
 	return (0);

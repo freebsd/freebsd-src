@@ -31,7 +31,7 @@
 .\"	@(#)sed.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2009
+.Dd June 20, 2014
 .Dt SED 1
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Nd stream editor
 .Sh SYNOPSIS
 .Nm
-.Op Fl Ealnr
+.Op Fl Ealnru
 .Ar command
 .Op Ar
 .Nm
@@ -148,6 +148,8 @@ option suppresses this behavior.
 Same as
 .Fl E
 for compatibility with GNU sed.
+.It Fl u
+Make output unbuffered.
 .El
 .Pp
 The form of a
@@ -196,7 +198,7 @@ option was specified);
 a context address
 that consists of a regular expression preceded and followed by a
 delimiter. The closing delimiter can also optionally be followed by the
-.Dq I
+.Dq i
 character, to indicate that the regular expression is to be matched
 in a case-insensitive way.
 .El
@@ -507,7 +509,7 @@ Append the pattern space to
 if a replacement was made.
 If the replacement string is identical to that which it replaces, it
 is still considered to have been a replacement.
-.It I
+.It i or I
 Match the regular expression in a case-insensitive way.
 .El
 .Pp
@@ -618,7 +620,7 @@ command, written by
 appeared in
 .At v7 .
 .Sh AUTHORS
-.An "Diomidis D. Spinellis" Aq dds@FreeBSD.org
+.An Diomidis D. Spinellis Aq Mt dds@FreeBSD.org
 .Sh BUGS
 Multibyte characters containing a byte with value 0x5C
 .Tn ( ASCII

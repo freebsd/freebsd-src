@@ -38,6 +38,7 @@ struct shparam {
 	unsigned char malloc;	/* if parameter list dynamically allocated */
 	unsigned char reset;	/* if getopts has been reset */
 	char **p;		/* parameter list */
+	char **optp;		/* parameter list for getopts */
 	char **optnext;		/* next parameter to be processed by getopts */
 	char *optptr;		/* used by getopts */
 };
@@ -72,6 +73,7 @@ struct optent {
 	char val;
 };
 
+extern struct optent optlist[NOPTS];
 #ifdef DEFINE_OPTIONS
 struct optent optlist[NOPTS] = {
 	{ "errexit",	'e',	0 },
@@ -94,8 +96,6 @@ struct optent optlist[NOPTS] = {
 	{ "physical",	'P',	0 },
 	{ "trackall",	'h',	0 },
 };
-#else
-extern struct optent optlist[NOPTS];
 #endif
 
 

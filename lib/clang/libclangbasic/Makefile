@@ -5,9 +5,9 @@
 LIB=	clangbasic
 
 SRCDIR=	tools/clang/lib/Basic
-SRCS=	Builtins.cpp \
-	ConvertUTF.c \
-	ConvertUTFWrapper.cpp \
+SRCS=	Attributes.cpp \
+	Builtins.cpp \
+	CharInfo.cpp \
 	Diagnostic.cpp \
 	DiagnosticIDs.cpp \
 	FileManager.cpp \
@@ -16,15 +16,22 @@ SRCS=	Builtins.cpp \
 	LangOptions.cpp \
 	Module.cpp \
 	ObjCRuntime.cpp \
+	OpenMPKinds.cpp \
+	OperatorPrecedence.cpp \
+	SanitizerBlacklist.cpp \
+	Sanitizers.cpp \
 	SourceLocation.cpp \
 	SourceManager.cpp \
 	TargetInfo.cpp \
 	Targets.cpp \
 	TokenKinds.cpp \
+	Version.cpp \
 	VersionTuple.cpp \
-	Version.cpp
+	VirtualFileSystem.cpp \
+	Warnings.cpp
 
-TGHDRS=	DiagnosticAnalysisKinds \
+TGHDRS=	AttrHasAttributeImpl \
+	DiagnosticAnalysisKinds \
 	DiagnosticASTKinds \
 	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \

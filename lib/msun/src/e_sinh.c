@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
  *	only sinh(0)=0 is exact for finite x.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -71,3 +73,7 @@ __ieee754_sinh(double x)
     /* |x| > overflowthresold, sinh(x) overflow */
 	return x*shuge;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(sinh, sinhl);
+#endif

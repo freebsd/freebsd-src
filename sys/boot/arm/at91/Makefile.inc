@@ -21,7 +21,7 @@ CFLAGS=-Os -mcpu=arm9 -ffreestanding \
 	-Wmissing-declarations 
 # -Wstrict-prototypes 
 
-CFLAGS+=-DBOOT_${BOOT_FLAVOR:U}
+CFLAGS+=-DBOOT_${BOOT_FLAVOR:tu}
 
 LIBAT91=${.OBJDIR}/../libat91/libat91.a
 

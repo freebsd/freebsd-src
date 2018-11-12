@@ -42,17 +42,31 @@ struct mlx4_cqe {
 	__be32			vlan_my_qpn;
 	__be32			immed_rss_invalid;
 	__be32			g_mlpath_rqpn;
-	__be16			sl_vid;
-	__be16			rlid;
-	__be16			status;
-	u8			ipv6_ext_mask;
-	u8			badfcs_enc;
+	union {
+		struct {
+			union {
+				struct {
+					__be16			sl_vid;
+					__be16	rlid;
+				};
+				__be32			timestamp_16_47;
+			};
+			__be16  status;
+			u8      ipv6_ext_mask;
+			u8      badfcs_enc;
+		};
+		struct {
+			__be16 reserved1;
+			u8  smac[6];
+		};
+	};
 	__be32			byte_cnt;
 	__be16			wqe_index;
 	__be16			checksum;
-	u8			reserved[3];
+	u8			reserved2[1];
+	__be16			timestamp_0_15;
 	u8			owner_sr_opcode;
-};
+} __packed;
 
 struct mlx4_err_cqe {
 	__be32			my_qpn;
@@ -64,9 +78,26 @@ struct mlx4_err_cqe {
 	u8			owner_sr_opcode;
 };
 
+struct mlx4_ts_cqe {
+	__be32			vlan_my_qpn;
+	__be32			immed_rss_invalid;
+	__be32			g_mlpath_rqpn;
+	__be32			timestamp_hi;
+	__be16			status;
+	u8			ipv6_ext_mask;
+	u8			badfcs_enc;
+	__be32			byte_cnt;
+	__be16			wqe_index;
+	__be16			checksum;
+	u8			reserved;
+	__be16			timestamp_lo;
+	u8			owner_sr_opcode;
+} __packed;
+
 enum {
 	MLX4_CQE_VLAN_PRESENT_MASK	= 1 << 29,
 	MLX4_CQE_QPN_MASK		= 0xffffff,
+	MLX4_CQE_VID_MASK		= 0xfff,
 };
 
 enum {
@@ -146,5 +177,5 @@ int mlx4_cq_modify(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		   u16 count, u16 period);
 int mlx4_cq_resize(struct mlx4_dev *dev, struct mlx4_cq *cq,
 		   int entries, struct mlx4_mtt *mtt);
-
+int mlx4_cq_ignore_overrun(struct mlx4_dev *dev, struct mlx4_cq *cq);
 #endif /* MLX4_CQ_H */

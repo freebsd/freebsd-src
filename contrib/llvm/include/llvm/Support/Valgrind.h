@@ -13,23 +13,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_VALGRIND_H
-#define LLVM_SYSTEM_VALGRIND_H
+#ifndef LLVM_SUPPORT_VALGRIND_H
+#define LLVM_SUPPORT_VALGRIND_H
 
-#include "llvm/Support/Compiler.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/Compiler.h"
 #include <stddef.h>
 
 #if LLVM_ENABLE_THREADS != 0 && !defined(NDEBUG)
 // tsan (Thread Sanitizer) is a valgrind-based tool that detects these exact
 // functions by name.
 extern "C" {
-LLVM_ATTRIBUTE_WEAK void AnnotateHappensAfter(const char *file, int line,
-                                              const volatile void *cv);
-LLVM_ATTRIBUTE_WEAK void AnnotateHappensBefore(const char *file, int line,
-                                               const volatile void *cv);
-LLVM_ATTRIBUTE_WEAK void AnnotateIgnoreWritesBegin(const char *file, int line);
-LLVM_ATTRIBUTE_WEAK void AnnotateIgnoreWritesEnd(const char *file, int line);
+void AnnotateHappensAfter(const char *file, int line, const volatile void *cv);
+void AnnotateHappensBefore(const char *file, int line, const volatile void *cv);
+void AnnotateIgnoreWritesBegin(const char *file, int line);
+void AnnotateIgnoreWritesEnd(const char *file, int line);
 }
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008, 2009, 2011 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008, 2009, 2011 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -19,14 +19,14 @@
 
 #ifndef lint
 SM_UNUSED(static char copyright[]) =
-"@(#) Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2013 Proofpoint, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* ! lint */
 
-SM_RCSID("@(#)$Id: main.c,v 8.981 2012/06/14 23:54:02 ca Exp $")
+SM_RCSID("@(#)$Id: main.c,v 8.988 2013-11-23 02:52:37 gshapiro Exp $")
 
 
 #if NETINET || NETINET6
@@ -77,17 +77,19 @@ static SIGFUNC_DECL	sigusr1 __P((int));
 **				(11/88 - 9/89).
 **			     UCB/Mammoth Project (10/89 - 7/95).
 **			     InReference, Inc. (8/95 - 1/97).
-**			     Sendmail, Inc. (1/98 - present).
+**			     Sendmail, Inc. (1/98 - 9/13).
 **		The support of my employers is gratefully acknowledged.
 **			Few of them (Britton-Lee in particular) have had
 **			anything to gain from my involvement in this project.
 **
 **		Gregory Neil Shapiro,
 **			Worcester Polytechnic Institute	(until 3/98).
-**			Sendmail, Inc. (3/98 - present).
+**			Sendmail, Inc. (3/98 - 10/13).
+**			Proofpoint, Inc. (10/13 - present).
 **
 **		Claus Assmann,
-**			Sendmail, Inc. (12/98 - present).
+**			Sendmail, Inc. (12/98 - 10/13).
+**			Proofpoint, Inc. (10/13 - present).
 */
 
 char		*FullName;	/* sender's full name */
@@ -2103,7 +2105,7 @@ main(argc, argv, envp)
 							     "> ");
 				(void) sm_io_flush(smioout, SM_TIME_DEFAULT);
 				if (sm_io_fgets(smioin, SM_TIME_DEFAULT, buf,
-						sizeof(buf)) == NULL)
+						sizeof(buf)) < 0)
 					testmodeline("/quit", &MainEnvelope);
 				p = strchr(buf, '\n');
 				if (p != NULL)
@@ -2153,7 +2155,13 @@ main(argc, argv, envp)
 	if (tls_ok)
 	{
 		/* basic TLS initialization */
-		tls_ok = init_tls_library();
+		tls_ok = init_tls_library(FipsMode);
+		if (!tls_ok && FipsMode)
+		{
+			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "ERROR: FIPSMode failed to initialize\n");
+			exit(EX_USAGE);
+		}
 	}
 
 	if (!tls_ok && (OpMode == MD_QUEUERUN || OpMode == MD_DELIVER))
@@ -4478,6 +4486,25 @@ testmodeline(line, e)
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 					     "ul = %lu\n", ul);
 		}
+#if NETINET || NETINET6
+		else if (sm_strcasecmp(&line[1], "gethostbyname") == 0)
+		{
+			int family = AF_INET;
+
+			q = strpbrk(p, " \t");
+			if (q != NULL)
+			{
+				while (isascii(*q) && isspace(*q))
+					*q++ = '\0';
+# if NETINET6
+				if (*q != '\0' && (strcmp(q, "inet6") == 0 ||
+						   strcmp(q, "AAAA") == 0))
+					family = AF_INET6;
+# endif /* NETINET6 */
+			}
+			(void) sm_gethostbyname(p, family);
+		}
+#endif /* NETINET || NETINET6 */
 		else
 		{
 			(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,

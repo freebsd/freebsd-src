@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  */
 
 #include <sys/arc.h>
@@ -43,7 +43,7 @@
  * dsl_scan_sync. This allows the delete operation to finish without traversing
  * all the dataset's blocks.
  *
- * Note that while bt_begin and bt_end are only ever incremented in this code
+ * Note that while bt_begin and bt_end are only ever incremented in this code,
  * they are effectively reset to 0 every time the entire bptree is freed because
  * the bptree's object is destroyed and re-created.
  */
@@ -65,7 +65,7 @@ bptree_alloc(objset_t *os, dmu_tx_t *tx)
 	bptree_phys_t *bt;
 
 	obj = dmu_object_alloc(os, DMU_OTN_UINT64_METADATA,
-	    SPA_MAXBLOCKSIZE, DMU_OTN_UINT64_METADATA,
+	    SPA_OLD_MAXBLOCKSIZE, DMU_OTN_UINT64_METADATA,
 	    sizeof (bptree_phys_t), tx);
 
 	/*
@@ -102,13 +102,27 @@ bptree_free(objset_t *os, uint64_t obj, dmu_tx_t *tx)
 	return (dmu_object_free(os, obj, tx));
 }
 
+boolean_t
+bptree_is_empty(objset_t *os, uint64_t obj)
+{
+	dmu_buf_t *db;
+	bptree_phys_t *bt;
+	boolean_t rv;
+
+	VERIFY0(dmu_bonus_hold(os, obj, FTAG, &db));
+	bt = db->db_data;
+	rv = (bt->bt_begin == bt->bt_end);
+	dmu_buf_rele(db, FTAG);
+	return (rv);
+}
+
 void
 bptree_add(objset_t *os, uint64_t obj, blkptr_t *bp, uint64_t birth_txg,
     uint64_t bytes, uint64_t comp, uint64_t uncomp, dmu_tx_t *tx)
 {
 	dmu_buf_t *db;
 	bptree_phys_t *bt;
-	bptree_entry_phys_t bte;
+	bptree_entry_phys_t bte = { 0 };
 
 	/*
 	 * bptree objects are in the pool mos, therefore they can only be
@@ -122,7 +136,6 @@ bptree_add(objset_t *os, uint64_t obj, blkptr_t *bp, uint64_t birth_txg,
 
 	bte.be_birth_txg = birth_txg;
 	bte.be_bp = *bp;
-	bzero(&bte.be_zb, sizeof (bte.be_zb));
 	dmu_write(os, obj, bt->bt_end * sizeof (bte), sizeof (bte), &bte, tx);
 
 	dmu_buf_will_dirty(db, tx);
@@ -136,12 +149,12 @@ bptree_add(objset_t *os, uint64_t obj, blkptr_t *bp, uint64_t birth_txg,
 /* ARGSUSED */
 static int
 bptree_visit_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
-    const zbookmark_t *zb, const dnode_phys_t *dnp, void *arg)
+    const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	int err;
 	struct bptree_args *ba = arg;
 
-	if (bp == NULL)
+	if (BP_IS_HOLE(bp))
 		return (0);
 
 	err = ba->ba_func(ba->ba_arg, bp, ba->ba_tx);
@@ -153,10 +166,27 @@ bptree_visit_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	return (err);
 }
 
+/*
+ * If "free" is set:
+ *  - It is assumed that "func" will be freeing the block pointers.
+ *  - If "func" returns nonzero, the bookmark will be remembered and
+ *    iteration will be restarted from this point on next invocation.
+ *  - If an i/o error is encountered (e.g. "func" returns EIO or ECKSUM),
+ *    bptree_iterate will remember the bookmark, continue traversing
+ *    any additional entries, and return 0.
+ *
+ * If "free" is not set, traversal will stop and return an error if
+ * an i/o error is encountered.
+ *
+ * In either case, if zfs_free_leak_on_eio is set, i/o errors will be
+ * ignored and traversal will continue (i.e. TRAVERSE_HARD will be passed to
+ * traverse_dataset_destroyed()).
+ */
 int
 bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
     void *arg, dmu_tx_t *tx)
 {
+	boolean_t ioerr = B_FALSE;
 	int err;
 	uint64_t i;
 	dmu_buf_t *db;
@@ -180,20 +210,32 @@ bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
 	err = 0;
 	for (i = ba.ba_phys->bt_begin; i < ba.ba_phys->bt_end; i++) {
 		bptree_entry_phys_t bte;
-
-		ASSERT(!free || i == ba.ba_phys->bt_begin);
+		int flags = TRAVERSE_PREFETCH_METADATA | TRAVERSE_POST;
 
 		err = dmu_read(os, obj, i * sizeof (bte), sizeof (bte),
 		    &bte, DMU_READ_NO_PREFETCH);
 		if (err != 0)
 			break;
 
+		if (zfs_free_leak_on_eio)
+			flags |= TRAVERSE_HARD;
+		zfs_dbgmsg("bptree index %d: traversing from min_txg=%lld "
+		    "bookmark %lld/%lld/%lld/%lld",
+		    i, (longlong_t)bte.be_birth_txg,
+		    (longlong_t)bte.be_zb.zb_objset,
+		    (longlong_t)bte.be_zb.zb_object,
+		    (longlong_t)bte.be_zb.zb_level,
+		    (longlong_t)bte.be_zb.zb_blkid);
 		err = traverse_dataset_destroyed(os->os_spa, &bte.be_bp,
-		    bte.be_birth_txg, &bte.be_zb,
-		    TRAVERSE_PREFETCH_METADATA | TRAVERSE_POST,
+		    bte.be_birth_txg, &bte.be_zb, flags,
 		    bptree_visit_cb, &ba);
 		if (free) {
-			ASSERT(err == 0 || err == ERESTART);
+			/*
+			 * The callback has freed the visited block pointers.
+			 * Record our traversal progress on disk, either by
+			 * updating this record's bookmark, or by logically
+			 * removing this record by advancing bt_begin.
+			 */
 			if (err != 0) {
 				/* save bookmark for future resume */
 				ASSERT3U(bte.be_zb.zb_objset, ==,
@@ -201,19 +243,51 @@ bptree_iterate(objset_t *os, uint64_t obj, boolean_t free, bptree_itor_t func,
 				ASSERT0(bte.be_zb.zb_level);
 				dmu_write(os, obj, i * sizeof (bte),
 				    sizeof (bte), &bte, tx);
-				break;
-			} else {
+				if (err == EIO || err == ECKSUM ||
+				    err == ENXIO) {
+					/*
+					 * Skip the rest of this tree and
+					 * continue on to the next entry.
+					 */
+					err = 0;
+					ioerr = B_TRUE;
+				} else {
+					break;
+				}
+			} else if (ioerr) {
+				/*
+				 * This entry is finished, but there were
+				 * i/o errors on previous entries, so we
+				 * can't adjust bt_begin.  Set this entry's
+				 * be_birth_txg such that it will be
+				 * treated as a no-op in future traversals.
+				 */
+				bte.be_birth_txg = UINT64_MAX;
+				dmu_write(os, obj, i * sizeof (bte),
+				    sizeof (bte), &bte, tx);
+			}
+
+			if (!ioerr) {
 				ba.ba_phys->bt_begin++;
 				(void) dmu_free_range(os, obj,
 				    i * sizeof (bte), sizeof (bte), tx);
 			}
+		} else if (err != 0) {
+			break;
 		}
 	}
 
-	ASSERT(!free || err != 0 || ba.ba_phys->bt_begin == ba.ba_phys->bt_end);
+	ASSERT(!free || err != 0 || ioerr ||
+	    ba.ba_phys->bt_begin == ba.ba_phys->bt_end);
 
 	/* if all blocks are free there should be no used space */
 	if (ba.ba_phys->bt_begin == ba.ba_phys->bt_end) {
+		if (zfs_free_leak_on_eio) {
+			ba.ba_phys->bt_bytes = 0;
+			ba.ba_phys->bt_comp = 0;
+			ba.ba_phys->bt_uncomp = 0;
+		}
+
 		ASSERT0(ba.ba_phys->bt_bytes);
 		ASSERT0(ba.ba_phys->bt_comp);
 		ASSERT0(ba.ba_phys->bt_uncomp);

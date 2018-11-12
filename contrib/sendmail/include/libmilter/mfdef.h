@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2007 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfdef.h,v 8.39 2009/11/06 00:57:08 ca Exp $
+ *	$Id: mfdef.h,v 8.40 2013-11-22 20:51:27 ca Exp $
  */
 
 /*

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -237,20 +236,24 @@ AcpiDmNamestring (
     switch (ACPI_GET8 (Name))
     {
     case 0:
+
         SegCount = 0;
         break;
 
     case AML_DUAL_NAME_PREFIX:
+
         SegCount = 2;
         Name++;
         break;
 
     case AML_MULTI_NAME_PREFIX_OP:
+
         SegCount = (UINT32) ACPI_GET8 (Name + 1);
         Name += 2;
         break;
 
     default:
+
         SegCount = 1;
         break;
     }

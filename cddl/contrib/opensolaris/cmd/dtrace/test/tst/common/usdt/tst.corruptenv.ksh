@@ -48,7 +48,7 @@ fi
 
 dtrace="$1"
 startdir="$PWD"
-dir=$(mktemp -td drtiXXXXXX)
+dir=$(mktemp -d -t drtiXXXXXX)
 if (( $? != 0 )); then
 	print -u2 'Could not create safe temporary directory'
 	exit 2

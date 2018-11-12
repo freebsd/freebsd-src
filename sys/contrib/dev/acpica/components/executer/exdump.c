@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2015, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
-#define __EXDUMP_C__
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -114,13 +112,14 @@ static ACPI_EXDUMP_INFO     AcpiExDumpBuffer[5] =
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpBuffer),         NULL},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (Buffer.Length),                "Length"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Buffer.Pointer),               "Pointer"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Buffer.Node),                  "Parent Node"},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (Buffer.Node),                  "Parent Node"},
     {ACPI_EXD_BUFFER,   0,                                              NULL}
 };
 
-static ACPI_EXDUMP_INFO     AcpiExDumpPackage[5] =
+static ACPI_EXDUMP_INFO     AcpiExDumpPackage[6] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpPackage),        NULL},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (Package.Node),                 "Parent Node"},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Package.Flags),                "Flags"},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (Package.Count),                "Elements"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Package.Elements),             "Element List"},
@@ -130,9 +129,9 @@ static ACPI_EXDUMP_INFO     AcpiExDumpPackage[5] =
 static ACPI_EXDUMP_INFO     AcpiExDumpDevice[4] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpDevice),         NULL},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Device.Handler),               "Handler"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Device.NotifyList[0]),         "System Notify"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Device.NotifyList[1]),         "Device Notify"}
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Device.NotifyList[1]),         "Device Notify"},
+    {ACPI_EXD_HDLR_LIST,ACPI_EXD_OFFSET (Device.Handler),               "Handler"}
 };
 
 static ACPI_EXDUMP_INFO     AcpiExDumpEvent[2] =
@@ -154,33 +153,36 @@ static ACPI_EXDUMP_INFO     AcpiExDumpMethod[9] =
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Method.AmlStart),              "Aml Start"}
 };
 
-static ACPI_EXDUMP_INFO     AcpiExDumpMutex[5] =
+static ACPI_EXDUMP_INFO     AcpiExDumpMutex[6] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpMutex),          NULL},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Mutex.SyncLevel),              "Sync Level"},
+    {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Mutex.OriginalSyncLevel),      "Original Sync Level"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Mutex.OwnerThread),            "Owner Thread"},
     {ACPI_EXD_UINT16,   ACPI_EXD_OFFSET (Mutex.AcquisitionDepth),       "Acquire Depth"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Mutex.OsMutex),                "OsMutex"}
 };
 
-static ACPI_EXDUMP_INFO     AcpiExDumpRegion[7] =
+static ACPI_EXDUMP_INFO     AcpiExDumpRegion[8] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpRegion),         NULL},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Region.SpaceId),               "Space Id"},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Region.Flags),                 "Flags"},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (Region.Node),                  "Parent Node"},
     {ACPI_EXD_ADDRESS,  ACPI_EXD_OFFSET (Region.Address),               "Address"},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (Region.Length),                "Length"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Region.Handler),               "Handler"},
+    {ACPI_EXD_HDLR_LIST,ACPI_EXD_OFFSET (Region.Handler),               "Handler"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Region.Next),                  "Next"}
 };
 
-static ACPI_EXDUMP_INFO     AcpiExDumpPower[5] =
+static ACPI_EXDUMP_INFO     AcpiExDumpPower[6] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpPower),          NULL},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (PowerResource.SystemLevel),    "System Level"},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (PowerResource.ResourceOrder),  "Resource Order"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (PowerResource.NotifyList[0]),  "System Notify"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (PowerResource.NotifyList[1]),  "Device Notify"}
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (PowerResource.NotifyList[1]),  "Device Notify"},
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (PowerResource.Handler),        "Handler"}
 };
 
 static ACPI_EXDUMP_INFO     AcpiExDumpProcessor[7] =
@@ -243,7 +245,7 @@ static ACPI_EXDUMP_INFO     AcpiExDumpReference[8] =
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Reference.TargetType),         "Target Type"},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (Reference.Value),              "Value"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Reference.Object),             "Object Desc"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Reference.Node),               "Node"},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (Reference.Node),               "Node"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Reference.Where),              "Where"},
     {ACPI_EXD_REFERENCE,0,                                              NULL}
 };
@@ -252,16 +254,16 @@ static ACPI_EXDUMP_INFO     AcpiExDumpAddressHandler[6] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpAddressHandler), NULL},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (AddressSpace.SpaceId),         "Space Id"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (AddressSpace.Next),            "Next"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (AddressSpace.RegionList),      "Region List"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (AddressSpace.Node),            "Node"},
+    {ACPI_EXD_HDLR_LIST,ACPI_EXD_OFFSET (AddressSpace.Next),            "Next"},
+    {ACPI_EXD_RGN_LIST, ACPI_EXD_OFFSET (AddressSpace.RegionList),      "Region List"},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (AddressSpace.Node),            "Node"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (AddressSpace.Context),         "Context"}
 };
 
 static ACPI_EXDUMP_INFO     AcpiExDumpNotify[7] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpNotify),         NULL},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Notify.Node),                  "Node"},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (Notify.Node),                  "Node"},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (Notify.HandlerType),           "Handler Type"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Notify.Handler),               "Handler"},
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Notify.Context),               "Context"},
@@ -269,15 +271,32 @@ static ACPI_EXDUMP_INFO     AcpiExDumpNotify[7] =
     {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Notify.Next[1]),               "Next Device Notify"}
 };
 
+static ACPI_EXDUMP_INFO     AcpiExDumpExtra[6] =
+{
+    {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpExtra),          NULL},
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Extra.Method_REG),             "_REG Method"},
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (Extra.ScopeNode),              "Scope Node"},
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Extra.RegionContext),          "Region Context"},
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Extra.AmlStart),               "Aml Start"},
+    {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (Extra.AmlLength),              "Aml Length"}
+};
+
+static ACPI_EXDUMP_INFO     AcpiExDumpData[3] =
+{
+    {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpData),           NULL},
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Data.Handler),                 "Handler"},
+    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (Data.Pointer),                 "Raw Data"}
+};
 
 /* Miscellaneous tables */
 
-static ACPI_EXDUMP_INFO     AcpiExDumpCommon[4] =
+static ACPI_EXDUMP_INFO     AcpiExDumpCommon[5] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpCommon),         NULL},
     {ACPI_EXD_TYPE ,    0,                                              NULL},
     {ACPI_EXD_UINT16,   ACPI_EXD_OFFSET (Common.ReferenceCount),        "Reference Count"},
-    {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Common.Flags),                 "Flags"}
+    {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (Common.Flags),                 "Flags"},
+    {ACPI_EXD_LIST,     ACPI_EXD_OFFSET (Common.NextObject),            "Object List"}
 };
 
 static ACPI_EXDUMP_INFO     AcpiExDumpFieldCommon[7] =
@@ -288,16 +307,18 @@ static ACPI_EXDUMP_INFO     AcpiExDumpFieldCommon[7] =
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (CommonField.BitLength),        "Bit Length"},
     {ACPI_EXD_UINT8,    ACPI_EXD_OFFSET (CommonField.StartFieldBitOffset),"Field Bit Offset"},
     {ACPI_EXD_UINT32,   ACPI_EXD_OFFSET (CommonField.BaseByteOffset),   "Base Byte Offset"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_OFFSET (CommonField.Node),             "Parent Node"}
+    {ACPI_EXD_NODE,     ACPI_EXD_OFFSET (CommonField.Node),             "Parent Node"}
 };
 
-static ACPI_EXDUMP_INFO     AcpiExDumpNode[5] =
+static ACPI_EXDUMP_INFO     AcpiExDumpNode[7] =
 {
     {ACPI_EXD_INIT,     ACPI_EXD_TABLE_SIZE (AcpiExDumpNode),           NULL},
     {ACPI_EXD_UINT8,    ACPI_EXD_NSOFFSET (Flags),                      "Flags"},
     {ACPI_EXD_UINT8,    ACPI_EXD_NSOFFSET (OwnerId),                    "Owner Id"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_NSOFFSET (Child),                      "Child List"},
-    {ACPI_EXD_POINTER,  ACPI_EXD_NSOFFSET (Peer),                       "Next Peer"}
+    {ACPI_EXD_LIST,     ACPI_EXD_NSOFFSET (Object),                     "Object List"},
+    {ACPI_EXD_NODE,     ACPI_EXD_NSOFFSET (Parent),                     "Parent"},
+    {ACPI_EXD_NODE,     ACPI_EXD_NSOFFSET (Child),                      "Child"},
+    {ACPI_EXD_NODE,     ACPI_EXD_NSOFFSET (Peer),                       "Peer"}
 };
 
 
@@ -332,7 +353,9 @@ static ACPI_EXDUMP_INFO     *AcpiExDumpInfo[] =
     AcpiExDumpAddressHandler,
     NULL,
     NULL,
-    NULL
+    NULL,
+    AcpiExDumpExtra,
+    AcpiExDumpData
 };
 
 
@@ -357,7 +380,12 @@ AcpiExDumpObject (
 {
     UINT8                   *Target;
     char                    *Name;
+    const char              *ReferenceName;
     UINT8                   Count;
+    ACPI_OPERAND_OBJECT     *Start;
+    ACPI_OPERAND_OBJECT     *Data = NULL;
+    ACPI_OPERAND_OBJECT     *Next;
+    ACPI_NAMESPACE_NODE     *Node;
 
 
     if (!Info)
@@ -380,11 +408,13 @@ AcpiExDumpObject (
         switch (Info->Opcode)
         {
         case ACPI_EXD_INIT:
+
             break;
 
         case ACPI_EXD_TYPE:
 
-            AcpiExOutString  ("Type", AcpiUtGetObjectTypeName (ObjDesc));
+            AcpiOsPrintf ("%20s : %2.2X [%s]\n", "Type",
+                ObjDesc->Common.Type, AcpiUtGetObjectTypeName (ObjDesc));
             break;
 
         case ACPI_EXD_UINT8:
@@ -440,9 +470,123 @@ AcpiExDumpObject (
 
         case ACPI_EXD_REFERENCE:
 
-            AcpiExOutString ("Class Name",
-                ACPI_CAST_PTR (char, AcpiUtGetReferenceName (ObjDesc)));
+            ReferenceName = AcpiUtGetReferenceName (ObjDesc);
+            AcpiExOutString ("Class Name", ACPI_CAST_PTR (char, ReferenceName));
             AcpiExDumpReferenceObj (ObjDesc);
+            break;
+
+        case ACPI_EXD_LIST:
+
+            Start = *ACPI_CAST_PTR (void *, Target);
+            Next = Start;
+
+            AcpiOsPrintf ("%20s : %p", Name, Next);
+            if (Next)
+            {
+                AcpiOsPrintf ("(%s %2.2X)",
+                    AcpiUtGetObjectTypeName (Next), Next->Common.Type);
+
+                while (Next->Common.NextObject)
+                {
+                    if ((Next->Common.Type == ACPI_TYPE_LOCAL_DATA) &&
+                        !Data)
+                    {
+                        Data = Next;
+                    }
+
+                    Next = Next->Common.NextObject;
+                    AcpiOsPrintf ("->%p(%s %2.2X)", Next,
+                        AcpiUtGetObjectTypeName (Next), Next->Common.Type);
+
+                    if ((Next == Start) || (Next == Data))
+                    {
+                        AcpiOsPrintf ("\n**** Error: Object list appears to be circular linked");
+                        break;
+                    }
+                }
+            }
+
+            AcpiOsPrintf ("\n");
+            break;
+
+        case ACPI_EXD_HDLR_LIST:
+
+            Start = *ACPI_CAST_PTR (void *, Target);
+            Next = Start;
+
+            AcpiOsPrintf ("%20s : %p", Name, Next);
+            if (Next)
+            {
+                AcpiOsPrintf ("(%s %2.2X)",
+                    AcpiUtGetObjectTypeName (Next), Next->Common.Type);
+
+                while (Next->AddressSpace.Next)
+                {
+                    if ((Next->Common.Type == ACPI_TYPE_LOCAL_DATA) &&
+                        !Data)
+                    {
+                        Data = Next;
+                    }
+
+                    Next = Next->AddressSpace.Next;
+                    AcpiOsPrintf ("->%p(%s %2.2X)", Next,
+                        AcpiUtGetObjectTypeName (Next), Next->Common.Type);
+
+                    if ((Next == Start) || (Next == Data))
+                    {
+                        AcpiOsPrintf ("\n**** Error: Handler list appears to be circular linked");
+                        break;
+                    }
+                }
+            }
+
+            AcpiOsPrintf ("\n");
+            break;
+
+        case ACPI_EXD_RGN_LIST:
+
+            Start = *ACPI_CAST_PTR (void *, Target);
+            Next = Start;
+
+            AcpiOsPrintf ("%20s : %p", Name, Next);
+            if (Next)
+            {
+                AcpiOsPrintf ("(%s %2.2X)",
+                    AcpiUtGetObjectTypeName (Next), Next->Common.Type);
+
+                while (Next->Region.Next)
+                {
+                    if ((Next->Common.Type == ACPI_TYPE_LOCAL_DATA) &&
+                        !Data)
+                    {
+                        Data = Next;
+                    }
+
+                    Next = Next->Region.Next;
+                    AcpiOsPrintf ("->%p(%s %2.2X)", Next,
+                        AcpiUtGetObjectTypeName (Next), Next->Common.Type);
+
+                    if ((Next == Start) || (Next == Data))
+                    {
+                        AcpiOsPrintf ("\n**** Error: Region list appears to be circular linked");
+                        break;
+                    }
+                }
+            }
+
+            AcpiOsPrintf ("\n");
+            break;
+
+        case ACPI_EXD_NODE:
+
+            Node = *ACPI_CAST_PTR (ACPI_NAMESPACE_NODE *, Target);
+
+            AcpiOsPrintf ("%20s : %p", Name, Node);
+            if (Node)
+            {
+                AcpiOsPrintf (" [%4.4s]", Node->Name.Ascii);
+            }
+            AcpiOsPrintf ("\n");
             break;
 
         default:
@@ -541,18 +685,15 @@ AcpiExDumpOperand (
             AcpiOsPrintf ("\n");
             break;
 
-
         case ACPI_REFCLASS_INDEX:
 
             AcpiOsPrintf ("%p\n", ObjDesc->Reference.Object);
             break;
 
-
         case ACPI_REFCLASS_TABLE:
 
             AcpiOsPrintf ("Table Index %X\n", ObjDesc->Reference.Value);
             break;
-
 
         case ACPI_REFCLASS_REFOF:
 
@@ -561,12 +702,10 @@ AcpiExDumpOperand (
                     ObjDesc->Reference.Object)->Common.Type));
             break;
 
-
         case ACPI_REFCLASS_NAME:
 
             AcpiOsPrintf ("- [%4.4s]\n", ObjDesc->Reference.Node->Name.Ascii);
             break;
-
 
         case ACPI_REFCLASS_ARG:
         case ACPI_REFCLASS_LOCAL:
@@ -574,14 +713,12 @@ AcpiExDumpOperand (
             AcpiOsPrintf ("%X\n", ObjDesc->Reference.Value);
             break;
 
-
         default:    /* Unknown reference class */
 
             AcpiOsPrintf ("%2.2X\n", ObjDesc->Reference.Class);
             break;
         }
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
@@ -604,13 +741,11 @@ AcpiExDumpOperand (
         }
         break;
 
-
     case ACPI_TYPE_INTEGER:
 
         AcpiOsPrintf ("Integer %8.8X%8.8X\n",
             ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
         break;
-
 
     case ACPI_TYPE_PACKAGE:
 
@@ -631,7 +766,6 @@ AcpiExDumpOperand (
             }
         }
         break;
-
 
     case ACPI_TYPE_REGION:
 
@@ -655,7 +789,6 @@ AcpiExDumpOperand (
         }
         break;
 
-
     case ACPI_TYPE_STRING:
 
         AcpiOsPrintf ("String length %X @ %p ",
@@ -666,12 +799,10 @@ AcpiExDumpOperand (
         AcpiOsPrintf ("\n");
         break;
 
-
     case ACPI_TYPE_LOCAL_BANK_FIELD:
 
         AcpiOsPrintf ("BankField\n");
         break;
-
 
     case ACPI_TYPE_LOCAL_REGION_FIELD:
 
@@ -687,12 +818,10 @@ AcpiExDumpOperand (
         AcpiExDumpOperand (ObjDesc->Field.RegionObj, Depth+1);
         break;
 
-
     case ACPI_TYPE_LOCAL_INDEX_FIELD:
 
         AcpiOsPrintf ("IndexField\n");
         break;
-
 
     case ACPI_TYPE_BUFFER_FIELD:
 
@@ -716,12 +845,10 @@ AcpiExDumpOperand (
         }
         break;
 
-
     case ACPI_TYPE_EVENT:
 
         AcpiOsPrintf ("Event\n");
         break;
-
 
     case ACPI_TYPE_METHOD:
 
@@ -731,38 +858,33 @@ AcpiExDumpOperand (
             ObjDesc->Method.AmlLength);
         break;
 
-
     case ACPI_TYPE_MUTEX:
 
         AcpiOsPrintf ("Mutex\n");
         break;
-
 
     case ACPI_TYPE_DEVICE:
 
         AcpiOsPrintf ("Device\n");
         break;
 
-
     case ACPI_TYPE_POWER:
 
         AcpiOsPrintf ("Power\n");
         break;
-
 
     case ACPI_TYPE_PROCESSOR:
 
         AcpiOsPrintf ("Processor\n");
         break;
 
-
     case ACPI_TYPE_THERMAL:
 
         AcpiOsPrintf ("Thermal\n");
         break;
 
-
     default:
+
         /* Unknown Type */
 
         AcpiOsPrintf ("Unknown Type %X\n", ObjDesc->Common.Type);
@@ -884,9 +1006,8 @@ AcpiExDumpNamespaceNode (
     }
 
     AcpiOsPrintf ("%20s : %4.4s\n", "Name", AcpiUtGetNodeName (Node));
-    AcpiExOutString  ("Type", AcpiUtGetTypeName (Node->Type));
-    AcpiExOutPointer ("Attached Object", AcpiNsGetAttachedObject (Node));
-    AcpiExOutPointer ("Parent", Node->Parent);
+    AcpiOsPrintf ("%20s : %2.2X [%s]\n", "Type",
+        Node->Type, AcpiUtGetTypeName (Node->Type));
 
     AcpiExDumpObject (ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, Node),
         AcpiExDumpNode);
@@ -1005,14 +1126,12 @@ AcpiExDumpPackageObj (
             ACPI_FORMAT_UINT64 (ObjDesc->Integer.Value));
         break;
 
-
     case ACPI_TYPE_STRING:
 
         AcpiOsPrintf ("[String]  Value: ");
         AcpiUtPrintString (ObjDesc->String.Pointer, ACPI_UINT8_MAX);
         AcpiOsPrintf ("\n");
         break;
-
 
     case ACPI_TYPE_BUFFER:
 
@@ -1028,7 +1147,6 @@ AcpiExDumpPackageObj (
         }
         break;
 
-
     case ACPI_TYPE_PACKAGE:
 
         AcpiOsPrintf ("[Package] Contains %u Elements:\n",
@@ -1040,7 +1158,6 @@ AcpiExDumpPackageObj (
         }
         break;
 
-
     case ACPI_TYPE_LOCAL_REFERENCE:
 
         AcpiOsPrintf ("[Object Reference] Type [%s] %2.2X",
@@ -1048,7 +1165,6 @@ AcpiExDumpPackageObj (
             ObjDesc->Reference.Class);
         AcpiExDumpReferenceObj (ObjDesc);
         break;
-
 
     default:
 
@@ -1099,23 +1215,29 @@ AcpiExDumpObjectDescriptor (
         AcpiOsPrintf ("\nAttached Object (%p):\n",
             ((ACPI_NAMESPACE_NODE *) ObjDesc)->Object);
 
-        AcpiExDumpObjectDescriptor (
-            ((ACPI_NAMESPACE_NODE *) ObjDesc)->Object, Flags);
-        return_VOID;
+        ObjDesc = ((ACPI_NAMESPACE_NODE *) ObjDesc)->Object;
+        goto DumpObject;
     }
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND)
     {
         AcpiOsPrintf (
-            "ExDumpObjectDescriptor: %p is not an ACPI operand object: [%s]\n",
+            "%p is not an ACPI operand object: [%s]\n",
             ObjDesc, AcpiUtGetDescriptorName (ObjDesc));
         return_VOID;
     }
 
-    if (ObjDesc->Common.Type > ACPI_TYPE_NS_NODE_MAX)
+    /* Validate the object type */
+
+    if (ObjDesc->Common.Type > ACPI_TYPE_LOCAL_MAX)
     {
+        AcpiOsPrintf ("Not a known object type: %2.2X\n",
+            ObjDesc->Common.Type);
         return_VOID;
     }
+
+
+DumpObject:
 
     /* Common Fields */
 
@@ -1124,6 +1246,22 @@ AcpiExDumpObjectDescriptor (
     /* Object-specific fields */
 
     AcpiExDumpObject (ObjDesc, AcpiExDumpInfo[ObjDesc->Common.Type]);
+
+    if (ObjDesc->Common.Type == ACPI_TYPE_REGION)
+    {
+        ObjDesc = ObjDesc->Common.NextObject;
+        if (ObjDesc->Common.Type > ACPI_TYPE_LOCAL_MAX)
+        {
+            AcpiOsPrintf ("Secondary object is not a known object type: %2.2X\n",
+                ObjDesc->Common.Type);
+
+            return_VOID;
+        }
+
+        AcpiOsPrintf ("\nExtra attached Object (%p):\n", ObjDesc);
+        AcpiExDumpObject (ObjDesc, AcpiExDumpInfo[ObjDesc->Common.Type]);
+    }
+
     return_VOID;
 }
 

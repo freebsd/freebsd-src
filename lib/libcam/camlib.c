@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -348,16 +349,16 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 	if (ccb.cdm.status == CAM_DEV_MATCH_MORE) {
 		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: CDM reported more than one"
-			 " passthrough device at %d:%d:%d!!\n",
-			 func_name, path_id, target_id, target_lun);
+			 " passthrough device at %d:%d:%jx!!\n",
+			 func_name, path_id, target_id, (uintmax_t)target_lun);
 		goto btl_bailout;
 	}
 
 	if (ccb.cdm.num_matches == 0) {
 		snprintf(cam_errbuf, CAM_ERRBUF_SIZE,
 			 "%s: no passthrough device found at"
-			 " %d:%d:%d", func_name, path_id, target_id,
-			 target_lun);
+			 " %d:%d:%jx", func_name, path_id, target_id,
+			 (uintmax_t)target_lun);
 		goto btl_bailout;
 	}
 
@@ -633,7 +634,7 @@ cam_real_open_device(const char *path, int flags, struct cam_device *device,
 			 "%s: %s", func_name, func_name, strerror(errno));
 		goto crod_bailout;
 	}
-	if (ccb.cts.protocol == XPORT_SPI) {
+	if (ccb.cts.transport == XPORT_SPI) {
 		struct ccb_trans_settings_spi *spi =
 		    &ccb.cts.xport_specific.spi;
 		device->sync_period = spi->sync_period;
@@ -687,14 +688,14 @@ cam_path_string(struct cam_device *dev, char *str, int len)
 		return(str);
 	}
 
-	snprintf(str, len, "(%s%d:%s%d:%d:%d:%d): ",
+	snprintf(str, len, "(%s%d:%s%d:%d:%d:%jx): ",
 		 (dev->device_name[0] != '\0') ? dev->device_name : "pass",
 		 dev->dev_unit_num,
 		 (dev->sim_name[0] != '\0') ? dev->sim_name : "unknown",
 		 dev->sim_unit_number,
 		 dev->bus_id,
 		 dev->target_id,
-		 dev->target_lun);
+		 (uintmax_t)dev->target_lun);
 
 	return(str);
 }

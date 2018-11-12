@@ -136,6 +136,28 @@ uint32_t fdt_next_tag(const void *fdt, int offset, int *nextoffset);
 
 int fdt_next_node(const void *fdt, int offset, int *depth);
 
+/**
+ * fdt_first_subnode() - get offset of first direct subnode
+ *
+ * @fdt:	FDT blob
+ * @offset:	Offset of node to check
+ * @return offset of first subnode, or -FDT_ERR_NOTFOUND if there is none
+ */
+int fdt_first_subnode(const void *fdt, int offset);
+
+/**
+ * fdt_next_subnode() - get offset of next direct subnode
+ *
+ * After first calling fdt_first_subnode(), call this function repeatedly to
+ * get direct subnodes of a parent node.
+ *
+ * @fdt:	FDT blob
+ * @offset:	Offset of previous subnode
+ * @return offset of next subnode, or -FDT_ERR_NOTFOUND if there are no more
+ * subnodes
+ */
+int fdt_next_subnode(const void *fdt, int offset);
+
 /**********************************************************************/
 /* General functions                                                  */
 /**********************************************************************/
@@ -582,7 +604,7 @@ const char *fdt_get_alias_namelen(const void *fdt,
  * value of the property named 'name' in the node /aliases.
  *
  * returns:
- *	a pointer to the expansion of the alias named 'name', of it exists
+ *	a pointer to the expansion of the alias named 'name', if it exists
  *	NULL, if the given alias or the /aliases node does not exist
  */
 const char *fdt_get_alias(const void *fdt, const char *name);
@@ -816,6 +838,20 @@ int fdt_node_check_compatible(const void *fdt, int nodeoffset,
 int fdt_node_offset_by_compatible(const void *fdt, int startoffset,
 				  const char *compatible);
 
+/**
+ * fdt_stringlist_contains - check a string list property for a string
+ * @strlist: Property containing a list of strings to check
+ * @listlen: Length of property
+ * @str: String to search for
+ *
+ * This is a utility function provided for convenience. The list contains
+ * one or more strings, each terminated by \0, as is found in a device tree
+ * "compatible" property.
+ *
+ * @return: 1 if the string is found in the list, 0 not found, or invalid list
+ */
+int fdt_stringlist_contains(const char *strlist, int listlen, const char *str);
+
 /**********************************************************************/
 /* Write-in-place functions                                           */
 /**********************************************************************/
@@ -882,8 +918,8 @@ int fdt_setprop_inplace(void *fdt, int nodeoffset, const char *name,
 static inline int fdt_setprop_inplace_u32(void *fdt, int nodeoffset,
 					  const char *name, uint32_t val)
 {
-	val = cpu_to_fdt32(val);
-	return fdt_setprop_inplace(fdt, nodeoffset, name, &val, sizeof(val));
+	fdt32_t tmp = cpu_to_fdt32(val);
+	return fdt_setprop_inplace(fdt, nodeoffset, name, &tmp, sizeof(tmp));
 }
 
 /**
@@ -917,8 +953,8 @@ static inline int fdt_setprop_inplace_u32(void *fdt, int nodeoffset,
 static inline int fdt_setprop_inplace_u64(void *fdt, int nodeoffset,
 					  const char *name, uint64_t val)
 {
-	val = cpu_to_fdt64(val);
-	return fdt_setprop_inplace(fdt, nodeoffset, name, &val, sizeof(val));
+	fdt64_t tmp = cpu_to_fdt64(val);
+	return fdt_setprop_inplace(fdt, nodeoffset, name, &tmp, sizeof(tmp));
 }
 
 /**
@@ -987,19 +1023,20 @@ int fdt_nop_node(void *fdt, int nodeoffset);
 /**********************************************************************/
 
 int fdt_create(void *buf, int bufsize);
+int fdt_resize(void *fdt, void *buf, int bufsize);
 int fdt_add_reservemap_entry(void *fdt, uint64_t addr, uint64_t size);
 int fdt_finish_reservemap(void *fdt);
 int fdt_begin_node(void *fdt, const char *name);
 int fdt_property(void *fdt, const char *name, const void *val, int len);
 static inline int fdt_property_u32(void *fdt, const char *name, uint32_t val)
 {
-	val = cpu_to_fdt32(val);
-	return fdt_property(fdt, name, &val, sizeof(val));
+	fdt32_t tmp = cpu_to_fdt32(val);
+	return fdt_property(fdt, name, &tmp, sizeof(tmp));
 }
 static inline int fdt_property_u64(void *fdt, const char *name, uint64_t val)
 {
-	val = cpu_to_fdt64(val);
-	return fdt_property(fdt, name, &val, sizeof(val));
+	fdt64_t tmp = cpu_to_fdt64(val);
+	return fdt_property(fdt, name, &tmp, sizeof(tmp));
 }
 static inline int fdt_property_cell(void *fdt, const char *name, uint32_t val)
 {
@@ -1154,8 +1191,8 @@ int fdt_setprop(void *fdt, int nodeoffset, const char *name,
 static inline int fdt_setprop_u32(void *fdt, int nodeoffset, const char *name,
 				  uint32_t val)
 {
-	val = cpu_to_fdt32(val);
-	return fdt_setprop(fdt, nodeoffset, name, &val, sizeof(val));
+	fdt32_t tmp = cpu_to_fdt32(val);
+	return fdt_setprop(fdt, nodeoffset, name, &tmp, sizeof(tmp));
 }
 
 /**
@@ -1189,8 +1226,8 @@ static inline int fdt_setprop_u32(void *fdt, int nodeoffset, const char *name,
 static inline int fdt_setprop_u64(void *fdt, int nodeoffset, const char *name,
 				  uint64_t val)
 {
-	val = cpu_to_fdt64(val);
-	return fdt_setprop(fdt, nodeoffset, name, &val, sizeof(val));
+	fdt64_t tmp = cpu_to_fdt64(val);
+	return fdt_setprop(fdt, nodeoffset, name, &tmp, sizeof(tmp));
 }
 
 /**
@@ -1296,8 +1333,8 @@ int fdt_appendprop(void *fdt, int nodeoffset, const char *name,
 static inline int fdt_appendprop_u32(void *fdt, int nodeoffset,
 				     const char *name, uint32_t val)
 {
-	val = cpu_to_fdt32(val);
-	return fdt_appendprop(fdt, nodeoffset, name, &val, sizeof(val));
+	fdt32_t tmp = cpu_to_fdt32(val);
+	return fdt_appendprop(fdt, nodeoffset, name, &tmp, sizeof(tmp));
 }
 
 /**
@@ -1331,8 +1368,8 @@ static inline int fdt_appendprop_u32(void *fdt, int nodeoffset,
 static inline int fdt_appendprop_u64(void *fdt, int nodeoffset,
 				     const char *name, uint64_t val)
 {
-	val = cpu_to_fdt64(val);
-	return fdt_appendprop(fdt, nodeoffset, name, &val, sizeof(val));
+	fdt64_t tmp = cpu_to_fdt64(val);
+	return fdt_appendprop(fdt, nodeoffset, name, &tmp, sizeof(tmp));
 }
 
 /**

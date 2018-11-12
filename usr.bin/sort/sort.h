@@ -2,7 +2,7 @@
 
 /*-
  * Copyright (C) 2009 Gabor Kovesdan <gabor@FreeBSD.org>
- * Copyright (C) 2012 Oleg Moskalenko <oleg.moskalenko@citrix.com>
+ * Copyright (C) 2012 Oleg Moskalenko <mom040267@gmail.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
  */
 
 #if !defined(__BSD_SORT_H__)
-#define __BSD_SORT_H__
+#define	__BSD_SORT_H__
 
 #include <errno.h>
 #include <stdbool.h>
@@ -53,7 +53,7 @@ extern nl_catd catalog;
 extern const char *nlsstr[];
 
 #if defined(SORT_THREADS)
-#define MT_SORT_THRESHOLD (10000)
+#define	MT_SORT_THRESHOLD (10000)
 extern unsigned int ncpu;
 extern size_t nthreads;
 #endif

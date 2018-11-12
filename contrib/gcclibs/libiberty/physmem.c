@@ -182,6 +182,36 @@ physmem_total (void)
   return 0;
 }
 
+/* APPLE LOCAL begin retune gc params 6124839 */
+unsigned int
+ncpu_available (void)
+{
+#if HAVE_SYSCTL && defined HW_AVAILCPU
+  { /* This works on *bsd and darwin.  */
+    unsigned int ncpu;
+    size_t len = sizeof ncpu;
+    static int mib[2] = { CTL_HW, HW_AVAILCPU };
+
+    if (sysctl (mib, ARRAY_SIZE (mib), &ncpu, &len, NULL, 0) == 0
+	&& len == sizeof (ncpu))
+      return ncpu;
+  }
+#endif
+#if HAVE_SYSCTL && defined HW_NCPU
+  { /* This works on *bsd and darwin.  */
+    unsigned int ncpu;
+    size_t len = sizeof ncpu;
+    static int mib[2] = { CTL_HW, HW_NCPU };
+
+    if (sysctl (mib, ARRAY_SIZE (mib), &ncpu, &len, NULL, 0) == 0
+	&& len == sizeof (ncpu))
+      return ncpu;
+  }
+#endif
+  return 1;
+}
+/* APPLE LOCAL end retune gc params 6124839 */
+
 /* Return the amount of physical memory available.  */
 double
 physmem_available (void)

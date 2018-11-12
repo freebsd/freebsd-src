@@ -1138,6 +1138,7 @@ tpm_legacy_in(bus_space_tag_t iot, bus_space_handle_t ioh, int reg)
 	return bus_space_read_1(iot, ioh, 1);
 }
 
+#if 0
 /* Write single byte using legacy interface. */
 static inline void
 tpm_legacy_out(bus_space_tag_t iot, bus_space_handle_t ioh, int reg, u_int8_t v)
@@ -1145,6 +1146,7 @@ tpm_legacy_out(bus_space_tag_t iot, bus_space_handle_t ioh, int reg, u_int8_t v)
 	bus_space_write_1(iot, ioh, 0, reg);
 	bus_space_write_1(iot, ioh, 1, v);
 }
+#endif
 
 /* Probe for TPM using legacy interface. */
 int

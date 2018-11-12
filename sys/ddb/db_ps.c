@@ -155,7 +155,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 				else if (wflag)
 					state[0] = 'W';
 				else
-					state[0] = '?';				
+					state[0] = '?';
 			}
 			break;
 		case PRS_NEW:
@@ -211,7 +211,7 @@ db_ps(db_expr_t addr, boolean_t hasaddr, db_expr_t count, char *modif)
 		p = LIST_NEXT(p, p_list);
 		if (p == NULL && np > 0)
 			p = LIST_FIRST(&zombproc);
-    	}
+	}
 }
 
 static void

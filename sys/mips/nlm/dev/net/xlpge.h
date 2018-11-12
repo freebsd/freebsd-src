@@ -12,7 +12,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY BROADCOM ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -75,6 +75,9 @@ struct nlm_xlpnae_softc {
 	/* NetIOR configs */
 	u_int		cmplx_type[8];		/* XXXJC: redundant? */
 	struct nae_port_config *portcfg;
+	u_int		blockmask;
+	u_int		portmask[XLP_NAE_NBLOCKS];
+	u_int		ilmask;
 	u_int		xauimask;
 	u_int		sgmiimask;
 	u_int		hw_parser_en;
@@ -105,7 +108,7 @@ struct nlm_xlpge_softc {
 	int		link;		/* Port link status */
 	int		 flowctrl;	/* Port flow control setting */
 
-	unsigned char	dev_addr[ETHER_ADDR_LEN]; 
+	unsigned char	dev_addr[ETHER_ADDR_LEN];
 	struct mtx	sc_lock;
 	int		if_flags;
 	struct nae_port_config *portcfg;

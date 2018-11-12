@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_DNODE_H
@@ -56,7 +56,7 @@ extern "C" {
  * Fixed constants.
  */
 #define	DNODE_SHIFT		9	/* 512 bytes */
-#define	DN_MIN_INDBLKSHIFT	10	/* 1k */
+#define	DN_MIN_INDBLKSHIFT	12	/* 4k */
 #define	DN_MAX_INDBLKSHIFT	14	/* 16k */
 #define	DNODE_BLOCK_SHIFT	14	/* 16k */
 #define	DNODE_CORE_SIZE		64	/* 64 bytes for dnode sans blkptrs */
@@ -145,9 +145,8 @@ typedef struct dnode_phys {
 
 typedef struct dnode {
 	/*
-	 * dn_struct_rwlock protects the structure of the dnode,
-	 * including the number of levels of indirection (dn_nlevels),
-	 * dn_maxblkid, and dn_next_*
+	 * Protects the structure of the dnode, including the number of levels
+	 * of indirection (dn_nlevels), dn_maxblkid, and dn_next_*
 	 */
 	krwlock_t dn_struct_rwlock;
 
@@ -179,6 +178,7 @@ typedef struct dnode {
 	uint16_t dn_datablkszsec;	/* in 512b sectors */
 	uint32_t dn_datablksz;		/* in bytes */
 	uint64_t dn_maxblkid;
+	uint8_t dn_next_type[TXG_SIZE];
 	uint8_t dn_next_nblkptr[TXG_SIZE];
 	uint8_t dn_next_nlevels[TXG_SIZE];
 	uint8_t dn_next_indblkshift[TXG_SIZE];
@@ -189,6 +189,8 @@ typedef struct dnode {
 
 	/* protected by dn_dbufs_mtx; declared here to fill 32-bit hole */
 	uint32_t dn_dbufs_count;	/* count of dn_dbufs */
+	/* There are no level-0 blocks of this blkid or higher in dn_dbufs */
+	uint64_t dn_unlisted_l0_blkid;
 
 	/* protected by os_lock: */
 	list_node_t dn_dirty_link[TXG_SIZE];	/* next on dataset's dirty */
@@ -196,7 +198,7 @@ typedef struct dnode {
 	/* protected by dn_mtx: */
 	kmutex_t dn_mtx;
 	list_t dn_dirty_records[TXG_SIZE];
-	avl_tree_t dn_ranges[TXG_SIZE];
+	struct range_tree *dn_free_ranges[TXG_SIZE];
 	uint64_t dn_allocated_txg;
 	uint64_t dn_free_txg;
 	uint64_t dn_assigned_txg;
@@ -209,7 +211,18 @@ typedef struct dnode {
 	refcount_t dn_holds;
 
 	kmutex_t dn_dbufs_mtx;
-	list_t dn_dbufs;		/* descendent dbufs */
+	/*
+	 * Descendent dbufs, ordered by dbuf_compare. Note that dn_dbufs
+	 * can contain multiple dbufs of the same (level, blkid) when a
+	 * dbuf is marked DB_EVICTING without being removed from
+	 * dn_dbufs. To maintain the avl invariant that there cannot be
+	 * duplicate entries, we order the dbufs by an arbitrary value -
+	 * their address in memory. This means that dn_dbufs cannot be used to
+	 * directly look up a dbuf. Instead, callers must use avl_walk, have
+	 * a reference to the dbuf, or look up a non-existant node with
+	 * db_state = DB_SEARCH (see dbuf_free_range for an example).
+	 */
+	avl_tree_t dn_dbufs;
 
 	/* protected by dn_struct_rwlock */
 	struct dmu_buf_impl *dn_bonus;	/* bonus buffer dbuf */
@@ -243,7 +256,7 @@ typedef struct dnode_handle {
 
 typedef struct dnode_children {
 	size_t dnc_count;		/* number of children */
-	dnode_handle_t dnc_children[1];	/* sized dynamically */
+	dnode_handle_t dnc_children[];	/* sized dynamically */
 } dnode_children_t;
 
 typedef struct free_range {
@@ -278,8 +291,6 @@ void dnode_buf_byteswap(void *buf, size_t size);
 void dnode_verify(dnode_t *dn);
 int dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx);
 void dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx);
-void dnode_clear_range(dnode_t *dn, uint64_t blkid,
-    uint64_t nblks, dmu_tx_t *tx);
 void dnode_diduse_space(dnode_t *dn, int64_t space);
 void dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx);
 void dnode_new_blkid(dnode_t *dn, uint64_t blkid, dmu_tx_t *tx, boolean_t);

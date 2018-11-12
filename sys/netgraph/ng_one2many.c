@@ -220,7 +220,7 @@ ng_one2many_newhook(node_p node, hook_p hook, const char *name)
 		if (!isdigit(*cp) || (cp[0] == '0' && cp[1] != '\0'))
 			return (EINVAL);
 		i = strtoul(cp, &eptr, 10);
-		if (*eptr != '\0' || i < 0 || i >= NG_ONE2MANY_MAX_LINKS)
+		if (*eptr != '\0' || i >= NG_ONE2MANY_MAX_LINKS)
 			return (EINVAL);
 		linkNum = (int)i;
 		link = &priv->many[linkNum];

@@ -1,19 +1,22 @@
 # $FreeBSD$
 
 PROG=	iasl
-SRCS=	adfile.c adisasm.c adwalk.c
 
 # common
-SRCS+=	ahpredef.c dmextern.c dmrestag.c dmtable.c dmtbdump.c	\
-	dmtbinfo.c getopt.c
+SRCS=	adfile.c adisasm.c adwalk.c ahids.c ahpredef.c		\
+	ahuuids.c cmfsize.c dmextern.c dmrestag.c dmtable.c	\
+	dmtbdump.c dmtbinfo.c getopt.c
 
 # compiler
-SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
-	aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
-	aslerror.c aslfileio.c aslfiles.c aslfold.c aslhex.c	\
-	asllength.c asllisting.c aslload.c asllookup.c		\
-	aslmain.c aslmap.c aslmethod.c aslnamesp.c aslopcodes.c	\
-	asloperands.c aslopt.c aslpredef.c aslprepkg.c		\
+SRCS+=	aslanalyze.c aslascii.c aslbtypes.c aslcodegen.c	\
+	aslcompile.c aslcompiler.y.h aslcompilerlex.c		\
+	aslcompilerparse.c aslerror.c aslfileio.c aslfiles.c	\
+	aslfold.c aslhex.c asllength.c asllisting.c		\
+	asllistsup.c aslload.c asllookup.c aslmain.c aslmap.c	\
+	aslmapenter.c aslmapoutput.c aslmaputils.c		\
+	aslmessages.c aslmethod.c aslnamesp.c asloffset.c	\
+	aslopcodes.c asloperands.c aslopt.c asloptions.c	\
+	aslpredef.c aslprepkg.c aslprintf.c aslprune.c		\
 	aslresource.c aslrestype1.c aslrestype1i.c		\
 	aslrestype2.c aslrestype2d.c aslrestype2e.c		\
 	aslrestype2q.c aslrestype2s.c aslrestype2w.c		\
@@ -28,8 +31,9 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 SRCS+=	dbfileio.c
 
 # components/disassembler
-SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmcstyle.c dmdeferred.c dmnames.c dmopcode.c	\
+	dmresrc.c dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c	\
+	dmwalk.c
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
@@ -51,17 +55,19 @@ SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
 	nsparse.c nssearch.c nsutils.c nswalk.c
 
 # components/tables
-SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
+SRCS+=	tbdata.c tbfadt.c tbinstal.c tbprint.c tbutils.c	\
+	tbxface.c
 
 # components/utilities
-SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
-	utdecode.c utdelete.c utexcep.c utglobal.c utinit.c	\
-	utlock.c utmath.c utmisc.c utmutex.c utobject.c		\
-	utownerid.c utresrc.c utstate.c utstring.c utxface.c	\
-	utxferror.c
+SRCS+=	utaddress.c utalloc.c utbuffer.c utcache.c utcopy.c	\
+	utdebug.c utdecode.c utdelete.c uterror.c utexcep.c	\
+	utfileio.c utglobal.c uthex.c utinit.c utlock.c		\
+	utmath.c utmisc.c utmutex.c utobject.c utownerid.c	\
+	utpredef.c utprint.c utresrc.c utstate.c utstring.c	\
+	utuuid.c utxface.c utxferror.c
 
 # os_specific/service_layers
-SRCS+=	osunixxf.c
+SRCS+=	oslibcfs.c osunixxf.c
 
 WARNS?=	2
 
@@ -71,13 +77,19 @@ CFLAGS+= -DACPI_ASL_COMPILER -I.
 LFLAGS= -i -s
 YFLAGS= -d
 
-CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
-	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
-	dtparserparse.c dtparserparse.h
+CLEANFILES= aslcompiler.y aslcompiler.y.h aslcompilerlex.c	\
+	aslcompilerparse.c aslcompilerparse.h dtparser.y.h	\
+	dtparserlex.c dtparserparse.c dtparserparse.h		\
+	prparser.y.h prparserlex.c prparserparse.c		\
+	prparserparse.h
 
 aslcompilerlex.c: aslcompiler.l aslsupport.l
 	${LEX} ${LFLAGS} -PAslCompiler -o${.TARGET} \
 	    ${ACPICA_DIR}/compiler/aslcompiler.l
+
+aslcompiler.y: aslparser.y aslrules.y aslsupport.y asltokens.y asltypes.y
+	m4 -P -I${ACPICA_DIR}/compiler \
+	    ${ACPICA_DIR}/compiler/aslparser.y > ${.TARGET}
 
 .ORDER: aslcompilerparse.c aslcompilerparse.h
 aslcompilerparse.c aslcompilerparse.h: aslcompiler.y

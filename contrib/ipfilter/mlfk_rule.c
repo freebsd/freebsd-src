@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: mlfk_rule.c,v 2.4.4.2 2004/04/16 23:32:08 darrenr Exp $
+ * $Id$
  */
 
 
@@ -30,6 +30,7 @@
 
 #include "ip_rules.h"
 
+extern ipf_main_softc_t ipfmain;
 
 static int
 ipfrule_modevent(module_t mod, int type, void *unused)
@@ -41,12 +42,12 @@ ipfrule_modevent(module_t mod, int type, void *unused)
 	case MOD_LOAD :
 		error = ipfrule_add();
 		if (!error)
-			fr_refcnt++;
+			ipfmain.ipf_refcnt++;
 		break;
 	case MOD_UNLOAD :
 		error = ipfrule_remove();
 		if (!error)
-			fr_refcnt--;
+			ipfmain.ipf_refcnt--;
 		break;
 	default:
 		error = EINVAL;

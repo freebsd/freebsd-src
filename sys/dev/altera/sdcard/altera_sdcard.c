@@ -31,6 +31,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_altera_sdcard.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/condvar.h>
@@ -258,6 +260,9 @@ altera_sdcard_task_io(struct altera_sdcard_softc *sc)
 	ALTERA_SDCARD_LOCK_ASSERT(sc);
 	KASSERT(sc->as_currentbio != NULL, ("%s: no current I/O", __func__));
 
+#ifdef ALTERA_SDCARD_FAST_SIM
+recheck:
+#endif
 	asr = altera_sdcard_read_asr(sc);
 
 	/*
@@ -299,9 +304,12 @@ altera_sdcard_task_io(struct altera_sdcard_softc *sc)
 	/*
 	 * Finally, either start the next I/O or transition to the IDLE state.
 	 */
-	if (bioq_first(&sc->as_bioq) != NULL)
+	if (bioq_first(&sc->as_bioq) != NULL) {
 		altera_sdcard_nextio(sc);
-	else
+#ifdef ALTERA_SDCARD_FAST_SIM
+		goto recheck;
+#endif
+	} else
 		sc->as_state = ALTERA_SDCARD_STATE_IDLE;
 }
 
@@ -398,6 +406,8 @@ altera_sdcard_start(struct altera_sdcard_softc *sc)
 
 	taskqueue_cancel_timeout(sc->as_taskqueue, &sc->as_task, NULL);
 	altera_sdcard_nextio(sc);
-	taskqueue_enqueue_timeout(sc->as_taskqueue, &sc->as_task,
-	    ALTERA_SDCARD_TIMEOUT_IO);
+#ifdef ALTERA_SDCARD_FAST_SIM
+	altera_sdcard_task_io(sc);
+#endif
+	altera_sdcard_task_rechedule(sc);
 }

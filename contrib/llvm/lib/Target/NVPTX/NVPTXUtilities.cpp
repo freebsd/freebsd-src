@@ -12,19 +12,19 @@
 
 #include "NVPTXUtilities.h"
 #include "NVPTX.h"
-#include "llvm/GlobalVariable.h"
-#include "llvm/Function.h"
-#include "llvm/Module.h"
-#include "llvm/Constants.h"
-#include "llvm/Operator.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Operator.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MutexGuard.h"
 #include <algorithm>
 #include <cstring>
 #include <map>
 #include <string>
 #include <vector>
-//#include <iostream>
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/InstIterator.h"
 
 using namespace llvm;
 
@@ -33,9 +33,15 @@ typedef std::map<const GlobalValue *, key_val_pair_t> global_val_annot_t;
 typedef std::map<const Module *, global_val_annot_t> per_module_annot_t;
 
 ManagedStatic<per_module_annot_t> annotationCache;
+static sys::Mutex Lock;
 
+void llvm::clearAnnotationCache(const llvm::Module *Mod) {
+  MutexGuard Guard(Lock);
+  annotationCache->erase(Mod);
+}
 
 static void cacheAnnotationFromMD(const MDNode *md, key_val_pair_t &retval) {
+  MutexGuard Guard(Lock);
   assert(md && "Invalid mdnode for annotation");
   assert((md->getNumOperands() % 2) == 1 && "Invalid number of operands");
   // start index = 1, to skip the global variable key
@@ -46,7 +52,7 @@ static void cacheAnnotationFromMD(const MDNode *md, key_val_pair_t &retval) {
     assert(prop && "Annotation property not a string");
 
     // value
-    ConstantInt *Val = dyn_cast<ConstantInt>(md->getOperand(i+1));
+    ConstantInt *Val = mdconst::dyn_extract<ConstantInt>(md->getOperand(i + 1));
     assert(Val && "Value operand not a constant int");
 
     std::string keyname = prop->getString().str();
@@ -61,6 +67,7 @@ static void cacheAnnotationFromMD(const MDNode *md, key_val_pair_t &retval) {
 }
 
 static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
+  MutexGuard Guard(Lock);
   NamedMDNode *NMD = m->getNamedMetadata(llvm::NamedMDForAnnotations);
   if (!NMD)
     return;
@@ -68,7 +75,8 @@ static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
   for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
     const MDNode *elem = NMD->getOperand(i);
 
-    Value *entity = elem->getOperand(0);
+    GlobalValue *entity =
+        mdconst::dyn_extract_or_null<GlobalValue>(elem->getOperand(0));
     // entity may be null due to DCE
     if (!entity)
       continue;
@@ -83,16 +91,17 @@ static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
     return;
 
   if ((*annotationCache).find(m) != (*annotationCache).end())
-    (*annotationCache)[m][gv] = tmp;
+    (*annotationCache)[m][gv] = std::move(tmp);
   else {
     global_val_annot_t tmp1;
-    tmp1[gv] = tmp;
-    (*annotationCache)[m] = tmp1;
+    tmp1[gv] = std::move(tmp);
+    (*annotationCache)[m] = std::move(tmp1);
   }
 }
 
 bool llvm::findOneNVVMAnnotation(const GlobalValue *gv, std::string prop,
                                  unsigned &retval) {
+  MutexGuard Guard(Lock);
   const Module *m = gv->getParent();
   if ((*annotationCache).find(m) == (*annotationCache).end())
     cacheAnnotationFromMD(m, gv);
@@ -106,6 +115,7 @@ bool llvm::findOneNVVMAnnotation(const GlobalValue *gv, std::string prop,
 
 bool llvm::findAllNVVMAnnotation(const GlobalValue *gv, std::string prop,
                                  std::vector<unsigned> &retval) {
+  MutexGuard Guard(Lock);
   const Module *m = gv->getParent();
   if ((*annotationCache).find(m) == (*annotationCache).end())
     cacheAnnotationFromMD(m, gv);
@@ -120,9 +130,9 @@ bool llvm::findAllNVVMAnnotation(const GlobalValue *gv, std::string prop,
 bool llvm::isTexture(const llvm::Value &val) {
   if (const GlobalValue *gv = dyn_cast<GlobalValue>(&val)) {
     unsigned annot;
-    if (llvm::findOneNVVMAnnotation(gv,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_ISTEXTURE],
-                                   annot)) {
+    if (llvm::findOneNVVMAnnotation(
+            gv, llvm::PropertyAnnotationNames[llvm::PROPERTY_ISTEXTURE],
+            annot)) {
       assert((annot == 1) && "Unexpected annotation on a texture symbol");
       return true;
     }
@@ -133,9 +143,9 @@ bool llvm::isTexture(const llvm::Value &val) {
 bool llvm::isSurface(const llvm::Value &val) {
   if (const GlobalValue *gv = dyn_cast<GlobalValue>(&val)) {
     unsigned annot;
-    if (llvm::findOneNVVMAnnotation(gv,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_ISSURFACE],
-                                   annot)) {
+    if (llvm::findOneNVVMAnnotation(
+            gv, llvm::PropertyAnnotationNames[llvm::PROPERTY_ISSURFACE],
+            annot)) {
       assert((annot == 1) && "Unexpected annotation on a surface symbol");
       return true;
     }
@@ -146,9 +156,9 @@ bool llvm::isSurface(const llvm::Value &val) {
 bool llvm::isSampler(const llvm::Value &val) {
   if (const GlobalValue *gv = dyn_cast<GlobalValue>(&val)) {
     unsigned annot;
-    if (llvm::findOneNVVMAnnotation(gv,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_ISSAMPLER],
-                                   annot)) {
+    if (llvm::findOneNVVMAnnotation(
+            gv, llvm::PropertyAnnotationNames[llvm::PROPERTY_ISSAMPLER],
+            annot)) {
       assert((annot == 1) && "Unexpected annotation on a sampler symbol");
       return true;
     }
@@ -156,9 +166,9 @@ bool llvm::isSampler(const llvm::Value &val) {
   if (const Argument *arg = dyn_cast<Argument>(&val)) {
     const Function *func = arg->getParent();
     std::vector<unsigned> annot;
-    if (llvm::findAllNVVMAnnotation(func,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_ISSAMPLER],
-                                   annot)) {
+    if (llvm::findAllNVVMAnnotation(
+            func, llvm::PropertyAnnotationNames[llvm::PROPERTY_ISSAMPLER],
+            annot)) {
       if (std::find(annot.begin(), annot.end(), arg->getArgNo()) != annot.end())
         return true;
     }
@@ -171,8 +181,9 @@ bool llvm::isImageReadOnly(const llvm::Value &val) {
     const Function *func = arg->getParent();
     std::vector<unsigned> annot;
     if (llvm::findAllNVVMAnnotation(func,
-          llvm::PropertyAnnotationNames[llvm::PROPERTY_ISREADONLY_IMAGE_PARAM],
-                                   annot)) {
+                                    llvm::PropertyAnnotationNames[
+                                        llvm::PROPERTY_ISREADONLY_IMAGE_PARAM],
+                                    annot)) {
       if (std::find(annot.begin(), annot.end(), arg->getArgNo()) != annot.end())
         return true;
     }
@@ -185,8 +196,24 @@ bool llvm::isImageWriteOnly(const llvm::Value &val) {
     const Function *func = arg->getParent();
     std::vector<unsigned> annot;
     if (llvm::findAllNVVMAnnotation(func,
-         llvm::PropertyAnnotationNames[llvm::PROPERTY_ISWRITEONLY_IMAGE_PARAM],
-                                   annot)) {
+                                    llvm::PropertyAnnotationNames[
+                                        llvm::PROPERTY_ISWRITEONLY_IMAGE_PARAM],
+                                    annot)) {
+      if (std::find(annot.begin(), annot.end(), arg->getArgNo()) != annot.end())
+        return true;
+    }
+  }
+  return false;
+}
+
+bool llvm::isImageReadWrite(const llvm::Value &val) {
+  if (const Argument *arg = dyn_cast<Argument>(&val)) {
+    const Function *func = arg->getParent();
+    std::vector<unsigned> annot;
+    if (llvm::findAllNVVMAnnotation(func,
+                                    llvm::PropertyAnnotationNames[
+                                        llvm::PROPERTY_ISREADWRITE_IMAGE_PARAM],
+                                    annot)) {
       if (std::find(annot.begin(), annot.end(), arg->getArgNo()) != annot.end())
         return true;
     }
@@ -195,7 +222,21 @@ bool llvm::isImageWriteOnly(const llvm::Value &val) {
 }
 
 bool llvm::isImage(const llvm::Value &val) {
-  return llvm::isImageReadOnly(val) || llvm::isImageWriteOnly(val);
+  return llvm::isImageReadOnly(val) || llvm::isImageWriteOnly(val) ||
+         llvm::isImageReadWrite(val);
+}
+
+bool llvm::isManaged(const llvm::Value &val) {
+  if(const GlobalValue *gv = dyn_cast<GlobalValue>(&val)) {
+    unsigned annot;
+    if(llvm::findOneNVVMAnnotation(gv,
+                          llvm::PropertyAnnotationNames[llvm::PROPERTY_MANAGED],
+                                   annot)) {
+      assert((annot == 1) && "Unexpected annotation on a managed symbol");
+      return true;
+    }
+  }
+  return false;
 }
 
 std::string llvm::getTextureName(const llvm::Value &val) {
@@ -214,52 +255,44 @@ std::string llvm::getSamplerName(const llvm::Value &val) {
 }
 
 bool llvm::getMaxNTIDx(const Function &F, unsigned &x) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_MAXNTID_X],
-                                      x));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_MAXNTID_X], x));
 }
 
 bool llvm::getMaxNTIDy(const Function &F, unsigned &y) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_MAXNTID_Y],
-                                      y));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_MAXNTID_Y], y));
 }
 
 bool llvm::getMaxNTIDz(const Function &F, unsigned &z) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_MAXNTID_Z],
-                                      z));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_MAXNTID_Z], z));
 }
 
 bool llvm::getReqNTIDx(const Function &F, unsigned &x) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_REQNTID_X],
-                                      x));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_REQNTID_X], x));
 }
 
 bool llvm::getReqNTIDy(const Function &F, unsigned &y) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_REQNTID_Y],
-                                      y));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_REQNTID_Y], y));
 }
 
 bool llvm::getReqNTIDz(const Function &F, unsigned &z) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                       llvm::PropertyAnnotationNames[llvm::PROPERTY_REQNTID_Z],
-                                      z));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_REQNTID_Z], z));
 }
 
 bool llvm::getMinCTASm(const Function &F, unsigned &x) {
-  return (llvm::findOneNVVMAnnotation(&F,
-                    llvm::PropertyAnnotationNames[llvm::PROPERTY_MINNCTAPERSM],
-                                      x));
+  return (llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_MINNCTAPERSM], x));
 }
 
 bool llvm::isKernelFunction(const Function &F) {
   unsigned x = 0;
-  bool retval = llvm::findOneNVVMAnnotation(&F,
-               llvm::PropertyAnnotationNames[llvm::PROPERTY_ISKERNEL_FUNCTION],
-                                            x);
+  bool retval = llvm::findOneNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_ISKERNEL_FUNCTION], x);
   if (retval == false) {
     // There is no NVVM metadata, check the calling convention
     if (F.getCallingConv() == llvm::CallingConv::PTX_Kernel)
@@ -267,20 +300,19 @@ bool llvm::isKernelFunction(const Function &F) {
     else
       return false;
   }
-  return (x==1);
+  return (x == 1);
 }
 
 bool llvm::getAlign(const Function &F, unsigned index, unsigned &align) {
   std::vector<unsigned> Vs;
-  bool retval = llvm::findAllNVVMAnnotation(&F,
-                           llvm::PropertyAnnotationNames[llvm::PROPERTY_ALIGN],
-                                            Vs);
+  bool retval = llvm::findAllNVVMAnnotation(
+      &F, llvm::PropertyAnnotationNames[llvm::PROPERTY_ALIGN], Vs);
   if (retval == false)
     return false;
-  for (int i=0, e=Vs.size(); i<e; i++) {
+  for (int i = 0, e = Vs.size(); i < e; i++) {
     unsigned v = Vs[i];
-    if ( (v >> 16) == index ) {
-      align =  v & 0xFFFF;
+    if ((v >> 16) == index) {
+      align = v & 0xFFFF;
       return true;
     }
   }
@@ -289,16 +321,15 @@ bool llvm::getAlign(const Function &F, unsigned index, unsigned &align) {
 
 bool llvm::getAlign(const CallInst &I, unsigned index, unsigned &align) {
   if (MDNode *alignNode = I.getMetadata("callalign")) {
-    for (int i=0, n = alignNode->getNumOperands();
-        i<n; i++) {
+    for (int i = 0, n = alignNode->getNumOperands(); i < n; i++) {
       if (const ConstantInt *CI =
-          dyn_cast<ConstantInt>(alignNode->getOperand(i))) {
+              mdconst::dyn_extract<ConstantInt>(alignNode->getOperand(i))) {
         unsigned v = CI->getZExtValue();
-        if ( (v>>16) == index ) {
+        if ((v >> 16) == index) {
           align = v & 0xFFFF;
           return true;
         }
-        if ( (v>>16) > index ) {
+        if ((v >> 16) > index) {
           return false;
         }
       }
@@ -337,8 +368,8 @@ bool llvm::isMemorySpaceTransferIntrinsic(Intrinsic::ID id) {
 // consider several special intrinsics in striping pointer casts, and
 // provide an option to ignore GEP indicies for find out the base address only
 // which could be used in simple alias disambigurate.
-const Value *llvm::skipPointerTransfer(const Value *V,
-                                       bool ignore_GEP_indices) {
+const Value *
+llvm::skipPointerTransfer(const Value *V, bool ignore_GEP_indices) {
   V = V->stripPointerCasts();
   while (true) {
     if (const IntrinsicInst *IS = dyn_cast<IntrinsicInst>(V)) {
@@ -360,15 +391,15 @@ const Value *llvm::skipPointerTransfer(const Value *V,
 // - ignore GEP indicies for find out the base address only, and
 // - tracking PHINode
 // which could be used in simple alias disambigurate.
-const Value *llvm::skipPointerTransfer(const Value *V,
-                                       std::set<const Value *> &processed) {
+const Value *
+llvm::skipPointerTransfer(const Value *V, std::set<const Value *> &processed) {
   if (processed.find(V) != processed.end())
-    return NULL;
+    return nullptr;
   processed.insert(V);
 
   const Value *V2 = V->stripPointerCasts();
   if (V2 != V && processed.find(V2) != processed.end())
-    return NULL;
+    return nullptr;
   processed.insert(V2);
 
   V = V2;
@@ -384,20 +415,20 @@ const Value *llvm::skipPointerTransfer(const Value *V,
       continue;
     } else if (const PHINode *PN = dyn_cast<PHINode>(V)) {
       if (V != V2 && processed.find(V) != processed.end())
-        return NULL;
+        return nullptr;
       processed.insert(PN);
-      const Value *common = 0;
+      const Value *common = nullptr;
       for (unsigned i = 0; i != PN->getNumIncomingValues(); ++i) {
         const Value *pv = PN->getIncomingValue(i);
         const Value *base = skipPointerTransfer(pv, processed);
         if (base) {
-          if (common == 0)
+          if (!common)
             common = base;
           else if (common != base)
             return PN;
         }
       }
-      if (common == 0)
+      if (!common)
         return PN;
       V = common;
     }
@@ -405,7 +436,6 @@ const Value *llvm::skipPointerTransfer(const Value *V,
   }
   return V;
 }
-
 
 // The following are some useful utilities for debuggung
 
@@ -416,7 +446,7 @@ BasicBlock *llvm::getParentBlock(Value *v) {
   if (Instruction *I = dyn_cast<Instruction>(v))
     return I->getParent();
 
-  return 0;
+  return nullptr;
 }
 
 Function *llvm::getParentFunction(Value *v) {
@@ -429,13 +459,13 @@ Function *llvm::getParentFunction(Value *v) {
   if (BasicBlock *B = dyn_cast<BasicBlock>(v))
     return B->getParent();
 
-  return 0;
+  return nullptr;
 }
 
 // Dump a block by name
 void llvm::dumpBlock(Value *v, char *blockName) {
   Function *F = getParentFunction(v);
-  if (F == 0)
+  if (!F)
     return;
 
   for (Function::iterator it = F->begin(), ie = F->end(); it != ie; ++it) {
@@ -450,8 +480,8 @@ void llvm::dumpBlock(Value *v, char *blockName) {
 // Find an instruction by name
 Instruction *llvm::getInst(Value *base, char *instName) {
   Function *F = getParentFunction(base);
-  if (F == 0)
-    return 0;
+  if (!F)
+    return nullptr;
 
   for (inst_iterator it = inst_begin(F), ie = inst_end(F); it != ie; ++it) {
     Instruction *I = &*it;
@@ -460,7 +490,7 @@ Instruction *llvm::getInst(Value *base, char *instName) {
     }
   }
 
-  return 0;
+  return nullptr;
 }
 
 // Dump an instruction by nane

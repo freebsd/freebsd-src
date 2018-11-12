@@ -1,13 +1,12 @@
 #	From: @(#)Makefile	5.20 (Berkeley) 6/12/93
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 SUBDIR=	adduser \
 	arp \
-	bootparamd \
-	burncd \
-	bsdinstall \
+	binmiscctl \
+	bsdconfig \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -17,25 +16,26 @@ SUBDIR=	adduser \
 	crashinfo \
 	cron \
 	ctladm \
+	ctld \
 	daemon \
 	dconschat \
+	devctl \
 	devinfo \
 	digictl \
 	diskinfo \
 	dumpcis \
-	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
+	fstyp \
 	fwcontrol \
 	getfmac \
 	getpmac \
 	gstat \
 	i2c \
 	ifmcstat \
-	inetd \
 	iostat \
-	isfctl \
+	iovctl \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -47,7 +47,7 @@ SUBDIR=	adduser \
 	mountd \
 	mptutil \
 	mtest \
-	mtree \
+	${_mtree} \
 	newsyslog \
 	nfscbd \
 	nfsd \
@@ -81,15 +81,15 @@ SUBDIR=	adduser \
 	snapinfo \
 	spray \
 	syslogd \
-	tcpdchk \
-	tcpdmatch \
+	sysrc \
 	tcpdrop \
 	tcpdump \
-	timed \
 	traceroute \
 	trpt \
 	tzsetup \
+	uefisign \
 	ugidfw \
+	vigr \
 	vipw \
 	wake \
 	watch \
@@ -121,35 +121,20 @@ SUBDIR+=	praudit
 SUBDIR+=	authpf
 .endif
 
-.if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
-SUBDIR+=	dnssec-dsfromkey
-SUBDIR+=	dnssec-keyfromlabel
-SUBDIR+=	dnssec-keygen
-SUBDIR+=	dnssec-revoke
-SUBDIR+=	dnssec-settime
-SUBDIR+=	dnssec-signzone
-.endif
-.if ${MK_BIND_NAMED} != "no"
-SUBDIR+=	arpaname
-SUBDIR+=	ddns-confgen
-SUBDIR+=	genrandom
-SUBDIR+=	isc-hmac-fixup
-SUBDIR+=	named
-SUBDIR+=	named-checkconf
-SUBDIR+=	named-checkzone
-SUBDIR+=	named-journalprint
-SUBDIR+=	nsec3hash
-SUBDIR+=	rndc
-SUBDIR+=	rndc-confgen
+.if ${MK_AUTOFS} != "no"
+SUBDIR+=	autofs
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
 .endif
 
-.if ${MK_BSDCONFIG} != "no"
-SUBDIR+=	bsdconfig
-SUBDIR+=	sysrc
+.if ${MK_BOOTPARAMD} != "no"
+SUBDIR+=	bootparamd
+.endif
+
+.if ${MK_BSDINSTALL} != "no"
+SUBDIR+=	bsdinstall
 .endif
 
 .if ${MK_BSNMP} != "no"
@@ -167,6 +152,10 @@ SUBDIR+=	fdread
 SUBDIR+=	fdwrite
 .endif
 
+.if ${MK_FMTREE} != "no"
+SUBDIR+=	mtree
+.endif
+
 .if ${MK_FREEBSD_UPDATE} != "no"
 SUBDIR+=	freebsd-update
 .endif
@@ -180,7 +169,6 @@ SUBDIR+=	gpioctl
 .endif
 
 .if ${MK_INET6} != "no"
-SUBDIR+=	faithd
 SUBDIR+=	ip6addrctl
 SUBDIR+=	mld6query
 SUBDIR+=	ndp
@@ -193,12 +181,16 @@ SUBDIR+=	rtsold
 SUBDIR+=	traceroute6
 .endif
 
+.if ${MK_INETD} != "no"
+SUBDIR+=	inetd
+.endif
+
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfwpcap
 .endif
 
-.if ${MK_IPX} != "no"
-SUBDIR+=	IPXrouted
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
@@ -276,15 +268,12 @@ SUBDIR+=	ftp-proxy
 SUBDIR+=	pkg
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-SUBDIR+=	pkg_install
-.endif
-
 # XXX MK_TOOLCHAIN?
 .if ${MK_PMC} != "no"
 SUBDIR+=	pmcannotate
 SUBDIR+=	pmccontrol
 SUBDIR+=	pmcstat
+SUBDIR+=	pmcstudy
 .endif
 
 .if ${MK_PORTSNAP} != "no"
@@ -305,6 +294,10 @@ SUBDIR+=	repquota
 SUBDIR+=	rwhod
 .endif
 
+.if ${MK_RCS} != "no"
+SUBDIR+=	etcupdate
+.endif
+
 .if ${MK_SENDMAIL} != "no"
 SUBDIR+=	editmap
 SUBDIR+=	mailstats
@@ -313,9 +306,26 @@ SUBDIR+=	praliases
 SUBDIR+=	sendmail
 .endif
 
+.if ${MK_TCP_WRAPPERS} != "no"
+SUBDIR+=	tcpdchk
+SUBDIR+=	tcpdmatch
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
+.if ${MK_TIMED} != "no"
+SUBDIR+=	timed
+.endif
+
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	config
 SUBDIR+=	crunch
+.endif
+
+.if ${MK_UNBOUND} != "no"
+SUBDIR+=	unbound
 .endif
 
 .if ${MK_USB} != "no"
@@ -340,5 +350,7 @@ SUBDIR+=	wpa
 .include <bsd.arch.inc.mk>
 
 SUBDIR:=	${SUBDIR:O}
+
+SUBDIR_PARALLEL=
 
 .include <bsd.subdir.mk>

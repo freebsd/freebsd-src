@@ -18,11 +18,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -237,19 +233,11 @@ BpfGetIntfName(char **errmsg)
 	ifc.ifc_len = sizeof ibuf;
 	ifc.ifc_buf = (caddr_t)ibuf;
 
-#ifdef OSIOCGIFCONF
-	if (ioctl(fd, OSIOCGIFCONF, (char *)&ifc) < 0 ||
-	    ifc.ifc_len < sizeof(struct ifreq)) {
-		(void) strcpy(errbuf, "bpf: ioctl(OSIOCGIFCONF): %m");
-		return(NULL);
-	}
-#else
 	if (ioctl(fd, SIOCGIFCONF, (char *)&ifc) < 0 ||
 	    ifc.ifc_len < sizeof(struct ifreq)) {
 		(void) strcpy(errbuf, "bpf: ioctl(SIOCGIFCONF): %m");
 		return(NULL);
 	}
-#endif
 	ifrp = ibuf;
 	ifend = (struct ifreq *)((char *)ibuf + ifc.ifc_len);
 

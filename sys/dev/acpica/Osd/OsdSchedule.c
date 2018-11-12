@@ -56,14 +56,23 @@ ACPI_MODULE_NAME("SCHEDULE")
  * Allow the user to tune the maximum number of tasks we may enqueue.
  */
 static int acpi_max_tasks = ACPI_MAX_TASKS;
-TUNABLE_INT("debug.acpi.max_tasks", &acpi_max_tasks);
+SYSCTL_INT(_debug_acpi, OID_AUTO, max_tasks, CTLFLAG_RDTUN, &acpi_max_tasks,
+    0, "Maximum acpi tasks");
+
+/*
+ * Track and report the system's demand for task slots.
+ */
+static int acpi_tasks_hiwater;
+SYSCTL_INT(_debug_acpi, OID_AUTO, tasks_hiwater, CTLFLAG_RD,
+    &acpi_tasks_hiwater, 1, "Peak demand for ACPI event task slots.");
 
 /*
  * Allow the user to tune the number of task threads we start.  It seems
  * some systems have problems with increased parallelism.
  */
 static int acpi_max_threads = ACPI_MAX_THREADS;
-TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
+SYSCTL_INT(_debug_acpi, OID_AUTO, max_threads, CTLFLAG_RDTUN, &acpi_max_threads,
+    0, "Maximum acpi threads");
 
 static MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 
@@ -149,6 +158,10 @@ acpi_task_enqueue(int priority, ACPI_OSD_EXEC_CALLBACK Function, void *Context)
 	    acpi_task_count++;
 	    break;
 	}
+
+    if (i > acpi_tasks_hiwater)
+	atomic_cmpset_int(&acpi_tasks_hiwater, acpi_tasks_hiwater, i);
+
     if (at == NULL) {
 	printf("AcpiOsExecute: failed to enqueue task, consider increasing "
 	    "the debug.acpi.max_tasks tunable\n");

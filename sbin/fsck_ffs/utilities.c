@@ -108,14 +108,3 @@ retry:
 	return (origname);
 }
 
-void
-infohandler(int sig __unused)
-{
-	got_siginfo = 1;
-}
-
-void
-alarmhandler(int sig __unused)
-{
-	got_sigalarm = 1;
-}

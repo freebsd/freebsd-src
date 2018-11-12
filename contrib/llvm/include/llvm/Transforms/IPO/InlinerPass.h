@@ -17,7 +17,7 @@
 #ifndef LLVM_TRANSFORMS_IPO_INLINERPASS_H
 #define LLVM_TRANSFORMS_IPO_INLINERPASS_H
 
-#include "llvm/CallGraphSCCPass.h"
+#include "llvm/Analysis/CallGraphSCCPass.h"
 
 namespace llvm {
   class CallSite;
@@ -36,15 +36,16 @@ struct Inliner : public CallGraphSCCPass {
   /// getAnalysisUsage - For this class, we declare that we require and preserve
   /// the call graph.  If the derived class implements this method, it should
   /// always explicitly call the implementation here.
-  virtual void getAnalysisUsage(AnalysisUsage &Info) const;
+  void getAnalysisUsage(AnalysisUsage &Info) const override;
 
   // Main run interface method, this implements the interface required by the
   // Pass class.
-  virtual bool runOnSCC(CallGraphSCC &SCC);
+  bool runOnSCC(CallGraphSCC &SCC) override;
 
+  using llvm::Pass::doFinalization;
   // doFinalization - Remove now-dead linkonce functions at the end of
   // processing to avoid breaking the SCC traversal.
-  virtual bool doFinalization(CallGraph &CG);
+  bool doFinalization(CallGraph &CG) override;
 
   /// This method returns the value specified by the -inline-threshold value,
   /// specified on the command line.  This is typically not directly needed.

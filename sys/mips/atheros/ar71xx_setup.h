@@ -38,9 +38,16 @@ enum ar71xx_soc_type {
 	AR71XX_SOC_AR7241,
 	AR71XX_SOC_AR7242,
 	AR71XX_SOC_AR9130,
-	AR71XX_SOC_AR9132
+	AR71XX_SOC_AR9132,
+	AR71XX_SOC_AR9330,
+	AR71XX_SOC_AR9331,
+	AR71XX_SOC_AR9341,
+	AR71XX_SOC_AR9342,
+	AR71XX_SOC_AR9344,
+	AR71XX_SOC_QCA9556,
+	AR71XX_SOC_QCA9558,
 };
-extern enum ar71xx_soc_type ar71xx_soc;   
+extern enum ar71xx_soc_type ar71xx_soc;
 
 extern void ar71xx_detect_sys_type(void);
 extern const char *ar71xx_get_system_type(void);

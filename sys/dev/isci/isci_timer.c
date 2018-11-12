@@ -79,8 +79,8 @@ scif_cb_timer_start(SCI_CONTROLLER_HANDLE_T controller, void *timer,
 
 	isci_timer->is_started = TRUE;
 	isci_log_message(3, "TIMER", "start %p %d\n", timer, milliseconds);
-	callout_reset(&isci_timer->callout, (milliseconds * hz)/1000,
-	    isci_timer_timeout, timer);
+	callout_reset_sbt(&isci_timer->callout, SBT_1MS * milliseconds, 0,
+	    isci_timer_timeout, timer, 0);
 }
 
 /**

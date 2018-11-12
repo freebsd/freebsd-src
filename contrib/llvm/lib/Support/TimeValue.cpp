@@ -17,11 +17,10 @@
 namespace llvm {
 using namespace sys;
 
-const TimeValue TimeValue::MinTime       = TimeValue ( INT64_MIN,0 );
-const TimeValue TimeValue::MaxTime       = TimeValue ( INT64_MAX,0 );
-const TimeValue TimeValue::ZeroTime      = TimeValue ( 0,0 );
-const TimeValue TimeValue::PosixZeroTime = TimeValue ( -946684800,0 );
-const TimeValue TimeValue::Win32ZeroTime = TimeValue ( -12591158400ULL,0 );
+const TimeValue::SecondsType
+  TimeValue::PosixZeroTimeSeconds = -946684800;
+const TimeValue::SecondsType
+  TimeValue::Win32ZeroTimeSeconds = -12591158400ULL;
 
 void
 TimeValue::normalize( void ) {
@@ -48,7 +47,7 @@ TimeValue::normalize( void ) {
 
 }
 
-/// Include the platform specific portion of TimeValue class
+/// Include the platform-specific portion of TimeValue class
 #ifdef LLVM_ON_UNIX
 #include "Unix/TimeValue.inc"
 #endif

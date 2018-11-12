@@ -95,11 +95,13 @@ void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
+#define	ATPDPHASHSIZE	32
+#define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
+			    ((ATPDPHASHSIZE) - 1))
 
 #include <dev/isp/isp_target.h>
-
-typedef struct {
-	void *		next;
+typedef struct atio_private_data {
+	LIST_ENTRY(atio_private_data)	next;
 	uint32_t	orig_datalen;
 	uint32_t	bytes_xfered;
 	uint32_t	bytes_in_transit;
@@ -156,11 +158,13 @@ typedef struct isp_timed_notify_ack {
 	void *isp;
 	void *not;
 	uint8_t data[64];	 /* sb QENTRY_LEN, but order of definitions is wrong */
+	struct callout timer;
 } isp_tna_t;
 
 TAILQ_HEAD(isp_ccbq, ccb_hdr);
 typedef struct tstate {
 	SLIST_ENTRY(tstate) next;
+	lun_id_t ts_lun;
 	struct cam_path *owner;
 	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
@@ -173,7 +177,8 @@ typedef struct tstate {
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];
-	atio_private_data_t *	atfree;
+	LIST_HEAD(, atio_private_data)	atfree;
+	LIST_HEAD(, atio_private_data)	atused[ATPDPHASHSIZE];
 	atio_private_data_t	atpool[ATPDPSIZE];
 } tstate_t;
 
@@ -265,6 +270,7 @@ struct isp_fc {
 	unsigned int inject_lost_data_frame;
 #endif
 #endif
+	int			num_threads;
 };
 
 struct isp_spi {
@@ -288,6 +294,7 @@ struct isp_spi {
 	struct proc *		target_proc;
 #endif
 #endif
+	int			num_threads;
 };
 
 struct isposinfo {
@@ -362,6 +369,8 @@ struct isposinfo {
 		struct isp_spi *spi;
 		void *ptr;
 	} pc;
+
+	int			is_exiting;
 };
 #define	ISP_FC_PC(isp, chan)	(&(isp)->isp_osinfo.pc.fc[(chan)])
 #define	ISP_SPI_PC(isp, chan)	(&(isp)->isp_osinfo.pc.spi[(chan)])
@@ -392,8 +401,9 @@ struct isposinfo {
 /*
  * Locking macros...
  */
-#define	ISP_LOCK(isp)	mtx_lock(&isp->isp_osinfo.lock)
-#define	ISP_UNLOCK(isp)	mtx_unlock(&isp->isp_osinfo.lock)
+#define	ISP_LOCK(isp)	mtx_lock(&(isp)->isp_osinfo.lock)
+#define	ISP_UNLOCK(isp)	mtx_unlock(&(isp)->isp_osinfo.lock)
+#define	ISP_ASSERT_LOCKED(isp)	mtx_assert(&(isp)->isp_osinfo.lock, MA_OWNED)
 
 /*
  * Required Macros/Defines
@@ -456,6 +466,39 @@ default:							\
 	break;							\
 }
 
+#define	MEMORYBARRIERW(isp, type, offset, size, chan)		\
+switch (type) {							\
+case SYNC_SFORDEV:						\
+{								\
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
+	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	   BUS_DMASYNC_PREWRITE);				\
+	break;							\
+}								\
+case SYNC_REQUEST:						\
+	bus_dmamap_sync(isp->isp_osinfo.cdmat,			\
+	   isp->isp_osinfo.cdmap, BUS_DMASYNC_PREWRITE);	\
+	break;							\
+case SYNC_SFORCPU:						\
+{								\
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);		\
+	bus_dmamap_sync(fc->tdmat, fc->tdmap,			\
+	   BUS_DMASYNC_POSTWRITE);				\
+	break;							\
+}								\
+case SYNC_RESULT:						\
+	bus_dmamap_sync(isp->isp_osinfo.cdmat, 			\
+	   isp->isp_osinfo.cdmap, BUS_DMASYNC_POSTWRITE);	\
+	break;							\
+case SYNC_REG:							\
+	bus_space_barrier(isp->isp_osinfo.bus_tag,		\
+	    isp->isp_osinfo.bus_handle, offset, size,		\
+	    BUS_SPACE_BARRIER_WRITE);				\
+	break;							\
+default:							\
+	break;							\
+}
+
 #define	MBOX_ACQUIRE			isp_mbox_acquire
 #define	MBOX_WAIT_COMPLETE		isp_mbox_wait_complete
 #define	MBOX_NOTIFY_COMPLETE		isp_mbox_notify_done
@@ -501,7 +544,7 @@ default:							\
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
-#define	XS_LUN(ccb)		(ccb)->ccb_h.target_lun
+#define	XS_LUN(ccb)		(uint32_t)((ccb)->ccb_h.target_lun)
 
 #define	XS_CDBP(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_CDB_POINTER)? \
@@ -711,6 +754,7 @@ int isp_fc_scratch_acquire(ispsoftc_t *, int);
 int isp_mstohz(int);
 void isp_platform_intr(void *);
 void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
+void isp_fcp_reset_crn(struct isp_fc *, uint32_t, int);
 int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 
 /*

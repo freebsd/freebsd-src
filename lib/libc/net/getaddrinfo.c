@@ -30,8 +30,6 @@
  */
 
 /*
- * "#ifdef FAITH" part is local hack for supporting IPv4-v6 translator.
- *
  * Issues to be discussed:
  * - Return values.  There are nonstandard return values defined and used
  *   in the source code.  This is because RFC2553 is silent about which error
@@ -62,12 +60,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <net/if_types.h>
+#include <ifaddrs.h>
 #include <sys/queue.h>
 #ifdef INET6
 #include <net/if_var.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
-#include <netinet6/in6_var.h>	/* XXX */
+#include <netinet6/in6_var.h>
+#include <netinet6/nd6.h>
 #endif
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
@@ -96,10 +97,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #ifdef NS_CACHING
 #include "nscache.h"
-#endif
-
-#if defined(__KAME__) && defined(INET6)
-# define FAITH
 #endif
 
 #define ANY 0
@@ -170,12 +167,14 @@ static const struct explore explore[] = {
 	{ PF_INET6, SOCK_STREAM, IPPROTO_TCP, 0x07 },
 	{ PF_INET6, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
 	{ PF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
+	{ PF_INET6, SOCK_DGRAM, IPPROTO_UDPLITE, 0x03 },
 	{ PF_INET6, SOCK_RAW, ANY, 0x05 },
 #endif
 	{ PF_INET, SOCK_DGRAM, IPPROTO_UDP, 0x07 },
 	{ PF_INET, SOCK_STREAM, IPPROTO_TCP, 0x07 },
 	{ PF_INET, SOCK_STREAM, IPPROTO_SCTP, 0x03 },
 	{ PF_INET, SOCK_SEQPACKET, IPPROTO_SCTP, 0x07 },
+	{ PF_INET, SOCK_DGRAM, IPPROTO_UDPLITE, 0x03 },
 	{ PF_INET, SOCK_RAW, ANY, 0x05 },
 	{ -1, 0, 0, 0 },
 };
@@ -243,6 +242,9 @@ static int get_portmatch(const struct addrinfo *, const char *);
 static int get_port(struct addrinfo *, const char *, int);
 static const struct afd *find_afd(int);
 static int addrconfig(struct addrinfo *);
+#ifdef INET6
+static int is_ifdisabled(char *);
+#endif
 static void set_source(struct ai_order *, struct policyhead *);
 static int comp_dst(const void *, const void *);
 #ifdef INET6
@@ -831,7 +833,8 @@ set_source(struct ai_order *aio, struct policyhead *ph)
 	get_port(&ai, "1", 0);
 
 	/* open a socket to get the source address for the given dst */
-	if ((s = _socket(ai.ai_family, ai.ai_socktype, ai.ai_protocol)) < 0)
+	if ((s = _socket(ai.ai_family, ai.ai_socktype | SOCK_CLOEXEC,
+	    ai.ai_protocol)) < 0)
 		return;		/* give up */
 	if (_connect(s, ai.ai_addr, ai.ai_addrlen) < 0)
 		goto cleanup;
@@ -1000,7 +1003,8 @@ comp_dst(const void *arg1, const void *arg2)
 	 * We compare the match length in a same AF only.
 	 */
 	if (dst1->aio_ai->ai_addr->sa_family ==
-	    dst2->aio_ai->ai_addr->sa_family) {
+	    dst2->aio_ai->ai_addr->sa_family &&
+	    dst1->aio_ai->ai_addr->sa_family != AF_INET) {
 		if (dst1->aio_matchlen > dst2->aio_matchlen) {
 			return(-1);
 		}
@@ -1131,7 +1135,7 @@ explore_null(const struct addrinfo *pai, const char *servname,
 	 * filter out AFs that are not supported by the kernel
 	 * XXX errno?
 	 */
-	s = _socket(pai->ai_family, SOCK_DGRAM, 0);
+	s = _socket(pai->ai_family, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (s < 0) {
 		if (errno != EMFILE)
 			return 0;
@@ -1306,47 +1310,6 @@ get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 {
 	char *p;
 	struct addrinfo *ai;
-#ifdef FAITH
-	struct in6_addr faith_prefix;
-	char *fp_str;
-	int translate = 0;
-#endif
-
-#ifdef FAITH
-	/*
-	 * Transfrom an IPv4 addr into a special IPv6 addr format for
-	 * IPv6->IPv4 translation gateway. (only TCP is supported now)
-	 *
-	 * +-----------------------------------+------------+
-	 * | faith prefix part (12 bytes)      | embedded   |
-	 * |                                   | IPv4 addr part (4 bytes)
-	 * +-----------------------------------+------------+
-	 *
-	 * faith prefix part is specified as ascii IPv6 addr format
-	 * in environmental variable GAI.
-	 * For FAITH to work correctly, routing to faith prefix must be
-	 * setup toward a machine where a FAITH daemon operates.
-	 * Also, the machine must enable some mechanizm
-	 * (e.g. faith interface hack) to divert those packet with
-	 * faith prefixed destination addr to user-land FAITH daemon.
-	 */
-	fp_str = getenv("GAI");
-	if (fp_str && inet_pton(AF_INET6, fp_str, &faith_prefix) == 1 &&
-	    afd->a_af == AF_INET && pai->ai_socktype == SOCK_STREAM) {
-		u_int32_t v4a;
-		u_int8_t v4a_top;
-
-		memcpy(&v4a, addr, sizeof v4a);
-		v4a_top = v4a >> IN_CLASSA_NSHIFT;
-		if (!IN_MULTICAST(v4a) && !IN_EXPERIMENTAL(v4a) &&
-		    v4a_top != 0 && v4a != IN_LOOPBACKNET) {
-			afd = &afdl[N_INET6];
-			memcpy(&faith_prefix.s6_addr[12], addr,
-			       sizeof(struct in_addr));
-			translate = 1;
-		}
-	}
-#endif
 
 	ai = (struct addrinfo *)malloc(sizeof(struct addrinfo)
 		+ (afd->a_socklen));
@@ -1360,11 +1323,6 @@ get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 	ai->ai_addrlen = afd->a_socklen;
 	ai->ai_addr->sa_family = ai->ai_family = afd->a_af;
 	p = (char *)(void *)(ai->ai_addr);
-#ifdef FAITH
-	if (translate == 1)
-		memcpy(p + afd->a_off, &faith_prefix, (size_t)afd->a_addrlen);
-	else
-#endif
 	memcpy(p + afd->a_off, addr, (size_t)afd->a_addrlen);
 	return ai;
 }
@@ -1476,6 +1434,9 @@ get_port(struct addrinfo *ai, const char *servname, int matchonly)
 		case IPPROTO_SCTP:
 			proto = "sctp";
 			break;
+		case IPPROTO_UDPLITE:
+			proto = "udplite";
+			break;
 		default:
 			proto = NULL;
 			break;
@@ -1519,10 +1480,11 @@ find_afd(int af)
 }
 
 /*
- * post-2553: AI_ADDRCONFIG check.  if we use getipnodeby* as backend, backend
- * will take care of it.
- * the semantics of AI_ADDRCONFIG is not defined well.  we are not sure
- * if the code is right or not.
+ * RFC 3493: AI_ADDRCONFIG check.  Determines which address families are
+ * configured on the local system and correlates with pai->ai_family value.
+ * If an address family is not configured on the system, it will not be
+ * queried for.  For this purpose, loopback addresses are not considered
+ * configured addresses.
  *
  * XXX PF_UNSPEC -> PF_INET6 + PF_INET mapping needs to be in sync with
  * _dns_getaddrinfo.
@@ -1530,37 +1492,80 @@ find_afd(int af)
 static int
 addrconfig(struct addrinfo *pai)
 {
-	int s, af;
+	struct ifaddrs *ifaddrs, *ifa;
+	struct sockaddr_in *sin;
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+#endif
+	int seen_inet = 0, seen_inet6 = 0;
 
-	/*
-	 * TODO:
-	 * Note that implementation dependent test for address
-	 * configuration should be done everytime called
-	 * (or apropriate interval),
-	 * because addresses will be dynamically assigned or deleted.
-	 */
-	af = pai->ai_family;
-	if (af == AF_UNSPEC) {
-		if ((s = _socket(AF_INET6, SOCK_DGRAM, 0)) < 0)
-			af = AF_INET;
-		else {
-			_close(s);
-			if ((s = _socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-				af = AF_INET6;
-			else
-				_close(s);
+	if (getifaddrs(&ifaddrs) != 0)
+		return (0);
+
+	for (ifa = ifaddrs; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL || (ifa->ifa_flags & IFF_UP) == 0)
+			continue;
+		switch (ifa->ifa_addr->sa_family) {
+		case AF_INET:
+			if (seen_inet)
+				continue;
+			sin = (struct sockaddr_in *)(ifa->ifa_addr);
+			if (IN_LOOPBACK(htonl(sin->sin_addr.s_addr)))
+				continue;
+			seen_inet = 1;
+			break;
+#ifdef INET6
+		case AF_INET6:
+			if (seen_inet6)
+				continue;
+			sin6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
+			if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
+				continue;
+			if ((ifa->ifa_flags & IFT_LOOP) != 0 &&
+			    IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+				continue;
+			if (is_ifdisabled(ifa->ifa_name))
+				continue;
+			seen_inet6 = 1;
+			break;
+#endif
 		}
 	}
-	if (af != AF_UNSPEC) {
-		if ((s = _socket(af, SOCK_DGRAM, 0)) < 0)
-			return 0;
-		_close(s);
+	freeifaddrs(ifaddrs);
+
+	switch(pai->ai_family) {
+	case AF_INET6:
+		return (seen_inet6);
+	case AF_INET:
+		return (seen_inet);
+	case AF_UNSPEC:
+		if (seen_inet == seen_inet6)
+			return (seen_inet);
+		pai->ai_family = seen_inet ? AF_INET : AF_INET6;
+		return (1);
 	}
-	pai->ai_family = af;
-	return 1;
+	return (1);
 }
 
 #ifdef INET6
+static int
+is_ifdisabled(char *name)
+{
+	struct in6_ndireq nd;
+	int fd;
+
+	if ((fd = _socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0)) < 0)
+		return (-1);
+	memset(&nd, 0, sizeof(nd));
+	strlcpy(nd.ifname, name, sizeof(nd.ifname));
+	if (_ioctl(fd, SIOCGIFINFO_IN6, &nd) < 0) {
+		_close(fd);
+		return (-1);
+	}
+	_close(fd);
+	return ((nd.ndi.flags & ND6_IFF_IFDISABLED) != 0);
+}
+
 /* convert a string to a scope identifier. XXX: IPv6 specific */
 static int
 ip6_str2scopeid(char *scope, struct sockaddr_in6 *sin6, u_int32_t *scopeid)
@@ -2240,7 +2245,7 @@ static void
 _sethtent(FILE **hostf)
 {
 	if (!*hostf)
-		*hostf = fopen(_PATH_HOSTS, "r");
+		*hostf = fopen(_PATH_HOSTS, "re");
 	else
 		rewind(*hostf);
 }
@@ -2264,7 +2269,7 @@ _gethtent(FILE **hostf, const char *name, const struct addrinfo *pai)
 	const char *addr;
 	char hostbuf[8*1024];
 
-	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "r")))
+	if (!*hostf && !(*hostf = fopen(_PATH_HOSTS, "re")))
 		return (NULL);
 again:
 	if (!(p = fgets(hostbuf, sizeof hostbuf, *hostf)))

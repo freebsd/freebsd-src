@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 PROG=	hastd
 SRCS=	activemap.c
@@ -21,6 +21,7 @@ MAN=	hastd.8 hast.conf.5
 
 NO_WFORMAT=
 NO_WCAST_ALIGN=
+NO_WMISSING_VARIABLE_DECLARATIONS=
 CFLAGS+=-I${.CURDIR}
 CFLAGS+=-DHAVE_CAPSICUM
 CFLAGS+=-DPROTO_TCP_DEFAULT_PORT=8457
@@ -29,11 +30,9 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 
-DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBL} ${LIBPTHREAD} ${LIBUTIL}
-LDADD=	-lgeom -lbsdxml -lsbuf -ll -lpthread -lutil
+LIBADD=	geom pthread util
 .if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD+=	crypto
 CFLAGS+=-DHAVE_CRYPTO
 .endif
 

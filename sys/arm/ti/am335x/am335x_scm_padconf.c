@@ -40,13 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 #include <sys/gpio.h>
 
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_scm.h>
+
+#include <arm/ti/am335x/am335x_scm_padconf.h>
 
 #define _PIN(r, b, gp, gm, m0, m1, m2, m3, m4, m5, m6, m7) \
 	{	.reg_off = r, \
@@ -63,19 +64,7 @@ __FBSDID("$FreeBSD$");
 		.muxmodes[7] = m7, \
 	}
 
-#define SLEWCTRL	(0x01 << 6) /* faster(0) or slower(1) slew rate. */
-#define RXACTIVE	(0x01 << 5) /* Input enable value for the Pad */
-#define PULLTYPESEL	(0x01 << 4) /* Pad pullup/pulldown type selection */
-#define PULLUDEN	(0x01 << 3) /* Pullup/pulldown disabled */
-
-#define PADCONF_OUTPUT			(0)
-#define PADCONF_OUTPUT_PULLUP		(PULLTYPESEL)
-#define PADCONF_INPUT			(RXACTIVE | PULLUDEN)
-#define PADCONF_INPUT_PULLUP		(RXACTIVE | PULLTYPESEL)
-#define PADCONF_INPUT_PULLDOWN		(RXACTIVE)
-#define PADCONF_INPUT_PULLUP_SLOW	(PADCONF_INPUT_PULLUP | SLEWCTRL)
-
-const struct ti_scm_padstate ti_padstate_devmap[] = {
+const static struct ti_scm_padstate ti_padstate_devmap[] = {
 	{"output",		PADCONF_OUTPUT },
 	{"output_pullup",	PADCONF_OUTPUT_PULLUP },
 	{"input",		PADCONF_INPUT },
@@ -85,7 +74,7 @@ const struct ti_scm_padstate ti_padstate_devmap[] = {
 	{ .state = NULL }
 };
 
-const struct ti_scm_padconf ti_padconf_devmap[] = {
+const static struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x800, "GPMC_AD0",		32, 7,"gpmc_ad0", "mmc1_dat0", NULL, NULL, NULL, NULL, NULL, "gpio1_0"),
 	_PIN(0x804, "GPMC_AD1",		33, 7,"gpmc_ad1", "mmc1_dat1", NULL, NULL, NULL, NULL, NULL, "gpio1_1"),
 	_PIN(0x808, "GPMC_AD2",		34, 7,"gpmc_ad2", "mmc1_dat2", NULL, NULL, NULL, NULL, NULL, "gpio1_2"),
@@ -171,8 +160,8 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x948, "MDIO",		0, 7, "mdio_data", "timer6", "uart5_rxd", "uart3_ctsn", "mmc0_sdcd","mmc1_cmd", "mmc2_cmd","gpio0_0"),
 	_PIN(0x94c, "MDC",		1, 7, "mdio_clk", "timer5", "uart5_txd", "uart3_rtsn", "mmc0_sdwp", "mmc1_clk", "mmc2_clk", "gpio0_1"),
 	_PIN(0x950, "SPI0_SCLK",	2, 7, "spi0_sclk", "uart2_rxd", "I2C2_SDA", "ehrpwm0A", "pr1_uart0_cts_n", "pr1_edio_sof", "EMU2", "gpio0_2"),
-	_PIN(0x954, "SPI0_D0",		3, 7, "spi0_d0", "uart2_txd", "i2C2_SCL", "ehrpwm0B", "pr1_uart0_rts_n", "pr1_edio_latch_in", "EMU3", "gpio0_3"),
-	_PIN(0x958, "SPIO_D1",		4, 7, "spi0_d1", "mmc1_sdwp", "I2C1_SDA", "ehrpwm0_tripzone_input", "pr1_uart0_rxd", "pr1_edio_data_in0", "pr1_edio_data_out0", "gpio0_4"),
+	_PIN(0x954, "SPI0_D0",		3, 7, "spi0_d0", "uart2_txd", "I2C2_SCL", "ehrpwm0B", "pr1_uart0_rts_n", "pr1_edio_latch_in", "EMU3", "gpio0_3"),
+	_PIN(0x958, "SPI0_D1",		4, 7, "spi0_d1", "mmc1_sdwp", "I2C1_SDA", "ehrpwm0_tripzone_input", "pr1_uart0_rxd", "pr1_edio_data_in0", "pr1_edio_data_out0", "gpio0_4"),
 	_PIN(0x95c, "SPI0_CS0",		5, 7, "spi0_cs0", "mmc2_sdwp", "I2C1_SCL", "ehrpwm0_synci", "pr1_uart0_txd", "pr1_edio_data_in1", "pr1_edio_data_out1", "gpio0_5"),
 	_PIN(0x960, "SPI0_CS1",		6, 7, "spi0_cs1", "uart3_rxd", "eCAP1_in_PWM1_out", "mcc0_pow", "xdm_event_intr2", "mmc0_sdcd", "EMU4", "gpio0_6"),
 	_PIN(0x964, "ECAP0_IN_PWM0_OUT",7, 7, "eCAP0_in_PWM0_out", "uart3_txd", "spi1_cs1", "pr1_ecap0_ecap_capin_apwm_o", "spi1_sclk", "mmc0_sdwp", "xdma_event_intr2", "gpio0_7"),
@@ -181,7 +170,7 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x970, "UART0_rxd",	42, 7, "uart0_rxd", "spi1_cs0", "dcan0_tx", "I2C2_SDA", "eCAP2_in_PWM2_out", "pr1_pru1_pru_r30_14", "pr1_pru1_pru_r31_14", "gpio1_10"),
 	_PIN(0x974, "UART0_txd",	43, 7, "uart0_txd", "spi1_cs1", "dcan0_rx", "I2C2_SCL", "eCAP1_in_PWM1_out", "pr1_pru1_pru_r30_15", "pr1_pru1_pru_r31_15", "gpio1_11"),
 	_PIN(0x978, "UART1_CTSn",	12, 7, "uart1_ctsn", "timer6_mux1", "dcan0_tx", "I2C2_SDA", "spi1_cs0", "pr1_uart0_cts_n", "pr1_edc_latch0_in", "gpio0_12"),
-	_PIN(0x97c, "UART1_RTSn",	13, 7, "uart1_rtsn", "timer5_mux1", "dcan0_rx", "I2C2_SCL", "spi1_cs1", "pr1_uart0_rts_n	", "pr1_edc_latch1_in", "gpio0_13"),
+	_PIN(0x97c, "UART1_RTSn",	13, 7, "uart1_rtsn", "timer5_mux1", "dcan0_rx", "I2C2_SCL", "spi1_cs1", "pr1_uart0_rts_n", "pr1_edc_latch1_in", "gpio0_13"),
 	_PIN(0x980, "UART1_RXD",	14, 7, "uart1_rxd", "mmc1_sdwp", "dcan1_tx", "I2C1_SDA", NULL, "pr1_uart0_rxd", "pr1_pru1_pru_r31_16", "gpio0_14"),
 	_PIN(0x984, "UART1_TXD",	15, 7, "uart1_txd", "mmc2_sdwp", "dcan1_rx", "I2C1_SCL", NULL, "pr1_uart0_txd", "pr1_pru0_pru_r31_16", "gpio0_15"),
 	_PIN(0x988, "I2C0_SDA",		101, 7, "I2C0_SDA", "timer4", "uart2_ctsn", "eCAP2_in_PWM2_out", NULL, NULL, NULL, "gpio3_5"),
@@ -309,57 +298,6 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 const struct ti_scm_device ti_scm_dev = {
 	.padconf_muxmode_mask	= 0x7,
 	.padconf_sate_mask	= 0x78,
-	.padstate		= (struct ti_scm_padstate *) &ti_padstate_devmap,
-	.padconf		= (struct ti_scm_padconf *) &ti_padconf_devmap,
+	.padstate		= ti_padstate_devmap,
+	.padconf		= ti_padconf_devmap,
 };
-
-int
-ti_scm_padconf_set_gpioflags(uint32_t gpio, uint32_t flags)
-{
-	unsigned int state = 0;
-	if (flags & GPIO_PIN_OUTPUT) {
-		if (flags & GPIO_PIN_PULLUP)
-			state = PADCONF_OUTPUT_PULLUP;
-		else
-			state = PADCONF_OUTPUT;
-	} else if (flags & GPIO_PIN_INPUT) {
-		if (flags & GPIO_PIN_PULLUP)
-			state = PADCONF_INPUT_PULLUP;
-		else if (flags & GPIO_PIN_PULLDOWN)
-			state = PADCONF_INPUT_PULLDOWN;
-		else
-			state = PADCONF_INPUT;
-	}
-	return ti_scm_padconf_set_gpiomode(gpio, state);
-}
-
-void
-ti_scm_padconf_get_gpioflags(uint32_t gpio, uint32_t *flags)
-{
-	unsigned int state;
-	if (ti_scm_padconf_get_gpiomode(gpio, &state) != 0)
-		*flags = 0;
-	else {
-		switch (state) {
-			case PADCONF_OUTPUT:
-				*flags = GPIO_PIN_OUTPUT;
-				break;
-			case PADCONF_OUTPUT_PULLUP:
-				*flags = GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_INPUT:
-				*flags = GPIO_PIN_INPUT;
-				break;
-			case PADCONF_INPUT_PULLUP:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_INPUT_PULLDOWN:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
-				break;
-			default:
-				*flags = 0;
-				break;
-		}
-	}
-}
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.405 2012/02/27 22:49:08 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.407 2013-11-22 20:51:56 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"
@@ -2348,6 +2348,14 @@ sameaddr(a, b)
 
 	/* if they don't have the same mailer, forget it */
 	if (a->q_mailer != b->q_mailer)
+		return false;
+
+	/*
+	**  Addresses resolving to error mailer
+	**  should not be considered identical
+	*/
+
+	if (a->q_mailer == &errormailer)
 		return false;
 
 	/* if the user isn't the same, we can drop out */

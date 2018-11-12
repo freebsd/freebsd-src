@@ -119,9 +119,56 @@ make_listen_socket (krb5_context context, const char *port_str)
     return fd;
 }
 
+static krb5_socket_t
+make_listen6_socket (krb5_context context, const char *port_str)
+{
+    krb5_socket_t fd;
+    int one = 1;
+    struct sockaddr_in6 addr;
+
+    fd = socket (AF_INET6, SOCK_STREAM, 0);
+    if (rk_IS_BAD_SOCKET(fd))
+	krb5_err (context, 1, rk_SOCK_ERRNO, "socket AF_INET6");
+    setsockopt (fd, SOL_SOCKET, SO_REUSEADDR, (void *)&one, sizeof(one));
+    memset (&addr, 0, sizeof(addr));
+    addr.sin6_family = AF_INET6;
+
+    if (port_str) {
+	addr.sin6_port = krb5_getportbyname (context,
+					      port_str, "tcp",
+					      0);
+	if (addr.sin6_port == 0) {
+	    char *ptr;
+	    long port;
+
+	    port = strtol (port_str, &ptr, 10);
+	    if (port == 0 && ptr == port_str)
+		krb5_errx (context, 1, "bad port `%s'", port_str);
+	    addr.sin6_port = htons(port);
+	}
+    } else {
+	addr.sin6_port = krb5_getportbyname (context, IPROP_SERVICE,
+					    "tcp", IPROP_PORT);
+    }
+    if(bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+	krb5_err (context, 1, errno, "bind6");
+    if (listen(fd, SOMAXCONN) < 0)
+	krb5_err (context, 1, errno, "listen6");
+    return fd;
+}
+
+#ifndef _SOCKADDR_UNION
+#define _SOCKADDR_UNION
+union sockaddr_union {
+	struct sockaddr		sa;
+	struct sockaddr_in	sin;
+	struct sockaddr_in6     sin6;
+};
+#endif /* _SOCKADDR_UNION */
+
 struct slave {
     krb5_socket_t fd;
-    struct sockaddr_in addr;
+    union sockaddr_union addr;
     char *name;
     krb5_auth_context ac;
     uint32_t version;
@@ -244,8 +291,8 @@ add_slave (krb5_context context, krb5_keytab keytab, slave **root,
     s->name = NULL;
     s->ac = NULL;
 
-    addr_len = sizeof(s->addr);
-    s->fd = accept (fd, (struct sockaddr *)&s->addr, &addr_len);
+    addr_len = sizeof(s->addr.sin6);
+    s->fd = accept (fd, (struct sockaddr *)&s->addr.sa, &addr_len);
     if (rk_IS_BAD_SOCKET(s->fd)) {
 	krb5_warn (context, rk_SOCK_ERRNO, "accept");
 	goto error;
@@ -691,7 +738,7 @@ write_stats(krb5_context context, slave *slaves, uint32_t current_version)
 	krb5_error_code ret;
 	rtbl_add_column_entry(tbl, SLAVE_NAME, slaves->name);
 	ret = krb5_sockaddr2address (context,
-				     (struct sockaddr*)&slaves->addr, &addr);
+				     (struct sockaddr*)&slaves->addr.sa, &addr);
 	if(ret == 0) {
 	    krb5_print_address(&addr, str, sizeof(str), NULL);
 	    krb5_free_address(context, &addr);
@@ -765,7 +812,7 @@ main(int argc, char **argv)
     void *kadm_handle;
     kadm5_server_context *server_context;
     kadm5_config_params conf;
-    krb5_socket_t signal_fd, listen_fd;
+    krb5_socket_t signal_fd, listen_fd, listen6_fd;
     int log_fd;
     slave *slaves = NULL;
     uint32_t current_version = 0, old_version = 0;
@@ -845,6 +892,7 @@ main(int argc, char **argv)
 
     signal_fd = make_signal_socket (context);
     listen_fd = make_listen_socket (context, port_str);
+    listen6_fd = make_listen6_socket (context, port_str);
 
     kadm5_log_get_version_fd (log_fd, &current_version);
 
@@ -859,7 +907,8 @@ main(int argc, char **argv)
 	uint32_t vers;
 
 #ifndef NO_LIMIT_FD_SETSIZE
-	if (signal_fd >= FD_SETSIZE || listen_fd >= FD_SETSIZE)
+	if (signal_fd >= FD_SETSIZE || listen_fd >= FD_SETSIZE ||
+	    listen6_fd >= FD_SETSIZE)
 	    krb5_errx (context, 1, "fd too large");
 #endif
 
@@ -868,6 +917,8 @@ main(int argc, char **argv)
 	max_fd = max(max_fd, signal_fd);
 	FD_SET(listen_fd, &readset);
 	max_fd = max(max_fd, listen_fd);
+	FD_SET(listen6_fd, &readset);
+	max_fd = max(max_fd, listen6_fd);
 
 	for (p = slaves; p != NULL; p = p->next) {
 	    if (p->flags & SLAVE_F_DEAD)
@@ -950,6 +1001,11 @@ main(int argc, char **argv)
 		send_are_you_there (context, p);
 	}
 
+	if (ret && FD_ISSET(listen6_fd, &readset)) {
+	    add_slave (context, keytab, &slaves, listen6_fd);
+	    --ret;
+	    assert(ret >= 0);
+	}
 	if (ret && FD_ISSET(listen_fd, &readset)) {
 	    add_slave (context, keytab, &slaves, listen_fd);
 	    --ret;

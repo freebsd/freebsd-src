@@ -24,6 +24,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -40,56 +42,53 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
 
+#include <machine/armreg.h>
 #define	_ARM32_BUS_DMA_PRIVATE
 #include <machine/bus.h>
+#include <machine/devmap.h>
 #include <machine/intr.h>
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_pmcvar.h>
 #include <arm/at91/at91_aicreg.h>
 
-static struct at91_softc *at91_softc;
-
-static void at91_eoi(void *);
-
-extern const struct pmap_devmap at91_devmap[];
-
 uint32_t at91_master_clock;
 
 static int
-at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+at91_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
 	vm_paddr_t pa, endpa;
 
 	pa = trunc_page(bpa);
 	if (pa >= AT91_PA_BASE + 0xff00000) {
-		*bshp = pa - AT91_PA_BASE + AT91_BASE;
+		*bshp = bpa - AT91_PA_BASE + AT91_BASE;
 		return (0);
 	}
-	if (pa >= AT91_BASE + 0xff00000)
+	if (pa >= AT91_BASE + 0xff00000) {
+		*bshp = bpa;
 		return (0);
+	}
 	endpa = round_page(bpa + size);
 
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
+	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa) + (bpa - pa);
 
 	return (0);
 }
 
 static void
-at91_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+at91_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
-	vm_offset_t va, endva;
+	vm_offset_t va;
 
-	va = trunc_page((vm_offset_t)t);
-	endva = va + round_page(size);
-
-	/* Free the kernel virtual mapping. */
-	kmem_free(kernel_map, va, endva - va);
+	va = (vm_offset_t)h;
+	if (va >= AT91_BASE && va <= AT91_BASE + 0xff00000)
+		return;
+	pmap_unmapdev(va, size);
 }
 
 static int
-at91_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
+at91_bs_subregion(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t size, bus_space_handle_t *nbshp)
 {
 
@@ -98,7 +97,7 @@ at91_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 static void
-at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
+at91_barrier(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
     int a)
 {
 }
@@ -117,122 +116,126 @@ bus_dma_get_range_nb(void)
 }
 
 bs_protos(generic);
-bs_protos(generic_armv4);
 
 struct bus_space at91_bs_tag = {
-	/* cookie */
-	(void *) 0,
+	/* privdata is whatever the implementer wants; unused in base tag */
+	.bs_privdata	= NULL,
 
 	/* mapping/unmapping */
-	at91_bs_map,
-	at91_bs_unmap,
-	at91_bs_subregion,
+	.bs_map		= at91_bs_map,
+	.bs_unmap	= at91_bs_unmap,
+	.bs_subregion	= at91_bs_subregion,
 
 	/* allocation/deallocation */
-	NULL,
-	NULL,
+	.bs_alloc	= generic_bs_alloc,
+	.bs_free	= generic_bs_free,
 
 	/* barrier */
-	at91_barrier,
+	.bs_barrier	= at91_barrier,
 
 	/* read (single) */
-	generic_bs_r_1,
-	generic_armv4_bs_r_2,
-	generic_bs_r_4,
-	NULL,
+	.bs_r_1		= NULL,	/* Use inline code in bus.h */
+	.bs_r_2		= NULL,	/* Use inline code in bus.h */
+	.bs_r_4		= NULL,	/* Use inline code in bus.h */
+	.bs_r_8		= NULL,	/* Use inline code in bus.h */
 
 	/* read multiple */
-	generic_bs_rm_1,
-	generic_armv4_bs_rm_2,
-	generic_bs_rm_4,
-	NULL,
+	.bs_rm_1	= generic_bs_rm_1,
+	.bs_rm_2	= generic_bs_rm_2,
+	.bs_rm_4	= generic_bs_rm_4,
+	.bs_rm_8	= BS_UNIMPLEMENTED,
 
 	/* read region */
-	generic_bs_rr_1,
-	generic_armv4_bs_rr_2,
-	generic_bs_rr_4,
-	NULL,
+	.bs_rr_1	= generic_bs_rr_1,
+	.bs_rr_2	= generic_bs_rr_2,
+	.bs_rr_4	= generic_bs_rr_4,
+	.bs_rr_8	= BS_UNIMPLEMENTED,
 
 	/* write (single) */
-	generic_bs_w_1,
-	generic_armv4_bs_w_2,
-	generic_bs_w_4,
-	NULL,
+	.bs_w_1		= NULL,	/* Use inline code in bus.h */
+	.bs_w_2		= NULL,	/* Use inline code in bus.h */
+	.bs_w_4		= NULL,	/* Use inline code in bus.h */
+	.bs_w_8		= NULL,	/* Use inline code in bus.h */
 
 	/* write multiple */
-	generic_bs_wm_1,
-	generic_armv4_bs_wm_2,
-	generic_bs_wm_4,
-	NULL,
+	.bs_wm_1	= generic_bs_wm_1,
+	.bs_wm_2	= generic_bs_wm_2,
+	.bs_wm_4	= generic_bs_wm_4,
+	.bs_wm_8	= BS_UNIMPLEMENTED,
 
 	/* write region */
-	NULL,
-	generic_armv4_bs_wr_2,
-	generic_bs_wr_4,
-	NULL,
+	.bs_wr_1	= generic_bs_wr_1,
+	.bs_wr_2	= generic_bs_wr_2,
+	.bs_wr_4	= generic_bs_wr_4,
+	.bs_wr_8	= BS_UNIMPLEMENTED,
 
 	/* set multiple */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	.bs_sm_1	= BS_UNIMPLEMENTED,
+	.bs_sm_2	= BS_UNIMPLEMENTED,
+	.bs_sm_4	= BS_UNIMPLEMENTED,
+	.bs_sm_8	= BS_UNIMPLEMENTED,
 
 	/* set region */
-	NULL,
-	generic_armv4_bs_sr_2,
-	generic_bs_sr_4,
-	NULL,
+	.bs_sr_1	= generic_bs_sr_1,
+	.bs_sr_2	= generic_bs_sr_2,
+	.bs_sr_4	= generic_bs_sr_4,
+	.bs_sr_8	= BS_UNIMPLEMENTED,
 
 	/* copy */
-	NULL,
-	generic_armv4_bs_c_2,
-	NULL,
-	NULL,
+	.bs_c_1		= BS_UNIMPLEMENTED,
+	.bs_c_2		= generic_bs_c_2,
+	.bs_c_4		= BS_UNIMPLEMENTED,
+	.bs_c_8		= BS_UNIMPLEMENTED,
 
-	/* read (single) stream */
-	generic_bs_r_1,
-	generic_armv4_bs_r_2,
-	generic_bs_r_4,
-	NULL,
+	/* read stream (single) */
+	.bs_r_1_s	= NULL,   /* Use inline code in bus.h */ 
+	.bs_r_2_s	= NULL,   /* Use inline code in bus.h */ 
+	.bs_r_4_s	= NULL,   /* Use inline code in bus.h */ 
+	.bs_r_8_s	= NULL,   /* Use inline code in bus.h */ 
 
 	/* read multiple stream */
-	generic_bs_rm_1,
-	generic_armv4_bs_rm_2,
-	generic_bs_rm_4,
-	NULL,
+	.bs_rm_1_s	= generic_bs_rm_1,
+	.bs_rm_2_s	= generic_bs_rm_2,
+	.bs_rm_4_s	= generic_bs_rm_4,
+	.bs_rm_8_s	= BS_UNIMPLEMENTED,
 
 	/* read region stream */
-	generic_bs_rr_1,
-	generic_armv4_bs_rr_2,
-	generic_bs_rr_4,
-	NULL,
+	.bs_rr_1_s	= generic_bs_rr_1,
+	.bs_rr_2_s	= generic_bs_rr_2,
+	.bs_rr_4_s	= generic_bs_rr_4,
+	.bs_rr_8_s	= BS_UNIMPLEMENTED,
 
-	/* write (single) stream */
-	generic_bs_w_1,
-	generic_armv4_bs_w_2,
-	generic_bs_w_4,
-	NULL,
+	/* write stream (single) */
+	.bs_w_1_s	= NULL,   /* Use inline code in bus.h */ 
+	.bs_w_2_s	= NULL,   /* Use inline code in bus.h */ 
+	.bs_w_4_s	= NULL,   /* Use inline code in bus.h */ 
+	.bs_w_8_s	= NULL,   /* Use inline code in bus.h */ 
 
 	/* write multiple stream */
-	generic_bs_wm_1,
-	generic_armv4_bs_wm_2,
-	generic_bs_wm_4,
-	NULL,
+	.bs_wm_1_s	= generic_bs_wm_1,
+	.bs_wm_2_s	= generic_bs_wm_2,
+	.bs_wm_4_s	= generic_bs_wm_4,
+	.bs_wm_8_s	= BS_UNIMPLEMENTED,
 
 	/* write region stream */
-	NULL,
-	generic_armv4_bs_wr_2,
-	generic_bs_wr_4,
-	NULL,
+	.bs_wr_1_s	= generic_bs_wr_1,
+	.bs_wr_2_s	= generic_bs_wr_2,
+	.bs_wr_4_s	= generic_bs_wr_4,
+	.bs_wr_8_s	= BS_UNIMPLEMENTED,
 };
+
+#ifndef FDT
+
+static struct at91_softc *at91_softc;
+
+static void at91_eoi(void *);
 
 static int
 at91_probe(device_t dev)
 {
 
-	device_set_desc(dev, "AT91 device bus");
-	arm_post_filter = at91_eoi;
-	return (0);
+	device_set_desc(dev, soc_info.name);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
@@ -247,7 +250,7 @@ at91_cpu_add_builtin_children(device_t dev, const struct cpu_devs *walker)
 {
 	int i;
 
-	for (i = 1; walker->name; i++, walker++) {
+	for (i = 0; walker->name; i++, walker++) {
 		at91_add_child(dev, i, walker->name, walker->unit,
 		    walker->mem_base, walker->mem_len, walker->irq0,
 		    walker->irq1, walker->irq2);
@@ -258,8 +261,8 @@ static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
-	const struct pmap_devmap *pdevmap;
-	int i;
+
+	arm_post_filter = at91_eoi;
 
 	at91_softc = sc;
 	sc->sc_st = &at91_bs_tag;
@@ -277,34 +280,15 @@ at91_attach(device_t dev)
 	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0)
 		panic("at91_attach: failed to set up memory rman");
-	for (pdevmap = at91_devmap; pdevmap->pd_va != 0; pdevmap++) {
-		if (rman_manage_region(&sc->sc_mem_rman, pdevmap->pd_va,
-		    pdevmap->pd_va + pdevmap->pd_size - 1) != 0)
-			panic("at91_attach: failed to set up memory rman");
-	}
-
 	/*
-	 * Setup the interrupt table.
+	 * Manage the physical space, defined as being everything that isn't
+	 * DRAM.
 	 */
-	if (soc_info.soc_data == NULL || soc_info.soc_data->soc_irq_prio == NULL)
-		panic("Interrupt priority table missing\n");
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
-		    soc_info.soc_data->soc_irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
-			    1);
-	}
-
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
+	if (rman_manage_region(&sc->sc_mem_rman, 0, PHYSADDR - 1) != 0)
+		panic("at91_attach: failed to set up memory rman");
+	if (rman_manage_region(&sc->sc_mem_rman, PHYSADDR + (256 << 20),
+	    0xfffffffful) != 0)
+		panic("at91_attach: failed to set up memory rman");
 
         /*
          * Add this device's children...
@@ -314,7 +298,7 @@ at91_attach(device_t dev)
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
-	enable_interrupts(I32_bit | F32_bit);
+	enable_interrupts(PSR_I | PSR_F);
 	return (0);
 }
 
@@ -326,6 +310,7 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	struct at91_ivar *ivar = device_get_ivars(child);
 	struct resource_list *rl = &ivar->resources;
+	bus_space_handle_t bsh;
 
 	if (device_get_parent(child) != dev)
 		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
@@ -351,8 +336,10 @@ at91_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		rle->res = rman_reserve_resource(&sc->sc_mem_rman,
 		    start, end, count, flags, child);
 		if (rle->res != NULL) {
+			bus_space_map(&at91_bs_tag, start,
+			    rman_get_size(rle->res), 0, &bsh);
 			rman_set_bustag(rle->res, &at91_bs_tag);
-			rman_set_bushandle(rle->res, start);
+			rman_set_bushandle(rle->res, bsh);
 		}
 		break;
 	}
@@ -462,42 +449,6 @@ at91_print_child(device_t dev, device_t child)
 	return (retval);
 }
 
-void
-arm_mask_irq(uintptr_t nb)
-{
-	
-	bus_space_write_4(at91_softc->sc_st,
-	    at91_softc->sc_aic_sh, IC_IDCR, 1 << nb);
-}
-
-int
-arm_get_next_irq(int last __unused)
-{
-	int status;
-	int irq;
-	
-	irq = bus_space_read_4(at91_softc->sc_st,
-	    at91_softc->sc_aic_sh, IC_IVR);
-	status = bus_space_read_4(at91_softc->sc_st,
-	    at91_softc->sc_aic_sh, IC_ISR);
-	if (status == 0) {
-		bus_space_write_4(at91_softc->sc_st,
-		    at91_softc->sc_aic_sh, IC_EOICR, 1);
-		return (-1);
-	}
-	return (irq);
-}
-
-void
-arm_unmask_irq(uintptr_t nb)
-{
-	
-	bus_space_write_4(at91_softc->sc_st,
-	at91_softc->sc_aic_sh, IC_IECR, 1 << nb);
-	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
-	    IC_EOICR, 0);
-}
-
 static void
 at91_eoi(void *unused)
 {
@@ -534,8 +485,14 @@ at91_add_child(device_t dev, int prio, const char *name, int unit,
 		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
 	if (irq2 != 0)
 		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
-	if (addr != 0 && addr < AT91_BASE) 
-		addr += AT91_BASE;
+	/*
+	 * Special case for on-board devices. These have their address
+	 * defined relative to AT91_PA_BASE in all the register files we
+	 * have. We could change this, but that's a lot of effort which
+	 * will be obsoleted when FDT arrives.
+	 */
+	if (addr != 0 && addr < 0x10000000 && addr >= 0x0f000000) 
+		addr += AT91_PA_BASE;
 	if (addr != 0)
 		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }
@@ -568,3 +525,4 @@ static driver_t at91_driver = {
 static devclass_t at91_devclass;
 
 DRIVER_MODULE(atmelarm, nexus, at91_driver, at91_devclass, 0, 0);
+#endif

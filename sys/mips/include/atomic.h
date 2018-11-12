@@ -44,20 +44,16 @@
  * do not have atomic operations defined for them, but generally shouldn't
  * need atomic operations.
  */
+#ifndef __MIPS_PLATFORM_SYNC_NOPS
+#define __MIPS_PLATFORM_SYNC_NOPS ""
+#endif
 
 static __inline  void
 mips_sync(void)
 {
-	__asm __volatile (".set noreorder\n\t"
-			"sync\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
-			"nop\n\t"
+	__asm __volatile (".set noreorder\n"
+			"\tsync\n"
+			__MIPS_PLATFORM_SYNC_NOPS
 			".set reorder\n"
 			: : : "memory");
 }

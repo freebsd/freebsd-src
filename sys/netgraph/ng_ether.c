@@ -47,6 +47,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -73,7 +74,7 @@
 
 MODULE_VERSION(ng_ether, 1);
 
-#define IFP2NG(ifp)  (IFP2AC((ifp))->ac_netgraph)
+#define IFP2NG(ifp)  ((ifp)->if_l2com)
 
 /* Per-node private data */
 struct private {

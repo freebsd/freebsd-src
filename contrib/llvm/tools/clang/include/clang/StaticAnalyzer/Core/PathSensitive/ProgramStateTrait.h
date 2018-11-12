@@ -15,11 +15,13 @@
 //===----------------------------------------------------------------------===//
 
 
-#ifndef LLVM_CLANG_GR_PROGRAMSTATETRAIT_H
-#define LLVM_CLANG_GR_PROGRAMSTATETRAIT_H
+#ifndef LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_PROGRAMSTATETRAIT_H
+#define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_PROGRAMSTATETRAIT_H
+
+#include "llvm/Support/Allocator.h"
+#include "llvm/Support/DataTypes.h"
 
 namespace llvm {
-  class BumpPtrAllocator;
   template <typename K, typename D, typename I> class ImmutableMap;
   template <typename K, typename I> class ImmutableSet;
   template <typename T> class ImmutableList;
@@ -62,7 +64,8 @@ namespace ento {
     typedef const value_type*                 lookup_type;
 
     static inline data_type MakeData(void *const* p) {
-      return p ? data_type((typename data_type::TreeTy*) *p) : data_type(0);
+      return p ? data_type((typename data_type::TreeTy*) *p)
+               : data_type(nullptr);
     }
     static inline void *MakeVoidPtr(data_type B) {
       return B.getRoot();
@@ -110,7 +113,8 @@ namespace ento {
     typedef Key                               key_type;
 
     static inline data_type MakeData(void *const* p) {
-      return p ? data_type((typename data_type::TreeTy*) *p) : data_type(0);
+      return p ? data_type((typename data_type::TreeTy*) *p)
+               : data_type(nullptr);
     }
 
     static inline void *MakeVoidPtr(data_type B) {
@@ -161,11 +165,11 @@ namespace ento {
 
     static inline data_type MakeData(void *const* p) {
       return p ? data_type((const llvm::ImmutableListImpl<T>*) *p)
-               : data_type(0);
+               : data_type(nullptr);
     }
 
     static inline void *MakeVoidPtr(data_type D) {
-      return  (void*) D.getInternalPointer();
+      return const_cast<llvm::ImmutableListImpl<T> *>(D.getInternalPointer());
     }
 
     static inline context_type MakeContext(void *p) {
@@ -221,7 +225,20 @@ namespace ento {
     }
   };
 
-} // end GR namespace
+  // Partial specialization for const void *.
+  template <> struct ProgramStatePartialTrait<const void *> {
+    typedef const void *data_type;
+
+    static inline data_type MakeData(void * const *p) {
+      return p ? *p : data_type();
+    }
+
+    static inline void *MakeVoidPtr(data_type d) {
+      return const_cast<void *>(d);
+    }
+  };
+
+} // end ento namespace
 
 } // end clang namespace
 

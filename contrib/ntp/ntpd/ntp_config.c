@@ -597,6 +597,8 @@ getconfig(
 #endif /* not SYS_WINNT */
 	}
 
+	proto_config(PROTO_MONITOR, 0, 0., NULL);
+
 	for (;;) {
 		if (tok == CONFIG_END) 
 			break;
@@ -1885,7 +1887,7 @@ getconfig(
 
 		for (i = 0; i < 8; i++)
 			for (j = 1; j < 100; ++j) {
-				rankey[i] = (char) (ntp_random() & 0xff);
+				rankey[i] = (char) (arc4random() & 0xff);
 				if (rankey[i] != 0) break;
 			}
 		rankey[8] = 0;

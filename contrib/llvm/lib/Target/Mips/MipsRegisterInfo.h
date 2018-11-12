@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSREGISTERINFO_H
-#define MIPSREGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSREGISTERINFO_H
+#define LLVM_LIB_TARGET_MIPS_MIPSREGISTERINFO_H
 
 #include "Mips.h"
 #include "llvm/Target/TargetRegisterInfo.h"
@@ -42,27 +42,35 @@ public:
   void adjustMipsStackFrame(MachineFunction &MF) const;
 
   /// Code Generation virtual methods...
-  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
-  const uint32_t *getCallPreservedMask(CallingConv::ID) const;
+  const TargetRegisterClass *getPointerRegClass(const MachineFunction &MF,
+                                                unsigned Kind) const override;
 
-  BitVector getReservedRegs(const MachineFunction &MF) const;
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const override;
+  const MCPhysReg *
+  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
+  const uint32_t *getCallPreservedMask(CallingConv::ID) const override;
+  static const uint32_t *getMips16RetHelperMask();
 
-  virtual bool requiresRegisterScavenging(const MachineFunction &MF) const;
+  BitVector getReservedRegs(const MachineFunction &MF) const override;
 
-  virtual bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
+  bool requiresRegisterScavenging(const MachineFunction &MF) const override;
+
+  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override;
 
   /// Stack Frame Processing Methods
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
-                           int SPAdj, RegScavenger *RS = NULL) const;
+                           int SPAdj, unsigned FIOperandNum,
+                           RegScavenger *RS = nullptr) const override;
 
-  void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
+  void processFunctionBeforeFrameFinalized(MachineFunction &MF,
+                                       RegScavenger *RS = nullptr) const;
 
   /// Debug information queries.
-  unsigned getFrameRegister(const MachineFunction &MF) const;
+  unsigned getFrameRegister(const MachineFunction &MF) const override;
 
-  /// Exception handling queries.
-  unsigned getEHExceptionRegister() const;
-  unsigned getEHHandlerRegister() const;
+  /// \brief Return GPR register class.
+  virtual const TargetRegisterClass *intRegClass(unsigned Size) const = 0;
 
 private:
   virtual void eliminateFI(MachineBasicBlock::iterator II, unsigned OpNo,

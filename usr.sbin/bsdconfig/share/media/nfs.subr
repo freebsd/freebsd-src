@@ -1,7 +1,7 @@
 if [ ! "$_MEDIA_NFS_SUBR" ]; then _MEDIA_NFS_SUBR=1
 #
 # Copyright (c) 2012-2013 Devin Teske
-# All Rights Reserved.
+# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -13,11 +13,11 @@ if [ ! "$_MEDIA_NFS_SUBR" ]; then _MEDIA_NFS_SUBR=1
 #    documentation and/or other materials provided with the distribution.
 #
 # THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
 # ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
 # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
 # OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
 # HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
@@ -31,13 +31,13 @@ if [ ! "$_MEDIA_NFS_SUBR" ]; then _MEDIA_NFS_SUBR=1
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." media/nfs.subr
-f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
-f_include $BSDCFG_SHARE/variable.subr
 f_include $BSDCFG_SHARE/media/common.subr
-f_include $BSDCFG_SHARE/media/tcpip.subr
 f_include $BSDCFG_SHARE/media/network.subr
+f_include $BSDCFG_SHARE/media/tcpip.subr
+f_include $BSDCFG_SHARE/struct.subr
+f_include $BSDCFG_SHARE/variable.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
@@ -82,7 +82,7 @@ f_media_set_nfs()
 	case "$nfs" in
 	*:*) : valid NFS path ;;
 	*)
-		f_dialog_msgbox "$msg_invalid_nfs_path_specification"
+		f_show_msg "$msg_invalid_nfs_path_specification"
 		return $FAILURE
 	esac
 
@@ -93,19 +93,19 @@ f_media_set_nfs()
 	   ! f_dialog_yesno "$msg_youve_already_done_the_network_configuration"
 	then
 		f_struct device_network &&
-			f_device_shutdown network
+			f_device_shutdown device_network
 		f_device_select_tcp || return $FAILURE
-		local dev
-		f_getvar $VAR_NETWORK_DEVICE dev
-		f_struct_copy "device_$dev" device_network
+		local dev if
+		f_getvar $VAR_NETWORK_DEVICE if
+		f_device_find -1 "$if" $DEVICE_TYPE_NETWORK dev
+		f_struct_copy "$dev" device_network
 	fi
-	f_device_init network ||
+	f_device_init device_network ||
 		f_dprintf "%s: $msg_net_device_init_failed\n" f_media_set_nfs
 
 	local hostname="${nfs%%:*}"
-	if f_quietly f_getvar $VAR_NAMESERVER && ! {
-		f_validate_ipaddr "$hostname" ||
-		f_validate_ipaddr6 "$hostname"
+	if f_isset $VAR_NAMESERVER && ! {
+		f_validate_ipaddr "$hostname" || f_validate_ipaddr6 "$hostname"
 	}; then
 		f_show_info "$msg_looking_up_host" "$hostname"
 		f_dprintf "%s Looking up hostname, %s, using host(1)" \
@@ -113,7 +113,7 @@ f_media_set_nfs()
 		if ! f_quietly f_host_lookup "$hostname"; then
 			f_show_msg "$msg_cannot_resolve_hostname" "$hostname"
 			f_struct device_network &&
-				f_device_shutdown network
+				f_device_shutdown device_network
 			f_struct_free device_network
 			unset $VAR_NFS_PATH
 			return $FAILURE
@@ -155,9 +155,10 @@ f_media_set_nfs()
 #
 f_media_init_nfs()
 {
+	local funcname=f_media_init_nfs
 	local dev="$1" name err
 
-	device_$dev get name name || return $FAILURE
+	$dev get name name || return $FAILURE
 	f_dprintf "Init routine called for NFS device. name=[%s]" \
 	          "$name"
 
@@ -166,16 +167,14 @@ f_media_init_nfs()
 		return $SUCCESS
 	fi
 
-	if ! f_device_init network; then
+	if ! f_device_init device_network; then
 		f_dprintf "f_media_init_nfs: %s" "$msg_net_device_init_failed"
 		return $FAILURE
 	fi
 
-	if [ ! -e "$MOUNTPOINT" ] &&
-	   ! err=$( mkdir -p "$MOUNTPOINT" 2>&1 )
-	then
-		f_dialog_msgbox "$err"
-		return $FAILURE
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
 	fi
 
 	local cp tcp="" use3="" secure="" readsize=4096 writesize=4096
@@ -192,14 +191,15 @@ f_media_init_nfs()
 	[ "$use3" ] && options="$options,nfsv3"
 	[ "$tcp" ] && options="$options,tcp"
 
-	if ! err=$( mount_nfs \
-		${secure:+-P} -o "$options" "$name" "$MOUNTPOINT" 2>&1 )
+	if ! f_eval_catch -dk err $funcname mount_nfs \
+		'mount_nfs %s -o "%s" "%s" "%s"' \
+		"${secure:+-P}" "$options" "$name" "$MOUNTPOINT"
 	then
 		err="${err#mount_nfs: }"
 		f_show_msg "$msg_error_mounting_device" \
 		           "$name" "$MOUNTPOINT" "$err"
 		f_struct device_network &&
-			f_device_shutdown network
+			f_device_shutdown device_network
 		return $FAILURE
 	fi
 	NFS_MOUNTED=1
@@ -209,19 +209,23 @@ f_media_init_nfs()
 	return $SUCCESS
 }
 
-# f_media_get_nfs $device $file [$probe_only]
+# f_media_get_nfs $device $file [$probe_type]
 #
-# Returns data from $file on a mounted NFS device. Similar to cat(1).
-# $probe_only is currently unused by this media type.
+# Returns data from $file on a mounted NFS device. Similar to cat(1). If
+# $probe_type is present and non-NULL, returns success if $file exists. If
+# $probe_type is equal to $PROBE_SIZE, prints the size of $file in bytes to
+# standard-out.
 #
 f_media_get_nfs()
 {
-	local dev="$1" file="$2" probe_only="$3"
+	local dev="$1" file="$2" probe_type="$3"
+	local name
 
-	f_dprintf "f_media_get_nfs: dev=[%s] file=[%s] probe_only=%s" \
-	          "$dev" "$file" "$probe_only"
+	$dev get name name
+	f_dprintf "f_media_get_nfs: dev=[%s] file=[%s] probe_type=%s" \
+	          "$name" "$file" "$probe_type"
 
-	f_media_generic_get "$MOUNTPOINT" "$file"
+	f_media_generic_get "$MOUNTPOINT" "$file" "$probe_type"
 }
 
 # f_media_shutdown_nfs $device
@@ -230,12 +234,15 @@ f_media_get_nfs()
 #
 f_media_shutdown_nfs()
 {
+	local funcname=f_media_shutdown_nfs
 	local dev="$1" err
 
-	[ "$NFS_MOUNTED" ] || return
+	[ "$NFS_MOUNTED" ] || return $FAILURE
 
 	f_dprintf "Unmounting NFS partition on %s" "$MOUNTPOINT"
-	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
 		err="${err#umount: }"; err="${err#*: }"
 		f_show_msg "$msg_could_not_unmount_the_nfs_partition" \
 		           "$MOUNTPOINT" "$err"

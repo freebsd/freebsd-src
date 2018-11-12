@@ -1,4 +1,4 @@
-/*	$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $	*/
+/*	$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,7 +69,7 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $";
+static char rcsid[] = "$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
@@ -81,7 +81,7 @@ __COPYRIGHT("@(#) Copyright (c) 1988, 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $");
+__RCSID("$NetBSD: main.c,v 1.226 2014/02/07 17:23:35 pooka Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -117,19 +117,21 @@ __RCSID("$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $");
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <signal.h>
 #include <sys/stat.h>
-#ifdef MAKE_NATIVE
-#include <sys/utsname.h>
+#if defined(MAKE_NATIVE) && defined(HAVE_SYSCTL)
+#include <sys/sysctl.h>
 #endif
+#include <sys/utsname.h>
 #include "wait.h"
 
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "make.h"
 #include "hash.h"
@@ -145,6 +147,10 @@ __RCSID("$NetBSD: main.c,v 1.205 2013/01/26 15:53:00 christos Exp $");
 #ifndef	DEFMAXLOCAL
 #define	DEFMAXLOCAL DEFMAXJOBS
 #endif	/* DEFMAXLOCAL */
+
+#ifndef __arraycount
+# define __arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
+#endif
 
 Lst			create;		/* Targets to be made */
 time_t			now;		/* Time at start of make */
@@ -165,6 +171,7 @@ Boolean			noRecursiveExecute;	/* -N flag */
 Boolean			keepgoing;	/* -k flag */
 Boolean			queryFlag;	/* -q flag */
 Boolean			touchFlag;	/* -t flag */
+Boolean			enterFlag;	/* -w flag */
 Boolean			ignoreErrors;	/* -i flag */
 Boolean			beSilent;	/* -s flag */
 Boolean			oldVars;	/* variable substitution style */
@@ -186,6 +193,7 @@ char curdir[MAXPATHLEN + 1];		/* Startup directory */
 char *progname;				/* the program name */
 char *makeDependfile;
 pid_t myPid;
+int makelevel;
 
 Boolean forceJobs = FALSE;
 
@@ -200,6 +208,38 @@ Boolean forceJobs = FALSE;
 
 extern Lst parseIncPath;
 
+/*
+ * For compatibility with the POSIX version of MAKEFLAGS that includes
+ * all the options with out -, convert flags to -f -l -a -g -s.
+ */
+static char *
+explode(const char *flags)
+{
+    size_t len;
+    char *nf, *st;
+    const char *f;
+
+    if (flags == NULL)
+	return NULL;
+
+    for (f = flags; *f; f++)
+	if (!isalpha((unsigned char)*f))
+	    break;
+
+    if (*f)
+	return bmake_strdup(flags);
+
+    len = strlen(flags);
+    st = nf = bmake_malloc(len * 3 + 1);
+    while (*flags) {
+	*nf++ = '-';
+	*nf++ = *flags++;
+	*nf++ = ' ';
+    }
+    *nf = '\0';
+    return st;
+}
+	    
 static void
 parse_debug_options(const char *argvalue)
 {
@@ -352,7 +392,7 @@ MainParseArgs(int argc, char **argv)
 	Boolean inOption, dashDash = FALSE;
 	char found_path[MAXPATHLEN + 1];	/* for searching for sys.mk */
 
-#define OPTFLAGS "BC:D:I:J:NST:V:WXd:ef:ij:km:nqrst"
+#define OPTFLAGS "BC:D:I:J:NST:V:WXd:ef:ij:km:nqrstw"
 /* Can't actually use getopt(3) because rescanning is not portable */
 
 	getopt_def = OPTFLAGS;
@@ -559,6 +599,10 @@ rearg:
 		case 't':
 			touchFlag = TRUE;
 			Var_Append(MAKEFLAGS, "-t", VAR_GLOBAL);
+			break;
+		case 'w':
+			enterFlag = TRUE;
+			Var_Append(MAKEFLAGS, "-w", VAR_GLOBAL);
 			break;
 		case '-':
 			dashDash = TRUE;
@@ -768,7 +812,7 @@ MakeMode(const char *mode)
 	}
 #if USE_META
 	if (strstr(mode, "meta"))
-	    meta_init(mode);
+	    meta_mode_init(mode);
 #endif
     }
     if (mp)
@@ -798,7 +842,7 @@ main(int argc, char **argv)
 	Lst targs;	/* target nodes to create -- passed to Make_Init */
 	Boolean outOfDate = FALSE; 	/* FALSE if all targets up to date */
 	struct stat sb, sa;
-	char *p1, *path, *pwd;
+	char *p1, *path;
 	char mdpath[MAXPATHLEN];
 #ifdef FORCE_MACHINE
 	const char *machine = FORCE_MACHINE;
@@ -813,9 +857,7 @@ main(int argc, char **argv)
 	static char defsyspath[] = _PATH_DEFSYSPATH;
 	char found_path[MAXPATHLEN + 1];	/* for searching for sys.mk */
 	struct timeval rightnow;		/* to initialize random seed */
-#ifdef MAKE_NATIVE
 	struct utsname utsname;
-#endif
 
 	/* default to writing debug to stderr */
 	debug_file = stderr;
@@ -834,7 +876,7 @@ main(int argc, char **argv)
 		progname++;
 	else
 		progname = argv[0];
-#ifdef RLIMIT_NOFILE
+#if defined(MAKE_NATIVE) || (defined(HAVE_SETRLIMIT) && defined(RLIMIT_NOFILE))
 	/*
 	 * get rid of resource limit on file descriptors
 	 */
@@ -848,6 +890,12 @@ main(int argc, char **argv)
 	}
 #endif
 
+	if (uname(&utsname) == -1) {
+	    (void)fprintf(stderr, "%s: uname failed (%s).\n", progname,
+		strerror(errno));
+	    exit(2);
+	}
+
 	/*
 	 * Get the name of this type of MACHINE from utsname
 	 * so we can share an executable for similar machines.
@@ -858,11 +906,6 @@ main(int argc, char **argv)
 	 */
 	if (!machine) {
 #ifdef MAKE_NATIVE
-	    if (uname(&utsname) == -1) {
-		(void)fprintf(stderr, "%s: uname failed (%s).\n", progname,
-		    strerror(errno));
-		exit(2);
-	    }
 	    machine = utsname.machine;
 #else
 #ifdef MAKE_MACHINE
@@ -874,6 +917,20 @@ main(int argc, char **argv)
 	}
 
 	if (!machine_arch) {
+#if defined(MAKE_NATIVE) && defined(HAVE_SYSCTL) && defined(CTL_HW) && defined(HW_MACHINE_ARCH)
+	    static char machine_arch_buf[sizeof(utsname.machine)];
+	    int mib[2] = { CTL_HW, HW_MACHINE_ARCH };
+	    size_t len = sizeof(machine_arch_buf);
+                
+	    if (sysctl(mib, __arraycount(mib), machine_arch_buf,
+		    &len, NULL, 0) < 0) {
+		(void)fprintf(stderr, "%s: sysctl failed (%s).\n", progname,
+		    strerror(errno));
+		exit(2);
+	    }
+
+	    machine_arch = machine_arch_buf;
+#else
 #ifndef MACHINE_ARCH
 #ifdef MAKE_MACHINE_ARCH
             machine_arch = MAKE_MACHINE_ARCH;
@@ -882,6 +939,7 @@ main(int argc, char **argv)
 #endif
 #else
 	    machine_arch = MACHINE_ARCH;
+#endif
 #endif
 	}
 
@@ -892,6 +950,7 @@ main(int argc, char **argv)
 	 */
 	Var_Init();		/* Initialize the lists of variables for
 				 * parsing arguments */
+	Var_Set(".MAKE.OS", utsname.sysname, VAR_GLOBAL, 0);
 	Var_Set("MACHINE", machine, VAR_GLOBAL, 0);
 	Var_Set("MACHINE_ARCH", machine_arch, VAR_GLOBAL, 0);
 #ifdef MAKE_VERSION
@@ -965,35 +1024,43 @@ main(int argc, char **argv)
 	Var_Set(MAKEOVERRIDES, "", VAR_GLOBAL, 0);
 	Var_Set("MFLAGS", "", VAR_GLOBAL, 0);
 	Var_Set(".ALLTARGETS", "", VAR_GLOBAL, 0);
+	/* some makefiles need to know this */
+	Var_Set(MAKE_LEVEL ".ENV", MAKE_LEVEL_ENV, VAR_CMD, 0);
 
 	/*
 	 * Set some other useful macros
 	 */
 	{
-	    char tmp[64];
-	    const char *ep;
+	    char tmp[64], *ep;
 
-	    if (!(ep = getenv(MAKE_LEVEL))) {
-#ifdef MAKE_LEVEL_SAFE
-		if (!(ep = getenv(MAKE_LEVEL_SAFE)))
-#endif
-		    ep = "0";
-	    }
-	    Var_Set(MAKE_LEVEL, ep, VAR_GLOBAL, 0);
+	    makelevel = ((ep = getenv(MAKE_LEVEL_ENV)) && *ep) ? atoi(ep) : 0;
+	    if (makelevel < 0)
+		makelevel = 0;
+	    snprintf(tmp, sizeof(tmp), "%d", makelevel);
+	    Var_Set(MAKE_LEVEL, tmp, VAR_GLOBAL, 0);
 	    snprintf(tmp, sizeof(tmp), "%u", myPid);
 	    Var_Set(".MAKE.PID", tmp, VAR_GLOBAL, 0);
 	    snprintf(tmp, sizeof(tmp), "%u", getppid());
 	    Var_Set(".MAKE.PPID", tmp, VAR_GLOBAL, 0);
 	}
-	Job_SetPrefix();
+	if (makelevel > 0) {
+		char pn[1024];
+		snprintf(pn, sizeof(pn), "%s[%d]", progname, makelevel);
+		progname = bmake_strdup(pn);
+	}
 
+#ifdef USE_META
+	meta_init();
+#endif
 	/*
 	 * First snag any flags out of the MAKE environment variable.
 	 * (Note this is *not* MAKEFLAGS since /bin/make uses that and it's
 	 * in a different format).
 	 */
 #ifdef POSIX
-	Main_ParseArgLine(getenv("MAKEFLAGS"));
+	p1 = explode(getenv("MAKEFLAGS"));
+	Main_ParseArgLine(p1);
+	free(p1);
 #else
 	Main_ParseArgLine(getenv("MAKE"));
 #endif
@@ -1009,6 +1076,9 @@ main(int argc, char **argv)
 	}
 
 	MainParseArgs(argc, argv);
+
+	if (enterFlag)
+		printf("%s: Entering directory `%s'\n", progname, curdir);
 
 	/*
 	 * Verify that cwd is sane.
@@ -1031,16 +1101,23 @@ main(int argc, char **argv)
 	 * MAKEOBJDIRPREFIX is set or MAKEOBJDIR contains a transform.
 	 */
 #ifndef NO_PWD_OVERRIDE
-	if (!ignorePWD &&
-	    (pwd = getenv("PWD")) != NULL &&
-	    getenv("MAKEOBJDIRPREFIX") == NULL) {
-		const char *makeobjdir = getenv("MAKEOBJDIR");
+	if (!ignorePWD) {
+		char *pwd, *ptmp1 = NULL, *ptmp2 = NULL;
 
-		if (makeobjdir == NULL || !strchr(makeobjdir, '$')) {
-			if (stat(pwd, &sb) == 0 && sa.st_ino == sb.st_ino &&
-			    sa.st_dev == sb.st_dev)
-				(void)strncpy(curdir, pwd, MAXPATHLEN);
+		if ((pwd = getenv("PWD")) != NULL &&
+		    Var_Value("MAKEOBJDIRPREFIX", VAR_CMD, &ptmp1) == NULL) {
+			const char *makeobjdir = Var_Value("MAKEOBJDIR",
+			    VAR_CMD, &ptmp2);
+
+			if (makeobjdir == NULL || !strchr(makeobjdir, '$')) {
+				if (stat(pwd, &sb) == 0 &&
+				    sa.st_ino == sb.st_ino &&
+				    sa.st_dev == sb.st_dev)
+					(void)strncpy(curdir, pwd, MAXPATHLEN);
+			}
 		}
+		free(ptmp1);
+		free(ptmp2);
 	}
 #endif
 	Var_Set(".CURDIR", curdir, VAR_GLOBAL, 0);
@@ -1057,11 +1134,13 @@ main(int argc, char **argv)
 	Dir_Init(curdir);
 	(void)Main_SetObjdir(curdir);
 
-	if ((path = getenv("MAKEOBJDIRPREFIX")) != NULL) {
+	if ((path = Var_Value("MAKEOBJDIRPREFIX", VAR_CMD, &p1)) != NULL) {
 		(void)snprintf(mdpath, MAXPATHLEN, "%s%s", path, curdir);
 		(void)Main_SetObjdir(mdpath);
-	} else if ((path = getenv("MAKEOBJDIR")) != NULL) {
+		free(p1);
+	} else if ((path = Var_Value("MAKEOBJDIR", VAR_CMD, &p1)) != NULL) {
 		(void)Main_SetObjdir(path);
+		free(p1);
 	} else {
 		(void)snprintf(mdpath, MAXPATHLEN, "%s.%s", _PATH_OBJDIR, machine);
 		if (!Main_SetObjdir(mdpath) && !Main_SetObjdir(_PATH_OBJDIR)) {
@@ -1327,6 +1406,9 @@ main(int argc, char **argv)
 
 	Trace_Log(MAKEEND, 0);
 
+	if (enterFlag)
+		printf("%s: Leaving directory `%s'\n", progname, curdir);
+
 	Suff_End();
         Targ_End();
 	Arch_End();
@@ -1359,7 +1441,7 @@ ReadMakefile(const void *p, const void *q MAKE_ATTR_UNUSED)
 
 	if (!strcmp(fname, "-")) {
 		Parse_File(NULL /*stdin*/, -1);
-		Var_Set("MAKEFILE", "", VAR_GLOBAL, 0);
+		Var_Set("MAKEFILE", "", VAR_INTERNAL, 0);
 	} else {
 		/* if we've chdir'd, rebuild the path name */
 		if (strcmp(curdir, objdir) && *fname != '/') {
@@ -1408,7 +1490,7 @@ ReadMakefile(const void *p, const void *q MAKE_ATTR_UNUSED)
 		 */
 found:
 		if (!doing_depend)
-			Var_Set("MAKEFILE", fname, VAR_GLOBAL, 0);
+			Var_Set("MAKEFILE", fname, VAR_INTERNAL, 0);
 		Parse_File(fname, fd);
 	}
 	free(path);
@@ -1697,7 +1779,7 @@ Finish(int errors)
 }
 
 /*
- * enunlink --
+ * eunlink --
  *	Remove a file carefully, avoiding directories.
  */
 int
@@ -1755,8 +1837,12 @@ execError(const char *af, const char *av)
 static void
 usage(void)
 {
+	char *p;
+	if ((p = strchr(progname, '[')) != NULL)
+	    *p = '\0';
+
 	(void)fprintf(stderr,
-"usage: %s [-BeikNnqrstWX] \n\
+"usage: %s [-BeikNnqrstWwX] \n\
             [-C directory] [-D variable] [-d flags] [-f makefile]\n\
             [-I directory] [-J private] [-j max_jobs] [-m directory] [-T file]\n\
             [-V variable] [variable=value] [target ...]\n", progname);

@@ -40,12 +40,21 @@
 #include <machine/pte.h>
 #include <machine/tlb.h>
 
+#if defined(CPU_CNMIPS)
+#define	MIPS_MAX_TLB_ENTRIES	128
+#elif defined(CPU_NLM)
+#define	MIPS_MAX_TLB_ENTRIES	(2048 + 128)
+#else
+#define	MIPS_MAX_TLB_ENTRIES	64
+#endif
+
 struct tlb_state {
 	unsigned wired;
 	struct tlb_entry {
 		register_t entryhi;
 		register_t entrylo0;
 		register_t entrylo1;
+		register_t pagemask;
 	} entry[MIPS_MAX_TLB_ENTRIES];
 };
 
@@ -264,16 +273,20 @@ tlb_invalidate_range(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 void
 tlb_save(void)
 {
-	unsigned i, cpu;
+	unsigned ntlb, i, cpu;
 
 	cpu = PCPU_GET(cpuid);
-
+	if (num_tlbentries > MIPS_MAX_TLB_ENTRIES)
+		ntlb = MIPS_MAX_TLB_ENTRIES;
+	else
+		ntlb = num_tlbentries;
 	tlb_state[cpu].wired = mips_rd_wired();
-	for (i = 0; i < num_tlbentries; i++) {
+	for (i = 0; i < ntlb; i++) {
 		mips_wr_index(i);
 		tlb_read();
 
 		tlb_state[cpu].entry[i].entryhi = mips_rd_entryhi();
+		tlb_state[cpu].entry[i].pagemask = mips_rd_pagemask();
 		tlb_state[cpu].entry[i].entrylo0 = mips_rd_entrylo0();
 		tlb_state[cpu].entry[i].entrylo1 = mips_rd_entrylo1();
 	}
@@ -328,8 +341,8 @@ tlb_invalidate_one(unsigned i)
 
 DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 {
-	register_t ehi, elo0, elo1;
-	unsigned i, cpu;
+	register_t ehi, elo0, elo1, epagemask;
+	unsigned i, cpu, ntlb;
 
 	/*
 	 * XXX
@@ -344,12 +357,18 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 		db_printf("Invalid CPU %u\n", cpu);
 		return;
 	}
+	if (num_tlbentries > MIPS_MAX_TLB_ENTRIES) {
+		ntlb = MIPS_MAX_TLB_ENTRIES;
+		db_printf("Warning: Only %d of %d TLB entries saved!\n",
+		    ntlb, num_tlbentries);
+	} else
+		ntlb = num_tlbentries;
 
 	if (cpu == PCPU_GET(cpuid))
 		tlb_save();
 
 	db_printf("Beginning TLB dump for CPU %u...\n", cpu);
-	for (i = 0; i < num_tlbentries; i++) {
+	for (i = 0; i < ntlb; i++) {
 		if (i == tlb_state[cpu].wired) {
 			if (i != 0)
 				db_printf("^^^ WIRED ENTRIES ^^^\n");
@@ -361,11 +380,12 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 		ehi = tlb_state[cpu].entry[i].entryhi;
 		elo0 = tlb_state[cpu].entry[i].entrylo0;
 		elo1 = tlb_state[cpu].entry[i].entrylo1;
+		epagemask = tlb_state[cpu].entry[i].pagemask;
 
 		if (elo0 == 0 && elo1 == 0)
 			continue;
 
-		db_printf("#%u\t=> %jx\n", i, (intmax_t)ehi);
+		db_printf("#%u\t=> %jx (pagemask %jx)\n", i, (intmax_t)ehi, (intmax_t) epagemask);
 		db_printf(" Lo0\t%jx\t(%#jx)\n", (intmax_t)elo0, (intmax_t)TLBLO_PTE_TO_PA(elo0));
 		db_printf(" Lo1\t%jx\t(%#jx)\n", (intmax_t)elo1, (intmax_t)TLBLO_PTE_TO_PA(elo1));
 	}

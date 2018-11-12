@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	umastat
-NO_MAN=
+MAN=
 WARNS?=	3
 
 DPADD=	${LIBKVM}

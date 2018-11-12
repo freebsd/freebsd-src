@@ -79,5 +79,5 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	m = PHYS_TO_VM_PAGE(pa);
 	m->wire_count--;
 	vm_page_free(m);
-	atomic_subtract_int(&cnt.v_wire_count, 1);
+	atomic_subtract_int(&vm_cnt.v_wire_count, 1);
 }

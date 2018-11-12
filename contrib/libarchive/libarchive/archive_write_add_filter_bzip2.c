@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,31 +55,17 @@ archive_write_set_compression_bzip2(struct archive *a)
 }
 #endif
 
-#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR)
-int
-archive_write_add_filter_bzip2(struct archive *a)
-{
-	archive_set_error(a, ARCHIVE_ERRNO_MISC,
-	    "bzip2 compression not supported on this platform");
-	return (ARCHIVE_FATAL);
-}
-#else
-/* Don't compile this if we don't have bzlib. */
-
 struct private_data {
 	int		 compression_level;
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream	 stream;
 	int64_t		 total_in;
 	char		*compressed;
 	size_t		 compressed_buffer_size;
+#else
+	struct archive_write_program_data *pdata;
+#endif
 };
-
-/*
- * Yuck.  bzlib.h is not const-correct, so I need this one bit
- * of ugly hackery to convert a const * pointer to a non-const pointer.
- */
-#define	SET_NEXT_IN(st,src)					\
-	(st)->stream.next_in = (char *)(uintptr_t)(const void *)(src)
 
 static int archive_compressor_bzip2_close(struct archive_write_filter *);
 static int archive_compressor_bzip2_free(struct archive_write_filter *);
@@ -87,8 +74,6 @@ static int archive_compressor_bzip2_options(struct archive_write_filter *,
 		    const char *, const char *);
 static int archive_compressor_bzip2_write(struct archive_write_filter *,
 		    const void *, size_t);
-static int drive_compressor(struct archive_write_filter *,
-		    struct private_data *, int finishing);
 
 /*
  * Add a bzip2 compression filter to this write handle.
@@ -115,10 +100,63 @@ archive_write_add_filter_bzip2(struct archive *_a)
 	f->close = &archive_compressor_bzip2_close;
 	f->free = &archive_compressor_bzip2_free;
 	f->open = &archive_compressor_bzip2_open;
-	f->code = ARCHIVE_COMPRESSION_BZIP2;
+	f->code = ARCHIVE_FILTER_BZIP2;
 	f->name = "bzip2";
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	return (ARCHIVE_OK);
+#else
+	data->pdata = __archive_write_program_allocate();
+	if (data->pdata == NULL) {
+		free(data);
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
+	data->compression_level = 0;
+	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+	    "Using external bzip2 program");
+	return (ARCHIVE_WARN);
+#endif
 }
+
+/*
+ * Set write options.
+ */
+static int
+archive_compressor_bzip2_options(struct archive_write_filter *f,
+    const char *key, const char *value)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	if (strcmp(key, "compression-level") == 0) {
+		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
+		    value[1] != '\0')
+			return (ARCHIVE_WARN);
+		data->compression_level = value[0] - '0';
+		/* Make '0' be a synonym for '1'. */
+		/* This way, bzip2 compressor supports the same 0..9
+		 * range of levels as gzip. */
+		if (data->compression_level < 1)
+			data->compression_level = 1;
+		return (ARCHIVE_OK);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
+}
+
+#if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
+/* Don't compile this if we don't have bzlib. */
+
+/*
+ * Yuck.  bzlib.h is not const-correct, so I need this one bit
+ * of ugly hackery to convert a const * pointer to a non-const pointer.
+ */
+#define	SET_NEXT_IN(st,src)					\
+	(st)->stream.next_in = (char *)(uintptr_t)(const void *)(src)
+static int drive_compressor(struct archive_write_filter *,
+		    struct private_data *, int finishing);
 
 /*
  * Setup callback.
@@ -192,34 +230,6 @@ archive_compressor_bzip2_open(struct archive_write_filter *f)
 
 	return (ARCHIVE_FATAL);
 
-}
-
-/*
- * Set write options.
- */
-static int
-archive_compressor_bzip2_options(struct archive_write_filter *f,
-    const char *key, const char *value)
-{
-	struct private_data *data = (struct private_data *)f->data;
-
-	if (strcmp(key, "compression-level") == 0) {
-		if (value == NULL || !(value[0] >= '0' && value[0] <= '9') ||
-		    value[1] != '\0')
-			return (ARCHIVE_WARN);
-		data->compression_level = value[0] - '0';
-		/* Make '0' be a synonym for '1'. */
-		/* This way, bzip2 compressor supports the same 0..9
-		 * range of levels as gzip. */
-		if (data->compression_level < 1)
-			data->compression_level = 1;
-		return (ARCHIVE_OK);
-	}
-
-	/* Note: The "warn" return is just to inform the options
-	 * supervisor that we didn't handle it.  It will generate
-	 * a suitable error if no one used this option. */
-	return (ARCHIVE_WARN);
 }
 
 /*
@@ -341,6 +351,57 @@ drive_compressor(struct archive_write_filter *f,
 			return (ARCHIVE_FATAL);
 		}
 	}
+}
+
+#else /* HAVE_BZLIB_H && BZ_CONFIG_ERROR */
+
+static int
+archive_compressor_bzip2_open(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
+	struct archive_string as;
+	int r;
+
+	archive_string_init(&as);
+	archive_strcpy(&as, "bzip2");
+
+	/* Specify compression level. */
+	if (data->compression_level > 0) {
+		archive_strcat(&as, " -");
+		archive_strappend_char(&as, '0' + data->compression_level);
+	}
+	f->write = archive_compressor_bzip2_write;
+
+	r = __archive_write_program_open(f, data->pdata, as.s);
+	archive_string_free(&as);
+	return (r);
+}
+
+static int
+archive_compressor_bzip2_write(struct archive_write_filter *f, const void *buff,
+    size_t length)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	return __archive_write_program_write(f, data->pdata, buff, length);
+}
+
+static int
+archive_compressor_bzip2_close(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	return __archive_write_program_close(f, data->pdata);
+}
+
+static int
+archive_compressor_bzip2_free(struct archive_write_filter *f)
+{
+	struct private_data *data = (struct private_data *)f->data;
+
+	__archive_write_program_free(data->pdata);
+	free(data);
+	return (ARCHIVE_OK);
 }
 
 #endif /* HAVE_BZLIB_H && BZ_CONFIG_ERROR */

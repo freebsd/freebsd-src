@@ -2,12 +2,12 @@
 # Copyright (c) David E. O'Brien, 2000-2004, 2006, 2009
 
 CONTRDIR=	${.CURDIR}/../../contrib/file
-.PATH: ${CONTRDIR}
+.PATH: ${CONTRDIR}/src
+.PATH: ${CONTRDIR}/doc
 
 LIB=	magic
 SHLIB_MAJOR=	4
-DPADD=	${LIBZ}
-LDADD=	-lz
+LIBADD=	z
 MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c cdf.c cdf_time.c compress.c \
@@ -18,7 +18,7 @@ INCS=	magic.h
 MAGICPATH?=	/usr/share/misc
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
-CFLAGS+= -I${.CURDIR} -I${CONTRDIR}
+CFLAGS+= -I${.CURDIR} -I${CONTRDIR}/src
 
 WARNS?=		3
 
@@ -27,19 +27,19 @@ CLEANFILES+=	magic magic.mgc
 FILES=		magic magic.mgc
 FILESDIR=	${MAGICPATH}
 
-MAGFILES=	${CONTRDIR}/Header\
-		${CONTRDIR}/Localstuff\
-		${CONTRDIR}/Magdir/[a-z]*
+MAGFILES=	${CONTRDIR}/magic/Header \
+		${CONTRDIR}/magic/Localstuff \
+		${CONTRDIR}/magic/Magdir/[a-z]*
 
 magic: ${MAGFILES}
-	cat ${.ALLSRC} > ${.TARGET}
+	cat ${.ALLSRC:O} > ${.TARGET}
 
 magic.mgc: mkmagic magic
 	./mkmagic magic
 
 CLEANFILES+=	mkmagic
 build-tools: mkmagic
-mkmagic: apprentice.c encoding.c funcs.c magic.c print.c
+mkmagic: apprentice.c cdf_time.c encoding.c funcs.c magic.c print.c
 	${CC} ${CFLAGS} -DCOMPILE_ONLY ${LDFLAGS} -o ${.TARGET} ${.ALLSRC} \
 	    ${LDADD}
 

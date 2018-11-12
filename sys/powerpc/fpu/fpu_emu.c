@@ -326,14 +326,16 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				/* Store as integer */
 				ra = instr.i_x.i_ra;
 				rb = instr.i_x.i_rb;
-				DPRINTF(FPE_INSN, ("reg %d has %x reg %d has %x\n",
-					ra, tf->fixreg[ra], rb, tf->fixreg[rb]));
+				DPRINTF(FPE_INSN,
+					("reg %d has %jx reg %d has %jx\n",
+					ra, (uintmax_t)tf->fixreg[ra], rb,
+					(uintmax_t)tf->fixreg[rb]));
 
 				addr = tf->fixreg[rb];
 				if (ra != 0)
 					addr += tf->fixreg[ra];
 				rt = instr.i_x.i_rt;
-				a = (int *)&fs->fpreg[rt];
+				a = (int *)&fs->fpreg[rt].fpr;
 				DPRINTF(FPE_INSN,
 					("fpu_execute: Store INT %x at %p\n",
 						a[1], (void *)addr));
@@ -356,8 +358,9 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			/* calculate EA of load/store */
 			ra = instr.i_x.i_ra;
 			rb = instr.i_x.i_rb;
-			DPRINTF(FPE_INSN, ("reg %d has %x reg %d has %x\n",
-				ra, tf->fixreg[ra], rb, tf->fixreg[rb]));
+			DPRINTF(FPE_INSN, ("reg %d has %jx reg %d has %jx\n",
+				ra, (uintmax_t)tf->fixreg[ra], rb,
+				(uintmax_t)tf->fixreg[rb]));
 			addr = tf->fixreg[rb];
 			if (ra != 0)
 				addr += tf->fixreg[ra];
@@ -373,8 +376,9 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			/* calculate EA of load/store */
 			ra = instr.i_d.i_ra;
 			addr = instr.i_d.i_d;
-			DPRINTF(FPE_INSN, ("reg %d has %x displ %x\n",
-				ra, tf->fixreg[ra], addr));
+			DPRINTF(FPE_INSN, ("reg %d has %jx displ %jx\n",
+				ra, (uintmax_t)tf->fixreg[ra],
+				(uintmax_t)addr));
 			if (ra != 0)
 				addr += tf->fixreg[ra];
 			rt = instr.i_d.i_rt;
@@ -398,7 +402,8 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				DPRINTF(FPE_INSN, 
 					("fpu_execute: Store DBL at %p\n",
 						(void *)addr));
-				if (copyout(&fs->fpreg[rt], (void *)addr, size))
+				if (copyout(&fs->fpreg[rt].fpr, (void *)addr,
+				    size))
 					return (FAULT);
 			}
 		} else {
@@ -406,12 +411,13 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			FPU_EMU_EVCNT_INCR(fpload);
 			DPRINTF(FPE_INSN, ("fpu_execute: Load from %p\n",
 				(void *)addr));
-			if (copyin((const void *)addr, &fs->fpreg[rt], size))
+			if (copyin((const void *)addr, &fs->fpreg[rt].fpr,
+			    size))
 				return (FAULT);
 			if (type != FTYPE_DBL) {
 				fpu_explode(fe, fp = &fe->fe_f1, type, rt);
 				fpu_implode(fe, fp, FTYPE_DBL, 
-					(u_int *)&fs->fpreg[rt]);
+					(u_int *)&fs->fpreg[rt].fpr);
 			}
 		}
 		if (update) 
@@ -420,7 +426,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 		return (0);
 #ifdef notyet
 	} else if (instr.i_any.i_opcd == OPC_load_st_62) {
-		/* These are 64-bit extenstions */
+		/* These are 64-bit extensions */
 		return (NOTFPU);
 #endif
 	} else if (instr.i_any.i_opcd == OPC_sp_fp_59 ||
@@ -464,7 +470,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				DPRINTF(FPE_INSN, ("fpu_execute: FRSP\n"));
 				fpu_explode(fe, fp = &fe->fe_f1, FTYPE_DBL, rb);
 				fpu_implode(fe, fp, FTYPE_SNG, 
-					(u_int *)&fs->fpreg[rt]);
+					(u_int *)&fs->fpreg[rt].fpr);
 				fpu_explode(fe, fp = &fe->fe_f1, FTYPE_SNG, rt);
 				type = FTYPE_DBL;
 				break;
@@ -497,10 +503,10 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			case	OPC63_FNEG:
 				FPU_EMU_EVCNT_INCR(fnegabs);
 				DPRINTF(FPE_INSN, ("fpu_execute: FNEGABS\n"));
-				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
+				memcpy(&fs->fpreg[rt].fpr, &fs->fpreg[rb].fpr,
 					sizeof(double));
-				a = (int *)&fs->fpreg[rt];
-				*a ^= (1 << 31);
+				a = (int *)&fs->fpreg[rt].fpr;
+				*a ^= (1U << 31);
 				break;
 			case	OPC63_MCRFS:
 				FPU_EMU_EVCNT_INCR(mcrfs);
@@ -527,7 +533,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			case	OPC63_FMR:
 				FPU_EMU_EVCNT_INCR(fmr);
 				DPRINTF(FPE_INSN, ("fpu_execute: FMR\n"));
-				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
+				memcpy(&fs->fpreg[rt].fpr, &fs->fpreg[rb].fpr,
 					sizeof(double));
 				break;
 			case	OPC63_MTFSFI:
@@ -544,23 +550,23 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			case	OPC63_FNABS:
 				FPU_EMU_EVCNT_INCR(fnabs);
 				DPRINTF(FPE_INSN, ("fpu_execute: FABS\n"));
-				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
+				memcpy(&fs->fpreg[rt].fpr, &fs->fpreg[rb].fpr,
 					sizeof(double));
-				a = (int *)&fs->fpreg[rt];
-				*a |= (1 << 31);
+				a = (int *)&fs->fpreg[rt].fpr;
+				*a |= (1U << 31);
 				break;
 			case	OPC63_FABS:
 				FPU_EMU_EVCNT_INCR(fabs);
 				DPRINTF(FPE_INSN, ("fpu_execute: FABS\n"));
-				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
+				memcpy(&fs->fpreg[rt].fpr, &fs->fpreg[rb].fpr,
 					sizeof(double));
-				a = (int *)&fs->fpreg[rt];
-				*a &= ~(1 << 31);
+				a = (int *)&fs->fpreg[rt].fpr;
+				*a &= ~(1U << 31);
 				break;
 			case	OPC63_MFFS:
 				FPU_EMU_EVCNT_INCR(mffs);
 				DPRINTF(FPE_INSN, ("fpu_execute: MFFS\n"));
-				memcpy(&fs->fpreg[rt], &fs->fpscr,
+				memcpy(&fs->fpreg[rt].fpr, &fs->fpscr,
 					sizeof(fs->fpscr));
 				break;
 			case	OPC63_MTFSF:
@@ -575,7 +581,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 						if (rt & (1<<ra))
 							mask |= (0xf<<(4*ra));
 				}
-				a = (int *)&fs->fpreg[rt];
+				a = (int *)&fs->fpreg[rt].fpr;
 				fe->fe_cx = mask & a[1];
 				fe->fe_fpscr = (fe->fe_fpscr&~mask) | 
 					(fe->fe_cx);
@@ -606,9 +612,11 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			rb = instr.i_a.i_frb;
 			rc = instr.i_a.i_frc;
 
-			type = FTYPE_SNG;
-			if (instr.i_any.i_opcd & 0x4)
-				type = FTYPE_DBL;
+			/*
+			 * All arithmetic operations work on registers, which
+			 * are stored as doubles.
+			 */
+			type = FTYPE_DBL;
 			switch ((unsigned int)instr.i_a.i_xo) {
 			case	OPC59_FDIVS:
 				FPU_EMU_EVCNT_INCR(fdiv);
@@ -640,12 +648,12 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 			case	OPC63M_FSEL:
 				FPU_EMU_EVCNT_INCR(fsel);
 				DPRINTF(FPE_INSN, ("fpu_execute: FSEL\n"));
-				a = (int *)&fe->fe_fpstate->fpreg[ra];
+				a = (int *)&fe->fe_fpstate->fpreg[ra].fpr;
 				if ((*a & 0x80000000) && (*a & 0x7fffffff)) 
 					/* fra < 0 */
 					rc = rb;
 				DPRINTF(FPE_INSN, ("f%d => f%d\n", rc, rt));
-				memcpy(&fs->fpreg[rt], &fs->fpreg[rc],
+				memcpy(&fs->fpreg[rt].fpr, &fs->fpreg[rc].fpr,
 					sizeof(double));
 				break;
 			case	OPC59_FRES:
@@ -654,7 +662,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				fpu_explode(fe, &fe->fe_f1, type, rb);
 				fp = fpu_sqrt(fe);
 				/* now we've gotta overwrite the dest reg */
-				*((int *)&fe->fe_fpstate->fpreg[rt]) = 1;
+				*((int *)&fe->fe_fpstate->fpreg[rt].fpr) = 1;
 				fpu_explode(fe, &fe->fe_f1, FTYPE_INT, rt);
 				fpu_div(fe);
 				break;
@@ -673,7 +681,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				fp = fpu_sqrt(fe);
 				fe->fe_f2 = *fp;
 				/* now we've gotta overwrite the dest reg */
-				*((int *)&fe->fe_fpstate->fpreg[rt]) = 1;
+				*((int *)&fe->fe_fpstate->fpreg[rt].fpr) = 1;
 				fpu_explode(fe, &fe->fe_f1, FTYPE_INT, rt);
 				fpu_div(fe);
 				break;
@@ -725,6 +733,13 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				return (NOTFPU);
 				break;
 			}
+
+			/* If the instruction was single precision, round */
+			if (!(instr.i_any.i_opcd & 0x4)) {
+				fpu_implode(fe, fp, FTYPE_SNG, 
+					(u_int *)&fs->fpreg[rt].fpr);
+				fpu_explode(fe, fp = &fe->fe_f1, FTYPE_SNG, rt);
+			}
 		}
 	} else {
 		return (NOTFPU);
@@ -737,7 +752,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 	 * Otherwise set new current exceptions and accrue.
 	 */
 	if (fp)
-		fpu_implode(fe, fp, type, (u_int *)&fs->fpreg[rt]);
+		fpu_implode(fe, fp, type, (u_int *)&fs->fpreg[rt].fpr);
 	cx = fe->fe_cx;
 	fsr = fe->fe_fpscr;
 	if (cx != 0) {
@@ -775,7 +790,8 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 		/* Move fpu condition codes to cr[1] */
 		tf->cr &= ~(0xf0000000>>bf);
 		tf->cr |= (cond>>bf);
-		DPRINTF(FPE_INSN, ("fpu_execute: cr[%d] (cr=%x) <= %x\n", bf/4, tf->cr, cond));
+		DPRINTF(FPE_INSN, ("fpu_execute: cr[%d] (cr=%jx) <= %x\n",
+			bf/4, (uintmax_t)tf->cr, cond));
 	}
 
 	((int *)&fs->fpscr)[1] = fsr;

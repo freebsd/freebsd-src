@@ -15,6 +15,7 @@ CFLAGS+= -I${.CURDIR}/../../../cddl/compat/opensolaris/lib/libumem
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libnvpair
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libuutil/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs/common
+CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzfs_core/common
 CFLAGS+= -I${.CURDIR}/../../../cddl/contrib/opensolaris/lib/libzpool/common
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common
@@ -27,7 +28,8 @@ DPADD=	${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBPTHREAD} ${LIBUMEM} \
 	${LIBUUTIL} ${LIBZFS_CORE} ${LIBZFS} ${LIBZPOOL}
 LDADD=	-lgeom -lm -lnvpair -lpthread -lumem -luutil -lzfs_core -lzfs -lzpool
 
-CFLAGS+=	-DDEBUG=1
-#DEBUG_FLAGS+=	-g
+# Since there are many asserts in this program, it makes no sense to compile
+# it without debugging.
+CFLAGS+=	-g -DDEBUG=1
 
 .include <bsd.prog.mk>

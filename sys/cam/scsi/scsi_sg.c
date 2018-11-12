@@ -76,8 +76,7 @@ typedef enum {
 } sg_rdwr_state;
 
 typedef enum {
-	SG_CCB_RDWR_IO,
-	SG_CCB_WAITING
+	SG_CCB_RDWR_IO
 } sg_ccb_types;
 
 #define ccb_type	ppriv_field0
@@ -119,7 +118,6 @@ static periph_init_t	sginit;
 static periph_ctor_t	sgregister;
 static periph_oninv_t	sgoninvalidate;
 static periph_dtor_t	sgcleanup;
-static periph_start_t	sgstart;
 static void		sgasync(void *callback_arg, uint32_t code,
 				struct cam_path *path, void *arg);
 static void		sgdone(struct cam_periph *periph, union ccb *done_ccb);
@@ -172,19 +170,18 @@ sginit(void)
 static void
 sgdevgonecb(void *arg)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct sg_softc *softc;
+	struct mtx *mtx;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
-	softc = (struct sg_softc *)periph->softc;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
+	softc = (struct sg_softc *)periph->softc;
 	KASSERT(softc->open_count >= 0, ("Negative open count %d",
 		softc->open_count));
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -202,13 +199,13 @@ sgdevgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 
@@ -238,9 +235,6 @@ sgoninvalidate(struct cam_periph *periph)
 	 *     with XPT_ABORT_CCB.
 	 */
 
-	if (bootverbose) {
-		xpt_print(periph->path, "lost device\n");
-	}
 }
 
 static void
@@ -249,8 +243,6 @@ sgcleanup(struct cam_periph *periph)
 	struct sg_softc *softc;
 
 	softc = (struct sg_softc *)periph->softc;
-	if (bootverbose)
-		xpt_print(periph->path, "removing device entry\n");
 
 	devstat_remove_entry(softc->device_stats);
 
@@ -282,8 +274,8 @@ sgasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * start the probe process.
 		 */
 		status = cam_periph_alloc(sgregister, sgoninvalidate,
-					  sgcleanup, sgstart, "sg",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  sgcleanup, NULL, "sg",
+					  CAM_PERIPH_BIO, path,
 					  sgasync, AC_FOUND_DEVICE, cgd);
 		if ((status != CAM_REQ_CMP) && (status != CAM_REQ_INPROG)) {
 			const struct cam_status_entry *entry;
@@ -388,24 +380,6 @@ sgregister(struct cam_periph *periph, void *arg)
 }
 
 static void
-sgstart(struct cam_periph *periph, union ccb *start_ccb)
-{
-	struct sg_softc *softc;
-
-	softc = (struct sg_softc *)periph->softc;
-
-	switch (softc->state) {
-	case SG_STATE_NORMAL:
-		start_ccb->ccb_h.ccb_type = SG_CCB_WAITING;
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-		break;
-	}
-}
-
-static void
 sgdone(struct cam_periph *periph, union ccb *done_ccb)
 {
 	struct sg_softc *softc;
@@ -414,10 +388,6 @@ sgdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct sg_softc *)periph->softc;
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_type) {
-	case SG_CCB_WAITING:
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
 	case SG_CCB_RDWR_IO:
 	{
 		struct sg_rdwr *rdwr;
@@ -485,25 +455,23 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct cam_sim    *sim;
 	struct cam_periph *periph;
 	struct sg_softc   *softc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	softc = periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	softc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -514,7 +482,7 @@ sgclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return (0);
 }
@@ -526,7 +494,7 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	struct ccb_scsiio *csio;
 	struct cam_periph *periph;
 	struct sg_softc *softc;
-	struct sg_io_hdr req;
+	struct sg_io_hdr *req;
 	int dir, error;
 
 	periph = (struct cam_periph *)dev->si_drv1;
@@ -539,40 +507,22 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	error = 0;
 
 	switch (cmd) {
-	case LINUX_SCSI_GET_BUS_NUMBER: {
-		int busno;
-
-		busno = xpt_path_path_id(periph->path);
-		error = copyout(&busno, arg, sizeof(busno));
-		break;
-	}
-	case LINUX_SCSI_GET_IDLUN: {
-		struct scsi_idlun idlun;
-		struct cam_sim *sim;
-
-		idlun.dev_id = xpt_path_target_id(periph->path);
-		sim = xpt_path_sim(periph->path);
-		idlun.host_unique_id = sim->unit_number;
-		error = copyout(&idlun, arg, sizeof(idlun));
-		break;
-	}
 	case SG_GET_VERSION_NUM:
-	case LINUX_SG_GET_VERSION_NUM:
-		error = copyout(&sg_version, arg, sizeof(sg_version));
-		break;
-	case SG_SET_TIMEOUT:
-	case LINUX_SG_SET_TIMEOUT: {
-		u_int user_timeout;
+	{
+		int *version = (int *)arg;
 
-		error = copyin(arg, &user_timeout, sizeof(u_int));
-		if (error == 0) {
-			softc->sg_user_timeout = user_timeout;
-			softc->sg_timeout = user_timeout / SG_DEFAULT_HZ * hz;
-		}
+		*version = sg_version;
+		break;
+	}
+	case SG_SET_TIMEOUT:
+	{
+		u_int user_timeout = *(u_int *)arg;
+
+		softc->sg_user_timeout = user_timeout;
+		softc->sg_timeout = user_timeout / SG_DEFAULT_HZ * hz;
 		break;
 	}
 	case SG_GET_TIMEOUT:
-	case LINUX_SG_GET_TIMEOUT:
 		/*
 		 * The value is returned directly to the syscall.
 		 */
@@ -580,17 +530,14 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		error = 0;
 		break;
 	case SG_IO:
-	case LINUX_SG_IO:
-		error = copyin(arg, &req, sizeof(req));
-		if (error)
-			break;
+		req = (struct sg_io_hdr *)arg;
 
-		if (req.cmd_len > IOCDBLEN) {
+		if (req->cmd_len > IOCDBLEN) {
 			error = EINVAL;
 			break;
 		}
 
-		if (req.iovec_count != 0) {
+		if (req->iovec_count != 0) {
 			error = EOPNOTSUPP;
 			break;
 		}
@@ -598,14 +545,14 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		csio = &ccb->csio;
 
-		error = copyin(req.cmdp, &csio->cdb_io.cdb_bytes,
-		    req.cmd_len);
+		error = copyin(req->cmdp, &csio->cdb_io.cdb_bytes,
+		    req->cmd_len);
 		if (error) {
 			xpt_release_ccb(ccb);
 			break;
 		}
 
-		switch(req.dxfer_direction) {
+		switch(req->dxfer_direction) {
 		case SG_DXFER_TO_DEV:
 			dir = CAM_DIR_OUT;
 			break;
@@ -626,62 +573,64 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			      sgdone,
 			      dir|CAM_DEV_QFRZDIS,
 			      MSG_SIMPLE_Q_TAG,
-			      req.dxferp,
-			      req.dxfer_len,
-			      req.mx_sb_len,
-			      req.cmd_len,
-			      req.timeout);
+			      req->dxferp,
+			      req->dxfer_len,
+			      req->mx_sb_len,
+			      req->cmd_len,
+			      req->timeout);
 
 		error = sgsendccb(periph, ccb);
 		if (error) {
-			req.host_status = DID_ERROR;
-			req.driver_status = DRIVER_INVALID;
+			req->host_status = DID_ERROR;
+			req->driver_status = DRIVER_INVALID;
 			xpt_release_ccb(ccb);
 			break;
 		}
 
-		req.status = csio->scsi_status;
-		req.masked_status = (csio->scsi_status >> 1) & 0x7f;
-		sg_scsiio_status(csio, &req.host_status, &req.driver_status);
-		req.resid = csio->resid;
-		req.duration = csio->ccb_h.timeout;
-		req.info = 0;
+		req->status = csio->scsi_status;
+		req->masked_status = (csio->scsi_status >> 1) & 0x7f;
+		sg_scsiio_status(csio, &req->host_status, &req->driver_status);
+		req->resid = csio->resid;
+		req->duration = csio->ccb_h.timeout;
+		req->info = 0;
 
-		error = copyout(&req, arg, sizeof(req));
-		if ((error == 0) && (csio->ccb_h.status & CAM_AUTOSNS_VALID)
-		    && (req.sbp != NULL)) {
-			req.sb_len_wr = req.mx_sb_len - csio->sense_resid;
-			error = copyout(&csio->sense_data, req.sbp,
-					req.sb_len_wr);
+		if ((csio->ccb_h.status & CAM_AUTOSNS_VALID)
+		    && (req->sbp != NULL)) {
+			req->sb_len_wr = req->mx_sb_len - csio->sense_resid;
+			error = copyout(&csio->sense_data, req->sbp,
+					req->sb_len_wr);
 		}
 
 		xpt_release_ccb(ccb);
 		break;
 		
 	case SG_GET_RESERVED_SIZE:
-	case LINUX_SG_GET_RESERVED_SIZE: {
-		int size = 32768;
-
-		error = copyout(&size, arg, sizeof(size));
+	{
+		int *size = (int *)arg;
+		*size = DFLTPHYS;
 		break;
 	}
 
 	case SG_GET_SCSI_ID:
-	case LINUX_SG_GET_SCSI_ID:
 	{
-		struct sg_scsi_id id;
+		struct sg_scsi_id *id = (struct sg_scsi_id *)arg;
 
-		id.host_no = cam_sim_path(xpt_path_sim(periph->path));
-		id.channel = xpt_path_path_id(periph->path);
-		id.scsi_id = xpt_path_target_id(periph->path);
-		id.lun = xpt_path_lun_id(periph->path);
-		id.scsi_type = softc->pd_type;
-		id.h_cmd_per_lun = 1;
-		id.d_queue_depth = 1;
-		id.unused[0] = 0;
-		id.unused[1] = 0;
+		id->host_no = cam_sim_path(xpt_path_sim(periph->path));
+		id->channel = xpt_path_path_id(periph->path);
+		id->scsi_id = xpt_path_target_id(periph->path);
+		id->lun = xpt_path_lun_id(periph->path);
+		id->scsi_type = softc->pd_type;
+		id->h_cmd_per_lun = 1;
+		id->d_queue_depth = 1;
+		id->unused[0] = 0;
+		id->unused[1] = 0;
+		break;
+	}
 
-		error = copyout(&id, arg, sizeof(id));
+	case SG_GET_SG_TABLESIZE:
+	{
+		int *size = (int *)arg;
+		*size = 0;
 		break;
 	}
 
@@ -696,7 +645,6 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	case SG_GET_ACCESS_COUNT:
 	case SG_SET_FORCE_LOW_DMA:
 	case SG_GET_LOW_DMA:
-	case SG_GET_SG_TABLESIZE:
 	case SG_SET_FORCE_PACK_ID:
 	case SG_GET_PACK_ID:
 	case SG_SET_RESERVED_SIZE:
@@ -704,25 +652,6 @@ sgioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 	case SG_SET_COMMAND_Q:
 	case SG_SET_DEBUG:
 	case SG_NEXT_CMD_LEN:
-	case LINUX_SG_EMULATED_HOST:
-	case LINUX_SG_SET_TRANSFORM:
-	case LINUX_SG_GET_TRANSFORM:
-	case LINUX_SG_GET_NUM_WAITING:
-	case LINUX_SG_SCSI_RESET:
-	case LINUX_SG_GET_REQUEST_TABLE:
-	case LINUX_SG_SET_KEEP_ORPHAN:
-	case LINUX_SG_GET_KEEP_ORPHAN:
-	case LINUX_SG_GET_ACCESS_COUNT:
-	case LINUX_SG_SET_FORCE_LOW_DMA:
-	case LINUX_SG_GET_LOW_DMA:
-	case LINUX_SG_GET_SG_TABLESIZE:
-	case LINUX_SG_SET_FORCE_PACK_ID:
-	case LINUX_SG_GET_PACK_ID:
-	case LINUX_SG_SET_RESERVED_SIZE:
-	case LINUX_SG_GET_COMMAND_Q:
-	case LINUX_SG_SET_COMMAND_Q:
-	case LINUX_SG_SET_DEBUG:
-	case LINUX_SG_NEXT_CMD_LEN:
 	default:
 #ifdef CAMDEBUG
 		printf("sgioctl: rejecting cmd 0x%lx\n", cmd);
@@ -760,6 +689,12 @@ sgwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	error = uiomove(hdr, sizeof(*hdr), uio);
 	if (error)
 		goto out_hdr;
+
+	/* XXX: We don't support SG 3.x read/write API. */
+	if (hdr->reply_len < 0) {
+		error = ENODEV;
+		goto out_hdr;
+	}
 
 	ccb = xpt_alloc_ccb();
 	if (ccb == NULL) {
@@ -884,7 +819,7 @@ search:
 			break;
 	}
 	if ((rdwr == NULL) || (rdwr->state != SG_RDWR_DONE)) {
-		if (msleep(rdwr, periph->sim->mtx, PCATCH, "sgread", 0) == ERESTART)
+		if (cam_periph_sleep(periph, rdwr, PCATCH, "sgread", 0) == ERESTART)
 			return (EAGAIN);
 		goto search;
 	}
@@ -946,25 +881,23 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 {
 	struct sg_softc *softc;
 	struct cam_periph_map_info mapinfo;
-	int error, need_unmap = 0;
+	int error;
 
 	softc = periph->softc;
-	if (((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
-	    && (ccb->csio.data_ptr != NULL)) {
-		bzero(&mapinfo, sizeof(mapinfo));
+	bzero(&mapinfo, sizeof(mapinfo));
 
-		/*
-		 * cam_periph_mapmem calls into proc and vm functions that can
-		 * sleep as well as trigger I/O, so we can't hold the lock.
-		 * Dropping it here is reasonably safe.
-		 */
-		cam_periph_unlock(periph);
-		error = cam_periph_mapmem(ccb, &mapinfo);
-		cam_periph_lock(periph);
-		if (error)
-			return (error);
-		need_unmap = 1;
-	}
+	/*
+	 * cam_periph_mapmem calls into proc and vm functions that can
+	 * sleep as well as trigger I/O, so we can't hold the lock.
+	 * Dropping it here is reasonably safe.
+	 * The only CCB opcode that is possible here is XPT_SCSI_IO, no
+	 * need for additional checks.
+	 */
+	cam_periph_unlock(periph);
+	error = cam_periph_mapmem(ccb, &mapinfo);
+	cam_periph_lock(periph);
+	if (error)
+		return (error);
 
 	error = cam_periph_runccb(ccb,
 				  sgerror,
@@ -972,8 +905,7 @@ sgsendccb(struct cam_periph *periph, union ccb *ccb)
 				  SF_RETRY_UA,
 				  softc->device_stats);
 
-	if (need_unmap)
-		cam_periph_unmapmem(ccb, &mapinfo);
+	cam_periph_unmapmem(ccb, &mapinfo);
 
 	return (error);
 }

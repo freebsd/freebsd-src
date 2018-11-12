@@ -1,4 +1,4 @@
-//===--- TransAPIUses.cpp - Tranformations to ARC mode --------------------===//
+//===--- TransAPIUses.cpp - Transformations to ARC mode -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -66,8 +66,7 @@ public:
         selName = "getArgument";
       else if (E->getSelector() == setArgumentSel)
         selName = "setArgument";
-
-      if (selName.empty())
+      else
         return true;
 
       Expr *parm = E->getArg(0)->IgnoreParenCasts();
@@ -75,13 +74,12 @@ public:
       if (pointee.isNull())
         return true;
 
-      if (pointee.getObjCLifetime() > Qualifiers::OCL_ExplicitNone) {
-        std::string err = "NSInvocation's ";
-        err += selName;
-        err += " is not safe to be used with an object with ownership other "
-            "than __unsafe_unretained";
-        Pass.TA.reportError(err, parm->getLocStart(), parm->getSourceRange());
-      }
+      if (pointee.getObjCLifetime() > Qualifiers::OCL_ExplicitNone)
+        Pass.TA.report(parm->getLocStart(),
+                       diag::err_arcmt_nsinvocation_ownership,
+                       parm->getSourceRange())
+            << selName;
+
       return true;
     }
 
@@ -91,12 +89,12 @@ public:
         E->getSelector() == zoneSel &&
         Pass.TA.hasDiagnostic(diag::err_unavailable,
                               diag::err_unavailable_message,
-                              E->getInstanceReceiver()->getExprLoc())) {
+                              E->getSelectorLoc(0))) {
       // Calling -zone is meaningless in ARC, change it to nil.
       Transaction Trans(Pass.TA);
       Pass.TA.clearDiagnostic(diag::err_unavailable,
                               diag::err_unavailable_message,
-                              E->getInstanceReceiver()->getExprLoc());
+                              E->getSelectorLoc(0));
       Pass.TA.replace(E->getSourceRange(), getNilString(Pass.Ctx));
     }
     return true;

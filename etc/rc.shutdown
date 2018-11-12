@@ -81,7 +81,12 @@ fi
 # and perform the operation
 #
 rcorder_opts="-k shutdown"
-[ `/sbin/sysctl -n security.jail.jailed` -eq 1 ] && rcorder_opts="$rcorder_opts -s nojail"
+if [ `/sbin/sysctl -n security.jail.jailed` -eq 1 ]; then
+	rcorder_opts="$rcorder_opts -s nojail"
+	if [ `/sbin/sysctl -n security.jail.vnet` -ne 1 ]; then
+		rcorder_opts="$rcorder_opts -s nojailvnet"
+	fi
+fi
 
 case ${local_startup} in
 [Nn][Oo] | '') ;;

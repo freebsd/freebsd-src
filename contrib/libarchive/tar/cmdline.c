@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
  * Short options for tar.  Please keep this sorted.
  */
 static const char *short_options
-	= "Bb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
+	= "aBb:C:cf:HhI:JjkLlmnOoPpqrSs:T:tUuvW:wX:xyZz";
 
 /*
  * Long options for tar.  Please keep this list sorted.
@@ -65,6 +65,8 @@ static const struct bsdtar_option {
 } tar_longopts[] = {
 	{ "absolute-paths",       0, 'P' },
 	{ "append",               0, 'r' },
+	{ "auto-compress",        0, 'a' },
+	{ "b64encode",            0, OPTION_B64ENCODE },
 	{ "block-size",           1, 'b' },
 	{ "bunzip2",              0, 'j' },
 	{ "bzip",                 0, 'j' },
@@ -87,17 +89,21 @@ static const struct bsdtar_option {
 	{ "format",               1, OPTION_FORMAT },
 	{ "gid",		  1, OPTION_GID },
 	{ "gname",		  1, OPTION_GNAME },
+	{ "grzip",                0, OPTION_GRZIP },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },
+	{ "hfsCompression",       0, OPTION_HFS_COMPRESSION },
 	{ "include",              1, OPTION_INCLUDE },
 	{ "insecure",             0, 'P' },
 	{ "interactive",          0, 'w' },
 	{ "keep-newer-files",     0, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
+	{ "lrzip",                0, OPTION_LRZIP },
 	{ "lzip",                 0, OPTION_LZIP },
 	{ "lzma",                 0, OPTION_LZMA },
+	{ "lzop",                 0, OPTION_LZOP },
 	{ "modification-time",    0, 'm' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
 	{ "newer-ctime",	  1, OPTION_NEWER_CTIME },
@@ -109,9 +115,16 @@ static const struct bsdtar_option {
 	{ "no-same-owner",	  0, OPTION_NO_SAME_OWNER },
 	{ "no-same-permissions",  0, OPTION_NO_SAME_PERMISSIONS },
 	{ "nodump",               0, OPTION_NODUMP },
+	{ "nopreserveHFSCompression",0, OPTION_NOPRESERVE_HFS_COMPRESSION },
 	{ "norecurse",            0, 'n' },
 	{ "null",		  0, OPTION_NULL },
 	{ "numeric-owner",	  0, OPTION_NUMERIC_OWNER },
+	{ "older",		  1, OPTION_OLDER_CTIME },
+	{ "older-ctime",	  1, OPTION_OLDER_CTIME },
+	{ "older-ctime-than",	  1, OPTION_OLDER_CTIME_THAN },
+	{ "older-mtime",	  1, OPTION_OLDER_MTIME },
+	{ "older-mtime-than",	  1, OPTION_OLDER_MTIME_THAN },
+	{ "older-than",		  1, OPTION_OLDER_CTIME_THAN },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
 	{ "options",              1, OPTION_OPTIONS },
 	{ "posix",		  0, OPTION_POSIX },
@@ -129,6 +142,7 @@ static const struct bsdtar_option {
 	{ "unlink-first",	  0, 'U' },
 	{ "update",               0, 'u' },
 	{ "use-compress-program", 1, OPTION_USE_COMPRESS_PROGRAM },
+	{ "uuencode",             0, OPTION_UUENCODE },
 	{ "verbose",              0, 'v' },
 	{ "version",              0, OPTION_VERSION },
 	{ "xz",                   0, 'J' },

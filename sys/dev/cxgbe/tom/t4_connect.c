@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef TCP_OFFLOAD
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/module.h>
@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_regs_values.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -114,8 +115,8 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_act_establish *cpl = (const void *)(rss + 1);
-	unsigned int tid = GET_TID(cpl);
-	unsigned int atid = G_TID_TID(ntohl(cpl->tos_atid));
+	u_int tid = GET_TID(cpl);
+	u_int atid = G_TID_TID(ntohl(cpl->tos_atid));
 	struct toepcb *toep = lookup_atid(sc, atid);
 	struct inpcb *inp = toep->inp;
 
@@ -177,17 +178,34 @@ act_open_rpl_status_to_errno(int status)
 	}
 }
 
+void
+act_open_failure_cleanup(struct adapter *sc, u_int atid, u_int status)
+{
+	struct toepcb *toep = lookup_atid(sc, atid);
+	struct inpcb *inp = toep->inp;
+	struct toedev *tod = &toep->td->tod;
+
+	free_atid(sc, atid);
+	toep->tid = -1;
+
+	if (status != EAGAIN)
+		INP_INFO_WLOCK(&V_tcbinfo);
+	INP_WLOCK(inp);
+	toe_connect_failed(tod, inp, status);
+	final_cpl_received(toep);	/* unlocks inp */
+	if (status != EAGAIN)
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+}
+
 static int
 do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
     struct mbuf *m)
 {
 	struct adapter *sc = iq->adapter;
 	const struct cpl_act_open_rpl *cpl = (const void *)(rss + 1);
-	unsigned int atid = G_TID_TID(G_AOPEN_ATID(be32toh(cpl->atid_status)));
-	unsigned int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
+	u_int atid = G_TID_TID(G_AOPEN_ATID(be32toh(cpl->atid_status)));
+	u_int status = G_AOPEN_STATUS(be32toh(cpl->atid_status));
 	struct toepcb *toep = lookup_atid(sc, atid);
-	struct inpcb *inp = toep->inp;
-	struct toedev *tod = &toep->td->tod;
 	int rc;
 
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
@@ -199,20 +217,11 @@ do_act_open_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	if (negative_advice(status))
 		return (0);
 
-	free_atid(sc, atid);
-	toep->tid = -1;
-
 	if (status && act_open_has_tid(status))
 		release_tid(sc, GET_TID(cpl), toep->ctrlq);
 
 	rc = act_open_rpl_status_to_errno(status);
-	if (rc != EAGAIN)
-		INP_INFO_WLOCK(&V_tcbinfo);
-	INP_WLOCK(inp);
-	toe_connect_failed(tod, inp, rc);
-	final_cpl_received(toep);	/* unlocks inp */
-	if (rc != EAGAIN)
-		INP_INFO_WUNLOCK(&V_tcbinfo);
+	act_open_failure_cleanup(sc, atid, rc);
 
 	return (0);
 }
@@ -226,7 +235,10 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	struct tcpcb *tp = so_sototcpcb(so);
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
-	uint32_t opt2 = 0;
+	uint32_t opt2;
+
+	opt2 = V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]) |
+	    F_RSS_QUEUE_VALID | V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
 
 	if (tp->t_flags & TF_SACK_PERMIT)
 		opt2 |= F_SACK_EN;
@@ -240,9 +252,15 @@ calc_opt2a(struct socket *so, struct toepcb *toep)
 	if (V_tcp_do_ecn)
 		opt2 |= F_CCTRL_ECN;
 
-	opt2 |= V_TX_QUEUE(sc->params.tp.tx_modq[pi->tx_chan]);
-	opt2 |= F_RX_COALESCE_VALID | V_RX_COALESCE(M_RX_COALESCE);
-	opt2 |= F_RSS_QUEUE_VALID | V_RSS_QUEUE(toep->ofld_rxq->iq.abs_id);
+	/* RX_COALESCE is always a valid value (M_RX_COALESCE). */
+	if (is_t4(sc))
+		opt2 |= F_RX_COALESCE_VALID;
+	else {
+		opt2 |= F_T5_OPT_2_VALID;
+		opt2 |= F_CONG_CNTRL_VALID; /* OPT_2_ISS really, for T5 */
+	}
+	if (sc->tt.rx_coalesce)
+		opt2 |= V_RX_COALESCE(M_RX_COALESCE);
 
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	if (toep->ulp_mode == ULP_MODE_TCPDDP)
@@ -265,6 +283,24 @@ t4_init_connect_cpl_handlers(struct adapter *sc)
 	rc = (x); \
 	goto failed; \
 } while (0)
+
+static inline int
+act_open_cpl_size(struct adapter *sc, int isipv6)
+{
+	static const int sz_t4[] = {
+		sizeof (struct cpl_act_open_req),
+		sizeof (struct cpl_act_open_req6)
+	};
+	static const int sz_t5[] = {
+		sizeof (struct cpl_t5_act_open_req),
+		sizeof (struct cpl_t5_act_open_req6)
+	};
+
+	if (is_t4(sc))
+		return (sz_t4[!!isipv6]);
+	else
+		return (sz_t5[!!isipv6]);
+}
 
 /*
  * active open (soconnect).
@@ -320,8 +356,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
 	isipv6 = nam->sa_family == AF_INET6;
-	wr = alloc_wrqe(isipv6 ? sizeof(struct cpl_act_open_req6) :
-	    sizeof(struct cpl_act_open_req), toep->ctrlq);
+	wr = alloc_wrqe(act_open_cpl_size(sc, isipv6), toep->ctrlq);
 	if (wr == NULL)
 		DONT_OFFLOAD_ACTIVE_OPEN(ENOMEM);
 
@@ -361,10 +396,18 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		if (toep->ce == NULL)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOENT);
 
-		INIT_TP_WR(cpl, 0);
+		if (is_t4(sc)) {
+			INIT_TP_WR(cpl, 0);
+			cpl->params = select_ntuple(pi, toep->l2te);
+		} else {
+			struct cpl_t5_act_open_req6 *c5 = (void *)cpl;
+
+			INIT_TP_WR(c5, 0);
+			c5->iss = htobe32(tp->iss);
+			c5->params = select_ntuple(pi, toep->l2te);
+		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ6,
 		    qid_atid));
-
 		cpl->local_port = inp->inp_lport;
 		cpl->local_ip_hi = *(uint64_t *)&inp->in6p_laddr.s6_addr[0];
 		cpl->local_ip_lo = *(uint64_t *)&inp->in6p_laddr.s6_addr[8];
@@ -373,19 +416,26 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		cpl->peer_ip_lo = *(uint64_t *)&inp->in6p_faddr.s6_addr[8];
 		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
-		cpl->params = select_ntuple(pi, toep->l2te, sc->filter_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
 	} else {
 		struct cpl_act_open_req *cpl = wrtod(wr);
 
-		INIT_TP_WR(cpl, 0);
+		if (is_t4(sc)) {
+			INIT_TP_WR(cpl, 0);
+			cpl->params = select_ntuple(pi, toep->l2te);
+		} else {
+			struct cpl_t5_act_open_req *c5 = (void *)cpl;
+
+			INIT_TP_WR(c5, 0);
+			c5->iss = htobe32(tp->iss);
+			c5->params = select_ntuple(pi, toep->l2te);
+		}
 		OPCODE_TID(cpl) = htobe32(MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
 		    qid_atid));
 		inp_4tuple_get(inp, &cpl->local_ip, &cpl->local_port,
 		    &cpl->peer_ip, &cpl->peer_port);
 		cpl->opt0 = calc_opt0(so, pi, toep->l2te, mtu_idx, rscale,
 		    toep->rx_credits, toep->ulp_mode);
-		cpl->params = select_ntuple(pi, toep->l2te, sc->filter_mode);
 		cpl->opt2 = calc_opt2a(so, toep);
 	}
 

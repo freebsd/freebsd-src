@@ -46,9 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include "uart_if.h"
 
-static int usart_at91_probe(device_t dev);
-
 extern struct uart_class at91_usart_class;
+static int usart_at91_probe(device_t dev);
 
 static device_method_t usart_at91_methods[] = {
 	/* Device interface */

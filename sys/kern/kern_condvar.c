@@ -97,7 +97,7 @@ _cv_wait(struct cv *cvp, struct lock_object *lock)
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
 	struct thread *td;
-	int lock_state;
+	uintptr_t lock_state;
 
 	td = curthread;
 	lock_state = 0;
@@ -214,7 +214,8 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
 	struct thread *td;
-	int lock_state, rval;
+	uintptr_t lock_state;
+	int rval;
 
 	td = curthread;
 	lock_state = 0;

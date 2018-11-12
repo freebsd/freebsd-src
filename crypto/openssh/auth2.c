@@ -1,4 +1,5 @@
-/* $OpenBSD: auth2.c,v 1.124 2011/12/07 05:44:38 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.130 2014/01/29 06:18:35 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -73,18 +74,12 @@ extern Authmethod method_hostbased;
 #ifdef GSSAPI
 extern Authmethod method_gssapi;
 #endif
-#ifdef JPAKE
-extern Authmethod method_jpake;
-#endif
 
 Authmethod *authmethods[] = {
 	&method_none,
 	&method_pubkey,
 #ifdef GSSAPI
 	&method_gssapi,
-#endif
-#ifdef JPAKE
-	&method_jpake,
 #endif
 	&method_passwd,
 	&method_kbdint,
@@ -98,8 +93,14 @@ static void input_service_request(int, u_int32_t, void *);
 static void input_userauth_request(int, u_int32_t, void *);
 
 /* helper */
-static Authmethod *authmethod_lookup(const char *);
-static char *authmethods_get(void);
+static Authmethod *authmethod_lookup(Authctxt *, const char *);
+static char *authmethods_get(Authctxt *authctxt);
+
+#define MATCH_NONE	0	/* method or submethod mismatch */
+#define MATCH_METHOD	1	/* method matches (no submethod specified) */
+#define MATCH_BOTH	2	/* method and submethod match */
+#define MATCH_PARTIAL	3	/* method matches, submethod can't be checked */
+static int list_starts_with(const char *, const char *, const char *);
 
 char *
 auth2_read_banner(void)
@@ -126,7 +127,7 @@ auth2_read_banner(void)
 	close(fd);
 
 	if (n != len) {
-		xfree(banner);
+		free(banner);
 		return (NULL);
 	}
 	banner[n] = '\0';
@@ -162,8 +163,7 @@ userauth_banner(void)
 	userauth_send_banner(banner);
 
 done:
-	if (banner)
-		xfree(banner);
+	free(banner);
 }
 
 /*
@@ -208,7 +208,7 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 		debug("bad service request %s", service);
 		packet_disconnect("bad service request %s", service);
 	}
-	xfree(service);
+	free(service);
 }
 
 /*ARGSUSED*/
@@ -264,6 +264,8 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		if (use_privsep)
 			mm_inform_authserv(service, style);
 		userauth_banner();
+		if (auth2_setup_methods_lists(authctxt) != 0)
+			packet_disconnect("no authentication methods enabled");
 	} else if (strcmp(user, authctxt->user) != 0 ||
 	    strcmp(service, authctxt->service) != 0) {
 		packet_disconnect("Change of username or service not allowed: "
@@ -293,9 +295,6 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 
 	/* reset state */
 	auth2_challenge_stop(authctxt);
-#ifdef JPAKE
-	auth2_jpake_stop(authctxt);
-#endif
 
 #ifdef GSSAPI
 	/* XXX move to auth2_gssapi_stop() */
@@ -307,26 +306,30 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	authctxt->server_caused_failure = 0;
 
 	/* try to authenticate user */
-	m = authmethod_lookup(method);
+	m = authmethod_lookup(authctxt, method);
 	if (m != NULL && authctxt->failures < options.max_authtries) {
 		debug2("input_userauth_request: try method %s", method);
 		authenticated =	m->userauth(authctxt);
 	}
-	userauth_finish(authctxt, authenticated, method);
+	userauth_finish(authctxt, authenticated, method, NULL);
 
-	xfree(service);
-	xfree(user);
-	xfree(method);
+	free(service);
+	free(user);
+	free(method);
 }
 
 void
-userauth_finish(Authctxt *authctxt, int authenticated, char *method)
+userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
+    const char *submethod)
 {
 	char *methods;
+	int partial = 0;
 
 	if (!authctxt->valid && authenticated)
 		fatal("INTERNAL ERROR: authenticated invalid user %s",
 		    authctxt->user);
+	if (authenticated && authctxt->postponed)
+		fatal("INTERNAL ERROR: authenticated and postponed");
 
 	/* Special handling for root */
 	if (authenticated && authctxt->pw->pw_uid == 0 &&
@@ -336,6 +339,19 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		PRIVSEP(audit_event(SSH_LOGIN_ROOT_DENIED));
 #endif
 	}
+
+	if (authenticated && options.num_auth_methods != 0) {
+		if (!auth2_update_methods_lists(authctxt, method, submethod)) {
+			authenticated = 0;
+			partial = 1;
+		}
+	}
+
+	/* Log before sending the reply */
+	auth_log(authctxt, authenticated, partial, method, submethod);
+
+	if (authctxt->postponed)
+		return;
 
 #ifdef USE_PAM
 	if (options.use_pam && authenticated) {
@@ -355,17 +371,10 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 #ifdef _UNICOS
 	if (authenticated && cray_access_denied(authctxt->user)) {
 		authenticated = 0;
-		fatal("Access denied for user %s.",authctxt->user);
+		fatal("Access denied for user %s.", authctxt->user);
 	}
 #endif /* _UNICOS */
 
-	/* Log before sending the reply */
-	auth_log(authctxt, authenticated, method, " ssh2");
-
-	if (authctxt->postponed)
-		return;
-
-	/* XXX todo: check if multiple auth methods are needed */
 	if (authenticated == 1) {
 		/* turn off userauth */
 		dispatch_set(SSH2_MSG_USERAUTH_REQUEST, &dispatch_protocol_ignore);
@@ -386,34 +395,64 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 #endif
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
 		}
-		methods = authmethods_get();
+		methods = authmethods_get(authctxt);
+		debug3("%s: failure partial=%d next methods=\"%s\"", __func__,
+		    partial, methods);
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);
 		packet_put_cstring(methods);
-		packet_put_char(0);	/* XXX partial success, unused */
+		packet_put_char(partial);
 		packet_send();
 		packet_write_wait();
-		xfree(methods);
+		free(methods);
 	}
 }
 
+/*
+ * Checks whether method is allowed by at least one AuthenticationMethods
+ * methods list. Returns 1 if allowed, or no methods lists configured.
+ * 0 otherwise.
+ */
+int
+auth2_method_allowed(Authctxt *authctxt, const char *method,
+    const char *submethod)
+{
+	u_int i;
+
+	/*
+	 * NB. authctxt->num_auth_methods might be zero as a result of
+	 * auth2_setup_methods_lists(), so check the configuration.
+	 */
+	if (options.num_auth_methods == 0)
+		return 1;
+	for (i = 0; i < authctxt->num_auth_methods; i++) {
+		if (list_starts_with(authctxt->auth_methods[i], method,
+		    submethod) != MATCH_NONE)
+			return 1;
+	}
+	return 0;
+}
+
 static char *
-authmethods_get(void)
+authmethods_get(Authctxt *authctxt)
 {
 	Buffer b;
 	char *list;
-	int i;
+	u_int i;
 
 	buffer_init(&b);
 	for (i = 0; authmethods[i] != NULL; i++) {
 		if (strcmp(authmethods[i]->name, "none") == 0)
 			continue;
-		if (authmethods[i]->enabled != NULL &&
-		    *(authmethods[i]->enabled) != 0) {
-			if (buffer_len(&b) > 0)
-				buffer_append(&b, ",", 1);
-			buffer_append(&b, authmethods[i]->name,
-			    strlen(authmethods[i]->name));
-		}
+		if (authmethods[i]->enabled == NULL ||
+		    *(authmethods[i]->enabled) == 0)
+			continue;
+		if (!auth2_method_allowed(authctxt, authmethods[i]->name,
+		    NULL))
+			continue;
+		if (buffer_len(&b) > 0)
+			buffer_append(&b, ",", 1);
+		buffer_append(&b, authmethods[i]->name,
+		    strlen(authmethods[i]->name));
 	}
 	buffer_append(&b, "\0", 1);
 	list = xstrdup(buffer_ptr(&b));
@@ -422,7 +461,7 @@ authmethods_get(void)
 }
 
 static Authmethod *
-authmethod_lookup(const char *name)
+authmethod_lookup(Authctxt *authctxt, const char *name)
 {
 	int i;
 
@@ -430,10 +469,181 @@ authmethod_lookup(const char *name)
 		for (i = 0; authmethods[i] != NULL; i++)
 			if (authmethods[i]->enabled != NULL &&
 			    *(authmethods[i]->enabled) != 0 &&
-			    strcmp(name, authmethods[i]->name) == 0)
+			    strcmp(name, authmethods[i]->name) == 0 &&
+			    auth2_method_allowed(authctxt,
+			    authmethods[i]->name, NULL))
 				return authmethods[i];
 	debug2("Unrecognized authentication method name: %s",
 	    name ? name : "NULL");
 	return NULL;
 }
+
+/*
+ * Check a comma-separated list of methods for validity. Is need_enable is
+ * non-zero, then also require that the methods are enabled.
+ * Returns 0 on success or -1 if the methods list is invalid.
+ */
+int
+auth2_methods_valid(const char *_methods, int need_enable)
+{
+	char *methods, *omethods, *method, *p;
+	u_int i, found;
+	int ret = -1;
+
+	if (*_methods == '\0') {
+		error("empty authentication method list");
+		return -1;
+	}
+	omethods = methods = xstrdup(_methods);
+	while ((method = strsep(&methods, ",")) != NULL) {
+		for (found = i = 0; !found && authmethods[i] != NULL; i++) {
+			if ((p = strchr(method, ':')) != NULL)
+				*p = '\0';
+			if (strcmp(method, authmethods[i]->name) != 0)
+				continue;
+			if (need_enable) {
+				if (authmethods[i]->enabled == NULL ||
+				    *(authmethods[i]->enabled) == 0) {
+					error("Disabled method \"%s\" in "
+					    "AuthenticationMethods list \"%s\"",
+					    method, _methods);
+					goto out;
+				}
+			}
+			found = 1;
+			break;
+		}
+		if (!found) {
+			error("Unknown authentication method \"%s\" in list",
+			    method);
+			goto out;
+		}
+	}
+	ret = 0;
+ out:
+	free(omethods);
+	return ret;
+}
+
+/*
+ * Prune the AuthenticationMethods supplied in the configuration, removing
+ * any methods lists that include disabled methods. Note that this might
+ * leave authctxt->num_auth_methods == 0, even when multiple required auth
+ * has been requested. For this reason, all tests for whether multiple is
+ * enabled should consult options.num_auth_methods directly.
+ */
+int
+auth2_setup_methods_lists(Authctxt *authctxt)
+{
+	u_int i;
+
+	if (options.num_auth_methods == 0)
+		return 0;
+	debug3("%s: checking methods", __func__);
+	authctxt->auth_methods = xcalloc(options.num_auth_methods,
+	    sizeof(*authctxt->auth_methods));
+	authctxt->num_auth_methods = 0;
+	for (i = 0; i < options.num_auth_methods; i++) {
+		if (auth2_methods_valid(options.auth_methods[i], 1) != 0) {
+			logit("Authentication methods list \"%s\" contains "
+			    "disabled method, skipping",
+			    options.auth_methods[i]);
+			continue;
+		}
+		debug("authentication methods list %d: %s",
+		    authctxt->num_auth_methods, options.auth_methods[i]);
+		authctxt->auth_methods[authctxt->num_auth_methods++] =
+		    xstrdup(options.auth_methods[i]);
+	}
+	if (authctxt->num_auth_methods == 0) {
+		error("No AuthenticationMethods left after eliminating "
+		    "disabled methods");
+		return -1;
+	}
+	return 0;
+}
+
+static int
+list_starts_with(const char *methods, const char *method,
+    const char *submethod)
+{
+	size_t l = strlen(method);
+	int match;
+	const char *p;
+
+	if (strncmp(methods, method, l) != 0)
+		return MATCH_NONE;
+	p = methods + l;
+	match = MATCH_METHOD;
+	if (*p == ':') {
+		if (!submethod)
+			return MATCH_PARTIAL;
+		l = strlen(submethod);
+		p += 1;
+		if (strncmp(submethod, p, l))
+			return MATCH_NONE;
+		p += l;
+		match = MATCH_BOTH;
+	}
+	if (*p != ',' && *p != '\0')
+		return MATCH_NONE;
+	return match;
+}
+
+/*
+ * Remove method from the start of a comma-separated list of methods.
+ * Returns 0 if the list of methods did not start with that method or 1
+ * if it did.
+ */
+static int
+remove_method(char **methods, const char *method, const char *submethod)
+{
+	char *omethods = *methods, *p;
+	size_t l = strlen(method);
+	int match;
+
+	match = list_starts_with(omethods, method, submethod);
+	if (match != MATCH_METHOD && match != MATCH_BOTH)
+		return 0;
+	p = omethods + l;
+	if (submethod && match == MATCH_BOTH)
+		p += 1 + strlen(submethod); /* include colon */
+	if (*p == ',')
+		p++;
+	*methods = xstrdup(p);
+	free(omethods);
+	return 1;
+}
+
+/*
+ * Called after successful authentication. Will remove the successful method
+ * from the start of each list in which it occurs. If it was the last method
+ * in any list, then authentication is deemed successful.
+ * Returns 1 if the method completed any authentication list or 0 otherwise.
+ */
+int
+auth2_update_methods_lists(Authctxt *authctxt, const char *method,
+    const char *submethod)
+{
+	u_int i, found = 0;
+
+	debug3("%s: updating methods list after \"%s\"", __func__, method);
+	for (i = 0; i < authctxt->num_auth_methods; i++) {
+		if (!remove_method(&(authctxt->auth_methods[i]), method,
+		    submethod))
+			continue;
+		found = 1;
+		if (*authctxt->auth_methods[i] == '\0') {
+			debug2("authentication methods list %d complete", i);
+			return 1;
+		}
+		debug3("authentication methods list %d remaining: \"%s\"",
+		    i, authctxt->auth_methods[i]);
+	}
+	/* This should not happen, but would be bad if it did */
+	if (!found)
+		fatal("%s: method not in AuthenticationMethods", __func__);
+	return 0;
+}
+
 

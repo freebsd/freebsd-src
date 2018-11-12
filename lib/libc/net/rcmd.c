@@ -458,7 +458,7 @@ iruserok_sa(ra, rlen, superuser, ruser, luser)
 	raddr = (struct sockaddr *)&ss;
 
 	first = 1;
-	hostf = superuser ? NULL : fopen(_PATH_HEQUIV, "r");
+	hostf = superuser ? NULL : fopen(_PATH_HEQUIV, "re");
 again:
 	if (hostf) {
 		if (__ivaliduser_sa(hostf, raddr, rlen, luser, ruser) == 0) {
@@ -481,7 +481,7 @@ again:
 		 */
 		uid = geteuid();
 		(void)seteuid(pwd->pw_uid);
-		hostf = fopen(pbuf, "r");
+		hostf = fopen(pbuf, "re");
 		(void)seteuid(uid);
 
 		if (hostf == NULL)

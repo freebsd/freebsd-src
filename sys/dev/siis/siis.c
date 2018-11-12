@@ -129,7 +129,7 @@ siis_probe(device_t dev)
 			snprintf(buf, sizeof(buf), "%s SATA controller",
 			    siis_ids[i].name);
 			device_set_desc_copy(dev, buf);
-			return (BUS_PROBE_VENDOR);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return (ENXIO);
@@ -414,6 +414,13 @@ siis_child_location_str(device_t dev, device_t child, char *buf,
 	return (0);
 }
 
+static bus_dma_tag_t
+siis_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (bus_get_dma_tag(bus));
+}
+
 devclass_t siis_devclass;
 static device_method_t siis_methods[] = {
 	DEVMETHOD(device_probe,     siis_probe),
@@ -427,6 +434,7 @@ static device_method_t siis_methods[] = {
 	DEVMETHOD(bus_setup_intr,   siis_setup_intr),
 	DEVMETHOD(bus_teardown_intr,siis_teardown_intr),
 	DEVMETHOD(bus_child_location_str, siis_child_location_str),
+	DEVMETHOD(bus_get_dma_tag,  siis_get_dma_tag),
 	{ 0, 0 }
 };
 static driver_t siis_driver = {
@@ -443,7 +451,7 @@ siis_ch_probe(device_t dev)
 {
 
 	device_set_desc_copy(dev, "SIIS channel");
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -457,6 +465,7 @@ siis_ch_attach(device_t dev)
 	ch->dev = dev;
 	ch->unit = (intptr_t)device_get_ivars(dev);
 	ch->quirks = ctlr->quirks;
+	ch->pm_level = 0;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	resource_int_value(device_get_name(dev),
@@ -830,9 +839,7 @@ siis_ch_intr_locked(void *data)
 	struct siis_channel *ch = device_get_softc(dev);
 
 	mtx_lock(&ch->mtx);
-	xpt_batch_start(ch->sim);
 	siis_ch_intr(data);
-	xpt_batch_done(ch->sim);
 	mtx_unlock(&ch->mtx);
 }
 
@@ -1113,8 +1120,8 @@ siis_execute_transaction(struct siis_slot *slot)
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTL(slot->slot), prb_bus);
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTH(slot->slot), prb_bus >> 32);
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
-	    (timeout_t*)siis_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    (timeout_t*)siis_timeout, slot, 0);
 	return;
 }
 
@@ -1155,9 +1162,9 @@ siis_rearm_timeout(device_t dev)
 			continue;
 		if ((ch->toslots & (1 << i)) == 0)
 			continue;
-		callout_reset(&slot->timeout,
-		    (int)slot->ccb->ccb_h.timeout * hz / 1000,
-		    (timeout_t*)siis_timeout, slot);
+		callout_reset_sbt(&slot->timeout,
+		    SBT_1MS * slot->ccb->ccb_h.timeout, 0,
+		    (timeout_t*)siis_timeout, slot, 0);
 	}
 }
 
@@ -1939,7 +1946,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_inquiry = PI_SDTR_ABLE | PI_TAG_ABLE;
 		cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = PIM_SEQSCAN;
+		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 15;
 		cpi->max_lun = 0;
