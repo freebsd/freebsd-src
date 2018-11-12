@@ -114,7 +114,7 @@
 12	AUE_CHDIR	STD	{ int chdir(_In_z_ char *path); }
 13	AUE_FCHDIR	STD	{ int fchdir(int fd); }
 14	AUE_MKNOD	COMPAT11 { int mknod(_In_z_ char *path, int mode, \
-				    int dev); }
+				    uint32_t dev); }
 15	AUE_CHMOD	STD	{ int chmod(_In_z_ char *path, int mode); }
 16	AUE_CHOWN	STD	{ int chown(_In_z_ char *path, \
 				    int uid, int gid); }
