@@ -1322,4 +1322,37 @@ vfs_stdsysctl(mp, op, req)
 	return (EOPNOTSUPP);
 }
 
-/* end of vfs default ops */
+static vop_bypass_t *
+bp_by_off(struct vop_vector *vop, struct vop_generic_args *a)
+{
+
+	return (*(vop_bypass_t **)((char *)vop + a->a_desc->vdesc_vop_offset));
+}
+
+int
+vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a)
+{
+	vop_bypass_t *bp;
+	int prev_stops, rc;
+
+	for (; vop != NULL; vop = vop->vop_default) {
+		bp = bp_by_off(vop, a);
+		if (bp != NULL)
+			break;
+
+		/*
+		 * Bypass is not really supported.  It is done for
+		 * fallback to unimplemented vops in the default
+		 * vector.
+		 */
+		bp = vop->vop_bypass;
+		if (bp != NULL)
+			break;
+	}
+	MPASS(bp != NULL);
+
+	prev_stops = sigdeferstop(SIGDEFERSTOP_SILENT);
+	rc = bp(a);
+	sigallowstop(prev_stops);
+	return (rc);
+}

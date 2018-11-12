@@ -895,6 +895,7 @@ send:
 					len = max_len;
 				}
 			}
+
 			/*
 			 * Prevent the last segment from being
 			 * fractional unless the send sockbuf can be

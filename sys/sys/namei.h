@@ -100,6 +100,7 @@ struct nameidata {
 	 */
 	struct componentname ni_cnd;
 	struct nameicap_tracker_head ni_cap_tracker;
+	struct vnode *ni_beneath_latch;
 };
 
 #ifdef _KERNEL
@@ -119,6 +120,7 @@ struct nameidata {
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
 #define	NOCACHE		0x0020	/* name must not be left in cache */
 #define	FOLLOW		0x0040	/* follow symbolic links */
+#define	BENEATH		0x0080	/* No escape from the start dir */
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	MODMASK		0x01fc	/* mask of operational modifiers */
@@ -162,6 +164,9 @@ struct nameidata {
  */
 #define	NI_LCF_STRICTRELATIVE	0x0001	/* relative lookup only */
 #define	NI_LCF_CAP_DOTDOT	0x0002	/* ".." in strictrelative case */
+#define	NI_LCF_BENEATH_ABS	0x0004	/* BENEATH with absolute path */
+#define	NI_LCF_BENEATH_LATCHED	0x0008	/* BENEATH_ABS traversed starting dir */
+#define	NI_LCF_LATCH		0x0010	/* ni_beneath_latch valid */
 
 /*
  * Initialization of a nameidata structure.

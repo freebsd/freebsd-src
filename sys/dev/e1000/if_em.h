@@ -341,8 +341,11 @@
 #define EM_MSIX_LINK		0x01000000 /* For 82574 use */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
-#define EM_CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
-#define IGB_CSUM_OFFLOAD	0x0E0F	/* Offload bits in mbuf flag */
+#define EM_CSUM_OFFLOAD		(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP) /* Offload bits in mbuf flag */
+#define IGB_CSUM_OFFLOAD	(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP | \
+				 CSUM_IP_SCTP | CSUM_IP6_UDP | CSUM_IP6_TCP | \
+				 CSUM_IP6_SCTP)	/* Offload bits in mbuf flag */
+
 
 #define IGB_PKTTYPE_MASK	0x0000FFF0
 #define IGB_DMCTLX_DCFLUSH_DIS	0x80000000  /* Disable DMA Coalesce Flush */

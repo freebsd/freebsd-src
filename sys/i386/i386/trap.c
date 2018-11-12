@@ -762,12 +762,6 @@ kernel_trctrap:
 	KASSERT((read_eflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
-	/*
-	 * Clear any pending debug exceptions after allowing a
-	 * debugger to read DR6 while stopped in trapsignal().
-	 */
-	if (type == T_TRCTRAP)
-		load_dr6(0);
 user:
 	userret(td, frame);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
@@ -983,7 +977,7 @@ trap_fatal(frame, eva)
 	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
-	if (debugger_on_panic) {
+	if (debugger_on_trap) {
 		kdb_why = KDB_WHY_TRAP;
 		frame->tf_err = eva;	/* smuggle fault address to ddb */
 		handled = kdb_trap(type, 0, frame);

@@ -917,6 +917,8 @@ sf_attach(device_t dev)
 		goto fail;
 	}
 
+	gone_by_fcp101_dev(dev);
+
 fail:
 	if (error)
 		sf_detach(dev);

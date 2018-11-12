@@ -132,6 +132,9 @@ struct tty {
 	void		*t_devswsoftc;	/* (c) Soft config, for drivers. */
 	void		*t_hooksoftc;	/* (t) Soft config, for hooks. */
 	struct cdev	*t_dev;		/* (c) Primary character device. */
+
+	size_t		t_prbufsz;	/* (t) SIGINFO buffer size. */
+	char		t_prbuf[];	/* (t) SIGINFO buffer. */
 };
 
 /*
@@ -194,6 +197,7 @@ void	tty_wakeup(struct tty *tp, int flags);
 /* System messages. */
 int	tty_checkoutq(struct tty *tp);
 int	tty_putchar(struct tty *tp, char c);
+int	tty_putstrn(struct tty *tp, const char *p, size_t n);
 
 int	tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
     struct thread *td);

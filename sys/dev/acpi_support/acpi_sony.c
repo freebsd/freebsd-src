@@ -114,11 +114,11 @@ static char    *sny_id[] = {"SNY5001", NULL};
 static int
 acpi_sony_probe(device_t dev)
 {
-	int ret = ENXIO;
+	int ret;
 
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, sny_id)) {
+	ret = ACPI_ID_PROBE(device_get_parent(dev), dev, sny_id, NULL);
+	if (ret <= 0) {
 		device_set_desc(dev, "Sony notebook controller");
-		ret = 0;
 	}
 	return (ret);
 }

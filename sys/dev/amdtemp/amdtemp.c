@@ -167,7 +167,7 @@ DRIVER_MODULE(amdtemp, hostb, amdtemp_driver, amdtemp_devclass, NULL, NULL);
 MODULE_VERSION(amdtemp, 1);
 MODULE_DEPEND(amdtemp, amdsmn, 1, 1, 1);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, amdtemp, amdtemp_products,
-    sizeof(amdtemp_products[0]), nitems(amdtemp_products));
+    nitems(amdtemp_products));
 
 static int
 amdtemp_match(device_t dev)

@@ -113,6 +113,12 @@ PROF=		-pg
 .endif
 DEFINED_PROF=	${PROF}
 
+KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
+.if !empty(KUBSAN_ENABLED)
+SAN_CFLAGS+=	-fsanitize=undefined
+.endif
+CFLAGS+=	${SAN_CFLAGS}
+
 # Put configuration-specific C flags last (except for ${PROF}) so that they
 # can override the others.
 CFLAGS+=	${CONF_CFLAGS}
@@ -121,10 +127,12 @@ CFLAGS+=	${CONF_CFLAGS}
 LDFLAGS+=	-Wl,--build-id=sha1
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
-.error amd64 kernel requires linker ifunc support
+.if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386") && \
+    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
+.error amd64/arm64/i386 kernel requires linker ifunc support
 .endif
+.if ${MACHINE_CPUARCH} == "amd64"
 LDFLAGS+=	-Wl,-z max-page-size=2097152 -Wl,-z common-page-size=4096 -Wl,-z -Wl,ifunc-noplt
 .endif
 

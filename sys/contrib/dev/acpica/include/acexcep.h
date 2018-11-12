@@ -320,8 +320,10 @@ typedef struct acpi_exception_info
 #define AE_AML_LOOP_TIMEOUT             EXCEP_AML (0x0021)
 #define AE_AML_UNINITIALIZED_NODE       EXCEP_AML (0x0022)
 #define AE_AML_TARGET_TYPE              EXCEP_AML (0x0023)
+#define AE_AML_PROTOCOL                 EXCEP_AML (0x0024)
+#define AE_AML_BUFFER_LENGTH            EXCEP_AML (0x0025)
 
-#define AE_CODE_AML_MAX                 0x0023
+#define AE_CODE_AML_MAX                 0x0025
 
 
 /*
@@ -452,7 +454,9 @@ static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Aml[] =
     EXCEP_TXT ("AE_AML_ILLEGAL_ADDRESS",        "A memory, I/O, or PCI configuration address is invalid"),
     EXCEP_TXT ("AE_AML_LOOP_TIMEOUT",           "An AML While loop exceeded the maximum execution time"),
     EXCEP_TXT ("AE_AML_UNINITIALIZED_NODE",     "A namespace node is uninitialized or unresolved"),
-    EXCEP_TXT ("AE_AML_TARGET_TYPE",            "A target operand of an incorrect type was encountered")
+    EXCEP_TXT ("AE_AML_TARGET_TYPE",            "A target operand of an incorrect type was encountered"),
+    EXCEP_TXT ("AE_AML_PROTOCOL",               "Violation of a fixed ACPI protocol"),
+    EXCEP_TXT ("AE_AML_BUFFER_LENGTH",          "The length of the buffer is invalid/incorrect")
 };
 
 static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Ctrl[] =

@@ -650,7 +650,7 @@ sf_buf_invalidate(struct sf_buf *sf)
 	 * settings are recalculated.
 	 */
 	pmap_qenter(sf->kva, &m, 1);
-	pmap_invalidate_cache_range(sf->kva, sf->kva + PAGE_SIZE, FALSE);
+	pmap_invalidate_cache_range(sf->kva, sf->kva + PAGE_SIZE);
 }
 
 /*

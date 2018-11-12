@@ -1251,17 +1251,27 @@ ttydisc_getc_poll(struct tty *tp)
  */
 
 int
-tty_putchar(struct tty *tp, char c)
+tty_putstrn(struct tty *tp, const char *p, size_t n)
 {
+	size_t i;
+
 	tty_lock_assert(tp, MA_OWNED);
 
 	if (tty_gone(tp))
 		return (-1);
 
-	ttydisc_echo_force(tp, c, 0);
+	for (i = 0; i < n; i++)
+		ttydisc_echo_force(tp, p[i], 0);
+
 	tp->t_writepos = tp->t_column;
 	ttyinq_reprintpos_set(&tp->t_inq);
 
 	ttydevsw_outwakeup(tp);
 	return (0);
+}
+
+int
+tty_putchar(struct tty *tp, char c)
+{
+	return (tty_putstrn(tp, &c, 1));
 }

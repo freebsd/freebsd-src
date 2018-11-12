@@ -675,6 +675,8 @@ uhid_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	int error;
+	void *buf;
+	uint16_t len;
 
 	DPRINTFN(11, "\n");
 
@@ -700,6 +702,25 @@ uhid_probe(device_t dev)
 	     ((uaa->info.bInterfaceProtocol == UIPROTO_MOUSE) &&
 	      !usb_test_quirk(uaa, UQ_UMS_IGNORE))))
 		return (ENXIO);
+
+	/* Check for mandatory multitouch usages to give wmt(4) a chance */
+	if (!usb_test_quirk(uaa, UQ_WMT_IGNORE)) {
+		error = usbd_req_get_hid_desc(uaa->device, NULL,
+		    &buf, &len, M_USBDEV, uaa->info.bIfaceIndex);
+		/* Let HID decscriptor-less devices to be handled at attach */
+		if (!error) {
+			if (hid_locate(buf, len,
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX),
+			    hid_feature, 0, NULL, NULL, NULL) &&
+			    hid_locate(buf, len,
+			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTID),
+			    hid_input, 0, NULL, NULL, NULL)) {
+				free(buf, M_USBDEV);
+				return (ENXIO);
+			}
+			free(buf, M_USBDEV);
+		}
+	}
 
 	return (BUS_PROBE_GENERIC);
 }

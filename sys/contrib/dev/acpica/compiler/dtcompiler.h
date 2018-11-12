@@ -238,35 +238,35 @@ typedef struct dt_subtable
 
 /* List of all field names and values from the input source */
 
-DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldList, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*AslGbl_FieldList, NULL);
 
 /* List of all compiled tables and subtables */
 
-DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_RootTable, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*AslGbl_RootTable, NULL);
 
 /* Stack for subtables */
 
-DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableStack, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*AslGbl_SubtableStack, NULL);
 
 /* List for defined labels */
 
-DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_LabelList, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*AslGbl_LabelList, NULL);
 
 /* Current offset within the binary output table */
 
-DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_CurrentTableOffset, 0);
+DT_EXTERN UINT32            DT_INIT_GLOBAL (AslGbl_CurrentTableOffset, 0);
 
 /* Local caches */
 
-DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_SubtableCount, 0);
-DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_SubtableCacheList, NULL);
-DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheNext, NULL);
-DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*Gbl_SubtableCacheLast, NULL);
+DT_EXTERN UINT32            DT_INIT_GLOBAL (AslGbl_SubtableCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*AslGbl_SubtableCacheList, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*AslGbl_SubtableCacheNext, NULL);
+DT_EXTERN DT_SUBTABLE       DT_INIT_GLOBAL (*AslGbl_SubtableCacheLast, NULL);
 
-DT_EXTERN UINT32            DT_INIT_GLOBAL (Gbl_FieldCount, 0);
-DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*Gbl_FieldCacheList, NULL);
-DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheNext, NULL);
-DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*Gbl_FieldCacheLast, NULL);
+DT_EXTERN UINT32            DT_INIT_GLOBAL (AslGbl_FieldCount, 0);
+DT_EXTERN ASL_CACHE_INFO    DT_INIT_GLOBAL (*AslGbl_FieldCacheList, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*AslGbl_FieldCacheNext, NULL);
+DT_EXTERN DT_FIELD          DT_INIT_GLOBAL (*AslGbl_FieldCacheLast, NULL);
 
 
 /* dtcompiler - main module */

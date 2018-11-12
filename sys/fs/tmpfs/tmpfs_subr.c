@@ -182,7 +182,7 @@ tmpfs_ref_node_locked(struct tmpfs_node *node)
 int
 tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
     uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *parent,
-    char *target, dev_t rdev, struct tmpfs_node **node)
+    const char *target, dev_t rdev, struct tmpfs_node **node)
 {
 	struct tmpfs_node *nnode;
 	vm_object_t obj;
@@ -717,7 +717,7 @@ tmpfs_free_vp(struct vnode *vp)
  */
 int
 tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
-    struct componentname *cnp, char *target)
+    struct componentname *cnp, const char *target)
 {
 	int error;
 	struct tmpfs_dirent *de;

@@ -1845,7 +1845,7 @@ netmap_free_rings(struct netmap_adapter *na)
 
 	for_rx_tx(t) {
 		u_int i;
-		for (i = 0; i < nma_get_nrings(na, t) + 1; i++) {
+		for (i = 0; i < netmap_all_rings(na, t); i++) {
 			struct netmap_kring *kring = NMR(na, t)[i];
 			struct netmap_ring *ring = kring->ring;
 
@@ -1884,7 +1884,7 @@ netmap_mem2_rings_create(struct netmap_adapter *na)
 	for_rx_tx(t) {
 		u_int i;
 
-		for (i = 0; i <= nma_get_nrings(na, t); i++) {
+		for (i = 0; i < netmap_all_rings(na, t); i++) {
 			struct netmap_kring *kring = NMR(na, t)[i];
 			struct netmap_ring *ring = kring->ring;
 			u_int len, ndesc;
@@ -1922,7 +1922,7 @@ netmap_mem2_rings_create(struct netmap_adapter *na)
 				netmap_mem_bufsize(na->nm_mem);
 			ND("%s h %d c %d t %d", kring->name,
 				ring->head, ring->cur, ring->tail);
-			ND("initializing slots for %s_ring", nm_txrx2str(txrx));
+			ND("initializing slots for %s_ring", nm_txrx2str(t));
 			if (!(kring->nr_kflags & NKR_FAKERING)) {
 				/* this is a real ring */
 				ND("allocating buffers for %s", kring->name);
@@ -1980,7 +1980,7 @@ netmap_mem2_if_new(struct netmap_adapter *na, struct netmap_priv_d *priv)
 	ntot = 0;
 	for_rx_tx(t) {
 		/* account for the (eventually fake) host rings */
-		n[t] = nma_get_nrings(na, t) + 1;
+		n[t] = netmap_all_rings(na, t);
 		ntot += n[t];
 	}
 	/*
@@ -2654,14 +2654,14 @@ netmap_mem_pt_guest_rings_create(struct netmap_adapter *na)
 
 	/* point each kring to the corresponding backend ring */
 	nifp = (struct netmap_if *)((char *)ptnmd->nm_addr + ptif->nifp_offset);
-	for (i = 0; i <= na->num_tx_rings; i++) {
+	for (i = 0; i < netmap_all_rings(na, NR_TX); i++) {
 		struct netmap_kring *kring = na->tx_rings[i];
 		if (kring->ring)
 			continue;
 		kring->ring = (struct netmap_ring *)
 			((char *)nifp + nifp->ring_ofs[i]);
 	}
-	for (i = 0; i <= na->num_rx_rings; i++) {
+	for (i = 0; i < netmap_all_rings(na, NR_RX); i++) {
 		struct netmap_kring *kring = na->rx_rings[i];
 		if (kring->ring)
 			continue;

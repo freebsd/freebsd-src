@@ -541,13 +541,14 @@ static int
 bytgpio_probe(device_t dev)
 {
 	static char *gpio_ids[] = { "INT33FC", NULL };
+	int rv;
 
-	if (acpi_disabled("gpio") ||
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids) == NULL)
-	return (ENXIO);
-
-	device_set_desc(dev, "Intel Baytrail GPIO Controller");
-	return (0);
+	if (acpi_disabled("gpio"))
+		return (ENXIO);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, gpio_ids, NULL);
+	if (rv <= 0)
+		device_set_desc(dev, "Intel Baytrail GPIO Controller");
+	return (rv);
 }
 
 static int

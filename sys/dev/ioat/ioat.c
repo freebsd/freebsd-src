@@ -241,7 +241,7 @@ static struct _pcsid
 };
 
 MODULE_PNP_INFO("W32:vendor/device;D:#", pci, ioat, pci_ids,
-    sizeof(pci_ids[0]), nitems(pci_ids));
+    nitems(pci_ids));
 
 /*
  * OS <-> Driver linkage functions

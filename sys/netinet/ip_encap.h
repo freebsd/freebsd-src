@@ -43,26 +43,38 @@ int	encap6_input(struct mbuf **, int *, int);
 
 typedef int (*encap_lookup_t)(const struct mbuf *, int, int, void **);
 typedef int (*encap_check_t)(const struct mbuf *, int, int, void *);
-typedef int (*encap_input_t)(struct mbuf *, int , int, void *);
+typedef int (*encap_input_t)(struct mbuf *, int, int, void *);
+typedef void (*encap_srcaddr_t)(void *, const struct sockaddr *, int);
 
 struct encap_config {
 	int		proto;		/* protocol */
 	int		min_length;	/* minimum packet length */
+	int		max_hdrsize;	/* maximum header size */
 	int		exact_match;	/* a packet is exactly matched */
 #define	ENCAP_DRV_LOOKUP	0x7fffffff
 
 	encap_lookup_t	lookup;
 	encap_check_t	check;
 	encap_input_t	input;
+
+	void		*pad[3];
 };
 
 struct encaptab;
+struct srcaddrtab;
 
 const struct encaptab *ip_encap_attach(const struct encap_config *,
     void *arg, int mflags);
 const struct encaptab *ip6_encap_attach(const struct encap_config *,
     void *arg, int mflags);
 
+const struct srcaddrtab *ip_encap_register_srcaddr(encap_srcaddr_t,
+    void *arg, int mflags);
+const struct srcaddrtab *ip6_encap_register_srcaddr(encap_srcaddr_t,
+    void *arg, int mflags);
+
+int ip_encap_unregister_srcaddr(const struct srcaddrtab *);
+int ip6_encap_unregister_srcaddr(const struct srcaddrtab *);
 int ip_encap_detach(const struct encaptab *);
 int ip6_encap_detach(const struct encaptab *);
 #endif

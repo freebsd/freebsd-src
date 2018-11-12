@@ -110,16 +110,16 @@ ip_dooptions(struct mbuf *m, int pass)
 	struct nhop4_extended nh_ext;
 	struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
 
-	NET_EPOCH_ENTER();
 	/* Ignore or reject packets with IP options. */
 	if (V_ip_doopts == 0)
 		return 0;
 	else if (V_ip_doopts == 2) {
 		type = ICMP_UNREACH;
 		code = ICMP_UNREACH_FILTER_PROHIB;
-		goto bad;
+		goto bad_unlocked;
 	}
 
+	NET_EPOCH_ENTER();
 	dst = ip->ip_dst;
 	cp = (u_char *)(ip + 1);
 	cnt = (ip->ip_hl << 2) - sizeof (struct ip);
@@ -388,6 +388,7 @@ dropit:
 	return (0);
 bad:
 	NET_EPOCH_EXIT();
+bad_unlocked:
 	icmp_error(m, type, code, 0, 0);
 	IPSTAT_INC(ips_badoptions);
 	return (1);

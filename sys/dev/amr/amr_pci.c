@@ -142,7 +142,7 @@ static struct amr_ident
 static devclass_t	amr_devclass;
 DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, amr, amr_device_ids,
-    sizeof(amr_device_ids[0]), nitems(amr_device_ids) - 1);
+    nitems(amr_device_ids) - 1);
 MODULE_DEPEND(amr, pci, 1, 1, 1);
 MODULE_DEPEND(amr, cam, 1, 1, 1);
 

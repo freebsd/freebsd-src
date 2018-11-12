@@ -696,14 +696,17 @@ static int
 acpi_sysres_probe(device_t dev)
 {
     static char *sysres_ids[] = { "PNP0C01", "PNP0C02", NULL };
+    int rv;
 
-    if (acpi_disabled("sysresource") ||
-	ACPI_ID_PROBE(device_get_parent(dev), dev, sysres_ids) == NULL)
+    if (acpi_disabled("sysresource"))
 	return (ENXIO);
-
+    rv = ACPI_ID_PROBE(device_get_parent(dev), dev, sysres_ids, NULL);
+    if (rv > 0){
+	return (rv);
+    }
     device_set_desc(dev, "System Resource");
     device_quiet(dev);
-    return (BUS_PROBE_DEFAULT);
+    return (rv);
 }
 
 static int

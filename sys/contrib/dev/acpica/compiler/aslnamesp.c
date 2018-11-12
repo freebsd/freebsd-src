@@ -191,8 +191,8 @@ NsSetupNamespaceListing (
     void                    *Handle)
 {
 
-    Gbl_NsOutputFlag = TRUE;
-    Gbl_Files[ASL_FILE_NAMESPACE_OUTPUT].Handle = Handle;
+    AslGbl_NsOutputFlag = TRUE;
+    AslGbl_Files[ASL_FILE_NAMESPACE_OUTPUT].Handle = Handle;
 }
 
 
@@ -217,12 +217,12 @@ NsDisplayNamespace (
     ACPI_STATUS             Status;
 
 
-    if (!Gbl_NsOutputFlag)
+    if (!AslGbl_NsOutputFlag)
     {
         return (AE_OK);
     }
 
-    Gbl_NumNamespaceObjects = 0;
+    AslGbl_NumNamespaceObjects = 0;
 
     /* File header */
 
@@ -272,10 +272,10 @@ NsDoOneNamespaceObject (
     ACPI_PARSE_OBJECT       *Op;
 
 
-    Gbl_NumNamespaceObjects++;
+    AslGbl_NumNamespaceObjects++;
 
     FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT, "%5u  [%u]  %*s %4.4s - %s",
-        Gbl_NumNamespaceObjects, Level, (Level * 3), " ",
+        AslGbl_NumNamespaceObjects, Level, (Level * 3), " ",
         &Node->Name, AcpiUtGetTypeName (Node->Type));
 
     Op = Node->Op;

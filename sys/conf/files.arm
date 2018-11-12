@@ -163,6 +163,7 @@ libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/lshrdi3.c		standard
+libkern/memcmp.c		standard
 libkern/moddi3.c		standard
 libkern/qdivrem.c		standard
 libkern/ucmpdi2.c		standard

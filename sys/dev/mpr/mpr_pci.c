@@ -88,9 +88,6 @@ static driver_t mpr_pci_driver = {
 	sizeof(struct mpr_softc)
 };
 
-static devclass_t	mpr_devclass;
-DRIVER_MODULE(mpr, pci, mpr_pci_driver, mpr_devclass, 0, 0);
-MODULE_DEPEND(mpr, cam, 1, 1, 1);
 
 struct mpr_ident {
 	uint16_t	vendor;
@@ -153,6 +150,14 @@ struct mpr_ident {
 	    "Avago Technologies (LSI) SAS3716" },
 	{ 0, 0, 0, 0, 0, NULL }
 };
+
+
+static devclass_t	mpr_devclass;
+DRIVER_MODULE(mpr, pci, mpr_pci_driver, mpr_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;U16:subvendor;U16:subdevice;D:#", pci,
+    mpr, mpr_identifiers, nitems(mpr_identifiers) - 1);
+
+MODULE_DEPEND(mpr, cam, 1, 1, 1);
 
 static struct mpr_ident *
 mpr_find_ident(device_t dev)

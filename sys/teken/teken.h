@@ -157,6 +157,7 @@ struct __teken {
 
 	unsigned int	 t_utf8_left;
 	teken_char_t	 t_utf8_partial;
+	teken_char_t	 t_last;
 
 	unsigned int	 t_curscs;
 	teken_scs_t	*t_saved_curscs;

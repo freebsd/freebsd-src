@@ -71,6 +71,7 @@ libkern/ffsll.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
+libkern/memcmp.c		standard
 sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
 sparc64/ebus/epic.c		optional	epic ebus
@@ -148,3 +149,6 @@ sparc64/sparc64/uio_machdep.c	standard
 sparc64/sparc64/upa.c		optional	creator
 sparc64/sparc64/vm_machdep.c	standard
 sparc64/sparc64/zeus.c		standard
+
+# Zstd
+contrib/zstd/lib/freebsd/zstd_kfreebsd.c		optional zstdio compile-with ${ZSTD_C}

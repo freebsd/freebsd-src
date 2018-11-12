@@ -208,6 +208,7 @@ dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
 dev/agp/agp_via.c		optional	agp
+dev/amdgpio/amdgpio.c		optional	amdgpio
 dev/amdsbwd/amdsbwd.c		optional	amdsbwd
 dev/amdsmn/amdsmn.c		optional	amdsmn | amdtemp
 dev/amdtemp/amdtemp.c		optional	amdtemp
@@ -271,25 +272,23 @@ dev/ixl/ixl_pf_iov.c		optional	ixl pci  pci_iov \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/ixl_pf_i2c.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-#dev/ixl/ixl_iw.c		optional	ixl pci \
-#	compile-with "${NORMAL_C} -I$S/dev/ixl"
-#dev/ixl/if_ixlv.c		optional	ixlv pci \
-#	compile-with "${NORMAL_C} -I$S/dev/ixl"
-#dev/ixl/ixlvc.c			optional	ixlv pci \
-#	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/ixl_txrx.c		optional	ixl pci | ixlv pci \
+dev/ixl/if_iavf.c		optional	iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_osdep.c		optional	ixl pci | ixlv pci \
+dev/ixl/iavf_vc.c			optional	iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_lan_hmc.c		optional	ixl pci | ixlv pci \
+dev/ixl/ixl_txrx.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_hmc.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_osdep.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_common.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_lan_hmc.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_nvm.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_hmc.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_adminq.c		optional	ixl pci | ixlv pci \
+dev/ixl/i40e_common.c		optional	ixl pci | iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_nvm.c		optional	ixl pci | iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_adminq.c		optional	ixl pci | iavf pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
@@ -722,6 +721,7 @@ x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/pci_bus.c		optional	pci
+x86/pci/pci_early_quirks.c	optional	pci
 x86/pci/qpi.c			optional	pci
 x86/x86/autoconf.c		standard
 x86/x86/bus_machdep.c		standard

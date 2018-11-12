@@ -311,7 +311,7 @@ struct pci_device_table {
 	"M16:mask;U16:vendor;U16:device;U16:subvendor;U16:subdevice;"	\
 	"U16:class;U16:subclass;U16:revid;"
 #define PCI_PNP_INFO(table)						\
-	MODULE_PNP_INFO(PCI_PNP_STR, pci, table, table, sizeof(table[0]), \
+	MODULE_PNP_INFO(PCI_PNP_STR, pci, table, table,			\
 	    sizeof(table) / sizeof(table[0]))
 
 const struct pci_device_table *pci_match_device(device_t child,

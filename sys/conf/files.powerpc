@@ -98,6 +98,7 @@ libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/flsll.c			standard
 libkern/lshrdi3.c		optional	powerpc | powerpcspe
+libkern/memcmp.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		optional	powerpc | powerpcspe
 libkern/qdivrem.c		optional	powerpc | powerpcspe

@@ -31,6 +31,7 @@
  */
 
 #include <sys/_bitset.h>
+#include <sys/_domainset.h>
 #include <sys/_task.h>
 
 /* 
@@ -226,7 +227,7 @@ struct uma_keg {
 	struct uma_hash	uk_hash;
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 
-	uint32_t	uk_cursor;	/* Domain alloc cursor. */
+	struct domainset_ref uk_dr;	/* Domain selection policy. */
 	uint32_t	uk_align;	/* Alignment mask */
 	uint32_t	uk_pages;	/* Total page count */
 	uint32_t	uk_free;	/* Count of items free in slabs */

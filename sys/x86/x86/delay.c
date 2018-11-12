@@ -51,11 +51,23 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <x86/init.h>
 
-static u_int
-get_tsc(__unused struct timecounter *tc)
+static void
+delay_tsc(int n)
 {
+	uint64_t end, now;
 
-	return (rdtsc32());
+	/*
+	 * Pin the current thread ensure correct behavior if the TSCs
+	 * on different CPUs are not in sync.
+	 */
+	sched_pin();
+	now = rdtsc();
+	end = now + tsc_freq * n / 1000000;
+	do {
+		cpu_spinwait();
+		now = rdtsc();
+	} while (now < end);
+	sched_unpin();
 }
 
 static int
@@ -66,22 +78,24 @@ delay_tc(int n)
 	uint64_t end, freq, now;
 	u_int last, mask, u;
 
-	tc = timecounter;
-	freq = atomic_load_acq_64(&tsc_freq);
-	if (tsc_is_invariant && freq != 0) {
-		func = get_tsc;
-		mask = ~0u;
-	} else {
-		if (tc->tc_quality <= 0)
-			return (0);
-		func = tc->tc_get_timecount;
-		mask = tc->tc_counter_mask;
-		freq = tc->tc_frequency;
+	/*
+	 * Only use the TSC if it is P-state invariant.  If the TSC is
+	 * not P-state invariant and the CPU is not running at the
+	 * "full" P-state, then the TSC will increment at some rate
+	 * less than tsc_freq and delay_tsc() will wait too long.
+	 */
+	if (tsc_is_invariant && tsc_freq != 0) {
+		delay_tsc(n);
+		return (1);
 	}
+	tc = timecounter;
+	if (tc->tc_quality <= 0)
+		return (0);
+	func = tc->tc_get_timecount;
+	mask = tc->tc_counter_mask;
+	freq = tc->tc_frequency;
 	now = 0;
 	end = freq * n / 1000000;
-	if (func == get_tsc)
-		sched_pin();
 	last = func(tc) & mask;
 	do {
 		cpu_spinwait();
@@ -92,8 +106,6 @@ delay_tc(int n)
 			now += u - last;
 		last = u;
 	} while (now < end);
-	if (func == get_tsc)
-		sched_unpin();
 	return (1);
 }
 
@@ -109,4 +121,23 @@ DELAY(int n)
 
 	init_ops.early_delay(n);
 	TSEXIT();
+}
+
+void
+cpu_lock_delay(void)
+{
+
+	/*
+	 * Use TSC to wait for a usec if present, otherwise fall back
+	 * to reading from port 0x84.  We can't call into timecounters
+	 * for this delay since timecounters might use spin locks.
+	 *
+	 * Note that unlike delay_tc(), this uses the TSC even if it
+	 * is not P-state invariant.  For this function it is ok to
+	 * wait even a few usecs.
+	 */
+	if (tsc_freq != 0)
+		delay_tsc(1);
+	else
+		inb(0x84);
 }

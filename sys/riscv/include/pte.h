@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Andrew Turner
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -65,7 +65,7 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	Ln_ENTRIES	(1 << 9)
 #define	Ln_ADDR_MASK	(Ln_ENTRIES - 1)
 
-/* Bits 9:7 are reserved for software */
+/* Bits 9:8 are reserved for software */
 #define	PTE_SW_MANAGED	(1 << 9)
 #define	PTE_SW_WIRED	(1 << 8)
 #define	PTE_D		(1 << 7) /* Dirty */
@@ -78,6 +78,7 @@ typedef	uint64_t	pn_t;			/* page number */
 #define	PTE_V		(1 << 0) /* Valid */
 #define	PTE_RWX		(PTE_R | PTE_W | PTE_X)
 #define	PTE_RX		(PTE_R | PTE_X)
+#define	PTE_KERN	(PTE_V | PTE_R | PTE_W | PTE_A | PTE_D)
 
 #define	PTE_PPN0_S	10
 #define	PTE_PPN1_S	19

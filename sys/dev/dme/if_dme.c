@@ -915,6 +915,9 @@ dme_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	gone_by_fcp101_dev(dev);
+
 fail:
 	if (error != 0)
 		dme_detach(dev);

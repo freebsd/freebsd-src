@@ -642,6 +642,8 @@ int	inp_so_options(const struct inpcb *inp);
 #define	INP_INFO_LOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(ipi)->ipi_lock))
 #define INP_INFO_RLOCK_ASSERT(ipi)	MPASS(in_epoch(net_epoch_preempt))
 #define INP_INFO_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_lock, MA_OWNED)
+#define INP_INFO_WUNLOCK_ASSERT(ipi)	\
+	mtx_assert(&(ipi)->ipi_lock, MA_NOTOWNED)
 #define INP_INFO_UNLOCK_ASSERT(ipi)	MPASS(!in_epoch(net_epoch_preempt) && !mtx_owned(&(ipi)->ipi_lock))
 
 #define INP_LIST_LOCK_INIT(ipi, d) \

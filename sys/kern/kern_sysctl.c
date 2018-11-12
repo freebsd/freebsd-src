@@ -1692,6 +1692,53 @@ retry:
 }
 
 /*
+ * Based on on sysctl_handle_int() convert microseconds to a sbintime.
+ */
+int
+sysctl_usec_to_sbintime(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int64_t tt;
+	sbintime_t sb;
+
+	tt = *(int64_t *)arg1;
+	sb = ustosbt(tt);
+
+	error = sysctl_handle_64(oidp, &sb, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	tt = sbttous(sb);
+	*(int64_t *)arg1 = tt;
+
+	return (0);
+}
+
+/*
+ * Based on on sysctl_handle_int() convert milliseconds to a sbintime.
+ */
+int
+sysctl_msec_to_sbintime(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int64_t tt;
+	sbintime_t sb;
+
+	tt = *(int64_t *)arg1;
+	sb = mstosbt(tt);
+
+	error = sysctl_handle_64(oidp, &sb, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	tt = sbttoms(sb);
+	*(int64_t *)arg1 = tt;
+
+	return (0);
+}
+
+
+/*
  * Transfer functions to/from kernel space.
  * XXX: rather untested at this point
  */

@@ -174,7 +174,6 @@ static void process_newconn(struct c4iw_listen_ep *master_lep,
 		free(__a, M_SONAME); \
 	} while (0)
 
-#ifdef KTR
 static char *states[] = {
 	"idle",
 	"listen",
@@ -190,7 +189,6 @@ static char *states[] = {
 	"dead",
 	NULL,
 };
-#endif
 
 static void deref_cm_id(struct c4iw_ep_common *epc)
 {
@@ -883,7 +881,9 @@ uninit_iwarp_socket(struct socket *so)
 static void
 process_data(struct c4iw_ep *ep)
 {
+	int ret = 0;
 	int disconnect = 0;
+	struct c4iw_qp_attributes attrs = {0};
 
 	CTR5(KTR_IW_CXGBE, "%s: so %p, ep %p, state %s, sbused %d", __func__,
 	    ep->com.so, ep, states[ep->com.state], sbused(&ep->com.so->so_rcv));
@@ -898,9 +898,16 @@ process_data(struct c4iw_ep *ep)
 			/* Refered in process_newconn() */
 			c4iw_put_ep(&ep->parent_ep->com);
 		break;
+	case FPDU_MODE:
+		MPASS(ep->com.qp != NULL);
+		attrs.next_state = C4IW_QP_STATE_TERMINATE;
+		ret = c4iw_modify_qp(ep->com.dev, ep->com.qp,
+					C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+		if (ret != -EINPROGRESS)
+			disconnect = 1;
+		break;
 	default:
-		if (sbused(&ep->com.so->so_rcv))
-			log(LOG_ERR, "%s: Unexpected streaming data. ep %p, "
+		log(LOG_ERR, "%s: Unexpected streaming data. ep %p, "
 			    "state %d, so %p, so_state 0x%x, sbused %u\n",
 			    __func__, ep, ep->com.state, ep->com.so,
 			    ep->com.so->so_state, sbused(&ep->com.so->so_rcv));
@@ -1180,7 +1187,24 @@ process_socket_event(struct c4iw_ep *ep)
 	}
 
 	/* rx data */
-	process_data(ep);
+	if (sbused(&ep->com.so->so_rcv)) {
+		process_data(ep);
+		return;
+	}
+
+	/* Socket events for 'MPA Request Received' and 'Close Complete'
+	 * were already processed earlier in their previous events handlers.
+	 * Hence, these socket events are skipped.
+	 * And any other socket events must have handled above.
+	 */
+	MPASS((ep->com.state == MPA_REQ_RCVD) || (ep->com.state == MORIBUND));
+
+	if ((ep->com.state != MPA_REQ_RCVD) && (ep->com.state != MORIBUND))
+		log(LOG_ERR, "%s: Unprocessed socket event so %p, "
+		"so_state 0x%x, so_err %d, sb_state 0x%x, ep %p, ep_state %s\n",
+		__func__, so, so->so_state, so->so_error, so->so_rcv.sb_state,
+			ep, states[state]);
+
 }
 
 SYSCTL_NODE(_hw, OID_AUTO, iw_cxgbe, CTLFLAG_RD, 0, "iw_cxgbe driver parameters");
@@ -1633,6 +1657,7 @@ send_abort(struct c4iw_ep *ep)
 	 * handler(not yet implemented) of iw_cxgbe driver.
 	 */
 	release_ep_resources(ep);
+	ep->com.state = DEAD;
 
 	return (0);
 }
@@ -2540,6 +2565,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto out;
 	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
+	cm_id->provider_data = ep;
 
 	init_timer(&ep->timer);
 	ep->plen = conn_param->private_data_len;
@@ -2600,22 +2626,24 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail;
 
 	setiwsockopt(ep->com.so);
+	init_iwarp_socket(ep->com.so, &ep->com);
 	err = -soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
 		ep->com.thread);
-	if (!err) {
-		init_iwarp_socket(ep->com.so, &ep->com);
-		goto out;
-	} else
+	if (err)
 		goto fail_free_so;
+	CTR2(KTR_IW_CXGBE, "%s:ccE, ep %p", __func__, ep);
+	return 0;
 
 fail_free_so:
+	uninit_iwarp_socket(ep->com.so);
+	ep->com.state = DEAD;
 	sock_release(ep->com.so);
 fail:
 	deref_cm_id(&ep->com);
 	c4iw_put_ep(&ep->com);
 	ep = NULL;
 out:
-	CTR2(KTR_IW_CXGBE, "%s:ccE ret:%d", __func__, err);
+	CTR2(KTR_IW_CXGBE, "%s:ccE Error %d", __func__, err);
 	return err;
 }
 

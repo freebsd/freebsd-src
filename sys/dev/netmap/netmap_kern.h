@@ -275,6 +275,7 @@ struct netmap_adapter;
 struct nm_bdg_fwd;
 struct nm_bridge;
 struct netmap_priv_d;
+struct nm_bdg_args;
 
 /* os-specific NM_SELINFO_T initialzation/destruction functions */
 void nm_os_selinfo_init(NM_SELINFO_T *);
@@ -305,6 +306,12 @@ void *nm_os_realloc(void *, size_t new_size, size_t old_size);
 void nm_os_free(void *);
 void nm_os_vfree(void *);
 
+/* os specific attach/detach enter/exit-netmap-mode routines */
+void nm_os_onattach(struct ifnet *);
+void nm_os_ondetach(struct ifnet *);
+void nm_os_onenter(struct ifnet *);
+void nm_os_onexit(struct ifnet *);
+
 /* passes a packet up to the host stack.
  * If the packet is sent (or dropped) immediately it returns NULL,
  * otherwise it links the packet to prev and returns m.
@@ -313,7 +320,8 @@ void nm_os_vfree(void *);
  */
 void *nm_os_send_up(struct ifnet *, struct mbuf *m, struct mbuf *prev);
 
-int nm_os_mbuf_has_offld(struct mbuf *m);
+int nm_os_mbuf_has_seg_offld(struct mbuf *m);
+int nm_os_mbuf_has_csum_offld(struct mbuf *m);
 
 #include "netmap_mbq.h"
 
@@ -507,11 +515,10 @@ struct netmap_kring {
 	struct netmap_kring *pipe;	/* if this is a pipe ring,
 					 * pointer to the other end
 					 */
+	uint32_t pipe_tail;		/* hwtail updated by the other end */
 #endif /* WITH_PIPES */
 
-#ifdef WITH_VALE
 	int (*save_notify)(struct netmap_kring *kring, int flags);
-#endif
 
 #ifdef WITH_MONITOR
 	/* array of krings that are monitoring this kring */
@@ -634,6 +641,7 @@ struct netmap_lut {
 };
 
 struct netmap_vp_adapter; // forward
+struct nm_bridge;
 
 /* Struct to be filled by nm_config callbacks. */
 struct nm_config_info {
@@ -643,6 +651,14 @@ struct nm_config_info {
 	unsigned num_rx_descs;
 	unsigned rx_buf_maxsize;
 };
+
+/*
+ * default type for the magic field.
+ * May be overriden in glue code.
+ */
+#ifndef NM_OS_MAGIC
+#define NM_OS_MAGIC uint32_t
+#endif /* !NM_OS_MAGIC */
 
 /*
  * The "struct netmap_adapter" extends the "struct adapter"
@@ -660,7 +676,7 @@ struct netmap_adapter {
 	 * always exists and is at least 32 bits) contains a magic
 	 * value which we can use to detect that the interface is good.
 	 */
-	uint32_t magic;
+	NM_OS_MAGIC magic;
 	uint32_t na_flags;	/* enabled, and other flags */
 #define NAF_SKIP_INTR	1	/* use the regular interrupt handler.
 				 * useful during initialization
@@ -696,6 +712,8 @@ struct netmap_adapter {
 
 	u_int num_rx_rings; /* number of adapter receive rings */
 	u_int num_tx_rings; /* number of adapter transmit rings */
+	u_int num_host_rx_rings; /* number of host receive rings */
+	u_int num_host_tx_rings; /* number of host transmit rings */
 
 	u_int num_tx_desc;  /* number of descriptor in each queue */
 	u_int num_rx_desc;
@@ -783,7 +801,6 @@ struct netmap_adapter {
 	int (*nm_config)(struct netmap_adapter *, struct nm_config_info *info);
 	int (*nm_krings_create)(struct netmap_adapter *);
 	void (*nm_krings_delete)(struct netmap_adapter *);
-#ifdef WITH_VALE
 	/*
 	 * nm_bdg_attach() initializes the na_vp field to point
 	 *      to an adapter that can be attached to a VALE switch. If the
@@ -799,7 +816,8 @@ struct netmap_adapter {
 	 *      initializations
 	 *      Called with NMG_LOCK held.
 	 */
-	int (*nm_bdg_attach)(const char *bdg_name, struct netmap_adapter *);
+	int (*nm_bdg_attach)(const char *bdg_name, struct netmap_adapter *,
+			struct nm_bridge *);
 	int (*nm_bdg_ctl)(struct nmreq_header *, struct netmap_adapter *);
 
 	/* adapter used to attach this adapter to a VALE switch (if any) */
@@ -807,7 +825,6 @@ struct netmap_adapter {
 	/* adapter used to attach the host rings of this adapter
 	 * to a VALE switch (if any) */
 	struct netmap_vp_adapter *na_hostvp;
-#endif
 
 	/* standard refcount to control the lifetime of the adapter
 	 * (it should be equal to the lifetime of the corresponding ifp)
@@ -843,6 +860,10 @@ struct netmap_adapter {
 	unsigned rx_buf_maxsize;
 
 	char name[NETMAP_REQ_IFNAMSIZ]; /* used at least by pipes */
+
+#ifdef WITH_MONITOR
+	unsigned long	monitor_id;	/* debugging */
+#endif
 };
 
 static __inline u_int
@@ -866,6 +887,12 @@ nma_get_nrings(struct netmap_adapter *na, enum txrx t)
 	return (t == NR_TX ? na->num_tx_rings : na->num_rx_rings);
 }
 
+static __inline u_int
+nma_get_host_nrings(struct netmap_adapter *na, enum txrx t)
+{
+	return (t == NR_TX ? na->num_host_tx_rings : na->num_host_rx_rings);
+}
+
 static __inline void
 nma_set_nrings(struct netmap_adapter *na, enum txrx t, u_int v)
 {
@@ -873,6 +900,15 @@ nma_set_nrings(struct netmap_adapter *na, enum txrx t, u_int v)
 		na->num_tx_rings = v;
 	else
 		na->num_rx_rings = v;
+}
+
+static __inline void
+nma_set_host_nrings(struct netmap_adapter *na, enum txrx t, u_int v)
+{
+	if (t == NR_TX)
+		na->num_host_tx_rings = v;
+	else
+		na->num_host_rx_rings = v;
 }
 
 static __inline struct netmap_kring**
@@ -964,13 +1000,22 @@ struct netmap_generic_adapter {	/* emulated device */
 };
 #endif  /* WITH_GENERIC */
 
-static __inline int
+static __inline u_int
 netmap_real_rings(struct netmap_adapter *na, enum txrx t)
 {
-	return nma_get_nrings(na, t) + !!(na->na_flags & NAF_HOST_RINGS);
+	return nma_get_nrings(na, t) +
+		!!(na->na_flags & NAF_HOST_RINGS) * nma_get_host_nrings(na, t);
 }
 
-#ifdef WITH_VALE
+/* account for fake rings */
+static __inline u_int
+netmap_all_rings(struct netmap_adapter *na, enum txrx t)
+{
+	return max(nma_get_nrings(na, t) + 1, netmap_real_rings(na, t));
+}
+
+int netmap_default_bdg_attach(const char *name, struct netmap_adapter *na,
+		struct nm_bridge *);
 struct nm_bdg_polling_state;
 /*
  * Bridge wrapper for non VALE ports attached to a VALE switch.
@@ -1038,12 +1083,12 @@ struct netmap_bwrap_adapter {
 int nm_bdg_ctl_attach(struct nmreq_header *hdr, void *auth_token);
 int nm_bdg_ctl_detach(struct nmreq_header *hdr, void *auth_token);
 int nm_bdg_polling(struct nmreq_header *hdr);
-int netmap_bwrap_attach(const char *name, struct netmap_adapter *);
+int netmap_bdg_list(struct nmreq_header *hdr);
+
+#ifdef WITH_VALE
 int netmap_vi_create(struct nmreq_header *hdr, int);
 int nm_vi_create(struct nmreq_header *);
 int nm_vi_destroy(const char *name);
-int netmap_bdg_list(struct nmreq_header *hdr);
-
 #else /* !WITH_VALE */
 #define netmap_vi_create(hdr, a) (EOPNOTSUPP)
 #endif /* WITH_VALE */
@@ -1262,7 +1307,6 @@ const char *netmap_bdg_name(struct netmap_vp_adapter *);
 #define netmap_ifp_to_vp(_ifp)	NULL
 #define netmap_ifp_to_host_vp(_ifp) NULL
 #define netmap_bdg_idx(_vp)	-1
-#define netmap_bdg_name(_vp)	NULL
 #endif /* WITH_VALE */
 
 static inline int
@@ -1293,67 +1337,8 @@ nm_update_hostrings_mode(struct netmap_adapter *na)
 		na->rx_rings[na->num_rx_rings]->nr_pending_mode;
 }
 
-/* set/clear native flags and if_transmit/netdev_ops */
-static inline void
-nm_set_native_flags(struct netmap_adapter *na)
-{
-	struct ifnet *ifp = na->ifp;
-
-	/* We do the setup for intercepting packets only if we are the
-	 * first user of this adapapter. */
-	if (na->active_fds > 0) {
-		return;
-	}
-
-	na->na_flags |= NAF_NETMAP_ON;
-#ifdef IFCAP_NETMAP /* or FreeBSD ? */
-	ifp->if_capenable |= IFCAP_NETMAP;
-#endif
-#if defined (__FreeBSD__)
-	na->if_transmit = ifp->if_transmit;
-	ifp->if_transmit = netmap_transmit;
-#elif defined (_WIN32)
-	(void)ifp; /* prevent a warning */
-#elif defined (linux)
-	na->if_transmit = (void *)ifp->netdev_ops;
-	ifp->netdev_ops = &((struct netmap_hw_adapter *)na)->nm_ndo;
-	((struct netmap_hw_adapter *)na)->save_ethtool = ifp->ethtool_ops;
-	ifp->ethtool_ops = &((struct netmap_hw_adapter*)na)->nm_eto;
-#endif /* linux */
-	nm_update_hostrings_mode(na);
-}
-
-static inline void
-nm_clear_native_flags(struct netmap_adapter *na)
-{
-	struct ifnet *ifp = na->ifp;
-
-	/* We undo the setup for intercepting packets only if we are the
-	 * last user of this adapapter. */
-	if (na->active_fds > 0) {
-		return;
-	}
-
-	nm_update_hostrings_mode(na);
-
-#if defined(__FreeBSD__)
-	ifp->if_transmit = na->if_transmit;
-#elif defined(_WIN32)
-	(void)ifp; /* prevent a warning */
-#else
-	ifp->netdev_ops = (void *)na->if_transmit;
-	ifp->ethtool_ops = ((struct netmap_hw_adapter*)na)->save_ethtool;
-#endif
-	na->na_flags &= ~NAF_NETMAP_ON;
-#ifdef IFCAP_NETMAP /* or FreeBSD ? */
-	ifp->if_capenable &= ~IFCAP_NETMAP;
-#endif
-}
-
-#ifdef linux
-int netmap_linux_config(struct netmap_adapter *na,
-			struct nm_config_info *info);
-#endif /* linux */
+void nm_set_native_flags(struct netmap_adapter *);
+void nm_clear_native_flags(struct netmap_adapter *);
 
 /*
  * nm_*sync_prologue() functions are used in ioctl/poll and ptnetmap
@@ -1458,7 +1443,6 @@ int netmap_get_hw_na(struct ifnet *ifp,
 		struct netmap_mem_d *nmd, struct netmap_adapter **na);
 
 
-#ifdef WITH_VALE
 /*
  * The following bridge-related functions are used by other
  * kernel modules.
@@ -1473,39 +1457,49 @@ typedef uint32_t (*bdg_lookup_fn_t)(struct nm_bdg_fwd *ft, uint8_t *ring_nr,
 typedef int (*bdg_config_fn_t)(struct nm_ifreq *);
 typedef void (*bdg_dtor_fn_t)(const struct netmap_vp_adapter *);
 typedef void *(*bdg_update_private_data_fn_t)(void *private_data, void *callback_data, int *error);
+typedef int (*bdg_vp_create_fn_t)(struct nmreq_header *hdr,
+		struct ifnet *ifp, struct netmap_mem_d *nmd,
+		struct netmap_vp_adapter **ret);
+typedef int (*bdg_bwrap_attach_fn_t)(const char *nr_name, struct netmap_adapter *hwna);
 struct netmap_bdg_ops {
 	bdg_lookup_fn_t lookup;
 	bdg_config_fn_t config;
 	bdg_dtor_fn_t	dtor;
+	bdg_vp_create_fn_t	vp_create;
+	bdg_bwrap_attach_fn_t	bwrap_attach;
+	char name[IFNAMSIZ];
 };
-
-uint32_t netmap_bdg_learning(struct nm_bdg_fwd *ft, uint8_t *dst_ring,
-		struct netmap_vp_adapter *, void *private_data);
+int netmap_bwrap_attach(const char *name, struct netmap_adapter *, struct netmap_bdg_ops *);
+int netmap_bdg_regops(const char *name, struct netmap_bdg_ops *bdg_ops, void *private_data, void *auth_token);
 
 #define	NM_BRIDGES		8	/* number of bridges */
 #define	NM_BDG_MAXPORTS		254	/* up to 254 */
 #define	NM_BDG_BROADCAST	NM_BDG_MAXPORTS
 #define	NM_BDG_NOPORT		(NM_BDG_MAXPORTS+1)
 
-/* these are redefined in case of no VALE support */
-int netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
-		struct netmap_mem_d *nmd, int create);
 struct nm_bridge *netmap_init_bridges2(u_int);
 void netmap_uninit_bridges2(struct nm_bridge *, u_int);
 int netmap_init_bridges(void);
 void netmap_uninit_bridges(void);
-int netmap_bdg_regops(const char *name, struct netmap_bdg_ops *bdg_ops, void *private_data, void *auth_token);
 int nm_bdg_update_private_data(const char *name, bdg_update_private_data_fn_t callback,
 	void *callback_data, void *auth_token);
 int netmap_bdg_config(struct nm_ifreq *nifr);
-void *netmap_bdg_create(const char *bdg_name, int *return_status);
-int netmap_bdg_destroy(const char *bdg_name, void *auth_token);
+
+#ifdef WITH_VALE
+uint32_t netmap_bdg_learning(struct nm_bdg_fwd *ft, uint8_t *dst_ring,
+		struct netmap_vp_adapter *, void *private_data);
+
+/* these are redefined in case of no VALE support */
+int netmap_get_vale_na(struct nmreq_header *hdr, struct netmap_adapter **na,
+		struct netmap_mem_d *nmd, int create);
+void *netmap_vale_create(const char *bdg_name, int *return_status);
+int netmap_vale_destroy(const char *bdg_name, void *auth_token);
 
 #else /* !WITH_VALE */
-#define	netmap_get_bdg_na(_1, _2, _3, _4)	0
-#define netmap_init_bridges(_1) 0
-#define netmap_uninit_bridges()
-#define	netmap_bdg_regops(_1, _2)	EINVAL
+#define netmap_bdg_learning(_1, _2, _3, _4)	0
+#define	netmap_get_vale_na(_1, _2, _3, _4)	0
+#define netmap_bdg_create(_1, _2)	NULL
+#define netmap_bdg_destroy(_1, _2)	0
 #endif /* !WITH_VALE */
 
 #ifdef WITH_PIPES
@@ -1611,6 +1605,7 @@ enum {                                  /* verbose flags */
 
 extern int netmap_txsync_retry;
 extern int netmap_flags;
+extern int netmap_generic_hwcsum;
 extern int netmap_generic_mit;
 extern int netmap_generic_ringsize;
 extern int netmap_generic_rings;
@@ -1620,11 +1615,17 @@ extern int netmap_generic_txqdisc;
 extern int ptnetmap_tx_workers;
 
 /*
- * NA returns a pointer to the struct netmap adapter from the ifp,
- * WNA is used to write it.
+ * NA returns a pointer to the struct netmap adapter from the ifp.
+ * WNA is os-specific and must be defined in glue code.
  */
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
 
+/*
+ * we provide a default implementation of NM_ATTACH_NA/NM_DETACH_NA
+ * based on the WNA field.
+ * Glue code may override this by defining its own NM_ATTACH_NA
+ */
+#ifndef NM_ATTACH_NA
 /*
  * On old versions of FreeBSD, NA(ifp) is a pspare. On linux we
  * overload another pointer in the netdev.
@@ -1643,6 +1644,12 @@ extern int ptnetmap_tx_workers;
 		NA(ifp)->magic = 					\
 			((uint32_t)(uintptr_t)NA(ifp)) ^ NETMAP_MAGIC;	\
 } while(0)
+#define NM_RESTORE_NA(ifp, na) 	WNA(ifp) = na;
+
+#define NM_DETACH_NA(ifp)	do { WNA(ifp) = NULL; } while (0)
+#define NM_NA_CLASH(ifp)	(NA(ifp) && !NM_NA_VALID(ifp))
+#endif /* !NM_ATTACH_NA */
+
 
 #define NM_IS_NATIVE(ifp)	(NM_NA_VALID(ifp) && NA(ifp)->nm_dtor == netmap_hw_dtor)
 
@@ -1752,17 +1759,24 @@ netmap_unload_map(struct netmap_adapter *na,
 	}
 }
 
+#ifdef NETMAP_LINUX_HAVE_DMASYNC
 static inline void
-netmap_sync_map(struct netmap_adapter *na,
+netmap_sync_map_cpu(struct netmap_adapter *na,
 	bus_dma_tag_t tag, bus_dmamap_t map, u_int sz, enum txrx t)
 {
 	if (*map) {
-		if (t == NR_RX)
-			dma_sync_single_for_cpu(na->pdev, *map, sz,
-					DMA_FROM_DEVICE);
-		else
-			dma_sync_single_for_device(na->pdev, *map, sz,
-					DMA_TO_DEVICE);
+		dma_sync_single_for_cpu(na->pdev, *map, sz,
+			(t == NR_TX ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+	}
+}
+
+static inline void
+netmap_sync_map_dev(struct netmap_adapter *na,
+	bus_dma_tag_t tag, bus_dmamap_t map, u_int sz, enum txrx t)
+{
+	if (*map) {
+		dma_sync_single_for_device(na->pdev, *map, sz,
+			(t == NR_TX ? DMA_TO_DEVICE : DMA_FROM_DEVICE));
 	}
 }
 
@@ -1780,6 +1794,10 @@ netmap_reload_map(struct netmap_adapter *na,
 	*map = dma_map_single(na->pdev, buf, sz,
 				DMA_BIDIRECTIONAL);
 }
+#else /* !NETMAP_LINUX_HAVE_DMASYNC */
+#define netmap_sync_map_cpu(na, tag, map, sz, t)
+#define netmap_sync_map_dev(na, tag, map, sz, t)
+#endif /* NETMAP_LINUX_HAVE_DMASYNC */
 
 #endif /* linux */
 
@@ -2220,6 +2238,119 @@ int ptnet_nm_krings_create(struct netmap_adapter *na);
 void ptnet_nm_krings_delete(struct netmap_adapter *na);
 void ptnet_nm_dtor(struct netmap_adapter *na);
 #endif /* WITH_PTNETMAP_GUEST */
+
+#ifdef __FreeBSD__
+/*
+ * FreeBSD mbuf allocator/deallocator in emulation mode:
+ */
+#if __FreeBSD_version < 1100000
+
+/*
+ * For older versions of FreeBSD:
+ *
+ * We allocate EXT_PACKET mbuf+clusters, but need to set M_NOFREE
+ * so that the destructor, if invoked, will not free the packet.
+ * In principle we should set the destructor only on demand,
+ * but since there might be a race we better do it on allocation.
+ * As a consequence, we also need to set the destructor or we
+ * would leak buffers.
+ */
+
+/* mbuf destructor, also need to change the type to EXT_EXTREF,
+ * add an M_NOFREE flag, and then clear the flag and
+ * chain into uma_zfree(zone_pack, mf)
+ * (or reinstall the buffer ?)
+ */
+#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
+	(m)->m_ext.ext_free = (void *)fn;	\
+	(m)->m_ext.ext_type = EXT_EXTREF;	\
+} while (0)
+
+static int
+void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2)
+{
+	/* restore original mbuf */
+	m->m_ext.ext_buf = m->m_data = m->m_ext.ext_arg1;
+	m->m_ext.ext_arg1 = NULL;
+	m->m_ext.ext_type = EXT_PACKET;
+	m->m_ext.ext_free = NULL;
+	if (MBUF_REFCNT(m) == 0)
+		SET_MBUF_REFCNT(m, 1);
+	uma_zfree(zone_pack, m);
+
+	return 0;
+}
+
+static inline struct mbuf *
+nm_os_get_mbuf(struct ifnet *ifp, int len)
+{
+	struct mbuf *m;
+
+	(void)ifp;
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m) {
+		/* m_getcl() (mb_ctor_mbuf) has an assert that checks that
+		 * M_NOFREE flag is not specified as third argument,
+		 * so we have to set M_NOFREE after m_getcl(). */
+		m->m_flags |= M_NOFREE;
+		m->m_ext.ext_arg1 = m->m_ext.ext_buf; // XXX save
+		m->m_ext.ext_free = (void *)void_mbuf_dtor;
+		m->m_ext.ext_type = EXT_EXTREF;
+		ND(5, "create m %p refcnt %d", m, MBUF_REFCNT(m));
+	}
+	return m;
+}
+
+#else /* __FreeBSD_version >= 1100000 */
+
+/*
+ * Newer versions of FreeBSD, using a straightforward scheme.
+ *
+ * We allocate mbufs with m_gethdr(), since the mbuf header is needed
+ * by the driver. We also attach a customly-provided external storage,
+ * which in this case is a netmap buffer. When calling m_extadd(), however
+ * we pass a NULL address, since the real address (and length) will be
+ * filled in by nm_os_generic_xmit_frame() right before calling
+ * if_transmit().
+ *
+ * The dtor function does nothing, however we need it since mb_free_ext()
+ * has a KASSERT(), checking that the mbuf dtor function is not NULL.
+ */
+
+#if __FreeBSD_version <= 1200050
+static void void_mbuf_dtor(struct mbuf *m, void *arg1, void *arg2) { }
+#else  /* __FreeBSD_version >= 1200051 */
+/* The arg1 and arg2 pointers argument were removed by r324446, which
+ * in included since version 1200051. */
+static void void_mbuf_dtor(struct mbuf *m) { }
+#endif /* __FreeBSD_version >= 1200051 */
+
+#define SET_MBUF_DESTRUCTOR(m, fn)	do {		\
+	(m)->m_ext.ext_free = (fn != NULL) ?		\
+	    (void *)fn : (void *)void_mbuf_dtor;	\
+} while (0)
+
+static inline struct mbuf *
+nm_os_get_mbuf(struct ifnet *ifp, int len)
+{
+	struct mbuf *m;
+
+	(void)ifp;
+	(void)len;
+
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	if (m == NULL) {
+		return m;
+	}
+
+	m_extadd(m, NULL /* buf */, 0 /* size */, void_mbuf_dtor,
+		 NULL, NULL, 0, EXT_NET_DRV);
+
+	return m;
+}
+
+#endif /* __FreeBSD_version >= 1100000 */
+#endif /* __FreeBSD__ */
 
 struct nmreq_option * nmreq_findoption(struct nmreq_option *, uint16_t);
 int nmreq_checkduplicate(struct nmreq_option *);

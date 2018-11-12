@@ -417,11 +417,11 @@ ApCheckPackage (
 
         if (Count & 1)
         {
-            sprintf (MsgBuffer, "%4.4s: Package length, %d, must be even.",
+            sprintf (AslGbl_MsgBuffer, "%4.4s: Package length, %d, must be even.",
                 Predefined->Info.Name, Count);
 
             AslError (ASL_ERROR, ASL_MSG_RESERVED_PACKAGE_LENGTH,
-                ParentOp->Asl.Child, MsgBuffer);
+                ParentOp->Asl.Child, AslGbl_MsgBuffer);
         }
 
         /* Validate the alternating types */
@@ -538,7 +538,7 @@ ApCustomPackage (
     Version = (UINT32) Op->Asl.Value.Integer;
     if (Op->Asl.ParseOpcode != PARSEOP_INTEGER)
     {
-        AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op, MsgBuffer);
+        AslError (ASL_ERROR, ASL_MSG_RESERVED_OPERAND_TYPE, Op, AslGbl_MsgBuffer);
         return;
     }
 
@@ -917,10 +917,10 @@ ApPackageTooSmall (
     UINT32                      ExpectedCount)
 {
 
-    sprintf (MsgBuffer, "%s: length %u, required minimum is %u",
+    sprintf (AslGbl_MsgBuffer, "%s: length %u, required minimum is %u",
         PredefinedName, Count, ExpectedCount);
 
-    AslError (ASL_ERROR, ASL_MSG_RESERVED_PACKAGE_LENGTH, Op, MsgBuffer);
+    AslError (ASL_ERROR, ASL_MSG_RESERVED_PACKAGE_LENGTH, Op, AslGbl_MsgBuffer);
 }
 
 
@@ -946,9 +946,9 @@ ApZeroLengthPackage (
     ACPI_PARSE_OBJECT           *Op)
 {
 
-    sprintf (MsgBuffer, "%s: length is zero", PredefinedName);
+    sprintf (AslGbl_MsgBuffer, "%s: length is zero", PredefinedName);
 
-    AslError (ASL_ERROR, ASL_MSG_RESERVED_PACKAGE_LENGTH, Op, MsgBuffer);
+    AslError (ASL_ERROR, ASL_MSG_RESERVED_PACKAGE_LENGTH, Op, AslGbl_MsgBuffer);
 }
 
 
@@ -975,8 +975,8 @@ ApPackageTooLarge (
     UINT32                      ExpectedCount)
 {
 
-    sprintf (MsgBuffer, "%s: length is %u, only %u required",
+    sprintf (AslGbl_MsgBuffer, "%s: length is %u, only %u required",
         PredefinedName, Count, ExpectedCount);
 
-    AslError (ASL_REMARK, ASL_MSG_RESERVED_PACKAGE_LENGTH, Op, MsgBuffer);
+    AslError (ASL_REMARK, ASL_MSG_RESERVED_PACKAGE_LENGTH, Op, AslGbl_MsgBuffer);
 }

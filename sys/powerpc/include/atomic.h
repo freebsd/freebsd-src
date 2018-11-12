@@ -510,7 +510,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 	u_##TYPE v;						\
 								\
 	v = *p;							\
-	mb();							\
+	powerpc_lwsync();					\
 	return (v);						\
 }								\
 								\

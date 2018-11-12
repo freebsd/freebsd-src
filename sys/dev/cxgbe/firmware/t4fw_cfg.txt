@@ -110,6 +110,7 @@
 	nexactf = 280
 	cmask = all
 	pmask = all
+	nethofld = 2048
 
 	# driver will mask off features it won't use
 	protocol = ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
@@ -245,7 +246,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xbec0621
+	checksum = 0x159b9295
 #
 # $FreeBSD$
 #

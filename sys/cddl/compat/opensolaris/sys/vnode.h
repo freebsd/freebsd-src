@@ -278,7 +278,7 @@ vn_remove(char *fnamep, enum uio_seg seg, enum rm dirflag)
 	ASSERT(seg == UIO_SYSSPACE);
 	ASSERT(dirflag == RMFILE);
 
-	return (kern_unlinkat(curthread, AT_FDCWD, fnamep, seg, 0));
+	return (kern_unlinkat(curthread, AT_FDCWD, fnamep, seg, 0, 0));
 }
 
 #endif	/* _KERNEL */

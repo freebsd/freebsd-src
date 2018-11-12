@@ -77,6 +77,7 @@ extern char	etext[];
 extern	void (*vmm_resume_p)(void);
 
 void	cpu_halt(void);
+void	cpu_lock_delay(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);
 void	swi_vm(void *);
@@ -91,6 +92,10 @@ get_cyclecount(void)
 
 	return (rdtsc());
 }
+
+#define MEMSET_EARLY_FUNC       memset_std
+#define MEMCPY_EARLY_FUNC       memcpy_std
+#define MEMMOVE_EARLY_FUNC      memmove_std
 
 #endif
 

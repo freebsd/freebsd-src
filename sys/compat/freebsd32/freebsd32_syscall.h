@@ -19,7 +19,7 @@
 				/* 11 is obsolete execv */
 #define	FREEBSD32_SYS_chdir	12
 #define	FREEBSD32_SYS_fchdir	13
-#define	FREEBSD32_SYS_freebsd11_freebsd32_mknod	14
+#define	FREEBSD32_SYS_freebsd11_mknod	14
 #define	FREEBSD32_SYS_chmod	15
 #define	FREEBSD32_SYS_chown	16
 #define	FREEBSD32_SYS_break	17
@@ -171,6 +171,10 @@
 #define	FREEBSD32_SYS_setgid	181
 #define	FREEBSD32_SYS_setegid	182
 #define	FREEBSD32_SYS_seteuid	183
+				/* 184 is obsolete lfs_bmapv */
+				/* 185 is obsolete lfs_markv */
+				/* 186 is obsolete lfs_segclean */
+				/* 187 is obsolete lfs_segwait */
 #define	FREEBSD32_SYS_freebsd11_freebsd32_stat	188
 #define	FREEBSD32_SYS_freebsd11_freebsd32_fstat	189
 #define	FREEBSD32_SYS_freebsd11_freebsd32_lstat	190
@@ -184,7 +188,7 @@
 				/* 199 is freebsd6 freebsd32_lseek */
 				/* 200 is freebsd6 freebsd32_truncate */
 				/* 201 is freebsd6 freebsd32_ftruncate */
-#define	FREEBSD32_SYS_freebsd32_sysctl	202
+#define	FREEBSD32_SYS_freebsd32___sysctl	202
 #define	FREEBSD32_SYS_mlock	203
 #define	FREEBSD32_SYS_munlock	204
 #define	FREEBSD32_SYS_undelete	205
@@ -194,6 +198,7 @@
 #define	FREEBSD32_SYS_freebsd7_freebsd32_semctl	220
 #define	FREEBSD32_SYS_semget	221
 #define	FREEBSD32_SYS_semop	222
+				/* 223 is obsolete semconfig */
 #define	FREEBSD32_SYS_freebsd7_freebsd32_msgctl	224
 #define	FREEBSD32_SYS_msgget	225
 #define	FREEBSD32_SYS_freebsd32_msgsnd	226
@@ -300,12 +305,24 @@
 #define	FREEBSD32_SYS_getresgid	361
 #define	FREEBSD32_SYS_kqueue	362
 #define	FREEBSD32_SYS_freebsd11_freebsd32_kevent	363
+				/* 364 is obsolete __cap_get_proc */
+				/* 365 is obsolete __cap_set_proc */
+				/* 366 is obsolete __cap_get_fd */
+				/* 367 is obsolete __cap_get_file */
+				/* 368 is obsolete __cap_set_fd */
+				/* 369 is obsolete __cap_set_file */
 #define	FREEBSD32_SYS_extattr_set_fd	371
 #define	FREEBSD32_SYS_extattr_get_fd	372
 #define	FREEBSD32_SYS_extattr_delete_fd	373
 #define	FREEBSD32_SYS___setugid	374
+				/* 375 is obsolete nfsclnt */
 #define	FREEBSD32_SYS_eaccess	376
 #define	FREEBSD32_SYS_freebsd32_nmount	378
+				/* 379 is obsolete kse_exit */
+				/* 380 is obsolete kse_wakeup */
+				/* 381 is obsolete kse_create */
+				/* 382 is obsolete kse_thr_interrupt */
+				/* 383 is obsolete kse_release */
 #define	FREEBSD32_SYS_kenv	390
 #define	FREEBSD32_SYS_lchflags	391
 #define	FREEBSD32_SYS_uuidgen	392
@@ -343,6 +360,7 @@
 #define	FREEBSD32_SYS_extattr_list_fd	437
 #define	FREEBSD32_SYS_extattr_list_file	438
 #define	FREEBSD32_SYS_extattr_list_link	439
+				/* 440 is obsolete kse_switchin */
 #define	FREEBSD32_SYS_freebsd32_ksem_timedwait	441
 #define	FREEBSD32_SYS_freebsd32_thr_suspend	442
 #define	FREEBSD32_SYS_thr_wake	443
@@ -356,7 +374,7 @@
 #define	FREEBSD32_SYS_getaudit_addr	451
 #define	FREEBSD32_SYS_setaudit_addr	452
 #define	FREEBSD32_SYS_auditctl	453
-#define	FREEBSD32_SYS_freebsd32_umtx_op	454
+#define	FREEBSD32_SYS_freebsd32__umtx_op	454
 #define	FREEBSD32_SYS_freebsd32_thr_new	455
 #define	FREEBSD32_SYS_freebsd32_sigqueue	456
 #define	FREEBSD32_SYS_freebsd32_kmq_open	457
@@ -403,7 +421,7 @@
 #define	FREEBSD32_SYS_linkat	495
 #define	FREEBSD32_SYS_mkdirat	496
 #define	FREEBSD32_SYS_mkfifoat	497
-#define	FREEBSD32_SYS_freebsd11_freebsd32_mknodat	498
+#define	FREEBSD32_SYS_freebsd11_mknodat	498
 #define	FREEBSD32_SYS_openat	499
 #define	FREEBSD32_SYS_readlinkat	500
 #define	FREEBSD32_SYS_renameat	501
@@ -455,6 +473,8 @@
 #define	FREEBSD32_SYS_freebsd32_ppoll	545
 #define	FREEBSD32_SYS_freebsd32_futimens	546
 #define	FREEBSD32_SYS_freebsd32_utimensat	547
+				/* 548 is obsolete numa_getaffinity */
+				/* 549 is obsolete numa_setaffinity */
 #define	FREEBSD32_SYS_fdatasync	550
 #define	FREEBSD32_SYS_freebsd32_fstat	551
 #define	FREEBSD32_SYS_freebsd32_fstatat	552
@@ -464,7 +484,8 @@
 #define	FREEBSD32_SYS_fstatfs	556
 #define	FREEBSD32_SYS_getfsstat	557
 #define	FREEBSD32_SYS_fhstatfs	558
-#define	FREEBSD32_SYS_mknodat	559
+#define	FREEBSD32_SYS_freebsd32_mknodat	559
+#define	FREEBSD32_SYS_freebsd32_mknodat	559
 #define	FREEBSD32_SYS_freebsd32_kevent	560
 #define	FREEBSD32_SYS_freebsd32_cpuset_getdomain	561
 #define	FREEBSD32_SYS_freebsd32_cpuset_setdomain	562

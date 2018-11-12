@@ -237,7 +237,7 @@ XfCrossReferenceNamespace (
 
     /* Walk the entire parse tree */
 
-    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
         XfNamespaceLocateBegin, XfNamespaceLocateEnd, WalkState);
 
     ACPI_FREE (WalkState);
@@ -683,7 +683,7 @@ XfNamespaceLocateBegin (
      * The namespace is also used as a lookup table for references to resource
      * descriptors and the fields within them.
      */
-    Gbl_NsLookupCount++;
+    AslGbl_NsLookupCount++;
 
     Status = AcpiNsLookup (WalkState->ScopeInfo, Path, ObjectType,
         ACPI_IMODE_EXECUTE, Flags, WalkState, &Node);
@@ -718,11 +718,34 @@ XfNamespaceLocateBegin (
             }
             else
             {
-                /* Check for a fully qualified path */
+                /* The NamePath contains multiple NameSegs */
 
-                if (Path[0] == AML_ROOT_PREFIX)
+                if ((OpInfo->Flags & AML_CREATE) ||
+                    (OpInfo->ObjectType == ACPI_TYPE_LOCAL_ALIAS))
                 {
-                    /* Gave full path, the object does not exist */
+                    /*
+                     * The new name is the last parameter. For the
+                     * CreateXXXXField and Alias operators
+                     */
+                    NextOp = Op->Asl.Child;
+                    while (!(NextOp->Asl.CompileFlags & OP_IS_NAME_DECLARATION))
+                    {
+                        NextOp = NextOp->Asl.Next;
+                    }
+
+                    AslError (ASL_ERROR, ASL_MSG_PREFIX_NOT_EXIST, NextOp,
+                        NextOp->Asl.ExternalName);
+                }
+                else if (OpInfo->Flags & AML_NAMED)
+                {
+                    /* The new name is the first parameter */
+
+                    AslError (ASL_ERROR, ASL_MSG_PREFIX_NOT_EXIST, Op,
+                        Op->Asl.ExternalName);
+                }
+                else if (Path[0] == AML_ROOT_PREFIX)
+                {
+                    /* Full namepath from root, the object does not exist */
 
                     AslError (ASL_ERROR, ASL_MSG_NOT_EXIST, Op,
                         Op->Asl.ExternalName);
@@ -730,11 +753,20 @@ XfNamespaceLocateBegin (
                 else
                 {
                     /*
-                     * We can't tell whether it doesn't exist or just
-                     * can't be reached.
+                     * Generic "not found" error. Cannot determine whether it
+                     * doesn't exist or just can't be reached. However, we
+                     * can differentiate between a NameSeg vs. NamePath.
                      */
-                    AslError (ASL_ERROR, ASL_MSG_NOT_FOUND, Op,
-                        Op->Asl.ExternalName);
+                    if (strlen (Op->Asl.ExternalName) == ACPI_NAME_SIZE)
+                    {
+                        AslError (ASL_ERROR, ASL_MSG_NOT_FOUND, Op,
+                            Op->Asl.ExternalName);
+                    }
+                    else
+                    {
+                        AslError (ASL_ERROR, ASL_MSG_NAMEPATH_NOT_EXIST, Op,
+                            Op->Asl.ExternalName);
+                    }
                 }
             }
 
@@ -881,12 +913,12 @@ XfNamespaceLocateBegin (
 
             if (Message)
             {
-                sprintf (MsgBuffer,
+                sprintf (AslGbl_MsgBuffer,
                     "Size mismatch, Tag: %u bit%s, Field: %u bit%s",
                     TagBitLength, (TagBitLength > 1) ? "s" : "",
                     FieldBitLength, (FieldBitLength > 1) ? "s" : "");
 
-                AslError (ASL_WARNING, Message, Op, MsgBuffer);
+                AslError (ASL_WARNING, Message, Op, AslGbl_MsgBuffer);
             }
         }
 
@@ -952,10 +984,10 @@ XfNamespaceLocateBegin (
          */
         if (Node->Type != ACPI_TYPE_METHOD)
         {
-            sprintf (MsgBuffer, "%s is a %s",
+            sprintf (AslGbl_MsgBuffer, "%s is a %s",
                 Op->Asl.ExternalName, AcpiUtGetTypeName (Node->Type));
 
-            AslError (ASL_ERROR, ASL_MSG_NOT_METHOD, Op, MsgBuffer);
+            AslError (ASL_ERROR, ASL_MSG_NOT_METHOD, Op, AslGbl_MsgBuffer);
             return_ACPI_STATUS (AE_OK);
         }
 
@@ -993,16 +1025,16 @@ XfNamespaceLocateBegin (
              */
             if (PassedArgs != Node->Value)
             {
-                sprintf (MsgBuffer, "%s requires %u", Op->Asl.ExternalName,
-                            Node->Value);
+                sprintf (AslGbl_MsgBuffer, "%s requires %u", Op->Asl.ExternalName,
+                    Node->Value);
 
                 if (PassedArgs < Node->Value)
                 {
-                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_LO, Op, MsgBuffer);
+                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_LO, Op, AslGbl_MsgBuffer);
                 }
                 else
                 {
-                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_HI, Op, MsgBuffer);
+                    AslError (ASL_ERROR, ASL_MSG_ARG_COUNT_HI, Op, AslGbl_MsgBuffer);
                 }
             }
         }

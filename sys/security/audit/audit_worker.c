@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1999-2008 Apple Inc.
- * Copyright (c) 2006-2008, 2016 Robert N. M. Watson
+ * Copyright (c) 2006-2008, 2016, 2018 Robert N. M. Watson
  * All rights reserved.
  *
  * Portions of this software were developed by BAE Systems, the University of
@@ -305,7 +305,8 @@ fail_enospc:
 		    "Audit log space exhausted and fail-stop set.");
 	}
 	(void)audit_send_trigger(AUDIT_TRIGGER_NO_SPACE);
-	audit_suspended = 1;
+	audit_trail_suspended = 1;
+	audit_syscalls_enabled_update();
 
 	/* FALLTHROUGH */
 fail:
@@ -518,7 +519,8 @@ audit_rotate_vnode(struct ucred *cred, struct vnode *vp)
 	audit_vp = vp;
 	audit_size = vattr.va_size;
 	audit_file_rotate_wait = 0;
-	audit_enabled = (audit_vp != NULL);
+	audit_trail_enabled = (audit_vp != NULL);
+	audit_syscalls_enabled_update();
 	AUDIT_WORKER_UNLOCK();
 
 	/*

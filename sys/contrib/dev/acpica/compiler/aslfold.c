@@ -795,7 +795,7 @@ TrInstallReducedConstant (
     ACPI_PARSE_OBJECT       *DataOp;
 
 
-    TotalFolds++;
+    AslGbl_TotalFolds++;
     AslError (ASL_OPTIMIZATION, ASL_MSG_CONSTANT_FOLDED, Op,
         Op->Asl.ParseOpName);
 

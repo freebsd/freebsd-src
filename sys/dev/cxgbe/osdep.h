@@ -108,6 +108,7 @@ typedef boolean_t bool;
 
 #define DUPLEX_HALF	0
 #define DUPLEX_FULL	1
+#define AUTONEG_AUTO	(-1)
 #define AUTONEG_DISABLE	0
 #define AUTONEG_ENABLE	1
 

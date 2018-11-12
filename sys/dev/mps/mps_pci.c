@@ -88,10 +88,6 @@ static driver_t mps_pci_driver = {
 	sizeof(struct mps_softc)
 };
 
-static devclass_t	mps_devclass;
-DRIVER_MODULE(mps, pci, mps_pci_driver, mps_devclass, 0, 0);
-MODULE_DEPEND(mps, cam, 1, 1, 1);
-
 struct mps_ident {
 	uint16_t	vendor;
 	uint16_t	device;
@@ -147,6 +143,10 @@ struct mps_ident {
 	{ 0, 0, 0, 0, 0, NULL }
 };
 
+static devclass_t	mps_devclass;
+DRIVER_MODULE(mps, pci, mps_pci_driver, mps_devclass, 0, 0);
+MODULE_PNP_INFO("U16:vendor;U16:device;U16:subvendor;U16:subdevice", pci, mps,
+    mps_identifiers, nitems(mps_identifiers) - 1);
 static struct mps_ident *
 mps_find_ident(device_t dev)
 {

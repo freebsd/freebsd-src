@@ -244,7 +244,7 @@ static devclass_t alc_devclass;
 
 DRIVER_MODULE(alc, pci, alc_driver, alc_devclass, 0, 0);
 MODULE_PNP_INFO("U16:vendor;U16:device", pci, alc, alc_ident_table,
-    sizeof(alc_ident_table[0]), nitems(alc_ident_table) - 1);
+    nitems(alc_ident_table) - 1);
 DRIVER_MODULE(miibus, alc, miibus_driver, miibus_devclass, 0, 0);
 
 static struct resource_spec alc_res_spec_mem[] = {

@@ -4432,6 +4432,8 @@ tulip_attach(tulip_softc_t * const sc)
     TULIP_LOCK(sc);
     sc->tulip_flags &= ~TULIP_DEVICEPROBE;
     TULIP_UNLOCK(sc);
+
+    gone_by_fcp101_dev(sc->tulip_dev);
 }
 
 /* Release memory for a single descriptor ring. */

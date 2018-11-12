@@ -261,8 +261,8 @@ PrError (
     UINT32                  Column)
 {
 #if 0
-    AcpiOsPrintf ("%s (%u) : %s", Gbl_Files[ASL_FILE_INPUT].Filename,
-        Gbl_CurrentLineNumber, Gbl_CurrentLineBuffer);
+    AcpiOsPrintf ("%s (%u) : %s", AslGbl_Files[ASL_FILE_INPUT].Filename,
+        AslGbl_CurrentLineNumber, AslGbl_CurrentLineBuffer);
 #endif
 
 
@@ -274,11 +274,11 @@ PrError (
     /* TBD: Need Logical line number? */
 
     AslCommonError2 (Level, MessageId,
-        Gbl_CurrentLineNumber, Column,
-        Gbl_CurrentLineBuffer,
-        Gbl_Files[ASL_FILE_INPUT].Filename, "Preprocessor");
+        AslGbl_CurrentLineNumber, Column,
+        AslGbl_CurrentLineBuffer,
+        AslGbl_Files[ASL_FILE_INPUT].Filename, "Preprocessor");
 
-    Gbl_PreprocessorError = TRUE;
+    AslGbl_PreprocessorError = TRUE;
 }
 
 
@@ -358,7 +358,7 @@ PrOpenIncludeFile (
 
     /* Start the actual include file on the next line */
 
-    Gbl_CurrentLineOffset++;
+    AslGbl_CurrentLineOffset++;
 
     /* Attempt to open the include file */
     /* If the file specifies an absolute path, just open it */
@@ -385,7 +385,7 @@ PrOpenIncludeFile (
      * Construct the file pathname from the global directory name.
      */
     IncludeFile = PrOpenIncludeWithPrefix (
-        Gbl_DirectoryPath, Filename, OpenMode, FullPathname);
+        AslGbl_DirectoryPath, Filename, OpenMode, FullPathname);
     if (IncludeFile)
     {
         return (IncludeFile);
@@ -395,7 +395,7 @@ PrOpenIncludeFile (
      * Second, search for the file within the (possibly multiple)
      * directories specified by the -I option on the command line.
      */
-    NextDir = Gbl_IncludeDirList;
+    NextDir = AslGbl_IncludeDirList;
     while (NextDir)
     {
         IncludeFile = PrOpenIncludeWithPrefix (
@@ -411,7 +411,7 @@ PrOpenIncludeFile (
     /* We could not open the include file after trying very hard */
 
 ErrorExit:
-    sprintf (Gbl_MainTokenBuffer, "%s, %s", Filename, strerror (errno));
+    sprintf (AslGbl_MainTokenBuffer, "%s, %s", Filename, strerror (errno));
     PrError (ASL_ERROR, ASL_MSG_INCLUDE_FILE_OPEN, 0);
     return (NULL);
 }
@@ -448,7 +448,7 @@ PrOpenIncludeWithPrefix (
 
     DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
         "Include: Opening file - \"%s\"\n",
-        Gbl_CurrentLineNumber, Pathname);
+        AslGbl_CurrentLineNumber, Pathname);
 
     /* Attempt to open the file, push if successful */
 
@@ -490,33 +490,33 @@ PrPushInputFileStack (
     PR_FILE_NODE            *Fnode;
 
 
-    Gbl_HasIncludeFiles = TRUE;
+    AslGbl_HasIncludeFiles = TRUE;
 
     /* Save the current state in an Fnode */
 
     Fnode = UtLocalCalloc (sizeof (PR_FILE_NODE));
 
-    Fnode->File = Gbl_Files[ASL_FILE_INPUT].Handle;
-    Fnode->Next = Gbl_InputFileList;
-    Fnode->Filename = Gbl_Files[ASL_FILE_INPUT].Filename;
-    Fnode->CurrentLineNumber = Gbl_CurrentLineNumber;
+    Fnode->File = AslGbl_Files[ASL_FILE_INPUT].Handle;
+    Fnode->Next = AslGbl_InputFileList;
+    Fnode->Filename = AslGbl_Files[ASL_FILE_INPUT].Filename;
+    Fnode->CurrentLineNumber = AslGbl_CurrentLineNumber;
 
     /* Push it on the stack */
 
-    Gbl_InputFileList = Fnode;
+    AslGbl_InputFileList = Fnode;
 
     DbgPrint (ASL_PARSE_OUTPUT, PR_PREFIX_ID
         "Push InputFile Stack: handle %p\n\n",
-        Gbl_CurrentLineNumber, InputFile);
+        AslGbl_CurrentLineNumber, InputFile);
 
     /* Reset the global line count and filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename =
+    AslGbl_Files[ASL_FILE_INPUT].Filename =
         UtLocalCacheCalloc (strlen (Filename) + 1);
-    strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
+    strcpy (AslGbl_Files[ASL_FILE_INPUT].Filename, Filename);
 
-    Gbl_Files[ASL_FILE_INPUT].Handle = InputFile;
-    Gbl_CurrentLineNumber = 1;
+    AslGbl_Files[ASL_FILE_INPUT].Handle = InputFile;
+    AslGbl_CurrentLineNumber = 1;
 
     /* Emit a new #line directive for the include file */
 
@@ -546,10 +546,10 @@ PrPopInputFileStack (
     PR_FILE_NODE            *Fnode;
 
 
-    Fnode = Gbl_InputFileList;
+    Fnode = AslGbl_InputFileList;
     DbgPrint (ASL_PARSE_OUTPUT, "\n" PR_PREFIX_ID
         "Pop InputFile Stack, Fnode %p\n\n",
-        Gbl_CurrentLineNumber, Fnode);
+        AslGbl_CurrentLineNumber, Fnode);
 
     if (!Fnode)
     {
@@ -558,22 +558,22 @@ PrPopInputFileStack (
 
     /* Close the current include file */
 
-    fclose (Gbl_Files[ASL_FILE_INPUT].Handle);
+    fclose (AslGbl_Files[ASL_FILE_INPUT].Handle);
 
     /* Update the top-of-stack */
 
-    Gbl_InputFileList = Fnode->Next;
+    AslGbl_InputFileList = Fnode->Next;
 
     /* Reset global line counter and filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Fnode->Filename;
-    Gbl_Files[ASL_FILE_INPUT].Handle = Fnode->File;
-    Gbl_CurrentLineNumber = Fnode->CurrentLineNumber;
+    AslGbl_Files[ASL_FILE_INPUT].Filename = Fnode->Filename;
+    AslGbl_Files[ASL_FILE_INPUT].Handle = Fnode->File;
+    AslGbl_CurrentLineNumber = Fnode->CurrentLineNumber;
 
     /* Emit a new #line directive after the include file */
 
     FlPrintFile (ASL_FILE_PREPROCESSOR, "#line %u \"%s\"\n",
-        Gbl_CurrentLineNumber, Fnode->Filename);
+        AslGbl_CurrentLineNumber, Fnode->Filename);
 
     /* All done with this node */
 

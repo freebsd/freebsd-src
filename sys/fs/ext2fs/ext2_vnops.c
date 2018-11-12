@@ -1521,8 +1521,8 @@ ext2_symlink(struct vop_symlink_args *ap)
 		ip->i_size = len;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	} else
-		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
-		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
+		error = vn_rdwr(UIO_WRITE, vp, __DECONST(void *, ap->a_target),
+		    len, (off_t)0, UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
 		    ap->a_cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(vp);

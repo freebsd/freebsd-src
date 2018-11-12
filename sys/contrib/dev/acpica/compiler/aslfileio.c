@@ -176,10 +176,10 @@ FlFileError (
     UINT8                   ErrorId)
 {
 
-    sprintf (MsgBuffer, "\"%s\" (%s) - %s", Gbl_Files[FileId].Filename,
-        Gbl_Files[FileId].Description, strerror (errno));
+    sprintf (AslGbl_MsgBuffer, "\"%s\" (%s) - %s", AslGbl_Files[FileId].Filename,
+        AslGbl_Files[FileId].Description, strerror (errno));
 
-    AslCommonError (ASL_ERROR, ErrorId, 0, 0, 0, 0, NULL, MsgBuffer);
+    AslCommonError (ASL_ERROR, ErrorId, 0, 0, 0, 0, NULL, AslGbl_MsgBuffer);
 }
 
 
@@ -207,8 +207,8 @@ FlOpenFile (
     FILE                    *File;
 
 
-    Gbl_Files[FileId].Filename = Filename;
-    Gbl_Files[FileId].Handle = NULL;
+    AslGbl_Files[FileId].Filename = Filename;
+    AslGbl_Files[FileId].Handle = NULL;
 
     File = fopen (Filename, Mode);
     if (!File)
@@ -217,7 +217,7 @@ FlOpenFile (
         AslAbort ();
     }
 
-    Gbl_Files[FileId].Handle = File;
+    AslGbl_Files[FileId].Handle = File;
 }
 
 
@@ -241,7 +241,7 @@ FlGetFileSize (
     UINT32                  FileSize;
 
 
-    FileSize = CmGetFileSize (Gbl_Files[FileId].Handle);
+    FileSize = CmGetFileSize (AslGbl_Files[FileId].Handle);
     if (FileSize == ACPI_UINT32_MAX)
     {
         AslAbort();
@@ -277,10 +277,10 @@ FlReadFile (
 
     /* Read and check for error */
 
-    Actual = fread (Buffer, 1, Length, Gbl_Files[FileId].Handle);
+    Actual = fread (Buffer, 1, Length, AslGbl_Files[FileId].Handle);
     if (Actual < Length)
     {
-        if (feof (Gbl_Files[FileId].Handle))
+        if (feof (AslGbl_Files[FileId].Handle))
         {
             /* End-of-file, just return error */
 
@@ -321,19 +321,19 @@ FlWriteFile (
 
     /* Write and check for error */
 
-    Actual = fwrite ((char *) Buffer, 1, Length, Gbl_Files[FileId].Handle);
+    Actual = fwrite ((char *) Buffer, 1, Length, AslGbl_Files[FileId].Handle);
     if (Actual != Length)
     {
         FlFileError (FileId, ASL_MSG_WRITE);
         AslAbort ();
     }
 
-    if ((FileId == ASL_FILE_PREPROCESSOR) && Gbl_PreprocessorOutputFlag)
+    if ((FileId == ASL_FILE_PREPROCESSOR) && AslGbl_PreprocessorOutputFlag)
     {
         /* Duplicate the output to the user preprocessor (.i) file */
 
         Actual = fwrite ((char *) Buffer, 1, Length,
-            Gbl_Files[ASL_FILE_PREPROCESSOR_USER].Handle);
+            AslGbl_Files[ASL_FILE_PREPROCESSOR_USER].Handle);
         if (Actual != Length)
         {
             FlFileError (FileId, ASL_MSG_WRITE);
@@ -369,7 +369,7 @@ FlPrintFile (
 
 
     va_start (Args, Format);
-    Actual = vfprintf (Gbl_Files[FileId].Handle, Format, Args);
+    Actual = vfprintf (AslGbl_Files[FileId].Handle, Format, Args);
     va_end (Args);
 
     if (Actual == -1)
@@ -379,7 +379,7 @@ FlPrintFile (
     }
 
     if ((FileId == ASL_FILE_PREPROCESSOR) &&
-        Gbl_PreprocessorOutputFlag)
+        AslGbl_PreprocessorOutputFlag)
     {
         /*
          * Duplicate the output to the user preprocessor (.i) file,
@@ -391,7 +391,7 @@ FlPrintFile (
         }
 
         va_start (Args, Format);
-        Actual = vfprintf (Gbl_Files[ASL_FILE_PREPROCESSOR_USER].Handle,
+        Actual = vfprintf (AslGbl_Files[ASL_FILE_PREPROCESSOR_USER].Handle,
             Format, Args);
         va_end (Args);
 
@@ -426,7 +426,7 @@ FlSeekFile (
     int                     Error;
 
 
-    Error = fseek (Gbl_Files[FileId].Handle, Offset, SEEK_SET);
+    Error = fseek (AslGbl_Files[FileId].Handle, Offset, SEEK_SET);
     if (Error)
     {
         FlFileError (FileId, ASL_MSG_SEEK);
@@ -454,12 +454,12 @@ FlCloseFile (
     int                     Error;
 
 
-    if (!Gbl_Files[FileId].Handle)
+    if (!AslGbl_Files[FileId].Handle)
     {
         return;
     }
 
-    Error = fclose (Gbl_Files[FileId].Handle);
+    Error = fclose (AslGbl_Files[FileId].Handle);
     if (Error)
     {
         FlFileError (FileId, ASL_MSG_CLOSE);
@@ -468,7 +468,7 @@ FlCloseFile (
 
     /* Do not clear/free the filename string */
 
-    Gbl_Files[FileId].Handle = NULL;
+    AslGbl_Files[FileId].Handle = NULL;
     return;
 }
 
@@ -489,7 +489,7 @@ void
 FlDeleteFile (
     UINT32                  FileId)
 {
-    ASL_FILE_INFO           *Info = &Gbl_Files[FileId];
+    ASL_FILE_INFO           *Info = &AslGbl_Files[FileId];
 
 
     if (!Info->Filename)

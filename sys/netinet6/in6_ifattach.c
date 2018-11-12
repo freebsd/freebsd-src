@@ -481,9 +481,16 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 		return (-1);
 	}
 
-	ia = in6ifa_ifpforlinklocal(ifp, 0); /* ia must not be NULL */
-	KASSERT(ia != NULL, ("%s: ia == NULL, ifp=%p", __func__, ifp));
-
+	ia = in6ifa_ifpforlinklocal(ifp, 0);
+	if (ia == NULL) {
+		/*
+		 * Another thread removed the address that we just added.
+		 * This should be rare, but it happens.
+		 */
+		nd6log((LOG_NOTICE, "%s: %s: new link-local address "
+			"disappeared\n", __func__, if_name(ifp)));
+		return (-1);
+	}
 	ifa_free(&ia->ia_ifa);
 
 	/*

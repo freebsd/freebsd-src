@@ -143,7 +143,7 @@ static driver_t xics_driver = {
 /* We can only pass physical addresses into OPAL.  Kernel stacks are in the KVA,
  * not in the direct map, so we need to somehow extract the physical address.
  * However, pmap_kextract() takes locks, which is forbidden in a critical region
- * (which PMAP_DISPATCH() operates in).  The kernel is mapped into the Direct
+ * (which PIC_DISPATCH() operates in).  The kernel is mapped into the Direct
  * Map (0xc000....), and the CPU implicitly drops the top two bits when doing
  * real address by nature that the bus width is smaller than 64-bits.  Placing
  * cpu_xirr into the DMAP lets us take advantage of this and avoids the
@@ -381,17 +381,9 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 		}
 		xirr &= 0x00ffffff;
 
-		if (xirr == 0) { /* No more pending interrupts? */
-			if (regs)
-				bus_write_1(regs, 4, 0xff);
-#ifdef POWERNV
-			else if (sc->xics_emu)
-				opal_call(OPAL_INT_SET_CPPR, 0xff);
-#endif
-			else
-				phyp_hcall(H_CPPR, (uint64_t)0xff);
+		if (xirr == 0) /* No more pending interrupts? */
 			break;
-		}
+
 		if (xirr == XICP_IPI) {		/* Magic number for IPIs */
 			xirr = MAX_XICP_IRQS;	/* Map to FreeBSD magic */
 
@@ -471,7 +463,7 @@ xicp_eoi(device_t dev, u_int irq)
 
 	if (irq == MAX_XICP_IRQS) /* Remap IPI interrupt to internal value */
 		irq = XICP_IPI;
-	xirr = irq | (XICP_PRIORITY << 24);
+	xirr = irq | (0xff << 24);
 
 #ifdef POWERNV
 	if (mfmsr() & PSL_HV) {

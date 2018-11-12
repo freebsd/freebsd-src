@@ -67,10 +67,12 @@
 #define	PMC_FN_THR_EXIT_LOG		16
 #define	PMC_FN_PROC_CREATE_LOG		17
 
-#define	PMC_HR	0	/* Hardware ring buffer */
-#define	PMC_SR	1	/* Software ring buffer */
-#define	PMC_UR	2	/* userret ring buffer */
-#define PMC_NUM_SR (PMC_UR+1)
+typedef enum ring_type {
+        PMC_HR = 0,	/* Hardware ring buffer */
+		PMC_SR = 1,	/* Software ring buffer */
+        PMC_UR = 2,	/* userret ring buffer */
+		PMC_NUM_SR = PMC_UR+1
+} ring_type_t;
 
 struct pmckern_procexec {
 	int		pm_credentialschanged;

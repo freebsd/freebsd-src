@@ -2560,7 +2560,7 @@ fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	}
 
 #ifdef CAPABILITIES
-	error = cap_check(cap_rights_fde(fde), needrightsp);
+	error = cap_check(cap_rights_fde_inline(fde), needrightsp);
 	if (error != 0)
 		goto out;
 #endif
@@ -2651,7 +2651,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 #ifdef CAPABILITIES
 		seq = seq_read(fd_seq(fdt, fd));
 		fde = &fdt->fdt_ofiles[fd];
-		haverights = *cap_rights_fde(fde);
+		haverights = *cap_rights_fde_inline(fde);
 		fp = fde->fde_file;
 		if (!seq_consistent(fd_seq(fdt, fd), seq))
 			continue;
@@ -2936,8 +2936,11 @@ fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
 
 /*
  * Handle the last reference to a file being closed.
+ *
+ * Without the noinline attribute clang keeps inlining the func thorough this
+ * file when fdrop is used.
  */
-int
+int __noinline
 _fdrop(struct file *fp, struct thread *td)
 {
 	int error;

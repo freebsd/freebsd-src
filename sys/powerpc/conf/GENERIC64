@@ -40,6 +40,7 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	TCP_RFC7413		# TCP Fast Open
 options 	SCTP			#Stream Control Transmission Protocol
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
@@ -94,6 +95,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Kernel dump features.
 options 	EKCD			# Support for encrypted kernel dumps
@@ -120,6 +122,7 @@ device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 
 # NVM Express (NVMe) support
 device		nvme		# base NVMe driver
+options		NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
 device		nvd		# expose NVMe namespaces as disks, depends on nvme
 
 # SCSI Controllers

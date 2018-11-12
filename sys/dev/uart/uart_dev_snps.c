@@ -127,6 +127,7 @@ struct uart_class uart_snps_class = {
 
 static struct ofw_compat_data compat_data[] = {
 	{ "snps,dw-apb-uart",		(uintptr_t)&uart_snps_class },
+	{ "marvell,armada-38x-uart",	(uintptr_t)&uart_snps_class },
 	{ NULL,				(uintptr_t)NULL }
 };
 UART_FDT_CLASS(compat_data);

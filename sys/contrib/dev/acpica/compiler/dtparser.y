@@ -166,7 +166,7 @@ int                         DtParserlex (void);
 int                         DtParserparse (void);
 void                        DtParsererror (char const *msg);
 extern char                 *DtParsertext;
-extern DT_FIELD             *Gbl_CurrentField;
+extern DT_FIELD             *AslGbl_CurrentField;
 
 UINT64                      DtParserResult; /* Expression return value */
 
@@ -321,7 +321,7 @@ DtParsererror (
     char const              *Message)
 {
     DtError (ASL_ERROR, ASL_MSG_SYNTAX,
-        Gbl_CurrentField, (char *) Message);
+        AslGbl_CurrentField, (char *) Message);
 }
 
 
@@ -381,7 +381,7 @@ DtEvaluateExpression (
     if (DtInitLexer (ExprString))
     {
         DtError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-            Gbl_CurrentField, "Could not initialize lexer");
+            AslGbl_CurrentField, "Could not initialize lexer");
         return (0);
     }
 

@@ -258,27 +258,6 @@ vtprintf(struct proc *p, int pri, const char *fmt, va_list ap)
 	msgbuftrigger = 1;
 }
 
-/*
- * Ttyprintf displays a message on a tty; it should be used only by
- * the tty driver, or anything that knows the underlying tty will not
- * be revoke(2)'d away.  Other callers should use tprintf.
- */
-int
-ttyprintf(struct tty *tp, const char *fmt, ...)
-{
-	va_list ap;
-	struct putchar_arg pca;
-	int retval;
-
-	va_start(ap, fmt);
-	pca.tty = tp;
-	pca.flags = TOTTY;
-	pca.p_bufr = NULL;
-	retval = kvprintf(fmt, putchar, &pca, 10, ap);
-	va_end(ap);
-	return (retval);
-}
-
 static int
 _vprintf(int level, int flags, const char *fmt, va_list ap)
 {
@@ -1053,11 +1032,6 @@ msgbufinit(void *ptr, int size)
 	oldp = msgbufp;
 }
 
-static int unprivileged_read_msgbuf = 1;
-SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_read_msgbuf,
-    CTLFLAG_RW, &unprivileged_read_msgbuf, 0,
-    "Unprivileged processes may read the kernel message buffer");
-
 /* Sysctls for accessing/clearing the msgbuf */
 static int
 sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
@@ -1066,11 +1040,9 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	u_int seq;
 	int error, len;
 
-	if (!unprivileged_read_msgbuf) {
-		error = priv_check(req->td, PRIV_MSGBUF);
-		if (error)
-			return (error);
-	}
+	error = priv_check(req->td, PRIV_MSGBUF);
+	if (error)
+		return (error);
 
 	/* Read the whole buffer, one chunk at a time. */
 	mtx_lock(&msgbuf_lock);

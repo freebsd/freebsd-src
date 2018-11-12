@@ -248,7 +248,7 @@ OtCreateXrefFile (
 
     /* Build cross-reference output file if requested */
 
-    if (!Gbl_CrossReferenceOutput)
+    if (!AslGbl_CrossReferenceOutput)
     {
         return;
     }
@@ -260,7 +260,7 @@ OtCreateXrefFile (
     OtPrintHeaders ("Part 2: Method Reference Map "
         "(Invocations of each user-defined control method)");
 
-    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         OtXrefWalkPart2, NULL, &XrefInfo);
 
     /* Cross-reference output file, part 3 (All other object refs) */
@@ -268,7 +268,7 @@ OtCreateXrefFile (
     OtPrintHeaders ("Part 3: Full Object Reference Map "
         "(Methods that reference each object in namespace");
 
-    TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         OtXrefWalkPart3, NULL, &XrefInfo);
 
     /* Cross-reference summary */
@@ -620,7 +620,7 @@ OtXrefWalkPart2 (
     XrefInfo->ThisMethodInvocations = 0;
     XrefInfo->MethodOp = Op;
 
-    (void) TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    (void) TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         OtXrefAnalysisWalkPart2, NULL, XrefInfo);
 
     if (!XrefInfo->ThisMethodInvocations)
@@ -787,7 +787,7 @@ OtXrefWalkPart3 (
     XrefInfo->ThisObjectReferences = 0;
     XrefInfo->TotalObjects = 0;
 
-    (void) TrWalkParseTree (Gbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+    (void) TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
         OtXrefAnalysisWalkPart3, NULL, XrefInfo);
 
     if (!XrefInfo->ThisObjectReferences)

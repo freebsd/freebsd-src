@@ -475,6 +475,26 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 			return (0);
 	}
 
+#ifdef EXPERIMENTAL
+#if defined(INET6) && defined(INET)
+	/* draft-ietf-6man-ipv6only-flag */
+	/* Catch ETHERTYPE_IP, and ETHERTYPE_ARP if we are v6-only. */
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IPV6_ONLY) != 0) {
+		struct ether_header *eh;
+
+		eh = mtod(m, struct ether_header *);
+		switch (ntohs(eh->ether_type)) {
+		case ETHERTYPE_IP:
+		case ETHERTYPE_ARP:
+			m_freem(m);
+			return (EAFNOSUPPORT);
+			/* NOTREACHED */
+			break;
+		};
+	}
+#endif
+#endif
+
 	/*
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.

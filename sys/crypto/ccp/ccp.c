@@ -735,7 +735,7 @@ MODULE_VERSION(ccp, 1);
 MODULE_DEPEND(ccp, crypto, 1, 1, 1);
 MODULE_DEPEND(ccp, random_device, 1, 1, 1);
 #if 0	/* There are enough known issues that we shouldn't load automatically */
-MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids, sizeof(ccp_ids[0]),
+MODULE_PNP_INFO("W32:vendor/device", pci, ccp, ccp_ids,
     nitems(ccp_ids));
 #endif
 

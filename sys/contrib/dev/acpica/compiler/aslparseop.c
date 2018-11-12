@@ -205,7 +205,7 @@ TrCreateOp (
     {
     case PARSEOP_ASL_CODE:
 
-        Gbl_ParseTreeRoot = Op;
+        AslGbl_ParseTreeRoot = Op;
         Op->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
         DbgPrint (ASL_PARSE_OUTPUT, "ASLCODE (Tree Completed)->");
         break;
@@ -784,11 +784,11 @@ TrAllocateOp (
     Op = UtParseOpCacheCalloc ();
 
     Op->Asl.ParseOpcode       = (UINT16) ParseOpcode;
-    Op->Asl.Filename          = Gbl_Files[ASL_FILE_INPUT].Filename;
-    Op->Asl.LineNumber        = Gbl_CurrentLineNumber;
-    Op->Asl.LogicalLineNumber = Gbl_LogicalLineNumber;
-    Op->Asl.LogicalByteOffset = Gbl_CurrentLineOffset;
-    Op->Asl.Column            = Gbl_CurrentColumn;
+    Op->Asl.Filename          = AslGbl_Files[ASL_FILE_INPUT].Filename;
+    Op->Asl.LineNumber        = AslGbl_CurrentLineNumber;
+    Op->Asl.LogicalLineNumber = AslGbl_LogicalLineNumber;
+    Op->Asl.LogicalByteOffset = AslGbl_CurrentLineOffset;
+    Op->Asl.Column            = AslGbl_CurrentColumn;
 
     UtSetParseOpName (Op);
 
@@ -796,7 +796,7 @@ TrAllocateOp (
 
     if (AcpiGbl_CaptureComments)
     {
-        LatestOp = Gbl_CommentState.LatestParseOp;
+        LatestOp = AslGbl_CommentState.LatestParseOp;
         Op->Asl.InlineComment     = NULL;
         Op->Asl.EndNodeComment    = NULL;
         Op->Asl.CommentList       = NULL;
@@ -813,9 +813,9 @@ TrAllocateOp (
         {
             CvDbgPrint ("latest op: %s\n", LatestOp->Asl.ParseOpName);
             Op->Asl.FileChanged = TRUE;
-            if (Gbl_IncludeFileStack)
+            if (AslGbl_IncludeFileStack)
             {
-                Op->Asl.ParentFilename = Gbl_IncludeFileStack->Filename;
+                Op->Asl.ParentFilename = AslGbl_IncludeFileStack->Filename;
             }
             else
             {
@@ -823,10 +823,10 @@ TrAllocateOp (
             }
         }
 
-        Gbl_CommentState.LatestParseOp = Op;
+        AslGbl_CommentState.LatestParseOp = Op;
         CvDbgPrint ("TrAllocateOp=Set latest parse op to this op.\n");
         CvDbgPrint ("           Op->Asl.ParseOpName = %s\n",
-            Gbl_CommentState.LatestParseOp->Asl.ParseOpName);
+            AslGbl_CommentState.LatestParseOp->Asl.ParseOpName);
         CvDbgPrint ("           Op->Asl.ParseOpcode = 0x%x\n", ParseOpcode);
 
         if (Op->Asl.FileChanged)
@@ -843,23 +843,23 @@ TrAllocateOp (
             (ParseOpcode != PARSEOP_DEFINITION_BLOCK))
         {
             CvDbgPrint ("Parsing paren/Brace op now!\n");
-            Gbl_CommentState.ParsingParenBraceNode = Op;
+            AslGbl_CommentState.ParsingParenBraceNode = Op;
         }
 
-        if (Gbl_CommentListHead)
+        if (AslGbl_CommentListHead)
         {
             CvDbgPrint ("Transferring...\n");
-            Op->Asl.CommentList = Gbl_CommentListHead;
-            Gbl_CommentListHead = NULL;
-            Gbl_CommentListTail = NULL;
+            Op->Asl.CommentList = AslGbl_CommentListHead;
+            AslGbl_CommentListHead = NULL;
+            AslGbl_CommentListTail = NULL;
             CvDbgPrint ("    Transferred current comment list to this op.\n");
             CvDbgPrint ("    %s\n", Op->Asl.CommentList->Comment);
         }
 
-        if (Gbl_InlineCommentBuffer)
+        if (AslGbl_InlineCommentBuffer)
         {
-            Op->Asl.InlineComment = Gbl_InlineCommentBuffer;
-            Gbl_InlineCommentBuffer = NULL;
+            Op->Asl.InlineComment = AslGbl_InlineCommentBuffer;
+            AslGbl_InlineCommentBuffer = NULL;
             CvDbgPrint ("Transferred current inline comment list to this op.\n");
         }
     }
@@ -894,7 +894,7 @@ TrPrintOpFlags (
     {
         if (Flags & FlagBit)
         {
-            DbgPrint (OutputLevel, " %s", Gbl_OpFlagNames[i]);
+            DbgPrint (OutputLevel, " %s", AslGbl_OpFlagNames[i]);
         }
 
         FlagBit <<= 1;

@@ -221,7 +221,7 @@ LsAmlOffsetWalk (
     Node = Op->Asl.Node;
     if (!Node)
     {
-        Gbl_CurrentAmlOffset += Op->Asl.FinalAmlLength;
+        AslGbl_CurrentAmlOffset += Op->Asl.FinalAmlLength;
         return (AE_OK);
     }
 
@@ -230,10 +230,10 @@ LsAmlOffsetWalk (
     if ((Node->Type == ACPI_TYPE_LOCAL_RESOURCE) &&
         (Op->Asl.CompileFlags & OP_IS_RESOURCE_DESC))
     {
-        LsEmitOffsetTableEntry (FileId, Node, 0, Gbl_CurrentAmlOffset,
+        LsEmitOffsetTableEntry (FileId, Node, 0, AslGbl_CurrentAmlOffset,
             Op->Asl.ParseOpName, 0, Op->Asl.Extra, AML_BUFFER_OP);
 
-        Gbl_CurrentAmlOffset += Op->Asl.FinalAmlLength;
+        AslGbl_CurrentAmlOffset += Op->Asl.FinalAmlLength;
         return (AE_OK);
     }
 
@@ -245,7 +245,7 @@ LsAmlOffsetWalk (
 
         if (!Op->Asl.Child)
         {
-            FlPrintFile (FileId, "%s NO CHILD!\n", MsgBuffer);
+            FlPrintFile (FileId, "%s NO CHILD!\n", AslGbl_MsgBuffer);
             return (AE_OK);
         }
 
@@ -257,10 +257,10 @@ LsAmlOffsetWalk (
 
         /* Get offset of last nameseg and the actual data */
 
-        NamepathOffset = Gbl_CurrentAmlOffset + Length +
+        NamepathOffset = AslGbl_CurrentAmlOffset + Length +
             (Op->Asl.FinalAmlLength - ACPI_NAME_SIZE);
 
-        DataOffset = Gbl_CurrentAmlOffset + Length +
+        DataOffset = AslGbl_CurrentAmlOffset + Length +
             Op->Asl.FinalAmlLength;
 
         /* Get actual value associated with the name */
@@ -307,7 +307,7 @@ LsAmlOffsetWalk (
              break;
         }
 
-        Gbl_CurrentAmlOffset += Length;
+        AslGbl_CurrentAmlOffset += Length;
         return (AE_OK);
 
     case AML_REGION_OP:
@@ -322,10 +322,10 @@ LsAmlOffsetWalk (
 
         /* Get offset of last nameseg and the actual data */
 
-        NamepathOffset = Gbl_CurrentAmlOffset + Length +
+        NamepathOffset = AslGbl_CurrentAmlOffset + Length +
             (NextOp->Asl.FinalAmlLength - ACPI_NAME_SIZE);
 
-        DataOffset = Gbl_CurrentAmlOffset + Length +
+        DataOffset = AslGbl_CurrentAmlOffset + Length +
             (NextOp->Asl.FinalAmlLength + 1);
 
         /* Get the SpaceId node, then the Offset (address) node */
@@ -349,7 +349,7 @@ LsAmlOffsetWalk (
                 Op->Asl.ParseOpName, NextOp->Asl.Value.Integer,
                 (UINT8) NextOp->Asl.AmlOpcode, AML_REGION_OP);
 
-            Gbl_CurrentAmlOffset += Length;
+            AslGbl_CurrentAmlOffset += Length;
             return (AE_OK);
 
         default:
@@ -369,10 +369,10 @@ LsAmlOffsetWalk (
 
         /* Get offset of last nameseg and the actual data (flags byte) */
 
-        NamepathOffset = Gbl_CurrentAmlOffset + Length +
+        NamepathOffset = AslGbl_CurrentAmlOffset + Length +
             (NextOp->Asl.FinalAmlLength - ACPI_NAME_SIZE);
 
-        DataOffset = Gbl_CurrentAmlOffset + Length +
+        DataOffset = AslGbl_CurrentAmlOffset + Length +
             NextOp->Asl.FinalAmlLength;
 
         /* Get the flags byte Op */
@@ -393,10 +393,10 @@ LsAmlOffsetWalk (
 
         /* Get offset of last nameseg and the actual data (PBlock address) */
 
-        NamepathOffset = Gbl_CurrentAmlOffset + Length +
+        NamepathOffset = AslGbl_CurrentAmlOffset + Length +
             (NextOp->Asl.FinalAmlLength - ACPI_NAME_SIZE);
 
-        DataOffset = Gbl_CurrentAmlOffset + Length +
+        DataOffset = AslGbl_CurrentAmlOffset + Length +
             (NextOp->Asl.FinalAmlLength + 1);
 
         NextOp = NextOp->Asl.Next;  /* Get ProcessorID (BYTE) */
@@ -418,7 +418,7 @@ LsAmlOffsetWalk (
 
         /* Get offset of last nameseg */
 
-        NamepathOffset = Gbl_CurrentAmlOffset + Length +
+        NamepathOffset = AslGbl_CurrentAmlOffset + Length +
             (NextOp->Asl.FinalAmlLength - ACPI_NAME_SIZE);
 
         LsEmitOffsetTableEntry (FileId, Node, NamepathOffset, 0,
@@ -429,7 +429,7 @@ LsAmlOffsetWalk (
         break;
     }
 
-    Gbl_CurrentAmlOffset += Op->Asl.FinalAmlLength;
+    AslGbl_CurrentAmlOffset += Op->Asl.FinalAmlLength;
     return (AE_OK);
 }
 
@@ -478,9 +478,9 @@ LsEmitOffsetTableEntry (
 
     /* [1] - Skip the opening backslash for the path */
 
-    strcpy (MsgBuffer, "\"");
-    strcat (MsgBuffer, &((char *) TargetPath.Pointer)[1]);
-    strcat (MsgBuffer, "\",");
+    strcpy (AslGbl_MsgBuffer, "\"");
+    strcat (AslGbl_MsgBuffer, &((char *) TargetPath.Pointer)[1]);
+    strcat (AslGbl_MsgBuffer, "\",");
     ACPI_FREE (TargetPath.Pointer);
 
     /*
@@ -489,7 +489,7 @@ LsEmitOffsetTableEntry (
      */
     FlPrintFile (FileId,
         "    {%-29s 0x%4.4X, 0x%8.8X, 0x%2.2X, 0x%8.8X, 0x%8.8X%8.8X}, /* %s */\n",
-        MsgBuffer, ParentOpcode, NamepathOffset, AmlOpcode,
+        AslGbl_MsgBuffer, ParentOpcode, NamepathOffset, AmlOpcode,
         Offset, ACPI_FORMAT_UINT64 (Value), OpName);
 }
 
@@ -564,7 +564,7 @@ LsDoOffsetTableHeader (
 
     FlPrintFile (FileId,
         "AML_OFFSET_TABLE_ENTRY   %s_%s_OffsetTable[] =\n{\n",
-        Gbl_TableSignature, Gbl_TableId);
+        AslGbl_TableSignature, AslGbl_TableId);
 }
 
 
@@ -575,5 +575,5 @@ LsDoOffsetTableFooter (
 
     FlPrintFile (FileId,
         "    {NULL,0,0,0,0,0} /* Table terminator */\n};\n\n");
-    Gbl_CurrentAmlOffset = 0;
+    AslGbl_CurrentAmlOffset = 0;
 }

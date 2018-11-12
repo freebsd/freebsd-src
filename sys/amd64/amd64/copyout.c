@@ -159,20 +159,41 @@ DEFINE_IFUNC(, int, copyinstr, (const void *, void *, size_t, size_t *),
 	    copyinstr_smap : copyinstr_nosmap);
 }
 
-int	copyin_nosmap(const void *udaddr, void *kaddr, size_t len);
-int	copyin_smap(const void *udaddr, void *kaddr, size_t len);
+int	copyin_nosmap_std(const void *udaddr, void *kaddr, size_t len);
+int	copyin_smap_std(const void *udaddr, void *kaddr, size_t len);
+int	copyin_nosmap_erms(const void *udaddr, void *kaddr, size_t len);
+int	copyin_smap_erms(const void *udaddr, void *kaddr, size_t len);
 DEFINE_IFUNC(, int, copyin, (const void *, void *, size_t), static)
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    copyin_smap : copyin_nosmap);
+	switch (cpu_stdext_feature & (CPUID_STDEXT_SMAP | CPUID_STDEXT_ERMS)) {
+	case CPUID_STDEXT_SMAP:
+		return (copyin_smap_std);
+	case CPUID_STDEXT_ERMS:
+		return (copyin_nosmap_erms);
+	case CPUID_STDEXT_SMAP | CPUID_STDEXT_ERMS:
+		return (copyin_smap_erms);
+	default:
+		return (copyin_nosmap_std);
+
+	}
 }
 
-int	copyout_nosmap(const void *kaddr, void *udaddr, size_t len);
-int	copyout_smap(const void *kaddr, void *udaddr, size_t len);
+int	copyout_nosmap_std(const void *kaddr, void *udaddr, size_t len);
+int	copyout_smap_std(const void *kaddr, void *udaddr, size_t len);
+int	copyout_nosmap_erms(const void *kaddr, void *udaddr, size_t len);
+int	copyout_smap_erms(const void *kaddr, void *udaddr, size_t len);
 DEFINE_IFUNC(, int, copyout, (const void *, void *, size_t), static)
 {
 
-	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
-	    copyout_smap : copyout_nosmap);
+	switch (cpu_stdext_feature & (CPUID_STDEXT_SMAP | CPUID_STDEXT_ERMS)) {
+	case CPUID_STDEXT_SMAP:
+		return (copyout_smap_std);
+	case CPUID_STDEXT_ERMS:
+		return (copyout_nosmap_erms);
+	case CPUID_STDEXT_SMAP | CPUID_STDEXT_ERMS:
+		return (copyout_smap_erms);
+	default:
+		return (copyout_nosmap_std);
+	}
 }

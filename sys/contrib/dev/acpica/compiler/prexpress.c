@@ -223,8 +223,8 @@ PrExpandMacros (
     int                     OffsetAdjust;
 
 
-    strcpy (Gbl_ExpressionTokenBuffer, Gbl_CurrentLineBuffer);
-    Token = PrGetNextToken (Gbl_ExpressionTokenBuffer, PR_EXPR_SEPARATORS, &Next);
+    strcpy (AslGbl_ExpressionTokenBuffer, AslGbl_CurrentLineBuffer);
+    Token = PrGetNextToken (AslGbl_ExpressionTokenBuffer, PR_EXPR_SEPARATORS, &Next);
     OffsetAdjust = 0;
 
     while (Token)
@@ -238,10 +238,10 @@ PrExpandMacros (
 
                 DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                     "Matched Macro: %s->%s\n",
-                    Gbl_CurrentLineNumber, DefineInfo->Identifier,
+                    AslGbl_CurrentLineNumber, DefineInfo->Identifier,
                     DefineInfo->Replacement);
 
-                PrDoMacroInvocation (Gbl_ExpressionTokenBuffer, Token,
+                PrDoMacroInvocation (AslGbl_ExpressionTokenBuffer, Token,
                     DefineInfo, &Next);
             }
             else
@@ -250,9 +250,9 @@ PrExpandMacros (
 
                 /* Replace the name in the original line buffer */
 
-                TokenOffset = Token - Gbl_ExpressionTokenBuffer + OffsetAdjust;
+                TokenOffset = Token - AslGbl_ExpressionTokenBuffer + OffsetAdjust;
                 PrReplaceData (
-                    &Gbl_CurrentLineBuffer[TokenOffset], strlen (Token),
+                    &AslGbl_CurrentLineBuffer[TokenOffset], strlen (Token),
                     ReplaceString, strlen (ReplaceString));
 
                 /* Adjust for length difference between old and new name length */
@@ -261,7 +261,7 @@ PrExpandMacros (
 
                 DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
                     "Matched #define within expression: %s->%s\n",
-                    Gbl_CurrentLineNumber, Token,
+                    AslGbl_CurrentLineNumber, Token,
                     *ReplaceString ? ReplaceString : "(NULL STRING)");
             }
         }
@@ -294,7 +294,7 @@ PrIsDefined (
 
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-        "**** Is defined?:  %s\n", Gbl_CurrentLineNumber, Identifier);
+        "**** Is defined?:  %s\n", AslGbl_CurrentLineNumber, Identifier);
 
     Value = 0; /* Default is "Not defined" -- FALSE */
 
@@ -306,7 +306,7 @@ PrIsDefined (
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
         "[#if defined %s] resolved to: %8.8X%8.8X\n",
-        Gbl_CurrentLineNumber, Identifier, ACPI_FORMAT_UINT64 (Value));
+        AslGbl_CurrentLineNumber, Identifier, ACPI_FORMAT_UINT64 (Value));
 
     return (Value);
 }
@@ -333,7 +333,7 @@ PrResolveDefine (
 
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-        "**** Resolve #define:  %s\n", Gbl_CurrentLineNumber, Identifier);
+        "**** Resolve #define:  %s\n", AslGbl_CurrentLineNumber, Identifier);
 
     Value = 0; /* Default is "Not defined" -- FALSE */
 
@@ -345,7 +345,7 @@ PrResolveDefine (
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
         "[#if defined %s] resolved to: %8.8X%8.8X\n",
-        Gbl_CurrentLineNumber, Identifier, ACPI_FORMAT_UINT64 (Value));
+        AslGbl_CurrentLineNumber, Identifier, ACPI_FORMAT_UINT64 (Value));
 
     return (Value);
 }
@@ -376,7 +376,7 @@ PrResolveIntegerExpression (
 
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
-        "**** Resolve #if:  %s\n", Gbl_CurrentLineNumber, Line);
+        "**** Resolve #if:  %s\n", AslGbl_CurrentLineNumber, Line);
 
     /* Expand all macros within the expression first */
 
@@ -387,7 +387,7 @@ PrResolveIntegerExpression (
     Result = PrEvaluateExpression (ExpandedLine);
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
         "**** Expression Resolved to: %8.8X%8.8X\n",
-        Gbl_CurrentLineNumber, ACPI_FORMAT_UINT64 (Result));
+        AslGbl_CurrentLineNumber, ACPI_FORMAT_UINT64 (Result));
 
     *ReturnValue = Result;
     return (AE_OK);
@@ -404,7 +404,7 @@ NormalExit:
 
     DbgPrint (ASL_DEBUG_OUTPUT, PR_PREFIX_ID
         "**** Expression Resolved to: %8.8X%8.8X\n",
-        Gbl_CurrentLineNumber, ACPI_FORMAT_UINT64 (Value1));
+        AslGbl_CurrentLineNumber, ACPI_FORMAT_UINT64 (Value1));
 
     *ReturnValue = Value1;
     return (AE_OK);

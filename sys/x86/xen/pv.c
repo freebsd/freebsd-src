@@ -259,7 +259,7 @@ hammer_time_xen_legacy(start_info_t *si, uint64_t xenstack)
 	 */
 	kenv = (void *)(physfree + KERNBASE);
 	physfree += PAGE_SIZE;
-	bzero(kenv, PAGE_SIZE);
+	bzero_early(kenv, PAGE_SIZE);
 	init_static_kenv(kenv, PAGE_SIZE);
 
 	/* Set the hooks for early functions that diverge from bare metal */
@@ -320,7 +320,7 @@ hammer_time_xen(vm_paddr_t start_info_paddr)
 	 */
 	kenv = (void *)(physfree + KERNBASE);
 	physfree += PAGE_SIZE;
-	bzero(kenv, PAGE_SIZE);
+	bzero_early(kenv, PAGE_SIZE);
 	init_static_kenv(kenv, PAGE_SIZE);
 
 	if (start_info->modlist_paddr != 0) {

@@ -87,12 +87,16 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim,
  * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
  */
 VNET_DEFINE_STATIC(struct gif_list *, ipv6_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gif_list *, ipv6_srchashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list, ipv6_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv6_hashtbl		VNET(ipv6_hashtbl)
+#define	V_ipv6_srchashtbl	VNET(ipv6_srchashtbl)
 #define	V_ipv6_list		VNET(ipv6_list)
 
 #define	GIF_HASH(src, dst)	(V_ipv6_hashtbl[\
     in6_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+#define	GIF_SRCHASH(src)	(V_ipv6_srchashtbl[\
+    fnv_32_buf((src), sizeof(*src), FNV1_32_INIT) & (GIF_HASH_SIZE - 1)])
 #define	GIF_HASH_SC(sc)		GIF_HASH(&(sc)->gif_ip6hdr->ip6_src,\
     &(sc)->gif_ip6hdr->ip6_dst)
 static uint32_t
@@ -125,6 +129,44 @@ in6_gif_checkdup(const struct gif_softc *sc, const struct in6_addr *src,
 	return (0);
 }
 
+/*
+ * Check that ingress address belongs to local host.
+ */
+static void
+in6_gif_set_running(struct gif_softc *sc)
+{
+
+	if (in6_localip(&sc->gif_ip6hdr->ip6_src))
+		GIF2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
+	else
+		GIF2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+/*
+ * ifaddr_event handler.
+ * Clear IFF_DRV_RUNNING flag when ingress address disappears to prevent
+ * source address spoofing.
+ */
+static void
+in6_gif_srcaddr(void *arg __unused, const struct sockaddr *sa, int event)
+{
+	const struct sockaddr_in6 *sin;
+	struct gif_softc *sc;
+
+	/* Check that VNET is ready */
+	if (V_ipv6_hashtbl == NULL)
+		return;
+
+	MPASS(in_epoch(net_epoch_preempt));
+	sin = (const struct sockaddr_in6 *)sa;
+	CK_LIST_FOREACH(sc, &GIF_SRCHASH(&sin->sin6_addr), srchash) {
+		if (IN6_ARE_ADDR_EQUAL(&sc->gif_ip6hdr->ip6_src,
+		    &sin->sin6_addr) == 0)
+			continue;
+		in6_gif_set_running(sc);
+	}
+}
+
 static void
 in6_gif_attach(struct gif_softc *sc)
 {
@@ -133,6 +175,9 @@ in6_gif_attach(struct gif_softc *sc)
 		CK_LIST_INSERT_HEAD(&V_ipv6_list, sc, chain);
 	else
 		CK_LIST_INSERT_HEAD(&GIF_HASH_SC(sc), sc, chain);
+
+	CK_LIST_INSERT_HEAD(&GIF_SRCHASH(&sc->gif_ip6hdr->ip6_src),
+	    sc, srchash);
 }
 
 int
@@ -145,6 +190,7 @@ in6_gif_setopts(struct gif_softc *sc, u_int options)
 
 	if ((options & GIF_IGNORE_SOURCE) !=
 	    (sc->gif_options & GIF_IGNORE_SOURCE)) {
+		CK_LIST_REMOVE(sc, srchash);
 		CK_LIST_REMOVE(sc, chain);
 		sc->gif_options = options;
 		in6_gif_attach(sc);
@@ -187,8 +233,10 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		    (error = sa6_embedscope(dst, 0)) != 0)
 			break;
 
-		if (V_ipv6_hashtbl == NULL)
+		if (V_ipv6_hashtbl == NULL) {
 			V_ipv6_hashtbl = gif_hashinit();
+			V_ipv6_srchashtbl = gif_hashinit();
+		}
 		error = in6_gif_checkdup(sc, &src->sin6_addr,
 		    &dst->sin6_addr);
 		if (error == EADDRNOTAVAIL)
@@ -204,6 +252,7 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		ip6->ip6_vfc = IPV6_VERSION;
 		if (sc->gif_family != 0) {
 			/* Detach existing tunnel first */
+			CK_LIST_REMOVE(sc, srchash);
 			CK_LIST_REMOVE(sc, chain);
 			GIF_WAIT();
 			free(sc->gif_hdr, M_GIF);
@@ -212,6 +261,7 @@ in6_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		sc->gif_family = AF_INET6;
 		sc->gif_ip6hdr = ip6;
 		in6_gif_attach(sc);
+		in6_gif_set_running(sc);
 		break;
 	case SIOCGIFPSRCADDR_IN6:
 	case SIOCGIFPDSTADDR_IN6:
@@ -365,6 +415,7 @@ done:
 	return (ret);
 }
 
+static const struct srcaddrtab *ipv6_srcaddrtab;
 static struct {
 	const struct encap_config encap;
 	const struct encaptab *cookie;
@@ -410,6 +461,9 @@ in6_gif_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+
+	ipv6_srcaddrtab = ip6_encap_register_srcaddr(in6_gif_srcaddr,
+	    NULL, M_WAITOK);
 	for (i = 0; i < nitems(ipv6_encap_cfg); i++)
 		ipv6_encap_cfg[i].cookie = ip6_encap_attach(
 		    &ipv6_encap_cfg[i].encap, NULL, M_WAITOK);
@@ -423,7 +477,12 @@ in6_gif_uninit(void)
 	if (IS_DEFAULT_VNET(curvnet)) {
 		for (i = 0; i < nitems(ipv6_encap_cfg); i++)
 			ip6_encap_detach(ipv6_encap_cfg[i].cookie);
+		ip6_encap_unregister_srcaddr(ipv6_srcaddrtab);
 	}
-	if (V_ipv6_hashtbl != NULL)
+	if (V_ipv6_hashtbl != NULL) {
 		gif_hashdestroy(V_ipv6_hashtbl);
+		V_ipv6_hashtbl = NULL;
+		GIF_WAIT();
+		gif_hashdestroy(V_ipv6_srchashtbl);
+	}
 }

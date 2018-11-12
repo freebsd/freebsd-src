@@ -346,85 +346,96 @@ struct kinfo_file {
 	int64_t		kf_offset;		/* Seek location. */
 	union {
 		struct {
-			/* Sendq size */
-			uint32_t	kf_sock_sendq;
-			/* Socket domain. */
-			int		kf_sock_domain0;
-			/* Socket type. */
-			int		kf_sock_type0;
-			/* Socket protocol. */
-			int		kf_sock_protocol0;
-			/* Socket address. */
+			/* API compatiblity with FreeBSD < 12. */
+			int		kf_vnode_type;
+			int		kf_sock_domain;
+			int		kf_sock_type;
+			int		kf_sock_protocol;
 			struct sockaddr_storage kf_sa_local;
-			/* Peer address. */
 			struct sockaddr_storage	kf_sa_peer;
-			/* Address of so_pcb. */
-			uint64_t	kf_sock_pcb;
-			/* Address of inp_ppcb. */
-			uint64_t	kf_sock_inpcb;
-			/* Address of unp_conn. */
-			uint64_t	kf_sock_unpconn;
-			/* Send buffer state. */
-			uint16_t	kf_sock_snd_sb_state;
-			/* Receive buffer state. */
-			uint16_t	kf_sock_rcv_sb_state;
-			/* Recvq size. */
-			uint32_t	kf_sock_recvq;
-		} kf_sock;
-		struct {
-			/* Vnode type. */
-			int		kf_file_type;
-			/* Space for future use */
-			int		kf_spareint[3];
-			uint64_t	kf_spareint64[30];
-			/* Vnode filesystem id. */
-			uint64_t	kf_file_fsid;
-			/* File device. */
-			uint64_t	kf_file_rdev;
-			/* Global file id. */
-			uint64_t	kf_file_fileid;
-			/* File size. */
-			uint64_t	kf_file_size;
-			/* Vnode filesystem id, FreeBSD 11 compat. */
-			uint32_t	kf_file_fsid_freebsd11;
-			/* File device, FreeBSD 11 compat. */
-			uint32_t	kf_file_rdev_freebsd11;
-			/* File mode. */
-			uint16_t	kf_file_mode;
-			/* Round to 64 bit alignment. */
-			uint16_t	kf_file_pad0;
-			uint32_t	kf_file_pad1;
-		} kf_file;
-		struct {
-			uint32_t	kf_spareint[4];
-			uint64_t	kf_spareint64[32];
-			uint32_t	kf_sem_value;
-			uint16_t	kf_sem_mode;
-		} kf_sem;
-		struct {
-			uint32_t	kf_spareint[4];
-			uint64_t	kf_spareint64[32];
-			uint64_t	kf_pipe_addr;
-			uint64_t	kf_pipe_peer;
-			uint32_t	kf_pipe_buffer_cnt;
-			/* Round to 64 bit alignment. */
-			uint32_t	kf_pipe_pad0[3];
-		} kf_pipe;
-		struct {
-			uint32_t	kf_spareint[4];
-			uint64_t	kf_spareint64[32];
-			uint32_t	kf_pts_dev_freebsd11;
-			uint32_t	kf_pts_pad0;
-			uint64_t	kf_pts_dev;
-			/* Round to 64 bit alignment. */
-			uint32_t	kf_pts_pad1[4];
-		} kf_pts;
-		struct {
-			uint32_t	kf_spareint[4];
-			uint64_t	kf_spareint64[32];
-			pid_t		kf_pid;
-		} kf_proc;
-	} kf_un;
+		};
+		union {
+			struct {
+				/* Sendq size */
+				uint32_t	kf_sock_sendq;
+				/* Socket domain. */
+				int		kf_sock_domain0;
+				/* Socket type. */
+				int		kf_sock_type0;
+				/* Socket protocol. */
+				int		kf_sock_protocol0;
+				/* Socket address. */
+				struct sockaddr_storage kf_sa_local;
+				/* Peer address. */
+				struct sockaddr_storage	kf_sa_peer;
+				/* Address of so_pcb. */
+				uint64_t	kf_sock_pcb;
+				/* Address of inp_ppcb. */
+				uint64_t	kf_sock_inpcb;
+				/* Address of unp_conn. */
+				uint64_t	kf_sock_unpconn;
+				/* Send buffer state. */
+				uint16_t	kf_sock_snd_sb_state;
+				/* Receive buffer state. */
+				uint16_t	kf_sock_rcv_sb_state;
+				/* Recvq size. */
+				uint32_t	kf_sock_recvq;
+			} kf_sock;
+			struct {
+				/* Vnode type. */
+				int		kf_file_type;
+				/* Space for future use */
+				int		kf_spareint[3];
+				uint64_t	kf_spareint64[30];
+				/* Vnode filesystem id. */
+				uint64_t	kf_file_fsid;
+				/* File device. */
+				uint64_t	kf_file_rdev;
+				/* Global file id. */
+				uint64_t	kf_file_fileid;
+				/* File size. */
+				uint64_t	kf_file_size;
+				/* Vnode filesystem id, FreeBSD 11 compat. */
+				uint32_t	kf_file_fsid_freebsd11;
+				/* File device, FreeBSD 11 compat. */
+				uint32_t	kf_file_rdev_freebsd11;
+				/* File mode. */
+				uint16_t	kf_file_mode;
+				/* Round to 64 bit alignment. */
+				uint16_t	kf_file_pad0;
+				uint32_t	kf_file_pad1;
+			} kf_file;
+			struct {
+				uint32_t	kf_spareint[4];
+				uint64_t	kf_spareint64[32];
+				uint32_t	kf_sem_value;
+				uint16_t	kf_sem_mode;
+			} kf_sem;
+			struct {
+				uint32_t	kf_spareint[4];
+				uint64_t	kf_spareint64[32];
+				uint64_t	kf_pipe_addr;
+				uint64_t	kf_pipe_peer;
+				uint32_t	kf_pipe_buffer_cnt;
+				/* Round to 64 bit alignment. */
+				uint32_t	kf_pipe_pad0[3];
+			} kf_pipe;
+			struct {
+				uint32_t	kf_spareint[4];
+				uint64_t	kf_spareint64[32];
+				uint32_t	kf_pts_dev_freebsd11;
+				uint32_t	kf_pts_pad0;
+				uint64_t	kf_pts_dev;
+				/* Round to 64 bit alignment. */
+				uint32_t	kf_pts_pad1[4];
+			} kf_pts;
+			struct {
+				uint32_t	kf_spareint[4];
+				uint64_t	kf_spareint64[32];
+				pid_t		kf_pid;
+			} kf_proc;
+		} kf_un;
+	};
 	uint16_t	kf_status;		/* Status flags. */
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
 	int		_kf_ispare0;		/* Space for more stuff. */
@@ -433,12 +444,6 @@ struct kinfo_file {
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
 };
-#ifndef _KERNEL
-#define	kf_vnode_type	kf_un.kf_file.kf_file_type
-#define	kf_sock_domain	kf_un.kf_sock.kf_sock_domain0
-#define	kf_sock_type	kf_un.kf_sock.kf_sock_type0
-#define	kf_sock_protocol	kf_un.kf_sock.kf_sock_protocol0
-#endif
 
 /*
  * The KERN_PROC_VMMAP sysctl allows a process to dump the VM layout of

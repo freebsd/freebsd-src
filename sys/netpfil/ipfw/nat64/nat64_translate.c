@@ -25,8 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_ipfw.h"
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -71,6 +69,53 @@ __FBSDID("$FreeBSD$");
 #include "ip_fw_nat64.h"
 #include "nat64_translate.h"
 
+
+typedef int (*nat64_output_t)(struct ifnet *, struct mbuf *,
+    struct sockaddr *, struct nat64_counters *, void *);
+typedef int (*nat64_output_one_t)(struct mbuf *, struct nat64_counters *,
+    void *);
+
+static int nat64_find_route4(struct nhop4_basic *, struct sockaddr_in *,
+    struct mbuf *);
+static int nat64_find_route6(struct nhop6_basic *, struct sockaddr_in6 *,
+    struct mbuf *);
+static int nat64_output_one(struct mbuf *, struct nat64_counters *, void *);
+static int nat64_output(struct ifnet *, struct mbuf *, struct sockaddr *,
+    struct nat64_counters *, void *);
+static int nat64_direct_output_one(struct mbuf *, struct nat64_counters *,
+    void *);
+static int nat64_direct_output(struct ifnet *, struct mbuf *,
+    struct sockaddr *, struct nat64_counters *, void *);
+
+struct nat64_methods {
+	nat64_output_t		output;
+	nat64_output_one_t	output_one;
+};
+static const struct nat64_methods nat64_netisr = {
+	.output = nat64_output,
+	.output_one = nat64_output_one
+};
+static const struct nat64_methods nat64_direct = {
+	.output = nat64_direct_output,
+	.output_one = nat64_direct_output_one
+};
+VNET_DEFINE_STATIC(const struct nat64_methods *, nat64out) = &nat64_netisr;
+#define	V_nat64out	VNET(nat64out)
+
+void
+nat64_set_output_method(int direct)
+{
+
+	V_nat64out = direct != 0 ? &nat64_direct: &nat64_netisr;
+}
+
+int
+nat64_get_output_method(void)
+{
+
+	return (V_nat64out == &nat64_direct ? 1: 0);
+}
+
 static void
 nat64_log(struct pfloghdr *logdata, struct mbuf *m, sa_family_t family)
 {
@@ -80,14 +125,8 @@ nat64_log(struct pfloghdr *logdata, struct mbuf *m, sa_family_t family)
 	ipfw_bpf_mtap2(logdata, PFLOG_HDRLEN, m);
 }
 
-#ifdef IPFIREWALL_NAT64_DIRECT_OUTPUT
-static NAT64NOINLINE int nat64_find_route4(struct nhop4_basic *,
-    struct sockaddr_in *, struct mbuf *);
-static NAT64NOINLINE int nat64_find_route6(struct nhop6_basic *,
-    struct sockaddr_in6 *, struct mbuf *);
-
-static NAT64NOINLINE int
-nat64_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+static int
+nat64_direct_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct nat64_counters *stats, void *logdata)
 {
 	int error;
@@ -100,8 +139,9 @@ nat64_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	return (error);
 }
 
-static NAT64NOINLINE int
-nat64_output_one(struct mbuf *m, struct nat64_counters *stats, void *logdata)
+static int
+nat64_direct_output_one(struct mbuf *m, struct nat64_counters *stats,
+    void *logdata)
 {
 	struct nhop6_basic nh6;
 	struct nhop4_basic nh4;
@@ -153,8 +193,8 @@ nat64_output_one(struct mbuf *m, struct nat64_counters *stats, void *logdata)
 		NAT64STAT_INC(stats, oerrors);
 	return (error);
 }
-#else /* !IPFIREWALL_NAT64_DIRECT_OUTPUT */
-static NAT64NOINLINE int
+
+static int
 nat64_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
     struct nat64_counters *stats, void *logdata)
 {
@@ -185,13 +225,12 @@ nat64_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	return (ret);
 }
 
-static NAT64NOINLINE int
+static int
 nat64_output_one(struct mbuf *m, struct nat64_counters *stats, void *logdata)
 {
 
 	return (nat64_output(NULL, m, NULL, stats, logdata));
 }
-#endif /* !IPFIREWALL_NAT64_DIRECT_OUTPUT */
 
 /*
  * Check the given IPv6 prefix and length according to RFC6052:
@@ -424,12 +463,10 @@ nat64_init_ip4hdr(const struct ip6_hdr *ip6, const struct ip6_frag *frag,
 	ip->ip_hl = sizeof(*ip) >> 2;
 	ip->ip_tos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
 	ip->ip_len = htons(sizeof(*ip) + plen);
-#ifdef IPFIREWALL_NAT64_DIRECT_OUTPUT
-	ip->ip_ttl = ip6->ip6_hlim - IPV6_HLIMDEC;
-#else
-	/* Forwarding code will decrement TTL. */
 	ip->ip_ttl = ip6->ip6_hlim;
-#endif
+	/* Forwarding code will decrement TTL for netisr based output. */
+	if (V_nat64out == &nat64_direct)
+		ip->ip_ttl -= IPV6_HLIMDEC;
 	ip->ip_sum = 0;
 	ip->ip_p = (proto == IPPROTO_ICMPV6) ? IPPROTO_ICMP: proto;
 	ip_fillid(ip);
@@ -647,7 +684,7 @@ nat64_icmp6_reflect(struct mbuf *m, uint8_t type, uint8_t code, uint32_t mtu,
 	icmp6->icmp6_cksum = in6_cksum(n, IPPROTO_ICMPV6,
 	    sizeof(struct ip6_hdr), plen);
 	m_freem(m);
-	nat64_output_one(n, stats, logdata);
+	V_nat64out->output_one(n, stats, logdata);
 	return;
 freeit:
 	NAT64STAT_INC(stats, dropped);
@@ -750,7 +787,7 @@ nat64_icmp_reflect(struct mbuf *m, uint8_t type,
 	icmp->icmp_cksum = in_cksum_skip(n, sizeof(struct ip) + plen,
 	    sizeof(struct ip));
 	m_freem(m);
-	nat64_output_one(n, stats, logdata);
+	V_nat64out->output_one(n, stats, logdata);
 	return;
 freeit:
 	NAT64STAT_INC(stats, dropped);
@@ -1167,12 +1204,10 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 
 	ip6.ip6_flow = htonl(ip->ip_tos << 20);
 	ip6.ip6_vfc |= IPV6_VERSION;
-#ifdef IPFIREWALL_NAT64_DIRECT_OUTPUT
-	ip6.ip6_hlim = ip->ip_ttl - IPTTLDEC;
-#else
-	/* Forwarding code will decrement HLIM. */
 	ip6.ip6_hlim = ip->ip_ttl;
-#endif
+	/* Forwarding code will decrement TTL for netisr based output. */
+	if (V_nat64out == &nat64_direct)
+		ip6.ip6_hlim -= IPTTLDEC;
 	ip6.ip6_plen = htons(plen);
 	ip6.ip6_nxt = (proto == IPPROTO_ICMP) ? IPPROTO_ICMPV6: proto;
 	/* Convert checksums. */
@@ -1205,7 +1240,7 @@ nat64_do_handle_ip4(struct mbuf *m, struct in6_addr *saddr,
 	mbufq_init(&mq, 255);
 	nat64_fragment6(&cfg->stats, &ip6, &mq, m, nh.nh_mtu, ip_id, ip_off);
 	while ((m = mbufq_dequeue(&mq)) != NULL) {
-		if (nat64_output(nh.nh_ifp, m, (struct sockaddr *)&dst,
+		if (V_nat64out->output(nh.nh_ifp, m, (struct sockaddr *)&dst,
 		    &cfg->stats, logdata) != 0)
 			break;
 		NAT64STAT_INC(&cfg->stats, opcnt46);
@@ -1415,9 +1450,8 @@ nat64_handle_icmp6(struct mbuf *m, int hlen, uint32_t aaddr, uint16_t aport,
 	ip.ip_dst.s_addr = aaddr;
 	ip.ip_src.s_addr = nat64_extract_ip4(cfg, &ip6i->ip6_src);
 	/* XXX: Make fake ulp header */
-#ifdef IPFIREWALL_NAT64_DIRECT_OUTPUT
-	ip6i->ip6_hlim += IPV6_HLIMDEC; /* init_ip4hdr will decrement it */
-#endif
+	if (V_nat64out == &nat64_direct) /* init_ip4hdr will decrement it */
+		ip6i->ip6_hlim += IPV6_HLIMDEC;
 	nat64_init_ip4hdr(ip6i, ip6f, plen, proto, &ip);
 	m_adj(m, hlen - sizeof(struct ip));
 	bcopy(&ip, mtod(m, void *), sizeof(ip));
@@ -1587,7 +1621,7 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 
 	m_adj(m, hlen - sizeof(ip));
 	bcopy(&ip, mtod(m, void *), sizeof(ip));
-	if (nat64_output(nh.nh_ifp, m, (struct sockaddr *)&dst,
+	if (V_nat64out->output(nh.nh_ifp, m, (struct sockaddr *)&dst,
 	    &cfg->stats, logdata) == 0)
 		NAT64STAT_INC(&cfg->stats, opcnt64);
 	return (NAT64RETURN);

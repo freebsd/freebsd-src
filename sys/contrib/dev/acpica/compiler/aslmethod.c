@@ -203,7 +203,7 @@ MtMethodAnalysisWalkBegin (
 
     /* Build cross-reference output file if requested */
 
-    if (Gbl_CrossReferenceOutput)
+    if (AslGbl_CrossReferenceOutput)
     {
         OtXrefWalkPart1 (Op, Level, MethodInfo);
     }
@@ -212,7 +212,7 @@ MtMethodAnalysisWalkBegin (
     {
     case PARSEOP_METHOD:
 
-        TotalMethods++;
+        AslGbl_TotalMethods++;
 
         /* Create and init method info */
 
@@ -249,11 +249,11 @@ MtMethodAnalysisWalkBegin (
 
             if (!ApFindNameInScope (METHOD_NAME__PS0, Op))
             {
-                sprintf (MsgBuffer,
+                sprintf (AslGbl_MsgBuffer,
                     "%4.4s requires _PS0 in same scope", Op->Asl.NameSeg);
 
                 AslError (ASL_WARNING, ASL_MSG_MISSING_DEPENDENCY, Op,
-                    MsgBuffer);
+                    AslGbl_MsgBuffer);
             }
         }
 

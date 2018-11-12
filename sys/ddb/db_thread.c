@@ -55,20 +55,10 @@ void
 db_set_thread(db_expr_t tid, bool hastid, db_expr_t cnt, char *mod)
 {
 	struct thread *thr;
-	db_expr_t radix;
 	int err;
 
-	/*
-	 * We parse our own arguments. We don't like the default radix.
-	 */
-	radix = db_radix;
-	db_radix = 10;
-	hastid = db_expression(&tid);
-	db_radix = radix;
-	db_skip_to_eol();
-
 	if (hastid) {
-		thr = kdb_thr_lookup(tid);
+		thr = db_lookup_thread(tid, false);
 		if (thr != NULL) {
 			err = kdb_thr_select(thr);
 			if (err != 0) {
