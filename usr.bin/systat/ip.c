@@ -53,6 +53,7 @@ static const char sccsid[] = "@(#)mbufs.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <paths.h>
@@ -203,16 +204,16 @@ void
 showip(void)
 {
 	struct stat stats;
-	u_long totalout;
+	uint64_t totalout;
 
 	domode(&stats);
 	totalout = stats.i.ips_forward + stats.i.ips_localout;
 
 #define DO(stat, row, col) \
-	mvwprintw(wnd, row, col, "%9lu", stats.stat)
+	mvwprintw(wnd, row, col, "%9"PRIu64, stats.stat)
 
 	DO(i.ips_total, 1, 0);
-	mvwprintw(wnd, 1, 35, "%9lu", totalout);
+	mvwprintw(wnd, 1, 35, "%9"PRIu64, totalout);
 	DO(i.ips_badsum, 2, 0);
 	DO(i.ips_localout, 2, 35);
 	DO(i.ips_tooshort, 3, 0);

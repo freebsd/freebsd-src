@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
+#include <inttypes.h>
 #include <string.h>
 
 #include "systat.h"
@@ -139,11 +140,11 @@ showzarc(void)
 
 #define DO(stat, row, col, fmt) \
 	mvwprintw(wnd, row, col, fmt, stat)
-#define	R(row, stat) DO(rate.hits.stat, row, 31+1, "%3lu")
-#define	H(row, stat) DO(delta.hits.stat, row, 31+1+5, "%7lu"); \
-	DO(curstat.hits.stat, row, 31+1+5+8+8, "%12lu")
-#define	M(row, stat) DO(delta.misses.stat, row, 31+1+5+8, "%7lu"); \
-	DO(curstat.misses.stat, row, 31+1+5+8+8+13, "%12lu")
+#define	R(row, stat) DO(rate.hits.stat, row, 31+1, "%3"PRIu64)
+#define	H(row, stat) DO(delta.hits.stat, row, 31+1+5, "%7"PRIu64); \
+	DO(curstat.hits.stat, row, 31+1+5+8+8, "%12"PRIu64)
+#define	M(row, stat) DO(delta.misses.stat, row, 31+1+5+8, "%7"PRIu64); \
+	DO(curstat.misses.stat, row, 31+1+5+8+8+13, "%12"PRIu64)
 #define	E(row, stat) R(row, stat); H(row, stat); M(row, stat); 
 	E(1, arcstats);
 	E(2, arcstats_demand_data);
