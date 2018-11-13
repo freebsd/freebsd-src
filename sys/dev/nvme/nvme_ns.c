@@ -535,11 +535,11 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	if (!mtx_initialized(&ns->lock))
 		mtx_init(&ns->lock, "nvme ns lock", NULL, MTX_DEF);
 
-	status.done = FALSE;
+	status.done = 0;
 	nvme_ctrlr_cmd_identify_namespace(ctrlr, id, &ns->data,
 	    nvme_completion_poll_cb, &status);
-	while (status.done == FALSE)
-		DELAY(5);
+	while (!atomic_load_acq_int(&status.done))
+		pause("nvme", 1);
 	if (nvme_completion_is_error(&status.cpl)) {
 		nvme_printf(ctrlr, "nvme_identify_namespace failed\n");
 		return (ENXIO);
