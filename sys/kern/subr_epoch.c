@@ -141,11 +141,15 @@ epoch_init(void *arg __unused)
 	epoch_call_count = counter_u64_alloc(M_WAITOK);
 	epoch_call_task_count = counter_u64_alloc(M_WAITOK);
 
-	pcpu_zone_record = uma_zcreate("epoch_record pcpu", sizeof(struct epoch_record),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_PCPU);
+	pcpu_zone_record = uma_zcreate("epoch_record pcpu",
+	    sizeof(struct epoch_record), NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 	CPU_FOREACH(cpu) {
-		GROUPTASK_INIT(DPCPU_ID_PTR(cpu, epoch_cb_task), 0, epoch_call_task, NULL);
-		taskqgroup_attach_cpu(qgroup_softirq, DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, -1, "epoch call task");
+		GROUPTASK_INIT(DPCPU_ID_PTR(cpu, epoch_cb_task), 0,
+		    epoch_call_task, NULL);
+		taskqgroup_attach_cpu(qgroup_softirq,
+		    DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, -1,
+		    "epoch call task");
 	}
 	inited = 1;
 	global_epoch = epoch_alloc(0);
@@ -327,12 +331,12 @@ epoch_exit(epoch_t epoch)
 }
 
 /*
- * epoch_block_handler_preempt is a callback from the ck code when another thread is
- * currently in an epoch section.
+ * epoch_block_handler_preempt() is a callback from the CK code when another
+ * thread is currently in an epoch section.
  */
 static void
-epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t *cr,
-    void *arg __unused)
+epoch_block_handler_preempt(struct ck_epoch *global __unused,
+    ck_epoch_record_t *cr, void *arg __unused)
 {
 	epoch_record_t record;
 	struct thread *td, *owner, *curwaittd;
@@ -424,25 +428,27 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 		if (TD_IS_INHIBITED(curwaittd) && TD_ON_LOCK(curwaittd) &&
 		    ((ts = curwaittd->td_blocked) != NULL)) {
 			/*
-			 * We unlock td to allow turnstile_wait to reacquire the
-			 * the thread lock. Before unlocking it we enter a critical
-			 * section to prevent preemption after we reenable interrupts
-			 * by dropping the thread lock in order to prevent curwaittd
-			 * from getting to run.
+			 * We unlock td to allow turnstile_wait to reacquire
+			 * the thread lock. Before unlocking it we enter a
+			 * critical section to prevent preemption after we
+			 * reenable interrupts by dropping the thread lock in
+			 * order to prevent curwaittd from getting to run.
 			 */
 			critical_enter();
 			thread_unlock(td);
 			owner = turnstile_lock(ts, &lock);
 			/*
-			 * The owner pointer indicates that the lock succeeded. Only
-			 * in case we hold the lock and the turnstile we locked is still
-			 * the one that curwaittd is blocked on can we continue. Otherwise
-			 * The turnstile pointer has been changed out from underneath
-			 * us, as in the case where the lock holder has signalled curwaittd,
+			 * The owner pointer indicates that the lock succeeded.
+			 * Only in case we hold the lock and the turnstile we
+			 * locked is still the one that curwaittd is blocked on
+			 * can we continue. Otherwise the turnstile pointer has
+			 * been changed out from underneath us, as in the case
+			 * where the lock holder has signalled curwaittd,
 			 * and we need to continue.
 			 */
 			if (owner != NULL && ts == curwaittd->td_blocked) {
-				MPASS(TD_IS_INHIBITED(curwaittd) && TD_ON_LOCK(curwaittd));
+				MPASS(TD_IS_INHIBITED(curwaittd) &&
+				    TD_ON_LOCK(curwaittd));
 				critical_exit();
 				turnstile_wait(ts, owner, curwaittd->td_tsqueue);
 				counter_u64_add(turnstile_count, 1);
@@ -492,9 +498,8 @@ epoch_wait_preempt(epoch_t epoch)
 	if ((epoch->e_flags & EPOCH_LOCKED) == 0)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "epoch_wait() can be long running");
-	KASSERT(!in_epoch(epoch),
-			("epoch_wait_preempt() called in the middle "
-			 "of an epoch section of the same epoch"));
+	KASSERT(!in_epoch(epoch), ("epoch_wait_preempt() called in the middle "
+	    "of an epoch section of the same epoch"));
 #endif
 	thread_lock(td);
 	DROP_GIANT();
@@ -507,7 +512,8 @@ epoch_wait_preempt(epoch_t epoch)
 	td->td_pinned = 0;
 	sched_bind(td, old_cpu);
 
-	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler_preempt, NULL);
+	ck_epoch_synchronize_wait(&epoch->e_epoch, epoch_block_handler_preempt,
+	    NULL);
 
 	/* restore CPU binding, if any */
 	if (was_bound != 0) {
@@ -608,7 +614,7 @@ epoch_call_task(void *arg __unused)
 	head = ck_stack_batch_pop_npsc(&cb_stack);
 	for (cursor = head; cursor != NULL; cursor = next) {
 		struct ck_epoch_entry *entry =
-		ck_epoch_entry_container(cursor);
+		    ck_epoch_entry_container(cursor);
 
 		next = CK_STACK_NEXT(cursor);
 		entry->function(entry);
