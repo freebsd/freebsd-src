@@ -51,6 +51,9 @@ for i in ${*}; do
 	desc="$(eval echo \"\${desc_${distname}}\")"
 
 	case ${i} in
+		doc.txz)
+			continue
+			;;
 		kernel-dbg.txz)
 			desc="${desc_kernel_dbg}"
 			;;
