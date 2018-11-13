@@ -30,31 +30,16 @@
 #ifndef _SYS_EPOCH_H_
 #define _SYS_EPOCH_H_
 
-/*
- * XXXGL: temporarily keep epoch_tracker exposed to userland until
- * we remove trackers embedded into network structs.
- */
-
 struct epoch_context {
 	void   *data[2];
 } __aligned(sizeof(void *));
 
 typedef struct epoch_context *epoch_context_t;
 
-struct epoch_tracker {
-	void *datap[3];
-#ifdef EPOCH_TRACKER_DEBUG
-	int datai[5];
-#else
-	int datai[1];
-#endif
-}  __aligned(sizeof(void *));
-
-typedef struct epoch_tracker *epoch_tracker_t;
-
 #ifdef _KERNEL
 #include <sys/lock.h>
 #include <sys/pcpu.h>
+#include <ck_epoch.h>
 
 struct epoch;
 typedef struct epoch *epoch_t;
@@ -64,6 +49,21 @@ typedef struct epoch *epoch_t;
 
 extern epoch_t global_epoch;
 extern epoch_t global_epoch_preempt;
+
+struct epoch_tracker {
+#ifdef	EPOCH_TRACKER_DEBUG
+#define	EPOCH_MAGIC0 0xFADECAFEF00DD00D
+#define	EPOCH_MAGIC1 0xBADDBABEDEEDFEED
+	uint64_t et_magic_pre;
+#endif
+	TAILQ_ENTRY(epoch_tracker) et_link;
+	struct thread *et_td;
+	ck_epoch_section_t et_section;
+#ifdef	EPOCH_TRACKER_DEBUG
+	uint64_t et_magic_post;
+#endif
+}  __aligned(sizeof(void *));
+typedef struct epoch_tracker *epoch_tracker_t;
 
 epoch_t	epoch_alloc(int flags);
 void	epoch_free(epoch_t epoch);

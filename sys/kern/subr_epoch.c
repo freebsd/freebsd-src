@@ -55,25 +55,13 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 
-typedef struct epoch_thread {
-#ifdef EPOCH_TRACKER_DEBUG
-	uint64_t et_magic_pre;
-#endif
-	TAILQ_ENTRY(epoch_thread) et_link;	/* Epoch queue. */
-	struct thread *et_td;		/* pointer to thread in section */
-	ck_epoch_section_t et_section; /* epoch section object */
-#ifdef EPOCH_TRACKER_DEBUG
-	uint64_t et_magic_post;
-#endif
-} *epoch_thread_t;
-TAILQ_HEAD (epoch_tdlist, epoch_thread);
-
 #ifdef __amd64__
 #define EPOCH_ALIGN CACHE_LINE_SIZE*2
 #else
 #define EPOCH_ALIGN CACHE_LINE_SIZE
 #endif
 
+TAILQ_HEAD (epoch_tdlist, epoch_tracker);
 typedef struct epoch_record {
 	ck_epoch_record_t er_read_record;
 	ck_epoch_record_t er_write_record;
@@ -252,27 +240,25 @@ void
 epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 {
 	struct epoch_record *er;
-	struct epoch_thread *etd;
 	struct thread_lite *td;
 
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
-	etd = (void *)et;
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 #ifdef EPOCH_TRACKER_DEBUG
-	etd->et_magic_pre = EPOCH_MAGIC0;
-	etd->et_magic_post = EPOCH_MAGIC1;
+	et->et_magic_pre = EPOCH_MAGIC0;
+	et->et_magic_post = EPOCH_MAGIC1;
 #endif
 	td = (struct thread_lite *)curthread;
-	etd->et_td = (void*)td;
+	et->et_td = (void*)td;
 	td->td_epochnest++;
 	critical_enter();
 	sched_pin_lite(td);
 
 	td->td_pre_epoch_prio = td->td_priority;
 	er = epoch_currecord(epoch);
-	TAILQ_INSERT_TAIL(&er->er_tdlist, etd, et_link);
-	ck_epoch_begin(&er->er_read_record, (ck_epoch_section_t *)&etd->et_section);
+	TAILQ_INSERT_TAIL(&er->er_tdlist, et, et_link);
+	ck_epoch_begin(&er->er_read_record, &et->et_section);
 	critical_exit();
 }
 
@@ -296,7 +282,6 @@ void
 epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 {
 	struct epoch_record *er;
-	struct epoch_thread *etd;
 	struct thread_lite *td;
 
 	INIT_CHECK(epoch);
@@ -307,19 +292,19 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	td->td_epochnest--;
 	er = epoch_currecord(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
-	etd = (void *)et;
-	MPASS(etd != NULL);
-	MPASS(etd->et_td == (struct thread *)td);
+	MPASS(et != NULL);
+	MPASS(et->et_td == (struct thread *)td);
 #ifdef EPOCH_TRACKER_DEBUG
-	MPASS(etd->et_magic_pre == EPOCH_MAGIC0);
-	MPASS(etd->et_magic_post == EPOCH_MAGIC1);
-	etd->et_magic_pre = 0;
-	etd->et_magic_post = 0;
+	MPASS(et->et_magic_pre == EPOCH_MAGIC0);
+	MPASS(et->et_magic_post == EPOCH_MAGIC1);
+	et->et_magic_pre = 0;
+	et->et_magic_post = 0;
 #endif
-	etd->et_td = (void*)0xDEADBEEF;
-	ck_epoch_end(&er->er_read_record,
-		(ck_epoch_section_t *)&etd->et_section);
-	TAILQ_REMOVE(&er->er_tdlist, etd, et_link);
+#ifdef INVARIANTS
+	et->et_td = (void*)0xDEADBEEF;
+#endif
+	ck_epoch_end(&er->er_read_record, &et->et_section);
+	TAILQ_REMOVE(&er->er_tdlist, et, et_link);
 	er->er_gen++;
 	if (__predict_false(td->td_pre_epoch_prio != td->td_priority))
 		epoch_adjust_prio((struct thread *)td, td->td_pre_epoch_prio);
@@ -351,7 +336,7 @@ epoch_block_handler_preempt(struct ck_epoch *global __unused, ck_epoch_record_t 
 {
 	epoch_record_t record;
 	struct thread *td, *owner, *curwaittd;
-	struct epoch_thread *tdwait;
+	struct epoch_tracker *tdwait;
 	struct turnstile *ts;
 	struct lock_object *lock;
 	int spincount, gen;
@@ -633,7 +618,7 @@ epoch_call_task(void *arg __unused)
 int
 in_epoch_verbose(epoch_t epoch, int dump_onfail)
 {
-	struct epoch_thread *tdwait;
+	struct epoch_tracker *tdwait;
 	struct thread *td;
 	epoch_record_t er;
 
