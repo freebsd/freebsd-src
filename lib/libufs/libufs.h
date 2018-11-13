@@ -35,6 +35,10 @@
 /*
  * libufs structures.
  */
+union dinodep {
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+};
 
 /*
  * userland ufs disk.
@@ -49,6 +53,7 @@ struct uufsd {
 	caddr_t d_inoblock;	/* inode block */
 	uint32_t d_inomin;	/* low inode (not ino_t for ABI compat) */
 	uint32_t d_inomax;	/* high inode (not ino_t for ABI compat) */
+	union dinodep d_dp;	/* pointer to currently active inode */
 	union {
 		struct fs d_fs;	/* filesystem information */
 		char d_sb[MAXBSIZE];
@@ -135,8 +140,8 @@ int cgwrite1(struct uufsd *, int);
 /*
  * inode.c
  */
-int getino(struct uufsd *, void **, ino_t, int *);
-int putino(struct uufsd *);
+int getinode(struct uufsd *, union dinodep *, ino_t);
+int putinode(struct uufsd *);
 
 /*
  * sblock.c

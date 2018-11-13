@@ -392,13 +392,12 @@ clear_inode(struct ufs2_dinode *dino)
 void
 gjournal_check(const char *filesys)
 {
-	struct ufs2_dinode *dino;
-	void *p;
+	union dinodep dp;
 	struct cgchain *cgc;
 	struct cg *cgp;
 	uint8_t *inosused;
 	ino_t cino, ino;
-	int cg, mode;
+	int cg;
 
 	devnam = filesys;
 	opendisk();
@@ -444,19 +443,20 @@ gjournal_check(const char *filesys)
 			/* Unallocated? Skip it. */
 			if (isclr(inosused, cino))
 				continue;
-			if (getino(diskp, &p, ino, &mode) == -1)
-				err(1, "getino(cg=%d ino=%ju)",
-				    cg, (uintmax_t)ino);
-			dino = p;
+			if (getinode(diskp, &dp, ino) == -1)
+				err(1, "getinode (cg=%d ino=%ju) %s",
+				    cg, (uintmax_t)ino, diskp->d_error);
 			/* Not a regular file nor directory? Skip it. */
-			if (!S_ISREG(dino->di_mode) && !S_ISDIR(dino->di_mode))
+			if (!S_ISREG(dp.dp2->di_mode) &&
+			    !S_ISDIR(dp.dp2->di_mode))
 				continue;
 			/* Has reference(s)? Skip it. */
-			if (dino->di_nlink > 0)
+			if (dp.dp2->di_nlink > 0)
 				continue;
-			//printf("Clearing inode=%d (size=%jd)\n", ino, (intmax_t)dino->di_size);
+			/* printf("Clearing inode=%d (size=%jd)\n", ino,
+			    (intmax_t)dp.dp2->di_size); */
 			/* Free inode's blocks. */
-			clear_inode(dino);
+			clear_inode(dp.dp2);
 			/* Deallocate it. */
 			clrbit(inosused, cino);
 			/* Update position of last used inode. */
@@ -469,17 +469,17 @@ gjournal_check(const char *filesys)
 			cgp->cg_unrefs--;
 			fs->fs_unrefs--;
 			/* If this is directory, update related statistics. */
-			if (S_ISDIR(dino->di_mode)) {
+			if (S_ISDIR(dp.dp2->di_mode)) {
 				cgp->cg_cs.cs_ndir--;
 				fs->fs_cs(fs, cg).cs_ndir--;
 				fs->fs_cstotal.cs_ndir--;
 			}
 			/* Zero-fill the inode. */
-			*dino = ufs2_zino;
+			*dp.dp2 = ufs2_zino;
 			/* Write the inode back. */
-			if (putino(diskp) == -1)
-				err(1, "putino(cg=%d ino=%ju)",
-				    cg, (uintmax_t)ino);
+			if (putinode(diskp) == -1)
+				err(1, "putinode (cg=%d ino=%ju) %s",
+				    cg, (uintmax_t)ino, diskp->d_error);
 			if (cgp->cg_unrefs == 0) {
 				//printf("No more unreferenced inodes in cg=%d.\n", cg);
 				break;

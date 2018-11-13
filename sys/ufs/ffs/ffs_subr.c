@@ -108,31 +108,35 @@ ffs_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
  * Load up the contents of an inode and copy the appropriate pieces
  * to the incore copy.
  */
-void
+int
 ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 {
+	struct ufs1_dinode *dip1;
+	struct ufs2_dinode *dip2;
 
 	if (I_IS_UFS1(ip)) {
-		*ip->i_din1 =
+		dip1 = ip->i_din1;
+		*dip1 =
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
-		ip->i_mode = ip->i_din1->di_mode;
-		ip->i_nlink = ip->i_din1->di_nlink;
-		ip->i_size = ip->i_din1->di_size;
-		ip->i_flags = ip->i_din1->di_flags;
-		ip->i_gen = ip->i_din1->di_gen;
-		ip->i_uid = ip->i_din1->di_uid;
-		ip->i_gid = ip->i_din1->di_gid;
-	} else {
-		*ip->i_din2 =
-		    *((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
-		ip->i_mode = ip->i_din2->di_mode;
-		ip->i_nlink = ip->i_din2->di_nlink;
-		ip->i_size = ip->i_din2->di_size;
-		ip->i_flags = ip->i_din2->di_flags;
-		ip->i_gen = ip->i_din2->di_gen;
-		ip->i_uid = ip->i_din2->di_uid;
-		ip->i_gid = ip->i_din2->di_gid;
+		ip->i_mode = dip1->di_mode;
+		ip->i_nlink = dip1->di_nlink;
+		ip->i_size = dip1->di_size;
+		ip->i_flags = dip1->di_flags;
+		ip->i_gen = dip1->di_gen;
+		ip->i_uid = dip1->di_uid;
+		ip->i_gid = dip1->di_gid;
+		return (0);
 	}
+	dip2 = ip->i_din2;
+	*dip2 = *((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
+	ip->i_mode = dip2->di_mode;
+	ip->i_nlink = dip2->di_nlink;
+	ip->i_size = dip2->di_size;
+	ip->i_flags = dip2->di_flags;
+	ip->i_gen = dip2->di_gen;
+	ip->i_uid = dip2->di_uid;
+	ip->i_gid = dip2->di_gid;
+	return (0);
 }
 #endif /* KERNEL */
 

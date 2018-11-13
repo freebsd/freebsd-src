@@ -254,14 +254,14 @@ fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 	char pathbuf[MAXPATHLEN + 1];
 
 	pwarn("%s ", errmesg);
-	pinode(ino);
-	printf("\n");
-	getpathname(pathbuf, cwd, ino);
 	if (ino < UFS_ROOTINO || ino > maxino) {
-		pfatal("NAME=%s\n", pathbuf);
+		pfatal("out-of-range inode number %ju", (uintmax_t)ino);
 		return;
 	}
 	dp = ginode(ino);
+	prtinode(ino, dp);
+	printf("\n");
+	getpathname(pathbuf, cwd, ino);
 	if (ftypeok(dp))
 		pfatal("%s=%s\n",
 		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE",
@@ -309,7 +309,7 @@ adjust(struct inodesc *idesc, int lcnt)
 	if (lcnt != 0) {
 		pwarn("LINK COUNT %s", (lfdir == idesc->id_number) ? lfname :
 			((DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE"));
-		pinode(idesc->id_number);
+		prtinode(idesc->id_number, dp);
 		printf(" COUNT %d SHOULD BE %d",
 			DIP(dp, di_nlink), DIP(dp, di_nlink) - lcnt);
 		if (preen || usedsoftdep) {
@@ -390,7 +390,8 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 	dp = ginode(orphan);
 	lostdir = (DIP(dp, di_mode) & IFMT) == IFDIR;
 	pwarn("UNREF %s ", lostdir ? "DIR" : "FILE");
-	pinode(orphan);
+	prtinode(orphan, dp);
+	printf("\n");
 	if (preen && DIP(dp, di_size) == 0)
 		return (0);
 	if (cursnapshot != 0) {
