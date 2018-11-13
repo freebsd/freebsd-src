@@ -458,30 +458,40 @@ checkfilesys(char *filesys)
 	if (preen == 0 && yflag == 0 && sblock.fs_magic != FS_UFS1_MAGIC &&
 	    fswritefd != -1 && getosreldate() >= P_OSREL_CK_CYLGRP) {
 		if ((sblock.fs_metackhash & CK_CYLGRP) == 0 &&
-		    reply("ADD CYLINDER GROUP CHECK-HASH PROTECTION") != 0)
+		    reply("ADD CYLINDER GROUP CHECK-HASH PROTECTION") != 0) {
 			ckhashadd |= CK_CYLGRP;
+			sblock.fs_metackhash |= CK_CYLGRP;
+		}
 		if ((sblock.fs_metackhash & CK_SUPERBLOCK) == 0 &&
 		    getosreldate() >= P_OSREL_CK_SUPERBLOCK &&
 		    reply("ADD SUPERBLOCK CHECK-HASH PROTECTION") != 0) {
+			ckhashadd |= CK_SUPERBLOCK;
 			sblock.fs_metackhash |= CK_SUPERBLOCK;
-			sbdirty();
 		}
 #ifdef notyet
 		if ((sblock.fs_metackhash & CK_INODE) == 0 &&
 		    getosreldate() >= P_OSREL_CK_INODE &&
-		    reply("ADD INODE CHECK-HASH PROTECTION") != 0)
+		    reply("ADD INODE CHECK-HASH PROTECTION") != 0) {
 			ckhashadd |= CK_INODE;
+			sblock.fs_metackhash |= CK_INODE;
+		}
 		if ((sblock.fs_metackhash & CK_INDIR) == 0 &&
 		    getosreldate() >= P_OSREL_CK_INDIR &&
-		    reply("ADD INDIRECT BLOCK CHECK-HASH PROTECTION") != 0)
+		    reply("ADD INDIRECT BLOCK CHECK-HASH PROTECTION") != 0) {
 			ckhashadd |= CK_INDIR;
+			sblock.fs_metackhash |= CK_INDIR;
+		}
 		if ((sblock.fs_metackhash & CK_DIR) == 0 &&
 		    getosreldate() >= P_OSREL_CK_DIR &&
-		    reply("ADD DIRECTORY CHECK-HASH PROTECTION") != 0)
+		    reply("ADD DIRECTORY CHECK-HASH PROTECTION") != 0) {
 			ckhashadd |= CK_DIR;
+			sblock.fs_metackhash |= CK_DIR;
+		}
 #endif /* notyet */
-		if (ckhashadd != 0)
+		if (ckhashadd != 0) {
 			sblock.fs_flags |= FS_METACKHASH;
+			sbdirty();
+		}
 	}
 	/*
 	 * Cleared if any questions answered no. Used to decide if
