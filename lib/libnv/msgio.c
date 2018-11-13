@@ -66,11 +66,6 @@ msghdr_add_fd(struct cmsghdr *cmsg, int fd)
 
 	PJDLOG_ASSERT(fd >= 0);
 
-	if (!fd_is_valid(fd)) {
-		errno = EBADF;
-		return (-1);
-	}
-
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
