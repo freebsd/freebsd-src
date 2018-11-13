@@ -1416,7 +1416,7 @@ _sx_assert(const struct sx *sx, int what, const char *file, int line)
 	int slocked = 0;
 #endif
 
-	if (panicstr != NULL)
+	if (SCHEDULER_STOPPED())
 		return;
 	switch (what) {
 	case SA_SLOCKED:
