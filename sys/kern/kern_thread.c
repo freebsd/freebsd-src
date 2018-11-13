@@ -272,6 +272,7 @@ thread_init(void *mem, int size, int flags)
 	td->td_rlqe = NULL;
 	EVENTHANDLER_DIRECT_INVOKE(thread_init, td);
 	umtx_thread_init(td);
+	epoch_thread_init(td);
 	td->td_kstack = 0;
 	td->td_sel = NULL;
 	return (0);
@@ -291,6 +292,7 @@ thread_fini(void *mem, int size)
 	turnstile_free(td->td_turnstile);
 	sleepq_free(td->td_sleepqueue);
 	umtx_thread_fini(td);
+	epoch_thread_fini(td);
 	seltdfini(td);
 }
 

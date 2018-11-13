@@ -667,3 +667,17 @@ in_epoch(epoch_t epoch)
 {
 	return (in_epoch_verbose(epoch, 0));
 }
+
+void
+epoch_thread_init(struct thread *td)
+{
+
+	td->td_et = malloc(sizeof(struct epoch_tracker), M_EPOCH, M_WAITOK);
+}
+
+void
+epoch_thread_fini(struct thread *td)
+{
+
+	free(td->td_et, M_EPOCH);
+}

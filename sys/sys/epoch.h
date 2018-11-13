@@ -82,5 +82,8 @@ void epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et);
 void epoch_enter(epoch_t epoch);
 void epoch_exit(epoch_t epoch);
 
+void epoch_thread_init(struct thread *);
+void epoch_thread_fini(struct thread *);
+
 #endif	/* _KERNEL */
 #endif	/* _SYS_EPOCH_H_ */
