@@ -1287,7 +1287,7 @@ ITOOLS+=makewhatis
 #
 
 # Non-base distributions produced by the base system
-EXTRA_DISTRIBUTIONS=	doc
+EXTRA_DISTRIBUTIONS=
 .if defined(LIBCOMPAT)
 EXTRA_DISTRIBUTIONS+=	lib${libcompat}
 .endif
@@ -1297,7 +1297,7 @@ EXTRA_DISTRIBUTIONS+=	tests
 
 DEBUG_DISTRIBUTIONS=
 .if ${MK_DEBUG_FILES} != "no"
-DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
+DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,tests,,}
 .endif
 
 MTREE_MAGIC?=	mtree 2.0
