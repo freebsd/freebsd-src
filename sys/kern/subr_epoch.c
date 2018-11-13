@@ -240,7 +240,7 @@ void
 epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 {
 	struct epoch_record *er;
-	struct thread_lite *td;
+	struct thread *td;
 
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
@@ -249,11 +249,11 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 	et->et_magic_pre = EPOCH_MAGIC0;
 	et->et_magic_post = EPOCH_MAGIC1;
 #endif
-	td = (struct thread_lite *)curthread;
-	et->et_td = (void*)td;
+	td = curthread;
+	et->et_td = td;
 	td->td_epochnest++;
 	critical_enter();
-	sched_pin_lite(td);
+	sched_pin();
 
 	td->td_pre_epoch_prio = td->td_priority;
 	er = epoch_currecord(epoch);
@@ -265,12 +265,12 @@ epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
 void
 epoch_enter(epoch_t epoch)
 {
-	struct thread_lite *td;
+	struct thread *td;
 	epoch_record_t er;
 
 	MPASS(cold || epoch != NULL);
 	INIT_CHECK(epoch);
-	td = (struct thread_lite *)curthread;
+	td = curthread;
 
 	td->td_epochnest++;
 	critical_enter();
@@ -282,18 +282,18 @@ void
 epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 {
 	struct epoch_record *er;
-	struct thread_lite *td;
+	struct thread *td;
 
 	INIT_CHECK(epoch);
-	td = (struct thread_lite *)curthread;
+	td = curthread;
 	critical_enter();
-	sched_unpin_lite(td);
+	sched_unpin();
 	MPASS(td->td_epochnest);
 	td->td_epochnest--;
 	er = epoch_currecord(epoch);
 	MPASS(epoch->e_flags & EPOCH_PREEMPT);
 	MPASS(et != NULL);
-	MPASS(et->et_td == (struct thread *)td);
+	MPASS(et->et_td == td);
 #ifdef EPOCH_TRACKER_DEBUG
 	MPASS(et->et_magic_pre == EPOCH_MAGIC0);
 	MPASS(et->et_magic_post == EPOCH_MAGIC1);
@@ -307,18 +307,18 @@ epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 	TAILQ_REMOVE(&er->er_tdlist, et, et_link);
 	er->er_gen++;
 	if (__predict_false(td->td_pre_epoch_prio != td->td_priority))
-		epoch_adjust_prio((struct thread *)td, td->td_pre_epoch_prio);
+		epoch_adjust_prio(td, td->td_pre_epoch_prio);
 	critical_exit();
 }
 
 void
 epoch_exit(epoch_t epoch)
 {
-	struct thread_lite *td;
+	struct thread *td;
 	epoch_record_t er;
 
 	INIT_CHECK(epoch);
-	td = (struct thread_lite *)curthread;
+	td = curthread;
 	MPASS(td->td_epochnest);
 	td->td_epochnest--;
 	er = epoch_currecord(epoch);
