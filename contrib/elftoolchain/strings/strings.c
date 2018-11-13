@@ -27,7 +27,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -189,12 +188,9 @@ main(int argc, char **argv)
 
 	if (!min_len)
 		min_len = 4;
-	if (!*argv) {
-		if (caph_limit_stdio() < 0 || caph_enter() < 0)
-			err(1, "unable to enter capability mode");
-		return (find_strings("{standard input}", 0, 0));
-	}
-	while (*argv) {
+	if (!*argv)
+		rc = find_strings("{standard input}", 0, 0);
+	else while (*argv) {
 		if (handle_file(*argv) != 0)
 			rc = 1;
 		argv++;
