@@ -32,10 +32,27 @@ typedef void (*crt_func)(void);
 
 extern void *__dso_handle __hidden;
 
-#ifdef SHARED
-void *__dso_handle = &__dso_handle;
-#else
+#ifndef SHARED
 void *__dso_handle = 0;
+#else
+void *__dso_handle = &__dso_handle;
+void __cxa_finalize(void *) __weak_symbol;
+
+/*
+ * Call __cxa_finalize with the dso handle in shared objects.
+ * When we have ctors/dtors call from the dtor handler before calling
+ * any dtors, otherwise use a destructor.
+ */
+#ifndef HAVE_CTORS
+__attribute__((destructor))
+#endif
+static void
+run_cxa_finalize(void)
+{
+
+	if (__cxa_finalize != NULL)
+		__cxa_finalize(__dso_handle);
+}
 #endif
 
 /*
@@ -57,6 +74,10 @@ __do_global_dtors_aux(void)
 {
 	crt_func fn;
 	int n;
+
+#ifdef SHARED
+	run_cxa_finalize();
+#endif
 
 	for (n = 1;; n++) {
 		fn = __DTOR_LIST__[n];
