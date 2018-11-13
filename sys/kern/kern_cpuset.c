@@ -119,6 +119,7 @@ __FBSDID("$FreeBSD$");
  */
 
 LIST_HEAD(domainlist, domainset);
+struct domainset __read_mostly domainset_fixed[MAXMEMDOM];
 struct domainset __read_mostly domainset_prefer[MAXMEMDOM];
 struct domainset __read_mostly domainset_roundrobin;
 
@@ -1402,6 +1403,12 @@ domainset_init(void)
 	_domainset_create(dset, NULL);
 
 	for (i = 0; i < vm_ndomains; i++) {
+		dset = &domainset_fixed[i];
+		DOMAINSET_ZERO(&dset->ds_mask);
+		DOMAINSET_SET(i, &dset->ds_mask);
+		dset->ds_policy = DOMAINSET_POLICY_ROUNDROBIN;
+		_domainset_create(dset, NULL);
+
 		dset = &domainset_prefer[i];
 		DOMAINSET_COPY(&all_domains, &dset->ds_mask);
 		dset->ds_policy = DOMAINSET_POLICY_PREFER;
