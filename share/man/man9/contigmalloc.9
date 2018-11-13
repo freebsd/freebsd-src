@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 29, 2015
+.Dd October 30, 2018
 .Dt CONTIGMALLOC 9
 .Os
 .Sh NAME
@@ -50,6 +50,19 @@
 .Fa "unsigned long size"
 .Fa "struct malloc_type *type"
 .Fc
+.In sys/param.h
+.In sys/domainset.h
+.Ft "void *"
+.Fo contigmalloc_domainset
+.Fa "unsigned long size"
+.Fa "struct malloc_type *type"
+.Fa "struct domainset *ds"
+.Fa "int flags"
+.Fa "vm_paddr_t low"
+.Fa "vm_paddr_t high"
+.Fa "unsigned long alignment"
+.Fa "vm_paddr_t boundary"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn contigmalloc
@@ -68,6 +81,15 @@ The returned pointer points to a wired kernel virtual
 address range of
 .Fa size
 bytes allocated from the kernel virtual address (KVA) map.
+.Pp
+The
+.Fn contigmalloc_domainset
+variant allows the caller to additionally specify a
+.Xr numa 4
+domain selection policy.
+See
+.Xr domainset 9
+for some example policies.
 .Pp
 The
 .Fa flags
@@ -90,7 +112,9 @@ Other flags (if present) are ignored.
 The
 .Fn contigfree
 function deallocates memory allocated by a previous call to
-.Fn contigmalloc .
+.Fn contigmalloc
+or
+.Fn contigmalloc_domainset .
 .Sh IMPLEMENTATION NOTES
 The
 .Fn contigmalloc

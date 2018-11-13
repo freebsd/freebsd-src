@@ -1172,7 +1172,7 @@ page_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
 	void *p;	/* Returned page */
 
 	*pflag = UMA_SLAB_KERNEL;
-	p = (void *) kmem_malloc_domain(domain, bytes, wait);
+	p = (void *)kmem_malloc_domainset(DOMAINSET_FIXED(domain), bytes, wait);
 
 	return (p);
 }
@@ -3718,6 +3718,7 @@ uma_zone_exhausted_nolock(uma_zone_t zone)
 void *
 uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 {
+	struct domainset *policy;
 	vm_offset_t addr;
 	uma_slab_t slab;
 
@@ -3729,10 +3730,9 @@ uma_large_malloc_domain(vm_size_t size, int domain, int wait)
 	slab = zone_alloc_item(slabzone, NULL, domain, wait);
 	if (slab == NULL)
 		return (NULL);
-	if (domain == UMA_ANYDOMAIN)
-		addr = kmem_malloc(size, wait);
-	else
-		addr = kmem_malloc_domain(domain, size, wait);
+	policy = (domain == UMA_ANYDOMAIN) ? DOMAINSET_RR() :
+	    DOMAINSET_FIXED(domain);
+	addr = kmem_malloc_domainset(policy, size, wait);
 	if (addr != 0) {
 		vsetslab(addr, slab);
 		slab->us_data = (void *)addr;
