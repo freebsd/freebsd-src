@@ -228,6 +228,16 @@ ip_reass(struct mbuf *m)
 	ip->ip_off = htons(ntohs(ip->ip_off) << 3);
 
 	/*
+	 * Make sure the fragment lies within a packet of valid size.
+	 */
+	if (ntohs(ip->ip_len) + ntohs(ip->ip_off) > IP_MAXPACKET) {
+		IPSTAT_INC(ips_toolong);
+		IPSTAT_INC(ips_fragdropped);
+		m_freem(m);
+		return (NULL);
+	}
+
+	/*
 	 * Attempt reassembly; if it succeeds, proceed.
 	 * ip_reass() will return a different mbuf.
 	 */
