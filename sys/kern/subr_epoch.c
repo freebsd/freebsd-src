@@ -55,6 +55,40 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_EPOCH, "epoch", "epoch based reclamation");
 
+typedef struct epoch_thread {
+#ifdef EPOCH_TRACKER_DEBUG
+	uint64_t et_magic_pre;
+#endif
+	TAILQ_ENTRY(epoch_thread) et_link;	/* Epoch queue. */
+	struct thread *et_td;		/* pointer to thread in section */
+	ck_epoch_section_t et_section; /* epoch section object */
+#ifdef EPOCH_TRACKER_DEBUG
+	uint64_t et_magic_post;
+#endif
+} *epoch_thread_t;
+TAILQ_HEAD (epoch_tdlist, epoch_thread);
+
+#ifdef __amd64__
+#define EPOCH_ALIGN CACHE_LINE_SIZE*2
+#else
+#define EPOCH_ALIGN CACHE_LINE_SIZE
+#endif
+
+typedef struct epoch_record {
+	ck_epoch_record_t er_read_record;
+	ck_epoch_record_t er_write_record;
+	volatile struct epoch_tdlist er_tdlist;
+	volatile uint32_t er_gen;
+	uint32_t er_cpuid;
+} __aligned(EPOCH_ALIGN)     *epoch_record_t;
+
+struct epoch {
+	struct ck_epoch e_epoch __aligned(EPOCH_ALIGN);
+	epoch_record_t e_pcpu_record;
+	int	e_idx;
+	int	e_flags;
+};
+
 /* arbitrary --- needs benchmarking */
 #define MAX_ADAPTIVE_SPIN 100
 #define MAX_EPOCHS 64
@@ -157,6 +191,15 @@ epoch_ctor(epoch_t epoch)
 	}
 }
 
+static void
+epoch_adjust_prio(struct thread *td, u_char prio)
+{
+
+	thread_lock(td);
+	sched_prio(td, prio);
+	thread_unlock(td);
+}
+
 epoch_t
 epoch_alloc(int flags)
 {
@@ -192,32 +235,110 @@ epoch_free(epoch_t epoch)
 	free(epoch, M_EPOCH);
 }
 
-void
-epoch_enter_preempt_KBI(epoch_t epoch, epoch_tracker_t et)
+static epoch_record_t
+epoch_currecord(epoch_t epoch)
 {
 
-	epoch_enter_preempt(epoch, et);
+	return (zpcpu_get_cpu(epoch->e_pcpu_record, curcpu));
+}
+
+#define INIT_CHECK(epoch)					\
+	do {							\
+		if (__predict_false((epoch) == NULL))		\
+			return;					\
+	} while (0)
+
+void
+epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et)
+{
+	struct epoch_record *er;
+	struct epoch_thread *etd;
+	struct thread_lite *td;
+
+	MPASS(cold || epoch != NULL);
+	INIT_CHECK(epoch);
+	etd = (void *)et;
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
+#ifdef EPOCH_TRACKER_DEBUG
+	etd->et_magic_pre = EPOCH_MAGIC0;
+	etd->et_magic_post = EPOCH_MAGIC1;
+#endif
+	td = (struct thread_lite *)curthread;
+	etd->et_td = (void*)td;
+	td->td_epochnest++;
+	critical_enter();
+	sched_pin_lite(td);
+
+	td->td_pre_epoch_prio = td->td_priority;
+	er = epoch_currecord(epoch);
+	TAILQ_INSERT_TAIL(&er->er_tdlist, etd, et_link);
+	ck_epoch_begin(&er->er_read_record, (ck_epoch_section_t *)&etd->et_section);
+	critical_exit();
 }
 
 void
-epoch_exit_preempt_KBI(epoch_t epoch, epoch_tracker_t et)
+epoch_enter(epoch_t epoch)
 {
+	struct thread_lite *td;
+	epoch_record_t er;
 
-	epoch_exit_preempt(epoch, et);
+	MPASS(cold || epoch != NULL);
+	INIT_CHECK(epoch);
+	td = (struct thread_lite *)curthread;
+
+	td->td_epochnest++;
+	critical_enter();
+	er = epoch_currecord(epoch);
+	ck_epoch_begin(&er->er_read_record, NULL);
 }
 
 void
-epoch_enter_KBI(epoch_t epoch)
+epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et)
 {
+	struct epoch_record *er;
+	struct epoch_thread *etd;
+	struct thread_lite *td;
 
-	epoch_enter(epoch);
+	INIT_CHECK(epoch);
+	td = (struct thread_lite *)curthread;
+	critical_enter();
+	sched_unpin_lite(td);
+	MPASS(td->td_epochnest);
+	td->td_epochnest--;
+	er = epoch_currecord(epoch);
+	MPASS(epoch->e_flags & EPOCH_PREEMPT);
+	etd = (void *)et;
+	MPASS(etd != NULL);
+	MPASS(etd->et_td == (struct thread *)td);
+#ifdef EPOCH_TRACKER_DEBUG
+	MPASS(etd->et_magic_pre == EPOCH_MAGIC0);
+	MPASS(etd->et_magic_post == EPOCH_MAGIC1);
+	etd->et_magic_pre = 0;
+	etd->et_magic_post = 0;
+#endif
+	etd->et_td = (void*)0xDEADBEEF;
+	ck_epoch_end(&er->er_read_record,
+		(ck_epoch_section_t *)&etd->et_section);
+	TAILQ_REMOVE(&er->er_tdlist, etd, et_link);
+	er->er_gen++;
+	if (__predict_false(td->td_pre_epoch_prio != td->td_priority))
+		epoch_adjust_prio((struct thread *)td, td->td_pre_epoch_prio);
+	critical_exit();
 }
 
 void
-epoch_exit_KBI(epoch_t epoch)
+epoch_exit(epoch_t epoch)
 {
+	struct thread_lite *td;
+	epoch_record_t er;
 
-	epoch_exit(epoch);
+	INIT_CHECK(epoch);
+	td = (struct thread_lite *)curthread;
+	MPASS(td->td_epochnest);
+	td->td_epochnest--;
+	er = epoch_currecord(epoch);
+	ck_epoch_end(&er->er_read_record, NULL);
+	critical_exit();
 }
 
 /*
@@ -545,12 +666,4 @@ int
 in_epoch(epoch_t epoch)
 {
 	return (in_epoch_verbose(epoch, 0));
-}
-
-void
-epoch_adjust_prio(struct thread *td, u_char prio)
-{
-	thread_lock(td);
-	sched_prio(td, prio);
-	thread_unlock(td);
 }
