@@ -29,26 +29,17 @@
 
 #ifndef _SYS_EPOCH_H_
 #define _SYS_EPOCH_H_
-#ifdef _KERNEL
-#include <sys/lock.h>
-#include <sys/pcpu.h>
-#endif
 
-struct epoch;
-typedef struct epoch *epoch_t;
-
-#define EPOCH_PREEMPT 0x1
-#define EPOCH_LOCKED 0x2
-
-extern epoch_t global_epoch;
-extern epoch_t global_epoch_preempt;
+/*
+ * XXXGL: temporarily keep epoch_tracker exposed to userland until
+ * we remove trackers embedded into network structs.
+ */
 
 struct epoch_context {
 	void   *data[2];
 } __aligned(sizeof(void *));
 
 typedef struct epoch_context *epoch_context_t;
-
 
 struct epoch_tracker {
 	void *datap[3];
@@ -61,6 +52,19 @@ struct epoch_tracker {
 
 typedef struct epoch_tracker *epoch_tracker_t;
 
+#ifdef _KERNEL
+#include <sys/lock.h>
+#include <sys/pcpu.h>
+
+struct epoch;
+typedef struct epoch *epoch_t;
+
+#define EPOCH_PREEMPT 0x1
+#define EPOCH_LOCKED 0x2
+
+extern epoch_t global_epoch;
+extern epoch_t global_epoch_preempt;
+
 epoch_t	epoch_alloc(int flags);
 void	epoch_free(epoch_t epoch);
 void	epoch_wait(epoch_t epoch);
@@ -68,26 +72,15 @@ void	epoch_wait_preempt(epoch_t epoch);
 void	epoch_call(epoch_t epoch, epoch_context_t ctx, void (*callback) (epoch_context_t));
 int	in_epoch(epoch_t epoch);
 int in_epoch_verbose(epoch_t epoch, int dump_onfail);
-#ifdef _KERNEL
 DPCPU_DECLARE(int, epoch_cb_count);
 DPCPU_DECLARE(struct grouptask, epoch_cb_task);
 #define EPOCH_MAGIC0 0xFADECAFEF00DD00D
 #define EPOCH_MAGIC1 0xBADDBABEDEEDFEED
 
-void epoch_enter_preempt_KBI(epoch_t epoch, epoch_tracker_t et);
-void epoch_exit_preempt_KBI(epoch_t epoch, epoch_tracker_t et);
-void epoch_enter_KBI(epoch_t epoch);
-void epoch_exit_KBI(epoch_t epoch);
+void epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et);
+void epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et);
+void epoch_enter(epoch_t epoch);
+void epoch_exit(epoch_t epoch);
 
-
-#if defined(KLD_MODULE) && !defined(KLD_TIED)
-#define epoch_enter_preempt(e, t)	epoch_enter_preempt_KBI((e), (t))
-#define epoch_exit_preempt(e, t)	epoch_exit_preempt_KBI((e), (t))
-#define epoch_enter(e)	epoch_enter_KBI((e))
-#define epoch_exit(e)	epoch_exit_KBI((e))
-#else
-#include <sys/epoch_private.h>
-#endif /* KLD_MODULE */
-
-#endif /* _KERNEL */
-#endif
+#endif	/* _KERNEL */
+#endif	/* _SYS_EPOCH_H_ */
