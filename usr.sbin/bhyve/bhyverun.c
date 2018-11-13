@@ -796,6 +796,12 @@ vmexit_debug(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
+static int
+vmexit_rdtsc(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
+{
+	return (VMEXIT_CONTINUE);
+}
+
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
@@ -811,6 +817,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
 	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
 	[VM_EXITCODE_DEBUG] = vmexit_debug,
+	[VM_EXITCODE_RDTSC] = vmexit_rdtsc,
 };
 
 static void
@@ -1249,15 +1256,15 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 
-		fprintf(stdout, "Restoring kernel structs...\r\n");
-		if (restore_kernel_structs(ctx, &rstate) != 0) {
-			fprintf(stderr, "Failed to restore kernel structs.\n");
-			exit(1);
-		}
-
 		fprintf(stdout, "Restoring pci devs...\r\n");
 		if (restore_devs(ctx, &rstate) != 0) {
 			fprintf(stderr, "Failed to restore PCI device state.\n");
+			exit(1);
+		}
+
+		fprintf(stdout, "Restoring kernel structs...\r\n");
+		if (restore_kernel_structs(ctx, &rstate) != 0) {
+			fprintf(stderr, "Failed to restore kernel structs.\n");
 			exit(1);
 		}
 

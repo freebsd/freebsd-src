@@ -109,12 +109,13 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 };
 
 const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
+	{ "tsc",	TSC_VALUE	},
+	{ "vhpet",	STRUCT_VHPET	},
 	{ "vm",		STRUCT_VM	},
 	{ "vmx",	STRUCT_VMX	},
 	{ "vioapic",	STRUCT_VIOAPIC	},
 	{ "vlapic",	STRUCT_VLAPIC	},
 	{ "lapic",	STRUCT_LAPIC	},
-	{ "vhpet",	STRUCT_VHPET	},
 	{ "vmcx",	STRUCT_VMCX	},
 	{ "vatpit",	STRUCT_VATPIT	},
 	{ "vatpic",	STRUCT_VATPIC	},
@@ -565,7 +566,14 @@ restore_kernel_structs(struct vmctx *ctx, struct restore_state *rstate)
 	int ret;
 	int i;
 
-	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
+	/* Iterate through the items backwards such that the time-critical
+	 * items such as 'tsc' and 'vhpet' will be restored as close as possible
+	 * to the vCPU spinup moment
+	 *
+	 * This will mean that these structures are saved first during a
+	 * snapshot and restored last, so dead times are as small as possible
+	 */
+	for (i = nitems(snapshot_kern_structs) - 1; i >= 0; i--) {
 		struct_ptr = lookup_struct(snapshot_kern_structs[i].req, rstate, &struct_size);
 		if (struct_ptr == NULL) {
 			fprintf(stderr, "%s: Failed to lookup struct %s\r\n",
@@ -958,6 +966,20 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 
 	vm_vcpu_lock_all(ctx);
 
+	ret = vm_snapshot_kern_data(ctx, kdata_fd, xop);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot vm kernel data.\n");
+		error = -1;
+		goto done_unlock;
+	}
+
+	ret = vm_snapshot_dev_data(ctx, kdata_fd, xop);
+	if (ret != 0) {
+		fprintf(stderr, "Failed to snapshot device state.\n");
+		error = -1;
+		goto done_unlock;
+	}
+
 	/*
 	 * mmap checkpoint file in memory so we can easily copy VMs
 	 * system address space (lowmem + highmem) from kernel space
@@ -976,20 +998,6 @@ vm_checkpoint(struct vmctx *ctx, char *checkpoint_file, bool stop_vm)
 			error = -1;
 			goto done_unlock;
 		}
-	}
-
-	ret = vm_snapshot_kern_data(ctx, kdata_fd, xop);
-	if (ret != 0) {
-		fprintf(stderr, "Failed to snapshot vm kernel data.\n");
-		error = -1;
-		goto done_unlock;
-	}
-
-	ret = vm_snapshot_dev_data(ctx, kdata_fd, xop);
-	if (ret != 0) {
-		fprintf(stderr, "Failed to snapshot device state.\n");
-		error = -1;
-		goto done_unlock;
 	}
 
 	xo_finish_h(xop);

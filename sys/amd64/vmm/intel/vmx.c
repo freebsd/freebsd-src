@@ -287,6 +287,8 @@ static int vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
 static int vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval);
 static int vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val);
 static void vmx_inject_pir(struct vlapic *vlapic);
+static int vmx_restore_tsc_offset(void *arg, int vcpu);
+static int vmx_trap_rdtsc(void *arg, int vcpu, bool enable);
 
 #ifdef KTR
 static const char *
@@ -1270,6 +1272,8 @@ int
 vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset)
 {
 	int error;
+	struct vm *vm = vmx->vm;
+	uint64_t restore_offset;
 
 	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_TSC_OFFSET) == 0) {
 		vmx->cap[vcpu].proc_ctls |= PROCBASED_TSC_OFFSET;
@@ -1277,8 +1281,17 @@ vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset)
 		VCPU_CTR0(vmx->vm, vcpu, "Enabling TSC offsetting");
 	}
 
-	error = vmwrite(VMCS_TSC_OFFSET, offset);
+	error = vm_get_tsc_offset(vm, vcpu, &restore_offset, NULL);
+	if (error != 0)
+		goto done;
 
+	error = vmwrite(VMCS_TSC_OFFSET, offset + restore_offset);
+	if (error != 0)
+		goto done;
+
+	error = vm_set_tsc_offset(vm, vcpu, NULL, &offset);
+
+done:
 	return (error);
 }
 
@@ -2654,6 +2667,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_VMXON:
 		SDT_PROBE3(vmm, vmx, exit, vminsn, vmx, vcpu, vmexit);
 		vmexit->exitcode = VM_EXITCODE_VMINSN;
+	case EXIT_REASON_RDTSC:
+		error = vmx_restore_tsc_offset(vmx, vcpu);
+		KASSERT(error == 0, ("%s: rdtsc trap handle failed %d",
+		    __func__, error));
+		vmexit->exitcode = VM_EXITCODE_RDTSC;
 		break;
 	default:
 		SDT_PROBE4(vmm, vmx, exit, unknown,
@@ -3946,6 +3964,96 @@ vmx_restore_vmi(void *arg, void *buffer, size_t size)
 	return (0);
 }
 
+static int
+vmx_restore_tsc_offset(void *arg, int vcpu)
+{
+	struct vmx *vmx = (struct vmx *)arg;
+	struct vm *vm = vmx->vm;
+	struct vmxctx *vmxctx;
+	int err = 0;
+	uint64_t tsc, restore_offset, guest_offset;
+	uint64_t rax, rdx, guest_tsc;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+
+	tsc = rdtsc();
+
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_TSC_OFFSET) == 0) {
+		vmx->cap[vcpu].proc_ctls |= PROCBASED_TSC_OFFSET;
+		err = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling TSC offsetting");
+	}
+	if (err)
+		return (err);
+
+	err = vm_get_tsc_offset(vm, vcpu, &restore_offset, &guest_offset);
+	if (err != 0)
+		return (err);
+
+	restore_offset -= tsc;
+
+	err = vmwrite(VMCS_TSC_OFFSET, restore_offset + guest_offset);
+	if (err != 0)
+		return (err);
+
+	err = vm_set_tsc_offset(vm, vcpu, &restore_offset, NULL);
+	if (err != 0)
+		return (err);
+
+	guest_tsc = tsc + restore_offset + guest_offset;
+	rax = guest_tsc & 0xffffffff;
+	rdx = guest_tsc >> 32;
+
+	vmxctx = &vmx->ctx[vcpu];
+
+	err = vmxctx_setreg(vmxctx, VM_REG_GUEST_RAX, rax);
+	KASSERT(err == 0, ("vmxctx_setreg(rax) err %d", err));
+
+	err = vmxctx_setreg(vmxctx, VM_REG_GUEST_RDX, rdx);
+	KASSERT(err == 0, ("vmxctx_setreg(rdx) err %d", err));
+
+	err = vmx_trap_rdtsc(vmx, vcpu, 0);
+
+	return (err);
+}
+
+static int
+vmx_trap_rdtsc(void *arg, int vcpu, bool enable)
+{
+	struct vmcs *vmcs;
+	struct vmx *vmx = (struct vmx *)arg;
+	int err = 0, running, hostcpu;
+	uint32_t mode;
+
+	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	vmcs = &vmx->vmcs[vcpu];
+
+	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
+	if (running && hostcpu != curcpu) {
+		printf("%s: %s%d is running", __func__, vm_name(vmx->vm), vcpu);
+		return (EINVAL);
+	}
+
+	if (!running)
+		VMPTRLD(vmcs);
+
+	if (enable)
+		mode = 0;
+	else
+		mode = PROCBASED_RDTSC_EXITING;
+
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_RDTSC_EXITING) == mode) {
+		vmx->cap[vcpu].proc_ctls ^= PROCBASED_RDTSC_EXITING;
+		err = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling RDTSC vmexit");
+	}
+
+	if (!running)
+		VMCLEAR(vmcs);
+
+	return (err);
+}
+
 struct vmm_ops vmm_ops_intel = {
 	vmx_init,
 	vmx_cleanup,
@@ -3967,4 +4075,5 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_restore_vmi,
 	vmx_snapshot_vmcx,
 	vmx_restore_vmcx,
+	vmx_trap_rdtsc,
 };

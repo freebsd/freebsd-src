@@ -173,6 +173,7 @@ typedef int	(*vmi_snapshot_t)(void *vmi, void *buffer, size_t buf_size,
 typedef int	(*vmi_restore_t)(void *vmi, void *buffer, size_t buf_size);
 typedef int	(*vmi_snapshot_vmcx_t)(void *vmi, struct vmcx_state *vmcx, int vcpu);
 typedef int	(*vmi_restore_vmcx_t)(void *vmi, struct vmcx_state *vmcx, int vcpu);
+typedef int	(*vmi_trap_rdtsc_t)(void *vmi, int vcpuid, bool enable);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -198,6 +199,7 @@ struct vmm_ops {
 	vmi_restore_t		vmrestore;
 	vmi_snapshot_vmcx_t	vmcx_snapshot;
 	vmi_restore_vmcx_t	vmcx_restore;
+	vmi_trap_rdtsc_t	trap_rdtsc;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -413,6 +415,18 @@ int vm_entry_intinfo(struct vm *vm, int vcpuid, uint64_t *info);
 
 int vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2);
 
+/* * These functions are used to keep track of the guest's TSC offset. The
+ * offset is used by the virutalization extensions to provide a consistent
+ * value for the Time Stamp Counter to the guest.
+ *
+ *  Return value is 0 on success and non-zero on failure.
+ */
+int vm_get_tsc_offset(struct vm *vm, int vcpuid,
+		      uint64_t *restore_offset, uint64_t *guest_offset);
+
+int vm_set_tsc_offset(struct vm *vm, int vcpuid,
+		      uint64_t *restore_offset, uint64_t *guest_offset);
+
 enum vm_reg_name vm_segment_name(int seg_encoding);
 
 struct vm_copyinfo {
@@ -588,6 +602,7 @@ enum vm_exitcode {
 	VM_EXITCODE_REQIDLE,
 	VM_EXITCODE_DEBUG,
 	VM_EXITCODE_VMINSN,
+	VM_EXITCODE_RDTSC,
 	VM_EXITCODE_MAX
 };
 

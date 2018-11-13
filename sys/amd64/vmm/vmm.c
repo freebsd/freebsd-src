@@ -91,6 +91,11 @@ __FBSDID("$FreeBSD$");
 
 struct vlapic;
 
+struct tsc_off {
+	uint64_t restore_offset;	/* delta between snapshot and restore */
+	uint64_t guest_offset;		/* offset set when guest wrote TSC */
+};
+
 /*
  * Initialization:
  * (a) allocated when vcpu is created
@@ -117,6 +122,7 @@ struct vcpu {
 	void		*stats;		/* (a,i) statistics */
 	struct vm_exit	exitinfo;	/* (x) exit reason and collateral */
 	uint64_t	nextrip;	/* (x) next instruction to execute */
+	struct tsc_off	tsc_offset;	/* (o) TSC offsetting */
 };
 
 struct mem_map {
@@ -216,6 +222,8 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vmcx_restore)(vmi, vmcx_state, vcpuid) : ENXIO)
 #define	VM_RESTORE_VMI(vmi, buffer, buf_size) \
 	(ops != NULL ? (*ops->vmrestore)(vmi, buffer, buf_size) : ENXIO)
+#define	VM_TRAP_RDTSC(vmi, vcpuid, enable) \
+	(ops != NULL ? (*ops->trap_rdtsc)(vmi, vcpuid, enable) : ENXIO)
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	fpu_stop_emulating()	clts()
@@ -302,6 +310,8 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 		vcpu->hostcpu = NOCPU;
 		vcpu->guestfpu = fpu_save_area_alloc();
 		vcpu->stats = vmm_stat_alloc();
+		vcpu->tsc_offset.restore_offset = 0;
+		vcpu->tsc_offset.guest_offset = 0;
 	}
 
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
@@ -2066,6 +2076,42 @@ vm_entry_intinfo(struct vm *vm, int vcpuid, uint64_t *retinfo)
 }
 
 int
+vm_get_tsc_offset(struct vm *vm, int vcpuid,
+		  uint64_t *restore_offset, uint64_t *guest_offset)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+	if (restore_offset != NULL)
+		*restore_offset = vcpu->tsc_offset.restore_offset;
+	if (guest_offset != NULL)
+		*guest_offset = vcpu->tsc_offset.guest_offset;
+
+	return (0);
+}
+
+int
+vm_set_tsc_offset(struct vm *vm, int vcpuid,
+		  uint64_t *restore_offset, uint64_t *guest_offset)
+{
+	struct vcpu *vcpu;
+
+	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
+		return (EINVAL);
+
+	vcpu = &vm->vcpu[vcpuid];
+	if (restore_offset != NULL)
+		vcpu->tsc_offset.restore_offset = *restore_offset;
+	if (guest_offset != NULL)
+		vcpu->tsc_offset.guest_offset = *guest_offset;
+
+	return (0);
+}
+
+int
 vm_get_intinfo(struct vm *vm, int vcpuid, uint64_t *info1, uint64_t *info2)
 {
 	struct vcpu *vcpu;
@@ -2898,6 +2944,31 @@ vm_snapshot_vmcx(struct vm *vm, void *buffer, size_t buf_size,
 	return (0);
 }
 
+static int
+vm_snapshot_tsc(void *buffer, size_t buf_size, size_t *snapshot_size)
+{
+	int error;
+	uint64_t tsc;
+
+	if (buf_size < sizeof(tsc)) {
+		printf("%s: buffer size too small: %lu < %lu\n",
+				__func__, buf_size, sizeof(tsc));
+		return (EINVAL);
+	}
+
+	tsc = rdtsc();
+
+	error = copyout(&tsc, buffer, sizeof(tsc));
+	if (error) {
+		printf("%s: failed to copy tsc value to user buffer\n",
+		       __func__);
+		return (error);
+	}
+
+	*snapshot_size = sizeof(tsc);
+	return (0);
+}
+
 /*
  * Save kernel-side structures to user-space for snapshotting.
  */
@@ -2941,6 +3012,9 @@ vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
 	case STRUCT_VRTC:
 		ret = vm_snapshot_vrtc(vm, buffer, buf_size, snapshot_size);
 		break;
+	case TSC_VALUE:
+		ret = vm_snapshot_tsc(buffer, buf_size, snapshot_size);
+		break;
 	default:
 		printf("%s: failed to find the requested type\n", __func__);
 		ret = (EINVAL);
@@ -2965,6 +3039,16 @@ vm_restore_vcpu(struct vm *vm, struct vcpu *saved_vcpu)
 		current_vcpu[i].guest_xcr0 = saved_vcpu[i].guest_xcr0;
 		current_vcpu[i].exitinfo = saved_vcpu[i].exitinfo;
 		current_vcpu[i].nextrip = saved_vcpu[i].nextrip;
+		/* Add the restore_offset here so that it is not important which
+		 * of the functions that restore 'restore_offset' is called
+		 *
+		 * This relies on the fact that the 'restore_offset' field
+		 * is set to 0 during init
+		 */
+		current_vcpu[i].tsc_offset.restore_offset +=
+			saved_vcpu[i].tsc_offset.restore_offset;
+		current_vcpu[i].tsc_offset.guest_offset =
+			saved_vcpu[i].tsc_offset.guest_offset;
 	}
 
 	return (0);
@@ -3073,6 +3157,40 @@ vm_restore_vmcx(struct vm *vm, void *buffer, size_t buf_size)
 	return (0);
 }
 
+static int
+vm_restore_tsc(struct vm *vm, void *buffer, size_t buf_size)
+{
+	int i, error;
+	uint64_t old_tsc;
+	struct vcpu *vcpu;
+
+	old_tsc = *(uint64_t *) buffer;
+
+	if (buf_size != sizeof(old_tsc)) {
+		printf("%s: restore buffer size mismatch: %lu != %lu\n",
+				__func__, buf_size, sizeof(old_tsc));
+		return (EINVAL);
+	}
+
+	for (i = 0; i < nitems(vm->vcpu); i++) {
+		vcpu = &vm->vcpu[i];
+
+		/* Add the restore_offset here so that it is not important which
+		 * of the functions that restore 'restore_offset' is called
+		 *
+		 * This relies on the fact that the 'restore_offset' field
+		 * is set to 0 during init
+		 */
+		vcpu->tsc_offset.restore_offset += old_tsc;
+
+		error = VM_TRAP_RDTSC(vm->cookie, i, 1);
+		if (error)
+			return (error);
+	}
+
+	return (0);
+}
+
 int
 vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_size)
 {
@@ -3121,6 +3239,9 @@ vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_si
 		break;
 	case STRUCT_VRTC:
 		ret = vm_restore_vrtc(vm, kbuf, buf_size);
+		break;
+	case TSC_VALUE:
+		ret = vm_restore_tsc(vm, kbuf, buf_size);
 		break;
 	default:
 		printf("%s: failed to find type to restore\n", __func__);
