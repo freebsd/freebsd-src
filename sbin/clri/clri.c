@@ -62,11 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <unistd.h>
 
-union dinodep {
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
-};
-
 static void
 usage(void)
 {
@@ -104,8 +99,8 @@ main(int argc, char *argv[])
 		}
 		(void)printf("clearing %d\n", inonum);
 
-		if (getino(&disk, (void **)&dp, inonum, NULL) == -1) {
-			printf("getino: %s\n", disk.d_error);
+		if (getinode(&disk, &dp, inonum) == -1) {
+			printf("getinode: %s\n", disk.d_error);
 			exitval = 1;
 			continue;
 		}
@@ -119,7 +114,7 @@ main(int argc, char *argv[])
 			memset(dp.dp2, 0, sizeof(*dp.dp2));
 			dp.dp2->di_gen = generation;
 		}
-		putino(&disk);
+		putinode(&disk);
 		(void)fsync(disk.d_fd);
 	}
 	(void)ufs_disk_close(&disk);

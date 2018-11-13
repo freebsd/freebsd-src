@@ -301,16 +301,21 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
 	static caddr_t iobuf;
+	static long iobufsize;
 	long blkno, start;
 	ino_t ino;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
 	struct csum *cs;
 	uint j, d, dupper, dlower;
 
-	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize * 3)) == NULL)
-		errx(37, "panic: cannot allocate I/O buffer");
-
+	if (iobuf == NULL) {
+		iobufsize = 2 * sblock.fs_bsize;
+		if ((iobuf = malloc(iobufsize)) == NULL)
+			errx(37, "panic: cannot allocate I/O buffer");
+		memset(iobuf, '\0', iobufsize);
+	}
 	/*
 	 * Determine block bounds for cylinder group.
 	 * Allow space for super block summary information in first
@@ -375,12 +380,29 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 			acg.cg_cs.cs_nifree--;
 		}
 	/*
+	 * Initialize the initial inode blocks.
+	 */
+	dp1 = (struct ufs1_dinode *)(void *)iobuf;
+	dp2 = (struct ufs2_dinode *)(void *)iobuf;
+	for (i = 0; i < acg.cg_initediblk; i++) {
+		if (sblock.fs_magic == FS_UFS1_MAGIC) {
+			dp1->di_gen = arc4random();
+			dp1++;
+		} else {
+			dp2->di_gen = arc4random();
+			dp2++;
+		}
+	}
+	wtfs(fsbtodb(&sblock, cgimin(&sblock, cylno)), iobufsize, iobuf,
+	    fso, Nflag);
+	/*
 	 * For the old file system, we have to initialize all the inodes.
 	 */
-	if (sblock.fs_magic == FS_UFS1_MAGIC) {
-		bzero(iobuf, sblock.fs_bsize);
-		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
-		    i += sblock.fs_frag) {
+	if (sblock.fs_magic == FS_UFS1_MAGIC &&
+	    sblock.fs_ipg > 2 * INOPB(&sblock)) {
+		for (i = 2 * sblock.fs_frag;
+		     i < sblock.fs_ipg / INOPF(&sblock);
+		     i += sblock.fs_frag) {
 			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 			for (j = 0; j < INOPB(&sblock); j++) {
 				dp1->di_gen = arc4random();
@@ -463,12 +485,8 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	*cs = acg.cg_cs;
 
 	cgckhash(&acg);
-	memcpy(iobuf, &acg, sblock.fs_cgsize);
-	memset(iobuf + sblock.fs_cgsize, '\0',
-	    sblock.fs_bsize * 3 - sblock.fs_cgsize);
-
-	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
-	    sblock.fs_bsize * 3, iobuf, fso, Nflag);
+	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), sblock.fs_cgsize, &acg,
+	    fso, Nflag);
 	DBG_DUMP_CG(&sblock, "new cg", &acg);
 
 	DBG_LEAVE;
