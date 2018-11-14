@@ -1,5 +1,5 @@
 .\" $Id: smbutil.1,v 1.5 2002/04/16 02:48:16 bp Exp $
-.Dd November 1, 2018
+.Dd November 14, 2018
 .Dt SMBUTIL 1
 .Os
 .Sh NAME
@@ -9,7 +9,7 @@
 .Nm
 .Op Fl hv
 .Ar command
-.Op Fl Ar options
+.Op Ar options
 .Op Ar args
 .Sh DESCRIPTION
 The
@@ -50,8 +50,8 @@ Print usage information about
 List active connections and their parameters.
 .It Xo
 .Cm login
-.Op Fl Ar connection_options
-.No // Ns Ar user Ns @ Ns Ar server Ns Op / Ns Ar share
+.Op Ar connection_options
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Op Cm \&/ Ns Ar share
 .Xc
 Login/attach to the specified
 .Ar server
@@ -65,13 +65,13 @@ Thus, it is possible to login only once and then
 use other SMB commands without authentication procedure and additional
 connections.
 For the description of
-.Fl Ar connection_options
+.Ar connection_options
 refer to the
 .Xr mount_smbfs 8
-manpage (all uppercase options are connection options).
+manual page (all uppercase options are connection options).
 .It Xo
 .Cm logout
-.No // Ns Ar user Ns @ Ns Ar server Ns Op / Ns Ar share
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Op Cm \&/ Ns Ar share
 .Xc
 Logout/detach from the specified
 .Ar server
@@ -97,8 +97,8 @@ The NetBIOS name server can be directly specified via the
 option.
 .It Xo
 .Cm print
-.Op Fl Ar connection_options
-.No // Ns Ar user Ns @ Ns Ar server Ns / Ns Ar share
+.Op Ar connection_options
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server Ns Op Cm \&/ Ns Ar share
 .Ar file
 .Xc
 Send the given
@@ -107,12 +107,12 @@ to the specified queue on the remote server.
 If
 .Ar file
 is
-.Pa - ,
+.Dq Pa - ,
 then standard input will be used.
 .It Xo
 .Cm view
-.Op Fl Ar connection_options
-.No // Ns Ar user Ns @ Ns Ar server
+.Op Ar connection_options
+.Cm \&// Ns Ar user Ns Cm \&@ Ns Ar server
 .Xc
 List resources available on the specified
 .Ar server
@@ -124,7 +124,7 @@ for the user
 .It Pa ~/.nsmbrc
 Keeps description for each connection.
 See
-.Pa ./examples/dot.nsmbrc
+.Pa /usr/share/examples/smbfs/dot.nsmbrc
 for details.
 .El
 .Sh SEE ALSO
