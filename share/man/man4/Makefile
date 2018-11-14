@@ -264,6 +264,7 @@ MAN=	aac.4 \
 	mac_lomac.4 \
 	mac_mls.4 \
 	mac_none.4 \
+	mac_ntpd.4 \
 	mac_partition.4 \
 	mac_portacl.4 \
 	mac_seeotheruids.4 \
