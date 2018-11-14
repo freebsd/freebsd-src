@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <uchar.h>
-#include "xlocale_private.h"
+#include "mblocal.h"
 
 typedef struct {
 	char16_t	lead_surrogate;
@@ -47,7 +47,7 @@ c16rtomb_l(char * __restrict s, char16_t c16, mbstate_t * __restrict ps,
 
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->c16rtomb;
+		ps = &(XLOCALE_CTYPE(locale)->c16rtomb);
 	cs = (_Char16State *)ps;
 
 	/* If s is a null pointer, the value of parameter c16 is ignored. */
