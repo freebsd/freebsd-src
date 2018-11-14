@@ -549,7 +549,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip directory inodes deleted and maybe reallocated
 		 */
-		dp = getinode0(ino, &mode);
+		dp = getino(ino, &mode);
 		if (mode != IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
@@ -568,7 +568,7 @@ main(int argc, char *argv[])
 		/*
 		 * Skip inodes deleted and reallocated as directories.
 		 */
-		dp = getinode0(ino, &mode);
+		dp = getino(ino, &mode);
 		if (mode == IFDIR)
 			continue;
 		(void)dumpino(dp, ino);
