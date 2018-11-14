@@ -1558,6 +1558,8 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 					break;
 				}
 				dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
+				/* NOTE: d_off is the offset of the *next* entry. */
+				dirbuf.d_off = offset + sizeof(struct direntry);
 				if (uio->uio_resid < dirbuf.d_reclen)
 					goto out;
 				error = uiomove(&dirbuf, dirbuf.d_reclen, uio);
@@ -1681,6 +1683,8 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 				mbnambuf_flush(&nb, &dirbuf);
 			chksum = -1;
 			dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
+			/* NOTE: d_off is the offset of the *next* entry. */
+			dirbuf.d_off = offset + sizeof(struct direntry);
 			if (uio->uio_resid < dirbuf.d_reclen) {
 				brelse(bp);
 				goto out;
