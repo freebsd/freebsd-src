@@ -115,8 +115,15 @@ static struct amdtemp_product {
 
 /*
  * Reported Temperature, Family 17h
+ *
+ * According to AMD OSRR for 17H, section 4.2.1, bits 31-21 of this register
+ * provide the current temp.  bit 19, when clear, means the temp is reported in
+ * a range 0.."225C" (probable typo for 255C), and when set changes the range
+ * to -49..206C.
  */
-#define	AMDTEMP_17H_CUR_TMP	0x59800
+#define	AMDTEMP_17H_CUR_TMP		0x59800
+#define	AMDTEMP_17H_CUR_TMP_RANGE_SEL	(1 << 19)
+#define	AMDTEMP_17H_CUR_TMP_RANGE_OFF	490
 
 /*
  * Thermaltrip Status Register (Family 0Fh only)
@@ -595,13 +602,15 @@ static int32_t
 amdtemp_gettemp17h(device_t dev, amdsensor_t sensor)
 {
 	struct amdtemp_softc *sc = device_get_softc(dev);
-	uint32_t temp;
+	uint32_t temp, val;
 	int error;
 
-	error = amdsmn_read(sc->sc_smn, AMDTEMP_17H_CUR_TMP, &temp);
+	error = amdsmn_read(sc->sc_smn, AMDTEMP_17H_CUR_TMP, &val);
 	KASSERT(error == 0, ("amdsmn_read"));
 
-	temp = ((temp >> 21) & 0x7ff) * 5 / 4;
+	temp = ((val >> 21) & 0x7ff) * 5 / 4;
+	if ((val & AMDTEMP_17H_CUR_TMP_RANGE_SEL) != 0)
+		temp -= AMDTEMP_17H_CUR_TMP_RANGE_OFF;
 	temp += AMDTEMP_ZERO_C_TO_K + sc->sc_offset * 10;
 
 	return (temp);
