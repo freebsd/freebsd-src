@@ -76,18 +76,18 @@ via_probe(int fd)
 }
 
 void
-via_update(const char *dev, const char *path)
+via_update(const struct ucode_update_params *params)
 {
-	int fd, devfd;
-	struct stat st;
-	uint32_t *fw_image;
+	int devfd;
+	const char *dev, *path;
+	const uint32_t *fw_image;
 	uint32_t sum;
 	unsigned int i;
 	size_t payload_size;
-	via_fw_header_t *fw_header;
+	const via_fw_header_t *fw_header;
 	uint32_t signature;
 	int32_t revision;
-	void *fw_data;
+	const void *fw_data;
 	size_t data_size, total_size;
 	cpuctl_msr_args_t msrargs = {
 		.msr = MSR_IA32_PLATFORM_ID,
@@ -98,17 +98,14 @@ via_update(const char *dev, const char *path)
 	cpuctl_update_args_t args;
 	int error;
 
+	dev = params->dev_path;
+	path = params->fw_path;
+	devfd = params->devfd;
+	fw_image = params->fwimage;
+
 	assert(path);
 	assert(dev);
 
-	fd = -1;
-	devfd = -1;
-	fw_image = MAP_FAILED;
-	devfd = open(dev, O_RDWR);
-	if (devfd < 0) {
-		WARN(0, "could not open %s for writing", dev);
-		return;
-	}
 	error = ioctl(devfd, CPUCTL_CPUID, &idargs);
 	if (error < 0) {
 		WARN(0, "ioctl(%s)", dev);
@@ -134,34 +131,13 @@ via_update(const char *dev, const char *path)
 	WARNX(2, "found cpu type %#x family %#x model %#x stepping %#x.",
 	    (signature >> 12) & 0x03, (signature >> 8) & 0x0f,
 	    (signature >> 4) & 0x0f, (signature >> 0) & 0x0f);
-	/*
-	 * Open firmware image.
-	 */
-	fd = open(path, O_RDONLY, 0);
-	if (fd < 0) {
-		WARN(0, "open(%s)", path);
-		goto fail;
-	}
-	error = fstat(fd, &st);
-	if (error != 0) {
-		WARN(0, "fstat(%s)", path);
-		goto fail;
-	}
-	if (st.st_size < 0 || (unsigned)st.st_size < sizeof(*fw_header)) {
+
+	if (params->fwsize < sizeof(*fw_header)) {
 		WARNX(2, "file too short: %s", path);
 		goto fail;
 	}
 
-	/*
-	 * mmap the whole image.
-	 */
-	fw_image = (uint32_t *)mmap(NULL, st.st_size, PROT_READ,
-	    MAP_PRIVATE, fd, 0);
-	if  (fw_image == MAP_FAILED) {
-		WARN(0, "mmap(%s)", path);
-		goto fail;
-	}
-	fw_header = (via_fw_header_t *)fw_image;
+	fw_header = (const via_fw_header_t *)fw_image;
 	if (fw_header->signature != VIA_HEADER_SIGNATURE ||
 	    fw_header->loader_revision != VIA_LOADER_REVISION) {
 		WARNX(2, "%s is not a valid via firmware: version mismatch",
@@ -170,7 +146,7 @@ via_update(const char *dev, const char *path)
 	}
 	data_size = fw_header->data_size;
 	total_size = fw_header->total_size;
-	if (total_size > (unsigned)st.st_size || st.st_size < 0) {
+	if (total_size > params->fwsize) {
 		WARNX(2, "file too short: %s", path);
 		goto fail;
 	}
@@ -181,7 +157,7 @@ via_update(const char *dev, const char *path)
 	 */
 	sum = 0;
 	for (i = 0; i < (payload_size / sizeof(uint32_t)); i++)
-		sum += *((uint32_t *)fw_image + i);
+		sum += *((const uint32_t *)fw_image + i);
 	if (sum != 0) {
 		WARNX(2, "%s: update data checksum invalid", path);
 		goto fail;
@@ -202,25 +178,18 @@ via_update(const char *dev, const char *path)
 	}
 	fprintf(stderr, "%s: updating cpu %s from rev %#x to rev %#x... ",
 			path, dev, revision, fw_header->revision);
-	args.data = fw_data;
+	args.data = __DECONST(void *, fw_data);
 	args.size = data_size;
 	error = ioctl(devfd, CPUCTL_UPDATE, &args);
 	if (error < 0) {
                error = errno;
-		fprintf(stderr, "failed.\n");
+	       fprintf(stderr, "failed.\n");
                errno = error;
-		WARN(0, "ioctl()");
-		goto fail;
+	       WARN(0, "ioctl()");
+	       goto fail;
 	}
 	fprintf(stderr, "done.\n");
 
 fail:
-	if (fw_image != MAP_FAILED)
-		if (munmap(fw_image, st.st_size) != 0)
-			warn("munmap(%s)", path);
-	if (devfd >= 0)
-		close(devfd);
-	if (fd >= 0)
-		close(fd);
 	return;
 }

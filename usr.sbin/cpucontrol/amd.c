@@ -73,16 +73,16 @@ amd_probe(int fd)
 }
 
 void
-amd_update(const char *dev, const char *path)
+amd_update(const struct ucode_update_params *params)
 {
-	int fd, devfd;
+	int devfd;
 	unsigned int i;
-	struct stat st;
-	uint32_t *fw_image;
-	amd_fw_header_t *fw_header;
+	const char *dev, *path;
+	const uint32_t *fw_image;
+	const amd_fw_header_t *fw_header;
 	uint32_t sum;
 	uint32_t signature;
-	uint32_t *fw_data;
+	const uint32_t *fw_data;
 	size_t fw_size;
 	cpuctl_cpuid_args_t idargs = {
 		.level  = 1,	/* Request signature. */
@@ -90,16 +90,14 @@ amd_update(const char *dev, const char *path)
 	cpuctl_update_args_t args;
 	int error;
 
+	dev = params->dev_path;
+	path = params->fw_path;
+	devfd = params->devfd;
+	fw_image = params->fwimage;
+
 	assert(path);
 	assert(dev);
 
-	fd  = -1;
-	fw_image = MAP_FAILED;
-	devfd = open(dev, O_RDWR);
-	if (devfd < 0) {
-		WARN(0, "could not open %s for writing", dev);
-		return;
-	}
 	error = ioctl(devfd, CPUCTL_CPUID, &idargs);
 	if (error < 0) {
 		WARN(0, "ioctl()");
@@ -115,37 +113,18 @@ amd_update(const char *dev, const char *path)
 	/*
 	 * Open the firmware file.
 	 */
-	fd = open(path, O_RDONLY, 0);
-	if (fd < 0) {
-		WARN(0, "open(%s)", path);
-		goto fail;
-	}
-	error = fstat(fd, &st);
-	if (error != 0) {
-		WARN(0, "fstat(%s)", path);
-		goto fail;
-	}
-	if (st.st_size < 0 || (unsigned)st.st_size < sizeof(*fw_header)) {
+	if (params->fwsize < sizeof(*fw_header)) {
 		WARNX(2, "file too short: %s", path);
 		goto fail;
 	}
-	/*
-	 * mmap the whole image.
-	 */
-	fw_image = (uint32_t *)mmap(NULL, st.st_size, PROT_READ,
-	    MAP_PRIVATE, fd, 0);
-	if  (fw_image == MAP_FAILED) {
-		WARN(0, "mmap(%s)", path);
-		goto fail;
-	}
-	fw_header = (amd_fw_header_t *)fw_image;
+	fw_header = (const amd_fw_header_t *)fw_image;
 	if ((fw_header->magic >> 8) != AMD_MAGIC) {
 		WARNX(2, "%s is not a valid amd firmware: version mismatch",
 		    path);
 		goto fail;
 	}
-	fw_data = (uint32_t *)(fw_header + 1);
-	fw_size = (st.st_size - sizeof(*fw_header)) / sizeof(uint32_t);
+	fw_data = (const uint32_t *)(fw_header + 1);
+	fw_size = (params->fwsize - sizeof(*fw_header)) / sizeof(uint32_t);
 
 	/*
 	 * Check the primary checksum.
@@ -160,8 +139,8 @@ amd_update(const char *dev, const char *path)
 	if (signature == fw_header->signature) {
 		fprintf(stderr, "%s: updating cpu %s... ", path, dev);
 
-		args.data = fw_image;
-		args.size = st.st_size;
+		args.data = __DECONST(void *, fw_image);
+		args.size = params->fwsize;
 		error = ioctl(devfd, CPUCTL_UPDATE, &args);
 		if (error < 0) {
 			fprintf(stderr, "failed.\n");
@@ -172,12 +151,5 @@ amd_update(const char *dev, const char *path)
 	}
 
 fail:
-	if (fd >= 0)
-		close(fd);
-	if (devfd >= 0)
-		close(devfd);
-	if (fw_image != MAP_FAILED)
-		if(munmap(fw_image, st.st_size) != 0)
-			warn("munmap(%s)", path);
 	return;
 }
