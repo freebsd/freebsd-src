@@ -1029,7 +1029,7 @@ goth:
 void
 iput(union dinode *ip, ino_t ino)
 {
-	ufs2_daddr_t d;
+	union dinodep dp;
 
 	bread(&disk, part_ofs + fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
 	    sblock.fs_cgsize);
@@ -1043,20 +1043,15 @@ iput(union dinode *ip, ino_t ino)
 		err(1, "iput: cgput: %s", disk.d_error);
 	sblock.fs_cstotal.cs_nifree--;
 	fscs[0].cs_nifree--;
-	if (ino >= (unsigned long)sblock.fs_ipg * sblock.fs_ncg) {
-		printf("fsinit: inode value out of range (%ju).\n",
-		    (uintmax_t)ino);
+	if (getinode(&disk, &dp, ino) == -1) {
+		printf("iput: %s\n", disk.d_error);
 		exit(32);
 	}
-	d = fsbtodb(&sblock, ino_to_fsba(&sblock, ino));
-	bread(&disk, part_ofs + d, (char *)iobuf, sblock.fs_bsize);
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
-		((struct ufs1_dinode *)iobuf)[ino_to_fsbo(&sblock, ino)] =
-		    ip->dp1;
+		*dp.dp1 = ip->dp1;
 	else
-		((struct ufs2_dinode *)iobuf)[ino_to_fsbo(&sblock, ino)] =
-		    ip->dp2;
-	wtfs(d, sblock.fs_bsize, (char *)iobuf);
+		*dp.dp2 = ip->dp2;
+	putinode(&disk);
 }
 
 /*

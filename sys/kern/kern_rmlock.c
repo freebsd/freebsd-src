@@ -742,7 +742,7 @@ _rm_assert(const struct rmlock *rm, int what, const char *file, int line)
 {
 	int count;
 
-	if (panicstr != NULL)
+	if (SCHEDULER_STOPPED())
 		return;
 	switch (what) {
 	case RA_LOCKED:
