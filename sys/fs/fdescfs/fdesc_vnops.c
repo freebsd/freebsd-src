@@ -574,6 +574,8 @@ fdesc_readdir(struct vop_readdir_args *ap)
 			dp->d_fileno = i + FD_DESC;
 			break;
 		}
+		/* NOTE: d_off is the offset of the *next* entry. */
+		dp->d_off = UIO_MX * (i + 1);
 		if (dp->d_namlen != 0) {
 			/*
 			 * And ship to userland

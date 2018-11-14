@@ -1097,6 +1097,8 @@ zfsctl_snapdir_readdir(ap)
 		strcpy(entry.d_name, snapname);
 		entry.d_namlen = strlen(entry.d_name);
 		entry.d_reclen = sizeof(entry);
+		/* NOTE: d_off is the offset for the *next* entry. */
+		entry.d_off = cookie + dots_offset;
 		error = vfs_read_dirent(ap, &entry, uio->uio_offset);
 		if (error != 0) {
 			if (error == ENAMETOOLONG)

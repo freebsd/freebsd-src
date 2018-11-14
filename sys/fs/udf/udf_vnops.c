@@ -846,6 +846,7 @@ udf_readdir(struct vop_readdir_args *a)
 			dir.d_name[1] = '\0';
 			dir.d_namlen = 1;
 			dir.d_reclen = GENERIC_DIRSIZ(&dir);
+			dir.d_off = 1;
 			uiodir.dirent = &dir;
 			error = udf_uiodir(&uiodir, dir.d_reclen, uio, 1);
 			if (error)
@@ -858,6 +859,7 @@ udf_readdir(struct vop_readdir_args *a)
 			dir.d_name[2] = '\0';
 			dir.d_namlen = 2;
 			dir.d_reclen = GENERIC_DIRSIZ(&dir);
+			dir.d_off = 2;
 			uiodir.dirent = &dir;
 			error = udf_uiodir(&uiodir, dir.d_reclen, uio, 2);
 		} else {
@@ -867,6 +869,7 @@ udf_readdir(struct vop_readdir_args *a)
 			dir.d_type = (fid->file_char & UDF_FILE_CHAR_DIR) ?
 			    DT_DIR : DT_UNKNOWN;
 			dir.d_reclen = GENERIC_DIRSIZ(&dir);
+			dir.d_off = ds->this_off;
 			uiodir.dirent = &dir;
 			error = udf_uiodir(&uiodir, dir.d_reclen, uio,
 			    ds->this_off);
