@@ -49,18 +49,16 @@ __FBSDID("$FreeBSD$");
 #include <libufs.h>
 
 int
-getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
+getinode(struct uufsd *disk, union dinodep *dp, ino_t inum)
 {
 	ino_t min, max;
 	caddr_t inoblock;
-	struct ufs1_dinode *dp1;
-	struct ufs2_dinode *dp2;
 	struct fs *fs;
 
 	ERROR(disk, NULL);
 
 	fs = &disk->d_fs;
-	if (inode >= (ino_t)fs->fs_ipg * fs->fs_ncg) {
+	if (inum >= (ino_t)fs->fs_ipg * fs->fs_ncg) {
 		ERROR(disk, "inode number out of range");
 		return (-1);
 	}
@@ -76,26 +74,22 @@ getino(struct uufsd *disk, void **dino, ino_t inode, int *mode)
 		}
 		disk->d_inoblock = inoblock;
 	}
-	if (inode >= min && inode < max)
+	if (inum >= min && inum < max)
 		goto gotit;
-	bread(disk, fsbtodb(fs, ino_to_fsba(fs, inode)), inoblock,
+	bread(disk, fsbtodb(fs, ino_to_fsba(fs, inum)), inoblock,
 	    fs->fs_bsize);
-	disk->d_inomin = min = inode - (inode % INOPB(fs));
+	disk->d_inomin = min = inum - (inum % INOPB(fs));
 	disk->d_inomax = max = min + INOPB(fs);
 gotit:	switch (disk->d_ufs) {
 	case 1:
-		dp1 = &((struct ufs1_dinode *)inoblock)[inode - min];
-		if (mode != NULL)
-			*mode = dp1->di_mode & IFMT;
-		if (dino != NULL)
-			*dino = dp1;
+		disk->d_dp.dp1 = &((struct ufs1_dinode *)inoblock)[inum - min];
+		if (dp != NULL)
+			*dp = disk->d_dp;
 		return (0);
 	case 2:
-		dp2 = &((struct ufs2_dinode *)inoblock)[inode - min];
-		if (mode != NULL)
-			*mode = dp2->di_mode & IFMT;
-		if (dino != NULL)
-			*dino = dp2;
+		disk->d_dp.dp2 = &((struct ufs2_dinode *)inoblock)[inum - min];
+		if (dp != NULL)
+			*dp = disk->d_dp;
 		return (0);
 	default:
 		break;
@@ -105,7 +99,7 @@ gotit:	switch (disk->d_ufs) {
 }
 
 int
-putino(struct uufsd *disk)
+putinode(struct uufsd *disk)
 {
 	struct fs *fs;
 

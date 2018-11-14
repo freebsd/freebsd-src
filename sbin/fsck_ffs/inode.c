@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <string.h>
 #include <time.h>
+#include <libufs.h>
 
 #include "fsck.h"
 
@@ -342,7 +343,11 @@ getnextinode(ino_t inumber, int rebuildcg)
 		nextinop = inobuf.b_un.b_buf;
 	}
 	dp = (union dinode *)nextinop;
-	if (rebuildcg && nextinop == inobuf.b_un.b_buf) {
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		nextinop += sizeof(struct ufs1_dinode);
+	else
+		nextinop += sizeof(struct ufs2_dinode);
+	if (rebuildcg && (char *)dp == inobuf.b_un.b_buf) {
 		/*
 		 * Try to determine if we have reached the end of the
 		 * allocated inodes.
@@ -355,7 +360,7 @@ getnextinode(ino_t inumber, int rebuildcg)
 				UFS_NIADDR * sizeof(ufs2_daddr_t)) ||
 			      dp->dp2.di_mode || dp->dp2.di_size)
 				return (NULL);
-			goto inodegood;
+			return (dp);
 		}
 		if (!ftypeok(dp))
 			return (NULL);
@@ -389,11 +394,6 @@ getnextinode(ino_t inumber, int rebuildcg)
 			if (DIP(dp, di_ib[j]) != 0)
 				return (NULL);
 	}
-inodegood:
-	if (sblock.fs_magic == FS_UFS1_MAGIC)
-		nextinop += sizeof(struct ufs1_dinode);
-	else
-		nextinop += sizeof(struct ufs2_dinode);
 	return (dp);
 }
 
@@ -534,7 +534,8 @@ clri(struct inodesc *idesc, const char *type, int flag)
 	if (flag == 1) {
 		pwarn("%s %s", type,
 		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE");
-		pinode(idesc->id_number);
+		prtinode(idesc->id_number, dp);
+		printf("\n");
 	}
 	if (preen || reply("CLEAR") == 1) {
 		if (preen)
@@ -600,9 +601,8 @@ clearentry(struct inodesc *idesc)
 }
 
 void
-pinode(ino_t ino)
+prtinode(ino_t ino, union dinode *dp)
 {
-	union dinode *dp;
 	char *p;
 	struct passwd *pw;
 	time_t t;
@@ -610,7 +610,6 @@ pinode(ino_t ino)
 	printf(" I=%lu ", (u_long)ino);
 	if (ino < UFS_ROOTINO || ino > maxino)
 		return;
-	dp = ginode(ino);
 	printf(" OWNER=");
 	if ((pw = getpwuid((int)DIP(dp, di_uid))) != NULL)
 		printf("%s ", pw->pw_name);
