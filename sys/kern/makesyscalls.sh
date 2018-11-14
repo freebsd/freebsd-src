@@ -45,13 +45,7 @@ sysarg="sysarg.switch.$$"
 sysprotoend="sysprotoend.$$"
 systracetmp="systrace.$$"
 systraceret="systraceret.$$"
-
-if [ -r capabilities.conf ]; then
-	capenabled=`egrep -v '^#|^$' capabilities.conf`
-	capenabled=`echo $capenabled | sed 's/ /,/g'`
-else
-	capenabled=""
-fi
+capabilities_conf="capabilities.conf"
 
 trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $syscompat10 $syscompat10dcl $syscompat11 $syscompat11dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret" 0
 
@@ -65,6 +59,13 @@ esac
 
 if [ -n "$2" ]; then
 	. $2
+fi
+
+if [ -r $capabilities_conf ]; then
+	capenabled=`egrep -v '^#|^$' $capabilities_conf`
+	capenabled=`echo $capenabled | sed 's/ /,/g'`
+else
+	capenabled=""
 fi
 
 sed -e '
@@ -137,6 +138,7 @@ sed -e '
 		switchname = \"$switchname\"
 		namesname = \"$namesname\"
 		infile = \"$1\"
+		abi_func_prefix = \"$abi_func_prefix\"
 		capenabled_string = \"$capenabled\"
 		"'
 
@@ -381,7 +383,8 @@ sed -e '
 		# from it.
 		#
 		for (cap in capenabled) {
-			if (funcname == capenabled[cap]) {
+			if (funcname == capenabled[cap] ||
+			    funcname == abi_func_prefix capenabled[cap]) {
 				flags = "SYF_CAPENABLED";
 				break;
 			}
