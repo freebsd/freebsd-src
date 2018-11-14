@@ -9,7 +9,7 @@ MAN=
 
 DIRS=	ETC_NTP
 ETC_NTP=	/etc/ntp
-ETN_NTP_MODE=	0700
+ETC_NTP_MODE=	0700
 CONFS=	ntp.conf
 FILES=	leap-seconds
 FILESDIR=	ETC_NTP
