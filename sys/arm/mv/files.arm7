@@ -18,6 +18,7 @@ arm/mv/armada38x/armada38x_mp.c	optional	smp
 arm/mv/armada38x/pmsu.c		standard
 arm/mv/armada38x/armada38x_rtc.c		standard
 arm/mv/armada38x/armada38x_pl310.c	optional pl310
+arm/mv/mv_spi.c			optional	mv_spi spibus
 dev/sdhci/sdhci_fdt.c		optional	sdhci
 
 arm/mv/rtc.c			standard
