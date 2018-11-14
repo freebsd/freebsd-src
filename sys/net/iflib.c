@@ -2973,9 +2973,6 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 		pi->ipi_ipproto = ip->ip_p;
 		pi->ipi_flags |= IPI_TX_IPV4;
 
-		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
-                       ip->ip_sum = 0;
-
 		/* TCP checksum offload may require TCP header length */
 		if (IS_TX_OFFLOAD4(pi)) {
 			if (__predict_true(pi->ipi_ipproto == IPPROTO_TCP)) {
@@ -2992,6 +2989,10 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 			if (IS_TSO4(pi)) {
 				if (__predict_false(ip->ip_p != IPPROTO_TCP))
 					return (ENXIO);
+				/*
+				 * TSO always requires hardware checksum offload.
+				 */
+				pi->ipi_csum_flags |= (CSUM_IP_TCP | CSUM_IP);
 				th->th_sum = in_pseudo(ip->ip_src.s_addr,
 						       ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 				pi->ipi_tso_segsz = m->m_pkthdr.tso_segsz;
@@ -3001,6 +3002,9 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				}
 			}
 		}
+		if ((sctx->isc_flags & IFLIB_NEED_ZERO_CSUM) && (pi->ipi_csum_flags & CSUM_IP))
+                       ip->ip_sum = 0;
+
 		break;
 	}
 #endif
@@ -3038,9 +3042,7 @@ iflib_parse_header(iflib_txq_t txq, if_pkt_info_t pi, struct mbuf **mp)
 				if (__predict_false(ip6->ip6_nxt != IPPROTO_TCP))
 					return (ENXIO);
 				/*
-				 * The corresponding flag is set by the stack in the IPv4
-				 * TSO case, but not in IPv6 (at least in FreeBSD 10.2).
-				 * So, set it here because the rest of the flow requires it.
+				 * TSO always requires hardware checksum offload.
 				 */
 				pi->ipi_csum_flags |= CSUM_IP6_TCP;
 				th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
