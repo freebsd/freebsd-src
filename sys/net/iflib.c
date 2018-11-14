@@ -2414,6 +2414,7 @@ iflib_stop(if_ctx_t ctx)
 	for (i = 0; i < scctx->isc_nrxqsets; i++, rxq++) {
 		/* make sure all transmitters have completed before proceeding XXX */
 
+		rxq->ifr_cq_gen = rxq->ifr_cq_cidx = rxq->ifr_cq_pidx = 0;
 		for (j = 0, di = rxq->ifr_ifdi; j < sctx->isc_nrxqs; j++, di++)
 			bzero((void *)di->idi_vaddr, di->idi_size);
 		/* also resets the free lists pidx/cidx */
