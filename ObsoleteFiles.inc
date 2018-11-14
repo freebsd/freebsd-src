@@ -42,7 +42,7 @@
 OLD_LIBS+=lib/casper/libcap_dns.so.1
 OLD_LIBS+=usr/lib32/libcap_dns.so.1
 # 20181030: malloc_domain(9) KPI change
-OLD_FILES+=share/man/man9/malloc_domain.9.gz
+OLD_FILES+=usr/share/man/man9/malloc_domain.9.gz
 # 20181026: joy(4) removal
 OLD_FILES+=usr/share/man/man4/joy.4.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
