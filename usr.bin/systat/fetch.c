@@ -58,17 +58,18 @@ kvm_ckread(void *a, void *b, int l)
 		return (1);
 }
 
-void getsysctl(const char *name, void *ptr, size_t len)
+void
+getsysctl(const char *name, void *ptr, size_t len)
 {
 	size_t nlen = len;
+
 	if (sysctlbyname(name, ptr, &nlen, NULL, 0) != 0) {
 		error("sysctl(%s...) failed: %s", name,
 		    strerror(errno));
 	}
 	if (nlen != len) {
-		error("sysctl(%s...) expected %lu, got %lu", name,
-		    (unsigned long)len, (unsigned long)nlen);
-    }
+		error("sysctl(%s...) expected %zu, got %zu", name, len, nlen);
+	}
 }
 
 /*

@@ -4,7 +4,7 @@
 .include <src.opts.mk>
 
 PROG=	systat
-SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c \
+SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c sysput.c \
 	netcmds.c netstat.c pigs.c swap.c icmp.c \
 	mode.c ip.c sctp.c tcp.c zarc.c \
 	vmstat.c convtbl.c ifcmds.c ifstat.c
@@ -16,6 +16,6 @@ CFLAGS+= -DINET6
 
 WARNS?=	1
 
-LIBADD=	ncursesw m devstat kvm
+LIBADD=	ncursesw m devstat kvm util
 
 .include <bsd.prog.mk>

@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2017 Yoshihiro Ota
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,6 +54,7 @@ static const char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 
 #include "systat.h"
 #include "extern.h"
+#include "devs.h"
 
 static char *header;
 static long blocksize;
@@ -133,13 +135,15 @@ initswap(void)
 	oulen = ulen;
 
 	once = 1;
+
+	dsinit(12);
+
 	return (1);
 }
 
 void
 fetchswap(void)
 {
-
 	okvnsw = kvnsw;
 	if ((kvnsw = kvm_getswapinfo(kd, kvmsw, NSWAP, 0)) < 0) {
 		error("systat: kvm_getswapinfo failed");
@@ -149,6 +153,15 @@ fetchswap(void)
 	odlen = dlen;
 	oulen = ulen;
 	calclens();
+
+	struct devinfo *tmp_dinfo;
+
+	tmp_dinfo = last_dev.dinfo;
+	last_dev.dinfo = cur_dev.dinfo;
+	cur_dev.dinfo = tmp_dinfo;
+
+	last_dev.snap_time = cur_dev.snap_time;
+	dsgetinfo( &cur_dev );
 }
 
 void
@@ -174,6 +187,7 @@ labelswap(void)
 			name = kvmsw[i].ksw_devname;
 		mvwprintw(wnd, i + 1, 0, "%*s", -dlen, name);
 	}
+	dslabel(12, 0, 18);
 }
 
 void
@@ -213,4 +227,5 @@ showswap(void)
 			waddch(wnd, 'X');
 		wclrtoeol(wnd);
 	}
+	dsshow(12, 0, 18, &cur_dev, &last_dev);
 }

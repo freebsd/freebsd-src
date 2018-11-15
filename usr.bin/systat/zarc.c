@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2014
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2014 - 2017, 2019 Yoshihiro Ota
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,12 +32,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
+#include <inttypes.h>
 #include <string.h>
+#include <err.h>
+#include <libutil.h>
 
 #include "systat.h"
 #include "extern.h"
+#include "devs.h"
 
-struct zfield{
+struct zfield {
 	uint64_t arcstats;
 	uint64_t arcstats_demand_data;
 	uint64_t arcstats_demand_metadata;
@@ -54,18 +57,25 @@ static struct zarcstats {
 	struct zfield misses;
 } curstat, initstat, oldstat;
 
+struct zarcrates {
+	struct zfield current;
+	struct zfield total;
+};
+
 static void
 getinfo(struct zarcstats *ls);
 
 WINDOW *
 openzarc(void)
 {
-	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
+
+	return (subwin(stdscr, LINES - 3 - 1, 0, MAINWIN_ROW, 0));
 }
 
 void
 closezarc(WINDOW *w)
 {
+
 	if (w == NULL)
 		return;
 	wclear(w);
@@ -76,38 +86,42 @@ closezarc(WINDOW *w)
 void
 labelzarc(void)
 {
+	int row = 1;
+
 	wmove(wnd, 0, 0); wclrtoeol(wnd);
-	mvwprintw(wnd, 0, 31+1, "%4.4s %7.7s %7.7s %12.12s %12.12s",
-		"rate", "hits", "misses", "total hits", "total misses");
-#define L(row, str) mvwprintw(wnd, row, 5, str); \
-	mvwprintw(wnd, row, 31, ":"); \
-	mvwprintw(wnd, row, 31+4, "%%")
-	L(1, "arcstats");
-	L(2, "arcstats.demand_data");
-	L(3, "arcstats.demand_metadata");
-	L(4, "arcstats.prefetch_data");
-	L(5, "arcstats.prefetch_metadata");
-	L(6, "zfetchstats");
-	L(7, "arcstats.l2");
-	L(8, "vdev_cache_stats");
+	mvwprintw(wnd, 0, 31+1, "%4.4s %6.6s %6.6s | Total %4.4s %6.6s %6.6s",
+		"Rate", "Hits", "Misses", "Rate", "Hits", "Misses");
+#define L(str) mvwprintw(wnd, row++, 5, \
+		"%-26.26s:   %%               |          %%", #str)
+	L(arcstats);
+	L(arcstats.demand_data);
+	L(arcstats.demand_metadata);
+	L(arcstats.prefetch_data);
+	L(arcstats.prefetch_metadata);
+	L(zfetchstats);
+	L(arcstats.l2);
+	L(vdev_cache_stats);
 #undef L
+	dslabel(12, 0, 18);
 }
 
-static int calc(uint64_t hits, uint64_t misses)
+static int
+calc_rate(uint64_t hits, uint64_t misses)
 {
-    if( hits )
-	return 100 * hits / ( hits + misses );
+    if(hits)
+	return 100 * hits / (hits + misses);
     else
 	return 0;
 }
 
 static void
-domode(struct zarcstats *delta, struct zarcstats *rate)
+domode(struct zarcstats *delta, struct zarcrates *rate)
 {
 #define DO(stat) \
 	delta->hits.stat = (curstat.hits.stat - oldstat.hits.stat); \
 	delta->misses.stat = (curstat.misses.stat - oldstat.misses.stat); \
-	rate->hits.stat = calc(delta->hits.stat, delta->misses.stat)
+	rate->current.stat = calc_rate(delta->hits.stat, delta->misses.stat); \
+	rate->total.stat = calc_rate(curstat.hits.stat, curstat.misses.stat)
 	DO(arcstats);
 	DO(arcstats_demand_data);
 	DO(arcstats_demand_metadata);
@@ -130,56 +144,69 @@ domode(struct zarcstats *delta, struct zarcstats *rate)
 void
 showzarc(void)
 {
-	struct zarcstats delta, rate;
-
-	memset(&delta, 0, sizeof delta);
-	memset(&rate, 0, sizeof rate);
+	int row = 1;
+	struct zarcstats delta = {};
+	struct zarcrates rate = {};
 
 	domode(&delta, &rate);
 
-#define DO(stat, row, col, fmt) \
-	mvwprintw(wnd, row, col, fmt, stat)
-#define	R(row, stat) DO(rate.hits.stat, row, 31+1, "%3lu")
-#define	H(row, stat) DO(delta.hits.stat, row, 31+1+5, "%7lu"); \
-	DO(curstat.hits.stat, row, 31+1+5+8+8, "%12lu")
-#define	M(row, stat) DO(delta.misses.stat, row, 31+1+5+8, "%7lu"); \
-	DO(curstat.misses.stat, row, 31+1+5+8+8+13, "%12lu")
-#define	E(row, stat) R(row, stat); H(row, stat); M(row, stat); 
-	E(1, arcstats);
-	E(2, arcstats_demand_data);
-	E(3, arcstats_demand_metadata);
-	E(4, arcstats_prefetch_data);
-	E(5, arcstats_prefetch_metadata);
-	E(6, zfetchstats);
-	E(7, arcstats_l2);
-	E(8, vdev_cache_stats);
+#define DO(stat, col, width) \
+	sysputuint64(wnd, row, col, width, stat, HN_DIVISOR_1000)
+#define	RATES(stat) mvwprintw(wnd, row, 31+1, "%3"PRIu64, rate.current.stat);\
+	mvwprintw(wnd, row, 31+1+5+7+7+8, "%3"PRIu64, rate.total.stat)
+#define	HITS(stat) DO(delta.hits.stat, 31+1+5, 6); \
+	DO(curstat.hits.stat, 31+1+5+7+7+8+5, 6)
+#define	MISSES(stat) DO(delta.misses.stat, 31+1+5+7, 6); \
+	DO(curstat.misses.stat, 31+1+5+7+7+8+5+7, 6)
+#define	E(stat) RATES(stat); HITS(stat); MISSES(stat); ++row
+	E(arcstats);
+	E(arcstats_demand_data);
+	E(arcstats_demand_metadata);
+	E(arcstats_prefetch_data);
+	E(arcstats_prefetch_metadata);
+	E(zfetchstats);
+	E(arcstats_l2);
+	E(vdev_cache_stats);
 #undef DO
 #undef E
-#undef M
-#undef H
-#undef R
+#undef MISSES
+#undef HITS
+#undef RATES
+	dsshow(12, 0, 18, &cur_dev, &last_dev);
 }
 
 int
 initzarc(void)
 {
+	dsinit(12);
 	getinfo(&initstat);
 	curstat = oldstat = initstat;
+
 	return 1;
 }
 
 void
 resetzarc(void)
 {
+
 	initzarc();
 }
 
 static void
 getinfo(struct zarcstats *ls)
 {
-	size_t size = sizeof( ls->hits.arcstats );
-	if ( sysctlbyname("kstat.zfs.misc.arcstats.hits",
-		&ls->hits.arcstats, &size, NULL, 0 ) != 0 )
+	struct devinfo *tmp_dinfo;
+
+	tmp_dinfo = last_dev.dinfo;
+	last_dev.dinfo = cur_dev.dinfo;
+	cur_dev.dinfo = tmp_dinfo;
+
+	last_dev.snap_time = cur_dev.snap_time;
+	dsgetinfo(&cur_dev);
+
+	size_t size = sizeof(ls->hits.arcstats);
+	if (sysctlbyname("kstat.zfs.misc.arcstats.hits",
+		&ls->hits.arcstats, &size, NULL, 0) != 0)
 		return;
 	GETSYSCTL("kstat.zfs.misc.arcstats.misses",
 		ls->misses.arcstats);
@@ -216,6 +243,7 @@ getinfo(struct zarcstats *ls)
 void
 fetchzarc(void)
 {
+
 	oldstat = curstat;
 	getinfo(&curstat);
 }
