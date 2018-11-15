@@ -32,7 +32,6 @@
 
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
-#include <sys/vmem.h>
 #include "tom/t4_tls.h"
 
 #define LISTEN_HASH_SIZE 32
@@ -280,8 +279,6 @@ struct tom_data {
 
 	struct ppod_region pr;
 
-	vmem_t *key_map;
-
 	struct mtx clip_table_lock;
 	struct clip_head clip_table;
 	int clip_gen;
@@ -426,8 +423,6 @@ void t4_push_tls_records(struct adapter *, struct toepcb *, int);
 void t4_tls_mod_load(void);
 void t4_tls_mod_unload(void);
 void tls_establish(struct toepcb *);
-void tls_free_kmap(struct tom_data *);
-int tls_init_kmap(struct adapter *, struct tom_data *);
 void tls_init_toep(struct toepcb *);
 int tls_rx_key(struct toepcb *);
 void tls_stop_handshake_timer(struct toepcb *);
