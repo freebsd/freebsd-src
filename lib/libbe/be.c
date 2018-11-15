@@ -922,6 +922,21 @@ be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,
 	return (0);
 }
 
+/*
+ * Deactivate old BE dataset; currently just sets canmount=noauto
+ */
+static int
+be_deactivate(libbe_handle_t *lbh, const char *ds)
+{
+	zfs_handle_t *zfs;
+
+	if ((zfs = zfs_open(lbh->lzh, ds, ZFS_TYPE_DATASET)) == NULL)
+		return (1);
+	if (zfs_prop_set(zfs, "canmount", "noauto") != 0)
+		return (1);
+	zfs_close(zfs);
+	return (0);
+}
 
 int
 be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
@@ -961,6 +976,9 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 
 		return (be_set_nextboot(lbh, vdevs, pool_guid, buf));
 	} else {
+		if (be_deactivate(lbh, lbh->bootfs) != 0)
+			return (-1);
+
 		/* Obtain bootenv zpool */
 		err = zpool_set_prop(lbh->active_phandle, "bootfs", be_path);
 		if (err)
