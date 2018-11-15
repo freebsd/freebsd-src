@@ -294,6 +294,9 @@ struct cam_iosched_softc {
 	uint32_t	this_frac;		/* Fraction of a second (1024ths) for this tick */
 	sbintime_t	last_time;		/* Last time we ticked */
 	struct control_loop cl;
+	sbintime_t	max_lat;		/* when != 0, if iop latency > max_lat, call max_lat_fcn */
+	cam_iosched_latfcn_t	latfcn;
+	void		*latarg;
 #endif
 };
 
@@ -1171,6 +1174,21 @@ void cam_iosched_sysctl_init(struct cam_iosched_softc *isc,
 	    OID_AUTO, "load", CTLFLAG_RD,
 	    &isc->load, 0,
 	    "scaled load average / 100");
+
+	SYSCTL_ADD_U64(ctx, n,
+	    OID_AUTO, "latency_trigger", CTLFLAG_RW,
+	    &isc->max_lat, 0,
+	    "Latency treshold to trigger callbacks");
+#endif
+}
+
+void
+cam_iosched_set_latfcn(struct cam_iosched_softc *isc,
+    cam_iosched_latfcn_t fnp, void *argp)
+{
+#ifdef CAM_IOSCHED_DYNAMIC
+	isc->latfcn = fnp;
+	isc->latarg = argp;
 #endif
 }
 
@@ -1510,10 +1528,21 @@ cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp,
 			printf("Completing command with bio_cmd == %#x\n", bp->bio_cmd);
 	}
 
-	if (!(bp->bio_flags & BIO_ERROR) && done_ccb != NULL)
-		cam_iosched_io_metric_update(isc,
-		    cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data),
+	if (!(bp->bio_flags & BIO_ERROR) && done_ccb != NULL) {
+		sbintime_t sim_latency;
+		
+		sim_latency = cam_iosched_sbintime_t(done_ccb->ccb_h.qos.periph_data);
+		
+		cam_iosched_io_metric_update(isc, sim_latency,
 		    bp->bio_cmd, bp->bio_bcount);
+		/*
+		 * Debugging code: allow callbacks to the periph driver when latency max
+		 * is exceeded. This can be useful for triggering external debugging actions.
+		 */
+		if (isc->latfcn && isc->max_lat != 0 && sim_latency > isc->max_lat)
+			isc->latfcn(isc->latarg, sim_latency, bp);
+	}
+		
 #endif
 	return retval;
 }
