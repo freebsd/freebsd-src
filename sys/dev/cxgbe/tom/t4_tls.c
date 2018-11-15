@@ -492,9 +492,9 @@ tls_program_key_id(struct toepcb *toep, struct tls_key_context *k_ctx)
 	struct tls_key_req *kwr;
 	struct tls_keyctx *kctx;
 
-	kwrlen = roundup2(sizeof(*kwr), 16);
+	kwrlen = sizeof(*kwr);
 	kctxlen = roundup2(sizeof(*kctx), 32);
-	len = kwrlen + kctxlen;
+	len = roundup2(kwrlen + kctxlen, 16);
 
 	if (toep->txsd_avail == 0)
 		return (EAGAIN);
@@ -536,7 +536,6 @@ tls_program_key_id(struct toepcb *toep, struct tls_key_context *k_ctx)
 	kwr->sc_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
 	kwr->sc_len = htobe32(kctxlen);
 
-	/* XXX: This assumes that kwrlen == sizeof(*kwr). */
 	kctx = (struct tls_keyctx *)(kwr + 1);
 	memset(kctx, 0, kctxlen);
 
