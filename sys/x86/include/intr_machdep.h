@@ -58,11 +58,11 @@
  * the minimum IRQ value for MSI interrupts to attempt to leave 255
  * unused since 255 is used in PCI to indicate an invalid INTx IRQ.
  */
-#define	NUM_MSI_INTS	512
 #define	MINIMUM_MSI_INT	256
 
 extern u_int first_msi_irq;
 extern u_int num_io_irqs;
+extern u_int num_msi_irqs;
 
 /*
  * Default base address for MSI messages on x86 platforms.
