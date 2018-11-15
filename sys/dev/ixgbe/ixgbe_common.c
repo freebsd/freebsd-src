@@ -5377,7 +5377,7 @@ s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 		ixgbe_flap_tx_laser(hw);
 
 		/* Wait for the controller to acquire link.  Per IEEE 802.3ap,
-		 * Section 73.10.2, we may have to wait up to 500ms if KR is
+		 * Section 73.10.2, we may have to wait up to 1000ms if KR is
 		 * attempted.  82599 uses the same timing for 10g SFI.
 		 */
 		for (i = 0; i < 10; i++) {
