@@ -1155,7 +1155,7 @@ t4_attach(device_t dev)
 #endif
 	if (sc->vres.key.size != 0)
 		sc->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
-		    sc->vres.key.size, 8, 0, M_FIRSTFIT | M_WAITOK);
+		    sc->vres.key.size, 32, 0, M_FIRSTFIT | M_WAITOK);
 
 	/*
 	 * Second pass over the ports.  This time we know the number of rx and
