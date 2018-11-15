@@ -31,18 +31,12 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-.macro MEMSET bzero erms
-.if \bzero == 1
-	movq	%rsi,%rcx
-	movq	%rsi,%rdx
-	xorl	%eax,%eax
-.else
+.macro MEMSET erms
 	movq	%rdi,%r9
 	movq	%rdx,%rcx
 	movzbq	%sil,%r8
 	movabs	$0x0101010101010101,%rax
 	imulq	%r8,%rax
-.endif
 
 	cmpq	$32,%rcx
 	jb	1016f
@@ -95,9 +89,7 @@ __FBSDID("$FreeBSD$");
 	jl	1000f
 	movb	%al,(%rdi)
 1000:
-.if \bzero == 0
 	movq	%r9,%rax
-.endif
 	ret
 
 1256:
@@ -112,20 +104,12 @@ __FBSDID("$FreeBSD$");
 	andb	$7,%cl
 	jne	1004b
 .endif
-.if \bzero == 0
 	movq	%r9,%rax
-.endif
 	ret
 .endm
 
-#ifndef BZERO
 ENTRY(memset)
-	MEMSET bzero=0 erms=0
+	MEMSET erms=0
 END(memset)
-#else
-ENTRY(bzero)
-	MEMSET bzero=1 erms=0
-END(bzero)
-#endif
 
 	.section .note.GNU-stack,"",%progbits
