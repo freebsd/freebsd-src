@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/spibus/spi.h>
 #include <dev/spibus/spibusvar.h>
 
+#include <arm/mv/mvvar.h>
+
 #include "spibus_if.h"
 
 struct mv_spi_softc {
@@ -70,11 +72,23 @@ struct mv_spi_softc {
 #define	MV_SPI_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
 
 #define	MV_SPI_CONTROL		0
+#define	MV_SPI_CTRL_CS_MASK		7
 #define	MV_SPI_CTRL_CS_SHIFT		2
 #define	MV_SPI_CTRL_SMEMREADY		(1 << 1)
 #define	MV_SPI_CTRL_CS_ACTIVE		(1 << 0)
 #define	MV_SPI_CONF		0x4
+#define	MV_SPI_CONF_MODE_SHIFT		12
+#define	MV_SPI_CONF_MODE_MASK		(3 << MV_SPI_CONF_MODE_SHIFT)
 #define	MV_SPI_CONF_BYTELEN		(1 << 5)
+#define	MV_SPI_CONF_CLOCK_SPR_MASK	0xf
+#define	MV_SPI_CONF_CLOCK_SPPR_MASK	1
+#define	MV_SPI_CONF_CLOCK_SPPR_SHIFT	4
+#define	MV_SPI_CONF_CLOCK_SPPRHI_MASK	3
+#define	MV_SPI_CONF_CLOCK_SPPRHI_SHIFT	6
+#define	MV_SPI_CONF_CLOCK_MASK						\
+    ((MV_SPI_CONF_CLOCK_SPPRHI_MASK << MV_SPI_CONF_CLOCK_SPPRHI_SHIFT) | \
+    (MV_SPI_CONF_CLOCK_SPPR_MASK << MV_SPI_CONF_CLOCK_SPPR_SHIFT) |	\
+    MV_SPI_CONF_CLOCK_SPR_MASK)
 #define	MV_SPI_DATAOUT		0x8
 #define	MV_SPI_DATAIN		0xc
 #define	MV_SPI_INTR_STAT	0x10
@@ -244,10 +258,27 @@ mv_spi_intr(void *arg)
 }
 
 static int
+mv_spi_psc_calc(uint32_t clock, uint32_t *spr, uint32_t *sppr)
+{
+	uint32_t divider, tclk;
+
+	tclk = get_tclk_armada38x();
+	for (*spr = 2; *spr <= 15; (*spr)++) {
+		for (*sppr = 0; *sppr <= 7; (*sppr)++) {
+			divider = *spr * (1 << *sppr);
+			if (tclk / divider <= clock)
+				return (0);
+		}
+	}
+
+	return (EINVAL);
+}
+
+static int
 mv_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct mv_spi_softc *sc;
-	uint32_t cs, reg;
+	uint32_t clock, cs, mode, reg, spr, sppr;
 	int resid, timeout;
 
 	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
@@ -255,9 +286,23 @@ mv_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("TX/RX data sizes should be equal"));
 
-	/* Get the proper chip select for this child. */
+	/* Get the proper chip select, mode and clock for this transfer. */
 	spibus_get_cs(child, &cs);
 	cs &= ~SPIBUS_CS_HIGH;
+	spibus_get_mode(child, &mode);
+	if (mode > 3) {
+		device_printf(dev,
+		    "Invalid mode %u requested by %s\n", mode,
+		    device_get_nameunit(child));
+		return (EINVAL);
+	}
+	spibus_get_clock(child, &clock);
+	if (clock == 0 || mv_spi_psc_calc(clock, &spr, &sppr) != 0) {
+		device_printf(dev,
+		    "Invalid clock %uHz requested by %s\n", clock,
+		    device_get_nameunit(child));
+		return (EINVAL);
+	}
 
 	sc = device_get_softc(dev);
 	MV_SPI_LOCK(sc);
@@ -275,7 +320,20 @@ mv_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	sc->sc_written = 0;
 	sc->sc_len = cmd->tx_cmd_sz + cmd->tx_data_sz;
 
-	MV_SPI_WRITE(sc, MV_SPI_CONTROL, cs << MV_SPI_CTRL_CS_SHIFT);
+	/* Set SPI Mode and Clock. */
+	reg = MV_SPI_READ(sc, MV_SPI_CONF);
+	reg &= ~(MV_SPI_CONF_MODE_MASK | MV_SPI_CONF_CLOCK_MASK);
+	reg |= mode << MV_SPI_CONF_MODE_SHIFT;
+	reg |= spr & MV_SPI_CONF_CLOCK_SPR_MASK;
+	reg |= (sppr & MV_SPI_CONF_CLOCK_SPPR_MASK) <<
+	    MV_SPI_CONF_CLOCK_SPPR_SHIFT;
+	reg |= (sppr & MV_SPI_CONF_CLOCK_SPPRHI_MASK) <<
+	    MV_SPI_CONF_CLOCK_SPPRHI_SHIFT;
+	MV_SPI_WRITE(sc, MV_SPI_CONTROL, reg);
+
+	/* Set CS number and assert CS. */
+	reg = (cs & MV_SPI_CTRL_CS_MASK) << MV_SPI_CTRL_CS_SHIFT;
+	MV_SPI_WRITE(sc, MV_SPI_CONTROL, reg);
 	reg = MV_SPI_READ(sc, MV_SPI_CONTROL);
 	MV_SPI_WRITE(sc, MV_SPI_CONTROL, reg | MV_SPI_CTRL_CS_ACTIVE);
 
