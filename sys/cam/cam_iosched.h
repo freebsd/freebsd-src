@@ -80,6 +80,8 @@ cam_iosched_sbintime_t(uintptr_t delta)
 	return (sbintime_t)((uint64_t)delta << CAM_IOSCHED_TIME_SHIFT);
 }
 
+typedef void (*cam_iosched_latfcn_t)(void *, sbintime_t, struct bio *);
+
 int cam_iosched_init(struct cam_iosched_softc **, struct cam_periph *periph);
 void cam_iosched_fini(struct cam_iosched_softc *);
 void cam_iosched_sysctl_init(struct cam_iosched_softc *, struct sysctl_ctx_list *, struct sysctl_oid *);
@@ -98,6 +100,7 @@ void cam_iosched_set_work_flags(struct cam_iosched_softc *isc, uint32_t flags);
 void cam_iosched_clr_work_flags(struct cam_iosched_softc *isc, uint32_t flags);
 void cam_iosched_trim_done(struct cam_iosched_softc *isc);
 int cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp, union ccb *done_ccb);
+void cam_iosched_set_latfcn(struct cam_iosched_softc *isc, cam_iosched_latfcn_t, void *);
 
 #endif
 #endif
