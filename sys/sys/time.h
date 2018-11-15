@@ -161,6 +161,10 @@ sbttobt(sbintime_t _sbt)
  * Decimal<->sbt conversions.  Multiplying or dividing by SBT_1NS results in
  * large roundoff errors which sbttons() and nstosbt() avoid.  Millisecond and
  * microsecond functions are also provided for completeness.
+ *
+ * These functions return the smallest sbt larger or equal to the number of
+ * seconds requested so that sbttoX(Xtosbt(y)) == y. The 1 << 32 - 1 term added
+ * transforms the >> 32 from floor() to ceil().
  */
 static __inline int64_t
 sbttons(sbintime_t _sbt)
@@ -173,7 +177,7 @@ static __inline sbintime_t
 nstosbt(int64_t _ns)
 {
 
-	return ((_ns * (((uint64_t)1 << 63) / 500000000)) >> 32);
+	return ((_ns * (((uint64_t)1 << 63) / 500000000) + (1ull << 32) - 1) >> 32);
 }
 
 static __inline int64_t
@@ -187,7 +191,7 @@ static __inline sbintime_t
 ustosbt(int64_t _us)
 {
 
-	return ((_us * (((uint64_t)1 << 63) / 500000)) >> 32);
+	return ((_us * (((uint64_t)1 << 63) / 500000) + (1ull << 32) - 1) >> 32);
 }
 
 static __inline int64_t
@@ -201,7 +205,7 @@ static __inline sbintime_t
 mstosbt(int64_t _ms)
 {
 
-	return ((_ms * (((uint64_t)1 << 63) / 500)) >> 32);
+	return ((_ms * (((uint64_t)1 << 63) / 500) + (1ull << 32) - 1) >> 32);
 }
 
 /*-
