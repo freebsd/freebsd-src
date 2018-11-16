@@ -138,6 +138,8 @@
 #define	printk(...)		printf(__VA_ARGS__)
 #define	vprintk(f, a)		vprintf(f, a)
 
+#define	asm			__asm
+
 extern void linux_dump_stack(void);
 #define	dump_stack()		linux_dump_stack()
 
