@@ -164,13 +164,28 @@ static int build_rdma_send(struct t4_sq *sq, union t4_wr *wqe,
 
 	if (wr->num_sge > T4_MAX_SEND_SGE)
 		return -EINVAL;
-	if (wr->send_flags & IBV_SEND_SOLICITED)
-		wqe->send.sendop_pkd = htobe32(
-			V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_SE));
-	else
-		wqe->send.sendop_pkd = htobe32(
-			V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND));
-	wqe->send.stag_inv = 0;
+	switch (wr->opcode) {
+	case IBV_WR_SEND:
+		if (wr->send_flags & IBV_SEND_SOLICITED)
+			wqe->send.sendop_pkd = htobe32(
+				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_SE));
+		else
+			wqe->send.sendop_pkd = htobe32(
+				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND));
+		wqe->send.stag_inv = 0;
+		break;
+	case IBV_WR_SEND_WITH_INV:
+		if (wr->send_flags & IBV_SEND_SOLICITED)
+			wqe->send.sendop_pkd = htobe32(
+				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_SE_INV));
+		else
+			wqe->send.sendop_pkd = htobe32(
+				V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_INV));
+		wqe->send.stag_inv = htobe32(wr->invalidate_rkey);
+		break;
+	default:
+		return -EINVAL;
+	}
 	wqe->send.r3 = 0;
 	wqe->send.r4 = 0;
 
@@ -350,12 +365,16 @@ int c4iw_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 			fw_flags |= FW_RI_COMPLETION_FLAG;
 		swsqe = &qhp->wq.sq.sw_sq[qhp->wq.sq.pidx];
 		switch (wr->opcode) {
+		case IBV_WR_SEND_WITH_INV:
 		case IBV_WR_SEND:
 			INC_STAT(send);
 			if (wr->send_flags & IBV_SEND_FENCE)
 				fw_flags |= FW_RI_READ_FENCE_FLAG;
 			fw_opcode = FW_RI_SEND_WR;
-			swsqe->opcode = FW_RI_SEND;
+			if (wr->opcode == IBV_WR_SEND)
+				swsqe->opcode = FW_RI_SEND;
+			else
+				swsqe->opcode = FW_RI_SEND_WITH_INV;
 			err = build_rdma_send(&qhp->wq.sq, wqe, wr, &len16);
 			break;
 		case IBV_WR_RDMA_WRITE_WITH_IMM:

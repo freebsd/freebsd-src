@@ -616,12 +616,28 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ibv_wc *wc)
 			wc->byte_len = CQE_LEN(&cqe);
 		else
 			wc->byte_len = 0;
-		if (CQE_OPCODE(&cqe) == FW_RI_WRITE_IMMEDIATE) {
+
+		switch (CQE_OPCODE(&cqe)) {
+		case FW_RI_SEND:
+			wc->opcode = IBV_WC_RECV;
+			break;
+		case FW_RI_SEND_WITH_INV:
+		case FW_RI_SEND_WITH_SE_INV:
+			wc->opcode = IBV_WC_RECV;
+			wc->wc_flags |= IBV_WC_WITH_INV;
+			wc->invalidated_rkey = CQE_WRID_STAG(&cqe);
+			break;
+		case FW_RI_WRITE_IMMEDIATE:
 			wc->opcode = IBV_WC_RECV_RDMA_WITH_IMM;
 			wc->imm_data = CQE_IMM_DATA(&cqe);
 			wc->wc_flags |= IBV_WC_WITH_IMM;
-		} else {
-			wc->opcode = IBV_WC_RECV;
+			break;
+		default:
+			PDBG("Unexpected opcode %d "
+			     "in the CQE received for QPID=0x%0x\n",
+			     CQE_OPCODE(&cqe), CQE_QPID(&cqe));
+			ret = -EINVAL;
+			goto out;
 		}
 	} else {
 		switch (CQE_OPCODE(&cqe)) {
@@ -635,8 +651,11 @@ static int c4iw_poll_cq_one(struct c4iw_cq *chp, struct ibv_wc *wc)
 			break;
 		case FW_RI_SEND:
 		case FW_RI_SEND_WITH_SE:
+			wc->opcode = IBV_WC_SEND;
+			break;
 		case FW_RI_SEND_WITH_INV:
 		case FW_RI_SEND_WITH_SE_INV:
+			wc->wc_flags |= IBV_WC_WITH_INV;
 			wc->opcode = IBV_WC_SEND;
 			break;
 		case FW_RI_BIND_MW:

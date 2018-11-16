@@ -947,7 +947,10 @@ struct ibv_send_wr {
 	int			num_sge;
 	enum ibv_wr_opcode	opcode;
 	int			send_flags;
-	__be32			imm_data;
+	union {
+		__be32		imm_data;
+		u32		invalidate_rkey;
+	};
 	union {
 		struct {
 			uint64_t	remote_addr;
