@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181116: Rename test file.
+OLD_FILES+=usr/tests/sys/netinet/reuseport_lb
 # 20181112: Cleanup old libcap_dns.
 OLD_LIBS+=lib/casper/libcap_dns.so.1
 OLD_LIBS+=usr/lib32/libcap_dns.so.1
