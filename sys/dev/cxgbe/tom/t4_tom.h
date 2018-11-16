@@ -32,6 +32,7 @@
 
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
+#include <sys/vmem.h>
 #include "tom/t4_tls.h"
 
 #define LISTEN_HASH_SIZE 32
