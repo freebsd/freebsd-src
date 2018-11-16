@@ -46,7 +46,7 @@ extern "C" {
 
 #define	NULL_CLASS_HANDLE	0
 
-/* class flags should be same as class flags in rm_class.h */
+/* class flags must be same as class flags in altq_rmclass.h */
 #define	CBQCLF_RED		0x0001	/* use RED */
 #define	CBQCLF_ECN		0x0002  /* use RED/ECN */
 #define	CBQCLF_RIO		0x0004  /* use RIO */
@@ -54,6 +54,15 @@ extern "C" {
 #define	CBQCLF_CLEARDSCP	0x0010  /* clear diffserv codepoint */
 #define	CBQCLF_BORROW		0x0020  /* borrow from parent */
 #define	CBQCLF_CODEL		0x0040	/* use CoDel */
+
+#ifdef _KERNEL
+CTASSERT(CBQCLF_RED == RMCF_RED);
+CTASSERT(CBQCLF_ECN == RMCF_ECN);
+CTASSERT(CBQCLF_RIO == RMCF_RIO);
+CTASSERT(CBQCLF_FLOWVALVE == RMCF_FLOWVALVE);
+CTASSERT(CBQCLF_CLEARDSCP == RMCF_CLEARDSCP);
+CTASSERT(CBQCLF_CODEL == RMCF_CODEL);
+#endif
 
 /* class flags only for root class */
 #define	CBQCLF_WRR		0x0100	/* weighted-round robin */
