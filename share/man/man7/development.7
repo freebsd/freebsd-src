@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd November 16, 2018
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -110,7 +110,7 @@ system:
 svnlite co https://svn.FreeBSD.org/base/head src
 cd src
 make -j8 buildworld buildkernel installkernel
-reboot
+shutdown -r now
 .Ed
 .Pp
 After reboot:
