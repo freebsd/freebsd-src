@@ -54,6 +54,9 @@
 
 #define RT3350_CHIPID0_3	0x33335452
 
+#define MTK_UNKNOWN_CHIPID0_3	0x6E6B6E75	/* "unkn" */
+#define MTK_UNKNOWN_CHIPID4_7	0x206E776F	/* "own " */
+
 extern uint32_t	mtk_sysctl_get(uint32_t);
 extern void	mtk_sysctl_set(uint32_t, uint32_t);
 extern void	mtk_sysctl_clr_set(uint32_t, uint32_t, uint32_t);
