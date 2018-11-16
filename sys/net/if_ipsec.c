@@ -968,7 +968,7 @@ static int
 ipsec_set_addresses(struct ifnet *ifp, struct sockaddr *src,
     struct sockaddr *dst)
 {
-	struct ipsec_softc *sc, *tsc;
+	struct ipsec_softc *sc;
 	struct secasindex *saidx;
 
 	sx_assert(&ipsec_ioctl_sx, SA_XLOCKED);
@@ -982,18 +982,6 @@ ipsec_set_addresses(struct ifnet *ifp, struct sockaddr *src,
 		    key_sockaddrcmp(&saidx->dst.sa, dst, 0) == 0)
 			return (0); /* Nothing has been changed. */
 
-	}
-	/* Check that given addresses aren't already configured */
-	CK_LIST_FOREACH(tsc, ipsec_srchash(src), srchash) {
-		if (tsc == sc)
-			continue;
-		MPASS(tsc->family == src->sa_family);
-		saidx = ipsec_getsaidx(tsc, IPSEC_DIR_OUTBOUND, tsc->family);
-		if (key_sockaddrcmp(&saidx->src.sa, src, 0) == 0 &&
-		    key_sockaddrcmp(&saidx->dst.sa, dst, 0) == 0) {
-			/* We already have tunnel with such addresses */
-			return (EADDRNOTAVAIL);
-		}
 	}
 	/* If reqid is not set, generate new one. */
 	if (ipsec_init_reqid(sc) != 0)
