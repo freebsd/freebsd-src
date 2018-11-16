@@ -153,6 +153,8 @@ struct pic msi_pic = {
 };
 
 u_int first_msi_irq;
+SYSCTL_UINT(_machdep, OID_AUTO, first_msi_irq, CTLFLAG_RD, &first_msi_irq, 0,
+    "Number of first IRQ reserved for MSI and MSI-X interrupts");
 
 u_int num_msi_irqs = 512;
 SYSCTL_UINT(_machdep, OID_AUTO, num_msi_irqs, CTLFLAG_RDTUN, &num_msi_irqs, 0,
@@ -339,7 +341,7 @@ msi_init(void)
 	if (num_msi_irqs == 0)
 		return;
 
-	first_msi_irq = max(MINIMUM_MSI_INT, num_io_irqs);
+	first_msi_irq = num_io_irqs;
 	if (num_msi_irqs > UINT_MAX - first_msi_irq)
 		panic("num_msi_irq too high");
 	num_io_irqs = first_msi_irq + num_msi_irqs;
