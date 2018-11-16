@@ -166,7 +166,7 @@ kproc_exit(int ecode)
 	 */
 	sx_xlock(&proctree_lock);
 	PROC_LOCK(p);
-	proc_reparent(p, initproc);
+	proc_reparent(p, initproc, true);
 	PROC_UNLOCK(p);
 	sx_xunlock(&proctree_lock);
 
