@@ -32,9 +32,11 @@
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/conf.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -763,6 +765,30 @@ evdev_send_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	}
 }
 
+void
+evdev_restore_after_kdb(struct evdev_dev *evdev)
+{
+	int code;
+
+	EVDEV_LOCK_ASSERT(evdev);
+
+	/* Report postponed leds */
+	for (code = 0; code < LED_CNT; code++)
+		if (bit_test(evdev->ev_kdb_led_states, code))
+			evdev_send_event(evdev, EV_LED, code,
+			    !bit_test(evdev->ev_led_states, code));
+	bit_nclear(evdev->ev_kdb_led_states, 0, LED_MAX);
+
+	/* Release stuck keys (CTRL + ALT + ESC) */
+	evdev_stop_repeat(evdev);
+	for (code = 0; code < KEY_CNT; code++) {
+		if (bit_test(evdev->ev_key_states, code)) {
+			evdev_send_event(evdev, EV_KEY, code, KEY_EVENT_UP);
+			evdev_send_event(evdev, EV_SYN, SYN_REPORT, 1);
+		}
+	}
+}
+
 int
 evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t value)
@@ -771,7 +797,25 @@ evdev_push_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 	if (evdev_check_event(evdev, type, code, value) != 0)
 		return (EINVAL);
 
+	/*
+	 * Discard all but LEDs kdb events as unrelated to userspace.
+	 * Aggregate LED updates and postpone reporting until kdb deactivation.
+	 */
+	if (kdb_active || SCHEDULER_STOPPED()) {
+		evdev->ev_kdb_active = true;
+		if (type == EV_LED)
+			bit_set(evdev->ev_kdb_led_states,
+			    bit_test(evdev->ev_led_states, code) != value);
+		return (0);
+	}
+
 	EVDEV_ENTER(evdev);
+
+	/* Fix evdev state corrupted with discarding of kdb events */
+	if (evdev->ev_kdb_active) {
+		evdev->ev_kdb_active = false;
+		evdev_restore_after_kdb(evdev);
+	}
 
 	evdev_modify_event(evdev, type, code, &value);
 	if (type == EV_SYN && code == SYN_REPORT &&
