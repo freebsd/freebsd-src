@@ -47,7 +47,6 @@ COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
 PASSON+=	COLLATIONS_SPECIAL="${COLLATIONS_SPECIAL_ENV}"
 
 all:
-	cp ${ETCDIR}/common.UTF-8.src ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
 	test -d ${t} || mkdir ${t}
@@ -88,7 +87,7 @@ build-${t}: gen-${t}
 	env ${PASSON} tools/finalize ${t}
 .endfor
 
-gen-ctypedef:	transfer-rollup
+gen-ctypedef:	ctype-rollup
 static-colldef: gen-colldef
 build-colldef:	static-colldef
 
@@ -98,13 +97,8 @@ static-colldef:
 	    colldef.draft/${area}.${enc}.src
 .endfor
 
-transfer-rollup:
-	cp ${ETCDIR}/common.UTF-8.src ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
-
-rollup:
-	perl -I tools tools/utf8-rollup.pl \
-		--unidir=$$(realpath ${UNIDIR}) \
-		--etc=$$(realpath ${ETCDIR})
+ctype-rollup:
+	perl -I tools tools/utf8-rollup.pl --unidir=$$(realpath ${UNIDIR})
 
 clean:
 .for t in ${TYPES}
