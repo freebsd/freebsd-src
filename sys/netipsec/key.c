@@ -6685,7 +6685,9 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 
 	/* XXX proxy address (optional) */
 
-	/* set sadb_x_policy */
+	/*
+	 * Set sadb_x_policy. This is KAME extension to RFC2367.
+	 */
 	if (sp != NULL) {
 		m = key_setsadbxpolicy(sp->policy, sp->spidx.dir, sp->id,
 		    sp->priority);
@@ -6696,6 +6698,18 @@ key_acquire(const struct secasindex *saidx, struct secpolicy *sp)
 		m_cat(result, m);
 	}
 
+	/*
+	 * Set sadb_x_sa2 extension if saidx->reqid is not zero.
+	 * This is FreeBSD extension to RFC2367.
+	 */
+	if (saidx->reqid != 0) {
+		m = key_setsadbxsa2(saidx->mode, 0, saidx->reqid);
+		if (m == NULL) {
+			error = ENOBUFS;
+			goto fail;
+		}
+		m_cat(result, m);
+	}
 	/* XXX identity (optional) */
 #if 0
 	if (idexttype && fqdn) {
