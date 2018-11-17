@@ -1171,13 +1171,11 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	/*
 	 * Then look in lb group (for wildcard match).
 	 */
-	if (pcbinfo->ipi_lbgrouphashbase != NULL &&
-	    (lookupflags & INPLOOKUP_WILDCARD)) {
+	if ((lookupflags & INPLOOKUP_WILDCARD) != 0) {
 		inp = in6_pcblookup_lbgroup(pcbinfo, laddr, lport, faddr,
 		    fport, lookupflags);
-		if (inp != NULL) {
+		if (inp != NULL)
 			return (inp);
-		}
 	}
 
 	/*
