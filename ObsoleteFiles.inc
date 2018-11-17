@@ -39,7 +39,7 @@
 # done
 
 # 20181030: malloc_domain(9) KPI change
-OLD_FILES+=share/man/man9/malloc_domain.9.gz
+OLD_FILES+=usr/share/man/man9/malloc_domain.9.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
 OLD_LIBS+=lib/libcrypto.so.9
 OLD_LIBS+=usr/lib/libssl.so.9
