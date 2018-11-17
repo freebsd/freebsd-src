@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2018
+.Dd November 5, 2018
 .Dt LIBCASPER 3
 .Os
 .Sh NAME
@@ -161,9 +161,11 @@ it means there are no limits set.
 The
 .Fn cap_limit_set
 function sets limits for the given capability.
-The limits are provided as
+The limits are provided as a
 .Xr nvlist 9 .
 The exact format depends on the service the capability represents.
+.Fn cap_limit_set
+frees the limits regardless of whether the operation succeeds or fails.
 .Pp
 The
 .Fn cap_send_nvlist
