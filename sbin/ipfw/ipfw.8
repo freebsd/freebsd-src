@@ -4224,7 +4224,7 @@ In the following example per-interface firewall is created:
 .Pp
 The following example illustrate usage of flow tables:
 .Pp
-.Dl "ipfw table fl create type flow:flow:src-ip,proto,dst-ip,dst-port"
+.Dl "ipfw table fl create type flow:src-ip,proto,dst-ip,dst-port"
 .Dl "ipfw table fl add 2a02:6b8:77::88,tcp,2a02:6b8:77::99,80 11"
 .Dl "ipfw table fl add 10.0.0.1,udp,10.0.0.2,53 12"
 .Dl ".."
