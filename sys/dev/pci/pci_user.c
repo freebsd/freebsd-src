@@ -966,7 +966,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	switch (cmd) {
 	case PCIOCGETCONF:
 #ifdef COMPAT_FREEBSD32
-		case PCIOCGETCONF32:
+	case PCIOCGETCONF32:
 #endif
 #ifdef PRE7_COMPAT
 	case PCIOCGETCONF_OLD:
