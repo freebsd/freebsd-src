@@ -345,9 +345,8 @@ init_hwpmc(void *dummy __unused)
 		    "range.\n", pmc_softevents);
 		pmc_softevents = PMC_EV_DYN_COUNT;
 	}
-	pmc_softs = malloc(pmc_softevents * sizeof(struct pmc_soft *), M_PMCHOOKS, M_NOWAIT|M_ZERO);
-	KASSERT(pmc_softs != NULL, ("cannot allocate soft events table"));
-
+	pmc_softs = malloc(pmc_softevents * sizeof(*pmc_softs), M_PMCHOOKS,
+	    M_WAITOK | M_ZERO);
 
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		pmc_dom_hdrs[domain] = malloc_domainset(
