@@ -289,30 +289,11 @@ int
 be_exists(libbe_handle_t *lbh, char *be)
 {
 	char buf[BE_MAXPATHLEN];
-	nvlist_t *dsprops;
-	char *mntpoint;
-	bool valid;
 
 	be_root_concat(lbh, be, buf);
 
 	if (!zfs_dataset_exists(lbh->lzh, buf, ZFS_TYPE_DATASET))
 		return (BE_ERR_NOENT);
 
-	/* Also check if it's mounted at / */
-	if (be_prop_list_alloc(&dsprops) != 0)
-		return (BE_ERR_UNKNOWN);
-
-	if (be_get_dataset_props(lbh, buf, dsprops) != 0) {
-		nvlist_free(dsprops);
-		return (BE_ERR_UNKNOWN);
-	}
-
-	if (nvlist_lookup_string(dsprops, "mountpoint", &mntpoint) == 0) {
-		valid = (strcmp(mntpoint, "/") == 0);
-		nvlist_free(dsprops);
-		return (valid ? BE_ERR_SUCCESS : BE_ERR_BADMOUNT);
-	}
-
-	nvlist_free(dsprops);
-	return (BE_ERR_BADMOUNT);
+	return (BE_ERR_SUCCESS);
 }

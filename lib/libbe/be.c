@@ -29,11 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <sys/ucred.h>
 
 #include <ctype.h>
-#include <kenv.h>
 #include <libgen.h>
 #include <libzfs_core.h>
 #include <stdio.h>
@@ -55,23 +56,16 @@ static int be_create_child_cloned(libbe_handle_t *lbh, const char *active);
  * zfs_be_root set by loader(8).  data is expected to be a libbe_handle_t *.
  */
 static int
-be_locate_rootfs(zfs_handle_t *chkds, void *data)
+be_locate_rootfs(libbe_handle_t *lbh)
 {
-	libbe_handle_t *lbh;
-	char *mntpoint;
+	zfs_handle_t *zfs;
 
-	lbh = (libbe_handle_t *)data;
-	if (lbh == NULL)
+	zfs = zfs_path_to_zhandle(lbh->lzh, "/", ZFS_TYPE_FILESYSTEM);
+	if (zfs == NULL)
 		return (1);
 
-	mntpoint = NULL;
-	if (zfs_is_mounted(chkds, &mntpoint) && strcmp(mntpoint, "/") == 0) {
-		strlcpy(lbh->rootfs, zfs_get_name(chkds), sizeof(lbh->rootfs));
-		free(mntpoint);
-		return (1);
-	} else if(mntpoint != NULL)
-		free(mntpoint);
-
+	strlcpy(lbh->rootfs, zfs_get_name(zfs), sizeof(lbh->rootfs));
+	zfs_close(zfs);
 	return (0);
 }
 
@@ -82,33 +76,12 @@ be_locate_rootfs(zfs_handle_t *chkds, void *data)
 libbe_handle_t *
 libbe_init(void)
 {
-	struct stat sb;
-	dev_t root_dev, boot_dev;
 	libbe_handle_t *lbh;
-	zfs_handle_t *rootds;
 	char *poolname, *pos;
 	int pnamelen;
 
 	lbh = NULL;
 	poolname = pos = NULL;
-	rootds = NULL;
-
-	/* Verify that /boot and / are mounted on the same filesystem */
-	/* TODO: use errno here?? */
-	if (stat("/", &sb) != 0)
-		goto err;
-
-	root_dev = sb.st_dev;
-
-	if (stat("/boot", &sb) != 0)
-		goto err;
-
-	boot_dev = sb.st_dev;
-
-	if (root_dev != boot_dev) {
-		fprintf(stderr, "/ and /boot not on same device, quitting\n");
-		goto err;
-	}
 
 	if ((lbh = calloc(1, sizeof(libbe_handle_t))) == NULL)
 		goto err;
@@ -116,15 +89,16 @@ libbe_init(void)
 	if ((lbh->lzh = libzfs_init()) == NULL)
 		goto err;
 
-	/* Obtain path to boot environment root */
-	if ((kenv(KENV_GET, "zfs_be_root", lbh->root,
-	    sizeof(lbh->root))) == -1)
+	/* Grab rootfs, we'll work backwards from there */
+	if (be_locate_rootfs(lbh) != 0)
 		goto err;
 
-	/* Remove leading 'zfs:' if present, otherwise use value as-is */
-	if (strcmp(lbh->root, "zfs:") == 0)
-		strlcpy(lbh->root, strchr(lbh->root, ':') + sizeof(char),
-		    sizeof(lbh->root));
+	/* Strip off the final slash from the rootfs to get the be root */
+	strlcpy(lbh->root, lbh->rootfs, sizeof(lbh->root));
+	pos = strrchr(lbh->root, '/');
+	if (pos == NULL)
+		goto err;
+	*pos = '\0';
 
 	if ((pos = strchr(lbh->root, '/')) == NULL)
 		goto err;
@@ -142,17 +116,6 @@ libbe_init(void)
 
 	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_BOOTFS, lbh->bootfs,
 	    sizeof(lbh->bootfs), NULL, true) != 0)
-		goto err;
-
-	/* Obtain path to boot environment rootfs (currently booted) */
-	/* XXX Get dataset mounted at / by kenv/GUID from mountroot? */
-	if ((rootds = zfs_open(lbh->lzh, lbh->root, ZFS_TYPE_DATASET)) == NULL)
-		goto err;
-
-	zfs_iter_filesystems(rootds, be_locate_rootfs, lbh);
-	zfs_close(rootds);
-	rootds = NULL;
-	if (*lbh->rootfs == '\0')
 		goto err;
 
 	return (lbh);
@@ -503,10 +466,6 @@ be_create_from_existing(libbe_handle_t *lbh, const char *name, const char *old)
 int
 be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 {
-	zfs_handle_t *zfs_hdl;
-	char buf[BE_MAXPATHLEN];
-	char *delim_pos;
-	int err = BE_ERR_SUCCESS;
 
 	if (strlen(snap_name) >= BE_MAXPATHLEN)
 		return (BE_ERR_PATHLEN);
@@ -515,27 +474,7 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 	    ZFS_TYPE_SNAPSHOT))
 		return (BE_ERR_NOENT);
 
-	strlcpy(buf, snap_name, sizeof(buf));
-
-	/* Find the base filesystem of the snapshot */
-	if ((delim_pos = strchr(buf, '@')) == NULL)
-		return (BE_ERR_INVALIDNAME);
-	*delim_pos = '\0';
-
-	if ((zfs_hdl =
-	    zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
-		return (BE_ERR_NOORIGIN);
-
-	if ((err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf,
-	    sizeof(buf), NULL, NULL, 0, 1)) != 0)
-		err = BE_ERR_BADMOUNT;
-
-	if ((err != 0) && (strncmp(buf, "/", sizeof(buf)) != 0))
-		err = BE_ERR_BADMOUNT;
-
-	zfs_close(zfs_hdl);
-
-	return (err);
+	return (BE_ERR_SUCCESS);
 }
 
 
