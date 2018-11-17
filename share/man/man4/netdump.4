@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 8, 2018
+.Dd October 29, 2018
 .Dt NETDUMP 4
 .Os
 .Sh NAME
@@ -130,6 +130,19 @@ a path of
 will cause the server to attempt to store dumps from the client in
 .Pa /var/crash/foo .
 The server will not automatically create the relative directory.
+.It Va net.netdump.polls
+The client will poll the configured network interface while waiting for
+acknowledgements.
+This parameter controls the maximum number of poll attempts before giving
+up, which typically results in a re-transmit.
+Each poll attempt takes 0.5ms.
+.It Va net.netdump.retries
+The number of times the client will re-transmit a packet before aborting
+a dump due to a lack of acknowledgement.
+The default may be too small in environments with lots of packet loss.
+.It Va net.netdump.arp_retries
+The number of times the client will attempt to learn the MAC address of
+the configured gateway or server before giving up and aborting the dump.
 .El
 .Sh SEE ALSO
 .Xr decryptcore 8 ,
