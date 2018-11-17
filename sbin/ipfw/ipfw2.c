@@ -2207,6 +2207,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	 */
 	if (co->comment_only != 0)
 		goto end;
+
+	if (rule->flags & IPFW_RULE_JUSTOPTS) {
+		state.flags |= HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP;
+		goto justopts;
+	}
+
 	print_proto(bp, fo, &state);
 
 	/* Print source */
@@ -2219,6 +2225,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	print_address(bp, fo, &state, dst_opcodes, nitems(dst_opcodes),
 	    O_IP_DSTPORT, HAVE_DSTIP);
 
+justopts:
 	/* Print the rest of options */
 	while (print_opcode(bp, fo, &state, -1))
 		;
@@ -4340,8 +4347,10 @@ chkarg:
 		}
 	} else if (first_cmd != cmd) {
 		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
-	} else
+	} else {
+		rule->flags |= IPFW_RULE_JUSTOPTS;
 		goto read_options;
+	}
     OR_BLOCK(get_proto);
 
 	/*
