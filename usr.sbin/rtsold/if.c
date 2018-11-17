@@ -332,37 +332,6 @@ if_nametosdl(char *name)
 	return (ret_sdl);
 }
 
-int
-getinet6sysctl(int code)
-{
-	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
-	int value;
-	size_t size;
-
-	mib[3] = code;
-	size = sizeof(value);
-	if (sysctl(mib, nitems(mib), &value, &size, NULL, 0) < 0)
-		return (-1);
-	else
-		return (value);
-}
-
-int
-setinet6sysctl(int code, int newval)
-{
-	int mib[] = { CTL_NET, PF_INET6, IPPROTO_IPV6, 0 };
-	int value;
-	size_t size;
-
-	mib[3] = code;
-	size = sizeof(value);
-	if (sysctl(mib, nitems(mib), &value, &size,
-	    &newval, sizeof(newval)) < 0)
-		return (-1);
-	else
-		return (value);
-}
-
 /*------------------------------------------------------------*/
 
 /* get ia6_flags for link-local addr on if.  returns -1 on error. */
