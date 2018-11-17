@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <netpfil/ipfw/ip_fw_private.h>
 
 #include "ip_fw_nat64.h"
+#include "nat64_translate.h"
 
 VNET_DEFINE(int, nat64_debug) = 0;
 VNET_DEFINE(int, nat64_allow_private) = 0;
@@ -56,8 +57,26 @@ SYSCTL_DECL(_net_inet_ip_fw);
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, nat64_debug, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(nat64_debug), 0, "Debug level for NAT64 module");
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, nat64_allow_private,
-    CTLFLAG_VNET |CTLFLAG_RW, &VNET_NAME(nat64_allow_private), 0,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nat64_allow_private), 0,
     "Allow use of non-global IPv4 addresses with NAT64");
+
+static int
+sysctl_direct_output(SYSCTL_HANDLER_ARGS)
+{
+	uint32_t value;
+	int error;
+
+	value = nat64_get_output_method();
+	error = sysctl_handle_32(oidp, &value, 0, req);
+	/* Read operation or some error */
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+	nat64_set_output_method(value);
+	return (0);
+}
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, nat64_direct_output,
+    CTLFLAG_VNET | CTLTYPE_U32 | CTLFLAG_RW, 0, 0, sysctl_direct_output, "IU",
+    "Use if_output directly instead of deffered netisr-based processing");
 
 static int
 vnet_ipfw_nat64_init(const void *arg __unused)
