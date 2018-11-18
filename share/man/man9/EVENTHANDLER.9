@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2018
+.Dd October 21, 2018
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -298,6 +298,8 @@ Callback invoked when an change has been made to an interface group.
 Callback invoked when an interfance has been removed from an interface group.
 .It Vt ifaddr_event
 Callbacks invoked when an address is set up on a network interface.
+.It Vt ifaddr_event_ext
+Callback invoked when an address has been added or removed from an interface. 
 .It Vt if_clone_event
 Callbacks invoked when an interface is cloned.
 .It Vt iflladdr_event

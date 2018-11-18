@@ -432,6 +432,11 @@ EVENTHANDLER_DECLARE(iflladdr_event, iflladdr_event_handler_t);
 /* interface address change event */
 typedef void (*ifaddr_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifaddr_event, ifaddr_event_handler_t);
+typedef void (*ifaddr_event_ext_handler_t)(void *, struct ifnet *,
+    struct ifaddr *, int);
+EVENTHANDLER_DECLARE(ifaddr_event_ext, ifaddr_event_ext_handler_t);
+#define	IFADDR_EVENT_ADD	0
+#define	IFADDR_EVENT_DEL	1
 /* new interface arrival event */
 typedef void (*ifnet_arrival_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
