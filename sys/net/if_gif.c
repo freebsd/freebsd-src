@@ -284,6 +284,7 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	sc = ifp->if_softc;
 	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
 	    (ifp->if_flags & IFF_UP) == 0 ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
 	    sc->gif_family == 0 ||
 	    (error = if_tunnel_check_nesting(ifp, m, MTAG_GIF,
 		V_max_gif_nesting)) != 0) {
@@ -674,7 +675,6 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    cmd == SIOCSIFPHYADDR_IN6 ||
 #endif
 		    0) {
-			ifp->if_drv_flags |= IFF_DRV_RUNNING;
 			if_link_state_change(ifp, LINK_STATE_UP);
 		}
 	}
@@ -689,6 +689,7 @@ gif_delete_tunnel(struct gif_softc *sc)
 
 	sx_assert(&gif_ioctl_sx, SA_XLOCKED);
 	if (sc->gif_family != 0) {
+		CK_LIST_REMOVE(sc, srchash);
 		CK_LIST_REMOVE(sc, chain);
 		/* Wait until it become safe to free gif_hdr */
 		GIF_WAIT();

@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 5, 2018
+.Dd October 21, 2018
 .Dt GIF 4
 .Os
 .Sh NAME
@@ -206,15 +206,6 @@ and are picky about outer header fields.
 For example, you cannot usually use
 .Nm
 to talk with IPsec devices that use IPsec tunnel mode.
-.Pp
-The current code does not check if the ingress address
-(outer source address)
-configured in the
-.Nm
-interface makes sense.
-Make sure to specify an address which belongs to your node.
-Otherwise, your node will not be able to receive packets from the peer,
-and it will generate packets with a spoofed source address.
 .Pp
 If the outer protocol is IPv4,
 .Nm

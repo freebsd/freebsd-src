@@ -63,6 +63,7 @@ struct gif_softc {
 	} gif_uhdr;
 
 	CK_LIST_ENTRY(gif_softc) chain;
+	CK_LIST_ENTRY(gif_softc) srchash;
 };
 CK_LIST_HEAD(gif_list, gif_softc);
 MALLOC_DECLARE(M_GIF);
