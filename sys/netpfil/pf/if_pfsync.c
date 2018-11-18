@@ -2429,12 +2429,6 @@ pfsync_modevent(module_t mod, int type, void *data)
 	case MOD_LOAD:
 		error = pfsync_init();
 		break;
-	case MOD_QUIESCE:
-		/*
-		 * Module should not be unloaded due to race conditions.
-		 */
-		error = EBUSY;
-		break;
 	case MOD_UNLOAD:
 		pfsync_uninit();
 		break;
