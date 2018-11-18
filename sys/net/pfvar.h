@@ -820,6 +820,7 @@ typedef	void		pfsync_update_state_t(struct pf_state *);
 typedef	void		pfsync_delete_state_t(struct pf_state *);
 typedef void		pfsync_clear_states_t(u_int32_t, const char *);
 typedef int		pfsync_defer_t(struct pf_state *, struct mbuf *);
+typedef void		pfsync_detach_ifnet_t(struct ifnet *);
 
 VNET_DECLARE(pfsync_state_import_t *, pfsync_state_import_ptr);
 #define V_pfsync_state_import_ptr	VNET(pfsync_state_import_ptr)
@@ -833,6 +834,7 @@ VNET_DECLARE(pfsync_clear_states_t *, pfsync_clear_states_ptr);
 #define V_pfsync_clear_states_ptr	VNET(pfsync_clear_states_ptr)
 VNET_DECLARE(pfsync_defer_t *, pfsync_defer_ptr);
 #define V_pfsync_defer_ptr		VNET(pfsync_defer_ptr)
+extern pfsync_detach_ifnet_t	*pfsync_detach_ifnet_ptr;
 
 void			pfsync_state_export(struct pfsync_state *,
 			    struct pf_state *);
