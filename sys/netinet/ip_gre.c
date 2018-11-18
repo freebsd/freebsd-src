@@ -75,9 +75,13 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, grettl, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip_gre_ttl), 0, "Default TTL value for encapsulated packets");
 
 VNET_DEFINE_STATIC(struct gre_list *, ipv4_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gre_list *, ipv4_srchashtbl) = NULL;
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
+#define	V_ipv4_srchashtbl	VNET(ipv4_srchashtbl)
 #define	GRE_HASH(src, dst)	(V_ipv4_hashtbl[\
     in_gre_hashval((src), (dst)) & (GRE_HASH_SIZE - 1)])
+#define	GRE_SRCHASH(src)	(V_ipv4_srchashtbl[\
+    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (GRE_HASH_SIZE - 1)])
 #define	GRE_HASH_SC(sc)		GRE_HASH((sc)->gre_oip.ip_src.s_addr,\
     (sc)->gre_oip.ip_dst.s_addr)
 
@@ -138,6 +142,44 @@ in_gre_lookup(const struct mbuf *m, int off, int proto, void **arg)
 	return (0);
 }
 
+/*
+ * Check that ingress address belongs to local host.
+ */
+static void
+in_gre_set_running(struct gre_softc *sc)
+{
+
+	if (in_localip(sc->gre_oip.ip_src))
+		GRE2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
+	else
+		GRE2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+/*
+ * ifaddr_event handler.
+ * Clear IFF_DRV_RUNNING flag when ingress address disappears to prevent
+ * source address spoofing.
+ */
+static void
+in_gre_srcaddr(void *arg __unused, const struct sockaddr *sa,
+    int event __unused)
+{
+	const struct sockaddr_in *sin;
+	struct gre_softc *sc;
+
+	/* Check that VNET is ready */
+	if (V_ipv4_hashtbl == NULL)
+		return;
+
+	MPASS(in_epoch(net_epoch_preempt));
+	sin = (const struct sockaddr_in *)sa;
+	CK_LIST_FOREACH(sc, &GRE_SRCHASH(sin->sin_addr.s_addr), srchash) {
+		if (sc->gre_oip.ip_src.s_addr != sin->sin_addr.s_addr)
+			continue;
+		in_gre_set_running(sc);
+	}
+}
+
 static void
 in_gre_attach(struct gre_softc *sc)
 {
@@ -148,6 +190,8 @@ in_gre_attach(struct gre_softc *sc)
 	sc->gre_oip.ip_p = IPPROTO_GRE;
 	gre_updatehdr(sc, &sc->gre_gihdr->gi_gre);
 	CK_LIST_INSERT_HEAD(&GRE_HASH_SC(sc), sc, chain);
+	CK_LIST_INSERT_HEAD(&GRE_SRCHASH(sc->gre_oip.ip_src.s_addr),
+	    sc, srchash);
 }
 
 void
@@ -159,6 +203,7 @@ in_gre_setopts(struct gre_softc *sc, u_long cmd, uint32_t value)
 	/* NOTE: we are protected with gre_ioctl_sx lock */
 	MPASS(sc->gre_family == AF_INET);
 	CK_LIST_REMOVE(sc, chain);
+	CK_LIST_REMOVE(sc, srchash);
 	GRE_WAIT();
 	if (cmd == GRESKEY)
 		sc->gre_key = value;
@@ -193,8 +238,10 @@ in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 			error = EADDRNOTAVAIL;
 			break;
 		}
-		if (V_ipv4_hashtbl == NULL)
+		if (V_ipv4_hashtbl == NULL) {
 			V_ipv4_hashtbl = gre_hashinit();
+			V_ipv4_srchashtbl = gre_hashinit();
+		}
 		error = in_gre_checkdup(sc, src->sin_addr.s_addr,
 		    dst->sin_addr.s_addr);
 		if (error == EADDRNOTAVAIL)
@@ -211,6 +258,7 @@ in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		if (sc->gre_family != 0) {
 			/* Detach existing tunnel first */
 			CK_LIST_REMOVE(sc, chain);
+			CK_LIST_REMOVE(sc, srchash);
 			GRE_WAIT();
 			free(sc->gre_hdr, M_GRE);
 			/* XXX: should we notify about link state change? */
@@ -220,6 +268,7 @@ in_gre_ioctl(struct gre_softc *sc, u_long cmd, caddr_t data)
 		sc->gre_oseq = 0;
 		sc->gre_iseq = UINT32_MAX;
 		in_gre_attach(sc);
+		in_gre_set_running(sc);
 		break;
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
@@ -271,6 +320,7 @@ in_gre_output(struct mbuf *m, int af, int hlen)
 	return (ip_output(m, NULL, NULL, IP_FORWARDING, NULL, NULL));
 }
 
+static const struct srcaddrtab *ipv4_srcaddrtab = NULL;
 static const struct encaptab *ecookie = NULL;
 static const struct encap_config ipv4_encap_cfg = {
 	.proto = IPPROTO_GRE,
@@ -286,6 +336,8 @@ in_gre_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+	ipv4_srcaddrtab = ip_encap_register_srcaddr(in_gre_srcaddr,
+	    NULL, M_WAITOK);
 	ecookie = ip_encap_attach(&ipv4_encap_cfg, NULL, M_WAITOK);
 }
 
@@ -293,8 +345,14 @@ void
 in_gre_uninit(void)
 {
 
-	if (IS_DEFAULT_VNET(curvnet))
+	if (IS_DEFAULT_VNET(curvnet)) {
 		ip_encap_detach(ecookie);
-	if (V_ipv4_hashtbl != NULL)
+		ip_encap_unregister_srcaddr(ipv4_srcaddrtab);
+	}
+	if (V_ipv4_hashtbl != NULL) {
 		gre_hashdestroy(V_ipv4_hashtbl);
+		V_ipv4_hashtbl = NULL;
+		GRE_WAIT();
+		gre_hashdestroy(V_ipv4_srchashtbl);
+	}
 }
