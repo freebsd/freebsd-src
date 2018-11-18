@@ -33,9 +33,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/elf_common.h>
 #include <sys/errno.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -43,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 static int elftype(const char *);
 static const char *iselftype(int);
@@ -66,8 +71,10 @@ main(int argc, char **argv)
 {
 
 	const char *strtype = "FreeBSD";
-	int ch, retval, type;
+	int ch, flags, retval, type;
 	bool change, force, listed;
+	fileargs_t *fa;
+	cap_rights_t rights;
 
 	type = ELFOSABI_FREEBSD;
 	retval = 0;
@@ -121,11 +128,24 @@ main(int argc, char **argv)
 		usage();
 	}
 
+	flags = change || force ? O_RDWR : O_RDONLY;
+	cap_rights_init(&rights, CAP_READ, CAP_SEEK);
+	if (flags == O_RDWR)
+		cap_rights_set(&rights, CAP_WRITE);
+
+	fa = fileargs_init(argc, argv, flags, 0, &rights);
+	if (fa == NULL)
+		errx(1, "unable to init casper");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter_casper() < 0)
+		err(1, "unable to enter capability mode");
+
 	while (argc != 0) {
 		int fd;
 		char buffer[EI_NIDENT];
 
-		if ((fd = open(argv[0], change || force ? O_RDWR : O_RDONLY, 0)) < 0) {
+		if ((fd = fileargs_open(fa, argv[0])) < 0) {
 			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
@@ -167,6 +187,7 @@ fail:
 		argv++;
 	}
 
+	fileargs_free(fa);
 	return (retval);
 }
 
