@@ -898,6 +898,9 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	if (slot->quirks & SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 &&
 	    caps2 & SDHCI_CAN_MMC_HS400)
 		host_caps |= MMC_CAP_MMC_HS400;
+	if (slot->quirks & SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104 &&
+	    caps2 & SDHCI_CAN_SDR104)
+		host_caps |= MMC_CAP_MMC_HS400;
 
 	/*
 	 * Disable UHS-I and eMMC modes if the set_uhs_timing method is the
