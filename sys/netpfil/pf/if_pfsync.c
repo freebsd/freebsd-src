@@ -1394,6 +1394,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			if (error) {
 				if_rele(sifp);
 				free(mship, M_PFSYNC);
+				PFSYNC_UNLOCK(sc);
 				return (error);
 			}
 		}
