@@ -28,7 +28,7 @@
 .\"     From: @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2018
+.Dd November 17, 2018
 .Dt DUMPON 8
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 .Op Fl k Ar pubkey
 .Op Fl Z
 .Op Fl z
-.Op Fl g Ar gateway | Li default
+.Op Fl g Ar gateway
 .Fl s Ar server
 .Fl c Ar client
 .Ar iface
@@ -140,21 +140,22 @@ The local IP address of the
 .Xr netdump 4
 client.
 .It Fl g Ar gateway
-Optional.
-If not specified, it is assumed that the
-.Ar server
-is on the same link as the
-.Ar client .
-.Pp
-If specified,
-.Ar gateway
-is the address of the first-hop router between the
+The first-hop router between
 .Ar client
-and the
+and
 .Ar server .
-The special value
-.Dv Dq default
-indicates that the currently configured system default route should be used.
+If the
+.Fl g
+option is not specified and the system has a default route, the default
+router is used as the
+.Xr netdump 4
+gateway.
+If the
+.Fl g
+option is not specified and the system does not have a default route,
+.Ar server
+is assumed to be on the same link as
+.Ar client .
 .It Fl s Ar server
 The IP address of the
 .Xr netdumpd 8
