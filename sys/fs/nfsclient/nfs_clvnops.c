@@ -3019,14 +3019,19 @@ nfs_advlock(struct vop_advlock_args *ap)
 	int ret, error = EOPNOTSUPP;
 	u_quad_t size;
 	
+	ret = NFSVOPLOCK(vp, LK_SHARED);
+	if (ret != 0)
+		return (EBADF);
 	if (NFS_ISV4(vp) && (ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
-		if (vp->v_type != VREG)
+		if (vp->v_type != VREG) {
+			NFSVOPUNLOCK(vp, 0);
 			return (EINVAL);
+		}
 		if ((ap->a_flags & F_POSIX) != 0)
 			cred = p->p_ucred;
 		else
 			cred = td->td_ucred;
-		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
 		if (vp->v_iflag & VI_DOOMED) {
 			NFSVOPUNLOCK(vp, 0);
 			return (EBADF);
@@ -3105,9 +3110,6 @@ nfs_advlock(struct vop_advlock_args *ap)
 		NFSVOPUNLOCK(vp, 0);
 		return (0);
 	} else if (!NFS_ISV4(vp)) {
-		error = NFSVOPLOCK(vp, LK_SHARED);
-		if (error)
-			return (error);
 		if ((VFSTONFS(vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
 			size = VTONFS(vp)->n_size;
 			NFSVOPUNLOCK(vp, 0);
@@ -3130,7 +3132,8 @@ nfs_advlock(struct vop_advlock_args *ap)
 				NFSVOPUNLOCK(vp, 0);
 			}
 		}
-	}
+	} else
+		NFSVOPUNLOCK(vp, 0);
 	return (error);
 }
 
