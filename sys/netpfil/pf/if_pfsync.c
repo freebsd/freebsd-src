@@ -1360,10 +1360,10 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		sc->sc_maxupdates = pfsyncr.pfsyncr_maxupdates;
 		if (pfsyncr.pfsyncr_defer) {
 			sc->sc_flags |= PFSYNCF_DEFER;
-			pfsync_defer_ptr = pfsync_defer;
+			V_pfsync_defer_ptr = pfsync_defer;
 		} else {
 			sc->sc_flags &= ~PFSYNCF_DEFER;
-			pfsync_defer_ptr = NULL;
+			V_pfsync_defer_ptr = NULL;
 		}
 
 		if (sifp == NULL) {
@@ -2309,12 +2309,12 @@ pfsync_pointers_init()
 {
 
 	PF_RULES_WLOCK();
-	pfsync_state_import_ptr = pfsync_state_import;
-	pfsync_insert_state_ptr = pfsync_insert_state;
-	pfsync_update_state_ptr = pfsync_update_state;
-	pfsync_delete_state_ptr = pfsync_delete_state;
-	pfsync_clear_states_ptr = pfsync_clear_states;
-	pfsync_defer_ptr = pfsync_defer;
+	V_pfsync_state_import_ptr = pfsync_state_import;
+	V_pfsync_insert_state_ptr = pfsync_insert_state;
+	V_pfsync_update_state_ptr = pfsync_update_state;
+	V_pfsync_delete_state_ptr = pfsync_delete_state;
+	V_pfsync_clear_states_ptr = pfsync_clear_states;
+	V_pfsync_defer_ptr = pfsync_defer;
 	PF_RULES_WUNLOCK();
 }
 
@@ -2323,12 +2323,12 @@ pfsync_pointers_uninit()
 {
 
 	PF_RULES_WLOCK();
-	pfsync_state_import_ptr = NULL;
-	pfsync_insert_state_ptr = NULL;
-	pfsync_update_state_ptr = NULL;
-	pfsync_delete_state_ptr = NULL;
-	pfsync_clear_states_ptr = NULL;
-	pfsync_defer_ptr = NULL;
+	V_pfsync_state_import_ptr = NULL;
+	V_pfsync_insert_state_ptr = NULL;
+	V_pfsync_update_state_ptr = NULL;
+	V_pfsync_delete_state_ptr = NULL;
+	V_pfsync_clear_states_ptr = NULL;
+	V_pfsync_defer_ptr = NULL;
 	PF_RULES_WUNLOCK();
 }
 
@@ -2345,6 +2345,8 @@ vnet_pfsync_init(const void *unused __unused)
 		if_clone_detach(V_pfsync_cloner);
 		log(LOG_INFO, "swi_add() failed in %s\n", __func__);
 	}
+
+	pfsync_pointers_init();
 }
 VNET_SYSINIT(vnet_pfsync_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
     vnet_pfsync_init, NULL);
@@ -2352,6 +2354,8 @@ VNET_SYSINIT(vnet_pfsync_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
 static void
 vnet_pfsync_uninit(const void *unused __unused)
 {
+
+	pfsync_pointers_uninit();
 
 	if_clone_detach(V_pfsync_cloner);
 	swi_remove(V_pfsync_swi_cookie);
@@ -2378,7 +2382,6 @@ pfsync_init()
 		return (error);
 	}
 #endif
-	pfsync_pointers_init();
 
 	return (0);
 }
@@ -2386,8 +2389,6 @@ pfsync_init()
 static void
 pfsync_uninit()
 {
-
-	pfsync_pointers_uninit();
 
 #ifdef INET
 	ipproto_unregister(IPPROTO_PFSYNC);
