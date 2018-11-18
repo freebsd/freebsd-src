@@ -231,6 +231,7 @@ ia32_syscall(struct trapframe *frame)
 	}
 
 	syscallret(td, error);
+	amd64_syscall_ret_flush_l1d(error);
 }
 
 static void
