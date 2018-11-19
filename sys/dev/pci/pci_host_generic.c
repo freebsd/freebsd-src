@@ -310,7 +310,7 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 
 	rm = generic_pcie_rman(sc, type);
 	if (rm == NULL)
-		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
 
 	if (bootverbose) {
