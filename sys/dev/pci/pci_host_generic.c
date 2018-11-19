@@ -107,7 +107,7 @@ pci_host_generic_core_attach(device_t dev)
 		return (error);
 
 	rid = 0;
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not map memory.\n");
 		return (ENXIO);
