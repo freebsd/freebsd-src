@@ -1013,6 +1013,9 @@ printcpuinfo(void)
 				       "\020"
 				       "\001RDCL_NO"
 				       "\002IBRS_ALL"
+				       "\003RSBA"
+				       "\004SKIP_L1DFL_VME"
+				       "\005SSB_NO"
 				       );
 			}
 
