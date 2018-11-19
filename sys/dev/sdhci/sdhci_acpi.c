@@ -203,7 +203,7 @@ sdhci_acpi_set_uhs_timing(device_t dev, struct sdhci_slot *slot)
 	enum mmc_bus_timing timing;
 
 	bus = slot->bus;
-	old_timing = sdhci_acpi_read_2(bus, slot, SDHCI_HOST_CONTROL2);
+	old_timing = SDHCI_READ_2(bus, slot, SDHCI_HOST_CONTROL2);
 	old_timing &= SDHCI_CTRL2_UHS_MASK;
 	sdhci_generic_set_uhs_timing(dev, slot);
 
@@ -220,19 +220,19 @@ sdhci_acpi_set_uhs_timing(device_t dev, struct sdhci_slot *slot)
 		timing = ios->timing;
 		if (old_timing == SDHCI_CTRL2_UHS_SDR104 &&
 		    timing == bus_timing_hs)
-			sdhci_acpi_write_2(bus, slot, SDHCI_HOST_CONTROL2,
-			    sdhci_acpi_read_2(bus, slot, SDHCI_HOST_CONTROL2) &
+			SDHCI_WRITE_2(bus, slot, SDHCI_HOST_CONTROL2,
+			    SDHCI_READ_2(bus, slot, SDHCI_HOST_CONTROL2) &
 			    ~SDHCI_CTRL2_SAMPLING_CLOCK);
 		if (ios->clock > SD_SDR50_MAX &&
 		    old_timing != SDHCI_CTRL2_MMC_HS400 &&
 		    timing == bus_timing_mmc_hs400) {
-			sdhci_acpi_write_2(bus, slot, SDHCI_HOST_CONTROL2,
-			    sdhci_acpi_read_2(bus, slot, SDHCI_HOST_CONTROL2) |
+			SDHCI_WRITE_2(bus, slot, SDHCI_HOST_CONTROL2,
+			    SDHCI_READ_2(bus, slot, SDHCI_HOST_CONTROL2) |
 			    SDHCI_CTRL2_SAMPLING_CLOCK);
-			sdhci_acpi_write_4(bus, slot, SDHCI_AMD_RESET_DLL_REG,
+			SDHCI_WRITE_4(bus, slot, SDHCI_AMD_RESET_DLL_REG,
 			    0x40003210);
 			DELAY(20);
-			sdhci_acpi_write_4(bus, slot, SDHCI_AMD_RESET_DLL_REG,
+			SDHCI_WRITE_4(bus, slot, SDHCI_AMD_RESET_DLL_REG,
 			    0x40033210);
 		}
 	}
