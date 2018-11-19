@@ -48,6 +48,16 @@ INCS+=		strings.h
 SRCS+=		explicit_bzero.c
 .endif
 
+.if exists(/usr/include/capsicum_helpers.h)
+_WITH_CAPH_ENTER!= grep -c caph_enter /usr/include/capsicum_helpers.h || true
+.endif
+.if !defined(_WITH_CAPH_ENTER) || ${_WITH_CAPH_ENTER} == 0
+.PATH: ${SRCTOP}/lib/libcapsicum
+INCS+=		capsicum_helpers.h
+.PATH: ${SRCTOP}/lib/libcasper/libcasper
+INCS+=		libcasper.h
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif
