@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2017 The FreeBSD Foundation
+ * Copyright (c) 2017, 2018 The FreeBSD Foundation
  * All rights reserved.
  *
  * Portions of this software were developed by Konstantin Belousov
@@ -33,18 +33,35 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#define	IN_RTLD	1
+#include <sys/param.h>
+#undef IN_RTLD
 #include <machine/cpufunc.h>
+#include <machine/specialreg.h>
 #include <machine/sysarch.h>
-#include "amd64_detect_rdfsgsbase.h"
+#include <x86/ifunc.h>
+#include "libc_private.h"
 
-int
-amd64_set_fsbase(void *addr)
+static int
+amd64_set_fsbase_cpu(void *addr)
 {
 
-	if (amd64_detect_rdfsgsbase() == RDFSGS_SUPPORTED) {
-		wrfsbase((uintptr_t)addr);
-		return (0);
-	}
+	wrfsbase((uintptr_t)addr);
+	return (0);
+}
+
+static int
+amd64_set_fsbase_syscall(void *addr)
+{
+
 	return (sysarch(AMD64_SET_FSBASE, &addr));
+}
+
+DEFINE_UIFUNC(, int, amd64_set_fsbase, (void *), static)
+{
+
+	if (__getosreldate() >= P_OSREL_WRFSBASE &&
+	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0)
+		return (amd64_set_fsbase_cpu);
+	return (amd64_set_fsbase_syscall);
 }
