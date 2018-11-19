@@ -34,7 +34,7 @@ bectl_create_setup()
 	disk=$2
 	mnt=$3
 
-	kldstat -qm zfs || atf_skip "ZFS module not loaded on the current system"
+	kldload -n -q zfs || atf_skip "ZFS module not loaded on the current system"
 	atf_check mkdir -p ${mnt}
 	atf_check truncate -s 1G ${disk}
 	atf_check zpool create -o altroot=${mnt} ${zpool} ${disk}
