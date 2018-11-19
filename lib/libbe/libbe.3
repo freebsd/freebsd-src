@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2018
+.Dd November 17, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In be.h
 .Ft "libbe_handle_t *hdl" Ns
-.Fn libbe_init void
+.Fn libbe_init "const char *be_root"
 .Pp
 .Ft void
 .Fn libbe_close "libbe_handle_t *hdl"
@@ -157,13 +157,16 @@ errno otherwise as described in
 .Pp
 The
 .Fn libbe_init
-function initializes
+function takes an optional BE root and initializes
 .Nm ,
 returning a
 .Vt "libbe_handle_t *"
 on success, or
 .Dv NULL
 on error.
+If a BE root is supplied,
+.Nm
+will only operate out of that pool and BE root.
 An error may occur if:
 .Bl -column
 .It /boot and / are not on the same filesystem and device,
@@ -184,11 +187,15 @@ invalidating the handle in the process.
 .Pp
 The
 .Fn be_active_name
-function returns the name of the currently booted boot environment,
+function returns the name of the currently booted boot environment.
+This boot environment may not belong to the same BE root as the root libbe
+is operating on!
 .Pp
 The
 .Fn be_active_path
 function returns the full path of the currently booted boot environment.
+This boot environment may not belong to the same BE root as the root libbe
+is operating on!
 .Pp
 The
 .Fn be_nextboot_name
