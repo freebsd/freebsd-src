@@ -1224,53 +1224,6 @@ sbdrop(struct sockbuf *sb, int len)
 	m_freem(mfree);
 }
 
-/*
- * Maintain a pointer and offset pair into the socket buffer mbuf chain to
- * avoid traversal of the entire socket buffer for larger offsets.
- */
-struct mbuf *
-sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
-{
-	struct mbuf *m, *ret;
-
-	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
-	KASSERT(off + len <= sb->sb_acc, ("%s: beyond sb", __func__));
-	KASSERT(sb->sb_sndptroff <= sb->sb_acc, ("%s: sndptroff broken", __func__));
-
-	/*
-	 * Is off below stored offset? Happens on retransmits.
-	 * Just return, we can't help here.
-	 */
-	if (sb->sb_sndptroff > off) {
-		*moff = off;
-		return (sb->sb_mb);
-	}
-
-	/* Return closest mbuf in chain for current offset. */
-	*moff = off - sb->sb_sndptroff;
-	m = ret = sb->sb_sndptr ? sb->sb_sndptr : sb->sb_mb;
-	if (*moff == m->m_len) {
-		*moff = 0;
-		sb->sb_sndptroff += m->m_len;
-		m = ret = m->m_next;
-		KASSERT(ret->m_len > 0,
-		    ("mbuf %p in sockbuf %p chain has no valid data", ret, sb));
-	}
-
-	/* Advance by len to be as close as possible for the next transmit. */
-	for (off = off - sb->sb_sndptroff + len - 1;
-	     off > 0 && m != NULL && off >= m->m_len;
-	     m = m->m_next) {
-		sb->sb_sndptroff += m->m_len;
-		off -= m->m_len;
-	}
-	if (off > 0 && m == NULL)
-		panic("%s: sockbuf %p and mbuf %p clashing", __func__, sb, ret);
-	sb->sb_sndptr = m;
-
-	return (ret);
-}
-
 struct mbuf *
 sbsndptr_noadv(struct sockbuf *sb, uint32_t off, uint32_t *moff)
 {
