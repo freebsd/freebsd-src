@@ -125,7 +125,7 @@ pci_host_generic_acpi_attach(device_t dev)
 	struct generic_pcie_acpi_softc *sc;
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
-	int error;
+	int error, bus_start;
 
 	sc = device_get_softc(dev);
 
@@ -136,10 +136,14 @@ pci_host_generic_acpi_attach(device_t dev)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->base.coherent ? "" : " not");
 
-	if (!ACPI_FAILURE(acpi_GetInteger(handle, "_BBN", &sc->base.ecam)))
-		sc->base.ecam >>= 7;
-	else
+	if (!ACPI_FAILURE(acpi_GetInteger(handle, "_BBN", &bus_start))) {
+		sc->base.ecam = bus_start >> 7;
+		sc->base.bus_start = bus_start & 0x7F;
+	} else {
 		sc->base.ecam = 0;
+		sc->base.bus_start = 0;
+	}
+	sc->base.bus_end = 0xFF;
 
 	acpi_pcib_fetch_prt(dev, &sc->ap_prt);
 
@@ -194,17 +198,12 @@ static int
 generic_pcie_acpi_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
-	ACPI_HANDLE handle;
 	struct generic_pcie_acpi_softc *sc;
-	int secondary_bus;
 
 	sc = device_get_softc(dev);
 
 	if (index == PCIB_IVAR_BUS) {
-		handle = acpi_get_handle(dev);
-		if (ACPI_FAILURE(acpi_GetInteger(handle, "_BBN", &secondary_bus)))
-			secondary_bus = sc->base.ecam * 0x80;
-		*result = secondary_bus;
+		*result = sc->base.ecam * 0x80 + sc->base.bus_start;
 		return (0);
 	}
 

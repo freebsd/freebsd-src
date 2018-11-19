@@ -147,13 +147,14 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 	uint64_t offset;
 	uint32_t data;
 
-	if ((bus > PCI_BUSMAX) || (slot > PCI_SLOTMAX) ||
-	    (func > PCI_FUNCMAX) || (reg > PCIE_REGMAX))
+	sc = device_get_softc(dev);
+	if ((bus < sc->bus_start) || (bus > sc->bus_end))
+		return (~0U);
+	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
+	    (reg > PCIE_REGMAX))
 		return (~0U);
 
-	sc = device_get_softc(dev);
-
-	offset = PCIE_ADDR_OFFSET(bus, slot, func, reg);
+	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 	t = sc->bst;
 	h = sc->bsh;
 
@@ -183,13 +184,14 @@ generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
 	bus_space_tag_t t;
 	uint64_t offset;
 
-	if ((bus > PCI_BUSMAX) || (slot > PCI_SLOTMAX) ||
-	    (func > PCI_FUNCMAX) || (reg > PCIE_REGMAX))
+	sc = device_get_softc(dev);
+	if ((bus < sc->bus_start) || (bus > sc->bus_end))
+		return;
+	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
+	    (reg > PCIE_REGMAX))
 		return;
 
-	sc = device_get_softc(dev);
-
-	offset = PCIE_ADDR_OFFSET(bus, slot, func, reg);
+	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 
 	t = sc->bst;
 	h = sc->bsh;
@@ -221,14 +223,11 @@ generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
 	struct generic_pcie_core_softc *sc;
-	int secondary_bus;
 
 	sc = device_get_softc(dev);
 
 	if (index == PCIB_IVAR_BUS) {
-		/* this pcib adds only pci bus 0 as child */
-		secondary_bus = 0;
-		*result = secondary_bus;
+		*result = sc->bus_start;
 		return (0);
 
 	}
