@@ -2780,6 +2780,16 @@ device_set_devclass_fixed(device_t dev, const char *classname)
 }
 
 /**
+ * @brief Query the device to determine if it's of a fixed devclass
+ * @see device_set_devclass_fixed()
+ */
+bool
+device_is_devclass_fixed(device_t dev)
+{
+	return ((dev->flags & DF_FIXEDCLASS) != 0);
+}
+
+/**
  * @brief Set the driver of a device
  *
  * @retval 0		success
