@@ -1319,6 +1319,13 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     }
 #endif
 
+#ifdef INTRNG
+    /* map with default for now */
+    if (type == SYS_RES_IRQ)
+	start = (rman_res_t)acpi_map_intr(child, (u_int)start,
+			acpi_get_handle(child));
+#endif
+
     /* If the resource is already allocated, fail. */
     if (resource_list_busy(rl, type, rid))
 	return (EBUSY);
