@@ -58,8 +58,22 @@ static int be_create_child_cloned(libbe_handle_t *lbh, const char *active);
 static int
 be_locate_rootfs(libbe_handle_t *lbh)
 {
+	struct statfs sfs;
+	struct extmnttab entry;
 	zfs_handle_t *zfs;
 
+	/*
+	 * Check first if root is ZFS; if not, we'll bail on rootfs capture.
+	 * Unfortunately needed because zfs_path_to_zhandle will emit to
+	 * stderr if / isn't actually a ZFS filesystem, which we'd like
+	 * to avoid.
+	 */
+	if (statfs("/", &sfs) == 0) {
+		statfs2mnttab(&sfs, &entry);
+		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
+			return (1);
+	} else
+		return (1);
 	zfs = zfs_path_to_zhandle(lbh->lzh, "/", ZFS_TYPE_FILESYSTEM);
 	if (zfs == NULL)
 		return (1);
@@ -93,8 +107,11 @@ libbe_init(const char *root)
 	 * Grab rootfs, we'll work backwards from there if an optional BE root
 	 * has not been passed in.
 	 */
-	if (be_locate_rootfs(lbh) != 0)
-		goto err;
+	if (be_locate_rootfs(lbh) != 0) {
+		if (root == NULL)
+			goto err;
+		*lbh->rootfs = '\0';
+	}
 	if (root == NULL) {
 		/* Strip off the final slash from rootfs to get the be root */
 		strlcpy(lbh->root, lbh->rootfs, sizeof(lbh->root));
