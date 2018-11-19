@@ -305,6 +305,7 @@ be_deep_clone_prop(int prop, void *cb)
 	zprop_source_t src;
 	char pval[BE_MAXPATHLEN];
 	char source[BE_MAXPATHLEN];
+	char *val;
 
 	dccb = cb;
 	/* Skip some properties we don't want to touch */
@@ -324,7 +325,15 @@ be_deep_clone_prop(int prop, void *cb)
 	if (src != ZPROP_SRC_LOCAL)
 		return (ZPROP_CONT);
 
-	nvlist_add_string(dccb->props, zfs_prop_to_name(prop), (char *)pval);
+	/* Augment mountpoint with altroot, if needed */
+	val = pval;
+	if (prop == ZFS_PROP_MOUNTPOINT && *dccb->altroot != '\0') {
+		if (pval[strlen(dccb->altroot)] == '\0')
+			strlcpy(pval, "/", sizeof(pval));
+		else
+			val = pval + strlen(dccb->altroot);
+	}
+	nvlist_add_string(dccb->props, zfs_prop_to_name(prop), val);
 
 	return (ZPROP_CONT);
 }
@@ -367,6 +376,10 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 
 	dccb.zhp = ds;
 	dccb.props = props;
+	if (zpool_get_prop(isdc->lbh->active_phandle, ZPOOL_PROP_ALTROOT,
+	    dccb.altroot, sizeof(dccb.altroot), NULL, true) != 0 ||
+	    strcmp(dccb.altroot, "-") == 0)
+		*dccb.altroot = '\0';
 	if (zprop_iter(be_deep_clone_prop, &dccb, B_FALSE, B_FALSE,
 	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL)
 		return (-1);
