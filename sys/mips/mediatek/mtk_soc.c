@@ -401,7 +401,9 @@ extern char cpu_model[];
 void
 mtk_soc_set_cpu_model(void)
 {
-	uint32_t *p_model = (uint32_t *)cpu_model;
+	int idx, offset = sizeof(mtk_soc_chipid0_3);
+	char *chipid0_3 = (char *)(&mtk_soc_chipid0_3);
+	char *chipid4_7 = (char *)(&mtk_soc_chipid4_7);
 
 	/*
 	 * CHIPID is always 2x32 bit registers, containing the ASCII
@@ -411,11 +413,13 @@ mtk_soc_set_cpu_model(void)
 	 * it is left at its default value of "unknown " if it could not be
 	 * obtained for some reason.
 	 */
-	p_model[0] = mtk_soc_chipid0_3;
-	p_model[1] = mtk_soc_chipid4_7;
+	for (idx = 0; idx < offset; idx++) {
+		cpu_model[idx] = chipid0_3[idx];
+		cpu_model[idx + offset] = chipid4_7[idx];
+	}
 
 	/* Null-terminate the string */
-	cpu_model[8] = 0;
+	cpu_model[2 * offset] = 0;
 }
 
 uint32_t
