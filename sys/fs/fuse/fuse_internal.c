@@ -350,7 +350,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		fiov_adjust(cookediov, bytesavail);
 
 		de = (struct dirent *)cookediov->base;
-		de->d_fileno = fudge->ino;	/* XXX: truncation */
+		de->d_fileno = fudge->ino;
 		de->d_reclen = bytesavail;
 		de->d_type = fudge->type;
 		de->d_namlen = fudge->namelen;
