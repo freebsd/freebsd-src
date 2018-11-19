@@ -152,6 +152,9 @@ pci_host_generic_attach(device_t dev)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->base.coherent ? "" : " not");
 
+	/* TODO parse FDT bus ranges */
+	sc->base.bus_start = 0;
+	sc->base.bus_end = 0xFF;
 	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
 		return (error);
