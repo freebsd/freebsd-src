@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
-#include "acpi_bus_if.h"
 #endif
 
 #define	GT_CTRL_ENABLE		(1 << 0)
@@ -340,8 +339,6 @@ static void
 arm_tmr_acpi_add_irq(device_t parent, device_t dev, int rid, u_int irq)
 {
 
-	irq = ACPI_BUS_MAP_INTR(parent, dev, irq,
-		INTR_TRIGGER_LEVEL, INTR_POLARITY_HIGH);
 	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, rid, irq, 1);
 }
 
