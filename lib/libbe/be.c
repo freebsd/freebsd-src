@@ -74,7 +74,7 @@ be_locate_rootfs(libbe_handle_t *lbh)
  * dataset, for example, zroot/ROOT.
  */
 libbe_handle_t *
-libbe_init(void)
+libbe_init(const char *root)
 {
 	libbe_handle_t *lbh;
 	char *poolname, *pos;
@@ -89,16 +89,21 @@ libbe_init(void)
 	if ((lbh->lzh = libzfs_init()) == NULL)
 		goto err;
 
-	/* Grab rootfs, we'll work backwards from there */
+	/*
+	 * Grab rootfs, we'll work backwards from there if an optional BE root
+	 * has not been passed in.
+	 */
 	if (be_locate_rootfs(lbh) != 0)
 		goto err;
-
-	/* Strip off the final slash from the rootfs to get the be root */
-	strlcpy(lbh->root, lbh->rootfs, sizeof(lbh->root));
-	pos = strrchr(lbh->root, '/');
-	if (pos == NULL)
-		goto err;
-	*pos = '\0';
+	if (root == NULL) {
+		/* Strip off the final slash from rootfs to get the be root */
+		strlcpy(lbh->root, lbh->rootfs, sizeof(lbh->root));
+		pos = strrchr(lbh->root, '/');
+		if (pos == NULL)
+			goto err;
+		*pos = '\0';
+	} else
+		strlcpy(lbh->root, root, sizeof(lbh->root));
 
 	if ((pos = strchr(lbh->root, '/')) == NULL)
 		goto err;
