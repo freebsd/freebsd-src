@@ -42,7 +42,10 @@ const char *
 be_active_name(libbe_handle_t *lbh)
 {
 
-	return (strrchr(lbh->rootfs, '/') + sizeof(char));
+	if (*lbh->rootfs != '\0')
+		return (strrchr(lbh->rootfs, '/') + sizeof(char));
+	else
+		return (lbh->rootfs);
 }
 
 
@@ -63,7 +66,10 @@ const char *
 be_nextboot_name(libbe_handle_t *lbh)
 {
 
-	return (strrchr(lbh->bootfs, '/') + sizeof(char));
+	if (*lbh->bootfs != '\0')
+		return (strrchr(lbh->bootfs, '/') + sizeof(char));
+	else
+		return (lbh->bootfs);
 }
 
 
