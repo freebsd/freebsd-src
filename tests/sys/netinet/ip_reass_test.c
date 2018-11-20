@@ -264,6 +264,8 @@ ATF_TC_BODY(ip_reass__multiple_last_fragments, tc)
 	ATF_REQUIRE(error == 0);
 	free_lopacket(packet1);
 	free_lopacket(packet2);
+	free_lopacket(packet3);
+	free_lopacket(packet4);
 }
 
 /*
