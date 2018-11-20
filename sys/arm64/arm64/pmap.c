@@ -2382,8 +2382,40 @@ pmap_pv_insert_l2(pmap_t pmap, vm_offset_t va, pd_entry_t l2e, u_int flags,
 	return (true);
 }
 
+static void
+pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
+{
+	pt_entry_t newl2, oldl2;
+	vm_page_t ml3;
+	vm_paddr_t ml3pa;
+
+	KASSERT(!VIRT_IN_DMAP(va), ("removing direct mapping of %#lx", va));
+	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	ml3 = pmap_remove_pt_page(pmap, va);
+	if (ml3 == NULL)
+		panic("pmap_remove_kernel_l2: Missing pt page");
+
+	ml3pa = VM_PAGE_TO_PHYS(ml3);
+	newl2 = ml3pa | L2_TABLE;
+
+	/*
+	 * Initialize the page table page.
+	 */
+	pagezero((void *)PHYS_TO_DMAP(ml3pa));
+
+	/*
+	 * Demote the mapping.  The caller must have already invalidated the
+	 * mapping (i.e., the "break" in break-before-make).
+	 */
+	oldl2 = pmap_load_store(l2, newl2);
+	KASSERT(oldl2 == 0, ("%s: found existing mapping at %p: %#lx",
+	    __func__, l2, oldl2));
+}
+
 /*
- * pmap_remove_l2: do the things to unmap a level 2 superpage in a process
+ * pmap_remove_l2: Do the things to unmap a level 2 superpage.
  */
 static int
 pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
@@ -2419,16 +2451,18 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
 	}
-	KASSERT(pmap != kernel_pmap,
-	    ("Attempting to remove an l2 kernel page"));
-	ml3 = pmap_remove_pt_page(pmap, sva);
-	if (ml3 != NULL) {
-		pmap_resident_count_dec(pmap, 1);
-		KASSERT(ml3->wire_count == NL3PG,
-		    ("pmap_remove_l2: l3 page wire count error"));
-		ml3->wire_count = 1;
-		vm_page_unwire_noq(ml3);
-		pmap_add_delayed_free_list(ml3, free, FALSE);
+	if (pmap == kernel_pmap) {
+		pmap_remove_kernel_l2(pmap, l2, sva);
+	} else {
+		ml3 = pmap_remove_pt_page(pmap, sva);
+		if (ml3 != NULL) {
+			pmap_resident_count_dec(pmap, 1);
+			KASSERT(ml3->wire_count == NL3PG,
+			    ("pmap_remove_l2: l3 page wire count error"));
+			ml3->wire_count = 1;
+			vm_page_unwire_noq(ml3);
+			pmap_add_delayed_free_list(ml3, free, FALSE);
+		}
 	}
 	return (pmap_unuse_pt(pmap, sva, l1e, free));
 }
