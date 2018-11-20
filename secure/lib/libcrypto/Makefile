@@ -16,9 +16,9 @@ NO_LINT=
 .endif
 .include "Makefile.inc"
 
-SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c init.c mem.c
-SRCS+=	mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c o_str.c
-SRCS+=	o_time.c threads_pthread.c uid.c
+SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c getenv.c init.c
+SRCS+=	mem.c mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c
+SRCS+=	o_str.c o_time.c threads_pthread.c uid.c
 .if defined(ASM_aarch64)
 SRCS+=	arm64cpuid.S armcap.c
 ACFLAGS.arm64cpuid.S=	-march=armv8-a+crypto

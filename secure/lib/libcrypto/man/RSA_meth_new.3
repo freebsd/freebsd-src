@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA_METH_NEW 3"
-.TH RSA_METH_NEW 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH RSA_METH_NEW 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -185,10 +185,10 @@ RSA_meth_get0_app_data, RSA_meth_set0_app_data, RSA_meth_new, RSA_meth_free, RSA
 \&                                           unsigned char *to, RSA *rsa, int padding));
 \&
 \& /* Can be null */
-\& int (*RSA_meth_get_mod_exp(const RSA_METHOD *meth))(BIGNUM *r0, const BIGNUM *I,
+\& int (*RSA_meth_get_mod_exp(const RSA_METHOD *meth))(BIGNUM *r0, const BIGNUM *i,
 \&                                                     RSA *rsa, BN_CTX *ctx);
 \& int RSA_meth_set_mod_exp(RSA_METHOD *rsa,
-\&                          int (*mod_exp)(BIGNUM *r0, const BIGNUM *I, RSA *rsa,
+\&                          int (*mod_exp)(BIGNUM *r0, const BIGNUM *i, RSA *rsa,
 \&                                         BN_CTX *ctx));
 \&
 \& /* Can be null */
