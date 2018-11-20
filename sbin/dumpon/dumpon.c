@@ -475,12 +475,15 @@ main(int argc, char *argv[])
 		if (inet_aton(client, &ndconf.ndc_client) == 0)
 			errx(EX_USAGE, "invalid client address '%s'", client);
 
-		gateway = find_gateway(argv[0]);
 		if (gateway == NULL) {
-			if (verbose)
-				printf("failed to look up gateway for %s\n",
-				    server);
-			gateway = server;
+			gateway = find_gateway(argv[0]);
+			if (gateway == NULL) {
+				if (verbose)
+					printf(
+				    "failed to look up gateway for %s\n",
+					    server);
+				gateway = server;
+			}
 		}
 		if (inet_aton(gateway, &ndconf.ndc_gateway) == 0)
 			errx(EX_USAGE, "invalid gateway address '%s'", gateway);
