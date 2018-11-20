@@ -129,13 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_AES 3"
-.TH EVP_AES 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_AES 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_aes_128_cbc, EVP_aes_192_cbc, EVP_aes_256_cbc, EVP_aes_128_cfb, EVP_aes_192_cfb, EVP_aes_256_cfb, EVP_aes_128_cfb1, EVP_aes_192_cfb1, EVP_aes_256_cfb1, EVP_aes_128_cfb8, EVP_aes_192_cfb8, EVP_aes_256_cfb8, EVP_aes_128_ctr, EVP_aes_192_ctr, EVP_aes_256_ctr, EVP_aes_128_ecb, EVP_aes_192_ecb, EVP_aes_256_ecb, EVP_aes_128_ofb, EVP_aes_192_ofb, EVP_aes_256_ofb, EVP_aes_128_cbc_hmac_sha1, EVP_aes_256_cbc_hmac_sha1, EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256, EVP_aes_128_ccm, EVP_aes_192_ccm, EVP_aes_256_ccm, EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm, EVP_aes_128_ocb, EVP_aes_192_ocb, EVP_aes_256_ocb, EVP_aes_128_wrap, EVP_aes_192_wrap, EVP_aes_256_wrap, EVP_aes_128_wrap_pad, EVP_aes_192_wrap_pad, EVP_aes_256_wrap_pad, EVP_aes_128_xts, EVP_aes_256_xts \&\- EVP AES cipher
+EVP_aes_128_cbc, EVP_aes_192_cbc, EVP_aes_256_cbc, EVP_aes_128_cfb, EVP_aes_192_cfb, EVP_aes_256_cfb, EVP_aes_128_cfb1, EVP_aes_192_cfb1, EVP_aes_256_cfb1, EVP_aes_128_cfb8, EVP_aes_192_cfb8, EVP_aes_256_cfb8, EVP_aes_128_cfb128, EVP_aes_192_cfb128, EVP_aes_256_cfb128, EVP_aes_128_ctr, EVP_aes_192_ctr, EVP_aes_256_ctr, EVP_aes_128_ecb, EVP_aes_192_ecb, EVP_aes_256_ecb, EVP_aes_128_ofb, EVP_aes_192_ofb, EVP_aes_256_ofb, EVP_aes_128_cbc_hmac_sha1, EVP_aes_256_cbc_hmac_sha1, EVP_aes_128_cbc_hmac_sha256, EVP_aes_256_cbc_hmac_sha256, EVP_aes_128_ccm, EVP_aes_192_ccm, EVP_aes_256_ccm, EVP_aes_128_gcm, EVP_aes_192_gcm, EVP_aes_256_gcm, EVP_aes_128_ocb, EVP_aes_192_ocb, EVP_aes_256_ocb, EVP_aes_128_wrap, EVP_aes_192_wrap, EVP_aes_256_wrap, EVP_aes_128_wrap_pad, EVP_aes_192_wrap_pad, EVP_aes_256_wrap_pad, EVP_aes_128_xts, EVP_aes_256_xts \&\- EVP AES cipher
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -149,8 +149,8 @@ functions, such as \fIEVP_aes_128_cbc\fR.
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 The \s-1AES\s0 encryption algorithm for \s-1EVP.\s0
-.IP "\fIEVP_aes_128_cbc()\fR, \fIEVP_aes_192_cbc()\fR, \fIEVP_aes_256_cbc()\fR, \fIEVP_aes_128_cfb()\fR, \fIEVP_aes_192_cfb()\fR, \fIEVP_aes_256_cfb()\fR, \fIEVP_aes_128_cfb1()\fR, \fIEVP_aes_192_cfb1()\fR, \fIEVP_aes_256_cfb1()\fR, \fIEVP_aes_128_cfb8()\fR, \fIEVP_aes_192_cfb8()\fR, \fIEVP_aes_256_cfb8()\fR, \fIEVP_aes_128_ctr()\fR, \fIEVP_aes_192_ctr()\fR, \fIEVP_aes_256_ctr()\fR, \fIEVP_aes_128_ecb()\fR, \fIEVP_aes_192_ecb()\fR, \fIEVP_aes_256_ecb()\fR, \fIEVP_aes_128_ofb()\fR, \fIEVP_aes_192_ofb()\fR, \fIEVP_aes_256_ofb()\fR" 4
-.IX Item "EVP_aes_128_cbc(), EVP_aes_192_cbc(), EVP_aes_256_cbc(), EVP_aes_128_cfb(), EVP_aes_192_cfb(), EVP_aes_256_cfb(), EVP_aes_128_cfb1(), EVP_aes_192_cfb1(), EVP_aes_256_cfb1(), EVP_aes_128_cfb8(), EVP_aes_192_cfb8(), EVP_aes_256_cfb8(), EVP_aes_128_ctr(), EVP_aes_192_ctr(), EVP_aes_256_ctr(), EVP_aes_128_ecb(), EVP_aes_192_ecb(), EVP_aes_256_ecb(), EVP_aes_128_ofb(), EVP_aes_192_ofb(), EVP_aes_256_ofb()"
+.IP "\fIEVP_aes_128_cbc()\fR, \fIEVP_aes_192_cbc()\fR, \fIEVP_aes_256_cbc()\fR, \fIEVP_aes_128_cfb()\fR, \fIEVP_aes_192_cfb()\fR, \fIEVP_aes_256_cfb()\fR, \fIEVP_aes_128_cfb1()\fR, \fIEVP_aes_192_cfb1()\fR, \fIEVP_aes_256_cfb1()\fR, \fIEVP_aes_128_cfb8()\fR, \fIEVP_aes_192_cfb8()\fR, \fIEVP_aes_256_cfb8()\fR, \fIEVP_aes_128_cfb128()\fR, \fIEVP_aes_192_cfb128()\fR, \fIEVP_aes_256_cfb128()\fR, \fIEVP_aes_128_ctr()\fR, \fIEVP_aes_192_ctr()\fR, \fIEVP_aes_256_ctr()\fR, \fIEVP_aes_128_ecb()\fR, \fIEVP_aes_192_ecb()\fR, \fIEVP_aes_256_ecb()\fR, \fIEVP_aes_128_ofb()\fR, \fIEVP_aes_192_ofb()\fR, \fIEVP_aes_256_ofb()\fR" 4
+.IX Item "EVP_aes_128_cbc(), EVP_aes_192_cbc(), EVP_aes_256_cbc(), EVP_aes_128_cfb(), EVP_aes_192_cfb(), EVP_aes_256_cfb(), EVP_aes_128_cfb1(), EVP_aes_192_cfb1(), EVP_aes_256_cfb1(), EVP_aes_128_cfb8(), EVP_aes_192_cfb8(), EVP_aes_256_cfb8(), EVP_aes_128_cfb128(), EVP_aes_192_cfb128(), EVP_aes_256_cfb128(), EVP_aes_128_ctr(), EVP_aes_192_ctr(), EVP_aes_256_ctr(), EVP_aes_128_ecb(), EVP_aes_192_ecb(), EVP_aes_256_ecb(), EVP_aes_128_ofb(), EVP_aes_192_ofb(), EVP_aes_256_ofb()"
 \&\s-1AES\s0 for 128, 192 and 256 bit keys in the following modes: \s-1CBC, CFB\s0 with 128\-bit
 shift, \s-1CFB\s0 with 1\-bit shift, \s-1CFB\s0 with 8\-bit shift, \s-1CTR, ECB,\s0 and \s-1OFB.\s0
 .IP "\fIEVP_aes_128_cbc_hmac_sha1()\fR, \fIEVP_aes_256_cbc_hmac_sha1()\fR" 4
@@ -204,7 +204,7 @@ details of the \fB\s-1EVP_CIPHER\s0\fR structure.
 \&\fIEVP_CIPHER_meth_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

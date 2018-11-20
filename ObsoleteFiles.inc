@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181120: OpenSSL 1.1.1a
+OLD_FILES+=usr/share/openssl/man/man3/SSL_CTX_add_client_CA.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_CTX_get_client_CA_list.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_CTX_set_client_CA_list.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_add_client_CA.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_get_client_CA_list.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_get_server_tmp_key.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_set_client_CA_list.3.gz
 # 20181030: malloc_domain(9) KPI change
 OLD_FILES+=share/man/man9/malloc_domain.9.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
