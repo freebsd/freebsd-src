@@ -511,9 +511,8 @@ retry:
 	size = round_page(size);
 	buffer = (caddr_t) vm_map_min(pipe_map);
 
-	error = vm_map_find(pipe_map, NULL, 0,
-		(vm_offset_t *) &buffer, size, 0, VMFS_ANY_SPACE,
-		VM_PROT_ALL, VM_PROT_ALL, 0);
+	error = vm_map_find(pipe_map, NULL, 0, (vm_offset_t *)&buffer, size, 0,
+	    VMFS_ANY_SPACE, VM_PROT_RW, VM_PROT_RW, 0);
 	if (error != KERN_SUCCESS) {
 		if ((cpipe->pipe_buffer.buffer == NULL) &&
 			(size > SMALL_PIPE_SIZE)) {
