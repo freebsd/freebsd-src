@@ -20,8 +20,8 @@ MAN+=	config.5 des_modes.7
 .endif
 
 # base sources
-SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c mem.c mem_dbg.c o_dir.c \
-	o_fips.c o_init.c o_str.c o_time.c uid.c
+SRCS=	cpt_err.c cryptlib.c cversion.c ex_data.c getenv.c mem.c mem_dbg.c \
+	o_dir.c o_fips.c o_init.c o_str.c o_time.c uid.c
 .if defined(ASM_aarch64)
 SRCS+=	arm64cpuid.S armcap.c mem_clr.c
 ACFLAGS.arm64cpuid.S=	-march=armv8-a+crypto
