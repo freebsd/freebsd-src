@@ -142,6 +142,7 @@ static int relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
     int flags, RtldLockState *lockstate);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
     RtldLockState *);
+static int resolve_object_ifunc(Obj_Entry *, bool, int, RtldLockState *);
 static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
     int flags, RtldLockState *lockstate);
 static int rtld_dirname(const char *, char *);
@@ -2885,9 +2886,11 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	if (reloc_plt(obj) == -1)
 		return (-1);
 	/* Relocate the jump slots if we are doing immediate binding. */
-	if (obj->bind_now || bind_now)
-		if (reloc_jmpslots(obj, flags, lockstate) == -1)
+	if (obj->bind_now || bind_now) {
+		if (reloc_jmpslots(obj, flags, lockstate) == -1 ||
+		    resolve_object_ifunc(obj, true, flags, lockstate) == -1)
 			return (-1);
+	}
 
 	/*
 	 * Process the non-PLT IFUNC relocations.  The relocations are
