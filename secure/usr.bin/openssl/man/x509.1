@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509 1"
-.TH X509 1 "2018-09-11" "1.1.1" "OpenSSL"
+.TH X509 1 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -140,8 +140,8 @@ openssl\-x509, x509 \- Certificate display and signing utility
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBx509\fR
 [\fB\-help\fR]
-[\fB\-inform DER|PEM|NET\fR]
-[\fB\-outform DER|PEM|NET\fR]
+[\fB\-inform DER|PEM\fR]
+[\fB\-outform DER|PEM\fR]
 [\fB\-keyform DER|PEM\fR]
 [\fB\-CAform DER|PEM\fR]
 [\fB\-CAkeyform DER|PEM\fR]
@@ -212,16 +212,15 @@ various sections.
 .IP "\fB\-help\fR" 4
 .IX Item "-help"
 Print out a usage message.
-.IP "\fB\-inform DER|PEM|NET\fR" 4
-.IX Item "-inform DER|PEM|NET"
+.IP "\fB\-inform DER|PEM\fR" 4
+.IX Item "-inform DER|PEM"
 This specifies the input format normally the command will expect an X509
 certificate but this can change if other options such as \fB\-req\fR are
 present. The \s-1DER\s0 format is the \s-1DER\s0 encoding of the certificate and \s-1PEM\s0
 is the base64 encoding of the \s-1DER\s0 encoding with header and footer lines
-added. The \s-1NET\s0 option is an obscure Netscape server format that is now
-obsolete. The default format is \s-1PEM.\s0
-.IP "\fB\-outform DER|PEM|NET\fR" 4
-.IX Item "-outform DER|PEM|NET"
+added. The default format is \s-1PEM.\s0
+.IP "\fB\-outform DER|PEM\fR" 4
+.IX Item "-outform DER|PEM"
 This specifies the output format, the options have the same meaning and default
 as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4

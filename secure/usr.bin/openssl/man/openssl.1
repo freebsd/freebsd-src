@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL 1"
-.TH OPENSSL 1 "2018-09-11" "1.1.1" "OpenSSL"
+.TH OPENSSL 1 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -171,6 +171,9 @@ It can be used for
 The \fBopenssl\fR program provides a rich variety of commands (\fIcommand\fR in the
 \&\s-1SYNOPSIS\s0 above), each of which often has a wealth of options and arguments
 (\fIcommand_opts\fR and \fIcommand_args\fR in the \s-1SYNOPSIS\s0).
+.PP
+Detailed documentation and use cases for most standard subcommands are available
+(e.g., \fIx509\fR\|(1) or \fIopenssl\-x509\fR\|(1)).
 .PP
 Many commands use an external configuration file for some or all of their
 arguments and have a \fB\-config\fR option to specify that file.
@@ -427,18 +430,53 @@ BLAKE2s\-256 Digest
 \&\s-1SM3\s0 Digest
 .SS "Encoding and Cipher Commands"
 .IX Subsection "Encoding and Cipher Commands"
+The following aliases provide convenient access to the most used encodings
+and ciphers.
+.PP
+Depending on how OpenSSL was configured and built, not all ciphers listed
+here may be present. See \fIenc\fR\|(1) for more information and command usage.
+.IP "\fBaes128\fR, \fBaes\-128\-cbc\fR, \fBaes\-128\-cfb\fR, \fBaes\-128\-ctr\fR, \fBaes\-128\-ecb\fR, \fBaes\-128\-ofb\fR" 4
+.IX Item "aes128, aes-128-cbc, aes-128-cfb, aes-128-ctr, aes-128-ecb, aes-128-ofb"
+\&\s-1AES\-128\s0 Cipher
+.IP "\fBaes192\fR, \fBaes\-192\-cbc\fR, \fBaes\-192\-cfb\fR, \fBaes\-192\-ctr\fR, \fBaes\-192\-ecb\fR, \fBaes\-192\-ofb\fR" 4
+.IX Item "aes192, aes-192-cbc, aes-192-cfb, aes-192-ctr, aes-192-ecb, aes-192-ofb"
+\&\s-1AES\-192\s0 Cipher
+.IP "\fBaes256\fR, \fBaes\-256\-cbc\fR, \fBaes\-256\-cfb\fR, \fBaes\-256\-ctr\fR, \fBaes\-256\-ecb\fR, \fBaes\-256\-ofb\fR" 4
+.IX Item "aes256, aes-256-cbc, aes-256-cfb, aes-256-ctr, aes-256-ecb, aes-256-ofb"
+\&\s-1AES\-256\s0 Cipher
+.IP "\fBaria128\fR, \fBaria\-128\-cbc\fR, \fBaria\-128\-cfb\fR, \fBaria\-128\-ctr\fR, \fBaria\-128\-ecb\fR, \fBaria\-128\-ofb\fR" 4
+.IX Item "aria128, aria-128-cbc, aria-128-cfb, aria-128-ctr, aria-128-ecb, aria-128-ofb"
+Aria\-128 Cipher
+.IP "\fBaria192\fR, \fBaria\-192\-cbc\fR, \fBaria\-192\-cfb\fR, \fBaria\-192\-ctr\fR, \fBaria\-192\-ecb\fR, \fBaria\-192\-ofb\fR" 4
+.IX Item "aria192, aria-192-cbc, aria-192-cfb, aria-192-ctr, aria-192-ecb, aria-192-ofb"
+Aria\-192 Cipher
+.IP "\fBaria256\fR, \fBaria\-256\-cbc\fR, \fBaria\-256\-cfb\fR, \fBaria\-256\-ctr\fR, \fBaria\-256\-ecb\fR, \fBaria\-256\-ofb\fR" 4
+.IX Item "aria256, aria-256-cbc, aria-256-cfb, aria-256-ctr, aria-256-ecb, aria-256-ofb"
+Aria\-256 Cipher
 .IP "\fBbase64\fR" 4
 .IX Item "base64"
 Base64 Encoding
 .IP "\fBbf\fR, \fBbf-cbc\fR, \fBbf-cfb\fR, \fBbf-ecb\fR, \fBbf-ofb\fR" 4
 .IX Item "bf, bf-cbc, bf-cfb, bf-ecb, bf-ofb"
 Blowfish Cipher
+.IP "\fBcamellia128\fR, \fBcamellia\-128\-cbc\fR, \fBcamellia\-128\-cfb\fR, \fBcamellia\-128\-ctr\fR, \fBcamellia\-128\-ecb\fR, \fBcamellia\-128\-ofb\fR" 4
+.IX Item "camellia128, camellia-128-cbc, camellia-128-cfb, camellia-128-ctr, camellia-128-ecb, camellia-128-ofb"
+Camellia\-128 Cipher
+.IP "\fBcamellia192\fR, \fBcamellia\-192\-cbc\fR, \fBcamellia\-192\-cfb\fR, \fBcamellia\-192\-ctr\fR, \fBcamellia\-192\-ecb\fR, \fBcamellia\-192\-ofb\fR" 4
+.IX Item "camellia192, camellia-192-cbc, camellia-192-cfb, camellia-192-ctr, camellia-192-ecb, camellia-192-ofb"
+Camellia\-192 Cipher
+.IP "\fBcamellia256\fR, \fBcamellia\-256\-cbc\fR, \fBcamellia\-256\-cfb\fR, \fBcamellia\-256\-ctr\fR, \fBcamellia\-256\-ecb\fR, \fBcamellia\-256\-ofb\fR" 4
+.IX Item "camellia256, camellia-256-cbc, camellia-256-cfb, camellia-256-ctr, camellia-256-ecb, camellia-256-ofb"
+Camellia\-256 Cipher
 .IP "\fBcast\fR, \fBcast-cbc\fR" 4
 .IX Item "cast, cast-cbc"
 \&\s-1CAST\s0 Cipher
 .IP "\fBcast5\-cbc\fR, \fBcast5\-cfb\fR, \fBcast5\-ecb\fR, \fBcast5\-ofb\fR" 4
 .IX Item "cast5-cbc, cast5-cfb, cast5-ecb, cast5-ofb"
 \&\s-1CAST5\s0 Cipher
+.IP "\fBchacha20\fR" 4
+.IX Item "chacha20"
+Chacha20 Cipher
 .IP "\fBdes\fR, \fBdes-cbc\fR, \fBdes-cfb\fR, \fBdes-ecb\fR, \fBdes-ede\fR, \fBdes-ede-cbc\fR, \fBdes-ede-cfb\fR, \fBdes-ede-ofb\fR, \fBdes-ofb\fR" 4
 .IX Item "des, des-cbc, des-cfb, des-ecb, des-ede, des-ede-cbc, des-ede-cfb, des-ede-ofb, des-ofb"
 \&\s-1DES\s0 Cipher
@@ -457,6 +495,12 @@ Triple-DES Cipher
 .IP "\fBrc5\fR, \fBrc5\-cbc\fR, \fBrc5\-cfb\fR, \fBrc5\-ecb\fR, \fBrc5\-ofb\fR" 4
 .IX Item "rc5, rc5-cbc, rc5-cfb, rc5-ecb, rc5-ofb"
 \&\s-1RC5\s0 Cipher
+.IP "\fBseed\fR, \fBseed-cbc\fR, \fBseed-cfb\fR, \fBseed-ecb\fR, \fBseed-ofb\fR" 4
+.IX Item "seed, seed-cbc, seed-cfb, seed-ecb, seed-ofb"
+\&\s-1SEED\s0 Cipher
+.IP "\fBsm4\fR, \fBsm4\-cbc\fR, \fBsm4\-cfb\fR, \fBsm4\-ctr\fR, \fBsm4\-ecb\fR, \fBsm4\-ofb\fR" 4
+.IX Item "sm4, sm4-cbc, sm4-cfb, sm4-ctr, sm4-ecb, sm4-ofb"
+\&\s-1SM4\s0 Cipher
 .SH "OPTIONS"
 .IX Header "OPTIONS"
 Details of which options are available depend on the specific command.
