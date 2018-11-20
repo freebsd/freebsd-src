@@ -29,6 +29,3 @@ ORG=	0x9000
 LDFLAGS+=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.btx.S=		${CLANG_NO_IAS}
