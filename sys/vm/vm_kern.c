@@ -650,8 +650,8 @@ kmap_alloc_wait(vm_map_t map, vm_size_t size)
 		map->needs_wakeup = TRUE;
 		vm_map_unlock_and_wait(map, 0);
 	}
-	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_ALL,
-	    VM_PROT_ALL, MAP_ACC_CHARGED);
+	vm_map_insert(map, NULL, 0, addr, addr + size, VM_PROT_RW, VM_PROT_RW,
+	    MAP_ACC_CHARGED);
 	vm_map_unlock(map);
 	return (addr);
 }
