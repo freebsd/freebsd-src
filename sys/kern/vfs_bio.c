@@ -1656,7 +1656,7 @@ buf_alloc(struct bufdomain *bd)
 	if (freebufs > 0)
 		bp = uma_zalloc(buf_zone, M_NOWAIT);
 	if (bp == NULL) {
-		atomic_fetchadd_int(&bd->bd_freebuffers, 1);
+		atomic_add_int(&bd->bd_freebuffers, 1);
 		bufspace_daemon_wakeup(bd);
 		counter_u64_add(numbufallocfails, 1);
 		return (NULL);
