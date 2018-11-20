@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_CTX_SET_RSA_PSS_KEYGEN_MD 3"
-.TH EVP_PKEY_CTX_SET_RSA_PSS_KEYGEN_MD 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_PKEY_CTX_SET_RSA_PSS_KEYGEN_MD 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -161,7 +161,7 @@ The \fIEVP_PKEY_CTX_set_rsa_pss_saltlen()\fR macro is used to set the salt lengt
 If the key has usage restrictions then an error is returned if an attempt is
 made to set the salt length below the minimum value. It is otherwise similar
 to the \fB\s-1RSA\s0\fR operation except detection of the salt length (using
-\&\s-1RSA_PSS_SALTLEN_AUTO\s0 is not supported for verification if the key has
+\&\s-1RSA_PSS_SALTLEN_AUTO\s0) is not supported for verification if the key has
 usage restrictions.
 .PP
 The \fIEVP_PKEY_CTX_set_signature_md()\fR and \fIEVP_PKEY_CTX_set_rsa_mgf1_md()\fR macros
@@ -171,7 +171,7 @@ digest to anything other than the restricted value. Otherwise these are
 similar to the \fB\s-1RSA\s0\fR versions.
 .SS "Key Generation"
 .IX Subsection "Key Generation"
-As with \s-1RSA\s0 key generation the \fIEVP_PKEY_CTX_set_rsa_rsa_keygen_bits()\fR
+As with \s-1RSA\s0 key generation the \fIEVP_PKEY_CTX_set_rsa_keygen_bits()\fR
 and \fIEVP_PKEY_CTX_set_rsa_keygen_pubexp()\fR macros are supported for RSA-PSS:
 they have exactly the same meaning as for the \s-1RSA\s0 algorithm.
 .PP
