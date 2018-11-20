@@ -105,7 +105,7 @@ enum sata_fis_type {
  * ATA commands
  */
 #define	ATA_SF_ENAB_SATA_SF		0x10
-#define		ATA_SATA_SF_AN		0x05
+#define	ATA_SATA_SF_AN			0x05
 #define	ATA_SF_DIS_SATA_SF		0x90
 
 /*
@@ -118,6 +118,8 @@ static FILE *dbg;
 #define DPRINTF(format, arg...)
 #endif
 #define WPRINTF(format, arg...) printf(format, ##arg)
+
+#define AHCI_PORT_IDENT 20 + 1
 
 struct ahci_ioreq {
 	struct blockif_req io_req;
@@ -136,7 +138,7 @@ struct ahci_port {
 	struct pci_ahci_softc *pr_sc;
 	uint8_t *cmd_lst;
 	uint8_t *rfis;
-	char ident[20 + 1];
+	char ident[AHCI_PORT_IDENT];
 	int port;
 	int atapi;
 	int reset;
@@ -2374,7 +2376,8 @@ pci_ahci_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts, int atapi)
 		MD5Init(&mdctx);
 		MD5Update(&mdctx, opts, strlen(opts));
 		MD5Final(digest, &mdctx);
-		sprintf(sc->port[p].ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+		snprintf(sc->port[p].ident, AHCI_PORT_IDENT,
+		    "BHYVE-%02X%02X-%02X%02X-%02X%02X",
 		    digest[0], digest[1], digest[2], digest[3], digest[4],
 		    digest[5]);
 
