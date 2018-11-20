@@ -452,82 +452,112 @@ END(memcpy_erms)
  */
 .macro MEMSET erms
 	PUSH_FRAME_POINTER
-	movq	%rdi,%r9
+	movq	%rdi,%rax
 	movq	%rdx,%rcx
 	movzbq	%sil,%r8
-	movabs	$0x0101010101010101,%rax
-	imulq	%r8,%rax
+	movabs	$0x0101010101010101,%r10
+	imulq	%r8,%r10
 
 	cmpq	$32,%rcx
-	jb	1016f
+	jbe	101632f
 
 	cmpq	$256,%rcx
 	ja	1256f
 
-1032:
-	movq	%rax,(%rdi)
-	movq	%rax,8(%rdi)
-	movq	%rax,16(%rdi)
-	movq	%rax,24(%rdi)
+103200:
+	movq	%r10,(%rdi)
+	movq	%r10,8(%rdi)
+	movq	%r10,16(%rdi)
+	movq	%r10,24(%rdi)
 	leaq	32(%rdi),%rdi
 	subq	$32,%rcx
 	cmpq	$32,%rcx
-	jae	1032b
-	cmpb	$0,%cl
-	je	1000f
-1016:
+	ja	103200b
 	cmpb	$16,%cl
-	jl	1008f
-	movq	%rax,(%rdi)
-	movq	%rax,8(%rdi)
-	subb	$16,%cl
-	jz	1000f
-	leaq	16(%rdi),%rdi
-1008:
+	ja	201632f
+	movq	%r10,-16(%rdi,%rcx)
+	movq	%r10,-8(%rdi,%rcx)
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+101632:
+	cmpb	$16,%cl
+	jl	100816f
+201632:
+	movq	%r10,(%rdi)
+	movq	%r10,8(%rdi)
+	movq	%r10,-16(%rdi,%rcx)
+	movq	%r10,-8(%rdi,%rcx)
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+100816:
 	cmpb	$8,%cl
-	jl	1004f
-	movq	%rax,(%rdi)
-	subb	$8,%cl
-	jz	1000f
-	leaq	8(%rdi),%rdi
-1004:
+	jl	100408f
+	movq	%r10,(%rdi)
+	movq	%r10,-8(%rdi,%rcx)
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+100408:
 	cmpb	$4,%cl
-	jl	1002f
-	movl	%eax,(%rdi)
-	subb	$4,%cl
-	jz	1000f
-	leaq	4(%rdi),%rdi
-1002:
+	jl	100204f
+	movl	%r10d,(%rdi)
+	movl	%r10d,-4(%rdi,%rcx)
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+100204:
 	cmpb	$2,%cl
-	jl	1001f
-	movw	%ax,(%rdi)
-	subb	$2,%cl
-	jz	1000f
-	leaq	2(%rdi),%rdi
-1001:
-	cmpb	$1,%cl
-	jl	1000f
-	movb	%al,(%rdi)
-1000:
-	movq	%r9,%rax
+	jl	100001f
+	movw	%r10w,(%rdi)
+	movw	%r10w,-2(%rdi,%rcx)
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+100001:
+	cmpb	$0,%cl
+	je	100000f
+	movb	%r10b,(%rdi)
+100000:
 	POP_FRAME_POINTER
 	ret
 	ALIGN_TEXT
 1256:
+	movq	%rdi,%r9
+	movq	%r10,%rax
+	testl	$15,%edi
+	jnz	3f
+1:
 .if \erms == 1
 	rep
 	stosb
+	movq	%r9,%rax
 .else
+	movq	%rcx,%rdx
 	shrq	$3,%rcx
 	rep
 	stosq
-	movq	%rdx,%rcx
-	andb	$7,%cl
-	jne	1004b
-.endif
 	movq	%r9,%rax
+	andl	$7,%edx
+	jnz	2f
 	POP_FRAME_POINTER
 	ret
+2:
+	movq	%r10,-8(%rdi,%rdx)
+.endif
+	POP_FRAME_POINTER
+	ret
+	ALIGN_TEXT
+3:
+	movq	%r10,(%rdi)
+	movq	%r10,8(%rdi)
+	movq	%rdi,%r8
+	andq	$15,%r8
+	leaq	-16(%rcx,%r8),%rcx
+	neg	%r8
+	leaq	16(%rdi,%r8),%rdi
+	jmp	1b
 .endm
 
 ENTRY(memset_std)
