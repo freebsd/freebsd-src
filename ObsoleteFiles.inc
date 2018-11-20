@@ -38,6 +38,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181120: OpenSSL 1.1.1a
+OLD_FILES+=usr/share/openssl/man/man3/SSL_CTX_add_client_CA.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_CTX_get_client_CA_list.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_CTX_set_client_CA_list.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_add_client_CA.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_get_client_CA_list.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_get_server_tmp_key.3.gz
+OLD_FILES+=usr/share/openssl/man/man3/SSL_set_client_CA_list.3.gz
 # 20181116: Rename test file.
 OLD_FILES+=usr/tests/sys/netinet/reuseport_lb
 # 20181112: Cleanup old libcap_dns.
