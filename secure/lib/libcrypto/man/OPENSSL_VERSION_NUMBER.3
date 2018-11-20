@@ -129,18 +129,19 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_VERSION_NUMBER 3"
-.TH OPENSSL_VERSION_NUMBER 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH OPENSSL_VERSION_NUMBER 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OPENSSL_VERSION_NUMBER, OpenSSL_version, OpenSSL_version_num \- get OpenSSL version number
+OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT, OpenSSL_version, OpenSSL_version_num \- get OpenSSL version number
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 2
+.Vb 3
 \& #include <openssl/opensslv.h>
 \& #define OPENSSL_VERSION_NUMBER 0xnnnnnnnnnL
+\& #define OPENSSL_VERSION_TEXT "OpenSSL x.y.z xx XXX xxxx"
 \&
 \& #include <openssl/crypto.h>
 \&
@@ -184,6 +185,10 @@ for example
 Version 0.9.5a had an interim interpretation that is like the current one,
 except the patch level got the highest bit set, to keep continuity.  The
 number was therefore 0x0090581f.
+.PP
+\&\s-1OPENSSL_VERSION_TEXT\s0 is the text variant of the version number and the
+release date.  For example,
+\&\*(L"OpenSSL 1.0.1a 15 Oct 2015\*(R".
 .PP
 \&\fIOpenSSL_version_num()\fR returns the version number.
 .PP

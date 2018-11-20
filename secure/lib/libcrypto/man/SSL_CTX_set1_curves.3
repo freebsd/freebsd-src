@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET1_CURVES 3"
-.TH SSL_CTX_SET1_CURVES 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH SSL_CTX_SET1_CURVES 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -161,6 +161,9 @@ SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups, SSL_set1_groups_
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
+For all of the functions below that set the supported groups there must be at
+least one group in the list.
+.PP
 \&\fISSL_CTX_set1_groups()\fR sets the supported groups for \fBctx\fR to \fBglistlen\fR
 groups in the array \fBglist\fR. The array consist of all NIDs of groups in
 preference order. For a \s-1TLS\s0 client the groups are used directly in the
@@ -223,7 +226,7 @@ The curve functions were first added to OpenSSL 1.0.2. The equivalent group
 functions were first added to OpenSSL 1.1.1.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2013\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

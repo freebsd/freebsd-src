@@ -129,13 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_SET1_RSA 3"
-.TH EVP_PKEY_SET1_RSA 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_PKEY_SET1_RSA 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EVP_PKEY_get1_RSA, EVP_PKEY_get1_DSA, EVP_PKEY_get1_DH, EVP_PKEY_get1_EC_KEY, EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH, EVP_PKEY_get0_EC_KEY, EVP_PKEY_assign_RSA, EVP_PKEY_assign_DSA, EVP_PKEY_assign_DH, EVP_PKEY_assign_EC_KEY, EVP_PKEY_get0_hmac, EVP_PKEY_type, EVP_PKEY_id, EVP_PKEY_base_id, EVP_PKEY_set_alias_type, EVP_PKEY_set1_engine \- EVP_PKEY assignment functions
+EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EVP_PKEY_get1_RSA, EVP_PKEY_get1_DSA, EVP_PKEY_get1_DH, EVP_PKEY_get1_EC_KEY, EVP_PKEY_get0_RSA, EVP_PKEY_get0_DSA, EVP_PKEY_get0_DH, EVP_PKEY_get0_EC_KEY, EVP_PKEY_assign_RSA, EVP_PKEY_assign_DSA, EVP_PKEY_assign_DH, EVP_PKEY_assign_EC_KEY, EVP_PKEY_assign_POLY1305, EVP_PKEY_assign_SIPHASH, EVP_PKEY_get0_hmac, EVP_PKEY_get0_poly1305, EVP_PKEY_get0_siphash, EVP_PKEY_type, EVP_PKEY_id, EVP_PKEY_base_id, EVP_PKEY_set_alias_type, EVP_PKEY_set1_engine \- EVP_PKEY assignment functions
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -152,6 +152,8 @@ EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EV
 \& EC_KEY *EVP_PKEY_get1_EC_KEY(EVP_PKEY *pkey);
 \&
 \& const unsigned char *EVP_PKEY_get0_hmac(const EVP_PKEY *pkey, size_t *len);
+\& const unsigned char *EVP_PKEY_get0_poly1305(const EVP_PKEY *pkey, size_t *len);
+\& const unsigned char *EVP_PKEY_get0_siphash(const EVP_PKEY *pkey, size_t *len);
 \& RSA *EVP_PKEY_get0_RSA(EVP_PKEY *pkey);
 \& DSA *EVP_PKEY_get0_DSA(EVP_PKEY *pkey);
 \& DH *EVP_PKEY_get0_DH(EVP_PKEY *pkey);
@@ -161,6 +163,8 @@ EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EV
 \& int EVP_PKEY_assign_DSA(EVP_PKEY *pkey, DSA *key);
 \& int EVP_PKEY_assign_DH(EVP_PKEY *pkey, DH *key);
 \& int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key);
+\& int EVP_PKEY_assign_POLY1305(EVP_PKEY *pkey, ASN1_OCTET_STRING *key);
+\& int EVP_PKEY_assign_SIPHASH(EVP_PKEY *pkey, ASN1_OCTET_STRING *key);
 \&
 \& int EVP_PKEY_id(const EVP_PKEY *pkey);
 \& int EVP_PKEY_base_id(const EVP_PKEY *pkey);
@@ -178,14 +182,15 @@ EVP_PKEY_set1_RSA, EVP_PKEY_set1_DSA, EVP_PKEY_set1_DH, EVP_PKEY_set1_EC_KEY, EV
 \&\fIEVP_PKEY_get1_EC_KEY()\fR return the referenced key in \fBpkey\fR or
 \&\fB\s-1NULL\s0\fR if the key is not of the correct type.
 .PP
-\&\fIEVP_PKEY_get0_hmac()\fR, \fIEVP_PKEY_get0_RSA()\fR, \fIEVP_PKEY_get0_DSA()\fR,
-\&\fIEVP_PKEY_get0_DH()\fR and \fIEVP_PKEY_get0_EC_KEY()\fR also return the
-referenced key in \fBpkey\fR or \fB\s-1NULL\s0\fR if the key is not of the
-correct type but the reference count of the returned key is
-\&\fBnot\fR incremented and so must not be freed up after use.
+\&\fIEVP_PKEY_get0_hmac()\fR, \fIEVP_PKEY_get0_poly1305()\fR, \fIEVP_PKEY_get0_siphash()\fR,
+\&\fIEVP_PKEY_get0_RSA()\fR, \fIEVP_PKEY_get0_DSA()\fR, \fIEVP_PKEY_get0_DH()\fR
+and \fIEVP_PKEY_get0_EC_KEY()\fR also return the referenced key in \fBpkey\fR or \fB\s-1NULL\s0\fR
+if the key is not of the correct type but the reference count of the
+returned key is \fBnot\fR incremented and so must not be freed up after use.
 .PP
-\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
-and \fIEVP_PKEY_assign_EC_KEY()\fR also set the referenced key to \fBkey\fR
+\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR,
+\&\fIEVP_PKEY_assign_EC_KEY()\fR, \fIEVP_PKEY_assign_POLY1305()\fR and
+\&\fIEVP_PKEY_assign_SIPHASH()\fR also set the referenced key to \fBkey\fR
 however these use the supplied \fBkey\fR internally and so \fBkey\fR
 will be freed when the parent \fBpkey\fR is freed.
 .PP
@@ -216,8 +221,9 @@ In accordance with the OpenSSL naming convention the key obtained
 from or assigned to the \fBpkey\fR using the \fB1\fR functions must be
 freed as well as \fBpkey\fR.
 .PP
-\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
-and \fIEVP_PKEY_assign_EC_KEY()\fR are implemented as macros.
+\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR,
+\&\fIEVP_PKEY_assign_EC_KEY()\fR, \fIEVP_PKEY_assign_POLY1305()\fR
+and \fIEVP_PKEY_assign_SIPHASH()\fR are implemented as macros.
 .PP
 Most applications wishing to know a key type will simply call
 \&\fIEVP_PKEY_base_id()\fR and will not care about the actual type:
@@ -246,8 +252,9 @@ algorithms with EVP_PKEY_set_alias_type:
 \&\fIEVP_PKEY_get1_EC_KEY()\fR return the referenced key or \fB\s-1NULL\s0\fR if
 an error occurred.
 .PP
-\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
-and \fIEVP_PKEY_assign_EC_KEY()\fR return 1 for success and 0 for failure.
+\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR,
+\&\fIEVP_PKEY_assign_EC_KEY()\fR, \fIEVP_PKEY_assign_POLY1305()\fR
+and \fIEVP_PKEY_assign_SIPHASH()\fR return 1 for success and 0 for failure.
 .PP
 \&\fIEVP_PKEY_base_id()\fR, \fIEVP_PKEY_id()\fR and \fIEVP_PKEY_type()\fR return a key
 type or \fBNID_undef\fR (equivalently \fB\s-1EVP_PKEY_NONE\s0\fR) on error.

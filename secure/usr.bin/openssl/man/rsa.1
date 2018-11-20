@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "RSA 1"
-.TH RSA 1 "2018-09-11" "1.1.1" "OpenSSL"
+.TH RSA 1 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -140,8 +140,8 @@ openssl\-rsa, rsa \- RSA key processing tool
 .IX Header "SYNOPSIS"
 \&\fBopenssl\fR \fBrsa\fR
 [\fB\-help\fR]
-[\fB\-inform PEM|NET|DER\fR]
-[\fB\-outform PEM|NET|DER\fR]
+[\fB\-inform PEM|DER\fR]
+[\fB\-outform PEM|DER\fR]
 [\fB\-in filename\fR]
 [\fB\-passin arg\fR]
 [\fB\-out filename\fR]
@@ -179,16 +179,15 @@ utility.
 .IP "\fB\-help\fR" 4
 .IX Item "-help"
 Print out a usage message.
-.IP "\fB\-inform DER|NET|PEM\fR" 4
-.IX Item "-inform DER|NET|PEM"
+.IP "\fB\-inform DER|PEM\fR" 4
+.IX Item "-inform DER|PEM"
 This specifies the input format. The \fB\s-1DER\s0\fR option uses an \s-1ASN1 DER\s0 encoded
 form compatible with the PKCS#1 RSAPrivateKey or SubjectPublicKeyInfo format.
 The \fB\s-1PEM\s0\fR form is the default format: it consists of the \fB\s-1DER\s0\fR format base64
 encoded with additional header and footer lines. On input PKCS#8 format private
-keys are also accepted. The \fB\s-1NET\s0\fR form is a format is described in the \fB\s-1NOTES\s0\fR
-section.
-.IP "\fB\-outform DER|NET|PEM\fR" 4
-.IX Item "-outform DER|NET|PEM"
+keys are also accepted.
+.IP "\fB\-outform DER|PEM\fR" 4
+.IX Item "-outform DER|PEM"
 This specifies the output format, the options have the same meaning and default
 as the \fB\-inform\fR option.
 .IP "\fB\-in filename\fR" 4
@@ -272,17 +271,6 @@ The \s-1PEM\s0 \fBRSAPublicKey\fR format uses the header and footer lines:
 \& \-\-\-\-\-BEGIN RSA PUBLIC KEY\-\-\-\-\-
 \& \-\-\-\-\-END RSA PUBLIC KEY\-\-\-\-\-
 .Ve
-.PP
-The \fB\s-1NET\s0\fR form is a format compatible with older Netscape servers
-and Microsoft \s-1IIS\s0 .key files, this uses unsalted \s-1RC4\s0 for its encryption.
-It is not very secure and so should only be used when necessary.
-.PP
-Some newer version of \s-1IIS\s0 have additional data in the exported .key
-files. To use these with the utility, view the file with a binary editor
-and look for the string \*(L"private-key\*(R", then trace back to the byte
-sequence 0x30, 0x82 (this is an \s-1ASN1 SEQUENCE\s0). Copy all the data
-from this point onwards to another file and use that as the input
-to the \fBrsa\fR utility with the \fB\-inform \s-1NET\s0\fR option.
 .SH "EXAMPLES"
 .IX Header "EXAMPLES"
 To remove the pass phrase on an \s-1RSA\s0 private key:
@@ -322,9 +310,6 @@ Output the public part of a private key in \fBRSAPublicKey\fR format:
 .Ve
 .SH "BUGS"
 .IX Header "BUGS"
-The command line password arguments don't currently work with
-\&\fB\s-1NET\s0\fR format.
-.PP
 There should be an option that automatically handles .key files,
 without having to manually edit them.
 .SH "SEE ALSO"

@@ -129,13 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_GET_PEER_SIGNATURE_NID 3"
-.TH SSL_GET_PEER_SIGNATURE_NID 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH SSL_GET_PEER_SIGNATURE_NID 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_get_peer_signature_nid, SSL_get_peer_signature_type_nid \- get TLS message signing types
+SSL_get_peer_signature_nid, SSL_get_peer_signature_type_nid, SSL_get_signature_nid, SSL_get_signature_type_nid \- get TLS message signing types
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -143,6 +143,8 @@ SSL_get_peer_signature_nid, SSL_get_peer_signature_type_nid \- get TLS message s
 \&
 \& int SSL_get_peer_signature_nid(SSL *ssl, int *psig_nid);
 \& int SSL_get_peer_signature_type_nid(const SSL *ssl, int *psigtype_nid);
+\& int SSL_get_signature_nid(SSL *ssl, int *psig_nid);
+\& int SSL_get_signature_type_nid(const SSL *ssl, int *psigtype_nid);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
@@ -155,12 +157,15 @@ is the \s-1NID\s0 of the public key type used for signing except for \s-1PSS\s0 
 where it is \fB\s-1EVP_PKEY_RSA_PSS\s0\fR. To differentiate between
 \&\fBrsa_pss_rsae_*\fR and \fBrsa_pss_pss_*\fR signatures, it's necessary to check
 the type of public key in the peer's certificate.
+.PP
+\&\fISSL_get_signature_nid()\fR and \fISSL_get_signature_type_nid()\fR return the equivalent
+information for the local end of the connection.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 These functions return 1 for success and 0 for failure. There are several
 possible reasons for failure: the cipher suite has no signature (e.g. it
 uses \s-1RSA\s0 key exchange or is anonymous), the \s-1TLS\s0 version is below 1.2 or
-the functions were called before the peer signed a message.
+the functions were called too early, e.g. before the peer signed a message.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIssl\fR\|(7), \fISSL_get_peer_certificate\fR\|(3),
