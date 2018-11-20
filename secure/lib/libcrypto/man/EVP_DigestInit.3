@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DIGESTINIT 3"
-.TH EVP_DIGESTINIT 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_DIGESTINIT 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -363,18 +363,19 @@ or control.
 This example digests the data \*(L"Test Message\en\*(R" and \*(L"Hello World\en\*(R", using the
 digest name passed on the command line.
 .PP
-.Vb 2
+.Vb 3
 \& #include <stdio.h>
+\& #include <string.h>
 \& #include <openssl/evp.h>
 \&
-\& main(int argc, char *argv[])
+\& int main(int argc, char *argv[])
 \& {
 \&     EVP_MD_CTX *mdctx;
 \&     const EVP_MD *md;
 \&     char mess1[] = "Test Message\en";
 \&     char mess2[] = "Hello World\en";
 \&     unsigned char md_value[EVP_MAX_MD_SIZE];
-\&     int md_len, i;
+\&     unsigned int md_len, i;
 \&
 \&     if (argv[1] == NULL) {
 \&         printf("Usage: mdtest digestname\en");
