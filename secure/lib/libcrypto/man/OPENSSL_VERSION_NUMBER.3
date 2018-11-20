@@ -129,18 +129,20 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL_VERSION_NUMBER 3"
-.TH OPENSSL_VERSION_NUMBER 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH OPENSSL_VERSION_NUMBER 3 "2018-11-20" "1.0.2q" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-OPENSSL_VERSION_NUMBER, SSLeay, SSLeay_version \- get OpenSSL version number
+OPENSSL_VERSION_NUMBER, OPENSSL_VERSION_TEXT, SSLeay, SSLeay_version
+\&\- get OpenSSL version number
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
-.Vb 2
+.Vb 3
 \& #include <openssl/opensslv.h>
 \& #define OPENSSL_VERSION_NUMBER 0xnnnnnnnnnL
+\& #define OPENSSL_VERSION_TEXT "OpenSSL x.y.z xx XXX xxxx"
 \&
 \& #include <openssl/crypto.h>
 \& long SSLeay(void);
@@ -185,6 +187,10 @@ except the patch level got the highest bit set, to keep continuity.  The
 number was therefore 0x0090581f.
 .PP
 For backward compatibility, \s-1SSLEAY_VERSION_NUMBER\s0 is also defined.
+.PP
+\&\s-1OPENSSL_VERSION_TEXT\s0 is the text variant of the version number and the
+release date.  For example,
+\&\*(L"OpenSSL 1.0.1a 15 Oct 2015\*(R".
 .PP
 \&\fISSLeay()\fR returns this number. The return value can be compared to the
 macro to make sure that the correct version of the library has been

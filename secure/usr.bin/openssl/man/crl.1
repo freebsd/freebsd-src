@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CRL 1"
-.TH CRL 1 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH CRL 1 "2018-11-20" "1.0.2q" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -231,7 +231,7 @@ Convert a \s-1CRL\s0 file from \s-1PEM\s0 to \s-1DER:\s0
 Output the text form of a \s-1DER\s0 encoded certificate:
 .PP
 .Vb 1
-\& openssl crl \-in crl.der \-text \-noout
+\& openssl crl \-in crl.der \-inform DER \-text \-noout
 .Ve
 .SH "BUGS"
 .IX Header "BUGS"

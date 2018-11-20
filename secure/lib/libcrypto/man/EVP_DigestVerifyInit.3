@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DigestVerifyInit 3"
-.TH EVP_DigestVerifyInit 3 "2018-08-14" "1.0.2p" "OpenSSL"
+.TH EVP_DigestVerifyInit 3 "2018-11-20" "1.0.2q" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -152,9 +152,12 @@ The \s-1EVP\s0 signature routines are a high level interface to digital signatur
 .PP
 \&\fIEVP_DigestVerifyInit()\fR sets up verification context \fBctx\fR to use digest
 \&\fBtype\fR from \s-1ENGINE\s0 \fBimpl\fR and public key \fBpkey\fR. \fBctx\fR must be initialized
-with \fIEVP_MD_CTX_init()\fR before calling this function. If \fBpctx\fR is not \s-1NULL\s0 the
+with \fIEVP_MD_CTX_init()\fR before calling this function. If \fBpctx\fR is not \s-1NULL,\s0 the
 \&\s-1EVP_PKEY_CTX\s0 of the verification operation will be written to \fB*pctx\fR: this
-can be used to set alternative verification options.
+can be used to set alternative verification options. Note that any existing
+value in \fB*pctx\fR is overwritten. The \s-1EVP_PKEY_CTX\s0 value returned must not be
+freed directly by the application (it will be freed automatically when the
+\&\s-1EVP_MD_CTX\s0 is freed).
 .PP
 \&\fIEVP_DigestVerifyUpdate()\fR hashes \fBcnt\fR bytes of data at \fBd\fR into the
 verification context \fBctx\fR. This function can be called several times on the
