@@ -314,15 +314,15 @@ VNET_DEFINE_STATIC(struct if_clone *, vlan_cloner);
 #define	V_vlan_cloner	VNET(vlan_cloner)
 #endif
 
-#ifndef VLAN_ARRAY
-#define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
-
 static void
 vlan_mc_free(struct epoch_context *ctx)
 {
 	struct vlan_mc_entry *mc = __containerof(ctx, struct vlan_mc_entry, mc_epoch_ctx);
 	free(mc, M_VLAN);
 }
+
+#ifndef VLAN_ARRAY
+#define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
 
 static void
 vlan_inithash(struct ifvlantrunk *trunk)
