@@ -221,7 +221,7 @@ again:
 	if (*instr == FBT_BCTR)
 		fbt->fbtp_rval = DTRACE_INVOP_BCTR;
 	else if (*instr == FBT_BLR)
-		fbt->fbtp_rval = DTRACE_INVOP_RET;
+		fbt->fbtp_rval = DTRACE_INVOP_BLR;
 	else
 		fbt->fbtp_rval = DTRACE_INVOP_JUMP;
 
