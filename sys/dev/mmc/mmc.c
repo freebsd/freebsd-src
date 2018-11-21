@@ -829,9 +829,14 @@ mmc_set_power_class(struct mmc_softc *sc, struct mmc_ivars *ivar)
 	const uint8_t *ext_csd;
 	uint32_t clock;
 	uint8_t value;
+	enum mmc_bus_timing timing;
+	enum mmc_bus_width bus_width;
 
 	dev = sc->dev;
-	if (mmcbr_get_mode(dev) != mode_mmc || ivar->csd.spec_vers < 4)
+	timing = mmcbr_get_timing(dev);
+	bus_width = ivar->bus_width;
+	if (mmcbr_get_mode(dev) != mode_mmc || ivar->csd.spec_vers < 4 ||
+	    timing == bus_timing_normal || bus_width == bus_width_1)
 		return (MMC_ERR_NONE);
 
 	value = 0;
@@ -842,8 +847,8 @@ mmc_set_power_class(struct mmc_softc *sc, struct mmc_ivars *ivar)
 		if (clock <= MMC_TYPE_HS_26_MAX)
 			value = ext_csd[EXT_CSD_PWR_CL_26_195];
 		else if (clock <= MMC_TYPE_HS_52_MAX) {
-			if (mmcbr_get_timing(dev) >= bus_timing_mmc_ddr52 &&
-			    ivar->bus_width >= bus_width_4)
+			if (timing >= bus_timing_mmc_ddr52 &&
+			    bus_width >= bus_width_4)
 				value = ext_csd[EXT_CSD_PWR_CL_52_195_DDR];
 			else
 				value = ext_csd[EXT_CSD_PWR_CL_52_195];
@@ -862,13 +867,13 @@ mmc_set_power_class(struct mmc_softc *sc, struct mmc_ivars *ivar)
 		if (clock <= MMC_TYPE_HS_26_MAX)
 			value = ext_csd[EXT_CSD_PWR_CL_26_360];
 		else if (clock <= MMC_TYPE_HS_52_MAX) {
-			if (mmcbr_get_timing(dev) == bus_timing_mmc_ddr52 &&
-			    ivar->bus_width >= bus_width_4)
+			if (timing == bus_timing_mmc_ddr52 &&
+			    bus_width >= bus_width_4)
 				value = ext_csd[EXT_CSD_PWR_CL_52_360_DDR];
 			else
 				value = ext_csd[EXT_CSD_PWR_CL_52_360];
 		} else if (clock <= MMC_TYPE_HS200_HS400ES_MAX) {
-			if (ivar->bus_width == bus_width_8)
+			if (bus_width == bus_width_8)
 				value = ext_csd[EXT_CSD_PWR_CL_200_360_DDR];
 			else
 				value = ext_csd[EXT_CSD_PWR_CL_200_360];
@@ -880,7 +885,7 @@ mmc_set_power_class(struct mmc_softc *sc, struct mmc_ivars *ivar)
 		return (MMC_ERR_INVALID);
 	}
 
-	if (ivar->bus_width == bus_width_8)
+	if (bus_width == bus_width_8)
 		value = (value & EXT_CSD_POWER_CLASS_8BIT_MASK) >>
 		    EXT_CSD_POWER_CLASS_8BIT_SHIFT;
 	else
@@ -2166,7 +2171,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 	for (i = 0; i < sc->child_count; i++) {
 		ivar = device_get_ivars(sc->child_list[i]);
 		if ((ivar->timings & ~(1 << bus_timing_normal)) == 0)
-			continue;
+			goto clock;
 
 		rca = ivar->rca;
 		if (mmc_select_card(sc, rca) != MMC_ERR_NONE) {
@@ -2232,6 +2237,7 @@ mmc_calculate_clock(struct mmc_softc *sc)
 			}
 		}
 
+clock:
 		/* Set clock (must be done before initial tuning). */
 		mmcbr_set_clock(dev, max_dtr);
 		mmcbr_update_ios(dev);
