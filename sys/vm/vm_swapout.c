@@ -961,10 +961,3 @@ swapout(struct proc *p)
 	p->p_swtick = ticks;
 	return (0);
 }
-
-/* Used to determine if the current process is itself the reaper. */
-bool
-vm_curproc_is_vmproc(void)
-{
-	return curproc == vmproc;
-}

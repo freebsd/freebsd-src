@@ -45,7 +45,8 @@ get_nr_swap_pages(void)
 static inline int
 current_is_kswapd(void)
 {
-	return vm_curproc_is_vmproc();
+
+	return (curproc == pageproc);
 }
 
 #endif

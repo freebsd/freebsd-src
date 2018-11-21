@@ -107,7 +107,5 @@ void vm_pageout_oom(int shortage);
 void vm_swapout_run(void);
 void vm_swapout_run_idle(void);
 
-bool vm_curproc_is_vmproc(void);
-
 #endif /* _KERNEL */
 #endif	/* _VM_VM_PAGEOUT_H_ */
