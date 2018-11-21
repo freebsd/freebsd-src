@@ -429,8 +429,7 @@ exit1(struct thread *td, int rval, int signo)
 
 	sx_xlock(&proctree_lock);
 	/*
-	 * Remove proc from allproc queue and pidhash chain.
-	 * Place onto zombproc.  Unlink from parent's child list.
+	 * Move proc from allproc queue to zombproc.
 	 */
 	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);
