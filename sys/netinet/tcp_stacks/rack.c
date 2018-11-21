@@ -7053,12 +7053,10 @@ again:
 		tlen = rsm->r_end - rsm->r_start;
 		if (tlen > tp->t_maxseg)
 			tlen = tp->t_maxseg;
-#ifdef INVARIANTS
-		if (SEQ_GT(tp->snd_una, rsm->r_start)) {
-			panic("tp:%p rack:%p snd_una:%u rsm:%p r_start:%u",
-			    tp, rack, tp->snd_una, rsm, rsm->r_start);
-		}
-#endif
+		KASSERT(SEQ_LEQ(tp->snd_una, rsm->r_start),
+		    ("%s:%d: r.start:%u < SND.UNA:%u; tp:%p, rack:%p, rsm:%p",
+		    __func__, __LINE__,
+		    rsm->r_start, tp->snd_una, tp, rack, rsm));
 		sb_offset = rsm->r_start - tp->snd_una;
 		cwin = min(tp->snd_wnd, tlen);
 		len = cwin;
@@ -7069,12 +7067,14 @@ again:
 		len = rsm->r_end - rsm->r_start;
 		sack_rxmit = 1;
 		sendalot = 0;
+		KASSERT(SEQ_LEQ(tp->snd_una, rsm->r_start),
+		    ("%s:%d: r.start:%u < SND.UNA:%u; tp:%p, rack:%p, rsm:%p",
+		    __func__, __LINE__,
+		    rsm->r_start, tp->snd_una, tp, rack, rsm));
 		sb_offset = rsm->r_start - tp->snd_una;
 		if (len >= tp->t_maxseg) {
 			len = tp->t_maxseg;
 		}
-		KASSERT(sb_offset >= 0, ("%s: sack block to the left of una : %d",
-		    __func__, sb_offset));
 	} else if ((rack->rc_in_persist == 0) &&
 	    ((rsm = tcp_rack_output(tp, rack, cts)) != NULL)) {
 		long tlen;
@@ -7099,6 +7099,10 @@ again:
 		}
 #endif
 		tlen = rsm->r_end - rsm->r_start;
+		KASSERT(SEQ_LEQ(tp->snd_una, rsm->r_start),
+		    ("%s:%d: r.start:%u < SND.UNA:%u; tp:%p, rack:%p, rsm:%p",
+		    __func__, __LINE__,
+		    rsm->r_start, tp->snd_una, tp, rack, rsm));
 		sb_offset = rsm->r_start - tp->snd_una;
 		if (tlen > rack->r_ctl.rc_prr_sndcnt) {
 			len = rack->r_ctl.rc_prr_sndcnt;
@@ -7120,8 +7124,6 @@ again:
 				goto just_return_nolock;
 			}
 		}
-		KASSERT(sb_offset >= 0, ("%s: sack block to the left of una : %d",
-		    __func__, sb_offset));
 		if (len > 0) {
 			sub_from_prr = 1;
 			sack_rxmit = 1;
