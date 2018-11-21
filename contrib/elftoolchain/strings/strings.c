@@ -350,7 +350,7 @@ find_strings(const char *name, off_t offset, off_t size)
 	(void)fseeko(stdin, offset, SEEK_SET);
 	cur_off = offset;
 	start_off = 0;
-	while (true) {
+	for (;;) {
 		if ((offset + size) && (cur_off >= offset + size))
 			break;
 		start_off = cur_off;
@@ -395,7 +395,7 @@ find_strings(const char *name, off_t offset, off_t size)
 			}
 			printf("%s", obuf);
 
-			while (true) {
+			for (;;) {
 				if ((offset + size) &&
 				    (cur_off >= offset + size))
 					break;
