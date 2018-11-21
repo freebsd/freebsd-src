@@ -830,6 +830,8 @@ pfs_readdir(struct vop_readdir_args *va)
 			pfsent->entry.d_name[i] = pn->pn_name[i];
 		pfsent->entry.d_name[i] = 0;
 		pfsent->entry.d_namlen = i;
+		/* NOTE: d_off is the offset of the *next* entry. */
+		pfsent->entry.d_off = offset + PFS_DELEN;
 		switch (pn->pn_type) {
 		case pfstype_procdir:
 			KASSERT(p != NULL,

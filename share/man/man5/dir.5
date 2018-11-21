@@ -28,7 +28,7 @@
 .\"     @(#)dir.5	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2018
+.Dd November 14, 2018
 .Dt DIR 5
 .Os
 .Sh NAME
@@ -101,7 +101,7 @@ The directory entry format is defined in the file
 
 struct dirent {
 	ino_t      d_fileno;		/* file number of entry */
-	off_t      d_off;		/* directory offset of entry */
+	off_t      d_off;		/* directory offset of the next entry */
 	__uint16_t d_reclen;		/* length of this record */
 	__uint8_t  d_type;		/* file type, see below */
 	__uint8_t  d_namlen;		/* length of string in d_name */
