@@ -406,7 +406,9 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	allproc_gen++;
+	sx_xlock(PIDHASHLOCK(p2->p_pid));
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
+	sx_xunlock(PIDHASHLOCK(p2->p_pid));
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
