@@ -566,14 +566,7 @@ restore_kernel_structs(struct vmctx *ctx, struct restore_state *rstate)
 	int ret;
 	int i;
 
-	/* Iterate through the items backwards such that the time-critical
-	 * items such as 'tsc' and 'vhpet' will be restored as close as possible
-	 * to the vCPU spinup moment
-	 *
-	 * This will mean that these structures are saved first during a
-	 * snapshot and restored last, so dead times are as small as possible
-	 */
-	for (i = nitems(snapshot_kern_structs) - 1; i >= 0; i--) {
+	for (i = 0; i < nitems(snapshot_kern_structs); i++) {
 		struct_ptr = lookup_struct(snapshot_kern_structs[i].req, rstate, &struct_size);
 		if (struct_ptr == NULL) {
 			fprintf(stderr, "%s: Failed to lookup struct %s\r\n",
