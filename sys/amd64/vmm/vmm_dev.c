@@ -814,6 +814,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = vm_restore_req(sc->vm, restore_req->req,
 				restore_req->buffer, restore_req->size);
 		break;
+	case VM_RESTORE_TIME:
+		error = vm_restore_time(sc->vm);
+		break;
 	default:
 		error = ENOTTY;
 		break;

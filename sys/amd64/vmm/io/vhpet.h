@@ -45,5 +45,6 @@ int	vhpet_getcap(struct vm_hpet_cap *cap);
 int	vhpet_snapshot(struct vhpet *vhpet, void *buffer,
 	    size_t buf_size, size_t *snapshot_size);
 int	vhpet_restore(struct vhpet *vhpet, void *buffer, size_t buf_size);
+int	vhpet_restore_time(struct vhpet *vhpet);
 
 #endif	/* _VHPET_H_ */

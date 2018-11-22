@@ -222,8 +222,8 @@ static struct vmm_ops *ops;
 	(ops != NULL ? (*ops->vmcx_restore)(vmi, vmcx_state, vcpuid) : ENXIO)
 #define	VM_RESTORE_VMI(vmi, buffer, buf_size) \
 	(ops != NULL ? (*ops->vmrestore)(vmi, buffer, buf_size) : ENXIO)
-#define	VM_TRAP_RDTSC(vmi, vcpuid, enable) \
-	(ops != NULL ? (*ops->trap_rdtsc)(vmi, vcpuid, enable) : ENXIO)
+#define	VM_RESTORE_TSC(vmi, vcpuid, now) \
+	(ops != NULL ? (*ops->vm_restore_tsc)(vmi, vcpuid, now) : ENXIO)
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
 #define	fpu_stop_emulating()	clts()
@@ -3158,9 +3158,9 @@ vm_restore_vmcx(struct vm *vm, void *buffer, size_t buf_size)
 }
 
 static int
-vm_restore_tsc(struct vm *vm, void *buffer, size_t buf_size)
+vm_restore_old_tsc(struct vm *vm, void *buffer, size_t buf_size)
 {
-	int i, error;
+	int i;
 	uint64_t old_tsc;
 	struct vcpu *vcpu;
 
@@ -3182,10 +3182,6 @@ vm_restore_tsc(struct vm *vm, void *buffer, size_t buf_size)
 		 * is set to 0 during init
 		 */
 		vcpu->tsc_offset.restore_offset += old_tsc;
-
-		error = VM_TRAP_RDTSC(vm->cookie, i, 1);
-		if (error)
-			return (error);
 	}
 
 	return (0);
@@ -3241,7 +3237,7 @@ vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_si
 		ret = vm_restore_vrtc(vm, kbuf, buf_size);
 		break;
 	case TSC_VALUE:
-		ret = vm_restore_tsc(vm, kbuf, buf_size);
+		ret = vm_restore_old_tsc(vm, kbuf, buf_size);
 		break;
 	default:
 		printf("%s: failed to find type to restore\n", __func__);
@@ -3251,4 +3247,25 @@ vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer, size_t buf_si
 err_copyin:
 	free(kbuf, M_RESTORE);
 	return (ret);
+}
+
+int
+vm_restore_time(struct vm *vm)
+{
+	int error, i;
+	uint64_t now;
+
+	error = vhpet_restore_time(vm_hpet(vm));
+	if (error)
+		return (error);
+
+	now = rdtsc();
+
+	for (i = 0; i < nitems(vm->vcpu); i++) {
+		error = VM_RESTORE_TSC(vm->cookie, i, now);
+		if (error)
+			return (error);
+	}
+
+	return (0);
 }

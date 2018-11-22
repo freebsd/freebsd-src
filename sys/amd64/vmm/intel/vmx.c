@@ -287,8 +287,7 @@ static int vmx_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
 static int vmx_getreg(void *arg, int vcpu, int reg, uint64_t *retval);
 static int vmxctx_setreg(struct vmxctx *vmxctx, int reg, uint64_t val);
 static void vmx_inject_pir(struct vlapic *vlapic);
-static int vmx_restore_tsc_offset(void *arg, int vcpu);
-static int vmx_trap_rdtsc(void *arg, int vcpu, bool enable);
+static int vmx_restore_tsc(void *arg, int vcpu, uint64_t now);
 
 #ifdef KTR
 static const char *
@@ -3965,67 +3964,16 @@ vmx_restore_vmi(void *arg, void *buffer, size_t size)
 }
 
 static int
-vmx_restore_tsc_offset(void *arg, int vcpu)
-{
-	struct vmx *vmx = (struct vmx *)arg;
-	struct vm *vm = vmx->vm;
-	struct vmxctx *vmxctx;
-	int err = 0;
-	uint64_t tsc, restore_offset, guest_offset;
-	uint64_t rax, rdx, guest_tsc;
-
-	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
-
-	tsc = rdtsc();
-
-	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_TSC_OFFSET) == 0) {
-		vmx->cap[vcpu].proc_ctls |= PROCBASED_TSC_OFFSET;
-		err = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
-		VCPU_CTR0(vmx->vm, vcpu, "Enabling TSC offsetting");
-	}
-	if (err)
-		return (err);
-
-	err = vm_get_tsc_offset(vm, vcpu, &restore_offset, &guest_offset);
-	if (err != 0)
-		return (err);
-
-	restore_offset -= tsc;
-
-	err = vmwrite(VMCS_TSC_OFFSET, restore_offset + guest_offset);
-	if (err != 0)
-		return (err);
-
-	err = vm_set_tsc_offset(vm, vcpu, &restore_offset, NULL);
-	if (err != 0)
-		return (err);
-
-	guest_tsc = tsc + restore_offset + guest_offset;
-	rax = guest_tsc & 0xffffffff;
-	rdx = guest_tsc >> 32;
-
-	vmxctx = &vmx->ctx[vcpu];
-
-	err = vmxctx_setreg(vmxctx, VM_REG_GUEST_RAX, rax);
-	KASSERT(err == 0, ("vmxctx_setreg(rax) err %d", err));
-
-	err = vmxctx_setreg(vmxctx, VM_REG_GUEST_RDX, rdx);
-	KASSERT(err == 0, ("vmxctx_setreg(rdx) err %d", err));
-
-	err = vmx_trap_rdtsc(vmx, vcpu, 0);
-
-	return (err);
-}
-
-static int
-vmx_trap_rdtsc(void *arg, int vcpu, bool enable)
+vmx_restore_tsc(void *arg, int vcpu, uint64_t now)
 {
 	struct vmcs *vmcs;
 	struct vmx *vmx = (struct vmx *)arg;
-	int err = 0, running, hostcpu;
-	uint32_t mode;
+	struct vm *vm = vmx->vm;
+	int err, running, hostcpu;
+	uint64_t restore_offset, guest_offset;
 
 	KASSERT(arg != NULL, ("%s: arg was NULL", __func__));
+	err = 0;
 	vmcs = &vmx->vmcs[vcpu];
 
 	running = vcpu_is_running(vmx->vm, vcpu, &hostcpu);
@@ -4037,20 +3985,29 @@ vmx_trap_rdtsc(void *arg, int vcpu, bool enable)
 	if (!running)
 		VMPTRLD(vmcs);
 
-	if (enable)
-		mode = 0;
-	else
-		mode = PROCBASED_RDTSC_EXITING;
-
-	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_RDTSC_EXITING) == mode) {
-		vmx->cap[vcpu].proc_ctls ^= PROCBASED_RDTSC_EXITING;
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_TSC_OFFSET) == 0) {
+		vmx->cap[vcpu].proc_ctls |= PROCBASED_TSC_OFFSET;
 		err = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
-		VCPU_CTR0(vmx->vm, vcpu, "Enabling RDTSC vmexit");
+		VCPU_CTR0(vmx->vm, vcpu, "Enabling TSC offsetting");
 	}
 
+	if (err)
+		goto done;
+
+	err = vm_get_tsc_offset(vm, vcpu, &restore_offset, &guest_offset);
+	if (err)
+		goto done;
+
+	restore_offset -= now;
+	err = vmwrite(VMCS_TSC_OFFSET, restore_offset + guest_offset);
+	if (err)
+		goto done;
+
+	err = vm_set_tsc_offset(vm, vcpu, &restore_offset, NULL);
+
+done:
 	if (!running)
 		VMCLEAR(vmcs);
-
 	return (err);
 }
 
@@ -4075,5 +4032,5 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_restore_vmi,
 	vmx_snapshot_vmcx,
 	vmx_restore_vmcx,
-	vmx_trap_rdtsc,
+	vmx_restore_tsc,
 };

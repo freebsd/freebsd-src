@@ -1737,6 +1737,17 @@ vm_restore_req(struct vmctx *ctx, enum snapshot_req req, char *buffer, size_t si
 }
 
 int
+vm_restore_time(struct vmctx *ctx)
+{
+	int error, dummy;
+
+	dummy = 0;
+	error = ioctl(ctx->fd, VM_RESTORE_TIME, &dummy);
+
+	return (error);
+}
+
+int
 vm_set_topology(struct vmctx *ctx,
     uint16_t sockets, uint16_t cores, uint16_t threads, uint16_t maxcpus)
 {

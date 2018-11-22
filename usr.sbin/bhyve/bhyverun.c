@@ -796,12 +796,6 @@ vmexit_debug(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	return (VMEXIT_CONTINUE);
 }
 
-static int
-vmexit_rdtsc(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
-{
-	return (VMEXIT_CONTINUE);
-}
-
 static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_INOUT]  = vmexit_inout,
 	[VM_EXITCODE_INOUT_STR]  = vmexit_inout,
@@ -817,7 +811,6 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_SUSPENDED] = vmexit_suspend,
 	[VM_EXITCODE_TASK_SWITCH] = vmexit_task_switch,
 	[VM_EXITCODE_DEBUG] = vmexit_debug,
-	[VM_EXITCODE_RDTSC] = vmexit_rdtsc,
 };
 
 static void
@@ -1336,6 +1329,10 @@ main(int argc, char *argv[])
 	/* If we restore a VM, start all vCPUs now (including APs), otherwise,
 	 * let the guest OS to spin them up later via vmexits.
 	 */
+
+	if (restore_file != NULL || receive_migration) {
+		vm_restore_time(ctx);
+	}
 
 	for (vcpu = 0; vcpu < guest_ncpus; vcpu++)
 		if (vcpu == BSP || restore_file || receive_migration) {

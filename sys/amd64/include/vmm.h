@@ -173,7 +173,7 @@ typedef int	(*vmi_snapshot_t)(void *vmi, void *buffer, size_t buf_size,
 typedef int	(*vmi_restore_t)(void *vmi, void *buffer, size_t buf_size);
 typedef int	(*vmi_snapshot_vmcx_t)(void *vmi, struct vmcx_state *vmcx, int vcpu);
 typedef int	(*vmi_restore_vmcx_t)(void *vmi, struct vmcx_state *vmcx, int vcpu);
-typedef int	(*vmi_trap_rdtsc_t)(void *vmi, int vcpuid, bool enable);
+typedef int	(*vmi_restore_tsc_t)(void *vmi, int vcpuid, uint64_t now);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -199,7 +199,7 @@ struct vmm_ops {
 	vmi_restore_t		vmrestore;
 	vmi_snapshot_vmcx_t	vmcx_snapshot;
 	vmi_restore_vmcx_t	vmcx_restore;
-	vmi_trap_rdtsc_t	trap_rdtsc;
+	vmi_restore_tsc_t	vm_restore_tsc;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -278,6 +278,7 @@ int vm_snapshot_req(struct vm *vm, enum snapshot_req req, void *buffer,
 		    size_t buf_size, size_t *snapshot_size);
 int vm_restore_req(struct vm *vm, enum snapshot_req req, void *buffer,
 		   size_t buf_size);
+int vm_restore_time(struct vm *vm);
 
 
 #ifdef _SYS__CPUSET_H_

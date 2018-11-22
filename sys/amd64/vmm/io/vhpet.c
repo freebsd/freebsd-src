@@ -838,6 +838,12 @@ vhpet_restore(struct vhpet *vhpet, void *buffer, size_t buf_size)
 		vhpet->timer[i].callout_sbt = old_vhpet->timer[i].callout_sbt;
 	}
 
+	return (0);
+}
+
+int
+vhpet_restore_time(struct vhpet *vhpet)
+{
 	if (vhpet_counter_enabled(vhpet))
 		vhpet_start_counting(vhpet);
 	else
