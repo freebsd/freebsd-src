@@ -719,11 +719,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	if ((fr->fr_flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
-	/*
-	 * Hold the process so that it cannot exit after we make it runnable,
-	 * but before we wait for the debugger.
-	 */
-	_PHOLD(p2);
 	if (fr->fr_flags & RFPPWAIT) {
 		_PHOLD(p2);
 		td->td_pflags |= TDP_RFPPWAIT;
@@ -783,8 +778,12 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		PROC_UNLOCK(p2);
 		sx_xunlock(&proctree_lock);
 	}
-	
+
+	racct_proc_fork_done(p2);
+
 	if ((fr->fr_flags & RFSTOPPED) == 0) {
+		if (fr->fr_pidp != NULL)
+			*fr->fr_pidp = p2->p_pid;
 		/*
 		 * If RFSTOPPED not requested, make child runnable and
 		 * add to run queue.
@@ -793,16 +792,9 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
 		thread_unlock(td2);
-		if (fr->fr_pidp != NULL)
-			*fr->fr_pidp = p2->p_pid;
 	} else {
 		*fr->fr_procp = p2;
 	}
-
-	PROC_LOCK(p2);
-	_PRELE(p2);
-	racct_proc_fork_done(p2);
-	PROC_UNLOCK(p2);
 }
 
 int
