@@ -2883,11 +2883,10 @@ void
 in_pcbtoxinpcb(const struct inpcb *inp, struct xinpcb *xi)
 {
 
+	bzero(xi, sizeof(*xi));
 	xi->xi_len = sizeof(struct xinpcb);
 	if (inp->inp_socket)
 		sotoxsocket(inp->inp_socket, &xi->xi_socket);
-	else
-		bzero(&xi->xi_socket, sizeof(struct xsocket));
 	bcopy(&inp->inp_inc, &xi->inp_inc, sizeof(struct in_conninfo));
 	xi->inp_gencnt = inp->inp_gencnt;
 	xi->inp_ppcb = (uintptr_t)inp->inp_ppcb;
