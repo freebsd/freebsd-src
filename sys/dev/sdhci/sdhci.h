@@ -87,6 +87,8 @@
 #define	SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400		(1 << 26)
 /* Controller support for SDHCI_CTRL2_PRESET_VALUE is broken. */
 #define	SDHCI_QUIRK_PRESET_VALUE_BROKEN			(1 << 27)
+/* Controller supports eMMC HS400 mode if SDHCI_CAN_SDR104 is set. */
+#define	SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104		(1 << 29)
 
 /*
  * Controller registers
