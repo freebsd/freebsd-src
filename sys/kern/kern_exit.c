@@ -285,6 +285,15 @@ exit1(struct thread *td, int rval, int signo)
 	wakeup(&p->p_stype);
 
 	/*
+	 * If P_PPWAIT is set our parent holds us with p_lock and may
+	 * be waiting on p_pwait.
+	 */
+	if (p->p_flag & P_PPWAIT) {
+		p->p_flag &= ~P_PPWAIT;
+		cv_broadcast(&p->p_pwait);
+	}
+
+	/*
 	 * Wait for any processes that have a hold on our vmspace to
 	 * release their reference.
 	 */
@@ -329,13 +338,9 @@ exit1(struct thread *td, int rval, int signo)
 	 */
 	EVENTHANDLER_DIRECT_INVOKE(process_exit, p);
 
-	/*
-	 * If parent is waiting for us to exit or exec,
-	 * P_PPWAIT is set; we will wakeup the parent below.
-	 */
 	PROC_LOCK(p);
 	stopprofclock(p);
-	p->p_flag &= ~(P_TRACED | P_PPWAIT | P_PPTRACE);
+	p->p_flag &= ~(P_TRACED | P_PPTRACE);
 	p->p_ptevents = 0;
 
 	/*
@@ -636,7 +641,6 @@ exit1(struct thread *td, int rval, int signo)
 	 * proc lock.
 	 */
 	wakeup(p->p_pptr);
-	cv_broadcast(&p->p_pwait);
 	sched_exit(p->p_pptr, td);
 	PROC_SLOCK(p);
 	p->p_state = PRS_ZOMBIE;
