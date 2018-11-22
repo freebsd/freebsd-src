@@ -489,12 +489,25 @@ int
 main(int argc, char *argv[])
 {
 	const char *command;
+	char *root;
 	int command_index, rc;
 
+	root = NULL;
 	if (argc < 2)
 		return (usage(false));
 
-	command = argv[1];
+	if (strcmp(argv[1], "-r") == 0) {
+		if (argc < 4)
+			return (usage(false));
+		root = strdup(argv[2]);
+		command = argv[3];
+		argc -= 3;
+		argv += 3;
+	} else {
+		command = argv[1];
+		argc -= 1;
+		argv += 1;
+	}
 
 	/* Handle command aliases */
 	if (strcmp(command, "umount") == 0)
@@ -512,13 +525,12 @@ main(int argc, char *argv[])
 	}
 
 
-	if ((be = libbe_init()) == NULL)
+	if ((be = libbe_init(root)) == NULL)
 		return (-1);
 
 	libbe_print_on_error(be, true);
 
-	/* XXX TODO: can be simplified if offset by 2 instead of one */
-	rc = command_map[command_index].fn(argc-1, argv+1);
+	rc = command_map[command_index].fn(argc, argv);
 
 	libbe_close(be);
 	return (rc);
