@@ -196,7 +196,7 @@ proto_attach(device_t dev)
 		case SYS_RES_MEMORY:
 		case SYS_RES_IOPORT:
 			r->r_size = rman_get_size(r->r_d.res);
-			r->r_u.cdev = make_dev(&proto_devsw, res, 0, 0, 0666,
+			r->r_u.cdev = make_dev(&proto_devsw, res, 0, 0, 0600,
 			    "proto/%s/%02x.%s", device_get_desc(dev), r->r_rid,
 			    (r->r_type == SYS_RES_IOPORT) ? "io" : "mem");
 			r->r_u.cdev->si_drv1 = sc;
@@ -204,7 +204,7 @@ proto_attach(device_t dev)
 			break;
 		case PROTO_RES_PCICFG:
 			r->r_size = 4096;
-			r->r_u.cdev = make_dev(&proto_devsw, res, 0, 0, 0666,
+			r->r_u.cdev = make_dev(&proto_devsw, res, 0, 0, 0600,
 			    "proto/%s/pcicfg", device_get_desc(dev));
 			r->r_u.cdev->si_drv1 = sc;
 			r->r_u.cdev->si_drv2 = r;
@@ -212,7 +212,7 @@ proto_attach(device_t dev)
 		case PROTO_RES_BUSDMA:
 			r->r_d.busdma = proto_busdma_attach(sc);
 			r->r_size = 0;	/* no read(2) nor write(2) */
-			r->r_u.cdev = make_dev(&proto_devsw, res, 0, 0, 0666,
+			r->r_u.cdev = make_dev(&proto_devsw, res, 0, 0, 0600,
 			    "proto/%s/busdma", device_get_desc(dev));
 			r->r_u.cdev->si_drv1 = sc;
 			r->r_u.cdev->si_drv2 = r;
