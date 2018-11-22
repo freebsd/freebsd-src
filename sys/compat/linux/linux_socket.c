@@ -1099,6 +1099,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	sa_family_t sa_family;
 	void *data;
 	l_size_t len;
+	l_size_t clen;
 	int error;
 
 	error = copyin(msghdr, &linux_msg, sizeof(linux_msg));
@@ -1130,7 +1131,7 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 
 	control = NULL;
 
-	if ((ptr_cmsg = LINUX_CMSG_FIRSTHDR(&linux_msg)) != NULL) {
+	if (linux_msg.msg_controllen >= sizeof(struct l_cmsghdr)) {
 		error = kern_getsockname(td, s, &sa, &datalen);
 		if (error != 0)
 			goto bad;
@@ -1143,6 +1144,8 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		data = mtod(control, void *);
 		datalen = 0;
 
+		ptr_cmsg = PTRIN(linux_msg.msg_control);
+		clen = linux_msg.msg_controllen;
 		do {
 			error = copyin(ptr_cmsg, &linux_cmsg,
 			    sizeof(struct l_cmsghdr));
@@ -1150,7 +1153,8 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				goto bad;
 
 			error = EINVAL;
-			if (linux_cmsg.cmsg_len < sizeof(struct l_cmsghdr))
+			if (linux_cmsg.cmsg_len < sizeof(struct l_cmsghdr) ||
+			    linux_cmsg.cmsg_len > clen)
 				goto bad;
 
 			if (datalen + CMSG_HDRSZ > MCLBYTES)
@@ -1202,7 +1206,14 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			cmsg->cmsg_len = CMSG_LEN(len);
 			data = (char *)data + CMSG_SPACE(len);
 			datalen += CMSG_SPACE(len);
-		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&linux_msg, ptr_cmsg)));
+
+			if (clen <= LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len))
+				break;
+
+			clen -= LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len);
+			ptr_cmsg = (struct l_cmsghdr *)((char *)ptr_cmsg +
+			    LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len));
+		} while(clen >= sizeof(struct l_cmsghdr));
 
 		control->m_len = datalen;
 		if (datalen == 0) {
