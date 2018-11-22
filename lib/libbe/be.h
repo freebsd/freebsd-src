@@ -63,7 +63,7 @@ typedef enum be_error {
 
 
 /* Library handling functions: be.c */
-libbe_handle_t *libbe_init(void);
+libbe_handle_t *libbe_init(const char *root);
 void libbe_close(libbe_handle_t *);
 
 /* Bootenv information functions: be_info.c */
