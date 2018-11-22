@@ -764,10 +764,10 @@ sfxge_create(struct sfxge_softc *sc)
 
 	if (!ISP2(sfxge_tx_ring_entries) ||
 	    (sfxge_tx_ring_entries < EFX_TXQ_MINNDESCS) ||
-	    (sfxge_tx_ring_entries > EFX_TXQ_MAXNDESCS(efx_nic_cfg_get(enp)))) {
+	    (sfxge_tx_ring_entries > efx_nic_cfg_get(enp)->enc_txq_max_ndescs)) {
 		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
 		    SFXGE_PARAM_TX_RING, sfxge_tx_ring_entries,
-		    EFX_TXQ_MINNDESCS, EFX_TXQ_MAXNDESCS(efx_nic_cfg_get(enp)));
+		    EFX_TXQ_MINNDESCS, efx_nic_cfg_get(enp)->enc_txq_max_ndescs);
 		error = EINVAL;
 		goto fail_tx_ring_entries;
 	}
