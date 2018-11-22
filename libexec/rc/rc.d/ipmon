@@ -21,7 +21,7 @@ ipmon_precmd()
 	# Continue only if ipfilter or ipnat is enabled and the
 	# ipfilter module is loaded.
 	#
-	if ! checkyesno ipfilter_enable && ! checkyesno ipnat_enable ; then
+	if ! checkyesno ipfilter_enable && ! checkyesno ipnat_enable && ! checkyesno rc_force ; then
 		err 1  "${name} requires either ipfilter or ipnat enabled"
 	fi
 	if ! ${ipfilter_program:-/sbin/ipf} -V | grep -q 'Running: yes' >/dev/null 2>&1; then
