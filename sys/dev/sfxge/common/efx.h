@@ -1111,6 +1111,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_evq_limit;
 	uint32_t		enc_txq_limit;
 	uint32_t		enc_rxq_limit;
+	uint32_t		enc_txq_max_ndescs;
 	uint32_t		enc_buftbl_limit;
 	uint32_t		enc_piobuf_limit;
 	uint32_t		enc_piobuf_size;
@@ -2045,12 +2046,6 @@ efx_tx_init(
 extern		void
 efx_tx_fini(
 	__in	efx_nic_t *enp);
-
-#define	EFX_BUG35388_WORKAROUND(_encp)					\
-	(((_encp) == NULL) ? 1 : ((_encp)->enc_bug35388_workaround != 0))
-
-#define	EFX_TXQ_MAXNDESCS(_encp)					\
-	((EFX_BUG35388_WORKAROUND(_encp)) ? 2048 : 4096)
 
 #define	EFX_TXQ_MINNDESCS		512
 
