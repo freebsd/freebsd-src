@@ -230,7 +230,7 @@ syscallret(struct thread *td, int error)
 		PROC_UNLOCK(p);
 	}
 
-	if (td->td_pflags & TDP_RFPPWAIT) {
+	if (__predict_false(td->td_pflags & TDP_RFPPWAIT)) {
 		/*
 		 * Preserve synchronization semantics of vfork.  If
 		 * waiting for child to exec or exit, fork set
