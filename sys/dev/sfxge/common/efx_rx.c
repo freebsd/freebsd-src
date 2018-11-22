@@ -103,6 +103,22 @@ siena_rx_qpush(
 	__in		unsigned int added,
 	__inout		unsigned int *pushedp);
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+static		void
+siena_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp);
+
+static	__checkReturn	uint8_t *
+siena_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp);
+#endif
+
 static	__checkReturn	efx_rc_t
 siena_rx_qflush(
 	__in		efx_rxq_t *erp);
@@ -146,6 +162,10 @@ static const efx_rx_ops_t __efx_rx_siena_ops = {
 	siena_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
 	siena_rx_qpost,				/* erxo_qpost */
 	siena_rx_qpush,				/* erxo_qpush */
+#if EFSYS_OPT_RX_PACKED_STREAM
+	siena_rx_qpush_ps_credits,		/* erxo_qpush_ps_credits */
+	siena_rx_qps_packet_info,		/* erxo_qps_packet_info */
+#endif
 	siena_rx_qflush,			/* erxo_qflush */
 	siena_rx_qenable,			/* erxo_qenable */
 	siena_rx_qcreate,			/* erxo_qcreate */
@@ -169,6 +189,10 @@ static const efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
 	ef10_rx_qpost,				/* erxo_qpost */
 	ef10_rx_qpush,				/* erxo_qpush */
+#if EFSYS_OPT_RX_PACKED_STREAM
+	ef10_rx_qpush_ps_credits,		/* erxo_qpush_ps_credits */
+	ef10_rx_qps_packet_info,		/* erxo_qps_packet_info */
+#endif
 	ef10_rx_qflush,				/* erxo_qflush */
 	ef10_rx_qenable,			/* erxo_qenable */
 	ef10_rx_qcreate,			/* erxo_qcreate */
@@ -429,6 +453,40 @@ efx_rx_qpost(
 
 	erxop->erxo_qpost(erp, addrp, size, n, completed, added);
 }
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+			void
+efx_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	erxop->erxo_qpush_ps_credits(erp);
+}
+
+	__checkReturn	uint8_t *
+efx_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	return (erxop->erxo_qps_packet_info(erp, buffer,
+		buffer_length, current_offset, lengthp,
+		next_offsetp, timestamp));
+}
+
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 			void
 efx_rx_qpush(
@@ -1075,6 +1133,32 @@ siena_rx_qpush(
 	EFX_BAR_TBL_WRITED3(enp, FR_BZ_RX_DESC_UPD_REGP0,
 			    erp->er_index, &dword, B_FALSE);
 }
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+static		void
+siena_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp)
+{
+	/* Not supported by Siena hardware */
+	EFSYS_ASSERT(0);
+}
+
+static		uint8_t *
+siena_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp)
+{
+	/* Not supported by Siena hardware */
+	EFSYS_ASSERT(0);
+
+	return (NULL);
+}
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 static	__checkReturn	efx_rc_t
 siena_rx_qflush(

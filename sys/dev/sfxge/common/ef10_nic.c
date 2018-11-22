@@ -1072,6 +1072,17 @@ ef10_get_datapath_caps(
 	encp->enc_rx_disable_scatter_supported =
 	    CAP_FLAG(flags, RX_DISABLE_SCATTER) ? B_TRUE : B_FALSE;
 
+	/* Check if the firmware supports packed stream mode */
+	encp->enc_rx_packed_stream_supported =
+	    CAP_FLAG(flags, RX_PACKED_STREAM) ? B_TRUE : B_FALSE;
+
+	/*
+	 * Check if the firmware supports configurable buffer sizes
+	 * for packed stream mode (otherwise buffer size is 1Mbyte)
+	 */
+	encp->enc_rx_var_packed_stream_supported =
+	    CAP_FLAG(flags, RX_PACKED_STREAM_VAR_BUFFERS) ? B_TRUE : B_FALSE;
+
 	/* Check if the firmware supports set mac with running filters */
 	encp->enc_allow_set_mac_with_installed_filters =
 	    CAP_FLAG(flags, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED) ?

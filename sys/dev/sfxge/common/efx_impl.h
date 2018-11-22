@@ -170,6 +170,12 @@ typedef struct efx_rx_ops_s {
 				      unsigned int, unsigned int,
 				      unsigned int);
 	void		(*erxo_qpush)(efx_rxq_t *, unsigned int, unsigned int *);
+#if EFSYS_OPT_RX_PACKED_STREAM
+	void		(*erxo_qpush_ps_credits)(efx_rxq_t *);
+	uint8_t *	(*erxo_qps_packet_info)(efx_rxq_t *, uint8_t *,
+						uint32_t, uint32_t,
+						uint16_t *, uint32_t *, uint32_t *);
+#endif
 	efx_rc_t	(*erxo_qflush)(efx_rxq_t *);
 	void		(*erxo_qenable)(efx_rxq_t *);
 	efx_rc_t	(*erxo_qcreate)(efx_nic_t *enp, unsigned int,
@@ -694,6 +700,11 @@ typedef	boolean_t (*efx_ev_handler_t)(efx_evq_t *, efx_qword_t *,
 typedef struct efx_evq_rxq_state_s {
 	unsigned int			eers_rx_read_ptr;
 	unsigned int			eers_rx_mask;
+#if EFSYS_OPT_RX_PACKED_STREAM
+	unsigned int			eers_rx_stream_npackets;
+	boolean_t			eers_rx_packed_stream;
+	unsigned int			eers_rx_packed_stream_credits;
+#endif
 } efx_evq_rxq_state_t;
 
 struct efx_evq_s {
