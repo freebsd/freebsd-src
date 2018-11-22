@@ -6528,6 +6528,10 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		TCP_LOG_EVENT(tp, th, &so->so_rcv, &so->so_snd, TCP_LOG_IN, 0,
 		    tlen, &log, true);
 	}
+	if ((thflags & TH_SYN) && (thflags & TH_FIN) && V_drop_synfin) {
+		way_out = 4;
+		goto done_with_input;
+	}
 	/*
 	 * Segment received on connection. Reset idle time and keep-alive
 	 * timer. XXX: This should be done after segment validation to
