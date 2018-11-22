@@ -455,19 +455,27 @@ int
 pci_lpc_snapshot(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
 		size_t buf_size, size_t *snapshot_size)
 {
-	int unit;
-	size_t snap_size;
+	int unit, ret;
+	size_t snap_size, offset;
 	struct uart_softc *sc;
+
+	offset = 0;
 
 	for (unit = 0; unit < LPC_UART_NUM; unit++) {
 		sc = lpc_uart_softc[unit].uart_softc;
-		if (uart_snapshot(sc, buffer, buf_size, &snap_size)) {
+
+		ret = uart_snapshot(sc, buffer + offset, buf_size - offset,
+				    &snap_size);
+		if (ret != 0) {
 			fprintf(stderr, "%s: failed to snapshot uart dev\r\n", __func__);
 			*snapshot_size = 0;
 			return (-1);
 		}
-		*snapshot_size += snap_size;
+
+		offset += snap_size;
 	}
+
+	*snapshot_size += offset;
 
 	return (0);
 }
@@ -477,8 +485,10 @@ pci_lpc_restore(struct vmctx *ctx, struct pci_devinst *pi, void *buffer,
 		size_t buf_size)
 {
 	int unit, ret;
-	size_t offset = 0;
+	size_t offset;
 	struct uart_softc *sc;
+
+	offset = 0;
 
 	for (unit = 0; unit < LPC_UART_NUM; unit++) {
 		sc = lpc_uart_softc[unit].uart_softc;
