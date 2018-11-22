@@ -390,6 +390,8 @@
         ..
     ..
     sbin
+        bectl
+        ..
         dhclient
         ..
         devd
