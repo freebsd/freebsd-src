@@ -169,7 +169,6 @@ extern "C" {
 #define	ERF_DZ_RX_DESC_WPTR_LBN 0
 #define	ERF_DZ_RX_DESC_WPTR_WIDTH 12
 
-
 /*
  * TX_DESC_UPD_REG(96bit):
  *
@@ -543,6 +542,31 @@ extern "C" {
 #define	ERF_DD_EVQ_IND_TIMER_VAL_LBN 0
 #define	ERF_DD_EVQ_IND_TIMER_VAL_WIDTH 8
 
+/* Packed stream magic doorbell command */
+#define	ERF_DZ_RX_DESC_MAGIC_DOORBELL_LBN 11
+#define	ERF_DZ_RX_DESC_MAGIC_DOORBELL_WIDTH 1
+
+#define	ERF_DZ_RX_DESC_MAGIC_CMD_LBN 8
+#define	ERF_DZ_RX_DESC_MAGIC_CMD_WIDTH 3
+#define	ERE_DZ_RX_DESC_MAGIC_CMD_PS_CREDITS 0
+
+#define	ERF_DZ_RX_DESC_MAGIC_DATA_LBN 0
+#define	ERF_DZ_RX_DESC_MAGIC_DATA_WIDTH 8
+
+/* Packed stream RX packet prefix */
+#define	ES_DZ_PS_RX_PREFIX_TSTAMP_LBN 0
+#define	ES_DZ_PS_RX_PREFIX_TSTAMP_WIDTH 32
+#define	ES_DZ_PS_RX_PREFIX_CAP_LEN_LBN 32
+#define	ES_DZ_PS_RX_PREFIX_CAP_LEN_WIDTH 16
+#define	ES_DZ_PS_RX_PREFIX_ORIG_LEN_LBN 48
+#define	ES_DZ_PS_RX_PREFIX_ORIG_LEN_WIDTH 16
+
+/*
+ * An extra flag for the packed stream mode,
+ * signalling the start of a new buffer
+ */
+#define	ESF_DZ_RX_EV_ROTATE_LBN 53
+#define	ESF_DZ_RX_EV_ROTATE_WIDTH 1
 
 #ifdef	__cplusplus
 }

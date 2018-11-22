@@ -167,6 +167,8 @@ siena_board_cfg(
 	encp->enc_fw_assisted_tso_v2_enabled = B_FALSE;
 	encp->enc_fw_assisted_tso_v2_n_contexts = 0;
 	encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
+	encp->enc_rx_packed_stream_supported = B_FALSE;
+	encp->enc_rx_var_packed_stream_supported = B_FALSE;
 
 	/* Siena supports two 10G ports, and 8 lanes of PCIe Gen2 */
 	encp->enc_required_pcie_bandwidth_mbps = 2 * 10000;

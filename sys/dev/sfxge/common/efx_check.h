@@ -339,5 +339,11 @@
 # endif
 #endif /* EFSYS_OPT_ALLOW_UNCONFIGURED_NIC */
 
+/* Support packed stream mode */
+#if EFSYS_OPT_RX_PACKED_STREAM
+# if !(EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "PACKED_STREAM requires HUNTINGTON or MEDFORD"
+# endif
+#endif
 
 #endif /* _SYS_EFX_CHECK_H */
