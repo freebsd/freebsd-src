@@ -445,6 +445,14 @@ ef10_nvram_partn_read(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_read_backup(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
