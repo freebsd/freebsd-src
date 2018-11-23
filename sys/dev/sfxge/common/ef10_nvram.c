@@ -2050,15 +2050,15 @@ fail1:
 ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
-	__out_opt		uint32_t *resultp)
+	__out_opt		uint32_t *verify_resultp)
 {
 	boolean_t reboot = B_FALSE;
 	efx_rc_t rc;
 
-	if (resultp != NULL)
-		*resultp = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
+	if (verify_resultp != NULL)
+		*verify_resultp = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
 
-	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, resultp);
+	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, verify_resultp);
 	if (rc != 0)
 		goto fail1;
 
@@ -2368,11 +2368,12 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn)
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp)
 {
 	efx_rc_t rc;
 
-	if ((rc = ef10_nvram_partn_unlock(enp, partn, NULL)) != 0)
+	if ((rc = ef10_nvram_partn_unlock(enp, partn, verify_resultp)) != 0)
 		goto fail1;
 
 	return (0);
