@@ -710,6 +710,14 @@ ef10_rx_prefix_hash(
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+/*
+ * Fake length for RXQ descriptors in packed stream mode
+ * to make hardware happy
+ */
+#define	EFX_RXQ_PACKED_STREAM_FAKE_BUF_SIZE 32
+#endif
+
 			void
 ef10_rx_qpost(
 	__in		efx_rxq_t *erp,
@@ -723,6 +731,15 @@ ef10_rx_qpost(
 	unsigned int i;
 	unsigned int offset;
 	unsigned int id;
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+	/*
+	 * Real size of the buffer does not fit into ESF_DZ_RX_KER_BYTE_CNT
+	 * and equal to 0 after applying mask. Hardware does not like it.
+	 */
+	if (erp->er_ev_qstate->eers_rx_packed_stream)
+		size = EFX_RXQ_PACKED_STREAM_FAKE_BUF_SIZE;
+#endif
 
 	/* The client driver must not overfill the queue */
 	EFSYS_ASSERT3U(added - completed + n, <=,
