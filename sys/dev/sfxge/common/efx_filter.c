@@ -527,9 +527,9 @@ siena_filter_spec_from_gen_spec(
 	else
 		EFSYS_ASSERT3U(gen_spec->efs_flags, &, EFX_FILTER_FLAG_RX);
 
-	/* Falconsiena only has one RSS context */
+	/* Siena only has one RSS context */
 	if ((gen_spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) &&
-	    gen_spec->efs_rss_context != 0) {
+	    gen_spec->efs_rss_context != EFX_RSS_CONTEXT_DEFAULT) {
 		rc = EINVAL;
 		goto fail1;
 	}
