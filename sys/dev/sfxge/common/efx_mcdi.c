@@ -798,9 +798,8 @@ efx_mcdi_ev_cpl(
 			emrp->emr_rc = 0;
 		}
 	}
-	if (errcode == 0) {
+	if (emrp->emr_rc == 0)
 		efx_mcdi_finish_response(enp, emrp);
-	}
 
 	emtp->emt_ev_cpl(emtp->emt_context);
 }
