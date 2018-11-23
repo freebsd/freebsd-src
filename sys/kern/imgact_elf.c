@@ -2341,8 +2341,9 @@ __elfN(note_procstat_auxv)(void *arg, struct sbuf *sb, size_t *sizep)
 }
 
 static boolean_t
-__elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
-    int32_t *osrel, const Elf_Phdr *pnote)
+__elfN(parse_notes)(struct image_params *imgp, Elf_Note *checknote,
+    const char *note_vendor, const Elf_Phdr *pnote,
+    boolean_t (*cb)(const Elf_Note *, void *, boolean_t *), void *cb_arg)
 {
 	const Elf_Note *note, *note0, *note_end;
 	const char *note_name;
@@ -2380,27 +2381,18 @@ __elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
 		    (const char *)note < sizeof(Elf_Note)) {
 			goto retf;
 		}
-		if (note->n_namesz != checknote->hdr.n_namesz ||
-		    note->n_descsz != checknote->hdr.n_descsz ||
-		    note->n_type != checknote->hdr.n_type)
+		if (note->n_namesz != checknote->n_namesz ||
+		    note->n_descsz != checknote->n_descsz ||
+		    note->n_type != checknote->n_type)
 			goto nextnote;
 		note_name = (const char *)(note + 1);
-		if (note_name + checknote->hdr.n_namesz >=
-		    (const char *)note_end || strncmp(checknote->vendor,
-		    note_name, checknote->hdr.n_namesz) != 0)
+		if (note_name + checknote->n_namesz >=
+		    (const char *)note_end || strncmp(note_vendor,
+		    note_name, checknote->n_namesz) != 0)
 			goto nextnote;
 
-		/*
-		 * Fetch the osreldate for binary
-		 * from the ELF OSABI-note if necessary.
-		 */
-		if ((checknote->flags & BN_TRANSLATE_OSREL) != 0 &&
-		    checknote->trans_osrel != NULL) {
-			res = checknote->trans_osrel(note, osrel);
+		if (cb(note, cb_arg, &res))
 			goto ret;
-		}
-		res = TRUE;
-		goto ret;
 nextnote:
 		note = (const Elf_Note *)((const char *)(note + 1) +
 		    roundup2(note->n_namesz, ELF_NOTE_ROUNDSIZE) +
@@ -2413,26 +2405,54 @@ ret:
 	return (res);
 }
 
+struct brandnote_cb_arg {
+	Elf_Brandnote *brandnote;
+	int32_t *osrel;
+};
+
+static boolean_t
+brandnote_cb(const Elf_Note *note, void *arg0, boolean_t *res)
+{
+	struct brandnote_cb_arg *arg;
+
+	arg = arg0;
+
+	/*
+	 * Fetch the osreldate for binary from the ELF OSABI-note if
+	 * necessary.
+	 */
+	*res = (arg->brandnote->flags & BN_TRANSLATE_OSREL) != 0 &&
+	    arg->brandnote->trans_osrel != NULL ?
+	    arg->brandnote->trans_osrel(note, arg->osrel) : TRUE;
+
+	return (TRUE);
+}
+
 /*
  * Try to find the appropriate ABI-note section for checknote,
  * fetch the osreldate for binary from the ELF OSABI-note. Only the
  * first page of the image is searched, the same as for headers.
  */
 static boolean_t
-__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
+__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *brandnote,
     int32_t *osrel)
 {
 	const Elf_Phdr *phdr;
 	const Elf_Ehdr *hdr;
+	struct brandnote_cb_arg b_arg;
 	int i;
 
 	hdr = (const Elf_Ehdr *)imgp->image_header;
 	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+	b_arg.brandnote = brandnote;
+	b_arg.osrel = osrel;
 
 	for (i = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_NOTE &&
-		    __elfN(parse_notes)(imgp, checknote, osrel, &phdr[i]))
+		if (phdr[i].p_type == PT_NOTE && __elfN(parse_notes)(imgp,
+		    &brandnote->hdr, brandnote->vendor, &phdr[i], brandnote_cb,
+		    &b_arg)) {
 			return (TRUE);
+		}
 	}
 	return (FALSE);
 
