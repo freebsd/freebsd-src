@@ -2173,6 +2173,7 @@ static ef10_parttbl_entry_t medford_parttbl[] = {
 	PARTN_MAP_ENTRY(FPGA_BACKUP,		ALL,	FPGA_BACKUP),
 	PARTN_MAP_ENTRY(LICENSE,		ALL,	LICENSE),
 	PARTN_MAP_ENTRY(EXPANSION_UEFI,		ALL,	UEFIROM),
+	PARTN_MAP_ENTRY(MUM_FIRMWARE,		ALL,	MUM_FIRMWARE),
 };
 
 static	__checkReturn		efx_rc_t
