@@ -45,7 +45,7 @@ siena_mac_multicast_list_set(
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_SIENA
-static const efx_mac_ops_t	__efx_siena_mac_ops = {
+static const efx_mac_ops_t	__efx_mac_siena_ops = {
 	siena_mac_poll,				/* emo_poll */
 	siena_mac_up,				/* emo_up */
 	siena_mac_reconfigure,			/* emo_addr_set */
@@ -69,7 +69,7 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static const efx_mac_ops_t	__efx_ef10_mac_ops = {
+static const efx_mac_ops_t	__efx_mac_ef10_ops = {
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
 	ef10_mac_addr_set,			/* emo_addr_set */
@@ -845,21 +845,21 @@ efx_mac_select(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		emop = &__efx_siena_mac_ops;
+		emop = &__efx_mac_siena_ops;
 		type = EFX_MAC_SIENA;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		emop = &__efx_ef10_mac_ops;
+		emop = &__efx_mac_ef10_ops;
 		type = EFX_MAC_HUNTINGTON;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		emop = &__efx_ef10_mac_ops;
+		emop = &__efx_mac_ef10_ops;
 		type = EFX_MAC_MEDFORD;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */
