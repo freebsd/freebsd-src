@@ -504,7 +504,7 @@ efx_mcdi_alloc_vis(
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_ALLOC_VIS_IN_LEN,
-			    MC_CMD_ALLOC_VIS_OUT_LEN)];
+			    MC_CMD_ALLOC_VIS_EXT_OUT_LEN)];
 	efx_rc_t rc;
 
 	if (vi_countp == NULL) {
@@ -517,7 +517,7 @@ efx_mcdi_alloc_vis(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_ALLOC_VIS_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_ALLOC_VIS_OUT_LEN;
+	req.emr_out_length = MC_CMD_ALLOC_VIS_EXT_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, ALLOC_VIS_IN_MIN_VI_COUNT, min_vi_count);
 	MCDI_IN_SET_DWORD(req, ALLOC_VIS_IN_MAX_VI_COUNT, max_vi_count);
