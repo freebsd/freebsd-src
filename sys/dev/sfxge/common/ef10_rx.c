@@ -162,7 +162,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 efx_mcdi_rss_context_alloc(
 	__in		efx_nic_t *enp,
-	__in		efx_rx_scale_support_t scale_support,
+	__in		efx_rx_scale_context_type_t type,
 	__in		uint32_t num_queues,
 	__out		uint32_t *rss_contextp)
 {
@@ -178,7 +178,7 @@ efx_mcdi_rss_context_alloc(
 		goto fail1;
 	}
 
-	switch (scale_support) {
+	switch (type) {
 	case EFX_RX_SCALE_EXCLUSIVE:
 		context_type = MC_CMD_RSS_CONTEXT_ALLOC_IN_TYPE_EXCLUSIVE;
 		break;
@@ -464,7 +464,7 @@ ef10_rx_init(
 		 * Allocated an exclusive RSS context, which allows both the
 		 * indirection table and key to be modified.
 		 */
-		enp->en_rss_support = EFX_RX_SCALE_EXCLUSIVE;
+		enp->en_rss_context_type = EFX_RX_SCALE_EXCLUSIVE;
 		enp->en_hash_support = EFX_RX_HASH_AVAILABLE;
 	} else {
 		/*
@@ -472,7 +472,7 @@ ef10_rx_init(
 		 * operation without support for RSS. The pseudo-header in
 		 * received packets will not contain a Toeplitz hash value.
 		 */
-		enp->en_rss_support = EFX_RX_SCALE_UNAVAILABLE;
+		enp->en_rss_context_type = EFX_RX_SCALE_UNAVAILABLE;
 		enp->en_hash_support = EFX_RX_HASH_UNAVAILABLE;
 	}
 
@@ -510,7 +510,7 @@ ef10_rx_scale_mode_set(
 		goto fail1;
 	}
 
-	if (enp->en_rss_support == EFX_RX_SCALE_UNAVAILABLE) {
+	if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
 		rc = ENOTSUP;
 		goto fail2;
 	}
@@ -541,7 +541,7 @@ ef10_rx_scale_key_set(
 {
 	efx_rc_t rc;
 
-	if (enp->en_rss_support == EFX_RX_SCALE_UNAVAILABLE) {
+	if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -570,7 +570,7 @@ ef10_rx_scale_tbl_set(
 {
 	efx_rc_t rc;
 
-	if (enp->en_rss_support == EFX_RX_SCALE_UNAVAILABLE) {
+	if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -981,11 +981,10 @@ ef10_rx_fini(
 	__in	efx_nic_t *enp)
 {
 #if EFSYS_OPT_RX_SCALE
-	if (enp->en_rss_support != EFX_RX_SCALE_UNAVAILABLE) {
+	if (enp->en_rss_context_type != EFX_RX_SCALE_UNAVAILABLE)
 		(void) efx_mcdi_rss_context_free(enp, enp->en_rss_context);
-	}
 	enp->en_rss_context = 0;
-	enp->en_rss_support = EFX_RX_SCALE_UNAVAILABLE;
+	enp->en_rss_context_type = EFX_RX_SCALE_UNAVAILABLE;
 #else
 	_NOTE(ARGUNUSED(enp))
 #endif /* EFSYS_OPT_RX_SCALE */
