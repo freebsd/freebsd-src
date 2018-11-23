@@ -145,6 +145,10 @@ ef10_filter_init(
 	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_OUTER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IP_PROTO ==
 	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IP_PROTO));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_MCAST_DST));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_UCAST_DST));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_UNKNOWN_MCAST_DST ==
 	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_MCAST_DST));
 	EFX_STATIC_ASSERT((uint32_t)EFX_FILTER_MATCH_UNKNOWN_UCAST_DST ==
@@ -274,18 +278,47 @@ efx_mcdi_filter_op_add(
 		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_DST_IP),
 		    &spec->efs_loc_host.eo_byte[0],
 		    MC_CMD_FILTER_OP_EXT_IN_DST_IP_LEN);
+
+		/*
+		 * On Medford, filters for encapsulated packets match based on
+		 * the ether type and IP protocol in the outer frame.  In
+		 * addition we need to fill in the VNI or VSID type field.
+		 */
+		switch (spec->efs_encap_type) {
+		case EFX_TUNNEL_PROTOCOL_NONE:
+			break;
+		case EFX_TUNNEL_PROTOCOL_VXLAN:
+		case EFX_TUNNEL_PROTOCOL_GENEVE:
+			MCDI_IN_POPULATE_DWORD_1(req,
+			    FILTER_OP_EXT_IN_VNI_OR_VSID,
+			    FILTER_OP_EXT_IN_VNI_TYPE,
+			    spec->efs_encap_type == EFX_TUNNEL_PROTOCOL_VXLAN ?
+				    MC_CMD_FILTER_OP_EXT_IN_VNI_TYPE_VXLAN :
+				    MC_CMD_FILTER_OP_EXT_IN_VNI_TYPE_GENEVE);
+			break;
+		case EFX_TUNNEL_PROTOCOL_NVGRE:
+			MCDI_IN_POPULATE_DWORD_1(req,
+			    FILTER_OP_EXT_IN_VNI_OR_VSID,
+			    FILTER_OP_EXT_IN_VSID_TYPE,
+			    MC_CMD_FILTER_OP_EXT_IN_VSID_TYPE_NVGRE);
+			break;
+		default:
+			EFSYS_ASSERT(0);
+			rc = EINVAL;
+			goto fail2;
+		}
 	}
 
 	efx_mcdi_execute(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail2;
+		goto fail3;
 	}
 
 	if (req.emr_out_length_used < MC_CMD_FILTER_OP_EXT_OUT_LEN) {
 		rc = EMSGSIZE;
-		goto fail3;
+		goto fail4;
 	}
 
 	handle->efh_lo = MCDI_OUT_DWORD(req, FILTER_OP_EXT_OUT_HANDLE_LO);
@@ -293,6 +326,8 @@ efx_mcdi_filter_op_add(
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
@@ -392,6 +427,8 @@ ef10_filter_equal(
 	if (left->efs_ether_type != right->efs_ether_type)
 		return (B_FALSE);
 	if (left->efs_ip_proto != right->efs_ip_proto)
+		return (B_FALSE);
+	if (left->efs_encap_type != right->efs_encap_type)
 		return (B_FALSE);
 
 	return (B_TRUE);
