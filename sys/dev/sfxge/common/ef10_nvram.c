@@ -2313,16 +2313,27 @@ ef10_nvram_partn_rw_start(
 	__in			uint32_t partn,
 	__out			size_t *chunk_sizep)
 {
+	uint32_t write_size = 0;
 	efx_rc_t rc;
 
-	if ((rc = ef10_nvram_partn_lock(enp, partn)) != 0)
+	if ((rc = efx_mcdi_nvram_info(enp, partn, NULL, NULL,
+	    NULL, &write_size)) != 0)
 		goto fail1;
 
-	if (chunk_sizep != NULL)
-		*chunk_sizep = EF10_NVRAM_CHUNK;
+	if ((rc = ef10_nvram_partn_lock(enp, partn)) != 0)
+		goto fail2;
+
+	if (chunk_sizep != NULL) {
+		if (write_size == 0)
+			*chunk_sizep = EF10_NVRAM_CHUNK;
+		else
+			*chunk_sizep = write_size;
+	}
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
