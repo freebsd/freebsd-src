@@ -538,6 +538,7 @@ fail1:
 	__checkReturn	efx_rc_t
 ef10_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
@@ -552,13 +553,16 @@ ef10_rx_scale_mode_set(
 		goto fail1;
 	}
 
-	if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
-		rc = ENOTSUP;
-		goto fail2;
+	if (rss_context == EFX_RSS_CONTEXT_DEFAULT) {
+		if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
+			rc = ENOTSUP;
+			goto fail2;
+		}
+		rss_context = enp->en_rss_context;
 	}
 
 	if ((rc = efx_mcdi_rss_context_set_flags(enp,
-		    enp->en_rss_context, type)) != 0)
+		    rss_context, type)) != 0)
 		goto fail3;
 
 	return (0);
@@ -578,18 +582,21 @@ fail1:
 	__checkReturn	efx_rc_t
 ef10_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
 	efx_rc_t rc;
 
-	if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
-		rc = ENOTSUP;
-		goto fail1;
+	if (rss_context == EFX_RSS_CONTEXT_DEFAULT) {
+		if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
+			rc = ENOTSUP;
+			goto fail1;
+		}
+		rss_context = enp->en_rss_context;
 	}
 
-	if ((rc = efx_mcdi_rss_context_set_key(enp,
-	    enp->en_rss_context, key, n)) != 0)
+	if ((rc = efx_mcdi_rss_context_set_key(enp, rss_context, key, n)) != 0)
 		goto fail2;
 
 	return (0);
@@ -607,18 +614,23 @@ fail1:
 	__checkReturn	efx_rc_t
 ef10_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
 	efx_rc_t rc;
 
-	if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
-		rc = ENOTSUP;
-		goto fail1;
+
+	if (rss_context == EFX_RSS_CONTEXT_DEFAULT) {
+		if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
+			rc = ENOTSUP;
+			goto fail1;
+		}
+		rss_context = enp->en_rss_context;
 	}
 
 	if ((rc = efx_mcdi_rss_context_set_table(enp,
-	    enp->en_rss_context, table, n)) != 0)
+		    rss_context, table, n)) != 0)
 		goto fail2;
 
 	return (0);
