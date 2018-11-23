@@ -566,6 +566,10 @@ efx_mac_stats_get_mask(
 
 #define	EFX_MAC_STATS_SIZE 0x400
 
+extern	__checkReturn			efx_rc_t
+efx_mac_stats_clear(
+	__in				efx_nic_t *enp);
+
 /*
  * Upload mac statistics supported by the hardware into the given buffer.
  *

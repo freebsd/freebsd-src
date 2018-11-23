@@ -202,6 +202,7 @@ typedef struct efx_mac_ops_s {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	efx_rc_t	(*emo_stats_get_mask)(efx_nic_t *, uint32_t *, size_t);
+	efx_rc_t	(*emo_stats_clear)(efx_nic_t *);
 	efx_rc_t	(*emo_stats_upload)(efx_nic_t *, efsys_mem_t *);
 	efx_rc_t	(*emo_stats_periodic)(efx_nic_t *, efsys_mem_t *,
 					      uint16_t, boolean_t);
