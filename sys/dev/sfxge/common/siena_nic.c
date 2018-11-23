@@ -140,6 +140,9 @@ siena_board_cfg(
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = 1;
 
+	/* There is one RSS context per function */
+	encp->enc_rx_scale_max_exclusive_contexts = 1;
+
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(FSF_AZ_TX_KER_BYTE_COUNT);
 	/* Fragments must not span 4k boundaries. */
 	encp->enc_tx_dma_desc_boundary = 4096;
