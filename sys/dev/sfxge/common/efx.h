@@ -1948,6 +1948,7 @@ efx_rx_scale_context_free(
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in	efx_nic_t *enp,
+	__in	uint32_t rss_context,
 	__in	efx_rx_hash_alg_t alg,
 	__in	efx_rx_hash_type_t type,
 	__in	boolean_t insert);
@@ -1955,12 +1956,14 @@ efx_rx_scale_mode_set(
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
