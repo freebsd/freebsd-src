@@ -757,6 +757,7 @@ struct efx_rxq_s {
 	unsigned int			er_label;
 	unsigned int			er_mask;
 	efsys_mem_t			*er_esmp;
+	efx_evq_rxq_state_t		*er_ev_qstate;
 };
 
 #define	EFX_RXQ_MAGIC	0x15022005
