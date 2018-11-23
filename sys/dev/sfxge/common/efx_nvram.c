@@ -367,11 +367,12 @@ fail1:
 	__checkReturn		efx_rc_t
 efx_nvram_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type)
+	__in			efx_nvram_type_t type,
+	__out_opt		uint32_t *verify_resultp)
 {
 	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
-	uint32_t verify_result;
+	uint32_t verify_result = 0;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -390,6 +391,9 @@ efx_nvram_rw_finish(
 
 	enp->en_nvram_locked = EFX_NVRAM_INVALID;
 
+	if (verify_resultp != NULL)
+		*verify_resultp = verify_result;
+
 	return (0);
 
 fail2:
@@ -398,6 +402,10 @@ fail2:
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	/* Always report verification result */
+	if (verify_resultp != NULL)
+		*verify_resultp = verify_result;
 
 	return (rc);
 }
