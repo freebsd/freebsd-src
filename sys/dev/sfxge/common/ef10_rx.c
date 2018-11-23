@@ -995,7 +995,7 @@ ef10_rx_qcreate(
 	erp->er_eep = eep;
 	erp->er_label = label;
 
-	ef10_ev_rxlabel_init(eep, erp, label, ps_buf_size != 0);
+	ef10_ev_rxlabel_init(eep, erp, label, type);
 
 	return (0);
 
