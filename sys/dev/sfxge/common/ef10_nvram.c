@@ -1940,11 +1940,34 @@ ef10_nvram_partn_read(
 	__in			size_t size)
 {
 	/*
-	 * Read requests which come in through the EFX API expect to
-	 * read the current, active partition.
+	 * An A/B partition has two data stores (current and backup).
+	 * Read requests which come in through the EFX API expect to read the
+	 * current, active store of an A/B partition. For non A/B partitions,
+	 * there is only a single store and so the mode param is ignored.
 	 */
 	return ef10_nvram_partn_read_mode(enp, partn, offset, data, size,
 			    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_partn_read_backup(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size)
+{
+	/*
+	 * An A/B partition has two data stores (current and backup).
+	 * Read the backup store of an A/B partition (i.e. the store currently
+	 * being written to if the partition is locked).
+	 *
+	 * This is needed when comparing the existing partition content to avoid
+	 * unnecessary writes, or to read back what has been written to check
+	 * that the writes have succeeded.
+	 */
+	return ef10_nvram_partn_read_mode(enp, partn, offset, data, size,
+			    MC_CMD_NVRAM_READ_IN_V2_TARGET_BACKUP);
 }
 
 	__checkReturn		efx_rc_t

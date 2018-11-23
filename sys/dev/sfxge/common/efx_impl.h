@@ -471,6 +471,8 @@ typedef struct efx_nvram_ops_s {
 	efx_rc_t	(*envo_partn_rw_start)(efx_nic_t *, uint32_t, size_t *);
 	efx_rc_t	(*envo_partn_read)(efx_nic_t *, uint32_t,
 					    unsigned int, caddr_t, size_t);
+	efx_rc_t	(*envo_partn_read_backup)(efx_nic_t *, uint32_t,
+					    unsigned int, caddr_t, size_t);
 	efx_rc_t	(*envo_partn_erase)(efx_nic_t *, uint32_t,
 					    unsigned int, size_t);
 	efx_rc_t	(*envo_partn_write)(efx_nic_t *, uint32_t,
