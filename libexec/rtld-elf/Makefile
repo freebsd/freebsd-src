@@ -102,10 +102,6 @@ ${PROG_FULL}:	${VERSION_MAP}
 # GCC warns about redeclarations even though they have __exported
 # and are therefore not identical to the ones from the system headers.
 CFLAGS+=	-Wno-redundant-decls
-# GCC (6.4.0) doesn't grok the complicated lifetimes in reloc_non_plt():
-.if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS.reloc.c+=-Wno-maybe-uninitialized
-.endif
 .if ${COMPILER_VERSION} < 40300
 # Silence -Wshadow false positives in ancient GCC
 CFLAGS+=	-Wno-shadow
