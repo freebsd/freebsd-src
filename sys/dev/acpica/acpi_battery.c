@@ -169,14 +169,11 @@ acpi_battery_get_battinfo(device_t dev, struct acpi_battinfo *battinfo)
 	    dev_idx = i;
 
 	/*
-	 * Be sure we can get various info from the battery.  Note that
-	 * acpi_BatteryIsPresent() is not enough because smart batteries only
-	 * return that the device is present.
+	 * Be sure we can get various info from the battery.
 	 */
-	if (!acpi_BatteryIsPresent(batt_dev) ||
-	    ACPI_BATT_GET_STATUS(batt_dev, &bst[i]) != 0 ||
-	    ACPI_BATT_GET_INFO(batt_dev, bif) != 0)
-	    continue;
+	if (ACPI_BATT_GET_STATUS(batt_dev, &bst[i]) != 0 ||
+		ACPI_BATT_GET_INFO(batt_dev, bif) != 0)
+		continue;
 
 	/* If a battery is not installed, we sometimes get strange values. */
 	if (!acpi_battery_bst_valid(&bst[i]) ||
