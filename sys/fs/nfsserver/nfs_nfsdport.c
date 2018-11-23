@@ -2107,9 +2107,15 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	 * cookie) should be in the reply. At least one client "hints" 0,
 	 * so I set it to cnt for that case. I also round it up to the
 	 * next multiple of DIRBLKSIZ.
+	 * Since the size of a Readdirplus directory entry reply will always
+	 * be greater than a directory entry returned by VOP_READDIR(), it
+	 * does not make sense to read more than NFS_SRVMAXDATA() via
+	 * VOP_READDIR().
 	 */
 	if (siz <= 0)
 		siz = cnt;
+	else if (siz > NFS_SRVMAXDATA(nd))
+		siz = NFS_SRVMAXDATA(nd);
 	siz = ((siz + DIRBLKSIZ - 1) & ~(DIRBLKSIZ - 1));
 
 	if (nd->nd_flag & ND_NFSV4) {
