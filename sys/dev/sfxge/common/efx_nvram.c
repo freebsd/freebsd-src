@@ -960,8 +960,8 @@ efx_mcdi_nvram_update_finish(
 
 	if (req.emr_out_length_used < MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN) {
 		verify_result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
-		if (encp->enc_fw_verified_nvram_update_required) {
-			/* Mandatory verification result is missing */
+		if (encp->enc_nvram_update_verify_result_supported) {
+			/* Result of update verification is missing */
 			rc = EMSGSIZE;
 			goto fail2;
 		}
@@ -970,9 +970,9 @@ efx_mcdi_nvram_update_finish(
 		    MCDI_OUT_DWORD(req, NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE);
 	}
 
-	if ((encp->enc_fw_verified_nvram_update_required) &&
+	if ((encp->enc_nvram_update_verify_result_supported) &&
 	    (verify_result != MC_CMD_NVRAM_VERIFY_RC_SUCCESS)) {
-		/* Mandatory verification failed */
+		/* Update verification failed */
 		rc = EINVAL;
 		goto fail3;
 	}
