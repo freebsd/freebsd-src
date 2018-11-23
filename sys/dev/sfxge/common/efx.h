@@ -1934,6 +1934,18 @@ efx_rx_scale_default_support_get(
 	__out		efx_rx_scale_context_type_t *typep);
 
 extern	__checkReturn	efx_rc_t
+efx_rx_scale_context_alloc(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_scale_context_type_t type,
+	__in		uint32_t num_queues,
+	__out		uint32_t *rss_contextp);
+
+extern	__checkReturn	efx_rc_t
+efx_rx_scale_context_free(
+	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context);
+
+extern	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in	efx_nic_t *enp,
 	__in	efx_rx_hash_alg_t alg,

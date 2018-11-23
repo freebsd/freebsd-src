@@ -154,6 +154,8 @@ static const efx_rx_ops_t __efx_rx_siena_ops = {
 	siena_rx_scatter_enable,		/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
+	NULL,					/* erxo_scale_context_alloc */
+	NULL,					/* erxo_scale_context_free */
 	siena_rx_scale_mode_set,		/* erxo_scale_mode_set */
 	siena_rx_scale_key_set,			/* erxo_scale_key_set */
 	siena_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
@@ -181,6 +183,8 @@ static const efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_scatter_enable,			/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
+	ef10_rx_scale_context_alloc,		/* erxo_scale_context_alloc */
+	ef10_rx_scale_context_free,		/* erxo_scale_context_free */
 	ef10_rx_scale_mode_set,			/* erxo_scale_mode_set */
 	ef10_rx_scale_key_set,			/* erxo_scale_key_set */
 	ef10_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
@@ -365,7 +369,71 @@ fail1:
 
 	return (rc);
 }
+#endif	/* EFSYS_OPT_RX_SCALE */
 
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	efx_rc_t
+efx_rx_scale_context_alloc(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_scale_context_type_t type,
+	__in		uint32_t num_queues,
+	__out		uint32_t *rss_contextp)
+{
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (erxop->erxo_scale_context_alloc == NULL) {
+		rc = ENOTSUP;
+		goto fail1;
+	}
+	if ((rc = erxop->erxo_scale_context_alloc(enp, type,
+			    num_queues, rss_contextp)) != 0) {
+		goto fail2;
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	efx_rc_t
+efx_rx_scale_context_free(
+	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context)
+{
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (erxop->erxo_scale_context_free == NULL) {
+		rc = ENOTSUP;
+		goto fail1;
+	}
+	if ((rc = erxop->erxo_scale_context_free(enp, rss_context)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
