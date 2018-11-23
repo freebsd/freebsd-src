@@ -58,6 +58,7 @@ siena_rx_scatter_enable(
 static	__checkReturn	efx_rc_t
 siena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
@@ -65,12 +66,14 @@ siena_rx_scale_mode_set(
 static	__checkReturn	efx_rc_t
 siena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
 static	__checkReturn	efx_rc_t
 siena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
@@ -437,6 +440,7 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
@@ -448,7 +452,7 @@ efx_rx_scale_mode_set(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
 	if (erxop->erxo_scale_mode_set != NULL) {
-		if ((rc = erxop->erxo_scale_mode_set(enp, alg,
+		if ((rc = erxop->erxo_scale_mode_set(enp, rss_context, alg,
 			    type, insert)) != 0)
 			goto fail1;
 	}
@@ -465,6 +469,7 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
@@ -474,7 +479,7 @@ efx_rx_scale_key_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	if ((rc = erxop->erxo_scale_key_set(enp, key, n)) != 0)
+	if ((rc = erxop->erxo_scale_key_set(enp, rss_context, key, n)) != 0)
 		goto fail1;
 
 	return (0);
@@ -490,6 +495,7 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
@@ -499,7 +505,7 @@ efx_rx_scale_tbl_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	if ((rc = erxop->erxo_scale_tbl_set(enp, table, n)) != 0)
+	if ((rc = erxop->erxo_scale_tbl_set(enp, rss_context, table, n)) != 0)
 		goto fail1;
 
 	return (0);
@@ -852,11 +858,17 @@ fail1:
 static	__checkReturn	efx_rc_t
 siena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
 	efx_rc_t rc;
+
+	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	switch (alg) {
 	case EFX_RX_HASHALG_LFSR:
@@ -873,17 +885,19 @@ siena_rx_scale_mode_set(
 		    type & EFX_RX_HASH_TCPIPV6,
 		    rc);
 		if (rc != 0)
-			goto fail1;
+			goto fail2;
 
 		break;
 
 	default:
 		rc = EINVAL;
-		goto fail2;
+		goto fail3;
 	}
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -899,6 +913,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 siena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
@@ -906,6 +921,11 @@ siena_rx_scale_key_set(
 	unsigned int byte;
 	unsigned int offset;
 	efx_rc_t rc;
+
+	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	byte = 0;
 
@@ -927,7 +947,7 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail1;
+			goto fail2;
 		}
 	}
 
@@ -976,7 +996,7 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail2;
+			goto fail3;
 		}
 	}
 
@@ -988,7 +1008,7 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail3;
+			goto fail4;
 		}
 	}
 
@@ -1000,13 +1020,15 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail4;
+			goto fail5;
 		}
 	}
 
 done:
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
@@ -1024,6 +1046,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 siena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
@@ -1034,9 +1057,14 @@ siena_rx_scale_tbl_set(
 	EFX_STATIC_ASSERT(EFX_RSS_TBL_SIZE == FR_BZ_RX_INDIRECTION_TBL_ROWS);
 	EFX_STATIC_ASSERT(EFX_MAXRSS == (1 << FRF_BZ_IT_QUEUE_WIDTH));
 
-	if (n > FR_BZ_RX_INDIRECTION_TBL_ROWS) {
+	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
 		rc = EINVAL;
 		goto fail1;
+	}
+
+	if (n > FR_BZ_RX_INDIRECTION_TBL_ROWS) {
+		rc = EINVAL;
+		goto fail2;
 	}
 
 	for (index = 0; index < FR_BZ_RX_INDIRECTION_TBL_ROWS; index++) {
@@ -1067,12 +1095,14 @@ siena_rx_scale_tbl_set(
 		/* Verify the entry */
 		if (EFX_OWORD_FIELD(oword, FRF_BZ_IT_QUEUE) != byte) {
 			rc = EFAULT;
-			goto fail2;
+			goto fail3;
 		}
 	}
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
