@@ -2050,12 +2050,6 @@ efx_rx_qpush(
 
 #if EFSYS_OPT_RX_PACKED_STREAM
 
-/*
- * Fake length for RXQ descriptors in packed stream mode
- * to make hardware happy
- */
-#define	EFX_RXQ_PACKED_STREAM_FAKE_BUF_SIZE 32
-
 extern			void
 efx_rx_qpush_ps_credits(
 	__in		efx_rxq_t *erp);
