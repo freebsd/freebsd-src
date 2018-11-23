@@ -613,7 +613,7 @@ efx_mcdi_nvram_metadata(
 
 	MCDI_IN_SET_DWORD(req, NVRAM_METADATA_IN_TYPE, partn);
 
-	efx_mcdi_execute(enp, &req);
+	efx_mcdi_execute_quiet(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
