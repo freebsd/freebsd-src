@@ -1686,10 +1686,6 @@ kqueue_schedtask(struct kqueue *kq)
  * Expand the kq to make sure we have storage for fops/ident pair.
  *
  * Return 0 on success (or no work necessary), return errno on failure.
- *
- * Not calling hashinit w/ waitok (proper malloc flag) should be safe.
- * If kqueue_register is called from a non-fd context, there usually/should
- * be no locks held.
  */
 static int
 kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
@@ -1734,8 +1730,9 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 		}
 	} else {
 		if (kq->kq_knhashmask == 0) {
-			tmp_knhash = hashinit(KN_HASHSIZE, M_KQUEUE,
-			    &tmp_knhashmask);
+			tmp_knhash = hashinit_flags(KN_HASHSIZE, M_KQUEUE,
+			    &tmp_knhashmask,
+			    waitok ? HASH_WAITOK : HASH_NOWAIT);
 			if (tmp_knhash == NULL)
 				return ENOMEM;
 			KQ_LOCK(kq);
