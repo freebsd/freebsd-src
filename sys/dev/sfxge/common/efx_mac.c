@@ -60,6 +60,7 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	siena_mac_stats_get_mask,		/* emo_stats_get_mask */
+	efx_mcdi_mac_stats_clear,		/* emo_stats_clear */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	siena_mac_stats_update			/* emo_stats_update */
@@ -84,6 +85,7 @@ static const efx_mac_ops_t	__efx_ef10_mac_ops = {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	ef10_mac_stats_get_mask,		/* emo_stats_get_mask */
+	efx_mcdi_mac_stats_clear,		/* emo_stats_clear */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	ef10_mac_stats_update			/* emo_stats_update */
@@ -708,6 +710,29 @@ efx_mac_stats_get_mask(
 	(void) memset(maskp, 0, mask_size);
 
 	if ((rc = emop->emo_stats_get_mask(enp, maskp, mask_size)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn			efx_rc_t
+efx_mac_stats_clear(
+	__in				efx_nic_t *enp)
+{
+	efx_port_t *epp = &(enp->en_port);
+	const efx_mac_ops_t *emop = epp->ep_emop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+	EFSYS_ASSERT(emop != NULL);
+
+	if ((rc = emop->emo_stats_clear(enp)) != 0)
 		goto fail1;
 
 	return (0);
