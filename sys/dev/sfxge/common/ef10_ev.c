@@ -1344,9 +1344,11 @@ ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
 	__in		unsigned int label,
-	__in		boolean_t packed_stream)
+	__in		efx_rxq_type_t type)
 {
 	efx_evq_rxq_state_t *eersp;
+	boolean_t packed_stream = (type >= EFX_RXQ_TYPE_PACKED_STREAM_1M) &&
+	    (type <= EFX_RXQ_TYPE_PACKED_STREAM_64K);
 
 	EFSYS_ASSERT3U(label, <, EFX_ARRAY_SIZE(eep->ee_rxq_state));
 	eersp = &eep->ee_rxq_state[label];
