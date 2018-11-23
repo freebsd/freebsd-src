@@ -371,6 +371,7 @@ efx_nvram_rw_finish(
 {
 	const efx_nvram_ops_t *envop = enp->en_envop;
 	uint32_t partn;
+	uint32_t verify_result;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
@@ -384,7 +385,7 @@ efx_nvram_rw_finish(
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
 
-	if ((rc = envop->envo_partn_rw_finish(enp, partn)) != 0)
+	if ((rc = envop->envo_partn_rw_finish(enp, partn, &verify_result)) != 0)
 		goto fail2;
 
 	enp->en_nvram_locked = EFX_NVRAM_INVALID;
@@ -920,13 +921,13 @@ efx_mcdi_nvram_update_finish(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
 	__in			boolean_t reboot,
-	__out_opt		uint32_t *resultp)
+	__out_opt		uint32_t *verify_resultp)
 {
 	const efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN,
 			    MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN)];
-	uint32_t result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
+	uint32_t verify_result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
 	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -950,26 +951,26 @@ efx_mcdi_nvram_update_finish(
 	}
 
 	if (req.emr_out_length_used < MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN) {
-		result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
+		verify_result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
 		if (encp->enc_fw_verified_nvram_update_required) {
 			/* Mandatory verification result is missing */
 			rc = EMSGSIZE;
 			goto fail2;
 		}
 	} else {
-		result =
+		verify_result =
 		    MCDI_OUT_DWORD(req, NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE);
 	}
 
 	if ((encp->enc_fw_verified_nvram_update_required) &&
-	    (result != MC_CMD_NVRAM_VERIFY_RC_SUCCESS)) {
+	    (verify_result != MC_CMD_NVRAM_VERIFY_RC_SUCCESS)) {
 		/* Mandatory verification failed */
 		rc = EINVAL;
 		goto fail3;
 	}
 
-	if (resultp != NULL)
-		*resultp = result;
+	if (verify_resultp != NULL)
+		*verify_resultp = verify_result;
 
 	return (0);
 
@@ -981,8 +982,8 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	/* Always report verification result */
-	if (resultp != NULL)
-		*resultp = result;
+	if (verify_resultp != NULL)
+		*verify_resultp = verify_result;
 
 	return (rc);
 }
