@@ -151,7 +151,7 @@ efx_mcdi_fini_txq(
 
 	efx_mcdi_execute_quiet(enp, &req);
 
-	if ((req.emr_rc != 0) && (req.emr_rc != EALREADY)) {
+	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
 		goto fail1;
 	}
@@ -159,7 +159,12 @@ efx_mcdi_fini_txq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	/*
+	 * EALREADY is not an error, but indicates that the MC has rebooted and
+	 * that the TXQ has already been destroyed.
+	 */
+	if (rc != EALREADY)
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
@@ -690,7 +695,14 @@ ef10_tx_qpace(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	/*
+	 * EALREADY is not an error, but indicates that the MC has rebooted and
+	 * that the TXQ has already been destroyed. Callers need to know that
+	 * the TXQ flush has completed to avoid waiting until timeout for a
+	 * flush done event that will not be delivered.
+	 */
+	if (rc != EALREADY)
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
