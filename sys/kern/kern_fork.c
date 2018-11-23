@@ -720,7 +720,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		dtrace_fasttrap_fork(p1, p2);
 #endif
 	if (fr->fr_flags & RFPPWAIT) {
-		_PHOLD(p2);
 		td->td_pflags |= TDP_RFPPWAIT;
 		td->td_rfppwait_p = p2;
 		td->td_dbgflags |= TDB_VFORK;
