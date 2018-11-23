@@ -787,8 +787,7 @@ ef10_rx_qpush_ps_credits(
 {
 	efx_nic_t *enp = erp->er_enp;
 	efx_dword_t dword;
-	efx_evq_rxq_state_t *rxq_state =
-		&erp->er_eep->ee_rxq_state[erp->er_label];
+	efx_evq_rxq_state_t *rxq_state = erp->er_ev_qstate;
 	uint32_t credits;
 
 	EFSYS_ASSERT(rxq_state->eers_rx_packed_stream);
@@ -837,8 +836,7 @@ ef10_rx_qps_packet_info(
 	uint16_t buf_len;
 	uint8_t *pkt_start;
 	efx_qword_t *qwordp;
-	efx_evq_rxq_state_t *rxq_state =
-		&erp->er_eep->ee_rxq_state[erp->er_label];
+	efx_evq_rxq_state_t *rxq_state = erp->er_ev_qstate;
 
 	EFSYS_ASSERT(rxq_state->eers_rx_packed_stream);
 
@@ -996,6 +994,8 @@ ef10_rx_qcreate(
 	erp->er_label = label;
 
 	ef10_ev_rxlabel_init(eep, erp, label, type);
+
+	erp->er_ev_qstate = &erp->er_eep->ee_rxq_state[label];
 
 	return (0);
 
