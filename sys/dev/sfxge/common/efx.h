@@ -1218,6 +1218,24 @@ extern			const efx_nic_cfg_t *
 efx_nic_cfg_get(
 	__in		efx_nic_t *enp);
 
+typedef struct efx_nic_fw_info_s {
+	/* Basic FW version information */
+	uint16_t	enfi_mc_fw_version[4];
+	/*
+	 * If datapath capabilities can be detected,
+	 * additional FW information is to be shown
+	 */
+	boolean_t	enfi_dpcpu_fw_ids_valid;
+	/* Rx and Tx datapath CPU FW IDs */
+	uint16_t	enfi_rx_dpcpu_fw_id;
+	uint16_t	enfi_tx_dpcpu_fw_id;
+} efx_nic_fw_info_t;
+
+extern	__checkReturn		efx_rc_t
+efx_nic_get_fw_version(
+	__in			efx_nic_t *enp,
+	__out			efx_nic_fw_info_t *enfip);
+
 /* Driver resource limits (minimum required/maximum usable). */
 typedef struct efx_drv_limits_s {
 	uint32_t	edl_min_evq_count;

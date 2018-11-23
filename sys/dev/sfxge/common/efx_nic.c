@@ -621,6 +621,54 @@ efx_nic_cfg_get(
 	return (&(enp->en_nic_cfg));
 }
 
+	__checkReturn		efx_rc_t
+efx_nic_get_fw_version(
+	__in			efx_nic_t *enp,
+	__out			efx_nic_fw_info_t *enfip)
+{
+	uint16_t mc_fw_version[4];
+	efx_rc_t rc;
+
+	if (enfip == NULL) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MCDI);
+	EFSYS_ASSERT3U(enp->en_features, &, EFX_FEATURE_MCDI);
+
+	rc = efx_mcdi_version(enp, mc_fw_version, NULL, NULL);
+	if (rc != 0)
+		goto fail2;
+
+	rc = efx_mcdi_get_capabilities(enp, NULL,
+				       &enfip->enfi_rx_dpcpu_fw_id,
+				       &enfip->enfi_tx_dpcpu_fw_id,
+				       NULL, NULL);
+	if (rc == 0) {
+		enfip->enfi_dpcpu_fw_ids_valid = B_TRUE;
+	} else if (rc == ENOTSUP) {
+		enfip->enfi_dpcpu_fw_ids_valid = B_FALSE;
+		enfip->enfi_rx_dpcpu_fw_id = 0;
+		enfip->enfi_tx_dpcpu_fw_id = 0;
+	} else {
+		goto fail3;
+	}
+
+	memcpy(enfip->enfi_mc_fw_version, mc_fw_version, sizeof(mc_fw_version));
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 #if EFSYS_OPT_DIAG
 
 	__checkReturn	efx_rc_t
