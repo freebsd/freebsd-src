@@ -48,6 +48,7 @@ static const efx_nvram_ops_t	__efx_nvram_siena_ops = {
 	siena_nvram_partn_size,		/* envo_partn_size */
 	siena_nvram_partn_rw_start,	/* envo_partn_rw_start */
 	siena_nvram_partn_read,		/* envo_partn_read */
+	siena_nvram_partn_read,		/* envo_partn_read_backup */
 	siena_nvram_partn_erase,	/* envo_partn_erase */
 	siena_nvram_partn_write,	/* envo_partn_write */
 	siena_nvram_partn_rw_finish,	/* envo_partn_rw_finish */
@@ -68,6 +69,7 @@ static const efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 	ef10_nvram_partn_size,		/* envo_partn_size */
 	ef10_nvram_partn_rw_start,	/* envo_partn_rw_start */
 	ef10_nvram_partn_read,		/* envo_partn_read */
+	ef10_nvram_partn_read_backup,	/* envo_partn_read_backup */
 	ef10_nvram_partn_erase,		/* envo_partn_erase */
 	ef10_nvram_partn_write,		/* envo_partn_write */
 	ef10_nvram_partn_rw_finish,	/* envo_partn_rw_finish */
@@ -278,6 +280,48 @@ efx_nvram_read_chunk(
 	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, partn);
 
 	if ((rc = envop->envo_partn_read(enp, partn, offset, data, size)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+/*
+ * Read from the backup (writeable) store of an A/B partition.
+ * For non A/B partitions, there is only a single store, and so this
+ * function has the same behaviour as efx_nvram_read_chunk().
+ */
+	__checkReturn		efx_rc_t
+efx_nvram_read_backup(
+	__in			efx_nic_t *enp,
+	__in			efx_nvram_type_t type,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size)
+{
+	const efx_nvram_ops_t *envop = enp->en_envop;
+	uint32_t partn;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
+
+	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
+	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
+
+	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
+		goto fail1;
+
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, partn);
+
+	if ((rc = envop->envo_partn_read_backup(enp, partn, offset,
+		    data, size)) != 0)
 		goto fail2;
 
 	return (0);

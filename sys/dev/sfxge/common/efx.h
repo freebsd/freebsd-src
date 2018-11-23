@@ -1437,6 +1437,14 @@ efx_nvram_read_chunk(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
+efx_nvram_read_backup(
+	__in			efx_nic_t *enp,
+	__in			efx_nvram_type_t type,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
 efx_nvram_set_version(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
