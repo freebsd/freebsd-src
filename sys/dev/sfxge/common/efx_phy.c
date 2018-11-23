@@ -301,7 +301,7 @@ efx_phy_media_type_get(
 		*typep = epp->ep_fixed_port_type;
 }
 
-	__checkReturn	efx_rc_t
+	__checkReturn		efx_rc_t
 efx_phy_module_get_info(
 	__in			efx_nic_t *enp,
 	__in			uint8_t dev_addr,
