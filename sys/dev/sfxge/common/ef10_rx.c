@@ -588,6 +588,9 @@ ef10_rx_scale_key_set(
 {
 	efx_rc_t rc;
 
+	EFX_STATIC_ASSERT(EFX_RSS_KEY_SIZE ==
+	    MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
+
 	if (rss_context == EFX_RSS_CONTEXT_DEFAULT) {
 		if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
 			rc = ENOTSUP;
