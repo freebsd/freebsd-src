@@ -126,12 +126,16 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	AXP_IRQSTAT5		0x4c
 #define	 AXP_IRQSTAT5_POKSIRQ	(1 << 4)
 #define	AXP_GPIO0_CTRL		0x90
+#define	AXP_GPIO0LDO_CTRL	0x91
 #define	AXP_GPIO1_CTRL		0x92
+#define	AXP_GPIO1LDO_CTRL	0x93
 #define	 AXP_GPIO_FUNC		(0x7 << 0)
 #define	 AXP_GPIO_FUNC_SHIFT	0
 #define	 AXP_GPIO_FUNC_DRVLO	0
 #define	 AXP_GPIO_FUNC_DRVHI	1
 #define	 AXP_GPIO_FUNC_INPUT	2
+#define	 AXP_GPIO_FUNC_LDO_ON	3
+#define	 AXP_GPIO_FUNC_LDO_OFF	4
 #define	AXP_GPIO_SIGBIT		0x94
 #define	AXP_GPIO_PD		0x97
 
@@ -166,6 +170,8 @@ struct axp8xx_regdef {
 	char			*supply_name;
 	uint8_t			enable_reg;
 	uint8_t			enable_mask;
+	uint8_t			enable_value;
+	uint8_t			disable_value;
 	uint8_t			voltage_reg;
 	int			voltage_min;
 	int			voltage_max;
@@ -197,6 +203,8 @@ enum axp8xx_reg_id {
 	AXP8XX_REG_ID_FLDO1,
 	AXP8XX_REG_ID_FLDO2,
 	AXP813_REG_ID_FLDO3,
+	AXP8XX_REG_ID_GPIO0_LDO,
+	AXP8XX_REG_ID_GPIO1_LDO,
 };
 
 static struct axp8xx_regdef axp803_regdefs[] = {
@@ -204,7 +212,8 @@ static struct axp8xx_regdef axp803_regdefs[] = {
 		.id = AXP803_REG_ID_DC1SW,
 		.name = "dc1sw",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_DC1SW,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_DC1SW,
+		.enable_value = AXP_POWERCTL2_DC1SW,
 	},
 };
 
@@ -213,7 +222,8 @@ static struct axp8xx_regdef axp813_regdefs[] = {
 		.id = AXP813_REG_ID_DCDC7,
 		.name = "dcdc7",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC7,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC7,
+		.enable_value = AXP_POWERCTL1_DCDC7,
 		.voltage_reg = AXP_VOLTCTL_DCDC7,
 		.voltage_min = 600,
 		.voltage_max = 1520,
@@ -229,7 +239,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DCDC1,
 		.name = "dcdc1",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC1,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC1,
+		.enable_value = AXP_POWERCTL1_DCDC1,
 		.voltage_reg = AXP_VOLTCTL_DCDC1,
 		.voltage_min = 1600,
 		.voltage_max = 3400,
@@ -240,7 +251,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DCDC2,
 		.name = "dcdc2",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC2,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC2,
+		.enable_value = AXP_POWERCTL1_DCDC2,
 		.voltage_reg = AXP_VOLTCTL_DCDC2,
 		.voltage_min = 500,
 		.voltage_max = 1300,
@@ -253,7 +265,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DCDC3,
 		.name = "dcdc3",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC3,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC3,
+		.enable_value = AXP_POWERCTL1_DCDC3,
 		.voltage_reg = AXP_VOLTCTL_DCDC3,
 		.voltage_min = 500,
 		.voltage_max = 1300,
@@ -266,7 +279,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DCDC4,
 		.name = "dcdc4",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC4,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC4,
+		.enable_value = AXP_POWERCTL1_DCDC4,
 		.voltage_reg = AXP_VOLTCTL_DCDC4,
 		.voltage_min = 500,
 		.voltage_max = 1300,
@@ -279,7 +293,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DCDC5,
 		.name = "dcdc5",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC5,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC5,
+		.enable_value = AXP_POWERCTL1_DCDC5,
 		.voltage_reg = AXP_VOLTCTL_DCDC5,
 		.voltage_min = 800,
 		.voltage_max = 1840,
@@ -292,7 +307,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DCDC6,
 		.name = "dcdc6",
 		.enable_reg = AXP_POWERCTL1,
-		.enable_mask = AXP_POWERCTL1_DCDC6,
+		.enable_mask = (uint8_t) AXP_POWERCTL1_DCDC6,
+		.enable_value = AXP_POWERCTL1_DCDC6,
 		.voltage_reg = AXP_VOLTCTL_DCDC6,
 		.voltage_min = 600,
 		.voltage_max = 1520,
@@ -305,7 +321,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DLDO1,
 		.name = "dldo1",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_DLDO1,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO1,
+		.enable_value = AXP_POWERCTL2_DLDO1,
 		.voltage_reg = AXP_VOLTCTL_DLDO1,
 		.voltage_min = 700,
 		.voltage_max = 3300,
@@ -316,7 +333,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DLDO2,
 		.name = "dldo2",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_DLDO2,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO2,
+		.enable_value = AXP_POWERCTL2_DLDO2,
 		.voltage_reg = AXP_VOLTCTL_DLDO2,
 		.voltage_min = 700,
 		.voltage_max = 4200,
@@ -329,7 +347,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DLDO3,
 		.name = "dldo3",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_DLDO3,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO3,
+		.enable_value = AXP_POWERCTL2_DLDO3,
 		.voltage_reg = AXP_VOLTCTL_DLDO3,
 		.voltage_min = 700,
 		.voltage_max = 3300,
@@ -340,7 +359,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_DLDO4,
 		.name = "dldo4",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_DLDO4,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_DLDO4,
+		.enable_value = AXP_POWERCTL2_DLDO4,
 		.voltage_reg = AXP_VOLTCTL_DLDO4,
 		.voltage_min = 700,
 		.voltage_max = 3300,
@@ -351,7 +371,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_ALDO1,
 		.name = "aldo1",
 		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = AXP_POWERCTL3_ALDO1,
+		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO1,
+		.enable_value = AXP_POWERCTL3_ALDO1,
 		.voltage_min = 700,
 		.voltage_max = 3300,
 		.voltage_step1 = 100,
@@ -361,7 +382,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_ALDO2,
 		.name = "aldo2",
 		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = AXP_POWERCTL3_ALDO2,
+		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO2,
+		.enable_value = AXP_POWERCTL3_ALDO2,
 		.voltage_min = 700,
 		.voltage_max = 3300,
 		.voltage_step1 = 100,
@@ -371,7 +393,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_ALDO3,
 		.name = "aldo3",
 		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = AXP_POWERCTL3_ALDO3,
+		.enable_mask = (uint8_t) AXP_POWERCTL3_ALDO3,
+		.enable_value = AXP_POWERCTL3_ALDO3,
 		.voltage_min = 700,
 		.voltage_max = 3300,
 		.voltage_step1 = 100,
@@ -381,7 +404,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_ELDO1,
 		.name = "eldo1",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_ELDO1,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO1,
+		.enable_value = AXP_POWERCTL2_ELDO1,
 		.voltage_min = 700,
 		.voltage_max = 1900,
 		.voltage_step1 = 50,
@@ -391,7 +415,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_ELDO2,
 		.name = "eldo2",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_ELDO2,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO2,
+		.enable_value = AXP_POWERCTL2_ELDO2,
 		.voltage_min = 700,
 		.voltage_max = 1900,
 		.voltage_step1 = 50,
@@ -401,7 +426,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_ELDO3,
 		.name = "eldo3",
 		.enable_reg = AXP_POWERCTL2,
-		.enable_mask = AXP_POWERCTL2_ELDO3,
+		.enable_mask = (uint8_t) AXP_POWERCTL2_ELDO3,
+		.enable_value = AXP_POWERCTL2_ELDO3,
 		.voltage_min = 700,
 		.voltage_max = 1900,
 		.voltage_step1 = 50,
@@ -411,7 +437,8 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_FLDO1,
 		.name = "fldo1",
 		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = AXP_POWERCTL3_FLDO1,
+		.enable_mask = (uint8_t) ~AXP_POWERCTL3_FLDO1,
+		.enable_value = AXP_POWERCTL3_FLDO1,
 		.voltage_min = 700,
 		.voltage_max = 1450,
 		.voltage_step1 = 50,
@@ -421,11 +448,38 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 		.id = AXP8XX_REG_ID_FLDO2,
 		.name = "fldo2",
 		.enable_reg = AXP_POWERCTL3,
-		.enable_mask = AXP_POWERCTL3_FLDO2,
+		.enable_mask = (uint8_t) AXP_POWERCTL3_FLDO2,
+		.enable_value = AXP_POWERCTL3_FLDO2,
 		.voltage_min = 700,
 		.voltage_max = 1450,
 		.voltage_step1 = 50,
 		.voltage_nstep1 = 15,
+	},
+	{
+		.id = AXP8XX_REG_ID_GPIO0_LDO,
+		.name = "ldo-io0",
+		.enable_reg = AXP_GPIO0_CTRL,
+		.enable_mask = (uint8_t) AXP_GPIO_FUNC,
+		.enable_value = AXP_GPIO_FUNC_LDO_ON,
+		.disable_value = AXP_GPIO_FUNC_LDO_OFF,
+		.voltage_reg = AXP_GPIO0LDO_CTRL,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step1 = 100,
+		.voltage_nstep1 = 26,
+	},
+	{
+		.id = AXP8XX_REG_ID_GPIO1_LDO,
+		.name = "ldo-io1",
+		.enable_reg = AXP_GPIO1_CTRL,
+		.enable_mask = (uint8_t) AXP_GPIO_FUNC,
+		.enable_value = AXP_GPIO_FUNC_LDO_ON,
+		.disable_value = AXP_GPIO_FUNC_LDO_OFF,
+		.voltage_reg = AXP_GPIO1LDO_CTRL,
+		.voltage_min = 700,
+		.voltage_max = 3300,
+		.voltage_step1 = 100,
+		.voltage_nstep1 = 26,
 	},
 };
 
@@ -520,10 +574,15 @@ axp8xx_regnode_enable(struct regnode *regnode, bool enable, int *udelay)
 		    sc->def->name);
 
 	axp8xx_read(sc->base_dev, sc->def->enable_reg, &val, 1);
+	val &= ~sc->def->enable_mask;
 	if (enable)
-		val |= sc->def->enable_mask;
-	else
-		val &= ~sc->def->enable_mask;
+		val |= sc->def->enable_value;
+	else {
+		if (sc->def->disable_value)
+			val |= sc->def->disable_value;
+		else
+			val &= ~sc->def->enable_value;
+	}
 	axp8xx_write(sc->base_dev, sc->def->enable_reg, val);
 
 	*udelay = 0;
