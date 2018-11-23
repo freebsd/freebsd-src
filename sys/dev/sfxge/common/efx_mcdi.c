@@ -295,7 +295,8 @@ efx_mcdi_request_start(
 	 */
 	if ((max_version >= 2) &&
 	    ((emrp->emr_cmd > MC_CMD_CMD_SPACE_ESCAPE_7) ||
-	    (emrp->emr_in_length > MCDI_CTL_SDU_LEN_MAX_V1))) {
+	    (emrp->emr_in_length > MCDI_CTL_SDU_LEN_MAX_V1) ||
+	    (emrp->emr_out_length > MCDI_CTL_SDU_LEN_MAX_V1))) {
 		/* Construct MCDI v2 header */
 		hdr_len = sizeof (hdr);
 		EFX_POPULATE_DWORD_8(hdr[0],
