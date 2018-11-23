@@ -309,7 +309,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
-efx_rx_hash_support_get(
+efx_rx_hash_default_support_get(
 	__in		efx_nic_t *enp,
 	__out		efx_rx_hash_support_t *supportp)
 {
@@ -323,7 +323,10 @@ efx_rx_hash_support_get(
 		goto fail1;
 	}
 
-	/* Report if resources are available to insert RX hash value */
+	/*
+	 * Report the hashing support the client gets by default if it
+	 * does not allocate an RSS context itself.
+	 */
 	*supportp = enp->en_hash_support;
 
 	return (0);
@@ -335,22 +338,25 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-efx_rx_scale_support_get(
+efx_rx_scale_default_support_get(
 	__in		efx_nic_t *enp,
-	__out		efx_rx_scale_support_t *supportp)
+	__out		efx_rx_scale_context_type_t *typep)
 {
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	if (supportp == NULL) {
+	if (typep == NULL) {
 		rc = EINVAL;
 		goto fail1;
 	}
 
-	/* Report if resources are available to support RSS */
-	*supportp = enp->en_rss_support;
+	/*
+	 * Report the RSS support the client gets by default if it
+	 * does not allocate an RSS context itself.
+	 */
+	*typep = enp->en_rss_context_type;
 
 	return (0);
 
@@ -659,7 +665,7 @@ siena_rx_init(
 
 #if EFSYS_OPT_RX_SCALE
 	/* The RSS key and indirection table are writable. */
-	enp->en_rss_support = EFX_RX_SCALE_EXCLUSIVE;
+	enp->en_rss_context_type = EFX_RX_SCALE_EXCLUSIVE;
 
 	/* Hardware can insert RX hash with/without RSS */
 	enp->en_hash_support = EFX_RX_HASH_AVAILABLE;

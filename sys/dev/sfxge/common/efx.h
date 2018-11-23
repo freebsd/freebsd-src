@@ -1916,22 +1916,22 @@ typedef enum efx_rx_hash_support_e {
 #define	EFX_MAXRSS		64	/* RX indirection entry range */
 #define	EFX_MAXRSS_LEGACY	16	/* See bug16611 and bug17213 */
 
-typedef enum efx_rx_scale_support_e {
-	EFX_RX_SCALE_UNAVAILABLE = 0,	/* Not supported */
+typedef enum efx_rx_scale_context_type_e {
+	EFX_RX_SCALE_UNAVAILABLE = 0,	/* No RX scale context */
 	EFX_RX_SCALE_EXCLUSIVE,		/* Writable key/indirection table */
 	EFX_RX_SCALE_SHARED		/* Read-only key/indirection table */
-} efx_rx_scale_support_t;
+} efx_rx_scale_context_type_t;
 
 extern	__checkReturn	efx_rc_t
-efx_rx_hash_support_get(
+efx_rx_hash_default_support_get(
 	__in		efx_nic_t *enp,
 	__out		efx_rx_hash_support_t *supportp);
 
 
 extern	__checkReturn	efx_rc_t
-efx_rx_scale_support_get(
+efx_rx_scale_default_support_get(
 	__in		efx_nic_t *enp,
-	__out		efx_rx_scale_support_t *supportp);
+	__out		efx_rx_scale_context_type_t *typep);
 
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
