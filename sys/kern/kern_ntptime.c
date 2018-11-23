@@ -300,6 +300,8 @@ ntp_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct ntptimeval ntv;	/* temporary structure */
 
+	memset(&ntv, 0, sizeof(ntv));
+
 	NTP_LOCK();
 	ntp_gettime1(&ntv);
 	NTP_UNLOCK();
