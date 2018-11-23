@@ -1213,7 +1213,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_required_pcie_bandwidth_mbps;
 	uint32_t		enc_max_pcie_link_gen;
 	/* Firmware verifies integrity of NVRAM updates */
-	uint32_t		enc_fw_verified_nvram_update_required;
+	uint32_t		enc_nvram_update_verify_result_supported;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)

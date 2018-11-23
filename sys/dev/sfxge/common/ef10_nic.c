@@ -1057,7 +1057,7 @@ ef10_get_datapath_caps(
 	 * and version 2 of MC_CMD_NVRAM_UPDATE_FINISH (to verify the updated
 	 * partition and report the result).
 	 */
-	encp->enc_fw_verified_nvram_update_required =
+	encp->enc_nvram_update_verify_result_supported =
 	    CAP_FLAG2(flags2, NVRAM_UPDATE_REPORT_VERIFY_RESULT) ?
 	    B_TRUE : B_FALSE;
 
