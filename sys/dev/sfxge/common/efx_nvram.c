@@ -949,24 +949,23 @@ efx_mcdi_nvram_update_finish(
 		goto fail1;
 	}
 
-	if (encp->enc_fw_verified_nvram_update_required == B_FALSE) {
-		/* Report success if verified updates are not supported. */
-		result = MC_CMD_NVRAM_VERIFY_RC_SUCCESS;
-	} else {
-		/* Firmware-verified NVRAM updates are required */
-		if (req.emr_out_length_used <
-		    MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN) {
+		result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
+		if (encp->enc_fw_verified_nvram_update_required) {
+			/* Mandatory verification result is missing */
 			rc = EMSGSIZE;
 			goto fail2;
 		}
+	} else {
 		result =
 		    MCDI_OUT_DWORD(req, NVRAM_UPDATE_FINISH_V2_OUT_RESULT_CODE);
+	}
 
-		if (result != MC_CMD_NVRAM_VERIFY_RC_SUCCESS) {
-			/* Mandatory verification failed */
-			rc = EINVAL;
-			goto fail3;
-		}
+	if ((encp->enc_fw_verified_nvram_update_required) &&
+	    (result != MC_CMD_NVRAM_VERIFY_RC_SUCCESS)) {
+		/* Mandatory verification failed */
+		rc = EINVAL;
+		goto fail3;
 	}
 
 	if (resultp != NULL)
