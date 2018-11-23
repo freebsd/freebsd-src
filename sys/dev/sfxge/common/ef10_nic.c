@@ -1075,6 +1075,16 @@ ef10_get_datapath_caps(
 	encp->enc_mac_stats_40g_tx_size_bins =
 	    CAP_FLAG2(flags2, MAC_STATS_40G_TX_SIZE_BINS) ? B_TRUE : B_FALSE;
 
+	/*
+	 * Check if firmware supports VXLAN and NVGRE tunnels.
+	 * The capability indicates Geneve protocol support as well.
+	 */
+	if (CAP_FLAG(flags, VXLAN_NVGRE))
+		encp->enc_tunnel_encapsulations_supported =
+		    (1u << EFX_TUNNEL_PROTOCOL_VXLAN) |
+		    (1u << EFX_TUNNEL_PROTOCOL_GENEVE) |
+		    (1u << EFX_TUNNEL_PROTOCOL_NVGRE);
+
 #undef CAP_FLAG
 #undef CAP_FLAG2
 
