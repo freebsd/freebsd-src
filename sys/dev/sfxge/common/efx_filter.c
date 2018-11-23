@@ -122,10 +122,6 @@ efx_filter_remove(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 	EFSYS_ASSERT3U(spec->efs_flags, &, EFX_FILTER_FLAG_RX);
 
-#if EFSYS_OPT_RX_SCALE
-	spec->efs_rss_context = enp->en_rss_context;
-#endif
-
 	return (efop->efo_delete(enp, spec));
 }
 
@@ -495,7 +491,32 @@ fail1:
 	return (rc);
 }
 
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	efx_rc_t
+efx_filter_spec_set_rss_context(
+	__inout		efx_filter_spec_t *spec,
+	__in		uint32_t rss_context)
+{
+	efx_rc_t rc;
 
+	EFSYS_ASSERT3P(spec, !=, NULL);
+
+	/* The filter must have been created with EFX_FILTER_FLAG_RX_RSS. */
+	if ((spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) == 0) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	spec->efs_rss_context = rss_context;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+#endif
 
 #if EFSYS_OPT_SIENA
 

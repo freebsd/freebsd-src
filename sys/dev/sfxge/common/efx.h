@@ -2426,7 +2426,12 @@ efx_filter_spec_set_encap_type(
 	__in		efx_tunnel_protocol_t encap_type,
 	__in		efx_filter_inner_frame_match_t inner_frame_match);
 
-
+#if EFSYS_OPT_RX_SCALE
+extern	__checkReturn	efx_rc_t
+efx_filter_spec_set_rss_context(
+	__inout		efx_filter_spec_t *spec,
+	__in		uint32_t rss_context);
+#endif
 #endif	/* EFSYS_OPT_FILTER */
 
 /* HASH */

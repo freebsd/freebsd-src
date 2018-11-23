@@ -229,10 +229,20 @@ efx_mcdi_filter_op_add(
 	    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_HOST);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_QUEUE,
 	    spec->efs_dmaq_id);
+
+#if EFSYS_OPT_RX_SCALE
 	if (spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) {
+		uint32_t rss_context;
+
+		if (spec->efs_rss_context == EFX_RSS_CONTEXT_DEFAULT)
+			rss_context = enp->en_rss_context;
+		else
+			rss_context = spec->efs_rss_context;
 		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_CONTEXT,
-		    spec->efs_rss_context);
+		    rss_context);
 	}
+#endif
+
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_MODE,
 	    spec->efs_flags & EFX_FILTER_FLAG_RX_RSS ?
 	    MC_CMD_FILTER_OP_EXT_IN_RX_MODE_RSS :
@@ -588,10 +598,6 @@ ef10_filter_add_internal(
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
-
-#if EFSYS_OPT_RX_SCALE
-	spec->efs_rss_context = enp->en_rss_context;
-#endif
 
 	hash = ef10_filter_hash(spec);
 
