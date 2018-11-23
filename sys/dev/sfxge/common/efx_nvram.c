@@ -117,6 +117,8 @@ efx_nvram_init(
 	enp->en_envop = envop;
 	enp->en_mod_flags |= EFX_MOD_NVRAM;
 
+	enp->en_nvram_partn_locked = EFX_NVRAM_PARTN_INVALID;
+
 	return (0);
 
 fail1:
@@ -232,15 +234,15 @@ efx_nvram_rw_start(
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, EFX_NVRAM_INVALID);
-
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, EFX_NVRAM_PARTN_INVALID);
 
 	if ((rc = envop->envo_partn_rw_start(enp, partn, chunk_sizep)) != 0)
 		goto fail2;
 
-	enp->en_nvram_locked = type;
+	enp->en_nvram_partn_locked = partn;
 
 	return (0);
 
@@ -270,10 +272,10 @@ efx_nvram_read_chunk(
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
-
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, partn);
 
 	if ((rc = envop->envo_partn_read(enp, partn, offset, data, size)) != 0)
 		goto fail2;
@@ -305,10 +307,10 @@ efx_nvram_erase(
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
-
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, partn);
 
 	if ((rc = envop->envo_partn_size(enp, partn, &size)) != 0)
 		goto fail2;
@@ -346,10 +348,10 @@ efx_nvram_write_chunk(
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
-
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, partn);
 
 	if ((rc = envop->envo_partn_write(enp, partn, offset, data, size)) != 0)
 		goto fail2;
@@ -381,15 +383,15 @@ efx_nvram_rw_finish(
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, type);
-
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, partn);
 
 	if ((rc = envop->envo_partn_rw_finish(enp, partn, &verify_result)) != 0)
 		goto fail2;
 
-	enp->en_nvram_locked = EFX_NVRAM_INVALID;
+	enp->en_nvram_partn_locked = EFX_NVRAM_PARTN_INVALID;
 
 	if (verify_resultp != NULL)
 		*verify_resultp = verify_result;
@@ -398,7 +400,7 @@ efx_nvram_rw_finish(
 
 fail2:
 	EFSYS_PROBE(fail2);
-	enp->en_nvram_locked = EFX_NVRAM_INVALID;
+	enp->en_nvram_partn_locked = EFX_NVRAM_PARTN_INVALID;
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
@@ -426,15 +428,15 @@ efx_nvram_set_version(
 
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 
-	/*
-	 * The Siena implementation of envo_set_version() will attempt to
-	 * acquire the NVRAM_UPDATE lock for the DYNAMIC_CONFIG sector.
-	 * Therefore, you can't have already acquired the NVRAM_UPDATE lock.
-	 */
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, EFX_NVRAM_INVALID);
-
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
+
+	/*
+	 * The Siena implementation of envo_set_version() will attempt to
+	 * acquire the NVRAM_UPDATE lock for the DYNAMIC_CONFIG partition.
+	 * Therefore, you can't have already acquired the NVRAM_UPDATE lock.
+	 */
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, EFX_NVRAM_PARTN_INVALID);
 
 	if ((rc = envop->envo_partn_set_version(enp, partn, version)) != 0)
 		goto fail2;
@@ -495,7 +497,7 @@ efx_nvram_fini(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_NVRAM);
 
-	EFSYS_ASSERT3U(enp->en_nvram_locked, ==, EFX_NVRAM_INVALID);
+	EFSYS_ASSERT3U(enp->en_nvram_partn_locked, ==, EFX_NVRAM_PARTN_INVALID);
 
 	enp->en_envop = NULL;
 	enp->en_mod_flags &= ~EFX_MOD_NVRAM;
