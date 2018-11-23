@@ -126,29 +126,29 @@ ef10_filter_init(
 
 #define	MATCH_MASK(match) (EFX_MASK32(match) << EFX_LOW_BIT(match))
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_REM_HOST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_SRC_IP));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_SRC_IP));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_LOC_HOST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_DST_IP));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_DST_IP));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_REM_MAC ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_SRC_MAC));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_SRC_MAC));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_REM_PORT ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_SRC_PORT));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_SRC_PORT));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_LOC_MAC ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_DST_MAC));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_DST_MAC));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_LOC_PORT ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_DST_PORT));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_DST_PORT));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_ETHER_TYPE ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_ETHER_TYPE));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_ETHER_TYPE));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_INNER_VID ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_INNER_VLAN));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_INNER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_OUTER_VID ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_OUTER_VLAN));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_OUTER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IP_PROTO ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_IP_PROTO));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IP_PROTO));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_UNKNOWN_MCAST_DST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_MCAST_DST));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_MCAST_DST));
 	EFX_STATIC_ASSERT((uint32_t)EFX_FILTER_MATCH_UNKNOWN_UCAST_DST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_UCAST_DST));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_UCAST_DST));
 #undef MATCH_MASK
 
 	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (ef10_filter_table_t), eftp);
@@ -189,27 +189,27 @@ efx_mcdi_filter_op_add(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
-			    MC_CMD_FILTER_OP_OUT_LEN)];
+	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
+			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
 	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_FILTER_OP_IN_LEN;
+	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_FILTER_OP_OUT_LEN;
+	req.emr_out_length = MC_CMD_FILTER_OP_EXT_OUT_LEN;
 
 	switch (filter_op) {
 	case MC_CMD_FILTER_OP_IN_OP_REPLACE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_LO,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_LO,
 		    handle->efh_lo);
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_HI,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_HI,
 		    handle->efh_hi);
 		/* Fall through */
 	case MC_CMD_FILTER_OP_IN_OP_INSERT:
 	case MC_CMD_FILTER_OP_IN_OP_SUBSCRIBE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_OP, filter_op);
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_OP, filter_op);
 		break;
 	default:
 		EFSYS_ASSERT(0);
@@ -217,63 +217,63 @@ efx_mcdi_filter_op_add(
 		goto fail1;
 	}
 
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_PORT_ID,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_MATCH_FIELDS,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_MATCH_FIELDS,
 	    spec->efs_match_flags);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_DEST,
-	    MC_CMD_FILTER_OP_IN_RX_DEST_HOST);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_QUEUE,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_DEST,
+	    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_HOST);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_QUEUE,
 	    spec->efs_dmaq_id);
 	if (spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) {
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_CONTEXT,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_CONTEXT,
 		    spec->efs_rss_context);
 	}
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_MODE,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_MODE,
 	    spec->efs_flags & EFX_FILTER_FLAG_RX_RSS ?
-	    MC_CMD_FILTER_OP_IN_RX_MODE_RSS :
-	    MC_CMD_FILTER_OP_IN_RX_MODE_SIMPLE);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_TX_DEST,
-	    MC_CMD_FILTER_OP_IN_TX_DEST_DEFAULT);
+	    MC_CMD_FILTER_OP_EXT_IN_RX_MODE_RSS :
+	    MC_CMD_FILTER_OP_EXT_IN_RX_MODE_SIMPLE);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_TX_DEST,
+	    MC_CMD_FILTER_OP_EXT_IN_TX_DEST_DEFAULT);
 
 	if (filter_op != MC_CMD_FILTER_OP_IN_OP_REPLACE) {
 		/*
 		 * NOTE: Unlike most MCDI requests, the filter fields
 		 * are presented in network (big endian) byte order.
 		 */
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_SRC_MAC),
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_SRC_MAC),
 		    spec->efs_rem_mac, EFX_MAC_ADDR_LEN);
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_DST_MAC),
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_DST_MAC),
 		    spec->efs_loc_mac, EFX_MAC_ADDR_LEN);
 
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_SRC_PORT,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_SRC_PORT,
 		    __CPU_TO_BE_16(spec->efs_rem_port));
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_DST_PORT,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_DST_PORT,
 		    __CPU_TO_BE_16(spec->efs_loc_port));
 
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_ETHER_TYPE,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_ETHER_TYPE,
 		    __CPU_TO_BE_16(spec->efs_ether_type));
 
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_INNER_VLAN,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_INNER_VLAN,
 		    __CPU_TO_BE_16(spec->efs_inner_vid));
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_OUTER_VLAN,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_OUTER_VLAN,
 		    __CPU_TO_BE_16(spec->efs_outer_vid));
 
 		/* IP protocol (in low byte, high byte is zero) */
-		MCDI_IN_SET_BYTE(req, FILTER_OP_IN_IP_PROTO,
+		MCDI_IN_SET_BYTE(req, FILTER_OP_EXT_IN_IP_PROTO,
 		    spec->efs_ip_proto);
 
 		EFX_STATIC_ASSERT(sizeof (spec->efs_rem_host) ==
-		    MC_CMD_FILTER_OP_IN_SRC_IP_LEN);
+		    MC_CMD_FILTER_OP_EXT_IN_SRC_IP_LEN);
 		EFX_STATIC_ASSERT(sizeof (spec->efs_loc_host) ==
-		    MC_CMD_FILTER_OP_IN_DST_IP_LEN);
+		    MC_CMD_FILTER_OP_EXT_IN_DST_IP_LEN);
 
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_SRC_IP),
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_SRC_IP),
 		    &spec->efs_rem_host.eo_byte[0],
-		    MC_CMD_FILTER_OP_IN_SRC_IP_LEN);
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_DST_IP),
+		    MC_CMD_FILTER_OP_EXT_IN_SRC_IP_LEN);
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_DST_IP),
 		    &spec->efs_loc_host.eo_byte[0],
-		    MC_CMD_FILTER_OP_IN_DST_IP_LEN);
+		    MC_CMD_FILTER_OP_EXT_IN_DST_IP_LEN);
 	}
 
 	efx_mcdi_execute(enp, &req);
@@ -283,13 +283,13 @@ efx_mcdi_filter_op_add(
 		goto fail2;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_FILTER_OP_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_FILTER_OP_EXT_OUT_LEN) {
 		rc = EMSGSIZE;
 		goto fail3;
 	}
 
-	handle->efh_lo = MCDI_OUT_DWORD(req, FILTER_OP_OUT_HANDLE_LO);
-	handle->efh_hi = MCDI_OUT_DWORD(req, FILTER_OP_OUT_HANDLE_HI);
+	handle->efh_lo = MCDI_OUT_DWORD(req, FILTER_OP_EXT_OUT_HANDLE_LO);
+	handle->efh_hi = MCDI_OUT_DWORD(req, FILTER_OP_EXT_OUT_HANDLE_HI);
 
 	return (0);
 
@@ -311,24 +311,24 @@ efx_mcdi_filter_op_delete(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
-			    MC_CMD_FILTER_OP_OUT_LEN)];
+	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
+			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
 	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_FILTER_OP_IN_LEN;
+	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_FILTER_OP_OUT_LEN;
+	req.emr_out_length = MC_CMD_FILTER_OP_EXT_OUT_LEN;
 
 	switch (filter_op) {
 	case MC_CMD_FILTER_OP_IN_OP_REMOVE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_OP,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_OP,
 		    MC_CMD_FILTER_OP_IN_OP_REMOVE);
 		break;
 	case MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_OP,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_OP,
 		    MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE);
 		break;
 	default:
@@ -337,8 +337,8 @@ efx_mcdi_filter_op_delete(
 		goto fail1;
 	}
 
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_LO, handle->efh_lo);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_HI, handle->efh_hi);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_LO, handle->efh_lo);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_HI, handle->efh_hi);
 
 	efx_mcdi_execute_quiet(enp, &req);
 
@@ -347,7 +347,7 @@ efx_mcdi_filter_op_delete(
 		goto fail2;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_FILTER_OP_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_FILTER_OP_EXT_OUT_LEN) {
 		rc = EMSGSIZE;
 		goto fail3;
 	}
