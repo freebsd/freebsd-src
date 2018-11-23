@@ -1912,6 +1912,7 @@ typedef enum efx_rx_hash_support_e {
 	EFX_RX_HASH_AVAILABLE		/* Insert hash with/without RSS */
 } efx_rx_hash_support_t;
 
+#define	EFX_RSS_KEY_SIZE	40	/* RSS key size (bytes) */
 #define	EFX_RSS_TBL_SIZE	128	/* Rows in RX indirection table */
 #define	EFX_MAXRSS		64	/* RX indirection entry range */
 #define	EFX_MAXRSS_LEGACY	16	/* See bug16611 and bug17213 */
