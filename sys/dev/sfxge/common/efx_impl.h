@@ -457,6 +457,10 @@ typedef struct efx_mcdi_s {
 #endif /* EFSYS_OPT_MCDI */
 
 #if EFSYS_OPT_NVRAM
+
+/* Invalid partition ID for en_nvram_partn_locked field of efx_nc_t */
+#define	EFX_NVRAM_PARTN_INVALID		(0xffffffffu)
+
 typedef struct efx_nvram_ops_s {
 #if EFSYS_OPT_DIAG
 	efx_rc_t	(*envo_test)(efx_nic_t *);
@@ -644,7 +648,7 @@ struct efx_nic_s {
 	efx_mcdi_t		en_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
 #if EFSYS_OPT_NVRAM
-	efx_nvram_type_t	en_nvram_locked;
+	uint32_t		en_nvram_partn_locked;
 	const efx_nvram_ops_t	*en_envop;
 #endif	/* EFSYS_OPT_NVRAM */
 #if EFSYS_OPT_VPD
