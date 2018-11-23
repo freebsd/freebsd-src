@@ -119,7 +119,7 @@ ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
 	__in		unsigned int label,
-	__in		boolean_t packed_stream);
+	__in		efx_rxq_type_t type);
 
 		void
 ef10_ev_rxlabel_fini(
