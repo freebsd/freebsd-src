@@ -1226,6 +1226,7 @@ nandfs_readdir(struct vop_readdir_args *ap)
 			ndirent = (struct nandfs_dir_entry *)pos;
 
 			name_len = ndirent->name_len;
+			memset(&dirent, 0, sizeof(dirent));
 			dirent.d_fileno = ndirent->inode;
 			if (dirent.d_fileno) {
 				dirent.d_type = ndirent->file_type;
@@ -1243,7 +1244,7 @@ nandfs_readdir(struct vop_readdir_args *ap)
 			 * If there isn't enough space in the uio to return a
 			 * whole dirent, break off read
 			 */
-			if (uio->uio_resid < dirent.d_reclen)
+			if (uio->uio_resid < GENERIC_DIRSIZ(&dirent))
 				break;
 
 			/* Transfer */
