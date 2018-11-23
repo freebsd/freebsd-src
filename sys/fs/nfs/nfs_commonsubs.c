@@ -725,10 +725,14 @@ nfsm_advance(struct nfsrv_descript *nd, int offs, int left)
 	if (offs == 0)
 		goto out;
 	/*
-	 * A negative offs should be considered a serious problem.
+	 * A negative offs might indicate a corrupted mbuf chain and,
+	 * as such, a printf is logged.
 	 */
-	if (offs < 0)
-		panic("nfsrv_advance");
+	if (offs < 0) {
+		printf("nfsrv_advance: negative offs\n");
+		error = EBADRPC;
+		goto out;
+	}
 
 	/*
 	 * If left == -1, calculate it here.
