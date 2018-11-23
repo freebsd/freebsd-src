@@ -2210,6 +2210,7 @@ ef10_nvram_type_to_partn(
 	size_t parttbl_rows = 0;
 	unsigned int i;
 
+	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT(partnp != NULL);
 
