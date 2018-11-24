@@ -58,9 +58,6 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <net/vnet.h>
-#if defined(__osf__)
-# include <netinet/tcp_timer.h>
-#endif
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
