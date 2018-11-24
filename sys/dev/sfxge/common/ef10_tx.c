@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 static	__checkReturn	efx_rc_t
 efx_mcdi_init_txq(
 	__in		efx_nic_t *enp,
-	__in		uint32_t size,
+	__in		uint32_t ndescs,
 	__in		uint32_t target_evq,
 	__in		uint32_t label,
 	__in		uint32_t instance,
@@ -69,7 +69,7 @@ efx_mcdi_init_txq(
 	EFSYS_ASSERT(EFX_TXQ_MAX_BUFS >=
 	    EFX_TXQ_NBUFS(enp->en_nic_cfg.enc_txq_max_ndescs));
 
-	npages = EFX_TXQ_NBUFS(size);
+	npages = EFX_TXQ_NBUFS(ndescs);
 	if (MC_CMD_INIT_TXQ_IN_LEN(npages) > sizeof (payload)) {
 		rc = EINVAL;
 		goto fail1;
@@ -82,7 +82,7 @@ efx_mcdi_init_txq(
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_INIT_TXQ_OUT_LEN;
 
-	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_SIZE, size);
+	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_SIZE, ndescs);
 	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_TARGET_EVQ, target_evq);
 	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_LABEL, label);
 	MCDI_IN_SET_DWORD(req, INIT_TXQ_IN_INSTANCE, instance);
@@ -194,7 +194,7 @@ ef10_tx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		uint16_t flags,
 	__in		efx_evq_t *eep,
@@ -215,8 +215,8 @@ ef10_tx_qcreate(
 		goto fail1;
 	}
 
-	if ((rc = efx_mcdi_init_txq(enp, n, eep->ee_index, label, index, flags,
-	    esmp)) != 0)
+	if ((rc = efx_mcdi_init_txq(enp, ndescs, eep->ee_index, label, index,
+	    flags, esmp)) != 0)
 		goto fail2;
 
 	/*
@@ -436,24 +436,24 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn	efx_rc_t
+	__checkReturn		efx_rc_t
 ef10_tx_qpost(
-	__in		efx_txq_t *etp,
-	__in_ecount(n)	efx_buffer_t *eb,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__inout		unsigned int *addedp)
+	__in			efx_txq_t *etp,
+	__in_ecount(ndescs)	efx_buffer_t *eb,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__inout			unsigned int *addedp)
 {
 	unsigned int added = *addedp;
 	unsigned int i;
 	efx_rc_t rc;
 
-	if (added - completed + n > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
+	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
 		rc = ENOSPC;
 		goto fail1;
 	}
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < ndescs; i++) {
 		efx_buffer_t *ebp = &eb[i];
 		efsys_dma_addr_t addr = ebp->eb_addr;
 		size_t size = ebp->eb_size;
@@ -559,24 +559,24 @@ ef10_tx_qpush(
 	}
 }
 
-	__checkReturn	efx_rc_t
+	__checkReturn		efx_rc_t
 ef10_tx_qdesc_post(
-	__in		efx_txq_t *etp,
-	__in_ecount(n)	efx_desc_t *ed,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__inout		unsigned int *addedp)
+	__in			efx_txq_t *etp,
+	__in_ecount(ndescs)	efx_desc_t *ed,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__inout			unsigned int *addedp)
 {
 	unsigned int added = *addedp;
 	unsigned int i;
 	efx_rc_t rc;
 
-	if (added - completed + n > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
+	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
 		rc = ENOSPC;
 		goto fail1;
 	}
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < ndescs; i++) {
 		efx_desc_t *edp = &ed[i];
 		unsigned int id;
 		size_t offset;
@@ -588,7 +588,7 @@ ef10_tx_qdesc_post(
 	}
 
 	EFSYS_PROBE3(tx_desc_post, unsigned int, etp->et_index,
-		    unsigned int, added, unsigned int, n);
+		    unsigned int, added, unsigned int, ndescs);
 
 	EFX_TX_QSTAT_INCR(etp, TX_POST);
 

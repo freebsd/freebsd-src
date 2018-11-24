@@ -2130,13 +2130,13 @@ efx_tx_qcreate(
 	__deref_out	efx_txq_t **etpp,
 	__out		unsigned int *addedp);
 
-extern	__checkReturn	efx_rc_t
+extern	__checkReturn		efx_rc_t
 efx_tx_qpost(
-	__in		efx_txq_t *etp,
-	__in_ecount(n)	efx_buffer_t *eb,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__inout		unsigned int *addedp);
+	__in			efx_txq_t *etp,
+	__in_ecount(ndescs)	efx_buffer_t *eb,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__inout			unsigned int *addedp);
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qpace(
