@@ -91,14 +91,14 @@ siena_rx_prefix_pktlen(
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp);
 
-static			void
+static				void
 siena_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added);
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added);
 
 static			void
 siena_rx_qpush(
@@ -137,7 +137,7 @@ siena_rx_qcreate(
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp);
@@ -517,21 +517,21 @@ fail1:
 }
 #endif	/* EFSYS_OPT_RX_SCALE */
 
-			void
+				void
 efx_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added)
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added)
 {
 	efx_nic_t *enp = erp->er_enp;
 	const efx_rx_ops_t *erxop = enp->en_erxop;
 
 	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
 
-	erxop->erxo_qpost(erp, addrp, size, n, completed, added);
+	erxop->erxo_qpost(erp, addrp, size, ndescs, completed, added);
 }
 
 #if EFSYS_OPT_RX_PACKED_STREAM
@@ -622,7 +622,7 @@ efx_rx_qcreate(
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp)
@@ -645,10 +645,10 @@ efx_rx_qcreate(
 	erp->er_magic = EFX_RXQ_MAGIC;
 	erp->er_enp = enp;
 	erp->er_index = index;
-	erp->er_mask = n - 1;
+	erp->er_mask = ndescs - 1;
 	erp->er_esmp = esmp;
 
-	if ((rc = erxop->erxo_qcreate(enp, index, label, type, esmp, n, id,
+	if ((rc = erxop->erxo_qcreate(enp, index, label, type, esmp, ndescs, id,
 	    eep, erp)) != 0)
 		goto fail2;
 
@@ -1168,14 +1168,14 @@ siena_rx_prefix_pktlen(
 }
 
 
-static			void
+static				void
 siena_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added)
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added)
 {
 	efx_qword_t qword;
 	unsigned int i;
@@ -1183,11 +1183,11 @@ siena_rx_qpost(
 	unsigned int id;
 
 	/* The client driver must not overfill the queue */
-	EFSYS_ASSERT3U(added - completed + n, <=,
+	EFSYS_ASSERT3U(added - completed + ndescs, <=,
 	    EFX_RXQ_LIMIT(erp->er_mask + 1));
 
 	id = added & (erp->er_mask);
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < ndescs; i++) {
 		EFSYS_PROBE4(rx_post, unsigned int, erp->er_index,
 		    unsigned int, id, efsys_dma_addr_t, addrp[i],
 		    size_t, size);
@@ -1309,7 +1309,7 @@ siena_rx_qcreate(
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp)
@@ -1330,7 +1330,8 @@ siena_rx_qcreate(
 	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MAXNDESCS));
 	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MINNDESCS));
 
-	if (!ISP2(n) || (n < EFX_RXQ_MINNDESCS) || (n > EFX_RXQ_MAXNDESCS)) {
+	if (!ISP2(ndescs) ||
+	    (ndescs < EFX_RXQ_MINNDESCS) || (ndescs > EFX_RXQ_MAXNDESCS)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -1340,7 +1341,7 @@ siena_rx_qcreate(
 	}
 	for (size = 0; (1 << size) <= (EFX_RXQ_MAXNDESCS / EFX_RXQ_MINNDESCS);
 	    size++)
-		if ((1 << size) == (int)(n / EFX_RXQ_MINNDESCS))
+		if ((1 << size) == (int)(ndescs / EFX_RXQ_MINNDESCS))
 			break;
 	if (id + (1 << size) >= encp->enc_buftbl_limit) {
 		rc = EINVAL;
