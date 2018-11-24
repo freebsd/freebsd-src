@@ -61,8 +61,6 @@ efx_mcdi_init_rxq(
 	uint32_t dma_mode;
 	boolean_t want_outer_classes;
 
-	/* If this changes, then the payload size might need to change. */
-	EFSYS_ASSERT3U(MC_CMD_INIT_RXQ_OUT_LEN, ==, 0);
 	EFSYS_ASSERT3U(size, <=, EFX_RXQ_MAXNDESCS);
 
 	if (ps_bufsize > 0)
