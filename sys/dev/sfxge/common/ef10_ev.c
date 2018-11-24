@@ -1350,8 +1350,7 @@ ef10_ev_rxlabel_init(
 {
 	efx_evq_rxq_state_t *eersp;
 #if EFSYS_OPT_RX_PACKED_STREAM
-	boolean_t packed_stream = (type >= EFX_RXQ_TYPE_PACKED_STREAM_1M) &&
-	    (type <= EFX_RXQ_TYPE_PACKED_STREAM_64K);
+	boolean_t packed_stream = (type == EFX_RXQ_TYPE_PACKED_STREAM);
 #endif
 
 	_NOTE(ARGUNUSED(type))
