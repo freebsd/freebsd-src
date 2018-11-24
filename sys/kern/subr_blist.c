@@ -764,6 +764,8 @@ blst_meta_alloc(blmeta_t *scan, daddr_t cursor, daddr_t count, u_daddr_t radix)
 	/* Discard any candidates that appear before cursor. */
 	digit = (cursor / radix) & BLIST_META_MASK;
 	mask &= (u_daddr_t)-1 << digit;
+	if (mask == 0)
+		return (SWAPBLK_NONE);
 
 	/*
 	 * If the first try is for a block that includes the cursor, pre-undo
