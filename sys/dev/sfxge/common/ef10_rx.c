@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 static	__checkReturn	efx_rc_t
 efx_mcdi_init_rxq(
 	__in		efx_nic_t *enp,
-	__in		uint32_t size,
+	__in		uint32_t ndescs,
 	__in		uint32_t target_evq,
 	__in		uint32_t label,
 	__in		uint32_t instance,
@@ -53,7 +53,7 @@ efx_mcdi_init_rxq(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_INIT_RXQ_EXT_IN_LEN,
 			    MC_CMD_INIT_RXQ_EXT_OUT_LEN)];
-	int npages = EFX_RXQ_NBUFS(size);
+	int npages = EFX_RXQ_NBUFS(ndescs);
 	int i;
 	efx_qword_t *dma_addr;
 	uint64_t addr;
@@ -61,7 +61,7 @@ efx_mcdi_init_rxq(
 	uint32_t dma_mode;
 	boolean_t want_outer_classes;
 
-	EFSYS_ASSERT3U(size, <=, EFX_RXQ_MAXNDESCS);
+	EFSYS_ASSERT3U(ndescs, <=, EFX_RXQ_MAXNDESCS);
 
 	if (ps_bufsize > 0)
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM;
@@ -94,7 +94,7 @@ efx_mcdi_init_rxq(
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_INIT_RXQ_EXT_OUT_LEN;
 
-	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_SIZE, size);
+	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_SIZE, ndescs);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_TARGET_EVQ, target_evq);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_LABEL, label);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_INSTANCE, instance);
@@ -738,14 +738,14 @@ ef10_rx_prefix_hash(
 #define	EFX_RXQ_PACKED_STREAM_FAKE_BUF_SIZE 32
 #endif
 
-			void
+				void
 ef10_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added)
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added)
 {
 	efx_qword_t qword;
 	unsigned int i;
@@ -762,11 +762,11 @@ ef10_rx_qpost(
 #endif
 
 	/* The client driver must not overfill the queue */
-	EFSYS_ASSERT3U(added - completed + n, <=,
+	EFSYS_ASSERT3U(added - completed + ndescs, <=,
 	    EFX_RXQ_LIMIT(erp->er_mask + 1));
 
 	id = added & (erp->er_mask);
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < ndescs; i++) {
 		EFSYS_PROBE4(rx_post, unsigned int, erp->er_index,
 		    unsigned int, id, efsys_dma_addr_t, addrp[i],
 		    size_t, size);
@@ -944,7 +944,7 @@ ef10_rx_qcreate(
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp)
@@ -963,7 +963,8 @@ ef10_rx_qcreate(
 	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MAXNDESCS));
 	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MINNDESCS));
 
-	if (!ISP2(n) || (n < EFX_RXQ_MINNDESCS) || (n > EFX_RXQ_MAXNDESCS)) {
+	if (!ISP2(ndescs) ||
+	    (ndescs < EFX_RXQ_MINNDESCS) || (ndescs > EFX_RXQ_MAXNDESCS)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -1023,7 +1024,7 @@ ef10_rx_qcreate(
 	else
 		disable_scatter = encp->enc_rx_disable_scatter_supported;
 
-	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
+	if ((rc = efx_mcdi_init_rxq(enp, ndescs, eep->ee_index, label, index,
 		    esmp, disable_scatter, ps_buf_size)) != 0)
 		goto fail6;
 

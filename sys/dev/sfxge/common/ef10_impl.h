@@ -956,14 +956,14 @@ ef10_rx_prefix_pktlen(
 	__in		uint8_t *buffer,
 	__out		uint16_t *lengthp);
 
-extern			void
+extern				void
 ef10_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added);
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added);
 
 extern			void
 ef10_rx_qpush(
@@ -986,7 +986,7 @@ ef10_rx_qcreate(
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp);
