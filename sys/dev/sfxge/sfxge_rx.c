@@ -1037,8 +1037,8 @@ sfxge_rx_qstart(struct sfxge_softc *sc, unsigned int index)
 
 	/* Create the common code receive queue. */
 	if ((rc = efx_rx_qcreate(sc->enp, index, 0, EFX_RXQ_TYPE_DEFAULT,
-	    esmp, sc->rxq_entries, rxq->buf_base_id, evq->common,
-	    &rxq->common)) != 0)
+	    esmp, sc->rxq_entries, rxq->buf_base_id, EFX_RXQ_FLAG_NONE,
+	    evq->common, &rxq->common)) != 0)
 		goto fail;
 
 	SFXGE_EVQ_LOCK(evq);

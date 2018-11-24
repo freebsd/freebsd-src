@@ -2006,7 +2006,6 @@ efx_pseudo_hdr_pkt_length_get(
 
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
-	EFX_RXQ_TYPE_SCATTER,
 	EFX_RXQ_TYPE_PACKED_STREAM_1M,
 	EFX_RXQ_TYPE_PACKED_STREAM_512K,
 	EFX_RXQ_TYPE_PACKED_STREAM_256K,
@@ -2014,6 +2013,13 @@ typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_PACKED_STREAM_64K,
 	EFX_RXQ_NTYPES
 } efx_rxq_type_t;
+
+/*
+ * Dummy flag to be used instead of 0 to make it clear that the argument
+ * is receive queue flags.
+ */
+#define	EFX_RXQ_FLAG_NONE		0x0
+#define	EFX_RXQ_FLAG_SCATTER		0x1
 
 extern	__checkReturn	efx_rc_t
 efx_rx_qcreate(
@@ -2024,6 +2030,7 @@ efx_rx_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
+	__in		unsigned int flags,
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp);
 
