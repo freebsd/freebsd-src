@@ -3,7 +3,7 @@
 TESTSDIR=	${TESTSBASE}/sys/netinet
 BINDIR=		${TESTSDIR}
 
-ATF_TESTS_C=	reuseport_lb
+ATF_TESTS_C=	so_reuseport_lb_test
 
 ATF_TESTS_SH=	fibs_test
 
