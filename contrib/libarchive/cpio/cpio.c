@@ -755,8 +755,10 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	}
 	if (cpio->option_rename)
 		destpath = cpio_rename(destpath);
-	if (destpath == NULL)
+	if (destpath == NULL) {
+		archive_entry_free(entry);
 		return (0);
+	}
 	archive_entry_copy_pathname(entry, destpath);
 
 	/*

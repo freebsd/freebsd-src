@@ -522,11 +522,13 @@ add_pax_acl(struct archive_write *a,
 		    ARCHIVE_ERRNO_FILE_FORMAT, "%s %s %s",
 		    "Can't translate ", attr, " to UTF-8");
 		return(ARCHIVE_WARN);
-	} else if (*p != '\0') {
+	}
+
+	if (*p != '\0') {
 		add_pax_attr(&(pax->pax_header),
 		    attr, p);
-		free(p);
 	}
+	free(p);
 	return(ARCHIVE_OK);
 }
 
