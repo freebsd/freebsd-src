@@ -136,7 +136,6 @@ struct psmcpnp_softc {
 	enum {
 		PSMCPNP_GENERIC,
 		PSMCPNP_FORCEPAD,
-		PSMCPNP_HPSYN81,
 	} type;		/* Based on PnP ID */
 };
 
@@ -174,15 +173,6 @@ typedef struct packetbuf {
 #ifndef PSM_PACKETQUEUE
 #define	PSM_PACKETQUEUE	128
 #endif
-
-/*
- * Typical bezel limits. Taken from 'Synaptics
- * PS/2 TouchPad Interfacing Guide' p.3.2.3.
- */
-#define	SYNAPTICS_DEFAULT_MAX_X	5472
-#define	SYNAPTICS_DEFAULT_MAX_Y	4448
-#define	SYNAPTICS_DEFAULT_MIN_X	1472
-#define	SYNAPTICS_DEFAULT_MIN_Y	1408
 
 typedef struct synapticsinfo {
 	struct sysctl_ctx_list	 sysctl_ctx;
@@ -1109,7 +1099,7 @@ doopen(struct psm_softc *sc, int command_byte)
 		mouse_ext_command(sc->kbdc, 1);
 		get_mouse_status(sc->kbdc, stat, 0, 3);
 		if ((SYNAPTICS_VERSION_GE(sc->synhw, 7, 5) ||
-		     stat[1] == 0x46 || stat[1] == 0x47) &&
+		     stat[1] == 0x47) &&
 		     stat[2] == 0x40) {
 			synaptics_set_mode(sc, synaptics_preferred_mode(sc));
 			VLOG(5, (LOG_DEBUG, "psm%d: Synaptis Absolute Mode "
@@ -6047,7 +6037,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 	KBDC kbdc = sc->kbdc;
 	synapticshw_t synhw;
 	int status[3];
-	int buttons, middle_byte;
+	int buttons;
 
 	VLOG(3, (LOG_DEBUG, "synaptics: BEGIN init\n"));
 
@@ -6064,8 +6054,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
 		return (FALSE);
-	middle_byte = status[1];
-	if (middle_byte != 0x46 && middle_byte != 0x47)
+	if (status[1] != 0x47)
 		return (FALSE);
 
 	bzero(&synhw, sizeof(synhw));
@@ -6076,15 +6065,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		printf("Synaptics Touchpad v%d.%d\n", synhw.infoMajor,
 		    synhw.infoMinor);
 
-	/*
-	 * Most synaptics touchpads return 0x47 in middle byte in responce to
-	 * identify command as stated in p.4.4 of "Synaptics PS/2 TouchPad
-	 * Interfacing Guide" and we only support v4.0 or better. But some
-	 * devices return 0x46 here and have a different numbering scheme.
-	 * In the case of 0x46, we allow versions as low as v2.0
-	 */
-	if ((middle_byte == 0x47 && synhw.infoMajor < 4) ||
-	    (middle_byte == 0x46 && synhw.infoMajor < 2)) {
+	if (synhw.infoMajor < 4) {
 		printf("  Unsupported (pre-v4) Touchpad detected\n");
 		return (FALSE);
 	}
@@ -6125,7 +6106,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
 		return (FALSE);
-	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != middle_byte) {
+	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != 0x47) {
 		printf("  Failed to read extended capability bits\n");
 		return (FALSE);
 	}
@@ -6134,29 +6115,10 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 	    sc->unit);
 	psmcpnp_sc = (psmcpnp != NULL) ? device_get_softc(psmcpnp) : NULL;
 
-	/*
-	 * Set conservative defaults for 0x46 middle byte touchpads
-	 * as ExtendedQueries return bogus data.
-	 */
-	if (middle_byte == 0x46) {
-		synhw.capExtended = 1;
-		synhw.capPalmDetect = 1;
-		synhw.capPassthrough = 1;
-		synhw.capMultiFinger = 1;
-		synhw.maximumXCoord = SYNAPTICS_DEFAULT_MAX_X;
-		synhw.maximumYCoord = SYNAPTICS_DEFAULT_MAX_Y;
-		synhw.minimumXCoord = SYNAPTICS_DEFAULT_MIN_X;
-		synhw.minimumYCoord = SYNAPTICS_DEFAULT_MIN_Y;
-		/* Enable multitouch mode for HW v8.1 devices */
-		if (psmcpnp_sc != NULL &&
-		    psmcpnp_sc->type == PSMCPNP_HPSYN81)
-			synhw.capReportsV = 1;
-	} else
-		synhw.capExtended = (status[0] & 0x80) != 0;
-
 	/* Set the different capabilities when they exist. */
 	buttons = 0;
-	if (synhw.capExtended && middle_byte == 0x47) {
+	synhw.capExtended = (status[0] & 0x80) != 0;
+	if (synhw.capExtended) {
 		synhw.nExtendedQueries = (status[0] & 0x70) >> 4;
 		synhw.capMiddle        = (status[0] & 0x04) != 0;
 		synhw.capPassthrough   = (status[2] & 0x80) != 0;
@@ -6278,8 +6240,12 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 				synhw.maximumYCoord = (status[2] << 5) |
 						     ((status[1] & 0xf0) >> 3);
 			} else {
-				synhw.maximumXCoord = SYNAPTICS_DEFAULT_MAX_X;
-				synhw.maximumYCoord = SYNAPTICS_DEFAULT_MAX_Y;
+				/*
+				 * Typical bezel limits. Taken from 'Synaptics
+				 * PS/2 * TouchPad Interfacing Guide' p.3.2.3.
+				 */
+				synhw.maximumXCoord = 5472;
+				synhw.maximumYCoord = 4448;
 			}
 
 			if (synhw.capReportsMin) {
@@ -6295,8 +6261,12 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 				synhw.minimumYCoord = (status[2] << 5) |
 						     ((status[1] & 0xf0) >> 3);
 			} else {
-				synhw.minimumXCoord = SYNAPTICS_DEFAULT_MIN_X;
-				synhw.minimumYCoord = SYNAPTICS_DEFAULT_MIN_Y;
+				/*
+				 * Typical bezel limits. Taken from 'Synaptics
+				 * PS/2 * TouchPad Interfacing Guide' p.3.2.3.
+				 */
+				synhw.minimumXCoord = 1472;
+				synhw.minimumYCoord = 1408;
 			}
 
 			/*
@@ -6382,7 +6352,7 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 		return (FALSE);
 	if (get_mouse_status(kbdc, status, 0, 3) != 3)
 		return (FALSE);
-	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != middle_byte) {
+	if (!SYNAPTICS_VERSION_GE(synhw, 7, 5) && status[1] != 0x47) {
 		printf("  Failed to read mode byte\n");
 		return (FALSE);
 	}
@@ -7205,12 +7175,6 @@ static struct isa_pnp_id forcepad_ids[] = {
 	{ 0 }
 };
 
-/* List of HW v8.1 synaptics touchpads erroneously detected as HW v2.0 */
-static struct isa_pnp_id hpsyn81_ids[] = {
-	{ 0x9e012e4f, "HP PS/2 trackpad port" },	/* SYN019E, EB 9470 */
-	{ 0 }
-};
-
 static int
 create_a_copy(device_t atkbdc, device_t me)
 {
@@ -7244,8 +7208,6 @@ psmcpnp_probe(device_t dev)
 
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, forcepad_ids) == 0)
 		sc->type = PSMCPNP_FORCEPAD;
-	else if(ISA_PNP_PROBE(device_get_parent(dev), dev, hpsyn81_ids) == 0)
-		sc->type = PSMCPNP_HPSYN81;
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
 		sc->type = PSMCPNP_GENERIC;
 	else
