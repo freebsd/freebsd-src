@@ -267,7 +267,6 @@ mcdi_mon_ev(
 	__out				efx_mon_stat_value_t *valuep)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint16_t port_mask;
 	uint16_t sensor;
 	uint16_t state;
@@ -283,11 +282,13 @@ mcdi_mon_ev(
 	value = (uint16_t)MCDI_EV_FIELD(eqp, SENSOREVT_VALUE);
 
 	/* Hardware must support this MCDI sensor */
-	EFSYS_ASSERT3U(sensor, <, (8 * encp->enc_mcdi_sensor_mask_size));
+	EFSYS_ASSERT3U(sensor, <,
+	    (8 * enp->en_nic_cfg.enc_mcdi_sensor_mask_size));
 	EFSYS_ASSERT((sensor % MCDI_MON_PAGE_SIZE) != MC_CMD_SENSOR_PAGE0_NEXT);
-	EFSYS_ASSERT(encp->enc_mcdi_sensor_maskp != NULL);
-	EFSYS_ASSERT((encp->enc_mcdi_sensor_maskp[sensor / MCDI_MON_PAGE_SIZE] &
-		(1U << (sensor % MCDI_MON_PAGE_SIZE))) != 0);
+	EFSYS_ASSERT(enp->en_nic_cfg.enc_mcdi_sensor_maskp != NULL);
+	EFSYS_ASSERT(
+	    (enp->en_nic_cfg.enc_mcdi_sensor_maskp[sensor/MCDI_MON_PAGE_SIZE] &
+	    (1U << (sensor % MCDI_MON_PAGE_SIZE))) != 0);
 
 	/* But we don't have to understand it */
 	if (sensor >= EFX_ARRAY_SIZE(mcdi_sensor_map)) {
