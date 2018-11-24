@@ -2107,7 +2107,6 @@ efx_tx_fini(
 #define	EFX_TXQ_SIZE(_ndescs)		((_ndescs) * sizeof (efx_qword_t))
 #define	EFX_TXQ_NBUFS(_ndescs)		(EFX_TXQ_SIZE(_ndescs) / EFX_BUF_SIZE)
 #define	EFX_TXQ_LIMIT(_ndescs)		((_ndescs) - 16)
-#define	EFX_TXQ_DC_NDESCS(_dcsize)	(8 << _dcsize)
 
 #define	EFX_TXQ_MAX_BUFS 8 /* Maximum independent of EFX_BUG35388_WORKAROUND. */
 
