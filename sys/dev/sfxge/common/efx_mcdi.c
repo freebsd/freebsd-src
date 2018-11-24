@@ -814,6 +814,8 @@ efx_mcdi_get_proxy_handle(
 {
 	efx_rc_t rc;
 
+	_NOTE(ARGUNUSED(enp))
+
 	/*
 	 * Return proxy handle from MCDI request that returned with error
 	 * MC_MCD_ERR_PROXY_PENDING. This handle is used to wait for a matching
