@@ -642,9 +642,9 @@ efx_nic_get_fw_version(
 		goto fail2;
 
 	rc = efx_mcdi_get_capabilities(enp, NULL,
-				       &enfip->enfi_rx_dpcpu_fw_id,
-				       &enfip->enfi_tx_dpcpu_fw_id,
-				       NULL, NULL);
+	    &enfip->enfi_rx_dpcpu_fw_id,
+	    &enfip->enfi_tx_dpcpu_fw_id,
+	    NULL, NULL);
 	if (rc == 0) {
 		enfip->enfi_dpcpu_fw_ids_valid = B_TRUE;
 	} else if (rc == ENOTSUP) {
@@ -655,7 +655,8 @@ efx_nic_get_fw_version(
 		goto fail3;
 	}
 
-	memcpy(enfip->enfi_mc_fw_version, mc_fw_version, sizeof(mc_fw_version));
+	memcpy(enfip->enfi_mc_fw_version, mc_fw_version,
+	    sizeof (mc_fw_version));
 
 	return (0);
 
