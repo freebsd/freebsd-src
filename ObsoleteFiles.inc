@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181116: Rename test file.
+OLD_FILES+=usr/tests/sys/netinet/reuseport_lb
 # 20181030: malloc_domain(9) KPI change
 OLD_FILES+=usr/share/man/man9/malloc_domain.9.gz
 # 20181025: OpenSSL libraries version bump to avoid conflict with ports
