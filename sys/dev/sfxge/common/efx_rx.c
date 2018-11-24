@@ -136,6 +136,7 @@ siena_rx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
+	__in		uint32_t type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
@@ -616,12 +617,13 @@ efx_rx_qenable(
 	erxop->erxo_qenable(erp);
 }
 
-	__checkReturn	efx_rc_t
-efx_rx_qcreate(
+static	__checkReturn	efx_rc_t
+efx_rx_qcreate_internal(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
+	__in		uint32_t type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
@@ -650,8 +652,8 @@ efx_rx_qcreate(
 	erp->er_mask = ndescs - 1;
 	erp->er_esmp = esmp;
 
-	if ((rc = erxop->erxo_qcreate(enp, index, label, type, esmp, ndescs, id,
-	    flags, eep, erp)) != 0)
+	if ((rc = erxop->erxo_qcreate(enp, index, label, type, type_data, esmp,
+	    ndescs, id, flags, eep, erp)) != 0)
 		goto fail2;
 
 	enp->en_rx_qcount++;
@@ -668,6 +670,43 @@ fail1:
 
 	return (rc);
 }
+
+	__checkReturn	efx_rc_t
+efx_rx_qcreate(
+	__in		efx_nic_t *enp,
+	__in		unsigned int index,
+	__in		unsigned int label,
+	__in		efx_rxq_type_t type,
+	__in		efsys_mem_t *esmp,
+	__in		size_t ndescs,
+	__in		uint32_t id,
+	__in		unsigned int flags,
+	__in		efx_evq_t *eep,
+	__deref_out	efx_rxq_t **erpp)
+{
+	return efx_rx_qcreate_internal(enp, index, label, type, 0, esmp, ndescs,
+	    id, flags, eep, erpp);
+}
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+	__checkReturn	efx_rc_t
+efx_rx_qcreate_packed_stream(
+	__in		efx_nic_t *enp,
+	__in		unsigned int index,
+	__in		unsigned int label,
+	__in		uint32_t ps_buf_size,
+	__in		efsys_mem_t *esmp,
+	__in		size_t ndescs,
+	__in		efx_evq_t *eep,
+	__deref_out	efx_rxq_t **erpp)
+{
+	return efx_rx_qcreate_internal(enp, index, label,
+	    EFX_RXQ_TYPE_PACKED_STREAM, ps_buf_size, esmp, ndescs,
+	    0 /* id unused on EF10 */, EFX_RXQ_FLAG_NONE, eep, erpp);
+}
+
+#endif
 
 			void
 efx_rx_qdestroy(
@@ -1310,6 +1349,7 @@ siena_rx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
+	__in		uint32_t type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
@@ -1324,6 +1364,7 @@ siena_rx_qcreate(
 	efx_rc_t rc;
 
 	_NOTE(ARGUNUSED(esmp))
+	_NOTE(ARGUNUSED(type_data))
 
 	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS ==
 	    (1 << FRF_AZ_RX_DESCQ_LABEL_WIDTH));
