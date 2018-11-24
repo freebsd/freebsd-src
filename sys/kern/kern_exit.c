@@ -107,14 +107,9 @@ proc_realparent(struct proc *child)
 	struct proc *p, *parent;
 
 	sx_assert(&proctree_lock, SX_LOCKED);
-	if ((child->p_treeflag & P_TREE_ORPHANED) == 0) {
-		if (child->p_oppid == 0 ||
-		    child->p_pptr->p_pid == child->p_oppid)
-			parent = child->p_pptr;
-		else
-			parent = initproc;
-		return (parent);
-	}
+	if ((child->p_treeflag & P_TREE_ORPHANED) == 0)
+		return (child->p_pptr->p_pid == child->p_oppid ?
+			    child->p_pptr : initproc);
 	for (p = child; (p->p_treeflag & P_TREE_FIRST_ORPHAN) == 0;) {
 		/* Cannot use LIST_PREV(), since the list head is not known. */
 		p = __containerof(p->p_orphan.le_prev, struct proc,
@@ -144,7 +139,7 @@ reaper_abandon_children(struct proc *p, bool exiting)
 		LIST_INSERT_HEAD(&p1->p_reaplist, p2, p_reapsibling);
 		if (exiting && p2->p_pptr == p) {
 			PROC_LOCK(p2);
-			proc_reparent(p2, p1);
+			proc_reparent(p2, p1, true);
 			PROC_UNLOCK(p2);
 		}
 	}
@@ -434,13 +429,11 @@ exit1(struct thread *td, int rval, int signo)
 
 	sx_xlock(&proctree_lock);
 	/*
-	 * Remove proc from allproc queue and pidhash chain.
-	 * Place onto zombproc.  Unlink from parent's child list.
+	 * Move proc from allproc queue to zombproc.
 	 */
 	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
-	LIST_REMOVE(p, p_hash);
 	sx_xunlock(&allproc_lock);
 
 	/*
@@ -458,7 +451,7 @@ exit1(struct thread *td, int rval, int signo)
 		q->p_sigparent = SIGCHLD;
 
 		if (!(q->p_flag & P_TRACED)) {
-			proc_reparent(q, q->p_reaper);
+			proc_reparent(q, q->p_reaper, true);
 			if (q->p_state == PRS_ZOMBIE) {
 				/*
 				 * Inform reaper about the reparented
@@ -494,10 +487,10 @@ exit1(struct thread *td, int rval, int signo)
 			 */
 			t = proc_realparent(q);
 			if (t == p) {
-				proc_reparent(q, q->p_reaper);
+				proc_reparent(q, q->p_reaper, true);
 			} else {
 				PROC_LOCK(t);
-				proc_reparent(q, t);
+				proc_reparent(q, t, true);
 				PROC_UNLOCK(t);
 			}
 			/*
@@ -589,7 +582,7 @@ exit1(struct thread *td, int rval, int signo)
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 			pp = p->p_pptr;
 			PROC_UNLOCK(pp);
-			proc_reparent(p, p->p_reaper);
+			proc_reparent(p, p->p_reaper, true);
 			p->p_sigparent = SIGCHLD;
 			PROC_LOCK(p->p_pptr);
 
@@ -855,7 +848,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * If we got the child via a ptrace 'attach', we need to give it back
 	 * to the old parent.
 	 */
-	if (p->p_oppid != 0 && p->p_oppid != p->p_pptr->p_pid) {
+	if (p->p_oppid != p->p_pptr->p_pid) {
 		PROC_UNLOCK(p);
 		t = proc_realparent(p);
 		PROC_LOCK(t);
@@ -863,8 +856,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 		CTR2(KTR_PTRACE,
 		    "wait: traced child %d moved back to parent %d", p->p_pid,
 		    t->p_pid);
-		proc_reparent(p, t);
-		p->p_oppid = 0;
+		proc_reparent(p, t, false);
 		PROC_UNLOCK(p);
 		pksignal(t, SIGCHLD, p->p_ksi);
 		wakeup(t);
@@ -873,7 +865,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 		sx_xunlock(&proctree_lock);
 		return;
 	}
-	p->p_oppid = 0;
 	PROC_UNLOCK(p);
 
 	/*
@@ -883,6 +874,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);	/* off zombproc */
 	sx_xunlock(&allproc_lock);
+	sx_xlock(PIDHASHLOCK(p->p_pid));
+	LIST_REMOVE(p, p_hash);
+	sx_xunlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_sibling);
 	reaper_abandon_children(p, true);
 	LIST_REMOVE(p, p_reapsibling);
@@ -1333,7 +1327,7 @@ loop_locked:
  * Must be called with an exclusive hold of proctree lock.
  */
 void
-proc_reparent(struct proc *child, struct proc *parent)
+proc_reparent(struct proc *child, struct proc *parent, bool set_oppid)
 {
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
@@ -1361,4 +1355,6 @@ proc_reparent(struct proc *child, struct proc *parent)
 	}
 
 	child->p_pptr = parent;
+	if (set_oppid)
+		child->p_oppid = parent->p_pid;
 }

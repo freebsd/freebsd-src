@@ -8401,6 +8401,38 @@ scsi_ata_read_log(struct ccb_scsiio *csio, uint32_t retries,
 	return (retval);
 }
 
+int scsi_ata_setfeatures(struct ccb_scsiio *csio, uint32_t retries,
+			 void (*cbfcnp)(struct cam_periph *, union ccb *),
+			 uint8_t tag_action, uint8_t feature,
+			 uint64_t lba, uint32_t count,
+			 uint8_t sense_len, uint32_t timeout)
+{
+	return (scsi_ata_pass(csio,
+		retries,
+		cbfcnp,
+		/*flags*/CAM_DIR_NONE,
+		tag_action,
+		/*protocol*/AP_PROTO_PIO_IN,
+		/*ata_flags*/AP_FLAG_TDIR_FROM_DEV |
+			     AP_FLAG_BYT_BLOK_BYTES |
+			     AP_FLAG_TLEN_SECT_CNT,
+		/*features*/feature,
+		/*sector_count*/count,
+		/*lba*/lba,
+		/*command*/ATA_SETFEATURES,
+		/*device*/ 0,
+		/*icc*/ 0,
+		/*auxiliary*/0,
+		/*control*/0,
+		/*data_ptr*/NULL,
+		/*dxfer_len*/0,
+		/*cdb_storage*/NULL,
+		/*cdb_storage_len*/0,
+		/*minimum_cmd_size*/0,
+		sense_len,
+		timeout));
+}
+
 /*
  * Note! This is an unusual CDB building function because it can return
  * an error in the event that the command in question requires a variable

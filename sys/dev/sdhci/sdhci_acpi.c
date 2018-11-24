@@ -45,11 +45,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 
 #include <dev/mmc/bridge.h>
+#include <dev/mmc/mmcreg.h>
 
 #include <dev/sdhci/sdhci.h>
 
 #include "mmcbr_if.h"
 #include "sdhci_if.h"
+
+#define	SDHCI_AMD_RESET_DLL_REG	0x908
 
 static const struct sdhci_acpi_device {
 	const char*	hid;
@@ -80,7 +83,8 @@ static const struct sdhci_acpi_device {
 	    SDHCI_QUIRK_CAPS_BIT63_FOR_MMC_HS400 |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ "AMDI0040",	0, "AMD eMMC 5.0 Controller",
-	    SDHCI_QUIRK_32BIT_DMA_SIZE },
+	    SDHCI_QUIRK_32BIT_DMA_SIZE |
+	    SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104 },
 	{ NULL, 0, NULL, 0}
 };
 
@@ -94,12 +98,11 @@ static char *sdhci_ids[] = {
 };
 
 struct sdhci_acpi_softc {
-	u_int		quirks;		/* Chip specific quirks */
-	struct resource *irq_res;	/* IRQ resource */
-	void		*intrhand;	/* Interrupt handle */
-
 	struct sdhci_slot slot;
 	struct resource	*mem_res;	/* Memory resource */
+	struct resource *irq_res;	/* IRQ resource */
+	void		*intrhand;	/* Interrupt handle */
+	const struct sdhci_acpi_device *acpi_dev;
 };
 
 static void sdhci_acpi_intr(void *arg);
@@ -189,6 +192,52 @@ sdhci_acpi_write_multi_4(device_t dev, struct sdhci_slot *slot __unused,
 	bus_write_multi_stream_4(sc->mem_res, off, data, count);
 }
 
+static void
+sdhci_acpi_set_uhs_timing(device_t dev, struct sdhci_slot *slot)
+{
+	const struct sdhci_acpi_softc *sc;
+	const struct sdhci_acpi_device *acpi_dev;
+	const struct mmc_ios *ios;
+	device_t bus;
+	uint16_t old_timing;
+	enum mmc_bus_timing timing;
+
+	bus = slot->bus;
+	old_timing = SDHCI_READ_2(bus, slot, SDHCI_HOST_CONTROL2);
+	old_timing &= SDHCI_CTRL2_UHS_MASK;
+	sdhci_generic_set_uhs_timing(dev, slot);
+
+	sc = device_get_softc(dev);
+	acpi_dev = sc->acpi_dev;
+	/*
+	 * AMDI0040 controllers require SDHCI_CTRL2_SAMPLING_CLOCK to be
+	 * disabled when switching from HS200 to high speed and to always
+	 * be turned on again when tuning for HS400.  In the later case,
+	 * an AMD-specific DLL reset additionally is needed.
+	 */
+	if (strcmp(acpi_dev->hid, "AMDI0040") == 0 && acpi_dev->uid == 0) {
+		ios = &slot->host.ios;
+		timing = ios->timing;
+		if (old_timing == SDHCI_CTRL2_UHS_SDR104 &&
+		    timing == bus_timing_hs)
+			SDHCI_WRITE_2(bus, slot, SDHCI_HOST_CONTROL2,
+			    SDHCI_READ_2(bus, slot, SDHCI_HOST_CONTROL2) &
+			    ~SDHCI_CTRL2_SAMPLING_CLOCK);
+		if (ios->clock > SD_SDR50_MAX &&
+		    old_timing != SDHCI_CTRL2_MMC_HS400 &&
+		    timing == bus_timing_mmc_hs400) {
+			SDHCI_WRITE_2(bus, slot, SDHCI_HOST_CONTROL2,
+			    SDHCI_READ_2(bus, slot, SDHCI_HOST_CONTROL2) |
+			    SDHCI_CTRL2_SAMPLING_CLOCK);
+			SDHCI_WRITE_4(bus, slot, SDHCI_AMD_RESET_DLL_REG,
+			    0x40003210);
+			DELAY(20);
+			SDHCI_WRITE_4(bus, slot, SDHCI_AMD_RESET_DLL_REG,
+			    0x40033210);
+		}
+	}
+}
+
 static const struct sdhci_acpi_device *
 sdhci_acpi_find_device(device_t dev)
 {
@@ -198,7 +247,7 @@ sdhci_acpi_find_device(device_t dev)
 	ACPI_STATUS status;
 	int rv;
 
-	rv =  ACPI_ID_PROBE(device_get_parent(dev), dev, sdhci_ids, &hid);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, sdhci_ids, &hid);
 	if (rv > 0)
 		return (NULL);
 
@@ -238,13 +287,15 @@ sdhci_acpi_attach(device_t dev)
 {
 	struct sdhci_acpi_softc *sc = device_get_softc(dev);
 	int rid, err;
+	u_int quirks;
 	const struct sdhci_acpi_device *acpi_dev;
 
 	acpi_dev = sdhci_acpi_find_device(dev);
 	if (acpi_dev == NULL)
 		return (ENXIO);
 
-	sc->quirks = acpi_dev->quirks;
+	sc->acpi_dev = acpi_dev;
+	quirks = acpi_dev->quirks;
 
 	/* Allocate IRQ. */
 	rid = 0;
@@ -272,11 +323,10 @@ sdhci_acpi_attach(device_t dev)
 	if (strcmp(acpi_dev->hid, "80860F14") == 0 && acpi_dev->uid == 1 &&
 	    SDHCI_READ_4(dev, &sc->slot, SDHCI_CAPABILITIES) == 0x446cc8b2 &&
 	    SDHCI_READ_4(dev, &sc->slot, SDHCI_CAPABILITIES2) == 0x00000807)
-		sc->quirks |= SDHCI_QUIRK_MMC_DDR52 |
-		    SDHCI_QUIRK_DATA_TIMEOUT_1MHZ;
-	sc->quirks &= ~sdhci_quirk_clear;
-	sc->quirks |= sdhci_quirk_set;
-	sc->slot.quirks = sc->quirks;
+		quirks |= SDHCI_QUIRK_MMC_DDR52 | SDHCI_QUIRK_DATA_TIMEOUT_1MHZ;
+	quirks &= ~sdhci_quirk_clear;
+	quirks |= sdhci_quirk_set;
+	sc->slot.quirks = quirks;
 
 	err = sdhci_init_slot(dev, &sc->slot, 0);
 	if (err) {
@@ -393,7 +443,7 @@ static device_method_t sdhci_methods[] = {
 	DEVMETHOD(sdhci_write_2,	sdhci_acpi_write_2),
 	DEVMETHOD(sdhci_write_4,	sdhci_acpi_write_4),
 	DEVMETHOD(sdhci_write_multi_4,	sdhci_acpi_write_multi_4),
-	DEVMETHOD(sdhci_set_uhs_timing,	sdhci_generic_set_uhs_timing),
+	DEVMETHOD(sdhci_set_uhs_timing,	sdhci_acpi_set_uhs_timing),
 
 	DEVMETHOD_END
 };

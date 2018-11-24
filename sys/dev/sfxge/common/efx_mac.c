@@ -45,7 +45,7 @@ siena_mac_multicast_list_set(
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_SIENA
-static const efx_mac_ops_t	__efx_siena_mac_ops = {
+static const efx_mac_ops_t	__efx_mac_siena_ops = {
 	siena_mac_poll,				/* emo_poll */
 	siena_mac_up,				/* emo_up */
 	siena_mac_reconfigure,			/* emo_addr_set */
@@ -60,6 +60,7 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	siena_mac_stats_get_mask,		/* emo_stats_get_mask */
+	efx_mcdi_mac_stats_clear,		/* emo_stats_clear */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	siena_mac_stats_update			/* emo_stats_update */
@@ -68,7 +69,7 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 #endif	/* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static const efx_mac_ops_t	__efx_ef10_mac_ops = {
+static const efx_mac_ops_t	__efx_mac_ef10_ops = {
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
 	ef10_mac_addr_set,			/* emo_addr_set */
@@ -84,6 +85,7 @@ static const efx_mac_ops_t	__efx_ef10_mac_ops = {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	ef10_mac_stats_get_mask,		/* emo_stats_get_mask */
+	efx_mcdi_mac_stats_clear,		/* emo_stats_clear */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	ef10_mac_stats_update			/* emo_stats_update */
@@ -719,6 +721,29 @@ fail1:
 }
 
 	__checkReturn			efx_rc_t
+efx_mac_stats_clear(
+	__in				efx_nic_t *enp)
+{
+	efx_port_t *epp = &(enp->en_port);
+	const efx_mac_ops_t *emop = epp->ep_emop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+	EFSYS_ASSERT(emop != NULL);
+
+	if ((rc = emop->emo_stats_clear(enp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn			efx_rc_t
 efx_mac_stats_upload(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp)
@@ -820,21 +845,21 @@ efx_mac_select(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		emop = &__efx_siena_mac_ops;
+		emop = &__efx_mac_siena_ops;
 		type = EFX_MAC_SIENA;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		emop = &__efx_ef10_mac_ops;
+		emop = &__efx_mac_ef10_ops;
 		type = EFX_MAC_HUNTINGTON;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		emop = &__efx_ef10_mac_ops;
+		emop = &__efx_mac_ef10_ops;
 		type = EFX_MAC_MEDFORD;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */

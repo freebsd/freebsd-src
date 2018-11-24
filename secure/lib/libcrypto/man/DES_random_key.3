@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DES_RANDOM_KEY 3"
-.TH DES_RANDOM_KEY 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH DES_RANDOM_KEY 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -224,7 +224,7 @@ algorithm.
 .PP
 There are two phases to the use of \s-1DES\s0 encryption.  The first is the
 generation of a \fIDES_key_schedule\fR from a key, the second is the
-actual encryption.  A \s-1DES\s0 key is of type \fIDES_cblock\fR. This type is
+actual encryption.  A \s-1DES\s0 key is of type \fIDES_cblock\fR. This type
 consists of 8 bytes with odd parity.  The least significant bit in
 each byte is the parity bit.  The key schedule is an expanded form of
 the key; it is used to speed the encryption process.
@@ -295,42 +295,42 @@ of 24 bytes.  This is much better than \s-1CBC DES.\s0
 .PP
 \&\fIDES_ede3_cbc_encrypt()\fR implements outer triple \s-1CBC DES\s0 encryption with
 three keys. This means that each \s-1DES\s0 operation inside the \s-1CBC\s0 mode is
-an \f(CW\*(C`C=E(ks3,D(ks2,E(ks1,M)))\*(C'\fR.  This mode is used by \s-1SSL.\s0
+\&\f(CW\*(C`C=E(ks3,D(ks2,E(ks1,M)))\*(C'\fR.  This mode is used by \s-1SSL.\s0
 .PP
 The \fIDES_ede2_cbc_encrypt()\fR macro implements two-key Triple-DES by
 reusing \fIks1\fR for the final encryption.  \f(CW\*(C`C=E(ks1,D(ks2,E(ks1,M)))\*(C'\fR.
 This form of Triple-DES is used by the \s-1RSAREF\s0 library.
 .PP
-\&\fIDES_pcbc_encrypt()\fR encrypt/decrypts using the propagating cipher block
+\&\fIDES_pcbc_encrypt()\fR encrypts/decrypts using the propagating cipher block
 chaining mode used by Kerberos v4. Its parameters are the same as
 \&\fIDES_ncbc_encrypt()\fR.
 .PP
-\&\fIDES_cfb_encrypt()\fR encrypt/decrypts using cipher feedback mode.  This
-method takes an array of characters as input and outputs and array of
+\&\fIDES_cfb_encrypt()\fR encrypts/decrypts using cipher feedback mode.  This
+method takes an array of characters as input and outputs an array of
 characters.  It does not require any padding to 8 character groups.
 Note: the \fIivec\fR variable is changed and the new changed value needs to
 be passed to the next call to this function.  Since this function runs
 a complete \s-1DES ECB\s0 encryption per \fInumbits\fR, this function is only
-suggested for use when sending small numbers of characters.
+suggested for use when sending a small number of characters.
 .PP
 \&\fIDES_cfb64_encrypt()\fR
-implements \s-1CFB\s0 mode of \s-1DES\s0 with 64bit feedback.  Why is this
+implements \s-1CFB\s0 mode of \s-1DES\s0 with 64\-bit feedback.  Why is this
 useful you ask?  Because this routine will allow you to encrypt an
-arbitrary number of bytes, no 8 byte padding.  Each call to this
+arbitrary number of bytes, without 8 byte padding.  Each call to this
 routine will encrypt the input bytes to output and then update ivec
 and num.  num contains 'how far' we are though ivec.  If this does
-not make much sense, read more about cfb mode of \s-1DES :\-\s0).
+not make much sense, read more about \s-1CFB\s0 mode of \s-1DES.\s0
 .PP
 \&\fIDES_ede3_cfb64_encrypt()\fR and \fIDES_ede2_cfb64_encrypt()\fR is the same as
 \&\fIDES_cfb64_encrypt()\fR except that Triple-DES is used.
 .PP
 \&\fIDES_ofb_encrypt()\fR encrypts using output feedback mode.  This method
-takes an array of characters as input and outputs and array of
+takes an array of characters as input and outputs an array of
 characters.  It does not require any padding to 8 character groups.
 Note: the \fIivec\fR variable is changed and the new changed value needs to
 be passed to the next call to this function.  Since this function runs
-a complete \s-1DES ECB\s0 encryption per numbits, this function is only
-suggested for use when sending small numbers of characters.
+a complete \s-1DES ECB\s0 encryption per \fInumbits\fR, this function is only
+suggested for use when sending a small number of characters.
 .PP
 \&\fIDES_ofb64_encrypt()\fR is the same as \fIDES_cfb64_encrypt()\fR using Output
 Feed Back mode.
@@ -357,10 +357,10 @@ The following are DES-based transformations:
 .PP
 \&\fIDES_fcrypt()\fR is a fast version of the Unix \fIcrypt\fR\|(3) function.  This
 version takes only a small amount of space relative to other fast
-\&\fIcrypt()\fR implementations.  This is different to the normal crypt in
+\&\fIcrypt()\fR implementations.  This is different to the normal \fIcrypt()\fR in
 that the third parameter is the buffer that the return value is
 written into.  It needs to be at least 14 bytes long.  This function
-is thread safe, unlike the normal crypt.
+is thread safe, unlike the normal \fIcrypt()\fR.
 .PP
 \&\fIDES_crypt()\fR is a faster replacement for the normal system \fIcrypt()\fR.
 This function calls \fIDES_fcrypt()\fR with a static array passed as the

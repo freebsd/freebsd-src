@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/fnv_hash.h>
 #include <sys/lock.h>
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/rwlock.h>
 #include <sys/stat.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -230,7 +230,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	nnode->tn_uid = uid;
 	nnode->tn_gid = gid;
 	nnode->tn_mode = mode;
-	nnode->tn_id = alloc_unr(tmp->tm_ino_unr);
+	nnode->tn_id = alloc_unr64(&tmp->tm_ino_unr);
 	nnode->tn_refcount = 1;
 
 	/* Type-specific initialization. */
@@ -368,13 +368,6 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		panic("tmpfs_free_node: type %p %d", node, (int)node->tn_type);
 	}
 
-	/*
-	 * If we are unmounting there is no need for going through the overhead
-	 * of freeing the inodes from the unr individually, so free them all in
-	 * one go later.
-	 */
-	if (!detach)
-		free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
 	TMPFS_LOCK(tmp);
 	tmpfs_free_tmp(tmp);
@@ -1127,8 +1120,8 @@ tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 1;
 	dent.d_name[0] = '.';
-	dent.d_name[1] = '\0';
 	dent.d_reclen = GENERIC_DIRSIZ(&dent);
+	dirent_terminate(&dent);
 
 	if (dent.d_reclen > uio->uio_resid)
 		error = EJUSTRETURN;
@@ -1171,8 +1164,8 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	dent.d_namlen = 2;
 	dent.d_name[0] = '.';
 	dent.d_name[1] = '.';
-	dent.d_name[2] = '\0';
 	dent.d_reclen = GENERIC_DIRSIZ(&dent);
+	dirent_terminate(&dent);
 
 	if (dent.d_reclen > uio->uio_resid)
 		error = EJUSTRETURN;
@@ -1292,8 +1285,8 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 		d.d_namlen = de->td_namelen;
 		MPASS(de->td_namelen < sizeof(d.d_name));
 		(void)memcpy(d.d_name, de->ud.td_name, de->td_namelen);
-		d.d_name[de->td_namelen] = '\0';
 		d.d_reclen = GENERIC_DIRSIZ(&d);
+		dirent_terminate(&d);
 
 		/* Stop reading if the directory entry we are treating is
 		 * bigger than the amount of data that can be returned. */

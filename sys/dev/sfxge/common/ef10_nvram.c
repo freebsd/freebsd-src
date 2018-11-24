@@ -1940,11 +1940,34 @@ ef10_nvram_partn_read(
 	__in			size_t size)
 {
 	/*
-	 * Read requests which come in through the EFX API expect to
-	 * read the current, active partition.
+	 * An A/B partition has two data stores (current and backup).
+	 * Read requests which come in through the EFX API expect to read the
+	 * current, active store of an A/B partition. For non A/B partitions,
+	 * there is only a single store and so the mode param is ignored.
 	 */
 	return ef10_nvram_partn_read_mode(enp, partn, offset, data, size,
 			    MC_CMD_NVRAM_READ_IN_V2_TARGET_CURRENT);
+}
+
+	__checkReturn		efx_rc_t
+ef10_nvram_partn_read_backup(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size)
+{
+	/*
+	 * An A/B partition has two data stores (current and backup).
+	 * Read the backup store of an A/B partition (i.e. the store currently
+	 * being written to if the partition is locked).
+	 *
+	 * This is needed when comparing the existing partition content to avoid
+	 * unnecessary writes, or to read back what has been written to check
+	 * that the writes have succeeded.
+	 */
+	return ef10_nvram_partn_read_mode(enp, partn, offset, data, size,
+			    MC_CMD_NVRAM_READ_IN_V2_TARGET_BACKUP);
 }
 
 	__checkReturn		efx_rc_t
@@ -2050,15 +2073,15 @@ fail1:
 ef10_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
-	__out_opt		uint32_t *resultp)
+	__out_opt		uint32_t *verify_resultp)
 {
 	boolean_t reboot = B_FALSE;
 	efx_rc_t rc;
 
-	if (resultp != NULL)
-		*resultp = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
+	if (verify_resultp != NULL)
+		*verify_resultp = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
 
-	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, resultp);
+	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, verify_resultp);
 	if (rc != 0)
 		goto fail1;
 
@@ -2109,83 +2132,48 @@ fail1:
 
 typedef struct ef10_parttbl_entry_s {
 	unsigned int		partn;
-	unsigned int		port;
+	unsigned int		port_mask;
 	efx_nvram_type_t	nvtype;
 } ef10_parttbl_entry_t;
 
+/* Port mask values */
+#define	PORT_1		(1u << 1)
+#define	PORT_2		(1u << 2)
+#define	PORT_3		(1u << 3)
+#define	PORT_4		(1u << 4)
+#define	PORT_ALL	(0xffffffffu)
+
+#define	PARTN_MAP_ENTRY(partn, port_mask, nvtype)	\
+{ (NVRAM_PARTITION_TYPE_##partn), (PORT_##port_mask), (EFX_NVRAM_##nvtype) }
+
 /* Translate EFX NVRAM types to firmware partition types */
 static ef10_parttbl_entry_t hunt_parttbl[] = {
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   1, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   2, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   3, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   4, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  1, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  2, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  3, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  4, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   1, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   2, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   3, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   4, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 1, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT1, 2, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT2, 3, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT3, 4, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   1, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   2, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   3, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   4, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_FPGA,		   1, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA,		   2, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA,		   3, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA,		   4, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   1, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   2, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   3, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   4, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   1, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   2, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   3, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   4, EFX_NVRAM_LICENSE}
+	/*		partn			ports	nvtype */
+	PARTN_MAP_ENTRY(MC_FIRMWARE,		ALL,	MC_FIRMWARE),
+	PARTN_MAP_ENTRY(MC_FIRMWARE_BACKUP,	ALL,	MC_GOLDEN),
+	PARTN_MAP_ENTRY(EXPANSION_ROM,		ALL,	BOOTROM),
+	PARTN_MAP_ENTRY(EXPROM_CONFIG_PORT0,	1,	BOOTROM_CFG),
+	PARTN_MAP_ENTRY(EXPROM_CONFIG_PORT1,	2,	BOOTROM_CFG),
+	PARTN_MAP_ENTRY(EXPROM_CONFIG_PORT2,	3,	BOOTROM_CFG),
+	PARTN_MAP_ENTRY(EXPROM_CONFIG_PORT3,	4,	BOOTROM_CFG),
+	PARTN_MAP_ENTRY(DYNAMIC_CONFIG,		ALL,	DYNAMIC_CFG),
+	PARTN_MAP_ENTRY(FPGA,			ALL,	FPGA),
+	PARTN_MAP_ENTRY(FPGA_BACKUP,		ALL,	FPGA_BACKUP),
+	PARTN_MAP_ENTRY(LICENSE,		ALL,	LICENSE),
 };
 
 static ef10_parttbl_entry_t medford_parttbl[] = {
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   1, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   2, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   3, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE,	   4, EFX_NVRAM_MC_FIRMWARE},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  1, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  2, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  3, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_MC_FIRMWARE_BACKUP,  4, EFX_NVRAM_MC_GOLDEN},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   1, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   2, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   3, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_ROM,	   4, EFX_NVRAM_BOOTROM},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 1, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 2, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 3, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_EXPROM_CONFIG_PORT0, 4, EFX_NVRAM_BOOTROM_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   1, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   2, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   3, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_DYNAMIC_CONFIG,	   4, EFX_NVRAM_DYNAMIC_CFG},
-	{NVRAM_PARTITION_TYPE_FPGA,		   1, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA,		   2, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA,		   3, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA,		   4, EFX_NVRAM_FPGA},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   1, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   2, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   3, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_FPGA_BACKUP,	   4, EFX_NVRAM_FPGA_BACKUP},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   1, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   2, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   3, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_LICENSE,		   4, EFX_NVRAM_LICENSE},
-	{NVRAM_PARTITION_TYPE_EXPANSION_UEFI,	   1, EFX_NVRAM_UEFIROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_UEFI,	   2, EFX_NVRAM_UEFIROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_UEFI,	   3, EFX_NVRAM_UEFIROM},
-	{NVRAM_PARTITION_TYPE_EXPANSION_UEFI,	   4, EFX_NVRAM_UEFIROM}
+	/*		partn			ports	nvtype */
+	PARTN_MAP_ENTRY(MC_FIRMWARE,		ALL,	MC_FIRMWARE),
+	PARTN_MAP_ENTRY(MC_FIRMWARE_BACKUP,	ALL,	MC_GOLDEN),
+	PARTN_MAP_ENTRY(EXPANSION_ROM,		ALL,	BOOTROM),
+	PARTN_MAP_ENTRY(EXPROM_CONFIG,		ALL,	BOOTROM_CFG),
+	PARTN_MAP_ENTRY(DYNAMIC_CONFIG,		ALL,	DYNAMIC_CFG),
+	PARTN_MAP_ENTRY(FPGA,			ALL,	FPGA),
+	PARTN_MAP_ENTRY(FPGA_BACKUP,		ALL,	FPGA_BACKUP),
+	PARTN_MAP_ENTRY(LICENSE,		ALL,	LICENSE),
+	PARTN_MAP_ENTRY(EXPANSION_UEFI,		ALL,	UEFIROM),
+	PARTN_MAP_ENTRY(MUM_FIRMWARE,		ALL,	MUM_FIRMWARE),
 };
 
 static	__checkReturn		efx_rc_t
@@ -2223,6 +2211,7 @@ ef10_nvram_type_to_partn(
 	size_t parttbl_rows = 0;
 	unsigned int i;
 
+	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT(partnp != NULL);
 
@@ -2230,8 +2219,8 @@ ef10_nvram_type_to_partn(
 		for (i = 0; i < parttbl_rows; i++) {
 			ef10_parttbl_entry_t *entry = &parttbl[i];
 
-			if (entry->nvtype == type &&
-			    entry->port == emip->emi_port) {
+			if ((entry->nvtype == type) &&
+			    (entry->port_mask & (1u << emip->emi_port))) {
 				*partnp = entry->partn;
 				return (0);
 			}
@@ -2260,8 +2249,8 @@ ef10_nvram_partn_to_type(
 		for (i = 0; i < parttbl_rows; i++) {
 			ef10_parttbl_entry_t *entry = &parttbl[i];
 
-			if (entry->partn == partn &&
-			    entry->port == emip->emi_port) {
+			if ((entry->partn == partn) &&
+			    (entry->port_mask & (1u << emip->emi_port))) {
 				*typep = entry->nvtype;
 				return (0);
 			}
@@ -2349,16 +2338,27 @@ ef10_nvram_partn_rw_start(
 	__in			uint32_t partn,
 	__out			size_t *chunk_sizep)
 {
+	uint32_t write_size = 0;
 	efx_rc_t rc;
 
-	if ((rc = ef10_nvram_partn_lock(enp, partn)) != 0)
+	if ((rc = efx_mcdi_nvram_info(enp, partn, NULL, NULL,
+	    NULL, &write_size)) != 0)
 		goto fail1;
 
-	if (chunk_sizep != NULL)
-		*chunk_sizep = EF10_NVRAM_CHUNK;
+	if ((rc = ef10_nvram_partn_lock(enp, partn)) != 0)
+		goto fail2;
+
+	if (chunk_sizep != NULL) {
+		if (write_size == 0)
+			*chunk_sizep = EF10_NVRAM_CHUNK;
+		else
+			*chunk_sizep = write_size;
+	}
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
@@ -2368,11 +2368,12 @@ fail1:
 	__checkReturn		efx_rc_t
 ef10_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn)
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp)
 {
 	efx_rc_t rc;
 
-	if ((rc = ef10_nvram_partn_unlock(enp, partn, NULL)) != 0)
+	if ((rc = ef10_nvram_partn_unlock(enp, partn, verify_resultp)) != 0)
 		goto fail1;
 
 	return (0);

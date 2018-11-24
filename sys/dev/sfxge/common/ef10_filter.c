@@ -126,29 +126,33 @@ ef10_filter_init(
 
 #define	MATCH_MASK(match) (EFX_MASK32(match) << EFX_LOW_BIT(match))
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_REM_HOST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_SRC_IP));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_SRC_IP));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_LOC_HOST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_DST_IP));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_DST_IP));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_REM_MAC ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_SRC_MAC));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_SRC_MAC));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_REM_PORT ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_SRC_PORT));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_SRC_PORT));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_LOC_MAC ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_DST_MAC));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_DST_MAC));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_LOC_PORT ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_DST_PORT));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_DST_PORT));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_ETHER_TYPE ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_ETHER_TYPE));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_ETHER_TYPE));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_INNER_VID ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_INNER_VLAN));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_INNER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_OUTER_VID ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_OUTER_VLAN));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_OUTER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IP_PROTO ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_IP_PROTO));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IP_PROTO));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_MCAST_DST));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_UCAST_DST));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_UNKNOWN_MCAST_DST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_MCAST_DST));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_MCAST_DST));
 	EFX_STATIC_ASSERT((uint32_t)EFX_FILTER_MATCH_UNKNOWN_UCAST_DST ==
-	    MATCH_MASK(MC_CMD_FILTER_OP_IN_MATCH_UNKNOWN_UCAST_DST));
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_UNKNOWN_UCAST_DST));
 #undef MATCH_MASK
 
 	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (ef10_filter_table_t), eftp);
@@ -189,27 +193,27 @@ efx_mcdi_filter_op_add(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
-			    MC_CMD_FILTER_OP_OUT_LEN)];
+	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
+			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
 	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_FILTER_OP_IN_LEN;
+	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_FILTER_OP_OUT_LEN;
+	req.emr_out_length = MC_CMD_FILTER_OP_EXT_OUT_LEN;
 
 	switch (filter_op) {
 	case MC_CMD_FILTER_OP_IN_OP_REPLACE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_LO,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_LO,
 		    handle->efh_lo);
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_HI,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_HI,
 		    handle->efh_hi);
 		/* Fall through */
 	case MC_CMD_FILTER_OP_IN_OP_INSERT:
 	case MC_CMD_FILTER_OP_IN_OP_SUBSCRIBE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_OP, filter_op);
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_OP, filter_op);
 		break;
 	default:
 		EFSYS_ASSERT(0);
@@ -217,82 +221,123 @@ efx_mcdi_filter_op_add(
 		goto fail1;
 	}
 
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_PORT_ID,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_MATCH_FIELDS,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_MATCH_FIELDS,
 	    spec->efs_match_flags);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_DEST,
-	    MC_CMD_FILTER_OP_IN_RX_DEST_HOST);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_QUEUE,
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_DEST,
+	    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_HOST);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_QUEUE,
 	    spec->efs_dmaq_id);
+
+#if EFSYS_OPT_RX_SCALE
 	if (spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) {
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_CONTEXT,
-		    spec->efs_rss_context);
+		uint32_t rss_context;
+
+		if (spec->efs_rss_context == EFX_RSS_CONTEXT_DEFAULT)
+			rss_context = enp->en_rss_context;
+		else
+			rss_context = spec->efs_rss_context;
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_CONTEXT,
+		    rss_context);
 	}
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_RX_MODE,
+#endif
+
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_MODE,
 	    spec->efs_flags & EFX_FILTER_FLAG_RX_RSS ?
-	    MC_CMD_FILTER_OP_IN_RX_MODE_RSS :
-	    MC_CMD_FILTER_OP_IN_RX_MODE_SIMPLE);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_TX_DEST,
-	    MC_CMD_FILTER_OP_IN_TX_DEST_DEFAULT);
+	    MC_CMD_FILTER_OP_EXT_IN_RX_MODE_RSS :
+	    MC_CMD_FILTER_OP_EXT_IN_RX_MODE_SIMPLE);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_TX_DEST,
+	    MC_CMD_FILTER_OP_EXT_IN_TX_DEST_DEFAULT);
 
 	if (filter_op != MC_CMD_FILTER_OP_IN_OP_REPLACE) {
 		/*
 		 * NOTE: Unlike most MCDI requests, the filter fields
 		 * are presented in network (big endian) byte order.
 		 */
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_SRC_MAC),
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_SRC_MAC),
 		    spec->efs_rem_mac, EFX_MAC_ADDR_LEN);
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_DST_MAC),
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_DST_MAC),
 		    spec->efs_loc_mac, EFX_MAC_ADDR_LEN);
 
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_SRC_PORT,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_SRC_PORT,
 		    __CPU_TO_BE_16(spec->efs_rem_port));
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_DST_PORT,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_DST_PORT,
 		    __CPU_TO_BE_16(spec->efs_loc_port));
 
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_ETHER_TYPE,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_ETHER_TYPE,
 		    __CPU_TO_BE_16(spec->efs_ether_type));
 
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_INNER_VLAN,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_INNER_VLAN,
 		    __CPU_TO_BE_16(spec->efs_inner_vid));
-		MCDI_IN_SET_WORD(req, FILTER_OP_IN_OUTER_VLAN,
+		MCDI_IN_SET_WORD(req, FILTER_OP_EXT_IN_OUTER_VLAN,
 		    __CPU_TO_BE_16(spec->efs_outer_vid));
 
 		/* IP protocol (in low byte, high byte is zero) */
-		MCDI_IN_SET_BYTE(req, FILTER_OP_IN_IP_PROTO,
+		MCDI_IN_SET_BYTE(req, FILTER_OP_EXT_IN_IP_PROTO,
 		    spec->efs_ip_proto);
 
 		EFX_STATIC_ASSERT(sizeof (spec->efs_rem_host) ==
-		    MC_CMD_FILTER_OP_IN_SRC_IP_LEN);
+		    MC_CMD_FILTER_OP_EXT_IN_SRC_IP_LEN);
 		EFX_STATIC_ASSERT(sizeof (spec->efs_loc_host) ==
-		    MC_CMD_FILTER_OP_IN_DST_IP_LEN);
+		    MC_CMD_FILTER_OP_EXT_IN_DST_IP_LEN);
 
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_SRC_IP),
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_SRC_IP),
 		    &spec->efs_rem_host.eo_byte[0],
-		    MC_CMD_FILTER_OP_IN_SRC_IP_LEN);
-		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_IN_DST_IP),
+		    MC_CMD_FILTER_OP_EXT_IN_SRC_IP_LEN);
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_DST_IP),
 		    &spec->efs_loc_host.eo_byte[0],
-		    MC_CMD_FILTER_OP_IN_DST_IP_LEN);
+		    MC_CMD_FILTER_OP_EXT_IN_DST_IP_LEN);
+
+		/*
+		 * On Medford, filters for encapsulated packets match based on
+		 * the ether type and IP protocol in the outer frame.  In
+		 * addition we need to fill in the VNI or VSID type field.
+		 */
+		switch (spec->efs_encap_type) {
+		case EFX_TUNNEL_PROTOCOL_NONE:
+			break;
+		case EFX_TUNNEL_PROTOCOL_VXLAN:
+		case EFX_TUNNEL_PROTOCOL_GENEVE:
+			MCDI_IN_POPULATE_DWORD_1(req,
+			    FILTER_OP_EXT_IN_VNI_OR_VSID,
+			    FILTER_OP_EXT_IN_VNI_TYPE,
+			    spec->efs_encap_type == EFX_TUNNEL_PROTOCOL_VXLAN ?
+				    MC_CMD_FILTER_OP_EXT_IN_VNI_TYPE_VXLAN :
+				    MC_CMD_FILTER_OP_EXT_IN_VNI_TYPE_GENEVE);
+			break;
+		case EFX_TUNNEL_PROTOCOL_NVGRE:
+			MCDI_IN_POPULATE_DWORD_1(req,
+			    FILTER_OP_EXT_IN_VNI_OR_VSID,
+			    FILTER_OP_EXT_IN_VSID_TYPE,
+			    MC_CMD_FILTER_OP_EXT_IN_VSID_TYPE_NVGRE);
+			break;
+		default:
+			EFSYS_ASSERT(0);
+			rc = EINVAL;
+			goto fail2;
+		}
 	}
 
 	efx_mcdi_execute(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail2;
-	}
-
-	if (req.emr_out_length_used < MC_CMD_FILTER_OP_OUT_LEN) {
-		rc = EMSGSIZE;
 		goto fail3;
 	}
 
-	handle->efh_lo = MCDI_OUT_DWORD(req, FILTER_OP_OUT_HANDLE_LO);
-	handle->efh_hi = MCDI_OUT_DWORD(req, FILTER_OP_OUT_HANDLE_HI);
+	if (req.emr_out_length_used < MC_CMD_FILTER_OP_EXT_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail4;
+	}
+
+	handle->efh_lo = MCDI_OUT_DWORD(req, FILTER_OP_EXT_OUT_HANDLE_LO);
+	handle->efh_hi = MCDI_OUT_DWORD(req, FILTER_OP_EXT_OUT_HANDLE_HI);
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
@@ -311,24 +356,24 @@ efx_mcdi_filter_op_delete(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_IN_LEN,
-			    MC_CMD_FILTER_OP_OUT_LEN)];
+	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
+			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
 	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_FILTER_OP_IN_LEN;
+	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_FILTER_OP_OUT_LEN;
+	req.emr_out_length = MC_CMD_FILTER_OP_EXT_OUT_LEN;
 
 	switch (filter_op) {
 	case MC_CMD_FILTER_OP_IN_OP_REMOVE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_OP,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_OP,
 		    MC_CMD_FILTER_OP_IN_OP_REMOVE);
 		break;
 	case MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE:
-		MCDI_IN_SET_DWORD(req, FILTER_OP_IN_OP,
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_OP,
 		    MC_CMD_FILTER_OP_IN_OP_UNSUBSCRIBE);
 		break;
 	default:
@@ -337,8 +382,8 @@ efx_mcdi_filter_op_delete(
 		goto fail1;
 	}
 
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_LO, handle->efh_lo);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_IN_HANDLE_HI, handle->efh_hi);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_LO, handle->efh_lo);
+	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_HANDLE_HI, handle->efh_hi);
 
 	efx_mcdi_execute_quiet(enp, &req);
 
@@ -347,7 +392,7 @@ efx_mcdi_filter_op_delete(
 		goto fail2;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_FILTER_OP_OUT_LEN) {
+	if (req.emr_out_length_used < MC_CMD_FILTER_OP_EXT_OUT_LEN) {
 		rc = EMSGSIZE;
 		goto fail3;
 	}
@@ -392,6 +437,8 @@ ef10_filter_equal(
 	if (left->efs_ether_type != right->efs_ether_type)
 		return (B_FALSE);
 	if (left->efs_ip_proto != right->efs_ip_proto)
+		return (B_FALSE);
+	if (left->efs_encap_type != right->efs_encap_type)
 		return (B_FALSE);
 
 	return (B_TRUE);
@@ -551,10 +598,6 @@ ef10_filter_add_internal(
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 		    enp->en_family == EFX_FAMILY_MEDFORD);
-
-#if EFSYS_OPT_RX_SCALE
-	spec->efs_rss_context = enp->en_rss_context;
-#endif
 
 	hash = ef10_filter_hash(spec);
 
@@ -1197,6 +1240,108 @@ fail1:
 	return (rc);
 }
 
+typedef struct ef10_filter_encap_entry_s {
+	uint16_t		ether_type;
+	efx_tunnel_protocol_t	encap_type;
+	uint32_t		inner_frame_match;
+} ef10_filter_encap_entry_t;
+
+#define EF10_ENCAP_FILTER_ENTRY(ipv, encap_type, inner_frame_match)	\
+	{ EFX_ETHER_TYPE_##ipv, EFX_TUNNEL_PROTOCOL_##encap_type,		\
+	    EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_##inner_frame_match }
+
+static ef10_filter_encap_entry_t ef10_filter_encap_list[] = {
+	EF10_ENCAP_FILTER_ENTRY(IPV4, VXLAN, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV4, VXLAN, MCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, VXLAN, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, VXLAN, MCAST_DST),
+
+	EF10_ENCAP_FILTER_ENTRY(IPV4, GENEVE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV4, GENEVE, MCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, GENEVE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, GENEVE, MCAST_DST),
+
+	EF10_ENCAP_FILTER_ENTRY(IPV4, NVGRE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV4, NVGRE, MCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, NVGRE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, NVGRE, MCAST_DST),
+};
+
+#undef EF10_ENCAP_FILTER_ENTRY
+
+static	__checkReturn	efx_rc_t
+ef10_filter_insert_encap_filters(
+	__in		efx_nic_t *enp,
+	__in		boolean_t mulcst,
+	__in		efx_filter_flags_t filter_flags)
+{
+	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
+	uint32_t i;
+	efx_rc_t rc;
+
+	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(ef10_filter_encap_list) <=
+			    EFX_ARRAY_SIZE(table->eft_encap_filter_indexes));
+
+	/*
+	 * On Medford, full-featured firmware can identify packets as being
+	 * tunnel encapsulated, even if no encapsulated packet offloads are in
+	 * use. When packets are identified as such, ordinary filters are not
+	 * applied, only ones specific to encapsulated packets. Hence we need to
+	 * insert filters for encapsulated packets in order to receive them.
+	 *
+	 * Separate filters need to be inserted for each ether type,
+	 * encapsulation type, and inner frame type (unicast or multicast). To
+	 * keep things simple and reduce the number of filters needed, catch-all
+	 * filters for all combinations of types are inserted, even if
+	 * all_unicst or all_mulcst have not been set. (These catch-all filters
+	 * may well, however, fail to insert on unprivileged functions.)
+	 */
+	table->eft_encap_filter_count = 0;
+	for (i = 0; i < EFX_ARRAY_SIZE(ef10_filter_encap_list); i++) {
+		efx_filter_spec_t spec;
+		ef10_filter_encap_entry_t *encap_filter =
+			&ef10_filter_encap_list[i];
+
+		/*
+		 * Skip multicast filters if we've not been asked for
+		 * any multicast traffic.
+		 */
+		if ((mulcst == B_FALSE) &&
+		    (encap_filter->inner_frame_match ==
+		     EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_MCAST_DST))
+				continue;
+
+		efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
+					filter_flags,
+					table->eft_default_rxq);
+		efx_filter_spec_set_ether_type(&spec, encap_filter->ether_type);
+		rc = efx_filter_spec_set_encap_type(&spec,
+					    encap_filter->encap_type,
+					    encap_filter->inner_frame_match);
+		if (rc != 0)
+			goto fail1;
+
+		rc = ef10_filter_add_internal(enp, &spec, B_TRUE,
+			    &table->eft_encap_filter_indexes[
+				    table->eft_encap_filter_count]);
+		if (rc != 0) {
+			if (rc != EACCES)
+				goto fail2;
+		} else {
+			table->eft_encap_filter_count++;
+		}
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 static			void
 ef10_filter_remove_old(
 	__in		efx_nic_t *enp)
@@ -1292,6 +1437,12 @@ ef10_filter_reconfigure(
 		}
 		table->eft_mulcst_filter_count = 0;
 
+		for (i = 0; i < table->eft_encap_filter_count; i++) {
+			(void) ef10_filter_delete_internal(enp,
+					table->eft_encap_filter_indexes[i]);
+		}
+		table->eft_encap_filter_count = 0;
+
 		return (0);
 	}
 
@@ -1308,6 +1459,10 @@ ef10_filter_reconfigure(
 	for (i = 0; i < table->eft_mulcst_filter_count; i++) {
 		ef10_filter_set_entry_auto_old(table,
 					table->eft_mulcst_filter_indexes[i]);
+	}
+	for (i = 0; i < table->eft_encap_filter_count; i++) {
+		ef10_filter_set_entry_auto_old(table,
+					table->eft_encap_filter_indexes[i]);
 	}
 
 	/*
@@ -1424,6 +1579,13 @@ ef10_filter_reconfigure(
 					goto fail4;
 			}
 		}
+	}
+
+	if (encp->enc_tunnel_encapsulations_supported != 0) {
+		/* Try to insert filters for encapsulated packets. */
+		(void) ef10_filter_insert_encap_filters(enp,
+					    mulcst || all_mulcst || brdcst,
+					    filter_flags);
 	}
 
 	/* Remove old filters which were not renewed */

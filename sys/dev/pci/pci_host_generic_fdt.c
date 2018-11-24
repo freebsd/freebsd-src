@@ -152,6 +152,9 @@ pci_host_generic_attach(device_t dev)
 		device_printf(dev, "Bus is%s cache-coherent\n",
 		    sc->base.coherent ? "" : " not");
 
+	/* TODO parse FDT bus ranges */
+	sc->base.bus_start = 0;
+	sc->base.bus_end = 0xFF;
 	error = pci_host_generic_core_attach(dev);
 	if (error != 0)
 		return (error);
@@ -382,80 +385,6 @@ pci_host_generic_alloc_resource(device_t dev, device_t child, int type,
 }
 
 static int
-generic_pcie_fdt_activate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
-{
-	struct generic_pcie_fdt_softc *sc;
-	uint64_t phys_base;
-	uint64_t pci_base;
-	uint64_t size;
-	int found;
-	int res;
-	int i;
-
-	sc = device_get_softc(dev);
-
-	if ((res = rman_activate_resource(r)) != 0)
-		return (res);
-
-	switch(type) {
-	case SYS_RES_IOPORT:
-		found = 0;
-		for (i = 0; i < MAX_RANGES_TUPLES; i++) {
-			pci_base = sc->base.ranges[i].pci_base;
-			phys_base = sc->base.ranges[i].phys_base;
-			size = sc->base.ranges[i].size;
-
-			if ((rid > pci_base) && (rid < (pci_base + size))) {
-				found = 1;
-				break;
-			}
-		}
-		if (found) {
-			rman_set_start(r, rman_get_start(r) + phys_base);
-			rman_set_end(r, rman_get_end(r) + phys_base);
-			res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
-			    child, type, rid, r);
-		} else {
-			device_printf(dev,
-			    "Failed to activate IOPORT resource\n");
-			res = 0;
-		}
-		break;
-	case SYS_RES_MEMORY:
-		res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r);
-		break;
-	default:
-		break;
-	}
-
-	return (res);
-}
-
-static int
-generic_pcie_fdt_deactivate_resource(device_t dev, device_t child, int type,
-    int rid, struct resource *r)
-{
-	int res;
-
-	if ((res = rman_deactivate_resource(r)) != 0)
-		return (res);
-
-	switch(type) {
-	case SYS_RES_IOPORT:
-	case SYS_RES_MEMORY:
-		res = BUS_DEACTIVATE_RESOURCE(device_get_parent(dev), child,
-		    type, rid, r);
-		break;
-	default:
-		break;
-	}
-
-	return (res);
-}
-
-static int
 generic_pcie_fdt_alloc_msi(device_t pci, device_t child, int count,
     int maxcount, int *irqs)
 {
@@ -625,8 +554,6 @@ static device_method_t generic_pcie_fdt_methods[] = {
 	DEVMETHOD(device_attach,	pci_host_generic_attach),
 	DEVMETHOD(bus_alloc_resource,	pci_host_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	generic_pcie_fdt_release_resource),
-	DEVMETHOD(bus_activate_resource, generic_pcie_fdt_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,generic_pcie_fdt_deactivate_resource),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt,	generic_pcie_fdt_route_interrupt),

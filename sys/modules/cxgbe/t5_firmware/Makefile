@@ -17,7 +17,7 @@ FIRMWS+=	${F}:${F:C/.txt//}:1.0.0.0
 .endif
 .endfor
 
-T5FW_VER=	1.19.1.0
+T5FW_VER=	1.22.0.3
 FIRMWS+=	t5fw.fw:t5fw:${T5FW_VER}
 CLEANFILES+=	t5fw.fw
 

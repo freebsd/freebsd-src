@@ -88,7 +88,7 @@ usage(void)
 	fprintf(stderr,
     "usage: dumpon [-v] [-k <pubkey>] [-Zz] <device>\n"
     "       dumpon [-v] [-k <pubkey>] [-Zz]\n"
-    "              [-g <gateway>|default] -s <server> -c <client> <iface>\n"
+    "              [-g <gateway>] -s <server> -c <client> <iface>\n"
     "       dumpon [-v] off\n"
     "       dumpon [-v] -l\n");
 	exit(EX_USAGE);
@@ -108,8 +108,6 @@ find_gateway(const char *ifname)
 	char *buf, *next, *ret;
 	size_t sz;
 	int error, i, ifindex, mib[7];
-
-	ret = NULL;
 
 	/* First look up the interface index. */
 	if (getifaddrs(&ifap) != 0)
@@ -148,6 +146,7 @@ find_gateway(const char *ifname)
 		free(buf);
 	}
 
+	ret = NULL;
 	for (next = buf; next < buf + sz; next += rtm->rtm_msglen) {
 		rtm = (struct rt_msghdr *)(void *)next;
 		if (rtm->rtm_version != RTM_VERSION)
@@ -476,12 +475,16 @@ main(int argc, char *argv[])
 		if (inet_aton(client, &ndconf.ndc_client) == 0)
 			errx(EX_USAGE, "invalid client address '%s'", client);
 
-		if (gateway == NULL)
-			gateway = server;
-		else if (strcmp(gateway, "default") == 0 &&
-		    (gateway = find_gateway(argv[0])) == NULL)
-			errx(EX_NOHOST,
-			    "failed to look up next-hop router for %s", server);
+		if (gateway == NULL) {
+			gateway = find_gateway(argv[0]);
+			if (gateway == NULL) {
+				if (verbose)
+					printf(
+				    "failed to look up gateway for %s\n",
+					    server);
+				gateway = server;
+			}
+		}
 		if (inet_aton(gateway, &ndconf.ndc_gateway) == 0)
 			errx(EX_USAGE, "invalid gateway address '%s'", gateway);
 

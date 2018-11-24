@@ -908,8 +908,12 @@ complete_service(struct netconfig *nconf, char *port_str)
 		if (fd < 0)
 			continue;
 
+		/*
+		 * Using -1 tells listen(2) to use
+		 * kern.ipc.soacceptqueue for the backlog.
+		 */
 		if (nconf->nc_semantics != NC_TPI_CLTS)
-			listen(fd, SOMAXCONN);
+			listen(fd, -1);
 
 		if (nconf->nc_semantics == NC_TPI_CLTS )
 			transp = svc_dg_create(fd, 0, 0);

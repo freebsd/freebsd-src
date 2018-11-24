@@ -122,10 +122,6 @@ efx_filter_remove(
 	EFSYS_ASSERT3P(spec, !=, NULL);
 	EFSYS_ASSERT3U(spec->efs_flags, &, EFX_FILTER_FLAG_RX);
 
-#if EFSYS_OPT_RX_SCALE
-	spec->efs_rss_context = enp->en_rss_context;
-#endif
-
 	return (efop->efo_delete(enp, spec));
 }
 
@@ -307,7 +303,7 @@ efx_filter_spec_init_rx(
 	memset(spec, 0, sizeof (*spec));
 	spec->efs_priority = priority;
 	spec->efs_flags = EFX_FILTER_FLAG_RX | flags;
-	spec->efs_rss_context = EFX_FILTER_SPEC_RSS_CONTEXT_DEFAULT;
+	spec->efs_rss_context = EFX_RSS_CONTEXT_DEFAULT;
 	spec->efs_dmaq_id = (uint16_t)erp->er_index;
 }
 
@@ -401,6 +397,17 @@ efx_filter_spec_set_eth_local(
 	return (0);
 }
 
+			void
+efx_filter_spec_set_ether_type(
+	__inout		efx_filter_spec_t *spec,
+	__in		uint16_t ether_type)
+{
+	EFSYS_ASSERT3P(spec, !=, NULL);
+
+	spec->efs_ether_type = ether_type;
+	spec->efs_match_flags |= EFX_FILTER_MATCH_ETHER_TYPE;
+}
+
 /*
  * Specify matching otherwise-unmatched unicast in a filter specification
  */
@@ -428,6 +435,88 @@ efx_filter_spec_set_mc_def(
 }
 
 
+__checkReturn		efx_rc_t
+efx_filter_spec_set_encap_type(
+	__inout		efx_filter_spec_t *spec,
+	__in		efx_tunnel_protocol_t encap_type,
+	__in		efx_filter_inner_frame_match_t inner_frame_match)
+{
+	uint32_t match_flags = 0;
+	uint8_t ip_proto;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3P(spec, !=, NULL);
+
+	switch (encap_type) {
+	case EFX_TUNNEL_PROTOCOL_VXLAN:
+	case EFX_TUNNEL_PROTOCOL_GENEVE:
+		ip_proto = EFX_IPPROTO_UDP;
+		break;
+	case EFX_TUNNEL_PROTOCOL_NVGRE:
+		ip_proto = EFX_IPPROTO_GRE;
+		break;
+	default:
+		EFSYS_ASSERT(0);
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	switch (inner_frame_match) {
+	case EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_MCAST_DST:
+		match_flags |= EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST;
+		break;
+	case EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_UCAST_DST:
+		match_flags |= EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST;
+		break;
+	case EFX_FILTER_INNER_FRAME_MATCH_OTHER:
+		/* This is for when specific inner frames are to be matched. */
+		break;
+	default:
+		EFSYS_ASSERT(0);
+		rc = EINVAL;
+		goto fail2;
+	}
+
+	spec->efs_encap_type = encap_type;
+	spec->efs_ip_proto = ip_proto;
+	spec->efs_match_flags |= (match_flags | EFX_FILTER_MATCH_IP_PROTO);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	efx_rc_t
+efx_filter_spec_set_rss_context(
+	__inout		efx_filter_spec_t *spec,
+	__in		uint32_t rss_context)
+{
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3P(spec, !=, NULL);
+
+	/* The filter must have been created with EFX_FILTER_FLAG_RX_RSS. */
+	if ((spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) == 0) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	spec->efs_rss_context = rss_context;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+#endif
 
 #if EFSYS_OPT_SIENA
 
@@ -459,9 +548,9 @@ siena_filter_spec_from_gen_spec(
 	else
 		EFSYS_ASSERT3U(gen_spec->efs_flags, &, EFX_FILTER_FLAG_RX);
 
-	/* Falconsiena only has one RSS context */
+	/* Siena only has one RSS context */
 	if ((gen_spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) &&
-	    gen_spec->efs_rss_context != 0) {
+	    gen_spec->efs_rss_context != EFX_RSS_CONTEXT_DEFAULT) {
 		rc = EINVAL;
 		goto fail1;
 	}

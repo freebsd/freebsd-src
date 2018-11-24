@@ -107,7 +107,7 @@ pfs_visible_proc(struct thread *td, struct pfs_node *pn, struct proc *proc)
 
 static int
 pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid,
-    bool allproc_locked, struct proc **p)
+    struct proc **p)
 {
 	struct proc *proc;
 
@@ -118,7 +118,7 @@ pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid,
 		*p = NULL;
 	if (pid == NO_PID)
 		PFS_RETURN (1);
-	proc = allproc_locked ? pfind_locked(pid) : pfind(pid);
+	proc = pfind(pid);
 	if (proc == NULL)
 		PFS_RETURN (0);
 	if (pfs_visible_proc(td, pn, proc)) {
@@ -206,7 +206,7 @@ pfs_getattr(struct vop_getattr_args *va)
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);
 
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, false, &proc))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (ENOENT);
 
 	vap->va_type = vn->v_type;
@@ -297,7 +297,7 @@ pfs_ioctl(struct vop_ioctl_args *va)
 	 * This is necessary because process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, false, &proc)) {
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc)) {
 		VOP_UNLOCK(vn, 0);
 		PFS_RETURN (EIO);
 	}
@@ -330,7 +330,7 @@ pfs_getextattr(struct vop_getextattr_args *va)
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, false, &proc))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 
 	if (pn->pn_getextattr == NULL)
@@ -466,7 +466,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
 		PFS_RETURN (ENOENT);
 
 	/* check that parent directory is visible... */
-	if (!pfs_visible(curthread, pd, pvd->pvd_pid, false, NULL))
+	if (!pfs_visible(curthread, pd, pvd->pvd_pid, NULL))
 		PFS_RETURN (ENOENT);
 
 	/* self */
@@ -550,7 +550,7 @@ pfs_lookup(struct vop_cachedlookup_args *va)
  got_pnode:
 	pfs_assert_not_owned(pd);
 	pfs_assert_not_owned(pn);
-	visible = pfs_visible(curthread, pn, pid, false, NULL);
+	visible = pfs_visible(curthread, pn, pid, NULL);
 	if (!visible) {
 		error = ENOENT;
 		goto failed;
@@ -639,7 +639,7 @@ pfs_read(struct vop_read_args *va)
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, false, &proc))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 	if (proc != NULL) {
 		_PHOLD(proc);
@@ -795,7 +795,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	pfs_lock(pd);
 
         /* check if the directory is visible to the caller */
-        if (!pfs_visible(curthread, pd, pid, true, &proc)) {
+        if (!pfs_visible(curthread, pd, pid, &proc)) {
 		sx_sunlock(&allproc_lock);
 		pfs_unlock(pd);
                 PFS_RETURN (ENOENT);
@@ -828,8 +828,9 @@ pfs_readdir(struct vop_readdir_args *va)
 		/* PFS_DELEN was picked to fit PFS_NAMLEN */
 		for (i = 0; i < PFS_NAMELEN - 1 && pn->pn_name[i] != '\0'; ++i)
 			pfsent->entry.d_name[i] = pn->pn_name[i];
-		pfsent->entry.d_name[i] = 0;
 		pfsent->entry.d_namlen = i;
+		/* NOTE: d_off is the offset of the *next* entry. */
+		pfsent->entry.d_off = offset + PFS_DELEN;
 		switch (pn->pn_type) {
 		case pfstype_procdir:
 			KASSERT(p != NULL,
@@ -853,6 +854,7 @@ pfs_readdir(struct vop_readdir_args *va)
 			panic("%s has unexpected node type: %d", pn->pn_name, pn->pn_type);
 		}
 		PFS_TRACE(("%s", pfsent->entry.d_name));
+		dirent_terminate(&pfsent->entry);
 		STAILQ_INSERT_TAIL(&lst, pfsent, link);
 		offset += PFS_DELEN;
 		resid -= PFS_DELEN;
@@ -999,7 +1001,7 @@ pfs_write(struct vop_write_args *va)
 	 * This is necessary because either process' privileges may
 	 * have changed since the open() call.
 	 */
-	if (!pfs_visible(curthread, pn, pvd->pvd_pid, false, &proc))
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid, &proc))
 		PFS_RETURN (EIO);
 	if (proc != NULL) {
 		_PHOLD(proc);

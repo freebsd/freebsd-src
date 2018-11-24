@@ -2529,8 +2529,8 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 			 */
 			eodp->ed_ino = objnum;
 			eodp->ed_reclen = reclen;
-			/* NOTE: ed_off is the offset for the *next* entry */
-			next = &(eodp->ed_off);
+			/* NOTE: ed_off is the offset for the *next* entry. */
+			next = &eodp->ed_off;
 			eodp->ed_eflags = zap.za_normalization_conflict ?
 			    ED_CASE_CONFLICT : 0;
 			(void) strncpy(eodp->ed_name, zap.za_name,
@@ -2543,8 +2543,11 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 			odp->d_ino = objnum;
 			odp->d_reclen = reclen;
 			odp->d_namlen = strlen(zap.za_name);
+			/* NOTE: d_off is the offset for the *next* entry. */
+			next = &odp->d_off;
 			(void) strlcpy(odp->d_name, zap.za_name, odp->d_namlen + 1);
 			odp->d_type = type;
+			dirent_terminate(odp);
 			odp = (dirent64_t *)((intptr_t)odp + reclen);
 		}
 		outcount += reclen;
@@ -2567,6 +2570,9 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp, int *ncookies, u_lon
 			offset += 1;
 		}
 
+		/* Fill the offset right after advancing the cursor. */
+		if (next != NULL)
+			*next = offset;
 		if (cooks != NULL) {
 			*cooks++ = offset;
 			ncooks--;

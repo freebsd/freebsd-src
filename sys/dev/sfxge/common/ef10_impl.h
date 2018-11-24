@@ -118,7 +118,8 @@ ef10_ev_qstats_update(
 ef10_ev_rxlabel_init(
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp,
-	__in		unsigned int label);
+	__in		unsigned int label,
+	__in		efx_rxq_type_t type);
 
 		void
 ef10_ev_rxlabel_fini(
@@ -444,6 +445,14 @@ ef10_nvram_partn_read(
 	__in			size_t size);
 
 extern	__checkReturn		efx_rc_t
+ef10_nvram_partn_read_backup(
+	__in			efx_nic_t *enp,
+	__in			uint32_t partn,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_erase(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn,
@@ -461,7 +470,8 @@ ef10_nvram_partn_write(
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp);
 
 extern	__checkReturn		efx_rc_t
 ef10_nvram_partn_get_version(
@@ -685,6 +695,22 @@ ef10_tx_qpush(
 	__in		unsigned int added,
 	__in		unsigned int pushed);
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+extern			void
+ef10_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp);
+
+extern	__checkReturn	uint8_t *
+ef10_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp);
+#endif
+
 extern	__checkReturn	efx_rc_t
 ef10_tx_qpace(
 	__in		efx_txq_t *etp,
@@ -883,8 +909,21 @@ ef10_rx_scatter_enable(
 #if EFSYS_OPT_RX_SCALE
 
 extern	__checkReturn	efx_rc_t
+ef10_rx_scale_context_alloc(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_scale_context_type_t type,
+	__in		uint32_t num_queues,
+	__out		uint32_t *rss_contextp);
+
+extern	__checkReturn	efx_rc_t
+ef10_rx_scale_context_free(
+	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context);
+
+extern	__checkReturn	efx_rc_t
 ef10_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
@@ -892,12 +931,14 @@ ef10_rx_scale_mode_set(
 extern	__checkReturn	efx_rc_t
 ef10_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
 extern	__checkReturn	efx_rc_t
 ef10_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
@@ -990,6 +1031,13 @@ typedef struct ef10_filter_entry_s {
 /* Allow for the broadcast address to be added to the multicast list */
 #define	EFX_EF10_FILTER_MULTICAST_FILTERS_MAX	(EFX_MAC_MULTICAST_LIST_MAX + 1)
 
+/*
+ * For encapsulated packets, there is one filter each for each combination of
+ * IPv4 or IPv6 outer frame, VXLAN, GENEVE or NVGRE packet type, and unicast or
+ * multicast inner frames.
+ */
+#define EFX_EF10_FILTER_ENCAP_FILTERS_MAX	12
+
 typedef struct ef10_filter_table_s {
 	ef10_filter_entry_t	eft_entry[EFX_EF10_FILTER_TBL_ROWS];
 	efx_rxq_t		*eft_default_rxq;
@@ -1001,6 +1049,9 @@ typedef struct ef10_filter_table_s {
 	    EFX_EF10_FILTER_MULTICAST_FILTERS_MAX];
 	uint32_t		eft_mulcst_filter_count;
 	boolean_t		eft_using_all_mulcst;
+	uint32_t		eft_encap_filter_indexes[
+	    EFX_EF10_FILTER_ENCAP_FILTERS_MAX];
+	uint32_t		eft_encap_filter_count;
 } ef10_filter_table_t;
 
 	__checkReturn	efx_rc_t
@@ -1131,6 +1182,35 @@ ef10_external_port_mapping(
 	__in		uint32_t port,
 	__out		uint8_t *external_portp);
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+/* Data space per credit in packed stream mode */
+#define	EFX_RX_PACKED_STREAM_MEM_PER_CREDIT (1 << 16)
+
+/*
+ * Received packets are always aligned at this boundary. Also there always
+ * exists a gap of this size between packets.
+ * (see SF-112241-TC, 4.5)
+ */
+#define	EFX_RX_PACKED_STREAM_ALIGNMENT 64
+
+/*
+ * Size of a pseudo-header prepended to received packets
+ * in packed stream mode
+ */
+#define	EFX_RX_PACKED_STREAM_RX_PREFIX_SIZE 8
+
+/* Minimum space for packet in packed stream mode */
+#define	EFX_RX_PACKED_STREAM_MIN_PACKET_SPACE		     \
+	P2ROUNDUP(EFX_RX_PACKED_STREAM_RX_PREFIX_SIZE +	     \
+		  EFX_MAC_PDU_MIN +			     \
+		  EFX_RX_PACKED_STREAM_ALIGNMENT,	     \
+		  EFX_RX_PACKED_STREAM_ALIGNMENT)
+
+/* Maximum number of credits */
+#define	EFX_RX_PACKED_STREAM_MAX_CREDITS 127
+
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 #ifdef	__cplusplus
 }

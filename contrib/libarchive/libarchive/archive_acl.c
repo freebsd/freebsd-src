@@ -753,8 +753,10 @@ archive_acl_to_text_w(struct archive_acl *acl, ssize_t *text_len, int flags,
 			append_entry_w(&wp, prefix, ap->type, ap->tag, flags,
 			    wname, ap->permset, id);
 			count++;
-		} else if (r < 0 && errno == ENOMEM)
+		} else if (r < 0 && errno == ENOMEM) {
+			free(ws);
 			return (NULL);
+		}
 	}
 
 	/* Add terminating character */
@@ -975,8 +977,10 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 			prefix = NULL;
 		r = archive_mstring_get_mbs_l(
 		    &ap->name, &name, &len, sc);
-		if (r != 0)
+		if (r != 0) {
+			free(s);
 			return (NULL);
+		}
 		if (count > 0)
 			*p++ = separator;
 		if (name == NULL ||

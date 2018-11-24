@@ -52,6 +52,9 @@ extern "C" {
 #define	EFX_FIELD_OFFSET(_type, _field)		\
 	((size_t) &(((_type *)0)->_field))
 
+/* The macro expands divider twice */
+#define	EFX_DIV_ROUND_UP(_n, _d)		(((_n) + (_d) - 1) / (_d))
+
 /* Return codes */
 
 typedef __success(return == 0) int efx_rc_t;
@@ -563,6 +566,10 @@ efx_mac_stats_get_mask(
 
 #define	EFX_MAC_STATS_SIZE 0x400
 
+extern	__checkReturn			efx_rc_t
+efx_mac_stats_clear(
+	__in				efx_nic_t *enp);
+
 /*
  * Upload mac statistics supported by the hardware into the given buffer.
  *
@@ -913,13 +920,13 @@ efx_phy_media_type_get(
 	__in		efx_nic_t *enp,
 	__out		efx_phy_media_type_t *typep);
 
-extern					efx_rc_t
+extern	__checkReturn		efx_rc_t
 efx_phy_module_get_info(
-	__in				efx_nic_t *enp,
-	__in				uint8_t dev_addr,
-	__in				uint8_t offset,
-	__in				uint8_t len,
-	__out_bcount(len)		uint8_t *data);
+	__in			efx_nic_t *enp,
+	__in			uint8_t dev_addr,
+	__in			uint8_t offset,
+	__in			uint8_t len,
+	__out_bcount(len)	uint8_t *data);
 
 #if EFSYS_OPT_PHY_STATS
 
@@ -1086,6 +1093,15 @@ efx_bist_stop(
 #define	EFX_FEATURE_PIO_BUFFERS		0x00000800
 #define	EFX_FEATURE_FW_ASSISTED_TSO	0x00001000
 #define	EFX_FEATURE_FW_ASSISTED_TSO_V2	0x00002000
+#define	EFX_FEATURE_PACKED_STREAM	0x00004000
+
+typedef enum efx_tunnel_protocol_e {
+	EFX_TUNNEL_PROTOCOL_NONE = 0,
+	EFX_TUNNEL_PROTOCOL_VXLAN,
+	EFX_TUNNEL_PROTOCOL_GENEVE,
+	EFX_TUNNEL_PROTOCOL_NVGRE,
+	EFX_TUNNEL_NPROTOS
+} efx_tunnel_protocol_t;
 
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
@@ -1107,6 +1123,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_evq_limit;
 	uint32_t		enc_txq_limit;
 	uint32_t		enc_rxq_limit;
+	uint32_t		enc_txq_max_ndescs;
 	uint32_t		enc_buftbl_limit;
 	uint32_t		enc_piobuf_limit;
 	uint32_t		enc_piobuf_size;
@@ -1117,6 +1134,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_rx_prefix_size;
 	uint32_t		enc_rx_buf_align_start;
 	uint32_t		enc_rx_buf_align_end;
+	uint32_t		enc_rx_scale_max_exclusive_contexts;
 #if EFSYS_OPT_LOOPBACK
 	efx_qword_t		enc_loopback_types[EFX_LINK_NMODES];
 #endif	/* EFSYS_OPT_LOOPBACK */
@@ -1181,8 +1199,11 @@ typedef struct efx_nic_cfg_s {
 	boolean_t		enc_allow_set_mac_with_installed_filters;
 	boolean_t		enc_enhanced_set_mac_supported;
 	boolean_t		enc_init_evq_v2_supported;
+	boolean_t		enc_rx_packed_stream_supported;
+	boolean_t		enc_rx_var_packed_stream_supported;
 	boolean_t		enc_pm_and_rxdp_counters;
 	boolean_t		enc_mac_stats_40g_tx_size_bins;
+	uint32_t		enc_tunnel_encapsulations_supported;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
@@ -1192,7 +1213,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_required_pcie_bandwidth_mbps;
 	uint32_t		enc_max_pcie_link_gen;
 	/* Firmware verifies integrity of NVRAM updates */
-	uint32_t		enc_fw_verified_nvram_update_required;
+	uint32_t		enc_nvram_update_verify_result_supported;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
@@ -1206,6 +1227,24 @@ typedef struct efx_nic_cfg_s {
 extern			const efx_nic_cfg_t *
 efx_nic_cfg_get(
 	__in		efx_nic_t *enp);
+
+typedef struct efx_nic_fw_info_s {
+	/* Basic FW version information */
+	uint16_t	enfi_mc_fw_version[4];
+	/*
+	 * If datapath capabilities can be detected,
+	 * additional FW information is to be shown
+	 */
+	boolean_t	enfi_dpcpu_fw_ids_valid;
+	/* Rx and Tx datapath CPU FW IDs */
+	uint16_t	enfi_rx_dpcpu_fw_id;
+	uint16_t	enfi_tx_dpcpu_fw_id;
+} efx_nic_fw_info_t;
+
+extern	__checkReturn		efx_rc_t
+efx_nic_get_fw_version(
+	__in			efx_nic_t *enp,
+	__out			efx_nic_fw_info_t *enfip);
 
 /* Driver resource limits (minimum required/maximum usable). */
 typedef struct efx_drv_limits_s {
@@ -1349,6 +1388,7 @@ typedef enum efx_nvram_type_e {
 	EFX_NVRAM_DYNAMIC_CFG,
 	EFX_NVRAM_LICENSE,
 	EFX_NVRAM_UEFIROM,
+	EFX_NVRAM_MUM_FIRMWARE,
 	EFX_NVRAM_NTYPES,
 } efx_nvram_type_t;
 
@@ -1379,7 +1419,8 @@ efx_nvram_rw_start(
 extern	__checkReturn		efx_rc_t
 efx_nvram_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			efx_nvram_type_t type);
+	__in			efx_nvram_type_t type,
+	__out_opt		uint32_t *verify_resultp);
 
 extern	__checkReturn		efx_rc_t
 efx_nvram_get_version(
@@ -1390,6 +1431,14 @@ efx_nvram_get_version(
 
 extern	__checkReturn		efx_rc_t
 efx_nvram_read_chunk(
+	__in			efx_nic_t *enp,
+	__in			efx_nvram_type_t type,
+	__in			unsigned int offset,
+	__out_bcount(size)	caddr_t data,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
+efx_nvram_read_backup(
 	__in			efx_nic_t *enp,
 	__in			efx_nvram_type_t type,
 	__in			unsigned int offset,
@@ -1622,6 +1671,16 @@ typedef __checkReturn	boolean_t
 #define	EFX_ADDR_MISMATCH	0x4000
 #define	EFX_DISCARD		0x8000
 
+/*
+ * The following flags are used only for packed stream
+ * mode. The values for the flags are reused to fit into 16 bit,
+ * since EFX_PKT_START and EFX_PKT_CONT are never used in
+ * packed stream mode
+ */
+#define	EFX_PKT_PACKED_STREAM_NEW_BUFFER	EFX_PKT_START
+#define	EFX_PKT_PACKED_STREAM_PARSE_INCOMPLETE	EFX_PKT_CONT
+
+
 #define	EFX_EV_RX_NLABELS	32
 #define	EFX_EV_TX_NLABELS	32
 
@@ -1632,6 +1691,28 @@ typedef	__checkReturn	boolean_t
 	__in		uint32_t id,
 	__in		uint32_t size,
 	__in		uint16_t flags);
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+/*
+ * Packed stream mode is documented in SF-112241-TC.
+ * The general idea is that, instead of putting each incoming
+ * packet into a separate buffer which is specified in a RX
+ * descriptor, a large buffer is provided to the hardware and
+ * packets are put there in a continuous stream.
+ * The main advantage of such an approach is that RX queue refilling
+ * happens much less frequently.
+ */
+
+typedef	__checkReturn	boolean_t
+(*efx_rx_ps_ev_t)(
+	__in_opt	void *arg,
+	__in		uint32_t label,
+	__in		uint32_t id,
+	__in		uint32_t pkt_count,
+	__in		uint16_t flags);
+
+#endif
 
 typedef	__checkReturn	boolean_t
 (*efx_tx_ev_t)(
@@ -1722,6 +1803,9 @@ typedef __checkReturn	boolean_t
 typedef struct efx_ev_callbacks_s {
 	efx_initialized_ev_t		eec_initialized;
 	efx_rx_ev_t			eec_rx;
+#if EFSYS_OPT_RX_PACKED_STREAM
+	efx_rx_ps_ev_t			eec_rx_ps;
+#endif
 	efx_tx_ev_t			eec_tx;
 	efx_exception_ev_t		eec_exception;
 	efx_rxq_flush_done_ev_t		eec_rxq_flush_done;
@@ -1816,6 +1900,9 @@ efx_rx_scatter_enable(
 	__in		unsigned int buf_size);
 #endif	/* EFSYS_OPT_RX_SCATTER */
 
+/* Handle to represent use of the default RSS context. */
+#define	EFX_RSS_CONTEXT_DEFAULT	0xffffffff
+
 #if EFSYS_OPT_RX_SCALE
 
 typedef enum efx_rx_hash_alg_e {
@@ -1835,30 +1922,44 @@ typedef enum efx_rx_hash_support_e {
 	EFX_RX_HASH_AVAILABLE		/* Insert hash with/without RSS */
 } efx_rx_hash_support_t;
 
+#define	EFX_RSS_KEY_SIZE	40	/* RSS key size (bytes) */
 #define	EFX_RSS_TBL_SIZE	128	/* Rows in RX indirection table */
 #define	EFX_MAXRSS		64	/* RX indirection entry range */
 #define	EFX_MAXRSS_LEGACY	16	/* See bug16611 and bug17213 */
 
-typedef enum efx_rx_scale_support_e {
-	EFX_RX_SCALE_UNAVAILABLE = 0,	/* Not supported */
+typedef enum efx_rx_scale_context_type_e {
+	EFX_RX_SCALE_UNAVAILABLE = 0,	/* No RX scale context */
 	EFX_RX_SCALE_EXCLUSIVE,		/* Writable key/indirection table */
 	EFX_RX_SCALE_SHARED		/* Read-only key/indirection table */
-} efx_rx_scale_support_t;
+} efx_rx_scale_context_type_t;
 
 extern	__checkReturn	efx_rc_t
-efx_rx_hash_support_get(
+efx_rx_hash_default_support_get(
 	__in		efx_nic_t *enp,
 	__out		efx_rx_hash_support_t *supportp);
 
 
 extern	__checkReturn	efx_rc_t
-efx_rx_scale_support_get(
+efx_rx_scale_default_support_get(
 	__in		efx_nic_t *enp,
-	__out		efx_rx_scale_support_t *supportp);
+	__out		efx_rx_scale_context_type_t *typep);
+
+extern	__checkReturn	efx_rc_t
+efx_rx_scale_context_alloc(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_scale_context_type_t type,
+	__in		uint32_t num_queues,
+	__out		uint32_t *rss_contextp);
+
+extern	__checkReturn	efx_rc_t
+efx_rx_scale_context_free(
+	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context);
 
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in	efx_nic_t *enp,
+	__in	uint32_t rss_context,
 	__in	efx_rx_hash_alg_t alg,
 	__in	efx_rx_hash_type_t type,
 	__in	boolean_t insert);
@@ -1866,12 +1967,14 @@ efx_rx_scale_mode_set(
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
 extern	__checkReturn	efx_rc_t
 efx_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
@@ -1900,6 +2003,11 @@ efx_pseudo_hdr_pkt_length_get(
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
 	EFX_RXQ_TYPE_SCATTER,
+	EFX_RXQ_TYPE_PACKED_STREAM_1M,
+	EFX_RXQ_TYPE_PACKED_STREAM_512K,
+	EFX_RXQ_TYPE_PACKED_STREAM_256K,
+	EFX_RXQ_TYPE_PACKED_STREAM_128K,
+	EFX_RXQ_TYPE_PACKED_STREAM_64K,
 	EFX_RXQ_NTYPES
 } efx_rxq_type_t;
 
@@ -1940,6 +2048,23 @@ efx_rx_qpush(
 	__in	unsigned int added,
 	__inout	unsigned int *pushedp);
 
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+extern			void
+efx_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp);
+
+extern	__checkReturn	uint8_t *
+efx_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp);
+#endif
+
 extern	__checkReturn	efx_rc_t
 efx_rx_qflush(
 	__in	efx_rxq_t *erp);
@@ -1977,12 +2102,6 @@ extern		void
 efx_tx_fini(
 	__in	efx_nic_t *enp);
 
-#define	EFX_BUG35388_WORKAROUND(_encp)					\
-	(((_encp) == NULL) ? 1 : ((_encp)->enc_bug35388_workaround != 0))
-
-#define	EFX_TXQ_MAXNDESCS(_encp)					\
-	((EFX_BUG35388_WORKAROUND(_encp)) ? 2048 : 4096)
-
 #define	EFX_TXQ_MINNDESCS		512
 
 #define	EFX_TXQ_SIZE(_ndescs)		((_ndescs) * sizeof (efx_qword_t))
@@ -1992,9 +2111,11 @@ efx_tx_fini(
 
 #define	EFX_TXQ_MAX_BUFS 8 /* Maximum independent of EFX_BUG35388_WORKAROUND. */
 
-#define	EFX_TXQ_CKSUM_IPV4	0x0001
-#define	EFX_TXQ_CKSUM_TCPUDP	0x0002
-#define	EFX_TXQ_FATSOV2		0x0004
+#define	EFX_TXQ_CKSUM_IPV4		0x0001
+#define	EFX_TXQ_CKSUM_TCPUDP		0x0002
+#define	EFX_TXQ_FATSOV2			0x0004
+#define	EFX_TXQ_CKSUM_INNER_IPV4	0x0008
+#define	EFX_TXQ_CKSUM_INNER_TCPUDP	0x0010
 
 extern	__checkReturn	efx_rc_t
 efx_tx_qcreate(
@@ -2135,6 +2256,7 @@ efx_tx_qdestroy(
 
 #define	EFX_IPPROTO_TCP 6
 #define	EFX_IPPROTO_UDP 17
+#define	EFX_IPPROTO_GRE	47
 
 /* Use RSS to spread across multiple queues */
 #define	EFX_FILTER_FLAG_RX_RSS		0x01
@@ -2153,6 +2275,10 @@ efx_tx_qdestroy(
 
 typedef unsigned int efx_filter_flags_t;
 
+/*
+ * Flags which specify the fields to match on. The values are the same as in the
+ * MC_CMD_FILTER_OP/MC_CMD_FILTER_OP_EXT commands.
+ */
 typedef enum efx_filter_match_flags_e {
 	EFX_FILTER_MATCH_REM_HOST = 0x0001,	/* Match by remote IP host
 						 * address */
@@ -2167,6 +2293,10 @@ typedef enum efx_filter_match_flags_e {
 	EFX_FILTER_MATCH_OUTER_VID = 0x0100,	/* Match by outer VLAN ID */
 	EFX_FILTER_MATCH_IP_PROTO = 0x0200,	/* Match by IP transport
 						 * protocol */
+	/* For encapsulated packets, match all multicast inner frames */
+	EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST = 0x01000000,
+	/* For encapsulated packets, match all unicast inner frames */
+	EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST = 0x02000000,
 	/* Match otherwise-unmatched multicast and broadcast packets */
 	EFX_FILTER_MATCH_UNKNOWN_MCAST_DST = 0x40000000,
 	/* Match otherwise-unmatched unicast packets */
@@ -2192,26 +2322,26 @@ typedef enum efx_filter_priority_s {
  */
 
 typedef struct efx_filter_spec_s {
-	uint32_t	efs_match_flags;
-	uint32_t	efs_priority:2;
-	uint32_t	efs_flags:6;
-	uint32_t	efs_dmaq_id:12;
-	uint32_t	efs_rss_context;
-	uint16_t	efs_outer_vid;
-	uint16_t	efs_inner_vid;
-	uint8_t		efs_loc_mac[EFX_MAC_ADDR_LEN];
-	uint8_t		efs_rem_mac[EFX_MAC_ADDR_LEN];
-	uint16_t	efs_ether_type;
-	uint8_t		efs_ip_proto;
-	uint16_t	efs_loc_port;
-	uint16_t	efs_rem_port;
-	efx_oword_t	efs_rem_host;
-	efx_oword_t	efs_loc_host;
+	uint32_t		efs_match_flags;
+	uint32_t		efs_priority:2;
+	uint32_t		efs_flags:6;
+	uint32_t		efs_dmaq_id:12;
+	uint32_t		efs_rss_context;
+	uint16_t		efs_outer_vid;
+	uint16_t		efs_inner_vid;
+	uint8_t			efs_loc_mac[EFX_MAC_ADDR_LEN];
+	uint8_t			efs_rem_mac[EFX_MAC_ADDR_LEN];
+	uint16_t		efs_ether_type;
+	uint8_t			efs_ip_proto;
+	efx_tunnel_protocol_t	efs_encap_type;
+	uint16_t		efs_loc_port;
+	uint16_t		efs_rem_port;
+	efx_oword_t		efs_rem_host;
+	efx_oword_t		efs_loc_host;
 } efx_filter_spec_t;
 
 
 /* Default values for use in filter specifications */
-#define	EFX_FILTER_SPEC_RSS_CONTEXT_DEFAULT	0xffffffff
 #define	EFX_FILTER_SPEC_RX_DMAQ_ID_DROP		0xfff
 #define	EFX_FILTER_SPEC_VID_UNSPEC		0xffff
 
@@ -2278,6 +2408,11 @@ efx_filter_spec_set_eth_local(
 	__in		uint16_t vid,
 	__in		const uint8_t *addr);
 
+extern			void
+efx_filter_spec_set_ether_type(
+	__inout		efx_filter_spec_t *spec,
+	__in		uint16_t ether_type);
+
 extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_uc_def(
 	__inout		efx_filter_spec_t *spec);
@@ -2286,6 +2421,24 @@ extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_mc_def(
 	__inout		efx_filter_spec_t *spec);
 
+typedef enum efx_filter_inner_frame_match_e {
+	EFX_FILTER_INNER_FRAME_MATCH_OTHER = 0,
+	EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_MCAST_DST,
+	EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_UCAST_DST
+} efx_filter_inner_frame_match_t;
+
+extern	__checkReturn	efx_rc_t
+efx_filter_spec_set_encap_type(
+	__inout		efx_filter_spec_t *spec,
+	__in		efx_tunnel_protocol_t encap_type,
+	__in		efx_filter_inner_frame_match_t inner_frame_match);
+
+#if EFSYS_OPT_RX_SCALE
+extern	__checkReturn	efx_rc_t
+efx_filter_spec_set_rss_context(
+	__inout		efx_filter_spec_t *spec,
+	__in		uint32_t rss_context);
+#endif
 #endif	/* EFSYS_OPT_FILTER */
 
 /* HASH */

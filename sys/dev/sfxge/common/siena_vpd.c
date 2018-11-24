@@ -577,7 +577,7 @@ siena_vpd_write(
 
 	EFSYS_KMEM_FREE(enp->en_esip, dcfg_size, dcfg);
 
-	siena_nvram_partn_unlock(enp, dcfg_partn);
+	siena_nvram_partn_unlock(enp, dcfg_partn, NULL);
 
 	return (0);
 
@@ -592,7 +592,7 @@ fail5:
 fail4:
 	EFSYS_PROBE(fail4);
 
-	siena_nvram_partn_unlock(enp, dcfg_partn);
+	siena_nvram_partn_unlock(enp, dcfg_partn, NULL);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:

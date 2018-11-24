@@ -594,10 +594,10 @@ struct proc {
 	struct ksiginfo *p_ksi;	/* Locked by parent proc lock */
 	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
 #define p_siglist	p_sigqueue.sq_signals
+	pid_t		p_oppid;	/* (c + e) Real parent pid. */
 
 /* The following fields are all zeroed upon creation in fork. */
-#define	p_startzero	p_oppid
-	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
+#define	p_startzero	p_vmspace
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtick;	/* (c) Tick when swapped in or out. */
 	u_int		p_cowgen;	/* (c) Generation of COW pointers. */
@@ -642,6 +642,7 @@ struct proc {
 	u_int		p_magic;	/* (b) Magic number. */
 	int		p_osrel;	/* (x) osreldate for the
 					       binary (from ELF note, if any) */
+	uint32_t	p_fctl0;	/* (x) ABI feature control, ELF note */
 	char		p_comm[MAXCOMLEN + 1];	/* (x) Process name. */
 	struct sysentvec *p_sysent;	/* (b) Syscall dispatch info. */
 	struct pargs	*p_args;	/* (c) Process arguments. */
@@ -942,8 +943,11 @@ extern pid_t pid_max;
 #define	THREAD_CAN_SLEEP()		((curthread)->td_no_sleeping == 0)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
+#define	PIDHASHLOCK(pid) (&pidhashtbl_lock[((pid) & pidhashlock)])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
+extern struct sx *pidhashtbl_lock;
 extern u_long pidhash;
+extern u_long pidhashlock;
 #define	TIDHASH(tid)	(&tidhashtbl[(tid) & tidhash])
 extern LIST_HEAD(tidhashhead, thread) *tidhashtbl;
 extern u_long tidhash;
@@ -978,7 +982,6 @@ extern struct uma_zone *proc_zone;
 
 struct	proc *pfind(pid_t);		/* Find process by id. */
 struct	proc *pfind_any(pid_t);		/* Find (zombie) process by id. */
-struct	proc *pfind_locked(pid_t pid);
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 
@@ -1046,11 +1049,12 @@ int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getauxv(struct thread *td, struct proc *p, struct sbuf *sb);
 int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
+int	proc_iterate(int (*cb)(struct proc *, void *), void *cbarg);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
 struct proc *proc_realparent(struct proc *child);
 void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
-void	proc_reparent(struct proc *child, struct proc *newparent);
+void	proc_reparent(struct proc *child, struct proc *newparent, bool set_oppid);
 void	proc_set_traced(struct proc *p, bool stop);
 void	proc_wkilled(struct proc *p);
 struct	pstats *pstats_alloc(void);

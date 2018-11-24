@@ -128,55 +128,50 @@
 .rm #[ #] #H #V #F C
 .\" ========================================================================
 .\"
-.IX Title "SSL_GET_CLIENT_CA_LIST 3"
-.TH SSL_GET_CLIENT_CA_LIST 3 "2018-09-11" "1.1.1" "OpenSSL"
+.IX Title "SSL_GET_PEER_TMP_KEY 3"
+.TH SSL_GET_PEER_TMP_KEY 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-SSL_get_client_CA_list, SSL_CTX_get_client_CA_list \- get list of client CAs
+SSL_get_peer_tmp_key, SSL_get_server_tmp_key, SSL_get_tmp_key \- get information about temporary keys used during a handshake
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/ssl.h>
 \&
-\& STACK_OF(X509_NAME) *SSL_get_client_CA_list(const SSL *s);
-\& STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx);
+\& long SSL_get_peer_tmp_key(SSL *ssl, EVP_PKEY **key);
+\& long SSL_get_server_tmp_key(SSL *ssl, EVP_PKEY **key);
+\& long SSL_get_tmp_key(SSL *ssl, EVP_PKEY **key);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
-\&\fISSL_CTX_get_client_CA_list()\fR returns the list of client CAs explicitly set for
-\&\fBctx\fR using \fISSL_CTX_set_client_CA_list\fR\|(3).
+\&\fISSL_get_peer_tmp_key()\fR returns the temporary key provided by the peer and
+used during key exchange. For example, if \s-1ECDHE\s0 is in use, then this represents
+the peer's public \s-1ECDHE\s0 key. On success a pointer to the key is stored in
+\&\fB*key\fR. It is the caller's responsibility to free this key after use using
+\&\fIEVP_PKEY_free\fR\|(3).
 .PP
-\&\fISSL_get_client_CA_list()\fR returns the list of client CAs explicitly
-set for \fBssl\fR using \fISSL_set_client_CA_list()\fR or \fBssl\fR's \s-1SSL_CTX\s0 object with
-\&\fISSL_CTX_set_client_CA_list\fR\|(3), when in
-server mode. In client mode, SSL_get_client_CA_list returns the list of
-client CAs sent from the server, if any.
+\&\fISSL_get_server_tmp_key()\fR is a backwards compatibility alias for
+\&\fISSL_get_peer_tmp_key()\fR.
+Under that name it worked just on the client side of the connection, its
+behaviour on the server end is release-dependent.
+.PP
+\&\fISSL_get_tmp_key()\fR returns the equivalent information for the local
+end of the connection.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fISSL_CTX_set_client_CA_list()\fR and \fISSL_set_client_CA_list()\fR do not return
-diagnostic information.
-.PP
-\&\fISSL_CTX_add_client_CA()\fR and \fISSL_add_client_CA()\fR have the following return
-values:
-.IP "\s-1STACK_OF\s0(X509_NAMES)" 4
-.IX Item "STACK_OF(X509_NAMES)"
-List of \s-1CA\s0 names explicitly set (for \fBctx\fR or in server mode) or send
-by the server (client mode).
-.IP "\s-1NULL\s0" 4
-.IX Item "NULL"
-No client \s-1CA\s0 list was explicitly set (for \fBctx\fR or in server mode) or
-the server did not send a list of CAs (client mode).
+All these functions return 1 on success and 0 otherwise.
+.SH "NOTES"
+.IX Header "NOTES"
+This function is implemented as a macro.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIssl\fR\|(7),
-\&\fISSL_CTX_set_client_CA_list\fR\|(3),
-\&\fISSL_CTX_set_client_cert_cb\fR\|(3)
+\&\fIssl\fR\|(7), \fIEVP_PKEY_free\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

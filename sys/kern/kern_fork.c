@@ -406,7 +406,9 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	allproc_gen++;
+	sx_xlock(PIDHASHLOCK(p2->p_pid));
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
+	sx_xunlock(PIDHASHLOCK(p2->p_pid));
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
@@ -643,6 +645,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		pptr = p1;
 	}
 	p2->p_pptr = pptr;
+	p2->p_oppid = pptr->p_pid;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	LIST_INIT(&p2->p_reaplist);
 	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
@@ -716,11 +719,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	if ((fr->fr_flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
-	/*
-	 * Hold the process so that it cannot exit after we make it runnable,
-	 * but before we wait for the debugger.
-	 */
-	_PHOLD(p2);
 	if (fr->fr_flags & RFPPWAIT) {
 		td->td_pflags |= TDP_RFPPWAIT;
 		td->td_rfppwait_p = p2;
@@ -774,13 +772,17 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			CTR2(KTR_PTRACE,
 			    "do_fork: attaching to new child pid %d: oppid %d",
 			    p2->p_pid, p2->p_oppid);
-			proc_reparent(p2, p1->p_pptr);
+			proc_reparent(p2, p1->p_pptr, false);
 		}
 		PROC_UNLOCK(p2);
 		sx_xunlock(&proctree_lock);
 	}
-	
+
+	racct_proc_fork_done(p2);
+
 	if ((fr->fr_flags & RFSTOPPED) == 0) {
+		if (fr->fr_pidp != NULL)
+			*fr->fr_pidp = p2->p_pid;
 		/*
 		 * If RFSTOPPED not requested, make child runnable and
 		 * add to run queue.
@@ -789,16 +791,9 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
 		thread_unlock(td2);
-		if (fr->fr_pidp != NULL)
-			*fr->fr_pidp = p2->p_pid;
 	} else {
 		*fr->fr_procp = p2;
 	}
-
-	PROC_LOCK(p2);
-	_PRELE(p2);
-	racct_proc_fork_done(p2);
-	PROC_UNLOCK(p2);
 }
 
 int

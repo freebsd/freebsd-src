@@ -179,9 +179,7 @@ static int	acpi_child_location_str_method(device_t acdev, device_t child,
 					       char *buf, size_t buflen);
 static int	acpi_child_pnpinfo_str_method(device_t acdev, device_t child,
 					      char *buf, size_t buflen);
-#if defined(__i386__) || defined(__amd64__)
 static void	acpi_enable_pcie(void);
-#endif
 static void	acpi_hint_device_unit(device_t acdev, device_t child,
 		    const char *name, int *unitp);
 static void	acpi_reset_interfaces(device_t dev);
@@ -502,10 +500,8 @@ acpi_attach(device_t dev)
 	goto out;
     }
 
-#if defined(__i386__) || defined(__amd64__)
     /* Handle MCFG table if present. */
     acpi_enable_pcie();
-#endif
 
     /*
      * Note that some systems (specifically, those with namespace evaluation
@@ -1286,11 +1282,10 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
     struct acpi_softc *sc = device_get_softc(dev);
     struct acpi_device *ad = device_get_ivars(child);
     struct resource_list *rl = &ad->ad_rl;
-#if defined(__i386__) || defined(__amd64__)
     ACPI_DEVICE_INFO *devinfo;
-#endif
     rman_res_t end;
-    
+    int allow;
+
     /* Ignore IRQ resources for PCI link devices. */
     if (type == SYS_RES_IRQ &&
 	ACPI_ID_PROBE(dev, child, pcilink_ids, NULL) <= 0)
@@ -1305,11 +1300,15 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
      * x86 of a PCI bridge claiming the I/O ports used for PCI config
      * access.
      */
-#if defined(__i386__) || defined(__amd64__)
     if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
 	if (ACPI_SUCCESS(AcpiGetObjectInfo(ad->ad_handle, &devinfo))) {
 	    if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-		if (!(type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT)) {
+#if defined(__i386__) || defined(__amd64__)
+		allow = (type == SYS_RES_IOPORT && start == CONF1_ADDR_PORT);
+#else
+		allow = 0;
+#endif
+		if (!allow) {
 		    AcpiOsFree(devinfo);
 		    return (0);
 		}
@@ -1317,6 +1316,12 @@ acpi_set_resource(device_t dev, device_t child, int type, int rid,
 	    AcpiOsFree(devinfo);
 	}
     }
+
+#ifdef INTRNG
+    /* map with default for now */
+    if (type == SYS_RES_IRQ)
+	start = (rman_res_t)acpi_map_intr(child, (u_int)start,
+			acpi_get_handle(child));
 #endif
 
     /* If the resource is already allocated, fail. */
@@ -1867,15 +1872,18 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
     return_VALUE (result);
 }
 
-#if defined(__i386__) || defined(__amd64__)
 /*
  * Look for a MCFG table.  If it is present, use the settings for
  * domain (segment) 0 to setup PCI config space access via the memory
  * map.
+ *
+ * On non-x86 architectures (arm64 for now), this will be done from the
+ * PCI host bridge driver.
  */
 static void
 acpi_enable_pcie(void)
 {
+#if defined(__i386__) || defined(__amd64__)
 	ACPI_TABLE_HEADER *hdr;
 	ACPI_MCFG_ALLOCATION *alloc, *end;
 	ACPI_STATUS status;
@@ -1894,31 +1902,8 @@ acpi_enable_pcie(void)
 		}
 		alloc++;
 	}
-}
-#elif defined(__aarch64__)
-static void
-acpi_enable_pcie(device_t child, int segment)
-{
-	ACPI_TABLE_HEADER *hdr;
-	ACPI_MCFG_ALLOCATION *alloc, *end;
-	ACPI_STATUS status;
-
-	status = AcpiGetTable(ACPI_SIG_MCFG, 1, &hdr);
-	if (ACPI_FAILURE(status))
-		return;
-
-	end = (ACPI_MCFG_ALLOCATION *)((char *)hdr + hdr->Length);
-	alloc = (ACPI_MCFG_ALLOCATION *)((ACPI_TABLE_MCFG *)hdr + 1);
-	while (alloc < end) {
-		if (alloc->PciSegment == segment) {
-			bus_set_resource(child, SYS_RES_MEMORY, 0,
-			    alloc->Address, 0x10000000);
-			return;
-		}
-		alloc++;
-	}
-}
 #endif
+}
 
 /*
  * Scan all of the ACPI namespace and attach child devices.
@@ -2009,9 +1994,6 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 {
     ACPI_DEVICE_INFO *devinfo;
     struct acpi_device	*ad;
-#ifdef __aarch64__
-    int segment;
-#endif
     struct acpi_prw_data prw;
     ACPI_OBJECT_TYPE type;
     ACPI_HANDLE h;
@@ -2114,13 +2096,6 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		    ad->ad_cls_class = strtoul(devinfo->ClassCode.String,
 			NULL, 16);
 		}
-#ifdef __aarch64__
-		if ((devinfo->Flags & ACPI_PCI_ROOT_BRIDGE) != 0) {
-		    if (ACPI_SUCCESS(acpi_GetInteger(handle, "_SEG", &segment))) {
-			acpi_enable_pcie(child, segment);
-		    }
-		}
-#endif
 		AcpiOsFree(devinfo);
 	    }
 	    break;

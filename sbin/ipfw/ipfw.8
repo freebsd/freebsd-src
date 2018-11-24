@@ -1159,11 +1159,11 @@ Supported values are:
 .Pq Dv 101110 ,
 .Cm be
 .Pq Dv 000000 .
-Additionally, DSCP value can be specified by number (0..64).
+Additionally, DSCP value can be specified by number (0..63).
 It is also possible to use the
 .Cm tablearg
 keyword with setdscp.
-If the tablearg value is not within the 0..64 range, lower 6 bits of supplied
+If the tablearg value is not within the 0..63 range, lower 6 bits of supplied
 value are used.
 .It Cm tcp-setmss Ar mss
 Set the Maximum Segment Size (MSS) in the TCP segment to value
@@ -4567,7 +4567,7 @@ The ipfw core (ipfw2) has been completely redesigned and
 reimplemented by Luigi Rizzo in summer 2002.
 Further
 actions and
-options have been added by various developer over the years.
+options have been added by various developers over the years.
 .Pp
 .An -nosplit
 In-kernel NAT support written by

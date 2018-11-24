@@ -14,7 +14,7 @@ options 	SOC_MV_ARMADA38X
 makeoptions 	WERROR="-Werror"
 makeoptions 	MODULES_EXTRA="dtb/mv"
 
-options 	MD_ROOT
+#options 	MD_ROOT
 #makeoptions 	MFS_IMAGE=/path/to/miniroot
 #options 	ROOTDEVNAME=\"ufs:md0\"
 options 	ROOTDEVNAME=\"/dev/da0s1a\"
@@ -39,7 +39,6 @@ device		ether
 device		vlan
 device		mii
 device		bpf
-device		re
 device		mdio
 device		etherswitch
 device		e6000sw
@@ -75,6 +74,11 @@ device		ahci
 device		iic
 device		iicbus
 device		twsi
+
+# SPI
+device		spibus
+device		spigen
+device		mv_spi
 
 # Wireless NIC cards
 device		wlan		# 802.11 support
