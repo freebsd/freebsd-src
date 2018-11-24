@@ -752,6 +752,8 @@ ef10_rx_qpost(
 	unsigned int offset;
 	unsigned int id;
 
+	_NOTE(ARGUNUSED(completed))
+
 #if EFSYS_OPT_RX_PACKED_STREAM
 	/*
 	 * Real size of the buffer does not fit into ESF_DZ_RX_KER_BYTE_CNT
