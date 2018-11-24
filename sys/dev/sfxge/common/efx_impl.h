@@ -187,6 +187,7 @@ typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_qcreate)(efx_nic_t *enp, unsigned int,
 					unsigned int, efx_rxq_type_t,
 					efsys_mem_t *, size_t, uint32_t,
+					unsigned int,
 					efx_evq_t *, efx_rxq_t *);
 	void		(*erxo_qdestroy)(efx_rxq_t *);
 } efx_rx_ops_t;

@@ -139,6 +139,7 @@ siena_rx_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
+	__in		unsigned int flags,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp);
 
@@ -624,6 +625,7 @@ efx_rx_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
+	__in		unsigned int flags,
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp)
 {
@@ -649,7 +651,7 @@ efx_rx_qcreate(
 	erp->er_esmp = esmp;
 
 	if ((rc = erxop->erxo_qcreate(enp, index, label, type, esmp, ndescs, id,
-	    eep, erp)) != 0)
+	    flags, eep, erp)) != 0)
 		goto fail2;
 
 	enp->en_rx_qcount++;
@@ -1311,13 +1313,14 @@ siena_rx_qcreate(
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
+	__in		unsigned int flags,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_oword_t oword;
 	uint32_t size;
-	boolean_t jumbo;
+	boolean_t jumbo = B_FALSE;
 	efx_rc_t rc;
 
 	_NOTE(ARGUNUSED(esmp))
@@ -1350,18 +1353,20 @@ siena_rx_qcreate(
 
 	switch (type) {
 	case EFX_RXQ_TYPE_DEFAULT:
-		jumbo = B_FALSE;
 		break;
-
-#if EFSYS_OPT_RX_SCATTER
-	case EFX_RXQ_TYPE_SCATTER:
-		jumbo = B_TRUE;
-		break;
-#endif	/* EFSYS_OPT_RX_SCATTER */
 
 	default:
 		rc = EINVAL;
 		goto fail4;
+	}
+
+	if (flags & EFX_RXQ_FLAG_SCATTER) {
+#if EFSYS_OPT_RX_SCATTER
+		jumbo = B_TRUE;
+#else
+		rc = EINVAL;
+		goto fail5;
+#endif	/* EFSYS_OPT_RX_SCATTER */
 	}
 
 	/* Set up the new descriptor queue */
@@ -1379,6 +1384,10 @@ siena_rx_qcreate(
 
 	return (0);
 
+#if !EFSYS_OPT_RX_SCATTER
+fail5:
+	EFSYS_PROBE(fail5);
+#endif
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
