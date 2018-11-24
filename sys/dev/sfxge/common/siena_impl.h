@@ -44,7 +44,16 @@
 extern "C" {
 #endif
 
+#ifndef EFX_TXQ_DC_SIZE
+#define	EFX_TXQ_DC_SIZE 1 /* 16 descriptors */
+#endif
+#ifndef EFX_RXQ_DC_SIZE
+#define	EFX_RXQ_DC_SIZE 3 /* 64 descriptors */
+#endif
+#define	EFX_TXQ_DC_NDESCS(_dcsize)	(8 << (_dcsize))
+
 #define	SIENA_NVRAM_CHUNK 0x80
+
 
 extern	__checkReturn	efx_rc_t
 siena_nic_probe(
