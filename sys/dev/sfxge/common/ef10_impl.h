@@ -670,7 +670,7 @@ ef10_tx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		uint16_t flags,
 	__in		efx_evq_t *eep,
@@ -681,13 +681,13 @@ extern		void
 ef10_tx_qdestroy(
 	__in		efx_txq_t *etp);
 
-extern	__checkReturn	efx_rc_t
+extern	__checkReturn		efx_rc_t
 ef10_tx_qpost(
-	__in		efx_txq_t *etp,
-	__in_ecount(n)	efx_buffer_t *eb,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__inout		unsigned int *addedp);
+	__in			efx_txq_t *etp,
+	__in_ecount(ndescs)	efx_buffer_t *ebp,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__inout			unsigned int *addedp);
 
 extern			void
 ef10_tx_qpush(
