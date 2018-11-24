@@ -399,6 +399,11 @@ efx_mcdi_sensor_info(
 
 	EFSYS_ASSERT(sensor_maskp != NULL);
 
+	if (npages < 1) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
 	for (page = 0; page < npages; page++) {
 		uint32_t mask;
 
@@ -415,7 +420,7 @@ efx_mcdi_sensor_info(
 
 		if (req.emr_rc != 0) {
 			rc = req.emr_rc;
-			goto fail1;
+			goto fail2;
 		}
 
 		mask = MCDI_OUT_DWORD(req, SENSOR_INFO_OUT_MASK);
@@ -423,18 +428,20 @@ efx_mcdi_sensor_info(
 		if ((page != (npages - 1)) &&
 		    ((mask & (1U << MC_CMD_SENSOR_PAGE0_NEXT)) == 0)) {
 			rc = EINVAL;
-			goto fail2;
+			goto fail3;
 		}
 		sensor_maskp[page] = mask;
 	}
 
 	if (sensor_maskp[npages - 1] & (1U << MC_CMD_SENSOR_PAGE0_NEXT)) {
 		rc = EINVAL;
-		goto fail3;
+		goto fail4;
 	}
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
