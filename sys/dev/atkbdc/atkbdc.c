@@ -296,6 +296,7 @@ atkbdc_setup(atkbdc_softc_t *sc, bus_space_tag_t tag, bus_space_handle_t h0,
 	    sc->lock = FALSE;
 	    sc->kbd.head = sc->kbd.tail = 0;
 	    sc->aux.head = sc->aux.tail = 0;
+	    sc->aux_mux_enabled = FALSE;
 #if KBDIO_DEBUG >= 2
 	    sc->kbd.call_count = 0;
 	    sc->kbd.qcount = sc->kbd.max_qcount = 0;
@@ -639,7 +640,12 @@ write_kbd_command(KBDC p, int c)
 int
 write_aux_command(KBDC p, int c)
 {
-    if (!write_controller_command(p, KBDC_WRITE_TO_AUX))
+    int f;
+
+    f = aux_mux_is_enabled(p) ?
+        KBDC_WRITE_TO_AUX_MUX + kbdcp(p)->aux_mux_port : KBDC_WRITE_TO_AUX;
+
+    if (!write_controller_command(p, f))
 	return FALSE;
     return write_controller_data(p, c);
 }
@@ -1200,4 +1206,79 @@ set_controller_command_byte(KBDC p, int mask, int command)
 	    command);
 
     return TRUE;
+}
+
+/*
+ * Rudimentary support for active PS/2 AUX port multiplexing.
+ * Only write commands can be routed to a selected AUX port.
+ * Source port of data processed by read commands is totally ignored.
+ */
+static int
+set_aux_mux_state(KBDC p, int enabled)
+{
+	int command, version;
+
+	if (write_controller_command(p, KBDC_FORCE_AUX_OUTPUT) == 0 ||
+	    write_controller_data(p, 0xF0) == 0 ||
+	    read_controller_data(p) != 0xF0)
+		return (-1);
+
+	if (write_controller_command(p, KBDC_FORCE_AUX_OUTPUT) == 0 ||
+	    write_controller_data(p, 0x56) == 0 ||
+	    read_controller_data(p) != 0x56)
+		return (-1);
+
+	command = enabled ? 0xa4 : 0xa5;
+	if (write_controller_command(p, KBDC_FORCE_AUX_OUTPUT) == 0 ||
+	    write_controller_data(p, command) == 0 ||
+	    (version = read_controller_data(p)) == command)
+		return (-1);
+
+	return (version);
+}
+
+int
+set_active_aux_mux_port(KBDC p, int port)
+{
+
+	if (!aux_mux_is_enabled(p))
+		return (FALSE);
+
+	if (port < 0 || port >= KBDC_AUX_MUX_NUM_PORTS)
+		return (FALSE);
+
+	kbdcp(p)->aux_mux_port = port;
+
+	return (TRUE);
+}
+
+/* Checks for active multiplexing support and enables it */
+int
+enable_aux_mux(KBDC p)
+{
+	int version;
+
+	version = set_aux_mux_state(p, TRUE);
+	if (version >= 0) {
+		kbdcp(p)->aux_mux_enabled = TRUE;
+		set_active_aux_mux_port(p, 0);
+	}
+
+	return (version);
+}
+
+int
+disable_aux_mux(KBDC p)
+{
+
+	kbdcp(p)->aux_mux_enabled = FALSE;
+
+	return (set_aux_mux_state(p, FALSE));
+}
+
+int
+aux_mux_is_enabled(KBDC p)
+{
+
+	return (kbdcp(p)->aux_mux_enabled);
 }
