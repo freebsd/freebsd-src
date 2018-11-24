@@ -160,6 +160,8 @@ static const struct mcdi_sensor_map_s {
 	STAT(Px, CONTROLLER_TDIODE_TEMP), /* 0x4e CONTROLLER_TDIODE_TEMP */
 	STAT(Px, BOARD_FRONT_TEMP),	/* 0x4f BOARD_FRONT_TEMP */
 	STAT(Px, BOARD_BACK_TEMP),	/* 0x50 BOARD_BACK_TEMP */
+	STAT(Px, I1V8),			/* 0x51 IN_I1V8 */
+	STAT(Px, I2V5),			/* 0x52 IN_I2V5 */
 };
 
 #define	MCDI_STATIC_SENSOR_ASSERT(_field)				\
