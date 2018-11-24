@@ -680,6 +680,12 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `bz2' library (-lbz2). */
 #cmakedefine HAVE_LIBBZ2 1
 
+/* Define to 1 if you have the `b2' library (-lb2). */
+#cmakedefine HAVE_LIBB2 1
+
+/* Define to 1 if you have the <blake2.h> header file. */
+#cmakedefine HAVE_BLAKE2_H 1
+
 /* Define to 1 if you have the `charset' library (-lcharset). */
 #cmakedefine HAVE_LIBCHARSET 1
 

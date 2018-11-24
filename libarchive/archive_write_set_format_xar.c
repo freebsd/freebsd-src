@@ -2120,10 +2120,10 @@ file_gen_utility_names(struct archive_write *a, struct file *file)
 		if (p[0] == '/') {
 			if (p[1] == '/')
 				/* Convert '//' --> '/' */
-				strcpy(p, p+1);
+				memmove(p, p+1, strlen(p+1) + 1);
 			else if (p[1] == '.' && p[2] == '/')
 				/* Convert '/./' --> '/' */
-				strcpy(p, p+2);
+				memmove(p, p+2, strlen(p+2) + 1);
 			else if (p[1] == '.' && p[2] == '.' && p[3] == '/') {
 				/* Convert 'dir/dir1/../dir2/'
 				 *     --> 'dir/dir2/'
@@ -3169,8 +3169,10 @@ save_xattrs(struct archive_write *a, struct file *file)
 			checksum_update(&(xar->a_sumwrk),
 			    xar->wbuff, size);
 			if (write_to_temp(a, xar->wbuff, size)
-			    != ARCHIVE_OK)
+			    != ARCHIVE_OK) {
+				free(heap);
 				return (ARCHIVE_FATAL);
+			}
 			if (r == ARCHIVE_OK) {
 				xar->stream.next_out = xar->wbuff;
 				xar->stream.avail_out = sizeof(xar->wbuff);
