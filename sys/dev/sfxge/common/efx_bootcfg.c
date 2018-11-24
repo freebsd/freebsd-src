@@ -361,7 +361,7 @@ efx_bootcfg_read(
 	rc = efx_bootcfg_verify(enp, (caddr_t)payload, sector_length,
 	    &used_bytes);
 	if (rc != 0 || used_bytes == 0) {
-		payload[0] = (uint8_t)~DHCP_END;
+		payload[0] = (uint8_t)(~DHCP_END & 0xff);
 		payload[1] = DHCP_END;
 		used_bytes = 2;
 	}
