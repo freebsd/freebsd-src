@@ -220,7 +220,13 @@ efx_mcdi_rss_context_alloc(
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_TYPE, context_type);
-	/* NUM_QUEUES is only used to validate indirection table offsets */
+
+	/*
+	 * For exclusive contexts, NUM_QUEUES is only used to validate
+	 * indirection table offsets.
+	 * For shared contexts, the provided context will spread traffic over
+	 * NUM_QUEUES many queues.
+	 */
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, num_queues);
 
 	efx_mcdi_execute(enp, &req);
