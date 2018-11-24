@@ -1035,8 +1035,7 @@ struct efx_txq_s {
 	do {								\
 		EFX_CHECK_REG((_enp), (_reg));				\
 		EFSYS_PROBE7(efx_bar_tbl_doorbell_writeo,		\
-		    const char *,					\
-		    #_reg,						\
+		    const char *, #_reg,				\
 		    uint32_t, (_index),					\
 		    uint32_t, _reg ## _OFST,				\
 		    uint32_t, (_eop)->eo_u32[3],			\
