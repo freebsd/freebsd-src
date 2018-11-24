@@ -88,6 +88,7 @@ struct file_header {
 
     uint8_t solid : 1;           /* Is this a solid stream? */
     uint8_t service : 1;         /* Is this file a service data? */
+    uint8_t eof : 1;             /* Did we finish unpacking the file? */
 
     /* Optional time fields. */
     uint64_t e_mtime;
@@ -176,7 +177,7 @@ struct comp_state {
                                     decompression. */
     uint8_t* filtered_buf;       /* Buffer used when applying filters. */
     const uint8_t* block_buf;    /* Buffer used when merging blocks. */
-    size_t window_mask;          /* Convinience field; window_size - 1. */
+    size_t window_mask;          /* Convenience field; window_size - 1. */
     int64_t write_ptr;           /* This amount of data has been unpacked in
                                     the window buffer. */
     int64_t last_write_ptr;      /* This amount of data has been stored in
@@ -279,7 +280,7 @@ struct rar5 {
     int skip_mode;
 
     /* An offset to QuickOpen list. This is not supported by this unpacker,
-     * becuase we're focusing on streaming interface. QuickOpen is designed
+     * because we're focusing on streaming interface. QuickOpen is designed
      * to make things quicker for non-stream interfaces, so it's not our
      * use case. */
     uint64_t qlist_offset;
@@ -387,7 +388,7 @@ static void cdeque_pop_front_fast(struct cdeque* d, void** value) {
     d->size--;
 }
 
-/* Pops a front element of this cicrular deque object and returns its value.
+/* Pops a front element of this circular deque object and returns its value.
  * This function performs bounds checking. */
 static int cdeque_pop_front(struct cdeque* d, void** value) {
     if(!d || !value)
@@ -400,17 +401,17 @@ static int cdeque_pop_front(struct cdeque* d, void** value) {
     return CDE_OK;
 }
 
-/* Convinience function to cast filter_info** to void **. */
+/* Convenience function to cast filter_info** to void **. */
 static void** cdeque_filter_p(struct filter_info** f) {
     return (void**) (size_t) f;
 }
 
-/* Convinience function to cast filter_info* to void *. */
+/* Convenience function to cast filter_info* to void *. */
 static void* cdeque_filter(struct filter_info* f) {
     return (void**) (size_t) f;
 }
 
-/* Destroys this circular deque object. Dellocates the memory of the collection
+/* Destroys this circular deque object. Deallocates the memory of the collection
  * buffer, but doesn't deallocate the memory of any pointer passed to this
  * deque as a value. */
 static void cdeque_free(struct cdeque* d) {
@@ -434,7 +435,7 @@ static inline struct rar5* get_context(struct archive_read* a) {
 
 // TODO: make sure these functions return a little endian number
 
-/* Convinience functions used by filter implementations. */
+/* Convenience functions used by filter implementations. */
 
 static uint32_t read_filter_data(struct rar5* rar, uint32_t offset) {
     uint32_t* dptr = (uint32_t*) &rar->cstate.window_buf[offset];
@@ -672,7 +673,7 @@ static void push_data(struct archive_read* a, struct rar5* rar,
     }
 }
 
-/* Convinience function that submits the data to the user. It uses the
+/* Convenience function that submits the data to the user. It uses the
  * unpack window buffer as a source location. */
 static void push_window_data(struct archive_read* a, struct rar5* rar,
         int64_t idx_begin, int64_t idx_end)
@@ -753,7 +754,7 @@ static void free_filters(struct rar5* rar) {
 
     /* Free any remaining filters. All filters should be naturally consumed by
      * the unpacking function, so remaining filters after unpacking normally
-     * mean that unpacking wasn't successfull. But still of course we shouldn't
+     * mean that unpacking wasn't successful. But still of course we shouldn't
      * leak memory in such case. */
 
     /* cdeque_size() is a fast operation, so we can use it as a loop
@@ -885,7 +886,7 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
                  * it will not have the possibility to advance the file
                  * pointer, because it will not know how many bytes it needs
                  * to consume. This is why we handle such situation here
-                 * autmatically. */
+                 * automatically. */
                 if(ARCHIVE_OK != consume(a, 1 + i)) {
                     return 0;
                 }
@@ -918,7 +919,7 @@ static int read_var_sized(struct archive_read* a, size_t* pvalue,
         size_t* pvalue_len)
 {
     uint64_t v;
-    uint64_t v_size;
+    uint64_t v_size = 0;
 
     const int ret = pvalue_len
                     ? read_var(a, &v, &v_size)
@@ -1218,7 +1219,7 @@ static int process_head_file_extra(struct archive_read* a,
         ssize_t extra_data_size)
 {
     size_t extra_field_size;
-    size_t extra_field_id;
+    size_t extra_field_id = 0;
     int ret = ARCHIVE_FATAL;
     size_t var_size;
 
@@ -1288,7 +1289,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     size_t host_os = 0;
     size_t name_size = 0;
     uint64_t unpacked_size;
-    uint32_t mtime = 0, crc;
+    uint32_t mtime = 0, crc = 0;
     int c_method = 0, c_version = 0, is_dir;
     char name_utf8_buf[2048 * 4];
     const uint8_t* p;
@@ -1522,7 +1523,7 @@ static int process_head_main(struct archive_read* a, struct rar5* rar,
 
     enum MAIN_FLAGS {
         VOLUME = 0x0001,         /* multi-volume archive */
-        VOLUME_NUMBER = 0x0002,  /* volume number, first vol doesnt have it */
+        VOLUME_NUMBER = 0x0002,  /* volume number, first vol doesn't have it */
         SOLID = 0x0004,          /* solid archive */
         PROTECT = 0x0008,        /* contains Recovery info */
         LOCK = 0x0010,           /* readonly flag, not used */
@@ -1647,7 +1648,7 @@ static int process_base_block(struct archive_read* a,
 {
     struct rar5* rar = get_context(a);
     uint32_t hdr_crc, computed_crc;
-    size_t raw_hdr_size, hdr_size_len, hdr_size;
+    size_t raw_hdr_size = 0, hdr_size_len, hdr_size;
     size_t header_id = 0;
     size_t header_flags = 0;
     const uint8_t* p;
@@ -2211,7 +2212,7 @@ static int parse_block_header(struct archive_read* a, const uint8_t* p,
     return ARCHIVE_OK;
 }
 
-/* Convinience function used during filter processing. */
+/* Convenience function used during filter processing. */
 static int parse_filter_data(struct rar5* rar, const uint8_t* p,
         uint32_t* filter_data)
 {
@@ -2685,6 +2686,12 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
         cur_block_size =
             rar5_min(rar->file.bytes_remaining, block_size - partial_offset);
 
+        if(cur_block_size == 0) {
+            archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+                    "Encountered block size == 0 during block merge");
+            return ARCHIVE_FATAL;
+        }
+
         if(!read_ahead(a, cur_block_size, &lp))
             return ARCHIVE_EOF;
 
@@ -3116,6 +3123,9 @@ static int do_unstore_file(struct archive_read* a,
     }
 
     size_t to_read = rar5_min(rar->file.bytes_remaining, 64 * 1024);
+    if(to_read == 0) {
+        return ARCHIVE_EOF;
+    }
 
     if(!read_ahead(a, to_read, &p)) {
         archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT, "I/O error "
@@ -3186,7 +3196,7 @@ static int verify_checksums(struct archive_read* a) {
      * data and discarding the result). */
 
     if(!rar->skip_mode) {
-        /* Always check checkums if we're not in skip mode */
+        /* Always check checksums if we're not in skip mode */
         verify_crc = 1;
     } else {
         /* We can override the logic above with a compile-time option
@@ -3283,8 +3293,13 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
     }
 
     ret = use_data(rar, buff, size, offset);
-    if(ret == ARCHIVE_OK)
+    if(ret == ARCHIVE_OK) {
         return ret;
+    }
+
+    if(rar->file.eof == 1) {
+        return ARCHIVE_EOF;
+    }
 
     ret = do_unpack(a, rar, buff, size, offset);
     if(ret != ARCHIVE_OK) {
@@ -3301,6 +3316,7 @@ static int rar5_read_data(struct archive_read *a, const void **buff,
          * value in the last `archive_read_data` call to signal an error
          * to the user. */
 
+        rar->file.eof = 1;
         return verify_global_checksums(a);
     }
 

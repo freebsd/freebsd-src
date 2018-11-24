@@ -445,7 +445,8 @@ fileTimeToUTC(const FILETIME *filetime, time_t *t, long *ns)
  * Windows' stat() does not accept the path added "\\?\" especially "?"
  * character.
  * It means we cannot access the long name path longer than MAX_PATH.
- * So I've implemented simular Windows' stat() to access the long name path.
+ * So I've implemented a function similar to Windows' stat() to access the
+ * long name path.
  * And I've added some feature.
  * 1. set st_ino by nFileIndexHigh and nFileIndexLow of
  *    BY_HANDLE_FILE_INFORMATION.
