@@ -1246,8 +1246,8 @@ typedef struct ef10_filter_encap_entry_s {
 	uint32_t		inner_frame_match;
 } ef10_filter_encap_entry_t;
 
-#define EF10_ENCAP_FILTER_ENTRY(ipv, encap_type, inner_frame_match)	\
-	{ EFX_ETHER_TYPE_##ipv, EFX_TUNNEL_PROTOCOL_##encap_type,		\
+#define	EF10_ENCAP_FILTER_ENTRY(ipv, encap_type, inner_frame_match)	\
+	{ EFX_ETHER_TYPE_##ipv, EFX_TUNNEL_PROTOCOL_##encap_type,	\
 	    EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_##inner_frame_match }
 
 static ef10_filter_encap_entry_t ef10_filter_encap_list[] = {
@@ -1308,8 +1308,8 @@ ef10_filter_insert_encap_filters(
 		 */
 		if ((mulcst == B_FALSE) &&
 		    (encap_filter->inner_frame_match ==
-		     EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_MCAST_DST))
-				continue;
+		    EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_MCAST_DST))
+			continue;
 
 		efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
 					filter_flags,
