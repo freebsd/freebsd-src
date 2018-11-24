@@ -47,6 +47,7 @@ efx_mcdi_init_rxq(
 	__in		uint32_t instance,
 	__in		efsys_mem_t *esmp,
 	__in		boolean_t disable_scatter,
+	__in		boolean_t want_inner_classes,
 	__in		uint32_t ps_bufsize)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
@@ -68,7 +69,8 @@ efx_mcdi_init_rxq(
 	else
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_SINGLE_PACKET;
 
-	if (encp->enc_tunnel_encapsulations_supported != 0) {
+	if (encp->enc_tunnel_encapsulations_supported != 0 &&
+	    !want_inner_classes) {
 		/*
 		 * WANT_OUTER_CLASSES can only be specified on hardware which
 		 * supports tunnel encapsulation offloads, even though it is
@@ -962,6 +964,7 @@ ef10_rx_qcreate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_rc_t rc;
 	boolean_t disable_scatter;
+	boolean_t want_inner_classes;
 	unsigned int ps_buf_size;
 
 	_NOTE(ARGUNUSED(id, erp, type_data))
@@ -1040,8 +1043,14 @@ ef10_rx_qcreate(
 	else
 		disable_scatter = encp->enc_rx_disable_scatter_supported;
 
+	if (flags & EFX_RXQ_FLAG_INNER_CLASSES)
+		want_inner_classes = B_TRUE;
+	else
+		want_inner_classes = B_FALSE;
+
 	if ((rc = efx_mcdi_init_rxq(enp, ndescs, eep->ee_index, label, index,
-		    esmp, disable_scatter, ps_buf_size)) != 0)
+		    esmp, disable_scatter, want_inner_classes,
+		    ps_buf_size)) != 0)
 		goto fail7;
 
 	erp->er_eep = eep;

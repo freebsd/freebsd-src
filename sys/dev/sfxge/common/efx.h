@@ -2016,6 +2016,15 @@ typedef enum efx_rxq_type_e {
  */
 #define	EFX_RXQ_FLAG_NONE		0x0
 #define	EFX_RXQ_FLAG_SCATTER		0x1
+/*
+ * If tunnels are supported and Rx event can provide information about
+ * either outer or inner packet classes (e.g. SFN8xxx adapters with
+ * full-feature firmware variant running), outer classes are requested by
+ * default. However, if the driver supports tunnels, the flag allows to
+ * request inner classes which are required to be able to interpret inner
+ * Rx checksum offload results.
+ */
+#define	EFX_RXQ_FLAG_INNER_CLASSES	0x2
 
 extern	__checkReturn	efx_rc_t
 efx_rx_qcreate(
