@@ -2018,7 +2018,7 @@ efx_rx_qcreate(
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp);
@@ -2033,14 +2033,14 @@ typedef struct efx_desc_s {
 	efx_qword_t ed_eq;
 } efx_desc_t;
 
-extern			void
+extern				void
 efx_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added);
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added);
 
 extern		void
 efx_rx_qpush(
