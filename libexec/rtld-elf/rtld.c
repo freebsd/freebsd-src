@@ -142,6 +142,7 @@ static int relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
     int flags, RtldLockState *lockstate);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
     RtldLockState *);
+static int resolve_object_ifunc(Obj_Entry *, bool, int, RtldLockState *);
 static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
     int flags, RtldLockState *lockstate);
 static int rtld_dirname(const char *, char *);
@@ -1476,6 +1477,7 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 		    note->n_descsz != sizeof(int32_t))
 			continue;
 		if (note->n_type != NT_FREEBSD_ABI_TAG &&
+		    note->n_type != NT_FREEBSD_FEATURE_CTL &&
 		    note->n_type != NT_FREEBSD_NOINIT_TAG)
 			continue;
 		note_name = (const char *)(note + 1);
@@ -1489,6 +1491,13 @@ digest_notes(Obj_Entry *obj, Elf_Addr note_start, Elf_Addr note_end)
 			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
 			obj->osrel = *(const int32_t *)(p);
 			dbg("note osrel %d", obj->osrel);
+			break;
+		case NT_FREEBSD_FEATURE_CTL:
+			/* FreeBSD ABI feature control note */
+			p = (uintptr_t)(note + 1);
+			p += roundup2(note->n_namesz, sizeof(Elf32_Addr));
+			obj->fctl0 = *(const uint32_t *)(p);
+			dbg("note fctl0 %#x", obj->fctl0);
 			break;
 		case NT_FREEBSD_NOINIT_TAG:
 			/* FreeBSD 'crt does not call init' note */
@@ -2885,9 +2894,11 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	if (reloc_plt(obj) == -1)
 		return (-1);
 	/* Relocate the jump slots if we are doing immediate binding. */
-	if (obj->bind_now || bind_now)
-		if (reloc_jmpslots(obj, flags, lockstate) == -1)
+	if (obj->bind_now || bind_now) {
+		if (reloc_jmpslots(obj, flags, lockstate) == -1 ||
+		    resolve_object_ifunc(obj, true, flags, lockstate) == -1)
 			return (-1);
+	}
 
 	/*
 	 * Process the non-PLT IFUNC relocations.  The relocations are

@@ -133,7 +133,7 @@ ef10_mcdi_get_timeout(
 	case MC_CMD_NVRAM_ERASE:
 	case MC_CMD_LICENSING_V3:
 	case MC_CMD_NVRAM_UPDATE_FINISH:
-		if (encp->enc_fw_verified_nvram_update_required != B_FALSE) {
+		if (encp->enc_nvram_update_verify_result_supported != B_FALSE) {
 			/*
 			 * Potentially longer running commands, which firmware
 			 * may choose to process in a background thread.

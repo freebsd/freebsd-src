@@ -2056,6 +2056,7 @@ MLINKS+=taskqueue.9 TASK_INIT.9 \
 	taskqueue.9 TASKQUEUE_FAST_DEFINE_THREAD.9 \
 	taskqueue.9 taskqueue_free.9 \
 	taskqueue.9 taskqueue_member.9 \
+	taskqueue.9 taskqueue_quiesce.9 \
 	taskqueue.9 taskqueue_run.9 \
 	taskqueue.9 taskqueue_set_callback.9 \
 	taskqueue.9 taskqueue_start_threads.9 \

@@ -295,7 +295,8 @@ efx_mcdi_request_start(
 	 */
 	if ((max_version >= 2) &&
 	    ((emrp->emr_cmd > MC_CMD_CMD_SPACE_ESCAPE_7) ||
-	    (emrp->emr_in_length > MCDI_CTL_SDU_LEN_MAX_V1))) {
+	    (emrp->emr_in_length > MCDI_CTL_SDU_LEN_MAX_V1) ||
+	    (emrp->emr_out_length > MCDI_CTL_SDU_LEN_MAX_V1))) {
 		/* Construct MCDI v2 header */
 		hdr_len = sizeof (hdr);
 		EFX_POPULATE_DWORD_8(hdr[0],
@@ -797,9 +798,8 @@ efx_mcdi_ev_cpl(
 			emrp->emr_rc = 0;
 		}
 	}
-	if (errcode == 0) {
+	if (emrp->emr_rc == 0)
 		efx_mcdi_finish_response(enp, emrp);
-	}
 
 	emtp->emt_ev_cpl(emtp->emt_context);
 }
@@ -1021,6 +1021,79 @@ fail4:
 	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	efx_rc_t
+efx_mcdi_get_capabilities(
+	__in		efx_nic_t *enp,
+	__out_opt	uint32_t *flagsp,
+	__out_opt	uint16_t *rx_dpcpu_fw_idp,
+	__out_opt	uint16_t *tx_dpcpu_fw_idp,
+	__out_opt	uint32_t *flags2p,
+	__out_opt	uint32_t *tso2ncp)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
+			    MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)];
+	boolean_t v2_capable;
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_CAPABILITIES;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V2_OUT_LEN;
+
+	efx_mcdi_execute_quiet(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	if (flagsp != NULL)
+		*flagsp = MCDI_OUT_DWORD(req, GET_CAPABILITIES_OUT_FLAGS1);
+
+	if (rx_dpcpu_fw_idp != NULL)
+		*rx_dpcpu_fw_idp = MCDI_OUT_WORD(req,
+					GET_CAPABILITIES_OUT_RX_DPCPU_FW_ID);
+
+	if (tx_dpcpu_fw_idp != NULL)
+		*tx_dpcpu_fw_idp = MCDI_OUT_WORD(req,
+					GET_CAPABILITIES_OUT_TX_DPCPU_FW_ID);
+
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+		v2_capable = B_FALSE;
+	else
+		v2_capable = B_TRUE;
+
+	if (flags2p != NULL) {
+		*flags2p = (v2_capable) ?
+			MCDI_OUT_DWORD(req, GET_CAPABILITIES_V2_OUT_FLAGS2) :
+			0;
+	}
+
+	if (tso2ncp != NULL) {
+		*tso2ncp = (v2_capable) ?
+			MCDI_OUT_WORD(req,
+				GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS) :
+			0;
+	}
+
+	return (0);
+
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:

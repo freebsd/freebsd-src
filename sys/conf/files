@@ -1451,7 +1451,7 @@ t4fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t4fw.fwo"
 t4fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t4fw-1.19.1.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.22.0.3.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t4fw.fw"
@@ -1485,7 +1485,7 @@ t5fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t5fw.fwo"
 t5fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t5fw-1.19.1.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t5fw-1.22.0.3.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t5fw.fw"
@@ -1519,7 +1519,7 @@ t6fw.fwo		optional cxgbe					\
 	no-implicit-rule						\
 	clean		"t6fw.fwo"
 t6fw.fw			optional cxgbe					\
-	dependency	"$S/dev/cxgbe/firmware/t6fw-1.19.1.0.bin.uu"	\
+	dependency	"$S/dev/cxgbe/firmware/t6fw-1.22.0.3.bin.uu"	\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"t6fw.fw"
@@ -1734,6 +1734,8 @@ dev/extres/clk/clk_mux.c	optional ext_resources clk fdt
 dev/extres/phy/phy.c		optional ext_resources phy fdt
 dev/extres/phy/phydev_if.m	optional ext_resources phy fdt
 dev/extres/phy/phynode_if.m	optional ext_resources phy fdt
+dev/extres/phy/phy_usb.c	optional ext_resources phy fdt
+dev/extres/phy/phynode_usb_if.m	optional ext_resources phy fdt
 dev/extres/hwreset/hwreset.c	optional ext_resources hwreset fdt
 dev/extres/hwreset/hwreset_if.m	optional ext_resources hwreset fdt
 dev/extres/nvmem/nvmem.c	optional ext_resources nvmem fdt

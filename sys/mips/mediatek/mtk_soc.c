@@ -52,6 +52,9 @@ static uint32_t mtk_soc_uartclk = 0;
 static uint32_t mtk_soc_cpuclk = MTK_CPU_CLK_880MHZ;
 static uint32_t mtk_soc_timerclk = MTK_CPU_CLK_880MHZ / 2;
 
+static uint32_t mtk_soc_chipid0_3 = MTK_UNKNOWN_CHIPID0_3;
+static uint32_t mtk_soc_chipid4_7 = MTK_UNKNOWN_CHIPID4_7;
+
 static const struct ofw_compat_data compat_data[] = {
 	{ "ralink,rt2880-soc",		MTK_SOC_RT2880 },
 	{ "ralink,rt3050-soc",		MTK_SOC_RT3050 },
@@ -295,6 +298,10 @@ mtk_soc_try_early_detect(void)
 	if (bus_space_map(bst, base, MTK_DEFAULT_SIZE, 0, &bsh))
 		return;
 
+	/* Get our CHIP ID */
+	mtk_soc_chipid0_3 = bus_space_read_4(bst, bsh, SYSCTL_CHIPID0_3);
+	mtk_soc_chipid4_7 = bus_space_read_4(bst, bsh, SYSCTL_CHIPID4_7);
+
 	/* First, figure out the CPU clock */
 	switch (mtk_soc_socid) {
 	case MTK_SOC_RT2880:
@@ -387,6 +394,32 @@ mtk_soc_try_early_detect(void)
 	}
 
 	bus_space_unmap(bst, bsh, MTK_DEFAULT_SIZE);
+}
+
+extern char cpu_model[];
+
+void
+mtk_soc_set_cpu_model(void)
+{
+	int idx, offset = sizeof(mtk_soc_chipid0_3);
+	char *chipid0_3 = (char *)(&mtk_soc_chipid0_3);
+	char *chipid4_7 = (char *)(&mtk_soc_chipid4_7);
+
+	/*
+	 * CHIPID is always 2x32 bit registers, containing the ASCII
+	 * representation of the chip, so use that directly.
+	 *
+	 * The info is either pre-populated in mtk_soc_try_early_detect() or
+	 * it is left at its default value of "unknown " if it could not be
+	 * obtained for some reason.
+	 */
+	for (idx = 0; idx < offset; idx++) {
+		cpu_model[idx] = chipid0_3[idx];
+		cpu_model[idx + offset] = chipid4_7[idx];
+	}
+
+	/* Null-terminate the string */
+	cpu_model[2 * offset] = 0;
 }
 
 uint32_t

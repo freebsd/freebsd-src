@@ -530,6 +530,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 		UNP_LINK_WLOCK();
 
 	unp->unp_gencnt = ++unp_gencnt;
+	unp->unp_ino = ++unp_ino;
 	unp_count++;
 	switch (so->so_type) {
 	case SOCK_STREAM:
@@ -1302,12 +1303,8 @@ uipc_sense(struct socket *so, struct stat *sb)
 	KASSERT(unp != NULL, ("uipc_sense: unp == NULL"));
 
 	sb->st_blksize = so->so_snd.sb_hiwat;
-	UNP_PCB_LOCK(unp);
 	sb->st_dev = NODEV;
-	if (unp->unp_ino == 0)
-		unp->unp_ino = (++unp_ino == 0) ? ++unp_ino : unp_ino;
 	sb->st_ino = unp->unp_ino;
-	UNP_PCB_UNLOCK(unp);
 	return (0);
 }
 
@@ -1812,7 +1809,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK);
+	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK | M_ZERO);
 	UNP_LINK_RLOCK();
 	gencnt = unp_gencnt;
 	n = unp_count;

@@ -129,13 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SEED_CBC 3"
-.TH EVP_SEED_CBC 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_SEED_CBC 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_seed_cbc, EVP_seed_cfb, EVP_seed_ecb, EVP_seed_ofb \&\- EVP SEED cipher
+EVP_seed_cbc, EVP_seed_cfb, EVP_seed_cfb128, EVP_seed_ecb, EVP_seed_ofb \&\- EVP SEED cipher
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -143,6 +143,7 @@ EVP_seed_cbc, EVP_seed_cfb, EVP_seed_ecb, EVP_seed_ofb \&\- EVP SEED cipher
 \&
 \& const EVP_CIPHER *EVP_seed_cbc(void)
 \& const EVP_CIPHER *EVP_seed_cfb(void)
+\& const EVP_CIPHER *EVP_seed_cfb128(void)
 \& const EVP_CIPHER *EVP_seed_ecb(void)
 \& const EVP_CIPHER *EVP_seed_ofb(void)
 .Ve
@@ -151,8 +152,8 @@ EVP_seed_cbc, EVP_seed_cfb, EVP_seed_ecb, EVP_seed_ofb \&\- EVP SEED cipher
 The \s-1SEED\s0 encryption algorithm for \s-1EVP.\s0
 .PP
 All modes below use a key length of 128 bits and acts on blocks of 128\-bits.
-.IP "\fIEVP_seed_cbc()\fR, \fIEVP_seed_cfb()\fR, \fIEVP_seed_ecb()\fR, \fIEVP_seed_ofb()\fR" 4
-.IX Item "EVP_seed_cbc(), EVP_seed_cfb(), EVP_seed_ecb(), EVP_seed_ofb()"
+.IP "\fIEVP_seed_cbc()\fR, \fIEVP_seed_cfb()\fR, \fIEVP_seed_cfb128()\fR, \fIEVP_seed_ecb()\fR, \fIEVP_seed_ofb()\fR" 4
+.IX Item "EVP_seed_cbc(), EVP_seed_cfb(), EVP_seed_cfb128(), EVP_seed_ecb(), EVP_seed_ofb()"
 The \s-1SEED\s0 encryption algorithm in \s-1CBC, CFB, ECB\s0 and \s-1OFB\s0 modes respectively.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -166,7 +167,7 @@ details of the \fB\s-1EVP_CIPHER\s0\fR structure.
 \&\fIEVP_CIPHER_meth_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

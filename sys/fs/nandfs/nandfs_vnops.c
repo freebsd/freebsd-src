@@ -1226,13 +1226,16 @@ nandfs_readdir(struct vop_readdir_args *ap)
 			ndirent = (struct nandfs_dir_entry *)pos;
 
 			name_len = ndirent->name_len;
-			memset(&dirent, 0, sizeof(struct dirent));
+			memset(&dirent, 0, sizeof(dirent));
 			dirent.d_fileno = ndirent->inode;
 			if (dirent.d_fileno) {
 				dirent.d_type = ndirent->file_type;
 				dirent.d_namlen = name_len;
 				strncpy(dirent.d_name, ndirent->name, name_len);
 				dirent.d_reclen = GENERIC_DIRSIZ(&dirent);
+				/* NOTE: d_off is the offset of the *next* entry. */
+				dirent.d_off = diroffset + ndirent->rec_len;
+				dirent_terminate(&dirent);
 				DPRINTF(READDIR, ("copying `%*.*s`\n", name_len,
 				    name_len, dirent.d_name));
 			}
@@ -1246,7 +1249,7 @@ nandfs_readdir(struct vop_readdir_args *ap)
 
 			/* Transfer */
 			if (dirent.d_fileno)
-				uiomove(&dirent, GENERIC_DIRSIZ(&dirent), uio);
+				uiomove(&dirent, dirent.d_reclen, uio);
 
 			/* Advance */
 			diroffset += ndirent->rec_len;

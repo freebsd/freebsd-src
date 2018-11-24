@@ -58,6 +58,7 @@ siena_rx_scatter_enable(
 static	__checkReturn	efx_rc_t
 siena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert);
@@ -65,12 +66,14 @@ siena_rx_scale_mode_set(
 static	__checkReturn	efx_rc_t
 siena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n);
 
 static	__checkReturn	efx_rc_t
 siena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n);
 
@@ -102,6 +105,22 @@ siena_rx_qpush(
 	__in		efx_rxq_t *erp,
 	__in		unsigned int added,
 	__inout		unsigned int *pushedp);
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+static		void
+siena_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp);
+
+static	__checkReturn	uint8_t *
+siena_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp);
+#endif
 
 static	__checkReturn	efx_rc_t
 siena_rx_qflush(
@@ -138,6 +157,8 @@ static const efx_rx_ops_t __efx_rx_siena_ops = {
 	siena_rx_scatter_enable,		/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
+	NULL,					/* erxo_scale_context_alloc */
+	NULL,					/* erxo_scale_context_free */
 	siena_rx_scale_mode_set,		/* erxo_scale_mode_set */
 	siena_rx_scale_key_set,			/* erxo_scale_key_set */
 	siena_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
@@ -146,6 +167,10 @@ static const efx_rx_ops_t __efx_rx_siena_ops = {
 	siena_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
 	siena_rx_qpost,				/* erxo_qpost */
 	siena_rx_qpush,				/* erxo_qpush */
+#if EFSYS_OPT_RX_PACKED_STREAM
+	siena_rx_qpush_ps_credits,		/* erxo_qpush_ps_credits */
+	siena_rx_qps_packet_info,		/* erxo_qps_packet_info */
+#endif
 	siena_rx_qflush,			/* erxo_qflush */
 	siena_rx_qenable,			/* erxo_qenable */
 	siena_rx_qcreate,			/* erxo_qcreate */
@@ -161,6 +186,8 @@ static const efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_scatter_enable,			/* erxo_scatter_enable */
 #endif
 #if EFSYS_OPT_RX_SCALE
+	ef10_rx_scale_context_alloc,		/* erxo_scale_context_alloc */
+	ef10_rx_scale_context_free,		/* erxo_scale_context_free */
 	ef10_rx_scale_mode_set,			/* erxo_scale_mode_set */
 	ef10_rx_scale_key_set,			/* erxo_scale_key_set */
 	ef10_rx_scale_tbl_set,			/* erxo_scale_tbl_set */
@@ -169,6 +196,10 @@ static const efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_prefix_pktlen,			/* erxo_prefix_pktlen */
 	ef10_rx_qpost,				/* erxo_qpost */
 	ef10_rx_qpush,				/* erxo_qpush */
+#if EFSYS_OPT_RX_PACKED_STREAM
+	ef10_rx_qpush_ps_credits,		/* erxo_qpush_ps_credits */
+	ef10_rx_qps_packet_info,		/* erxo_qps_packet_info */
+#endif
 	ef10_rx_qflush,				/* erxo_qflush */
 	ef10_rx_qenable,			/* erxo_qenable */
 	ef10_rx_qcreate,			/* erxo_qcreate */
@@ -285,7 +316,7 @@ fail1:
 
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
-efx_rx_hash_support_get(
+efx_rx_hash_default_support_get(
 	__in		efx_nic_t *enp,
 	__out		efx_rx_hash_support_t *supportp)
 {
@@ -299,7 +330,10 @@ efx_rx_hash_support_get(
 		goto fail1;
 	}
 
-	/* Report if resources are available to insert RX hash value */
+	/*
+	 * Report the hashing support the client gets by default if it
+	 * does not allocate an RSS context itself.
+	 */
 	*supportp = enp->en_hash_support;
 
 	return (0);
@@ -311,22 +345,25 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
-efx_rx_scale_support_get(
+efx_rx_scale_default_support_get(
 	__in		efx_nic_t *enp,
-	__out		efx_rx_scale_support_t *supportp)
+	__out		efx_rx_scale_context_type_t *typep)
 {
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	if (supportp == NULL) {
+	if (typep == NULL) {
 		rc = EINVAL;
 		goto fail1;
 	}
 
-	/* Report if resources are available to support RSS */
-	*supportp = enp->en_rss_support;
+	/*
+	 * Report the RSS support the client gets by default if it
+	 * does not allocate an RSS context itself.
+	 */
+	*typep = enp->en_rss_context_type;
 
 	return (0);
 
@@ -335,10 +372,75 @@ fail1:
 
 	return (rc);
 }
+#endif	/* EFSYS_OPT_RX_SCALE */
 
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	efx_rc_t
+efx_rx_scale_context_alloc(
+	__in		efx_nic_t *enp,
+	__in		efx_rx_scale_context_type_t type,
+	__in		uint32_t num_queues,
+	__out		uint32_t *rss_contextp)
+{
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (erxop->erxo_scale_context_alloc == NULL) {
+		rc = ENOTSUP;
+		goto fail1;
+	}
+	if ((rc = erxop->erxo_scale_context_alloc(enp, type,
+			    num_queues, rss_contextp)) != 0) {
+		goto fail2;
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_RX_SCALE
+	__checkReturn	efx_rc_t
+efx_rx_scale_context_free(
+	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context)
+{
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
+
+	if (erxop->erxo_scale_context_free == NULL) {
+		rc = ENOTSUP;
+		goto fail1;
+	}
+	if ((rc = erxop->erxo_scale_context_free(enp, rss_context)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	return (rc);
+}
+#endif	/* EFSYS_OPT_RX_SCALE */
+
+#if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
 efx_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
@@ -350,7 +452,7 @@ efx_rx_scale_mode_set(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
 	if (erxop->erxo_scale_mode_set != NULL) {
-		if ((rc = erxop->erxo_scale_mode_set(enp, alg,
+		if ((rc = erxop->erxo_scale_mode_set(enp, rss_context, alg,
 			    type, insert)) != 0)
 			goto fail1;
 	}
@@ -367,6 +469,7 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
@@ -376,7 +479,7 @@ efx_rx_scale_key_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	if ((rc = erxop->erxo_scale_key_set(enp, key, n)) != 0)
+	if ((rc = erxop->erxo_scale_key_set(enp, rss_context, key, n)) != 0)
 		goto fail1;
 
 	return (0);
@@ -392,6 +495,7 @@ fail1:
 	__checkReturn	efx_rc_t
 efx_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
@@ -401,7 +505,7 @@ efx_rx_scale_tbl_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
-	if ((rc = erxop->erxo_scale_tbl_set(enp, table, n)) != 0)
+	if ((rc = erxop->erxo_scale_tbl_set(enp, rss_context, table, n)) != 0)
 		goto fail1;
 
 	return (0);
@@ -429,6 +533,40 @@ efx_rx_qpost(
 
 	erxop->erxo_qpost(erp, addrp, size, n, completed, added);
 }
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+
+			void
+efx_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	EFSYS_ASSERT3U(erp->er_magic, ==, EFX_RXQ_MAGIC);
+
+	erxop->erxo_qpush_ps_credits(erp);
+}
+
+	__checkReturn	uint8_t *
+efx_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp)
+{
+	efx_nic_t *enp = erp->er_enp;
+	const efx_rx_ops_t *erxop = enp->en_erxop;
+
+	return (erxop->erxo_qps_packet_info(erp, buffer,
+		buffer_length, current_offset, lengthp,
+		next_offsetp, timestamp));
+}
+
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 			void
 efx_rx_qpush(
@@ -601,7 +739,7 @@ siena_rx_init(
 
 #if EFSYS_OPT_RX_SCALE
 	/* The RSS key and indirection table are writable. */
-	enp->en_rss_support = EFX_RX_SCALE_EXCLUSIVE;
+	enp->en_rss_context_type = EFX_RX_SCALE_EXCLUSIVE;
 
 	/* Hardware can insert RX hash with/without RSS */
 	enp->en_hash_support = EFX_RX_HASH_AVAILABLE;
@@ -720,11 +858,17 @@ fail1:
 static	__checkReturn	efx_rc_t
 siena_rx_scale_mode_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in		efx_rx_hash_alg_t alg,
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
 	efx_rc_t rc;
+
+	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	switch (alg) {
 	case EFX_RX_HASHALG_LFSR:
@@ -741,17 +885,19 @@ siena_rx_scale_mode_set(
 		    type & EFX_RX_HASH_TCPIPV6,
 		    rc);
 		if (rc != 0)
-			goto fail1;
+			goto fail2;
 
 		break;
 
 	default:
 		rc = EINVAL;
-		goto fail2;
+		goto fail3;
 	}
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -767,6 +913,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 siena_rx_scale_key_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	uint8_t *key,
 	__in		size_t n)
 {
@@ -774,6 +921,11 @@ siena_rx_scale_key_set(
 	unsigned int byte;
 	unsigned int offset;
 	efx_rc_t rc;
+
+	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	byte = 0;
 
@@ -795,7 +947,7 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail1;
+			goto fail2;
 		}
 	}
 
@@ -844,7 +996,7 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail2;
+			goto fail3;
 		}
 	}
 
@@ -856,7 +1008,7 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail3;
+			goto fail4;
 		}
 	}
 
@@ -868,13 +1020,15 @@ siena_rx_scale_key_set(
 	    --offset) {
 		if (oword.eo_u8[offset - 1] != key[byte++]) {
 			rc = EFAULT;
-			goto fail4;
+			goto fail5;
 		}
 	}
 
 done:
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
@@ -892,6 +1046,7 @@ fail1:
 static	__checkReturn	efx_rc_t
 siena_rx_scale_tbl_set(
 	__in		efx_nic_t *enp,
+	__in		uint32_t rss_context,
 	__in_ecount(n)	unsigned int *table,
 	__in		size_t n)
 {
@@ -902,9 +1057,14 @@ siena_rx_scale_tbl_set(
 	EFX_STATIC_ASSERT(EFX_RSS_TBL_SIZE == FR_BZ_RX_INDIRECTION_TBL_ROWS);
 	EFX_STATIC_ASSERT(EFX_MAXRSS == (1 << FRF_BZ_IT_QUEUE_WIDTH));
 
-	if (n > FR_BZ_RX_INDIRECTION_TBL_ROWS) {
+	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
 		rc = EINVAL;
 		goto fail1;
+	}
+
+	if (n > FR_BZ_RX_INDIRECTION_TBL_ROWS) {
+		rc = EINVAL;
+		goto fail2;
 	}
 
 	for (index = 0; index < FR_BZ_RX_INDIRECTION_TBL_ROWS; index++) {
@@ -935,12 +1095,14 @@ siena_rx_scale_tbl_set(
 		/* Verify the entry */
 		if (EFX_OWORD_FIELD(oword, FRF_BZ_IT_QUEUE) != byte) {
 			rc = EFAULT;
-			goto fail2;
+			goto fail3;
 		}
 	}
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -1075,6 +1237,32 @@ siena_rx_qpush(
 	EFX_BAR_TBL_WRITED3(enp, FR_BZ_RX_DESC_UPD_REGP0,
 			    erp->er_index, &dword, B_FALSE);
 }
+
+#if EFSYS_OPT_RX_PACKED_STREAM
+static		void
+siena_rx_qpush_ps_credits(
+	__in		efx_rxq_t *erp)
+{
+	/* Not supported by Siena hardware */
+	EFSYS_ASSERT(0);
+}
+
+static		uint8_t *
+siena_rx_qps_packet_info(
+	__in		efx_rxq_t *erp,
+	__in		uint8_t *buffer,
+	__in		uint32_t buffer_length,
+	__in		uint32_t current_offset,
+	__out		uint16_t *lengthp,
+	__out		uint32_t *next_offsetp,
+	__out		uint32_t *timestamp)
+{
+	/* Not supported by Siena hardware */
+	EFSYS_ASSERT(0);
+
+	return (NULL);
+}
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 static	__checkReturn	efx_rc_t
 siena_rx_qflush(

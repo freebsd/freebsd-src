@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #ifdef TCP_OFFLOAD
 #include "common/common.h"
 #include "common/t4_tcb.h"
+#include "crypto/t4_crypto.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -429,32 +430,13 @@ prepare_txkey_wr(struct tls_keyctx *kwr, struct tls_key_context *kctx)
 }
 
 /* TLS Key memory management */
-int
-tls_init_kmap(struct adapter *sc, struct tom_data *td)
-{
-
-	td->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
-	    sc->vres.key.size, 8, 0, M_FIRSTFIT | M_NOWAIT);
-	if (td->key_map == NULL)
-		return (ENOMEM);
-	return (0);
-}
-
-void
-tls_free_kmap(struct tom_data *td)
-{
-
-	if (td->key_map != NULL)
-		vmem_destroy(td->key_map);
-}
-
 static int
 get_new_keyid(struct toepcb *toep, struct tls_key_context *k_ctx)
 {
-	struct tom_data *td = toep->td;
+	struct adapter *sc = td_adapter(toep->td);
 	vmem_addr_t addr;
 
-	if (vmem_alloc(td->key_map, TLS_KEY_CONTEXT_SZ, M_NOWAIT | M_FIRSTFIT,
+	if (vmem_alloc(sc->key_map, TLS_KEY_CONTEXT_SZ, M_NOWAIT | M_FIRSTFIT,
 	    &addr) != 0)
 		return (-1);
 
@@ -464,9 +446,9 @@ get_new_keyid(struct toepcb *toep, struct tls_key_context *k_ctx)
 static void
 free_keyid(struct toepcb *toep, int keyid)
 {
-	struct tom_data *td = toep->td;
+	struct adapter *sc = td_adapter(toep->td);
 
-	vmem_free(td->key_map, keyid, TLS_KEY_CONTEXT_SZ);
+	vmem_free(sc->key_map, keyid, TLS_KEY_CONTEXT_SZ);
 }
 
 static void
@@ -511,9 +493,9 @@ tls_program_key_id(struct toepcb *toep, struct tls_key_context *k_ctx)
 	struct tls_key_req *kwr;
 	struct tls_keyctx *kctx;
 
-	kwrlen = roundup2(sizeof(*kwr), 16);
+	kwrlen = sizeof(*kwr);
 	kctxlen = roundup2(sizeof(*kctx), 32);
-	len = kwrlen + kctxlen;
+	len = roundup2(kwrlen + kctxlen, 16);
 
 	if (toep->txsd_avail == 0)
 		return (EAGAIN);
@@ -555,7 +537,6 @@ tls_program_key_id(struct toepcb *toep, struct tls_key_context *k_ctx)
 	kwr->sc_more = htobe32(V_ULPTX_CMD(ULP_TX_SC_IMM));
 	kwr->sc_len = htobe32(kctxlen);
 
-	/* XXX: This assumes that kwrlen == sizeof(*kwr). */
 	kctx = (struct tls_keyctx *)(kwr + 1);
 	memset(kctx, 0, kctxlen);
 
@@ -1368,7 +1349,7 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 		tp->snd_max += plen;
 
 		SOCKBUF_LOCK(sb);
-		sbsndptr(sb, tls_ofld->sb_off, plen, &sndptroff);
+		sbsndptr_adv(sb, sb->sb_sndptr, plen);
 		tls_ofld->sb_off += plen;
 		SOCKBUF_UNLOCK(sb);
 

@@ -55,10 +55,13 @@ ACPI_MODULE_NAME("RESOURCE")
 
 struct lookup_irq_request {
     ACPI_RESOURCE *acpi_res;
-    struct resource *res;
+    u_int	irq;
     int		counter;
     int		rid;
     int		found;
+    int		checkrid;
+    int		trig;
+    int		pol;
 };
 
 static ACPI_STATUS
@@ -66,18 +69,22 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
 {
     struct lookup_irq_request *req;
     size_t len;
-    u_int irqnum, irq;
+    u_int irqnum, irq, trig, pol;
 
     switch (res->Type) {
     case ACPI_RESOURCE_TYPE_IRQ:
 	irqnum = res->Data.Irq.InterruptCount;
 	irq = res->Data.Irq.Interrupts[0];
 	len = ACPI_RS_SIZE(ACPI_RESOURCE_IRQ);
+	trig = res->Data.Irq.Triggering;
+	pol = res->Data.Irq.Polarity;
 	break;
     case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 	irqnum = res->Data.ExtendedIrq.InterruptCount;
 	irq = res->Data.ExtendedIrq.Interrupts[0];
 	len = ACPI_RS_SIZE(ACPI_RESOURCE_EXTENDED_IRQ);
+	trig = res->Data.ExtendedIrq.Triggering;
+	pol = res->Data.ExtendedIrq.Polarity;
 	break;
     default:
 	return (AE_OK);
@@ -85,14 +92,21 @@ acpi_lookup_irq_handler(ACPI_RESOURCE *res, void *context)
     if (irqnum != 1)
 	return (AE_OK);
     req = (struct lookup_irq_request *)context;
-    if (req->counter != req->rid) {
-	req->counter++;
-	return (AE_OK);
+    if (req->checkrid) {
+	if (req->counter != req->rid) {
+	    req->counter++;
+	    return (AE_OK);
+	}
+	KASSERT(irq == req->irq, ("IRQ resources do not match"));
+    } else {
+	if (req->irq != irq)
+	    return (AE_OK);
     }
     req->found = 1;
-    KASSERT(irq == rman_get_start(req->res),
-	("IRQ resources do not match"));
-    bcopy(res, req->acpi_res, len);
+    req->pol = pol;
+    req->trig = trig;
+    if (req->acpi_res != NULL)
+	bcopy(res, req->acpi_res, len);
     return (AE_CTRL_TERMINATE);
 }
 
@@ -104,10 +118,11 @@ acpi_lookup_irq_resource(device_t dev, int rid, struct resource *res,
     ACPI_STATUS status;
 
     req.acpi_res = acpi_res;
-    req.res = res;
+    req.irq = rman_get_start(res);
     req.counter = 0;
     req.rid = rid;
     req.found = 0;
+    req.checkrid = 1;
     status = AcpiWalkResources(acpi_get_handle(dev), "_CRS",
 	acpi_lookup_irq_handler, &req);
     if (ACPI_SUCCESS(status) && req.found == 0)
@@ -154,6 +169,34 @@ acpi_config_intr(device_t dev, ACPI_RESOURCE *res)
 	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
 	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
 }
+
+#ifdef INTRNG
+int
+acpi_map_intr(device_t dev, u_int irq, ACPI_HANDLE handle)
+{
+    struct lookup_irq_request req;
+    int trig, pol;
+
+    trig = ACPI_LEVEL_SENSITIVE;
+    pol = ACPI_ACTIVE_HIGH;
+    if (handle != NULL) {
+	req.found = 0;
+	req.acpi_res = NULL;
+	req.irq = irq;
+	req.counter = 0;
+	req.rid = 0;
+	req.checkrid = 0;
+	AcpiWalkResources(handle, "_CRS", acpi_lookup_irq_handler, &req);
+	if (req.found != 0) {
+	    trig = req.trig;
+	    pol = req.pol;
+	}
+    }
+    return ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, irq,
+	(trig == ACPI_EDGE_SENSITIVE) ?  INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
+	(pol == ACPI_ACTIVE_HIGH) ?  INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
+}
+#endif
 
 struct acpi_resource_context {
     struct acpi_parse_resource_set *set;
@@ -559,10 +602,6 @@ acpi_res_set_memory(device_t dev, void *context, uint64_t base,
 
     if (cp == NULL)
 	return;
-
-    while (bus_get_resource_start(dev, SYS_RES_MEMORY, cp->ar_nmem))
-	cp->ar_nmem++;
-
     bus_set_resource(dev, SYS_RES_MEMORY, cp->ar_nmem++, base, length);
 }
 
@@ -591,13 +630,7 @@ acpi_res_set_irq(device_t dev, void *context, uint8_t *irq, int count,
     if (count != 1)
 	return;
 
-#ifdef INTRNG
-    intr = ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, *irq,
-	(trig == ACPI_EDGE_SENSITIVE) ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
-	(pol == ACPI_ACTIVE_HIGH) ? INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
-#else
     intr = *irq;
-#endif
     bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, intr, 1);
 }
 
@@ -615,13 +648,7 @@ acpi_res_set_ext_irq(device_t dev, void *context, uint32_t *irq, int count,
     if (count != 1)
 	return;
 
-#ifdef INTRNG
-    intr = ACPI_BUS_MAP_INTR(device_get_parent(dev), dev, *irq,
-	(trig == ACPI_EDGE_SENSITIVE) ? INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL,
-	(pol == ACPI_ACTIVE_HIGH) ? INTR_POLARITY_HIGH : INTR_POLARITY_LOW);
-#else
     intr = *irq;
-#endif
     bus_set_resource(dev, SYS_RES_IRQ, cp->ar_nirq++, intr, 1);
 }
 

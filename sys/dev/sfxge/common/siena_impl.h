@@ -147,7 +147,8 @@ siena_nvram_partn_lock(
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_get_dynamic_cfg(
@@ -219,7 +220,8 @@ siena_nvram_partn_write(
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_get_version(

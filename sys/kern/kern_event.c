@@ -549,10 +549,8 @@ knote_fork(struct knlist *list, int pid)
 		 * The same as knote(), activate the event.
 		 */
 		if ((kn->kn_sfflags & NOTE_TRACK) == 0) {
-			kn->kn_status |= KN_HASKQLOCK;
 			if (kn->kn_fop->f_event(kn, NOTE_FORK))
 				KNOTE_ACTIVATE(kn, 1);
-			kn->kn_status &= ~KN_HASKQLOCK;
 			KQ_UNLOCK(kq);
 			continue;
 		}
@@ -1535,6 +1533,8 @@ findkn:
 			kn->kn_kevent.flags &= ~(EV_ADD | EV_DELETE |
 			    EV_ENABLE | EV_DISABLE | EV_FORCEONESHOT);
 			kn->kn_status = KN_DETACHED;
+			if ((kev->flags & EV_DISABLE) != 0)
+				kn->kn_status |= KN_DISABLED;
 			kn_enter_flux(kn);
 
 			error = knote_attach(kn, kq);
@@ -1570,6 +1570,11 @@ findkn:
 		KNOTE_ACTIVATE(kn, 1);
 	}
 
+	if ((kev->flags & EV_ENABLE) != 0)
+		kn->kn_status &= ~KN_DISABLED;
+	else if ((kev->flags & EV_DISABLE) != 0)
+		kn->kn_status |= KN_DISABLED;
+
 	/*
 	 * The user may change some filter values after the initial EV_ADD,
 	 * but doing so will not reset any filter which has already been
@@ -1587,19 +1592,17 @@ findkn:
 		kn->kn_sdata = kev->data;
 	}
 
+done_ev_add:
 	/*
 	 * We can get here with kn->kn_knlist == NULL.  This can happen when
 	 * the initial attach event decides that the event is "completed" 
-	 * already.  i.e. filt_procattach is called on a zombie process.  It
-	 * will call filt_proc which will remove it from the list, and NULL
+	 * already, e.g., filt_procattach() is called on a zombie process.  It
+	 * will call filt_proc() which will remove it from the list, and NULL
 	 * kn_knlist.
+	 *
+	 * KN_DISABLED will be stable while the knote is in flux, so the
+	 * unlocked read will not race with an update.
 	 */
-done_ev_add:
-	if ((kev->flags & EV_ENABLE) != 0)
-		kn->kn_status &= ~KN_DISABLED;
-	else if ((kev->flags & EV_DISABLE) != 0)
-		kn->kn_status |= KN_DISABLED;
-
 	if ((kn->kn_status & KN_DISABLED) == 0)
 		event = kn->kn_fop->f_event(kn, 0);
 	else
@@ -1683,10 +1686,6 @@ kqueue_schedtask(struct kqueue *kq)
  * Expand the kq to make sure we have storage for fops/ident pair.
  *
  * Return 0 on success (or no work necessary), return errno on failure.
- *
- * Not calling hashinit w/ waitok (proper malloc flag) should be safe.
- * If kqueue_register is called from a non-fd context, there usually/should
- * be no locks held.
  */
 static int
 kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
@@ -1731,8 +1730,9 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 		}
 	} else {
 		if (kq->kq_knhashmask == 0) {
-			tmp_knhash = hashinit(KN_HASHSIZE, M_KQUEUE,
-			    &tmp_knhashmask);
+			tmp_knhash = hashinit_flags(KN_HASHSIZE, M_KQUEUE,
+			    &tmp_knhashmask,
+			    waitok ? HASH_WAITOK : HASH_NOWAIT);
 			if (tmp_knhash == NULL)
 				return ENOMEM;
 			KQ_LOCK(kq);
@@ -2272,10 +2272,8 @@ knote(struct knlist *list, long hint, int lockflags)
 				KNOTE_ACTIVATE(kn, 1);
 			KQ_UNLOCK_FLUX(kq);
 		} else {
-			kn->kn_status |= KN_HASKQLOCK;
 			if (kn->kn_fop->f_event(kn, hint))
 				KNOTE_ACTIVATE(kn, 1);
-			kn->kn_status &= ~KN_HASKQLOCK;
 			KQ_UNLOCK(kq);
 		}
 	}

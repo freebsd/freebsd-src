@@ -551,11 +551,12 @@ typedef struct	_ipfw_insn_nat {
 } ipfw_insn_nat;
 
 /* Apply ipv6 mask on ipv6 addr */
-#define APPLY_MASK(addr,mask)                          \
+#define APPLY_MASK(addr,mask)	do {					\
     (addr)->__u6_addr.__u6_addr32[0] &= (mask)->__u6_addr.__u6_addr32[0]; \
     (addr)->__u6_addr.__u6_addr32[1] &= (mask)->__u6_addr.__u6_addr32[1]; \
     (addr)->__u6_addr.__u6_addr32[2] &= (mask)->__u6_addr.__u6_addr32[2]; \
-    (addr)->__u6_addr.__u6_addr32[3] &= (mask)->__u6_addr.__u6_addr32[3];
+    (addr)->__u6_addr.__u6_addr32[3] &= (mask)->__u6_addr.__u6_addr32[3]; \
+} while (0)
 
 /* Structure for ipv6 */
 typedef struct _ipfw_insn_ip6 {

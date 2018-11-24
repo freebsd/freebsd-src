@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2018
+.Dd November 18, 2018
 .Dt CAP_DNS 3
 .Os
 .Sh NAME
@@ -133,7 +133,7 @@ can have two values:
 or
 .Dv NAME2ADDR .
 The
-.Dv ADDR
+.Dv ADDR2NAME
 means that reverse DNS lookups are allowed with
 .Fn cap_getnameinfo
 and
@@ -142,7 +142,7 @@ functions.
 In case when
 .Va type
 is set to
-.Dv NAME
+.Dv NAME2ADDR
 the name resolution is allowed with
 .Fn cap_getaddrinfo ,
 .Fn cap_gethostbyname ,
@@ -164,7 +164,7 @@ casper service and uses it to resolve an IP address.
 cap_channel_t *capcas, *capdns;
 int familylimit, error;
 const char *ipstr = "127.0.0.1";
-const char *typelimit = "ADDR";
+const char *typelimit = "ADDR2NAME";
 char hname[NI_MAXHOST];
 struct addrinfo hints, *res;
 

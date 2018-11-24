@@ -690,6 +690,8 @@ void
 xen_intr_alloc_irqs(void)
 {
 
+	if (num_io_irqs > UINT_MAX - NR_EVENT_CHANNELS)
+		panic("IRQ allocation overflow (num_msi_irqs too high?)");
 	first_evtchn_irq = num_io_irqs;
 	num_io_irqs += NR_EVENT_CHANNELS;
 }

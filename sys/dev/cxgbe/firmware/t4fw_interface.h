@@ -110,6 +110,7 @@ enum fw_wr_opcodes {
 	FW_OFLD_TX_DATA_WR	= 0x0b,
 	FW_CMD_WR		= 0x10,
 	FW_ETH_TX_PKT_VM_WR	= 0x11,
+	FW_ETH_TX_PKTS_VM_WR	= 0x12,
 	FW_RI_RES_WR		= 0x0c,
 	FW_RI_RDMA_WRITE_WR	= 0x14,
 	FW_RI_SEND_WR		= 0x15,
@@ -426,6 +427,20 @@ struct fw_filter2_wr {
 #define G_FW_FILTER_WR_DEL_FILTER(x)	\
     (((x) >> S_FW_FILTER_WR_DEL_FILTER) & M_FW_FILTER_WR_DEL_FILTER)
 #define F_FW_FILTER_WR_DEL_FILTER	V_FW_FILTER_WR_DEL_FILTER(1U)
+
+#define S_FW_FILTER2_WR_DROP_ENCAP	30
+#define M_FW_FILTER2_WR_DROP_ENCAP	0x1
+#define V_FW_FILTER2_WR_DROP_ENCAP(x)	((x) << S_FW_FILTER2_WR_DROP_ENCAP)
+#define G_FW_FILTER2_WR_DROP_ENCAP(x)	\
+    (((x) >> S_FW_FILTER2_WR_DROP_ENCAP) & M_FW_FILTER2_WR_DROP_ENCAP)
+#define F_FW_FILTER2_WR_DROP_ENCAP	V_FW_FILTER2_WR_DROP_ENCAP(1U)
+
+#define S_FW_FILTER2_WR_TX_LOOP         29
+#define M_FW_FILTER2_WR_TX_LOOP         0x1
+#define V_FW_FILTER2_WR_TX_LOOP(x)      ((x) << S_FW_FILTER2_WR_TX_LOOP)
+#define G_FW_FILTER2_WR_TX_LOOP(x)      \
+	    (((x) >> S_FW_FILTER2_WR_TX_LOOP) & M_FW_FILTER2_WR_TX_LOOP)
+#define F_FW_FILTER2_WR_TX_LOOP         V_FW_FILTER2_WR_TX_LOOP(1U)
 
 #define S_FW_FILTER_WR_RPTTID		25
 #define M_FW_FILTER_WR_RPTTID		0x1
@@ -1161,6 +1176,19 @@ struct fw_eth_tx_pkt_vm_wr {
 	__be16 vlantci;
 };
 
+struct fw_eth_tx_pkts_vm_wr {
+	__be32 op_pkd;
+	__be32 equiq_to_len16;
+	__be32 r3;
+	__be16 plen;
+	__u8   npkt;
+	__u8   r4;
+	__u8   ethmacdst[6];
+	__u8   ethmacsrc[6];
+	__be16 ethtype;
+	__be16 vlantci;
+};
+
 /******************************************************************************
  *   R I   W O R K   R E Q U E S T s
  **************************************/
@@ -1831,7 +1859,9 @@ struct fw_ri_rdma_write_cmpl_wr {
 	__u16  wrid;
 	__u8   r1[3];
 	__u8   len16;
-	__u32  r2;
+	__u8   r2;
+	__u8   flags_send;
+	__u16  wrid_send;
 	__be32 stag_inv;
 	__be32 plen;
 	__be32 stag_sink;
@@ -4766,6 +4796,8 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RING_BACKBONE	= 0x22,
 	FW_PARAMS_PARAM_DEV_PPOD_EDRAM	= 0x23,
 	FW_PARAMS_PARAM_DEV_RI_WRITE_CMPL_WR	= 0x24,
+	FW_PARAMS_PARAM_DEV_ADD_SMAC = 0x25,
+	FW_PARAMS_PARAM_DEV_HPFILTER_REGION_SUPPORT = 0x26,
 };
 
 /*
@@ -4858,6 +4890,7 @@ enum fw_params_param_pfvf {
 	FW_PARAMS_PARAM_PFVF_PORT_CAPS32 = 0x3A,
 	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_START = 0x3B,
 	FW_PARAMS_PARAM_PFVF_PPOD_EDRAM_END = 0x3C,
+	FW_PARAMS_PARAM_PFVF_MAX_PKTS_PER_ETH_TX_PKTS_WR = 0x3D,
 };
 
 /*
@@ -6588,6 +6621,13 @@ struct fw_vi_mac_cmd {
     (((x) >> S_FW_VI_MAC_CMD_FREEMACS) & M_FW_VI_MAC_CMD_FREEMACS)
 #define F_FW_VI_MAC_CMD_FREEMACS	V_FW_VI_MAC_CMD_FREEMACS(1U)
 
+#define S_FW_VI_MAC_CMD_IS_SMAC		30
+#define M_FW_VI_MAC_CMD_IS_SMAC		0x1
+#define V_FW_VI_MAC_CMD_IS_SMAC(x)	((x) << S_FW_VI_MAC_CMD_IS_SMAC)
+#define G_FW_VI_MAC_CMD_IS_SMAC(x)	\
+    (((x) >> S_FW_VI_MAC_CMD_IS_SMAC) & M_FW_VI_MAC_CMD_IS_SMAC)
+#define F_FW_VI_MAC_CMD_IS_SMAC	V_FW_VI_MAC_CMD_IS_SMAC(1U)
+
 #define S_FW_VI_MAC_CMD_ENTRY_TYPE	23
 #define M_FW_VI_MAC_CMD_ENTRY_TYPE	0x7
 #define V_FW_VI_MAC_CMD_ENTRY_TYPE(x)	((x) << S_FW_VI_MAC_CMD_ENTRY_TYPE)
@@ -6657,6 +6697,19 @@ struct fw_vi_mac_cmd {
 #define V_FW_VI_MAC_CMD_VNI(x)	((x) << S_FW_VI_MAC_CMD_VNI)
 #define G_FW_VI_MAC_CMD_VNI(x)	\
     (((x) >> S_FW_VI_MAC_CMD_VNI) & M_FW_VI_MAC_CMD_VNI)
+
+/* Extracting loopback port number passed from driver.
+ * as a part of fw_vi_mac_vni For non loopback entries
+ * ignore the field and update port number from flowc.
+ * Fw will ignore if physical port number received.
+ * expected range (4-7).
+ */
+
+#define S_FW_VI_MAC_CMD_PORT            24
+#define M_FW_VI_MAC_CMD_PORT            0x7
+#define V_FW_VI_MAC_CMD_PORT(x)         ((x) << S_FW_VI_MAC_CMD_PORT)
+#define G_FW_VI_MAC_CMD_PORT(x)         \
+    (((x) >> S_FW_VI_MAC_CMD_PORT) & M_FW_VI_MAC_CMD_PORT)
 
 #define S_FW_VI_MAC_CMD_VNI_MASK	0
 #define M_FW_VI_MAC_CMD_VNI_MASK	0xffffff
@@ -6932,6 +6985,20 @@ struct fw_acl_vlan_cmd {
 #define G_FW_ACL_VLAN_CMD_EN(x)		\
     (((x) >> S_FW_ACL_VLAN_CMD_EN) & M_FW_ACL_VLAN_CMD_EN)
 #define F_FW_ACL_VLAN_CMD_EN		V_FW_ACL_VLAN_CMD_EN(1U)
+
+#define S_FW_ACL_VLAN_CMD_TRANSPARENT	30
+#define M_FW_ACL_VLAN_CMD_TRANSPARENT	0x1
+#define V_FW_ACL_VLAN_CMD_TRANSPARENT(x) \
+    ((x) << S_FW_ACL_VLAN_CMD_TRANSPARENT)
+#define G_FW_ACL_VLAN_CMD_TRANSPARENT(x) \
+    (((x) >> S_FW_ACL_VLAN_CMD_TRANSPARENT) & M_FW_ACL_VLAN_CMD_TRANSPARENT)
+#define F_FW_ACL_VLAN_CMD_TRANSPARENT	V_FW_ACL_VLAN_CMD_TRANSPARENT(1U)
+
+#define S_FW_ACL_VLAN_CMD_PMASK		16
+#define M_FW_ACL_VLAN_CMD_PMASK		0xf
+#define V_FW_ACL_VLAN_CMD_PMASK(x)	((x) << S_FW_ACL_VLAN_CMD_PMASK)
+#define G_FW_ACL_VLAN_CMD_PMASK(x)	\
+    (((x) >> S_FW_ACL_VLAN_CMD_PMASK) & M_FW_ACL_VLAN_CMD_PMASK)
 
 #define S_FW_ACL_VLAN_CMD_DROPNOVLAN	7
 #define M_FW_ACL_VLAN_CMD_DROPNOVLAN	0x1
@@ -7256,13 +7323,15 @@ struct fw_port_cmd {
 			struct fw_port_dcb_pfc {
 				__u8   type;
 				__u8   pfcen;
-				__u8   r10[5];
+				__u8   apply_pkd;
+				__u8   r10_lo[4];
 				__u8   max_pfc_tcs;
 				__be64 r11;
 			} pfc;
 			struct fw_port_app_priority {
 				__u8   type;
-				__u8   r10[2];
+				__u8   apply_pkd;
+				__u8   r10_lo;
 				__u8   idx;
 				__u8   user_prio_map;
 				__u8   sel_field;
@@ -9741,19 +9810,19 @@ enum fw_hdr_chip {
 
 enum {
 	T4FW_VERSION_MAJOR	= 0x01,
-	T4FW_VERSION_MINOR	= 0x13,
-	T4FW_VERSION_MICRO	= 0x01,
-	T4FW_VERSION_BUILD	= 0x00,
+	T4FW_VERSION_MINOR	= 0x16,
+	T4FW_VERSION_MICRO	= 0x00,
+	T4FW_VERSION_BUILD	= 0x03,
 
 	T5FW_VERSION_MAJOR	= 0x01,
-	T5FW_VERSION_MINOR	= 0x13,
-	T5FW_VERSION_MICRO	= 0x01,
-	T5FW_VERSION_BUILD	= 0x00,
+	T5FW_VERSION_MINOR	= 0x16,
+	T5FW_VERSION_MICRO	= 0x00,
+	T5FW_VERSION_BUILD	= 0x03,
 
 	T6FW_VERSION_MAJOR	= 0x01,
-	T6FW_VERSION_MINOR	= 0x13,
-	T6FW_VERSION_MICRO	= 0x01,
-	T6FW_VERSION_BUILD	= 0x00,
+	T6FW_VERSION_MINOR	= 0x16,
+	T6FW_VERSION_MICRO	= 0x00,
+	T6FW_VERSION_BUILD	= 0x03,
 };
 
 enum {

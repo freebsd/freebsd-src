@@ -433,10 +433,10 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 /*
  * Resolve an IP address into an ethernet address - heavy version.
  * Used internally by arpresolve().
- * We have already checked than  we can't use existing lle without
- * modification so we have to acquire LLE_EXCLUSIVE lle lock.
+ * We have already checked that we can't use an existing lle without
+ * modification so we have to acquire an LLE_EXCLUSIVE lle lock.
  *
- * On success, desten and flags are filled in and the function returns 0;
+ * On success, desten and pflags are filled in and the function returns 0;
  * If the packet must be held pending resolution, we return EWOULDBLOCK
  * On other errors, we return the corresponding error code.
  * Note that m_freem() handles NULL.
@@ -571,21 +571,6 @@ arpresolve_full(struct ifnet *ifp, int is_gw, int flags, struct mbuf *m,
 	LLE_WUNLOCK(la);
 	return (error);
 }
-
-/*
- * Resolve an IP address into an ethernet address.
- */
-int
-arpresolve_addr(struct ifnet *ifp, int flags, const struct sockaddr *dst,
-    char *desten, uint32_t *pflags, struct llentry **plle)
-{
-	int error;
-
-	flags |= LLE_ADDRONLY;
-	error = arpresolve_full(ifp, 0, flags, NULL, dst, desten, pflags, plle);
-	return (error);
-}
-
 
 /*
  * Lookups link header based on an IP address.

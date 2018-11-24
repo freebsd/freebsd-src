@@ -1153,6 +1153,9 @@ t4_attach(device_t dev)
 #ifdef RATELIMIT
 	t4_init_etid_table(sc);
 #endif
+	if (sc->vres.key.size != 0)
+		sc->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
+		    sc->vres.key.size, 32, 0, M_FIRSTFIT | M_WAITOK);
 
 	/*
 	 * Second pass over the ports.  This time we know the number of rx and
@@ -1438,6 +1441,8 @@ t4_detach_common(device_t dev)
 #ifdef RATELIMIT
 	t4_free_etid_table(sc);
 #endif
+	if (sc->key_map)
+		vmem_destroy(sc->key_map);
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	free(sc->sge.ofld_txq, M_CXGBE);

@@ -94,6 +94,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#include <vm/pmap.h>
+
 #ifdef FPU_EMU
 #include <powerpc/fpu/fpu_extern.h>
 #endif
@@ -1099,6 +1101,14 @@ ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
 	}
 	sig = fpu_emulate(frame, &pcb->pcb_fpu);
 #endif
+	if (sig == SIGILL) {
+		if (pcb->pcb_lastill != frame->srr0) {
+			/* Allow a second chance, in case of cache sync issues. */
+			sig = 0;
+			pmap_sync_icache(PCPU_GET(curpmap), frame->srr0, 4);
+			pcb->pcb_lastill = frame->srr0;
+		}
+	}
 
 	return (sig);
 }

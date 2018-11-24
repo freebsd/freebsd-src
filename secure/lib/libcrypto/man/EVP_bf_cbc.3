@@ -129,13 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_BF_CBC 3"
-.TH EVP_BF_CBC 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_BF_CBC 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_bf_cbc, EVP_bf_cfb, EVP_bf_ecb, EVP_bf_ofb \&\- EVP Blowfish cipher
+EVP_bf_cbc, EVP_bf_cfb, EVP_bf_cfb64, EVP_bf_ecb, EVP_bf_ofb \&\- EVP Blowfish cipher
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -143,6 +143,7 @@ EVP_bf_cbc, EVP_bf_cfb, EVP_bf_ecb, EVP_bf_ofb \&\- EVP Blowfish cipher
 \&
 \& const EVP_CIPHER *EVP_bf_cbc(void)
 \& const EVP_CIPHER *EVP_bf_cfb(void)
+\& const EVP_CIPHER *EVP_bf_cfb64(void)
 \& const EVP_CIPHER *EVP_bf_ecb(void)
 \& const EVP_CIPHER *EVP_bf_ofb(void)
 .Ve
@@ -151,8 +152,8 @@ EVP_bf_cbc, EVP_bf_cfb, EVP_bf_ecb, EVP_bf_ofb \&\- EVP Blowfish cipher
 The Blowfish encryption algorithm for \s-1EVP.\s0
 .PP
 This is a variable key length cipher.
-.IP "\fIEVP_bf_cbc()\fR, \fIEVP_bf_cfb()\fR, \fIEVP_bf_ecb()\fR, \fIEVP_bf_ofb()\fR" 4
-.IX Item "EVP_bf_cbc(), EVP_bf_cfb(), EVP_bf_ecb(), EVP_bf_ofb()"
+.IP "\fIEVP_bf_cbc()\fR, \fIEVP_bf_cfb()\fR, \fIEVP_bf_cfb64()\fR, \fIEVP_bf_ecb()\fR, \fIEVP_bf_ofb()\fR" 4
+.IX Item "EVP_bf_cbc(), EVP_bf_cfb(), EVP_bf_cfb64(), EVP_bf_ecb(), EVP_bf_ofb()"
 Blowfish encryption algorithm in \s-1CBC, CFB, ECB\s0 and \s-1OFB\s0 modes respectively.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
@@ -166,7 +167,7 @@ details of the \fB\s-1EVP_CIPHER\s0\fR structure.
 \&\fIEVP_CIPHER_meth_new\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

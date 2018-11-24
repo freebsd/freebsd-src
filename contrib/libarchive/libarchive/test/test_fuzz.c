@@ -433,7 +433,7 @@ DEFINE_TEST(test_fuzz_tar)
 		{0, fileset9}, /* Exercise lzo decompressor. */
 #endif
 #if HAVE_ZSTD_H && HAVE_LIBZSTD
-		{0, fileset10}, /* Excercise zstd decompressor. */
+		{0, fileset10}, /* Exercise zstd decompressor. */
 #endif
 		{1, NULL}
 	};

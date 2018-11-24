@@ -301,6 +301,13 @@ medford_board_cfg(
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
 
+	/*
+	 * Maximum number of exclusive RSS contexts which can be allocated. The
+	 * hardware supports 64, but 6 are reserved for shared contexts. They
+	 * are a global resource so not all may be available.
+	 */
+	encp->enc_rx_scale_max_exclusive_contexts = 58;
+
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
 	/* No boundary crossing limits */
 	encp->enc_tx_dma_desc_boundary = 0;
@@ -314,6 +321,13 @@ medford_board_cfg(
 	encp->enc_evq_limit = 1024;
 	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
 	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
+
+	/*
+	 * The maximum supported transmit queue size is 2048. TXQs with 4096
+	 * descriptors are not supported as the top bit is used for vfifo
+	 * stuffing.
+	 */
+	encp->enc_txq_max_ndescs = 2048;
 
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 

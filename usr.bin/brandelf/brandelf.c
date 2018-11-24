@@ -32,15 +32,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/capsicum.h>
 #include <sys/elf_common.h>
 #include <sys/errno.h>
+
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 static int elftype(const char *);
 static const char *iselftype(int);
@@ -64,16 +71,23 @@ main(int argc, char **argv)
 {
 
 	const char *strtype = "FreeBSD";
-	int type = ELFOSABI_FREEBSD;
-	int retval = 0;
-	int ch, change = 0, force = 0, listed = 0;
+	int ch, flags, retval, type;
+	bool change, force, listed;
+	fileargs_t *fa;
+	cap_rights_t rights;
+
+	type = ELFOSABI_FREEBSD;
+	retval = 0;
+	change = false;
+	force = false;
+	listed = false;
 
 	while ((ch = getopt(argc, argv, "f:lt:v")) != -1)
 		switch (ch) {
 		case 'f':
 			if (change)
 				errx(1, "f option incompatible with t option");
-			force = 1;
+			force = true;
 			type = atoi(optarg);
 			if (errno == ERANGE || type < 0 || type > 255) {
 				warnx("invalid argument to option f: %s",
@@ -83,7 +97,7 @@ main(int argc, char **argv)
 			break;
 		case 'l':
 			printelftypes();
-			listed = 1;
+			listed = true;
 			break;
 		case 'v':
 			/* does nothing */
@@ -91,7 +105,7 @@ main(int argc, char **argv)
 		case 't':
 			if (force)
 				errx(1, "t option incompatible with f option");
-			change = 1;
+			change = true;
 			strtype = optarg;
 			break;
 		default:
@@ -99,7 +113,7 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (!argc) {
+	if (argc == 0) {
 		if (listed)
 			exit(0);
 		else {
@@ -114,11 +128,24 @@ main(int argc, char **argv)
 		usage();
 	}
 
-	while (argc) {
+	flags = change || force ? O_RDWR : O_RDONLY;
+	cap_rights_init(&rights, CAP_READ, CAP_SEEK);
+	if (flags == O_RDWR)
+		cap_rights_set(&rights, CAP_WRITE);
+
+	fa = fileargs_init(argc, argv, flags, 0, &rights);
+	if (fa == NULL)
+		errx(1, "unable to init casper");
+
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0 || caph_enter_casper() < 0)
+		err(1, "unable to enter capability mode");
+
+	while (argc != 0) {
 		int fd;
 		char buffer[EI_NIDENT];
 
-		if ((fd = open(argv[0], change || force ? O_RDWR : O_RDONLY, 0)) < 0) {
+		if ((fd = fileargs_open(fa, argv[0])) < 0) {
 			warn("error opening file %s", argv[0]);
 			retval = 1;
 			goto fail;
@@ -160,7 +187,8 @@ fail:
 		argv++;
 	}
 
-	return retval;
+	fileargs_free(fa);
+	return (retval);
 }
 
 static void
@@ -176,12 +204,10 @@ iselftype(int etype)
 {
 	size_t elfwalk;
 
-	for (elfwalk = 0;
-	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
-	     elfwalk++)
+	for (elfwalk = 0; elfwalk < nitems(elftypes); elfwalk++)
 		if (etype == elftypes[elfwalk].value)
-			return elftypes[elfwalk].str;
-	return 0;
+			return (elftypes[elfwalk].str);
+	return (0);
 }
 
 static int
@@ -189,12 +215,10 @@ elftype(const char *elfstrtype)
 {
 	size_t elfwalk;
 
-	for (elfwalk = 0;
-	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
-	     elfwalk++)
+	for (elfwalk = 0; elfwalk < nitems(elftypes); elfwalk++)
 		if (strcasecmp(elfstrtype, elftypes[elfwalk].str) == 0)
-			return elftypes[elfwalk].value;
-	return -1;
+			return (elftypes[elfwalk].value);
+	return (-1);
 }
 
 static void
@@ -203,10 +227,8 @@ printelftypes(void)
 	size_t elfwalk;
 
 	fprintf(stderr, "known ELF types are: ");
-	for (elfwalk = 0;
-	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
-	     elfwalk++)
-		fprintf(stderr, "%s(%u) ", elftypes[elfwalk].str, 
-			elftypes[elfwalk].value);
+	for (elfwalk = 0; elfwalk < nitems(elftypes); elfwalk++)
+		fprintf(stderr, "%s(%u) ", elftypes[elfwalk].str,
+		    elftypes[elfwalk].value);
 	fprintf(stderr, "\n");
 }

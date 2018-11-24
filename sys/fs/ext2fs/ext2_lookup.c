@@ -223,7 +223,9 @@ ext2_readdir(struct vop_readdir_args *ap)
 			dstdp.d_fileno = dp->e2d_ino;
 			dstdp.d_reclen = GENERIC_DIRSIZ(&dstdp);
 			bcopy(dp->e2d_name, dstdp.d_name, dstdp.d_namlen);
-			dstdp.d_name[dstdp.d_namlen] = '\0';
+			/* NOTE: d_off is the offset of the *next* entry. */
+			dstdp.d_off = offset + dp->e2d_reclen;
+			dirent_terminate(&dstdp);
 			if (dstdp.d_reclen > uio->uio_resid) {
 				if (uio->uio_resid == startresid)
 					error = EINVAL;

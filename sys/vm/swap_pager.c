@@ -756,7 +756,7 @@ done:
 	return (blk);
 }
 
-static int
+static bool
 swp_pager_isondev(daddr_t blk, struct swdevt *sp)
 {
 
@@ -770,7 +770,7 @@ swp_pager_strategy(struct buf *bp)
 
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (bp->b_blkno >= sp->sw_first && bp->b_blkno < sp->sw_end) {
+		if (swp_pager_isondev(bp->b_blkno, sp)) {
 			mtx_unlock(&sw_dev_mtx);
 			if ((sp->sw_flags & SW_UNMAPPED) != 0 &&
 			    unmapped_buf_allowed) {
@@ -804,7 +804,7 @@ swp_pager_freeswapspace(daddr_t blk, daddr_t npages)
 		return;
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (blk >= sp->sw_first && blk < sp->sw_end) {
+		if (swp_pager_isondev(blk, sp)) {
 			sp->sw_used -= npages;
 			/*
 			 * If we are attempting to stop swapping on
