@@ -631,7 +631,7 @@ efx_mon_init(
 #define	EFX_MON_STATS_PAGE_SIZE 0x100
 #define	EFX_MON_MASK_ELEMENT_SIZE 32
 
-/* START MKCONFIG GENERATED MonitorHeaderStatsBlock 5d4ee5185e419abe */
+/* START MKCONFIG GENERATED MonitorHeaderStatsBlock aa0233c80156308e */
 typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_2_5V,
 	EFX_MON_STAT_VCCP1,
@@ -710,6 +710,8 @@ typedef enum efx_mon_stat_e {
 	EFX_MON_STAT_CONTROLLER_TDIODE_TEMP,
 	EFX_MON_STAT_BOARD_FRONT_TEMP,
 	EFX_MON_STAT_BOARD_BACK_TEMP,
+	EFX_MON_STAT_I1V8,
+	EFX_MON_STAT_I2V5,
 	EFX_MON_NSTATS
 } efx_mon_stat_t;
 
