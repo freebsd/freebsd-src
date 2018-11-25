@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ffs/fs.h>
 
 uint32_t calculate_crc32c(uint32_t, const void *, size_t);
+uint32_t ffs_calc_sbhash(struct fs *);
 struct malloc_type;
 #define UFS_MALLOC(size, type, flags) malloc(size)
 #define UFS_FREE(ptr, type) free(ptr)
@@ -147,7 +148,6 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 static off_t sblock_try[] = SBLOCKSEARCH;
 static int readsuper(void *, struct fs **, off_t, int,
 	int (*)(void *, off_t, void **, int));
-static uint32_t calc_sbhash(struct fs *);
 
 /*
  * Read a superblock from the devfd device.
@@ -276,7 +276,7 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	    fs->fs_bsize <= MAXBSIZE &&
 	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
 	    fs->fs_sbsize <= SBLOCKSIZE) {
-		if (fs->fs_ckhash != (ckhash = calc_sbhash(fs))) {
+		if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
 #ifdef _KERNEL
 			res = uprintf("Superblock check-hash failed: recorded "
 			    "check-hash 0x%x != computed check-hash 0x%x\n",
@@ -339,7 +339,7 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 	}
 	fs->fs_fmod = 0;
 	fs->fs_time = UFS_TIME;
-	fs->fs_ckhash = calc_sbhash(fs);
+	fs->fs_ckhash = ffs_calc_sbhash(fs);
 	if ((error = (*writefunc)(devfd, loc, fs, fs->fs_sbsize)) != 0)
 		return (error);
 	return (0);
@@ -348,8 +348,8 @@ ffs_sbput(void *devfd, struct fs *fs, off_t loc,
 /*
  * Calculate the check-hash for a superblock.
  */
-static uint32_t
-calc_sbhash(struct fs *fs)
+uint32_t
+ffs_calc_sbhash(struct fs *fs)
 {
 	uint32_t ckhash, save_ckhash;
 
