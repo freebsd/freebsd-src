@@ -203,7 +203,8 @@ sysctl_mif6table(SYSCTL_HANDLER_ARGS)
 	struct mif6_sctl *out;
 	int error;
 
-	out = malloc(sizeof(struct mif6_sctl) * MAXMIFS, M_TEMP, M_WAITOK);
+	out = malloc(sizeof(struct mif6_sctl) * MAXMIFS, M_TEMP,
+	    M_WAITOK | M_ZERO);
 	for (int i = 0; i < MAXMIFS; i++) {
 		out[i].m6_flags		= mif6table[i].m6_flags;
 		out[i].m6_rate_limit	= mif6table[i].m6_rate_limit;
