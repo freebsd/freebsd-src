@@ -1810,6 +1810,7 @@ sdp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
+	bzero(&xig, sizeof(xig));
 	xig.xig_len = sizeof xig;
 	xig.xig_count = n;
 	xig.xig_gen = 0;

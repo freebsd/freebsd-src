@@ -3597,6 +3597,7 @@ void
 sotoxsocket(struct socket *so, struct xsocket *xso)
 {
 
+	bzero(xso, sizeof(*xso));
 	xso->xso_len = sizeof *xso;
 	xso->xso_so = so;
 	xso->so_type = so->so_type;
