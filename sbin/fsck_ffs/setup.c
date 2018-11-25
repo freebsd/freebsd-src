@@ -127,7 +127,7 @@ setup(char *dev)
 		}
 	}
 	if ((fsreadfd = open(dev, O_RDONLY)) < 0 ||
-	    ufs_disk_fillout(&disk, dev) < 0) {
+	    ufs_disk_fillout_blank(&disk, dev) < 0) {
 		if (bkgrdflag) {
 			unlink(snapname);
 			bkgrdflag = 0;
@@ -325,10 +325,8 @@ readsb(int listerr)
 	if ((ret = sbget(fsreadfd, &fs, super)) != 0) {
 		switch (ret) {
 		case EINVAL:
-			fprintf(stderr, "The previous newfs operation "
-			    "on this volume did not complete.\nYou must "
-			    "complete newfs before using this volume.\n");
-			exit(11);
+			/* Superblock check-hash failed */
+			return (0);
 		case ENOENT:
 			if (bflag)
 				fprintf(stderr, "%jd is not a file system "
