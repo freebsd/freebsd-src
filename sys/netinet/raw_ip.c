@@ -1044,6 +1044,7 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	n = V_ripcbinfo.ipi_count;
 	INP_INFO_RUNLOCK(&V_ripcbinfo);
 
+	bzero(&xig, sizeof(xig));
 	xig.xig_len = sizeof xig;
 	xig.xig_count = n;
 	xig.xig_gen = gencnt;
