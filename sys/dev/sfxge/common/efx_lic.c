@@ -46,8 +46,7 @@ efx_lic_v1v2_find_start(
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
 	__in			size_t buffer_size,
-	__out			uint32_t *startp
-	);
+	__out			uint32_t *startp);
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_find_end(
@@ -56,8 +55,7 @@ efx_lic_v1v2_find_end(
 				caddr_t bufferp,
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
-	__out			uint32_t *endp
-	);
+	__out			uint32_t *endp);
 
 	__checkReturn	__success(return != B_FALSE)	boolean_t
 efx_lic_v1v2_find_key(
@@ -67,15 +65,13 @@ efx_lic_v1v2_find_key(
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
 	__out			uint32_t *startp,
-	__out			uint32_t *lengthp
-	);
+	__out			uint32_t *lengthp);
 
 	__checkReturn	__success(return != B_FALSE)	boolean_t
 efx_lic_v1v2_validate_key(
 	__in			efx_nic_t *enp,
 	__in_bcount(length)	caddr_t keyp,
-	__in			uint32_t length
-	);
+	__in			uint32_t length);
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_read_key(
@@ -88,8 +84,7 @@ efx_lic_v1v2_read_key(
 	__out_bcount_part(key_max_size, *lengthp)
 				caddr_t keyp,
 	__in			size_t key_max_size,
-	__out			uint32_t *lengthp
-	);
+	__out			uint32_t *lengthp);
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_write_key(
@@ -100,8 +95,7 @@ efx_lic_v1v2_write_key(
 	__in			uint32_t offset,
 	__in_bcount(length)	caddr_t keyp,
 	__in			uint32_t length,
-	__out			uint32_t *lengthp
-	);
+	__out			uint32_t *lengthp);
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_delete_key(
@@ -112,24 +106,21 @@ efx_lic_v1v2_delete_key(
 	__in			uint32_t offset,
 	__in			uint32_t length,
 	__in			uint32_t end,
-	__out			uint32_t *deltap
-	);
+	__out			uint32_t *deltap);
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_create_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	);
+	__in			size_t buffer_size);
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_finish_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	);
+	__in			size_t buffer_size);
 
 #endif	/* EFSYS_OPT_HUNTINGTON | EFSYS_OPT_SIENA */
 
@@ -230,8 +221,7 @@ efx_lic_v3_find_start(
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
 	__in			size_t buffer_size,
-	__out			uint32_t *startp
-	);
+	__out			uint32_t *startp);
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_find_end(
@@ -240,8 +230,7 @@ efx_lic_v3_find_end(
 				caddr_t bufferp,
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
-	__out			uint32_t *endp
-	);
+	__out			uint32_t *endp);
 
 	__checkReturn	__success(return != B_FALSE)	boolean_t
 efx_lic_v3_find_key(
@@ -251,15 +240,13 @@ efx_lic_v3_find_key(
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
 	__out			uint32_t *startp,
-	__out			uint32_t *lengthp
-	);
+	__out			uint32_t *lengthp);
 
 	__checkReturn	__success(return != B_FALSE)	boolean_t
 efx_lic_v3_validate_key(
 	__in			efx_nic_t *enp,
 	__in_bcount(length)	caddr_t keyp,
-	__in			uint32_t length
-	);
+	__in			uint32_t length);
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_read_key(
@@ -272,8 +259,7 @@ efx_lic_v3_read_key(
 	__out_bcount_part(key_max_size, *lengthp)
 				caddr_t keyp,
 	__in			size_t key_max_size,
-	__out			uint32_t *lengthp
-	);
+	__out			uint32_t *lengthp);
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_write_key(
@@ -284,8 +270,7 @@ efx_lic_v3_write_key(
 	__in			uint32_t offset,
 	__in_bcount(length)	caddr_t keyp,
 	__in			uint32_t length,
-	__out			uint32_t *lengthp
-	);
+	__out			uint32_t *lengthp);
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_delete_key(
@@ -296,31 +281,28 @@ efx_lic_v3_delete_key(
 	__in			uint32_t offset,
 	__in			uint32_t length,
 	__in			uint32_t end,
-	__out			uint32_t *deltap
-	);
+	__out			uint32_t *deltap);
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_create_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	);
+	__in			size_t buffer_size);
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_finish_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	);
+	__in			size_t buffer_size);
 
 static const efx_lic_ops_t	__efx_lic_v3_ops = {
 	efx_mcdi_licensing_v3_update_licenses,	/* elo_update_licenses */
 	efx_mcdi_licensing_v3_report_license,	/* elo_get_key_stats */
 	efx_mcdi_licensing_v3_app_state,	/* elo_app_state */
 	efx_mcdi_licensing_v3_get_id,		/* elo_get_id */
-	efx_lic_v3_find_start,			/* elo_find_start*/
+	efx_lic_v3_find_start,			/* elo_find_start */
 	efx_lic_v3_find_end,			/* elo_find_end */
 	efx_lic_v3_find_key,			/* elo_find_key */
 	efx_lic_v3_validate_key,		/* elo_validate_key */
@@ -455,8 +437,8 @@ fail1:
  *  Length (L): 16bit - value length in bytes
  *  Value (V):  L bytes - payload
  */
-#define EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX    (256)
-#define EFX_LICENSE_V1V2_HEADER_LENGTH         (2 * sizeof(uint16_t))
+#define	EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX	(256)
+#define	EFX_LICENSE_V1V2_HEADER_LENGTH		(2 * sizeof (uint16_t))
 
 	__checkReturn		efx_rc_t
 efx_lic_v1v2_find_start(
@@ -464,8 +446,7 @@ efx_lic_v1v2_find_start(
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
 	__in			size_t buffer_size,
-	__out			uint32_t *startp
-	)
+	__out			uint32_t *startp)
 {
 	_NOTE(ARGUNUSED(enp, bufferp, buffer_size))
 
@@ -480,8 +461,7 @@ efx_lic_v1v2_find_end(
 				caddr_t bufferp,
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
-	__out			uint32_t *endp
-	)
+	__out			uint32_t *endp)
 {
 	_NOTE(ARGUNUSED(enp, bufferp, buffer_size))
 
@@ -497,8 +477,7 @@ efx_lic_v1v2_find_key(
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
 	__out			uint32_t *startp,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	boolean_t found;
 	uint16_t tlv_type;
@@ -522,7 +501,7 @@ efx_lic_v1v2_find_key(
 	return (found);
 
 fail1:
-	EFSYS_PROBE(fail1);
+	EFSYS_PROBE1(fail1, boolean_t, B_FALSE);
 
 	return (B_FALSE);
 }
@@ -531,8 +510,7 @@ fail1:
 efx_lic_v1v2_validate_key(
 	__in			efx_nic_t *enp,
 	__in_bcount(length)	caddr_t keyp,
-	__in			uint32_t length
-	)
+	__in			uint32_t length)
 {
 	uint16_t tlv_type;
 	uint16_t tlv_length;
@@ -565,7 +543,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE(fail1);
+	EFSYS_PROBE1(fail1, boolean_t, B_FALSE);
 
 	return (B_FALSE);
 }
@@ -582,12 +560,11 @@ efx_lic_v1v2_read_key(
 	__out_bcount_part(key_max_size, *lengthp)
 				caddr_t keyp,
 	__in			size_t key_max_size,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	efx_rc_t rc;
 
-	_NOTE(ARGUNUSED(enp))
+	_NOTE(ARGUNUSED(enp, buffer_size))
 	EFSYS_ASSERT(length <= (EFX_LICENSE_V1V2_PAYLOAD_LENGTH_MAX +
 	    EFX_LICENSE_V1V2_HEADER_LENGTH));
 
@@ -616,8 +593,7 @@ efx_lic_v1v2_write_key(
 	__in			uint32_t offset,
 	__in_bcount(length)	caddr_t keyp,
 	__in			uint32_t length,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	efx_rc_t rc;
 
@@ -653,13 +629,12 @@ efx_lic_v1v2_delete_key(
 	__in			uint32_t offset,
 	__in			uint32_t length,
 	__in			uint32_t end,
-	__out			uint32_t *deltap
-	)
+	__out			uint32_t *deltap)
 {
 	uint32_t move_start = offset + length;
 	uint32_t move_length = end - move_start;
 
-	_NOTE(ARGUNUSED(enp))
+	_NOTE(ARGUNUSED(enp, buffer_size))
 	EFSYS_ASSERT(end <= buffer_size);
 
 	/* Shift everything after the key down */
@@ -675,10 +650,9 @@ efx_lic_v1v2_create_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	)
+	__in			size_t buffer_size)
 {
-	_NOTE(ARGUNUSED(enp))
+	_NOTE(ARGUNUSED(enp, buffer_size))
 	EFSYS_ASSERT(EFX_LICENSE_V1V2_HEADER_LENGTH <= buffer_size);
 
 	/* Write terminator */
@@ -692,8 +666,7 @@ efx_lic_v1v2_finish_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	)
+	__in			size_t buffer_size)
 {
 	_NOTE(ARGUNUSED(enp, bufferp, buffer_size))
 
@@ -1005,7 +978,8 @@ efx_mcdi_licensing_v3_app_state(
 		goto fail1;
 	}
 
-	if (req.emr_out_length_used < MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_LEN) {
+	if (req.emr_out_length_used <
+	    MC_CMD_GET_LICENSED_V3_APP_STATE_OUT_LEN) {
 		rc = EMSGSIZE;
 		goto fail2;
 	}
@@ -1055,7 +1029,8 @@ efx_mcdi_licensing_v3_get_id(
 		req.emr_in_buf = bufferp;
 		req.emr_in_length = MC_CMD_LICENSING_GET_ID_V3_IN_LEN;
 		req.emr_out_buf = bufferp;
-		req.emr_out_length = MIN(buffer_size, MC_CMD_LICENSING_GET_ID_V3_OUT_LENMAX);
+		req.emr_out_length =
+		    MIN(buffer_size, MC_CMD_LICENSING_GET_ID_V3_OUT_LENMAX);
 		(void) memset(bufferp, 0, req.emr_out_length);
 	}
 
@@ -1072,12 +1047,14 @@ efx_mcdi_licensing_v3_get_id(
 	}
 
 	*typep = MCDI_OUT_DWORD(req, LICENSING_GET_ID_V3_OUT_LICENSE_TYPE);
-	*lengthp = MCDI_OUT_DWORD(req, LICENSING_GET_ID_V3_OUT_LICENSE_ID_LENGTH);
+	*lengthp =
+	    MCDI_OUT_DWORD(req, LICENSING_GET_ID_V3_OUT_LICENSE_ID_LENGTH);
 
 	if (bufferp == NULL) {
-		/* modify length requirements to indicate to caller the extra buffering
-		** needed to read the complete output.
-		*/
+		/*
+		 * Modify length requirements to indicate to caller the extra
+		 * buffering needed to read the complete output.
+		 */
 		*lengthp += MC_CMD_LICENSING_GET_ID_V3_OUT_LENMIN;
 	} else {
 		/* Shift ID down to start of buffer */
@@ -1099,8 +1076,8 @@ fail1:
 }
 
 /* V3 format uses Huntington TLV format partition. See SF-108797-SW */
-#define EFX_LICENSE_V3_KEY_LENGTH_MIN    (64)
-#define EFX_LICENSE_V3_KEY_LENGTH_MAX    (160)
+#define	EFX_LICENSE_V3_KEY_LENGTH_MIN	(64)
+#define	EFX_LICENSE_V3_KEY_LENGTH_MAX	(160)
 
 	__checkReturn		efx_rc_t
 efx_lic_v3_find_start(
@@ -1108,12 +1085,12 @@ efx_lic_v3_find_start(
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
 	__in			size_t buffer_size,
-	__out			uint32_t *startp
-	)
+	__out			uint32_t *startp)
 {
 	_NOTE(ARGUNUSED(enp))
 
-	return ef10_nvram_buffer_find_item_start(bufferp, buffer_size, startp);
+	return (ef10_nvram_buffer_find_item_start(bufferp, buffer_size,
+	    startp));
 }
 
 	__checkReturn		efx_rc_t
@@ -1123,12 +1100,11 @@ efx_lic_v3_find_end(
 				caddr_t bufferp,
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
-	__out			uint32_t *endp
-	)
+	__out			uint32_t *endp)
 {
 	_NOTE(ARGUNUSED(enp))
 
-	return ef10_nvram_buffer_find_end(bufferp, buffer_size, offset, endp);
+	return (ef10_nvram_buffer_find_end(bufferp, buffer_size, offset, endp));
 }
 
 	__checkReturn	__success(return != B_FALSE)	boolean_t
@@ -1139,8 +1115,7 @@ efx_lic_v3_find_key(
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
 	__out			uint32_t *startp,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	_NOTE(ARGUNUSED(enp))
 
@@ -1152,8 +1127,7 @@ efx_lic_v3_find_key(
 efx_lic_v3_validate_key(
 	__in			efx_nic_t *enp,
 	__in_bcount(length)	caddr_t keyp,
-	__in			uint32_t length
-	)
+	__in			uint32_t length)
 {
 	/* Check key is a valid V3 key */
 	uint8_t key_type;
@@ -1187,7 +1161,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE(fail1);
+	EFSYS_PROBE1(fail1, boolean_t, B_FALSE);
 
 	return (B_FALSE);
 }
@@ -1203,8 +1177,7 @@ efx_lic_v3_read_key(
 	__out_bcount_part(key_max_size, *lengthp)
 				caddr_t keyp,
 	__in			size_t key_max_size,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	_NOTE(ARGUNUSED(enp))
 
@@ -1221,8 +1194,7 @@ efx_lic_v3_write_key(
 	__in			uint32_t offset,
 	__in_bcount(length)	caddr_t keyp,
 	__in			uint32_t length,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	_NOTE(ARGUNUSED(enp))
 	EFSYS_ASSERT(length <= EFX_LICENSE_V3_KEY_LENGTH_MAX);
@@ -1240,8 +1212,7 @@ efx_lic_v3_delete_key(
 	__in			uint32_t offset,
 	__in			uint32_t length,
 	__in			uint32_t end,
-	__out			uint32_t *deltap
-	)
+	__out			uint32_t *deltap)
 {
 	efx_rc_t rc;
 
@@ -1267,8 +1238,7 @@ efx_lic_v3_create_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	)
+	__in			size_t buffer_size)
 {
 	efx_rc_t rc;
 
@@ -1293,8 +1263,7 @@ efx_lic_v3_finish_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	)
+	__in			size_t buffer_size)
 {
 	efx_rc_t rc;
 
@@ -1386,7 +1355,7 @@ efx_lic_check_support(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
 
-	return enp->en_licensing_supported;
+	return (enp->en_licensing_supported);
 }
 
 				void
@@ -1477,8 +1446,7 @@ efx_lic_get_id(
 	__in		size_t buffer_size,
 	__out		uint32_t *typep,
 	__out		size_t *lengthp,
-	__out_opt	uint8_t *bufferp
-	)
+	__out_opt	uint8_t *bufferp)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1501,7 +1469,10 @@ fail1:
 	return (rc);
 }
 
-/* Buffer management API - abstracts varying TLV format used for License partition */
+/*
+ * Buffer management API - abstracts varying TLV format used for License
+ * partition.
+ */
 
 	__checkReturn		efx_rc_t
 efx_lic_find_start(
@@ -1509,8 +1480,7 @@ efx_lic_find_start(
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
 	__in			size_t buffer_size,
-	__out			uint32_t *startp
-	)
+	__out			uint32_t *startp)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1536,8 +1506,7 @@ efx_lic_find_end(
 				caddr_t bufferp,
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
-	__out			uint32_t *endp
-	)
+	__out			uint32_t *endp)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1545,7 +1514,8 @@ efx_lic_find_end(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_LIC);
 
-	if ((rc = elop->elo_find_end(enp, bufferp, buffer_size, offset, endp)) != 0)
+	rc = elop->elo_find_end(enp, bufferp, buffer_size, offset, endp);
+	if (rc != 0)
 		goto fail1;
 
 	return (0);
@@ -1564,8 +1534,7 @@ efx_lic_find_key(
 	__in			size_t buffer_size,
 	__in			uint32_t offset,
 	__out			uint32_t *startp,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 
@@ -1581,15 +1550,15 @@ efx_lic_find_key(
 }
 
 
-/* Validate that the buffer contains a single key in a recognised format.
-** An empty or terminator buffer is not accepted as a valid key.
-*/
+/*
+ * Validate that the buffer contains a single key in a recognised format.
+ * An empty or terminator buffer is not accepted as a valid key.
+ */
 	__checkReturn	__success(return != B_FALSE)	boolean_t
 efx_lic_validate_key(
 	__in			efx_nic_t *enp,
 	__in_bcount(length)	caddr_t keyp,
-	__in			uint32_t length
-	)
+	__in			uint32_t length)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	boolean_t rc;
@@ -1619,8 +1588,7 @@ efx_lic_read_key(
 	__out_bcount_part(key_max_size, *lengthp)
 				caddr_t keyp,
 	__in			size_t key_max_size,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1649,8 +1617,7 @@ efx_lic_write_key(
 	__in			uint32_t offset,
 	__in_bcount(length)	caddr_t keyp,
 	__in			uint32_t length,
-	__out			uint32_t *lengthp
-	)
+	__out			uint32_t *lengthp)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1679,8 +1646,7 @@ efx_lic_delete_key(
 	__in			uint32_t offset,
 	__in			uint32_t length,
 	__in			uint32_t end,
-	__out			uint32_t *deltap
-	)
+	__out			uint32_t *deltap)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1705,8 +1671,7 @@ efx_lic_create_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	)
+	__in			size_t buffer_size)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;
@@ -1731,8 +1696,7 @@ efx_lic_finish_partition(
 	__in			efx_nic_t *enp,
 	__in_bcount(buffer_size)
 				caddr_t bufferp,
-	__in			size_t buffer_size
-	)
+	__in			size_t buffer_size)
 {
 	const efx_lic_ops_t *elop = enp->en_elop;
 	efx_rc_t rc;

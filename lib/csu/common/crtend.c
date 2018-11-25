@@ -41,6 +41,9 @@ static crt_func __CTOR_END__[] __section(".ctors") __used = {
 static crt_func __DTOR_END__[] __section(".dtors") __used = {
 	(crt_func)0
 };
+static crt_func __JCR_LIST__[] __section(".jcr") __used = {
+	(crt_func)0
+};
 
 static void
 __do_global_ctors_aux(void)

@@ -37,14 +37,6 @@
 extern "C" {
 #endif
 
-/* Alignment requirement for value written to RX WPTR:
- *  the WPTR must be aligned to an 8 descriptor boundary
- *
- * FIXME: Is this the same on Medford as Huntington?
- */
-#define	MEDFORD_RX_WPTR_ALIGN	8
-
-
 
 #ifndef	ER_EZ_TX_PIOBUF_SIZE
 #define	ER_EZ_TX_PIOBUF_SIZE	4096
