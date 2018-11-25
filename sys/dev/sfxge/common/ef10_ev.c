@@ -466,7 +466,7 @@ ef10_ev_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
 	__in		uint32_t us,
 	__in		uint32_t flags,
@@ -480,7 +480,8 @@ ef10_ev_qcreate(
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MAXNEVS));
 	EFX_STATIC_ASSERT(ISP2(EFX_EVQ_MINNEVS));
 
-	if (!ISP2(n) || (n < EFX_EVQ_MINNEVS) || (n > EFX_EVQ_MAXNEVS)) {
+	if (!ISP2(ndescs) ||
+	    (ndescs < EFX_EVQ_MINNEVS) || (ndescs > EFX_EVQ_MAXNEVS)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -529,7 +530,8 @@ ef10_ev_qcreate(
 		 * it will choose the best settings for low latency, otherwise
 		 * it will choose the best settings for throughput.
 		 */
-		rc = efx_mcdi_init_evq_v2(enp, index, esmp, n, irq, us, flags);
+		rc = efx_mcdi_init_evq_v2(enp, index, esmp, ndescs, irq, us,
+		    flags);
 		if (rc != 0)
 			goto fail4;
 	} else {
@@ -545,7 +547,7 @@ ef10_ev_qcreate(
 		 * to choose it.)
 		 */
 		boolean_t low_latency = encp->enc_datapath_cap_evb ? 0 : 1;
-		rc = efx_mcdi_init_evq(enp, index, esmp, n, irq, us, flags,
+		rc = efx_mcdi_init_evq(enp, index, esmp, ndescs, irq, us, flags,
 		    low_latency);
 		if (rc != 0)
 			goto fail5;
@@ -576,7 +578,7 @@ ef10_ev_qdestroy(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 	    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	(void) efx_mcdi_fini_evq(eep->ee_enp, eep->ee_index);
+	(void) efx_mcdi_fini_evq(enp, eep->ee_index);
 }
 
 	__checkReturn	efx_rc_t
@@ -1347,9 +1349,11 @@ ef10_ev_rxlabel_init(
 	__in		efx_rxq_type_t type)
 {
 	efx_evq_rxq_state_t *eersp;
-	boolean_t packed_stream = (type >= EFX_RXQ_TYPE_PACKED_STREAM_1M) &&
-	    (type <= EFX_RXQ_TYPE_PACKED_STREAM_64K);
+#if EFSYS_OPT_RX_PACKED_STREAM
+	boolean_t packed_stream = (type == EFX_RXQ_TYPE_PACKED_STREAM);
+#endif
 
+	_NOTE(ARGUNUSED(type))
 	EFSYS_ASSERT3U(label, <, EFX_ARRAY_SIZE(eep->ee_rxq_state));
 	eersp = &eep->ee_rxq_state[label];
 
@@ -1387,8 +1391,6 @@ ef10_ev_rxlabel_init(
 		EFSYS_ASSERT3U(eersp->eers_rx_packed_stream_credits, <=,
 		    EFX_RX_PACKED_STREAM_MAX_CREDITS);
 	}
-#else
-	EFSYS_ASSERT(!packed_stream);
 #endif
 }
 

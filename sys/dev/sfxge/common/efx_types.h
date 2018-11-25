@@ -120,7 +120,8 @@ extern "C" {
 #define	EFX_DWORD_3_LBN 96
 #define	EFX_DWORD_3_WIDTH 32
 
-/* There are intentionally no EFX_QWORD_0 or EFX_QWORD_1 field definitions
+/*
+ * There are intentionally no EFX_QWORD_0 or EFX_QWORD_1 field definitions
  * here as the implementaion of EFX_QWORD_FIELD and EFX_OWORD_FIELD do not
  * support field widths larger than 32 bits.
  */

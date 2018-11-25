@@ -55,7 +55,7 @@ struct efx_mcdi_req_s {
 	unsigned int	emr_cmd;
 	uint8_t		*emr_in_buf;
 	size_t		emr_in_length;
-	/* Outputs: retcode, buffer, length, and length used*/
+	/* Outputs: retcode, buffer, length, and length used */
 	efx_rc_t	emr_rc;
 	uint8_t		*emr_out_buf;
 	size_t		emr_out_length;

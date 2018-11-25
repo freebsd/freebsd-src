@@ -226,8 +226,8 @@
 
 /* Support for PHY LED control */
 #if EFSYS_OPT_PHY_LED_CONTROL
-# if !EFSYS_OPT_SIENA
-#  error "PHY_LED_CONTROL requires SIENA"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "PHY_LED_CONTROL requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_PHY_LED_CONTROL */
 
@@ -261,8 +261,8 @@
 
 /* Support PHY statistics */
 #if EFSYS_OPT_PHY_STATS
-# if !EFSYS_OPT_SIENA
-#  error "PHY_STATS requires SIENA"
+# if !(EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD)
+#  error "PHY_STATS requires SIENA or HUNTINGTON or MEDFORD"
 # endif
 #endif /* EFSYS_OPT_PHY_STATS */
 

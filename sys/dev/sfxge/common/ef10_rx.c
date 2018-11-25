@@ -41,19 +41,20 @@ __FBSDID("$FreeBSD$");
 static	__checkReturn	efx_rc_t
 efx_mcdi_init_rxq(
 	__in		efx_nic_t *enp,
-	__in		uint32_t size,
+	__in		uint32_t ndescs,
 	__in		uint32_t target_evq,
 	__in		uint32_t label,
 	__in		uint32_t instance,
 	__in		efsys_mem_t *esmp,
 	__in		boolean_t disable_scatter,
+	__in		boolean_t want_inner_classes,
 	__in		uint32_t ps_bufsize)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_INIT_RXQ_EXT_IN_LEN,
 			    MC_CMD_INIT_RXQ_EXT_OUT_LEN)];
-	int npages = EFX_RXQ_NBUFS(size);
+	int npages = EFX_RXQ_NBUFS(ndescs);
 	int i;
 	efx_qword_t *dma_addr;
 	uint64_t addr;
@@ -61,16 +62,15 @@ efx_mcdi_init_rxq(
 	uint32_t dma_mode;
 	boolean_t want_outer_classes;
 
-	/* If this changes, then the payload size might need to change. */
-	EFSYS_ASSERT3U(MC_CMD_INIT_RXQ_OUT_LEN, ==, 0);
-	EFSYS_ASSERT3U(size, <=, EFX_RXQ_MAXNDESCS);
+	EFSYS_ASSERT3U(ndescs, <=, EFX_RXQ_MAXNDESCS);
 
 	if (ps_bufsize > 0)
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM;
 	else
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_SINGLE_PACKET;
 
-	if (encp->enc_tunnel_encapsulations_supported != 0) {
+	if (encp->enc_tunnel_encapsulations_supported != 0 &&
+	    !want_inner_classes) {
 		/*
 		 * WANT_OUTER_CLASSES can only be specified on hardware which
 		 * supports tunnel encapsulation offloads, even though it is
@@ -96,7 +96,7 @@ efx_mcdi_init_rxq(
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_INIT_RXQ_EXT_OUT_LEN;
 
-	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_SIZE, size);
+	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_SIZE, ndescs);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_TARGET_EVQ, target_evq);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_LABEL, label);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_INSTANCE, instance);
@@ -222,7 +222,13 @@ efx_mcdi_rss_context_alloc(
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_TYPE, context_type);
-	/* NUM_QUEUES is only used to validate indirection table offsets */
+
+	/*
+	 * For exclusive contexts, NUM_QUEUES is only used to validate
+	 * indirection table offsets.
+	 * For shared contexts, the provided context will spread traffic over
+	 * NUM_QUEUES many queues.
+	 */
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, num_queues);
 
 	efx_mcdi_execute(enp, &req);
@@ -740,19 +746,21 @@ ef10_rx_prefix_hash(
 #define	EFX_RXQ_PACKED_STREAM_FAKE_BUF_SIZE 32
 #endif
 
-			void
+				void
 ef10_rx_qpost(
-	__in		efx_rxq_t *erp,
-	__in_ecount(n)	efsys_dma_addr_t *addrp,
-	__in		size_t size,
-	__in		unsigned int n,
-	__in		unsigned int completed,
-	__in		unsigned int added)
+	__in			efx_rxq_t *erp,
+	__in_ecount(ndescs)	efsys_dma_addr_t *addrp,
+	__in			size_t size,
+	__in			unsigned int ndescs,
+	__in			unsigned int completed,
+	__in			unsigned int added)
 {
 	efx_qword_t qword;
 	unsigned int i;
 	unsigned int offset;
 	unsigned int id;
+
+	_NOTE(ARGUNUSED(completed))
 
 #if EFSYS_OPT_RX_PACKED_STREAM
 	/*
@@ -764,11 +772,11 @@ ef10_rx_qpost(
 #endif
 
 	/* The client driver must not overfill the queue */
-	EFSYS_ASSERT3U(added - completed + n, <=,
+	EFSYS_ASSERT3U(added - completed + ndescs, <=,
 	    EFX_RXQ_LIMIT(erp->er_mask + 1));
 
 	id = added & (erp->er_mask);
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < ndescs; i++) {
 		EFSYS_PROBE4(rx_post, unsigned int, erp->er_index,
 		    unsigned int, id, efsys_dma_addr_t, addrp[i],
 		    size_t, size);
@@ -945,18 +953,21 @@ ef10_rx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
+	__in		uint32_t type_data,
 	__in		efsys_mem_t *esmp,
-	__in		size_t n,
+	__in		size_t ndescs,
 	__in		uint32_t id,
+	__in		unsigned int flags,
 	__in		efx_evq_t *eep,
 	__in		efx_rxq_t *erp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_rc_t rc;
 	boolean_t disable_scatter;
+	boolean_t want_inner_classes;
 	unsigned int ps_buf_size;
 
-	_NOTE(ARGUNUSED(id, erp))
+	_NOTE(ARGUNUSED(id, erp, type_data))
 
 	EFX_STATIC_ASSERT(EFX_EV_RX_NLABELS == (1 << ESF_DZ_RX_QLABEL_WIDTH));
 	EFSYS_ASSERT3U(label, <, EFX_EV_RX_NLABELS);
@@ -965,7 +976,8 @@ ef10_rx_qcreate(
 	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MAXNDESCS));
 	EFX_STATIC_ASSERT(ISP2(EFX_RXQ_MINNDESCS));
 
-	if (!ISP2(n) || (n < EFX_RXQ_MINNDESCS) || (n > EFX_RXQ_MAXNDESCS)) {
+	if (!ISP2(ndescs) ||
+	    (ndescs < EFX_RXQ_MINNDESCS) || (ndescs > EFX_RXQ_MAXNDESCS)) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -976,29 +988,35 @@ ef10_rx_qcreate(
 
 	switch (type) {
 	case EFX_RXQ_TYPE_DEFAULT:
-	case EFX_RXQ_TYPE_SCATTER:
 		ps_buf_size = 0;
 		break;
 #if EFSYS_OPT_RX_PACKED_STREAM
-	case EFX_RXQ_TYPE_PACKED_STREAM_1M:
-		ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_1M;
-		break;
-	case EFX_RXQ_TYPE_PACKED_STREAM_512K:
-		ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_512K;
-		break;
-	case EFX_RXQ_TYPE_PACKED_STREAM_256K:
-		ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_256K;
-		break;
-	case EFX_RXQ_TYPE_PACKED_STREAM_128K:
-		ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_128K;
-		break;
-	case EFX_RXQ_TYPE_PACKED_STREAM_64K:
-		ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_64K;
+	case EFX_RXQ_TYPE_PACKED_STREAM:
+		switch (type_data) {
+		case EFX_RXQ_PACKED_STREAM_BUF_SIZE_1M:
+			ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_1M;
+			break;
+		case EFX_RXQ_PACKED_STREAM_BUF_SIZE_512K:
+			ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_512K;
+			break;
+		case EFX_RXQ_PACKED_STREAM_BUF_SIZE_256K:
+			ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_256K;
+			break;
+		case EFX_RXQ_PACKED_STREAM_BUF_SIZE_128K:
+			ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_128K;
+			break;
+		case EFX_RXQ_PACKED_STREAM_BUF_SIZE_64K:
+			ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_64K;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail3;
+		}
 		break;
 #endif /* EFSYS_OPT_RX_PACKED_STREAM */
 	default:
 		rc = ENOTSUP;
-		goto fail3;
+		goto fail4;
 	}
 
 #if EFSYS_OPT_RX_PACKED_STREAM
@@ -1006,13 +1024,13 @@ ef10_rx_qcreate(
 		/* Check if datapath firmware supports packed stream mode */
 		if (encp->enc_rx_packed_stream_supported == B_FALSE) {
 			rc = ENOTSUP;
-			goto fail4;
+			goto fail5;
 		}
 		/* Check if packed stream allows configurable buffer sizes */
-		if ((type != EFX_RXQ_TYPE_PACKED_STREAM_1M) &&
+		if ((ps_buf_size != MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_1M) &&
 		    (encp->enc_rx_var_packed_stream_supported == B_FALSE)) {
 			rc = ENOTSUP;
-			goto fail5;
+			goto fail6;
 		}
 	}
 #else /* EFSYS_OPT_RX_PACKED_STREAM */
@@ -1020,14 +1038,20 @@ ef10_rx_qcreate(
 #endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
 	/* Scatter can only be disabled if the firmware supports doing so */
-	if (type == EFX_RXQ_TYPE_SCATTER)
+	if (flags & EFX_RXQ_FLAG_SCATTER)
 		disable_scatter = B_FALSE;
 	else
 		disable_scatter = encp->enc_rx_disable_scatter_supported;
 
-	if ((rc = efx_mcdi_init_rxq(enp, n, eep->ee_index, label, index,
-		    esmp, disable_scatter, ps_buf_size)) != 0)
-		goto fail6;
+	if (flags & EFX_RXQ_FLAG_INNER_CLASSES)
+		want_inner_classes = B_TRUE;
+	else
+		want_inner_classes = B_FALSE;
+
+	if ((rc = efx_mcdi_init_rxq(enp, ndescs, eep->ee_index, label, index,
+		    esmp, disable_scatter, want_inner_classes,
+		    ps_buf_size)) != 0)
+		goto fail7;
 
 	erp->er_eep = eep;
 	erp->er_label = label;
@@ -1038,16 +1062,20 @@ ef10_rx_qcreate(
 
 	return (0);
 
+fail7:
+	EFSYS_PROBE(fail7);
+#if EFSYS_OPT_RX_PACKED_STREAM
 fail6:
 	EFSYS_PROBE(fail6);
-#if EFSYS_OPT_RX_PACKED_STREAM
 fail5:
 	EFSYS_PROBE(fail5);
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 fail4:
 	EFSYS_PROBE(fail4);
-#endif /* EFSYS_OPT_RX_PACKED_STREAM */
+#if EFSYS_OPT_RX_PACKED_STREAM
 fail3:
 	EFSYS_PROBE(fail3);
+#endif /* EFSYS_OPT_RX_PACKED_STREAM */
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:

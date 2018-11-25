@@ -675,6 +675,7 @@ ef10_nvram_buffer_validate(
 	int pos;
 	efx_rc_t rc;
 
+	_NOTE(ARGUNUSED(enp, partn))
 	EFX_STATIC_ASSERT(sizeof (*header) <= EF10_NVRAM_CHUNK);
 
 	if ((partn_data == NULL) || (partn_size == 0)) {
@@ -1284,6 +1285,8 @@ ef10_nvram_buf_read_tlv(
 	size_t length;
 	caddr_t value;
 	efx_rc_t rc;
+
+	_NOTE(ARGUNUSED(enp))
 
 	if ((seg_data == NULL) || (max_seg_size == 0)) {
 		rc = EINVAL;

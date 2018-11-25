@@ -181,7 +181,8 @@ medford_board_cfg(
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
 		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
 #if EFSYS_OPT_ALLOW_UNCONFIGURED_NIC
-		/* Disable static config checking for Medford NICs, ONLY
+		/*
+		 * Disable static config checking for Medford NICs, ONLY
 		 * for manufacturing test and setup at the factory, to
 		 * allow the static config to be installed.
 		 */
