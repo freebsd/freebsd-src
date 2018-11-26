@@ -384,7 +384,6 @@ stf_getsrcifa6(ifp)
 	struct ifnet *ifp;
 {
 	struct ifaddr *ia;
-	struct in_ifaddr *ia4;
 	struct sockaddr_in6 *sin6;
 	struct in_addr in;
 
@@ -397,10 +396,7 @@ stf_getsrcifa6(ifp)
 			continue;
 
 		bcopy(GET_V4(&sin6->sin6_addr), &in, sizeof(in));
-		LIST_FOREACH(ia4, INADDR_HASH(in.s_addr), ia_hash)
-			if (ia4->ia_addr.sin_addr.s_addr == in.s_addr)
-				break;
-		if (ia4 == NULL)
+		if (!in_localip(in))
 			continue;
 
 		ifa_ref(ia);
