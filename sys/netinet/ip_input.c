@@ -564,7 +564,7 @@ passin:
 	/*
 	 * Check for exact addresses in the hash bucket.
 	 */
-	/* IN_IFADDR_RLOCK(); */
+	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
 		/*
 		 * If the address matches, verify that the packet
@@ -574,11 +574,11 @@ passin:
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == ifp)) {
 			ifa_ref(&ia->ia_ifa);
-			/* IN_IFADDR_RUNLOCK(); */
+			IN_IFADDR_RUNLOCK();
 			goto ours;
 		}
 	}
-	/* IN_IFADDR_RUNLOCK(); */
+	IN_IFADDR_RUNLOCK();
 
 	/*
 	 * Check for broadcast addresses.
