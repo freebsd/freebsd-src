@@ -1812,7 +1812,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	/*
 	 * OK, now we're committed to doing something.
 	 */
-	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK);
+	xug = malloc(sizeof(*xug), M_TEMP, M_WAITOK | M_ZERO);
 	UNP_LINK_RLOCK();
 	gencnt = unp_gencnt;
 	n = unp_count;

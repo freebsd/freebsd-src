@@ -395,6 +395,9 @@ sctp_sysctl_handle_assoclist(SYSCTL_HANDLER_ARGS)
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_SYSCTL, EPERM);
 		return (EPERM);
 	}
+	memset(&xinpcb, 0, sizeof(xinpcb));
+	memset(&xstcb, 0, sizeof(xstcb));
+	memset(&xraddr, 0, sizeof(xraddr));
 	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
 		SCTP_INP_RLOCK(inp);
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
