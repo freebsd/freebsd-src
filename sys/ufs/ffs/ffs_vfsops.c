@@ -813,9 +813,6 @@ ffs_mountfs(devvp, mp, td)
 	if ((error = ffs_sbget(devvp, &fs, -1, M_UFSMNT, ffs_use_bread)) != 0)
 		goto out;
 	fs->fs_fmod = 0;
-	/* if we ran on a kernel without metadata check hashes, disable them */
-	if ((fs->fs_flags & FS_METACKHASH) == 0)
-		fs->fs_metackhash = 0;
 	/* none of these types of check-hashes are maintained by this kernel */
 	fs->fs_metackhash &= ~(CK_INODE | CK_INDIR | CK_DIR);
 	/* no support for any undefined flags */

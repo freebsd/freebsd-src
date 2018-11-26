@@ -276,6 +276,12 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	    fs->fs_bsize <= MAXBSIZE &&
 	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
 	    fs->fs_sbsize <= SBLOCKSIZE) {
+		/*
+		 * If the filesystem has been run on a kernel without
+		 * metadata check hashes, disable them.
+		 */
+		if ((fs->fs_flags & FS_METACKHASH) == 0)
+			fs->fs_metackhash = 0;
 		if (fs->fs_ckhash != (ckhash = ffs_calc_sbhash(fs))) {
 #ifdef _KERNEL
 			res = uprintf("Superblock check-hash failed: recorded "
