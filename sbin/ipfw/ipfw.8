@@ -4134,7 +4134,7 @@ For both incoming and outgoing frames while flowing through em0:
 .Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 via em0"
 .Pp
 Make sure you do not perform mirroring for already duplicated frames
-or kernel may hang as there is no safety net here.
+or kernel may hang as there is no safety net.
 .Ss DYNAMIC RULES
 In order to protect a site from flood attacks involving fake
 TCP packets, it is safer to use dynamic rules:
