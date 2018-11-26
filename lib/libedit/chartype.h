@@ -56,6 +56,7 @@
 
 #define ct_wctob             wctob
 #define ct_wctomb            wctomb
+#define ct_wcrtomb           wcrtomb
 #define ct_wctomb_reset      wctomb(0,0)
 #define ct_wcstombs          wcstombs
 #define ct_mbstowcs          mbstowcs
@@ -109,6 +110,7 @@ Width(wchar_t c)
 
 #define ct_wctob(w)          ((int)(w))
 #define ct_wctomb            error
+#define ct_wcrtomb           error
 #define ct_wctomb_reset
 #define ct_wcstombs(a, b, c)    (strncpy(a, b, c), strlen(a))
 #define ct_mbstowcs(a, b, c)    (strncpy(a, b, c), strlen(a))
