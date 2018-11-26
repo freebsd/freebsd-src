@@ -133,14 +133,17 @@
 #define HAVE_LCHFLAGS 1
 #define HAVE_LCHMOD 1
 #define HAVE_LCHOWN 1
+#define HAVE_LIBLZMA 1
 #define HAVE_LIBZ 1
 #define HAVE_LIMITS_H 1
 #define HAVE_LINK 1
+#define HAVE_LZMA_H 1
 #define HAVE_LOCALE_H 1
 #define HAVE_LOCALTIME_R 1
 #define HAVE_LONG_LONG_INT 1
 #define HAVE_LSTAT 1
 #define HAVE_LUTIMES 1
+#define HAVE_LZMA_STREAM_ENCODER_MT 1
 #define HAVE_MBRTOWC 1
 #define HAVE_MEMMOVE 1
 #define HAVE_MEMORY_H 1
