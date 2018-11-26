@@ -1047,10 +1047,13 @@ newroute(int argc, char **argv)
 			}
 			printf("\n");
 		}
+	}
 
-		fibnum = 0;
-		TAILQ_FOREACH(fl, &fibl_head, fl_next) {
-			if (fl->fl_error != 0) {
+	fibnum = 0;
+	TAILQ_FOREACH(fl, &fibl_head, fl_next) {
+		if (fl->fl_error != 0) {
+			error = 1;
+			if (!qflag) {
 				printf("%s %s %s", cmd, (nrflags & F_ISHOST)
 				    ? "host" : "net", dest);
 				if (*gateway)
@@ -1084,7 +1087,6 @@ newroute(int argc, char **argv)
 					break;
 				}
 				printf(": %s\n", errmsg);
-				error = 1;
 			}
 		}
 	}
