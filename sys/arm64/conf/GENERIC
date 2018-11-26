@@ -242,6 +242,11 @@ device		kbdmux
 
 device		vt_efifb
 
+# EVDEV support
+device		evdev			# input event device support
+options		EVDEV_SUPPORT		# evdev support in legacy drivers
+device		uinput			# install /dev/uinput cdev
+
 # Pseudo devices.
 device		crypto		# core crypto support
 device		loop		# Network loopback
