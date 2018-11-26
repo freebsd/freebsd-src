@@ -317,11 +317,12 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 	struct ip_fw_args args;
 	struct m_tag *mtag;
 
+	bzero(&args, sizeof(args));
+
+again:
 	/* fetch start point from rule, if any.  remove the tag if present. */
 	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
-	if (mtag == NULL) {
-		args.rule.slot = 0;
-	} else {
+	if (mtag != NULL) {
 		args.rule = *((struct ipfw_rule_ref *)(mtag+1));
 		m_tag_delete(*m0, mtag);
 		if (args.rule.info & IPFW_ONEPASS)
@@ -378,14 +379,27 @@ ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
 
 	case IP_FW_DUMMYNET:
 		ret = EACCES;
+		int dir2;
 
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
 
 		*m0 = NULL;
-		dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
-		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
+		dir2 = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+		ip_dn_io_ptr(&m, dir2 | PROTO_LAYER2, &args);
 		return 0;
+
+	case IP_FW_NGTEE:
+	case IP_FW_NETGRAPH:
+		if (ng_ipfw_input_p == NULL) {
+			ret = EACCES;
+			break; /* i.e. drop */
+		}
+		ret = ng_ipfw_input_p(m0, (dir == PFIL_IN) ? DIR_IN : DIR_OUT,
+			&args, (i == IP_FW_NGTEE) ? 1 : 0);
+		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
+			goto again;	/* continue with packet */
+		break;
 
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
