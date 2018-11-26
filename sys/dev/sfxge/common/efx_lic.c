@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #if EFSYS_OPT_LICENSING
 
 #include "ef10_tlv_layout.h"
+#if EFSYS_OPT_SIENA
+#include "efx_regs_mcdi_aoe.h"
+#endif
 
 #if EFSYS_OPT_SIENA | EFSYS_OPT_HUNTINGTON
 
