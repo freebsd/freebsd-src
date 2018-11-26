@@ -37,6 +37,7 @@ __RCSID("$NetBSD: chartype.c,v 1.23 2016/02/28 23:02:24 christos Exp $");
 __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -182,17 +183,13 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 protected size_t
 ct_enc_width(Char c)
 {
-	/* UTF-8 encoding specific values */
-	if (c < 0x80)
-		return 1;
-	else if (c < 0x0800)
-		return 2;
-	else if (c < 0x10000)
-		return 3;
-	else if (c < 0x110000)
-		return 4;
-	else
-		return 0; /* not a valid codepoint */
+	mbstate_t ps = (mbstate_t){{0}};
+	size_t len;
+	char cbuf[MB_LEN_MAX];
+	len = ct_wcrtomb(cbuf, c, &ps);
+	if (len == (size_t)-1)
+		return (0);
+	return (len);
 }
 
 protected ssize_t

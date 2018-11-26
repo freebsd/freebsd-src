@@ -99,10 +99,6 @@ el_init_fd(const char *prog, FILE *fin, FILE *fout, FILE *ferr,
          * Initialize all the modules. Order is important!!!
          */
 	el->el_flags = 0;
-	if (setlocale(LC_CTYPE, NULL) != NULL){
-		if (strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
-			el->el_flags |= CHARSET_IS_UTF8;
-	}
 
 	if (terminal_init(el) == -1) {
 		el_free(el->el_prog);
@@ -293,7 +289,7 @@ FUN(el,set)(EditLine *el, int op, ...)
 		void *ptr = va_arg(ap, void *);
 
 		rv = hist_set(el, func, ptr);
-		if (!(el->el_flags & CHARSET_IS_UTF8))
+		if (MB_CUR_MAX == 1)
 			el->el_flags &= ~NARROW_HISTORY;
 		break;
 	}
