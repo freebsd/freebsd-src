@@ -208,7 +208,6 @@ OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/ld
 OLD_FILES+=usr/share/man/man1/ld.1.gz
 .endif
-OLD_FILES+=usr/bin/ld.bfd
 OLD_FILES+=usr/bin/objdump
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.x
 OLD_FILES+=usr/libdata/ldscripts/armelf_fbsd.xbn
@@ -411,6 +410,9 @@ OLD_FILES+=usr/share/man/man7/as.7.gz
 OLD_FILES+=usr/share/man/man7/ld.7.gz
 OLD_FILES+=usr/share/man/man7/ldint.7.gz
 OLD_FILES+=usr/share/man/man7/binutils.7.gz
+.endif
+.if ${MK_BINUTILS} == no || ${MK_LLD_IS_LD} == yes
+OLD_FILES+=usr/bin/ld.bfd
 .endif
 
 .if ${MK_BLACKLIST} == no
