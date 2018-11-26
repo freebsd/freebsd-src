@@ -658,7 +658,8 @@ xen_intr_init(void *dummy __unused)
 		xen_intr_pirq_eoi_map_enabled = true;
 
 	intr_register_pic(&xen_intr_pic);
-	intr_register_pic(&xen_intr_pirq_pic);
+	if (xen_pv_domain() && xen_initial_domain())
+		intr_register_pic(&xen_intr_pirq_pic);
 
 	if (bootverbose)
 		printf("Xen interrupt system initialized\n");
