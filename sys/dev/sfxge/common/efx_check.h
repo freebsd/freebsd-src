@@ -346,4 +346,11 @@
 # endif
 #endif
 
+/* Support hardware assistance for tunnels */
+#if EFSYS_OPT_TUNNEL
+# if !EFSYS_OPT_MEDFORD
+#  error "TUNNEL requires MEDFORD"
+# endif
+#endif /* EFSYS_OPT_TUNNEL */
+
 #endif /* _SYS_EFX_CHECK_H */

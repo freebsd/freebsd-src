@@ -1079,11 +1079,19 @@ ef10_get_datapath_caps(
 	 * Check if firmware supports VXLAN and NVGRE tunnels.
 	 * The capability indicates Geneve protocol support as well.
 	 */
-	if (CAP_FLAG(flags, VXLAN_NVGRE))
+	if (CAP_FLAG(flags, VXLAN_NVGRE)) {
 		encp->enc_tunnel_encapsulations_supported =
 		    (1u << EFX_TUNNEL_PROTOCOL_VXLAN) |
 		    (1u << EFX_TUNNEL_PROTOCOL_GENEVE) |
 		    (1u << EFX_TUNNEL_PROTOCOL_NVGRE);
+
+		EFX_STATIC_ASSERT(EFX_TUNNEL_MAXNENTRIES ==
+		    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_ENTRIES_MAXNUM);
+		encp->enc_tunnel_config_udp_entries_max =
+		    EFX_TUNNEL_MAXNENTRIES;
+	} else {
+		encp->enc_tunnel_config_udp_entries_max = 0;
+	}
 
 #undef CAP_FLAG
 #undef CAP_FLAG2

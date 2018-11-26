@@ -438,6 +438,7 @@ dev/sfxge/common/efx_phy.c	optional	sfxge pci
 dev/sfxge/common/efx_port.c	optional	sfxge pci
 dev/sfxge/common/efx_rx.c	optional	sfxge pci
 dev/sfxge/common/efx_sram.c	optional	sfxge pci
+dev/sfxge/common/efx_tunnel.c	optional	sfxge pci
 dev/sfxge/common/efx_tx.c	optional	sfxge pci
 dev/sfxge/common/efx_vpd.c	optional	sfxge pci
 dev/sfxge/common/hunt_nic.c	optional	sfxge pci
