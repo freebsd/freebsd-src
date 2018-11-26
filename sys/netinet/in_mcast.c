@@ -1339,9 +1339,11 @@ inp_block_unblock_source(struct inpcb *inp, struct sockopt *sopt)
 		ssa->sin.sin_len = sizeof(struct sockaddr_in);
 		ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 
-		if (!in_nullhost(mreqs.imr_interface))
+		if (!in_nullhost(mreqs.imr_interface)) {
+			IN_IFADDR_RLOCK();
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
-
+			IN_IFADDR_RUNLOCK();
+		}
 		if (sopt->sopt_name == IP_BLOCK_SOURCE)
 			doblock = 1;
 
@@ -1836,7 +1838,6 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  *
  * Returns NULL if no ifp could be found.
  *
- * SMPng: TODO: Acquire the appropriate locks for INADDR_TO_IFP.
  * FUTURE: Implement IPv4 source-address selection.
  */
 static struct ifnet *
@@ -1851,7 +1852,9 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 
 	ifp = NULL;
 	if (!in_nullhost(ina)) {
+		IN_IFADDR_RLOCK();
 		INADDR_TO_IFP(ina, ifp);
+		IN_IFADDR_RUNLOCK();
 	} else {
 		struct route ro;
 
@@ -2247,9 +2250,11 @@ inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 		 * XXX NOTE WELL: The RFC 3678 API is preferred because
 		 * using an IPv4 address as a key is racy.
 		 */
-		if (!in_nullhost(mreqs.imr_interface))
+		if (!in_nullhost(mreqs.imr_interface)) {
+			IN_IFADDR_RLOCK();
 			INADDR_TO_IFP(mreqs.imr_interface, ifp);
-
+			IN_IFADDR_RUNLOCK();
+		}
 		CTR3(KTR_IGMPV3, "%s: imr_interface = %s, ifp = %p",
 		    __func__, inet_ntoa(mreqs.imr_interface), ifp);
 
@@ -2447,7 +2452,9 @@ inp_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 		if (in_nullhost(addr)) {
 			ifp = NULL;
 		} else {
+			IN_IFADDR_RLOCK();
 			INADDR_TO_IFP(addr, ifp);
+			IN_IFADDR_RUNLOCK();
 			if (ifp == NULL)
 				return (EADDRNOTAVAIL);
 		}
