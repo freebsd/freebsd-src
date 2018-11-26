@@ -8,7 +8,7 @@ SRCS=	biosacpi.c bioscd.c biosdisk.c biosmem.c biospnp.c \
 	biospci.c biossmap.c bootinfo.c bootinfo32.c bootinfo64.c \
 	comconsole.c devicename.c elf32_freebsd.c \
 	elf64_freebsd.c multiboot.c multiboot_tramp.S relocater_tramp.S \
-	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.s \
+	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.S \
 	smbios.c time.c vidconsole.c amd64_tramp.S spinconsole.c
 .PATH:	${ZFSSRC}
 SRCS+=  devicename_stubs.c
