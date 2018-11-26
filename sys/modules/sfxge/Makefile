@@ -20,7 +20,8 @@ SRCS+=	efx_nvram.c efx_phy.c efx_port.c efx_rx.c efx_sram.c efx_tunnel.c
 SRCS+=	efx_tx.c efx_vpd.c efx_filter.c efx_hash.c
 SRCS+=	efsys.h
 SRCS+=	efx.h efx_check.h efx_impl.h efx_mcdi.h efx_regs.h efx_regs_ef10.h
-SRCS+=	efx_regs_mcdi.h efx_regs_pci.h efx_types.h efx_phy_ids.h
+SRCS+=	efx_regs_mcdi.h efx_regs_mcdi_aoe.h efx_regs_pci.h efx_types.h
+SRCS+=	efx_phy_ids.h
 SRCS+=	ef10_tlv_layout.h
 
 SRCS+=	mcdi_mon.c mcdi_mon.h
