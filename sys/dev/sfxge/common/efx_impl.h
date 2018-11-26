@@ -78,6 +78,7 @@ extern "C" {
 #define	EFX_MOD_MON		0x00000400
 #define	EFX_MOD_FILTER		0x00001000
 #define	EFX_MOD_LIC		0x00002000
+#define	EFX_MOD_TUNNEL		0x00004000
 
 #define	EFX_RESET_PHY		0x00000001
 #define	EFX_RESET_RXQ_ERR	0x00000002
@@ -266,6 +267,12 @@ efx_filter_reconfigure(
 
 #endif /* EFSYS_OPT_FILTER */
 
+#if EFSYS_OPT_TUNNEL
+typedef struct efx_tunnel_ops_s {
+	boolean_t	(*eto_udp_encap_supported)(efx_nic_t *);
+	efx_rc_t	(*eto_reconfigure)(efx_nic_t *);
+} efx_tunnel_ops_t;
+#endif /* EFSYS_OPT_TUNNEL */
 
 typedef struct efx_port_s {
 	efx_mac_type_t		ep_mac_type;
@@ -428,6 +435,22 @@ siena_filter_tbl_clear(
 #endif	/* EFSYS_OPT_FILTER */
 
 #if EFSYS_OPT_MCDI
+
+#define	EFX_TUNNEL_MAXNENTRIES	(16)
+
+#if EFSYS_OPT_TUNNEL
+
+typedef struct efx_tunnel_udp_entry_s {
+	uint16_t			etue_port; /* host/cpu-endian */
+	uint16_t			etue_protocol;
+} efx_tunnel_udp_entry_t;
+
+typedef struct efx_tunnel_cfg_s {
+	efx_tunnel_udp_entry_t	etc_udp_entries[EFX_TUNNEL_MAXNENTRIES];
+	unsigned int		etc_udp_entries_num;
+} efx_tunnel_cfg_t;
+
+#endif /* EFSYS_OPT_TUNNEL */
 
 typedef struct efx_mcdi_ops_s {
 	efx_rc_t	(*emco_init)(efx_nic_t *, const efx_mcdi_transport_t *);
@@ -641,6 +664,10 @@ struct efx_nic_s {
 	efx_filter_t		en_filter;
 	const efx_filter_ops_t	*en_efop;
 #endif	/* EFSYS_OPT_FILTER */
+#if EFSYS_OPT_TUNNEL
+	efx_tunnel_cfg_t	en_tunnel_cfg;
+	const efx_tunnel_ops_t	*en_etop;
+#endif /* EFSYS_OPT_TUNNEL */
 #if EFSYS_OPT_MCDI
 	efx_mcdi_t		en_mcdi;
 #endif	/* EFSYS_OPT_MCDI */
