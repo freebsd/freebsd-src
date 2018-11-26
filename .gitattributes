@@ -3,5 +3,3 @@
 *.cpp  diff=cpp
 *.hpp  diff=cpp
 *.py   diff=python
-. svn-properties=svn:mime-type=sys/dev/sfxge/common/efx_regs_mcdi_aoe.h
-. svn-properties=svn:eol-style=sys/dev/sfxge/common/efx_regs_mcdi_aoe.h
