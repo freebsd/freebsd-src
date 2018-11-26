@@ -3282,7 +3282,7 @@ dev/usb/net/if_urndis.c		optional urndis
 dev/usb/net/ruephy.c		optional rue
 dev/usb/net/usb_ethernet.c	optional uether | aue | axe | axge | cdce | \
 					 cue | ipheth | kue | mos | rue | \
-					 smsc | udav | ure | urndis
+					 smsc | udav | ure | urndis | muge
 dev/usb/net/uhso.c		optional uhso
 #
 # USB WLAN drivers
