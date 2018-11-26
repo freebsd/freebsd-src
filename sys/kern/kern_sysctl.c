@@ -460,10 +460,10 @@ sysctl_unregister_oid(struct sysctl_oid *oidp)
 	int error;
 
 	SYSCTL_ASSERT_WLOCKED();
-	error = ENOENT;
 	if (oidp->oid_number == OID_AUTO) {
 		error = EINVAL;
 	} else {
+		error = ENOENT;
 		SLIST_FOREACH(p, oidp->oid_parent, oid_link) {
 			if (p == oidp) {
 				SLIST_REMOVE(oidp->oid_parent, oidp,
