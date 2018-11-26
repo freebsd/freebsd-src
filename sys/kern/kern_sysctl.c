@@ -565,8 +565,10 @@ sysctl_unregister_oid(struct sysctl_oid *oidp)
 	 * being unloaded afterwards.  It should not be a panic()
 	 * for normal use.
 	 */
-	if (error)
-		printf("%s: failed to unregister sysctl\n", __func__);
+	if (error) {
+		printf("%s: failed(%d) to unregister sysctl(%s)\n",
+		    __func__, error, oidp->oid_name);
+	}
 }
 
 /* Initialize a new context to keep track of dynamically added sysctls. */
