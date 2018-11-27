@@ -1,7 +1,7 @@
 .\" This file is distributed under the University of Illinois Open Source
 .\" License.
 .\"
-.Dd November 26, 2018
+.Dd November 27, 2018
 .Dt LLVM-OBJDUMP 1
 .Os
 .Sh NAME
@@ -118,8 +118,6 @@ Dump the raw binary contents of the clang AST section.
 Display mach-o rebasing info.
 .It Fl -reverse-iterate
 Reverse iterate.
-.It Fl -rng-seed Ns = Ns Ar seed
-Seed for the random number generator.
 .It Fl s
 Display the content of each section.
 .It Fl -section Ns = Ns Ar section
@@ -133,18 +131,11 @@ Implies disassmble object.
 .It Fl -start-address Ns = Ns Ar address
 Disassemble beginning at
 .Ar address .
-.It Fl -stats
-Enable statistics output from program.
-Available with Asserts builds.
-.It Fl -stats-json
-Display statistics as json data.
 .It Fl -stop-address Ns = Ns Ar address
 Stop disassembly at
 .Ar address .
 .It Fl t
 Display the symbol table.
-.It Fl -time-passes
-Time each pass, printing elapsed time for each on exit
 .It Fl -triple Ns = Ns Ar triple
 Target triple to disassemble for.
 See
