@@ -188,12 +188,12 @@ test_kevent_signal_oneshot(void)
 void
 test_evfilt_signal()
 {
-	kqfd = kqueue();
-        test_kevent_signal_add();
-        test_kevent_signal_del();
-        test_kevent_signal_get();
-        test_kevent_signal_disable();
-        test_kevent_signal_enable();
-        test_kevent_signal_oneshot();
-	close(kqfd);
+    kqfd = kqueue();
+    test_kevent_signal_add();
+    test_kevent_signal_del();
+    test_kevent_signal_get();
+    test_kevent_signal_disable();
+    test_kevent_signal_enable();
+    test_kevent_signal_oneshot();
+    close(kqfd);
 }
