@@ -30,6 +30,7 @@ ${PACKAGE}FILES+=		redirection-error5.0
 ${PACKAGE}FILES+=		redirection-error6.0
 ${PACKAGE}FILES+=		redirection-error7.0
 ${PACKAGE}FILES+=		redirection-error8.0
+${PACKAGE}FILES+=		script-error1.0
 ${PACKAGE}FILES+=		write-error1.0
 
 .include <bsd.test.mk>
