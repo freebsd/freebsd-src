@@ -589,7 +589,6 @@ efx_mac_stats_get_mask(
 	((_mask)[(_stat) / EFX_MAC_STATS_MASK_BITS_PER_PAGE] &	\
 	    (1ULL << ((_stat) & (EFX_MAC_STATS_MASK_BITS_PER_PAGE - 1))))
 
-#define	EFX_MAC_STATS_SIZE 0x400
 
 extern	__checkReturn			efx_rc_t
 efx_mac_stats_clear(
@@ -598,8 +597,8 @@ efx_mac_stats_clear(
 /*
  * Upload mac statistics supported by the hardware into the given buffer.
  *
- * The reference buffer must be at least %EFX_MAC_STATS_SIZE bytes,
- * and page aligned.
+ * The DMA buffer must be 4Kbyte aligned and sized to hold at least
+ * efx_nic_cfg_t::enc_mac_stats_nstats 64bit counters.
  *
  * The hardware will only DMA statistics that it understands (of course).
  * Drivers should not make any assumptions about which statistics are
