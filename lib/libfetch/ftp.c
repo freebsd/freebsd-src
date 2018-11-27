@@ -1104,7 +1104,8 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 	int oflag;
 
 	/* check if we should use HTTP instead */
-	if (purl && strcasecmp(purl->scheme, SCHEME_HTTP) == 0) {
+	if (purl && (strcasecmp(purl->scheme, SCHEME_HTTP) == 0 ||
+	    strcasecmp(purl->scheme, SCHEME_HTTPS) == 0)) {
 		if (strcmp(op, "STAT") == 0)
 			return (http_request(url, "HEAD", us, purl, flags));
 		else if (strcmp(op, "RETR") == 0)
