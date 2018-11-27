@@ -1627,6 +1627,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		if (!strcmp(verb, "bootcode")) {
 			ctlreq = G_PART_CTL_BOOTCODE;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_BOOTCODE;
+			oparms |= G_PART_PARM_SKIP_DSN;
 		}
 		break;
 	case 'c':
@@ -1744,6 +1745,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 				parm = G_PART_PARM_SIZE;
 			else if (!strcmp(ap->name, "start"))
 				parm = G_PART_PARM_START;
+			else if (!strcmp(ap->name, "skip_dsn"))
+				parm = G_PART_PARM_SKIP_DSN;
 			break;
 		case 't':
 			if (!strcmp(ap->name, "type"))
@@ -1803,6 +1806,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			break;
 		case G_PART_PARM_SIZE:
 			error = g_part_parm_quad(req, ap->name, &gpp.gpp_size);
+			break;
+		case G_PART_PARM_SKIP_DSN:
+			error = g_part_parm_uint32(req, ap->name,
+			    &gpp.gpp_skip_dsn);
 			break;
 		case G_PART_PARM_START:
 			error = g_part_parm_quad(req, ap->name,
