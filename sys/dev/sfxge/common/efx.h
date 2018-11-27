@@ -1260,6 +1260,8 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_max_pcie_link_gen;
 	/* Firmware verifies integrity of NVRAM updates */
 	uint32_t		enc_nvram_update_verify_result_supported;
+	/* Firmware support for extended MAC_STATS buffer */
+	uint32_t		enc_mac_stats_nstats;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
