@@ -69,10 +69,15 @@ efx_mcdi_init_txq(
 	EFSYS_ASSERT(EFX_TXQ_MAX_BUFS >=
 	    EFX_TXQ_NBUFS(enp->en_nic_cfg.enc_txq_max_ndescs));
 
+	if ((esmp == NULL) || (EFSYS_MEM_SIZE(esmp) < EFX_TXQ_SIZE(ndescs))) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
 	npages = EFX_TXQ_NBUFS(ndescs);
 	if (MC_CMD_INIT_TXQ_IN_LEN(npages) > sizeof (payload)) {
 		rc = EINVAL;
-		goto fail1;
+		goto fail2;
 	}
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -121,11 +126,13 @@ efx_mcdi_init_txq(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail2;
+		goto fail3;
 	}
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:

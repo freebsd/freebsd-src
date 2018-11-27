@@ -392,7 +392,17 @@ typedef struct efsys_mem_s {
 	bus_dmamap_t		esm_map;
 	caddr_t			esm_base;
 	efsys_dma_addr_t	esm_addr;
+	size_t			esm_size;
 } efsys_mem_t;
+
+#define	EFSYS_MEM_SIZE(_esmp)						\
+	((_esmp)->esm_size)
+
+#define	EFSYS_MEM_ADDR(_esmp)						\
+	((_esmp)->esm_addr)
+
+#define	EFSYS_MEM_IS_NULL(_esmp)					\
+	((_esmp)->esm_base == NULL)
 
 
 #define	EFSYS_MEM_ZERO(_esmp, _size)					\
@@ -616,12 +626,6 @@ typedef struct efsys_mem_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 #endif
-
-#define	EFSYS_MEM_ADDR(_esmp)						\
-	((_esmp)->esm_addr)
-
-#define	EFSYS_MEM_IS_NULL(_esmp)					\
-	((_esmp)->esm_base == NULL)
 
 /* BAR */
 

@@ -64,6 +64,11 @@ efx_mcdi_init_rxq(
 
 	EFSYS_ASSERT3U(ndescs, <=, EFX_RXQ_MAXNDESCS);
 
+	if ((esmp == NULL) || (EFSYS_MEM_SIZE(esmp) < EFX_RXQ_SIZE(ndescs))) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
 	if (ps_bufsize > 0)
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM;
 	else
@@ -130,11 +135,13 @@ efx_mcdi_init_rxq(
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail1;
+		goto fail2;
 	}
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
