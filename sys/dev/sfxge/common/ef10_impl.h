@@ -1171,6 +1171,11 @@ efx_mcdi_get_clock(
 
 
 extern	__checkReturn	efx_rc_t
+efx_mcdi_get_rxdp_config(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *end_paddingp);
+
+extern	__checkReturn	efx_rc_t
 efx_mcdi_get_vector_cfg(
 	__in		efx_nic_t *enp,
 	__out_opt	uint32_t *vec_basep,

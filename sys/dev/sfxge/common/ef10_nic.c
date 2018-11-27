@@ -451,6 +451,64 @@ fail1:
 }
 
 	__checkReturn	efx_rc_t
+efx_mcdi_get_rxdp_config(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *end_paddingp)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_RXDP_CONFIG_IN_LEN,
+			    MC_CMD_GET_RXDP_CONFIG_OUT_LEN)];
+	uint32_t end_padding;
+	efx_rc_t rc;
+
+	memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_RXDP_CONFIG;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_RXDP_CONFIG_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_RXDP_CONFIG_OUT_LEN;
+
+	efx_mcdi_execute(enp, &req);
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
+				    GET_RXDP_CONFIG_OUT_PAD_HOST_DMA) == 0) {
+		/* RX DMA end padding is disabled */
+		end_padding = 0;
+	} else {
+		switch (MCDI_OUT_DWORD_FIELD(req, GET_RXDP_CONFIG_OUT_DATA,
+					    GET_RXDP_CONFIG_OUT_PAD_HOST_LEN)) {
+		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_64:
+			end_padding = 64;
+			break;
+		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_128:
+			end_padding = 128;
+			break;
+		case MC_CMD_SET_RXDP_CONFIG_IN_PAD_HOST_256:
+			end_padding = 256;
+			break;
+		default:
+			rc = ENOTSUP;
+			goto fail2;
+		}
+	}
+
+	*end_paddingp = end_padding;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	efx_rc_t
 efx_mcdi_get_vector_cfg(
 	__in		efx_nic_t *enp,
 	__out_opt	uint32_t *vec_basep,
