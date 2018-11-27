@@ -238,19 +238,25 @@ efx_bootcfg_copy_sector(
 	size_t used_bytes;
 	efx_rc_t rc;
 
+	/* Minimum buffer is checksum byte and DHCP_END terminator */
+	if (data_size < 2) {
+		rc = ENOSPC;
+		goto fail1;
+	}
+
 	/* Verify that the area is correctly formatted and checksummed */
 	rc = efx_bootcfg_verify(enp, sector, sector_length,
 				    &used_bytes);
 
 	if (!handle_format_errors) {
 		if (rc != 0)
-			goto fail1;
+			goto fail2;
 
 		if ((used_bytes < 2) ||
 		    (sector[used_bytes - 1] != DHCP_END)) {
 			/* Block too short, or DHCP_END missing */
 			rc = ENOENT;
-			goto fail2;
+			goto fail3;
 		}
 	}
 
@@ -284,9 +290,13 @@ efx_bootcfg_copy_sector(
 	 */
 	if (used_bytes > data_size) {
 		rc = ENOSPC;
-		goto fail3;
+		goto fail4;
 	}
-	memcpy(data, sector, used_bytes);
+
+	data[0] = 0; /* checksum, updated below */
+
+	/* Copy all after the checksum to the target buffer */
+	memcpy(data + 1, sector + 1, used_bytes - 1);
 
 	/* Zero out the unused portion of the target buffer */
 	if (used_bytes < data_size)
@@ -300,6 +310,8 @@ efx_bootcfg_copy_sector(
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
@@ -324,6 +336,12 @@ efx_bootcfg_read(
 	efx_rc_t rc;
 	uint32_t sector_number;
 
+	/* Minimum buffer is checksum byte and DHCP_END terminator */
+	if (size < 2) {
+		rc = ENOSPC;
+		goto fail1;
+	}
+
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 	sector_number = enp->en_nic_cfg.enc_pf;
 #else
@@ -331,13 +349,18 @@ efx_bootcfg_read(
 #endif
 	rc = efx_nvram_size(enp, EFX_NVRAM_BOOTROM_CFG, &partn_length);
 	if (rc != 0)
-		goto fail1;
+		goto fail2;
 
 	/* The bootcfg sector may be stored in a (larger) shared partition */
 	rc = efx_bootcfg_sector_info(enp, sector_number,
 	    NULL, &sector_offset, &sector_length);
 	if (rc != 0)
-		goto fail2;
+		goto fail3;
+
+	if (sector_length < 2) {
+		rc = EINVAL;
+		goto fail4;
+	}
 
 	if (sector_length > BOOTCFG_MAX_SIZE)
 		sector_length = BOOTCFG_MAX_SIZE;
@@ -345,7 +368,7 @@ efx_bootcfg_read(
 	if (sector_offset + sector_length > partn_length) {
 		/* Partition is too small */
 		rc = EFBIG;
-		goto fail3;
+		goto fail5;
 	}
 
 	/*
@@ -358,28 +381,28 @@ efx_bootcfg_read(
 		EFSYS_KMEM_ALLOC(enp->en_esip, sector_length, payload);
 		if (payload == NULL) {
 			rc = ENOMEM;
-			goto fail4;
+			goto fail6;
 		}
 	} else
 		payload = (uint8_t *)data;
 
 	if ((rc = efx_nvram_rw_start(enp, EFX_NVRAM_BOOTROM_CFG, NULL)) != 0)
-		goto fail5;
+		goto fail7;
 
 	if ((rc = efx_nvram_read_chunk(enp, EFX_NVRAM_BOOTROM_CFG,
 	    sector_offset, (caddr_t)payload, sector_length)) != 0) {
 		(void) efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG, NULL);
-		goto fail6;
+		goto fail8;
 	}
 
 	if ((rc = efx_nvram_rw_finish(enp, EFX_NVRAM_BOOTROM_CFG, NULL)) != 0)
-		goto fail7;
+		goto fail9;
 
 	/* Verify that the area is correctly formatted and checksummed */
 	rc = efx_bootcfg_verify(enp, payload, sector_length,
 	    &used_bytes);
 	if (rc != 0 || used_bytes == 0) {
-		payload[0] = (uint8_t)(~DHCP_END & 0xff);
+		payload[0] = 0;
 		payload[1] = DHCP_END;
 		used_bytes = 2;
 	}
@@ -394,10 +417,8 @@ efx_bootcfg_read(
 	 * so reinitialise the sector if there isn't room for the character.
 	 */
 	if (payload[used_bytes - 1] != DHCP_END) {
-		if (used_bytes + 1 > sector_length) {
-			payload[0] = 0;
+		if (used_bytes >= sector_length)
 			used_bytes = 1;
-		}
 
 		payload[used_bytes] = DHCP_END;
 		++used_bytes;
@@ -409,10 +430,14 @@ efx_bootcfg_read(
 	 */
 	if (used_bytes > size) {
 		rc = ENOSPC;
-		goto fail8;
+		goto fail10;
 	}
+
+	data[0] = 0; /* checksum, updated below */
+
 	if (sector_length > size) {
-		memcpy(data, payload, used_bytes);
+		/* Copy all after the checksum to the target buffer */
+		memcpy(data + 1, payload + 1, used_bytes - 1);
 		EFSYS_KMEM_FREE(enp->en_esip, sector_length, payload);
 	}
 
@@ -428,16 +453,20 @@ efx_bootcfg_read(
 
 	return (0);
 
+fail10:
+	EFSYS_PROBE(fail10);
+fail9:
+	EFSYS_PROBE(fail9);
 fail8:
 	EFSYS_PROBE(fail8);
 fail7:
 	EFSYS_PROBE(fail7);
+	if (sector_length > size)
+		EFSYS_KMEM_FREE(enp->en_esip, sector_length, payload);
 fail6:
 	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
-	if (sector_length > size)
-		EFSYS_KMEM_FREE(enp->en_esip, sector_length, payload);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
