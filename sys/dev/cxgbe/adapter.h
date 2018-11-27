@@ -82,6 +82,8 @@ prefetch(void *x)
 #define CTLTYPE_U64 CTLTYPE_QUAD
 #endif
 
+SYSCTL_DECL(_hw_cxgbe);
+
 struct adapter;
 typedef struct adapter adapter_t;
 
