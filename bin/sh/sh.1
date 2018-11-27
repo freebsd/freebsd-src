@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2018
+.Dd November 27, 2018
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2819,7 +2819,11 @@ Shell database.
 Privileged shell profile.
 .El
 .Sh EXIT STATUS
-Errors that are detected by the shell, such as a syntax error, will
+If the
+.Ar script
+cannot be found, the exit status will be 127;
+if it cannot be opened for another reason, the exit status will be 126.
+Other errors that are detected by the shell, such as a syntax error, will
 cause the shell to exit with a non-zero exit status.
 If the shell is not an interactive shell, the execution of the shell
 file will be aborted.
