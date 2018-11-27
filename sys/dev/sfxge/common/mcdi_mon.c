@@ -504,6 +504,11 @@ mcdi_mon_cfg_build(
 		encp->enc_mon_type = EFX_MON_SFC92X0;
 		break;
 #endif
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		encp->enc_mon_type = EFX_MON_SFC92X0;
+		break;
+#endif
 	default:
 		rc = EINVAL;
 		goto fail1;
