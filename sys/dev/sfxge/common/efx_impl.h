@@ -149,6 +149,8 @@ typedef struct efx_tx_ops_s {
 						efx_desc_t *, int);
 	void		(*etxo_qdesc_vlantci_create)(efx_txq_t *, uint16_t,
 						efx_desc_t *);
+	void		(*etxo_qdesc_checksum_create)(efx_txq_t *, uint16_t,
+						efx_desc_t *);
 #if EFSYS_OPT_QSTATS
 	void		(*etxo_qstats_update)(efx_txq_t *,
 					      efsys_stat_t *);
