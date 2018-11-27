@@ -176,8 +176,17 @@ ef10_phy_link_ev(
 	case MCDI_EVENT_LINKCHANGE_SPEED_10G:
 		speed = 10000;
 		break;
+	case MCDI_EVENT_LINKCHANGE_SPEED_25G:
+		speed = 25000;
+		break;
 	case MCDI_EVENT_LINKCHANGE_SPEED_40G:
 		speed = 40000;
+		break;
+	case MCDI_EVENT_LINKCHANGE_SPEED_50G:
+		speed = 50000;
+		break;
+	case MCDI_EVENT_LINKCHANGE_SPEED_100G:
+		speed = 100000;
 		break;
 	default:
 		speed = 0;
