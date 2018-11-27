@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181127	p5	FreeBSD-SA-18:13.nfs
+			FreeBSD-EN-18:13.icmp
+			FreeBSD-EN-18:14.tzdata
+			FreeBSD-EN-18:15.loader
+
+	Fix multiple vulnerabilities in NFS server code. [SA-18:13.nfs]
+
+	Fix ICMP buffer underwrite. [EN-18:13.icmp]
+
+	Timezone database information update. [EN-18:14.tzdata]
+
+	Fix deferred kernel loading breaks loader password. [EN-18:15.loader]
+
 20180927	p4	FreeBSD-EN-18:09.ip
 			FreeBSD-EN-18:10.syscall
 			FreeBSD-EN-18:11.listen
