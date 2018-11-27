@@ -97,6 +97,24 @@ efx_family(
 			return (0);
 #endif /* EFSYS_OPT_MEDFORD */
 
+#if EFSYS_OPT_MEDFORD2
+		case EFX_PCI_DEVID_MEDFORD2_PF_UNINIT:
+			/*
+			 * Hardware default for PF0 of uninitialised Medford2.
+			 * manftest must be able to cope with this device id.
+			 */
+			*efp = EFX_FAMILY_MEDFORD2;
+			return (0);
+
+		case EFX_PCI_DEVID_MEDFORD2:
+			*efp = EFX_FAMILY_MEDFORD2;
+			return (0);
+
+		case EFX_PCI_DEVID_MEDFORD2_VF:
+			*efp = EFX_FAMILY_MEDFORD2;
+			return (0);
+#endif /* EFSYS_OPT_MEDFORD2 */
+
 		case EFX_PCI_DEVID_FALCON:	/* Obsolete, not supported */
 		default:
 			break;
@@ -163,6 +181,25 @@ static const efx_nic_ops_t	__efx_nic_medford_ops = {
 };
 
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+
+static const efx_nic_ops_t	__efx_nic_medford2_ops = {
+	ef10_nic_probe,			/* eno_probe */
+	medford2_board_cfg,		/* eno_board_cfg */
+	ef10_nic_set_drv_limits,	/* eno_set_drv_limits */
+	ef10_nic_reset,			/* eno_reset */
+	ef10_nic_init,			/* eno_init */
+	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
+	ef10_nic_get_bar_region,	/* eno_get_bar_region */
+#if EFSYS_OPT_DIAG
+	ef10_nic_register_test,		/* eno_register_test */
+#endif	/* EFSYS_OPT_DIAG */
+	ef10_nic_fini,			/* eno_fini */
+	ef10_nic_unprobe,		/* eno_unprobe */
+};
+
+#endif	/* EFSYS_OPT_MEDFORD2 */
 
 
 	__checkReturn	efx_rc_t
@@ -241,6 +278,22 @@ efx_nic_create(
 		    EFX_FEATURE_PACKED_STREAM;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		enp->en_enop = &__efx_nic_medford2_ops;
+		enp->en_features =
+		    EFX_FEATURE_IPV6 |
+		    EFX_FEATURE_LINK_EVENTS |
+		    EFX_FEATURE_PERIODIC_MAC_STATS |
+		    EFX_FEATURE_MCDI |
+		    EFX_FEATURE_MAC_HEADER_FILTERS |
+		    EFX_FEATURE_MCDI_DMA |
+		    EFX_FEATURE_PIO_BUFFERS |
+		    EFX_FEATURE_FW_ASSISTED_TSO_V2 |
+		    EFX_FEATURE_PACKED_STREAM;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		rc = ENOTSUP;

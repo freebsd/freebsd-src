@@ -40,6 +40,9 @@ SRCS+=	hunt_impl.h
 SRCS+=	medford_nic.c
 SRCS+=	medford_impl.h
 
+SRCS+=	medford2_nic.c
+SRCS+=	medford2_impl.h
+
 # Extra debug checks
 #CFLAGS += -DDEBUG=1
 
