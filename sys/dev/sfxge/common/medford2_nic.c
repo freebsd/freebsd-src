@@ -91,12 +91,21 @@ medford2_board_cfg(
 	uint32_t base, nvec;
 	uint32_t end_padding;
 	uint32_t bandwidth;
+	uint32_t vi_window_shift;
 	efx_rc_t rc;
 
 	/*
 	 * FIXME: Likely to be incomplete and incorrect.
 	 * Parts of this should be shared with Huntington.
 	 */
+
+	/* Medford2 has a variable VI window size (8K, 16K or 64K) */
+	if ((rc = ef10_get_vi_window_shift(enp, &vi_window_shift)) != 0)
+		goto fail1;
+
+	EFSYS_ASSERT3U(vi_window_shift, <=, EFX_VI_WINDOW_SHIFT_64K);
+	encp->enc_vi_window_shift = vi_window_shift;
+
 
 	if ((rc = efx_mcdi_get_port_assignment(enp, &port)) != 0)
 		goto fail1;

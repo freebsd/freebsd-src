@@ -952,6 +952,15 @@ struct efx_txq_s {
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
 
+/*
+ * Accessors for memory BAR non-VI tables.
+ *
+ * Code used on EF10 *must* use EFX_BAR_VI_*() macros for per-VI registers,
+ * to ensure the correct runtime VI window size is used on Medford2.
+ *
+ * Siena-only code may continue using EFX_BAR_TBL_*() macros for VI registers.
+ */
+
 #define	EFX_BAR_TBL_READD(_enp, _reg, _index, _edp, _lock)		\
 	do {								\
 		EFX_CHECK_REG((_enp), (_reg));				\
@@ -974,21 +983,6 @@ struct efx_txq_s {
 		    uint32_t, (_edp)->ed_u32[0]);			\
 		EFSYS_BAR_WRITED((_enp)->en_esbp,			\
 		    (_reg ## _OFST + ((_index) * _reg ## _STEP)),	\
-		    (_edp), (_lock));					\
-	_NOTE(CONSTANTCONDITION)					\
-	} while (B_FALSE)
-
-#define	EFX_BAR_TBL_WRITED2(_enp, _reg, _index, _edp, _lock)		\
-	do {								\
-		EFX_CHECK_REG((_enp), (_reg));				\
-		EFSYS_PROBE4(efx_bar_tbl_writed, const char *, #_reg,	\
-		    uint32_t, (_index),					\
-		    uint32_t, _reg ## _OFST,				\
-		    uint32_t, (_edp)->ed_u32[0]);			\
-		EFSYS_BAR_WRITED((_enp)->en_esbp,			\
-		    (_reg ## _OFST +					\
-		    (2 * sizeof (efx_dword_t)) +			\
-		    ((_index) * _reg ## _STEP)),			\
 		    (_edp), (_lock));					\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
@@ -1069,16 +1063,66 @@ struct efx_txq_s {
 	} while (B_FALSE)
 
 /*
- * Allow drivers to perform optimised 128-bit doorbell writes.
+ * Accessors for memory BAR per-VI registers.
+ *
+ * The VI window size is 8KB for Medford and all earlier controllers.
+ * For Medford2, the VI window size can be 8KB, 16KB or 64KB.
+ */
+
+#define	EFX_BAR_VI_READD(_enp, _reg, _index, _edp, _lock)		\
+	do {								\
+		EFX_CHECK_REG((_enp), (_reg));				\
+		EFSYS_BAR_READD((_enp)->en_esbp,			\
+		    ((_reg ## _OFST) +					\
+		    ((_index) << (_enp)->en_nic_cfg.enc_vi_window_shift)), \
+		    (_edp), (_lock));					\
+		EFSYS_PROBE4(efx_bar_vi_readd, const char *, #_reg,	\
+		    uint32_t, (_index),					\
+		    uint32_t, _reg ## _OFST,				\
+		    uint32_t, (_edp)->ed_u32[0]);			\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#define	EFX_BAR_VI_WRITED(_enp, _reg, _index, _edp, _lock)		\
+	do {								\
+		EFX_CHECK_REG((_enp), (_reg));				\
+		EFSYS_PROBE4(efx_bar_vi_writed, const char *, #_reg,	\
+		    uint32_t, (_index),					\
+		    uint32_t, _reg ## _OFST,				\
+		    uint32_t, (_edp)->ed_u32[0]);			\
+		EFSYS_BAR_WRITED((_enp)->en_esbp,			\
+		    ((_reg ## _OFST) +					\
+		    ((_index) << (_enp)->en_nic_cfg.enc_vi_window_shift)), \
+		    (_edp), (_lock));					\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+#define	EFX_BAR_VI_WRITED2(_enp, _reg, _index, _edp, _lock)		\
+	do {								\
+		EFX_CHECK_REG((_enp), (_reg));				\
+		EFSYS_PROBE4(efx_bar_vi_writed, const char *, #_reg,	\
+		    uint32_t, (_index),					\
+		    uint32_t, _reg ## _OFST,				\
+		    uint32_t, (_edp)->ed_u32[0]);			\
+		EFSYS_BAR_WRITED((_enp)->en_esbp,			\
+		    ((_reg ## _OFST) +					\
+		    (2 * sizeof (efx_dword_t)) +			\
+		    ((_index) << (_enp)->en_nic_cfg.enc_vi_window_shift)), \
+		    (_edp), (_lock));					\
+	_NOTE(CONSTANTCONDITION)					\
+	} while (B_FALSE)
+
+/*
+ * Allow drivers to perform optimised 128-bit VI doorbell writes.
  * The DMA descriptor pointers (RX_DESC_UPD and TX_DESC_UPD) are
  * special-cased in the BIU on the Falcon/Siena and EF10 architectures to avoid
  * the need for locking in the host, and are the only ones known to be safe to
  * use 128-bites write with.
  */
-#define	EFX_BAR_TBL_DOORBELL_WRITEO(_enp, _reg, _index, _eop)		\
+#define	EFX_BAR_VI_DOORBELL_WRITEO(_enp, _reg, _index, _eop)		\
 	do {								\
 		EFX_CHECK_REG((_enp), (_reg));				\
-		EFSYS_PROBE7(efx_bar_tbl_doorbell_writeo,		\
+		EFSYS_PROBE7(efx_bar_vi_doorbell_writeo,		\
 		    const char *, #_reg,				\
 		    uint32_t, (_index),					\
 		    uint32_t, _reg ## _OFST,				\
@@ -1087,7 +1131,8 @@ struct efx_txq_s {
 		    uint32_t, (_eop)->eo_u32[1],			\
 		    uint32_t, (_eop)->eo_u32[0]);			\
 		EFSYS_BAR_DOORBELL_WRITEO((_enp)->en_esbp,		\
-		    (_reg ## _OFST + ((_index) * _reg ## _STEP)),	\
+		    (_reg ## _OFST +					\
+		    ((_index) << (_enp)->en_nic_cfg.enc_vi_window_shift)), \
 		    (_eop));						\
 	_NOTE(CONSTANTCONDITION)					\
 	} while (B_FALSE)
