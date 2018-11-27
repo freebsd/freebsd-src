@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 	__checkReturn	efx_rc_t
 ef10_mac_poll(
@@ -383,7 +383,8 @@ ef10_mac_multicast_list_set(
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
-		    enp->en_family == EFX_FAMILY_MEDFORD);
+	    enp->en_family == EFX_FAMILY_MEDFORD ||
+	    enp->en_family == EFX_FAMILY_MEDFORD2);
 
 	if ((rc = emop->emo_reconfigure(enp)) != 0)
 		goto fail1;
@@ -897,4 +898,4 @@ ef10_mac_stats_update(
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
