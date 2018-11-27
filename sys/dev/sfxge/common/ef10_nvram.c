@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 #if EFSYS_OPT_VPD || EFSYS_OPT_NVRAM
 
@@ -2179,6 +2179,20 @@ static ef10_parttbl_entry_t medford_parttbl[] = {
 	PARTN_MAP_ENTRY(MUM_FIRMWARE,		ALL,	MUM_FIRMWARE),
 };
 
+static ef10_parttbl_entry_t medford2_parttbl[] = {
+	/*		partn			ports	nvtype */
+	PARTN_MAP_ENTRY(MC_FIRMWARE,		ALL,	MC_FIRMWARE),
+	PARTN_MAP_ENTRY(MC_FIRMWARE_BACKUP,	ALL,	MC_GOLDEN),
+	PARTN_MAP_ENTRY(EXPANSION_ROM,		ALL,	BOOTROM),
+	PARTN_MAP_ENTRY(EXPROM_CONFIG,		ALL,	BOOTROM_CFG),
+	PARTN_MAP_ENTRY(DYNAMIC_CONFIG,		ALL,	DYNAMIC_CFG),
+	PARTN_MAP_ENTRY(FPGA,			ALL,	FPGA),
+	PARTN_MAP_ENTRY(FPGA_BACKUP,		ALL,	FPGA_BACKUP),
+	PARTN_MAP_ENTRY(LICENSE,		ALL,	LICENSE),
+	PARTN_MAP_ENTRY(EXPANSION_UEFI,		ALL,	UEFIROM),
+	PARTN_MAP_ENTRY(MUM_FIRMWARE,		ALL,	MUM_FIRMWARE),
+};
+
 static	__checkReturn		efx_rc_t
 ef10_parttbl_get(
 	__in			efx_nic_t *enp,
@@ -2194,6 +2208,11 @@ ef10_parttbl_get(
 	case EFX_FAMILY_MEDFORD:
 		*parttblp = medford_parttbl;
 		*parttbl_rowsp = EFX_ARRAY_SIZE(medford_parttbl);
+		break;
+
+	case EFX_FAMILY_MEDFORD2:
+		*parttblp = medford2_parttbl;
+		*parttbl_rowsp = EFX_ARRAY_SIZE(medford2_parttbl);
 		break;
 
 	default:
@@ -2389,4 +2408,4 @@ fail1:
 
 #endif	/* EFSYS_OPT_NVRAM */
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
