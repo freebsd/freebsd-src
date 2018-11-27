@@ -52,7 +52,7 @@ extern "C" {
  */
 
 #define	ER_DZ_BIU_HW_REV_ID_REG_OFST 0x00000000
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_BIU_HW_REV_ID_REG_RESET 0xeb14face
 
 
@@ -66,7 +66,7 @@ extern "C" {
  */
 
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_OFST 0x00000010
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_STEP 4
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_ROWS 8
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_RESET 0x1111face
@@ -82,7 +82,7 @@ extern "C" {
  */
 
 #define	ER_DZ_BIU_INT_ISR_REG_OFST 0x00000090
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_BIU_INT_ISR_REG_RESET 0x0
 
 
@@ -96,7 +96,7 @@ extern "C" {
  */
 
 #define	ER_DZ_MC_DB_LWRD_REG_OFST 0x00000200
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_MC_DB_LWRD_REG_RESET 0x0
 
 
@@ -110,7 +110,7 @@ extern "C" {
  */
 
 #define	ER_DZ_MC_DB_HWRD_REG_OFST 0x00000204
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_MC_DB_HWRD_REG_RESET 0x0
 
 
@@ -124,7 +124,7 @@ extern "C" {
  */
 
 #define	ER_DZ_EVQ_RPTR_REG_OFST 0x00000400
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_EVQ_RPTR_REG_STEP 8192
 #define	ER_DZ_EVQ_RPTR_REG_ROWS 2048
 #define	ER_DZ_EVQ_RPTR_REG_RESET 0x0
@@ -137,12 +137,84 @@ extern "C" {
 
 
 /*
+ * EVQ_RPTR_REG_64K(32bit):
+ *
+ */
+
+#define	ER_FZ_EVQ_RPTR_REG_64K_OFST 0x00000400
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_EVQ_RPTR_REG_64K_STEP 65536
+#define	ER_FZ_EVQ_RPTR_REG_64K_ROWS 2048
+#define	ER_FZ_EVQ_RPTR_REG_64K_RESET 0x0
+
+
+#define	ERF_FZ_EVQ_RPTR_VLD_LBN 15
+#define	ERF_FZ_EVQ_RPTR_VLD_WIDTH 1
+#define	ERF_FZ_EVQ_RPTR_LBN 0
+#define	ERF_FZ_EVQ_RPTR_WIDTH 15
+
+
+/*
+ * EVQ_RPTR_REG_16K(32bit):
+ *
+ */
+
+#define	ER_FZ_EVQ_RPTR_REG_16K_OFST 0x00000400
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_EVQ_RPTR_REG_16K_STEP 16384
+#define	ER_FZ_EVQ_RPTR_REG_16K_ROWS 2048
+#define	ER_FZ_EVQ_RPTR_REG_16K_RESET 0x0
+
+
+/* defined as ERF_FZ_EVQ_RPTR_VLD_LBN 15; */
+/* defined as ERF_FZ_EVQ_RPTR_VLD_WIDTH 1 */
+/* defined as ERF_FZ_EVQ_RPTR_LBN 0; */
+/* defined as ERF_FZ_EVQ_RPTR_WIDTH 15 */
+
+
+/*
+ * EVQ_TMR_REG_64K(32bit):
+ *
+ */
+
+#define	ER_FZ_EVQ_TMR_REG_64K_OFST 0x00000420
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_EVQ_TMR_REG_64K_STEP 65536
+#define	ER_FZ_EVQ_TMR_REG_64K_ROWS 2048
+#define	ER_FZ_EVQ_TMR_REG_64K_RESET 0x0
+
+
+#define	ERF_FZ_TC_TIMER_MODE_LBN 14
+#define	ERF_FZ_TC_TIMER_MODE_WIDTH 2
+#define	ERF_FZ_TC_TIMER_VAL_LBN 0
+#define	ERF_FZ_TC_TIMER_VAL_WIDTH 14
+
+
+/*
+ * EVQ_TMR_REG_16K(32bit):
+ *
+ */
+
+#define	ER_FZ_EVQ_TMR_REG_16K_OFST 0x00000420
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_EVQ_TMR_REG_16K_STEP 16384
+#define	ER_FZ_EVQ_TMR_REG_16K_ROWS 2048
+#define	ER_FZ_EVQ_TMR_REG_16K_RESET 0x0
+
+
+/* defined as ERF_FZ_TC_TIMER_MODE_LBN 14; */
+/* defined as ERF_FZ_TC_TIMER_MODE_WIDTH 2 */
+/* defined as ERF_FZ_TC_TIMER_VAL_LBN 0; */
+/* defined as ERF_FZ_TC_TIMER_VAL_WIDTH 14 */
+
+
+/*
  * EVQ_TMR_REG(32bit):
  *
  */
 
 #define	ER_DZ_EVQ_TMR_REG_OFST 0x00000420
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_EVQ_TMR_REG_STEP 8192
 #define	ER_DZ_EVQ_TMR_REG_ROWS 2048
 #define	ER_DZ_EVQ_TMR_REG_RESET 0x0
@@ -155,12 +227,28 @@ extern "C" {
 
 
 /*
+ * RX_DESC_UPD_REG_16K(32bit):
+ *
+ */
+
+#define	ER_FZ_RX_DESC_UPD_REG_16K_OFST 0x00000830
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_RX_DESC_UPD_REG_16K_STEP 16384
+#define	ER_FZ_RX_DESC_UPD_REG_16K_ROWS 2048
+#define	ER_FZ_RX_DESC_UPD_REG_16K_RESET 0x0
+
+
+#define	ERF_FZ_RX_DESC_WPTR_LBN 0
+#define	ERF_FZ_RX_DESC_WPTR_WIDTH 12
+
+
+/*
  * RX_DESC_UPD_REG(32bit):
  *
  */
 
 #define	ER_DZ_RX_DESC_UPD_REG_OFST 0x00000830
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_RX_DESC_UPD_REG_STEP 8192
 #define	ER_DZ_RX_DESC_UPD_REG_ROWS 2048
 #define	ER_DZ_RX_DESC_UPD_REG_RESET 0x0
@@ -169,13 +257,74 @@ extern "C" {
 #define	ERF_DZ_RX_DESC_WPTR_LBN 0
 #define	ERF_DZ_RX_DESC_WPTR_WIDTH 12
 
+
+/*
+ * RX_DESC_UPD_REG_64K(32bit):
+ *
+ */
+
+#define	ER_FZ_RX_DESC_UPD_REG_64K_OFST 0x00000830
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_RX_DESC_UPD_REG_64K_STEP 65536
+#define	ER_FZ_RX_DESC_UPD_REG_64K_ROWS 2048
+#define	ER_FZ_RX_DESC_UPD_REG_64K_RESET 0x0
+
+
+/* defined as ERF_FZ_RX_DESC_WPTR_LBN 0; */
+/* defined as ERF_FZ_RX_DESC_WPTR_WIDTH 12 */
+
+
+/*
+ * TX_DESC_UPD_REG_64K(96bit):
+ *
+ */
+
+#define	ER_FZ_TX_DESC_UPD_REG_64K_OFST 0x00000a10
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_TX_DESC_UPD_REG_64K_STEP 65536
+#define	ER_FZ_TX_DESC_UPD_REG_64K_ROWS 2048
+#define	ER_FZ_TX_DESC_UPD_REG_64K_RESET 0x0
+
+
+#define	ERF_FZ_RSVD_LBN 76
+#define	ERF_FZ_RSVD_WIDTH 20
+#define	ERF_FZ_TX_DESC_WPTR_LBN 64
+#define	ERF_FZ_TX_DESC_WPTR_WIDTH 12
+#define	ERF_FZ_TX_DESC_HWORD_LBN 32
+#define	ERF_FZ_TX_DESC_HWORD_WIDTH 32
+#define	ERF_FZ_TX_DESC_LWORD_LBN 0
+#define	ERF_FZ_TX_DESC_LWORD_WIDTH 32
+
+
+/*
+ * TX_DESC_UPD_REG_16K(96bit):
+ *
+ */
+
+#define	ER_FZ_TX_DESC_UPD_REG_16K_OFST 0x00000a10
+/* medford2a0=pf_dbell_bar */
+#define	ER_FZ_TX_DESC_UPD_REG_16K_STEP 16384
+#define	ER_FZ_TX_DESC_UPD_REG_16K_ROWS 2048
+#define	ER_FZ_TX_DESC_UPD_REG_16K_RESET 0x0
+
+
+/* defined as ERF_FZ_RSVD_LBN 76; */
+/* defined as ERF_FZ_RSVD_WIDTH 20 */
+/* defined as ERF_FZ_TX_DESC_WPTR_LBN 64; */
+/* defined as ERF_FZ_TX_DESC_WPTR_WIDTH 12 */
+/* defined as ERF_FZ_TX_DESC_HWORD_LBN 32; */
+/* defined as ERF_FZ_TX_DESC_HWORD_WIDTH 32 */
+/* defined as ERF_FZ_TX_DESC_LWORD_LBN 0; */
+/* defined as ERF_FZ_TX_DESC_LWORD_WIDTH 32 */
+
+
 /*
  * TX_DESC_UPD_REG(96bit):
  *
  */
 
 #define	ER_DZ_TX_DESC_UPD_REG_OFST 0x00000a10
-/* hunta0,medforda0=pcie_pf_bar2 */
+/* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_TX_DESC_UPD_REG_STEP 8192
 #define	ER_DZ_TX_DESC_UPD_REG_ROWS 2048
 #define	ER_DZ_TX_DESC_UPD_REG_RESET 0x0
@@ -261,16 +410,24 @@ extern "C" {
 #define	ESF_DZ_RX_EV_SOFT2_WIDTH 2
 #define	ESF_DZ_RX_DSC_PTR_LBITS_LBN 48
 #define	ESF_DZ_RX_DSC_PTR_LBITS_WIDTH 4
-#define	ESF_DZ_RX_L4_CLASS_LBN 45
-#define	ESF_DZ_RX_L4_CLASS_WIDTH 3
-#define	ESE_DZ_L4_CLASS_RSVD7 7
-#define	ESE_DZ_L4_CLASS_RSVD6 6
-#define	ESE_DZ_L4_CLASS_RSVD5 5
-#define	ESE_DZ_L4_CLASS_RSVD4 4
-#define	ESE_DZ_L4_CLASS_RSVD3 3
-#define	ESE_DZ_L4_CLASS_UDP 2
-#define	ESE_DZ_L4_CLASS_TCP 1
-#define	ESE_DZ_L4_CLASS_UNKNOWN 0
+#define	ESF_DE_RX_L4_CLASS_LBN 45
+#define	ESF_DE_RX_L4_CLASS_WIDTH 3
+#define	ESE_DE_L4_CLASS_RSVD7 7
+#define	ESE_DE_L4_CLASS_RSVD6 6
+#define	ESE_DE_L4_CLASS_RSVD5 5
+#define	ESE_DE_L4_CLASS_RSVD4 4
+#define	ESE_DE_L4_CLASS_RSVD3 3
+#define	ESE_DE_L4_CLASS_UDP 2
+#define	ESE_DE_L4_CLASS_TCP 1
+#define	ESE_DE_L4_CLASS_UNKNOWN 0
+#define	ESF_FZ_RX_FASTPD_INDCTR_LBN 47
+#define	ESF_FZ_RX_FASTPD_INDCTR_WIDTH 1
+#define	ESF_FZ_RX_L4_CLASS_LBN 45
+#define	ESF_FZ_RX_L4_CLASS_WIDTH 2
+#define	ESE_FZ_L4_CLASS_RSVD3 3
+#define	ESE_FZ_L4_CLASS_UDP 2
+#define	ESE_FZ_L4_CLASS_TCP 1
+#define	ESE_FZ_L4_CLASS_UNKNOWN 0
 #define	ESF_DZ_RX_L3_CLASS_LBN 42
 #define	ESF_DZ_RX_L3_CLASS_WIDTH 3
 #define	ESE_DZ_L3_CLASS_RSVD7 7
@@ -447,6 +604,8 @@ extern "C" {
 #define	ESE_DZ_TX_OPTION_DESC_CRC_CSUM 0
 #define	ESF_DZ_TX_TSO_OPTION_TYPE_LBN 56
 #define	ESF_DZ_TX_TSO_OPTION_TYPE_WIDTH 4
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B 3
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A 2
 #define	ESE_DZ_TX_TSO_OPTION_DESC_ENCAP 1
 #define	ESE_DZ_TX_TSO_OPTION_DESC_NORMAL 0
 #define	ESF_DZ_TX_TSO_TCP_FLAGS_LBN 48
@@ -457,7 +616,7 @@ extern "C" {
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
 
 
-/* TX_TSO_FATSO2A_DESC */
+/* ES_TX_TSO_V2_DESC_A */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
 #define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
 #define	ESF_DZ_TX_OPTION_TYPE_LBN 60
@@ -477,7 +636,7 @@ extern "C" {
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
 
 
-/* TX_TSO_FATSO2B_DESC */
+/* ES_TX_TSO_V2_DESC_B */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
 #define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
 #define	ESF_DZ_TX_OPTION_TYPE_LBN 60
@@ -491,12 +650,10 @@ extern "C" {
 #define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A 2
 #define	ESE_DZ_TX_TSO_OPTION_DESC_ENCAP 1
 #define	ESE_DZ_TX_TSO_OPTION_DESC_NORMAL 0
-#define	ESF_DZ_TX_TSO_OUTER_IP_ID_LBN 16
-#define	ESF_DZ_TX_TSO_OUTER_IP_ID_WIDTH 16
 #define	ESF_DZ_TX_TSO_TCP_MSS_LBN 32
 #define	ESF_DZ_TX_TSO_TCP_MSS_WIDTH 16
-#define	ESF_DZ_TX_TSO_INNER_PE_CSUM_LBN 0
-#define	ESF_DZ_TX_TSO_INNER_PE_CSUM_WIDTH 16
+#define	ESF_DZ_TX_TSO_OUTER_IPID_LBN 0
+#define	ESF_DZ_TX_TSO_OUTER_IPID_WIDTH 16
 
 
 /* ES_TX_VLAN_DESC */
