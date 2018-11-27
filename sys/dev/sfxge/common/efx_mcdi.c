@@ -1844,10 +1844,12 @@ efx_mcdi_mac_stats(
 	    MAC_STATS_IN_PERIOD_MS, (enable | events) ? period_ms : 0);
 
 	if (esmp != NULL) {
-		int bytes = MC_CMD_MAC_NSTATS * sizeof (uint64_t);
+		uint32_t bytes = MC_CMD_MAC_NSTATS * sizeof (uint64_t);
 
 		EFX_STATIC_ASSERT(MC_CMD_MAC_NSTATS * sizeof (uint64_t) <=
 		    EFX_MAC_STATS_SIZE);
+
+		EFSYS_ASSERT3U(bytes, <=, (uint32_t)EFSYS_MEM_SIZE(esmp));
 
 		MCDI_IN_SET_DWORD(req, MAC_STATS_IN_DMA_ADDR_LO,
 			    EFSYS_MEM_ADDR(esmp) & 0xffffffff);
