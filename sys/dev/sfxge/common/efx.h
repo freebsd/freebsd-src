@@ -1115,6 +1115,13 @@ typedef enum efx_tunnel_protocol_e {
 	EFX_TUNNEL_NPROTOS
 } efx_tunnel_protocol_t;
 
+typedef enum efx_vi_window_shift_e {
+	EFX_VI_WINDOW_SHIFT_INVALID = 0,
+	EFX_VI_WINDOW_SHIFT_8K = 13,
+	EFX_VI_WINDOW_SHIFT_16K = 14,
+	EFX_VI_WINDOW_SHIFT_64K = 16,
+} efx_vi_window_shift_t;
+
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
 	uint32_t		enc_phy_type;
@@ -1128,6 +1135,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_mon_stat_mask[(EFX_MON_NSTATS + 31) / 32];
 #endif
 	unsigned int		enc_features;
+	efx_vi_window_shift_t	enc_vi_window_shift;
 	uint8_t			enc_mac_addr[6];
 	uint8_t			enc_port;	/* PHY port number */
 	uint32_t		enc_intr_vec_base;
