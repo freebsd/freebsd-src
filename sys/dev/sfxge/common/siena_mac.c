@@ -274,16 +274,28 @@ siena_mac_stats_update(
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
 	__inout_opt			uint32_t *generationp)
 {
-	efx_qword_t value;
+	const efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_qword_t generation_start;
 	efx_qword_t generation_end;
+	efx_qword_t value;
+	efx_rc_t rc;
 
-	_NOTE(ARGUNUSED(enp))
+	if (encp->enc_mac_stats_nstats < MC_CMD_MAC_NSTATS) {
+		/* MAC stats count too small */
+		rc = ENOSPC;
+		goto fail1;
+	}
+	if (EFSYS_MEM_SIZE(esmp) <
+	    (encp->enc_mac_stats_nstats * sizeof (efx_qword_t))) {
+		/* DMA buffer too small */
+		rc = ENOSPC;
+		goto fail2;
+	}
 
 	/* Read END first so we don't race with the MC */
-	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFX_MAC_STATS_SIZE);
-	SIENA_MAC_STAT_READ(esmp, MC_CMD_MAC_GENERATION_END,
-			    &generation_end);
+	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFSYS_MEM_SIZE(esmp));
+	SIENA_MAC_STAT_READ(esmp, (encp->enc_mac_stats_nstats - 1),
+	    &generation_end);
 	EFSYS_MEM_READ_BARRIER();
 
 	/* TX */
@@ -466,6 +478,13 @@ siena_mac_stats_update(
 		*generationp = EFX_QWORD_FIELD(generation_start, EFX_DWORD_0);
 
 	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_MAC_STATS */
