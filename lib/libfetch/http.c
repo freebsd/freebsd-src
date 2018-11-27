@@ -1408,7 +1408,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 		/* fetch_connect() has already set an error code */
 		return (NULL);
 	init_http_headerbuf(&headerbuf);
-	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 && purl) {
+	if (strcmp(URL->scheme, SCHEME_HTTPS) == 0 && purl) {
 		http_cmd(conn, "CONNECT %s:%d HTTP/1.1",
 		    URL->host, URL->port);
 		http_cmd(conn, "Host: %s:%d",
@@ -1436,7 +1436,7 @@ http_connect(struct url *URL, struct url *purl, const char *flags)
 			}
 		} while (h > hdr_end);
 	}
-	if (strcasecmp(URL->scheme, SCHEME_HTTPS) == 0 &&
+	if (strcmp(URL->scheme, SCHEME_HTTPS) == 0 &&
 	    fetch_ssl(conn, URL, verbose) == -1) {
 		/* grrr */
 		errno = EAUTH;
@@ -1473,7 +1473,7 @@ http_get_proxy(struct url * url, const char *flags)
 			strcpy(purl->scheme, SCHEME_HTTP);
 		if (!purl->port)
 			purl->port = fetch_default_proxy_port(purl->scheme);
-		if (strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
+		if (strcmp(purl->scheme, SCHEME_HTTP) == 0)
 			return (purl);
 		fetchFreeURL(purl);
 	}
@@ -1617,7 +1617,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if (verbose)
 			fetch_info("requesting %s://%s%s",
 			    url->scheme, host, url->doc);
-		if (purl && strcasecmp(URL->scheme, SCHEME_HTTPS) != 0) {
+		if (purl && strcmp(URL->scheme, SCHEME_HTTPS) != 0) {
 			http_cmd(conn, "%s %s://%s%s HTTP/1.1",
 			    op, url->scheme, host, url->doc);
 		} else {
