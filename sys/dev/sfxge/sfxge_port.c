@@ -896,7 +896,6 @@ sfxge_link_mode_to_phy_cap(efx_link_mode_t mode)
 	case EFX_LINK_40000FDX:
 		return (EFX_PHY_CAP_40000FDX);
 	default:
-		EFSYS_ASSERT(B_FALSE);
 		return (EFX_PHY_CAP_INVALID);
 	}
 }
