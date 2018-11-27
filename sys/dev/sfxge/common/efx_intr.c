@@ -318,6 +318,12 @@ siena_intr_init(
 {
 	efx_intr_t *eip = &(enp->en_intr);
 	efx_oword_t oword;
+	efx_rc_t rc;
+
+	if ((esmp == NULL) || (EFSYS_MEM_SIZE(esmp) < EFX_INTR_SIZE)) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	/*
 	 * bug17213 workaround.
@@ -349,6 +355,11 @@ siena_intr_init(
 	EFX_BAR_WRITEO(enp, FR_AZ_INT_ADR_REG_KER, &oword);
 
 	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 static			void
