@@ -1021,57 +1021,86 @@ ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint32_t flags;
-	uint32_t flags2;
-	uint32_t tso2nc;
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
+			    MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)];
 	efx_rc_t rc;
-
-	if ((rc = efx_mcdi_get_capabilities(enp, &flags, NULL, NULL,
-					    &flags2, &tso2nc)) != 0)
-		goto fail1;
 
 	if ((rc = ef10_mcdi_get_pf_count(enp, &encp->enc_hw_pf_count)) != 0)
 		goto fail1;
 
-#define	CAP_FLAG(flags1, field)		\
-	((flags1) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
 
-#define	CAP_FLAG2(flags2, field)	\
-	((flags2) & (1 << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## field ## _LBN)))
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_CAPABILITIES;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V2_OUT_LEN;
+
+	efx_mcdi_execute_quiet(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail2;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail3;
+	}
+
+#define	CAP_FLAGS1(_req, _flag)						\
+	(MCDI_OUT_DWORD((_req), GET_CAPABILITIES_OUT_FLAGS1) &		\
+	(1u << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## _flag ## _LBN)))
+
+#define	CAP_FLAGS2(_req, _flag)						\
+	(((_req).emr_out_length_used >= MC_CMD_GET_CAPABILITIES_V2_OUT_LEN) && \
+	    (MCDI_OUT_DWORD((_req), GET_CAPABILITIES_V2_OUT_FLAGS2) &	\
+	    (1u << (MC_CMD_GET_CAPABILITIES_V2_OUT_ ## _flag ## _LBN))))
 
 	/*
 	 * Huntington RXDP firmware inserts a 0 or 14 byte prefix.
 	 * We only support the 14 byte prefix here.
 	 */
-	if (CAP_FLAG(flags, RX_PREFIX_LEN_14) == 0) {
+	if (CAP_FLAGS1(req, RX_PREFIX_LEN_14) == 0) {
 		rc = ENOTSUP;
-		goto fail2;
+		goto fail4;
 	}
 	encp->enc_rx_prefix_size = 14;
 
 	/* Check if the firmware supports TSO */
-	encp->enc_fw_assisted_tso_enabled =
-	    CAP_FLAG(flags, TX_TSO) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, TX_TSO))
+		encp->enc_fw_assisted_tso_enabled = B_TRUE;
+	else
+		encp->enc_fw_assisted_tso_enabled = B_FALSE;
 
 	/* Check if the firmware supports FATSOv2 */
-	encp->enc_fw_assisted_tso_v2_enabled =
-	    CAP_FLAG2(flags2, TX_TSO_V2) ? B_TRUE : B_FALSE;
-
-	/* Get the number of TSO contexts (FATSOv2) */
-	encp->enc_fw_assisted_tso_v2_n_contexts =
-		CAP_FLAG2(flags2, TX_TSO_V2) ? tso2nc : 0;
+	if (CAP_FLAGS2(req, TX_TSO_V2)) {
+		encp->enc_fw_assisted_tso_v2_enabled = B_TRUE;
+		encp->enc_fw_assisted_tso_v2_n_contexts = MCDI_OUT_WORD(req,
+		    GET_CAPABILITIES_V2_OUT_TX_TSO_V2_N_CONTEXTS);
+	} else {
+		encp->enc_fw_assisted_tso_v2_enabled = B_FALSE;
+		encp->enc_fw_assisted_tso_v2_n_contexts = 0;
+	}
 
 	/* Check if the firmware has vadapter/vport/vswitch support */
-	encp->enc_datapath_cap_evb =
-	    CAP_FLAG(flags, EVB) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, EVB))
+		encp->enc_datapath_cap_evb = B_TRUE;
+	else
+		encp->enc_datapath_cap_evb = B_FALSE;
 
 	/* Check if the firmware supports VLAN insertion */
-	encp->enc_hw_tx_insert_vlan_enabled =
-	    CAP_FLAG(flags, TX_VLAN_INSERTION) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, TX_VLAN_INSERTION))
+		encp->enc_hw_tx_insert_vlan_enabled = B_TRUE;
+	else
+		encp->enc_hw_tx_insert_vlan_enabled = B_FALSE;
 
 	/* Check if the firmware supports RX event batching */
-	encp->enc_rx_batching_enabled =
-	    CAP_FLAG(flags, RX_BATCHING) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, RX_BATCHING))
+		encp->enc_rx_batching_enabled = B_TRUE;
+	else
+		encp->enc_rx_batching_enabled = B_FALSE;
 
 	/*
 	 * Even if batching isn't reported as supported, we may still get
@@ -1080,38 +1109,49 @@ ef10_get_datapath_caps(
 	encp->enc_rx_batch_max = 16;
 
 	/* Check if the firmware supports disabling scatter on RXQs */
-	encp->enc_rx_disable_scatter_supported =
-	    CAP_FLAG(flags, RX_DISABLE_SCATTER) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, RX_DISABLE_SCATTER))
+		encp->enc_rx_disable_scatter_supported = B_TRUE;
+	else
+		encp->enc_rx_disable_scatter_supported = B_FALSE;
 
 	/* Check if the firmware supports packed stream mode */
-	encp->enc_rx_packed_stream_supported =
-	    CAP_FLAG(flags, RX_PACKED_STREAM) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, RX_PACKED_STREAM))
+		encp->enc_rx_packed_stream_supported = B_TRUE;
+	else
+		encp->enc_rx_packed_stream_supported = B_FALSE;
 
 	/*
 	 * Check if the firmware supports configurable buffer sizes
 	 * for packed stream mode (otherwise buffer size is 1Mbyte)
 	 */
-	encp->enc_rx_var_packed_stream_supported =
-	    CAP_FLAG(flags, RX_PACKED_STREAM_VAR_BUFFERS) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, RX_PACKED_STREAM_VAR_BUFFERS))
+		encp->enc_rx_var_packed_stream_supported = B_TRUE;
+	else
+		encp->enc_rx_var_packed_stream_supported = B_FALSE;
 
 	/* Check if the firmware supports set mac with running filters */
-	encp->enc_allow_set_mac_with_installed_filters =
-	    CAP_FLAG(flags, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED) ?
-	    B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED))
+		encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
+	else
+		encp->enc_allow_set_mac_with_installed_filters = B_FALSE;
 
 	/*
 	 * Check if firmware supports the extended MC_CMD_SET_MAC, which allows
 	 * specifying which parameters to configure.
 	 */
-	encp->enc_enhanced_set_mac_supported =
-		CAP_FLAG(flags, SET_MAC_ENHANCED) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, SET_MAC_ENHANCED))
+		encp->enc_enhanced_set_mac_supported = B_TRUE;
+	else
+		encp->enc_enhanced_set_mac_supported = B_FALSE;
 
 	/*
 	 * Check if firmware supports version 2 of MC_CMD_INIT_EVQ, which allows
 	 * us to let the firmware choose the settings to use on an EVQ.
 	 */
-	encp->enc_init_evq_v2_supported =
-		CAP_FLAG2(flags2, INIT_EVQ_V2) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS2(req, INIT_EVQ_V2))
+		encp->enc_init_evq_v2_supported = B_TRUE;
+	else
+		encp->enc_init_evq_v2_supported = B_FALSE;
 
 	/*
 	 * Check if firmware-verified NVRAM updates must be used.
@@ -1121,29 +1161,34 @@ ef10_get_datapath_caps(
 	 * and version 2 of MC_CMD_NVRAM_UPDATE_FINISH (to verify the updated
 	 * partition and report the result).
 	 */
-	encp->enc_nvram_update_verify_result_supported =
-	    CAP_FLAG2(flags2, NVRAM_UPDATE_REPORT_VERIFY_RESULT) ?
-	    B_TRUE : B_FALSE;
+	if (CAP_FLAGS2(req, NVRAM_UPDATE_REPORT_VERIFY_RESULT))
+		encp->enc_nvram_update_verify_result_supported = B_TRUE;
+	else
+		encp->enc_nvram_update_verify_result_supported = B_FALSE;
 
 	/*
 	 * Check if firmware provides packet memory and Rx datapath
 	 * counters.
 	 */
-	encp->enc_pm_and_rxdp_counters =
-	    CAP_FLAG(flags, PM_AND_RXDP_COUNTERS) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS1(req, PM_AND_RXDP_COUNTERS))
+		encp->enc_pm_and_rxdp_counters = B_TRUE;
+	else
+		encp->enc_pm_and_rxdp_counters = B_FALSE;
 
 	/*
 	 * Check if the 40G MAC hardware is capable of reporting
 	 * statistics for Tx size bins.
 	 */
-	encp->enc_mac_stats_40g_tx_size_bins =
-	    CAP_FLAG2(flags2, MAC_STATS_40G_TX_SIZE_BINS) ? B_TRUE : B_FALSE;
+	if (CAP_FLAGS2(req, MAC_STATS_40G_TX_SIZE_BINS))
+		encp->enc_mac_stats_40g_tx_size_bins = B_TRUE;
+	else
+		encp->enc_mac_stats_40g_tx_size_bins = B_FALSE;
 
 	/*
 	 * Check if firmware supports VXLAN and NVGRE tunnels.
 	 * The capability indicates Geneve protocol support as well.
 	 */
-	if (CAP_FLAG(flags, VXLAN_NVGRE)) {
+	if (CAP_FLAGS1(req, VXLAN_NVGRE)) {
 		encp->enc_tunnel_encapsulations_supported =
 		    (1u << EFX_TUNNEL_PROTOCOL_VXLAN) |
 		    (1u << EFX_TUNNEL_PROTOCOL_GENEVE) |
@@ -1157,11 +1202,15 @@ ef10_get_datapath_caps(
 		encp->enc_tunnel_config_udp_entries_max = 0;
 	}
 
-#undef CAP_FLAG
-#undef CAP_FLAG2
+#undef CAP_FLAGS1
+#undef CAP_FLAGS2
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
