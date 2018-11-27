@@ -185,6 +185,8 @@ siena_board_cfg(
 
 	encp->enc_nvram_update_verify_result_supported = B_FALSE;
 
+	encp->enc_mac_stats_nstats = MC_CMD_MAC_NSTATS;
+
 	return (0);
 
 fail2:
