@@ -1617,7 +1617,7 @@ http_request_body(struct url *URL, const char *op, struct url_stat *us,
 		if (verbose)
 			fetch_info("requesting %s://%s%s",
 			    url->scheme, host, url->doc);
-		if (purl && strcmp(URL->scheme, SCHEME_HTTPS) != 0) {
+		if (purl && strcmp(url->scheme, SCHEME_HTTPS) != 0) {
 			http_cmd(conn, "%s %s://%s%s HTTP/1.1",
 			    op, url->scheme, host, url->doc);
 		} else {
