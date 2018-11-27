@@ -34,6 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/condvar.h>
 #include <sys/dirent.h>
@@ -44,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
-#include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/tree.h>
 #include <sys/vnode.h>
@@ -361,7 +361,6 @@ autofs_readdir_one(struct uio *uio, const char *name, int fileno,
 	padded_namlen = roundup2(namlen + 1, __alignof(struct dirent));
 	KASSERT(padded_namlen <= MAXNAMLEN, ("%zd > MAXNAMLEN", padded_namlen));
 	reclen = offsetof(struct dirent, d_name) + padded_namlen;
-
 	if (reclenp != NULL)
 		*reclenp = reclen;
 
@@ -376,7 +375,7 @@ autofs_readdir_one(struct uio *uio, const char *name, int fileno,
 	dirent.d_type = DT_DIR;
 	dirent.d_namlen = namlen;
 	memcpy(dirent.d_name, name, namlen);
-	memset(dirent.d_name + namlen, 0, padded_namlen - namlen);
+	dirent_terminate(&dirent);
 	error = uiomove(&dirent, reclen, uio);
 
 	return (error);

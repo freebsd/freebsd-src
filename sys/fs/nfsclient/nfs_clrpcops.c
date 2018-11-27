@@ -3036,6 +3036,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				tlen += 4;  /* To ensure null termination */
 			left = DIRBLKSIZ - blksiz;
 			if ((int)(tlen + DIRHDSIZ + NFSX_HYPER) > left) {
+				NFSBZERO(uio_iov_base(uiop), left);
 				dp->d_reclen += left;
 				uio_iov_base_add(uiop, left);
 				uio_iov_len_add(uiop, -(left));
@@ -3062,7 +3063,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 					goto nfsmout;
 				cp = CAST_DOWN(caddr_t, uio_iov_base(uiop));
 				tlen -= len;
-				*cp = '\0';	/* null terminate */
+				NFSBZERO(cp, tlen);
 				cp += tlen;	/* points to cookie storage */
 				tl2 = (u_int32_t *)cp;
 				uio_iov_base_add(uiop, (tlen + NFSX_HYPER));
@@ -3150,6 +3151,7 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	 */
 	if (blksiz > 0) {
 		left = DIRBLKSIZ - blksiz;
+		NFSBZERO(uio_iov_base(uiop), left);
 		dp->d_reclen += left;
 		uio_iov_base_add(uiop, left);
 		uio_iov_len_add(uiop, -(left));
@@ -3177,10 +3179,8 @@ nfsrpc_readdir(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	 */
 	while (uio_uio_resid(uiop) > 0 && ((size_t)(uio_uio_resid(uiop))) != tresid) {
 		dp = (struct dirent *) CAST_DOWN(caddr_t, uio_iov_base(uiop));
+		NFSBZERO(dp, DIRBLKSIZ);
 		dp->d_type = DT_UNKNOWN;
-		dp->d_fileno = 0;
-		dp->d_namlen = 0;
-		dp->d_name[0] = '\0';
 		tl = (u_int32_t *)&dp->d_name[4];
 		*tl++ = cookie.lval[0];
 		*tl = cookie.lval[1];
@@ -3444,6 +3444,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				tlen += 4;  /* To ensure null termination */
 			left = DIRBLKSIZ - blksiz;
 			if ((tlen + DIRHDSIZ + NFSX_HYPER) > left) {
+				NFSBZERO(uio_iov_base(uiop), left);
 				dp->d_reclen += left;
 				uio_iov_base_add(uiop, left);
 				uio_iov_len_add(uiop, -(left));
@@ -3473,7 +3474,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 					goto nfsmout;
 				cp = uio_iov_base(uiop);
 				tlen -= len;
-				*cp = '\0';
+				NFSBZERO(cp, tlen);
 				cp += tlen;	/* points to cookie storage */
 				tl2 = (u_int32_t *)cp;
 				if (len == 2 && cnp->cn_nameptr[0] == '.' &&
@@ -3643,6 +3644,7 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	 */
 	if (blksiz > 0) {
 		left = DIRBLKSIZ - blksiz;
+		NFSBZERO(uio_iov_base(uiop), left);
 		dp->d_reclen += left;
 		uio_iov_base_add(uiop, left);
 		uio_iov_len_add(uiop, -(left));
@@ -3670,10 +3672,8 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 	 */
 	while (uio_uio_resid(uiop) > 0 && uio_uio_resid(uiop) != tresid) {
 		dp = (struct dirent *)uio_iov_base(uiop);
+		NFSBZERO(dp, DIRBLKSIZ);
 		dp->d_type = DT_UNKNOWN;
-		dp->d_fileno = 0;
-		dp->d_namlen = 0;
-		dp->d_name[0] = '\0';
 		tl = (u_int32_t *)&dp->d_name[4];
 		*tl++ = cookie.lval[0];
 		*tl = cookie.lval[1];
