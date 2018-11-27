@@ -1461,6 +1461,10 @@ efx_mcdi_get_phy_cfg(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PHY_CFG_IN_LEN,
 			    MC_CMD_GET_PHY_CFG_OUT_LEN)];
+#if EFSYS_OPT_NAMES
+	const char *namep;
+	size_t namelen;
+#endif
 	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
@@ -1484,10 +1488,12 @@ efx_mcdi_get_phy_cfg(
 
 	encp->enc_phy_type = MCDI_OUT_DWORD(req, GET_PHY_CFG_OUT_TYPE);
 #if EFSYS_OPT_NAMES
-	(void) strncpy(encp->enc_phy_name,
-		MCDI_OUT2(req, char, GET_PHY_CFG_OUT_NAME),
-		MIN(sizeof (encp->enc_phy_name) - 1,
-		    MC_CMD_GET_PHY_CFG_OUT_NAME_LEN));
+	namep = MCDI_OUT2(req, char, GET_PHY_CFG_OUT_NAME);
+	namelen = MIN(sizeof (encp->enc_phy_name) - 1,
+		    strnlen(namep, MC_CMD_GET_PHY_CFG_OUT_NAME_LEN));
+	(void) memset(encp->enc_phy_name, 0,
+	    sizeof (encp->enc_phy_name));
+	memcpy(encp->enc_phy_name, namep, namelen);
 #endif	/* EFSYS_OPT_NAMES */
 	(void) memset(encp->enc_phy_revision, 0,
 	    sizeof (encp->enc_phy_revision));

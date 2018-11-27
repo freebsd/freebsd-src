@@ -1376,12 +1376,16 @@ ef10_nvram_partn_read_tlv(
 	 */
 	retry = 10;
 	do {
-		rc = ef10_nvram_read_tlv_segment(enp, partn, 0,
-		    seg_data, partn_size);
-	} while ((rc == EAGAIN) && (--retry > 0));
+		if ((rc = ef10_nvram_read_tlv_segment(enp, partn, 0,
+		    seg_data, partn_size)) != 0)
+			--retry;
+	} while ((rc == EAGAIN) && (retry > 0));
 
 	if (rc != 0) {
 		/* Failed to obtain consistent segment data */
+		if (rc == EAGAIN)
+			rc = EIO;
+
 		goto fail4;
 	}
 

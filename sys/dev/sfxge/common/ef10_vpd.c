@@ -163,19 +163,22 @@ ef10_vpd_read(
 		rc = ENOSPC;
 		goto fail2;
 	}
-	memcpy(data, dvpd, dvpd_size);
+	if (dvpd != NULL)
+		memcpy(data, dvpd, dvpd_size);
 
 	/* Pad data with all-1s, consistent with update operations */
 	memset(data + dvpd_size, 0xff, size - dvpd_size);
 
-	EFSYS_KMEM_FREE(enp->en_esip, dvpd_size, dvpd);
+	if (dvpd != NULL)
+		EFSYS_KMEM_FREE(enp->en_esip, dvpd_size, dvpd);
 
 	return (0);
 
 fail2:
 	EFSYS_PROBE(fail2);
 
-	EFSYS_KMEM_FREE(enp->en_esip, dvpd_size, dvpd);
+	if (dvpd != NULL)
+		EFSYS_KMEM_FREE(enp->en_esip, dvpd_size, dvpd);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 

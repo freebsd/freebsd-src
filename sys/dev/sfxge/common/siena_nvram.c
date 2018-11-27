@@ -333,15 +333,20 @@ siena_nvram_get_dynamic_cfg(
 	if ((rc = siena_nvram_partn_size(enp, partn, &size)) != 0)
 		goto fail1;
 
+	if (size < SIENA_NVRAM_CHUNK) {
+		rc = EINVAL;
+		goto fail2;
+	}
+
 	EFSYS_KMEM_ALLOC(enp->en_esip, size, dcfg);
 	if (dcfg == NULL) {
 		rc = ENOMEM;
-		goto fail2;
+		goto fail3;
 	}
 
 	if ((rc = siena_nvram_partn_read(enp, partn, 0,
 	    (caddr_t)dcfg, SIENA_NVRAM_CHUNK)) != 0)
-		goto fail3;
+		goto fail4;
 
 	/* Verify the magic */
 	if (EFX_DWORD_FIELD(dcfg->magic, EFX_DWORD_0)
@@ -376,7 +381,7 @@ siena_nvram_get_dynamic_cfg(
 		if ((rc = siena_nvram_partn_read(enp, partn, SIENA_NVRAM_CHUNK,
 		    (caddr_t)dcfg + SIENA_NVRAM_CHUNK,
 		    region - SIENA_NVRAM_CHUNK)) != 0)
-			goto fail4;
+			goto fail5;
 	}
 
 	/* Verify checksum */
@@ -418,13 +423,15 @@ done:
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
-fail3:
-	EFSYS_PROBE(fail3);
 
 	EFSYS_KMEM_FREE(enp->en_esip, size, dcfg);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:

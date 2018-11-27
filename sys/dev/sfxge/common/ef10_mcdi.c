@@ -215,13 +215,17 @@ ef10_mcdi_read_response(
 {
 	const efx_mcdi_transport_t *emtp = enp->en_mcdi.em_emtp;
 	efsys_mem_t *esmp = emtp->emt_dma_mem;
-	unsigned int pos;
+	unsigned int pos = 0;
 	efx_dword_t data;
+	size_t remaining = length;
 
-	for (pos = 0; pos < length; pos += sizeof (efx_dword_t)) {
+	while (remaining > 0) {
+		size_t chunk = MIN(remaining, sizeof (data));
+
 		EFSYS_MEM_READD(esmp, offset + pos, &data);
-		memcpy((uint8_t *)bufferp + pos, &data,
-		    MIN(sizeof (data), length - pos));
+		memcpy((uint8_t *)bufferp + pos, &data, chunk);
+		pos += chunk;
+		remaining -= chunk;
 	}
 }
 
