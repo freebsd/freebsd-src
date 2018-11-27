@@ -43,6 +43,26 @@ mcdi_phy_decode_cap(
 {
 	uint32_t mask;
 
+#define	CHECK_CAP(_cap) \
+	EFX_STATIC_ASSERT(EFX_PHY_CAP_##_cap == MC_CMD_PHY_CAP_##_cap##_LBN)
+
+	CHECK_CAP(10HDX);
+	CHECK_CAP(10FDX);
+	CHECK_CAP(100HDX);
+	CHECK_CAP(100FDX);
+	CHECK_CAP(1000HDX);
+	CHECK_CAP(1000FDX);
+	CHECK_CAP(10000FDX);
+	CHECK_CAP(25000FDX);
+	CHECK_CAP(40000FDX);
+	CHECK_CAP(50000FDX);
+	CHECK_CAP(100000FDX);
+	CHECK_CAP(PAUSE);
+	CHECK_CAP(ASYM);
+	CHECK_CAP(AN);
+	CHECK_CAP(DDM);
+#undef CHECK_CAP
+
 	mask = 0;
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_10HDX_LBN))
 		mask |= (1 << EFX_PHY_CAP_10HDX);
@@ -58,8 +78,15 @@ mcdi_phy_decode_cap(
 		mask |= (1 << EFX_PHY_CAP_1000FDX);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_10000FDX_LBN))
 		mask |= (1 << EFX_PHY_CAP_10000FDX);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_25000FDX_LBN))
+		mask |= (1 << EFX_PHY_CAP_25000FDX);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
 		mask |= (1 << EFX_PHY_CAP_40000FDX);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_50000FDX_LBN))
+		mask |= (1 << EFX_PHY_CAP_50000FDX);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_100000FDX_LBN))
+		mask |= (1 << EFX_PHY_CAP_100000FDX);
+
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_PAUSE_LBN))
 		mask |= (1 << EFX_PHY_CAP_PAUSE);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_ASYM_LBN))
@@ -88,8 +115,14 @@ mcdi_phy_decode_link_mode(
 
 	if (!up)
 		*link_modep = EFX_LINK_DOWN;
+	else if (speed == 100000 && fd)
+		*link_modep = EFX_LINK_100000FDX;
+	else if (speed == 50000 && fd)
+		*link_modep = EFX_LINK_50000FDX;
 	else if (speed == 40000 && fd)
 		*link_modep = EFX_LINK_40000FDX;
+	else if (speed == 25000 && fd)
+		*link_modep = EFX_LINK_25000FDX;
 	else if (speed == 10000 && fd)
 		*link_modep = EFX_LINK_10000FDX;
 	else if (speed == 1000)
@@ -300,7 +333,13 @@ ef10_phy_reconfigure(
 		PHY_CAP_AN, (cap_mask >> EFX_PHY_CAP_AN) & 0x1);
 	/* Too many fields for for POPULATE macros, so insert this afterwards */
 	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_25000FDX, (cap_mask >> EFX_PHY_CAP_25000FDX) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
 	    PHY_CAP_40000FDX, (cap_mask >> EFX_PHY_CAP_40000FDX) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_50000FDX, (cap_mask >> EFX_PHY_CAP_50000FDX) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_100000FDX, (cap_mask >> EFX_PHY_CAP_100000FDX) & 0x1);
 
 #if EFSYS_OPT_LOOPBACK
 	MCDI_IN_SET_DWORD(req, SET_LINK_IN_LOOPBACK_MODE,
@@ -315,8 +354,17 @@ ef10_phy_reconfigure(
 	case EFX_LINK_10000FDX:
 		speed = 10000;
 		break;
+	case EFX_LINK_25000FDX:
+		speed = 25000;
+		break;
 	case EFX_LINK_40000FDX:
 		speed = 40000;
+		break;
+	case EFX_LINK_50000FDX:
+		speed = 50000;
+		break;
+	case EFX_LINK_100000FDX:
+		speed = 100000;
 		break;
 	default:
 		speed = 0;
