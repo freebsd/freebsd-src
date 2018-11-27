@@ -753,6 +753,8 @@ sfxge_port_init(struct sfxge_softc *sc)
 	struct sysctl_ctx_list *sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	efsys_mem_t *mac_stats_buf, *phy_stats_buf;
+	uint32_t mac_nstats;
+	size_t mac_stats_size;
 	int rc;
 
 	port = &sc->port;
@@ -792,7 +794,9 @@ sfxge_port_init(struct sfxge_softc *sc)
 	DBGPRINT(sc->dev, "alloc MAC stats");
 	port->mac_stats.decode_buf = malloc(EFX_MAC_NSTATS * sizeof(uint64_t),
 					    M_SFXGE, M_WAITOK | M_ZERO);
-	if ((rc = sfxge_dma_alloc(sc, EFX_MAC_STATS_SIZE, mac_stats_buf)) != 0)
+	mac_nstats = efx_nic_cfg_get(sc->enp)->enc_mac_stats_nstats;
+	mac_stats_size = P2ROUNDUP(mac_nstats * sizeof(uint64_t), EFX_BUF_SIZE);
+	if ((rc = sfxge_dma_alloc(sc, mac_stats_size, mac_stats_buf)) != 0)
 		goto fail2;
 	port->stats_update_period_ms = sfxge_port_stats_update_period_ms(sc);
 	sfxge_mac_stat_init(sc);
