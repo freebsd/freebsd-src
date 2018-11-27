@@ -76,7 +76,8 @@ extern	__checkReturn	efx_rc_t
 efx_family(
 	__in		uint16_t venid,
 	__in		uint16_t devid,
-	__out		efx_family_t *efp);
+	__out		efx_family_t *efp,
+	__out		unsigned int *membarp);
 
 
 #define	EFX_PCI_VENID_SFC			0x1924
@@ -102,7 +103,17 @@ efx_family(
 #define	EFX_PCI_DEVID_MEDFORD2			0x0B03	/* SFC9250 PF */
 #define	EFX_PCI_DEVID_MEDFORD2_VF		0x1B03	/* SFC9250 VF */
 
-#define	EFX_MEM_BAR	2
+
+#define	EFX_MEM_BAR_SIENA			2
+
+#define	EFX_MEM_BAR_HUNTINGTON_PF		2
+#define	EFX_MEM_BAR_HUNTINGTON_VF		0
+
+#define	EFX_MEM_BAR_MEDFORD_PF			2
+#define	EFX_MEM_BAR_MEDFORD_VF			0
+
+#define	EFX_MEM_BAR_MEDFORD2			0
+
 
 /* Error codes */
 

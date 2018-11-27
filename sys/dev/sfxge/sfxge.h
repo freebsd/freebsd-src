@@ -280,6 +280,8 @@ struct sfxge_softc {
 	struct task			task_reset;
 
 	efx_family_t			family;
+	unsigned int			mem_bar;
+
 	caddr_t				vpd_data;
 	size_t				vpd_size;
 	efx_nic_t			*enp;
