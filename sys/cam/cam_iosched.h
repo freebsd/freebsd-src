@@ -101,6 +101,7 @@ void cam_iosched_clr_work_flags(struct cam_iosched_softc *isc, uint32_t flags);
 void cam_iosched_trim_done(struct cam_iosched_softc *isc);
 int cam_iosched_bio_complete(struct cam_iosched_softc *isc, struct bio *bp, union ccb *done_ccb);
 void cam_iosched_set_latfcn(struct cam_iosched_softc *isc, cam_iosched_latfcn_t, void *);
-
+void cam_iosched_set_trim_goal(struct cam_iosched_softc *isc, int goal);
+void cam_iosched_set_trim_ticks(struct cam_iosched_softc *isc, int ticks);
 #endif
 #endif
