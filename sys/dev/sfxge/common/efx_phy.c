@@ -214,6 +214,7 @@ efx_phy_adv_cap_get(
 		break;
 	default:
 		EFSYS_ASSERT(B_FALSE);
+		*maskp = 0;
 		break;
 	}
 }
