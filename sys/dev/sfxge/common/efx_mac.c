@@ -521,7 +521,7 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock c11b91b42f922516 */
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock 8726fc355b6e7c1a */
 static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
@@ -604,6 +604,12 @@ static const char * const __efx_mac_stat_name[] = {
 	"vadapter_tx_bad_packets",
 	"vadapter_tx_bad_bytes",
 	"vadapter_tx_overflow",
+	"fec_uncorrected_errors",
+	"fec_corrected_errors",
+	"fec_corrected_symbols_lane0",
+	"fec_corrected_symbols_lane1",
+	"fec_corrected_symbols_lane2",
+	"fec_corrected_symbols_lane3",
 };
 /* END MKCONFIG GENERATED EfxMacStatNamesBlock */
 
