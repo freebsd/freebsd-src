@@ -725,6 +725,9 @@ efx_loopback_mask(
 	LOOPBACK_CHECK(SD_FEP1_5_WS, SD_FEP1_5_WS);
 	LOOPBACK_CHECK(SD_FEP_WS, SD_FEP_WS);
 	LOOPBACK_CHECK(SD_FES_WS, SD_FES_WS);
+	LOOPBACK_CHECK(AOE_INT_NEAR, AOE_INT_NEAR);
+	LOOPBACK_CHECK(DATA_WS, DATA_WS);
+	LOOPBACK_CHECK(FORCE_EXT_LINK, FORCE_EXT_LINK);
 #undef LOOPBACK_CHECK
 
 	/* Build bitmask of possible loopback types */
@@ -783,7 +786,7 @@ efx_mcdi_get_loopback_modes(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_LOOPBACK_MODES_IN_LEN,
-			    MC_CMD_GET_LOOPBACK_MODES_OUT_LEN)];
+			    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_LEN)];
 	efx_qword_t mask;
 	efx_qword_t modes;
 	efx_rc_t rc;
@@ -793,7 +796,7 @@ efx_mcdi_get_loopback_modes(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_LOOPBACK_MODES_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_LOOPBACK_MODES_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_LOOPBACK_MODES_OUT_V2_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -834,10 +837,40 @@ efx_mcdi_get_loopback_modes(
 	    MC_CMD_GET_LOOPBACK_MODES_OUT_40G_OFST +
 	    MC_CMD_GET_LOOPBACK_MODES_OUT_40G_LEN) {
 		/* Response includes 40G loopback modes */
-		modes =
-		    *MCDI_OUT2(req, efx_qword_t, GET_LOOPBACK_MODES_OUT_40G);
+		modes = *MCDI_OUT2(req, efx_qword_t,
+		    GET_LOOPBACK_MODES_OUT_40G);
 		EFX_AND_QWORD(modes, mask);
 		encp->enc_loopback_types[EFX_LINK_40000FDX] = modes;
+	}
+
+	if (req.emr_out_length_used >=
+	    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_25G_OFST +
+	    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_25G_LEN) {
+		/* Response includes 25G loopback modes */
+		modes = *MCDI_OUT2(req, efx_qword_t,
+		    GET_LOOPBACK_MODES_OUT_V2_25G);
+		EFX_AND_QWORD(modes, mask);
+		encp->enc_loopback_types[EFX_LINK_25000FDX] = modes;
+	}
+
+	if (req.emr_out_length_used >=
+	    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_50G_OFST +
+	    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_50G_LEN) {
+		/* Response includes 50G loopback modes */
+		modes = *MCDI_OUT2(req, efx_qword_t,
+		    GET_LOOPBACK_MODES_OUT_V2_50G);
+		EFX_AND_QWORD(modes, mask);
+		encp->enc_loopback_types[EFX_LINK_50000FDX] = modes;
+	}
+
+	if (req.emr_out_length_used >=
+	    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100G_OFST +
+	    MC_CMD_GET_LOOPBACK_MODES_OUT_V2_100G_LEN) {
+		/* Response includes 100G loopback modes */
+		modes = *MCDI_OUT2(req, efx_qword_t,
+		    GET_LOOPBACK_MODES_OUT_V2_100G);
+		EFX_AND_QWORD(modes, mask);
+		encp->enc_loopback_types[EFX_LINK_100000FDX] = modes;
 	}
 
 	EFX_ZERO_QWORD(modes);
@@ -846,6 +879,9 @@ efx_mcdi_get_loopback_modes(
 	EFX_OR_QWORD(modes, encp->enc_loopback_types[EFX_LINK_1000FDX]);
 	EFX_OR_QWORD(modes, encp->enc_loopback_types[EFX_LINK_10000FDX]);
 	EFX_OR_QWORD(modes, encp->enc_loopback_types[EFX_LINK_40000FDX]);
+	EFX_OR_QWORD(modes, encp->enc_loopback_types[EFX_LINK_25000FDX]);
+	EFX_OR_QWORD(modes, encp->enc_loopback_types[EFX_LINK_50000FDX]);
+	EFX_OR_QWORD(modes, encp->enc_loopback_types[EFX_LINK_100000FDX]);
 	encp->enc_loopback_types[EFX_LINK_UNKNOWN] = modes;
 
 	return (0);
