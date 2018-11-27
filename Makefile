@@ -61,9 +61,10 @@
 # Most of the user-driven targets (as listed above) are implemented in
 # Makefile.inc1.  The exceptions are universe, tinderbox and targets.
 #
-# If you want to build your system from source be sure that /usr/obj has
-# at least 6GB of diskspace available.  A complete 'universe' build requires
-# about 100GB of space.
+# If you want to build your system from source, be sure that /usr/obj has
+# at least 6 GB of disk space available.  A complete 'universe' build of
+# r340283 (2018-11) required 167 GB of space.  ZFS lz4 compression
+# achieved a 2.18x ratio, reducing actual space to 81 GB.
 #
 # For individuals wanting to build from the sources currently on their
 # system, the simple instructions are:
