@@ -93,6 +93,7 @@ typedef enum efx_mac_type_e {
 	EFX_MAC_SIENA,
 	EFX_MAC_HUNTINGTON,
 	EFX_MAC_MEDFORD,
+	EFX_MAC_MEDFORD2,
 	EFX_MAC_NTYPES
 } efx_mac_type_t;
 
