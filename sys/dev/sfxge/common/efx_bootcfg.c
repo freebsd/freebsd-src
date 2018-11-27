@@ -97,6 +97,20 @@ efx_bootcfg_sector_info(
 	}
 #endif /* EFSYS_OPT_MEDFORD */
 
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2: {
+		/* Shared partition (array indexed by PF) */
+		max_size = BOOTCFG_PER_PF;
+		count = BOOTCFG_PF_COUNT;
+		if (pf >= count) {
+			rc = EINVAL;
+			goto fail3;
+		}
+		offset = max_size * pf;
+		break;
+	}
+#endif /* EFSYS_OPT_MEDFORD2 */
+
 	default:
 		EFSYS_ASSERT(0);
 		rc = ENOTSUP;
@@ -111,6 +125,10 @@ efx_bootcfg_sector_info(
 
 	return (0);
 
+#if EFSYS_OPT_MEDFORD2
+fail3:
+	EFSYS_PROBE(fail3);
+#endif
 #if EFSYS_OPT_MEDFORD
 fail2:
 	EFSYS_PROBE(fail2);
@@ -306,7 +324,7 @@ efx_bootcfg_read(
 	efx_rc_t rc;
 	uint32_t sector_number;
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 	sector_number = enp->en_nic_cfg.enc_pf;
 #else
 	sector_number = 0;
@@ -447,7 +465,7 @@ efx_bootcfg_write(
 	efx_rc_t rc;
 	uint32_t sector_number;
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 	sector_number = enp->en_nic_cfg.enc_pf;
 #else
 	sector_number = 0;
