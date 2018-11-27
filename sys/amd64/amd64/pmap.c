@@ -8441,9 +8441,10 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 			KASSERT((va & PDPMASK) == 0,
 			    ("PDPMASK bit set, va %#lx pdpe %#lx pdp %#lx", va,
 			    (u_long)pdpe, pdp));
-			KASSERT(len <= NBPDP,
-			    ("len < NBPDP, sva %#lx va %#lx pdpe %#lx pdp %#lx "
-			    "len %#lx", sva, va, (u_long)pdpe, pdp, len));
+			KASSERT(va + NBPDP <= sva + len,
+			    ("unmap covers partial 1GB page, sva %#lx va %#lx "
+			    "pdpe %#lx pdp %#lx len %#lx", sva, va,
+			    (u_long)pdpe, pdp, len));
 			*pdpe = 0;
 			inc = NBPDP;
 			continue;
@@ -8457,9 +8458,10 @@ pmap_large_unmap(void *svaa, vm_size_t len)
 			KASSERT((va & PDRMASK) == 0,
 			    ("PDRMASK bit set, va %#lx pde %#lx pd %#lx", va,
 			    (u_long)pde, pd));
-			KASSERT(len <= NBPDR,
-			    ("len < NBPDR, sva %#lx va %#lx pde %#lx pd %#lx "
-			    "len %#lx", sva, va, (u_long)pde, pd, len));
+			KASSERT(va + NBPDR <= sva + len,
+			    ("unmap covers partial 2MB page, sva %#lx va %#lx "
+			    "pde %#lx pd %#lx len %#lx", sva, va, (u_long)pde,
+			    pd, len));
 			pde_store(pde, 0);
 			inc = NBPDR;
 			m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)pde));
