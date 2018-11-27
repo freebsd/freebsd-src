@@ -36,11 +36,13 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
+
 	__checkReturn	efx_rc_t
 efx_family(
 	__in		uint16_t venid,
 	__in		uint16_t devid,
-	__out		efx_family_t *efp)
+	__out		efx_family_t *efp,
+	__out		unsigned int *membarp)
 {
 	if (venid == EFX_PCI_VENID_SFC) {
 		switch (devid) {
@@ -50,12 +52,10 @@ efx_family(
 			 * Hardware default for PF0 of uninitialised Siena.
 			 * manftest must be able to cope with this device id.
 			 */
-			*efp = EFX_FAMILY_SIENA;
-			return (0);
-
 		case EFX_PCI_DEVID_BETHPAGE:
 		case EFX_PCI_DEVID_SIENA:
 			*efp = EFX_FAMILY_SIENA;
+			*membarp = EFX_MEM_BAR_SIENA;
 			return (0);
 #endif /* EFSYS_OPT_SIENA */
 
@@ -65,17 +65,16 @@ efx_family(
 			 * Hardware default for PF0 of uninitialised Huntington.
 			 * manftest must be able to cope with this device id.
 			 */
-			*efp = EFX_FAMILY_HUNTINGTON;
-			return (0);
-
 		case EFX_PCI_DEVID_FARMINGDALE:
 		case EFX_PCI_DEVID_GREENPORT:
 			*efp = EFX_FAMILY_HUNTINGTON;
+			*membarp = EFX_MEM_BAR_HUNTINGTON_PF;
 			return (0);
 
 		case EFX_PCI_DEVID_FARMINGDALE_VF:
 		case EFX_PCI_DEVID_GREENPORT_VF:
 			*efp = EFX_FAMILY_HUNTINGTON;
+			*membarp = EFX_MEM_BAR_HUNTINGTON_VF;
 			return (0);
 #endif /* EFSYS_OPT_HUNTINGTON */
 
@@ -85,15 +84,14 @@ efx_family(
 			 * Hardware default for PF0 of uninitialised Medford.
 			 * manftest must be able to cope with this device id.
 			 */
-			*efp = EFX_FAMILY_MEDFORD;
-			return (0);
-
 		case EFX_PCI_DEVID_MEDFORD:
 			*efp = EFX_FAMILY_MEDFORD;
+			*membarp = EFX_MEM_BAR_MEDFORD_PF;
 			return (0);
 
 		case EFX_PCI_DEVID_MEDFORD_VF:
 			*efp = EFX_FAMILY_MEDFORD;
+			*membarp = EFX_MEM_BAR_MEDFORD_VF;
 			return (0);
 #endif /* EFSYS_OPT_MEDFORD */
 
@@ -103,15 +101,10 @@ efx_family(
 			 * Hardware default for PF0 of uninitialised Medford2.
 			 * manftest must be able to cope with this device id.
 			 */
-			*efp = EFX_FAMILY_MEDFORD2;
-			return (0);
-
 		case EFX_PCI_DEVID_MEDFORD2:
-			*efp = EFX_FAMILY_MEDFORD2;
-			return (0);
-
 		case EFX_PCI_DEVID_MEDFORD2_VF:
 			*efp = EFX_FAMILY_MEDFORD2;
+			*membarp = EFX_MEM_BAR_MEDFORD2;
 			return (0);
 #endif /* EFSYS_OPT_MEDFORD2 */
 
@@ -124,6 +117,7 @@ efx_family(
 	*efp = EFX_FAMILY_INVALID;
 	return (ENOTSUP);
 }
+
 
 #if EFSYS_OPT_SIENA
 
