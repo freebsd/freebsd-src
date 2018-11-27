@@ -59,7 +59,7 @@ static const efx_nvram_ops_t	__efx_nvram_siena_ops = {
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 static const efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 #if EFSYS_OPT_DIAG
@@ -78,7 +78,7 @@ static const efx_nvram_ops_t	__efx_nvram_ef10_ops = {
 	ef10_nvram_buffer_validate,	/* envo_buffer_validate */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn	efx_rc_t
 efx_nvram_init(
@@ -109,6 +109,12 @@ efx_nvram_init(
 		envop = &__efx_nvram_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		envop = &__efx_nvram_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		EFSYS_ASSERT(0);
