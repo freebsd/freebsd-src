@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2018
+.Dd November 27, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -582,6 +582,8 @@ memory subject to
 and resource limits.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
+.It Va allow.unprivileged_proc_debug
+Unprivileged processes in the jail may use debugging facilities.
 .El
 .El
 .Pp

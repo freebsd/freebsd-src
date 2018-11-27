@@ -194,10 +194,14 @@ static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 	{"allow.reserved_ports", "allow.noreserved_ports",
 	 PR_ALLOW_RESERVED_PORTS},
 	{"allow.read_msgbuf", "allow.noread_msgbuf", PR_ALLOW_READ_MSGBUF},
+	{"allow.unprivileged_proc_debug", "allow.nounprivileged_proc_debug",
+	 PR_ALLOW_UNPRIV_DEBUG},
 };
 const size_t pr_flag_allow_size = sizeof(pr_flag_allow);
 
-#define	JAIL_DEFAULT_ALLOW		(PR_ALLOW_SET_HOSTNAME | PR_ALLOW_RESERVED_PORTS)
+#define	JAIL_DEFAULT_ALLOW		(PR_ALLOW_SET_HOSTNAME | \
+					 PR_ALLOW_RESERVED_PORTS | \
+					 PR_ALLOW_UNPRIV_DEBUG)
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
 #define	JAIL_DEFAULT_DEVFS_RSNUM	0
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
@@ -498,6 +502,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	int ip6s, redo_ip6;
 #endif
 	uint64_t pr_allow, ch_allow, pr_flags, ch_flags;
+	uint64_t pr_allow_diff;
 	unsigned tallow;
 	char numbuf[12];
 
@@ -1530,7 +1535,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			}
 		}
 	}
-	if (pr_allow & ~ppr->pr_allow) {
+	pr_allow_diff = pr_allow & ~ppr->pr_allow;
+	if (pr_allow_diff & ~PR_ALLOW_DIFFERENCES) {
 		error = EPERM;
 		goto done_deref_locked;
 	}
@@ -3783,6 +3789,8 @@ SYSCTL_JAIL_PARAM(_allow, reserved_ports, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may bind sockets to reserved ports");
 SYSCTL_JAIL_PARAM(_allow, read_msgbuf, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may read the kernel message buffer");
+SYSCTL_JAIL_PARAM(_allow, unprivileged_proc_debug, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Unprivileged processes may use process debugging facilities");
 
 SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
@@ -3834,10 +3842,16 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	 * Find a free bit in prison0's pr_allow, failing if there are none
 	 * (which shouldn't happen as long as we keep track of how many
 	 * potential dynamic flags exist).
+	 *
+	 * Due to per-jail unprivileged process debugging support
+	 * using pr_allow, also verify against PR_ALLOW_ALL_STATIC.
+	 * prison0 may have unprivileged process debugging unset.
 	 */
 	for (allow_flag = 1;; allow_flag <<= 1) {
 		if (allow_flag == 0)
 			goto no_add;
+		if (allow_flag & PR_ALLOW_ALL_STATIC)
+			continue;
 		if ((prison0.pr_allow & allow_flag) == 0)
 			break;
 	}
