@@ -37,13 +37,27 @@
 extern "C" {
 #endif
 
-#if (EFSYS_OPT_HUNTINGTON && EFSYS_OPT_MEDFORD)
-#define	EF10_MAX_PIOBUF_NBUFS	MAX(HUNT_PIOBUF_NBUFS, MEDFORD_PIOBUF_NBUFS)
-#elif EFSYS_OPT_HUNTINGTON
-#define	EF10_MAX_PIOBUF_NBUFS	HUNT_PIOBUF_NBUFS
-#elif EFSYS_OPT_MEDFORD
-#define	EF10_MAX_PIOBUF_NBUFS	MEDFORD_PIOBUF_NBUFS
-#endif
+
+/* Number of hardware PIO buffers (for compile-time resource dimensions) */
+#define	EF10_MAX_PIOBUF_NBUFS	(16)
+
+#if EFSYS_OPT_HUNTINGTON
+# if (EF10_MAX_PIOBUF_NBUFS < HUNT_PIOBUF_NBUFS)
+#  error "EF10_MAX_PIOBUF_NBUFS too small"
+# endif
+#endif /* EFSYS_OPT_HUNTINGTON */
+#if EFSYS_OPT_MEDFORD
+# if (EF10_MAX_PIOBUF_NBUFS < MEDFORD_PIOBUF_NBUFS)
+#  error "EF10_MAX_PIOBUF_NBUFS too small"
+# endif
+#endif /* EFSYS_OPT_MEDFORD */
+#if EFSYS_OPT_MEDFORD2
+# if (EF10_MAX_PIOBUF_NBUFS < MEDFORD2_PIOBUF_NBUFS)
+#  error "EF10_MAX_PIOBUF_NBUFS too small"
+# endif
+#endif /* EFSYS_OPT_MEDFORD2 */
+
+
 
 /*
  * FIXME: This is just a power of 2 which fits in an MCDI v1 message, and could

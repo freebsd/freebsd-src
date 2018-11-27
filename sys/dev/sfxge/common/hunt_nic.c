@@ -333,6 +333,7 @@ hunt_board_cfg(
 
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
+	EFX_STATIC_ASSERT(HUNT_PIOBUF_NBUFS <= EF10_MAX_PIOBUF_NBUFS);
 	encp->enc_piobuf_limit = HUNT_PIOBUF_NBUFS;
 	encp->enc_piobuf_size = HUNT_PIOBUF_SIZE;
 	encp->enc_piobuf_min_alloc_size = HUNT_MIN_PIO_ALLOC_SIZE;
