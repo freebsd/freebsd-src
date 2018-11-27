@@ -1843,8 +1843,14 @@ efx_mcdi_mac_stats(
 	    MAC_STATS_IN_PERIODIC_NOEVENT, !events,
 	    MAC_STATS_IN_PERIOD_MS, (enable | events) ? period_ms : 0);
 
-	if (esmp != NULL) {
+	if (enable || events || upload) {
 		uint32_t bytes = MC_CMD_MAC_NSTATS * sizeof (uint64_t);
+
+		/* Periodic stats or stats upload require a DMA buffer */
+		if (esmp == NULL) {
+			rc = EINVAL;
+			goto fail1;
+		}
 
 		EFX_STATIC_ASSERT(MC_CMD_MAC_NSTATS * sizeof (uint64_t) <=
 		    EFX_MAC_STATS_SIZE);
@@ -1856,8 +1862,6 @@ efx_mcdi_mac_stats(
 		MCDI_IN_SET_DWORD(req, MAC_STATS_IN_DMA_ADDR_HI,
 			    EFSYS_MEM_ADDR(esmp) >> 32);
 		MCDI_IN_SET_DWORD(req, MAC_STATS_IN_DMA_LEN, bytes);
-	} else {
-		EFSYS_ASSERT(!upload && !enable && !events);
 	}
 
 	/*
@@ -1875,12 +1879,14 @@ efx_mcdi_mac_stats(
 		if ((req.emr_rc != ENOENT) ||
 		    (enp->en_rx_qcount + enp->en_tx_qcount != 0)) {
 			rc = req.emr_rc;
-			goto fail1;
+			goto fail2;
 		}
 	}
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
