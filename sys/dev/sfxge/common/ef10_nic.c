@@ -1212,6 +1212,11 @@ ef10_get_datapath_caps(
 		encp->enc_mac_stats_nstats = MC_CMD_MAC_NSTATS;
 	}
 
+	if (encp->enc_mac_stats_nstats >= MC_CMD_MAC_NSTATS_V2)
+		encp->enc_fec_counters = B_TRUE;
+	else
+		encp->enc_fec_counters = B_FALSE;
+
 #undef CAP_FLAGS1
 #undef CAP_FLAGS2
 

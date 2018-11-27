@@ -550,8 +550,20 @@ ef10_mac_stats_get_mask(
 			goto fail6;
 	}
 
+	if (encp->enc_fec_counters) {
+		const struct efx_mac_stats_range ef10_fec[] = {
+			{ EFX_MAC_FEC_UNCORRECTED_ERRORS,
+			    EFX_MAC_FEC_CORRECTED_SYMBOLS_LANE3 },
+		};
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_fec, EFX_ARRAY_SIZE(ef10_fec))) != 0)
+			goto fail7;
+	}
+
 	return (0);
 
+fail7:
+	EFSYS_PROBE(fail7);
 fail6:
 	EFSYS_PROBE(fail6);
 fail5:
@@ -907,6 +919,38 @@ ef10_mac_stats_update(
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_VADAPTER_TX_OVERFLOW, &value);
 	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_VADAPTER_TX_OVERFLOW]), &value);
 
+
+	if (encp->enc_mac_stats_nstats < MC_CMD_MAC_NSTATS_V2)
+		goto done;
+
+	/* FEC */
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_FEC_UNCORRECTED_ERRORS, &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_FEC_UNCORRECTED_ERRORS]), &value);
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_FEC_CORRECTED_ERRORS, &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_FEC_CORRECTED_ERRORS]), &value);
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_FEC_CORRECTED_SYMBOLS_LANE0,
+	    &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_FEC_CORRECTED_SYMBOLS_LANE0]),
+	    &value);
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_FEC_CORRECTED_SYMBOLS_LANE1,
+	    &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_FEC_CORRECTED_SYMBOLS_LANE1]),
+	    &value);
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_FEC_CORRECTED_SYMBOLS_LANE2,
+	    &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_FEC_CORRECTED_SYMBOLS_LANE2]),
+	    &value);
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_FEC_CORRECTED_SYMBOLS_LANE3,
+	    &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_FEC_CORRECTED_SYMBOLS_LANE3]),
+	    &value);
+
+done:
 	/* Read START generation counter */
 	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFSYS_MEM_SIZE(esmp));
 	EFSYS_MEM_READ_BARRIER();
