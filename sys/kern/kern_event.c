@@ -566,10 +566,10 @@ knote_fork(struct knlist *list, int pid)
 			kn->kn_fflags |= NOTE_TRACKERR;
 		if (kn->kn_fop->f_event(kn, NOTE_FORK))
 			KNOTE_ACTIVATE(kn, 0);
+		list->kl_lock(list->kl_lockarg);
 		KQ_LOCK(kq);
 		kn->kn_status &= ~KN_INFLUX;
 		KQ_UNLOCK_FLUX(kq);
-		list->kl_lock(list->kl_lockarg);
 	}
 	list->kl_unlock(list->kl_lockarg);
 }
