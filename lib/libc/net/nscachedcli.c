@@ -144,29 +144,27 @@ safe_read(struct cached_connection_ *connection, void *data, size_t data_size)
 static int
 send_credentials(struct cached_connection_ *connection, int type)
 {
+	union {
+		struct cmsghdr hdr;
+		char pad[CMSG_SPACE(sizeof(struct cmsgcred))];
+	} cmsg;
+	struct msghdr mhdr;
+	struct iovec iov;
 	struct kevent eventlist;
 	int nevents;
 	ssize_t result;
 	int res;
 
-	struct msghdr cred_hdr;
-	struct iovec iov;
-
-	struct {
-		struct cmsghdr hdr;
-		char cred[CMSG_SPACE(sizeof(struct cmsgcred))];
-	} cmsg;
-
 	memset(&cmsg, 0, sizeof(cmsg));
-	cmsg.hdr.cmsg_len =  CMSG_LEN(sizeof(struct cmsgcred));
+	cmsg.hdr.cmsg_len = CMSG_LEN(sizeof(struct cmsgcred));
 	cmsg.hdr.cmsg_level = SOL_SOCKET;
 	cmsg.hdr.cmsg_type = SCM_CREDS;
 
-	memset(&cred_hdr, 0, sizeof(struct msghdr));
-	cred_hdr.msg_iov = &iov;
-	cred_hdr.msg_iovlen = 1;
-	cred_hdr.msg_control = (caddr_t)&cmsg;
-	cred_hdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
+	memset(&mhdr, 0, sizeof(mhdr));
+	mhdr.msg_iov = &iov;
+	mhdr.msg_iovlen = 1;
+	mhdr.msg_control = &cmsg;
+	mhdr.msg_controllen = CMSG_SPACE(sizeof(struct cmsgcred));
 
 	iov.iov_base = &type;
 	iov.iov_len = sizeof(int);
@@ -178,8 +176,8 @@ send_credentials(struct cached_connection_ *connection, int type)
 	nevents = _kevent(connection->write_queue, NULL, 0, &eventlist, 1,
 	    NULL);
 	if (nevents == 1 && eventlist.filter == EVFILT_WRITE) {
-		result = (_sendmsg(connection->sockfd, &cred_hdr,
-		    MSG_NOSIGNAL) == -1) ?  -1 : 0;
+		result = _sendmsg(connection->sockfd, &mhdr,
+		    MSG_NOSIGNAL) == -1 ? -1 : 0;
 		EV_SET(&eventlist, connection->sockfd, EVFILT_WRITE, EV_ADD,
 		    0, 0, NULL);
 		_kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
