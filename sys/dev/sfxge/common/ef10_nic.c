@@ -1023,7 +1023,7 @@ ef10_get_datapath_caps(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
-			    MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)];
+			    MC_CMD_GET_CAPABILITIES_V4_OUT_LEN)];
 	efx_rc_t rc;
 
 	if ((rc = ef10_mcdi_get_pf_count(enp, &encp->enc_hw_pf_count)) != 0)
@@ -1035,7 +1035,7 @@ ef10_get_datapath_caps(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V2_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V4_OUT_LEN;
 
 	efx_mcdi_execute_quiet(enp, &req);
 
@@ -1200,6 +1200,16 @@ ef10_get_datapath_caps(
 		    EFX_TUNNEL_MAXNENTRIES;
 	} else {
 		encp->enc_tunnel_config_udp_entries_max = 0;
+	}
+
+	/* Check if firmware supports extended MAC stats. */
+	if (req.emr_out_length_used >= MC_CMD_GET_CAPABILITIES_V4_OUT_LEN) {
+		/* Extended stats buffer supported */
+		encp->enc_mac_stats_nstats = MCDI_OUT_WORD(req,
+		    GET_CAPABILITIES_V4_OUT_MAC_STATS_NUM_STATS);
+	} else {
+		/* Use Siena-compatible legacy MAC stats */
+		encp->enc_mac_stats_nstats = MC_CMD_MAC_NSTATS;
 	}
 
 #undef CAP_FLAGS1
