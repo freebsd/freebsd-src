@@ -1170,6 +1170,71 @@ fail1:
 	return (rc);
 }
 
+	__checkReturn	efx_rc_t
+ef10_get_vi_window_shift(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *vi_window_shiftp)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
+			    MC_CMD_GET_CAPABILITIES_V3_OUT_LEN)];
+	uint32_t mode;
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_CAPABILITIES;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V3_OUT_LEN;
+
+	efx_mcdi_execute_quiet(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V3_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+	mode = MCDI_OUT_BYTE(req, GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE);
+
+	switch (mode) {
+	case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_8K:
+		EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K == 8 * 1024);
+		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_8K;
+		break;
+
+	case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_16K:
+		EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_16K == 16 * 1024);
+		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_16K;
+		break;
+
+	case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_64K:
+		EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_64K == 64 * 1024);
+		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_64K;
+		break;
+
+	default:
+		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_INVALID;
+		rc = EINVAL;
+		goto fail3;
+	}
+
+	return (0);
+
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 
 #define	EF10_LEGACY_PF_PRIVILEGE_MASK					\
 	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN			|	\
@@ -1586,6 +1651,7 @@ ef10_nic_init(
 	uint32_t i;
 	uint32_t retry;
 	uint32_t delay_us;
+	uint32_t vi_window_size;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -1648,15 +1714,21 @@ ef10_nic_init(
 	enp->en_arch.ef10.ena_pio_write_vi_base =
 	    vi_count - enp->en_arch.ef10.ena_piobuf_count;
 
+	EFSYS_ASSERT3U(enp->en_nic_cfg.enc_vi_window_shift, !=,
+	    EFX_VI_WINDOW_SHIFT_INVALID);
+	EFSYS_ASSERT3U(enp->en_nic_cfg.enc_vi_window_shift, <=,
+	    EFX_VI_WINDOW_SHIFT_64K);
+	vi_window_size = 1U << enp->en_nic_cfg.enc_vi_window_shift;
+
 	/* Save UC memory mapping details */
 	enp->en_arch.ef10.ena_uc_mem_map_offset = 0;
 	if (enp->en_arch.ef10.ena_piobuf_count > 0) {
 		enp->en_arch.ef10.ena_uc_mem_map_size =
-		    (ER_DZ_TX_PIOBUF_STEP *
+		    (vi_window_size *
 		    enp->en_arch.ef10.ena_pio_write_vi_base);
 	} else {
 		enp->en_arch.ef10.ena_uc_mem_map_size =
-		    (ER_DZ_TX_PIOBUF_STEP *
+		    (vi_window_size *
 		    enp->en_arch.ef10.ena_vi_count);
 	}
 
@@ -1666,7 +1738,7 @@ ef10_nic_init(
 	    enp->en_arch.ef10.ena_uc_mem_map_size;
 
 	enp->en_arch.ef10.ena_wc_mem_map_size =
-	    (ER_DZ_TX_PIOBUF_STEP *
+	    (vi_window_size *
 	    enp->en_arch.ef10.ena_piobuf_count);
 
 	/* Link piobufs to extra VIs in WC mapping */

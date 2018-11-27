@@ -1186,6 +1186,11 @@ extern	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp);
 
+extern	__checkReturn	efx_rc_t
+ef10_get_vi_window_shift(
+	__in		efx_nic_t *enp,
+	__out		uint32_t *vi_window_shiftp);
+
 extern	__checkReturn		efx_rc_t
 ef10_get_privilege_mask(
 	__in			efx_nic_t *enp,

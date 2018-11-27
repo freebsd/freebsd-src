@@ -538,8 +538,8 @@ ef10_tx_qpush(
 		EFX_DMA_SYNC_QUEUE_FOR_DEVICE(etp->et_esmp, etp->et_mask + 1,
 					    wptr, id);
 		EFSYS_PIO_WRITE_BARRIER();
-		EFX_BAR_TBL_DOORBELL_WRITEO(enp, ER_DZ_TX_DESC_UPD_REG,
-					    etp->et_index, &oword);
+		EFX_BAR_VI_DOORBELL_WRITEO(enp, ER_DZ_TX_DESC_UPD_REG,
+		    etp->et_index, &oword);
 	} else {
 		efx_dword_t dword;
 
@@ -554,8 +554,8 @@ ef10_tx_qpush(
 		EFX_DMA_SYNC_QUEUE_FOR_DEVICE(etp->et_esmp, etp->et_mask + 1,
 					    wptr, id);
 		EFSYS_PIO_WRITE_BARRIER();
-		EFX_BAR_TBL_WRITED2(enp, ER_DZ_TX_DESC_UPD_REG,
-				    etp->et_index, &dword, B_FALSE);
+		EFX_BAR_VI_WRITED2(enp, ER_DZ_TX_DESC_UPD_REG,
+		    etp->et_index, &dword, B_FALSE);
 	}
 }
 

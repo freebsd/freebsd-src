@@ -822,8 +822,8 @@ ef10_rx_qpush(
 	EFX_DMA_SYNC_QUEUE_FOR_DEVICE(erp->er_esmp, erp->er_mask + 1,
 	    wptr, pushed & erp->er_mask);
 	EFSYS_PIO_WRITE_BARRIER();
-	EFX_BAR_TBL_WRITED(enp, ER_DZ_RX_DESC_UPD_REG,
-			    erp->er_index, &dword, B_FALSE);
+	EFX_BAR_VI_WRITED(enp, ER_DZ_RX_DESC_UPD_REG,
+	    erp->er_index, &dword, B_FALSE);
 }
 
 #if EFSYS_OPT_RX_PACKED_STREAM
@@ -854,7 +854,7 @@ ef10_rx_qpush_ps_credits(
 	    ERF_DZ_RX_DESC_MAGIC_CMD,
 	    ERE_DZ_RX_DESC_MAGIC_CMD_PS_CREDITS,
 	    ERF_DZ_RX_DESC_MAGIC_DATA, credits);
-	EFX_BAR_TBL_WRITED(enp, ER_DZ_RX_DESC_UPD_REG,
+	EFX_BAR_VI_WRITED(enp, ER_DZ_RX_DESC_UPD_REG,
 	    erp->er_index, &dword, B_FALSE);
 
 	rxq_state->eers_rx_packed_stream_credits = 0;

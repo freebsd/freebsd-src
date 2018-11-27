@@ -95,6 +95,10 @@ siena_board_cfg(
 	uint32_t nevq, nrxq, ntxq;
 	efx_rc_t rc;
 
+	/* Siena has a fixed 8Kbyte VI window size */
+	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
+	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
+
 	/* External port identifier using one-based port numbering */
 	encp->enc_external_port = (uint8_t)enp->en_mcdi.em_emip.emi_port;
 
