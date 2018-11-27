@@ -373,6 +373,8 @@ typedef struct efx_nic_ops_s {
 
 #if EFSYS_OPT_FILTER
 
+#if EFSYS_OPT_SIENA
+
 typedef struct siena_filter_spec_s {
 	uint8_t		sfs_type;
 	uint32_t	sfs_flags;
@@ -418,6 +420,8 @@ typedef struct siena_filter_s {
 	unsigned int		sf_depth[EFX_SIENA_FILTER_NTYPES];
 } siena_filter_t;
 
+#endif	/* EFSYS_OPT_SIENA */
+
 typedef struct efx_filter_s {
 #if EFSYS_OPT_SIENA
 	siena_filter_t		*ef_siena_filter;
@@ -427,10 +431,14 @@ typedef struct efx_filter_s {
 #endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
 } efx_filter_t;
 
+#if EFSYS_OPT_SIENA
+
 extern			void
 siena_filter_tbl_clear(
 	__in		efx_nic_t *enp,
 	__in		siena_filter_tbl_id_t tbl);
+
+#endif	/* EFSYS_OPT_SIENA */
 
 #endif	/* EFSYS_OPT_FILTER */
 
