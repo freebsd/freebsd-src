@@ -74,7 +74,7 @@ static const efx_mcdi_ops_t	__efx_mcdi_siena_ops = {
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_init,			/* emco_init */
@@ -87,7 +87,7 @@ static const efx_mcdi_ops_t	__efx_mcdi_ef10_ops = {
 	ef10_mcdi_get_timeout,		/* emco_get_timeout */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 
 
@@ -120,6 +120,12 @@ efx_mcdi_init(
 		emcop = &__efx_mcdi_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		emcop = &__efx_mcdi_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -1650,7 +1656,7 @@ fail1:
 
 #if EFSYS_OPT_BIST
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 /*
  * Enter bist offline mode. This is a fw mode which puts the NIC into a state
  * where memory BIST tests can be run and not much else can interfere or happen.
@@ -1686,7 +1692,7 @@ fail1:
 
 	return (rc);
 }
-#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn		efx_rc_t
 efx_mcdi_bist_start(
@@ -1950,7 +1956,7 @@ fail1:
 
 #endif	/* EFSYS_OPT_MAC_STATS */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 /*
  * This function returns the pf and vf number of a function.  If it is a pf the
@@ -2049,7 +2055,7 @@ fail1:
 	return (rc);
 }
 
-#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif /* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn		efx_rc_t
 efx_mcdi_set_workaround(
