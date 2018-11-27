@@ -332,6 +332,7 @@ medford_board_cfg(
 
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
+	EFX_STATIC_ASSERT(MEDFORD_PIOBUF_NBUFS <= EF10_MAX_PIOBUF_NBUFS);
 	encp->enc_piobuf_limit = MEDFORD_PIOBUF_NBUFS;
 	encp->enc_piobuf_size = MEDFORD_PIOBUF_SIZE;
 	encp->enc_piobuf_min_alloc_size = MEDFORD_MIN_PIO_ALLOC_SIZE;
