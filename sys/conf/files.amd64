@@ -444,6 +444,7 @@ dev/sfxge/common/efx_vpd.c	optional	sfxge pci
 dev/sfxge/common/hunt_nic.c	optional	sfxge pci
 dev/sfxge/common/mcdi_mon.c	optional	sfxge pci
 dev/sfxge/common/medford_nic.c	optional	sfxge pci
+dev/sfxge/common/medford2_nic.c	optional	sfxge pci
 dev/sfxge/common/siena_mac.c	optional	sfxge pci
 dev/sfxge/common/siena_mcdi.c	optional	sfxge pci
 dev/sfxge/common/siena_nic.c	optional	sfxge pci
