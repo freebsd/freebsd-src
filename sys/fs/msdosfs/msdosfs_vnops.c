@@ -1561,14 +1561,16 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 				switch (n) {
 				case 0:
 					dirbuf.d_namlen = 1;
-					strcpy(dirbuf.d_name, ".");
+					dirbuf.d_name[0] = '.';
 					break;
 				case 1:
 					dirbuf.d_namlen = 2;
-					strcpy(dirbuf.d_name, "..");
+					dirbuf.d_name[0] = '.';
+					dirbuf.d_name[1] = '.';
 					break;
 				}
 				dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
+				dirent_terminate(&dirbuf);
 				if (uio->uio_resid < dirbuf.d_reclen)
 					goto out;
 				error = uiomove(&dirbuf, dirbuf.d_reclen, uio);

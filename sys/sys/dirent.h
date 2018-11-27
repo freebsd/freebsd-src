@@ -95,6 +95,17 @@ struct dirent {
 
 #ifdef _KERNEL
 #define	GENERIC_DIRSIZ(dp)	_GENERIC_DIRSIZ(dp)
+
+/*
+ * Ensure that padding bytes are zeroed and that the name is NUL-terminated.
+ */
+static inline void
+dirent_terminate(struct dirent *dp)
+{
+
+	memset(dp->d_name + dp->d_namlen, 0,
+	    dp->d_reclen - (__offsetof(struct dirent, d_name) + dp->d_namlen));
+}
 #endif
 
 #endif /* !_SYS_DIRENT_H_ */
