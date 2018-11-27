@@ -34,7 +34,7 @@
 #define	IFC_LEGACY		0x001
 #define	IFC_QFLUSH		0x002
 #define	IFC_MULTISEG		0x004
-#define	IFC_DMAR		0x008
+#define	IFC_SPARE1		0x008
 #define	IFC_SC_ALLOCATED	0x010
 #define	IFC_INIT_DONE		0x020
 #define	IFC_PREFETCH		0x040
