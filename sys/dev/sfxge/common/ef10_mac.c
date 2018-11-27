@@ -579,16 +579,45 @@ ef10_mac_stats_update(
 	__inout_ecount(EFX_MAC_NSTATS)	efsys_stat_t *stat,
 	__inout_opt			uint32_t *generationp)
 {
-	efx_qword_t value;
+	const efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_qword_t generation_start;
 	efx_qword_t generation_end;
+	efx_qword_t value;
+	efx_rc_t rc;
 
-	_NOTE(ARGUNUSED(enp))
+	/*
+	 * The MAC_STATS contain start and end generation counters used to
+	 * detect when the DMA buffer has been updated during stats decode.
+	 * All stats counters are 64bit unsigned values.
+	 *
+	 * Siena-compatible MAC stats contain MC_CMD_MAC_NSTATS 64bit counters.
+	 * The generation end counter is at index MC_CMD_MAC_GENERATION_END
+	 * (same as MC_CMD_MAC_NSTATS-1).
+	 *
+	 * Medford2 and later use a larger DMA buffer: MAC_STATS_NUM_STATS from
+	 * MC_CMD_GET_CAPABILITIES_V4_OUT reports the number of 64bit counters.
+	 *
+	 * Firmware writes the generation end counter as the last counter in the
+	 * DMA buffer. Do not use MC_CMD_MAC_GENERATION_END, as that is only
+	 * correct for legacy Siena-compatible MAC stats.
+	 */
+
+	if (encp->enc_mac_stats_nstats < MC_CMD_MAC_NSTATS) {
+		/* MAC stats count too small for legacy MAC stats */
+		rc = ENOSPC;
+		goto fail1;
+	}
+	if (EFSYS_MEM_SIZE(esmp) <
+	    (encp->enc_mac_stats_nstats * sizeof (efx_qword_t))) {
+		/* DMA buffer too small */
+		rc = ENOSPC;
+		goto fail2;
+	}
 
 	/* Read END first so we don't race with the MC */
-	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFX_MAC_STATS_SIZE);
-	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_GENERATION_END,
-			    &generation_end);
+	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFSYS_MEM_SIZE(esmp));
+	EF10_MAC_STAT_READ(esmp, (encp->enc_mac_stats_nstats - 1),
+	    &generation_end);
 	EFSYS_MEM_READ_BARRIER();
 
 	/* TX */
@@ -878,8 +907,8 @@ ef10_mac_stats_update(
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_VADAPTER_TX_OVERFLOW, &value);
 	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_VADAPTER_TX_OVERFLOW]), &value);
 
-
-	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFX_MAC_STATS_SIZE);
+	/* Read START generation counter */
+	EFSYS_DMA_SYNC_FOR_KERNEL(esmp, 0, EFSYS_MEM_SIZE(esmp));
 	EFSYS_MEM_READ_BARRIER();
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_GENERATION_START,
 			    &generation_start);
@@ -894,6 +923,13 @@ ef10_mac_stats_update(
 		*generationp = EFX_QWORD_FIELD(generation_start, EFX_DWORD_0);
 
 	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 #endif	/* EFSYS_OPT_MAC_STATS */
