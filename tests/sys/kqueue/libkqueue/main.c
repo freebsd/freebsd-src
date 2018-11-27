@@ -85,7 +85,7 @@ kevent_get(int kqfd)
     struct kevent *kev;
 
     if ((kev = calloc(1, sizeof(*kev))) == NULL)
-	err(1, "out of memory");
+        err(1, "out of memory");
     
     nfds = kevent(kqfd, NULL, 0, kev, 1, NULL);
     if (nfds < 1)
@@ -103,7 +103,7 @@ kevent_get_timeout(int kqfd, int seconds)
     struct timespec timeout = {seconds, 0};
 
     if ((kev = calloc(1, sizeof(*kev))) == NULL)
-	err(1, "out of memory");
+        err(1, "out of memory");
     
     nfds = kevent(kqfd, NULL, 0, kev, 1, &timeout);
     if (nfds < 0) {
@@ -123,10 +123,10 @@ kevent_fflags_dump(struct kevent *kev)
 
 #define KEVFFL_DUMP(attrib) \
     if (kev->fflags & attrib) \
-	strncat(buf, #attrib" ", 64);
+        strncat(buf, #attrib" ", 64);
 
     if ((buf = calloc(1, 1024)) == NULL)
-	abort();
+        abort();
 
     /* Not every filter has meaningful fflags */
     if (kev->filter == EVFILT_PROC) {
@@ -160,7 +160,7 @@ kevent_fflags_dump(struct kevent *kev)
 #endif
         buf[strlen(buf) - 1] = ')';
     } else {
-    	snprintf(buf, 1024, "fflags = %x", kev->fflags);
+        snprintf(buf, 1024, "fflags = %x", kev->fflags);
     }
 
     return (buf);
@@ -173,10 +173,10 @@ kevent_flags_dump(struct kevent *kev)
 
 #define KEVFL_DUMP(attrib) \
     if (kev->flags & attrib) \
-	strncat(buf, #attrib" ", 64);
+        strncat(buf, #attrib" ", 64);
 
     if ((buf = calloc(1, 1024)) == NULL)
-	abort();
+        abort();
 
     snprintf(buf, 1024, "flags = %d (", kev->flags);
     KEVFL_DUMP(EV_ADD);
@@ -208,17 +208,17 @@ kevent_to_str(struct kevent *kev)
 
     snprintf(&buf[0], sizeof(buf), 
             "[ident=%ju, filter=%d, %s, %s, data=%jd, udata=%p, "
-	    "ext=[%jx %jx %jx %jx]",
+            "ext=[%jx %jx %jx %jx]",
             (uintmax_t) kev->ident,
             kev->filter,
             flags_str,
             fflags_str,
             (uintmax_t)kev->data,
             kev->udata,
-	    (uintmax_t)kev->ext[0],
-	    (uintmax_t)kev->ext[1],
-	    (uintmax_t)kev->ext[2],
-	    (uintmax_t)kev->ext[3]);
+            (uintmax_t)kev->ext[0],
+            (uintmax_t)kev->ext[1],
+            (uintmax_t)kev->ext[2],
+            (uintmax_t)kev->ext[3]);
 
     free(flags_str);
     free(fflags_str);
@@ -239,10 +239,10 @@ kevent_add(int kqfd, struct kevent *kev,
     
     EV_SET(kev, ident, filter, flags, fflags, data, NULL);    
     if (kevent(kqfd, kev, 1, NULL, 0, NULL) < 0) {
-	kev_str = kevent_to_str(kev);
-	printf("Unable to add the following kevent:\n%s\n",
-		kev_str);
-	free(kev_str);
+        kev_str = kevent_to_str(kev);
+        printf("Unable to add the following kevent:\n%s\n",
+                kev_str);
+        free(kev_str);
         err(1, "kevent(): %s", strerror(errno));
     }
 }
@@ -265,12 +265,12 @@ kevent_cmp(struct kevent *k1, struct kevent *k2)
       k1->data != k2->data || k1->udata != k2->udata ||
       k1->ext[0] != k2->ext[0] || k1->ext[1] != k2->ext[1] ||
       k1->ext[0] != k2->ext[2] || k1->ext[0] != k2->ext[3]) {
-	kev1_str = kevent_to_str(k1);
-	kev2_str = kevent_to_str(k2);
-	printf("kevent_cmp: mismatch:\n	 %s !=\n  %s\n", 
-	       kev1_str, kev2_str);
-	free(kev1_str);
-	free(kev2_str);
+        kev1_str = kevent_to_str(k1);
+        kev2_str = kevent_to_str(k2);
+        printf("kevent_cmp: mismatch:\n  %s !=\n  %s\n", 
+               kev1_str, kev2_str);
+        free(kev1_str);
+        free(kev2_str);
         abort();
     }
 }
