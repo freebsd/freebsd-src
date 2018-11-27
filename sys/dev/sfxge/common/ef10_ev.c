@@ -895,12 +895,23 @@ ef10_ev_rx(
 #endif
 
 	size = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_BYTES);
+	cont = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT);
 	next_read_lbits = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DSC_PTR_LBITS);
 	eth_tag_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_ETH_TAG_CLASS);
 	mac_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_MAC_CLASS);
 	l3_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L3_CLASS);
-	l4_class = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_L4_CLASS);
-	cont = EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_CONT);
+
+	/*
+	 * RX_L4_CLASS is 3 bits wide on Huntington and Medford, but is only
+	 * 2 bits wide on Medford2. Check it is safe to use the Medford2 field
+	 * and values for all EF10 controllers.
+	 */
+	EFX_STATIC_ASSERT(ESF_FZ_RX_L4_CLASS_LBN == ESF_DE_RX_L4_CLASS_LBN);
+	EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_TCP == ESE_DE_L4_CLASS_TCP);
+	EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UDP == ESE_DE_L4_CLASS_UDP);
+	EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UNKNOWN == ESE_DE_L4_CLASS_UNKNOWN);
+
+	l4_class = EFX_QWORD_FIELD(*eqp, ESF_FZ_RX_L4_CLASS);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_RX_DROP_EVENT) != 0) {
 		/* Drop this event */
@@ -979,10 +990,22 @@ ef10_ev_rx(
 			flags |= EFX_CKSUM_IPV4;
 		}
 
-		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+		/*
+		 * RX_L4_CLASS is 3 bits wide on Huntington and Medford, but is
+		 * only 2 bits wide on Medford2. Check it is safe to use the
+		 * Medford2 field and values for all EF10 controllers.
+		 */
+		EFX_STATIC_ASSERT(ESF_FZ_RX_L4_CLASS_LBN ==
+		    ESF_DE_RX_L4_CLASS_LBN);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_TCP == ESE_DE_L4_CLASS_TCP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UDP == ESE_DE_L4_CLASS_UDP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UNKNOWN ==
+		    ESE_DE_L4_CLASS_UNKNOWN);
+
+		if (l4_class == ESE_FZ_L4_CLASS_TCP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV4);
 			flags |= EFX_PKT_TCP;
-		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+		} else if (l4_class == ESE_FZ_L4_CLASS_UDP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV4);
 			flags |= EFX_PKT_UDP;
 		} else {
@@ -994,10 +1017,22 @@ ef10_ev_rx(
 	case ESE_DZ_L3_CLASS_IP6_FRAG:
 		flags |= EFX_PKT_IPV6;
 
-		if (l4_class == ESE_DZ_L4_CLASS_TCP) {
+		/*
+		 * RX_L4_CLASS is 3 bits wide on Huntington and Medford, but is
+		 * only 2 bits wide on Medford2. Check it is safe to use the
+		 * Medford2 field and values for all EF10 controllers.
+		 */
+		EFX_STATIC_ASSERT(ESF_FZ_RX_L4_CLASS_LBN ==
+		    ESF_DE_RX_L4_CLASS_LBN);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_TCP == ESE_DE_L4_CLASS_TCP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UDP == ESE_DE_L4_CLASS_UDP);
+		EFX_STATIC_ASSERT(ESE_FZ_L4_CLASS_UNKNOWN ==
+		    ESE_DE_L4_CLASS_UNKNOWN);
+
+		if (l4_class == ESE_FZ_L4_CLASS_TCP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_TCP_IPV6);
 			flags |= EFX_PKT_TCP;
-		} else if (l4_class == ESE_DZ_L4_CLASS_UDP) {
+		} else if (l4_class == ESE_FZ_L4_CLASS_UDP) {
 			EFX_EV_QSTAT_INCR(eep, EV_RX_UDP_IPV6);
 			flags |= EFX_PKT_UDP;
 		} else {
