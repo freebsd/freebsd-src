@@ -401,7 +401,7 @@ fill_ip6(ipfw_insn_ip6 *cmd, char *av, int cblen, struct tidx *tstate)
 				n2mask(&d[1], masklen);
 		}
 
-		APPLY_MASK(d, &d[1])   /* mask base address with mask */
+		APPLY_MASK(d, &d[1]);   /* mask base address with mask */
 
 		av = q;
 
