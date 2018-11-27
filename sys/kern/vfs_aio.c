@@ -1594,6 +1594,7 @@ aio_aqueue(struct thread *td, struct aiocb *ujob, struct aioliojob *lj,
 		goto aqueue_fail;
 	}
 	kqfd = job->uaiocb.aio_sigevent.sigev_notify_kqueue;
+	memset(&kev, 0, sizeof(kev));
 	kev.ident = (uintptr_t)job->ujob;
 	kev.filter = EVFILT_AIO;
 	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1 | evflags;
@@ -2163,6 +2164,7 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 		bcopy(sig, &lj->lioj_signal, sizeof(lj->lioj_signal));
 		if (lj->lioj_signal.sigev_notify == SIGEV_KEVENT) {
 			/* Assume only new style KEVENT */
+			memset(&kev, 0, sizeof(kev));
 			kev.filter = EVFILT_LIO;
 			kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
 			kev.ident = (uintptr_t)uacb_list; /* something unique */
