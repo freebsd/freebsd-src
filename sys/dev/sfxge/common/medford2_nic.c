@@ -202,8 +202,8 @@ medford2_board_cfg(
 
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/*
-		 * Interrupt testing does not work for VFs. See bug50084.
-		 * FIXME: Does this still apply to Medford2?
+		 * Interrupt testing does not work for VFs on Medford2.
+		 * See bug50084 and bug71432 comment 21.
 		 */
 		encp->enc_bug41750_workaround = B_TRUE;
 	}
