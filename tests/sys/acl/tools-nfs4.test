@@ -823,6 +823,41 @@ $ rmdir yyy
 $ rm xxx
 $ cd ..
 $ rmdir ddd
-
 $ rm xxx
 
+# Test basic recursive setting of ACLs.
+$ mkdir ddd
+$ touch ddd/xxx
+$ mkdir ddd/eee
+$ touch ddd/eee/yyy
+$ setfacl -R -m owner@:full_set:f:allow,group@:full_set::allow,everyone@:full_set::allow ddd
+$ getfacl -q ddd
+>             owner@:--------------:-------:deny
+>             owner@:rwxpDdaARWcCos:f------:allow
+>             group@:-w-p----------:-------:deny
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:-w-p---A-W-Co-:-------:deny
+>          everyone@:rwxpDdaARWcCos:-------:allow
+$ getfacl -q ddd/xxx
+>             owner@:--x-----------:-------:deny
+>             owner@:rwxpDdaARWcCos:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:rwxpDdaARWcCos:-------:allow
+$ getfacl -q ddd/eee
+>             owner@:--------------:-------:deny
+>             owner@:rwxpDdaARWcCos:f------:allow
+>             group@:-w-p----------:-------:deny
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:-w-p---A-W-Co-:-------:deny
+>          everyone@:rwxpDdaARWcCos:-------:allow
+$ getfacl -q ddd/eee/yyy
+>             owner@:--x-----------:-------:deny
+>             owner@:rwxpDdaARWcCos:-------:allow
+>             group@:-wxp----------:-------:deny
+>             group@:rwxpDdaARWcCos:-------:allow
+>          everyone@:-wxp---A-W-Co-:-------:deny
+>          everyone@:rwxpDdaARWcCos:-------:allow
+
+$ rm -r ddd
