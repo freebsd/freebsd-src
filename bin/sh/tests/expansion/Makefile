@@ -86,6 +86,7 @@ ${PACKAGE}FILES+=	plus-minus7.0
 ${PACKAGE}FILES+=	plus-minus8.0
 ${PACKAGE}FILES+=	plus-minus9.0
 ${PACKAGE}FILES+=	question1.0
+${PACKAGE}FILES+=	question2.0
 ${PACKAGE}FILES+=	readonly1.0
 ${PACKAGE}FILES+=	redir1.0
 ${PACKAGE}FILES+=	set-u1.0
