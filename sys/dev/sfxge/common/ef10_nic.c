@@ -1662,6 +1662,17 @@ ef10_nic_board_cfg(
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
 		goto fail8;
 
+	/* Alignment for WPTR updates */
+	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
+
+	/*
+	 * Maximum number of exclusive RSS contexts. EF10 hardware supports 64
+	 * in total, but 6 are reserved for shared contexts. They are a global
+	 * resource so not all may be available.
+	 */
+	encp->enc_rx_scale_max_exclusive_contexts = 64 - 6;
+
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
