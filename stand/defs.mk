@@ -115,6 +115,11 @@ CFLAGS+=	-march=rv64imac -mabi=lp64
 CFLAGS+=	-msoft-float
 .endif
 
+# -msoft-float seems to be insufficient for powerpcspe
+.if ${MACHINE_ARCH} == "powerpcspe"
+CFLAGS+=	-mno-spe
+.endif
+
 .if ${MACHINE_CPUARCH} == "i386" || (${MACHINE_CPUARCH} == "amd64" && ${DO32:U0} == 1)
 CFLAGS+=	-march=i386
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
