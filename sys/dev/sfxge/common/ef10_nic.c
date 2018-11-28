@@ -1672,6 +1672,16 @@ ef10_nic_board_cfg(
 	 */
 	encp->enc_rx_scale_max_exclusive_contexts = 64 - 6;
 
+	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
+	/* No boundary crossing limits */
+	encp->enc_tx_dma_desc_boundary = 0;
+
+	/*
+	 * Maximum number of bytes into the frame the TCP header can start for
+	 * firmware assisted TSO to work.
+	 */
+	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
+
 
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
