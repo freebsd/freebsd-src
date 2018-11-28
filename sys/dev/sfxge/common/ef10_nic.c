@@ -1575,6 +1575,8 @@ ef10_nic_board_cfg(
 	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	ef10_link_state_t els;
+	efx_port_t *epp = &(enp->en_port);
 	uint32_t board_type = 0;
 	uint32_t port;
 	uint32_t pf;
@@ -1646,13 +1648,27 @@ ef10_nic_board_cfg(
 	encp->enc_board_type = board_type;
 	encp->enc_clk_mult = 1; /* not used for EF10 */
 
+	/* Fill out fields in enp->en_port and enp->en_nic_cfg from MCDI */
+	if ((rc = efx_mcdi_get_phy_cfg(enp)) != 0)
+		goto fail6;
+
+	/* Obtain the default PHY advertised capabilities */
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
+		goto fail7;
+	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail6;
+			goto fail8;
 
 	return (0);
 
+fail8:
+	EFSYS_PROBE(fail8);
+fail7:
+	EFSYS_PROBE(fail7);
 fail6:
 	EFSYS_PROBE(fail6);
 fail5:
