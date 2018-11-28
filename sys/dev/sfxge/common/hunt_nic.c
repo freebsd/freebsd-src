@@ -108,8 +108,6 @@ hunt_board_cfg(
 	uint32_t board_type = 0;
 	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
-	uint32_t pf;
-	uint32_t vf;
 	uint32_t mask;
 	uint32_t flags;
 	uint32_t sysclk, dpcpu_clk;
@@ -127,18 +125,6 @@ hunt_board_cfg(
 	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
 	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
 
-	/*
-	 * Get PCIe function number from firmware (used for
-	 * per-function privilege and dynamic config info).
-	 *  - PCIe PF: pf = PF number, vf = 0xffff.
-	 *  - PCIe VF: pf = parent PF, vf = VF number.
-	 */
-	if ((rc = efx_mcdi_get_function_info(enp, &pf, &vf)) != 0)
-		goto fail1;
-
-	encp->enc_pf = pf;
-	encp->enc_vf = vf;
-
 	/* MAC address for this function */
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
 		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
@@ -155,7 +141,7 @@ hunt_board_cfg(
 		rc = efx_mcdi_get_mac_address_vf(enp, mac_addr);
 	}
 	if (rc != 0)
-		goto fail2;
+		goto fail1;
 
 	EFX_MAC_ADDR_COPY(encp->enc_mac_addr, mac_addr);
 
@@ -166,7 +152,7 @@ hunt_board_cfg(
 		if (rc == EACCES)
 			board_type = 0;
 		else
-			goto fail3;
+			goto fail2;
 	}
 
 	encp->enc_board_type = board_type;
@@ -174,11 +160,11 @@ hunt_board_cfg(
 
 	/* Fill out fields in enp->en_port and enp->en_nic_cfg from MCDI */
 	if ((rc = efx_mcdi_get_phy_cfg(enp)) != 0)
-		goto fail4;
+		goto fail3;
 
 	/* Obtain the default PHY advertised capabilities */
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
-		goto fail5;
+		goto fail4;
 	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
@@ -209,7 +195,7 @@ hunt_board_cfg(
 	else if ((rc == ENOTSUP) || (rc == ENOENT))
 		encp->enc_bug35388_workaround = B_FALSE;
 	else
-		goto fail6;
+		goto fail5;
 
 	/*
 	 * If the bug41750 workaround is enabled, then do not test interrupts,
@@ -228,7 +214,7 @@ hunt_board_cfg(
 	} else if ((rc == ENOTSUP) || (rc == ENOENT)) {
 		encp->enc_bug41750_workaround = B_FALSE;
 	} else {
-		goto fail7;
+		goto fail6;
 	}
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/* Interrupt testing does not work for VFs. See bug50084. */
@@ -266,12 +252,12 @@ hunt_board_cfg(
 	} else if ((rc == ENOTSUP) || (rc == ENOENT)) {
 		encp->enc_bug26807_workaround = B_FALSE;
 	} else {
-		goto fail8;
+		goto fail7;
 	}
 
 	/* Get clock frequencies (in MHz). */
 	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
-		goto fail9;
+		goto fail8;
 
 	/*
 	 * The Huntington timer quantum is 1536 sysclk cycles, documented for
@@ -290,7 +276,7 @@ hunt_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-		goto fail10;
+		goto fail9;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
@@ -340,13 +326,13 @@ hunt_board_cfg(
 	 * can result in time-of-check/time-of-use bugs.
 	 */
 	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail11;
+		goto fail10;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
 	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
 		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail12;
+			goto fail11;
 
 		/* Ignore error (cannot query vector limits from a VF). */
 		base = 0;
@@ -362,7 +348,7 @@ hunt_board_cfg(
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	if ((rc = hunt_nic_get_required_pcie_bandwidth(enp, &bandwidth)) != 0)
-		goto fail13;
+		goto fail12;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 
 	/* All Huntington devices have a PCIe Gen3, 8 lane connector */
@@ -370,8 +356,6 @@ hunt_board_cfg(
 
 	return (0);
 
-fail13:
-	EFSYS_PROBE(fail13);
 fail12:
 	EFSYS_PROBE(fail12);
 fail11:
