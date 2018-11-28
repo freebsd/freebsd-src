@@ -1379,21 +1379,6 @@ static struct ef10_external_port_map_s {
 		1	/* first cage */
 	},
 	/*
-	 * Modes that on Medford allocate each port number to a separate
-	 * cage.
-	 *	port 0 -> cage 1
-	 *	port 1 -> cage 2
-	 *	port 2 -> cage 3
-	 *	port 3 -> cage 4
-	 */
-	{
-		EFX_FAMILY_MEDFORD,
-		(1U << TLV_PORT_MODE_10G) |			/* mode 0 */
-		(1U << TLV_PORT_MODE_10G_10G),			/* mode 2 */
-		1,	/* ports per cage */
-		1	/* first cage */
-	},
-	/*
 	 * Modes which for Huntington identify a chip variant where 2
 	 * adjacent port numbers map to each cage.
 	 * SFN7x42Q (Monza):
@@ -1409,6 +1394,21 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_40G_10G_10G) |		/* mode 6 */
 		(1U << TLV_PORT_MODE_10G_10G_40G),		/* mode 7 */
 		2,	/* ports per cage */
+		1	/* first cage */
+	},
+	/*
+	 * Modes that on Medford allocate each port number to a separate
+	 * cage.
+	 *	port 0 -> cage 1
+	 *	port 1 -> cage 2
+	 *	port 2 -> cage 3
+	 *	port 3 -> cage 4
+	 */
+	{
+		EFX_FAMILY_MEDFORD,
+		(1U << TLV_PORT_MODE_10G) |			/* mode 0 */
+		(1U << TLV_PORT_MODE_10G_10G),			/* mode 2 */
+		1,	/* ports per cage */
 		1	/* first cage */
 	},
 	/*
