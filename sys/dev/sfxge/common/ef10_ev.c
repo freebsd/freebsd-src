@@ -732,9 +732,15 @@ ef10_ev_qmoderate(
 			EFX_BAR_VI_WRITED(enp, ER_DD_EVQ_INDIRECT,
 			    eep->ee_index, &dword, 0);
 		} else {
-			EFX_POPULATE_DWORD_2(dword,
+			/*
+			 * NOTE: The TMR_REL field introduced in Medford2 is
+			 * ignored on earlier EF10 controllers. See bug66418
+			 * comment 9 for details.
+			 */
+			EFX_POPULATE_DWORD_3(dword,
 			    ERF_DZ_TC_TIMER_MODE, mode,
-			    ERF_DZ_TC_TIMER_VAL, ticks);
+			    ERF_DZ_TC_TIMER_VAL, ticks,
+			    ERF_FZ_TC_TMR_REL_VAL, ticks);
 			EFX_BAR_VI_WRITED(enp, ER_DZ_EVQ_TMR_REG,
 			    eep->ee_index, &dword, 0);
 		}
