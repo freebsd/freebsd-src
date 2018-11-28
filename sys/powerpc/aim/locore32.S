@@ -33,6 +33,7 @@
 #include <machine/param.h>
 #include <machine/spr.h>
 #include <machine/asm.h>
+#include <machine/vmparam.h>
 #include "opt_platform.h"
 
 /* Locate the per-CPU data structure */

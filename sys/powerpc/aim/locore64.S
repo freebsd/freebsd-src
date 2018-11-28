@@ -35,6 +35,7 @@
 #include <machine/param.h>
 #include <machine/spr.h>
 #include <machine/asm.h>
+#include <machine/vmparam.h>
 
 #ifdef _CALL_ELF
 .abiversion _CALL_ELF
