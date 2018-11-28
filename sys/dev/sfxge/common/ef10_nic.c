@@ -1575,6 +1575,7 @@ ef10_nic_board_cfg(
 	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t board_type = 0;
 	uint32_t port;
 	uint32_t pf;
 	uint32_t vf;
@@ -1632,13 +1633,28 @@ ef10_nic_board_cfg(
 
 	EFX_MAC_ADDR_COPY(encp->enc_mac_addr, mac_addr);
 
+	/* Board configuration (legacy) */
+	rc = efx_mcdi_get_board_cfg(enp, &board_type, NULL, NULL);
+	if (rc != 0) {
+		/* Unprivileged functions may not be able to read board cfg */
+		if (rc == EACCES)
+			board_type = 0;
+		else
+			goto fail5;
+	}
+
+	encp->enc_board_type = board_type;
+	encp->enc_clk_mult = 1; /* not used for EF10 */
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail5;
+			goto fail6;
 
 	return (0);
 
+fail6:
+	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
 fail4:
