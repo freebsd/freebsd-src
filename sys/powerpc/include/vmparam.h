@@ -117,7 +117,7 @@
 #endif
 
 #ifdef AIM
-#define	KERNBASE		0x00100100UL	/* start of kernel virtual */
+#define	KERNBASE		0x00100100	/* start of kernel virtual */
 
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)
