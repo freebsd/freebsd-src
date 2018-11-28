@@ -1201,11 +1201,6 @@ ef10_get_privilege_mask(
 	__in			efx_nic_t *enp,
 	__out			uint32_t *maskp);
 
-extern	__checkReturn	efx_rc_t
-ef10_external_port_mapping(
-	__in		efx_nic_t *enp,
-	__in		uint32_t port,
-	__out		uint8_t *external_portp);
 
 #if EFSYS_OPT_RX_PACKED_STREAM
 

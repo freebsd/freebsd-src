@@ -1494,7 +1494,7 @@ static struct ef10_external_port_map_s {
 	},
 };
 
-	__checkReturn	efx_rc_t
+static	__checkReturn	efx_rc_t
 ef10_external_port_mapping(
 	__in		efx_nic_t *enp,
 	__in		uint32_t port,
@@ -1573,14 +1573,33 @@ ef10_nic_board_cfg(
 	__in		efx_nic_t *enp)
 {
 	const efx_nic_ops_t *enop = enp->en_enop;
+	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	uint32_t port;
 	efx_rc_t rc;
 
+	/* Get the (zero-based) MCDI port number */
+	if ((rc = efx_mcdi_get_port_assignment(enp, &port)) != 0)
+		goto fail1;
+
+	/* EFX MCDI interface uses one-based port numbers */
+	emip->emi_port = port + 1;
+
+	if ((rc = ef10_external_port_mapping(enp, port,
+		    &encp->enc_external_port)) != 0)
+		goto fail2;
+
+	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail1;
+			goto fail3;
 
 	return (0);
 
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
