@@ -1578,6 +1578,7 @@ ef10_nic_board_cfg(
 	uint32_t port;
 	uint32_t pf;
 	uint32_t vf;
+	uint8_t mac_addr[6] = { 0 };
 	efx_rc_t rc;
 
 	/* Get the (zero-based) MCDI port number */
@@ -1603,13 +1604,43 @@ ef10_nic_board_cfg(
 	encp->enc_pf = pf;
 	encp->enc_vf = vf;
 
+	/* MAC address for this function */
+	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
+		rc = efx_mcdi_get_mac_address_pf(enp, mac_addr);
+#if EFSYS_OPT_ALLOW_UNCONFIGURED_NIC
+		/*
+		 * Disable static config checking, ONLY for manufacturing test
+		 * and setup at the factory, to allow the static config to be
+		 * installed.
+		 */
+#else /* EFSYS_OPT_ALLOW_UNCONFIGURED_NIC */
+		if ((rc == 0) && (mac_addr[0] & 0x02)) {
+			/*
+			 * If the static config does not include a global MAC
+			 * address pool then the board may return a locally
+			 * administered MAC address (this should only happen on
+			 * incorrectly programmed boards).
+			 */
+			rc = EINVAL;
+		}
+#endif /* EFSYS_OPT_ALLOW_UNCONFIGURED_NIC */
+	} else {
+		rc = efx_mcdi_get_mac_address_vf(enp, mac_addr);
+	}
+	if (rc != 0)
+		goto fail4;
+
+	EFX_MAC_ADDR_COPY(encp->enc_mac_addr, mac_addr);
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail4;
+			goto fail5;
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
