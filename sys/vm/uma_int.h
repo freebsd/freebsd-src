@@ -139,9 +139,17 @@
 #define UMA_MAX_WASTE	10
 
 /*
- * Size of memory in a not offpage slab available for actual items.
+ * Actual size of uma_slab when it is placed at an end of a page
+ * with pointer sized alignment requirement.
  */
-#define	UMA_SLAB_SPACE	(UMA_SLAB_SIZE - sizeof(struct uma_slab))
+#define	SIZEOF_UMA_SLAB	((sizeof(struct uma_slab) & UMA_ALIGN_PTR) ?	  \
+			    (sizeof(struct uma_slab) & ~UMA_ALIGN_PTR) +  \
+			    (UMA_ALIGN_PTR + 1) : sizeof(struct uma_slab))
+
+/*
+ * Size of memory in a not offpage single page slab available for actual items.
+ */
+#define	UMA_SLAB_SPACE	(PAGE_SIZE - SIZEOF_UMA_SLAB)
 
 /*
  * I doubt there will be many cases where this is exceeded. This is the initial
