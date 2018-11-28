@@ -104,7 +104,6 @@ hunt_board_cfg(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint32_t board_type = 0;
 	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
 	uint32_t mask;
@@ -124,26 +123,13 @@ hunt_board_cfg(
 	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
 	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
 
-	/* Board configuration */
-	rc = efx_mcdi_get_board_cfg(enp, &board_type, NULL, NULL);
-	if (rc != 0) {
-		/* Unprivileged functions may not be able to read board cfg */
-		if (rc == EACCES)
-			board_type = 0;
-		else
-			goto fail1;
-	}
-
-	encp->enc_board_type = board_type;
-	encp->enc_clk_mult = 1; /* not used for Huntington */
-
 	/* Fill out fields in enp->en_port and enp->en_nic_cfg from MCDI */
 	if ((rc = efx_mcdi_get_phy_cfg(enp)) != 0)
-		goto fail2;
+		goto fail1;
 
 	/* Obtain the default PHY advertised capabilities */
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
-		goto fail3;
+		goto fail2;
 	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
@@ -174,7 +160,7 @@ hunt_board_cfg(
 	else if ((rc == ENOTSUP) || (rc == ENOENT))
 		encp->enc_bug35388_workaround = B_FALSE;
 	else
-		goto fail4;
+		goto fail3;
 
 	/*
 	 * If the bug41750 workaround is enabled, then do not test interrupts,
@@ -193,7 +179,7 @@ hunt_board_cfg(
 	} else if ((rc == ENOTSUP) || (rc == ENOENT)) {
 		encp->enc_bug41750_workaround = B_FALSE;
 	} else {
-		goto fail5;
+		goto fail4;
 	}
 	if (EFX_PCI_FUNCTION_IS_VF(encp)) {
 		/* Interrupt testing does not work for VFs. See bug50084. */
@@ -231,12 +217,12 @@ hunt_board_cfg(
 	} else if ((rc == ENOTSUP) || (rc == ENOENT)) {
 		encp->enc_bug26807_workaround = B_FALSE;
 	} else {
-		goto fail6;
+		goto fail5;
 	}
 
 	/* Get clock frequencies (in MHz). */
 	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
-		goto fail7;
+		goto fail6;
 
 	/*
 	 * The Huntington timer quantum is 1536 sysclk cycles, documented for
@@ -255,7 +241,7 @@ hunt_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-		goto fail8;
+		goto fail7;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
@@ -305,13 +291,13 @@ hunt_board_cfg(
 	 * can result in time-of-check/time-of-use bugs.
 	 */
 	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail9;
+		goto fail8;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
 	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
 		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail10;
+			goto fail9;
 
 		/* Ignore error (cannot query vector limits from a VF). */
 		base = 0;
@@ -327,7 +313,7 @@ hunt_board_cfg(
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	if ((rc = hunt_nic_get_required_pcie_bandwidth(enp, &bandwidth)) != 0)
-		goto fail11;
+		goto fail10;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 
 	/* All Huntington devices have a PCIe Gen3, 8 lane connector */
@@ -335,8 +321,6 @@ hunt_board_cfg(
 
 	return (0);
 
-fail11:
-	EFSYS_PROBE(fail11);
 fail10:
 	EFSYS_PROBE(fail10);
 fail9:
