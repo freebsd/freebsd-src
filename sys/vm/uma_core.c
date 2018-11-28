@@ -1991,10 +1991,17 @@ uma_startup_count(int vm_zones)
 #endif
 
 	/* Memory for the rest of startup zones, UMA and VM, ... */
-	if (zsize > UMA_SLAB_SPACE)
-		pages += (zones + vm_zones) *
-		    howmany(roundup2(zsize, UMA_BOOT_ALIGN), UMA_SLAB_SIZE);
-	else if (roundup2(zsize, UMA_BOOT_ALIGN) > UMA_SLAB_SPACE)
+	if (zsize > UMA_SLAB_SPACE) {
+		/* See keg_large_init(). */
+		u_int ppera;
+
+		ppera = howmany(roundup2(zsize, UMA_BOOT_ALIGN), PAGE_SIZE);
+		if (PAGE_SIZE * ppera - roundup2(zsize, UMA_BOOT_ALIGN) <
+		    SIZEOF_UMA_SLAB)
+			ppera++;
+		pages += (zones + vm_zones) * ppera;
+	} else if (roundup2(zsize, UMA_BOOT_ALIGN) > UMA_SLAB_SPACE)
+		/* See keg_small_init() special case for uk_ppera = 1. */
 		pages += zones;
 	else
 		pages += howmany(zones,
