@@ -209,6 +209,7 @@ device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
 device		iic
 device		twsi		# Allwinner I2C controller
+device		rk_i2c		# RockChip I2C controller
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
@@ -225,6 +226,7 @@ device		aw_wdog		# Allwinner Watchdog
 
 # Power management controllers
 device		axp81x		# X-Powers AXP81x PMIC
+device		rk805		# RockChip RK805 PMIC
 
 # EFUSE
 device		aw_sid		# Allwinner Secure ID EFUSE
