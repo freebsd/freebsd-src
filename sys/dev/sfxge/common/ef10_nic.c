@@ -1578,6 +1578,7 @@ ef10_nic_board_cfg(
 	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
 	uint32_t board_type = 0;
+	uint32_t base, nvec;
 	uint32_t port;
 	uint32_t pf;
 	uint32_t vf;
@@ -1694,13 +1695,27 @@ ef10_nic_board_cfg(
 
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
+	/* Get interrupt vector limits */
+	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
+		if (EFX_PCI_FUNCTION_IS_PF(encp))
+			goto fail9;
+
+		/* Ignore error (cannot query vector limits from a VF). */
+		base = 0;
+		nvec = 1024;
+	}
+	encp->enc_intr_vec_base = base;
+	encp->enc_intr_limit = nvec;
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail9;
+			goto fail10;
 
 	return (0);
 
+fail10:
+	EFSYS_PROBE(fail10);
 fail9:
 	EFSYS_PROBE(fail9);
 fail8:

@@ -76,7 +76,6 @@ medford_board_cfg(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t mask;
 	uint32_t sysclk, dpcpu_clk;
-	uint32_t base, nvec;
 	uint32_t end_padding;
 	uint32_t bandwidth;
 	efx_rc_t rc;
@@ -185,18 +184,6 @@ medford_board_cfg(
 		goto fail4;
 	encp->enc_privilege_mask = mask;
 
-	/* Get interrupt vector limits */
-	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
-		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail5;
-
-		/* Ignore error (cannot query vector limits from a VF). */
-		base = 0;
-		nvec = 1024;
-	}
-	encp->enc_intr_vec_base = base;
-	encp->enc_intr_limit = nvec;
-
 	/*
 	 * Medford stores a single global copy of VPD, not per-PF as on
 	 * Huntington.
@@ -205,14 +192,12 @@ medford_board_cfg(
 
 	rc = medford_nic_get_required_pcie_bandwidth(enp, &bandwidth);
 	if (rc != 0)
-		goto fail6;
+		goto fail5;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
 
 	return (0);
 
-fail6:
-	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
 fail4:
