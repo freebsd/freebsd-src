@@ -4125,10 +4125,86 @@
 #define	MC_CMD_MAC_FEC_CORRECTED_SYMBOLS_LANE2  0x65
 /* enum: Number of corrected 10-bit symbol errors, lane 3 (RS-FEC only) */
 #define	MC_CMD_MAC_FEC_CORRECTED_SYMBOLS_LANE3  0x66
-/* enum: This includes the final GENERATION_END */
+/* enum: This includes the space at offset 103 which is the final
+ * GENERATION_END in a MAC_STATS_V2 response and otherwise unused.
+ */
 #define	MC_CMD_MAC_NSTATS_V2  0x68
 /*            Other enum values, see field(s): */
 /*               MC_CMD_MAC_STATS_OUT_NO_DMA/STATISTICS */
+
+/* MC_CMD_MAC_STATS_V3_OUT_DMA msgresponse */
+#define	MC_CMD_MAC_STATS_V3_OUT_DMA_LEN 0
+
+/* MC_CMD_MAC_STATS_V3_OUT_NO_DMA msgresponse */
+#define	MC_CMD_MAC_STATS_V3_OUT_NO_DMA_LEN (((MC_CMD_MAC_NSTATS_V3*64))>>3)
+#define	MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_OFST 0
+#define	MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_LEN 8
+#define	MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_LO_OFST 0
+#define	MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_HI_OFST 4
+#define	MC_CMD_MAC_STATS_V3_OUT_NO_DMA_STATISTICS_NUM MC_CMD_MAC_NSTATS_V3
+/* enum: Start of CTPIO stats buffer space, Medford2 and up */
+#define	MC_CMD_MAC_CTPIO_DMABUF_START  0x68
+/* enum: Number of CTPIO fallbacks because a DMA packet was in progress on the
+ * target VI
+ */
+#define	MC_CMD_MAC_CTPIO_VI_BUSY_FALLBACK  0x68
+/* enum: Number of times a CTPIO send wrote beyond frame end (informational
+ * only)
+ */
+#define	MC_CMD_MAC_CTPIO_LONG_WRITE_SUCCESS  0x69
+/* enum: Number of CTPIO failures because the TX doorbell was written before
+ * the end of the frame data
+ */
+#define	MC_CMD_MAC_CTPIO_MISSING_DBELL_FAIL  0x6a
+/* enum: Number of CTPIO failures because the internal FIFO overflowed */
+#define	MC_CMD_MAC_CTPIO_OVERFLOW_FAIL  0x6b
+/* enum: Number of CTPIO failures because the host did not deliver data fast
+ * enough to avoid MAC underflow
+ */
+#define	MC_CMD_MAC_CTPIO_UNDERFLOW_FAIL  0x6c
+/* enum: Number of CTPIO failures because the host did not deliver all the
+ * frame data within the timeout
+ */
+#define	MC_CMD_MAC_CTPIO_TIMEOUT_FAIL  0x6d
+/* enum: Number of CTPIO failures because the frame data arrived out of order
+ * or with gaps
+ */
+#define	MC_CMD_MAC_CTPIO_NONCONTIG_WR_FAIL  0x6e
+/* enum: Number of CTPIO failures because the host started a new frame before
+ * completing the previous one
+ */
+#define	MC_CMD_MAC_CTPIO_FRM_CLOBBER_FAIL  0x6f
+/* enum: Number of CTPIO failures because a write was not a multiple of 32 bits
+ * or not 32-bit aligned
+ */
+#define	MC_CMD_MAC_CTPIO_INVALID_WR_FAIL  0x70
+/* enum: Number of CTPIO fallbacks because another VI on the same port was
+ * sending a CTPIO frame
+ */
+#define	MC_CMD_MAC_CTPIO_VI_CLOBBER_FALLBACK  0x71
+/* enum: Number of CTPIO fallbacks because target VI did not have CTPIO enabled
+ */
+#define	MC_CMD_MAC_CTPIO_UNQUALIFIED_FALLBACK  0x72
+/* enum: Number of CTPIO fallbacks because length in header was less than 29
+ * bytes
+ */
+#define	MC_CMD_MAC_CTPIO_RUNT_FALLBACK  0x73
+/* enum: Total number of successful CTPIO sends on this port */
+#define	MC_CMD_MAC_CTPIO_SUCCESS  0x74
+/* enum: Total number of CTPIO fallbacks on this port */
+#define	MC_CMD_MAC_CTPIO_FALLBACK  0x75
+/* enum: Total number of CTPIO poisoned frames on this port, whether erased or
+ * not
+ */
+#define	MC_CMD_MAC_CTPIO_POISON  0x76
+/* enum: Total number of CTPIO erased frames on this port */
+#define	MC_CMD_MAC_CTPIO_ERASE  0x77
+/* enum: This includes the space at offset 120 which is the final
+ * GENERATION_END in a MAC_STATS_V3 response and otherwise unused.
+ */
+#define	MC_CMD_MAC_NSTATS_V3  0x79
+/*            Other enum values, see field(s): */
+/*               MC_CMD_MAC_STATS_V2_OUT_NO_DMA/STATISTICS */
 
 
 /***********************************/
