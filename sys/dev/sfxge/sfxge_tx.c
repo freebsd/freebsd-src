@@ -1176,6 +1176,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 			desc = &txq->pend_desc[txq->n_pend_desc];
 			efx_tx_qdesc_tso2_create(txq->common,
 						 tso->packet_id,
+						 0,
 						 tso->seqnum,
 						 tso->seg_size,
 						 desc,

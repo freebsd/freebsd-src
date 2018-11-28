@@ -654,6 +654,7 @@ efx_tx_qdesc_tso_create(
 efx_tx_qdesc_tso2_create(
 	__in			efx_txq_t *etp,
 	__in			uint16_t ipv4_id,
+	__in			uint16_t outer_ipv4_id,
 	__in			uint32_t tcp_seq,
 	__in			uint16_t mss,
 	__out_ecount(count)	efx_desc_t *edp,
@@ -665,7 +666,8 @@ efx_tx_qdesc_tso2_create(
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 	EFSYS_ASSERT(etxop->etxo_qdesc_tso2_create != NULL);
 
-	etxop->etxo_qdesc_tso2_create(etp, ipv4_id, tcp_seq, mss, edp, count);
+	etxop->etxo_qdesc_tso2_create(etp, ipv4_id, outer_ipv4_id,
+	    tcp_seq, mss, edp, count);
 }
 
 	void
