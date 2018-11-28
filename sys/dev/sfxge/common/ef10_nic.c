@@ -1372,11 +1372,11 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_HUNTINGTON,
-		(1 << TLV_PORT_MODE_10G) |
-		(1 << TLV_PORT_MODE_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G),
-		1,
-		1
+		(1U << TLV_PORT_MODE_10G) |			/* mode 0 */
+		(1U << TLV_PORT_MODE_10G_10G) |			/* mode 2 */
+		(1U << TLV_PORT_MODE_10G_10G_10G_10G),		/* mode 4 */
+		1,	/* ports per cage */
+		1	/* first cage */
 	},
 	/*
 	 * Modes that on Medford allocate each port number to a separate
@@ -1388,10 +1388,10 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1 << TLV_PORT_MODE_10G) |
-		(1 << TLV_PORT_MODE_10G_10G),
-		1,
-		1
+		(1U << TLV_PORT_MODE_10G) |			/* mode 0 */
+		(1U << TLV_PORT_MODE_10G_10G),			/* mode 2 */
+		1,	/* ports per cage */
+		1	/* first cage */
 	},
 	/*
 	 * Modes which for Huntington identify a chip variant where 2
@@ -1404,12 +1404,12 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_HUNTINGTON,
-		(1 << TLV_PORT_MODE_40G) |
-		(1 << TLV_PORT_MODE_40G_40G) |
-		(1 << TLV_PORT_MODE_40G_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_40G),
-		2,
-		1
+		(1U << TLV_PORT_MODE_40G) |			/* mode 1 */
+		(1U << TLV_PORT_MODE_40G_40G) |			/* mode 3 */
+		(1U << TLV_PORT_MODE_40G_10G_10G) |		/* mode 6 */
+		(1U << TLV_PORT_MODE_10G_10G_40G),		/* mode 7 */
+		2,	/* ports per cage */
+		1	/* first cage */
 	},
 	/*
 	 * Modes that on Medford allocate 2 adjacent port numbers to each
@@ -1421,13 +1421,14 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1 << TLV_PORT_MODE_40G) |
-		(1 << TLV_PORT_MODE_40G_40G) |
-		(1 << TLV_PORT_MODE_40G_10G_10G) |
-		(1 << TLV_PORT_MODE_10G_10G_40G) |
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2),
-		2,
-		1
+		(1U << TLV_PORT_MODE_40G) |			/* mode 1 */
+		(1U << TLV_PORT_MODE_40G_40G) |			/* mode 3 */
+		(1U << TLV_PORT_MODE_40G_10G_10G) |		/* mode 6 */
+		(1U << TLV_PORT_MODE_10G_10G_40G) |		/* mode 7 */
+		/* Do not use 10G_10G_10G_10G_Q1_Q2 (see bug63270) */
+		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2),	/* mode 9 */
+		2,	/* ports per cage */
+		1	/* first cage */
 	},
 	/*
 	 * Modes that on Medford allocate 4 adjacent port numbers to each
@@ -1439,10 +1440,11 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q) |
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q1),
-		4,
-		1,
+		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q) |	/* mode 5 */
+		/* Do not use 10G_10G_10G_10G_Q1 (see bug63270) */
+		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q1),	/* mode 4 */
+		4,	/* ports per cage */
+		1	/* first cage */
 	},
 	/*
 	 * Modes that on Medford allocate 4 adjacent port numbers to each
@@ -1454,9 +1456,9 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1 << TLV_PORT_MODE_10G_10G_10G_10G_Q2),
-		4,
-		2
+		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q2),	/* mode 8 */
+		4,	/* ports per cage */
+		2	/* first cage */
 	},
 };
 

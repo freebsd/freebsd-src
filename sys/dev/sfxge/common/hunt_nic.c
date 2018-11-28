@@ -63,7 +63,7 @@ hunt_nic_get_required_pcie_bandwidth(
 		goto out;
 	}
 
-	if (port_modes & (1 << TLV_PORT_MODE_40G_40G)) {
+	if (port_modes & (1U << TLV_PORT_MODE_40G_40G)) {
 		/*
 		 * This needs the full PCIe bandwidth (and could use
 		 * more) - roughly 64 Gbit/s for 8 lanes of Gen3.
@@ -72,9 +72,9 @@ hunt_nic_get_required_pcie_bandwidth(
 			    EFX_PCIE_LINK_SPEED_GEN3, &bandwidth)) != 0)
 			goto fail1;
 	} else {
-		if (port_modes & (1 << TLV_PORT_MODE_40G)) {
+		if (port_modes & (1U << TLV_PORT_MODE_40G)) {
 			max_port_mode = TLV_PORT_MODE_40G;
-		} else if (port_modes & (1 << TLV_PORT_MODE_10G_10G_10G_10G)) {
+		} else if (port_modes & (1U << TLV_PORT_MODE_10G_10G_10G_10G)) {
 			max_port_mode = TLV_PORT_MODE_10G_10G_10G_10G;
 		} else {
 			/* Assume two 10G ports */
