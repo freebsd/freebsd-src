@@ -163,16 +163,6 @@ medford_board_cfg(
 	}
 	encp->enc_rx_buf_align_end = end_padding;
 
-	/* Alignment for WPTR updates */
-	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
-
-	/*
-	 * Maximum number of exclusive RSS contexts which can be allocated. The
-	 * hardware supports 64, but 6 are reserved for shared contexts. They
-	 * are a global resource so not all may be available.
-	 */
-	encp->enc_rx_scale_max_exclusive_contexts = 58;
-
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
 	/* No boundary crossing limits */
 	encp->enc_tx_dma_desc_boundary = 0;
