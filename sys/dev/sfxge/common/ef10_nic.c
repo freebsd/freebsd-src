@@ -1202,6 +1202,37 @@ ef10_get_datapath_caps(
 		encp->enc_tunnel_config_udp_entries_max = 0;
 	}
 
+	/*
+	 * Check if firmware reports the VI window mode.
+	 * Medford2 has a variable VI window size (8K, 16K or 64K).
+	 * Medford and Huntington have a fixed 8K VI window size.
+	 */
+	if (req.emr_out_length_used >= MC_CMD_GET_CAPABILITIES_V3_OUT_LEN) {
+		uint8_t mode =
+		    MCDI_OUT_BYTE(req, GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE);
+
+		switch (mode) {
+		case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_8K:
+			encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
+			break;
+		case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_16K:
+			encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_16K;
+			break;
+		case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_64K:
+			encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_64K;
+			break;
+		default:
+			encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_INVALID;
+			break;
+		}
+	} else if ((enp->en_family == EFX_FAMILY_HUNTINGTON) ||
+		    (enp->en_family == EFX_FAMILY_MEDFORD)) {
+		/* Huntington and Medford have fixed 8K window size */
+		encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
+	} else {
+		encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_INVALID;
+	}
+
 	/* Check if firmware supports extended MAC stats. */
 	if (req.emr_out_length_used >= MC_CMD_GET_CAPABILITIES_V4_OUT_LEN) {
 		/* Extended stats buffer supported */
@@ -1224,71 +1255,6 @@ ef10_get_datapath_caps(
 
 fail4:
 	EFSYS_PROBE(fail4);
-fail3:
-	EFSYS_PROBE(fail3);
-fail2:
-	EFSYS_PROBE(fail2);
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
-}
-
-	__checkReturn	efx_rc_t
-ef10_get_vi_window_shift(
-	__in		efx_nic_t *enp,
-	__out		uint32_t *vi_window_shiftp)
-{
-	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
-			    MC_CMD_GET_CAPABILITIES_V3_OUT_LEN)];
-	uint32_t mode;
-	efx_rc_t rc;
-
-	(void) memset(payload, 0, sizeof (payload));
-	req.emr_cmd = MC_CMD_GET_CAPABILITIES;
-	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
-	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V3_OUT_LEN;
-
-	efx_mcdi_execute_quiet(enp, &req);
-
-	if (req.emr_rc != 0) {
-		rc = req.emr_rc;
-		goto fail1;
-	}
-
-	if (req.emr_out_length_used < MC_CMD_GET_CAPABILITIES_V3_OUT_LEN) {
-		rc = EMSGSIZE;
-		goto fail2;
-	}
-	mode = MCDI_OUT_BYTE(req, GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE);
-
-	switch (mode) {
-	case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_8K:
-		EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K == 8 * 1024);
-		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_8K;
-		break;
-
-	case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_16K:
-		EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_16K == 16 * 1024);
-		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_16K;
-		break;
-
-	case MC_CMD_GET_CAPABILITIES_V3_OUT_VI_WINDOW_MODE_64K:
-		EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_64K == 64 * 1024);
-		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_64K;
-		break;
-
-	default:
-		*vi_window_shiftp = EFX_VI_WINDOW_SHIFT_INVALID;
-		rc = EINVAL;
-		goto fail3;
-	}
-
-	return (0);
-
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
