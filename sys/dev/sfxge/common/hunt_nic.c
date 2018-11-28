@@ -105,7 +105,6 @@ hunt_board_cfg(
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_port_t *epp = &(enp->en_port);
-	uint32_t mask;
 	uint32_t flags;
 	uint32_t sysclk, dpcpu_clk;
 	uint32_t bandwidth;
@@ -242,18 +241,8 @@ hunt_board_cfg(
 	encp->enc_piobuf_size = HUNT_PIOBUF_SIZE;
 	encp->enc_piobuf_min_alloc_size = HUNT_MIN_PIO_ALLOC_SIZE;
 
-	/*
-	 * Get the current privilege mask. Note that this may be modified
-	 * dynamically, so this value is informational only. DO NOT use
-	 * the privilege mask to check for sufficient privileges, as that
-	 * can result in time-of-check/time-of-use bugs.
-	 */
-	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail5;
-	encp->enc_privilege_mask = mask;
-
 	if ((rc = hunt_nic_get_required_pcie_bandwidth(enp, &bandwidth)) != 0)
-		goto fail6;
+		goto fail5;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 
 	/* All Huntington devices have a PCIe Gen3, 8 lane connector */
@@ -261,8 +250,6 @@ hunt_board_cfg(
 
 	return (0);
 
-fail6:
-	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
 fail4:

@@ -1580,6 +1580,7 @@ ef10_nic_board_cfg(
 	uint32_t board_type = 0;
 	uint32_t base, nvec;
 	uint32_t port;
+	uint32_t mask;
 	uint32_t pf;
 	uint32_t vf;
 	uint8_t mac_addr[6] = { 0 };
@@ -1707,13 +1708,25 @@ ef10_nic_board_cfg(
 	encp->enc_intr_vec_base = base;
 	encp->enc_intr_limit = nvec;
 
+	/*
+	 * Get the current privilege mask. Note that this may be modified
+	 * dynamically, so this value is informational only. DO NOT use
+	 * the privilege mask to check for sufficient privileges, as that
+	 * can result in time-of-check/time-of-use bugs.
+	 */
+	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
+		goto fail10;
+	encp->enc_privilege_mask = mask;
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail10;
+			goto fail11;
 
 	return (0);
 
+fail11:
+	EFSYS_PROBE(fail11);
 fail10:
 	EFSYS_PROBE(fail10);
 fail9:
