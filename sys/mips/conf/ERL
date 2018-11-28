@@ -91,6 +91,8 @@ options 	KDTRACE_HOOKS		# Kernel DTrace hooks
 options 	DDB_CTF			# Kernel ELF linker loads CTF data
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	TMPFS			# Temporary file system
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
 
 # Debugging for use in -current
 #options 	KDB			# Enable kernel debugger support.
