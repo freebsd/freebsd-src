@@ -228,10 +228,6 @@ hunt_board_cfg(
 
 	encp->enc_bug61265_workaround = B_FALSE; /* Medford only */
 
-	/* Check capabilities of running datapath firmware */
-	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-		goto fail5;
-
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
 	encp->enc_rx_buf_align_end = 64; /* RX DMA end padding */
@@ -280,13 +276,13 @@ hunt_board_cfg(
 	 * can result in time-of-check/time-of-use bugs.
 	 */
 	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail6;
+		goto fail5;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
 	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
 		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail7;
+			goto fail6;
 
 		/* Ignore error (cannot query vector limits from a VF). */
 		base = 0;
@@ -302,7 +298,7 @@ hunt_board_cfg(
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	if ((rc = hunt_nic_get_required_pcie_bandwidth(enp, &bandwidth)) != 0)
-		goto fail8;
+		goto fail7;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 
 	/* All Huntington devices have a PCIe Gen3, 8 lane connector */
@@ -310,8 +306,6 @@ hunt_board_cfg(
 
 	return (0);
 
-fail8:
-	EFSYS_PROBE(fail8);
 fail7:
 	EFSYS_PROBE(fail7);
 fail6:
