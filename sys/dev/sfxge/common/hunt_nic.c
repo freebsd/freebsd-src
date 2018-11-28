@@ -110,16 +110,6 @@ hunt_board_cfg(
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
-	/* Huntington has a fixed 8Kbyte VI window size */
-	EFX_STATIC_ASSERT(ER_DZ_EVQ_RPTR_REG_STEP	== 8192);
-	EFX_STATIC_ASSERT(ER_DZ_EVQ_TMR_REG_STEP	== 8192);
-	EFX_STATIC_ASSERT(ER_DZ_RX_DESC_UPD_REG_STEP	== 8192);
-	EFX_STATIC_ASSERT(ER_DZ_TX_DESC_UPD_REG_STEP	== 8192);
-	EFX_STATIC_ASSERT(ER_DZ_TX_PIOBUF_STEP		== 8192);
-
-	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
-	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
-
 	/*
 	 * Enable firmware workarounds for hardware errata.
 	 * Expected responses are:
