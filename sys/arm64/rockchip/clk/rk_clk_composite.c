@@ -126,7 +126,7 @@ rk_clk_composite_set_mux(struct clknode *clk, int index)
 
 	DEVICE_LOCK(clk);
 	READ4(clk, sc->muxdiv_offset, &val);
-	val &= ~(sc->mux_mask >> sc->mux_shift);
+	val &= ~sc->mux_mask;
 	val |= index << sc->mux_shift;
 	WRITE4(clk, sc->muxdiv_offset, val);
 	DEVICE_UNLOCK(clk);
