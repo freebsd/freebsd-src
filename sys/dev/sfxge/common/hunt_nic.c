@@ -105,7 +105,7 @@ hunt_board_cfg(
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint8_t mac_addr[6];
+	uint8_t mac_addr[6] = { 0 };
 	uint32_t board_type = 0;
 	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
