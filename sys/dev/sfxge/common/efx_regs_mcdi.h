@@ -6751,6 +6751,10 @@
 #define	TX_TIMESTAMP_EVENT_TX_EV_TYPE_LEN 1
 /* enum: This is a TX completion event, not a timestamp */
 #define	TX_TIMESTAMP_EVENT_TX_EV_COMPLETION  0x0
+/* enum: This is a TX completion event for a CTPIO transmit. The event format
+ * is the same as for TX_EV_COMPLETION.
+ */
+#define	TX_TIMESTAMP_EVENT_TX_EV_CTPIO_COMPLETION  0x11
 /* enum: This is the low part of a TX timestamp event */
 #define	TX_TIMESTAMP_EVENT_TX_EV_TSTAMP_LO  0x51
 /* enum: This is the high part of a TX timestamp event */
