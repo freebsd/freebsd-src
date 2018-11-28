@@ -80,11 +80,6 @@ medford_board_cfg(
 	efx_rc_t rc;
 
 	/*
-	 * FIXME: Likely to be incomplete and incorrect.
-	 * Parts of this should be shared with Huntington.
-	 */
-
-	/*
 	 * Enable firmware workarounds for hardware errata.
 	 * Expected responses are:
 	 *  - 0 (zero):
