@@ -145,7 +145,7 @@ typedef struct efx_tx_ops_s {
 						uint32_t, uint8_t,
 						efx_desc_t *);
 	void		(*etxo_qdesc_tso2_create)(efx_txq_t *, uint16_t,
-						uint32_t, uint16_t,
+						uint16_t, uint32_t, uint16_t,
 						efx_desc_t *, int);
 	void		(*etxo_qdesc_vlantci_create)(efx_txq_t *, uint16_t,
 						efx_desc_t *);

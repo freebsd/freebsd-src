@@ -2323,6 +2323,7 @@ extern	void
 efx_tx_qdesc_tso2_create(
 	__in			efx_txq_t *etp,
 	__in			uint16_t ipv4_id,
+	__in			uint16_t outer_ipv4_id,
 	__in			uint32_t tcp_seq,
 	__in			uint16_t tcp_mss,
 	__out_ecount(count)	efx_desc_t *edp,
