@@ -82,8 +82,6 @@ medford2_board_cfg(
 	uint32_t board_type = 0;
 	ef10_link_state_t els;
 	efx_port_t *epp = &(enp->en_port);
-	uint32_t pf;
-	uint32_t vf;
 	uint32_t mask;
 	uint32_t sysclk, dpcpu_clk;
 	uint32_t base, nvec;
@@ -104,18 +102,6 @@ medford2_board_cfg(
 	EFSYS_ASSERT3U(vi_window_shift, <=, EFX_VI_WINDOW_SHIFT_64K);
 	encp->enc_vi_window_shift = vi_window_shift;
 
-
-	/*
-	 * Get PCIe function number from firmware (used for
-	 * per-function privilege and dynamic config info).
-	 *  - PCIe PF: pf = PF number, vf = 0xffff.
-	 *  - PCIe VF: pf = parent PF, vf = VF number.
-	 */
-	if ((rc = efx_mcdi_get_function_info(enp, &pf, &vf)) != 0)
-		goto fail2;
-
-	encp->enc_pf = pf;
-	encp->enc_vf = vf;
 
 	/* MAC address for this function */
 	if (EFX_PCI_FUNCTION_IS_PF(encp)) {
@@ -141,7 +127,7 @@ medford2_board_cfg(
 		rc = efx_mcdi_get_mac_address_vf(enp, mac_addr);
 	}
 	if (rc != 0)
-		goto fail3;
+		goto fail2;
 
 	EFX_MAC_ADDR_COPY(encp->enc_mac_addr, mac_addr);
 
@@ -152,7 +138,7 @@ medford2_board_cfg(
 		if (rc == EACCES)
 			board_type = 0;
 		else
-			goto fail4;
+			goto fail3;
 	}
 
 	encp->enc_board_type = board_type;
@@ -160,11 +146,11 @@ medford2_board_cfg(
 
 	/* Fill out fields in enp->en_port and enp->en_nic_cfg from MCDI */
 	if ((rc = efx_mcdi_get_phy_cfg(enp)) != 0)
-		goto fail5;
+		goto fail4;
 
 	/* Obtain the default PHY advertised capabilities */
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
-		goto fail6;
+		goto fail5;
 	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
@@ -208,11 +194,11 @@ medford2_board_cfg(
 	else if ((rc == ENOTSUP) || (rc == ENOENT))
 		encp->enc_bug61265_workaround = B_FALSE;
 	else
-		goto fail7;
+		goto fail6;
 
 	/* Get clock frequencies (in MHz). */
 	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
-		goto fail8;
+		goto fail7;
 
 	/*
 	 * The Medford2 timer quantum is 1536 dpcpu_clk cycles, documented for
@@ -224,7 +210,7 @@ medford2_board_cfg(
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
-		goto fail9;
+		goto fail8;
 
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
@@ -232,7 +218,7 @@ medford2_board_cfg(
 	/* Get the RX DMA end padding alignment configuration */
 	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0) {
 		if (rc != EACCES)
-			goto fail10;
+			goto fail9;
 
 		/* Assume largest tail padding size supported by hardware */
 		end_padding = 256;
@@ -284,13 +270,13 @@ medford2_board_cfg(
 	 * can result in time-of-check/time-of-use bugs.
 	 */
 	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail11;
+		goto fail10;
 	encp->enc_privilege_mask = mask;
 
 	/* Get interrupt vector limits */
 	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
 		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail12;
+			goto fail11;
 
 		/* Ignore error (cannot query vector limits from a VF). */
 		base = 0;
@@ -313,14 +299,12 @@ medford2_board_cfg(
 
 	rc = medford2_nic_get_required_pcie_bandwidth(enp, &bandwidth);
 	if (rc != 0)
-		goto fail13;
+		goto fail12;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
 
 	return (0);
 
-fail13:
-	EFSYS_PROBE(fail13);
 fail12:
 	EFSYS_PROBE(fail12);
 fail11:
