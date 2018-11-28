@@ -1016,7 +1016,7 @@ fail1:
 	return (rc);
 }
 
-	__checkReturn	efx_rc_t
+static	__checkReturn	efx_rc_t
 ef10_get_datapath_caps(
 	__in		efx_nic_t *enp)
 {
@@ -1658,13 +1658,19 @@ ef10_nic_board_cfg(
 	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
 	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
 
+	/* Check capabilities of running datapath firmware */
+	if ((rc = ef10_get_datapath_caps(enp)) != 0)
+		goto fail8;
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail8;
+			goto fail9;
 
 	return (0);
 
+fail9:
+	EFSYS_PROBE(fail9);
 fail8:
 	EFSYS_PROBE(fail8);
 fail7:
