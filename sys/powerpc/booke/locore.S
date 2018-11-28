@@ -113,7 +113,7 @@ __start:
  *  - Create temp entry in the second AS (make sure it's not TLB[1])
  *  - Switch to temp mapping
  *  - Map 64MB of RAM in TLB1[1]
- *  - Use AS=1, set EPN to KERNBASE and RPN to kernel load address
+ *  - Use AS=0, set EPN to VM_MIN_KERNEL_ADDRESS and RPN to kernel load address
  *  - Switch to TLB1[1] mapping
  *  - Invalidate temp mapping
  *
@@ -238,7 +238,7 @@ __start:
 	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
 
-	LOAD_ADDR(%r3, KERNBASE)
+	LOAD_ADDR(%r3, VM_MIN_KERNEL_ADDRESS)
 	ori	%r3, %r3, (_TLB_ENTRY_SHARED | MAS2_M)@l /* WIMGE = 0b00100 */
 	mtspr	SPR_MAS2, %r3
 	isync
@@ -471,7 +471,7 @@ bp_kernload:
 	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
 
-	LOAD_ADDR(%r3, KERNBASE)
+	LOAD_ADDR(%r3, VM_MIN_KERNEL_ADDRESS)
 	ori	%r3, %r3, (_TLB_ENTRY_SHARED | MAS2_M)@l /* WIMGE = 0b00100 */
 	mtspr	SPR_MAS2, %r3
 	isync
@@ -526,8 +526,8 @@ bp_kernload:
 7:
 
 /*
- * At this point we're running at virtual addresses KERNBASE and beyond so
- * it's allowed to directly access all locations the kernel was linked
+ * At this point we're running at virtual addresses VM_MIN_KERNEL_ADDRESS and
+ * beyond so it's allowed to directly access all locations the kernel was linked
  * against.
  */
 
