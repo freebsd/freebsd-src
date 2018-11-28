@@ -81,21 +81,12 @@ medford2_board_cfg(
 	uint32_t sysclk, dpcpu_clk;
 	uint32_t end_padding;
 	uint32_t bandwidth;
-	uint32_t vi_window_shift;
 	efx_rc_t rc;
 
 	/*
 	 * FIXME: Likely to be incomplete and incorrect.
 	 * Parts of this should be shared with Huntington.
 	 */
-
-	/* Medford2 has a variable VI window size (8K, 16K or 64K) */
-	if ((rc = ef10_get_vi_window_shift(enp, &vi_window_shift)) != 0)
-		goto fail1;
-
-	EFSYS_ASSERT3U(vi_window_shift, <=, EFX_VI_WINDOW_SHIFT_64K);
-	encp->enc_vi_window_shift = vi_window_shift;
-
 
 	/*
 	 * Enable firmware workarounds for hardware errata.
@@ -137,11 +128,11 @@ medford2_board_cfg(
 	else if ((rc == ENOTSUP) || (rc == ENOENT))
 		encp->enc_bug61265_workaround = B_FALSE;
 	else
-		goto fail2;
+		goto fail1;
 
 	/* Get clock frequencies (in MHz). */
 	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
-		goto fail3;
+		goto fail2;
 
 	/*
 	 * The Medford2 timer quantum is 1536 dpcpu_clk cycles, documented for
@@ -157,7 +148,7 @@ medford2_board_cfg(
 	/* Get the RX DMA end padding alignment configuration */
 	if ((rc = efx_mcdi_get_rxdp_config(enp, &end_padding)) != 0) {
 		if (rc != EACCES)
-			goto fail4;
+			goto fail3;
 
 		/* Assume largest tail padding size supported by hardware */
 		end_padding = 256;
@@ -184,14 +175,12 @@ medford2_board_cfg(
 
 	rc = medford2_nic_get_required_pcie_bandwidth(enp, &bandwidth);
 	if (rc != 0)
-		goto fail5;
+		goto fail4;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
 
 	return (0);
 
-fail5:
-	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
