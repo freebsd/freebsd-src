@@ -344,13 +344,13 @@ taskqueue_task_nop_fn(void *context, int pending)
  * have begun execution.  Tasks queued during execution of
  * this function are ignored.
  */
-static void
+static int
 taskqueue_drain_tq_queue(struct taskqueue *queue)
 {
 	struct task t_barrier;
 
 	if (STAILQ_EMPTY(&queue->tq_queue))
-		return;
+		return (0);
 
 	/*
 	 * Enqueue our barrier after all current tasks, but with
@@ -370,6 +370,7 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
 	 */
 	while (t_barrier.ta_pending != 0)
 		TQ_SLEEP(queue, &t_barrier, &queue->tq_mutex, PWAIT, "-", 0);
+	return (1);
 }
 
 /*
@@ -377,13 +378,13 @@ taskqueue_drain_tq_queue(struct taskqueue *queue)
  * complete.  Tasks that begin execution during the execution
  * of this function are ignored.
  */
-static void
+static int
 taskqueue_drain_tq_active(struct taskqueue *queue)
 {
 	struct taskqueue_busy tb_marker, *tb_first;
 
 	if (TAILQ_EMPTY(&queue->tq_active))
-		return;
+		return (0);
 
 	/* Block taskq_terminate().*/
 	queue->tq_callouts++;
@@ -410,6 +411,7 @@ taskqueue_drain_tq_active(struct taskqueue *queue)
 	queue->tq_callouts--;
 	if ((queue->tq_flags & TQ_FLAGS_ACTIVE) == 0)
 		wakeup_one(queue->tq_threads);
+	return (1);
 }
 
 void
@@ -580,8 +582,8 @@ taskqueue_drain_all(struct taskqueue *queue)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	TQ_LOCK(queue);
-	taskqueue_drain_tq_queue(queue);
-	taskqueue_drain_tq_active(queue);
+	(void)taskqueue_drain_tq_queue(queue);
+	(void)taskqueue_drain_tq_active(queue);
 	TQ_UNLOCK(queue);
 }
 
@@ -607,6 +609,20 @@ taskqueue_drain_timeout(struct taskqueue *queue,
 	 */
 	TQ_LOCK(queue);
 	timeout_task->f &= ~DT_DRAIN_IN_PROGRESS;
+	TQ_UNLOCK(queue);
+}
+
+void
+taskqueue_quiesce(struct taskqueue *queue)
+{
+	int ret;
+
+	TQ_LOCK(queue);
+	do {
+		ret = taskqueue_drain_tq_queue(queue);
+		if (ret == 0)
+			ret = taskqueue_drain_tq_active(queue);
+	} while (ret != 0);
 	TQ_UNLOCK(queue);
 }
 
