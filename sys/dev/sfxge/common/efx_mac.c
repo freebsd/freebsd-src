@@ -521,7 +521,7 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock 8726fc355b6e7c1a */
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock 3cfa8780abd28993 */
 static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
@@ -610,6 +610,22 @@ static const char * const __efx_mac_stat_name[] = {
 	"fec_corrected_symbols_lane1",
 	"fec_corrected_symbols_lane2",
 	"fec_corrected_symbols_lane3",
+	"ctpio_vi_busy_fallback",
+	"ctpio_long_write_success",
+	"ctpio_missing_dbell_fail",
+	"ctpio_overflow_fail",
+	"ctpio_underflow_fail",
+	"ctpio_timeout_fail",
+	"ctpio_noncontig_wr_fail",
+	"ctpio_frm_clobber_fail",
+	"ctpio_invalid_wr_fail",
+	"ctpio_vi_clobber_fallback",
+	"ctpio_unqualified_fallback",
+	"ctpio_runt_fallback",
+	"ctpio_success",
+	"ctpio_fallback",
+	"ctpio_poison",
+	"ctpio_erase",
 };
 /* END MKCONFIG GENERATED EfxMacStatNamesBlock */
 
