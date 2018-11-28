@@ -1460,6 +1460,93 @@ static struct ef10_external_port_map_s {
 		4,	/* ports per cage */
 		2	/* first cage */
 	},
+	/*
+	 * Modes that on Medford2 allocate each port number to a separate
+	 * cage.
+	 *	port 0 -> cage 1
+	 *	port 1 -> cage 2
+	 *	port 2 -> cage 3
+	 *	port 3 -> cage 4
+	 */
+	{
+		EFX_FAMILY_MEDFORD2,
+		(1U << TLV_PORT_MODE_1x1_NA) |			/* mode 0 */
+		(1U << TLV_PORT_MODE_1x4_NA) |			/* mode 1 */
+		(1U << TLV_PORT_MODE_1x1_1x1) |			/* mode 2 */
+		(1U << TLV_PORT_MODE_1x2_NA) |			/* mode 10 */
+		(1U << TLV_PORT_MODE_1x2_1x2) |			/* mode 12 */
+		(1U << TLV_PORT_MODE_1x4_1x2) |			/* mode 15 */
+		(1U << TLV_PORT_MODE_1x2_1x4),			/* mode 16 */
+		1,	/* ports per cage */
+		1	/* first cage */
+	},
+	/*
+	 * FIXME: Some port modes are not representable in this mapping:
+	 *  - TLV_PORT_MODE_1x2_2x1 (mode 17):
+	 *	port 0 -> cage 1
+	 *	port 1 -> cage 2
+	 *	port 2 -> cage 2
+	 */
+	/*
+	 * Modes that on Medford2 allocate 2 adjacent port numbers to each
+	 * cage, starting on cage 1.
+	 *	port 0 -> cage 1
+	 *	port 1 -> cage 1
+	 *	port 2 -> cage 2
+	 *	port 3 -> cage 2
+	 */
+	{
+		EFX_FAMILY_MEDFORD2,
+		(1U << TLV_PORT_MODE_1x4_1x4) |			/* mode 3 */
+		(1U << TLV_PORT_MODE_2x1_2x1) |			/* mode 4 */
+		(1U << TLV_PORT_MODE_1x4_2x1) |			/* mode 6 */
+		(1U << TLV_PORT_MODE_2x1_1x4) |			/* mode 7 */
+		(1U << TLV_PORT_MODE_2x2_NA) |			/* mode 13 */
+		(1U << TLV_PORT_MODE_2x1_1x2),			/* mode 18 */
+		2,	/* ports per cage */
+		1	/* first cage */
+	},
+	/*
+	 * Modes that on Medford2 allocate 2 adjacent port numbers to each
+	 * cage, starting on cage 2.
+	 *	port 0 -> cage 2
+	 *	port 1 -> cage 2
+	 */
+	{
+		EFX_FAMILY_MEDFORD2,
+		(1U << TLV_PORT_MODE_NA_2x2),			/* mode 14 */
+		2,	/* ports per cage */
+		2	/* first cage */
+	},
+	/*
+	 * Modes that on Medford2 allocate 4 adjacent port numbers to each
+	 * connector, starting on cage 1.
+	 *	port 0 -> cage 1
+	 *	port 1 -> cage 1
+	 *	port 2 -> cage 1
+	 *	port 3 -> cage 1
+	 */
+	{
+		EFX_FAMILY_MEDFORD2,
+		(1U << TLV_PORT_MODE_4x1_NA),			/* mode 5 */
+		4,	/* ports per cage */
+		1	/* first cage */
+	},
+	/*
+	 * Modes that on Medford2 allocate 4 adjacent port numbers to each
+	 * connector, starting on cage 2.
+	 *	port 0 -> cage 2
+	 *	port 1 -> cage 2
+	 *	port 2 -> cage 2
+	 *	port 3 -> cage 2
+	 */
+	{
+		EFX_FAMILY_MEDFORD2,
+		(1U << TLV_PORT_MODE_NA_4x1) |			/* mode 8 */
+		(1U << TLV_PORT_MODE_NA_1x2),			/* mode 11 */
+		4,	/* ports per cage */
+		2	/* first cage */
+	},
 };
 
 static	__checkReturn	efx_rc_t
