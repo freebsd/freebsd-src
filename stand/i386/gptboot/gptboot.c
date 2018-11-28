@@ -487,6 +487,12 @@ load(void)
 	geliargs.keybuf_sentinel = KEYBUF_SENTINEL;
 	geliargs.keybuf = gelibuf;
 #endif
+	/*
+	 * Note that the geliargs struct is passed by value, not by pointer.
+	 * Code in btxldr.S copies the values from the entry stack to a fixed
+	 * location within loader(8) at startup due to the presence of the
+	 * KARGS_FLAGS_EXTARG flag.
+	 */
 	__exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	    MAKEBOOTDEV(dev_maj[gdsk.dsk.type], gdsk.dsk.part + 1, gdsk.dsk.unit, 0xff),
 #ifdef LOADER_GELI_SUPPORT
