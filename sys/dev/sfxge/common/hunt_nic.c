@@ -233,22 +233,10 @@ hunt_board_cfg(
 	encp->enc_rx_buf_align_end = 64; /* RX DMA end padding */
 
 	/*
-	 * Set resource limits for MC_CMD_ALLOC_VIS. Note that we cannot use
-	 * MC_CMD_GET_RESOURCE_LIMITS here as that reports the available
-	 * resources (allocated to this PCIe function), which is zero until
-	 * after we have allocated VIs.
-	 */
-	encp->enc_evq_limit = 1024;
-	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
-	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
-
-	/*
 	 * The workaround for bug35388 uses the top bit of transmit queue
 	 * descriptor writes, preventing the use of 4096 descriptor TXQs.
 	 */
 	encp->enc_txq_max_ndescs = encp->enc_bug35388_workaround ? 2048 : 4096;
-
-	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
 	EFX_STATIC_ASSERT(HUNT_PIOBUF_NBUFS <= EF10_MAX_PIOBUF_NBUFS);
 	encp->enc_piobuf_limit = HUNT_PIOBUF_NBUFS;

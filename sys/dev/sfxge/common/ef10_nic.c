@@ -1682,6 +1682,17 @@ ef10_nic_board_cfg(
 	 */
 	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
+	/*
+	 * Set resource limits for MC_CMD_ALLOC_VIS. Note that we cannot use
+	 * MC_CMD_GET_RESOURCE_LIMITS here as that reports the available
+	 * resources (allocated to this PCIe function), which is zero until
+	 * after we have allocated VIs.
+	 */
+	encp->enc_evq_limit = 1024;
+	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
+	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
+
+	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
