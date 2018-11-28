@@ -78,7 +78,6 @@ medford2_board_cfg(
 	__in		efx_nic_t *enp)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint32_t mask;
 	uint32_t sysclk, dpcpu_clk;
 	uint32_t end_padding;
 	uint32_t bandwidth;
@@ -178,16 +177,6 @@ medford2_board_cfg(
 	encp->enc_piobuf_min_alloc_size = MEDFORD2_MIN_PIO_ALLOC_SIZE;
 
 	/*
-	 * Get the current privilege mask. Note that this may be modified
-	 * dynamically, so this value is informational only. DO NOT use
-	 * the privilege mask to check for sufficient privileges, as that
-	 * can result in time-of-check/time-of-use bugs.
-	 */
-	if ((rc = ef10_get_privilege_mask(enp, &mask)) != 0)
-		goto fail5;
-	encp->enc_privilege_mask = mask;
-
-	/*
 	 * Medford2 stores a single global copy of VPD, not per-PF as on
 	 * Huntington.
 	 */
@@ -195,14 +184,12 @@ medford2_board_cfg(
 
 	rc = medford2_nic_get_required_pcie_bandwidth(enp, &bandwidth);
 	if (rc != 0)
-		goto fail6;
+		goto fail5;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN3;
 
 	return (0);
 
-fail6:
-	EFSYS_PROBE(fail6);
 fail5:
 	EFSYS_PROBE(fail5);
 fail4:
