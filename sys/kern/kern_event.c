@@ -535,8 +535,9 @@ knote_fork(struct knlist *list, int pid)
 
 	if (list == NULL)
 		return;
-	list->kl_lock(list->kl_lockarg);
 
+	memset(&kev, 0, sizeof(kev));
+	list->kl_lock(list->kl_lockarg);
 	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
