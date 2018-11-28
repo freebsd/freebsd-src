@@ -46,20 +46,20 @@ static const efx_tunnel_ops_t	__efx_tunnel_dummy_ops = {
 };
 #endif /* EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON */
 
-#if EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 static	__checkReturn	boolean_t
-medford_udp_encap_supported(
+ef10_udp_encap_supported(
 	__in		efx_nic_t *enp);
 
 static	__checkReturn	efx_rc_t
-medford_tunnel_reconfigure(
+ef10_tunnel_reconfigure(
 	__in		efx_nic_t *enp);
 
-static const efx_tunnel_ops_t	__efx_tunnel_medford_ops = {
-	medford_udp_encap_supported,	/* eto_udp_encap_supported */
-	medford_tunnel_reconfigure,	/* eto_reconfigure */
+static const efx_tunnel_ops_t	__efx_tunnel_ef10_ops = {
+	ef10_udp_encap_supported,	/* eto_udp_encap_supported */
+	ef10_tunnel_reconfigure,	/* eto_reconfigure */
 };
-#endif /* EFSYS_OPT_MEDFORD */
+#endif /* EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 static	__checkReturn		efx_rc_t
 efx_mcdi_set_tunnel_encap_udp_ports(
@@ -190,9 +190,15 @@ efx_tunnel_init(
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		etop = &__efx_tunnel_medford_ops;
+		etop = &__efx_tunnel_ef10_ops;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		etop = &__efx_tunnel_ef10_ops;
+		break;
+#endif /* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -423,9 +429,9 @@ fail1:
 	return (rc);
 }
 
-#if EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 static	__checkReturn		boolean_t
-medford_udp_encap_supported(
+ef10_udp_encap_supported(
 	__in		efx_nic_t *enp)
 {
 	const efx_nic_cfg_t *encp = &enp->en_nic_cfg;
@@ -439,7 +445,7 @@ medford_udp_encap_supported(
 }
 
 static	__checkReturn	efx_rc_t
-medford_tunnel_reconfigure(
+ef10_tunnel_reconfigure(
 	__in		efx_nic_t *enp)
 {
 	efx_tunnel_cfg_t *etcp = &enp->en_tunnel_cfg;
@@ -452,7 +458,7 @@ medford_tunnel_reconfigure(
 	memcpy(&etc, etcp, sizeof (etc));
 	EFSYS_UNLOCK(enp->en_eslp, state);
 
-	if (medford_udp_encap_supported(enp) == B_FALSE) {
+	if (ef10_udp_encap_supported(enp) == B_FALSE) {
 		/*
 		 * It is OK to apply empty UDP tunnel ports when UDP
 		 * tunnel encapsulations are not supported - just nothing
@@ -487,6 +493,6 @@ fail1:
 
 	return (rc);
 }
-#endif /* EFSYS_OPT_MEDFORD */
+#endif /* EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 #endif /* EFSYS_OPT_TUNNEL */
