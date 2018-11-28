@@ -1453,7 +1453,7 @@ keg_small_init(uma_keg_t keg)
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 		shsize = 0;
 	else 
-		shsize = sizeof(struct uma_slab);
+		shsize = SIZEOF_UMA_SLAB;
 
 	if (rsize <= slabsize - shsize)
 		keg->uk_ipers = (slabsize - shsize) / rsize;
@@ -1523,7 +1523,6 @@ keg_small_init(uma_keg_t keg)
 static void
 keg_large_init(uma_keg_t keg)
 {
-	u_int shsize;
 
 	KASSERT(keg != NULL, ("Keg is null in keg_large_init"));
 	KASSERT((keg->uk_flags & UMA_ZFLAG_CACHEONLY) == 0,
@@ -1536,23 +1535,17 @@ keg_large_init(uma_keg_t keg)
 	keg->uk_rsize = keg->uk_size;
 
 	/* Check whether we have enough space to not do OFFPAGE. */
-	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0) {
-		shsize = sizeof(struct uma_slab);
-		if (shsize & UMA_ALIGN_PTR)
-			shsize = (shsize & ~UMA_ALIGN_PTR) +
-			    (UMA_ALIGN_PTR + 1);
-
-		if (PAGE_SIZE * keg->uk_ppera - keg->uk_rsize < shsize) {
-			/*
-			 * We can't do OFFPAGE if we're internal, in which case
-			 * we need an extra page per allocation to contain the
-			 * slab header.
-			 */
-			if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) == 0)
-				keg->uk_flags |= UMA_ZONE_OFFPAGE;
-			else
-				keg->uk_ppera++;
-		}
+	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0 &&
+	    PAGE_SIZE * keg->uk_ppera - keg->uk_rsize < SIZEOF_UMA_SLAB) {
+		/*
+		 * We can't do OFFPAGE if we're internal, in which case
+		 * we need an extra page per allocation to contain the
+		 * slab header.
+		 */
+		if ((keg->uk_flags & UMA_ZFLAG_INTERNAL) == 0)
+			keg->uk_flags |= UMA_ZONE_OFFPAGE;
+		else
+			keg->uk_ppera++;
 	}
 
 	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) &&
@@ -1693,20 +1686,11 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 
 	/*
 	 * If we're putting the slab header in the actual page we need to
-	 * figure out where in each page it goes.  This calculates a right
-	 * justified offset into the memory on an ALIGN_PTR boundary.
+	 * figure out where in each page it goes.  See SIZEOF_UMA_SLAB
+	 * macro definition.
 	 */
 	if (!(keg->uk_flags & UMA_ZONE_OFFPAGE)) {
-		u_int totsize;
-
-		/* Size of the slab struct and free list */
-		totsize = sizeof(struct uma_slab);
-
-		if (totsize & UMA_ALIGN_PTR)
-			totsize = (totsize & ~UMA_ALIGN_PTR) +
-			    (UMA_ALIGN_PTR + 1);
-		keg->uk_pgoff = (PAGE_SIZE * keg->uk_ppera) - totsize;
-
+		keg->uk_pgoff = (PAGE_SIZE * keg->uk_ppera) - SIZEOF_UMA_SLAB;
 		/*
 		 * The only way the following is possible is if with our
 		 * UMA_ALIGN_PTR adjustments we are now bigger than
@@ -1714,13 +1698,10 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 		 * mathematically possible for all cases, so we make
 		 * sure here anyway.
 		 */
-		totsize = keg->uk_pgoff + sizeof(struct uma_slab);
-		if (totsize > PAGE_SIZE * keg->uk_ppera) {
-			printf("zone %s ipers %d rsize %d size %d\n",
-			    zone->uz_name, keg->uk_ipers, keg->uk_rsize,
-			    keg->uk_size);
-			panic("UMA slab won't fit.");
-		}
+		KASSERT(keg->uk_pgoff + sizeof(struct uma_slab) <=
+		    PAGE_SIZE * keg->uk_ppera,
+		    ("zone %s ipers %d rsize %d size %d slab won't fit",
+		    zone->uz_name, keg->uk_ipers, keg->uk_rsize, keg->uk_size));
 	}
 
 	if (keg->uk_flags & UMA_ZONE_HASH)
