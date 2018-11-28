@@ -253,6 +253,7 @@ cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C
 cddl/dev/fbt/aarch64/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 
 arm64/rockchip/rk_i2c.c			optional rk_i2c fdt soc_rockchip_rk3328
+arm64/rockchip/rk805.c			optional rk805 fdt soc_rockchip_rk3328
 arm64/rockchip/rk_grf.c			optional fdt soc_rockchip_rk3328
 arm64/rockchip/rk_pinctrl.c		optional fdt soc_rockchip_rk3328
 arm64/rockchip/rk_gpio.c		optional fdt soc_rockchip_rk3328
