@@ -1568,12 +1568,29 @@ fail1:
 	return (rc);
 }
 
+static	__checkReturn	efx_rc_t
+ef10_nic_board_cfg(
+	__in		efx_nic_t *enp)
+{
+	const efx_nic_ops_t *enop = enp->en_enop;
+	efx_rc_t rc;
+
+	if ((rc = enop->eno_board_cfg(enp)) != 0)
+		if (rc != EACCES)
+			goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
 
 	__checkReturn	efx_rc_t
 ef10_nic_probe(
 	__in		efx_nic_t *enp)
 {
-	const efx_nic_ops_t *enop = enp->en_enop;
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_drv_cfg_t *edcp = &(enp->en_drv_cfg);
 	efx_rc_t rc;
@@ -1594,9 +1611,8 @@ ef10_nic_probe(
 	if ((rc = efx_mcdi_drv_attach(enp, B_TRUE)) != 0)
 		goto fail3;
 
-	if ((rc = enop->eno_board_cfg(enp)) != 0)
-		if (rc != EACCES)
-			goto fail4;
+	if ((rc = ef10_nic_board_cfg(enp)) != 0)
+		goto fail4;
 
 	/*
 	 * Set default driver config limits (based on board config).
