@@ -108,7 +108,6 @@ hunt_board_cfg(
 	uint32_t mask;
 	uint32_t flags;
 	uint32_t sysclk, dpcpu_clk;
-	uint32_t base, nvec;
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
@@ -253,20 +252,8 @@ hunt_board_cfg(
 		goto fail5;
 	encp->enc_privilege_mask = mask;
 
-	/* Get interrupt vector limits */
-	if ((rc = efx_mcdi_get_vector_cfg(enp, &base, &nvec, NULL)) != 0) {
-		if (EFX_PCI_FUNCTION_IS_PF(encp))
-			goto fail6;
-
-		/* Ignore error (cannot query vector limits from a VF). */
-		base = 0;
-		nvec = 1024;
-	}
-	encp->enc_intr_vec_base = base;
-	encp->enc_intr_limit = nvec;
-
 	if ((rc = hunt_nic_get_required_pcie_bandwidth(enp, &bandwidth)) != 0)
-		goto fail7;
+		goto fail6;
 	encp->enc_required_pcie_bandwidth_mbps = bandwidth;
 
 	/* All Huntington devices have a PCIe Gen3, 8 lane connector */
@@ -274,8 +261,6 @@ hunt_board_cfg(
 
 	return (0);
 
-fail7:
-	EFSYS_PROBE(fail7);
 fail6:
 	EFSYS_PROBE(fail6);
 fail5:
