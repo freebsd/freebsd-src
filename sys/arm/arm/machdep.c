@@ -641,6 +641,7 @@ sendsig(catcher, ksi, mask)
 	/* make the stack aligned */
 	fp = (struct sigframe *)STACKALIGN(fp);
 	/* Populate the siginfo frame. */
+	bzero(&frame, sizeof(frame));
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
 #ifdef VFP
 	get_vfpcontext(td, &frame.sf_vfp);
