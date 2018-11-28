@@ -163,10 +163,6 @@ medford_board_cfg(
 	}
 	encp->enc_rx_buf_align_end = end_padding;
 
-	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
-	/* No boundary crossing limits */
-	encp->enc_tx_dma_desc_boundary = 0;
-
 	/*
 	 * Set resource limits for MC_CMD_ALLOC_VIS. Note that we cannot use
 	 * MC_CMD_GET_RESOURCE_LIMITS here as that reports the available
@@ -212,12 +208,6 @@ medford_board_cfg(
 	}
 	encp->enc_intr_vec_base = base;
 	encp->enc_intr_limit = nvec;
-
-	/*
-	 * Maximum number of bytes into the frame the TCP header can start for
-	 * firmware assisted TSO to work.
-	 */
-	encp->enc_tx_tso_tcp_header_offset_limit = EF10_TCP_HEADER_OFFSET_LIMIT;
 
 	/*
 	 * Medford stores a single global copy of VPD, not per-PF as on
