@@ -61,6 +61,12 @@ mcdi_phy_decode_cap(
 	CHECK_CAP(ASYM);
 	CHECK_CAP(AN);
 	CHECK_CAP(DDM);
+	CHECK_CAP(BASER_FEC);
+	CHECK_CAP(BASER_FEC_REQUESTED);
+	CHECK_CAP(RS_FEC);
+	CHECK_CAP(RS_FEC_REQUESTED);
+	CHECK_CAP(25G_BASER_FEC);
+	CHECK_CAP(25G_BASER_FEC_REQUESTED);
 #undef CHECK_CAP
 
 	mask = 0;
@@ -93,6 +99,22 @@ mcdi_phy_decode_cap(
 		mask |= (1 << EFX_PHY_CAP_ASYM);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		mask |= (1 << EFX_PHY_CAP_AN);
+
+	/* FEC caps (supported on Medford2 and later) */
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN))
+		mask |= (1 << EFX_PHY_CAP_BASER_FEC);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_BASER_FEC_REQUESTED_LBN))
+		mask |= (1 << EFX_PHY_CAP_BASER_FEC_REQUESTED);
+
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_RS_FEC_LBN))
+		mask |= (1 << EFX_PHY_CAP_RS_FEC);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_RS_FEC_REQUESTED_LBN))
+		mask |= (1 << EFX_PHY_CAP_RS_FEC_REQUESTED);
+
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN))
+		mask |= (1 << EFX_PHY_CAP_25G_BASER_FEC);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_REQUESTED_LBN))
+		mask |= (1 << EFX_PHY_CAP_25G_BASER_FEC_REQUESTED);
 
 	*maskp = mask;
 }
@@ -349,6 +371,25 @@ ef10_phy_reconfigure(
 	    PHY_CAP_50000FDX, (cap_mask >> EFX_PHY_CAP_50000FDX) & 0x1);
 	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
 	    PHY_CAP_100000FDX, (cap_mask >> EFX_PHY_CAP_100000FDX) & 0x1);
+
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_BASER_FEC, (cap_mask >> EFX_PHY_CAP_BASER_FEC) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_BASER_FEC_REQUESTED,
+	    (cap_mask >> EFX_PHY_CAP_BASER_FEC_REQUESTED) & 0x1);
+
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_RS_FEC, (cap_mask >> EFX_PHY_CAP_RS_FEC) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_RS_FEC_REQUESTED,
+	    (cap_mask >> EFX_PHY_CAP_RS_FEC_REQUESTED) & 0x1);
+
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_25G_BASER_FEC,
+	    (cap_mask >> EFX_PHY_CAP_25G_BASER_FEC) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_25G_BASER_FEC_REQUESTED,
+	    (cap_mask >> EFX_PHY_CAP_25G_BASER_FEC_REQUESTED) & 0x1);
 
 #if EFSYS_OPT_LOOPBACK
 	MCDI_IN_SET_DWORD(req, SET_LINK_IN_LOOPBACK_MODE,
