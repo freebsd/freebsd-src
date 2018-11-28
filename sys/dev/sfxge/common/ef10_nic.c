@@ -1576,6 +1576,8 @@ ef10_nic_board_cfg(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	uint32_t port;
+	uint32_t pf;
+	uint32_t vf;
 	efx_rc_t rc;
 
 	/* Get the (zero-based) MCDI port number */
@@ -1589,13 +1591,27 @@ ef10_nic_board_cfg(
 		    &encp->enc_external_port)) != 0)
 		goto fail2;
 
+	/*
+	 * Get PCIe function number from firmware (used for
+	 * per-function privilege and dynamic config info).
+	 *  - PCIe PF: pf = PF number, vf = 0xffff.
+	 *  - PCIe VF: pf = parent PF, vf = VF number.
+	 */
+	if ((rc = efx_mcdi_get_function_info(enp, &pf, &vf)) != 0)
+		goto fail3;
+
+	encp->enc_pf = pf;
+	encp->enc_vf = vf;
+
 	/* Get remaining controller-specific board config */
 	if ((rc = enop->eno_board_cfg(enp)) != 0)
 		if (rc != EACCES)
-			goto fail3;
+			goto fail4;
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
