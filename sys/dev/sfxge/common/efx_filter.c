@@ -497,6 +497,42 @@ fail1:
 	return (rc);
 }
 
+/*
+ * Specify inner and outer Ethernet address and VXLAN ID in filter
+ * specification.
+ */
+	__checkReturn	efx_rc_t
+efx_filter_spec_set_vxlan_full(
+	__inout		efx_filter_spec_t *spec,
+	__in		const uint8_t *vxlan_id,
+	__in		const uint8_t *inner_addr,
+	__in		const uint8_t *outer_addr)
+{
+	EFSYS_ASSERT3P(spec, !=, NULL);
+	EFSYS_ASSERT3P(vxlan_id, !=, NULL);
+	EFSYS_ASSERT3P(inner_addr, !=, NULL);
+	EFSYS_ASSERT3P(outer_addr, !=, NULL);
+
+	if ((inner_addr == NULL) && (outer_addr == NULL))
+		return (EINVAL);
+
+	if (vxlan_id != NULL) {
+		spec->efs_match_flags |= EFX_FILTER_MATCH_VNI_OR_VSID;
+		memcpy(spec->efs_vni_or_vsid, vxlan_id, EFX_VNI_OR_VSID_LEN);
+	}
+	if (outer_addr != NULL) {
+		spec->efs_match_flags |= EFX_FILTER_MATCH_LOC_MAC;
+		memcpy(spec->efs_loc_mac, outer_addr, EFX_MAC_ADDR_LEN);
+	}
+	if (inner_addr != NULL) {
+		spec->efs_match_flags |= EFX_FILTER_MATCH_IFRM_LOC_MAC;
+		memcpy(spec->efs_ifrm_loc_mac, inner_addr, EFX_MAC_ADDR_LEN);
+	}
+	spec->efs_encap_type = EFX_TUNNEL_PROTOCOL_VXLAN;
+
+	return (0);
+}
+
 #if EFSYS_OPT_RX_SCALE
 	__checkReturn	efx_rc_t
 efx_filter_spec_set_rss_context(
