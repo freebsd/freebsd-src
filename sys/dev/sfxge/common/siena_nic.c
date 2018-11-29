@@ -203,6 +203,7 @@ siena_board_cfg(
 
 	encp->enc_filter_action_flag_supported = B_FALSE;
 	encp->enc_filter_action_mark_supported = B_FALSE;
+	encp->enc_filter_action_mark_max = 0;
 
 	return (0);
 

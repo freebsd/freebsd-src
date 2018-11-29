@@ -1324,6 +1324,7 @@ typedef struct efx_nic_cfg_s {
 	/* Firmware support for "FLAG" and "MARK" filter actions */
 	boolean_t		enc_filter_action_flag_supported;
 	boolean_t		enc_filter_action_mark_supported;
+	uint32_t		enc_filter_action_mark_max;
 } efx_nic_cfg_t;
 
 #define	EFX_PCI_FUNCTION_IS_PF(_encp)	((_encp)->enc_vf == 0xffff)
