@@ -2302,10 +2302,10 @@ kern_statat(struct thread *td, int flag, int fd, const char *path,
 	if (error != 0)
 		return (error);
 #ifdef __STAT_TIME_T_EXT
-	sb.st_atim_ext = 0;
-	sb.st_mtim_ext = 0;
-	sb.st_ctim_ext = 0;
-	sb.st_btim_ext = 0;
+	sbp->st_atim_ext = 0;
+	sbp->st_mtim_ext = 0;
+	sbp->st_ctim_ext = 0;
+	sbp->st_btim_ext = 0;
 #endif
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_STRUCT))
