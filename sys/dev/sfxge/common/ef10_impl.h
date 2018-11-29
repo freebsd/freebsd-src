@@ -1242,6 +1242,16 @@ efx_mcdi_set_nic_global(
 
 #endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+
+/*
+ * Maximum DMA length and buffer stride alignment.
+ * (see SF-119419-TC, 3.2)
+ */
+#define	EFX_RX_ES_SUPER_BUFFER_BUF_ALIGNMENT	64
+
+#endif
+
 #ifdef	__cplusplus
 }
 #endif

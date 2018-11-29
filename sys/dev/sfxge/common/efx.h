@@ -1893,7 +1893,7 @@ typedef	__checkReturn	boolean_t
 	__in		uint32_t size,
 	__in		uint16_t flags);
 
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 
 /*
  * Packed stream mode is documented in SF-112241-TC.
@@ -1903,6 +1903,13 @@ typedef	__checkReturn	boolean_t
  * packets are put there in a continuous stream.
  * The main advantage of such an approach is that RX queue refilling
  * happens much less frequently.
+ *
+ * Equal stride packed stream mode is documented in SF-119419-TC.
+ * The general idea is to utilize advantages of the packed stream,
+ * but avoid indirection in packets representation.
+ * The main advantage of such an approach is that RX queue refilling
+ * happens much less frequently and packets buffers are independent
+ * from upper layers point of view.
  */
 
 typedef	__checkReturn	boolean_t
@@ -2003,7 +2010,7 @@ typedef __checkReturn	boolean_t
 typedef struct efx_ev_callbacks_s {
 	efx_initialized_ev_t		eec_initialized;
 	efx_rx_ev_t			eec_rx;
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 	efx_rx_ps_ev_t			eec_rx_ps;
 #endif
 	efx_tx_ev_t			eec_tx;
@@ -2310,6 +2317,7 @@ efx_pseudo_hdr_pkt_length_get(
 typedef enum efx_rxq_type_e {
 	EFX_RXQ_TYPE_DEFAULT,
 	EFX_RXQ_TYPE_PACKED_STREAM,
+	EFX_RXQ_TYPE_ES_SUPER_BUFFER,
 	EFX_RXQ_NTYPES
 } efx_rxq_type_t;
 
@@ -2358,6 +2366,28 @@ efx_rx_qcreate_packed_stream(
 	__in		uint32_t ps_buf_size,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
+	__in		efx_evq_t *eep,
+	__deref_out	efx_rxq_t **erpp);
+
+#endif
+
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+
+/* Maximum head-of-line block timeout in nanoseconds */
+#define	EFX_RXQ_ES_SUPER_BUFFER_HOL_BLOCK_MAX	(400U * 1000 * 1000)
+
+extern	__checkReturn	efx_rc_t
+efx_rx_qcreate_es_super_buffer(
+	__in		efx_nic_t *enp,
+	__in		unsigned int index,
+	__in		unsigned int label,
+	__in		uint32_t n_bufs_per_desc,
+	__in		uint32_t max_dma_len,
+	__in		uint32_t buf_stride,
+	__in		uint32_t hol_block_timeout,
+	__in		efsys_mem_t *esmp,
+	__in		size_t ndescs,
+	__in		unsigned int flags,
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp);
 

@@ -48,12 +48,16 @@ efx_mcdi_init_rxq(
 	__in		efsys_mem_t *esmp,
 	__in		boolean_t disable_scatter,
 	__in		boolean_t want_inner_classes,
-	__in		uint32_t ps_bufsize)
+	__in		uint32_t ps_bufsize,
+	__in		uint32_t es_bufs_per_desc,
+	__in		uint32_t es_max_dma_len,
+	__in		uint32_t es_buf_stride,
+	__in		uint32_t hol_block_timeout)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_INIT_RXQ_EXT_IN_LEN,
-			    MC_CMD_INIT_RXQ_EXT_OUT_LEN)];
+	uint8_t payload[MAX(MC_CMD_INIT_RXQ_V3_IN_LEN,
+			    MC_CMD_INIT_RXQ_V3_OUT_LEN)];
 	int npages = EFX_RXQ_NBUFS(ndescs);
 	int i;
 	efx_qword_t *dma_addr;
@@ -71,6 +75,8 @@ efx_mcdi_init_rxq(
 
 	if (ps_bufsize > 0)
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM;
+	else if (es_bufs_per_desc > 0)
+		dma_mode = MC_CMD_INIT_RXQ_V3_IN_EQUAL_STRIDE_SUPER_BUFFER;
 	else
 		dma_mode = MC_CMD_INIT_RXQ_EXT_IN_SINGLE_PACKET;
 
@@ -97,9 +103,9 @@ efx_mcdi_init_rxq(
 	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_RXQ;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_INIT_RXQ_EXT_IN_LEN;
+	req.emr_in_length = MC_CMD_INIT_RXQ_V3_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_INIT_RXQ_EXT_OUT_LEN;
+	req.emr_out_length = MC_CMD_INIT_RXQ_V3_OUT_LEN;
 
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_SIZE, ndescs);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_TARGET_EVQ, target_evq);
@@ -118,6 +124,19 @@ efx_mcdi_init_rxq(
 	    INIT_RXQ_EXT_IN_FLAG_WANT_OUTER_CLASSES, want_outer_classes);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_OWNER_ID, 0);
 	MCDI_IN_SET_DWORD(req, INIT_RXQ_EXT_IN_PORT_ID, EVB_PORT_ID_ASSIGNED);
+
+	if (es_bufs_per_desc > 0) {
+		MCDI_IN_SET_DWORD(req,
+		    INIT_RXQ_V3_IN_ES_PACKET_BUFFERS_PER_BUCKET,
+		    es_bufs_per_desc);
+		MCDI_IN_SET_DWORD(req,
+		    INIT_RXQ_V3_IN_ES_MAX_DMA_LEN, es_max_dma_len);
+		MCDI_IN_SET_DWORD(req,
+		    INIT_RXQ_V3_IN_ES_PACKET_STRIDE, es_buf_stride);
+		MCDI_IN_SET_DWORD(req,
+		    INIT_RXQ_V3_IN_ES_HEAD_OF_LINE_BLOCK_TIMEOUT,
+		    hol_block_timeout);
+	}
 
 	dma_addr = MCDI_IN2(req, efx_qword_t, INIT_RXQ_IN_DMA_ADDR);
 	addr = EFSYS_MEM_ADDR(esmp);
@@ -1040,6 +1059,10 @@ ef10_rx_qcreate(
 	boolean_t disable_scatter;
 	boolean_t want_inner_classes;
 	unsigned int ps_buf_size;
+	uint32_t es_bufs_per_desc = 0;
+	uint32_t es_max_dma_len = 0;
+	uint32_t es_buf_stride = 0;
+	uint32_t hol_block_timeout = 0;
 
 	_NOTE(ARGUNUSED(id, erp, type_data))
 
@@ -1088,6 +1111,19 @@ ef10_rx_qcreate(
 		}
 		break;
 #endif /* EFSYS_OPT_RX_PACKED_STREAM */
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+	case EFX_RXQ_TYPE_ES_SUPER_BUFFER:
+		ps_buf_size = 0;
+		es_bufs_per_desc =
+		    type_data->ertd_es_super_buffer.eessb_bufs_per_desc;
+		es_max_dma_len =
+		    type_data->ertd_es_super_buffer.eessb_max_dma_len;
+		es_buf_stride =
+		    type_data->ertd_es_super_buffer.eessb_buf_stride;
+		hol_block_timeout =
+		    type_data->ertd_es_super_buffer.eessb_hol_block_timeout;
+		break;
+#endif /* EFSYS_OPT_RX_ES_SUPER_BUFFER */
 	default:
 		rc = ENOTSUP;
 		goto fail4;
@@ -1111,6 +1147,27 @@ ef10_rx_qcreate(
 	EFSYS_ASSERT(ps_buf_size == 0);
 #endif /* EFSYS_OPT_RX_PACKED_STREAM */
 
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+	if (es_bufs_per_desc > 0) {
+		if (encp->enc_rx_es_super_buffer_supported == B_FALSE) {
+			rc = ENOTSUP;
+			goto fail7;
+		}
+		if (!IS_P2ALIGNED(es_max_dma_len,
+			    EFX_RX_ES_SUPER_BUFFER_BUF_ALIGNMENT)) {
+			rc = EINVAL;
+			goto fail8;
+		}
+		if (!IS_P2ALIGNED(es_buf_stride,
+			    EFX_RX_ES_SUPER_BUFFER_BUF_ALIGNMENT)) {
+			rc = EINVAL;
+			goto fail9;
+		}
+	}
+#else /* EFSYS_OPT_RX_ES_SUPER_BUFFER */
+	EFSYS_ASSERT(es_bufs_per_desc == 0);
+#endif /* EFSYS_OPT_RX_ES_SUPER_BUFFER */
+
 	/* Scatter can only be disabled if the firmware supports doing so */
 	if (flags & EFX_RXQ_FLAG_SCATTER)
 		disable_scatter = B_FALSE;
@@ -1124,8 +1181,9 @@ ef10_rx_qcreate(
 
 	if ((rc = efx_mcdi_init_rxq(enp, ndescs, eep->ee_index, label, index,
 		    esmp, disable_scatter, want_inner_classes,
-		    ps_buf_size)) != 0)
-		goto fail7;
+		    ps_buf_size, es_bufs_per_desc, es_max_dma_len,
+		    es_buf_stride, hol_block_timeout)) != 0)
+		goto fail10;
 
 	erp->er_eep = eep;
 	erp->er_label = label;
@@ -1136,8 +1194,16 @@ ef10_rx_qcreate(
 
 	return (0);
 
+fail10:
+	EFSYS_PROBE(fail10);
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+fail9:
+	EFSYS_PROBE(fail9);
+fail8:
+	EFSYS_PROBE(fail8);
 fail7:
 	EFSYS_PROBE(fail7);
+#endif /* EFSYS_OPT_RX_ES_SUPER_BUFFER */
 #if EFSYS_OPT_RX_PACKED_STREAM
 fail6:
 	EFSYS_PROBE(fail6);

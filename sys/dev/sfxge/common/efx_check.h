@@ -370,6 +370,13 @@
 # endif
 #endif
 
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+/* Support equal stride super-buffer mode */
+# if !(EFSYS_OPT_MEDFORD2)
+#  error "ES_SUPER_BUFFER requires MEDFORD2"
+# endif
+#endif
+
 /* Support hardware assistance for tunnels */
 #if EFSYS_OPT_TUNNEL
 # if !(EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2)
