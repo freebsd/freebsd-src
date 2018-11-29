@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
 #include "cudbg/cudbg.h"
+#include "t4_clip.h"
 #include "t4_ioctl.h"
 #include "t4_l2t.h"
 #include "t4_mp_ring.h"
@@ -1221,6 +1222,7 @@ t4_attach(device_t dev)
 #ifdef RATELIMIT
 	t4_init_etid_table(sc);
 #endif
+	t4_init_clip_table(sc);
 	if (sc->vres.key.size != 0)
 		sc->key_map = vmem_create("T4TLS key map", sc->vres.key.start,
 		    sc->vres.key.size, 32, 0, M_FIRSTFIT | M_WAITOK);
@@ -1511,6 +1513,7 @@ t4_detach_common(device_t dev)
 #endif
 	if (sc->key_map)
 		vmem_destroy(sc->key_map);
+	t4_destroy_clip_table(sc);
 
 #if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	free(sc->sge.ofld_txq, M_CXGBE);
@@ -5963,6 +5966,10 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "smt",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_smt, "A", "hardware source MAC table");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "clip",
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
+	    sysctl_clip, "A", "active CLIP table entries");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "lb_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
@@ -10520,6 +10527,7 @@ mod_event(module_t mod, int cmd, void *arg)
 			sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
 			SLIST_INIT(&t4_uld_list);
 #endif
+			t4_clip_modload();
 			t4_tracer_modload();
 			tweak_tunables();
 		}
@@ -10559,6 +10567,7 @@ mod_event(module_t mod, int cmd, void *arg)
 
 			if (t4_sge_extfree_refs() == 0) {
 				t4_tracer_modunload();
+				t4_clip_modunload();
 #ifdef TCP_OFFLOAD
 				sx_destroy(&t4_uld_list_lock);
 #endif
