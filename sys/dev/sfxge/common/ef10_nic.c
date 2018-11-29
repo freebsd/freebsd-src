@@ -1068,6 +1068,12 @@ ef10_get_datapath_caps(
 	}
 	encp->enc_rx_prefix_size = 14;
 
+	/* Check if the firmware supports additional RSS modes */
+	if (CAP_FLAGS1(req, ADDITIONAL_RSS_MODES))
+		encp->enc_rx_scale_additional_modes_supported = B_TRUE;
+	else
+		encp->enc_rx_scale_additional_modes_supported = B_FALSE;
+
 	/* Check if the firmware supports TSO */
 	if (CAP_FLAGS1(req, TX_TSO))
 		encp->enc_fw_assisted_tso_enabled = B_TRUE;
