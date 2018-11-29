@@ -208,6 +208,13 @@
 # endif
 #endif /* EFSYS_OPT_NVRAM */
 
+#if EFSYS_OPT_IMAGE_LAYOUT
+/* Support signed image layout handling */
+# if !(EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2)
+#  error "IMAGE_LAYOUT requires MEDFORD or MEDFORD2"
+# endif
+#endif /* EFSYS_OPT_IMAGE_LAYOUT */
+
 #ifdef EFSYS_OPT_NVRAM_FALCON_BOOTROM
 # error "NVRAM_FALCON_BOOTROM is obsolete and is not supported."
 #endif
