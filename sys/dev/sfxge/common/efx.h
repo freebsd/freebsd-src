@@ -1322,6 +1322,13 @@ extern			const efx_nic_cfg_t *
 efx_nic_cfg_get(
 	__in		efx_nic_t *enp);
 
+/* RxDPCPU firmware id values by which FW variant can be identified */
+#define	EFX_RXDP_FULL_FEATURED_FW_ID	0x0
+#define	EFX_RXDP_LOW_LATENCY_FW_ID	0x1
+#define	EFX_RXDP_PACKED_STREAM_FW_ID	0x2
+#define	EFX_RXDP_RULES_ENGINE_FW_ID	0x5
+#define	EFX_RXDP_DPDK_FW_ID		0x6
+
 typedef struct efx_nic_fw_info_s {
 	/* Basic FW version information */
 	uint16_t	enfi_mc_fw_version[4];
