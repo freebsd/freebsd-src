@@ -521,7 +521,7 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock 3cfa8780abd28993 */
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock 1a45a82fcfb30c1b */
 static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
@@ -626,6 +626,9 @@ static const char * const __efx_mac_stat_name[] = {
 	"ctpio_fallback",
 	"ctpio_poison",
 	"ctpio_erase",
+	"rxdp_scatter_disabled_trunc",
+	"rxdp_hlb_idle",
+	"rxdp_hlb_timeout",
 };
 /* END MKCONFIG GENERATED EfxMacStatNamesBlock */
 
