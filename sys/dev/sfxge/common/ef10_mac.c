@@ -571,8 +571,19 @@ ef10_mac_stats_get_mask(
 			goto fail8;
 	}
 
+	if (encp->enc_hlb_counters) {
+		const struct efx_mac_stats_range ef10_hlb[] = {
+			{ EFX_MAC_RXDP_HLB_IDLE, EFX_MAC_RXDP_HLB_TIMEOUT },
+		};
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_hlb, EFX_ARRAY_SIZE(ef10_hlb))) != 0)
+			goto fail9;
+	}
+
 	return (0);
 
+fail9:
+	EFSYS_PROBE(fail9);
 fail8:
 	EFSYS_PROBE(fail8);
 fail7:
@@ -1025,6 +1036,13 @@ ef10_mac_stats_update(
 	    &value);
 	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_RXDP_SCATTER_DISABLED_TRUNC]),
 	    &value);
+
+	/* Head-of-line blocking */
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_RXDP_HLB_IDLE, &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_RXDP_HLB_IDLE]), &value);
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_RXDP_HLB_TIMEOUT, &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_RXDP_HLB_TIMEOUT]), &value);
 
 done:
 	/* Read START generation counter */
