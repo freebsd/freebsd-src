@@ -1324,6 +1324,7 @@ typedef struct efx_nic_cfg_s {
 	/* Firmware support for extended MAC_STATS buffer */
 	uint32_t		enc_mac_stats_nstats;
 	boolean_t		enc_fec_counters;
+	boolean_t		enc_hlb_counters;
 	/* Firmware support for "FLAG" and "MARK" filter actions */
 	boolean_t		enc_filter_action_flag_supported;
 	boolean_t		enc_filter_action_mark_supported;
