@@ -159,6 +159,7 @@ SUBDIR=	alias \
 	touch \
 	tput \
 	tr \
+	trim \
 	true \
 	truncate \
 	tset \
