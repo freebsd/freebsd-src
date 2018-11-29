@@ -74,13 +74,13 @@ FEATURE(racct, "Resource Accounting");
  */
 static int pcpu_threshold = 1;
 #ifdef RACCT_DEFAULT_TO_DISABLED
-int racct_enable = 0;
+bool __read_frequently racct_enable = false;
 #else
-int racct_enable = 1;
+bool __read_frequently racct_enable = true;
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, racct, CTLFLAG_RW, 0, "Resource Accounting");
-SYSCTL_UINT(_kern_racct, OID_AUTO, enable, CTLFLAG_RDTUN, &racct_enable,
+SYSCTL_BOOL(_kern_racct, OID_AUTO, enable, CTLFLAG_RDTUN, &racct_enable,
     0, "Enable RACCT/RCTL");
 SYSCTL_UINT(_kern_racct, OID_AUTO, pcpu_threshold, CTLFLAG_RW, &pcpu_threshold,
     0, "Processes with higher %cpu usage than this value can be throttled.");
