@@ -71,7 +71,7 @@
 extern u_int	audit_dtrace_enabled;
 extern int	audit_trail_enabled;
 extern int	audit_trail_suspended;
-extern int	audit_syscalls_enabled;
+extern bool	audit_syscalls_enabled;
 
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
