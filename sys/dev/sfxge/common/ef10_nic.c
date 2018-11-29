@@ -1141,6 +1141,12 @@ ef10_get_datapath_caps(
 	else
 		encp->enc_rx_var_packed_stream_supported = B_FALSE;
 
+	/* Check if the firmware supports equal stride super-buffer mode */
+	if (CAP_FLAGS2(req, EQUAL_STRIDE_SUPER_BUFFER))
+		encp->enc_rx_es_super_buffer_supported = B_TRUE;
+	else
+		encp->enc_rx_es_super_buffer_supported = B_FALSE;
+
 	/* Check if the firmware supports FW subvariant w/o Tx checksumming */
 	if (CAP_FLAGS2(req, FW_SUBVARIANT_NO_TX_CSUM))
 		encp->enc_fw_subvariant_no_tx_csum_supported = B_TRUE;
