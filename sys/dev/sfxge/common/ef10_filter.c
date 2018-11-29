@@ -238,10 +238,15 @@ efx_mcdi_filter_op_add(
 	    EVB_PORT_ID_ASSIGNED);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_MATCH_FIELDS,
 	    match_flags);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_DEST,
-	    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_HOST);
-	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_QUEUE,
-	    spec->efs_dmaq_id);
+	if (spec->efs_dmaq_id == EFX_FILTER_SPEC_RX_DMAQ_ID_DROP) {
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_DEST,
+		    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_DROP);
+	} else {
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_DEST,
+		    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_HOST);
+		MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_QUEUE,
+		    spec->efs_dmaq_id);
+	}
 
 #if EFSYS_OPT_RX_SCALE
 	if (spec->efs_flags & EFX_FILTER_FLAG_RX_RSS) {
