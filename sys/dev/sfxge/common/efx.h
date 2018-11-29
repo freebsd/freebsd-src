@@ -2514,6 +2514,11 @@ typedef uint8_t efx_filter_flags_t;
 #define	EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST	0x01000000
 /* For encapsulated packets, match all unicast inner frames */
 #define	EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST	0x02000000
+/*
+ * Match by encap type, this flag does not correspond to
+ * the MCDI match flags and any unoccupied value may be used
+ */
+#define	EFX_FILTER_MATCH_ENCAP_TYPE		0x20000000
 /* Match otherwise-unmatched multicast and broadcast packets */
 #define	EFX_FILTER_MATCH_UNKNOWN_MCAST_DST	0x40000000
 /* Match otherwise-unmatched unicast packets */
