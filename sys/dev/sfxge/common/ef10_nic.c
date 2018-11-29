@@ -1272,6 +1272,12 @@ ef10_get_datapath_caps(
 	else
 		encp->enc_fec_counters = B_FALSE;
 
+	/* Check if the firmware provides head-of-line blocking counters */
+	if (CAP_FLAGS2(req, RXDP_HLB_IDLE))
+		encp->enc_hlb_counters = B_TRUE;
+	else
+		encp->enc_hlb_counters = B_FALSE;
+
 	if (CAP_FLAGS1(req, RX_RSS_LIMITED)) {
 		/* Only one exclusive RSS context is available per port. */
 		encp->enc_rx_scale_max_exclusive_contexts = 1;
