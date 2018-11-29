@@ -325,10 +325,31 @@ efx_mcdi_rss_context_set_flags(
 	__in		uint32_t rss_context,
 	__in		efx_rx_hash_type_t type)
 {
+	efx_rx_hash_type_t type_ipv4;
+	efx_rx_hash_type_t type_ipv4_tcp;
+	efx_rx_hash_type_t type_ipv6;
+	efx_rx_hash_type_t type_ipv6_tcp;
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN,
 			    MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN)];
 	efx_rc_t rc;
+
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV4_TCP_LBN ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV4_RSS_MODE_LBN);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV4_TCP_WIDTH ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV4_RSS_MODE_WIDTH);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV4_LBN ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV4_RSS_MODE_LBN);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV4_WIDTH ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV4_RSS_MODE_WIDTH);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV6_TCP_LBN ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV6_RSS_MODE_LBN);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV6_TCP_WIDTH ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV6_RSS_MODE_WIDTH);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV6_LBN ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV6_RSS_MODE_LBN);
+	EFX_STATIC_ASSERT(EFX_RX_CLASS_IPV6_WIDTH ==
+		    MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV6_RSS_MODE_WIDTH);
 
 	if (rss_context == EF10_RSS_CONTEXT_INVALID) {
 		rc = EINVAL;
@@ -345,15 +366,20 @@ efx_mcdi_rss_context_set_flags(
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_SET_FLAGS_IN_RSS_CONTEXT_ID,
 	    rss_context);
 
+	type_ipv4 = EFX_RX_HASH(IPV4, 2TUPLE) | EFX_RX_HASH(IPV4_TCP, 2TUPLE);
+	type_ipv4_tcp = EFX_RX_HASH(IPV4_TCP, 4TUPLE);
+	type_ipv6 = EFX_RX_HASH(IPV6, 2TUPLE) | EFX_RX_HASH(IPV6_TCP, 2TUPLE);
+	type_ipv6_tcp = EFX_RX_HASH(IPV6_TCP, 4TUPLE);
+
 	MCDI_IN_POPULATE_DWORD_4(req, RSS_CONTEXT_SET_FLAGS_IN_FLAGS,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV4_EN,
-	    (type & EFX_RX_HASH_IPV4) ? 1 : 0,
+	    ((type & type_ipv4) == type_ipv4) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV4_EN,
-	    (type & EFX_RX_HASH_TCPIPV4) ? 1 : 0,
+	    ((type & type_ipv4_tcp) == type_ipv4_tcp) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV6_EN,
-	    (type & EFX_RX_HASH_IPV6) ? 1 : 0,
+	    ((type & type_ipv6) == type_ipv6) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV6_EN,
-	    (type & EFX_RX_HASH_TCPIPV6) ? 1 : 0);
+	    ((type & type_ipv6_tcp) == type_ipv6_tcp) ? 1 : 0);
 
 	efx_mcdi_execute(enp, &req);
 
