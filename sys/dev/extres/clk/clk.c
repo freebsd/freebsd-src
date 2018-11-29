@@ -1297,7 +1297,7 @@ clk_set_assigned_rates(device_t dev, clk_t clk, uint32_t freq)
 {
 	int rv;
 
-	rv = clk_set_freq(clk, freq, 0);
+	rv = clk_set_freq(clk, freq, CLK_SET_ROUND_DOWN | CLK_SET_ROUND_UP);
 	if (rv != 0) {
 		device_printf(dev, "Failed to set %s to a frequency of %u\n",
 		    clk_get_name(clk), freq);
@@ -1330,9 +1330,9 @@ clk_set_assigned(device_t dev, phandle_t node)
 	if (nrates <= 0)
 		nrates = 0;
 
-	nparents = ofw_bus_parse_xref_list_get_length(node,
-	    "assigned-clock-parents", "#clock-cells", &nparents);
-
+	if (ofw_bus_parse_xref_list_get_length(node,
+	    "assigned-clock-parents", "#clock-cells", &nparents) != 0)
+		nparents = -1;
 	for (i = 0; i < nclocks; i++) {
 		/* First get the clock we are supposed to modify */
 		rv = clk_get_by_ofw_index_prop(dev, 0, "assigned-clocks",
