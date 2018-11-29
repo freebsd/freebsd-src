@@ -136,7 +136,7 @@ siena_rx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
-	__in		uint32_t type_data,
+	__in		const efx_rxq_type_data_t *type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
@@ -780,7 +780,7 @@ efx_rx_qcreate_internal(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
-	__in		uint32_t type_data,
+	__in		const efx_rxq_type_data_t *type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
@@ -841,8 +841,8 @@ efx_rx_qcreate(
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp)
 {
-	return efx_rx_qcreate_internal(enp, index, label, type, 0, esmp, ndescs,
-	    id, flags, eep, erpp);
+	return efx_rx_qcreate_internal(enp, index, label, type, NULL,
+	    esmp, ndescs, id, flags, eep, erpp);
 }
 
 #if EFSYS_OPT_RX_PACKED_STREAM
@@ -858,8 +858,14 @@ efx_rx_qcreate_packed_stream(
 	__in		efx_evq_t *eep,
 	__deref_out	efx_rxq_t **erpp)
 {
+	efx_rxq_type_data_t type_data;
+
+	memset(&type_data, 0, sizeof (type_data));
+
+	type_data.ertd_packed_stream.eps_buf_size = ps_buf_size;
+
 	return efx_rx_qcreate_internal(enp, index, label,
-	    EFX_RXQ_TYPE_PACKED_STREAM, ps_buf_size, esmp, ndescs,
+	    EFX_RXQ_TYPE_PACKED_STREAM, &type_data, esmp, ndescs,
 	    0 /* id unused on EF10 */, EFX_RXQ_FLAG_NONE, eep, erpp);
 }
 
@@ -1510,7 +1516,7 @@ siena_rx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
-	__in		uint32_t type_data,
+	__in		const efx_rxq_type_data_t *type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,

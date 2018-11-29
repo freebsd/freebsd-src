@@ -993,13 +993,15 @@ extern		void
 ef10_rx_qenable(
 	__in		efx_rxq_t *erp);
 
+union efx_rxq_type_data_u;
+
 extern	__checkReturn	efx_rc_t
 ef10_rx_qcreate(
 	__in		efx_nic_t *enp,
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
-	__in		uint32_t type_data,
+	__in		const union efx_rxq_type_data_u *type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
