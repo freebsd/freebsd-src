@@ -157,9 +157,22 @@ efx_nic_create(
 	__in		efsys_lock_t *eslp,
 	__deref_out	efx_nic_t **enpp);
 
+/* EFX_FW_VARIANT codes map one to one on MC_CMD_FW codes */
+typedef enum efx_fw_variant_e {
+	EFX_FW_VARIANT_FULL_FEATURED,
+	EFX_FW_VARIANT_LOW_LATENCY,
+	EFX_FW_VARIANT_PACKED_STREAM,
+	EFX_FW_VARIANT_HIGH_TX_RATE,
+	EFX_FW_VARIANT_PACKED_STREAM_HASH_MODE_1,
+	EFX_FW_VARIANT_RULES_ENGINE,
+	EFX_FW_VARIANT_DPDK,
+	EFX_FW_VARIANT_DONT_CARE = 0xffffffff
+} efx_fw_variant_t;
+
 extern	__checkReturn	efx_rc_t
 efx_nic_probe(
-	__in		efx_nic_t *enp);
+	__in		efx_nic_t *enp,
+	__in		efx_fw_variant_t efv);
 
 extern	__checkReturn	efx_rc_t
 efx_nic_init(
