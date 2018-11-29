@@ -120,7 +120,7 @@ arpwhohas(struct iodesc *d, struct in_addr addr)
 	    arpsend, &wbuf.data, sizeof(wbuf.data),
 	    arprecv, &pkt, (void **)&ah, NULL);
 	if (i == -1) {
-		panic("arp: no response for %s\n",
+		panic("arp: no response for %s",
 			  inet_ntoa(addr));
 	}
 
