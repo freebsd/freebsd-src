@@ -4056,6 +4056,55 @@ option could be used to (re)mark user traffic,
 by adding the following to the appropriate place in ruleset:
 .Pp
 .Dl "ipfw add setdscp be ip from any to any dscp af11,af21"
+.Ss SELECTIVE MIRRORING
+If your network has network traffic analyzer
+connected to your host directly via dedicated interface
+or remotely via RSPAN vlan, you can selectively mirror
+some ethernet layer2 frames to the analyzer.
+.Pp
+First, make sure your firewall is already configured and runs.
+Then, enable layer2 processing if not already enabled:
+.Pp
+.Dl "sysctl net.link.ether.ipfw=1"
+.Pp
+Next, load needed additional kernel modules:
+.Pp
+.Dl "kldload ng_ether ng_ipfw"
+.Pp
+Optionally, make system load these modules automatically
+at startup:
+.Pp
+.Dl sysrc kld_list+="ng_ether ng_ipfw"
+.Pp
+Next, configure
+.Xr ng_ipfw 4
+kernel module to transmit mirrored copies of layer2 frames
+out via vlan900 interface:
+.Pp
+.Dl "ngctl connect ipfw: vlan900: 1 lower"
+.Pp
+Think of "1" here as of "mirroring instance index" and vlan900 is its
+destination.
+You can have arbitrary number of instances.
+Refer to
+.Xr ng_ipfw 4
+for details.
+.Pp
+At last, actually start mirroring of selected frames using "instance 1".
+For frames incoming from em0 interface:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 in recv em0"
+.Pp
+For frames outgoing to em0 interface:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 out xmit em0"
+.Pp
+For both incoming and outgoing frames while flowing through em0:
+.Pp
+.Dl "ipfw add ngtee 1 ip from any to 192.168.0.1 layer2 via em0"
+.Pp
+Make sure you do not perform mirroring for already duplicated frames
+or kernel may hang as there is no safety net.
 .Ss DYNAMIC RULES
 In order to protect a site from flood attacks involving fake
 TCP packets, it is safer to use dynamic rules:
@@ -4494,6 +4543,7 @@ can be changed in a similar way as for
 .Xr if_bridge 4 ,
 .Xr ip 4 ,
 .Xr ipfirewall 4 ,
+.Xr ng_ether 4 ,
 .Xr ng_ipfw 4 ,
 .Xr protocols 5 ,
 .Xr services 5 ,
@@ -4501,6 +4551,7 @@ can be changed in a similar way as for
 .Xr kldload 8 ,
 .Xr reboot 8 ,
 .Xr sysctl 8 ,
+.Xr sysrc 8 ,
 .Xr syslogd 8
 .Sh HISTORY
 The
