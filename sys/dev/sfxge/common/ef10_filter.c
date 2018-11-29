@@ -199,7 +199,7 @@ efx_mcdi_filter_op_add(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
+	uint8_t payload[MAX(MC_CMD_FILTER_OP_V3_IN_LEN,
 			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
 	efx_filter_match_flags_t match_flags;
 	efx_rc_t rc;
@@ -207,7 +207,7 @@ efx_mcdi_filter_op_add(
 	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
-	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
+	req.emr_in_length = MC_CMD_FILTER_OP_V3_IN_LEN;
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_FILTER_OP_EXT_OUT_LEN;
 
@@ -343,16 +343,37 @@ efx_mcdi_filter_op_add(
 		    spec->efs_ifrm_loc_mac, EFX_MAC_ADDR_LEN);
 	}
 
+	/*
+	 * Set the "MARK" or "FLAG" action for all packets matching this filter
+	 * if necessary (only useful with equal stride packed stream Rx mode
+	 * which provide the information in pseudo-header).
+	 * These actions require MC_CMD_FILTER_OP_V3_IN msgrequest.
+	 */
+	if ((spec->efs_flags & EFX_FILTER_FLAG_ACTION_MARK) &&
+	    (spec->efs_flags & EFX_FILTER_FLAG_ACTION_FLAG)) {
+		rc = EINVAL;
+		goto fail3;
+	}
+	if (spec->efs_flags & EFX_FILTER_FLAG_ACTION_MARK) {
+		MCDI_IN_SET_DWORD(req, FILTER_OP_V3_IN_MATCH_ACTION,
+		    MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_MARK);
+		MCDI_IN_SET_DWORD(req, FILTER_OP_V3_IN_MATCH_MARK_VALUE,
+		    spec->efs_mark);
+	} else if (spec->efs_flags & EFX_FILTER_FLAG_ACTION_FLAG) {
+		MCDI_IN_SET_DWORD(req, FILTER_OP_V3_IN_MATCH_ACTION,
+		    MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_FLAG);
+	}
+
 	efx_mcdi_execute(enp, &req);
 
 	if (req.emr_rc != 0) {
 		rc = req.emr_rc;
-		goto fail3;
+		goto fail4;
 	}
 
 	if (req.emr_out_length_used < MC_CMD_FILTER_OP_EXT_OUT_LEN) {
 		rc = EMSGSIZE;
-		goto fail4;
+		goto fail5;
 	}
 
 	handle->efh_lo = MCDI_OUT_DWORD(req, FILTER_OP_EXT_OUT_HANDLE_LO);
@@ -360,6 +381,8 @@ efx_mcdi_filter_op_add(
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
