@@ -871,6 +871,58 @@ efx_rx_qcreate_packed_stream(
 
 #endif
 
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+
+	__checkReturn	efx_rc_t
+efx_rx_qcreate_es_super_buffer(
+	__in		efx_nic_t *enp,
+	__in		unsigned int index,
+	__in		unsigned int label,
+	__in		uint32_t n_bufs_per_desc,
+	__in		uint32_t max_dma_len,
+	__in		uint32_t buf_stride,
+	__in		uint32_t hol_block_timeout,
+	__in		efsys_mem_t *esmp,
+	__in		size_t ndescs,
+	__in		unsigned int flags,
+	__in		efx_evq_t *eep,
+	__deref_out	efx_rxq_t **erpp)
+{
+	efx_rc_t rc;
+	efx_rxq_type_data_t type_data;
+
+	if (hol_block_timeout > EFX_RXQ_ES_SUPER_BUFFER_HOL_BLOCK_MAX) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	memset(&type_data, 0, sizeof (type_data));
+
+	type_data.ertd_es_super_buffer.eessb_bufs_per_desc = n_bufs_per_desc;
+	type_data.ertd_es_super_buffer.eessb_max_dma_len = max_dma_len;
+	type_data.ertd_es_super_buffer.eessb_buf_stride = buf_stride;
+	type_data.ertd_es_super_buffer.eessb_hol_block_timeout =
+	    hol_block_timeout;
+
+	rc = efx_rx_qcreate_internal(enp, index, label,
+	    EFX_RXQ_TYPE_ES_SUPER_BUFFER, &type_data, esmp, ndescs,
+	    0 /* id unused on EF10 */, flags, eep, erpp);
+	if (rc != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+#endif
+
+
 			void
 efx_rx_qdestroy(
 	__in		efx_rxq_t *erp)

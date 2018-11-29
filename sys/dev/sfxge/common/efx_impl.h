@@ -165,6 +165,14 @@ typedef union efx_rxq_type_data_u {
 		uint32_t	eps_buf_size;
 	} ertd_packed_stream;
 #endif
+#if EFSYS_OPT_RX_ES_SUPER_BUFFER
+	struct {
+		uint32_t	eessb_bufs_per_desc;
+		uint32_t	eessb_max_dma_len;
+		uint32_t	eessb_buf_stride;
+		uint32_t	eessb_hol_block_timeout;
+	} ertd_es_super_buffer;
+#endif
 } efx_rxq_type_data_t;
 
 typedef struct efx_rx_ops_s {
@@ -763,9 +771,11 @@ typedef	boolean_t (*efx_ev_handler_t)(efx_evq_t *, efx_qword_t *,
 typedef struct efx_evq_rxq_state_s {
 	unsigned int			eers_rx_read_ptr;
 	unsigned int			eers_rx_mask;
-#if EFSYS_OPT_RX_PACKED_STREAM
+#if EFSYS_OPT_RX_PACKED_STREAM || EFSYS_OPT_RX_ES_SUPER_BUFFER
 	unsigned int			eers_rx_stream_npackets;
 	boolean_t			eers_rx_packed_stream;
+#endif
+#if EFSYS_OPT_RX_PACKED_STREAM
 	unsigned int			eers_rx_packed_stream_credits;
 #endif
 } efx_evq_rxq_state_t;
