@@ -476,12 +476,12 @@ command_bcache(int argc, char *argv[])
 	return(CMD_ERROR);
     }
 
-    printf("\ncache blocks: %d\n", bcache_total_nblks);
-    printf("cache blocksz: %d\n", bcache_blksize);
-    printf("cache readahead: %d\n", bcache_rablks);
-    printf("unit cache blocks: %d\n", bcache_unit_nblks);
-    printf("cached units: %d\n", bcache_units);
-    printf("%d ops  %d bypasses  %d hits  %d misses\n", bcache_ops,
+    printf("\ncache blocks: %u\n", bcache_total_nblks);
+    printf("cache blocksz: %u\n", bcache_blksize);
+    printf("cache readahead: %u\n", bcache_rablks);
+    printf("unit cache blocks: %u\n", bcache_unit_nblks);
+    printf("cached units: %u\n", bcache_units);
+    printf("%u ops %d bypasses %u hits %u misses\n", bcache_ops,
 	bcache_bypasses, bcache_hits, bcache_misses);
     return(CMD_OK);
 }
