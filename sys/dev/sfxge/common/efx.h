@@ -2651,6 +2651,10 @@ efx_tx_qdestroy(
 #define	EFX_FILTER_FLAG_RX		0x08
 /* Filter is for TX */
 #define	EFX_FILTER_FLAG_TX		0x10
+/* Set match flag on the received packet */
+#define	EFX_FILTER_FLAG_ACTION_FLAG	0x20
+/* Set match mark on the received packet */
+#define	EFX_FILTER_FLAG_ACTION_MARK	0x40
 
 typedef uint8_t efx_filter_flags_t;
 
@@ -2723,6 +2727,8 @@ typedef struct efx_filter_spec_s {
 	efx_filter_flags_t		efs_flags;
 	uint16_t			efs_dmaq_id;
 	uint32_t			efs_rss_context;
+	uint32_t			efs_mark;
+	/* Fields below here are hashed for software filter lookup */
 	uint16_t			efs_outer_vid;
 	uint16_t			efs_inner_vid;
 	uint8_t				efs_loc_mac[EFX_MAC_ADDR_LEN];

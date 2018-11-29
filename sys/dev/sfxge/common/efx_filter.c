@@ -103,12 +103,33 @@ efx_filter_insert(
 	__inout		efx_filter_spec_t *spec)
 {
 	const efx_filter_ops_t *efop = enp->en_efop;
+	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_FILTER);
 	EFSYS_ASSERT3P(spec, !=, NULL);
 	EFSYS_ASSERT3U(spec->efs_flags, &, EFX_FILTER_FLAG_RX);
 
+	if ((spec->efs_flags & EFX_FILTER_FLAG_ACTION_MARK) &&
+	    !encp->enc_filter_action_mark_supported) {
+		rc = ENOTSUP;
+		goto fail1;
+	}
+
+	if ((spec->efs_flags & EFX_FILTER_FLAG_ACTION_FLAG) &&
+	    !encp->enc_filter_action_flag_supported) {
+		rc = ENOTSUP;
+		goto fail2;
+	}
+
 	return (efop->efo_add(enp, spec, B_FALSE));
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 	__checkReturn	efx_rc_t
