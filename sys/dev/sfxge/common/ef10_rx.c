@@ -1027,7 +1027,7 @@ ef10_rx_qcreate(
 	__in		unsigned int index,
 	__in		unsigned int label,
 	__in		efx_rxq_type_t type,
-	__in		uint32_t type_data,
+	__in		const efx_rxq_type_data_t *type_data,
 	__in		efsys_mem_t *esmp,
 	__in		size_t ndescs,
 	__in		uint32_t id,
@@ -1066,7 +1066,7 @@ ef10_rx_qcreate(
 		break;
 #if EFSYS_OPT_RX_PACKED_STREAM
 	case EFX_RXQ_TYPE_PACKED_STREAM:
-		switch (type_data) {
+		switch (type_data->ertd_packed_stream.eps_buf_size) {
 		case EFX_RXQ_PACKED_STREAM_BUF_SIZE_1M:
 			ps_buf_size = MC_CMD_INIT_RXQ_EXT_IN_PS_BUFF_1M;
 			break;
