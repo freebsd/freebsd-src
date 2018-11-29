@@ -421,36 +421,14 @@ initclocks(void *dummy)
 #endif
 }
 
-void
-hardclock(int cnt, int usermode)
+static __noinline void
+hardclock_itimer(struct thread *td, struct pstats *pstats, int cnt, int usermode)
 {
-	struct pstats *pstats;
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-	int *t = DPCPU_PTR(pcputicks);
-	int flags, global, newticks;
-	int i;
+	struct proc *p;
+	int flags;
 
-	/*
-	 * Update per-CPU and possibly global ticks values.
-	 */
-	*t += cnt;
-	do {
-		global = ticks;
-		newticks = *t - global;
-		if (newticks <= 0) {
-			if (newticks < -1)
-				*t = global - 1;
-			newticks = 0;
-			break;
-		}
-	} while (!atomic_cmpset_int(&ticks, global, *t));
-
-	/*
-	 * Run current process's virtual and profile time, as needed.
-	 */
-	pstats = p->p_stats;
 	flags = 0;
+	p = td->td_proc;
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
 		PROC_ITIMLOCK(p);
@@ -471,6 +449,40 @@ hardclock(int cnt, int usermode)
 		td->td_flags |= flags;
 		thread_unlock(td);
 	}
+}
+
+void
+hardclock(int cnt, int usermode)
+{
+	struct pstats *pstats;
+	struct thread *td = curthread;
+	struct proc *p = td->td_proc;
+	int *t = DPCPU_PTR(pcputicks);
+	int global, i, newticks;
+
+	/*
+	 * Update per-CPU and possibly global ticks values.
+	 */
+	*t += cnt;
+	global = ticks;
+	do {
+		newticks = *t - global;
+		if (newticks <= 0) {
+			if (newticks < -1)
+				*t = global - 1;
+			newticks = 0;
+			break;
+		}
+	} while (!atomic_fcmpset_int(&ticks, &global, *t));
+
+	/*
+	 * Run current process's virtual and profile time, as needed.
+	 */
+	pstats = p->p_stats;
+	if (__predict_false(
+	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) ||
+	    timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)))
+		hardclock_itimer(td, pstats, cnt, usermode);
 
 #ifdef	HWPMC_HOOKS
 	if (PMC_CPU_HAS_SAMPLES(PCPU_GET(cpuid)))
