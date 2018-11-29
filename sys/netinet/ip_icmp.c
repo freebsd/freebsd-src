@@ -299,7 +299,8 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 	mac_netinet_icmp_reply(n, m);
 #endif
 	icmplen = min(icmplen, M_TRAILINGSPACE(m) - sizeof(struct ip) - ICMP_MINLEN);
-	m_align(m, ICMP_MINLEN + icmplen);
+	m_align(m, sizeof(struct ip) + ICMP_MINLEN + icmplen);
+	m->m_data += sizeof(struct ip);
 	m->m_len = ICMP_MINLEN + icmplen;
 
 	/* XXX MRT  make the outgoing packet use the same FIB
@@ -341,6 +342,8 @@ stdreply:	icmpelen = max(8, min(V_icmp_quotelen, ntohs(oip->ip_len) - oiphlen));
 	 * reply should bypass as well.
 	 */
 	m->m_flags |= n->m_flags & M_SKIP_FIREWALL;
+	KASSERT(M_LEADINGSPACE(m) >= sizeof(struct ip),
+	    ("insufficient space for ip header"));
 	m->m_data -= sizeof(struct ip);
 	m->m_len += sizeof(struct ip);
 	m->m_pkthdr.len = m->m_len;
