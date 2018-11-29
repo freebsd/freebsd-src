@@ -377,4 +377,11 @@
 # endif
 #endif /* EFSYS_OPT_TUNNEL */
 
+#if EFSYS_OPT_FW_SUBVARIANT_AWARE
+/* Advertise that the driver is firmware subvariant aware */
+# if !(EFSYS_OPT_MEDFORD2)
+#  error "FW_SUBVARIANT_AWARE requires MEDFORD2"
+# endif
+#endif
+
 #endif /* _SYS_EFX_CHECK_H */

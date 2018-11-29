@@ -1303,7 +1303,9 @@ efx_mcdi_drv_attach(
 	 * FULL_FEATURED datapath firmware type first and fall backs to
 	 * DONT_CARE datapath firmware type if MC_CMD_DRV_ATTACH fails.
 	 */
-	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_NEW_STATE, attach ? 1 : 0);
+	MCDI_IN_POPULATE_DWORD_2(req, DRV_ATTACH_IN_NEW_STATE,
+	    DRV_ATTACH_IN_ATTACH, attach ? 1 : 0,
+	    DRV_ATTACH_IN_SUBVARIANT_AWARE, EFSYS_OPT_FW_SUBVARIANT_AWARE);
 	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_UPDATE, 1);
 	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_FIRMWARE_ID, enp->efv);
 
