@@ -1135,6 +1135,12 @@ ef10_get_datapath_caps(
 	else
 		encp->enc_rx_var_packed_stream_supported = B_FALSE;
 
+	/* Check if the firmware supports FW subvariant w/o Tx checksumming */
+	if (CAP_FLAGS2(req, FW_SUBVARIANT_NO_TX_CSUM))
+		encp->enc_fw_subvariant_no_tx_csum_supported = B_TRUE;
+	else
+		encp->enc_fw_subvariant_no_tx_csum_supported = B_FALSE;
+
 	/* Check if the firmware supports set mac with running filters */
 	if (CAP_FLAGS1(req, VADAPTOR_PERMIT_SET_MAC_WHEN_FILTERS_INSTALLED))
 		encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
