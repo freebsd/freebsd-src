@@ -30,6 +30,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/types.h>
 #include <sys/ck.h>
 #include <sys/eventhandler.h>
@@ -47,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "t4_clip.h"
 
+#if defined(INET6)
 static int add_lip(struct adapter *, struct in6_addr *);
 static int delete_lip(struct adapter *, struct in6_addr *);
 static struct clip_entry *search_lip(struct adapter *, struct in6_addr *);
@@ -108,11 +112,13 @@ search_lip(struct adapter *sc, struct in6_addr *lip)
 
 	return (NULL);
 }
+#endif
 
 struct clip_entry *
 t4_hold_lip(struct adapter *sc, struct in6_addr *lip, struct clip_entry *ce)
 {
 
+#ifdef INET6
 	mtx_lock(&sc->clip_table_lock);
 	if (ce == NULL)
 		ce = search_lip(sc, lip);
@@ -121,12 +127,16 @@ t4_hold_lip(struct adapter *sc, struct in6_addr *lip, struct clip_entry *ce)
 	mtx_unlock(&sc->clip_table_lock);
 
 	return (ce);
+#else
+	return (NULL);
+#endif
 }
 
 void
 t4_release_lip(struct adapter *sc, struct clip_entry *ce)
 {
 
+#ifdef INET6
 	mtx_lock(&sc->clip_table_lock);
 	KASSERT(search_lip(sc, &ce->lip) == ce,
 	    ("%s: CLIP entry %p p not in CLIP table.", __func__, ce));
@@ -134,8 +144,10 @@ t4_release_lip(struct adapter *sc, struct clip_entry *ce)
 	    ("%s: CLIP entry %p has refcount 0", __func__, ce));
 	--ce->refcount;
 	mtx_unlock(&sc->clip_table_lock);
+#endif
 }
 
+#ifdef INET6
 void
 t4_init_clip_table(struct adapter *sc)
 {
@@ -380,3 +392,4 @@ t4_clip_modunload(void)
 	EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_evhandler);
 	taskqueue_cancel_timeout(taskqueue_thread, &clip_task, NULL);
 }
+#endif
