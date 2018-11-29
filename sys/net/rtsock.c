@@ -81,6 +81,7 @@ struct if_msghdr32 {
 	int32_t	ifm_addrs;
 	int32_t	ifm_flags;
 	uint16_t ifm_index;
+	uint16_t _ifm_spare1;
 	struct	if_data ifm_data;
 };
 
@@ -94,6 +95,7 @@ struct if_msghdrl32 {
 	uint16_t _ifm_spare1;
 	uint16_t ifm_len;
 	uint16_t ifm_data_off;
+	uint32_t _ifm_spare2;
 	struct	if_data ifm_data;
 };
 
@@ -1211,8 +1213,11 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 		dlen = ALIGN(len) - len;
 		if (buflen < dlen)
 			cp = NULL;
-		else
+		else {
+			bzero(cp, dlen);
+			cp += dlen;
 			buflen -= dlen;
+		}
 	}
 	len = ALIGN(len);
 
@@ -1566,6 +1571,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	if (w->w_req && w->w_tmem) {
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
+		bzero(&rtm->rtm_index,
+		    sizeof(*rtm) - offsetof(struct rt_msghdr, rtm_index));
 		if (rt->rt_flags & RTF_GWFLAG_COMPAT)
 			rtm->rtm_flags = RTF_GATEWAY | 
 				(rt->rt_flags & ~RTF_GWFLAG_COMPAT);
@@ -1573,7 +1580,6 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 			rtm->rtm_flags = rt->rt_flags;
 		rt_getmetrics(rt, &rtm->rtm_rmx);
 		rtm->rtm_index = rt->rt_ifp->if_index;
-		rtm->rtm_errno = rtm->rtm_pid = rtm->rtm_seq = 0;
 		rtm->rtm_addrs = info.rti_addrs;
 		error = SYSCTL_OUT(w->w_req, (caddr_t)rtm, size);
 		return (error);
@@ -1601,6 +1607,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, const struct if_data *src_ifd,
 		ifm32->_ifm_spare1 = 0;
 		ifm32->ifm_len = sizeof(*ifm32);
 		ifm32->ifm_data_off = offsetof(struct if_msghdrl32, ifm_data);
+		ifm32->_ifm_spare2 = 0;
 		ifd = &ifm32->ifm_data;
 	} else
 #endif
@@ -1611,6 +1618,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, const struct if_data *src_ifd,
 		ifm->_ifm_spare1 = 0;
 		ifm->ifm_len = sizeof(*ifm);
 		ifm->ifm_data_off = offsetof(struct if_msghdrl, ifm_data);
+		ifm->_ifm_spare2 = 0;
 		ifd = &ifm->ifm_data;
 	}
 
@@ -1636,6 +1644,7 @@ sysctl_iflist_ifm(struct ifnet *ifp, const struct if_data *src_ifd,
 		ifm32->ifm_addrs = info->rti_addrs;
 		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 		ifm32->ifm_index = ifp->if_index;
+		ifm32->_ifm_spare1 = 0;
 		ifd = &ifm32->ifm_data;
 	} else
 #endif
@@ -1643,6 +1652,7 @@ sysctl_iflist_ifm(struct ifnet *ifp, const struct if_data *src_ifd,
 		ifm->ifm_addrs = info->rti_addrs;
 		ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 		ifm->ifm_index = ifp->if_index;
+		ifm->_ifm_spare1 = 0;
 		ifd = &ifm->ifm_data;
 	}
 
@@ -1711,6 +1721,7 @@ sysctl_iflist_ifam(struct ifaddr *ifa, struct rt_addrinfo *info,
 	ifam->ifam_addrs = info->rti_addrs;
 	ifam->ifam_flags = ifa->ifa_flags;
 	ifam->ifam_index = ifa->ifa_ifp->if_index;
+	ifam->_ifam_spare1 = 0;
 	ifam->ifam_metric = ifa->ifa_ifp->if_metric;
 
 	return (SYSCTL_OUT(w->w_req, w->w_tmem, len));
@@ -1825,6 +1836,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 				ifmam->ifmam_index = ifma->ifma_ifp->if_index;
 				ifmam->ifmam_flags = 0;
 				ifmam->ifmam_addrs = info.rti_addrs;
+				ifmam->_ifmam_spare1 = 0;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error != 0)
 					break;
