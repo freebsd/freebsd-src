@@ -319,7 +319,8 @@ fail1:
 
 	__checkReturn	efx_rc_t
 efx_nic_probe(
-	__in		efx_nic_t *enp)
+	__in		efx_nic_t *enp,
+	__in		efx_fw_variant_t efv)
 {
 	const efx_nic_ops_t *enop;
 	efx_rc_t rc;
@@ -330,7 +331,27 @@ efx_nic_probe(
 #endif	/* EFSYS_OPT_MCDI */
 	EFSYS_ASSERT(!(enp->en_mod_flags & EFX_MOD_PROBE));
 
+	/* Ensure FW variant codes match with MC_CMD_FW codes */
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_FULL_FEATURED ==
+	    MC_CMD_FW_FULL_FEATURED);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_LOW_LATENCY ==
+	    MC_CMD_FW_LOW_LATENCY);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_PACKED_STREAM ==
+	    MC_CMD_FW_PACKED_STREAM);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_HIGH_TX_RATE ==
+	    MC_CMD_FW_HIGH_TX_RATE);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_PACKED_STREAM_HASH_MODE_1 ==
+	    MC_CMD_FW_PACKED_STREAM_HASH_MODE_1);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_RULES_ENGINE ==
+	    MC_CMD_FW_RULES_ENGINE);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_DPDK ==
+	    MC_CMD_FW_DPDK);
+	EFX_STATIC_ASSERT(EFX_FW_VARIANT_DONT_CARE ==
+	    (int)MC_CMD_FW_DONT_CARE);
+
 	enop = enp->en_enop;
+	enp->efv = efv;
+
 	if ((rc = enop->eno_probe(enp)) != 0)
 		goto fail1;
 

@@ -748,7 +748,7 @@ sfxge_create(struct sfxge_softc *sc)
 
 	/* Probe the NIC and build the configuration data area. */
 	DBGPRINT(sc->dev, "nic_probe...");
-	if ((error = efx_nic_probe(enp)) != 0)
+	if ((error = efx_nic_probe(enp, EFX_FW_VARIANT_DONT_CARE)) != 0)
 		goto fail5;
 
 	if (!ISP2(sfxge_rx_ring_entries) ||
