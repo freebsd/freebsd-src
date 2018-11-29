@@ -1220,6 +1220,7 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_rx_buf_align_start;
 	uint32_t		enc_rx_buf_align_end;
 	uint32_t		enc_rx_scale_max_exclusive_contexts;
+	boolean_t		enc_rx_scale_additional_modes_supported;
 #if EFSYS_OPT_LOOPBACK
 	efx_qword_t		enc_loopback_types[EFX_LINK_NMODES];
 #endif	/* EFSYS_OPT_LOOPBACK */
@@ -2149,14 +2150,18 @@ typedef enum efx_rx_scale_context_type_e {
  */
 #define	EFX_RX_CLASS_IPV4_TCP_LBN	8
 #define	EFX_RX_CLASS_IPV4_TCP_WIDTH	4
+#define	EFX_RX_CLASS_IPV4_UDP_LBN	12
+#define	EFX_RX_CLASS_IPV4_UDP_WIDTH	4
 #define	EFX_RX_CLASS_IPV4_LBN		16
 #define	EFX_RX_CLASS_IPV4_WIDTH		4
 #define	EFX_RX_CLASS_IPV6_TCP_LBN	20
 #define	EFX_RX_CLASS_IPV6_TCP_WIDTH	4
+#define	EFX_RX_CLASS_IPV6_UDP_LBN	24
+#define	EFX_RX_CLASS_IPV6_UDP_WIDTH	4
 #define	EFX_RX_CLASS_IPV6_LBN		28
 #define	EFX_RX_CLASS_IPV6_WIDTH		4
 
-#define	EFX_RX_NCLASSES			4
+#define	EFX_RX_NCLASSES			6
 
 /*
  * Ancillary flags used to construct generic hash tuples.
@@ -2176,9 +2181,20 @@ typedef enum efx_rx_scale_context_type_e {
  */
 #define	EFX_RX_CLASS_HASH_DISABLE	0
 
+#define	EFX_RX_CLASS_HASH_1TUPLE_SRC	EFX_RX_CLASS_HASH_SRC_ADDR
+#define	EFX_RX_CLASS_HASH_1TUPLE_DST	EFX_RX_CLASS_HASH_DST_ADDR
+
 #define	EFX_RX_CLASS_HASH_2TUPLE		\
 	(EFX_RX_CLASS_HASH_SRC_ADDR	|	\
 	EFX_RX_CLASS_HASH_DST_ADDR)
+
+#define	EFX_RX_CLASS_HASH_2TUPLE_SRC		\
+	(EFX_RX_CLASS_HASH_SRC_ADDR	|	\
+	EFX_RX_CLASS_HASH_SRC_PORT)
+
+#define	EFX_RX_CLASS_HASH_2TUPLE_DST		\
+	(EFX_RX_CLASS_HASH_DST_ADDR	|	\
+	EFX_RX_CLASS_HASH_DST_PORT)
 
 #define	EFX_RX_CLASS_HASH_4TUPLE		\
 	(EFX_RX_CLASS_HASH_SRC_ADDR	|	\
@@ -2186,7 +2202,7 @@ typedef enum efx_rx_scale_context_type_e {
 	EFX_RX_CLASS_HASH_SRC_PORT	|	\
 	EFX_RX_CLASS_HASH_DST_PORT)
 
-#define EFX_RX_CLASS_HASH_NTUPLES	3
+#define EFX_RX_CLASS_HASH_NTUPLES	7
 
 /*
  * Hash flag constructor.
