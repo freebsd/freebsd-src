@@ -1023,7 +1023,7 @@ ef10_get_datapath_caps(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_CAPABILITIES_IN_LEN,
-			    MC_CMD_GET_CAPABILITIES_V4_OUT_LEN)];
+			    MC_CMD_GET_CAPABILITIES_V5_OUT_LEN)];
 	efx_rc_t rc;
 
 	if ((rc = ef10_mcdi_get_pf_count(enp, &encp->enc_hw_pf_count)) != 0)
@@ -1035,7 +1035,7 @@ ef10_get_datapath_caps(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_CAPABILITIES_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V4_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_CAPABILITIES_V5_OUT_LEN;
 
 	efx_mcdi_execute_quiet(enp, &req);
 
@@ -1331,6 +1331,13 @@ ef10_get_datapath_caps(
 		encp->enc_filter_action_mark_supported = B_TRUE;
 	else
 		encp->enc_filter_action_mark_supported = B_FALSE;
+
+	/* Get maximum supported value for "MARK" filter action */
+	if (req.emr_out_length_used >= MC_CMD_GET_CAPABILITIES_V5_OUT_LEN)
+		encp->enc_filter_action_mark_max = MCDI_OUT_DWORD(req,
+		    GET_CAPABILITIES_V5_OUT_FILTER_ACTION_MARK_MAX);
+	else
+		encp->enc_filter_action_mark_max = 0;
 
 #undef CAP_FLAGS1
 #undef CAP_FLAGS2
