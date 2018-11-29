@@ -136,11 +136,26 @@ CK_PR_STORE_S(int, int, "stsw")
 #undef CK_PR_STORE_S
 #undef CK_PR_STORE
 
+/* Use the appropriate address space for atomics within the FreeBSD kernel. */
+#if defined(__FreeBSD__) && defined(_KERNEL)
+#include <sys/cdefs.h>
+#include <machine/atomic.h>
+#define CK_PR_INS_CAS "casa"
+#define CK_PR_INS_CASX "casxa"
+#define CK_PR_INS_SWAP "swapa"
+#define CK_PR_ASI_ATOMIC __XSTRING(__ASI_ATOMIC)
+#else
+#define CK_PR_INS_CAS "cas"
+#define CK_PR_INS_CASX "casx"
+#define CK_PR_INS_SWAP "swap"
+#define CK_PR_ASI_ATOMIC ""
+#endif
+
 CK_CC_INLINE static bool
 ck_pr_cas_64_value(uint64_t *target, uint64_t compare, uint64_t set, uint64_t *value)
 {
 
-	__asm__ __volatile__("casx [%1], %2, %0"
+	__asm__ __volatile__(CK_PR_INS_CASX " [%1] " CK_PR_ASI_ATOMIC ", %2, %0"
 				: "+&r" (set)
 				: "r"   (target),
 				  "r"   (compare)
@@ -154,7 +169,7 @@ CK_CC_INLINE static bool
 ck_pr_cas_64(uint64_t *target, uint64_t compare, uint64_t set)
 {
 
-	__asm__ __volatile__("casx [%1], %2, %0"
+	__asm__ __volatile__(CK_PR_INS_CASX " [%1] " CK_PR_ASI_ATOMIC ", %2, %0"
 				: "+&r" (set)
 				: "r" (target),
 				  "r" (compare)
@@ -181,7 +196,7 @@ ck_pr_cas_ptr_value(void *target, void *compare, void *set, void *previous)
 	CK_CC_INLINE static bool					\
 	ck_pr_cas_##N##_value(T *target, T compare, T set, T *value)	\
 	{								\
-		__asm__ __volatile__("cas [%1], %2, %0"			\
+		__asm__ __volatile__(CK_PR_INS_CAS " [%1] " CK_PR_ASI_ATOMIC ", %2, %0" \
 					: "+&r" (set)			\
 					: "r"   (target),		\
 					  "r"   (compare)		\
@@ -192,7 +207,7 @@ ck_pr_cas_ptr_value(void *target, void *compare, void *set, void *previous)
 	CK_CC_INLINE static bool					\
 	ck_pr_cas_##N(T *target, T compare, T set)			\
 	{								\
-		__asm__ __volatile__("cas [%1], %2, %0"			\
+		__asm__ __volatile__(CK_PR_INS_CAS " [%1] " CK_PR_ASI_ATOMIC ", %2, %0" \
 					: "+&r" (set)			\
 					: "r" (target),			\
 					  "r" (compare)			\
@@ -211,7 +226,7 @@ CK_PR_CAS(int, int)
 	ck_pr_fas_##N(T *target, T update)			\
 	{							\
 								\
-		__asm__ __volatile__("swap [%1], %0"		\
+		__asm__ __volatile__(CK_PR_INS_SWAP " [%1] " CK_PR_ASI_ATOMIC ", %0"		\
 					: "+&r" (update)	\
 					: "r"   (target)	\
 					: "memory");		\
@@ -223,6 +238,11 @@ CK_PR_FAS(uint, unsigned int)
 CK_PR_FAS(32, uint32_t)
 
 #undef CK_PR_FAS
+
+#undef CK_PR_INS_CAS
+#undef CK_PR_INS_CASX
+#undef CK_PR_INS_SWAP
+#undef CK_PR_ASI_ATOMIC
 
 #endif /* CK_PR_SPARCV9_H */
 
