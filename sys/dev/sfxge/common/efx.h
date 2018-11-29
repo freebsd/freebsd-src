@@ -2098,11 +2098,30 @@ typedef enum efx_rx_hash_alg_e {
 	EFX_RX_HASHALG_TOEPLITZ
 } efx_rx_hash_alg_t;
 
+/*
+ * Legacy hash type flags.
+ *
+ * They represent standard tuples for distinct traffic classes.
+ */
 #define	EFX_RX_HASH_IPV4	(1U << 0)
 #define	EFX_RX_HASH_TCPIPV4	(1U << 1)
 #define	EFX_RX_HASH_IPV6	(1U << 2)
 #define	EFX_RX_HASH_TCPIPV6	(1U << 3)
 
+#define	EFX_RX_HASH_LEGACY_MASK		\
+	(EFX_RX_HASH_IPV4	|	\
+	EFX_RX_HASH_TCPIPV4	|	\
+	EFX_RX_HASH_IPV6	|	\
+	EFX_RX_HASH_TCPIPV6)
+
+/*
+ * The type of the argument used by efx_rx_scale_mode_set() to
+ * provide a means for the client drivers to configure hashing.
+ *
+ * A properly constructed value can either be:
+ *  - a combination of legacy flags
+ *  - a combination of EFX_RX_HASH() flags
+ */
 typedef unsigned int efx_rx_hash_type_t;
 
 typedef enum efx_rx_hash_support_e {
@@ -2120,6 +2139,77 @@ typedef enum efx_rx_scale_context_type_e {
 	EFX_RX_SCALE_EXCLUSIVE,		/* Writable key/indirection table */
 	EFX_RX_SCALE_SHARED		/* Read-only key/indirection table */
 } efx_rx_scale_context_type_t;
+
+/*
+ * Traffic classes eligible for hash computation.
+ *
+ * Select packet headers used in computing the receive hash.
+ * This uses the same encoding as the RSS_MODES field of
+ * MC_CMD_RSS_CONTEXT_SET_FLAGS.
+ */
+#define	EFX_RX_CLASS_IPV4_TCP_LBN	8
+#define	EFX_RX_CLASS_IPV4_TCP_WIDTH	4
+#define	EFX_RX_CLASS_IPV4_LBN		16
+#define	EFX_RX_CLASS_IPV4_WIDTH		4
+#define	EFX_RX_CLASS_IPV6_TCP_LBN	20
+#define	EFX_RX_CLASS_IPV6_TCP_WIDTH	4
+#define	EFX_RX_CLASS_IPV6_LBN		28
+#define	EFX_RX_CLASS_IPV6_WIDTH		4
+
+#define	EFX_RX_NCLASSES			4
+
+/*
+ * Ancillary flags used to construct generic hash tuples.
+ * This uses the same encoding as RSS_MODE_HASH_SELECTOR.
+ */
+#define	EFX_RX_CLASS_HASH_SRC_ADDR	(1U << 0)
+#define	EFX_RX_CLASS_HASH_DST_ADDR	(1U << 1)
+#define	EFX_RX_CLASS_HASH_SRC_PORT	(1U << 2)
+#define	EFX_RX_CLASS_HASH_DST_PORT	(1U << 3)
+
+/*
+ * Generic hash tuples.
+ *
+ * They express combinations of packet fields
+ * which can contribute to the hash value for
+ * a particular traffic class.
+ */
+#define	EFX_RX_CLASS_HASH_DISABLE	0
+
+#define	EFX_RX_CLASS_HASH_2TUPLE		\
+	(EFX_RX_CLASS_HASH_SRC_ADDR	|	\
+	EFX_RX_CLASS_HASH_DST_ADDR)
+
+#define	EFX_RX_CLASS_HASH_4TUPLE		\
+	(EFX_RX_CLASS_HASH_SRC_ADDR	|	\
+	EFX_RX_CLASS_HASH_DST_ADDR	|	\
+	EFX_RX_CLASS_HASH_SRC_PORT	|	\
+	EFX_RX_CLASS_HASH_DST_PORT)
+
+#define EFX_RX_CLASS_HASH_NTUPLES	3
+
+/*
+ * Hash flag constructor.
+ *
+ * Resulting flags encode hash tuples for specific traffic classes.
+ * The client drivers are encouraged to use these flags to form
+ * a hash type value.
+ */
+#define	EFX_RX_HASH(_class, _tuple)				\
+	EFX_INSERT_FIELD_NATIVE32(0, 31,			\
+	EFX_RX_CLASS_##_class, EFX_RX_CLASS_HASH_##_tuple)
+
+/*
+ * The maximum number of EFX_RX_HASH() flags.
+ */
+#define	EFX_RX_HASH_NFLAGS	(EFX_RX_NCLASSES * EFX_RX_CLASS_HASH_NTUPLES)
+
+extern	__checkReturn				efx_rc_t
+efx_rx_scale_hash_flags_get(
+	__in					efx_nic_t *enp,
+	__in					efx_rx_hash_alg_t hash_alg,
+	__inout_ecount(EFX_RX_HASH_NFLAGS)	unsigned int *flagsp,
+	__out					unsigned int *nflagsp);
 
 extern	__checkReturn	efx_rc_t
 efx_rx_hash_default_support_get(

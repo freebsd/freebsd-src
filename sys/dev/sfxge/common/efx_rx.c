@@ -323,6 +323,61 @@ fail1:
 #endif	/* EFSYS_OPT_RX_SCATTER */
 
 #if EFSYS_OPT_RX_SCALE
+	__checkReturn				efx_rc_t
+efx_rx_scale_hash_flags_get(
+	__in					efx_nic_t *enp,
+	__in					efx_rx_hash_alg_t hash_alg,
+	__inout_ecount(EFX_RX_HASH_NFLAGS)	unsigned int *flagsp,
+	__out					unsigned int *nflagsp)
+{
+	unsigned int *entryp = flagsp;
+	efx_rc_t rc;
+
+	if (flagsp == NULL || nflagsp == NULL) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+#define	LIST_FLAGS(_entryp, _class, _l4_hashing)			\
+	do {								\
+		if (_l4_hashing)					\
+			*(_entryp++) = EFX_RX_HASH(_class, 4TUPLE);	\
+									\
+		*(_entryp++) = EFX_RX_HASH(_class, 2TUPLE);		\
+		*(_entryp++) = EFX_RX_HASH(_class, DISABLE);		\
+									\
+		_NOTE(CONSTANTCONDITION)				\
+	} while (B_FALSE)
+
+	switch (hash_alg) {
+	case EFX_RX_HASHALG_TOEPLITZ:
+		LIST_FLAGS(entryp, IPV4_TCP, B_TRUE);
+		LIST_FLAGS(entryp, IPV6_TCP, B_TRUE);
+		LIST_FLAGS(entryp, IPV4, B_FALSE);
+		LIST_FLAGS(entryp, IPV6, B_FALSE);
+		break;
+
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
+
+#undef LIST_FLAGS
+
+	*nflagsp = (unsigned int)(entryp - flagsp);
+	EFSYS_ASSERT3U(*nflagsp, <=, EFX_RX_HASH_NFLAGS);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn	efx_rc_t
 efx_rx_hash_default_support_get(
 	__in		efx_nic_t *enp,
@@ -454,19 +509,80 @@ efx_rx_scale_mode_set(
 	__in		boolean_t insert)
 {
 	const efx_rx_ops_t *erxop = enp->en_erxop;
+	unsigned int type_flags[EFX_RX_HASH_NFLAGS];
+	unsigned int type_nflags;
+	efx_rx_hash_type_t type_check;
+	unsigned int i;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_RX);
 
+	/*
+	 * Legacy flags and modern bits cannot be
+	 * used at the same time in the hash type.
+	 */
+	if ((type & EFX_RX_HASH_LEGACY_MASK) &&
+	    (type & ~EFX_RX_HASH_LEGACY_MASK)) {
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	/*
+	 * Translate legacy flags to the new representation
+	 * so that chip-specific handlers will consider the
+	 * new flags only.
+	 */
+	if (type & EFX_RX_HASH_IPV4) {
+		type |= EFX_RX_HASH(IPV4, 2TUPLE);
+		type |= EFX_RX_HASH(IPV4_TCP, 2TUPLE);
+	}
+
+	if (type & EFX_RX_HASH_TCPIPV4)
+		type |= EFX_RX_HASH(IPV4_TCP, 4TUPLE);
+
+	if (type & EFX_RX_HASH_IPV6) {
+		type |= EFX_RX_HASH(IPV6, 2TUPLE);
+		type |= EFX_RX_HASH(IPV6_TCP, 2TUPLE);
+	}
+
+	if (type & EFX_RX_HASH_TCPIPV6)
+		type |= EFX_RX_HASH(IPV6_TCP, 4TUPLE);
+
+	type &= ~EFX_RX_HASH_LEGACY_MASK;
+	type_check = type;
+
+	/*
+	 * Get the list of supported hash flags and sanitise the input.
+	 */
+	rc = efx_rx_scale_hash_flags_get(enp, alg, type_flags, &type_nflags);
+	if (rc != 0)
+		goto fail2;
+
+	for (i = 0; i < type_nflags; ++i) {
+		if ((type_check & type_flags[i]) == type_flags[i])
+			type_check &= ~(type_flags[i]);
+	}
+
+	if (type_check != 0) {
+		rc = EINVAL;
+		goto fail3;
+	}
+
 	if (erxop->erxo_scale_mode_set != NULL) {
 		if ((rc = erxop->erxo_scale_mode_set(enp, rss_context, alg,
 			    type, insert)) != 0)
-			goto fail1;
+			goto fail4;
 	}
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
@@ -806,7 +922,7 @@ siena_rx_scatter_enable(
 	efx_rc_t rc;
 
 	nbuf32 = buf_size / 32;
-	if ((nbuf32 == 0) ||
+	IF ((NBUF32 == 0) ||
 	    (nbuf32 >= (1 << FRF_BZ_RX_USR_BUF_SIZE_WIDTH)) ||
 	    ((buf_size % 32) != 0)) {
 		rc = EINVAL;
@@ -910,6 +1026,10 @@ siena_rx_scale_mode_set(
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
+	efx_rx_hash_type_t type_ipv4 = EFX_RX_HASH(IPV4, 2TUPLE);
+	efx_rx_hash_type_t type_ipv4_tcp = EFX_RX_HASH(IPV4_TCP, 4TUPLE);
+	efx_rx_hash_type_t type_ipv6 = EFX_RX_HASH(IPV6, 2TUPLE);
+	efx_rx_hash_type_t type_ipv6_tcp = EFX_RX_HASH(IPV6_TCP, 4TUPLE);
 	efx_rc_t rc;
 
 	if (rss_context != EFX_RSS_CONTEXT_DEFAULT) {
@@ -924,12 +1044,12 @@ siena_rx_scale_mode_set(
 
 	case EFX_RX_HASHALG_TOEPLITZ:
 		EFX_RX_TOEPLITZ_IPV4_HASH(enp, insert,
-		    type & EFX_RX_HASH_IPV4,
-		    type & EFX_RX_HASH_TCPIPV4);
+		    (type & type_ipv4) == type_ipv4,
+		    (type & type_ipv4_tcp) == type_ipv4_tcp);
 
 		EFX_RX_TOEPLITZ_IPV6_HASH(enp,
-		    type & EFX_RX_HASH_IPV6,
-		    type & EFX_RX_HASH_TCPIPV6,
+		    (type & type_ipv6) == type_ipv6,
+		    (type & type_ipv6_tcp) == type_ipv6_tcp,
 		    rc);
 		if (rc != 0)
 			goto fail2;
