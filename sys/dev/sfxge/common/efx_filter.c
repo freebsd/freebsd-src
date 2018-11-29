@@ -447,7 +447,7 @@ efx_filter_spec_set_encap_type(
 	__in		efx_tunnel_protocol_t encap_type,
 	__in		efx_filter_inner_frame_match_t inner_frame_match)
 {
-	uint32_t match_flags = 0;
+	uint32_t match_flags = EFX_FILTER_MATCH_ENCAP_TYPE;
 	uint8_t ip_proto;
 	efx_rc_t rc;
 
@@ -528,6 +528,7 @@ efx_filter_spec_set_vxlan_full(
 		spec->efs_match_flags |= EFX_FILTER_MATCH_IFRM_LOC_MAC;
 		memcpy(spec->efs_ifrm_loc_mac, inner_addr, EFX_MAC_ADDR_LEN);
 	}
+	spec->efs_match_flags |= EFX_FILTER_MATCH_ENCAP_TYPE;
 	spec->efs_encap_type = EFX_TUNNEL_PROTOCOL_VXLAN;
 
 	return (0);
