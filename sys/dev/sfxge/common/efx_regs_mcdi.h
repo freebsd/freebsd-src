@@ -340,10 +340,17 @@
 #define SIENA_MC_BOOTROM_COPYCODE_VEC (0x800 - 3 * 0x4)
 #define HUNT_MC_BOOTROM_COPYCODE_VEC (0x8000 - 3 * 0x4)
 #define MEDFORD_MC_BOOTROM_COPYCODE_VEC (0x10000 - 3 * 0x4)
-/* Points to the recovery mode entry point. */
+/* Points to the recovery mode entry point. Misnamed but kept for compatibility. */
 #define SIENA_MC_BOOTROM_NOFLASH_VEC (0x800 - 2 * 0x4)
 #define HUNT_MC_BOOTROM_NOFLASH_VEC (0x8000 - 2 * 0x4)
 #define MEDFORD_MC_BOOTROM_NOFLASH_VEC (0x10000 - 2 * 0x4)
+/* Points to the recovery mode entry point. Same as above, but the right name. */
+#define SIENA_MC_BOOTROM_RECOVERY_VEC (0x800 - 2 * 0x4)
+#define HUNT_MC_BOOTROM_RECOVERY_VEC (0x8000 - 2 * 0x4)
+#define MEDFORD_MC_BOOTROM_RECOVERY_VEC (0x10000 - 2 * 0x4)
+
+/* Points to noflash mode entry point. */
+#define MEDFORD_MC_BOOTROM_REAL_NOFLASH_VEC (0x10000 - 4 * 0x4)
 
 /* The command set exported by the boot ROM (MCDI v0) */
 #define MC_CMD_GET_VERSION_V0_SUPPORTED_FUNCS {		\
@@ -416,6 +423,8 @@
 #define	MCDI_EVENT_LINKCHANGE_LP_CAP_WIDTH 16
 #define	MCDI_EVENT_LINKCHANGE_SPEED_LBN 16
 #define	MCDI_EVENT_LINKCHANGE_SPEED_WIDTH 4
+/* enum: Link is down or link speed could not be determined */
+#define	MCDI_EVENT_LINKCHANGE_SPEED_UNKNOWN  0x0
 /* enum: 100Mbs */
 #define	MCDI_EVENT_LINKCHANGE_SPEED_100M  0x1
 /* enum: 1Gbs */
@@ -2742,6 +2751,8 @@
  * support
  */
 #define	MC_CMD_FW_RULES_ENGINE 0x5
+/* enum: Prefer to use firmware with additional DPDK support */
+#define	MC_CMD_FW_DPDK 0x6
 /* enum: Only this option is allowed for non-admin functions */
 #define	MC_CMD_FW_DONT_CARE  0xffffffff
 
@@ -6715,6 +6726,12 @@
 #define	LICENSED_APP_ID_CAPTURE_SOLARSYSTEM_40G 0x800
 /* enum: Capture SolarSystem 1G */
 #define	LICENSED_APP_ID_CAPTURE_SOLARSYSTEM_1G  0x1000
+/* enum: ScaleOut Onload */
+#define	LICENSED_APP_ID_SCALEOUT_ONLOAD         0x2000
+/* enum: SCS Network Analytics Dashboard */
+#define	LICENSED_APP_ID_DSHBRD                  0x4000
+/* enum: SolarCapture Trading Analytics */
+#define	LICENSED_APP_ID_SCATRD                  0x8000
 #define	LICENSED_APP_ID_ID_LBN 0
 #define	LICENSED_APP_ID_ID_WIDTH 32
 
@@ -6781,6 +6798,12 @@
 #define	LICENSED_V3_APPS_CAPTURE_SOLARSYSTEM_40G_WIDTH 1
 #define	LICENSED_V3_APPS_CAPTURE_SOLARSYSTEM_1G_LBN 12
 #define	LICENSED_V3_APPS_CAPTURE_SOLARSYSTEM_1G_WIDTH 1
+#define	LICENSED_V3_APPS_SCALEOUT_ONLOAD_LBN 13
+#define	LICENSED_V3_APPS_SCALEOUT_ONLOAD_WIDTH 1
+#define	LICENSED_V3_APPS_DSHBRD_LBN 14
+#define	LICENSED_V3_APPS_DSHBRD_WIDTH 1
+#define	LICENSED_V3_APPS_SCATRD_LBN 15
+#define	LICENSED_V3_APPS_SCATRD_WIDTH 1
 #define	LICENSED_V3_APPS_MASK_LBN 0
 #define	LICENSED_V3_APPS_MASK_WIDTH 64
 
@@ -6831,6 +6854,14 @@
  * is the same as for TX_EV_COMPLETION.
  */
 #define	TX_TIMESTAMP_EVENT_TX_EV_CTPIO_COMPLETION  0x11
+/* enum: This is the low part of a TX timestamp for a CTPIO transmission. The
+ * event format is the same as for TX_EV_TSTAMP_LO
+ */
+#define	TX_TIMESTAMP_EVENT_TX_EV_CTPIO_TS_LO  0x12
+/* enum: This is the high part of a TX timestamp for a CTPIO transmission. The
+ * event format is the same as for TX_EV_TSTAMP_HI
+ */
+#define	TX_TIMESTAMP_EVENT_TX_EV_CTPIO_TS_HI  0x13
 /* enum: This is the low part of a TX timestamp event */
 #define	TX_TIMESTAMP_EVENT_TX_EV_TSTAMP_LO  0x51
 /* enum: This is the high part of a TX timestamp event */
@@ -7203,11 +7234,15 @@
 /* Size, in entries */
 #define	MC_CMD_INIT_RXQ_EXT_IN_SIZE_OFST 0
 #define	MC_CMD_INIT_RXQ_EXT_IN_SIZE_LEN 4
-/* The EVQ to send events to. This is an index originally specified to INIT_EVQ
+/* The EVQ to send events to. This is an index originally specified to
+ * INIT_EVQ. If DMA_MODE == PACKED_STREAM this must be equal to INSTANCE.
  */
 #define	MC_CMD_INIT_RXQ_EXT_IN_TARGET_EVQ_OFST 4
 #define	MC_CMD_INIT_RXQ_EXT_IN_TARGET_EVQ_LEN 4
-/* The value to put in the event data. Check hardware spec. for valid range. */
+/* The value to put in the event data. Check hardware spec. for valid range.
+ * This field is ignored if DMA_MODE == EQUAL_STRIDE_PACKED_STREAM or DMA_MODE
+ * == PACKED_STREAM.
+ */
 #define	MC_CMD_INIT_RXQ_EXT_IN_LABEL_OFST 8
 #define	MC_CMD_INIT_RXQ_EXT_IN_LABEL_LEN 4
 /* Desired instance. Must be set to a specific instance, which is a function
@@ -7238,6 +7273,13 @@
 #define	MC_CMD_INIT_RXQ_EXT_IN_SINGLE_PACKET  0x0
 /* enum: Pack multiple packets into large descriptors (for SolarCapture) */
 #define	MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM  0x1
+/* enum: Pack multiple packets into large descriptors using the format designed
+ * to maximise packet rate. This mode uses 1 "bucket" per descriptor with
+ * multiple fixed-size packet buffers within each bucket. For a full
+ * description see SF-119419-TC. This mode is only supported by "dpdk" datapath
+ * firmware.
+ */
+#define	MC_CMD_INIT_RXQ_EXT_IN_EQUAL_STRIDE_PACKED_STREAM  0x2
 #define	MC_CMD_INIT_RXQ_EXT_IN_FLAG_SNAPSHOT_MODE_LBN 14
 #define	MC_CMD_INIT_RXQ_EXT_IN_FLAG_SNAPSHOT_MODE_WIDTH 1
 #define	MC_CMD_INIT_RXQ_EXT_IN_PACKED_STREAM_BUFF_SIZE_LBN 15
@@ -7267,11 +7309,121 @@
 #define	MC_CMD_INIT_RXQ_EXT_IN_SNAPSHOT_LENGTH_OFST 540
 #define	MC_CMD_INIT_RXQ_EXT_IN_SNAPSHOT_LENGTH_LEN 4
 
+/* MC_CMD_INIT_RXQ_V3_IN msgrequest */
+#define	MC_CMD_INIT_RXQ_V3_IN_LEN 560
+/* Size, in entries */
+#define	MC_CMD_INIT_RXQ_V3_IN_SIZE_OFST 0
+#define	MC_CMD_INIT_RXQ_V3_IN_SIZE_LEN 4
+/* The EVQ to send events to. This is an index originally specified to
+ * INIT_EVQ. If DMA_MODE == PACKED_STREAM this must be equal to INSTANCE.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_TARGET_EVQ_OFST 4
+#define	MC_CMD_INIT_RXQ_V3_IN_TARGET_EVQ_LEN 4
+/* The value to put in the event data. Check hardware spec. for valid range.
+ * This field is ignored if DMA_MODE == EQUAL_STRIDE_PACKED_STREAM or DMA_MODE
+ * == PACKED_STREAM.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_LABEL_OFST 8
+#define	MC_CMD_INIT_RXQ_V3_IN_LABEL_LEN 4
+/* Desired instance. Must be set to a specific instance, which is a function
+ * local queue index.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_INSTANCE_OFST 12
+#define	MC_CMD_INIT_RXQ_V3_IN_INSTANCE_LEN 4
+/* There will be more flags here. */
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAGS_OFST 16
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAGS_LEN 4
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_BUFF_MODE_LBN 0
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_BUFF_MODE_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_HDR_SPLIT_LBN 1
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_HDR_SPLIT_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_TIMESTAMP_LBN 2
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_TIMESTAMP_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_CRC_MODE_LBN 3
+#define	MC_CMD_INIT_RXQ_V3_IN_CRC_MODE_WIDTH 4
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_CHAIN_LBN 7
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_CHAIN_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_PREFIX_LBN 8
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_PREFIX_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_DISABLE_SCATTER_LBN 9
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_DISABLE_SCATTER_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_MODE_LBN 10
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_MODE_WIDTH 4
+/* enum: One packet per descriptor (for normal networking) */
+#define	MC_CMD_INIT_RXQ_V3_IN_SINGLE_PACKET  0x0
+/* enum: Pack multiple packets into large descriptors (for SolarCapture) */
+#define	MC_CMD_INIT_RXQ_V3_IN_PACKED_STREAM  0x1
+/* enum: Pack multiple packets into large descriptors using the format designed
+ * to maximise packet rate. This mode uses 1 "bucket" per descriptor with
+ * multiple fixed-size packet buffers within each bucket. For a full
+ * description see SF-119419-TC. This mode is only supported by "dpdk" datapath
+ * firmware.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_EQUAL_STRIDE_PACKED_STREAM  0x2
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_SNAPSHOT_MODE_LBN 14
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_SNAPSHOT_MODE_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_PACKED_STREAM_BUFF_SIZE_LBN 15
+#define	MC_CMD_INIT_RXQ_V3_IN_PACKED_STREAM_BUFF_SIZE_WIDTH 3
+#define	MC_CMD_INIT_RXQ_V3_IN_PS_BUFF_1M  0x0 /* enum */
+#define	MC_CMD_INIT_RXQ_V3_IN_PS_BUFF_512K  0x1 /* enum */
+#define	MC_CMD_INIT_RXQ_V3_IN_PS_BUFF_256K  0x2 /* enum */
+#define	MC_CMD_INIT_RXQ_V3_IN_PS_BUFF_128K  0x3 /* enum */
+#define	MC_CMD_INIT_RXQ_V3_IN_PS_BUFF_64K  0x4 /* enum */
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_WANT_OUTER_CLASSES_LBN 18
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_WANT_OUTER_CLASSES_WIDTH 1
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_FORCE_EV_MERGING_LBN 19
+#define	MC_CMD_INIT_RXQ_V3_IN_FLAG_FORCE_EV_MERGING_WIDTH 1
+/* Owner ID to use if in buffer mode (zero if physical) */
+#define	MC_CMD_INIT_RXQ_V3_IN_OWNER_ID_OFST 20
+#define	MC_CMD_INIT_RXQ_V3_IN_OWNER_ID_LEN 4
+/* The port ID associated with the v-adaptor which should contain this DMAQ. */
+#define	MC_CMD_INIT_RXQ_V3_IN_PORT_ID_OFST 24
+#define	MC_CMD_INIT_RXQ_V3_IN_PORT_ID_LEN 4
+/* 64-bit address of 4k of 4k-aligned host memory buffer */
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_ADDR_OFST 28
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_ADDR_LEN 8
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_ADDR_LO_OFST 28
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_ADDR_HI_OFST 32
+#define	MC_CMD_INIT_RXQ_V3_IN_DMA_ADDR_NUM 64
+/* Maximum length of packet to receive, if SNAPSHOT_MODE flag is set */
+#define	MC_CMD_INIT_RXQ_V3_IN_SNAPSHOT_LENGTH_OFST 540
+#define	MC_CMD_INIT_RXQ_V3_IN_SNAPSHOT_LENGTH_LEN 4
+/* The number of packet buffers that will be contained within each
+ * EQUAL_STRIDE_PACKED_STREAM format bucket supplied by the driver. This field
+ * is ignored unless DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_BUFFERS_PER_BUCKET_OFST 544
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_BUFFERS_PER_BUCKET_LEN 4
+/* The length in bytes of the area in each packet buffer that can be written to
+ * by the adapter. This is used to store the packet prefix and the packet
+ * payload. This length does not include any end padding added by the driver.
+ * This field is ignored unless DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_MAX_DMA_LEN_OFST 548
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_MAX_DMA_LEN_LEN 4
+/* The length in bytes of a single packet buffer within a
+ * EQUAL_STRIDE_PACKED_STREAM format bucket. This field is ignored unless
+ * DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_STRIDE_OFST 552
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_PACKET_STRIDE_LEN 4
+/* The maximum time in nanoseconds that the datapath will be backpressured if
+ * there are no RX descriptors available. If the timeout is reached and there
+ * are still no descriptors then the packet will be dropped. A timeout of 0
+ * means the datapath will never be blocked. This field is ignored unless
+ * DMA_MODE == EQUAL_STRIDE_PACKED_STREAM.
+ */
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_HEAD_OF_LINE_BLOCK_TIMEOUT_OFST 556
+#define	MC_CMD_INIT_RXQ_V3_IN_ES_HEAD_OF_LINE_BLOCK_TIMEOUT_LEN 4
+
 /* MC_CMD_INIT_RXQ_OUT msgresponse */
 #define	MC_CMD_INIT_RXQ_OUT_LEN 0
 
 /* MC_CMD_INIT_RXQ_EXT_OUT msgresponse */
 #define	MC_CMD_INIT_RXQ_EXT_OUT_LEN 0
+
+/* MC_CMD_INIT_RXQ_V3_OUT msgresponse */
+#define	MC_CMD_INIT_RXQ_V3_OUT_LEN 0
 
 
 /***********************************/
@@ -8188,6 +8340,273 @@
  */
 #define	MC_CMD_FILTER_OP_EXT_IN_IFRM_DST_IP_OFST 156
 #define	MC_CMD_FILTER_OP_EXT_IN_IFRM_DST_IP_LEN 16
+
+/* MC_CMD_FILTER_OP_V3_IN msgrequest: FILTER_OP extension to support additional
+ * filter actions for Intel's DPDK (Data Plane Development Kit, dpdk.org) via
+ * its rte_flow API. This extension is only useful with the sfc_efx driver
+ * included as part of DPDK, used in conjunction with the dpdk datapath
+ * firmware variant.
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_LEN 180
+/* identifies the type of operation requested */
+#define	MC_CMD_FILTER_OP_V3_IN_OP_OFST 0
+#define	MC_CMD_FILTER_OP_V3_IN_OP_LEN 4
+/*            Enum values, see field(s): */
+/*               MC_CMD_FILTER_OP_IN/OP */
+/* filter handle (for remove / unsubscribe operations) */
+#define	MC_CMD_FILTER_OP_V3_IN_HANDLE_OFST 4
+#define	MC_CMD_FILTER_OP_V3_IN_HANDLE_LEN 8
+#define	MC_CMD_FILTER_OP_V3_IN_HANDLE_LO_OFST 4
+#define	MC_CMD_FILTER_OP_V3_IN_HANDLE_HI_OFST 8
+/* The port ID associated with the v-adaptor which should contain this filter.
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_PORT_ID_OFST 12
+#define	MC_CMD_FILTER_OP_V3_IN_PORT_ID_LEN 4
+/* fields to include in match criteria */
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_FIELDS_OFST 16
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_FIELDS_LEN 4
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_SRC_IP_LBN 0
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_SRC_IP_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_DST_IP_LBN 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_DST_IP_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_SRC_MAC_LBN 2
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_SRC_MAC_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_SRC_PORT_LBN 3
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_SRC_PORT_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_DST_MAC_LBN 4
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_DST_MAC_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_DST_PORT_LBN 5
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_DST_PORT_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ETHER_TYPE_LBN 6
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ETHER_TYPE_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_INNER_VLAN_LBN 7
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_INNER_VLAN_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_OUTER_VLAN_LBN 8
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_OUTER_VLAN_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IP_PROTO_LBN 9
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IP_PROTO_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_FWDEF0_LBN 10
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_FWDEF0_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_VNI_OR_VSID_LBN 11
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_VNI_OR_VSID_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_SRC_IP_LBN 12
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_SRC_IP_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_DST_IP_LBN 13
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_DST_IP_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_SRC_MAC_LBN 14
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_SRC_MAC_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_SRC_PORT_LBN 15
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_SRC_PORT_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_DST_MAC_LBN 16
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_DST_MAC_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_DST_PORT_LBN 17
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_DST_PORT_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_ETHER_TYPE_LBN 18
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_ETHER_TYPE_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_INNER_VLAN_LBN 19
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_INNER_VLAN_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_OUTER_VLAN_LBN 20
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_OUTER_VLAN_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_IP_PROTO_LBN 21
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_IP_PROTO_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_FWDEF0_LBN 22
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_FWDEF0_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_FWDEF1_LBN 23
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_FWDEF1_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_UNKNOWN_MCAST_DST_LBN 24
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_UNKNOWN_MCAST_DST_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_UNKNOWN_UCAST_DST_LBN 25
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_IFRM_UNKNOWN_UCAST_DST_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_UNKNOWN_MCAST_DST_LBN 30
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_UNKNOWN_MCAST_DST_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_UNKNOWN_UCAST_DST_LBN 31
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_UNKNOWN_UCAST_DST_WIDTH 1
+/* receive destination */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_OFST 20
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_LEN 4
+/* enum: drop packets */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_DROP  0x0
+/* enum: receive to host */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_HOST  0x1
+/* enum: receive to MC */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_MC  0x2
+/* enum: loop back to TXDP 0 */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_TX0  0x3
+/* enum: loop back to TXDP 1 */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_DEST_TX1  0x4
+/* receive queue handle (for multiple queue modes, this is the base queue) */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_QUEUE_OFST 24
+#define	MC_CMD_FILTER_OP_V3_IN_RX_QUEUE_LEN 4
+/* receive mode */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_MODE_OFST 28
+#define	MC_CMD_FILTER_OP_V3_IN_RX_MODE_LEN 4
+/* enum: receive to just the specified queue */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_MODE_SIMPLE  0x0
+/* enum: receive to multiple queues using RSS context */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_MODE_RSS  0x1
+/* enum: receive to multiple queues using .1p mapping */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_MODE_DOT1P_MAPPING  0x2
+/* enum: install a filter entry that will never match; for test purposes only
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_MODE_TEST_NEVER_MATCH  0x80000000
+/* RSS context (for RX_MODE_RSS) or .1p mapping handle (for
+ * RX_MODE_DOT1P_MAPPING), as returned by MC_CMD_RSS_CONTEXT_ALLOC or
+ * MC_CMD_DOT1P_MAPPING_ALLOC.
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_RX_CONTEXT_OFST 32
+#define	MC_CMD_FILTER_OP_V3_IN_RX_CONTEXT_LEN 4
+/* transmit domain (reserved; set to 0) */
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DOMAIN_OFST 36
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DOMAIN_LEN 4
+/* transmit destination (either set the MAC and/or PM bits for explicit
+ * control, or set this field to TX_DEST_DEFAULT for sensible default
+ * behaviour)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_OFST 40
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_LEN 4
+/* enum: request default behaviour (based on filter type) */
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_DEFAULT  0xffffffff
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_MAC_LBN 0
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_MAC_WIDTH 1
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_PM_LBN 1
+#define	MC_CMD_FILTER_OP_V3_IN_TX_DEST_PM_WIDTH 1
+/* source MAC address to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_SRC_MAC_OFST 44
+#define	MC_CMD_FILTER_OP_V3_IN_SRC_MAC_LEN 6
+/* source port to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_SRC_PORT_OFST 50
+#define	MC_CMD_FILTER_OP_V3_IN_SRC_PORT_LEN 2
+/* destination MAC address to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_DST_MAC_OFST 52
+#define	MC_CMD_FILTER_OP_V3_IN_DST_MAC_LEN 6
+/* destination port to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_DST_PORT_OFST 58
+#define	MC_CMD_FILTER_OP_V3_IN_DST_PORT_LEN 2
+/* Ethernet type to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_ETHER_TYPE_OFST 60
+#define	MC_CMD_FILTER_OP_V3_IN_ETHER_TYPE_LEN 2
+/* Inner VLAN tag to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_INNER_VLAN_OFST 62
+#define	MC_CMD_FILTER_OP_V3_IN_INNER_VLAN_LEN 2
+/* Outer VLAN tag to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_OUTER_VLAN_OFST 64
+#define	MC_CMD_FILTER_OP_V3_IN_OUTER_VLAN_LEN 2
+/* IP protocol to match (in low byte; set high byte to 0) */
+#define	MC_CMD_FILTER_OP_V3_IN_IP_PROTO_OFST 66
+#define	MC_CMD_FILTER_OP_V3_IN_IP_PROTO_LEN 2
+/* Firmware defined register 0 to match (reserved; set to 0) */
+#define	MC_CMD_FILTER_OP_V3_IN_FWDEF0_OFST 68
+#define	MC_CMD_FILTER_OP_V3_IN_FWDEF0_LEN 4
+/* VNI (for VXLAN/Geneve, when IP protocol is UDP) or VSID (for NVGRE, when IP
+ * protocol is GRE) to match (as bytes in network order; set last byte to 0 for
+ * VXLAN/NVGRE, or 1 for Geneve)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_OR_VSID_OFST 72
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_OR_VSID_LEN 4
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_VALUE_LBN 0
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_VALUE_WIDTH 24
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_TYPE_LBN 24
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_TYPE_WIDTH 8
+/* enum: Match VXLAN traffic with this VNI */
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_TYPE_VXLAN  0x0
+/* enum: Match Geneve traffic with this VNI */
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_TYPE_GENEVE  0x1
+/* enum: Reserved for experimental development use */
+#define	MC_CMD_FILTER_OP_V3_IN_VNI_TYPE_EXPERIMENTAL  0xfe
+#define	MC_CMD_FILTER_OP_V3_IN_VSID_VALUE_LBN 0
+#define	MC_CMD_FILTER_OP_V3_IN_VSID_VALUE_WIDTH 24
+#define	MC_CMD_FILTER_OP_V3_IN_VSID_TYPE_LBN 24
+#define	MC_CMD_FILTER_OP_V3_IN_VSID_TYPE_WIDTH 8
+/* enum: Match NVGRE traffic with this VSID */
+#define	MC_CMD_FILTER_OP_V3_IN_VSID_TYPE_NVGRE  0x0
+/* source IP address to match (as bytes in network order; set last 12 bytes to
+ * 0 for IPv4 address)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_SRC_IP_OFST 76
+#define	MC_CMD_FILTER_OP_V3_IN_SRC_IP_LEN 16
+/* destination IP address to match (as bytes in network order; set last 12
+ * bytes to 0 for IPv4 address)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_DST_IP_OFST 92
+#define	MC_CMD_FILTER_OP_V3_IN_DST_IP_LEN 16
+/* VXLAN/NVGRE inner frame source MAC address to match (as bytes in network
+ * order)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_SRC_MAC_OFST 108
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_SRC_MAC_LEN 6
+/* VXLAN/NVGRE inner frame source port to match (as bytes in network order) */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_SRC_PORT_OFST 114
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_SRC_PORT_LEN 2
+/* VXLAN/NVGRE inner frame destination MAC address to match (as bytes in
+ * network order)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_DST_MAC_OFST 116
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_DST_MAC_LEN 6
+/* VXLAN/NVGRE inner frame destination port to match (as bytes in network
+ * order)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_DST_PORT_OFST 122
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_DST_PORT_LEN 2
+/* VXLAN/NVGRE inner frame Ethernet type to match (as bytes in network order)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_ETHER_TYPE_OFST 124
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_ETHER_TYPE_LEN 2
+/* VXLAN/NVGRE inner frame Inner VLAN tag to match (as bytes in network order)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_INNER_VLAN_OFST 126
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_INNER_VLAN_LEN 2
+/* VXLAN/NVGRE inner frame Outer VLAN tag to match (as bytes in network order)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_OUTER_VLAN_OFST 128
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_OUTER_VLAN_LEN 2
+/* VXLAN/NVGRE inner frame IP protocol to match (in low byte; set high byte to
+ * 0)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_IP_PROTO_OFST 130
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_IP_PROTO_LEN 2
+/* VXLAN/NVGRE inner frame Firmware defined register 0 to match (reserved; set
+ * to 0)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_FWDEF0_OFST 132
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_FWDEF0_LEN 4
+/* VXLAN/NVGRE inner frame Firmware defined register 1 to match (reserved; set
+ * to 0)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_FWDEF1_OFST 136
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_FWDEF1_LEN 4
+/* VXLAN/NVGRE inner frame source IP address to match (as bytes in network
+ * order; set last 12 bytes to 0 for IPv4 address)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_SRC_IP_OFST 140
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_SRC_IP_LEN 16
+/* VXLAN/NVGRE inner frame destination IP address to match (as bytes in network
+ * order; set last 12 bytes to 0 for IPv4 address)
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_DST_IP_OFST 156
+#define	MC_CMD_FILTER_OP_V3_IN_IFRM_DST_IP_LEN 16
+/* Set an action for all packets matching this filter. The DPDK driver and dpdk
+ * f/w variant use their own specific delivery structures, which are documented
+ * in the DPDK Firmware Driver Interface (SF-119419-TC). Requesting anything
+ * other than MATCH_ACTION_NONE when the NIC is running another f/w variant
+ * will cause the filter insertion to fail with ENOTSUP.
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_OFST 172
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_LEN 4
+/* enum: do nothing extra */
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_NONE  0x0
+/* enum: Set the match flag in the packet prefix for packets matching the
+ * filter (only with dpdk firmware, otherwise fails with ENOTSUP). Used to
+ * support the DPDK rte_flow "FLAG" action.
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_FLAG  0x1
+/* enum: Insert MATCH_MARK_VALUE into the packet prefix for packets matching
+ * the filter (only with dpdk firmware, otherwise fails with ENOTSUP). Used to
+ * support the DPDK rte_flow "MARK" action.
+ */
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_ACTION_MARK  0x2
+/* the mark value for MATCH_ACTION_MARK */
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_MARK_VALUE_OFST 176
+#define	MC_CMD_FILTER_OP_V3_IN_MATCH_MARK_VALUE_LEN 4
 
 /* MC_CMD_FILTER_OP_OUT msgresponse */
 #define	MC_CMD_FILTER_OP_OUT_LEN 12
@@ -9219,6 +9638,8 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_PACKED_STREAM  0x2
 /* enum: Rules engine RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_RULES_ENGINE  0x5
+/* enum: Packet rate RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_DPDK  0x6
 /* enum: BIST RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXDP_BIST  0x10a
 /* enum: RXDP Test firmware image 1 */
@@ -9252,6 +9673,8 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_HIGH_PACKET_RATE  0x3
 /* enum: Rules engine TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_RULES_ENGINE  0x5
+/* enum: Packet rate TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_DPDK  0x6
 /* enum: BIST TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXDP_BIST  0x12d
 /* enum: TXDP Test firmware image 1 */
@@ -9296,6 +9719,10 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine RX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
@@ -9335,6 +9762,10 @@
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine TX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate TX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* Hardware capabilities of NIC */
@@ -9421,6 +9852,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_PACKED_STREAM  0x2
 /* enum: Rules engine RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_RULES_ENGINE  0x5
+/* enum: Packet rate RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_DPDK  0x6
 /* enum: BIST RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXDP_BIST  0x10a
 /* enum: RXDP Test firmware image 1 */
@@ -9454,6 +9887,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_HIGH_PACKET_RATE  0x3
 /* enum: Rules engine TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_RULES_ENGINE  0x5
+/* enum: Packet rate TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_DPDK  0x6
 /* enum: BIST TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXDP_BIST  0x12d
 /* enum: TXDP Test firmware image 1 */
@@ -9498,6 +9933,10 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine RX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
@@ -9537,6 +9976,10 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine TX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate TX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* Hardware capabilities of NIC */
@@ -9580,6 +10023,18 @@
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_MCDI_DB_RETURN_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_CTPIO_LBN 15
 #define	MC_CMD_GET_CAPABILITIES_V2_OUT_CTPIO_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TSA_SUPPORT_LBN 16
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TSA_SUPPORT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TSA_BOUND_LBN 17
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_TSA_BOUND_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_SF_ADAPTER_AUTHENTICATION_LBN 18
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_SF_ADAPTER_AUTHENTICATION_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_FILTER_ACTION_FLAG_LBN 19
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_FILTER_ACTION_FLAG_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_FILTER_ACTION_MARK_LBN 20
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_FILTER_ACTION_MARK_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EQUAL_STRIDE_PACKED_STREAM_LBN 21
+#define	MC_CMD_GET_CAPABILITIES_V2_OUT_EQUAL_STRIDE_PACKED_STREAM_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC. Not present
  * on older firmware (check the length).
  */
@@ -9710,6 +10165,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_PACKED_STREAM  0x2
 /* enum: Rules engine RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_RULES_ENGINE  0x5
+/* enum: Packet rate RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_DPDK  0x6
 /* enum: BIST RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXDP_BIST  0x10a
 /* enum: RXDP Test firmware image 1 */
@@ -9743,6 +10200,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXDP_HIGH_PACKET_RATE  0x3
 /* enum: Rules engine TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXDP_RULES_ENGINE  0x5
+/* enum: Packet rate TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXDP_DPDK  0x6
 /* enum: BIST TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXDP_BIST  0x12d
 /* enum: TXDP Test firmware image 1 */
@@ -9787,6 +10246,10 @@
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine RX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
@@ -9826,6 +10289,10 @@
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine TX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate TX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* Hardware capabilities of NIC */
@@ -9869,6 +10336,18 @@
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_MCDI_DB_RETURN_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_CTPIO_LBN 15
 #define	MC_CMD_GET_CAPABILITIES_V3_OUT_CTPIO_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TSA_SUPPORT_LBN 16
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TSA_SUPPORT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TSA_BOUND_LBN 17
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_TSA_BOUND_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_SF_ADAPTER_AUTHENTICATION_LBN 18
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_SF_ADAPTER_AUTHENTICATION_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_FILTER_ACTION_FLAG_LBN 19
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_FILTER_ACTION_FLAG_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_FILTER_ACTION_MARK_LBN 20
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_FILTER_ACTION_MARK_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_EQUAL_STRIDE_PACKED_STREAM_LBN 21
+#define	MC_CMD_GET_CAPABILITIES_V3_OUT_EQUAL_STRIDE_PACKED_STREAM_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC. Not present
  * on older firmware (check the length).
  */
@@ -10024,6 +10503,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_PACKED_STREAM  0x2
 /* enum: Rules engine RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_RULES_ENGINE  0x5
+/* enum: Packet rate RXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_DPDK  0x6
 /* enum: BIST RXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXDP_BIST  0x10a
 /* enum: RXDP Test firmware image 1 */
@@ -10057,6 +10538,8 @@
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXDP_HIGH_PACKET_RATE  0x3
 /* enum: Rules engine TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXDP_RULES_ENGINE  0x5
+/* enum: Packet rate TXDP firmware */
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXDP_DPDK  0x6
 /* enum: BIST TXDP firmware */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXDP_BIST  0x12d
 /* enum: TXDP Test firmware image 1 */
@@ -10101,6 +10584,10 @@
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine RX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate RX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_RXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* enum: RX PD firmware parsing but not filtering network overlay tunnel
@@ -10140,6 +10627,10 @@
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_LAYER2_PERF  0x7
 /* enum: Rules engine TX PD production firmware */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_RULES_ENGINE  0x8
+/* enum: reserved value - do not use (bug69716) */
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_RESERVED_9  0x9
+/* enum: Packet rate TX PD production firmware */
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_DPDK  0xa
 /* enum: RX PD firmware for GUE parsing prototype (Medford development only) */
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_TXPD_FW_TYPE_TESTFW_GUE_PROTOTYPE  0xe
 /* Hardware capabilities of NIC */
@@ -10183,6 +10674,18 @@
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_MCDI_DB_RETURN_WIDTH 1
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_CTPIO_LBN 15
 #define	MC_CMD_GET_CAPABILITIES_V4_OUT_CTPIO_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TSA_SUPPORT_LBN 16
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TSA_SUPPORT_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TSA_BOUND_LBN 17
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_TSA_BOUND_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_SF_ADAPTER_AUTHENTICATION_LBN 18
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_SF_ADAPTER_AUTHENTICATION_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_FILTER_ACTION_FLAG_LBN 19
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_FILTER_ACTION_FLAG_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_FILTER_ACTION_MARK_LBN 20
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_FILTER_ACTION_MARK_WIDTH 1
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_EQUAL_STRIDE_PACKED_STREAM_LBN 21
+#define	MC_CMD_GET_CAPABILITIES_V4_OUT_EQUAL_STRIDE_PACKED_STREAM_WIDTH 1
 /* Number of FATSOv2 contexts per datapath supported by this NIC. Not present
  * on older firmware (check the length).
  */
@@ -12208,6 +12711,10 @@
 #define	MC_CMD_KR_TUNE_IN_POLL_EYE_PLOT  0x6
 /* enum: Read Figure Of Merit (eye quality, higher is better). */
 #define	MC_CMD_KR_TUNE_IN_READ_FOM  0x7
+/* enum: Start/stop link training frames */
+#define	MC_CMD_KR_TUNE_IN_LINK_TRAIN_RUN  0x8
+/* enum: Issue KR link training command (control training coefficients) */
+#define	MC_CMD_KR_TUNE_IN_LINK_TRAIN_CMD  0x9
 /* Align the arguments to 32 bits */
 #define	MC_CMD_KR_TUNE_IN_KR_TUNE_RSVD_OFST 1
 #define	MC_CMD_KR_TUNE_IN_KR_TUNE_RSVD_LEN 3
@@ -12278,34 +12785,54 @@
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_CTLE_POLE  0xc
 /* enum: CTLE peaking (0-31, Medford2) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_CTLE_PEAK  0xd
-/* enum: DFE Tap1 - even path (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap1 - even path (Medford2 - 6 bit signed (-29 - +29)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP1_EVEN  0xe
-/* enum: DFE Tap1 - odd path (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap1 - odd path (Medford2 - 6 bit signed (-29 - +29)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP1_ODD  0xf
-/* enum: DFE Tap2 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap2 (Medford2 - 6 bit signed (-20 - +20)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP2  0x10
-/* enum: DFE Tap3 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap3 (Medford2 - 6 bit signed (-20 - +20)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP3  0x11
-/* enum: DFE Tap4 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap4 (Medford2 - 6 bit signed (-20 - +20)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP4  0x12
-/* enum: DFE Tap5 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap5 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP5  0x13
-/* enum: DFE Tap6 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap6 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP6  0x14
-/* enum: DFE Tap7 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap7 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP7  0x15
-/* enum: DFE Tap8 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap8 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP8  0x16
-/* enum: DFE Tap9 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap9 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP9  0x17
-/* enum: DFE Tap10 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap10 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP10  0x18
-/* enum: DFE Tap11 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap11 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP11  0x19
-/* enum: DFE Tap12 (Medford2 - 0-63, sign-magnitude (-31 - +31)) */
+/* enum: DFE Tap12 (Medford2 - 6 bit signed (-24 - +24)) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_DFE_TAP12  0x1a
-/* enum: I/Q clk offset (Medford2 - 0-5, sign-magnitude (-5 - +5)) */
+/* enum: I/Q clk offset (Medford2 - 4 bit signed (-5 - +5))) */
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_IQ_OFF  0x1b
+/* enum: Negative h1 polarity data sampler offset calibration code, even path
+ * (Medford2 - 6 bit signed (-29 - +29)))
+ */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_H1N_OFF_EVEN  0x1c
+/* enum: Negative h1 polarity data sampler offset calibration code, odd path
+ * (Medford2 - 6 bit signed (-29 - +29)))
+ */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_H1N_OFF_ODD  0x1d
+/* enum: Positive h1 polarity data sampler offset calibration code, even path
+ * (Medford2 - 6 bit signed (-29 - +29)))
+ */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_H1P_OFF_EVEN  0x1e
+/* enum: Positive h1 polarity data sampler offset calibration code, odd path
+ * (Medford2 - 6 bit signed (-29 - +29)))
+ */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_H1P_OFF_ODD  0x1f
+/* enum: CDR calibration loop code (Medford2) */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_CDR_PVT  0x20
+/* enum: CDR integral loop code (Medford2) */
+#define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_CDR_INTEG  0x21
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_LANE_LBN 8
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_PARAM_LANE_WIDTH 3
 #define	MC_CMD_KR_TUNE_RXEQ_GET_OUT_LANE_0  0x0 /* enum */
@@ -12482,9 +13009,12 @@
 /* Align the arguments to 32 bits */
 #define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_KR_TUNE_RSVD_OFST 1
 #define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_KR_TUNE_RSVD_LEN 3
-/* Port-relative lane to scan eye on */
 #define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_LANE_OFST 4
 #define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_LANE_LEN 4
+#define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_LANE_NUM_LBN 0
+#define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_LANE_NUM_WIDTH 8
+#define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_LANE_ABS_REL_LBN 31
+#define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_LANE_ABS_REL_WIDTH 1
 /* Scan duration / cycle count */
 #define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_BER_OFST 8
 #define	MC_CMD_KR_TUNE_START_EYE_PLOT_V2_IN_BER_LEN 4
@@ -12520,11 +13050,90 @@
 #define	MC_CMD_KR_TUNE_READ_FOM_IN_KR_TUNE_RSVD_LEN 3
 #define	MC_CMD_KR_TUNE_READ_FOM_IN_LANE_OFST 4
 #define	MC_CMD_KR_TUNE_READ_FOM_IN_LANE_LEN 4
+#define	MC_CMD_KR_TUNE_READ_FOM_IN_LANE_NUM_LBN 0
+#define	MC_CMD_KR_TUNE_READ_FOM_IN_LANE_NUM_WIDTH 8
+#define	MC_CMD_KR_TUNE_READ_FOM_IN_LANE_ABS_REL_LBN 31
+#define	MC_CMD_KR_TUNE_READ_FOM_IN_LANE_ABS_REL_WIDTH 1
 
 /* MC_CMD_KR_TUNE_READ_FOM_OUT msgresponse */
 #define	MC_CMD_KR_TUNE_READ_FOM_OUT_LEN 4
 #define	MC_CMD_KR_TUNE_READ_FOM_OUT_FOM_OFST 0
 #define	MC_CMD_KR_TUNE_READ_FOM_OUT_FOM_LEN 4
+
+/* MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN msgrequest */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_LEN 8
+/* Requested operation */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_KR_TUNE_OP_OFST 0
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_KR_TUNE_OP_LEN 1
+/* Align the arguments to 32 bits */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_KR_TUNE_RSVD_OFST 1
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_KR_TUNE_RSVD_LEN 3
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_RUN_OFST 4
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_RUN_LEN 4
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_STOP  0x0 /* enum */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_RUN_IN_START  0x1 /* enum */
+
+/* MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN msgrequest */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_LEN 28
+/* Requested operation */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_KR_TUNE_OP_OFST 0
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_KR_TUNE_OP_LEN 1
+/* Align the arguments to 32 bits */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_KR_TUNE_RSVD_OFST 1
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_KR_TUNE_RSVD_LEN 3
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_LANE_OFST 4
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_LANE_LEN 4
+/* Set INITIALIZE state */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_INITIALIZE_OFST 8
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_INITIALIZE_LEN 4
+/* Set PRESET state */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_PRESET_OFST 12
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_PRESET_LEN 4
+/* C(-1) request */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_CM1_OFST 16
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_CM1_LEN 4
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_REQ_HOLD  0x0 /* enum */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_REQ_INCREMENT  0x1 /* enum */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_REQ_DECREMENT  0x2 /* enum */
+/* C(0) request */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_C0_OFST 20
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_C0_LEN 4
+/*            Enum values, see field(s): */
+/*               MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN/CM1 */
+/* C(+1) request */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_CP1_OFST 24
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN_CP1_LEN 4
+/*            Enum values, see field(s): */
+/*               MC_CMD_KR_TUNE_LINK_TRAIN_CMD_IN/CM1 */
+
+/* MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT msgresponse */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_LEN 24
+/* C(-1) status */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CM1_STATUS_OFST 0
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CM1_STATUS_LEN 4
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_STATUS_NOT_UPDATED  0x0 /* enum */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_STATUS_UPDATED  0x1 /* enum */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_STATUS_MINIMUM  0x2 /* enum */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_STATUS_MAXIMUM  0x3 /* enum */
+/* C(0) status */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_C0_STATUS_OFST 4
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_C0_STATUS_LEN 4
+/*            Enum values, see field(s): */
+/*               MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT/CM1 */
+/* C(+1) status */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CP1_STATUS_OFST 8
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CP1_STATUS_LEN 4
+/*            Enum values, see field(s): */
+/*               MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT/CM1 */
+/* C(-1) value */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CM1_VALUE_OFST 12
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CM1_VALUE_LEN 4
+/* C(0) value */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_C0_VALUE_OFST 16
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_C0_VALUE_LEN 4
+/* C(+1) status */
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CP1_VALUE_OFST 20
+#define	MC_CMD_KR_TUNE_LINK_TRAIN_CMD_OUT_CP1_VALUE_LEN 4
 
 
 /***********************************/
@@ -15781,6 +16390,45 @@
 #define	MC_CMD_TSAN_INFO_OUT_GET_CFG_GUID_LEN 1
 #define	MC_CMD_TSAN_INFO_OUT_GET_CFG_GUID_NUM 6
 
+/* MC_CMD_TSAN_INFO_OUT_GET_CFG_V2 msgresponse */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_LEN 36
+/* Information about the configuration parameters returned in this response. */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_CONFIG_WORD_OFST 0
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_CONFIG_WORD_LEN 4
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_CAP_FLAGS_LBN 0
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_CAP_FLAGS_WIDTH 16
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_FLAG_HOST_UUID_VALID_LBN 0
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_FLAG_HOST_UUID_VALID_WIDTH 1
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_NUM_PORTS_LBN 16
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_NUM_PORTS_WIDTH 8
+/* 16-byte host UUID read out of the adapter. See MC_CMD_HOST_INFO_OP_GET_UUID
+ * for further details.
+ */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_HOST_UUID_OFST 4
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_HOST_UUID_LEN 1
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_HOST_UUID_NUM 16
+/* A unique identifier per adapter. The base MAC address of the card is used
+ * for this purpose.
+ */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_GUID_OFST 20
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_GUID_LEN 1
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_GUID_NUM 6
+/* Unused bytes, defined for 32-bit alignment of new fields. */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_UNUSED_OFST 26
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_UNUSED_LEN 2
+/* Maximum number of TSA statistics counters in each direction of dataflow
+ * supported on the card. Note that the statistics counters are always
+ * allocated in pairs, i.e. a counter ID is associated with one Tx and one Rx
+ * counter.
+ */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_MAX_STATS_OFST 28
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_MAX_STATS_LEN 4
+/* Width of each statistics counter (represented in bits). This gives an
+ * indication of wrap point to the user.
+ */
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_STATS_WIDTH_OFST 32
+#define	MC_CMD_TSAN_INFO_OUT_GET_CFG_V2_STATS_WIDTH_LEN 4
+
 
 /***********************************/
 /* MC_CMD_TSA_STATISTICS
@@ -16310,6 +16958,21 @@
  */
 #define	MC_CMD_SUC_VERSION_OUT_CHIP_ID_OFST 20
 #define	MC_CMD_SUC_VERSION_OUT_CHIP_ID_LEN 4
+
+/* MC_CMD_SUC_BOOT_VERSION_IN msgrequest: Get the version of the SUC boot
+ * loader.
+ */
+#define	MC_CMD_SUC_BOOT_VERSION_IN_LEN 4
+#define	MC_CMD_SUC_BOOT_VERSION_IN_MAGIC_OFST 0
+#define	MC_CMD_SUC_BOOT_VERSION_IN_MAGIC_LEN 4
+/* enum: Requests the SUC boot version. */
+#define	MC_CMD_SUC_VERSION_GET_BOOT_VERSION 0xb007700b
+
+/* MC_CMD_SUC_BOOT_VERSION_OUT msgresponse */
+#define	MC_CMD_SUC_BOOT_VERSION_OUT_LEN 4
+/* The SUC boot version */
+#define	MC_CMD_SUC_BOOT_VERSION_OUT_VERSION_OFST 0
+#define	MC_CMD_SUC_BOOT_VERSION_OUT_VERSION_LEN 4
 
 
 /***********************************/

@@ -434,6 +434,7 @@ struct tlv_firmware_options {
 #define TLV_FIRMWARE_VARIANT_PACKED_STREAM_HASH_MODE_1 \
                                              MC_CMD_FW_PACKED_STREAM_HASH_MODE_1
 #define TLV_FIRMWARE_VARIANT_RULES_ENGINE    MC_CMD_FW_RULES_ENGINE
+#define TLV_FIRMWARE_VARIANT_DPDK            MC_CMD_FW_DPDK
 };
 
 /* Voltage settings
@@ -562,6 +563,17 @@ struct tlv_global_port_mode {
   uint32_t length;
   uint32_t port_mode;
 #define TLV_PORT_MODE_DEFAULT           (0xffffffff) /* Default for given platform */
+
+/* Huntington port modes */
+#define TLV_PORT_MODE_10G                        (0)
+#define TLV_PORT_MODE_40G                        (1)
+#define TLV_PORT_MODE_10G_10G                    (2)
+#define TLV_PORT_MODE_40G_40G                    (3)
+#define TLV_PORT_MODE_10G_10G_10G_10G            (4)
+#define TLV_PORT_MODE_40G_10G_10G                (6)
+#define TLV_PORT_MODE_10G_10G_40G                (7)
+
+/* Medford (and later) port modes */
 #define TLV_PORT_MODE_1x1_NA                     (0) /* Single 10G/25G on mdi0 */
 #define TLV_PORT_MODE_1x4_NA                     (1) /* Single 100G/40G on mdi0 */
 #define TLV_PORT_MODE_NA_1x4                     (22) /* Single 100G/40G on mdi1 */
@@ -569,8 +581,8 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_NA_1x2                     (11) /* Single 50G on mdi1 */
 #define TLV_PORT_MODE_1x1_1x1                    (2) /* Single 10G/25G on mdi0, single 10G/25G on mdi1 */
 #define TLV_PORT_MODE_1x4_1x4                    (3) /* Single 40G on mdi0, single 40G on mdi1 */
-#define TLV_PORT_MODE_2x1_2x1                    (4) /* Dual 10G/25G on mdi0, dual 10G/25G on mdi1 - WARNING: bug3720: On Newport only, this is actually Quad 10G on mdi0 */
-#define TLV_PORT_MODE_4x1_NA                     (5) /* Quad 10G/25G on mdi0 */
+#define TLV_PORT_MODE_2x1_2x1                    (5) /* Dual 10G/25G on mdi0, dual 10G/25G on mdi1 */
+#define TLV_PORT_MODE_4x1_NA                     (4) /* Quad 10G/25G on mdi0 */
 #define TLV_PORT_MODE_NA_4x1                     (8) /* Quad 10G/25G on mdi1 */
 #define TLV_PORT_MODE_1x4_2x1                    (6) /* Single 40G on mdi0, dual 10G/25G on mdi1 */
 #define TLV_PORT_MODE_2x1_1x4                    (7) /* Dual 10G/25G on mdi0, single 40G on mdi1 */
@@ -581,7 +593,13 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_1x2_1x4                    (16) /* Single 50G on mdi0, single 40G on mdi1 */
 #define TLV_PORT_MODE_1x2_2x1                    (17) /* Single 50G on mdi0, dual 10G/25G on mdi1 */
 #define TLV_PORT_MODE_2x1_1x2                    (18) /* Dual 10G/25G on mdi0, single 50G on mdi1 */
-/* Below modes are eftest only, to allow snapper explicit selection between multi-channel and LLPCS. In production, this selection is automatic and outside world should not care about LLPCS */
+
+/* Snapper-only Medford2 port modes.
+ * These modes are eftest only, to allow snapper explicit
+ * selection between multi-channel and LLPCS. In production,
+ * this selection is automatic and outside world should not
+ * care about LLPCS.
+ */
 #define TLV_PORT_MODE_2x1_2x1_LL                 (19) /* Dual 10G/25G on mdi0, dual 10G/25G on mdi1, low-latency PCS */
 #define TLV_PORT_MODE_4x1_NA_LL                  (20) /* Quad 10G/25G on mdi0, low-latency PCS */
 #define TLV_PORT_MODE_NA_4x1_LL                  (21) /* Quad 10G/25G on mdi1, low-latency PCS */
@@ -590,42 +608,13 @@ struct tlv_global_port_mode {
 #define TLV_PORT_MODE_BUG63720_DO_NOT_USE        (9) /* bug63720: Do not use */
 #define TLV_PORT_MODE_MAX TLV_PORT_MODE_1x1_1x1_LL
 
-/* Deprecated aliases */
-#define TLV_PORT_MODE_10G                        TLV_PORT_MODE_1x1_NA
-#define TLV_PORT_MODE_40G                        TLV_PORT_MODE_1x4_NA
-#define TLV_PORT_MODE_10G_10G                    TLV_PORT_MODE_1x1_1x1
-#define TLV_PORT_MODE_40G_40G                    TLV_PORT_MODE_1x4_1x4
-#define TLV_PORT_MODE_10G_10G_10G_10G            TLV_PORT_MODE_2x1_2x1
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q1         TLV_PORT_MODE_2x1_2x1 /* bug63720: Do not use */
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q          TLV_PORT_MODE_4x1_NA
-#define TLV_PORT_MODE_40G_10G_10G                TLV_PORT_MODE_1x4_2x1
-#define TLV_PORT_MODE_10G_10G_40G                TLV_PORT_MODE_2x1_1x4
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q2         TLV_PORT_MODE_NA_4x1
-#define TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2      TLV_PORT_MODE_BUG63720_DO_NOT_USE /* bug63720: Do not use */
-#define TLV_PORT_MODE_25G                        TLV_PORT_MODE_1x1_NA     /* Single 25G on mdi0 */
-#define TLV_PORT_MODE_100G_Q1                    TLV_PORT_MODE_1x4_NA     /* Single 100G on mdi0 */
-#define TLV_PORT_MODE_100G_Q2                    TLV_PORT_MODE_NA_1x4     /* Single 100G on mdi1 */
-#define TLV_PORT_MODE_50G_Q1                     TLV_PORT_MODE_1x2_NA     /* Single 50G on mdi0 */
-#define TLV_PORT_MODE_50G_Q2                     TLV_PORT_MODE_NA_1x2     /* Single 50G on mdi1 */
-#define TLV_PORT_MODE_25G_25G                    TLV_PORT_MODE_1x1_1x1    /* Single 25G on mdi0, single 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1_Q2      TLV_PORT_MODE_2x1_2x1    /* Dual 25G on mdi0, dual 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1         TLV_PORT_MODE_4x1_NA     /* Quad 25G on mdi0 */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q2         TLV_PORT_MODE_NA_4x1     /* Quad 25G on mdi1 */
-#define TLV_PORT_MODE_40G_25G_25G                TLV_PORT_MODE_1x4_2x1    /* Single 40G on mdi0, dual 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_40G                TLV_PORT_MODE_2x1_1x4    /* Dual 25G on mdi0, single 40G on mdi1 */
-#define TLV_PORT_MODE_50G_50G_Q1_Q2              TLV_PORT_MODE_1x2_1x2    /* Single 50G on mdi0, single 50G on mdi1 */
-#define TLV_PORT_MODE_50G_50G_Q1                 TLV_PORT_MODE_2x2_NA     /* Dual 50G on mdi0 */
-#define TLV_PORT_MODE_50G_50G_Q2                 TLV_PORT_MODE_NA_2x2     /* Dual 50G on mdi1 */
-#define TLV_PORT_MODE_40G_50G                    TLV_PORT_MODE_1x4_1x2    /* Single 40G on mdi0, single 50G on mdi1 */
-#define TLV_PORT_MODE_50G_40G                    TLV_PORT_MODE_1x2_1x4    /* Single 50G on mdi0, single 40G on mdi1 */
-#define TLV_PORT_MODE_50G_25G_25G                TLV_PORT_MODE_1x2_2x1    /* Single 50G on mdi0, dual 25G on mdi1 */
-#define TLV_PORT_MODE_25G_25G_50G                TLV_PORT_MODE_2x1_1x2    /* Dual 25G on mdi0, single 50G on mdi1 */
-/* eftest only, see comments for _LL modes above */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1_Q2_LL   TLV_PORT_MODE_2x1_2x1_LL /* Dual 25G on mdi0, dual 25G on mdi1, low-latency PCS */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q1_LL      TLV_PORT_MODE_4x1_NA_LL  /* Quad 25G on mdi0, low-latency PCS */
-#define TLV_PORT_MODE_25G_25G_25G_25G_Q2_LL      TLV_PORT_MODE_NA_4x1_LL  /* Quad 25G on mdi1, low-latency PCS */
-#define TLV_PORT_MODE_25G_LL                     TLV_PORT_MODE_1x1_NA_LL  /* Single 10G/25G on mdi0, low-latency PCS */
-#define TLV_PORT_MODE_25G_25G_LL                 TLV_PORT_MODE_1x1_1x1_LL /* Single 10G/25G on mdi0, single 10G/25G on mdi1, low-latency PCS */
+/* Deprecated Medford aliases - DO NOT USE IN NEW CODE */
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q          (5)
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1         (4)
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q2         (8)
+#define TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2      (9)
+
+#define TLV_PORT_MODE_MAX TLV_PORT_MODE_1x1_1x1_LL
 };
 
 /* Type of the v-switch created implicitly by the firmware */
