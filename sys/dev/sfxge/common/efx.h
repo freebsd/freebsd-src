@@ -2653,6 +2653,13 @@ efx_filter_spec_set_encap_type(
 	__in		efx_tunnel_protocol_t encap_type,
 	__in		efx_filter_inner_frame_match_t inner_frame_match);
 
+extern	__checkReturn	efx_rc_t
+efx_filter_spec_set_vxlan_full(
+	__inout		efx_filter_spec_t *spec,
+	__in		const uint8_t *vxlan_id,
+	__in		const uint8_t *inner_addr,
+	__in		const uint8_t *outer_addr);
+
 #if EFSYS_OPT_RX_SCALE
 extern	__checkReturn	efx_rc_t
 efx_filter_spec_set_rss_context(
