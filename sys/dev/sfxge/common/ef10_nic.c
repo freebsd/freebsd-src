@@ -1266,11 +1266,63 @@ ef10_get_datapath_caps(
 	else
 		encp->enc_fec_counters = B_FALSE;
 
+	if (CAP_FLAGS1(req, RX_RSS_LIMITED)) {
+		/* Only one exclusive RSS context is available per port. */
+		encp->enc_rx_scale_max_exclusive_contexts = 1;
+
+		switch (enp->en_family) {
+		case EFX_FAMILY_MEDFORD2:
+			encp->enc_rx_scale_hash_alg_mask =
+			    (1U << EFX_RX_HASHALG_TOEPLITZ);
+			break;
+
+		case EFX_FAMILY_MEDFORD:
+		case EFX_FAMILY_HUNTINGTON:
+			/*
+			 * Packed stream firmware variant maintains a
+			 * non-standard algorithm for hash computation.
+			 * It implies explicit XORing together
+			 * source + destination IP addresses (or last
+			 * four bytes in the case of IPv6) and using the
+			 * resulting value as the input to a Toeplitz hash.
+			 */
+			encp->enc_rx_scale_hash_alg_mask =
+			    (1U << EFX_RX_HASHALG_PACKED_STREAM);
+			break;
+
+		default:
+			rc = EINVAL;
+			goto fail5;
+		}
+
+		/* Port numbers cannot contribute to the hash value */
+		encp->enc_rx_scale_l4_hash_supported = B_FALSE;
+	} else {
+		/*
+		 * Maximum number of exclusive RSS contexts.
+		 * EF10 hardware supports 64 in total, but 6 are reserved
+		 * for shared contexts. They are a global resource so
+		 * not all may be available.
+		 */
+		encp->enc_rx_scale_max_exclusive_contexts = 64 - 6;
+
+		encp->enc_rx_scale_hash_alg_mask =
+		    (1U << EFX_RX_HASHALG_TOEPLITZ);
+
+		/*
+		 * It is possible to use port numbers as
+		 * the input data for hash computation.
+		 */
+		encp->enc_rx_scale_l4_hash_supported = B_TRUE;
+	}
+
 #undef CAP_FLAGS1
 #undef CAP_FLAGS2
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
@@ -1739,13 +1791,6 @@ ef10_nic_board_cfg(
 
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = EF10_RX_WPTR_ALIGN;
-
-	/*
-	 * Maximum number of exclusive RSS contexts. EF10 hardware supports 64
-	 * in total, but 6 are reserved for shared contexts. They are a global
-	 * resource so not all may be available.
-	 */
-	encp->enc_rx_scale_max_exclusive_contexts = 64 - 6;
 
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(ESF_DZ_RX_KER_BYTE_CNT);
 	/* No boundary crossing limits */

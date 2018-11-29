@@ -643,12 +643,13 @@ ef10_rx_scale_mode_set(
 	__in		efx_rx_hash_type_t type,
 	__in		boolean_t insert)
 {
+	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_rc_t rc;
 
-	EFSYS_ASSERT3U(alg, ==, EFX_RX_HASHALG_TOEPLITZ);
 	EFSYS_ASSERT3U(insert, ==, B_TRUE);
 
-	if ((alg != EFX_RX_HASHALG_TOEPLITZ) || (insert == B_FALSE)) {
+	if ((encp->enc_rx_scale_hash_alg_mask & (1U << alg)) == 0 ||
+	    insert == B_FALSE) {
 		rc = EINVAL;
 		goto fail1;
 	}
@@ -797,6 +798,7 @@ ef10_rx_prefix_hash(
 	_NOTE(ARGUNUSED(enp))
 
 	switch (func) {
+	case EFX_RX_HASHALG_PACKED_STREAM:
 	case EFX_RX_HASHALG_TOEPLITZ:
 		return (buffer[0] |
 		    (buffer[1] << 8) |
