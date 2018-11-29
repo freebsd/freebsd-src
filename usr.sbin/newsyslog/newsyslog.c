@@ -2426,6 +2426,7 @@ age_old_log(const char *file)
 	const char *logfile_suffix;
 	static unsigned int suffix_maxlen = 0;
 	char *tmp;
+	size_t tmpsiz;
 	time_t mtime;
 	int c;
 
@@ -2435,33 +2436,34 @@ age_old_log(const char *file)
 			    strlen(compress_type[c].suffix));
 	}
 
-	tmp = alloca(MAXPATHLEN + sizeof(".0") + suffix_maxlen + 1);
+	tmpsiz = MAXPATHLEN + sizeof(".0") + suffix_maxlen + 1;
+	tmp = alloca(tmpsiz);
 
 	if (archtodir) {
 		char *p;
 
 		/* build name of archive directory into tmp */
 		if (*archdirname == '/') {	/* absolute */
-			strlcpy(tmp, archdirname, sizeof(tmp));
+			strlcpy(tmp, archdirname, tmpsiz);
 		} else {	/* relative */
 			/* get directory part of logfile */
-			strlcpy(tmp, file, sizeof(tmp));
+			strlcpy(tmp, file, tmpsiz);
 			if ((p = strrchr(tmp, '/')) == NULL)
 				tmp[0] = '\0';
 			else
 				*(p + 1) = '\0';
-			strlcat(tmp, archdirname, sizeof(tmp));
+			strlcat(tmp, archdirname, tmpsiz);
 		}
 
-		strlcat(tmp, "/", sizeof(tmp));
+		strlcat(tmp, "/", tmpsiz);
 
 		/* get filename part of logfile */
 		if ((p = strrchr(file, '/')) == NULL)
-			strlcat(tmp, file, sizeof(tmp));
+			strlcat(tmp, file, tmpsiz);
 		else
-			strlcat(tmp, p + 1, sizeof(tmp));
+			strlcat(tmp, p + 1, tmpsiz);
 	} else {
-		(void) strlcpy(tmp, file, sizeof(tmp));
+		(void) strlcpy(tmp, file, tmpsiz);
 	}
 
 	if (timefnamefmt != NULL) {
@@ -2469,11 +2471,11 @@ age_old_log(const char *file)
 		if (mtime == -1)
 			return (-1);
 	} else {
-		strlcat(tmp, ".0", sizeof(tmp));
+		strlcat(tmp, ".0", tmpsiz);
 		logfile_suffix = get_logfile_suffix(tmp);
 		if (logfile_suffix == NULL)
 			return (-1);
-		(void) strlcat(tmp, logfile_suffix, sizeof(tmp));
+		(void) strlcat(tmp, logfile_suffix, tmpsiz);
 		if (stat(tmp, &sb) < 0)
 			return (-1);
 		mtime = sb.st_mtime;
