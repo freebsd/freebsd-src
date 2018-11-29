@@ -42,8 +42,10 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#ifndef lint
 static const char rcsid[] =
     "$FreeBSD$";
+#endif /* not lint */
 
 static int	trim(char *path, off_t offset, off_t length, int dryrun, int verbose);
 static off_t	getsize(char *path);
@@ -54,9 +56,8 @@ main(int argc, char **argv)
 {
 	off_t offset, length;
 	uint64_t usz;
-	int dryrun, error, verbose;
+	int ch, dryrun, error, verbose;
 	char *fname, *name;
-	char ch;
 
 	error = 0;
 	length = offset = 0;
