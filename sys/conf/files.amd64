@@ -413,6 +413,7 @@ dev/qlnx/qlnxe/qlnx_os.c	optional	qlnxe pci \
 	compile-with "${LINUXKPI_C}"
 dev/sfxge/common/ef10_ev.c	optional	sfxge pci
 dev/sfxge/common/ef10_filter.c	optional	sfxge pci
+dev/sfxge/common/ef10_image.c	optional	sfxge pci
 dev/sfxge/common/ef10_intr.c	optional	sfxge pci
 dev/sfxge/common/ef10_mac.c	optional	sfxge pci
 dev/sfxge/common/ef10_mcdi.c	optional	sfxge pci

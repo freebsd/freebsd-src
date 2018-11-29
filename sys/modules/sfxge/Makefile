@@ -30,9 +30,9 @@ SRCS+=	siena_mac.c siena_mcdi.c siena_nic.c siena_nvram.c siena_phy.c
 SRCS+=	siena_sram.c siena_vpd.c
 SRCS+=	siena_flash.h siena_impl.h
 
-SRCS+=	ef10_ev.c ef10_filter.c ef10_intr.c ef10_mac.c ef10_mcdi.c ef10_nic.c
-SRCS+=	ef10_nvram.c ef10_phy.c ef10_rx.c ef10_tx.c ef10_vpd.c
-SRCS+=	ef10_impl.h
+SRCS+=	ef10_ev.c ef10_filter.c ef10_image.c ef10_intr.c ef10_mac.c ef10_mcdi.c
+SRCS+=	ef10_nic.c ef10_nvram.c ef10_phy.c ef10_rx.c ef10_tx.c ef10_vpd.c
+SRCS+=	ef10_impl.h ef10_signed_image_layout.h
 
 SRCS+=	hunt_nic.c
 SRCS+=	hunt_impl.h

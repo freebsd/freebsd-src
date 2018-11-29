@@ -267,6 +267,7 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 #define	EFSYS_OPT_VPD 1
 #define	EFSYS_OPT_NVRAM 1
 #define	EFSYS_OPT_BOOTCFG 0
+#define	EFSYS_OPT_IMAGE_LAYOUT 0
 
 #define	EFSYS_OPT_DIAG 0
 #define	EFSYS_OPT_RX_SCALE 1
