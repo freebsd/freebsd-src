@@ -201,6 +201,9 @@ siena_board_cfg(
 
 	encp->enc_mac_stats_nstats = MC_CMD_MAC_NSTATS;
 
+	encp->enc_filter_action_flag_supported = B_FALSE;
+	encp->enc_filter_action_mark_supported = B_FALSE;
+
 	return (0);
 
 fail2:
