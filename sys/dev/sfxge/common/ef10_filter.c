@@ -201,6 +201,7 @@ efx_mcdi_filter_op_add(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
 			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
+	efx_filter_match_flags_t match_flags;
 	efx_rc_t rc;
 
 	memset(payload, 0, sizeof (payload));
@@ -209,6 +210,12 @@ efx_mcdi_filter_op_add(
 	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
 	req.emr_out_buf = payload;
 	req.emr_out_length = MC_CMD_FILTER_OP_EXT_OUT_LEN;
+
+	/*
+	 * Remove match flag for encapsulated filters that does not correspond
+	 * to the MCDI match flags
+	 */
+	match_flags = spec->efs_match_flags & ~EFX_FILTER_MATCH_ENCAP_TYPE;
 
 	switch (filter_op) {
 	case MC_CMD_FILTER_OP_IN_OP_REPLACE:
@@ -230,7 +237,7 @@ efx_mcdi_filter_op_add(
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_PORT_ID,
 	    EVB_PORT_ID_ASSIGNED);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_MATCH_FIELDS,
-	    spec->efs_match_flags);
+	    match_flags);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_DEST,
 	    MC_CMD_FILTER_OP_EXT_IN_RX_DEST_HOST);
 	MCDI_IN_SET_DWORD(req, FILTER_OP_EXT_IN_RX_QUEUE,
@@ -1035,13 +1042,17 @@ ef10_filter_supported_filters(
 	    EFX_FILTER_MATCH_IFRM_LOC_MAC |
 	    EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST |
 	    EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST |
+	    EFX_FILTER_MATCH_ENCAP_TYPE |
 	    EFX_FILTER_MATCH_UNKNOWN_MCAST_DST |
 	    EFX_FILTER_MATCH_UNKNOWN_UCAST_DST);
 
 	/*
 	 * Two calls to MC_CMD_GET_PARSER_DISP_INFO are needed: one to get the
 	 * list of supported filters for ordinary packets, and then another to
-	 * get the list of supported filters for encapsulated packets.
+	 * get the list of supported filters for encapsulated packets. To
+	 * distinguish the second list from the first, the
+	 * EFX_FILTER_MATCH_ENCAP_TYPE flag is added to each filter for
+	 * encapsulated packets.
 	 */
 	rc = efx_mcdi_get_parser_disp_info(enp, buffer, buffer_length, B_FALSE,
 	    &mcdi_list_length);
@@ -1069,6 +1080,10 @@ ef10_filter_supported_filters(
 				no_space = B_TRUE;
 			else
 				goto fail2;
+		} else {
+			for (i = next_buf_idx;
+			    i < next_buf_idx + mcdi_encap_list_length; i++)
+				buffer[i] |= EFX_FILTER_MATCH_ENCAP_TYPE;
 		}
 	} else {
 		mcdi_encap_list_length = 0;
