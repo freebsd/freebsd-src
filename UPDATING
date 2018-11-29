@@ -52,6 +52,13 @@ from older version of current across the gcc/clang cutover is a bit fragile.
 	loading from X11 startup. These will become the defaults in 13-current
 	shortly.
 
+20181012:
+	The ixlv(4) driver has been renamed to iavf(4).  As a consequence,
+	custom kernel and module loading configuration files must be updated
+	accordingly.  Moreover, interfaces previous presented as ixlvN to the
+	system are now exposed as iavfN and network configuration files must
+	be adjusted as necessary.
+
 20181009:
 	OpenSSL has been updated to version 1.1.1.  This update included
 	additional various API changes througout the base system.  It is
