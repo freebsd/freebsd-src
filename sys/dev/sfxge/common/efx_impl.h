@@ -157,6 +157,16 @@ typedef struct efx_tx_ops_s {
 #endif
 } efx_tx_ops_t;
 
+typedef union efx_rxq_type_data_u {
+	/* Dummy member to have non-empty union if no options are enabled */
+	uint32_t	ertd_dummy;
+#if EFSYS_OPT_RX_PACKED_STREAM
+	struct {
+		uint32_t	eps_buf_size;
+	} ertd_packed_stream;
+#endif
+} efx_rxq_type_data_t;
+
 typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_init)(efx_nic_t *);
 	void		(*erxo_fini)(efx_nic_t *);
@@ -193,7 +203,8 @@ typedef struct efx_rx_ops_s {
 	efx_rc_t	(*erxo_qflush)(efx_rxq_t *);
 	void		(*erxo_qenable)(efx_rxq_t *);
 	efx_rc_t	(*erxo_qcreate)(efx_nic_t *enp, unsigned int,
-					unsigned int, efx_rxq_type_t, uint32_t,
+					unsigned int, efx_rxq_type_t,
+					const efx_rxq_type_data_t *,
 					efsys_mem_t *, size_t, uint32_t,
 					unsigned int,
 					efx_evq_t *, efx_rxq_t *);
