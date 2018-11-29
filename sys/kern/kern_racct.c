@@ -1087,6 +1087,22 @@ racct_move(struct racct *dest, struct racct *src)
 	RACCT_UNLOCK();
 }
 
+void
+racct_proc_throttled(struct proc *p)
+{
+
+	ASSERT_RACCT_ENABLED();
+
+	PROC_LOCK(p);
+	while (p->p_throttled != 0) {
+		msleep(p->p_racct, &p->p_mtx, 0, "racct",
+		    p->p_throttled < 0 ? 0 : p->p_throttled);
+		if (p->p_throttled > 0)
+			p->p_throttled = 0;
+	}
+	PROC_UNLOCK(p);
+}
+
 /*
  * Make the process sleep in userret() for 'timeout' ticks.  Setting
  * timeout to -1 makes it sleep until woken up by racct_proc_wakeup().
