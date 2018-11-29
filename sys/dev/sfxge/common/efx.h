@@ -482,6 +482,8 @@ typedef enum efx_link_mode_e {
 
 #define	EFX_MAC_ADDR_LEN 6
 
+#define	EFX_VNI_OR_VSID_LEN 3
+
 #define	EFX_MAC_ADDR_IS_MULTICAST(_address) (((uint8_t *)_address)[0] & 0x01)
 
 #define	EFX_MAC_MULTICAST_LIST_MAX	256
@@ -2504,6 +2506,10 @@ typedef uint8_t efx_filter_flags_t;
 #define	EFX_FILTER_MATCH_OUTER_VID		0x00000100
 /* Match by IP transport protocol */
 #define	EFX_FILTER_MATCH_IP_PROTO		0x00000200
+/* Match by VNI or VSID */
+#define	EFX_FILTER_MATCH_VNI_OR_VSID		0x00000800
+/* For encapsulated packets, match by inner frame local MAC address */
+#define	EFX_FILTER_MATCH_IFRM_LOC_MAC		0x00010000
 /* For encapsulated packets, match all multicast inner frames */
 #define	EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST	0x01000000
 /* For encapsulated packets, match all unicast inner frames */
@@ -2550,6 +2556,8 @@ typedef struct efx_filter_spec_s {
 	uint16_t			efs_rem_port;
 	efx_oword_t			efs_rem_host;
 	efx_oword_t			efs_loc_host;
+	uint8_t				efs_vni_or_vsid[EFX_VNI_OR_VSID_LEN];
+	uint8_t				efs_ifrm_loc_mac[EFX_MAC_ADDR_LEN];
 } efx_filter_spec_t;
 
 

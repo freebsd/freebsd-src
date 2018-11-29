@@ -146,6 +146,10 @@ ef10_filter_init(
 	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_OUTER_VLAN));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IP_PROTO ==
 	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IP_PROTO));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_VNI_OR_VSID ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_VNI_OR_VSID));
+	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_LOC_MAC ==
+	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_DST_MAC));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST ==
 	    MATCH_MASK(MC_CMD_FILTER_OP_EXT_IN_MATCH_IFRM_UNKNOWN_MCAST_DST));
 	EFX_STATIC_ASSERT(EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST ==
@@ -319,6 +323,12 @@ efx_mcdi_filter_op_add(
 			rc = EINVAL;
 			goto fail2;
 		}
+
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_VNI_OR_VSID),
+		    spec->efs_vni_or_vsid, EFX_VNI_OR_VSID_LEN);
+
+		memcpy(MCDI_IN2(req, uint8_t, FILTER_OP_EXT_IN_IFRM_DST_MAC),
+		    spec->efs_ifrm_loc_mac, EFX_MAC_ADDR_LEN);
 	}
 
 	efx_mcdi_execute(enp, &req);
@@ -441,6 +451,12 @@ ef10_filter_equal(
 	if (left->efs_ip_proto != right->efs_ip_proto)
 		return (B_FALSE);
 	if (left->efs_encap_type != right->efs_encap_type)
+		return (B_FALSE);
+	if (memcmp(left->efs_vni_or_vsid, right->efs_vni_or_vsid,
+	    EFX_VNI_OR_VSID_LEN))
+		return (B_FALSE);
+	if (memcmp(left->efs_ifrm_loc_mac, right->efs_ifrm_loc_mac,
+	    EFX_MAC_ADDR_LEN))
 		return (B_FALSE);
 
 	return (B_TRUE);
@@ -1015,6 +1031,8 @@ ef10_filter_supported_filters(
 	    EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_PORT |
 	    EFX_FILTER_MATCH_ETHER_TYPE | EFX_FILTER_MATCH_INNER_VID |
 	    EFX_FILTER_MATCH_OUTER_VID | EFX_FILTER_MATCH_IP_PROTO |
+	    EFX_FILTER_MATCH_VNI_OR_VSID |
+	    EFX_FILTER_MATCH_IFRM_LOC_MAC |
 	    EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST |
 	    EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST |
 	    EFX_FILTER_MATCH_UNKNOWN_MCAST_DST |
