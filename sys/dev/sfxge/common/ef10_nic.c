@@ -2324,5 +2324,87 @@ fail1:
 
 #endif	/* EFSYS_OPT_DIAG */
 
+#if EFSYS_OPT_FW_SUBVARIANT_AWARE
+
+	__checkReturn	efx_rc_t
+efx_mcdi_get_nic_global(
+	__in		efx_nic_t *enp,
+	__in		uint32_t key,
+	__out		uint32_t *valuep)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_GET_NIC_GLOBAL_IN_LEN,
+			    MC_CMD_GET_NIC_GLOBAL_OUT_LEN)];
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_GET_NIC_GLOBAL;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_GET_NIC_GLOBAL_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_GET_NIC_GLOBAL_OUT_LEN;
+
+	MCDI_IN_SET_DWORD(req, GET_NIC_GLOBAL_IN_KEY, key);
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	if (req.emr_out_length_used != MC_CMD_GET_NIC_GLOBAL_OUT_LEN) {
+		rc = EMSGSIZE;
+		goto fail2;
+	}
+
+	*valuep = MCDI_OUT_DWORD(req, GET_NIC_GLOBAL_OUT_VALUE);
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	efx_rc_t
+efx_mcdi_set_nic_global(
+	__in		efx_nic_t *enp,
+	__in		uint32_t key,
+	__in		uint32_t value)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MC_CMD_SET_NIC_GLOBAL_IN_LEN];
+	efx_rc_t rc;
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_SET_NIC_GLOBAL;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_SET_NIC_GLOBAL_IN_LEN;
+	req.emr_out_buf = NULL;
+	req.emr_out_length = 0;
+
+	MCDI_IN_SET_DWORD(req, SET_NIC_GLOBAL_IN_KEY, key);
+	MCDI_IN_SET_DWORD(req, SET_NIC_GLOBAL_IN_VALUE, value);
+
+	efx_mcdi_execute(enp, &req);
+
+	if (req.emr_rc != 0) {
+		rc = req.emr_rc;
+		goto fail1;
+	}
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+#endif	/* EFSYS_OPT_FW_SUBVARIANT_AWARE */
 
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
