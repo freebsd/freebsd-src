@@ -2452,19 +2452,6 @@ vn_commname(struct vnode *vp, char *buf, u_int buflen)
 	return (0);
 }
 
-/* ABI compat shims for old kernel modules. */
-#undef cache_enter
-
-void	cache_enter(struct vnode *dvp, struct vnode *vp,
-	    struct componentname *cnp);
-
-void
-cache_enter(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
-{
-
-	cache_enter_time(dvp, vp, cnp, NULL, NULL);
-}
-
 /*
  * This function updates path string to vnode's full global path
  * and checks the size of the new path string against the pathlen argument.
