@@ -560,8 +560,21 @@ ef10_mac_stats_get_mask(
 			goto fail7;
 	}
 
+	if (encp->enc_mac_stats_nstats >= MC_CMD_MAC_NSTATS_V4) {
+		const struct efx_mac_stats_range ef10_rxdp_sdt[] = {
+			{ EFX_MAC_RXDP_SCATTER_DISABLED_TRUNC,
+			    EFX_MAC_RXDP_SCATTER_DISABLED_TRUNC },
+		};
+
+		if ((rc = efx_mac_stats_mask_add_ranges(maskp, mask_size,
+		    ef10_rxdp_sdt, EFX_ARRAY_SIZE(ef10_rxdp_sdt))) != 0)
+			goto fail8;
+	}
+
 	return (0);
 
+fail8:
+	EFSYS_PROBE(fail8);
 fail7:
 	EFSYS_PROBE(fail7);
 fail6:
@@ -1004,6 +1017,14 @@ ef10_mac_stats_update(
 
 	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_CTPIO_ERASE, &value);
 	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_CTPIO_ERASE]), &value);
+
+	if (encp->enc_mac_stats_nstats < MC_CMD_MAC_NSTATS_V4)
+		goto done;
+
+	EF10_MAC_STAT_READ(esmp, MC_CMD_MAC_RXDP_SCATTER_DISABLED_TRUNC,
+	    &value);
+	EFSYS_STAT_SET_QWORD(&(stat[EFX_MAC_RXDP_SCATTER_DISABLED_TRUNC]),
+	    &value);
 
 done:
 	/* Read START generation counter */
