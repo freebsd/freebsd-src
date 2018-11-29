@@ -30,6 +30,14 @@
  * $FreeBSD$
  */
 
+/*
+ * This is NOT the original source file. Do NOT edit it.
+ * To update the tlv layout, please edit the copy in
+ * the sfregistry repo and then, in that repo,
+ * "make tlv_headers" or "make export" to
+ * regenerate and export all types of headers.
+ */
+
 /* These structures define the layouts for the TLV items stored in static and
  * dynamic configuration partitions in NVRAM for EF10 (Huntington etc.).
  *
@@ -435,6 +443,7 @@ struct tlv_firmware_options {
                                              MC_CMD_FW_PACKED_STREAM_HASH_MODE_1
 #define TLV_FIRMWARE_VARIANT_RULES_ENGINE    MC_CMD_FW_RULES_ENGINE
 #define TLV_FIRMWARE_VARIANT_DPDK            MC_CMD_FW_DPDK
+#define TLV_FIRMWARE_VARIANT_L3XUDP          MC_CMD_FW_L3XUDP
 };
 
 /* Voltage settings
@@ -517,6 +526,17 @@ struct tlv_0v9_atb_target {
   uint16_t millivolts;
   uint16_t reserved;
 };
+
+/* Factory settings for amplitude calibration of the PCIE TX serdes */
+#define TLV_TAG_TX_PCIE_AMP_CONFIG  (0x00220000)
+struct tlv_pcie_tx_amp_config {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t quad_tx_imp2k[4];
+  uint8_t quad_tx_imp50[4];
+  uint8_t lane_amp[16];
+};
+
 
 /* Global PCIe configuration, second revision. This represents the visible PFs
  * by a bitmap rather than having the number of the highest visible one. As such
@@ -851,20 +871,6 @@ struct tlv_tx_event_merging_config {
 #define TLV_TX_EVENT_MERGING_TIMEOUT_NS_DEFAULT (0xffffffff)
 #define TLV_TX_EVENT_MERGING_QEMPTY_TIMEOUT_NS_DEFAULT (0xffffffff)
 
-/* BIU mode
- *
- * Medford2 tag for selecting VI window decode (see values below)
- */
-#define TLV_TAG_BIU_VI_WINDOW_MODE       (0x10280000)
-struct tlv_biu_vi_window_mode {
-  uint32_t tag;
-  uint32_t length;
-  uint8_t  mode;
-#define TLV_BIU_VI_WINDOW_MODE_8K    0  /*  8k per VI, CTPIO not mapped, medford/hunt compatible */
-#define TLV_BIU_VI_WINDOW_MODE_16K   1  /* 16k per VI, CTPIO mapped */
-#define TLV_BIU_VI_WINDOW_MODE_64K   2  /* 64k per VI, CTPIO mapped, POWER-friendly */
-};
-
 #define TLV_TAG_LICENSE (0x30800000)
 
 typedef struct tlv_license {
@@ -985,6 +991,47 @@ struct tlv_tx_vfifo_ull_mode {
   uint32_t length;
   uint8_t  mode;
 #define TLV_TX_VFIFO_ULL_MODE_DEFAULT    0
+};
+
+/* BIU mode
+ *
+ * Medford2 tag for selecting VI window decode (see values below)
+ */
+#define TLV_TAG_BIU_VI_WINDOW_MODE       (0x10280000)
+struct tlv_biu_vi_window_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_BIU_VI_WINDOW_MODE_8K    0  /*  8k per VI, CTPIO not mapped, medford/hunt compatible */
+#define TLV_BIU_VI_WINDOW_MODE_16K   1  /* 16k per VI, CTPIO mapped */
+#define TLV_BIU_VI_WINDOW_MODE_64K   2  /* 64k per VI, CTPIO mapped, POWER-friendly */
+};
+
+/* FastPD mode
+ *
+ * Medford2 tag for configuring the FastPD mode (see values below)
+ */
+#define TLV_TAG_FASTPD_MODE(port)       (0x10290000 + (port))
+struct tlv_fastpd_mode {
+  uint32_t tag;
+  uint32_t length;
+  uint8_t  mode;
+#define TLV_FASTPD_MODE_SOFT_ALL       0  /* All packets to the SoftPD */
+#define TLV_FASTPD_MODE_FAST_ALL       1  /* All packets to the FastPD */
+#define TLV_FASTPD_MODE_FAST_SUPPORTED 2  /* Supported packet types to the FastPD; everything else to the SoftPD  */
+};
+
+/* L3xUDP datapath firmware UDP port configuration
+ *
+ * Sets the list of UDP ports on which the encapsulation will be handled.
+ * The number of ports in the list is implied by the length of the TLV item.
+ */
+#define TLV_TAG_L3XUDP_PORTS            (0x102a0000)
+struct tlv_l3xudp_ports {
+  uint32_t tag;
+  uint32_t length;
+  uint16_t ports[];
+#define TLV_TAG_L3XUDP_PORTS_MAX_NUM_PORTS 16
 };
 
 #endif /* CI_MGMT_TLV_LAYOUT_H */
