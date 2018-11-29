@@ -976,6 +976,82 @@ fail1:
 	return (rc);
 }
 
+#if EFSYS_OPT_FW_SUBVARIANT_AWARE
+
+	__checkReturn	efx_rc_t
+efx_nic_get_fw_subvariant(
+	__in		efx_nic_t *enp,
+	__out		efx_nic_fw_subvariant_t *subvariantp)
+{
+	efx_rc_t rc;
+	uint32_t value;
+
+	rc = efx_mcdi_get_nic_global(enp,
+	    MC_CMD_SET_NIC_GLOBAL_IN_FIRMWARE_SUBVARIANT, &value);
+	if (rc != 0)
+		goto fail1;
+
+	/* Mapping is not required since values match MCDI */
+	EFX_STATIC_ASSERT(EFX_NIC_FW_SUBVARIANT_DEFAULT ==
+	    MC_CMD_SET_NIC_GLOBAL_IN_FW_SUBVARIANT_DEFAULT);
+	EFX_STATIC_ASSERT(EFX_NIC_FW_SUBVARIANT_NO_TX_CSUM ==
+	    MC_CMD_SET_NIC_GLOBAL_IN_FW_SUBVARIANT_NO_TX_CSUM);
+
+	switch (value) {
+	case MC_CMD_SET_NIC_GLOBAL_IN_FW_SUBVARIANT_DEFAULT:
+	case MC_CMD_SET_NIC_GLOBAL_IN_FW_SUBVARIANT_NO_TX_CSUM:
+		*subvariantp = value;
+		break;
+	default:
+		rc = EINVAL;
+		goto fail2;
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn	efx_rc_t
+efx_nic_set_fw_subvariant(
+	__in		efx_nic_t *enp,
+	__in		efx_nic_fw_subvariant_t subvariant)
+{
+	efx_rc_t rc;
+
+	switch (subvariant) {
+	case EFX_NIC_FW_SUBVARIANT_DEFAULT:
+	case EFX_NIC_FW_SUBVARIANT_NO_TX_CSUM:
+		/* Mapping is not required since values match MCDI */
+		break;
+	default:
+		rc = EINVAL;
+		goto fail1;
+	}
+
+	rc = efx_mcdi_set_nic_global(enp,
+	    MC_CMD_SET_NIC_GLOBAL_IN_FIRMWARE_SUBVARIANT, subvariant);
+	if (rc != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+#endif	/* EFSYS_OPT_FW_SUBVARIANT_AWARE */
 
 	__checkReturn	efx_rc_t
 efx_nic_check_pcie_link_speed(

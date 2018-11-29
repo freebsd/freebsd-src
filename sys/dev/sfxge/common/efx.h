@@ -2891,6 +2891,38 @@ efx_tunnel_reconfigure(
 
 #endif /* EFSYS_OPT_TUNNEL */
 
+#if EFSYS_OPT_FW_SUBVARIANT_AWARE
+
+/**
+ * Firmware subvariant choice options.
+ *
+ * It may be switched to no Tx checksum if attached drivers are either
+ * preboot or firmware subvariant aware and no VIS are allocated.
+ * If may be always switched to default explicitly using set request or
+ * implicitly if unaware driver is attaching. If switching is done when
+ * a driver is attached, it gets MC_REBOOT event and should recreate its
+ * datapath.
+ *
+ * See SF-119419-TC DPDK Firmware Driver Interface and
+ * SF-109306-TC EF10 for Driver Writers for details.
+ */
+typedef enum efx_nic_fw_subvariant_e {
+	EFX_NIC_FW_SUBVARIANT_DEFAULT = 0,
+	EFX_NIC_FW_SUBVARIANT_NO_TX_CSUM = 1,
+	EFX_NIC_FW_SUBVARIANT_NTYPES
+} efx_nic_fw_subvariant_t;
+
+extern	__checkReturn	efx_rc_t
+efx_nic_get_fw_subvariant(
+	__in		efx_nic_t *enp,
+	__out		efx_nic_fw_subvariant_t *subvariantp);
+
+extern	__checkReturn	efx_rc_t
+efx_nic_set_fw_subvariant(
+	__in		efx_nic_t *enp,
+	__in		efx_nic_fw_subvariant_t subvariant);
+
+#endif	/* EFSYS_OPT_FW_SUBVARIANT_AWARE */
 
 #ifdef	__cplusplus
 }
