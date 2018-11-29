@@ -125,6 +125,7 @@ u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
 struct sx __exclusive_cache_line allproc_lock;
+struct sx __exclusive_cache_line zombproc_lock;
 struct sx __exclusive_cache_line proctree_lock;
 struct mtx __exclusive_cache_line ppeers_lock;
 uma_zone_t proc_zone;
@@ -177,6 +178,7 @@ procinit(void)
 	u_long i;
 
 	sx_init(&allproc_lock, "allproc");
+	sx_init(&zombproc_lock, "zombproc");
 	sx_init(&proctree_lock, "proctree");
 	mtx_init(&ppeers_lock, "p_peers", NULL, MTX_DEF);
 	LIST_INIT(&allproc);
@@ -1194,14 +1196,14 @@ zpfind(pid_t pid)
 {
 	struct proc *p;
 
-	sx_slock(&allproc_lock);
+	sx_slock(&zombproc_lock);
 	LIST_FOREACH(p, &zombproc, p_list) {
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			break;
 		}
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&zombproc_lock);
 	return (p);
 }
 
