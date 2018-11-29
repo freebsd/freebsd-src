@@ -1595,6 +1595,93 @@ efx_bootcfg_write(
 
 #endif	/* EFSYS_OPT_BOOTCFG */
 
+#if EFSYS_OPT_IMAGE_LAYOUT
+
+#include "ef10_signed_image_layout.h"
+
+/*
+ * Image header used in unsigned and signed image layouts (see SF-102785-PS).
+ *
+ * NOTE:
+ * The image header format is extensible. However, older drivers require an
+ * exact match of image header version and header length when validating and
+ * writing firmware images.
+ *
+ * To avoid breaking backward compatibility, we use the upper bits of the
+ * controller version fields to contain an extra version number used for
+ * combined bootROM and UEFI ROM images on EF10 and later (to hold the UEFI ROM
+ * version). See bug39254 and SF-102785-PS for details.
+ */
+typedef struct efx_image_header_s {
+	uint32_t	eih_magic;
+	uint32_t	eih_version;
+	uint32_t	eih_type;
+	uint32_t	eih_subtype;
+	uint32_t	eih_code_size;
+	uint32_t	eih_size;
+	union {
+		uint32_t	eih_controller_version_min;
+		struct {
+			uint16_t	eih_controller_version_min_short;
+			uint8_t		eih_extra_version_a;
+			uint8_t		eih_extra_version_b;
+		};
+	};
+	union {
+		uint32_t	eih_controller_version_max;
+		struct {
+			uint16_t	eih_controller_version_max_short;
+			uint8_t		eih_extra_version_c;
+			uint8_t		eih_extra_version_d;
+		};
+	};
+	uint16_t	eih_code_version_a;
+	uint16_t	eih_code_version_b;
+	uint16_t	eih_code_version_c;
+	uint16_t	eih_code_version_d;
+} efx_image_header_t;
+
+#define	EFX_IMAGE_HEADER_SIZE		(40)
+#define	EFX_IMAGE_HEADER_VERSION	(4)
+#define	EFX_IMAGE_HEADER_MAGIC		(0x106F1A5)
+
+
+typedef struct efx_image_trailer_s {
+	uint32_t	eit_crc;
+} efx_image_trailer_t;
+
+#define	EFX_IMAGE_TRAILER_SIZE		(4)
+
+typedef enum efx_image_format_e {
+	EFX_IMAGE_FORMAT_NO_IMAGE,
+	EFX_IMAGE_FORMAT_INVALID,
+	EFX_IMAGE_FORMAT_UNSIGNED,
+	EFX_IMAGE_FORMAT_SIGNED,
+} efx_image_format_t;
+
+typedef struct efx_image_info_s {
+	efx_image_format_t	eii_format;
+	uint8_t *		eii_imagep;
+	size_t			eii_image_size;
+	efx_image_header_t *	eii_headerp;
+} efx_image_info_t;
+
+extern	__checkReturn	efx_rc_t
+efx_check_reflash_image(
+	__in		void			*bufferp,
+	__in		uint32_t		buffer_size,
+	__out		efx_image_info_t	*infop);
+
+extern	__checkReturn	efx_rc_t
+efx_build_signed_image_write_buffer(
+	__out_bcount(buffer_size)
+			uint8_t			*bufferp,
+	__in		uint32_t		buffer_size,
+	__in		efx_image_info_t	*infop,
+	__out		efx_image_header_t	**headerpp);
+
+#endif	/* EFSYS_OPT_IMAGE_LAYOUT */
+
 #if EFSYS_OPT_DIAG
 
 typedef enum efx_pattern_type_t {
