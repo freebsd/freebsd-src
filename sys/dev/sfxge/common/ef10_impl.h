@@ -1193,6 +1193,22 @@ ef10_get_privilege_mask(
 	__in			efx_nic_t *enp,
 	__out			uint32_t *maskp);
 
+#if EFSYS_OPT_FW_SUBVARIANT_AWARE
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_get_nic_global(
+	__in		efx_nic_t *enp,
+	__in		uint32_t key,
+	__out		uint32_t *valuep);
+
+extern	__checkReturn	efx_rc_t
+efx_mcdi_set_nic_global(
+	__in		efx_nic_t *enp,
+	__in		uint32_t key,
+	__in		uint32_t value);
+
+#endif	/* EFSYS_OPT_FW_SUBVARIANT_AWARE */
+
 
 #if EFSYS_OPT_RX_PACKED_STREAM
 
