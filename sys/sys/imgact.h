@@ -46,7 +46,8 @@ struct image_args {
 	char *buf;		/* pointer to string buffer */
 	void *bufkva;		/* cookie for string buffer KVA */
 	char *begin_argv;	/* beginning of argv in buf */
-	char *begin_envv;	/* beginning of envv in buf */
+	char *begin_envv;	/* (interal use only) beginning of envv in buf,
+				 * access with exec_args_get_begin_envv(). */
 	char *endp;		/* current `end' pointer of arg & env strings */
 	char *fname;            /* pointer to filename of executable (system space) */
 	char *fname_buf;	/* pointer to optional malloc(M_TEMP) buffer */
@@ -96,6 +97,15 @@ struct thread;
 struct vmspace;
 
 int	exec_alloc_args(struct image_args *);
+int	exec_args_add_arg(struct image_args *args, const char *argp,
+	    enum uio_seg segflg);
+int	exec_args_add_env(struct image_args *args, const char *envp,
+	    enum uio_seg segflg);
+int	exec_args_add_fname(struct image_args *args, const char *fname,
+	    enum uio_seg segflg);
+int	exec_args_adjust_args(struct image_args *args, size_t consume,
+	    ssize_t extend);
+char	*exec_args_get_begin_envv(struct image_args *args);
 int	exec_check_permissions(struct image_params *);
 register_t *exec_copyout_strings(struct image_params *);
 void	exec_free_args(struct image_args *);
