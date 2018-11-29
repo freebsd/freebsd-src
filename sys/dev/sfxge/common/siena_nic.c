@@ -147,6 +147,15 @@ siena_board_cfg(
 	/* There is one RSS context per function */
 	encp->enc_rx_scale_max_exclusive_contexts = 1;
 
+	encp->enc_rx_scale_hash_alg_mask |= (1U << EFX_RX_HASHALG_LFSR);
+	encp->enc_rx_scale_hash_alg_mask |= (1U << EFX_RX_HASHALG_TOEPLITZ);
+
+	/*
+	 * It is always possible to use port numbers
+	 * as the input data for hash computation.
+	 */
+	encp->enc_rx_scale_l4_hash_supported = B_TRUE;
+
 	/* There is no support for additional RSS modes */
 	encp->enc_rx_scale_additional_modes_supported = B_FALSE;
 

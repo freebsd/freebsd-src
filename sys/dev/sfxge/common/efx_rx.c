@@ -331,6 +331,7 @@ efx_rx_scale_hash_flags_get(
 	__out					unsigned int *nflagsp)
 {
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
+	boolean_t l4;
 	boolean_t additional_modes;
 	unsigned int *entryp = flagsp;
 	efx_rc_t rc;
@@ -340,6 +341,7 @@ efx_rx_scale_hash_flags_get(
 		goto fail1;
 	}
 
+	l4 = encp->enc_rx_scale_l4_hash_supported;
 	additional_modes = encp->enc_rx_scale_additional_modes_supported;
 
 #define	LIST_FLAGS(_entryp, _class, _l4_hashing, _additional_modes)	\
@@ -368,13 +370,20 @@ efx_rx_scale_hash_flags_get(
 	} while (B_FALSE)
 
 	switch (hash_alg) {
+	case EFX_RX_HASHALG_PACKED_STREAM:
+		if ((encp->enc_rx_scale_hash_alg_mask & (1U << hash_alg)) == 0)
+			break;
+		/* FALLTHRU */
 	case EFX_RX_HASHALG_TOEPLITZ:
-		LIST_FLAGS(entryp, IPV4_TCP, B_TRUE, additional_modes);
-		LIST_FLAGS(entryp, IPV6_TCP, B_TRUE, additional_modes);
+		if ((encp->enc_rx_scale_hash_alg_mask & (1U << hash_alg)) == 0)
+			break;
+
+		LIST_FLAGS(entryp, IPV4_TCP, l4, additional_modes);
+		LIST_FLAGS(entryp, IPV6_TCP, l4, additional_modes);
 
 		if (additional_modes) {
-			LIST_FLAGS(entryp, IPV4_UDP, B_TRUE, additional_modes);
-			LIST_FLAGS(entryp, IPV6_UDP, B_TRUE, additional_modes);
+			LIST_FLAGS(entryp, IPV4_UDP, l4, additional_modes);
+			LIST_FLAGS(entryp, IPV6_UDP, l4, additional_modes);
 		}
 
 		LIST_FLAGS(entryp, IPV4, B_FALSE, additional_modes);

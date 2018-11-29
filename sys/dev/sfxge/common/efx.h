@@ -1220,6 +1220,16 @@ typedef struct efx_nic_cfg_s {
 	uint32_t		enc_rx_buf_align_start;
 	uint32_t		enc_rx_buf_align_end;
 	uint32_t		enc_rx_scale_max_exclusive_contexts;
+	/*
+	 * Mask of supported hash algorithms.
+	 * Hash algorithm types are used as the bit indices.
+	 */
+	uint32_t		enc_rx_scale_hash_alg_mask;
+	/*
+	 * Indicates whether port numbers can be included to the
+	 * input data for hash computation.
+	 */
+	boolean_t		enc_rx_scale_l4_hash_supported;
 	boolean_t		enc_rx_scale_additional_modes_supported;
 #if EFSYS_OPT_LOOPBACK
 	efx_qword_t		enc_loopback_types[EFX_LINK_NMODES];
@@ -2096,7 +2106,9 @@ efx_rx_scatter_enable(
 
 typedef enum efx_rx_hash_alg_e {
 	EFX_RX_HASHALG_LFSR = 0,
-	EFX_RX_HASHALG_TOEPLITZ
+	EFX_RX_HASHALG_TOEPLITZ,
+	EFX_RX_HASHALG_PACKED_STREAM,
+	EFX_RX_NHASHALGS
 } efx_rx_hash_alg_t;
 
 /*
