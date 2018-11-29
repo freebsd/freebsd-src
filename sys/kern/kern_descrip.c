@@ -2637,7 +2637,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 #endif
 
 	fdt = fdp->fd_files;
-	if ((u_int)fd >= fdt->fdt_nfiles)
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
 		return (EBADF);
 	/*
 	 * Fetch the descriptor locklessly.  We avoid fdrop() races by
