@@ -717,8 +717,8 @@
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
 #define	MC_CMD_FC_IN_DMA_OP_OFST 4
 #define	MC_CMD_FC_IN_DMA_OP_LEN 4
-#define	MC_CMD_FC_IN_DMA_STOP  0x0 /* enum */
-#define	MC_CMD_FC_IN_DMA_READ  0x1 /* enum */
+#define	MC_CMD_FC_IN_DMA_STOP 0x0 /* enum */
+#define	MC_CMD_FC_IN_DMA_READ 0x1 /* enum */
 
 /* MC_CMD_FC_IN_DMA_STOP msgrequest */
 #define	MC_CMD_FC_IN_DMA_STOP_LEN 12
@@ -747,9 +747,9 @@
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
 #define	MC_CMD_FC_IN_TIMED_READ_OP_OFST 4
 #define	MC_CMD_FC_IN_TIMED_READ_OP_LEN 4
-#define	MC_CMD_FC_IN_TIMED_READ_SET  0x0 /* enum */
-#define	MC_CMD_FC_IN_TIMED_READ_GET  0x1 /* enum */
-#define	MC_CMD_FC_IN_TIMED_READ_CLEAR  0x2 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_SET 0x0 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_GET 0x1 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_CLEAR 0x2 /* enum */
 
 /* MC_CMD_FC_IN_TIMED_READ_SET msgrequest */
 #define	MC_CMD_FC_IN_TIMED_READ_SET_LEN 52
@@ -792,10 +792,10 @@
 #define	MC_CMD_FC_IN_TIMED_READ_SET_EVENT_WIDTH 1
 #define	MC_CMD_FC_IN_TIMED_READ_SET_PREREAD_LBN 3
 #define	MC_CMD_FC_IN_TIMED_READ_SET_PREREAD_WIDTH 2
-#define	MC_CMD_FC_IN_TIMED_READ_SET_NONE  0x0 /* enum */
-#define	MC_CMD_FC_IN_TIMED_READ_SET_READ  0x1 /* enum */
-#define	MC_CMD_FC_IN_TIMED_READ_SET_WRITE  0x2 /* enum */
-#define	MC_CMD_FC_IN_TIMED_READ_SET_READWRITE  0x3 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_SET_NONE 0x0 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_SET_READ 0x1 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_SET_WRITE 0x2 /* enum */
+#define	MC_CMD_FC_IN_TIMED_READ_SET_READWRITE 0x3 /* enum */
 /* Period at which reads are performed (100ms units) */
 #define	MC_CMD_FC_IN_TIMED_READ_SET_PERIOD_OFST 48
 #define	MC_CMD_FC_IN_TIMED_READ_SET_PERIOD_LEN 4
@@ -826,8 +826,8 @@
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
 #define	MC_CMD_FC_IN_LOG_OP_OFST 4
 #define	MC_CMD_FC_IN_LOG_OP_LEN 4
-#define	MC_CMD_FC_IN_LOG_ADDR_RANGE  0x0 /* enum */
-#define	MC_CMD_FC_IN_LOG_JTAG_UART  0x1 /* enum */
+#define	MC_CMD_FC_IN_LOG_ADDR_RANGE 0x0 /* enum */
+#define	MC_CMD_FC_IN_LOG_JTAG_UART 0x1 /* enum */
 
 /* MC_CMD_FC_IN_LOG_ADDR_RANGE msgrequest */
 #define	MC_CMD_FC_IN_LOG_ADDR_RANGE_LEN 20
@@ -855,31 +855,33 @@
 #define	MC_CMD_FC_IN_LOG_JTAG_UART_ENABLE_OFST 8
 #define	MC_CMD_FC_IN_LOG_JTAG_UART_ENABLE_LEN 4
 
-/* MC_CMD_FC_IN_CLOCK msgrequest */
+/* MC_CMD_FC_IN_CLOCK msgrequest: Perform a clock operation */
 #define	MC_CMD_FC_IN_CLOCK_LEN 12
 /*            MC_CMD_FC_IN_CMD_OFST 0 */
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
 #define	MC_CMD_FC_IN_CLOCK_OP_OFST 4
 #define	MC_CMD_FC_IN_CLOCK_OP_LEN 4
-#define	MC_CMD_FC_IN_CLOCK_GET_TIME  0x0 /* enum */
-#define	MC_CMD_FC_IN_CLOCK_SET_TIME  0x1 /* enum */
-/* Perform a clock operation */
+#define	MC_CMD_FC_IN_CLOCK_GET_TIME 0x0 /* enum */
+#define	MC_CMD_FC_IN_CLOCK_SET_TIME 0x1 /* enum */
 #define	MC_CMD_FC_IN_CLOCK_ID_OFST 8
 #define	MC_CMD_FC_IN_CLOCK_ID_LEN 4
-#define	MC_CMD_FC_IN_CLOCK_STATS  0x0 /* enum */
-#define	MC_CMD_FC_IN_CLOCK_MAC  0x1 /* enum */
+#define	MC_CMD_FC_IN_CLOCK_STATS 0x0 /* enum */
+#define	MC_CMD_FC_IN_CLOCK_MAC 0x1 /* enum */
 
-/* MC_CMD_FC_IN_CLOCK_GET_TIME msgrequest */
+/* MC_CMD_FC_IN_CLOCK_GET_TIME msgrequest: Retrieve the clock value of the
+ * specified clock
+ */
 #define	MC_CMD_FC_IN_CLOCK_GET_TIME_LEN 12
 /*            MC_CMD_FC_IN_CMD_OFST 0 */
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
 /*            MC_CMD_FC_IN_CLOCK_OP_OFST 4 */
 /*            MC_CMD_FC_IN_CLOCK_OP_LEN 4 */
-/* Retrieve the clock value of the specified clock */
 /*            MC_CMD_FC_IN_CLOCK_ID_OFST 8 */
 /*            MC_CMD_FC_IN_CLOCK_ID_LEN 4 */
 
-/* MC_CMD_FC_IN_CLOCK_SET_TIME msgrequest */
+/* MC_CMD_FC_IN_CLOCK_SET_TIME msgrequest: Set the clock value of the specified
+ * clock
+ */
 #define	MC_CMD_FC_IN_CLOCK_SET_TIME_LEN 24
 /*            MC_CMD_FC_IN_CMD_OFST 0 */
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
@@ -891,7 +893,6 @@
 #define	MC_CMD_FC_IN_CLOCK_SET_TIME_SECONDS_LEN 8
 #define	MC_CMD_FC_IN_CLOCK_SET_TIME_SECONDS_LO_OFST 12
 #define	MC_CMD_FC_IN_CLOCK_SET_TIME_SECONDS_HI_OFST 16
-/* Set the clock value of the specified clock */
 #define	MC_CMD_FC_IN_CLOCK_SET_TIME_NANOSECONDS_OFST 20
 #define	MC_CMD_FC_IN_CLOCK_SET_TIME_NANOSECONDS_LEN 4
 
@@ -901,16 +902,16 @@
 /*            MC_CMD_FC_IN_CMD_LEN 4 */
 #define	MC_CMD_FC_IN_DDR_OP_OFST 4
 #define	MC_CMD_FC_IN_DDR_OP_LEN 4
-#define	MC_CMD_FC_IN_DDR_SET_SPD  0x0 /* enum */
-#define	MC_CMD_FC_IN_DDR_GET_STATUS  0x1 /* enum */
-#define	MC_CMD_FC_IN_DDR_SET_INFO  0x2 /* enum */
+#define	MC_CMD_FC_IN_DDR_SET_SPD 0x0 /* enum */
+#define	MC_CMD_FC_IN_DDR_GET_STATUS 0x1 /* enum */
+#define	MC_CMD_FC_IN_DDR_SET_INFO 0x2 /* enum */
 #define	MC_CMD_FC_IN_DDR_BANK_OFST 8
 #define	MC_CMD_FC_IN_DDR_BANK_LEN 4
-#define	MC_CMD_FC_IN_DDR_BANK_B0  0x0 /* enum */
-#define	MC_CMD_FC_IN_DDR_BANK_B1  0x1 /* enum */
-#define	MC_CMD_FC_IN_DDR_BANK_T0  0x2 /* enum */
-#define	MC_CMD_FC_IN_DDR_BANK_T1  0x3 /* enum */
-#define	MC_CMD_FC_IN_DDR_NUM_BANKS  0x4 /* enum */
+#define	MC_CMD_FC_IN_DDR_BANK_B0 0x0 /* enum */
+#define	MC_CMD_FC_IN_DDR_BANK_B1 0x1 /* enum */
+#define	MC_CMD_FC_IN_DDR_BANK_T0 0x2 /* enum */
+#define	MC_CMD_FC_IN_DDR_BANK_T1 0x3 /* enum */
+#define	MC_CMD_FC_IN_DDR_NUM_BANKS 0x4 /* enum */
 
 /* MC_CMD_FC_IN_DDR_SET_SPD msgrequest */
 #define	MC_CMD_FC_IN_DDR_SET_SPD_LEN 148
@@ -924,7 +925,7 @@
 /* Flags */
 #define	MC_CMD_FC_IN_DDR_FLAGS_OFST 12
 #define	MC_CMD_FC_IN_DDR_FLAGS_LEN 4
-#define	MC_CMD_FC_IN_DDR_SET_SPD_ACTIVE  0x1 /* enum */
+#define	MC_CMD_FC_IN_DDR_SET_SPD_ACTIVE 0x1 /* enum */
 /* 128-byte page of serial presence detect data read from module's EEPROM */
 #define	MC_CMD_FC_IN_DDR_SPD_OFST 16
 #define	MC_CMD_FC_IN_DDR_SPD_LEN 1
@@ -1318,33 +1319,33 @@
 #define	MC_CMD_FC_OUT_MAC_GET_RX_STATS_STATISTICS_LO_OFST 0
 #define	MC_CMD_FC_OUT_MAC_GET_RX_STATS_STATISTICS_HI_OFST 4
 #define	MC_CMD_FC_OUT_MAC_GET_RX_STATS_STATISTICS_NUM MC_CMD_FC_MAC_RX_NSTATS
-#define	MC_CMD_FC_MAC_RX_STATS_OCTETS  0x0 /* enum */
-#define	MC_CMD_FC_MAC_RX_OCTETS_OK  0x1 /* enum */
-#define	MC_CMD_FC_MAC_RX_ALIGNMENT_ERRORS  0x2 /* enum */
-#define	MC_CMD_FC_MAC_RX_PAUSE_MAC_CTRL_FRAMES  0x3 /* enum */
-#define	MC_CMD_FC_MAC_RX_FRAMES_OK  0x4 /* enum */
-#define	MC_CMD_FC_MAC_RX_CRC_ERRORS  0x5 /* enum */
-#define	MC_CMD_FC_MAC_RX_VLAN_OK  0x6 /* enum */
-#define	MC_CMD_FC_MAC_RX_ERRORS  0x7 /* enum */
-#define	MC_CMD_FC_MAC_RX_UCAST_PKTS  0x8 /* enum */
-#define	MC_CMD_FC_MAC_RX_MULTICAST_PKTS  0x9 /* enum */
-#define	MC_CMD_FC_MAC_RX_BROADCAST_PKTS  0xa /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_DROP_EVENTS  0xb /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS  0xc /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_UNDERSIZE_PKTS  0xd /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_64  0xe /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_65_127  0xf /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_128_255  0x10 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_256_511  0x11 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_512_1023  0x12 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_1024_1518  0x13 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_PKTS_1519_MAX  0x14 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_OVERSIZE_PKTS  0x15 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_JABBERS  0x16 /* enum */
-#define	MC_CMD_FC_MAC_RX_STATS_FRAGMENTS  0x17 /* enum */
-#define	MC_CMD_FC_MAC_RX_MAC_CONTROL_FRAMES  0x18 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_OCTETS 0x0 /* enum */
+#define	MC_CMD_FC_MAC_RX_OCTETS_OK 0x1 /* enum */
+#define	MC_CMD_FC_MAC_RX_ALIGNMENT_ERRORS 0x2 /* enum */
+#define	MC_CMD_FC_MAC_RX_PAUSE_MAC_CTRL_FRAMES 0x3 /* enum */
+#define	MC_CMD_FC_MAC_RX_FRAMES_OK 0x4 /* enum */
+#define	MC_CMD_FC_MAC_RX_CRC_ERRORS 0x5 /* enum */
+#define	MC_CMD_FC_MAC_RX_VLAN_OK 0x6 /* enum */
+#define	MC_CMD_FC_MAC_RX_ERRORS 0x7 /* enum */
+#define	MC_CMD_FC_MAC_RX_UCAST_PKTS 0x8 /* enum */
+#define	MC_CMD_FC_MAC_RX_MULTICAST_PKTS 0x9 /* enum */
+#define	MC_CMD_FC_MAC_RX_BROADCAST_PKTS 0xa /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_DROP_EVENTS 0xb /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS 0xc /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_UNDERSIZE_PKTS 0xd /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_64 0xe /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_65_127 0xf /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_128_255 0x10 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_256_511 0x11 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_512_1023 0x12 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_1024_1518 0x13 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_PKTS_1519_MAX 0x14 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_OVERSIZE_PKTS 0x15 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_JABBERS 0x16 /* enum */
+#define	MC_CMD_FC_MAC_RX_STATS_FRAGMENTS 0x17 /* enum */
+#define	MC_CMD_FC_MAC_RX_MAC_CONTROL_FRAMES 0x18 /* enum */
 /* enum: (Last entry) */
-#define	MC_CMD_FC_MAC_RX_NSTATS  0x19
+#define	MC_CMD_FC_MAC_RX_NSTATS 0x19
 
 /* MC_CMD_FC_OUT_MAC_GET_TX_STATS msgresponse */
 #define	MC_CMD_FC_OUT_MAC_GET_TX_STATS_LEN ((((0-1+(64*MC_CMD_FC_MAC_TX_NSTATS))+1))>>3)
@@ -1353,30 +1354,30 @@
 #define	MC_CMD_FC_OUT_MAC_GET_TX_STATS_STATISTICS_LO_OFST 0
 #define	MC_CMD_FC_OUT_MAC_GET_TX_STATS_STATISTICS_HI_OFST 4
 #define	MC_CMD_FC_OUT_MAC_GET_TX_STATS_STATISTICS_NUM MC_CMD_FC_MAC_TX_NSTATS
-#define	MC_CMD_FC_MAC_TX_STATS_OCTETS  0x0 /* enum */
-#define	MC_CMD_FC_MAC_TX_OCTETS_OK  0x1 /* enum */
-#define	MC_CMD_FC_MAC_TX_ALIGNMENT_ERRORS  0x2 /* enum */
-#define	MC_CMD_FC_MAC_TX_PAUSE_MAC_CTRL_FRAMES  0x3 /* enum */
-#define	MC_CMD_FC_MAC_TX_FRAMES_OK  0x4 /* enum */
-#define	MC_CMD_FC_MAC_TX_CRC_ERRORS  0x5 /* enum */
-#define	MC_CMD_FC_MAC_TX_VLAN_OK  0x6 /* enum */
-#define	MC_CMD_FC_MAC_TX_ERRORS  0x7 /* enum */
-#define	MC_CMD_FC_MAC_TX_UCAST_PKTS  0x8 /* enum */
-#define	MC_CMD_FC_MAC_TX_MULTICAST_PKTS  0x9 /* enum */
-#define	MC_CMD_FC_MAC_TX_BROADCAST_PKTS  0xa /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_DROP_EVENTS  0xb /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS  0xc /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_UNDERSIZE_PKTS  0xd /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_64  0xe /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_65_127  0xf /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_128_255  0x10 /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_256_511  0x11 /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_512_1023  0x12 /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_1024_1518  0x13 /* enum */
-#define	MC_CMD_FC_MAC_TX_STATS_PKTS_1519_TX_MTU  0x14 /* enum */
-#define	MC_CMD_FC_MAC_TX_MAC_CONTROL_FRAMES  0x15 /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_OCTETS 0x0 /* enum */
+#define	MC_CMD_FC_MAC_TX_OCTETS_OK 0x1 /* enum */
+#define	MC_CMD_FC_MAC_TX_ALIGNMENT_ERRORS 0x2 /* enum */
+#define	MC_CMD_FC_MAC_TX_PAUSE_MAC_CTRL_FRAMES 0x3 /* enum */
+#define	MC_CMD_FC_MAC_TX_FRAMES_OK 0x4 /* enum */
+#define	MC_CMD_FC_MAC_TX_CRC_ERRORS 0x5 /* enum */
+#define	MC_CMD_FC_MAC_TX_VLAN_OK 0x6 /* enum */
+#define	MC_CMD_FC_MAC_TX_ERRORS 0x7 /* enum */
+#define	MC_CMD_FC_MAC_TX_UCAST_PKTS 0x8 /* enum */
+#define	MC_CMD_FC_MAC_TX_MULTICAST_PKTS 0x9 /* enum */
+#define	MC_CMD_FC_MAC_TX_BROADCAST_PKTS 0xa /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_DROP_EVENTS 0xb /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS 0xc /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_UNDERSIZE_PKTS 0xd /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_64 0xe /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_65_127 0xf /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_128_255 0x10 /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_256_511 0x11 /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_512_1023 0x12 /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_1024_1518 0x13 /* enum */
+#define	MC_CMD_FC_MAC_TX_STATS_PKTS_1519_TX_MTU 0x14 /* enum */
+#define	MC_CMD_FC_MAC_TX_MAC_CONTROL_FRAMES 0x15 /* enum */
 /* enum: (Last entry) */
-#define	MC_CMD_FC_MAC_TX_NSTATS  0x16
+#define	MC_CMD_FC_MAC_TX_NSTATS 0x16
 
 /* MC_CMD_FC_OUT_MAC_GET_STATS msgresponse */
 #define	MC_CMD_FC_OUT_MAC_GET_STATS_LEN ((((0-1+(64*MC_CMD_FC_MAC_NSTATS_PER_BLOCK))+1))>>3)
@@ -1812,17 +1813,17 @@
 /* Options for the map */
 #define	MC_CMD_FC_OUT_READ_MAP_INDEX_OPTIONS_OFST 4
 #define	MC_CMD_FC_OUT_READ_MAP_INDEX_OPTIONS_LEN 4
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_8  0x0 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_16  0x1 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_32  0x2 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_64  0x3 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_MASK  0x3 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PATH_FC  0x4 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PATH_MEM  0x8 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PERM_READ  0x10 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PERM_WRITE  0x20 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_LICENSE_FREE  0x0 /* enum */
-#define	MC_CMD_FC_OUT_READ_MAP_INDEX_LICENSE_LICENSED  0x40 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_8 0x0 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_16 0x1 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_32 0x2 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_64 0x3 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_ALIGN_MASK 0x3 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PATH_FC 0x4 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PATH_MEM 0x8 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PERM_READ 0x10 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_PERM_WRITE 0x20 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_LICENSE_FREE 0x0 /* enum */
+#define	MC_CMD_FC_OUT_READ_MAP_INDEX_LICENSE_LICENSED 0x40 /* enum */
 /* Address of start of map */
 #define	MC_CMD_FC_OUT_READ_MAP_INDEX_ADDRESS_OFST 8
 #define	MC_CMD_FC_OUT_READ_MAP_INDEX_ADDRESS_LEN 8
@@ -2346,21 +2347,21 @@
 #define	MC_CMD_AOE_IN_POWER_OP_OFST 4
 #define	MC_CMD_AOE_IN_POWER_OP_LEN 4
 /* enum: Turn off FPGA power */
-#define	MC_CMD_AOE_IN_POWER_OFF  0x0
+#define	MC_CMD_AOE_IN_POWER_OFF 0x0
 /* enum: Turn on FPGA power */
-#define	MC_CMD_AOE_IN_POWER_ON  0x1
+#define	MC_CMD_AOE_IN_POWER_ON 0x1
 /* enum: Clear peak power measurement */
-#define	MC_CMD_AOE_IN_POWER_CLEAR  0x2
+#define	MC_CMD_AOE_IN_POWER_CLEAR 0x2
 /* enum: Show current power in sensors output */
-#define	MC_CMD_AOE_IN_POWER_SHOW_CURRENT  0x3
+#define	MC_CMD_AOE_IN_POWER_SHOW_CURRENT 0x3
 /* enum: Show peak power in sensors output */
-#define	MC_CMD_AOE_IN_POWER_SHOW_PEAK  0x4
+#define	MC_CMD_AOE_IN_POWER_SHOW_PEAK 0x4
 /* enum: Show current DDR current */
-#define	MC_CMD_AOE_IN_POWER_DDR_LAST  0x5
+#define	MC_CMD_AOE_IN_POWER_DDR_LAST 0x5
 /* enum: Show peak DDR current */
-#define	MC_CMD_AOE_IN_POWER_DDR_PEAK  0x6
+#define	MC_CMD_AOE_IN_POWER_DDR_PEAK 0x6
 /* enum: Clear peak DDR current */
-#define	MC_CMD_AOE_IN_POWER_DDR_CLEAR  0x7
+#define	MC_CMD_AOE_IN_POWER_DDR_CLEAR 0x7
 
 /* MC_CMD_AOE_IN_LOAD msgrequest */
 #define	MC_CMD_AOE_IN_LOAD_LEN 8
@@ -2475,21 +2476,21 @@
 #define	MC_CMD_AOE_IN_LINK_STATE_CONFIG_MODE_LBN 0
 #define	MC_CMD_AOE_IN_LINK_STATE_CONFIG_MODE_WIDTH 8
 /* enum: AOE and associated external port */
-#define	MC_CMD_AOE_IN_LINK_STATE_SIMPLE_SEPARATE  0x0
+#define	MC_CMD_AOE_IN_LINK_STATE_SIMPLE_SEPARATE 0x0
 /* enum: AOE and OR of all external ports */
-#define	MC_CMD_AOE_IN_LINK_STATE_SIMPLE_COMBINED  0x1
+#define	MC_CMD_AOE_IN_LINK_STATE_SIMPLE_COMBINED 0x1
 /* enum: Individual ports */
-#define	MC_CMD_AOE_IN_LINK_STATE_DIAGNOSTIC  0x2
+#define	MC_CMD_AOE_IN_LINK_STATE_DIAGNOSTIC 0x2
 /* enum: Configure link state mode on given AOE port */
-#define	MC_CMD_AOE_IN_LINK_STATE_CUSTOM  0x3
+#define	MC_CMD_AOE_IN_LINK_STATE_CUSTOM 0x3
 #define	MC_CMD_AOE_IN_LINK_STATE_OPERATION_LBN 8
 #define	MC_CMD_AOE_IN_LINK_STATE_OPERATION_WIDTH 8
 /* enum: No-op */
-#define	MC_CMD_AOE_IN_LINK_STATE_OP_NONE  0x0
+#define	MC_CMD_AOE_IN_LINK_STATE_OP_NONE 0x0
 /* enum: logical OR of all SFP ports link status */
-#define	MC_CMD_AOE_IN_LINK_STATE_OP_OR  0x1
+#define	MC_CMD_AOE_IN_LINK_STATE_OP_OR 0x1
 /* enum: logical AND of all SFP ports link status */
-#define	MC_CMD_AOE_IN_LINK_STATE_OP_AND  0x2
+#define	MC_CMD_AOE_IN_LINK_STATE_OP_AND 0x2
 #define	MC_CMD_AOE_IN_LINK_STATE_SFP_MASK_LBN 16
 #define	MC_CMD_AOE_IN_LINK_STATE_SFP_MASK_WIDTH 16
 
@@ -2511,9 +2512,9 @@
 #define	MC_CMD_AOE_IN_SIENA_STATS_MODE_OFST 4
 #define	MC_CMD_AOE_IN_SIENA_STATS_MODE_LEN 4
 /* enum: Statistics from Siena (default) */
-#define	MC_CMD_AOE_IN_SIENA_STATS_STATS_SIENA  0x0
+#define	MC_CMD_AOE_IN_SIENA_STATS_STATS_SIENA 0x0
 /* enum: Statistics from AOE external ports */
-#define	MC_CMD_AOE_IN_SIENA_STATS_STATS_AOE  0x1
+#define	MC_CMD_AOE_IN_SIENA_STATS_STATS_AOE 0x1
 
 /* MC_CMD_AOE_IN_ASIC_STATS msgrequest */
 #define	MC_CMD_AOE_IN_ASIC_STATS_LEN 8
@@ -2523,9 +2524,9 @@
 #define	MC_CMD_AOE_IN_ASIC_STATS_MODE_OFST 4
 #define	MC_CMD_AOE_IN_ASIC_STATS_MODE_LEN 4
 /* enum: Statistics from the ASIC (default) */
-#define	MC_CMD_AOE_IN_ASIC_STATS_STATS_ASIC  0x0
+#define	MC_CMD_AOE_IN_ASIC_STATS_STATS_ASIC 0x0
 /* enum: Statistics from AOE external ports */
-#define	MC_CMD_AOE_IN_ASIC_STATS_STATS_AOE  0x1
+#define	MC_CMD_AOE_IN_ASIC_STATS_STATS_AOE 0x1
 
 /* MC_CMD_AOE_IN_DDR msgrequest */
 #define	MC_CMD_AOE_IN_DDR_LEN 12
@@ -2650,8 +2651,8 @@
 /* FPGA type - read from CPLD straps */
 #define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_OFST 16
 #define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_LEN 4
-#define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_A5_C2   0x1 /* enum */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_A7_C2   0x2 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_A5_C2 0x1 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_FPGA_TYPE_A7_C2 0x2 /* enum */
 /* FPGA state (debug) */
 #define	MC_CMD_AOE_OUT_INFO_FPGA_STATE_OFST 20
 #define	MC_CMD_AOE_OUT_INFO_FPGA_STATE_LEN 4
@@ -2669,29 +2670,29 @@
 #define	MC_CMD_AOE_OUT_INFO_FLAGS_OFST 32
 #define	MC_CMD_AOE_OUT_INFO_FLAGS_LEN 4
 /* enum: Power to FPGA supplied by PEG connector, not PCIe bus */
-#define	MC_CMD_AOE_OUT_INFO_PEG_POWER            0x1
+#define	MC_CMD_AOE_OUT_INFO_PEG_POWER 0x1
 /* enum: CPLD apparently good */
-#define	MC_CMD_AOE_OUT_INFO_CPLD_GOOD            0x2
+#define	MC_CMD_AOE_OUT_INFO_CPLD_GOOD 0x2
 /* enum: FPGA working normally */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_GOOD            0x4
+#define	MC_CMD_AOE_OUT_INFO_FPGA_GOOD 0x4
 /* enum: FPGA is powered */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_POWER           0x8
+#define	MC_CMD_AOE_OUT_INFO_FPGA_POWER 0x8
 /* enum: Board has incompatible SODIMMs fitted */
-#define	MC_CMD_AOE_OUT_INFO_BAD_SODIMM           0x10
+#define	MC_CMD_AOE_OUT_INFO_BAD_SODIMM 0x10
 /* enum: Board has ByteBlaster connected */
-#define	MC_CMD_AOE_OUT_INFO_HAS_BYTEBLASTER      0x20
+#define	MC_CMD_AOE_OUT_INFO_HAS_BYTEBLASTER 0x20
 /* enum: FPGA Boot flash has an invalid header. */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_BAD_BOOT_HDR    0x40
+#define	MC_CMD_AOE_OUT_INFO_FPGA_BAD_BOOT_HDR 0x40
 /* enum: FPGA Application flash is accessible. */
-#define	MC_CMD_AOE_OUT_INFO_FPGA_APP_FLASH_GOOD  0x80
+#define	MC_CMD_AOE_OUT_INFO_FPGA_APP_FLASH_GOOD 0x80
 /* Revision of Modena and Sorrento boards. Sorrento can be R1_2 or R1_3. */
 #define	MC_CMD_AOE_OUT_INFO_BOARD_REVISION_OFST 36
 #define	MC_CMD_AOE_OUT_INFO_BOARD_REVISION_LEN 4
-#define	MC_CMD_AOE_OUT_INFO_UNKNOWN  0x0 /* enum */
-#define	MC_CMD_AOE_OUT_INFO_R1_0  0x10 /* enum */
-#define	MC_CMD_AOE_OUT_INFO_R1_1  0x11 /* enum */
-#define	MC_CMD_AOE_OUT_INFO_R1_2  0x12 /* enum */
-#define	MC_CMD_AOE_OUT_INFO_R1_3  0x13 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_UNKNOWN 0x0 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_R1_0 0x10 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_R1_1 0x11 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_R1_2 0x12 /* enum */
+#define	MC_CMD_AOE_OUT_INFO_R1_3 0x13 /* enum */
 /* Result of FC booting - not valid while a ByteBlaster is connected. */
 #define	MC_CMD_AOE_OUT_INFO_FC_BOOT_RESULT_OFST 40
 #define	MC_CMD_AOE_OUT_INFO_FC_BOOT_RESULT_LEN 4
