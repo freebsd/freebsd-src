@@ -675,6 +675,7 @@ struct efx_nic_s {
 	const efx_ev_ops_t	*en_eevop;
 	const efx_tx_ops_t	*en_etxop;
 	const efx_rx_ops_t	*en_erxop;
+	efx_fw_variant_t	efv;
 #if EFSYS_OPT_FILTER
 	efx_filter_t		en_filter;
 	const efx_filter_ops_t	*en_efop;

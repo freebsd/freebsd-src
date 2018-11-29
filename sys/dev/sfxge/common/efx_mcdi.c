@@ -1293,13 +1293,19 @@ efx_mcdi_drv_attach(
 	req.emr_out_length = MC_CMD_DRV_ATTACH_EXT_OUT_LEN;
 
 	/*
-	 * Use DONT_CARE for the datapath firmware type to ensure that the
-	 * driver can attach to an unprivileged function. The datapath firmware
-	 * type to use is controlled by the 'sfboot' utility.
+	 * Typically, client drivers use DONT_CARE for the datapath firmware
+	 * type to ensure that the driver can attach to an unprivileged
+	 * function. The datapath firmware type to use is controlled by the
+	 * 'sfboot' utility.
+	 * If a client driver wishes to attach with a specific datapath firmware
+	 * type, that can be passed in second argument of efx_nic_probe API. One
+	 * such example is the ESXi native driver that attempts attaching with
+	 * FULL_FEATURED datapath firmware type first and fall backs to
+	 * DONT_CARE datapath firmware type if MC_CMD_DRV_ATTACH fails.
 	 */
 	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_NEW_STATE, attach ? 1 : 0);
 	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_UPDATE, 1);
-	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_FIRMWARE_ID, MC_CMD_FW_DONT_CARE);
+	MCDI_IN_SET_DWORD(req, DRV_ATTACH_IN_FIRMWARE_ID, enp->efv);
 
 	efx_mcdi_execute(enp, &req);
 
