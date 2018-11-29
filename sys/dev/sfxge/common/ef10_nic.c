@@ -1321,6 +1321,16 @@ ef10_get_datapath_caps(
 		 */
 		encp->enc_rx_scale_l4_hash_supported = B_TRUE;
 	}
+	/* Check if the firmware supports "FLAG" and "MARK" filter actions */
+	if (CAP_FLAGS2(req, FILTER_ACTION_FLAG))
+		encp->enc_filter_action_flag_supported = B_TRUE;
+	else
+		encp->enc_filter_action_flag_supported = B_FALSE;
+
+	if (CAP_FLAGS2(req, FILTER_ACTION_MARK))
+		encp->enc_filter_action_mark_supported = B_TRUE;
+	else
+		encp->enc_filter_action_mark_supported = B_FALSE;
 
 #undef CAP_FLAGS1
 #undef CAP_FLAGS2
