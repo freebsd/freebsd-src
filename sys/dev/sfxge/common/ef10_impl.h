@@ -619,11 +619,7 @@ ef10_nvram_buffer_finish(
 /* PHY */
 
 typedef struct ef10_link_state_s {
-	uint32_t		els_adv_cap_mask;
-	uint32_t		els_lp_cap_mask;
-	unsigned int		els_fcntl;
-	efx_phy_fec_type_t	els_fec;
-	efx_link_mode_t		els_link_mode;
+	efx_phy_link_state_t	epls;
 #if EFSYS_OPT_LOOPBACK
 	efx_loopback_type_t	els_loopback;
 #endif
@@ -660,9 +656,9 @@ ef10_phy_oui_get(
 	__out		uint32_t *ouip);
 
 extern	__checkReturn	efx_rc_t
-ef10_phy_fec_type_get(
+ef10_phy_link_state_get(
 	__in		efx_nic_t *enp,
-	__out		efx_phy_fec_type_t *fecp);
+	__out		efx_phy_link_state_t *eplsp);
 
 #if EFSYS_OPT_PHY_STATS
 

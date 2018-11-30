@@ -313,9 +313,9 @@ ef10_phy_get_link(
 	}
 
 	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_CAP),
-			    &elsp->els_adv_cap_mask);
+			    &elsp->epls.epls_adv_cap_mask);
 	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_LP_CAP),
-			    &elsp->els_lp_cap_mask);
+			    &elsp->epls.epls_lp_cap_mask);
 
 	if (req.emr_out_length_used < MC_CMD_GET_LINK_OUT_V2_LEN)
 		fec = MC_CMD_FEC_NONE;
@@ -325,8 +325,16 @@ ef10_phy_get_link(
 	mcdi_phy_decode_link_mode(enp, MCDI_OUT_DWORD(req, GET_LINK_OUT_FLAGS),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_LINK_SPEED),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_FCNTL),
-			    fec, &elsp->els_link_mode,
-			    &elsp->els_fcntl, &elsp->els_fec);
+			    fec, &elsp->epls.epls_link_mode,
+			    &elsp->epls.epls_fcntl, &elsp->epls.epls_fec);
+
+	if (req.emr_out_length_used < MC_CMD_GET_LINK_OUT_V2_LEN) {
+		elsp->epls.epls_ld_cap_mask = 0;
+	} else {
+		mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_V2_LD_CAP),
+				    &elsp->epls.epls_ld_cap_mask);
+	}
+
 
 #if EFSYS_OPT_LOOPBACK
 	/*
@@ -570,18 +578,18 @@ ef10_phy_oui_get(
 }
 
 	__checkReturn	efx_rc_t
-ef10_phy_fec_type_get(
+ef10_phy_link_state_get(
 	__in		efx_nic_t *enp,
-	__out		efx_phy_fec_type_t  *fecp)
+	__out		efx_phy_link_state_t  *eplsp)
 {
 	efx_rc_t rc;
 	ef10_link_state_t els;
 
-	/* Obtain the active FEC type */
+	/* Obtain the active link state */
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail1;
 
-	*fecp = els.els_fec;
+	*eplsp = els.epls;
 
 	return (0);
 

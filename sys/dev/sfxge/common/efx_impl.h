@@ -252,7 +252,7 @@ typedef struct efx_phy_ops_s {
 	efx_rc_t	(*epo_reconfigure)(efx_nic_t *);
 	efx_rc_t	(*epo_verify)(efx_nic_t *);
 	efx_rc_t	(*epo_oui_get)(efx_nic_t *, uint32_t *);
-	efx_rc_t	(*epo_fec_type_get)(efx_nic_t *, efx_phy_fec_type_t *);
+	efx_rc_t	(*epo_link_state_get)(efx_nic_t *, efx_phy_link_state_t *);
 #if EFSYS_OPT_PHY_STATS
 	efx_rc_t	(*epo_stats_update)(efx_nic_t *, efsys_mem_t *,
 					    uint32_t *);
