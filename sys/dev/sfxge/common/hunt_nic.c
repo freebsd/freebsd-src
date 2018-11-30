@@ -47,7 +47,6 @@ hunt_nic_get_required_pcie_bandwidth(
 	__out		uint32_t *bandwidth_mbpsp)
 {
 	uint32_t port_modes;
-	uint32_t max_port_mode;
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
@@ -74,17 +73,13 @@ hunt_nic_get_required_pcie_bandwidth(
 			goto fail1;
 	} else {
 		if (port_modes & (1U << TLV_PORT_MODE_40G)) {
-			max_port_mode = TLV_PORT_MODE_40G;
+			bandwidth = 40000;
 		} else if (port_modes & (1U << TLV_PORT_MODE_10G_10G_10G_10G)) {
-			max_port_mode = TLV_PORT_MODE_10G_10G_10G_10G;
+			bandwidth = 4 * 10000;
 		} else {
 			/* Assume two 10G ports */
-			max_port_mode = TLV_PORT_MODE_10G_10G;
+			bandwidth = 2 * 10000;
 		}
-
-		if ((rc = ef10_nic_get_port_mode_bandwidth(max_port_mode,
-							    &bandwidth)) != 0)
-			goto fail2;
 	}
 
 out:
@@ -92,8 +87,6 @@ out:
 
 	return (0);
 
-fail2:
-	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
