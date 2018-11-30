@@ -217,6 +217,9 @@ hunt_board_cfg(
 
 	encp->enc_bug61265_workaround = B_FALSE; /* Medford only */
 
+	/* Checksums for TSO sends can be incorrect on Huntington. */
+	encp->enc_bug61297_workaround = B_TRUE;
+
 	/* Alignment for receive packet DMA buffers */
 	encp->enc_rx_buf_align_start = 1;
 	encp->enc_rx_buf_align_end = 64; /* RX DMA end padding */
