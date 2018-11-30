@@ -48,7 +48,7 @@ medford_nic_get_required_pcie_bandwidth(
 	efx_rc_t rc;
 
 	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes,
-				    &current_mode)) != 0) {
+				    &current_mode, NULL)) != 0) {
 		/* No port mode info available. */
 		bandwidth = 0;
 		goto out;
