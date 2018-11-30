@@ -61,6 +61,7 @@
 #define	__out_opt
 #define	__out_ecount(_n)
 #define	__out_ecount_opt(_n)
+#define	__out_ecount_part(_n, _l)
 #define	__out_bcount(_n)
 #define	__out_bcount_opt(_n)
 #define	__out_bcount_part(_n, _l)
