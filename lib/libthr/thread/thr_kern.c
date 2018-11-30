@@ -53,14 +53,10 @@ static struct wake_addr default_wake_addr;
  * This is called when the first thread (other than the initial
  * thread) is created.
  */
-int
+void
 _thr_setthreaded(int threaded)
 {
-	if (((threaded == 0) ^ (__isthreaded == 0)) == 0)
-		return (0);
-
 	__isthreaded = threaded;
-	return (0);
 }
 
 void
