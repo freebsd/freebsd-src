@@ -44,6 +44,7 @@ static const efx_phy_ops_t	__efx_phy_siena_ops = {
 	siena_phy_reconfigure,		/* epo_reconfigure */
 	siena_phy_verify,		/* epo_verify */
 	siena_phy_oui_get,		/* epo_oui_get */
+	NULL,				/* epo_fec_type_get */
 #if EFSYS_OPT_PHY_STATS
 	siena_phy_stats_update,		/* epo_stats_update */
 #endif	/* EFSYS_OPT_PHY_STATS */
@@ -63,6 +64,7 @@ static const efx_phy_ops_t	__efx_phy_ef10_ops = {
 	ef10_phy_reconfigure,		/* epo_reconfigure */
 	ef10_phy_verify,		/* epo_verify */
 	ef10_phy_oui_get,		/* epo_oui_get */
+	ef10_phy_fec_type_get,		/* epo_fec_type_get */
 #if EFSYS_OPT_PHY_STATS
 	ef10_phy_stats_update,		/* epo_stats_update */
 #endif	/* EFSYS_OPT_PHY_STATS */
@@ -219,6 +221,11 @@ efx_phy_adv_cap_get(
 	}
 }
 
+#define	EFX_PHY_CAP_FEC_REQ_MASK			\
+	(1U << EFX_PHY_CAP_BASER_FEC_REQUESTED)	|	\
+	(1U << EFX_PHY_CAP_RS_FEC_REQUESTED)	|	\
+	(1U << EFX_PHY_CAP_25G_BASER_FEC_REQUESTED)
+
 	__checkReturn	efx_rc_t
 efx_phy_adv_cap_set(
 	__in		efx_nic_t *enp,
@@ -232,7 +239,8 @@ efx_phy_adv_cap_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 
-	if ((mask & ~epp->ep_phy_cap_mask) != 0) {
+	/* Ignore don't care bits of FEC (FEC EFX_PHY_CAP_*_REQUESTED) */
+	if ((mask & ~(epp->ep_phy_cap_mask | EFX_PHY_CAP_FEC_REQ_MASK)) != 0) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
@@ -331,6 +339,35 @@ efx_phy_module_get_info(
 
 	if ((rc = efx_mcdi_phy_module_get_info(enp, dev_addr,
 	    offset, len, data)) != 0)
+		goto fail2;
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn		efx_rc_t
+efx_phy_fec_type_get(
+	__in		efx_nic_t *enp,
+	__out		efx_phy_fec_type_t *typep)
+{
+	efx_port_t *epp = &(enp->en_port);
+	const efx_phy_ops_t *epop = epp->ep_epop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+
+	if (epop->epo_fec_type_get == NULL) {
+		rc = ENOTSUP;
+		goto fail1;
+	}
+
+	if ((rc = epop->epo_fec_type_get(enp, typep)) != 0)
 		goto fail2;
 
 	return (0);
