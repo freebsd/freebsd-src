@@ -160,9 +160,11 @@ ef10_nic_get_port_mode_bandwidth(
 {
 	uint32_t port_modes;
 	uint32_t current_mode;
-	uint32_t single_lane = 10000;
-	uint32_t dual_lane   = 50000;
-	uint32_t quad_lane   = 40000;
+	efx_port_t *epp = &(enp->en_port);
+
+	uint32_t single_lane;
+	uint32_t dual_lane;
+	uint32_t quad_lane;
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
@@ -171,6 +173,21 @@ ef10_nic_get_port_mode_bandwidth(
 		/* No port mode info available. */
 		goto fail1;
 	}
+
+	if (epp->ep_phy_cap_mask & (1 << EFX_PHY_CAP_25000FDX))
+		single_lane = 25000;
+	else
+		single_lane = 10000;
+
+	if (epp->ep_phy_cap_mask & (1 << EFX_PHY_CAP_50000FDX))
+		dual_lane = 50000;
+	else
+		dual_lane = 20000;
+
+	if (epp->ep_phy_cap_mask & (1 << EFX_PHY_CAP_100000FDX))
+		quad_lane = 100000;
+	else
+		quad_lane = 40000;
 
 	switch (current_mode) {
 	case TLV_PORT_MODE_1x1_NA:			/* mode 0 */
