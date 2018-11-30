@@ -2179,6 +2179,14 @@ fail1:
  */
 #define	EFX_PHY_MEDIA_INFO_PAGE_SIZE		0x80
 
+/*
+ * Transceiver identifiers from SFF-8024 Table 4-1.
+ */
+#define	EFX_SFF_TRANSCEIVER_ID_SFP		0x03 /* SFP/SFP+/SFP28 */
+#define	EFX_SFF_TRANSCEIVER_ID_QSFP		0x0c /* QSFP */
+#define	EFX_SFF_TRANSCEIVER_ID_QSFP_PLUS	0x0d /* QSFP+ or later */
+#define	EFX_SFF_TRANSCEIVER_ID_QSFP28		0x11 /* QSFP28 or later */
+
 static	__checkReturn		efx_rc_t
 efx_mcdi_get_phy_media_info(
 	__in			efx_nic_t *enp,
@@ -2251,6 +2259,7 @@ efx_mcdi_phy_module_get_info(
 	efx_rc_t rc;
 	uint32_t mcdi_lower_page;
 	uint32_t mcdi_upper_page;
+	uint8_t id;
 
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PROBE);
 
@@ -2264,6 +2273,25 @@ efx_mcdi_phy_module_get_info(
 	 */
 	switch (epp->ep_fixed_port_type) {
 	case EFX_PHY_MEDIA_SFP_PLUS:
+	case EFX_PHY_MEDIA_QSFP_PLUS:
+		/* Port type supports modules */
+		break;
+	default:
+		rc = ENOTSUP;
+		goto fail1;
+	}
+
+	/*
+	 * For all supported port types, MCDI page 0 offset 0 holds the
+	 * transceiver identifier. Probe to determine the data layout.
+	 * Definitions from SFF-8024 Table 4-1.
+	 */
+	rc = efx_mcdi_get_phy_media_info(enp, 0, 0, sizeof (id), &id);
+	if (rc != 0)
+		goto fail2;
+
+	switch (id) {
+	case EFX_SFF_TRANSCEIVER_ID_SFP:
 		/*
 		 * In accordance with SFF-8472 Diagnostic Monitoring
 		 * Interface for Optical Transceivers section 4 Memory
@@ -2298,10 +2326,12 @@ efx_mcdi_phy_module_get_info(
 			break;
 		default:
 			rc = ENOTSUP;
-			goto fail1;
+			goto fail3;
 		}
 		break;
-	case EFX_PHY_MEDIA_QSFP_PLUS:
+	case EFX_SFF_TRANSCEIVER_ID_QSFP:
+	case EFX_SFF_TRANSCEIVER_ID_QSFP_PLUS:
+	case EFX_SFF_TRANSCEIVER_ID_QSFP28:
 		switch (dev_addr) {
 		case EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP:
 			/*
@@ -2317,12 +2347,12 @@ efx_mcdi_phy_module_get_info(
 			break;
 		default:
 			rc = ENOTSUP;
-			goto fail1;
+			goto fail3;
 		}
 		break;
 	default:
 		rc = ENOTSUP;
-		goto fail1;
+		goto fail3;
 	}
 
 	EFX_STATIC_ASSERT(EFX_PHY_MEDIA_INFO_PAGE_SIZE <= 0xFF);
@@ -2334,7 +2364,7 @@ efx_mcdi_phy_module_get_info(
 		rc = efx_mcdi_get_phy_media_info(enp,
 		    mcdi_lower_page, (uint8_t)offset, (uint8_t)read_len, data);
 		if (rc != 0)
-			goto fail2;
+			goto fail4;
 
 		data += read_len;
 		len -= read_len;
@@ -2351,11 +2381,15 @@ efx_mcdi_phy_module_get_info(
 		rc = efx_mcdi_get_phy_media_info(enp,
 		    mcdi_upper_page, (uint8_t)offset, (uint8_t)len, data);
 		if (rc != 0)
-			goto fail3;
+			goto fail5;
 	}
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
