@@ -251,14 +251,14 @@ extract_currdev(void)
     int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
-    new_currdev.dd.d_dev = &biosdisk;
+    new_currdev.dd.d_dev = &bioshd;
 
     /* new-style boot loaders such as pxeldr and cdldr */
     if (kargs->bootinfo == 0) {
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
 	    /* we are booting from a CD with cdboot */
 	    new_currdev.dd.d_dev = &bioscd;
-	    new_currdev.dd.d_unit = bc_bios2unit(initial_bootdev);
+	    new_currdev.dd.d_unit = bd_bios2unit(initial_bootdev);
 	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
 	    /* we are booting from pxeldr */
 	    new_currdev.dd.d_dev = &pxedisk;
@@ -318,7 +318,7 @@ extract_currdev(void)
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
      */
-    if ((new_currdev.dd.d_dev->dv_type == biosdisk.dv_type) &&
+    if ((new_currdev.dd.d_dev->dv_type == bioshd.dv_type) &&
 	((new_currdev.dd.d_unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
@@ -390,18 +390,16 @@ static void
 i386_zfs_probe(void)
 {
     char devname[32];
-    int unit;
+    struct i386_devdesc dev;
 
     /*
      * Open all the disks we can find and see if we can reconstruct
      * ZFS pools from them.
      */
-    for (unit = 0; unit < MAXBDDEV; unit++) {
-	if (bd_unit2bios(unit) == -1)
-	    break;
-	if (bd_unit2bios(unit) < 0x80)
-	    continue;
-	sprintf(devname, "disk%d:", unit);
+    dev.dd.d_dev = &bioshd;
+    for (dev.dd.d_unit = 0; bd_unit2bios(&dev) >= 0; dev.dd.d_unit++) {
+	snprintf(devname, sizeof(devname), "%s%d:", bioshd.dv_name,
+	    dev.dd.d_unit);
 	zfs_probe_dev(devname, NULL);
     }
 }
