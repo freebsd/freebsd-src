@@ -2219,43 +2219,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
-			vp = NULL;
-			switch (lobj->type) {
-			case OBJT_DEFAULT:
-				kve->kve_type = KVME_TYPE_DEFAULT;
-				break;
-			case OBJT_VNODE:
-				kve->kve_type = KVME_TYPE_VNODE;
-				vp = lobj->handle;
-				vref(vp);
-				break;
-			case OBJT_SWAP:
-				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
-					kve->kve_type = KVME_TYPE_VNODE;
-					if ((lobj->flags & OBJ_TMPFS) != 0) {
-						vp = lobj->un_pager.swp.swp_tmpfs;
-						vref(vp);
-					}
-				} else {
-					kve->kve_type = KVME_TYPE_SWAP;
-				}
-				break;
-			case OBJT_DEVICE:
-				kve->kve_type = KVME_TYPE_DEVICE;
-				break;
-			case OBJT_PHYS:
-				kve->kve_type = KVME_TYPE_PHYS;
-				break;
-			case OBJT_DEAD:
-				kve->kve_type = KVME_TYPE_DEAD;
-				break;
-			case OBJT_SG:
-				kve->kve_type = KVME_TYPE_SG;
-				break;
-			default:
+			kve->kve_type = vm_object_kvme_type(lobj, &vp);
+			if (kve->kve_type == KVME_TYPE_MGTDEVICE)
 				kve->kve_type = KVME_TYPE_UNKNOWN;
-				break;
-			}
+			if (vp != NULL)
+				vref(vp);
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 
@@ -2463,46 +2431,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 		freepath = NULL;
 		fullpath = "";
 		if (lobj != NULL) {
-			vp = NULL;
-			switch (lobj->type) {
-			case OBJT_DEFAULT:
-				kve->kve_type = KVME_TYPE_DEFAULT;
-				break;
-			case OBJT_VNODE:
-				kve->kve_type = KVME_TYPE_VNODE;
-				vp = lobj->handle;
+			kve->kve_type = vm_object_kvme_type(lobj, &vp);
+			if (vp != NULL)
 				vref(vp);
-				break;
-			case OBJT_SWAP:
-				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
-					kve->kve_type = KVME_TYPE_VNODE;
-					if ((lobj->flags & OBJ_TMPFS) != 0) {
-						vp = lobj->un_pager.swp.swp_tmpfs;
-						vref(vp);
-					}
-				} else {
-					kve->kve_type = KVME_TYPE_SWAP;
-				}
-				break;
-			case OBJT_DEVICE:
-				kve->kve_type = KVME_TYPE_DEVICE;
-				break;
-			case OBJT_PHYS:
-				kve->kve_type = KVME_TYPE_PHYS;
-				break;
-			case OBJT_DEAD:
-				kve->kve_type = KVME_TYPE_DEAD;
-				break;
-			case OBJT_SG:
-				kve->kve_type = KVME_TYPE_SG;
-				break;
-			case OBJT_MGTDEVICE:
-				kve->kve_type = KVME_TYPE_MGTDEVICE;
-				break;
-			default:
-				kve->kve_type = KVME_TYPE_UNKNOWN;
-				break;
-			}
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 

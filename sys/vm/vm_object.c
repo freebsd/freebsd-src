@@ -2330,6 +2330,41 @@ vm_object_vnode(vm_object_t object)
 	return (vp);
 }
 
+/*
+ * Return the kvme type of the given object.
+ * If vpp is not NULL, set it to the object's vm_object_vnode() or NULL.
+ */
+int
+vm_object_kvme_type(vm_object_t object, struct vnode **vpp)
+{
+
+	VM_OBJECT_ASSERT_LOCKED(object);
+	if (vpp != NULL)
+		*vpp = vm_object_vnode(object);
+	switch (object->type) {
+	case OBJT_DEFAULT:
+		return (KVME_TYPE_DEFAULT);
+	case OBJT_VNODE:
+		return (KVME_TYPE_VNODE);
+	case OBJT_SWAP:
+		if ((object->flags & OBJ_TMPFS_NODE) != 0)
+			return (KVME_TYPE_VNODE);
+		return (KVME_TYPE_SWAP);
+	case OBJT_DEVICE:
+		return (KVME_TYPE_DEVICE);
+	case OBJT_PHYS:
+		return (KVME_TYPE_PHYS);
+	case OBJT_DEAD:
+		return (KVME_TYPE_DEAD);
+	case OBJT_SG:
+		return (KVME_TYPE_SG);
+	case OBJT_MGTDEVICE:
+		return (KVME_TYPE_MGTDEVICE);
+	default:
+		return (KVME_TYPE_UNKNOWN);
+	}
+}
+
 static int
 sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 {
@@ -2404,38 +2439,9 @@ sysctl_vm_object_list(SYSCTL_HANDLER_ARGS)
 		kvo->kvo_vn_fsid_freebsd11 = 0;
 		freepath = NULL;
 		fullpath = "";
-		vp = NULL;
-		switch (obj->type) {
-		case OBJT_DEFAULT:
-			kvo->kvo_type = KVME_TYPE_DEFAULT;
-			break;
-		case OBJT_VNODE:
-			kvo->kvo_type = KVME_TYPE_VNODE;
-			vp = obj->handle;
+		kvo->kvo_type = vm_object_kvme_type(obj, &vp);
+		if (vp != NULL)
 			vref(vp);
-			break;
-		case OBJT_SWAP:
-			kvo->kvo_type = KVME_TYPE_SWAP;
-			break;
-		case OBJT_DEVICE:
-			kvo->kvo_type = KVME_TYPE_DEVICE;
-			break;
-		case OBJT_PHYS:
-			kvo->kvo_type = KVME_TYPE_PHYS;
-			break;
-		case OBJT_DEAD:
-			kvo->kvo_type = KVME_TYPE_DEAD;
-			break;
-		case OBJT_SG:
-			kvo->kvo_type = KVME_TYPE_SG;
-			break;
-		case OBJT_MGTDEVICE:
-			kvo->kvo_type = KVME_TYPE_MGTDEVICE;
-			break;
-		default:
-			kvo->kvo_type = KVME_TYPE_UNKNOWN;
-			break;
-		}
 		VM_OBJECT_RUNLOCK(obj);
 		if (vp != NULL) {
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
