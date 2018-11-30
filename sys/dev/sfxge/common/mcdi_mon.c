@@ -221,6 +221,12 @@ efx_mcdi_read_sensors(
 	uint8_t payload[MAX(MC_CMD_READ_SENSORS_EXT_IN_LEN,
 			    MC_CMD_READ_SENSORS_EXT_OUT_LEN)];
 	uint32_t addr_lo, addr_hi;
+	efx_rc_t rc;
+
+	if (EFSYS_MEM_SIZE(esmp) < size) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	req.emr_cmd = MC_CMD_READ_SENSORS;
 	req.emr_in_buf = payload;
@@ -238,6 +244,11 @@ efx_mcdi_read_sensors(
 	efx_mcdi_execute(enp, &req);
 
 	return (req.emr_rc);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 static	__checkReturn	efx_rc_t
