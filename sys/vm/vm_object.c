@@ -2306,16 +2306,28 @@ next_page:
 	}
 }
 
+/*
+ * Return the vnode for the given object, or NULL if none exists.
+ * For tmpfs objects, the function may return NULL if there is
+ * no vnode allocated at the time of the call.
+ */
 struct vnode *
 vm_object_vnode(vm_object_t object)
 {
+	struct vnode *vp;
 
 	VM_OBJECT_ASSERT_LOCKED(object);
-	if (object->type == OBJT_VNODE)
-		return (object->handle);
-	if (object->type == OBJT_SWAP && (object->flags & OBJ_TMPFS) != 0)
-		return (object->un_pager.swp.swp_tmpfs);
-	return (NULL);
+	if (object->type == OBJT_VNODE) {
+		vp = object->handle;
+		KASSERT(vp != NULL, ("%s: OBJT_VNODE has no vnode", __func__));
+	} else if (object->type == OBJT_SWAP &&
+	    (object->flags & OBJ_TMPFS) != 0) {
+		vp = object->un_pager.swp.swp_tmpfs;
+		KASSERT(vp != NULL, ("%s: OBJT_TMPFS has no vnode", __func__));
+	} else {
+		vp = NULL;
+	}
+	return (vp);
 }
 
 static int
