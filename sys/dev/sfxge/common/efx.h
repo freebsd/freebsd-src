@@ -1690,6 +1690,87 @@ efx_bootcfg_write(
 	__in_bcount(size)	uint8_t *data,
 	__in			size_t size);
 
+
+/*
+ * Processing routines for buffers arranged in the DHCP/BOOTP option format
+ * (see https://tools.ietf.org/html/rfc1533)
+ *
+ * Summarising the format: the buffer is a sequence of options. All options
+ * begin with a tag octet, which uniquely identifies the option.  Fixed-
+ * length options without data consist of only a tag octet.  Only options PAD
+ * (0) and END (255) are fixed length.  All other options are variable-length
+ * with a length octet following the tag octet.  The value of the length
+ * octet does not include the two octets specifying the tag and length.  The
+ * length octet is followed by "length" octets of data.
+ *
+ * Option data may be a sequence of sub-options in the same format. The data
+ * content of the encapsulating option is one or more encapsulated sub-options,
+ * with no terminating END tag is required.
+ *
+ * To be valid, the top-level sequence of options should be terminated by an
+ * END tag. The buffer should be padded with the PAD byte.
+ *
+ * When stored to NVRAM, the DHCP option format buffer is preceded by a
+ * checksum octet. The full buffer (including after the END tag) contributes
+ * to the checksum, hence the need to fill the buffer to the end with PAD.
+ */
+
+#define	EFX_DHCP_END ((uint8_t)0xff)
+#define	EFX_DHCP_PAD ((uint8_t)0)
+
+#define	EFX_DHCP_ENCAP_OPT(encapsulator, encapsulated) \
+  (uint16_t)(((encapsulator) << 8) | (encapsulated))
+
+extern	__checkReturn		uint8_t
+efx_dhcp_csum(
+	__in_bcount(size)	uint8_t const *data,
+	__in			size_t size);
+
+extern	__checkReturn		efx_rc_t
+efx_dhcp_verify(
+	__in_bcount(size)	uint8_t const *data,
+	__in			size_t size,
+	__out_opt		size_t *usedp);
+
+extern	__checkReturn	efx_rc_t
+efx_dhcp_find_tag(
+	__in_bcount(buffer_length)	uint8_t *bufferp,
+	__in				size_t buffer_length,
+	__in				uint16_t opt,
+	__deref_out			uint8_t **valuepp,
+	__out				size_t *value_lengthp);
+
+extern	__checkReturn	efx_rc_t
+efx_dhcp_find_end(
+	__in_bcount(buffer_length)	uint8_t *bufferp,
+	__in				size_t buffer_length,
+	__deref_out			uint8_t **endpp);
+
+
+extern	__checkReturn	efx_rc_t
+efx_dhcp_delete_tag(
+	__inout_bcount(buffer_length)	uint8_t *bufferp,
+	__in				size_t buffer_length,
+	__in				uint16_t opt);
+
+extern	__checkReturn	efx_rc_t
+efx_dhcp_add_tag(
+	__inout_bcount(buffer_length)	uint8_t *bufferp,
+	__in				size_t buffer_length,
+	__in				uint16_t opt,
+	__in_bcount_opt(value_length)	uint8_t *valuep,
+	__in				size_t value_length);
+
+extern	__checkReturn	efx_rc_t
+efx_dhcp_update_tag(
+	__inout_bcount(buffer_length)	uint8_t *bufferp,
+	__in				size_t buffer_length,
+	__in				uint16_t opt,
+	__in				uint8_t *value_locationp,
+	__in_bcount_opt(value_length)	uint8_t *valuep,
+	__in				size_t value_length);
+
+
 #endif	/* EFSYS_OPT_BOOTCFG */
 
 #if EFSYS_OPT_IMAGE_LAYOUT
