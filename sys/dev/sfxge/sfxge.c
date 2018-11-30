@@ -1182,6 +1182,11 @@ sfxge_probe(device_t dev)
 		return (0);
 	}
 
+	if (family == EFX_FAMILY_MEDFORD2) {
+		device_set_desc(dev, "Solarflare SFC9250 family");
+		return (0);
+	}
+
 	DBGPRINT(dev, "impossible controller family %d", family);
 	return (ENXIO);
 }
