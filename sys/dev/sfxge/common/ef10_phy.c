@@ -125,8 +125,10 @@ mcdi_phy_decode_link_mode(
 	__in		uint32_t link_flags,
 	__in		unsigned int speed,
 	__in		unsigned int fcntl,
+	__in		uint32_t fec,
 	__out		efx_link_mode_t *link_modep,
-	__out		unsigned int *fcntlp)
+	__out		unsigned int *fcntlp,
+	__out		efx_phy_fec_type_t *fecp)
 {
 	boolean_t fd = !!(link_flags &
 		    (1 << MC_CMD_GET_LINK_OUT_FULL_DUPLEX_LBN));
@@ -168,6 +170,22 @@ mcdi_phy_decode_link_mode(
 		EFSYS_PROBE1(mc_pcol_error, int, fcntl);
 		*fcntlp = 0;
 	}
+
+	switch (fec) {
+	case MC_CMD_FEC_NONE:
+		*fecp = EFX_PHY_FEC_NONE;
+		break;
+	case MC_CMD_FEC_BASER:
+		*fecp = EFX_PHY_FEC_BASER;
+		break;
+	case MC_CMD_FEC_RS:
+		*fecp = EFX_PHY_FEC_RS;
+		break;
+	default:
+		EFSYS_PROBE1(mc_pcol_error, int, fec);
+		*fecp = EFX_PHY_FEC_NONE;
+		break;
+	}
 }
 
 
@@ -181,6 +199,7 @@ ef10_phy_link_ev(
 	unsigned int link_flags;
 	unsigned int speed;
 	unsigned int fcntl;
+	efx_phy_fec_type_t fec = MC_CMD_FEC_NONE;
 	efx_link_mode_t link_mode;
 	uint32_t lp_cap_mask;
 
@@ -218,7 +237,8 @@ ef10_phy_link_ev(
 	link_flags = MCDI_EV_FIELD(eqp, LINKCHANGE_LINK_FLAGS);
 	mcdi_phy_decode_link_mode(enp, link_flags, speed,
 				    MCDI_EV_FIELD(eqp, LINKCHANGE_FCNTL),
-				    &link_mode, &fcntl);
+				    MC_CMD_FEC_NONE, &link_mode,
+				    &fcntl, &fec);
 	mcdi_phy_decode_cap(MCDI_EV_FIELD(eqp, LINKCHANGE_LP_CAP),
 			    &lp_cap_mask);
 
@@ -269,15 +289,16 @@ ef10_phy_get_link(
 	__out		ef10_link_state_t *elsp)
 {
 	efx_mcdi_req_t req;
+	uint32_t fec;
 	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_LINK_IN_LEN,
-		MC_CMD_GET_LINK_OUT_LEN);
+		MC_CMD_GET_LINK_OUT_V2_LEN);
 	efx_rc_t rc;
 
 	req.emr_cmd = MC_CMD_GET_LINK;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_LINK_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_LINK_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_LINK_OUT_V2_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -296,10 +317,16 @@ ef10_phy_get_link(
 	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_LP_CAP),
 			    &elsp->els_lp_cap_mask);
 
+	if (req.emr_out_length_used < MC_CMD_GET_LINK_OUT_V2_LEN)
+		fec = MC_CMD_FEC_NONE;
+	else
+		fec = MCDI_OUT_DWORD(req, GET_LINK_OUT_V2_FEC_TYPE);
+
 	mcdi_phy_decode_link_mode(enp, MCDI_OUT_DWORD(req, GET_LINK_OUT_FLAGS),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_LINK_SPEED),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_FCNTL),
-			    &elsp->els_link_mode, &elsp->els_fcntl);
+			    fec, &elsp->els_link_mode,
+			    &elsp->els_fcntl, &elsp->els_fec);
 
 #if EFSYS_OPT_LOOPBACK
 	/*
@@ -541,6 +568,29 @@ ef10_phy_oui_get(
 
 	return (ENOTSUP);
 }
+
+	__checkReturn	efx_rc_t
+ef10_phy_fec_type_get(
+	__in		efx_nic_t *enp,
+	__out		efx_phy_fec_type_t  *fecp)
+{
+	efx_rc_t rc;
+	ef10_link_state_t els;
+
+	/* Obtain the active FEC type */
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
+		goto fail1;
+
+	*fecp = els.els_fec;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 
 #if EFSYS_OPT_PHY_STATS
 

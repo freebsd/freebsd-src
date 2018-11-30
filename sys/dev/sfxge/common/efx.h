@@ -3231,6 +3231,17 @@ efx_nic_set_fw_subvariant(
 
 #endif	/* EFSYS_OPT_FW_SUBVARIANT_AWARE */
 
+typedef enum efx_phy_fec_type_e {
+	EFX_PHY_FEC_NONE = 0,
+	EFX_PHY_FEC_BASER,
+	EFX_PHY_FEC_RS
+} efx_phy_fec_type_t;
+
+extern	__checkReturn	efx_rc_t
+efx_phy_fec_type_get(
+	__in		efx_nic_t *enp,
+	__out		efx_phy_fec_type_t *typep);
+
 #ifdef	__cplusplus
 }
 #endif
