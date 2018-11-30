@@ -197,8 +197,6 @@ END(memcmp)
 /*
  * memmove(dst, src, cnt)
  *         rdi, rsi, rdx
- * Adapted from bcopy written by:
- *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
 
 /*
