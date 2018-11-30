@@ -3286,6 +3286,21 @@ efx_phy_fec_type_get(
 	__in		efx_nic_t *enp,
 	__out		efx_phy_fec_type_t *typep);
 
+typedef struct efx_phy_link_state_s {
+	uint32_t		epls_adv_cap_mask;
+	uint32_t		epls_lp_cap_mask;
+	uint32_t		epls_ld_cap_mask;
+	unsigned int		epls_fcntl;
+	efx_phy_fec_type_t	epls_fec;
+	efx_link_mode_t		epls_link_mode;
+} efx_phy_link_state_t;
+
+extern	__checkReturn	efx_rc_t
+efx_phy_link_state_get(
+	__in		efx_nic_t *enp,
+	__out		efx_phy_link_state_t  *eplsp);
+
+
 #ifdef	__cplusplus
 }
 #endif

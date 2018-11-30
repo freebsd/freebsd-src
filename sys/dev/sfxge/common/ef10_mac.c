@@ -49,10 +49,10 @@ ef10_mac_poll(
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail1;
 
-	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
-	epp->ep_fcntl = els.els_fcntl;
+	epp->ep_adv_cap_mask = els.epls.epls_adv_cap_mask;
+	epp->ep_fcntl = els.epls.epls_fcntl;
 
-	*link_modep = els.els_link_mode;
+	*link_modep = els.epls.epls_link_mode;
 
 	return (0);
 

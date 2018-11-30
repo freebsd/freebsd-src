@@ -1879,8 +1879,8 @@ ef10_nic_board_cfg(
 	/* Obtain the default PHY advertised capabilities */
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail7;
-	epp->ep_default_adv_cap_mask = els.els_adv_cap_mask;
-	epp->ep_adv_cap_mask = els.els_adv_cap_mask;
+	epp->ep_default_adv_cap_mask = els.epls.epls_adv_cap_mask;
+	epp->ep_adv_cap_mask = els.epls.epls_adv_cap_mask;
 
 	/* Check capabilities of running datapath firmware */
 	if ((rc = ef10_get_datapath_caps(enp)) != 0)
