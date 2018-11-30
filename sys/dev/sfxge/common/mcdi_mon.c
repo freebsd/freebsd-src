@@ -361,6 +361,87 @@ fail1:
 	return (rc);
 }
 
+static	__checkReturn		efx_rc_t
+efx_mcdi_sensor_info_page(
+	__in			efx_nic_t *enp,
+	__in			uint32_t page,
+	__out			uint32_t *mask_part,
+	__out_ecount((sizeof (*mask_part) * 8) - 1)
+				efx_mon_stat_limits_t *limits)
+{
+	efx_mcdi_req_t req;
+	uint8_t payload[MAX(MC_CMD_SENSOR_INFO_EXT_IN_LEN,
+		MC_CMD_SENSOR_INFO_OUT_LENMAX)];
+	efx_rc_t rc;
+	uint32_t mask_copy;
+	efx_dword_t *maskp;
+	efx_qword_t *limit_info;
+
+	EFSYS_ASSERT(mask_part != NULL);
+	EFSYS_ASSERT(limits != NULL);
+
+	memset(limits, 0,
+	    ((sizeof (*mask_part) * 8) - 1) * sizeof (efx_mon_stat_limits_t));
+
+	(void) memset(payload, 0, sizeof (payload));
+	req.emr_cmd = MC_CMD_SENSOR_INFO;
+	req.emr_in_buf = payload;
+	req.emr_in_length = MC_CMD_SENSOR_INFO_EXT_IN_LEN;
+	req.emr_out_buf = payload;
+	req.emr_out_length = MC_CMD_SENSOR_INFO_OUT_LENMAX;
+
+	MCDI_IN_SET_DWORD(req, SENSOR_INFO_EXT_IN_PAGE, page);
+
+	efx_mcdi_execute(enp, &req);
+
+	rc = req.emr_rc;
+
+	if (rc != 0)
+		goto fail1;
+
+	EFSYS_ASSERT(sizeof (*limit_info) ==
+	    MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_LEN);
+	maskp = MCDI_OUT2(req, efx_dword_t, SENSOR_INFO_OUT_MASK);
+	limit_info = (efx_qword_t *)(maskp + 1);
+
+	*mask_part = maskp->ed_u32[0];
+	mask_copy = *mask_part;
+
+	/* Copy an entry for all but the highest bit set. */
+	while (mask_copy) {
+
+		if (mask_copy == (1U << MC_CMD_SENSOR_PAGE0_NEXT)) {
+			/* Only next page bit set. */
+			mask_copy = 0;
+		} else {
+			/* Clear lowest bit */
+			mask_copy = mask_copy & ~(mask_copy ^ (mask_copy - 1));
+			/* And copy out limit entry into buffer */
+			limits->emlv_warning_min = EFX_QWORD_FIELD(*limit_info,
+			    MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MIN1);
+
+			limits->emlv_warning_max = EFX_QWORD_FIELD(*limit_info,
+			    MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MAX1);
+
+			limits->emlv_fatal_min = EFX_QWORD_FIELD(*limit_info,
+			    MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MIN2);
+
+			limits->emlv_fatal_max = EFX_QWORD_FIELD(*limit_info,
+			    MC_CMD_SENSOR_INFO_ENTRY_TYPEDEF_MAX2);
+
+			limits++;
+			limit_info++;
+		}
+	}
+
+	return (rc);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn			efx_rc_t
 mcdi_mon_stats_update(
 	__in				efx_nic_t *enp,
@@ -382,6 +463,96 @@ mcdi_mon_stats_update(
 	    esmp, NULL, values);
 
 	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+static		void
+lowest_set_bit(
+	__in	uint32_t input_mask,
+	__out	uint32_t *lowest_bit_mask,
+	__out	uint32_t *lowest_bit_num
+)
+{
+	uint32_t x;
+	uint32_t set_bit, bit_index;
+
+	x = (input_mask ^ (input_mask - 1));
+	set_bit = (x + 1) >> 1;
+	if (!set_bit)
+		set_bit = (1U << 31U);
+
+	bit_index = 0;
+	if (set_bit & 0xFFFF0000)
+		bit_index += 16;
+	if (set_bit & 0xFF00FF00)
+		bit_index += 8;
+	if (set_bit & 0xF0F0F0F0)
+		bit_index += 4;
+	if (set_bit & 0xCCCCCCCC)
+		bit_index += 2;
+	if (set_bit & 0xAAAAAAAA)
+		bit_index += 1;
+
+	*lowest_bit_mask = set_bit;
+	*lowest_bit_num = bit_index;
+}
+
+	__checkReturn			efx_rc_t
+mcdi_mon_limits_update(
+	__in				efx_nic_t *enp,
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_limits_t *values)
+{
+	efx_rc_t rc;
+	uint32_t page;
+	uint32_t page_mask;
+	uint32_t limit_index;
+	efx_mon_stat_limits_t limits[sizeof (page_mask) * 8];
+	efx_mon_stat_t stat;
+
+	page = 0;
+	page--;
+	do {
+		page++;
+
+		rc = efx_mcdi_sensor_info_page(enp, page, &page_mask, limits);
+		if (rc != 0)
+			goto fail1;
+
+		limit_index = 0;
+		while (page_mask) {
+			uint32_t set_bit;
+			uint32_t page_index;
+			uint32_t mcdi_index;
+
+			if (page_mask == (1U << MC_CMD_SENSOR_PAGE0_NEXT))
+				break;
+
+			lowest_set_bit(page_mask, &set_bit, &page_index);
+			page_mask = page_mask & ~set_bit;
+
+			mcdi_index =
+			    page_index + (sizeof (page_mask) * 8 * page);
+
+			/*
+			 * This can fail if MCDI reports newer stats than the
+			 * drivers understand, or the bit is the next page bit.
+			 *
+			 * Driver needs to be tolerant of this.
+			 */
+			if (!efx_mon_mcdi_to_efx_stat(mcdi_index, &stat))
+				continue;
+
+			values[stat] = limits[limit_index];
+			limit_index++;
+		}
+
+	} while (page_mask & (1U << MC_CMD_SENSOR_PAGE0_NEXT));
+
+	return (rc);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
