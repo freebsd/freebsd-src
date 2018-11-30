@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/capsicum.h>
 #include <sys/wait.h>
 #include <assert.h>
+#include <capsicum_helpers.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
@@ -349,7 +350,6 @@ fail(const struct connection *conn, const char *reason)
 static void
 capsicate(struct connection *conn)
 {
-	int error;
 	cap_rights_t rights;
 #ifdef ICL_KERNEL_PROXY
 	const unsigned long cmds[] = { ISCSIDCONNECT, ISCSIDSEND, ISCSIDRECEIVE,
@@ -360,17 +360,13 @@ capsicate(struct connection *conn)
 #endif
 
 	cap_rights_init(&rights, CAP_IOCTL);
-	error = cap_rights_limit(conn->conn_iscsi_fd, &rights);
-	if (error != 0 && errno != ENOSYS)
+	if (caph_rights_limit(conn->conn_iscsi_fd, &rights) < 0)
 		log_err(1, "cap_rights_limit");
 
-	error = cap_ioctls_limit(conn->conn_iscsi_fd, cmds, nitems(cmds));
-
-	if (error != 0 && errno != ENOSYS)
+	if (caph_ioctls_limit(conn->conn_iscsi_fd, cmds, nitems(cmds)) < 0)
 		log_err(1, "cap_ioctls_limit");
 
-	error = cap_enter();
-	if (error != 0 && errno != ENOSYS)
+	if (caph_enter() != 0)
 		log_err(1, "cap_enter");
 
 	if (cap_sandboxed())
