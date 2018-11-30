@@ -2295,7 +2295,7 @@ typedef enum efx_rx_hash_alg_e {
  *  - a combination of legacy flags
  *  - a combination of EFX_RX_HASH() flags
  */
-typedef unsigned int efx_rx_hash_type_t;
+typedef uint32_t efx_rx_hash_type_t;
 
 typedef enum efx_rx_hash_support_e {
 	EFX_RX_HASH_UNAVAILABLE = 0,	/* Hardware hash not inserted */

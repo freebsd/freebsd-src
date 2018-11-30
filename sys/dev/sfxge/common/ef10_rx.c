@@ -404,12 +404,6 @@ efx_mcdi_rss_context_set_flags(
 	if (encp->enc_rx_scale_additional_modes_supported == B_FALSE)
 		modes = 0;
 
-#define	EXTRACT_RSS_MODE(_type, _class)		\
-	(EFX_EXTRACT_NATIVE(_type, 0, 31,	\
-	EFX_LOW_BIT(EFX_RX_CLASS_##_class),	\
-	EFX_HIGH_BIT(EFX_RX_CLASS_##_class)) &	\
-	EFX_MASK32(EFX_RX_CLASS_##_class))
-
 	MCDI_IN_POPULATE_DWORD_10(req, RSS_CONTEXT_SET_FLAGS_IN_FLAGS,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV4_EN,
 	    ((type & type_ipv4) == type_ipv4) ? 1 : 0,
@@ -420,19 +414,21 @@ efx_mcdi_rss_context_set_flags(
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV6_EN,
 	    ((type & type_ipv6_tcp) == type_ipv6_tcp) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV4_RSS_MODE,
-	    EXTRACT_RSS_MODE(modes, IPV4_TCP),
+	    (modes >> EFX_RX_CLASS_IPV4_TCP_LBN) &
+	    EFX_MASK32(EFX_RX_CLASS_IPV4_TCP),
 	    RSS_CONTEXT_SET_FLAGS_IN_UDP_IPV4_RSS_MODE,
-	    EXTRACT_RSS_MODE(modes, IPV4_UDP),
+	    (modes >> EFX_RX_CLASS_IPV4_UDP_LBN) &
+	    EFX_MASK32(EFX_RX_CLASS_IPV4_UDP),
 	    RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV4_RSS_MODE,
-	    EXTRACT_RSS_MODE(modes, IPV4),
+	    (modes >> EFX_RX_CLASS_IPV4_LBN) & EFX_MASK32(EFX_RX_CLASS_IPV4),
 	    RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV6_RSS_MODE,
-	    EXTRACT_RSS_MODE(modes, IPV6_TCP),
+	    (modes >> EFX_RX_CLASS_IPV6_TCP_LBN) &
+	    EFX_MASK32(EFX_RX_CLASS_IPV6_TCP),
 	    RSS_CONTEXT_SET_FLAGS_IN_UDP_IPV6_RSS_MODE,
-	    EXTRACT_RSS_MODE(modes, IPV6_UDP),
+	    (modes >> EFX_RX_CLASS_IPV6_UDP_LBN) &
+	    EFX_MASK32(EFX_RX_CLASS_IPV6_UDP),
 	    RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV6_RSS_MODE,
-	    EXTRACT_RSS_MODE(modes, IPV6));
-
-#undef EXTRACT_RSS_MODE
+	    (modes >> EFX_RX_CLASS_IPV6_LBN) & EFX_MASK32(EFX_RX_CLASS_IPV6));
 
 	efx_mcdi_execute(enp, &req);
 
