@@ -39,135 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #if EFSYS_OPT_MON_STATS
 
-#define	MCDI_MON_NEXT_PAGE  ((uint16_t)0xfffe)
-#define	MCDI_MON_INVALID_SENSOR ((uint16_t)0xfffd)
-#define	MCDI_MON_PAGE_SIZE 0x20
-
-/* Bitmasks of valid port(s) for each sensor */
-#define	MCDI_MON_PORT_NONE	(0x00)
-#define	MCDI_MON_PORT_P1	(0x01)
-#define	MCDI_MON_PORT_P2	(0x02)
-#define	MCDI_MON_PORT_P3	(0x04)
-#define	MCDI_MON_PORT_P4	(0x08)
-#define	MCDI_MON_PORT_Px	(0xFFFF)
-
 /* Get port mask from one-based MCDI port number */
 #define	MCDI_MON_PORT_MASK(_emip) (1U << ((_emip)->emi_port - 1))
-
-/* Entry for MCDI sensor in sensor map */
-#define	STAT(portmask, stat)	\
-	{ (MCDI_MON_PORT_##portmask), (EFX_MON_STAT_##stat) }
-
-/* Entry for sensor next page flag in sensor map */
-#define	STAT_NEXT_PAGE()	\
-	{ MCDI_MON_PORT_NONE, MCDI_MON_NEXT_PAGE }
-
-/* Placeholder for gaps in the array */
-#define	STAT_NO_SENSOR()	\
-	{ MCDI_MON_PORT_NONE, MCDI_MON_INVALID_SENSOR }
-
-/* Map from MC sensors to monitor statistics */
-static const struct mcdi_sensor_map_s {
-	uint16_t	msm_port_mask;
-	uint16_t	msm_stat;
-} mcdi_sensor_map[] = {
-	/* Sensor page 0		MC_CMD_SENSOR_xxx */
-	STAT(Px, INT_TEMP),		/* 0x00 CONTROLLER_TEMP */
-	STAT(Px, EXT_TEMP),		/* 0x01 PHY_COMMON_TEMP */
-	STAT(Px, INT_COOLING),		/* 0x02 CONTROLLER_COOLING */
-	STAT(P1, EXT_TEMP),		/* 0x03 PHY0_TEMP */
-	STAT(P1, EXT_COOLING),		/* 0x04 PHY0_COOLING */
-	STAT(P2, EXT_TEMP),		/* 0x05 PHY1_TEMP */
-	STAT(P2, EXT_COOLING),		/* 0x06 PHY1_COOLING */
-	STAT(Px, 1V),			/* 0x07 IN_1V0 */
-	STAT(Px, 1_2V),			/* 0x08 IN_1V2 */
-	STAT(Px, 1_8V),			/* 0x09 IN_1V8 */
-	STAT(Px, 2_5V),			/* 0x0a IN_2V5 */
-	STAT(Px, 3_3V),			/* 0x0b IN_3V3 */
-	STAT(Px, 12V),			/* 0x0c IN_12V0 */
-	STAT(Px, 1_2VA),		/* 0x0d IN_1V2A */
-	STAT(Px, VREF),			/* 0x0e IN_VREF */
-	STAT(Px, VAOE),			/* 0x0f OUT_VAOE */
-	STAT(Px, AOE_TEMP),		/* 0x10 AOE_TEMP */
-	STAT(Px, PSU_AOE_TEMP),		/* 0x11 PSU_AOE_TEMP */
-	STAT(Px, PSU_TEMP),		/* 0x12 PSU_TEMP */
-	STAT(Px, FAN0),			/* 0x13 FAN_0 */
-	STAT(Px, FAN1),			/* 0x14 FAN_1 */
-	STAT(Px, FAN2),			/* 0x15 FAN_2 */
-	STAT(Px, FAN3),			/* 0x16 FAN_3 */
-	STAT(Px, FAN4),			/* 0x17 FAN_4 */
-	STAT(Px, VAOE_IN),		/* 0x18 IN_VAOE */
-	STAT(Px, IAOE),			/* 0x19 OUT_IAOE */
-	STAT(Px, IAOE_IN),		/* 0x1a IN_IAOE */
-	STAT(Px, NIC_POWER),		/* 0x1b NIC_POWER */
-	STAT(Px, 0_9V),			/* 0x1c IN_0V9 */
-	STAT(Px, I0_9V),		/* 0x1d IN_I0V9 */
-	STAT(Px, I1_2V),		/* 0x1e IN_I1V2 */
-	STAT_NEXT_PAGE(),		/* 0x1f Next page flag (not a sensor) */
-
-	/* Sensor page 1		MC_CMD_SENSOR_xxx */
-	STAT(Px, 0_9V_ADC),		/* 0x20 IN_0V9_ADC */
-	STAT(Px, INT_TEMP2),		/* 0x21 CONTROLLER_2_TEMP */
-	STAT(Px, VREG_TEMP),		/* 0x22 VREG_INTERNAL_TEMP */
-	STAT(Px, VREG_0_9V_TEMP),	/* 0x23 VREG_0V9_TEMP */
-	STAT(Px, VREG_1_2V_TEMP),	/* 0x24 VREG_1V2_TEMP */
-	STAT(Px, INT_VPTAT),		/* 0x25 CTRLR. VPTAT */
-	STAT(Px, INT_ADC_TEMP),		/* 0x26 CTRLR. INTERNAL_TEMP */
-	STAT(Px, EXT_VPTAT),		/* 0x27 CTRLR. VPTAT_EXTADC */
-	STAT(Px, EXT_ADC_TEMP),		/* 0x28 CTRLR. INTERNAL_TEMP_EXTADC */
-	STAT(Px, AMBIENT_TEMP),		/* 0x29 AMBIENT_TEMP */
-	STAT(Px, AIRFLOW),		/* 0x2a AIRFLOW */
-	STAT(Px, VDD08D_VSS08D_CSR),	/* 0x2b VDD08D_VSS08D_CSR */
-	STAT(Px, VDD08D_VSS08D_CSR_EXTADC), /* 0x2c VDD08D_VSS08D_CSR_EXTADC */
-	STAT(Px, HOTPOINT_TEMP),	/* 0x2d HOTPOINT_TEMP */
-	STAT(P1, PHY_POWER_SWITCH_PORT0),   /* 0x2e PHY_POWER_SWITCH_PORT0 */
-	STAT(P2, PHY_POWER_SWITCH_PORT1),   /* 0x2f PHY_POWER_SWITCH_PORT1 */
-	STAT(Px, MUM_VCC),		/* 0x30 MUM_VCC */
-	STAT(Px, 0V9_A),		/* 0x31 0V9_A */
-	STAT(Px, I0V9_A),		/* 0x32 I0V9_A */
-	STAT(Px, 0V9_A_TEMP),		/* 0x33 0V9_A_TEMP */
-	STAT(Px, 0V9_B),		/* 0x34 0V9_B */
-	STAT(Px, I0V9_B),		/* 0x35 I0V9_B */
-	STAT(Px, 0V9_B_TEMP),		/* 0x36 0V9_B_TEMP */
-	STAT(Px, CCOM_AVREG_1V2_SUPPLY),  /* 0x37 CCOM_AVREG_1V2_SUPPLY */
-	STAT(Px, CCOM_AVREG_1V2_SUPPLY_EXT_ADC),
-					/* 0x38 CCOM_AVREG_1V2_SUPPLY_EXT_ADC */
-	STAT(Px, CCOM_AVREG_1V8_SUPPLY),  /* 0x39 CCOM_AVREG_1V8_SUPPLY */
-	STAT(Px, CCOM_AVREG_1V8_SUPPLY_EXT_ADC),
-					/* 0x3a CCOM_AVREG_1V8_SUPPLY_EXT_ADC */
-	STAT_NO_SENSOR(),		/* 0x3b (no sensor) */
-	STAT_NO_SENSOR(),		/* 0x3c (no sensor) */
-	STAT_NO_SENSOR(),		/* 0x3d (no sensor) */
-	STAT_NO_SENSOR(),		/* 0x3e (no sensor) */
-	STAT_NEXT_PAGE(),		/* 0x3f Next page flag (not a sensor) */
-
-	/* Sensor page 2		MC_CMD_SENSOR_xxx */
-	STAT(Px, CONTROLLER_MASTER_VPTAT),	   /* 0x40 MASTER_VPTAT */
-	STAT(Px, CONTROLLER_MASTER_INTERNAL_TEMP), /* 0x41 MASTER_INT_TEMP */
-	STAT(Px, CONTROLLER_MASTER_VPTAT_EXT_ADC), /* 0x42 MAST_VPTAT_EXT_ADC */
-	STAT(Px, CONTROLLER_MASTER_INTERNAL_TEMP_EXT_ADC),
-					/* 0x43 MASTER_INTERNAL_TEMP_EXT_ADC */
-	STAT(Px, CONTROLLER_SLAVE_VPTAT),	  /* 0x44 SLAVE_VPTAT */
-	STAT(Px, CONTROLLER_SLAVE_INTERNAL_TEMP), /* 0x45 SLAVE_INTERNAL_TEMP */
-	STAT(Px, CONTROLLER_SLAVE_VPTAT_EXT_ADC), /* 0x46 SLAVE_VPTAT_EXT_ADC */
-	STAT(Px, CONTROLLER_SLAVE_INTERNAL_TEMP_EXT_ADC),
-					/* 0x47 SLAVE_INTERNAL_TEMP_EXT_ADC */
-	STAT_NO_SENSOR(),		/* 0x48 (no sensor) */
-	STAT(Px, SODIMM_VOUT),		/* 0x49 SODIMM_VOUT */
-	STAT(Px, SODIMM_0_TEMP),	/* 0x4a SODIMM_0_TEMP */
-	STAT(Px, SODIMM_1_TEMP),	/* 0x4b SODIMM_1_TEMP */
-	STAT(Px, PHY0_VCC),		/* 0x4c PHY0_VCC */
-	STAT(Px, PHY1_VCC),		/* 0x4d PHY1_VCC */
-	STAT(Px, CONTROLLER_TDIODE_TEMP), /* 0x4e CONTROLLER_TDIODE_TEMP */
-	STAT(Px, BOARD_FRONT_TEMP),	/* 0x4f BOARD_FRONT_TEMP */
-	STAT(Px, BOARD_BACK_TEMP),	/* 0x50 BOARD_BACK_TEMP */
-	STAT(Px, I1V8),			/* 0x51 IN_I1V8 */
-	STAT(Px, I2V5),			/* 0x52 IN_I2V5 */
-	STAT(Px, I3V3),			/* 0x53 IN_I3V3 */
-	STAT(Px, I12V0),		/* 0x54 IN_I12V0 */
-	STAT(Px, 1_3V),			/* 0x55 IN_1V3 */
-	STAT(Px, I1V3),			/* 0x56 IN_I1V3 */
-};
 
 #define	MCDI_STATIC_SENSOR_ASSERT(_field)				\
 	EFX_STATIC_ASSERT(MC_CMD_SENSOR_STATE_ ## _field		\
@@ -183,10 +56,10 @@ mcdi_mon_decode_stats(
 	__inout_ecount_opt(EFX_MON_NSTATS)	efx_mon_stat_value_t *stat)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	uint16_t port_mask;
+	efx_mon_stat_portmask_t port_mask;
 	uint16_t sensor;
 	size_t sensor_max;
-	uint32_t stat_mask[(EFX_ARRAY_SIZE(mcdi_sensor_map) + 31) / 32];
+	uint32_t stat_mask[(EFX_MON_NSTATS + 31) / 32];
 	uint32_t idx = 0;
 	uint32_t page = 0;
 
@@ -197,13 +70,10 @@ mcdi_mon_decode_stats(
 	MCDI_STATIC_SENSOR_ASSERT(BROKEN);
 	MCDI_STATIC_SENSOR_ASSERT(NO_READING);
 
-	EFX_STATIC_ASSERT(sizeof (stat_mask[0]) * 8 ==
-	    EFX_MON_MASK_ELEMENT_SIZE);
-	sensor_max =
-	    MIN((8 * sensor_mask_size), EFX_ARRAY_SIZE(mcdi_sensor_map));
+	sensor_max = 8 * sensor_mask_size;
 
 	EFSYS_ASSERT(emip->emi_port > 0); /* MCDI port number is one-based */
-	port_mask = MCDI_MON_PORT_MASK(emip);
+	port_mask = (efx_mon_stat_portmask_t)MCDI_MON_PORT_MASK(emip);
 
 	memset(stat_mask, 0, sizeof (stat_mask));
 
@@ -218,19 +88,36 @@ mcdi_mon_decode_stats(
 	 * does not understand.
 	 */
 	for (sensor = 0; sensor < sensor_max; ++sensor) {
-		efx_mon_stat_t id = mcdi_sensor_map[sensor].msm_stat;
+		efx_mon_stat_t id;
+		efx_mon_stat_portmask_t stat_portmask = 0;
+		boolean_t decode_ok;
+		efx_mon_stat_unit_t stat_unit;
 
-		if ((sensor % MCDI_MON_PAGE_SIZE) == MC_CMD_SENSOR_PAGE0_NEXT) {
-			EFSYS_ASSERT3U(id, ==, MCDI_MON_NEXT_PAGE);
+		if ((sensor % (MC_CMD_SENSOR_PAGE0_NEXT + 1)) ==
+		    MC_CMD_SENSOR_PAGE0_NEXT) {
 			page++;
 			continue;
+			/* This sensor is one of the page boundary bits. */
 		}
+
 		if (~(sensor_mask[page]) & (1U << sensor))
 			continue;
-		idx++;
+		/* This sensor not in DMA buffer */
 
-		if ((port_mask & mcdi_sensor_map[sensor].msm_port_mask) == 0)
+		idx++;
+		/*
+		 * Valid stat in DMA buffer that we need to increment over, even
+		 * if we couldn't look up the id
+		 */
+
+		decode_ok = efx_mon_mcdi_to_efx_stat(sensor, &id);
+		decode_ok =
+		    decode_ok && efx_mon_get_stat_portmap(id, &stat_portmask);
+
+		if (!(decode_ok && (stat_portmask & port_mask)))
 			continue;
+		/* Either bad decode, or don't know what port stat is on */
+
 		EFSYS_ASSERT(id < EFX_MON_NSTATS);
 
 		/*
@@ -256,6 +143,10 @@ mcdi_mon_decode_stats(
 
 			stat[id].emsv_state = (uint16_t)EFX_DWORD_FIELD(dword,
 			    MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_STATE);
+
+			stat[id].emsv_unit =
+			    efx_mon_get_stat_unit(id, &stat_unit) ?
+			    stat_unit : EFX_MON_STAT_UNIT_UNKNOWN;
 		}
 	}
 
@@ -272,7 +163,7 @@ mcdi_mon_ev(
 	__out				efx_mon_stat_value_t *valuep)
 {
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
-	uint16_t port_mask;
+	efx_mon_stat_portmask_t port_mask, sensor_port_mask;
 	uint16_t sensor;
 	uint16_t state;
 	uint16_t value;
@@ -289,20 +180,22 @@ mcdi_mon_ev(
 	/* Hardware must support this MCDI sensor */
 	EFSYS_ASSERT3U(sensor, <,
 	    (8 * enp->en_nic_cfg.enc_mcdi_sensor_mask_size));
-	EFSYS_ASSERT((sensor % MCDI_MON_PAGE_SIZE) != MC_CMD_SENSOR_PAGE0_NEXT);
+	EFSYS_ASSERT((sensor % (MC_CMD_SENSOR_PAGE0_NEXT + 1)) !=
+	    MC_CMD_SENSOR_PAGE0_NEXT);
 	EFSYS_ASSERT(enp->en_nic_cfg.enc_mcdi_sensor_maskp != NULL);
-	EFSYS_ASSERT(
-	    (enp->en_nic_cfg.enc_mcdi_sensor_maskp[sensor/MCDI_MON_PAGE_SIZE] &
-	    (1U << (sensor % MCDI_MON_PAGE_SIZE))) != 0);
+	EFSYS_ASSERT((enp->en_nic_cfg.enc_mcdi_sensor_maskp[
+		    sensor / (MC_CMD_SENSOR_PAGE0_NEXT + 1)] &
+		(1U << (sensor % (MC_CMD_SENSOR_PAGE0_NEXT + 1)))) != 0);
 
-	/* But we don't have to understand it */
-	if (sensor >= EFX_ARRAY_SIZE(mcdi_sensor_map)) {
+	/* And we need to understand it, to get port-map */
+	if (!efx_mon_mcdi_to_efx_stat(sensor, &id)) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
-	id = mcdi_sensor_map[sensor].msm_stat;
-	if ((port_mask & mcdi_sensor_map[sensor].msm_port_mask) == 0)
+	if (!(efx_mon_get_stat_portmap(id, &sensor_port_mask) &&
+		(port_mask && sensor_port_mask))) {
 		return (ENODEV);
+	}
 	EFSYS_ASSERT(id < EFX_MON_NSTATS);
 
 	*idp = id;
