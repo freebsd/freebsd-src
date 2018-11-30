@@ -79,7 +79,9 @@ ATF_TC_BODY(ss_onstack, tc)
 	stack_t ss = {
 		.ss_size = SIGSTKSZ,
 	};
-	stack_t oss = {0};
+	stack_t oss = {
+		.ss_size = 0,
+	};
 
 	ss.ss_sp = malloc(ss.ss_size);
 	ATF_REQUIRE(ss.ss_sp != NULL);
