@@ -109,7 +109,7 @@ system:
 .Bd -literal -offset indent
 svnlite co https://svn.FreeBSD.org/base/head src
 cd src
-make -j8 buildworld buildkernel installkernel
+make -sj8 buildworld buildkernel installkernel
 shutdown -r now
 .Ed
 .Pp
@@ -133,7 +133,7 @@ changed since last build; note that this will only work if the full kernel
 build has been completed in the past, not on a fresh source tree:
 .Bd -literal -offset indent
 cd src
-make -j8 kernel KERNFAST=1
+make -sj8 kernel KERNFAST=1
 .Ed
 .Sh SEE ALSO
 .Xr svnlite 1 ,
