@@ -1468,6 +1468,9 @@ fail1:
 }
 
 
+#define	EFX_EXT_PORT_MAX	4
+#define	EFX_EXT_PORT_NA		0xFF
+
 /*
  * Table of mapping schemes from port number to external number.
  *
@@ -1481,7 +1484,7 @@ fail1:
  *   port mapping (n:1)
  *     |
  *     v
- * External port number (normally 1-based)
+ * External port number (1-based)
  *     |
  *   fixed (1:1) or cable assembly (1:m)
  *     |
@@ -1493,9 +1496,8 @@ fail1:
  * how to determine which external cage/magjack corresponds to the port
  * numbers used by the driver.
  *
- * The count of adjacent port numbers that map to each external number,
- * and the offset in the numbering, is determined by the chip family and
- * current port mode.
+ * The count of consecutive port numbers that map to each external number,
+ * is determined by the chip family and the current port mode.
  *
  * For the Huntington family, the current port mode cannot be discovered,
  * but a single mapping is used by all modes for a given chip variant,
@@ -1506,8 +1508,7 @@ fail1:
 static struct ef10_external_port_map_s {
 	efx_family_t	family;
 	uint32_t	modes_mask;
-	int32_t		count;
-	int32_t		offset;
+	uint8_t		base_port[EFX_EXT_PORT_MAX];
 }	__ef10_external_port_mappings[] = {
 	/*
 	 * Modes used by Huntington family controllers where each port
@@ -1526,8 +1527,7 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_10G) |			/* mode 0 */
 		(1U << TLV_PORT_MODE_10G_10G) |			/* mode 2 */
 		(1U << TLV_PORT_MODE_10G_10G_10G_10G),		/* mode 4 */
-		1,	/* ports per cage */
-		1	/* first cage */
+		{ 0, 1, 2, 3 }
 	},
 	/*
 	 * Modes which for Huntington identify a chip variant where 2
@@ -1544,8 +1544,7 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_40G_40G) |			/* mode 3 */
 		(1U << TLV_PORT_MODE_40G_10G_10G) |		/* mode 6 */
 		(1U << TLV_PORT_MODE_10G_10G_40G),		/* mode 7 */
-		2,	/* ports per cage */
-		1	/* first cage */
+		{ 0, 2, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford allocate each port number to a separate
@@ -1559,8 +1558,7 @@ static struct ef10_external_port_map_s {
 		EFX_FAMILY_MEDFORD,
 		(1U << TLV_PORT_MODE_1x1_NA) |			/* mode 0 */
 		(1U << TLV_PORT_MODE_1x1_1x1),			/* mode 2 */
-		1,	/* ports per cage */
-		1	/* first cage */
+		{ 0, 1, 2, 3 }
 	},
 	/*
 	 * Modes that on Medford allocate 2 adjacent port numbers to each
@@ -1578,8 +1576,7 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_2x1_1x4) |			/* mode 7 */
 		/* Do not use 10G_10G_10G_10G_Q1_Q2 (see bug63270) */
 		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2),	/* mode 9 */
-		2,	/* ports per cage */
-		1	/* first cage */
+		{ 0, 2, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford allocate 4 adjacent port numbers to each
@@ -1594,8 +1591,7 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_2x1_2x1) |			/* mode 5 */
 		/* Do not use 10G_10G_10G_10G_Q1 (see bug63270) */
 		(1U << TLV_PORT_MODE_4x1_NA),			/* mode 4 */
-		4,	/* ports per cage */
-		1	/* first cage */
+		{ 0, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford allocate 4 adjacent port numbers to each
@@ -1608,8 +1604,7 @@ static struct ef10_external_port_map_s {
 	{
 		EFX_FAMILY_MEDFORD,
 		(1U << TLV_PORT_MODE_NA_4x1),			/* mode 8 */
-		4,	/* ports per cage */
-		2	/* first cage */
+		{ EFX_EXT_PORT_NA, 0, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford2 allocate each port number to a separate
@@ -1628,16 +1623,21 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_1x2_1x2) |			/* mode 12 */
 		(1U << TLV_PORT_MODE_1x4_1x2) |			/* mode 15 */
 		(1U << TLV_PORT_MODE_1x2_1x4),			/* mode 16 */
-		1,	/* ports per cage */
-		1	/* first cage */
+		{ 0, 1, 2, 3 }
 	},
 	/*
-	 * FIXME: Some port modes are not representable in this mapping:
-	 *  - TLV_PORT_MODE_1x2_2x1 (mode 17):
+	 * Modes that on Medford2 allocate 1 port to cage 1 and the rest
+	 * to cage 2.
 	 *	port 0 -> cage 1
 	 *	port 1 -> cage 2
 	 *	port 2 -> cage 2
 	 */
+	{
+		EFX_FAMILY_MEDFORD2,
+		(1U << TLV_PORT_MODE_1x2_2x1) |			/* mode 17 */
+		(1U << TLV_PORT_MODE_1x4_2x1),			/* mode 6 */
+		{ 0, 1, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
+	},
 	/*
 	 * Modes that on Medford2 allocate 2 adjacent port numbers to each
 	 * cage, starting on cage 1.
@@ -1654,8 +1654,7 @@ static struct ef10_external_port_map_s {
 		(1U << TLV_PORT_MODE_2x1_1x4) |			/* mode 7 */
 		(1U << TLV_PORT_MODE_2x2_NA) |			/* mode 13 */
 		(1U << TLV_PORT_MODE_2x1_1x2),			/* mode 18 */
-		2,	/* ports per cage */
-		1	/* first cage */
+		{ 0, 2, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford2 allocate 2 adjacent port numbers to each
@@ -1666,8 +1665,7 @@ static struct ef10_external_port_map_s {
 	{
 		EFX_FAMILY_MEDFORD2,
 		(1U << TLV_PORT_MODE_NA_2x2),			/* mode 14 */
-		2,	/* ports per cage */
-		2	/* first cage */
+		{ EFX_EXT_PORT_NA, 0, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford2 allocate 4 adjacent port numbers to each
@@ -1680,8 +1678,7 @@ static struct ef10_external_port_map_s {
 	{
 		EFX_FAMILY_MEDFORD2,
 		(1U << TLV_PORT_MODE_4x1_NA),			/* mode 5 */
-		4,	/* ports per cage */
-		1	/* first cage */
+		{ 0, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 	/*
 	 * Modes that on Medford2 allocate 4 adjacent port numbers to each
@@ -1695,8 +1692,7 @@ static struct ef10_external_port_map_s {
 		EFX_FAMILY_MEDFORD2,
 		(1U << TLV_PORT_MODE_NA_4x1) |			/* mode 8 */
 		(1U << TLV_PORT_MODE_NA_1x2),			/* mode 11 */
-		4,	/* ports per cage */
-		2	/* first cage */
+		{ EFX_EXT_PORT_NA, 0, EFX_EXT_PORT_NA, EFX_EXT_PORT_NA }
 	},
 };
 
@@ -1711,8 +1707,8 @@ ef10_external_port_mapping(
 	uint32_t port_modes;
 	uint32_t matches;
 	uint32_t current;
-	int32_t count = 1; /* Default 1-1 mapping */
-	int32_t offset = 1; /* Default starting external port number */
+	struct ef10_external_port_map_s *mapp = NULL;
+	int ext_index = port; /* Default 1-1 mapping */
 
 	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, &current,
 		    NULL)) != 0) {
@@ -1749,8 +1745,7 @@ ef10_external_port_mapping(
 			 * there will be multiple matches. The mapping on the
 			 * last match is used.
 			 */
-			count = eepmp->count;
-			offset = eepmp->offset;
+			mapp = eepmp;
 			port_modes &= ~matches;
 		}
 	}
@@ -1762,11 +1757,25 @@ ef10_external_port_mapping(
 	}
 
 out:
-	/*
-	 * Scale as required by last matched mode and then convert to
-	 * correctly offset numbering
-	 */
-	*external_portp = (uint8_t)((port / count) + offset);
+	if (mapp != NULL) {
+		/*
+		 * External ports are assigned a sequence of consecutive
+		 * port numbers, so find the one with the closest base_port.
+		 */
+		uint32_t delta = EFX_EXT_PORT_NA;
+
+		for (i = 0; i < EFX_EXT_PORT_MAX; i++) {
+			uint32_t base = mapp->base_port[i];
+			if ((base != EFX_EXT_PORT_NA) && (base <= port)) {
+				if ((port - base) < delta) {
+					delta = (port - base);
+					ext_index = i;
+				}
+			}
+		}
+	}
+	*external_portp = (uint8_t)(ext_index + 1);
+
 	return (0);
 
 fail1:
