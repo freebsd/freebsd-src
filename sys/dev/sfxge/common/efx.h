@@ -183,6 +183,10 @@ extern	__checkReturn	efx_rc_t
 efx_nic_reset(
 	__in		efx_nic_t *enp);
 
+extern	__checkReturn	boolean_t
+efx_nic_hw_unavailable(
+	__in		efx_nic_t *enp);
+
 #if EFSYS_OPT_DIAG
 
 extern	__checkReturn	efx_rc_t
