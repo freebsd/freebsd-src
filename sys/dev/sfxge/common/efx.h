@@ -1058,6 +1058,27 @@ efx_phy_media_type_get(
 	__in		efx_nic_t *enp,
 	__out		efx_phy_media_type_t *typep);
 
+/*
+ * 2-wire device address of the base information in accordance with SFF-8472
+ * Diagnostic Monitoring Interface for Optical Transceivers section
+ * 4 Memory Organization.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_BASE	0xA0
+
+/*
+ * 2-wire device address of the digital diagnostics monitoring interface
+ * in accordance with SFF-8472 Diagnostic Monitoring Interface for Optical
+ * Transceivers section 4 Memory Organization.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_SFP_DDM	0xA2
+
+/*
+ * Hard wired 2-wire device address for QSFP+ in accordance with SFF-8436
+ * QSFP+ 10 Gbs 4X PLUGGABLE TRANSCEIVER section 7.4 Device Addressing and
+ * Operation.
+ */
+#define	EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP	0xA0
+
 extern	__checkReturn		efx_rc_t
 efx_phy_module_get_info(
 	__in			efx_nic_t *enp,
