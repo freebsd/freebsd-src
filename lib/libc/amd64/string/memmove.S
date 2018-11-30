@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 /*
  * memmove(dst, src, cnt)
  *         rdi, rsi, rdx
- * Contains parts of bcopy written by:
- *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
 
 /*
