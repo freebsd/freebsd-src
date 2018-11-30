@@ -497,7 +497,7 @@ efx_nvram_validate(
 		goto fail1;
 
 	if (envop->envo_buffer_validate != NULL) {
-		if ((rc = envop->envo_buffer_validate(enp, partn,
+		if ((rc = envop->envo_buffer_validate(partn,
 			    partn_data, partn_size)) != 0)
 			goto fail2;
 	}
