@@ -21,7 +21,8 @@ SRCS+=	efx_tx.c efx_vpd.c efx_filter.c efx_hash.c
 SRCS+=	efsys.h
 SRCS+=	efx.h efx_annote.h efx_check.h efx_impl.h efx_mcdi.h
 SRCS+=	efx_regs.h efx_regs_ef10.h
-SRCS+=	efx_regs_mcdi.h efx_regs_mcdi_aoe.h efx_regs_pci.h efx_types.h
+SRCS+=	efx_regs_mcdi.h efx_regs_mcdi_aoe.h efx_regs_mcdi_strs.h
+SRCS+=	efx_regs_pci.h efx_types.h
 SRCS+=	efx_phy_ids.h
 SRCS+=	ef10_tlv_layout.h
 
