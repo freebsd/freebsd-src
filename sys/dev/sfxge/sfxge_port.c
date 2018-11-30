@@ -308,7 +308,10 @@ static const uint64_t sfxge_link_baudrate[EFX_LINK_NMODES] = {
 	[EFX_LINK_1000HDX]	= IF_Gbps(1),
 	[EFX_LINK_1000FDX]	= IF_Gbps(1),
 	[EFX_LINK_10000FDX]	= IF_Gbps(10),
+	[EFX_LINK_25000FDX]	= IF_Gbps(25),
 	[EFX_LINK_40000FDX]	= IF_Gbps(40),
+	[EFX_LINK_50000FDX]	= IF_Gbps(50),
+	[EFX_LINK_100000FDX]	= IF_Gbps(100),
 };
 
 void
@@ -836,12 +839,16 @@ static const int sfxge_link_mode[EFX_PHY_MEDIA_NTYPES][EFX_LINK_NMODES] = {
 	[EFX_PHY_MEDIA_QSFP_PLUS] = {
 		/* Don't know the module type, but assume SR for now. */
 		[EFX_LINK_10000FDX]	= IFM_ETHER | IFM_FDX | IFM_10G_SR,
+		[EFX_LINK_25000FDX]	= IFM_ETHER | IFM_FDX | IFM_25G_SR,
 		[EFX_LINK_40000FDX]	= IFM_ETHER | IFM_FDX | IFM_40G_CR4,
+		[EFX_LINK_50000FDX]	= IFM_ETHER | IFM_FDX | IFM_50G_SR,
+		[EFX_LINK_100000FDX]	= IFM_ETHER | IFM_FDX | IFM_100G_SR2,
 	},
 	[EFX_PHY_MEDIA_SFP_PLUS] = {
 		/* Don't know the module type, but assume SX/SR for now. */
 		[EFX_LINK_1000FDX]	= IFM_ETHER | IFM_FDX | IFM_1000_SX,
 		[EFX_LINK_10000FDX]	= IFM_ETHER | IFM_FDX | IFM_10G_SR,
+		[EFX_LINK_25000FDX]	= IFM_ETHER | IFM_FDX | IFM_25G_SR,
 	},
 	[EFX_PHY_MEDIA_BASE_T] = {
 		[EFX_LINK_10HDX]	= IFM_ETHER | IFM_HDX | IFM_10_T,
@@ -897,8 +904,14 @@ sfxge_link_mode_to_phy_cap(efx_link_mode_t mode)
 		return (EFX_PHY_CAP_1000FDX);
 	case EFX_LINK_10000FDX:
 		return (EFX_PHY_CAP_10000FDX);
+	case EFX_LINK_25000FDX:
+		return (EFX_PHY_CAP_25000FDX);
 	case EFX_LINK_40000FDX:
 		return (EFX_PHY_CAP_40000FDX);
+	case EFX_LINK_50000FDX:
+		return (EFX_PHY_CAP_50000FDX);
+	case EFX_LINK_100000FDX:
+		return (EFX_PHY_CAP_100000FDX);
 	default:
 		return (EFX_PHY_CAP_INVALID);
 	}
