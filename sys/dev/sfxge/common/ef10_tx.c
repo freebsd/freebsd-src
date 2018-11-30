@@ -568,12 +568,9 @@ ef10_tx_qdesc_post(
 {
 	unsigned int added = *addedp;
 	unsigned int i;
-	efx_rc_t rc;
 
-	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
-		rc = ENOSPC;
-		goto fail1;
-	}
+	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1))
+		return (ENOSPC);
 
 	for (i = 0; i < ndescs; i++) {
 		efx_desc_t *edp = &ed[i];
@@ -593,11 +590,6 @@ ef10_tx_qdesc_post(
 
 	*addedp = added;
 	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
 }
 
 	void
