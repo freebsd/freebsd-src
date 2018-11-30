@@ -537,7 +537,7 @@ typedef struct efx_nvram_ops_s {
 					    uint32_t *, uint16_t *);
 	efx_rc_t	(*envo_partn_set_version)(efx_nic_t *, uint32_t,
 					    uint16_t *);
-	efx_rc_t	(*envo_buffer_validate)(efx_nic_t *, uint32_t,
+	efx_rc_t	(*envo_buffer_validate)(uint32_t,
 					    caddr_t, size_t);
 } efx_nvram_ops_t;
 #endif /* EFSYS_OPT_NVRAM */
