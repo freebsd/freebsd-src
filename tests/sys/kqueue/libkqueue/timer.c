@@ -34,11 +34,10 @@ int kqfd;
 static long
 now(void)
 {
-  
-	struct timeval tv;
+    struct timeval tv;
 
-	gettimeofday(&tv, NULL);
-	return SEC_TO_US(tv.tv_sec) + tv.tv_usec;
+    gettimeofday(&tv, NULL);
+    return SEC_TO_US(tv.tv_sec) + tv.tv_usec;
 }
 
 /* Sleep for a given number of milliseconds. The timeout is assumed to
@@ -47,13 +46,12 @@ now(void)
 void
 mssleep(int t)
 {
+    struct timespec stime = {
+        .tv_sec = 0,
+        .tv_nsec = US_TO_NS(MS_TO_US(t)),
+    };
 
-	struct timespec stime = {
-	    .tv_sec = 0,
-	    .tv_nsec = US_TO_NS(MS_TO_US(t)),
-	};
-
-	nanosleep(&stime, NULL);
+    nanosleep(&stime, NULL);
 }
 
 /* Sleep for a given number of microseconds. The timeout is assumed to
@@ -62,13 +60,12 @@ mssleep(int t)
 void
 ussleep(int t)
 {
+    struct timespec stime = {
+        .tv_sec = 0,
+        .tv_nsec = US_TO_NS(t),
+    };
 
-	struct timespec stime = {
-	    .tv_sec = 0,
-	    .tv_nsec = US_TO_NS(t),
-	};
-
-	nanosleep(&stime, NULL);
+    nanosleep(&stime, NULL);
 }
 
 void
@@ -229,16 +226,16 @@ test_update(void)
 
     /* First set the timer to 1 second */
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-	NOTE_USECONDS, SEC_TO_US(1), (void *)1);
+        NOTE_USECONDS, SEC_TO_US(1), (void *)1);
     start = now();
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Now reduce the timer to 1 ms */
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-	NOTE_USECONDS, MS_TO_US(1), (void *)2);
+        NOTE_USECONDS, MS_TO_US(1), (void *)2);
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Wait for the event */
     kev.flags |= EV_CLEAR;
@@ -253,9 +250,9 @@ test_update(void)
      */
     printf("timer expired after %ld us\n", elapsed);
     if (elapsed < MS_TO_US(1))
-	errx(1, "early timer expiration: %ld us", elapsed);
+        errx(1, "early timer expiration: %ld us", elapsed);
     if (elapsed > SEC_TO_US(1))
-	errx(1, "late timer expiration: %ld us", elapsed);
+        errx(1, "late timer expiration: %ld us", elapsed);
 
     success();
 }
@@ -274,9 +271,9 @@ test_update_equal(void)
 
     /* First set the timer to 1 ms */
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-	NOTE_USECONDS, MS_TO_US(1), NULL);
+        NOTE_USECONDS, MS_TO_US(1), NULL);
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Sleep for a significant fraction of the timeout. */
     ussleep(600);
@@ -284,7 +281,7 @@ test_update_equal(void)
     /* Now re-add the timer with the same parameters */
     start = now();
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Wait for the event */
     kev.flags |= EV_CLEAR;
@@ -299,7 +296,7 @@ test_update_equal(void)
      */
     printf("timer expired after %ld us\n", elapsed);
     if (elapsed < MS_TO_US(1))
-	errx(1, "early timer expiration: %ld us", elapsed);
+        errx(1, "early timer expiration: %ld us", elapsed);
 
     success();
 }
@@ -318,9 +315,9 @@ test_update_expired(void)
 
     /* Set the timer to 1ms */
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-	NOTE_USECONDS, MS_TO_US(1), NULL);
+        NOTE_USECONDS, MS_TO_US(1), NULL);
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Wait for 2 ms to give the timer plenty of time to expire. */
     mssleep(2);
@@ -328,7 +325,7 @@ test_update_expired(void)
     /* Now re-add the timer */
     start = now();
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Wait for the event */
     kev.flags |= EV_CLEAR;
@@ -343,7 +340,7 @@ test_update_expired(void)
      */
     printf("timer expired after %ld us\n", elapsed);
     if (elapsed < MS_TO_US(1))
-	errx(1, "early timer expiration: %ld us", elapsed);
+        errx(1, "early timer expiration: %ld us", elapsed);
 
     /* Make sure the re-added timer does not fire. In other words,
      * test that the event received above was the only event from the
@@ -370,7 +367,7 @@ test_update_periodic(void)
 
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD, 0, SEC_TO_MS(1), NULL);
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Retrieve the event */
     kev.flags = EV_ADD | EV_CLEAR;
@@ -385,7 +382,7 @@ test_update_periodic(void)
     EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD, 0, SEC_TO_MS(2), NULL);
     start = now();
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     /* Retrieve the event */
     kev.flags = EV_ADD | EV_CLEAR;
@@ -399,12 +396,12 @@ test_update_periodic(void)
      */
     printf("timer expired after %ld us\n", elapsed);
     if (elapsed < MS_TO_US(2))
-	errx(1, "early timer expiration: %ld us", elapsed);
+        errx(1, "early timer expiration: %ld us", elapsed);
 
     /* Delete the event */
     kev.flags = EV_DELETE;
     if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	err(1, "%s", test_id);
+        err(1, "%s", test_id);
 
     success();
 }
@@ -432,46 +429,46 @@ test_update_timing(void)
      * received is from the update and not the original timer add.
      */
     for (sleeptime = MIN_SLEEP, iteration = 1;
-	 sleeptime < MAX_SLEEP;
-	 ++sleeptime, ++iteration) {
+         sleeptime < MAX_SLEEP;
+         ++sleeptime, ++iteration) {
 
-	/* First set the timer to 1 ms */
-	EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
-	    NOTE_USECONDS, MS_TO_US(1), NULL);
-	if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	    err(1, "%s", test_id);
+        /* First set the timer to 1 ms */
+        EV_SET(&kev, vnode_fd, EVFILT_TIMER, EV_ADD | EV_ONESHOT,
+            NOTE_USECONDS, MS_TO_US(1), NULL);
+        if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+            err(1, "%s", test_id);
 
-	/* Delay; the delay ranges from less than to greater than the
-	 * timer period.
-	 */
-	ussleep(sleeptime);
+        /* Delay; the delay ranges from less than to greater than the
+         * timer period.
+         */
+        ussleep(sleeptime);
     
-	/* Now re-add the timer with the same parameters */
-	start = now();
-	if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
-	    err(1, "%s", test_id);
+        /* Now re-add the timer with the same parameters */
+        start = now();
+        if (kevent(kqfd, &kev, 1, NULL, 0, NULL) < 0)
+            err(1, "%s", test_id);
 
-	/* Wait for the event */
-	kev.flags |= EV_CLEAR;
-	kev.fflags &= ~NOTE_USECONDS;
-	kev.data = 1;
-	kevent_cmp(&kev, kevent_get(kqfd));
-	stop = now();
-	elapsed = stop - start;
+        /* Wait for the event */
+        kev.flags |= EV_CLEAR;
+        kev.fflags &= ~NOTE_USECONDS;
+        kev.data = 1;
+        kevent_cmp(&kev, kevent_get(kqfd));
+        stop = now();
+        elapsed = stop - start;
 
-	/* Check that the timer expired after at least 1 ms. This
-	 * check is to make sure that the timer re-started and that
-	 * the event is not from the original add of the timer.
-	 */
-	if (elapsed < MS_TO_US(1))
-	    errx(1, "early timer expiration: %ld us", elapsed);
+        /* Check that the timer expired after at least 1 ms. This
+         * check is to make sure that the timer re-started and that
+         * the event is not from the original add of the timer.
+         */
+        if (elapsed < MS_TO_US(1))
+            errx(1, "early timer expiration: %ld us", elapsed);
 
-	/* Make sure the re-added timer does not fire. In other words,
-	 * test that the event received above was the only event from
-	 * the add and re-add of the timer.
-	 */
-	mssleep(2);
-	test_no_kevents_quietly();
+        /* Make sure the re-added timer does not fire. In other words,
+         * test that the event received above was the only event from
+         * the add and re-add of the timer.
+         */
+        mssleep(2);
+        test_no_kevents_quietly();
     }
 
     success();
@@ -480,17 +477,17 @@ test_update_timing(void)
 void
 test_evfilt_timer()
 {
-	kqfd = kqueue();
-	test_kevent_timer_add();
-	test_kevent_timer_del();
-	test_kevent_timer_get();
-	test_oneshot();
-	test_periodic();
-	test_update();
-	test_update_equal();
-	test_update_expired();
-	test_update_timing();
-	test_update_periodic();
-	disable_and_enable();
-	close(kqfd);
+    kqfd = kqueue();
+    test_kevent_timer_add();
+    test_kevent_timer_del();
+    test_kevent_timer_get();
+    test_oneshot();
+    test_periodic();
+    test_update();
+    test_update_equal();
+    test_update_expired();
+    test_update_timing();
+    test_update_periodic();
+    disable_and_enable();
+    close(kqfd);
 }
