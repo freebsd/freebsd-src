@@ -890,8 +890,9 @@ ef10_ev_rx(
 
 	EFX_EV_QSTAT_INCR(eep, EV_RX);
 
-	/* Discard events after RXQ/TXQ errors */
-	if (enp->en_reset_flags & (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR))
+	/* Discard events after RXQ/TXQ errors, or hardware not available */
+	if (enp->en_reset_flags &
+	    (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR | EFX_RESET_HW_UNAVAIL))
 		return (B_FALSE);
 
 	/* Basic packet information */
@@ -1091,8 +1092,9 @@ ef10_ev_tx(
 
 	EFX_EV_QSTAT_INCR(eep, EV_TX);
 
-	/* Discard events after RXQ/TXQ errors */
-	if (enp->en_reset_flags & (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR))
+	/* Discard events after RXQ/TXQ errors, or hardware not available */
+	if (enp->en_reset_flags &
+	    (EFX_RESET_RXQ_ERR | EFX_RESET_TXQ_ERR | EFX_RESET_HW_UNAVAIL))
 		return (B_FALSE);
 
 	if (EFX_QWORD_FIELD(*eqp, ESF_DZ_TX_DROP_EVENT) != 0) {
