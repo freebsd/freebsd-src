@@ -525,6 +525,12 @@ efx_mcdi_request_poll(
 	EFSYS_ASSERT(!emip->emi_ev_cpl);
 	emrp = emip->emi_pending_req;
 
+	/* Check if hardware is unavailable */
+	if (efx_nic_hw_unavailable(enp)) {
+		EFSYS_UNLOCK(enp->en_eslp, state);
+		return (B_FALSE);
+	}
+
 	/* Check for reboot atomically w.r.t efx_mcdi_request_start */
 	if (emip->emi_poll_cnt++ == 0) {
 		if ((rc = efx_mcdi_poll_reboot(enp)) != 0) {

@@ -87,6 +87,7 @@ extern "C" {
 #define	EFX_RESET_PHY		0x00000001
 #define	EFX_RESET_RXQ_ERR	0x00000002
 #define	EFX_RESET_TXQ_ERR	0x00000004
+#define	EFX_RESET_HW_UNAVAIL	0x00000008
 
 typedef enum efx_mac_type_e {
 	EFX_MAC_INVALID = 0,
@@ -384,6 +385,7 @@ typedef struct efx_nic_ops_s {
 	efx_rc_t	(*eno_get_vi_pool)(efx_nic_t *, uint32_t *);
 	efx_rc_t	(*eno_get_bar_region)(efx_nic_t *, efx_nic_region_t,
 					uint32_t *, size_t *);
+	boolean_t	(*eno_hw_unavailable)(efx_nic_t *);
 #if EFSYS_OPT_DIAG
 	efx_rc_t	(*eno_register_test)(efx_nic_t *);
 #endif	/* EFSYS_OPT_DIAG */

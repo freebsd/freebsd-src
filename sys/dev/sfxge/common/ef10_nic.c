@@ -2331,6 +2331,28 @@ fail1:
 	return (rc);
 }
 
+	__checkReturn	boolean_t
+ef10_nic_hw_unavailable(
+	__in		efx_nic_t *enp)
+{
+	efx_dword_t dword;
+
+	if (enp->en_reset_flags & EFX_RESET_HW_UNAVAIL)
+		return (B_TRUE);
+
+	EFX_BAR_READD(enp, ER_DZ_BIU_MC_SFT_STATUS_REG, &dword, B_FALSE);
+	if (EFX_DWORD_FIELD(dword, EFX_DWORD_0) == 0xffffffff)
+		goto unavail;
+
+	return (B_FALSE);
+
+unavail:
+	EFSYS_PROBE(hw_unavail);
+	enp->en_reset_flags |= EFX_RESET_HW_UNAVAIL;
+
+	return (B_TRUE);
+}
+
 			void
 ef10_nic_fini(
 	__in		efx_nic_t *enp)
