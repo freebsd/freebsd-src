@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2018
+.Dd November 30, 2018
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -1491,17 +1491,8 @@ might be defined to have special handling, and
 might be defined to simply panic and reboot.
 .El
 .Sh HINTS
-On machines with an ISA expansion bus, a simple NMI generation card can be
-constructed by connecting a push button between the A01 and B01 (CHCHK# and
-GND) card fingers.
-Momentarily shorting these two fingers together may cause the bridge chipset to
-generate an NMI, which causes the kernel to pass control to
-.Nm .
-Some bridge chipsets do not generate a NMI on CHCHK#, so your mileage may vary.
 The NMI allows one to break into the debugger on a wedged machine to
 diagnose problems.
-Other bus' bridge chipsets may be able to generate NMI using bus specific
-methods.
 There are many PCI and PCIe add-in cards which can generate NMI for
 debugging.
 Modern server systems typically use IPMI to generate signals to enter the
