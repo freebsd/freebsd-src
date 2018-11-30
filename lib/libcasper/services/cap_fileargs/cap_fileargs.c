@@ -363,7 +363,7 @@ open_file(const char *name)
 		return (-1);
 
 	if (caprightsp != NULL) {
-		if (cap_rights_limit(fd, caprightsp) < 0) {
+		if (cap_rights_limit(fd, caprightsp) < 0 && errno != ENOSYS) {
 			serrno = errno;
 			close(fd);
 			errno = serrno;
