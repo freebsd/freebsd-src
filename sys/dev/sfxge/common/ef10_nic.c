@@ -1113,11 +1113,13 @@ ef10_get_datapath_caps(
 	}
 	encp->enc_rx_prefix_size = 14;
 
+#if EFSYS_OPT_RX_SCALE
 	/* Check if the firmware supports additional RSS modes */
 	if (CAP_FLAGS1(req, ADDITIONAL_RSS_MODES))
 		encp->enc_rx_scale_additional_modes_supported = B_TRUE;
 	else
 		encp->enc_rx_scale_additional_modes_supported = B_FALSE;
+#endif /* EFSYS_OPT_RX_SCALE */
 
 	/* Check if the firmware supports TSO */
 	if (CAP_FLAGS1(req, TX_TSO))
@@ -1323,6 +1325,7 @@ ef10_get_datapath_caps(
 	else
 		encp->enc_hlb_counters = B_FALSE;
 
+#if EFSYS_OPT_RX_SCALE
 	if (CAP_FLAGS1(req, RX_RSS_LIMITED)) {
 		/* Only one exclusive RSS context is available per port. */
 		encp->enc_rx_scale_max_exclusive_contexts = 1;
@@ -1372,6 +1375,8 @@ ef10_get_datapath_caps(
 		 */
 		encp->enc_rx_scale_l4_hash_supported = B_TRUE;
 	}
+#endif /* EFSYS_OPT_RX_SCALE */
+
 	/* Check if the firmware supports "FLAG" and "MARK" filter actions */
 	if (CAP_FLAGS2(req, FILTER_ACTION_FLAG))
 		encp->enc_filter_action_flag_supported = B_TRUE;
@@ -1395,8 +1400,10 @@ ef10_get_datapath_caps(
 
 	return (0);
 
+#if EFSYS_OPT_RX_SCALE
 fail5:
 	EFSYS_PROBE(fail5);
+#endif /* EFSYS_OPT_RX_SCALE */
 fail4:
 	EFSYS_PROBE(fail4);
 fail3:
