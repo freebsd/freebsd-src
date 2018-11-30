@@ -341,11 +341,6 @@ efx_mcdi_rss_context_set_flags(
 	__in		efx_rx_hash_type_t type)
 {
 	efx_nic_cfg_t *encp = &enp->en_nic_cfg;
-	efx_rx_hash_type_t type_ipv4;
-	efx_rx_hash_type_t type_ipv4_tcp;
-	efx_rx_hash_type_t type_ipv6;
-	efx_rx_hash_type_t type_ipv6_tcp;
-	efx_rx_hash_type_t modes;
 	efx_mcdi_req_t req;
 	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN,
 		MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN);
@@ -382,53 +377,38 @@ efx_mcdi_rss_context_set_flags(
 	MCDI_IN_SET_DWORD(req, RSS_CONTEXT_SET_FLAGS_IN_RSS_CONTEXT_ID,
 	    rss_context);
 
-	type_ipv4 = EFX_RX_HASH(IPV4, 2TUPLE) | EFX_RX_HASH(IPV4_TCP, 2TUPLE) |
-		    EFX_RX_HASH(IPV4_UDP, 2TUPLE);
-	type_ipv4_tcp = EFX_RX_HASH(IPV4_TCP, 4TUPLE);
-	type_ipv6 = EFX_RX_HASH(IPV6, 2TUPLE) | EFX_RX_HASH(IPV6_TCP, 2TUPLE) |
-		    EFX_RX_HASH(IPV6_UDP, 2TUPLE);
-	type_ipv6_tcp = EFX_RX_HASH(IPV6_TCP, 4TUPLE);
-
-	/*
-	 * Create a copy of the original hash type.
-	 * The copy will be used to fill in RSS_MODE bits and
-	 * may be cleared beforehand. The original variable
-	 * and, thus, EN bits will remain unaffected.
-	 */
-	modes = type;
-
 	/*
 	 * If the firmware lacks support for additional modes, RSS_MODE
 	 * fields must contain zeros, otherwise the operation will fail.
 	 */
 	if (encp->enc_rx_scale_additional_modes_supported == B_FALSE)
-		modes = 0;
+		type &= EFX_RX_HASH_LEGACY_MASK;
 
 	MCDI_IN_POPULATE_DWORD_10(req, RSS_CONTEXT_SET_FLAGS_IN_FLAGS,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV4_EN,
-	    ((type & type_ipv4) == type_ipv4) ? 1 : 0,
+	    (type & EFX_RX_HASH_IPV4) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV4_EN,
-	    ((type & type_ipv4_tcp) == type_ipv4_tcp) ? 1 : 0,
+	    (type & EFX_RX_HASH_TCPIPV4) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_IPV6_EN,
-	    ((type & type_ipv6) == type_ipv6) ? 1 : 0,
+	    (type & EFX_RX_HASH_IPV6) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TOEPLITZ_TCPV6_EN,
-	    ((type & type_ipv6_tcp) == type_ipv6_tcp) ? 1 : 0,
+	    (type & EFX_RX_HASH_TCPIPV6) ? 1 : 0,
 	    RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV4_RSS_MODE,
-	    (modes >> EFX_RX_CLASS_IPV4_TCP_LBN) &
+	    (type >> EFX_RX_CLASS_IPV4_TCP_LBN) &
 	    EFX_MASK32(EFX_RX_CLASS_IPV4_TCP),
 	    RSS_CONTEXT_SET_FLAGS_IN_UDP_IPV4_RSS_MODE,
-	    (modes >> EFX_RX_CLASS_IPV4_UDP_LBN) &
+	    (type >> EFX_RX_CLASS_IPV4_UDP_LBN) &
 	    EFX_MASK32(EFX_RX_CLASS_IPV4_UDP),
 	    RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV4_RSS_MODE,
-	    (modes >> EFX_RX_CLASS_IPV4_LBN) & EFX_MASK32(EFX_RX_CLASS_IPV4),
+	    (type >> EFX_RX_CLASS_IPV4_LBN) & EFX_MASK32(EFX_RX_CLASS_IPV4),
 	    RSS_CONTEXT_SET_FLAGS_IN_TCP_IPV6_RSS_MODE,
-	    (modes >> EFX_RX_CLASS_IPV6_TCP_LBN) &
+	    (type >> EFX_RX_CLASS_IPV6_TCP_LBN) &
 	    EFX_MASK32(EFX_RX_CLASS_IPV6_TCP),
 	    RSS_CONTEXT_SET_FLAGS_IN_UDP_IPV6_RSS_MODE,
-	    (modes >> EFX_RX_CLASS_IPV6_UDP_LBN) &
+	    (type >> EFX_RX_CLASS_IPV6_UDP_LBN) &
 	    EFX_MASK32(EFX_RX_CLASS_IPV6_UDP),
 	    RSS_CONTEXT_SET_FLAGS_IN_OTHER_IPV6_RSS_MODE,
-	    (modes >> EFX_RX_CLASS_IPV6_LBN) & EFX_MASK32(EFX_RX_CLASS_IPV6));
+	    (type >> EFX_RX_CLASS_IPV6_LBN) & EFX_MASK32(EFX_RX_CLASS_IPV6));
 
 	efx_mcdi_execute(enp, &req);
 
