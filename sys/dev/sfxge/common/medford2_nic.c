@@ -52,7 +52,7 @@ medford2_nic_get_required_pcie_bandwidth(
 	/* FIXME: support new Medford2 dynamic port modes */
 
 	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes,
-				    &current_mode)) != 0) {
+				    &current_mode, NULL)) != 0) {
 		/* No port mode info available. */
 		bandwidth = 0;
 		goto out;

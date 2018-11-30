@@ -57,7 +57,8 @@ hunt_nic_get_required_pcie_bandwidth(
 	 * capable mode is in use.
 	 */
 
-	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, NULL)) != 0) {
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes,
+		    NULL, NULL)) != 0) {
 		/* No port mode info available */
 		bandwidth = 0;
 		goto out;
