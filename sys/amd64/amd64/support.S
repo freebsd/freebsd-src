@@ -313,24 +313,24 @@ END(memcmp)
 	 */
         ALIGN_TEXT
 2:
-	addq	%rcx,%rdi
-	addq	%rcx,%rsi
+	cmpq	$256,%rcx
+	ja	2256f
+
+	leaq	-8(%rdi,%rcx),%rdi
+	leaq	-8(%rsi,%rcx),%rsi
 
 	cmpq	$32,%rcx
 	jb	2016f
 
-	cmpq	$256,%rcx
-	ja	2256f
-
 2032:
+	movq	(%rsi),%rdx
+	movq	%rdx,(%rdi)
 	movq	-8(%rsi),%rdx
 	movq	%rdx,-8(%rdi)
 	movq	-16(%rsi),%rdx
 	movq	%rdx,-16(%rdi)
 	movq	-24(%rsi),%rdx
 	movq	%rdx,-24(%rdi)
-	movq	-32(%rsi),%rdx
-	movq	%rdx,-32(%rdi)
 	leaq	-32(%rsi),%rsi
 	leaq	-32(%rdi),%rdi
 	subq	$32,%rcx
@@ -344,10 +344,10 @@ END(memcmp)
 2016:
 	cmpb	$16,%cl
 	jl	2008f
+	movq	(%rsi),%rdx
+	movq	%rdx,(%rdi)
 	movq	-8(%rsi),%rdx
 	movq	%rdx,-8(%rdi)
-	movq	-16(%rsi),%rdx
-	movq	%rdx,-16(%rdi)
 	subb	$16,%cl
 	jz	2000f
 	leaq	-16(%rsi),%rsi
@@ -355,8 +355,8 @@ END(memcmp)
 2008:
 	cmpb	$8,%cl
 	jl	2004f
-	movq	-8(%rsi),%rdx
-	movq	%rdx,-8(%rdi)
+	movq	(%rsi),%rdx
+	movq	%rdx,(%rdi)
 	subb	$8,%cl
 	jz	2000f
 	leaq	-8(%rsi),%rsi
@@ -364,8 +364,8 @@ END(memcmp)
 2004:
 	cmpb	$4,%cl
 	jl	2002f
-	movl	-4(%rsi),%edx
-	movl	%edx,-4(%rdi)
+	movl	4(%rsi),%edx
+	movl	%edx,4(%rdi)
 	subb	$4,%cl
 	jz	2000f
 	leaq	-4(%rsi),%rsi
@@ -373,8 +373,8 @@ END(memcmp)
 2002:
 	cmpb	$2,%cl
 	jl	2001f
-	movw	-2(%rsi),%dx
-	movw	%dx,-2(%rdi)
+	movw	6(%rsi),%dx
+	movw	%dx,6(%rdi)
 	subb	$2,%cl
 	jz	2000f
 	leaq	-2(%rsi),%rsi
@@ -382,33 +382,31 @@ END(memcmp)
 2001:
 	cmpb	$1,%cl
 	jl	2000f
-	movb	-1(%rsi),%dl
-	movb	%dl,-1(%rdi)
+	movb	7(%rsi),%dl
+	movb	%dl,7(%rdi)
 2000:
 	\end
 	ret
 	ALIGN_TEXT
 2256:
-	decq	%rdi
-	decq	%rsi
 	std
 .if \erms == 1
+	leaq	-1(%rdi,%rcx),%rdi
+	leaq	-1(%rsi,%rcx),%rsi
 	rep
 	movsb
+	cld
 .else
-	andq	$7,%rcx                         /* any fractional bytes? */
-	je	3f
-	rep
-	movsb
-3:
-	movq	%rdx,%rcx                       /* copy remainder by 32-bit words */
+	leaq	-8(%rdi,%rcx),%rdi
+	leaq	-8(%rsi,%rcx),%rsi
 	shrq	$3,%rcx
-	subq	$7,%rsi
-	subq	$7,%rdi
 	rep
 	movsq
-.endif
 	cld
+	movq	%rdx,%rcx
+	andb	$7,%cl
+	jne	2004b
+.endif
 	\end
 	ret
 .endif
