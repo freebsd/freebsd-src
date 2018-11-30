@@ -601,19 +601,10 @@ efx_tx_qdesc_post(
 {
 	efx_nic_t *enp = etp->et_enp;
 	const efx_tx_ops_t *etxop = enp->en_etxop;
-	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
 
-	if ((rc = etxop->etxo_qdesc_post(etp, ed,
-	    ndescs, completed, addedp)) != 0)
-		goto fail1;
-
-	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-	return (rc);
+	return (etxop->etxo_qdesc_post(etp, ed, ndescs, completed, addedp));
 }
 
 	void
@@ -792,10 +783,9 @@ siena_tx_qpost(
 {
 	unsigned int added = *addedp;
 	unsigned int i;
-	int rc = ENOSPC;
 
 	if (added - completed + ndescs > EFX_TXQ_LIMIT(etp->et_mask + 1))
-		goto fail1;
+		return (ENOSPC);
 
 	for (i = 0; i < ndescs; i++) {
 		efx_buffer_t *ebp = &eb[i];
@@ -817,11 +807,6 @@ siena_tx_qpost(
 
 	*addedp = added;
 	return (0);
-
-fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
-
-	return (rc);
 }
 
 static		void
