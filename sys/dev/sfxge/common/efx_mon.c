@@ -67,7 +67,8 @@ efx_mon_name(
 #if EFSYS_OPT_MON_MCDI
 static const efx_mon_ops_t	__efx_mon_mcdi_ops = {
 #if EFSYS_OPT_MON_STATS
-	mcdi_mon_stats_update		/* emo_stats_update */
+	mcdi_mon_stats_update,		/* emo_stats_update */
+	mcdi_mon_limits_update,		/* emo_limits_update */
 #endif	/* EFSYS_OPT_MON_STATS */
 };
 #endif
@@ -842,6 +843,20 @@ efx_mon_stats_update(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MON);
 
 	return (emop->emo_stats_update(enp, esmp, values));
+}
+
+	__checkReturn			efx_rc_t
+efx_mon_limits_update(
+	__in				efx_nic_t *enp,
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_limits_t *values)
+{
+	efx_mon_t *emp = &(enp->en_mon);
+	const efx_mon_ops_t *emop = emp->em_emop;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_MON);
+
+	return (emop->emo_limits_update(enp, values));
 }
 
 #endif	/* EFSYS_OPT_MON_STATS */

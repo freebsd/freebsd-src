@@ -802,6 +802,13 @@ typedef struct efx_mon_stat_value_s {
 	efx_mon_stat_unit_t	emsv_unit;
 } efx_mon_stat_value_t;
 
+typedef struct efx_mon_limit_value_s {
+	uint16_t			emlv_warning_min;
+	uint16_t			emlv_warning_max;
+	uint16_t			emlv_fatal_min;
+	uint16_t			emlv_fatal_max;
+} efx_mon_stat_limits_t;
+
 typedef enum efx_mon_stat_portmask_e {
 	EFX_MON_STAT_PORTMAP_NONE = 0,
 	EFX_MON_STAT_PORTMAP_PORT0 = 1,
@@ -846,6 +853,11 @@ efx_mon_stats_update(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp,
 	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_value_t *values);
+
+extern	__checkReturn			efx_rc_t
+efx_mon_limits_update(
+	__in				efx_nic_t *enp,
+	__inout_ecount(EFX_MON_NSTATS)	efx_mon_stat_limits_t *values);
 
 #endif	/* EFSYS_OPT_MON_STATS */
 
