@@ -127,6 +127,14 @@ case
 cd src/bin/ls
 make clean all install
 .Ed
+.Pp
+Quickly rebuild and reinstall the kernel, only recompiling the files
+changed since last build; note that this will only work if the full kernel
+build has been completed in the past, not on a fresh source tree:
+.Bd -literal -offset indent
+cd src
+make -j8 kernel KERNFAST=1
+.Ed
 .Sh SEE ALSO
 .Xr svnlite 1 ,
 .Xr witness 4 ,
