@@ -317,8 +317,8 @@ efx_phy_media_type_get(
 efx_phy_module_get_info(
 	__in			efx_nic_t *enp,
 	__in			uint8_t dev_addr,
-	__in			uint8_t offset,
-	__in			uint8_t len,
+	__in			size_t offset,
+	__in			size_t len,
 	__out_bcount(len)	uint8_t *data)
 {
 	efx_rc_t rc;
@@ -326,7 +326,8 @@ efx_phy_module_get_info(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(data != NULL);
 
-	if ((uint32_t)offset + len > 0x100) {
+	if ((offset > EFX_PHY_MEDIA_INFO_MAX_OFFSET) ||
+	    ((offset + len) > EFX_PHY_MEDIA_INFO_MAX_OFFSET)) {
 		rc = EINVAL;
 		goto fail1;
 	}
