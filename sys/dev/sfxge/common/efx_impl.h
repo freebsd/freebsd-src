@@ -345,6 +345,8 @@ typedef struct efx_mon_ops_s {
 #if EFSYS_OPT_MON_STATS
 	efx_rc_t	(*emo_stats_update)(efx_nic_t *, efsys_mem_t *,
 					    efx_mon_stat_value_t *);
+	efx_rc_t	(*emo_limits_update)(efx_nic_t *,
+					     efx_mon_stat_limits_t *);
 #endif	/* EFSYS_OPT_MON_STATS */
 } efx_mon_ops_t;
 
