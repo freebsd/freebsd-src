@@ -1411,10 +1411,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #undef	ICMP_MAXTYPE
 #define	ICMP_MAXTYPE		18
 
-#ifndef	IFNAMSIZ
-#define	IFNAMSIZ		16
-#endif
-
 #ifndef	LOG_FTP
 # define	LOG_FTP		(11<<3)
 #endif
