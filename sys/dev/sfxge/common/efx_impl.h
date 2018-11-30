@@ -386,6 +386,7 @@ typedef struct efx_nic_ops_s {
 	efx_rc_t	(*eno_get_bar_region)(efx_nic_t *, efx_nic_region_t,
 					uint32_t *, size_t *);
 	boolean_t	(*eno_hw_unavailable)(efx_nic_t *);
+	void		(*eno_set_hw_unavailable)(efx_nic_t *);
 #if EFSYS_OPT_DIAG
 	efx_rc_t	(*eno_register_test)(efx_nic_t *);
 #endif	/* EFSYS_OPT_DIAG */

@@ -130,6 +130,7 @@ static const efx_nic_ops_t	__efx_nic_siena_ops = {
 	NULL,				/* eno_get_vi_pool */
 	NULL,				/* eno_get_bar_region */
 	NULL,				/* eno_hw_unavailable */
+	NULL,				/* eno_set_hw_unavailable */
 #if EFSYS_OPT_DIAG
 	siena_nic_register_test,	/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
@@ -150,6 +151,7 @@ static const efx_nic_ops_t	__efx_nic_hunt_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 	ef10_nic_hw_unavailable,	/* eno_hw_unavailable */
+	ef10_nic_set_hw_unavailable,	/* eno_set_hw_unavailable */
 #if EFSYS_OPT_DIAG
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
@@ -170,6 +172,7 @@ static const efx_nic_ops_t	__efx_nic_medford_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 	ef10_nic_hw_unavailable,	/* eno_hw_unavailable */
+	ef10_nic_set_hw_unavailable,	/* eno_set_hw_unavailable */
 #if EFSYS_OPT_DIAG
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
@@ -190,6 +193,7 @@ static const efx_nic_ops_t	__efx_nic_medford2_ops = {
 	ef10_nic_get_vi_pool,		/* eno_get_vi_pool */
 	ef10_nic_get_bar_region,	/* eno_get_bar_region */
 	ef10_nic_hw_unavailable,	/* eno_hw_unavailable */
+	ef10_nic_set_hw_unavailable,	/* eno_set_hw_unavailable */
 #if EFSYS_OPT_DIAG
 	ef10_nic_register_test,		/* eno_register_test */
 #endif	/* EFSYS_OPT_DIAG */
@@ -702,9 +706,19 @@ efx_nic_hw_unavailable(
 	return (B_FALSE);
 
 unavail:
-	EFSYS_PROBE(hw_unavail);
-
 	return (B_TRUE);
+}
+
+			void
+efx_nic_set_hw_unavailable(
+	__in		efx_nic_t *enp)
+{
+	const efx_nic_ops_t *enop = enp->en_enop;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+
+	if (enop->eno_set_hw_unavailable != NULL)
+		enop->eno_set_hw_unavailable(enp);
 }
 
 
