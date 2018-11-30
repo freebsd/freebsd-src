@@ -122,7 +122,7 @@ static const efx_intr_ops_t	__efx_intr_ef10_ops = {
 efx_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
-	__in		efsys_mem_t *esmp)
+	__in_opt	efsys_mem_t *esmp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
 	const efx_intr_ops_t *eiop;
