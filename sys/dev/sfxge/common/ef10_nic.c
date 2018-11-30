@@ -90,7 +90,8 @@ fail1:
 efx_mcdi_get_port_modes(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *modesp,
-	__out_opt	uint32_t *current_modep)
+	__out_opt	uint32_t *current_modep,
+	__out_opt	uint32_t *default_modep)
 {
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_GET_PORT_MODES_IN_LEN,
@@ -135,6 +136,11 @@ efx_mcdi_get_port_modes(
 	if (current_modep != NULL) {
 		*current_modep = MCDI_OUT_DWORD(req,
 					    GET_PORT_MODES_OUT_CURRENT_MODE);
+	}
+
+	if (default_modep != NULL) {
+		*default_modep = MCDI_OUT_DWORD(req,
+					    GET_PORT_MODES_OUT_DEFAULT_MODE);
 	}
 
 	return (0);
@@ -1662,13 +1668,14 @@ ef10_external_port_mapping(
 	int32_t count = 1; /* Default 1-1 mapping */
 	int32_t offset = 1; /* Default starting external port number */
 
-	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, &current)) != 0) {
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes, &current,
+		    NULL)) != 0) {
 		/*
 		 * No current port mode information (i.e. Huntington)
 		 * - infer mapping from available modes
 		 */
 		if ((rc = efx_mcdi_get_port_modes(enp,
-			    &port_modes, NULL)) != 0) {
+			    &port_modes, NULL, NULL)) != 0) {
 			/*
 			 * No port mode information available
 			 * - use default mapping

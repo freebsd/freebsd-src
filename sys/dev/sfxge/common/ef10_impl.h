@@ -1154,7 +1154,8 @@ extern	__checkReturn	efx_rc_t
 efx_mcdi_get_port_modes(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *modesp,
-	__out_opt	uint32_t *current_modep);
+	__out_opt	uint32_t *current_modep,
+	__out_opt	uint32_t *default_modep);
 
 extern	__checkReturn	efx_rc_t
 ef10_nic_get_port_mode_bandwidth(
