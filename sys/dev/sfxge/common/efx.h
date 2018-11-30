@@ -819,6 +819,11 @@ efx_mon_stat_name(
 	__in				efx_nic_t *enp,
 	__in				efx_mon_stat_t id);
 
+extern					const char *
+efx_mon_stat_description(
+	__in				efx_nic_t *enp,
+	__in				efx_mon_stat_t id);
+
 #endif	/* EFSYS_OPT_NAMES */
 
 extern	__checkReturn			boolean_t
