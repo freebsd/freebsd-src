@@ -2347,11 +2347,19 @@ ef10_nic_hw_unavailable(
 	return (B_FALSE);
 
 unavail:
-	EFSYS_PROBE(hw_unavail);
-	enp->en_reset_flags |= EFX_RESET_HW_UNAVAIL;
+	ef10_nic_set_hw_unavailable(enp);
 
 	return (B_TRUE);
 }
+
+			void
+ef10_nic_set_hw_unavailable(
+	__in		efx_nic_t *enp)
+{
+	EFSYS_PROBE(hw_unavail);
+	enp->en_reset_flags |= EFX_RESET_HW_UNAVAIL;
+}
+
 
 			void
 ef10_nic_fini(
