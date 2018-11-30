@@ -77,11 +77,6 @@ extern "C" {
 #define	memmove(d, s, l) bcopy(s, d, l)
 #endif
 
-/* FreeBSD equivalents of Solaris things */
-#ifndef _NOTE
-#define	_NOTE(s)
-#endif
-
 #ifndef B_FALSE
 #define	B_FALSE	FALSE
 #endif
@@ -198,40 +193,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 	bus_dmamap_load_mbuf_sg(tag, map, m, seg, &nsegstmp, 0);
 #endif
 }
-
-/* Modifiers used for Windows builds */
-#define	__in
-#define	__in_opt
-#define	__in_ecount(_n)
-#define	__in_ecount_opt(_n)
-#define	__in_bcount(_n)
-#define	__in_bcount_opt(_n)
-
-#define	__out
-#define	__out_opt
-#define	__out_ecount(_n)
-#define	__out_ecount_opt(_n)
-#define	__out_bcount(_n)
-#define	__out_bcount_opt(_n)
-#define	__out_bcount_part(_n, _l)
-#define	__out_bcount_part_opt(_n, _l)
-
-#define	__deref_out
-
-#define	__inout
-#define	__inout_opt
-#define	__inout_ecount(_n)
-#define	__inout_ecount_opt(_n)
-#define	__inout_bcount(_n)
-#define	__inout_bcount_opt(_n)
-#define	__inout_bcount_full_opt(_n)
-
-#define	__deref_out_bcount_opt(n)
-
-#define	__checkReturn
-#define	__success(_x)
-
-#define	__drv_when(_p, _c)
 
 /* Code inclusion options */
 

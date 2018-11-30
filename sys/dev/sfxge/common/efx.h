@@ -35,6 +35,7 @@
 #ifndef	_SYS_EFX_H
 #define	_SYS_EFX_H
 
+#include "efx_annote.h"
 #include "efsys.h"
 #include "efx_check.h"
 #include "efx_phy_ids.h"
