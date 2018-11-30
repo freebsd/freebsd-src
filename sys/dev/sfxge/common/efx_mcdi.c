@@ -2243,8 +2243,8 @@ fail1:
 efx_mcdi_phy_module_get_info(
 	__in			efx_nic_t *enp,
 	__in			uint8_t dev_addr,
-	__in			uint8_t offset,
-	__in			uint8_t len,
+	__in			size_t offset,
+	__in			size_t len,
 	__out_bcount(len)	uint8_t *data)
 {
 	efx_port_t *epp = &(enp->en_port);
@@ -2325,12 +2325,14 @@ efx_mcdi_phy_module_get_info(
 		goto fail1;
 	}
 
+	EFX_STATIC_ASSERT(EFX_PHY_MEDIA_INFO_PAGE_SIZE <= 0xFF);
+
 	if (offset < EFX_PHY_MEDIA_INFO_PAGE_SIZE) {
-		uint8_t read_len =
+		size_t read_len =
 		    MIN(len, EFX_PHY_MEDIA_INFO_PAGE_SIZE - offset);
 
 		rc = efx_mcdi_get_phy_media_info(enp,
-		    mcdi_lower_page, offset, read_len, data);
+		    mcdi_lower_page, (uint8_t)offset, (uint8_t)read_len, data);
 		if (rc != 0)
 			goto fail2;
 
@@ -2347,7 +2349,7 @@ efx_mcdi_phy_module_get_info(
 		EFSYS_ASSERT3U(offset, <, EFX_PHY_MEDIA_INFO_PAGE_SIZE);
 
 		rc = efx_mcdi_get_phy_media_info(enp,
-		    mcdi_upper_page, offset, len, data);
+		    mcdi_upper_page, (uint8_t)offset, (uint8_t)len, data);
 		if (rc != 0)
 			goto fail3;
 	}

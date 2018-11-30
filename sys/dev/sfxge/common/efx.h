@@ -1079,12 +1079,18 @@ efx_phy_media_type_get(
  */
 #define	EFX_PHY_MEDIA_INFO_DEV_ADDR_QSFP	0xA0
 
+/*
+ * Maximum accessible data offset for PHY module information.
+ */
+#define	EFX_PHY_MEDIA_INFO_MAX_OFFSET		0x100
+
+
 extern	__checkReturn		efx_rc_t
 efx_phy_module_get_info(
 	__in			efx_nic_t *enp,
 	__in			uint8_t dev_addr,
-	__in			uint8_t offset,
-	__in			uint8_t len,
+	__in			size_t offset,
+	__in			size_t len,
 	__out_bcount(len)	uint8_t *data);
 
 #if EFSYS_OPT_PHY_STATS
