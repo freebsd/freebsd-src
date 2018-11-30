@@ -67,6 +67,7 @@
 #define	__out_bcount_part_opt(_n, _l)
 
 #define	__deref_out
+#define	__deref_inout
 
 #define	__inout
 #define	__inout_opt
