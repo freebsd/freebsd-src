@@ -622,6 +622,7 @@ typedef struct ef10_link_state_s {
 	uint32_t		els_adv_cap_mask;
 	uint32_t		els_lp_cap_mask;
 	unsigned int		els_fcntl;
+	efx_phy_fec_type_t	els_fec;
 	efx_link_mode_t		els_link_mode;
 #if EFSYS_OPT_LOOPBACK
 	efx_loopback_type_t	els_loopback;
@@ -657,6 +658,11 @@ extern	__checkReturn	efx_rc_t
 ef10_phy_oui_get(
 	__in		efx_nic_t *enp,
 	__out		uint32_t *ouip);
+
+extern	__checkReturn	efx_rc_t
+ef10_phy_fec_type_get(
+	__in		efx_nic_t *enp,
+	__out		efx_phy_fec_type_t *fecp);
 
 #if EFSYS_OPT_PHY_STATS
 
