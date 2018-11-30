@@ -162,26 +162,29 @@ ef10_nic_get_port_mode_bandwidth(
 	efx_rc_t rc;
 
 	switch (port_mode) {
-	case TLV_PORT_MODE_10G:
+	case TLV_PORT_MODE_1x1_NA:			/* mode 0 */
 		bandwidth = 10000;
 		break;
-	case TLV_PORT_MODE_10G_10G:
+	case TLV_PORT_MODE_1x1_1x1:			/* mode 2 */
 		bandwidth = 10000 * 2;
 		break;
-	case TLV_PORT_MODE_10G_10G_10G_10G:
-	case TLV_PORT_MODE_10G_10G_10G_10G_Q:
-	case TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2:
-	case TLV_PORT_MODE_10G_10G_10G_10G_Q2:
+	case TLV_PORT_MODE_4x1_NA:			/* mode 4 */
+	case TLV_PORT_MODE_2x1_2x1:			/* mode 5 */
+	case TLV_PORT_MODE_NA_4x1:			/* mode 8 */
 		bandwidth = 10000 * 4;
 		break;
-	case TLV_PORT_MODE_40G:
+	/* Legacy Medford-only mode. Do not use (see bug63270) */
+	case TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2:	/* mode 9 */
+		bandwidth = 10000 * 4;
+		break;
+	case TLV_PORT_MODE_1x4_NA:			/* mode 1 */
 		bandwidth = 40000;
 		break;
-	case TLV_PORT_MODE_40G_40G:
+	case TLV_PORT_MODE_1x4_1x4:			/* mode 3 */
 		bandwidth = 40000 * 2;
 		break;
-	case TLV_PORT_MODE_40G_10G_10G:
-	case TLV_PORT_MODE_10G_10G_40G:
+	case TLV_PORT_MODE_1x4_2x1:			/* mode 6 */
+	case TLV_PORT_MODE_2x1_1x4:			/* mode 7 */
 		bandwidth = 40000 + (10000 * 2);
 		break;
 	default:
@@ -1495,8 +1498,8 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1U << TLV_PORT_MODE_10G) |			/* mode 0 */
-		(1U << TLV_PORT_MODE_10G_10G),			/* mode 2 */
+		(1U << TLV_PORT_MODE_1x1_NA) |			/* mode 0 */
+		(1U << TLV_PORT_MODE_1x1_1x1),			/* mode 2 */
 		1,	/* ports per cage */
 		1	/* first cage */
 	},
@@ -1510,10 +1513,10 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1U << TLV_PORT_MODE_40G) |			/* mode 1 */
-		(1U << TLV_PORT_MODE_40G_40G) |			/* mode 3 */
-		(1U << TLV_PORT_MODE_40G_10G_10G) |		/* mode 6 */
-		(1U << TLV_PORT_MODE_10G_10G_40G) |		/* mode 7 */
+		(1U << TLV_PORT_MODE_1x4_NA) |			/* mode 1 */
+		(1U << TLV_PORT_MODE_1x4_1x4) |			/* mode 3 */
+		(1U << TLV_PORT_MODE_1x4_2x1) |			/* mode 6 */
+		(1U << TLV_PORT_MODE_2x1_1x4) |			/* mode 7 */
 		/* Do not use 10G_10G_10G_10G_Q1_Q2 (see bug63270) */
 		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2),	/* mode 9 */
 		2,	/* ports per cage */
@@ -1529,9 +1532,9 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q) |	/* mode 5 */
+		(1U << TLV_PORT_MODE_2x1_2x1) |			/* mode 5 */
 		/* Do not use 10G_10G_10G_10G_Q1 (see bug63270) */
-		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q1),	/* mode 4 */
+		(1U << TLV_PORT_MODE_4x1_NA),			/* mode 4 */
 		4,	/* ports per cage */
 		1	/* first cage */
 	},
@@ -1545,7 +1548,7 @@ static struct ef10_external_port_map_s {
 	 */
 	{
 		EFX_FAMILY_MEDFORD,
-		(1U << TLV_PORT_MODE_10G_10G_10G_10G_Q2),	/* mode 8 */
+		(1U << TLV_PORT_MODE_NA_4x1),			/* mode 8 */
 		4,	/* ports per cage */
 		2	/* first cage */
 	},
