@@ -1799,6 +1799,21 @@ ef10_nic_board_cfg(
 	if ((rc = efx_mcdi_get_phy_cfg(enp)) != 0)
 		goto fail6;
 
+	/*
+	 * Firmware with support for *_FEC capability bits does not
+	 * report that the corresponding *_FEC_REQUESTED bits are supported.
+	 * Add them here so that drivers understand that they are supported.
+	 */
+	if (epp->ep_phy_cap_mask & (1u << EFX_PHY_CAP_BASER_FEC))
+		epp->ep_phy_cap_mask |=
+		    (1u << EFX_PHY_CAP_BASER_FEC_REQUESTED);
+	if (epp->ep_phy_cap_mask & (1u << EFX_PHY_CAP_RS_FEC))
+		epp->ep_phy_cap_mask |=
+		    (1u << EFX_PHY_CAP_RS_FEC_REQUESTED);
+	if (epp->ep_phy_cap_mask & (1u << EFX_PHY_CAP_25G_BASER_FEC))
+		epp->ep_phy_cap_mask |=
+		    (1u << EFX_PHY_CAP_25G_BASER_FEC_REQUESTED);
+
 	/* Obtain the default PHY advertised capabilities */
 	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
 		goto fail7;
