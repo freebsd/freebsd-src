@@ -341,6 +341,11 @@ efx_rx_scale_hash_flags_get(
 		goto fail1;
 	}
 
+	if ((encp->enc_rx_scale_hash_alg_mask & (1U << hash_alg)) == 0) {
+		*nflagsp = 0;
+		return 0;
+	}
+
 	l4 = encp->enc_rx_scale_l4_hash_supported;
 	additional_modes = encp->enc_rx_scale_additional_modes_supported;
 
@@ -369,31 +374,16 @@ efx_rx_scale_hash_flags_get(
 		_NOTE(CONSTANTCONDITION)				\
 	} while (B_FALSE)
 
-	switch (hash_alg) {
-	case EFX_RX_HASHALG_PACKED_STREAM:
-		if ((encp->enc_rx_scale_hash_alg_mask & (1U << hash_alg)) == 0)
-			break;
-		/* FALLTHRU */
-	case EFX_RX_HASHALG_TOEPLITZ:
-		if ((encp->enc_rx_scale_hash_alg_mask & (1U << hash_alg)) == 0)
-			break;
+	LIST_FLAGS(entryp, IPV4_TCP, l4, additional_modes);
+	LIST_FLAGS(entryp, IPV6_TCP, l4, additional_modes);
 
-		LIST_FLAGS(entryp, IPV4_TCP, l4, additional_modes);
-		LIST_FLAGS(entryp, IPV6_TCP, l4, additional_modes);
-
-		if (additional_modes) {
-			LIST_FLAGS(entryp, IPV4_UDP, l4, additional_modes);
-			LIST_FLAGS(entryp, IPV6_UDP, l4, additional_modes);
-		}
-
-		LIST_FLAGS(entryp, IPV4, B_FALSE, additional_modes);
-		LIST_FLAGS(entryp, IPV6, B_FALSE, additional_modes);
-		break;
-
-	default:
-		rc = EINVAL;
-		goto fail2;
+	if (additional_modes) {
+		LIST_FLAGS(entryp, IPV4_UDP, l4, additional_modes);
+		LIST_FLAGS(entryp, IPV6_UDP, l4, additional_modes);
 	}
+
+	LIST_FLAGS(entryp, IPV4, B_FALSE, additional_modes);
+	LIST_FLAGS(entryp, IPV6, B_FALSE, additional_modes);
 
 #undef LIST_FLAGS
 
@@ -401,9 +391,6 @@ efx_rx_scale_hash_flags_get(
 	EFSYS_ASSERT3U(*nflagsp, <=, EFX_RX_HASH_NFLAGS);
 
 	return (0);
-
-fail2:
-	EFSYS_PROBE(fail2);
 
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
