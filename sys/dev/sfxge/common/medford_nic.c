@@ -121,6 +121,9 @@ medford_board_cfg(
 	else
 		goto fail1;
 
+	/* Checksums for TSO sends can be incorrect on Medford. */
+	encp->enc_bug61297_workaround = B_TRUE;
+
 	/* Get clock frequencies (in MHz). */
 	if ((rc = efx_mcdi_get_clock(enp, &sysclk, &dpcpu_clk)) != 0)
 		goto fail2;
