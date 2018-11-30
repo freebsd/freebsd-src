@@ -69,8 +69,9 @@ efx_mcdi_set_tunnel_encap_udp_ports(
 	__out			boolean_t *resetting)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMAX,
-			    MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_IN_LENMAX,
+		MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS_OUT_LEN);
 	efx_word_t flags;
 	efx_rc_t rc;
 	unsigned int i;
@@ -81,7 +82,6 @@ efx_mcdi_set_tunnel_encap_udp_ports(
 	else
 		entries_num = etcp->etc_udp_entries_num;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_TUNNEL_ENCAP_UDP_PORTS;
 	req.emr_in_buf = payload;
 	req.emr_in_length =

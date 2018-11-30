@@ -199,12 +199,11 @@ efx_mcdi_filter_op_add(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_V3_IN_LEN,
-			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_FILTER_OP_V3_IN_LEN,
+		MC_CMD_FILTER_OP_EXT_OUT_LEN);
 	efx_filter_match_flags_t match_flags;
 	efx_rc_t rc;
 
-	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FILTER_OP_V3_IN_LEN;
@@ -403,11 +402,10 @@ efx_mcdi_filter_op_delete(
 	__inout		ef10_filter_handle_t *handle)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FILTER_OP_EXT_IN_LEN,
-			    MC_CMD_FILTER_OP_EXT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_FILTER_OP_EXT_IN_LEN,
+		MC_CMD_FILTER_OP_EXT_OUT_LEN);
 	efx_rc_t rc;
 
-	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FILTER_OP;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FILTER_OP_EXT_IN_LEN;
@@ -977,13 +975,12 @@ efx_mcdi_get_parser_disp_info(
 	__out				size_t *list_lengthp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_PARSER_DISP_INFO_IN_LEN,
-			    MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_PARSER_DISP_INFO_IN_LEN,
+		MC_CMD_GET_PARSER_DISP_INFO_OUT_LENMAX);
 	size_t matches_count;
 	size_t list_size;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PARSER_DISP_INFO;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_PARSER_DISP_INFO_IN_LEN;
