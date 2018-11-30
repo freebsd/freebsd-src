@@ -2988,9 +2988,23 @@ efx_filter_spec_set_encap_type(
 	__in		efx_filter_inner_frame_match_t inner_frame_match);
 
 extern	__checkReturn	efx_rc_t
-efx_filter_spec_set_vxlan_full(
+efx_filter_spec_set_vxlan(
 	__inout		efx_filter_spec_t *spec,
-	__in		const uint8_t *vxlan_id,
+	__in		const uint8_t *vni,
+	__in		const uint8_t *inner_addr,
+	__in		const uint8_t *outer_addr);
+
+extern	__checkReturn	efx_rc_t
+efx_filter_spec_set_geneve(
+	__inout		efx_filter_spec_t *spec,
+	__in		const uint8_t *vni,
+	__in		const uint8_t *inner_addr,
+	__in		const uint8_t *outer_addr);
+
+extern	__checkReturn	efx_rc_t
+efx_filter_spec_set_nvgre(
+	__inout		efx_filter_spec_t *spec,
+	__in		const uint8_t *vsid,
 	__in		const uint8_t *inner_addr,
 	__in		const uint8_t *outer_addr);
 
