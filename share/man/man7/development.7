@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2018
+.Dd November 30, 2018
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -118,6 +118,14 @@ After reboot:
 cd src
 make -j8 installworld
 reboot
+.Ed
+.Pp
+Rebuild and reinstall a single piece of userspace, in this
+case
+.Xr ls 1 :
+.Bd -literal -offset indent
+cd src/bin/ls
+make clean all install
 .Ed
 .Sh SEE ALSO
 .Xr svnlite 1 ,
