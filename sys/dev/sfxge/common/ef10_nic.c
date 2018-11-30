@@ -158,34 +158,59 @@ ef10_nic_get_port_mode_bandwidth(
 	__in		uint32_t port_mode,
 	__out		uint32_t *bandwidth_mbpsp)
 {
+	uint32_t single_lane = 10000;
+	uint32_t dual_lane   = 50000;
+	uint32_t quad_lane   = 40000;
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
 	switch (port_mode) {
 	case TLV_PORT_MODE_1x1_NA:			/* mode 0 */
-		bandwidth = 10000;
+		bandwidth = single_lane;
+		break;
+	case TLV_PORT_MODE_1x2_NA:			/* mode 10 */
+	case TLV_PORT_MODE_NA_1x2:			/* mode 11 */
+		bandwidth = dual_lane;
 		break;
 	case TLV_PORT_MODE_1x1_1x1:			/* mode 2 */
-		bandwidth = 10000 * 2;
+		bandwidth = single_lane + single_lane;
 		break;
 	case TLV_PORT_MODE_4x1_NA:			/* mode 4 */
-	case TLV_PORT_MODE_2x1_2x1:			/* mode 5 */
 	case TLV_PORT_MODE_NA_4x1:			/* mode 8 */
-		bandwidth = 10000 * 4;
+		bandwidth = 4 * single_lane;
+		break;
+	case TLV_PORT_MODE_2x1_2x1:			/* mode 5 */
+		bandwidth = (2 * single_lane) + (2 * single_lane);
+		break;
+	case TLV_PORT_MODE_1x2_1x2:			/* mode 12 */
+		bandwidth = dual_lane + dual_lane;
+		break;
+	case TLV_PORT_MODE_1x2_2x1:			/* mode 17 */
+	case TLV_PORT_MODE_2x1_1x2:			/* mode 18 */
+		bandwidth = dual_lane + (2 * single_lane);
 		break;
 	/* Legacy Medford-only mode. Do not use (see bug63270) */
 	case TLV_PORT_MODE_10G_10G_10G_10G_Q1_Q2:	/* mode 9 */
-		bandwidth = 10000 * 4;
+		bandwidth = 4 * single_lane;
 		break;
 	case TLV_PORT_MODE_1x4_NA:			/* mode 1 */
-		bandwidth = 40000;
+	case TLV_PORT_MODE_NA_1x4:			/* mode 22 */
+		bandwidth = quad_lane;
 		break;
-	case TLV_PORT_MODE_1x4_1x4:			/* mode 3 */
-		bandwidth = 40000 * 2;
+	case TLV_PORT_MODE_2x2_NA:			/* mode 13 */
+	case TLV_PORT_MODE_NA_2x2:			/* mode 14 */
+		bandwidth = 2 * dual_lane;
 		break;
 	case TLV_PORT_MODE_1x4_2x1:			/* mode 6 */
 	case TLV_PORT_MODE_2x1_1x4:			/* mode 7 */
-		bandwidth = 40000 + (10000 * 2);
+		bandwidth = quad_lane + (2 * single_lane);
+		break;
+	case TLV_PORT_MODE_1x4_1x2:			/* mode 15 */
+	case TLV_PORT_MODE_1x2_1x4:			/* mode 16 */
+		bandwidth = quad_lane + dual_lane;
+		break;
+	case TLV_PORT_MODE_1x4_1x4:			/* mode 3 */
+		bandwidth = quad_lane + quad_lane;
 		break;
 	default:
 		rc = EINVAL;
