@@ -221,11 +221,6 @@ efx_phy_adv_cap_get(
 	}
 }
 
-#define	EFX_PHY_CAP_FEC_REQ_MASK			\
-	(1U << EFX_PHY_CAP_BASER_FEC_REQUESTED)	|	\
-	(1U << EFX_PHY_CAP_RS_FEC_REQUESTED)	|	\
-	(1U << EFX_PHY_CAP_25G_BASER_FEC_REQUESTED)
-
 	__checkReturn	efx_rc_t
 efx_phy_adv_cap_set(
 	__in		efx_nic_t *enp,
@@ -239,8 +234,7 @@ efx_phy_adv_cap_set(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 
-	/* Ignore don't care bits of FEC (FEC EFX_PHY_CAP_*_REQUESTED) */
-	if ((mask & ~(epp->ep_phy_cap_mask | EFX_PHY_CAP_FEC_REQ_MASK)) != 0) {
+	if ((mask & ~epp->ep_phy_cap_mask) != 0) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
