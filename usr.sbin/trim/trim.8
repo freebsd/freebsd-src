@@ -50,8 +50,8 @@
 The
 .Nm
 utility erases specified region of the device.
-It is only relevant for flash based storage devices that use wear-leveling
-algorithms.
+It is mostly relevant for storage that implement trim (like flash based,
+or thinly provisioned storage).
 .Sy All erased data is lost.
 .Pp
 The following options are available:
@@ -153,12 +153,13 @@ is special device file not supporting DIOCGMEDIASIZE
 .Xr ada 4 ,
 .Xr da 4 ,
 .Xr ioctl 2 ,
+.Xr nda 4 ,
 .Xr sysexits 3
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
-.Fx 12.0 .
+.Fx 12.1 .
 .Sh AUTHORS
 The
 .Nm
