@@ -58,8 +58,8 @@ efx_mcdi_init_txq(
 	__in		efsys_mem_t *esmp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_INIT_TXQ_IN_LEN(EFX_TXQ_MAX_BUFS),
-			    MC_CMD_INIT_TXQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_INIT_TXQ_IN_LEN(EFX_TXQ_MAX_BUFS),
+		MC_CMD_INIT_TXQ_OUT_LEN);
 	efx_qword_t *dma_addr;
 	uint64_t addr;
 	int npages;
@@ -80,7 +80,6 @@ efx_mcdi_init_txq(
 		goto fail2;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_TXQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_INIT_TXQ_IN_LEN(npages);
@@ -147,11 +146,10 @@ efx_mcdi_fini_txq(
 	__in		uint32_t instance)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FINI_TXQ_IN_LEN,
-			    MC_CMD_FINI_TXQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_FINI_TXQ_IN_LEN,
+		MC_CMD_FINI_TXQ_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_TXQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FINI_TXQ_IN_LEN;
