@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <assert.h>
 #include <bsdxml.h>
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -1313,22 +1314,17 @@ kernel_receive(struct pdu *pdu)
 void
 kernel_capsicate(void)
 {
-	int error;
 	cap_rights_t rights;
 	const unsigned long cmds[] = { CTL_ISCSI };
 
 	cap_rights_init(&rights, CAP_IOCTL);
-	error = cap_rights_limit(ctl_fd, &rights);
-	if (error != 0 && errno != ENOSYS)
+	if (caph_rights_limit(ctl_fd, &rights) < 0)
 		log_err(1, "cap_rights_limit");
 
-	error = cap_ioctls_limit(ctl_fd, cmds, nitems(cmds));
-
-	if (error != 0 && errno != ENOSYS)
+	if (caph_ioctls_limit(ctl_fd, cmds, nitems(cmds)) < 0)
 		log_err(1, "cap_ioctls_limit");
 
-	error = cap_enter();
-	if (error != 0 && errno != ENOSYS)
+	if (caph_enter() < 0)
 		log_err(1, "cap_enter");
 
 	if (cap_sandboxed())
