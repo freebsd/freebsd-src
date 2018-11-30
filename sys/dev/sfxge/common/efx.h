@@ -328,7 +328,7 @@ extern	__checkReturn	efx_rc_t
 efx_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
-	__in		efsys_mem_t *esmp);
+	__in_opt	efsys_mem_t *esmp);
 
 extern			void
 efx_intr_enable(
