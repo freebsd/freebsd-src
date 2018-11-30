@@ -109,7 +109,7 @@ it can be invoked locally with the
 .Ql debug
 .Xr keymap 5
 action, usually mapped to Ctrl+Alt+Esc, or by setting the
-.Dv debug.kdb.enter
+.Va debug.kdb.enter
 sysctl to 1.
 The debugger is also invoked on kernel
 .Xr panic 9
@@ -1207,17 +1207,17 @@ Userspace processes may inspect and manage
 capture state using
 .Xr sysctl 8 :
 .Pp
-.Dv debug.ddb.capture.bufsize
+.Va debug.ddb.capture.bufsize
 may be used to query or set the current capture buffer size.
 .Pp
-.Dv debug.ddb.capture.maxbufsize
+.Va debug.ddb.capture.maxbufsize
 may be used to query the compile-time limit on the capture buffer size.
 .Pp
-.Dv debug.ddb.capture.bytes
+.Va debug.ddb.capture.bytes
 may be used to query the number of bytes of output currently in the capture
 buffer.
 .Pp
-.Dv debug.ddb.capture.data
+.Va debug.ddb.capture.data
 returns the contents of the buffer as a string to an appropriately privileged
 process.
 .Pp
@@ -1419,58 +1419,58 @@ Certain scripts are run automatically, if defined, for specific
 events.
 The follow scripts are run when various events occur:
 .Bl -tag -width kdb.enter.powerfail
-.It Dv kdb.enter.acpi
+.It Va kdb.enter.acpi
 The kernel debugger was entered as a result of an
 .Xr acpi 4
 event.
-.It Dv kdb.enter.bootflags
+.It Va kdb.enter.bootflags
 The kernel debugger was entered at boot as a result of the debugger boot
 flag being set.
-.It Dv kdb.enter.break
+.It Va kdb.enter.break
 The kernel debugger was entered as a result of a serial or console break.
-.It Dv kdb.enter.cam
+.It Va kdb.enter.cam
 The kernel debugger was entered as a result of a
 .Xr CAM 4
 event.
-.It Dv kdb.enter.mac
+.It Va kdb.enter.mac
 The kernel debugger was entered as a result of an assertion failure in the
 .Xr mac_test 4
 module of the
 TrustedBSD MAC Framework.
-.It Dv kdb.enter.ndis
+.It Va kdb.enter.ndis
 The kernel debugger was entered as a result of an
 .Xr ndis 4
 breakpoint event.
-.It Dv kdb.enter.netgraph
+.It Va kdb.enter.netgraph
 The kernel debugger was entered as a result of a
 .Xr netgraph 4
 event.
-.It Dv kdb.enter.panic
+.It Va kdb.enter.panic
 .Xr panic 9
 was called.
-.It Dv kdb.enter.powerfail
+.It Va kdb.enter.powerfail
 The kernel debugger was entered as a result of a powerfail NMI on the sparc64
 platform.
-.It Dv kdb.enter.powerpc
+.It Va kdb.enter.powerpc
 The kernel debugger was entered as a result of an unimplemented interrupt
 type on the powerpc platform.
-.It Dv kdb.enter.sysctl
+.It Va kdb.enter.sysctl
 The kernel debugger was entered as a result of the
-.Dv debug.kdb.enter
+.Va debug.kdb.enter
 sysctl being set.
-.It Dv kdb.enter.trapsig
+.It Va kdb.enter.trapsig
 The kernel debugger was entered as a result of a trapsig event on the sparc64
 platform.
-.It Dv kdb.enter.unionfs
+.It Va kdb.enter.unionfs
 The kernel debugger was entered as a result of an assertion failure in the
 union file system.
-.It Dv kdb.enter.unknown
+.It Va kdb.enter.unknown
 The kernel debugger was entered, but no reason has been set.
-.It Dv kdb.enter.vfslock
+.It Va kdb.enter.vfslock
 The kernel debugger was entered as a result of a VFS lock violation.
-.It Dv kdb.enter.watchdog
+.It Va kdb.enter.watchdog
 The kernel debugger was entered as a result of a watchdog firing.
-.It Dv kdb.enter.witness
+.It Va kdb.enter.witness
 The kernel debugger was entered as a result of a
 .Xr witness 4
 violation.
@@ -1480,14 +1480,14 @@ In the event that none of these scripts is found,
 .Nm
 will attempt to execute a default script:
 .Bl -tag -width kdb.enter.powerfail
-.It Dv kdb.enter.default
+.It Va kdb.enter.default
 The kernel debugger was entered, but a script exactly matching the reason for
 entering was not defined.
 This can be used as a catch-all to handle cases not specifically of interest;
 for example,
-.Dv kdb.enter.witness
+.Va kdb.enter.witness
 might be defined to have special handling, and
-.Dv kdb.enter.default
+.Va kdb.enter.default
 might be defined to simply panic and reboot.
 .El
 .Sh HINTS
@@ -1498,7 +1498,7 @@ debugging.
 Modern server systems typically use IPMI to generate signals to enter the
 debugger.
 The
-.Dv devel/ipmitool
+.Va devel/ipmitool
 port can be used to send the
 .Cd chassis power diag
 command which delivers an NMI to the processor.
@@ -1528,16 +1528,16 @@ and then releasing both.
 The break to enter the debugger behavior may be enabled at run-time
 by setting the
 .Xr sysctl 8
-.Dv debug.kdb.break_to_debugger
+.Va debug.kdb.break_to_debugger
 to 1.
 The alternate sequence to enter the debugger behavior may be enabled
 at run-time by setting the
 .Xr sysctl 8
-.Dv debug.kdb.alt_break_to_debugger
+.Va debug.kdb.alt_break_to_debugger
 to 1.
 The debugger may be entered by setting the
 .Xr sysctl 8
-.Dv debug.kdb.enter
+.Va debug.kdb.enter
 to 1.
 .Sh FILES
 Header files mentioned in this manual page can be found below
