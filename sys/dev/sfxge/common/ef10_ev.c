@@ -100,11 +100,10 @@ efx_mcdi_set_evq_tmr(
 	__in		uint32_t timer_ns)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_EVQ_TMR_IN_LEN,
-			    MC_CMD_SET_EVQ_TMR_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SET_EVQ_TMR_IN_LEN,
+		MC_CMD_SET_EVQ_TMR_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_EVQ_TMR;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_EVQ_TMR_IN_LEN;
@@ -150,9 +149,9 @@ efx_mcdi_init_evq(
 	__in		boolean_t low_latency)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[
-	    MAX(MC_CMD_INIT_EVQ_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
-		MC_CMD_INIT_EVQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MC_CMD_INIT_EVQ_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
+		MC_CMD_INIT_EVQ_OUT_LEN);
 	efx_qword_t *dma_addr;
 	uint64_t addr;
 	int npages;
@@ -167,7 +166,6 @@ efx_mcdi_init_evq(
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_EVQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_INIT_EVQ_IN_LEN(npages);
@@ -287,9 +285,9 @@ efx_mcdi_init_evq_v2(
 	__in		uint32_t flags)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[
-		MAX(MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
-		    MC_CMD_INIT_EVQ_V2_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_EVQ_NBUFS(EFX_EVQ_MAXNEVS)),
+		MC_CMD_INIT_EVQ_V2_OUT_LEN);
 	boolean_t interrupting;
 	unsigned int evq_type;
 	efx_qword_t *dma_addr;
@@ -304,7 +302,6 @@ efx_mcdi_init_evq_v2(
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_INIT_EVQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_INIT_EVQ_V2_IN_LEN(npages);
@@ -411,11 +408,10 @@ efx_mcdi_fini_evq(
 	__in		uint32_t instance)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_FINI_EVQ_IN_LEN,
-			    MC_CMD_FINI_EVQ_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_FINI_EVQ_IN_LEN,
+		MC_CMD_FINI_EVQ_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_FINI_EVQ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_FINI_EVQ_IN_LEN;
@@ -630,8 +626,8 @@ efx_mcdi_driver_event(
 	__in		efx_qword_t data)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_DRIVER_EVENT_IN_LEN,
-			    MC_CMD_DRIVER_EVENT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_DRIVER_EVENT_IN_LEN,
+		MC_CMD_DRIVER_EVENT_OUT_LEN);
 	efx_rc_t rc;
 
 	req.emr_cmd = MC_CMD_DRIVER_EVENT;
