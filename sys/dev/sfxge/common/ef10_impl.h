@@ -1200,7 +1200,7 @@ efx_mcdi_get_port_modes(
 
 extern	__checkReturn	efx_rc_t
 ef10_nic_get_port_mode_bandwidth(
-	__in		uint32_t port_mode,
+	__in		efx_nic_t *enp,
 	__out		uint32_t *bandwidth_mbpsp);
 
 extern	__checkReturn	efx_rc_t

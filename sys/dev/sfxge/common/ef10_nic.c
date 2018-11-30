@@ -155,16 +155,24 @@ fail1:
 
 	__checkReturn	efx_rc_t
 ef10_nic_get_port_mode_bandwidth(
-	__in		uint32_t port_mode,
+	__in		efx_nic_t *enp,
 	__out		uint32_t *bandwidth_mbpsp)
 {
+	uint32_t port_modes;
+	uint32_t current_mode;
 	uint32_t single_lane = 10000;
 	uint32_t dual_lane   = 50000;
 	uint32_t quad_lane   = 40000;
 	uint32_t bandwidth;
 	efx_rc_t rc;
 
-	switch (port_mode) {
+	if ((rc = efx_mcdi_get_port_modes(enp, &port_modes,
+				    &current_mode, NULL)) != 0) {
+		/* No port mode info available. */
+		goto fail1;
+	}
+
+	switch (current_mode) {
 	case TLV_PORT_MODE_1x1_NA:			/* mode 0 */
 		bandwidth = single_lane;
 		break;
@@ -214,13 +222,15 @@ ef10_nic_get_port_mode_bandwidth(
 		break;
 	default:
 		rc = EINVAL;
-		goto fail1;
+		goto fail2;
 	}
 
 	*bandwidth_mbpsp = bandwidth;
 
 	return (0);
 
+fail2:
+	EFSYS_PROBE(fail2);
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
