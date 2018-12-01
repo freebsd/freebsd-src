@@ -211,6 +211,7 @@ device		iicbus
 device		iic
 device		twsi		# Allwinner I2C controller
 device		rk_i2c		# RockChip I2C controller
+device		syr827		# Silergy SYR827 PMIC
 
 # Clock and reset controllers
 device		aw_ccu		# Allwinner clock controller
