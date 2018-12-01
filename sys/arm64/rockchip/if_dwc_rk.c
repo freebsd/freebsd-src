@@ -80,8 +80,31 @@ rk3328_set_delays(struct syscon *grf, phandle_t node)
 	rx = ((rx & RK3328_GRF_MAC_CON0_TX_MASK) <<
 	    RK3328_GRF_MAC_CON0_RX_SHIFT);
 
-	/* Disable delays as values conflict between DTS */
-	/* SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON0, tx | rx | 0xFFFF0000); */
+	SYSCON_WRITE_4(grf, RK3328_GRF_MAC_CON0, tx | rx | 0xFFFF0000);
+}
+
+#define	RK3399_GRF_SOC_CON6		0xc218
+#define	 RK3399_GRF_SOC_CON6_TX_MASK	0x7F
+#define	 RK3399_GRF_SOC_CON6_TX_SHIFT	0
+#define	 RK3399_GRF_SOC_CON6_RX_MASK	0x7F
+#define	 RK3399_GRF_SOC_CON6_RX_SHIFT	8
+
+static void
+rk3399_set_delays(struct syscon *grf, phandle_t node)
+{
+	uint32_t tx, rx;
+
+	if (OF_getencprop(node, "tx_delay", &tx, sizeof(tx)) <= 0)
+		tx = 0x30;
+	if (OF_getencprop(node, "rx_delay", &rx, sizeof(rx)) <= 0)
+		rx = 0x10;
+
+	tx = ((tx & RK3399_GRF_SOC_CON6_TX_MASK) <<
+	    RK3399_GRF_SOC_CON6_TX_SHIFT);
+	rx = ((rx & RK3399_GRF_SOC_CON6_TX_MASK) <<
+	    RK3399_GRF_SOC_CON6_RX_SHIFT);
+
+	SYSCON_WRITE_4(grf, RK3399_GRF_SOC_CON6, tx | rx | 0xFFFF0000);
 }
 
 static int
@@ -90,7 +113,8 @@ if_dwc_rk_probe(device_t dev)
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
-	if (!ofw_bus_is_compatible(dev, "rockchip,rk3328-gmac"))
+	if (!(ofw_bus_is_compatible(dev, "rockchip,rk3328-gmac") ||
+	      ofw_bus_is_compatible(dev, "rockchip,rk3399-gmac")))
 		return (ENXIO);
 	device_set_desc(dev, "Rockchip Gigabit Ethernet Controller");
 
@@ -111,7 +135,12 @@ if_dwc_rk_init(device_t dev)
 		return (ENXIO);
 	}
 
-	rk3328_set_delays(grf, node);
+#ifdef notyet
+	if (ofw_bus_is_compatible(dev, "rockchip,rk3399-gmac"))
+	    rk3399_set_delays(grf, node);
+	else if (ofw_bus_is_compatible(dev, "rockchip,rk3328-gmac"))
+	    rk3328_set_delays(grf, node);
+#endif
 
 	/* Mode should be set according to dtb property */
 
