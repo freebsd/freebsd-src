@@ -50,6 +50,10 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ROCKCHIP_RK3328
 	{"rockchip,rk3328-grf", 1},
 #endif
+#ifdef SOC_ROCKCHIP_RK3399
+	{"rockchip,rk3399-grf", 1},
+	{"rockchip,rk3399-pmugrf", 1},
+#endif
 	{NULL,             0}
 };
 
