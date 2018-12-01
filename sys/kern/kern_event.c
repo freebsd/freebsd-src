@@ -102,13 +102,13 @@ TASKQUEUE_DEFINE_THREAD(kqueue_ctx);
 static int	kevent_copyout(void *arg, struct kevent *kevp, int count);
 static int	kevent_copyin(void *arg, struct kevent *kevp, int count);
 static int	kqueue_register(struct kqueue *kq, struct kevent *kev,
-		    struct thread *td, int waitok);
+		    struct thread *td, int mflag);
 static int	kqueue_acquire(struct file *fp, struct kqueue **kqp);
 static void	kqueue_release(struct kqueue *kq, int locked);
 static void	kqueue_destroy(struct kqueue *kq);
 static void	kqueue_drain(struct kqueue *kq, struct thread *td);
 static int	kqueue_expand(struct kqueue *kq, struct filterops *fops,
-		    uintptr_t ident, int waitok);
+		    uintptr_t ident, int mflag);
 static void	kqueue_task(void *arg, int pending);
 static int	kqueue_scan(struct kqueue *kq, int maxevents,
 		    struct kevent_copyops *k_ops,
@@ -150,7 +150,7 @@ static void 	knote_drop_detached(struct knote *kn, struct thread *td);
 static void 	knote_enqueue(struct knote *kn);
 static void 	knote_dequeue(struct knote *kn);
 static void 	knote_init(void);
-static struct 	knote *knote_alloc(int waitok);
+static struct 	knote *knote_alloc(int mflag);
 static void 	knote_free(struct knote *kn);
 
 static void	filt_kqdetach(struct knote *kn);
@@ -582,7 +582,7 @@ knote_fork(struct knlist *list, int pid)
 		kev.fflags = kn->kn_sfflags;
 		kev.data = kn->kn_id;		/* parent */
 		kev.udata = kn->kn_kevent.udata;/* preserve udata */
-		error = kqueue_register(kq, &kev, NULL, 0);
+		error = kqueue_register(kq, &kev, NULL, M_NOWAIT);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
 
@@ -596,7 +596,7 @@ knote_fork(struct knlist *list, int pid)
 		kev.fflags = kn->kn_sfflags;
 		kev.data = kn->kn_id;		/* parent */
 		kev.udata = kn->kn_kevent.udata;/* preserve udata */
-		error = kqueue_register(kq, &kev, NULL, 0);
+		error = kqueue_register(kq, &kev, NULL, M_NOWAIT);
 		if (error)
 			kn->kn_fflags |= NOTE_TRACKERR;
 		if (kn->kn_fop->f_event(kn, NOTE_FORK))
@@ -1229,7 +1229,7 @@ kqueue_kevent(struct kqueue *kq, struct thread *td, int nchanges, int nevents,
 			if (!kevp->filter)
 				continue;
 			kevp->flags &= ~EV_SYSFLAGS;
-			error = kqueue_register(kq, kevp, td, 1);
+			error = kqueue_register(kq, kevp, td, M_WAITOK);
 			if (error || (kevp->flags & EV_RECEIPT)) {
 				if (nevents == 0)
 					return (error);
@@ -1370,12 +1370,11 @@ kqueue_fo_release(int filt)
 }
 
 /*
- * A ref to kq (obtained via kqueue_acquire) must be held.  waitok will
- * influence if memory allocation should wait.  Make sure it is 0 if you
- * hold any mutexes.
+ * A ref to kq (obtained via kqueue_acquire) must be held.
  */
 static int
-kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int waitok)
+kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td,
+    int mflag)
 {
 	struct filterops *fops;
 	struct file *fp;
@@ -1405,7 +1404,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td, int wa
 		 * allocation failures are handled in the loop, only
 		 * if the spare knote appears to be actually required.
 		 */
-		tkn = knote_alloc(waitok);
+		tkn = knote_alloc(mflag);
 	} else {
 		tkn = NULL;
 	}
@@ -1421,11 +1420,11 @@ findkn:
 			goto done;
 
 		if ((kev->flags & EV_ADD) == EV_ADD && kqueue_expand(kq, fops,
-		    kev->ident, 0) != 0) {
+		    kev->ident, M_NOWAIT) != 0) {
 			/* try again */
 			fdrop(fp, td);
 			fp = NULL;
-			error = kqueue_expand(kq, fops, kev->ident, waitok);
+			error = kqueue_expand(kq, fops, kev->ident, mflag);
 			if (error)
 				goto done;
 			goto findkn;
@@ -1462,7 +1461,7 @@ findkn:
 		}
 	} else {
 		if ((kev->flags & EV_ADD) == EV_ADD) {
-			error = kqueue_expand(kq, fops, kev->ident, waitok);
+			error = kqueue_expand(kq, fops, kev->ident, mflag);
 			if (error != 0)
 				goto done;
 		}
@@ -1690,19 +1689,14 @@ kqueue_schedtask(struct kqueue *kq)
  * Expand the kq to make sure we have storage for fops/ident pair.
  *
  * Return 0 on success (or no work necessary), return errno on failure.
- *
- * Not calling hashinit w/ waitok (proper malloc flag) should be safe.
- * If kqueue_register is called from a non-fd context, there usually/should
- * be no locks held.
  */
 static int
 kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
-	int waitok)
+    int mflag)
 {
 	struct klist *list, *tmp_knhash, *to_free;
 	u_long tmp_knhashmask;
 	int error, fd, size;
-	int mflag = waitok ? M_WAITOK : M_NOWAIT;
 
 	KQ_NOTOWNED(kq);
 
@@ -1740,8 +1734,9 @@ kqueue_expand(struct kqueue *kq, struct filterops *fops, uintptr_t ident,
 		}
 	} else {
 		if (kq->kq_knhashmask == 0) {
-			tmp_knhash = hashinit(KN_HASHSIZE, M_KQUEUE,
-			    &tmp_knhashmask);
+			tmp_knhash = hashinit_flags(KN_HASHSIZE, M_KQUEUE,
+			    &tmp_knhashmask, (mflag & M_WAITOK) != 0 ?
+			    HASH_WAITOK : HASH_NOWAIT);
 			if (tmp_knhash == NULL)
 				return (ENOMEM);
 			KQ_LOCK(kq);
@@ -1830,7 +1825,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 			asbt = -1;
 	} else
 		asbt = 0;
-	marker = knote_alloc(1);
+	marker = knote_alloc(M_WAITOK);
 	marker->kn_status = KN_MARKER;
 	KQ_LOCK(kq);
 
@@ -2706,11 +2701,10 @@ knote_init(void)
 SYSINIT(knote, SI_SUB_PSEUDO, SI_ORDER_ANY, knote_init, NULL);
 
 static struct knote *
-knote_alloc(int waitok)
+knote_alloc(int mflag)
 {
 
-	return (uma_zalloc(knote_zone, (waitok ? M_WAITOK : M_NOWAIT) |
-	    M_ZERO));
+	return (uma_zalloc(knote_zone, mflag | M_ZERO));
 }
 
 static void
@@ -2724,7 +2718,7 @@ knote_free(struct knote *kn)
  * Register the kev w/ the kq specified by fd.
  */
 int 
-kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
+kqfd_register(int fd, struct kevent *kev, struct thread *td, int mflag)
 {
 	struct kqueue *kq;
 	struct file *fp;
@@ -2737,7 +2731,7 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 	if ((error = kqueue_acquire(fp, &kq)) != 0)
 		goto noacquire;
 
-	error = kqueue_register(kq, kev, td, waitok);
+	error = kqueue_register(kq, kev, td, mflag);
 	kqueue_release(kq, 0);
 
 noacquire:
