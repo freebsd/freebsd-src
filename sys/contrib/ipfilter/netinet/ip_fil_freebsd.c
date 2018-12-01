@@ -85,9 +85,6 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 extern	int	ip_optcopy __P((struct ip *, struct ip *));
 
-VNET_DECLARE(int, path_mtu_discovery);
-#define	V_path_mtu_discovery		VNET(path_mtu_discovery)
-
 # ifdef IPFILTER_M_IPFILTER
 MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures");
 # endif
