@@ -973,23 +973,23 @@ static struct rk_clk_composite_def i2c3 = {
 
 static struct rk_clk rk3328_clks[] = {
 	{
-		.type = RK_CLK_PLL,
+		.type = RK3328_CLK_PLL,
 		.clk.pll = &apll
 	},
 	{
-		.type = RK_CLK_PLL,
+		.type = RK3328_CLK_PLL,
 		.clk.pll = &dpll
 	},
 	{
-		.type = RK_CLK_PLL,
+		.type = RK3328_CLK_PLL,
 		.clk.pll = &cpll
 	},
 	{
-		.type = RK_CLK_PLL,
+		.type = RK3328_CLK_PLL,
 		.clk.pll = &gpll
 	},
 	{
-		.type = RK_CLK_PLL,
+		.type = RK3328_CLK_PLL,
 		.clk.pll = &npll
 	},
 
