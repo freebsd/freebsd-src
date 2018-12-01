@@ -57,15 +57,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
 #include <net/vnet.h>
-#else
-#define CURVNET_SET(arg)
-#define CURVNET_RESTORE()
-#define	VNET_DEFINE(_t, _v)	_t _v
-#define	VNET_DECLARE(_t, _v)	extern _t _v
-#define	VNET(arg)	arg
-#endif
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
