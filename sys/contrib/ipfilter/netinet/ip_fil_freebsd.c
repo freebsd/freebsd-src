@@ -66,9 +66,6 @@ static const char rcsid[] = "@(#)$Id$";
 #define	VNET_DECLARE(_t, _v)	extern _t _v
 #define	VNET(arg)	arg
 #endif
-#if defined(__osf__)
-# include <netinet/tcp_timer.h>
-#endif
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
