@@ -913,7 +913,7 @@ cxgbe_nm_attach(struct vi_info *vi)
 	na.nm_register = cxgbe_netmap_reg;
 	na.num_tx_rings = vi->nnmtxq;
 	na.num_rx_rings = vi->nnmrxq;
-	netmap_attach(&na);
+	netmap_attach(&na);	/* This adds IFCAP_NETMAP to if_capabilities */
 }
 
 void
