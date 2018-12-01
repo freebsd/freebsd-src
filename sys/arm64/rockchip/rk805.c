@@ -51,8 +51,14 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_RK805_REG, "RK805 regulator", "RK805 power regulator");
 
+enum rk_pmic_type {
+	RK805 = 1,
+	RK808,
+};
+
 static struct ofw_compat_data compat_data[] = {
-	{"rockchip,rk805", 1},
+	{"rockchip,rk805", RK805},
+	{"rockchip,rk808", RK808},
 	{NULL,             0}
 };
 
@@ -83,6 +89,7 @@ struct rk805_softc {
 	struct resource *	res[1];
 	void *			intrcookie;
 	struct intr_config_hook	intr_hook;
+	enum rk_pmic_type	type;
 
 	struct rk805_reg_sc	**regs;
 	int			nregs;
@@ -130,6 +137,51 @@ static struct rk805_regdef rk805_regdefs[] = {
 		.voltage_max = 3500000,
 		.voltage_step = 100000,
 		.voltage_nstep = 28,
+	},
+};
+
+static struct rk805_regdef rk808_regdefs[] = {
+	{
+		.id = RK805_DCDC1,
+		.name = "DCDC_REG1",
+		.enable_reg = RK805_DCDC_EN,
+		.enable_mask = 0x1,
+		.voltage_reg = RK805_DCDC1_ON_VSEL,
+		.voltage_mask = 0x3F,
+		.voltage_min = 712500,
+		.voltage_max = 1500000,
+		.voltage_step = 12500,
+		.voltage_nstep = 64,
+	},
+	{
+		.id = RK805_DCDC2,
+		.name = "DCDC_REG2",
+		.enable_reg = RK805_DCDC_EN,
+		.enable_mask = 0x2,
+		.voltage_reg = RK805_DCDC2_ON_VSEL,
+		.voltage_mask = 0x3F,
+		.voltage_min = 712500,
+		.voltage_max = 1500000,
+		.voltage_step = 12500,
+		.voltage_nstep = 64,
+	},
+	{
+		.id = RK805_DCDC3,
+		.name = "DCDC_REG3",
+		.enable_reg = RK805_DCDC_EN,
+		.enable_mask = 0x4,
+	},
+	{
+		.id = RK805_DCDC4,
+		.name = "DCDC_REG4",
+		.enable_reg = RK805_DCDC_EN,
+		.enable_mask = 0x8,
+		.voltage_reg = RK805_DCDC4_ON_VSEL,
+		.voltage_mask = 0xF,
+		.voltage_min = 1800000,
+		.voltage_max = 3300000,
+		.voltage_step = 100000,
+		.voltage_nstep = 16,
 	},
 };
 
@@ -226,10 +278,16 @@ rk805_regnode_set_voltage(struct regnode *regnode, int min_uvolt,
 	if (!sc->def->voltage_step)
 		return (ENXIO);
 
+	rk805_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	printf("rk805_set_voltage: Current value for %x: %x\n", sc->def->voltage_reg, val);
 	if (rk805_regnode_voltage_to_reg(sc, min_uvolt, max_uvolt, &val) != 0)
 		return (ERANGE);
 
+	printf("rk805_set_voltage: Setting %x to %x\n", sc->def->voltage_reg, val);
 	rk805_write(sc->base_dev, sc->def->voltage_reg, val);
+
+	rk805_read(sc->base_dev, sc->def->voltage_reg, &val, 1);
+	printf("rk805_set_voltage: Set value for %x: %x\n", sc->def->voltage_reg, val);
 
 	*udelay = 0;
 
@@ -326,13 +384,14 @@ rk805_start(void *pdev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	if (bootverbose) {
-		err = rk805_read(dev, 0x17, data, 1);
+	/* No version register in RK808 */
+	if (bootverbose && sc->type == RK805) {
+		err = rk805_read(dev, RK805_CHIP_NAME, data, 1);
 		if (err != 0) {
 			device_printf(dev, "Cannot read chip name reg\n");
 			return;
 		}
-		err = rk805_read(dev, 0x18, data + 1, 1);
+		err = rk805_read(dev, RK805_CHIP_VER, data + 1, 1);
 		if (err != 0) {
 			device_printf(dev, "Cannot read chip version reg\n");
 			return;
@@ -365,8 +424,17 @@ rk805_attach(device_t dev)
 	sc->regs = malloc(sizeof(struct rk805_reg_sc *) * sc->nregs,
 	    M_RK805_REG, M_WAITOK | M_ZERO);
 
-	regdefs = rk805_regdefs;
-	sc->nregs = nitems(rk805_regdefs);
+	sc->type = ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	switch (sc->type) {
+	case RK805:
+		regdefs = rk805_regdefs;
+		sc->nregs = nitems(rk805_regdefs);
+		break;
+	case RK808:
+		regdefs = rk808_regdefs;
+		sc->nregs = nitems(rk808_regdefs);
+		break;
+	}
 
 	rnode = ofw_bus_find_child(ofw_bus_get_node(dev), "regulators");
 	if (rnode > 0) {
