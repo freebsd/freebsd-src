@@ -61,9 +61,6 @@ static const char rcsid[] = "@(#)$Id$";
 #define CURVNET_SET(arg)
 #define CURVNET_RESTORE()
 #endif
-#if defined(__osf__)
-# include <netinet/tcp_timer.h>
-#endif
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
