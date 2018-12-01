@@ -146,6 +146,9 @@ static struct ofw_compat_data compat_data[] = {
 #ifdef SOC_ROCKCHIP_RK3328
 	{"rockchip,rk3328-i2c", 1},
 #endif
+#ifdef SOC_ROCKCHIP_RK3399
+	{"rockchip,rk3399-i2c", 1},
+#endif
 	{NULL,             0}
 };
 
@@ -168,15 +171,15 @@ static int rk_i2c_detach(device_t dev);
 static uint32_t
 rk_i2c_get_clkdiv(struct rk_i2c_softc *sc, uint64_t speed)
 {
-	uint64_t pclk_freq;
+	uint64_t sclk_freq;
 	uint32_t clkdiv;
 	int err;
 
-	err = clk_get_freq(sc->pclk, &pclk_freq);
+	err = clk_get_freq(sc->sclk, &sclk_freq);
 	if (err != 0)
 		return (err);
 
-	clkdiv = (pclk_freq / speed / RK_I2C_CLKDIV_MUL / 2) - 1;
+	clkdiv = (sclk_freq / speed / RK_I2C_CLKDIV_MUL / 2) - 1;
 	clkdiv &= RK_I2C_CLKDIVL_MASK;
 
 	clkdiv = clkdiv << RK_I2C_CLKDIVH_SHIFT | clkdiv;
@@ -417,7 +420,6 @@ rk_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			/* Write slave address */
 			reg = msgs[i].slave | RK_I2C_MRXADDR_VALID(0);
 			RK_I2C_WRITE(sc, RK_I2C_MRXADDR, reg);
-
 			/* Write slave register address */
 			for (j = 0, reg = 0; j < msgs[i].len; j++) {
 				reg |= (msgs[i].buf[j] & 0xff) << (j * 8);
@@ -508,6 +510,8 @@ rk_i2c_attach(device_t dev)
 		device_printf(dev, "cannot setup interrupt handler\n");
 		return (ENXIO);
 	}
+
+	clk_set_assigned(dev, ofw_bus_get_node(dev));
 
 	/* Activate the module clocks. */
 	error = clk_get_by_ofw_name(dev, 0, "i2c", &sc->sclk);
