@@ -48,6 +48,27 @@ struct nvme_function {
 	{ .name = #nam, .fn = function, .usage = usage_str };		\
 	NVME_CMDSET(set, function ## _nvme_cmd)
 
+typedef void (*print_fn_t)(const struct nvme_controller_data *cdata, void *buf, uint32_t size);
+
+struct logpage_function {
+	uint8_t		log_page;
+	const char     *vendor;
+	const char     *name;
+	print_fn_t	print_fn;
+	size_t		size;
+};
+
+#define NVME_LOGPAGESET(sym)		DATA_SET(logpage, sym)
+#define NVME_LOGPAGE(unique, lp, vend, nam, fn, sz)			\
+	static struct logpage_function unique ## _lpf = {		\
+		.log_page = lp,						\
+		.vendor = vend,						\
+		.name = nam,						\
+		.print_fn = fn, 					\
+		.size = sz,						\
+	} ;								\
+	NVME_LOGPAGESET(unique ## _lpf)
+
 #define NVME_CTRLR_PREFIX	"nvme"
 #define NVME_NS_PREFIX		"ns"
 
