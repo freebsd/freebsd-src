@@ -97,6 +97,7 @@ static device_method_t mv_pcib_ctrl_methods[] = {
 	DEVMETHOD(bus_alloc_resource,		mv_pcib_ctrl_alloc_resource),
 	DEVMETHOD(bus_release_resource,		bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,	bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 
 	/* ofw_bus interface */
