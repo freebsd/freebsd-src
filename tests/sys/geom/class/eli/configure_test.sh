@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 atf_test_case configure_b_B cleanup
 configure_b_B_head()
 {
@@ -8,7 +10,7 @@ configure_b_B_head()
 }
 configure_b_B_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -49,7 +51,6 @@ configure_b_B_body()
 }
 configure_b_B_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 

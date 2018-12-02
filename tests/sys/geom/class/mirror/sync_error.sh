@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+ATF_TEST=true
+. $(atf_get_srcdir)/conf.sh
+
 REG_READ_FP=debug.fail_point.g_mirror_regular_request_read
 
 atf_test_case sync_read_error_2_disks cleanup
@@ -11,7 +14,7 @@ sync_read_error_2_disks_head()
 }
 sync_read_error_2_disks_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geom_atf_test_setup
 
 	f1=$(mktemp ${base}.XXXXXX)
 	f2=$(mktemp ${base}.XXXXXX)
@@ -25,7 +28,7 @@ sync_read_error_2_disks_body()
 	atf_check gmirror label $name $md1
 	devwait
 
-	atf_check -s exit:0 -e empty -o not-empty sysctl ${REG_READ_FP}='1*return(5)'
+	atf_check -s ignore -e empty -o not-empty sysctl ${REG_READ_FP}='1*return(5)'
 
 	# If a read error occurs while synchronizing and the mirror contains
 	# a single active disk, gmirror has no choice but to fail the
@@ -39,9 +42,7 @@ sync_read_error_2_disks_body()
 }
 sync_read_error_2_disks_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
-
-	atf_check -s exit:0 -e empty -o not-empty sysctl ${REG_READ_FP}='off'
+	atf_check -s ignore -e ignore -o ignore sysctl ${REG_READ_FP}='off'
 	gmirror_test_cleanup
 }
 
@@ -54,7 +55,7 @@ sync_read_error_3_disks_head()
 }
 sync_read_error_3_disks_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geom_atf_test_setup
 
 	f1=$(mktemp ${base}.XXXXXX)
 	f2=$(mktemp ${base}.XXXXXX)
@@ -97,9 +98,7 @@ sync_read_error_3_disks_body()
 }
 sync_read_error_3_disks_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
-
-	atf_check -s exit:0 -e empty -o not-empty sysctl ${REG_READ_FP}='off'
+	atf_check -s ignore -e ignore -o ignore sysctl ${REG_READ_FP}='off'
 	gmirror_test_cleanup
 }
 
