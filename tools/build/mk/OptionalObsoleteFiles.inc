@@ -147,6 +147,8 @@ OLD_FILES+=usr/share/man/man3/unistruct.3.gz
 .endif
 
 .if ${MK_AUDIT} == no
+OLD_FILES+=etc/rc.d/auditd
+OLD_FILES+=etc/rc.d/auditdistd
 OLD_FILES+=usr/sbin/audit
 OLD_FILES+=usr/sbin/auditd
 OLD_FILES+=usr/sbin/auditdistd
