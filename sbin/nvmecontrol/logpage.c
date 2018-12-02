@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+#define LOGPAGE_USAGE							       \
+"       nvmecontrol logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
+
 #define DEFAULT_SIZE	(4096)
 #define MAX_FW_SLOTS	(7)
 
@@ -908,7 +911,7 @@ logpage_help(void)
 	exit(1);
 }
 
-void
+static void
 logpage(int argc, char *argv[])
 {
 	int				fd;
@@ -1031,3 +1034,5 @@ logpage(int argc, char *argv[])
 	close(fd);
 	exit(0);
 }
+
+NVME_COMMAND(top, logpage, logpage, LOGPAGE_USAGE);

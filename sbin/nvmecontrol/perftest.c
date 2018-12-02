@@ -45,6 +45,12 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+#define PERFTEST_USAGE							       \
+"       nvmecontrol perftest <-n num_threads> <-o read|write>\n"	       \
+"                            <-s size_in_bytes> <-t time_in_seconds>\n"	       \
+"                            <-i intr|wait> [-f refthread] [-p]\n"	       \
+"                            <namespace id>\n"
+
 static void
 print_perftest(struct nvme_io_test *io_test, bool perthread)
 {
@@ -76,7 +82,7 @@ perftest_usage(void)
 	exit(1);
 }
 
-void
+static void
 perftest(int argc, char *argv[])
 {
 	struct nvme_io_test		io_test;
@@ -176,3 +182,5 @@ perftest(int argc, char *argv[])
 	print_perftest(&io_test, perthread);
 	exit(0);
 }
+
+NVME_COMMAND(top, perftest, perftest, PERFTEST_USAGE);
