@@ -265,7 +265,7 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags, size_t maxavail,
 	if (pavail != NULL)
 		*pavail = availmem;
 	if (prealmem != NULL)
-		*prealmem = realmem;
+		*prealmem = totalmem;
 	return (acnt);
 }
 
