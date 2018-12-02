@@ -53,16 +53,9 @@ SET_DECLARE(logpage, struct logpage_function);
 #define LOGPAGE_USAGE							       \
 "       nvmecontrol logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
 
-#define DEFAULT_SIZE	(4096)
 #define MAX_FW_SLOTS	(7)
 
-struct kv_name
-{
-	uint32_t key;
-	const char *name;
-};
-
-static const char *
+const char *
 kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key)
 {
 	static char bad[32];
