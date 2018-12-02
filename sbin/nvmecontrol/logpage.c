@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 SET_DECLARE(logpage, struct logpage_function);
 
 #define LOGPAGE_USAGE							       \
-"       nvmecontrol logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
+	"logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
 
 #define MAX_FW_SLOTS	(7)
 
