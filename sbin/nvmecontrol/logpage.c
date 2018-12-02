@@ -434,7 +434,7 @@ logpage(struct nvme_function *nf, int argc, char *argv[])
 		/*
 		 * See if there is a pretty print function for the specified log
 		 * page.  If one isn't found, we just revert to the default
-		 * (print_hex). If there was a vendor specified bt the user, and
+		 * (print_hex). If there was a vendor specified by the user, and
 		 * the page is vendor specific, don't match the print function
 		 * unless the vendors match.
 		 */
