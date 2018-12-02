@@ -52,7 +52,24 @@ SET_DECLARE(top, struct nvme_function);
 static void
 print_usage(const struct nvme_function *f)
 {
-	fprintf(stderr, "%s", f->usage);
+	const char *cp;
+	char ch;
+	bool need_prefix = true;
+
+	cp = f->usage;
+	while (*cp) {
+		ch = *cp++;
+		if (need_prefix) {
+			if (ch != ' ')
+				fputs("        nvmecontrol ", stderr);
+			else
+				fputs("                    ", stderr);
+		}
+		fputc(ch, stderr);
+		need_prefix = (ch == '\n');
+	}
+	if (!need_prefix)
+		fputc('\n', stderr);
 }
 
 static void

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "nvmecontrol.h"
 
 #define DEVLIST_USAGE							       \
-"       nvmecontrol devlist\n"
+	"devlist\n"
 
 static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
