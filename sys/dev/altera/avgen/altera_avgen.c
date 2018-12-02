@@ -229,6 +229,7 @@ altera_avgen_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 			return (EACCES);
 	}
 	if (trunc_page(offset) == offset &&
+	    offset + PAGE_SIZE > offset &&
 	    rman_get_size(sc->avg_res) >= offset + PAGE_SIZE) {
 		*paddr = rman_get_start(sc->avg_res) + offset;
 		*memattr = VM_MEMATTR_UNCACHEABLE;
