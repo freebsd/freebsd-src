@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include "nvmecontrol.h"
 #include "nvmecontrol_ext.h"
 
+#define IDENTIFY_USAGE							       \
+"       nvmecontrol identify [-x [-v]] <controller id|namespace id>\n"
+
 static void
 print_namespace(struct nvme_namespace_data *nsdata)
 {
@@ -265,7 +268,7 @@ identify_ns(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 identify(int argc, char *argv[])
 {
 	char	*target;
@@ -293,3 +296,5 @@ identify(int argc, char *argv[])
 	else
 		identify_ns(argc, argv);
 }
+
+NVME_COMMAND(top, identify, identify, IDENTIFY_USAGE);

@@ -31,6 +31,7 @@
 #ifndef __NVMECONTROL_H__
 #define __NVMECONTROL_H__
 
+#include <sys/linker_set.h>
 #include <dev/nvme/nvme.h>
 
 typedef void (*nvme_fn_t)(int argc, char *argv[]);
@@ -41,52 +42,14 @@ struct nvme_function {
 	const char	*usage;
 };
 
+#define NVME_CMDSET(set, sym)	DATA_SET(set, sym)
+#define NVME_COMMAND(set, nam, function, usage_str)			\
+	static struct nvme_function function ## _nvme_cmd =		\
+	{ .name = #nam, .fn = function, .usage = usage_str };		\
+	NVME_CMDSET(set, function ## _nvme_cmd)
+
 #define NVME_CTRLR_PREFIX	"nvme"
 #define NVME_NS_PREFIX		"ns"
-
-#define DEVLIST_USAGE							       \
-"       nvmecontrol devlist\n"
-
-#define IDENTIFY_USAGE							       \
-"       nvmecontrol identify [-x [-v]] <controller id|namespace id>\n"
-
-#define PERFTEST_USAGE							       \
-"       nvmecontrol perftest <-n num_threads> <-o read|write>\n"	       \
-"                            <-s size_in_bytes> <-t time_in_seconds>\n"	       \
-"                            <-i intr|wait> [-f refthread] [-p]\n"	       \
-"                            <namespace id>\n"
-
-#define RESET_USAGE							       \
-"       nvmecontrol reset <controller id>\n"
-
-#define LOGPAGE_USAGE							       \
-"       nvmecontrol logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
-
-#define FIRMWARE_USAGE							       \
-"       nvmecontrol firmware [-s slot] [-f path_to_firmware] [-a] <controller id>\n"
-
-#define FORMAT_USAGE							       \
-"       nvmecontrol format [-f fmt] [-m mset] [-p pi] [-l pil] [-E] [-C] <controller id|namespace id>\n"
-
-#define POWER_USAGE							       \
-"       nvmecontrol power [-l] [-p new-state [-w workload-hint]] <controller id>\n"
-
-#define WDC_USAGE							       \
-"       nvmecontrol wdc (cap-diag|drive-log|get-crash-dump|purge|purge-montior)\n"
-
-#define NS_USAGE								\
-"       nvmecontrol ns (create|delete|attach|detach)\n"
-
-void devlist(int argc, char *argv[]);
-void identify(int argc, char *argv[]);
-void perftest(int argc, char *argv[]);
-void reset(int argc, char *argv[]);
-void logpage(int argc, char *argv[]);
-void firmware(int argc, char *argv[]);
-void format(int argc, char *argv[]);
-void power(int argc, char *argv[]);
-void wdc(int argc, char *argv[]);
-void ns(int argc, char *argv[]);
 
 int open_dev(const char *str, int *fd, int show_error, int exit_on_error);
 void parse_ns_str(const char *ns_str, char *ctrlr_str, uint32_t *nsid);
@@ -95,8 +58,12 @@ void read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsda
 void print_hex(void *data, uint32_t length);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size);
-void gen_usage(struct nvme_function *);
-void dispatch(int argc, char *argv[], struct nvme_function *f);
+
+void dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
+    struct nvme_function **tbl_limit);
+
+#define DISPATCH(argc, argv, set)	\
+	dispatch_set(argc, argv, SET_BEGIN(set), SET_LIMIT(set))
 
 /* Utility Routines */
 /*
