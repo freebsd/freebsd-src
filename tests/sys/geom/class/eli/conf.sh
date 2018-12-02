@@ -82,7 +82,6 @@ for_each_geli_config_nointegrity() {
 	done
 }
 
-
 geli_test_cleanup()
 {
 	if [ -f "$TEST_MDS_FILE" ]; then
@@ -95,4 +94,10 @@ geli_test_cleanup()
 	true
 }
 
+geli_test_setup()
+{
+	geom_atf_test_setup
+}
+
+ATF_TEST=true
 . `dirname $0`/../geom_subr.sh

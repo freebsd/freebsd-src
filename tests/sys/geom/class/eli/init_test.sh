@@ -1,6 +1,8 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 init_test()
 {
 	cipher=$1
@@ -39,7 +41,7 @@ init_head()
 }
 init_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=32
 
@@ -50,7 +52,6 @@ init_body()
 }
 init_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -62,7 +63,7 @@ init_B_head()
 }
 init_B_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 
@@ -104,7 +105,6 @@ init_B_body()
 }
 init_B_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -116,7 +116,7 @@ init_J_head()
 }
 init_J_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -223,7 +223,6 @@ init_J_body()
 }
 init_J_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -260,7 +259,7 @@ init_a_head()
 }
 init_a_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 
@@ -272,7 +271,6 @@ init_a_body()
 }
 init_a_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -304,7 +302,7 @@ init_alias_head()
 }
 init_alias_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	md=$(attach_md -t malloc -s 1024k)
 	atf_check dd if=/dev/random of=keyfile bs=512 count=16 status=none
@@ -330,7 +328,6 @@ init_alias_body()
 }
 init_alias_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -342,7 +339,7 @@ init_i_P_head()
 }
 init_i_P_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -354,7 +351,6 @@ init_i_P_body()
 }
 init_i_P_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -366,7 +362,7 @@ nokey_head()
 }
 nokey_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -376,7 +372,6 @@ nokey_body()
 }
 nokey_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
