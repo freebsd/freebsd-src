@@ -73,8 +73,10 @@ dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
 	}
 
 	while (f < tbl_limit) {
-		if (strcmp(argv[1], (*f)->name) == 0)
+		if (strcmp(argv[1], (*f)->name) == 0) {
 			(*f)->fn(argc-1, &argv[1]);
+			return;
+		}
 		f++;
 	}
 
