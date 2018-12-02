@@ -150,15 +150,7 @@ print_namespace(struct nvme_namespace_data *nsdata)
 }
 
 static void
-identify_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, IDENTIFY_USAGE);
-	exit(1);
-}
-
-static void
-identify_ctrlr(int argc, char *argv[])
+identify_ctrlr(struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	int				ch, fd, hexflag = 0, hexlength;
@@ -173,13 +165,13 @@ identify_ctrlr(int argc, char *argv[])
 			hexflag = 1;
 			break;
 		default:
-			identify_usage();
+			usage(nf);
 		}
 	}
 
 	/* Check that a controller was specified. */
 	if (optind >= argc)
-		identify_usage();
+		usage(nf);
 
 	open_dev(argv[optind], &fd, 1, 1);
 	read_controller_data(fd, &cdata);
@@ -197,7 +189,7 @@ identify_ctrlr(int argc, char *argv[])
 
 	if (verboseflag == 1) {
 		fprintf(stderr, "-v not currently supported without -x\n");
-		identify_usage();
+		usage(nf);
 	}
 
 	nvme_print_controller(&cdata);
@@ -205,7 +197,7 @@ identify_ctrlr(int argc, char *argv[])
 }
 
 static void
-identify_ns(int argc, char *argv[])
+identify_ns(struct nvme_function *nf,int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
@@ -222,13 +214,13 @@ identify_ns(int argc, char *argv[])
 			hexflag = 1;
 			break;
 		default:
-			identify_usage();
+			usage(nf);
 		}
 	}
 
 	/* Check that a namespace was specified. */
 	if (optind >= argc)
-		identify_usage();
+		usage(nf);
 
 	/*
 	 * Check if the specified device node exists before continuing.
@@ -261,7 +253,7 @@ identify_ns(int argc, char *argv[])
 
 	if (verboseflag == 1) {
 		fprintf(stderr, "-v not currently supported without -x\n");
-		identify_usage();
+		usage(nf);
 	}
 
 	print_namespace(&nsdata);
@@ -269,18 +261,18 @@ identify_ns(int argc, char *argv[])
 }
 
 static void
-identify(int argc, char *argv[])
+identify(struct nvme_function *nf, int argc, char *argv[])
 {
 	char	*target;
 
 	if (argc < 2)
-		identify_usage();
+		usage(nf);
 
 	while (getopt(argc, argv, "vx") != -1) ;
 
 	/* Check that a controller or namespace was specified. */
 	if (optind >= argc)
-		identify_usage();
+		usage(nf);
 
 	target = argv[optind];
 
@@ -292,9 +284,9 @@ identify(int argc, char *argv[])
 	 *  otherwise, consider it a controller.
 	 */
 	if (strstr(target, NVME_NS_PREFIX) == NULL)
-		identify_ctrlr(argc, argv);
+		identify_ctrlr(nf, argc, argv);
 	else
-		identify_ns(argc, argv);
+		identify_ns(nf, argc, argv);
 }
 
 NVME_COMMAND(top, identify, identify, IDENTIFY_USAGE);
