@@ -69,6 +69,14 @@ struct logpage_function {
 	} ;								\
 	NVME_LOGPAGESET(unique ## _lpf)
 
+#define DEFAULT_SIZE	(4096)
+struct kv_name {
+	uint32_t key;
+	const char *name;
+};
+
+const char *kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key);
+
 #define NVME_CTRLR_PREFIX	"nvme"
 #define NVME_NS_PREFIX		"ns"
 
