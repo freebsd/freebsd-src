@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 _Static_assert(sizeof(struct nvme_power_state) == 256 / NBBY,
 	       "nvme_power_state size wrong");
 
+#define POWER_USAGE							       \
+"       nvmecontrol power [-l] [-p new-state [-w workload-hint]] <controller id>\n"
+
 static void
 power_usage(void)
 {
@@ -133,7 +136,7 @@ power_show(int fd)
 	printf("Current Power Mode is %d\n", pt.cpl.cdw0);
 }
 
-void
+static void
 power(int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
@@ -193,3 +196,5 @@ out:
 	close(fd);
 	exit(0);
 }
+
+NVME_COMMAND(top, power, power, POWER_USAGE);

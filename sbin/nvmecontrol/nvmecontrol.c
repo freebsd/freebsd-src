@@ -47,51 +47,39 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+SET_DECLARE(top, struct nvme_function);
 
-static struct nvme_function funcs[] = {
-	{"devlist",	devlist,	DEVLIST_USAGE},
-	{"identify",	identify,	IDENTIFY_USAGE},
-	{"perftest",	perftest,	PERFTEST_USAGE},
-	{"reset",	reset,		RESET_USAGE},
-	{"logpage",	logpage,	LOGPAGE_USAGE},
-	{"firmware",	firmware,	FIRMWARE_USAGE},
-	{"format",	format,		FORMAT_USAGE},
-	{"power",	power,		POWER_USAGE},
-	{"wdc",		wdc,		WDC_USAGE},
-	{"ns",		ns,		NS_USAGE},
-	{NULL,		NULL,		NULL},
-};
-
-void
-gen_usage(struct nvme_function *f)
+static void
+gen_usage_set(struct nvme_function **f, struct nvme_function **flimit)
 {
 
 	fprintf(stderr, "usage:\n");
-	while (f->name != NULL) {
-		fprintf(stderr, "%s", f->usage);
+	while (f < flimit) {
+		fprintf(stderr, "%s", (*f)->usage);
 		f++;
 	}
 	exit(1);
 }
 
 void
-dispatch(int argc, char *argv[], struct nvme_function *tbl)
+dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
+    struct nvme_function **tbl_limit)
 {
-	struct nvme_function *f = tbl;
+	struct nvme_function **f = tbl;
 
 	if (argv[1] == NULL) {
-		gen_usage(tbl);
+		gen_usage_set(tbl, tbl_limit);
 		return;
 	}
 
-	while (f->name != NULL) {
-		if (strcmp(argv[1], f->name) == 0)
-			f->fn(argc-1, &argv[1]);
+	while (f < tbl_limit) {
+		if (strcmp(argv[1], (*f)->name) == 0)
+			(*f)->fn(argc-1, &argv[1]);
 		f++;
 	}
 
 	fprintf(stderr, "Unknown command: %s\n", argv[1]);
-	gen_usage(tbl);
+	gen_usage_set(tbl, tbl_limit);
 }
 
 static void
@@ -243,9 +231,9 @@ main(int argc, char *argv[])
 {
 
 	if (argc < 2)
-		gen_usage(funcs);
+		gen_usage_set(SET_BEGIN(top), SET_LIMIT(top));
 
-	dispatch(argc, argv, funcs);
+	DISPATCH(argc, argv, top);
 
 	return (0);
 }
