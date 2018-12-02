@@ -48,13 +48,13 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+SET_DECLARE(logpage, struct logpage_function);
+
 #define LOGPAGE_USAGE							       \
 "       nvmecontrol logpage <-p page_id> [-b] [-v vendor] [-x] <controller id|namespace id>\n"  \
 
 #define DEFAULT_SIZE	(4096)
 #define MAX_FW_SLOTS	(7)
-
-typedef void (*print_fn_t)(const struct nvme_controller_data *cdata, void *buf, uint32_t size);
 
 struct kv_name
 {
@@ -853,38 +853,39 @@ print_hgst_info_log(const struct nvme_controller_data *cdata __unused, void *buf
  * Make sure you keep all the pages of one vendor together so -v help
  * lists all the vendors pages.
  */
-static struct logpage_function {
-	uint8_t		log_page;
-	const char     *vendor;
-	const char     *name;
-	print_fn_t	print_fn;
-	size_t		size;
-} logfuncs[] = {
-	{NVME_LOG_ERROR,		NULL,	"Drive Error Log",
-	 print_log_error,		0},
-	{NVME_LOG_HEALTH_INFORMATION,	NULL,	"Health/SMART Data",
-	 print_log_health,		sizeof(struct nvme_health_information_page)},
-	{NVME_LOG_FIRMWARE_SLOT,	NULL,	"Firmware Information",
-	 print_log_firmware,		sizeof(struct nvme_firmware_page)},
-	{HGST_INFO_LOG,			"hgst",	"Detailed Health/SMART",
-	 print_hgst_info_log,		DEFAULT_SIZE},
-	{HGST_INFO_LOG,			"wdc",	"Detailed Health/SMART",
-	 print_hgst_info_log,		DEFAULT_SIZE},
-	{HGST_INFO_LOG,			"wds",	"Detailed Health/SMART",
-	 print_hgst_info_log,		DEFAULT_SIZE},
-	{INTEL_LOG_TEMP_STATS,		"intel", "Temperature Stats",
-	 print_intel_temp_stats,	sizeof(struct intel_log_temp_stats)},
-	{INTEL_LOG_READ_LAT_LOG,	"intel", "Read Latencies",
-	 print_intel_read_lat_log,	DEFAULT_SIZE},
-	{INTEL_LOG_WRITE_LAT_LOG,	"intel", "Write Latencies",
-	 print_intel_write_lat_log,	DEFAULT_SIZE},
-	{INTEL_LOG_ADD_SMART,		"intel", "Extra Health/SMART Data",
-	 print_intel_add_smart,		DEFAULT_SIZE},
-	{INTEL_LOG_ADD_SMART,		"samsung", "Extra Health/SMART Data",
-	 print_intel_add_smart,		DEFAULT_SIZE},
-
-	{0, NULL, NULL, NULL, 0},
-};
+NVME_LOGPAGE(error,
+    NVME_LOG_ERROR,			NULL,	"Drive Error Log",
+    print_log_error, 			0);
+NVME_LOGPAGE(health,
+    NVME_LOG_HEALTH_INFORMATION,	NULL,	"Health/SMART Data",
+    print_log_health, 			sizeof(struct nvme_health_information_page));
+NVME_LOGPAGE(fw,
+    NVME_LOG_FIRMWARE_SLOT,		NULL,	"Firmware Information",
+    print_log_firmware,			sizeof(struct nvme_firmware_page));
+NVME_LOGPAGE(hgst_info,
+    HGST_INFO_LOG,			"hgst",	"Detailed Health/SMART",
+    print_hgst_info_log,		DEFAULT_SIZE);
+NVME_LOGPAGE(wdc_info,
+    HGST_INFO_LOG,			"wdc",	"Detailed Health/SMART",
+    print_hgst_info_log,		DEFAULT_SIZE);
+NVME_LOGPAGE(wds_info,
+    HGST_INFO_LOG,			"wds",	"Detailed Health/SMART",
+    print_hgst_info_log,		DEFAULT_SIZE);
+NVME_LOGPAGE(intel_temp,
+    INTEL_LOG_TEMP_STATS,		"intel", "Temperature Stats",
+    print_intel_temp_stats,		sizeof(struct intel_log_temp_stats));
+NVME_LOGPAGE(intel_rlat,
+    INTEL_LOG_READ_LAT_LOG,		"intel", "Read Latencies",
+    print_intel_read_lat_log,		DEFAULT_SIZE);
+NVME_LOGPAGE(intel_wlat,
+    INTEL_LOG_WRITE_LAT_LOG,		"intel", "Write Latencies",
+    print_intel_write_lat_log,		DEFAULT_SIZE);
+NVME_LOGPAGE(intel_smart,
+    INTEL_LOG_ADD_SMART,		"intel", "Extra Health/SMART Data",
+    print_intel_add_smart,		DEFAULT_SIZE);
+NVME_LOGPAGE(samsung_smart,
+    INTEL_LOG_ADD_SMART,		"samsung", "Extra Health/SMART Data",
+    print_intel_add_smart,		DEFAULT_SIZE);
 
 static void
 logpage_usage(void)
@@ -897,15 +898,15 @@ logpage_usage(void)
 static void
 logpage_help(void)
 {
-	struct logpage_function		*f;
+	struct logpage_function		**f;
 	const char 			*v;
 
 	fprintf(stderr, "\n");
 	fprintf(stderr, "%-8s %-10s %s\n", "Page", "Vendor","Page Name");
 	fprintf(stderr, "-------- ---------- ----------\n");
-	for (f = logfuncs; f->log_page > 0; f++) {
-		v = f->vendor == NULL ? "-" : f->vendor;
-		fprintf(stderr, "0x%02x     %-10s %s\n", f->log_page, v, f->name);
+	for (f = SET_BEGIN(logpage); f < SET_LIMIT(logpage); f++) {
+		v = (*f)->vendor == NULL ? "-" : (*f)->vendor;
+		fprintf(stderr, "0x%02x     %-10s %s\n", (*f)->log_page, v, (*f)->name);
 	}
 
 	exit(1);
@@ -923,7 +924,7 @@ logpage(int argc, char *argv[])
 	uint32_t			nsid, size;
 	void				*buf;
 	const char			*vendor = NULL;
-	struct logpage_function		*f;
+	struct logpage_function		**f;
 	struct nvme_controller_data	cdata;
 	print_fn_t			print_fn;
 	uint8_t				ns_smart;
@@ -1009,14 +1010,14 @@ logpage(int argc, char *argv[])
 		 * the page is vendor specific, don't match the print function
 		 * unless the vendors match.
 		 */
-		for (f = logfuncs; f->log_page > 0; f++) {
-			if (f->vendor != NULL && vendor != NULL &&
-			    strcmp(f->vendor, vendor) != 0)
+		for (f = SET_BEGIN(logpage); f < SET_LIMIT(logpage); f++) {
+			if ((*f)->vendor != NULL && vendor != NULL &&
+			    strcmp((*f)->vendor, vendor) != 0)
 				continue;
-			if (log_page != f->log_page)
+			if (log_page != (*f)->log_page)
 				continue;
-			print_fn = f->print_fn;
-			size = f->size;
+			print_fn = (*f)->print_fn;
+			size = (*f)->size;
 			break;
 		}
 	}
