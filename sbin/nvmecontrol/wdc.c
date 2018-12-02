@@ -52,7 +52,7 @@ SET_DECLARE(wdc, struct nvme_function);
 #define WDC_NVME_CAP_DIAG_OPCODE	0xe6
 #define WDC_NVME_CAP_DIAG_CMD		0x0000
 
-static void wdc_cap_diag(int argc, char *argv[]);
+static void wdc_cap_diag(struct nvme_function *nf, int argc, char *argv[]);
 
 #define WDC_CAP_DIAG_USAGE	"\tnvmecontrol wdc cap-diag [-o path-template]\n"
 
@@ -154,15 +154,7 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 }
 
 static void
-wdc_cap_diag_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, WDC_CAP_DIAG_USAGE);
-	exit(1);
-}
-
-static void
-wdc_cap_diag(int argc, char *argv[])
+wdc_cap_diag(struct nvme_function *nf, int argc, char *argv[])
 {
 	char path_tmpl[MAXPATHLEN];
 	int ch, fd;
@@ -174,12 +166,12 @@ wdc_cap_diag(int argc, char *argv[])
 			strlcpy(path_tmpl, optarg, MAXPATHLEN);
 			break;
 		default:
-			wdc_cap_diag_usage();
+			usage(nf);
 		}
 	}
 	/* Check that a controller was specified. */
 	if (optind >= argc)
-		wdc_cap_diag_usage();
+		usage(nf);
 	open_dev(argv[optind], &fd, 1, 1);
 
 	wdc_do_dump(fd, path_tmpl, "cap_diag", WDC_NVME_CAP_DIAG_OPCODE,
@@ -191,7 +183,7 @@ wdc_cap_diag(int argc, char *argv[])
 }
 
 static void
-wdc(int argc, char *argv[])
+wdc(struct nvme_function *nf __unused, int argc, char *argv[])
 {
 
 	DISPATCH(argc, argv, wdc);
