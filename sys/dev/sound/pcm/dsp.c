@@ -2205,7 +2205,10 @@ dsp_mmap(struct cdev *i_dev, vm_ooffset_t offset, vm_paddr_t *paddr,
     int nprot, vm_memattr_t *memattr)
 {
 
-	/* XXX memattr is not honored */
+	/*
+	 * offset is in range due to checks in dsp_mmap_single().
+	 * XXX memattr is not honored.
+	 */
 	*paddr = vtophys(offset);
 	return (0);
 }
