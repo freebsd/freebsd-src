@@ -285,4 +285,4 @@ options 	FDT
 device		acpi
 
 # DTBs
-makeoptions	MODULES_EXTRA="dtb/allwinner"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/rockchip"
