@@ -88,6 +88,7 @@ void read_namespace_data(int fd, uint32_t nsid, struct nvme_namespace_data *nsda
 void print_hex(void *data, uint32_t length);
 void read_logpage(int fd, uint8_t log_page, uint32_t nsid, void *payload,
     uint32_t payload_size);
+void print_temp(uint16_t t);
 
 void usage(const struct nvme_function *f);
 void dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
