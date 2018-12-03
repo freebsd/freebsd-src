@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2018
+.Dd December 3, 2018
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -804,7 +804,7 @@ system for the armv6 architecture on an amd64 host:
 .Bd -literal -offset indent
 cd /usr/src
 make TARGET_ARCH=armv6 buildworld buildkernel
-make TARGET_ARCH=armv6 DESTDIR=/clients/arm64 installworld installkernel
+make TARGET_ARCH=armv6 DESTDIR=/clients/arm installworld installkernel
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,
