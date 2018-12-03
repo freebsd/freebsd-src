@@ -56,6 +56,13 @@
 	<entry>12&nbsp;September&nbsp;2018</entry>
 	<entry><para>Improper ELF header parsing</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:13.nfs.asc">FreeBSD-SA-18:13.nfs</link></entry>
+	<entry>27&nbsp;November&nbsp;2018</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
