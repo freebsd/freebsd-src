@@ -246,6 +246,13 @@ The Sun Solaris implementation utilised procfs to obtain process information.
 This implementation utilises
 .Xr kvm 3
 instead.
+On a live system,
+.Xr kvm 3
+uses
+.Va kern.proc
+MIB to obtain the list of processes, kernel memory through
+.Pa /dev/kmem
+is not accessed.
 .Sh EXIT STATUS
 The
 .Nm pgrep
@@ -281,8 +288,8 @@ is deprecated, and its use is discouraged in favor of
 .Xr ps 1 ,
 .Xr flock 2 ,
 .Xr kill 2 ,
-.Xr kvm 3,
 .Xr sigaction 2 ,
+.Xr kvm 3 ,
 .Xr pidfile 3 ,
 .Xr re_format 7
 .\" Xr signal 7
