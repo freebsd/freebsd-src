@@ -3,7 +3,7 @@
 #
 # For multiple programs using a single source file each,
 # we can just define 'progs' and create custom targets.
-PROGS	=	pkt-gen bridge vale-ctl
+PROGS	=	pkt-gen bridge vale-ctl lb
 
 CLEANFILES = $(PROGS) *.o
 MAN=
@@ -30,3 +30,6 @@ bridge: bridge.o
 
 vale-ctl: vale-ctl.o
 	$(CC) $(CFLAGS) -o vale-ctl vale-ctl.o
+
+lb: lb.o pkt_hash.o
+	$(CC) $(CFLAGS) -o lb lb.o pkt_hash.o $(LDFLAGS)
