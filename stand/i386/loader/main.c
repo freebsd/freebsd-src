@@ -172,15 +172,8 @@ main(void)
 #ifdef LOADER_GELI_SUPPORT
     if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
 	zargs = (struct zfs_boot_args *)(kargs + 1);
-	if (zargs != NULL && zargs->size >= offsetof(struct zfs_boot_args, gelipw)) {
-	    if (zargs->size >= offsetof(struct zfs_boot_args, keybuf_sentinel) &&
-	      zargs->keybuf_sentinel == KEYBUF_SENTINEL) {
-		geli_import_key_buffer(zargs->keybuf);
-	    }
-	    if (zargs->gelipw[0] != '\0') {
-		setenv("kern.geom.eli.passphrase", zargs->gelipw, 1);
-		explicit_bzero(zargs->gelipw, sizeof(zargs->gelipw));
-	    }
+	if (zargs->size > offsetof(struct zfs_boot_args, gelidata)) {
+	    import_geli_boot_data(&zargs->gelidata);
 	}
     }
 #endif /* LOADER_GELI_SUPPORT */
@@ -188,14 +181,8 @@ main(void)
 #ifdef LOADER_GELI_SUPPORT
     if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
 	gargs = (struct geli_boot_args *)(kargs + 1);
-	if (gargs != NULL && gargs->size >= offsetof(struct geli_boot_args, gelipw)) {
-	    if (gargs->keybuf_sentinel == KEYBUF_SENTINEL) {
-		geli_import_key_buffer(gargs->keybuf);
-	    }
-	    if (gargs->gelipw[0] != '\0') {
-		setenv("kern.geom.eli.passphrase", gargs->gelipw, 1);
-		explicit_bzero(gargs->gelipw, sizeof(gargs->gelipw));
-	    }
+	if (gargs->size >= offsetof(struct geli_boot_args, gelidata)) {
+	    import_geli_boot_data(&gargs->gelidata);
 	}
     }
 #endif /* LOADER_GELI_SUPPORT */
