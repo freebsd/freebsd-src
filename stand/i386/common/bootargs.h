@@ -84,11 +84,15 @@ struct bootargs
 
 #ifdef LOADER_GELI_SUPPORT
 #include <crypto/intake.h>
+#include "geliboot.h"
 #endif
 
-struct geli_boot_args
+/*
+ * geli_boot_data is embedded in geli_boot_args (passed from gptboot to loader)
+ * and in zfs_boot_args (passed from zfsboot and gptzfsboot to loader).
+ */
+struct geli_boot_data
 {
-    uint32_t		size;
     union {
         char            gelipw[256];
         struct {
@@ -104,6 +108,49 @@ struct geli_boot_args
 #endif
         };
     };
+};
+
+#ifdef LOADER_GELI_SUPPORT
+
+static inline void
+export_geli_boot_data(struct geli_boot_data *gbdata)
+{
+
+	gbdata->notapw = '\0';
+	gbdata->keybuf_sentinel = KEYBUF_SENTINEL;
+	gbdata->keybuf = malloc(sizeof(struct keybuf) +
+	    (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
+	geli_export_key_buffer(gbdata->keybuf);
+}
+
+static inline void
+import_geli_boot_data(struct geli_boot_data *gbdata)
+{
+
+	if (gbdata->gelipw[0] != '\0') {
+	    setenv("kern.geom.eli.passphrase", gbdata->gelipw, 1);
+	    explicit_bzero(gbdata->gelipw, sizeof(gbdata->gelipw));
+	} else if (gbdata->keybuf_sentinel == KEYBUF_SENTINEL) {
+	    geli_import_key_buffer(gbdata->keybuf);
+	}
+}
+#endif /* LOADER_GELI_SUPPORT */
+
+struct geli_boot_args
+{
+	uint32_t		size;
+	struct geli_boot_data	gelidata;
+};
+
+struct zfs_boot_args
+{
+	uint32_t		size;
+	uint32_t		reserved;
+	uint64_t		pool;
+	uint64_t		root;
+	uint64_t		primary_pool;
+	uint64_t		primary_vdev;
+	struct geli_boot_data	gelidata;
 };
 
 #endif /*__ASSEMBLER__*/
