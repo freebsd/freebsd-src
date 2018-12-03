@@ -158,6 +158,7 @@ extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
 extern vm_offset_t __endkernel;
+extern vm_paddr_t kernload;
 
 /*
  * Bootinfo is passed to us by legacy loaders. Save the address of the
@@ -350,7 +351,7 @@ booke_init(u_long arg1, u_long arg2)
 		end += fdt_totalsize((void *)dtbp);
 		__endkernel = end;
 		mdp = NULL;
-	} else if (arg1 > (uintptr_t)btext)	/* FreeBSD loader */
+	} else if (arg1 > (uintptr_t)kernload)	/* FreeBSD loader */
 		mdp = (void *)arg1;
 	else					/* U-Boot */
 		mdp = NULL;
