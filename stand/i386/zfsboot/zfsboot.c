@@ -129,7 +129,6 @@ int main(void);
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.h"
 static char gelipw[GELI_PW_MAXLEN];
-static struct keybuf *gelibuf;
 #endif
 
 struct zfsdsk {
@@ -993,13 +992,7 @@ load(void)
     zfsargs.primary_pool = primary_spa->spa_guid;
 #ifdef LOADER_GELI_SUPPORT
     explicit_bzero(gelipw, sizeof(gelipw));
-    gelibuf = malloc(sizeof(struct keybuf) + (GELI_MAX_KEYS * sizeof(struct keybuf_ent)));
-    geli_export_key_buffer(gelibuf);
-    zfsargs.notapw = '\0';
-    zfsargs.keybuf_sentinel = KEYBUF_SENTINEL;
-    zfsargs.keybuf = gelibuf;
-#else
-    zfsargs.gelipw[0] = '\0';
+    export_geli_boot_data(&zfsargs.gelidata);
 #endif
     if (primary_vdev != NULL)
 	zfsargs.primary_vdev = primary_vdev->v_guid;
