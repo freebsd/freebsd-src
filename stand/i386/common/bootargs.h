@@ -43,6 +43,24 @@
 
 #ifndef __ASSEMBLER__
 
+/*
+ * This struct describes the contents of the stack on entry to btxldr.S.  This
+ * is the data that follows the return address, so it begins at 4(%esp).  On
+ * the sending side, this data is passed as individual args to __exec().  On the
+ * receiving side, code in btxldr.S copies the data from the entry stack to a
+ * known fixed location in the new address space.  Then, btxcsu.S sets the
+ * global variable __args to point to that known fixed location before calling
+ * main(), which casts __args to a struct bootargs pointer to access the data.
+ * The btxldr.S code is aware of KARGS_FLAGS_EXTARG, and if it's set, the extra
+ * args data is copied along with the other bootargs from the entry stack to the
+ * fixed location in the new address space.
+ *
+ * The bootinfo field is actually a pointer to a bootinfo struct that has been
+ * converted to uint32_t using VTOP().  On the receiving side it must be
+ * converted back to a pointer using PTOV().  Code in btxldr.S is aware of this
+ * field and if it's non-NULL it copies the data it points to into another known
+ * fixed location, and adjusts the bootinfo field to point to that new location.
+ */
 struct bootargs
 {
 	uint32_t			howto;
