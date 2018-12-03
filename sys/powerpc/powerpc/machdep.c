@@ -137,6 +137,10 @@ int cacheline_size = 32;
 #endif
 int hw_direct_map = 1;
 
+#ifdef BOOKE
+extern vm_paddr_t kernload;
+#endif
+
 extern void *ap_pcpu;
 
 struct pcpu __pcpu[MAXCPU];
@@ -295,6 +299,8 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 #ifdef AIM
 		if ((uintptr_t)&powerpc_init > DMAP_BASE_ADDRESS)
 			md_offset = DMAP_BASE_ADDRESS;
+#else /* BOOKE */
+		md_offset = VM_MIN_KERNEL_ADDRESS - kernload;
 #endif
 
 		preload_metadata = mdp;
@@ -309,6 +315,11 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp,
 			if (envp != NULL)
 				envp += md_offset;
 			init_static_kenv(envp, 0);
+			if (fdt == 0) {
+				fdt = MD_FETCH(kmdp, MODINFOMD_DTBP, uintptr_t);
+				if (fdt != 0)
+					fdt += md_offset;
+			}
 			kernelendphys = MD_FETCH(kmdp, MODINFOMD_KERNEND,
 			    vm_offset_t);
 			if (kernelendphys != 0)
