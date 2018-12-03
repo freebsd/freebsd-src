@@ -29,7 +29,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 1, 2018
+.Dd December 3, 2018
 .Dt PKILL 1
 .Os
 .Sh NAME
@@ -241,6 +241,11 @@ or
 .Nm pkill
 process will never consider itself nor system processes (kernel threads) as
 a potential match.
+.Sh IMPLEMENTATION NOTES
+The Sun Solaris implementation utilised procfs to obtain process information.
+This implementation utilises
+.Xr kvm 3
+instead.
 .Sh EXIT STATUS
 The
 .Nm pgrep
@@ -276,6 +281,7 @@ is deprecated, and its use is discouraged in favor of
 .Xr ps 1 ,
 .Xr flock 2 ,
 .Xr kill 2 ,
+.Xr kvm 3,
 .Xr sigaction 2 ,
 .Xr pidfile 3 ,
 .Xr re_format 7
