@@ -1005,6 +1005,11 @@ load(void)
 	zfsargs.primary_vdev = primary_vdev->v_guid;
     else
 	printf("failed to detect primary vdev\n");
+    /*
+     * Note that the zfsargs struct is passed by value, not by pointer.  Code in
+     * btxldr.S copies the values from the entry stack to a fixed location
+     * within loader(8) at startup due to the presence of KARGS_FLAGS_EXTARG.
+     */
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   bootdev,
 	   KARGS_FLAGS_ZFS | KARGS_FLAGS_EXTARG,

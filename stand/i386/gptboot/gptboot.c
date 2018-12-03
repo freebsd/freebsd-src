@@ -81,7 +81,6 @@ uint32_t opts;
 static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
-static struct dsk dsk;
 static char kname[1024];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
@@ -488,6 +487,12 @@ load(void)
 	geliargs.keybuf_sentinel = KEYBUF_SENTINEL;
 	geliargs.keybuf = gelibuf;
 #endif
+	/*
+	 * Note that the geliargs struct is passed by value, not by pointer.
+	 * Code in btxldr.S copies the values from the entry stack to a fixed
+	 * location within loader(8) at startup due to the presence of the
+	 * KARGS_FLAGS_EXTARG flag.
+	 */
 	__exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	    MAKEBOOTDEV(dev_maj[gdsk.dsk.type], gdsk.dsk.part + 1, gdsk.dsk.unit, 0xff),
 #ifdef LOADER_GELI_SUPPORT
@@ -569,22 +574,22 @@ parse_cmds(char *cmdstr, int *dskupdated)
 				    arg[1] != dev_nm[i][1]; i++)
 					if (i == NDEV - 1)
 						return (-1);
-				dsk.type = i;
+				gdsk.dsk.type = i;
 				arg += 3;
-				dsk.unit = *arg - '0';
-				if (arg[1] != 'p' || dsk.unit > 9)
+				gdsk.dsk.unit = *arg - '0';
+				if (arg[1] != 'p' || gdsk.dsk.unit > 9)
 					return (-1);
 				arg += 2;
-				dsk.part = *arg - '0';
-				if (dsk.part < 1 || dsk.part > 9)
+				gdsk.dsk.part = *arg - '0';
+				if (gdsk.dsk.part < 1 || gdsk.dsk.part > 9)
 					return (-1);
 				arg++;
 				if (arg[0] != ')')
 					return (-1);
 				arg++;
 				if (drv == -1)
-					drv = dsk.unit;
-				dsk.drive = (dsk.type <= TYPE_MAXHARD
+					drv = gdsk.dsk.unit;
+				gdsk.dsk.drive = (gdsk.dsk.type <= TYPE_MAXHARD
 				    ? DRV_HARD : 0) + drv;
 				*dskupdated = 1;
 			}
