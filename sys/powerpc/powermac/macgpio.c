@@ -125,7 +125,8 @@ static driver_t macgpio_pci_driver = {
 
 devclass_t macgpio_devclass;
 
-DRIVER_MODULE(macgpio, macio, macgpio_pci_driver, macgpio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(macgpio, macio, macgpio_pci_driver, macgpio_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 struct macgpio_devinfo {
 	struct ofw_bus_devinfo mdi_obdinfo;
