@@ -1065,7 +1065,6 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 	if (netmap_no_pendintr || force_update) {
 		int crclen = iflib_crcstrip ? 0 : 4;
 		int error, avail;
-		uint16_t slot_flags = kring->nkr_slot_flags;
 
 		for (i = 0; i < rxq->ifr_nfl; i++) {
 			fl = &rxq->ifr_fl[i];
@@ -1081,7 +1080,7 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 
 				error = ctx->isc_rxd_pkt_get(ctx->ifc_softc, &ri);
 				ring->slot[nm_i].len = error ? 0 : ri.iri_len - crclen;
-				ring->slot[nm_i].flags = slot_flags;
+				ring->slot[nm_i].flags = 0;
 				if (fl->ifl_sds.ifsd_map)
 					bus_dmamap_sync(fl->ifl_ifdi->idi_tag,
 							fl->ifl_sds.ifsd_map[nic_i], BUS_DMASYNC_POSTREAD);
@@ -1158,7 +1157,7 @@ iflib_netmap_txq_init(if_ctx_t ctx, iflib_txq_t txq)
 		 * netmap_idx_n2k() maps a nic index, i, into the corresponding
 		 * netmap slot index, si
 		 */
-		int si = netmap_idx_n2k(&na->tx_rings[txq->ift_id], i);
+		int si = netmap_idx_n2k(na->tx_rings[txq->ift_id], i);
 		netmap_load_map(na, txq->ift_desc_tag, txq->ift_sds.ifsd_map[i], NMB(na, slot + si));
 	}
 }
@@ -1167,7 +1166,7 @@ static void
 iflib_netmap_rxq_init(if_ctx_t ctx, iflib_rxq_t rxq)
 {
 	struct netmap_adapter *na = NA(ctx->ifc_ifp);
-	struct netmap_kring *kring = &na->rx_rings[rxq->ifr_id];
+	struct netmap_kring *kring = na->rx_rings[rxq->ifr_id];
 	struct netmap_slot *slot;
 	uint32_t nm_i;
 

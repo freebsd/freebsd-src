@@ -589,7 +589,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 * netmap_idx_n2k() handles wraparounds properly.
 		 */
 		if ((adapter->feat_en & IXGBE_FEATURE_NETMAP) && slot) {
-			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
+			int si = netmap_idx_n2k(na->tx_rings[txr->me], i);
 			netmap_load_map(na, txr->txtag,
 			    txbuf->map, NMB(na, slot + si));
 		}
@@ -991,7 +991,7 @@ ixgbe_txeof(struct tx_ring *txr)
 	if ((adapter->feat_en & IXGBE_FEATURE_NETMAP) &&
 	    (adapter->ifp->if_capenable & IFCAP_NETMAP)) {
 		struct netmap_adapter *na = NA(adapter->ifp);
-		struct netmap_kring *kring = &na->tx_rings[txr->me];
+		struct netmap_kring *kring = na->tx_rings[txr->me];
 		txd = txr->tx_base;
 		bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 		    BUS_DMASYNC_POSTREAD);
@@ -1402,7 +1402,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 * an mbuf, so end the block with a continue;
 		 */
 		if ((adapter->feat_en & IXGBE_FEATURE_NETMAP) && slot) {
-			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
+			int sj = netmap_idx_n2k(na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
