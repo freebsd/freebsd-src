@@ -342,6 +342,7 @@ nat64stl_destroy(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 		return (EBUSY);
 	}
 
+	ipfw_reset_eaction_instance(ch, V_nat64stl_eid, cfg->no.kidx);
 	SRV_OBJECT(ch, cfg->no.kidx) = NULL;
 	nat64stl_detach_config(ch, cfg);
 	IPFW_UH_WUNLOCK(ch);
