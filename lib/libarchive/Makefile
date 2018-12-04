@@ -7,6 +7,7 @@ _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 LIB=	archive
 
 LIBADD=	z bz2 lzma bsdxml
+CFLAGS+= -DHAVE_BZLIB_H=1 -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
