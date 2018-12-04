@@ -689,7 +689,7 @@ hfsc_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 			return (ENOBUFS);
 		}
 	}
-		cl->cl_pktattr = NULL;
+	cl->cl_pktattr = NULL;
 	len = m_pktlen(m);
 	if (hfsc_addq(cl, m) != 0) {
 		/* drop occurred.  mbuf was freed in hfsc_addq. */
