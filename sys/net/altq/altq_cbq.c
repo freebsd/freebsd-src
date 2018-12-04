@@ -483,7 +483,7 @@ cbq_enqueue(struct ifaltq *ifq, struct mbuf *m, struct altq_pktattr *pktattr)
 			return (ENOBUFS);
 		}
 	}
-		cl->pktattr_ = NULL;
+	cl->pktattr_ = NULL;
 	len = m_pktlen(m);
 	if (rmc_queue_packet(cl, m) != 0) {
 		/* drop occurred.  some mbuf was freed in rmc_queue_packet. */
