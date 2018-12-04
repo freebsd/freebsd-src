@@ -18,10 +18,11 @@
 #ifndef _BOOT_I386_ARGS_H_
 #define	_BOOT_I386_ARGS_H_
 
-#define	KARGS_FLAGS_CD		0x1
-#define	KARGS_FLAGS_PXE		0x2
-#define	KARGS_FLAGS_ZFS		0x4
-#define	KARGS_FLAGS_EXTARG	0x8	/* variably sized extended argument */
+#define	KARGS_FLAGS_CD		0x0001	/* .bootdev is a bios CD dev */
+#define	KARGS_FLAGS_PXE		0x0002	/* .pxeinfo is valid */
+#define	KARGS_FLAGS_ZFS		0x0004	/* .zfspool is valid, EXTARG is zfs_boot_args */
+#define	KARGS_FLAGS_EXTARG	0x0008	/* variably sized extended argument */
+#define	KARGS_FLAGS_GELI	0x0010	/* EXTARG is geli_boot_args */
 
 #define	BOOTARGS_SIZE	24	/* sizeof(struct bootargs) */
 #define	BA_BOOTFLAGS	8	/* offsetof(struct bootargs, bootflags) */
