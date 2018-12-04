@@ -2110,7 +2110,11 @@ dyn_free_states(struct ip_fw_chain *chain)
 }
 
 /*
- * Returns 1 when state is matched by specified range, otherwise returns 0.
+ * Returns:
+ * 0 when state is not matched by specified range;
+ * 1 when state is matched by specified range;
+ * 2 when state is matched by specified range and requested deletion of
+ *   dynamic states.
  */
 static int
 dyn_match_range(uint16_t rulenum, uint8_t set, const ipfw_range_tlv *rt)
@@ -2118,13 +2122,18 @@ dyn_match_range(uint16_t rulenum, uint8_t set, const ipfw_range_tlv *rt)
 
 	MPASS(rt != NULL);
 	/* flush all states */
-	if (rt->flags & IPFW_RCFLAG_ALL)
+	if (rt->flags & IPFW_RCFLAG_ALL) {
+		if (rt->flags & IPFW_RCFLAG_DYNAMIC)
+			return (2); /* forced */
 		return (1);
+	}
 	if ((rt->flags & IPFW_RCFLAG_SET) != 0 && set != rt->set)
 		return (0);
 	if ((rt->flags & IPFW_RCFLAG_RANGE) != 0 &&
 	    (rulenum < rt->start_rule || rulenum > rt->end_rule))
 		return (0);
+	if (rt->flags & IPFW_RCFLAG_DYNAMIC)
+		return (2);
 	return (1);
 }
 
@@ -2194,7 +2203,7 @@ dyn_match_ipv4_state(struct ip_fw_chain *ch, struct dyn_ipv4_state *s,
 		    s->limit->set, rt));
 
 	ret = dyn_match_range(s->data->rulenum, s->data->set, rt);
-	if (ret == 0 || V_dyn_keep_states == 0)
+	if (ret == 0 || V_dyn_keep_states == 0 || ret > 1)
 		return (ret);
 
 	rule = s->data->parent;
@@ -2217,7 +2226,7 @@ dyn_match_ipv6_state(struct ip_fw_chain *ch, struct dyn_ipv6_state *s,
 		    s->limit->set, rt));
 
 	ret = dyn_match_range(s->data->rulenum, s->data->set, rt);
-	if (ret == 0 || V_dyn_keep_states == 0)
+	if (ret == 0 || V_dyn_keep_states == 0 || ret > 1)
 		return (ret);
 
 	rule = s->data->parent;
@@ -2939,9 +2948,12 @@ dyn_export_data(const struct dyn_data *data, uint16_t kidx, uint8_t type,
 	memcpy((char *)&dst->rule + sizeof(data->rulenum), &data->set,
 	    sizeof(data->set));
 
+	dst->state = data->state;
+	if (data->flags & DYN_REFERENCED)
+		dst->state |= IPFW_DYN_ORPHANED;
+
 	/* unused fields */
 	dst->parent = NULL;
-	dst->state = data->state;
 	dst->ack_fwd = data->ack_fwd;
 	dst->ack_rev = data->ack_rev;
 	dst->count = 0;

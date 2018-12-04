@@ -2247,10 +2247,9 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 	uint16_t rulenum;
 	char buf[INET6_ADDRSTRLEN];
 
-	if (!co->do_expired) {
-		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
-			return;
-	}
+	if (d->expire == 0 && d->dyn_type != O_LIMIT_PARENT)
+		return;
+
 	bcopy(&d->rule, &rulenum, sizeof(rulenum));
 	bprintf(bp, "%05d", rulenum);
 	if (fo->pcwidth > 0 || fo->bcwidth > 0) {
@@ -2292,6 +2291,33 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 	if (d->kidx != 0)
 		bprintf(bp, " :%s", object_search_ctlv(fo->tstate,
 		    d->kidx, IPFW_TLV_STATE_NAME));
+
+#define	BOTH_SYN	(TH_SYN | (TH_SYN << 8))
+#define	BOTH_FIN	(TH_FIN | (TH_FIN << 8))
+	if (co->verbose) {
+		bprintf(bp, " state 0x%08x%s", d->state,
+		    d->state ? " ": ",");
+		if (d->state & IPFW_DYN_ORPHANED)
+			bprintf(bp, "ORPHANED,");
+		if ((d->state & BOTH_SYN) == BOTH_SYN)
+			bprintf(bp, "BOTH_SYN,");
+		else {
+			if (d->state & TH_SYN)
+				bprintf(bp, "F_SYN,");
+			if (d->state & (TH_SYN << 8))
+				bprintf(bp, "R_SYN,");
+		}
+		if ((d->state & BOTH_FIN) == BOTH_FIN)
+			bprintf(bp, "BOTH_FIN,");
+		else {
+			if (d->state & TH_FIN)
+				bprintf(bp, "F_FIN,");
+			if (d->state & (TH_FIN << 8))
+				bprintf(bp, "R_FIN,");
+		}
+		bprintf(bp, " f_ack 0x%x, r_ack 0x%x", d->ack_fwd,
+		    d->ack_rev);
+	}
 }
 
 static int
@@ -2695,7 +2721,8 @@ ipfw_list(int ac, char *av[], int show_counters)
 	cfg = NULL;
 	sfo.show_counters = show_counters;
 	sfo.show_time = co.do_time;
-	sfo.flags = IPFW_CFG_GET_STATIC;
+	if (co.do_dynamic != 2)
+		sfo.flags |= IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
 	if ((sfo.show_counters | sfo.show_time) != 0)
@@ -2740,17 +2767,15 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	fo->set_mask = cfg->set_mask;
 
 	ctlv = (ipfw_obj_ctlv *)(cfg + 1);
+	if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+		object_sort_ctlv(ctlv);
+		fo->tstate = ctlv;
+		readsz += ctlv->head.length;
+		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
+	}
 
 	if (cfg->flags & IPFW_CFG_GET_STATIC) {
 		/* We've requested static rules */
-		if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
-			object_sort_ctlv(ctlv);
-			fo->tstate = ctlv;
-			readsz += ctlv->head.length;
-			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
-			    ctlv->head.length);
-		}
-
 		if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
 			rbase = (ipfw_obj_tlv *)(ctlv + 1);
 			rcnt = ctlv->count;
@@ -2777,10 +2802,12 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	if (ac == 0) {
 		fo->first = 0;
 		fo->last = IPFW_DEFAULT_RULE;
-		list_static_range(co, fo, &bp, rbase, rcnt);
+		if (cfg->flags & IPFW_CFG_GET_STATIC)
+			list_static_range(co, fo, &bp, rbase, rcnt);
 
 		if (co->do_dynamic && dynsz > 0) {
-			printf("## Dynamic rules (%d %zu):\n", fo->dcnt, dynsz);
+			printf("## Dynamic rules (%d %zu):\n", fo->dcnt,
+			    dynsz);
 			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
@@ -2799,6 +2826,9 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 			warnx("invalid rule number: %s", *(lav - 1));
 			continue;
 		}
+
+		if ((cfg->flags & IPFW_CFG_GET_STATIC) == 0)
+			continue;
 
 		if (list_static_range(co, fo, &bp, rbase, rcnt) == 0) {
 			/* give precedence to other error(s) */
@@ -3313,6 +3343,8 @@ ipfw_delete(char *av[])
 					rt.flags |= IPFW_RCFLAG_SET;
 				}
 			}
+			if (co.do_dynamic == 2)
+				rt.flags |= IPFW_RCFLAG_DYNAMIC;
 			i = do_range_cmd(IP_FW_XDEL, &rt);
 			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
@@ -3320,7 +3352,8 @@ ipfw_delete(char *av[])
 					continue;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
 				    rt.start_rule);
-			} else if (rt.new_set == 0 && do_set == 0) {
+			} else if (rt.new_set == 0 && do_set == 0 &&
+			    co.do_dynamic != 2) {
 				exitval = EX_UNAVAILABLE;
 				if (co.do_quiet)
 					continue;

@@ -1033,6 +1033,16 @@ delete_range(struct ip_fw_chain *chain, ipfw_range_tlv *rt, int *ndel)
 		end = ipfw_find_rule(chain, rt->end_rule, UINT32_MAX);
 	}
 
+	if (rt->flags & IPFW_RCFLAG_DYNAMIC) {
+		/*
+		 * Requested deleting only for dynamic states.
+		 */
+		*ndel = 0;
+		ipfw_expire_dyn_states(chain, rt);
+		IPFW_UH_WUNLOCK(chain);
+		return (0);
+	}
+
 	/* Allocate new map of the same size */
 	map = get_map(chain, 0, 1 /* locked */);
 	if (map == NULL) {
@@ -2402,7 +2412,6 @@ dump_config(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 		da.bmask = bmask = malloc(
 		    sizeof(uint32_t) * IPFW_TABLES_MAX * 2 / 32, M_TEMP,
 		    M_WAITOK | M_ZERO);
-
 	IPFW_UH_RLOCK(chain);
 
 	/*
