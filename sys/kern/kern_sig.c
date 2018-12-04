@@ -615,20 +615,25 @@ signotify(struct thread *td)
 	}
 }
 
+/*
+ * Returns 1 (true) if altstack is configured for the thread, and the
+ * passed stack bottom address falls into the altstack range.  Handles
+ * the 43 compat special case where the alt stack size is zero.
+ */
 int
 sigonstack(size_t sp)
 {
-	struct thread *td = curthread;
+	struct thread *td;
 
-	return ((td->td_pflags & TDP_ALTSTACK) ?
+	td = curthread;
+	if ((td->td_pflags & TDP_ALTSTACK) == 0)
+		return (0);
 #if defined(COMPAT_43)
-	    ((td->td_sigstk.ss_size == 0) ?
-		(td->td_sigstk.ss_flags & SS_ONSTACK) :
-		((sp - (size_t)td->td_sigstk.ss_sp) < td->td_sigstk.ss_size))
-#else
-	    ((sp - (size_t)td->td_sigstk.ss_sp) < td->td_sigstk.ss_size)
+	if (td->td_sigstk.ss_size == 0)
+		return ((td->td_sigstk.ss_flags & SS_ONSTACK) != 0);
 #endif
-	    : 0);
+	return (sp >= (size_t)td->td_sigstk.ss_sp &&
+	    sp < td->td_sigstk.ss_size + (size_t)td->td_sigstk.ss_sp);
 }
 
 static __inline int
