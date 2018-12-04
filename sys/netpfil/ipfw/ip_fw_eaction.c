@@ -252,11 +252,10 @@ destroy_eaction_obj(struct ip_fw_chain *ch, struct named_object *no)
  * Resets all eaction opcodes to default handlers.
  */
 static void
-reset_eaction_obj(struct ip_fw_chain *ch, uint16_t eaction_id)
+reset_eaction_rules(struct ip_fw_chain *ch, uint16_t eaction_id,
+    uint16_t instance_id, bool reset_rules)
 {
 	struct named_object *no;
-	struct ip_fw *rule;
-	ipfw_insn *cmd;
 	int i;
 
 	IPFW_UH_WLOCK_ASSERT(ch);
@@ -267,35 +266,32 @@ reset_eaction_obj(struct ip_fw_chain *ch, uint16_t eaction_id)
 		panic("Default external action handler is not found");
 	if (eaction_id == no->kidx)
 		panic("Wrong eaction_id");
-	EACTION_DEBUG("replace id %u with %u", eaction_id, no->kidx);
+
+	EACTION_DEBUG("Going to replace id %u with %u", eaction_id, no->kidx);
 	IPFW_WLOCK(ch);
-	for (i = 0; i < ch->n_rules; i++) {
-		rule = ch->map[i];
-		cmd = ACTION_PTR(rule);
-		if (cmd->opcode != O_EXTERNAL_ACTION)
-			continue;
-		if (cmd->arg1 != eaction_id)
-			continue;
-		cmd->arg1 = no->kidx; /* Set to default id */
-		/*
-		 * XXX: we only bump refcount on default_eaction.
-		 * Refcount on the original object will be just
-		 * ignored on destroy. But on default_eaction it
-		 * will be decremented on rule deletion.
-		 */
-		no->refcnt++;
-		/*
-		 * Since named_object related to this instance will be
-		 * also destroyed, truncate the chain of opcodes to
-		 * remove the rest of cmd chain just after O_EXTERNAL_ACTION
-		 * opcode.
-		 */
-		if (rule->act_ofs < rule->cmd_len - 1) {
-			EACTION_DEBUG("truncate rule %d: len %u -> %u",
-			    rule->rulenum, rule->cmd_len, rule->act_ofs + 1);
-			rule->cmd_len = rule->act_ofs + 1;
+	/*
+	 * Reset eaction objects only if it is referenced by rules.
+	 * But always reset objects for orphaned dynamic states.
+	 */
+	if (reset_rules) {
+		for (i = 0; i < ch->n_rules; i++) {
+			/*
+			 * Refcount on the original object will be just
+			 * ignored on destroy. Refcount on default_eaction
+			 * will be decremented on rule deletion, thus we
+			 * need to reference default_eaction object.
+			 */
+			if (ipfw_reset_eaction(ch, ch->map[i], eaction_id,
+			    no->kidx, instance_id) != 0)
+				no->refcnt++;
 		}
 	}
+	/*
+	 * Reset eaction opcodes for orphaned dynamic states.
+	 * Since parent rules are already deleted, we don't need to
+	 * reference named object of default_eaction.
+	 */
+	ipfw_dyn_reset_eaction(ch, eaction_id, no->kidx, instance_id);
 	IPFW_WUNLOCK(ch);
 }
 
@@ -368,12 +364,71 @@ ipfw_del_eaction(struct ip_fw_chain *ch, uint16_t eaction_id)
 		IPFW_UH_WUNLOCK(ch);
 		return (EINVAL);
 	}
-	if (no->refcnt > 1)
-		reset_eaction_obj(ch, eaction_id);
+	reset_eaction_rules(ch, eaction_id, 0, (no->refcnt > 1));
 	EACTION_DEBUG("External action '%s' with id %u unregistered",
 	    no->name, eaction_id);
 	destroy_eaction_obj(ch, no);
 	IPFW_UH_WUNLOCK(ch);
+	return (0);
+}
+
+int
+ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
+    uint16_t eaction_id, uint16_t default_id, uint16_t instance_id)
+{
+	ipfw_insn *cmd, *icmd;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+	IPFW_WLOCK_ASSERT(ch);
+
+	cmd = ACTION_PTR(rule);
+	if (cmd->opcode != O_EXTERNAL_ACTION ||
+	    cmd->arg1 != eaction_id)
+		return (0);
+
+	if (instance_id != 0 && rule->act_ofs < rule->cmd_len - 1) {
+		icmd = cmd + 1;
+		if (icmd->opcode != O_EXTERNAL_INSTANCE ||
+		    icmd->arg1 != instance_id)
+			return (0);
+		/* FALLTHROUGH */
+	}
+
+	cmd->arg1 = default_id; /* Set to default id */
+	/*
+	 * Since named_object related to this instance will be
+	 * also destroyed, truncate the chain of opcodes to
+	 * remove the rest of cmd chain just after O_EXTERNAL_ACTION
+	 * opcode.
+	 */
+	if (rule->act_ofs < rule->cmd_len - 1) {
+		EACTION_DEBUG("truncate rule %d: len %u -> %u",
+		    rule->rulenum, rule->cmd_len, rule->act_ofs + 1);
+		rule->cmd_len = rule->act_ofs + 1;
+	}
+	/*
+	 * Return 1 when reset successfully happened.
+	 */
+	return (1);
+}
+
+/*
+ * This function should be called before external action instance is
+ * destroyed. It will reset eaction_id to default_id for rules, where
+ * eaction has instance with id == kidx.
+ */
+int
+ipfw_reset_eaction_instance(struct ip_fw_chain *ch, uint16_t eaction_id,
+    uint16_t kidx)
+{
+	struct named_object *no;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+	no = ipfw_objhash_lookup_kidx(CHAIN_TO_SRV(ch), eaction_id);
+	if (no == NULL || no->etlv != IPFW_TLV_EACTION)
+		return (EINVAL);
+
+	reset_eaction_rules(ch, eaction_id, kidx, 0);
 	return (0);
 }
 
