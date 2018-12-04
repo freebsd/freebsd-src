@@ -42,21 +42,6 @@ extern "C" {
 
 #define	PRIQ_MAXPRI	16	/* upper limit of the number of priorities */
 
-#ifdef ALTQ3_COMPAT
-struct priq_interface {
-	char	ifname[IFNAMSIZ];	/* interface name (e.g., fxp0) */
-	u_long	arg;			/* request-specific argument */
-};
-
-struct priq_add_class {
-	struct priq_interface	iface;
-	int			pri;	/* priority (0 is the lowest) */
-	int			qlimit;	/* queue size limit */
-	int			flags;	/* misc flags (see below) */
-
-	u_int32_t		class_handle;  /* return value */
-};
-#endif /* ALTQ3_COMPAT */
 
 /* priq class flags */
 #define	PRCF_RED		0x0001	/* use RED */
@@ -69,33 +54,6 @@ struct priq_add_class {
 /* special class handles */
 #define	PRIQ_NULLCLASS_HANDLE	0
 
-#ifdef ALTQ3_COMPAT
-struct priq_delete_class {
-	struct priq_interface	iface;
-	u_int32_t		class_handle;
-};
-
-struct priq_modify_class {
-	struct priq_interface	iface;
-	u_int32_t		class_handle;
-	int			pri;
-	int			qlimit;
-	int			flags;
-};
-
-struct priq_add_filter {
-	struct priq_interface	iface;
-	u_int32_t		class_handle;
-	struct flow_filter	filter;
-
-	u_long			filter_handle;  /* return value */
-};
-
-struct priq_delete_filter {
-	struct priq_interface	iface;
-	u_long			filter_handle;
-};
-#endif /* ALTQ3_COMPAT */
 
 struct priq_classstats {
 	u_int32_t		class_handle;
@@ -118,27 +76,6 @@ struct priq_classstats {
  * header.
  */
 
-#ifdef ALTQ3_COMPAT
-struct priq_class_stats {
-	struct priq_interface	iface;
-	int			maxpri;	  /* in/out */
-
-	struct priq_classstats	*stats;   /* pointer to stats array */
-};
-
-#define	PRIQ_IF_ATTACH		_IOW('Q', 1, struct priq_interface)
-#define	PRIQ_IF_DETACH		_IOW('Q', 2, struct priq_interface)
-#define	PRIQ_ENABLE		_IOW('Q', 3, struct priq_interface)
-#define	PRIQ_DISABLE		_IOW('Q', 4, struct priq_interface)
-#define	PRIQ_CLEAR		_IOW('Q', 5, struct priq_interface)
-#define	PRIQ_ADD_CLASS		_IOWR('Q', 7, struct priq_add_class)
-#define	PRIQ_DEL_CLASS		_IOW('Q', 8, struct priq_delete_class)
-#define	PRIQ_MOD_CLASS		_IOW('Q', 9, struct priq_modify_class)
-#define	PRIQ_ADD_FILTER		_IOWR('Q', 10, struct priq_add_filter)
-#define	PRIQ_DEL_FILTER		_IOW('Q', 11, struct priq_delete_filter)
-#define	PRIQ_GETSTATS		_IOWR('Q', 12, struct priq_class_stats)
-
-#endif /* ALTQ3_COMPAT */
 
 #ifdef _KERNEL
 
