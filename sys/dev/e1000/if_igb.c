@@ -3604,7 +3604,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		}
 #ifdef DEV_NETMAP
 		if (slot) {
-			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
+			int si = netmap_idx_n2k(na->tx_rings[txr->me], i);
 			/* no need to set the address */
 			netmap_load_map(na, txr->txtag, txbuf->map, NMB(na, slot + si));
 		}
@@ -4420,7 +4420,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* slot sj is mapped to the j-th NIC-ring entry */
-			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
+			int sj = netmap_idx_n2k(na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
@@ -4806,7 +4806,7 @@ igb_initialize_receive_units(struct adapter *adapter)
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(adapter->ifp);
-			struct netmap_kring *kring = &na->rx_rings[i];
+			struct netmap_kring *kring = na->rx_rings[i];
 			int t = rxr->next_to_refresh - nm_kr_rxspace(kring);
 
 			if (t >= adapter->num_rx_desc)

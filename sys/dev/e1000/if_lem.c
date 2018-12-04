@@ -2792,7 +2792,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* the i-th NIC entry goes to slot si */
-			int si = netmap_idx_n2k(&na->tx_rings[0], i);
+			int si = netmap_idx_n2k(na->tx_rings[0], i);
 			uint64_t paddr;
 			void *addr;
 
@@ -3374,7 +3374,7 @@ lem_setup_receive_structures(struct adapter *adapter)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* the i-th NIC entry goes to slot si */
-			int si = netmap_idx_n2k(&na->rx_rings[0], i);
+			int si = netmap_idx_n2k(na->rx_rings[0], i);
 			uint64_t paddr;
 			void *addr;
 
@@ -3498,7 +3498,7 @@ lem_initialize_receive_unit(struct adapter *adapter)
 	/* preserve buffers already made available to clients */
 	if (if_getcapenable(ifp) & IFCAP_NETMAP) {
 		struct netmap_adapter *na = netmap_getna(adapter->ifp);
-		rctl -= nm_kr_rxspace(&na->rx_rings[0]);
+		rctl -= nm_kr_rxspace(na->rx_rings[0]);
 	}
 #endif /* DEV_NETMAP */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), rctl);

@@ -909,7 +909,7 @@ t4_nm_intr(void *arg)
 	struct adapter *sc = vi->pi->adapter;
 	struct ifnet *ifp = vi->ifp;
 	struct netmap_adapter *na = NA(ifp);
-	struct netmap_kring *kring = &na->rx_rings[nm_rxq->nid];
+	struct netmap_kring *kring = na->rx_rings[nm_rxq->nid];
 	struct netmap_ring *ring = kring->ring;
 	struct iq_desc *d = &nm_rxq->iq_desc[nm_rxq->iq_cidx];
 	const void *cpl;
@@ -950,7 +950,7 @@ t4_nm_intr(void *arg)
 			case CPL_RX_PKT:
 				ring->slot[fl_cidx].len = G_RSPD_LEN(lq) -
 				    sc->params.sge.fl_pktshift;
-				ring->slot[fl_cidx].flags = kring->nkr_slot_flags;
+				ring->slot[fl_cidx].flags = 0;
 				fl_cidx += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				fl_credits += (lq & F_RSPD_NEWBUF) ? 1 : 0;
 				if (__predict_false(fl_cidx == nm_rxq->fl_sidx))
