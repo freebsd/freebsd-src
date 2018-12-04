@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181204	p6	FreeBSD-SA-18:14.bhyve
+
+	Fix insufficient bounds checking in bhyve(8) device model.
+	[SA-18:14.bhyve]
+
 20181127	p5	FreeBSD-SA-18:13.nfs
 			FreeBSD-EN-18:13.icmp
 			FreeBSD-EN-18:14.tzdata
