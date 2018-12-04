@@ -453,10 +453,10 @@
 		    _Inout_opt_ size_t *size,
 		    int arg
 		);
-	} getkerninfo getkerninfo_args int
+	}
 64	AUE_NULL	COMPAT {
 		int getpagesize(void);
-	} getpagesize getpagesize_args int
+	}
 65	AUE_MSYNC	STD {
 		int msync(
 		    _In_ void *addr,
@@ -570,13 +570,13 @@
 		    _Out_writes_z_(len) char *hostname,
 		    u_int len
 		);
-	} gethostname gethostname_args int
+	}
 88	AUE_SYSCTL	COMPAT {
 		int sethostname(
 		    _In_reads_z_(len) char *hostname,
 		    u_int len
 		);
-	} sethostname sethostname_args int
+	}
 89	AUE_GETDTABLESIZE	STD {
 		int getdtablesize(void);
 	}
@@ -638,7 +638,7 @@
 		    _Out_writes_bytes_opt_(*anamelen) struct sockaddr *name,
 		    int *anamelen
 		);
-	} accept accept_args int
+	}
 100	AUE_GETPRIORITY	STD {
 		int getpriority(
 		    int which,
