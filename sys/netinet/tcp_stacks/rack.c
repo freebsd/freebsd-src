@@ -8493,9 +8493,7 @@ out:
 	    pass, rsm);
 	if ((tp->t_flags & TF_FORCEDATA) == 0 ||
 	    (rack->rc_in_persist == 0)) {
-#ifdef NETFLIX_STATS
 		tcp_seq startseq = tp->snd_nxt;
-#endif
 
 		/*
 		 * Advance snd_nxt over sequence space of this segment.
@@ -8527,6 +8525,17 @@ out:
 				tp->t_acktime = ticks;
 			}
 			tp->snd_max = tp->snd_nxt;
+			/*
+			 * Time this transmission if not a retransmission and
+			 * not currently timing anything.
+			 * This is only relevant in case of switching back to
+			 * the base stack.
+			 */
+			if (tp->t_rtttime == 0) {
+				tp->t_rtttime = ticks;
+				tp->t_rtseq = startseq;
+				TCPSTAT_INC(tcps_segstimed);
+			}
 #ifdef NETFLIX_STATS
 			if (!(tp->t_flags & TF_GPUTINPROG) && len) {
 				tp->t_flags |= TF_GPUTINPROG;
