@@ -247,7 +247,7 @@ struct umask_args {
 struct chroot_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 };
-struct getpagesize_args {
+struct ogetpagesize_args {
 	register_t dummy;
 };
 struct msync_args {
@@ -2183,7 +2183,7 @@ struct ofstat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char sb_l_[PADL_(struct ostat *)]; struct ostat * sb; char sb_r_[PADR_(struct ostat *)];
 };
-struct getkerninfo_args {
+struct ogetkerninfo_args {
 	char op_l_[PADL_(int)]; int op; char op_r_[PADR_(int)];
 	char where_l_[PADL_(char *)]; char * where; char where_r_[PADR_(char *)];
 	char size_l_[PADL_(size_t *)]; size_t * size; char size_r_[PADR_(size_t *)];
@@ -2197,11 +2197,11 @@ struct ommap_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
 	char pos_l_[PADL_(long)]; long pos; char pos_r_[PADR_(long)];
 };
-struct gethostname_args {
+struct ogethostname_args {
 	char hostname_l_[PADL_(char *)]; char * hostname; char hostname_r_[PADR_(char *)];
 	char len_l_[PADL_(u_int)]; u_int len; char len_r_[PADR_(u_int)];
 };
-struct sethostname_args {
+struct osethostname_args {
 	char hostname_l_[PADL_(char *)]; char * hostname; char hostname_r_[PADR_(char *)];
 	char len_l_[PADL_(u_int)]; u_int len; char len_r_[PADR_(u_int)];
 };
@@ -2290,13 +2290,13 @@ int	osigaction(struct thread *, struct osigaction_args *);
 int	osigprocmask(struct thread *, struct osigprocmask_args *);
 int	osigpending(struct thread *, struct osigpending_args *);
 int	ofstat(struct thread *, struct ofstat_args *);
-int	ogetkerninfo(struct thread *, struct getkerninfo_args *);
-int	ogetpagesize(struct thread *, struct getpagesize_args *);
+int	ogetkerninfo(struct thread *, struct ogetkerninfo_args *);
+int	ogetpagesize(struct thread *, struct ogetpagesize_args *);
 int	ommap(struct thread *, struct ommap_args *);
 int	owait(struct thread *, struct owait_args *);
-int	ogethostname(struct thread *, struct gethostname_args *);
-int	osethostname(struct thread *, struct sethostname_args *);
-int	oaccept(struct thread *, struct accept_args *);
+int	ogethostname(struct thread *, struct ogethostname_args *);
+int	osethostname(struct thread *, struct osethostname_args *);
+int	oaccept(struct thread *, struct oaccept_args *);
 int	osend(struct thread *, struct osend_args *);
 int	orecv(struct thread *, struct orecv_args *);
 int	osigreturn(struct thread *, struct osigreturn_args *);
