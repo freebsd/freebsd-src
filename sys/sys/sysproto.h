@@ -2205,6 +2205,11 @@ struct osethostname_args {
 	char hostname_l_[PADL_(char *)]; char * hostname; char hostname_r_[PADR_(char *)];
 	char len_l_[PADL_(u_int)]; u_int len; char len_r_[PADR_(u_int)];
 };
+struct oaccept_args {
+	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
+	char name_l_[PADL_(struct sockaddr *)]; struct sockaddr * name; char name_r_[PADR_(struct sockaddr *)];
+	char anamelen_l_[PADL_(int *)]; int * anamelen; char anamelen_r_[PADR_(int *)];
+};
 struct osend_args {
 	char s_l_[PADL_(int)]; int s; char s_r_[PADR_(int)];
 	char buf_l_[PADL_(const void *)]; const void * buf; char buf_r_[PADR_(const void *)];
