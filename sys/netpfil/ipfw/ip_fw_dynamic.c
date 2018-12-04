@@ -348,7 +348,6 @@ static VNET_DEFINE(uint32_t, dyn_short_lifetime);
  * dyn_rst_lifetime and dyn_fin_lifetime should be strictly lower
  * than dyn_keepalive_period.
  */
-#define	DYN_KEEPALIVE_MAXQ		512
 static VNET_DEFINE(uint32_t, dyn_keepalive_interval);
 static VNET_DEFINE(uint32_t, dyn_keepalive_period);
 static VNET_DEFINE(uint32_t, dyn_keepalive);
@@ -2350,7 +2349,7 @@ dyn_send_keepalive_ipv4(struct ip_fw_chain *chain)
 	struct dyn_ipv4_state *s;
 	uint32_t bucket;
 
-	mbufq_init(&q, DYN_KEEPALIVE_MAXQ);
+	mbufq_init(&q, INT_MAX);
 	IPFW_UH_RLOCK(chain);
 	/*
 	 * It is safe to not use hazard pointer and just do lockless
@@ -2457,7 +2456,7 @@ dyn_send_keepalive_ipv6(struct ip_fw_chain *chain)
 	struct dyn_ipv6_state *s;
 	uint32_t bucket;
 
-	mbufq_init(&q, DYN_KEEPALIVE_MAXQ);
+	mbufq_init(&q, INT_MAX);
 	IPFW_UH_RLOCK(chain);
 	/*
 	 * It is safe to not use hazard pointer and just do lockless
