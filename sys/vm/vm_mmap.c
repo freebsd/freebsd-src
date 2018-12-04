@@ -129,14 +129,8 @@ sys_sstk(struct thread *td, struct sstk_args *uap)
 }
 
 #if defined(COMPAT_43)
-#ifndef _SYS_SYSPROTO_H_
-struct getpagesize_args {
-	int dummy;
-};
-#endif
-
 int
-ogetpagesize(struct thread *td, struct getpagesize_args *uap)
+ogetpagesize(struct thread *td, struct ogetpagesize_args *uap)
 {
 
 	td->td_retval[0] = PAGE_SIZE;
