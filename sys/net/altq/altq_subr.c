@@ -62,9 +62,6 @@
 #include <netpfil/pf/pf.h>
 #include <netpfil/pf/pf_altq.h>
 #include <net/altq/altq.h>
-#ifdef ALTQ3_COMPAT
-#include <net/altq/altq_conf.h>
-#endif
 
 /* machine dependent clock related includes */
 #include <sys/bus.h>
@@ -155,22 +152,6 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 		return ENXIO;
 	}
 
-#ifdef ALTQ3_COMPAT
-	/*
-	 * pfaltq can override the existing discipline, but altq3 cannot.
-	 * check these if clfier is not NULL (which implies altq3).
-	 */
-	if (clfier != NULL) {
-		if (ALTQ_IS_ENABLED(ifq)) {
-			IFQ_UNLOCK(ifq);
-			return EBUSY;
-		}
-		if (ALTQ_IS_ATTACHED(ifq)) {
-			IFQ_UNLOCK(ifq);
-			return EEXIST;
-		}
-	}
-#endif
 	ifq->altq_type     = type;
 	ifq->altq_disc     = discipline;
 	ifq->altq_enqueue  = enqueue;
@@ -179,11 +160,6 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 	ifq->altq_clfier   = clfier;
 	ifq->altq_classify = classify;
 	ifq->altq_flags &= (ALTQF_CANTCHANGE|ALTQF_ENABLED);
-#ifdef ALTQ3_COMPAT
-#ifdef ALTQ_KLD
-	altq_module_incref(type);
-#endif
-#endif
 	IFQ_UNLOCK(ifq);
 	return 0;
 }
@@ -206,11 +182,6 @@ altq_detach(ifq)
 		IFQ_UNLOCK(ifq);
 		return (0);
 	}
-#ifdef ALTQ3_COMPAT
-#ifdef ALTQ_KLD
-	altq_module_declref(ifq->altq_type);
-#endif
-#endif
 
 	ifq->altq_type     = ALTQT_NONE;
 	ifq->altq_disc     = NULL;

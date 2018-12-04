@@ -49,17 +49,9 @@
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/time.h>
-#ifdef ALTQ3_COMPAT
-#include <sys/kernel.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_var.h>
-#ifdef ALTQ3_COMPAT
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#endif
 
 #include <net/altq/if_altq.h>
 #include <net/altq/altq.h>
