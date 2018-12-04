@@ -1547,6 +1547,7 @@ out:
 void
 nm_os_onattach(struct ifnet *ifp)
 {
+	ifp->if_capabilities |= IFCAP_NETMAP;
 }
 
 void
