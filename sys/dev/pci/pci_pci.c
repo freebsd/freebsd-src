@@ -131,7 +131,8 @@ static device_method_t pcib_methods[] = {
 static devclass_t pcib_devclass;
 
 DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
-DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL);
+EARLY_DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL,
+    BUS_PASS_BUS);
 
 #if defined(NEW_PCIB) || defined(PCI_HP)
 SYSCTL_DECL(_hw_pci);
