@@ -101,7 +101,8 @@ static devclass_t	uninorth_devclass;
 
 DEFINE_CLASS_1(pcib, uninorth_driver, uninorth_methods,
     sizeof(struct uninorth_softc), ofw_pci_driver);
-DRIVER_MODULE(uninorth, ofwbus, uninorth_driver, uninorth_devclass, 0, 0);
+EARLY_DRIVER_MODULE(uninorth, ofwbus, uninorth_driver, uninorth_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static int
 uninorth_probe(device_t dev)
