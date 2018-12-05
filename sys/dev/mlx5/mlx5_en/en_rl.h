@@ -129,7 +129,7 @@ struct mlx5e_rl_channel_param {
 };
 
 struct mlx5e_rl_channel {
-	struct m_snd_tag m_snd_tag;
+	struct mlx5e_snd_tag tag;
 	STAILQ_ENTRY(mlx5e_rl_channel) entry;
 	struct mlx5e_sq * volatile sq;
 	struct mlx5e_rl_worker *worker;
