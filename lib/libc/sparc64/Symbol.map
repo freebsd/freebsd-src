@@ -68,9 +68,7 @@ FBSD_1.0 {
 
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
-	__sys_getlogin;
 	_getlogin;
-	__sys_exit;
 
 	_set_tp;
 	___longjmp;
@@ -79,11 +77,8 @@ FBSDprivate_1.0 {
 	signalcontext;
 	__signalcontext;
 	__siglongjmp;
-	__sys_brk;
 	_brk;
-	__sys_sbrk;
 	_sbrk;
-	__sys_vfork;
 	_vfork;
 
 	/* used in src/lib/csu/sparc64/crt1.c */

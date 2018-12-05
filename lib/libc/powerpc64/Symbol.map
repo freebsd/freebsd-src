@@ -39,9 +39,7 @@ FBSD_1.0 {
 
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
-	__sys_getlogin;
 	_getlogin;
-	__sys_exit;
 
 	_set_tp;
 	_fpgetsticky;
