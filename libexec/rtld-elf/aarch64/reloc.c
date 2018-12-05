@@ -243,7 +243,9 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	const Elf_Sym *def;
-	struct tls_data *tlsdesc;
+
+	if (obj->jmpslots_done)
+		return (0);
 
 	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
 	    obj->pltrelasize);
@@ -265,20 +267,9 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 			reloc_jmpslot(where, target, defobj, obj,
 			    (const Elf_Rel *)rela);
 			break;
-		case R_AARCH64_TLSDESC:
-			if (ELF_R_SYM(rela->r_info) != 0) {
-				tlsdesc = (struct tls_data *)where[1];
-				if (tlsdesc->index == -1)
-					rtld_tlsdesc_handle_locked(tlsdesc,
-					    SYMLOOK_IN_PLT | flags, lockstate);
-			}
-			break;
-		default:
-			_rtld_error("Unknown relocation type %x in jmpslot",
-			    (unsigned int)ELF_R_TYPE(rela->r_info));
-			return (-1);
 		}
 	}
+	obj->jmpslots_done = true;
 
 	return (0);
 }
