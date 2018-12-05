@@ -933,7 +933,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_cq[0x5];
 
 	u8         log_max_eq_sz[0x8];
-	u8         reserved_6[0x2];
+	u8         relaxed_ordering_write[1];
+	u8         reserved_6[0x1];
 	u8         log_max_mkey[0x6];
 	u8         reserved_7[0xc];
 	u8         log_max_eq[0x4];
@@ -2424,9 +2425,13 @@ enum {
 };
 
 struct mlx5_ifc_mkc_bits {
-	u8         reserved_0[0x1];
+	u8         reserved_at_0[0x1];
 	u8         free[0x1];
-	u8         reserved_1[0xd];
+	u8         reserved_at_2[0x1];
+	u8         access_mode_4_2[0x3];
+	u8         reserved_at_6[0x7];
+	u8         relaxed_ordering_write[0x1];
+	u8         reserved_at_e[0x1];
 	u8         small_fence_on_rdma_read_response[0x1];
 	u8         umr_en[0x1];
 	u8         a[0x1];
