@@ -86,7 +86,7 @@ git_tree_modified()
 	local fifo
 
 	fifo=$(mktemp -u)
-	mkfifo -m 600 $fifo
+	mkfifo -m 600 $fifo || exit 1
 	$git_cmd --work-tree=${VCSTOP} diff-index HEAD > $fifo &
 	while read smode dmode ssha dsha status file; do
 		if ! expr $dsha : '^00*$' >/dev/null; then
