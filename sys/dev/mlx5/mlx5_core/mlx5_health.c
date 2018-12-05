@@ -59,6 +59,11 @@ enum  {
 	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
 
+static int mlx5_fw_reset_enable = 1;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, fw_reset_enable, CTLFLAG_RWTUN,
+    &mlx5_fw_reset_enable, 0,
+    "Enable firmware reset");
+
 static int lock_sem_sw_reset(struct mlx5_core_dev *dev)
 {
 	int ret;
@@ -180,10 +185,13 @@ static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
 
 static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 {
-	bool supported = (ioread32be(&dev->iseg->initializing) >>
-			  MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
+	bool supported;
 	u32 cmdq_addr, fatal_error;
 
+	if (!mlx5_fw_reset_enable)
+		return;
+	supported = (ioread32be(&dev->iseg->initializing) >>
+	    MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
 	if (!supported)
 		return;
 
