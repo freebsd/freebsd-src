@@ -287,7 +287,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	else
 		err = create_srq_kernel(dev, srq, &in, buf_size);
 
-	if (err) {
+	if (err || !in.pas) {
 		mlx5_ib_warn(dev, "create srq %s failed, err %d\n",
 			     pd->uobject ? "user" : "kernel", err);
 		goto err_srq;
