@@ -458,9 +458,9 @@ mlx5e_rlw_channel_set_rate_locked(struct mlx5e_rl_worker *rlw,
 		    howmany(rate, 1000), burst);
 	}
 
-	/* set new rate, if SQ is not stopped */
+	/* set new rate, if SQ is running */
 	sq = channel->sq;
-	if (sq != NULL && sq->stopped == 0) {
+	if (sq != NULL && READ_ONCE(sq->running) != 0) {
 		error = mlx5e_rl_modify_sq(sq, index);
 		if (error != 0)
 			atomic_add_64(&rlw->priv->rl.stats.tx_modify_rate_failure, 1ULL);

@@ -1035,7 +1035,7 @@ mlx5e_ethtool_debug_channel_info(SYSCTL_HANDLER_ARGS)
 	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
 		goto out;
 	for (i = 0; i < priv->params.num_channels; i++) {
-		c = priv->channel[i];
+		c = &priv->channel[i];
 		rq = &c->rq;
 		sbuf_printf(&sb, "channel %d rq %d cq %d\n",
 		    c->ix, rq->rqn, rq->cq.mcq.cqn);
