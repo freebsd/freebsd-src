@@ -269,7 +269,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	mlx5_core_err(dev, "system error event triggered\n");
 
 err_state_done:
-	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 0);
+	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 1);
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
