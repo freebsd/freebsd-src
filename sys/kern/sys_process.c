@@ -540,6 +540,9 @@ struct ptrace_args {
  *   copyin(uap->addr, &r.reg32, sizeof r.reg32);
  * .. except this is done at runtime.
  */
+#define	BZERO(a, s)		wrap32 ? \
+	bzero(a ## 32, s ## 32) : \
+	bzero(a, s)
 #define	COPYIN(u, k, s)		wrap32 ? \
 	copyin(u, k ## 32, s ## 32) : \
 	copyin(u, k, s)
@@ -547,6 +550,7 @@ struct ptrace_args {
 	copyout(k ## 32, u, s ## 32) : \
 	copyout(k, u, s)
 #else
+#define	BZERO(a, s)		bzero(a, s)
 #define	COPYIN(u, k, s)		copyin(u, k, s)
 #define	COPYOUT(k, u, s)	copyout(k, u, s)
 #endif
@@ -572,7 +576,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_lwpinfo32 pl32;
 		struct ptrace_vm_entry32 pve32;
 #endif
-		char args[nitems(td->td_sa.args) * sizeof(register_t)];
+		char args[sizeof(td->td_sa.args)];
 		int ptevents;
 	} r;
 	void *addr;
@@ -589,11 +593,17 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	addr = &r;
 	switch (uap->req) {
 	case PT_GET_EVENT_MASK:
-	case PT_GETREGS:
-	case PT_GETFPREGS:
-	case PT_GETDBREGS:
 	case PT_LWPINFO:
 	case PT_GET_SC_ARGS:
+		break;
+	case PT_GETREGS:
+		BZERO(&r.reg, sizeof r.reg);
+		break;
+	case PT_GETFPREGS:
+		BZERO(&r.fpreg, sizeof r.fpreg);
+		break;
+	case PT_GETDBREGS:
+		BZERO(&r.dbreg, sizeof r.dbreg);
 		break;
 	case PT_SETREGS:
 		error = COPYIN(uap->addr, &r.reg, sizeof r.reg);
@@ -661,6 +671,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 }
 #undef COPYIN
 #undef COPYOUT
+#undef BZERO
 
 #ifdef COMPAT_FREEBSD32
 /*

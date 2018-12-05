@@ -2,7 +2,9 @@
 
 PACKAGE=runtime
 CONFS=	minfree
-CONFSDIR=	/var/crash
+VAR_CRASH=	/var/crash
+VAR_CRASH_MODE=	0750
+CONFSDIR=	VAR_CRASH
 PROG=	savecore
 LIBADD=	z xo
 MAN=	savecore.8
