@@ -199,6 +199,7 @@ linux_pci_detach(device_t dev)
 	spin_lock(&pci_lock);
 	list_del(&pdev->links);
 	spin_unlock(&pci_lock);
+	device_set_desc(dev, NULL);
 	put_device(&pdev->dev);
 
 	return (0);
