@@ -52,9 +52,9 @@
 
 #define DRIVER_NAME "mlx5ib"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.4.2"
+#define DRIVER_VERSION "3.5.0"
 #endif
-#define DRIVER_RELDATE	"July 2018"
+#define DRIVER_RELDATE	"November 2018"
 
 MODULE_DESCRIPTION("Mellanox Connect-IB HCA IB driver");
 MODULE_LICENSE("Dual BSD/GPL");
