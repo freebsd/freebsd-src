@@ -21,6 +21,10 @@ CFLAGS+= -DHAVE_PER_CQ_EVENT_PACKET
 CFLAGS+= -DHAVE_TCP_LRO_RX
 .endif
 
+.if defined(CONFIG_BUILD_FPGA)
+CFLAGS+= -DCONFIG_MLX5_FPGA
+.endif
+
 CFLAGS+= -I${SRCTOP}/sys/ofed/include
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 

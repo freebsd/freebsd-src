@@ -1034,6 +1034,12 @@ enum mlx5_qcam_feature_groups {
 #define	MLX5_CAP_QCAM_FEATURE(mdev, fld) \
 	MLX5_GET(qcam_reg, (mdev)->caps.qcam, qos_feature_cap_mask.feature_cap.fld)
 
+#define MLX5_CAP_FPGA(mdev, cap) \
+	MLX5_GET(fpga_cap, (mdev)->caps.fpga, cap)
+
+#define MLX5_CAP64_FPGA(mdev, cap) \
+	MLX5_GET64(fpga_cap, (mdev)->caps.fpga, cap)
+
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,
 	MLX5_CMD_STAT_INT_ERR			= 0x1,

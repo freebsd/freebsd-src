@@ -23,6 +23,10 @@ CFLAGS+= -I${SRCTOP}/sys/ofed/include/uapi
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
 CFLAGS+= -DCONFIG_INFINIBAND_USER_MEM
 
+.if defined(CONFIG_BUILD_FPGA)
+CFLAGS+= -DCONFIG_MLX5_FPGA
+.endif
+
 .include <bsd.kmod.mk>
 
 CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}

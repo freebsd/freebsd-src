@@ -41,6 +41,8 @@
 #include <dev/mlx5/srq.h>
 #include <linux/delay.h>
 #include <dev/mlx5/mlx5_ifc.h>
+#include <dev/mlx5/mlx5_fpga/core.h>
+#include <dev/mlx5/mlx5_lib/mlx5.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
 
@@ -734,7 +736,8 @@ static void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *pr
 		}
 }
 
-static int mlx5_register_device(struct mlx5_core_dev *dev)
+int
+mlx5_register_device(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
@@ -748,7 +751,8 @@ static int mlx5_register_device(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-static void mlx5_unregister_device(struct mlx5_core_dev *dev)
+void
+mlx5_unregister_device(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
@@ -912,6 +916,9 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_init_srq_table(dev);
 	mlx5_init_mr_table(dev);
 
+	mlx5_init_reserved_gids(dev);
+	mlx5_fpga_init(dev);
+
 #ifdef RATELIMIT
 	err = mlx5_init_rl_table(dev);
 	if (err) {
@@ -941,6 +948,8 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 #ifdef RATELIMIT
 	mlx5_cleanup_rl_table(dev);
 #endif
+	mlx5_fpga_cleanup(dev);
+	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mr_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
@@ -1075,6 +1084,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_free_comp_eqs;
 	}
 
+	err = mlx5_fpga_device_start(dev);
+	if (err) {
+		dev_err(&pdev->dev, "fpga device start failed %d\n", err);
+		goto err_fpga_start;
+	}
+
 	err = mlx5_register_device(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
@@ -1088,6 +1103,7 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 	return 0;
 
+err_fpga_start:
 err_fs:
 	mlx5_cleanup_fs(dev);
 
@@ -1152,6 +1168,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 	mlx5_unregister_device(dev);
 
+	mlx5_fpga_device_stop(dev);
 	mlx5_cleanup_fs(dev);
 	unmap_bf_area(dev);
 	mlx5_wait_for_reclaim_vfs_pages(dev);
