@@ -308,9 +308,9 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt)
 
 	if (qp) {
 		if (abrupt)
-			ret = iwcm_modify_qp_err(qp);
+			(void) iwcm_modify_qp_err(qp);
 		else
-			ret = iwcm_modify_qp_sqd(qp);
+			(void) iwcm_modify_qp_sqd(qp);
 
 		/*
 		 * If both sides are disconnecting the QP could
