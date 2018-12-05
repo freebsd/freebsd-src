@@ -75,6 +75,15 @@
 #define MAX_RX_RINGS		128
 #define MIN_RX_RINGS		4
 #define TXBB_SIZE		64
+
+#ifndef MLX4_EN_MAX_RX_SEGS
+#define	MLX4_EN_MAX_RX_SEGS 1	/* or 8 */
+#endif
+
+#ifndef MLX4_EN_MAX_RX_BYTES
+#define	MLX4_EN_MAX_RX_BYTES MCLBYTES
+#endif
+
 #define HEADROOM		(2048 / TXBB_SIZE + 1)
 #define INIT_OWNER_BIT		0xffffffff
 #define STAMP_STRIDE		64
@@ -297,9 +306,11 @@ struct mlx4_en_tx_ring {
 };
 
 struct mlx4_en_rx_desc {
-	/* actual number of entries depends on rx ring stride */
-	struct mlx4_wqe_data_seg data[0];
+	struct mlx4_wqe_data_seg data[MLX4_EN_MAX_RX_SEGS];
 };
+
+/* the size of the structure above must be power of two */
+CTASSERT(powerof2(sizeof(struct mlx4_en_rx_desc)));
 
 struct mlx4_en_rx_mbuf {
 	bus_dmamap_t dma_map;
@@ -309,7 +320,7 @@ struct mlx4_en_rx_mbuf {
 struct mlx4_en_rx_spare {
 	bus_dmamap_t dma_map;
 	struct mbuf *mbuf;
-	u64 paddr_be;
+	bus_dma_segment_t segs[MLX4_EN_MAX_RX_SEGS];
 };
 
 struct mlx4_en_rx_ring {
@@ -319,7 +330,6 @@ struct mlx4_en_rx_ring {
 	u32 size ;	/* number of Rx descs*/
 	u32 actual_size;
 	u32 size_mask;
-	u16 stride;
 	u16 log_stride;
 	u16 cqn;	/* index of port CQ associated with this ring */
 	u32 prod;
@@ -327,6 +337,7 @@ struct mlx4_en_rx_ring {
 	u32 buf_size;
 	u8  fcs_del;
 	u32 rx_mb_size;
+	u32 rx_mr_key_be;
 	int qpn;
 	u8 *buf;
 	struct mlx4_en_rx_mbuf *mbuf;
@@ -559,7 +570,6 @@ struct mlx4_en_priv {
 	int registered;
 	int gone;
 	int allocated;
-	int stride;
 	unsigned char current_mac[ETH_ALEN + 2];
         u64 mac;
 	int mac_index;
@@ -805,7 +815,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   u32 size, int node);
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_rx_ring **pring,
-			     u32 size, u16 stride);
+			     u32 size);
 void mlx4_en_rx_que(void *context, int pending);
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv);
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
