@@ -1146,3 +1146,39 @@ out:
 	kfree(out);
 	return err;
 }
+
+int mlx5_query_pddr_range_info(struct mlx5_core_dev *mdev, u8 local_port, u8 *is_er_type)
+{
+	u32 pddr_reg[MLX5_ST_SZ_DW(pddr_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(pddr_reg);
+	int error;
+	u8 ecc;
+	u8 ci;
+
+	MLX5_SET(pddr_reg, pddr_reg, local_port, local_port);
+	MLX5_SET(pddr_reg, pddr_reg, page_select, 3 /* module info page */);
+
+	error = mlx5_core_access_reg(mdev, pddr_reg, sz, pddr_reg, sz,
+	    MLX5_ACCESS_REG_SUMMARY_CTRL_ID_PDDR, 0, 0);
+	if (error != 0)
+		return (error);
+
+	ecc = MLX5_GET(pddr_reg, pddr_reg, page_data.pddr_module_info.ethernet_compliance_code);
+	ci = MLX5_GET(pddr_reg, pddr_reg, page_data.pddr_module_info.cable_identifier);
+
+	switch (ci) {
+	case 0:	/* QSFP28 */
+	case 1:	/* QSFP+ */
+		*is_er_type = 0;
+		break;
+	case 2:	/* SFP28/SFP+ */
+	case 3: /* QSA (QSFP->SFP) */
+		*is_er_type = ((ecc & (1 << 7)) != 0);
+		break;
+	default:
+		*is_er_type = 0;
+		break;
+	}
+	return (0);
+}
+EXPORT_SYMBOL_GPL(mlx5_query_pddr_range_info);
