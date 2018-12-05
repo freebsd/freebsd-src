@@ -91,6 +91,7 @@ void	idr_init(struct idr *idp);
 int	idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_alloc_cyclic(struct idr *idp, void *ptr, int start, int end, gfp_t);
 int	idr_for_each(struct idr *idp, int (*fn)(int id, void *p, void *data), void *data);
+bool	idr_is_empty(struct idr *idp);
 
 #define	idr_for_each_entry(idp, entry, id)	\
 	for ((id) = 0; ((entry) = idr_get_next(idp, &(id))) != NULL; ++(id))
@@ -122,7 +123,15 @@ void	ida_simple_remove(struct ida *ida, unsigned int id);
 static inline int
 ida_get_new(struct ida *ida, int *p_id)
 {
+
 	return (ida_get_new_above(ida, 0, p_id));
+}
+
+static inline bool
+ida_is_empty(struct ida *ida)
+{
+
+	return (idr_is_empty(&ida->idr));
 }
 
 #endif	/* _LINUX_IDR_H_ */
