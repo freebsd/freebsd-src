@@ -79,7 +79,7 @@ vtnet_free_used(struct virtqueue *vq, int netmap_bufs, enum txrx t, int idx)
 	}
 
 	if (deq)
-		nm_prinf("%d sgs dequeued from %s-%d (netmap=%d)\n",
+		nm_prinf("%d sgs dequeued from %s-%d (netmap=%d)",
 			 deq, nm_txrx2str(t), idx, netmap_bufs);
 }
 
@@ -230,7 +230,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 						/*writeable=*/0);
 			if (unlikely(err)) {
 				if (err != ENOSPC)
-					nm_prerr("virtqueue_enqueue(%s) failed: %d\n",
+					nm_prerr("virtqueue_enqueue(%s) failed: %d",
 							kring->name, err);
 				break;
 			}
@@ -251,7 +251,7 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 		if (token == NULL)
 			break;
 		if (unlikely(token != (void *)txq))
-			nm_prerr("BUG: TX token mismatch\n");
+			nm_prerr("BUG: TX token mismatch");
 		else
 			n++;
 	}
@@ -307,7 +307,7 @@ vtnet_netmap_kring_refill(struct netmap_kring *kring, u_int nm_i, u_int head)
 				/*readable=*/0, /*writeable=*/sg.sg_nseg);
 		if (unlikely(err)) {
 			if (err != ENOSPC)
-				nm_prerr("virtqueue_enqueue(%s) failed: %d\n",
+				nm_prerr("virtqueue_enqueue(%s) failed: %d",
 					kring->name, err);
 			break;
 		}
@@ -391,7 +391,7 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 				break;
 			}
 			if (unlikely(token != (void *)rxq)) {
-				nm_prerr("BUG: RX token mismatch\n");
+				nm_prerr("BUG: RX token mismatch");
 			} else {
 				/* Skip the virtio-net header. */
 				len -= sc->vtnet_hdr_size;
@@ -533,7 +533,7 @@ vtnet_netmap_attach(struct vtnet_softc *sc)
 
 	netmap_attach(&na);
 
-	nm_prinf("vtnet attached txq=%d, txd=%d rxq=%d, rxd=%d\n",
+	nm_prinf("vtnet attached txq=%d, txd=%d rxq=%d, rxd=%d",
 			na.num_tx_rings, na.num_tx_desc,
 			na.num_tx_rings, na.num_rx_desc);
 }
