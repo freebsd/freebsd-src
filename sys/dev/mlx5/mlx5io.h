@@ -61,6 +61,7 @@ enum mlx5_fpga_id {
 	MLX5_FPGA_NEWTON = 0,
 	MLX5_FPGA_EDISON = 1,
 	MLX5_FPGA_MORSE = 2,
+	MLX5_FPGA_MORSEQ = 3,
 };
 
 enum mlx5_fpga_image {

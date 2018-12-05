@@ -138,6 +138,8 @@ static const char *mlx5_fpga_name(u32 fpga_id)
 		return "Edison";
 	case MLX5_FPGA_MORSE:
 		return "Morse";
+	case MLX5_FPGA_MORSEQ:
+		return "MorseQ";
 	}
 
 	snprintf(ret, sizeof(ret), "Unknown %d", fpga_id);
@@ -148,6 +150,7 @@ static int mlx5_fpga_device_load_check(struct mlx5_fpga_device *fdev)
 {
 	struct mlx5_fpga_query query;
 	int err;
+	u32 fpga_id;
 
 	err = mlx5_fpga_query(fdev->mdev, &query);
 	if (err) {
@@ -162,8 +165,9 @@ static int mlx5_fpga_device_load_check(struct mlx5_fpga_device *fdev)
 	mlx5_fpga_info(fdev, "Status %u; Admin image %u; Oper image %u\n",
 		      query.image_status, query.admin_image, query.oper_image);
 
-	/* For Morse project FPGA has no influence to network functionality */
-	if (MLX5_CAP_FPGA(fdev->mdev, fpga_id) == MLX5_FPGA_MORSE)
+	/* For Morse projects FPGA has no influence to network functionality */
+	fpga_id = MLX5_CAP_FPGA(fdev->mdev, fpga_id);
+	if (fpga_id == MLX5_FPGA_MORSE || fpga_id == MLX5_FPGA_MORSEQ)
 		return 0;
 
 	if (query.image_status != MLX5_FPGA_STATUS_SUCCESS) {
@@ -226,7 +230,7 @@ int mlx5_fpga_device_start(struct mlx5_core_dev *mdev)
 	fpga_id = MLX5_CAP_FPGA(fdev->mdev, fpga_id);
 	mlx5_fpga_info(fdev, "FPGA card %s\n", mlx5_fpga_name(fpga_id));
 
-	if (fpga_id == MLX5_FPGA_MORSE)
+	if (fpga_id == MLX5_FPGA_MORSE || fpga_id == MLX5_FPGA_MORSEQ)
 		goto out;
 
 	mlx5_fpga_info(fdev, "%s(%d) image, version %u; SBU %06x:%04x version %d\n",
@@ -361,13 +365,16 @@ void mlx5_fpga_device_stop(struct mlx5_core_dev *mdev)
 	unsigned int max_num_qps;
 	unsigned long flags;
 	int err;
+	u32 fpga_id;
 
 	if (!fdev)
 		return;
 
-	spin_lock_irqsave(&fdev->state_lock, flags);
-	if (MLX5_CAP_FPGA(mdev, fpga_id) == MLX5_FPGA_MORSE)
+	fpga_id = MLX5_CAP_FPGA(mdev, fpga_id);
+	if (fpga_id == MLX5_FPGA_MORSE || fpga_id == MLX5_FPGA_MORSEQ)
 		return;
+
+	spin_lock_irqsave(&fdev->state_lock, flags);
 
 	if (fdev->fdev_state != MLX5_FDEV_STATE_SUCCESS) {
 		spin_unlock_irqrestore(&fdev->state_lock, flags);
