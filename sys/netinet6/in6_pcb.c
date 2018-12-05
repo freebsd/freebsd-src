@@ -880,8 +880,8 @@ in6_pcblookup_lbgroup(const struct inpcbinfo *pcbinfo,
 
 	INP_HASH_LOCK_ASSERT(pcbinfo);
 
-	hdr = &pcbinfo->ipi_lbgrouphashbase[INP_PCBLBGROUP_PORTHASH(
-	    lport, pcbinfo->ipi_lbgrouphashmask)];
+	hdr = &pcbinfo->ipi_lbgrouphashbase[
+	    INP_PCBPORTHASH(lport, pcbinfo->ipi_lbgrouphashmask)];
 
 	/*
 	 * Order of socket selection:
