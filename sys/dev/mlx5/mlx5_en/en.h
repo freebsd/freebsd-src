@@ -473,7 +473,6 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
-  m(+1, u64 tx_bufring_disable, "tx_bufring_disable", "0: Enable bufring 1: Disable bufring") \
   m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
   m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
@@ -606,8 +605,6 @@ struct mlx5e_sq {
 	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
-	struct	task sq_task;
-	struct	taskqueue *sq_tq;
 
 	/* pointers to per packet info: write@xmit, read@completion */
 	struct	mlx5e_sq_mbuf *mbuf;
@@ -628,7 +625,6 @@ struct mlx5e_sq {
 	struct	mlx5_wq_ctrl wq_ctrl;
 	struct	mlx5e_priv *priv;
 	int	tc;
-	unsigned int queue_state;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 static inline bool
@@ -857,7 +853,6 @@ void	mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event);
 void	mlx5e_rx_cq_comp(struct mlx5_core_cq *);
 void	mlx5e_tx_cq_comp(struct mlx5_core_cq *);
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
-void	mlx5e_tx_que(void *context, int pending);
 
 int	mlx5e_open_flow_table(struct mlx5e_priv *priv);
 void	mlx5e_close_flow_table(struct mlx5e_priv *priv);
