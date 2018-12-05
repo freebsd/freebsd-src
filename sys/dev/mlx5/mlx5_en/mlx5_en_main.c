@@ -1126,6 +1126,52 @@ static const char *mlx5e_sq_stats_desc[] = {
 	MLX5E_SQ_STATS(MLX5E_STATS_DESC)
 };
 
+void
+mlx5e_update_sq_inline(struct mlx5e_sq *sq)
+{
+	sq->max_inline = sq->priv->params.tx_max_inline;
+	sq->min_inline_mode = sq->priv->params.tx_min_inline_mode;
+
+	/*
+	 * Check if trust state is DSCP or if inline mode is NONE which
+	 * indicates CX-5 or newer hardware.
+	 */
+	if (sq->priv->params_ethtool.trust_state != MLX5_QPTS_TRUST_PCP ||
+	    sq->min_inline_mode == MLX5_INLINE_MODE_NONE) {
+		if (MLX5_CAP_ETH(sq->priv->mdev, wqe_vlan_insert))
+			sq->min_insert_caps = MLX5E_INSERT_VLAN | MLX5E_INSERT_NON_VLAN;
+		else
+			sq->min_insert_caps = MLX5E_INSERT_NON_VLAN;
+	} else {
+		sq->min_insert_caps = 0;
+	}
+}
+
+static void
+mlx5e_refresh_sq_inline_sub(struct mlx5e_priv *priv, struct mlx5e_channel *c)
+{
+	int i;
+
+	for (i = 0; i != c->num_tc; i++) {
+		mtx_lock(&c->sq[i].lock);
+		mlx5e_update_sq_inline(&c->sq[i]);
+		mtx_unlock(&c->sq[i].lock);
+	}
+}
+
+void
+mlx5e_refresh_sq_inline(struct mlx5e_priv *priv)
+{
+	int i;
+
+	/* check if channels are closed */
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
+		return;
+
+	for (i = 0; i < priv->params.num_channels; i++)
+		mlx5e_refresh_sq_inline_sub(priv, priv->channel[i]);
+}
+
 static int
 mlx5e_create_sq(struct mlx5e_channel *c,
     int tc,
@@ -1180,9 +1226,8 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
 	sq->tc = tc;
-	sq->max_inline = priv->params.tx_max_inline;
-	sq->min_inline_mode = priv->params.tx_min_inline_mode;
-	sq->vlan_inline_cap = MLX5_CAP_ETH(mdev, wqe_vlan_insert);
+
+	mlx5e_update_sq_inline(sq);
 
 	snprintf(buffer, sizeof(buffer), "txstat%dtc%d", c->ix, tc);
 	mlx5e_create_stats(&sq->stats.ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
@@ -2992,18 +3037,24 @@ mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 static u16
 mlx5e_get_max_inline_cap(struct mlx5_core_dev *mdev)
 {
-	int bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
+	uint32_t bf_buf_size = (1U << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2U;
 
-	return bf_buf_size -
-	       sizeof(struct mlx5e_tx_wqe) +
-	       2 /*sizeof(mlx5e_tx_wqe.inline_hdr_start)*/;
+	bf_buf_size -= sizeof(struct mlx5e_tx_wqe) - 2;
+
+	/* verify against driver hardware limit */
+	if (bf_buf_size > MLX5E_MAX_TX_INLINE)
+		bf_buf_size = MLX5E_MAX_TX_INLINE;
+
+	return (bf_buf_size);
 }
 
-static void
+static int
 mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
     struct mlx5e_priv *priv,
     int num_comp_vectors)
 {
+	int err;
+
 	/*
 	 * TODO: Consider link speed for setting "log_sq_size",
 	 * "log_rq_size" and "cq_moderation_xxx":
@@ -3035,7 +3086,10 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	priv->params.default_vlan_prio = 0;
 	priv->counter_set_id = -1;
 	priv->params.tx_max_inline = mlx5e_get_max_inline_cap(mdev);
-	mlx5_query_min_inline(mdev, &priv->params.tx_min_inline_mode);
+
+	err = mlx5_query_min_inline(mdev, &priv->params.tx_min_inline_mode);
+	if (err)
+		return (err);
 
 	/*
 	 * hw lro is currently defaulted to off. when it won't anymore we
@@ -3058,6 +3112,8 @@ mlx5e_build_ifp_priv(struct mlx5_core_dev *mdev,
 	INIT_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 	INIT_WORK(&priv->update_carrier_work, mlx5e_update_carrier_work);
 	INIT_WORK(&priv->set_rx_mode_work, mlx5e_set_rx_mode_work);
+
+	return (0);
 }
 
 static int
@@ -3295,20 +3351,6 @@ mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value)
 		else
 			mlx5e_enable_rx_dma(priv->channel[i]);
 	}
-}
-
-u8
-mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev)
-{
-	u8 min_inline_mode;
-
-	min_inline_mode = MLX5_INLINE_MODE_L2;
-	mlx5_query_min_inline(mdev, &min_inline_mode);
-	if (min_inline_mode == MLX5_INLINE_MODE_NONE &&
-	    !MLX5_CAP_ETH(mdev, wqe_vlan_insert))
-		min_inline_mode = MLX5_INLINE_MODE_L2;
-
-	return (min_inline_mode);
 }
 
 static void
@@ -3590,7 +3632,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		mlx5_core_err(mdev, "SYSCTL_ADD_NODE() failed\n");
 		goto err_free_sysctl;
 	}
-	mlx5e_build_ifp_priv(mdev, priv, ncv);
+
+	err = mlx5e_build_ifp_priv(mdev, priv, ncv);
+	if (err) {
+		mlx5_core_err(mdev, "mlx5e_build_ifp_priv() failed (%d)\n", err);
+		goto err_free_sysctl;
+	}
 
 	snprintf(unit, sizeof(unit), "mce%u_wq",
 	    device_get_unit(mdev->pdev->dev.bsddev));
