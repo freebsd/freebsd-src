@@ -1597,8 +1597,8 @@ int mlx5_query_vport_counter(struct mlx5_core_dev *dev,
 
 	err = mlx5_cmd_exec(dev, in, in_sz, out,  out_size);
 
-	kvfree(in);
 ex:
+	kvfree(in);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_vport_counter);
