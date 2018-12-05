@@ -411,7 +411,7 @@ int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 	size = (u64) nobj * obj_size;
 	for (i = 0; i * MLX4_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
 		chunk_size = MLX4_TABLE_CHUNK_SIZE;
-		if ((i + 1) * MLX4_TABLE_CHUNK_SIZE > size)
+		if ((u64) (i + 1) * MLX4_TABLE_CHUNK_SIZE > size)
 			chunk_size = PAGE_ALIGN(size -
 					i * MLX4_TABLE_CHUNK_SIZE);
 
