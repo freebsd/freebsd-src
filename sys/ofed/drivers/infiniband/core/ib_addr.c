@@ -649,8 +649,13 @@ static int addr_resolve_neigh(struct ifnet *dev,
 	if (dev->if_flags & IFF_LOOPBACK) {
 		int ret;
 
-		/* find real device, not loopback one */
-		addr->bound_dev_if = 0;
+		/*
+		 * Binding to a loopback device is not allowed. Make
+		 * sure the destination device address is global by
+		 * clearing the bound device interface:
+		 */
+		if (addr->bound_dev_if == dev->if_index)
+			addr->bound_dev_if = 0;
 
 		ret = rdma_translate_ip(dst_in, addr);
 		if (ret == 0) {
