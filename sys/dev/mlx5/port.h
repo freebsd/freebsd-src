@@ -161,6 +161,12 @@ int mlx5_query_port_prio_tc(struct mlx5_core_dev *mdev,
 			    u8 prio, u8 *tc);
 int mlx5_set_port_prio_tc(struct mlx5_core_dev *mdev, int prio_index,
 			  const u8 prio_tc);
+int mlx5_set_port_tc_group(struct mlx5_core_dev *mdev, const u8 *tc_group);
+int mlx5_query_port_tc_group(struct mlx5_core_dev *mdev,
+			     u8 tc, u8 *tc_group);
+int mlx5_set_port_tc_bw_alloc(struct mlx5_core_dev *mdev, const u8 *tc_bw);
+int mlx5_query_port_tc_bw_alloc(struct mlx5_core_dev *mdev, u8 *bw_pct);
+
 int mlx5_set_trust_state(struct mlx5_core_dev *mdev, u8 trust_state);
 int mlx5_query_trust_state(struct mlx5_core_dev *mdev, u8 *trust_state);
 
