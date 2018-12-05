@@ -692,7 +692,7 @@ allocino(ino_t request, int type)
 	default:
 		return (0);
 	}
-	dirty(cgbp);
+	cgdirty(cgbp);
 	dp = ginode(ino);
 	DIP_SET(dp, di_db[0], allocblk((long)1));
 	if (DIP(dp, di_db[0]) == 0) {
