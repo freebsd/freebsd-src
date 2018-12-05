@@ -769,12 +769,6 @@ start_init(void *dummy)
 			*flagp++ = 's';
 			options++;
 		}
-#ifdef notyet
-                if (boothowto & RB_FASTBOOT) {
-			*flagp++ = 'f';
-			options++;
-		}
-#endif
 		if (options == 0)
 			*flagp++ = '-';
 		*flagp++ = 0;
