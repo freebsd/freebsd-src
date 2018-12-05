@@ -185,7 +185,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 #ifdef INET6
 	case AF_INET6:
 		dev = ip6_dev_find(dev_addr->net,
-			((const struct sockaddr_in6 *)addr)->sin6_addr);
+			((const struct sockaddr_in6 *)addr)->sin6_addr, 0);
 		break;
 #endif
 	default:
@@ -525,7 +525,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		if (addr->bound_dev_if != 0) {
 			ifp = dev_get_by_index(addr->net, addr->bound_dev_if);
 		} else {
-			ifp = ip6_dev_find(addr->net, src_in->sin6_addr);
+			ifp = ip6_dev_find(addr->net, src_in->sin6_addr, 0);
 		}
 
 		/* check source interface */

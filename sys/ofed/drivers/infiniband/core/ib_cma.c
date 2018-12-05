@@ -1329,7 +1329,8 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 	struct rtentry *rte;
 	bool ret;
 
-	dst_dev = ip6_dev_find(net_dev->if_vnet, dst_tmp.sin6_addr);
+	dst_dev = ip6_dev_find(net_dev->if_vnet, dst_tmp.sin6_addr,
+	    net_dev->if_index);
 	if (dst_dev != net_dev) {
 		if (dst_dev != NULL)
 			dev_put(dst_dev);
