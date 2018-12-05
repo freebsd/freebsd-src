@@ -36,6 +36,8 @@
 #include <linux/kdev_t.h>
 #include <linux/list.h>
 
+#include <asm/atomic-long.h>
+
 struct file_operations;
 struct inode;
 struct module;
@@ -50,6 +52,7 @@ struct linux_cdev {
 	struct cdev	*cdev;
 	dev_t		dev;
 	const struct file_operations *ops;
+	atomic_long_t	refs;
 };
 
 static inline void
@@ -58,6 +61,7 @@ cdev_init(struct linux_cdev *cdev, const struct file_operations *ops)
 
 	kobject_init(&cdev->kobj, &linux_cdev_static_ktype);
 	cdev->ops = ops;
+	atomic_long_set(&cdev->refs, 0);
 }
 
 static inline struct linux_cdev *
@@ -130,13 +134,13 @@ cdev_add_ext(struct linux_cdev *cdev, dev_t dev, uid_t uid, gid_t gid, int mode)
 	return (0);
 }
 
+void linux_destroy_dev(struct linux_cdev *);
+
 static inline void
 cdev_del(struct linux_cdev *cdev)
 {
-	if (cdev->cdev) {
-		destroy_dev(cdev->cdev);
-		cdev->cdev = NULL;
-	}
+
+	linux_destroy_dev(cdev);
 	kobject_put(&cdev->kobj);
 }
 
