@@ -41,9 +41,9 @@
 #ifndef _NET_NETMAP_H_
 #define _NET_NETMAP_H_
 
-#define	NETMAP_API	12		/* current API version */
+#define	NETMAP_API	13		/* current API version */
 
-#define	NETMAP_MIN_API	11		/* min and max versions accepted */
+#define	NETMAP_MIN_API	13		/* min and max versions accepted */
 #define	NETMAP_MAX_API	15
 /*
  * Some fields should be cache-aligned to reduce contention.
@@ -333,12 +333,17 @@ struct netmap_ring {
  */
 
 /*
- * check if space is available in the ring.
+ * Check if space is available in the ring. We use ring->head, which
+ * points to the next netmap slot to be published to netmap. It is
+ * possible that the applications moves ring->cur ahead of ring->tail
+ * (e.g., by setting ring->cur <== ring->tail), if it wants more slots
+ * than the ones currently available, and it wants to be notified when
+ * more arrive. See netmap(4) for more details and examples.
  */
 static inline int
 nm_ring_empty(struct netmap_ring *ring)
 {
-	return (ring->cur == ring->tail);
+	return (ring->head == ring->tail);
 }
 
 /*
@@ -479,6 +484,10 @@ struct nmreq_option {
 	 * !=0: errno value
 	 */
 	uint32_t		nro_status;
+	/* Option size, used only for options that can have variable size
+	 * (e.g. because they contain arrays). For fixed-size options this
+	 * field should be set to zero. */
+	uint64_t		nro_size;
 };
 
 /* Header common to all requests. Do not reorder these fields, as we need
@@ -518,12 +527,32 @@ enum {
 	NETMAP_REQ_VALE_POLLING_DISABLE,
 	/* Get info about the pools of a memory allocator. */
 	NETMAP_REQ_POOLS_INFO_GET,
+	/* Start an in-kernel loop that syncs the rings periodically or
+	 * on notifications. The loop runs in the context of the ioctl
+	 * syscall, and only stops on NETMAP_REQ_SYNC_KLOOP_STOP. */
+	NETMAP_REQ_SYNC_KLOOP_START,
+	/* Stops the thread executing the in-kernel loop. The thread
+	 * returns from the ioctl syscall. */
+	NETMAP_REQ_SYNC_KLOOP_STOP,
+	/* Enable CSB mode on a registered netmap control device. */
+	NETMAP_REQ_CSB_ENABLE,
 };
 
 enum {
 	/* On NETMAP_REQ_REGISTER, ask netmap to use memory allocated
 	 * from user-space allocated memory pools (e.g. hugepages). */
 	NETMAP_REQ_OPT_EXTMEM = 1,
+
+	/* ON NETMAP_REQ_SYNC_KLOOP_START, ask netmap to use eventfd-based
+	 * notifications to synchronize the kernel loop with the application.
+	 */
+	NETMAP_REQ_OPT_SYNC_KLOOP_EVENTFDS,
+
+	/* On NETMAP_REQ_REGISTER, ask netmap to work in CSB mode, where
+	 * head, cur and tail pointers are not exchanged through the
+	 * struct netmap_ring header, but rather using an user-provided
+	 * memory area (see struct nm_csb_atok and struct nm_csb_ktoa). */
+	NETMAP_REQ_OPT_CSB,
 };
 
 /*
@@ -541,6 +570,7 @@ struct nmreq_register {
 	uint16_t	nr_mem_id;	/* id of the memory allocator */
 	uint16_t	nr_ringid;	/* ring(s) we care about */
 	uint32_t	nr_mode;	/* specify NR_REG_* modes */
+	uint32_t	nr_extra_bufs;	/* number of requested extra buffers */
 
 	uint64_t	nr_flags;	/* additional flags (see below) */
 /* monitors use nr_ringid and nr_mode to select the rings to monitor */
@@ -549,9 +579,7 @@ struct nmreq_register {
 #define NR_ZCOPY_MON	0x400
 /* request exclusive access to the selected rings */
 #define NR_EXCLUSIVE	0x800
-/* request ptnetmap host support */
-#define NR_PASSTHROUGH_HOST	NR_PTNETMAP_HOST /* deprecated */
-#define NR_PTNETMAP_HOST	0x1000
+/* 0x1000 unused */
 #define NR_RX_RINGS_ONLY	0x2000
 #define NR_TX_RINGS_ONLY	0x4000
 /* Applications set this flag if they are able to deal with virtio-net headers,
@@ -564,8 +592,6 @@ struct nmreq_register {
  * NETMAP_DO_RX_POLL. */
 #define NR_DO_RX_POLL		0x10000
 #define NR_NO_TX_POLL		0x20000
-
-	uint32_t	nr_extra_bufs;	/* number of requested extra buffers */
 };
 
 /* Valid values for nmreq_register.nr_mode (see above). */
@@ -576,10 +602,11 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 	NR_REG_ONE_NIC	= 4,
 	NR_REG_PIPE_MASTER = 5, /* deprecated, use "x{y" port name syntax */
 	NR_REG_PIPE_SLAVE = 6,  /* deprecated, use "x}y" port name syntax */
+	NR_REG_NULL     = 7,
 };
 
 /* A single ioctl number is shared by all the new API command.
- * Demultiplexing is done using the nr_hdr.nr_reqtype field.
+ * Demultiplexing is done using the hdr.nr_reqtype field.
  * FreeBSD uses the size value embedded in the _IOWR to determine
  * how much to copy in/out, so we define the ioctl() command
  * specifying only nmreq_header, and copyin/copyout the rest. */
@@ -595,16 +622,18 @@ enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
 /*
  * nr_reqtype: NETMAP_REQ_PORT_INFO_GET
  * Get information about a netmap port, including number of rings.
- * slots per ring, id of the memory allocator, etc.
+ * slots per ring, id of the memory allocator, etc. The netmap
+ * control device used for this operation does not need to be bound
+ * to a netmap port.
  */
 struct nmreq_port_info_get {
-	uint64_t	nr_offset;	/* nifp offset in the shared region */
 	uint64_t	nr_memsize;	/* size of the shared region */
 	uint32_t	nr_tx_slots;	/* slots in tx rings */
 	uint32_t	nr_rx_slots;	/* slots in rx rings */
 	uint16_t	nr_tx_rings;	/* number of tx rings */
 	uint16_t	nr_rx_rings;	/* number of rx rings */
-	uint16_t	nr_mem_id;	/* id of the memory allocator */
+	uint16_t	nr_mem_id;	/* memory allocator id (in/out) */
+	uint16_t	pad1;
 };
 
 #define	NM_BDG_NAME		"vale"	/* prefix for bridge port name */
@@ -620,6 +649,7 @@ struct nmreq_port_info_get {
 struct nmreq_vale_attach {
 	struct nmreq_register reg;
 	uint32_t port_index;
+	uint32_t pad1;
 };
 
 /*
@@ -630,6 +660,7 @@ struct nmreq_vale_attach {
  */
 struct nmreq_vale_detach {
 	uint32_t port_index;
+	uint32_t pad1;
 };
 
 /*
@@ -639,15 +670,18 @@ struct nmreq_vale_detach {
 struct nmreq_vale_list {
 	/* Name of the VALE port (valeXXX:YYY) or empty. */
 	uint16_t	nr_bridge_idx;
+	uint16_t	pad1;
 	uint32_t	nr_port_idx;
 };
 
 /*
  * nr_reqtype: NETMAP_REQ_PORT_HDR_SET or NETMAP_REQ_PORT_HDR_GET
- * Set the port header length.
+ * Set or get the port header length of the port identified by hdr.nr_name.
+ * The control device does not need to be bound to a netmap port.
  */
 struct nmreq_port_hdr {
 	uint32_t	nr_hdr_len;
+	uint32_t	pad1;
 };
 
 /*
@@ -660,6 +694,7 @@ struct nmreq_vale_newif {
 	uint16_t	nr_tx_rings;	/* number of tx rings */
 	uint16_t	nr_rx_rings;	/* number of rx rings */
 	uint16_t	nr_mem_id;	/* id of the memory allocator */
+	uint16_t	pad1;
 };
 
 /*
@@ -672,17 +707,20 @@ struct nmreq_vale_polling {
 #define NETMAP_POLLING_MODE_MULTI_CPU 2
 	uint32_t	nr_first_cpu_id;
 	uint32_t	nr_num_polling_cpus;
+	uint32_t	pad1;
 };
 
 /*
  * nr_reqtype: NETMAP_REQ_POOLS_INFO_GET
- * Get info about the pools of the memory allocator of the port bound
- * to a given netmap control device (used i.e. by a ptnetmap-enabled
- * hypervisor). The nr_hdr.nr_name field is ignored.
+ * Get info about the pools of the memory allocator of the netmap
+ * port specified by hdr.nr_name and nr_mem_id. The netmap control
+ * device used for this operation does not need to be bound to a netmap
+ * port.
  */
 struct nmreq_pools_info {
 	uint64_t	nr_memsize;
-	uint16_t	nr_mem_id;
+	uint16_t	nr_mem_id; /* in/out argument */
+	uint16_t	pad1[3];
 	uint64_t	nr_if_pool_offset;
 	uint32_t	nr_if_pool_objtotal;
 	uint32_t	nr_if_pool_objsize;
@@ -695,13 +733,151 @@ struct nmreq_pools_info {
 };
 
 /*
+ * nr_reqtype: NETMAP_REQ_SYNC_KLOOP_START
+ * Start an in-kernel loop that syncs the rings periodically or on
+ * notifications. The loop runs in the context of the ioctl syscall,
+ * and only stops on NETMAP_REQ_SYNC_KLOOP_STOP.
+ * The registered netmap port must be open in CSB mode.
+ */
+struct nmreq_sync_kloop_start {
+	/* Sleeping is the default synchronization method for the kloop.
+	 * The 'sleep_us' field specifies how many microsconds to sleep for
+	 * when there is no work to do, before doing another kloop iteration.
+	 */
+	uint32_t	sleep_us;
+	uint32_t	pad1;
+};
+
+/* A CSB entry for the application --> kernel direction. */
+struct nm_csb_atok {
+	uint32_t head;		  /* AW+ KR+ the head of the appl netmap_ring */
+	uint32_t cur;		  /* AW+ KR+ the cur of the appl netmap_ring */
+	uint32_t appl_need_kick;  /* AW+ KR+ kern --> appl notification enable */
+	uint32_t sync_flags;	  /* AW+ KR+ the flags of the appl [tx|rx]sync() */
+	uint32_t pad[12];	  /* pad to a 64 bytes cacheline */
+};
+
+/* A CSB entry for the application <-- kernel direction. */
+struct nm_csb_ktoa {
+	uint32_t hwcur;		  /* AR+ KW+ the hwcur of the kern netmap_kring */
+	uint32_t hwtail;	  /* AR+ KW+ the hwtail of the kern netmap_kring */
+	uint32_t kern_need_kick;  /* AR+ KW+ appl-->kern notification enable */
+	uint32_t pad[13];
+};
+
+#ifdef __linux__
+
+#ifdef __KERNEL__
+#define nm_stst_barrier smp_wmb
+#else  /* !__KERNEL__ */
+static inline void nm_stst_barrier(void)
+{
+	/* A memory barrier with release semantic has the combined
+	 * effect of a store-store barrier and a load-store barrier,
+	 * which is fine for us. */
+	__atomic_thread_fence(__ATOMIC_RELEASE);
+}
+#endif /* !__KERNEL__ */
+
+#elif defined(__FreeBSD__)
+
+#ifdef _KERNEL
+#define nm_stst_barrier	atomic_thread_fence_rel
+#else  /* !_KERNEL */
+static inline void nm_stst_barrier(void)
+{
+	__atomic_thread_fence(__ATOMIC_RELEASE);
+}
+#endif /* !_KERNEL */
+
+#else  /* !__linux__ && !__FreeBSD__ */
+#error "OS not supported"
+#endif /* !__linux__ && !__FreeBSD__ */
+
+/* Application side of sync-kloop: Write ring pointers (cur, head) to the CSB.
+ * This routine is coupled with sync_kloop_kernel_read(). */
+static inline void
+nm_sync_kloop_appl_write(struct nm_csb_atok *atok, uint32_t cur,
+			 uint32_t head)
+{
+	/*
+	 * We need to write cur and head to the CSB but we cannot do it atomically.
+	 * There is no way we can prevent the host from reading the updated value
+	 * of one of the two and the old value of the other. However, if we make
+	 * sure that the host never reads a value of head more recent than the
+	 * value of cur we are safe. We can allow the host to read a value of cur
+	 * more recent than the value of head, since in the netmap ring cur can be
+	 * ahead of head and cur cannot wrap around head because it must be behind
+	 * tail. Inverting the order of writes below could instead result into the
+	 * host to think head went ahead of cur, which would cause the sync
+	 * prologue to fail.
+	 *
+	 * The following memory barrier scheme is used to make this happen:
+	 *
+	 *          Guest              Host
+	 *
+	 *          STORE(cur)         LOAD(head)
+	 *          mb() <-----------> mb()
+	 *          STORE(head)        LOAD(cur)
+	 *
+	 */
+	atok->cur = cur;
+	nm_stst_barrier();
+	atok->head = head;
+}
+
+/* Application side of sync-kloop: Read kring pointers (hwcur, hwtail) from
+ * the CSB. This routine is coupled with sync_kloop_kernel_write(). */
+static inline void
+nm_sync_kloop_appl_read(struct nm_csb_ktoa *ktoa, uint32_t *hwtail,
+			uint32_t *hwcur)
+{
+	/*
+	 * We place a memory barrier to make sure that the update of hwtail never
+	 * overtakes the update of hwcur.
+	 * (see explanation in sync_kloop_kernel_write).
+	 */
+	*hwtail = ktoa->hwtail;
+	nm_stst_barrier();
+	*hwcur = ktoa->hwcur;
+}
+
+/*
  * data for NETMAP_REQ_OPT_* options
  */
+
+struct nmreq_opt_sync_kloop_eventfds {
+	struct nmreq_option	nro_opt;	/* common header */
+	/* An array of N entries for bidirectional notifications between
+	 * the kernel loop and the application. The number of entries and
+	 * their order must agree with the CSB arrays passed in the
+	 * NETMAP_REQ_OPT_CSB option. Each entry contains a file descriptor
+	 * backed by an eventfd.
+	 */
+	struct {
+		/* Notifier for the application --> kernel loop direction. */
+		int32_t ioeventfd;
+		/* Notifier for the kernel loop --> application direction. */
+		int32_t irqfd;
+	} eventfds[0];
+};
 
 struct nmreq_opt_extmem {
 	struct nmreq_option	nro_opt;	/* common header */
 	uint64_t		nro_usrptr;	/* (in) ptr to usr memory */
 	struct nmreq_pools_info	nro_info;	/* (in/out) */
+};
+
+struct nmreq_opt_csb {
+	struct nmreq_option	nro_opt;
+
+	/* Array of CSB entries for application --> kernel communication
+	 * (N entries). */
+	uint64_t		csb_atok;
+
+	/* Array of CSB entries for kernel --> application communication
+	 * (N entries). */
+	uint64_t		csb_ktoa;
 };
 
 #endif /* _NET_NETMAP_H_ */
