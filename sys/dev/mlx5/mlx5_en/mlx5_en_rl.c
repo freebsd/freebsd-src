@@ -137,9 +137,8 @@ mlx5e_rl_create_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 	sq->mkey_be = cpu_to_be32(priv->mr.key);
 	sq->ifp = priv->ifp;
 	sq->priv = priv;
-	sq->max_inline = priv->params.tx_max_inline;
-	sq->min_inline_mode = priv->params.tx_min_inline_mode;
-	sq->vlan_inline_cap = MLX5_CAP_ETH(mdev, wqe_vlan_insert);
+
+	mlx5e_update_sq_inline(sq);
 
 	return (0);
 
@@ -1231,6 +1230,32 @@ mlx5e_rl_refresh_channel_params(struct mlx5e_rl_priv_data *rl)
 		}
 	}
 	return (0);
+}
+
+void
+mlx5e_rl_refresh_sq_inline(struct mlx5e_rl_priv_data *rl)
+{
+	uint64_t x;
+	uint64_t y;
+
+	for (y = 0; y != rl->param.tx_worker_threads_def; y++) {
+		struct mlx5e_rl_worker *rlw = rl->workers + y;
+
+		for (x = 0; x != rl->param.tx_channels_per_worker_def; x++) {
+			struct mlx5e_rl_channel *channel;
+			struct mlx5e_sq *sq;
+
+			channel = rlw->channels + x;
+			sq = channel->sq;
+
+			if (sq == NULL)
+				continue;
+
+			mtx_lock(&sq->lock);
+			mlx5e_update_sq_inline(sq);
+			mtx_unlock(&sq->lock);
+		}
+	}
 }
 
 static int
