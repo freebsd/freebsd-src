@@ -735,9 +735,9 @@ out:
 }
 #endif /* WITH_EXTMEM */
 
-/* ======================== PTNETMAP SUPPORT ========================== */
+/* ================== PTNETMAP GUEST SUPPORT ==================== */
 
-#ifdef WITH_PTNETMAP_GUEST
+#ifdef WITH_PTNETMAP
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <machine/bus.h>        /* bus_dmamap_* */
@@ -932,7 +932,7 @@ ptn_memdev_shutdown(device_t dev)
 	return bus_generic_shutdown(dev);
 }
 
-#endif /* WITH_PTNETMAP_GUEST */
+#endif /* WITH_PTNETMAP */
 
 /*
  * In order to track whether pages are still mapped, we hook into
@@ -1145,8 +1145,8 @@ nm_os_ncpus(void)
 }
 
 struct nm_kctx_ctx {
-	struct thread *user_td;		/* thread user-space (kthread creator) to send ioctl */
-	struct ptnetmap_cfgentry_bhyve	cfg;
+	/* Userspace thread (kthread creator). */
+	struct thread *user_td;
 
 	/* worker function and parameter */
 	nm_kctx_worker_fn_t worker_fn;
@@ -1161,56 +1161,17 @@ struct nm_kctx_ctx {
 struct nm_kctx {
 	struct thread *worker;
 	struct mtx worker_lock;
-	uint64_t scheduled; 		/* pending wake_up request */
 	struct nm_kctx_ctx worker_ctx;
 	int run;			/* used to stop kthread */
 	int attach_user;		/* kthread attached to user_process */
 	int affinity;
 };
 
-void inline
-nm_os_kctx_worker_wakeup(struct nm_kctx *nmk)
-{
-	/*
-	 * There may be a race between FE and BE,
-	 * which call both this function, and worker kthread,
-	 * that reads nmk->scheduled.
-	 *
-	 * For us it is not important the counter value,
-	 * but simply that it has changed since the last
-	 * time the kthread saw it.
-	 */
-	mtx_lock(&nmk->worker_lock);
-	nmk->scheduled++;
-	if (nmk->worker_ctx.cfg.wchan) {
-		wakeup((void *)(uintptr_t)nmk->worker_ctx.cfg.wchan);
-	}
-	mtx_unlock(&nmk->worker_lock);
-}
-
-void inline
-nm_os_kctx_send_irq(struct nm_kctx *nmk)
-{
-	struct nm_kctx_ctx *ctx = &nmk->worker_ctx;
-	int err;
-
-	if (ctx->user_td && ctx->cfg.ioctl_fd > 0) {
-		err = kern_ioctl(ctx->user_td, ctx->cfg.ioctl_fd, ctx->cfg.ioctl_cmd,
-				 (caddr_t)&ctx->cfg.ioctl_data);
-		if (err) {
-			D("kern_ioctl error: %d ioctl parameters: fd %d com %lu data %p",
-				err, ctx->cfg.ioctl_fd, (unsigned long)ctx->cfg.ioctl_cmd,
-				&ctx->cfg.ioctl_data);
-		}
-	}
-}
-
 static void
 nm_kctx_worker(void *data)
 {
 	struct nm_kctx *nmk = data;
 	struct nm_kctx_ctx *ctx = &nmk->worker_ctx;
-	uint64_t old_scheduled = nmk->scheduled;
 
 	if (nmk->affinity >= 0) {
 		thread_lock(curthread);
@@ -1231,30 +1192,8 @@ nm_kctx_worker(void *data)
 			kthread_suspend_check();
 		}
 
-		/*
-		 * if wchan is not defined, we don't have notification
-		 * mechanism and we continually execute worker_fn()
-		 */
-		if (!ctx->cfg.wchan) {
-			ctx->worker_fn(ctx->worker_private, 1); /* worker body */
-		} else {
-			/* checks if there is a pending notification */
-			mtx_lock(&nmk->worker_lock);
-			if (likely(nmk->scheduled != old_scheduled)) {
-				old_scheduled = nmk->scheduled;
-				mtx_unlock(&nmk->worker_lock);
-
-				ctx->worker_fn(ctx->worker_private, 1); /* worker body */
-
-				continue;
-			} else if (nmk->run) {
-				/* wait on event with one second timeout */
-				msleep((void *)(uintptr_t)ctx->cfg.wchan, &nmk->worker_lock,
-					0, "nmk_ev", hz);
-				nmk->scheduled++;
-			}
-			mtx_unlock(&nmk->worker_lock);
-		}
+		/* Continuously execute worker process. */
+		ctx->worker_fn(ctx->worker_private); /* worker body */
 	}
 
 	kthread_exit();
@@ -1284,11 +1223,6 @@ nm_os_kctx_create(struct nm_kctx_cfg *cfg, void *opaque)
 	/* attach kthread to user process (ptnetmap) */
 	nmk->attach_user = cfg->attach_user;
 
-	/* store kick/interrupt configuration */
-	if (opaque) {
-		nmk->worker_ctx.cfg = *((struct ptnetmap_cfgentry_bhyve *)opaque);
-	}
-
 	return nmk;
 }
 
@@ -1298,9 +1232,13 @@ nm_os_kctx_worker_start(struct nm_kctx *nmk)
 	struct proc *p = NULL;
 	int error = 0;
 
-	if (nmk->worker) {
+	/* Temporarily disable this function as it is currently broken
+	 * and causes kernel crashes. The failure can be triggered by
+	 * the "vale_polling_enable_disable" test in ctrl-api-test.c. */
+	return EOPNOTSUPP;
+
+	if (nmk->worker)
 		return EBUSY;
-	}
 
 	/* check if we want to attach kthread to user process */
 	if (nmk->attach_user) {
@@ -1329,15 +1267,14 @@ err:
 void
 nm_os_kctx_worker_stop(struct nm_kctx *nmk)
 {
-	if (!nmk->worker) {
+	if (!nmk->worker)
 		return;
-	}
+
 	/* tell to kthread to exit from main loop */
 	nmk->run = 0;
 
 	/* wake up kthread if it sleeps */
 	kthread_resume(nmk->worker);
-	nm_os_kctx_worker_wakeup(nmk);
 
 	nmk->worker = NULL;
 }
@@ -1347,11 +1284,9 @@ nm_os_kctx_destroy(struct nm_kctx *nmk)
 {
 	if (!nmk)
 		return;
-	if (nmk->worker) {
-		nm_os_kctx_worker_stop(nmk);
-	}
 
-	memset(&nmk->worker_ctx.cfg, 0, sizeof(nmk->worker_ctx.cfg));
+	if (nmk->worker)
+		nm_os_kctx_worker_stop(nmk);
 
 	free(nmk, M_DEVBUF);
 }
