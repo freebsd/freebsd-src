@@ -1335,6 +1335,7 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 			dev_put(dst_dev);
 		return false;
 	}
+	dev_put(dst_dev);
 
 	CURVNET_SET(net_dev->if_vnet);
 
