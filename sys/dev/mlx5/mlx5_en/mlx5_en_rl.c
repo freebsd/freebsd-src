@@ -841,7 +841,8 @@ mlx5e_rl_init(struct mlx5e_priv *priv)
 		for (i = 0; i < rl->param.tx_channels_per_worker_def; i++) {
 			struct mlx5e_rl_channel *channel = rlw->channels + i;
 			channel->worker = rlw;
-			channel->m_snd_tag.ifp = priv->ifp;
+			channel->tag.m_snd_tag.ifp = priv->ifp;
+			channel->tag.type = IF_SND_TAG_TYPE_RATE_LIMIT;
 			STAILQ_INSERT_TAIL(&rlw->index_list_head, channel, entry);
 		}
 		MLX5E_RL_WORKER_UNLOCK(rlw);
@@ -1038,17 +1039,21 @@ mlx5e_rl_modify(struct mlx5e_rl_worker *rlw, struct mlx5e_rl_channel *channel, u
 }
 
 static int
-mlx5e_rl_query(struct mlx5e_rl_worker *rlw, struct mlx5e_rl_channel *channel, uint64_t *prate)
+mlx5e_rl_query(struct mlx5e_rl_worker *rlw, struct mlx5e_rl_channel *channel,
+    union if_snd_tag_query_params *params)
 {
 	int retval;
 
 	MLX5E_RL_WORKER_LOCK(rlw);
 	switch (channel->state) {
 	case MLX5E_RL_ST_USED:
-		*prate = channel->last_rate;
+		params->rate_limit.max_rate = channel->last_rate;
+		params->rate_limit.queue_level = mlx5e_sq_queue_level(channel->sq);
 		retval = 0;
 		break;
 	case MLX5E_RL_ST_MODIFY:
+		params->rate_limit.max_rate = channel->last_rate;
+		params->rate_limit.queue_level = mlx5e_sq_queue_level(channel->sq);
 		retval = EBUSY;
 		break;
 	default:
@@ -1120,7 +1125,7 @@ mlx5e_rl_snd_tag_alloc(struct ifnet *ifp,
 	}
 
 	/* store pointer to mbuf tag */
-	*ppmt = &channel->m_snd_tag;
+	*ppmt = &channel->tag.m_snd_tag;
 done:
 	return (error);
 }
@@ -1130,7 +1135,7 @@ int
 mlx5e_rl_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
 {
 	struct mlx5e_rl_channel *channel =
-	    container_of(pmt, struct mlx5e_rl_channel, m_snd_tag);
+	    container_of(pmt, struct mlx5e_rl_channel, tag.m_snd_tag);
 
 	return (mlx5e_rl_modify(channel->worker, channel, params->rate_limit.max_rate));
 }
@@ -1139,16 +1144,16 @@ int
 mlx5e_rl_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
 	struct mlx5e_rl_channel *channel =
-	    container_of(pmt, struct mlx5e_rl_channel, m_snd_tag);
+	    container_of(pmt, struct mlx5e_rl_channel, tag.m_snd_tag);
 
-	return (mlx5e_rl_query(channel->worker, channel, &params->rate_limit.max_rate));
+	return (mlx5e_rl_query(channel->worker, channel, params));
 }
 
 void
 mlx5e_rl_snd_tag_free(struct m_snd_tag *pmt)
 {
 	struct mlx5e_rl_channel *channel =
-	    container_of(pmt, struct mlx5e_rl_channel, m_snd_tag);
+	    container_of(pmt, struct mlx5e_rl_channel, tag.m_snd_tag);
 
 	mlx5e_rl_free(channel->worker, channel);
 }
