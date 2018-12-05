@@ -442,6 +442,13 @@ int mlx5_fpga_flash_select(struct mlx5_fpga_device *fdev,
 }
 EXPORT_SYMBOL(mlx5_fpga_flash_select);
 
+int mlx5_fpga_temperature(struct mlx5_fpga_device *fdev,
+			  struct mlx5_fpga_temperature *temp)
+{
+	return mlx5_fpga_query_mtmp(fdev->mdev, temp);
+}
+EXPORT_SYMBOL(mlx5_fpga_temperature);
+
 struct device *mlx5_fpga_dev(struct mlx5_fpga_device *fdev)
 {
 	return &fdev->mdev->pdev->dev;

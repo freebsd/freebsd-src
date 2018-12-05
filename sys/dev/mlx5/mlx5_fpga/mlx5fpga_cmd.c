@@ -164,6 +164,38 @@ int mlx5_fpga_query(struct mlx5_core_dev *dev, struct mlx5_fpga_query *query)
 	return 0;
 }
 
+int mlx5_fpga_query_mtmp(struct mlx5_core_dev *dev,
+			 struct mlx5_fpga_temperature *temp)
+{
+	u32 in[MLX5_ST_SZ_DW(mtmp_reg)] = {0};
+	u32 out[MLX5_ST_SZ_DW(mtmp_reg)] = {0};
+	int err;
+
+	MLX5_SET(mtmp_reg, in, sensor_index, temp->index);
+	MLX5_SET(mtmp_reg, in, i,
+		 ((temp->index < MLX5_FPGA_INTERNAL_SENSORS_LOW) ||
+		 (temp->index > MLX5_FPGA_INTERNAL_SENSORS_HIGH)) ? 1 : 0);
+
+	err = mlx5_core_access_reg(dev, in, sizeof(in), out, sizeof(out),
+				   MLX5_REG_MTMP, 0, false);
+	if (err)
+		return err;
+
+	temp->index = MLX5_GET(mtmp_reg, out, sensor_index);
+	temp->temperature = MLX5_GET(mtmp_reg, out, temperature);
+	temp->mte = MLX5_GET(mtmp_reg, out, mte);
+	temp->max_temperature = MLX5_GET(mtmp_reg, out, max_temperature);
+	temp->tee = MLX5_GET(mtmp_reg, out, tee);
+	temp->temperature_threshold_hi = MLX5_GET(mtmp_reg, out,
+		temperature_threshold_hi);
+	temp->temperature_threshold_lo = MLX5_GET(mtmp_reg, out,
+		temperature_threshold_lo);
+	memcpy(temp->sensor_name, MLX5_ADDR_OF(mtmp_reg, out, sensor_name),
+	       MLX5_FLD_SZ_BYTES(mtmp_reg, sensor_name));
+
+	return 0;
+}
+
 int mlx5_fpga_create_qp(struct mlx5_core_dev *dev, void *fpga_qpc,
 			u32 *fpga_qpn)
 {

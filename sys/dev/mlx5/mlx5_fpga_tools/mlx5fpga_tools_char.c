@@ -200,6 +200,7 @@ tools_char_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct tools_context *context;
 	struct mlx5_fpga_device *fdev;
 	struct mlx5_fpga_query query;
+	struct mlx5_fpga_temperature *temperature;
 	u32 fpga_cap[MLX5_ST_SZ_DW(fpga_cap)] = {0};
 	int arg, err;
 
@@ -253,6 +254,11 @@ tools_char_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		mlx5_fpga_get_cap(fdev, fpga_cap);
 		bcopy(&fpga_cap, data, sizeof(fpga_cap));
 		err = 0;
+		break;
+	case MLX5_FPGA_TEMPERATURE:
+		temperature = (struct mlx5_fpga_temperature *)data;
+		mlx5_fpga_temperature(fdev, temperature);
+		err = 0; /* XXXKIB */
 		break;
 	default:
 		dev_err(mlx5_fpga_dev(fdev),
