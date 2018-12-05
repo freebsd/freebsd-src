@@ -784,9 +784,10 @@ static inline void nm_stst_barrier(void)
 #ifdef _KERNEL
 #define nm_stst_barrier	atomic_thread_fence_rel
 #else  /* !_KERNEL */
+#include <stdatomic.h>
 static inline void nm_stst_barrier(void)
 {
-	__atomic_thread_fence(__ATOMIC_RELEASE);
+	atomic_thread_fence(memory_order_release);
 }
 #endif /* !_KERNEL */
 
