@@ -8520,6 +8520,31 @@ struct mlx5_ifc_link_level_retrans_cntr_grp_date_bits {
 	u8         reserved_0[0x640];
 };
 
+struct mlx5_ifc_mtmp_reg_bits {
+	u8         i[0x1];
+	u8         reserved_at_1[0x18];
+	u8         sensor_index[0x7];
+
+	u8         reserved_at_20[0x10];
+	u8         temperature[0x10];
+
+	u8         mte[0x1];
+	u8         mtr[0x1];
+	u8         reserved_at_42[0x0e];
+	u8         max_temperature[0x10];
+
+	u8         tee[0x2];
+	u8         reserved_at_62[0x0e];
+	u8         temperature_threshold_hi[0x10];
+
+	u8         reserved_at_80[0x10];
+	u8         temperature_threshold_lo[0x10];
+
+	u8         reserved_at_100[0x20];
+
+	u8         sensor_name[0x40];
+};
+
 struct mlx5_ifc_lane_2_module_mapping_bits {
 	u8         reserved_0[0x6];
 	u8         rx_lane[0x2];
