@@ -332,11 +332,19 @@ out:
 	return ret;
 }
 
-static int cm_alloc_response_msg(struct cm_port *port,
-				 struct ib_mad_recv_wc *mad_recv_wc,
-				 struct ib_mad_send_buf **msg)
+static struct ib_mad_send_buf *cm_alloc_response_msg_no_ah(struct cm_port *port,
+							   struct ib_mad_recv_wc *mad_recv_wc)
 {
-	struct ib_mad_send_buf *m;
+	return ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
+				  0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
+				  GFP_ATOMIC,
+				  IB_MGMT_BASE_VERSION);
+}
+
+static int cm_create_response_msg_ah(struct cm_port *port,
+				     struct ib_mad_recv_wc *mad_recv_wc,
+				     struct ib_mad_send_buf *msg)
+{
 	struct ib_ah *ah;
 
 	ah = ib_create_ah_from_wc(port->mad_agent->qp->pd, mad_recv_wc->wc,
@@ -344,25 +352,38 @@ static int cm_alloc_response_msg(struct cm_port *port,
 	if (IS_ERR(ah))
 		return PTR_ERR(ah);
 
-	m = ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
-			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-			       GFP_ATOMIC,
-			       IB_MGMT_BASE_VERSION);
-	if (IS_ERR(m)) {
-		ib_destroy_ah(ah);
-		return PTR_ERR(m);
-	}
-	m->ah = ah;
-	*msg = m;
+	msg->ah = ah;
 	return 0;
 }
 
 static void cm_free_msg(struct ib_mad_send_buf *msg)
 {
-	ib_destroy_ah(msg->ah);
+	if (msg->ah)
+		ib_destroy_ah(msg->ah);
 	if (msg->context[0])
 		cm_deref_id(msg->context[0]);
 	ib_free_send_mad(msg);
+}
+
+static int cm_alloc_response_msg(struct cm_port *port,
+				 struct ib_mad_recv_wc *mad_recv_wc,
+				 struct ib_mad_send_buf **msg)
+{
+	struct ib_mad_send_buf *m;
+	int ret;
+
+	m = cm_alloc_response_msg_no_ah(port, mad_recv_wc);
+	if (IS_ERR(m))
+		return PTR_ERR(m);
+
+	ret = cm_create_response_msg_ah(port, mad_recv_wc, m);
+	if (ret) {
+		cm_free_msg(m);
+		return ret;
+	}
+
+	*msg = m;
+	return 0;
 }
 
 static void * cm_copy_private_data(const void *private_data,
@@ -2331,7 +2352,8 @@ static int cm_dreq_handler(struct cm_work *work)
 	case IB_CM_TIMEWAIT:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_DREQ_COUNTER]);
-		if (cm_alloc_response_msg(work->port, work->mad_recv_wc, &msg))
+		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc);
+		if (IS_ERR(msg))
 			goto unlock;
 
 		cm_format_drep((struct cm_drep_msg *) msg->mad, cm_id_priv,
@@ -2339,7 +2361,8 @@ static int cm_dreq_handler(struct cm_work *work)
 			       cm_id_priv->private_data_len);
 		spin_unlock_irq(&cm_id_priv->lock);
 
-		if (ib_post_send_mad(msg, NULL))
+		if (cm_create_response_msg_ah(work->port, work->mad_recv_wc, msg) ||
+		    ib_post_send_mad(msg, NULL))
 			cm_free_msg(msg);
 		goto deref;
 	case IB_CM_DREQ_RCVD:
@@ -2884,7 +2907,8 @@ static int cm_lap_handler(struct cm_work *work)
 	case IB_CM_MRA_LAP_SENT:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_LAP_COUNTER]);
-		if (cm_alloc_response_msg(work->port, work->mad_recv_wc, &msg))
+		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc);
+		if (IS_ERR(msg))
 			goto unlock;
 
 		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
@@ -2894,7 +2918,8 @@ static int cm_lap_handler(struct cm_work *work)
 			      cm_id_priv->private_data_len);
 		spin_unlock_irq(&cm_id_priv->lock);
 
-		if (ib_post_send_mad(msg, NULL))
+		if (cm_create_response_msg_ah(work->port, work->mad_recv_wc, msg) ||
+		    ib_post_send_mad(msg, NULL))
 			cm_free_msg(msg);
 		goto deref;
 	case IB_CM_LAP_RCVD:
