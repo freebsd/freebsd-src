@@ -85,6 +85,9 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
 
+int mlx5_register_device(struct mlx5_core_dev *dev);
+void mlx5_unregister_device(struct mlx5_core_dev *dev);
+
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 
