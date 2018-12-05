@@ -703,18 +703,6 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_open_locked(priv->ifp);
 		break;
 
-	case MLX5_PARAM_OFFSET(tx_bufring_disable):
-		/* rangecheck input value */
-		priv->params_ethtool.tx_bufring_disable =
-		    priv->params_ethtool.tx_bufring_disable ? 1 : 0;
-
-		/* reconfigure the sendqueues, if any */
-		if (was_opened) {
-			mlx5e_close_locked(priv->ifp);
-			mlx5e_open_locked(priv->ifp);
-		}
-		break;
-
 	case MLX5_PARAM_OFFSET(tx_completion_fact):
 		/* network interface must be down */
 		if (was_opened)

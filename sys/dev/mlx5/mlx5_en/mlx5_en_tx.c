@@ -249,10 +249,6 @@ mlx5e_get_header_size(struct mbuf *mb)
 	return (eth_hdr_len);
 }
 
-/*
- * The return value is not going back to the stack because of
- * the drbr
- */
 static int
 mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 {
@@ -269,13 +265,9 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	u16 pi;
 	u8 opcode;
 
-	/*
-	 * Return ENOBUFS if the queue is full, this may trigger reinsertion
-	 * of the mbuf into the drbr (see mlx5e_xmit_locked)
-	 */
-	if (unlikely(!mlx5e_sq_has_room_for(sq, 2 * MLX5_SEND_WQE_MAX_WQEBBS))) {
+	/* Return ENOBUFS if the queue is full */
+	if (unlikely(!mlx5e_sq_has_room_for(sq, 2 * MLX5_SEND_WQE_MAX_WQEBBS)))
 		return (ENOBUFS);
-	}
 
 	/* Align SQ edge with NOPs to avoid WQE wrap around */
 	pi = ((~sq->pc) & sq->wq.sz_m1);
@@ -497,67 +489,10 @@ mlx5e_poll_tx_cq(struct mlx5e_sq *sq, int budget)
 	atomic_thread_fence_rel();
 
 	sq->cc = sqcc;
-
-	if (sq->sq_tq != NULL &&
-	    atomic_cmpset_int(&sq->queue_state, MLX5E_SQ_FULL, MLX5E_SQ_READY))
-		taskqueue_enqueue(sq->sq_tq, &sq->sq_task);
 }
 
 static int
 mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
-{
-	struct mbuf *next;
-	int err = 0;
-
-	if (likely(mb != NULL)) {
-		/*
-		 * If we can't insert mbuf into drbr, try to xmit anyway.
-		 * We keep the error we got so we could return that after xmit.
-		 */
-		err = drbr_enqueue(ifp, sq->br, mb);
-	}
-
-	/*
-	 * Check if the network interface is closed or if the SQ is
-	 * being stopped:
-	 */
-	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    sq->stopped != 0))
-		return (err);
-
-	/* Process the queue */
-	while ((next = drbr_peek(ifp, sq->br)) != NULL) {
-		if (mlx5e_sq_xmit(sq, &next) != 0) {
-			if (next != NULL) {
-				drbr_putback(ifp, sq->br, next);
-				atomic_store_rel_int(&sq->queue_state, MLX5E_SQ_FULL);
-				break;
-			}
-		}
-		drbr_advance(ifp, sq->br);
-	}
-	/* Check if we need to write the doorbell */
-	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
-		sq->doorbell.d64 = 0;
-	}
-	/*
-	 * Check if we need to start the event timer which flushes the
-	 * transmit ring on timeout:
-	 */
-	if (unlikely(sq->cev_next_state == MLX5E_CEV_STATE_INITIAL &&
-	    sq->cev_factor != 1)) {
-		/* start the timer */
-		mlx5e_sq_cev_timeout(sq);
-	} else {
-		/* don't send NOPs yet */
-		sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
-	}
-	return (err);
-}
-
-static int
-mlx5e_xmit_locked_no_br(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 {
 	int err = 0;
 
@@ -624,18 +559,9 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 		return (ENXIO);
 	}
 
-	if (unlikely(sq->br == NULL)) {
-		/* rate limited traffic */
-		mtx_lock(&sq->lock);
-		ret = mlx5e_xmit_locked_no_br(ifp, sq, mb);
-		mtx_unlock(&sq->lock);
-	} else if (mtx_trylock(&sq->lock)) {
-		ret = mlx5e_xmit_locked(ifp, sq, mb);
-		mtx_unlock(&sq->lock);
-	} else {
-		ret = drbr_enqueue(ifp, sq->br, mb);
-		taskqueue_enqueue(sq->sq_tq, &sq->sq_task);
-	}
+	mtx_lock(&sq->lock);
+	ret = mlx5e_xmit_locked(ifp, sq, mb);
+	mtx_unlock(&sq->lock);
 
 	return (ret);
 }
@@ -649,18 +575,4 @@ mlx5e_tx_cq_comp(struct mlx5_core_cq *mcq)
 	mlx5e_poll_tx_cq(sq, MLX5E_BUDGET_MAX);
 	mlx5e_cq_arm(&sq->cq, MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
 	mtx_unlock(&sq->comp_lock);
-}
-
-void
-mlx5e_tx_que(void *context, int pending)
-{
-	struct mlx5e_sq *sq = context;
-	struct ifnet *ifp = sq->ifp;
-
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		mtx_lock(&sq->lock);
-		if (!drbr_empty(ifp, sq->br))
-			mlx5e_xmit_locked(ifp, sq, NULL);
-		mtx_unlock(&sq->lock);
-	}
 }
