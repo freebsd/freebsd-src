@@ -1893,6 +1893,7 @@ static void unmap_internal_clock(struct mlx4_dev *dev)
 
 static void mlx4_close_hca(struct mlx4_dev *dev)
 {
+	sysctl_ctx_free(&dev->hw_ctx);
 	unmap_internal_clock(dev);
 	unmap_bf_area(dev);
 	if (mlx4_is_slave(dev))
@@ -3745,9 +3746,13 @@ err_disable_pdev:
 
 static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	struct mlx4_priv *priv;
-	struct mlx4_dev *dev;
-	int ret;
+
+	struct sysctl_ctx_list	*ctx;
+	struct sysctl_oid	*node;
+	struct sysctl_oid_list	*node_list;
+	struct mlx4_priv	*priv;
+	struct mlx4_dev		*dev;
+	int			ret;
 
 	printk_once(KERN_INFO "%s", mlx4_version);
 
@@ -3773,8 +3778,28 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret) {
 		kfree(dev->persist);
 		kfree(priv);
+		return ret;
 	} else {
 		pci_save_state(pdev->dev.bsddev);
+	}
+
+	snprintf(dev->fw_str, sizeof(dev->fw_str), "%d.%d.%d",
+		 (int) (dev->caps.fw_ver >> 32),
+		 (int) (dev->caps.fw_ver >> 16) & 0xffff,
+		 (int) (dev->caps.fw_ver & 0xffff));
+
+	ctx = &dev->hw_ctx;
+	sysctl_ctx_init(ctx);
+	node = SYSCTL_ADD_NODE(ctx,SYSCTL_CHILDREN(pdev->dev.kobj.oidp),
+	    OID_AUTO, "hw" , CTLFLAG_RD, 0, "mlx4 dev hw information");
+	if (node != NULL) {
+		node_list = SYSCTL_CHILDREN(node);
+		SYSCTL_ADD_STRING(ctx, node_list, OID_AUTO,
+		    "fw_version", CTLFLAG_RD, dev->fw_str, 0,
+		    "Device firmware version");
+		SYSCTL_ADD_STRING(ctx, node_list, OID_AUTO,
+		    "board_id", CTLFLAG_RD, dev->board_id, 0,
+		    "Device board identifier");
 	}
 
 	return ret;
