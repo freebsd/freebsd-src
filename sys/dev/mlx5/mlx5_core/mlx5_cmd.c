@@ -1179,10 +1179,12 @@ static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
 	}
 }
 
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector_flags)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
+	bool triggered = (vector_flags & MLX5_TRIGGERED_CMD_COMP) ? 1 : 0;
+	u32 vector = vector_flags; /* discard flags in the upper dword */
 	int i;
 
 	/* make sure data gets read from RAM */
@@ -1206,7 +1208,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
 			else
 				ent->ret = 0;
 			ent->status = ent->lay->status_own >> 1;
-			if (vector & MLX5_TRIGGERED_CMD_COMP)
+			if (triggered)
 				ent->status = MLX5_DRIVER_STATUS_ABORTED;
 			else
 				ent->status = ent->lay->status_own >> 1;
