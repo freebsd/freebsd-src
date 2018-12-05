@@ -798,7 +798,7 @@ read_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		sublen = len < dbcsz ? len : dbcsz;
+		sublen = MIN(len, dbcsz);
 		memcpy(to, ptr, sublen);
 		len -= sublen;
 		to += sublen;
@@ -912,7 +912,7 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 
 		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
-		sublen = len < dbcsz ? len : dbcsz;
+		sublen = MIN(len, dbcsz);
 		memcpy(ptr, from, sublen);
 		len -= sublen;
 		from += sublen;
