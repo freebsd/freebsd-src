@@ -121,6 +121,29 @@ done:
 }
 
 static int
+mlx5e_get_max_alloc(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	int err;
+	int x;
+
+	PRIV_LOCK(priv);
+	err = -mlx5_query_port_tc_bw_alloc(mdev, priv->params_ethtool.max_bw_share);
+	if (err == 0) {
+		/* set default value */
+		for (x = 0; x != IEEE_8021QAZ_MAX_TCS; x++) {
+			priv->params_ethtool.max_bw_share[x] =
+			    100 / IEEE_8021QAZ_MAX_TCS;
+		}
+		err = -mlx5_set_port_tc_bw_alloc(mdev,
+		    priv->params_ethtool.max_bw_share);
+	}
+	PRIV_UNLOCK(priv);
+
+	return (err);
+}
+
+static int
 mlx5e_get_dscp(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -144,56 +167,119 @@ done:
 	return (err);
 }
 
+static void
+mlx5e_tc_get_parameters(struct mlx5e_priv *priv,
+    u64 *new_bw_value, u8 *max_bw_value, u8 *max_bw_unit)
+{
+	const u64 upper_limit_mbps = 255 * MLX5E_100MB;
+	const u64 upper_limit_gbps = 255 * MLX5E_1GB;
+	u64 temp;
+	int i;
+
+	memset(max_bw_value, 0, IEEE_8021QAZ_MAX_TCS);
+	memset(max_bw_unit, 0, IEEE_8021QAZ_MAX_TCS);
+
+	for (i = 0; i <= mlx5_max_tc(priv->mdev); i++) {
+		temp = (new_bw_value != NULL) ?
+		    new_bw_value[i] : priv->params_ethtool.max_bw_value[i];
+
+		if (!temp) {
+			max_bw_unit[i] = MLX5_BW_NO_LIMIT;
+		} else if (temp > upper_limit_gbps) {
+			max_bw_unit[i] = MLX5_BW_NO_LIMIT;
+		} else if (temp <= upper_limit_mbps) {
+			max_bw_value[i] = howmany(temp, MLX5E_100MB);
+			max_bw_unit[i]  = MLX5_100_MBPS_UNIT;
+		} else {
+			max_bw_value[i] = howmany(temp, MLX5E_1GB);
+			max_bw_unit[i]  = MLX5_GBPS_UNIT;
+		}
+	}
+}
+
 static int
 mlx5e_tc_maxrate_handler(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
-	int prio_index = arg2;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u8 max_bw_unit[IEEE_8021QAZ_MAX_TCS];
 	u8 max_bw_value[IEEE_8021QAZ_MAX_TCS];
-	int i, err;
-	u64 bw_val;
-	u64 result = priv->params_ethtool.max_bw_value[prio_index];
-	const u64 upper_limit_mbps = 255 * MLX5E_100MB;
-	const u64 upper_limit_gbps = 255 * MLX5E_1GB;
+	u64 new_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u8 max_rates = mlx5_max_tc(mdev) + 1;
+	u8 x;
+	int err;
 
 	PRIV_LOCK(priv);
-	err = sysctl_handle_64(oidp, &result, 0, req);
-	if (err || !req->newptr ||
-	    result == priv->params_ethtool.max_bw_value[prio_index])
+	err = SYSCTL_OUT(req, priv->params_ethtool.max_bw_value,
+	    sizeof(priv->params_ethtool.max_bw_value[0]) * max_rates);
+	if (err || !req->newptr)
+		goto done;
+	err = SYSCTL_IN(req, new_bw_value,
+	    sizeof(new_bw_value[0]) * max_rates);
+	if (err)
 		goto done;
 
-	if (result % MLX5E_100MB) {
-		err = ERANGE;
-		goto done;
-	}
-
-	memset(max_bw_value, 0, sizeof(max_bw_value));
-	memset(max_bw_unit, 0, sizeof(max_bw_unit));
-
-	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
-		bw_val = (i == prio_index) ? result : priv->params_ethtool.max_bw_value[i];
-
-		if (!bw_val) {
-			max_bw_unit[i] = MLX5_BW_NO_LIMIT;
-		} else if (bw_val > upper_limit_gbps) {
-			result = 0;
-			max_bw_unit[i] = MLX5_BW_NO_LIMIT;
-		} else if (bw_val <= upper_limit_mbps) {
-			max_bw_value[i] = howmany(bw_val, MLX5E_100MB);
-			max_bw_unit[i]  = MLX5_100_MBPS_UNIT;
-		} else {
-			max_bw_value[i] = howmany(bw_val, MLX5E_1GB);
-			max_bw_unit[i]  = MLX5_GBPS_UNIT;
+	/* range check input value */
+	for (x = 0; x != max_rates; x++) {
+		if (new_bw_value[x] % MLX5E_100MB) {
+			err = ERANGE;
+			goto done;
 		}
 	}
+
+	mlx5e_tc_get_parameters(priv, new_bw_value, max_bw_value, max_bw_unit);
 
 	err = -mlx5_modify_port_tc_rate_limit(mdev, max_bw_value, max_bw_unit);
 	if (err)
 		goto done;
 
-	priv->params_ethtool.max_bw_value[prio_index] = result;
+	memcpy(priv->params_ethtool.max_bw_value, new_bw_value,
+	    sizeof(priv->params_ethtool.max_bw_value));
+done:
+	PRIV_UNLOCK(priv);
+	return (err);
+}
+
+static int
+mlx5e_tc_rate_share_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct mlx5e_priv *priv = arg1;
+	struct mlx5_core_dev *mdev = priv->mdev;
+	u8 max_bw_share[IEEE_8021QAZ_MAX_TCS];
+	u8 max_rates = mlx5_max_tc(mdev) + 1;
+	int i;
+	int err;
+	int sum;
+
+	PRIV_LOCK(priv);
+	err = SYSCTL_OUT(req, priv->params_ethtool.max_bw_share, max_rates);
+	if (err || !req->newptr)
+		goto done;
+	err = SYSCTL_IN(req, max_bw_share, max_rates);
+	if (err)
+		goto done;
+
+	/* range check input value */
+	for (sum = i = 0; i != max_rates; i++) {
+		if (max_bw_share[i] < 1 || max_bw_share[i] > 100) {
+			err = ERANGE;
+			goto done;
+		}
+		sum += max_bw_share[i];
+	}
+
+	/* sum of values should be as close to 100 as possible */
+	if (sum < (100 - max_rates + 1) || sum > 100) {
+		err = ERANGE;
+		goto done;
+	}
+
+	err = -mlx5_set_port_tc_bw_alloc(mdev, max_bw_share);
+	if (err)
+		goto done;
+
+	memcpy(priv->params_ethtool.max_bw_share, max_bw_share,
+	    sizeof(priv->params_ethtool.max_bw_share));
 done:
 	PRIV_UNLOCK(priv);
 	return (err);
@@ -217,7 +303,6 @@ mlx5e_get_prio_tc(struct mlx5e_priv *priv)
 		if (err)
 			break;
 	}
-
 	PRIV_UNLOCK(priv);
 	return (err);
 }
@@ -229,9 +314,10 @@ mlx5e_prio_to_tc_handler(SYSCTL_HANDLER_ARGS)
 	int prio_index = arg2;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
-	uint8_t result = priv->params_ethtool.prio_tc[prio_index];
+	uint8_t result;
 
 	PRIV_LOCK(priv);
+	result = priv->params_ethtool.prio_tc[prio_index];
 	err = sysctl_handle_8(oidp, &result, 0, req);
 	if (err || !req->newptr ||
 	    result == priv->params_ethtool.prio_tc[prio_index])
@@ -1151,33 +1237,37 @@ mlx5e_create_ethtool(struct mlx5e_priv *priv)
 	qos_node = SYSCTL_ADD_NODE(&priv->sysctl_ctx,
 	    SYSCTL_CHILDREN(node), OID_AUTO,
 	    "qos", CTLFLAG_RW, NULL, "Quality Of Service configuration");
-	if (node == NULL)
+	if (qos_node == NULL)
 		return;
 
-	/* Prioriry rate limit support */
-	if (mlx5e_getmaxrate(priv))
-		return;
-
-	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
-		char name[32];
-		snprintf(name, sizeof(name), "tc_%d_max_rate", i);
+	/* Priority rate limit support */
+	if (mlx5e_getmaxrate(priv) == 0) {
 		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
-				OID_AUTO, name, CTLTYPE_U64 | CTLFLAG_RW | CTLFLAG_MPSAFE,
-				priv, i, mlx5e_tc_maxrate_handler, "QU",
-				"Max rate for priority, specified in kilobits, where kilo=1000, \
-				max_rate must be divisible by 100000");
+		    OID_AUTO, "tc_max_rate", CTLTYPE_U64 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_tc_maxrate_handler, "QU",
+		    "Max rate for priority, specified in kilobits, where kilo=1000, "
+		    "max_rate must be divisible by 100000");
 	}
 
-	if (mlx5e_get_prio_tc(priv))
-		return;
-
-	for (i = 0; i <= mlx5_max_tc(mdev); i++) {
-		char name[32];
-		snprintf(name, sizeof(name), "prio_%d_to_tc", i);
+	/* Bandwidth limiting by ratio */
+	if (mlx5e_get_max_alloc(priv) == 0) {
 		SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
-				OID_AUTO, name, CTLTYPE_U8 | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    OID_AUTO, "tc_rate_share", CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+		    priv, 0, mlx5e_tc_rate_share_handler, "QU",
+		    "Specify bandwidth ratio from 1 to 100 "
+		    "for the available traffic classes");
+	}
+
+	/* Priority to traffic class mapping */
+	if (mlx5e_get_prio_tc(priv) == 0) {
+		for (i = 0; i <= mlx5_max_tc(mdev); i++) {
+			char name[32];
+			snprintf(name, sizeof(name), "prio_%d_to_tc", i);
+			SYSCTL_ADD_PROC(&priv->sysctl_ctx, SYSCTL_CHILDREN(qos_node),
+				OID_AUTO, name, CTLTYPE_U8 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
 				priv, i, mlx5e_prio_to_tc_handler, "CU",
 				"Set priority to traffic class");
+		}
 	}
 
 	/* DSCP support */
