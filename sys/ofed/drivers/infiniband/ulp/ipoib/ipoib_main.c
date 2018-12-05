@@ -257,10 +257,34 @@ ipoib_stop(struct ipoib_dev_priv *priv)
 	return 0;
 }
 
-int
-ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu)
+static int
+ipoib_propagate_ifnet_mtu(struct ipoib_dev_priv *priv, int new_mtu,
+    bool propagate)
 {
-	struct ifnet *dev = priv->dev;
+	struct ifnet *ifp;
+	struct ifreq ifr;
+	int error;
+
+	ifp = priv->dev;
+	if (ifp->if_mtu == new_mtu)
+		return (0);
+	if (propagate) {
+		strlcpy(ifr.ifr_name, if_name(ifp), IFNAMSIZ);
+		ifr.ifr_mtu = new_mtu;
+		CURVNET_SET(ifp->if_vnet);
+		error = ifhwioctl(SIOCSIFMTU, ifp, (caddr_t)&ifr, curthread);
+		CURVNET_RESTORE();
+	} else {
+		ifp->if_mtu = new_mtu;
+		error = 0;
+	}
+	return (error);
+}
+
+int
+ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu, bool propagate)
+{
+	int error, prev_admin_mtu;
 
 	/* dev->if_mtu > 2K ==> connected mode */
 	if (ipoib_cm_admin_enabled(priv)) {
@@ -271,20 +295,21 @@ ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu)
 			ipoib_warn(priv, "mtu > %d will cause multicast packet drops.\n",
 				   priv->mcast_mtu);
 
-		dev->if_mtu = new_mtu;
-		return 0;
+		return (ipoib_propagate_ifnet_mtu(priv, new_mtu, propagate));
 	}
 
 	if (new_mtu > IPOIB_UD_MTU(priv->max_ib_mtu))
 		return -EINVAL;
 
+	prev_admin_mtu = priv->admin_mtu;
 	priv->admin_mtu = new_mtu;
-
-	dev->if_mtu = min(priv->mcast_mtu, priv->admin_mtu);
-
-	queue_work(ipoib_workqueue, &priv->flush_light);
-
-	return 0;
+	error = ipoib_propagate_ifnet_mtu(priv, min(priv->mcast_mtu,
+	    priv->admin_mtu), propagate);
+	if (error == 0)
+		queue_work(ipoib_workqueue, &priv->flush_light);
+	else
+		priv->admin_mtu = prev_admin_mtu;
+	return (error);
 }
 
 static int
@@ -338,7 +363,7 @@ ipoib_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		/*
 		 * Set the interface MTU.
 		 */
-		error = -ipoib_change_mtu(priv, ifr->ifr_mtu);
+		error = -ipoib_change_mtu(priv, ifr->ifr_mtu, false);
 		break;
 	default:
 		error = EINVAL;
