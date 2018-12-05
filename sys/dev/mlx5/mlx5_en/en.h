@@ -580,6 +580,11 @@ enum {
 	MLX5E_SQ_FULL
 };
 
+struct mlx5e_snd_tag {
+	struct m_snd_tag m_snd_tag;	/* send tag */
+	u32	type;	/* tag type */
+};
+
 struct mlx5e_sq {
 	/* data path */
 	struct	mtx lock;
@@ -640,11 +645,27 @@ mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
 	return ((sq->wq.sz_m1 & (cc - pc)) >= n || cc == pc);
 }
 
+static inline u32
+mlx5e_sq_queue_level(struct mlx5e_sq *sq)
+{
+	u16 cc;
+	u16 pc;
+
+	if (sq == NULL)
+		return (0);
+
+	cc = sq->cc;
+	pc = sq->pc;
+
+	return (((sq->wq.sz_m1 & (pc - cc)) *
+	    IF_SND_QUEUE_LEVEL_MAX) / sq->wq.sz_m1);
+}
+
 struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq rq;
+	struct mlx5e_snd_tag tag;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
-	struct ifnet *ifp;
 	u32	mkey_be;
 	u8	num_tc;
 
@@ -770,6 +791,7 @@ struct mlx5e_priv {
 	u32	pdn;
 	u32	tdn;
 	struct mlx5_core_mr mr;
+	volatile unsigned int channel_refs;
 
 	u32	tisn[MLX5E_MAX_TX_NUM_TC];
 	u32	rqtn;
@@ -907,6 +929,24 @@ mlx5e_cq_arm(struct mlx5e_cq *cq, spinlock_t *dblock)
 
 	mcq = &cq->mcq;
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, dblock, cq->wq.cc);
+}
+
+static inline void
+mlx5e_ref_channel(struct mlx5e_priv *priv)
+{
+
+	KASSERT(priv->channel_refs < INT_MAX,
+	    ("Channel refs will overflow"));
+	atomic_fetchadd_int(&priv->channel_refs, 1);
+}
+
+static inline void
+mlx5e_unref_channel(struct mlx5e_priv *priv)
+{
+
+	KASSERT(priv->channel_refs > 0,
+	    ("Channel refs is not greater than zero"));
+	atomic_fetchadd_int(&priv->channel_refs, -1);
 }
 
 extern const struct ethtool_ops mlx5e_ethtool_ops;
