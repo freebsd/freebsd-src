@@ -78,7 +78,15 @@ atomic_long_dec(atomic_long_t *v)
 static inline long
 atomic_long_xchg(atomic_long_t *v, long val)
 {
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 	return atomic_swap_long(&v->counter, val);
+#else
+	long ret = atomic_long_read(v);
+
+	while (!atomic_fcmpset_long(&v->counter, &ret, val))
+		;
+	return (ret);
+#endif
 }
 
 static inline long
