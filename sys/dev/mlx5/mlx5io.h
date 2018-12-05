@@ -97,4 +97,15 @@ enum mlx5_fpga_access_type {
 	MLX5_FPGA_ACCESS_TYPE_MAX = MLX5_FPGA_ACCESS_TYPE_DONTCARE,
 };
 
+#define	MLX5_FPGA_CAP_ARR_SZ 0x40
+
+#define	MLX5_FPGA_ACCESS_TYPE	_IOWINT('m', 0x80)
+#define	MLX5_FPGA_LOAD		_IOWINT('m', 0x81)
+#define	MLX5_FPGA_RESET		_IO('m', 0x82)
+#define	MLX5_FPGA_IMAGE_SEL	_IOWINT('m', 0x83)
+#define	MLX5_FPGA_QUERY		_IOR('m', 0x84, struct mlx5_fpga_query)
+#define	MLX5_FPGA_CAP		_IOR('m', 0x85, u32[MLX5_FPGA_CAP_ARR_SZ])
+
+#define	MLX5_FPGA_TOOLS_NAME_SUFFIX	"_mlx5_fpga_tools"
+
 #endif
