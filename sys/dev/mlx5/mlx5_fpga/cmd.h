@@ -69,6 +69,8 @@ int mlx5_fpga_sbu_caps(struct mlx5_core_dev *dev, void *caps, int size);
 int mlx5_fpga_load(struct mlx5_core_dev *dev, enum mlx5_fpga_image image);
 int mlx5_fpga_image_select(struct mlx5_core_dev *dev,
 			   enum mlx5_fpga_image image);
+int mlx5_fpga_ctrl_connect(struct mlx5_core_dev *dev,
+			   enum mlx5_fpga_connect *connect);
 int mlx5_fpga_shell_counters(struct mlx5_core_dev *dev, bool clear,
 			     struct mlx5_fpga_shell_counters *data);
 
