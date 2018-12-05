@@ -109,9 +109,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 			}
 		}
 		if (srcobj == NULL) {
-			_rtld_error(
-"Undefined symbol \"%s\" referenced from COPY relocation in %s",
-			    name, dstobj->path);
+			_rtld_error("Undefined symbol \"%s\" referenced from "
+			    "COPY relocation in %s", name, dstobj->path);
 			return (-1);
 		}
 
@@ -207,7 +206,8 @@ reloc_plt(Obj_Entry *obj)
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 
-	relalim = (const Elf_Rela *)((const char *)obj->pltrela + obj->pltrelasize);
+	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
+	    obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
 		Elf_Addr *where;
 
@@ -245,7 +245,8 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	const Elf_Sym *def;
 	struct tls_data *tlsdesc;
 
-	relalim = (const Elf_Rela *)((const char *)obj->pltrela + obj->pltrelasize);
+	relalim = (const Elf_Rela *)((const char *)obj->pltrela +
+	    obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
 		Elf_Addr *where, target;
 
