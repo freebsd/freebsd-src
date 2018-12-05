@@ -628,7 +628,7 @@ static void mlx4_bf_copy(void __iomem *dst, volatile unsigned long *src, unsigne
 	__iowrite64_copy(dst, __DEVOLATILE(void *, src), bytecnt / 8);
 }
 
-static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp)
+int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp)
 {
 	enum {
 		DS_FACT = TXBB_SIZE / DS_SIZE_ALIGNMENT,
