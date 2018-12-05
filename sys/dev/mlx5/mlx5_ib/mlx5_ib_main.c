@@ -219,6 +219,8 @@ static int translate_eth_proto_oper(u32 eth_proto_oper, u8 *active_speed,
 		*active_speed = IB_SPEED_EDR;
 		break;
 	default:
+		*active_width = IB_WIDTH_4X;
+		*active_speed = IB_SPEED_QDR;
 		return -EINVAL;
 	}
 
