@@ -517,3 +517,15 @@ allocate_initial_tls(Obj_Entry *objs)
 
 	asm volatile("msr	tpidr_el0, %0" : : "r"(tp));
 }
+
+void *
+__tls_get_addr(tls_index* ti)
+{
+      char *p;
+      void *_tp;
+
+      __asm __volatile("mrs	%0, tpidr_el0"  : "=r" (_tp));
+      p = tls_get_addr_common((Elf_Addr **)(_tp), ti->ti_module, ti->ti_offset);
+
+      return (p);
+}
