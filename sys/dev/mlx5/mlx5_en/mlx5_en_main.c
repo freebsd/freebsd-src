@@ -502,6 +502,12 @@ mlx5e_update_stats_work(struct work_struct *work)
 		}
 	}
 
+	s->tx_jumbo_packets =
+	    priv->stats.port_stats_debug.p1519to2047octets +
+	    priv->stats.port_stats_debug.p2048to4095octets +
+	    priv->stats.port_stats_debug.p4096to8191octets +
+	    priv->stats.port_stats_debug.p8192to10239octets;
+
 	/* update counters */
 	s->tso_packets = tso_packets;
 	s->tso_bytes = tso_bytes;
