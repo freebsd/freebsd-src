@@ -621,16 +621,19 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 	if (listen_id_priv) {
 		cma_dev = listen_id_priv->cma_dev;
 		port = listen_id_priv->id.port_num;
-		gidp = rdma_protocol_roce(cma_dev->device, port) ?
-		       &iboe_gid : &gid;
 
-		ret = cma_validate_port(cma_dev->device, port,
-					rdma_protocol_ib(cma_dev->device, port) ?
-					IB_GID_TYPE_IB :
-					listen_id_priv->gid_type, gidp, dev_addr);
-		if (!ret) {
-			id_priv->id.port_num = port;
-			goto out;
+		if (rdma_is_port_valid(cma_dev->device, port)) {
+			gidp = rdma_protocol_roce(cma_dev->device, port) ?
+			       &iboe_gid : &gid;
+
+			ret = cma_validate_port(cma_dev->device, port,
+				rdma_protocol_ib(cma_dev->device, port) ?
+				IB_GID_TYPE_IB :
+				listen_id_priv->gid_type, gidp, dev_addr);
+			if (!ret) {
+				id_priv->id.port_num = port;
+				goto out;
+			}
 		}
 	}
 
