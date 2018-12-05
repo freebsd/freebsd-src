@@ -718,9 +718,7 @@ static void
 start_init(void *dummy)
 {
 	struct image_args args;
-	int options, error;
-	size_t pathlen;
-	char flags[8], *flagp;
+	int error;
 	char *var, *path;
 	char *free_init_path, *tmp_init_path;
 	struct thread *td;
@@ -744,7 +742,6 @@ start_init(void *dummy)
 	free_init_path = tmp_init_path = strdup(init_path, M_TEMP);
 	
 	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
-		pathlen = strlen(path) + 1;
 		if (bootverbose)
 			printf("start_init: trying %s\n", path);
 			
@@ -757,23 +754,11 @@ start_init(void *dummy)
 		error = exec_args_add_fname(&args, path, UIO_SYSSPACE);
 		if (error != 0)
 			panic("%s: Can't add fname %d", __func__, error);
-
 		error = exec_args_add_arg(&args, path, UIO_SYSSPACE);
 		if (error != 0)
 			panic("%s: Can't add argv[0] %d", __func__, error);
-
-		options = 0;
-		flagp = &flags[0];
-		*flagp++ = '-';
-		if (boothowto & RB_SINGLE) {
-			*flagp++ = 's';
-			options++;
-		}
-		if (options == 0)
-			*flagp++ = '-';
-		*flagp++ = 0;
-		KASSERT(flagp <= &flags[0] + sizeof(flags), ("Overran flags"));
-		error = exec_args_add_arg(&args, flags, UIO_SYSSPACE);
+		if (boothowto & RB_SINGLE)
+			error = exec_args_add_arg(&args, "-s", UIO_SYSSPACE);
 		if (error != 0)
 			panic("%s: Can't add argv[0] %d", __func__, error);
 
