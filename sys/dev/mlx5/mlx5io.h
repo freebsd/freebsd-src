@@ -84,6 +84,12 @@ struct mlx5_fpga_query {
 	enum mlx5_fpga_status image_status;
 };
 
+enum mlx5_fpga_tee {
+	MLX5_FPGA_TEE_DISABLE = 0,
+	MLX5_FPGA_TEE_GENERATE_EVENT = 1,
+	MLX5_FPGA_TEE_GENERATE_SINGLE_EVENT = 2,
+};
+
 /**
  * enum mlx5_fpga_access_type - Enumerated the different methods possible for
  * accessing the device memory address space
@@ -98,6 +104,21 @@ enum mlx5_fpga_access_type {
 	MLX5_FPGA_ACCESS_TYPE_MAX = MLX5_FPGA_ACCESS_TYPE_DONTCARE,
 };
 
+#define MLX5_FPGA_INTERNAL_SENSORS_LOW 63
+#define MLX5_FPGA_INTERNAL_SENSORS_HIGH 63
+
+struct mlx5_fpga_temperature {
+	uint32_t temperature;
+	uint32_t index;
+	uint32_t tee;
+	uint32_t max_temperature;
+	uint32_t temperature_threshold_hi;
+	uint32_t temperature_threshold_lo;
+	uint32_t mte;
+	uint32_t mtr;
+	char sensor_name[16];
+};
+
 #define	MLX5_FPGA_CAP_ARR_SZ 0x40
 
 #define	MLX5_FPGA_ACCESS_TYPE	_IOWINT('m', 0x80)
@@ -106,6 +127,7 @@ enum mlx5_fpga_access_type {
 #define	MLX5_FPGA_IMAGE_SEL	_IOWINT('m', 0x83)
 #define	MLX5_FPGA_QUERY		_IOR('m', 0x84, struct mlx5_fpga_query)
 #define	MLX5_FPGA_CAP		_IOR('m', 0x85, u32[MLX5_FPGA_CAP_ARR_SZ])
+#define	MLX5_FPGA_TEMPERATURE	_IOWR('m', 0x86, struct mlx5_fpga_temperature)
 
 #define	MLX5_FPGA_TOOLS_NAME_SUFFIX	"_mlx5_fpga_tools"
 
