@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2014
+.Dd December 6, 2018
 .Dt ZOPEN 3
 .Os
 .Sh NAME
@@ -34,33 +34,44 @@
 .Sh SYNOPSIS
 .Ft FILE *
 .Fn zopen "const char *path" "const char *mode"
+.Ft FILE *
+.Fn zdopen "int fd" "const char *mode"
 .Sh DESCRIPTION
 The
 .Fn zopen
-opens a gzip file whose name is the string pointed to by
+function opens a gzip file whose name is the string pointed to by
 .Fa path
-and associates a stream with it.
-It is a wrapper around
+and returns a stream which can be used to access the uncompressed contents
+of the file.
+The
+.Fn zdopen
+variant takes a gzip file referenced by the file descriptor
+.Fa fd ,
+analogous to
+.Xr fdopen 3 .
+They are wrappers around
 .Xr zlib 3
-and standard stream I/O APIs.
+and the standard stream I/O APIs.
 .Pp
 The argument
 .Fa mode
-have the same meaning as it does in
+has the same meaning as it does in
 .Xr fopen 3 .
 .Pp
 The
-.Nm
-function will associate read, write, seek and close
+.Fn zopen
+and
+.Fn zdopen
+functions will associate the read, write, seek and close
 functions of
 .Xr zlib 3
-after successfully opened a file with
-.Xr funopen 3
-so that they will be used to read or write the new stream.
+with the returned stream.
 .Sh RETURN VALUES
 Upon successful completion
-.Nm
-returns a
+.Fn zopen
+and
+.Fn zdopen
+return a
 .Tn FILE
 pointer.
 Otherwise,
@@ -70,26 +81,28 @@ is returned and the global variable
 is set to indicate the error.
 .Sh ERRORS
 In addition to the errors documented for
-.Xr fopen 3 ,
-the
-.Nm
-function may also fail for: 
+.Xr fopen 3
+and
+.Xr fdopen 3 ,
+the functions may also fail for:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 Insufficient memory is available.
 .El
 .Sh COMPATIBILITY
-This implementation of
-.Nm
+The implementation of
+.Fn zopen
 function first appeared in
 .Nx 1.6
 and
 .Fx 4.5 .
-The
-.Nm
-function may not be portable to systems other than
+.Fn zdopen
+first appeared in
+.Fx 13.0 .
+These functions may not be portable to systems other than
 .Fx .
 .Sh SEE ALSO
+.Xr fdopen 3 ,
 .Xr fopen 3 ,
 .Xr funopen 3 ,
 .Xr zlib 3
