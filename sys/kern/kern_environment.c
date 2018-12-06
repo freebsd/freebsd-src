@@ -245,7 +245,7 @@ done:
 void
 init_static_kenv(char *buf, size_t len)
 {
-	char *eval;
+	char *eval, *loader_eval;
 
 	KASSERT(!dynamic_kenv, ("kenv: dynamic_kenv already initialized"));
 	/*
@@ -264,21 +264,43 @@ init_static_kenv(char *buf, size_t len)
 	 *
 	 * As a warning, the static environment may not be disabled in any way
 	 * if the static environment has disabled the loader environment.
+	 *
+	 * We're setting up the static environment early here because it will
+	 * either be used or empty.
 	 */
 	kern_envp = static_env;
-	eval = kern_getenv("loader_env.disabled");
-	if (*kern_envp == '\0' || (eval != NULL && strcmp(eval, "0") == 0)) {
-		md_envp = buf;
-		md_env_len = len;
-		md_env_pos = 0;
+	loader_eval = kern_getenv("loader_env.disabled");
+	if (loader_eval != NULL && strcmp(loader_eval, "1") == 0)
+		/* Bail out early, the loader environment is disabled. */
+		return;
 
-		eval = kern_getenv("static_env.disabled");
-		if (eval != NULL && strcmp(eval, "1") == 0)
-			*kern_envp = '\0';
-	}
+	/*
+	 * Next, the loader env is checked for the status of the static env.  We
+	 * are allowing static_env and static_hints to disable themselves here for
+	 * the sake of simplicity.
+	 */
+	md_envp = buf;
+	md_env_len = len;
+	md_env_pos = 0;
+
+	eval = kern_getenv("static_env.disabled");
+	if (eval != NULL && strcmp(eval, "1") == 0)
+		*static_env = '\0';
+
 	eval = kern_getenv("static_hints.disabled");
 	if (eval != NULL && strcmp(eval, "1") == 0)
 		*static_hints = '\0';
+
+	/*
+	 * Now we see if we need to tear the loader environment back down due
+	 * to the presence of a non-empty static environment and lack of request
+	 * to keep it enabled.
+	 */
+	if (*static_env != '\0' &&
+	    (loader_eval == NULL || strcmp(loader_eval, "0") != 0)) {
+		md_envp = NULL;
+		md_env_len = 0;
+	}
 }
 
 static void
