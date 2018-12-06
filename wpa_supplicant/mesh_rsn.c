@@ -75,12 +75,15 @@ static void auth_logger(void *ctx, const u8 *addr, logger_level level,
 
 
 static const u8 *auth_get_psk(void *ctx, const u8 *addr,
-			      const u8 *p2p_dev_addr, const u8 *prev_psk)
+			      const u8 *p2p_dev_addr, const u8 *prev_psk,
+			      size_t *psk_len)
 {
 	struct mesh_rsn *mesh_rsn = ctx;
 	struct hostapd_data *hapd = mesh_rsn->wpa_s->ifmsh->bss[0];
 	struct sta_info *sta = ap_get_sta(hapd, addr);
 
+	if (psk_len)
+		*psk_len = PMK_LEN;
 	wpa_printf(MSG_DEBUG, "AUTH: %s (addr=" MACSTR " prev_psk=%p)",
 		   __func__, MAC2STR(addr), prev_psk);
 
@@ -140,7 +143,12 @@ static int __mesh_rsn_auth_init(struct mesh_rsn *rsn, const u8 *addr,
 				enum mfp_options ieee80211w)
 {
 	struct wpa_auth_config conf;
-	struct wpa_auth_callbacks cb;
+	static const struct wpa_auth_callbacks cb = {
+		.logger = auth_logger,
+		.get_psk = auth_get_psk,
+		.set_key = auth_set_key,
+		.start_ampe = auth_start_ampe,
+	};
 	u8 seq[6] = {};
 
 	wpa_printf(MSG_DEBUG, "AUTH: Initializing group state machine");
@@ -153,20 +161,15 @@ static int __mesh_rsn_auth_init(struct mesh_rsn *rsn, const u8 *addr,
 	conf.wpa_group = rsn->group_cipher;
 	conf.eapol_version = 0;
 	conf.wpa_group_rekey = -1;
+	conf.wpa_group_update_count = 4;
+	conf.wpa_pairwise_update_count = 4;
 #ifdef CONFIG_IEEE80211W
 	conf.ieee80211w = ieee80211w;
 	if (ieee80211w != NO_MGMT_FRAME_PROTECTION)
 		conf.group_mgmt_cipher = rsn->mgmt_group_cipher;
 #endif /* CONFIG_IEEE80211W */
 
-	os_memset(&cb, 0, sizeof(cb));
-	cb.ctx = rsn;
-	cb.logger = auth_logger;
-	cb.get_psk = auth_get_psk;
-	cb.set_key = auth_set_key;
-	cb.start_ampe = auth_start_ampe;
-
-	rsn->auth = wpa_init(addr, &conf, &cb);
+	rsn->auth = wpa_init(addr, &conf, &cb, rsn);
 	if (rsn->auth == NULL) {
 		wpa_printf(MSG_DEBUG, "AUTH: wpa_init() failed");
 		return -1;
@@ -224,6 +227,9 @@ struct mesh_rsn *mesh_rsn_auth_init(struct wpa_supplicant *wpa_s,
 	struct hostapd_data *bss = wpa_s->ifmsh->bss[0];
 	const u8 *ie;
 	size_t ie_len;
+#ifdef CONFIG_PMKSA_CACHE_EXTERNAL
+	struct external_pmksa_cache *entry;
+#endif /* CONFIG_PMKSA_CACHE_EXTERNAL */
 
 	mesh_rsn = os_zalloc(sizeof(*mesh_rsn));
 	if (mesh_rsn == NULL)
@@ -241,6 +247,22 @@ struct mesh_rsn *mesh_rsn_auth_init(struct wpa_supplicant *wpa_s,
 	}
 
 	bss->wpa_auth = mesh_rsn->auth;
+
+#ifdef CONFIG_PMKSA_CACHE_EXTERNAL
+	while ((entry = dl_list_last(&wpa_s->mesh_external_pmksa_cache,
+				     struct external_pmksa_cache,
+				     list)) != NULL) {
+		int ret;
+
+		ret = wpa_auth_pmksa_add_entry(bss->wpa_auth,
+					       entry->pmksa_cache);
+		dl_list_del(&entry->list);
+		os_free(entry);
+
+		if (ret < 0)
+			return NULL;
+	}
+#endif /* CONFIG_PMKSA_CACHE_EXTERNAL */
 
 	ie = wpa_auth_get_wpa_ie(mesh_rsn->auth, &ie_len);
 	conf->rsn_ie = (u8 *) ie;
@@ -295,7 +317,12 @@ static int mesh_rsn_build_sae_commit(struct wpa_supplicant *wpa_s,
 				     struct wpa_ssid *ssid,
 				     struct sta_info *sta)
 {
-	if (ssid->passphrase == NULL) {
+	const char *password;
+
+	password = ssid->sae_password;
+	if (!password)
+		password = ssid->passphrase;
+	if (!password) {
 		wpa_msg(wpa_s, MSG_DEBUG, "SAE: No password available");
 		return -1;
 	}
@@ -305,9 +332,15 @@ static int mesh_rsn_build_sae_commit(struct wpa_supplicant *wpa_s,
 		return -1;
 	}
 
+	if (sta->sae->tmp && !sta->sae->tmp->pw_id && ssid->sae_password_id) {
+		sta->sae->tmp->pw_id = os_strdup(ssid->sae_password_id);
+		if (!sta->sae->tmp->pw_id)
+			return -1;
+	}
 	return sae_prepare_commit(wpa_s->own_addr, sta->addr,
-				  (u8 *) ssid->passphrase,
-				  os_strlen(ssid->passphrase), sta->sae);
+				  (u8 *) password, os_strlen(password),
+				  ssid->sae_password_id,
+				  sta->sae);
 }
 
 
@@ -333,7 +366,7 @@ int mesh_rsn_auth_sae_sta(struct wpa_supplicant *wpa_s,
 			return -1;
 	}
 
-	pmksa = wpa_auth_pmksa_get(hapd->wpa_auth, sta->addr);
+	pmksa = wpa_auth_pmksa_get(hapd->wpa_auth, sta->addr, NULL);
 	if (pmksa) {
 		if (!sta->wpa_sm)
 			sta->wpa_sm = wpa_auth_sta_init(hapd->wpa_auth,
@@ -579,7 +612,7 @@ skip_keys:
 	/* encrypt after MIC */
 	mic_payload = wpabuf_put(buf, 2 + len + AES_BLOCK_SIZE);
 
-	if (aes_siv_encrypt(sta->aek, ampe_ie, 2 + len, 3,
+	if (aes_siv_encrypt(sta->aek, sizeof(sta->aek), ampe_ie, 2 + len, 3,
 			    aad, aad_len, mic_payload)) {
 		wpa_printf(MSG_ERROR, "protect frame: failed to encrypt");
 		ret = -ENOMEM;
@@ -611,7 +644,7 @@ int mesh_rsn_process_ampe(struct wpa_supplicant *wpa_s, struct sta_info *sta,
 	if (!sta->sae) {
 		struct hostapd_data *hapd = wpa_s->ifmsh->bss[0];
 
-		if (!wpa_auth_pmksa_get(hapd->wpa_auth, sta->addr)) {
+		if (!wpa_auth_pmksa_get(hapd->wpa_auth, sta->addr, NULL)) {
 			wpa_printf(MSG_INFO,
 				   "Mesh RSN: SAE is not prepared yet");
 			return -1;
@@ -650,7 +683,7 @@ int mesh_rsn_process_ampe(struct wpa_supplicant *wpa_s, struct sta_info *sta,
 
 	os_memcpy(crypt, elems->mic, crypt_len);
 
-	if (aes_siv_decrypt(sta->aek, crypt, crypt_len, 3,
+	if (aes_siv_decrypt(sta->aek, sizeof(sta->aek), crypt, crypt_len, 3,
 			    aad, aad_len, ampe_buf)) {
 		wpa_printf(MSG_ERROR, "Mesh RSN: frame verification failed!");
 		ret = -2;

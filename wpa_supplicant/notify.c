@@ -669,12 +669,12 @@ void wpas_notify_p2p_provision_discovery(struct wpa_supplicant *wpa_s,
 
 void wpas_notify_p2p_group_started(struct wpa_supplicant *wpa_s,
 				   struct wpa_ssid *ssid, int persistent,
-				   int client)
+				   int client, const u8 *ip)
 {
 	/* Notify a group has been started */
 	wpas_dbus_register_p2p_group(wpa_s, ssid);
 
-	wpas_dbus_signal_p2p_group_started(wpa_s, client, persistent);
+	wpas_dbus_signal_p2p_group_started(wpa_s, client, persistent, ip);
 }
 
 
@@ -816,6 +816,12 @@ void wpas_notify_eap_status(struct wpa_supplicant *wpa_s, const char *status,
 }
 
 
+void wpas_notify_eap_error(struct wpa_supplicant *wpa_s, int error_code)
+{
+	wpa_msg(wpa_s, MSG_ERROR, WPA_EVENT_EAP_ERROR_CODE "%d", error_code);
+}
+
+
 void wpas_notify_network_bssid_set_changed(struct wpa_supplicant *wpa_s,
 					   struct wpa_ssid *ssid)
 {
@@ -850,3 +856,49 @@ void wpas_notify_network_type_changed(struct wpa_supplicant *wpa_s,
 	}
 #endif /* CONFIG_P2P */
 }
+
+
+#ifdef CONFIG_MESH
+
+void wpas_notify_mesh_group_started(struct wpa_supplicant *wpa_s,
+				    struct wpa_ssid *ssid)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_mesh_group_started(wpa_s, ssid);
+}
+
+
+void wpas_notify_mesh_group_removed(struct wpa_supplicant *wpa_s,
+				    const u8 *meshid, u8 meshid_len,
+				    int reason_code)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_mesh_group_removed(wpa_s, meshid, meshid_len,
+					    reason_code);
+}
+
+
+void wpas_notify_mesh_peer_connected(struct wpa_supplicant *wpa_s,
+				     const u8 *peer_addr)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_mesh_peer_connected(wpa_s, peer_addr);
+}
+
+
+void wpas_notify_mesh_peer_disconnected(struct wpa_supplicant *wpa_s,
+					const u8 *peer_addr, int reason_code)
+{
+	if (wpa_s->p2p_mgmt)
+		return;
+
+	wpas_dbus_signal_mesh_peer_disconnected(wpa_s, peer_addr, reason_code);
+}
+
+#endif /* CONFIG_MESH */

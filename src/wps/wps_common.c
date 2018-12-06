@@ -654,6 +654,7 @@ int wps_nfc_gen_dh(struct wpabuf **pubkey, struct wpabuf **privkey)
 	pub = wpabuf_zeropad(pub, 192);
 	if (pub == NULL) {
 		wpabuf_free(priv);
+		dh5_free(dh_ctx);
 		return -1;
 	}
 	wpa_hexdump_buf(MSG_DEBUG, "WPS: Generated new DH pubkey", pub);

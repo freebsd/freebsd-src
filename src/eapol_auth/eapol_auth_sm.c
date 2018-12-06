@@ -848,6 +848,7 @@ eapol_auth_alloc(struct eapol_authenticator *eapol, const u8 *addr,
 	eap_conf.server_id_len = eapol->conf.server_id_len;
 	eap_conf.erp = eapol->conf.erp;
 	eap_conf.tls_session_lifetime = eapol->conf.tls_session_lifetime;
+	eap_conf.tls_flags = eapol->conf.tls_flags;
 	sm->eap = eap_server_sm_init(sm, &eapol_cb, &eap_conf);
 	if (sm->eap == NULL) {
 		eapol_auth_free(sm);
@@ -1197,30 +1198,27 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->server_id = src->server_id;
 	dst->server_id_len = src->server_id_len;
 	if (src->eap_req_id_text) {
-		dst->eap_req_id_text = os_malloc(src->eap_req_id_text_len);
+		dst->eap_req_id_text = os_memdup(src->eap_req_id_text,
+						 src->eap_req_id_text_len);
 		if (dst->eap_req_id_text == NULL)
 			return -1;
-		os_memcpy(dst->eap_req_id_text, src->eap_req_id_text,
-			  src->eap_req_id_text_len);
 		dst->eap_req_id_text_len = src->eap_req_id_text_len;
 	} else {
 		dst->eap_req_id_text = NULL;
 		dst->eap_req_id_text_len = 0;
 	}
 	if (src->pac_opaque_encr_key) {
-		dst->pac_opaque_encr_key = os_malloc(16);
+		dst->pac_opaque_encr_key = os_memdup(src->pac_opaque_encr_key,
+						     16);
 		if (dst->pac_opaque_encr_key == NULL)
 			goto fail;
-		os_memcpy(dst->pac_opaque_encr_key, src->pac_opaque_encr_key,
-			  16);
 	} else
 		dst->pac_opaque_encr_key = NULL;
 	if (src->eap_fast_a_id) {
-		dst->eap_fast_a_id = os_malloc(src->eap_fast_a_id_len);
+		dst->eap_fast_a_id = os_memdup(src->eap_fast_a_id,
+					       src->eap_fast_a_id_len);
 		if (dst->eap_fast_a_id == NULL)
 			goto fail;
-		os_memcpy(dst->eap_fast_a_id, src->eap_fast_a_id,
-			  src->eap_fast_a_id_len);
 		dst->eap_fast_a_id_len = src->eap_fast_a_id_len;
 	} else
 		dst->eap_fast_a_id = NULL;
@@ -1249,6 +1247,7 @@ static int eapol_auth_conf_clone(struct eapol_auth_config *dst,
 	dst->erp_send_reauth_start = src->erp_send_reauth_start;
 	dst->erp = src->erp;
 	dst->tls_session_lifetime = src->tls_session_lifetime;
+	dst->tls_flags = src->tls_flags;
 
 	return 0;
 

@@ -544,10 +544,9 @@ static int ikev2_process_idr(struct ikev2_initiator_data *data,
 		}
 		os_free(data->IDr);
 	}
-	data->IDr = os_malloc(idr_len);
+	data->IDr = os_memdup(idr, idr_len);
 	if (data->IDr == NULL)
 		return -1;
-	os_memcpy(data->IDr, idr, idr_len);
 	data->IDr_len = idr_len;
 	data->IDr_type = id_type;
 
@@ -1147,10 +1146,9 @@ static struct wpabuf * ikev2_build_sa_auth(struct ikev2_initiator_data *data)
 			return NULL;
 	} else {
 		os_free(data->shared_secret);
-		data->shared_secret = os_malloc(secret_len);
+		data->shared_secret = os_memdup(secret, secret_len);
 		if (data->shared_secret == NULL)
 			return NULL;
-		os_memcpy(data->shared_secret, secret, secret_len);
 		data->shared_secret_len = secret_len;
 	}
 

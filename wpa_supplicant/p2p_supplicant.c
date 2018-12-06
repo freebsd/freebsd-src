@@ -307,7 +307,14 @@ static void wpas_p2p_trigger_scan_cb(struct wpa_radio_work *work, int deinit)
 		return;
 	}
 
+	if (wpa_s->clear_driver_scan_cache) {
+		wpa_printf(MSG_DEBUG,
+			   "Request driver to clear scan cache due to local BSS flush");
+		params->only_new_results = 1;
+	}
 	ret = wpa_drv_scan(wpa_s, params);
+	if (ret == 0)
+		wpa_s->curr_scan_cookie = params->scan_cookie;
 	wpa_scan_free_params(params);
 	work->ctx = NULL;
 	if (ret) {
@@ -320,6 +327,7 @@ static void wpas_p2p_trigger_scan_cb(struct wpa_radio_work *work, int deinit)
 	os_get_reltime(&wpa_s->scan_trigger_time);
 	wpa_s->scan_res_handler = wpas_p2p_scan_res_handler;
 	wpa_s->own_scan_requested = 1;
+	wpa_s->clear_driver_scan_cache = 0;
 	wpa_s->p2p_scan_work = work;
 }
 
@@ -740,6 +748,7 @@ static u8 p2ps_group_capability(void *ctx, u8 incoming, u8 role,
 				conncap = P2PS_SETUP_GROUP_OWNER;
 				goto grp_owner;
 			}
+			/* fall through */
 
 		default:
 			return P2PS_SETUP_NONE;
@@ -807,7 +816,7 @@ grp_owner:
 					      wpa_s->own_addr);
 		} else if (!s && !go_wpa_s) {
 			if (wpas_p2p_add_group_interface(wpa_s,
-							 WPA_IF_P2P_GO) < 0) {
+							 WPA_IF_P2P_GROUP) < 0) {
 				wpa_printf(MSG_ERROR,
 					   "P2P: Failed to allocate a new interface for the group");
 				return P2PS_SETUP_NONE;
@@ -1312,6 +1321,10 @@ static void wpas_group_formation_completed(struct wpa_supplicant *wpa_s,
 	if (wpa_s->p2p_go_group_formation_completed) {
 		wpa_s->global->p2p_group_formation = NULL;
 		wpa_s->p2p_in_provisioning = 0;
+	} else if (wpa_s->p2p_in_provisioning && !success) {
+		wpa_msg(wpa_s, MSG_DEBUG,
+			"P2P: Stop provisioning state due to failure");
+		wpa_s->p2p_in_provisioning = 0;
 	}
 	wpa_s->p2p_in_invitation = 0;
 	wpa_s->group_formation_reported = 1;
@@ -1383,7 +1396,7 @@ static void wpas_group_formation_completed(struct wpa_supplicant *wpa_s,
 	}
 
 	if (!client) {
-		wpas_notify_p2p_group_started(wpa_s, ssid, persistent, 0);
+		wpas_notify_p2p_group_started(wpa_s, ssid, persistent, 0, NULL);
 		os_get_reltime(&wpa_s->global->p2p_go_wait_client);
 	}
 }
@@ -1701,14 +1714,23 @@ static void wpas_p2p_add_psk_list(struct wpa_supplicant *wpa_s,
 
 static void p2p_go_dump_common_freqs(struct wpa_supplicant *wpa_s)
 {
+	char buf[20 + P2P_MAX_CHANNELS * 6];
+	char *pos, *end;
 	unsigned int i;
+	int res;
 
-	wpa_dbg(wpa_s, MSG_DEBUG, "P2P: Common group frequencies (len=%u):",
-		wpa_s->p2p_group_common_freqs_num);
+	pos = buf;
+	end = pos + sizeof(buf);
+	for (i = 0; i < wpa_s->p2p_group_common_freqs_num; i++) {
+		res = os_snprintf(pos, end - pos, " %d",
+				  wpa_s->p2p_group_common_freqs[i]);
+		if (os_snprintf_error(end - pos, res))
+			break;
+		pos += res;
+	}
+	*pos = '\0';
 
-	for (i = 0; i < wpa_s->p2p_group_common_freqs_num; i++)
-		wpa_dbg(wpa_s, MSG_DEBUG, "freq[%u]: %d",
-			i, wpa_s->p2p_group_common_freqs[i]);
+	wpa_dbg(wpa_s, MSG_DEBUG, "P2P: Common group frequencies:%s", buf);
 }
 
 
@@ -1801,7 +1823,8 @@ static void p2p_go_configured(void *ctx, void *data)
 		}
 
 		wpas_notify_p2p_group_started(wpa_s, ssid,
-					      params->persistent_group, 0);
+					      params->persistent_group, 0,
+					      NULL);
 		wpas_p2p_cross_connect_setup(wpa_s);
 		wpas_p2p_set_group_idle_timeout(wpa_s);
 
@@ -1989,6 +2012,11 @@ do {                                    \
 		d->wps_nfc_dh_pubkey = wpabuf_dup(s->wps_nfc_dh_pubkey);
 	}
 	d->p2p_cli_probe = s->p2p_cli_probe;
+	d->go_interworking = s->go_interworking;
+	d->go_access_network_type = s->go_access_network_type;
+	d->go_internet = s->go_internet;
+	d->go_venue_group = s->go_venue_group;
+	d->go_venue_type = s->go_venue_type;
 }
 
 
@@ -3330,10 +3358,6 @@ static int wpas_p2p_default_channels(struct wpa_supplicant *wpa_s,
 	return 0;
 }
 
-
-enum chan_allowed {
-	NOT_ALLOWED, NO_IR, ALLOWED
-};
 
 static int has_channel(struct wpa_global *global,
 		       struct hostapd_hw_modes *mode, u8 chan, int *flags)
@@ -5003,6 +5027,12 @@ static void wpas_p2p_join_scan_req(struct wpa_supplicant *wpa_s, int freq,
 	params.extra_ies = wpabuf_head(ies);
 	params.extra_ies_len = wpabuf_len(ies);
 
+	if (wpa_s->clear_driver_scan_cache) {
+		wpa_printf(MSG_DEBUG,
+			   "Request driver to clear scan cache due to local BSS flush");
+		params.only_new_results = 1;
+	}
+
 	/*
 	 * Run a scan to update BSS table and start Provision Discovery once
 	 * the new scan results become available.
@@ -5012,6 +5042,7 @@ static void wpas_p2p_join_scan_req(struct wpa_supplicant *wpa_s, int freq,
 		os_get_reltime(&wpa_s->scan_trigger_time);
 		wpa_s->scan_res_handler = wpas_p2p_scan_res_join;
 		wpa_s->own_scan_requested = 1;
+		wpa_s->clear_driver_scan_cache = 0;
 	}
 
 	wpabuf_free(ies);
@@ -5183,7 +5214,8 @@ static int wpas_p2p_setup_freqs(struct wpa_supplicant *wpa_s, int freq,
 			ret = p2p_supported_freq_cli(wpa_s->global->p2p, freq);
 		if (!ret) {
 			if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
-			    ieee80211_is_dfs(freq)) {
+			    ieee80211_is_dfs(freq, wpa_s->hw.modes,
+					     wpa_s->hw.num_modes)) {
 				/*
 				 * If freq is a DFS channel and DFS is offloaded
 				 * to the driver, allow P2P GO to use it.
@@ -5236,9 +5268,11 @@ static int wpas_p2p_setup_freqs(struct wpa_supplicant *wpa_s, int freq,
 		if (!res && max_pref_freq > 0) {
 			*num_pref_freq = max_pref_freq;
 			i = 0;
-			while (wpas_p2p_disallowed_freq(wpa_s->global,
-							pref_freq_list[i]) &&
-			       i < *num_pref_freq) {
+			while (i < *num_pref_freq &&
+			       (!p2p_supported_freq(wpa_s->global->p2p,
+						    pref_freq_list[i]) ||
+				wpas_p2p_disallowed_freq(wpa_s->global,
+							 pref_freq_list[i]))) {
 				wpa_printf(MSG_DEBUG,
 					   "P2P: preferred_freq_list[%d]=%d is disallowed",
 					   i, pref_freq_list[i]);
@@ -5601,9 +5635,11 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
 						 &size, pref_freq_list);
 		if (!res && size > 0) {
 			i = 0;
-			while (wpas_p2p_disallowed_freq(wpa_s->global,
-							pref_freq_list[i]) &&
-			       i < size) {
+			while (i < size &&
+			       (!p2p_supported_freq(wpa_s->global->p2p,
+						    pref_freq_list[i]) ||
+				wpas_p2p_disallowed_freq(wpa_s->global,
+							 pref_freq_list[i]))) {
 				wpa_printf(MSG_DEBUG,
 					   "P2P: preferred_freq_list[%d]=%d is disallowed",
 					   i, pref_freq_list[i]);
@@ -5667,7 +5703,8 @@ static int wpas_p2p_select_go_freq(struct wpa_supplicant *wpa_s, int freq)
 
 	if (freq > 0 && !p2p_supported_freq_go(wpa_s->global->p2p, freq)) {
 		if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
-		    ieee80211_is_dfs(freq)) {
+		    ieee80211_is_dfs(freq, wpa_s->hw.modes,
+				     wpa_s->hw.num_modes)) {
 			/*
 			 * If freq is a DFS channel and DFS is offloaded to the
 			 * driver, allow P2P GO to use it.
@@ -5705,30 +5742,6 @@ static void wpas_p2p_select_go_freq_no_pref(struct wpa_supplicant *wpa_s,
 {
 	unsigned int i, r;
 
-	/* first try some random selection of the social channels */
-	if (os_get_random((u8 *) &r, sizeof(r)) < 0)
-		return;
-
-	for (i = 0; i < 3; i++) {
-		params->freq = 2412 + ((r + i) % 3) * 25;
-		if (wpas_p2p_supported_freq_go(wpa_s, channels, params->freq))
-			goto out;
-	}
-
-	/* try all other channels in operating class 81 */
-	for (i = 0; i < 11; i++) {
-		params->freq = 2412 + i * 5;
-
-		/* skip social channels; covered in the previous loop */
-		if (params->freq == 2412 ||
-		    params->freq == 2437 ||
-		    params->freq == 2462)
-			continue;
-
-		if (wpas_p2p_supported_freq_go(wpa_s, channels, params->freq))
-			goto out;
-	}
-
 	/* try all channels in operating class 115 */
 	for (i = 0; i < 4; i++) {
 		params->freq = 5180 + i * 20;
@@ -5763,12 +5776,49 @@ static void wpas_p2p_select_go_freq_no_pref(struct wpa_supplicant *wpa_s,
 			goto out;
 	}
 
+	/* try some random selection of the social channels */
+	if (os_get_random((u8 *) &r, sizeof(r)) < 0)
+		return;
+
+	for (i = 0; i < 3; i++) {
+		params->freq = 2412 + ((r + i) % 3) * 25;
+		if (wpas_p2p_supported_freq_go(wpa_s, channels, params->freq))
+			goto out;
+	}
+
+	/* try all other channels in operating class 81 */
+	for (i = 0; i < 11; i++) {
+		params->freq = 2412 + i * 5;
+
+		/* skip social channels; covered in the previous loop */
+		if (params->freq == 2412 ||
+		    params->freq == 2437 ||
+		    params->freq == 2462)
+			continue;
+
+		if (wpas_p2p_supported_freq_go(wpa_s, channels, params->freq))
+			goto out;
+	}
+
 	params->freq = 0;
 	wpa_printf(MSG_DEBUG, "P2P: No 2.4, 5, or 60 GHz channel allowed");
 	return;
 out:
 	wpa_printf(MSG_DEBUG, "P2P: Set GO freq %d MHz (no preference known)",
 		   params->freq);
+}
+
+
+static int wpas_same_band(int freq1, int freq2)
+{
+	enum hostapd_hw_mode mode1, mode2;
+	u8 chan1, chan2;
+
+	mode1 = ieee80211_freq_to_chan(freq1, &chan1);
+	mode2 = ieee80211_freq_to_chan(freq2, &chan2);
+	if (mode1 == NUM_HOSTAPD_MODES)
+		return 0;
+	return mode1 == mode2;
 }
 
 
@@ -5822,11 +5872,30 @@ static int wpas_p2p_init_go_params(struct wpa_supplicant *wpa_s,
 
 	/* try using the forced freq */
 	if (freq) {
-		if (!wpas_p2p_supported_freq_go(wpa_s, channels, freq)) {
+		if (wpas_p2p_disallowed_freq(wpa_s->global, freq) ||
+		    !freq_included(wpa_s, channels, freq)) {
 			wpa_printf(MSG_DEBUG,
-				   "P2P: Forced GO freq %d MHz not accepted",
+				   "P2P: Forced GO freq %d MHz disallowed",
 				   freq);
 			goto fail;
+		}
+		if (!p2p_supported_freq_go(wpa_s->global->p2p, freq)) {
+			if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
+			    ieee80211_is_dfs(freq, wpa_s->hw.modes,
+					     wpa_s->hw.num_modes)) {
+				/*
+				 * If freq is a DFS channel and DFS is offloaded
+				 * to the driver, allow P2P GO to use it.
+				 */
+				wpa_printf(MSG_DEBUG,
+					   "P2P: %s: The forced channel for GO (%u MHz) requires DFS and DFS is offloaded",
+					   __func__, freq);
+			} else {
+				wpa_printf(MSG_DEBUG,
+					   "P2P: The forced channel for GO (%u MHz) is not supported for P2P uses",
+					   freq);
+				goto fail;
+			}
 		}
 
 		for (i = 0; i < num; i++) {
@@ -5953,6 +6022,80 @@ static int wpas_p2p_init_go_params(struct wpa_supplicant *wpa_s,
 		goto success;
 	}
 
+	/* Try using a channel that allows VHT to be used with 80 MHz */
+	if (wpa_s->hw.modes && wpa_s->p2p_group_common_freqs) {
+		for (i = 0; i < wpa_s->p2p_group_common_freqs_num; i++) {
+			enum hostapd_hw_mode mode;
+			struct hostapd_hw_modes *hwmode;
+			u8 chan;
+
+			cand = wpa_s->p2p_group_common_freqs[i];
+			mode = ieee80211_freq_to_chan(cand, &chan);
+			hwmode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes,
+					  mode);
+			if (!hwmode ||
+			    wpas_p2p_verify_channel(wpa_s, hwmode, chan,
+						    BW80) != ALLOWED)
+				continue;
+			if (wpas_p2p_supported_freq_go(wpa_s, channels, cand)) {
+				params->freq = cand;
+				wpa_printf(MSG_DEBUG,
+					   "P2P: Use freq %d MHz common with the peer and allowing VHT80",
+					   params->freq);
+				goto success;
+			}
+		}
+	}
+
+	/* Try using a channel that allows HT to be used with 40 MHz on the same
+	 * band so that CSA can be used */
+	if (wpa_s->current_ssid && wpa_s->hw.modes &&
+	    wpa_s->p2p_group_common_freqs) {
+		for (i = 0; i < wpa_s->p2p_group_common_freqs_num; i++) {
+			enum hostapd_hw_mode mode;
+			struct hostapd_hw_modes *hwmode;
+			u8 chan;
+
+			cand = wpa_s->p2p_group_common_freqs[i];
+			mode = ieee80211_freq_to_chan(cand, &chan);
+			hwmode = get_mode(wpa_s->hw.modes, wpa_s->hw.num_modes,
+					  mode);
+			if (!wpas_same_band(wpa_s->current_ssid->frequency,
+					    cand) ||
+			    !hwmode ||
+			    (wpas_p2p_verify_channel(wpa_s, hwmode, chan,
+						     BW40MINUS) != ALLOWED &&
+			     wpas_p2p_verify_channel(wpa_s, hwmode, chan,
+						     BW40PLUS) != ALLOWED))
+				continue;
+			if (wpas_p2p_supported_freq_go(wpa_s, channels, cand)) {
+				params->freq = cand;
+				wpa_printf(MSG_DEBUG,
+					   "P2P: Use freq %d MHz common with the peer, allowing HT40, and maintaining same band",
+					   params->freq);
+				goto success;
+			}
+		}
+	}
+
+	/* Try using one of the group common freqs on the same band so that CSA
+	 * can be used */
+	if (wpa_s->current_ssid && wpa_s->p2p_group_common_freqs) {
+		for (i = 0; i < wpa_s->p2p_group_common_freqs_num; i++) {
+			cand = wpa_s->p2p_group_common_freqs[i];
+			if (!wpas_same_band(wpa_s->current_ssid->frequency,
+					    cand))
+				continue;
+			if (wpas_p2p_supported_freq_go(wpa_s, channels, cand)) {
+				params->freq = cand;
+				wpa_printf(MSG_DEBUG,
+					   "P2P: Use freq %d MHz common with the peer and maintaining same band",
+					   params->freq);
+				goto success;
+			}
+		}
+	}
+
 	/* Try using one of the group common freqs */
 	if (wpa_s->p2p_group_common_freqs) {
 		for (i = 0; i < wpa_s->p2p_group_common_freqs_num; i++) {
@@ -6022,6 +6165,12 @@ wpas_p2p_get_group_iface(struct wpa_supplicant *wpa_s, int addr_allocated,
 		return NULL;
 	}
 
+	if (go && wpa_s->p2p_go_do_acs) {
+		group_wpa_s->p2p_go_do_acs = wpa_s->p2p_go_do_acs;
+		group_wpa_s->p2p_go_acs_band = wpa_s->p2p_go_acs_band;
+		wpa_s->p2p_go_do_acs = 0;
+	}
+
 	wpa_dbg(wpa_s, MSG_DEBUG, "P2P: Use separate group interface %s",
 		group_wpa_s->ifname);
 	group_wpa_s->p2p_first_connection_timeout = 0;
@@ -6059,31 +6208,16 @@ int wpas_p2p_group_add(struct wpa_supplicant *wpa_s, int persistent_group,
 	wpa_printf(MSG_DEBUG, "P2P: Stop any on-going P2P FIND");
 	wpas_p2p_stop_find_oper(wpa_s);
 
-	freq = wpas_p2p_select_go_freq(wpa_s, freq);
-	if (freq < 0)
-		return -1;
+	if (!wpa_s->p2p_go_do_acs) {
+		freq = wpas_p2p_select_go_freq(wpa_s, freq);
+		if (freq < 0)
+			return -1;
+	}
 
 	if (wpas_p2p_init_go_params(wpa_s, &params, freq, vht_center_freq2,
 				    ht40, vht, max_oper_chwidth, NULL))
 		return -1;
-	if (params.freq &&
-	    !p2p_supported_freq_go(wpa_s->global->p2p, params.freq)) {
-		if ((wpa_s->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
-		    ieee80211_is_dfs(params.freq)) {
-			/*
-			 * If freq is a DFS channel and DFS is offloaded to the
-			 * driver, allow P2P GO to use it.
-			 */
-			wpa_printf(MSG_DEBUG,
-				   "P2P: %s: The forced channel for GO (%u MHz) is DFS, and DFS is offloaded to driver",
-				__func__, params.freq);
-		} else {
-			wpa_printf(MSG_DEBUG,
-				   "P2P: The selected channel for GO (%u MHz) is not supported for P2P uses",
-				   params.freq);
-			return -1;
-		}
-	}
+
 	p2p_go_params(wpa_s->global->p2p, &params);
 	params.persistent_group = persistent_group;
 
@@ -6559,8 +6693,14 @@ int wpas_p2p_find(struct wpa_supplicant *wpa_s, unsigned int timeout,
 	wpa_s->p2p_long_listen = 0;
 
 	if (wpa_s->global->p2p_disabled || wpa_s->global->p2p == NULL ||
-	    wpa_s->p2p_in_provisioning)
+	    wpa_s->p2p_in_provisioning) {
+		wpa_dbg(wpa_s, MSG_DEBUG, "P2P: Reject p2p_find operation%s%s",
+			(wpa_s->global->p2p_disabled || !wpa_s->global->p2p) ?
+			" (P2P disabled)" : "",
+			wpa_s->p2p_in_provisioning ?
+			" (p2p_in_provisioning)" : "");
 		return -1;
+	}
 
 	wpa_supplicant_cancel_sched_scan(wpa_s);
 
@@ -7005,7 +7145,7 @@ void wpas_p2p_completed(struct wpa_supplicant *wpa_s)
 		wpas_p2p_store_persistent_group(wpa_s->p2pdev,
 						ssid, go_dev_addr);
 
-	wpas_notify_p2p_group_started(wpa_s, ssid, persistent, 1);
+	wpas_notify_p2p_group_started(wpa_s, ssid, persistent, 1, ip);
 }
 
 
@@ -9041,16 +9181,20 @@ static void wpas_p2p_consider_moving_one_go(struct wpa_supplicant *wpa_s,
 	unsigned int i, invalid_freq = 0, policy_move = 0, flags = 0;
 	unsigned int timeout;
 	int freq;
+	int dfs_offload;
 
 	wpas_p2p_go_update_common_freqs(wpa_s);
 
 	freq = wpa_s->current_ssid->frequency;
+	dfs_offload = (wpa_s->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD) &&
+		ieee80211_is_dfs(freq, wpa_s->hw.modes, wpa_s->hw.num_modes);
 	for (i = 0, invalid_freq = 0; i < num; i++) {
 		if (freqs[i].freq == freq) {
 			flags = freqs[i].flags;
 
 			/* The channel is invalid, must change it */
-			if (!p2p_supported_freq_go(wpa_s->global->p2p, freq)) {
+			if (!p2p_supported_freq_go(wpa_s->global->p2p, freq) &&
+			    !dfs_offload) {
 				wpa_dbg(wpa_s, MSG_DEBUG,
 					"P2P: Freq=%d MHz no longer valid for GO",
 					freq);
@@ -9060,7 +9204,7 @@ static void wpas_p2p_consider_moving_one_go(struct wpa_supplicant *wpa_s,
 			/* Freq is not used by any other station interface */
 			continue;
 		} else if (!p2p_supported_freq(wpa_s->global->p2p,
-					       freqs[i].freq)) {
+					       freqs[i].freq) && !dfs_offload) {
 			/* Freq is not valid for P2P use cases */
 			continue;
 		} else if (wpa_s->conf->p2p_go_freq_change_policy ==

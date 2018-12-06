@@ -45,16 +45,16 @@ typedef void (*eloop_sock_handler)(int sock, void *eloop_ctx, void *sock_ctx);
 /**
  * eloop_event_handler - eloop generic event callback type
  * @eloop_ctx: Registered callback context data (eloop_data)
- * @sock_ctx: Registered callback context data (user_data)
+ * @user_ctx: Registered callback context data (user_data)
  */
-typedef void (*eloop_event_handler)(void *eloop_data, void *user_ctx);
+typedef void (*eloop_event_handler)(void *eloop_ctx, void *user_ctx);
 
 /**
  * eloop_timeout_handler - eloop timeout event callback type
  * @eloop_ctx: Registered callback context data (eloop_data)
- * @sock_ctx: Registered callback context data (user_data)
+ * @user_ctx: Registered callback context data (user_data)
  */
-typedef void (*eloop_timeout_handler)(void *eloop_data, void *user_ctx);
+typedef void (*eloop_timeout_handler)(void *eloop_ctx, void *user_ctx);
 
 /**
  * eloop_signal_handler - eloop signal event callback type

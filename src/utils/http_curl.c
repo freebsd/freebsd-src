@@ -486,12 +486,11 @@ static void add_logo(struct http_ctx *ctx, struct http_cert *hcert,
 		return;
 
 	n->hash_len = ASN1_STRING_length(hash->hashValue);
-	n->hash = os_malloc(n->hash_len);
+	n->hash = os_memdup(ASN1_STRING_data(hash->hashValue), n->hash_len);
 	if (n->hash == NULL) {
 		os_free(n->alg_oid);
 		return;
 	}
-	os_memcpy(n->hash, ASN1_STRING_data(hash->hashValue), n->hash_len);
 
 	len = ASN1_STRING_length(uri);
 	n->uri = os_malloc(len + 1);
@@ -987,7 +986,7 @@ static int curl_cb_ssl_verify(int preverify_ok, X509_STORE_CTX *x509_ctx)
 
 	ssl = X509_STORE_CTX_get_ex_data(x509_ctx,
 					 SSL_get_ex_data_X509_STORE_CTX_idx());
-	ssl_ctx = ssl->ctx;
+	ssl_ctx = SSL_get_SSL_CTX(ssl);
 	ctx = SSL_CTX_get_app_data(ssl_ctx);
 
 	wpa_printf(MSG_DEBUG, "curl_cb_ssl_verify, preverify_ok: %d",
@@ -1095,7 +1094,7 @@ static int ocsp_resp_cb(SSL *s, void *arg)
 {
 	struct http_ctx *ctx = arg;
 	const unsigned char *p;
-	int len, status, reason;
+	int len, status, reason, res;
 	OCSP_RESPONSE *rsp;
 	OCSP_BASICRESP *basic;
 	OCSP_CERTID *id;
@@ -1200,17 +1199,36 @@ static int ocsp_resp_cb(SSL *s, void *arg)
 		return 0;
 	}
 
-	id = OCSP_cert_to_id(NULL, ctx->peer_cert, ctx->peer_issuer);
+	id = OCSP_cert_to_id(EVP_sha256(), ctx->peer_cert, ctx->peer_issuer);
 	if (!id) {
-		wpa_printf(MSG_DEBUG, "OpenSSL: Could not create OCSP certificate identifier");
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Could not create OCSP certificate identifier (SHA256)");
 		OCSP_BASICRESP_free(basic);
 		OCSP_RESPONSE_free(rsp);
 		ctx->last_err = "Could not create OCSP certificate identifier";
 		return 0;
 	}
 
-	if (!OCSP_resp_find_status(basic, id, &status, &reason, &produced_at,
-				   &this_update, &next_update)) {
+	res = OCSP_resp_find_status(basic, id, &status, &reason, &produced_at,
+				    &this_update, &next_update);
+	if (!res) {
+		id = OCSP_cert_to_id(NULL, ctx->peer_cert, ctx->peer_issuer);
+		if (!id) {
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: Could not create OCSP certificate identifier (SHA1)");
+			OCSP_BASICRESP_free(basic);
+			OCSP_RESPONSE_free(rsp);
+			ctx->last_err =
+				"Could not create OCSP certificate identifier";
+			return 0;
+		}
+
+		res = OCSP_resp_find_status(basic, id, &status, &reason,
+					    &produced_at, &this_update,
+					    &next_update);
+	}
+
+	if (!res) {
 		wpa_printf(MSG_INFO, "OpenSSL: Could not find current server certificate from OCSP response%s",
 			   (ctx->ocsp == MANDATORY_OCSP) ? "" :
 			   " (OCSP not required)");

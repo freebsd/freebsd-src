@@ -282,7 +282,42 @@ pmksa_cache_auth_add(struct rsn_pmksa_cache *pmksa,
 		     const u8 *aa, const u8 *spa, int session_timeout,
 		     struct eapol_state_machine *eapol, int akmp)
 {
-	struct rsn_pmksa_cache_entry *entry, *pos;
+	struct rsn_pmksa_cache_entry *entry;
+
+	entry = pmksa_cache_auth_create_entry(pmk, pmk_len, pmkid, kck, kck_len,
+					      aa, spa, session_timeout, eapol,
+					      akmp);
+
+	if (pmksa_cache_auth_add_entry(pmksa, entry) < 0)
+		return NULL;
+
+	return entry;
+}
+
+
+/**
+ * pmksa_cache_auth_create_entry - Create a PMKSA cache entry
+ * @pmk: The new pairwise master key
+ * @pmk_len: PMK length in bytes, usually PMK_LEN (32)
+ * @pmkid: Calculated PMKID
+ * @kck: Key confirmation key or %NULL if not yet derived
+ * @kck_len: KCK length in bytes
+ * @aa: Authenticator address
+ * @spa: Supplicant address
+ * @session_timeout: Session timeout
+ * @eapol: Pointer to EAPOL state machine data
+ * @akmp: WPA_KEY_MGMT_* used in key derivation
+ * Returns: Pointer to the added PMKSA cache entry or %NULL on error
+ *
+ * This function creates a PMKSA entry.
+ */
+struct rsn_pmksa_cache_entry *
+pmksa_cache_auth_create_entry(const u8 *pmk, size_t pmk_len, const u8 *pmkid,
+			      const u8 *kck, size_t kck_len, const u8 *aa,
+			      const u8 *spa, int session_timeout,
+			      struct eapol_state_machine *eapol, int akmp)
+{
+	struct rsn_pmksa_cache_entry *entry;
 	struct os_reltime now;
 
 	if (pmk_len > PMK_LEN_MAX)
@@ -303,8 +338,7 @@ pmksa_cache_auth_add(struct rsn_pmksa_cache *pmksa,
 	else if (wpa_key_mgmt_suite_b(akmp))
 		rsn_pmkid_suite_b(kck, kck_len, aa, spa, entry->pmkid);
 	else
-		rsn_pmkid(pmk, pmk_len, aa, spa, entry->pmkid,
-			  wpa_key_mgmt_sha256(akmp));
+		rsn_pmkid(pmk, pmk_len, aa, spa, entry->pmkid, akmp);
 	os_get_reltime(&now);
 	entry->expiration = now.sec;
 	if (session_timeout > 0)
@@ -315,9 +349,30 @@ pmksa_cache_auth_add(struct rsn_pmksa_cache *pmksa,
 	os_memcpy(entry->spa, spa, ETH_ALEN);
 	pmksa_cache_from_eapol_data(entry, eapol);
 
+	return entry;
+}
+
+
+/**
+ * pmksa_cache_auth_add_entry - Add a PMKSA cache entry
+ * @pmksa: Pointer to PMKSA cache data from pmksa_cache_auth_init()
+ * @entry: Pointer to PMKSA cache entry
+ *
+ * This function adds PMKSA cache entry to the PMKSA cache. If an old entry is
+ * already in the cache for the same Supplicant, this entry will be replaced
+ * with the new entry. PMKID will be calculated based on the PMK.
+ */
+int pmksa_cache_auth_add_entry(struct rsn_pmksa_cache *pmksa,
+			       struct rsn_pmksa_cache_entry *entry)
+{
+	struct rsn_pmksa_cache_entry *pos;
+
+	if (entry == NULL)
+		return -1;
+
 	/* Replace an old entry for the same STA (if found) with the new entry
 	 */
-	pos = pmksa_cache_auth_get(pmksa, spa, NULL);
+	pos = pmksa_cache_auth_get(pmksa, entry->spa, NULL);
 	if (pos)
 		pmksa_cache_free_entry(pmksa, pos);
 
@@ -331,7 +386,7 @@ pmksa_cache_auth_add(struct rsn_pmksa_cache *pmksa,
 
 	pmksa_cache_link_entry(pmksa, entry);
 
-	return entry;
+	return 0;
 }
 
 
@@ -462,7 +517,7 @@ struct rsn_pmksa_cache_entry * pmksa_cache_get_okc(
 		if (os_memcmp(entry->spa, spa, ETH_ALEN) != 0)
 			continue;
 		rsn_pmkid(entry->pmk, entry->pmk_len, aa, spa, new_pmkid,
-			  wpa_key_mgmt_sha256(entry->akmp));
+			  entry->akmp);
 		if (os_memcmp(new_pmkid, pmkid, PMKID_LEN) == 0)
 			return entry;
 	}
@@ -605,3 +660,70 @@ int pmksa_cache_auth_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len)
 	}
 	return pos - buf;
 }
+
+
+#ifdef CONFIG_PMKSA_CACHE_EXTERNAL
+#ifdef CONFIG_MESH
+
+/**
+ * pmksa_cache_auth_list_mesh - Dump text list of entries in PMKSA cache
+ * @pmksa: Pointer to PMKSA cache data from pmksa_cache_auth_init()
+ * @addr: MAC address of the peer (NULL means any)
+ * @buf: Buffer for the list
+ * @len: Length of the buffer
+ * Returns: Number of bytes written to buffer
+ *
+ * This function is used to generate a text format representation of the
+ * current PMKSA cache contents for the ctrl_iface PMKSA_GET command to store
+ * in external storage.
+ */
+int pmksa_cache_auth_list_mesh(struct rsn_pmksa_cache *pmksa, const u8 *addr,
+			       char *buf, size_t len)
+{
+	int ret;
+	char *pos, *end;
+	struct rsn_pmksa_cache_entry *entry;
+	struct os_reltime now;
+
+	pos = buf;
+	end = buf + len;
+	os_get_reltime(&now);
+
+
+	/*
+	 * Entry format:
+	 * <BSSID> <PMKID> <PMK> <expiration in seconds>
+	 */
+	for (entry = pmksa->pmksa; entry; entry = entry->next) {
+		if (addr && os_memcmp(entry->spa, addr, ETH_ALEN) != 0)
+			continue;
+
+		ret = os_snprintf(pos, end - pos, MACSTR " ",
+				  MAC2STR(entry->spa));
+		if (os_snprintf_error(end - pos, ret))
+			return 0;
+		pos += ret;
+
+		pos += wpa_snprintf_hex(pos, end - pos, entry->pmkid,
+					PMKID_LEN);
+
+		ret = os_snprintf(pos, end - pos, " ");
+		if (os_snprintf_error(end - pos, ret))
+			return 0;
+		pos += ret;
+
+		pos += wpa_snprintf_hex(pos, end - pos, entry->pmk,
+					entry->pmk_len);
+
+		ret = os_snprintf(pos, end - pos, " %d\n",
+				  (int) (entry->expiration - now.sec));
+		if (os_snprintf_error(end - pos, ret))
+			return 0;
+		pos += ret;
+	}
+
+	return pos - buf;
+}
+
+#endif /* CONFIG_MESH */
+#endif /* CONFIG_PMKSA_CACHE_EXTERNAL */

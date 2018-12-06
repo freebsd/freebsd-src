@@ -271,12 +271,27 @@ struct eapol_ctx {
 	void (*status_cb)(void *ctx, const char *status,
 			  const char *parameter);
 
+	/**
+	 * eap_error_cb - Notification of EAP method error
+	 * @ctx: Callback context (ctx)
+	 * @error_code: EAP method error code
+	 */
+	void (*eap_error_cb)(void *ctx, int error_code);
+
 #ifdef CONFIG_EAP_PROXY
 	/**
 	 * eap_proxy_cb - Callback signifying any updates from eap_proxy
 	 * @ctx: eapol_ctx from eap_peer_sm_init() call
 	 */
 	void (*eap_proxy_cb)(void *ctx);
+
+	/**
+	 * eap_proxy_notify_sim_status - Notification of SIM status change
+	 * @ctx: eapol_ctx from eap_peer_sm_init() call
+	 * @status: One of enum value from sim_state
+	 */
+	void (*eap_proxy_notify_sim_status)(void *ctx,
+					    enum eap_proxy_sim_state sim_state);
 #endif /* CONFIG_EAP_PROXY */
 
 	/**
@@ -328,7 +343,18 @@ void eapol_sm_set_ext_pw_ctx(struct eapol_sm *sm,
 			     struct ext_password_data *ext);
 int eapol_sm_failed(struct eapol_sm *sm);
 void eapol_sm_erp_flush(struct eapol_sm *sm);
-int eapol_sm_get_eap_proxy_imsi(struct eapol_sm *sm, char *imsi, size_t *len);
+struct wpabuf * eapol_sm_build_erp_reauth_start(struct eapol_sm *sm);
+void eapol_sm_process_erp_finish(struct eapol_sm *sm, const u8 *buf,
+				 size_t len);
+int eapol_sm_get_eap_proxy_imsi(void *ctx, int sim_num, char *imsi,
+				size_t *len);
+int eapol_sm_update_erp_next_seq_num(struct eapol_sm *sm, u16 next_seq_num);
+int eapol_sm_get_erp_info(struct eapol_sm *sm, struct eap_peer_config *config,
+			  const u8 **username, size_t *username_len,
+			  const u8 **realm, size_t *realm_len,
+			  u16 *erp_next_seq_num, const u8 **rrk,
+			  size_t *rrk_len);
+
 #else /* IEEE8021X_EAPOL */
 static inline struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)
 {
@@ -437,6 +463,28 @@ static inline int eapol_sm_failed(struct eapol_sm *sm)
 }
 static inline void eapol_sm_erp_flush(struct eapol_sm *sm)
 {
+}
+static inline struct wpabuf *
+eapol_sm_build_erp_reauth_start(struct eapol_sm *sm)
+{
+	return NULL;
+}
+static inline void eapol_sm_process_erp_finish(struct eapol_sm *sm,
+					       const u8 *buf, size_t len)
+{
+}
+static inline int eapol_sm_update_erp_next_seq_num(struct eapol_sm *sm,
+						   u16 next_seq_num)
+{
+	return -1;
+}
+static inline int
+eapol_sm_get_erp_info(struct eapol_sm *sm, struct eap_peer_config *config,
+		      const u8 **username, size_t *username_len,
+		      const u8 **realm, size_t *realm_len,
+		      u16 *erp_next_seq_num, const u8 **rrk, size_t *rrk_len)
+{
+	return -1;
 }
 #endif /* IEEE8021X_EAPOL */
 

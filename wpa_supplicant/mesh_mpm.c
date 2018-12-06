@@ -11,6 +11,7 @@
 #include "utils/common.h"
 #include "utils/eloop.h"
 #include "common/ieee802_11_defs.h"
+#include "common/hw_features_common.h"
 #include "ap/hostapd.h"
 #include "ap/sta_info.h"
 #include "ap/ieee802_11.h"
@@ -19,6 +20,7 @@
 #include "driver_i.h"
 #include "mesh_mpm.h"
 #include "mesh_rsn.h"
+#include "notify.h"
 
 struct mesh_peer_mgmt_ie {
 	const u8 *proto_id; /* Mesh Peering Protocol Identifier (2 octets) */
@@ -220,13 +222,14 @@ static void mesh_mpm_send_plink_action(struct wpa_supplicant *wpa_s,
 	if (!sta)
 		return;
 
-	buf_len = 2 +      /* capability info */
+	buf_len = 2 +      /* Category and Action */
+		  2 +      /* capability info */
 		  2 +      /* AID */
 		  2 + 8 +  /* supported rates */
 		  2 + (32 - 8) +
 		  2 + 32 + /* mesh ID */
 		  2 + 7 +  /* mesh config */
-		  2 + 23 + /* peering management */
+		  2 + 24 + /* peering management */
 		  2 + 96 + /* AMPE */
 		  2 + 16;  /* MIC */
 #ifdef CONFIG_IEEE80211N
@@ -435,7 +438,7 @@ static void plink_timer(void *eloop_ctx, void *user_data)
 			break;
 		}
 		reason = WLAN_REASON_MESH_MAX_RETRIES;
-		/* fall through on else */
+		/* fall through */
 
 	case PLINK_CNF_RCVD:
 		/* confirm timer */
@@ -646,6 +649,9 @@ static struct sta_info * mesh_mpm_add_peer(struct wpa_supplicant *wpa_s,
 	struct mesh_conf *conf = wpa_s->ifmsh->mconf;
 	struct hostapd_data *data = wpa_s->ifmsh->bss[0];
 	struct sta_info *sta;
+#ifdef CONFIG_IEEE80211N
+	struct ieee80211_ht_operation *oper;
+#endif /* CONFIG_IEEE80211N */
 	int ret;
 
 	if (elems->mesh_config_len >= 7 &&
@@ -677,6 +683,17 @@ static struct sta_info * mesh_mpm_add_peer(struct wpa_supplicant *wpa_s,
 
 #ifdef CONFIG_IEEE80211N
 	copy_sta_ht_capab(data, sta, elems->ht_capabilities);
+
+	oper = (struct ieee80211_ht_operation *) elems->ht_operation;
+	if (oper &&
+	    !(oper->ht_param & HT_INFO_HT_PARAM_STA_CHNL_WIDTH) &&
+	    sta->ht_capabilities) {
+		wpa_msg(wpa_s, MSG_DEBUG, MACSTR
+			" does not support 40 MHz bandwidth",
+			MAC2STR(sta->addr));
+		set_disable_ht40(sta->ht_capabilities, 1);
+	}
+
 	update_ht_state(data, sta);
 #endif /* CONFIG_IEEE80211N */
 
@@ -842,6 +859,9 @@ static void mesh_mpm_plink_estab(struct wpa_supplicant *wpa_s,
 	/* Send ctrl event */
 	wpa_msg(wpa_s, MSG_INFO, MESH_PEER_CONNECTED MACSTR,
 		MAC2STR(sta->addr));
+
+	/* Send D-Bus event */
+	wpas_notify_mesh_peer_connected(wpa_s, sta->addr);
 }
 
 
@@ -994,6 +1014,10 @@ static void mesh_mpm_fsm(struct wpa_supplicant *wpa_s, struct sta_info *sta,
 			wpa_msg(wpa_s, MSG_INFO, MESH_PEER_DISCONNECTED MACSTR,
 				MAC2STR(sta->addr));
 
+			/* Send D-Bus event */
+			wpas_notify_mesh_peer_disconnected(wpa_s, sta->addr,
+							   reason);
+
 			hapd->num_plinks--;
 
 			mesh_mpm_send_plink_action(wpa_s, sta,
@@ -1135,7 +1159,7 @@ void mesh_mpm_action_rx(struct wpa_supplicant *wpa_s,
 	 */
 	if (!sta && action_field == PLINK_OPEN &&
 	    (!(mconf->security & MESH_CONF_SEC_AMPE) ||
-	     wpa_auth_pmksa_get(hapd->wpa_auth, mgmt->sa)))
+	     wpa_auth_pmksa_get(hapd->wpa_auth, mgmt->sa, NULL)))
 		sta = mesh_mpm_add_peer(wpa_s, mgmt->sa, &elems);
 
 	if (!sta) {

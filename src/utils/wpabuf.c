@@ -244,15 +244,13 @@ struct wpabuf * wpabuf_concat(struct wpabuf *a, struct wpabuf *b)
 
 	if (a)
 		len += wpabuf_len(a);
-	if (b)
-		len += wpabuf_len(b);
+	len += wpabuf_len(b);
 
 	n = wpabuf_alloc(len);
 	if (n) {
 		if (a)
 			wpabuf_put_buf(n, a);
-		if (b)
-			wpabuf_put_buf(n, b);
+		wpabuf_put_buf(n, b);
 	}
 
 	wpabuf_free(a);

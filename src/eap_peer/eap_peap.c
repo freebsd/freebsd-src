@@ -726,7 +726,8 @@ static int eap_peap_phase2_request(struct eap_sm *sm,
 
 	if (*resp == NULL &&
 	    (config->pending_req_identity || config->pending_req_password ||
-	     config->pending_req_otp || config->pending_req_new_password)) {
+	     config->pending_req_otp || config->pending_req_new_password ||
+	     config->pending_req_sim)) {
 		wpabuf_free(data->pending_phase2_req);
 		data->pending_phase2_req = wpabuf_alloc_copy(hdr, len);
 	}
@@ -1082,7 +1083,7 @@ static struct wpabuf * eap_peap_process(struct eap_sm *sm, void *priv,
 				eap_peer_tls_derive_key(sm, &data->ssl, label,
 							EAP_TLS_KEY_LEN);
 			if (data->key_data) {
-				wpa_hexdump_key(MSG_DEBUG, 
+				wpa_hexdump_key(MSG_DEBUG,
 						"EAP-PEAP: Derived key",
 						data->key_data,
 						EAP_TLS_KEY_LEN);
@@ -1163,6 +1164,10 @@ static Boolean eap_peap_has_reauth_data(struct eap_sm *sm, void *priv)
 static void eap_peap_deinit_for_reauth(struct eap_sm *sm, void *priv)
 {
 	struct eap_peap_data *data = priv;
+
+	if (data->phase2_priv && data->phase2_method &&
+	    data->phase2_method->deinit_for_reauth)
+		data->phase2_method->deinit_for_reauth(sm, data->phase2_priv);
 	wpabuf_free(data->pending_phase2_req);
 	data->pending_phase2_req = NULL;
 	wpabuf_free(data->pending_resp);
@@ -1267,12 +1272,11 @@ static u8 * eap_peap_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->session_id == NULL || !data->phase2_success)
 		return NULL;
 
-	id = os_malloc(data->id_len);
+	id = os_memdup(data->session_id, data->id_len);
 	if (id == NULL)
 		return NULL;
 
 	*len = data->id_len;
-	os_memcpy(id, data->session_id, data->id_len);
 
 	return id;
 }

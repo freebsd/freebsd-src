@@ -13,7 +13,7 @@
 #ifdef CONFIG_DEBUG_SYSLOG
 #include <syslog.h>
 
-static int wpa_debug_syslog = 0;
+int wpa_debug_syslog = 0;
 #endif /* CONFIG_DEBUG_SYSLOG */
 
 #ifdef CONFIG_DEBUG_LINUX_TRACING
@@ -58,6 +58,10 @@ static int wpa_to_android_level(int level)
 #ifndef CONFIG_NO_STDOUT_DEBUG
 
 #ifdef CONFIG_DEBUG_FILE
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 static FILE *out_file = NULL;
 #endif /* CONFIG_DEBUG_FILE */
 
@@ -539,6 +543,8 @@ int wpa_debug_reopen_file(void)
 int wpa_debug_open_file(const char *path)
 {
 #ifdef CONFIG_DEBUG_FILE
+	int out_fd;
+
 	if (!path)
 		return 0;
 
@@ -548,10 +554,28 @@ int wpa_debug_open_file(const char *path)
 		last_path = os_strdup(path);
 	}
 
-	out_file = fopen(path, "a");
+	out_fd = open(path, O_CREAT | O_APPEND | O_WRONLY,
+		      S_IRUSR | S_IWUSR | S_IRGRP);
+	if (out_fd < 0) {
+		wpa_printf(MSG_ERROR,
+			   "%s: Failed to open output file descriptor, using standard output",
+			   __func__);
+		return -1;
+	}
+
+#ifdef __linux__
+	if (fcntl(out_fd, F_SETFD, FD_CLOEXEC) < 0) {
+		wpa_printf(MSG_DEBUG,
+			   "%s: Failed to set FD_CLOEXEC - continue without: %s",
+			   __func__, strerror(errno));
+	}
+#endif /* __linux__ */
+
+	out_file = fdopen(out_fd, "a");
 	if (out_file == NULL) {
 		wpa_printf(MSG_ERROR, "wpa_debug_open_file: Failed to open "
 			   "output file, using standard output");
+		close(out_fd);
 		return -1;
 	}
 #ifndef _WIN32

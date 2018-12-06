@@ -283,3 +283,13 @@ int os_exec(const char *program, const char *arg, int wait_completion)
 {
 	return -1;
 }
+
+
+void * os_memdup(const void *src, size_t len)
+{
+	void *r = os_malloc(len);
+
+	if (r)
+		os_memcpy(r, src, len);
+	return r;
+}

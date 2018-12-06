@@ -87,12 +87,9 @@ static int wmm_ac_add_ts(struct wpa_supplicant *wpa_s, const u8 *addr,
 	}
 
 	/* copy tspec */
-	_tspec = os_malloc(sizeof(*_tspec));
+	_tspec = os_memdup(tspec, sizeof(*_tspec));
 	if (!_tspec)
 		return -1;
-
-	/* store the admitted TSPEC */
-	os_memcpy(_tspec, tspec, sizeof(*_tspec));
 
 	if (dir != WMM_AC_DIR_DOWNLINK) {
 		ret = wpa_drv_add_ts(wpa_s, tsid, addr, up, admitted_time);

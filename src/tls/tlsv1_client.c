@@ -264,7 +264,7 @@ failed:
  * @in_data: Pointer to plaintext data to be encrypted
  * @in_len: Input buffer length
  * @out_data: Pointer to output buffer (encrypted TLS data)
- * @out_len: Maximum out_data length 
+ * @out_len: Maximum out_data length
  * Returns: Number of bytes written to out_data, -1 on failure
  *
  * This function is used after TLS handshake has been completed successfully to

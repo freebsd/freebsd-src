@@ -103,7 +103,7 @@ static int wpa_supplicant_ctrl_iface_attach(struct dl_list *ctrl_dst,
 					    struct sockaddr_storage *from,
 					    socklen_t fromlen, int global)
 {
-	return ctrl_iface_attach(ctrl_dst, from, fromlen);
+	return ctrl_iface_attach(ctrl_dst, from, fromlen, NULL);
 }
 
 

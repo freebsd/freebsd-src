@@ -9,20 +9,14 @@
 #ifndef EAP_PWD_COMMON_H
 #define EAP_PWD_COMMON_H
 
-#include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/evp.h>
-
 /*
  * definition of a finite cyclic group
  * TODO: support one based on a prime field
  */
 typedef struct group_definition_ {
 	u16 group_num;
-	EC_GROUP *group;
-	EC_POINT *pwe;
-	BIGNUM *order;
-	BIGNUM *prime;
+	struct crypto_ec *group;
+	struct crypto_ec_point *pwe;
 } EAP_PWD_group;
 
 /*
@@ -52,17 +46,22 @@ struct eap_pwd_id {
 	u8 prep;
 #define EAP_PWD_PREP_NONE               0
 #define EAP_PWD_PREP_MS                 1
+#define EAP_PWD_PREP_SSHA1              3
+#define EAP_PWD_PREP_SSHA256            4
+#define EAP_PWD_PREP_SSHA512            5
 	u8 identity[0];     /* length inferred from payload */
 } STRUCT_PACKED;
 
 /* common routines */
+EAP_PWD_group * get_eap_pwd_group(u16 num);
 int compute_password_element(EAP_PWD_group *grp, u16 num,
 			     const u8 *password, size_t password_len,
 			     const u8 *id_server, size_t id_server_len,
 			     const u8 *id_peer, size_t id_peer_len,
 			     const u8 *token);
-int compute_keys(EAP_PWD_group *grp, BN_CTX *bnctx, const BIGNUM *k,
-		 const BIGNUM *peer_scalar, const BIGNUM *server_scalar,
+int compute_keys(EAP_PWD_group *grp, const struct crypto_bignum *k,
+		 const struct crypto_bignum *peer_scalar,
+		 const struct crypto_bignum  *server_scalar,
 		 const u8 *confirm_peer, const u8 *confirm_server,
 		 const u32 *ciphersuite, u8 *msk, u8 *emsk, u8 *session_id);
 struct crypto_hash * eap_pwd_h_init(void);

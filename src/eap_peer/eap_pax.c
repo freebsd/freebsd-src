@@ -69,12 +69,11 @@ static void * eap_pax_init(struct eap_sm *sm)
 		return NULL;
 	data->state = PAX_INIT;
 
-	data->cid = os_malloc(identity_len);
+	data->cid = os_memdup(identity, identity_len);
 	if (data->cid == NULL) {
 		eap_pax_deinit(sm, data);
 		return NULL;
 	}
-	os_memcpy(data->cid, identity, identity_len);
 	data->cid_len = identity_len;
 
 	os_memcpy(data->ak, password, EAP_PAX_AK_LEN);

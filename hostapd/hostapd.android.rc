@@ -9,8 +9,7 @@
 on post-fs-data
     mkdir /data/misc/wifi/hostapd 0770 wifi wifi
 
-service hostapd /system/bin/hostapd \
-        -e /data/misc/wifi/entropy.bin \
+service hostapd /vendor/bin/hostapd \
         /data/misc/wifi/hostapd.conf
     class main
     user wifi

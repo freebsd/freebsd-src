@@ -197,6 +197,20 @@ Credentials can be pre-configured for automatic network selection:
 #	pre-configured with the credential since the NAI Realm information
 #	may not be available or fetched.
 #
+# required_roaming_consortium: Required Roaming Consortium OI
+#	If required_roaming_consortium_len is non-zero, this field contains the
+#	Roaming Consortium OI that is required to be advertised by the AP for
+#	the credential to be considered matching.
+#
+# roaming_consortiums: Roaming Consortium OI(s) memberships
+#	This string field contains one or more comma delimited OIs (hexdump)
+#	identifying the roaming consortiums of which the provider is a member.
+#	The list is sorted from the most preferred one to the least preferred
+#	one. A match between the Roaming Consortium OIs advertised by an AP and
+#	the OIs in this list indicates that successful authentication is
+#	possible.
+#	(Hotspot 2.0 PerProviderSubscription/<X+>/HomeSP/RoamingConsortiumOI)
+#
 # eap: Pre-configured EAP method
 #	This optional field can be used to specify which EAP method will be
 #	used with this credential. If not set, the EAP method is selected
@@ -295,6 +309,7 @@ Credentials can be pre-configured for automatic network selection:
 #	ca_cert="/etc/wpa_supplicant/ca.pem"
 #	domain="example.com"
 #	roaming_consortium=223344
+#	roaming_consortiums="112233,4455667788,aabbcc"
 #	eap=TTLS
 #	phase2="auth=MSCHAPV2"
 #}
@@ -591,7 +606,7 @@ network={
 Hotspot 2.0 connection with external network selection
 ------------------------------------------------------
 
-When an component controlling wpa_supplicant takes care of Interworking
+When a component controlling wpa_supplicant takes care of Interworking
 network selection, following configuration and network profile
 parameters can be used to configure a temporary network profile for a
 Hotspot 2.0 connection (e.g., with SET, ADD_NETWORK, SET_NETWORK, and
@@ -613,6 +628,7 @@ network={
     eap=TTLS
     phase2="auth=MSCHAPV2"
     update_identifier=54321
+    roaming_consortium_selection=112233
     #ocsp=2
 }
 
@@ -628,4 +644,5 @@ update_identifier: PPS/UpdateIdentifier
 ca_cert: from the downloaded trust root based on PPS information
 eap: Credential/UsernamePassword/EAPMethod or NAI Realm list
 phase2: Credential/UsernamePassword/EAPMethod or NAI Realm list
+roaming_consortium_selection: Matching OI from HomeSP/RoamingConsortiumOI
 ocsp: Credential/CheckAAAServerCertStatus

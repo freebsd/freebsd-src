@@ -48,7 +48,7 @@
 
 static const u32 bytebit[8] =
 {
-	0200, 0100, 040, 020, 010, 04, 02, 01 
+	0200, 0100, 040, 020, 010, 04, 02, 01
 };
 
 static const u32 bigbyte[24] =
@@ -58,22 +58,22 @@ static const u32 bigbyte[24] =
 	0x8000UL,    0x4000UL,    0x2000UL,    0x1000UL,
 	0x800UL,     0x400UL,     0x200UL,     0x100UL,
 	0x80UL,      0x40UL,      0x20UL,      0x10UL,
-	0x8UL,       0x4UL,       0x2UL,       0x1L 
+	0x8UL,       0x4UL,       0x2UL,       0x1L
 };
 
 /* Use the key schedule specific in the standard (ANSI X3.92-1981) */
 
 static const u8 pc1[56] = {
-	56, 48, 40, 32, 24, 16,  8,  0, 57, 49, 41, 33, 25, 17,  
-	 9,  1, 58, 50, 42, 34, 26, 18, 10,  2, 59, 51, 43, 35, 
+	56, 48, 40, 32, 24, 16,  8,  0, 57, 49, 41, 33, 25, 17,
+	 9,  1, 58, 50, 42, 34, 26, 18, 10,  2, 59, 51, 43, 35,
 	62, 54, 46, 38, 30, 22, 14,  6, 61, 53, 45, 37, 29, 21,
-	13,  5, 60, 52, 44, 36, 28, 20, 12,  4, 27, 19, 11,  3 
+	13,  5, 60, 52, 44, 36, 28, 20, 12,  4, 27, 19, 11,  3
 };
 
 static const u8 totrot[16] = {
 	1,   2,  4,  6,
-	8,  10, 12, 14, 
-	15, 17, 19, 21, 
+	8,  10, 12, 14,
+	15, 17, 19, 21,
 	23, 25, 27, 28
 };
 
@@ -396,7 +396,7 @@ static void desfunc(u32 *block, const u32 *keys)
 
 /* wpa_supplicant/hostapd specific wrapper */
 
-void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
+int des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 {
 	u8 pkey[8], next, tmp;
 	int i;
@@ -421,6 +421,7 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 
 	os_memset(pkey, 0, sizeof(pkey));
 	os_memset(ek, 0, sizeof(ek));
+	return 0;
 }
 
 
