@@ -119,7 +119,7 @@ print_intel_write_lat_log(const struct nvme_controller_data *cdata __unused, voi
 /*
  * Table 19. 5.4 SMART Attributes. Others also implement this and some extra data not documented.
  */
-static void
+void
 print_intel_add_smart(const struct nvme_controller_data *cdata __unused, void *buf, uint32_t size __unused)
 {
 	uint8_t *walker = buf;
