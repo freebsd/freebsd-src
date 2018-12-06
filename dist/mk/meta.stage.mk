@@ -1,4 +1,4 @@
-# $Id: meta.stage.mk,v 1.55 2017/10/27 01:17:09 sjg Exp $
+# $Id: meta.stage.mk,v 1.56 2018/07/08 17:12:54 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
@@ -141,7 +141,7 @@ _STAGE_AS_BASENAME_USE:        .USE .dirdep ${.TARGET:T}
 
 .if !empty(STAGE_INCSDIR)
 .if !empty(STAGE_INCS)
-stage_incs: ${STAGE_INCS}
+stage_incs: ${STAGE_INCS:N*\**}
 .endif
 .if target(stage_incs) || !empty(.ALLTARGETS:Mstage_includes)
 STAGE_TARGETS += stage_incs
@@ -156,7 +156,7 @@ stage_incs:	.dirdep
 
 .if !empty(STAGE_LIBDIR)
 .if !empty(STAGE_LIBS)
-stage_libs: ${STAGE_LIBS}
+stage_libs: ${STAGE_LIBS:N*\**}
 .endif
 .if target(stage_libs)
 STAGE_TARGETS += stage_libs
@@ -191,7 +191,7 @@ CLEANFILES += ${STAGE_SETS:@s@stage*$s@}
 # some makefiles need to populate multiple directories
 .for s in ${STAGE_SETS:O:u}
 .if !empty(STAGE_FILES.$s)
-stage_files.$s: ${STAGE_FILES.$s}
+stage_files.$s: ${STAGE_FILES.$s:N*\**}
 .endif
 .if target(stage_files.$s) || target(stage_files${s:S,^,.,:N._default})
 STAGE_TARGETS += stage_files
@@ -262,7 +262,7 @@ CLEANFILES += ${STAGE_AS_SETS:@s@stage*$s@}
 # both operations happen together
 .for s in ${STAGE_AS_SETS:O:u}
 .if !empty(STAGE_AS.$s)
-stage_as.$s: ${STAGE_AS.$s}
+stage_as.$s: ${STAGE_AS.$s:N*\**}
 .endif
 .if target(stage_as.$s)
 STAGE_TARGETS += stage_as
@@ -277,7 +277,7 @@ stage_as.$s:	.dirdep
 .endif
 
 .if !empty(STAGE_AS_AND_SYMLINK.$s)
-stage_as_and_symlink.$s: ${STAGE_AS_AND_SYMLINK.$s}
+stage_as_and_symlink.$s: ${STAGE_AS_AND_SYMLINK.$s:N*\**}
 .endif
 .if target(stage_as_and_symlink.$s)
 STAGE_TARGETS += stage_as_and_symlink
