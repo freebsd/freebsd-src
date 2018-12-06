@@ -195,11 +195,14 @@ main(void)
      */
 #define	LEGACY_GELI_ARGS_SIZE	260	/* This can never change */
 
+#ifdef LOADER_ZFS_SUPPORT
     if (zargs != NULL) {
 	if (zargs->size > offsetof(struct zfs_boot_args, gelidata)) {
 	    gbdata = &zargs->gelidata;
 	}
-    } else if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+    } else
+#endif /* LOADER_ZFS_SUPPORT */
+	   if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
 	gargs = (struct geli_boot_args *)(kargs + 1);
 	if ((kargs->bootflags & KARGS_FLAGS_GELI) ||
 	    gargs->size == LEGACY_GELI_ARGS_SIZE) {
