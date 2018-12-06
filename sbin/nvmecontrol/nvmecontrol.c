@@ -75,7 +75,7 @@ print_usage(const struct nvme_function *f)
 }
 
 static void
-gen_usage_set(struct nvme_function **f, struct nvme_function **flimit)
+gen_usage_set(const struct nvme_function * const *f, const struct nvme_function * const *flimit)
 {
 
 	fprintf(stderr, "usage:\n");
@@ -96,10 +96,10 @@ usage(const struct nvme_function *f)
 }
 
 void
-dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
-    struct nvme_function **tbl_limit)
+dispatch_set(int argc, char *argv[], const struct nvme_function * const *tbl,
+    const struct nvme_function * const *tbl_limit)
 {
-	struct nvme_function **f = tbl;
+	const struct nvme_function * const *f = tbl;
 
 	if (argv[1] == NULL) {
 		gen_usage_set(tbl, tbl_limit);

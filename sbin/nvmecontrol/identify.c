@@ -150,7 +150,7 @@ print_namespace(struct nvme_namespace_data *nsdata)
 }
 
 static void
-identify_ctrlr(struct nvme_function *nf, int argc, char *argv[])
+identify_ctrlr(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	int				ch, fd, hexflag = 0, hexlength;
@@ -197,7 +197,7 @@ identify_ctrlr(struct nvme_function *nf, int argc, char *argv[])
 }
 
 static void
-identify_ns(struct nvme_function *nf,int argc, char *argv[])
+identify_ns(const struct nvme_function *nf,int argc, char *argv[])
 {
 	struct nvme_namespace_data	nsdata;
 	char				path[64];
@@ -261,7 +261,7 @@ identify_ns(struct nvme_function *nf,int argc, char *argv[])
 }
 
 static void
-identify(struct nvme_function *nf, int argc, char *argv[])
+identify(const struct nvme_function *nf, int argc, char *argv[])
 {
 	char	*target;
 

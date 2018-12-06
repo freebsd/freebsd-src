@@ -60,10 +60,10 @@ NVME_CMD_DECLARE(ns, struct nvme_function);
 #define NSDETACH_USAGE							\
 	"ns detach -n nsid [-c ctrlrid] nvmeN\n"
 
-void nscreate(struct nvme_function *nf, int argc, char *argv[]);
-void nsdelete(struct nvme_function *nf, int argc, char *argv[]);
-void nsattach(struct nvme_function *nf, int argc, char *argv[]);
-void nsdetach(struct nvme_function *nf, int argc, char *argv[]);
+static void nscreate(const struct nvme_function *nf, int argc, char *argv[]);
+static void nsdelete(const struct nvme_function *nf, int argc, char *argv[]);
+static void nsattach(const struct nvme_function *nf, int argc, char *argv[]);
+static void nsdetach(const struct nvme_function *nf, int argc, char *argv[]);
 
 NVME_COMMAND(ns, create, nscreate, NSCREATE_USAGE);
 NVME_COMMAND(ns, delete, nsdelete, NSDELETE_USAGE);
@@ -109,8 +109,8 @@ get_res_str(uint16_t res)
  * 0x16 = Namespace ID  unavailable (number namespaces exceeded)
  * 0xb = Thin Provisioning Not supported
  */
-void
-nscreate(struct nvme_function *nf, int argc, char *argv[])
+static void
+nscreate(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -204,8 +204,8 @@ nscreate(struct nvme_function *nf, int argc, char *argv[])
 	exit(0);
 }
 
-void
-nsdelete(struct nvme_function *nf, int argc, char *argv[])
+static void
+nsdelete(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -271,8 +271,8 @@ nsdelete(struct nvme_function *nf, int argc, char *argv[])
  *
  * 0x2 Invalid Field can occur if ctrlrid d.n.e in system.
  */
-void
-nsattach(struct nvme_function *nf, int argc, char *argv[])
+static void
+nsattach(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -350,8 +350,8 @@ nsattach(struct nvme_function *nf, int argc, char *argv[])
 	exit(0);
 }
 
-void
-nsdetach(struct nvme_function *nf, int argc, char *argv[])
+static void
+nsdetach(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_pt_command	pt;
 	struct nvme_controller_data cd;
@@ -437,7 +437,7 @@ nsdetach(struct nvme_function *nf, int argc, char *argv[])
 }
 
 static void
-ns(struct nvme_function *nf __unused, int argc, char *argv[])
+ns(const struct nvme_function *nf __unused, int argc, char *argv[])
 {
 
 	DISPATCH(argc, argv, ns);
