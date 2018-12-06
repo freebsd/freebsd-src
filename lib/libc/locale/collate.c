@@ -84,7 +84,8 @@ destruct_collate(void *t)
 void *
 __collate_load(const char *encoding, __unused locale_t unused)
 {
-	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
+	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0 ||
+	    strncmp(encoding, "C.", 2) == 0) {
 		return &__xlocale_C_collate;
 	}
 	struct xlocale_collate *table = calloc(sizeof(struct xlocale_collate), 1);
@@ -122,7 +123,8 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	table->__collate_load_error = 1;
 
 	/* 'encoding' must be already checked. */
-	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
+	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0 ||
+	    strncmp(encoding, "C.", 2) == 0) {
 		return (_LDP_CACHE);
 	}
 
