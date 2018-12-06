@@ -132,7 +132,7 @@ struct mlx5_fpga_temperature {
 #define	MLX5_FPGA_RESET		_IO('m', 0x82)
 #define	MLX5_FPGA_IMAGE_SEL	_IOWINT('m', 0x83)
 #define	MLX5_FPGA_QUERY		_IOR('m', 0x84, struct mlx5_fpga_query)
-#define	MLX5_FPGA_CAP		_IOR('m', 0x85, u32[MLX5_FPGA_CAP_ARR_SZ])
+#define	MLX5_FPGA_CAP		_IOR('m', 0x85, uint32_t[MLX5_FPGA_CAP_ARR_SZ])
 #define	MLX5_FPGA_TEMPERATURE	_IOWR('m', 0x86, struct mlx5_fpga_temperature)
 #define	MLX5_FPGA_CONNECT	_IOWR('m', 0x87, enum mlx5_fpga_connect)
 
