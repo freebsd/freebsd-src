@@ -52,7 +52,7 @@ NVME_CMD_DECLARE(wdc, struct nvme_function);
 #define WDC_NVME_CAP_DIAG_OPCODE	0xe6
 #define WDC_NVME_CAP_DIAG_CMD		0x0000
 
-static void wdc_cap_diag(struct nvme_function *nf, int argc, char *argv[]);
+static void wdc_cap_diag(const struct nvme_function *nf, int argc, char *argv[]);
 
 #define WDC_CAP_DIAG_USAGE	"wdc cap-diag [-o path-template]\n"
 
@@ -154,7 +154,7 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 }
 
 static void
-wdc_cap_diag(struct nvme_function *nf, int argc, char *argv[])
+wdc_cap_diag(const struct nvme_function *nf, int argc, char *argv[])
 {
 	char path_tmpl[MAXPATHLEN];
 	int ch, fd;
@@ -183,7 +183,7 @@ wdc_cap_diag(struct nvme_function *nf, int argc, char *argv[])
 }
 
 static void
-wdc(struct nvme_function *nf __unused, int argc, char *argv[])
+wdc(const struct nvme_function *nf __unused, int argc, char *argv[])
 {
 
 	DISPATCH(argc, argv, wdc);

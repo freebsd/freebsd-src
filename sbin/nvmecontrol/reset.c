@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 	"reset <controller id>\n"
 
 static void
-reset(struct nvme_function *nf, int argc, char *argv[])
+reset(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int	ch, fd;
 

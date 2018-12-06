@@ -60,7 +60,7 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 }
 
 static void
-devlist(struct nvme_function *nf, int argc, char *argv[])
+devlist(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace_data	nsdata;
