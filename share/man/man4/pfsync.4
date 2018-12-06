@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2017
+.Dd December 6, 2018
 .Dt PFSYNC 4
 .Os
 .Sh NAME
@@ -130,6 +130,13 @@ See
 .Xr carp 4
 for more information.
 Default value is 240.
+.It Va net.pfsync.pfsync_buckets
+The number of
+.Nm
+buckets.
+This affects the performance and memory tradeoff.
+Defaults to twice the number of CPUs.
+Change only if benchmarks show this helps on your workload.
 .El
 .Sh EXAMPLES
 .Nm
