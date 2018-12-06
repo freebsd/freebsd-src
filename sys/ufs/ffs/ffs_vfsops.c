@@ -774,6 +774,7 @@ ffs_mountfs(devvp, mp, td)
 	struct g_consumer *cp;
 	struct mount *nmp;
 	int candelete;
+	off_t loc;
 
 	fs = NULL;
 	ump = NULL;
@@ -810,9 +811,11 @@ ffs_mountfs(devvp, mp, td)
 		goto out;
 	}
 	/* fetch the superblock and summary information */
-	if ((error = ffs_sbget(devvp, &fs, -1, M_UFSMNT, ffs_use_bread)) != 0)
+	loc = STDSB;
+	if ((mp->mnt_flag & MNT_ROOTFS) != 0)
+		loc = STDSB_NOHASHFAIL;
+	if ((error = ffs_sbget(devvp, &fs, loc, M_UFSMNT, ffs_use_bread)) != 0)
 		goto out;
-	fs->fs_fmod = 0;
 	/* none of these types of check-hashes are maintained by this kernel */
 	fs->fs_metackhash &= ~(CK_INODE | CK_INDIR | CK_DIR);
 	/* no support for any undefined flags */

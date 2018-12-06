@@ -126,7 +126,7 @@ fsirand(char *device)
 	dp2 = NULL;
 
 	/* Read in master superblock */
-	if ((ret = sbget(devfd, &sblock, -1)) != 0) {
+	if ((ret = sbget(devfd, &sblock, STDSB)) != 0) {
 		switch (ret) {
 		case ENOENT:
 			warn("Cannot find file system superblock");
