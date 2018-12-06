@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define WDC_USAGE							       \
 	"wdc (cap-diag)\n"
 
-SET_DECLARE(wdc, struct nvme_function);
+NVME_CMD_DECLARE(wdc, struct nvme_function);
 
 #define WDC_NVME_TOC_SIZE	8
 
