@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $	*/
+/*	$NetBSD: dir.c,v 1.73 2018/07/12 18:03:31 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $";
+static char rcsid[] = "$NetBSD: dir.c,v 1.73 2018/07/12 18:03:31 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)dir.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: dir.c,v 1.71 2017/04/16 21:14:47 riastradh Exp $");
+__RCSID("$NetBSD: dir.c,v 1.73 2018/07/12 18:03:31 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -268,15 +268,6 @@ struct cache_st {
 };
 
 /* minimize changes below */
-static time_t
-Hash_GetTimeValue(Hash_Entry *entry)
-{
-    struct cache_st *cst;
-
-    cst = entry->clientPtr;
-    return cst->mtime;
-}
-
 #define CST_LSTAT 1
 #define CST_UPDATE 2
 
@@ -298,6 +289,10 @@ cached_stats(Hash_Table *htp, const char *pathname, struct stat *st, int flags)
 	memset(st, 0, sizeof(*st));
 	st->st_mtime = cst->mtime;
 	st->st_mode = cst->mode;
+        if (DEBUG(DIR)) {
+            fprintf(debug_file, "Using cached time %s for %s\n",
+		Targ_FmtTime(st->st_mtime), pathname);
+	}
 	return 0;
     }
 
@@ -315,6 +310,10 @@ cached_stats(Hash_Table *htp, const char *pathname, struct stat *st, int flags)
     cst = entry->clientPtr;
     cst->mtime = st->st_mtime;
     cst->mode = st->st_mode;
+    if (DEBUG(DIR)) {
+	fprintf(debug_file, "   Caching %s for %s\n",
+	    Targ_FmtTime(st->st_mtime), pathname);
+    }
 
     return 0;
 }
@@ -995,14 +994,6 @@ DirLookupSubdir(Path *p, const char *name)
     }
 
     if (cached_stat(file, &stb) == 0) {
-	/*
-	 * Save the modification time so if it's needed, we don't have
-	 * to fetch it again.
-	 */
-	if (DEBUG(DIR)) {
-	    fprintf(debug_file, "   Caching %s for %s\n", Targ_FmtTime(stb.st_mtime),
-		    file);
-	}
 	nearmisses += 1;
 	return (file);
     }
@@ -1134,7 +1125,6 @@ Dir_FindFile(const char *name, Lst path)
     Boolean	  hasLastDot = FALSE;	/* true we should search dot last */
     Boolean	  hasSlash;		/* true if 'name' contains a / */
     struct stat	  stb;			/* Buffer for stat, if necessary */
-    Hash_Entry	  *entry;		/* Entry for mtimes table */
     const char   *trailing_dot = ".";
 
     /*
@@ -1395,24 +1385,14 @@ Dir_FindFile(const char *name, Lst path)
     }
 
     bigmisses += 1;
-    entry = Hash_FindEntry(&mtimes, name);
-    if (entry != NULL) {
-	if (DEBUG(DIR)) {
-	    fprintf(debug_file, "   got it (in mtime cache)\n");
-	}
-	return(bmake_strdup(name));
-    } else if (cached_stat(name, &stb) == 0) {
-	if (DEBUG(DIR)) {
-	    fprintf(debug_file, "   Caching %s for %s\n", Targ_FmtTime(stb.st_mtime),
-		    name);
-	}
+    if (cached_stat(name, &stb) == 0) {
 	return (bmake_strdup(name));
-    } else {
-	if (DEBUG(DIR)) {
-	    fprintf(debug_file, "   failed. Returning NULL\n");
-	}
-	return NULL;
     }
+
+    if (DEBUG(DIR)) {
+	fprintf(debug_file, "   failed. Returning NULL\n");
+    }
+    return NULL;
 #endif /* notdef */
 }
 
@@ -1518,7 +1498,6 @@ Dir_MTime(GNode *gn, Boolean recheck)
 {
     char          *fullName;  /* the full pathname of name */
     struct stat	  stb;	      /* buffer for finding the mod time */
-    Hash_Entry	  *entry;
 
     if (gn->type & OP_ARCHV) {
 	return Arch_MTime(gn);
@@ -1569,17 +1548,7 @@ Dir_MTime(GNode *gn, Boolean recheck)
 	fullName = bmake_strdup(gn->name);
     }
 
-    if (!recheck)
-	entry = Hash_FindEntry(&mtimes, fullName);
-    else
-	entry = NULL;
-    if (entry != NULL) {
-	stb.st_mtime = Hash_GetTimeValue(entry);
-	if (DEBUG(DIR)) {
-	    fprintf(debug_file, "Using cached time %s for %s\n",
-		    Targ_FmtTime(stb.st_mtime), fullName);
-	}
-    } else if (cached_stats(&mtimes, fullName, &stb, recheck ? CST_UPDATE : 0) < 0) {
+    if (cached_stats(&mtimes, fullName, &stb, recheck ? CST_UPDATE : 0) < 0) {
 	if (gn->type & OP_MEMBER) {
 	    if (fullName != gn->path)
 		free(fullName);

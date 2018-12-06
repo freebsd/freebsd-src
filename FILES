@@ -163,6 +163,8 @@ unit-tests/varcmd.exp
 unit-tests/varcmd.mk
 unit-tests/varmisc.exp
 unit-tests/varmisc.mk
+unit-tests/varquote.exp
+unit-tests/varquote.mk
 unit-tests/varshell.exp
 unit-tests/varshell.mk
 util.c

@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.272 2018/04/02 04:26:17 dholland Exp $
+.\"	$NetBSD: make.1,v 1.273 2018/05/27 01:14:51 christos Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 22, 2017
+.Dd May 26, 2018
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1227,8 +1227,15 @@ due uno quattro tre
 .Ed
 .It Cm \&:Q
 Quotes every shell meta-character in the variable, so that it can be passed
+safely to the shell.
+.It Cm \&:q
+Quotes every shell meta-character in the variable, and also doubles
+.Sq $
+characters so that it can be passed
 safely through recursive invocations of
 .Nm .
+This is equivalent to: 
+.Sq \&:S/\e\&$/&&/g:Q .
 .It Cm \&:R
 Replaces each word in the variable with everything but its suffix.
 .It Cm \&:range[=count]
