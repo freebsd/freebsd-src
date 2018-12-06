@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-SET_DECLARE(ns, struct nvme_function);
+NVME_CMD_DECLARE(ns, struct nvme_function);
 
 #define NS_USAGE							\
 	"ns (create|delete|attach|detach)\n"
