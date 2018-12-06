@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.95 2018/04/23 17:53:56 sjg Exp $
+# $Id: dirdeps.mk,v 1.96 2018/06/20 22:26:39 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -731,6 +731,8 @@ DIRDEPS =
 .info loading ${_m} for ${d:E}
 .endif
 .include <${_m}>
+.else
+.-include <local.dirdeps-missing.mk>
 .endif
 .endif
 .endif
@@ -746,7 +748,7 @@ DIRDEPS =
 DEP_RELDIR := ${RELDIR}
 _DEP_RELDIR := ${RELDIR}
 # Since we are/should be included by .MAKE.DEPENDFILE
-# is is a final opportunity to add/hook global rules.
+# This is a final opportunity to add/hook global rules.
 .-include <local.dirdeps-build.mk>
 
 # pickup local dependencies
