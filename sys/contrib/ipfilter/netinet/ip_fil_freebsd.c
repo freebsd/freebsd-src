@@ -542,12 +542,7 @@ ipf_send_icmp_err(type, fin, dst)
 
 	code = fin->fin_icode;
 #ifdef USE_INET6
-#if 0
-	/* XXX Fix an off by one error: s/>/>=/
-	 was:
-	 if ((code < 0) || (code > sizeof(icmptoicmp6unreach)/sizeof(int)))
-	 Fix obtained from NetBSD ip_fil_netbsd.c r1.4: */
-#endif
+	/* See NetBSD ip_fil_netbsd.c r1.4: */
 	if ((code < 0) || (code >= sizeof(icmptoicmp6unreach)/sizeof(int)))
 		return -1;
 #endif
