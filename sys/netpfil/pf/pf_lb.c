@@ -293,6 +293,10 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 		switch (r->rpool.opts & PF_POOL_TYPEMASK) {
 		case PF_POOL_RANDOM:
 		case PF_POOL_ROUNDROBIN:
+			/*
+			 * pick a different source address since we're out
+			 * of free port choices for the current one.
+			 */
 			if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 				return (1);
 			break;
