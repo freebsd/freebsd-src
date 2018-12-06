@@ -96,8 +96,8 @@ struct set_concat {
 void set_concat_add(struct set_concat *m, void *begin, void *end);
 #define SET_CONCAT_DEF(set, t) 							\
 static struct set_concat set ## _concat;					\
-static inline const t * const *set ## _begin() { return ((const t * const *)set ## _concat.begin); }	\
-static inline const t * const *set ## _limit() { return ((const t * const *)set ## _concat.limit); }	\
+static inline const t * const *set ## _begin(void) { return ((const t * const *)set ## _concat.begin); }	\
+static inline const t * const *set ## _limit(void) { return ((const t * const *)set ## _concat.limit); }	\
 void add_to_ ## set(t **b, t **e)						\
 {										\
 	set_concat_add(&set ## _concat, b, e);					\
