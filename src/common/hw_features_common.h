@@ -35,5 +35,8 @@ int hostapd_set_freq_params(struct hostapd_freq_params *data,
 			    int vht_enabled, int sec_channel_offset,
 			    int vht_oper_chwidth, int center_segment0,
 			    int center_segment1, u32 vht_caps);
+void set_disable_ht40(struct ieee80211_ht_capabilities *htcaps,
+		      int disabled);
+int ieee80211ac_cap_check(u32 hw, u32 conf);
 
 #endif /* HW_FEATURES_COMMON_H */

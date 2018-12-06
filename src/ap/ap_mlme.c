@@ -57,7 +57,11 @@ void mlme_authenticate_indication(struct hostapd_data *hapd,
 		       HOSTAPD_LEVEL_DEBUG,
 		       "MLME-AUTHENTICATE.indication(" MACSTR ", %s)",
 		       MAC2STR(sta->addr), mlme_auth_alg_str(sta->auth_alg));
-	if (sta->auth_alg != WLAN_AUTH_FT && !(sta->flags & WLAN_STA_MFP))
+	if (sta->auth_alg != WLAN_AUTH_FT &&
+	    sta->auth_alg != WLAN_AUTH_FILS_SK &&
+	    sta->auth_alg != WLAN_AUTH_FILS_SK_PFS &&
+	    sta->auth_alg != WLAN_AUTH_FILS_PK &&
+	    !(sta->flags & WLAN_STA_MFP))
 		mlme_deletekeys_request(hapd, sta);
 	ap_sta_clear_disconnect_timeouts(hapd, sta);
 }
@@ -105,7 +109,10 @@ void mlme_associate_indication(struct hostapd_data *hapd, struct sta_info *sta)
 		       HOSTAPD_LEVEL_DEBUG,
 		       "MLME-ASSOCIATE.indication(" MACSTR ")",
 		       MAC2STR(sta->addr));
-	if (sta->auth_alg != WLAN_AUTH_FT)
+	if (sta->auth_alg != WLAN_AUTH_FT &&
+	    sta->auth_alg != WLAN_AUTH_FILS_SK &&
+	    sta->auth_alg != WLAN_AUTH_FILS_SK_PFS &&
+	    sta->auth_alg != WLAN_AUTH_FILS_PK)
 		mlme_deletekeys_request(hapd, sta);
 	ap_sta_clear_disconnect_timeouts(hapd, sta);
 }
@@ -130,7 +137,10 @@ void mlme_reassociate_indication(struct hostapd_data *hapd,
 		       HOSTAPD_LEVEL_DEBUG,
 		       "MLME-REASSOCIATE.indication(" MACSTR ")",
 		       MAC2STR(sta->addr));
-	if (sta->auth_alg != WLAN_AUTH_FT)
+	if (sta->auth_alg != WLAN_AUTH_FT &&
+	    sta->auth_alg != WLAN_AUTH_FILS_SK &&
+	    sta->auth_alg != WLAN_AUTH_FILS_SK_PFS &&
+	    sta->auth_alg != WLAN_AUTH_FILS_PK)
 		mlme_deletekeys_request(hapd, sta);
 	ap_sta_clear_disconnect_timeouts(hapd, sta);
 }

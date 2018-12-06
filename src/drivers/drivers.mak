@@ -15,11 +15,24 @@ DRV_AP_LIBS =
 ifdef CONFIG_DRIVER_WIRED
 DRV_CFLAGS += -DCONFIG_DRIVER_WIRED
 DRV_OBJS += ../src/drivers/driver_wired.o
+NEED_DRV_WIRED_COMMON=1
+endif
+
+ifdef CONFIG_DRIVER_MACSEC_LINUX
+DRV_CFLAGS += -DCONFIG_DRIVER_MACSEC_LINUX
+DRV_OBJS += ../src/drivers/driver_macsec_linux.o
+NEED_DRV_WIRED_COMMON=1
+CONFIG_LIBNL3_ROUTE=y
 endif
 
 ifdef CONFIG_DRIVER_MACSEC_QCA
 DRV_CFLAGS += -DCONFIG_DRIVER_MACSEC_QCA
 DRV_OBJS += ../src/drivers/driver_macsec_qca.o
+NEED_DRV_WIRED_COMMON=1
+endif
+
+ifdef NEED_DRV_WIRED_COMMON
+DRV_OBJS += ../src/drivers/driver_wired_common.o
 endif
 
 ifdef CONFIG_DRIVER_NL80211

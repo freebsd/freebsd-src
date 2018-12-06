@@ -47,6 +47,7 @@ struct hs20_osu_client {
 	int client_cert_present;
 	char **server_dnsname;
 	size_t server_dnsname_count;
+	const char *osu_ssid; /* Enforced OSU_SSID for testing purposes */
 #define WORKAROUND_OCSP_OPTIONAL 0x00000001
 	unsigned long int workarounds;
 };

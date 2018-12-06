@@ -106,7 +106,7 @@ static inline void fst_iface_update_mb_ie(struct fst_iface *i,
 					  const u8 *addr,
 					  const u8 *buf, size_t size)
 {
-	return i->iface_obj.update_mb_ie(i->iface_obj.ctx, addr, buf, size);
+	i->iface_obj.update_mb_ie(i->iface_obj.ctx, addr, buf, size);
 }
 
 static inline const u8 * fst_iface_get_peer_first(struct fst_iface *i,

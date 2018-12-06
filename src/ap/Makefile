@@ -10,12 +10,15 @@ include ../lib.rules
 
 CFLAGS += -DHOSTAPD
 CFLAGS += -DNEED_AP_MLME
+CFLAGS += -DCONFIG_ETH_P_OUI
 CFLAGS += -DCONFIG_HS20
 CFLAGS += -DCONFIG_INTERWORKING
 CFLAGS += -DCONFIG_IEEE80211R
+CFLAGS += -DCONFIG_IEEE80211R_AP
 CFLAGS += -DCONFIG_IEEE80211W
 CFLAGS += -DCONFIG_WPS
 CFLAGS += -DCONFIG_PROXYARP
+CFLAGS += -DCONFIG_IPV6
 CFLAGS += -DCONFIG_IAPP
 
 LIB_OBJS= \
@@ -32,6 +35,7 @@ LIB_OBJS= \
 	dhcp_snoop.o \
 	drv_callbacks.o \
 	eap_user_db.o \
+	eth_p_oui.o \
 	gas_serv.o \
 	hostapd.o \
 	hs20.o \
@@ -43,14 +47,17 @@ LIB_OBJS= \
 	ieee802_11_shared.o \
 	ieee802_11_vht.o \
 	ieee802_1x.o \
+	neighbor_db.o \
 	ndisc_snoop.o \
 	p2p_hostapd.o \
-	peerkey_auth.o \
 	pmksa_cache_auth.o \
 	preauth_auth.o \
+	rrm.o \
 	sta_info.o \
 	tkip_countermeasures.o \
 	utils.o \
+	vlan.o \
+	vlan_ifconfig.o \
 	vlan_init.o \
 	wmm.o \
 	wnm_ap.o \

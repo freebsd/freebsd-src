@@ -7,39 +7,15 @@
  */
 
 #include "utils/includes.h"
-#include <netinet/ip.h>
-#include <netinet/udp.h>
 
 #include "utils/common.h"
+#include "common/dhcp.h"
 #include "l2_packet/l2_packet.h"
 #include "hostapd.h"
 #include "sta_info.h"
 #include "ap_drv_ops.h"
 #include "x_snoop.h"
 #include "dhcp_snoop.h"
-
-struct bootp_pkt {
-	struct iphdr iph;
-	struct udphdr udph;
-	u8 op;
-	u8 htype;
-	u8 hlen;
-	u8 hops;
-	be32 xid;
-	be16 secs;
-	be16 flags;
-	be32 client_ip;
-	be32 your_ip;
-	be32 server_ip;
-	be32 relay_ip;
-	u8 hw_addr[16];
-	u8 serv_name[64];
-	u8 boot_file[128];
-	u8 exten[312];
-} STRUCT_PACKED;
-
-#define DHCPACK	5
-static const u8 ic_bootp_cookie[] = { 99, 130, 83, 99 };
 
 
 static const char * ipaddr_str(u32 addr)
@@ -74,24 +50,26 @@ static void handle_dhcp(void *ctx, const u8 *src_addr, const u8 *buf,
 	if (tot_len > (unsigned int) (len - ETH_HLEN))
 		return;
 
-	if (os_memcmp(b->exten, ic_bootp_cookie, ARRAY_SIZE(ic_bootp_cookie)))
+	if (WPA_GET_BE32(b->exten) != DHCP_MAGIC)
 		return;
 
 	/* Parse DHCP options */
 	end = (const u8 *) b + tot_len;
 	pos = &b->exten[4];
-	while (pos < end && *pos != 0xff) {
+	while (pos < end && *pos != DHCP_OPT_END) {
 		const u8 *opt = pos++;
 
-		if (*opt == 0) /* padding */
+		if (*opt == DHCP_OPT_PAD)
 			continue;
 
+		if (pos >= end || 1 + *pos > end - pos)
+			break;
 		pos += *pos + 1;
 		if (pos >= end)
 			break;
 
 		switch (*opt) {
-		case 1:  /* subnet mask */
+		case DHCP_OPT_SUBNET_MASK:
 			if (opt[1] == 4)
 				subnet_mask = WPA_GET_BE32(&opt[2]);
 			if (subnet_mask == 0)
@@ -101,7 +79,7 @@ static void handle_dhcp(void *ctx, const u8 *src_addr, const u8 *buf,
 				prefixlen--;
 			}
 			break;
-		case 53: /* message type */
+		case DHCP_OPT_MSG_TYPE:
 			if (opt[1])
 				msgtype = opt[2];
 			break;
@@ -176,4 +154,5 @@ int dhcp_snoop_init(struct hostapd_data *hapd)
 void dhcp_snoop_deinit(struct hostapd_data *hapd)
 {
 	l2_packet_deinit(hapd->sock_dhcp);
+	hapd->sock_dhcp = NULL;
 }

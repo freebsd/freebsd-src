@@ -43,6 +43,7 @@ static void hostapd_neighbor_clear_entry(struct hostapd_neighbor_entry *nr)
 	nr->civic = NULL;
 	os_memset(nr->bssid, 0, sizeof(nr->bssid));
 	os_memset(&nr->ssid, 0, sizeof(nr->ssid));
+	nr->stationary = 0;
 }
 
 
@@ -64,7 +65,7 @@ hostapd_neighbor_add(struct hostapd_data *hapd)
 int hostapd_neighbor_set(struct hostapd_data *hapd, const u8 *bssid,
 			 const struct wpa_ssid_value *ssid,
 			 const struct wpabuf *nr, const struct wpabuf *lci,
-			 const struct wpabuf *civic)
+			 const struct wpabuf *civic, int stationary)
 {
 	struct hostapd_neighbor_entry *entry;
 
@@ -83,17 +84,19 @@ int hostapd_neighbor_set(struct hostapd_data *hapd, const u8 *bssid,
 	if (!entry->nr)
 		goto fail;
 
-	if (lci) {
+	if (lci && wpabuf_len(lci)) {
 		entry->lci = wpabuf_dup(lci);
 		if (!entry->lci || os_get_time(&entry->lci_date))
 			goto fail;
 	}
 
-	if (civic) {
+	if (civic && wpabuf_len(civic)) {
 		entry->civic = wpabuf_dup(civic);
 		if (!entry->civic)
 			goto fail;
 	}
+
+	entry->stationary = stationary;
 
 	return 0;
 

@@ -46,6 +46,9 @@ struct eap_peer_config {
 	 */
 	size_t anonymous_identity_len;
 
+	u8 *imsi_identity;
+	size_t imsi_identity_len;
+
 	/**
 	 * password - Password string for EAP
 	 *
@@ -626,6 +629,15 @@ struct eap_peer_config {
 	 * information.
 	 */
 	int pending_req_passphrase;
+
+	/**
+	 * pending_req_sim - Pending SIM request
+	 *
+	 * This field should not be set in configuration step. It is only used
+	 * internally when control interface is used to request needed
+	 * information.
+	 */
+	int pending_req_sim;
 
 	/**
 	 * pending_req_otp - Whether there is a pending OTP request

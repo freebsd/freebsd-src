@@ -203,6 +203,9 @@ static void wpas_wps_security_workaround(struct wpa_supplicant *wpa_s,
 	if (ssid->ssid == NULL)
 		return;
 	bss = wpa_bss_get(wpa_s, cred->mac_addr, ssid->ssid, ssid->ssid_len);
+	if (!bss)
+		bss = wpa_bss_get(wpa_s, wpa_s->bssid,
+				  ssid->ssid, ssid->ssid_len);
 	if (bss == NULL) {
 		wpa_printf(MSG_DEBUG, "WPS: The AP was not found from BSS "
 			   "table - use credential as-is");
@@ -489,6 +492,16 @@ static int wpa_supplicant_wps_cred(void *ctx,
 		    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_GCMP)) {
 			ssid->pairwise_cipher |= WPA_CIPHER_GCMP;
 			ssid->group_cipher |= WPA_CIPHER_GCMP;
+		}
+		if (wpa_s->drv_capa_known &&
+		    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_GCMP_256)) {
+			ssid->pairwise_cipher |= WPA_CIPHER_GCMP_256;
+			ssid->group_cipher |= WPA_CIPHER_GCMP_256;
+		}
+		if (wpa_s->drv_capa_known &&
+		    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_CCMP_256)) {
+			ssid->pairwise_cipher |= WPA_CIPHER_CCMP_256;
+			ssid->group_cipher |= WPA_CIPHER_CCMP_256;
 		}
 		break;
 	}
@@ -1027,10 +1040,9 @@ static struct wpa_ssid * wpas_wps_add_network(struct wpa_supplicant *wpa_s,
 				continue;
 
 			os_free(ssid->ssid);
-			ssid->ssid = os_malloc(bss->ssid_len);
+			ssid->ssid = os_memdup(bss->ssid, bss->ssid_len);
 			if (ssid->ssid == NULL)
 				break;
-			os_memcpy(ssid->ssid, bss->ssid, bss->ssid_len);
 			ssid->ssid_len = bss->ssid_len;
 			wpa_hexdump_ascii(MSG_DEBUG, "WPS: Picked SSID from "
 					  "scan results",
@@ -1169,6 +1181,7 @@ int wpas_wps_start_pbc(struct wpa_supplicant *wpa_s, const u8 *bssid,
 		return -1;
 	if (wpa_s->wps_fragment_size)
 		ssid->eap.fragment_size = wpa_s->wps_fragment_size;
+	wpa_supplicant_wps_event(wpa_s, WPS_EV_PBC_ACTIVE, NULL);
 	eloop_register_timeout(WPS_PBC_WALK_TIME, 0, wpas_wps_timeout,
 			       wpa_s, NULL);
 	wpas_wps_reassoc(wpa_s, ssid, bssid, 0);
@@ -1481,6 +1494,9 @@ static void wpas_wps_set_uuid(struct wpa_supplicant *wpa_s,
 					  wpa_s->global->ifaces->wps->uuid,
 					  WPS_UUID_LEN);
 			src = "from the first interface";
+		} else if (wpa_s->conf->auto_uuid == 1) {
+			uuid_random(wps->uuid);
+			src = "based on random data";
 		} else {
 			uuid_gen_mac_addr(wpa_s->own_addr, wps->uuid);
 			src = "based on MAC address";

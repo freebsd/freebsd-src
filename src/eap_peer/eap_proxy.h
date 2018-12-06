@@ -20,7 +20,7 @@ enum eap_proxy_status {
 };
 
 struct eap_proxy_sm *
-eap_proxy_init(void *eapol_ctx, struct eapol_callbacks *eapol_cb,
+eap_proxy_init(void *eapol_ctx, const struct eapol_callbacks *eapol_cb,
 	       void *msg_ctx);
 
 void eap_proxy_deinit(struct eap_proxy_sm *eap_proxy);
@@ -40,10 +40,16 @@ eap_proxy_packet_update(struct eap_proxy_sm *eap_proxy, u8 *eapReqData,
 int eap_proxy_sm_get_status(struct eap_proxy_sm *sm, char *buf, size_t buflen,
 			    int verbose);
 
-int eap_proxy_get_imsi(struct eap_proxy_sm *eap_proxy, char *imsi_buf,
-		       size_t *imsi_len);
+int eap_proxy_get_imsi(struct eap_proxy_sm *eap_proxy, int sim_num,
+		       char *imsi_buf, size_t *imsi_len);
 
 int eap_proxy_notify_config(struct eap_proxy_sm *sm,
 			    struct eap_peer_config *config);
+
+u8 * eap_proxy_get_eap_session_id(struct eap_proxy_sm *sm, size_t *len);
+
+u8 * eap_proxy_get_emsk(struct eap_proxy_sm *sm, size_t *len);
+
+void eap_proxy_sm_abort(struct eap_proxy_sm *sm);
 
 #endif /* EAP_PROXY_H */

@@ -32,5 +32,9 @@ int hostapd_ctrl_iface_stop_ap(struct hostapd_data *hapd);
 int hostapd_ctrl_iface_pmksa_list(struct hostapd_data *hapd, char *buf,
 				  size_t len);
 void hostapd_ctrl_iface_pmksa_flush(struct hostapd_data *hapd);
+int hostapd_ctrl_iface_pmksa_add(struct hostapd_data *hapd, char *cmd);
+int hostapd_ctrl_iface_pmksa_list_mesh(struct hostapd_data *hapd,
+				       const u8 *addr, char *buf, size_t len);
+void * hostapd_ctrl_iface_pmksa_create_entry(const u8 *aa, char *cmd);
 
 #endif /* CTRL_IFACE_AP_H */

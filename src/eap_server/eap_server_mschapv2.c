@@ -71,13 +71,12 @@ static void * eap_mschapv2_init(struct eap_sm *sm)
 	}
 
 	if (sm->peer_challenge) {
-		data->peer_challenge = os_malloc(CHALLENGE_LEN);
+		data->peer_challenge = os_memdup(sm->peer_challenge,
+						 CHALLENGE_LEN);
 		if (data->peer_challenge == NULL) {
 			os_free(data);
 			return NULL;
 		}
-		os_memcpy(data->peer_challenge, sm->peer_challenge,
-			  CHALLENGE_LEN);
 	}
 
 	return data;

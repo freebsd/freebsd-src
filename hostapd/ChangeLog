@@ -1,5 +1,60 @@
 ChangeLog for hostapd
 
+2018-12-02 - v2.7
+	* fixed WPA packet number reuse with replayed messages and key
+	  reinstallation
+	  [http://w1.fi/security/2017-1/] (CVE-2017-13082)
+	* added support for FILS (IEEE 802.11ai) shared key authentication
+	* added support for OWE (Opportunistic Wireless Encryption, RFC 8110;
+	  and transition mode defined by WFA)
+	* added support for DPP (Wi-Fi Device Provisioning Protocol)
+	* FT:
+	  - added local generation of PMK-R0/PMK-R1 for FT-PSK
+	    (ft_psk_generate_local=1)
+	  - replaced inter-AP protocol with a cleaner design that is more
+	    easily extensible; this breaks backward compatibility and requires
+	    all APs in the ESS to be updated at the same time to maintain FT
+	    functionality
+	  - added support for wildcard R0KH/R1KH
+	  - replaced r0_key_lifetime (minutes) parameter with
+	    ft_r0_key_lifetime (seconds)
+	  - fixed wpa_psk_file use for FT-PSK
+	  - fixed FT-SAE PMKID matching
+	  - added expiration to PMK-R0 and PMK-R1 cache
+	  - added IEEE VLAN support (including tagged VLANs)
+	  - added support for SHA384 based AKM
+	* SAE
+	  - fixed some PMKSA caching cases with SAE
+	  - added support for configuring SAE password separately of the
+	    WPA2 PSK/passphrase
+	  - added option to require MFP for SAE associations
+	    (sae_require_pmf=1)
+	  - fixed PTK and EAPOL-Key integrity and key-wrap algorithm selection
+	    for SAE;
+	    note: this is not backwards compatible, i.e., both the AP and
+	    station side implementations will need to be update at the same
+	    time to maintain interoperability
+	  - added support for Password Identifier
+	* hostapd_cli: added support for command history and completion
+	* added support for requesting beacon report
+	* large number of other fixes, cleanup, and extensions
+	* added option to configure EAPOL-Key retry limits
+	  (wpa_group_update_count and wpa_pairwise_update_count)
+	* removed all PeerKey functionality
+	* fixed nl80211 AP mode configuration regression with Linux 4.15 and
+	  newer
+	* added support for using wolfSSL cryptographic library
+	* fixed some 20/40 MHz coexistence cases where the BSS could drop to
+	  20 MHz even when 40 MHz would be allowed
+	* Hotspot 2.0
+	  - added support for setting Venue URL ANQP-element (venue_url)
+	  - added support for advertising Hotspot 2.0 operator icons
+	  - added support for Roaming Consortium Selection element
+	  - added support for Terms and Conditions
+	  - added support for OSEN connection in a shared RSN BSS
+	* added support for using OpenSSL 1.1.1
+	* added EAP-pwd server support for salted passwords
+
 2016-10-02 - v2.6
 	* fixed EAP-pwd last fragment validation
 	  [http://w1.fi/security/2015-7/] (CVE-2015-5314)

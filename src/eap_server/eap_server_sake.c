@@ -326,10 +326,9 @@ static void eap_sake_process_challenge(struct eap_sm *sm,
 	data->peerid = NULL;
 	data->peerid_len = 0;
 	if (attr.peerid) {
-		data->peerid = os_malloc(attr.peerid_len);
+		data->peerid = os_memdup(attr.peerid, attr.peerid_len);
 		if (data->peerid == NULL)
 			return;
-		os_memcpy(data->peerid, attr.peerid, attr.peerid_len);
 		data->peerid_len = attr.peerid_len;
 	}
 
@@ -460,10 +459,9 @@ static u8 * eap_sake_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_MSK_LEN);
+	key = os_memdup(data->msk, EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->msk, EAP_MSK_LEN);
 	*len = EAP_MSK_LEN;
 
 	return key;
@@ -478,10 +476,9 @@ static u8 * eap_sake_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->emsk, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
 	*len = EAP_EMSK_LEN;
 
 	return key;

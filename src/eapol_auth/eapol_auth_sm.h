@@ -28,6 +28,7 @@ struct eapol_auth_config {
 	char *erp_domain; /* a copy of this will be allocated */
 	int erp; /* Whether ERP is enabled on authentication server */
 	unsigned int tls_session_lifetime;
+	unsigned int tls_flags;
 	u8 *pac_opaque_encr_key;
 	u8 *eap_fast_a_id;
 	size_t eap_fast_a_id_len;

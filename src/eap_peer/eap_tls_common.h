@@ -73,6 +73,11 @@ struct eap_ssl_data {
 	 * eap_type - EAP method used in Phase 1 (EAP_TYPE_TLS/PEAP/TTLS/FAST)
 	 */
 	u8 eap_type;
+
+	/**
+	 * tls_v13 - Whether TLS v1.3 or newer is used
+	 */
+	int tls_v13;
 };
 
 

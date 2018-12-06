@@ -315,7 +315,12 @@ static struct wpabuf * p2p_build_go_neg_resp(struct p2p_data *p2p,
 			       group_capab);
 	p2p_buf_add_go_intent(buf, (p2p->go_intent << 1) | tie_breaker);
 	p2p_buf_add_config_timeout(buf, p2p->go_timeout, p2p->client_timeout);
-	if (peer && peer->go_state == REMOTE_GO && !p2p->num_pref_freq) {
+	if (p2p->override_pref_op_class) {
+		p2p_dbg(p2p, "Override operating channel preference");
+		p2p_buf_add_operating_channel(buf, p2p->cfg->country,
+					      p2p->override_pref_op_class,
+					      p2p->override_pref_channel);
+	} else if (peer && peer->go_state == REMOTE_GO && !p2p->num_pref_freq) {
 		p2p_dbg(p2p, "Omit Operating Channel attribute");
 	} else {
 		p2p_buf_add_operating_channel(buf, p2p->cfg->country,
@@ -562,26 +567,11 @@ static void p2p_check_pref_chan_no_recv(struct p2p_data *p2p, int go,
 	 * also supported by the peer device.
 	 */
 	for (i = 0; i < size && !found; i++) {
-		/*
-		 * Make sure that the common frequency is:
-		 * 1. Supported by peer
-		 * 2. Allowed for P2P use.
-		 */
+		/* Make sure that the common frequency is supported by peer. */
 		oper_freq = freq_list[i];
 		if (p2p_freq_to_channel(oper_freq, &op_class,
-					&op_channel) < 0) {
-			p2p_dbg(p2p, "Unsupported frequency %u MHz", oper_freq);
-			continue;
-		}
-		if (!p2p_channels_includes(&p2p->cfg->channels,
-					   op_class, op_channel) &&
-		    (go || !p2p_channels_includes(&p2p->cfg->cli_channels,
-						  op_class, op_channel))) {
-			p2p_dbg(p2p,
-				"Freq %u MHz (oper_class %u channel %u) not allowed for P2P",
-				oper_freq, op_class, op_channel);
-			break;
-		}
+					&op_channel) < 0)
+			continue; /* cannot happen due to earlier check */
 		for (j = 0; j < msg->channel_list_len; j++) {
 
 			if (op_channel != msg->channel_list[j])
@@ -602,8 +592,7 @@ static void p2p_check_pref_chan_no_recv(struct p2p_data *p2p, int go,
 			oper_freq);
 	} else {
 		p2p_dbg(p2p,
-			"None of our preferred channels are supported by peer!. Use: %d MHz for oper_channel",
-			dev->oper_freq);
+			"None of our preferred channels are supported by peer!");
 	}
 }
 
@@ -629,29 +618,9 @@ static void p2p_check_pref_chan_recv(struct p2p_data *p2p, int go,
 				msg->pref_freq_list[2 * j + 1]);
 			if (freq_list[i] != oper_freq)
 				continue;
-
-			/*
-			 * Make sure that the found frequency is:
-			 * 1. Supported
-			 * 2. Allowed for P2P use.
-			 */
 			if (p2p_freq_to_channel(oper_freq, &op_class,
-						&op_channel) < 0) {
-				p2p_dbg(p2p, "Unsupported frequency %u MHz",
-					oper_freq);
-				continue;
-			}
-
-			if (!p2p_channels_includes(&p2p->cfg->channels,
-						   op_class, op_channel) &&
-			    (go ||
-			     !p2p_channels_includes(&p2p->cfg->cli_channels,
-						    op_class, op_channel))) {
-				p2p_dbg(p2p,
-					"Freq %u MHz (oper_class %u channel %u) not allowed for P2P",
-					oper_freq, op_class, op_channel);
-				break;
-			}
+						&op_channel) < 0)
+				continue; /* cannot happen */
 			p2p->op_reg_class = op_class;
 			p2p->op_channel = op_channel;
 			os_memcpy(&p2p->channels, &p2p->cfg->channels,
@@ -666,9 +635,7 @@ static void p2p_check_pref_chan_recv(struct p2p_data *p2p, int go,
 			"Freq %d MHz is a common preferred channel for both peer and local, use it as operating channel",
 			oper_freq);
 	} else {
-		p2p_dbg(p2p,
-			"No common preferred channels found! Use: %d MHz for oper_channel",
-			dev->oper_freq);
+		p2p_dbg(p2p, "No common preferred channels found!");
 	}
 }
 
@@ -679,6 +646,8 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 	unsigned int freq_list[P2P_MAX_PREF_CHANNELS], size;
 	unsigned int i;
 	u8 op_class, op_channel;
+	char txt[100], *pos, *end;
+	int res;
 
 	/*
 	 * Use the preferred channel list from the driver only if there is no
@@ -694,6 +663,39 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 	if (p2p->cfg->get_pref_freq_list(p2p->cfg->cb_ctx, go, &size,
 					 freq_list))
 		return;
+	/* Filter out frequencies that are not acceptable for P2P use */
+	i = 0;
+	while (i < size) {
+		if (p2p_freq_to_channel(freq_list[i], &op_class,
+					&op_channel) < 0 ||
+		    (!p2p_channels_includes(&p2p->cfg->channels,
+					    op_class, op_channel) &&
+		     (go || !p2p_channels_includes(&p2p->cfg->cli_channels,
+						   op_class, op_channel)))) {
+			p2p_dbg(p2p,
+				"Ignore local driver frequency preference %u MHz since it is not acceptable for P2P use (go=%d)",
+				freq_list[i], go);
+			if (size - i - 1 > 0)
+				os_memmove(&freq_list[i], &freq_list[i + 1], size - i - 1);
+			size--;
+			continue;
+		}
+
+		/* Preferred frequency is acceptable for P2P use */
+		i++;
+	}
+
+	pos = txt;
+	end = pos + sizeof(txt);
+	for (i = 0; i < size; i++) {
+		res = os_snprintf(pos, end - pos, " %u", freq_list[i]);
+		if (os_snprintf_error(end - pos, res))
+			break;
+		pos += res;
+	}
+	*pos = '\0';
+	p2p_dbg(p2p, "Local driver frequency preference (size=%u):%s",
+		size, txt);
 
 	/*
 	 * Check if peer's preference of operating channel is in
@@ -703,20 +705,14 @@ void p2p_check_pref_chan(struct p2p_data *p2p, int go,
 		if (freq_list[i] == (unsigned int) dev->oper_freq)
 			break;
 	}
-	if (i != size) {
+	if (i != size &&
+	    p2p_freq_to_channel(freq_list[i], &op_class, &op_channel) == 0) {
 		/* Peer operating channel preference matches our preference */
-		if (p2p_freq_to_channel(freq_list[i], &op_class, &op_channel) <
-		    0) {
-			p2p_dbg(p2p,
-				"Peer operating channel preference is unsupported frequency %u MHz",
-				freq_list[i]);
-		} else {
-			p2p->op_reg_class = op_class;
-			p2p->op_channel = op_channel;
-			os_memcpy(&p2p->channels, &p2p->cfg->channels,
-				  sizeof(struct p2p_channels));
-			return;
-		}
+		p2p->op_reg_class = op_class;
+		p2p->op_channel = op_channel;
+		os_memcpy(&p2p->channels, &p2p->cfg->channels,
+			  sizeof(struct p2p_channels));
+		return;
 	}
 
 	p2p_dbg(p2p,

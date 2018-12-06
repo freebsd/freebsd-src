@@ -1,6 +1,6 @@
 /*
  * Common driver-related functions
- * Copyright (c) 2003-2011, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2003-2017, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -35,7 +35,6 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(ASSOCINFO);
 	E2S(INTERFACE_STATUS);
 	E2S(PMKID_CANDIDATE);
-	E2S(STKSTART);
 	E2S(TDLS);
 	E2S(FT_RESPONSE);
 	E2S(IBSS_RSN_START);
@@ -81,6 +80,13 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(ACS_CHANNEL_SELECTED);
 	E2S(DFS_CAC_STARTED);
 	E2S(P2P_LO_STOP);
+	E2S(BEACON_LOSS);
+	E2S(DFS_PRE_CAC_EXPIRED);
+	E2S(EXTERNAL_AUTH);
+	E2S(PORT_AUTHORIZED);
+	E2S(STATION_OPMODE_CHANGED);
+	E2S(INTERFACE_MAC_CHANGED);
+	E2S(WDS_STA_INTERFACE_STATUS);
 	}
 
 	return "UNKNOWN";
@@ -267,6 +273,19 @@ const char * driver_flag_to_string(u64 flag)
 	DF2S(OFFCHANNEL_SIMULTANEOUS);
 	DF2S(FULL_AP_CLIENT_STATE);
 	DF2S(P2P_LISTEN_OFFLOAD);
+	DF2S(SUPPORT_FILS);
+	DF2S(BEACON_RATE_LEGACY);
+	DF2S(BEACON_RATE_HT);
+	DF2S(BEACON_RATE_VHT);
+	DF2S(MGMT_TX_RANDOM_TA);
+	DF2S(MGMT_TX_RANDOM_TA_CONNECTED);
+	DF2S(SCHED_SCAN_RELATIVE_RSSI);
+	DF2S(HE_CAPABILITIES);
+	DF2S(FILS_SK_OFFLOAD);
+	DF2S(OCE_STA);
+	DF2S(OCE_AP);
+	DF2S(OCE_STA_CFON);
+	DF2S(MFP_OPTIONAL);
 	}
 	return "UNKNOWN";
 #undef DF2S

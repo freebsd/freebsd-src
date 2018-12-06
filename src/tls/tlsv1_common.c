@@ -21,7 +21,7 @@
  * RFC 2246 Section 9: Mandatory to implement TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA
  * Add support for commonly used cipher suites; don't bother with exportable
  * suites.
- */ 
+ */
 
 static const struct tls_cipher_suite tls_cipher_suites[] = {
 	{ TLS_NULL_WITH_NULL_NULL, TLS_KEY_X_NULL, TLS_CIPHER_NULL,
@@ -482,21 +482,21 @@ int tls_verify_signature(u16 tls_version, struct crypto_public_key *pk,
 		    os_memcmp(buf, "\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01"
 			      "\x65\x03\x04\x02\x01\x05\x00\x04\x20", 19) == 0)
 		{
-			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-256");
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithm = SHA-256");
 			decrypted = buf + 19;
 			buflen -= 19;
 		} else if (buflen >= 19 + 48 &&
 		    os_memcmp(buf, "\x30\x41\x30\x0d\x06\x09\x60\x86\x48\x01"
 			      "\x65\x03\x04\x02\x02\x05\x00\x04\x30", 19) == 0)
 		{
-			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-384");
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithm = SHA-384");
 			decrypted = buf + 19;
 			buflen -= 19;
 		} else if (buflen >= 19 + 64 &&
 		    os_memcmp(buf, "\x30\x51\x30\x0d\x06\x09\x60\x86\x48\x01"
 			      "\x65\x03\x04\x02\x03\x05\x00\x04\x40", 19) == 0)
 		{
-			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithn = SHA-512");
+			wpa_printf(MSG_DEBUG, "TLSv1.2: DigestAlgorithm = SHA-512");
 			decrypted = buf + 19;
 			buflen -= 19;
 

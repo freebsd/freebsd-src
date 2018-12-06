@@ -99,13 +99,12 @@ static int wpa_config_read_blobs(struct wpa_config *config, HKEY hk)
 			break;
 		}
 		blob->name = os_strdup((char *) name);
-		blob->data = os_malloc(datalen);
+		blob->data = os_memdup(data, datalen);
 		if (blob->name == NULL || blob->data == NULL) {
 			wpa_config_free_blob(blob);
 			errors++;
 			break;
 		}
-		os_memcpy(blob->data, data, datalen);
 		blob->len = datalen;
 
 		wpa_config_set_blob(config, blob);
@@ -234,6 +233,7 @@ static int wpa_config_read_global(struct wpa_config *config, HKEY hk)
 #ifdef CONFIG_WPS
 	if (wpa_config_read_global_uuid(config, hk))
 		errors++;
+	wpa_config_read_reg_dword(hk, TEXT("auto_uuid"), &config->auto_uuid);
 	config->device_name = wpa_config_read_reg_string(
 		hk, TEXT("device_name"));
 	config->manufacturer = wpa_config_read_reg_string(
@@ -580,6 +580,8 @@ static int wpa_config_write_global(struct wpa_config *config, HKEY hk)
 		uuid_bin2str(config->uuid, buf, sizeof(buf));
 		wpa_config_write_reg_string(hk, "uuid", buf);
 	}
+	wpa_config_write_reg_dword(hk, TEXT("auto_uuid"), config->auto_uuid,
+				   0);
 	wpa_config_write_reg_string(hk, "device_name", config->device_name);
 	wpa_config_write_reg_string(hk, "manufacturer", config->manufacturer);
 	wpa_config_write_reg_string(hk, "model_name", config->model_name);
@@ -617,6 +619,8 @@ static int wpa_config_write_global(struct wpa_config *config, HKEY hk)
 				   config->filter_ssids, 0);
 	wpa_config_write_reg_dword(hk, TEXT("max_num_sta"),
 				   config->max_num_sta, DEFAULT_MAX_NUM_STA);
+	wpa_config_write_reg_dword(hk, TEXT("ap_isolate"),
+				   config->ap_isolate, DEFAULT_AP_ISOLATE);
 	wpa_config_write_reg_dword(hk, TEXT("disassoc_low_ack"),
 				   config->disassoc_low_ack, 0);
 
@@ -868,6 +872,8 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	INT(scan_ssid);
 	write_bssid(netw, ssid);
 	write_psk(netw, ssid);
+	STR(sae_password);
+	STR(sae_password_id);
 	write_proto(netw, ssid);
 	write_key_mgmt(netw, ssid);
 	write_pairwise(netw, ssid);
@@ -877,6 +883,7 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	write_eap(netw, ssid);
 	STR(identity);
 	STR(anonymous_identity);
+	STR(imsi_identity);
 	STR(password);
 	STR(ca_cert);
 	STR(ca_path);
@@ -924,7 +931,6 @@ static int wpa_config_write_network(HKEY hk, struct wpa_ssid *ssid, int id)
 	write_int(netw, "proactive_key_caching", ssid->proactive_key_caching,
 		  -1);
 	INT(disabled);
-	INT(peerkey);
 #ifdef CONFIG_IEEE80211W
 	write_int(netw, "ieee80211w", ssid->ieee80211w,
 		  MGMT_FRAME_PROTECTION_DEFAULT);

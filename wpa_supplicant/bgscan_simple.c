@@ -56,12 +56,7 @@ static void bgscan_simple_timeout(void *eloop_ctx, void *timeout_ctx)
 	} else {
 		if (data->scan_interval == data->short_interval) {
 			data->short_scan_count++;
-			/*
-			 * Spend at most the duration of a long scan interval
-			 * scanning at the short scan interval. After that,
-			 * revert to the long scan interval.
-			 */
-			if (data->short_scan_count > data->max_short_scans) {
+			if (data->short_scan_count >= data->max_short_scans) {
 				data->scan_interval = data->long_interval;
 				wpa_printf(MSG_DEBUG, "bgscan simple: Backing "
 					   "off to long scan interval");
@@ -84,9 +79,6 @@ static int bgscan_simple_get_params(struct bgscan_simple_data *data,
 				    const char *params)
 {
 	const char *pos;
-
-	if (params == NULL)
-		return 0;
 
 	data->short_interval = atoi(params);
 

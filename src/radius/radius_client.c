@@ -904,13 +904,13 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		switch (res) {
 		case RADIUS_RX_PROCESSED:
 			radius_msg_free(msg);
-			/* continue */
+			/* fall through */
 		case RADIUS_RX_QUEUED:
 			radius_client_msg_free(req);
 			return;
 		case RADIUS_RX_INVALID_AUTHENTICATOR:
 			invalid_authenticator++;
-			/* continue */
+			/* fall through */
 		case RADIUS_RX_UNKNOWN:
 			/* continue with next handler */
 			break;

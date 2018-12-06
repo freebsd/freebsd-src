@@ -59,7 +59,8 @@ typedef int stack_index_t;
 #endif /* SSL_set_tlsext_status_type */
 
 #if (OPENSSL_VERSION_NUMBER < 0x10100000L || \
-     defined(LIBRESSL_VERSION_NUMBER)) &&    \
+     (defined(LIBRESSL_VERSION_NUMBER) && \
+      LIBRESSL_VERSION_NUMBER < 0x20700000L)) && \
     !defined(BORINGSSL_API_VERSION)
 /*
  * SSL_get_client_random() and SSL_get_server_random() were added in OpenSSL
@@ -101,6 +102,21 @@ static size_t SSL_SESSION_get_master_key(const SSL_SESSION *session,
 }
 #endif /* OPENSSL_NEED_EAP_FAST_PRF */
 
+#endif
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifdef CONFIG_SUITEB
+static int RSA_bits(const RSA *r)
+{
+	return BN_num_bits(r->n);
+}
+#endif /* CONFIG_SUITEB */
+
+
+static const unsigned char * ASN1_STRING_get0_data(const ASN1_STRING *x)
+{
+	return ASN1_STRING_data((ASN1_STRING *) x);
+}
 #endif
 
 #ifdef ANDROID
@@ -222,6 +238,8 @@ struct tls_connection {
 	unsigned int server_cert_only:1;
 	unsigned int invalid_hb_used:1;
 	unsigned int success_data:1;
+	unsigned int client_hello_generated:1;
+	unsigned int server:1;
 
 	u8 srv_cert_hash[32];
 
@@ -233,6 +251,9 @@ struct tls_connection {
 
 	unsigned char client_random[SSL3_RANDOM_SIZE];
 	unsigned char server_random[SSL3_RANDOM_SIZE];
+
+	u16 cipher_suite;
+	int server_dh_prime_len;
 };
 
 
@@ -919,7 +940,9 @@ void * tls_init(const struct tls_config *conf)
 		}
 #endif /* OPENSSL_FIPS */
 #endif /* CONFIG_FIPS */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+	(defined(LIBRESSL_VERSION_NUMBER) && \
+	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
 		SSL_load_error_strings();
 		SSL_library_init();
 #ifndef OPENSSL_NO_SHA256
@@ -972,6 +995,14 @@ void * tls_init(const struct tls_config *conf)
 	SSL_CTX_set_options(ssl, SSL_OP_NO_SSLv2);
 	SSL_CTX_set_options(ssl, SSL_OP_NO_SSLv3);
 
+#ifdef SSL_MODE_NO_AUTO_CHAIN
+	/* Number of deployed use cases assume the default OpenSSL behavior of
+	 * auto chaining the local certificate is in use. BoringSSL removed this
+	 * functionality by default, so we need to restore it here to avoid
+	 * breaking existing use cases. */
+	SSL_CTX_clear_mode(ssl, SSL_MODE_NO_AUTO_CHAIN);
+#endif /* SSL_MODE_NO_AUTO_CHAIN */
+
 	SSL_CTX_set_info_callback(ssl, ssl_info_cb);
 	SSL_CTX_set_app_data(ssl, context);
 	if (data->tls_session_lifetime > 0) {
@@ -999,8 +1030,10 @@ void * tls_init(const struct tls_config *conf)
 
 #ifndef OPENSSL_NO_ENGINE
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading dynamic engine");
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	ERR_load_ENGINE_strings();
 	ENGINE_load_dynamic();
+#endif /* OPENSSL_VERSION_NUMBER */
 
 	if (conf &&
 	    (conf->opensc_engine_path || conf->pkcs11_engine_path ||
@@ -1017,7 +1050,7 @@ void * tls_init(const struct tls_config *conf)
 	if (conf && conf->openssl_ciphers)
 		ciphers = conf->openssl_ciphers;
 	else
-		ciphers = "DEFAULT:!EXP:!LOW";
+		ciphers = TLS_DEFAULT_CIPHERS;
 	if (SSL_CTX_set_cipher_list(ssl, ciphers) != 1) {
 		wpa_printf(MSG_ERROR,
 			   "OpenSSL: Failed to set cipher string '%s'",
@@ -1043,7 +1076,9 @@ void tls_deinit(void *ssl_ctx)
 
 	tls_openssl_ref_count--;
 	if (tls_openssl_ref_count == 0) {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+	(defined(LIBRESSL_VERSION_NUMBER) && \
+	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
 #ifndef OPENSSL_NO_ENGINE
 		ENGINE_cleanup();
 #endif /* OPENSSL_NO_ENGINE */
@@ -1296,6 +1331,95 @@ static const char * openssl_handshake_type(int content_type, const u8 *buf,
 }
 
 
+#ifdef CONFIG_SUITEB
+
+static void check_server_hello(struct tls_connection *conn,
+			       const u8 *pos, const u8 *end)
+{
+	size_t payload_len, id_len;
+
+	/*
+	 * Parse ServerHello to get the selected cipher suite since OpenSSL does
+	 * not make it cleanly available during handshake and we need to know
+	 * whether DHE was selected.
+	 */
+
+	if (end - pos < 3)
+		return;
+	payload_len = WPA_GET_BE24(pos);
+	pos += 3;
+
+	if ((size_t) (end - pos) < payload_len)
+		return;
+	end = pos + payload_len;
+
+	/* Skip Version and Random */
+	if (end - pos < 2 + SSL3_RANDOM_SIZE)
+		return;
+	pos += 2 + SSL3_RANDOM_SIZE;
+
+	/* Skip Session ID */
+	if (end - pos < 1)
+		return;
+	id_len = *pos++;
+	if ((size_t) (end - pos) < id_len)
+		return;
+	pos += id_len;
+
+	if (end - pos < 2)
+		return;
+	conn->cipher_suite = WPA_GET_BE16(pos);
+	wpa_printf(MSG_DEBUG, "OpenSSL: Server selected cipher suite 0x%x",
+		   conn->cipher_suite);
+}
+
+
+static void check_server_key_exchange(SSL *ssl, struct tls_connection *conn,
+				      const u8 *pos, const u8 *end)
+{
+	size_t payload_len;
+	u16 dh_len;
+	BIGNUM *p;
+	int bits;
+
+	if (!(conn->flags & TLS_CONN_SUITEB))
+		return;
+
+	/* DHE is enabled only with DHE-RSA-AES256-GCM-SHA384 */
+	if (conn->cipher_suite != 0x9f)
+		return;
+
+	if (end - pos < 3)
+		return;
+	payload_len = WPA_GET_BE24(pos);
+	pos += 3;
+
+	if ((size_t) (end - pos) < payload_len)
+		return;
+	end = pos + payload_len;
+
+	if (end - pos < 2)
+		return;
+	dh_len = WPA_GET_BE16(pos);
+	pos += 2;
+
+	if ((size_t) (end - pos) < dh_len)
+		return;
+	p = BN_bin2bn(pos, dh_len, NULL);
+	if (!p)
+		return;
+
+	bits = BN_num_bits(p);
+	BN_free(p);
+
+	conn->server_dh_prime_len = bits;
+	wpa_printf(MSG_DEBUG, "OpenSSL: Server DH prime length: %d bits",
+		   conn->server_dh_prime_len);
+}
+
+#endif /* CONFIG_SUITEB */
+
+
 static void tls_msg_cb(int write_p, int version, int content_type,
 		       const void *buf, size_t len, SSL *ssl, void *arg)
 {
@@ -1322,6 +1446,18 @@ static void tls_msg_cb(int write_p, int version, int content_type,
 			conn->invalid_hb_used = 1;
 		}
 	}
+
+#ifdef CONFIG_SUITEB
+	/*
+	 * Need to parse these handshake messages to be able to check DH prime
+	 * length since OpenSSL does not expose the new cipher suite and DH
+	 * parameters during handshake (e.g., for cert_cb() callback).
+	 */
+	if (content_type == 22 && pos && len > 0 && pos[0] == 2)
+		check_server_hello(conn, pos + 1, pos + len);
+	if (content_type == 22 && pos && len > 0 && pos[0] == 12)
+		check_server_key_exchange(ssl, conn, pos + 1, pos + len);
+#endif /* CONFIG_SUITEB */
 }
 
 
@@ -1407,6 +1543,31 @@ void tls_connection_deinit(void *ssl_ctx, struct tls_connection *conn)
 int tls_connection_established(void *ssl_ctx, struct tls_connection *conn)
 {
 	return conn ? SSL_is_init_finished(conn->ssl) : 0;
+}
+
+
+char * tls_connection_peer_serial_num(void *tls_ctx,
+				      struct tls_connection *conn)
+{
+	ASN1_INTEGER *ser;
+	char *serial_num;
+	size_t len;
+
+	if (!conn->peer_cert)
+		return NULL;
+
+	ser = X509_get_serialNumber(conn->peer_cert);
+	if (!ser)
+		return NULL;
+
+	len = ASN1_STRING_length(ser) * 2 + 1;
+	serial_num = os_malloc(len);
+	if (!serial_num)
+		return NULL;
+	wpa_snprintf_hex_uppercase(serial_num, len,
+				   ASN1_STRING_get0_data(ser),
+				   ASN1_STRING_length(ser));
+	return serial_num;
 }
 
 
@@ -1694,6 +1855,8 @@ static void openssl_tls_cert_event(struct tls_connection *conn,
 	GENERAL_NAME *gen;
 	void *ext;
 	stack_index_t i;
+	ASN1_INTEGER *ser;
+	char serial_num[128];
 #ifdef CONFIG_SHA256
 	u8 hash[32];
 #endif /* CONFIG_SHA256 */
@@ -1721,6 +1884,14 @@ static void openssl_tls_cert_event(struct tls_connection *conn,
 #endif /* CONFIG_SHA256 */
 	ev.peer_cert.depth = depth;
 	ev.peer_cert.subject = subject;
+
+	ser = X509_get_serialNumber(err_cert);
+	if (ser) {
+		wpa_snprintf_hex_uppercase(serial_num, sizeof(serial_num),
+					   ASN1_STRING_get0_data(ser),
+					   ASN1_STRING_length(ser));
+		ev.peer_cert.serial_num = serial_num;
+	}
 
 	ext = X509_get_ext_d2i(err_cert, NID_subject_alt_name, NULL, NULL);
 	for (i = 0; ext && i < sk_GENERAL_NAME_num(ext); i++) {
@@ -1915,6 +2086,37 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 				       "Server certificate chain probe",
 				       TLS_FAIL_SERVER_CHAIN_PROBE);
 	}
+
+#ifdef CONFIG_SUITEB
+	if (conn->flags & TLS_CONN_SUITEB) {
+		EVP_PKEY *pk;
+		RSA *rsa;
+		int len = -1;
+
+		pk = X509_get_pubkey(err_cert);
+		if (pk) {
+			rsa = EVP_PKEY_get1_RSA(pk);
+			if (rsa) {
+				len = RSA_bits(rsa);
+				RSA_free(rsa);
+			}
+			EVP_PKEY_free(pk);
+		}
+
+		if (len >= 0) {
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: RSA modulus size: %d bits", len);
+			if (len < 3072) {
+				preverify_ok = 0;
+				openssl_tls_fail_event(
+					conn, err_cert, err,
+					depth, buf,
+					"Insufficient RSA modulus size",
+					TLS_FAIL_INSUFFICIENT_KEY_LEN);
+			}
+		}
+	}
+#endif /* CONFIG_SUITEB */
 
 #ifdef OPENSSL_IS_BORINGSSL
 	if (depth == 0 && (conn->flags & TLS_CONN_REQUEST_OCSP) &&
@@ -2249,15 +2451,48 @@ static int tls_connection_set_subject_match(struct tls_connection *conn,
 }
 
 
-static void tls_set_conn_flags(SSL *ssl, unsigned int flags)
+#ifdef CONFIG_SUITEB
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+static int suiteb_cert_cb(SSL *ssl, void *arg)
 {
+	struct tls_connection *conn = arg;
+
+	/*
+	 * This cert_cb() is not really the best location for doing a
+	 * constraint check for the ServerKeyExchange message, but this seems to
+	 * be the only place where the current OpenSSL sequence can be
+	 * terminated cleanly with an TLS alert going out to the server.
+	 */
+
+	if (!(conn->flags & TLS_CONN_SUITEB))
+		return 1;
+
+	/* DHE is enabled only with DHE-RSA-AES256-GCM-SHA384 */
+	if (conn->cipher_suite != 0x9f)
+		return 1;
+
+	if (conn->server_dh_prime_len >= 3072)
+		return 1;
+
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: Server DH prime length (%d bits) not sufficient for Suite B RSA - reject handshake",
+		   conn->server_dh_prime_len);
+	return 0;
+}
+#endif /* OPENSSL_VERSION_NUMBER */
+#endif /* CONFIG_SUITEB */
+
+
+static int tls_set_conn_flags(struct tls_connection *conn, unsigned int flags,
+			      const char *openssl_ciphers)
+{
+	SSL *ssl = conn->ssl;
+
 #ifdef SSL_OP_NO_TICKET
 	if (flags & TLS_CONN_DISABLE_SESSION_TICKET)
 		SSL_set_options(ssl, SSL_OP_NO_TICKET);
-#ifdef SSL_clear_options
 	else
 		SSL_clear_options(ssl, SSL_OP_NO_TICKET);
-#endif /* SSL_clear_options */
 #endif /* SSL_OP_NO_TICKET */
 
 #ifdef SSL_OP_NO_TLSv1
@@ -2278,6 +2513,118 @@ static void tls_set_conn_flags(SSL *ssl, unsigned int flags)
 	else
 		SSL_clear_options(ssl, SSL_OP_NO_TLSv1_2);
 #endif /* SSL_OP_NO_TLSv1_2 */
+#ifdef SSL_OP_NO_TLSv1_3
+	if (flags & TLS_CONN_DISABLE_TLSv1_3)
+		SSL_set_options(ssl, SSL_OP_NO_TLSv1_3);
+	else
+		SSL_clear_options(ssl, SSL_OP_NO_TLSv1_3);
+#endif /* SSL_OP_NO_TLSv1_3 */
+#ifdef CONFIG_SUITEB
+#ifdef OPENSSL_IS_BORINGSSL
+	/* Start with defaults from BoringSSL */
+	SSL_CTX_set_verify_algorithm_prefs(conn->ssl_ctx, NULL, 0);
+#endif /* OPENSSL_IS_BORINGSSL */
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+	if (flags & TLS_CONN_SUITEB_NO_ECDH) {
+		const char *ciphers = "DHE-RSA-AES256-GCM-SHA384";
+
+		if (openssl_ciphers) {
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: Override ciphers for Suite B (no ECDH): %s",
+				   openssl_ciphers);
+			ciphers = openssl_ciphers;
+		}
+		if (SSL_set_cipher_list(ssl, ciphers) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B ciphers");
+			return -1;
+		}
+	} else if (flags & TLS_CONN_SUITEB) {
+		EC_KEY *ecdh;
+		const char *ciphers =
+			"ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384";
+		int nid[1] = { NID_secp384r1 };
+
+		if (openssl_ciphers) {
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: Override ciphers for Suite B: %s",
+				   openssl_ciphers);
+			ciphers = openssl_ciphers;
+		}
+		if (SSL_set_cipher_list(ssl, ciphers) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B ciphers");
+			return -1;
+		}
+
+		if (SSL_set1_curves(ssl, nid, 1) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B curves");
+			return -1;
+		}
+
+		ecdh = EC_KEY_new_by_curve_name(NID_secp384r1);
+		if (!ecdh || SSL_set_tmp_ecdh(ssl, ecdh) != 1) {
+			EC_KEY_free(ecdh);
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set ECDH parameter");
+			return -1;
+		}
+		EC_KEY_free(ecdh);
+	}
+	if (flags & (TLS_CONN_SUITEB | TLS_CONN_SUITEB_NO_ECDH)) {
+#ifdef OPENSSL_IS_BORINGSSL
+		uint16_t sigalgs[1] = { SSL_SIGN_RSA_PKCS1_SHA384 };
+
+		if (SSL_CTX_set_verify_algorithm_prefs(conn->ssl_ctx, sigalgs,
+						       1) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B sigalgs");
+			return -1;
+		}
+#else /* OPENSSL_IS_BORINGSSL */
+		/* ECDSA+SHA384 if need to add EC support here */
+		if (SSL_set1_sigalgs_list(ssl, "RSA+SHA384") != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B sigalgs");
+			return -1;
+		}
+#endif /* OPENSSL_IS_BORINGSSL */
+
+		SSL_set_options(ssl, SSL_OP_NO_TLSv1);
+		SSL_set_options(ssl, SSL_OP_NO_TLSv1_1);
+		SSL_set_cert_cb(ssl, suiteb_cert_cb, conn);
+	}
+#else /* OPENSSL_VERSION_NUMBER < 0x10002000L */
+	if (flags & (TLS_CONN_SUITEB | TLS_CONN_SUITEB_NO_ECDH)) {
+		wpa_printf(MSG_ERROR,
+			   "OpenSSL: Suite B RSA case not supported with this OpenSSL version");
+		return -1;
+	}
+#endif /* OPENSSL_VERSION_NUMBER */
+
+#ifdef OPENSSL_IS_BORINGSSL
+	if (openssl_ciphers && os_strcmp(openssl_ciphers, "SUITEB192") == 0) {
+		uint16_t sigalgs[1] = { SSL_SIGN_ECDSA_SECP384R1_SHA384 };
+		int nid[1] = { NID_secp384r1 };
+
+		if (SSL_set1_curves(ssl, nid, 1) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B curves");
+			return -1;
+		}
+
+		if (SSL_CTX_set_verify_algorithm_prefs(conn->ssl_ctx, sigalgs,
+						       1) != 1) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Failed to set Suite B sigalgs");
+			return -1;
+		}
+	}
+#endif /* OPENSSL_IS_BORINGSSL */
+#endif /* CONFIG_SUITEB */
+
+	return 0;
 }
 
 
@@ -2301,7 +2648,8 @@ int tls_connection_set_verify(void *ssl_ctx, struct tls_connection *conn,
 		SSL_set_verify(conn->ssl, SSL_VERIFY_NONE, NULL);
 	}
 
-	tls_set_conn_flags(conn->ssl, flags);
+	if (tls_set_conn_flags(conn, flags, NULL) < 0)
+		return -1;
 	conn->flags = flags;
 
 	SSL_set_accept_state(conn->ssl);
@@ -2334,7 +2682,7 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 		return 0;
 
 #ifdef PKCS12_FUNCS
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#if OPENSSL_VERSION_NUMBER < 0x10002000L || defined(LIBRESSL_VERSION_NUMBER)
 	/*
 	 * Clear previously set extra chain certificates, if any, from PKCS#12
 	 * processing in tls_parse_pkcs12() to allow OpenSSL to build a new
@@ -2365,12 +2713,23 @@ static int tls_connection_client_cert(struct tls_connection *conn,
 		int ret = -1;
 		if (bio) {
 			x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-			BIO_free(bio);
 		}
 		if (x509) {
 			if (SSL_use_certificate(conn->ssl, x509) == 1)
 				ret = 0;
 			X509_free(x509);
+		}
+
+		/* Read additional certificates into the chain. */
+		while (bio) {
+			x509 = PEM_read_bio_X509(bio, NULL, NULL, NULL);
+			if (x509) {
+				/* Takes ownership of x509 */
+				SSL_add0_chain_cert(conn->ssl, x509);
+			} else {
+				BIO_free(bio);
+				bio = NULL;
+			}
 		}
 		return ret;
 	}
@@ -2427,16 +2786,6 @@ static int tls_global_client_cert(struct tls_data *data,
 	wpa_printf(MSG_DEBUG, "OpenSSL: %s - OPENSSL_NO_STDIO", __func__);
 	return -1;
 #endif /* OPENSSL_NO_STDIO */
-}
-
-
-static int tls_passwd_cb(char *buf, int size, int rwflag, void *password)
-{
-	if (password == NULL) {
-		return 0;
-	}
-	os_strlcpy(buf, (char *) password, size);
-	return os_strlen(buf);
 }
 
 
@@ -2758,6 +3107,64 @@ static int tls_connection_engine_private_key(struct tls_connection *conn)
 }
 
 
+#ifndef OPENSSL_NO_STDIO
+static int tls_passwd_cb(char *buf, int size, int rwflag, void *password)
+{
+	if (!password)
+		return 0;
+	os_strlcpy(buf, (const char *) password, size);
+	return os_strlen(buf);
+}
+#endif /* OPENSSL_NO_STDIO */
+
+
+static int tls_use_private_key_file(struct tls_data *data, SSL *ssl,
+				    const char *private_key,
+				    const char *private_key_passwd)
+{
+#ifndef OPENSSL_NO_STDIO
+	BIO *bio;
+	EVP_PKEY *pkey;
+	int ret;
+
+	/* First try ASN.1 (DER). */
+	bio = BIO_new_file(private_key, "r");
+	if (!bio)
+		return -1;
+	pkey = d2i_PrivateKey_bio(bio, NULL);
+	BIO_free(bio);
+
+	if (pkey) {
+		wpa_printf(MSG_DEBUG, "OpenSSL: %s (DER) --> loaded", __func__);
+	} else {
+		/* Try PEM with the provided password. */
+		bio = BIO_new_file(private_key, "r");
+		if (!bio)
+			return -1;
+		pkey = PEM_read_bio_PrivateKey(bio, NULL, tls_passwd_cb,
+					       (void *) private_key_passwd);
+		BIO_free(bio);
+		if (!pkey)
+			return -1;
+		wpa_printf(MSG_DEBUG, "OpenSSL: %s (PEM) --> loaded", __func__);
+		/* Clear errors from the previous failed load. */
+		ERR_clear_error();
+	}
+
+	if (ssl)
+		ret = SSL_use_PrivateKey(ssl, pkey);
+	else
+		ret = SSL_CTX_use_PrivateKey(data->ssl, pkey);
+
+	EVP_PKEY_free(pkey);
+	return ret == 1 ? 0 : -1;
+#else /* OPENSSL_NO_STDIO */
+	wpa_printf(MSG_DEBUG, "OpenSSL: %s - OPENSSL_NO_STDIO", __func__);
+	return -1;
+#endif /* OPENSSL_NO_STDIO */
+}
+
+
 static int tls_connection_private_key(struct tls_data *data,
 				      struct tls_connection *conn,
 				      const char *private_key,
@@ -2765,22 +3172,10 @@ static int tls_connection_private_key(struct tls_data *data,
 				      const u8 *private_key_blob,
 				      size_t private_key_blob_len)
 {
-	SSL_CTX *ssl_ctx = data->ssl;
-	char *passwd;
 	int ok;
 
 	if (private_key == NULL && private_key_blob == NULL)
 		return 0;
-
-	if (private_key_passwd) {
-		passwd = os_strdup(private_key_passwd);
-		if (passwd == NULL)
-			return -1;
-	} else
-		passwd = NULL;
-
-	SSL_CTX_set_default_passwd_cb(ssl_ctx, tls_passwd_cb);
-	SSL_CTX_set_default_passwd_cb_userdata(ssl_ctx, passwd);
 
 	ok = 0;
 	while (private_key_blob) {
@@ -2812,7 +3207,8 @@ static int tls_connection_private_key(struct tls_data *data,
 		}
 
 		if (tls_read_pkcs12_blob(data, conn->ssl, private_key_blob,
-					 private_key_blob_len, passwd) == 0) {
+					 private_key_blob_len,
+					 private_key_passwd) == 0) {
 			wpa_printf(MSG_DEBUG, "OpenSSL: PKCS#12 as blob --> "
 				   "OK");
 			ok = 1;
@@ -2823,29 +3219,14 @@ static int tls_connection_private_key(struct tls_data *data,
 	}
 
 	while (!ok && private_key) {
-#ifndef OPENSSL_NO_STDIO
-		if (SSL_use_PrivateKey_file(conn->ssl, private_key,
-					    SSL_FILETYPE_ASN1) == 1) {
-			wpa_printf(MSG_DEBUG, "OpenSSL: "
-				   "SSL_use_PrivateKey_File (DER) --> OK");
+		if (tls_use_private_key_file(data, conn->ssl, private_key,
+					     private_key_passwd) == 0) {
 			ok = 1;
 			break;
 		}
 
-		if (SSL_use_PrivateKey_file(conn->ssl, private_key,
-					    SSL_FILETYPE_PEM) == 1) {
-			wpa_printf(MSG_DEBUG, "OpenSSL: "
-				   "SSL_use_PrivateKey_File (PEM) --> OK");
-			ok = 1;
-			break;
-		}
-#else /* OPENSSL_NO_STDIO */
-		wpa_printf(MSG_DEBUG, "OpenSSL: %s - OPENSSL_NO_STDIO",
-			   __func__);
-#endif /* OPENSSL_NO_STDIO */
-
-		if (tls_read_pkcs12(data, conn->ssl, private_key, passwd)
-		    == 0) {
+		if (tls_read_pkcs12(data, conn->ssl, private_key,
+				    private_key_passwd) == 0) {
 			wpa_printf(MSG_DEBUG, "OpenSSL: Reading PKCS#12 file "
 				   "--> OK");
 			ok = 1;
@@ -2865,12 +3246,9 @@ static int tls_connection_private_key(struct tls_data *data,
 	if (!ok) {
 		tls_show_errors(MSG_INFO, __func__,
 				"Failed to load private key");
-		os_free(passwd);
 		return -1;
 	}
 	ERR_clear_error();
-	SSL_CTX_set_default_passwd_cb(ssl_ctx, NULL);
-	os_free(passwd);
 
 	if (!SSL_check_private_key(conn->ssl)) {
 		tls_show_errors(MSG_INFO, __func__, "Private key failed "
@@ -2888,37 +3266,19 @@ static int tls_global_private_key(struct tls_data *data,
 				  const char *private_key_passwd)
 {
 	SSL_CTX *ssl_ctx = data->ssl;
-	char *passwd;
 
 	if (private_key == NULL)
 		return 0;
 
-	if (private_key_passwd) {
-		passwd = os_strdup(private_key_passwd);
-		if (passwd == NULL)
-			return -1;
-	} else
-		passwd = NULL;
-
-	SSL_CTX_set_default_passwd_cb(ssl_ctx, tls_passwd_cb);
-	SSL_CTX_set_default_passwd_cb_userdata(ssl_ctx, passwd);
-	if (
-#ifndef OPENSSL_NO_STDIO
-	    SSL_CTX_use_PrivateKey_file(ssl_ctx, private_key,
-					SSL_FILETYPE_ASN1) != 1 &&
-	    SSL_CTX_use_PrivateKey_file(ssl_ctx, private_key,
-					SSL_FILETYPE_PEM) != 1 &&
-#endif /* OPENSSL_NO_STDIO */
-	    tls_read_pkcs12(data, NULL, private_key, passwd)) {
+	if (tls_use_private_key_file(data, NULL, private_key,
+				     private_key_passwd) &&
+	    tls_read_pkcs12(data, NULL, private_key, private_key_passwd)) {
 		tls_show_errors(MSG_INFO, __func__,
 				"Failed to load private key");
-		os_free(passwd);
 		ERR_clear_error();
 		return -1;
 	}
-	os_free(passwd);
 	ERR_clear_error();
-	SSL_CTX_set_default_passwd_cb(ssl_ctx, NULL);
 
 	if (!SSL_CTX_check_private_key(ssl_ctx)) {
 		tls_show_errors(MSG_INFO, __func__,
@@ -3105,7 +3465,9 @@ int tls_connection_get_random(void *ssl_ctx, struct tls_connection *conn,
 #ifdef OPENSSL_NEED_EAP_FAST_PRF
 static int openssl_get_keyblock_size(SSL *ssl)
 {
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+	(defined(LIBRESSL_VERSION_NUMBER) && \
+	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
 	const EVP_CIPHER *c;
 	const EVP_MD *h;
 	int md_size;
@@ -3252,8 +3614,7 @@ int tls_connection_get_eap_fast_key(void *tls_ctx, struct tls_connection *conn,
 
 
 static struct wpabuf *
-openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data,
-		  int server)
+openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data)
 {
 	int res;
 	struct wpabuf *out_data;
@@ -3271,7 +3632,7 @@ openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data,
 	}
 
 	/* Initiate TLS handshake or continue the existing handshake */
-	if (server)
+	if (conn->server)
 		res = SSL_accept(conn->ssl);
 	else
 		res = SSL_connect(conn->ssl);
@@ -3286,8 +3647,57 @@ openssl_handshake(struct tls_connection *conn, const struct wpabuf *in_data,
 		else {
 			tls_show_errors(MSG_INFO, __func__, "SSL_connect");
 			conn->failed++;
+			if (!conn->server && !conn->client_hello_generated) {
+				/* The server would not understand TLS Alert
+				 * before ClientHello, so simply terminate
+				 * handshake on this type of error case caused
+				 * by a likely internal error like no ciphers
+				 * available. */
+				wpa_printf(MSG_DEBUG,
+					   "OpenSSL: Could not generate ClientHello");
+				conn->write_alerts++;
+				return NULL;
+			}
 		}
 	}
+
+	if (!conn->server && !conn->failed)
+		conn->client_hello_generated = 1;
+
+#ifdef CONFIG_SUITEB
+	if ((conn->flags & TLS_CONN_SUITEB) && !conn->server &&
+	    os_strncmp(SSL_get_cipher(conn->ssl), "DHE-", 4) == 0 &&
+	    conn->server_dh_prime_len < 3072) {
+		struct tls_context *context = conn->context;
+
+		/*
+		 * This should not be reached since earlier cert_cb should have
+		 * terminated the handshake. Keep this check here for extra
+		 * protection if anything goes wrong with the more low-level
+		 * checks based on having to parse the TLS handshake messages.
+		 */
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Server DH prime length: %d bits",
+			   conn->server_dh_prime_len);
+
+		if (context->event_cb) {
+			union tls_event_data ev;
+
+			os_memset(&ev, 0, sizeof(ev));
+			ev.alert.is_local = 1;
+			ev.alert.type = "fatal";
+			ev.alert.description = "insufficient security";
+			context->event_cb(context->cb_ctx, TLS_ALERT, &ev);
+		}
+		/*
+		 * Could send a TLS Alert to the server, but for now, simply
+		 * terminate handshake.
+		 */
+		conn->failed++;
+		conn->write_alerts++;
+		return NULL;
+	}
+#endif /* CONFIG_SUITEB */
 
 	/* Get the TLS handshake data to be sent to the server */
 	res = BIO_ctrl_pending(conn->ssl_out);
@@ -3358,14 +3768,14 @@ openssl_get_appl_data(struct tls_connection *conn, size_t max_len)
 static struct wpabuf *
 openssl_connection_handshake(struct tls_connection *conn,
 			     const struct wpabuf *in_data,
-			     struct wpabuf **appl_data, int server)
+			     struct wpabuf **appl_data)
 {
 	struct wpabuf *out_data;
 
 	if (appl_data)
 		*appl_data = NULL;
 
-	out_data = openssl_handshake(conn, in_data, server);
+	out_data = openssl_handshake(conn, in_data);
 	if (out_data == NULL)
 		return NULL;
 	if (conn->invalid_hb_used) {
@@ -3402,7 +3812,7 @@ tls_connection_handshake(void *ssl_ctx, struct tls_connection *conn,
 			 const struct wpabuf *in_data,
 			 struct wpabuf **appl_data)
 {
-	return openssl_connection_handshake(conn, in_data, appl_data, 0);
+	return openssl_connection_handshake(conn, in_data, appl_data);
 }
 
 
@@ -3411,7 +3821,8 @@ struct wpabuf * tls_connection_server_handshake(void *tls_ctx,
 						const struct wpabuf *in_data,
 						struct wpabuf **appl_data)
 {
-	return openssl_connection_handshake(conn, in_data, appl_data, 1);
+	conn->server = 1;
+	return openssl_connection_handshake(conn, in_data, appl_data);
 }
 
 
@@ -3506,7 +3917,7 @@ struct wpabuf * tls_connection_decrypt(void *tls_ctx,
 
 int tls_connection_resumed(void *ssl_ctx, struct tls_connection *conn)
 {
-	return conn ? SSL_cache_hit(conn->ssl) : 0;
+	return conn ? SSL_session_reused(conn->ssl) : 0;
 }
 
 
@@ -3747,7 +4158,7 @@ static int ocsp_resp_cb(SSL *s, void *arg)
 {
 	struct tls_connection *conn = arg;
 	const unsigned char *p;
-	int len, status, reason;
+	int len, status, reason, res;
 	OCSP_RESPONSE *rsp;
 	OCSP_BASICRESP *basic;
 	OCSP_CERTID *id;
@@ -3842,16 +4253,33 @@ static int ocsp_resp_cb(SSL *s, void *arg)
 		return 0;
 	}
 
-	id = OCSP_cert_to_id(NULL, conn->peer_cert, conn->peer_issuer);
+	id = OCSP_cert_to_id(EVP_sha256(), conn->peer_cert, conn->peer_issuer);
 	if (!id) {
-		wpa_printf(MSG_DEBUG, "OpenSSL: Could not create OCSP certificate identifier");
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: Could not create OCSP certificate identifier (SHA256)");
 		OCSP_BASICRESP_free(basic);
 		OCSP_RESPONSE_free(rsp);
 		return 0;
 	}
 
-	if (!OCSP_resp_find_status(basic, id, &status, &reason, &produced_at,
-				   &this_update, &next_update)) {
+	res = OCSP_resp_find_status(basic, id, &status, &reason, &produced_at,
+				    &this_update, &next_update);
+	if (!res) {
+		id = OCSP_cert_to_id(NULL, conn->peer_cert, conn->peer_issuer);
+		if (!id) {
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: Could not create OCSP certificate identifier (SHA1)");
+			OCSP_BASICRESP_free(basic);
+			OCSP_RESPONSE_free(rsp);
+			return 0;
+		}
+
+		res = OCSP_resp_find_status(basic, id, &status, &reason,
+					    &produced_at, &this_update,
+					    &next_update);
+	}
+
+	if (!res) {
 		wpa_printf(MSG_INFO, "OpenSSL: Could not find current server certificate from OCSP response%s",
 			   (conn->flags & TLS_CONN_REQUIRE_OCSP) ? "" :
 			   " (OCSP not required)");
@@ -3935,6 +4363,7 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 	const char *cert_id = params->cert_id;
 	const char *ca_cert_id = params->ca_cert_id;
 	const char *engine_id = params->engine ? params->engine_id : NULL;
+	const char *ciphers;
 
 	if (conn == NULL)
 		return -1;
@@ -3976,7 +4405,7 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		engine_id = "pkcs11";
 
 #if defined(EAP_FAST) || defined(EAP_FAST_DYNAMIC) || defined(EAP_SERVER_FAST)
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
 	if (params->flags & TLS_CONN_EAP_FAST) {
 		wpa_printf(MSG_DEBUG,
 			   "OpenSSL: Use TLSv1_method() for EAP-FAST");
@@ -3986,6 +4415,17 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 			return -1;
 		}
 	}
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x10101000L
+#ifdef SSL_OP_NO_TLSv1_3
+	if (params->flags & TLS_CONN_EAP_FAST) {
+		/* Need to disable TLS v1.3 at least for now since OpenSSL 1.1.1
+		 * refuses to start the handshake with the modified ciphersuite
+		 * list (no TLS v1.3 ciphersuites included) for EAP-FAST. */
+		wpa_printf(MSG_DEBUG, "OpenSSL: Disable TLSv1.3 for EAP-FAST");
+		SSL_set_options(conn->ssl, SSL_OP_NO_TLSv1_3);
+	}
+#endif /* SSL_OP_NO_TLSv1_3 */
 #endif
 #endif /* EAP_FAST || EAP_FAST_DYNAMIC || EAP_SERVER_FAST */
 
@@ -4045,15 +4485,27 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 	}
 
-	if (params->openssl_ciphers &&
-	    SSL_set_cipher_list(conn->ssl, params->openssl_ciphers) != 1) {
+	ciphers = params->openssl_ciphers;
+#ifdef CONFIG_SUITEB
+#ifdef OPENSSL_IS_BORINGSSL
+	if (ciphers && os_strcmp(ciphers, "SUITEB192") == 0) {
+		/* BoringSSL removed support for SUITEB192, so need to handle
+		 * this with hardcoded ciphersuite and additional checks for
+		 * other parameters. */
+		ciphers = "ECDHE-ECDSA-AES256-GCM-SHA384";
+	}
+#endif /* OPENSSL_IS_BORINGSSL */
+#endif /* CONFIG_SUITEB */
+	if (ciphers && SSL_set_cipher_list(conn->ssl, ciphers) != 1) {
 		wpa_printf(MSG_INFO,
 			   "OpenSSL: Failed to set cipher string '%s'",
-			   params->openssl_ciphers);
+			   ciphers);
 		return -1;
 	}
 
-	tls_set_conn_flags(conn->ssl, params->flags);
+	if (tls_set_conn_flags(conn, params->flags,
+			       params->openssl_ciphers) < 0)
+		return -1;
 
 #ifdef OPENSSL_IS_BORINGSSL
 	if (params->flags & TLS_CONN_REQUEST_OCSP) {
@@ -4120,10 +4572,8 @@ int tls_global_set_params(void *tls_ctx,
 #ifdef SSL_OP_NO_TICKET
 	if (params->flags & TLS_CONN_DISABLE_SESSION_TICKET)
 		SSL_CTX_set_options(ssl_ctx, SSL_OP_NO_TICKET);
-#ifdef SSL_CTX_clear_options
 	else
 		SSL_CTX_clear_options(ssl_ctx, SSL_OP_NO_TICKET);
-#endif /* SSL_clear_options */
 #endif /*  SSL_OP_NO_TICKET */
 
 #ifdef HAVE_OCSP
@@ -4159,7 +4609,9 @@ static int tls_sess_sec_cb(SSL *s, void *secret, int *secret_len,
 	struct tls_connection *conn = arg;
 	int ret;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || defined(LIBRESSL_VERSION_NUMBER)
+#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
+	(defined(LIBRESSL_VERSION_NUMBER) && \
+	 LIBRESSL_VERSION_NUMBER < 0x20700000L)
 	if (conn == NULL || conn->session_ticket_cb == NULL)
 		return 0;
 
@@ -4212,11 +4664,10 @@ static int tls_session_ticket_ext_cb(SSL *s, const unsigned char *data,
 	wpa_hexdump(MSG_DEBUG, "OpenSSL: ClientHello SessionTicket "
 		    "extension", data, len);
 
-	conn->session_ticket = os_malloc(len);
+	conn->session_ticket = os_memdup(data, len);
 	if (conn->session_ticket == NULL)
 		return 0;
 
-	os_memcpy(conn->session_ticket, data, len);
 	conn->session_ticket_len = len;
 
 	return 1;

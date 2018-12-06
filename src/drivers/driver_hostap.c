@@ -741,10 +741,9 @@ static int hostap_set_generic_elem(void *priv,
 	drv->generic_ie = NULL;
 	drv->generic_ie_len = 0;
 	if (elem) {
-		drv->generic_ie = os_malloc(elem_len);
+		drv->generic_ie = os_memdup(elem, elem_len);
 		if (drv->generic_ie == NULL)
 			return -1;
-		os_memcpy(drv->generic_ie, elem, elem_len);
 		drv->generic_ie_len = elem_len;
 	}
 
@@ -768,11 +767,10 @@ static int hostap_set_ap_wps_ie(void *priv, const struct wpabuf *beacon,
 	drv->wps_ie = NULL;
 	drv->wps_ie_len = 0;
 	if (proberesp) {
-		drv->wps_ie = os_malloc(wpabuf_len(proberesp));
+		drv->wps_ie = os_memdup(wpabuf_head(proberesp),
+					wpabuf_len(proberesp));
 		if (drv->wps_ie == NULL)
 			return -1;
-		os_memcpy(drv->wps_ie, wpabuf_head(proberesp),
-			  wpabuf_len(proberesp));
 		drv->wps_ie_len = wpabuf_len(proberesp);
 	}
 
@@ -1090,7 +1088,7 @@ static int hostap_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
 
 static struct hostapd_hw_modes * hostap_get_hw_feature_data(void *priv,
 							    u16 *num_modes,
-							    u16 *flags)
+							    u16 *flags, u8 *dfs)
 {
 	struct hostapd_hw_modes *mode;
 	int i, clen, rlen;
@@ -1105,6 +1103,7 @@ static struct hostapd_hw_modes * hostap_get_hw_feature_data(void *priv,
 
 	*num_modes = 1;
 	*flags = 0;
+	*dfs = 0;
 
 	mode->mode = HOSTAPD_MODE_IEEE80211B;
 	mode->num_channels = 14;

@@ -53,12 +53,38 @@ static const struct ieee802_11_parse_test_data parse_tests[] = {
 	  18, ParseOK, 9 },
 	{ (u8 *) "\x8b\x00", 2, ParseOK, 1 },
 	{ (u8 *) "\xdd\x04\x00\x90\x4c\x04", 6, ParseUnknown, 1 },
+	{ (u8 *) "\xed\x00", 2, ParseOK, 1 },
+	{ (u8 *) "\xef\x00", 2, ParseOK, 1 },
+	{ (u8 *) "\xef\x01\x11", 3, ParseOK, 1 },
+	{ (u8 *) "\xf0\x00", 2, ParseOK, 1 },
+	{ (u8 *) "\xf1\x00", 2, ParseOK, 1 },
+	{ (u8 *) "\xf1\x02\x11\x22", 4, ParseOK, 1 },
+	{ (u8 *) "\xf2\x00", 2, ParseOK, 1 },
+	{ (u8 *) "\xff\x00", 2, ParseUnknown, 1 },
+	{ (u8 *) "\xff\x01\x00", 3, ParseUnknown, 1 },
+	{ (u8 *) "\xff\x01\x01", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x02\x01\x00", 4, ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x02", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x04\x02\x11\x22\x33", 6, ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x04", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x05", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x0d\x05\x11\x22\x33\x44\x55\x55\x11\x22\x33\x44\x55\x55",
+	  15, ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x06", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x02\x06\x00", 4, ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x07", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x09\x07\x11\x22\x33\x44\x55\x66\x77\x88", 11,
+	  ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x0c", 3, ParseOK, 1 },
+	{ (u8 *) "\xff\x02\x0c\x00", 4, ParseOK, 1 },
+	{ (u8 *) "\xff\x01\x0d", 3, ParseOK, 1 },
 	{ NULL, 0, ParseOK, 0 }
 };
 
 static int ieee802_11_parse_tests(void)
 {
 	int i, ret = 0;
+	struct wpabuf *buf;
 
 	wpa_printf(MSG_INFO, "ieee802_11_parse tests");
 
@@ -83,6 +109,35 @@ static int ieee802_11_parse_tests(void)
 			   "ieee802_11_vendor_ie_concat test failed");
 		ret = -1;
 	}
+
+	buf = ieee802_11_vendor_ie_concat((const u8 *) "\xdd\x05\x11\x22\x33\x44\x01\xdd\x05\x11\x22\x33\x44\x02\x00\x01",
+					  16, 0x11223344);
+	do {
+		const u8 *pos;
+
+		if (!buf) {
+			wpa_printf(MSG_ERROR,
+				   "ieee802_11_vendor_ie_concat test 2 failed");
+			ret = -1;
+			break;
+		}
+
+		if (wpabuf_len(buf) != 2) {
+			wpa_printf(MSG_ERROR,
+				   "ieee802_11_vendor_ie_concat test 3 failed");
+			ret = -1;
+			break;
+		}
+
+		pos = wpabuf_head(buf);
+		if (pos[0] != 0x01 || pos[1] != 0x02) {
+			wpa_printf(MSG_ERROR,
+				   "ieee802_11_vendor_ie_concat test 3 failed");
+			ret = -1;
+			break;
+		}
+	} while (0);
+	wpabuf_free(buf);
 
 	return ret;
 }

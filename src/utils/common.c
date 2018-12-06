@@ -1200,3 +1200,24 @@ int str_starts(const char *str, const char *start)
 {
 	return os_strncmp(str, start, os_strlen(start)) == 0;
 }
+
+
+/**
+ * rssi_to_rcpi - Convert RSSI to RCPI
+ * @rssi: RSSI to convert
+ * Returns: RCPI corresponding to the given RSSI value, or 255 if not available.
+ *
+ * It's possible to estimate RCPI based on RSSI in dBm. This calculation will
+ * not reflect the correct value for high rates, but it's good enough for Action
+ * frames which are transmitted with up to 24 Mbps rates.
+ */
+u8 rssi_to_rcpi(int rssi)
+{
+	if (!rssi)
+		return 255; /* not available */
+	if (rssi < -110)
+		return 0;
+	if (rssi > 0)
+		return 220;
+	return (rssi + 110) * 2;
+}

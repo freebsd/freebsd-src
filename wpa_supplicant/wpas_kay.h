@@ -17,6 +17,9 @@ void * ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 				      const u8 *peer_addr);
 void ieee802_1x_dealloc_kay_sm(struct wpa_supplicant *wpa_s);
 
+void * ieee802_1x_create_preshared_mka(struct wpa_supplicant *wpa_s,
+				       struct wpa_ssid *ssid);
+
 #else /* CONFIG_MACSEC */
 
 static inline int ieee802_1x_alloc_kay_sm(struct wpa_supplicant *wpa_s,
@@ -34,6 +37,13 @@ ieee802_1x_notify_create_actor(struct wpa_supplicant *wpa_s,
 
 static inline void ieee802_1x_dealloc_kay_sm(struct wpa_supplicant *wpa_s)
 {
+}
+
+static inline void *
+ieee802_1x_create_preshared_mka(struct wpa_supplicant *wpa_s,
+				struct wpa_ssid *ssid)
+{
+	return 0;
 }
 
 #endif /* CONFIG_MACSEC */

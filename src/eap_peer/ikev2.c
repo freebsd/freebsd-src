@@ -476,10 +476,9 @@ static int ikev2_process_idi(struct ikev2_responder_data *data,
 	wpa_printf(MSG_DEBUG, "IKEV2: IDi ID Type %d", id_type);
 	wpa_hexdump_ascii(MSG_DEBUG, "IKEV2: IDi", idi, idi_len);
 	os_free(data->IDi);
-	data->IDi = os_malloc(idi_len);
+	data->IDi = os_memdup(idi, idi_len);
 	if (data->IDi == NULL)
 		return -1;
-	os_memcpy(data->IDi, idi, idi_len);
 	data->IDi_len = idi_len;
 	data->IDi_type = id_type;
 
