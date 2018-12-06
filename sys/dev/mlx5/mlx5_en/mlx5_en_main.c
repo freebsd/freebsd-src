@@ -160,8 +160,6 @@ static const struct {
 
 MALLOC_DEFINE(M_MLX5EN, "MLX5EN", "MLX5 Ethernet");
 
-SYSCTL_DECL(_hw_mlx5);
-
 static void
 mlx5e_update_carrier(struct mlx5e_priv *priv)
 {
