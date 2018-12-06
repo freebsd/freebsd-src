@@ -26,7 +26,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/* FreeBSD/riscv64-specific system call handling. */
+/* FreeBSD/riscv-specific system call handling. */
 
 #include <sys/ptrace.h>
 #include <sys/syscall.h>
@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "truss.h"
 
 static int
-riscv64_fetch_args(struct trussinfo *trussinfo, u_int narg)
+riscv_fetch_args(struct trussinfo *trussinfo, u_int narg)
 {
 	struct reg regs;
 	struct current_syscall *cs;
@@ -77,7 +77,7 @@ riscv64_fetch_args(struct trussinfo *trussinfo, u_int narg)
 }
 
 static int
-riscv64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
+riscv_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 {
 	struct reg regs;
 	lwpid_t tid;
@@ -94,13 +94,13 @@ riscv64_fetch_retval(struct trussinfo *trussinfo, long *retval, int *errorp)
 	return (0);
 }
 
-static struct procabi riscv64_freebsd = {
+static struct procabi riscv_freebsd = {
 	"FreeBSD ELF64",
 	SYSDECODE_ABI_FREEBSD,
-	riscv64_fetch_args,
-	riscv64_fetch_retval,
-	STAILQ_HEAD_INITIALIZER(riscv64_freebsd.extra_syscalls),
+	riscv_fetch_args,
+	riscv_fetch_retval,
+	STAILQ_HEAD_INITIALIZER(riscv_freebsd.extra_syscalls),
 	{ NULL }
 };
 
-PROCABI(riscv64_freebsd);
+PROCABI(riscv_freebsd);
