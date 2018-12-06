@@ -9,6 +9,7 @@ __FBSDID("$FreeBSD$");
 #include <zlib.h>
 
 FILE *zopen(const char *fname, const char *mode);
+FILE *zdopen(int fd, const char *mode);
 
 /* convert arguments */
 static int
@@ -46,4 +47,19 @@ zopen(const char *fname, const char *mode)
 	return (funopen(gz, xgzread, NULL, xgzseek, xgzclose));
     else
 	return (funopen(gz, NULL, xgzwrite, xgzseek, xgzclose));
+}
+
+FILE *
+zdopen(int fd, const char *mode)
+{
+	gzFile gz;
+
+	gz = gzdopen(fd, mode);
+	if (gz == NULL)
+		return (NULL);
+
+	if (*mode == 'r')
+		return (funopen(gz, xgzread, NULL, xgzseek, xgzclose));
+	else
+		return (funopen(gz, NULL, xgzwrite, xgzseek, xgzclose));
 }
