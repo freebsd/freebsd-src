@@ -103,6 +103,10 @@ FBSD_1.2 {
 	zopen;
 };
 
+FBSD_1.6 {
+	zdopen;
+};
+
 ZLIBprivate_1.0 {
 	_tr_align;
 	_tr_flush_block;
