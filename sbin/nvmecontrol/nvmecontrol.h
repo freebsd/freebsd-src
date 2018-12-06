@@ -43,11 +43,15 @@ struct nvme_function {
 	const char	*usage;
 };
 
-#define NVME_CMDSET(set, sym)	DATA_SET(set, sym)
+#define NVME_SETNAME(set)	set
+#define	NVME_CMDSET(set, sym)	DATA_SET(NVME_SETNAME(set), sym)
 #define NVME_COMMAND(set, nam, function, usage_str)			\
 	static struct nvme_function function ## _nvme_cmd =		\
 	{ .name = #nam, .fn = function, .usage = usage_str };		\
 	NVME_CMDSET(set, function ## _nvme_cmd)
+#define NVME_CMD_BEGIN(set)	SET_BEGIN(NVME_SETNAME(set))
+#define NVME_CMD_LIMIT(set)	SET_LIMIT(NVME_SETNAME(set))
+#define NVME_CMD_DECLARE(set, t) SET_DECLARE(NVME_SETNAME(set), t)
 
 typedef void (*print_fn_t)(const struct nvme_controller_data *cdata, void *buf, uint32_t size);
 
@@ -59,7 +63,8 @@ struct logpage_function {
 	size_t		size;
 };
 
-#define NVME_LOGPAGESET(sym)		DATA_SET(logpage, sym)
+
+#define NVME_LOGPAGESET(sym)		DATA_SET(NVME_SETNAME(logpage), sym)
 #define NVME_LOGPAGE(unique, lp, vend, nam, fn, sz)			\
 	static struct logpage_function unique ## _lpf = {		\
 		.log_page = lp,						\
@@ -69,6 +74,9 @@ struct logpage_function {
 		.size = sz,						\
 	} ;								\
 	NVME_LOGPAGESET(unique ## _lpf)
+#define NVME_LOGPAGE_BEGIN	SET_BEGIN(NVME_SETNAME(logpage))
+#define NVME_LOGPAGE_LIMIT	SET_LIMIT(NVME_SETNAME(logpage))
+#define NVME_LOGPAGE_DECLARE(t)		SET_DECLARE(NVME_SETNAME(logpage), t)
 
 #define DEFAULT_SIZE	(4096)
 struct kv_name {
@@ -77,6 +85,27 @@ struct kv_name {
 };
 
 const char *kv_lookup(const struct kv_name *kv, size_t kv_count, uint32_t key);
+
+NVME_CMD_DECLARE(top, struct nvme_function);
+NVME_LOGPAGE_DECLARE(struct logpage_function);
+
+struct set_concat {
+	void **begin;
+	void **limit;
+};
+void set_concat_add(struct set_concat *m, void *begin, void *end);
+#define SET_CONCAT_DEF(set, t) 							\
+static struct set_concat set ## _concat;					\
+static inline t **set ## _begin() { return ((t **)set ## _concat.begin); }	\
+static inline t **set ## _limit() { return ((t **)set ## _concat.limit); }	\
+void add_to_ ## set(t **b, t **e)						\
+{										\
+	set_concat_add(&set ## _concat, b, e);					\
+}
+#define SET_CONCAT_DECL(set, t)							\
+	void add_to_ ## set(t **b, t **e)
+SET_CONCAT_DECL(top, struct nvme_function);
+SET_CONCAT_DECL(logpage, struct logpage_function);
 
 #define NVME_CTRLR_PREFIX	"nvme"
 #define NVME_NS_PREFIX		"ns"
@@ -95,7 +124,7 @@ void dispatch_set(int argc, char *argv[], struct nvme_function **tbl,
     struct nvme_function **tbl_limit);
 
 #define DISPATCH(argc, argv, set)	\
-	dispatch_set(argc, argv, SET_BEGIN(set), SET_LIMIT(set))
+	dispatch_set(argc, argv, NVME_CMD_BEGIN(set), NVME_CMD_LIMIT(set))
 
 /* Utility Routines */
 /*
