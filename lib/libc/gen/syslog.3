@@ -28,7 +28,7 @@
 .\"     @(#)syslog.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 12, 2018
+.Dd November 25, 2018
 .Dt SYSLOG 3
 .Os
 .Sh NAME
@@ -42,17 +42,18 @@
 .Lb libc
 .Sh SYNOPSIS
 .In syslog.h
-.In stdarg.h
 .Ft void
 .Fn syslog "int priority" "const char *message" "..."
-.Ft void
-.Fn vsyslog "int priority" "const char *message" "va_list args"
 .Ft void
 .Fn openlog "const char *ident" "int logopt" "int facility"
 .Ft void
 .Fn closelog void
 .Ft int
 .Fn setlogmask "int maskpri"
+.In syslog.h
+.In stdarg.h
+.Ft void
+.Fn vsyslog "int priority" "const char *message" "va_list args"
 .Sh DESCRIPTION
 The
 .Fn syslog
