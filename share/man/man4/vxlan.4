@@ -108,7 +108,7 @@ forwarding table entry.
 When the
 .Nm
 interface is brought up, a
-.Xr UDP 4
+.Xr udp 4
 .Xr socket 9
 is created based on the configuration,
 such as the local address for unicast mode or
@@ -214,7 +214,6 @@ Once created, the
 .Nm
 interface can be configured with
 .Xr ifconfig 8 .
-.Ed
 .Pp
 The following when placed in the file
 .Pa /etc/rc.conf
@@ -224,6 +223,7 @@ to be created, and will configure the interface in unicast mode.
 .Bd -literal -offset indent
 cloned_interfaces="vxlan0"
 create_args_vxlan0="vxlanid 108 vxlanlocal 192.168.100.1 vxlanremote 192.168.100.2"
+.Ed
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr inet6 4 ,
@@ -238,7 +238,7 @@ create_args_vxlan0="vxlanid 108 vxlanlocal 192.168.100.1 vxlanremote 192.168.100
 .%D August 2014
 .%O "RFC 7348"
 .Re
-.Sh AUTHOR
+.Sh AUTHORS
 .An -nosplit
 The
 .Nm
