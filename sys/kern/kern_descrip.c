@@ -818,6 +818,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 
 	p = td->td_proc;
 	fdp = p->p_fd;
+	oioctls = NULL;
 
 	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
@@ -922,7 +923,6 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #ifdef CAPABILITIES
 	seq_write_end(&newfde->fde_seq);
 #endif
-	filecaps_free_finish(oioctls);
 	td->td_retval[0] = new;
 
 	error = 0;
@@ -935,6 +935,7 @@ unlock:
 		FILEDESC_XUNLOCK(fdp);
 	}
 
+	filecaps_free_finish(oioctls);
 	return (error);
 }
 
@@ -1511,7 +1512,7 @@ filecaps_copy_prep(const struct filecaps *src)
 	u_long *ioctls;
 	size_t size;
 
-	if (src->fc_ioctls == NULL)
+	if (__predict_true(src->fc_ioctls == NULL))
 		return (NULL);
 
 	KASSERT(src->fc_nioctls > 0,
@@ -1529,7 +1530,7 @@ filecaps_copy_finish(const struct filecaps *src, struct filecaps *dst,
 	size_t size;
 
 	*dst = *src;
-	if (src->fc_ioctls == NULL) {
+	if (__predict_true(src->fc_ioctls == NULL)) {
 		MPASS(ioctls == NULL);
 		return;
 	}
