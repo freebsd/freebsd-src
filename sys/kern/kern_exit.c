@@ -148,6 +148,27 @@ reaper_abandon_children(struct proc *p, bool exiting)
 }
 
 static void
+reaper_clear(struct proc *p)
+{
+	struct proc *p1;
+	bool clear;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	LIST_REMOVE(p, p_reapsibling);
+	if (p->p_reapsubtree == 1)
+		return;
+	clear = true;
+	LIST_FOREACH(p1, &p->p_reaper->p_reaplist, p_reapsibling) {
+		if (p1->p_reapsubtree == p->p_reapsubtree) {
+			clear = false;
+			break;
+		}
+	}
+	if (clear)
+		proc_id_clear(PROC_ID_REAP, p->p_reapsubtree);
+}
+
+static void
 clear_orphan(struct proc *p)
 {
 	struct proc *p1;
@@ -881,7 +902,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xunlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_sibling);
 	reaper_abandon_children(p, true);
-	LIST_REMOVE(p, p_reapsibling);
+	reaper_clear(p);
+	proc_id_clear(PROC_ID_PID, p->p_pid);
 	PROC_LOCK(p);
 	clear_orphan(p);
 	PROC_UNLOCK(p);
