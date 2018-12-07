@@ -726,6 +726,18 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
  * even if it's above the limit.
  */
 int
+racct_set_unlocked(struct proc *p, int resource, uint64_t amount)
+{
+	int error;
+
+	ASSERT_RACCT_ENABLED();
+	PROC_LOCK(p);
+	error = racct_set(p, resource, amount);
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+int
 racct_set(struct proc *p, int resource, uint64_t amount)
 {
 	int error;
