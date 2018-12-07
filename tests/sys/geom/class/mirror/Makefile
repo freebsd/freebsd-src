@@ -18,6 +18,7 @@ TAP_TESTS_SH+=	11_test
 TAP_TESTS_SH+=	12_test
 TAP_TESTS_SH+=	13_test
 
+ATF_TESTS_SH+=	component_selection
 ATF_TESTS_SH+=	sync_error
 
 ${PACKAGE}FILES+=		conf.sh
