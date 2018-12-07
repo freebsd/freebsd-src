@@ -523,7 +523,7 @@ int alloc_unr_specific(struct unrhdr *uh, u_int item);
 int alloc_unrl(struct unrhdr *uh);
 void free_unr(struct unrhdr *uh, u_int item);
 
-#if defined(__mips__) || defined(__powerpc__)
+#ifndef __LP64__
 #define UNR64_LOCKED
 #endif
 
