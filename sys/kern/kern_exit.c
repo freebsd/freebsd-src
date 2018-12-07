@@ -448,7 +448,6 @@ exit1(struct thread *td, int rval, int signo)
 
 	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
 
-	sx_xlock(&proctree_lock);
 	/*
 	 * Move proc from allproc queue to zombproc.
 	 */
@@ -458,6 +457,8 @@ exit1(struct thread *td, int rval, int signo)
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
 	sx_xunlock(&zombproc_lock);
 	sx_xunlock(&allproc_lock);
+
+	sx_xlock(&proctree_lock);
 
 	/*
 	 * Reparent all children processes:
