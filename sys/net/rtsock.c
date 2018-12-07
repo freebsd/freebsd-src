@@ -1559,6 +1559,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
 
+	IFNET_RLOCK_NOSLEEP_ASSERT();
+
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
 	if ((rt->rt_flags & RTF_HOST) == 0
@@ -1571,7 +1573,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt),
 	    rt_mask(rt), &ss);
 	info.rti_info[RTAX_GENMASK] = 0;
-	if (rt->rt_ifp) {
+	if (rt->rt_ifp && !(rt->rt_ifp->if_flags & IFF_DYING)) {
 		info.rti_info[RTAX_IFP] = rt->rt_ifp->if_addr->ifa_addr;
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
@@ -1934,8 +1936,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 			rnh = rt_tables_get_rnh(fib, i);
 			if (rnh != NULL) {
 				RIB_RLOCK(rnh); 
+				IFNET_RLOCK_NOSLEEP();
 			    	error = rnh->rnh_walktree(&rnh->head,
 				    sysctl_dumpentry, &w);
+				IFNET_RUNLOCK_NOSLEEP();
 				RIB_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
