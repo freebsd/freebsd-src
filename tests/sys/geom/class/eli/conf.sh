@@ -4,7 +4,6 @@
 class="eli"
 base=$(atf_get ident)
 MAX_SECSIZE=8192
-TEST_MDS_FILE=md.devs
 
 attach_md()
 {
