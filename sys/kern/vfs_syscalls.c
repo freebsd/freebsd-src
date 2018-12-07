@@ -2539,20 +2539,19 @@ kern_readlink_vp(struct vnode *vp, char *buf, enum uio_seg bufseg, size_t count,
 		return (error);
 #endif
 	if (vp->v_type != VLNK && (vp->v_vflag & VV_READLINK) == 0)
-		error = EINVAL;
-	else {
-		aiov.iov_base = buf;
-		aiov.iov_len = count;
-		auio.uio_iov = &aiov;
-		auio.uio_iovcnt = 1;
-		auio.uio_offset = 0;
-		auio.uio_rw = UIO_READ;
-		auio.uio_segflg = bufseg;
-		auio.uio_td = td;
-		auio.uio_resid = count;
-		error = VOP_READLINK(vp, &auio, td->td_ucred);
-		td->td_retval[0] = count - auio.uio_resid;
-	}
+		return (EINVAL);
+
+	aiov.iov_base = buf;
+	aiov.iov_len = count;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = 0;
+	auio.uio_rw = UIO_READ;
+	auio.uio_segflg = bufseg;
+	auio.uio_td = td;
+	auio.uio_resid = count;
+	error = VOP_READLINK(vp, &auio, td->td_ucred);
+	td->td_retval[0] = count - auio.uio_resid;
 	return (error);
 }
 
