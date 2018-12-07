@@ -681,6 +681,7 @@ struct proc {
 	 */
 	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
 	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
+	uint32_t	p_fctl0;	/* (x) ABI feature control, ELF note */
 };
 
 #define	p_session	p_pgrp->pg_session
