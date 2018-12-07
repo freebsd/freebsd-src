@@ -129,7 +129,7 @@ aibs_probe(device_t dev)
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, aibs_hids, NULL);
 	if (rv <= 0 )
 		device_set_desc(dev, "ASUSTeK AI Booster (ACPI ASOC ATK0110)");
-	return (0);
+	return (rv);
 }
 
 static int
