@@ -1,8 +1,7 @@
 #!/bin/sh
 # $FreeBSD$
 
-# NOTE: existence is sanity-checked in `geom_verify_temp_mds_file_existence(..)`
-TEST_MDS_FILE="$(mktemp test_mds.${0##*/}.XXXXXXXX)"
+TEST_MDS_FILE="${TMPDIR}/test_mds.$(basename $0)"
 
 devwait()
 {
@@ -47,14 +46,6 @@ geom_test_cleanup()
 	fi
 }
 
-geom_verify_temp_mds_file_existence()
-{
-	if [ ! -f $TEST_MDS_FILE ]; then
-		echo "test md(4) devices file creation unsuccessful"
-		return 1
-	fi
-}
-
 geom_load_class_if_needed()
 {
 	local class=$1
@@ -71,9 +62,6 @@ geom_load_class_if_needed()
 
 geom_atf_test_setup()
 {
-	if ! error_message=$(geom_verify_temp_mds_file_existence); then
-		atf_skip "$error_message"
-	fi
 	if ! error_message=$(geom_load_class_if_needed $class); then
 		atf_skip "$error_message"
 	fi
@@ -81,10 +69,6 @@ geom_atf_test_setup()
 
 geom_tap_test_setup()
 {
-	if ! error_message=$(geom_verify_temp_mds_file_existence); then
-		echo "1..0 # SKIP $error_message"
-		exit 1
-	fi
 	if ! error_message=$(geom_load_class_if_needed $class); then
 		echo "1..0 # SKIP $error_message"
 		exit 0
