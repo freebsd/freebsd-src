@@ -404,4 +404,8 @@ MIASM =  \
 	kevent.o \
 	cpuset_getdomain.o \
 	cpuset_setdomain.o \
-	getrandom.o
+	getrandom.o \
+	getfhat.o \
+	fhlink.o \
+	fhlinkat.o \
+	fhreadlink.o
