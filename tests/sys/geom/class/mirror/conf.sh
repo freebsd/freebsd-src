@@ -19,35 +19,4 @@ syncwait()
 	done
 }
 
-consumerrefs()
-{
-	gclass=$1
-	geom=$2
-
-	if [ $# -ne 2 ]; then
-		echo "Bad usage consumerrefs" >&2
-		exit 1
-	fi
-
-	geom "${gclass}" list "${geom}" | \
-	    grep -A5 ^Consumers | \
-	    grep Mode | \
-	    cut -d: -f2
-}
-
-disconnectwait()
-{
-	gclass=$1
-	geom=$2
-
-	if [ $# -ne 2 ]; then
-		echo "Bad usage disconnectwait" >&2
-		exit 1
-	fi
-
-	while [ $(consumerrefs "$gclass" "$geom") != r0w0e0 ]; do
-		sleep 0.05
-	done
-}
-
 . `dirname $0`/../geom_subr.sh
