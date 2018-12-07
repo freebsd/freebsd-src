@@ -198,4 +198,4 @@ syslog_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (0);
 }
 
-CREATE_SERVICE("system.syslog", NULL, syslog_command, 0);
+CREATE_SERVICE("system.syslog", NULL, syslog_command, CASPER_SERVICE_STDIO);
