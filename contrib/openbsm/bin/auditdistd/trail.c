@@ -264,6 +264,12 @@ again:
 	 * 2. It is fully sent, but is not terminated, so new data can be
 	 *    appended still, or
 	 * 3. It is fully sent but file name has changed.
+	 *    There are two cases here:
+	 *    3a. Sender has crashed and the name has changed from
+	 *        .not_terminated to .crash_recovery.
+	 *    3b. Sender was disconnected, no new data was added to the file,
+	 *        but its name has changed from .not_terminated to terminated
+	 *        name.
 	 *
 	 * Note that we are fine if our .not_terminated or .crash_recovery file
 	 * is smaller than the one on the receiver side, as it is possible that
@@ -275,7 +281,7 @@ again:
 	    (offset >= sb.st_size &&
 	     trail_is_not_terminated(trail->tr_filename)) ||
 	    (offset >= sb.st_size && trail_is_not_terminated(filename) &&
-	     trail_is_crash_recovery(trail->tr_filename))) {
+	     !trail_is_not_terminated(trail->tr_filename))) {
 		/* File was not fully send. Let's finish it. */
 		if (lseek(fd, offset, SEEK_SET) == -1) {
 			pjdlog_errno(LOG_ERR,
