@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2016
+.Dd December 4, 2018
 .Dt EXT2FS 5
 .Os
 .Sh NAME
@@ -52,9 +52,10 @@ kernel to access
 and
 .Tn ext4
 file systems.
-The
+Support for Extended Attributes in
 .Tn ext4
-support is read-only.
+is experimental.
+Journalling and encryption are currently not supported.
 .Sh EXAMPLES
 To mount a
 .Nm
