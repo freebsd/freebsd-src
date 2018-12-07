@@ -2290,7 +2290,7 @@ acpi_MatchHid(ACPI_HANDLE h, const char *hid)
 	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
 	return (ACPI_MATCHHID_NOMATCH);
 
-    ret = FALSE;
+    ret = ACPI_MATCHHID_NOMATCH;
     if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
 	strcmp(hid, devinfo->HardwareId.String) == 0)
 	    ret = ACPI_MATCHHID_HID;
