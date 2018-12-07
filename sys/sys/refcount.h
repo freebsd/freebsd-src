@@ -79,8 +79,6 @@ refcount_release(volatile u_int *count)
 /*
  * This functions returns non-zero if the refcount was
  * incremented. Else zero is returned.
- *
- * A temporary hack until refcount_* APIs are sorted out.
  */
 static __inline __result_use_check int
 refcount_acquire_if_not_zero(volatile u_int *count)
