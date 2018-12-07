@@ -19,6 +19,8 @@
             ..
             geom
             ..
+            nvmecontrol
+            ..
         ..
         libexec
         ..
