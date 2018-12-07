@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181211:
+	12.0-RELEASE.
+
 20181115:
 	The set of CTM commands (ctm, ctm_smail, ctm_rmail, ctm_dequeue)
 	has been converted to a port (misc/ctm) and will be removed from
