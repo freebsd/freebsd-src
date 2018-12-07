@@ -1770,6 +1770,26 @@ struct getrandom_args {
 	char buflen_l_[PADL_(size_t)]; size_t buflen; char buflen_r_[PADR_(size_t)];
 	char flags_l_[PADL_(unsigned int)]; unsigned int flags; char flags_r_[PADR_(unsigned int)];
 };
+struct getfhat_args {
+	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
+	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct fhlink_args {
+	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
+	char to_l_[PADL_(const char *)]; const char * to; char to_r_[PADR_(const char *)];
+};
+struct fhlinkat_args {
+	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
+	char tofd_l_[PADL_(int)]; int tofd; char tofd_r_[PADR_(int)];
+	char to_l_[PADL_(const char *)]; const char * to; char to_r_[PADR_(const char *)];
+};
+struct fhreadlink_args {
+	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
+	char buf_l_[PADL_(char *)]; char * buf; char buf_r_[PADR_(char *)];
+	char bufsize_l_[PADL_(size_t)]; size_t bufsize; char bufsize_r_[PADR_(size_t)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_sys_exit(struct thread *, struct sys_exit_args *);
 int	sys_fork(struct thread *, struct fork_args *);
@@ -2150,6 +2170,10 @@ int	sys_kevent(struct thread *, struct kevent_args *);
 int	sys_cpuset_getdomain(struct thread *, struct cpuset_getdomain_args *);
 int	sys_cpuset_setdomain(struct thread *, struct cpuset_setdomain_args *);
 int	sys_getrandom(struct thread *, struct getrandom_args *);
+int	sys_getfhat(struct thread *, struct getfhat_args *);
+int	sys_fhlink(struct thread *, struct fhlink_args *);
+int	sys_fhlinkat(struct thread *, struct fhlinkat_args *);
+int	sys_fhreadlink(struct thread *, struct fhreadlink_args *);
 
 #ifdef COMPAT_43
 
@@ -3052,6 +3076,10 @@ int	freebsd11_mknodat(struct thread *, struct freebsd11_mknodat_args *);
 #define	SYS_AUE_cpuset_getdomain	AUE_NULL
 #define	SYS_AUE_cpuset_setdomain	AUE_NULL
 #define	SYS_AUE_getrandom	AUE_NULL
+#define	SYS_AUE_getfhat	AUE_NULL
+#define	SYS_AUE_fhlink	AUE_NULL
+#define	SYS_AUE_fhlinkat	AUE_NULL
+#define	SYS_AUE_fhreadlink	AUE_NULL
 
 #undef PAD_
 #undef PADL_

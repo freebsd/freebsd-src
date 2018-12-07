@@ -600,4 +600,8 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_cpuset_getdomain",			/* 561 = freebsd32_cpuset_getdomain */
 	"freebsd32_cpuset_setdomain",			/* 562 = freebsd32_cpuset_setdomain */
 	"getrandom",			/* 563 = getrandom */
+	"getfhat",			/* 564 = getfhat */
+	"fhlink",			/* 565 = fhlink */
+	"fhlinkat",			/* 566 = fhlinkat */
+	"fhreadlink",			/* 567 = fhreadlink */
 };
