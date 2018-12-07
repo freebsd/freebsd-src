@@ -1031,6 +1031,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	TAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
 			TAILQ_REMOVE(&V_ifnet, ifp, if_link);
+			if (!vmove)
+				ifp->if_flags |= IFF_DYING;
 			found = 1;
 			break;
 		}
