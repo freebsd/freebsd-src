@@ -164,12 +164,14 @@ extern struct mtx racct_lock;
 #define RACCT_UNLOCK()		mtx_unlock(&racct_lock)
 #define RACCT_LOCK_ASSERT()	mtx_assert(&racct_lock, MA_OWNED)
 
+#define RACCT_ENABLED()		__predict_false(racct_enable)
+
 #define	RACCT_PROC_LOCK(p)	do {		\
-	if (__predict_false(racct_enable))	\
+	if (RACCT_ENABLED())			\
 		PROC_LOCK(p);			\
 } while (0)
 #define	RACCT_PROC_UNLOCK(p)	do {		\
-	if (__predict_false(racct_enable))	\
+	if (RACCT_ENABLED())			\
 		PROC_UNLOCK(p);			\
 } while (0)
 
@@ -178,6 +180,7 @@ void	racct_add_cred(struct ucred *cred, int resource, uint64_t amount);
 void	racct_add_force(struct proc *p, int resource, uint64_t amount);
 void	racct_add_buf(struct proc *p, const struct buf *bufp, int is_write);
 int	racct_set(struct proc *p, int resource, uint64_t amount);
+int	racct_set_unlocked(struct proc *p, int resource, uint64_t amount);
 void	racct_set_force(struct proc *p, int resource, uint64_t amount);
 void	racct_sub(struct proc *p, int resource, uint64_t amount);
 void	racct_sub_cred(struct ucred *cred, int resource, uint64_t amount);
