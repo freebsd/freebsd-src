@@ -3139,6 +3139,34 @@
 		    unsigned int flags
 		);
 	}
+564	AUE_NULL	STD {
+		int getfhat(
+		    int fd,
+		    _In_z_ char *path,
+		    _Out_ struct fhandle *fhp,
+		    int flags
+		);
+	}
+565	AUE_NULL	STD {
+		int fhlink(
+		    _In_ struct fhandle *fhp,
+		    _In_z_ const char *to
+		);
+	}
+566	AUE_NULL	STD {
+		int fhlinkat(
+		    _In_ struct fhandle *fhp,
+		    int tofd,
+		    _In_z_ const char *to,
+		);
+	}
+567	AUE_NULL	STD {
+		int fhreadlink(
+		    _In_ struct fhandle *fhp,
+		    _Out_writes_(bufsize) char *buf,
+		    size_t bufsize
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

@@ -1138,5 +1138,12 @@
 				    int policy); }
 563	AUE_NULL	NOPROTO	{ int getrandom(void *buf, size_t buflen, \
 				    unsigned int flags); }
+564	AUE_NULL	NOPROTO { int getfhat( int fd, char *path, \
+				    struct fhandle *fhp, int flags); }
+565	AUE_NULL	NOPROTO { int fhlink( struct fhandle *fhp, const char *to ); }
+566	AUE_NULL	NOPROTO { int fhlinkat( struct fhandle *fhp, int tofd, \
+				    const char *to); }
+567	AUE_NULL	NOPROTO { int fhreadlink( struct fhandle *fhp, char *buf, \
+				    size_t bufsize); }
 
 ; vim: syntax=off
