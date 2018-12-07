@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2016
+.Dd December 7, 2018
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -70,6 +70,8 @@ Per-CPU IO queue pairs
 .It
 API for registering NVMe namespace consumers such as
 .Xr nvd 4
+or
+.Xr nda 4
 .It
 API for submitting NVM commands to namespaces
 .It
@@ -163,6 +165,7 @@ with a completion entry that was posted by the controller.
 and completion queues to the console.
 .El
 .Sh SEE ALSO
+.Xr nda 4 ,
 .Xr nvd 4 ,
 .Xr pci 4 ,
 .Xr nvmecontrol 8 ,
