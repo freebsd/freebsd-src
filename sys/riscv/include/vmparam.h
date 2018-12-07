@@ -115,22 +115,23 @@
 /**
  * Address space layout.
  *
- * RISC-V implements up to a 48 bit virtual address space. The address space is
- * split into 2 regions at each end of the 64 bit address space, with an
- * out of range "hole" in the middle.
+ * RISC-V implements multiple paging modes with different virtual address space
+ * sizes: SV32, SV39 and SV48.  SV39 permits a virtual address space size of
+ * 512GB and uses a three-level page table.  Since this is large enough for most
+ * purposes, we currently use SV39 for both userland and the kernel, avoiding
+ * the extra translation step required by SV48.
  *
- * We limit the size of the two spaces to 39 bits each.
+ * The address space is split into two regions at each end of the 64-bit address
+ * space:
  *
- * Upper region:	0xffffffffffffffff
- *			0xffffff8000000000
+ * 0x0000000000000000 - 0x0000003fffffffff    256GB user map
+ * 0x0000004000000000 - 0xffffffbfffffffff    unmappable
+ * 0xffffffc000000000 - 0xffffffc7ffffffff    32GB kernel map
+ * 0xffffffc800000000 - 0xffffffcfffffffff    32GB unused
+ * 0xffffffd000000000 - 0xffffffefffffffff    128GB direct map
+ * 0xfffffff000000000 - 0xffffffffffffffff    64GB unused
  *
- * Hole:		0xffffff7fffffffff
- *			0x0000008000000000
- *
- * Lower region:	0x0000007fffffffff
- *			0x0000000000000000
- *
- * We use the upper region for the kernel, and the lower region for userland.
+ * The kernel is loaded at the beginning of the kernel map.
  *
  * We define some interesting address constants:
  *
@@ -146,11 +147,9 @@
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 
-/* 32 GiB of kernel addresses */
 #define	VM_MIN_KERNEL_ADDRESS	(0xffffffc000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(0xffffffc800000000UL)
 
-/* 128 GiB maximum for the direct map region */
 #define	DMAP_MIN_ADDRESS	(0xffffffd000000000UL)
 #define	DMAP_MAX_ADDRESS	(0xfffffff000000000UL)
 
