@@ -152,7 +152,7 @@ _start:
 	li	t0, SATP_MODE_SV39
 	or	s2, s2, t0
 	sfence.vma
-	csrw	sptbr, s2
+	csrw	satp, s2
 
 	.align 2
 va:
@@ -297,7 +297,7 @@ ENTRY(mpentry)
 	li	t0, SATP_MODE_SV39
 	or	s2, s2, t0
 	sfence.vma
-	csrw	sptbr, s2
+	csrw	satp, s2
 
 	.align 2
 mpva:
