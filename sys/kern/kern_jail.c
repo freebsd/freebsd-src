@@ -4023,13 +4023,11 @@ prison_racct_free_locked(struct prison_racct *prr)
 void
 prison_racct_free(struct prison_racct *prr)
 {
-	int old;
 
 	ASSERT_RACCT_ENABLED();
 	sx_assert(&allprison_lock, SA_UNLOCKED);
 
-	old = prr->prr_refcount;
-	if (old > 1 && atomic_cmpset_int(&prr->prr_refcount, old, old - 1))
+	if (refcount_release_if_not_last(&prr->prr_refcount))
 		return;
 
 	sx_xlock(&allprison_lock);
