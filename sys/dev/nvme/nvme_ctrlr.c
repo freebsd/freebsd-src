@@ -1075,6 +1075,8 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	/* Assume userspace already converted to little-endian */
 	req->cmd.opc = pt->cmd.opc;
 	req->cmd.fuse = pt->cmd.fuse;
+	req->cmd.rsvd2 = pt->cmd.rsvd2;
+	req->cmd.rsvd3 = pt->cmd.rsvd3;
 	req->cmd.cdw10 = pt->cmd.cdw10;
 	req->cmd.cdw11 = pt->cmd.cdw11;
 	req->cmd.cdw12 = pt->cmd.cdw12;
