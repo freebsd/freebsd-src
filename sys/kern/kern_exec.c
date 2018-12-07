@@ -488,6 +488,7 @@ interpret:
 		goto exec_fail_dealloc;
 
 	imgp->proc->p_osrel = 0;
+	imgp->proc->p_fctl0 = 0;
 
 	/*
 	 * Implement image setuid/setgid.

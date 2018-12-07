@@ -415,6 +415,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
+	p2->p_fctl0 = p1->p_fctl0;
 	pargs_hold(p2->p_args);
 
 	PROC_UNLOCK(p1);
