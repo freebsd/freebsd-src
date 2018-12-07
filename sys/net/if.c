@@ -597,8 +597,6 @@ if_free_internal(struct ifnet *ifp)
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
 #endif /* MAC */
-	if (ifp->if_description != NULL)
-		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
 	ifq_delete(&ifp->if_snd);
@@ -606,6 +604,8 @@ if_free_internal(struct ifnet *ifp)
 	for (int i = 0; i < IFCOUNTERS; i++)
 		counter_u64_free(ifp->if_counters[i]);
 
+	free(ifp->if_description, M_IFDESCR);
+	free(ifp->if_hw_addr, M_IFADDR);
 	free(ifp, M_IFNET);
 }
 
@@ -1068,6 +1068,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
 		if (iter == ifp) {
 			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
+			if (!vmove)
+				ifp->if_flags |= IFF_DYING;
 			found = 1;
 			break;
 		}
@@ -1182,14 +1184,8 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 		if_dead(ifp);
 
 		/*
-		 * Remove link ifaddr pointer and maybe decrement if_index.
 		 * Clean up all addresses.
 		 */
-		free(ifp->if_hw_addr, M_IFADDR);
-		ifp->if_hw_addr = NULL;
-		ifp->if_addr = NULL;
-
-		/* We can now free link ifaddr. */
 		IF_ADDR_WLOCK(ifp);
 		if (!CK_STAILQ_EMPTY(&ifp->if_addrhead)) {
 			ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
