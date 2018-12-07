@@ -1323,14 +1323,10 @@ uihold(struct uidinfo *uip)
 void
 uifree(struct uidinfo *uip)
 {
-	int old;
 
-	/* Prepare for optimal case. */
-	old = uip->ui_ref;
-	if (old > 1 && atomic_cmpset_int(&uip->ui_ref, old, old - 1))
+	if (refcount_release_if_not_last(&uip->ui_ref))
 		return;
 
-	/* Prepare for suboptimal case. */
 	rw_wlock(&uihashtbl_lock);
 	if (refcount_release(&uip->ui_ref) == 0) {
 		rw_wunlock(&uihashtbl_lock);
