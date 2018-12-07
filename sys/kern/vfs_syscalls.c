@@ -105,6 +105,14 @@ static int setutimes(struct thread *td, struct vnode *,
     const struct timespec *, int, int);
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
+static int kern_fhlinkat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, fhandle_t *fhp);
+static int kern_getfhat(struct thread *td, int flags, int fd,
+    const char *path, enum uio_seg pathseg, fhandle_t *fhp);
+static int kern_readlink_vp(struct vnode *vp, char *buf, enum uio_seg bufseg,
+    size_t count, struct thread *td);
+static int kern_linkat_vp(struct thread *td, struct vnode *vp, int fd,
+    const char *path, enum uio_seg segflag);
 
 /*
  * Sync each mounted filesystem.
@@ -1492,28 +1500,38 @@ can_hardlink(struct vnode *vp, struct ucred *cred)
 
 int
 kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
-    const char *path2, enum uio_seg segflg, int follow)
+    const char *path2, enum uio_seg segflag, int follow)
 {
 	struct vnode *vp;
-	struct mount *mp;
 	struct nameidata nd;
 	int error;
 
-again:
-	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, segflg, path1, fd1,
-	    &cap_linkat_source_rights, td);
+	do {
+		bwillwrite();
+		NDINIT_ATRIGHTS(&nd, LOOKUP, follow | AUDITVNODE1, segflag, path1, fd1,
+		    &cap_linkat_source_rights, td);
+		if ((error = namei(&nd)) != 0)
+			return (error);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		vp = nd.ni_vp;
+	} while ((error = kern_linkat_vp(td, vp, fd2, path2, segflag) == EAGAIN));
+	return (error);
+}
 
-	if ((error = namei(&nd)) != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vp = nd.ni_vp;
+static int
+kern_linkat_vp(struct thread *td, struct vnode *vp, int fd, const char *path,
+    enum uio_seg segflag)
+{
+	struct nameidata nd;
+	struct mount *mp;
+	int error;
+
 	if (vp->v_type == VDIR) {
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
 	NDINIT_ATRIGHTS(&nd, CREATE,
-	    LOCKPARENT | SAVENAME | AUDITVNODE2 | NOCACHE, segflg, path2, fd2,
+	    LOCKPARENT | SAVENAME | AUDITVNODE2 | NOCACHE, segflag, path, fd,
 	    &cap_linkat_target_rights, td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
@@ -1557,7 +1575,7 @@ again:
 				    V_XSLEEP | PCATCH);
 				if (error != 0)
 					return (error);
-				goto again;
+				return (EAGAIN);
 			}
 			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			VOP_UNLOCK(vp, 0);
@@ -1568,7 +1586,7 @@ again:
 			vput(nd.ni_dvp);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			vrele(vp);
-			goto again;
+			return (EAGAIN);
 		}
 	}
 	vrele(vp);
@@ -2484,8 +2502,6 @@ kern_readlinkat(struct thread *td, int fd, const char *path,
     enum uio_seg pathseg, char *buf, enum uio_seg bufseg, size_t count)
 {
 	struct vnode *vp;
-	struct iovec aiov;
-	struct uio auio;
 	struct nameidata nd;
 	int error;
 
@@ -2499,12 +2515,29 @@ kern_readlinkat(struct thread *td, int fd, const char *path,
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
+
+	error = kern_readlink_vp(vp, buf, bufseg, count, td);
+	vput(vp);
+
+	return (error);
+}
+
+/*
+ * Helper function to readlink from a vnode
+ */
+static int
+kern_readlink_vp(struct vnode *vp, char *buf, enum uio_seg bufseg, size_t count,
+    struct thread *td)
+{
+	struct iovec aiov;
+	struct uio auio;
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, "kern_readlink_vp(): vp not locked");
 #ifdef MAC
 	error = mac_vnode_check_readlink(td->td_ucred, vp);
-	if (error != 0) {
-		vput(vp);
+	if (error != 0)
 		return (error);
-	}
 #endif
 	if (vp->v_type != VLNK && (vp->v_vflag & VV_READLINK) == 0)
 		error = EINVAL;
@@ -2521,7 +2554,6 @@ kern_readlinkat(struct thread *td, int fd, const char *path,
 		error = VOP_READLINK(vp, &auio, td->td_ucred);
 		td->td_retval[0] = count - auio.uio_resid;
 	}
-	vput(vp);
 	return (error);
 }
 
@@ -4119,45 +4151,60 @@ getvnode(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct lgetfh_args {
-	char	*fname;
+	char *fname;
 	fhandle_t *fhp;
 };
 #endif
 int
 sys_lgetfh(struct thread *td, struct lgetfh_args *uap)
 {
-	struct nameidata nd;
-	fhandle_t fh;
-	struct vnode *vp;
-	int error;
 
-	error = priv_check(td, PRIV_VFS_GETFH);
-	if (error != 0)
-		return (error);
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
-	    uap->fname, td);
-	error = namei(&nd);
-	if (error != 0)
-		return (error);
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vp = nd.ni_vp;
-	bzero(&fh, sizeof(fh));
-	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-	error = VOP_VPTOFH(vp, &fh.fh_fid);
-	vput(vp);
-	if (error == 0)
-		error = copyout(&fh, uap->fhp, sizeof (fh));
-	return (error);
+	return (kern_getfhat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->fname,
+	    UIO_USERSPACE, uap->fhp));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct getfh_args {
-	char	*fname;
+	char *fname;
 	fhandle_t *fhp;
 };
 #endif
 int
 sys_getfh(struct thread *td, struct getfh_args *uap)
+{
+
+	return (kern_getfhat(td, 0, AT_FDCWD, uap->fname, UIO_USERSPACE,
+	    uap->fhp));
+}
+
+/*
+ * syscall for the rpc.lockd to use to translate an open descriptor into
+ * a NFS file handle.
+ *
+ * warning: do not remove the priv_check() call or this becomes one giant
+ * security hole.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct getfhat_args {
+	int fd;
+	char *path;
+	fhandle_t *fhp;
+	int flags;
+};
+#endif
+int
+sys_getfhat(struct thread *td, struct getfhat_args *uap)
+{
+
+	if ((uap->flags & ~(AT_SYMLINK_NOFOLLOW | AT_BENEATH)) != 0)
+	    return (EINVAL);
+	return (kern_getfhat(td, uap->flags, uap->fd, uap->path ? uap->path : ".",
+	    UIO_USERSPACE, uap->fhp));
+}
+
+static int
+kern_getfhat(struct thread *td, int flags, int fd, const char *path,
+    enum uio_seg pathseg, fhandle_t *fhp)
 {
 	struct nameidata nd;
 	fhandle_t fh;
@@ -4167,8 +4214,9 @@ sys_getfh(struct thread *td, struct getfh_args *uap)
 	error = priv_check(td, PRIV_VFS_GETFH);
 	if (error != 0)
 		return (error);
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | AUDITVNODE1, UIO_USERSPACE,
-	    uap->fname, td);
+	NDINIT_AT(&nd, LOOKUP, ((flags & AT_SYMLINK_NOFOLLOW) != 0 ? NOFOLLOW :
+	    FOLLOW) | ((flags & AT_BENEATH) != 0 ? BENEATH : 0) | LOCKLEAF |
+	    AUDITVNODE1, pathseg, path, fd, td);
 	error = namei(&nd);
 	if (error != 0)
 		return (error);
@@ -4179,7 +4227,96 @@ sys_getfh(struct thread *td, struct getfh_args *uap)
 	error = VOP_VPTOFH(vp, &fh.fh_fid);
 	vput(vp);
 	if (error == 0)
-		error = copyout(&fh, uap->fhp, sizeof (fh));
+		error = copyout(&fh, fhp, sizeof (fh));
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct fhlink_args {
+	fhandle_t *fhp;
+	const char *to;
+};
+#endif
+int
+sys_fhlink(struct thread *td, struct fhlink_args *uap)
+{
+
+	return (kern_fhlinkat(td, AT_FDCWD, uap->to, UIO_USERSPACE, uap->fhp));
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct fhlinkat_args {
+	fhandle_t *fhp;
+	int tofd;
+	const char *to;
+};
+#endif
+int
+sys_fhlinkat(struct thread *td, struct fhlinkat_args *uap)
+{
+
+	return (kern_fhlinkat(td, uap->tofd, uap->to, UIO_USERSPACE, uap->fhp));
+}
+
+static int
+kern_fhlinkat(struct thread *td, int fd, const char *path,
+    enum uio_seg pathseg, fhandle_t *fhp)
+{
+	fhandle_t fh;
+	struct mount *mp;
+	struct vnode *vp;
+	int error;
+
+	error = priv_check(td, PRIV_VFS_GETFH);
+	if (error != 0)
+		return (error);
+	error = copyin(fhp, &fh, sizeof(fh));
+	if (error != 0)
+		return (error);
+	do {
+		bwillwrite();
+		if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
+			return (ESTALE);
+		error = VFS_FHTOVP(mp, &fh.fh_fid, LK_SHARED, &vp);
+		vfs_unbusy(mp);
+		if (error != 0)
+			return (error);
+		VOP_UNLOCK(vp, 0);
+	} while ((error = kern_linkat_vp(td, vp, fd, path, pathseg)) == EAGAIN);
+	return (error);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct fhreadlink_args {
+	fhandle_t *fhp;
+	char *buf;
+	size_t bufsize;
+};
+#endif
+int
+sys_fhreadlink(struct thread *td, struct fhreadlink_args *uap)
+{
+	fhandle_t fh;
+	struct mount *mp;
+	struct vnode *vp;
+	int error;
+
+	error = priv_check(td, PRIV_VFS_GETFH);
+	if (error != 0)
+		return (error);
+	if (uap->bufsize > IOSIZE_MAX)
+		return (EINVAL);
+	error = copyin(uap->fhp, &fh, sizeof(fh));
+	if (error != 0)
+		return (error);
+	if ((mp = vfs_busyfs(&fh.fh_fsid)) == NULL)
+		return (ESTALE);
+	error = VFS_FHTOVP(mp, &fh.fh_fid, LK_SHARED, &vp);
+	vfs_unbusy(mp);
+	if (error != 0)
+		return (error);
+	error = kern_readlink_vp(vp, uap->buf, UIO_USERSPACE, uap->bufsize, td);
+	vput(vp);
 	return (error);
 }
 

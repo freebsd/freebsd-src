@@ -932,11 +932,15 @@ void	syncer_resume(void);
 struct stat;
 
 __BEGIN_DECLS
+int	fhlink(struct fhandle *, const char *);
+int	fhlinkat(struct fhandle *, int, const char *);
 int	fhopen(const struct fhandle *, int);
+int	fhreadlink(struct fhandle *, char *, size_t);
 int	fhstat(const struct fhandle *, struct stat *);
 int	fhstatfs(const struct fhandle *, struct statfs *);
 int	fstatfs(int, struct statfs *);
 int	getfh(const char *, fhandle_t *);
+int	getfhat(int, char *, struct fhandle *, int);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
 int	lgetfh(const char *, fhandle_t *);
