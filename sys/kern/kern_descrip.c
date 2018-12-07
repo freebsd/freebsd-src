@@ -878,10 +878,8 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 			 * the limit on the size of the file descriptor table.
 			 */
 #ifdef RACCT
-			if (racct_enable) {
-				PROC_LOCK(p);
-				error = racct_set(p, RACCT_NOFILE, new + 1);
-				PROC_UNLOCK(p);
+			if (RACCT_ENABLED()) {
+				error = racct_set_unlocked(p, RACCT_NOFILE, new + 1);
 				if (error != 0) {
 					error = EMFILE;
 					goto unlock;
@@ -1751,10 +1749,8 @@ fdalloc(struct thread *td, int minfd, int *result)
 	if (fd >= fdp->fd_nfiles) {
 		allocfd = min(fd * 2, maxfd);
 #ifdef RACCT
-		if (racct_enable) {
-			PROC_LOCK(p);
-			error = racct_set(p, RACCT_NOFILE, allocfd);
-			PROC_UNLOCK(p);
+		if (RACCT_ENABLED()) {
+			error = racct_set_unlocked(p, RACCT_NOFILE, allocfd);
 			if (error != 0)
 				return (EMFILE);
 		}
@@ -2266,11 +2262,8 @@ fdescfree(struct thread *td)
 	MPASS(fdp != NULL);
 
 #ifdef RACCT
-	if (racct_enable) {
-		PROC_LOCK(p);
-		racct_set(p, RACCT_NOFILE, 0);
-		PROC_UNLOCK(p);
-	}
+	if (RACCT_ENABLED())
+		racct_set_unlocked(p, RACCT_NOFILE, 0);
 #endif
 
 	if (p->p_fdtol != NULL)
