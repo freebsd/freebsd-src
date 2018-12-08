@@ -246,7 +246,8 @@ main(int argc, char *const *argv)
 #endif
 	struct sockaddr_in *to;
 	double t;
-	u_long alarmtimeout, ultmp;
+	u_long alarmtimeout;
+	long ltmp;
 	int almost_done, ch, df, hold, i, icmp_len, mib[4], preload;
 	int ssend_errno, srecv_errno, tos, ttl;
 	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
@@ -315,12 +316,12 @@ main(int argc, char *const *argv)
 			options |= F_AUDIBLE;
 			break;
 		case 'c':
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > LONG_MAX || !ultmp)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > LONG_MAX || ltmp <=0)
 				errx(EX_USAGE,
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
-			npackets = ultmp;
+			npackets = ltmp;
 			break;
 		case 'D':
 			options |= F_HDRINCL;
@@ -338,46 +339,46 @@ main(int argc, char *const *argv)
 			setbuf(stdout, (char *)NULL);
 			break;
 		case 'G': /* Maximum packet size for ping sweep */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp <= 0)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ultmp > DEFDATALEN) {
+			if (uid != 0 && ltmp > DEFDATALEN) {
 				errno = EPERM;
 				err(EX_NOPERM,
-				    "packet size too large: %lu > %u",
-				    ultmp, DEFDATALEN);
+				    "packet size too large: %ld > %u",
+				    ltmp, DEFDATALEN);
 			}
 			options |= F_SWEEP;
-			sweepmax = ultmp;
+			sweepmax = ltmp;
 			break;
 		case 'g': /* Minimum packet size for ping sweep */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp <= 0)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ultmp > DEFDATALEN) {
+			if (uid != 0 && ltmp > DEFDATALEN) {
 				errno = EPERM;
 				err(EX_NOPERM,
-				    "packet size too large: %lu > %u",
-				    ultmp, DEFDATALEN);
+				    "packet size too large: %ld > %u",
+				    ltmp, DEFDATALEN);
 			}
 			options |= F_SWEEP;
-			sweepmin = ultmp;
+			sweepmin = ltmp;
 			break;
 		case 'h': /* Packet size increment for ping sweep */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp < 1)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp < 1)
 				errx(EX_USAGE, "invalid increment size: `%s'",
 				    optarg);
-			if (uid != 0 && ultmp > DEFDATALEN) {
+			if (uid != 0 && ltmp > DEFDATALEN) {
 				errno = EPERM;
 				err(EX_NOPERM,
-				    "packet size too large: %lu > %u",
-				    ultmp, DEFDATALEN);
+				    "packet size too large: %ld > %u",
+				    ltmp, DEFDATALEN);
 			}
 			options |= F_SWEEP;
-			sweepincr = ultmp;
+			sweepincr = ltmp;
 			break;
 		case 'I':		/* multicast interface */
 			if (inet_aton(optarg, &ifaddr) == 0)
@@ -403,15 +404,15 @@ main(int argc, char *const *argv)
 			loop = 0;
 			break;
 		case 'l':
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > INT_MAX)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > INT_MAX || ltmp < 0)
 				errx(EX_USAGE,
 				    "invalid preload value: `%s'", optarg);
 			if (uid) {
 				errno = EPERM;
 				err(EX_NOPERM, "-l flag");
 			}
-			preload = ultmp;
+			preload = ltmp;
 			break;
 		case 'M':
 			switch(optarg[0]) {
@@ -429,10 +430,10 @@ main(int argc, char *const *argv)
 			}
 			break;
 		case 'm':		/* TTL */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > MAXTTL)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > MAXTTL || ltmp < 0)
 				errx(EX_USAGE, "invalid TTL: `%s'", optarg);
-			ttl = ultmp;
+			ttl = ltmp;
 			options |= F_TTL;
 			break;
 		case 'n':
@@ -474,24 +475,24 @@ main(int argc, char *const *argv)
 			source = optarg;
 			break;
 		case 's':		/* size of packet to send */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp < 0)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ultmp > DEFDATALEN) {
+			if (uid != 0 && ltmp > DEFDATALEN) {
 				errno = EPERM;
 				err(EX_NOPERM,
-				    "packet size too large: %lu > %u",
-				    ultmp, DEFDATALEN);
+				    "packet size too large: %ld > %u",
+				    ltmp, DEFDATALEN);
 			}
-			datalen = ultmp;
+			datalen = ltmp;
 			break;
 		case 'T':		/* multicast TTL */
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > MAXTTL)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > MAXTTL || ltmp < 0)
 				errx(EX_USAGE, "invalid multicast TTL: `%s'",
 				    optarg);
-			mttl = ultmp;
+			mttl = ltmp;
 			options |= F_MTTL;
 			break;
 		case 't':
@@ -517,10 +518,10 @@ main(int argc, char *const *argv)
 			break;
 		case 'z':
 			options |= F_HDRINCL;
-			ultmp = strtoul(optarg, &ep, 0);
-			if (*ep || ep == optarg || ultmp > MAXTOS)
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > MAXTOS || ltmp < 0)
 				errx(EX_USAGE, "invalid TOS: `%s'", optarg);
-			tos = ultmp;
+			tos = ltmp;
 			break;
 		default:
 			usage();
