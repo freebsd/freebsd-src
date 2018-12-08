@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifdef SNAMES
+#define	stepback sstepback
 #define	matcher	smatcher
 #define	walk	swalk
 #define	dissect	sdissect
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	match	smat
 #endif
 #ifdef LNAMES
+#define	stepback lstepback
 #define	matcher	lmatcher
 #define	walk	lwalk
 #define	dissect	ldissect
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #define	match	lmat
 #endif
 #ifdef MNAMES
+#define	stepback mstepback
 #define	matcher	mmatcher
 #define	walk	mwalk
 #define	dissect	mdissect
@@ -140,6 +143,39 @@ static const char *pchar(int ch);
 #define	AT(t, p1, p2, s1, s2)	/* nothing */
 #define	NOTE(s)	/* nothing */
 #endif
+
+/*
+ * Given a multibyte string pointed to by start, step back nchar characters
+ * from current position pointed to by cur.
+ */
+static const char *
+stepback(const char *start, const char *cur, int nchar)
+{
+	const char *ret;
+	int wc, mbc;
+	mbstate_t mbs;
+	size_t clen;
+
+	if (MB_CUR_MAX == 1)
+		return ((cur - nchar) > start ? cur - nchar : NULL);
+
+	ret = cur;
+	for (wc = nchar; wc > 0; wc--) {
+		for (mbc = 1; mbc <= MB_CUR_MAX; mbc++) {
+			if ((ret - mbc) < start)
+				return (NULL);
+			memset(&mbs, 0, sizeof(mbs));
+			clen = mbrtowc(NULL, ret - mbc, mbc, &mbs);
+			if (clen != (size_t)-1 && clen != (size_t)-2)
+				break;
+		}
+		if (mbc > MB_CUR_MAX)
+			return (NULL);
+		ret -= mbc;
+	}
+
+	return (ret);
+}
 
 /*
  - matcher - the actual matching engine
@@ -244,8 +280,13 @@ matcher(struct re_guts *g,
 	ZAPSTATE(&m->mbs);
 
 	/* Adjust start according to moffset, to speed things up */
-	if (dp != NULL && g->moffset > -1)
-		start = ((dp - g->moffset) < start) ? start : dp - g->moffset;
+	if (dp != NULL && g->moffset > -1) {
+		const char *nstart;
+
+		nstart = stepback(start, dp, g->moffset);
+		if (nstart != NULL)
+			start = nstart;
+	}
 
 	SP("mloop", m->st, *start);
 
@@ -1083,6 +1124,7 @@ pchar(int ch)
 #endif
 #endif
 
+#undef	stepback
 #undef	matcher
 #undef	walk
 #undef	dissect
