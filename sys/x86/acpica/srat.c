@@ -56,12 +56,24 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+/*
+ * Parse and use proximity information in SRAT and SLIT.
+ */
+int		acpi_pxm_init(int ncpus, vm_paddr_t maxphys);
+void		acpi_pxm_parse_tables(void);
+void		acpi_pxm_set_mem_locality(void);
+void		acpi_pxm_set_cpu_locality(void);
+void		acpi_pxm_free(void);
+
 #if MAXMEMDOM > 1
 static struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
 	int domain;
 } *cpus;
+
+static int max_cpus;
+static int last_cpu;
 
 struct mem_affinity mem_info[VM_PHYSSEG_MAX + 1];
 int num_mem;
@@ -71,6 +83,7 @@ static vm_paddr_t srat_physaddr;
 
 static int domain_pxm[MAXMEMDOM];
 static int ndomain;
+static vm_paddr_t maxphyaddr;
 
 static ACPI_TABLE_SLIT *slit;
 static vm_paddr_t slit_physaddr;
@@ -177,7 +190,51 @@ overlaps_phys_avail(vm_paddr_t start, vm_paddr_t end)
 		break;
 	}
 	return (0);
-	
+}
+
+/*
+ * Find CPU by processor ID (APIC ID on x86).
+ */
+static struct cpu_info *
+cpu_find(int cpuid)
+{
+
+	if (cpuid <= last_cpu && cpus[cpuid].enabled)
+		return (&cpus[cpuid]);
+	return (NULL);
+}
+
+/*
+ * Find CPU by pcpu pointer.
+ */
+static struct cpu_info *
+cpu_get_info(struct pcpu *pc)
+{
+	struct cpu_info *cpup;
+	int id;
+
+	id = pc->pc_apic_id;
+	cpup = cpu_find(id);
+	if (cpup == NULL)
+		panic("SRAT: CPU with APIC ID %u is not known", id);
+	return (cpup);
+}
+
+/*
+ * Add proximity information for a new CPU.
+ */
+static struct cpu_info *
+cpu_add(int cpuid, int domain)
+{
+	struct cpu_info *cpup;
+
+	if (cpuid >= max_cpus)
+		return (NULL);
+	last_cpu = imax(last_cpu, cpuid);
+	cpup = &cpus[cpuid];
+	cpup->domain = domain;
+	cpup->enabled = 1;
+	return (cpup);
 }
 
 static void
@@ -186,6 +243,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	ACPI_SRAT_CPU_AFFINITY *cpu;
 	ACPI_SRAT_X2APIC_CPU_AFFINITY *x2apic;
 	ACPI_SRAT_MEM_AFFINITY *mem;
+	static struct cpu_info *cpup;
 	int domain, i, slot;
 
 	switch (entry->Type) {
@@ -202,20 +260,17 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(cpu->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
-		if (cpu->ApicId > max_apic_id) {
-			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
-			    cpu->ApicId);
-			break;
-		}
-
-		if (cpus[cpu->ApicId].enabled) {
+		cpup = cpu_find(cpu->ApicId);
+		if (cpup != NULL) {
 			printf("SRAT: Duplicate local APIC ID %u\n",
 			    cpu->ApicId);
 			*(int *)arg = ENXIO;
 			break;
 		}
-		cpus[cpu->ApicId].domain = domain;
-		cpus[cpu->ApicId].enabled = 1;
+		cpup = cpu_add(cpu->ApicId, domain);
+		if (cpup == NULL)
+			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
+			    cpu->ApicId);
 		break;
 	case ACPI_SRAT_TYPE_X2APIC_CPU_AFFINITY:
 		x2apic = (ACPI_SRAT_X2APIC_CPU_AFFINITY *)entry;
@@ -226,16 +281,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(x2apic->Flags & ACPI_SRAT_CPU_ENABLED))
 			break;
-		if (x2apic->ApicId > max_apic_id) {
+		KASSERT(cpu_find(x2apic->ApicId) == NULL,
+		    ("Duplicate local APIC ID %u", x2apic->ApicId));
+		cpup = cpu_add(x2apic->ApicId, x2apic->ProximityDomain);
+		if (cpup == NULL)
 			printf("SRAT: Ignoring local APIC ID %u (too high)\n",
 			    x2apic->ApicId);
-			break;
-		}
-
-		KASSERT(!cpus[x2apic->ApicId].enabled,
-		    ("Duplicate local APIC ID %u", x2apic->ApicId));
-		cpus[x2apic->ApicId].domain = x2apic->ProximityDomain;
-		cpus[x2apic->ApicId].enabled = 1;
 		break;
 	case ACPI_SRAT_TYPE_MEMORY_AFFINITY:
 		mem = (ACPI_SRAT_MEM_AFFINITY *)entry;
@@ -248,7 +299,7 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(mem->Flags & ACPI_SRAT_MEM_ENABLED))
 			break;
-		if (mem->BaseAddress >= cpu_getmaxphyaddr() || 
+		if (mem->BaseAddress >= maxphyaddr ||
 		    !overlaps_phys_avail(mem->BaseAddress,
 		    mem->BaseAddress + mem->Length)) {
 			printf("SRAT: Ignoring memory at addr 0x%jx\n",
@@ -293,7 +344,7 @@ check_domains(void)
 
 	for (i = 0; i < num_mem; i++) {
 		found = 0;
-		for (j = 0; j <= max_apic_id; j++)
+		for (j = 0; j <= last_cpu; j++)
 			if (cpus[j].enabled &&
 			    cpus[j].domain == mem_info[i].domain) {
 				cpus[j].has_memory = 1;
@@ -305,7 +356,7 @@ check_domains(void)
 			return (ENXIO);
 		}
 	}
-	for (i = 0; i <= max_apic_id; i++)
+	for (i = 0; i <= last_cpu; i++)
 		if (cpus[i].enabled && !cpus[i].has_memory) {
 			found = 0;
 			for (j = 0; j < num_mem && !found; j++) {
@@ -412,7 +463,7 @@ renumber_domains(void)
 		for (j = 0; j < num_mem; j++)
 			if (mem_info[j].domain == domain_pxm[i])
 				mem_info[j].domain = i;
-		for (j = 0; j <= max_apic_id; j++)
+		for (j = 0; j <= last_cpu; j++)
 			if (cpus[j].enabled && cpus[j].domain == domain_pxm[i])
 				cpus[j].domain = i;
 	}
@@ -421,18 +472,21 @@ renumber_domains(void)
 }
 
 /*
- * Look for an ACPI System Resource Affinity Table ("SRAT")
+ * Look for an ACPI System Resource Affinity Table ("SRAT"),
+ * allocate space for cpu information, and initialize globals.
  */
-static int
-parse_srat(void)
+int
+acpi_pxm_init(int ncpus, vm_paddr_t maxphys)
 {
 	unsigned int idx, size;
 	vm_paddr_t addr;
-	int error;
 
 	if (resource_disabled("srat", 0))
 		return (-1);
 
+	max_cpus = ncpus;
+	last_cpu = -1;
+	maxphyaddr = maxphys;
 	srat_physaddr = acpi_find_table(ACPI_SIG_SRAT);
 	if (srat_physaddr == 0)
 		return (-1);
@@ -448,7 +502,7 @@ parse_srat(void)
 	KASSERT(idx != 0, ("phys_avail is empty!"));
 	idx -= 2;
 
-	size =  sizeof(*cpus) * (max_apic_id + 1);
+	size =  sizeof(*cpus) * max_cpus;
 	addr = trunc_page(phys_avail[idx + 1] - size);
 	KASSERT(addr >= phys_avail[idx],
 	    ("Not enough memory for SRAT table items"));
@@ -461,6 +515,13 @@ parse_srat(void)
 	 */
 	cpus = (struct cpu_info *)pmap_mapbios(addr, size);
 	bzero(cpus, size);
+	return (0);
+}
+
+static int
+parse_srat(void)
+{
+	int error;
 
 	/*
 	 * Make a pass over the table to populate the cpus[] and
@@ -493,15 +554,41 @@ init_mem_locality(void)
 		vm_locality_table[i] = -1;
 }
 
-static void
-parse_acpi_tables(void *dummy)
+/*
+ * Parse SRAT and SLIT to save proximity info. Don't do
+ * anything if SRAT is not available.
+ */
+void
+acpi_pxm_parse_tables(void)
 {
 
+	if (srat_physaddr == 0)
+		return;
 	if (parse_srat() < 0)
 		return;
 	init_mem_locality();
 	(void)parse_slit();
+}
+
+/*
+ * Use saved data from SRAT/SLIT to update memory locality.
+ */
+void
+acpi_pxm_set_mem_locality(void)
+{
+
+	if (srat_physaddr == 0)
+		return;
 	vm_phys_register_domains(ndomain, mem_info, vm_locality_table);
+}
+
+static void
+parse_acpi_tables(void *dummy)
+{
+
+	acpi_pxm_init(max_apic_id + 1, cpu_getmaxphyaddr());
+	acpi_pxm_parse_tables();
+	acpi_pxm_set_mem_locality();
 }
 SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
     NULL);
@@ -515,10 +602,10 @@ srat_walk_table(acpi_subtable_handler *handler, void *arg)
 }
 
 /*
- * Setup per-CPU domain IDs.
+ * Setup per-CPU domain IDs from information saved in 'cpus'.
  */
-static void
-srat_set_cpus(void *dummy)
+void
+acpi_pxm_set_cpu_locality(void)
 {
 	struct cpu_info *cpu;
 	struct pcpu *pc;
@@ -531,20 +618,35 @@ srat_set_cpus(void *dummy)
 			continue;
 		pc = pcpu_find(i);
 		KASSERT(pc != NULL, ("no pcpu data for CPU %u", i));
-		cpu = &cpus[pc->pc_apic_id];
-		if (!cpu->enabled)
-			panic("SRAT: CPU with APIC ID %u is not known",
-			    pc->pc_apic_id);
+		cpu = cpu_get_info(pc);
 		pc->pc_domain = vm_ndomains > 1 ? cpu->domain : 0;
 		CPU_SET(i, &cpuset_domain[pc->pc_domain]);
 		if (bootverbose)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
 			    pc->pc_domain);
 	}
+}
 
-	/* Last usage of the cpus array, unmap it. */
-	pmap_unmapbios((vm_offset_t)cpus, sizeof(*cpus) * (max_apic_id + 1));
+/*
+ * Free data structures allocated during acpi_pxm_init.
+ */
+void
+acpi_pxm_free(void)
+{
+
+	if (srat_physaddr == 0)
+		return;
+	pmap_unmapbios((vm_offset_t)cpus, sizeof(*cpus) * max_cpus);
+	srat_physaddr = 0;
 	cpus = NULL;
+}
+
+static void
+srat_set_cpus(void *dummy)
+{
+
+	acpi_pxm_set_cpu_locality();
+	acpi_pxm_free();
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
 
