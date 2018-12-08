@@ -233,13 +233,13 @@ struct rm_ifdat {
 };
 
 /* flags for rmc_init and rmc_newclass */
-/* class flags */
+/* class flags; must be the same as class flags in altq_cbq.h */
 #define	RMCF_RED		0x0001
 #define	RMCF_ECN		0x0002
 #define	RMCF_RIO		0x0004
 #define	RMCF_FLOWVALVE		0x0008	/* use flowvalve (aka penalty-box) */
 #define	RMCF_CLEARDSCP		0x0010  /* clear diffserv codepoint */
-#define	RMCF_CODEL		0x0020
+#define	RMCF_CODEL		0x0040
 
 /* flags for rmc_init */
 #define	RMCF_WRR		0x0100
