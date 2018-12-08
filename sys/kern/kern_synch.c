@@ -431,7 +431,7 @@ mi_switch(int flags, struct thread *newtd)
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (td_sched %p, pid %ld, %s)",
 	    td->td_tid, td_get_sched(td), td->td_proc->p_pid, td->td_name);
 #ifdef KDTRACE_HOOKS
-	if (__predict_false(sdt_probes_enabled) &&
+	if (SDT_PROBES_ENABLED() &&
 	    ((flags & SW_PREEMPT) != 0 || ((flags & SW_INVOL) != 0 &&
 	    (flags & SW_TYPE_MASK) == SWT_NEEDRESCHED)))
 		SDT_PROBE0(sched, , , preempt);
