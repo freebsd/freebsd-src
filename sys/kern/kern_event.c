@@ -533,11 +533,12 @@ knote_fork(struct knlist *list, int pid)
 	struct kevent kev;
 	int error;
 
-	if (list == NULL)
+	MPASS(list != NULL);
+	KNL_ASSERT_LOCKED(list);
+	if (SLIST_EMPTY(&list->kl_list))
 		return;
 
 	memset(&kev, 0, sizeof(kev));
-	list->kl_lock(list->kl_lockarg);
 	SLIST_FOREACH(kn, &list->kl_list, kn_selnext) {
 		kq = kn->kn_kq;
 		KQ_LOCK(kq);
@@ -606,7 +607,6 @@ knote_fork(struct knlist *list, int pid)
 		kn_leave_flux(kn);
 		KQ_UNLOCK_FLUX(kq);
 	}
-	list->kl_unlock(list->kl_lockarg);
 }
 
 /*
