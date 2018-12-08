@@ -195,7 +195,7 @@ struct virt_header {
 	uint8_t fields[VIRT_HDR_MAX];
 };
 
-#define MAX_BODYSIZE	16384
+#define MAX_BODYSIZE	65536
 
 struct pkt {
 	struct virt_header vh;
@@ -238,7 +238,6 @@ struct mac_range {
 
 /* ifname can be netmap:foo-xxxx */
 #define MAX_IFNAMELEN	64	/* our buffer for ifname */
-//#define MAX_PKTSIZE	1536
 #define MAX_PKTSIZE	MAX_BODYSIZE	/* XXX: + IP_HDR + ETH_HDR */
 
 /* compact timestamp to fit into 60 byte packet. (enough to obtain RTT) */
@@ -263,7 +262,7 @@ struct glob_arg {
 	int forever;
 	uint64_t npackets;	/* total packets to send */
 	int frags;		/* fragments per packet */
-	u_int mtu;		/* size of each fragment */
+	u_int frag_size;	/* size of each fragment */
 	int nthreads;
 	int cpus;	/* cpus used for running */
 	int system_cpus;	/* cpus on the system */
@@ -308,6 +307,11 @@ struct glob_arg {
 };
 enum dev_type { DEV_NONE, DEV_NETMAP, DEV_PCAP, DEV_TAP };
 
+enum {
+	TD_TYPE_SENDER = 1,
+	TD_TYPE_RECEIVER,
+	TD_TYPE_OTHER,
+};
 
 /*
  * Arguments for a new thread. The same structure is used by
@@ -507,6 +511,42 @@ extract_mac_range(struct mac_range *r)
 	if (verbose)
 		D("%s starts at %s", r->name, ether_ntoa(&r->start));
 	return 0;
+}
+
+static int
+get_if_mtu(const struct glob_arg *g)
+{
+	char ifname[IFNAMSIZ];
+	struct ifreq ifreq;
+	int s, ret;
+
+	if (!strncmp(g->ifname, "netmap:", 7) && !strchr(g->ifname, '{')
+			&& !strchr(g->ifname, '}')) {
+		/* Parse the interface name and ask the kernel for the
+		 * MTU value. */
+		strncpy(ifname, g->ifname+7, IFNAMSIZ-1);
+		ifname[strcspn(ifname, "-*^{}/@")] = '\0';
+
+		s = socket(AF_INET, SOCK_DGRAM, 0);
+		if (s < 0) {
+			D("socket() failed: %s", strerror(errno));
+			return s;
+		}
+
+		memset(&ifreq, 0, sizeof(ifreq));
+		strncpy(ifreq.ifr_name, ifname, IFNAMSIZ);
+
+		ret = ioctl(s, SIOCGIFMTU, &ifreq);
+		if (ret) {
+			D("ioctl(SIOCGIFMTU) failed: %s", strerror(errno));
+		}
+
+		return ifreq.ifr_mtu;
+	}
+
+	/* This is a pipe or a VALE port, where the MTU is very large,
+	 * so we use some practical limit. */
+	return 65536;
 }
 
 static struct targ *targs;
@@ -1581,18 +1621,18 @@ sender_body(void *data)
 #endif /* NO_PCAP */
     } else {
 	int tosend = 0;
-	u_int bufsz, mtu = targ->g->mtu;
+	u_int bufsz, frag_size = targ->g->frag_size;
 
 	nifp = targ->nmd->nifp;
 	txring = NETMAP_TXRING(nifp, targ->nmd->first_tx_ring);
 	bufsz = txring->nr_buf_size;
-	if (bufsz < mtu)
-		mtu = bufsz;
+	if (bufsz < frag_size)
+		frag_size = bufsz;
 	targ->frag_size = targ->g->pkt_size / targ->frags;
-	if (targ->frag_size > mtu) {
-		targ->frags = targ->g->pkt_size / mtu;
-		targ->frag_size = mtu;
-		if (targ->g->pkt_size % mtu != 0)
+	if (targ->frag_size > frag_size) {
+		targ->frags = targ->g->pkt_size / frag_size;
+		targ->frag_size = frag_size;
+		if (targ->g->pkt_size % frag_size != 0)
 			targ->frags++;
 	}
 	D("frags %u frag_size %u", targ->frags, targ->frag_size);
@@ -2441,12 +2481,6 @@ usage(int errcode)
 	exit(errcode);
 }
 
-enum {
-	TD_TYPE_SENDER = 1,
-	TD_TYPE_RECEIVER,
-	TD_TYPE_OTHER,
-};
-
 static void
 start_threads(struct glob_arg *g) {
 	int i;
@@ -2779,8 +2813,8 @@ main(int arc, char **argv)
 	g.cpus = 1;		/* default */
 	g.forever = 1;
 	g.tx_rate = 0;
-	g.frags =1;
-	g.mtu = 1500;
+	g.frags = 1;
+	g.frag_size = (u_int)-1;	/* use the netmap buffer size by default */
 	g.nmr_config = "";
 	g.virt_header = 0;
 	g.wait_link = 2;	/* wait 2 seconds for physical ports */
@@ -2824,7 +2858,7 @@ main(int arc, char **argv)
 			break;
 
 		case 'M':
-			g.mtu = atoi(optarg);
+			g.frag_size = atoi(optarg);
 			break;
 
 		case 'f':
@@ -3102,6 +3136,16 @@ main(int arc, char **argv)
 	if (g.nthreads < 1 || g.nthreads > devqueues) {
 		D("bad nthreads %d, have %d queues", g.nthreads, devqueues);
 		// continue, fail later
+	}
+
+	if (g.td_type == TD_TYPE_SENDER) {
+		int mtu = get_if_mtu(&g);
+
+		if (mtu > 0 && g.pkt_size > mtu) {
+			D("pkt_size (%d) must be <= mtu (%d)",
+				g.pkt_size, mtu);
+			return -1;
+		}
 	}
 
 	if (verbose) {
