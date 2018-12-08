@@ -97,14 +97,8 @@ struct file;
 #include <netinet/in.h>
 #ifdef __sgi
 # include <sys/ddi.h>
-# ifdef IFF_DRVRLOCK /* IRIX6 */
-#  include <sys/hashing.h>
-# endif
 #endif
-#if !defined(__hpux) && !defined(linux) && \
-    !(defined(__sgi) && !defined(IFF_DRVRLOCK)) /*IRIX<6*/
 # include <netinet/in_var.h>
-#endif
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
