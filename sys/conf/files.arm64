@@ -188,6 +188,7 @@ dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
 dev/acpica/acpi_pci_link.c	optional	acpi pci
 dev/acpica/acpi_pcib.c		optional	acpi pci
+dev/acpica/acpi_pxm.c		optional	acpi
 dev/ahci/ahci_generic.c		optional	ahci
 dev/axgbe/if_axgbe.c		optional	axgbe
 dev/axgbe/xgbe-desc.c		optional	axgbe
