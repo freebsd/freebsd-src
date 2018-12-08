@@ -556,6 +556,17 @@ exit1(struct thread *td, int rval, int signo)
 		PROC_UNLOCK(q);
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (SDT_PROBES_ENABLED()) {
+		int reason = CLD_EXITED;
+		if (WCOREDUMP(signo))
+			reason = CLD_DUMPED;
+		else if (WIFSIGNALED(signo))
+			reason = CLD_KILLED;
+		SDT_PROBE1(proc, , , exit, reason);
+	}
+#endif
+
 	/* Save exit status. */
 	PROC_LOCK(p);
 	p->p_xthread = td;
@@ -573,15 +584,6 @@ exit1(struct thread *td, int rval, int signo)
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE_LOCKED(p->p_klist, NOTE_EXIT);
-
-#ifdef KDTRACE_HOOKS
-	int reason = CLD_EXITED;
-	if (WCOREDUMP(signo))
-		reason = CLD_DUMPED;
-	else if (WIFSIGNALED(signo))
-		reason = CLD_KILLED;
-	SDT_PROBE1(proc, , , exit, reason);
-#endif
 
 	/*
 	 * If this is a process with a descriptor, we may not need to deliver
