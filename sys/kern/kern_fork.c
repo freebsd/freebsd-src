@@ -273,8 +273,10 @@ retry:
 	}
 
 	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
-	if (result == -1)
+	if (result == -1) {
+		trypid = 100;
 		goto retry;
+	}
 	if (bit_test(&proc_id_grpidmap, result) ||
 	    bit_test(&proc_id_sessidmap, result) ||
 	    bit_test(&proc_id_reapmap, result)) {
