@@ -514,12 +514,12 @@ swap_pager_swap_init(void)
 	mtx_unlock(&pbuf_mtx);
 
 	/*
-	 * Initialize our zone, guessing on the number we need based
-	 * on the number of pages in the system.
+	 * Initialize our zone, taking the user's requested size or
+	 * estimating the number we need based on the number of pages
+	 * in the system.
 	 */
-	n = vm_cnt.v_page_count / 2;
-	if (maxswzone && n > maxswzone / sizeof(struct swblk))
-		n = maxswzone / sizeof(struct swblk);
+	n = maxswzone != 0 ? maxswzone / sizeof(struct swblk) :
+	    vm_cnt.v_page_count / 2;
 	swpctrie_zone = uma_zcreate("swpctrie", pctrie_node_size(), NULL, NULL,
 	    pctrie_zone_init, NULL, UMA_ALIGN_PTR,
 	    UMA_ZONE_NOFREE | UMA_ZONE_VM);
@@ -549,7 +549,7 @@ swap_pager_swap_init(void)
 	n = uma_zone_get_max(swblk_zone);
 
 	if (n < n2)
-		printf("Swap blk zone entries reduced from %lu to %lu.\n",
+		printf("Swap blk zone entries changed from %lu to %lu.\n",
 		    n2, n);
 	swap_maxpages = n * SWAP_META_PAGES;
 	swzone = n * sizeof(struct swblk);
