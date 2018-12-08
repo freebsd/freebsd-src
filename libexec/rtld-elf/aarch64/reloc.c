@@ -223,6 +223,8 @@ reloc_plt(Obj_Entry *obj)
 		case R_AARCH64_IRELATIVE:
 			obj->irelative = true;
 			break;
+		case R_AARCH64_NONE:
+			break;
 		default:
 			_rtld_error("Unknown relocation type %u in PLT",
 			    (unsigned int)ELF_R_TYPE(rela->r_info));
@@ -391,6 +393,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 		case R_AARCH64_ABS64:
 		case R_AARCH64_GLOB_DAT:
 		case R_AARCH64_TLS_TPREL64:
+		case R_AARCH64_TLS_DTPREL64:
+		case R_AARCH64_TLS_DTPMOD64:
 			def = find_symdef(ELF_R_SYM(rela->r_info), obj,
 			    &defobj, flags, cache, lockstate);
 			if (def == NULL)
@@ -478,8 +482,23 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 			*where = def->st_value + rela->r_addend +
 			    defobj->tlsoffset;
 			break;
+
+		/*
+		 * !!! BEWARE !!!
+		 * ARM ELF ABI defines TLS_DTPMOD64 as 1029, and TLS_DTPREL64
+		 * as 1028. But actual bfd linker and the glibc RTLD linker
+		 * treats TLS_DTPMOD64 as 1028 and TLS_DTPREL64 1029.
+		 */
+		case R_AARCH64_TLS_DTPREL64: /* efectively is TLS_DTPMOD64 */
+			*where += (Elf_Addr)defobj->tlsindex;
+			break;
+		case R_AARCH64_TLS_DTPMOD64: /* efectively is TLS_DTPREL64 */
+			*where += (Elf_Addr)(def->st_value + rela->r_addend);
+			break;
 		case R_AARCH64_RELATIVE:
 			*where = (Elf_Addr)(obj->relocbase + rela->r_addend);
+			break;
+		case R_AARCH64_NONE:
 			break;
 		default:
 			rtld_printf("%s: Unhandled relocation %lu\n",
