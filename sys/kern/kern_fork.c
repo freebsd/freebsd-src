@@ -686,15 +686,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_UNLOCK(p2);
 
 	/*
+	 * Tell any interested parties about the new process.
+	 */
+	knote_fork(p1->p_klist, p2->p_pid);
+
+	/*
 	 * Now can be swapped.
 	 */
 	_PRELE(p1);
 	PROC_UNLOCK(p1);
-
-	/*
-	 * Tell any interested parties about the new process.
-	 */
-	knote_fork(p1->p_klist, p2->p_pid);
 	SDT_PROBE3(proc, , , create, p2, p1, fr->fr_flags);
 
 	if (fr->fr_flags & RFPROCDESC) {
