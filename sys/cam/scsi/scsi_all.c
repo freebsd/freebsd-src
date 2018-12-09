@@ -1165,7 +1165,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x1B, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, sanitize in progress") },
 	/* DT     MAEB    */
-	{ SST(0x04, 0x1C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x1C, SS_START | SSQ_DECREMENT_COUNT | ENXIO,
 	    "Logical unit not ready, additional power use not yet granted") },
 	/* D              */
 	{ SST(0x04, 0x1D, SS_RDEF,	/* XXX TBD */
