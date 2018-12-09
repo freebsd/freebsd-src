@@ -1241,10 +1241,10 @@ md_kthread(void *arg)
 
 		if (error != -1) {
 			bp->bio_completed = bp->bio_length;
-			if ((bp->bio_cmd == BIO_READ) || (bp->bio_cmd == BIO_WRITE))
-				devstat_end_transaction_bio(sc->devstat, bp);
 			g_io_deliver(bp, error);
 		}
+		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)
+			devstat_end_transaction_bio(sc->devstat, bp);
 	}
 }
 
