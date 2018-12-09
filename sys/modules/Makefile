@@ -524,7 +524,8 @@ _cxgbe=		cxgbe
 .endif
 
 # These rely on 64bit atomics
-.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_CPUARCH} != "mips"
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspc" && \
+	${MACHINE_CPUARCH} != "mips"
 _mps=		mps
 _mpr=		mpr
 .endif
