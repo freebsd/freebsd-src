@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
@@ -232,19 +233,16 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus. Special values: 0: disable, 1: choose random value");
 
+extern bitstr_t proc_id_pidmap;
+extern bitstr_t proc_id_grpidmap;
+extern bitstr_t proc_id_sessidmap;
+extern bitstr_t proc_id_reapmap;
+
 static int
 fork_findpid(int flags)
 {
-	struct proc *p;
+	pid_t result;
 	int trypid;
-	static int pidchecked = 0;
-
-	/*
-	 * Requires allproc_lock in order to iterate over the list
-	 * of processes, and proctree_lock to access p_pgrp.
-	 */
-	sx_assert(&allproc_lock, SX_LOCKED);
-	sx_assert(&proctree_lock, SX_LOCKED);
 
 	/*
 	 * Find an unused process ID.  We remember a range of unused IDs
@@ -261,6 +259,7 @@ fork_findpid(int flags)
 		if (randompid)
 			trypid += arc4random() % randompid;
 	}
+	mtx_lock(&procid_lock);
 retry:
 	/*
 	 * If the process ID prototype has wrapped around,
@@ -271,67 +270,30 @@ retry:
 		trypid = trypid % pid_max;
 		if (trypid < 100)
 			trypid += 100;
-		pidchecked = 0;
 	}
-	if (trypid >= pidchecked) {
-		int doingzomb = 0;
 
-		pidchecked = PID_MAX;
-		/*
-		 * Scan the active and zombie procs to check whether this pid
-		 * is in use.  Remember the lowest pid that's greater
-		 * than trypid, so we can avoid checking for a while.
-		 *
-		 * Avoid reuse of the process group id, session id or
-		 * the reaper subtree id.  Note that for process group
-		 * and sessions, the amount of reserved pids is
-		 * limited by process limit.  For the subtree ids, the
-		 * id is kept reserved only while there is a
-		 * non-reaped process in the subtree, so amount of
-		 * reserved pids is limited by process limit times
-		 * two.
-		 */
-		p = LIST_FIRST(&allproc);
-again:
-		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
-			while (p->p_pid == trypid ||
-			    p->p_reapsubtree == trypid ||
-			    (p->p_pgrp != NULL &&
-			    (p->p_pgrp->pg_id == trypid ||
-			    (p->p_session != NULL &&
-			    p->p_session->s_sid == trypid)))) {
-				trypid++;
-				if (trypid >= pidchecked)
-					goto retry;
-			}
-			if (p->p_pid > trypid && pidchecked > p->p_pid)
-				pidchecked = p->p_pid;
-			if (p->p_pgrp != NULL) {
-				if (p->p_pgrp->pg_id > trypid &&
-				    pidchecked > p->p_pgrp->pg_id)
-					pidchecked = p->p_pgrp->pg_id;
-				if (p->p_session != NULL &&
-				    p->p_session->s_sid > trypid &&
-				    pidchecked > p->p_session->s_sid)
-					pidchecked = p->p_session->s_sid;
-			}
-		}
-		if (!doingzomb) {
-			doingzomb = 1;
-			p = LIST_FIRST(&zombproc);
-			goto again;
-		}
+	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
+	if (result == -1) {
+		trypid = 100;
+		goto retry;
+	}
+	if (bit_test(&proc_id_grpidmap, result) ||
+	    bit_test(&proc_id_sessidmap, result) ||
+	    bit_test(&proc_id_reapmap, result)) {
+		trypid++;
+		goto retry;
 	}
 
 	/*
 	 * RFHIGHPID does not mess with the lastpid counter during boot.
 	 */
-	if (flags & RFHIGHPID)
-		pidchecked = 0;
-	else
-		lastpid = trypid;
+	if ((flags & RFHIGHPID) == 0)
+		lastpid = result;
 
-	return (trypid);
+	bit_set(&proc_id_pidmap, result);
+	mtx_unlock(&procid_lock);
+
+	return (result);
 }
 
 static int
@@ -394,13 +356,11 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	struct filedesc_to_leader *fdtol;
 	struct sigacts *newsigacts;
 
-	sx_assert(&proctree_lock, SX_LOCKED);
 	sx_assert(&allproc_lock, SX_XLOCKED);
 
 	p1 = td->td_proc;
 
 	trypid = fork_findpid(fr->fr_flags);
-
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
 	AUDIT_ARG_PID(p2->p_pid);
@@ -413,7 +373,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_LOCK(p1);
 
 	sx_xunlock(&allproc_lock);
-	sx_xunlock(&proctree_lock);
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
@@ -649,8 +608,10 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	LIST_INIT(&p2->p_reaplist);
 	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
-	if (p2->p_reaper == p1)
+	if (p2->p_reaper == p1 && p1 != initproc) {
 		p2->p_reapsubtree = p2->p_pid;
+		proc_id_set_cond(PROC_ID_REAP, p2->p_pid);
+	}
 	sx_xunlock(&proctree_lock);
 
 	/* Inform accounting that we have forked. */
@@ -727,15 +688,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_UNLOCK(p2);
 
 	/*
+	 * Tell any interested parties about the new process.
+	 */
+	knote_fork(p1->p_klist, p2->p_pid);
+
+	/*
 	 * Now can be swapped.
 	 */
 	_PRELE(p1);
 	PROC_UNLOCK(p1);
-
-	/*
-	 * Tell any interested parties about the new process.
-	 */
-	knote_fork(p1->p_klist, p2->p_pid);
 	SDT_PROBE3(proc, , , create, p2, p1, fr->fr_flags);
 
 	if (fr->fr_flags & RFPROCDESC) {
@@ -967,8 +928,6 @@ fork1(struct thread *td, struct fork_req *fr)
 	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
-	/* We have to lock the process tree while we look for a pid. */
-	sx_xlock(&proctree_lock);
 	sx_xlock(&allproc_lock);
 
 	/*
@@ -991,7 +950,6 @@ fork1(struct thread *td, struct fork_req *fr)
 
 	error = EAGAIN;
 	sx_xunlock(&allproc_lock);
-	sx_xunlock(&proctree_lock);
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif

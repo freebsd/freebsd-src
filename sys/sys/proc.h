@@ -959,8 +959,10 @@ extern u_long pgrphash;
 
 extern struct sx allproc_lock;
 extern int allproc_gen;
+extern struct sx zombproc_lock;
 extern struct sx proctree_lock;
 extern struct mtx ppeers_lock;
+extern struct mtx procid_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread0_storage thread0_st;	/* Primary thread in proc0. */
 #define	thread0 (thread0_st.t0st_thread)
@@ -1163,6 +1165,15 @@ td_softdep_cleanup(struct thread *td)
 	if (td->td_su != NULL && softdep_ast_cleanup != NULL)
 		softdep_ast_cleanup(td);
 }
+
+#define	PROC_ID_PID	0
+#define	PROC_ID_GROUP	1
+#define	PROC_ID_SESSION	2
+#define	PROC_ID_REAP	3
+
+void	proc_id_set(int type, pid_t id);
+void	proc_id_set_cond(int type, pid_t id);
+void	proc_id_clear(int type, pid_t id);
 
 #endif	/* _KERNEL */
 

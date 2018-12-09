@@ -359,12 +359,16 @@ popstring(void)
 void
 setinputfile(const char *fname, int push)
 {
+	int e;
 	int fd;
 	int fd2;
 
 	INTOFF;
-	if ((fd = open(fname, O_RDONLY | O_CLOEXEC)) < 0)
-		error("cannot open %s: %s", fname, strerror(errno));
+	if ((fd = open(fname, O_RDONLY | O_CLOEXEC)) < 0) {
+		e = errno;
+		errorwithstatus(e == ENOENT || e == ENOTDIR ? 127 : 126,
+		    "cannot open %s: %s", fname, strerror(e));
+	}
 	if (fd < 10) {
 		fd2 = fcntl(fd, F_DUPFD_CLOEXEC, 10);
 		close(fd);

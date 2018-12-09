@@ -389,7 +389,7 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	ctl_scsi_zero_io(io);
 
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.targ_port = tmf->lun[1];
+	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(tmf->lun);
 	io->taskio.tag_type = CTL_TAG_SIMPLE;
 	io->taskio.tag_num = (uint32_t)tmf->id;
@@ -462,7 +462,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	struct pci_vtscsi_req_cmd_wr *cmd_wr;
 	struct iovec data_iov_in[VTSCSI_MAXSEG], data_iov_out[VTSCSI_MAXSEG];
 	union ctl_io *io;
-	size_t data_niov_in, data_niov_out;
+	int data_niov_in, data_niov_out;
 	void *ext_data_ptr = NULL;
 	uint32_t ext_data_len = 0, ext_sg_entries = 0;
 	int err;
@@ -472,15 +472,15 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	seek_iov(iov_out, niov_out, data_iov_out, &data_niov_out,
 	    VTSCSI_OUT_HEADER_LEN(sc));
 
-	truncate_iov(iov_in, niov_in, VTSCSI_IN_HEADER_LEN(sc));
-	truncate_iov(iov_out, niov_out, VTSCSI_OUT_HEADER_LEN(sc));
+	truncate_iov(iov_in, &niov_in, VTSCSI_IN_HEADER_LEN(sc));
+	truncate_iov(iov_out, &niov_out, VTSCSI_OUT_HEADER_LEN(sc));
 	iov_to_buf(iov_in, niov_in, (void **)&cmd_rd);
 
 	cmd_wr = malloc(VTSCSI_OUT_HEADER_LEN(sc));
 	io = ctl_scsi_alloc_io(sc->vss_iid);
 	ctl_scsi_zero_io(io);
 
-	io->io_hdr.nexus.targ_port = cmd_rd->lun[1];
+	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(cmd_rd->lun);
 
 	io->io_hdr.io_type = CTL_IO_SCSI;
@@ -499,7 +499,21 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 
 	io->scsiio.sense_len = sc->vss_config.sense_size;
 	io->scsiio.tag_num = (uint32_t)cmd_rd->id;
-	io->scsiio.tag_type = CTL_TAG_SIMPLE;
+	switch (cmd_rd->task_attr) {
+	case VIRTIO_SCSI_S_ORDERED:
+		io->scsiio.tag_type = CTL_TAG_ORDERED;
+		break;
+	case VIRTIO_SCSI_S_HEAD:
+		io->scsiio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
+		break;
+	case VIRTIO_SCSI_S_ACA:
+		io->scsiio.tag_type = CTL_TAG_ACA;
+		break;
+	case VIRTIO_SCSI_S_SIMPLE:
+	default:
+		io->scsiio.tag_type = CTL_TAG_SIMPLE;
+		break;
+	}
 	io->scsiio.ext_sg_entries = ext_sg_entries;
 	io->scsiio.ext_data_ptr = ext_data_ptr;
 	io->scsiio.ext_data_len = ext_data_len;
@@ -552,7 +566,8 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, NULL);
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
-		buf_to_iov(buf + bufsize - iolen, iolen, iov, n, iolen);
+		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
+		    bufsize - iolen);
 
 		/*
 		 * Release this chain and handle more
@@ -560,6 +575,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		vq_relchain(vq, idx, iolen);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
+	free(buf);
 }
 
 static void

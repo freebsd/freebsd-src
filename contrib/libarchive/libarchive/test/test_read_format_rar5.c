@@ -90,7 +90,7 @@ int verify_data(const uint8_t* data_ptr, int magic, int size) {
 
 static
 int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
-    la_ssize_t fsize, read;
+    la_ssize_t fsize, bytes_read;
     uint8_t* buf;
     int ret = 1;
     uint32_t computed_crc;
@@ -100,9 +100,9 @@ int extract_one(struct archive* a, struct archive_entry* ae, uint32_t crc) {
     if(buf == NULL)
         return 1;
 
-    read = archive_read_data(a, buf, fsize);
-    if(read != fsize) {
-        assertEqualInt(read, fsize);
+    bytes_read = archive_read_data(a, buf, fsize);
+    if(bytes_read != fsize) {
+        assertEqualInt(bytes_read, fsize);
         goto fn_exit;
     }
 

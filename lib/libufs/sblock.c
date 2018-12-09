@@ -54,7 +54,7 @@ sbread(struct uufsd *disk)
 
 	ERROR(disk, NULL);
 
-	if ((errno = sbget(disk->d_fd, &fs, -1)) != 0) {
+	if ((errno = sbget(disk->d_fd, &fs, STDSB)) != 0) {
 		switch (errno) {
 		case EIO:
 			ERROR(disk, "non-existent or truncated superblock");

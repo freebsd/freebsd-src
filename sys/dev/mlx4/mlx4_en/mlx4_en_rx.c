@@ -44,14 +44,13 @@
 
 #include "en.h"
 
-
+#if (MLX4_EN_MAX_RX_SEGS == 1)
 static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 				 struct mlx4_en_rx_ring *ring,
 				 int index)
 {
-	struct mlx4_en_rx_desc *rx_desc = (struct mlx4_en_rx_desc *)
-	    (ring->buf + (ring->stride * index));
-	int possible_frags;
+	struct mlx4_en_rx_desc *rx_desc =
+	    ((struct mlx4_en_rx_desc *)ring->buf) + index;
 	int i;
 
 	/* Set size and memtype fields */
@@ -63,38 +62,75 @@ static void mlx4_en_init_rx_desc(struct mlx4_en_priv *priv,
 	 * stride, remaining (unused) fragments must be padded with
 	 * null address/size and a special memory key:
 	 */
-	possible_frags = (ring->stride - sizeof(struct mlx4_en_rx_desc)) / DS_SIZE;
-	for (i = 1; i < possible_frags; i++) {
+	for (i = 1; i < MLX4_EN_MAX_RX_SEGS; i++) {
 		rx_desc->data[i].byte_count = 0;
 		rx_desc->data[i].lkey = cpu_to_be32(MLX4_EN_MEMTYPE_PAD);
 		rx_desc->data[i].addr = 0;
 	}
 }
+#endif
+
+static inline struct mbuf *
+mlx4_en_alloc_mbuf(struct mlx4_en_rx_ring *ring)
+{
+	struct mbuf *mb;
+
+#if (MLX4_EN_MAX_RX_SEGS == 1)
+        mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, ring->rx_mb_size);
+        if (likely(mb != NULL))
+		mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
+#else
+	mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MLX4_EN_MAX_RX_BYTES);
+	if (likely(mb != NULL)) {
+		struct mbuf *mb_head = mb;
+		int i;
+
+		mb->m_len = MLX4_EN_MAX_RX_BYTES;
+		mb->m_pkthdr.len = MLX4_EN_MAX_RX_BYTES;
+
+		for (i = 1; i != MLX4_EN_MAX_RX_SEGS; i++) {
+			if (mb_head->m_pkthdr.len >= ring->rx_mb_size)
+				break;
+			mb = (mb->m_next = m_getjcl(M_NOWAIT, MT_DATA, 0, MLX4_EN_MAX_RX_BYTES));
+			if (unlikely(mb == NULL)) {
+				m_freem(mb_head);
+				return (NULL);
+			}
+			mb->m_len = MLX4_EN_MAX_RX_BYTES;
+			mb_head->m_pkthdr.len += MLX4_EN_MAX_RX_BYTES;
+		}
+		/* rewind to first mbuf in chain */
+		mb = mb_head;
+	}
+#endif
+	return (mb);
+}
 
 static int
-mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
-     __be64 *pdma, struct mlx4_en_rx_mbuf *mb_list)
+mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring, struct mlx4_en_rx_desc *rx_desc,
+    struct mlx4_en_rx_mbuf *mb_list)
 {
-	bus_dma_segment_t segs[1];
+	bus_dma_segment_t segs[MLX4_EN_MAX_RX_SEGS];
 	bus_dmamap_t map;
 	struct mbuf *mb;
 	int nsegs;
 	int err;
+#if (MLX4_EN_MAX_RX_SEGS != 1)
+	int i;
+#endif
 
 	/* try to allocate a new spare mbuf */
 	if (unlikely(ring->spare.mbuf == NULL)) {
-		mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, ring->rx_mb_size);
+		mb = mlx4_en_alloc_mbuf(ring);
 		if (unlikely(mb == NULL))
 			return (-ENOMEM);
-		/* setup correct length */
-		mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
 
 		/* make sure IP header gets aligned */
 		m_adj(mb, MLX4_NET_IP_ALIGN);
 
 		/* load spare mbuf into BUSDMA */
 		err = -bus_dmamap_load_mbuf_sg(ring->dma_tag, ring->spare.dma_map,
-		    mb, segs, &nsegs, BUS_DMA_NOWAIT);
+		    mb, ring->spare.segs, &nsegs, BUS_DMA_NOWAIT);
 		if (unlikely(err != 0)) {
 			m_freem(mb);
 			return (err);
@@ -102,8 +138,14 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 
 		/* store spare info */
 		ring->spare.mbuf = mb;
-		ring->spare.paddr_be = cpu_to_be64(segs[0].ds_addr);
 
+#if (MLX4_EN_MAX_RX_SEGS != 1)
+		/* zero remaining segs */
+		for (i = nsegs; i != MLX4_EN_MAX_RX_SEGS; i++) {
+			ring->spare.segs[i].ds_addr = 0;
+			ring->spare.segs[i].ds_len = 0;
+		}
+#endif
 		bus_dmamap_sync(ring->dma_tag, ring->spare.dma_map,
 		    BUS_DMASYNC_PREREAD);
 	}
@@ -115,12 +157,9 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		bus_dmamap_unload(ring->dma_tag, mb_list->dma_map);
 	}
 
-	mb = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, ring->rx_mb_size);
+	mb = mlx4_en_alloc_mbuf(ring);
 	if (unlikely(mb == NULL))
 		goto use_spare;
-
-	/* setup correct length */
-	mb->m_pkthdr.len = mb->m_len = ring->rx_mb_size;
 
 	/* make sure IP header gets aligned */
 	m_adj(mb, MLX4_NET_IP_ALIGN);
@@ -132,7 +171,20 @@ mlx4_en_alloc_buf(struct mlx4_en_rx_ring *ring,
 		goto use_spare;
 	}
 
-	*pdma = cpu_to_be64(segs[0].ds_addr);
+#if (MLX4_EN_MAX_RX_SEGS == 1)
+	rx_desc->data[0].addr = cpu_to_be64(segs[0].ds_addr);
+#else
+	for (i = 0; i != nsegs; i++) {
+		rx_desc->data[i].byte_count = cpu_to_be32(segs[i].ds_len);
+		rx_desc->data[i].lkey = ring->rx_mr_key_be;
+		rx_desc->data[i].addr = cpu_to_be64(segs[i].ds_addr);
+	}
+	for (; i != MLX4_EN_MAX_RX_SEGS; i++) {
+		rx_desc->data[i].byte_count = 0;
+		rx_desc->data[i].lkey = cpu_to_be32(MLX4_EN_MEMTYPE_PAD);
+		rx_desc->data[i].addr = 0;
+	}
+#endif
 	mb_list->mbuf = mb;
 
 	bus_dmamap_sync(ring->dma_tag, mb_list->dma_map, BUS_DMASYNC_PREREAD);
@@ -149,7 +201,21 @@ use_spare:
 	ring->spare.mbuf = NULL;
 
 	/* store physical address */
-	*pdma = ring->spare.paddr_be;
+#if (MLX4_EN_MAX_RX_SEGS == 1)
+	rx_desc->data[0].addr = cpu_to_be64(ring->spare.segs[0].ds_addr);
+#else
+	for (i = 0; i != MLX4_EN_MAX_RX_SEGS; i++) {
+		if (ring->spare.segs[i].ds_len != 0) {
+			rx_desc->data[i].byte_count = cpu_to_be32(ring->spare.segs[i].ds_len);
+			rx_desc->data[i].lkey = ring->rx_mr_key_be;
+			rx_desc->data[i].addr = cpu_to_be64(ring->spare.segs[i].ds_addr);
+		} else {
+			rx_desc->data[i].byte_count = 0;
+			rx_desc->data[i].lkey = cpu_to_be32(MLX4_EN_MEMTYPE_PAD);
+			rx_desc->data[i].addr = 0;
+		}
+	}
+#endif
 	return (0);
 }
 
@@ -167,13 +233,13 @@ static int
 mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
     struct mlx4_en_rx_ring *ring, int index)
 {
-	struct mlx4_en_rx_desc *rx_desc = (struct mlx4_en_rx_desc *)
-	    (ring->buf + (index * ring->stride));
+	struct mlx4_en_rx_desc *rx_desc =
+	    ((struct mlx4_en_rx_desc *)ring->buf) + index;
 	struct mlx4_en_rx_mbuf *mb_list = ring->mbuf + index;
 
 	mb_list->mbuf = NULL;
 
-	if (mlx4_en_alloc_buf(ring, &rx_desc->data[0].addr, mb_list)) {
+	if (mlx4_en_alloc_buf(ring, rx_desc, mb_list)) {
 		priv->port_stats.rx_alloc_failed++;
 		return (-ENOMEM);
 	}
@@ -321,7 +387,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    MJUM16BYTES,		/* maxsize */
-	    1,				/* nsegments */
+	    MLX4_EN_MAX_RX_SEGS,	/* nsegments */
 	    MJUM16BYTES,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockfuncarg */
@@ -334,10 +400,9 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	ring->cons = 0;
 	ring->size = size;
 	ring->size_mask = size - 1;
-	ring->stride = roundup_pow_of_two(
-	    sizeof(struct mlx4_en_rx_desc) + DS_SIZE);
-	ring->log_stride = ffs(ring->stride) - 1;
-	ring->buf_size = ring->size * ring->stride + TXBB_SIZE;
+
+	ring->log_stride = ilog2(sizeof(struct mlx4_en_rx_desc));
+	ring->buf_size = (ring->size * sizeof(struct mlx4_en_rx_desc)) + TXBB_SIZE;
 
 	tmp = size * sizeof(struct mlx4_en_rx_mbuf);
 
@@ -398,11 +463,11 @@ err_ring:
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 {
 	struct mlx4_en_rx_ring *ring;
+#if (MLX4_EN_MAX_RX_SEGS == 1)
 	int i;
+#endif
 	int ring_ind;
 	int err;
-	int stride = roundup_pow_of_two(
-	    sizeof(struct mlx4_en_rx_desc) + DS_SIZE);
 
 	for (ring_ind = 0; ring_ind < priv->rx_ring_num; ring_ind++) {
 		ring = priv->rx_ring[ring_ind];
@@ -413,8 +478,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		ring->cqn = priv->rx_cq[ring_ind]->mcq.cqn;
                 ring->rx_mb_size = priv->rx_mb_size;
 
-		ring->stride = stride;
-		if (ring->stride <= TXBB_SIZE) {
+		if (sizeof(struct mlx4_en_rx_desc) <= TXBB_SIZE) {
 			/* Stamp first unused send wqe */
 			__be32 *ptr = (__be32 *)ring->buf;
 			__be32 stamp = cpu_to_be32(1 << STAMP_SHIFT);
@@ -423,15 +487,18 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 			ring->buf += TXBB_SIZE;
 		}
 
-		ring->log_stride = ffs(ring->stride) - 1;
-		ring->buf_size = ring->size * ring->stride;
+		ring->log_stride = ilog2(sizeof(struct mlx4_en_rx_desc));
+		ring->buf_size = ring->size * sizeof(struct mlx4_en_rx_desc);
 
 		memset(ring->buf, 0, ring->buf_size);
 		mlx4_en_update_rx_prod_db(ring);
 
+#if (MLX4_EN_MAX_RX_SEGS == 1)
 		/* Initialize all descriptors */
 		for (i = 0; i < ring->size; i++)
 			mlx4_en_init_rx_desc(priv, ring, i);
+#endif
+		ring->rx_mr_key_be = cpu_to_be32(priv->mdev->mr.key);
 
 #ifdef INET
 		/* Configure lro mngr */
@@ -466,7 +533,7 @@ err_buffers:
 
 	while (ring_ind >= 0) {
 		ring = priv->rx_ring[ring_ind];
-		if (ring->stride <= TXBB_SIZE)
+		if (sizeof(struct mlx4_en_rx_desc) <= TXBB_SIZE)
 			ring->buf -= TXBB_SIZE;
 		ring_ind--;
 	}
@@ -477,14 +544,14 @@ err_buffers:
 
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_rx_ring **pring,
-			     u32 size, u16 stride)
+			     u32 size)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_rx_ring *ring = *pring;
 	uint32_t x;
 
 	mlx4_en_unmap_buffer(&ring->wqres.buf);
-	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
+	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * sizeof(struct mlx4_en_rx_desc) + TXBB_SIZE);
 	for (x = 0; x != size; x++)
 		bus_dmamap_destroy(ring->dma_tag, ring->mbuf[x].dma_map);
 	/* free spare mbuf, if any */
@@ -511,7 +578,7 @@ void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
 	tcp_lro_free(&ring->lro);
 #endif
 	mlx4_en_free_rx_buf(priv, ring);
-	if (ring->stride <= TXBB_SIZE)
+	if (sizeof(struct mlx4_en_rx_desc) <= TXBB_SIZE)
 		ring->buf -= TXBB_SIZE;
 }
 
@@ -557,21 +624,61 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
     struct mlx4_en_rx_desc *rx_desc, struct mlx4_en_rx_mbuf *mb_list,
     int length)
 {
+#if (MLX4_EN_MAX_RX_SEGS != 1)
+	struct mbuf *mb_head;
+#endif
 	struct mbuf *mb;
+
+	/* optimise reception of small packets */
+	if (length <= (MHLEN - MLX4_NET_IP_ALIGN) &&
+	    (mb = m_gethdr(M_NOWAIT, MT_DATA)) != NULL) {
+
+		/* set packet length */
+		mb->m_pkthdr.len = mb->m_len = length;
+
+		/* make sure IP header gets aligned */
+		mb->m_data += MLX4_NET_IP_ALIGN;
+
+		bus_dmamap_sync(ring->dma_tag, mb_list->dma_map,
+		    BUS_DMASYNC_POSTREAD);
+
+		bcopy(mtod(mb_list->mbuf, caddr_t), mtod(mb, caddr_t), length);
+
+		return (mb);
+	}
 
 	/* get mbuf */
 	mb = mb_list->mbuf;
 
 	/* collect used fragment while atomically replacing it */
-	if (mlx4_en_alloc_buf(ring, &rx_desc->data[0].addr, mb_list))
+	if (mlx4_en_alloc_buf(ring, rx_desc, mb_list))
 		return (NULL);
 
 	/* range check hardware computed value */
-	if (unlikely(length > mb->m_len))
-		length = mb->m_len;
+	if (unlikely(length > mb->m_pkthdr.len))
+		length = mb->m_pkthdr.len;
 
+#if (MLX4_EN_MAX_RX_SEGS == 1)
 	/* update total packet length in packet header */
 	mb->m_len = mb->m_pkthdr.len = length;
+#else
+	mb->m_pkthdr.len = length;
+	for (mb_head = mb; mb != NULL; mb = mb->m_next) {
+		if (mb->m_len > length)
+			mb->m_len = length;
+		length -= mb->m_len;
+		if (likely(length == 0)) {
+			if (likely(mb->m_next != NULL)) {
+				/* trim off empty mbufs */
+				m_freem(mb->m_next);
+				mb->m_next = NULL;
+			}
+			break;
+		}
+	}
+	/* rewind to first mbuf in chain */
+	mb = mb_head;
+#endif
 	return (mb);
 }
 
@@ -660,8 +767,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	while (XNOR(cqe->owner_sr_opcode & MLX4_CQE_OWNER_MASK,
 		    cons_index & size)) {
 		mb_list = ring->mbuf + index;
-		rx_desc = (struct mlx4_en_rx_desc *)
-		    (ring->buf + (index << ring->log_stride));
+		rx_desc = ((struct mlx4_en_rx_desc *)ring->buf) + index;
 
 		/*
 		 * make sure we read the CQE after we read the ownership bit
@@ -830,7 +936,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	qp->event = mlx4_en_sqp_event;
 
 	memset(context, 0, sizeof *context);
-	mlx4_en_fill_qp_context(priv, ring->actual_size, ring->stride, 0, 0,
+	mlx4_en_fill_qp_context(priv, ring->actual_size, sizeof(struct mlx4_en_rx_desc), 0, 0,
 				qpn, ring->cqn, -1, context);
 	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);
 

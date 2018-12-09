@@ -274,7 +274,7 @@ g_part_mbr_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	table = (struct g_part_mbr_table *)basetable;
 	dsn = *(uint32_t *)(table->mbr + DOSDSNOFF);
 	bcopy(gpp->gpp_codeptr, table->mbr, DOSPARTOFF);
-	if (dsn != 0)
+	if (dsn != 0 && !gpp->gpp_skip_dsn)
 		*(uint32_t *)(table->mbr + DOSDSNOFF) = dsn;
 	return (0);
 }

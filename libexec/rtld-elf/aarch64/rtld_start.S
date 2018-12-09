@@ -57,7 +57,7 @@ END(.rtld_start)
 ENTRY(_rtld_bind_start)
 	.cfi_startproc
 	mov	x17, sp
-	
+
 	/* Save frame pointer and SP */
 	stp	x29, x30, [sp, #-16]!
 	mov	x29, sp

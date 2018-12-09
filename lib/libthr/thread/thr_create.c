@@ -73,8 +73,7 @@ _pthread_create(pthread_t * __restrict thread,
 	 */
 	if (_thr_isthreaded() == 0) {
 		_malloc_first_thread();
-		if (_thr_setthreaded(1))
-			return (EAGAIN);
+		_thr_setthreaded(1);
 	}
 
 	curthread = _get_curthread();

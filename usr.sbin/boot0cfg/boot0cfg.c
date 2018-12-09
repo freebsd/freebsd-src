@@ -100,7 +100,7 @@ static const char fmt1[] = "%d   0x%02x   %4u:%3u:%2u   0x%02x"
 
 static int geom_class_available(const char *);
 static int read_mbr(const char *, u_int8_t **, int);
-static void write_mbr(const char *, int, u_int8_t *, int);
+static void write_mbr(const char *, int, u_int8_t *, int, int);
 static void display_mbr(u_int8_t *);
 static int boot0version(const u_int8_t *);
 static int boot0bs(const u_int8_t *);
@@ -200,7 +200,7 @@ main(int argc, char *argv[])
 
     /* save the existing MBR if we are asked to do so */
     if (fpath)
-	write_mbr(fpath, O_CREAT | O_TRUNC, mbr, mbr_size);
+	write_mbr(fpath, O_CREAT | O_TRUNC, mbr, mbr_size, 0);
 
     /*
      * If we are installing the boot loader, read it from disk and copy the
@@ -256,7 +256,7 @@ main(int argc, char *argv[])
     }
     /* write the MBR back to disk */
     if (up)
-	write_mbr(disk, 0, boot0, boot0_size);
+	write_mbr(disk, 0, boot0, boot0_size, vol_id[4] || b0_ver == 1);
 
     /* display the MBR */
     if (v_flag)
@@ -372,7 +372,8 @@ geom_class_available(const char *name)
  * Write out the mbr to the specified file.
  */
 static void
-write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
+write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size,
+    int disable_dsn)
 {
 	struct gctl_req *grq;
 	const char *errmsg;
@@ -417,6 +418,9 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size)
 		gctl_ro_param(grq, "verb", -1, "bootcode");
 		gctl_ro_param(grq, "bootcode", mbr_size, mbr);
 		gctl_ro_param(grq, "flags", -1, "C");
+		if (disable_dsn)
+			gctl_ro_param(grq, "skip_dsn", sizeof(int),
+			    &disable_dsn);
 		errmsg = gctl_issue(grq);
 		if (errmsg != NULL && errmsg[0] != '\0')
 			errx(1, "GEOM_PART: write bootcode to %s failed: %s",

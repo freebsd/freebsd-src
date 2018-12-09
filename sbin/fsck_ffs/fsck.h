@@ -417,6 +417,7 @@ void		blzero(int fd, ufs2_daddr_t blk, long size);
 void		cacheino(union dinode *dp, ino_t inumber);
 void		catch(int);
 void		catchquit(int);
+void		cgdirty(struct bufarea *);
 int		changeino(ino_t dir, const char *name, ino_t newnum);
 int		check_cgmagic(int cg, struct bufarea *cgbp);
 int		chkrange(ufs2_daddr_t blk, int cnt);

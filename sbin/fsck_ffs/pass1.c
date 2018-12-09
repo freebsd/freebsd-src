@@ -200,7 +200,7 @@ pass1(void)
 				cgp->cg_initediblk = mininos;
 			pwarn("CYLINDER GROUP %d: RESET FROM %ju TO %d %s\n",
 			    c, i, cgp->cg_initediblk, "VALID INODES");
-			dirty(cgbp);
+			cgdirty(cgbp);
 		}
 		if (inosused < sblock.fs_ipg)
 			continue;

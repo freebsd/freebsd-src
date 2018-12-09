@@ -7,12 +7,16 @@ basic_head()
 {
 	atf_set descr 'Basic pfsync test'
 	atf_set require.user root
-
-	atf_set require.progs scapy
 }
 
 basic_body()
 {
+	common_body
+}
+
+common_body()
+{
+	defer=$1
 	pfsynct_init
 
 	epair_sync=$(pft_mkepair)
@@ -28,12 +32,14 @@ basic_body()
 	jexec one ifconfig pfsync0 \
 		syncdev ${epair_sync}a \
 		maxupd 1 \
+		$defer \
 		up
 	jexec two ifconfig ${epair_two}a 198.51.100.2/24 up
 	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
 	jexec two ifconfig pfsync0 \
 		syncdev ${epair_sync}b \
 		maxupd 1 \
+		$defer \
 		up
 
 	# Enable pf!
@@ -64,7 +70,25 @@ basic_cleanup()
 	pfsynct_cleanup
 }
 
+atf_test_case "defer" "cleanup"
+defer_head()
+{
+	atf_set descr 'Defer mode pfsync test'
+	atf_set require.user root
+}
+
+defer_body()
+{
+	common_body defer
+}
+
+defer_cleanup()
+{
+	pfsynct_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "basic"
+	atf_add_test_case "defer"
 }

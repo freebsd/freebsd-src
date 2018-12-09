@@ -396,7 +396,7 @@ hpet_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	struct hpet_softc *sc;
 
 	sc = cdev->si_drv1;
-	if (offset > rman_get_size(sc->mem_res))
+	if (offset >= rman_get_size(sc->mem_res))
 		return (EINVAL);
 	if (!sc->mmap_allow_write && (nprot & PROT_WRITE))
 		return (EPERM);

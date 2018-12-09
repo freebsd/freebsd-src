@@ -332,11 +332,19 @@ out:
 	return ret;
 }
 
-static int cm_alloc_response_msg(struct cm_port *port,
-				 struct ib_mad_recv_wc *mad_recv_wc,
-				 struct ib_mad_send_buf **msg)
+static struct ib_mad_send_buf *cm_alloc_response_msg_no_ah(struct cm_port *port,
+							   struct ib_mad_recv_wc *mad_recv_wc)
 {
-	struct ib_mad_send_buf *m;
+	return ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
+				  0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
+				  GFP_ATOMIC,
+				  IB_MGMT_BASE_VERSION);
+}
+
+static int cm_create_response_msg_ah(struct cm_port *port,
+				     struct ib_mad_recv_wc *mad_recv_wc,
+				     struct ib_mad_send_buf *msg)
+{
 	struct ib_ah *ah;
 
 	ah = ib_create_ah_from_wc(port->mad_agent->qp->pd, mad_recv_wc->wc,
@@ -344,25 +352,38 @@ static int cm_alloc_response_msg(struct cm_port *port,
 	if (IS_ERR(ah))
 		return PTR_ERR(ah);
 
-	m = ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
-			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
-			       GFP_ATOMIC,
-			       IB_MGMT_BASE_VERSION);
-	if (IS_ERR(m)) {
-		ib_destroy_ah(ah);
-		return PTR_ERR(m);
-	}
-	m->ah = ah;
-	*msg = m;
+	msg->ah = ah;
 	return 0;
 }
 
 static void cm_free_msg(struct ib_mad_send_buf *msg)
 {
-	ib_destroy_ah(msg->ah);
+	if (msg->ah)
+		ib_destroy_ah(msg->ah);
 	if (msg->context[0])
 		cm_deref_id(msg->context[0]);
 	ib_free_send_mad(msg);
+}
+
+static int cm_alloc_response_msg(struct cm_port *port,
+				 struct ib_mad_recv_wc *mad_recv_wc,
+				 struct ib_mad_send_buf **msg)
+{
+	struct ib_mad_send_buf *m;
+	int ret;
+
+	m = cm_alloc_response_msg_no_ah(port, mad_recv_wc);
+	if (IS_ERR(m))
+		return PTR_ERR(m);
+
+	ret = cm_create_response_msg_ah(port, mad_recv_wc, m);
+	if (ret) {
+		cm_free_msg(m);
+		return ret;
+	}
+
+	*msg = m;
+	return 0;
 }
 
 static void * cm_copy_private_data(const void *private_data,
@@ -390,13 +411,13 @@ static void cm_set_private_data(struct cm_id_private *cm_id_priv,
 	cm_id_priv->private_data_len = private_data_len;
 }
 
-static void cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
-				    struct ib_grh *grh, struct cm_av *av)
+static int cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
+				   struct ib_grh *grh, struct cm_av *av)
 {
 	av->port = port;
 	av->pkey_index = wc->pkey_index;
-	ib_init_ah_from_wc(port->cm_dev->ib_device, port->port_num, wc,
-			   grh, &av->ah_attr);
+	return ib_init_ah_from_wc(port->cm_dev->ib_device, port->port_num, wc,
+				  grh, &av->ah_attr);
 }
 
 static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av,
@@ -1678,9 +1699,11 @@ static int cm_req_handler(struct cm_work *work)
 
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
 	cm_id_priv->id.remote_id = req_msg->local_comm_id;
-	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
-				work->mad_recv_wc->recv_buf.grh,
-				&cm_id_priv->av);
+	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				      work->mad_recv_wc->recv_buf.grh,
+				      &cm_id_priv->av);
+	if (ret)
+		goto destroy;
 	cm_id_priv->timewait_info = cm_create_timewait_info(cm_id_priv->
 							    id.local_id);
 	if (IS_ERR(cm_id_priv->timewait_info)) {
@@ -2329,7 +2352,8 @@ static int cm_dreq_handler(struct cm_work *work)
 	case IB_CM_TIMEWAIT:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_DREQ_COUNTER]);
-		if (cm_alloc_response_msg(work->port, work->mad_recv_wc, &msg))
+		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc);
+		if (IS_ERR(msg))
 			goto unlock;
 
 		cm_format_drep((struct cm_drep_msg *) msg->mad, cm_id_priv,
@@ -2337,7 +2361,8 @@ static int cm_dreq_handler(struct cm_work *work)
 			       cm_id_priv->private_data_len);
 		spin_unlock_irq(&cm_id_priv->lock);
 
-		if (ib_post_send_mad(msg, NULL))
+		if (cm_create_response_msg_ah(work->port, work->mad_recv_wc, msg) ||
+		    ib_post_send_mad(msg, NULL))
 			cm_free_msg(msg);
 		goto deref;
 	case IB_CM_DREQ_RCVD:
@@ -2882,7 +2907,8 @@ static int cm_lap_handler(struct cm_work *work)
 	case IB_CM_MRA_LAP_SENT:
 		atomic_long_inc(&work->port->counter_group[CM_RECV_DUPLICATES].
 				counter[CM_LAP_COUNTER]);
-		if (cm_alloc_response_msg(work->port, work->mad_recv_wc, &msg))
+		msg = cm_alloc_response_msg_no_ah(work->port, work->mad_recv_wc);
+		if (IS_ERR(msg))
 			goto unlock;
 
 		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
@@ -2892,7 +2918,8 @@ static int cm_lap_handler(struct cm_work *work)
 			      cm_id_priv->private_data_len);
 		spin_unlock_irq(&cm_id_priv->lock);
 
-		if (ib_post_send_mad(msg, NULL))
+		if (cm_create_response_msg_ah(work->port, work->mad_recv_wc, msg) ||
+		    ib_post_send_mad(msg, NULL))
 			cm_free_msg(msg);
 		goto deref;
 	case IB_CM_LAP_RCVD:
@@ -2905,11 +2932,15 @@ static int cm_lap_handler(struct cm_work *work)
 
 	cm_id_priv->id.lap_state = IB_CM_LAP_RCVD;
 	cm_id_priv->tid = lap_msg->hdr.tid;
-	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
-				work->mad_recv_wc->recv_buf.grh,
-				&cm_id_priv->av);
-	cm_init_av_by_path(param->alternate_path, &cm_id_priv->alt_av,
-			   cm_id_priv);
+	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				      work->mad_recv_wc->recv_buf.grh,
+				      &cm_id_priv->av);
+	if (ret)
+		goto unlock;
+	ret = cm_init_av_by_path(param->alternate_path, &cm_id_priv->alt_av,
+				 cm_id_priv);
+	if (ret)
+		goto unlock;
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -3162,6 +3193,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv, *cur_cm_id_priv;
 	struct cm_sidr_req_msg *sidr_req_msg;
 	struct ib_wc *wc;
+	int ret;
 
 	cm_id = ib_create_cm_id(work->port->cm_dev->ib_device, NULL, NULL);
 	if (IS_ERR(cm_id))
@@ -3174,9 +3206,11 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	wc = work->mad_recv_wc->wc;
 	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
 	cm_id_priv->av.dgid.global.interface_id = 0;
-	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
-				work->mad_recv_wc->recv_buf.grh,
-				&cm_id_priv->av);
+	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
+				      work->mad_recv_wc->recv_buf.grh,
+				      &cm_id_priv->av);
+	if (ret)
+		goto out;
 	cm_id_priv->id.remote_id = sidr_req_msg->request_id;
 	cm_id_priv->tid = sidr_req_msg->hdr.tid;
 	atomic_inc(&cm_id_priv->work_count);

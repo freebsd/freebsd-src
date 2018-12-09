@@ -497,6 +497,9 @@ main(int argc, char **argv)
 do_interact:
 	setenv("LINES", "24", 1);		/* optional */
 	setenv("prompt", "loader>", 1);
+#ifdef __powerpc__
+	setenv("usefdt", "1", 1);
+#endif
 
 	archsw.arch_loadaddr = uboot_loadaddr;
 	archsw.arch_getdev = uboot_getdev;

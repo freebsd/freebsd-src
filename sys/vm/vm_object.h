@@ -196,20 +196,13 @@ struct vm_object {
 /*
  * Helpers to perform conversion between vm_object page indexes and offsets.
  * IDX_TO_OFF() converts an index into an offset.
- * OFF_TO_IDX() converts an offset into an index.  Since offsets are signed
- *   by default, the sign propagation in OFF_TO_IDX(), when applied to
- *   negative offsets, is intentional and returns a vm_object page index
- *   that cannot be created by a userspace mapping.
- * UOFF_TO_IDX() treats the offset as an unsigned value and converts it
- *   into an index accordingly.  Use it only when the full range of offset
- *   values are allowed.  Currently, this only applies to device mappings.
+ * OFF_TO_IDX() converts an offset into an index.
  * OBJ_MAX_SIZE specifies the maximum page index corresponding to the
  *   maximum unsigned offset.
  */
 #define	IDX_TO_OFF(idx) (((vm_ooffset_t)(idx)) << PAGE_SHIFT)
 #define	OFF_TO_IDX(off) ((vm_pindex_t)(((vm_ooffset_t)(off)) >> PAGE_SHIFT))
-#define	UOFF_TO_IDX(off) (((vm_pindex_t)(off)) >> PAGE_SHIFT)
-#define	OBJ_MAX_SIZE	(UOFF_TO_IDX(UINT64_MAX) + 1)
+#define	OBJ_MAX_SIZE	(OFF_TO_IDX(UINT64_MAX) + 1)
 
 #ifdef	_KERNEL
 
@@ -262,6 +255,8 @@ extern struct vm_object kernel_object_store;
 	rw_wowned(&(object)->lock)
 #define	VM_OBJECT_WUNLOCK(object)					\
 	rw_wunlock(&(object)->lock)
+
+struct vnode;
 
 /*
  *	The object must be locked or thread private.
@@ -328,6 +323,7 @@ void vm_object_destroy (vm_object_t);
 void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
+int  vm_object_kvme_type(vm_object_t object, struct vnode **vpp);
 void vm_object_madvise(vm_object_t, vm_pindex_t, vm_pindex_t, int);
 boolean_t vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);

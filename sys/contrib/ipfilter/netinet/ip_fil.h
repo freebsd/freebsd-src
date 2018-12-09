@@ -1026,11 +1026,7 @@ typedef	struct	iplog	{
 #define	IPLOG_SIZE	sizeof(iplog_t)
 
 typedef	struct	ipflog	{
-#if (defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
-        (defined(OpenBSD) && (OpenBSD >= 199603))
-#else
-	u_int	fl_unit;
-#endif
+	u_int		fl_unit;
 	u_32_t		fl_rule;
 	u_32_t		fl_flags;
 	u_32_t		fl_lflags;

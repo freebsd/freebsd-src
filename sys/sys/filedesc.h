@@ -208,7 +208,7 @@ fget_locked(struct filedesc *fdp, int fd)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	if (fd < 0 || fd > fdp->fd_lastfile)
+	if (__predict_false((u_int)fd >= fdp->fd_nfiles))
 		return (NULL);
 
 	return (fdp->fd_ofiles[fd].fde_file);
@@ -221,11 +221,11 @@ fdeget_locked(struct filedesc *fdp, int fd)
 
 	FILEDESC_LOCK_ASSERT(fdp);
 
-	if (fd < 0 || fd > fdp->fd_lastfile)
+	if (__predict_false((u_int)fd >= fdp->fd_nfiles))
 		return (NULL);
 
 	fde = &fdp->fd_ofiles[fd];
-	if (fde->fde_file == NULL)
+	if (__predict_false(fde->fde_file == NULL))
 		return (NULL);
 
 	return (fde);

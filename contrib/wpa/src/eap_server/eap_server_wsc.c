@@ -257,7 +257,7 @@ static struct wpabuf * eap_wsc_buildReq(struct eap_sm *sm, void *priv, u8 id)
 			}
 			data->out_used = 0;
 		}
-		/* pass through */
+		/* fall through */
 	case WAIT_FRAG_ACK:
 		return eap_wsc_build_msg(data, id);
 	case FRAG_ACK:

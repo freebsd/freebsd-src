@@ -105,6 +105,7 @@ SAME+=		en_US.UTF-8 ja_JP.UTF-8
 SAME+=		en_US.UTF-8 ja_JP.SJIS
 SAME+=		en_US.UTF-8 ja_JP.eucJP
 SAME+=		en_US.UTF-8 he_IL.UTF-8
+SAME+=		en_US.UTF-8 ga_IE.UTF-8
 SAME+=		en_US.UTF-8 es_MX.UTF-8
 SAME+=		en_US.UTF-8 es_MX.ISO8859-1
 SAME+=		en_US.UTF-8 en_US.US-ASCII

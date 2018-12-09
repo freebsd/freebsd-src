@@ -363,13 +363,7 @@ read_char(EditLine *el, wchar_t *cp)
 				goto again;
 			}
 		case (size_t)-2:
-			/*
-			 * We don't support other multibyte charsets.
-			 * The second condition shouldn't happen
-			 * and is here merely for additional safety.
-			 */
-			if ((el->el_flags & CHARSET_IS_UTF8) == 0 ||
-			    cbp >= MB_LEN_MAX) {
+			if (cbp >= MB_LEN_MAX) {
 				errno = EILSEQ;
 				*cp = L'\0';
 				return -1;

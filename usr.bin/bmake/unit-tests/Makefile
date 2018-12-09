@@ -5,9 +5,9 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.48 2015/12/07 04:06:29 sjg Exp $
+# $Id: Makefile.in,v 1.49 2018/09/21 21:39:05 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.52 2015/05/05 21:51:09 sjg Exp $
+# $NetBSD: Makefile,v 1.53 2018/05/24 00:25:44 christos Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
@@ -61,6 +61,7 @@ TESTNAMES= \
 	unexport-env \
 	varcmd \
 	varmisc \
+	varquote \
 	varshell
 
 # these tests were broken by referting POSIX chanegs

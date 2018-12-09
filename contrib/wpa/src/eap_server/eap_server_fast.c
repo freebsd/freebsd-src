@@ -471,12 +471,11 @@ static void * eap_fast_init(struct eap_sm *sm)
 		eap_fast_reset(sm, data);
 		return NULL;
 	}
-	data->srv_id = os_malloc(sm->eap_fast_a_id_len);
+	data->srv_id = os_memdup(sm->eap_fast_a_id, sm->eap_fast_a_id_len);
 	if (data->srv_id == NULL) {
 		eap_fast_reset(sm, data);
 		return NULL;
 	}
-	os_memcpy(data->srv_id, sm->eap_fast_a_id, sm->eap_fast_a_id_len);
 	data->srv_id_len = sm->eap_fast_a_id_len;
 
 	if (sm->eap_fast_a_id_info == NULL) {
@@ -561,7 +560,7 @@ static int eap_fast_phase1_done(struct eap_sm *sm, struct eap_fast_data *data)
 		return -1;
 	}
 	data->anon_provisioning = os_strstr(cipher, "ADH") != NULL;
-		    
+
 	if (data->anon_provisioning) {
 		wpa_printf(MSG_DEBUG, "EAP-FAST: Anonymous provisioning");
 		eap_fast_derive_key_provisioning(sm, data);
@@ -789,7 +788,7 @@ static struct wpabuf * eap_fast_build_pac(struct eap_sm *sm,
 
 	/* A-ID (inside PAC-Info) */
 	eap_fast_put_tlv(buf, PAC_TYPE_A_ID, data->srv_id, data->srv_id_len);
-	
+
 	/* Note: headers may be misaligned after A-ID */
 
 	if (sm->identity) {
@@ -1517,7 +1516,7 @@ static void eap_fast_process_msg(struct eap_sm *sm, void *priv,
 		if (eap_fast_process_phase1(sm, data))
 			break;
 
-		/* fall through to PHASE2_START */
+		/* fall through */
 	case PHASE2_START:
 		eap_fast_process_phase2_start(sm, data);
 		break;

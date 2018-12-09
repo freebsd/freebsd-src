@@ -2537,6 +2537,23 @@ ffs_blkrelease_finish(ump, key)
 	if (((ump->um_flags & UM_CANDELETE) == 0) || dotrimcons == 0)
 		return;
 	/*
+	 * If the vfs.ffs.dotrimcons sysctl option is enabled while
+	 * a file deletion is active, specifically after a call
+	 * to ffs_blkrelease_start() but before the call to
+	 * ffs_blkrelease_finish(), ffs_blkrelease_start() will
+	 * have handed out SINGLETON_KEY rather than starting a
+	 * collection sequence. Thus if we get a SINGLETON_KEY
+	 * passed to ffs_blkrelease_finish(), we just return rather
+	 * than trying to finish the nonexistent sequence.
+	 */
+	if (key == SINGLETON_KEY) {
+#ifdef INVARIANTS
+		printf("%s: vfs.ffs.dotrimcons enabled on active filesystem\n",
+		    ump->um_mountp->mnt_stat.f_mntonname);
+#endif
+		return;
+	}
+	/*
 	 * We are done with sending blocks using this key. Look up the key
 	 * using the DONE alloctype (in tp) to request that it be unhashed
 	 * as we will not be adding to it. If the key has never been used,

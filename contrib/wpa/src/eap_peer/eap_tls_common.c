@@ -80,10 +80,22 @@ static void eap_tls_params_flags(struct tls_connection_params *params,
 		params->flags |= TLS_CONN_DISABLE_TLSv1_2;
 	if (os_strstr(txt, "tls_disable_tlsv1_2=0"))
 		params->flags &= ~TLS_CONN_DISABLE_TLSv1_2;
+	if (os_strstr(txt, "tls_disable_tlsv1_3=1"))
+		params->flags |= TLS_CONN_DISABLE_TLSv1_3;
+	if (os_strstr(txt, "tls_disable_tlsv1_3=0"))
+		params->flags &= ~TLS_CONN_DISABLE_TLSv1_3;
 	if (os_strstr(txt, "tls_ext_cert_check=1"))
 		params->flags |= TLS_CONN_EXT_CERT_CHECK;
 	if (os_strstr(txt, "tls_ext_cert_check=0"))
 		params->flags &= ~TLS_CONN_EXT_CERT_CHECK;
+	if (os_strstr(txt, "tls_suiteb=1"))
+		params->flags |= TLS_CONN_SUITEB;
+	if (os_strstr(txt, "tls_suiteb=0"))
+		params->flags &= ~TLS_CONN_SUITEB;
+	if (os_strstr(txt, "tls_suiteb_no_ecdh=1"))
+		params->flags |= TLS_CONN_SUITEB_NO_ECDH;
+	if (os_strstr(txt, "tls_suiteb_no_ecdh=0"))
+		params->flags &= ~TLS_CONN_SUITEB_NO_ECDH;
 }
 
 
@@ -150,6 +162,23 @@ static int eap_tls_params_from_conf(struct eap_sm *sm,
 		 * supports EAP-FAST does not need this workaround).
 		 */
 		params->flags |= TLS_CONN_DISABLE_SESSION_TICKET;
+	}
+	if (data->eap_type == EAP_TYPE_FAST ||
+	    data->eap_type == EAP_TYPE_TTLS ||
+	    data->eap_type == EAP_TYPE_PEAP) {
+		/* The current EAP peer implementation is not yet ready for the
+		 * TLS v1.3 changes, so disable this by default for now. */
+		params->flags |= TLS_CONN_DISABLE_TLSv1_3;
+	}
+	if (data->eap_type == EAP_TYPE_TLS) {
+		/* While the current EAP-TLS implementation is more or less
+		 * complete for TLS v1.3, there has been no interoperability
+		 * testing with other implementations, so disable for by default
+		 * for now until there has been chance to confirm that no
+		 * significant interoperability issues show up with TLS version
+		 * update.
+		 */
+		params->flags |= TLS_CONN_DISABLE_TLSv1_3;
 	}
 	if (phase2) {
 		wpa_printf(MSG_DEBUG, "TLS: using phase2 config options");
@@ -357,6 +386,13 @@ u8 * eap_peer_tls_derive_session_id(struct eap_sm *sm,
 {
 	struct tls_random keys;
 	u8 *out;
+
+	if (eap_type == EAP_TYPE_TLS && data->tls_v13) {
+		*len = 64;
+		return eap_peer_tls_derive_key(sm, data,
+					       "EXPORTER_EAP_TLS_Session-Id",
+					       64);
+	}
 
 	if (tls_connection_get_random(sm->ssl_ctx, data->conn, &keys) ||
 	    keys.client_random == NULL || keys.server_random == NULL)
@@ -661,6 +697,8 @@ int eap_peer_tls_process_helper(struct eap_sm *sm, struct eap_ssl_data *data,
 		 * the AS.
 		 */
 		int res = eap_tls_process_input(sm, data, in_data, out_data);
+		char buf[20];
+
 		if (res) {
 			/*
 			 * Input processing failed (res = -1) or more data is
@@ -673,6 +711,12 @@ int eap_peer_tls_process_helper(struct eap_sm *sm, struct eap_ssl_data *data,
 		 * The incoming message has been reassembled and processed. The
 		 * response was allocated into data->tls_out buffer.
 		 */
+
+		if (tls_get_version(data->ssl_ctx, data->conn,
+				    buf, sizeof(buf)) == 0) {
+			wpa_printf(MSG_DEBUG, "SSL: Using TLS version %s", buf);
+			data->tls_v13 = os_strcmp(buf, "TLSv1.3") == 0;
+		}
 	}
 
 	if (data->tls_out == NULL) {

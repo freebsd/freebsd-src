@@ -97,7 +97,7 @@ static void rsn_preauth_eapol_cb(struct eapol_sm *eapol,
 					NULL, 0,
 					sm->preauth_bssid, sm->own_addr,
 					sm->network_ctx,
-					WPA_KEY_MGMT_IEEE8021X);
+					WPA_KEY_MGMT_IEEE8021X, NULL);
 		} else {
 			wpa_msg(sm->ctx->msg_ctx, MSG_INFO,
 				"RSN: failed to get master session key from "
@@ -323,7 +323,7 @@ void rsn_preauth_candidate_process(struct wpa_sm *sm)
 	dl_list_for_each_safe(candidate, n, &sm->pmksa_candidates,
 			      struct rsn_pmksa_candidate, list) {
 		struct rsn_pmksa_cache_entry *p = NULL;
-		p = pmksa_cache_get(sm->pmksa, candidate->bssid, NULL, NULL);
+		p = pmksa_cache_get(sm->pmksa, candidate->bssid, NULL, NULL, 0);
 		if (os_memcmp(sm->bssid, candidate->bssid, ETH_ALEN) != 0 &&
 		    (p == NULL || p->opportunistic)) {
 			wpa_msg(sm->ctx->msg_ctx, MSG_DEBUG, "RSN: PMKSA "
@@ -342,7 +342,8 @@ void rsn_preauth_candidate_process(struct wpa_sm *sm)
 		/* Some drivers (e.g., NDIS) expect to get notified about the
 		 * PMKIDs again, so report the existing data now. */
 		if (p) {
-			wpa_sm_add_pmkid(sm, candidate->bssid, p->pmkid);
+			wpa_sm_add_pmkid(sm, NULL, candidate->bssid, p->pmkid,
+					 NULL, p->pmk, p->pmk_len);
 		}
 
 		dl_list_del(&candidate->list);
@@ -371,7 +372,7 @@ void pmksa_candidate_add(struct wpa_sm *sm, const u8 *bssid,
 
 	if (sm->network_ctx && sm->proactive_key_caching)
 		pmksa_cache_get_opportunistic(sm->pmksa, sm->network_ctx,
-					      bssid);
+					      bssid, 0);
 
 	if (!preauth) {
 		wpa_printf(MSG_DEBUG, "RSN: Ignored PMKID candidate without "
@@ -482,7 +483,7 @@ void rsn_preauth_scan_result(struct wpa_sm *sm, const u8 *bssid,
 	if (wpa_parse_wpa_ie(rsn, 2 + rsn[1], &ie))
 		return;
 
-	pmksa = pmksa_cache_get(sm->pmksa, bssid, NULL, NULL);
+	pmksa = pmksa_cache_get(sm->pmksa, bssid, NULL, NULL, 0);
 	if (pmksa && (!pmksa->opportunistic ||
 		      !(ie.capabilities & WPA_CAPABILITY_PREAUTH)))
 		return;

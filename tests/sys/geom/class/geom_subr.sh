@@ -1,6 +1,8 @@
 #!/bin/sh
 # $FreeBSD$
 
+TEST_MDS_FILE="${TMPDIR}/test_mds.$(basename $0)"
+
 devwait()
 {
 	while :; do
@@ -40,30 +42,40 @@ geom_test_cleanup()
 			echo "# Removing test memory disk: $test_md"
 			mdconfig -d -u $test_md
 		done < $TEST_MDS_FILE
+		rm -f "$TEST_MDS_FILE"
 	fi
-	rm -f "$TEST_MDS_FILE"
 }
 
-if [ $(id -u) -ne 0 ]; then
-	echo '1..0 # SKIP tests must be run as root'
-	exit 0
-fi
+geom_load_class_if_needed()
+{
+	local class=$1
 
-# If the geom class isn't already loaded, try loading it.
-if ! kldstat -q -m g_${class}; then
-	if ! geom ${class} load; then
-		echo "1..0 # SKIP could not load module for geom class=${class}"
+	# If the geom class isn't already loaded, try loading it.
+	if ! kldstat -q -m g_${class}; then
+		if ! geom ${class} load; then
+			echo "could not load module for geom class=${class}"
+			return 1
+		fi
+	fi
+	return 0
+}
+
+geom_atf_test_setup()
+{
+	if ! error_message=$(geom_load_class_if_needed $class); then
+		atf_skip "$error_message"
+	fi
+}
+
+geom_tap_test_setup()
+{
+	if ! error_message=$(geom_load_class_if_needed $class); then
+		echo "1..0 # SKIP $error_message"
 		exit 0
 	fi
-fi
+}
 
-# Need to keep track of the test md devices to avoid the scenario where a test
-# failing will cause the other tests to bomb out, or a test failing will leave
-# a large number of md(4) devices lingering around
-: ${TMPDIR=/tmp}
-export TMPDIR
-if ! TEST_MDS_FILE=$(mktemp ${TMPDIR}/test_mds.XXXXXX); then
-	echo 'Failed to create temporary file for tracking the test md(4) devices'
-	echo 'Bail out!'
-	exit 1
+: ${ATF_TEST=false}
+if ! $ATF_TEST; then
+	geom_tap_test_setup
 fi

@@ -985,6 +985,9 @@ restart:
 				break;
 			    case CMD_viewtog:
 				displaymode = displaymode == DISP_IO ? DISP_CPU : DISP_IO;
+				new_message(MT_standout | MT_delayed,
+				    " Displaying %s statistics.",
+				    displaymode == DISP_IO ? "IO" : "CPU");
 				header_text = format_header(uname_field);
 				display_header(true);
 				d_header = i_header;
@@ -992,9 +995,15 @@ restart:
 				break;
 			    case CMD_viewsys:
 				ps.system = !ps.system;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying system processes.",
+				    ps.system ? "D" : "Not d");
 				break;
 			    case CMD_showargs:
 				fmt_flags ^= FMT_SHOWARGS;
+				new_message(MT_standout | MT_delayed,
+				    " %sisplaying process arguments.",
+				    fmt_flags & FMT_SHOWARGS ? "D" : "Not d");
 				break;
 			    case CMD_order:
 				new_message(MT_standout,

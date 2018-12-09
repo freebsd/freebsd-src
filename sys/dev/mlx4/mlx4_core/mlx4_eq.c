@@ -1535,3 +1535,34 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec)
 }
 EXPORT_SYMBOL(mlx4_release_eq);
 
+void
+mlx4_disable_interrupts(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = container_of(dev, struct mlx4_priv, dev);
+	int i;
+
+	if (dev->flags & MLX4_FLAG_MSI_X) {
+		for (i = 0; i < (dev->caps.num_comp_vectors + 1); ++i)
+			disable_irq(priv->eq_table.eq[i].irq);
+	} else {
+		disable_irq(dev->persist->pdev->irq);
+	}
+}
+EXPORT_SYMBOL(mlx4_disable_interrupts);
+
+void
+mlx4_poll_interrupts(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = container_of(dev, struct mlx4_priv, dev);
+	int i;
+
+	if (dev->flags & MLX4_FLAG_MSI_X) {
+		for (i = 0; i < (dev->caps.num_comp_vectors + 1); ++i) {
+			mlx4_msi_x_interrupt(priv->eq_table.eq[i].irq,
+					     priv->eq_table.eq + i);
+		}
+	} else {
+		mlx4_interrupt(dev->persist->pdev->irq, dev);
+	}
+}
+EXPORT_SYMBOL(mlx4_poll_interrupts);

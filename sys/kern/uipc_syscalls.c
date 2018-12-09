@@ -455,9 +455,7 @@ sys_accept4(td, uap)
 
 #ifdef COMPAT_OLDSOCK
 int
-oaccept(td, uap)
-	struct thread *td;
-	struct accept_args *uap;
+oaccept(struct thread *td, struct oaccept_args *uap)
 {
 
 	return (accept1(td, uap->s, uap->name, uap->anamelen,

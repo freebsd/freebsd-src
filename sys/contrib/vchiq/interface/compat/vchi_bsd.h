@@ -162,10 +162,6 @@ struct mutex {
  */
 typedef struct rwlock rwlock_t;
 
-#if defined(SX_ADAPTIVESPIN) && !defined(SX_NOADAPTIVE)
-#define SX_NOADAPTIVE SX_ADAPTIVESPIN
-#endif
-
 #define DEFINE_RWLOCK(name)				\
 	struct rwlock name;					\
 	SX_SYSINIT(name, &name, #name)

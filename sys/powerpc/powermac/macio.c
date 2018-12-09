@@ -135,7 +135,8 @@ static driver_t macio_pci_driver = {
 
 devclass_t macio_devclass;
 
-DRIVER_MODULE(macio, pci, macio_pci_driver, macio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(macio, pci, macio_pci_driver, macio_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 /*
  * PCI ID search table

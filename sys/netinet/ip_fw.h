@@ -708,6 +708,7 @@ struct _ipfw_dyn_rule {
 	u_int32_t	state;		/* state of this rule (typically a
 					 * combination of TCP flags)
 					 */
+#define	IPFW_DYN_ORPHANED	0x40000	/* state's parent rule was deleted */
 	u_int32_t	ack_fwd;	/* most recent ACKs in forward	*/
 	u_int32_t	ack_rev;	/* and reverse directions (used	*/
 					/* to generate keepalives)	*/
@@ -938,9 +939,10 @@ typedef struct _ipfw_range_tlv {
 #define	IPFW_RCFLAG_RANGE	0x01	/* rule range is set		*/
 #define	IPFW_RCFLAG_ALL		0x02	/* match ALL rules		*/
 #define	IPFW_RCFLAG_SET		0x04	/* match rules in given set	*/
+#define	IPFW_RCFLAG_DYNAMIC	0x08	/* match only dynamic states	*/
 /* User-settable flags */
 #define	IPFW_RCFLAG_USER	(IPFW_RCFLAG_RANGE | IPFW_RCFLAG_ALL | \
-	IPFW_RCFLAG_SET)
+	IPFW_RCFLAG_SET | IPFW_RCFLAG_DYNAMIC)
 /* Internally used flags */
 #define	IPFW_RCFLAG_DEFAULT	0x0100	/* Do not skip defaul rule	*/
 

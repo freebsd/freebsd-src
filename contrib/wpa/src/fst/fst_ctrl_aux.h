@@ -35,6 +35,17 @@ enum fst_event_type {
 					 *  more info */
 };
 
+enum fst_reason {
+	REASON_TEARDOWN,
+	REASON_SETUP,
+	REASON_SWITCH,
+	REASON_STT,
+	REASON_REJECT,
+	REASON_ERROR_PARAMS,
+	REASON_RESET,
+	REASON_DETACH_IFACE,
+};
+
 enum fst_initiator {
 	FST_INITIATOR_UNDEFINED,
 	FST_INITIATOR_LOCAL,
@@ -57,16 +68,7 @@ union fst_event_extra {
 		enum fst_session_state new_state;
 		union fst_session_state_switch_extra {
 			struct {
-				enum fst_reason {
-					REASON_TEARDOWN,
-					REASON_SETUP,
-					REASON_SWITCH,
-					REASON_STT,
-					REASON_REJECT,
-					REASON_ERROR_PARAMS,
-					REASON_RESET,
-					REASON_DETACH_IFACE,
-				} reason;
+				enum fst_reason reason;
 				u8 reject_code; /* REASON_REJECT */
 				/* REASON_SWITCH,
 				 * REASON_TEARDOWN,

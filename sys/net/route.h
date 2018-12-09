@@ -251,6 +251,7 @@ struct rt_msghdr {
 	u_char	rtm_version;	/* future binary compatibility */
 	u_char	rtm_type;	/* message type */
 	u_short	rtm_index;	/* index for associated ifp */
+	u_short _rtm_spare1;
 	int	rtm_flags;	/* flags, incl. kern & message, e.g. DONE */
 	int	rtm_addrs;	/* bitmask identifying sockaddrs in msg */
 	pid_t	rtm_pid;	/* identify sender */

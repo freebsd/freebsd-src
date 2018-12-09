@@ -467,13 +467,12 @@ static void eap_eke_process_identity(struct eap_sm *sm,
 
 	data->peerid_type = *pos++;
 	os_free(data->peerid);
-	data->peerid = os_malloc(end - pos);
+	data->peerid = os_memdup(pos, end - pos);
 	if (data->peerid == NULL) {
 		wpa_printf(MSG_INFO, "EAP-EKE: Failed to allocate memory for peerid");
 		eap_eke_fail(data, EAP_EKE_FAIL_PRIVATE_INTERNAL_ERROR);
 		return;
 	}
-	os_memcpy(data->peerid, pos, end - pos);
 	data->peerid_len = end - pos;
 	wpa_printf(MSG_DEBUG, "EAP-EKE: Peer IDType %u", data->peerid_type);
 	wpa_hexdump_ascii(MSG_DEBUG, "EAP-EKE: Peer Identity",
@@ -731,10 +730,9 @@ static u8 * eap_eke_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_MSK_LEN);
+	key = os_memdup(data->msk, EAP_MSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->msk, EAP_MSK_LEN);
 	*len = EAP_MSK_LEN;
 
 	return key;
@@ -749,10 +747,9 @@ static u8 * eap_eke_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->state != SUCCESS)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->emsk, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
-	os_memcpy(key, data->emsk, EAP_EMSK_LEN);
 	*len = EAP_EMSK_LEN;
 
 	return key;

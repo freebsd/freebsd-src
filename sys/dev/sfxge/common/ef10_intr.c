@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "efx_impl.h"
 
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 	__checkReturn	efx_rc_t
 ef10_intr_init(
@@ -78,19 +78,19 @@ efx_mcdi_trigger_interrupt(
 	__in		unsigned int level)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_TRIGGER_INTERRUPT_IN_LEN,
-			    MC_CMD_TRIGGER_INTERRUPT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_TRIGGER_INTERRUPT_IN_LEN,
+		MC_CMD_TRIGGER_INTERRUPT_OUT_LEN);
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
-		    enp->en_family == EFX_FAMILY_MEDFORD);
+	    enp->en_family == EFX_FAMILY_MEDFORD ||
+	    enp->en_family == EFX_FAMILY_MEDFORD2);
 
 	if (level >= enp->en_nic_cfg.enc_intr_limit) {
 		rc = EINVAL;
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_TRIGGER_INTERRUPT;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_TRIGGER_INTERRUPT_IN_LEN;
@@ -156,7 +156,8 @@ ef10_intr_status_line(
 	efx_dword_t dword;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
-		    enp->en_family == EFX_FAMILY_MEDFORD);
+	    enp->en_family == EFX_FAMILY_MEDFORD ||
+	    enp->en_family == EFX_FAMILY_MEDFORD2);
 
 	/* Read the queue mask and implicitly acknowledge the interrupt. */
 	EFX_BAR_READD(enp, ER_DZ_BIU_INT_ISR_REG, &dword, B_FALSE);
@@ -174,7 +175,8 @@ ef10_intr_status_message(
 	__out		boolean_t *fatalp)
 {
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
-		    enp->en_family == EFX_FAMILY_MEDFORD);
+	    enp->en_family == EFX_FAMILY_MEDFORD ||
+	    enp->en_family == EFX_FAMILY_MEDFORD2);
 
 	_NOTE(ARGUNUSED(enp, message))
 
@@ -197,4 +199,4 @@ ef10_intr_fini(
 	_NOTE(ARGUNUSED(enp))
 }
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */

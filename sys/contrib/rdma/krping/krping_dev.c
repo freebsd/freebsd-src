@@ -187,7 +187,7 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 		err = uiomove(cp, amt, uio);
 		if (err) {
 			uprintf("Write failed: bad address!\n");
-			return err;
+			goto done;
 		}
 		cp += amt;
 		remain -= amt;
@@ -195,7 +195,8 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	if (uio->uio_resid != 0) {
 		uprintf("Message too big. max size is %d!\n", BUFFERSIZE);
-		return EMSGSIZE;
+		err = EMSGSIZE;
+		goto done;
 	}
 
 	/* null terminate and remove the \n */
@@ -204,6 +205,7 @@ krping_write(struct cdev *dev, struct uio *uio, int ioflag)
 	krpingmsg->len = (unsigned long)(cp - krpingmsg->msg);
 	uprintf("krping: write string = |%s|\n", krpingmsg->msg);
 	err = krping_doit(krpingmsg->msg);
+done:
 	free(krpingmsg, M_DEVBUF);
 	return(err);
 }

@@ -34,9 +34,9 @@
 
 #define DRIVER_NAME "mlx5_core"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.4.2"
+#define DRIVER_VERSION "3.5.0"
 #endif
-#define DRIVER_RELDATE "July 2018"
+#define DRIVER_RELDATE "November 2018"
 
 extern int mlx5_core_debug_mask;
 
@@ -85,6 +85,9 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
 
+int mlx5_register_device(struct mlx5_core_dev *dev);
+void mlx5_unregister_device(struct mlx5_core_dev *dev);
+
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
 
@@ -102,5 +105,7 @@ struct mlx5_crspace_regmap {
 };
 
 extern struct pci_driver mlx5_core_driver;
+
+SYSCTL_DECL(_hw_mlx5);
 
 #endif /* __MLX5_CORE_H__ */

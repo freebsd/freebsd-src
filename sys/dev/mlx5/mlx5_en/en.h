@@ -178,7 +178,8 @@ typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
   m(+1, u64 tx_csum_offload, "tx_csum_offload", "Transmit checksum offload packets") \
   m(+1, u64 tx_queue_dropped, "tx_queue_dropped", "Transmit queue dropped") \
   m(+1, u64 tx_defragged, "tx_defragged", "Transmit queue defragged") \
-  m(+1, u64 rx_wqe_err, "rx_wqe_err", "Receive WQE errors")
+  m(+1, u64 rx_wqe_err, "rx_wqe_err", "Receive WQE errors") \
+  m(+1, u64 tx_jumbo_packets, "tx_jumbo_packets", "TX packets greater than 1518 octets")
 
 #define	MLX5E_VPORT_STATS_NUM (0 MLX5E_VPORT_STATS(MLX5E_STATS_COUNT))
 
@@ -378,9 +379,10 @@ struct mlx5e_port_stats_debug {
 
 #define	MLX5E_RQ_STATS(m)					\
   m(+1, u64 packets, "packets", "Received packets")		\
+  m(+1, u64 bytes, "bytes", "Received bytes")			\
   m(+1, u64 csum_none, "csum_none", "Received packets")		\
-  m(+1, u64 lro_packets, "lro_packets", "Received packets")	\
-  m(+1, u64 lro_bytes, "lro_bytes", "Received packets")		\
+  m(+1, u64 lro_packets, "lro_packets", "Received LRO packets")	\
+  m(+1, u64 lro_bytes, "lro_bytes", "Received LRO bytes")	\
   m(+1, u64 sw_lro_queued, "sw_lro_queued", "Packets queued for SW LRO")	\
   m(+1, u64 sw_lro_flushed, "sw_lro_flushed", "Packets flushed from SW LRO")	\
   m(+1, u64 wqe_err, "wqe_err", "Received packets")
@@ -395,6 +397,7 @@ struct mlx5e_rq_stats {
 
 #define	MLX5E_SQ_STATS(m)						\
   m(+1, u64 packets, "packets", "Transmitted packets")			\
+  m(+1, u64 bytes, "bytes", "Transmitted bytes")			\
   m(+1, u64 tso_packets, "tso_packets", "Transmitted packets")		\
   m(+1, u64 tso_bytes, "tso_bytes", "Transmitted bytes")		\
   m(+1, u64 csum_offload_none, "csum_offload_none", "Transmitted packets")	\
@@ -472,7 +475,6 @@ struct mlx5e_params {
   m(+1, u64 tx_coalesce_usecs, "tx_coalesce_usecs", "Limit in usec for joining tx packets") \
   m(+1, u64 tx_coalesce_pkts, "tx_coalesce_pkts", "Maximum number of tx packets to join") \
   m(+1, u64 tx_coalesce_mode, "tx_coalesce_mode", "0: EQE mode 1: CQE mode") \
-  m(+1, u64 tx_bufring_disable, "tx_bufring_disable", "0: Enable bufring 1: Disable bufring") \
   m(+1, u64 tx_completion_fact, "tx_completion_fact", "1..MAX: Completion event ratio") \
   m(+1, u64 tx_completion_fact_max, "tx_completion_fact_max", "Maximum completion event ratio") \
   m(+1, u64 hw_lro, "hw_lro", "set to enable hw_lro") \
@@ -492,6 +494,7 @@ struct mlx5e_params_ethtool {
 	u64	arg [0];
 	MLX5E_PARAMS(MLX5E_STATS_VAR)
 	u64	max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u8	max_bw_share[IEEE_8021QAZ_MAX_TCS];
 	u8	prio_tc[IEEE_8021QAZ_MAX_TCS];
 	u8	dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
 	u8	trust_state;
@@ -577,6 +580,11 @@ enum {
 	MLX5E_SQ_FULL
 };
 
+struct mlx5e_snd_tag {
+	struct m_snd_tag m_snd_tag;	/* send tag */
+	u32	type;	/* tag type */
+};
+
 struct mlx5e_sq {
 	/* data path */
 	struct	mtx lock;
@@ -595,7 +603,7 @@ struct mlx5e_sq {
 #define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
-	u16	stopped;		/* set if SQ is stopped */
+	u16	running;		/* set if SQ is running */
 	struct callout cev_callout;
 	union {
 		u32	d32[2];
@@ -604,8 +612,6 @@ struct mlx5e_sq {
 	struct	mlx5e_sq_stats stats;
 
 	struct	mlx5e_cq cq;
-	struct	task sq_task;
-	struct	taskqueue *sq_tq;
 
 	/* pointers to per packet info: write@xmit, read@completion */
 	struct	mlx5e_sq_mbuf *mbuf;
@@ -620,13 +626,14 @@ struct mlx5e_sq {
 	u32	mkey_be;
 	u16	max_inline;
 	u8	min_inline_mode;
-	u8	vlan_inline_cap;
+	u8	min_insert_caps;
+#define	MLX5E_INSERT_VLAN 1
+#define	MLX5E_INSERT_NON_VLAN 2
 
 	/* control path */
 	struct	mlx5_wq_ctrl wq_ctrl;
 	struct	mlx5e_priv *priv;
 	int	tc;
-	unsigned int queue_state;
 } __aligned(MLX5E_CACHELINE_SIZE);
 
 static inline bool
@@ -638,11 +645,27 @@ mlx5e_sq_has_room_for(struct mlx5e_sq *sq, u16 n)
 	return ((sq->wq.sz_m1 & (cc - pc)) >= n || cc == pc);
 }
 
+static inline u32
+mlx5e_sq_queue_level(struct mlx5e_sq *sq)
+{
+	u16 cc;
+	u16 pc;
+
+	if (sq == NULL)
+		return (0);
+
+	cc = sq->cc;
+	pc = sq->pc;
+
+	return (((sq->wq.sz_m1 & (pc - cc)) *
+	    IF_SND_QUEUE_LEVEL_MAX) / sq->wq.sz_m1);
+}
+
 struct mlx5e_channel {
 	/* data path */
 	struct mlx5e_rq rq;
+	struct mlx5e_snd_tag tag;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
-	struct ifnet *ifp;
 	u32	mkey_be;
 	u8	num_tc;
 
@@ -768,8 +791,8 @@ struct mlx5e_priv {
 	u32	pdn;
 	u32	tdn;
 	struct mlx5_core_mr mr;
+	volatile unsigned int channel_refs;
 
-	struct mlx5e_channel *volatile *channel;
 	u32	tisn[MLX5E_MAX_TX_NUM_TC];
 	u32	rqtn;
 	u32	tirn[MLX5E_NUM_TT];
@@ -794,7 +817,6 @@ struct mlx5e_priv {
 	struct sysctl_oid *sysctl_hw;
 	int	sysctl_debug;
 	struct mlx5e_stats stats;
-	struct sysctl_ctx_list sysctl_ctx_channel_debug;
 	int	counter_set_id;
 
 	struct workqueue_struct *wq;
@@ -815,6 +837,8 @@ struct mlx5e_priv {
 	int	clbr_curr;
 	struct mlx5e_clbr_point clbr_points[2];
 	u_int	clbr_gen;
+
+	struct mlx5e_channel channel[];
 };
 
 #define	MLX5E_NET_IP_ALIGN 2
@@ -844,19 +868,6 @@ struct mlx5e_eeprom {
 	u32	*data;
 };
 
-/*
- * This structure contains rate limit extension to the IEEE 802.1Qaz ETS
- * managed object.
- * Values are 64 bits long and specified in Kbps to enable usage over both
- * slow and very fast networks.
- *
- * @tc_maxrate: maximal tc tx bandwidth indexed by traffic class
- */
-struct ieee_maxrate {
-	__u64	tc_maxrate[IEEE_8021QAZ_MAX_TCS];
-};
-
-
 #define	MLX5E_FLD_MAX(typ, fld) ((1ULL << __mlx5_bit_sz(typ, fld)) - 1ULL)
 
 int	mlx5e_xmit(struct ifnet *, struct mbuf *);
@@ -868,7 +879,6 @@ void	mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event);
 void	mlx5e_rx_cq_comp(struct mlx5_core_cq *);
 void	mlx5e_tx_cq_comp(struct mlx5_core_cq *);
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
-void	mlx5e_tx_que(void *context, int pending);
 
 int	mlx5e_open_flow_table(struct mlx5e_priv *priv);
 void	mlx5e_close_flow_table(struct mlx5e_priv *priv);
@@ -921,6 +931,24 @@ mlx5e_cq_arm(struct mlx5e_cq *cq, spinlock_t *dblock)
 	mlx5_cq_arm(mcq, MLX5_CQ_DB_REQ_NOT, mcq->uar->map, dblock, cq->wq.cc);
 }
 
+static inline void
+mlx5e_ref_channel(struct mlx5e_priv *priv)
+{
+
+	KASSERT(priv->channel_refs < INT_MAX,
+	    ("Channel refs will overflow"));
+	atomic_fetchadd_int(&priv->channel_refs, 1);
+}
+
+static inline void
+mlx5e_unref_channel(struct mlx5e_priv *priv)
+{
+
+	KASSERT(priv->channel_refs > 0,
+	    ("Channel refs is not greater than zero"));
+	atomic_fetchadd_int(&priv->channel_refs, -1);
+}
+
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 void	mlx5e_create_ethtool(struct mlx5e_priv *);
 void	mlx5e_create_stats(struct sysctl_ctx_list *,
@@ -941,6 +969,7 @@ void	mlx5e_drain_sq(struct mlx5e_sq *);
 void	mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_resume_sq(struct mlx5e_sq *sq);
-u8	mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
+void	mlx5e_update_sq_inline(struct mlx5e_sq *sq);
+void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 
 #endif					/* _MLX5_EN_H_ */

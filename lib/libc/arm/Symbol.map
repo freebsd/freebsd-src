@@ -43,9 +43,7 @@ FBSD_1.4 {
 
 FBSDprivate_1.0 {
 	/* PSEUDO syscalls */
-	__sys_getlogin;
 	_getlogin;
-	__sys_exit;
 
 	_set_tp;
 	__aeabi_read_tp;
@@ -55,7 +53,6 @@ FBSDprivate_1.0 {
 	signalcontext;
 	_signalcontext;
 	__siglongjmp;
-	__sys_vfork;
 	_vfork;
 	_brk;
 	_sbrk;

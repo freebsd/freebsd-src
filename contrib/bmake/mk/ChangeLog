@@ -1,3 +1,25 @@
+2018-09-19  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20180919
+
+	* dirdeps-options.mk: .undef cannot handle var that expands to
+	  more than one var. 
+
+2018-07-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.stage.mk: allow wildcards in STAGE_FILES.* etc.
+
+2018-06-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* meta.autodep.mk: export META_FILES to avoid command line limit
+	* gendirdeps.mk: if we have lots of .meta files put them in
+	  an @list
+
+2018-05-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-options.mk: use local.dirdeps-options.mk
+	  not local.dirdeps-option.mk
+
 2018-04-20  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20180420

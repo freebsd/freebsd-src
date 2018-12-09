@@ -56,7 +56,6 @@
 #define	NO_TTY		0x02
 #define	EDIT_DISABLED	0x04
 #define	UNBUFFERED	0x08
-#define	CHARSET_IS_UTF8 0x10
 #define	NARROW_HISTORY	0x40
 
 typedef unsigned char el_action_t;	/* Index to command array	*/

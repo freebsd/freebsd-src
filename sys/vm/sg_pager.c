@@ -100,9 +100,9 @@ sg_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * to map beyond that.
 	 */
 	size = round_page(size);
-	pindex = UOFF_TO_IDX(foff) + UOFF_TO_IDX(size);
-	if (pindex > npages || pindex < UOFF_TO_IDX(foff) ||
-	    pindex < UOFF_TO_IDX(size))
+	pindex = OFF_TO_IDX(foff) + OFF_TO_IDX(size);
+	if (pindex > npages || pindex < OFF_TO_IDX(foff) ||
+	    pindex < OFF_TO_IDX(size))
 		return (NULL);
 
 	/*

@@ -1449,7 +1449,7 @@ main(int argc, char **argv)
 	/*
 	 * Read the current superblock, and take a backup.
 	 */
-	if ((ret = sbget(fsi, &fs, -1)) != 0) {
+	if ((ret = sbget(fsi, &fs, STDSB)) != 0) {
 		switch (ret) {
 		case ENOENT:
 			errx(1, "superblock not recognized");

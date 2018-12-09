@@ -104,7 +104,7 @@ static const efx_intr_ops_t	__efx_intr_siena_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 static const efx_intr_ops_t	__efx_intr_ef10_ops = {
 	ef10_intr_init,			/* eio_init */
 	ef10_intr_enable,		/* eio_enable */
@@ -116,13 +116,13 @@ static const efx_intr_ops_t	__efx_intr_ef10_ops = {
 	ef10_intr_fatal,		/* eio_fatal */
 	ef10_intr_fini,			/* eio_fini */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn	efx_rc_t
 efx_intr_init(
 	__in		efx_nic_t *enp,
 	__in		efx_intr_type_t type,
-	__in		efsys_mem_t *esmp)
+	__in_opt	efsys_mem_t *esmp)
 {
 	efx_intr_t *eip = &(enp->en_intr);
 	const efx_intr_ops_t *eiop;
@@ -160,6 +160,12 @@ efx_intr_init(
 		eiop = &__efx_intr_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		eiop = &__efx_intr_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		EFSYS_ASSERT(B_FALSE);
@@ -312,6 +318,12 @@ siena_intr_init(
 {
 	efx_intr_t *eip = &(enp->en_intr);
 	efx_oword_t oword;
+	efx_rc_t rc;
+
+	if ((esmp == NULL) || (EFSYS_MEM_SIZE(esmp) < EFX_INTR_SIZE)) {
+		rc = EINVAL;
+		goto fail1;
+	}
 
 	/*
 	 * bug17213 workaround.
@@ -343,6 +355,11 @@ siena_intr_init(
 	EFX_BAR_WRITEO(enp, FR_AZ_INT_ADR_REG_KER, &oword);
 
 	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
 }
 
 static			void

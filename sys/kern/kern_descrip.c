@@ -818,6 +818,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 
 	p = td->td_proc;
 	fdp = p->p_fd;
+	oioctls = NULL;
 
 	MPASS((flags & ~(FDDUP_FLAG_CLOEXEC)) == 0);
 	MPASS(mode < FDDUP_LASTMODE);
@@ -877,10 +878,8 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 			 * the limit on the size of the file descriptor table.
 			 */
 #ifdef RACCT
-			if (racct_enable) {
-				PROC_LOCK(p);
-				error = racct_set(p, RACCT_NOFILE, new + 1);
-				PROC_UNLOCK(p);
+			if (RACCT_ENABLED()) {
+				error = racct_set_unlocked(p, RACCT_NOFILE, new + 1);
 				if (error != 0) {
 					error = EMFILE;
 					goto unlock;
@@ -922,7 +921,6 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 #ifdef CAPABILITIES
 	seq_write_end(&newfde->fde_seq);
 #endif
-	filecaps_free_finish(oioctls);
 	td->td_retval[0] = new;
 
 	error = 0;
@@ -935,6 +933,7 @@ unlock:
 		FILEDESC_XUNLOCK(fdp);
 	}
 
+	filecaps_free_finish(oioctls);
 	return (error);
 }
 
@@ -1511,7 +1510,7 @@ filecaps_copy_prep(const struct filecaps *src)
 	u_long *ioctls;
 	size_t size;
 
-	if (src->fc_ioctls == NULL)
+	if (__predict_true(src->fc_ioctls == NULL))
 		return (NULL);
 
 	KASSERT(src->fc_nioctls > 0,
@@ -1529,7 +1528,7 @@ filecaps_copy_finish(const struct filecaps *src, struct filecaps *dst,
 	size_t size;
 
 	*dst = *src;
-	if (src->fc_ioctls == NULL) {
+	if (__predict_true(src->fc_ioctls == NULL)) {
 		MPASS(ioctls == NULL);
 		return;
 	}
@@ -1750,10 +1749,8 @@ fdalloc(struct thread *td, int minfd, int *result)
 	if (fd >= fdp->fd_nfiles) {
 		allocfd = min(fd * 2, maxfd);
 #ifdef RACCT
-		if (racct_enable) {
-			PROC_LOCK(p);
-			error = racct_set(p, RACCT_NOFILE, allocfd);
-			PROC_UNLOCK(p);
+		if (RACCT_ENABLED()) {
+			error = racct_set_unlocked(p, RACCT_NOFILE, allocfd);
 			if (error != 0)
 				return (EMFILE);
 		}
@@ -2265,11 +2262,8 @@ fdescfree(struct thread *td)
 	MPASS(fdp != NULL);
 
 #ifdef RACCT
-	if (racct_enable) {
-		PROC_LOCK(p);
-		racct_set(p, RACCT_NOFILE, 0);
-		PROC_UNLOCK(p);
-	}
+	if (RACCT_ENABLED())
+		racct_set_unlocked(p, RACCT_NOFILE, 0);
 #endif
 
 	if (p->p_fdtol != NULL)
@@ -2637,7 +2631,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 #endif
 
 	fdt = fdp->fd_files;
-	if ((u_int)fd >= fdt->fdt_nfiles)
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
 		return (EBADF);
 	/*
 	 * Fetch the descriptor locklessly.  We avoid fdrop() races by

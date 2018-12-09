@@ -16,6 +16,7 @@
 #include "utils/base64.h"
 #include "utils/ip_addr.h"
 #include "utils/eloop.h"
+#include "utils/json.h"
 #include "utils/module_tests.h"
 
 
@@ -839,6 +840,85 @@ static int eloop_tests(void)
 }
 
 
+#ifdef CONFIG_JSON
+struct json_test_data {
+	const char *json;
+	const char *tree;
+};
+
+static const struct json_test_data json_test_cases[] = {
+	{ "{}", "[1:OBJECT:]" },
+	{ "[]", "[1:ARRAY:]" },
+	{ "{", NULL },
+	{ "[", NULL },
+	{ "}", NULL },
+	{ "]", NULL },
+	{ "[[]]", "[1:ARRAY:][2:ARRAY:]" },
+	{ "{\"t\":\"test\"}", "[1:OBJECT:][2:STRING:t]" },
+	{ "{\"t\":123}", "[1:OBJECT:][2:NUMBER:t]" },
+	{ "{\"t\":true}", "[1:OBJECT:][2:BOOLEAN:t]" },
+	{ "{\"t\":false}", "[1:OBJECT:][2:BOOLEAN:t]" },
+	{ "{\"t\":null}", "[1:OBJECT:][2:NULL:t]" },
+	{ "{\"t\":truetrue}", NULL },
+	{ "\"test\"", "[1:STRING:]" },
+	{ "123", "[1:NUMBER:]" },
+	{ "true", "[1:BOOLEAN:]" },
+	{ "false", "[1:BOOLEAN:]" },
+	{ "null", "[1:NULL:]" },
+	{ "truetrue", NULL },
+	{ " {\t\n\r\"a\"\n:\r1\n,\n\"b\":3\n}\n",
+	  "[1:OBJECT:][2:NUMBER:a][2:NUMBER:b]" },
+	{ ",", NULL },
+	{ "{,}", NULL },
+	{ "[,]", NULL },
+	{ ":", NULL },
+	{ "{:}", NULL },
+	{ "[:]", NULL },
+	{ "{ \"\\u005c\" : \"\\u005c\" }", "[1:OBJECT:][2:STRING:\\]" },
+	{ "[{},{}]", "[1:ARRAY:][2:OBJECT:][2:OBJECT:]" },
+	{ "[1,2]", "[1:ARRAY:][2:NUMBER:][2:NUMBER:]" },
+	{ "[\"1\",\"2\"]", "[1:ARRAY:][2:STRING:][2:STRING:]" },
+	{ "[true,false]", "[1:ARRAY:][2:BOOLEAN:][2:BOOLEAN:]" },
+};
+#endif /* CONFIG_JSON */
+
+
+static int json_tests(void)
+{
+#ifdef CONFIG_JSON
+	unsigned int i;
+	struct json_token *root;
+	char buf[1000];
+
+	wpa_printf(MSG_INFO, "JSON tests");
+
+	for (i = 0; i < ARRAY_SIZE(json_test_cases); i++) {
+		const struct json_test_data *test = &json_test_cases[i];
+		int res = 0;
+
+		root = json_parse(test->json, os_strlen(test->json));
+		if ((root && !test->tree) || (!root && test->tree)) {
+			wpa_printf(MSG_INFO, "JSON test %u failed", i);
+			res = -1;
+		} else if (root) {
+			json_print_tree(root, buf, sizeof(buf));
+			if (os_strcmp(buf, test->tree) != 0) {
+				wpa_printf(MSG_INFO,
+					   "JSON test %u tree mismatch: %s %s",
+					   i, buf, test->tree);
+				res = -1;
+			}
+		}
+		json_free(root);
+		if (res < 0)
+			return -1;
+
+	}
+#endif /* CONFIG_JSON */
+	return 0;
+}
+
+
 int utils_module_tests(void)
 {
 	int ret = 0;
@@ -855,6 +935,7 @@ int utils_module_tests(void)
 	    wpabuf_tests() < 0 ||
 	    ip_addr_tests() < 0 ||
 	    eloop_tests() < 0 ||
+	    json_tests() < 0 ||
 	    int_array_tests() < 0)
 		ret = -1;
 

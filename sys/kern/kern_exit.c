@@ -148,6 +148,27 @@ reaper_abandon_children(struct proc *p, bool exiting)
 }
 
 static void
+reaper_clear(struct proc *p)
+{
+	struct proc *p1;
+	bool clear;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	LIST_REMOVE(p, p_reapsibling);
+	if (p->p_reapsubtree == 1)
+		return;
+	clear = true;
+	LIST_FOREACH(p1, &p->p_reaper->p_reaplist, p_reapsibling) {
+		if (p1->p_reapsubtree == p->p_reapsubtree) {
+			clear = false;
+			break;
+		}
+	}
+	if (clear)
+		proc_id_clear(PROC_ID_REAP, p->p_reapsubtree);
+}
+
+static void
 clear_orphan(struct proc *p)
 {
 	struct proc *p1;
@@ -427,14 +448,17 @@ exit1(struct thread *td, int rval, int signo)
 
 	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
 
-	sx_xlock(&proctree_lock);
 	/*
 	 * Move proc from allproc queue to zombproc.
 	 */
 	sx_xlock(&allproc_lock);
+	sx_xlock(&zombproc_lock);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
+	sx_xunlock(&zombproc_lock);
 	sx_xunlock(&allproc_lock);
+
+	sx_xlock(&proctree_lock);
 
 	/*
 	 * Reparent all children processes:
@@ -532,6 +556,17 @@ exit1(struct thread *td, int rval, int signo)
 		PROC_UNLOCK(q);
 	}
 
+#ifdef KDTRACE_HOOKS
+	if (SDT_PROBES_ENABLED()) {
+		int reason = CLD_EXITED;
+		if (WCOREDUMP(signo))
+			reason = CLD_DUMPED;
+		else if (WIFSIGNALED(signo))
+			reason = CLD_KILLED;
+		SDT_PROBE1(proc, , , exit, reason);
+	}
+#endif
+
 	/* Save exit status. */
 	PROC_LOCK(p);
 	p->p_xthread = td;
@@ -549,15 +584,6 @@ exit1(struct thread *td, int rval, int signo)
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE_LOCKED(p->p_klist, NOTE_EXIT);
-
-#ifdef KDTRACE_HOOKS
-	int reason = CLD_EXITED;
-	if (WCOREDUMP(signo))
-		reason = CLD_DUMPED;
-	else if (WIFSIGNALED(signo))
-		reason = CLD_KILLED;
-	SDT_PROBE1(proc, , , exit, reason);
-#endif
 
 	/*
 	 * If this is a process with a descriptor, we may not need to deliver
@@ -871,15 +897,16 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * Remove other references to this process to ensure we have an
 	 * exclusive reference.
 	 */
-	sx_xlock(&allproc_lock);
+	sx_xlock(&zombproc_lock);
 	LIST_REMOVE(p, p_list);	/* off zombproc */
-	sx_xunlock(&allproc_lock);
+	sx_xunlock(&zombproc_lock);
 	sx_xlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_hash);
 	sx_xunlock(PIDHASHLOCK(p->p_pid));
 	LIST_REMOVE(p, p_sibling);
 	reaper_abandon_children(p, true);
-	LIST_REMOVE(p, p_reapsibling);
+	reaper_clear(p);
+	proc_id_clear(PROC_ID_PID, p->p_pid);
 	PROC_LOCK(p);
 	clear_orphan(p);
 	PROC_UNLOCK(p);

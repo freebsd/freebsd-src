@@ -389,8 +389,11 @@ awusbphy_set_mode(struct phynode *phynode, int mode)
 	phy = phynode_get_id(phynode);
 	sc = device_get_softc(dev);
 
-	if (phy != 0)
-		return (EINVAL);
+	if (phy != 0) {
+		if (mode != PHY_USB_MODE_HOST)
+			return (EINVAL);
+		return (0);
+	}
 
 	switch (mode) {
 	case PHY_USB_MODE_HOST:

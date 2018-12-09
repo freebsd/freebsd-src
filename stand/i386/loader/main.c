@@ -73,6 +73,7 @@ void			exit(int code);
 #ifdef LOADER_GELI_SUPPORT
 #include "geliboot.h"
 struct geli_boot_args	*gargs;
+struct geli_boot_data	*gbdata;
 #endif
 #ifdef LOADER_ZFS_SUPPORT
 struct zfs_boot_args	*zargs;
@@ -169,37 +170,49 @@ main(void)
 #ifdef LOADER_ZFS_SUPPORT
     archsw.arch_zfs_probe = i386_zfs_probe;
 
-#ifdef LOADER_GELI_SUPPORT
-    if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+    /*
+     * zfsboot and gptzfsboot have always passed KARGS_FLAGS_ZFS, so if that is
+     * set along with KARGS_FLAGS_EXTARG we know we can interpret the extarg
+     * data as a struct zfs_boot_args.
+     */
+#define	KARGS_EXTARGS_ZFS	(KARGS_FLAGS_EXTARG | KARGS_FLAGS_ZFS)
+
+    if ((kargs->bootflags & KARGS_EXTARGS_ZFS) == KARGS_EXTARGS_ZFS) {
 	zargs = (struct zfs_boot_args *)(kargs + 1);
-	if (zargs != NULL && zargs->size >= offsetof(struct zfs_boot_args, gelipw)) {
-	    if (zargs->size >= offsetof(struct zfs_boot_args, keybuf_sentinel) &&
-	      zargs->keybuf_sentinel == KEYBUF_SENTINEL) {
-		geli_import_key_buffer(zargs->keybuf);
-	    }
-	    if (zargs->gelipw[0] != '\0') {
-		setenv("kern.geom.eli.passphrase", zargs->gelipw, 1);
-		explicit_bzero(zargs->gelipw, sizeof(zargs->gelipw));
-	    }
-	}
     }
-#endif /* LOADER_GELI_SUPPORT */
-#else /* !LOADER_ZFS_SUPPORT */
-#ifdef LOADER_GELI_SUPPORT
-    if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
-	gargs = (struct geli_boot_args *)(kargs + 1);
-	if (gargs != NULL && gargs->size >= offsetof(struct geli_boot_args, gelipw)) {
-	    if (gargs->keybuf_sentinel == KEYBUF_SENTINEL) {
-		geli_import_key_buffer(gargs->keybuf);
-	    }
-	    if (gargs->gelipw[0] != '\0') {
-		setenv("kern.geom.eli.passphrase", gargs->gelipw, 1);
-		explicit_bzero(gargs->gelipw, sizeof(gargs->gelipw));
-	    }
-	}
-    }
-#endif /* LOADER_GELI_SUPPORT */
 #endif /* LOADER_ZFS_SUPPORT */
+
+#ifdef LOADER_GELI_SUPPORT
+    /*
+     * If we decided earlier that we have zfs_boot_args extarg data, and it is
+     * big enough to contain the embedded geli data (the early zfs_boot_args
+     * structs weren't), then init the gbdata pointer accordingly. If there is
+     * extarg data which isn't zfs_boot_args data, determine whether it is
+     * geli_boot_args data.  Recent versions of gptboot set KARGS_FLAGS_GELI to
+     * indicate that.  Earlier versions didn't, but we presume that's what we
+     * have if the extarg size exactly matches the size of the geli_boot_args
+     * struct during that pre-flag era.
+     */
+#define	LEGACY_GELI_ARGS_SIZE	260	/* This can never change */
+
+#ifdef LOADER_ZFS_SUPPORT
+    if (zargs != NULL) {
+	if (zargs->size > offsetof(struct zfs_boot_args, gelidata)) {
+	    gbdata = &zargs->gelidata;
+	}
+    } else
+#endif /* LOADER_ZFS_SUPPORT */
+	   if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0) {
+	gargs = (struct geli_boot_args *)(kargs + 1);
+	if ((kargs->bootflags & KARGS_FLAGS_GELI) ||
+	    gargs->size == LEGACY_GELI_ARGS_SIZE) {
+	    gbdata = &gargs->gelidata;
+	}
+    }
+
+    if (gbdata != NULL)
+	import_geli_boot_data(gbdata);
+#endif /* LOADER_GELI_SUPPORT */
 
     /*
      * March through the device switch probing for things.
@@ -251,14 +264,14 @@ extract_currdev(void)
     int				biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
-    new_currdev.dd.d_dev = &biosdisk;
+    new_currdev.dd.d_dev = &bioshd;
 
     /* new-style boot loaders such as pxeldr and cdldr */
     if (kargs->bootinfo == 0) {
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
 	    /* we are booting from a CD with cdboot */
 	    new_currdev.dd.d_dev = &bioscd;
-	    new_currdev.dd.d_unit = bc_bios2unit(initial_bootdev);
+	    new_currdev.dd.d_unit = bd_bios2unit(initial_bootdev);
 	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
 	    /* we are booting from pxeldr */
 	    new_currdev.dd.d_dev = &pxedisk;
@@ -271,11 +284,7 @@ extract_currdev(void)
 	}
 #ifdef LOADER_ZFS_SUPPORT
     } else if ((kargs->bootflags & KARGS_FLAGS_ZFS) != 0) {
-	zargs = NULL;
-	/* check for new style extended argument */
-	if ((kargs->bootflags & KARGS_FLAGS_EXTARG) != 0)
-	    zargs = (struct zfs_boot_args *)(kargs + 1);
-
+	/* zargs was set in main() if we have new style extended argument */
 	if (zargs != NULL &&
 	    zargs->size >= offsetof(struct zfs_boot_args, primary_pool)) {
 	    /* sufficient data is provided */
@@ -318,7 +327,7 @@ extract_currdev(void)
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
      */
-    if ((new_currdev.dd.d_dev->dv_type == biosdisk.dv_type) &&
+    if ((new_currdev.dd.d_dev->dv_type == bioshd.dv_type) &&
 	((new_currdev.dd.d_unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
@@ -390,18 +399,16 @@ static void
 i386_zfs_probe(void)
 {
     char devname[32];
-    int unit;
+    struct i386_devdesc dev;
 
     /*
      * Open all the disks we can find and see if we can reconstruct
      * ZFS pools from them.
      */
-    for (unit = 0; unit < MAXBDDEV; unit++) {
-	if (bd_unit2bios(unit) == -1)
-	    break;
-	if (bd_unit2bios(unit) < 0x80)
-	    continue;
-	sprintf(devname, "disk%d:", unit);
+    dev.dd.d_dev = &bioshd;
+    for (dev.dd.d_unit = 0; bd_unit2bios(&dev) >= 0; dev.dd.d_unit++) {
+	snprintf(devname, sizeof(devname), "%s%d:", bioshd.dv_name,
+	    dev.dd.d_unit);
 	zfs_probe_dev(devname, NULL);
     }
 }

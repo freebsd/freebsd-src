@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
+#define FIRMWARE_USAGE							       \
+	"firmware [-s slot] [-f path_to_firmware] [-a] <controller id>\n"
+
 static int
 slot_has_valid_firmware(int fd, int slot)
 {
@@ -171,15 +174,7 @@ activate_firmware(int fd, int slot, int activate_action)
 }
 
 static void
-firmware_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, FIRMWARE_USAGE);
-	exit(1);
-}
-
-void
-firmware(int argc, char *argv[])
+firmware(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int				fd = -1, slot = 0;
 	int				a_flag, s_flag, f_flag;
@@ -206,18 +201,18 @@ firmware(int argc, char *argv[])
 				fprintf(stderr,
 				    "\"%s\" not valid slot.\n",
 				    optarg);
-				firmware_usage();
+				usage(nf);
 			} else if (slot == 0) {
 				fprintf(stderr,
 				    "0 is not a valid slot number. "
 				    "Slot numbers start at 1.\n");
-				firmware_usage();
+				usage(nf);
 			} else if (slot > 7) {
 				fprintf(stderr,
 				    "Slot number %s specified which is "
 				    "greater than max allowed slot number of "
 				    "7.\n", optarg);
-				firmware_usage();
+				usage(nf);
 			}
 			s_flag = true;
 			break;
@@ -230,20 +225,20 @@ firmware(int argc, char *argv[])
 
 	/* Check that a controller (and not a namespace) was specified. */
 	if (optind >= argc || strstr(argv[optind], NVME_NS_PREFIX) != NULL)
-		firmware_usage();
+		usage(nf);
 
 	if (!f_flag && !a_flag) {
 		fprintf(stderr,
 		    "Neither a replace ([-f path_to_firmware]) nor "
 		    "activate ([-a]) firmware image action\n"
 		    "was specified.\n");
-		firmware_usage();
+		usage(nf);
 	}
 
 	if (!f_flag && a_flag && slot == 0) {
 		fprintf(stderr,
 		    "Slot number to activate not specified.\n");
-		firmware_usage();
+		usage(nf);
 	}
 
 	controller = argv[optind];
@@ -338,3 +333,5 @@ firmware(int argc, char *argv[])
 	close(fd);
 	exit(0);
 }
+
+NVME_COMMAND(top, firmware, firmware, FIRMWARE_USAGE);

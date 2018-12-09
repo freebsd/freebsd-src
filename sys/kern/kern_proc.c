@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/elf.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
@@ -125,8 +126,10 @@ u_long pgrphash;
 struct proclist allproc;
 struct proclist zombproc;
 struct sx __exclusive_cache_line allproc_lock;
+struct sx __exclusive_cache_line zombproc_lock;
 struct sx __exclusive_cache_line proctree_lock;
 struct mtx __exclusive_cache_line ppeers_lock;
+struct mtx __exclusive_cache_line procid_lock;
 uma_zone_t proc_zone;
 
 /*
@@ -177,8 +180,10 @@ procinit(void)
 	u_long i;
 
 	sx_init(&allproc_lock, "allproc");
+	sx_init(&zombproc_lock, "zombproc");
 	sx_init(&proctree_lock, "proctree");
 	mtx_init(&ppeers_lock, "p_peers", NULL, MTX_DEF);
+	mtx_init(&procid_lock, "procid", NULL, MTX_DEF);
 	LIST_INIT(&allproc);
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
@@ -288,6 +293,62 @@ proc_fini(void *mem, int size)
 #else
 	panic("proc reclaimed");
 #endif
+}
+
+/*
+ * PID space management.
+ *
+ * These bitmaps are used by fork_findpid.
+ */
+bitstr_t bit_decl(proc_id_pidmap, PID_MAX);
+bitstr_t bit_decl(proc_id_grpidmap, PID_MAX);
+bitstr_t bit_decl(proc_id_sessidmap, PID_MAX);
+bitstr_t bit_decl(proc_id_reapmap, PID_MAX);
+
+static bitstr_t *proc_id_array[] = {
+	proc_id_pidmap,
+	proc_id_grpidmap,
+	proc_id_sessidmap,
+	proc_id_reapmap,
+};
+
+void
+proc_id_set(int type, pid_t id)
+{
+
+	KASSERT(type >= 0 && type < nitems(proc_id_array),
+	    ("invalid type %d\n", type));
+	mtx_lock(&procid_lock);
+	KASSERT(bit_test(proc_id_array[type], id) == 0,
+	    ("bit %d already set in %d\n", id, type));
+	bit_set(proc_id_array[type], id);
+	mtx_unlock(&procid_lock);
+}
+
+void
+proc_id_set_cond(int type, pid_t id)
+{
+
+	KASSERT(type >= 0 && type < nitems(proc_id_array),
+	    ("invalid type %d\n", type));
+	if (bit_test(proc_id_array[type], id))
+		return;
+	mtx_lock(&procid_lock);
+	bit_set(proc_id_array[type], id);
+	mtx_unlock(&procid_lock);
+}
+
+void
+proc_id_clear(int type, pid_t id)
+{
+
+	KASSERT(type >= 0 && type < nitems(proc_id_array),
+	    ("invalid type %d\n", type));
+	mtx_lock(&procid_lock);
+	KASSERT(bit_test(proc_id_array[type], id) != 0,
+	    ("bit %d not set in %d\n", id, type));
+	bit_clear(proc_id_array[type], id);
+	mtx_unlock(&procid_lock);
 }
 
 /*
@@ -493,6 +554,7 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 		PGRP_LOCK(pgrp);
 		sess->s_leader = p;
 		sess->s_sid = p->p_pid;
+		proc_id_set(PROC_ID_SESSION, p->p_pid);
 		refcount_init(&sess->s_count, 1);
 		sess->s_ttyvp = NULL;
 		sess->s_ttydp = NULL;
@@ -508,6 +570,7 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 		PGRP_LOCK(pgrp);
 	}
 	pgrp->pg_id = pgid;
+	proc_id_set(PROC_ID_GROUP, p->p_pid);
 	LIST_INIT(&pgrp->pg_members);
 
 	/*
@@ -638,6 +701,7 @@ pgdelete(struct pgrp *pgrp)
 		tty_rel_pgrp(tp, pgrp);
 	}
 
+	proc_id_clear(PROC_ID_GROUP, pgrp->pg_id);
 	mtx_destroy(&pgrp->pg_mtx);
 	free(pgrp, M_PGRP);
 	sess_release(savesess);
@@ -822,6 +886,7 @@ sess_release(struct session *s)
 			tty_lock(s->s_ttyp);
 			tty_rel_sess(s->s_ttyp, s);
 		}
+		proc_id_clear(PROC_ID_SESSION, s->s_sid);
 		mtx_destroy(&s->s_mtx);
 		free(s, M_SESSION);
 	}
@@ -1194,14 +1259,14 @@ zpfind(pid_t pid)
 {
 	struct proc *p;
 
-	sx_slock(&allproc_lock);
+	sx_slock(&zombproc_lock);
 	LIST_FOREACH(p, &zombproc, p_list) {
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			break;
 		}
 	}
-	sx_sunlock(&allproc_lock);
+	sx_sunlock(&zombproc_lock);
 	return (p);
 }
 
@@ -2217,43 +2282,11 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 		freepath = NULL;
 		fullpath = "";
 		if (lobj) {
-			vp = NULL;
-			switch (lobj->type) {
-			case OBJT_DEFAULT:
-				kve->kve_type = KVME_TYPE_DEFAULT;
-				break;
-			case OBJT_VNODE:
-				kve->kve_type = KVME_TYPE_VNODE;
-				vp = lobj->handle;
-				vref(vp);
-				break;
-			case OBJT_SWAP:
-				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
-					kve->kve_type = KVME_TYPE_VNODE;
-					if ((lobj->flags & OBJ_TMPFS) != 0) {
-						vp = lobj->un_pager.swp.swp_tmpfs;
-						vref(vp);
-					}
-				} else {
-					kve->kve_type = KVME_TYPE_SWAP;
-				}
-				break;
-			case OBJT_DEVICE:
-				kve->kve_type = KVME_TYPE_DEVICE;
-				break;
-			case OBJT_PHYS:
-				kve->kve_type = KVME_TYPE_PHYS;
-				break;
-			case OBJT_DEAD:
-				kve->kve_type = KVME_TYPE_DEAD;
-				break;
-			case OBJT_SG:
-				kve->kve_type = KVME_TYPE_SG;
-				break;
-			default:
+			kve->kve_type = vm_object_kvme_type(lobj, &vp);
+			if (kve->kve_type == KVME_TYPE_MGTDEVICE)
 				kve->kve_type = KVME_TYPE_UNKNOWN;
-				break;
-			}
+			if (vp != NULL)
+				vref(vp);
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 
@@ -2461,46 +2494,9 @@ kern_proc_vmmap_out(struct proc *p, struct sbuf *sb, ssize_t maxlen, int flags)
 		freepath = NULL;
 		fullpath = "";
 		if (lobj != NULL) {
-			vp = NULL;
-			switch (lobj->type) {
-			case OBJT_DEFAULT:
-				kve->kve_type = KVME_TYPE_DEFAULT;
-				break;
-			case OBJT_VNODE:
-				kve->kve_type = KVME_TYPE_VNODE;
-				vp = lobj->handle;
+			kve->kve_type = vm_object_kvme_type(lobj, &vp);
+			if (vp != NULL)
 				vref(vp);
-				break;
-			case OBJT_SWAP:
-				if ((lobj->flags & OBJ_TMPFS_NODE) != 0) {
-					kve->kve_type = KVME_TYPE_VNODE;
-					if ((lobj->flags & OBJ_TMPFS) != 0) {
-						vp = lobj->un_pager.swp.swp_tmpfs;
-						vref(vp);
-					}
-				} else {
-					kve->kve_type = KVME_TYPE_SWAP;
-				}
-				break;
-			case OBJT_DEVICE:
-				kve->kve_type = KVME_TYPE_DEVICE;
-				break;
-			case OBJT_PHYS:
-				kve->kve_type = KVME_TYPE_PHYS;
-				break;
-			case OBJT_DEAD:
-				kve->kve_type = KVME_TYPE_DEAD;
-				break;
-			case OBJT_SG:
-				kve->kve_type = KVME_TYPE_SG;
-				break;
-			case OBJT_MGTDEVICE:
-				kve->kve_type = KVME_TYPE_MGTDEVICE;
-				break;
-			default:
-				kve->kve_type = KVME_TYPE_UNKNOWN;
-				break;
-			}
 			if (lobj != obj)
 				VM_OBJECT_RUNLOCK(lobj);
 

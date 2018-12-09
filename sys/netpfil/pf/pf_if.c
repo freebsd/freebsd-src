@@ -853,7 +853,8 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 	V_pfi_update++;
 	pfi_kif_update(kif);
 
-	if_rele(kif->pfik_ifp);
+	if (kif->pfik_ifp)
+		if_rele(kif->pfik_ifp);
 
 	kif->pfik_ifp = NULL;
 	ifp->if_pf_kif = NULL;

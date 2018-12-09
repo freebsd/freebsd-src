@@ -1,3 +1,14 @@
+2018-09-21  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* VERSION: 20180919
+	  Merge with NetBSD make, pick up
+	  o var.c: add :q
+	  o dir.c: cleanup caching of stats
+
+2018-09-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Makefile.config.in: use += where it makes sense.
+
 2018-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* VERSION: 20180512

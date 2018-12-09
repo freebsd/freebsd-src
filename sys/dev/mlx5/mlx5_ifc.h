@@ -28,6 +28,8 @@
 #ifndef MLX5_IFC_H
 #define MLX5_IFC_H
 
+#include <dev/mlx5/mlx5_fpga/mlx5_ifc_fpga.h>
+
 enum {
 	MLX5_EVENT_TYPE_COMP                                       = 0x0,
 	MLX5_EVENT_TYPE_PATH_MIG                                   = 0x1,
@@ -58,7 +60,9 @@ enum {
 	MLX5_EVENT_TYPE_DROPPED_PACKET_LOGGED_EVENT                = 0x1f,
 	MLX5_EVENT_TYPE_CMD                                        = 0xa,
 	MLX5_EVENT_TYPE_PAGE_REQUEST                               = 0xb,
-	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE                           = 0xd
+	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE                           = 0xd,
+	MLX5_EVENT_TYPE_FPGA_ERROR                                 = 0x20,
+	MLX5_EVENT_TYPE_FPGA_QP_ERROR                              = 0x21,
 };
 
 enum {
@@ -242,6 +246,11 @@ enum {
 	MLX5_CMD_OP_MODIFY_FLOW_TABLE             = 0x93c,
 	MLX5_CMD_OP_ALLOC_ENCAP_HEADER            = 0x93d,
 	MLX5_CMD_OP_DEALLOC_ENCAP_HEADER          = 0x93e,
+	MLX5_CMD_OP_FPGA_CREATE_QP                = 0x960,
+	MLX5_CMD_OP_FPGA_MODIFY_QP                = 0x961,
+	MLX5_CMD_OP_FPGA_QUERY_QP                 = 0x962,
+	MLX5_CMD_OP_FPGA_DESTROY_QP               = 0x963,
+	MLX5_CMD_OP_FPGA_QUERY_QP_COUNTERS        = 0x964,
 };
 
 enum {
@@ -746,6 +755,115 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         reserved_1[0x7200];
 };
 
+enum {
+	MLX5_ACCESS_REG_SUMMARY_CTRL_ID_PDDR                   = 0x5031,
+};
+
+struct mlx5_ifc_pddr_module_info_bits {
+	u8         cable_technology[0x8];
+	u8         cable_breakout[0x8];
+	u8         ext_ethernet_compliance_code[0x8];
+	u8         ethernet_compliance_code[0x8];
+
+	u8         cable_type[0x4];
+	u8         cable_vendor[0x4];
+	u8         cable_length[0x8];
+	u8         cable_identifier[0x8];
+	u8         cable_power_class[0x8];
+
+	u8         reserved_at_40[0x8];
+	u8         cable_rx_amp[0x8];
+	u8         cable_rx_emphasis[0x8];
+	u8         cable_tx_equalization[0x8];
+
+	u8         reserved_at_60[0x8];
+	u8         cable_attenuation_12g[0x8];
+	u8         cable_attenuation_7g[0x8];
+	u8         cable_attenuation_5g[0x8];
+
+	u8         reserved_at_80[0x8];
+	u8         rx_cdr_cap[0x4];
+	u8         tx_cdr_cap[0x4];
+	u8         reserved_at_90[0x4];
+	u8         rx_cdr_state[0x4];
+	u8         reserved_at_98[0x4];
+	u8         tx_cdr_state[0x4];
+
+	u8         vendor_name[16][0x8];
+
+	u8         vendor_pn[16][0x8];
+
+	u8         vendor_rev[0x20];
+
+	u8         fw_version[0x20];
+
+	u8         vendor_sn[16][0x8];
+
+	u8         temperature[0x10];
+	u8         voltage[0x10];
+
+	u8         rx_power_lane0[0x10];
+	u8         rx_power_lane1[0x10];
+
+	u8         rx_power_lane2[0x10];
+	u8         rx_power_lane3[0x10];
+
+	u8         reserved_at_2c0[0x40];
+
+	u8         tx_power_lane0[0x10];
+	u8         tx_power_lane1[0x10];
+
+	u8         tx_power_lane2[0x10];
+	u8         tx_power_lane3[0x10];
+
+	u8         reserved_at_340[0x40];
+
+	u8         tx_bias_lane0[0x10];
+	u8         tx_bias_lane1[0x10];
+
+	u8         tx_bias_lane2[0x10];
+	u8         tx_bias_lane3[0x10];
+
+	u8         reserved_at_3c0[0x40];
+
+	u8         temperature_high_th[0x10];
+	u8         temperature_low_th[0x10];
+
+	u8         voltage_high_th[0x10];
+	u8         voltage_low_th[0x10];
+
+	u8         rx_power_high_th[0x10];
+	u8         rx_power_low_th[0x10];
+
+	u8         tx_power_high_th[0x10];
+	u8         tx_power_low_th[0x10];
+
+	u8         tx_bias_high_th[0x10];
+	u8         tx_bias_low_th[0x10];
+
+	u8         reserved_at_4a0[0x10];
+	u8         wavelength[0x10];
+
+	u8         reserved_at_4c0[0x300];
+};
+
+union mlx5_ifc_pddr_operation_info_page_pddr_phy_info_page_pddr_troubleshooting_page_pddr_module_info_auto_bits {
+	struct mlx5_ifc_pddr_module_info_bits pddr_module_info;
+	u8         reserved_at_0[0x7c0];
+};
+
+struct mlx5_ifc_pddr_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         local_port[0x8];
+	u8         pnat[0x2];
+	u8         reserved_at_12[0xe];
+
+	u8         reserved_at_20[0x18];
+	u8         page_select[0x8];
+
+	union mlx5_ifc_pddr_operation_info_page_pddr_phy_info_page_pddr_troubleshooting_page_pddr_module_info_auto_bits page_data;
+};
+
 struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         csum_cap[0x1];
 	u8         vlan_cap[0x1];
@@ -933,7 +1051,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         log_max_cq[0x5];
 
 	u8         log_max_eq_sz[0x8];
-	u8         reserved_6[0x2];
+	u8         relaxed_ordering_write[1];
+	u8         reserved_6[0x1];
 	u8         log_max_mkey[0x6];
 	u8         reserved_7[0xc];
 	u8         log_max_eq[0x4];
@@ -997,7 +1116,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_tc[0x4];
 	u8         temp_warn_event[0x1];
 	u8         dcbx[0x1];
-	u8         reserved_22[0x4];
+	u8         general_notification_event[0x1];
+	u8         reserved_at_1d3[0x2];
+	u8         fpga[0x1];
 	u8         rol_s[0x1];
 	u8         rol_g[0x1];
 	u8         reserved_23[0x1];
@@ -2424,9 +2545,13 @@ enum {
 };
 
 struct mlx5_ifc_mkc_bits {
-	u8         reserved_0[0x1];
+	u8         reserved_at_0[0x1];
 	u8         free[0x1];
-	u8         reserved_1[0xd];
+	u8         reserved_at_2[0x1];
+	u8         access_mode_4_2[0x3];
+	u8         reserved_at_6[0x7];
+	u8         relaxed_ordering_write[0x1];
+	u8         reserved_at_e[0x1];
 	u8         small_fence_on_rdma_read_response[0x1];
 	u8         umr_en[0x1];
 	u8         a[0x1];
@@ -8502,6 +8627,31 @@ struct mlx5_ifc_link_level_retrans_cntr_grp_date_bits {
 	u8         llr_tx_ret_events_low[0x20];
 
 	u8         reserved_0[0x640];
+};
+
+struct mlx5_ifc_mtmp_reg_bits {
+	u8         i[0x1];
+	u8         reserved_at_1[0x18];
+	u8         sensor_index[0x7];
+
+	u8         reserved_at_20[0x10];
+	u8         temperature[0x10];
+
+	u8         mte[0x1];
+	u8         mtr[0x1];
+	u8         reserved_at_42[0x0e];
+	u8         max_temperature[0x10];
+
+	u8         tee[0x2];
+	u8         reserved_at_62[0x0e];
+	u8         temperature_threshold_hi[0x10];
+
+	u8         reserved_at_80[0x10];
+	u8         temperature_threshold_lo[0x10];
+
+	u8         reserved_at_100[0x20];
+
+	u8         sensor_name[0x40];
 };
 
 struct mlx5_ifc_lane_2_module_mapping_bits {

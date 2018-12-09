@@ -393,7 +393,8 @@ void
 mlx5_ib_cleanup_congestion(struct mlx5_ib_dev *dev)
 {
 
-	cancel_delayed_work_sync(&dev->congestion.dwork);
+	while (cancel_delayed_work_sync(&dev->congestion.dwork))
+		;
 	sysctl_ctx_free(&dev->congestion.ctx);
 	sx_destroy(&dev->congestion.lock);
 }

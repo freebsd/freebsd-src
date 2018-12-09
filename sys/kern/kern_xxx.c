@@ -50,15 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #if defined(COMPAT_43)
 
-#ifndef _SYS_SYSPROTO_H_
-struct gethostname_args {
-	char	*hostname;
-	u_int	len;
-};
-#endif
-/* ARGSUSED */
 int
-ogethostname(struct thread *td, struct gethostname_args *uap)
+ogethostname(struct thread *td, struct ogethostname_args *uap)
 {
 	int name[2];
 	size_t len = uap->len;
@@ -69,15 +62,8 @@ ogethostname(struct thread *td, struct gethostname_args *uap)
 	    1, 0, 0, 0, 0));
 }
 
-#ifndef _SYS_SYSPROTO_H_
-struct sethostname_args {
-	char	*hostname;
-	u_int	len;
-};
-#endif
-/* ARGSUSED */
 int
-osethostname(struct thread *td, struct sethostname_args *uap)
+osethostname(struct thread *td, struct osethostname_args *uap)
 {
 	int name[2];
 
@@ -104,15 +90,7 @@ ogethostid(struct thread *td, struct ogethostid_args *uap)
 	return (kernel_sysctl(td, name, 2, (long *)td->td_retval, &len,
 	    NULL, 0, NULL, 0));
 }
-#endif /* COMPAT_43 */
 
-#ifdef COMPAT_43
-#ifndef _SYS_SYSPROTO_H_
-struct osethostid_args {
-	long	hostid;
-};
-#endif
-/* ARGSUSED */
 int
 osethostid(struct thread *td, struct osethostid_args *uap)
 {
@@ -187,16 +165,8 @@ static struct {
  */
 static char bsdi_strings[80];	/* It had better be less than this! */
 
-#ifndef _SYS_SYSPROTO_H_
-struct getkerninfo_args {
-	int	op;
-	char	*where;
-	size_t	*size;
-	int	arg;
-};
-#endif
 int
-ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
+ogetkerninfo(struct thread *td, struct ogetkerninfo_args *uap)
 {
 	int error, name[6];
 	size_t size;

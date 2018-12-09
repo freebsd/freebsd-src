@@ -47,11 +47,10 @@ siena_nic_get_partn_mask(
 	__out			unsigned int *maskp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_TYPES_IN_LEN,
-			    MC_CMD_NVRAM_TYPES_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_TYPES_IN_LEN,
+		MC_CMD_NVRAM_TYPES_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_TYPES;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_TYPES_IN_LEN;
@@ -94,6 +93,10 @@ siena_board_cfg(
 	uint32_t board_type;
 	uint32_t nevq, nrxq, ntxq;
 	efx_rc_t rc;
+
+	/* Siena has a fixed 8Kbyte VI window size */
+	EFX_STATIC_ASSERT(1U << EFX_VI_WINDOW_SHIFT_8K	== 8192);
+	encp->enc_vi_window_shift = EFX_VI_WINDOW_SHIFT_8K;
 
 	/* External port identifier using one-based port numbering */
 	encp->enc_external_port = (uint8_t)enp->en_mcdi.em_emip.emi_port;
@@ -140,8 +143,22 @@ siena_board_cfg(
 	/* Alignment for WPTR updates */
 	encp->enc_rx_push_align = 1;
 
+#if EFSYS_OPT_RX_SCALE
 	/* There is one RSS context per function */
 	encp->enc_rx_scale_max_exclusive_contexts = 1;
+
+	encp->enc_rx_scale_hash_alg_mask |= (1U << EFX_RX_HASHALG_LFSR);
+	encp->enc_rx_scale_hash_alg_mask |= (1U << EFX_RX_HASHALG_TOEPLITZ);
+
+	/*
+	 * It is always possible to use port numbers
+	 * as the input data for hash computation.
+	 */
+	encp->enc_rx_scale_l4_hash_supported = B_TRUE;
+
+	/* There is no support for additional RSS modes */
+	encp->enc_rx_scale_additional_modes_supported = B_FALSE;
+#endif /* EFSYS_OPT_RX_SCALE */
 
 	encp->enc_tx_dma_desc_size_max = EFX_MASK32(FSF_AZ_TX_KER_BYTE_COUNT);
 	/* Fragments must not span 4k boundaries. */
@@ -174,12 +191,20 @@ siena_board_cfg(
 	encp->enc_allow_set_mac_with_installed_filters = B_TRUE;
 	encp->enc_rx_packed_stream_supported = B_FALSE;
 	encp->enc_rx_var_packed_stream_supported = B_FALSE;
+	encp->enc_rx_es_super_buffer_supported = B_FALSE;
+	encp->enc_fw_subvariant_no_tx_csum_supported = B_FALSE;
 
 	/* Siena supports two 10G ports, and 8 lanes of PCIe Gen2 */
 	encp->enc_required_pcie_bandwidth_mbps = 2 * 10000;
 	encp->enc_max_pcie_link_gen = EFX_PCIE_LINK_SPEED_GEN2;
 
 	encp->enc_nvram_update_verify_result_supported = B_FALSE;
+
+	encp->enc_mac_stats_nstats = MC_CMD_MAC_NSTATS;
+
+	encp->enc_filter_action_flag_supported = B_FALSE;
+	encp->enc_filter_action_mark_supported = B_FALSE;
+	encp->enc_filter_action_mark_max = 0;
 
 	return (0);
 

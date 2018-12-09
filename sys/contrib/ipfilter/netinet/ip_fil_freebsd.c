@@ -85,7 +85,6 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 extern	int	ip_optcopy __P((struct ip *, struct ip *));
 
-
 # ifdef IPFILTER_M_IPFILTER
 MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures");
 # endif
@@ -477,11 +476,7 @@ ipf_send_ip(fin, m)
 		IP_HL_A(ip, sizeof(*oip) >> 2);
 		ip->ip_tos = oip->ip_tos;
 		ip->ip_id = fin->fin_ip->ip_id;
-#if defined(FreeBSD) && (__FreeBSD_version > 460000)
-		ip->ip_off = htons(path_mtu_discovery ? IP_DF : 0);
-#else
-		ip->ip_off = 0;
-#endif
+		ip->ip_off = htons(V_path_mtu_discovery ? IP_DF : 0);
 		ip->ip_ttl = V_ip_defttl;
 		ip->ip_sum = 0;
 		break;
@@ -542,12 +537,7 @@ ipf_send_icmp_err(type, fin, dst)
 
 	code = fin->fin_icode;
 #ifdef USE_INET6
-#if 0
-	/* XXX Fix an off by one error: s/>/>=/
-	 was:
-	 if ((code < 0) || (code > sizeof(icmptoicmp6unreach)/sizeof(int)))
-	 Fix obtained from NetBSD ip_fil_netbsd.c r1.4: */
-#endif
+	/* See NetBSD ip_fil_netbsd.c r1.4: */
 	if ((code < 0) || (code >= sizeof(icmptoicmp6unreach)/sizeof(int)))
 		return -1;
 #endif

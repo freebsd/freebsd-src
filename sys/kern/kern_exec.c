@@ -345,9 +345,9 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
 {
 
 	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
-	    args->begin_envv - args->begin_argv);
-	AUDIT_ARG_ENVV(args->begin_envv, args->envc,
-	    args->endp - args->begin_envv);
+	    exec_args_get_begin_envv(args) - args->begin_argv);
+	AUDIT_ARG_ENVV(exec_args_get_begin_envv(args), args->envc,
+	    args->endp - exec_args_get_begin_envv(args));
 	return (do_execve(td, args, mac_p));
 }
 
@@ -717,7 +717,7 @@ interpret:
 	/*
 	 * Malloc things before we need locks.
 	 */
-	i = imgp->args->begin_envv - imgp->args->begin_argv;
+	i = exec_args_get_begin_envv(imgp->args) - imgp->args->begin_argv;
 	/* Cache arguments if they fit inside our allowance */
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
 		newargs = pargs_alloc(i);
@@ -1171,9 +1171,8 @@ int
 exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, char **argv, char **envv)
 {
-	u_long argp, envp;
+	u_long arg, env;
 	int error;
-	size_t length;
 
 	bzero(args, sizeof(*args));
 	if (argv == NULL)
@@ -1190,67 +1189,43 @@ exec_copyin_args(struct image_args *args, const char *fname,
 	/*
 	 * Copy the file name.
 	 */
-	if (fname != NULL) {
-		args->fname = args->buf;
-		error = (segflg == UIO_SYSSPACE) ?
-		    copystr(fname, args->fname, PATH_MAX, &length) :
-		    copyinstr(fname, args->fname, PATH_MAX, &length);
-		if (error != 0)
-			goto err_exit;
-	} else
-		length = 0;
-
-	args->begin_argv = args->buf + length;
-	args->endp = args->begin_argv;
-	args->stringspace = ARG_MAX;
+	error = exec_args_add_fname(args, fname, segflg);
+	if (error != 0)
+		goto err_exit;
 
 	/*
 	 * extract arguments first
 	 */
 	for (;;) {
-		error = fueword(argv++, &argp);
+		error = fueword(argv++, &arg);
 		if (error == -1) {
 			error = EFAULT;
 			goto err_exit;
 		}
-		if (argp == 0)
+		if (arg == 0)
 			break;
-		error = copyinstr((void *)(uintptr_t)argp, args->endp,
-		    args->stringspace, &length);
-		if (error != 0) {
-			if (error == ENAMETOOLONG) 
-				error = E2BIG;
+		error = exec_args_add_arg(args, (char *)(uintptr_t)arg,
+		    UIO_USERSPACE);
+		if (error != 0)
 			goto err_exit;
-		}
-		args->stringspace -= length;
-		args->endp += length;
-		args->argc++;
 	}
-
-	args->begin_envv = args->endp;
 
 	/*
 	 * extract environment strings
 	 */
 	if (envv) {
 		for (;;) {
-			error = fueword(envv++, &envp);
+			error = fueword(envv++, &env);
 			if (error == -1) {
 				error = EFAULT;
 				goto err_exit;
 			}
-			if (envp == 0)
+			if (env == 0)
 				break;
-			error = copyinstr((void *)(uintptr_t)envp,
-			    args->endp, args->stringspace, &length);
-			if (error != 0) {
-				if (error == ENAMETOOLONG)
-					error = E2BIG;
+			error = exec_args_add_env(args,
+			    (char *)(uintptr_t)env, UIO_USERSPACE);
+			if (error != 0)
 				goto err_exit;
-			}
-			args->stringspace -= length;
-			args->endp += length;
-			args->envc++;
 		}
 	}
 
@@ -1305,8 +1280,6 @@ exec_copyin_data_fds(struct thread *td, struct image_args *args,
 		/* No argument buffer provided. */
 		args->endp = args->begin_argv;
 	}
-	/* There are no environment variables. */
-	args->begin_envv = args->endp;
 
 	/* Create new file descriptor table. */
 	kfds = malloc(fdslen * sizeof(int), M_TEMP, M_WAITOK);
@@ -1460,6 +1433,126 @@ exec_free_args(struct image_args *args)
 	}
 	if (args->fdp != NULL)
 		fdescfree_remapped(args->fdp);
+}
+
+/*
+ * A set to functions to fill struct image args.
+ *
+ * NOTE: exec_args_add_fname() must be called (possibly with a NULL
+ * fname) before the other functions.  All exec_args_add_arg() calls must
+ * be made before any exec_args_add_env() calls.  exec_args_adjust_args()
+ * may be called any time after exec_args_add_fname().
+ *
+ * exec_args_add_fname() - install path to be executed
+ * exec_args_add_arg() - append an argument string
+ * exec_args_add_env() - append an env string
+ * exec_args_adjust_args() - adjust location of the argument list to
+ *                           allow new arguments to be prepended
+ */
+int
+exec_args_add_fname(struct image_args *args, const char *fname,
+    enum uio_seg segflg)
+{
+	int error;
+	size_t length;
+
+	KASSERT(args->fname == NULL, ("fname already appended"));
+	KASSERT(args->endp == NULL, ("already appending to args"));
+
+	if (fname != NULL) {
+		args->fname = args->buf;
+		error = segflg == UIO_SYSSPACE ?
+		    copystr(fname, args->fname, PATH_MAX, &length) :
+		    copyinstr(fname, args->fname, PATH_MAX, &length);
+		if (error != 0)
+			return (error == ENAMETOOLONG ? E2BIG : error);
+	} else
+		length = 0;
+
+	/* Set up for _arg_*()/_env_*() */
+	args->endp = args->buf + length;
+	/* begin_argv must be set and kept updated */
+	args->begin_argv = args->endp;
+	KASSERT(exec_map_entry_size - length >= ARG_MAX,
+	    ("too little space remaining for arguments %zu < %zu",
+	    exec_map_entry_size - length, (size_t)ARG_MAX));
+	args->stringspace = ARG_MAX;
+
+	return (0);
+}
+
+static int
+exec_args_add_str(struct image_args *args, const char *str,
+    enum uio_seg segflg, int *countp)
+{
+	int error;
+	size_t length;
+
+	KASSERT(args->endp != NULL, ("endp not initialized"));
+	KASSERT(args->begin_argv != NULL, ("begin_argp not initialized"));
+
+	error = (segflg == UIO_SYSSPACE) ?
+	    copystr(str, args->endp, args->stringspace, &length) :
+	    copyinstr(str, args->endp, args->stringspace, &length);
+	if (error != 0)
+		return (error == ENAMETOOLONG ? E2BIG : error);
+	args->stringspace -= length;
+	args->endp += length;
+	(*countp)++;
+
+	return (0);
+}
+
+int
+exec_args_add_arg(struct image_args *args, const char *argp,
+    enum uio_seg segflg)
+{
+
+	KASSERT(args->envc == 0, ("appending args after env"));
+
+	return (exec_args_add_str(args, argp, segflg, &args->argc));
+}
+
+int
+exec_args_add_env(struct image_args *args, const char *envp,
+    enum uio_seg segflg)
+{
+
+	if (args->envc == 0)
+		args->begin_envv = args->endp;
+
+	return (exec_args_add_str(args, envp, segflg, &args->envc));
+}
+
+int
+exec_args_adjust_args(struct image_args *args, size_t consume, ssize_t extend)
+{
+	ssize_t offset;
+
+	KASSERT(args->endp != NULL, ("endp not initialized"));
+	KASSERT(args->begin_argv != NULL, ("begin_argp not initialized"));
+
+	offset = extend - consume;
+	if (args->stringspace < offset)
+		return (E2BIG);
+	memmove(args->begin_argv + extend, args->begin_argv + consume,
+	    args->endp - args->begin_argv + consume);
+	if (args->envc > 0)
+		args->begin_envv += offset;
+	args->endp += offset;
+	args->stringspace -= offset;
+	return (0);
+}
+
+char *
+exec_args_get_begin_envv(struct image_args *args)
+{
+
+	KASSERT(args->endp != NULL, ("endp not initialized"));
+
+	if (args->envc > 0)
+		return (args->begin_envv);
+	return (args->endp);
 }
 
 /*

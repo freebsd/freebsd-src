@@ -42,6 +42,7 @@ struct l2_ethhdr {
 enum l2_packet_filter_type {
 	L2_PACKET_FILTER_DHCP,
 	L2_PACKET_FILTER_NDISC,
+	L2_PACKET_FILTER_PKTTYPE,
 };
 
 /**

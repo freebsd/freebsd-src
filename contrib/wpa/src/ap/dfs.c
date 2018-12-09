@@ -1,7 +1,7 @@
 /*
  * DFS - Dynamic Frequency Selection
  * Copyright (c) 2002-2013, Jouni Malinen <j@w1.fi>
- * Copyright (c) 2013-2015, Qualcomm Atheros, Inc.
+ * Copyright (c) 2013-2017, Qualcomm Atheros, Inc.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -747,6 +747,23 @@ int hostapd_handle_dfs(struct hostapd_iface *iface)
 }
 
 
+static int hostapd_config_dfs_chan_available(struct hostapd_iface *iface)
+{
+	int n_chans, n_chans1, start_chan_idx, start_chan_idx1;
+
+	/* Get the start (first) channel for current configuration */
+	start_chan_idx = dfs_get_start_chan_idx(iface, &start_chan_idx1);
+	if (start_chan_idx < 0)
+		return 0;
+
+	/* Get the number of used channels, depending on width */
+	n_chans = dfs_get_used_n_chans(iface, &n_chans1);
+
+	/* Check if all channels are DFS available */
+	return dfs_check_chans_available(iface, start_chan_idx, n_chans);
+}
+
+
 int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
 			     int ht_enabled, int chan_offset, int chan_width,
 			     int cf1, int cf2)
@@ -767,10 +784,42 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
 			set_dfs_state(iface, freq, ht_enabled, chan_offset,
 				      chan_width, cf1, cf2,
 				      HOSTAPD_CHAN_DFS_AVAILABLE);
-			iface->cac_started = 0;
-			hostapd_setup_interface_complete(iface, 0);
+			/*
+			 * Just mark the channel available when CAC completion
+			 * event is received in enabled state. CAC result could
+			 * have been propagated from another radio having the
+			 * same regulatory configuration. When CAC completion is
+			 * received during non-HAPD_IFACE_ENABLED state, make
+			 * sure the configured channel is available because this
+			 * CAC completion event could have been propagated from
+			 * another radio.
+			 */
+			if (iface->state != HAPD_IFACE_ENABLED &&
+			    hostapd_config_dfs_chan_available(iface)) {
+				hostapd_setup_interface_complete(iface, 0);
+				iface->cac_started = 0;
+			}
 		}
 	}
+
+	return 0;
+}
+
+
+int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
+				int ht_enabled, int chan_offset, int chan_width,
+				int cf1, int cf2)
+{
+	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_PRE_CAC_EXPIRED
+		"freq=%d ht_enabled=%d chan_offset=%d chan_width=%d cf1=%d cf2=%d",
+		freq, ht_enabled, chan_offset, chan_width, cf1, cf2);
+
+	/* Proceed only if DFS is not offloaded to the driver */
+	if (iface->drv_flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD)
+		return 0;
+
+	set_dfs_state(iface, freq, ht_enabled, chan_offset, chan_width,
+		      cf1, cf2, HOSTAPD_CHAN_DFS_USABLE);
 
 	return 0;
 }
@@ -839,6 +888,13 @@ static int hostapd_dfs_start_channel_switch(struct hostapd_iface *iface)
 	/* Check if active CAC */
 	if (iface->cac_started)
 		return hostapd_dfs_start_channel_switch_cac(iface);
+
+	/*
+	 * Allow selection of DFS channel in ETSI to comply with
+	 * uniform spreading.
+	 */
+	if (iface->dfs_domain == HOSTAPD_DFS_REGION_ETSI)
+		skip_radar = 0;
 
 	/* Perform channel switch/CSA */
 	channel = dfs_get_valid_channel(iface, &secondary_channel,
@@ -1055,7 +1111,8 @@ int hostapd_handle_dfs_offload(struct hostapd_iface *iface)
 		return 1;
 	}
 
-	if (ieee80211_is_dfs(iface->freq)) {
+	if (ieee80211_is_dfs(iface->freq, iface->hw_features,
+			     iface->num_hw_features)) {
 		wpa_printf(MSG_DEBUG, "%s: freq %d MHz requires DFS",
 			   __func__, iface->freq);
 		return 0;

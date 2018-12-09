@@ -386,6 +386,11 @@ BROKEN_OPTIONS+=HYPERV
 BROKEN_OPTIONS+=NVME
 .endif
 
+# PowerPC and Sparc64 need extra crt*.o files
+.if ${__T:Mpowerpc*} || ${__T:Msparc64}
+BROKEN_OPTIONS+=BSD_CRTBEGIN
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
