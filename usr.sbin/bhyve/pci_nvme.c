@@ -251,11 +251,13 @@ static void pci_nvme_io_partial(struct blockif_req *br, int err);
 	 (NVME_STATUS_SC_MASK << NVME_STATUS_SC_SHIFT))
 
 static __inline void
-cpywithpad(char *dst, int dst_size, const char *src, char pad)
+cpywithpad(char *dst, size_t dst_size, const char *src, char pad)
 {
-	int len = strnlen(src, dst_size);
+	size_t len;
+
+	len = strnlen(src, dst_size);
+	memset(dst, pad, dst_size);
 	memcpy(dst, src, len);
-	memset(dst + len, pad, dst_size - len);
 }
 
 static __inline void
