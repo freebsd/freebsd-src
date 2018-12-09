@@ -51,7 +51,7 @@ static int wpa_priv_cmd(struct l2_packet_data *l2, int cmd,
 	return 0;
 }
 
-			     
+
 int l2_packet_get_own_addr(struct l2_packet_data *l2, u8 *addr)
 {
 	os_memcpy(addr, l2->own_addr, ETH_ALEN);
@@ -258,7 +258,7 @@ void l2_packet_deinit(struct l2_packet_data *l2)
 		unlink(l2->own_socket_path);
 		os_free(l2->own_socket_path);
 	}
-		
+
 	os_free(l2);
 }
 

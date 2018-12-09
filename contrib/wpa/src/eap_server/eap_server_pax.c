@@ -327,13 +327,12 @@ static void eap_pax_process_std_2(struct eap_sm *sm,
 	}
 	data->cid_len = cid_len;
 	os_free(data->cid);
-	data->cid = os_malloc(data->cid_len);
+	data->cid = os_memdup(pos + 2, data->cid_len);
 	if (data->cid == NULL) {
 		wpa_printf(MSG_INFO, "EAP-PAX: Failed to allocate memory for "
 			   "CID");
 		return;
 	}
-	os_memcpy(data->cid, pos + 2, data->cid_len);
 	pos += 2 + data->cid_len;
 	left -= 2 + data->cid_len;
 	wpa_hexdump_ascii(MSG_MSGDUMP, "EAP-PAX: CID",

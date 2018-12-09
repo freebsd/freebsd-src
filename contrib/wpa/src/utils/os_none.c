@@ -114,6 +114,12 @@ void * os_zalloc(size_t size)
 }
 
 
+void * os_memdup(const void *src, size_t n)
+{
+	return NULL;
+}
+
+
 #ifdef OS_NO_C_LIB_DEFINES
 void * os_malloc(size_t size)
 {

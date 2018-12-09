@@ -4,33 +4,90 @@
 .include "../Makefile.inc"
 
 .PATH.c:${HOSTAPD_DISTDIR} \
-	${WPA_DISTDIR}/src/drivers
+	${WPA_DISTDIR}/src/ap \
+	${WPA_DISTDIR}/src/eap_server \
+	${WPA_DISTDIR}/src/eap_peer \
+	${WPA_DISTDIR}/src/drivers \
+	${WPA_DISTDIR}/wpa_supplicant
 
 PROG=	hostapd
-SRCS=	accounting.c aes-omac1.c ap_config.c ap_drv_ops.c ap_list.c \
-	ap_mlme.c authsrv.c \
-	base64.c beacon.c bss_load.c chap.c common.c config_file.c \
+SRCS=	accounting.c \
+	ap_config.c \
+	ap_drv_ops.c \
+	ap_list.c \
+	ap_mlme.c \
+	authsrv.c \
+	base64.c \
+	beacon.c \
+	bss_load.c \
+	chap.c \
+	common.c \
+	config_file.c \
 	ctrl_iface.c \
-	ctrl_iface_ap.c ctrl_iface_common.c dfs.c \
-	driver_common.c l2_packet_freebsd.c driver_bsd.c \
-	drivers.c drv_callbacks.c eap_common.c eap_peap_common.c \
-	eap_register.c eap_server.c eap_server_methods.c eap_user_db.c \
-	eapol_auth_dump.c eapol_auth_sm.c eloop.c gas.c gas_serv.c hostapd.c \
-	hs20.c http_client.c http_server.c httpread.c \
-	hw_features.c hw_features_common.c \
-	ieee802_11.c ieee802_11_auth.c ieee802_11_common.c \
-	ieee802_11_shared.c ieee802_1x.c \
+	ctrl_iface_ap.c \
+	ctrl_iface_common.c \
+	dfs.c \
+	driver_bsd.c \
+	driver_common.c \
+	drivers.c \
+	drv_callbacks.c \
+	eloop.c \
+	gas.c \
+	gas_serv.c \
+	http_client.c \
+	http_server.c \
+	httpread.c \
+	hostapd.c \
+	hs20.c \
+	hw_features.c \
+	hw_features_common.c \
+	ieee802_11.c \
+	ieee802_11_auth.c \
+	ieee802_11_common.c \
+	ieee802_11_shared.c \
+	ieee802_1x.c \
 	ip_addr.c \
-	main.c ms_funcs.c neighbor_db.c \
-	os_unix.c peerkey_auth.c pmksa_cache_auth.c \
-	preauth_auth.c radius.c radius_client.c radius_das.c rrm.c sta_info.c \
-	tkip_countermeasures.c upnp_xml.c utils.c uuid.c \
-	vlan.c vlan_ifconfig.c vlan_init.c wmm.c \
-	wpa_auth.c wpa_auth_glue.c wpa_auth_ie.c wpa_common.c wpa_debug.c \
-	wpabuf.c wps.c wps_attr_build.c wps_attr_parse.c wps_attr_process.c \
-	wps_common.c wps_dev_attr.c wps_enrollee.c wps_hostapd.c \
-	wps_registrar.c wps_upnp.c wps_upnp_ap.c wps_upnp_event.c \
-	wps_upnp_ssdp.c wps_upnp_web.c
+	l2_packet_freebsd.c \
+	main.c \
+	ms_funcs.c \
+	neighbor_db.c \
+	os_unix.c \
+	pmksa_cache_auth.c \
+	preauth_auth.c \
+	radius.c \
+	radius_client.c \
+	radius_das.c \
+	rrm.c \
+	sta_info.c \
+	tkip_countermeasures.c \
+	upnp_xml.c \
+	utils.c \
+	uuid.c \
+	vlan.c \
+	vlan_ifconfig.c \
+	vlan_init.c \
+	wmm.c \
+	wpa_auth.c \
+	wpa_auth_glue.c \
+	wpa_auth_ie.c \
+	wpa_common.c \
+	wpa_ctrl.c \
+	wpa_debug.c \
+	wpabuf.c \
+	wps.c \
+	wps_attr_build.c \
+	wps_attr_process.c \
+	wps_attr_parse.c \
+	wps_common.c \
+	wps_dev_attr.c \
+	wps_enrollee.c \
+	wps_hostapd.c \
+	wps_registrar.c \
+	wps_upnp.c \
+	wps_upnp_ap.c \
+	wps_upnp_event.c \
+	wps_upnp_ssdp.c \
+	wps_upnp_web.c
 
 MAN=	hostapd.8 hostapd.conf.5
 
@@ -40,7 +97,9 @@ FILESDIR= ${SHAREDIR}/examples/hostapd
 FILES=	hostapd.conf hostapd.eap_user hostapd.wpa_psk
 .endif
 
-CFLAGS+=-DCONFIG_DRIVER_BSD \
+CFLAGS+=-I${.CURDIR:H}/wpa_supplicant \
+	-I${WPA_DISTDIR}/src/eap_peer \
+	-DCONFIG_DRIVER_BSD \
 	-DCONFIG_DRIVER_RADIUS_ACL \
 	-DCONFIG_HS20 \
 	-DCONFIG_INTERWORKING \
@@ -75,15 +134,23 @@ CFLAGS+=-DDPKCS12_FUNCS \
 	-DEAP_TLS_FUNCS
 
 SRCS+=	eap_server_gtc.c \
+	eap_common.c \
+	eap_peap_common.c \
+	eap_register.c \
+	eap_server.c \
 	eap_server_identity.c \
 	eap_server_md5.c \
+	eap_server_methods.c \
 	eap_server_mschapv2.c \
 	eap_server_peap.c \
 	eap_server_tls.c \
 	eap_server_tls_common.c \
 	eap_server_ttls.c \
 	eap_server_wsc.c \
-	eap_wsc_common.c
+	eap_user_db.c \
+	eap_wsc_common.c \
+	eapol_auth_dump.c \
+	eapol_auth_sm.c
 TLS_FUNCS=y
 
 .if !empty(CFLAGS:M*-DCONFIG_WPS)

@@ -45,6 +45,26 @@ int secy_cp_control_protect_frames(struct ieee802_1x_kay *kay, Boolean enabled)
 }
 
 
+int secy_cp_control_encrypt(struct ieee802_1x_kay *kay, Boolean enabled)
+{
+	struct ieee802_1x_kay_ctx *ops;
+
+	if (!kay) {
+		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
+		return -1;
+	}
+
+	ops = kay->ctx;
+	if (!ops || !ops->enable_encrypt) {
+		wpa_printf(MSG_ERROR,
+			   "KaY: secy enable_encrypt operation not supported");
+		return -1;
+	}
+
+	return ops->enable_encrypt(ops->ctx, enabled);
+}
+
+
 int secy_cp_control_replay(struct ieee802_1x_kay *kay, Boolean enabled, u32 win)
 {
 	struct ieee802_1x_kay_ctx *ops;
@@ -113,6 +133,26 @@ int secy_cp_control_enable_port(struct ieee802_1x_kay *kay, Boolean enabled)
 }
 
 
+int secy_get_capability(struct ieee802_1x_kay *kay, enum macsec_cap *cap)
+{
+	struct ieee802_1x_kay_ctx *ops;
+
+	if (!kay) {
+		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
+		return -1;
+	}
+
+	ops = kay->ctx;
+	if (!ops || !ops->macsec_get_capability) {
+		wpa_printf(MSG_ERROR,
+			   "KaY: secy macsec_get_capability operation not supported");
+		return -1;
+	}
+
+	return ops->macsec_get_capability(ops->ctx, cap);
+}
+
+
 int secy_get_receive_lowest_pn(struct ieee802_1x_kay *kay,
 			       struct receive_sa *rxsa)
 {
@@ -130,10 +170,7 @@ int secy_get_receive_lowest_pn(struct ieee802_1x_kay *kay,
 		return -1;
 	}
 
-	return ops->get_receive_lowest_pn(ops->ctx,
-					rxsa->sc->channel,
-					rxsa->an,
-					&rxsa->lowest_pn);
+	return ops->get_receive_lowest_pn(ops->ctx, rxsa);
 }
 
 
@@ -154,10 +191,7 @@ int secy_get_transmit_next_pn(struct ieee802_1x_kay *kay,
 		return -1;
 	}
 
-	return ops->get_transmit_next_pn(ops->ctx,
-					txsa->sc->channel,
-					txsa->an,
-					&txsa->next_pn);
+	return ops->get_transmit_next_pn(ops->ctx, txsa);
 }
 
 
@@ -178,30 +212,7 @@ int secy_set_transmit_next_pn(struct ieee802_1x_kay *kay,
 		return -1;
 	}
 
-	return ops->set_transmit_next_pn(ops->ctx,
-					txsa->sc->channel,
-					txsa->an,
-					txsa->next_pn);
-}
-
-
-int secy_get_available_receive_sc(struct ieee802_1x_kay *kay, u32 *channel)
-{
-	struct ieee802_1x_kay_ctx *ops;
-
-	if (!kay) {
-		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
-		return -1;
-	}
-
-	ops = kay->ctx;
-	if (!ops || !ops->get_available_receive_sc) {
-		wpa_printf(MSG_ERROR,
-			   "KaY: secy get_available_receive_sc operation not supported");
-		return -1;
-	}
-
-	return ops->get_available_receive_sc(ops->ctx, channel);
+	return ops->set_transmit_next_pn(ops->ctx, txsa);
 }
 
 
@@ -221,8 +232,7 @@ int secy_create_receive_sc(struct ieee802_1x_kay *kay, struct receive_sc *rxsc)
 		return -1;
 	}
 
-	return ops->create_receive_sc(ops->ctx, rxsc->channel, &rxsc->sci,
-				      kay->vf, kay->co);
+	return ops->create_receive_sc(ops->ctx, rxsc, kay->vf, kay->co);
 }
 
 
@@ -242,7 +252,7 @@ int secy_delete_receive_sc(struct ieee802_1x_kay *kay, struct receive_sc *rxsc)
 		return -1;
 	}
 
-	return ops->delete_receive_sc(ops->ctx, rxsc->channel);
+	return ops->delete_receive_sc(ops->ctx, rxsc);
 }
 
 
@@ -262,8 +272,27 @@ int secy_create_receive_sa(struct ieee802_1x_kay *kay, struct receive_sa *rxsa)
 		return -1;
 	}
 
-	return ops->create_receive_sa(ops->ctx, rxsa->sc->channel, rxsa->an,
-				      rxsa->lowest_pn, rxsa->pkey->key);
+	return ops->create_receive_sa(ops->ctx, rxsa);
+}
+
+
+int secy_delete_receive_sa(struct ieee802_1x_kay *kay, struct receive_sa *rxsa)
+{
+	struct ieee802_1x_kay_ctx *ops;
+
+	if (!kay || !rxsa) {
+		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
+		return -1;
+	}
+
+	ops = kay->ctx;
+	if (!ops || !ops->delete_receive_sa) {
+		wpa_printf(MSG_ERROR,
+			   "KaY: secy delete_receive_sa operation not supported");
+		return -1;
+	}
+
+	return ops->delete_receive_sa(ops->ctx, rxsa);
 }
 
 
@@ -285,7 +314,7 @@ int secy_enable_receive_sa(struct ieee802_1x_kay *kay, struct receive_sa *rxsa)
 
 	rxsa->enable_receive = TRUE;
 
-	return ops->enable_receive_sa(ops->ctx, rxsa->sc->channel, rxsa->an);
+	return ops->enable_receive_sa(ops->ctx, rxsa);
 }
 
 
@@ -307,27 +336,7 @@ int secy_disable_receive_sa(struct ieee802_1x_kay *kay, struct receive_sa *rxsa)
 
 	rxsa->enable_receive = FALSE;
 
-	return ops->disable_receive_sa(ops->ctx, rxsa->sc->channel, rxsa->an);
-}
-
-
-int secy_get_available_transmit_sc(struct ieee802_1x_kay *kay, u32 *channel)
-{
-	struct ieee802_1x_kay_ctx *ops;
-
-	if (!kay) {
-		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
-		return -1;
-	}
-
-	ops = kay->ctx;
-	if (!ops || !ops->get_available_transmit_sc) {
-		wpa_printf(MSG_ERROR,
-			   "KaY: secy get_available_transmit_sc operation not supported");
-		return -1;
-	}
-
-	return ops->get_available_transmit_sc(ops->ctx, channel);
+	return ops->disable_receive_sa(ops->ctx, rxsa);
 }
 
 
@@ -348,8 +357,7 @@ int secy_create_transmit_sc(struct ieee802_1x_kay *kay,
 		return -1;
 	}
 
-	return ops->create_transmit_sc(ops->ctx, txsc->channel, &txsc->sci,
-				       kay->co);
+	return ops->create_transmit_sc(ops->ctx, txsc, kay->co);
 }
 
 
@@ -370,7 +378,7 @@ int secy_delete_transmit_sc(struct ieee802_1x_kay *kay,
 		return -1;
 	}
 
-	return ops->delete_transmit_sc(ops->ctx, txsc->channel);
+	return ops->delete_transmit_sc(ops->ctx, txsc);
 }
 
 
@@ -391,9 +399,28 @@ int secy_create_transmit_sa(struct ieee802_1x_kay *kay,
 		return -1;
 	}
 
-	return ops->create_transmit_sa(ops->ctx, txsa->sc->channel, txsa->an,
-					txsa->next_pn, txsa->confidentiality,
-					txsa->pkey->key);
+	return ops->create_transmit_sa(ops->ctx, txsa);
+}
+
+
+int secy_delete_transmit_sa(struct ieee802_1x_kay *kay,
+			    struct transmit_sa *txsa)
+{
+	struct ieee802_1x_kay_ctx *ops;
+
+	if (!kay || !txsa) {
+		wpa_printf(MSG_ERROR, "KaY: %s params invalid", __func__);
+		return -1;
+	}
+
+	ops = kay->ctx;
+	if (!ops || !ops->delete_transmit_sa) {
+		wpa_printf(MSG_ERROR,
+			   "KaY: secy delete_transmit_sa operation not supported");
+		return -1;
+	}
+
+	return ops->delete_transmit_sa(ops->ctx, txsa);
 }
 
 
@@ -416,7 +443,7 @@ int secy_enable_transmit_sa(struct ieee802_1x_kay *kay,
 
 	txsa->enable_transmit = TRUE;
 
-	return ops->enable_transmit_sa(ops->ctx, txsa->sc->channel, txsa->an);
+	return ops->enable_transmit_sa(ops->ctx, txsa);
 }
 
 
@@ -439,7 +466,7 @@ int secy_disable_transmit_sa(struct ieee802_1x_kay *kay,
 
 	txsa->enable_transmit = FALSE;
 
-	return ops->disable_transmit_sa(ops->ctx, txsa->sc->channel, txsa->an);
+	return ops->disable_transmit_sa(ops->ctx, txsa);
 }
 
 

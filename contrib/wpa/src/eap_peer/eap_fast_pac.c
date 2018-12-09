@@ -114,10 +114,9 @@ static int eap_fast_copy_buf(u8 **dst, size_t *dst_len,
 			     const u8 *src, size_t src_len)
 {
 	if (src) {
-		*dst = os_malloc(src_len);
+		*dst = os_memdup(src, src_len);
 		if (*dst == NULL)
 			return -1;
-		os_memcpy(*dst, src, src_len);
 		*dst_len = src_len;
 	}
 	return 0;
@@ -720,19 +719,17 @@ static void eap_fast_pac_get_a_id(struct eap_fast_pac *pac)
 
 		if (type == PAC_TYPE_A_ID) {
 			os_free(pac->a_id);
-			pac->a_id = os_malloc(len);
+			pac->a_id = os_memdup(pos, len);
 			if (pac->a_id == NULL)
 				break;
-			os_memcpy(pac->a_id, pos, len);
 			pac->a_id_len = len;
 		}
 
 		if (type == PAC_TYPE_A_ID_INFO) {
 			os_free(pac->a_id_info);
-			pac->a_id_info = os_malloc(len);
+			pac->a_id_info = os_memdup(pos, len);
 			if (pac->a_id_info == NULL)
 				break;
-			os_memcpy(pac->a_id_info, pos, len);
 			pac->a_id_info_len = len;
 		}
 
@@ -820,10 +817,9 @@ int eap_fast_load_pac_bin(struct eap_sm *sm, struct eap_fast_pac **pac_root,
 		if (val > end - pos)
 			goto parse_fail;
 		pac->pac_opaque_len = val;
-		pac->pac_opaque = os_malloc(pac->pac_opaque_len);
+		pac->pac_opaque = os_memdup(pos, pac->pac_opaque_len);
 		if (pac->pac_opaque == NULL)
 			goto parse_fail;
-		os_memcpy(pac->pac_opaque, pos, pac->pac_opaque_len);
 		pos += pac->pac_opaque_len;
 		if (2 > end - pos)
 			goto parse_fail;
@@ -832,10 +828,9 @@ int eap_fast_load_pac_bin(struct eap_sm *sm, struct eap_fast_pac **pac_root,
 		if (val > end - pos)
 			goto parse_fail;
 		pac->pac_info_len = val;
-		pac->pac_info = os_malloc(pac->pac_info_len);
+		pac->pac_info = os_memdup(pos, pac->pac_info_len);
 		if (pac->pac_info == NULL)
 			goto parse_fail;
-		os_memcpy(pac->pac_info, pos, pac->pac_info_len);
 		pos += pac->pac_info_len;
 		eap_fast_pac_get_a_id(pac);
 

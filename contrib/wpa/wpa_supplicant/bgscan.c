@@ -34,8 +34,6 @@ int bgscan_init(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
 	const struct bgscan_ops *ops = NULL;
 
 	bgscan_deinit(wpa_s);
-	if (name == NULL)
-		return -1;
 
 	params = os_strchr(name, ':');
 	if (params == NULL) {

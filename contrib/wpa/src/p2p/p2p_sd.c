@@ -426,6 +426,7 @@ void p2p_sd_response(struct p2p_data *p2p, int freq, const u8 *dst,
 {
 	struct wpabuf *resp;
 	size_t max_len;
+	unsigned int wait_time = 200;
 
 	/*
 	 * In the 60 GHz, we have a smaller maximum frame length for management
@@ -460,6 +461,7 @@ void p2p_sd_response(struct p2p_data *p2p, int freq, const u8 *dst,
 					     1, p2p->srv_update_indic, NULL);
 	} else {
 		p2p_dbg(p2p, "SD response fits in initial response");
+		wait_time = 0; /* no more SD frames in the sequence */
 		resp = p2p_build_sd_response(dialog_token,
 					     WLAN_STATUS_SUCCESS, 0,
 					     p2p->srv_update_indic, resp_tlvs);
@@ -470,7 +472,7 @@ void p2p_sd_response(struct p2p_data *p2p, int freq, const u8 *dst,
 	p2p->pending_action_state = P2P_NO_PENDING_ACTION;
 	if (p2p_send_action(p2p, freq, dst, p2p->cfg->dev_addr,
 			    p2p->cfg->dev_addr,
-			    wpabuf_head(resp), wpabuf_len(resp), 200) < 0)
+			    wpabuf_head(resp), wpabuf_len(resp), wait_time) < 0)
 		p2p_dbg(p2p, "Failed to send Action frame");
 
 	wpabuf_free(resp);
@@ -623,6 +625,7 @@ void p2p_rx_gas_comeback_req(struct p2p_data *p2p, const u8 *sa,
 	u8 dialog_token;
 	size_t frag_len, max_len;
 	int more = 0;
+	unsigned int wait_time = 200;
 
 	wpa_hexdump(MSG_DEBUG, "P2P: RX GAS Comeback Request", data, len);
 	if (len < 1)
@@ -675,12 +678,13 @@ void p2p_rx_gas_comeback_req(struct p2p_data *p2p, const u8 *sa,
 		p2p_dbg(p2p, "All fragments of SD response sent");
 		wpabuf_free(p2p->sd_resp);
 		p2p->sd_resp = NULL;
+		wait_time = 0; /* no more SD frames in the sequence */
 	}
 
 	p2p->pending_action_state = P2P_NO_PENDING_ACTION;
 	if (p2p_send_action(p2p, rx_freq, sa, p2p->cfg->dev_addr,
 			    p2p->cfg->dev_addr,
-			    wpabuf_head(resp), wpabuf_len(resp), 200) < 0)
+			    wpabuf_head(resp), wpabuf_len(resp), wait_time) < 0)
 		p2p_dbg(p2p, "Failed to send Action frame");
 
 	wpabuf_free(resp);
