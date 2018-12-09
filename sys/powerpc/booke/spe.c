@@ -543,16 +543,19 @@ spe_handle_fpdata(struct trapframe *frame)
 		case EFDABS:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
 			    curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
+			frame->fixreg[rd] = frame->fixreg[ra];
 			enable_vec(curthread);
 			break;
 		case EFDNABS:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
 			    curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
+			frame->fixreg[rd] = frame->fixreg[ra];
 			enable_vec(curthread);
 			break;
 		case EFDNEG:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
 			    curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
+			frame->fixreg[rd] = frame->fixreg[ra];
 			enable_vec(curthread);
 			break;
 		case EFDCFS:
