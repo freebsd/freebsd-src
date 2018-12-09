@@ -464,17 +464,17 @@ spe_handle_fpdata(struct trapframe *frame)
 		switch (instr_sec_op) {
 		case EVFSABS:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-				curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
+			    curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra] & ~(1U << 31);
 			break;
 		case EVFSNABS:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-				curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
+			    curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra] | (1U << 31);
 			break;
 		case EVFSNEG:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-				curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
+			    curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra] ^ (1U << 31);
 			break;
 		default:
@@ -542,15 +542,18 @@ spe_handle_fpdata(struct trapframe *frame)
 		switch (instr_sec_op) {
 		case EFDABS:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-				curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
+			    curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
+			enable_vec(curthread);
 			break;
 		case EFDNABS:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-				curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
+			    curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
+			enable_vec(curthread);
 			break;
 		case EFDNEG:
 			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-				curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
+			    curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
+			enable_vec(curthread);
 			break;
 		case EFDCFS:
 			spe_explode(&fpemu, &fpemu.fe_f3, SINGLE,
