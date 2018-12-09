@@ -80,7 +80,7 @@ crypto_rsa_import_public_key(const u8 *buf, size_t len)
 	 * PKCS #1, 7.1:
 	 * RSAPublicKey ::= SEQUENCE {
 	 *     modulus INTEGER, -- n
-	 *     publicExponent INTEGER -- e 
+	 *     publicExponent INTEGER -- e
 	 * }
 	 */
 

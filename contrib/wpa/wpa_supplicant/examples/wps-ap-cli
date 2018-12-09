@@ -14,12 +14,12 @@ pbc()
 enter_pin()
 {
 	echo "Enter a PIN from a station to be enrolled to the network."
-	echo -n "Enrollee PIN: "
+	printf "Enrollee PIN: "
 	read pin
 	cpin=`$CLI wps_check_pin "$pin" | tail -1`
 	if [ "$cpin" = "FAIL-CHECKSUM" ]; then
 		echo "Checksum digit is not valid"
-		echo -n "Do you want to use this PIN (y/n)? "
+		printf "Do you want to use this PIN (y/n)? "
 		read resp
 		case "$resp" in
 			y*)
@@ -52,7 +52,7 @@ main_menu()
 	echo "3: Show current configuration"
 	echo "0: Exit wps-ap-cli"
 
-	echo -n "Command: "
+	printf "Command: "
 	read cmd
 
 	case "$cmd" in

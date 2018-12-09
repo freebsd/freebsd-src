@@ -27,6 +27,7 @@ struct radius_das_data {
 	void *ctx;
 	enum radius_das_res (*disconnect)(void *ctx,
 					  struct radius_das_attrs *attr);
+	enum radius_das_res (*coa)(void *ctx, struct radius_das_attrs *attr);
 };
 
 
@@ -161,6 +162,10 @@ static struct radius_msg * radius_das_disconnect(struct radius_das_data *das,
 			   abuf, from_port);
 		error = 508;
 		break;
+	case RADIUS_DAS_COA_FAILED:
+		/* not used with Disconnect-Request */
+		error = 405;
+		break;
 	case RADIUS_DAS_SUCCESS:
 		error = 0;
 		break;
@@ -178,6 +183,195 @@ fail:
 			radius_msg_free(reply);
 			return NULL;
 		}
+	}
+
+	return reply;
+}
+
+
+static struct radius_msg * radius_das_coa(struct radius_das_data *das,
+					  struct radius_msg *msg,
+					  const char *abuf, int from_port)
+{
+	struct radius_hdr *hdr;
+	struct radius_msg *reply;
+	u8 allowed[] = {
+		RADIUS_ATTR_USER_NAME,
+		RADIUS_ATTR_NAS_IP_ADDRESS,
+		RADIUS_ATTR_CALLING_STATION_ID,
+		RADIUS_ATTR_NAS_IDENTIFIER,
+		RADIUS_ATTR_ACCT_SESSION_ID,
+		RADIUS_ATTR_ACCT_MULTI_SESSION_ID,
+		RADIUS_ATTR_EVENT_TIMESTAMP,
+		RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
+		RADIUS_ATTR_CHARGEABLE_USER_IDENTITY,
+#ifdef CONFIG_HS20
+		RADIUS_ATTR_VENDOR_SPECIFIC,
+#endif /* CONFIG_HS20 */
+#ifdef CONFIG_IPV6
+		RADIUS_ATTR_NAS_IPV6_ADDRESS,
+#endif /* CONFIG_IPV6 */
+		0
+	};
+	int error = 405;
+	u8 attr;
+	enum radius_das_res res;
+	struct radius_das_attrs attrs;
+	u8 *buf;
+	size_t len;
+	char tmp[100];
+	u8 sta_addr[ETH_ALEN];
+
+	hdr = radius_msg_get_hdr(msg);
+
+	if (!das->coa) {
+		wpa_printf(MSG_INFO, "DAS: CoA not supported");
+		goto fail;
+	}
+
+	attr = radius_msg_find_unlisted_attr(msg, allowed);
+	if (attr) {
+		wpa_printf(MSG_INFO,
+			   "DAS: Unsupported attribute %u in CoA-Request from %s:%d",
+			   attr, abuf, from_port);
+		error = 401;
+		goto fail;
+	}
+
+	os_memset(&attrs, 0, sizeof(attrs));
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_NAS_IP_ADDRESS,
+				    &buf, &len, NULL) == 0) {
+		if (len != 4) {
+			wpa_printf(MSG_INFO, "DAS: Invalid NAS-IP-Address from %s:%d",
+				   abuf, from_port);
+			error = 407;
+			goto fail;
+		}
+		attrs.nas_ip_addr = buf;
+	}
+
+#ifdef CONFIG_IPV6
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_NAS_IPV6_ADDRESS,
+				    &buf, &len, NULL) == 0) {
+		if (len != 16) {
+			wpa_printf(MSG_INFO, "DAS: Invalid NAS-IPv6-Address from %s:%d",
+				   abuf, from_port);
+			error = 407;
+			goto fail;
+		}
+		attrs.nas_ipv6_addr = buf;
+	}
+#endif /* CONFIG_IPV6 */
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_NAS_IDENTIFIER,
+				    &buf, &len, NULL) == 0) {
+		attrs.nas_identifier = buf;
+		attrs.nas_identifier_len = len;
+	}
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_CALLING_STATION_ID,
+				    &buf, &len, NULL) == 0) {
+		if (len >= sizeof(tmp))
+			len = sizeof(tmp) - 1;
+		os_memcpy(tmp, buf, len);
+		tmp[len] = '\0';
+		if (hwaddr_aton2(tmp, sta_addr) < 0) {
+			wpa_printf(MSG_INFO, "DAS: Invalid Calling-Station-Id "
+				   "'%s' from %s:%d", tmp, abuf, from_port);
+			error = 407;
+			goto fail;
+		}
+		attrs.sta_addr = sta_addr;
+	}
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_USER_NAME,
+				    &buf, &len, NULL) == 0) {
+		attrs.user_name = buf;
+		attrs.user_name_len = len;
+	}
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_ACCT_SESSION_ID,
+				    &buf, &len, NULL) == 0) {
+		attrs.acct_session_id = buf;
+		attrs.acct_session_id_len = len;
+	}
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_ACCT_MULTI_SESSION_ID,
+				    &buf, &len, NULL) == 0) {
+		attrs.acct_multi_session_id = buf;
+		attrs.acct_multi_session_id_len = len;
+	}
+
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_CHARGEABLE_USER_IDENTITY,
+				    &buf, &len, NULL) == 0) {
+		attrs.cui = buf;
+		attrs.cui_len = len;
+	}
+
+#ifdef CONFIG_HS20
+	if (radius_msg_get_attr_ptr(msg, RADIUS_ATTR_VENDOR_SPECIFIC,
+				    &buf, &len, NULL) == 0) {
+		if (len < 10 || WPA_GET_BE32(buf) != RADIUS_VENDOR_ID_WFA ||
+		    buf[4] != RADIUS_VENDOR_ATTR_WFA_HS20_T_C_FILTERING ||
+		    buf[5] < 6) {
+			wpa_printf(MSG_INFO,
+				   "DAS: Unsupported attribute %u in CoA-Request from %s:%d",
+				   attr, abuf, from_port);
+			error = 401;
+			goto fail;
+		}
+		attrs.hs20_t_c_filtering = &buf[6];
+	}
+
+	if (!attrs.hs20_t_c_filtering) {
+			wpa_printf(MSG_INFO,
+				   "DAS: No supported authorization change attribute in CoA-Request from %s:%d",
+				   abuf, from_port);
+			error = 402;
+			goto fail;
+	}
+#endif /* CONFIG_HS20 */
+
+	res = das->coa(das->ctx, &attrs);
+	switch (res) {
+	case RADIUS_DAS_NAS_MISMATCH:
+		wpa_printf(MSG_INFO, "DAS: NAS mismatch from %s:%d",
+			   abuf, from_port);
+		error = 403;
+		break;
+	case RADIUS_DAS_SESSION_NOT_FOUND:
+		wpa_printf(MSG_INFO,
+			   "DAS: Session not found for request from %s:%d",
+			   abuf, from_port);
+		error = 503;
+		break;
+	case RADIUS_DAS_MULTI_SESSION_MATCH:
+		wpa_printf(MSG_INFO,
+			   "DAS: Multiple sessions match for request from %s:%d",
+			   abuf, from_port);
+		error = 508;
+		break;
+	case RADIUS_DAS_COA_FAILED:
+		wpa_printf(MSG_INFO, "DAS: CoA failed for request from %s:%d",
+			   abuf, from_port);
+		error = 407;
+		break;
+	case RADIUS_DAS_SUCCESS:
+		error = 0;
+		break;
+	}
+
+fail:
+	reply = radius_msg_new(error ? RADIUS_CODE_COA_NAK :
+			       RADIUS_CODE_COA_ACK, hdr->identifier);
+	if (!reply)
+		return NULL;
+
+	if (error &&
+	    !radius_msg_add_attr_int32(reply, RADIUS_ATTR_ERROR_CAUSE, error)) {
+		radius_msg_free(reply);
+		return NULL;
 	}
 
 	return reply;
@@ -219,7 +413,8 @@ static void radius_das_receive(int sock, void *eloop_ctx, void *sock_ctx)
 
 	wpa_printf(MSG_DEBUG, "DAS: Received %d bytes from %s:%d",
 		   len, abuf, from_port);
-	if (das->client_addr.u.v4.s_addr != from.sin.sin_addr.s_addr) {
+	if (das->client_addr.u.v4.s_addr &&
+	    das->client_addr.u.v4.s_addr != from.sin.sin_addr.s_addr) {
 		wpa_printf(MSG_DEBUG, "DAS: Drop message from unknown client");
 		return;
 	}
@@ -270,19 +465,7 @@ static void radius_das_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		reply = radius_das_disconnect(das, msg, abuf, from_port);
 		break;
 	case RADIUS_CODE_COA_REQUEST:
-		/* TODO */
-		reply = radius_msg_new(RADIUS_CODE_COA_NAK,
-				       hdr->identifier);
-		if (reply == NULL)
-			break;
-
-		/* Unsupported Service */
-		if (!radius_msg_add_attr_int32(reply, RADIUS_ATTR_ERROR_CAUSE,
-					       405)) {
-			radius_msg_free(reply);
-			reply = NULL;
-			break;
-		}
+		reply = radius_das_coa(das, msg, abuf, from_port);
 		break;
 	default:
 		wpa_printf(MSG_DEBUG, "DAS: Unexpected RADIUS code %u in "
@@ -369,17 +552,17 @@ radius_das_init(struct radius_das_conf *conf)
 		conf->require_message_authenticator;
 	das->ctx = conf->ctx;
 	das->disconnect = conf->disconnect;
+	das->coa = conf->coa;
 
 	os_memcpy(&das->client_addr, conf->client_addr,
 		  sizeof(das->client_addr));
 
-	das->shared_secret = os_malloc(conf->shared_secret_len);
+	das->shared_secret = os_memdup(conf->shared_secret,
+				       conf->shared_secret_len);
 	if (das->shared_secret == NULL) {
 		radius_das_deinit(das);
 		return NULL;
 	}
-	os_memcpy(das->shared_secret, conf->shared_secret,
-		  conf->shared_secret_len);
 	das->shared_secret_len = conf->shared_secret_len;
 
 	das->sock = radius_das_open_socket(conf->port);

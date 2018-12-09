@@ -11,12 +11,29 @@
 #include "common.h"
 #include "common/ieee802_11_defs.h"
 #include "common/gas.h"
+#include "common/wpa_ctrl.h"
 #include "utils/eloop.h"
 #include "hostapd.h"
 #include "ap_config.h"
 #include "ap_drv_ops.h"
+#include "dpp_hostapd.h"
 #include "sta_info.h"
 #include "gas_serv.h"
+
+
+#ifdef CONFIG_DPP
+static void gas_serv_write_dpp_adv_proto(struct wpabuf *buf)
+{
+	wpabuf_put_u8(buf, WLAN_EID_ADV_PROTO);
+	wpabuf_put_u8(buf, 8); /* Length */
+	wpabuf_put_u8(buf, 0x7f);
+	wpabuf_put_u8(buf, WLAN_EID_VENDOR_SPECIFIC);
+	wpabuf_put_u8(buf, 5);
+	wpabuf_put_be24(buf, OUI_WFA);
+	wpabuf_put_u8(buf, DPP_OUI_TYPE);
+	wpabuf_put_u8(buf, 0x01);
+}
+#endif /* CONFIG_DPP */
 
 
 static void convert_to_protected_dual(struct wpabuf *msg)
@@ -50,9 +67,12 @@ gas_dialog_create(struct hostapd_data *hapd, const u8 *addr, u8 dialog_token)
 		sta->flags |= WLAN_STA_GAS;
 		/*
 		 * The default inactivity is 300 seconds. We don't need
-		 * it to be that long.
+		 * it to be that long. Use five second timeout and increase this
+		 * with the comeback_delay for testing cases.
 		 */
-		ap_sta_session_timeout(hapd, sta, 5);
+		ap_sta_session_timeout(hapd, sta,
+				       hapd->conf->gas_comeback_delay / 1024 +
+				       5);
 	} else {
 		ap_sta_replenish_timeout(hapd, sta, 5);
 	}
@@ -161,8 +181,12 @@ static void anqp_add_hs_capab_list(struct hostapd_data *hapd,
 		wpabuf_put_u8(buf, HS20_STYPE_OPERATING_CLASS);
 	if (hapd->conf->hs20_osu_providers_count)
 		wpabuf_put_u8(buf, HS20_STYPE_OSU_PROVIDERS_LIST);
+	if (hapd->conf->hs20_osu_providers_nai_count)
+		wpabuf_put_u8(buf, HS20_STYPE_OSU_PROVIDERS_NAI_LIST);
 	if (hapd->conf->hs20_icons_count)
 		wpabuf_put_u8(buf, HS20_STYPE_ICON_REQUEST);
+	if (hapd->conf->hs20_operator_icon_count)
+		wpabuf_put_u8(buf, HS20_STYPE_OPERATOR_ICON_METADATA);
 	gas_anqp_set_element_len(buf, len);
 }
 #endif /* CONFIG_HS20 */
@@ -255,20 +279,29 @@ static void anqp_add_capab_list(struct hostapd_data *hapd,
 		wpabuf_put_le16(buf, ANQP_DOMAIN_NAME);
 	if (get_anqp_elem(hapd, ANQP_EMERGENCY_ALERT_URI))
 		wpabuf_put_le16(buf, ANQP_EMERGENCY_ALERT_URI);
+	if (get_anqp_elem(hapd, ANQP_TDLS_CAPABILITY))
+		wpabuf_put_le16(buf, ANQP_TDLS_CAPABILITY);
 	if (get_anqp_elem(hapd, ANQP_EMERGENCY_NAI))
 		wpabuf_put_le16(buf, ANQP_EMERGENCY_NAI);
 	if (get_anqp_elem(hapd, ANQP_NEIGHBOR_REPORT))
 		wpabuf_put_le16(buf, ANQP_NEIGHBOR_REPORT);
-	for (id = 273; id < 277; id++) {
-		if (get_anqp_elem(hapd, id))
-			wpabuf_put_le16(buf, id);
-	}
-	if (get_anqp_elem(hapd, ANQP_VENUE_URL))
+#ifdef CONFIG_FILS
+	if (!dl_list_empty(&hapd->conf->fils_realms) ||
+	    get_anqp_elem(hapd, ANQP_FILS_REALM_INFO))
+		wpabuf_put_le16(buf, ANQP_FILS_REALM_INFO);
+#endif /* CONFIG_FILS */
+	if (get_anqp_elem(hapd, ANQP_CAG))
+		wpabuf_put_le16(buf, ANQP_CAG);
+	if (hapd->conf->venue_url || get_anqp_elem(hapd, ANQP_VENUE_URL))
 		wpabuf_put_le16(buf, ANQP_VENUE_URL);
 	if (get_anqp_elem(hapd, ANQP_ADVICE_OF_CHARGE))
 		wpabuf_put_le16(buf, ANQP_ADVICE_OF_CHARGE);
 	if (get_anqp_elem(hapd, ANQP_LOCAL_CONTENT))
 		wpabuf_put_le16(buf, ANQP_LOCAL_CONTENT);
+	for (id = 280; id < 300; id++) {
+		if (get_anqp_elem(hapd, id))
+			wpabuf_put_le16(buf, id);
+	}
 #ifdef CONFIG_HS20
 	anqp_add_hs_capab_list(hapd, buf);
 #endif /* CONFIG_HS20 */
@@ -293,6 +326,29 @@ static void anqp_add_venue_name(struct hostapd_data *hapd, struct wpabuf *buf)
 			wpabuf_put_u8(buf, 3 + vn->name_len);
 			wpabuf_put_data(buf, vn->lang, 3);
 			wpabuf_put_data(buf, vn->name, vn->name_len);
+		}
+		gas_anqp_set_element_len(buf, len);
+	}
+}
+
+
+static void anqp_add_venue_url(struct hostapd_data *hapd, struct wpabuf *buf)
+{
+	if (anqp_add_override(hapd, buf, ANQP_VENUE_URL))
+		return;
+
+	if (hapd->conf->venue_url) {
+		u8 *len;
+		unsigned int i;
+
+		len = gas_anqp_add_element(buf, ANQP_VENUE_URL);
+		for (i = 0; i < hapd->conf->venue_url_count; i++) {
+			struct hostapd_venue_url *url;
+
+			url = &hapd->conf->venue_url[i];
+			wpabuf_put_u8(buf, 1 + url->url_len);
+			wpabuf_put_u8(buf, url->venue_number);
+			wpabuf_put_data(buf, url->url, url->url_len);
 		}
 		gas_anqp_set_element_len(buf, len);
 	}
@@ -548,6 +604,36 @@ static void anqp_add_domain_name(struct hostapd_data *hapd, struct wpabuf *buf)
 }
 
 
+#ifdef CONFIG_FILS
+static void anqp_add_fils_realm_info(struct hostapd_data *hapd,
+				     struct wpabuf *buf)
+{
+	size_t count;
+
+	if (anqp_add_override(hapd, buf, ANQP_FILS_REALM_INFO))
+		return;
+
+	count = dl_list_len(&hapd->conf->fils_realms);
+	if (count > 10000)
+		count = 10000;
+	if (count) {
+		struct fils_realm *realm;
+
+		wpabuf_put_le16(buf, ANQP_FILS_REALM_INFO);
+		wpabuf_put_le16(buf, 2 * count);
+
+		dl_list_for_each(realm, &hapd->conf->fils_realms,
+				 struct fils_realm, list) {
+			if (count == 0)
+				break;
+			wpabuf_put_data(buf, realm->hash, 2);
+			count--;
+		}
+	}
+}
+#endif /* CONFIG_FILS */
+
+
 #ifdef CONFIG_HS20
 
 static void anqp_add_operator_friendly_name(struct hostapd_data *hapd,
@@ -621,6 +707,29 @@ static void anqp_add_operating_class(struct hostapd_data *hapd,
 }
 
 
+static void anqp_add_icon(struct wpabuf *buf, struct hostapd_bss_config *bss,
+			  const char *name)
+{
+	size_t j;
+	struct hs20_icon *icon = NULL;
+
+	for (j = 0; j < bss->hs20_icons_count && !icon; j++) {
+		if (os_strcmp(name, bss->hs20_icons[j].name) == 0)
+			icon = &bss->hs20_icons[j];
+	}
+	if (!icon)
+		return; /* icon info not found */
+
+	wpabuf_put_le16(buf, icon->width);
+	wpabuf_put_le16(buf, icon->height);
+	wpabuf_put_data(buf, icon->language, 3);
+	wpabuf_put_u8(buf, os_strlen(icon->type));
+	wpabuf_put_str(buf, icon->type);
+	wpabuf_put_u8(buf, os_strlen(icon->name));
+	wpabuf_put_str(buf, icon->name);
+}
+
+
 static void anqp_add_osu_provider(struct wpabuf *buf,
 				  struct hostapd_bss_config *bss,
 				  struct hs20_osu_provider *p)
@@ -649,32 +758,14 @@ static void anqp_add_osu_provider(struct wpabuf *buf,
 
 	/* OSU Method List */
 	count = wpabuf_put(buf, 1);
-	for (i = 0; p->method_list[i] >= 0; i++)
+	for (i = 0; p->method_list && p->method_list[i] >= 0; i++)
 		wpabuf_put_u8(buf, p->method_list[i]);
 	*count = i;
 
 	/* Icons Available */
 	len2 = wpabuf_put(buf, 2);
-	for (i = 0; i < p->icons_count; i++) {
-		size_t j;
-		struct hs20_icon *icon = NULL;
-
-		for (j = 0; j < bss->hs20_icons_count && !icon; j++) {
-			if (os_strcmp(p->icons[i], bss->hs20_icons[j].name) ==
-			    0)
-				icon = &bss->hs20_icons[j];
-		}
-		if (!icon)
-			continue; /* icon info not found */
-
-		wpabuf_put_le16(buf, icon->width);
-		wpabuf_put_le16(buf, icon->height);
-		wpabuf_put_data(buf, icon->language, 3);
-		wpabuf_put_u8(buf, os_strlen(icon->type));
-		wpabuf_put_str(buf, icon->type);
-		wpabuf_put_u8(buf, os_strlen(icon->name));
-		wpabuf_put_str(buf, icon->name);
-	}
+	for (i = 0; i < p->icons_count; i++)
+		anqp_add_icon(buf, bss, p->icons[i]);
 	WPA_PUT_LE16(len2, (u8 *) wpabuf_put(buf, 0) - len2 - 2);
 
 	/* OSU_NAI */
@@ -721,6 +812,40 @@ static void anqp_add_osu_providers_list(struct hostapd_data *hapd,
 			anqp_add_osu_provider(
 				buf, hapd->conf,
 				&hapd->conf->hs20_osu_providers[i]);
+		}
+
+		gas_anqp_set_element_len(buf, len);
+	}
+}
+
+
+static void anqp_add_osu_provider_nai(struct wpabuf *buf,
+				      struct hs20_osu_provider *p)
+{
+	/* OSU_NAI for shared BSS (Single SSID) */
+	if (p->osu_nai2) {
+		wpabuf_put_u8(buf, os_strlen(p->osu_nai2));
+		wpabuf_put_str(buf, p->osu_nai2);
+	} else {
+		wpabuf_put_u8(buf, 0);
+	}
+}
+
+
+static void anqp_add_osu_providers_nai_list(struct hostapd_data *hapd,
+					    struct wpabuf *buf)
+{
+	if (hapd->conf->hs20_osu_providers_nai_count) {
+		size_t i;
+		u8 *len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
+		wpabuf_put_be24(buf, OUI_WFA);
+		wpabuf_put_u8(buf, HS20_ANQP_OUI_TYPE);
+		wpabuf_put_u8(buf, HS20_STYPE_OSU_PROVIDERS_NAI_LIST);
+		wpabuf_put_u8(buf, 0); /* Reserved */
+
+		for (i = 0; i < hapd->conf->hs20_osu_providers_count; i++) {
+			anqp_add_osu_provider_nai(
+				buf, &hapd->conf->hs20_osu_providers[i]);
 		}
 
 		gas_anqp_set_element_len(buf, len);
@@ -783,7 +908,47 @@ static void anqp_add_icon_binary_file(struct hostapd_data *hapd,
 	gas_anqp_set_element_len(buf, len);
 }
 
+
+static void anqp_add_operator_icon_metadata(struct hostapd_data *hapd,
+					    struct wpabuf *buf)
+{
+	struct hostapd_bss_config *bss = hapd->conf;
+	size_t i;
+	u8 *len;
+
+	if (!bss->hs20_operator_icon_count)
+		return;
+
+	len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
+
+	wpabuf_put_be24(buf, OUI_WFA);
+	wpabuf_put_u8(buf, HS20_ANQP_OUI_TYPE);
+	wpabuf_put_u8(buf, HS20_STYPE_OPERATOR_ICON_METADATA);
+	wpabuf_put_u8(buf, 0); /* Reserved */
+
+	for (i = 0; i < bss->hs20_operator_icon_count; i++)
+		anqp_add_icon(buf, bss, bss->hs20_operator_icon[i]);
+
+	gas_anqp_set_element_len(buf, len);
+}
+
 #endif /* CONFIG_HS20 */
+
+
+#ifdef CONFIG_MBO
+static void anqp_add_mbo_cell_data_conn_pref(struct hostapd_data *hapd,
+					     struct wpabuf *buf)
+{
+	if (hapd->conf->mbo_cell_data_conn_pref >= 0) {
+		u8 *len = gas_anqp_add_element(buf, ANQP_VENDOR_SPECIFIC);
+		wpabuf_put_be24(buf, OUI_WFA);
+		wpabuf_put_u8(buf, MBO_ANQP_OUI_TYPE);
+		wpabuf_put_u8(buf, MBO_ANQP_SUBTYPE_CELL_CONN_PREF);
+		wpabuf_put_u8(buf, hapd->conf->mbo_cell_data_conn_pref);
+		gas_anqp_set_element_len(buf, len);
+	}
+}
+#endif /* CONFIG_MBO */
 
 
 static size_t anqp_get_required_len(struct hostapd_data *hapd,
@@ -821,6 +986,10 @@ gas_serv_build_gas_resp_payload(struct hostapd_data *hapd,
 		len += 1000;
 	if (request & ANQP_REQ_ICON_REQUEST)
 		len += 65536;
+#ifdef CONFIG_FILS
+	if (request & ANQP_FILS_REALM_INFO)
+		len += 2 * dl_list_len(&hapd->conf->fils_realms);
+#endif /* CONFIG_FILS */
 	len += anqp_get_required_len(hapd, extra_req, num_extra_req);
 
 	buf = wpabuf_alloc(len);
@@ -860,8 +1029,19 @@ gas_serv_build_gas_resp_payload(struct hostapd_data *hapd,
 	if (request & ANQP_REQ_EMERGENCY_NAI)
 		anqp_add_elem(hapd, buf, ANQP_EMERGENCY_NAI);
 
-	for (i = 0; i < num_extra_req; i++)
+	for (i = 0; i < num_extra_req; i++) {
+#ifdef CONFIG_FILS
+		if (extra_req[i] == ANQP_FILS_REALM_INFO) {
+			anqp_add_fils_realm_info(hapd, buf);
+			continue;
+		}
+#endif /* CONFIG_FILS */
+		if (extra_req[i] == ANQP_VENUE_URL) {
+			anqp_add_venue_url(hapd, buf);
+			continue;
+		}
 		anqp_add_elem(hapd, buf, extra_req[i]);
+	}
 
 #ifdef CONFIG_HS20
 	if (request & ANQP_REQ_HS_CAPABILITY_LIST)
@@ -878,7 +1058,16 @@ gas_serv_build_gas_resp_payload(struct hostapd_data *hapd,
 		anqp_add_osu_providers_list(hapd, buf);
 	if (request & ANQP_REQ_ICON_REQUEST)
 		anqp_add_icon_binary_file(hapd, buf, icon_name, icon_name_len);
+	if (request & ANQP_REQ_OPERATOR_ICON_METADATA)
+		anqp_add_operator_icon_metadata(hapd, buf);
+	if (request & ANQP_REQ_OSU_PROVIDERS_NAI_LIST)
+		anqp_add_osu_providers_nai_list(hapd, buf);
 #endif /* CONFIG_HS20 */
+
+#ifdef CONFIG_MBO
+	if (request & ANQP_REQ_MBO_CELL_DATA_CONN_PREF)
+		anqp_add_mbo_cell_data_conn_pref(hapd, buf);
+#endif /* CONFIG_MBO */
 
 	return buf;
 }
@@ -984,7 +1173,17 @@ static void rx_anqp_query_list_id(struct hostapd_data *hapd, u16 info_id,
 			     get_anqp_elem(hapd, info_id) != NULL, qi);
 		break;
 	default:
-		if (!get_anqp_elem(hapd, info_id)) {
+#ifdef CONFIG_FILS
+		if (info_id == ANQP_FILS_REALM_INFO &&
+		    !dl_list_empty(&hapd->conf->fils_realms)) {
+			wpa_printf(MSG_DEBUG,
+				   "ANQP: FILS Realm Information (local)");
+		} else
+#endif /* CONFIG_FILS */
+		if (info_id == ANQP_VENUE_URL && hapd->conf->venue_url) {
+			wpa_printf(MSG_DEBUG,
+				   "ANQP: Venue URL (local)");
+		} else if (!get_anqp_elem(hapd, info_id)) {
 			wpa_printf(MSG_DEBUG, "ANQP: Unsupported Info Id %u",
 				   info_id);
 			break;
@@ -1050,6 +1249,16 @@ static void rx_anqp_hs_query_list(struct hostapd_data *hapd, u8 subtype,
 		set_anqp_req(ANQP_REQ_OSU_PROVIDERS_LIST, "OSU Providers list",
 			     hapd->conf->hs20_osu_providers_count, qi);
 		break;
+	case HS20_STYPE_OPERATOR_ICON_METADATA:
+		set_anqp_req(ANQP_REQ_OPERATOR_ICON_METADATA,
+			     "Operator Icon Metadata",
+			     hapd->conf->hs20_operator_icon_count, qi);
+		break;
+	case HS20_STYPE_OSU_PROVIDERS_NAI_LIST:
+		set_anqp_req(ANQP_REQ_OSU_PROVIDERS_NAI_LIST,
+			     "OSU Providers NAI List",
+			     hapd->conf->hs20_osu_providers_nai_count, qi);
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "ANQP: Unsupported HS 2.0 subtype %u",
 			   subtype);
@@ -1092,48 +1301,11 @@ static void rx_anqp_hs_icon_request(struct hostapd_data *hapd,
 }
 
 
-static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
-				    const u8 *pos, const u8 *end,
-				    struct anqp_query_info *qi)
+static void rx_anqp_vendor_specific_hs20(struct hostapd_data *hapd,
+					 const u8 *pos, const u8 *end,
+					 struct anqp_query_info *qi)
 {
-	u32 oui;
 	u8 subtype;
-
-	if (end - pos < 4) {
-		wpa_printf(MSG_DEBUG, "ANQP: Too short vendor specific ANQP "
-			   "Query element");
-		return;
-	}
-
-	oui = WPA_GET_BE24(pos);
-	pos += 3;
-	if (oui != OUI_WFA) {
-		wpa_printf(MSG_DEBUG, "ANQP: Unsupported vendor OUI %06x",
-			   oui);
-		return;
-	}
-
-#ifdef CONFIG_P2P
-	if (*pos == P2P_OUI_TYPE) {
-		/*
-		 * This is for P2P SD and will be taken care of by the P2P
-		 * implementation. This query needs to be ignored in the generic
-		 * GAS server to avoid duplicated response.
-		 */
-		wpa_printf(MSG_DEBUG,
-			   "ANQP: Ignore WFA vendor type %u (P2P SD) in generic GAS server",
-			   *pos);
-		qi->p2p_sd = 1;
-		return;
-	}
-#endif /* CONFIG_P2P */
-
-	if (*pos != HS20_ANQP_OUI_TYPE) {
-		wpa_printf(MSG_DEBUG, "ANQP: Unsupported WFA vendor type %u",
-			   *pos);
-		return;
-	}
-	pos++;
 
 	if (end - pos <= 1)
 		return;
@@ -1164,6 +1336,115 @@ static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
 #endif /* CONFIG_HS20 */
 
 
+#ifdef CONFIG_P2P
+static void rx_anqp_vendor_specific_p2p(struct hostapd_data *hapd,
+					struct anqp_query_info *qi)
+{
+	/*
+	 * This is for P2P SD and will be taken care of by the P2P
+	 * implementation. This query needs to be ignored in the generic
+	 * GAS server to avoid duplicated response.
+	 */
+	wpa_printf(MSG_DEBUG,
+		   "ANQP: Ignore WFA vendor type %u (P2P SD) in generic GAS server",
+		   P2P_OUI_TYPE);
+	qi->p2p_sd = 1;
+	return;
+}
+#endif /* CONFIG_P2P */
+
+
+#ifdef CONFIG_MBO
+
+static void rx_anqp_mbo_query_list(struct hostapd_data *hapd, u8 subtype,
+				  struct anqp_query_info *qi)
+{
+	switch (subtype) {
+	case MBO_ANQP_SUBTYPE_CELL_CONN_PREF:
+		set_anqp_req(ANQP_REQ_MBO_CELL_DATA_CONN_PREF,
+			     "Cellular Data Connection Preference",
+			     hapd->conf->mbo_cell_data_conn_pref >= 0, qi);
+		break;
+	default:
+		wpa_printf(MSG_DEBUG, "ANQP: Unsupported MBO subtype %u",
+			   subtype);
+		break;
+	}
+}
+
+
+static void rx_anqp_vendor_specific_mbo(struct hostapd_data *hapd,
+					const u8 *pos, const u8 *end,
+					struct anqp_query_info *qi)
+{
+	u8 subtype;
+
+	if (end - pos < 1)
+		return;
+
+	subtype = *pos++;
+	switch (subtype) {
+	case MBO_ANQP_SUBTYPE_QUERY_LIST:
+		wpa_printf(MSG_DEBUG, "ANQP: MBO Query List");
+		while (pos < end) {
+			rx_anqp_mbo_query_list(hapd, *pos, qi);
+			pos++;
+		}
+		break;
+	default:
+		wpa_printf(MSG_DEBUG, "ANQP: Unsupported MBO query subtype %u",
+			   subtype);
+		break;
+	}
+}
+
+#endif /* CONFIG_MBO */
+
+
+static void rx_anqp_vendor_specific(struct hostapd_data *hapd,
+				    const u8 *pos, const u8 *end,
+				    struct anqp_query_info *qi)
+{
+	u32 oui;
+
+	if (end - pos < 4) {
+		wpa_printf(MSG_DEBUG, "ANQP: Too short vendor specific ANQP "
+			   "Query element");
+		return;
+	}
+
+	oui = WPA_GET_BE24(pos);
+	pos += 3;
+	if (oui != OUI_WFA) {
+		wpa_printf(MSG_DEBUG, "ANQP: Unsupported vendor OUI %06x",
+			   oui);
+		return;
+	}
+
+	switch (*pos) {
+#ifdef CONFIG_P2P
+	case P2P_OUI_TYPE:
+		rx_anqp_vendor_specific_p2p(hapd, qi);
+		break;
+#endif /* CONFIG_P2P */
+#ifdef CONFIG_HS20
+	case HS20_ANQP_OUI_TYPE:
+		rx_anqp_vendor_specific_hs20(hapd, pos + 1, end, qi);
+		break;
+#endif /* CONFIG_HS20 */
+#ifdef CONFIG_MBO
+	case MBO_ANQP_OUI_TYPE:
+		rx_anqp_vendor_specific_mbo(hapd, pos + 1, end, qi);
+		break;
+#endif /* CONFIG_MBO */
+	default:
+		wpa_printf(MSG_DEBUG, "ANQP: Unsupported WFA vendor type %u",
+			   *pos);
+		break;
+	}
+}
+
+
 static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 					  const u8 *sa, u8 dialog_token,
 					  struct anqp_query_info *qi, int prot,
@@ -1189,7 +1470,7 @@ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 	}
 #endif /* CONFIG_P2P */
 
-	if (wpabuf_len(buf) > hapd->gas_frag_limit ||
+	if (wpabuf_len(buf) > hapd->conf->gas_frag_limit ||
 	    hapd->conf->gas_comeback_delay) {
 		struct gas_dialog_info *di;
 		u16 comeback_delay = 1;
@@ -1240,6 +1521,72 @@ static void gas_serv_req_local_processing(struct hostapd_data *hapd,
 }
 
 
+#ifdef CONFIG_DPP
+static void gas_serv_req_dpp_processing(struct hostapd_data *hapd,
+					const u8 *sa, u8 dialog_token,
+					int prot, struct wpabuf *buf)
+{
+	struct wpabuf *tx_buf;
+
+	if (wpabuf_len(buf) > hapd->conf->gas_frag_limit ||
+	    hapd->conf->gas_comeback_delay) {
+		struct gas_dialog_info *di;
+		u16 comeback_delay = 1;
+
+		if (hapd->conf->gas_comeback_delay) {
+			/* Testing - allow overriding of the delay value */
+			comeback_delay = hapd->conf->gas_comeback_delay;
+		}
+
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Too long response to fit in initial response - use GAS comeback");
+		di = gas_dialog_create(hapd, sa, dialog_token);
+		if (!di) {
+			wpa_printf(MSG_INFO, "DPP: Could not create dialog for "
+				   MACSTR " (dialog token %u)",
+				   MAC2STR(sa), dialog_token);
+			wpabuf_free(buf);
+			tx_buf = gas_build_initial_resp(
+				dialog_token, WLAN_STATUS_UNSPECIFIED_FAILURE,
+				0, 10);
+			if (tx_buf)
+				gas_serv_write_dpp_adv_proto(tx_buf);
+		} else {
+			di->prot = prot;
+			di->sd_resp = buf;
+			di->sd_resp_pos = 0;
+			tx_buf = gas_build_initial_resp(
+				dialog_token, WLAN_STATUS_SUCCESS,
+				comeback_delay, 10);
+			if (tx_buf)
+				gas_serv_write_dpp_adv_proto(tx_buf);
+		}
+	} else {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: GAS Initial response (no comeback)");
+		tx_buf = gas_build_initial_resp(
+			dialog_token, WLAN_STATUS_SUCCESS, 0,
+			10 + 2 + wpabuf_len(buf));
+		if (tx_buf) {
+			gas_serv_write_dpp_adv_proto(tx_buf);
+			wpabuf_put_le16(tx_buf, wpabuf_len(buf));
+			wpabuf_put_buf(tx_buf, buf);
+			hostapd_dpp_gas_status_handler(hapd, 1);
+		}
+		wpabuf_free(buf);
+	}
+	if (!tx_buf)
+		return;
+	if (prot)
+		convert_to_protected_dual(tx_buf);
+	hostapd_drv_send_action(hapd, hapd->iface->freq, 0, sa,
+				wpabuf_head(tx_buf),
+				wpabuf_len(tx_buf));
+	wpabuf_free(tx_buf);
+}
+#endif /* CONFIG_DPP */
+
+
 static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 					const u8 *sa,
 					const u8 *data, size_t len, int prot,
@@ -1252,6 +1599,9 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 	u16 slen;
 	struct anqp_query_info qi;
 	const u8 *adv_proto;
+#ifdef CONFIG_DPP
+	int dpp = 0;
+#endif /* CONFIG_DPP */
 
 	if (len < 1 + 2)
 		return;
@@ -1278,6 +1628,15 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 	}
 	next = pos + slen;
 	pos++; /* skip QueryRespLenLimit and PAME-BI */
+
+#ifdef CONFIG_DPP
+	if (slen == 8 && *pos == WLAN_EID_VENDOR_SPECIFIC &&
+	    pos[1] == 5 && WPA_GET_BE24(&pos[2]) == OUI_WFA &&
+	    pos[5] == DPP_OUI_TYPE && pos[6] == 0x01) {
+		wpa_printf(MSG_DEBUG, "DPP: Configuration Request");
+		dpp = 1;
+	} else
+#endif /* CONFIG_DPP */
 
 	if (*pos != ACCESS_NETWORK_QUERY_PROTOCOL) {
 		struct wpabuf *buf;
@@ -1318,6 +1677,18 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 		return;
 	end = pos + slen;
 
+#ifdef CONFIG_DPP
+	if (dpp) {
+		struct wpabuf *msg;
+
+		msg = hostapd_dpp_gas_req_handler(hapd, sa, pos, slen);
+		if (!msg)
+			return;
+		gas_serv_req_dpp_processing(hapd, sa, dialog_token, prot, msg);
+		return;
+	}
+#endif /* CONFIG_DPP */
+
 	/* ANQP Query Request */
 	while (pos < end) {
 		u16 info_id, elen;
@@ -1339,11 +1710,9 @@ static void gas_serv_rx_gas_initial_req(struct hostapd_data *hapd,
 		case ANQP_QUERY_LIST:
 			rx_anqp_query_list(hapd, pos, pos + elen, &qi);
 			break;
-#ifdef CONFIG_HS20
 		case ANQP_VENDOR_SPECIFIC:
 			rx_anqp_vendor_specific(hapd, pos, pos + elen, &qi);
 			break;
-#endif /* CONFIG_HS20 */
 		default:
 			wpa_printf(MSG_DEBUG, "ANQP: Unsupported Query "
 				   "Request element %u", info_id);
@@ -1393,8 +1762,8 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 	}
 
 	frag_len = wpabuf_len(dialog->sd_resp) - dialog->sd_resp_pos;
-	if (frag_len > hapd->gas_frag_limit) {
-		frag_len = hapd->gas_frag_limit;
+	if (frag_len > hapd->conf->gas_frag_limit) {
+		frag_len = hapd->conf->gas_frag_limit;
 		more = 1;
 	}
 	wpa_msg(hapd->msg_ctx, MSG_DEBUG, "GAS: resp frag_len %u",
@@ -1407,6 +1776,18 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 		gas_serv_dialog_clear(dialog);
 		return;
 	}
+#ifdef CONFIG_DPP
+	if (dialog->dpp) {
+		tx_buf = gas_build_comeback_resp(dialog_token,
+						 WLAN_STATUS_SUCCESS,
+						 dialog->sd_frag_id, more, 0,
+						 10 + frag_len);
+		if (tx_buf) {
+			gas_serv_write_dpp_adv_proto(tx_buf);
+			wpabuf_put_buf(tx_buf, buf);
+		}
+	} else
+#endif /* CONFIG_DPP */
 	tx_buf = gas_anqp_build_comeback_resp_buf(dialog_token,
 						  WLAN_STATUS_SUCCESS,
 						  dialog->sd_frag_id,
@@ -1430,6 +1811,10 @@ static void gas_serv_rx_gas_comeback_req(struct hostapd_data *hapd,
 	} else {
 		wpa_msg(hapd->msg_ctx, MSG_DEBUG, "GAS: All fragments of "
 			"SD response sent");
+#ifdef CONFIG_DPP
+		if (dialog->dpp)
+			hostapd_dpp_gas_status_handler(hapd, 1);
+#endif /* CONFIG_DPP */
 		gas_serv_dialog_clear(dialog);
 		gas_serv_free_dialogs(hapd, sa);
 	}
@@ -1495,9 +1880,6 @@ int gas_serv_init(struct hostapd_data *hapd)
 {
 	hapd->public_action_cb2 = gas_serv_rx_public_action;
 	hapd->public_action_cb2_ctx = hapd;
-	hapd->gas_frag_limit = 1400;
-	if (hapd->conf->gas_frag_limit > 0)
-		hapd->gas_frag_limit = hapd->conf->gas_frag_limit;
 	return 0;
 }
 
