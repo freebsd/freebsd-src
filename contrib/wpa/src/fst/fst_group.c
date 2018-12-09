@@ -29,7 +29,7 @@ static void fst_dump_mb_ies(const char *group_id, const char *ifname,
 		const struct multi_band_ie *mbie =
 			(const struct multi_band_ie *) p;
 		WPA_ASSERT(mbie->eid == WLAN_EID_MULTI_BAND);
-		WPA_ASSERT(2 + mbie->len >= sizeof(*mbie));
+		WPA_ASSERT(2U + mbie->len >= sizeof(*mbie));
 
 		fst_printf(MSG_WARNING,
 			   "%s: %s: mb_ctrl=%u band_id=%u op_class=%u chan=%u bssid="

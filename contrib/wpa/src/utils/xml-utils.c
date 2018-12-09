@@ -246,10 +246,10 @@ static void node_to_tnds(struct xml_node_ctx *ctx, xml_node_t *out,
 			xml_node_create_text(ctx, tnds, NULL, "Path", uri);
 
 		val = get_val(ctx, node);
-		if (val) {
-			xml_node_create_text(ctx, tnds, NULL, "Value", val);
-			xml_node_get_text_free(ctx, val);
-		}
+		if (val || !xml_node_first_child(ctx, node))
+			xml_node_create_text(ctx, tnds, NULL, "Value",
+					     val ? val : "");
+		xml_node_get_text_free(ctx, val);
 
 		new_uri = add_path(uri, name);
 		node_to_tnds(ctx, new_uri ? out : tnds, node, new_uri);

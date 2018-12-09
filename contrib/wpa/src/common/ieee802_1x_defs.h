@@ -12,6 +12,8 @@
 #define CS_ID_LEN		8
 #define CS_ID_GCM_AES_128	0x0080020001000001ULL
 #define CS_NAME_GCM_AES_128	"GCM-AES-128"
+#define CS_ID_GCM_AES_256	0x0080c20001000002ULL
+#define CS_NAME_GCM_AES_256	"GCM-AES-256"
 
 enum macsec_policy {
 	/**
@@ -25,6 +27,12 @@ enum macsec_policy {
 	 * Disabled MACsec - do not secure sessions.
 	 */
 	DO_NOT_SECURE,
+
+	/**
+	 * Should secure sessions, and try to use encryption.
+	 * Like @SHOULD_SECURE, this follows the key server's decision.
+	 */
+	SHOULD_ENCRYPT,
 };
 
 

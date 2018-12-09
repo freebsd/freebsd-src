@@ -458,7 +458,7 @@ static int eap_ttls_phase2_request_eap(struct eap_sm *sm,
 
 	if (*resp == NULL &&
 	    (config->pending_req_identity || config->pending_req_password ||
-	     config->pending_req_otp)) {
+	     config->pending_req_otp || config->pending_req_sim)) {
 		return 0;
 	}
 
@@ -624,12 +624,28 @@ static int eap_ttls_phase2_request_mschap(struct eap_sm *sm,
 	os_memset(pos, 0, 24); /* LM-Response */
 	pos += 24;
 	if (pwhash) {
-		challenge_response(challenge, password, pos); /* NT-Response */
+		/* NT-Response */
+		if (challenge_response(challenge, password, pos)) {
+			wpa_printf(MSG_ERROR,
+				   "EAP-TTLS/MSCHAP: Failed derive password hash");
+			wpabuf_free(msg);
+			os_free(challenge);
+			return -1;
+		}
+
 		wpa_hexdump_key(MSG_DEBUG, "EAP-TTLS: MSCHAP password hash",
 				password, 16);
 	} else {
-		nt_challenge_response(challenge, password, password_len,
-				      pos); /* NT-Response */
+		/* NT-Response */
+		if (nt_challenge_response(challenge, password, password_len,
+					  pos)) {
+			wpa_printf(MSG_ERROR,
+				   "EAP-TTLS/MSCHAP: Failed derive password");
+			wpabuf_free(msg);
+			os_free(challenge);
+			return -1;
+		}
+
 		wpa_hexdump_ascii_key(MSG_DEBUG, "EAP-TTLS: MSCHAP password",
 				      password, password_len);
 	}
@@ -870,13 +886,12 @@ static int eap_ttls_parse_attr_eap(const u8 *dpos, size_t dlen,
 {
 	wpa_printf(MSG_DEBUG, "EAP-TTLS: AVP - EAP Message");
 	if (parse->eapdata == NULL) {
-		parse->eapdata = os_malloc(dlen);
+		parse->eapdata = os_memdup(dpos, dlen);
 		if (parse->eapdata == NULL) {
 			wpa_printf(MSG_WARNING, "EAP-TTLS: Failed to allocate "
 				   "memory for Phase 2 EAP data");
 			return -1;
 		}
-		os_memcpy(parse->eapdata, dpos, dlen);
 		parse->eap_len = dlen;
 	} else {
 		u8 *neweap = os_realloc(parse->eapdata, parse->eap_len + dlen);
@@ -1280,7 +1295,8 @@ static int eap_ttls_process_decrypted(struct eap_sm *sm,
 	} else if (config->pending_req_identity ||
 		   config->pending_req_password ||
 		   config->pending_req_otp ||
-		   config->pending_req_new_password) {
+		   config->pending_req_new_password ||
+		   config->pending_req_sim) {
 		wpabuf_free(data->pending_phase2_req);
 		data->pending_phase2_req = wpabuf_dup(in_decrypted);
 	}
@@ -1317,7 +1333,8 @@ static int eap_ttls_implicit_identity_request(struct eap_sm *sm,
 		    (config->pending_req_identity ||
 		     config->pending_req_password ||
 		     config->pending_req_otp ||
-		     config->pending_req_new_password)) {
+		     config->pending_req_new_password ||
+		     config->pending_req_sim)) {
 			/*
 			 * Use empty buffer to force implicit request
 			 * processing when EAP request is re-processed after
@@ -1537,7 +1554,7 @@ static int eap_ttls_process_handshake(struct eap_sm *sm,
 }
 
 
-static void eap_ttls_check_auth_status(struct eap_sm *sm, 
+static void eap_ttls_check_auth_status(struct eap_sm *sm,
 				       struct eap_ttls_data *data,
 				       struct eap_method_ret *ret)
 {
@@ -1648,6 +1665,10 @@ static Boolean eap_ttls_has_reauth_data(struct eap_sm *sm, void *priv)
 static void eap_ttls_deinit_for_reauth(struct eap_sm *sm, void *priv)
 {
 	struct eap_ttls_data *data = priv;
+
+	if (data->phase2_priv && data->phase2_method &&
+	    data->phase2_method->deinit_for_reauth)
+		data->phase2_method->deinit_for_reauth(sm, data->phase2_priv);
 	wpabuf_free(data->pending_phase2_req);
 	data->pending_phase2_req = NULL;
 	wpabuf_free(data->pending_resp);
@@ -1739,12 +1760,11 @@ static u8 * eap_ttls_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->key_data == NULL || !data->phase2_success)
 		return NULL;
 
-	key = os_malloc(EAP_TLS_KEY_LEN);
+	key = os_memdup(data->key_data, EAP_TLS_KEY_LEN);
 	if (key == NULL)
 		return NULL;
 
 	*len = EAP_TLS_KEY_LEN;
-	os_memcpy(key, data->key_data, EAP_TLS_KEY_LEN);
 
 	return key;
 }
@@ -1758,12 +1778,11 @@ static u8 * eap_ttls_get_session_id(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->session_id == NULL || !data->phase2_success)
 		return NULL;
 
-	id = os_malloc(data->id_len);
+	id = os_memdup(data->session_id, data->id_len);
 	if (id == NULL)
 		return NULL;
 
 	*len = data->id_len;
-	os_memcpy(id, data->session_id, data->id_len);
 
 	return id;
 }
@@ -1777,12 +1796,11 @@ static u8 * eap_ttls_get_emsk(struct eap_sm *sm, void *priv, size_t *len)
 	if (data->key_data == NULL)
 		return NULL;
 
-	key = os_malloc(EAP_EMSK_LEN);
+	key = os_memdup(data->key_data + EAP_TLS_KEY_LEN, EAP_EMSK_LEN);
 	if (key == NULL)
 		return NULL;
 
 	*len = EAP_EMSK_LEN;
-	os_memcpy(key, data->key_data + EAP_TLS_KEY_LEN, EAP_EMSK_LEN);
 
 	return key;
 }

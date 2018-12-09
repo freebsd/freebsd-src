@@ -334,7 +334,7 @@ u16 copy_sta_vht_capab(struct hostapd_data *hapd, struct sta_info *sta,
 {
 	/* Disable VHT caps for STAs associated to no-VHT BSSes. */
 	if (!vht_capab ||
-	    hapd->conf->disable_11ac ||
+	    !hapd->iconf->ieee80211ac || hapd->conf->disable_11ac ||
 	    !check_valid_vht_mcs(hapd->iface->current_mode, vht_capab)) {
 		sta->flags &= ~WLAN_STA_VHT;
 		os_free(sta->vht_capabilities);

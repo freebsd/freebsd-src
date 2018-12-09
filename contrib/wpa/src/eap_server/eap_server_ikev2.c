@@ -103,10 +103,9 @@ static void * eap_ikev2_init(struct eap_sm *sm)
 	data->ikev2.proposal.encr = ENCR_AES_CBC;
 	data->ikev2.proposal.dh = DH_GROUP2_1024BIT_MODP;
 
-	data->ikev2.IDi = os_malloc(sm->server_id_len);
+	data->ikev2.IDi = os_memdup(sm->server_id, sm->server_id_len);
 	if (data->ikev2.IDi == NULL)
 		goto failed;
-	os_memcpy(data->ikev2.IDi, sm->server_id, sm->server_id_len);
 	data->ikev2.IDi_len = sm->server_id_len;
 
 	data->ikev2.get_shared_secret = eap_ikev2_get_shared_secret;
@@ -224,7 +223,7 @@ static struct wpabuf * eap_ikev2_buildReq(struct eap_sm *sm, void *priv, u8 id)
 			}
 			data->out_used = 0;
 		}
-		/* pass through */
+		/* fall through */
 	case WAIT_FRAG_ACK:
 		return eap_ikev2_build_msg(data, id);
 	case FRAG_ACK:

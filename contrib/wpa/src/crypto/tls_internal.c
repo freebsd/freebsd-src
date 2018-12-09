@@ -177,6 +177,14 @@ int tls_connection_established(void *tls_ctx, struct tls_connection *conn)
 }
 
 
+char * tls_connection_peer_serial_num(void *tls_ctx,
+				      struct tls_connection *conn)
+{
+	/* TODO */
+	return NULL;
+}
+
+
 int tls_connection_shutdown(void *tls_ctx, struct tls_connection *conn)
 {
 #ifdef CONFIG_TLS_INTERNAL_CLIENT

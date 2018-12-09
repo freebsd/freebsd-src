@@ -666,7 +666,6 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 	char *buf, *resp, *req, *req2;
 	size_t buflen, resp_len, len, pkcs7_len;
 	unsigned char *pkcs7;
-	FILE *f;
 	char client_cert_buf[200];
 	char client_key_buf[200];
 	const char *client_cert = NULL, *client_key = NULL;
@@ -721,11 +720,6 @@ int est_simple_enroll(struct hs20_osu_client *ctx, const char *url,
 		return -1;
 	}
 	wpa_printf(MSG_DEBUG, "EST simpleenroll response: %s", resp);
-	f = fopen("Cert/est-resp.raw", "w");
-	if (f) {
-		fwrite(resp, resp_len, 1, f);
-		fclose(f);
-	}
 
 	pkcs7 = base64_decode((unsigned char *) resp, resp_len, &pkcs7_len);
 	if (pkcs7 == NULL) {
