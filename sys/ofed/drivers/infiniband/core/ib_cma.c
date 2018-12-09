@@ -621,16 +621,19 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv,
 	if (listen_id_priv) {
 		cma_dev = listen_id_priv->cma_dev;
 		port = listen_id_priv->id.port_num;
-		gidp = rdma_protocol_roce(cma_dev->device, port) ?
-		       &iboe_gid : &gid;
 
-		ret = cma_validate_port(cma_dev->device, port,
-					rdma_protocol_ib(cma_dev->device, port) ?
-					IB_GID_TYPE_IB :
-					listen_id_priv->gid_type, gidp, dev_addr);
-		if (!ret) {
-			id_priv->id.port_num = port;
-			goto out;
+		if (rdma_is_port_valid(cma_dev->device, port)) {
+			gidp = rdma_protocol_roce(cma_dev->device, port) ?
+			       &iboe_gid : &gid;
+
+			ret = cma_validate_port(cma_dev->device, port,
+				rdma_protocol_ib(cma_dev->device, port) ?
+				IB_GID_TYPE_IB :
+				listen_id_priv->gid_type, gidp, dev_addr);
+			if (!ret) {
+				id_priv->id.port_num = port;
+				goto out;
+			}
 		}
 	}
 
@@ -1289,6 +1292,12 @@ static bool validate_ipv4_net_dev(struct net_device *net_dev,
 	dev_put(dst_dev);
 
 	/*
+	 * Check for loopback.
+	 */
+	if (saddr == daddr)
+		return true;
+
+	/*
 	 * Make sure the socket address length field
 	 * is set, else rtalloc1() will fail.
 	 */
@@ -1315,17 +1324,19 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 {
 #ifdef INET6
 	struct sockaddr_in6 src_tmp = *src_addr;
-	struct in6_addr in6_addr = dst_addr->sin6_addr;
+	struct sockaddr_in6 dst_tmp = *dst_addr;
 	struct net_device *dst_dev;
 	struct rtentry *rte;
 	bool ret;
 
-	dst_dev = ip6_dev_find(net_dev->if_vnet, in6_addr);
+	dst_dev = ip6_dev_find(net_dev->if_vnet, dst_tmp.sin6_addr,
+	    net_dev->if_index);
 	if (dst_dev != net_dev) {
 		if (dst_dev != NULL)
 			dev_put(dst_dev);
 		return false;
 	}
+	dev_put(dst_dev);
 
 	CURVNET_SET(net_dev->if_vnet);
 
@@ -1342,12 +1353,25 @@ static bool validate_ipv6_net_dev(struct net_device *net_dev,
 	src_tmp.sin6_scope_id = net_dev->if_index;
 	sa6_embedscope(&src_tmp, 0);
 
-	rte = rtalloc1((struct sockaddr *)&src_tmp, 1, 0);
-	if (rte != NULL) {
-		ret = (rte->rt_ifp == net_dev);
-		RTFREE_LOCKED(rte);
+	dst_tmp.sin6_scope_id = net_dev->if_index;
+	sa6_embedscope(&dst_tmp, 0);
+
+	/*
+	 * Check for loopback after scope ID
+	 * has been embedded:
+	 */
+	if (memcmp(&src_tmp.sin6_addr, &dst_tmp.sin6_addr,
+	    sizeof(dst_tmp.sin6_addr)) == 0) {
+		ret = true;
 	} else {
-		ret = false;
+		/* non-loopback case */
+		rte = rtalloc1((struct sockaddr *)&src_tmp, 1, 0);
+		if (rte != NULL) {
+			ret = (rte->rt_ifp == net_dev);
+			RTFREE_LOCKED(rte);
+		} else {
+			ret = false;
+		}
 	}
 	CURVNET_RESTORE();
 	return ret;

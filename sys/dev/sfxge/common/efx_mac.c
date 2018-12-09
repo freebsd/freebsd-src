@@ -68,7 +68,7 @@ static const efx_mac_ops_t	__efx_mac_siena_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 static const efx_mac_ops_t	__efx_mac_ef10_ops = {
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
@@ -91,7 +91,7 @@ static const efx_mac_ops_t	__efx_mac_ef10_ops = {
 	ef10_mac_stats_update			/* emo_stats_update */
 #endif	/* EFSYS_OPT_MAC_STATS */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn			efx_rc_t
 efx_mac_pdu_set(
@@ -521,7 +521,7 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock c11b91b42f922516 */
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock 1a45a82fcfb30c1b */
 static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
@@ -604,6 +604,31 @@ static const char * const __efx_mac_stat_name[] = {
 	"vadapter_tx_bad_packets",
 	"vadapter_tx_bad_bytes",
 	"vadapter_tx_overflow",
+	"fec_uncorrected_errors",
+	"fec_corrected_errors",
+	"fec_corrected_symbols_lane0",
+	"fec_corrected_symbols_lane1",
+	"fec_corrected_symbols_lane2",
+	"fec_corrected_symbols_lane3",
+	"ctpio_vi_busy_fallback",
+	"ctpio_long_write_success",
+	"ctpio_missing_dbell_fail",
+	"ctpio_overflow_fail",
+	"ctpio_underflow_fail",
+	"ctpio_timeout_fail",
+	"ctpio_noncontig_wr_fail",
+	"ctpio_frm_clobber_fail",
+	"ctpio_invalid_wr_fail",
+	"ctpio_vi_clobber_fallback",
+	"ctpio_unqualified_fallback",
+	"ctpio_runt_fallback",
+	"ctpio_success",
+	"ctpio_fallback",
+	"ctpio_poison",
+	"ctpio_erase",
+	"rxdp_scatter_disabled_trunc",
+	"rxdp_hlb_idle",
+	"rxdp_hlb_timeout",
 };
 /* END MKCONFIG GENERATED EfxMacStatNamesBlock */
 
@@ -854,6 +879,13 @@ efx_mac_select(
 		type = EFX_MAC_MEDFORD;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		emop = &__efx_mac_ef10_ops;
+		type = EFX_MAC_MEDFORD2;
+		break;
+#endif /* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		rc = EINVAL;

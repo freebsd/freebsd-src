@@ -2,10 +2,15 @@
 
 PACKAGE=lib${LIB}
 LIB=	openbsd
-SRCS=	getdtablecount.c \
-	imsg-buffer.c \
+SRCS=	imsg-buffer.c \
 	imsg.c \
 	ohash.c
+.if !defined(BOOTSTRAPPING)
+# Skip getdtablecount.c when bootstrapping since it doesn't compile for Linux
+# and is not used by any of the bootstrap tools
+SRCS+=	getdtablecount.c
+.endif
+
 INTERNALLIB=
 
 CFLAGS+= -I${.CURDIR}

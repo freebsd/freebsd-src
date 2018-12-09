@@ -758,16 +758,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #endif
 #define	IPMINLEN(i, h)	((i)->ip_len >= (IP_HL(i) * 4 + sizeof(struct h)))
 
-
-/*
- * XXX - This is one of those *awful* hacks which nobody likes
- */
-#ifdef	ultrix
-#define	A_A
-#else
-#define	A_A	&
-#endif
-
 #define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|\
 			 TH_ECN|TH_CWR)
 
@@ -1410,10 +1400,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #define	ICMP_MAX_UNREACH	14
 #undef	ICMP_MAXTYPE
 #define	ICMP_MAXTYPE		18
-
-#ifndef	IFNAMSIZ
-#define	IFNAMSIZ		16
-#endif
 
 #ifndef	LOG_FTP
 # define	LOG_FTP		(11<<3)

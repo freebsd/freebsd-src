@@ -623,10 +623,11 @@ static const char *
 subevalvar_misc(const char *p, struct nodelist **restrict argbackq,
     const char *var, int subtype, int startloc, int varflags)
 {
+	const char *end;
 	char *startp;
 	int amount;
 
-	p = argstr(p, argbackq, EXP_TILDE, NULL);
+	end = argstr(p, argbackq, EXP_TILDE, NULL);
 	STACKSTRNUL(expdest);
 	startp = stackblock() + startloc;
 
@@ -635,7 +636,7 @@ subevalvar_misc(const char *p, struct nodelist **restrict argbackq,
 		setvar(var, startp, 0);
 		amount = startp - expdest;
 		STADJUST(amount, expdest);
-		return p;
+		return end;
 
 	case VSQUESTION:
 		if (*p != CTLENDVAR) {

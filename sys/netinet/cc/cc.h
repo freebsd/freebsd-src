@@ -184,4 +184,6 @@ extern struct rwlock cc_list_lock;
 #define	CC_LIST_WUNLOCK()	rw_wunlock(&cc_list_lock)
 #define	CC_LIST_LOCK_ASSERT()	rw_assert(&cc_list_lock, RA_LOCKED)
 
+#define CC_ALGOOPT_LIMIT	2048
+
 #endif /* _NETINET_CC_CC_H_ */

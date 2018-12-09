@@ -56,6 +56,7 @@
  */
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
+#include <dev/netmap/netmap_bdg.h>
 
 static int
 nmreq_register_from_legacy(struct nmreq *nmr, struct nmreq_header *hdr,
@@ -80,10 +81,11 @@ nmreq_register_from_legacy(struct nmreq *nmr, struct nmreq_header *hdr,
 		} else {
 			regmode = NR_REG_ALL_NIC;
 		}
-		nmr->nr_flags = regmode |
-			(nmr->nr_flags & (~NR_REG_MASK));
+		req->nr_mode = regmode;
+	} else {
+		req->nr_mode = nmr->nr_flags & NR_REG_MASK;
 	}
-	req->nr_mode = nmr->nr_flags & NR_REG_MASK;
+
 	/* Fix nr_name, nr_mode and nr_ringid to handle pipe requests. */
 	if (req->nr_mode == NR_REG_PIPE_MASTER ||
 			req->nr_mode == NR_REG_PIPE_SLAVE) {
@@ -131,7 +133,7 @@ nmreq_from_legacy(struct nmreq *nmr, u_long ioctl_cmd)
 
 	/* First prepare the request header. */
 	hdr->nr_version = NETMAP_API; /* new API */
-	strncpy(hdr->nr_name, nmr->nr_name, sizeof(nmr->nr_name));
+	strlcpy(hdr->nr_name, nmr->nr_name, sizeof(nmr->nr_name));
 	hdr->nr_options = (uintptr_t)NULL;
 	hdr->nr_body = (uintptr_t)NULL;
 
@@ -221,7 +223,7 @@ nmreq_from_legacy(struct nmreq *nmr, u_long ioctl_cmd)
 		}
 		case NETMAP_PT_HOST_CREATE:
 		case NETMAP_PT_HOST_DELETE: {
-			D("Netmap passthrough not supported yet");
+			nm_prerr("Netmap passthrough not supported yet");
 			return NULL;
 			break;
 		}
@@ -242,7 +244,6 @@ nmreq_from_legacy(struct nmreq *nmr, u_long ioctl_cmd)
 			if (!req) { goto oom; }
 			hdr->nr_body = (uintptr_t)req;
 			hdr->nr_reqtype = NETMAP_REQ_PORT_INFO_GET;
-			req->nr_offset = nmr->nr_offset;
 			req->nr_memsize = nmr->nr_memsize;
 			req->nr_tx_slots = nmr->nr_tx_slots;
 			req->nr_rx_slots = nmr->nr_rx_slots;
@@ -262,7 +263,7 @@ oom:
 		}
 		nm_os_free(hdr);
 	}
-	D("Failed to allocate memory for nmreq_xyz struct");
+	nm_prerr("Failed to allocate memory for nmreq_xyz struct");
 
 	return NULL;
 }
@@ -300,7 +301,6 @@ nmreq_to_legacy(struct nmreq_header *hdr, struct nmreq *nmr)
 	case NETMAP_REQ_PORT_INFO_GET: {
 		struct nmreq_port_info_get *req =
 			(struct nmreq_port_info_get *)(uintptr_t)hdr->nr_body;
-		nmr->nr_offset = req->nr_offset;
 		nmr->nr_memsize = req->nr_memsize;
 		nmr->nr_tx_slots = req->nr_tx_slots;
 		nmr->nr_rx_slots = req->nr_rx_slots;
@@ -321,7 +321,7 @@ nmreq_to_legacy(struct nmreq_header *hdr, struct nmreq *nmr)
 	case NETMAP_REQ_VALE_LIST: {
 		struct nmreq_vale_list *req =
 			(struct nmreq_vale_list *)(uintptr_t)hdr->nr_body;
-		strncpy(nmr->nr_name, hdr->nr_name, sizeof(nmr->nr_name));
+		strlcpy(nmr->nr_name, hdr->nr_name, sizeof(nmr->nr_name));
 		nmr->nr_arg1 = req->nr_bridge_idx;
 		nmr->nr_arg2 = req->nr_port_idx;
 		break;

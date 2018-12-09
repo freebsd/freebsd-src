@@ -101,4 +101,7 @@ static inline u64 mlx4_mac_to_u64(const u8 *addr)
 	return mac;
 }
 
+void mlx4_disable_interrupts(struct mlx4_dev *);
+void mlx4_poll_interrupts(struct mlx4_dev *);
+
 #endif /* MLX4_DRIVER_H */

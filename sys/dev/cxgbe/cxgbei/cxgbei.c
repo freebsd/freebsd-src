@@ -449,9 +449,9 @@ do_rx_iscsi_ddp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 			struct icl_pdu *ip0;
 
 			ip0 = icl_cxgbei_new_pdu(M_NOWAIT);
-			icl_cxgbei_new_pdu_set_conn(ip0, ic);
 			if (ip0 == NULL)
 				CXGBE_UNIMPLEMENTED("PDU allocation failure");
+			icl_cxgbei_new_pdu_set_conn(ip0, ic);
 			icp0 = ip_to_icp(ip0);
 			icp0->icp_seq = 0; /* XXX */
 			icp0->icp_flags = ICPF_RX_HDR | ICPF_RX_STATUS;

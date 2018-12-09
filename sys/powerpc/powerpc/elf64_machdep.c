@@ -332,7 +332,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
 		memcpy(where, (Elf_Addr *)addr, 3*sizeof(Elf_Addr));
 #else
-		memcpy(where, (Elf_Addr *)addr, sizeof(Elf_Addr));
+		*where = addr;
 #endif
 		__asm __volatile("dcbst 0,%0; sync" :: "r"(where) : "memory");
 		break;

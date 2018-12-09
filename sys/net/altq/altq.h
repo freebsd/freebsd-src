@@ -38,16 +38,6 @@
 #define ALTQ3_CLFIER_COMPAT	/* for compatibility with altq-3 classifier */
 #endif
 
-#ifdef ALTQ3_COMPAT
-#include <sys/param.h>
-#include <sys/ioccom.h>
-#include <sys/queue.h>
-#include <netinet/in.h>
-
-#ifndef IFNAMSIZ
-#define	IFNAMSIZ	16
-#endif
-#endif /* ALTQ3_COMPAT */
 
 /* altq discipline type */
 #define	ALTQT_NONE		0	/* reserved */
@@ -67,12 +57,6 @@
 #define	ALTQT_CODEL		14      /* CoDel */
 #define	ALTQT_MAX		15	/* should be max discipline type + 1 */
 
-#ifdef ALTQ3_COMPAT
-struct	altqreq {
-	char	ifname[IFNAMSIZ];	/* if name, e.g. "en0" */
-	u_long	arg;			/* request-specific argument */
-};
-#endif
 
 /* simple token backet meter profile */
 struct	tb_profile {
@@ -80,85 +64,6 @@ struct	tb_profile {
 	u_int32_t	depth;	/* depth in bytes */
 };
 
-#ifdef ALTQ3_COMPAT
-struct	tbrreq {
-	char	ifname[IFNAMSIZ];	/* if name, e.g. "en0" */
-	struct	tb_profile tb_prof;	/* token bucket profile */
-};
-
-#ifdef ALTQ3_CLFIER_COMPAT
-/*
- * common network flow info structure
- */
-struct flowinfo {
-	u_char		fi_len;		/* total length */
-	u_char		fi_family;	/* address family */
-	u_int8_t	fi_data[46];	/* actually longer; address family
-					   specific flow info. */
-};
-
-/*
- * flow info structure for internet protocol family.
- * (currently this is the only protocol family supported)
- */
-struct flowinfo_in {
-	u_char		fi_len;		/* sizeof(struct flowinfo_in) */
-	u_char		fi_family;	/* AF_INET */
-	u_int8_t	fi_proto;	/* IPPROTO_XXX */
-	u_int8_t	fi_tos;		/* type-of-service */
-	struct in_addr	fi_dst;		/* dest address */
-	struct in_addr	fi_src;		/* src address */
-	u_int16_t	fi_dport;	/* dest port */
-	u_int16_t	fi_sport;	/* src port */
-	u_int32_t	fi_gpi;		/* generalized port id for ipsec */
-	u_int8_t	_pad[28];	/* make the size equal to
-					   flowinfo_in6 */
-};
-
-#ifdef SIN6_LEN
-struct flowinfo_in6 {
-	u_char		fi6_len;	/* sizeof(struct flowinfo_in6) */
-	u_char		fi6_family;	/* AF_INET6 */
-	u_int8_t	fi6_proto;	/* IPPROTO_XXX */
-	u_int8_t	fi6_tclass;	/* traffic class */
-	u_int32_t	fi6_flowlabel;	/* ipv6 flowlabel */
-	u_int16_t	fi6_dport;	/* dest port */
-	u_int16_t	fi6_sport;	/* src port */
-	u_int32_t	fi6_gpi;	/* generalized port id */
-	struct in6_addr fi6_dst;	/* dest address */
-	struct in6_addr fi6_src;	/* src address */
-};
-#endif /* INET6 */
-
-/*
- * flow filters for AF_INET and AF_INET6
- */
-struct flow_filter {
-	int			ff_ruleno;
-	struct flowinfo_in	ff_flow;
-	struct {
-		struct in_addr	mask_dst;
-		struct in_addr	mask_src;
-		u_int8_t	mask_tos;
-		u_int8_t	_pad[3];
-	} ff_mask;
-	u_int8_t _pad2[24];	/* make the size equal to flow_filter6 */
-};
-
-#ifdef SIN6_LEN
-struct flow_filter6 {
-	int			ff_ruleno;
-	struct flowinfo_in6	ff_flow6;
-	struct {
-		struct in6_addr	mask6_dst;
-		struct in6_addr	mask6_src;
-		u_int8_t	mask6_tclass;
-		u_int8_t	_pad[3];
-	} ff_mask6;
-};
-#endif /* INET6 */
-#endif /* ALTQ3_CLFIER_COMPAT */
-#endif /* ALTQ3_COMPAT */
 
 /*
  * generic packet counter
@@ -171,33 +76,6 @@ struct pktcntr {
 #define	PKTCNTR_ADD(cntr, len)	\
 	do { (cntr)->packets++; (cntr)->bytes += len; } while (/*CONSTCOND*/ 0)
 
-#ifdef ALTQ3_COMPAT
-/*
- * altq related ioctls
- */
-#define	ALTQGTYPE	_IOWR('q', 0, struct altqreq)	/* get queue type */
-#if 0
-/*
- * these ioctls are currently discipline-specific but could be shared
- * in the future.
- */
-#define	ALTQATTACH	_IOW('q', 1, struct altqreq)	/* attach discipline */
-#define	ALTQDETACH	_IOW('q', 2, struct altqreq)	/* detach discipline */
-#define	ALTQENABLE	_IOW('q', 3, struct altqreq)	/* enable discipline */
-#define	ALTQDISABLE	_IOW('q', 4, struct altqreq)	/* disable discipline*/
-#define	ALTQCLEAR	_IOW('q', 5, struct altqreq)	/* (re)initialize */
-#define	ALTQCONFIG	_IOWR('q', 6, struct altqreq)	/* set config params */
-#define	ALTQADDCLASS	_IOWR('q', 7, struct altqreq)	/* add a class */
-#define	ALTQMODCLASS	_IOWR('q', 8, struct altqreq)	/* modify a class */
-#define	ALTQDELCLASS	_IOWR('q', 9, struct altqreq)	/* delete a class */
-#define	ALTQADDFILTER	_IOWR('q', 10, struct altqreq)	/* add a filter */
-#define	ALTQDELFILTER	_IOWR('q', 11, struct altqreq)	/* delete a filter */
-#define	ALTQGETSTATS	_IOWR('q', 12, struct altqreq)	/* get statistics */
-#define	ALTQGETCNTR	_IOWR('q', 13, struct altqreq)	/* get a pkt counter */
-#endif /* 0 */
-#define	ALTQTBRSET	_IOW('q', 14, struct tbrreq)	/* set tb regulator */
-#define	ALTQTBRGET	_IOWR('q', 15, struct tbrreq)	/* get tb regulator */
-#endif /* ALTQ3_COMPAT */
 
 #ifdef _KERNEL
 #include <net/altq/altq_var.h>

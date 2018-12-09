@@ -185,7 +185,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 #ifdef INET6
 	case AF_INET6:
 		dev = ip6_dev_find(dev_addr->net,
-			((const struct sockaddr_in6 *)addr)->sin6_addr);
+			((const struct sockaddr_in6 *)addr)->sin6_addr, 0);
 		break;
 #endif
 	default:
@@ -525,7 +525,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		if (addr->bound_dev_if != 0) {
 			ifp = dev_get_by_index(addr->net, addr->bound_dev_if);
 		} else {
-			ifp = ip6_dev_find(addr->net, src_in->sin6_addr);
+			ifp = ip6_dev_find(addr->net, src_in->sin6_addr, 0);
 		}
 
 		/* check source interface */
@@ -649,8 +649,13 @@ static int addr_resolve_neigh(struct ifnet *dev,
 	if (dev->if_flags & IFF_LOOPBACK) {
 		int ret;
 
-		/* find real device, not loopback one */
-		addr->bound_dev_if = 0;
+		/*
+		 * Binding to a loopback device is not allowed. Make
+		 * sure the destination device address is global by
+		 * clearing the bound device interface:
+		 */
+		if (addr->bound_dev_if == dev->if_index)
+			addr->bound_dev_if = 0;
 
 		ret = rdma_translate_ip(dst_in, addr);
 		if (ret == 0) {

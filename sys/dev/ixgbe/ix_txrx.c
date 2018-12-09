@@ -297,6 +297,8 @@ ixgbe_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 	ntxd = scctx->isc_ntxd[0];
 	do {
 		delta = (int32_t)cur - (int32_t)prev;
+		if (prev == 0 && cur == 0)
+			delta += 1;
 		if (delta < 0)
 			delta += ntxd;
 

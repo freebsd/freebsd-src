@@ -43,13 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-static void
-devlist_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, DEVLIST_USAGE);
-	exit(1);
-}
+#define DEVLIST_USAGE							       \
+	"devlist\n"
 
 static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
@@ -64,8 +59,8 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 	return (1 << lbads);
 }
 
-void
-devlist(int argc, char *argv[])
+static void
+devlist(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace_data	nsdata;
@@ -77,7 +72,7 @@ devlist(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
 		default:
-			devlist_usage();
+			usage(nf);
 		}
 	}
 
@@ -124,3 +119,5 @@ devlist(int argc, char *argv[])
 
 	exit(1);
 }
+
+NVME_COMMAND(top, devlist, devlist, DEVLIST_USAGE);

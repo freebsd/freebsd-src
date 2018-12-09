@@ -355,7 +355,8 @@ vm_page_blacklist_add(vm_paddr_t pa, bool verbose)
 	vm_domain_free_lock(vmd);
 	ret = vm_phys_unfree_page(m);
 	vm_domain_free_unlock(vmd);
-	if (ret) {
+	if (ret != 0) {
+		vm_domain_freecnt_inc(vmd, -1);
 		TAILQ_INSERT_TAIL(&blacklist_head, m, listq);
 		if (verbose)
 			printf("Skipping page with pa 0x%jx\n", (uintmax_t)pa);

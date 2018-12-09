@@ -2203,8 +2203,6 @@ acpi_DeviceIsPresent(device_t dev)
 	h = acpi_get_handle(dev);
 	if (h == NULL)
 		return (FALSE);
-	status = acpi_GetInteger(h, "_STA", &s);
-
 	/*
 	 * Certain Treadripper boards always returns 0 for FreeBSD because it
 	 * only returns non-zero for the OS string "Windows 2015". Otherwise it
@@ -2214,9 +2212,14 @@ acpi_DeviceIsPresent(device_t dev)
 	if (acpi_MatchHid(h, "AMDI0020") || acpi_MatchHid(h, "AMDI0010"))
 		return (TRUE);
 
-	/* If no _STA method, must be present */
+	status = acpi_GetInteger(h, "_STA", &s);
+
+	/*
+	 * If no _STA method or if it failed, then assume that
+	 * the device is present.
+	 */
 	if (ACPI_FAILURE(status))
-		return (status == AE_NOT_FOUND ? TRUE : FALSE);
+		return (TRUE);
 
 	return (ACPI_DEVICE_PRESENT(s) ? TRUE : FALSE);
 }
@@ -2236,9 +2239,12 @@ acpi_BatteryIsPresent(device_t dev)
 		return (FALSE);
 	status = acpi_GetInteger(h, "_STA", &s);
 
-	/* If no _STA method, must be present */
+	/*
+	 * If no _STA method or if it failed, then assume that
+	 * the device is present.
+	 */
 	if (ACPI_FAILURE(status))
-		return (status == AE_NOT_FOUND ? TRUE : FALSE);
+		return (TRUE);
 
 	return (ACPI_BATTERY_PRESENT(s) ? TRUE : FALSE);
 }
@@ -2284,7 +2290,7 @@ acpi_MatchHid(ACPI_HANDLE h, const char *hid)
 	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
 	return (ACPI_MATCHHID_NOMATCH);
 
-    ret = FALSE;
+    ret = ACPI_MATCHHID_NOMATCH;
     if ((devinfo->Valid & ACPI_VALID_HID) != 0 &&
 	strcmp(hid, devinfo->HardwareId.String) == 0)
 	    ret = ACPI_MATCHHID_HID;

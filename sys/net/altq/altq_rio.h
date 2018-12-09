@@ -38,32 +38,6 @@
  */
 #define	RIO_NDROPPREC	3	/* number of drop precedence values */
 
-#ifdef ALTQ3_COMPAT
-struct rio_interface {
-	char	rio_ifname[IFNAMSIZ];
-};
-
-struct rio_stats {
-	struct rio_interface iface;
-	int q_len[RIO_NDROPPREC];
-	struct redstats q_stats[RIO_NDROPPREC];
-
-	/* static red parameters */
-	int q_limit;
-	int weight;
-	int flags;
-	struct redparams q_params[RIO_NDROPPREC];
-};
-
-struct rio_conf {
-	struct rio_interface iface;
-	struct redparams q_params[RIO_NDROPPREC];
-	int rio_weight;		/* weight for EWMA */
-	int rio_limit;		/* max queue length */
-	int rio_pkttime;	/* average packet time in usec */
-	int rio_flags;		/* see below */
-};
-#endif /* ALTQ3_COMPAT */
 
 /* rio flags */
 #define	RIOF_ECN4	0x01	/* use packet marking for IPv4 packets */
@@ -71,18 +45,6 @@ struct rio_conf {
 #define	RIOF_ECN	(RIOF_ECN4 | RIOF_ECN6)
 #define	RIOF_CLEARDSCP	0x200	/* clear diffserv codepoint */
 
-#ifdef ALTQ3_COMPAT
-/*
- * IOCTLs for RIO
- */
-#define	RIO_IF_ATTACH		_IOW('Q', 1, struct rio_interface)
-#define	RIO_IF_DETACH		_IOW('Q', 2, struct rio_interface)
-#define	RIO_ENABLE		_IOW('Q', 3, struct rio_interface)
-#define	RIO_DISABLE		_IOW('Q', 4, struct rio_interface)
-#define	RIO_CONFIG		_IOWR('Q', 6, struct rio_conf)
-#define	RIO_GETSTATS		_IOWR('Q', 12, struct rio_stats)
-#define	RIO_SETDEFAULTS		_IOW('Q', 30, struct redparams[RIO_NDROPPREC])
-#endif /* ALTQ3_COMPAT */
 
 #ifdef _KERNEL
 
@@ -122,16 +84,6 @@ typedef struct rio {
 	struct redstats q_stats[RIO_NDROPPREC];	/* statistics */
 } rio_t;
 
-#ifdef ALTQ3_COMPAT
-typedef struct rio_queue {
-	struct rio_queue	*rq_next;	/* next red_state in the list */
-	struct ifaltq		*rq_ifq;	/* backpointer to ifaltq */
-
-	class_queue_t		*rq_q;
-
-	rio_t			*rq_rio;
-} rio_queue_t;
-#endif /* ALTQ3_COMPAT */
 
 extern rio_t		*rio_alloc(int, struct redparams *, int, int);
 extern void		 rio_destroy(rio_t *);

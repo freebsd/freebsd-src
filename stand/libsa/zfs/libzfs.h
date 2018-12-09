@@ -44,31 +44,6 @@ struct zfs_devdesc {
 #include <crypto/intake.h>
 #endif
 
-struct zfs_boot_args
-{
-    uint32_t		size;
-    uint32_t		reserved;
-    uint64_t		pool;
-    uint64_t		root;
-    uint64_t		primary_pool;
-    uint64_t		primary_vdev;
-    union {
-	char		gelipw[256];
-	struct {
-            char                notapw;	/* 
-					 * single null byte to stop keybuf
-					 * being interpreted as a password
-					 */
-	    uint32_t		keybuf_sentinel;
-#ifdef LOADER_GELI_SUPPORT
-	    struct keybuf	*keybuf;
-#else
-	    void		*keybuf;
-#endif
-	};
-    };
-};
-
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
 		     const char **path);
 char	*zfs_fmtdev(void *vdev);

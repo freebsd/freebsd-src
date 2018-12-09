@@ -435,7 +435,7 @@ atomic_fetchadd_64(volatile uint64_t *p, uint64_t val)
 
 	__asm __volatile(
 	    "1:							\n"
-	    "   ldrexd	%Q[tmp], %R[tmp], [%[ptr]]		\n"
+	    "   ldrexd	%Q[ret], %R[ret], [%[ptr]]		\n"
 	    "   adds	%Q[tmp], %Q[ret], %Q[val]		\n"
 	    "   adc	%R[tmp], %R[ret], %R[val]		\n"
 	    "   strexd	%[exf], %Q[tmp], %R[tmp], [%[ptr]]	\n"

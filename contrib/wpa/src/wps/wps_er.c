@@ -322,11 +322,10 @@ static int wps_er_ap_use_cached_settings(struct wps_er *er,
 	if (!s)
 		return -1;
 
-	ap->ap_settings = os_malloc(sizeof(*ap->ap_settings));
+	ap->ap_settings = os_memdup(&s->ap_settings, sizeof(*ap->ap_settings));
 	if (ap->ap_settings == NULL)
 		return -1;
 
-	os_memcpy(ap->ap_settings, &s->ap_settings, sizeof(*ap->ap_settings));
 	wpa_printf(MSG_DEBUG, "WPS ER: Use cached AP settings");
 	return 0;
 }
@@ -1958,10 +1957,9 @@ int wps_er_set_config(struct wps_er *er, const u8 *uuid, const u8 *addr,
 	}
 
 	os_free(ap->ap_settings);
-	ap->ap_settings = os_malloc(sizeof(*cred));
+	ap->ap_settings = os_memdup(cred, sizeof(*cred));
 	if (ap->ap_settings == NULL)
 		return -1;
-	os_memcpy(ap->ap_settings, cred, sizeof(*cred));
 	ap->ap_settings->cred_attr = NULL;
 	wpa_printf(MSG_DEBUG, "WPS ER: Updated local AP settings based set "
 		   "config request");
@@ -2018,10 +2016,9 @@ int wps_er_config(struct wps_er *er, const u8 *uuid, const u8 *addr,
 	}
 
 	os_free(ap->ap_settings);
-	ap->ap_settings = os_malloc(sizeof(*cred));
+	ap->ap_settings = os_memdup(cred, sizeof(*cred));
 	if (ap->ap_settings == NULL)
 		return -1;
-	os_memcpy(ap->ap_settings, cred, sizeof(*cred));
 	ap->ap_settings->cred_attr = NULL;
 
 	if (wps_er_send_get_device_info(ap, wps_er_ap_config_m1) < 0)

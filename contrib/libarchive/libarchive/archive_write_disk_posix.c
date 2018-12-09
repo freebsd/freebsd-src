@@ -1705,6 +1705,20 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	}
 
 	/*
+	 * HYPOTHESIS:
+	 * If we're not root, we won't be setting any security
+	 * attributes that may be wiped by the set_mode() routine
+	 * below.  We also can't set xattr on non-owner-writable files,
+	 * which may be the state after set_mode(). Perform
+	 * set_xattrs() first based on these constraints.
+	 */
+	if (a->user_uid != 0 &&
+	    (a->todo & TODO_XATTR)) {
+		int r2 = set_xattrs(a);
+		if (r2 < ret) ret = r2;
+	}
+
+	/*
 	 * set_mode must precede ACLs on systems such as Solaris and
 	 * FreeBSD where setting the mode implicitly clears extended ACLs
 	 */
@@ -1717,8 +1731,10 @@ _archive_write_disk_finish_entry(struct archive *_a)
 	 * Security-related extended attributes (such as
 	 * security.capability on Linux) have to be restored last,
 	 * since they're implicitly removed by other file changes.
+	 * We do this last only when root.
 	 */
-	if (a->todo & TODO_XATTR) {
+	if (a->user_uid == 0 &&
+	    (a->todo & TODO_XATTR)) {
 		int r2 = set_xattrs(a);
 		if (r2 < ret) ret = r2;
 	}
@@ -2222,6 +2238,15 @@ create_filesystem_object(struct archive_write_disk *a)
 	 * security, so we never restore them at this point.
 	 */
 	mode = final_mode & 0777 & ~a->user_umask;
+
+	/* 
+	 * Always create writable such that [f]setxattr() works if we're not
+	 * root.
+	 */
+	if (a->user_uid != 0 &&
+	    a->todo & (TODO_HFS_COMPRESSION | TODO_XATTR)) {
+		mode |= 0200;
+	}
 
 	switch (a->mode & AE_IFMT) {
 	default:

@@ -32,48 +32,6 @@
 
 #include <net/altq/altq_classq.h>
 
-#ifdef ALTQ3_COMPAT
-struct red_interface {
-	char	red_ifname[IFNAMSIZ];
-};
-
-struct red_stats {
-	struct red_interface iface;
-	int q_len;
-	int q_avg;
-
-	struct pktcntr	xmit_cnt;
-	struct pktcntr	drop_cnt;
-	u_int		drop_forced;
-	u_int		drop_unforced;
-	u_int		marked_packets;
-
-	/* static red parameters */
-	int q_limit;
-	int weight;
-	int inv_pmax;
-	int th_min;
-	int th_max;
-
-	/* flowvalve related stuff */
-	u_int fv_flows;
-	u_int fv_pass;
-	u_int fv_predrop;
-	u_int fv_alloc;
-	u_int fv_escape;
-};
-
-struct red_conf {
-	struct red_interface iface;
-	int red_weight;		/* weight for EWMA */
-	int red_inv_pmax;	/* inverse of max drop probability */
-	int red_thmin;		/* red min threshold */
-	int red_thmax;		/* red max threshold */
-	int red_limit;		/* max queue length */
-	int red_pkttime;	/* average packet time in usec */
-	int red_flags;		/* see below */
-};
-#endif /* ALTQ3_COMPAT */
 
 /* red flags */
 #define	REDF_ECN4	0x01	/* use packet marking for IPv4 packets */
@@ -100,24 +58,9 @@ struct redstats {
 	u_int		marked_packets;
 };
 
-#ifdef ALTQ3_COMPAT
-/*
- * IOCTLs for RED
- */
-#define	RED_IF_ATTACH		_IOW('Q', 1, struct red_interface)
-#define	RED_IF_DETACH		_IOW('Q', 2, struct red_interface)
-#define	RED_ENABLE		_IOW('Q', 3, struct red_interface)
-#define	RED_DISABLE		_IOW('Q', 4, struct red_interface)
-#define	RED_CONFIG		_IOWR('Q', 6, struct red_conf)
-#define	RED_GETSTATS		_IOWR('Q', 12, struct red_stats)
-#define	RED_SETDEFAULTS		_IOW('Q', 30, struct redparams)
-#endif /* ALTQ3_COMPAT */
 
 #ifdef _KERNEL
 
-#ifdef ALTQ3_COMPAT
-struct flowvalve;
-#endif
 
 /* weight table structure for idle time calibration */
 struct wtab {
@@ -153,9 +96,6 @@ typedef struct red {
 	struct wtab	*red_wtab;	/* weight table */
 	struct timeval	 red_last;	/* time when the queue becomes idle */
 
-#ifdef ALTQ3_COMPAT
-	struct flowvalve *red_flowvalve;	/* flowvalve state */
-#endif
 
 	struct {
 		struct pktcntr	xmit_cnt;
@@ -166,16 +106,6 @@ typedef struct red {
 	} red_stats;
 } red_t;
 
-#ifdef ALTQ3_COMPAT
-typedef struct red_queue {
-	struct red_queue *rq_next;	/* next red_state in the list */
-	struct ifaltq *rq_ifq;		/* backpointer to ifaltq */
-
-	class_queue_t *rq_q;
-
-	red_t *rq_red;
-} red_queue_t;
-#endif /* ALTQ3_COMPAT */
 
 /* red drop types */
 #define	DTYPE_NODROP	0	/* no drop */

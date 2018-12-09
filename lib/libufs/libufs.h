@@ -118,6 +118,12 @@ int	ffs_sbput(void *, struct fs *, off_t,
 	    int (*)(void *, off_t, void *, int));
 
 /*
+ * Request standard superblock location in ffs_sbget
+ */
+#define	STDSB			-1	/* Fail if check-hash is bad */
+#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
+
+/*
  * block.c
  */
 ssize_t bread(struct uufsd *, ufs2_daddr_t, void *, size_t);

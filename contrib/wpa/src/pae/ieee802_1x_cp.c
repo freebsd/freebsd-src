@@ -159,6 +159,7 @@ SM_STATE(CP, ALLOWED)
 
 	secy_cp_control_enable_port(sm->kay, sm->controlled_port_enabled);
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 }
@@ -177,6 +178,7 @@ SM_STATE(CP, AUTHENTICATED)
 
 	secy_cp_control_enable_port(sm->kay, sm->controlled_port_enabled);
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 }
@@ -203,6 +205,7 @@ SM_STATE(CP, SECURED)
 	secy_cp_control_confidentiality_offset(sm->kay,
 					       sm->confidentiality_offset);
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 }
@@ -466,6 +469,7 @@ struct ieee802_1x_cp_sm * ieee802_1x_cp_sm_init(struct ieee802_1x_kay *kay)
 	wpa_printf(MSG_DEBUG, "CP: state machine created");
 
 	secy_cp_control_protect_frames(sm->kay, sm->protect_frames);
+	secy_cp_control_encrypt(sm->kay, sm->kay->macsec_encrypt);
 	secy_cp_control_validate_frames(sm->kay, sm->validate_frames);
 	secy_cp_control_replay(sm->kay, sm->replay_protect, sm->replay_window);
 	secy_cp_control_enable_port(sm->kay, sm->controlled_port_enabled);

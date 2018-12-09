@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 static			void
 mcdi_phy_decode_cap(
@@ -42,6 +42,32 @@ mcdi_phy_decode_cap(
 	__out		uint32_t *maskp)
 {
 	uint32_t mask;
+
+#define	CHECK_CAP(_cap) \
+	EFX_STATIC_ASSERT(EFX_PHY_CAP_##_cap == MC_CMD_PHY_CAP_##_cap##_LBN)
+
+	CHECK_CAP(10HDX);
+	CHECK_CAP(10FDX);
+	CHECK_CAP(100HDX);
+	CHECK_CAP(100FDX);
+	CHECK_CAP(1000HDX);
+	CHECK_CAP(1000FDX);
+	CHECK_CAP(10000FDX);
+	CHECK_CAP(25000FDX);
+	CHECK_CAP(40000FDX);
+	CHECK_CAP(50000FDX);
+	CHECK_CAP(100000FDX);
+	CHECK_CAP(PAUSE);
+	CHECK_CAP(ASYM);
+	CHECK_CAP(AN);
+	CHECK_CAP(DDM);
+	CHECK_CAP(BASER_FEC);
+	CHECK_CAP(BASER_FEC_REQUESTED);
+	CHECK_CAP(RS_FEC);
+	CHECK_CAP(RS_FEC_REQUESTED);
+	CHECK_CAP(25G_BASER_FEC);
+	CHECK_CAP(25G_BASER_FEC_REQUESTED);
+#undef CHECK_CAP
 
 	mask = 0;
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_10HDX_LBN))
@@ -58,14 +84,37 @@ mcdi_phy_decode_cap(
 		mask |= (1 << EFX_PHY_CAP_1000FDX);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_10000FDX_LBN))
 		mask |= (1 << EFX_PHY_CAP_10000FDX);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_25000FDX_LBN))
+		mask |= (1 << EFX_PHY_CAP_25000FDX);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
 		mask |= (1 << EFX_PHY_CAP_40000FDX);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_50000FDX_LBN))
+		mask |= (1 << EFX_PHY_CAP_50000FDX);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_100000FDX_LBN))
+		mask |= (1 << EFX_PHY_CAP_100000FDX);
+
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_PAUSE_LBN))
 		mask |= (1 << EFX_PHY_CAP_PAUSE);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_ASYM_LBN))
 		mask |= (1 << EFX_PHY_CAP_ASYM);
 	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		mask |= (1 << EFX_PHY_CAP_AN);
+
+	/* FEC caps (supported on Medford2 and later) */
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_BASER_FEC_LBN))
+		mask |= (1 << EFX_PHY_CAP_BASER_FEC);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_BASER_FEC_REQUESTED_LBN))
+		mask |= (1 << EFX_PHY_CAP_BASER_FEC_REQUESTED);
+
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_RS_FEC_LBN))
+		mask |= (1 << EFX_PHY_CAP_RS_FEC);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_RS_FEC_REQUESTED_LBN))
+		mask |= (1 << EFX_PHY_CAP_RS_FEC_REQUESTED);
+
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_LBN))
+		mask |= (1 << EFX_PHY_CAP_25G_BASER_FEC);
+	if (mcdi_cap & (1 << MC_CMD_PHY_CAP_25G_BASER_FEC_REQUESTED_LBN))
+		mask |= (1 << EFX_PHY_CAP_25G_BASER_FEC_REQUESTED);
 
 	*maskp = mask;
 }
@@ -76,8 +125,10 @@ mcdi_phy_decode_link_mode(
 	__in		uint32_t link_flags,
 	__in		unsigned int speed,
 	__in		unsigned int fcntl,
+	__in		uint32_t fec,
 	__out		efx_link_mode_t *link_modep,
-	__out		unsigned int *fcntlp)
+	__out		unsigned int *fcntlp,
+	__out		efx_phy_fec_type_t *fecp)
 {
 	boolean_t fd = !!(link_flags &
 		    (1 << MC_CMD_GET_LINK_OUT_FULL_DUPLEX_LBN));
@@ -88,8 +139,14 @@ mcdi_phy_decode_link_mode(
 
 	if (!up)
 		*link_modep = EFX_LINK_DOWN;
+	else if (speed == 100000 && fd)
+		*link_modep = EFX_LINK_100000FDX;
+	else if (speed == 50000 && fd)
+		*link_modep = EFX_LINK_50000FDX;
 	else if (speed == 40000 && fd)
 		*link_modep = EFX_LINK_40000FDX;
+	else if (speed == 25000 && fd)
+		*link_modep = EFX_LINK_25000FDX;
 	else if (speed == 10000 && fd)
 		*link_modep = EFX_LINK_10000FDX;
 	else if (speed == 1000)
@@ -113,6 +170,22 @@ mcdi_phy_decode_link_mode(
 		EFSYS_PROBE1(mc_pcol_error, int, fcntl);
 		*fcntlp = 0;
 	}
+
+	switch (fec) {
+	case MC_CMD_FEC_NONE:
+		*fecp = EFX_PHY_FEC_NONE;
+		break;
+	case MC_CMD_FEC_BASER:
+		*fecp = EFX_PHY_FEC_BASER;
+		break;
+	case MC_CMD_FEC_RS:
+		*fecp = EFX_PHY_FEC_RS;
+		break;
+	default:
+		EFSYS_PROBE1(mc_pcol_error, int, fec);
+		*fecp = EFX_PHY_FEC_NONE;
+		break;
+	}
 }
 
 
@@ -126,6 +199,7 @@ ef10_phy_link_ev(
 	unsigned int link_flags;
 	unsigned int speed;
 	unsigned int fcntl;
+	efx_phy_fec_type_t fec = MC_CMD_FEC_NONE;
 	efx_link_mode_t link_mode;
 	uint32_t lp_cap_mask;
 
@@ -143,8 +217,17 @@ ef10_phy_link_ev(
 	case MCDI_EVENT_LINKCHANGE_SPEED_10G:
 		speed = 10000;
 		break;
+	case MCDI_EVENT_LINKCHANGE_SPEED_25G:
+		speed = 25000;
+		break;
 	case MCDI_EVENT_LINKCHANGE_SPEED_40G:
 		speed = 40000;
+		break;
+	case MCDI_EVENT_LINKCHANGE_SPEED_50G:
+		speed = 50000;
+		break;
+	case MCDI_EVENT_LINKCHANGE_SPEED_100G:
+		speed = 100000;
 		break;
 	default:
 		speed = 0;
@@ -154,7 +237,8 @@ ef10_phy_link_ev(
 	link_flags = MCDI_EV_FIELD(eqp, LINKCHANGE_LINK_FLAGS);
 	mcdi_phy_decode_link_mode(enp, link_flags, speed,
 				    MCDI_EV_FIELD(eqp, LINKCHANGE_FCNTL),
-				    &link_mode, &fcntl);
+				    MC_CMD_FEC_NONE, &link_mode,
+				    &fcntl, &fec);
 	mcdi_phy_decode_cap(MCDI_EV_FIELD(eqp, LINKCHANGE_LP_CAP),
 			    &lp_cap_mask);
 
@@ -205,16 +289,16 @@ ef10_phy_get_link(
 	__out		ef10_link_state_t *elsp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_LINK_IN_LEN,
-			    MC_CMD_GET_LINK_OUT_LEN)];
+	uint32_t fec;
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_LINK_IN_LEN,
+		MC_CMD_GET_LINK_OUT_V2_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_LINK;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_LINK_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MC_CMD_GET_LINK_OUT_LEN;
+	req.emr_out_length = MC_CMD_GET_LINK_OUT_V2_LEN;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -229,36 +313,34 @@ ef10_phy_get_link(
 	}
 
 	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_CAP),
-			    &elsp->els_adv_cap_mask);
+			    &elsp->epls.epls_adv_cap_mask);
 	mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_LP_CAP),
-			    &elsp->els_lp_cap_mask);
+			    &elsp->epls.epls_lp_cap_mask);
+
+	if (req.emr_out_length_used < MC_CMD_GET_LINK_OUT_V2_LEN)
+		fec = MC_CMD_FEC_NONE;
+	else
+		fec = MCDI_OUT_DWORD(req, GET_LINK_OUT_V2_FEC_TYPE);
 
 	mcdi_phy_decode_link_mode(enp, MCDI_OUT_DWORD(req, GET_LINK_OUT_FLAGS),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_LINK_SPEED),
 			    MCDI_OUT_DWORD(req, GET_LINK_OUT_FCNTL),
-			    &elsp->els_link_mode, &elsp->els_fcntl);
+			    fec, &elsp->epls.epls_link_mode,
+			    &elsp->epls.epls_fcntl, &elsp->epls.epls_fec);
+
+	if (req.emr_out_length_used < MC_CMD_GET_LINK_OUT_V2_LEN) {
+		elsp->epls.epls_ld_cap_mask = 0;
+	} else {
+		mcdi_phy_decode_cap(MCDI_OUT_DWORD(req, GET_LINK_OUT_V2_LD_CAP),
+				    &elsp->epls.epls_ld_cap_mask);
+	}
+
 
 #if EFSYS_OPT_LOOPBACK
-	/* Assert the MC_CMD_LOOPBACK and EFX_LOOPBACK namespace agree */
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_NONE == EFX_LOOPBACK_OFF);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_DATA == EFX_LOOPBACK_DATA);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_GMAC == EFX_LOOPBACK_GMAC);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XGMII == EFX_LOOPBACK_XGMII);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XGXS == EFX_LOOPBACK_XGXS);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XAUI == EFX_LOOPBACK_XAUI);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_GMII == EFX_LOOPBACK_GMII);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_SGMII == EFX_LOOPBACK_SGMII);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XGBR == EFX_LOOPBACK_XGBR);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XFI == EFX_LOOPBACK_XFI);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XAUI_FAR == EFX_LOOPBACK_XAUI_FAR);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_GMII_FAR == EFX_LOOPBACK_GMII_FAR);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_SGMII_FAR == EFX_LOOPBACK_SGMII_FAR);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_XFI_FAR == EFX_LOOPBACK_XFI_FAR);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_GPHY == EFX_LOOPBACK_GPHY);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PHYXS == EFX_LOOPBACK_PHY_XS);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PCS == EFX_LOOPBACK_PCS);
-	EFX_STATIC_ASSERT(MC_CMD_LOOPBACK_PMAPMD == EFX_LOOPBACK_PMA_PMD);
-
+	/*
+	 * MC_CMD_LOOPBACK and EFX_LOOPBACK names are equivalent, so use the
+	 * MCDI value directly. Agreement is checked in efx_loopback_mask().
+	 */
 	elsp->els_loopback = MCDI_OUT_DWORD(req, GET_LINK_OUT_LOOPBACK_MODE);
 #endif	/* EFSYS_OPT_LOOPBACK */
 
@@ -280,8 +362,8 @@ ef10_phy_reconfigure(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_LINK_IN_LEN,
-			    MC_CMD_SET_LINK_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SET_LINK_IN_LEN,
+		MC_CMD_SET_LINK_OUT_LEN);
 	uint32_t cap_mask;
 #if EFSYS_OPT_PHY_LED_CONTROL
 	unsigned int led_mode;
@@ -295,7 +377,6 @@ ef10_phy_reconfigure(
 	if (supported == B_FALSE)
 		goto out;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_LINK;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_LINK_IN_LEN;
@@ -316,7 +397,32 @@ ef10_phy_reconfigure(
 		PHY_CAP_AN, (cap_mask >> EFX_PHY_CAP_AN) & 0x1);
 	/* Too many fields for for POPULATE macros, so insert this afterwards */
 	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_25000FDX, (cap_mask >> EFX_PHY_CAP_25000FDX) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
 	    PHY_CAP_40000FDX, (cap_mask >> EFX_PHY_CAP_40000FDX) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_50000FDX, (cap_mask >> EFX_PHY_CAP_50000FDX) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_100000FDX, (cap_mask >> EFX_PHY_CAP_100000FDX) & 0x1);
+
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_BASER_FEC, (cap_mask >> EFX_PHY_CAP_BASER_FEC) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_BASER_FEC_REQUESTED,
+	    (cap_mask >> EFX_PHY_CAP_BASER_FEC_REQUESTED) & 0x1);
+
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_RS_FEC, (cap_mask >> EFX_PHY_CAP_RS_FEC) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_RS_FEC_REQUESTED,
+	    (cap_mask >> EFX_PHY_CAP_RS_FEC_REQUESTED) & 0x1);
+
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_25G_BASER_FEC,
+	    (cap_mask >> EFX_PHY_CAP_25G_BASER_FEC) & 0x1);
+	MCDI_IN_SET_DWORD_FIELD(req, SET_LINK_IN_CAP,
+	    PHY_CAP_25G_BASER_FEC_REQUESTED,
+	    (cap_mask >> EFX_PHY_CAP_25G_BASER_FEC_REQUESTED) & 0x1);
 
 #if EFSYS_OPT_LOOPBACK
 	MCDI_IN_SET_DWORD(req, SET_LINK_IN_LOOPBACK_MODE,
@@ -331,8 +437,17 @@ ef10_phy_reconfigure(
 	case EFX_LINK_10000FDX:
 		speed = 10000;
 		break;
+	case EFX_LINK_25000FDX:
+		speed = 25000;
+		break;
 	case EFX_LINK_40000FDX:
 		speed = 40000;
+		break;
+	case EFX_LINK_50000FDX:
+		speed = 50000;
+		break;
+	case EFX_LINK_100000FDX:
+		speed = 100000;
 		break;
 	default:
 		speed = 0;
@@ -409,12 +524,11 @@ ef10_phy_verify(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_PHY_STATE_IN_LEN,
-			    MC_CMD_GET_PHY_STATE_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_PHY_STATE_IN_LEN,
+		MC_CMD_GET_PHY_STATE_OUT_LEN);
 	uint32_t state;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PHY_STATE;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_PHY_STATE_IN_LEN;
@@ -462,6 +576,29 @@ ef10_phy_oui_get(
 
 	return (ENOTSUP);
 }
+
+	__checkReturn	efx_rc_t
+ef10_phy_link_state_get(
+	__in		efx_nic_t *enp,
+	__out		efx_phy_link_state_t  *eplsp)
+{
+	efx_rc_t rc;
+	ef10_link_state_t els;
+
+	/* Obtain the active link state */
+	if ((rc = ef10_phy_get_link(enp, &els)) != 0)
+		goto fail1;
+
+	*eplsp = els.epls;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 
 #if EFSYS_OPT_PHY_STATS
 
@@ -528,22 +665,34 @@ ef10_bist_poll(
 	unsigned long *valuesp,
 	__in			size_t count)
 {
+	/*
+	 * MCDI_CTL_SDU_LEN_MAX_V1 is large enough cover all BIST results,
+	 * whilst not wasting stack.
+	 */
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_POLL_BIST_IN_LEN,
+		MCDI_CTL_SDU_LEN_MAX_V1);
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_POLL_BIST_IN_LEN,
-			    MCDI_CTL_SDU_LEN_MAX)];
 	uint32_t value_mask = 0;
 	uint32_t result;
 	efx_rc_t rc;
 
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_SFT9001_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_MRSFP_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_MEM_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+
 	_NOTE(ARGUNUSED(type))
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_POLL_BIST;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_POLL_BIST_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MCDI_CTL_SDU_LEN_MAX;
+	req.emr_out_length = MCDI_CTL_SDU_LEN_MAX_V1;
 
 	efx_mcdi_execute(enp, &req);
 
@@ -633,4 +782,4 @@ ef10_bist_stop(
 
 #endif	/* EFSYS_OPT_BIST */
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */

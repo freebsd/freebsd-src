@@ -96,14 +96,14 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 	int _i = 0;							\
 	WITNESS_SAVE_DECL(Giant)
 #define	GIANT_RESTORE() do {						\
-	if (_i > 0) {							\
+	if (__predict_false(_i > 0)) {					\
 		while (_i--)						\
 			mtx_lock(&Giant);				\
 		WITNESS_RESTORE(&Giant.lock_object, Giant);		\
 	}								\
 } while (0)
 #define	GIANT_SAVE() do {						\
-	if (mtx_owned(&Giant)) {					\
+	if (__predict_false(mtx_owned(&Giant))) {			\
 		WITNESS_SAVE(&Giant.lock_object, Giant);		\
 		while (mtx_owned(&Giant)) {				\
 			_i++;						\

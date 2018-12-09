@@ -4208,16 +4208,6 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 		    intval != ZFS_DNSIZE_LEGACY) {
 			spa_t *spa;
 
-			/*
-			 * If this is a bootable dataset then
-			 * we don't allow large (>512B) dnodes,
-			 * because GRUB doesn't support them.
-			 */
-			if (zfs_is_bootfs(dsname) &&
-				intval != ZFS_DNSIZE_LEGACY) {
-				return (SET_ERROR(EDOM));
-			}
-
 			if ((err = spa_open(dsname, &spa, FTAG)) != 0)
 				return (err);
 

@@ -96,7 +96,7 @@ looks_utf8(const char *ibuf, size_t nbytes)
 				if (i >= nbytes)
 					goto done;
 
-				if (buf[i] & 0x40)	/* 10xxxxxx */
+				if ((buf[i] & 0xc0) != 0x80)	/* 10xxxxxx */
 					return -1;
 			}
 

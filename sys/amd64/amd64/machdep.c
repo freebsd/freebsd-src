@@ -392,7 +392,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gsbase = pcb->pcb_gsbase;
 	bzero(sf.sf_uc.uc_mcontext.mc_spare,
 	    sizeof(sf.sf_uc.uc_mcontext.mc_spare));
-	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
@@ -2046,6 +2045,7 @@ fill_regs(struct thread *td, struct reg *regs)
 int
 fill_frame_regs(struct trapframe *tp, struct reg *regs)
 {
+
 	regs->r_r15 = tp->tf_r15;
 	regs->r_r14 = tp->tf_r14;
 	regs->r_r13 = tp->tf_r13;
@@ -2077,6 +2077,8 @@ fill_frame_regs(struct trapframe *tp, struct reg *regs)
 		regs->r_fs = 0;
 		regs->r_gs = 0;
 	}
+	regs->r_err = 0;
+	regs->r_trapno = 0;
 	return (0);
 }
 

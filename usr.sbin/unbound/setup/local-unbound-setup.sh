@@ -218,7 +218,7 @@ gen_forward_conf() {
 	if [ "${use_tls}" = "yes" ] ; then
 		echo "        forward-tls-upstream: yes"
 		sed -nE \
-		    -e "s/^(${RE_forward_tls})$/        forward-addr: \\1/p"
+		    -e "s/^${RE_forward_tls}\$/        forward-addr: \\1/p"
 	else
 		sed -nE \
 		    -e "s/^${RE_forward_addr}\$/        forward-addr: \\1/p" \
@@ -411,8 +411,10 @@ main() {
 		style=recursing
 		;;
 	"")
-		echo "Extracting forwarders from ${resolv_conf}."
-		forwarders=$(get_nameservers <"${D}${resolv_conf}")
+		if [ -f "${D}${resolv_conf}" ] ; then
+			echo "Extracting forwarders from ${resolv_conf}."
+			forwarders=$(get_nameservers <"${D}${resolv_conf}")
+		fi
 		style=dynamic
 		;;
 	*)

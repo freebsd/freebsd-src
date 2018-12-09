@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 12, 2018
+.Dd December 7, 2018
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -230,6 +230,19 @@ Set the current power mode.
 .Dl nvmecontrol power nvme0
 .Pp
 Get the current power mode.
+.Sh DYNAMIC LOADING
+The directories
+.Pa /lib/nvmecontrol
+and
+.Pa /usr/local/lib/nvmecontrol
+are scanned for any .so files.
+These files are loaded.
+The members of the
+.Va top
+linker set are added to the top-level commands.
+The members of the
+.Va logpage
+linker set are added to the logpage parsers.
 .Sh HISTORY
 The
 .Nm

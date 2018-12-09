@@ -591,6 +591,7 @@ sendfail(int sfd, int error, const char *fmt, ...)
 	va_list ap;
 	ssize_t data;
 
+	memset(&sinit, 0, sizeof(sinit));
 	sinit.gs_error = error;
 	g_gate_swap2n_sinit(&sinit);
 	data = g_gate_send(sfd, &sinit, sizeof(sinit), 0);

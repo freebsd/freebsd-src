@@ -1601,9 +1601,10 @@ static char *get_dest_name(struct mlx5_flow_destination *dest)
 	case MLX5_FLOW_CONTEXT_DEST_TYPE_TIR:
 		snprintf(name, 20, "dest_%s_%u", "tir", dest->tir_num);
 		return name;
+	default:
+		kfree(name);
+		return NULL;
 	}
-
-	return NULL;
 }
 
 /* assumed fg is locked */

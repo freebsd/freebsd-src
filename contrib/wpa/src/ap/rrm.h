@@ -24,5 +24,10 @@ int hostapd_send_range_req(struct hostapd_data *hapd, const u8 *addr,
 			   u16 random_interval, u8 min_ap,
 			   const u8 *responders, unsigned int n_responders);
 void hostapd_clean_rrm(struct hostapd_data *hapd);
+int hostapd_send_beacon_req(struct hostapd_data *hapd, const u8 *addr,
+			    u8 req_mode, const struct wpabuf *req);
+void hostapd_rrm_beacon_req_tx_status(struct hostapd_data *hapd,
+				      const struct ieee80211_mgmt *mgmt,
+				      size_t len, int ok);
 
 #endif /* RRM_H */

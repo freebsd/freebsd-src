@@ -249,6 +249,24 @@ cglookup(int cg)
 }
 
 /*
+ * Mark a cylinder group buffer as dirty.
+ * Update its check-hash if they are enabled.
+ */
+void
+cgdirty(struct bufarea *cgbp)
+{
+	struct cg *cg;
+
+	cg = cgbp->b_un.b_cg;
+	if ((sblock.fs_metackhash & CK_CYLGRP) != 0) {
+		cg->cg_ckhash = 0;
+		cg->cg_ckhash =
+		    calculate_crc32c(~0L, (void *)cg, sblock.fs_cgsize);
+	}
+	dirty(cgbp);
+}
+
+/*
  * Attempt to flush a cylinder group cache entry.
  * Return whether the flush was successful.
  */
@@ -348,11 +366,11 @@ flush(int fd, struct bufarea *bp)
 		if (bp != &sblk)
 			pfatal("BUFFER %p DOES NOT MATCH SBLK %p\n",
 			    bp, &sblk);
-		if (sbput(fd, (struct fs *)bp->b_un.b_buf, 0) == 0)
+		if (sbput(fd, bp->b_un.b_fs, 0) == 0)
 			fsmodified = 1;
 		break;
 	case BT_CYLGRP:
-		if (cgput(&disk, (struct cg *)bp->b_un.b_buf) == 0)
+		if (cgput(&disk, bp->b_un.b_cg) == 0)
 			fsmodified = 1;
 		break;
 	default:
@@ -740,7 +758,7 @@ check_cgmagic(int cg, struct bufarea *cgbp)
 		cgp->cg_nextfreeoff = cgp->cg_clusteroff +
 		    howmany(fragstoblks(&sblock, sblock.fs_fpg), CHAR_BIT);
 	}
-	dirty(cgbp);
+	cgdirty(cgbp);
 	return (0);
 }
 
@@ -782,7 +800,7 @@ allocblk(long frags)
 				cgp->cg_cs.cs_nbfree--;
 			else
 				cgp->cg_cs.cs_nffree -= frags;
-			dirty(cgbp);
+			cgdirty(cgbp);
 			return (i + j);
 		}
 	}

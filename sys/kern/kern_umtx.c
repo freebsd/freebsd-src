@@ -3796,6 +3796,9 @@ umtx_shm_object_terminated(vm_object_t object)
 	struct umtx_shm_reg *reg, *reg1;
 	bool dofree;
 
+	if (LIST_EMPTY(USHM_OBJ_UMTX(object)))
+		return;
+
 	dofree = false;
 	mtx_lock(&umtx_shm_lock);
 	LIST_FOREACH_SAFE(reg, USHM_OBJ_UMTX(object), ushm_obj_link, reg1) {

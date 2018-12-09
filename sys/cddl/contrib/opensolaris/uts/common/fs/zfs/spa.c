@@ -615,9 +615,7 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 
 				/*
 				 * Must be ZPL, and its property settings
-				 * must be supported by GRUB (compression
-				 * is not gzip, and large blocks or large
-				 * dnodes are not used).
+				 * must be supported.
 				 */
 
 				if (dmu_objset_type(os) != DMU_OST_ZFS) {
@@ -627,12 +625,6 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 				    zfs_prop_to_name(ZFS_PROP_COMPRESSION),
 				    &propval)) == 0 &&
 				    !BOOTFS_COMPRESS_VALID(propval)) {
-					error = SET_ERROR(ENOTSUP);
-				} else if ((error =
-				    dsl_prop_get_int_ds(dmu_objset_ds(os),
-				    zfs_prop_to_name(ZFS_PROP_DNODESIZE),
-				    &propval)) == 0 &&
-				    propval != ZFS_DNSIZE_LEGACY) {
 					error = SET_ERROR(ENOTSUP);
 				} else {
 					objnum = dmu_objset_id(os);

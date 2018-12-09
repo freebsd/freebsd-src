@@ -1056,6 +1056,7 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 	bcopy(pcb->pcb_ufp, fpregs->fr_regs, sizeof(fpregs->fr_regs));
 	fpregs->fr_fsr = tf->tf_fsr;
 	fpregs->fr_gsr = tf->tf_gsr;
+	fpregs->fr_pad[0] = 0;
 	return (0);
 }
 

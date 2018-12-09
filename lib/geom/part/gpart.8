@@ -49,6 +49,7 @@
 .\" ==== BOOTCODE ====
 .Nm
 .Cm bootcode
+.Op Fl N
 .Op Fl b Ar bootcode
 .Op Fl p Ar partcode Fl i Ar index
 .Op Fl f Ar flags
@@ -214,6 +215,14 @@ The
 .Cm bootcode
 command accepts these options:
 .Bl -tag -width 10n
+.It Fl N
+Don't preserve the Volume Serial Number for MBR.
+MBR bootcode contains Volume Serial Number by default, and
+.Nm
+tries to preserve it when installing new bootstrap code.
+This option allows to skip the preservation to help with some versions of
+.Xr boot0 8
+that don't support Volume Serial Number.
 .It Fl b Ar bootcode
 Embed bootstrap code from the file
 .Ar bootcode

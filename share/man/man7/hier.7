@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2018
+.Dd December 6, 2018
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -144,9 +144,17 @@ and
 .Pa /sbin
 .Pp
 .Bl -tag -width "defaults/" -compact
+.It Pa casper/
+service-specific
+.Xr libcasper 3
+Capsicum support libraries
 .It Pa geom/
 class-specific libraries for the
 .Xr geom 8
+utility
+.It Pa nvmecontrol/
+vendor-specific libraries to extend the
+.Xr nvmecontrol 8
 utility
 .El
 .It Pa /libexec/

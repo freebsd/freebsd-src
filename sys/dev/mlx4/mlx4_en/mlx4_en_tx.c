@@ -94,15 +94,6 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 	mtx_init(&ring->tx_lock.m, "mlx4 tx", NULL, MTX_DEF);
 	mtx_init(&ring->comp_lock.m, "mlx4 comp", NULL, MTX_DEF);
 
-	/* Allocate the buf ring */
-	ring->br = buf_ring_alloc(MLX4_EN_DEF_TX_QUEUE_SIZE, M_DEVBUF,
-		M_WAITOK, &ring->tx_lock.m);
-	if (ring->br == NULL) {
-		en_err(priv, "Failed allocating tx_info ring\n");
-		err = -ENOMEM;
-		goto err_free_dma_tag;
-	}
-
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = kzalloc_node(tmp, GFP_KERNEL, node);
 	if (!ring->tx_info) {
@@ -190,8 +181,6 @@ err_dma_map:
 err_info:
 	vfree(ring->tx_info);
 err_ring:
-	buf_ring_free(ring->br, M_DEVBUF);
-err_free_dma_tag:
 	bus_dma_tag_destroy(ring->dma_tag);
 done:
 	kfree(ring);
@@ -206,7 +195,6 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 	uint32_t x;
 	en_dbg(DRV, priv, "Destroying tx ring, qpn: %d\n", ring->qpn);
 
-	buf_ring_free(ring->br, M_DEVBUF);
 	if (ring->bf_enabled)
 		mlx4_bf_free(mdev->dev, &ring->bf);
 	mlx4_qp_remove(mdev->dev, &ring->qp);
@@ -236,8 +224,8 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	ring->cons = 0xffffffff;
 	ring->last_nr_txbb = 1;
 	ring->poll_cnt = 0;
-	ring->blocked = 0;
 	memset(ring->buf, 0, ring->buf_size);
+	ring->watchdog_time = 0;
 
 	ring->qp_state = MLX4_QP_STATE_RST;
 	ring->doorbell_qpn = ring->qp.qpn << 8;
@@ -429,14 +417,6 @@ static int mlx4_en_process_tx_cq(struct net_device *dev,
 	wmb();
 	ring->cons += txbbs_skipped;
 
-	/* Wakeup Tx queue if it was stopped and ring is not full */
-	if (unlikely(ring->blocked) && !mlx4_en_tx_ring_is_full(ring)) {
-		ring->blocked = 0;
-		if (atomic_fetchadd_int(&priv->blocked, -1) == 1)
-			atomic_clear_int(&dev->if_drv_flags ,IFF_DRV_OACTIVE);
-		priv->port_stats.wake_queue++;
-		ring->wake_queue++;
-	}
 	return (0);
 }
 
@@ -648,7 +628,7 @@ static void mlx4_bf_copy(void __iomem *dst, volatile unsigned long *src, unsigne
 	__iowrite64_copy(dst, __DEVOLATILE(void *, src), bytecnt / 8);
 }
 
-static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp)
+int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp)
 {
 	enum {
 		DS_FACT = TXBB_SIZE / DS_SIZE_ALIGNMENT,
@@ -682,15 +662,6 @@ static int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp
 
 	/* check if TX ring is full */
 	if (unlikely(mlx4_en_tx_ring_is_full(ring))) {
-		/* every full native Tx ring stops queue */
-		if (ring->blocked == 0)
-			atomic_add_int(&priv->blocked, 1);
-		/* Set HW-queue-is-full flag */
-		atomic_set_int(&ifp->if_drv_flags, IFF_DRV_OACTIVE);
-		priv->port_stats.queue_stopped++;
-		ring->blocked = 1;
-		ring->queue_stopped++;
-
 		/* Use interrupts to find out when queue opened */
 		mlx4_en_arm_cq(priv, priv->tx_cq[tx_ind]);
 		return (ENOBUFS);
@@ -956,73 +927,28 @@ tx_drop:
 }
 
 static int
-mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
+mlx4_en_transmit_locked(struct ifnet *ifp, int tx_ind, struct mbuf *mb)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_tx_ring *ring;
-	struct mbuf *next;
-	int enqueued, err = 0;
+	struct mlx4_en_priv *priv = netdev_priv(ifp);
+	struct mlx4_en_tx_ring *ring = priv->tx_ring[tx_ind];
+	int err = 0;
 
-	ring = priv->tx_ring[tx_ind];
-	if ((dev->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || priv->port_up == 0) {
-		if (m != NULL)
-			err = drbr_enqueue(dev, ring->br, m);
-		return (err);
+	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	    READ_ONCE(priv->port_up) == 0)) {
+		m_freem(mb);
+		return (ENETDOWN);
 	}
 
-	enqueued = 0;
-	if (m != NULL)
-		/*
-		 * If we can't insert mbuf into drbr, try to xmit anyway.
-		 * We keep the error we got so we could return that after xmit.
-		 */
-		err = drbr_enqueue(dev, ring->br, m);
-
-	/* Process the queue */
-	while ((next = drbr_peek(dev, ring->br)) != NULL) {
-		if (mlx4_en_xmit(priv, tx_ind, &next) != 0) {
-			if (next == NULL) {
-				drbr_advance(dev, ring->br);
-			} else {
-				drbr_putback(dev, ring->br, next);
-			}
-			break;
-		}
-		drbr_advance(dev, ring->br);
-		enqueued++;
-		if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			break;
+	if (mlx4_en_xmit(priv, tx_ind, &mb) != 0) {
+		/* NOTE: m_freem() is NULL safe */
+		m_freem(mb);
+		err = ENOBUFS;
+		if (ring->watchdog_time == 0)
+			ring->watchdog_time = ticks + MLX4_EN_WATCHDOG_TIMEOUT;
+	} else {
+		ring->watchdog_time = 0;
 	}
-
-	if (enqueued > 0)
-		ring->watchdog_time = ticks;
-
 	return (err);
-}
-
-void
-mlx4_en_tx_que(void *context, int pending)
-{
-	struct mlx4_en_tx_ring *ring;
-	struct mlx4_en_priv *priv;
-	struct net_device *dev;
-	struct mlx4_en_cq *cq;
-	int tx_ind;
-	cq = context;
-	dev = cq->dev;
-	priv = dev->if_softc;
-	tx_ind = cq->ring;
-	ring = priv->tx_ring[tx_ind];
-
-	if (priv->port_up != 0 &&
-	    (dev->if_drv_flags & IFF_DRV_RUNNING) != 0) {
-		mlx4_en_xmit_poll(priv, tx_ind);
-		spin_lock(&ring->tx_lock);
-                if (!drbr_empty(dev, ring->br))
-			mlx4_en_transmit_locked(dev, tx_ind, NULL);
-		spin_unlock(&ring->tx_lock);
-	}
 }
 
 int
@@ -1030,7 +956,6 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_tx_ring *ring;
-	struct mlx4_en_cq *cq;
 	int i, err = 0;
 
 	if (priv->port_up == 0) {
@@ -1047,16 +972,14 @@ mlx4_en_transmit(struct ifnet *dev, struct mbuf *m)
 	}
 
 	ring = priv->tx_ring[i];
-	if (spin_trylock(&ring->tx_lock)) {
-		err = mlx4_en_transmit_locked(dev, i, m);
-		spin_unlock(&ring->tx_lock);
-		/* Poll CQ here */
-		mlx4_en_xmit_poll(priv, i);
-	} else {
-		err = drbr_enqueue(dev, ring->br, m);
-		cq = priv->tx_cq[i];
-		taskqueue_enqueue(cq->tq, &cq->cq_task);
-	}
+
+	spin_lock(&ring->tx_lock);
+
+	err = mlx4_en_transmit_locked(dev, i, m);
+	spin_unlock(&ring->tx_lock);
+
+	/* Poll CQ here */
+	mlx4_en_xmit_poll(priv, i);
 
 #if __FreeBSD_version >= 1100000
 	if (unlikely(err != 0))
@@ -1072,18 +995,9 @@ void
 mlx4_en_qflush(struct ifnet *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_tx_ring *ring;
-	struct mbuf *m;
 
 	if (priv->port_up == 0)
 		return;
 
-	for (int i = 0; i < priv->tx_ring_num; i++) {
-		ring = priv->tx_ring[i];
-		spin_lock(&ring->tx_lock);
-		while ((m = buf_ring_dequeue_sc(ring->br)) != NULL)
-			m_freem(m);
-		spin_unlock(&ring->tx_lock);
-	}
 	if_qflush(dev);
 }

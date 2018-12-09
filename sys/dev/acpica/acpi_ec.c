@@ -362,7 +362,8 @@ acpi_ec_probe(device_t dev)
 	    ret = 0;
 
 	goto out;
-    }
+    } else
+	ecdt = 0;
 
     ret = ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids, NULL);
     if (ret > 0)
@@ -381,6 +382,22 @@ acpi_ec_probe(device_t dev)
     status = acpi_GetInteger(h, "_UID", &params->uid);
     if (ACPI_FAILURE(status))
 	params->uid = 0;
+
+    /*
+     * Check for a duplicate probe. This can happen when a probe via ECDT
+     * succeeded already. If this is a duplicate, disable this device.
+     *
+     * NB: It would seem device_disable would be sufficient to not get
+     * duplicated devices, and ENXIO isn't needed, however, device_probe() only
+     * checks DF_ENABLED at the start and so disabling it here is too late to
+     * prevent device_attach() from being called.
+     */
+    peer = devclass_get_device(acpi_ec_devclass, params->uid);
+    if (peer != NULL && device_is_alive(peer)) {
+	device_disable(dev);
+	ret = ENXIO;
+	goto out;
+    }
 
     status = acpi_GetInteger(h, "_GLK", &params->glk);
     if (ACPI_FAILURE(status))
@@ -421,16 +438,6 @@ acpi_ec_probe(device_t dev)
 
     /* Store the values we got from the namespace for attach. */
     acpi_set_private(dev, params);
-
-    /*
-     * Check for a duplicate probe. This can happen when a probe via ECDT
-     * succeeded already. If this is a duplicate, disable this device.
-     */
-    peer = devclass_get_device(acpi_ec_devclass, params->uid);
-    if (peer == NULL || !device_is_alive(peer))
-	ret = 0;
-    else
-	device_disable(dev);
 
     if (buf.Pointer)
 	AcpiOsFree(buf.Pointer);

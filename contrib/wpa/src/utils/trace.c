@@ -6,6 +6,10 @@
  * See README for more details.
  */
 
+#ifdef WPA_TRACE_BFD
+#define _GNU_SOURCE
+#include <link.h>
+#endif /* WPA_TRACE_BCD */
 #include "includes.h"
 
 #include "common.h"
@@ -25,6 +29,28 @@ static struct dl_list active_references =
 static char *prg_fname = NULL;
 static bfd *cached_abfd = NULL;
 static asymbol **syms = NULL;
+static unsigned long start_offset;
+static int start_offset_looked_up;
+
+
+static int callback(struct dl_phdr_info *info, size_t size, void *data)
+{
+	/*
+	 * dl_iterate_phdr(3):
+	 * "The first object visited by callback is the main program."
+	 */
+	start_offset = info->dlpi_addr;
+
+	/*
+	 * dl_iterate_phdr(3):
+	 * "The dl_iterate_phdr() function walks through the list of an
+	 *  application's shared objects and calls the function callback
+	 *  once for each object, until either all shared objects have
+	 *  been processed or callback returns a nonzero value."
+	 */
+	return 1;
+}
+
 
 static void get_prg_fname(void)
 {
@@ -160,7 +186,7 @@ static void wpa_trace_bfd_addr(void *pc)
 	if (abfd == NULL)
 		return;
 
-	data.pc = (bfd_hostptr_t) pc;
+	data.pc = (bfd_hostptr_t) (pc - start_offset);
 	data.found = FALSE;
 	bfd_map_over_sections(abfd, find_addr_sect, &data);
 
@@ -201,7 +227,7 @@ static const char * wpa_trace_bfd_addr2func(void *pc)
 	if (abfd == NULL)
 		return NULL;
 
-	data.pc = (bfd_hostptr_t) pc;
+	data.pc = (bfd_hostptr_t) (pc - start_offset);
 	data.found = FALSE;
 	bfd_map_over_sections(abfd, find_addr_sect, &data);
 
@@ -232,6 +258,11 @@ static void wpa_trace_bfd_init(void)
 	if (!syms) {
 		wpa_printf(MSG_INFO, "Failed to read symbols");
 		return;
+	}
+
+	if (!start_offset_looked_up) {
+		dl_iterate_phdr(callback, NULL);
+		start_offset_looked_up = 1;
 	}
 }
 
@@ -268,7 +299,7 @@ size_t wpa_trace_calling_func(const char *buf[], size_t len)
 	for (i = 0; i < btrace_num; i++) {
 		struct bfd_data data;
 
-		data.pc = (bfd_hostptr_t) btrace_res[i];
+		data.pc = (bfd_hostptr_t) (btrace_res[i] - start_offset);
 		data.found = FALSE;
 		bfd_map_over_sections(abfd, find_addr_sect, &data);
 

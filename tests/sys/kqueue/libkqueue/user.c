@@ -117,7 +117,7 @@ oneshot(void)
 void
 test_evfilt_user()
 {
-	kqfd = kqueue();
+    kqfd = kqueue();
 
     add_and_delete();
     event_wait();
@@ -125,5 +125,5 @@ test_evfilt_user()
     oneshot();
     /* TODO: try different fflags operations */
 
-	close(kqfd);
+    close(kqfd);
 }

@@ -262,7 +262,7 @@ ipfw_main(int oldac, char **oldav)
 	save_av = av;
 
 	optind = optreset = 1;	/* restart getopt() */
-	while ((ch = getopt(ac, av, "abcdefhinNp:qs:STtv")) != -1)
+	while ((ch = getopt(ac, av, "abcdDefhinNp:qs:STtv")) != -1)
 		switch (ch) {
 		case 'a':
 			do_acct = 1;
@@ -281,8 +281,12 @@ ipfw_main(int oldac, char **oldav)
 			co.do_dynamic = 1;
 			break;
 
+		case 'D':
+			co.do_dynamic = 2;
+			break;
+
 		case 'e':
-			co.do_expired = 1;
+			/* nop for compatibility */
 			break;
 
 		case 'f':

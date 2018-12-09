@@ -131,6 +131,7 @@ terasic_mtl_text_mmap(struct cdev *dev, vm_ooffset_t offset,
 	sc = dev->si_drv1;
 	error = 0;
 	if (trunc_page(offset) == offset &&
+	    offset + PAGE_SIZE > offset &&
 	    rman_get_size(sc->mtl_text_res) >= offset + PAGE_SIZE) {
 		*paddr = rman_get_start(sc->mtl_text_res) + offset;
 		*memattr = VM_MEMATTR_UNCACHEABLE;

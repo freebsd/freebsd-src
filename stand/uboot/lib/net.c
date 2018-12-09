@@ -324,7 +324,7 @@ net_init(struct iodesc *desc, void *machdep_hint)
 	sc = nif->nif_devdata = &uboot_softc;
 
 	if ((err = ub_dev_open(sc->sc_handle)) != 0)
-		panic("%s%d: initialisation failed with error %d\n",
+		panic("%s%d: initialisation failed with error %d",
 		    nif->nif_driver->netif_bname, nif->nif_unit, err);
 
 	/* Get MAC address */
@@ -359,6 +359,6 @@ net_end(struct netif *nif)
 	int err;
 
 	if ((err = ub_dev_close(sc->sc_handle)) != 0)
-		panic("%s%d: net_end failed with error %d\n",
+		panic("%s%d: net_end failed with error %d",
 		    nif->nif_driver->netif_bname, nif->nif_unit, err);
 }

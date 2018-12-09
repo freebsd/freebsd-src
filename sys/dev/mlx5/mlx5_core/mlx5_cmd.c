@@ -50,11 +50,6 @@ enum {
 };
 
 enum {
-	CMD_MODE_POLLING,
-	CMD_MODE_EVENTS
-};
-
-enum {
 	NUM_LONG_LISTS	  = 2,
 	NUM_MED_LISTS	  = 64,
 	LONG_LIST_SIZE	  = (2ULL * 1024 * 1024 * 1024 / PAGE_SIZE) * 8 + 16 +
@@ -160,6 +155,8 @@ static int alloc_ent(struct mlx5_cmd_work_ent *ent)
 		ent->busy = 1;
 		ent->idx = ret;
 		clear_bit(ent->idx, &cmd->bitmask);
+		cmd->ent_mode[ent->idx] =
+		    ent->polling ? MLX5_CMD_MODE_POLLING : MLX5_CMD_MODE_EVENTS;
 		cmd->ent_arr[ent->idx] = ent;
 	}
 	spin_unlock_irqrestore(&cmd->alloc_lock, flags);
@@ -172,6 +169,8 @@ static void free_ent(struct mlx5_cmd *cmd, int idx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->alloc_lock, flags);
+	cmd->ent_arr[idx] = NULL;	/* safety clear */
+	cmd->ent_mode[idx] = MLX5_CMD_MODE_POLLING;	/* reset mode */
 	set_bit(idx, &cmd->bitmask);
 	spin_unlock_irqrestore(&cmd->alloc_lock, flags);
 }
@@ -786,7 +785,7 @@ static void cb_timeout_handler(struct work_struct *work)
         mlx5_core_warn(dev, "%s(0x%x) timeout. Will cause a leak of a command resource\n",
                        mlx5_command_str(msg_to_opcode(ent->in)),
                        msg_to_opcode(ent->in));
-        mlx5_cmd_comp_handler(dev, 1UL << ent->idx);
+        mlx5_cmd_comp_handler(dev, 1UL << ent->idx, MLX5_CMD_MODE_EVENTS);
 }
 
 static void complete_command(struct mlx5_cmd_work_ent *ent)
@@ -897,11 +896,12 @@ static void cmd_work_handler(struct work_struct *work)
 	mlx5_fwp_flush(cmd->cmd_page);
 	iowrite32be(1 << ent->idx, &dev->iseg->cmd_dbell);
 	mmiowb();
-	/* if not in polling don't use ent after this point*/
-	if (cmd->mode == CMD_MODE_POLLING || poll_cmd) {
+
+	/* if not in polling don't use ent after this point */
+	if (poll_cmd) {
 		poll_timeout(ent);
 		/* make sure we read the descriptor after ownership is SW */
-		mlx5_cmd_comp_handler(dev, 1U << ent->idx);
+		mlx5_cmd_comp_handler(dev, 1U << ent->idx, MLX5_CMD_MODE_POLLING);
 	}
 }
 
@@ -938,15 +938,13 @@ static const char *deliv_status_to_str(u8 status)
 static int wait_func(struct mlx5_core_dev *dev, struct mlx5_cmd_work_ent *ent)
 {
 	int timeout = msecs_to_jiffies(MLX5_CMD_TIMEOUT_MSEC);
-	struct mlx5_cmd *cmd = &dev->cmd;
 	int err;
 
-	if (cmd->mode == CMD_MODE_POLLING || ent->polling) {
+	if (ent->polling) {
 		wait_for_completion(&ent->done);
-		err = ent->ret;
 	} else if (!wait_for_completion_timeout(&ent->done, timeout)) {
                 ent->ret = -ETIMEDOUT;
-                mlx5_cmd_comp_handler(dev, 1UL << ent->idx);
+                mlx5_cmd_comp_handler(dev, 1UL << ent->idx, MLX5_CMD_MODE_EVENTS);
         }
 
         err = ent->ret;
@@ -988,7 +986,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 	if (IS_ERR(ent))
 		return PTR_ERR(ent);
 
-	ent->polling = force_polling;
+	ent->polling = force_polling || (cmd->mode == MLX5_CMD_MODE_POLLING);
 
 	if (!callback)
 		init_completion(&ent->done);
@@ -1158,12 +1156,12 @@ static void mlx5_cmd_change_mod(struct mlx5_core_dev *dev, int mode)
 
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev)
 {
-        mlx5_cmd_change_mod(dev, CMD_MODE_EVENTS);
+        mlx5_cmd_change_mod(dev, MLX5_CMD_MODE_EVENTS);
 }
 
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev)
 {
-        mlx5_cmd_change_mod(dev, CMD_MODE_POLLING);
+        mlx5_cmd_change_mod(dev, MLX5_CMD_MODE_POLLING);
 }
 
 static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
@@ -1179,10 +1177,13 @@ static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
 	}
 }
 
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector_flags,
+    enum mlx5_cmd_mode cmd_mode)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
+	bool triggered = (vector_flags & MLX5_TRIGGERED_CMD_COMP) ? 1 : 0;
+	u32 vector = vector_flags; /* discard flags in the upper dword */
 	int i;
 
 	/* make sure data gets read from RAM */
@@ -1191,7 +1192,13 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
 	while (vector != 0) {
 		i = ffs(vector) - 1;
 		vector &= ~(1U << i);
+		/* check command mode */
+		if (cmd->ent_mode[i] != cmd_mode)
+			continue;
 		ent = cmd->ent_arr[i];
+		/* check if command was already handled */
+		if (ent == NULL)
+			continue;
                 if (ent->callback)
                         cancel_delayed_work(&ent->cb_timeout_work);
 		ent->ts2 = ktime_get_ns();
@@ -1206,7 +1213,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u32 vector)
 			else
 				ent->ret = 0;
 			ent->status = ent->lay->status_own >> 1;
-			if (vector & MLX5_TRIGGERED_CMD_COMP)
+			if (triggered)
 				ent->status = MLX5_DRIVER_STATUS_ABORTED;
 			else
 				ent->status = ent->lay->status_own >> 1;
@@ -1543,7 +1550,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	mlx5_core_dbg(dev, "descriptor at dma 0x%llx\n", (unsigned long long)(cmd->dma));
 
-	cmd->mode = CMD_MODE_POLLING;
+	cmd->mode = MLX5_CMD_MODE_POLLING;
 
 	err = create_msg_cache(dev);
 	if (err) {

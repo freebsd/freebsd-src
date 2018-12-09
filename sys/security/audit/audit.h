@@ -71,7 +71,7 @@
 extern u_int	audit_dtrace_enabled;
 extern int	audit_trail_enabled;
 extern int	audit_trail_suspended;
-extern int	audit_syscalls_enabled;
+extern bool	audit_syscalls_enabled;
 
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
@@ -150,7 +150,7 @@ void	 audit_thread_free(struct thread *td);
  * Define macros to wrap the audit_arg_* calls by checking the global
  * audit_syscalls_enabled flag before performing the actual call.
  */
-#define	AUDITING_TD(td)		((td)->td_pflags & TDP_AUDITREC)
+#define	AUDITING_TD(td)		(__predict_false((td)->td_pflags & TDP_AUDITREC))
 
 #define	AUDIT_ARG_ADDR(addr) do {					\
 	if (AUDITING_TD(curthread))					\

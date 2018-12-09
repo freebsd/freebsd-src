@@ -68,6 +68,7 @@ ufs2_daddr_t ffs_blkpref_ufs1(struct inode *, ufs_lbn_t, int, ufs1_daddr_t *);
 ufs2_daddr_t ffs_blkpref_ufs2(struct inode *, ufs_lbn_t, int, ufs2_daddr_t *);
 void	ffs_blkrelease_finish(struct ufsmount *, u_long);
 u_long	ffs_blkrelease_start(struct ufsmount *, struct vnode *, ino_t);
+uint32_t ffs_calc_sbhash(struct fs *);
 int	ffs_checkfreefile(struct fs *, struct vnode *, ino_t);
 void	ffs_clrblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_clusteracct(struct fs *, struct cg *, ufs1_daddr_t, int);
@@ -123,6 +124,12 @@ void	process_deferred_inactive(struct mount *mp);
  */
 #define	FFSR_FORCE	0x0001
 #define	FFSR_UNSUSPEND	0x0002
+
+/*
+ * Request standard superblock location in ffs_sbget
+ */
+#define	STDSB			-1	/* Fail if check-hash is bad */
+#define	STDSB_NOHASHFAIL	-2	/* Ignore check-hash failure */
 
 /*
  * Definitions for TRIM interface

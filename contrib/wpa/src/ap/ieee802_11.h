@@ -16,6 +16,8 @@ struct hostapd_frame_info;
 struct ieee80211_ht_capabilities;
 struct ieee80211_vht_capabilities;
 struct ieee80211_mgmt;
+struct vlan_description;
+struct hostapd_sta_wpa_psk_short;
 
 int ieee802_11_mgmt(struct hostapd_data *hapd, const u8 *buf, size_t len,
 		    struct hostapd_frame_info *fi);
@@ -55,6 +57,8 @@ u8 * hostapd_eid_vht_operation(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_vendor_vht(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_wb_chsw_wrapper(struct hostapd_data *hapd, u8 *eid);
 u8 * hostapd_eid_txpower_envelope(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_he_capab(struct hostapd_data *hapd, u8 *eid);
+u8 * hostapd_eid_he_operation(struct hostapd_data *hapd, u8 *eid);
 
 int hostapd_ht_operation_update(struct hostapd_iface *iface);
 void ieee802_11_send_sa_query_req(struct hostapd_data *hapd,
@@ -134,5 +138,32 @@ static inline u8 hostapd_mbo_ie_len(struct hostapd_data *hapd)
 void ap_copy_sta_supp_op_classes(struct sta_info *sta,
 				 const u8 *supp_op_classes,
 				 size_t supp_op_classes_len);
+
+u8 * hostapd_eid_fils_indic(struct hostapd_data *hapd, u8 *eid, int hessid);
+void ieee802_11_finish_fils_auth(struct hostapd_data *hapd,
+				 struct sta_info *sta, int success,
+				 struct wpabuf *erp_resp,
+				 const u8 *msk, size_t msk_len);
+u8 * owe_assoc_req_process(struct hostapd_data *hapd, struct sta_info *sta,
+			   const u8 *owe_dh, u8 owe_dh_len,
+			   u8 *owe_buf, size_t owe_buf_len, u16 *reason);
+void fils_hlp_timeout(void *eloop_ctx, void *eloop_data);
+void fils_hlp_finish_assoc(struct hostapd_data *hapd, struct sta_info *sta);
+void handle_auth_fils(struct hostapd_data *hapd, struct sta_info *sta,
+		      const u8 *pos, size_t len, u16 auth_alg,
+		      u16 auth_transaction, u16 status_code,
+		      void (*cb)(struct hostapd_data *hapd,
+				 struct sta_info *sta,
+				 u16 resp, struct wpabuf *data, int pub));
+
+size_t hostapd_eid_owe_trans_len(struct hostapd_data *hapd);
+u8 * hostapd_eid_owe_trans(struct hostapd_data *hapd, u8 *eid, size_t len);
+int ieee802_11_allowed_address(struct hostapd_data *hapd, const u8 *addr,
+			       const u8 *msg, size_t len, u32 *session_timeout,
+			       u32 *acct_interim_interval,
+			       struct vlan_description *vlan_id,
+			       struct hostapd_sta_wpa_psk_short **psk,
+			       char **identity, char **radius_cui,
+			       int is_probe_req);
 
 #endif /* IEEE802_11_H */

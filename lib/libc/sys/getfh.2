@@ -1,5 +1,6 @@
 .\" Copyright (c) 1989, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2018 Gandi
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -28,12 +29,13 @@
 .\"	@(#)getfh.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2011
+.Dd December 7, 2018
 .Dt GETFH 2
 .Os
 .Sh NAME
 .Nm getfh ,
-.Nm lgetfh
+.Nm lgetfh ,
+.Nm getfhat
 .Nd get file handle
 .Sh LIBRARY
 .Lb libc
@@ -44,6 +46,8 @@
 .Fn getfh "const char *path" "fhandle_t *fhp"
 .Ft int
 .Fn lgetfh "const char *path" "fhandle_t *fhp"
+.Ft int
+.Fn getfhat "int fd" "const char *path" "fhandle_t *fhp" "int flag"
 .Sh DESCRIPTION
 The
 .Fn getfh
@@ -51,6 +55,7 @@ system call
 returns a file handle for the specified file or directory
 in the file handle pointed to by
 .Fa fhp .
+.Pp
 The
 .Fn lgetfh
 system call is like
@@ -62,6 +67,85 @@ returns information about the link,
 while
 .Fn getfh
 returns information about the file the link references.
+.Pp
+The
+.Fn getfhat
+system call is equivalent to
+.Fn getfh
+and
+.Fn lgetfh
+except when the
+.Fa path
+specifies a relative or NULL path, or the
+.Dv AT_BENEATH
+flag is provided.
+For
+.Fn getfhat
+and relative or NULL
+.Fa path ,
+the status is retrieved from a file relative to
+the directory associated with the file descriptor
+.Fa fd
+instead of the current working directory.
+For
+.Dv AT_BENEATH
+and absolute
+.Fa path ,
+the status is retrieved from a file specified by the
+.Fa path ,
+but additional permission checks are performed, see below.
+.Pp
+The values for the
+.Fa flag
+are constructed by a bitwise-inclusive OR of flags from this list,
+defined in
+.In fcntl.h :
+.Bl -tag -width indent
+.It Dv AT_SYMLINK_NOFOLLOW
+If
+.Fa path
+names a symbolic link, the status of the symbolic link is returned.
+.It Dv AT_BENEATH
+Only stat files and directories below the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.El
+.Pp
+If
+.Fn getfhat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn getfth
+or
+.Fn lgetfh
+respectively, depending on whether or not the
+.Dv AT_SYMLINK_NOFOLLOW
+bit is set in
+.Fa flag .
+.Pp
+When
+.Fn getfhat
+is called with an absolute
+.Fa path
+without the
+.Dv AT_BENEATH
+flag, it ignores the
+.Fa fd
+argument.
+When
+.Dv AT_BENEATH
+is specified with an absolute
+.Fa path ,
+a directory passed by the
+.Fa fd
+argument is used as the topping point for the resolution.
 These system calls are restricted to the superuser.
 .Sh RETURN VALUES
 .Rv -std
@@ -99,11 +183,49 @@ The
 .Fa fhp
 argument
 points to an invalid address.
+.It Bq Er EFAULT
+The
+.Fa path
+argument
+points to an invalid address.
 .It Bq Er EIO
 An
 .Tn I/O
 error occurred while reading from or writing to the file system.
+.It Bq Er ESTALE
+The file handle
+.Fa fhp
+is no longer valid.
 .El
+.Pp
+In addition to the errors returned by
+.Fn getfh ,
+and
+.Fn lgetfh ,
+the
+.Fn getfhat
+system call may fail if:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa path
+argument does not specify an absolute path and the
+.Fa fd
+argument, is neither
+.Dv AT_FDCWD
+nor a valid file descriptor open for searching.
+.It Bq Er EINVAL
+The value of the
+.Fa flag
+argument is not valid.
+.It Bq Er ENOTDIR
+The
+.Fa path
+argument is not an absolute path and
+.Fa fd
+is neither
+.Dv AT_FDCWD
+nor a file descriptor associated with a directory.
 .Sh SEE ALSO
 .Xr fhopen 2 ,
 .Xr open 2 ,

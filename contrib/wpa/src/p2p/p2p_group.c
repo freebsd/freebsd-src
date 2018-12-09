@@ -367,6 +367,8 @@ wifi_display_build_go_ie(struct p2p_group *group)
 		return NULL;
 	if (group->p2p->wfd_dev_info)
 		wpabuf_put_buf(wfd_subelems, group->p2p->wfd_dev_info);
+	if (group->p2p->wfd_r2_dev_info)
+		wpabuf_put_buf(wfd_subelems, group->p2p->wfd_r2_dev_info);
 	if (group->p2p->wfd_assoc_bssid)
 		wpabuf_put_buf(wfd_subelems,
 			       group->p2p->wfd_assoc_bssid);

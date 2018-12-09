@@ -261,11 +261,11 @@ freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
 	if (uap->ucp == NULL)
 		ret = EINVAL;
 	else {
+		bzero(&uc, sizeof(uc));
 		ia32_get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
 		PROC_UNLOCK(td->td_proc);
-		bzero(&uc.__spare__, sizeof(uc.__spare__));
 		ret = copyout(&uc, uap->ucp, UC_COPY_SIZE);
 	}
 	return (ret);
@@ -275,7 +275,7 @@ int
 freebsd32_setcontext(struct thread *td, struct freebsd32_setcontext_args *uap)
 {
 	struct ia32_ucontext uc;
-	int ret;	
+	int ret;
 
 	if (uap->ucp == NULL)
 		ret = EINVAL;
@@ -296,11 +296,12 @@ int
 freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
 {
 	struct ia32_ucontext uc;
-	int ret;	
+	int ret;
 
 	if (uap->oucp == NULL || uap->ucp == NULL)
 		ret = EINVAL;
 	else {
+		bzero(&uc, sizeof(uc));
 		ia32_get_mcontext(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
@@ -620,7 +621,6 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	fpstate_drop(td);
 	sf.sf_uc.uc_mcontext.mc_fsbase = td->td_pcb->pcb_fsbase;
 	sf.sf_uc.uc_mcontext.mc_gsbase = td->td_pcb->pcb_gsbase;
-	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
 
 	/* Allocate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
