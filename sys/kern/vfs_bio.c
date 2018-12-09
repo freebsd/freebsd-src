@@ -1933,7 +1933,7 @@ bufwrite(struct buf *bp)
 	}
 
 	if (bp->b_flags & B_BARRIER)
-		barrierwrites++;
+		atomic_add_long(&barrierwrites, 1);
 
 	oldflags = bp->b_flags;
 
