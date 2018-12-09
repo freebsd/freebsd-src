@@ -11,6 +11,7 @@ SUBDIR=	async \
 	bpf \
 	bridge \
 	car \
+	checksum \
 	cisco \
 	deflate \
 	device \
