@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2018
+.Dd November 10, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Nm
 .Op Fl qv
 .Op Fl f Ar conf_file
+.Op Fl e Ar separator
 .Op Fl rR
 .Op Cm * | Ar jail ...
 .Nm
@@ -63,6 +64,7 @@
 The
 .Nm
 utility creates new jails, or modifies or removes existing jails.
+It can also print a list of configured jails and their parameters.
 A jail
 .Pq or Dq prison
 is specified via parameters on the command line, or in the
@@ -71,6 +73,7 @@ file.
 .Pp
 At least one of the options
 .Fl c ,
+.Fl e ,
 .Fl m
 or
 .Fl r
@@ -86,6 +89,15 @@ and
 .Va name
 parameters (if specified on the command line)
 must not refer to an existing jail.
+.It Fl e Ar separator
+Exhibit a list of all configured non-wildcard jails and their parameters.
+No jail creation, modification or removal performed if this option is used.
+The
+.Ar separator
+string is used to separate parameters.
+Use
+.Xr jls 8
+utility to list running jails.
 .It Fl m
 Modify an existing jail.
 One of the
