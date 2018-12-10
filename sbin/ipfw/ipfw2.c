@@ -1256,7 +1256,8 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd)
 	    (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST) ?
 		32 : contigmask((uint8_t *)&(a[1]), 32);
 	if (mb == 32 && co.do_resolv)
-		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
+		he = gethostbyaddr((char *)&(a[0]), sizeof(in_addr_t),
+		    AF_INET);
 	if (he != NULL)		/* resolved to name */
 		bprintf(bp, "%s", he->h_name);
 	else if (mb == 0)	/* any */
