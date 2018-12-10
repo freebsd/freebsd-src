@@ -16,8 +16,26 @@ case "$weekly_noid_enable" in
 	echo ""
 	echo "Check for files with an unknown user or group:"
 
+	# Host should not test jailed subtrees as jails have their own
+	# databases of users and groups. Leave them for jailed invocations
+	# of this script.
+
+	exclude=''
+	if [ $(sysctl -n security.jail.jailed) = 0 ]; then
+	    sep=:
+	    OIFS="$IFS"
+	    IFS="$sep"
+	    for param in $(jail -f "`sysrc -n jail_conf`" -e "$sep" 2>/dev/null)
+	    do
+		case "$param" in
+		    path=*) exclude="$exclude -path ${param#path=} -prune -or"
+		esac
+	    done
+	    IFS="$OIFS"
+	fi
+
 	rc=$(find -H ${weekly_noid_dirs:-/} \
-	    \( ! -fstype local -prune -or -name \* \) -and \
+	    \( $exclude ! -fstype local -prune -or -name \* \) -and \
 	    \( -nogroup -o -nouser \) -print | sed 's/^/  /' |
 	    tee /dev/stderr | wc -l)
 	[ $rc -gt 1 ] && rc=1
