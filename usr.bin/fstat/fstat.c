@@ -301,6 +301,8 @@ print_file_info(struct procstat *procstat, struct filestat *fst,
 	case PS_FST_TYPE_SEM:
 		print_sem_info(procstat, fst);
 		break;
+	case PS_FST_TYPE_DEV:
+		break;
 	default:	
 		if (vflg)
 			fprintf(stderr,
