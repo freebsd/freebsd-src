@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/mman.h>
 #include <sys/stack.h>
+#include <sys/user.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -1546,8 +1547,24 @@ static int
 linux_file_fill_kinfo(struct file *fp, struct kinfo_file *kif,
     struct filedesc *fdp)
 {
+	struct linux_file *filp;
+	struct vnode *vp;
+	int error;
 
-	return (0);
+	filp = fp->f_data;
+	vp = filp->f_vnode;
+	if (vp == NULL) {
+		error = 0;
+		kif->kf_type = KF_TYPE_DEV;
+	} else {
+		vref(vp);
+		FILEDESC_SUNLOCK(fdp);
+		error = vn_fill_kinfo_vnode(vp, kif);
+		vrele(vp);
+		kif->kf_type = KF_TYPE_VNODE;
+		FILEDESC_SLOCK(fdp);
+	}
+	return (error);
 }
 
 unsigned int
