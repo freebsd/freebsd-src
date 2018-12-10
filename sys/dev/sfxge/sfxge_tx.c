@@ -1973,7 +1973,7 @@ sfxge_tx_init(struct sfxge_softc *sc)
 		goto fail_tx_dpl_put_max;
 	}
 
-	sc->txq_count = SFXGE_TXQ_NTYPES - 1 + sc->intr.n_alloc;
+	sc->txq_count = SFXGE_EVQ0_N_TXQ(sc) - 1 + sc->intr.n_alloc;
 
 	sc->tso_fw_assisted = sfxge_tso_fw_assisted;
 	if ((~encp->enc_features & EFX_FEATURE_FW_ASSISTED_TSO) ||
@@ -2002,9 +2002,9 @@ sfxge_tx_init(struct sfxge_softc *sc)
 		goto fail2;
 
 	for (index = 0;
-	     index < sc->txq_count - SFXGE_TXQ_NTYPES + 1;
+	     index < sc->txq_count - SFXGE_EVQ0_N_TXQ(sc) + 1;
 	     index++) {
-		if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_NTYPES - 1 + index,
+		if ((rc = sfxge_tx_qinit(sc, SFXGE_EVQ0_N_TXQ(sc) - 1 + index,
 		    SFXGE_TXQ_IP_TCP_UDP_CKSUM, index)) != 0)
 			goto fail3;
 	}
