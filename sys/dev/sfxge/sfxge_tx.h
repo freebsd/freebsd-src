@@ -139,7 +139,9 @@ enum sfxge_txq_type {
 	SFXGE_TXQ_NTYPES
 };
 
-#define	SFXGE_EVQ0_N_TXQ(_sc)	SFXGE_TXQ_NTYPES
+#define	SFXGE_EVQ0_N_TXQ(_sc)						\
+	((_sc)->txq_dynamic_cksum_toggle_supported ?			\
+	1 : SFXGE_TXQ_NTYPES)
 
 #define	SFXGE_TXQ_UNBLOCK_LEVEL(_entries)	(EFX_TXQ_LIMIT(_entries) / 4)
 
@@ -205,6 +207,9 @@ struct sfxge_txq {
 	unsigned int			n_pend_desc;
 	unsigned int			added;
 	unsigned int			reaped;
+
+	/* The last (or constant) set of HW offloads requested on the queue */
+	uint16_t			hw_cksum_flags;
 
 	/* The last VLAN TCI seen on the queue if FW-assisted tagging is
 	   used */
