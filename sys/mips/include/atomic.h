@@ -755,4 +755,68 @@ atomic_thread_fence_seq_cst(void)
 #define	atomic_store_rel_ptr	atomic_store_rel_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
 
+static __inline unsigned int
+atomic_swap_int(volatile unsigned int *ptr, const unsigned int value)
+{
+	unsigned int retval;
+
+	retval = *ptr;
+
+	while (!atomic_fcmpset_int(ptr, &retval, value))
+		;
+	return (retval);
+}
+
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *ptr, const uint32_t value)
+{
+	uint32_t retval;
+
+	retval = *ptr;
+
+	while (!atomic_fcmpset_32(ptr, &retval, value))
+		;
+	return (retval);
+}
+
+#if defined(__mips_n64) || defined(__mips_n32)
+static __inline uint64_t
+atomic_swap_64(volatile uint64_t *ptr, const uint64_t value)
+{
+	uint64_t retval;
+
+	retval = *ptr;
+
+	while (!atomic_fcmpset_64(ptr, &retval, value))
+		;
+	return (retval);
+}
+#endif
+
+static __inline unsigned long
+atomic_swap_long(volatile unsigned long *ptr, const unsigned long value)
+{
+	unsigned long retval;
+
+	retval = *ptr;
+
+	while (!atomic_fcmpset_32((volatile uint32_t *)ptr,
+	    (uint32_t *)&retval, value))
+		;
+	return (retval);
+}
+
+static __inline uintptr_t
+atomic_swap_ptr(volatile uintptr_t *ptr, const uintptr_t value)
+{
+	uintptr_t retval;
+
+	retval = *ptr;
+
+	while (!atomic_fcmpset_32((volatile uint32_t *)ptr,
+	    (uint32_t *)&retval, value))
+		;
+	return (retval);
+}
+
 #endif /* ! _MACHINE_ATOMIC_H_ */
