@@ -95,6 +95,7 @@ static void	syscall(struct trapframe *frame);
        void	handle_kernel_slb_spill(int, register_t, register_t);
 static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
 extern int	n_slbs;
+static void	normalize_inputs(void);
 #endif
 
 extern vm_offset_t __startkernel;
@@ -147,6 +148,7 @@ static struct powerpc_exception powerpc_exceptions[] = {
 	{ EXC_VECAST_G4,	"altivec assist" },
 	{ EXC_THRM,	"thermal management" },
 	{ EXC_RUNMODETRC,	"run mode/trace" },
+	{ EXC_SOFT_PATCH, "soft patch exception" },
 	{ EXC_LAST,	NULL }
 };
 
@@ -381,6 +383,17 @@ trap(struct trapframe *frame)
 			sig = SIGBUS;
 			ucode = BUS_OBJERR;
 			break;
+
+#if defined(__powerpc64__) && defined(AIM)
+		case EXC_SOFT_PATCH:
+			/*
+			 * Point to the instruction that generated the exception to execute it again,
+			 * and normalize the register values.
+			 */
+			frame->srr0 -= 4;
+			normalize_inputs();
+			break;
+#endif
 
 		default:
 			trap_fatal(frame);
@@ -908,6 +921,49 @@ fix_unaligned(struct thread *td, struct trapframe *frame)
 
 	return (-1);
 }
+
+#if defined(__powerpc64__) && defined(AIM)
+#define MSKNSHL(x, m, n) "(((" #x ") & " #m ") << " #n ")"
+#define MSKNSHR(x, m, n) "(((" #x ") & " #m ") >> " #n ")"
+
+/* xvcpsgndp instruction, built in opcode format.
+ * This can be changed to use mnemonic after a toolchain update.
+ */
+#define XVCPSGNDP(xt, xa, xb) \
+	__asm __volatile(".long (" \
+		MSKNSHL(60, 0x3f, 26) " | " \
+		MSKNSHL(xt, 0x1f, 21) " | " \
+		MSKNSHL(xa, 0x1f, 16) " | " \
+		MSKNSHL(xb, 0x1f, 11) " | " \
+		MSKNSHL(240, 0xff, 3) " | " \
+		MSKNSHR(xa,  0x20, 3) " | " \
+		MSKNSHR(xa,  0x20, 4) " | " \
+		MSKNSHR(xa,  0x20, 5) ")")
+
+/* Macros to normalize 1 or 10 VSX registers */
+#define NORM(x)	XVCPSGNDP(x, x, x)
+#define NORM10(x) \
+	NORM(x ## 0); NORM(x ## 1); NORM(x ## 2); NORM(x ## 3); NORM(x ## 4); \
+	NORM(x ## 5); NORM(x ## 6); NORM(x ## 7); NORM(x ## 8); NORM(x ## 9)
+
+static void
+normalize_inputs(void)
+{
+	unsigned long msr;
+
+	/* enable VSX */
+	msr = mfmsr();
+	mtmsr(msr | PSL_VSX);
+
+	NORM(0);   NORM(1);   NORM(2);   NORM(3);   NORM(4);
+	NORM(5);   NORM(6);   NORM(7);   NORM(8);   NORM(9);
+	NORM10(1); NORM10(2); NORM10(3); NORM10(4); NORM10(5);
+	NORM(60);  NORM(61);  NORM(62);  NORM(63);
+
+	/* restore MSR */
+	mtmsr(msr);
+}
+#endif
 
 #ifdef KDB
 int
