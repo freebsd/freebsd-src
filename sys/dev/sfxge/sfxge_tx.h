@@ -139,6 +139,8 @@ enum sfxge_txq_type {
 	SFXGE_TXQ_NTYPES
 };
 
+#define	SFXGE_EVQ0_N_TXQ(_sc)	SFXGE_TXQ_NTYPES
+
 #define	SFXGE_TXQ_UNBLOCK_LEVEL(_entries)	(EFX_TXQ_LIMIT(_entries) / 4)
 
 #define	SFXGE_TX_BATCH	64
