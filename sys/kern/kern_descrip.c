@@ -262,7 +262,7 @@ fdused(struct filedesc *fdp, int fd)
 	if (fd > fdp->fd_lastfile)
 		fdp->fd_lastfile = fd;
 	if (fd == fdp->fd_freefile)
-		fdp->fd_freefile = fd_first_free(fdp, fd, fdp->fd_nfiles);
+		fdp->fd_freefile++;
 }
 
 /*
