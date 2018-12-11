@@ -549,14 +549,9 @@ bp_kernload:
 	add	%r2,%r1,%r2
 	mtspr	SPR_SPRG8, %r2
 
-	/* Get load offset */
-	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
-	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
-
 	/* Set up the stack pointer */
 	ld	%r1,TOC_REF(tmpstack)(%r2)
 	addi	%r1,%r1,TMPSTACKSZ-96
-	add	%r1,%r1,%r31
 #else
 /*
  * Setup a temporary stack
