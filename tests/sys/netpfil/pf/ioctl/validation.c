@@ -61,7 +61,7 @@ common_init_tbl(struct pfr_table *tbl)
 	tbl->pfrt_fback = 0;
 }
 
-ATF_TC(addtables);
+ATF_TC_WITH_CLEANUP(addtables);
 ATF_TC_HEAD(addtables, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -106,11 +106,14 @@ ATF_TC_BODY(addtables, tc)
 
 	io.pfrio_buffer = &tbls;
 	ioctl(dev, DIOCRADDTABLES, &io);
+}
 
+ATF_TC_CLEANUP(addtables, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(deltables);
+ATF_TC_WITH_CLEANUP(deltables);
 ATF_TC_HEAD(deltables, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -146,11 +149,14 @@ ATF_TC_BODY(deltables, tc)
 	io.pfrio_buffer = NULL;
 	if (ioctl(dev, DIOCRDELTABLES, &io) == 0)
 		atf_tc_fail("Request with NULL buffer succeeded");
+}
 
+ATF_TC_CLEANUP(deltables, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(gettables);
+ATF_TC_WITH_CLEANUP(gettables);
 ATF_TC_HEAD(gettables, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -181,11 +187,14 @@ ATF_TC_BODY(gettables, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRGETTABLES, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(gettables, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(gettstats);
+ATF_TC_WITH_CLEANUP(gettstats);
 ATF_TC_HEAD(gettstats, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -216,11 +225,14 @@ ATF_TC_BODY(gettstats, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRGETTSTATS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(gettstats, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(clrtstats);
+ATF_TC_WITH_CLEANUP(clrtstats);
 ATF_TC_HEAD(clrtstats, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -253,11 +265,14 @@ ATF_TC_BODY(clrtstats, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRCLRTSTATS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(clrtstats, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(settflags);
+ATF_TC_WITH_CLEANUP(settflags);
 ATF_TC_HEAD(settflags, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -290,11 +305,14 @@ ATF_TC_BODY(settflags, tc)
 	io.pfrio_size = 1 << 28;
 	if (ioctl(dev, DIOCRSETTFLAGS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(settflags, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(addaddrs);
+ATF_TC_WITH_CLEANUP(addaddrs);
 ATF_TC_HEAD(addaddrs, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -322,11 +340,14 @@ ATF_TC_BODY(addaddrs, tc)
 	io.pfrio_size = 1 << 28;
 	if (ioctl(dev, DIOCRADDADDRS, &io) == 0)
 		atf_tc_fail("Reuqest with size 1 << 28 failed");
+}
 
+ATF_TC_CLEANUP(addaddrs, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(deladdrs);
+ATF_TC_WITH_CLEANUP(deladdrs);
 ATF_TC_HEAD(deladdrs, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -354,11 +375,14 @@ ATF_TC_BODY(deladdrs, tc)
 	io.pfrio_size = 1 << 28;
 	if (ioctl(dev, DIOCRDELADDRS, &io) == 0)
 		atf_tc_fail("Reuqest with size 1 << 28 failed");
+}
 
+ATF_TC_CLEANUP(deladdrs, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(setaddrs);
+ATF_TC_WITH_CLEANUP(setaddrs);
 ATF_TC_HEAD(setaddrs, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -386,11 +410,14 @@ ATF_TC_BODY(setaddrs, tc)
 	io.pfrio_size = 1 << 28;
 	if (ioctl(dev, DIOCRSETADDRS, &io) == 0)
 		atf_tc_fail("Reuqest with size 1 << 28 failed");
+}
 
+ATF_TC_CLEANUP(setaddrs, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(getaddrs);
+ATF_TC_WITH_CLEANUP(getaddrs);
 ATF_TC_HEAD(getaddrs, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -420,11 +447,14 @@ ATF_TC_BODY(getaddrs, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRGETADDRS, &io) == 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(getaddrs, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(getastats);
+ATF_TC_WITH_CLEANUP(getastats);
 ATF_TC_HEAD(getastats, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -454,11 +484,14 @@ ATF_TC_BODY(getastats, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRGETASTATS, &io) == 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(getastats, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(clrastats);
+ATF_TC_WITH_CLEANUP(clrastats);
 ATF_TC_HEAD(clrastats, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -488,11 +521,14 @@ ATF_TC_BODY(clrastats, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRCLRASTATS, &io) == 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(clrastats, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(tstaddrs);
+ATF_TC_WITH_CLEANUP(tstaddrs);
 ATF_TC_HEAD(tstaddrs, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -522,11 +558,14 @@ ATF_TC_BODY(tstaddrs, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRTSTADDRS, &io) == 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(tstaddrs, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(inadefine);
+ATF_TC_WITH_CLEANUP(inadefine);
 ATF_TC_HEAD(inadefine, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -556,11 +595,14 @@ ATF_TC_BODY(inadefine, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRINADEFINE, &io) == 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+}
 
+ATF_TC_CLEANUP(inadefine, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(igetifaces);
+ATF_TC_WITH_CLEANUP(igetifaces);
 ATF_TC_HEAD(igetifaces, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -587,11 +629,14 @@ ATF_TC_BODY(igetifaces, tc)
 	io.pfiio_size = 1 << 31;
 	if (ioctl(dev, DIOCIGETIFACES, &io) == 0)
 		atf_tc_fail("request with size 1 << 31 succeeded");
+}
 
+ATF_TC_CLEANUP(igetifaces, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(cxbegin);
+ATF_TC_WITH_CLEANUP(cxbegin);
 ATF_TC_HEAD(cxbegin, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -623,11 +668,14 @@ ATF_TC_BODY(cxbegin, tc)
 	io.array = NULL;
 	if (ioctl(dev, DIOCXBEGIN, &io) == 0)
 		atf_tc_fail("request with size -1 succeeded");
+}
 
+ATF_TC_CLEANUP(cxbegin, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(cxrollback);
+ATF_TC_WITH_CLEANUP(cxrollback);
 ATF_TC_HEAD(cxrollback, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -659,11 +707,14 @@ ATF_TC_BODY(cxrollback, tc)
 	io.array = NULL;
 	if (ioctl(dev, DIOCXROLLBACK, &io) == 0)
 		atf_tc_fail("request with size -1 succeeded");
+}
 
+ATF_TC_CLEANUP(cxrollback, tc)
+{
 	COMMON_CLEANUP();
 }
 
-ATF_TC(commit);
+ATF_TC_WITH_CLEANUP(commit);
 ATF_TC_HEAD(commit, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
@@ -695,7 +746,10 @@ ATF_TC_BODY(commit, tc)
 	io.array = NULL;
 	if (ioctl(dev, DIOCXCOMMIT, &io) == 0)
 		atf_tc_fail("request with size -1 succeeded");
+}
 
+ATF_TC_CLEANUP(commit, tc)
+{
 	COMMON_CLEANUP();
 }
 
