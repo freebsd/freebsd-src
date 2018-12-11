@@ -358,10 +358,7 @@ static int
 ahci_pci_ctlr_reset(device_t dev)
 {
 
-	if (pci_read_config(dev, PCIR_DEVVENDOR, 4) == 0x28298086 &&
-	    (pci_read_config(dev, 0x92, 1) & 0xfe) == 0x04)
-		pci_write_config(dev, 0x92, 0x01, 1);
-	return ahci_ctlr_reset(dev);
+	return(ahci_ctlr_reset(dev));
 }
 
 static int
