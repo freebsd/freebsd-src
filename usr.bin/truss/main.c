@@ -71,6 +71,7 @@ main(int ac, char **av)
 	struct trussinfo *trussinfo;
 	char *fname;
 	char **command;
+	const char *errstr;
 	pid_t pid;
 	int c;
 
@@ -118,7 +119,9 @@ main(int ac, char **av)
 			fname = optarg;
 			break;
 		case 's':	/* Specified string size */
-			trussinfo->strsize = atoi(optarg);
+			trussinfo->strsize = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr)
+				errx(1, "maximum string size is %s: %s", errstr, optarg);
 			break;
 		case 'S':	/* Don't trace signals */
 			trussinfo->flags |= NOSIGS;

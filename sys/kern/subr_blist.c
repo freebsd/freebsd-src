@@ -644,14 +644,14 @@ blst_next_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 /*
  * BLST_LEAF_ALLOC() -	allocate at a leaf in the radix tree (a bitmap).
  *
- *	This is the core of the allocator and is optimized for the
- *	BLIST_BMAP_RADIX block allocation case.  Otherwise, execution
- *	time is proportional to log2(count) + bitpos time.
+ *	This function is the core of the allocator.  Its execution time is
+ *	proportional to log(count), plus height of the tree if the allocation
+ *	crosses a leaf boundary.
  */
 static daddr_t
 blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 {
-	u_daddr_t mask;
+	u_daddr_t cursor_mask, mask;
 	int count1, hi, lo, num_shifts, range1, range_ext;
 
 	range1 = 0;
@@ -661,14 +661,14 @@ blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 	while ((-mask & ~mask) != 0 && num_shifts > 0) {
 		/*
 		 * If bit i is set in mask, then bits in [i, i+range1] are set
-		 * in scan->bm_bitmap.  The value of range1 is equal to
-		 * count1 >> num_shifts.  Grow range and reduce num_shifts to 0,
-		 * while preserving these invariants.  The updates to mask leave
-		 * fewer bits set, but each bit that remains set represents a
-		 * longer string of consecutive bits set in scan->bm_bitmap.
-		 * If more updates to mask cannot clear more bits, because mask
-		 * is partitioned with all 0 bits preceding all 1 bits, the loop
-		 * terminates immediately.
+		 * in scan->bm_bitmap.  The value of range1 is equal to count1
+		 * >> num_shifts.  Grow range1 and reduce num_shifts to 0,
+		 * while preserving these invariants.  The updates to mask
+		 * leave fewer bits set, but each bit that remains set
+		 * represents a longer string of consecutive bits set in
+		 * scan->bm_bitmap.  If more updates to mask cannot clear more
+		 * bits, because mask is partitioned with all 0 bits preceding
+		 * all 1 bits, the loop terminates immediately.
 		 */
 		num_shifts--;
 		range_ext = range1 + ((count1 >> num_shifts) & 1);
@@ -691,9 +691,22 @@ blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 	}
 
 	/* Discard any candidates that appear before blk. */
-	mask &= (u_daddr_t)-1 << (blk & BLIST_BMAP_MASK);
-	if (mask == 0)
-		return (SWAPBLK_NONE);
+	if ((blk & BLIST_BMAP_MASK) != 0) {
+		cursor_mask = mask & bitrange(0, blk & BLIST_BMAP_MASK);
+		if (cursor_mask != 0) {
+			mask ^= cursor_mask;
+			if (mask == 0)
+				return (SWAPBLK_NONE);
+
+			/*
+			 * Bighint change for last block allocation cannot
+			 * assume that any other blocks are allocated, so the
+			 * bighint cannot be reduced much.
+			 */
+			range1 = BLIST_MAX_ALLOC - 1;
+		}
+		blk &= ~BLIST_BMAP_MASK;
+	}
 
 	/*
 	 * The least significant set bit in mask marks the start of the first
@@ -734,7 +747,7 @@ blst_leaf_alloc(blmeta_t *scan, daddr_t blk, int count)
 	}
 	/* Clear the allocated bits from this leaf. */
 	scan->bm_bitmap &= ~mask;
-	return ((blk & ~BLIST_BMAP_MASK) + lo);
+	return (blk + lo);
 }
 
 /*

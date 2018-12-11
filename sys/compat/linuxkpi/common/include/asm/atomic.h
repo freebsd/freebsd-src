@@ -128,15 +128,7 @@ atomic_clear_mask(unsigned int mask, atomic_t *v)
 static inline int
 atomic_xchg(atomic_t *v, int i)
 {
-#if !defined(__mips__)
 	return (atomic_swap_int(&v->counter, i));
-#else
-	int ret = atomic_read(v);
-
-	while (!atomic_fcmpset_int(&v->counter, &ret, i))
-		;
-	return (ret);
-#endif
 }
 
 static inline int

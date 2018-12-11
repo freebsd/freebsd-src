@@ -29,7 +29,7 @@
 .\"	@(#)getfh.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2018
+.Dd December 11, 2018
 .Dt GETFH 2
 .Os
 .Sh NAME
@@ -76,12 +76,12 @@ and
 .Fn lgetfh
 except when the
 .Fa path
-specifies a relative or NULL path, or the
+specifies a relative path, or the
 .Dv AT_BENEATH
 flag is provided.
 For
 .Fn getfhat
-and relative or NULL
+and relative
 .Fa path ,
 the status is retrieved from a file relative to
 the directory associated with the file descriptor
