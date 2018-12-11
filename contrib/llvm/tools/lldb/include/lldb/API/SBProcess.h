@@ -98,10 +98,10 @@ public:
   lldb::SBThread GetSelectedThread() const;
 
   //------------------------------------------------------------------
-  // Function for lazily creating a thread using the current OS
-  // plug-in. This function will be removed in the future when there
-  // are APIs to create SBThread objects through the interface and add
-  // them to the process through the SBProcess API.
+  // Function for lazily creating a thread using the current OS plug-in. This
+  // function will be removed in the future when there are APIs to create
+  // SBThread objects through the interface and add them to the process through
+  // the SBProcess API.
   //------------------------------------------------------------------
   lldb::SBThread CreateOSPluginThread(lldb::tid_t tid, lldb::addr_t context);
 
@@ -312,6 +312,40 @@ public:
   uint32_t LoadImage(const lldb::SBFileSpec &local_image_spec,
                      const lldb::SBFileSpec &remote_image_spec,
                      lldb::SBError &error);
+
+  //------------------------------------------------------------------
+  /// Load a shared library into this process, starting with a
+  /// library name and a list of paths, searching along the list of
+  /// paths till you find a matching library.
+  ///
+  /// @param[in] local_spec
+  ///     The name of the shared library that you want to load.  
+  ///     If local_spec is a relative path, the relative path will be
+  ///     appended to the search paths.
+  ///     If the local_spec is an absolute path, just the basename is used.
+  ///
+  /// @param[in] paths
+  ///     A list of paths to search for the library whose basename is 
+  ///     local_spec.
+  ///
+  /// @param[out] loaded_path
+  ///     If the library was found along the paths, this will store the
+  ///     full path to the found library.
+  ///
+  /// @param[out] error
+  ///     An error object that gets filled in with any errors that
+  ///     might occur when trying to search for the shared library.
+  ///
+  /// @return
+  ///     A token that represents the shared library that can be
+  ///     later passed to UnloadImage. A value of
+  ///     LLDB_INVALID_IMAGE_TOKEN will be returned if the shared
+  ///     library can't be opened.
+  //------------------------------------------------------------------
+  uint32_t LoadImageUsingPaths(const lldb::SBFileSpec &image_spec,
+                               SBStringList &paths,
+                               lldb::SBFileSpec &loaded_path, 
+                               lldb::SBError &error);
 
   lldb::SBError UnloadImage(uint32_t image_token);
 

@@ -129,6 +129,7 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR, BlockSym &Block) {
 }
 
 Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR, Thunk32Sym &Thunk) {
+  W.printString("Name", Thunk.Name);
   W.printNumber("Parent", Thunk.Parent);
   W.printNumber("End", Thunk.End);
   W.printNumber("Next", Thunk.Next);
@@ -607,6 +608,12 @@ Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
 Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR, UDTSym &UDT) {
   printTypeIndex("Type", UDT.Type);
   W.printString("UDTName", UDT.Name);
+  return Error::success();
+}
+
+Error CVSymbolDumperImpl::visitKnownRecord(CVSymbol &CVR,
+                                           UsingNamespaceSym &UN) {
+  W.printString("Namespace", UN.Name);
   return Error::success();
 }
 

@@ -129,7 +129,19 @@ lldb::ValueType ValueObjectSynthetic::GetValueType() const {
 }
 
 void ValueObjectSynthetic::CreateSynthFilter() {
-  m_synth_filter_ap = (m_synth_sp->GetFrontEnd(*m_parent));
+  ValueObject *valobj_for_frontend = m_parent;
+  if (m_synth_sp->WantsDereference())
+  {
+    CompilerType type = m_parent->GetCompilerType();
+    if (type.IsValid() && type.IsPointerOrReferenceType())
+    {
+      Status error;
+      lldb::ValueObjectSP deref_sp = m_parent->Dereference(error);
+      if (error.Success())
+        valobj_for_frontend = deref_sp.get();
+    }
+  }
+  m_synth_filter_ap = (m_synth_sp->GetFrontEnd(*valobj_for_frontend));
   if (!m_synth_filter_ap.get())
     m_synth_filter_ap = llvm::make_unique<DummySyntheticFrontEnd>(*m_parent);
 }
@@ -171,10 +183,9 @@ bool ValueObjectSynthetic::UpdateValue() {
     m_children_byindex.Clear();
     m_name_toindex.Clear();
     // usually, an object's value can change but this does not alter its
-    // children count
-    // for a synthetic VO that might indeed happen, so we need to tell the upper
-    // echelons
-    // that they need to come back to us asking for children
+    // children count for a synthetic VO that might indeed happen, so we need
+    // to tell the upper echelons that they need to come back to us asking for
+    // children
     m_children_count_valid = false;
     m_synthetic_children_cache.Clear();
     m_synthetic_children_count = UINT32_MAX;

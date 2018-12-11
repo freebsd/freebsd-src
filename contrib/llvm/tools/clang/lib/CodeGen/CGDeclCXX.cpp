@@ -27,9 +27,9 @@ using namespace CodeGen;
 static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
                          ConstantAddress DeclPtr) {
   assert(D.hasGlobalStorage() && "VarDecl must have global storage!");
-  assert(!D.getType()->isReferenceType() && 
+  assert(!D.getType()->isReferenceType() &&
          "Should not call EmitDeclInit on a reference!");
-  
+
   QualType type = D.getType();
   LValue lv = CGF.MakeAddrLValue(DeclPtr, type);
 
@@ -53,7 +53,8 @@ static void EmitDeclInit(CodeGenFunction &CGF, const VarDecl &D,
   case TEK_Aggregate:
     CGF.EmitAggExpr(Init, AggValueSlot::forLValue(lv,AggValueSlot::IsDestructed,
                                           AggValueSlot::DoesNotNeedGCBarriers,
-                                                  AggValueSlot::IsNotAliased));
+                                                  AggValueSlot::IsNotAliased,
+                                                  AggValueSlot::DoesNotOverlap));
     return;
   }
   llvm_unreachable("bad evaluation kind");
@@ -66,7 +67,7 @@ static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
   CodeGenModule &CGM = CGF.CGM;
 
   // FIXME:  __attribute__((cleanup)) ?
-  
+
   QualType type = D.getType();
   QualType::DestructionKind dtorKind = type.isDestructedType();
 
@@ -79,6 +80,7 @@ static void EmitDeclDestroy(CodeGenFunction &CGF, const VarDecl &D,
 
   case QualType::DK_objc_strong_lifetime:
   case QualType::DK_objc_weak_lifetime:
+  case QualType::DK_nontrivial_c_struct:
     // We don't care about releasing objects during process teardown.
     assert(!D.getTLSKind() && "should have rejected this");
     return;
@@ -217,7 +219,7 @@ llvm::Constant *CodeGenFunction::createAtExitStub(const VarDecl &VD,
   CGF.StartFunction(&VD, CGM.getContext().VoidTy, fn, FI, FunctionArgList());
 
   llvm::CallInst *call = CGF.Builder.CreateCall(dtor, addr);
- 
+
  // Make sure the call and the callee agree on calling convention.
   if (llvm::Function *dtorFn =
         dyn_cast<llvm::Function>(dtor->stripPointerCasts()))
@@ -234,7 +236,10 @@ void CodeGenFunction::registerGlobalDtorWithAtExit(const VarDecl &VD,
                                                    llvm::Constant *addr) {
   // Create a function which calls the destructor.
   llvm::Constant *dtorStub = createAtExitStub(VD, dtor, addr);
+  registerGlobalDtorWithAtExit(dtorStub);
+}
 
+void CodeGenFunction::registerGlobalDtorWithAtExit(llvm::Constant *dtorStub) {
   // extern "C" int atexit(void (*f)(void));
   llvm::FunctionType *atexitTy =
     llvm::FunctionType::get(IntTy, dtorStub->getType(), false);
@@ -311,7 +316,7 @@ llvm::Function *CodeGenModule::CreateGlobalInitOrDestructFunction(
       Fn->setSection(Section);
   }
 
-  SetInternalFunctionAttributes(nullptr, Fn, FI);
+  SetInternalFunctionAttributes(GlobalDecl(), Fn, FI);
 
   Fn->setCallingConv(getRuntimeCC());
 
@@ -330,6 +335,10 @@ llvm::Function *CodeGenModule::CreateGlobalInitOrDestructFunction(
       !isInSanitizerBlacklist(SanitizerKind::HWAddress, Fn, Loc))
     Fn->addFnAttr(llvm::Attribute::SanitizeHWAddress);
 
+  if (getLangOpts().Sanitize.has(SanitizerKind::KernelHWAddress) &&
+      !isInSanitizerBlacklist(SanitizerKind::KernelHWAddress, Fn, Loc))
+    Fn->addFnAttr(llvm::Attribute::SanitizeHWAddress);
+
   if (getLangOpts().Sanitize.has(SanitizerKind::Thread) &&
       !isInSanitizerBlacklist(SanitizerKind::Thread, Fn, Loc))
     Fn->addFnAttr(llvm::Attribute::SanitizeThread);
@@ -341,6 +350,10 @@ llvm::Function *CodeGenModule::CreateGlobalInitOrDestructFunction(
   if (getLangOpts().Sanitize.has(SanitizerKind::SafeStack) &&
       !isInSanitizerBlacklist(SanitizerKind::SafeStack, Fn, Loc))
     Fn->addFnAttr(llvm::Attribute::SafeStack);
+
+  if (getLangOpts().Sanitize.has(SanitizerKind::ShadowCallStack) &&
+      !isInSanitizerBlacklist(SanitizerKind::ShadowCallStack, Fn, Loc))
+    Fn->addFnAttr(llvm::Attribute::ShadowCallStack);
 
   return Fn;
 }
@@ -376,6 +389,10 @@ CodeGenModule::EmitCXXGlobalVarDeclInitFunc(const VarDecl *D,
   if (getLangOpts().CUDA && getLangOpts().CUDAIsDevice &&
       (D->hasAttr<CUDADeviceAttr>() || D->hasAttr<CUDAConstantAttr>() ||
        D->hasAttr<CUDASharedAttr>()))
+    return;
+
+  if (getLangOpts().OpenMP &&
+      getOpenMPRuntime().emitDeclareTargetVarDefinition(D, Addr, PerformInit))
     return;
 
   // Check if we've already initialized this decl.
@@ -471,7 +488,7 @@ CodeGenModule::EmitCXXGlobalInitFunc() {
   // Create our global initialization function.
   if (!PrioritizedCXXGlobalInits.empty()) {
     SmallVector<llvm::Function *, 8> LocalCXXGlobalInits;
-    llvm::array_pod_sort(PrioritizedCXXGlobalInits.begin(), 
+    llvm::array_pod_sort(PrioritizedCXXGlobalInits.begin(),
                          PrioritizedCXXGlobalInits.end());
     // Iterate over "chunks" of ctors with same priority and emit each chunk
     // into separate function. Note - everything is sorted first by priority,
@@ -667,8 +684,8 @@ llvm::Function *CodeGenFunction::generateDestroyHelper(
   StartFunction(VD, getContext().VoidTy, fn, FI, args);
 
   emitDestroy(addr, type, destroyer, useEHCleanupForArray);
-  
+
   FinishFunction();
-  
+
   return fn;
 }

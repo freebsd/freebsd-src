@@ -37,7 +37,7 @@ class TypeLocBuilder {
   /// The last type pushed on this builder.
   QualType LastTy;
 #endif
-    
+
   /// The inline buffer.
   enum { BufferMaxAlignment = alignof(void *) };
   llvm::AlignedCharArray<BufferMaxAlignment, InlineCapacity> InlineBuffer;
@@ -81,16 +81,16 @@ class TypeLocBuilder {
 #endif
     Index = Capacity;
     NumBytesAtAlign4 = NumBytesAtAlign8 = 0;
-  }  
+  }
 
-  /// \brief Tell the TypeLocBuilder that the type it is storing has been
+  /// Tell the TypeLocBuilder that the type it is storing has been
   /// modified in some safe way that doesn't affect type-location information.
   void TypeWasModifiedSafely(QualType T) {
 #ifndef NDEBUG
     LastTy = T;
 #endif
   }
-  
+
   /// Pushes space for a new TypeLoc of the given type.  Invalidates
   /// any TypeLocs previously retrieved from this builder.
   template <class TyLocType> TyLocType push(QualType T) {
@@ -112,13 +112,13 @@ class TypeLocBuilder {
     return DI;
   }
 
-  /// \brief Copies the type-location information to the given AST context and 
+  /// Copies the type-location information to the given AST context and
   /// returns a \c TypeLoc referring into the AST context.
   TypeLoc getTypeLocInContext(ASTContext &Context, QualType T) {
 #ifndef NDEBUG
     assert(T == LastTy && "type doesn't match last type pushed!");
 #endif
-    
+
     size_t FullDataSize = Capacity - Index;
     void *Mem = Context.Allocate(FullDataSize);
     memcpy(Mem, &Buffer[Index], FullDataSize);
@@ -132,10 +132,10 @@ private:
   /// Grow to the given capacity.
   void grow(size_t NewCapacity);
 
-  /// \brief Retrieve a temporary TypeLoc that refers into this \c TypeLocBuilder
+  /// Retrieve a temporary TypeLoc that refers into this \c TypeLocBuilder
   /// object.
   ///
-  /// The resulting \c TypeLoc should only be used so long as the 
+  /// The resulting \c TypeLoc should only be used so long as the
   /// \c TypeLocBuilder is active and has not had more type information
   /// pushed into it.
   TypeLoc getTemporaryTypeLoc(QualType T) {

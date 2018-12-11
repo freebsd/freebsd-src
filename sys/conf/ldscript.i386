@@ -140,9 +140,9 @@ SECTIONS
   }
   .data1          : { *(.data1) }
   _edata = .; PROVIDE (edata = .);
-  __bss_start = .;
   .bss            :
   {
+   __bss_start = .;
    *(.dynbss)
    *(.bss .bss.* .gnu.linkonce.b.*)
    *(COMMON)
@@ -152,6 +152,7 @@ SECTIONS
       FIXME: Why do we need it? When there is no .bss section, we don't
       pad the .data section.  */
    . = ALIGN(. != 0 ? 32 / 8 : 1);
+   __bss_end = .;
   }
   . = ALIGN(32 / 8);
   . = ALIGN(32 / 8);

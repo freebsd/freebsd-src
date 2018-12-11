@@ -22,12 +22,10 @@ using namespace clang;
 /// ParseCXXInlineMethodDef - We parsed and verified that the specified
 /// Declarator is a well formed C++ inline method definition. Now lex its body
 /// and store its tokens for parsing after the C++ class is complete.
-NamedDecl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
-                                      AttributeList *AccessAttrs,
-                                      ParsingDeclarator &D,
-                                      const ParsedTemplateInfo &TemplateInfo,
-                                      const VirtSpecifiers& VS,
-                                      SourceLocation PureSpecLoc) {
+NamedDecl *Parser::ParseCXXInlineMethodDef(
+    AccessSpecifier AS, ParsedAttributes &AccessAttrs, ParsingDeclarator &D,
+    const ParsedTemplateInfo &TemplateInfo, const VirtSpecifiers &VS,
+    SourceLocation PureSpecLoc) {
   assert(D.isFunctionDeclarator() && "This isn't a function declarator!");
   assert(Tok.isOneOf(tok::l_brace, tok::colon, tok::kw_try, tok::equal) &&
          "Current token not a '{', ':', '=', or 'try'!");
@@ -312,6 +310,8 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
     Actions.ActOnDelayedCXXMethodParameter(getCurScope(), Param);
     std::unique_ptr<CachedTokens> Toks = std::move(LM.DefaultArgs[I].Toks);
     if (Toks) {
+      ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
       // Mark the end of the default argument so that we know when to stop when
       // we parse it later on.
       Token LastDefaultArgToken = Toks->back();
@@ -384,6 +384,8 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
 
   // Parse a delayed exception-specification, if there is one.
   if (CachedTokens *Toks = LM.ExceptionSpecTokens) {
+    ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
     // Add the 'stop' token.
     Token LastExceptionSpecToken = Toks->back();
     Token ExceptionSpecEnd;
@@ -489,6 +491,8 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
     ++CurTemplateDepthTracker;
   }
 
+  ParenBraceBracketBalancer BalancerRAIIObj(*this);
+
   assert(!LM.Toks.empty() && "Empty body!");
   Token LastBodyToken = LM.Toks.back();
   Token BodyEnd;
@@ -586,9 +590,9 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
 
   if (!Class.LateParsedDeclarations.empty()) {
     // C++11 [expr.prim.general]p4:
-    //   Otherwise, if a member-declarator declares a non-static data member 
+    //   Otherwise, if a member-declarator declares a non-static data member
     //  (9.2) of a class X, the expression this is a prvalue of type "pointer
-    //  to X" within the optional brace-or-equal-initializer. It shall not 
+    //  to X" within the optional brace-or-equal-initializer. It shall not
     //  appear elsewhere in the member-declarator.
     Sema::CXXThisScopeRAII ThisScope(Actions, Class.TagOrTemplate,
                                      /*TypeQuals=*/(unsigned)0);
@@ -597,7 +601,7 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
       Class.LateParsedDeclarations[i]->ParseLexedMemberInitializers();
     }
   }
-  
+
   if (!AlreadyHasClassScope)
     Actions.ActOnFinishDelayedMemberDeclarations(getCurScope(),
                                                  Class.TagOrTemplate);
@@ -608,6 +612,8 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
 void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
   if (!MI.Field || MI.Field->isInvalidDecl())
     return;
+
+  ParenBraceBracketBalancer BalancerRAIIObj(*this);
 
   // Append the current token at the end of the new token stream so that it
   // doesn't get lost.
@@ -621,7 +627,7 @@ void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
 
   Actions.ActOnStartCXXInClassMemberInitializer();
 
-  ExprResult Init = ParseCXXMemberInitializer(MI.Field, /*IsFunction=*/false, 
+  ExprResult Init = ParseCXXMemberInitializer(MI.Field, /*IsFunction=*/false,
                                               EqualLoc);
 
   Actions.ActOnFinishCXXInClassMemberInitializer(MI.Field, EqualLoc,
@@ -733,7 +739,7 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
   }
 }
 
-/// \brief Consume tokens and store them in the passed token container until
+/// Consume tokens and store them in the passed token container until
 /// we've passed the try keyword and constructor initializers and have consumed
 /// the opening brace of the function body. The opening brace will be consumed
 /// if and only if there was no error.
@@ -937,7 +943,7 @@ bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
   }
 }
 
-/// \brief Consume and store tokens from the '?' to the ':' in a conditional
+/// Consume and store tokens from the '?' to the ':' in a conditional
 /// expression.
 bool Parser::ConsumeAndStoreConditional(CachedTokens &Toks) {
   // Consume '?'.
@@ -962,7 +968,7 @@ bool Parser::ConsumeAndStoreConditional(CachedTokens &Toks) {
   return true;
 }
 
-/// \brief A tentative parsing action that can also revert token annotations.
+/// A tentative parsing action that can also revert token annotations.
 class Parser::UnannotatedTentativeParsingAction : public TentativeParsingAction {
 public:
   explicit UnannotatedTentativeParsingAction(Parser &Self,

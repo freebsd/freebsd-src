@@ -16,24 +16,46 @@
 #define LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SVALBUILDER_H
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/AST/Type.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/BasicValueFactory.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState_Fwd.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/SymExpr.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
+#include "llvm/ADT/ImmutableList.h"
+#include "llvm/ADT/Optional.h"
+#include <cstdint>
 
 namespace clang {
 
+class BlockDecl;
 class CXXBoolLiteralExpr;
+class CXXMethodDecl;
+class CXXRecordDecl;
+class DeclaratorDecl;
+class FunctionDecl;
+class LocationContext;
+class StackFrameContext;
+class Stmt;
 
 namespace ento {
 
+class ConditionTruthVal;
+class ProgramStateManager;
+class StoreRef;
+
 class SValBuilder {
   virtual void anchor();
+
 protected:
   ASTContext &Context;
-  
+
   /// Manager of APSInt values.
   BasicValueFactory BasicVals;
 
@@ -47,7 +69,7 @@ protected:
 
   /// The scalar type to use for array indices.
   const QualType ArrayIndexTy;
-  
+
   /// The width of the scalar type used for array indices.
   const unsigned ArrayIndexWidth;
 
@@ -62,14 +84,12 @@ public:
 public:
   SValBuilder(llvm::BumpPtrAllocator &alloc, ASTContext &context,
               ProgramStateManager &stateMgr)
-    : Context(context), BasicVals(context, alloc),
-      SymMgr(context, BasicVals, alloc),
-      MemMgr(context, alloc),
-      StateMgr(stateMgr),
-      ArrayIndexTy(context.LongLongTy),
-      ArrayIndexWidth(context.getTypeSize(ArrayIndexTy)) {}
+      : Context(context), BasicVals(context, alloc),
+        SymMgr(context, BasicVals, alloc), MemMgr(context, alloc),
+        StateMgr(stateMgr), ArrayIndexTy(context.LongLongTy),
+        ArrayIndexWidth(context.getTypeSize(ArrayIndexTy)) {}
 
-  virtual ~SValBuilder() {}
+  virtual ~SValBuilder() = default;
 
   bool haveSameType(const SymExpr *Sym1, const SymExpr *Sym2) {
     return haveSameType(Sym1->getType(), Sym2->getType());
@@ -117,14 +137,19 @@ public:
   /// that represents the same value, but is hopefully easier to work with
   /// than the original SVal.
   virtual SVal simplifySVal(ProgramStateRef State, SVal Val) = 0;
-  
+
   /// Constructs a symbolic expression for two non-location values.
   SVal makeSymExprValNN(ProgramStateRef state, BinaryOperator::Opcode op,
                       NonLoc lhs, NonLoc rhs, QualType resultTy);
 
   SVal evalBinOp(ProgramStateRef state, BinaryOperator::Opcode op,
                  SVal lhs, SVal rhs, QualType type);
-  
+
+  /// \return Whether values in \p lhs and \p rhs are equal at \p state.
+  ConditionTruthVal areEqual(ProgramStateRef state, SVal lhs, SVal rhs);
+
+  SVal evalEQ(ProgramStateRef state, SVal lhs, SVal rhs);
+
   DefinedOrUnknownSVal evalEQ(ProgramStateRef state, DefinedOrUnknownSVal lhs,
                               DefinedOrUnknownSVal rhs);
 
@@ -132,11 +157,11 @@ public:
   const ASTContext &getContext() const { return Context; }
 
   ProgramStateManager &getStateManager() { return StateMgr; }
-  
+
   QualType getConditionType() const {
     return Context.getLangOpts().CPlusPlus ? Context.BoolTy : Context.IntTy;
   }
-  
+
   QualType getArrayIndexType() const {
     return ArrayIndexTy;
   }
@@ -173,7 +198,7 @@ public:
   /// Make a unique symbol for value of region.
   DefinedOrUnknownSVal getRegionValueSymbolVal(const TypedValueRegion *region);
 
-  /// \brief Create a new symbol with a unique 'name'.
+  /// Create a new symbol with a unique 'name'.
   ///
   /// We resort to conjured symbols when we cannot construct a derived symbol.
   /// The advantage of symbols derived/built from other symbols is that we
@@ -188,12 +213,12 @@ public:
                                         const LocationContext *LCtx,
                                         QualType type,
                                         unsigned count);
-  
   DefinedOrUnknownSVal conjureSymbolVal(const Stmt *stmt,
                                         const LocationContext *LCtx,
                                         QualType type,
                                         unsigned visitCount);
-  /// \brief Conjure a symbol representing heap allocated memory region.
+
+  /// Conjure a symbol representing heap allocated memory region.
   ///
   /// Note, the expression should represent a location.
   DefinedOrUnknownSVal getConjuredHeapSymbolVal(const Expr *E,
@@ -212,7 +237,7 @@ public:
   DefinedSVal getMemberPointer(const DeclaratorDecl *DD);
 
   DefinedSVal getFunctionPointer(const FunctionDecl *func);
-  
+
   DefinedSVal getBlockPointer(const BlockDecl *block, CanQualType locTy,
                               const LocationContext *locContext,
                               unsigned blockCount);
@@ -227,7 +252,7 @@ public:
     return nonloc::CompoundVal(BasicVals.getCompoundValData(type, vals));
   }
 
-  NonLoc makeLazyCompoundVal(const StoreRef &store, 
+  NonLoc makeLazyCompoundVal(const StoreRef &store,
                              const TypedValueRegion *region) {
     return nonloc::LazyCompoundVal(
         BasicVals.getLazyCompoundValData(store, region));
@@ -304,7 +329,7 @@ public:
   NonLoc makeNonLoc(const SymExpr *lhs, BinaryOperator::Opcode op,
                     const SymExpr *rhs, QualType type);
 
-  /// \brief Create a NonLoc value for cast.
+  /// Create a NonLoc value for cast.
   NonLoc makeNonLoc(const SymExpr *operand, QualType fromTy, QualType toTy);
 
   nonloc::ConcreteInt makeTruthVal(bool b, QualType type) {
@@ -342,6 +367,15 @@ public:
     return loc::ConcreteInt(BasicVals.getValue(integer));
   }
 
+  /// Make an SVal that represents the given symbol. This follows the convention
+  /// of representing Loc-type symbols (symbolic pointers and references)
+  /// as Loc values wrapping the symbol rather than as plain symbol values.
+  SVal makeSymbolVal(SymbolRef Sym) {
+    if (Loc::isLocType(Sym->getType()))
+      return makeLoc(Sym);
+    return nonloc::SymbolVal(Sym);
+  }
+
   /// Return a memory region for the 'this' object reference.
   loc::MemRegionVal getCXXThis(const CXXMethodDecl *D,
                                const StackFrameContext *SFC);
@@ -355,8 +389,8 @@ SValBuilder* createSimpleSValBuilder(llvm::BumpPtrAllocator &alloc,
                                      ASTContext &context,
                                      ProgramStateManager &stateMgr);
 
-} // end GR namespace
+} // namespace ento
 
-} // end clang namespace
+} // namespace clang
 
-#endif
+#endif // LLVM_CLANG_STATICANALYZER_CORE_PATHSENSITIVE_SVALBUILDER_H

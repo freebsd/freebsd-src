@@ -45,14 +45,16 @@ namespace llvm {
 /// SystemZHazardRecognizer maintains the state for one MBB during scheduling.
 class SystemZHazardRecognizer : public ScheduleHazardRecognizer {
 
-#ifndef NDEBUG
   const SystemZInstrInfo *TII;
-#endif
   const TargetSchedModel *SchedModel;
 
   /// Keep track of the number of decoder slots used in the current
   /// decoder group.
   unsigned CurrGroupSize;
+
+  /// True if an instruction with four reg operands have been scheduled into
+  /// the current decoder group.
+  bool CurrGroupHas4RegOps;
 
   /// The tracking of resources here are quite similar to the common
   /// code use of a critical resource. However, z13 differs in the way
@@ -73,11 +75,16 @@ class SystemZHazardRecognizer : public ScheduleHazardRecognizer {
   /// Return true if MI fits into current decoder group.
   bool fitsIntoCurrentGroup(SUnit *SU) const;
 
+  /// Return true if this instruction has four register operands.
+  bool has4RegOps(const MachineInstr *MI) const;
+
   /// Two decoder groups per cycle are formed (for z13), meaning 2x3
   /// instructions. This function returns a number between 0 and 5,
-  /// representing the current decoder slot of the current cycle.
-  unsigned getCurrCycleIdx();
-  
+  /// representing the current decoder slot of the current cycle.  If an SU
+  /// is passed which will begin a new decoder group, the returned value is
+  /// the cycle index of the next group.
+  unsigned getCurrCycleIdx(SUnit *SU = nullptr) const;
+
   /// LastFPdOpCycleIdx stores the numbeer returned by getCurrCycleIdx()
   /// when a stalling operation is scheduled (which uses the FPd resource).
   unsigned LastFPdOpCycleIdx;
@@ -88,14 +95,14 @@ class SystemZHazardRecognizer : public ScheduleHazardRecognizer {
   unsigned getCurrGroupSize() {return CurrGroupSize;};
 
   /// Start next decoder group.
-  void nextGroup(bool DbgOutput = true);
+  void nextGroup();
 
   /// Clear all counters for processor resources.
   void clearProcResCounters();
 
   /// With the goal of alternating processor sides for stalling (FPd)
   /// ops, return true if it seems good to schedule an FPd op next.
-  bool isFPdOpPreferred_distance(const SUnit *SU);
+  bool isFPdOpPreferred_distance(SUnit *SU) const;
 
   /// Last emitted instruction or nullptr.
   MachineInstr *LastEmittedMI;
@@ -103,11 +110,7 @@ class SystemZHazardRecognizer : public ScheduleHazardRecognizer {
 public:
   SystemZHazardRecognizer(const SystemZInstrInfo *tii,
                           const TargetSchedModel *SM)
-      :
-#ifndef NDEBUG
-        TII(tii),
-#endif
-        SchedModel(SM) {
+      : TII(tii), SchedModel(SM) {
     Reset();
   }
 
@@ -132,7 +135,7 @@ public:
   /// new decoder group, this is negative if this fits the schedule or
   /// positive if it would mean ending a group prematurely. For normal
   /// instructions this returns 0.
-  int groupingCost(SUnit *SU) const; 
+  int groupingCost(SUnit *SU) const;
 
   /// Return the cost of SU in regards to processor resources usage.
   /// A positive value means it would be better to wait with SU, while
@@ -145,6 +148,7 @@ public:
   void dumpSU(SUnit *SU, raw_ostream &OS) const;
   void dumpCurrGroup(std::string Msg = "") const;
   void dumpProcResourceCounters() const;
+  void dumpState() const;
 #endif
 
   MachineBasicBlock::iterator getLastEmittedMI() { return LastEmittedMI; }

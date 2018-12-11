@@ -42,8 +42,10 @@ public:
   virtual StringRef getDebugFrameSection() const { return ""; }
   virtual StringRef getEHFrameSection() const { return ""; }
   virtual const DWARFSection &getLineSection() const { return Dummy; }
+  virtual StringRef getLineStringSection() const { return ""; }
   virtual StringRef getStringSection() const { return ""; }
   virtual const DWARFSection &getRangeSection() const { return Dummy; }
+  virtual const DWARFSection &getRnglistsSection() const { return Dummy; }
   virtual StringRef getMacinfoSection() const { return ""; }
   virtual StringRef getPubNamesSection() const { return ""; }
   virtual StringRef getPubTypesSection() const { return ""; }
@@ -61,12 +63,14 @@ public:
     return Dummy;
   }
   virtual const DWARFSection &getRangeDWOSection() const { return Dummy; }
+  virtual const DWARFSection &getRnglistsDWOSection() const { return Dummy; }
   virtual const DWARFSection &getAddrSection() const { return Dummy; }
   virtual const DWARFSection &getAppleNamesSection() const { return Dummy; }
   virtual const DWARFSection &getAppleTypesSection() const { return Dummy; }
   virtual const DWARFSection &getAppleNamespacesSection() const {
     return Dummy;
   }
+  virtual const DWARFSection &getDebugNamesSection() const { return Dummy; }
   virtual const DWARFSection &getAppleObjCSection() const { return Dummy; }
   virtual StringRef getCUIndexSection() const { return ""; }
   virtual StringRef getGdbIndexSection() const { return ""; }

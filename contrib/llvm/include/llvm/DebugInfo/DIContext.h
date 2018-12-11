@@ -31,6 +31,7 @@ namespace llvm {
 struct DILineInfo {
   std::string FileName;
   std::string FunctionName;
+  Optional<StringRef> Source;
   uint32_t Line = 0;
   uint32_t Column = 0;
   uint32_t StartLine = 0;
@@ -153,12 +154,15 @@ enum DIDumpType : unsigned {
 struct DIDumpOptions {
   unsigned DumpType = DIDT_All;
   unsigned RecurseDepth = -1U;
+  uint16_t Version = 0; // DWARF version to assume when extracting.
+  uint8_t AddrSize = 4; // Address byte size to assume when extracting.
   bool ShowAddresses = true;
   bool ShowChildren = false;
   bool ShowParents = false;
   bool ShowForm = false;
   bool SummarizeTypes = false;
   bool Verbose = false;
+  bool DisplayRawContents = false;
 
   /// Return default option set for printing a single DIE without children.
   static DIDumpOptions getForSingleDIE() {
