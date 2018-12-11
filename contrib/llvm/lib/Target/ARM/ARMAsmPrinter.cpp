@@ -117,7 +117,7 @@ bool ARMAsmPrinter::runOnMachineFunction(MachineFunction &MF) {
   // globals from all functions in PromotedGlobals.
   for (auto *GV : AFI->getGlobalsPromotedToConstantPool())
     PromotedGlobals.insert(GV);
-  
+
   // Calculate this function's optimization goal.
   unsigned OptimizationGoal;
   if (F.hasFnAttribute(Attribute::OptimizeNone))
@@ -233,6 +233,15 @@ void ARMAsmPrinter::printOperand(const MachineInstr *MI, int OpNum,
     GetCPISymbol(MO.getIndex())->print(O, MAI);
     break;
   }
+}
+
+MCSymbol *ARMAsmPrinter::GetCPISymbol(unsigned CPID) const {
+  // The AsmPrinter::GetCPISymbol superclass method tries to use CPID as
+  // indexes in MachineConstantPool, which isn't in sync with indexes used here.
+  const DataLayout &DL = getDataLayout();
+  return OutContext.getOrCreateSymbol(Twine(DL.getPrivateGlobalPrefix()) +
+                                      "CPI" + Twine(getFunctionNumber()) + "_" +
+                                      Twine(CPID));
 }
 
 //===--------------------------------------------------------------------===//
@@ -358,8 +367,9 @@ bool ARMAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNum,
 
       unsigned NumVals = InlineAsm::getNumOperandRegisters(Flags);
       unsigned RC;
-      InlineAsm::hasRegClassConstraint(Flags, RC);
-      if (RC == ARM::GPRPairRegClassID) {
+      const TargetRegisterInfo *TRI = MF->getSubtarget().getRegisterInfo();
+      if (InlineAsm::hasRegClassConstraint(Flags, RC) &&
+          ARM::GPRPairRegClass.hasSubClassEq(TRI->getRegClass(RC))) {
         if (NumVals != 1)
           return true;
         const MachineOperand &MO = MI->getOperand(OpNum);
@@ -543,29 +553,6 @@ void ARMAsmPrinter::EmitEndOfAsmFile(Module &M) {
     // linker can safely perform dead code stripping.  Since LLVM never
     // generates code that does this, it is always safe to set.
     OutStreamer->EmitAssemblerFlag(MCAF_SubsectionsViaSymbols);
-  }
-
-  if (TT.isOSBinFormatCOFF()) {
-    const auto &TLOF =
-        static_cast<const TargetLoweringObjectFileCOFF &>(getObjFileLowering());
-
-    std::string Flags;
-    raw_string_ostream OS(Flags);
-
-    for (const auto &Function : M)
-      TLOF.emitLinkerFlagsForGlobal(OS, &Function);
-    for (const auto &Global : M.globals())
-      TLOF.emitLinkerFlagsForGlobal(OS, &Global);
-    for (const auto &Alias : M.aliases())
-      TLOF.emitLinkerFlagsForGlobal(OS, &Alias);
-
-    OS.flush();
-
-    // Output collected flags
-    if (!Flags.empty()) {
-      OutStreamer->SwitchSection(TLOF.getDrectveSection());
-      OutStreamer->EmitBytes(Flags);
-    }
   }
 
   // The last attribute to be emitted is ABI_optimization_goals
@@ -1004,7 +991,7 @@ void ARMAsmPrinter::EmitJumpTableTBInst(const MachineInstr *MI,
 
   if (Subtarget->isThumb1Only())
     EmitAlignment(2);
-  
+
   MCSymbol *JTISymbol = GetARMJTIPICJumpTableLabel(JTI);
   OutStreamer->EmitLabel(JTISymbol);
 
@@ -1086,6 +1073,8 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
     unsigned StartOp = 2 + 2;
     // Use all the operands.
     unsigned NumOffset = 0;
+    // Amount of SP adjustment folded into a push.
+    unsigned Pad = 0;
 
     switch (Opc) {
     default:
@@ -1107,6 +1096,16 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
         // temporary to workaround PR11902.
         if (MO.isImplicit())
           continue;
+        // Registers, pushed as a part of folding an SP update into the
+        // push instruction are marked as undef and should not be
+        // restored when unwinding, because the function can modify the
+        // corresponding stack slots.
+        if (MO.isUndef()) {
+          assert(RegList.empty() &&
+                 "Pad registers must come before restored ones");
+          Pad += 4;
+          continue;
+        }
         RegList.push_back(MO.getReg());
       }
       break;
@@ -1118,8 +1117,12 @@ void ARMAsmPrinter::EmitUnwindingInstruction(const MachineInstr *MI) {
       RegList.push_back(SrcReg);
       break;
     }
-    if (MAI->getExceptionHandlingType() == ExceptionHandling::ARM)
+    if (MAI->getExceptionHandlingType() == ExceptionHandling::ARM) {
       ATS.emitRegSave(RegList, Opc == ARM::VSTMDDB_UPD);
+      // Account for the SP adjustment, folded into the push.
+      if (Pad)
+        ATS.emitPad(Pad);
+    }
   } else {
     // Changes of stack / frame pointer.
     if (SrcReg == ARM::SP) {

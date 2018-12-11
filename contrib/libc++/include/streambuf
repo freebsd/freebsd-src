@@ -132,6 +132,9 @@ public:
     typedef typename traits_type::pos_type pos_type;
     typedef typename traits_type::off_type off_type;
 
+    static_assert((is_same<_CharT, typename traits_type::char_type>::value),
+                  "traits_type::char_type must be the same type as CharT");
+
     virtual ~basic_streambuf();
 
     // 27.6.2.2.1 locales:
@@ -233,9 +236,9 @@ protected:
     void swap(basic_streambuf& __rhs);
 
     // 27.6.2.3.2 Get area:
-    _LIBCPP_ALWAYS_INLINE char_type* eback() const {return __binp_;}
-    _LIBCPP_ALWAYS_INLINE char_type* gptr()  const {return __ninp_;}
-    _LIBCPP_ALWAYS_INLINE char_type* egptr() const {return __einp_;}
+    _LIBCPP_INLINE_VISIBILITY char_type* eback() const {return __binp_;}
+    _LIBCPP_INLINE_VISIBILITY char_type* gptr()  const {return __ninp_;}
+    _LIBCPP_INLINE_VISIBILITY char_type* egptr() const {return __einp_;}
 
     inline _LIBCPP_EXTERN_TEMPLATE_INLINE_VISIBILITY
     void gbump(int __n) { __ninp_ += __n; }
@@ -248,14 +251,14 @@ protected:
     }
 
     // 27.6.2.3.3 Put area:
-    _LIBCPP_ALWAYS_INLINE char_type* pbase() const {return __bout_;}
-    _LIBCPP_ALWAYS_INLINE char_type* pptr()  const {return __nout_;}
-    _LIBCPP_ALWAYS_INLINE char_type* epptr() const {return __eout_;}
+    _LIBCPP_INLINE_VISIBILITY char_type* pbase() const {return __bout_;}
+    _LIBCPP_INLINE_VISIBILITY char_type* pptr()  const {return __nout_;}
+    _LIBCPP_INLINE_VISIBILITY char_type* epptr() const {return __eout_;}
 
     inline _LIBCPP_EXTERN_TEMPLATE_INLINE_VISIBILITY
     void pbump(int __n) { __nout_ += __n; }
 
-    _LIBCPP_ALWAYS_INLINE
+    _LIBCPP_INLINE_VISIBILITY
     void __pbump(streamsize __n) { __nout_ += __n; }
 
     inline _LIBCPP_EXTERN_TEMPLATE_INLINE_VISIBILITY

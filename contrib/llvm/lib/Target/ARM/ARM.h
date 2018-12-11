@@ -15,6 +15,7 @@
 #ifndef LLVM_LIB_TARGET_ARM_ARM_H
 #define LLVM_LIB_TARGET_ARM_ARM_H
 
+#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Support/CodeGen.h"
 #include <functional>
 #include <vector>
@@ -35,11 +36,14 @@ class MachineInstr;
 class MCInst;
 class PassRegistry;
 
+
+Pass *createARMParallelDSPPass();
 FunctionPass *createARMISelDag(ARMBaseTargetMachine &TM,
                                CodeGenOpt::Level OptLevel);
 FunctionPass *createA15SDOptimizerPass();
 FunctionPass *createARMLoadStoreOptimizationPass(bool PreAlloc = false);
 FunctionPass *createARMExpandPseudoPass();
+FunctionPass *createARMCodeGenPreparePass();
 FunctionPass *createARMConstantIslandPass();
 FunctionPass *createMLxExpansionPass();
 FunctionPass *createThumb2ITBlockPass();
@@ -57,8 +61,11 @@ void computeBlockSize(MachineFunction *MF, MachineBasicBlock *MBB,
                       BasicBlockInfo &BBI);
 std::vector<BasicBlockInfo> computeAllBlockSizes(MachineFunction *MF);
 
+
+void initializeARMParallelDSPPass(PassRegistry &);
 void initializeARMLoadStoreOptPass(PassRegistry &);
 void initializeARMPreAllocLoadStoreOptPass(PassRegistry &);
+void initializeARMCodeGenPreparePass(PassRegistry &);
 void initializeARMConstantIslandsPass(PassRegistry &);
 void initializeARMExpandPseudoPass(PassRegistry &);
 void initializeThumb2SizeReducePass(PassRegistry &);

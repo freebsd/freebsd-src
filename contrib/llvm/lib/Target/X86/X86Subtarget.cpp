@@ -68,14 +68,36 @@ X86Subtarget::classifyGlobalReference(const GlobalValue *GV) const {
 
 unsigned char
 X86Subtarget::classifyLocalReference(const GlobalValue *GV) const {
-  // 64 bits can use %rip addressing for anything local.
-  if (is64Bit())
-    return X86II::MO_NO_FLAG;
-
-  // If this is for a position dependent executable, the static linker can
-  // figure it out.
+  // If we're not PIC, it's not very interesting.
   if (!isPositionIndependent())
     return X86II::MO_NO_FLAG;
+
+  if (is64Bit()) {
+    // 64-bit ELF PIC local references may use GOTOFF relocations.
+    if (isTargetELF()) {
+      switch (TM.getCodeModel()) {
+      // 64-bit small code model is simple: All rip-relative.
+      case CodeModel::Small:
+      case CodeModel::Kernel:
+        return X86II::MO_NO_FLAG;
+
+      // The large PIC code model uses GOTOFF.
+      case CodeModel::Large:
+        return X86II::MO_GOTOFF;
+
+      // Medium is a hybrid: RIP-rel for code, GOTOFF for DSO local data.
+      case CodeModel::Medium:
+        if (isa<Function>(GV))
+          return X86II::MO_NO_FLAG; // All code is RIP-relative
+        return X86II::MO_GOTOFF;    // Local symbols use GOTOFF.
+      }
+      llvm_unreachable("invalid code model");
+    }
+
+    // Otherwise, this is either a RIP-relative reference or a 64-bit movabsq,
+    // both of which use MO_NO_FLAG.
+    return X86II::MO_NO_FLAG;
+  }
 
   // The COFF dynamic linker just patches the executable sections.
   if (isTargetCOFF())
@@ -97,8 +119,8 @@ X86Subtarget::classifyLocalReference(const GlobalValue *GV) const {
 
 unsigned char X86Subtarget::classifyGlobalReference(const GlobalValue *GV,
                                                     const Module &M) const {
-  // Large model never uses stubs.
-  if (TM.getCodeModel() == CodeModel::Large)
+  // The static large model never uses stubs.
+  if (TM.getCodeModel() == CodeModel::Large && !isPositionIndependent())
     return X86II::MO_NO_FLAG;
 
   // Absolute symbols can be referenced directly.
@@ -120,8 +142,14 @@ unsigned char X86Subtarget::classifyGlobalReference(const GlobalValue *GV,
   if (isTargetCOFF())
     return X86II::MO_DLLIMPORT;
 
-  if (is64Bit())
+  if (is64Bit()) {
+    // ELF supports a large, truly PIC code model with non-PC relative GOT
+    // references. Other object file formats do not. Use the no-flag, 64-bit
+    // reference for them.
+    if (TM.getCodeModel() == CodeModel::Large)
+      return isTargetELF() ? X86II::MO_GOT : X86II::MO_NO_FLAG;
     return X86II::MO_GOTPCREL;
+  }
 
   if (isTargetDarwin()) {
     if (!isPositionIndependent())
@@ -157,8 +185,11 @@ X86Subtarget::classifyGlobalFunctionReference(const GlobalValue *GV,
       // In Regcall calling convention those registers are used for passing
       // parameters. Thus we need to prevent lazy binding in Regcall.
       return X86II::MO_GOTPCREL;
-    if (F && F->hasFnAttribute(Attribute::NonLazyBind) && is64Bit())
-      return X86II::MO_GOTPCREL;
+    // If PLT must be avoided then the call should be via GOTPCREL.
+    if (((F && F->hasFnAttribute(Attribute::NonLazyBind)) ||
+         (!F && M.getRtLibUseGOT())) &&
+        is64Bit())
+       return X86II::MO_GOTPCREL;
     return X86II::MO_PLT;
   }
 
@@ -216,8 +247,6 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   // micro-architectures respectively.
   if (hasSSE42() || hasSSE4A())
     IsUAMem16Slow = false;
-  
-  InstrItins = getInstrItineraryForCPU(CPUName);
 
   // It's important to keep the MCSubtargetInfo feature bits in sync with
   // target data structure which is shared with MC code emitter, etc.
@@ -230,9 +259,9 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
   else
     llvm_unreachable("Not 16-bit, 32-bit or 64-bit mode!");
 
-  DEBUG(dbgs() << "Subtarget features: SSELevel " << X86SSELevel
-               << ", 3DNowLevel " << X863DNowLevel
-               << ", 64bit " << HasX86_64 << "\n");
+  LLVM_DEBUG(dbgs() << "Subtarget features: SSELevel " << X86SSELevel
+                    << ", 3DNowLevel " << X863DNowLevel << ", 64bit "
+                    << HasX86_64 << "\n");
   assert((!In64BitMode || HasX86_64) &&
          "64-bit code requested on a subtarget that doesn't support it!");
 
@@ -254,114 +283,30 @@ void X86Subtarget::initSubtargetFeatures(StringRef CPU, StringRef FS) {
     GatherOverhead = 2;
   if (hasAVX512())
     ScatterOverhead = 2;
-}
 
-void X86Subtarget::initializeEnvironment() {
-  X86SSELevel = NoSSE;
-  X863DNowLevel = NoThreeDNow;
-  HasX87 = false;
-  HasCMov = false;
-  HasX86_64 = false;
-  HasPOPCNT = false;
-  HasSSE4A = false;
-  HasAES = false;
-  HasVAES = false;
-  HasFXSR = false;
-  HasXSAVE = false;
-  HasXSAVEOPT = false;
-  HasXSAVEC = false;
-  HasXSAVES = false;
-  HasPCLMUL = false;
-  HasVPCLMULQDQ = false;
-  HasGFNI = false;
-  HasFMA = false;
-  HasFMA4 = false;
-  HasXOP = false;
-  HasTBM = false;
-  HasLWP = false;
-  HasMOVBE = false;
-  HasRDRAND = false;
-  HasF16C = false;
-  HasFSGSBase = false;
-  HasLZCNT = false;
-  HasBMI = false;
-  HasBMI2 = false;
-  HasVBMI = false;
-  HasVBMI2 = false;
-  HasIFMA = false;
-  HasRTM = false;
-  HasERI = false;
-  HasCDI = false;
-  HasPFI = false;
-  HasDQI = false;
-  HasVPOPCNTDQ = false;
-  HasBWI = false;
-  HasVLX = false;
-  HasADX = false;
-  HasPKU = false;
-  HasVNNI = false;
-  HasBITALG = false;
-  HasSHA = false;
-  HasPREFETCHWT1 = false;
-  HasPRFCHW = false;
-  HasRDSEED = false;
-  HasLAHFSAHF = false;
-  HasMWAITX = false;
-  HasCLZERO = false;
-  HasMPX = false;
-  HasSHSTK = false;
-  HasIBT = false;
-  HasSGX = false;
-  HasCLFLUSHOPT = false;
-  HasCLWB = false;
-  UseRetpoline = false;
-  UseRetpolineExternalThunk = false;
-  IsPMULLDSlow = false;
-  IsSHLDSlow = false;
-  IsUAMem16Slow = false;
-  IsUAMem32Slow = false;
-  HasSSEUnalignedMem = false;
-  HasCmpxchg16b = false;
-  UseLeaForSP = false;
-  HasFastVariableShuffle = false;
-  HasFastPartialYMMorZMMWrite = false;
-  HasFastGather = false;
-  HasFastScalarFSQRT = false;
-  HasFastVectorFSQRT = false;
-  HasFastLZCNT = false;
-  HasFastSHLDRotate = false;
-  HasMacroFusion = false;
-  HasERMSB = false;
-  HasSlowDivide32 = false;
-  HasSlowDivide64 = false;
-  PadShortFunctions = false;
-  SlowTwoMemOps = false;
-  LEAUsesAG = false;
-  SlowLEA = false;
-  Slow3OpsLEA = false;
-  SlowIncDec = false;
-  stackAlignment = 4;
-  // FIXME: this is a known good value for Yonah. How about others?
-  MaxInlineSizeThreshold = 128;
-  UseSoftFloat = false;
-  X86ProcFamily = Others;
-  GatherOverhead = 1024;
-  ScatterOverhead = 1024;
+  // Consume the vector width attribute or apply any target specific limit.
+  if (PreferVectorWidthOverride)
+    PreferVectorWidth = PreferVectorWidthOverride;
+  else if (Prefer256Bit)
+    PreferVectorWidth = 256;
 }
 
 X86Subtarget &X86Subtarget::initializeSubtargetDependencies(StringRef CPU,
                                                             StringRef FS) {
-  initializeEnvironment();
   initSubtargetFeatures(CPU, FS);
   return *this;
 }
 
 X86Subtarget::X86Subtarget(const Triple &TT, StringRef CPU, StringRef FS,
                            const X86TargetMachine &TM,
-                           unsigned StackAlignOverride)
-    : X86GenSubtargetInfo(TT, CPU, FS), X86ProcFamily(Others),
+                           unsigned StackAlignOverride,
+                           unsigned PreferVectorWidthOverride,
+                           unsigned RequiredVectorWidth)
+    : X86GenSubtargetInfo(TT, CPU, FS),
       PICStyle(PICStyles::None), TM(TM), TargetTriple(TT),
       StackAlignOverride(StackAlignOverride),
+      PreferVectorWidthOverride(PreferVectorWidthOverride),
+      RequiredVectorWidth(RequiredVectorWidth),
       In64BitMode(TargetTriple.getArch() == Triple::x86_64),
       In32BitMode(TargetTriple.getArch() == Triple::x86 &&
                   TargetTriple.getEnvironment() != Triple::CODE16),

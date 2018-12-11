@@ -259,7 +259,7 @@ namespace __sanitizer {
   || defined(__x86_64__)
 #define SIZEOF_STRUCT_USTAT 32
 #elif defined(__arm__) || defined(__i386__) || defined(__mips__) \
-  || defined(__powerpc__) || defined(__s390__)
+  || defined(__powerpc__) || defined(__s390__) || defined(__sparc__)
 #define SIZEOF_STRUCT_USTAT 20
 #else
 #error Unknown size of struct ustat
@@ -1037,6 +1037,16 @@ CHECK_SIZE_AND_OFFSET(cmsghdr, cmsg_len);
 CHECK_SIZE_AND_OFFSET(cmsghdr, cmsg_level);
 CHECK_SIZE_AND_OFFSET(cmsghdr, cmsg_type);
 
+#ifndef __GLIBC_PREREQ
+#define __GLIBC_PREREQ(x, y) 0
+#endif
+
+#if SANITIZER_LINUX && (__ANDROID_API__ >= 21 || __GLIBC_PREREQ (2, 14))
+CHECK_TYPE_SIZE(mmsghdr);
+CHECK_SIZE_AND_OFFSET(mmsghdr, msg_hdr);
+CHECK_SIZE_AND_OFFSET(mmsghdr, msg_len);
+#endif
+
 COMPILER_CHECK(sizeof(__sanitizer_dirent) <= sizeof(dirent));
 CHECK_SIZE_AND_OFFSET(dirent, d_ino);
 #if SANITIZER_MAC
@@ -1072,9 +1082,6 @@ COMPILER_CHECK(sizeof(__sanitizer_sigaction) == sizeof(struct sigaction));
 // Can't write checks for sa_handler and sa_sigaction due to them being
 // preprocessor macros.
 CHECK_STRUCT_SIZE_AND_OFFSET(sigaction, sa_mask);
-#ifndef __GLIBC_PREREQ
-#define __GLIBC_PREREQ(x, y) 0
-#endif
 #if !defined(__s390x__) || __GLIBC_PREREQ (2, 20)
 // On s390x glibc 2.19 and earlier sa_flags was unsigned long, and sa_resv
 // didn't exist.

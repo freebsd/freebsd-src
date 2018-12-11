@@ -81,7 +81,7 @@ void arcmt::writeARCDiagsToPlist(const std::string &outPath,
 
   for (ArrayRef<StoredDiagnostic>::iterator
          DI = diags.begin(), DE = diags.end(); DI != DE; ++DI) {
-    
+
     const StoredDiagnostic &D = *DI;
 
     if (D.getLevel() == DiagnosticsEngine::Ignored)
@@ -107,8 +107,7 @@ void arcmt::writeARCDiagsToPlist(const std::string &outPath,
       o << "   <key>ranges</key>\n";
       o << "   <array>\n";
       for (auto &R : D.getRanges()) {
-        CharSourceRange ExpansionRange(SM.getExpansionRange(R.getAsRange()),
-                                       R.isTokenRange());
+        CharSourceRange ExpansionRange = SM.getExpansionRange(R);
         EmitRange(o, SM, Lexer::getAsCharRange(ExpansionRange, SM, LangOpts),
                   FM, 4);
       }

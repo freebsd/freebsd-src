@@ -14,8 +14,9 @@
 
 #include "sanitizer_common/sanitizer_platform.h"
 
-// asan_fuchsia.cc has its own InitializeShadowMemory implementation.
-#if !SANITIZER_FUCHSIA
+// asan_fuchsia.cc and asan_rtems.cc have their own
+// InitializeShadowMemory implementation.
+#if !SANITIZER_FUCHSIA && !SANITIZER_RTEMS
 
 #include "asan_internal.h"
 #include "asan_mapping.h"
@@ -30,8 +31,7 @@ void ReserveShadowMemoryRange(uptr beg, uptr end, const char *name) {
   CHECK_EQ(((end + 1) % GetMmapGranularity()), 0);
   uptr size = end - beg + 1;
   DecreaseTotalMmap(size);  // Don't count the shadow against mmap_limit_mb.
-  void *res = MmapFixedNoReserve(beg, size, name);
-  if (res != (void *)beg) {
+  if (!MmapFixedNoReserve(beg, size, name)) {
     Report(
         "ReserveShadowMemoryRange failed while trying to map 0x%zx bytes. "
         "Perhaps you're using ulimit -v\n",
@@ -162,4 +162,4 @@ void InitializeShadowMemory() {
 
 }  // namespace __asan
 
-#endif  // !SANITIZER_FUCHSIA
+#endif  // !SANITIZER_FUCHSIA && !SANITIZER_RTEMS

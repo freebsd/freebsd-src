@@ -120,8 +120,7 @@ private:
   /// The bug visitor which allows us to print extra diagnostics along the
   /// BugReport path. For example, showing the allocation site of the leaked
   /// region.
-  class SecKeychainBugVisitor
-    : public BugReporterVisitorImpl<SecKeychainBugVisitor> {
+  class SecKeychainBugVisitor : public BugReporterVisitor {
   protected:
     // The allocated region symbol tracked by the main analysis.
     SymbolRef Sym;
@@ -202,7 +201,7 @@ static bool isBadDeallocationArgument(const MemRegion *Arg) {
 static SymbolRef getAsPointeeSymbol(const Expr *Expr,
                                     CheckerContext &C) {
   ProgramStateRef State = C.getState();
-  SVal ArgV = State->getSVal(Expr, C.getLocationContext());
+  SVal ArgV = C.getSVal(Expr);
 
   if (Optional<loc::MemRegionVal> X = ArgV.getAs<loc::MemRegionVal>()) {
     StoreManager& SM = C.getStoreManager();
@@ -297,7 +296,7 @@ void MacOSKeychainAPIChecker::checkPreStmt(const CallExpr *CE,
 
   // Check the argument to the deallocator.
   const Expr *ArgExpr = CE->getArg(paramIdx);
-  SVal ArgSVal = State->getSVal(ArgExpr, C.getLocationContext());
+  SVal ArgSVal = C.getSVal(ArgExpr);
 
   // Undef is reported by another checker.
   if (ArgSVal.isUndef())
@@ -426,8 +425,7 @@ void MacOSKeychainAPIChecker::checkPostStmt(const CallExpr *CE,
     // allocated value symbol, since our diagnostics depend on the value
     // returned by the call. Ex: Data should only be freed if noErr was
     // returned during allocation.)
-    SymbolRef RetStatusSymbol =
-      State->getSVal(CE, C.getLocationContext()).getAsSymbol();
+    SymbolRef RetStatusSymbol = C.getSVal(CE).getAsSymbol();
     C.getSymbolManager().addSymbolDependency(V, RetStatusSymbol);
 
     // Track the allocated value in the checker state.

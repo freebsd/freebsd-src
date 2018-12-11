@@ -1,4 +1,4 @@
-//===--- HTMLDiagnostics.cpp - HTML Diagnostics for Paths ----*- C++ -*-===//
+//===- HTMLDiagnostics.cpp - HTML Diagnostics for Paths -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,24 +11,43 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
+#include "clang/AST/Stmt.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Lex/Token.h"
 #include "clang/Rewrite/Core/HTMLRewrite.h"
 #include "clang/Rewrite/Core/Rewriter.h"
+#include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
-#include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/IssueHash.h"
 #include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include <algorithm>
+#include <cassert>
+#include <map>
+#include <memory>
+#include <set>
 #include <sstream>
+#include <string>
+#include <system_error>
+#include <utility>
+#include <vector>
 
 using namespace clang;
 using namespace ento;
@@ -41,15 +60,19 @@ namespace {
 
 class HTMLDiagnostics : public PathDiagnosticConsumer {
   std::string Directory;
-  bool createdDir, noDir;
+  bool createdDir = false;
+  bool noDir = false;
   const Preprocessor &PP;
   AnalyzerOptions &AnalyzerOpts;
   const bool SupportsCrossFileDiagnostics;
+
 public:
   HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts,
                   const std::string& prefix,
                   const Preprocessor &pp,
-                  bool supportsMultipleFiles);
+                  bool supportsMultipleFiles)
+      : Directory(prefix), PP(pp), AnalyzerOpts(AnalyzerOpts),
+        SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
 
   ~HTMLDiagnostics() override { FlushDiagnostics(nullptr); }
 
@@ -94,20 +117,13 @@ public:
 
   /// \return Javascript for navigating the HTML report using j/k keys.
   std::string generateKeyboardNavigationJavascript();
+
+private:
+  /// \return Javascript for displaying shortcuts help;
+  std::string showHelpJavascript();
 };
 
-} // end anonymous namespace
-
-HTMLDiagnostics::HTMLDiagnostics(AnalyzerOptions &AnalyzerOpts,
-                                 const std::string& prefix,
-                                 const Preprocessor &pp,
-                                 bool supportsMultipleFiles)
-    : Directory(prefix),
-      createdDir(false),
-      noDir(false),
-      PP(pp),
-      AnalyzerOpts(AnalyzerOpts),
-      SupportsCrossFileDiagnostics(supportsMultipleFiles) {}
+} // namespace
 
 void ento::createHTMLDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
                                         PathDiagnosticConsumers &C,
@@ -130,24 +146,19 @@ void ento::createHTMLSingleFileDiagnosticConsumer(AnalyzerOptions &AnalyzerOpts,
 void HTMLDiagnostics::FlushDiagnosticsImpl(
   std::vector<const PathDiagnostic *> &Diags,
   FilesMade *filesMade) {
-  for (std::vector<const PathDiagnostic *>::iterator it = Diags.begin(),
-       et = Diags.end(); it != et; ++it) {
-    ReportDiag(**it, filesMade);
-  }
+  for (const auto Diag : Diags)
+    ReportDiag(*Diag, filesMade);
 }
 
 void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
                                  FilesMade *filesMade) {
-
   // Create the HTML directory if it is missing.
   if (!createdDir) {
     createdDir = true;
     if (std::error_code ec = llvm::sys::fs::create_directories(Directory)) {
       llvm::errs() << "warning: could not create directory '"
                    << Directory << "': " << ec.message() << '\n';
-
       noDir = true;
-
       return;
     }
   }
@@ -174,7 +185,7 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
   SmallString<128> declName("unknown");
   int offsetDecl = 0;
   if (const Decl *DeclWithIssue = D.getDeclWithIssue()) {
-      if (const NamedDecl *ND = dyn_cast<NamedDecl>(DeclWithIssue))
+      if (const auto *ND = dyn_cast<NamedDecl>(DeclWithIssue))
           declName = ND->getDeclName().getAsString();
 
       if (const Stmt *Body = DeclWithIssue->getBody()) {
@@ -212,7 +223,6 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
                        << "': " << EC.message() << '\n';
           return;
       }
-
   } else {
       int i = 1;
       std::error_code EC;
@@ -228,10 +238,8 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
                    << "-" << i << ".html";
           llvm::sys::path::append(Model, Directory,
                                   filename.str());
-          EC = llvm::sys::fs::openFileForWrite(Model,
-                                               FD,
-                                               llvm::sys::fs::F_RW |
-                                               llvm::sys::fs::F_Excl);
+          EC = llvm::sys::fs::openFileForReadWrite(
+              Model, FD, llvm::sys::fs::CD_CreateNew, llvm::sys::fs::OF_None);
           if (EC && EC != llvm::errc::file_exists) {
               llvm::errs() << "warning: could not create file '" << Model
                            << "': " << EC.message() << '\n';
@@ -253,7 +261,6 @@ void HTMLDiagnostics::ReportDiag(const PathDiagnostic& D,
 
 std::string HTMLDiagnostics::GenerateHTML(const PathDiagnostic& D, Rewriter &R,
     const SourceManager& SMgr, const PathPieces& path, const char *declName) {
-
   // Rewrite source files as HTML for every new file the path crosses
   std::vector<FileID> FileIDs;
   for (auto I : path) {
@@ -309,16 +316,126 @@ std::string HTMLDiagnostics::GenerateHTML(const PathDiagnostic& D, Rewriter &R,
 
   const RewriteBuffer *Buf = R.getRewriteBufferFor(FileIDs[0]);
   if (!Buf)
-    return "";
+    return {};
 
   // Add CSS, header, and footer.
-  const FileEntry* Entry = SMgr.getFileEntryForID(FileIDs[0]);
+  FileID FID =
+      path.back()->getLocation().asLocation().getExpansionLoc().getFileID();
+  const FileEntry* Entry = SMgr.getFileEntryForID(FID);
   FinalizeHTML(D, R, SMgr, path, FileIDs[0], Entry, declName);
 
   std::string file;
   llvm::raw_string_ostream os(file);
   for (auto BI : *Buf)
     os << BI;
+
+  return os.str();
+}
+
+/// Write executed lines from \p D in JSON format into \p os.
+static void serializeExecutedLines(
+    const PathDiagnostic &D,
+    const PathPieces &path,
+    llvm::raw_string_ostream &os) {
+  // Copy executed lines from path diagnostics.
+  std::map<unsigned, std::set<unsigned>> ExecutedLines;
+  for (auto I = D.executedLines_begin(),
+            E = D.executedLines_end(); I != E; ++I) {
+    std::set<unsigned> &LinesInFile = ExecutedLines[I->first];
+    for (unsigned LineNo : I->second) {
+      LinesInFile.insert(LineNo);
+    }
+  }
+
+  // We need to include all lines for which any kind of diagnostics appears.
+  for (const auto &P : path) {
+    FullSourceLoc Loc = P->getLocation().asLocation().getExpansionLoc();
+    FileID FID = Loc.getFileID();
+    unsigned LineNo = Loc.getLineNumber();
+    ExecutedLines[FID.getHashValue()].insert(LineNo);
+  }
+
+  os << "var relevant_lines = {";
+  for (auto I = ExecutedLines.begin(),
+            E = ExecutedLines.end(); I != E; ++I) {
+    if (I != ExecutedLines.begin())
+      os << ", ";
+
+    os << "\"" << I->first << "\": {";
+    for (unsigned LineNo : I->second) {
+      if (LineNo != *(I->second.begin()))
+        os << ", ";
+
+      os << "\"" << LineNo << "\": 1";
+    }
+    os << "}";
+  }
+
+  os << "};";
+}
+
+/// \return JavaScript for an option to only show relevant lines.
+static std::string showRelevantLinesJavascript(
+      const PathDiagnostic &D, const PathPieces &path) {
+  std::string s;
+  llvm::raw_string_ostream os(s);
+  os << "<script type='text/javascript'>\n";
+  serializeExecutedLines(D, path, os);
+  os << R"<<<(
+
+var filterCounterexample = function (hide) {
+  var tables = document.getElementsByClassName("code");
+  for (var t=0; t<tables.length; t++) {
+    var table = tables[t];
+    var file_id = table.getAttribute("data-fileid");
+    var lines_in_fid = relevant_lines[file_id];
+    if (!lines_in_fid) {
+      lines_in_fid = {};
+    }
+    var lines = table.getElementsByClassName("codeline");
+    for (var i=0; i<lines.length; i++) {
+        var el = lines[i];
+        var lineNo = el.getAttribute("data-linenumber");
+        if (!lines_in_fid[lineNo]) {
+          if (hide) {
+            el.setAttribute("hidden", "");
+          } else {
+            el.removeAttribute("hidden");
+          }
+        }
+    }
+  }
+}
+
+window.addEventListener("keydown", function (event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+  if (event.key == "S") {
+    var checked = document.getElementsByName("showCounterexample")[0].checked;
+    filterCounterexample(!checked);
+    document.getElementsByName("showCounterexample")[0].checked = !checked;
+  } else {
+    return;
+  }
+  event.preventDefault();
+}, true);
+
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelector('input[name="showCounterexample"]').onchange=
+        function (event) {
+      filterCounterexample(this.checked);
+    };
+});
+</script>
+
+<form>
+    <input type="checkbox" name="showCounterexample" id="showCounterexample" />
+    <label for="showCounterexample">
+       Show only relevant lines
+    </label>
+</form>
+)<<<";
 
   return os.str();
 }
@@ -340,8 +457,14 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
   int LineNumber = path.back()->getLocation().asLocation().getExpansionLineNumber();
   int ColumnNumber = path.back()->getLocation().asLocation().getExpansionColumnNumber();
 
+  R.InsertTextBefore(SMgr.getLocForStartOfFile(FID), showHelpJavascript());
+
   R.InsertTextBefore(SMgr.getLocForStartOfFile(FID),
                      generateKeyboardNavigationJavascript());
+
+  // Checkbox and javascript for filtering the output to the counterexample.
+  R.InsertTextBefore(SMgr.getLocForStartOfFile(FID),
+                     showRelevantLinesJavascript(D, path));
 
   // Add the name of the file as an <h1> tag.
   {
@@ -379,8 +502,8 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
 
     // Output any other meta data.
 
-    for (PathDiagnostic::meta_iterator I=D.meta_begin(), E=D.meta_end();
-         I!=E; ++I) {
+    for (PathDiagnostic::meta_iterator I = D.meta_begin(), E = D.meta_end();
+         I != E; ++I) {
       os << "<tr><td></td><td>" << html::EscapeText(*I) << "</td></tr>\n";
     }
 
@@ -388,11 +511,24 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
 </table>
 <!-- REPORTSUMMARYEXTRA -->
 <h3>Annotated Source Code</h3>
-<p><span class='macro'>[?]
-  <span class='expansion'>Use j/k keys for keyboard navigation</span>
-</span></p>
+<p>Press <a href="#" onclick="toggleHelp(); return false;">'?'</a>
+   to see keyboard shortcuts</p>
+<input type="checkbox" class="spoilerhider" id="showinvocation" />
+<label for="showinvocation" >Show analyzer invocation</label>
+<div class="spoiler">clang -cc1 )<<<";
+    os << html::EscapeText(AnalyzerOpts.FullCompilerInvocation);
+    os << R"<<<(
+</div>
+<div id='tooltiphint' hidden="true">
+  <p>Keyboard shortcuts: </p>
+  <ul>
+    <li>Use 'j/k' keys for keyboard navigation</li>
+    <li>Use 'Shift+S' to show/hide relevant lines</li>
+    <li>Use '?' to toggle this window</li>
+  </ul>
+  <a href="#" onclick="toggleHelp(); return false;">Close</a>
+</div>
 )<<<";
-
     R.InsertTextBefore(SMgr.getLocForStartOfFile(FID), os.str());
   }
 
@@ -450,6 +586,34 @@ void HTMLDiagnostics::FinalizeHTML(const PathDiagnostic& D, Rewriter &R,
   html::AddHeaderFooterInternalBuiltinCSS(R, FID, Entry->getName());
 }
 
+std::string HTMLDiagnostics::showHelpJavascript() {
+  return R"<<<(
+<script type='text/javascript'>
+
+var toggleHelp = function() {
+    var hint = document.querySelector("#tooltiphint");
+    var attributeName = "hidden";
+    if (hint.hasAttribute(attributeName)) {
+      hint.removeAttribute(attributeName);
+    } else {
+      hint.setAttribute("hidden", "true");
+    }
+};
+window.addEventListener("keydown", function (event) {
+  if (event.defaultPrevented) {
+    return;
+  }
+  if (event.key == "?") {
+    toggleHelp();
+  } else {
+    return;
+  }
+  event.preventDefault();
+});
+</script>
+)<<<";
+}
+
 void HTMLDiagnostics::RewriteFile(Rewriter &R, const SourceManager& SMgr,
     const PathPieces& path, FileID FID) {
   // Process the path.
@@ -494,7 +658,6 @@ void HTMLDiagnostics::RewriteFile(Rewriter &R, const SourceManager& SMgr,
 void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
                                   const PathDiagnosticPiece& P,
                                   unsigned num, unsigned max) {
-
   // For now, just draw a box above the line in question, and emit the
   // warning.
   FullSourceLoc Pos = P.getLocation().asLocation();
@@ -634,9 +797,7 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
     os << "</td><td>";
   }
 
-  if (const PathDiagnosticMacroPiece *MP =
-        dyn_cast<PathDiagnosticMacroPiece>(&P)) {
-
+  if (const auto *MP = dyn_cast<PathDiagnosticMacroPiece>(&P)) {
     os << "Within the expansion of the macro '";
 
     // Get the name of the macro by relexing it.
@@ -707,10 +868,8 @@ void HTMLDiagnostics::HandlePiece(Rewriter& R, FileID BugFileID,
 
   // Now highlight the ranges.
   ArrayRef<SourceRange> Ranges = P.getRanges();
-  for (ArrayRef<SourceRange>::iterator I = Ranges.begin(),
-                                       E = Ranges.end(); I != E; ++I) {
-    HighlightRange(R, LPosInfo.first, *I);
-  }
+  for (const auto &Range : Ranges)
+    HighlightRange(R, LPosInfo.first, Range);
 }
 
 static void EmitAlphaCounter(raw_ostream &os, unsigned n) {
@@ -726,18 +885,13 @@ static void EmitAlphaCounter(raw_ostream &os, unsigned n) {
 unsigned HTMLDiagnostics::ProcessMacroPiece(raw_ostream &os,
                                             const PathDiagnosticMacroPiece& P,
                                             unsigned num) {
-
-  for (PathPieces::const_iterator I = P.subPieces.begin(), E=P.subPieces.end();
-        I!=E; ++I) {
-
-    if (const PathDiagnosticMacroPiece *MP =
-            dyn_cast<PathDiagnosticMacroPiece>(I->get())) {
+  for (const auto &subPiece : P.subPieces) {
+    if (const auto *MP = dyn_cast<PathDiagnosticMacroPiece>(subPiece.get())) {
       num = ProcessMacroPiece(os, *MP, num);
       continue;
     }
 
-    if (PathDiagnosticEventPiece *EP =
-            dyn_cast<PathDiagnosticEventPiece>(I->get())) {
+    if (const auto *EP = dyn_cast<PathDiagnosticEventPiece>(subPiece.get())) {
       os << "<div class=\"msg msgEvent\" style=\"width:94%; "
             "margin-left:5px\">"
             "<table class=\"msgT\"><tr>"
@@ -862,7 +1016,7 @@ window.addEventListener("keydown", function (event) {
     navigateTo(/*up=*/true);
   } else {
     return;
-  } 
+  }
   event.preventDefault();
 }, true);
 </script>

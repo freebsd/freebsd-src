@@ -16,34 +16,10 @@
 #include "clang/Frontend/MultiplexConsumer.h"
 #include "clang/AST/ASTMutationListener.h"
 #include "clang/AST/DeclGroup.h"
-#include "clang/Serialization/ASTDeserializationListener.h"
 
 using namespace clang;
 
 namespace clang {
-
-// This ASTDeserializationListener forwards its notifications to a set of
-// child listeners.
-class MultiplexASTDeserializationListener
-    : public ASTDeserializationListener {
-public:
-  // Does NOT take ownership of the elements in L.
-  MultiplexASTDeserializationListener(
-      const std::vector<ASTDeserializationListener*>& L);
-  void ReaderInitialized(ASTReader *Reader) override;
-  void IdentifierRead(serialization::IdentID ID,
-                      IdentifierInfo *II) override;
-  void MacroRead(serialization::MacroID ID, MacroInfo *MI) override;
-  void TypeRead(serialization::TypeIdx Idx, QualType T) override;
-  void DeclRead(serialization::DeclID ID, const Decl *D) override;
-  void SelectorRead(serialization::SelectorID iD, Selector Sel) override;
-  void MacroDefinitionRead(serialization::PreprocessedEntityID,
-                           MacroDefinitionRecord *MD) override;
-  void ModuleRead(serialization::SubmoduleID ID, Module *Mod) override;
-
-private:
-  std::vector<ASTDeserializationListener *> Listeners;
-};
 
 MultiplexASTDeserializationListener::MultiplexASTDeserializationListener(
       const std::vector<ASTDeserializationListener*>& L)
@@ -131,7 +107,7 @@ public:
   void DeclarationMarkedOpenMPDeclareTarget(const Decl *D,
                                             const Attr *Attr) override;
   void RedefinedHiddenDefinition(const NamedDecl *D, Module *M) override;
-  void AddedAttributeToRecord(const Attr *Attr, 
+  void AddedAttributeToRecord(const Attr *Attr,
                               const RecordDecl *Record) override;
 
 private:
@@ -243,9 +219,9 @@ void MultiplexASTMutationListener::RedefinedHiddenDefinition(const NamedDecl *D,
   for (auto *L : Listeners)
     L->RedefinedHiddenDefinition(D, M);
 }
-  
+
 void MultiplexASTMutationListener::AddedAttributeToRecord(
-                                                    const Attr *Attr, 
+                                                    const Attr *Attr,
                                                     const RecordDecl *Record) {
   for (auto *L : Listeners)
     L->AddedAttributeToRecord(Attr, Record);

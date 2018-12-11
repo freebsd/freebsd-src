@@ -37,9 +37,9 @@ class TemplateParameterList;
 // Typically, only one Add* call is needed.  clear can be called to reuse the
 // object.
 class ODRHash {
-  // Use DenseMaps to convert between Decl and Type pointers and an index value.
-  llvm::DenseMap<const Decl*, unsigned> DeclMap;
-  llvm::DenseMap<const Type*, unsigned> TypeMap;
+  // Use DenseMaps to convert from DeclarationName and Type pointers
+  // to an index value.
+  llvm::DenseMap<DeclarationName, unsigned> DeclNameMap;
 
   // Save space by processing bools at the end.
   llvm::SmallVector<bool, 128> Bools;
@@ -54,8 +54,13 @@ public:
   void AddCXXRecordDecl(const CXXRecordDecl *Record);
 
   // Use this for ODR checking functions between modules.  This method compares
+  // more information than the AddDecl class.  SkipBody will process the
+  // hash as if the function has no body.
+  void AddFunctionDecl(const FunctionDecl *Function, bool SkipBody = false);
+
+  // Use this for ODR checking enums between modules.  This method compares
   // more information than the AddDecl class.
-  void AddFunctionDecl(const FunctionDecl *Function);
+  void AddEnumDecl(const EnumDecl *Enum);
 
   // Process SubDecls of the main Decl.  This method calls the DeclVisitor
   // while AddDecl does not.
@@ -82,7 +87,7 @@ public:
   // Save booleans until the end to lower the size of data to process.
   void AddBoolean(bool value);
 
-  static bool isWhitelistedDecl(const Decl* D, const CXXRecordDecl *Record);
+  static bool isWhitelistedDecl(const Decl* D, const DeclContext *Parent);
 };
 
 }  // end namespace clang

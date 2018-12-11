@@ -97,7 +97,7 @@ public:
 
     if (castType->isObjCRetainableType() == castExprType->isObjCRetainableType())
       return true;
-    
+
     bool exprRetainable = castExprType->isObjCIndirectLifetimeType();
     bool castRetainable = castType->isObjCIndirectLifetimeType();
     if (exprRetainable == castRetainable) return true;
@@ -153,7 +153,7 @@ private:
             // Do not migrate to couple of bridge transfer casts which
             // cancel each other out. Leave it unchanged so error gets user
             // attention instead.
-            if (FD->getName() == "CFRetain" && 
+            if (FD->getName() == "CFRetain" &&
                 FD->getNumParams() == 1 &&
                 FD->getParent()->isTranslationUnit() &&
                 FD->isExternallyVisible()) {
@@ -283,13 +283,12 @@ private:
     SourceManager &SM = Pass.Ctx.getSourceManager();
     SourceLocation Loc = E->getExprLoc();
     assert(Loc.isMacroID());
-    SourceLocation MacroBegin, MacroEnd;
-    std::tie(MacroBegin, MacroEnd) = SM.getImmediateExpansionRange(Loc);
+    CharSourceRange MacroRange = SM.getImmediateExpansionRange(Loc);
     SourceRange SubRange = E->getSubExpr()->IgnoreParenImpCasts()->getSourceRange();
     SourceLocation InnerBegin = SM.getImmediateMacroCallerLoc(SubRange.getBegin());
     SourceLocation InnerEnd = SM.getImmediateMacroCallerLoc(SubRange.getEnd());
 
-    Outer = SourceRange(MacroBegin, MacroEnd);
+    Outer = MacroRange.getAsRange();
     Inner = SourceRange(InnerBegin, InnerEnd);
   }
 
