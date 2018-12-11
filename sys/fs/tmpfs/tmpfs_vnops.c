@@ -523,7 +523,7 @@ tmpfs_write(struct vop_write_args *v)
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
 	    TMPFS_NODE_CHANGED;
 	if (node->tn_mode & (S_ISUID | S_ISGID)) {
-		if (priv_check_cred(v->a_cred, PRIV_VFS_RETAINSUGID, 0))
+		if (priv_check_cred(v->a_cred, PRIV_VFS_RETAINSUGID))
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
 	}
 	if (error != 0)

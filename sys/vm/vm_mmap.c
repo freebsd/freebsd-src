@@ -979,7 +979,7 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	unsigned long nsize;
 	int error;
 
-	error = priv_check_cred(cred, PRIV_VM_MLOCK, 0);
+	error = priv_check_cred(cred, PRIV_VM_MLOCK);
 	if (error)
 		return (error);
 	addr = addr0;

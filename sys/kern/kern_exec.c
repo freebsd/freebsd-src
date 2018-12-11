@@ -786,7 +786,7 @@ interpret:
 
 #ifdef KTRACE
 		if (p->p_tracecred != NULL &&
-		    priv_check_cred(p->p_tracecred, PRIV_DEBUG_DIFFCRED, 0))
+		    priv_check_cred(p->p_tracecred, PRIV_DEBUG_DIFFCRED))
 			ktrprocexec(p, &tracecred, &tracevp);
 #endif
 		/*

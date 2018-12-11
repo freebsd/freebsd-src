@@ -419,7 +419,7 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
 	mtx_unlock(&rule_mtx);
 
 	if (error != 0 && portacl_suser_exempt != 0)
-		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT, 0);
+		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT);
 
 	return (error);
 }

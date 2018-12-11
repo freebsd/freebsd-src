@@ -171,7 +171,7 @@ fuse_internal_access(struct vnode *vp,
 		    return 0;
 	}
 	if ((mode & VADMIN) != 0) {
-		err = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+		err = priv_check_cred(cred, PRIV_VFS_ADMIN);
 		if (err) {
 			return err;
 		}

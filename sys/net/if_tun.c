@@ -204,7 +204,7 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	 * If tun cloning is enabled, only the superuser can create an
 	 * interface.
 	 */
-	if (!tundclone || priv_check_cred(cred, PRIV_NET_IFCREATE, 0) != 0)
+	if (!tundclone || priv_check_cred(cred, PRIV_NET_IFCREATE) != 0)
 		return;
 
 	if (strcmp(name, tunname) == 0) {

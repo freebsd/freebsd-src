@@ -189,7 +189,7 @@ retry:
 #endif
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
-	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
+	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE) &&
 	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
 		goto nospace;
 	if (bpref >= fs->fs_size)
@@ -284,7 +284,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 #endif /* INVARIANTS */
 	reclaimed = 0;
 retry:
-	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
+	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0) {
 		goto nospace;
 	}

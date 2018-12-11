@@ -4469,7 +4469,7 @@ privcheck:
 		 * requests, instead of PRIV_VFS_EXEC.
 		 */
 		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, 0))
+		    !priv_check_cred(cred, PRIV_VFS_LOOKUP))
 			priv_granted |= VEXEC;
 	} else {
 		/*
@@ -4479,20 +4479,20 @@ privcheck:
 		 */
 		if ((accmode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
 		    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
-		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
+		    !priv_check_cred(cred, PRIV_VFS_EXEC))
 			priv_granted |= VEXEC;
 	}
 
 	if ((accmode & VREAD) && ((dac_granted & VREAD) == 0) &&
-	    !priv_check_cred(cred, PRIV_VFS_READ, 0))
+	    !priv_check_cred(cred, PRIV_VFS_READ))
 		priv_granted |= VREAD;
 
 	if ((accmode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
-	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
+	    !priv_check_cred(cred, PRIV_VFS_WRITE))
 		priv_granted |= (VWRITE | VAPPEND);
 
 	if ((accmode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
-	    !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
+	    !priv_check_cred(cred, PRIV_VFS_ADMIN))
 		priv_granted |= VADMIN;
 
 	if ((accmode & (priv_granted | dac_granted)) == accmode) {
@@ -4527,7 +4527,7 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 	switch (attrnamespace) {
 	case EXTATTR_NAMESPACE_SYSTEM:
 		/* Potentially should be: return (EPERM); */
-		return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM, 0));
+		return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM));
 	case EXTATTR_NAMESPACE_USER:
 		return (VOP_ACCESS(vp, accmode, cred, td));
 	default:

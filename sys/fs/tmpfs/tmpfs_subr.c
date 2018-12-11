@@ -1522,7 +1522,7 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 	 * Unprivileged processes are not permitted to unset system
 	 * flags, or modify flags if any system flags are set.
 	 */
-	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
+	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS)) {
 		if (node->tn_flags &
 		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 			error = securelevel_gt(cred, 0);
@@ -1579,11 +1579,11 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 	 * process is not a member of.
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE))
 			return (EFTYPE);
 	}
 	if (!groupmember(node->tn_gid, cred) && (mode & S_ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID);
 		if (error)
 			return (error);
 	}
@@ -1649,7 +1649,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	 */
 	if ((uid != node->tn_uid ||
 	    (gid != node->tn_gid && !groupmember(gid, cred))) &&
-	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN)))
 		return (error);
 
 	ogid = node->tn_gid;
@@ -1661,7 +1661,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
 	if ((node->tn_mode & (S_ISUID | S_ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0))
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID))
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
 	}
 

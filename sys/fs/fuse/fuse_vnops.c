@@ -242,7 +242,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 	}
 	if (!(data->dataflags & FSESS_INITED)) {
 		if (vnode_isvroot(vp)) {
-			if (priv_check_cred(cred, PRIV_VFS_ADMIN, 0) ||
+			if (priv_check_cred(cred, PRIV_VFS_ADMIN) ||
 			    (fuse_match_cred(data->daemoncred, cred) == 0)) {
 				return 0;
 			}

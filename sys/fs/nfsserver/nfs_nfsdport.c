@@ -996,8 +996,7 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			if (nvap->na_type == VCHR && rdev == 0xffffffff)
 				nvap->na_type = VFIFO;
                         if (nvap->na_type != VFIFO &&
-			    (error = priv_check_cred(nd->nd_cred,
-			     PRIV_VFS_MKNOD_DEV, 0))) {
+			    (error = priv_check_cred(nd->nd_cred, PRIV_VFS_MKNOD_DEV))) {
 				vrele(ndp->ni_startdir);
 				nfsvno_relpathbuf(ndp);
 				vput(ndp->ni_dvp);
@@ -1091,7 +1090,7 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		nfsvno_relpathbuf(ndp);
 	} else {
 		if (nvap->na_type != VFIFO &&
-		    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV, 0))) {
+		    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV))) {
 			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vput(ndp->ni_dvp);
