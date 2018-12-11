@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/machdep.h>
+
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
 #include <contrib/dev/acpica/include/actables.h>
@@ -238,6 +240,10 @@ acpi_map_addr(struct acpi_generic_address *addr, bus_space_tag_t *tag,
 static void
 parse_pxm_tables(void *dummy)
 {
+
+	/* Only parse ACPI tables when booting via ACPI */
+	if (arm64_bus_method != ARM64_BUS_ACPI)
+		return;
 
 	acpi_pxm_init(MAXCPU, (vm_paddr_t)1 << 40);
 	acpi_pxm_parse_tables();
