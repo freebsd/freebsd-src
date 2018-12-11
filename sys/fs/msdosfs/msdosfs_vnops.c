@@ -378,7 +378,7 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid) {
-			error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+			error = priv_check_cred(cred, PRIV_VFS_ADMIN);
 			if (error)
 				return (error);
 		}
@@ -427,7 +427,7 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 			gid = pmp->pm_gid;
 		if (cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
 		    (gid != pmp->pm_gid && !groupmember(gid, cred))) {
-			error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
+			error = priv_check_cred(cred, PRIV_VFS_CHOWN);
 			if (error)
 				return (error);
 		}
@@ -498,7 +498,7 @@ msdosfs_setattr(struct vop_setattr_args *ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid) {
-			error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+			error = priv_check_cred(cred, PRIV_VFS_ADMIN);
 			if (error)
 				return (error);
 		}

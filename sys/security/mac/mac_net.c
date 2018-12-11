@@ -477,7 +477,7 @@ mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr, struct ifnet *ifp)
 	 * impose this check themselves if required by the policy
 	 * Eventually, this should go away.
 	 */
-	error = priv_check_cred(cred, PRIV_NET_SETIFMAC, 0);
+	error = priv_check_cred(cred, PRIV_NET_SETIFMAC);
 	if (error) {
 		mac_ifnet_label_free(intlabel);
 		return (error);

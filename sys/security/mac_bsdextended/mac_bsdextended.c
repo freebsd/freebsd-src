@@ -385,20 +385,19 @@ ugidfw_rulecheck(struct mac_bsdextended_rule *rule,
 	priv_granted = 0;
 	mac_granted = rule->mbr_mode;
 	if ((acc_mode & MBI_ADMIN) && (mac_granted & MBI_ADMIN) == 0 &&
-	    priv_check_cred(cred, PRIV_VFS_ADMIN, 0) == 0)
+	    priv_check_cred(cred, PRIV_VFS_ADMIN) == 0)
 		priv_granted |= MBI_ADMIN;
 	if ((acc_mode & MBI_EXEC) && (mac_granted & MBI_EXEC) == 0 &&
-	    priv_check_cred(cred, (vap->va_type == VDIR) ? PRIV_VFS_LOOKUP :
-	    PRIV_VFS_EXEC, 0) == 0)
+	    priv_check_cred(cred, (vap->va_type == VDIR) ? PRIV_VFS_LOOKUP : PRIV_VFS_EXEC) == 0)
 		priv_granted |= MBI_EXEC;
 	if ((acc_mode & MBI_READ) && (mac_granted & MBI_READ) == 0 &&
-	    priv_check_cred(cred, PRIV_VFS_READ, 0) == 0)
+	    priv_check_cred(cred, PRIV_VFS_READ) == 0)
 		priv_granted |= MBI_READ;
 	if ((acc_mode & MBI_STAT) && (mac_granted & MBI_STAT) == 0 &&
-	    priv_check_cred(cred, PRIV_VFS_STAT, 0) == 0)
+	    priv_check_cred(cred, PRIV_VFS_STAT) == 0)
 		priv_granted |= MBI_STAT;
 	if ((acc_mode & MBI_WRITE) && (mac_granted & MBI_WRITE) == 0 &&
-	    priv_check_cred(cred, PRIV_VFS_WRITE, 0) == 0)
+	    priv_check_cred(cred, PRIV_VFS_WRITE) == 0)
 		priv_granted |= MBI_WRITE;
 	/*
 	 * Is the access permitted?

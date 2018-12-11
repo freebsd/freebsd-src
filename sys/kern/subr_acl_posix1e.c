@@ -90,8 +90,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	priv_granted = 0;
 
 	if (type == VDIR) {
-		if ((accmode & VEXEC) && !priv_check_cred(cred,
-		     PRIV_VFS_LOOKUP, 0))
+		if ((accmode & VEXEC) && !priv_check_cred(cred, PRIV_VFS_LOOKUP))
 			priv_granted |= VEXEC;
 	} else {
 		/*
@@ -101,18 +100,18 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		 */
 		if ((accmode & VEXEC) && (acl_posix1e_acl_to_mode(acl) &
 		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
-		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
+		    !priv_check_cred(cred, PRIV_VFS_EXEC))
 			priv_granted |= VEXEC;
 	}
 
-	if ((accmode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ, 0))
+	if ((accmode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ))
 		priv_granted |= VREAD;
 
 	if (((accmode & VWRITE) || (accmode & VAPPEND)) &&
-	    !priv_check_cred(cred, PRIV_VFS_WRITE, 0))
+	    !priv_check_cred(cred, PRIV_VFS_WRITE))
 		priv_granted |= (VWRITE | VAPPEND);
 
-	if ((accmode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN, 0))
+	if ((accmode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN))
 		priv_granted |= VADMIN;
 
 	/*

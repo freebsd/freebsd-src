@@ -532,7 +532,7 @@ ufs_setattr(ap)
 		 * processes if the PR_ALLOW_CHFLAGS permission bit is set;
 		 * otherwise, they behave like unprivileged processes.
 		 */
-		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS)) {
 			if (ip->i_flags &
 			    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
@@ -725,11 +725,11 @@ ufs_chmod(vp, mode, cred, td)
 	 * jail(8).
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE))
 			return (EFTYPE);
 	}
 	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID);
 		if (error)
 			return (error);
 	}
@@ -738,7 +738,7 @@ ufs_chmod(vp, mode, cred, td)
 	 * Deny setting setuid if we are not the file owner.
 	 */
 	if ((mode & ISUID) && ip->i_uid != cred->cr_uid) {
-		error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+		error = priv_check_cred(cred, PRIV_VFS_ADMIN);
 		if (error)
 			return (error);
 	}
@@ -795,7 +795,7 @@ ufs_chown(vp, uid, gid, cred, td)
 	 */
 	if (((uid != ip->i_uid && uid != cred->cr_uid) || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
-	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN)))
 		return (error);
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
@@ -867,7 +867,7 @@ good:
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
 	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0)) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID)) {
 			ip->i_mode &= ~(ISUID | ISGID);
 			DIP_SET(ip, i_mode, ip->i_mode);
 		}
@@ -2637,7 +2637,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 	if (DOINGSOFTDEP(tvp))
 		softdep_setup_create(VTOI(dvp), ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID, 0)) {
+	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID)) {
 		ip->i_mode &= ~ISGID;
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}

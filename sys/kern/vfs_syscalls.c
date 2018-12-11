@@ -1484,13 +1484,13 @@ can_hardlink(struct vnode *vp, struct ucred *cred)
 		return (error);
 
 	if (hardlink_check_uid && cred->cr_uid != va.va_uid) {
-		error = priv_check_cred(cred, PRIV_VFS_LINK, 0);
+		error = priv_check_cred(cred, PRIV_VFS_LINK);
 		if (error != 0)
 			return (error);
 	}
 
 	if (hardlink_check_gid && !groupmember(va.va_gid, cred)) {
-		error = priv_check_cred(cred, PRIV_VFS_LINK, 0);
+		error = priv_check_cred(cred, PRIV_VFS_LINK);
 		if (error != 0)
 			return (error);
 	}

@@ -622,7 +622,7 @@ in_pcb_lport(struct inpcb *inp, struct in_addr *laddrp, u_short *lportp,
 		last  = V_ipport_hilastauto;
 		lastport = &pcbinfo->ipi_lasthi;
 	} else if (inp->inp_flags & INP_LOWPORT) {
-		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT, 0);
+		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT);
 		if (error)
 			return (error);
 		first = V_ipport_lowfirstauto;	/* 1023 */
@@ -866,12 +866,10 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 			/* GROSS */
 			if (ntohs(lport) <= V_ipport_reservedhigh &&
 			    ntohs(lport) >= V_ipport_reservedlow &&
-			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
-			    0))
+			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT))
 				return (EACCES);
 			if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)) &&
-			    priv_check_cred(inp->inp_cred,
-			    PRIV_NETINET_REUSEPORT, 0) != 0) {
+			    priv_check_cred(inp->inp_cred, PRIV_NETINET_REUSEPORT) != 0) {
 				t = in_pcblookup_local(pcbinfo, sin->sin_addr,
 				    lport, INPLOOKUP_WILDCARD, cred);
 	/*
