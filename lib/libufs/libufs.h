@@ -116,6 +116,8 @@ int	ffs_sbget(void *, struct fs **, off_t, char *,
 	    int (*)(void *, off_t, void **, int));
 int	ffs_sbput(void *, struct fs *, off_t,
 	    int (*)(void *, off_t, void *, int));
+void	ffs_update_dinode_ckhash(struct fs *, struct ufs2_dinode *);
+int	ffs_verify_dinode_ckhash(struct fs *, struct ufs2_dinode *);
 
 /*
  * Request standard superblock location in ffs_sbget

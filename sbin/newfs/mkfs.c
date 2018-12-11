@@ -499,6 +499,8 @@ restart:
 			sblock.fs_metackhash |= CK_CYLGRP;
 		if (getosreldate() >= P_OSREL_CK_SUPERBLOCK)
 			sblock.fs_metackhash |= CK_SUPERBLOCK;
+		if (getosreldate() >= P_OSREL_CK_INODE)
+			sblock.fs_metackhash |= CK_INODE;
 	}
 
 	/*

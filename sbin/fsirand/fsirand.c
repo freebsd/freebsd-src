@@ -202,6 +202,7 @@ fsirand(char *device)
 				dp1++;
 			} else {
 				dp2->di_gen = arc4random();
+				ffs_update_dinode_ckhash(sblock, dp2);
 				dp2++;
 			}
 		}
