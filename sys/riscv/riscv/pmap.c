@@ -213,8 +213,6 @@ __FBSDID("$FreeBSD$");
 LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 
-static MALLOC_DEFINE(M_VMPMAP, "pmap", "PMAP L1");
-
 struct pmap kernel_pmap_store;
 
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
