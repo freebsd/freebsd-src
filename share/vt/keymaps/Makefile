@@ -74,6 +74,7 @@ FILES=	INDEX.keymaps \
 	uk.capsctrl.kbd \
 	uk.dvorak.kbd \
 	uk.kbd \
+	uk.macbook.kbd \
 	us.acc.kbd \
 	us.ctrl.kbd \
 	us.dvorak.kbd \
