@@ -27,6 +27,7 @@
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
+#include "lldb/Interpreter/OptionArgParser.h"
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Symbol/Variable.h"
 #include "lldb/Target/Language.h"
@@ -88,7 +89,7 @@ Status CommandObjectExpression::CommandOptions::SetOptionValue(
   case 'a': {
     bool success;
     bool result;
-    result = Args::StringToBoolean(option_arg, true, &success);
+    result = OptionArgParser::ToBoolean(option_arg, true, &success);
     if (!success)
       error.SetErrorStringWithFormat(
           "invalid all-threads value setting: \"%s\"",
@@ -99,7 +100,7 @@ Status CommandObjectExpression::CommandOptions::SetOptionValue(
 
   case 'i': {
     bool success;
-    bool tmp_value = Args::StringToBoolean(option_arg, true, &success);
+    bool tmp_value = OptionArgParser::ToBoolean(option_arg, true, &success);
     if (success)
       ignore_breakpoints = tmp_value;
     else
@@ -111,7 +112,7 @@ Status CommandObjectExpression::CommandOptions::SetOptionValue(
 
   case 'j': {
     bool success;
-    bool tmp_value = Args::StringToBoolean(option_arg, true, &success);
+    bool tmp_value = OptionArgParser::ToBoolean(option_arg, true, &success);
     if (success)
       allow_jit = tmp_value;
     else
@@ -131,7 +132,7 @@ Status CommandObjectExpression::CommandOptions::SetOptionValue(
 
   case 'u': {
     bool success;
-    bool tmp_value = Args::StringToBoolean(option_arg, true, &success);
+    bool tmp_value = OptionArgParser::ToBoolean(option_arg, true, &success);
     if (success)
       unwind_on_error = tmp_value;
     else
@@ -146,8 +147,8 @@ Status CommandObjectExpression::CommandOptions::SetOptionValue(
       m_verbosity = eLanguageRuntimeDescriptionDisplayVerbosityFull;
       break;
     }
-    m_verbosity =
-        (LanguageRuntimeDescriptionDisplayVerbosity)Args::StringToOptionEnum(
+    m_verbosity = (LanguageRuntimeDescriptionDisplayVerbosity)
+        OptionArgParser::ToOptionEnum(
             option_arg, GetDefinitions()[option_idx].enum_values, 0, error);
     if (!error.Success())
       error.SetErrorStringWithFormat(
@@ -167,7 +168,7 @@ Status CommandObjectExpression::CommandOptions::SetOptionValue(
 
   case 'X': {
     bool success;
-    bool tmp_value = Args::StringToBoolean(option_arg, true, &success);
+    bool tmp_value = OptionArgParser::ToBoolean(option_arg, true, &success);
     if (success)
       auto_apply_fixits = tmp_value ? eLazyBoolYes : eLazyBoolNo;
     else
@@ -317,13 +318,13 @@ CanBeUsedForElementCountPrinting(ValueObject &valobj) {
   return Status();
 }
 
-bool CommandObjectExpression::EvaluateExpression(const char *expr,
+bool CommandObjectExpression::EvaluateExpression(llvm::StringRef expr,
                                                  Stream *output_stream,
                                                  Stream *error_stream,
                                                  CommandReturnObject *result) {
-  // Don't use m_exe_ctx as this might be called asynchronously
-  // after the command object DoExecute has finished when doing
-  // multi-line expression that use an input reader...
+  // Don't use m_exe_ctx as this might be called asynchronously after the
+  // command object DoExecute has finished when doing multi-line expression
+  // that use an input reader...
   ExecutionContext exe_ctx(m_interpreter.GetExecutionContext());
 
   Target *target = exe_ctx.GetTargetPtr();
@@ -362,8 +363,8 @@ bool CommandObjectExpression::EvaluateExpression(const char *expr,
     if (m_command_options.top_level)
       options.SetExecutionPolicy(eExecutionPolicyTopLevel);
 
-    // If there is any chance we are going to stop and want to see
-    // what went wrong with our expression, we should generate debug info
+    // If there is any chance we are going to stop and want to see what went
+    // wrong with our expression, we should generate debug info
     if (!m_command_options.ignore_breakpoints ||
         !m_command_options.unwind_on_error)
       options.SetGenerateDebugInfo(true);
@@ -474,9 +475,8 @@ bool CommandObjectExpression::IOHandlerIsInputComplete(IOHandler &io_handler,
   // An empty lines is used to indicate the end of input
   const size_t num_lines = lines.GetSize();
   if (num_lines > 0 && lines[num_lines - 1].empty()) {
-    // Remove the last empty line from "lines" so it doesn't appear
-    // in our resulting input and return true to indicate we are done
-    // getting lines
+    // Remove the last empty line from "lines" so it doesn't appear in our
+    // resulting input and return true to indicate we are done getting lines
     lines.PopBack();
     return true;
   }
@@ -508,125 +508,91 @@ void CommandObjectExpression::GetMultilineExpression() {
   debugger.PushIOHandler(io_handler_sp);
 }
 
-bool CommandObjectExpression::DoExecute(const char *command,
+bool CommandObjectExpression::DoExecute(llvm::StringRef command,
                                         CommandReturnObject &result) {
   m_fixed_expression.clear();
   auto exe_ctx = GetCommandInterpreter().GetExecutionContext();
   m_option_group.NotifyOptionParsingStarting(&exe_ctx);
 
-  const char *expr = nullptr;
-
-  if (command[0] == '\0') {
+  if (command.empty()) {
     GetMultilineExpression();
     return result.Succeeded();
   }
 
-  if (command[0] == '-') {
-    // We have some options and these options MUST end with --.
-    const char *end_options = nullptr;
-    const char *s = command;
-    while (s && s[0]) {
-      end_options = ::strstr(s, "--");
-      if (end_options) {
-        end_options += 2; // Get past the "--"
-        if (::isspace(end_options[0])) {
-          expr = end_options;
-          while (::isspace(*expr))
-            ++expr;
-          break;
-        }
-      }
-      s = end_options;
-    }
+  OptionsWithRaw args(command);
+  llvm::StringRef expr = args.GetRawPart();
 
-    if (end_options) {
-      Args args(llvm::StringRef(command, end_options - command));
-      if (!ParseOptions(args, result))
-        return false;
+  if (args.HasArgs()) {
+    if (!ParseOptionsAndNotify(args.GetArgs(), result, m_option_group, exe_ctx))
+      return false;
 
-      Status error(m_option_group.NotifyOptionParsingFinished(&exe_ctx));
-      if (error.Fail()) {
-        result.AppendError(error.AsCString());
-        result.SetStatus(eReturnStatusFailed);
-        return false;
-      }
+    if (m_repl_option.GetOptionValue().GetCurrentValue()) {
+      Target *target = m_interpreter.GetExecutionContext().GetTargetPtr();
+      if (target) {
+        // Drop into REPL
+        m_expr_lines.clear();
+        m_expr_line_count = 0;
 
-      if (m_repl_option.GetOptionValue().GetCurrentValue()) {
-        Target *target = m_interpreter.GetExecutionContext().GetTargetPtr();
-        if (target) {
-          // Drop into REPL
-          m_expr_lines.clear();
-          m_expr_line_count = 0;
+        Debugger &debugger = target->GetDebugger();
 
-          Debugger &debugger = target->GetDebugger();
+        // Check if the LLDB command interpreter is sitting on top of a REPL
+        // that launched it...
+        if (debugger.CheckTopIOHandlerTypes(IOHandler::Type::CommandInterpreter,
+                                            IOHandler::Type::REPL)) {
+          // the LLDB command interpreter is sitting on top of a REPL that
+          // launched it, so just say the command interpreter is done and
+          // fall back to the existing REPL
+          m_interpreter.GetIOHandler(false)->SetIsDone(true);
+        } else {
+          // We are launching the REPL on top of the current LLDB command
+          // interpreter, so just push one
+          bool initialize = false;
+          Status repl_error;
+          REPLSP repl_sp(target->GetREPL(repl_error, m_command_options.language,
+                                         nullptr, false));
 
-          // Check if the LLDB command interpreter is sitting on top of a REPL
-          // that
-          // launched it...
-          if (debugger.CheckTopIOHandlerTypes(
-                  IOHandler::Type::CommandInterpreter, IOHandler::Type::REPL)) {
-            // the LLDB command interpreter is sitting on top of a REPL that
-            // launched it,
-            // so just say the command interpreter is done and fall back to the
-            // existing REPL
-            m_interpreter.GetIOHandler(false)->SetIsDone(true);
-          } else {
-            // We are launching the REPL on top of the current LLDB command
-            // interpreter,
-            // so just push one
-            bool initialize = false;
-            Status repl_error;
-            REPLSP repl_sp(target->GetREPL(
-                repl_error, m_command_options.language, nullptr, false));
-
-            if (!repl_sp) {
-              initialize = true;
-              repl_sp = target->GetREPL(repl_error, m_command_options.language,
-                                        nullptr, true);
-              if (!repl_error.Success()) {
-                result.SetError(repl_error);
-                return result.Succeeded();
-              }
-            }
-
-            if (repl_sp) {
-              if (initialize) {
-                repl_sp->SetCommandOptions(m_command_options);
-                repl_sp->SetFormatOptions(m_format_options);
-                repl_sp->SetValueObjectDisplayOptions(m_varobj_options);
-              }
-
-              IOHandlerSP io_handler_sp(repl_sp->GetIOHandler());
-
-              io_handler_sp->SetIsDone(false);
-
-              debugger.PushIOHandler(io_handler_sp);
-            } else {
-              repl_error.SetErrorStringWithFormat(
-                  "Couldn't create a REPL for %s",
-                  Language::GetNameForLanguageType(m_command_options.language));
+          if (!repl_sp) {
+            initialize = true;
+            repl_sp = target->GetREPL(repl_error, m_command_options.language,
+                                      nullptr, true);
+            if (!repl_error.Success()) {
               result.SetError(repl_error);
               return result.Succeeded();
             }
           }
+
+          if (repl_sp) {
+            if (initialize) {
+              repl_sp->SetCommandOptions(m_command_options);
+              repl_sp->SetFormatOptions(m_format_options);
+              repl_sp->SetValueObjectDisplayOptions(m_varobj_options);
+            }
+
+            IOHandlerSP io_handler_sp(repl_sp->GetIOHandler());
+
+            io_handler_sp->SetIsDone(false);
+
+            debugger.PushIOHandler(io_handler_sp);
+          } else {
+            repl_error.SetErrorStringWithFormat(
+                "Couldn't create a REPL for %s",
+                Language::GetNameForLanguageType(m_command_options.language));
+            result.SetError(repl_error);
+            return result.Succeeded();
+          }
         }
       }
-      // No expression following options
-      else if (expr == nullptr || expr[0] == '\0') {
-        GetMultilineExpression();
-        return result.Succeeded();
-      }
+    }
+    // No expression following options
+    else if (expr.empty()) {
+      GetMultilineExpression();
+      return result.Succeeded();
     }
   }
 
-  if (expr == nullptr)
-    expr = command;
-
+  Target *target = GetSelectedOrDummyTarget();
   if (EvaluateExpression(expr, &(result.GetOutputStream()),
                          &(result.GetErrorStream()), &result)) {
-    Target *target = m_interpreter.GetExecutionContext().GetTargetPtr();
-    if (!target)
-        target = GetDummyTarget();
 
     if (!m_fixed_expression.empty() && target->GetEnableNotifyAboutFixIts()) {
       CommandHistory &history = m_interpreter.GetCommandHistory();
@@ -634,18 +600,21 @@ bool CommandObjectExpression::DoExecute(const char *command,
       // for expr???)
       // If we can it would be nice to show that.
       std::string fixed_command("expression ");
-      if (expr == command)
-        fixed_command.append(m_fixed_expression);
-      else {
+      if (args.HasArgs()) {
         // Add in any options that might have been in the original command:
-        fixed_command.append(command, expr - command);
+        fixed_command.append(args.GetArgStringWithDelimiter());
         fixed_command.append(m_fixed_expression);
-      }
+      } else
+        fixed_command.append(m_fixed_expression);
       history.AppendString(fixed_command);
     }
+    // Increment statistics to record this expression evaluation success.
+    target->IncrementStats(StatisticKind::ExpressionSuccessful);
     return true;
   }
 
+  // Increment statistics to record this expression evaluation failure.
+  target->IncrementStats(StatisticKind::ExpressionFailure);
   result.SetStatus(eReturnStatusFailed);
   return false;
 }

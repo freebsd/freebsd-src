@@ -68,7 +68,7 @@ public:
 
 } // namespace
 
-/// \brief Returns the alignment of the type source info data block.
+/// Returns the alignment of the type source info data block.
 unsigned TypeLoc::getLocalAlignmentForType(QualType Ty) {
   if (Ty.isNull()) return 1;
   return TypeAligner().Visit(TypeLoc(Ty, nullptr));
@@ -88,7 +88,7 @@ public:
 
 } // namespace
 
-/// \brief Returns the size of the type source info data block.
+/// Returns the size of the type source info data block.
 unsigned TypeLoc::getFullDataSizeForType(QualType Ty) {
   unsigned Total = 0;
   TypeLoc TyLoc(Ty, nullptr);
@@ -118,16 +118,16 @@ public:
 
 } // namespace
 
-/// \brief Get the next TypeLoc pointed by this TypeLoc, e.g for "int*" the
+/// Get the next TypeLoc pointed by this TypeLoc, e.g for "int*" the
 /// TypeLoc is a PointerLoc and next TypeLoc is for "int".
 TypeLoc TypeLoc::getNextTypeLocImpl(TypeLoc TL) {
   return NextLoc().Visit(TL);
 }
 
-/// \brief Initializes a type location, and all of its children
+/// Initializes a type location, and all of its children
 /// recursively, as if the entire tree had been written in the
 /// given location.
-void TypeLoc::initializeImpl(ASTContext &Context, TypeLoc TL, 
+void TypeLoc::initializeImpl(ASTContext &Context, TypeLoc TL,
                              SourceLocation Loc) {
   while (true) {
     switch (TL.getTypeLocClass()) {
@@ -254,7 +254,7 @@ SourceLocation TypeLoc::getEndLoc() const {
     case RValueReference:
     case PackExpansion:
       if (!Last)
-	Last = Cur;
+        Last = Cur;
       break;
     case Qualified:
     case Elaborated:
@@ -281,7 +281,7 @@ struct TSTChecker : public TypeLocVisitor<TSTChecker, bool> {
 
 } // namespace
 
-/// \brief Determines if the given type loc corresponds to a
+/// Determines if the given type loc corresponds to a
 /// TypeSpecTypeLoc.  Since there is not actually a TypeSpecType in
 /// the type hierarchy, this is made somewhat complicated.
 ///
@@ -317,6 +317,8 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::Char_U:
   case BuiltinType::Char_S:
     return TST_char;
+  case BuiltinType::Char8:
+    return TST_char8;
   case BuiltinType::Char16:
     return TST_char16;
   case BuiltinType::Char32:
@@ -342,9 +344,33 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::LongDouble:
   case BuiltinType::Float16:
   case BuiltinType::Float128:
+  case BuiltinType::ShortAccum:
+  case BuiltinType::Accum:
+  case BuiltinType::LongAccum:
+  case BuiltinType::UShortAccum:
+  case BuiltinType::UAccum:
+  case BuiltinType::ULongAccum:
+  case BuiltinType::ShortFract:
+  case BuiltinType::Fract:
+  case BuiltinType::LongFract:
+  case BuiltinType::UShortFract:
+  case BuiltinType::UFract:
+  case BuiltinType::ULongFract:
+  case BuiltinType::SatShortAccum:
+  case BuiltinType::SatAccum:
+  case BuiltinType::SatLongAccum:
+  case BuiltinType::SatUShortAccum:
+  case BuiltinType::SatUAccum:
+  case BuiltinType::SatULongAccum:
+  case BuiltinType::SatShortFract:
+  case BuiltinType::SatFract:
+  case BuiltinType::SatLongFract:
+  case BuiltinType::SatUShortFract:
+  case BuiltinType::SatUFract:
+  case BuiltinType::SatULongFract:
     llvm_unreachable("Builtin type needs extra local data!");
     // Fall through, if the impossible happens.
-      
+
   case BuiltinType::NullPtr:
   case BuiltinType::Overload:
   case BuiltinType::Dependent:
@@ -420,13 +446,13 @@ void ObjCTypeParamTypeLoc::initializeLocal(ASTContext &Context,
     setProtocolLoc(i, Loc);
 }
 
-void ObjCObjectTypeLoc::initializeLocal(ASTContext &Context, 
+void ObjCObjectTypeLoc::initializeLocal(ASTContext &Context,
                                         SourceLocation Loc) {
   setHasBaseTypeAsWritten(true);
   setTypeArgsLAngleLoc(Loc);
   setTypeArgsRAngleLoc(Loc);
   for (unsigned i = 0, e = getNumTypeArgs(); i != e; ++i) {
-    setTypeArgTInfo(i, 
+    setTypeArgTInfo(i,
                    Context.getTrivialTypeSourceInfo(
                      getTypePtr()->getTypeArgsAsWritten()[i], Loc));
   }
@@ -453,7 +479,7 @@ void UnaryTransformTypeLoc::initializeLocal(ASTContext &Context,
         Context.getTrivialTypeSourceInfo(getTypePtr()->getBaseType(), Loc));
 }
 
-void ElaboratedTypeLoc::initializeLocal(ASTContext &Context, 
+void ElaboratedTypeLoc::initializeLocal(ASTContext &Context,
                                         SourceLocation Loc) {
   setElaboratedKeywordLoc(Loc);
   NestedNameSpecifierLocBuilder Builder;
@@ -461,7 +487,7 @@ void ElaboratedTypeLoc::initializeLocal(ASTContext &Context,
   setQualifierLoc(Builder.getWithLocInContext(Context));
 }
 
-void DependentNameTypeLoc::initializeLocal(ASTContext &Context, 
+void DependentNameTypeLoc::initializeLocal(ASTContext &Context,
                                            SourceLocation Loc) {
   setElaboratedKeywordLoc(Loc);
   NestedNameSpecifierLocBuilder Builder;
@@ -490,14 +516,14 @@ DependentTemplateSpecializationTypeLoc::initializeLocal(ASTContext &Context,
                                                    getArgInfos(), Loc);
 }
 
-void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context, 
+void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
                                                       unsigned NumArgs,
                                                   const TemplateArgument *Args,
                                               TemplateArgumentLocInfo *ArgInfos,
                                                       SourceLocation Loc) {
   for (unsigned i = 0, e = NumArgs; i != e; ++i) {
     switch (Args[i].getKind()) {
-    case TemplateArgument::Null: 
+    case TemplateArgument::Null:
       llvm_unreachable("Impossible TemplateArgument");
 
     case TemplateArgument::Integral:
@@ -509,10 +535,10 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
     case TemplateArgument::Expression:
       ArgInfos[i] = TemplateArgumentLocInfo(Args[i].getAsExpr());
       break;
-      
+
     case TemplateArgument::Type:
       ArgInfos[i] = TemplateArgumentLocInfo(
-                          Context.getTrivialTypeSourceInfo(Args[i].getAsType(), 
+                          Context.getTrivialTypeSourceInfo(Args[i].getAsType(),
                                                            Loc));
       break;
 

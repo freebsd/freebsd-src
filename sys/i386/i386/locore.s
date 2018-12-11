@@ -120,8 +120,8 @@ NON_GPROF_ENTRY(btext)
  * inactive from now until we switch to new ones, since we don't load any
  * more segment registers or permit interrupts until after the switch.
  */
-	movl	$end,%ecx
-	movl	$edata,%edi
+	movl	$__bss_end,%ecx
+	movl	$__bss_start,%edi
 	subl	%edi,%ecx
 	xorl	%eax,%eax
 	cld

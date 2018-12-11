@@ -105,8 +105,8 @@ Context::Context()
   , racy_stacks()
   , racy_addresses()
   , fired_suppressions_mtx(MutexTypeFired, StatMtxFired)
-  , fired_suppressions(8)
   , clock_alloc("clock allocator") {
+  fired_suppressions.reserve(8);
 }
 
 // The objects are allocated in TLS, so one may rely on zero-initialization.
@@ -140,7 +140,7 @@ static void MemoryProfiler(Context *ctx, fd_t fd, int i) {
   uptr n_threads;
   uptr n_running_threads;
   ctx->thread_registry->GetNumberOfThreads(&n_threads, &n_running_threads);
-  InternalScopedBuffer<char> buf(4096);
+  InternalMmapVector<char> buf(4096);
   WriteMemoryProfile(buf.data(), buf.size(), n_threads, n_running_threads);
   WriteToFile(fd, buf.data(), internal_strlen(buf.data()));
 }
@@ -246,7 +246,8 @@ void MapShadow(uptr addr, uptr size) {
   const uptr kPageSize = GetPageSizeCached();
   uptr shadow_begin = RoundDownTo((uptr)MemToShadow(addr), kPageSize);
   uptr shadow_end = RoundUpTo((uptr)MemToShadow(addr + size), kPageSize);
-  MmapFixedNoReserve(shadow_begin, shadow_end - shadow_begin, "shadow");
+  if (!MmapFixedNoReserve(shadow_begin, shadow_end - shadow_begin, "shadow"))
+    Die();
 
   // Meta shadow is 2:1, so tread carefully.
   static bool data_mapped = false;
@@ -258,7 +259,8 @@ void MapShadow(uptr addr, uptr size) {
   if (!data_mapped) {
     // First call maps data+bss.
     data_mapped = true;
-    MmapFixedNoReserve(meta_begin, meta_end - meta_begin, "meta shadow");
+    if (!MmapFixedNoReserve(meta_begin, meta_end - meta_begin, "meta shadow"))
+      Die();
   } else {
     // Mapping continous heap.
     // Windows wants 64K alignment.
@@ -268,7 +270,8 @@ void MapShadow(uptr addr, uptr size) {
       return;
     if (meta_begin < mapped_meta_end)
       meta_begin = mapped_meta_end;
-    MmapFixedNoReserve(meta_begin, meta_end - meta_begin, "meta shadow");
+    if (!MmapFixedNoReserve(meta_begin, meta_end - meta_begin, "meta shadow"))
+      Die();
     mapped_meta_end = meta_end;
   }
   VPrintf(2, "mapped meta shadow for (%p-%p) at (%p-%p)\n",
@@ -280,10 +283,9 @@ void MapThreadTrace(uptr addr, uptr size, const char *name) {
   CHECK_GE(addr, TraceMemBeg());
   CHECK_LE(addr + size, TraceMemEnd());
   CHECK_EQ(addr, addr & ~((64 << 10) - 1));  // windows wants 64K alignment
-  uptr addr1 = (uptr)MmapFixedNoReserve(addr, size, name);
-  if (addr1 != addr) {
-    Printf("FATAL: ThreadSanitizer can not mmap thread trace (%p/%p->%p)\n",
-        addr, size, addr1);
+  if (!MmapFixedNoReserve(addr, size, name)) {
+    Printf("FATAL: ThreadSanitizer can not mmap thread trace (%p/%p)\n",
+        addr, size);
     Die();
   }
 }
@@ -354,6 +356,7 @@ void Initialize(ThreadState *thr) {
   ctx = new(ctx_placeholder) Context;
   const char *options = GetEnv(SANITIZER_GO ? "GORACE" : "TSAN_OPTIONS");
   CacheBinaryName();
+  CheckASLR();
   InitializeFlags(&ctx->flags, options);
   AvoidCVE_2016_2143();
   InitializePlatformEarly();
@@ -547,6 +550,10 @@ u32 CurrentStackId(ThreadState *thr, uptr pc) {
 }
 
 void TraceSwitch(ThreadState *thr) {
+#if !SANITIZER_GO
+  if (ctx->after_multithreaded_fork)
+    return;
+#endif
   thr->nomalloc++;
   Trace *thr_trace = ThreadTrace(thr->tid);
   Lock l(&thr_trace->mtx);
@@ -918,7 +925,8 @@ static void MemoryRangeSet(ThreadState *thr, uptr pc, uptr addr, uptr size,
     u64 *p1 = p;
     p = RoundDown(end, kPageSize);
     UnmapOrDie((void*)p1, (uptr)p - (uptr)p1);
-    MmapFixedNoReserve((uptr)p1, (uptr)p - (uptr)p1);
+    if (!MmapFixedNoReserve((uptr)p1, (uptr)p - (uptr)p1))
+      Die();
     // Set the ending.
     while (p < end) {
       *p++ = val;

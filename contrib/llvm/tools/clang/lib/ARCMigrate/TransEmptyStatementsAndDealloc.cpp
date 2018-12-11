@@ -73,7 +73,7 @@ static bool isEmptyARCMTMacroStatement(NullStmt *S,
 
 namespace {
 
-/// \brief Returns true if the statement became empty due to previous
+/// Returns true if the statement became empty due to previous
 /// transformations.
 class EmptyChecker : public StmtVisitor<EmptyChecker, bool> {
   ASTContext &Ctx;
@@ -208,7 +208,7 @@ static void cleanupDeallocOrFinalize(MigrationPass &pass) {
     for (auto *MD : I->instance_methods()) {
       if (!MD->hasBody())
         continue;
-  
+
       if (MD->getMethodFamily() == OMF_dealloc) {
         DeallocM = MD;
       } else if (MD->isInstanceMethod() && MD->getSelector() == FinalizeSel) {

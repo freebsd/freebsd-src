@@ -105,6 +105,7 @@ protected:
     ARMv81a,
     ARMv82a,
     ARMv83a,
+    ARMv84a,
     ARMv8a,
     ARMv8mBaseline,
     ARMv8mMainline,
@@ -151,6 +152,7 @@ protected:
   bool HasV8_1aOps = false;
   bool HasV8_2aOps = false;
   bool HasV8_3aOps = false;
+  bool HasV8_4aOps = false;
   bool HasV8MBaselineOps = false;
   bool HasV8MMainlineOps = false;
 
@@ -197,6 +199,9 @@ protected:
   /// DisablePostRAScheduler - False if scheduling should happen again after
   /// register allocation.
   bool DisablePostRAScheduler = false;
+
+  /// UseAA - True if using AA during codegen (DAGCombine, MISched, etc)
+  bool UseAA = false;
 
   /// HasThumb2 - True if Thumb2 instructions are supported.
   bool HasThumb2 = false;
@@ -296,6 +301,12 @@ protected:
   /// Has8MSecExt - if true, processor supports ARMv8-M Security Extensions
   bool Has8MSecExt = false;
 
+  /// HasSHA2 - if true, processor supports SHA1 and SHA256
+  bool HasSHA2 = false;
+
+  /// HasAES - if true, processor supports AES
+  bool HasAES = false;
+
   /// HasCrypto - if true, processor supports Cryptography extensions
   bool HasCrypto = false;
 
@@ -315,6 +326,10 @@ protected:
   /// HasFuseAES - if true, processor executes back to back AES instruction
   /// pairs faster.
   bool HasFuseAES = false;
+
+  /// HasFuseLiterals - if true, processor executes back to back
+  /// bottom and top halves of literal generation faster.
+  bool HasFuseLiterals = false;
 
   /// If true, if conversion may decide to leave some instructions unpredicated.
   bool IsProfitableToUnpredicate = false;
@@ -341,8 +356,11 @@ protected:
   /// If true, the AGU and NEON/FPU units are multiplexed.
   bool HasMuxedUnits = false;
 
-  /// If true, VMOVS will never be widened to VMOVD
+  /// If true, VMOVS will never be widened to VMOVD.
   bool DontWidenVMOVS = false;
+
+  /// If true, splat a register between VFP and NEON instructions.
+  bool SplatVFPToNeon = false;
 
   /// If true, run the MLx expansion pass.
   bool ExpandMLx = false;
@@ -510,6 +528,7 @@ public:
   bool hasV8_1aOps() const { return HasV8_1aOps; }
   bool hasV8_2aOps() const { return HasV8_2aOps; }
   bool hasV8_3aOps() const { return HasV8_3aOps; }
+  bool hasV8_4aOps() const { return HasV8_4aOps; }
   bool hasV8MBaselineOps() const { return HasV8MBaselineOps; }
   bool hasV8MMainlineOps() const { return HasV8MMainlineOps; }
 
@@ -535,6 +554,8 @@ public:
   bool hasVFP4() const { return HasVFPv4; }
   bool hasFPARMv8() const { return HasFPARMv8; }
   bool hasNEON() const { return HasNEON;  }
+  bool hasSHA2() const { return HasSHA2; }
+  bool hasAES() const { return HasAES; }
   bool hasCrypto() const { return HasCrypto; }
   bool hasDotProd() const { return HasDotProd; }
   bool hasCRC() const { return HasCRC; }
@@ -577,6 +598,7 @@ public:
   bool hasSlowLoadDSubregister() const { return SlowLoadDSubregister; }
   bool hasMuxedUnits() const { return HasMuxedUnits; }
   bool dontWidenVMOVS() const { return DontWidenVMOVS; }
+  bool useSplatVFPToNeon() const { return SplatVFPToNeon; }
   bool useNEONForFPMovs() const { return UseNEONForFPMovs; }
   bool checkVLDnAccessAlignment() const { return CheckVLDnAlign; }
   bool nonpipelinedVFP() const { return NonpipelinedVFP; }
@@ -598,8 +620,9 @@ public:
   bool hasFullFP16() const { return HasFullFP16; }
 
   bool hasFuseAES() const { return HasFuseAES; }
-  /// \brief Return true if the CPU supports any kind of instruction fusion.
-  bool hasFusion() const { return hasFuseAES(); }
+  bool hasFuseLiterals() const { return HasFuseLiterals; }
+  /// Return true if the CPU supports any kind of instruction fusion.
+  bool hasFusion() const { return hasFuseAES() || hasFuseLiterals(); }
 
   const Triple &getTargetTriple() const { return TargetTriple; }
 
@@ -652,13 +675,7 @@ public:
            !isTargetDarwin() && !isTargetWindows();
   }
 
-  bool isTargetHardFloat() const {
-    // FIXME: this is invalid for WindowsCE
-    return TargetTriple.getEnvironment() == Triple::GNUEABIHF ||
-           TargetTriple.getEnvironment() == Triple::MuslEABIHF ||
-           TargetTriple.getEnvironment() == Triple::EABIHF ||
-           isTargetWindows() || isAAPCS16_ABI();
-  }
+  bool isTargetHardFloat() const;
 
   bool isTargetAndroid() const { return TargetTriple.isAndroid(); }
 
@@ -722,6 +739,10 @@ public:
 
   /// True for some subtargets at > -O0.
   bool enablePostRAScheduler() const override;
+
+  /// Enable use of alias analysis during code generation (during MI
+  /// scheduling, DAGCombine, etc.).
+  bool useAA() const override { return UseAA; }
 
   // enableAtomicExpand- True if we need to expand our atomics.
   bool enableAtomicExpand() const override;

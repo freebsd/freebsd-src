@@ -80,10 +80,10 @@ bool Parser::isCXXDeclarationStatement() {
 /// (if AllowForRangeDecl specified)
 /// for ( for-range-declaration : for-range-initializer ) statement
 ///
-/// for-range-declaration: 
+/// for-range-declaration:
 ///    decl-specifier-seq declarator
 ///    decl-specifier-seq ref-qualifier[opt] '[' identifier-list ']'
-/// 
+///
 /// In any of the above cases there can be a preceding attribute-specifier-seq,
 /// but the caller is expected to handle that.
 bool Parser::isCXXSimpleDeclaration(bool AllowForRangeDecl) {
@@ -132,7 +132,7 @@ bool Parser::isCXXSimpleDeclaration(bool AllowForRangeDecl) {
   // Ok, we have a simple-type-specifier/typename-specifier followed by a '(',
   // or an identifier which doesn't resolve as anything. We need tentative
   // parsing...
- 
+
   {
     RevertingTentativeParsingAction PA(*this);
     TPR = TryParseSimpleDeclaration(AllowForRangeDecl);
@@ -236,7 +236,7 @@ Parser::TPResult Parser::TryConsumeDeclarationSpecifier() {
 ///
 /// (if AllowForRangeDecl specified)
 /// for ( for-range-declaration : for-range-initializer ) statement
-/// for-range-declaration: 
+/// for-range-declaration:
 ///    attribute-specifier-seqopt type-specifier-seq declarator
 ///
 Parser::TPResult Parser::TryParseSimpleDeclaration(bool AllowForRangeDecl) {
@@ -401,7 +401,7 @@ struct Parser::ConditionDeclarationOrInitStatementState {
   }
 };
 
-/// \brief Disambiguates between a declaration in a condition, a
+/// Disambiguates between a declaration in a condition, a
 /// simple-declaration in an init-statement, and an expression for
 /// a condition of a if/switch statement.
 ///
@@ -472,7 +472,7 @@ Parser::isCXXConditionDeclarationOrInitStatement(bool CanBeInitStatement) {
     return ConditionOrInitStatement::Expression;
 }
 
-  /// \brief Determine whether the next set of tokens contains a type-id.
+  /// Determine whether the next set of tokens contains a type-id.
   ///
   /// The context parameter states what context we're parsing right
   /// now, which affects how this routine copes with the token
@@ -553,7 +553,7 @@ bool Parser::isCXXTypeId(TentativeCXXTypeIdContext Context, bool &isAmbiguous) {
   return TPR == TPResult::True;
 }
 
-/// \brief Returns true if this is a C++11 attribute-specifier. Per
+/// Returns true if this is a C++11 attribute-specifier. Per
 /// C++11 [dcl.attr.grammar]p6, two consecutive left square bracket tokens
 /// always introduce an attribute. In Objective-C++11, this rule does not
 /// apply if either '[' begins a message-send.
@@ -873,7 +873,8 @@ Parser::TPResult Parser::TryParseOperatorId() {
 ///           template-id                                                 [TODO]
 ///
 Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
-                                            bool mayHaveIdentifier) {
+                                            bool mayHaveIdentifier,
+                                            bool mayHaveDirectInit) {
   // declarator:
   //   direct-declarator
   //   ptr-operator declarator
@@ -930,6 +931,9 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
     return TPResult::False;
   }
 
+  if (mayHaveDirectInit)
+    return TPResult::Ambiguous;
+
   while (1) {
     TPResult TPR(TPResult::Ambiguous);
 
@@ -960,7 +964,7 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
   return TPResult::Ambiguous;
 }
 
-Parser::TPResult 
+Parser::TPResult
 Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   switch (Kind) {
   // Obviously starts an expression.
@@ -1015,13 +1019,14 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___FUNCDNAME__:
   case tok::kw___FUNCSIG__:
   case tok::kw_L__FUNCTION__:
+  case tok::kw_L__FUNCSIG__:
   case tok::kw___PRETTY_FUNCTION__:
   case tok::kw___uuidof:
 #define TYPE_TRAIT(N,Spelling,K) \
   case tok::kw_##Spelling:
 #include "clang/Basic/TokenKinds.def"
     return TPResult::True;
-      
+
   // Obviously starts a type-specifier-seq:
   case tok::kw_char:
   case tok::kw_const:
@@ -1048,6 +1053,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw_class:
   case tok::kw_typename:
   case tok::kw_wchar_t:
+  case tok::kw_char8_t:
   case tok::kw_char16_t:
   case tok::kw_char32_t:
   case tok::kw__Decimal32:
@@ -1078,7 +1084,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   default:
     break;
   }
-  
+
   return TPResult::Ambiguous;
 }
 
@@ -1242,6 +1248,17 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
       case ANK_TentativeDecl:
         return TPResult::False;
       case ANK_TemplateName:
+        // In C++17, this could be a type template for class template argument
+        // deduction. Try to form a type annotation for it. If we're in a
+        // template template argument, we'll undo this when checking the
+        // validity of the argument.
+        if (getLangOpts().CPlusPlus17) {
+          if (TryAnnotateTypeOrScopeToken())
+            return TPResult::Error;
+          if (Tok.isNot(tok::identifier))
+            break;
+        }
+
         // A bare type template-name which can't be a template template
         // argument is an error, and was probably intended to be a type.
         return GreaterThanIsOperator ? TPResult::True : TPResult::False;
@@ -1321,7 +1338,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
 
     // Debugger support
   case tok::kw___unknown_anytype:
-      
+
     // type-specifier:
     //   simple-type-specifier
     //   class-specifier
@@ -1341,6 +1358,11 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
     // cv-qualifier
   case tok::kw_const:
   case tok::kw_volatile:
+  case tok::kw___private:
+  case tok::kw___local:
+  case tok::kw___global:
+  case tok::kw___constant:
+  case tok::kw___generic:
 
     // GNU
   case tok::kw_restrict:
@@ -1373,7 +1395,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
     // Borland
   case tok::kw___pascal:
     return TPResult::True;
-  
+
     // AltiVec
   case tok::kw___vector:
     return TPResult::True;
@@ -1420,8 +1442,6 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
             *HasMissingTypename = true;
             return TPResult::Ambiguous;
           }
-
-          // FIXME: Fails to either revert or commit the tentative parse!
         } else {
           // Try to resolve the name. If it doesn't exist, assume it was
           // intended to name a type and keep disambiguating.
@@ -1431,19 +1451,33 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
           case ANK_TentativeDecl:
             return TPResult::False;
           case ANK_TemplateName:
+            // In C++17, this could be a type template for class template
+            // argument deduction.
+            if (getLangOpts().CPlusPlus17) {
+              if (TryAnnotateTypeOrScopeToken())
+                return TPResult::Error;
+              if (Tok.isNot(tok::identifier))
+                break;
+            }
+
             // A bare type template-name which can't be a template template
             // argument is an error, and was probably intended to be a type.
-            return GreaterThanIsOperator ? TPResult::True : TPResult::False;
+            // In C++17, this could be class template argument deduction.
+            return (getLangOpts().CPlusPlus17 || GreaterThanIsOperator)
+                       ? TPResult::True
+                       : TPResult::False;
           case ANK_Unresolved:
             return HasMissingTypename ? TPResult::Ambiguous
                                       : TPResult::False;
           case ANK_Success:
-            // Annotated it, check again.
-            assert(Tok.isNot(tok::annot_cxxscope) ||
-                   NextToken().isNot(tok::identifier));
-            return isCXXDeclarationSpecifier(BracedCastResult,
-                                             HasMissingTypename);
+            break;
           }
+
+          // Annotated it, check again.
+          assert(Tok.isNot(tok::annot_cxxscope) ||
+                 NextToken().isNot(tok::identifier));
+          return isCXXDeclarationSpecifier(BracedCastResult,
+                                           HasMissingTypename);
         }
       }
       return TPResult::False;
@@ -1476,26 +1510,27 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
       // Tentatively parse the protocol qualifiers.
       RevertingTentativeParsingAction PA(*this);
       ConsumeAnyToken(); // The type token
-      
+
       TPResult TPR = TryParseProtocolQualifiers();
       bool isFollowedByParen = Tok.is(tok::l_paren);
       bool isFollowedByBrace = Tok.is(tok::l_brace);
-      
+
       if (TPR == TPResult::Error)
         return TPResult::Error;
-      
+
       if (isFollowedByParen)
         return TPResult::Ambiguous;
 
       if (getLangOpts().CPlusPlus11 && isFollowedByBrace)
         return BracedCastResult;
-      
+
       return TPResult::True;
     }
     LLVM_FALLTHROUGH;
-      
+
   case tok::kw_char:
   case tok::kw_wchar_t:
+  case tok::kw_char8_t:
   case tok::kw_char16_t:
   case tok::kw_char32_t:
   case tok::kw_bool:
@@ -1527,7 +1562,7 @@ Parser::isCXXDeclarationSpecifier(Parser::TPResult BracedCastResult,
 
     if (isStartOfObjCClassMessageMissingOpenBracket())
       return TPResult::False;
-      
+
     return TPResult::True;
 
   // GNU typeof support.
@@ -1587,6 +1622,7 @@ bool Parser::isCXXDeclarationSpecifierAType() {
     // simple-type-specifier
   case tok::kw_char:
   case tok::kw_wchar_t:
+  case tok::kw_char8_t:
   case tok::kw_char16_t:
   case tok::kw_char32_t:
   case tok::kw_bool:
@@ -1645,18 +1681,18 @@ Parser::TPResult Parser::TryParseProtocolQualifiers() {
     if (Tok.isNot(tok::identifier))
       return TPResult::Error;
     ConsumeToken();
-    
+
     if (Tok.is(tok::comma)) {
       ConsumeToken();
       continue;
     }
-    
+
     if (Tok.is(tok::greater)) {
       ConsumeToken();
       return TPResult::Ambiguous;
     }
   } while (false);
-  
+
   return TPResult::Error;
 }
 
@@ -1867,13 +1903,14 @@ Parser::TPResult Parser::TryParseFunctionDeclarator() {
     return TPResult::Error;
 
   // cv-qualifier-seq
-  while (Tok.isOneOf(tok::kw_const, tok::kw_volatile, tok::kw_restrict))
+  while (Tok.isOneOf(tok::kw_const, tok::kw_volatile, tok::kw___unaligned,
+                     tok::kw_restrict))
     ConsumeToken();
 
   // ref-qualifier[opt]
   if (Tok.isOneOf(tok::amp, tok::ampamp))
     ConsumeToken();
-  
+
   // exception-specification
   if (Tok.is(tok::kw_throw)) {
     ConsumeToken();

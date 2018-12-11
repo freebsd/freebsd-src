@@ -19,7 +19,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils.h"
 using namespace llvm;
 
 char UnifyFunctionExitNodes::ID = 0;
@@ -61,7 +61,7 @@ bool UnifyFunctionExitNodes::runOnFunction(Function &F) {
   } else if (UnreachableBlocks.size() == 1) {
     UnreachableBlock = UnreachableBlocks.front();
   } else {
-    UnreachableBlock = BasicBlock::Create(F.getContext(), 
+    UnreachableBlock = BasicBlock::Create(F.getContext(),
                                           "UnifiedUnreachableBlock", &F);
     new UnreachableInst(F.getContext(), UnreachableBlock);
 

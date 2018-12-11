@@ -43,7 +43,7 @@ public:
     return true;
   }
 
-  /// \brief Returns true if the given method has been defined explicitly by the
+  /// Returns true if the given method has been defined explicitly by the
   /// user.
   static bool hasUserDefined(const ObjCMethodDecl *D,
                              const ObjCImplDecl *Container) {
@@ -664,8 +664,11 @@ public:
 
   bool VisitTemplateDecl(const TemplateDecl *D) {
 
-    // Index the default values for the template parameters.
     const NamedDecl *Parent = D->getTemplatedDecl();
+    if (!Parent)
+      return true;
+
+    // Index the default values for the template parameters.
     if (D->getTemplateParameters() &&
         shouldIndexTemplateParameterDefaultValue(Parent)) {
       const TemplateParameterList *Params = D->getTemplateParameters();
@@ -684,7 +687,7 @@ public:
       }
     }
 
-    return Visit(D->getTemplatedDecl());
+    return Visit(Parent);
   }
 
   bool VisitFriendDecl(const FriendDecl *D) {
@@ -723,7 +726,7 @@ bool IndexingContext::indexDecl(const Decl *D) {
   if (D->isImplicit() && shouldIgnoreIfImplicit(D))
     return true;
 
-  if (isTemplateImplicitInstantiation(D))
+  if (isTemplateImplicitInstantiation(D) && !shouldIndexImplicitInstantiation())
     return true;
 
   IndexingDeclVisitor Visitor(*this);

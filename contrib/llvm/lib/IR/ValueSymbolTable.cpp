@@ -14,6 +14,7 @@
 #include "llvm/IR/ValueSymbolTable.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
@@ -74,10 +75,11 @@ void ValueSymbolTable::reinsertValue(Value* V) {
 
   // Try inserting the name, assuming it won't conflict.
   if (vmap.insert(V->getValueName())) {
-    //DEBUG(dbgs() << " Inserted value: " << V->getValueName() << ": " << *V << "\n");
+    // LLVM_DEBUG(dbgs() << " Inserted value: " << V->getValueName() << ": " <<
+    // *V << "\n");
     return;
   }
-  
+
   // Otherwise, there is a naming conflict.  Rename this value.
   SmallString<256> UniqueName(V->getName().begin(), V->getName().end());
 
@@ -89,7 +91,7 @@ void ValueSymbolTable::reinsertValue(Value* V) {
 }
 
 void ValueSymbolTable::removeValueName(ValueName *V) {
-  //DEBUG(dbgs() << " Removing Value: " << V->getKeyData() << "\n");
+  // LLVM_DEBUG(dbgs() << " Removing Value: " << V->getKeyData() << "\n");
   // Remove the value from the symbol table.
   vmap.remove(V);
 }
@@ -101,11 +103,11 @@ ValueName *ValueSymbolTable::createValueName(StringRef Name, Value *V) {
   // In the common case, the name is not already in the symbol table.
   auto IterBool = vmap.insert(std::make_pair(Name, V));
   if (IterBool.second) {
-    //DEBUG(dbgs() << " Inserted value: " << Entry.getKeyData() << ": "
+    // LLVM_DEBUG(dbgs() << " Inserted value: " << Entry.getKeyData() << ": "
     //           << *V << "\n");
     return &*IterBool.first;
   }
-  
+
   // Otherwise, there is a naming conflict.  Rename this value.
   SmallString<256> UniqueName(Name.begin(), Name.end());
   return makeUniqueName(V, UniqueName);

@@ -69,6 +69,10 @@ public:
 #pragma GCC system_header
 #endif
 
+#if defined(_LIBCPP_ABI_MICROSOFT) && !defined(_LIBCPP_NO_VCRUNTIME)
+#include <vcruntime_typeinfo.h>
+#else
+
 #if !defined(_LIBCPP_ABI_MICROSOFT)
 #if defined(_LIBCPP_NONUNIQUE_RTTI_BIT)
 #define _LIBCPP_HAS_NONUNIQUE_TYPEINFO
@@ -219,8 +223,10 @@ public:
 
 }  // std
 
+#endif // defined(_LIBCPP_ABI_MICROSOFT) && !defined(_LIBCPP_NO_VCRUNTIME)
+
 _LIBCPP_BEGIN_NAMESPACE_STD
-_LIBCPP_NORETURN inline _LIBCPP_ALWAYS_INLINE
+_LIBCPP_NORETURN inline _LIBCPP_INLINE_VISIBILITY
 void __throw_bad_cast()
 {
 #ifndef _LIBCPP_NO_EXCEPTIONS
