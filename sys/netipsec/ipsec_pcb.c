@@ -296,7 +296,7 @@ ipsec_set_pcbpolicy(struct inpcb *inp, struct ucred *cred,
 	case IPSEC_POLICY_IPSEC:
 	case IPSEC_POLICY_BYPASS:
 		if (cred != NULL &&
-		    priv_check_cred(cred, PRIV_NETINET_IPSEC, 0) != 0)
+		    priv_check_cred(cred, PRIV_NETINET_IPSEC) != 0)
 			return (EACCES);
 		/* Allocate new SP entry. */
 		newsp = key_msg2sp(xpl, len, &error);

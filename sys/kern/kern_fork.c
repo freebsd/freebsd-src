@@ -838,8 +838,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * processes; don't let root exceed the limit.
 	 */
 	nprocs_new = atomic_fetchadd_int(&nprocs, 1) + 1;
-	if ((nprocs_new >= maxproc - 10 && priv_check_cred(td->td_ucred,
-	    PRIV_MAXPROC, 0) != 0) || nprocs_new >= maxproc) {
+	if ((nprocs_new >= maxproc - 10 && priv_check_cred(td->td_ucred, PRIV_MAXPROC) != 0) || nprocs_new >= maxproc) {
 		error = EAGAIN;
 		sx_xlock(&allproc_lock);
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
@@ -936,7 +935,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 *
 	 * XXXRW: Can we avoid privilege here if it's not needed?
 	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT);
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {

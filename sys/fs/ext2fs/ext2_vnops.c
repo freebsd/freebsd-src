@@ -420,7 +420,7 @@ ext2_setattr(struct vop_setattr_args *ap)
 		 * Privileged non-jail processes may not modify system flags
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
-		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS)) {
 			if (ip->i_flags & (SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
@@ -531,12 +531,12 @@ ext2_chmod(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 	 * process is not a member of.
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		error = priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0);
+		error = priv_check_cred(cred, PRIV_VFS_STICKYFILE);
 		if (error)
 			return (EFTYPE);
 	}
 	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID);
 		if (error)
 			return (error);
 	}
@@ -576,7 +576,7 @@ ext2_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	 */
 	if (uid != ip->i_uid || (gid != ip->i_gid &&
 	    !groupmember(gid, cred))) {
-		error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0);
+		error = priv_check_cred(cred, PRIV_VFS_CHOWN);
 		if (error)
 			return (error);
 	}
@@ -586,7 +586,7 @@ ext2_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	ip->i_uid = uid;
 	ip->i_flag |= IN_CHANGE;
 	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0) != 0)
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID) != 0)
 			ip->i_mode &= ~(ISUID | ISGID);
 	}
 	return (0);
@@ -1983,7 +1983,7 @@ ext2_makeinode(int mode, struct vnode *dvp, struct vnode **vpp,
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred)) {
-		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID, 0))
+		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID))
 			ip->i_mode &= ~ISGID;
 	}
 
@@ -2311,7 +2311,7 @@ ext2_write(struct vop_write_args *ap)
 	 */
 	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid &&
 	    ap->a_cred) {
-		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID, 0))
+		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID))
 			ip->i_mode &= ~(ISUID | ISGID);
 	}
 	if (error) {

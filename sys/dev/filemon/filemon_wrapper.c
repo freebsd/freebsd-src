@@ -129,8 +129,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 		/* If the credentials changed then cease tracing. */
 		if (imgp->newcred != NULL &&
 		    imgp->credential_setid &&
-		    priv_check_cred(filemon->cred,
-		    PRIV_DEBUG_DIFFCRED, 0) != 0) {
+		    priv_check_cred(filemon->cred, PRIV_DEBUG_DIFFCRED) != 0) {
 			/*
 			 * It may have changed to NULL already, but
 			 * will not be re-attached by anything else.

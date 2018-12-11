@@ -628,7 +628,7 @@ sys_setauid(struct thread *td, struct setauid_args *uap)
 	if (error)
 		goto fail;
 #endif
-	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT, 0);
+	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		goto fail;
 	newcred->cr_audit.ai_auid = id;
@@ -693,7 +693,7 @@ sys_setaudit(struct thread *td, struct setaudit_args *uap)
 	if (error)
 		goto fail;
 #endif
-	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT, 0);
+	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		goto fail;
 	bzero(&newcred->cr_audit, sizeof(newcred->cr_audit));
@@ -756,7 +756,7 @@ sys_setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 	if (error)
 		goto fail;
 #endif
-	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT, 0);
+	error = priv_check_cred(oldcred, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		goto fail;
 	newcred->cr_audit = aia;

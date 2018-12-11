@@ -195,7 +195,7 @@ chkdq(struct inode *ip, ufs2_daddr_t change, struct ucred *cred, int flags)
 		return (0);
 	}
 	if ((flags & FORCE) == 0 &&
-	    priv_check_cred(cred, PRIV_VFS_EXCEEDQUOTA, 0))
+	    priv_check_cred(cred, PRIV_VFS_EXCEEDQUOTA))
 		do_check = 1;
 	else
 		do_check = 0;
@@ -334,7 +334,7 @@ chkiq(struct inode *ip, int change, struct ucred *cred, int flags)
 		return (0);
 	}
 	if ((flags & FORCE) == 0 &&
-	    priv_check_cred(cred, PRIV_VFS_EXCEEDQUOTA, 0))
+	    priv_check_cred(cred, PRIV_VFS_EXCEEDQUOTA))
 		do_check = 1;
 	else
 		do_check = 0;

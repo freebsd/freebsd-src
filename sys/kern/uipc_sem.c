@@ -242,7 +242,7 @@ ksem_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
                  gid = ks->ks_gid;
 	if (((uid != ks->ks_uid && uid != active_cred->cr_uid) ||
 	    (gid != ks->ks_gid && !groupmember(gid, active_cred))) &&
-	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN)))
 		goto out;
 	ks->ks_uid = uid;
 	ks->ks_gid = gid;
@@ -364,7 +364,7 @@ ksem_access(struct ksem *ks, struct ucred *ucred)
 	error = vaccess(VREG, ks->ks_mode, ks->ks_uid, ks->ks_gid,
 	    VREAD | VWRITE, ucred, NULL);
 	if (error)
-		error = priv_check_cred(ucred, PRIV_SEM_WRITE, 0);
+		error = priv_check_cred(ucred, PRIV_SEM_WRITE);
 	return (error);
 }
 

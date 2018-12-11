@@ -968,7 +968,7 @@ shm_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
                  gid = shmfd->shm_gid;
 	if (((uid != shmfd->shm_uid && uid != active_cred->cr_uid) ||
 	    (gid != shmfd->shm_gid && !groupmember(gid, active_cred))) &&
-	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN)))
 		goto out;
 	shmfd->shm_uid = uid;
 	shmfd->shm_gid = gid;

@@ -1032,7 +1032,7 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 	sx_assert(&pn->mn_info->mi_lock, SX_LOCKED);
 
 	if (ucred->cr_uid != pn->mn_uid &&
-	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN, 0)) != 0)
+	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN)) != 0)
 		error = EACCES;
 	else if (!pn->mn_deleted) {
 		parent = pn->mn_parent;
@@ -2581,7 +2581,7 @@ mqf_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 		gid = pn->mn_gid;
 	if (((uid != pn->mn_uid && uid != active_cred->cr_uid) ||
 	    (gid != pn->mn_gid && !groupmember(gid, active_cred))) &&
-	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN)))
 		goto out;
 	pn->mn_uid = uid;
 	pn->mn_gid = gid;

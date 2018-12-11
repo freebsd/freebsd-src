@@ -2781,8 +2781,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 	case IPV6_2292NEXTHOP:
 	case IPV6_NEXTHOP:
 		if (cred != NULL) {
-			error = priv_check_cred(cred,
-			    PRIV_NETINET_SETHDROPTS, 0);
+			error = priv_check_cred(cred, PRIV_NETINET_SETHDROPTS);
 			if (error)
 				return (error);
 		}
@@ -2840,8 +2839,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		 * overhead.
 		 */
 		if (cred != NULL) {
-			error = priv_check_cred(cred,
-			    PRIV_NETINET_SETHDROPTS, 0);
+			error = priv_check_cred(cred, PRIV_NETINET_SETHDROPTS);
 			if (error)
 				return (error);
 		}
@@ -2877,8 +2875,7 @@ ip6_setpktopt(int optname, u_char *buf, int len, struct ip6_pktopts *opt,
 		int destlen;
 
 		if (cred != NULL) { /* XXX: see the comment for IPV6_HOPOPTS */
-			error = priv_check_cred(cred,
-			    PRIV_NETINET_SETHDROPTS, 0);
+			error = priv_check_cred(cred, PRIV_NETINET_SETHDROPTS);
 			if (error)
 				return (error);
 		}

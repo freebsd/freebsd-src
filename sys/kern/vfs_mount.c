@@ -862,7 +862,7 @@ vfs_domount_first(
 	 */
 	error = VOP_GETATTR(vp, &va, td->td_ucred);
 	if (error == 0 && va.va_uid != td->td_ucred->cr_uid)
-		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN, 0);
+		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN);
 	if (error == 0)
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (error == 0 && vp->v_type != VDIR)
