@@ -1186,12 +1186,13 @@ closefp(struct filedesc *fdp, int fd, struct file *fp, struct thread *td,
 	 * knote_fdclose to prevent a race of the fd getting opened, a knote
 	 * added, and deleteing a knote for the new fd.
 	 */
-	knote_fdclose(td, fd);
+	if (__predict_false(!TAILQ_EMPTY(&fdp->fd_kqlist)))
+		knote_fdclose(td, fd);
 
 	/*
 	 * We need to notify mqueue if the object is of type mqueue.
 	 */
-	if (fp->f_type == DTYPE_MQUEUE)
+	if (__predict_false(fp->f_type == DTYPE_MQUEUE))
 		mq_fdclose(td, fd, fp);
 	FILEDESC_XUNLOCK(fdp);
 
