@@ -90,7 +90,10 @@ gotit:	switch (disk->d_ufs) {
 		disk->d_dp.dp2 = &((struct ufs2_dinode *)inoblock)[inum - min];
 		if (dp != NULL)
 			*dp = disk->d_dp;
-		return (0);
+		if (ffs_verify_dinode_ckhash(fs, disk->d_dp.dp2) == 0)
+			return (0);
+		ERROR(disk, "check-hash failed for inode read from disk");
+		return (-1);
 	default:
 		break;
 	}
@@ -108,6 +111,8 @@ putinode(struct uufsd *disk)
 		ERROR(disk, "No inode block allocated");
 		return (-1);
 	}
+	if (disk->d_ufs == 2)
+		ffs_update_dinode_ckhash(fs, disk->d_dp.dp2);
 	if (bwrite(disk, fsbtodb(fs, ino_to_fsba(&disk->d_fs, disk->d_inomin)),
 	    disk->d_inoblock, disk->d_fs.fs_bsize) <= 0)
 		return (-1);

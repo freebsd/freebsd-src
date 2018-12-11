@@ -1340,6 +1340,8 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	bzero(&dip->di_db[0], (UFS_NDADDR + UFS_NIADDR) * sizeof(ufs2_daddr_t));
 	if (clearmode || cancelip->i_effnlink == 0)
 		dip->di_mode = 0;
+	else
+		ffs_update_dinode_ckhash(fs, dip);
 	bdwrite(bp);
 	/*
 	 * Now go through and expunge all the blocks in the file

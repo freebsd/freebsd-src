@@ -119,6 +119,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 {
 	struct ufs1_dinode *dip1;
 	struct ufs2_dinode *dip2;
+	int error;
 
 	if (I_IS_UFS1(ip)) {
 		dip1 = ip->i_din1;
@@ -142,9 +143,53 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 	ip->i_gen = dip2->di_gen;
 	ip->i_uid = dip2->di_uid;
 	ip->i_gid = dip2->di_gid;
-	return (0);
+	if ((error = ffs_verify_dinode_ckhash(fs, dip2)) != 0)
+		printf("Inode %jd: check-hash failed\n", (intmax_t)ino);
+	return (error);
 }
 #endif /* _KERNEL */
+
+/*
+ * Verify an inode check-hash.
+ */
+int
+ffs_verify_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
+{
+	uint32_t save_ckhash;
+
+	/*
+	 * Return success if unallocated or we are not doing inode check-hash.
+	 */
+	if (dip->di_mode == 0 || (fs->fs_metackhash & CK_INODE) == 0)
+		return (0);
+	/*
+	 * Exclude di_ckhash from the crc32 calculation, e.g., always use
+	 * a check-hash value of zero when calculating the check-hash.
+	 */
+	save_ckhash = dip->di_ckhash;
+	dip->di_ckhash = 0;
+	if (save_ckhash != calculate_crc32c(~0L, (void *)dip, sizeof(*dip)))
+		return (EINVAL);
+	dip->di_ckhash = save_ckhash;
+	return (0);
+}
+
+/*
+ * Update an inode check-hash.
+ */
+void
+ffs_update_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
+{
+
+	if (dip->di_mode == 0 || (fs->fs_metackhash & CK_INODE) == 0)
+		return;
+	/*
+	 * Exclude old di_ckhash from the crc32 calculation, e.g., always use
+	 * a check-hash value of zero when calculating the new check-hash.
+	 */
+	dip->di_ckhash = 0;
+	dip->di_ckhash = calculate_crc32c(~0L, (void *)dip, sizeof(*dip));
+}
 
 /*
  * These are the low-level functions that actually read and write
