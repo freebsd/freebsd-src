@@ -58,17 +58,29 @@ JID=0
 #	---------
 
 # list_vars pattern
-#	List vars matching pattern.
+#	List variables matching glob pattern.
 # 
 list_vars()
 {
-	set | { while read LINE; do
-		var="${LINE%%=*}"
-		case "$var" in
-		"$LINE"|*[!a-zA-Z0-9_]*) continue ;;
-		$1) echo $var
+	# Localize 'set' option below.
+	local -
+	local IFS=$'\n' line varname
+
+	# Disable path expansion in unquoted 'for' parameters below.
+	set -o noglob
+
+	for line in $(set); do
+		varname="${line%%=*}"
+
+		case "$varname" in
+		"$line"|*[!a-zA-Z0-9_]*)
+			continue
+			;;
+		$1)
+			echo $varname
+			;;
 		esac
-	done; }
+	done
 }
 
 # set_rcvar [var] [defval] [desc]
