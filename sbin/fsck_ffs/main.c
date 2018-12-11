@@ -468,13 +468,13 @@ checkfilesys(char *filesys)
 			ckhashadd |= CK_SUPERBLOCK;
 			sblock.fs_metackhash |= CK_SUPERBLOCK;
 		}
-#ifdef notyet
 		if ((sblock.fs_metackhash & CK_INODE) == 0 &&
 		    getosreldate() >= P_OSREL_CK_INODE &&
 		    reply("ADD INODE CHECK-HASH PROTECTION") != 0) {
 			ckhashadd |= CK_INODE;
 			sblock.fs_metackhash |= CK_INODE;
 		}
+#ifdef notyet
 		if ((sblock.fs_metackhash & CK_INDIR) == 0 &&
 		    getosreldate() >= P_OSREL_CK_INDIR &&
 		    reply("ADD INDIRECT BLOCK CHECK-HASH PROTECTION") != 0) {

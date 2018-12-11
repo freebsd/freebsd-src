@@ -108,6 +108,8 @@ void	ffs_sync_snap(struct mount *, int);
 int	ffs_syncvnode(struct vnode *vp, int waitfor, int flags);
 int	ffs_truncate(struct vnode *, off_t, int, struct ucred *);
 int	ffs_update(struct vnode *, int);
+void	ffs_update_dinode_ckhash(struct fs *, struct ufs2_dinode *);
+int	ffs_verify_dinode_ckhash(struct fs *, struct ufs2_dinode *);
 int	ffs_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 int	ffs_vfree(struct vnode *, ino_t, int);
 vfs_vget_t ffs_vget;
