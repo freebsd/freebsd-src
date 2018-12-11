@@ -389,7 +389,7 @@ void	 audit_thread_free(struct thread *td);
  * auditing is disabled, so we don't just check audit_syscalls_enabled here.
  */
 #define	AUDIT_SYSCALL_EXIT(error, td)	do {				\
-	if (td->td_pflags & TDP_AUDITREC)				\
+	if (AUDITING_TD(td))						\
 		audit_syscall_exit(error, td);				\
 } while (0)
 
@@ -397,7 +397,7 @@ void	 audit_thread_free(struct thread *td);
  * A Macro to wrap the audit_sysclose() function.
  */
 #define	AUDIT_SYSCLOSE(td, fd)	do {					\
-	if (td->td_pflags & TDP_AUDITREC)				\
+	if (AUDITING_TD(td))						\
 		audit_sysclose(td, fd);					\
 } while (0)
 
