@@ -105,7 +105,6 @@ struct pci_vtscsi_config {
 struct pci_vtscsi_queue {
 	struct pci_vtscsi_softc *         vsq_sc;
 	struct vqueue_info *              vsq_vq;
-	int                               vsq_ctl_fd;
 	pthread_mutex_t                   vsq_mtx;
 	pthread_mutex_t                   vsq_qmtx;
 	pthread_cond_t                    vsq_cv;
@@ -529,7 +528,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 		sbuf_delete(sb);
 	}
 
-	err = ioctl(q->vsq_ctl_fd, CTL_IO, io);
+	err = ioctl(sc->vss_ctl_fd, CTL_IO, io);
 	if (err != 0) {
 		WPRINTF(("CTL_IO: err=%d (%s)\n", errno, strerror(errno)));
 		cmd_wr->response = VIRTIO_SCSI_S_FAILURE;
@@ -639,13 +638,7 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 	int i;
 
 	queue->vsq_sc = sc;
-	queue->vsq_ctl_fd = open("/dev/cam/ctl", O_RDWR);
 	queue->vsq_vq = &sc->vss_vq[num + 2];
-
-	if (queue->vsq_ctl_fd < 0) {
-		WPRINTF(("cannot open /dev/cam/ctl: %s\n", strerror(errno)));
-		return (-1);
-	}
 
 	pthread_mutex_init(&queue->vsq_mtx, NULL);
 	pthread_mutex_init(&queue->vsq_qmtx, NULL);
@@ -672,24 +665,34 @@ static int
 pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	struct pci_vtscsi_softc *sc;
-	char *optname = NULL;
-	char *opt;
-	int i;
+	char *opt, *optname;
+	const char *devname;
+	int i, optidx = 0;
 
 	sc = calloc(1, sizeof(struct pci_vtscsi_softc));
-	sc->vss_ctl_fd = open("/dev/cam/ctl", O_RDWR);
-
-	if (sc->vss_ctl_fd < 0) {
-		WPRINTF(("cannot open /dev/cam/ctl: %s\n", strerror(errno)));
-		return (1);
+	devname = "/dev/cam/ctl";
+	while ((opt = strsep(&opts, ",")) != NULL) {
+		optname = strsep(&opt, "=");
+		if (opt == NULL && optidx == 0) {
+			if (optname[0] != 0)
+				devname = optname;
+		} else if (strcmp(optname, "dev") == 0 && opt != NULL) {
+			devname = opt;
+		} else if (strcmp(optname, "iid") == 0 && opt != NULL) {
+			sc->vss_iid = strtoul(opt, NULL, 10);
+		} else {
+			fprintf(stderr, "Invalid option %s\n", optname);
+			free(sc);
+			return (1);
+		}
+		optidx++;
 	}
 
-	while ((opt = strsep(&opts, ",")) != NULL) {
-		if ((optname = strsep(&opt, "=")) != NULL) {
-			if (strcmp(optname, "iid") == 0) {
-				sc->vss_iid = strtoul(opt, NULL, 10);
-			}
-		}
+	sc->vss_ctl_fd = open(devname, O_RDWR);
+	if (sc->vss_ctl_fd < 0) {
+		WPRINTF(("cannot open %s: %s\n", devname, strerror(errno)));
+		free(sc);
+		return (1);
 	}
 
 	vi_softc_linkup(&sc->vss_vs, &vtscsi_vi_consts, sc, pi, sc->vss_vq);
