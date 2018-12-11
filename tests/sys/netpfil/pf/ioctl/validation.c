@@ -61,7 +61,12 @@ common_init_tbl(struct pfr_table *tbl)
 	tbl->pfrt_fback = 0;
 }
 
-ATF_TC_WITHOUT_HEAD(addtables);
+ATF_TC(addtables);
+ATF_TC_HEAD(addtables, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(addtables, tc)
 {
 	struct pfioc_table io;
@@ -105,7 +110,12 @@ ATF_TC_BODY(addtables, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(deltables);
+ATF_TC(deltables);
+ATF_TC_HEAD(deltables, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(deltables, tc)
 {
 	struct pfioc_table io;
@@ -140,7 +150,12 @@ ATF_TC_BODY(deltables, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(gettables);
+ATF_TC(gettables);
+ATF_TC_HEAD(gettables, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(gettables, tc)
 {
 	struct pfioc_table io;
@@ -170,7 +185,12 @@ ATF_TC_BODY(gettables, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(gettstats);
+ATF_TC(gettstats);
+ATF_TC_HEAD(gettstats, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(gettstats, tc)
 {
 	struct pfioc_table io;
@@ -200,7 +220,12 @@ ATF_TC_BODY(gettstats, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(clrtstats);
+ATF_TC(clrtstats);
+ATF_TC_HEAD(clrtstats, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(clrtstats, tc)
 {
 	struct pfioc_table io;
@@ -232,7 +257,12 @@ ATF_TC_BODY(clrtstats, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(settflags);
+ATF_TC(settflags);
+ATF_TC_HEAD(settflags, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(settflags, tc)
 {
 	struct pfioc_table io;
@@ -264,7 +294,12 @@ ATF_TC_BODY(settflags, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(addaddrs);
+ATF_TC(addaddrs);
+ATF_TC_HEAD(addaddrs, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(addaddrs, tc)
 {
 	struct pfioc_table io;
@@ -291,7 +326,12 @@ ATF_TC_BODY(addaddrs, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(deladdrs);
+ATF_TC(deladdrs);
+ATF_TC_HEAD(deladdrs, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(deladdrs, tc)
 {
 	struct pfioc_table io;
@@ -318,7 +358,12 @@ ATF_TC_BODY(deladdrs, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(setaddrs);
+ATF_TC(setaddrs);
+ATF_TC_HEAD(setaddrs, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(setaddrs, tc)
 {
 	struct pfioc_table io;
@@ -345,7 +390,12 @@ ATF_TC_BODY(setaddrs, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(getaddrs);
+ATF_TC(getaddrs);
+ATF_TC_HEAD(getaddrs, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(getaddrs, tc)
 {
 	struct pfioc_table io;
@@ -374,7 +424,12 @@ ATF_TC_BODY(getaddrs, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(getastats);
+ATF_TC(getastats);
+ATF_TC_HEAD(getastats, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(getastats, tc)
 {
 	struct pfioc_table io;
@@ -403,7 +458,12 @@ ATF_TC_BODY(getastats, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(clrastats);
+ATF_TC(clrastats);
+ATF_TC_HEAD(clrastats, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(clrastats, tc)
 {
 	struct pfioc_table io;
@@ -432,7 +492,12 @@ ATF_TC_BODY(clrastats, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(tstaddrs);
+ATF_TC(tstaddrs);
+ATF_TC_HEAD(tstaddrs, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(tstaddrs, tc)
 {
 	struct pfioc_table io;
@@ -461,7 +526,12 @@ ATF_TC_BODY(tstaddrs, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(inadefine);
+ATF_TC(inadefine);
+ATF_TC_HEAD(inadefine, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(inadefine, tc)
 {
 	struct pfioc_table io;
@@ -490,7 +560,12 @@ ATF_TC_BODY(inadefine, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(igetifaces);
+ATF_TC(igetifaces);
+ATF_TC_HEAD(igetifaces, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(igetifaces, tc)
 {
 	struct pfioc_iface io;
@@ -516,7 +591,12 @@ ATF_TC_BODY(igetifaces, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(cxbegin);
+ATF_TC(cxbegin);
+ATF_TC_HEAD(cxbegin, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(cxbegin, tc)
 {
 	struct pfioc_trans io;
@@ -547,7 +627,12 @@ ATF_TC_BODY(cxbegin, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(cxrollback);
+ATF_TC(cxrollback);
+ATF_TC_HEAD(cxrollback, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(cxrollback, tc)
 {
 	struct pfioc_trans io;
@@ -578,7 +663,12 @@ ATF_TC_BODY(cxrollback, tc)
 	COMMON_CLEANUP();
 }
 
-ATF_TC_WITHOUT_HEAD(commit);
+ATF_TC(commit);
+ATF_TC_HEAD(commit, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
 ATF_TC_BODY(commit, tc)
 {
 	struct pfioc_trans io;
