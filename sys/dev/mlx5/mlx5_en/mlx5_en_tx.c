@@ -78,6 +78,47 @@ SYSINIT(mlx5e_hash_init, SI_SUB_RANDOM, SI_ORDER_ANY, &mlx5e_hash_init, NULL);
 #endif
 
 static struct mlx5e_sq *
+mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
+{
+	struct mlx5e_snd_tag *ptag;
+	struct mlx5e_sq *sq;
+
+	/* check for route change */
+	if (mb->m_pkthdr.snd_tag->ifp != ifp)
+		return (NULL);
+
+	/* get pointer to sendqueue */
+	ptag = container_of(mb->m_pkthdr.snd_tag,
+	    struct mlx5e_snd_tag, m_snd_tag);
+
+	switch (ptag->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		sq = container_of(ptag,
+		    struct mlx5e_rl_channel, tag)->sq;
+		break;
+#endif
+	case IF_SND_TAG_TYPE_UNLIMITED:
+		sq = &container_of(ptag,
+		    struct mlx5e_channel, tag)->sq[0];
+		KASSERT(({
+		    struct mlx5e_priv *priv = ifp->if_softc;
+		    priv->channel_refs > 0; }),
+		    ("mlx5e_select_queue: Channel refs are zero for unlimited tag"));
+		break;
+	default:
+		sq = NULL;
+		break;
+	}
+
+	/* check if valid */
+	if (sq != NULL && READ_ONCE(sq->running) != 0)
+		return (sq);
+
+	return (NULL);
+}
+
+static struct mlx5e_sq *
 mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 {
 	struct mlx5e_priv *priv = ifp->if_softc;
@@ -96,25 +137,6 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 
 	ch = priv->params.num_channels;
 
-#ifdef RATELIMIT
-	if (mb->m_pkthdr.snd_tag != NULL) {
-		struct mlx5e_sq *sq;
-
-		/* check for route change */
-		if (mb->m_pkthdr.snd_tag->ifp != ifp)
-			return (NULL);
-
-		/* get pointer to sendqueue */
-		sq = container_of(mb->m_pkthdr.snd_tag,
-		    struct mlx5e_rl_channel, m_snd_tag)->sq;
-
-		/* check if valid */
-		if (sq != NULL && sq->running != 0)
-			return (sq);
-
-		/* FALLTHROUGH */
-	}
-#endif
 	/* check if flowid is set */
 	if (M_HASHTYPE_GET(mb) != M_HASHTYPE_NONE) {
 #ifdef RSS
@@ -587,27 +609,33 @@ mlx5e_xmit(struct ifnet *ifp, struct mbuf *mb)
 	struct mlx5e_sq *sq;
 	int ret;
 
-	sq = mlx5e_select_queue(ifp, mb);
-	if (unlikely(sq == NULL)) {
-#ifdef RATELIMIT
-		/* Check for route change */
-		if (mb->m_pkthdr.snd_tag != NULL &&
-		    mb->m_pkthdr.snd_tag->ifp != ifp) {
+	if (mb->m_pkthdr.snd_tag != NULL) {
+		sq = mlx5e_select_queue_by_send_tag(ifp, mb);
+		if (unlikely(sq == NULL)) {
+			/* Check for route change */
+			if (mb->m_pkthdr.snd_tag->ifp != ifp) {
+				/* Free mbuf */
+				m_freem(mb);
+
+				/*
+				 * Tell upper layers about route
+				 * change and to re-transmit this
+				 * packet:
+				 */
+				return (EAGAIN);
+			}
+			goto select_queue;
+		}
+	} else {
+select_queue:
+		sq = mlx5e_select_queue(ifp, mb);
+		if (unlikely(sq == NULL)) {
 			/* Free mbuf */
 			m_freem(mb);
 
-			/*
-			 * Tell upper layers about route change and to
-			 * re-transmit this packet:
-			 */
-			return (EAGAIN);
+			/* Invalid send queue */
+			return (ENXIO);
 		}
-#endif
-		/* Free mbuf */
-		m_freem(mb);
-
-		/* Invalid send queue */
-		return (ENXIO);
 	}
 
 	mtx_lock(&sq->lock);
