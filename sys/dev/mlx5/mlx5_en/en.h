@@ -378,9 +378,10 @@ struct mlx5e_port_stats_debug {
 
 #define	MLX5E_RQ_STATS(m)					\
   m(+1, u64 packets, "packets", "Received packets")		\
+  m(+1, u64 bytes, "bytes", "Received bytes")			\
   m(+1, u64 csum_none, "csum_none", "Received packets")		\
-  m(+1, u64 lro_packets, "lro_packets", "Received packets")	\
-  m(+1, u64 lro_bytes, "lro_bytes", "Received packets")		\
+  m(+1, u64 lro_packets, "lro_packets", "Received LRO packets")	\
+  m(+1, u64 lro_bytes, "lro_bytes", "Received LRO bytes")	\
   m(+1, u64 sw_lro_queued, "sw_lro_queued", "Packets queued for SW LRO")	\
   m(+1, u64 sw_lro_flushed, "sw_lro_flushed", "Packets flushed from SW LRO")	\
   m(+1, u64 wqe_err, "wqe_err", "Received packets")
@@ -395,6 +396,7 @@ struct mlx5e_rq_stats {
 
 #define	MLX5E_SQ_STATS(m)						\
   m(+1, u64 packets, "packets", "Transmitted packets")			\
+  m(+1, u64 bytes, "bytes", "Transmitted bytes")			\
   m(+1, u64 tso_packets, "tso_packets", "Transmitted packets")		\
   m(+1, u64 tso_bytes, "tso_bytes", "Transmitted bytes")		\
   m(+1, u64 csum_offload_none, "csum_offload_none", "Transmitted packets")	\

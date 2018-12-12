@@ -453,7 +453,10 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 	sq->mbuf[pi].num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
 	sq->pc += sq->mbuf[pi].num_wqebbs;
 
+	/* Count all traffic going out */
 	sq->stats.packets++;
+	sq->stats.bytes += sq->mbuf[pi].num_bytes;
+
 	*mbp = NULL;	/* safety clear */
 	return (0);
 
