@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/radix-tree.h>
+#include <linux/idr.h>
 
 #include <dev/mlx5/device.h>
 #include <dev/mlx5/doorbell.h>
@@ -129,6 +130,10 @@ enum {
 	MLX5_REG_DCBX_PARAM	 = 0x4020,
 	MLX5_REG_DCBX_APP	 = 0x4021,
 	MLX5_REG_PCAP		 = 0x5001,
+	MLX5_REG_FPGA_CAP	 = 0x4022,
+	MLX5_REG_FPGA_CTRL	 = 0x4023,
+	MLX5_REG_FPGA_ACCESS_REG = 0x4024,
+	MLX5_REG_FPGA_SHELL_CNTR = 0x4025,
 	MLX5_REG_PMTU		 = 0x5003,
 	MLX5_REG_PTYS		 = 0x5004,
 	MLX5_REG_PAOS		 = 0x5006,
@@ -402,6 +407,13 @@ struct mlx5_buf {
 	u8			load_done;
 };
 
+struct mlx5_frag_buf {
+	struct mlx5_buf_list	*frags;
+	int			npages;
+	int			size;
+	u8			page_shift;
+};
+
 struct mlx5_eq {
 	struct mlx5_core_dev   *dev;
 	__be32 __iomem	       *doorbell;
@@ -438,6 +450,20 @@ struct mlx5_core_sig_ctx {
 	bool			sig_status_checked;
 	bool			sig_err_exists;
 	u32			sigerr_count;
+};
+
+enum {
+	MLX5_MKEY_MR = 1,
+	MLX5_MKEY_MW,
+	MLX5_MKEY_MR_USER,
+};
+
+struct mlx5_core_mkey {
+	u64			iova;
+	u64			size;
+	u32			key;
+	u32			pd;
+	u32			type;
 };
 
 struct mlx5_core_mr {
@@ -619,6 +645,14 @@ enum mlx5_pci_status {
 	MLX5_PCI_STATUS_ENABLED,
 };
 
+#define	MLX5_MAX_RESERVED_GIDS	8
+
+struct mlx5_rsvd_gids {
+	unsigned int start;
+	unsigned int count;
+	struct ida ida;
+};
+
 struct mlx5_special_contexts {
 	int resd_lkey;
 };
@@ -637,6 +671,7 @@ struct mlx5_core_dev {
 	u32 hca_caps_max[MLX5_CAP_NUM][MLX5_UN_SZ_DW(hca_cap_union)];
 	struct {
 		u32 qcam[MLX5_ST_SZ_DW(qcam_reg)];
+		u32 fpga[MLX5_ST_SZ_DW(fpga_cap)];
 	} caps;
 	phys_addr_t		iseg_base;
 	struct mlx5_init_seg __iomem *iseg;
@@ -665,6 +700,14 @@ struct mlx5_core_dev {
 
 	struct sysctl_ctx_list	sysctl_ctx;
 	int			msix_eqvec;
+
+	struct {
+		struct mlx5_rsvd_gids	reserved_gids;
+		atomic_t		roce_en;
+	} roce;
+#ifdef CONFIG_MLX5_FPGA
+	struct mlx5_fpga_device	*fpga;
+#endif
 };
 
 enum {
@@ -1079,6 +1122,11 @@ struct mlx5_interface {
 void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol);
 int mlx5_register_interface(struct mlx5_interface *intf);
 void mlx5_unregister_interface(struct mlx5_interface *intf);
+
+unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
+int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
+    u8 roce_version, u8 roce_l3_type, const u8 *gid,
+    const u8 *mac, bool vlan, u16 vlan_id);
 
 struct mlx5_profile {
 	u64	mask;
