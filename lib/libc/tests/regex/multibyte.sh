@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-atf_test_case multibyte
-multibyte_head()
+atf_test_case bmpat
+bmpat_head()
 {
 	atf_set "descr" "Check matching multibyte characters (PR153502)"
 }
-multibyte_body()
+bmpat_body()
 {
 	export LC_CTYPE="C.UTF-8"
 
@@ -29,7 +29,25 @@ multibyte_body()
 	    sed -ne '/.a./p'
 }
 
+atf_test_case icase
+icase_head()
+{
+	atf_set "descr" "Check case-insensitive matching for characters 128-255"
+}
+icase_body()
+{
+	export LC_CTYPE="C.UTF-8"
+
+	a=$(printf '\302\265\n')	# U+00B5
+	b=$(printf '\316\234\n')	# U+039C
+	c=$(printf '\316\274\n')	# U+03BC
+
+	echo $b | atf_check -o "inline:$b\n" sed -ne "/$a/Ip"
+	echo $c | atf_check -o "inline:$c\n" sed -ne "/$a/Ip"
+}
+
 atf_init_test_cases()
 {
-	atf_add_test_case multibyte
+	atf_add_test_case bmpat
+	atf_add_test_case icase
 }
