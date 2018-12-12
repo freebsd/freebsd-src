@@ -3061,6 +3061,8 @@ g_mirror_reinit_from_metadata(struct g_mirror_softc *sc,
     const struct g_mirror_metadata *md)
 {
 
+	sx_assert(&sc->sc_lock, SX_XLOCKED);
+
 	sc->sc_genid = md->md_genid;
 	sc->sc_syncid = md->md_syncid;
 
@@ -3068,7 +3070,8 @@ g_mirror_reinit_from_metadata(struct g_mirror_softc *sc,
 	sc->sc_balance = md->md_balance;
 	sc->sc_mediasize = md->md_mediasize;
 	sc->sc_ndisks = md->md_all;
-	sc->sc_flags = md->md_mflags;
+	sc->sc_flags &= ~G_MIRROR_DEVICE_FLAG_MASK;
+	sc->sc_flags |= (md->md_mflags & G_MIRROR_DEVICE_FLAG_MASK);
 }
 
 struct g_geom *
