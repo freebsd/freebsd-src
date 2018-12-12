@@ -199,11 +199,12 @@ device		muge
 device		smcphy
 device		smsc
 
-# GPIO
+# GPIO / PINCTRL
 device		aw_gpio		# Allwinner GPIO controller
 device		gpio
 device		gpioled
 device		fdt_pinctrl
+device		mvebu_pinctrl	# Marvell Pinmux Controller
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus
