@@ -366,6 +366,16 @@ int mlx5_fpga_temperature(struct mlx5_fpga_device *fdev,
 			  struct mlx5_fpga_temperature *temp);
 
 /**
+ * mlx5_fpga_connectdisconnect() - Connect/disconnect ConnectX to FPGA
+ * @fdev: The FPGA device
+
+ * Return: 0 if successful
+ *         or any other error value otherwise.
+ */
+int mlx5_fpga_connectdisconnect(struct mlx5_fpga_device *fdev,
+				enum mlx5_fpga_connect *connect);
+
+/**
  * mlx5_fpga_get_cap() - Returns the FPGA cap mailbox from FW without parsing.
  * @fdev: The FPGA device
  * @fpga_caps: Is an array with a length of according to the size of
