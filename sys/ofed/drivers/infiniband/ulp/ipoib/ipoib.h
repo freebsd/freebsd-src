@@ -516,7 +516,7 @@ void ipoib_path_iter_read(struct ipoib_path_iter *iter,
 			  struct ipoib_path *path);
 #endif
 
-int ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu);
+int ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu, bool propagate);
 
 int ipoib_mcast_attach(struct ipoib_dev_priv *priv, u16 mlid,
 		       union ib_gid *mgid, int set_qkey);
