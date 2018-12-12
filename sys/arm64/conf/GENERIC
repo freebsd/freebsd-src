@@ -240,6 +240,7 @@ device		aw_sid		# Allwinner Secure ID EFUSE
 
 # Thermal sensors
 device		aw_thermal	# Allwinner Thermal Sensor Controller
+device		mv_thermal	# Marvell Thermal Sensor Controller
 
 # SPI
 device		spibus
