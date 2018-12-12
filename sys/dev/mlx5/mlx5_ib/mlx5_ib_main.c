@@ -605,7 +605,7 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 		return err;
 
 	props->fw_ver = ((u64)fw_rev_maj(dev->mdev) << 32) |
-		(fw_rev_min(dev->mdev) << 16) |
+		((u32)fw_rev_min(dev->mdev) << 16) |
 		fw_rev_sub(dev->mdev);
 	props->device_cap_flags    = IB_DEVICE_CHANGE_PHY_PORT |
 		IB_DEVICE_PORT_ACTIVE_EVENT		|
