@@ -34,9 +34,9 @@
 
 #define DRIVER_NAME "mlx5_core"
 #ifndef DRIVER_VERSION
-#define DRIVER_VERSION "3.4.2"
+#define DRIVER_VERSION "3.5.0"
 #endif
-#define DRIVER_RELDATE "July 2018"
+#define DRIVER_RELDATE "November 2018"
 
 extern int mlx5_core_debug_mask;
 
