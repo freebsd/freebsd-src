@@ -193,7 +193,8 @@ static driver_t mv_gpio_driver = {
 
 static devclass_t mv_gpio_devclass;
 
-DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
 struct ofw_compat_data compat_data[] = {
 	{ "mrvl,gpio", 1 },
