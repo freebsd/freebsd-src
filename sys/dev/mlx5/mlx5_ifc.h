@@ -755,6 +755,115 @@ struct mlx5_ifc_flow_table_nic_cap_bits {
 	u8         reserved_1[0x7200];
 };
 
+enum {
+	MLX5_ACCESS_REG_SUMMARY_CTRL_ID_PDDR                   = 0x5031,
+};
+
+struct mlx5_ifc_pddr_module_info_bits {
+	u8         cable_technology[0x8];
+	u8         cable_breakout[0x8];
+	u8         ext_ethernet_compliance_code[0x8];
+	u8         ethernet_compliance_code[0x8];
+
+	u8         cable_type[0x4];
+	u8         cable_vendor[0x4];
+	u8         cable_length[0x8];
+	u8         cable_identifier[0x8];
+	u8         cable_power_class[0x8];
+
+	u8         reserved_at_40[0x8];
+	u8         cable_rx_amp[0x8];
+	u8         cable_rx_emphasis[0x8];
+	u8         cable_tx_equalization[0x8];
+
+	u8         reserved_at_60[0x8];
+	u8         cable_attenuation_12g[0x8];
+	u8         cable_attenuation_7g[0x8];
+	u8         cable_attenuation_5g[0x8];
+
+	u8         reserved_at_80[0x8];
+	u8         rx_cdr_cap[0x4];
+	u8         tx_cdr_cap[0x4];
+	u8         reserved_at_90[0x4];
+	u8         rx_cdr_state[0x4];
+	u8         reserved_at_98[0x4];
+	u8         tx_cdr_state[0x4];
+
+	u8         vendor_name[16][0x8];
+
+	u8         vendor_pn[16][0x8];
+
+	u8         vendor_rev[0x20];
+
+	u8         fw_version[0x20];
+
+	u8         vendor_sn[16][0x8];
+
+	u8         temperature[0x10];
+	u8         voltage[0x10];
+
+	u8         rx_power_lane0[0x10];
+	u8         rx_power_lane1[0x10];
+
+	u8         rx_power_lane2[0x10];
+	u8         rx_power_lane3[0x10];
+
+	u8         reserved_at_2c0[0x40];
+
+	u8         tx_power_lane0[0x10];
+	u8         tx_power_lane1[0x10];
+
+	u8         tx_power_lane2[0x10];
+	u8         tx_power_lane3[0x10];
+
+	u8         reserved_at_340[0x40];
+
+	u8         tx_bias_lane0[0x10];
+	u8         tx_bias_lane1[0x10];
+
+	u8         tx_bias_lane2[0x10];
+	u8         tx_bias_lane3[0x10];
+
+	u8         reserved_at_3c0[0x40];
+
+	u8         temperature_high_th[0x10];
+	u8         temperature_low_th[0x10];
+
+	u8         voltage_high_th[0x10];
+	u8         voltage_low_th[0x10];
+
+	u8         rx_power_high_th[0x10];
+	u8         rx_power_low_th[0x10];
+
+	u8         tx_power_high_th[0x10];
+	u8         tx_power_low_th[0x10];
+
+	u8         tx_bias_high_th[0x10];
+	u8         tx_bias_low_th[0x10];
+
+	u8         reserved_at_4a0[0x10];
+	u8         wavelength[0x10];
+
+	u8         reserved_at_4c0[0x300];
+};
+
+union mlx5_ifc_pddr_operation_info_page_pddr_phy_info_page_pddr_troubleshooting_page_pddr_module_info_auto_bits {
+	struct mlx5_ifc_pddr_module_info_bits pddr_module_info;
+	u8         reserved_at_0[0x7c0];
+};
+
+struct mlx5_ifc_pddr_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         local_port[0x8];
+	u8         pnat[0x2];
+	u8         reserved_at_12[0xe];
+
+	u8         reserved_at_20[0x18];
+	u8         page_select[0x8];
+
+	union mlx5_ifc_pddr_operation_info_page_pddr_phy_info_page_pddr_troubleshooting_page_pddr_module_info_auto_bits page_data;
+};
+
 struct mlx5_ifc_per_protocol_networking_offload_caps_bits {
 	u8         csum_cap[0x1];
 	u8         vlan_cap[0x1];
