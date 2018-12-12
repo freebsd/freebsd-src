@@ -28,6 +28,8 @@
 #ifndef MLX5_IFC_H
 #define MLX5_IFC_H
 
+#include <dev/mlx5/mlx5_fpga/mlx5_ifc_fpga.h>
+
 enum {
 	MLX5_EVENT_TYPE_COMP                                       = 0x0,
 	MLX5_EVENT_TYPE_PATH_MIG                                   = 0x1,
@@ -58,7 +60,9 @@ enum {
 	MLX5_EVENT_TYPE_DROPPED_PACKET_LOGGED_EVENT                = 0x1f,
 	MLX5_EVENT_TYPE_CMD                                        = 0xa,
 	MLX5_EVENT_TYPE_PAGE_REQUEST                               = 0xb,
-	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE                           = 0xd
+	MLX5_EVENT_TYPE_NIC_VPORT_CHANGE                           = 0xd,
+	MLX5_EVENT_TYPE_FPGA_ERROR                                 = 0x20,
+	MLX5_EVENT_TYPE_FPGA_QP_ERROR                              = 0x21,
 };
 
 enum {
@@ -242,6 +246,11 @@ enum {
 	MLX5_CMD_OP_MODIFY_FLOW_TABLE             = 0x93c,
 	MLX5_CMD_OP_ALLOC_ENCAP_HEADER            = 0x93d,
 	MLX5_CMD_OP_DEALLOC_ENCAP_HEADER          = 0x93e,
+	MLX5_CMD_OP_FPGA_CREATE_QP                = 0x960,
+	MLX5_CMD_OP_FPGA_MODIFY_QP                = 0x961,
+	MLX5_CMD_OP_FPGA_QUERY_QP                 = 0x962,
+	MLX5_CMD_OP_FPGA_DESTROY_QP               = 0x963,
+	MLX5_CMD_OP_FPGA_QUERY_QP_COUNTERS        = 0x964,
 };
 
 enum {
@@ -998,7 +1007,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         max_tc[0x4];
 	u8         temp_warn_event[0x1];
 	u8         dcbx[0x1];
-	u8         reserved_22[0x4];
+	u8         general_notification_event[0x1];
+	u8         reserved_at_1d3[0x2];
+	u8         fpga[0x1];
 	u8         rol_s[0x1];
 	u8         rol_g[0x1];
 	u8         reserved_23[0x1];
