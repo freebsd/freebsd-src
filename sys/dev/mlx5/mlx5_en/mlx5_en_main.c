@@ -34,8 +34,8 @@
 #define	ETH_DRIVER_VERSION	"3.4.2"
 #endif
 
-char mlx5e_version[] = "Mellanox Ethernet driver"
-    " (" ETH_DRIVER_VERSION ")";
+static const char mlx5e_version[] = "mlx5en: Mellanox Ethernet driver "
+	ETH_DRIVER_VERSION " (" DRIVER_RELDATE ")\n";
 
 static int mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs);
 
@@ -3685,9 +3685,6 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	/* set default MTU */
 	mlx5e_set_dev_port_mtu(ifp, ifp->if_mtu);
 
-	/* Set desc */
-	device_set_desc(mdev->pdev->dev.bsddev, mlx5e_version);
-
 	/* Set default media status */
 	priv->media_status_last = IFM_AVALID;
 	priv->media_active_last = IFM_ETHER | IFM_AUTO |
@@ -3803,13 +3800,6 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	/* don't allow more IOCTLs */
 	priv->gone = 1;
 
-	/*
-	 * Clear the device description to avoid use after free,
-	 * because the bsddev is not destroyed when this module is
-	 * unloaded:
-	 */
-	device_set_desc(mdev->pdev->dev.bsddev, NULL);
-
 	/* XXX wait a bit to allow IOCTL handlers to complete */
 	pause("W", hz);
 
@@ -3894,6 +3884,14 @@ mlx5e_cleanup(void)
 {
 	mlx5_unregister_interface(&mlx5e_interface);
 }
+
+static void
+mlx5e_show_version(void __unused *arg)
+{
+
+	printf("%s", mlx5e_version);
+}
+SYSINIT(mlx5e_show_version, SI_SUB_DRIVERS, SI_ORDER_ANY, mlx5e_show_version, NULL);
 
 module_init_order(mlx5e_init, SI_ORDER_THIRD);
 module_exit_order(mlx5e_cleanup, SI_ORDER_THIRD);

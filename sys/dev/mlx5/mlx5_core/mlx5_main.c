@@ -44,6 +44,8 @@
 #include "mlx5_core.h"
 #include "fs_core.h"
 
+static const char mlx5_version[] = "Mellanox Core driver "
+	DRIVER_VERSION " (" DRIVER_RELDATE ")";
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -1219,6 +1221,9 @@ static int init_one(struct pci_dev *pdev,
 	dev->profile = &profiles[prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
+
+	/* Set desc */
+	device_set_desc(bsddev, mlx5_version);
 
 	sysctl_ctx_init(&dev->sysctl_ctx);
 	SYSCTL_ADD_INT(&dev->sysctl_ctx,
