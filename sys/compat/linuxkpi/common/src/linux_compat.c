@@ -699,12 +699,20 @@ linux_dev_fdopen(struct cdev *dev, int fflags, struct thread *td, struct file *f
 	filp->f_flags = file->f_flag;
 	filp->f_vnode = file->f_vnode;
 	filp->_file = file;
+	filp->f_cdev = ldev;
 
 	linux_set_current(td);
+
+	/* get a reference on the Linux character device */
+	if (atomic_long_add_unless(&ldev->refs, 1, -1L) == 0) {
+		kfree(filp);
+		return (EINVAL);
+	}
 
 	if (filp->f_op->open) {
 		error = -filp->f_op->open(file->f_vnode, filp);
 		if (error) {
+			atomic_long_dec(&ldev->refs);
 			kfree(filp);
 			return (error);
 		}
@@ -1396,6 +1404,10 @@ linux_file_close(struct file *file, struct thread *td)
 	funsetown(&filp->f_sigio);
 	if (filp->f_vnode != NULL)
 		vdrop(filp->f_vnode);
+	if (filp->f_cdev != NULL) {
+		/* put a reference on the Linux character device */
+		atomic_long_dec(&filp->f_cdev->refs);
+	}
 	kfree(filp);
 
 	return (error);
@@ -1947,8 +1959,7 @@ linux_cdev_release(struct kobject *kobj)
 
 	cdev = container_of(kobj, struct linux_cdev, kobj);
 	parent = kobj->parent;
-	if (cdev->cdev)
-		destroy_dev(cdev->cdev);
+	linux_destroy_dev(cdev);
 	kfree(cdev);
 	kobject_put(parent);
 }
@@ -1961,9 +1972,25 @@ linux_cdev_static_release(struct kobject *kobj)
 
 	cdev = container_of(kobj, struct linux_cdev, kobj);
 	parent = kobj->parent;
-	if (cdev->cdev)
-		destroy_dev(cdev->cdev);
+	linux_destroy_dev(cdev);
 	kobject_put(parent);
+}
+
+void
+linux_destroy_dev(struct linux_cdev *cdev)
+{
+
+	if (cdev->cdev == NULL)
+		return;
+
+	atomic_long_dec(&cdev->refs);
+
+	/* wait for all open files to be closed */
+	while (atomic_long_read(&cdev->refs) != -1L)
+		pause("ldevdrn", hz);
+
+	destroy_dev(cdev->cdev);
+	cdev->cdev = NULL;
 }
 
 const struct kobj_type linux_cdev_ktype = {
