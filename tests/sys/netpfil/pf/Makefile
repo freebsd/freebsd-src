@@ -10,6 +10,7 @@ ATF_TESTS_SH+=	anchor \
 		forward \
 		fragmentation \
 		names \
+		nat \
 		set_tos \
 		route_to \
 		synproxy \
