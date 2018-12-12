@@ -190,9 +190,9 @@ main(int argc, char *argv[])
 		}
 		break;
 	case PWM_SHOW_CONFIG:
-		printf("period: %lu\nduty: %lu\nenabled:%d\n",
-		    state.period,
-		    state.duty,
+		printf("period: %ju\nduty: %ju\nenabled:%d\n",
+		    (uintmax_t) state.period,
+		    (uintmax_t) state.duty,
 		    state.enable);
 		break;
 	case PWM_PERIOD:
