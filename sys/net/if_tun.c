@@ -662,24 +662,29 @@ static	int
 tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
-	int		error;
+	struct ifreq ifr;
 	struct tun_softc *tp = dev->si_drv1;
 	struct tuninfo *tunp;
+	int error;
 
 	switch (cmd) {
 	case TUNSIFINFO:
 		tunp = (struct tuninfo *)data;
-		if (tunp->mtu < IF_MINMTU)
-			return (EINVAL);
-		if (TUN2IFP(tp)->if_mtu != tunp->mtu) {
-			error = priv_check(td, PRIV_NET_SETIFMTU);
-			if (error)
-				return (error);
-		}
 		if (TUN2IFP(tp)->if_type != tunp->type)
 			return (EPROTOTYPE);
 		mtx_lock(&tp->tun_mtx);
-		TUN2IFP(tp)->if_mtu = tunp->mtu;
+		if (TUN2IFP(tp)->if_mtu != tunp->mtu) {
+			strncpy(ifr.ifr_name, if_name(TUN2IFP(tp)), IFNAMSIZ);
+			ifr.ifr_mtu = tunp->mtu;
+			CURVNET_SET(TUN2IFP(tp)->if_vnet);
+			error = ifhwioctl(SIOCSIFMTU, TUN2IFP(tp),
+			    (caddr_t)&ifr, td);
+			CURVNET_RESTORE();
+			if (error) {
+				mtx_unlock(&tp->tun_mtx);
+				return (error);
+			}
+		}
 		TUN2IFP(tp)->if_baudrate = tunp->baudrate;
 		mtx_unlock(&tp->tun_mtx);
 		break;
