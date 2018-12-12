@@ -196,7 +196,7 @@ mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,
 
 	if ((reg & ICU_INT_ENABLE) == 0) {
 		reg |= ICU_INT_ENABLE;
-		WR4(sc, ICU_INT_CFG(daf->cells[1], reg));
+		WR4(sc, ICU_INT_CFG(daf->cells[1]), reg);
 	}
 
 	daf->cells[1] = reg & ICU_INT_MASK;
