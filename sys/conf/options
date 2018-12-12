@@ -504,6 +504,7 @@ NETGRAPH_BLUETOOTH_UBTBCMFW	opt_netgraph.h
 NETGRAPH_BPF		opt_netgraph.h
 NETGRAPH_BRIDGE		opt_netgraph.h
 NETGRAPH_CAR		opt_netgraph.h
+NETGRAPH_CHECKSUM	opt_netgraph.h
 NETGRAPH_CISCO		opt_netgraph.h
 NETGRAPH_DEFLATE	opt_netgraph.h
 NETGRAPH_DEVICE		opt_netgraph.h
