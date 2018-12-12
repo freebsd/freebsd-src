@@ -57,4 +57,44 @@ struct mlx5_fwdump_get {
 #define	MLX5_DEV_PATH	_PATH_DEV"mlx5ctl"
 #endif
 
+enum mlx5_fpga_id {
+	MLX5_FPGA_NEWTON = 0,
+	MLX5_FPGA_EDISON = 1,
+	MLX5_FPGA_MORSE = 2,
+};
+
+enum mlx5_fpga_image {
+	MLX5_FPGA_IMAGE_USER = 0,
+	MLX5_FPGA_IMAGE_FACTORY = 1,
+	MLX5_FPGA_IMAGE_MAX = MLX5_FPGA_IMAGE_FACTORY,
+	MLX5_FPGA_IMAGE_FACTORY_FAILOVER = 2,
+};
+
+enum mlx5_fpga_status {
+	MLX5_FPGA_STATUS_SUCCESS = 0,
+	MLX5_FPGA_STATUS_FAILURE = 1,
+	MLX5_FPGA_STATUS_IN_PROGRESS = 2,
+	MLX5_FPGA_STATUS_DISCONNECTED = 3,
+};
+
+struct mlx5_fpga_query {
+	enum mlx5_fpga_image admin_image;
+	enum mlx5_fpga_image oper_image;
+	enum mlx5_fpga_status image_status;
+};
+
+/**
+ * enum mlx5_fpga_access_type - Enumerated the different methods possible for
+ * accessing the device memory address space
+ */
+enum mlx5_fpga_access_type {
+	/** Use the slow CX-FPGA I2C bus*/
+	MLX5_FPGA_ACCESS_TYPE_I2C = 0x0,
+	/** Use the fast 'shell QP' */
+	MLX5_FPGA_ACCESS_TYPE_RDMA,
+	/** Use the fastest available method */
+	MLX5_FPGA_ACCESS_TYPE_DONTCARE,
+	MLX5_FPGA_ACCESS_TYPE_MAX = MLX5_FPGA_ACCESS_TYPE_DONTCARE,
+};
+
 #endif
