@@ -961,6 +961,8 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				if (!err && slave != mlx4_master_func_num(dev)) {
 					u8 *state = outsmp->data + PORT_STATE_OFFSET;
 
+					if (port < 1 || port > dev->caps.num_ports)
+						return -EINVAL;
 					*state = (*state & 0xf0) | vf_port_state(dev, port, slave);
 					slave_cap_mask = priv->mfunc.master.slave_state[slave].ib_cap_mask[port];
 					memcpy(outsmp->data + PORT_CAPABILITY_LOCATION_IN_SMP, &slave_cap_mask, 4);
@@ -968,8 +970,12 @@ static int mlx4_MAD_IFC_wrapper(struct mlx4_dev *dev, int slave,
 				return err;
 			}
 			if (smp->attr_id == IB_SMP_ATTR_GUID_INFO) {
-				__be64 guid = mlx4_get_admin_guid(dev, slave,
-								  port);
+				__be64 guid;
+
+				if (port < 1 || port > dev->caps.num_ports)
+					return -EINVAL;
+
+				guid = mlx4_get_admin_guid(dev, slave, port);
 
 				/* set the PF admin guid to the FW/HW burned
 				 * GUID, if it wasn't yet set
