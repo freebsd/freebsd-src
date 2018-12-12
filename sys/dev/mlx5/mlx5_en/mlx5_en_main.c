@@ -2891,12 +2891,18 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			bool need_restart = false;
 
 			ifp->if_capenable ^= IFCAP_LRO;
+
+			/* figure out if updating HW LRO is needed */
 			if (!(ifp->if_capenable & IFCAP_LRO)) {
 				if (priv->params.hw_lro_en) {
 					priv->params.hw_lro_en = false;
 					need_restart = true;
-					/* Not sure this is the correct way */
-					priv->params_ethtool.hw_lro = priv->params.hw_lro_en;
+				}
+			} else {
+				if (priv->params.hw_lro_en == false &&
+				    priv->params_ethtool.hw_lro != 0) {
+					priv->params.hw_lro_en = true;
+					need_restart = true;
 				}
 			}
 			if (was_opened && need_restart) {

@@ -669,21 +669,24 @@ mlx5e_ethtool_handler(SYSCTL_HANDLER_ARGS)
 			mlx5e_close_locked(priv->ifp);
 
 		/* import HW LRO mode */
-		if (priv->params_ethtool.hw_lro != 0) {
-			if ((priv->ifp->if_capenable & IFCAP_LRO) &&
-			    MLX5_CAP_ETH(priv->mdev, lro_cap)) {
-				priv->params.hw_lro_en = 1;
-				priv->params_ethtool.hw_lro = 1;
+		if (priv->params_ethtool.hw_lro != 0 &&
+		    MLX5_CAP_ETH(priv->mdev, lro_cap)) {
+			priv->params_ethtool.hw_lro = 1;
+			/* check if feature should actually be enabled */
+			if (priv->ifp->if_capenable & IFCAP_LRO) {
+				priv->params.hw_lro_en = true;
 			} else {
-				priv->params.hw_lro_en = 0;
-				priv->params_ethtool.hw_lro = 0;
-				error = EINVAL;
+				priv->params.hw_lro_en = false;
 
-				if_printf(priv->ifp, "Can't enable HW LRO: "
-				    "The HW or SW LRO feature is disabled\n");
+				if_printf(priv->ifp, "To enable HW LRO "
+				    "please also enable LRO via ifconfig(8).\n");
 			}
 		} else {
-			priv->params.hw_lro_en = 0;
+			/* return an error if HW does not support this feature */
+			if (priv->params_ethtool.hw_lro != 0)
+				error = EINVAL;
+			priv->params.hw_lro_en = false;
+			priv->params_ethtool.hw_lro = 0;
 		}
 		/* restart network interface, if any */
 		if (was_opened)
