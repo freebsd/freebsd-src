@@ -90,6 +90,12 @@ enum mlx5_fpga_tee {
 	MLX5_FPGA_TEE_GENERATE_SINGLE_EVENT = 2,
 };
 
+enum mlx5_fpga_connect {
+	MLX5_FPGA_CONNECT_QUERY = 0,
+	MLX5_FPGA_CONNECT_DISCONNECT = 0x9,
+	MLX5_FPGA_CONNECT_CONNECT = 0xA,
+};
+
 /**
  * enum mlx5_fpga_access_type - Enumerated the different methods possible for
  * accessing the device memory address space
@@ -128,6 +134,7 @@ struct mlx5_fpga_temperature {
 #define	MLX5_FPGA_QUERY		_IOR('m', 0x84, struct mlx5_fpga_query)
 #define	MLX5_FPGA_CAP		_IOR('m', 0x85, uint32_t[MLX5_FPGA_CAP_ARR_SZ])
 #define	MLX5_FPGA_TEMPERATURE	_IOWR('m', 0x86, struct mlx5_fpga_temperature)
+#define	MLX5_FPGA_CONNECT	_IOWR('m', 0x87, enum mlx5_fpga_connect)
 
 #define	MLX5_FPGA_TOOLS_NAME_SUFFIX	"_mlx5_fpga_tools"
 
