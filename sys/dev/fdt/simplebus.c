@@ -62,13 +62,6 @@ static const struct ofw_bus_devinfo *simplebus_get_devinfo(device_t bus,
     device_t child);
 
 /*
- * local methods
- */
-
-static int simplebus_fill_ranges(phandle_t node,
-    struct simplebus_softc *sc);
-
-/*
  * Driver methods.
  */
 static device_method_t	simplebus_methods[] = {
@@ -184,7 +177,7 @@ simplebus_init(device_t dev, phandle_t node)
 	OF_getencprop(node, "#size-cells", &sc->scells, sizeof(sc->scells));
 }
 
-static int
+int
 simplebus_fill_ranges(phandle_t node, struct simplebus_softc *sc)
 {
 	int host_address_cells;
