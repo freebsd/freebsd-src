@@ -458,7 +458,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       struct ib_ah_attr *ah_attr)
 {
 	u32 flow_class;
-	u16 gid_index;
+	u16 gid_index = 0;
 	int ret;
 	enum rdma_network_type net_type = RDMA_NETWORK_IB;
 	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
@@ -524,8 +524,6 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 								 &gid_index);
 				if (ret)
 					return ret;
-			} else {
-				gid_index = 0;
 			}
 		}
 
