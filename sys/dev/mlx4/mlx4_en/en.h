@@ -271,10 +271,8 @@ struct mlx4_en_tx_ring {
 	u32 doorbell_qpn;
 	u8 *buf;
 	u16 poll_cnt;
-	int blocked;
 	struct mlx4_en_tx_info *tx_info;
 	u8 queue_index;
-	struct buf_ring *br;
 	u32 last_nr_txbb;
 	struct mlx4_qp qp;
 	struct mlx4_qp_context context;
@@ -806,7 +804,6 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_rx_ring **pring,
 			     u32 size, u16 stride);
-void mlx4_en_tx_que(void *context, int pending);
 void mlx4_en_rx_que(void *context, int pending);
 int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv);
 void mlx4_en_deactivate_rx_ring(struct mlx4_en_priv *priv,
