@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1030,13 +1030,8 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	struct mlx5e_priv *priv = c->priv;
 	struct mlx5_core_dev *mdev = priv->mdev;
 	char buffer[16];
-
 	void *sqc = param->sqc;
 	void *sqc_wq = MLX5_ADDR_OF(sqc, sqc, wq);
-#ifdef RSS
-	cpuset_t cpu_mask;
-	int cpu_id;
-#endif
 	int err;
 
 	/* Create DMA descriptor TAG */
@@ -1079,37 +1074,6 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->min_inline_mode = priv->params.tx_min_inline_mode;
 	sq->vlan_inline_cap = MLX5_CAP_ETH(mdev, wqe_vlan_insert);
 
-	/* check if we should allocate a second packet buffer */
-	if (priv->params_ethtool.tx_bufring_disable == 0) {
-		sq->br = buf_ring_alloc(MLX5E_SQ_TX_QUEUE_SIZE, M_MLX5EN,
-		    M_WAITOK, &sq->lock);
-		if (sq->br == NULL) {
-			if_printf(c->ifp, "%s: Failed allocating sq drbr buffer\n",
-			    __func__);
-			err = -ENOMEM;
-			goto err_free_sq_db;
-		}
-
-		sq->sq_tq = taskqueue_create_fast("mlx5e_que", M_WAITOK,
-		    taskqueue_thread_enqueue, &sq->sq_tq);
-		if (sq->sq_tq == NULL) {
-			if_printf(c->ifp, "%s: Failed allocating taskqueue\n",
-			    __func__);
-			err = -ENOMEM;
-			goto err_free_drbr;
-		}
-
-		TASK_INIT(&sq->sq_task, 0, mlx5e_tx_que, sq);
-#ifdef RSS
-		cpu_id = rss_getcpu(c->ix % rss_getnumbuckets());
-		CPU_SETOF(cpu_id, &cpu_mask);
-		taskqueue_start_threads_cpuset(&sq->sq_tq, 1, PI_NET, &cpu_mask,
-		    "%s TX SQ%d.%d CPU%d", c->ifp->if_xname, c->ix, tc, cpu_id);
-#else
-		taskqueue_start_threads(&sq->sq_tq, 1, PI_NET,
-		    "%s TX SQ%d.%d", c->ifp->if_xname, c->ix, tc);
-#endif
-	}
 	snprintf(buffer, sizeof(buffer), "txstat%dtc%d", c->ix, tc);
 	mlx5e_create_stats(&sq->stats.ctx, SYSCTL_CHILDREN(priv->sysctl_ifnet),
 	    buffer, mlx5e_sq_stats_desc, MLX5E_SQ_STATS_NUM,
@@ -1117,10 +1081,6 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 
 	return (0);
 
-err_free_drbr:
-	buf_ring_free(sq->br, M_MLX5EN);
-err_free_sq_db:
-	mlx5e_free_sq_db(sq);
 err_sq_wq_destroy:
 	mlx5_wq_destroy(&sq->wq_ctrl);
 
@@ -1142,12 +1102,6 @@ mlx5e_destroy_sq(struct mlx5e_sq *sq)
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
 	mlx5_unmap_free_uar(sq->priv->mdev, &sq->uar);
-	if (sq->sq_tq != NULL) {
-		taskqueue_drain(sq->sq_tq, &sq->sq_task);
-		taskqueue_free(sq->sq_tq);
-	}
-	if (sq->br != NULL)
-		buf_ring_free(sq->br, M_MLX5EN);
 }
 
 int
@@ -1245,8 +1199,6 @@ mlx5e_open_sq(struct mlx5e_channel *c,
 	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RST, MLX5_SQC_STATE_RDY);
 	if (err)
 		goto err_disable_sq;
-
-	WRITE_ONCE(sq->queue_state, MLX5E_SQ_READY);
 
 	return (0);
 
