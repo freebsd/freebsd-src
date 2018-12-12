@@ -167,6 +167,7 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 	u32 eth_proto_oper;
 	int error;
 	u8 port_state;
+	u8 is_er_type;
 	u8 i;
 
 	port_state = mlx5_query_vport_state(mdev,
@@ -195,10 +196,33 @@ mlx5e_update_carrier(struct mlx5e_priv *priv)
 		if (mlx5e_mode_table[i].baudrate == 0)
 			continue;
 		if (MLX5E_PROT_MASK(i) & eth_proto_oper) {
+			u32 subtype = mlx5e_mode_table[i].subtype;
+
 			priv->ifp->if_baudrate =
 			    mlx5e_mode_table[i].baudrate;
-			priv->media_active_last =
-			    mlx5e_mode_table[i].subtype | IFM_ETHER | IFM_FDX;
+
+			switch (subtype) {
+			case IFM_10G_ER:
+				error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
+				if (error != 0) {
+					if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
+					    __func__, error);
+				}
+				if (error != 0 || is_er_type == 0)
+					subtype = IFM_10G_LR;
+				break;
+			case IFM_40G_LR4:
+				error = mlx5_query_pddr_range_info(mdev, 1, &is_er_type);
+				if (error != 0) {
+					if_printf(priv->ifp, "%s: query port pddr failed: %d\n",
+					    __func__, error);
+				}
+				if (error == 0 && is_er_type != 0)
+					subtype = IFM_40G_ER4;
+				break;
+			}
+			priv->media_active_last = subtype | IFM_ETHER | IFM_FDX;
+			break;
 		}
 	}
 	if_link_state_change(priv->ifp, LINK_STATE_UP);
@@ -221,6 +245,15 @@ mlx5e_find_link_mode(u32 subtype)
 {
 	u32 i;
 	u32 link_mode = 0;
+
+	switch (subtype) {
+	case IFM_10G_LR:
+		subtype = IFM_10G_ER;
+		break;
+	case IFM_40G_ER4:
+		subtype = IFM_40G_LR4;
+		break;
+	}
 
 	for (i = 0; i < MLX5E_LINK_MODES_NUMBER; ++i) {
 		if (mlx5e_mode_table[i].baudrate == 0)
@@ -3716,6 +3749,17 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 			    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
 		}
 	}
+
+	/* Additional supported medias */
+	ifmedia_add(&priv->media, IFM_10G_LR | IFM_ETHER, 0, NULL);
+	ifmedia_add(&priv->media, IFM_10G_LR |
+	    IFM_ETHER | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+
+	ifmedia_add(&priv->media, IFM_40G_ER4 | IFM_ETHER, 0, NULL);
+	ifmedia_add(&priv->media, IFM_40G_ER4 |
+	    IFM_ETHER | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
 
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
