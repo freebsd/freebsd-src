@@ -204,6 +204,7 @@ device		aw_gpio		# Allwinner GPIO controller
 device		gpio
 device		gpioled
 device		fdt_pinctrl
+device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
 
 # I2C
