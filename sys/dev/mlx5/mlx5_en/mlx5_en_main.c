@@ -159,8 +159,6 @@ static const struct {
 
 MALLOC_DEFINE(M_MLX5EN, "MLX5EN", "MLX5 Ethernet");
 
-static SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "MLX5 driver parameters");
-
 static void
 mlx5e_update_carrier(struct mlx5e_priv *priv)
 {

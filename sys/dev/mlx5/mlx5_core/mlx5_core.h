@@ -103,4 +103,6 @@ struct mlx5_crspace_regmap {
 
 extern struct pci_driver mlx5_core_driver;
 
+SYSCTL_DECL(_hw_mlx5);
+
 #endif /* __MLX5_CORE_H__ */
