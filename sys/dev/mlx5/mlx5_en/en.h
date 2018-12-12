@@ -619,7 +619,9 @@ struct mlx5e_sq {
 	u32	mkey_be;
 	u16	max_inline;
 	u8	min_inline_mode;
-	u8	vlan_inline_cap;
+	u8	min_insert_caps;
+#define	MLX5E_INSERT_VLAN 1
+#define	MLX5E_INSERT_NON_VLAN 2
 
 	/* control path */
 	struct	mlx5_wq_ctrl wq_ctrl;
@@ -925,6 +927,7 @@ void	mlx5e_drain_sq(struct mlx5e_sq *);
 void	mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value);
 void	mlx5e_resume_sq(struct mlx5e_sq *sq);
-u8	mlx5e_params_calculate_tx_min_inline(struct mlx5_core_dev *mdev);
+void	mlx5e_update_sq_inline(struct mlx5e_sq *sq);
+void	mlx5e_refresh_sq_inline(struct mlx5e_priv *priv);
 
 #endif					/* _MLX5_EN_H_ */
