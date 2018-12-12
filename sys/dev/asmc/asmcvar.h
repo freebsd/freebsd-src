@@ -218,21 +218,39 @@ struct asmc_softc {
 				  "Heatsink 2", "Memory Controller", \
 				  "PCI Express Slot Pin", "PCI Express Slot (unk)" }
 
-#define ASMC_MBP8_TEMPS		{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
+#define ASMC_MBP81_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TCFC", "TCGC", "TCSA", "TM0S", "TMBS", \
+				  "TP0P", "TPCD", "TW0P", "Th1H", "Ts0P", \
+				  "Ts0S", NULL }
+
+#define ASMC_MBP81_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TCFC", "TCGC", "TCSA", "TM0S", "TMBS", \
+				  "TP0P", "TPCD", "wireless", "Th1H", "Ts0P", \
+				  "Ts0S" }
+
+#define ASMC_MBP81_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TCFC", "TCGC", "TCSA", "TM0S", "TMBS", \
+				  "TP0P", "TPCD", "TW0P", "Th1H", "Ts0P", \
+				  "Ts0S" }
+
+#define ASMC_MBP82_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "TG0D", "TG0P", "THSP", "TM0S", \
 				  "TMBS", "TP0P", "TPCD", "TW0P", "Th1H", \
 				  "Th2H", "Tm0P", "Ts0P", "Ts0S", NULL }
 
-#define ASMC_MBP8_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
+#define ASMC_MBP82_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "graphics", "TG0P", "THSP", "TM0S", \
 				  "TMBS", "TP0P", "TPCD", "wireless", "Th1H", \
 				  "Th2H", "memory", "Ts0P", "Ts0S" }
 
-#define ASMC_MBP8_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
+#define ASMC_MBP82_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "TG0D", "TG0P", "THSP", "TM0S", \
