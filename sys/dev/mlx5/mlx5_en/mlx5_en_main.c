@@ -884,7 +884,7 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 
 	wq_sz = mlx5_wq_ll_get_size(&rq->wq);
 
-	err = -tcp_lro_init_args(&rq->lro, c->ifp, TCP_LRO_ENTRIES, wq_sz);
+	err = -tcp_lro_init_args(&rq->lro, c->tag.m_snd_tag.ifp, TCP_LRO_ENTRIES, wq_sz);
 	if (err)
 		goto err_rq_wq_destroy;
 
@@ -914,7 +914,7 @@ mlx5e_create_rq(struct mlx5e_channel *c,
 #endif
 	}
 
-	rq->ifp = c->ifp;
+	rq->ifp = c->tag.m_snd_tag.ifp;
 	rq->channel = c;
 	rq->ix = c->ix;
 
@@ -1771,7 +1771,9 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	c->priv = priv;
 	c->ix = ix;
-	c->ifp = priv->ifp;
+	/* setup send tag */
+	c->tag.m_snd_tag.ifp = priv->ifp;
+	c->tag.type = IF_SND_TAG_TYPE_UNLIMITED;
 	c->mkey_be = cpu_to_be32(priv->mr.key);
 	c->num_tc = priv->num_tc;
 
@@ -2004,7 +2006,6 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 		if (err)
 			goto err_close_channels;
 	}
-
 	return (0);
 
 err_close_channels:
@@ -3518,6 +3519,141 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	PRIV_UNLOCK(priv);
 }
 
+static int
+mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
+    union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **ppmt)
+{
+	struct mlx5e_priv *priv;
+	struct mlx5e_channel *pch;
+
+	priv = ifp->if_softc;
+
+	if (unlikely(priv->gone || params->hdr.flowtype == M_HASHTYPE_NONE)) {
+		return (EOPNOTSUPP);
+	} else {
+		/* keep this code synced with mlx5e_select_queue() */
+		u32 ch = priv->params.num_channels;
+#ifdef RSS
+		u32 temp;
+
+		if (rss_hash2bucket(params->hdr.flowid,
+		    params->hdr.flowtype, &temp) == 0)
+			ch = temp % ch;
+		else
+#endif
+			ch = (params->hdr.flowid % 128) % ch;
+
+		/*
+		 * NOTE: The channels array is only freed at detach
+		 * and it safe to return a pointer to the send tag
+		 * inside the channels structure as long as we
+		 * reference the priv.
+		 */
+		pch = priv->channel + ch;
+
+		/* check if send queue is not running */
+		if (unlikely(pch->sq[0].running == 0))
+			return (ENXIO);
+		mlx5e_ref_channel(priv);
+		*ppmt = &pch->tag.m_snd_tag;
+		return (0);
+	}
+}
+
+static int
+mlx5e_ul_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
+{
+	struct mlx5e_channel *pch =
+	    container_of(pmt, struct mlx5e_channel, tag.m_snd_tag);
+
+	params->unlimited.max_rate = -1ULL;
+	params->unlimited.queue_level = mlx5e_sq_queue_level(&pch->sq[0]);
+	return (0);
+}
+
+static void
+mlx5e_ul_snd_tag_free(struct m_snd_tag *pmt)
+{
+	struct mlx5e_channel *pch =
+	    container_of(pmt, struct mlx5e_channel, tag.m_snd_tag);
+
+	mlx5e_unref_channel(pch->priv);
+}
+
+static int
+mlx5e_snd_tag_alloc(struct ifnet *ifp,
+    union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **ppmt)
+{
+
+	switch (params->hdr.type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		return (mlx5e_rl_snd_tag_alloc(ifp, params, ppmt));
+#endif
+	case IF_SND_TAG_TYPE_UNLIMITED:
+		return (mlx5e_ul_snd_tag_alloc(ifp, params, ppmt));
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static int
+mlx5e_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
+{
+	struct mlx5e_snd_tag *tag =
+	    container_of(pmt, struct mlx5e_snd_tag, m_snd_tag);
+
+	switch (tag->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		return (mlx5e_rl_snd_tag_modify(pmt, params));
+#endif
+	case IF_SND_TAG_TYPE_UNLIMITED:
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static int
+mlx5e_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
+{
+	struct mlx5e_snd_tag *tag =
+	    container_of(pmt, struct mlx5e_snd_tag, m_snd_tag);
+
+	switch (tag->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		return (mlx5e_rl_snd_tag_query(pmt, params));
+#endif
+	case IF_SND_TAG_TYPE_UNLIMITED:
+		return (mlx5e_ul_snd_tag_query(pmt, params));
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static void
+mlx5e_snd_tag_free(struct m_snd_tag *pmt)
+{
+	struct mlx5e_snd_tag *tag =
+	    container_of(pmt, struct mlx5e_snd_tag, m_snd_tag);
+
+	switch (tag->type) {
+#ifdef RATELIMIT
+	case IF_SND_TAG_TYPE_RATE_LIMIT:
+		mlx5e_rl_snd_tag_free(pmt);
+		break;
+#endif
+	case IF_SND_TAG_TYPE_UNLIMITED:
+		mlx5e_ul_snd_tag_free(pmt);
+		break;
+	default:
+		break;
+	}
+}
+
 static void *
 mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 {
@@ -3571,13 +3707,11 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
 	ifp->if_capabilities |= IFCAP_HWSTATS | IFCAP_HWRXTSTMP;
-#ifdef RATELIMIT
 	ifp->if_capabilities |= IFCAP_TXRTLMT;
-	ifp->if_snd_tag_alloc = mlx5e_rl_snd_tag_alloc;
-	ifp->if_snd_tag_free = mlx5e_rl_snd_tag_free;
-	ifp->if_snd_tag_modify = mlx5e_rl_snd_tag_modify;
-	ifp->if_snd_tag_query = mlx5e_rl_snd_tag_query;
-#endif
+	ifp->if_snd_tag_alloc = mlx5e_snd_tag_alloc;
+	ifp->if_snd_tag_free = mlx5e_snd_tag_free;
+	ifp->if_snd_tag_modify = mlx5e_snd_tag_modify;
+	ifp->if_snd_tag_query = mlx5e_snd_tag_query;
 
 	/* set TSO limits so that we don't have to drop TX packets */
 	ifp->if_hw_tsomax = MLX5E_MAX_TX_PAYLOAD_SIZE - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
@@ -3831,6 +3965,13 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 	PRIV_LOCK(priv);
 	mlx5e_close_locked(ifp);
 	PRIV_UNLOCK(priv);
+
+	/* wait for all unlimited send tags to go away */
+	while (priv->channel_refs != 0) {
+		if_printf(priv->ifp, "Waiting for all unlimited connections "
+		    "to terminate\n");
+		pause("W", hz);
+	}
 
 	/* unregister device */
 	ifmedia_removeall(&priv->media);
