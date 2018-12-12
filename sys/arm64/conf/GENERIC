@@ -240,6 +240,10 @@ device		aw_thermal	# Allwinner Thermal Sensor Controller
 device		spibus
 device		bcm2835_spi	# Broadcom BCM283x SPI bus
 
+# PWM
+device		pwm
+device		aw_pwm
+
 # Console
 device		vt
 device		kbdmux
