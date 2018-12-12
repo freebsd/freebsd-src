@@ -303,9 +303,11 @@ ipoib_change_mtu(struct ipoib_dev_priv *priv, int new_mtu, bool propagate)
 	priv->admin_mtu = new_mtu;
 	error = ipoib_propagate_ifnet_mtu(priv, min(priv->mcast_mtu,
 	    priv->admin_mtu), propagate);
-	if (error == 0)
-		queue_work(ipoib_workqueue, &priv->flush_light);
-	else
+	if (error == 0) {
+		/* check for MTU change to avoid infinite loop */
+		if (prev_admin_mtu != new_mtu)
+			queue_work(ipoib_workqueue, &priv->flush_light);
+	} else
 		priv->admin_mtu = prev_admin_mtu;
 	return (error);
 }
