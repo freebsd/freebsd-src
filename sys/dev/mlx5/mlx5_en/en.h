@@ -779,7 +779,6 @@ struct mlx5e_priv {
 	struct sysctl_oid *sysctl_hw;
 	int	sysctl_debug;
 	struct mlx5e_stats stats;
-	struct sysctl_ctx_list sysctl_ctx_channel_debug;
 	int	counter_set_id;
 
 	struct workqueue_struct *wq;
