@@ -327,6 +327,11 @@ struct mlx5_traffic_counter {
 	u64         octets;
 };
 
+enum mlx5_cmd_mode {
+	MLX5_CMD_MODE_POLLING,
+	MLX5_CMD_MODE_EVENTS
+};
+
 struct mlx5_cmd_stats {
 	u64		sum;
 	u64		n;
@@ -370,8 +375,9 @@ struct mlx5_cmd {
 	struct workqueue_struct *wq;
 	struct semaphore sem;
 	struct semaphore pages_sem;
-	int	mode;
-	struct mlx5_cmd_work_ent *ent_arr[MLX5_MAX_COMMANDS];
+	enum mlx5_cmd_mode mode;
+	struct mlx5_cmd_work_ent * volatile ent_arr[MLX5_MAX_COMMANDS];
+	volatile enum mlx5_cmd_mode ent_mode[MLX5_MAX_COMMANDS];
 	struct mlx5_cmd_debug dbg;
 	struct cmd_msg_cache cache;
 	int checksum_disabled;
@@ -984,7 +990,7 @@ void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn);
 void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type);
 void mlx5_srq_event(struct mlx5_core_dev *dev, u32 srqn, int event_type);
 struct mlx5_core_srq *mlx5_core_get_srq(struct mlx5_core_dev *dev, u32 srqn);
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector);
+void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vector, enum mlx5_cmd_mode mode);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name, struct mlx5_uar *uar);
