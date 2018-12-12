@@ -50,7 +50,7 @@
 #include <dev/mlx5/fs.h>
 #include "mlx5_ib.h"
 
-#define DRIVER_NAME "mlx5_ib"
+#define DRIVER_NAME "mlx5ib"
 #ifndef DRIVER_VERSION
 #define DRIVER_VERSION "3.4.2"
 #endif
@@ -2963,8 +2963,6 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if ((ll == IB_LINK_LAYER_ETHERNET) && !MLX5_CAP_GEN(mdev, roce))
 		return NULL;
 
-	printk_once(KERN_INFO "%s", mlx5_version);
-
 	dev = (struct mlx5_ib_dev *)ib_alloc_device(sizeof(*dev));
 	if (!dev)
 		return NULL;
@@ -3258,6 +3256,14 @@ static void __exit mlx5_ib_cleanup(void)
 	mlx5_unregister_interface(&mlx5_ib_interface);
 	mlx5_ib_odp_cleanup();
 }
+
+static void
+mlx5_ib_show_version(void __unused *arg)
+{
+
+	printf("%s", mlx5_version);
+}
+SYSINIT(mlx5_ib_show_version, SI_SUB_DRIVERS, SI_ORDER_ANY, mlx5_ib_show_version, NULL);
 
 module_init_order(mlx5_ib_init, SI_ORDER_THIRD);
 module_exit_order(mlx5_ib_cleanup, SI_ORDER_THIRD);
