@@ -492,7 +492,7 @@ static ib_net64_t get_port_guid(IN osm_opensm_t * p_osm, uint64_t port_guid)
 		fflush(stdout);
 		if (scanf("%u", &choice) <= 0) {
 			char junk[128];
-			if (scanf("%s", junk) <= 0)
+			if (scanf("%127s", junk) <= 0)
 				printf("\nError: Cannot scan!\n");
 		} else if (choice == 0)
 			return 0;
