@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2018
+.Dd November 12, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -3495,6 +3495,15 @@ NPTv6 module translates source address when it matches this prefix.
 .It Cm ext_prefix Ar ipv6_prefix
 IPv6 prefix used in external network.
 NPTv6 module translates destination address when it matches this prefix.
+.It Cm ext_if Ar nic
+The NPTv6 module will use first global IPv6 address from interface
+.Ar nic
+as external prefix.
+It can be useful when IPv6 prefix of external network is dynamically obtained.
+.Cm ext_prefix
+and
+.Cm ext_if
+options are mutually exclusive.
 .It Cm prefixlen Ar length
 The length of specified IPv6 prefixes. It must be in range from 8 to 64.
 .El
