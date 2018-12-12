@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dev/extres/clk/clk.h>
+
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
 #include <dev/iicbus/twsi/twsi.h>
@@ -98,6 +100,7 @@ static int mv_twsi_attach(device_t);
 static struct ofw_compat_data compat_data[] = {
 	{ "mrvl,twsi",			true },
 	{ "marvell,mv64xxx-i2c",	true },
+	{ "marvell,mv78230-i2c",	true },
 	{ NULL,				false }
 };
 
@@ -141,29 +144,27 @@ mv_twsi_probe(device_t dev)
 	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
-	sc->reg_data = TWSI_DATA;
-	sc->reg_slave_addr = TWSI_ADDR;
-	sc->reg_slave_ext_addr = TWSI_XADDR;
-	sc->reg_control = TWSI_CNTR;
-	sc->reg_status = TWSI_STAT;
-	sc->reg_baud_rate = TWSI_BAUD_RATE;
-	sc->reg_soft_reset = TWSI_SRST;
-
 	device_set_desc(dev, "Marvell Integrated I2C Bus Controller");
 	return (BUS_PROBE_DEFAULT);
 }
 
 #define	ABSSUB(a,b)	(((a) > (b)) ? (a) - (b) : (b) - (a))
 static void
-mv_twsi_cal_baud_rate(const uint32_t target, struct twsi_baud_rate *rate)
+mv_twsi_cal_baud_rate(struct twsi_softc *sc, const uint32_t target,
+    struct twsi_baud_rate *rate)
 {
-	uint32_t clk, cur, diff, diff0;
+	uint64_t clk;
+	uint32_t cur, diff, diff0;
 	int m, n, m0, n0;
 
 	/* Calculate baud rate. */
 	m0 = n0 = 4;	/* Default values on reset */
 	diff0 = 0xffffffff;
+#ifdef __aarch64__
+	clk_get_freq(sc->clk_core, &clk);
+#else
 	clk = get_tclk();
+#endif
 
 	for (n = 0; n < 8; n++) {
 		for (m = 0; m < 16; m++) {
@@ -186,17 +187,37 @@ static int
 mv_twsi_attach(device_t dev)
 {
 	struct twsi_softc *sc;
-	phandle_t child, iicbusnode;
-	device_t childdev;
-	struct iicbus_ivar *devi;
-	char dname[32];	/* 32 is taken from struct u_device */
-	uint32_t paddr;
-	int len, error, ret;
+#ifdef __aarch64__
+	int error;
+#endif
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
-	mv_twsi_cal_baud_rate(TWSI_BAUD_RATE_SLOW, &sc->baud_rate[IIC_SLOW]);
-	mv_twsi_cal_baud_rate(TWSI_BAUD_RATE_FAST, &sc->baud_rate[IIC_FAST]);
+#ifdef __aarch64__
+	/* Activate clock */
+	error = clk_get_by_ofw_index(dev, 0, 0, &sc->clk_core);
+	if (error != 0) {
+		device_printf(dev, "could not find core clock\n");
+		return (error);
+	}
+	error = clk_enable(sc->clk_core);
+	if (error != 0) {
+		device_printf(dev, "could not enable core clock\n");
+		return (error);
+	}
+
+	if (clk_get_by_ofw_index(dev, 0, 1, &sc->clk_reg) == 0) {
+		error = clk_enable(sc->clk_reg);
+		if (error != 0) {
+			device_printf(dev, "could not enable core clock\n");
+			return (error);
+		}
+	}
+#endif
+
+	mv_twsi_cal_baud_rate(sc, TWSI_BAUD_RATE_SLOW, &sc->baud_rate[IIC_SLOW]);
+	mv_twsi_cal_baud_rate(sc, TWSI_BAUD_RATE_FAST, &sc->baud_rate[IIC_FAST]);
 	if (bootverbose)
 		device_printf(dev, "calculated baud rates are:\n"
 		    " %" PRIu32 " kHz (M=%d, N=%d) for slow,\n"
@@ -208,56 +229,13 @@ mv_twsi_attach(device_t dev)
 		    sc->baud_rate[IIC_FAST].m,
 		    sc->baud_rate[IIC_FAST].n);
 
+	sc->reg_data = TWSI_DATA;
+	sc->reg_slave_addr = TWSI_ADDR;
+	sc->reg_slave_ext_addr = TWSI_XADDR;
+	sc->reg_control = TWSI_CNTR;
+	sc->reg_status = TWSI_STAT;
+	sc->reg_baud_rate = TWSI_BAUD_RATE;
+	sc->reg_soft_reset = TWSI_SRST;
 
-	ret = twsi_attach(dev);
-	if (ret != 0)
-		return (ret);
-
-	iicbusnode = 0;
-	/* Find iicbus as the child devices in the device tree. */
-	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
-		len = OF_getproplen(child, "model");
-		if (len <= 0 || len > sizeof(dname))
-			continue;
-		error = OF_getprop(child, "model", &dname, len);
-		if (error == -1)
-			continue;
-		len = strlen(dname);
-		if (len == strlen(IICBUS_DEVNAME) &&
-		    strncasecmp(dname, IICBUS_DEVNAME, len) == 0) {
-			iicbusnode = child;
-			break; 
-		}
-	}
-	if (iicbusnode == 0)
-		goto attach_end;
-
-	/* Attach child devices onto iicbus. */
-	for (child = OF_child(iicbusnode); child != 0; child = OF_peer(child)) {
-		/* Get slave address. */
-		error = OF_getencprop(child, "i2c-address", &paddr, sizeof(paddr));
-		if (error == -1)
-			error = OF_getencprop(child, "reg", &paddr, sizeof(paddr));
-		if (error == -1)
-			continue;
-
-		/* Get device driver name. */
-		len = OF_getproplen(child, "model");
-		if (len <= 0 || len > sizeof(dname))
-			continue;
-		OF_getprop(child, "model", &dname, len);
-
-		if (bootverbose)
-			device_printf(dev, "adding a device %s at %d.\n",
-			    dname, paddr);
-		childdev = BUS_ADD_CHILD(sc->iicbus, 0, dname, -1);
-		devi = IICBUS_IVAR(childdev);
-		devi->addr = paddr;
-	}
-
-attach_end:
-	bus_generic_attach(sc->iicbus);
-
-	return (0);
+	return (twsi_attach(dev));
 }
