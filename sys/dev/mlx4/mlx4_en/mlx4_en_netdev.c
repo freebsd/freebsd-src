@@ -1574,9 +1574,12 @@ static void mlx4_en_restart(struct work_struct *work)
 	if (priv->blocked == 0 || priv->port_up == 0)
 		return;
 	for (i = 0; i < priv->tx_ring_num; i++) {
+		int watchdog_time;
+
 		ring = priv->tx_ring[i];
-		if (ring->blocked &&
-				ring->watchdog_time + MLX4_EN_WATCHDOG_TIMEOUT < ticks)
+		watchdog_time = READ_ONCE(ring->watchdog_time);
+		if (watchdog_time != 0 &&
+		    time_after(ticks, ring->watchdog_time))
 			goto reset;
 	}
 	return;
