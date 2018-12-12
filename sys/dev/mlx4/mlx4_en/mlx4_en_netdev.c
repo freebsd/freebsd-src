@@ -1681,7 +1681,7 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		if (priv->rx_ring[i])
 			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i],
-				priv->prof->rx_ring_size, priv->stride);
+				priv->prof->rx_ring_size);
 		if (priv->rx_cq[i])
 			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
 	}
@@ -1732,8 +1732,7 @@ err:
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		if (priv->rx_ring[i])
 			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i],
-						prof->rx_ring_size,
-						priv->stride);
+						prof->rx_ring_size);
 		if (priv->rx_cq[i])
 			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
 	}
@@ -2234,9 +2233,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
                 err = -EINVAL;
                 goto out;
         }
-
-	priv->stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
-					  DS_SIZE);
 
 	mlx4_en_sysctl_conf(priv);
 
