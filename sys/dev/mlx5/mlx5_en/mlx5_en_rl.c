@@ -421,7 +421,6 @@ mlx5e_rlw_channel_set_rate_locked(struct mlx5e_rl_worker *rlw,
 
 		if (rate == 0) {
 			/* rate doesn't exist, fallback to unlimited */
-			error = EINVAL;
 			index = 0;
 			rate = 0;
 			atomic_add_64(&rlw->priv->rl.stats.tx_modify_rate_failure, 1ULL);
