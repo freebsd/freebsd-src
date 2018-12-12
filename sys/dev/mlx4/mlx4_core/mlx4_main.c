@@ -121,6 +121,9 @@ MODULE_PARM_DESC(enable_4k_uar,
 
 #define RESET_PERSIST_MASK_FLAGS	(MLX4_FLAG_SRIOV)
 
+static char mlx4_description[] = "Mellanox driver"
+    " (" DRV_VERSION ")";
+
 static char mlx4_version[] =
 	DRV_NAME ": Mellanox ConnectX core driver v"
 	DRV_VERSION " (" DRV_RELDATE ")\n";
@@ -3780,6 +3783,7 @@ static int mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		kfree(priv);
 		return ret;
 	} else {
+		device_set_desc(pdev->dev.bsddev, mlx4_description);
 		pci_save_state(pdev->dev.bsddev);
 	}
 
@@ -3907,6 +3911,13 @@ static void mlx4_remove_one(struct pci_dev *pdev)
 	mutex_lock(&persist->interface_state_mutex);
 	persist->interface_state |= MLX4_INTERFACE_STATE_DELETION;
 	mutex_unlock(&persist->interface_state_mutex);
+
+	/*
+	 * Clear the device description to avoid use after free,
+	 * because the bsddev is not destroyed when this module is
+	 * unloaded:
+	 */
+	device_set_desc(pdev->dev.bsddev, NULL);
 
 	/* Disabling SR-IOV is not allowed while there are active vf's */
 	if (mlx4_is_master(dev) && dev->flags & MLX4_FLAG_SRIOV) {
