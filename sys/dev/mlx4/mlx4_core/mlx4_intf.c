@@ -62,8 +62,11 @@ static void mlx4_add_device(struct mlx4_interface *intf, struct mlx4_priv *priv)
 		spin_lock_irq(&priv->ctx_lock);
 		list_add_tail(&dev_ctx->list, &priv->ctx_list);
 		spin_unlock_irq(&priv->ctx_lock);
-		if (intf->activate)
+		if (intf->activate) {
+			CURVNET_SET_QUIET(vnet0);
 			intf->activate(&priv->dev, dev_ctx->context);
+			CURVNET_RESTORE();
+		}
 	} else
 		kfree(dev_ctx);
 }
