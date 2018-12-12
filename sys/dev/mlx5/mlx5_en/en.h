@@ -595,7 +595,7 @@ struct mlx5e_sq {
 #define	MLX5E_CEV_STATE_INITIAL 0	/* timer not started */
 #define	MLX5E_CEV_STATE_SEND_NOPS 1	/* send NOPs */
 #define	MLX5E_CEV_STATE_HOLD_NOPS 2	/* don't send NOPs yet */
-	u16	stopped;		/* set if SQ is stopped */
+	u16	running;		/* set if SQ is running */
 	struct callout cev_callout;
 	union {
 		u32	d32[2];
@@ -754,7 +754,6 @@ struct mlx5e_priv {
 	u32	tdn;
 	struct mlx5_core_mr mr;
 
-	struct mlx5e_channel *volatile *channel;
 	u32	tisn[MLX5E_MAX_TX_NUM_TC];
 	u32	rqtn;
 	u32	tirn[MLX5E_NUM_TT];
@@ -790,6 +789,8 @@ struct mlx5e_priv {
 	int	media_active_last;
 
 	struct callout watchdog;
+
+	struct mlx5e_channel channel[];
 };
 
 #define	MLX5E_NET_IP_ALIGN 2

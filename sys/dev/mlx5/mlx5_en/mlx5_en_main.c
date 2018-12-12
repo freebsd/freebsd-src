@@ -471,7 +471,6 @@ mlx5e_update_stats_work(struct work_struct *work)
 	    update_stats_work);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_vport_stats *s = &priv->stats.vport;
-	struct mlx5e_rq_stats *rq_stats;
 	struct mlx5e_sq_stats *sq_stats;
 	struct buf_ring *sq_br;
 #if (__FreeBSD_version < 1100000)
@@ -505,9 +504,9 @@ mlx5e_update_stats_work(struct work_struct *work)
 
 	/* Collect firts the SW counters and then HW for consistency */
 	for (i = 0; i < priv->params.num_channels; i++) {
-		struct mlx5e_rq *rq = &priv->channel[i]->rq;
-
-		rq_stats = &priv->channel[i]->rq.stats;
+		struct mlx5e_channel *pch = priv->channel + i;
+		struct mlx5e_rq *rq = &pch->rq;
+		struct mlx5e_rq_stats *rq_stats = &pch->rq.stats;
 
 		/* collect stats from LRO */
 		rq_stats->sw_lro_queued = rq->lro.lro_queued;
@@ -520,8 +519,8 @@ mlx5e_update_stats_work(struct work_struct *work)
 		rx_wqe_err += rq_stats->wqe_err;
 
 		for (j = 0; j < priv->num_tc; j++) {
-			sq_stats = &priv->channel[i]->sq[j].stats;
-			sq_br = priv->channel[i]->sq[j].br;
+			sq_stats = &pch->sq[j].stats;
+			sq_br = pch->sq[j].br;
 
 			tso_packets += sq_stats->tso_packets;
 			tso_bytes += sq_stats->tso_bytes;
@@ -1097,7 +1096,7 @@ mlx5e_refresh_sq_inline(struct mlx5e_priv *priv)
 		return;
 
 	for (i = 0; i < priv->params.num_channels; i++)
-		mlx5e_refresh_sq_inline_sub(priv, priv->channel[i]);
+		mlx5e_refresh_sq_inline_sub(priv, &priv->channel[i]);
 }
 
 static int
@@ -1278,6 +1277,8 @@ mlx5e_open_sq(struct mlx5e_channel *c,
 	if (err)
 		goto err_disable_sq;
 
+	WRITE_ONCE(sq->running, 1);
+
 	return (0);
 
 err_disable_sq:
@@ -1352,19 +1353,20 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	/*
 	 * Check if already stopped.
 	 *
-	 * NOTE: The "stopped" variable is only written when both the
-	 * priv's configuration lock and the SQ's lock is locked. It
-	 * can therefore safely be read when only one of the two locks
-	 * is locked. This function is always called when the priv's
-	 * configuration lock is locked.
+	 * NOTE: Serialization of this function is managed by the
+	 * caller ensuring the priv's state lock is locked or in case
+	 * of rate limit support, a single thread manages drain and
+	 * resume of SQs. The "running" variable can therefore safely
+	 * be read without any locks.
 	 */
-	if (sq->stopped != 0)
+	if (READ_ONCE(sq->running) == 0)
 		return;
 
-	mtx_lock(&sq->lock);
-
 	/* don't put more packets into the SQ */
-	sq->stopped = 1;
+	WRITE_ONCE(sq->running, 0);
+
+	/* serialize access to DMA rings */
+	mtx_lock(&sq->lock);
 
 	/* teardown event factor timer, if any */
 	sq->cev_next_state = MLX5E_CEV_STATE_HOLD_NOPS;
@@ -1658,15 +1660,14 @@ mlx5e_chan_mtx_destroy(struct mlx5e_channel *c)
 static int
 mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
     struct mlx5e_channel_param *cparam,
-    struct mlx5e_channel *volatile *cp)
+    struct mlx5e_channel *c)
 {
-	struct mlx5e_channel *c;
 	int err;
 
-	c = malloc(sizeof(*c), M_MLX5EN, M_WAITOK | M_ZERO);
+	memset(c, 0, sizeof(*c));
+
 	c->priv = priv;
 	c->ix = ix;
-	c->cpu = 0;
 	c->ifp = priv->ifp;
 	c->mkey_be = cpu_to_be32(priv->mr.key);
 	c->num_tc = priv->num_tc;
@@ -1693,9 +1694,6 @@ mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_sqs;
 
-	/* store channel pointer */
-	*cp = c;
-
 	/* poll receive queue initially */
 	c->rq.cq.mcq.comp(&c->rq.cq.mcq);
 
@@ -1713,39 +1711,24 @@ err_close_tx_cqs:
 err_free:
 	/* destroy mutexes */
 	mlx5e_chan_mtx_destroy(c);
-	free(c, M_MLX5EN);
 	return (err);
 }
 
 static void
-mlx5e_close_channel(struct mlx5e_channel *volatile *pp)
+mlx5e_close_channel(struct mlx5e_channel *c)
 {
-	struct mlx5e_channel *c = *pp;
-
-	/* check if channel is already closed */
-	if (c == NULL)
-		return;
 	mlx5e_close_rq(&c->rq);
 }
 
 static void
-mlx5e_close_channel_wait(struct mlx5e_channel *volatile *pp)
+mlx5e_close_channel_wait(struct mlx5e_channel *c)
 {
-	struct mlx5e_channel *c = *pp;
-
-	/* check if channel is already closed */
-	if (c == NULL)
-		return;
-	/* ensure channel pointer is no longer used */
-	*pp = NULL;
-
 	mlx5e_close_rq_wait(&c->rq);
 	mlx5e_close_sqs_wait(c);
 	mlx5e_close_cq(&c->rq.cq);
 	mlx5e_close_tx_cqs(c);
 	/* destroy mutexes */
 	mlx5e_chan_mtx_destroy(c);
-	free(c, M_MLX5EN);
 }
 
 static int
@@ -1902,13 +1885,9 @@ static int
 mlx5e_open_channels(struct mlx5e_priv *priv)
 {
 	struct mlx5e_channel_param cparam;
-	void *ptr;
 	int err;
 	int i;
 	int j;
-
-	priv->channel = malloc(priv->params.num_channels *
-	    sizeof(struct mlx5e_channel *), M_MLX5EN, M_WAITOK | M_ZERO);
 
 	mlx5e_build_channel_param(priv, &cparam);
 	for (i = 0; i < priv->params.num_channels; i++) {
@@ -1918,7 +1897,7 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 	}
 
 	for (j = 0; j < priv->params.num_channels; j++) {
-		err = mlx5e_wait_for_min_rx_wqes(&priv->channel[j]->rq);
+		err = mlx5e_wait_for_min_rx_wqes(&priv->channel[j].rq);
 		if (err)
 			goto err_close_channels;
 	}
@@ -1926,39 +1905,22 @@ mlx5e_open_channels(struct mlx5e_priv *priv)
 	return (0);
 
 err_close_channels:
-	for (i--; i >= 0; i--) {
+	while (i--) {
 		mlx5e_close_channel(&priv->channel[i]);
 		mlx5e_close_channel_wait(&priv->channel[i]);
 	}
-
-	/* remove "volatile" attribute from "channel" pointer */
-	ptr = __DECONST(void *, priv->channel);
-	priv->channel = NULL;
-
-	free(ptr, M_MLX5EN);
-
 	return (err);
 }
 
 static void
 mlx5e_close_channels(struct mlx5e_priv *priv)
 {
-	void *ptr;
 	int i;
-
-	if (priv->channel == NULL)
-		return;
 
 	for (i = 0; i < priv->params.num_channels; i++)
 		mlx5e_close_channel(&priv->channel[i]);
 	for (i = 0; i < priv->params.num_channels; i++)
 		mlx5e_close_channel_wait(&priv->channel[i]);
-
-	/* remove "volatile" attribute from "channel" pointer */
-	ptr = __DECONST(void *, priv->channel);
-	priv->channel = NULL;
-
-	free(ptr, M_MLX5EN);
 }
 
 static int
@@ -2024,9 +1986,6 @@ mlx5e_refresh_channel_params_sub(struct mlx5e_priv *priv, struct mlx5e_channel *
 	int err;
 	int i;
 
-	if (c == NULL)
-		return (EINVAL);
-
 	err = mlx5e_refresh_rq_params(priv, &c->rq);
 	if (err)
 		goto done;
@@ -2045,13 +2004,14 @@ mlx5e_refresh_channel_params(struct mlx5e_priv *priv)
 {
 	int i;
 
-	if (priv->channel == NULL)
+	/* check if channels are closed */
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
 		return (EINVAL);
 
 	for (i = 0; i < priv->params.num_channels; i++) {
 		int err;
 
-		err = mlx5e_refresh_channel_params_sub(priv, priv->channel[i]);
+		err = mlx5e_refresh_channel_params_sub(priv, &priv->channel[i]);
 		if (err)
 			return (err);
 	}
@@ -2145,7 +2105,7 @@ mlx5e_open_rqt(struct mlx5e_priv *priv)
 		/* apply receive side scaling stride, if any */
 		ix -= ix % (int)priv->params.channels_rsss;
 
-		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix]->rq.rqn);
+		MLX5_SET(rqtc, rqtc, rq_num[i], priv->channel[ix].rq.rqn);
 	}
 
 	MLX5_SET(create_rqt_in, in, opcode, MLX5_CMD_OP_CREATE_RQT);
@@ -2212,7 +2172,7 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		MLX5_SET(tirc, tirc, disp_type,
 		    MLX5_TIRC_DISP_TYPE_DIRECT);
 		MLX5_SET(tirc, tirc, inline_rqn,
-		    priv->channel[0]->rq.rqn);
+		    priv->channel[0].rq.rqn);
 		break;
 	default:
 		MLX5_SET(tirc, tirc, disp_type,
@@ -3133,7 +3093,7 @@ mlx5e_resume_sq(struct mlx5e_sq *sq)
 	int err;
 
 	/* check if already enabled */
-	if (sq->stopped == 0)
+	if (READ_ONCE(sq->running) != 0)
 		return;
 
 	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_ERR,
@@ -3156,11 +3116,8 @@ mlx5e_resume_sq(struct mlx5e_sq *sq)
 		    "mlx5e_modify_sq() from RST to RDY failed: %d\n", err);
 	}
 
-	mtx_lock(&sq->lock);
 	sq->cev_next_state = MLX5E_CEV_STATE_INITIAL;
-	sq->stopped = 0;
-	mtx_unlock(&sq->lock);
-
+	WRITE_ONCE(sq->running, 1);
 }
 
 static void
@@ -3231,18 +3188,14 @@ mlx5e_modify_tx_dma(struct mlx5e_priv *priv, uint8_t value)
 {
 	int i;
 
-	if (priv->channel == NULL)
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
 		return;
 
 	for (i = 0; i < priv->params.num_channels; i++) {
-
-		if (!priv->channel[i])
-			continue;
-
 		if (value)
-			mlx5e_disable_tx_dma(priv->channel[i]);
+			mlx5e_disable_tx_dma(&priv->channel[i]);
 		else
-			mlx5e_enable_tx_dma(priv->channel[i]);
+			mlx5e_enable_tx_dma(&priv->channel[i]);
 	}
 }
 
@@ -3251,18 +3204,14 @@ mlx5e_modify_rx_dma(struct mlx5e_priv *priv, uint8_t value)
 {
 	int i;
 
-	if (priv->channel == NULL)
+	if (test_bit(MLX5E_STATE_OPENED, &priv->state) == 0)
 		return;
 
 	for (i = 0; i < priv->params.num_channels; i++) {
-
-		if (!priv->channel[i])
-			continue;
-
 		if (value)
-			mlx5e_disable_rx_dma(priv->channel[i]);
+			mlx5e_disable_rx_dma(&priv->channel[i]);
 		else
-			mlx5e_enable_rx_dma(priv->channel[i]);
+			mlx5e_enable_rx_dma(&priv->channel[i]);
 	}
 }
 
@@ -3467,7 +3416,13 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		mlx5_core_dbg(mdev, "mlx5e_check_required_hca_cap() failed\n");
 		return (NULL);
 	}
-	priv = malloc(sizeof(*priv), M_MLX5EN, M_WAITOK | M_ZERO);
+	/*
+	 * Try to allocate the priv and make room for worst-case
+	 * number of channel structures:
+	 */
+	priv = malloc(sizeof(*priv) +
+	    (sizeof(priv->channel[0]) * mdev->priv.eq_table.num_comp_vectors),
+	    M_MLX5EN, M_WAITOK | M_ZERO);
 	mlx5e_priv_mtx_init(priv);
 
 	ifp = priv->ifp = if_alloc(IFT_ETHER);

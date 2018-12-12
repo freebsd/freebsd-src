@@ -81,16 +81,9 @@ static struct mlx5e_sq *
 mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 {
 	struct mlx5e_priv *priv = ifp->if_softc;
-	struct mlx5e_channel * volatile *ppch;
-	struct mlx5e_channel *pch;
+	struct mlx5e_sq *sq;
 	u32 ch;
 	u32 tc;
-
-	ppch = priv->channel;
-
-	/* check if channels are successfully opened */
-	if (unlikely(ppch == NULL))
-		return (NULL);
 
 	/* obtain VLAN information if present */
 	if (mb->m_flags & M_VLANTAG) {
@@ -127,10 +120,10 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 #endif
 	}
 
-	/* check if channel is allocated and not stopped */
-	pch = ppch[ch];
-	if (likely(pch != NULL && pch->sq[tc].stopped == 0))
-		return (&pch->sq[tc]);
+	/* check if send queue is running */
+	sq = &priv->channel[ch].sq[tc];
+	if (likely(READ_ONCE(sq->running) != 0))
+		return (sq);
 	return (NULL);
 }
 
@@ -533,7 +526,7 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 	int err = 0;
 
 	if (unlikely((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    sq->stopped != 0)) {
+	    READ_ONCE(sq->running) == 0)) {
 		m_freem(mb);
 		return (ENETDOWN);
 	}
