@@ -1211,7 +1211,7 @@ static int init_one(struct pci_dev *pdev,
 		priv->pci_dev_data = id->driver_data;
 
 	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profiles)) {
-		printf("mlx5_core: WARN: ""selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
+		device_printf(bsddev, "WARN: selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
 		prof_sel = MLX5_DEFAULT_PROF;
 	}
 	dev->profile = &profiles[prof_sel];
@@ -1226,38 +1226,38 @@ static int init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
-        mutex_init(&dev->pci_status_mutex);
-        mutex_init(&dev->intf_state_mutex);
+	mutex_init(&dev->pci_status_mutex);
+	mutex_init(&dev->intf_state_mutex);
 	err = mlx5_pci_init(dev, priv);
 	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_pci_init failed %d\n", err);
+		device_printf(bsddev, "ERR: mlx5_pci_init failed %d\n", err);
 		goto clean_dev;
 	}
 
-        err = mlx5_health_init(dev);
-        if (err) {
-                device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_health_init failed %d\n", err);
-                goto close_pci;
-        }
+	err = mlx5_health_init(dev);
+	if (err) {
+		device_printf(bsddev, "ERR: mlx5_health_init failed %d\n", err);
+		goto close_pci;
+	}
 
 	mlx5_pagealloc_init(dev);
 
 	err = mlx5_load_one(dev, priv, true);
 	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_register_device failed %d\n", err);
+		device_printf(bsddev, "ERR: mlx5_load_one failed %d\n", err);
 		goto clean_health;
 	}
 
 	mlx5_fwdump_prep(dev);
 
-	pci_save_state(pdev->dev.bsddev);
+	pci_save_state(bsddev);
 	return 0;
 
 clean_health:
 	mlx5_pagealloc_cleanup(dev);
-        mlx5_health_cleanup(dev);
+	mlx5_health_cleanup(dev);
 close_pci:
-        mlx5_pci_close(dev, priv);
+	mlx5_pci_close(dev, priv);
 clean_dev:
 	sysctl_ctx_free(&dev->sysctl_ctx);
 	kfree(dev);
