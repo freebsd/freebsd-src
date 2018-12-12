@@ -629,6 +629,24 @@ mlx4_en_rx_mb(struct mlx4_en_priv *priv, struct mlx4_en_rx_ring *ring,
 #endif
 	struct mbuf *mb;
 
+	/* optimise reception of small packets */
+	if (length <= (MHLEN - MLX4_NET_IP_ALIGN) &&
+	    (mb = m_gethdr(M_NOWAIT, MT_DATA)) != NULL) {
+
+		/* set packet length */
+		mb->m_pkthdr.len = mb->m_len = length;
+
+		/* make sure IP header gets aligned */
+		mb->m_data += MLX4_NET_IP_ALIGN;
+
+		bus_dmamap_sync(ring->dma_tag, mb_list->dma_map,
+		    BUS_DMASYNC_POSTREAD);
+
+		bcopy(mtod(mb_list->mbuf, caddr_t), mtod(mb, caddr_t), length);
+
+		return (mb);
+	}
+
 	/* get mbuf */
 	mb = mb_list->mbuf;
 
