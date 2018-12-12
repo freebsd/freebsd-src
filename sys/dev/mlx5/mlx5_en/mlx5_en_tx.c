@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -154,49 +154,53 @@ mlx5e_select_queue(struct ifnet *ifp, struct mbuf *mb)
 }
 
 static inline u16
-mlx5e_get_inline_hdr_size(struct mlx5e_sq *sq, struct mbuf *mb)
+mlx5e_get_l2_header_size(struct mlx5e_sq *sq, struct mbuf *mb)
 {
+	struct ether_vlan_header *eh;
+	uint16_t eth_type;
+	int min_inline;
 
-	switch(sq->min_inline_mode) {
-	case MLX5_INLINE_MODE_NONE:
-		/*
-		 * When inline mode is NONE, we do not need to copy
-		 * headers into WQEs, except when vlan tag framing is
-		 * requested. Hardware might offload vlan tagging on
-		 * transmit. This is a separate capability, which is
-		 * known to be disabled on ConnectX-5 due to a hardware
-		 * bug RM 931383. If vlan_inline_cap is not present and
-		 * the packet has vlan tag, fall back to inlining.
-		 */
-		if ((mb->m_flags & M_VLANTAG) != 0 &&
-		    sq->vlan_inline_cap == 0)
-			break;
-		return (0);
-	case MLX5_INLINE_MODE_L2:
-		/*
-		 * Due to hardware limitations, when trust mode is
-		 * DSCP, the hardware may request MLX5_INLINE_MODE_L2
-		 * while it really needs all L2 headers and the 4 first
-		 * bytes of the IP header (which include the
-		 * TOS/traffic-class).
-		 *
-		 * To avoid doing a firmware command for querying the
-		 * trust state and parsing the mbuf for doing
-		 * unnecessary checks (VLAN/eth_type) in the fast path,
-		 * we are going for the worth case (22 Bytes) if
-		 * the mb->m_pkthdr.len allows it.
-		 */
-		if (mb->m_pkthdr.len > ETHER_HDR_LEN +
-		    ETHER_VLAN_ENCAP_LEN + 4)
-			return (MIN(sq->max_inline, ETHER_HDR_LEN +
-			    ETHER_VLAN_ENCAP_LEN + 4));
-		break;
+	eh = mtod(mb, struct ether_vlan_header *);
+	if (unlikely(mb->m_len < ETHER_HDR_LEN)) {
+		goto max_inline;
+	} else if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		if (unlikely(mb->m_len < (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)))
+			goto max_inline;
+		eth_type = ntohs(eh->evl_proto);
+		min_inline = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+	} else {
+		eth_type = ntohs(eh->evl_encap_proto);
+		min_inline = ETHER_HDR_LEN;
 	}
-	return (MIN(sq->max_inline, mb->m_pkthdr.len));
+
+	switch (eth_type) {
+	case ETHERTYPE_IP:
+	case ETHERTYPE_IPV6:
+		/*
+		 * Make sure the TOS(IPv4) or traffic class(IPv6)
+		 * field gets inlined. Else the SQ may stall.
+		 */
+		min_inline += 4;
+		break;
+	default:
+		goto max_inline;
+	}
+
+	/*
+	 * m_copydata() will be used on the remaining header which
+	 * does not need to reside within the first m_len bytes of
+	 * data:
+	 */
+	if (mb->m_pkthdr.len < min_inline)
+		goto max_inline;
+	return (min_inline);
+
+max_inline:
+	return (MIN(mb->m_pkthdr.len, sq->max_inline));
 }
 
 static int
-mlx5e_get_header_size(struct mbuf *mb)
+mlx5e_get_full_header_size(struct mbuf *mb)
 {
 	struct ether_vlan_header *eh;
 	struct tcphdr *th;
@@ -210,31 +214,46 @@ mlx5e_get_header_size(struct mbuf *mb)
 	if (mb->m_len < ETHER_HDR_LEN)
 		return (0);
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		if (mb->m_len < (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN))
+			return (0);
 		eth_type = ntohs(eh->evl_proto);
 		eth_hdr_len = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	} else {
 		eth_type = ntohs(eh->evl_encap_proto);
 		eth_hdr_len = ETHER_HDR_LEN;
 	}
-	if (mb->m_len < eth_hdr_len)
-		return (0);
 	switch (eth_type) {
 	case ETHERTYPE_IP:
 		ip = (struct ip *)(mb->m_data + eth_hdr_len);
 		if (mb->m_len < eth_hdr_len + sizeof(*ip))
 			return (0);
-		if (ip->ip_p != IPPROTO_TCP)
+		switch (ip->ip_p) {
+		case IPPROTO_TCP:
+			ip_hlen = ip->ip_hl << 2;
+			eth_hdr_len += ip_hlen;
+			break;
+		case IPPROTO_UDP:
+			ip_hlen = ip->ip_hl << 2;
+			eth_hdr_len += ip_hlen + 8;
+			goto done;
+		default:
 			return (0);
-		ip_hlen = ip->ip_hl << 2;
-		eth_hdr_len += ip_hlen;
+		}
 		break;
 	case ETHERTYPE_IPV6:
 		ip6 = (struct ip6_hdr *)(mb->m_data + eth_hdr_len);
 		if (mb->m_len < eth_hdr_len + sizeof(*ip6))
 			return (0);
-		if (ip6->ip6_nxt != IPPROTO_TCP)
+		switch (ip6->ip6_nxt) {
+		case IPPROTO_TCP:
+			eth_hdr_len += sizeof(*ip6);
+			break;
+		case IPPROTO_UDP:
+			eth_hdr_len += sizeof(*ip6) + 8;
+			goto done;
+		default:
 			return (0);
-		eth_hdr_len += sizeof(*ip6);
+		}
 		break;
 	default:
 		return (0);
@@ -244,7 +263,13 @@ mlx5e_get_header_size(struct mbuf *mb)
 	th = (struct tcphdr *)(mb->m_data + eth_hdr_len);
 	tcp_hlen = th->th_off << 2;
 	eth_hdr_len += tcp_hlen;
-	if (mb->m_len < eth_hdr_len)
+done:
+	/*
+	 * m_copydata() will be used on the remaining header which
+	 * does not need to reside within the first m_len bytes of
+	 * data:
+	 */
+	if (mb->m_pkthdr.len < eth_hdr_len)
 		return (0);
 	return (eth_hdr_len);
 }
@@ -306,7 +331,11 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 
 		wqe->eth.mss = cpu_to_be16(mss);
 		opcode = MLX5_OPCODE_LSO;
-		ihs = mlx5e_get_header_size(mb);
+		ihs = mlx5e_get_full_header_size(mb);
+		if (unlikely(ihs == 0)) {
+			err = EINVAL;
+			goto tx_drop;
+		}
 		payload_len = mb->m_pkthdr.len - ihs;
 		if (payload_len == 0)
 			num_pkts = 1;
@@ -318,46 +347,72 @@ mlx5e_sq_xmit(struct mlx5e_sq *sq, struct mbuf **mbp)
 		sq->stats.tso_bytes += payload_len;
 	} else {
 		opcode = MLX5_OPCODE_SEND;
-		ihs = mlx5e_get_inline_hdr_size(sq, mb);
+
+		switch (sq->min_inline_mode) {
+		case MLX5_INLINE_MODE_IP:
+		case MLX5_INLINE_MODE_TCP_UDP:
+			ihs = mlx5e_get_full_header_size(mb);
+			if (unlikely(ihs == 0))
+				ihs = mlx5e_get_l2_header_size(sq, mb);
+			break;
+		case MLX5_INLINE_MODE_L2:
+			ihs = mlx5e_get_l2_header_size(sq, mb);
+			break;
+		case MLX5_INLINE_MODE_NONE:
+			/* FALLTHROUGH */
+		default:
+			if ((mb->m_flags & M_VLANTAG) != 0 &&
+			    (sq->min_insert_caps & MLX5E_INSERT_VLAN) != 0) {
+				/* inlining VLAN data is not required */
+				wqe->eth.vlan_cmd = htons(0x8000); /* bit 0 CVLAN */
+				wqe->eth.vlan_hdr = htons(mb->m_pkthdr.ether_vtag);
+				ihs = 0;
+			} else if ((mb->m_flags & M_VLANTAG) == 0 &&
+				   (sq->min_insert_caps & MLX5E_INSERT_NON_VLAN) != 0) {
+				/* inlining non-VLAN data is not required */
+				ihs = 0;
+			} else {
+				/* we are forced to inlining L2 header, if any */
+				ihs = mlx5e_get_l2_header_size(sq, mb);
+			}
+			break;
+		}
 		sq->mbuf[pi].num_bytes = max_t (unsigned int,
 		    mb->m_pkthdr.len, ETHER_MIN_LEN - ETHER_CRC_LEN);
 	}
-	if (ihs == 0) {
-		if ((mb->m_flags & M_VLANTAG) != 0) {
-			wqe->eth.vlan_cmd = htons(0x8000); /* bit 0 CVLAN */
-			wqe->eth.vlan_hdr = htons(mb->m_pkthdr.ether_vtag);
-		} else {
-			wqe->eth.inline_hdr_sz = 0;
-		}
-	} else {
-		if ((mb->m_flags & M_VLANTAG) != 0) {
-			struct ether_vlan_header *eh = (struct ether_vlan_header
-			    *)wqe->eth.inline_hdr_start;
 
-			/* Range checks */
-			if (ihs > (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN))
-				ihs = (MLX5E_MAX_TX_INLINE -
-				    ETHER_VLAN_ENCAP_LEN);
-			else if (ihs < ETHER_HDR_LEN) {
-				err = EINVAL;
-				goto tx_drop;
-			}
-			m_copydata(mb, 0, ETHER_HDR_LEN, (caddr_t)eh);
-			m_adj(mb, ETHER_HDR_LEN);
-			/* Insert 4 bytes VLAN tag into data stream */
-			eh->evl_proto = eh->evl_encap_proto;
-			eh->evl_encap_proto = htons(ETHERTYPE_VLAN);
-			eh->evl_tag = htons(mb->m_pkthdr.ether_vtag);
-			/* Copy rest of header data, if any */
-			m_copydata(mb, 0, ihs - ETHER_HDR_LEN, (caddr_t)(eh +
-			    1));
-			m_adj(mb, ihs - ETHER_HDR_LEN);
-			/* Extend header by 4 bytes */
-			ihs += ETHER_VLAN_ENCAP_LEN;
-		} else {
-			m_copydata(mb, 0, ihs, wqe->eth.inline_hdr_start);
-			m_adj(mb, ihs);
+	if (likely(ihs == 0)) {
+		/* nothing to inline */
+	} else if (unlikely(ihs > sq->max_inline)) {
+		/* inline header size is too big */
+		err = EINVAL;
+		goto tx_drop;
+	} else if ((mb->m_flags & M_VLANTAG) != 0) {
+		struct ether_vlan_header *eh = (struct ether_vlan_header *)
+		    wqe->eth.inline_hdr_start;
+
+		/* Range checks */
+		if (unlikely(ihs > (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN)))
+			ihs = (MLX5E_MAX_TX_INLINE - ETHER_VLAN_ENCAP_LEN);
+		else if (unlikely(ihs < ETHER_HDR_LEN)) {
+			err = EINVAL;
+			goto tx_drop;
 		}
+		m_copydata(mb, 0, ETHER_HDR_LEN, (caddr_t)eh);
+		m_adj(mb, ETHER_HDR_LEN);
+		/* Insert 4 bytes VLAN tag into data stream */
+		eh->evl_proto = eh->evl_encap_proto;
+		eh->evl_encap_proto = htons(ETHERTYPE_VLAN);
+		eh->evl_tag = htons(mb->m_pkthdr.ether_vtag);
+		/* Copy rest of header data, if any */
+		m_copydata(mb, 0, ihs - ETHER_HDR_LEN, (caddr_t)(eh + 1));
+		m_adj(mb, ihs - ETHER_HDR_LEN);
+		/* Extend header by 4 bytes */
+		ihs += ETHER_VLAN_ENCAP_LEN;
+		wqe->eth.inline_hdr_sz = cpu_to_be16(ihs);
+	} else {
+		m_copydata(mb, 0, ihs, wqe->eth.inline_hdr_start);
+		m_adj(mb, ihs);
 		wqe->eth.inline_hdr_sz = cpu_to_be16(ihs);
 	}
 

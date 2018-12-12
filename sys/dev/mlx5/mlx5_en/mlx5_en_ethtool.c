@@ -374,6 +374,12 @@ mlx5e_trust_state_handler(SYSCTL_HANDLER_ARGS)
 		goto done;
 
 	priv->params_ethtool.trust_state = result;
+
+	/* update inline mode */
+	mlx5e_refresh_sq_inline(priv);
+#ifdef RATELIMIT
+	mlx5e_rl_refresh_sq_inline(&priv->rl);
+#endif
 done:
 	PRIV_UNLOCK(priv);
 	return (err);
