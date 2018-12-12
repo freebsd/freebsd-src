@@ -440,6 +440,7 @@ twsi_detach(device_t dev)
 	int rv;
 
 	sc = device_get_softc(dev);
+	debugf("");
 
 	if ((rv = bus_generic_detach(dev)) != 0)
 		return (rv);
