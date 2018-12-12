@@ -177,7 +177,8 @@ typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
   m(+1, u64 tx_csum_offload, "tx_csum_offload", "Transmit checksum offload packets") \
   m(+1, u64 tx_queue_dropped, "tx_queue_dropped", "Transmit queue dropped") \
   m(+1, u64 tx_defragged, "tx_defragged", "Transmit queue defragged") \
-  m(+1, u64 rx_wqe_err, "rx_wqe_err", "Receive WQE errors")
+  m(+1, u64 rx_wqe_err, "rx_wqe_err", "Receive WQE errors") \
+  m(+1, u64 tx_jumbo_packets, "tx_jumbo_packets", "TX packets greater than 1518 octets")
 
 #define	MLX5E_VPORT_STATS_NUM (0 MLX5E_VPORT_STATS(MLX5E_STATS_COUNT))
 
