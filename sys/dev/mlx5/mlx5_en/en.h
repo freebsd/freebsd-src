@@ -492,6 +492,7 @@ struct mlx5e_params_ethtool {
 	u64	arg [0];
 	MLX5E_PARAMS(MLX5E_STATS_VAR)
 	u64	max_bw_value[IEEE_8021QAZ_MAX_TCS];
+	u8	max_bw_share[IEEE_8021QAZ_MAX_TCS];
 	u8	prio_tc[IEEE_8021QAZ_MAX_TCS];
 	u8	dscp2prio[MLX5_MAX_SUPPORTED_DSCP];
 	u8	trust_state;
@@ -820,19 +821,6 @@ struct mlx5e_eeprom {
 	int	page_valid;
 	u32	*data;
 };
-
-/*
- * This structure contains rate limit extension to the IEEE 802.1Qaz ETS
- * managed object.
- * Values are 64 bits long and specified in Kbps to enable usage over both
- * slow and very fast networks.
- *
- * @tc_maxrate: maximal tc tx bandwidth indexed by traffic class
- */
-struct ieee_maxrate {
-	__u64	tc_maxrate[IEEE_8021QAZ_MAX_TCS];
-};
-
 
 #define	MLX5E_FLD_MAX(typ, fld) ((1ULL << __mlx5_bit_sz(typ, fld)) - 1ULL)
 
