@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2017, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2018, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,6 +29,11 @@
 #include <linux/module.h>
 #include <dev/mlx5/driver.h>
 #include "mlx5_core.h"
+
+static int mlx5_relaxed_ordering_write;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, relaxed_ordering_write, CTLFLAG_RWTUN,
+    &mlx5_relaxed_ordering_write, 0,
+    "Set to enable relaxed ordering for PCIe writes");
 
 void mlx5_init_mr_table(struct mlx5_core_dev *dev)
 {
@@ -63,6 +68,14 @@ int mlx5_core_create_mkey_cb(struct mlx5_core_dev *dev,
 	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
 	MLX5_SET(create_mkey_in, in, opcode, MLX5_CMD_OP_CREATE_MKEY);
 	MLX5_SET(mkc, mkc, mkey_7_0, key);
+
+	if (mlx5_relaxed_ordering_write != 0) {
+		if (MLX5_CAP_GEN(dev, relaxed_ordering_write))
+			MLX5_SET(mkc, mkc, relaxed_ordering_write, 1);
+		else
+			return (-EPROTONOSUPPORT);
+	}
+
 	if (callback)
 		return mlx5_cmd_exec_cb(dev, in, inlen, out, outlen,
 					callback, context);
