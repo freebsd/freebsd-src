@@ -92,6 +92,7 @@ arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt soc_brcm_bcm2837
 arm/mv/gpio.c					optional mv_gpio fdt
 arm/mv/mvebu_pinctrl.c				optional mvebu_pinctrl fdt
 arm/mv/mv_ap806_clock.c				optional SOC_MARVELL_8K fdt
+arm/mv/mv_cp110_clock.c				optional SOC_MARVELL_8K fdt
 arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
 arm64/acpica/acpi_machdep.c	optional	acpi
