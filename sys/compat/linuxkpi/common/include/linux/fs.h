@@ -2,7 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
- * Copyright (c) 2013-2017 Mellanox Technologies, Ltd.
+ * Copyright (c) 2013-2018 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,6 +55,7 @@ struct vm_area_struct;
 struct poll_table_struct;
 struct files_struct;
 struct pfs_node;
+struct linux_cdev;
 
 #define	inode	vnode
 #define	i_cdev	v_rdev
@@ -105,6 +106,9 @@ struct linux_file {
 	/* protects f_selinfo.si_note */
 	spinlock_t	f_kqlock;
 	struct linux_file_wait_queue f_wait_queue;
+
+	/* pointer to associated character device, if any */
+	struct linux_cdev *f_cdev;
 };
 
 #define	file		linux_file
