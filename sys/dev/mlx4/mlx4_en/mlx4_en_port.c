@@ -256,7 +256,6 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 	priv->pkstats.rx_length_errors = be32_to_cpu(mlx4_en_stats->RdropLength);
 	priv->pkstats.rx_over_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
 	priv->pkstats.rx_crc_errors = be32_to_cpu(mlx4_en_stats->RCRC);
-	priv->pkstats.rx_dropped = be32_to_cpu(mlx4_en_stats->RdropOvflw);
 	priv->pkstats.tx_dropped = be32_to_cpu(mlx4_en_stats->TDROP);
 
 	/* RX stats */
