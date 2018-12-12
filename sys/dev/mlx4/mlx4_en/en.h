@@ -54,6 +54,7 @@
 #include <dev/mlx4/cmd.h>
 
 #include <netinet/tcp_lro.h>
+#include <netinet/netdump/netdump.h>
 
 #include "en_port.h"
 #include <dev/mlx4/stats.h>
@@ -784,6 +785,7 @@ int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct mbuf *mb);
 
+int mlx4_en_xmit(struct mlx4_en_priv *priv, int tx_ind, struct mbuf **mbp);
 int mlx4_en_transmit(struct ifnet *dev, struct mbuf *m);
 int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 			   struct mlx4_en_tx_ring **pring,
