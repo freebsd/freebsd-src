@@ -1056,33 +1056,34 @@ static int
 mlx5e_ethtool_debug_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct mlx5e_priv *priv = arg1;
-	int error, sys_debug;
-
-	sys_debug = priv->sysctl_debug;
-	error = sysctl_handle_int(oidp, &priv->sysctl_debug, 0, req);
-	if (error != 0 || !req->newptr)
-		return (error);
-	priv->sysctl_debug = priv->sysctl_debug != 0;
-	if (sys_debug == priv->sysctl_debug)
-		return (0);
+	int sys_debug;
+	int error;
 
 	PRIV_LOCK(priv);
-	if (priv->sysctl_debug) {
+	sys_debug = priv->sysctl_debug;
+	error = sysctl_handle_int(oidp, &sys_debug, 0, req);
+	if (error != 0 || !req->newptr)
+		goto done;
+	sys_debug = sys_debug ? 1 : 0;
+	if (sys_debug == priv->sysctl_debug)
+		goto done;
+
+	if ((priv->sysctl_debug = sys_debug)) {
 		mlx5e_create_stats(&priv->stats.port_stats_debug.ctx,
 		    SYSCTL_CHILDREN(priv->sysctl_ifnet), "debug_stats",
 		    mlx5e_port_stats_debug_desc, MLX5E_PORT_STATS_DEBUG_NUM,
 		    priv->stats.port_stats_debug.arg);
-		SYSCTL_ADD_PROC(&priv->sysctl_ctx_channel_debug,
+		SYSCTL_ADD_PROC(&priv->stats.port_stats_debug.ctx,
 		    SYSCTL_CHILDREN(priv->sysctl_ifnet), OID_AUTO,
 		    "hw_ctx_debug",
 		    CTLFLAG_RD | CTLFLAG_MPSAFE | CTLTYPE_STRING, priv, 0,
 		    mlx5e_ethtool_debug_channel_info, "S", "");
 	} else {
 		sysctl_ctx_free(&priv->stats.port_stats_debug.ctx);
-		sysctl_ctx_free(&priv->sysctl_ctx_channel_debug);
 	}
+done:
 	PRIV_UNLOCK(priv);
-	return (0);
+	return (error);
 }
 
 static void
