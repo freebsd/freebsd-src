@@ -707,6 +707,8 @@ dyn_destroy(struct ip_fw_chain *ch, struct named_object *no)
 
 	IPFW_UH_WLOCK_ASSERT(ch);
 
+	KASSERT(no->etlv == IPFW_TLV_STATE_NAME,
+	    ("%s: wrong object type %u", __func__, no->etlv));
 	KASSERT(no->refcnt == 1,
 	    ("Destroying object '%s' (type %u, idx %u) with refcnt %u",
 	    no->name, no->etlv, no->kidx, no->refcnt));
