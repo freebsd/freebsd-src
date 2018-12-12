@@ -153,6 +153,7 @@ failure:
 		bus_dmamem_free(dev->cmd.dma_tag, fwp[x].virt_addr, fwp[x].dma_map);
 	}
 	sx_xunlock(&dev->cmd.dma_sx);
+	kfree(fwp);
 	return (NULL);
 }
 
