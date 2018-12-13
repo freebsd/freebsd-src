@@ -229,7 +229,14 @@ struct bit_reader {
 /* RARv5 block header structure. Use bf_* functions to get values from
  * block_flags_u8 field. I.e. bf_byte_count, etc. */
 struct compressed_block_header {
-    uint8_t block_flags_u8; /* Fields encoded in little-endian bitfield */
+    /* block_flags_u8 contain fields encoded in little-endian bitfield:
+     *
+     * - table present flag (shr 7, and 1),
+     * - last block flag    (shr 6, and 1),
+     * - byte_count         (shr 3, and 7),
+     * - bit_size           (shr 0, and 7).
+     */
+    uint8_t block_flags_u8;
     uint8_t block_cksum;
 };
 
@@ -430,11 +437,6 @@ uint8_t bf_bit_size(const struct compressed_block_header* hdr) {
 static inline
 uint8_t bf_byte_count(const struct compressed_block_header* hdr) {
     return (hdr->block_flags_u8 >> 3) & 7;
-}
-
-static inline
-uint8_t bf_is_last_block(const struct compressed_block_header* hdr) {
-    return (hdr->block_flags_u8 >> 6) & 1;
 }
 
 static inline
