@@ -119,18 +119,18 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, bridge_batch, CTLFLAG_RW, &bridge_batch, 0,
 		"Max batch size to be used in the bridge");
 SYSEND;
 
-static int netmap_vp_create(struct nmreq_header *hdr, struct ifnet *,
+static int netmap_vale_vp_create(struct nmreq_header *hdr, struct ifnet *,
 		struct netmap_mem_d *nmd, struct netmap_vp_adapter **);
-static int netmap_vp_bdg_attach(const char *, struct netmap_adapter *,
+static int netmap_vale_vp_bdg_attach(const char *, struct netmap_adapter *,
 		struct nm_bridge *);
 static int netmap_vale_bwrap_attach(const char *, struct netmap_adapter *);
 
 /*
- * For each output interface, nm_bdg_q is used to construct a list.
+ * For each output interface, nm_vale_q is used to construct a list.
  * bq_len is the number of output buffers (we can have coalescing
  * during the copy).
  */
-struct nm_bdg_q {
+struct nm_vale_q {
 	uint16_t bq_head;
 	uint16_t bq_tail;
 	uint32_t bq_len;	/* number of buffers */
@@ -138,10 +138,10 @@ struct nm_bdg_q {
 
 /* Holds the default callbacks */
 struct netmap_bdg_ops vale_bdg_ops = {
-	.lookup = netmap_bdg_learning,
+	.lookup = netmap_vale_learning,
 	.config = NULL,
 	.dtor = NULL,
-	.vp_create = netmap_vp_create,
+	.vp_create = netmap_vale_vp_create,
 	.bwrap_attach = netmap_vale_bwrap_attach,
 	.name = NM_BDG_NAME,
 };
@@ -210,14 +210,14 @@ nm_alloc_bdgfwd(struct netmap_adapter *na)
 	/* all port:rings + broadcast */
 	num_dstq = NM_BDG_MAXPORTS * NM_BDG_MAXRINGS + 1;
 	l = sizeof(struct nm_bdg_fwd) * NM_BDG_BATCH_MAX;
-	l += sizeof(struct nm_bdg_q) * num_dstq;
+	l += sizeof(struct nm_vale_q) * num_dstq;
 	l += sizeof(uint16_t) * NM_BDG_BATCH_MAX;
 
 	nrings = netmap_real_rings(na, NR_TX);
 	kring = na->tx_rings;
 	for (i = 0; i < nrings; i++) {
 		struct nm_bdg_fwd *ft;
-		struct nm_bdg_q *dstq;
+		struct nm_vale_q *dstq;
 		int j;
 
 		ft = nm_os_malloc(l);
@@ -225,7 +225,7 @@ nm_alloc_bdgfwd(struct netmap_adapter *na)
 			nm_free_bdgfwd(na);
 			return ENOMEM;
 		}
-		dstq = (struct nm_bdg_q *)(ft + NM_BDG_BATCH_MAX);
+		dstq = (struct nm_vale_q *)(ft + NM_BDG_BATCH_MAX);
 		for (j = 0; j < num_dstq; j++) {
 			dstq[j].bq_head = dstq[j].bq_tail = NM_FT_NULL;
 			dstq[j].bq_len = 0;
@@ -305,11 +305,228 @@ unlock_bdg_free:
 	return ret;
 }
 
+/* Process NETMAP_REQ_VALE_LIST. */
+int
+netmap_vale_list(struct nmreq_header *hdr)
+{
+	struct nmreq_vale_list *req =
+		(struct nmreq_vale_list *)(uintptr_t)hdr->nr_body;
+	int namelen = strlen(hdr->nr_name);
+	struct nm_bridge *b, *bridges;
+	struct netmap_vp_adapter *vpna;
+	int error = 0, i, j;
+	u_int num_bridges;
+
+	netmap_bns_getbridges(&bridges, &num_bridges);
+
+	/* this is used to enumerate bridges and ports */
+	if (namelen) { /* look up indexes of bridge and port */
+		if (strncmp(hdr->nr_name, NM_BDG_NAME,
+					strlen(NM_BDG_NAME))) {
+			return EINVAL;
+		}
+		NMG_LOCK();
+		b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
+		if (!b) {
+			NMG_UNLOCK();
+			return ENOENT;
+		}
+
+		req->nr_bridge_idx = b - bridges; /* bridge index */
+		req->nr_port_idx = NM_BDG_NOPORT;
+		for (j = 0; j < b->bdg_active_ports; j++) {
+			i = b->bdg_port_index[j];
+			vpna = b->bdg_ports[i];
+			if (vpna == NULL) {
+				nm_prerr("This should not happen");
+				continue;
+			}
+			/* the former and the latter identify a
+			 * virtual port and a NIC, respectively
+			 */
+			if (!strcmp(vpna->up.name, hdr->nr_name)) {
+				req->nr_port_idx = i; /* port index */
+				break;
+			}
+		}
+		NMG_UNLOCK();
+	} else {
+		/* return the first non-empty entry starting from
+		 * bridge nr_arg1 and port nr_arg2.
+		 *
+		 * Users can detect the end of the same bridge by
+		 * seeing the new and old value of nr_arg1, and can
+		 * detect the end of all the bridge by error != 0
+		 */
+		i = req->nr_bridge_idx;
+		j = req->nr_port_idx;
+
+		NMG_LOCK();
+		for (error = ENOENT; i < NM_BRIDGES; i++) {
+			b = bridges + i;
+			for ( ; j < NM_BDG_MAXPORTS; j++) {
+				if (b->bdg_ports[j] == NULL)
+					continue;
+				vpna = b->bdg_ports[j];
+				/* write back the VALE switch name */
+				strlcpy(hdr->nr_name, vpna->up.name,
+					sizeof(hdr->nr_name));
+				error = 0;
+				goto out;
+			}
+			j = 0; /* following bridges scan from 0 */
+		}
+	out:
+		req->nr_bridge_idx = i;
+		req->nr_port_idx = j;
+		NMG_UNLOCK();
+	}
+
+	return error;
+}
+
+/* Process NETMAP_REQ_VALE_ATTACH.
+ */
+int
+netmap_vale_attach(struct nmreq_header *hdr, void *auth_token)
+{
+	struct nmreq_vale_attach *req =
+		(struct nmreq_vale_attach *)(uintptr_t)hdr->nr_body;
+	struct netmap_vp_adapter * vpna;
+	struct netmap_adapter *na = NULL;
+	struct netmap_mem_d *nmd = NULL;
+	struct nm_bridge *b = NULL;
+	int error;
+
+	NMG_LOCK();
+	/* permission check for modified bridges */
+	b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
+	if (b && !nm_bdg_valid_auth_token(b, auth_token)) {
+		error = EACCES;
+		goto unlock_exit;
+	}
+
+	if (req->reg.nr_mem_id) {
+		nmd = netmap_mem_find(req->reg.nr_mem_id);
+		if (nmd == NULL) {
+			error = EINVAL;
+			goto unlock_exit;
+		}
+	}
+
+	/* check for existing one */
+	error = netmap_get_vale_na(hdr, &na, nmd, 0);
+	if (na) {
+		error = EBUSY;
+		goto unref_exit;
+	}
+	error = netmap_get_vale_na(hdr, &na,
+				nmd, 1 /* create if not exists */);
+	if (error) { /* no device */
+		goto unlock_exit;
+	}
+
+	if (na == NULL) { /* VALE prefix missing */
+		error = EINVAL;
+		goto unlock_exit;
+	}
+
+	if (NETMAP_OWNED_BY_ANY(na)) {
+		error = EBUSY;
+		goto unref_exit;
+	}
+
+	if (na->nm_bdg_ctl) {
+		/* nop for VALE ports. The bwrap needs to put the hwna
+		 * in netmap mode (see netmap_bwrap_bdg_ctl)
+		 */
+		error = na->nm_bdg_ctl(hdr, na);
+		if (error)
+			goto unref_exit;
+		ND("registered %s to netmap-mode", na->name);
+	}
+	vpna = (struct netmap_vp_adapter *)na;
+	req->port_index = vpna->bdg_port;
+
+	if (nmd)
+		netmap_mem_put(nmd);
+
+	NMG_UNLOCK();
+	return 0;
+
+unref_exit:
+	netmap_adapter_put(na);
+unlock_exit:
+	if (nmd)
+		netmap_mem_put(nmd);
+
+	NMG_UNLOCK();
+	return error;
+}
+
+/* Process NETMAP_REQ_VALE_DETACH.
+ */
+int
+netmap_vale_detach(struct nmreq_header *hdr, void *auth_token)
+{
+	struct nmreq_vale_detach *nmreq_det = (void *)(uintptr_t)hdr->nr_body;
+	struct netmap_vp_adapter *vpna;
+	struct netmap_adapter *na;
+	struct nm_bridge *b = NULL;
+	int error;
+
+	NMG_LOCK();
+	/* permission check for modified bridges */
+	b = nm_find_bridge(hdr->nr_name, 0 /* don't create */, NULL);
+	if (b && !nm_bdg_valid_auth_token(b, auth_token)) {
+		error = EACCES;
+		goto unlock_exit;
+	}
+
+	error = netmap_get_vale_na(hdr, &na, NULL, 0 /* don't create */);
+	if (error) { /* no device, or another bridge or user owns the device */
+		goto unlock_exit;
+	}
+
+	if (na == NULL) { /* VALE prefix missing */
+		error = EINVAL;
+		goto unlock_exit;
+	} else if (nm_is_bwrap(na) &&
+		   ((struct netmap_bwrap_adapter *)na)->na_polling_state) {
+		/* Don't detach a NIC with polling */
+		error = EBUSY;
+		goto unref_exit;
+	}
+
+	vpna = (struct netmap_vp_adapter *)na;
+	if (na->na_vp != vpna) {
+		/* trying to detach first attach of VALE persistent port attached
+		 * to 2 bridges
+		 */
+		error = EBUSY;
+		goto unref_exit;
+	}
+	nmreq_det->port_index = vpna->bdg_port;
+
+	if (na->nm_bdg_ctl) {
+		/* remove the port from bridge. The bwrap
+		 * also needs to put the hwna in normal mode
+		 */
+		error = na->nm_bdg_ctl(hdr, na);
+	}
+
+unref_exit:
+	netmap_adapter_put(na);
+unlock_exit:
+	NMG_UNLOCK();
+	return error;
+
+}
 
 
 /* nm_dtor callback for ephemeral VALE ports */
 static void
-netmap_vp_dtor(struct netmap_adapter *na)
+netmap_vale_vp_dtor(struct netmap_adapter *na)
 {
 	struct netmap_vp_adapter *vpna = (struct netmap_vp_adapter*)na;
 	struct nm_bridge *b = vpna->na_bdg;
@@ -332,47 +549,13 @@ netmap_vp_dtor(struct netmap_adapter *na)
 }
 
 
-/* Called by external kernel modules (e.g., Openvswitch).
- * to modify the private data previously given to regops().
- * 'name' may be just bridge's name (including ':' if it
- * is not just NM_BDG_NAME).
- * Called without NMG_LOCK.
- */
-int
-nm_bdg_update_private_data(const char *name, bdg_update_private_data_fn_t callback,
-	void *callback_data, void *auth_token)
-{
-	void *private_data = NULL;
-	struct nm_bridge *b;
-	int error = 0;
-
-	NMG_LOCK();
-	b = nm_find_bridge(name, 0 /* don't create */, NULL);
-	if (!b) {
-		error = EINVAL;
-		goto unlock_update_priv;
-	}
-	if (!nm_bdg_valid_auth_token(b, auth_token)) {
-		error = EACCES;
-		goto unlock_update_priv;
-	}
-	BDG_WLOCK(b);
-	private_data = callback(b->private_data, callback_data, &error);
-	b->private_data = private_data;
-	BDG_WUNLOCK(b);
-
-unlock_update_priv:
-	NMG_UNLOCK();
-	return error;
-}
-
 
 /* nm_krings_create callback for VALE ports.
  * Calls the standard netmap_krings_create, then adds leases on rx
  * rings and bdgfwd on tx rings.
  */
 static int
-netmap_vp_krings_create(struct netmap_adapter *na)
+netmap_vale_vp_krings_create(struct netmap_adapter *na)
 {
 	u_int tailroom;
 	int error, i;
@@ -407,7 +590,7 @@ netmap_vp_krings_create(struct netmap_adapter *na)
 
 /* nm_krings_delete callback for VALE ports. */
 static void
-netmap_vp_krings_delete(struct netmap_adapter *na)
+netmap_vale_vp_krings_delete(struct netmap_adapter *na)
 {
 	nm_free_bdgfwd(na);
 	netmap_krings_delete(na);
@@ -415,7 +598,7 @@ netmap_vp_krings_delete(struct netmap_adapter *na)
 
 
 static int
-nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n,
+nm_vale_flush(struct nm_bdg_fwd *ft, u_int n,
 	struct netmap_vp_adapter *na, u_int ring_nr);
 
 
@@ -427,7 +610,7 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n,
  * Returns the next position in the ring.
  */
 static int
-nm_bdg_preflush(struct netmap_kring *kring, u_int end)
+nm_vale_preflush(struct netmap_kring *kring, u_int end)
 {
 	struct netmap_vp_adapter *na =
 		(struct netmap_vp_adapter*)kring->na;
@@ -468,7 +651,7 @@ nm_bdg_preflush(struct netmap_kring *kring, u_int end)
 		buf = ft[ft_i].ft_buf = (slot->flags & NS_INDIRECT) ?
 			(void *)(uintptr_t)slot->ptr : NMB(&na->up, slot);
 		if (unlikely(buf == NULL)) {
-			RD(5, "NULL %s buffer pointer from %s slot %d len %d",
+			nm_prlim(5, "NULL %s buffer pointer from %s slot %d len %d",
 				(slot->flags & NS_INDIRECT) ? "INDIRECT" : "DIRECT",
 				kring->name, j, ft[ft_i].ft_len);
 			buf = ft[ft_i].ft_buf = NETMAP_BUF_BASE(&na->up);
@@ -486,7 +669,7 @@ nm_bdg_preflush(struct netmap_kring *kring, u_int end)
 		ft[ft_i - frags].ft_frags = frags;
 		frags = 1;
 		if (unlikely((int)ft_i >= bridge_batch))
-			ft_i = nm_bdg_flush(ft, ft_i, na, ring_nr);
+			ft_i = nm_vale_flush(ft, ft_i, na, ring_nr);
 	}
 	if (frags > 1) {
 		/* Here ft_i > 0, ft[ft_i-1].flags has NS_MOREFRAG, and we
@@ -494,10 +677,10 @@ nm_bdg_preflush(struct netmap_kring *kring, u_int end)
 		frags--;
 		ft[ft_i - 1].ft_flags &= ~NS_MOREFRAG;
 		ft[ft_i - frags].ft_frags = frags;
-		D("Truncate incomplete fragment at %d (%d frags)", ft_i, frags);
+		nm_prlim(5, "Truncate incomplete fragment at %d (%d frags)", ft_i, frags);
 	}
 	if (ft_i)
-		ft_i = nm_bdg_flush(ft, ft_i, na, ring_nr);
+		ft_i = nm_vale_flush(ft, ft_i, na, ring_nr);
 	BDG_RUNLOCK(b);
 	return j;
 }
@@ -526,7 +709,7 @@ do {                                                                    \
 
 
 static __inline uint32_t
-nm_bridge_rthash(const uint8_t *addr)
+nm_vale_rthash(const uint8_t *addr)
 {
 	uint32_t a = 0x9e3779b9, b = 0x9e3779b9, c = 0; // hask key
 
@@ -552,7 +735,7 @@ nm_bridge_rthash(const uint8_t *addr)
  * ring in *dst_ring (at the moment, always use ring 0)
  */
 uint32_t
-netmap_bdg_learning(struct nm_bdg_fwd *ft, uint8_t *dst_ring,
+netmap_vale_learning(struct nm_bdg_fwd *ft, uint8_t *dst_ring,
 		struct netmap_vp_adapter *na, void *private_data)
 {
 	uint8_t *buf = ((uint8_t *)ft->ft_buf) + ft->ft_offset;
@@ -584,17 +767,17 @@ netmap_bdg_learning(struct nm_bdg_fwd *ft, uint8_t *dst_ring,
 	 */
 	if (((buf[6] & 1) == 0) && (na->last_smac != smac)) { /* valid src */
 		uint8_t *s = buf+6;
-		sh = nm_bridge_rthash(s); /* hash of source */
+		sh = nm_vale_rthash(s); /* hash of source */
 		/* update source port forwarding entry */
 		na->last_smac = ht[sh].mac = smac;	/* XXX expire ? */
 		ht[sh].ports = mysrc;
-		if (netmap_verbose)
-		    D("src %02x:%02x:%02x:%02x:%02x:%02x on port %d",
+		if (netmap_debug & NM_DEBUG_VALE)
+		    nm_prinf("src %02x:%02x:%02x:%02x:%02x:%02x on port %d",
 			s[0], s[1], s[2], s[3], s[4], s[5], mysrc);
 	}
 	dst = NM_BDG_BROADCAST;
 	if ((buf[0] & 1) == 0) { /* unicast */
-		dh = nm_bridge_rthash(buf); /* hash of dst */
+		dh = nm_vale_rthash(buf); /* hash of dst */
 		if (ht[dh].mac == dmac) {	/* found dst */
 			dst = ht[dh].ports;
 		}
@@ -653,24 +836,28 @@ nm_kr_lease(struct netmap_kring *k, u_int n, int is_rx)
 	k->nkr_leases[lease_idx] = NR_NOSLOT;
 	k->nkr_lease_idx = nm_next(lease_idx, lim);
 
+#ifdef CONFIG_NETMAP_DEBUG
 	if (n > nm_kr_space(k, is_rx)) {
-		D("invalid request for %d slots", n);
+		nm_prerr("invalid request for %d slots", n);
 		panic("x");
 	}
+#endif /* CONFIG NETMAP_DEBUG */
 	/* XXX verify that there are n slots */
 	k->nkr_hwlease += n;
 	if (k->nkr_hwlease > lim)
 		k->nkr_hwlease -= lim + 1;
 
+#ifdef CONFIG_NETMAP_DEBUG
 	if (k->nkr_hwlease >= k->nkr_num_slots ||
 		k->nr_hwcur >= k->nkr_num_slots ||
 		k->nr_hwtail >= k->nkr_num_slots ||
 		k->nkr_lease_idx >= k->nkr_num_slots) {
-		D("invalid kring %s, cur %d tail %d lease %d lease_idx %d lim %d",
+		nm_prerr("invalid kring %s, cur %d tail %d lease %d lease_idx %d lim %d",
 			k->na->name,
 			k->nr_hwcur, k->nr_hwtail, k->nkr_hwlease,
 			k->nkr_lease_idx, k->nkr_num_slots);
 	}
+#endif /* CONFIG_NETMAP_DEBUG */
 	return lease_idx;
 }
 
@@ -680,10 +867,10 @@ nm_kr_lease(struct netmap_kring *k, u_int n, int is_rx)
  * number of ports, and lets us replace the learn and dispatch functions.
  */
 int
-nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
+nm_vale_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		u_int ring_nr)
 {
-	struct nm_bdg_q *dst_ents, *brddst;
+	struct nm_vale_q *dst_ents, *brddst;
 	uint16_t num_dsts = 0, *dsts;
 	struct nm_bridge *b = na->na_bdg;
 	u_int i, me = na->bdg_port;
@@ -694,14 +881,14 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 	 * queues per port plus one for the broadcast traffic.
 	 * Then we have an array of destination indexes.
 	 */
-	dst_ents = (struct nm_bdg_q *)(ft + NM_BDG_BATCH_MAX);
+	dst_ents = (struct nm_vale_q *)(ft + NM_BDG_BATCH_MAX);
 	dsts = (uint16_t *)(dst_ents + NM_BDG_MAXPORTS * NM_BDG_MAXRINGS + 1);
 
 	/* first pass: find a destination for each packet in the batch */
 	for (i = 0; likely(i < n); i += ft[i].ft_frags) {
 		uint8_t dst_ring = ring_nr; /* default, same ring as origin */
 		uint16_t dst_port, d_i;
-		struct nm_bdg_q *d;
+		struct nm_vale_q *d;
 		struct nm_bdg_fwd *start_ft = NULL;
 
 		ND("slot %d frags %d", i, ft[i].ft_frags);
@@ -718,7 +905,7 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 			 */
 			continue;
 		}
-		dst_port = b->bdg_ops->lookup(start_ft, &dst_ring, na, b->private_data);
+		dst_port = b->bdg_ops.lookup(start_ft, &dst_ring, na, b->private_data);
 		if (netmap_verbose > 255)
 			RD(5, "slot %d port %d -> %d", i, me, dst_port);
 		if (dst_port >= NM_BDG_NOPORT)
@@ -776,7 +963,7 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		u_int dst_nr, lim, j, d_i, next, brd_next;
 		u_int needed, howmany;
 		int retry = netmap_txsync_retry;
-		struct nm_bdg_q *d;
+		struct nm_vale_q *d;
 		uint32_t my_start = 0, lease_idx = 0;
 		int nrings;
 		int virt_hdr_mismatch = 0;
@@ -860,7 +1047,7 @@ retry:
 
 		if (dst_na->retry && retry) {
 			/* try to get some free slot from the previous run */
-			kring->nm_notify(kring, 0);
+			kring->nm_notify(kring, NAF_FORCE_RECLAIM);
 			/* actually useful only for bwraps, since there
 			 * the notify will trigger a txsync on the hwna. VALE ports
 			 * have dst_na->retry == 0
@@ -1028,7 +1215,7 @@ cleanup:
 
 /* nm_txsync callback for VALE ports */
 static int
-netmap_vp_txsync(struct netmap_kring *kring, int flags)
+netmap_vale_vp_txsync(struct netmap_kring *kring, int flags)
 {
 	struct netmap_vp_adapter *na =
 		(struct netmap_vp_adapter *)kring->na;
@@ -1047,17 +1234,17 @@ netmap_vp_txsync(struct netmap_kring *kring, int flags)
 	if (bridge_batch > NM_BDG_BATCH)
 		bridge_batch = NM_BDG_BATCH;
 
-	done = nm_bdg_preflush(kring, head);
+	done = nm_vale_preflush(kring, head);
 done:
 	if (done != head)
-		D("early break at %d/ %d, tail %d", done, head, kring->nr_hwtail);
+		nm_prerr("early break at %d/ %d, tail %d", done, head, kring->nr_hwtail);
 	/*
 	 * packets between 'done' and 'cur' are left unsent.
 	 */
 	kring->nr_hwcur = done;
 	kring->nr_hwtail = nm_prev(done, lim);
-	if (netmap_verbose)
-		D("%s ring %d flags %d", na->up.name, kring->ring_id, flags);
+	if (netmap_debug & NM_DEBUG_TXSYNC)
+		nm_prinf("%s ring %d flags %d", na->up.name, kring->ring_id, flags);
 	return 0;
 }
 
@@ -1066,7 +1253,7 @@ done:
  * Only persistent VALE ports have a non-null ifp.
  */
 static int
-netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
+netmap_vale_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 		struct netmap_mem_d *nmd, struct netmap_vp_adapter **ret)
 {
 	struct nmreq_register *req = (struct nmreq_register *)(uintptr_t)hdr->nr_body;
@@ -1087,7 +1274,7 @@ netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
  	na = &vpna->up;
 
 	na->ifp = ifp;
-	strncpy(na->name, hdr->nr_name, sizeof(na->name));
+	strlcpy(na->name, hdr->nr_name, sizeof(na->name));
 
 	/* bound checking */
 	na->num_tx_rings = req->nr_tx_rings;
@@ -1107,6 +1294,7 @@ netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 	 */
 	nm_bound_var(&npipes, 2, 1, NM_MAXPIPES, NULL);
 	/* validate extra bufs */
+	extrabufs = req->nr_extra_bufs;
 	nm_bound_var(&extrabufs, 0, 0,
 			128*NM_BDG_MAXSLOTS, NULL);
 	req->nr_extra_bufs = extrabufs; /* write back */
@@ -1119,7 +1307,7 @@ netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 	/*if (vpna->mfs > netmap_buf_size)  TODO netmap_buf_size is zero??
 		vpna->mfs = netmap_buf_size; */
 	if (netmap_verbose)
-		D("max frame size %u", vpna->mfs);
+		nm_prinf("max frame size %u", vpna->mfs);
 
 	na->na_flags |= NAF_BDG_MAYSLEEP;
 	/* persistent VALE ports look like hw devices
@@ -1127,12 +1315,12 @@ netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 	 */
 	if (ifp)
 		na->na_flags |= NAF_NATIVE;
-	na->nm_txsync = netmap_vp_txsync;
-	na->nm_rxsync = netmap_vp_rxsync;
-	na->nm_register = netmap_vp_reg;
-	na->nm_krings_create = netmap_vp_krings_create;
-	na->nm_krings_delete = netmap_vp_krings_delete;
-	na->nm_dtor = netmap_vp_dtor;
+	na->nm_txsync = netmap_vale_vp_txsync;
+	na->nm_rxsync = netmap_vp_rxsync; /* use the one provided by bdg */
+	na->nm_register = netmap_vp_reg;  /* use the one provided by bdg */
+	na->nm_krings_create = netmap_vale_vp_krings_create;
+	na->nm_krings_delete = netmap_vale_vp_krings_delete;
+	na->nm_dtor = netmap_vale_vp_dtor;
 	ND("nr_mem_id %d", req->nr_mem_id);
 	na->nm_mem = nmd ?
 		netmap_mem_get(nmd):
@@ -1142,7 +1330,7 @@ netmap_vp_create(struct nmreq_header *hdr, struct ifnet *ifp,
 			req->nr_extra_bufs, npipes, &error);
 	if (na->nm_mem == NULL)
 		goto err;
-	na->nm_bdg_attach = netmap_vp_bdg_attach;
+	na->nm_bdg_attach = netmap_vale_vp_bdg_attach;
 	/* other nmd fields are set in the common routine */
 	error = netmap_attach_common(na);
 	if (error)
@@ -1161,19 +1349,16 @@ err:
  * The na_vp port is this same netmap_adapter. There is no host port.
  */
 static int
-netmap_vp_bdg_attach(const char *name, struct netmap_adapter *na,
+netmap_vale_vp_bdg_attach(const char *name, struct netmap_adapter *na,
 		struct nm_bridge *b)
 {
 	struct netmap_vp_adapter *vpna = (struct netmap_vp_adapter *)na;
 
-	if (b->bdg_ops != &vale_bdg_ops) {
-		return NM_NEED_BWRAP;
-	}
-	if (vpna->na_bdg) {
+	if ((b->bdg_flags & NM_BDG_NEED_BWRAP) || vpna->na_bdg) {
 		return NM_NEED_BWRAP;
 	}
 	na->na_vp = vpna;
-	strncpy(na->name, name, sizeof(na->name));
+	strlcpy(na->name, name, sizeof(na->name));
 	na->na_hostvp = NULL;
 	return 0;
 }
@@ -1184,12 +1369,12 @@ netmap_vale_bwrap_krings_create(struct netmap_adapter *na)
 	int error;
 
 	/* impersonate a netmap_vp_adapter */
-	error = netmap_vp_krings_create(na);
+	error = netmap_vale_vp_krings_create(na);
 	if (error)
 		return error;
 	error = netmap_bwrap_krings_create_common(na);
 	if (error) {
-		netmap_vp_krings_delete(na);
+		netmap_vale_vp_krings_delete(na);
 	}
 	return error;
 }
@@ -1198,7 +1383,7 @@ static void
 netmap_vale_bwrap_krings_delete(struct netmap_adapter *na)
 {
 	netmap_bwrap_krings_delete_common(na);
-	netmap_vp_krings_delete(na);
+	netmap_vale_vp_krings_delete(na);
 }
 
 static int
@@ -1214,9 +1399,9 @@ netmap_vale_bwrap_attach(const char *nr_name, struct netmap_adapter *hwna)
 		return ENOMEM;
 	}
 	na = &bna->up.up;
-	strncpy(na->name, nr_name, sizeof(na->name));
+	strlcpy(na->name, nr_name, sizeof(na->name));
 	na->nm_register = netmap_bwrap_reg;
-	na->nm_txsync = netmap_vp_txsync;
+	na->nm_txsync = netmap_vale_vp_txsync;
 	// na->nm_rxsync = netmap_bwrap_rxsync;
 	na->nm_krings_create = netmap_vale_bwrap_krings_create;
 	na->nm_krings_delete = netmap_vale_bwrap_krings_delete;
@@ -1311,7 +1496,8 @@ nm_vi_destroy(const char *name)
 
 	NMG_UNLOCK();
 
-	D("destroying a persistent vale interface %s", ifp->if_xname);
+	if (netmap_verbose)
+		nm_prinf("destroying a persistent vale interface %s", ifp->if_xname);
 	/* Linux requires all the references are released
 	 * before unregister
 	 */
@@ -1387,9 +1573,10 @@ netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 		}
 	}
 	/* netmap_vp_create creates a struct netmap_vp_adapter */
-	error = netmap_vp_create(hdr, ifp, nmd, &vpna);
+	error = netmap_vale_vp_create(hdr, ifp, nmd, &vpna);
 	if (error) {
-		D("error %d", error);
+		if (netmap_debug & NM_DEBUG_VALE)
+			nm_prerr("error %d", error);
 		goto err_1;
 	}
 	/* persist-specific routines */
