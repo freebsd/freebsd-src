@@ -564,5 +564,7 @@ extern	void crypto_copydata(int flags, caddr_t buf, int off, int size,
 extern	int crypto_apply(int flags, caddr_t buf, int off, int len,
 	    int (*f)(void *, void *, u_int), void *arg);
 
+extern void *crypto_contiguous_subsegment(int, void *, size_t, size_t);
+
 #endif /* _KERNEL */
 #endif /* _CRYPTO_CRYPTO_H_ */
