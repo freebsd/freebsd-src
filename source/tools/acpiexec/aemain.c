@@ -266,6 +266,7 @@ usage (
     ACPI_OPTION ("-ef",                 "Enable display of final memory statistics");
     ACPI_OPTION ("-ei",                 "Enable additional tests for ACPICA interfaces");
     ACPI_OPTION ("-el",                 "Enable loading of additional test tables");
+    ACPI_OPTION ("-eo",                 "Enable object evaluation log");
     ACPI_OPTION ("-es",                 "Enable Interpreter Slack Mode");
     ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
     printf ("\n");
@@ -404,6 +405,12 @@ AeDoOptions (
         case 'l':
 
             AcpiGbl_LoadTestTables = TRUE;
+            break;
+
+        case 'o':
+
+            AcpiDbgLevel |= ACPI_LV_EVALUATION;
+            AcpiGbl_DbConsoleDebugLevel |= ACPI_LV_EVALUATION;
             break;
 
         case 's':

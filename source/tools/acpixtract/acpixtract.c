@@ -176,8 +176,8 @@ AxExtractTables (
 {
     FILE                    *InputFile;
     FILE                    *OutputFile = NULL;
-    unsigned int            BytesConverted;
-    unsigned int            ThisTableBytesWritten = 0;
+    int                     BytesConverted;
+    int                     ThisTableBytesWritten = 0;
     unsigned int            FoundTable = 0;
     unsigned int            Instances = 0;
     unsigned int            ThisInstance;
@@ -323,8 +323,7 @@ AxExtractTables (
 
             /* Empty line or non-data line terminates the data block */
 
-            BytesConverted = AxConvertAndWrite (OutputFile, ThisSignature,
-                ThisTableBytesWritten);
+            BytesConverted = AxConvertAndWrite (OutputFile, ThisSignature);
             switch (BytesConverted)
             {
             case 0:
@@ -334,6 +333,7 @@ AxExtractTables (
 
             case -1:
 
+                Status = -1;
                 goto CleanupAndExit; /* There was a write error */
 
             default: /* Normal case, get next line */
@@ -397,8 +397,8 @@ AxExtractToMultiAmlFile (
     FILE                    *InputFile;
     FILE                    *OutputFile;
     int                     Status = 0;
-    unsigned int            TotalBytesWritten = 0;
-    unsigned int            ThisTableBytesWritten = 0;
+    int                     TotalBytesWritten = 0;
+    int                     ThisTableBytesWritten = 0;
     unsigned int            BytesConverted;
     char                    ThisSignature[4];
     unsigned int            State = AX_STATE_FIND_HEADER;
@@ -494,8 +494,7 @@ AxExtractToMultiAmlFile (
 
             /* Empty line or non-data line terminates the data block */
 
-            BytesConverted = AxConvertAndWrite (
-                OutputFile, ThisSignature, ThisTableBytesWritten);
+            BytesConverted = AxConvertAndWrite (OutputFile, ThisSignature);
             switch (BytesConverted)
             {
             case 0:
@@ -505,6 +504,7 @@ AxExtractToMultiAmlFile (
 
             case -1:
 
+                Status = -1;
                 goto CleanupAndExit; /* There was a write error */
 
             default: /* Normal case, get next line */
@@ -561,6 +561,7 @@ AxListAllTables (
     FILE                    *InputFile;
     unsigned char           Header[48];
     UINT32                  ByteCount = 0;
+    UINT32                  ThisLineByteCount;
     unsigned int            State = AX_STATE_FIND_HEADER;
 
 
@@ -633,7 +634,15 @@ AxListAllTables (
 
             /* Convert header to hex and display it */
 
-            ByteCount += AxConvertToBinary (Gbl_LineBuffer, &Header[ByteCount]);
+            ThisLineByteCount = AxConvertToBinary (Gbl_LineBuffer,
+                &Header[ByteCount]);
+            if (ThisLineByteCount == EOF)
+            {
+                fclose (InputFile);
+                return (-1);
+            }
+
+            ByteCount += ThisLineByteCount;
             if (ByteCount >= sizeof (ACPI_TABLE_HEADER))
             {
                 AxDumpTableHeader (Header);

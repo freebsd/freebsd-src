@@ -519,10 +519,7 @@ CgGenerateAmlLengths (
 
     case PARSEOP_EXTERNAL:
 
-        if (AslGbl_DoExternals == TRUE)
-        {
-            CgGenerateAmlOpcodeLength (Op);
-        }
+        CgGenerateAmlOpcodeLength (Op);
         break;
 
     default:

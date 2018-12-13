@@ -161,7 +161,6 @@
         ACPI_MODULE_NAME    ("excreate")
 
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    AcpiExCreateAlias
@@ -573,7 +572,6 @@ AcpiExCreatePowerResource (
     AcpiUtRemoveReference (ObjDesc);
     return_ACPI_STATUS (Status);
 }
-#endif
 
 
 /*******************************************************************************

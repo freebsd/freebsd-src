@@ -173,7 +173,6 @@ AcpiNsDeleteSubtree (
 #endif
 
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    AcpiNsLoadTable
@@ -476,5 +475,4 @@ AcpiNsUnloadNamespace (
     Status = AcpiNsDeleteSubtree (Handle);
     return_ACPI_STATUS (Status);
 }
-#endif
 #endif

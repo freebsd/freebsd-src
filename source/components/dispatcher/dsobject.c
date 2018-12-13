@@ -161,7 +161,6 @@
         ACPI_MODULE_NAME    ("dsobject")
 
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDsBuildInternalObject
@@ -460,7 +459,6 @@ AcpiDsCreateNode (
     return_ACPI_STATUS (Status);
 }
 
-#endif /* ACPI_NO_METHOD_EXECUTION */
 
 
 /*******************************************************************************
@@ -571,9 +569,7 @@ AcpiDsInitObjectFromOp (
 
                 /* Truncate value if we are executing from a 32-bit ACPI table */
 
-#ifndef ACPI_NO_METHOD_EXECUTION
                 (void) AcpiExTruncateFor32bitTable (ObjDesc);
-#endif
                 break;
 
             case AML_REVISION_OP:
@@ -594,7 +590,6 @@ AcpiDsInitObjectFromOp (
 
             ObjDesc->Integer.Value = Op->Common.Value.Integer;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
             if (AcpiExTruncateFor32bitTable (ObjDesc))
             {
                 /* Warn if we found a 64-bit constant in a 32-bit table */
@@ -604,7 +599,6 @@ AcpiDsInitObjectFromOp (
                     ACPI_FORMAT_UINT64 (Op->Common.Value.Integer),
                     (UINT32) ObjDesc->Integer.Value));
             }
-#endif
             break;
 
         default:
@@ -642,12 +636,10 @@ AcpiDsInitObjectFromOp (
             ObjDesc->Reference.Value = ((UINT32) Opcode) - AML_FIRST_LOCAL_OP;
             ObjDesc->Reference.Class = ACPI_REFCLASS_LOCAL;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
             Status = AcpiDsMethodDataGetNode (ACPI_REFCLASS_LOCAL,
                 ObjDesc->Reference.Value, WalkState,
                 ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
                     &ObjDesc->Reference.Object));
-#endif
             break;
 
         case AML_TYPE_METHOD_ARGUMENT:
@@ -657,12 +649,10 @@ AcpiDsInitObjectFromOp (
             ObjDesc->Reference.Value = ((UINT32) Opcode) - AML_FIRST_ARG_OP;
             ObjDesc->Reference.Class = ACPI_REFCLASS_ARG;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
             Status = AcpiDsMethodDataGetNode (ACPI_REFCLASS_ARG,
                 ObjDesc->Reference.Value, WalkState,
                 ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE,
                     &ObjDesc->Reference.Object));
-#endif
             break;
 
         default: /* Object name or Debug object */
