@@ -100,7 +100,7 @@ int	ip_resend(dev, mtu, r, gwip, datain)
 		return -2;
 	    }
 
-	bzero((char *)A_A eh->ether_shost, sizeof(eh->ether_shost));
+	bzero((char *) &eh->ether_shost, sizeof(eh->ether_shost));
 	if (gwip.s_addr && (arp((char *)&gwip, dhost) == -1))
 	    {
 		perror("arp");
@@ -116,12 +116,12 @@ int	ip_resend(dev, mtu, r, gwip, datain)
 			eh->ether_type = htons((u_short)ETHERTYPE_IP);
 			if (!gwip.s_addr) {
 				if (arp((char *)&gwip,
-					(char *)A_A eh->ether_dhost) == -1) {
+					(char *) &eh->ether_dhost) == -1) {
 					perror("arp");
 					continue;
 				}
 			} else
-				bcopy(dhost, (char *)A_A eh->ether_dhost,
+				bcopy(dhost, (char *) &eh->ether_dhost,
 				      sizeof(dhost));
 			if (!ip->ip_sum)
 				ip->ip_sum = chksum((u_short *)ip,
