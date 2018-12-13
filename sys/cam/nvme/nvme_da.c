@@ -798,7 +798,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	disk->d_mediasize = (off_t)(disk->d_sectorsize * nsd->nsze);
 	disk->d_delmaxsize = disk->d_mediasize;
 	disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
-//	if (cd->oncs.dsm) // XXX broken?
+	if (nvme_ctrlr_has_dataset_mgmt(cd))
 		disk->d_flags |= DISKFLAG_CANDELETE;
 	vwc_present = (cd->vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
 		NVME_CTRLR_DATA_VWC_PRESENT_MASK;
