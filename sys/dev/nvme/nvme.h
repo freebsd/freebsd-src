@@ -1259,6 +1259,13 @@ void		nvme_unregister_consumer(struct nvme_consumer *consumer);
 device_t	nvme_ctrlr_get_device(struct nvme_controller *ctrlr);
 const struct nvme_controller_data *
 		nvme_ctrlr_get_data(struct nvme_controller *ctrlr);
+static inline bool
+nvme_ctrlr_has_dataset_mgmt(const struct nvme_controller_data *cd)
+{
+	/* Assumes cd was byte swapped by nvme_controller_data_swapbytes() */
+	return ((cd->oncs >> NVME_CTRLR_DATA_ONCS_DSM_SHIFT) &
+		NVME_CTRLR_DATA_ONCS_DSM_MASK);
+}
 
 /* Namespace helper functions */
 uint32_t	nvme_ns_get_max_io_xfer_size(struct nvme_namespace *ns);
