@@ -67,9 +67,9 @@ int	send_ether(nfd, buf, len, gwip)
 	bcopy((char *)buf, s + sizeof(*eh), len);
 	if (gwip.s_addr == last_gw.s_addr)
 	    {
-		bcopy(last_arp, (char *)A_A eh->ether_dhost, 6);
+		bcopy(last_arp, (char *) &eh->ether_dhost, 6);
 	    }
-	else if (arp((char *)&gwip, (char *)A_A eh->ether_dhost) == -1)
+	else if (arp((char *)&gwip, (char *) &eh->ether_dhost) == -1)
 	    {
 		perror("arp");
 		return -2;
@@ -109,17 +109,17 @@ int	send_ip(nfd, mtu, ip, gwip, frag)
 
 	eh = (ether_header_t *)ipbuf;
 
-	bzero((char *)A_A eh->ether_shost, sizeof(eh->ether_shost));
+	bzero((char *) &eh->ether_shost, sizeof(eh->ether_shost));
 	if (last_gw.s_addr && (gwip.s_addr == last_gw.s_addr))
 	    {
-		bcopy(last_arp, (char *)A_A eh->ether_dhost, 6);
+		bcopy(last_arp, (char *) &eh->ether_dhost, 6);
 	    }
-	else if (arp((char *)&gwip, (char *)A_A eh->ether_dhost) == -1)
+	else if (arp((char *)&gwip, (char *) &eh->ether_dhost) == -1)
 	    {
 		perror("arp");
 		return -2;
 	    }
-	bcopy((char *)A_A eh->ether_dhost, last_arp, sizeof(last_arp));
+	bcopy((char *) &eh->ether_dhost, last_arp, sizeof(last_arp));
 	eh->ether_type = htons(ETHERTYPE_IP);
 
 	bcopy((char *)ip, (char *)&ipsv, sizeof(*ip));
@@ -136,11 +136,11 @@ int	send_ip(nfd, mtu, ip, gwip, frag)
 	}
 
 	if (ip->ip_src.s_addr != local_ip.s_addr) {
-		(void) arp((char *)&ip->ip_src, (char *)A_A local_arp);
-		bcopy(local_arp, (char *)A_A eh->ether_shost,sizeof(last_arp));
+		(void) arp((char *)&ip->ip_src, (char *) &local_arp);
+		bcopy(local_arp, (char *) &eh->ether_shost,sizeof(last_arp));
 		local_ip = ip->ip_src;
 	} else
-		bcopy(local_arp, (char *)A_A eh->ether_shost, 6);
+		bcopy(local_arp, (char *) &eh->ether_shost, 6);
 
 	if (!frag || (sizeof(*eh) + iplen < mtu))
 	    {
