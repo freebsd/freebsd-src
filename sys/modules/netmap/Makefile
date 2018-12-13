@@ -20,8 +20,10 @@ SRCS	+= netmap_freebsd.c
 SRCS	+= netmap_offloadings.c
 SRCS	+= netmap_pipe.c
 SRCS	+= netmap_monitor.c
-SRCS	+= netmap_pt.c
+SRCS	+= netmap_kloop.c
 SRCS	+= netmap_legacy.c
+SRCS	+= netmap_bdg.c
+SRCS	+= netmap_null.c
 SRCS	+= opt_inet.h opt_inet6.h
 
 .include <bsd.kmod.mk>

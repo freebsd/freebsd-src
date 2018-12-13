@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <machine/bus.h>        /* bus_dmamap_* in netmap_kern.h */
 
-// XXX temporary - D() defined here
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 #include <dev/netmap/netmap_mem2.h>
@@ -177,7 +176,7 @@ static void rate_callback(unsigned long arg)
 	r = mod_timer(&ctx->timer, jiffies +
 			msecs_to_jiffies(RATE_PERIOD * 1000));
 	if (unlikely(r))
-		D("[v1000] Error: mod_timer()");
+		nm_prerr("mod_timer() failed");
 }
 
 static struct rate_context rate_ctx;
@@ -238,14 +237,14 @@ generic_netmap_unregister(struct netmap_adapter *na)
 
 	for_each_rx_kring_h(r, kring, na) {
 		if (nm_kring_pending_off(kring)) {
-			D("Emulated adapter: ring '%s' deactivated", kring->name);
+			nm_prinf("Emulated adapter: ring '%s' deactivated", kring->name);
 			kring->nr_mode = NKR_NETMAP_OFF;
 		}
 	}
 	for_each_tx_kring_h(r, kring, na) {
 		if (nm_kring_pending_off(kring)) {
 			kring->nr_mode = NKR_NETMAP_OFF;
-			D("Emulated adapter: ring '%s' deactivated", kring->name);
+			nm_prinf("Emulated adapter: ring '%s' deactivated", kring->name);
 		}
 	}
 
@@ -298,11 +297,11 @@ generic_netmap_unregister(struct netmap_adapter *na)
 
 #ifdef RATE_GENERIC
 		if (--rate_ctx.refcount == 0) {
-			D("del_timer()");
+			nm_prinf("del_timer()");
 			del_timer(&rate_ctx.timer);
 		}
 #endif
-		D("Emulated adapter for %s deactivated", na->name);
+		nm_prinf("Emulated adapter for %s deactivated", na->name);
 	}
 
 	return 0;
@@ -327,14 +326,14 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 	}
 
 	if (na->active_fds == 0) {
-		D("Emulated adapter for %s activated", na->name);
+		nm_prinf("Emulated adapter for %s activated", na->name);
 		/* Do all memory allocations when (na->active_fds == 0), to
 		 * simplify error management. */
 
 		/* Allocate memory for mitigation support on all the rx queues. */
 		gna->mit = nm_os_malloc(na->num_rx_rings * sizeof(struct nm_generic_mit));
 		if (!gna->mit) {
-			D("mitigation allocation failed");
+			nm_prerr("mitigation allocation failed");
 			error = ENOMEM;
 			goto out;
 		}
@@ -361,7 +360,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			kring->tx_pool =
 				nm_os_malloc(na->num_tx_desc * sizeof(struct mbuf *));
 			if (!kring->tx_pool) {
-				D("tx_pool allocation failed");
+				nm_prerr("tx_pool allocation failed");
 				error = ENOMEM;
 				goto free_tx_pools;
 			}
@@ -372,14 +371,14 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 
 	for_each_rx_kring_h(r, kring, na) {
 		if (nm_kring_pending_on(kring)) {
-			D("Emulated adapter: ring '%s' activated", kring->name);
+			nm_prinf("Emulated adapter: ring '%s' activated", kring->name);
 			kring->nr_mode = NKR_NETMAP_ON;
 		}
 
 	}
 	for_each_tx_kring_h(r, kring, na) {
 		if (nm_kring_pending_on(kring)) {
-			D("Emulated adapter: ring '%s' activated", kring->name);
+			nm_prinf("Emulated adapter: ring '%s' activated", kring->name);
 			kring->nr_mode = NKR_NETMAP_ON;
 		}
 	}
@@ -397,14 +396,14 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 		/* Prepare to intercept incoming traffic. */
 		error = nm_os_catch_rx(gna, 1);
 		if (error) {
-			D("nm_os_catch_rx(1) failed (%d)", error);
+			nm_prerr("nm_os_catch_rx(1) failed (%d)", error);
 			goto free_tx_pools;
 		}
 
 		/* Let netmap control the packet steering. */
 		error = nm_os_catch_tx(gna, 1);
 		if (error) {
-			D("nm_os_catch_tx(1) failed (%d)", error);
+			nm_prerr("nm_os_catch_tx(1) failed (%d)", error);
 			goto catch_rx;
 		}
 
@@ -412,11 +411,11 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 
 #ifdef RATE_GENERIC
 		if (rate_ctx.refcount == 0) {
-			D("setup_timer()");
+			nm_prinf("setup_timer()");
 			memset(&rate_ctx, 0, sizeof(rate_ctx));
 			setup_timer(&rate_ctx.timer, &rate_callback, (unsigned long)&rate_ctx);
 			if (mod_timer(&rate_ctx.timer, jiffies + msecs_to_jiffies(1500))) {
-				D("Error: mod_timer()");
+				nm_prerr("Error: mod_timer()");
 			}
 		}
 		rate_ctx.refcount++;
@@ -460,7 +459,7 @@ generic_mbuf_destructor(struct mbuf *m)
 	unsigned int r_orig = r;
 
 	if (unlikely(!nm_netmap_on(na) || r >= na->num_tx_rings)) {
-		D("Error: no netmap adapter on device %p",
+		nm_prerr("Error: no netmap adapter on device %p",
 		  GEN_TX_MBUF_IFP(m));
 		return;
 	}
@@ -486,7 +485,7 @@ generic_mbuf_destructor(struct mbuf *m)
 
 		if (match) {
 			if (r != r_orig) {
-				RD(1, "event %p migrated: ring %u --> %u",
+				nm_prlim(1, "event %p migrated: ring %u --> %u",
 				      m, r_orig, r);
 			}
 			break;
@@ -495,7 +494,7 @@ generic_mbuf_destructor(struct mbuf *m)
 		if (++r == na->num_tx_rings) r = 0;
 
 		if (r == r_orig) {
-			RD(1, "Cannot match event %p", m);
+			nm_prlim(1, "Cannot match event %p", m);
 			return;
 		}
 	}
@@ -526,7 +525,7 @@ generic_netmap_tx_clean(struct netmap_kring *kring, int txqdisc)
 	u_int n = 0;
 	struct mbuf **tx_pool = kring->tx_pool;
 
-	ND("hwcur = %d, hwtail = %d", kring->nr_hwcur, kring->nr_hwtail);
+	nm_prdis("hwcur = %d, hwtail = %d", kring->nr_hwcur, kring->nr_hwtail);
 
 	while (nm_i != hwcur) { /* buffers not completed */
 		struct mbuf *m = tx_pool[nm_i];
@@ -535,7 +534,7 @@ generic_netmap_tx_clean(struct netmap_kring *kring, int txqdisc)
 			if (m == NULL) {
 				/* Nothing to do, this is going
 				 * to be replenished. */
-				RD(3, "Is this happening?");
+				nm_prlim(3, "Is this happening?");
 
 			} else if (MBUF_QUEUED(m)) {
 				break; /* Not dequeued yet. */
@@ -574,7 +573,7 @@ generic_netmap_tx_clean(struct netmap_kring *kring, int txqdisc)
 		nm_i = nm_next(nm_i, lim);
 	}
 	kring->nr_hwtail = nm_prev(nm_i, lim);
-	ND("tx completed [%d] -> hwtail %d", n, kring->nr_hwtail);
+	nm_prdis("tx completed [%d] -> hwtail %d", n, kring->nr_hwtail);
 
 	return n;
 }
@@ -596,7 +595,7 @@ ring_middle(u_int inf, u_int sup, u_int lim)
 	}
 
 	if (unlikely(e >= n)) {
-		D("This cannot happen");
+		nm_prerr("This cannot happen");
 		e = 0;
 	}
 
@@ -652,7 +651,7 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 
 	kring->tx_pool[e] = NULL;
 
-	ND(5, "Request Event at %d mbuf %p refcnt %d", e, m, m ? MBUF_REFCNT(m) : -2 );
+	nm_prdis("Request Event at %d mbuf %p refcnt %d", e, m, m ? MBUF_REFCNT(m) : -2 );
 
 	/* Decrement the refcount. This will free it if we lose the race
 	 * with the driver. */
@@ -697,7 +696,7 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 			 * but only when cur == hwtail, which means that the
 			 * client is going to block. */
 			event = ring_middle(nm_i, head, lim);
-			ND(3, "Place txqdisc event (hwcur=%u,event=%u,"
+			nm_prdis("Place txqdisc event (hwcur=%u,event=%u,"
 			      "head=%u,hwtail=%u)", nm_i, event, head,
 			      kring->nr_hwtail);
 		}
@@ -723,7 +722,7 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 				kring->tx_pool[nm_i] = m =
 					nm_os_get_mbuf(ifp, NETMAP_BUF_SIZE(na));
 				if (m == NULL) {
-					RD(2, "Failed to replenish mbuf");
+					nm_prlim(2, "Failed to replenish mbuf");
 					/* Here we could schedule a timer which
 					 * retries to replenish after a while,
 					 * and notifies the client when it
@@ -852,7 +851,7 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		/* This may happen when GRO/LRO features are enabled for
 		 * the NIC driver when the generic adapter does not
 		 * support RX scatter-gather. */
-		RD(2, "Warning: driver pushed up big packet "
+		nm_prlim(2, "Warning: driver pushed up big packet "
 				"(size=%d)", (int)MBUF_LEN(m));
 		m_freem(m);
 	} else if (unlikely(mbq_len(&kring->rx_queue) > 1024)) {
@@ -1046,7 +1045,7 @@ generic_netmap_dtor(struct netmap_adapter *na)
 		         */
 		        netmap_adapter_put(prev_na);
 		}
-		D("Native netmap adapter %p restored", prev_na);
+		nm_prinf("Native netmap adapter %p restored", prev_na);
 	}
 	NM_RESTORE_NA(ifp, prev_na);
 	/*
@@ -1054,7 +1053,7 @@ generic_netmap_dtor(struct netmap_adapter *na)
 	 * overrides WNA(ifp) if na->ifp is not NULL.
 	 */
 	na->ifp = NULL;
-	D("Emulated netmap adapter for %s destroyed", na->name);
+	nm_prinf("Emulated netmap adapter for %s destroyed", na->name);
 }
 
 int
@@ -1084,7 +1083,7 @@ generic_netmap_attach(struct ifnet *ifp)
 
 #ifdef __FreeBSD__
 	if (ifp->if_type == IFT_LOOP) {
-		D("if_loop is not supported by %s", __func__);
+		nm_prerr("if_loop is not supported by %s", __func__);
 		return EINVAL;
 	}
 #endif
@@ -1094,26 +1093,25 @@ generic_netmap_attach(struct ifnet *ifp)
 		 * adapter it means that someone else is using the same
 		 * pointer (e.g. ax25_ptr on linux). This happens for
 		 * instance when also PF_RING is in use. */
-		D("Error: netmap adapter hook is busy");
+		nm_prerr("Error: netmap adapter hook is busy");
 		return EBUSY;
 	}
 
 	num_tx_desc = num_rx_desc = netmap_generic_ringsize; /* starting point */
 
 	nm_os_generic_find_num_desc(ifp, &num_tx_desc, &num_rx_desc); /* ignore errors */
-	ND("Netmap ring size: TX = %d, RX = %d", num_tx_desc, num_rx_desc);
 	if (num_tx_desc == 0 || num_rx_desc == 0) {
-		D("Device has no hw slots (tx %u, rx %u)", num_tx_desc, num_rx_desc);
+		nm_prerr("Device has no hw slots (tx %u, rx %u)", num_tx_desc, num_rx_desc);
 		return EINVAL;
 	}
 
 	gna = nm_os_malloc(sizeof(*gna));
 	if (gna == NULL) {
-		D("no memory on attach, give up");
+		nm_prerr("no memory on attach, give up");
 		return ENOMEM;
 	}
 	na = (struct netmap_adapter *)gna;
-	strncpy(na->name, ifp->if_xname, sizeof(na->name));
+	strlcpy(na->name, ifp->if_xname, sizeof(na->name));
 	na->ifp = ifp;
 	na->num_tx_desc = num_tx_desc;
 	na->num_rx_desc = num_rx_desc;
@@ -1127,10 +1125,10 @@ generic_netmap_attach(struct ifnet *ifp)
 	 */
 	na->na_flags = NAF_SKIP_INTR | NAF_HOST_RINGS;
 
-	ND("[GNA] num_tx_queues(%d), real_num_tx_queues(%d), len(%lu)",
+	nm_prdis("[GNA] num_tx_queues(%d), real_num_tx_queues(%d), len(%lu)",
 			ifp->num_tx_queues, ifp->real_num_tx_queues,
 			ifp->tx_queue_len);
-	ND("[GNA] num_rx_queues(%d), real_num_rx_queues(%d)",
+	nm_prdis("[GNA] num_rx_queues(%d), real_num_rx_queues(%d)",
 			ifp->num_rx_queues, ifp->real_num_rx_queues);
 
 	nm_os_generic_find_num_queues(ifp, &na->num_tx_rings, &na->num_rx_rings);
@@ -1149,7 +1147,7 @@ generic_netmap_attach(struct ifnet *ifp)
 
 	nm_os_generic_set_features(gna);
 
-	D("Emulated adapter for %s created (prev was %p)", na->name, gna->prev);
+	nm_prinf("Emulated adapter for %s created (prev was %p)", na->name, gna->prev);
 
 	return retval;
 }

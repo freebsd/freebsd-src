@@ -1,3 +1,32 @@
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (C) 2013-2018 Universita` di Pisa
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
 #ifndef _NET_NETMAP_BDG_H_
 #define _NET_NETMAP_BDG_H_
 
@@ -15,7 +44,39 @@
 
 #endif /* __FreeBSD__ */
 
-/* $FreeBSD$ */
+/*
+ * The following bridge-related functions are used by other
+ * kernel modules.
+ *
+ * VALE only supports unicast or broadcast. The lookup
+ * function can return 0 .. NM_BDG_MAXPORTS-1 for regular ports,
+ * NM_BDG_MAXPORTS for broadcast, NM_BDG_MAXPORTS+1 to indicate
+ * drop.
+ */
+typedef uint32_t (*bdg_lookup_fn_t)(struct nm_bdg_fwd *ft, uint8_t *ring_nr,
+		struct netmap_vp_adapter *, void *private_data);
+typedef int (*bdg_config_fn_t)(struct nm_ifreq *);
+typedef void (*bdg_dtor_fn_t)(const struct netmap_vp_adapter *);
+typedef void *(*bdg_update_private_data_fn_t)(void *private_data, void *callback_data, int *error);
+typedef int (*bdg_vp_create_fn_t)(struct nmreq_header *hdr,
+		struct ifnet *ifp, struct netmap_mem_d *nmd,
+		struct netmap_vp_adapter **ret);
+typedef int (*bdg_bwrap_attach_fn_t)(const char *nr_name, struct netmap_adapter *hwna);
+struct netmap_bdg_ops {
+	bdg_lookup_fn_t lookup;
+	bdg_config_fn_t config;
+	bdg_dtor_fn_t	dtor;
+	bdg_vp_create_fn_t	vp_create;
+	bdg_bwrap_attach_fn_t	bwrap_attach;
+	char name[IFNAMSIZ];
+};
+int netmap_bwrap_attach(const char *name, struct netmap_adapter *, struct netmap_bdg_ops *);
+int netmap_bdg_regops(const char *name, struct netmap_bdg_ops *bdg_ops, void *private_data, void *auth_token);
+
+#define	NM_BRIDGES		8	/* number of bridges */
+#define	NM_BDG_MAXPORTS		254	/* up to 254 */
+#define	NM_BDG_BROADCAST	NM_BDG_MAXPORTS
+#define	NM_BDG_NOPORT		(NM_BDG_MAXPORTS+1)
 
 /* XXX Should go away after fixing find_bridge() - Michio */
 #define NM_BDG_HASH		1024	/* forwarding table entries */
@@ -68,7 +129,8 @@ struct nm_bridge {
 	 * different ring index.
 	 * The function is set by netmap_bdg_regops().
 	 */
-	struct netmap_bdg_ops *bdg_ops;
+	struct netmap_bdg_ops bdg_ops;
+	struct netmap_bdg_ops bdg_saved_ops;
 
 	/*
 	 * Contains the data structure used by the bdg_ops.lookup function.
@@ -84,6 +146,7 @@ struct nm_bridge {
 	 */
 #define NM_BDG_ACTIVE		1
 #define NM_BDG_EXCLUSIVE	2
+#define NM_BDG_NEED_BWRAP	4
 	uint8_t			bdg_flags;
 
 
@@ -123,6 +186,13 @@ int netmap_bwrap_attach_common(struct netmap_adapter *na,
 		struct netmap_adapter *hwna);
 int netmap_bwrap_krings_create_common(struct netmap_adapter *na);
 void netmap_bwrap_krings_delete_common(struct netmap_adapter *na);
+struct nm_bridge *netmap_init_bridges2(u_int);
+void netmap_uninit_bridges2(struct nm_bridge *, u_int);
+int netmap_bdg_update_private_data(const char *name, bdg_update_private_data_fn_t callback,
+	void *callback_data, void *auth_token);
+int netmap_bdg_config(struct nm_ifreq *nifr);
+int nm_is_bwrap(struct netmap_adapter *);
+
 #define NM_NEED_BWRAP (-2)
 #endif /* _NET_NETMAP_BDG_H_ */
 
