@@ -307,6 +307,9 @@ AcpiPsExecuteMethod (
         goto Cleanup;
     }
 
+    WalkState->MethodPathname = Info->FullPathname;
+    WalkState->MethodIsNested = FALSE;
+
     if (Info->ObjDesc->Method.InfoFlags & ACPI_METHOD_MODULE_LEVEL)
     {
         WalkState->ParseFlags |= ACPI_PARSE_MODULE_LEVEL;
@@ -436,6 +439,9 @@ AcpiPsExecuteTable (
     {
         goto Cleanup;
     }
+
+    WalkState->MethodPathname = Info->FullPathname;
+    WalkState->MethodIsNested = FALSE;
 
     if (Info->ObjDesc->Method.InfoFlags & ACPI_METHOD_MODULE_LEVEL)
     {

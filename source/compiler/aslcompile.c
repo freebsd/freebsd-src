@@ -388,23 +388,20 @@ CmDoCompile (
 
     /* Resolve External Declarations */
 
-    if (AslGbl_DoExternals)
-    {
-        Event = UtBeginEvent ("Resolve all Externals");
-        DbgPrint (ASL_DEBUG_OUTPUT, "\nResolve Externals\n\n");
+    Event = UtBeginEvent ("Resolve all Externals");
+    DbgPrint (ASL_DEBUG_OUTPUT, "\nResolve Externals\n\n");
 
-        if (AslGbl_DoExternalsInPlace)
-        {
-            TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
-                ExAmlExternalWalkBegin, NULL, NULL);
-        }
-        else
-        {
-            TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
-                ExAmlExternalWalkBegin, ExAmlExternalWalkEnd, NULL);
-        }
-        UtEndEvent (Event);
+    if (AslGbl_DoExternalsInPlace)
+    {
+        TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_DOWNWARD,
+            ExAmlExternalWalkBegin, NULL, NULL);
     }
+    else
+    {
+        TrWalkParseTree (AslGbl_ParseTreeRoot, ASL_WALK_VISIT_TWICE,
+            ExAmlExternalWalkBegin, ExAmlExternalWalkEnd, NULL);
+    }
+    UtEndEvent (Event);
 
     /*
      * Semantic analysis. This can happen only after the

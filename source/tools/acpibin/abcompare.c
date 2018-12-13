@@ -537,7 +537,11 @@ AbCompareAmlFiles (
     printf ("Compare offset: %u\n", AbGbl_CompareOffset);
     if (AbGbl_CompareOffset)
     {
-        fseek (File2, AbGbl_CompareOffset, SEEK_CUR);
+        if (fseek (File2, AbGbl_CompareOffset, SEEK_CUR))
+        {
+            printf ("Seek error on file %s\n", File2Path);
+            goto Exit2;
+        }
     }
 
     Actual1 = fread (&Char1, 1, 1, File1);

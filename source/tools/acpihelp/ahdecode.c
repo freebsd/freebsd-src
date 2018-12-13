@@ -168,6 +168,10 @@ AhDisplayPredefinedInfo (
     char                    *Name);
 
 static void
+AhDoSpecialNames (
+    char                    *Name);
+
+static void
 AhDisplayResourceName (
     const ACPI_PREDEFINED_INFO  *ThisName);
 
@@ -293,12 +297,20 @@ AhFindPredefinedNames (
 {
     UINT32                  Length;
     BOOLEAN                 Found;
-    char                    Name[9];
+    char                    Name[ACPI_NAME_SIZE + 1];
 
 
-    if (!NamePrefix || (NamePrefix[0] == '*'))
+    if (!NamePrefix || (*NamePrefix == '*'))
     {
         Found = AhDisplayPredefinedName (NULL, 0);
+        return;
+    }
+
+    Length = strlen (NamePrefix);
+    if (Length > ACPI_NAME_SIZE)
+    {
+        printf ("%.8s: Predefined name must be 4 characters maximum\n",
+            NamePrefix);
         return;
     }
 
@@ -311,19 +323,107 @@ AhFindPredefinedNames (
     }
 
     Name[0] = '_';
-    AcpiUtSafeStrncpy (&Name[1], NamePrefix, 7);
+    AcpiUtSafeStrncpy (&Name[1], NamePrefix, 4);
 
-    Length = strlen (Name);
-    if (Length > ACPI_NAME_SIZE)
-    {
-        printf ("%.8s: Predefined name must be 4 characters maximum\n", Name);
-        return;
-    }
+    /* Check for special names such as _Exx, _ACx, etc. */
+
+    AhDoSpecialNames (Name);
+
+    /* Lookup and display the name(s) */
 
     Found = AhDisplayPredefinedName (Name, Length);
     if (!Found)
     {
         printf ("%s, no matching predefined names\n", Name);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AhDoSpecialNames
+ *
+ * PARAMETERS:  Name          - Name or prefix to find
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Detect and handle the "special" names such as _Exx, _ACx, etc.
+ *
+ * Current support:
+ *  _EJx
+ *  _Exx
+ *  _Lxx
+ *  _Qxx
+ *  _Wxx
+ *  _ACx
+ *  _ALx
+ *  _T_x
+ *
+ ******************************************************************************/
+
+static void
+AhDoSpecialNames (
+    char                    *Name)
+{
+
+    /*
+     * Check for the special names that have one or more numeric
+     * suffixes. For example, _Lxx can have 256 different flavors,
+     * from _L00 to _LFF.
+     */
+    switch (Name[1])
+    {
+    case 'E':
+        if (Name[2] == 'J')
+        {
+            if (isdigit (Name[3]) || (Name[3] == 'X'))
+            {
+                /* _EJx */
+
+                Name[3] = 'x';
+                break;
+            }
+        }
+
+        /* Fallthrough */
+
+    case 'L':
+    case 'Q':
+    case 'W':
+        if ((isxdigit (Name[2]) && isxdigit (Name[3]))
+                ||
+            ((Name[2] == 'X') && (Name[3] == 'X')))
+        {
+            /* _Exx, _Lxx, _Qxx, or _Wxx */
+
+            Name[2] = 'x';
+            Name[3] = 'x';
+        }
+        break;
+
+    case 'A':
+        if ((Name[2] == 'C') || (Name[2] == 'L'))
+        {
+            if (isdigit (Name[3]) || (Name[3] == 'X'))
+            {
+                /* _ACx or _ALx */
+
+                Name[3] = 'x';
+            }
+        }
+        break;
+
+    case 'T':
+        if (Name[2] == '_')
+        {
+            /* _T_x (Reserved for iASL compiler */
+
+            Name[3] = 'x';
+        }
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -420,7 +520,7 @@ AhDisplayPredefinedInfo (
 
     /* NOTE: we check both tables always because there are some dupes */
 
-    /* Check against the predefine methods first */
+    /* Check against the predefined methods first */
 
     ThisName = AcpiUtMatchPredefinedMethod (Name);
     if (ThisName)
