@@ -447,6 +447,7 @@ ports attached to the switch)
 #include <machine/bus.h>	/* bus_dmamap_* */
 #include <sys/endian.h>
 #include <sys/refcount.h>
+#include <net/ethernet.h>      /* ETHER_BPF_MTAP */
 
 
 #elif defined(linux)
@@ -3860,6 +3861,10 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 		RD(1, "%s drop mbuf that needs generic segmentation offload", na->name);
 		goto done;
 	}
+
+#ifdef __FreeBSD__
+	ETHER_BPF_MTAP(ifp, m);
+#endif /* __FreeBSD__ */
 
 	/* protect against netmap_rxsync_from_host(), netmap_sw_to_nic()
 	 * and maybe other instances of netmap_transmit (the latter
