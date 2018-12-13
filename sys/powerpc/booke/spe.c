@@ -66,7 +66,6 @@ save_vec_int(struct thread *td)
 	 */
 	msr = mfmsr();
 	mtmsr(msr | PSL_VEC);
-	isync();
 
 	/*
 	 * Save the vector registers and SPEFSCR to the PCB
@@ -419,6 +418,52 @@ spe_explode(struct fpemu *fe, struct fpn *fp, uint32_t type,
 	return (0);
 }
 
+/*
+ * Save the high word of a 64-bit GPR for manipulation in the exception handler.
+ */
+static uint32_t
+spe_save_reg_high(int reg)
+{
+	uint32_t vec[2];
+#define EVSTDW(n)   case n: __asm ("evstdw %1,0(%0)" \
+		:: "b"(vec), "n"(n)); break;
+	switch (reg) {
+	EVSTDW(0);	EVSTDW(1);	EVSTDW(2);	EVSTDW(3);
+	EVSTDW(4);	EVSTDW(5);	EVSTDW(6);	EVSTDW(7);
+	EVSTDW(8);	EVSTDW(9);	EVSTDW(10);	EVSTDW(11);
+	EVSTDW(12);	EVSTDW(13);	EVSTDW(14);	EVSTDW(15);
+	EVSTDW(16);	EVSTDW(17);	EVSTDW(18);	EVSTDW(19);
+	EVSTDW(20);	EVSTDW(21);	EVSTDW(22);	EVSTDW(23);
+	EVSTDW(24);	EVSTDW(25);	EVSTDW(26);	EVSTDW(27);
+	EVSTDW(28);	EVSTDW(29);	EVSTDW(30);	EVSTDW(31);
+	}
+#undef EVSTDW
+
+	return (vec[0]);
+}
+
+/*
+ * Load the given value into the high word of the requested register.
+ */
+static void
+spe_load_reg_high(int reg, uint32_t val)
+{
+#define	EVLDW(n)   case n: __asm __volatile("evmergelo "#n",%0,0," \
+	    :: "r"(val)); break;
+	switch (reg) {
+	EVLDW(1);	EVLDW(2);	EVLDW(3);	EVLDW(4);
+	EVLDW(5);	EVLDW(6);	EVLDW(7);	EVLDW(8);
+	EVLDW(9);	EVLDW(10);	EVLDW(11);	EVLDW(12);
+	EVLDW(13);	EVLDW(14);	EVLDW(15);	EVLDW(16);
+	EVLDW(17);	EVLDW(18);	EVLDW(19);	EVLDW(20);
+	EVLDW(21);	EVLDW(22);	EVLDW(23);	EVLDW(24);
+	EVLDW(25);	EVLDW(26);	EVLDW(27);	EVLDW(28);
+	EVLDW(29);	EVLDW(30);	EVLDW(31);	EVLDW(0);
+	}
+#undef EVLDW
+
+}
+
 void
 spe_handle_fpdata(struct trapframe *frame)
 {
@@ -426,11 +471,12 @@ spe_handle_fpdata(struct trapframe *frame)
 	struct fpn *result;
 	uint32_t instr, instr_sec_op;
 	uint32_t cr_shift, ra, rb, rd, src;
-	uint32_t high, low, res; /* For vector operations. */
+	uint32_t high, low, res, tmp; /* For vector operations. */
 	uint32_t spefscr = 0;
 	uint32_t ftod_res[2];
 	int width; /* Single, Double, Vector, Integer */
 	int err;
+	uint32_t msr;
 
 	err = fueword32((void *)frame->srr0, &instr);
 	
@@ -441,6 +487,7 @@ spe_handle_fpdata(struct trapframe *frame)
 	if ((instr >> OPC_SHIFT) != SPE_OPC)
 		return;
 
+	msr = mfmsr();
 	/*
 	 * 'cr' field is the upper 3 bits of rd.  Magically, since a) rd is 5
 	 * bits, b) each 'cr' field is 4 bits, and c) Only the 'GT' bit is
@@ -460,31 +507,34 @@ spe_handle_fpdata(struct trapframe *frame)
 	width = NONE;
 	switch (src) {
 	case SPE:
-		save_vec_nodrop(curthread);
+		mtmsr(msr | PSL_VEC);
 		switch (instr_sec_op) {
 		case EVFSABS:
-			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-			    curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
+			high = spe_save_reg_high(ra) & ~(1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra] & ~(1U << 31);
+			spe_load_reg_high(rd, high);
 			break;
 		case EVFSNABS:
-			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-			    curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
+			high = spe_save_reg_high(ra) | (1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra] | (1U << 31);
+			spe_load_reg_high(rd, high);
 			break;
 		case EVFSNEG:
-			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-			    curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
+			high = spe_save_reg_high(ra) ^ (1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra] ^ (1U << 31);
+			spe_load_reg_high(rd, high);
 			break;
 		default:
 			/* High word */
 			spe_explode(&fpemu, &fpemu.fe_f1, SINGLE,
-			    curthread->td_pcb->pcb_vec.vr[ra][0], 0);
+			    spe_save_reg_high(ra), 0);
 			spe_explode(&fpemu, &fpemu.fe_f2, SINGLE,
-			    curthread->td_pcb->pcb_vec.vr[rb][0], 0);
+			    spe_save_reg_high(rb), 0);
 			high = spe_emu_instr(instr_sec_op, &fpemu, &result,
-			    &curthread->td_pcb->pcb_vec.vr[rd][0]);
+			    &tmp);
+
+			if (high < 0)
+				spe_load_reg_high(rd, tmp);
 
 			spefscr = fpscr_to_spefscr(fpemu.fe_cx) << 16;
 			/* Clear the fpemu to start over on the lower bits. */
@@ -508,7 +558,6 @@ spe_handle_fpdata(struct trapframe *frame)
 				width = VECTOR;
 			break;
 		}
-		enable_vec(curthread);
 		goto end;
 
 	case SPFP:
@@ -524,8 +573,7 @@ spe_handle_fpdata(struct trapframe *frame)
 			break;
 		case EFSCFD:
 			spe_explode(&fpemu, &fpemu.fe_f3, DOUBLE,
-			    curthread->td_pcb->pcb_vec.vr[rb][0],
-			    frame->fixreg[rb]);
+			    spe_save_reg_high(rb), frame->fixreg[rb]);
 			result = &fpemu.fe_f3;
 			width = SINGLE;
 			break;
@@ -538,25 +586,22 @@ spe_handle_fpdata(struct trapframe *frame)
 		}
 		break;
 	case DPFP:
-		save_vec_nodrop(curthread);
+		mtmsr(msr | PSL_VEC);
 		switch (instr_sec_op) {
 		case EFDABS:
-			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-			    curthread->td_pcb->pcb_vec.vr[ra][0] & ~(1U << 31);
+			high = spe_save_reg_high(ra) & ~(1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra];
-			enable_vec(curthread);
+			spe_load_reg_high(rd, high);
 			break;
 		case EFDNABS:
-			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-			    curthread->td_pcb->pcb_vec.vr[ra][0] | (1U << 31);
+			high = spe_save_reg_high(ra) | (1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra];
-			enable_vec(curthread);
+			spe_load_reg_high(rd, high);
 			break;
 		case EFDNEG:
-			curthread->td_pcb->pcb_vec.vr[rd][0] = 
-			    curthread->td_pcb->pcb_vec.vr[ra][0] ^ (1U << 31);
+			high = spe_save_reg_high(ra) ^ (1U << 31);
 			frame->fixreg[rd] = frame->fixreg[ra];
-			enable_vec(curthread);
+			spe_load_reg_high(rd, high);
 			break;
 		case EFDCFS:
 			spe_explode(&fpemu, &fpemu.fe_f3, SINGLE,
@@ -566,11 +611,9 @@ spe_handle_fpdata(struct trapframe *frame)
 			break;
 		default:
 			spe_explode(&fpemu, &fpemu.fe_f1, DOUBLE,
-			    curthread->td_pcb->pcb_vec.vr[ra][0],
-			    frame->fixreg[ra]);
+			    spe_save_reg_high(ra), frame->fixreg[ra]);
 			spe_explode(&fpemu, &fpemu.fe_f2, DOUBLE,
-			    curthread->td_pcb->pcb_vec.vr[rb][0],
-			    frame->fixreg[rb]);
+			    spe_save_reg_high(rb), frame->fixreg[rb]);
 			width = DOUBLE;
 		}
 		break;
@@ -609,10 +652,8 @@ spe_handle_fpdata(struct trapframe *frame)
 			frame->fixreg[rd] = fpu_ftos(&fpemu, result);
 			break;
 		case DOUBLE:
-			curthread->td_pcb->pcb_vec.vr[rd][0] =
-			    fpu_ftod(&fpemu, result, ftod_res);
+			spe_load_reg_high(rd, fpu_ftod(&fpemu, result, ftod_res));
 			frame->fixreg[rd] = ftod_res[1];
-			enable_vec(curthread);
 			break;
 		default:
 			panic("Unknown storage width %d", width);
@@ -624,6 +665,7 @@ end:
 	spefscr |= (mfspr(SPR_SPEFSCR) & ~SPEFSCR_FINVS);
 	mtspr(SPR_SPEFSCR, spefscr);
 	frame->srr0 += 4;
+	mtmsr(msr);
 
 	return;
 }
