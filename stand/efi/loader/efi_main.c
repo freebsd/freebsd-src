@@ -95,7 +95,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 	    EFI_SIZE_TO_PAGES(heapsize), &heap);
 	if (status != EFI_SUCCESS) {
-		ST->ConOut->OutputString(ST->ConOut, L"Failed to allocate memory for heap.\r\n");
+		ST->ConOut->OutputString(ST->ConOut, (CHAR16 *)L"Failed to allocate memory for heap.\r\n");
 		BS->Exit(IH, status, 0, NULL);
 	}
 
