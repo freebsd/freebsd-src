@@ -1011,6 +1011,7 @@ product ALCOR AU6390	0x6390	AU6390 USB-IDE converter
 /* Alink products */
 product ALINK DWM652U5		0xce16	DWM-652
 product ALINK 3G		0x9000	3G modem
+product ALINK SIM7600E		0x9001	LTE modem
 product ALINK 3GU		0x9200	3G modem
 
 /* Altec Lansing products */
