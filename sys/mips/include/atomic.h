@@ -793,6 +793,20 @@ atomic_swap_64(volatile uint64_t *ptr, const uint64_t value)
 }
 #endif
 
+#ifdef __mips_n64
+static __inline unsigned long
+atomic_swap_long(volatile unsigned long *ptr, const unsigned long value)
+{
+	unsigned long retval;
+
+	retval = *ptr;
+
+	while (!atomic_fcmpset_64((volatile uint64_t *)ptr,
+	    (uint64_t *)&retval, value))
+		;
+	return (retval);
+}
+#else
 static __inline unsigned long
 atomic_swap_long(volatile unsigned long *ptr, const unsigned long value)
 {
@@ -805,18 +819,7 @@ atomic_swap_long(volatile unsigned long *ptr, const unsigned long value)
 		;
 	return (retval);
 }
-
-static __inline uintptr_t
-atomic_swap_ptr(volatile uintptr_t *ptr, const uintptr_t value)
-{
-	uintptr_t retval;
-
-	retval = *ptr;
-
-	while (!atomic_fcmpset_32((volatile uint32_t *)ptr,
-	    (uint32_t *)&retval, value))
-		;
-	return (retval);
-}
+#endif
+#define	atomic_swap_ptr(ptr, value) atomic_swap_long((unsigned long *)(ptr), value)
 
 #endif /* ! _MACHINE_ATOMIC_H_ */
