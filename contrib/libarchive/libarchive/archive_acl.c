@@ -1723,6 +1723,11 @@ archive_acl_from_text_l(struct archive_acl *acl, const char *text,
 			st = field[n].start + 1;
 			len = field[n].end - field[n].start;
 
+			if (len == 0) {
+				ret = ARCHIVE_WARN;
+				continue;
+			}
+
 			switch (*s) {
 			case 'u':
 				if (len == 1 || (len == 4
