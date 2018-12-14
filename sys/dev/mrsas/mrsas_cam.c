@@ -801,6 +801,70 @@ mrsas_build_ldio_rw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	return (0);
 }
 
+/* stream detection on read and and write IOs */
+static void
+mrsas_stream_detect(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
+    struct IO_REQUEST_INFO *io_info)
+{
+	u_int32_t device_id = io_info->ldTgtId;
+	LD_STREAM_DETECT *current_ld_SD = sc->streamDetectByLD[device_id];
+	u_int32_t *track_stream = &current_ld_SD->mruBitMap;
+	u_int32_t streamNum, shiftedValues, unshiftedValues;
+	u_int32_t indexValueMask, shiftedValuesMask;
+	int i;
+	boolean_t isReadAhead = false;
+	STREAM_DETECT *current_SD;
+
+	/* find possible stream */
+	for (i = 0; i < MAX_STREAMS_TRACKED; ++i) {
+		streamNum = (*track_stream >> (i * BITS_PER_INDEX_STREAM)) &
+				STREAM_MASK;
+		current_SD = &current_ld_SD->streamTrack[streamNum];
+		/*
+		 * if we found a stream, update the raid context and
+		 * also update the mruBitMap
+		 */
+		if (current_SD->nextSeqLBA &&
+		    io_info->ldStartBlock >= current_SD->nextSeqLBA &&
+		    (io_info->ldStartBlock <= (current_SD->nextSeqLBA+32)) &&
+		    (current_SD->isRead == io_info->isRead)) {
+			if (io_info->ldStartBlock != current_SD->nextSeqLBA &&
+			    (!io_info->isRead || !isReadAhead)) {
+				/*
+				 * Once the API availible we need to change this.
+				 * At this point we are not allowing any gap
+				 */
+				continue;
+			}
+			cmd->io_request->RaidContext.raid_context_g35.streamDetected = TRUE;
+			current_SD->nextSeqLBA = io_info->ldStartBlock + io_info->numBlocks;
+			/*
+			 * update the mruBitMap LRU
+			 */
+			shiftedValuesMask = (1 << i * BITS_PER_INDEX_STREAM) - 1 ;
+			shiftedValues = ((*track_stream & shiftedValuesMask) <<
+			    BITS_PER_INDEX_STREAM);
+			indexValueMask = STREAM_MASK << i * BITS_PER_INDEX_STREAM;
+			unshiftedValues = (*track_stream) &
+			    (~(shiftedValuesMask | indexValueMask));
+			*track_stream =
+			    (unshiftedValues | shiftedValues | streamNum);
+			return;
+		}
+	}
+	/*
+	 * if we did not find any stream, create a new one from the least recently used
+	 */
+	streamNum = (*track_stream >>
+	    ((MAX_STREAMS_TRACKED - 1) * BITS_PER_INDEX_STREAM)) & STREAM_MASK;
+	current_SD = &current_ld_SD->streamTrack[streamNum];
+	current_SD->isRead = io_info->isRead;
+	current_SD->nextSeqLBA = io_info->ldStartBlock + io_info->numBlocks;
+	*track_stream = (((*track_stream & ZERO_LAST_STREAM) << 4) | streamNum);
+	return;
+}
+
+
 /*
  * mrsas_setup_io:	Set up data including Fast Path I/O
  * input:			Adapter instance soft state
@@ -916,6 +980,15 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	cmd->request_desc->SCSIIO.MSIxIndex =
 	    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
 
+	if (sc->is_ventura && sc->streamDetectByLD) {
+		mtx_lock(&sc->stream_lock);
+		mrsas_stream_detect(sc, cmd, &io_info);
+		mtx_unlock(&sc->stream_lock);
+		/* In ventura if stream detected for a read and it is read ahead capable make this IO as LDIO */
+		if (io_request->RaidContext.raid_context_g35.streamDetected &&
+				io_info.isRead && io_info.raCapable)
+			fp_possible = FALSE;
+	}
 
 	if (fp_possible) {
 		mrsas_set_pd_lba(io_request, csio->cdb_len, &io_info, ccb, map_ptr,
