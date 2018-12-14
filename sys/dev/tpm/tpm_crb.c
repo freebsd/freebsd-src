@@ -104,11 +104,12 @@ static int
 tpmcrb_acpi_probe(device_t dev)
 {
 	struct resource *res;
-	int rid = 0;
+	int err, rid = 0;
 	uint32_t caps;
 
-	if (ACPI_ID_PROBE(device_get_parent(dev), dev, tpmcrb_ids, NULL) == NULL)
-		return (ENXIO);
+	err = ACPI_ID_PROBE(device_get_parent(dev), dev, tpmcrb_ids, NULL);
+	if (err > 0)
+		return (err);
 
 	/* Check if device is in CRB mode */
 	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
