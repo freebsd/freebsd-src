@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/kernel.h>
 
-
 #include <sys/time.h>			/* XXX for pcpu.h */
 #include <sys/pcpu.h>			/* XXX for PCPU_GET */
 
@@ -110,9 +109,6 @@ struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
 MRSAS_REQUEST_DESCRIPTOR_UNION *
 	mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index);
 
-extern void
-mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status,
-    u_int8_t extStatus);
 extern int mrsas_reset_targets(struct mrsas_softc *sc);
 extern u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 extern u_int32_t
@@ -129,14 +125,12 @@ MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span,
 extern u_int16_t 
 mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
     PLD_LOAD_BALANCE_INFO lbInfo, struct IO_REQUEST_INFO *io_info);
-extern u_int8_t
-megasas_get_best_arm(PLD_LOAD_BALANCE_INFO lbInfo, u_int8_t arm,
-    u_int64_t block, u_int32_t count);
 extern int mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex);
 extern MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
 extern void mrsas_disable_intr(struct mrsas_softc *sc);
 extern void mrsas_enable_intr(struct mrsas_softc *sc);
-
+void mrsas_prepare_secondRaid1_IO(struct mrsas_softc *sc,
+    struct mrsas_mpt_cmd *cmd);
 
 /*
  * mrsas_cam_attach:	Main entry to CAM subsystem
@@ -152,7 +146,7 @@ mrsas_cam_attach(struct mrsas_softc *sc)
 	struct cam_devq *devq;
 	int mrsas_cam_depth;
 
-	mrsas_cam_depth = sc->max_fw_cmds - MRSAS_INTERNAL_CMDS;
+	mrsas_cam_depth = sc->max_scsi_cmds;
 
 	if ((devq = cam_simq_alloc(mrsas_cam_depth)) == NULL) {
 		device_printf(sc->mrsas_dev, "Cannot allocate SIM queue\n");
@@ -452,7 +446,7 @@ static int32_t
 mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
     union ccb *ccb)
 {
-	struct mrsas_mpt_cmd *cmd;
+	struct mrsas_mpt_cmd *cmd, *r1_cmd = NULL;
 	struct ccb_hdr *ccb_h = &(ccb->ccb_h);
 	struct ccb_scsiio *csio = &(ccb->csio);
 	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc;
@@ -472,6 +466,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		xpt_done(ccb);
 		return (0);
 	}
+
 	if ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		if (ccb_h->flags & CAM_DIR_IN)
 			cmd->flags |= MRSAS_DIR_IN;
@@ -572,6 +567,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		if (mrsas_build_ldio_rw(sc, cmd, ccb)) {
 			device_printf(sc->mrsas_dev, "Build RW LDIO failed.\n");
 			mtx_unlock(&sc->raidmap_lock);
+			mrsas_release_mpt_cmd(cmd);
 			return (1);
 		}
 		break;
@@ -580,6 +576,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 		if (mrsas_build_ldio_nonrw(sc, cmd, ccb)) {
 			device_printf(sc->mrsas_dev, "Build NON-RW LDIO failed.\n");
 			mtx_unlock(&sc->raidmap_lock);
+			mrsas_release_mpt_cmd(cmd);
 			return (1);
 		}
 		break;
@@ -592,6 +589,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 				device_printf(sc->mrsas_dev,
 				    "Build SYSPDIO failed.\n");
 				mtx_unlock(&sc->raidmap_lock);
+				mrsas_release_mpt_cmd(cmd);
 				return (1);
 			}
 		} else {
@@ -600,6 +598,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 				device_printf(sc->mrsas_dev,
 				    "Build SYSPDIO failed.\n");
 				mtx_unlock(&sc->raidmap_lock);
+				mrsas_release_mpt_cmd(cmd);
 				return (1);
 			}
 		}
@@ -622,6 +621,7 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	/*
 	 * Start timer for IO timeout. Default timeout value is 90 second.
 	 */
+	cmd->callout_owner = true;
 #if (__FreeBSD_version >= 1000510)
 	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 180, 0,
 	    mrsas_scsiio_timeout, cmd, 0);
@@ -629,12 +629,34 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	callout_reset(&cmd->cm_callout, (180000 * hz) / 1000,
 	    mrsas_scsiio_timeout, cmd);
 #endif
-	mrsas_atomic_inc(&sc->fw_outstanding);
 
-	if (mrsas_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)
+	if (mrsas_atomic_inc_return(&sc->fw_outstanding) > sc->io_cmds_highwater)
 		sc->io_cmds_highwater++;
 
-	mrsas_fire_cmd(sc, req_desc->addr.u.low, req_desc->addr.u.high);
+	/*
+	 *  if it is raid 1/10 fp write capable.
+	 *  try to get second command from pool and construct it.
+	 *  From FW, it has confirmed that lba values of two PDs corresponds to
+	 *  single R1/10 LD are always same
+	 *
+	 */
+	/*
+	 * driver side count always should be less than max_fw_cmds to get
+	 * new command
+	 */
+	if (cmd->r1_alt_dev_handle != MR_DEVHANDLE_INVALID) {
+		mrsas_atomic_inc(&sc->fw_outstanding);
+		mrsas_prepare_secondRaid1_IO(sc, cmd);
+		mrsas_fire_cmd(sc, req_desc->addr.u.low,
+			req_desc->addr.u.high);
+		r1_cmd = cmd->peer_cmd;
+		mrsas_fire_cmd(sc, r1_cmd->request_desc->addr.u.low,
+				r1_cmd->request_desc->addr.u.high);
+	} else {
+		mrsas_fire_cmd(sc, req_desc->addr.u.low,
+			req_desc->addr.u.high);
+	}
+
 	return (0);
 
 done:
@@ -698,7 +720,6 @@ mrsas_get_mpt_cmd(struct mrsas_softc *sc)
 	cmd->error_code = 0;
 	cmd->load_balance = 0;
 	cmd->ccb_ptr = NULL;
-
 out:
 	mtx_unlock(&sc->mpt_cmd_pool_lock);
 	return cmd;
@@ -716,7 +737,12 @@ mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd)
 	struct mrsas_softc *sc = cmd->sc;
 
 	mtx_lock(&sc->mpt_cmd_pool_lock);
+	cmd->r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
 	cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
+	cmd->peer_cmd = NULL;
+	cmd->cmd_completed = 0;
+	memset((uint8_t *)cmd->io_request, 0,
+		sizeof(MRSAS_RAID_SCSI_IO_REQUEST));
 	TAILQ_INSERT_HEAD(&(sc->mrsas_mpt_cmd_list_head), cmd, next);
 	mtx_unlock(&sc->mpt_cmd_pool_lock);
 
@@ -735,14 +761,64 @@ mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index)
 {
 	u_int8_t *p;
 
-	if (index >= sc->max_fw_cmds) {
-		device_printf(sc->mrsas_dev, "Invalid SMID (0x%x)request for desc\n", index);
-		return NULL;
-	}
+	KASSERT(index < sc->max_fw_cmds, ("req_desc is out of range"));
 	p = sc->req_desc + sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * index;
 
 	return (MRSAS_REQUEST_DESCRIPTOR_UNION *) p;
 }
+
+
+
+
+/* mrsas_prepare_secondRaid1_IO
+ * It prepares the raid 1 second IO
+ */
+void
+mrsas_prepare_secondRaid1_IO(struct mrsas_softc *sc,
+    struct mrsas_mpt_cmd *cmd)
+{
+	MRSAS_REQUEST_DESCRIPTOR_UNION *req_desc, *req_desc2 = NULL;
+	struct mrsas_mpt_cmd *r1_cmd;
+
+	r1_cmd = cmd->peer_cmd;
+	req_desc = cmd->request_desc;
+
+	/*
+	 * copy the io request frame as well as 8 SGEs data for r1
+	 * command
+	 */
+	memcpy(r1_cmd->io_request, cmd->io_request,
+	    (sizeof(MRSAS_RAID_SCSI_IO_REQUEST)));
+	memcpy(&r1_cmd->io_request->SGL, &cmd->io_request->SGL,
+	    (sc->max_sge_in_main_msg * sizeof(MPI2_SGE_IO_UNION)));
+
+	/* sense buffer is different for r1 command */
+	r1_cmd->io_request->SenseBufferLowAddress = r1_cmd->sense_phys_addr;
+	r1_cmd->ccb_ptr = cmd->ccb_ptr;
+
+	req_desc2 = mrsas_get_request_desc(sc, r1_cmd->index - 1);
+	req_desc2->addr.Words = 0;
+	r1_cmd->request_desc = req_desc2;
+	req_desc2->SCSIIO.SMID = r1_cmd->index;
+	req_desc2->SCSIIO.RequestFlags = req_desc->SCSIIO.RequestFlags;
+	r1_cmd->request_desc->SCSIIO.DevHandle = cmd->r1_alt_dev_handle;
+	r1_cmd->r1_alt_dev_handle =  cmd->io_request->DevHandle;
+	r1_cmd->io_request->DevHandle = cmd->r1_alt_dev_handle;
+	cmd->io_request->RaidContext.raid_context_g35.smid.peerSMID =
+	    r1_cmd->index;
+	r1_cmd->io_request->RaidContext.raid_context_g35.smid.peerSMID =
+		cmd->index;
+	/*
+	 * MSIxIndex of both commands request descriptors
+	 * should be same
+	 */
+	r1_cmd->request_desc->SCSIIO.MSIxIndex = cmd->request_desc->SCSIIO.MSIxIndex;
+	/* span arm is different for r1 cmd */
+	r1_cmd->io_request->RaidContext.raid_context_g35.spanArm =
+	    cmd->io_request->RaidContext.raid_context_g35.spanArm + 1;
+
+}
+
 
 /*
  * mrsas_build_ldio_rw:	Builds an LDIO command
@@ -883,10 +959,14 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	struct ccb_scsiio *csio = &(ccb->csio);
 	struct IO_REQUEST_INFO io_info;
 	MR_DRV_RAID_MAP_ALL *map_ptr;
+	struct mrsas_mpt_cmd *r1_cmd = NULL;
+
 	MR_LD_RAID *raid;
 	u_int8_t fp_possible;
 	u_int32_t start_lba_hi, start_lba_lo, ld_block_size, ld;
 	u_int32_t datalength = 0;
+
+	io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
 
 	start_lba_lo = 0;
 	start_lba_hi = 0;
@@ -947,6 +1027,9 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_info.ldStartBlock = ((u_int64_t)start_lba_hi << 32) | start_lba_lo;
 	io_info.numBlocks = datalength;
 	io_info.ldTgtId = device_id;
+	io_info.r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
+
+	io_request->DataLength = cmd->length;
 
 	switch (ccb_h->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:
@@ -980,14 +1063,36 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	cmd->request_desc->SCSIIO.MSIxIndex =
 	    sc->msix_vectors ? smp_processor_id() % sc->msix_vectors : 0;
 
-	if (sc->is_ventura && sc->streamDetectByLD) {
-		mtx_lock(&sc->stream_lock);
-		mrsas_stream_detect(sc, cmd, &io_info);
-		mtx_unlock(&sc->stream_lock);
-		/* In ventura if stream detected for a read and it is read ahead capable make this IO as LDIO */
-		if (io_request->RaidContext.raid_context_g35.streamDetected &&
-				io_info.isRead && io_info.raCapable)
-			fp_possible = FALSE;
+	if (sc->is_ventura) {
+		if (sc->streamDetectByLD) {
+			mtx_lock(&sc->stream_lock);
+			mrsas_stream_detect(sc, cmd, &io_info);
+			mtx_unlock(&sc->stream_lock);
+			/* In ventura if stream detected for a read and
+			 * it is read ahead capable make this IO as LDIO */
+			if (io_request->RaidContext.raid_context_g35.streamDetected &&
+					io_info.isRead && io_info.raCapable)
+				fp_possible = FALSE;
+		}
+
+		/* Set raid 1/10 fast path write capable bit in io_info.
+		 * Note - reset peer_cmd and r1_alt_dev_handle if fp_possible
+		 * disabled after this point. Try not to add more check for
+		 * fp_possible toggle after this.
+		 */
+		if (fp_possible &&
+				(io_info.r1_alt_dev_handle != MR_DEVHANDLE_INVALID) &&
+				(raid->level == 1) && !io_info.isRead) {
+			r1_cmd = mrsas_get_mpt_cmd(sc);
+			if (!r1_cmd) {
+				fp_possible = FALSE;
+				printf("Avago debug fp disable from %s %d \n",
+					__func__, __LINE__);
+			} else {
+				cmd->peer_cmd = r1_cmd;
+				r1_cmd->peer_cmd = cmd;
+			}
+		}
 	}
 
 	if (fp_possible) {
@@ -1032,6 +1137,12 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 				io_request->RaidContext.raid_context.spanArm = io_info.span_arm;
 		} else
 			cmd->load_balance = 0;
+
+		if (sc->is_ventura)
+				cmd->r1_alt_dev_handle = io_info.r1_alt_dev_handle;
+		else
+				cmd->r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
+
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
 		io_request->DevHandle = io_info.devHandle;
 	} else {
@@ -1078,6 +1189,7 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	u_int32_t device_id, ld;
 	MR_DRV_RAID_MAP_ALL *map_ptr;
 	MR_LD_RAID *raid;
+	RAID_CONTEXT *pRAID_Context;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
 
 	io_request = cmd->io_request;
@@ -1086,6 +1198,8 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 	ld = MR_TargetIdToLdGet(device_id, map_ptr);
 	raid = MR_LdRaidGet(ld, map_ptr);
+	/* get RAID_Context pointer */
+	pRAID_Context = &io_request->RaidContext.raid_context;
 	/* Store the TM capability value in cmd */
 	cmd->tmCapable = raid->capability.tmCapable;
 
@@ -1140,9 +1254,12 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	u_int32_t device_id;
 	MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
+	RAID_CONTEXT *pRAID_Context;
 	struct MR_PD_CFG_SEQ_NUM_SYNC *pd_sync;
 
 	io_request = cmd->io_request;
+	/* get RAID_Context pointer */
+	pRAID_Context = &io_request->RaidContext.raid_context;
 	device_id = ccb_h->target_id;
 	local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 	io_request->RaidContext.raid_context.RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
@@ -1171,6 +1288,9 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		else
 			io_request->RaidContext.raid_context.regLockFlags |=
 			    (MR_RL_FLAGS_SEQ_NUM_ENABLE | MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+		/* raid_context.Type = MPI2_TYPE_CUDA is valid only,
+		 * if FW support Jbod Sequence number
+		 */
 		io_request->RaidContext.raid_context.Type = MPI2_TYPE_CUDA;
 		io_request->RaidContext.raid_context.nseg = 0x1;
 	} else if (sc->fast_path_io) {
@@ -1185,7 +1305,7 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		/* Want to send all IO via FW path */
 		io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
 		io_request->RaidContext.raid_context.configSeqNum = 0;
-		io_request->DevHandle = 0xFFFF;
+		io_request->DevHandle = MR_DEVHANDLE_INVALID;
 	}
 
 	cmd->request_desc->SCSIIO.DevHandle = io_request->DevHandle;
@@ -1432,7 +1552,10 @@ mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 	mrsas_unmap_request(sc, cmd);
 	
 	mtx_lock(&sc->sim_lock);
-	callout_stop(&cmd->cm_callout);
+	if (cmd->callout_owner) {
+		callout_stop(&cmd->cm_callout);
+		cmd->callout_owner  = false;
+	}
 	xpt_done(cmd->ccb_ptr);
 	cmd->ccb_ptr = NULL;
 	mtx_unlock(&sc->sim_lock);
