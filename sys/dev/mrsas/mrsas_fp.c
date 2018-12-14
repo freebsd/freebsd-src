@@ -921,7 +921,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
     RAID_CONTEXT * pRAID_Context, MR_DRV_RAID_MAP_ALL * map)
 {
 	MR_LD_RAID *raid = MR_LdRaidGet(ld, map);
-	u_int32_t pd, arRef;
+	u_int32_t pd, arRef, r1_alt_pd;
 	u_int8_t physArm, span;
 	u_int64_t row;
 	u_int8_t retval = TRUE;
@@ -950,10 +950,16 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	arRef = MR_LdSpanArrayGet(ld, span, map);
 	pd = MR_ArPdGet(arRef, physArm, map);
 
-	if (pd != MR_PD_INVALID)
+	if (pd != MR_PD_INVALID) {
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
-	else {
-		*pDevHandle = MR_PD_INVALID;
+		/* get second pd also for raid 1/10 fast path writes */
+		if ((raid->level == 1) && !io_info->isRead) {
+			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
+			if (r1_alt_pd != MR_PD_INVALID)
+				io_info->r1_alt_dev_handle = MR_PdDevHandleGet(r1_alt_pd, map);
+		}
+	} else {
+		*pDevHandle = MR_DEVHANDLE_INVALID;
 		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
 			(sc->mrsas_gen3_ctrl &&
 			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
@@ -1167,7 +1173,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		    MR_GetPhyParams(sc, ld, start_strip,
 		    ref_in_start_stripe, io_info, pRAID_Context, map);
 		/* If IO on an invalid Pd, then FP is not possible */
-		if (io_info->devHandle == MR_PD_INVALID)
+		if (io_info->devHandle == MR_DEVHANDLE_INVALID)
 			io_info->fpOkForIo = FALSE;
 		/*
 		 * if FP possible, set the SLUD bit in regLockFlags for
@@ -1178,6 +1184,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		    raid->capability.fpCacheBypassCapable) {
 			((RAID_CONTEXT_G35 *) pRAID_Context)->routingFlags.bits.sld = 1;
 		}
+
 		return retval;
 	} else if (isRead) {
 		for (stripIdx = 0; stripIdx < num_strips; stripIdx++) {
@@ -1535,6 +1542,7 @@ mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 {
 	MR_LD_RAID *raid;
 	MR_DRV_RAID_MAP_ALL *drv_map;
+	u_int16_t pd1_devHandle;
 	u_int16_t pend0, pend1, ld;
 	u_int64_t diff0, diff1;
 	u_int8_t bestArm, pd0, pd1, span, arm;
@@ -1558,23 +1566,30 @@ mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 	pd1 = MR_ArPdGet(arRef, (arm + 1) >= span_row_size ?
 	    (arm + 1 - span_row_size) : arm + 1, drv_map);
 
-	/* get the pending cmds for the data and mirror arms */
-	pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
-	pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd1]);
+	/* Get PD1 Dev Handle */
+	pd1_devHandle = MR_PdDevHandleGet(pd1, drv_map);
+	if (pd1_devHandle == MR_DEVHANDLE_INVALID) {
+		bestArm = arm;
+	} else {
+		/* get the pending cmds for the data and mirror arms */
+		pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
+		pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd1]);
 
-	/* Determine the disk whose head is nearer to the req. block */
-	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[pd0]);
-	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[pd1]);
-	bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
+		/* Determine the disk whose head is nearer to the req. block */
+		diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[pd0]);
+		diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[pd1]);
+		bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
 
-	if ((bestArm == arm && pend0 > pend1 + sc->lb_pending_cmds) ||
-	    (bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
-		bestArm ^= 1;
+		if ((bestArm == arm && pend0 > pend1 + sc->lb_pending_cmds) ||
+		    (bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
+			bestArm ^= 1;
 
-	/* Update the last accessed block on the correct pd */
+		/* Update the last accessed block on the correct pd */
+		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
+		io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
+	}
+
 	lbInfo->last_accessed_block[bestArm == arm ? pd0 : pd1] = block + count - 1;
-	io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
-	io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
 #if SPAN_DEBUG
 	if (arm != bestArm)
 		printf("AVAGO Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
@@ -1631,7 +1646,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
     RAID_CONTEXT * pRAID_Context, MR_DRV_RAID_MAP_ALL * map)
 {
 	MR_LD_RAID *raid = MR_LdRaidGet(ld, map);
-	u_int32_t pd, arRef;
+	u_int32_t pd, arRef, r1_alt_pd;
 	u_int8_t physArm, span;
 	u_int64_t row;
 	u_int8_t retval = TRUE;
@@ -1673,11 +1688,17 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 
 	pd = MR_ArPdGet(arRef, physArm, map);	/* Get the Pd. */
 
-	if (pd != MR_PD_INVALID)
+	if (pd != MR_PD_INVALID) {
 		/* Get dev handle from Pd */
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
-	else {
-		*pDevHandle = MR_PD_INVALID;	/* set dev handle as invalid. */
+		/* get second pd also for raid 1/10 fast path writes */
+		if ((raid->level == 1) && !io_info->isRead) {
+			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
+			if (r1_alt_pd != MR_PD_INVALID)
+				io_info->r1_alt_dev_handle = MR_PdDevHandleGet(r1_alt_pd, map);
+		}
+	} else {
+		*pDevHandle = MR_DEVHANDLE_INVALID;	/* set dev handle as invalid. */
 		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
 			(sc->mrsas_gen3_ctrl &&
 			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))

@@ -141,9 +141,6 @@ void	mrsas_free_ctlr_info_cmd(struct mrsas_softc *sc);
 void
 mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd, u_int8_t status);
-void
-mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status,
-    u_int8_t extStatus);
 struct mrsas_mfi_cmd *mrsas_get_mfi_cmd(struct mrsas_softc *sc);
 
 MRSAS_REQUEST_DESCRIPTOR_UNION *mrsas_build_mpt_cmd
@@ -167,6 +164,12 @@ mrsas_get_request_desc(struct mrsas_softc *sc,
 extern int mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
 static int mrsas_alloc_evt_log_info_cmd(struct mrsas_softc *sc);
 static void mrsas_free_evt_log_info_cmd(struct mrsas_softc *sc);
+void	mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
+
+void mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd,
+	union ccb *ccb_ptr, u_int8_t status, u_int8_t extStatus,
+	u_int32_t data_length, u_int8_t *sense);
+
 
 SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD, 0, "MRSAS Driver Parameters");
 
@@ -1125,7 +1128,7 @@ void
 mrsas_free_mem(struct mrsas_softc *sc)
 {
 	int i;
-	u_int32_t max_cmd;
+	u_int32_t max_fw_cmds;
 	struct mrsas_mfi_cmd *mfi_cmd;
 	struct mrsas_mpt_cmd *mpt_cmd;
 
@@ -1227,9 +1230,9 @@ mrsas_free_mem(struct mrsas_softc *sc)
 	/*
 	 * Free MPT internal command list
 	 */
-	max_cmd = sc->max_fw_cmds;
+	max_fw_cmds = sc->max_fw_cmds;
 	if (sc->mpt_cmd_list) {
-		for (i = 0; i < max_cmd; i++) {
+		for (i = 0; i < max_fw_cmds; i++) {
 			mpt_cmd = sc->mpt_cmd_list[i];
 			bus_dmamap_destroy(sc->data_tag, mpt_cmd->data_dmamap);
 			free(sc->mpt_cmd_list[i], M_MRSAS);
@@ -1569,14 +1572,14 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	Mpi2ReplyDescriptorsUnion_t *desc;
 	MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *reply_desc;
 	MRSAS_RAID_SCSI_IO_REQUEST *scsi_io_req;
-	struct mrsas_mpt_cmd *cmd_mpt;
+	struct mrsas_mpt_cmd *cmd_mpt, *r1_cmd = NULL;
 	struct mrsas_mfi_cmd *cmd_mfi;
-	u_int8_t reply_descript_type;
+	u_int8_t reply_descript_type, *sense;
 	u_int16_t smid, num_completed;
 	u_int8_t status, extStatus;
 	union desc_value desc_val;
 	PLD_LOAD_BALANCE_INFO lbinfo;
-	u_int32_t device_id;
+	u_int32_t device_id, data_length;
 	int threshold_reply_count = 0;
 #if TM_DEBUG
 	MR_TASK_MANAGE_REQUEST *mr_tm_req;
@@ -1606,6 +1609,8 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 
 		status = scsi_io_req->RaidContext.raid_context.status;
 		extStatus = scsi_io_req->RaidContext.raid_context.exStatus;
+		sense = cmd_mpt->sense;
+		data_length = scsi_io_req->DataLength;
 
 		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_SCSI_TASK_MGMT:
@@ -1621,16 +1626,45 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:	/* Fast Path IO. */
 			device_id = cmd_mpt->ccb_ptr->ccb_h.target_id;
 			lbinfo = &sc->load_balance_info[device_id];
+			/* R1 load balancing for READ */
 			if (cmd_mpt->load_balance == MRSAS_LOAD_BALANCE_FLAG) {
 				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[cmd_mpt->pd_r1_lb]);
 				cmd_mpt->load_balance &= ~MRSAS_LOAD_BALANCE_FLAG;
 			}
 			/* Fall thru and complete IO */
 		case MRSAS_MPI2_FUNCTION_LD_IO_REQUEST:
-			mrsas_map_mpt_cmd_status(cmd_mpt, status, extStatus);
-			mrsas_cmd_done(sc, cmd_mpt);
-			scsi_io_req->RaidContext.raid_context.status = 0;
-			scsi_io_req->RaidContext.raid_context.exStatus = 0;
+			if (cmd_mpt->r1_alt_dev_handle == MR_DEVHANDLE_INVALID) {
+				mrsas_map_mpt_cmd_status(cmd_mpt, cmd_mpt->ccb_ptr, status,
+				    extStatus, data_length, sense);
+				mrsas_cmd_done(sc, cmd_mpt);
+			} else {
+				/*
+				 * If the peer  Raid  1/10 fast path failed,
+				 * mark IO as failed to the scsi layer.
+				 * Overwrite the current status by the failed status
+				 * and make sure that if any command fails,
+				 * driver returns fail status to CAM.
+				 */
+				cmd_mpt->cmd_completed = 1;
+				r1_cmd = cmd_mpt->peer_cmd;
+				if (r1_cmd->cmd_completed) {
+					if (r1_cmd->io_request->RaidContext.raid_context.status != MFI_STAT_OK) {
+						status = r1_cmd->io_request->RaidContext.raid_context.status;
+						extStatus = r1_cmd->io_request->RaidContext.raid_context.exStatus;
+						data_length = r1_cmd->io_request->DataLength;
+						sense = r1_cmd->sense;
+					}
+					r1_cmd->ccb_ptr = NULL;
+					if (r1_cmd->callout_owner) {
+						callout_stop(&r1_cmd->cm_callout);
+						r1_cmd->callout_owner  = false;
+					}
+					mrsas_release_mpt_cmd(r1_cmd);
+					mrsas_map_mpt_cmd_status(cmd_mpt, cmd_mpt->ccb_ptr, status,
+					    extStatus, data_length, sense);
+					mrsas_cmd_done(sc, cmd_mpt);
+				}
+			}
 			mrsas_atomic_dec(&sc->fw_outstanding);
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
@@ -1723,40 +1757,41 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
  * CCB.
  */
 void
-mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8_t extStatus)
+mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, union ccb *ccb_ptr, u_int8_t status,
+    u_int8_t extStatus, u_int32_t data_length, u_int8_t *sense)
 {
 	struct mrsas_softc *sc = cmd->sc;
 	u_int8_t *sense_data;
 
 	switch (status) {
 	case MFI_STAT_OK:
-		cmd->ccb_ptr->ccb_h.status = CAM_REQ_CMP;
+		ccb_ptr->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case MFI_STAT_SCSI_IO_FAILED:
 	case MFI_STAT_SCSI_DONE_WITH_ERROR:
-		cmd->ccb_ptr->ccb_h.status = CAM_SCSI_STATUS_ERROR;
-		sense_data = (u_int8_t *)&cmd->ccb_ptr->csio.sense_data;
+		ccb_ptr->ccb_h.status = CAM_SCSI_STATUS_ERROR;
+		sense_data = (u_int8_t *)&ccb_ptr->csio.sense_data;
 		if (sense_data) {
 			/* For now just copy 18 bytes back */
-			memcpy(sense_data, cmd->sense, 18);
-			cmd->ccb_ptr->csio.sense_len = 18;
-			cmd->ccb_ptr->ccb_h.status |= CAM_AUTOSNS_VALID;
+			memcpy(sense_data, sense, 18);
+			ccb_ptr->csio.sense_len = 18;
+			ccb_ptr->ccb_h.status |= CAM_AUTOSNS_VALID;
 		}
 		break;
 	case MFI_STAT_LD_OFFLINE:
 	case MFI_STAT_DEVICE_NOT_FOUND:
-		if (cmd->ccb_ptr->ccb_h.target_lun)
-			cmd->ccb_ptr->ccb_h.status |= CAM_LUN_INVALID;
+		if (ccb_ptr->ccb_h.target_lun)
+			ccb_ptr->ccb_h.status |= CAM_LUN_INVALID;
 		else
-			cmd->ccb_ptr->ccb_h.status |= CAM_DEV_NOT_THERE;
+			ccb_ptr->ccb_h.status |= CAM_DEV_NOT_THERE;
 		break;
 	case MFI_STAT_CONFIG_SEQ_MISMATCH:
-		cmd->ccb_ptr->ccb_h.status |= CAM_REQUEUE_REQ;
+		ccb_ptr->ccb_h.status |= CAM_REQUEUE_REQ;
 		break;
 	default:
 		device_printf(sc->mrsas_dev, "FW cmd complete status %x\n", status);
-		cmd->ccb_ptr->ccb_h.status = CAM_REQ_CMP_ERR;
-		cmd->ccb_ptr->csio.scsi_status = status;
+		ccb_ptr->ccb_h.status = CAM_REQ_CMP_ERR;
+		ccb_ptr->csio.scsi_status = status;
 	}
 	return;
 }
@@ -1943,6 +1978,7 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Cannot load sense buf memory\n");
 		return (ENOMEM);
 	}
+
 	/*
 	 * Allocate for Event detail structure
 	 */
@@ -2383,25 +2419,26 @@ int
 mrsas_init_adapter(struct mrsas_softc *sc)
 {
 	uint32_t status;
-	u_int32_t max_cmd, scratch_pad_2;
+	u_int32_t scratch_pad_2;
 	int ret;
 	int i = 0;
 
 	/* Read FW status register */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
 
-	/* Get operational params from status register */
 	sc->max_fw_cmds = status & MRSAS_FWSTATE_MAXCMD_MASK;
 
 	/* Decrement the max supported by 1, to correlate with FW */
 	sc->max_fw_cmds = sc->max_fw_cmds - 1;
-	max_cmd = sc->max_fw_cmds;
+	sc->max_scsi_cmds = sc->max_fw_cmds -
+	    (MRSAS_FUSION_INT_CMDS + MRSAS_MAX_IOCTL_CMDS);
 
 	/* Determine allocation size of command frames */
-	sc->reply_q_depth = ((max_cmd + 1 + 15) / 16 * 16) * 2;
-	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
+	sc->reply_q_depth = ((sc->max_fw_cmds + 1 + 15) / 16 * 16) * 2;
+	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * sc->max_fw_cmds;
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
-	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
+	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE +
+	    (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (sc->max_fw_cmds + 1));
 	scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
 	    outbound_scratch_pad_2));
 	/*
@@ -2419,15 +2456,17 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 		    ((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >> 5)
 		    * MEGASAS_256K_IO;
 
-	sc->chain_frames_alloc_sz = sc->max_chain_frame_sz * max_cmd;
+	sc->chain_frames_alloc_sz = sc->max_chain_frame_sz * sc->max_fw_cmds;
 	sc->max_sge_in_main_msg = (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE -
 	    offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL)) / 16;
 
 	sc->max_sge_in_chain = sc->max_chain_frame_sz / sizeof(MPI2_SGE_IO_UNION);
 	sc->max_num_sge = sc->max_sge_in_main_msg + sc->max_sge_in_chain - 2;
 
-	mrsas_dprint(sc, MRSAS_INFO, "Avago Debug: MAX sge 0x%X MAX chain frame size 0x%X \n",
-	    sc->max_num_sge, sc->max_chain_frame_sz);
+	mrsas_dprint(sc, MRSAS_INFO,
+	    "max sge: 0x%x, max chain frame size: 0x%x, "
+	    "max fw cmd: 0x%x\n", sc->max_num_sge,
+	    sc->max_chain_frame_sz, sc->max_fw_cmds);
 
 	/* Used for pass thru MFI frame (DCMD) */
 	sc->chain_offset_mfi_pthru = offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL) / 16;
@@ -2630,14 +2669,14 @@ int
 mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 {
 	int i, j;
-	u_int32_t max_cmd, count;
+	u_int32_t max_fw_cmds, count;
 	struct mrsas_mpt_cmd *cmd;
 	pMpi2ReplyDescriptorsUnion_t reply_desc;
 	u_int32_t offset, chain_offset, sense_offset;
 	bus_addr_t io_req_base_phys, chain_frame_base_phys, sense_base_phys;
 	u_int8_t *io_req_base, *chain_frame_base, *sense_base;
 
-	max_cmd = sc->max_fw_cmds;
+	max_fw_cmds = sc->max_fw_cmds;
 
 	sc->req_desc = malloc(sc->request_alloc_sz, M_MRSAS, M_NOWAIT);
 	if (!sc->req_desc) {
@@ -2651,13 +2690,14 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	sc->mpt_cmd_list = malloc(sizeof(struct mrsas_mpt_cmd *) * max_cmd, M_MRSAS, M_NOWAIT);
+	sc->mpt_cmd_list = malloc(sizeof(struct mrsas_mpt_cmd *) * max_fw_cmds,
+	    M_MRSAS, M_NOWAIT);
 	if (!sc->mpt_cmd_list) {
 		device_printf(sc->mrsas_dev, "Cannot alloc memory for mpt_cmd_list.\n");
 		return (ENOMEM);
 	}
-	memset(sc->mpt_cmd_list, 0, sizeof(struct mrsas_mpt_cmd *) * max_cmd);
-	for (i = 0; i < max_cmd; i++) {
+	memset(sc->mpt_cmd_list, 0, sizeof(struct mrsas_mpt_cmd *) * max_fw_cmds);
+	for (i = 0; i < max_fw_cmds; i++) {
 		sc->mpt_cmd_list[i] = malloc(sizeof(struct mrsas_mpt_cmd),
 		    M_MRSAS, M_NOWAIT);
 		if (!sc->mpt_cmd_list[i]) {
@@ -2675,7 +2715,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	chain_frame_base_phys = (bus_addr_t)sc->chain_frame_phys_addr;
 	sense_base = (u_int8_t *)sc->sense_mem;
 	sense_base_phys = (bus_addr_t)sc->sense_phys_addr;
-	for (i = 0; i < max_cmd; i++) {
+	for (i = 0; i < max_fw_cmds; i++) {
 		cmd = sc->mpt_cmd_list[i];
 		offset = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * i;
 		chain_offset = sc->max_chain_frame_sz * i;
@@ -2683,6 +2723,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 		memset(cmd, 0, sizeof(struct mrsas_mpt_cmd));
 		cmd->index = i + 1;
 		cmd->ccb_ptr = NULL;
+		cmd->r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
 		callout_init_mtx(&cmd->cm_callout, &sc->sim_lock, 0);
 		cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
 		cmd->sc = sc;
@@ -3034,13 +3075,27 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 		mtx_unlock(&sc->sim_lock);
 		for (i = 0; i < sc->max_fw_cmds; i++) {
 			mpt_cmd = sc->mpt_cmd_list[i];
+
+			if (mpt_cmd->peer_cmd) {
+				mrsas_dprint(sc, MRSAS_OCR,
+				    "R1 FP command [%d] - (mpt_cmd) %p, (peer_cmd) %p\n",
+				    i, mpt_cmd, mpt_cmd->peer_cmd);
+			}
+
 			if (mpt_cmd->ccb_ptr) {
-				ccb = (union ccb *)(mpt_cmd->ccb_ptr);
-				ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
-				mrsas_cmd_done(sc, mpt_cmd);
-				mrsas_atomic_dec(&sc->fw_outstanding);
+				if (mpt_cmd->callout_owner) {
+					ccb = (union ccb *)(mpt_cmd->ccb_ptr);
+					ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+					mrsas_cmd_done(sc, mpt_cmd);
+				} else {
+					mpt_cmd->ccb_ptr = NULL;
+					mrsas_release_mpt_cmd(mpt_cmd);
+				}
 			}
 		}
+
+		mrsas_atomic_set(&sc->fw_outstanding, 0);
+
 		mtx_lock(&sc->sim_lock);
 
 		status_reg = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
