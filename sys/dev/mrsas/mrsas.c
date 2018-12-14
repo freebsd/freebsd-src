@@ -90,6 +90,8 @@ static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
 static int
 mrsas_issue_blocked_abort_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd_to_abort);
+static void
+mrsas_get_pd_info(struct mrsas_softc *sc, u_int16_t device_id);
 static struct mrsas_softc *
 mrsas_get_softc_instance(struct cdev *dev,
     u_long cmd, caddr_t arg);
@@ -971,6 +973,7 @@ attach_fail:
 static void
 mrsas_ich_startup(void *arg)
 {
+	int i = 0;
 	struct mrsas_softc *sc = (struct mrsas_softc *)arg;
 
 	/*
@@ -1005,6 +1008,13 @@ mrsas_ich_startup(void *arg)
 
 	/* Enable Interrupts */
 	mrsas_enable_intr(sc);
+
+	/* Call DCMD get_pd_info for all system PDs */
+	for (i = 0; i < MRSAS_MAX_PD; i++) {
+		if ((sc->target_list[i].target_id != 0xffff) &&
+			sc->pd_info_mem)
+			mrsas_get_pd_info(sc, sc->target_list[i].target_id);
+	}
 
 	/* Initiate AEN (Asynchronous Event Notification) */
 	if (mrsas_start_aen(sc)) {
@@ -1214,6 +1224,16 @@ mrsas_free_mem(struct mrsas_softc *sc)
 		bus_dmamem_free(sc->evt_detail_tag, sc->evt_detail_mem, sc->evt_detail_dmamap);
 	if (sc->evt_detail_tag != NULL)
 		bus_dma_tag_destroy(sc->evt_detail_tag);
+
+	/*
+	 * Free PD info memory
+	 */
+	if (sc->pd_info_phys_addr)
+		bus_dmamap_unload(sc->pd_info_tag, sc->pd_info_dmamap);
+	if (sc->pd_info_mem != NULL)
+		bus_dmamem_free(sc->pd_info_tag, sc->pd_info_mem, sc->pd_info_dmamap);
+	if (sc->pd_info_tag != NULL)
+		bus_dma_tag_destroy(sc->pd_info_tag);
 
 	/*
 	 * Free MFI frames
@@ -1808,7 +1828,7 @@ static int
 mrsas_alloc_mem(struct mrsas_softc *sc)
 {
 	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size, chain_frame_size,
-		evt_detail_size, count;
+		evt_detail_size, count, pd_info_size;
 
 	/*
 	 * Allocate parent DMA tag
@@ -2009,6 +2029,38 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Cannot load Event detail buffer memory\n");
 		return (ENOMEM);
 	}
+
+	/*
+	 * Allocate for PD INFO structure
+	 */
+	pd_info_size = sizeof(struct mrsas_pd_info);
+	if (bus_dma_tag_create(sc->mrsas_parent_tag,
+	    1, 0,
+	    BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR,
+	    NULL, NULL,
+	    pd_info_size,
+	    1,
+	    pd_info_size,
+	    BUS_DMA_ALLOCNOW,
+	    NULL, NULL,
+	    &sc->pd_info_tag)) {
+		device_printf(sc->mrsas_dev, "Cannot create PD INFO tag\n");
+		return (ENOMEM);
+	}
+	if (bus_dmamem_alloc(sc->pd_info_tag, (void **)&sc->pd_info_mem,
+	    BUS_DMA_NOWAIT, &sc->pd_info_dmamap)) {
+		device_printf(sc->mrsas_dev, "Cannot alloc PD INFO buffer memory\n");
+		return (ENOMEM);
+	}
+	bzero(sc->pd_info_mem, pd_info_size);
+	if (bus_dmamap_load(sc->pd_info_tag, sc->pd_info_dmamap,
+	    sc->pd_info_mem, pd_info_size, mrsas_addr_cb,
+	    &sc->pd_info_phys_addr, BUS_DMA_NOWAIT)) {
+		device_printf(sc->mrsas_dev, "Cannot load PD INFO buffer memory\n");
+		return (ENOMEM);
+	}
+
 	/*
 	 * Create a dma tag for data buffers; size will be the maximum
 	 * possible I/O size (280kB).
@@ -2297,6 +2349,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Adapter initialize Fail.\n");
 		return (1);
 	}
+
 	/* Allocate internal commands for pass-thru */
 	if (mrsas_alloc_mfi_cmds(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Allocate MFI cmd failed.\n");
@@ -2333,6 +2386,12 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		    "Please contact to the SUPPORT TEAM if the problem persists\n");
 	}
 	megasas_setup_jbod_map(sc);
+
+
+	memset(sc->target_list, 0,
+		MRSAS_MAX_TM_TARGETS * sizeof(struct mrsas_target));
+	for (i = 0; i < MRSAS_MAX_TM_TARGETS; i++)
+		sc->target_list[i].target_id = 0xffff;
 
 	/* For pass-thru, get PD/LD list and controller info */
 	memset(sc->pd_list, 0,
@@ -4271,6 +4330,113 @@ mrsas_sync_map_info(struct mrsas_softc *sc)
 	return (retcode);
 }
 
+/* Input:	dcmd.opcode		- MR_DCMD_PD_GET_INFO
+  *		dcmd.mbox.s[0]		- deviceId for this physical drive
+  *		dcmd.sge IN		- ptr to returned MR_PD_INFO structure
+  * Desc:	Firmware return the physical drive info structure
+  *
+  */
+static void
+mrsas_get_pd_info(struct mrsas_softc *sc, u_int16_t device_id)
+{
+	int retcode;
+	u_int8_t do_ocr = 1;
+	struct mrsas_mfi_cmd *cmd;
+	struct mrsas_dcmd_frame *dcmd;
+
+	cmd = mrsas_get_mfi_cmd(sc);
+
+	if (!cmd) {
+		device_printf(sc->mrsas_dev,
+		    "Cannot alloc for get PD info cmd\n");
+		return;
+	}
+	dcmd = &cmd->frame->dcmd;
+
+	memset(sc->pd_info_mem, 0, sizeof(struct mrsas_pd_info));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->mbox.s[0] = device_id;
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = MFI_FRAME_DIR_READ;
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = sizeof(struct mrsas_pd_info);
+	dcmd->opcode = MR_DCMD_PD_GET_INFO;
+	dcmd->sgl.sge32[0].phys_addr = (u_int32_t)sc->pd_info_phys_addr;
+	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_pd_info);
+
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
+
+	sc->target_list[device_id].interface_type =
+		sc->pd_info_mem->state.ddf.pdType.intf;
+
+	do_ocr = 0;
+
+dcmd_timeout:
+
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+
+	if (!sc->mask_interrupts)
+		mrsas_release_mfi_cmd(cmd);
+}
+
+/*
+ * mrsas_add_target:				Add target ID of system PD/VD to driver's data structure.
+ * sc:						Adapter's soft state
+ * target_id:					Unique target id per controller(managed by driver)
+ *						for system PDs- target ID ranges from 0 to (MRSAS_MAX_PD - 1)
+ *						for VDs- target ID ranges from MRSAS_MAX_PD to MRSAS_MAX_TM_TARGETS
+ * return:					void
+ * Descripton:					This function will be called whenever system PD or VD is created.
+ */
+static void mrsas_add_target(struct mrsas_softc *sc,
+	u_int16_t target_id)
+{
+	sc->target_list[target_id].target_id = target_id;
+
+	device_printf(sc->mrsas_dev,
+		"%s created target ID: 0x%x\n",
+		(target_id < MRSAS_MAX_PD ? "System PD" : "VD"),
+		(target_id < MRSAS_MAX_PD ? target_id : (target_id - MRSAS_MAX_PD)));
+	/*
+	 * If interrupts are enabled, then only fire DCMD to get pd_info
+	 * for system PDs
+	 */
+	if (!sc->mask_interrupts && sc->pd_info_mem &&
+		(target_id < MRSAS_MAX_PD))
+		mrsas_get_pd_info(sc, target_id);
+
+}
+
+/*
+ * mrsas_remove_target:			Remove target ID of system PD/VD from driver's data structure.
+ * sc:						Adapter's soft state
+ * target_id:					Unique target id per controller(managed by driver)
+ *						for system PDs- target ID ranges from 0 to (MRSAS_MAX_PD - 1)
+ *						for VDs- target ID ranges from MRSAS_MAX_PD to MRSAS_MAX_TM_TARGETS
+ * return:					void
+ * Descripton:					This function will be called whenever system PD or VD is deleted
+ */
+static void mrsas_remove_target(struct mrsas_softc *sc,
+	u_int16_t target_id)
+{
+	sc->target_list[target_id].target_id = 0xffff;
+	device_printf(sc->mrsas_dev,
+		"%s deleted target ID: 0x%x\n",
+		(target_id < MRSAS_MAX_PD ? "System PD" : "VD"),
+		(target_id < MRSAS_MAX_PD ? target_id : (target_id - MRSAS_MAX_PD)));
+}
+
 /*
  * mrsas_get_pd_list:           Returns FW's PD list structure input:
  * Adapter soft state
@@ -4347,7 +4513,17 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 			    pd_addr->scsiDevType;
 			sc->local_pd_list[pd_addr->deviceId].driveState =
 			    MR_PD_STATE_SYSTEM;
+			if (sc->target_list[pd_addr->deviceId].target_id == 0xffff)
+				mrsas_add_target(sc, pd_addr->deviceId);
 			pd_addr++;
+		}
+		for (pd_index = 0; pd_index < MRSAS_MAX_PD; pd_index++) {
+			if ((sc->local_pd_list[pd_index].driveState !=
+				MR_PD_STATE_SYSTEM) &&
+				(sc->target_list[pd_index].target_id !=
+				0xffff)) {
+				mrsas_remove_target(sc, pd_index);
+			}
 		}
 		/*
 		 * Use mutext/spinlock if pd_list component size increase more than
@@ -4380,7 +4556,7 @@ dcmd_timeout:
 static int
 mrsas_get_ld_list(struct mrsas_softc *sc)
 {
-	int ld_list_size, retcode = 0, ld_index = 0, ids = 0;
+	int ld_list_size, retcode = 0, ld_index = 0, ids = 0, drv_tgt_id;
 	u_int8_t do_ocr = 1;
 	struct mrsas_mfi_cmd *cmd;
 	struct mrsas_dcmd_frame *dcmd;
@@ -4442,11 +4618,21 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 		sc->CurLdCount = ld_list_mem->ldCount;
 		memset(sc->ld_ids, 0xff, MAX_LOGICAL_DRIVES_EXT);
 		for (ld_index = 0; ld_index < ld_list_mem->ldCount; ld_index++) {
+			ids = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
+			drv_tgt_id = ids + MRSAS_MAX_PD;
 			if (ld_list_mem->ldList[ld_index].state != 0) {
-				ids = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
 				sc->ld_ids[ids] = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
+				if (sc->target_list[drv_tgt_id].target_id ==
+					0xffff)
+					mrsas_add_target(sc, drv_tgt_id);
+			} else {
+				if (sc->target_list[drv_tgt_id].target_id !=
+					0xffff)
+					mrsas_remove_target(sc,
+						drv_tgt_id);
 			}
 		}
+
 		do_ocr = 0;
 	}
 dcmd_timeout:
