@@ -1589,8 +1589,8 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		cmd_mpt = sc->mpt_cmd_list[smid - 1];
 		scsi_io_req = (MRSAS_RAID_SCSI_IO_REQUEST *) cmd_mpt->io_request;
 
-		status = scsi_io_req->RaidContext.status;
-		extStatus = scsi_io_req->RaidContext.exStatus;
+		status = scsi_io_req->RaidContext.raid_context.status;
+		extStatus = scsi_io_req->RaidContext.raid_context.exStatus;
 
 		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_SCSI_TASK_MGMT:
@@ -1614,8 +1614,8 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		case MRSAS_MPI2_FUNCTION_LD_IO_REQUEST:
 			mrsas_map_mpt_cmd_status(cmd_mpt, status, extStatus);
 			mrsas_cmd_done(sc, cmd_mpt);
-			scsi_io_req->RaidContext.status = 0;
-			scsi_io_req->RaidContext.exStatus = 0;
+			scsi_io_req->RaidContext.raid_context.status = 0;
+			scsi_io_req->RaidContext.raid_context.exStatus = 0;
 			mrsas_atomic_dec(&sc->fw_outstanding);
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
@@ -3214,7 +3214,7 @@ mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc)
 			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT) {
 				for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
 					mrsas_complete_mptmfi_passthru(sc, cmd_mfi,
-					    cmd_mpt->io_request->RaidContext.status);
+					    cmd_mpt->io_request->RaidContext.raid_context.status);
 			}
 		}
 	}

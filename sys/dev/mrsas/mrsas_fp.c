@@ -966,8 +966,14 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
-	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
-	io_info->span_arm = pRAID_Context->spanArm;
+	if (sc->is_ventura) {
+		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
+		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+	} else {
+		pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = pRAID_Context->spanArm;
+	}
 	return retval;
 }
 
@@ -1160,6 +1166,15 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		/* If IO on an invalid Pd, then FP is not possible */
 		if (io_info->devHandle == MR_PD_INVALID)
 			io_info->fpOkForIo = FALSE;
+		/*
+		 * if FP possible, set the SLUD bit in regLockFlags for
+		 * ventura
+		 */
+		else if ((sc->is_ventura) && !isRead &&
+			    (raid->writeMode == MR_RL_WRITE_BACK_MODE) && (raid->level <= 1) &&
+		    raid->capability.fpCacheBypassCapable) {
+			((RAID_CONTEXT_G35 *) pRAID_Context)->routingFlags.bits.sld = 1;
+		}
 		return retval;
 	} else if (isRead) {
 		for (stripIdx = 0; stripIdx < num_strips; stripIdx++) {
@@ -1674,8 +1689,14 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
-	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
-	io_info->span_arm = pRAID_Context->spanArm;
+	if (sc->is_ventura) {
+		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
+		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+	} else {
+		pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = pRAID_Context->spanArm;
+	}
 	return retval;
 }
 
