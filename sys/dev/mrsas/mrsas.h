@@ -672,6 +672,12 @@ typedef union {
 #define	mrsas_atomic_dec(v)	atomic_subtract_int(&(v)->val, 1)
 #define	mrsas_atomic_inc(v)	atomic_add_int(&(v)->val, 1)
 
+static inline int
+mrsas_atomic_inc_return(mrsas_atomic_t *v)
+{
+	return 1 + atomic_fetchadd_int(&(v)->val, 1);
+}
+
 /* IOCInit Request message */
 typedef struct _MPI2_IOC_INIT_REQUEST {
 	u_int8_t WhoInit;		/* 0x00 */
@@ -707,6 +713,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
  * MR private defines
  */
 #define	MR_PD_INVALID			0xFFFF
+#define	MR_DEVHANDLE_INVALID	0xFFFF
 #define	MAX_SPAN_DEPTH			8
 #define	MAX_QUAD_DEPTH			MAX_SPAN_DEPTH
 #define	MAX_RAIDMAP_SPAN_DEPTH	(MAX_SPAN_DEPTH)
@@ -1019,6 +1026,7 @@ struct IO_REQUEST_INFO {
 	u_int8_t span_arm;
 	u_int8_t pd_after_lb;
 	boolean_t raCapable;
+	u_int16_t r1_alt_dev_handle;
 };
 
 /*
@@ -1528,6 +1536,7 @@ enum MR_EVT_ARGS {
 #define	MR_RL_FLAGS_GRANT_DESTINATION_CPU1			0x10
 #define	MR_RL_FLAGS_GRANT_DESTINATION_CUDA			0x80
 #define	MR_RL_FLAGS_SEQ_NUM_ENABLE					0x8
+#define	MR_RL_WRITE_THROUGH_MODE					0x00
 #define	MR_RL_WRITE_BACK_MODE						0x01
 
 /*
@@ -1591,6 +1600,7 @@ typedef enum _REGION_TYPE {
 #define	MRSAS_SCSI_MAX_CDB_LEN			16
 #define	MRSAS_SCSI_SENSE_BUFFERSIZE		96
 #define	MRSAS_INTERNAL_CMDS				32
+#define	MRSAS_FUSION_INT_CMDS			8
 
 #define	MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK	0x400000
 #define	MEGASAS_MAX_CHAIN_SIZE_MASK		0x3E0
@@ -1662,6 +1672,10 @@ struct mrsas_mpt_cmd {
 	struct callout cm_callout;
 	struct mrsas_softc *sc;
 	boolean_t tmCapable;
+	u_int16_t r1_alt_dev_handle;
+	boolean_t cmd_completed;
+	struct mrsas_mpt_cmd *peer_cmd;
+	bool	callout_owner;
 	TAILQ_ENTRY(mrsas_mpt_cmd) next;
 };
 
@@ -2988,6 +3002,7 @@ struct mrsas_softc {
 
 	struct sema ioctl_count_sema;
 	uint32_t max_fw_cmds;
+	uint16_t max_scsi_cmds;
 	uint32_t max_num_sge;
 	struct resource *mrsas_irq[MAX_MSIX_COUNT];
 	void   *intr_handle[MAX_MSIX_COUNT];
@@ -3063,6 +3078,7 @@ struct mrsas_softc {
 	u_int32_t max_sectors_per_req;
 	u_int32_t disableOnlineCtrlReset;
 	mrsas_atomic_t fw_outstanding;
+
 	u_int32_t mrsas_debug;
 	u_int32_t mrsas_io_timeout;
 	u_int32_t mrsas_fw_fault_check_delay;
