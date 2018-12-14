@@ -109,6 +109,13 @@ sfence_vma_page(uintptr_t addr)
 #define	rdinstret()			csr_read64(instret)
 #define	rdhpmcounter(n)			csr_read64(hpmcounter##n)
 
+static __inline void
+load_satp(uint64_t val)
+{
+
+	__asm __volatile("csrw satp, %0" :: "r"(val));
+}
+
 #define	cpufunc_nullop()		riscv_nullop()
 
 void riscv_nullop(void);
