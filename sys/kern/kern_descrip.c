@@ -1465,17 +1465,6 @@ out:
 }
 
 /*
- * Initialize filecaps structure.
- */
-void
-filecaps_init(struct filecaps *fcaps)
-{
-
-	bzero(fcaps, sizeof(*fcaps));
-	fcaps->fc_nioctls = -1;
-}
-
-/*
  * Copy filecaps structure allocating memory for ioctls array if needed.
  *
  * The last parameter indicates whether the fdtable is locked. If it is not and

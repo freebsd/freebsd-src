@@ -154,7 +154,13 @@ enum {
 
 struct thread;
 
-void	filecaps_init(struct filecaps *fcaps);
+static __inline void
+filecaps_init(struct filecaps *fcaps)
+{
+
+        bzero(fcaps, sizeof(*fcaps));
+        fcaps->fc_nioctls = -1;
+}
 bool	filecaps_copy(const struct filecaps *src, struct filecaps *dst,
 	    bool locked);
 void	filecaps_move(struct filecaps *src, struct filecaps *dst);
