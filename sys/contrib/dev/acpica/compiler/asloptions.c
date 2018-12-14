@@ -976,6 +976,23 @@ AslDoOptions (
             AslGbl_WarningsAsErrors = TRUE;
             break;
 
+        case 'w':
+
+            /* Get the required argument */
+
+            if (AcpiGetoptArgument (argc, argv))
+            {
+                return (-1);
+            }
+
+            Status = AslElevateException (AcpiGbl_Optarg);
+            if (ACPI_FAILURE (Status))
+            {
+                return (-1);
+            }
+            break;
+
+
         default:
 
             printf ("Unknown option: -w%s\n", AcpiGbl_Optarg);
