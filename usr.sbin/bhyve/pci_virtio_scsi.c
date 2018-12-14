@@ -462,7 +462,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	struct pci_vtscsi_req_cmd_wr *cmd_wr;
 	struct iovec data_iov_in[VTSCSI_MAXSEG], data_iov_out[VTSCSI_MAXSEG];
 	union ctl_io *io;
-	size_t data_niov_in, data_niov_out;
+	int data_niov_in, data_niov_out;
 	void *ext_data_ptr = NULL;
 	uint32_t ext_data_len = 0, ext_sg_entries = 0;
 	int err;
@@ -472,8 +472,8 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	seek_iov(iov_out, niov_out, data_iov_out, &data_niov_out,
 	    VTSCSI_OUT_HEADER_LEN(sc));
 
-	truncate_iov(iov_in, niov_in, VTSCSI_IN_HEADER_LEN(sc));
-	truncate_iov(iov_out, niov_out, VTSCSI_OUT_HEADER_LEN(sc));
+	truncate_iov(iov_in, &niov_in, VTSCSI_IN_HEADER_LEN(sc));
+	truncate_iov(iov_out, &niov_out, VTSCSI_OUT_HEADER_LEN(sc));
 	iov_to_buf(iov_in, niov_in, (void **)&cmd_rd);
 
 	cmd_wr = malloc(VTSCSI_OUT_HEADER_LEN(sc));
@@ -552,7 +552,8 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, NULL);
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
-		buf_to_iov(buf + bufsize - iolen, iolen, iov, n, iolen);
+		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
+		    bufsize - iolen);
 
 		/*
 		 * Release this chain and handle more
@@ -560,6 +561,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		vq_relchain(vq, idx, iolen);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
+	free(buf);
 }
 
 static void
