@@ -2641,7 +2641,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	struct mrsas_init_frame *init_frame;
 	pMpi2IOCInitRequest_t IOCInitMsg;
 	MRSAS_REQUEST_DESCRIPTOR_UNION req_desc;
-	u_int8_t max_wait = MRSAS_IOC_INIT_WAIT_TIME;
+	u_int8_t max_wait = MRSAS_INTERNAL_CMD_WAIT_TIME;
 	bus_addr_t phys_addr;
 	int i, retcode = 0;
 	u_int32_t scratch_pad_2;
