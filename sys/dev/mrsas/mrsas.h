@@ -1023,7 +1023,8 @@ struct MR_PD_CFG_SEQ {
 		u_int8_t tmCapable:1;
 		u_int8_t reserved:7;
 	} capability;
-	u_int8_t reserved[3];
+	u_int8_t reserved;
+	u_int16_t pdTargetId;
 } __packed;
 
 struct MR_PD_CFG_SEQ_NUM_SYNC {
@@ -2197,7 +2198,21 @@ struct mrsas_ctrl_info {
 		u_int32_t reserved:7;
 	}	adapterOperations3;
 
-	u_int8_t pad[0x800 - 0x7EC];	/* 0x7EC */
+	u_int8_t pad_cpld[16];
+
+	struct {
+		u_int16_t ctrlInfoExtSupported:1;
+		u_int16_t supportIbuttonLess:1;
+		u_int16_t supportedEncAlgo:1;
+		u_int16_t supportEncryptedMfc:1;
+		u_int16_t imageUploadSupported:1;
+		u_int16_t supportSESCtrlInMultipathCfg:1;
+		u_int16_t supportPdMapTargetId:1;
+		u_int16_t FWSwapsBBUVPDInfo:1;
+		u_int16_t reserved:8;
+	}	adapterOperations4;
+
+	u_int8_t pad[0x800 - 0x7FE];	/* 0x7FE */
 } __packed;
 
 /*
@@ -3042,6 +3057,8 @@ struct mrsas_softc {
 	u_int8_t mrsas_gen3_ctrl;
 	u_int8_t secure_jbod_support;
 	u_int8_t use_seqnum_jbod_fp;
+	/* FW suport for more than 256 PD/JBOD */
+	u_int32_t support_morethan256jbod;
 	u_int8_t max256vdSupport;
 	u_int16_t fw_supported_vd_count;
 	u_int16_t fw_supported_pd_count;
