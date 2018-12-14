@@ -1084,7 +1084,13 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		//printf("Using Drv seq num\n");
 		pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id - 1) & 1];
 		cmd->tmCapable = pd_sync->seq[device_id].capability.tmCapable;
-		io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id + 255;
+		/* More than 256 PD/JBOD support for Ventura */
+		if (sc->support_morethan256jbod)
+			io_request->RaidContext.raid_context.VirtualDiskTgtId =
+				pd_sync->seq[device_id].pdTargetId;
+		else
+			io_request->RaidContext.raid_context.VirtualDiskTgtId =
+				device_id + 255;
 		io_request->RaidContext.raid_context.configSeqNum = pd_sync->seq[device_id].seqNum;
 		io_request->DevHandle = pd_sync->seq[device_id].devHandle;
 		if (sc->is_ventura)
