@@ -362,10 +362,10 @@ ATOMIC_STORE_LOAD(64)
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
-static __inline uint32_t
+static __inline int
 atomic_cmpset_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
-	uint32_t ret;
+	int ret;
 
 	__asm __volatile (
 		"1:\tll	%0, %4\n\t"		/* load old value */
@@ -389,7 +389,7 @@ atomic_cmpset_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
-static __inline uint32_t
+static __inline int
 atomic_cmpset_acq_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 	int retval;
@@ -399,7 +399,7 @@ atomic_cmpset_acq_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 	return (retval);
 }
 
-static __inline uint32_t
+static __inline int
 atomic_cmpset_rel_32(__volatile uint32_t *p, uint32_t cmpval, uint32_t newval)
 {
 	mips_sync();
@@ -471,10 +471,10 @@ atomic_fetchadd_32(__volatile uint32_t *p, uint32_t v)
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
-static __inline uint64_t
+static __inline int
 atomic_cmpset_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
-	uint64_t ret;
+	int ret;
 
 	__asm __volatile (
 		"1:\n\t"
@@ -499,7 +499,7 @@ atomic_cmpset_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
  * two values are equal, update the value of *p with newval. Returns
  * zero if the compare failed, nonzero otherwise.
  */
-static __inline uint64_t
+static __inline int
 atomic_cmpset_acq_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
 	int retval;
@@ -509,7 +509,7 @@ atomic_cmpset_acq_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 	return (retval);
 }
 
-static __inline uint64_t
+static __inline int
 atomic_cmpset_rel_64(__volatile uint64_t *p, uint64_t cmpval, uint64_t newval)
 {
 	mips_sync();
