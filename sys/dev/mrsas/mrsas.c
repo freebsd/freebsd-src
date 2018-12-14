@@ -442,7 +442,10 @@ mrsas_setup_sysctl(struct mrsas_softc *sc)
 	    OID_AUTO, "block_sync_cache", CTLFLAG_RW,
 	    &sc->block_sync_cache, 0,
 	    "Block SYNC CACHE at driver. <default: 0, send it to FW>");
-
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "stream detection", CTLFLAG_RW,
+		&sc->drv_stream_detection, 0,
+		"Disable/Enable Stream detection. <default: 1, Enable Stream Detection>");
 }
 
 /*
@@ -463,6 +466,7 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	sc->reset_count = 0;
 	sc->reset_in_progress = 0;
 	sc->block_sync_cache = 0;
+	sc->drv_stream_detection = 1;
 
 	/*
 	 * Grab the global variables.
@@ -882,6 +886,7 @@ mrsas_attach(device_t dev)
 	mtx_init(&sc->mpt_cmd_pool_lock, "mrsas_mpt_cmd_pool_lock", NULL, MTX_DEF);
 	mtx_init(&sc->mfi_cmd_pool_lock, "mrsas_mfi_cmd_pool_lock", NULL, MTX_DEF);
 	mtx_init(&sc->raidmap_lock, "mrsas_raidmap_lock", NULL, MTX_DEF);
+	mtx_init(&sc->stream_lock, "mrsas_stream_lock", NULL, MTX_DEF);
 
 	/* Intialize linked list */
 	TAILQ_INIT(&sc->mrsas_mpt_cmd_list_head);
@@ -948,6 +953,7 @@ attach_fail_fw:
 	mtx_destroy(&sc->mpt_cmd_pool_lock);
 	mtx_destroy(&sc->mfi_cmd_pool_lock);
 	mtx_destroy(&sc->raidmap_lock);
+	mtx_destroy(&sc->stream_lock);
 attach_fail:
 	if (sc->reg_res) {
 		bus_release_resource(sc->mrsas_dev, SYS_RES_MEMORY,
@@ -1070,6 +1076,14 @@ mrsas_detach(device_t dev)
 	mrsas_flush_cache(sc);
 	mrsas_shutdown_ctlr(sc, MR_DCMD_CTRL_SHUTDOWN);
 	mrsas_disable_intr(sc);
+
+	if (sc->is_ventura && sc->streamDetectByLD) {
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i)
+			free(sc->streamDetectByLD[i], M_MRSAS);
+		free(sc->streamDetectByLD, M_MRSAS);
+		sc->streamDetectByLD = NULL;
+	}
+
 	mrsas_cam_detach(sc);
 	mrsas_teardown_intr(sc);
 	mrsas_free_mem(sc);
@@ -1081,6 +1095,7 @@ mrsas_detach(device_t dev)
 	mtx_destroy(&sc->mpt_cmd_pool_lock);
 	mtx_destroy(&sc->mfi_cmd_pool_lock);
 	mtx_destroy(&sc->raidmap_lock);
+	mtx_destroy(&sc->stream_lock);
 
 	/* Wait for all the semaphores to be released */
 	while (sema_value(&sc->ioctl_count_sema) != MRSAS_MAX_IOCTL_CMDS)
@@ -2166,6 +2181,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	u_int32_t scratch_pad_2, scratch_pad_3;
 	int msix_enable = 0;
 	int fw_msix_count = 0;
+	int i, j;
 
 	/* Make sure Firmware is ready */
 	ret = mrsas_transition_to_ready(sc, ocr);
@@ -2294,6 +2310,30 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Get LD lsit failed.\n");
 		return (1);
 	}
+
+	if (sc->is_ventura && sc->drv_stream_detection) {
+		sc->streamDetectByLD = malloc(sizeof(PTR_LD_STREAM_DETECT) *
+						MAX_LOGICAL_DRIVES_EXT, M_MRSAS, M_NOWAIT);
+		if (!sc->streamDetectByLD) {
+			device_printf(sc->mrsas_dev,
+				"unable to allocate stream detection for pool of LDs\n");
+			return (1);
+		}
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {
+			sc->streamDetectByLD[i] = malloc(sizeof(LD_STREAM_DETECT), M_MRSAS, M_NOWAIT);
+			if (!sc->streamDetectByLD[i]) {
+				device_printf(sc->mrsas_dev, "unable to allocate stream detect by LD\n");
+				for (j = 0; j < i; ++j)
+					free(sc->streamDetectByLD[j], M_MRSAS);
+				free(sc->streamDetectByLD, M_MRSAS);
+				sc->streamDetectByLD = NULL;
+				return (1);
+			}
+			memset(sc->streamDetectByLD[i], 0, sizeof(LD_STREAM_DETECT));
+			sc->streamDetectByLD[i]->mruBitMap = MR_STREAM_BITMAP;
+		}
+	}
+
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has
 	 * two limits on max sectors. Driver should use the minimum of these
@@ -3132,6 +3172,13 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 				mrsas_sync_map_info(sc);
 
 			megasas_setup_jbod_map(sc);
+
+			if (sc->is_ventura && sc->streamDetectByLD) {
+				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
+					memset(sc->streamDetectByLD[i], 0, sizeof(LD_STREAM_DETECT));
+					sc->streamDetectByLD[i]->mruBitMap = MR_STREAM_BITMAP;
+				}
+			}
 
 			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
