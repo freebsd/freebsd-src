@@ -84,9 +84,13 @@ __FBSDID("$FreeBSD$");
 #define	MRSAS_INTRUDER_24	0x00cf
 #define	MRSAS_CUTLASS_52	0x0052
 #define	MRSAS_CUTLASS_53	0x0053
-#define	MRSAS_PCI_BAR0		0x10
-#define	MRSAS_PCI_BAR1		0x14
-#define	MRSAS_PCI_BAR2		0x1C
+/* Gen3.5 Conroller */
+#define	MRSAS_VENTURA               0x0014
+#define	MRSAS_CRUSADER              0x0015
+#define	MRSAS_HARPOON               0x0016
+#define	MRSAS_TOMCAT                0x0017
+#define	MRSAS_VENTURA_4PORT         0x001B
+#define	MRSAS_CRUSADER_4PORT        0x001C
 
 /*
  * Firmware State Defines
@@ -2912,6 +2916,9 @@ struct mrsas_softc {
 	u_int32_t old_map_sz;
 	u_int32_t new_map_sz;
 	u_int32_t drv_map_sz;
+
+	boolean_t is_ventura;
+	boolean_t msix_combined;
 
 	/* Non dma-able memory. Driver local copy. */
 	MR_DRV_RAID_MAP_ALL *ld_drv_map[2];

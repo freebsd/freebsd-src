@@ -190,6 +190,12 @@ MRSAS_CTLR_ID device_table[] = {
 	{0x1000, MRSAS_INTRUDER_24, 0xffff, 0xffff, "AVAGO Intruder_24 SAS Controller"},
 	{0x1000, MRSAS_CUTLASS_52, 0xffff, 0xffff, "AVAGO Cutlass_52 SAS Controller"},
 	{0x1000, MRSAS_CUTLASS_53, 0xffff, 0xffff, "AVAGO Cutlass_53 SAS Controller"},
+	{0x1000, MRSAS_VENTURA, 0xffff, 0xffff, "AVAGO Ventura SAS Controller"},
+	{0x1000, MRSAS_CRUSADER, 0xffff, 0xffff, "AVAGO Crusader SAS Controller"},
+	{0x1000, MRSAS_HARPOON, 0xffff, 0xffff, "AVAGO Harpoon SAS Controller"},
+	{0x1000, MRSAS_TOMCAT, 0xffff, 0xffff, "AVAGO Tomcat SAS Controller"},
+	{0x1000, MRSAS_VENTURA_4PORT, 0xffff, 0xffff, "AVAGO Ventura_4Port SAS Controller"},
+	{0x1000, MRSAS_CRUSADER_4PORT, 0xffff, 0xffff, "AVAGO Crusader_4Port SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -815,7 +821,7 @@ static int
 mrsas_attach(device_t dev)
 {
 	struct mrsas_softc *sc = device_get_softc(dev);
-	uint32_t cmd, bar, error;
+	uint32_t cmd, error;
 
 	memset(sc, 0, sizeof(struct mrsas_softc));
 
@@ -830,7 +836,14 @@ mrsas_attach(device_t dev)
 	    (sc->device_id == MRSAS_CUTLASS_52) ||
 	    (sc->device_id == MRSAS_CUTLASS_53)) {
 		sc->mrsas_gen3_ctrl = 1;
-    }
+	} else if ((sc->device_id == MRSAS_VENTURA) ||
+	    (sc->device_id == MRSAS_CRUSADER) ||
+	    (sc->device_id == MRSAS_HARPOON) ||
+	    (sc->device_id == MRSAS_TOMCAT) ||
+	    (sc->device_id == MRSAS_VENTURA_4PORT) ||
+	    (sc->device_id == MRSAS_CRUSADER_4PORT)) {
+		sc->is_ventura = true;
+	}
 
 	mrsas_get_tunables(sc);
 
@@ -845,9 +858,12 @@ mrsas_attach(device_t dev)
 	cmd |= PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
-	bar = pci_read_config(dev, MRSAS_PCI_BAR1, 4);
+	/* For Ventura system registers are mapped to BAR0 */
+	if (sc->is_ventura)
+		sc->reg_res_id = PCIR_BAR(0);	/* BAR0 offset */
+	else
+		sc->reg_res_id = PCIR_BAR(1);	/* BAR1 offset */
 
-	sc->reg_res_id = MRSAS_PCI_BAR1;/* BAR1 offset */
 	if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &(sc->reg_res_id), RF_ACTIVE))
 	    == NULL) {
@@ -1648,7 +1664,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		 */
 		if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
 			if (sc->msix_enable) {
-				if (sc->mrsas_gen3_ctrl)
+				if (sc->msix_combined)
 					mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 					    ((MSIxIndex & 0x7) << 24) |
 					    sc->last_reply_idx[MSIxIndex]);
@@ -1669,7 +1685,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 
 	/* Clear response interrupt */
 	if (sc->msix_enable) {
-			if (sc->mrsas_gen3_ctrl) {
+		if (sc->msix_combined) {
 			mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 			    ((MSIxIndex & 0x7) << 24) |
 			    sc->last_reply_idx[MSIxIndex]);
@@ -2177,6 +2193,15 @@ mrsas_init_fw(struct mrsas_softc *sc)
 			    >> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
 			fw_msix_count = sc->msix_vectors;
 
+			if ((sc->mrsas_gen3_ctrl && (sc->msix_vectors > 8)) ||
+				(sc->is_ventura && (sc->msix_vectors > 16)))
+				sc->msix_combined = true;
+			/*
+			 * Save 1-15 reply post index
+			 * address to local memory Index 0
+			 * is already saved from reg offset
+			 * MPI2_REPLY_POST_HOST_INDEX_OFFSET
+			 */
 			for (loop = 1; loop < MR_MAX_MSIX_REG_ARRAY;
 			    loop++) {
 				sc->msix_reg_offset[loop] =
@@ -2198,6 +2223,14 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "FW supports <%d> MSIX vector,"
 		    "Online CPU %d Current MSIX <%d>\n",
 		    fw_msix_count, mp_ncpus, sc->msix_vectors);
+	}
+	/*
+     * MSI-X host index 0 is common for all adapter.
+     * It is used for all MPT based Adapters.
+	 */
+	if (sc->msix_combined) {
+		sc->msix_reg_offset[0] =
+		    MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET;
 	}
 	if (mrsas_init_adapter(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Adapter initialize Fail.\n");
@@ -2476,7 +2509,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
 	/* driver support Extended MSIX */
-		if (sc->mrsas_gen3_ctrl) {
+	if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
 		init_frame->driver_operations.
 		    mfi_capabilities.support_additional_msix = 1;
 	}
@@ -3591,7 +3624,7 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 
 	io_req = mpt_cmd->io_request;
 
-		if (sc->mrsas_gen3_ctrl) {
+	if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = (pMpi25IeeeSgeChain64_t)&io_req->SGL;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
