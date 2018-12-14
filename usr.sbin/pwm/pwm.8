@@ -67,7 +67,7 @@ Show the configuration of the pwm channel
 .It Fl p Ar period
 Configure the period (in nanoseconds) of the pwm channel
 .It Fl d Ar duty
-Configure the duty (in nanoseconds) of the pwm channel
+Configure the duty (in nanoseconds or percentage) of the pwm channel
 .El
 .Sh EXAMPLES
 .Bl -bullet
@@ -76,9 +76,13 @@ Show the configuration of the pwm channel:
 .Pp
 pwm -f /dev/pwmc0 -C
 .It
-Configure a 50000 ns period and a 25000 duty cycles:
+Configure a 50000 ns period and a 25000 duty cycle:
 .Pp
 pwm -f /dev/pwmc0 -p 50000 -d 25000
+.It
+Configure a 50% duty cycle:
+.Pp
+pwm -f /dev/pwmc0 -d 50%
 .El
 .Sh SEE ALSO
 .Xr pwm 9 ,
