@@ -1302,12 +1302,12 @@ NDINIT_ALL(struct nameidata *ndp, u_long op, u_long flags, enum uio_seg segflg,
 	ndp->ni_dirp = namep;
 	ndp->ni_dirfd = dirfd;
 	ndp->ni_startdir = startdir;
+	filecaps_init(&ndp->ni_filecaps);
+	ndp->ni_cnd.cn_thread = td;
 	if (rightsp != NULL)
 		ndp->ni_rightsneeded = *rightsp;
 	else
 		cap_rights_init(&ndp->ni_rightsneeded);
-	filecaps_init(&ndp->ni_filecaps);
-	ndp->ni_cnd.cn_thread = td;
 }
 
 /*
