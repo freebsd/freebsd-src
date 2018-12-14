@@ -35,8 +35,8 @@
 
 struct pwm_state {
 	int		channel;
-	uint64_t	period;
-	uint64_t	duty;
+	unsigned int	period;
+	unsigned int	duty;
 	uint32_t	flags;
 	bool		enable;
 };

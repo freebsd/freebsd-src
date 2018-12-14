@@ -46,8 +46,8 @@ METHOD device_t get_bus {
 METHOD int channel_config {
 	device_t dev;
 	int channel;
-	uint64_t period;
-	uint64_t duty;
+	unsigned int period;
+	unsigned duty;
 };
 
 #
@@ -57,8 +57,8 @@ METHOD int channel_config {
 METHOD int channel_get_config {
 	device_t dev;
 	int channel;
-	uint64_t *period;
-	uint64_t *duty;
+	unsigned int *period;
+	unsigned int *duty;
 };
 
 #

@@ -138,7 +138,7 @@ pwmbus_detach(device_t dev)
 }
 
 static int
-pwmbus_channel_config(device_t bus, int channel, uint64_t period, uint64_t duty)
+pwmbus_channel_config(device_t bus, int channel, unsigned int period, unsigned int duty)
 {
 	struct pwmbus_softc *sc;
 
@@ -151,7 +151,7 @@ pwmbus_channel_config(device_t bus, int channel, uint64_t period, uint64_t duty)
 }
 
 static int
-pwmbus_channel_get_config(device_t bus, int channel, uint64_t *period, uint64_t *duty)
+pwmbus_channel_get_config(device_t bus, int channel, unsigned int *period, unsigned int *duty)
 {
 	struct pwmbus_softc *sc;
 
