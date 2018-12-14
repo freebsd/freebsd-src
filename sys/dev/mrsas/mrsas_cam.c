@@ -765,9 +765,9 @@ mrsas_build_ldio_rw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	device_id = ccb_h->target_id;
 
 	io_request = cmd->io_request;
-	io_request->RaidContext.VirtualDiskTgtId = device_id;
-	io_request->RaidContext.status = 0;
-	io_request->RaidContext.exStatus = 0;
+	io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
+	io_request->RaidContext.raid_context.status = 0;
+	io_request->RaidContext.raid_context.exStatus = 0;
 
 	/* just the cdb len, other flags zero, and ORed-in later for FP */
 	io_request->IoFlags = csio->cdb_len;
@@ -783,12 +783,16 @@ mrsas_build_ldio_rw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (FAIL);
 		}
-		/*
-		 * numSGE store lower 8 bit of sge_count. numSGEExt store
-		 * higher 8 bit of sge_count
-		 */
-		io_request->RaidContext.numSGE = cmd->sge_count;
-		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+		if (sc->is_ventura)
+			io_request->RaidContext.raid_context_g35.numSGE = cmd->sge_count;
+		else {
+			/*
+			 * numSGE store lower 8 bit of sge_count. numSGEExt store
+			 * higher 8 bit of sge_count
+			 */
+			io_request->RaidContext.raid_context.numSGE = cmd->sge_count;
+			io_request->RaidContext.raid_context.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+		}
 
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
@@ -898,10 +902,10 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 
 	ld = MR_TargetIdToLdGet(device_id, map_ptr);
 	if ((ld >= MAX_LOGICAL_DRIVES_EXT) || (!sc->fast_path_io)) {
-		io_request->RaidContext.regLockFlags = 0;
+		io_request->RaidContext.raid_context.regLockFlags = 0;
 		fp_possible = 0;
 	} else {
-		if (MR_BuildRaidContext(sc, &io_info, &io_request->RaidContext, map_ptr))
+		if (MR_BuildRaidContext(sc, &io_info, &io_request->RaidContext.raid_context, map_ptr))
 			fp_possible = io_info.fpOkForIo;
 	}
 
@@ -921,16 +925,26 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		    (MPI2_REQ_DESCRIPT_FLAGS_FP_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (sc->mrsas_gen3_ctrl) {
-			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
+			if (io_request->RaidContext.raid_context.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 				    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.Type = MPI2_TYPE_CUDA;
-			io_request->RaidContext.nseg = 0x1;
+			io_request->RaidContext.raid_context.Type = MPI2_TYPE_CUDA;
+			io_request->RaidContext.raid_context.nseg = 0x1;
 			io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
-			io_request->RaidContext.regLockFlags |=
+			io_request->RaidContext.raid_context.regLockFlags |=
 			    (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			    MR_RL_FLAGS_SEQ_NUM_ENABLE);
+		} else if (sc->is_ventura) {
+			io_request->RaidContext.raid_context_g35.Type = MPI2_TYPE_CUDA;
+			io_request->RaidContext.raid_context_g35.nseg = 0x1;
+			io_request->RaidContext.raid_context_g35.routingFlags.bits.sqn = 1;
+			io_request->IoFlags |= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
+			if (io_request->RaidContext.raid_context_g35.routingFlags.bits.sld) {
+					io_request->RaidContext.raid_context_g35.RAIDFlags =
+					(MR_RAID_FLAGS_IO_SUB_TYPE_CACHE_BYPASS
+					<< MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT);
+			}
 		}
 		if ((sc->load_balance_info[device_id].loadBalanceFlag) &&
 		    (io_info.isRead)) {
@@ -939,26 +953,34 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			    &sc->load_balance_info[device_id], &io_info);
 			cmd->load_balance = MRSAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
+			if (sc->is_ventura)
+				io_request->RaidContext.raid_context_g35.spanArm = io_info.span_arm;
+			else
+				io_request->RaidContext.raid_context.spanArm = io_info.span_arm;
 		} else
 			cmd->load_balance = 0;
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
 		io_request->DevHandle = io_info.devHandle;
 	} else {
 		/* Not FP IO */
-		io_request->RaidContext.timeoutValue = map_ptr->raidMap.fpPdIoTimeoutSec;
+		io_request->RaidContext.raid_context.timeoutValue = map_ptr->raidMap.fpPdIoTimeoutSec;
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MRSAS_REQ_DESCRIPT_FLAGS_LD_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (sc->mrsas_gen3_ctrl) {
-			if (io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED)
+			if (io_request->RaidContext.raid_context.regLockFlags == REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 				    (MRSAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 				    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.Type = MPI2_TYPE_CUDA;
-			io_request->RaidContext.regLockFlags |=
+			io_request->RaidContext.raid_context.Type = MPI2_TYPE_CUDA;
+			io_request->RaidContext.raid_context.regLockFlags |=
 			    (MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
 			    MR_RL_FLAGS_SEQ_NUM_ENABLE);
-			io_request->RaidContext.nseg = 0x1;
+			io_request->RaidContext.raid_context.nseg = 0x1;
+		} else if (sc->is_ventura) {
+			io_request->RaidContext.raid_context_g35.Type = MPI2_TYPE_CUDA;
+			io_request->RaidContext.raid_context_g35.routingFlags.bits.sqn = 1;
+			io_request->RaidContext.raid_context_g35.nseg = 0x1;
 		}
 		io_request->Function = MRSAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
@@ -1001,7 +1023,7 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
 	    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 
-	io_request->RaidContext.VirtualDiskTgtId = device_id;
+	io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
 	io_request->LUN[1] = ccb_h->target_lun & 0xF;
 	io_request->DataLength = cmd->length;
 
@@ -1011,12 +1033,16 @@ mrsas_build_ldio_nonrw(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (1);
 		}
-		/*
-		 * numSGE store lower 8 bit of sge_count. numSGEExt store
-		 * higher 8 bit of sge_count
-		 */
-		io_request->RaidContext.numSGE = cmd->sge_count;
-		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+		if (sc->is_ventura)
+			io_request->RaidContext.raid_context_g35.numSGE = cmd->sge_count;
+		else {
+			/*
+			 * numSGE store lower 8 bit of sge_count. numSGEExt store
+			 * higher 8 bit of sge_count
+			 */
+			io_request->RaidContext.raid_context.numSGE = cmd->sge_count;
+			io_request->RaidContext.raid_context.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+		}
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (1);
@@ -1046,11 +1072,11 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request = cmd->io_request;
 	device_id = ccb_h->target_id;
 	local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
-	io_request->RaidContext.RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
+	io_request->RaidContext.raid_context.RAIDFlags = MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD
 	    << MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
-	io_request->RaidContext.regLockFlags = 0;
-	io_request->RaidContext.regLockRowLBA = 0;
-	io_request->RaidContext.regLockLength = 0;
+	io_request->RaidContext.raid_context.regLockFlags = 0;
+	io_request->RaidContext.raid_context.regLockRowLBA = 0;
+	io_request->RaidContext.raid_context.regLockLength = 0;
 
 	/* If FW supports PD sequence number */
 	if (sc->use_seqnum_jbod_fp &&
@@ -1058,25 +1084,28 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		//printf("Using Drv seq num\n");
 		pd_sync = (void *)sc->jbodmap_mem[(sc->pd_seq_map_id - 1) & 1];
 		cmd->tmCapable = pd_sync->seq[device_id].capability.tmCapable;
-		io_request->RaidContext.VirtualDiskTgtId = device_id + 255;
-		io_request->RaidContext.configSeqNum = pd_sync->seq[device_id].seqNum;
+		io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id + 255;
+		io_request->RaidContext.raid_context.configSeqNum = pd_sync->seq[device_id].seqNum;
 		io_request->DevHandle = pd_sync->seq[device_id].devHandle;
-		io_request->RaidContext.regLockFlags |=
-		    (MR_RL_FLAGS_SEQ_NUM_ENABLE | MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
-		io_request->RaidContext.Type = MPI2_TYPE_CUDA;
-		io_request->RaidContext.nseg = 0x1;
+		if (sc->is_ventura)
+			io_request->RaidContext.raid_context_g35.routingFlags.bits.sqn = 1;
+		else
+			io_request->RaidContext.raid_context.regLockFlags |=
+			    (MR_RL_FLAGS_SEQ_NUM_ENABLE | MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+		io_request->RaidContext.raid_context.Type = MPI2_TYPE_CUDA;
+		io_request->RaidContext.raid_context.nseg = 0x1;
 	} else if (sc->fast_path_io) {
 		//printf("Using LD RAID map\n");
-		io_request->RaidContext.VirtualDiskTgtId = device_id;
-		io_request->RaidContext.configSeqNum = 0;
+		io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
+		io_request->RaidContext.raid_context.configSeqNum = 0;
 		local_map_ptr = sc->ld_drv_map[(sc->map_id & 1)];
 		io_request->DevHandle =
 		    local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
 	} else {
 		//printf("Using FW PATH\n");
 		/* Want to send all IO via FW path */
-		io_request->RaidContext.VirtualDiskTgtId = device_id;
-		io_request->RaidContext.configSeqNum = 0;
+		io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
+		io_request->RaidContext.raid_context.configSeqNum = 0;
 		io_request->DevHandle = 0xFFFF;
 	}
 
@@ -1090,13 +1119,13 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 		cmd->request_desc->SCSIIO.RequestFlags =
 		    (MPI2_REQ_DESCRIPT_FLAGS_SCSI_IO <<
 		    MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-		io_request->RaidContext.timeoutValue =
+		io_request->RaidContext.raid_context.timeoutValue =
 		    local_map_ptr->raidMap.fpPdIoTimeoutSec;
-		io_request->RaidContext.VirtualDiskTgtId = device_id;
+		io_request->RaidContext.raid_context.VirtualDiskTgtId = device_id;
 	} else {
 		/* system pd fast path */
 		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
-		io_request->RaidContext.timeoutValue = local_map_ptr->raidMap.fpPdIoTimeoutSec;
+		io_request->RaidContext.raid_context.timeoutValue = local_map_ptr->raidMap.fpPdIoTimeoutSec;
 
 		/*
 		 * NOTE - For system pd RW cmds only IoFlags will be FAST_PATH
@@ -1120,12 +1149,16 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 			    "max (0x%x) allowed\n", cmd->sge_count, sc->max_num_sge);
 			return (1);
 		}
-		/*
-		 * numSGE store lower 8 bit of sge_count. numSGEExt store
-		 * higher 8 bit of sge_count
-		 */
-		io_request->RaidContext.numSGE = cmd->sge_count;
-		io_request->RaidContext.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+		if (sc->is_ventura)
+			io_request->RaidContext.raid_context_g35.numSGE = cmd->sge_count;
+		else {
+			/*
+			 * numSGE store lower 8 bit of sge_count. numSGEExt store
+			 * higher 8 bit of sge_count
+			 */
+			io_request->RaidContext.raid_context.numSGE = cmd->sge_count;
+			io_request->RaidContext.raid_context.numSGEExt = (uint8_t)(cmd->sge_count >> 8);
+		}
 	} else {
 		device_printf(sc->mrsas_dev, "Data map/load failed.\n");
 		return (1);
