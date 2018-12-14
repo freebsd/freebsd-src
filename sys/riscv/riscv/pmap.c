@@ -2721,9 +2721,10 @@ pmap_remove_pages(pmap_t pmap)
 				l3 = pmap_l2_to_l3(l2, pv->pv_va);
 				tl3 = pmap_load(l3);
 
-/*
- * We cannot remove wired pages from a process' mapping at this time
- */
+				/*
+				 * We cannot remove wired pages from a
+				 * process' mapping at this time.
+				 */
 				if (tl3 & PTE_SW_WIRED) {
 					allfree = 0;
 					continue;
@@ -2742,7 +2743,6 @@ pmap_remove_pages(pmap_t pmap)
 				    (uintmax_t)tl3));
 
 				pmap_load_clear(l3);
-				pmap_invalidate_page(pmap, pv->pv_va);
 
 				/*
 				 * Update the vm_page_t clean/reference bits.
@@ -2771,9 +2771,9 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
-	pmap_invalidate_all(pmap);
 	if (lock != NULL)
 		rw_wunlock(lock);
+	pmap_invalidate_all(pmap);
 	rw_runlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
 	vm_page_free_pages_toq(&free, false);
