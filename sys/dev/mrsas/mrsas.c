@@ -471,7 +471,8 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	char tmpstr[80];
 
 	/* XXX default to some debugging for now */
-	sc->mrsas_debug = MRSAS_FAULT;
+	sc->mrsas_debug =
+		(MRSAS_FAULT | MRSAS_OCR | MRSAS_INFO | MRSAS_TRACE | MRSAS_AEN);
 	sc->mrsas_io_timeout = MRSAS_IO_TIMEOUT;
 	sc->mrsas_fw_fault_check_delay = 1;
 	sc->reset_count = 0;
