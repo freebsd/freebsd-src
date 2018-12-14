@@ -499,7 +499,21 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 
 	io->scsiio.sense_len = sc->vss_config.sense_size;
 	io->scsiio.tag_num = (uint32_t)cmd_rd->id;
-	io->scsiio.tag_type = CTL_TAG_SIMPLE;
+	switch (cmd_rd->task_attr) {
+	case VIRTIO_SCSI_S_ORDERED:
+		io->scsiio.tag_type = CTL_TAG_ORDERED;
+		break;
+	case VIRTIO_SCSI_S_HEAD:
+		io->scsiio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
+		break;
+	case VIRTIO_SCSI_S_ACA:
+		io->scsiio.tag_type = CTL_TAG_ACA;
+		break;
+	case VIRTIO_SCSI_S_SIMPLE:
+	default:
+		io->scsiio.tag_type = CTL_TAG_SIMPLE;
+		break;
+	}
 	io->scsiio.ext_sg_entries = ext_sg_entries;
 	io->scsiio.ext_data_ptr = ext_data_ptr;
 	io->scsiio.ext_data_len = ext_data_len;
