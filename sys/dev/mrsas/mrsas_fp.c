@@ -219,6 +219,12 @@ MR_PdDevHandleGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL * map)
 	return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
 
+static u_int8_t MR_PdInterfaceTypeGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL *map)
+{
+    return map->raidMap.devHndlInfo[pd].interfaceType;
+}
+
+
 static u_int16_t
 MR_ArPdGet(u_int32_t ar, u_int32_t arm, MR_DRV_RAID_MAP_ALL * map)
 {
@@ -927,6 +933,8 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	u_int8_t retval = TRUE;
 	u_int64_t *pdBlock = &io_info->pdBlock;
 	u_int16_t *pDevHandle = &io_info->devHandle;
+	u_int8_t  *pPdInterface = &io_info->pdInterface;
+
 	u_int32_t logArm, rowMod, armQ, arm;
 
 	/* Get row and span from io_info for Uneven Span IO. */
@@ -952,6 +960,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 
 	if (pd != MR_PD_INVALID) {
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
+		*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
 		/* get second pd also for raid 1/10 fast path writes */
 		if ((raid->level == 1) && !io_info->isRead) {
 			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
@@ -966,8 +975,10 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			pd = MR_ArPdGet(arRef, physArm + 1, map);
-			if (pd != MR_PD_INVALID)
+			if (pd != MR_PD_INVALID) {
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
+				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+			}
 		}
 	}
 
@@ -1622,6 +1633,7 @@ mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
 	/* get best new arm */
 	arm_pd = mrsas_get_best_arm_pd(sc, lbInfo, io_info);
 	devHandle = MR_PdDevHandleGet(arm_pd, drv_map);
+	io_info->pdInterface = MR_PdInterfaceTypeGet(arm_pd, drv_map);
 	mrsas_atomic_inc(&lbInfo->scsi_pending_cmds[arm_pd]);
 
 	return devHandle;
@@ -1653,6 +1665,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 	int error_code = 0;
 	u_int64_t *pdBlock = &io_info->pdBlock;
 	u_int16_t *pDevHandle = &io_info->devHandle;
+	u_int8_t  *pPdInterface = &io_info->pdInterface;
 	u_int32_t rowMod, armQ, arm, logArm;
 
 	row = mega_div64_32(stripRow, raid->rowDataSize);
@@ -1691,6 +1704,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 	if (pd != MR_PD_INVALID) {
 		/* Get dev handle from Pd */
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
+		*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
 		/* get second pd also for raid 1/10 fast path writes */
 		if ((raid->level == 1) && !io_info->isRead) {
 			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
@@ -1706,9 +1720,11 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 		else if (raid->level == 1) {
 			/* Get Alternate Pd. */
 			pd = MR_ArPdGet(arRef, physArm + 1, map);
-			if (pd != MR_PD_INVALID)
+			if (pd != MR_PD_INVALID) {
 				/* Get dev handle from Pd. */
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
+				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+			}
 		}
 	}
 

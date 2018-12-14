@@ -105,6 +105,14 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs,
 static int32_t
 mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
     union ccb *ccb);
+
+static boolean_t mrsas_is_prp_possible(struct mrsas_mpt_cmd *cmd,
+	bus_dma_segment_t *segs, int nsegs);
+static void mrsas_build_ieee_sgl(struct mrsas_mpt_cmd *cmd,
+	bus_dma_segment_t *segs, int nseg);
+static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd,
+	bus_dma_segment_t *segs, int nseg);
+
 struct mrsas_mpt_cmd *mrsas_get_mpt_cmd(struct mrsas_softc *sc);
 MRSAS_REQUEST_DESCRIPTOR_UNION *
 	mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index);
@@ -1145,6 +1153,7 @@ mrsas_setup_io(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 
 		cmd->request_desc->SCSIIO.DevHandle = io_info.devHandle;
 		io_request->DevHandle = io_info.devHandle;
+		cmd->pdInterface = io_info.pdInterface;
 	} else {
 		/* Not FP IO */
 		io_request->RaidContext.raid_context.timeoutValue = map_ptr->raidMap.fpPdIoTimeoutSec;
@@ -1268,6 +1277,8 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	io_request->RaidContext.raid_context.regLockRowLBA = 0;
 	io_request->RaidContext.raid_context.regLockLength = 0;
 
+	cmd->pdInterface = sc->target_list[device_id].interface_type;
+
 	/* If FW supports PD sequence number */
 	if (sc->use_seqnum_jbod_fp &&
 	    sc->pd_list[device_id].driveType == 0x00) {
@@ -1366,6 +1377,72 @@ mrsas_build_syspdio(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 }
 
 /*
+ * mrsas_is_prp_possible:	This function will tell whether PRPs should be built or not
+ * sc:						Adapter instance soft state
+ * cmd:						MPT command frame pointer
+ * nsesg:					Number of OS SGEs
+ *
+ * This function will check whether IO is qualified to build PRPs
+ * return:				true: if PRP should be built
+ *						false: if IEEE SGLs should be built
+ */
+static boolean_t mrsas_is_prp_possible(struct mrsas_mpt_cmd *cmd,
+	bus_dma_segment_t *segs, int nsegs)
+{
+	struct mrsas_softc *sc = cmd->sc;
+	int i;
+	u_int32_t data_length = 0;
+	bool build_prp = false;
+	u_int32_t mr_nvme_pg_size;
+
+	mr_nvme_pg_size = max(sc->nvme_page_size, MR_DEFAULT_NVME_PAGE_SIZE);
+	data_length = cmd->length;
+
+	if (data_length > (mr_nvme_pg_size * 5))
+		build_prp = true;
+	else if ((data_length > (mr_nvme_pg_size * 4)) &&
+		(data_length <= (mr_nvme_pg_size * 5)))  {
+		/* check if 1st SG entry size is < residual beyond 4 pages */
+		if ((segs[0].ds_len) < (data_length - (mr_nvme_pg_size * 4)))
+			build_prp = true;
+	}
+
+	/*check for SGE holes here*/
+	for (i = 0; i < nsegs; i++) {
+		/* check for mid SGEs */
+		if ((i != 0) && (i != (nsegs - 1))) {
+				if ((segs[i].ds_addr % mr_nvme_pg_size) ||
+					(segs[i].ds_len % mr_nvme_pg_size)) {
+					build_prp = false;
+					mrsas_atomic_inc(&sc->sge_holes);
+					break;
+				}
+		}
+
+		/* check for first SGE*/
+		if ((nsegs > 1) && (i == 0)) {
+				if ((segs[i].ds_addr + segs[i].ds_len) % mr_nvme_pg_size) {
+					build_prp = false;
+					mrsas_atomic_inc(&sc->sge_holes);
+					break;
+				}
+		}
+
+		/* check for Last SGE*/
+		if ((nsegs > 1) && (i == (nsegs - 1))) {
+				if (segs[i].ds_addr % mr_nvme_pg_size) {
+					build_prp = false;
+					mrsas_atomic_inc(&sc->sge_holes);
+					break;
+				}
+		}
+
+	}
+
+	return build_prp;
+}
+
+/*
  * mrsas_map_request:	Map and load data
  * input:				Adapter instance soft state
  * 						Pointer to command packet
@@ -1427,42 +1504,21 @@ mrsas_unmap_request(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 	}
 }
 
-/*
- * mrsas_data_load_cb:	Callback entry point
- * input:				Pointer to command packet as argument
- * 						Pointer to segment
- * 						Number of segments Error
- *
- * This is the callback function of the bus dma map load.  It builds the SG
- * list.
+/**
+ * mrsas_build_ieee_sgl -	Prepare IEEE SGLs
+ * @sc:						Adapter soft state
+ * @segs:					OS SGEs pointers
+ * @nseg:					Number of OS SGEs
+ * @cmd:					Fusion command frame
+ * return:					void
  */
-static void
-mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+static void mrsas_build_ieee_sgl(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *segs, int nseg)
 {
-	struct mrsas_mpt_cmd *cmd = (struct mrsas_mpt_cmd *)arg;
 	struct mrsas_softc *sc = cmd->sc;
 	MRSAS_RAID_SCSI_IO_REQUEST *io_request;
 	pMpi25IeeeSgeChain64_t sgl_ptr;
 	int i = 0, sg_processed = 0;
 
-	if (error) {
-		cmd->error_code = error;
-		device_printf(sc->mrsas_dev, "mrsas_data_load_cb: error=%d\n", error);
-		if (error == EFBIG) {
-			cmd->ccb_ptr->ccb_h.status = CAM_REQ_TOO_BIG;
-			return;
-		}
-	}
-	if (cmd->flags & MRSAS_DIR_IN)
-		bus_dmamap_sync(cmd->sc->data_tag, cmd->data_dmamap,
-		    BUS_DMASYNC_PREREAD);
-	if (cmd->flags & MRSAS_DIR_OUT)
-		bus_dmamap_sync(cmd->sc->data_tag, cmd->data_dmamap,
-		    BUS_DMASYNC_PREWRITE);
-	if (nseg > sc->max_num_sge) {
-		device_printf(sc->mrsas_dev, "SGE count is too large or 0.\n");
-		return;
-	}
 	io_request = cmd->io_request;
 	sgl_ptr = (pMpi25IeeeSgeChain64_t)&io_request->SGL;
 
@@ -1484,12 +1540,12 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			sgl_ptr++;
 			sg_processed = i + 1;
 			if ((sg_processed == (sc->max_sge_in_main_msg - 1)) &&
-			    (nseg > sc->max_sge_in_main_msg)) {
+				(nseg > sc->max_sge_in_main_msg)) {
 				pMpi25IeeeSgeChain64_t sg_chain;
 
 				if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
 					if ((cmd->io_request->IoFlags & MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
-					    != MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
+						!= MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
 						cmd->io_request->ChainOffset = sc->chain_offset_io_request;
 					else
 						cmd->io_request->ChainOffset = 0;
@@ -1506,6 +1562,166 @@ mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 			}
 		}
 	}
+}
+
+/**
+ * mrsas_build_prp_nvme - Prepare PRPs(Physical Region Page)- SGLs specific to NVMe drives only
+ * @sc:						Adapter soft state
+ * @segs:					OS SGEs pointers
+ * @nseg:					Number of OS SGEs
+ * @cmd:					Fusion command frame
+ * return:					void
+ */
+static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *segs, int nseg)
+{
+	struct mrsas_softc *sc = cmd->sc;
+	int sge_len, offset, num_prp_in_chain = 0;
+	pMpi25IeeeSgeChain64_t main_chain_element, ptr_first_sgl, sgl_ptr;
+	u_int64_t *ptr_sgl, *ptr_sgl_phys;
+	u_int64_t sge_addr;
+	u_int32_t page_mask, page_mask_result, i = 0;
+	u_int32_t first_prp_len;
+	int data_len = cmd->length;
+	u_int32_t mr_nvme_pg_size = max(sc->nvme_page_size,
+					MR_DEFAULT_NVME_PAGE_SIZE);
+
+	sgl_ptr = (pMpi25IeeeSgeChain64_t) &cmd->io_request->SGL;
+	/*
+	 * NVMe has a very convoluted PRP format.  One PRP is required
+	 * for each page or partial page.  We need to split up OS SG
+	 * entries if they are longer than one page or cross a page
+	 * boundary.  We also have to insert a PRP list pointer entry as
+	 * the last entry in each physical page of the PRP list.
+	 *
+	 * NOTE: The first PRP "entry" is actually placed in the first
+	 * SGL entry in the main message in IEEE 64 format.  The 2nd
+	 * entry in the main message is the chain element, and the rest
+	 * of the PRP entries are built in the contiguous PCIe buffer.
+	 */
+	page_mask = mr_nvme_pg_size - 1;
+	ptr_sgl = (u_int64_t *) cmd->chain_frame;
+	ptr_sgl_phys = (u_int64_t *) cmd->chain_frame_phys_addr;;
+
+	/* Build chain frame element which holds all PRPs except first*/
+	main_chain_element = (pMpi25IeeeSgeChain64_t)
+	    ((u_int8_t *)sgl_ptr + sizeof(MPI25_IEEE_SGE_CHAIN64));
+
+
+	main_chain_element->Address = (u_int64_t) ptr_sgl_phys;
+	main_chain_element->NextChainOffset = 0;
+	main_chain_element->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
+					IEEE_SGE_FLAGS_SYSTEM_ADDR |
+					MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP;
+
+
+	/* Build first PRP, SGE need not to be PAGE aligned*/
+	ptr_first_sgl = sgl_ptr;
+	sge_addr = segs[i].ds_addr;
+	sge_len = segs[i].ds_len;
+	i++;
+
+	offset = (u_int32_t) (sge_addr & page_mask);
+	first_prp_len = mr_nvme_pg_size - offset;
+
+	ptr_first_sgl->Address = sge_addr;
+	ptr_first_sgl->Length = first_prp_len;
+
+	data_len -= first_prp_len;
+
+	if (sge_len > first_prp_len) {
+		sge_addr += first_prp_len;
+		sge_len -= first_prp_len;
+	} else if (sge_len == first_prp_len) {
+		sge_addr = segs[i].ds_addr;
+		sge_len = segs[i].ds_len;
+		i++;
+	}
+
+	for (;;) {
+
+		offset = (u_int32_t) (sge_addr & page_mask);
+
+		/* Put PRP pointer due to page boundary*/
+		page_mask_result = (uintptr_t)(ptr_sgl + 1) & page_mask;
+		if (!page_mask_result) {
+			device_printf(sc->mrsas_dev, "BRCM: Put prp pointer as we are at page boundary"
+					" ptr_sgl: 0x%p\n", ptr_sgl);
+			ptr_sgl_phys++;
+			*ptr_sgl = (uintptr_t)ptr_sgl_phys;
+			ptr_sgl++;
+			num_prp_in_chain++;
+		}
+
+		*ptr_sgl = sge_addr;
+		ptr_sgl++;
+		ptr_sgl_phys++;
+		num_prp_in_chain++;
+
+
+		sge_addr += mr_nvme_pg_size;
+		sge_len -= mr_nvme_pg_size;
+		data_len -= mr_nvme_pg_size;
+
+		if (data_len <= 0)
+			break;
+
+		if (sge_len > 0)
+			continue;
+
+		sge_addr = segs[i].ds_addr;
+		sge_len = segs[i].ds_len;
+		i++;
+	}
+
+	main_chain_element->Length = num_prp_in_chain * sizeof(u_int64_t);
+	mrsas_atomic_inc(&sc->prp_count);
+
+}
+
+/*
+ * mrsas_data_load_cb:	Callback entry point to build SGLs
+ * input:				Pointer to command packet as argument
+ *						Pointer to segment
+ *						Number of segments Error
+ *
+ * This is the callback function of the bus dma map load.  It builds SG list
+ */
+static void
+mrsas_data_load_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	struct mrsas_mpt_cmd *cmd = (struct mrsas_mpt_cmd *)arg;
+	struct mrsas_softc *sc = cmd->sc;
+	boolean_t build_prp = false;
+
+	if (error) {
+		cmd->error_code = error;
+		device_printf(sc->mrsas_dev, "mrsas_data_load_cb_prp: error=%d\n", error);
+		if (error == EFBIG) {
+			cmd->ccb_ptr->ccb_h.status = CAM_REQ_TOO_BIG;
+			return;
+		}
+	}
+	if (cmd->flags & MRSAS_DIR_IN)
+		bus_dmamap_sync(cmd->sc->data_tag, cmd->data_dmamap,
+		    BUS_DMASYNC_PREREAD);
+	if (cmd->flags & MRSAS_DIR_OUT)
+		bus_dmamap_sync(cmd->sc->data_tag, cmd->data_dmamap,
+		    BUS_DMASYNC_PREWRITE);
+	if (nseg > sc->max_num_sge) {
+		device_printf(sc->mrsas_dev, "SGE count is too large or 0.\n");
+		return;
+	}
+
+	/* Check for whether PRPs should be built or IEEE SGLs*/
+	if ((cmd->io_request->IoFlags & MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH) &&
+			(cmd->pdInterface == NVME_PD))
+		build_prp = mrsas_is_prp_possible(cmd, segs, nseg);
+
+	if (build_prp == true)
+		mrsas_build_prp_nvme(cmd, segs, nseg);
+	else
+		mrsas_build_ieee_sgl(cmd, segs, nseg);
+
 	cmd->sge_count = nseg;
 }
 

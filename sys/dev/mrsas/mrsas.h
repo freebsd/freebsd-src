@@ -694,7 +694,7 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 	u_int16_t HeaderVersion;	/* 0x0E */
 	u_int32_t Reserved5;		/* 0x10 */
 	u_int16_t Reserved6;		/* 0x14 */
-	u_int8_t Reserved7;		/* 0x16 */
+	u_int8_t HostPageSize;		/* 0x16 */
 	u_int8_t HostMSIxVectors;	/* 0x17 */
 	u_int16_t Reserved8;		/* 0x18 */
 	u_int16_t SystemRequestFrameSize;	/* 0x1A */
@@ -763,7 +763,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 typedef struct _MR_DEV_HANDLE_INFO {
 	u_int16_t curDevHdl;
 	u_int8_t validHandles;
-	u_int8_t reserved;
+	u_int8_t interfaceType;
 	u_int16_t devHandle[2];
 }	MR_DEV_HANDLE_INFO;
 
@@ -1017,6 +1017,7 @@ struct IO_REQUEST_INFO {
 	u_int16_t ldTgtId;
 	u_int8_t isRead;
 	u_int16_t devHandle;
+	u_int8_t pdInterface;
 	u_int64_t pdBlock;
 	u_int8_t fpOkForIo;
 	u_int8_t IoforUnevenSpan;
@@ -1164,6 +1165,22 @@ typedef struct _MR_FW_RAID_MAP_DYNAMIC {
 #define	IEEE_SGE_FLAGS_CHAIN_ELEMENT	(0x80)
 #define	IEEE_SGE_FLAGS_END_OF_LIST		(0x40)
 
+/* Few NVME flags defines*/
+#define MPI2_SGE_FLAGS_SHIFT                (0x02)
+#define IEEE_SGE_FLAGS_FORMAT_MASK          (0xC0)
+#define IEEE_SGE_FLAGS_FORMAT_IEEE          (0x00)
+#define IEEE_SGE_FLAGS_FORMAT_PQI           (0x01)
+#define IEEE_SGE_FLAGS_FORMAT_NVME          (0x02)
+#define IEEE_SGE_FLAGS_FORMAT_AHCI          (0x03)
+
+
+#define MPI26_IEEE_SGE_FLAGS_NSF_MASK           (0x1C)
+#define MPI26_IEEE_SGE_FLAGS_NSF_MPI_IEEE       (0x00)
+#define MPI26_IEEE_SGE_FLAGS_NSF_PQI            (0x04)
+#define MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP       (0x08)
+#define MPI26_IEEE_SGE_FLAGS_NSF_AHCI_PRDT      (0x0C)
+#define MPI26_IEEE_SGE_FLAGS_NSF_NVME_SGL       (0x10)
+
 union desc_value {
 	u_int64_t word;
 	struct {
@@ -1227,8 +1244,7 @@ typedef struct _mrsas_register_set {
 	u_int32_t outbound_scratch_pad;	/* 00B0h */
 	u_int32_t outbound_scratch_pad_2;	/* 00B4h */
 	u_int32_t outbound_scratch_pad_3;	/* 00B8h */
-
-	u_int32_t reserved_4;	/* 00BCh */
+	u_int32_t outbound_scratch_pad_4;	/* 00BCh */
 
 	u_int32_t inbound_low_queue_port;	/* 00C0h */
 
@@ -1678,6 +1694,7 @@ struct mrsas_mpt_cmd {
 	struct mrsas_mpt_cmd *peer_cmd;
 	bool	callout_owner;
 	TAILQ_ENTRY(mrsas_mpt_cmd) next;
+	u_int8_t pdInterface;
 };
 
 /*
@@ -3149,6 +3166,10 @@ struct mrsas_target {
 	u_int32_t max_io_size_kb;
 } __packed;
 
+#define MR_NVME_PAGE_SIZE_MASK		0x000000FF
+#define MR_DEFAULT_NVME_PAGE_SIZE	4096
+#define MR_DEFAULT_NVME_PAGE_SHIFT	12
+
 /*******************************************************************
  * per-instance data
  ********************************************************************/
@@ -3287,6 +3308,8 @@ struct mrsas_softc {
 	u_int32_t max_sectors_per_req;
 	u_int32_t disableOnlineCtrlReset;
 	mrsas_atomic_t fw_outstanding;
+	mrsas_atomic_t prp_count;
+	mrsas_atomic_t sge_holes;
 
 	u_int32_t mrsas_debug;
 	u_int32_t mrsas_io_timeout;
@@ -3331,6 +3354,7 @@ struct mrsas_softc {
 	u_int32_t new_map_sz;
 	u_int32_t drv_map_sz;
 
+	u_int32_t nvme_page_size;
 	boolean_t is_ventura;
 	boolean_t msix_combined;
 	u_int16_t maxRaidMapSize;
