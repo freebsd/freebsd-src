@@ -136,7 +136,8 @@ static int
 aw_pwm_attach(device_t dev)
 {
 	struct aw_pwm_softc *sc;
-	/* uint32_t reg; */
+	uint64_t clk_freq;
+	uint32_t reg;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -160,6 +161,26 @@ aw_pwm_attach(device_t dev)
 	if ((sc->busdev = pwmbus_attach_bus(dev)) == NULL)
 		device_printf(dev, "Cannot attach pwm bus\n");
 
+	/* Read the configuration left by U-Boot */
+	reg = AW_PWM_READ(sc, AW_PWM_CTRL);
+	if (reg & (AW_PWM_CTRL_GATE | AW_PWM_CTRL_EN))
+		sc->enabled = true;
+
+	reg = AW_PWM_READ(sc, AW_PWM_CTRL);
+	reg &= AW_PWM_CTRL_PRESCALE_MASK;
+	if (reg > nitems(aw_pwm_clk_prescaler)) {
+		device_printf(dev, "Bad prescaler %x, cannot guess current settings\n", reg);
+		goto out;
+	}
+	clk_freq = sc->clk_freq / aw_pwm_clk_prescaler[reg];
+
+	reg = AW_PWM_READ(sc, AW_PWM_PERIOD);
+	sc->period = NS_PER_SEC /
+		(clk_freq / ((reg >> AW_PWM_PERIOD_TOTAL_SHIFT) & AW_PWM_PERIOD_TOTAL_MASK));
+	sc->duty = NS_PER_SEC /
+		(clk_freq / ((reg >> AW_PWM_PERIOD_ACTIVE_SHIFT) & AW_PWM_PERIOD_ACTIVE_MASK));
+
+out:
 	return (0);
 
 fail:
