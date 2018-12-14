@@ -316,8 +316,6 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 	pd_entry_t *l1;
 
 	l1 = pmap_l1(pmap, va);
-	if (l1 == NULL)
-		return (NULL);
 	if ((pmap_load(l1) & PTE_V) == 0)
 		return (NULL);
 	if ((pmap_load(l1) & PTE_RX) != 0)
