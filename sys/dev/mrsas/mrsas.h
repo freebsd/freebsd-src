@@ -661,6 +661,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 #define	MAX_RAIDMAP_ROW_SIZE	(MAX_ROW_SIZE)
 #define	MAX_LOGICAL_DRIVES		64
 #define	MAX_LOGICAL_DRIVES_EXT	256
+#define	MAX_LOGICAL_DRIVES_DYN	512
 
 #define	MAX_RAIDMAP_LOGICAL_DRIVES	(MAX_LOGICAL_DRIVES)
 #define	MAX_RAIDMAP_VIEWS			(MAX_LOGICAL_DRIVES)
@@ -670,9 +671,11 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 
 #define	MAX_ARRAYS_EXT			256
 #define	MAX_API_ARRAYS_EXT		MAX_ARRAYS_EXT
+#define	MAX_API_ARRAYS_DYN		512
 
 #define	MAX_PHYSICAL_DEVICES	256
 #define	MAX_RAIDMAP_PHYSICAL_DEVICES	(MAX_PHYSICAL_DEVICES)
+#define	MAX_RAIDMAP_PHYSICAL_DEVICES_DYN	512
 #define	MR_DCMD_LD_MAP_GET_INFO	0x0300e101
 #define	MR_DCMD_SYSTEM_PD_MAP_GET_INFO	0x0200e102
 #define MR_DCMD_PD_MFI_TASK_MGMT	0x0200e100
@@ -889,9 +892,9 @@ typedef struct _MR_DRV_RAID_MAP {
 	u_int16_t spanCount;
 	u_int16_t reserve3;
 
-	MR_DEV_HANDLE_INFO devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES];
-	u_int8_t ldTgtIdToLd[MAX_LOGICAL_DRIVES_EXT];
-	MR_ARRAY_INFO arMapInfo[MAX_API_ARRAYS_EXT];
+	MR_DEV_HANDLE_INFO devHndlInfo[MAX_RAIDMAP_PHYSICAL_DEVICES_DYN];
+	u_int16_t ldTgtIdToLd[MAX_LOGICAL_DRIVES_DYN];
+	MR_ARRAY_INFO arMapInfo[MAX_API_ARRAYS_DYN];
 	MR_LD_SPAN_MAP ldSpanMap[1];
 
 }	MR_DRV_RAID_MAP;
@@ -905,7 +908,7 @@ typedef struct _MR_DRV_RAID_MAP {
 typedef struct _MR_DRV_RAID_MAP_ALL {
 
 	MR_DRV_RAID_MAP raidMap;
-	MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_EXT - 1];
+	MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES_DYN - 1];
 }	MR_DRV_RAID_MAP_ALL;
 
 #pragma pack()
@@ -988,6 +991,82 @@ typedef struct _MR_LD_TARGET_SYNC {
 	u_int16_t seqNum;
 }	MR_LD_TARGET_SYNC;
 
+
+/*
+ * RAID Map descriptor Types.
+ * Each element should uniquely idetify one data structure in the RAID map
+ */
+typedef enum _MR_RAID_MAP_DESC_TYPE {
+	RAID_MAP_DESC_TYPE_DEVHDL_INFO = 0,	/* MR_DEV_HANDLE_INFO data */
+	RAID_MAP_DESC_TYPE_TGTID_INFO = 1,	/* target to Ld num Index map */
+	RAID_MAP_DESC_TYPE_ARRAY_INFO = 2,	/* MR_ARRAY_INFO data */
+	RAID_MAP_DESC_TYPE_SPAN_INFO = 3,	/* MR_LD_SPAN_MAP data */
+	RAID_MAP_DESC_TYPE_COUNT,
+}	MR_RAID_MAP_DESC_TYPE;
+
+/*
+ * This table defines the offset, size and num elements  of each descriptor
+ * type in the RAID Map buffer
+ */
+typedef struct _MR_RAID_MAP_DESC_TABLE {
+	/* Raid map descriptor type */
+	u_int32_t	raidMapDescType;
+	/* Offset into the RAID map buffer where descriptor data is saved */
+	u_int32_t	raidMapDescOffset;
+	/* total size of the descriptor buffer */
+	u_int32_t	raidMapDescBufferSize;
+	/* Number of elements contained in the descriptor buffer */
+	u_int32_t	raidMapDescElements;
+}	MR_RAID_MAP_DESC_TABLE;
+
+/*
+ * Dynamic Raid Map Structure.
+ */
+typedef struct _MR_FW_RAID_MAP_DYNAMIC {
+	u_int32_t	raidMapSize;
+	u_int32_t	descTableOffset;
+	u_int32_t	descTableSize;
+	u_int32_t	descTableNumElements;
+	u_int64_t	PCIThresholdBandwidth;
+	u_int32_t	reserved2[3];
+
+	u_int8_t	fpPdIoTimeoutSec;
+	u_int8_t	reserved3[3];
+	u_int32_t	rmwFPSeqNum;
+	u_int16_t	ldCount;
+	u_int16_t	arCount;
+	u_int16_t	spanCount;
+	u_int16_t	reserved4[3];
+
+	/*
+	* The below structure of pointers is only to be used by the driver.
+	* This is added in the API to reduce the amount of code changes needed in
+	* the driver to support dynamic RAID map.
+	* Firmware should not update these pointers while preparing the raid map
+	*/
+	union {
+		struct {
+			MR_DEV_HANDLE_INFO	*devHndlInfo;
+			u_int16_t			*ldTgtIdToLd;
+			MR_ARRAY_INFO		*arMapInfo;
+			MR_LD_SPAN_MAP		*ldSpanMap;
+		} ptrStruct;
+		u_int64_t ptrStructureSize[RAID_MAP_DESC_TYPE_COUNT];
+	} RaidMapDescPtrs;
+
+	/*
+	* RAID Map descriptor table defines the layout of data in the RAID Map.
+	* The size of the descriptor table itself could change.
+	*/
+
+	/* Variable Size descriptor Table. */
+	MR_RAID_MAP_DESC_TABLE raidMapDescTable[RAID_MAP_DESC_TYPE_COUNT];
+	/* Variable Size buffer containing all data */
+	u_int32_t raidMapDescData[1];
+
+}	MR_FW_RAID_MAP_DYNAMIC;
+
+
 #define	IEEE_SGE_FLAGS_ADDR_MASK		(0x03)
 #define	IEEE_SGE_FLAGS_SYSTEM_ADDR		(0x00)
 #define	IEEE_SGE_FLAGS_IOCDDR_ADDR		(0x01)
@@ -1013,6 +1092,11 @@ struct mrsas_tmp_dcmd {
 	void   *tmp_dcmd_mem;
 	bus_addr_t tmp_dcmd_phys_addr;
 };
+
+#define	MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT  16
+#define	MR_MAX_RAID_MAP_SIZE_MASK      0x1FF
+#define	MR_MIN_MAP_SIZE                0x10000
+
 
 /*******************************************************************
  * Register set, included legacy controllers 1068 and 1078,
@@ -1053,8 +1137,9 @@ typedef struct _mrsas_register_set {
 
 	u_int32_t outbound_scratch_pad;	/* 00B0h */
 	u_int32_t outbound_scratch_pad_2;	/* 00B4h */
+	u_int32_t outbound_scratch_pad_3;	/* 00B8h */
 
-	u_int32_t reserved_4[2];	/* 00B8h */
+	u_int32_t reserved_4;	/* 00BCh */
 
 	u_int32_t inbound_low_queue_port;	/* 00C0h */
 
@@ -2919,6 +3004,7 @@ struct mrsas_softc {
 
 	boolean_t is_ventura;
 	boolean_t msix_combined;
+	u_int16_t maxRaidMapSize;
 
 	/* Non dma-able memory. Driver local copy. */
 	MR_DRV_RAID_MAP_ALL *ld_drv_map[2];

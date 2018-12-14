@@ -67,7 +67,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
     u_int64_t stripRow, u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
     RAID_CONTEXT * pRAID_Context,
     MR_DRV_RAID_MAP_ALL * map);
-u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
+u_int8_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map);
 u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t 
@@ -103,7 +103,7 @@ static MR_SPAN_BLOCK_INFO *
 MR_LdSpanInfoGet(u_int32_t ld,
     MR_DRV_RAID_MAP_ALL * map);
 MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
-void	MR_PopulateDrvRaidMap(struct mrsas_softc *sc);
+static int MR_PopulateDrvRaidMap(struct mrsas_softc *sc);
 
 
 /*
@@ -237,7 +237,7 @@ MR_LdSpanInfoGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map)
 	return &map->raidMap.ldSpanMap[ld].spanBlock[0];
 }
 
-u_int16_t
+u_int8_t
 MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map)
 {
 	return map->raidMap.ldTgtIdToLd[ldTgtId];
@@ -266,26 +266,203 @@ MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map)
 }
 
 /*
+ * This function will Populate Driver Map using Dynamic firmware raid map
+ */
+static int
+MR_PopulateDrvRaidMapVentura(struct mrsas_softc *sc)
+{
+	unsigned int i, j;
+	u_int16_t ld_count;
+
+	MR_FW_RAID_MAP_DYNAMIC *fw_map_dyn;
+	MR_RAID_MAP_DESC_TABLE *desc_table;
+	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
+	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
+	void *raid_map_data = NULL;
+
+	fw_map_dyn = (MR_FW_RAID_MAP_DYNAMIC *) sc->raidmap_mem[(sc->map_id & 1)];
+
+	if (fw_map_dyn == NULL) {
+		device_printf(sc->mrsas_dev,
+		    "from %s %d map0  %p map1 %p map size %d \n", __func__, __LINE__,
+		    sc->raidmap_mem[0], sc->raidmap_mem[1], sc->maxRaidMapSize);
+		return 1;
+	}
+#if VD_EXT_DEBUG
+	device_printf(sc->mrsas_dev,
+	    " raidMapSize 0x%x, descTableOffset 0x%x, "
+	    " descTableSize 0x%x, descTableNumElements 0x%x \n",
+	    fw_map_dyn->raidMapSize, fw_map_dyn->descTableOffset,
+	    fw_map_dyn->descTableSize, fw_map_dyn->descTableNumElements);
+#endif
+	desc_table = (MR_RAID_MAP_DESC_TABLE *) ((char *)fw_map_dyn +
+	    fw_map_dyn->descTableOffset);
+	if (desc_table != fw_map_dyn->raidMapDescTable) {
+		device_printf(sc->mrsas_dev,
+		    "offsets of desc table are not matching returning "
+		    " FW raid map has been changed: desc %p original %p\n",
+		    desc_table, fw_map_dyn->raidMapDescTable);
+	}
+	memset(drv_map, 0, sc->drv_map_sz);
+	ld_count = fw_map_dyn->ldCount;
+	pDrvRaidMap->ldCount = ld_count;
+	pDrvRaidMap->fpPdIoTimeoutSec = fw_map_dyn->fpPdIoTimeoutSec;
+	pDrvRaidMap->totalSize = sizeof(MR_DRV_RAID_MAP_ALL);
+	/* point to actual data starting point */
+	raid_map_data = (char *)fw_map_dyn +
+	    fw_map_dyn->descTableOffset + fw_map_dyn->descTableSize;
+
+	for (i = 0; i < fw_map_dyn->descTableNumElements; ++i) {
+		if (!desc_table) {
+			device_printf(sc->mrsas_dev,
+			    "desc table is null, coming out %p \n", desc_table);
+			return 1;
+		}
+#if VD_EXT_DEBUG
+		device_printf(sc->mrsas_dev, "raid_map_data %p \n", raid_map_data);
+		device_printf(sc->mrsas_dev,
+		    "desc table %p \n", desc_table);
+		device_printf(sc->mrsas_dev,
+		    "raidmap type %d, raidmapOffset 0x%x, "
+		    " raid map number of elements 0%x, raidmapsize 0x%x\n",
+		    desc_table->raidMapDescType, desc_table->raidMapDescOffset,
+		    desc_table->raidMapDescElements, desc_table->raidMapDescBufferSize);
+#endif
+		switch (desc_table->raidMapDescType) {
+		case RAID_MAP_DESC_TYPE_DEVHDL_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo = (MR_DEV_HANDLE_INFO *)
+			    ((char *)raid_map_data + desc_table->raidMapDescOffset);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "devHndlInfo address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo);
+#endif
+			memcpy(pDrvRaidMap->devHndlInfo, fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo,
+			    sizeof(MR_DEV_HANDLE_INFO) * desc_table->raidMapDescElements);
+			break;
+		case RAID_MAP_DESC_TYPE_TGTID_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd = (u_int16_t *)
+			    ((char *)raid_map_data + desc_table->raidMapDescOffset);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "ldTgtIdToLd  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd);
+#endif
+			for (j = 0; j < desc_table->raidMapDescElements; j++) {
+				pDrvRaidMap->ldTgtIdToLd[j] = fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd[j];
+#if VD_EXT_DEBUG
+				device_printf(sc->mrsas_dev,
+				    " %d drv ldTgtIdToLd %d\n",	j, pDrvRaidMap->ldTgtIdToLd[j]);
+#endif
+			}
+			break;
+		case RAID_MAP_DESC_TYPE_ARRAY_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo = (MR_ARRAY_INFO *) ((char *)raid_map_data +
+			    desc_table->raidMapDescOffset);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "arMapInfo  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo);
+#endif
+			memcpy(pDrvRaidMap->arMapInfo, fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo,
+			    sizeof(MR_ARRAY_INFO) * desc_table->raidMapDescElements);
+			break;
+		case RAID_MAP_DESC_TYPE_SPAN_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap = (MR_LD_SPAN_MAP *) ((char *)raid_map_data +
+			    desc_table->raidMapDescOffset);
+			memcpy(pDrvRaidMap->ldSpanMap, fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap,
+			    sizeof(MR_LD_SPAN_MAP) * desc_table->raidMapDescElements);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "ldSpanMap  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap);
+			device_printf(sc->mrsas_dev,
+			    "MR_LD_SPAN_MAP size 0x%lx\n", sizeof(MR_LD_SPAN_MAP));
+			for (j = 0; j < ld_count; j++) {
+				printf("mrsas(%d) : fw_map_dyn->ldSpanMap[%d].ldRaid.targetId 0x%x "
+				    "fw_map_dyn->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+				    j, j, fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid.targetId, j,
+				    fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid.seqNum,
+				    (u_int32_t)fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid.rowSize);
+				printf("mrsas(%d) : pDrvRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x "
+				    "pDrvRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+				    j, j, pDrvRaidMap->ldSpanMap[j].ldRaid.targetId, j,
+				    pDrvRaidMap->ldSpanMap[j].ldRaid.seqNum,
+				    (u_int32_t)pDrvRaidMap->ldSpanMap[j].ldRaid.rowSize);
+				printf("mrsas : drv raid map all %p raid map %p LD RAID MAP %p/%p\n",
+				    drv_map, pDrvRaidMap, &fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid,
+				    &pDrvRaidMap->ldSpanMap[j].ldRaid);
+			}
+#endif
+			break;
+		default:
+			device_printf(sc->mrsas_dev,
+			    "wrong number of desctableElements %d\n",
+			    fw_map_dyn->descTableNumElements);
+		}
+		++desc_table;
+	}
+	return 0;
+}
+
+/*
  * This function will Populate Driver Map using firmware raid map
  */
-void
+static int
 MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 {
 	MR_FW_RAID_MAP_ALL *fw_map_old = NULL;
+	MR_FW_RAID_MAP_EXT *fw_map_ext;
 	MR_FW_RAID_MAP *pFwRaidMap = NULL;
 	unsigned int i;
+	u_int16_t ld_count;
 
 	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
 
-	if (sc->max256vdSupport) {
-		memcpy(sc->ld_drv_map[sc->map_id & 1],
-		    sc->raidmap_mem[sc->map_id & 1],
-		    sc->current_map_sz);
-		/*
-		 * New Raid map will not set totalSize, so keep expected
-		 * value for legacy code in ValidateMapInfo
-		 */
+	if (sc->maxRaidMapSize) {
+		return MR_PopulateDrvRaidMapVentura(sc);
+	} else if (sc->max256vdSupport) {
+		fw_map_ext = (MR_FW_RAID_MAP_EXT *) sc->raidmap_mem[(sc->map_id & 1)];
+		ld_count = (u_int16_t)(fw_map_ext->ldCount);
+		if (ld_count > MAX_LOGICAL_DRIVES_EXT) {
+			device_printf(sc->mrsas_dev,
+			    "mrsas: LD count exposed in RAID map in not valid\n");
+			return 1;
+		}
+#if VD_EXT_DEBUG
+		for (i = 0; i < ld_count; i++) {
+			printf("mrsas : Index 0x%x Target Id 0x%x Seq Num 0x%x Size 0/%lx\n",
+			    i, fw_map_ext->ldSpanMap[i].ldRaid.targetId,
+			    fw_map_ext->ldSpanMap[i].ldRaid.seqNum,
+			    fw_map_ext->ldSpanMap[i].ldRaid.size);
+		}
+#endif
+		memset(drv_map, 0, sc->drv_map_sz);
+		pDrvRaidMap->ldCount = ld_count;
+		pDrvRaidMap->fpPdIoTimeoutSec = fw_map_ext->fpPdIoTimeoutSec;
+		for (i = 0; i < (MAX_LOGICAL_DRIVES_EXT); i++) {
+			pDrvRaidMap->ldTgtIdToLd[i] = (u_int16_t)fw_map_ext->ldTgtIdToLd[i];
+		}
+		memcpy(pDrvRaidMap->ldSpanMap, fw_map_ext->ldSpanMap, sizeof(MR_LD_SPAN_MAP) * ld_count);
+#if VD_EXT_DEBUG
+		for (i = 0; i < ld_count; i++) {
+			printf("mrsas(%d) : fw_map_ext->ldSpanMap[%d].ldRaid.targetId 0x%x "
+			    "fw_map_ext->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+			    i, i, fw_map_ext->ldSpanMap[i].ldRaid.targetId, i,
+			    fw_map_ext->ldSpanMap[i].ldRaid.seqNum,
+			    (u_int32_t)fw_map_ext->ldSpanMap[i].ldRaid.rowSize);
+			printf("mrsas(%d) : pDrvRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x"
+			    "pDrvRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n", i, i,
+			    pDrvRaidMap->ldSpanMap[i].ldRaid.targetId, i,
+			    pDrvRaidMap->ldSpanMap[i].ldRaid.seqNum,
+			    (u_int32_t)pDrvRaidMap->ldSpanMap[i].ldRaid.rowSize);
+			printf("mrsas : drv raid map all %p raid map %p LD RAID MAP %p/%p\n",
+			    drv_map, pDrvRaidMap, &fw_map_ext->ldSpanMap[i].ldRaid,
+			    &pDrvRaidMap->ldSpanMap[i].ldRaid);
+		}
+#endif
+		memcpy(pDrvRaidMap->arMapInfo, fw_map_ext->arMapInfo,
+		    sizeof(MR_ARRAY_INFO) * MAX_API_ARRAYS_EXT);
+		memcpy(pDrvRaidMap->devHndlInfo, fw_map_ext->devHndlInfo,
+		    sizeof(MR_DEV_HANDLE_INFO) * MAX_RAIDMAP_PHYSICAL_DEVICES);
+
 		pDrvRaidMap->totalSize = sizeof(MR_FW_RAID_MAP_EXT);
 	} else {
 		fw_map_old = (MR_FW_RAID_MAP_ALL *) sc->raidmap_mem[(sc->map_id & 1)];
@@ -339,6 +516,7 @@ MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 		    sizeof(MR_DEV_HANDLE_INFO) *
 		    MAX_RAIDMAP_PHYSICAL_DEVICES);
 	}
+	return 0;
 }
 
 /*
@@ -354,7 +532,8 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 	if (!sc) {
 		return 1;
 	}
-	MR_PopulateDrvRaidMap(sc);
+	if (MR_PopulateDrvRaidMap(sc))
+		return 0;
 
 	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
@@ -365,7 +544,9 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 	pDrvRaidMap = &drv_map->raidMap;
 	PLD_SPAN_INFO ldSpanInfo = (PLD_SPAN_INFO) & sc->log_to_span;
 
-	if (sc->max256vdSupport)
+	if (sc->maxRaidMapSize)
+		expected_map_size = sizeof(MR_DRV_RAID_MAP_ALL);
+	else if (sc->max256vdSupport)
 		expected_map_size = sizeof(MR_FW_RAID_MAP_EXT);
 	else
 		expected_map_size =

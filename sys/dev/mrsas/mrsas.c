@@ -1757,8 +1757,8 @@ mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8_t ex
 static int
 mrsas_alloc_mem(struct mrsas_softc *sc)
 {
-	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size,
-	          chain_frame_size, evt_detail_size, count;
+	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size, chain_frame_size,
+		evt_detail_size, count;
 
 	/*
 	 * Allocate parent DMA tag
@@ -2163,7 +2163,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	u_int32_t max_sectors_1;
 	u_int32_t max_sectors_2;
 	u_int32_t tmp_sectors;
-	u_int32_t scratch_pad_2;
+	u_int32_t scratch_pad_2, scratch_pad_3;
 	int msix_enable = 0;
 	int fw_msix_count = 0;
 
@@ -2171,6 +2171,15 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	ret = mrsas_transition_to_ready(sc, ocr);
 	if (ret != SUCCESS) {
 		return (ret);
+	}
+	if (sc->is_ventura) {
+		scratch_pad_3 = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad_3));
+#if VD_EXT_DEBUG
+		device_printf(sc->mrsas_dev, "scratch_pad_3 0x%x\n", scratch_pad_3);
+#endif
+		sc->maxRaidMapSize = ((scratch_pad_3 >>
+		    MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
+		    MR_MAX_RAID_MAP_SIZE_MASK);
 	}
 	/* MSI-x index 0- reply post host index register */
 	sc->msix_reg_offset[0] = MPI2_REPLY_POST_HOST_INDEX_OFFSET;
@@ -3395,8 +3404,10 @@ dcmd_timeout:
 static void 
 mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 {
+	u_int32_t ventura_map_sz = 0;
 	sc->max256vdSupport =
-	sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+		sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+
 	/* Below is additional check to address future FW enhancement */
 	if (sc->ctrl_info->max_lds > 64)
 		sc->max256vdSupport = 1;
@@ -3413,20 +3424,33 @@ mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
 	}
 
-	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) *
-	    (sc->fw_supported_vd_count - 1));
-	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
-	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) *
-	    (sc->drv_supported_vd_count - 1));
+	if (sc->maxRaidMapSize) {
+		ventura_map_sz = sc->maxRaidMapSize *
+		    MR_MIN_MAP_SIZE;
+		sc->current_map_sz = ventura_map_sz;
+		sc->max_map_sz = ventura_map_sz;
+	} else {
+		sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
+		    (sizeof(MR_LD_SPAN_MAP) * (sc->fw_supported_vd_count - 1));
+		sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
+		sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
+		if (sc->max256vdSupport)
+			sc->current_map_sz = sc->new_map_sz;
+		else
+			sc->current_map_sz = sc->old_map_sz;
+	}
 
-	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
-
-	if (sc->max256vdSupport)
-		sc->current_map_sz = sc->new_map_sz;
-	else
-		sc->current_map_sz = sc->old_map_sz;
+	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP_ALL);
+#if VD_EXT_DEBUG
+	device_printf(sc->mrsas_dev, "sc->maxRaidMapSize 0x%x \n",
+	    sc->maxRaidMapSize);
+	device_printf(sc->mrsas_dev,
+	    "new_map_sz = 0x%x, old_map_sz = 0x%x, "
+	    "ventura_map_sz = 0x%x, current_map_sz = 0x%x "
+	    "fusion->drv_map_sz =0x%x, size of driver raid map 0x%lx \n",
+	    sc->new_map_sz, sc->old_map_sz, ventura_map_sz,
+	    sc->current_map_sz, sc->drv_map_sz, sizeof(MR_DRV_RAID_MAP_ALL));
+#endif
 }
 
 /*
