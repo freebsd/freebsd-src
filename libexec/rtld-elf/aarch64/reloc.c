@@ -109,9 +109,8 @@ do_copy_relocations(Obj_Entry *dstobj)
 			}
 		}
 		if (srcobj == NULL) {
-			_rtld_error(
-"Undefined symbol \"%s\" referenced from COPY relocation in %s",
-			    name, dstobj->path);
+			_rtld_error("Undefined symbol \"%s\" referenced from "
+			    "COPY relocation in %s", name, dstobj->path);
 			return (-1);
 		}
 
@@ -238,7 +237,9 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	const Elf_Sym *def;
-	struct tls_data *tlsdesc;
+
+	if (obj->jmpslots_done)
+		return (0);
 
 	relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
 	for (rela = obj->pltrela; rela < relalim; rela++) {
@@ -256,20 +257,9 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
 
 			*where = (Elf_Addr)(defobj->relocbase + def->st_value);
 			break;
-		case R_AARCH64_TLSDESC:
-			if (ELF_R_SYM(rela->r_info) != 0) {
-				tlsdesc = (struct tls_data *)where[1];
-				if (tlsdesc->index == -1)
-					rtld_tlsdesc_handle_locked(tlsdesc,
-					    SYMLOOK_IN_PLT | flags, lockstate);
-			}
-			break;
-		default:
-			_rtld_error("Unknown relocation type %x in jmpslot",
-			    (unsigned int)ELF_R_TYPE(rela->r_info));
-			return (-1);
 		}
 	}
+	obj->jmpslots_done = true;
 
 	return (0);
 }
@@ -431,4 +421,16 @@ allocate_initial_tls(Obj_Entry *objs)
 	tp = (Elf_Addr **) allocate_tls(objs, NULL, TLS_TCB_SIZE, 16);
 
 	asm volatile("msr	tpidr_el0, %0" : : "r"(tp));
+}
+
+void *
+__tls_get_addr(tls_index* ti)
+{
+      char *p;
+      void *_tp;
+
+      __asm __volatile("mrs	%0, tpidr_el0"  : "=r" (_tp));
+      p = tls_get_addr_common((Elf_Addr **)(_tp), ti->ti_module, ti->ti_offset);
+
+      return (p);
 }
