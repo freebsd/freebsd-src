@@ -389,7 +389,7 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	ctl_scsi_zero_io(io);
 
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.targ_port = tmf->lun[1];
+	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(tmf->lun);
 	io->taskio.tag_type = CTL_TAG_SIMPLE;
 	io->taskio.tag_num = (uint32_t)tmf->id;
@@ -480,7 +480,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	io = ctl_scsi_alloc_io(sc->vss_iid);
 	ctl_scsi_zero_io(io);
 
-	io->io_hdr.nexus.targ_port = cmd_rd->lun[1];
+	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(cmd_rd->lun);
 
 	io->io_hdr.io_type = CTL_IO_SCSI;
