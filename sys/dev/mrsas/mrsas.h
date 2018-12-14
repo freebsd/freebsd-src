@@ -121,6 +121,12 @@ __FBSDID("$FreeBSD$");
 #define	THRESHOLD_REPLY_COUNT			50
 #define	MAX_MSIX_COUNT					128
 
+#define MAX_STREAMS_TRACKED				8
+#define MR_STREAM_BITMAP				0x76543210
+#define BITS_PER_INDEX_STREAM			4	/* number of bits per index in U32 TrackStream */
+#define STREAM_MASK						((1 << BITS_PER_INDEX_STREAM) - 1)
+#define ZERO_LAST_STREAM				0x0fffffff
+
 /*
  * Boolean types
  */
@@ -791,7 +797,8 @@ typedef struct _MR_SPAN_BLOCK_INFO {
 typedef struct _MR_LD_RAID {
 	struct {
 		u_int32_t fpCapable:1;
-		u_int32_t reserved5:3;
+		u_int32_t raCapable:1;
+		u_int32_t reserved5:2;
 		u_int32_t ldPiMode:4;
 		u_int32_t pdPiMode:4;
 		u_int32_t encryptionType:8;
@@ -1011,6 +1018,7 @@ struct IO_REQUEST_INFO {
 	/* span[7:5], arm[4:0] */
 	u_int8_t span_arm;
 	u_int8_t pd_after_lb;
+	boolean_t raCapable;
 };
 
 /*
@@ -1032,6 +1040,29 @@ struct MR_PD_CFG_SEQ_NUM_SYNC {
 	u_int32_t count;
 	struct MR_PD_CFG_SEQ seq[1];
 } __packed;
+
+typedef struct _STREAM_DETECT {
+	u_int64_t nextSeqLBA;
+	struct megasas_cmd_fusion *first_cmd_fusion;
+	struct megasas_cmd_fusion *last_cmd_fusion;
+	u_int32_t countCmdsInStream;
+	u_int16_t numSGEsInGroup;
+	u_int8_t isRead;
+	u_int8_t groupDepth;
+	boolean_t groupFlush;
+	u_int8_t reserved[7];
+} STREAM_DETECT, *PTR_STREAM_DETECT;
+
+typedef struct _LD_STREAM_DETECT {
+	boolean_t writeBack;
+	boolean_t FPWriteEnabled;
+	boolean_t membersSSDs;
+	boolean_t fpCacheBypassCapable;
+	u_int32_t mruBitMap;
+	volatile long iosToFware;
+	volatile long writeBytesOutstanding;
+	STREAM_DETECT streamTrack[MAX_STREAMS_TRACKED];
+} LD_STREAM_DETECT, *PTR_LD_STREAM_DETECT;
 
 
 typedef struct _MR_LD_TARGET_SYNC {
@@ -2950,6 +2981,7 @@ struct mrsas_softc {
 	struct mtx mfi_cmd_pool_lock;
 	struct mtx raidmap_lock;
 	struct mtx aen_lock;
+	struct mtx stream_lock;
 	struct selinfo mrsas_select;
 	uint32_t mrsas_aen_triggered;
 	uint32_t mrsas_poll_waiting;
@@ -3002,6 +3034,7 @@ struct mrsas_softc {
 	u_int32_t reset_in_progress;
 	u_int32_t reset_count;
 	u_int32_t block_sync_cache;
+	u_int32_t drv_stream_detection;
 	u_int8_t fw_sync_cache_support;
 	mrsas_atomic_t target_reset_outstanding;
 #define MRSAS_MAX_TM_TARGETS (MRSAS_MAX_PD + MRSAS_MAX_LD_IDS)
@@ -3078,6 +3111,7 @@ struct mrsas_softc {
 
 	/* Non dma-able memory. Driver local copy. */
 	MR_DRV_RAID_MAP_ALL *ld_drv_map[2];
+	PTR_LD_STREAM_DETECT  *streamDetectByLD;
 };
 
 /* Compatibility shims for different OS versions */
