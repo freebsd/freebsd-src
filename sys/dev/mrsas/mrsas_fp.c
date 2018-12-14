@@ -773,8 +773,9 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
 	else {
 		*pDevHandle = MR_PD_INVALID;
-		if ((raid->level >= 5) && ((!sc->mrsas_gen3_ctrl) || (sc->mrsas_gen3_ctrl &&
-		    raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
+		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
+			(sc->mrsas_gen3_ctrl &&
+			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			pd = MR_ArPdGet(arRef, physArm + 1, map);
@@ -958,7 +959,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 	pRAID_Context->timeoutValue = map->raidMap.fpPdIoTimeoutSec;
 	if (sc->mrsas_gen3_ctrl)
 		pRAID_Context->regLockFlags = (isRead) ? raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
-	else
+	else if (sc->device_id == MRSAS_TBOLT)
 		pRAID_Context->regLockFlags = (isRead) ? REGION_TYPE_SHARED_READ : raid->regTypeReqOnWrite;
 	pRAID_Context->VirtualDiskTgtId = raid->targetId;
 	pRAID_Context->regLockRowLBA = regStart;
@@ -1478,8 +1479,9 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
 	else {
 		*pDevHandle = MR_PD_INVALID;	/* set dev handle as invalid. */
-		if ((raid->level >= 5) && ((!sc->mrsas_gen3_ctrl) || (sc->mrsas_gen3_ctrl &&
-		    raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
+		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
+			(sc->mrsas_gen3_ctrl &&
+			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			/* Get Alternate Pd. */
