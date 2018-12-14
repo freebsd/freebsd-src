@@ -740,6 +740,7 @@ Mpi2IOCInitRequest_t, MPI2_POINTER pMpi2IOCInitRequest_t;
 #define	MR_DCMD_SYSTEM_PD_MAP_GET_INFO	0x0200e102
 #define MR_DCMD_PD_MFI_TASK_MGMT	0x0200e100
 
+#define MR_DCMD_PD_GET_INFO		0x02020000
 #define	MRSAS_MAX_PD_CHANNELS		1
 #define	MRSAS_MAX_LD_CHANNELS		1
 #define	MRSAS_MAX_DEV_PER_CHANNEL	256
@@ -2944,6 +2945,210 @@ typedef struct _MRSAS_DRV_PCI_INFORMATION {
 	u_int8_t reserved2[28];
 }	MRSAS_DRV_PCI_INFORMATION, *PMRSAS_DRV_PCI_INFORMATION;
 
+typedef enum _MR_PD_TYPE {
+	UNKNOWN_DRIVE = 0,
+	PARALLEL_SCSI = 1,
+	SAS_PD = 2,
+	SATA_PD = 3,
+	FC_PD = 4,
+	NVME_PD = 5,
+} MR_PD_TYPE;
+
+typedef union	_MR_PD_REF {
+	struct {
+		u_int16_t	 deviceId;
+		u_int16_t	 seqNum;
+	} mrPdRef;
+	u_int32_t	 ref;
+} MR_PD_REF;
+
+/*
+ * define the DDF Type bit structure
+ */
+union MR_PD_DDF_TYPE {
+	struct {
+		union {
+			struct {
+				u_int16_t forcedPDGUID:1;
+				u_int16_t inVD:1;
+				u_int16_t isGlobalSpare:1;
+				u_int16_t isSpare:1;
+				u_int16_t isForeign:1;
+				u_int16_t reserved:7;
+				u_int16_t intf:4;
+			} pdType;
+			u_int16_t type;
+		};
+		u_int16_t reserved;
+	} ddf;
+	struct {
+		u_int32_t reserved;
+	} nonDisk;
+	u_int32_t type;
+} __packed;
+
+/*
+ * defines the progress structure
+ */
+union MR_PROGRESS {
+	struct  {
+		u_int16_t progress;
+		union {
+			u_int16_t elapsedSecs;
+			u_int16_t elapsedSecsForLastPercent;
+		};
+	} mrProgress;
+	u_int32_t w;
+} __packed;
+
+/*
+ * defines the physical drive progress structure
+ */
+struct MR_PD_PROGRESS {
+    struct {
+        u_int32_t     rbld:1;
+        u_int32_t     patrol:1;
+        u_int32_t     clear:1;
+        u_int32_t     copyBack:1;
+        u_int32_t     erase:1;
+        u_int32_t     locate:1;
+        u_int32_t     reserved:26;
+    } active;
+    union MR_PROGRESS     rbld;
+    union MR_PROGRESS     patrol;
+    union {
+        union MR_PROGRESS     clear;
+        union MR_PROGRESS     erase;
+    };
+
+    struct {
+        u_int32_t     rbld:1;
+        u_int32_t     patrol:1;
+        u_int32_t     clear:1;
+        u_int32_t     copyBack:1;
+        u_int32_t     erase:1;
+        u_int32_t     reserved:27;
+    } pause;
+
+    union MR_PROGRESS     reserved[3];
+} __packed;
+
+
+struct  mrsas_pd_info {
+	 MR_PD_REF	 ref;
+	 u_int8_t		 inquiryData[96];
+	 u_int8_t		 vpdPage83[64];
+
+	 u_int8_t		 notSupported;
+	 u_int8_t		 scsiDevType;
+
+	 union {
+		 u_int8_t		 connectedPortBitmap;
+		 u_int8_t		 connectedPortNumbers;
+	 };
+
+	 u_int8_t		 deviceSpeed;
+	 u_int32_t	 mediaErrCount;
+	 u_int32_t	 otherErrCount;
+	 u_int32_t	 predFailCount;
+	 u_int32_t	 lastPredFailEventSeqNum;
+
+	 u_int16_t	 fwState;
+	 u_int8_t		 disabledForRemoval;
+	 u_int8_t		 linkSpeed;
+	 union MR_PD_DDF_TYPE  state;
+
+	 struct {
+		 u_int8_t		 count;
+		 u_int8_t		 isPathBroken:4;
+		 u_int8_t		 reserved3:3;
+		 u_int8_t		 widePortCapable:1;
+
+		 u_int8_t		 connectorIndex[2];
+		 u_int8_t		 reserved[4];
+		 u_int64_t	 sasAddr[2];
+		 u_int8_t		 reserved2[16];
+	 } pathInfo;
+
+	 u_int64_t	 rawSize;
+	 u_int64_t	 nonCoercedSize;
+	 u_int64_t	 coercedSize;
+	 u_int16_t	 enclDeviceId;
+	 u_int8_t		 enclIndex;
+
+	 union {
+		 u_int8_t		 slotNumber;
+		 u_int8_t		 enclConnectorIndex;
+	 };
+
+	struct MR_PD_PROGRESS progInfo;
+	 u_int8_t		 badBlockTableFull;
+	 u_int8_t		 unusableInCurrentConfig;
+	 u_int8_t		 vpdPage83Ext[64];
+	 u_int8_t		 powerState;
+	 u_int8_t		 enclPosition;
+	 u_int32_t		allowedOps;
+	 u_int16_t	 copyBackPartnerId;
+	 u_int16_t	 enclPartnerDeviceId;
+	struct {
+		 u_int16_t fdeCapable:1;
+		 u_int16_t fdeEnabled:1;
+		 u_int16_t secured:1;
+		 u_int16_t locked:1;
+		 u_int16_t foreign:1;
+		 u_int16_t needsEKM:1;
+		 u_int16_t reserved:10;
+	 } security;
+	 u_int8_t		 mediaType;
+	 u_int8_t		 notCertified;
+	 u_int8_t		 bridgeVendor[8];
+	 u_int8_t		 bridgeProductIdentification[16];
+	 u_int8_t		 bridgeProductRevisionLevel[4];
+	 u_int8_t		 satBridgeExists;
+
+	 u_int8_t		 interfaceType;
+	 u_int8_t		 temperature;
+	 u_int8_t		 emulatedBlockSize;
+	 u_int16_t	 userDataBlockSize;
+	 u_int16_t	 reserved2;
+
+	 struct {
+		 u_int32_t piType:3;
+		 u_int32_t piFormatted:1;
+		 u_int32_t piEligible:1;
+		 u_int32_t NCQ:1;
+		 u_int32_t WCE:1;
+		 u_int32_t commissionedSpare:1;
+		 u_int32_t emergencySpare:1;
+		 u_int32_t ineligibleForSSCD:1;
+		 u_int32_t ineligibleForLd:1;
+		 u_int32_t useSSEraseType:1;
+		 u_int32_t wceUnchanged:1;
+		 u_int32_t supportScsiUnmap:1;
+		 u_int32_t reserved:18;
+	 } properties;
+
+	 u_int64_t   shieldDiagCompletionTime;
+	 u_int8_t    shieldCounter;
+
+	 u_int8_t linkSpeedOther;
+	 u_int8_t reserved4[2];
+
+	 struct {
+		u_int32_t bbmErrCountSupported:1;
+		u_int32_t bbmErrCount:31;
+	 } bbmErr;
+
+	 u_int8_t reserved1[512-428];
+} __packed;
+
+struct mrsas_target {
+	u_int16_t target_id;
+	u_int32_t queue_depth;
+	u_int8_t interface_type;
+	u_int32_t max_io_size_kb;
+} __packed;
+
 /*******************************************************************
  * per-instance data
  ********************************************************************/
@@ -3066,10 +3271,14 @@ struct mrsas_softc {
 	bus_addr_t raidmap_phys_addr[2];
 	bus_dma_tag_t mficmd_frame_tag;
 	bus_dma_tag_t mficmd_sense_tag;
+	bus_addr_t evt_detail_phys_addr;
 	bus_dma_tag_t evt_detail_tag;
 	bus_dmamap_t evt_detail_dmamap;
 	struct mrsas_evt_detail *evt_detail_mem;
-	bus_addr_t evt_detail_phys_addr;
+	bus_addr_t pd_info_phys_addr;
+	bus_dma_tag_t pd_info_tag;
+	bus_dmamap_t pd_info_dmamap;
+	struct mrsas_pd_info *pd_info_mem;
 	struct mrsas_ctrl_info *ctrl_info;
 	bus_dma_tag_t ctlr_info_tag;
 	bus_dmamap_t ctlr_info_dmamap;
@@ -3094,6 +3303,7 @@ struct mrsas_softc {
 	bus_addr_t el_info_phys_addr;
 	struct mrsas_pd_list pd_list[MRSAS_MAX_PD];
 	struct mrsas_pd_list local_pd_list[MRSAS_MAX_PD];
+	struct mrsas_target target_list[MRSAS_MAX_TM_TARGETS];
 	u_int8_t ld_ids[MRSAS_MAX_LD_IDS];
 	struct taskqueue *ev_tq;
 	struct task ev_task;
