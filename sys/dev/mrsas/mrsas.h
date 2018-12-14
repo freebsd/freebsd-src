@@ -179,6 +179,53 @@ typedef struct _RAID_CONTEXT {
 	u_int8_t resvd2;		/* 0x1F */
 }	RAID_CONTEXT;
 
+/*
+ * Raid Context structure which describes ventura MegaRAID specific IO Paramenters
+ * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
+ */
+typedef struct _RAID_CONTEXT_G35 {
+	u_int16_t Type:4;
+	u_int16_t nseg:4;
+	u_int16_t resvd0:8;
+	u_int16_t timeoutValue;
+	union {
+		struct {
+			u_int16_t reserved:1;
+			u_int16_t sld:1;
+			u_int16_t c2f:1;
+			u_int16_t fwn:1;
+			u_int16_t sqn:1;
+			u_int16_t sbs:1;
+			u_int16_t rw:1;
+			u_int16_t log:1;
+			u_int16_t cpuSel:4;
+			u_int16_t setDivert:4;
+		}	bits;
+		u_int16_t s;
+	}	routingFlags;
+	u_int16_t VirtualDiskTgtId;
+	u_int64_t regLockRowLBA;
+	u_int32_t regLockLength;
+	union {
+		u_int16_t nextLMId;
+		u_int16_t peerSMID;
+	}	smid;
+	u_int8_t exStatus;
+	u_int8_t status;
+	u_int8_t RAIDFlags;
+	u_int8_t spanArm;
+	u_int16_t configSeqNum;
+	u_int16_t numSGE:12;
+	u_int16_t reserved:3;
+	u_int16_t streamDetected:1;
+	u_int8_t resvd2[2];
+}	RAID_CONTEXT_G35;
+
+typedef union _RAID_CONTEXT_UNION {
+	RAID_CONTEXT raid_context;
+	RAID_CONTEXT_G35 raid_context_g35;
+}	RAID_CONTEXT_UNION, *PRAID_CONTEXT_UNION;
+
 
 /*************************************************************************
  * MPI2 Defines
@@ -439,7 +486,7 @@ typedef struct _MPI2_RAID_SCSI_IO_REQUEST {
 	u_int8_t LUN[8];		/* 0x34 */
 	u_int32_t Control;		/* 0x3C */
 	MPI2_SCSI_IO_CDB_UNION CDB;	/* 0x40 */
-	RAID_CONTEXT RaidContext;	/* 0x60 */
+	RAID_CONTEXT_UNION RaidContext;	/* 0x60 */
 	MPI2_SGE_IO_UNION SGL;		/* 0x80 */
 }	MRSAS_RAID_SCSI_IO_REQUEST, MPI2_POINTER PTR_MRSAS_RAID_SCSI_IO_REQUEST,
 MRSASRaidSCSIIORequest_t, MPI2_POINTER pMRSASRaidSCSIIORequest_t;
@@ -754,7 +801,8 @@ typedef struct _MR_LD_RAID {
 		u_int32_t fpReadAcrossStripe:1;
 		u_int32_t fpNonRWCapable:1;
 		u_int32_t tmCapable:1;
-		u_int32_t reserved4:6;
+		u_int32_t fpCacheBypassCapable:1;
+		u_int32_t reserved4:5;
 	}	capability;
 	u_int32_t reserved6;
 	u_int64_t size;
@@ -1448,6 +1496,7 @@ enum MR_EVT_ARGS {
 #define	MR_RL_FLAGS_GRANT_DESTINATION_CPU1			0x10
 #define	MR_RL_FLAGS_GRANT_DESTINATION_CUDA			0x80
 #define	MR_RL_FLAGS_SEQ_NUM_ENABLE					0x8
+#define	MR_RL_WRITE_BACK_MODE						0x01
 
 /*
  * T10 PI defines
@@ -1469,8 +1518,12 @@ enum MR_EVT_ARGS {
 typedef enum MR_RAID_FLAGS_IO_SUB_TYPE {
 	MR_RAID_FLAGS_IO_SUB_TYPE_NONE = 0,
 	MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD = 1,
-}	MR_RAID_FLAGS_IO_SUB_TYPE;
-
+	MR_RAID_FLAGS_IO_SUB_TYPE_RMW_DATA = 2,
+	MR_RAID_FLAGS_IO_SUB_TYPE_RMW_P = 3,
+	MR_RAID_FLAGS_IO_SUB_TYPE_RMW_Q = 4,
+	MR_RAID_FLAGS_IO_SUB_TYPE_CACHE_BYPASS = 6,
+	MR_RAID_FLAGS_IO_SUB_TYPE_LDIO_BW_LIMIT = 7
+} MR_RAID_FLAGS_IO_SUB_TYPE;
 /*
  * Request descriptor types
  */
