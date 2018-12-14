@@ -2272,6 +2272,9 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	if (sc->use_seqnum_jbod_fp)
 		device_printf(sc->mrsas_dev, "FW supports JBOD Map \n");
 
+	if (sc->support_morethan256jbod)
+		device_printf(sc->mrsas_dev, "FW supports JBOD Map Ext \n");
+
 	if (mrsas_setup_raidmap(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Error: RAID map setup FAILED !!! "
 		    "There seems to be some problem in the controller\n"
@@ -3381,6 +3384,9 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 
 	sc->use_seqnum_jbod_fp =
 	    sc->ctrl_info->adapterOperations3.useSeqNumJbodFP;
+	sc->support_morethan256jbod =
+		sc->ctrl_info->adapterOperations4.supportPdMapTargetId;
+
 	sc->disableOnlineCtrlReset =
 	    sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 
