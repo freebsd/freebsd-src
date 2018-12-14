@@ -87,8 +87,8 @@ struct aw_pwm_softc {
 	struct resource	*res;
 
 	uint64_t	clk_freq;
-	uint64_t	period;
-	uint64_t	duty;
+	unsigned int	period;
+	unsigned int	duty;
 	uint32_t	flags;
 	bool		enabled;
 };
@@ -191,7 +191,7 @@ aw_pwm_channel_max(device_t dev, int *nchannel)
 }
 
 static int
-aw_pwm_channel_config(device_t dev, int channel, uint64_t period, uint64_t duty)
+aw_pwm_channel_config(device_t dev, int channel, unsigned int period, unsigned int duty)
 {
 	struct aw_pwm_softc *sc;
 	uint64_t period_freq, duty_freq;
@@ -254,7 +254,7 @@ aw_pwm_channel_config(device_t dev, int channel, uint64_t period, uint64_t duty)
 }
 
 static int
-aw_pwm_channel_get_config(device_t dev, int channel, uint64_t *period, uint64_t *duty)
+aw_pwm_channel_get_config(device_t dev, int channel, unsigned int *period, unsigned int *duty)
 {
 	struct aw_pwm_softc *sc;
 

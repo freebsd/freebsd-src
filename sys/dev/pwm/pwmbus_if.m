@@ -59,8 +59,8 @@ HEADER {
 METHOD int channel_config {
 	device_t bus;
 	int channel;
-	uint64_t period;
-	uint64_t duty;
+	unsigned int period;
+	unsigned int duty;
 };
 
 #
@@ -70,8 +70,8 @@ METHOD int channel_config {
 METHOD int channel_get_config {
 	device_t bus;
 	int channel;
-	uint64_t *period;
-	uint64_t *duty;
+	unsigned int *period;
+	unsigned int *duty;
 };
 
 #
