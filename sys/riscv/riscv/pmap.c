@@ -3277,7 +3277,7 @@ pmap_activate(struct thread *td)
 
 	reg = SATP_MODE_SV39;
 	reg |= (td->td_pcb->pcb_l1addr >> PAGE_SHIFT);
-	__asm __volatile("csrw sptbr, %0" :: "r"(reg));
+	load_satp(reg);
 
 	pmap_invalidate_all(pmap);
 	critical_exit();

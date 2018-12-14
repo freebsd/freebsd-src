@@ -223,7 +223,7 @@ ENTRY(cpu_throw)
 	srli	t0, t0, PAGE_SHIFT
 	li	t1, SATP_MODE_SV39
 	or	t0, t0, t1
-	csrw	sptbr, t0
+	csrw	satp, t0
 
 	/* TODO: Invalidate the TLB */
 
@@ -341,7 +341,7 @@ ENTRY(cpu_switch)
 	srli	t0, t0, PAGE_SHIFT
 	li	t1, SATP_MODE_SV39
 	or	t0, t0, t1
-	csrw	sptbr, t0
+	csrw	satp, t0
 
 	/* TODO: Invalidate the TLB */
 
