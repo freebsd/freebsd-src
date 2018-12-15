@@ -41,8 +41,6 @@
 #ifndef _NETINET_CC_CUBIC_H_
 #define _NETINET_CC_CUBIC_H_
 
-#include <sys/limits.h>
-
 /* Number of bits of precision for fixed point math calcs. */
 #define	CUBIC_SHIFT		8
 
@@ -163,6 +161,8 @@ cubic_k(unsigned long wmax_pkts)
 /*
  * Compute the new cwnd value using an implementation of eqn 1 from the I-D.
  * Thanks to Kip Macy for help debugging this function.
+ *
+ * XXXLAS: Characterise bounds for overflow.
  */
 static __inline unsigned long
 cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
@@ -174,15 +174,6 @@ cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
 	/* t - K, with CUBIC_SHIFT worth of precision. */
 	cwnd = ((int64_t)(ticks_since_cong << CUBIC_SHIFT) - (K * hz)) / hz;
 
-	/* moved this calculation up because it cannot overflow or underflow */
-	cwnd *= CUBIC_C_FACTOR * smss;
-
-	if (cwnd > 2097151) /* 2^21 cubed is long max */
-		return INT_MAX;
-
-	if (cwnd < -2097152) /* -2^21 cubed is long min */
-		return smss;
-
 	/* (t - K)^3, with CUBIC_SHIFT^3 worth of precision. */
 	cwnd *= (cwnd * cwnd);
 
@@ -191,17 +182,8 @@ cubic_cwnd(int ticks_since_cong, unsigned long wmax, uint32_t smss, int64_t K)
 	 * The down shift by CUBIC_SHIFT_4 is because cwnd has 4 lots of
 	 * CUBIC_SHIFT included in the value. 3 from the cubing of cwnd above,
 	 * and an extra from multiplying through by CUBIC_C_FACTOR.
-	 *
-	 * The original formula was this:
-	 * cwnd = ((cwnd * CUBIC_C_FACTOR * smss) >> CUBIC_SHIFT_4) + wmax;
-         *
-         * CUBIC_C_FACTOR and smss factors were moved up to an earlier
-	 * calculation to simplify overflow and underflow detection.
 	 */
-	cwnd = (cwnd >> CUBIC_SHIFT_4) + wmax;
-
-	if (cwnd < 0)
-		return 1;
+	cwnd = ((cwnd * CUBIC_C_FACTOR * smss) >> CUBIC_SHIFT_4) + wmax;
 
 	return ((unsigned long)cwnd);
 }
