@@ -344,9 +344,6 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 		switch (ELF_R_TYPE(rela->r_info)) {
 		case R_AARCH64_ABS64:
 		case R_AARCH64_GLOB_DAT:
-		case R_AARCH64_TLS_TPREL64:
-		case R_AARCH64_TLS_DTPREL64:
-		case R_AARCH64_TLS_DTPMOD64:
 			def = find_symdef(symnum, obj, &defobj, flags, cache,
 			    lockstate);
 			if (def == NULL)
@@ -405,9 +402,19 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 		 * treats TLS_DTPMOD64 as 1028 and TLS_DTPREL64 1029.
 		 */
 		case R_AARCH64_TLS_DTPREL64: /* efectively is TLS_DTPMOD64 */
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return (-1);
+
 			*where += (Elf_Addr)defobj->tlsindex;
 			break;
 		case R_AARCH64_TLS_DTPMOD64: /* efectively is TLS_DTPREL64 */
+			def = find_symdef(symnum, obj, &defobj, flags, cache,
+			    lockstate);
+			if (def == NULL)
+				return (-1);
+
 			*where += (Elf_Addr)(def->st_value + rela->r_addend);
 			break;
 		case R_AARCH64_RELATIVE:
