@@ -1,9 +1,0 @@
-#!/usr/local/bin/tclsh
-
-set CTMname	src-cur
-set CTMref	$CTMSW/../$CTMname
-set CTMcopy	/c/phk/20R/usr/src
-set CTMdont	{\.core$|/CVS$|/CVS/|^/secure|^/eBones|/#cvs|/\.#}
-set CTMtest	1
-set CTMspecial	1
-set CTMsuff	R20
