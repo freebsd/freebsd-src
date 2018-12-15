@@ -127,6 +127,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		    *((struct ufs1_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 		ip->i_mode = dip1->di_mode;
 		ip->i_nlink = dip1->di_nlink;
+		ip->i_effnlink = dip1->di_nlink;
 		ip->i_size = dip1->di_size;
 		ip->i_flags = dip1->di_flags;
 		ip->i_gen = dip1->di_gen;
@@ -138,6 +139,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 	*dip2 = *((struct ufs2_dinode *)bp->b_data + ino_to_fsbo(fs, ino));
 	ip->i_mode = dip2->di_mode;
 	ip->i_nlink = dip2->di_nlink;
+	ip->i_effnlink = dip2->di_nlink;
 	ip->i_size = dip2->di_size;
 	ip->i_flags = dip2->di_flags;
 	ip->i_gen = dip2->di_gen;
