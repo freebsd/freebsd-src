@@ -938,14 +938,14 @@ ipmi_startup(void *arg)
 	} else if (!on)
 		(void)ipmi_set_watchdog(sc, 0);
 	/*
-	 * Power cycle the system off using IPMI. We use last - 1 since we don't
+	 * Power cycle the system off using IPMI. We use last - 2 since we don't
 	 * handle all the other kinds of reboots. We'll let others handle them.
 	 * We only try to do this if the BMC supports the Chassis device.
 	 */
 	if (sc->ipmi_dev_support & IPMI_ADS_CHASSIS) {
 		device_printf(dev, "Establishing power cycle handler\n");
 		sc->ipmi_power_cycle_tag = EVENTHANDLER_REGISTER(shutdown_final,
-		    ipmi_power_cycle, sc, SHUTDOWN_PRI_LAST - 1);
+		    ipmi_power_cycle, sc, SHUTDOWN_PRI_LAST - 2);
 	}
 }
 

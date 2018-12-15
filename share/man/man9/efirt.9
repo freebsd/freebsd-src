@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2018
+.Dd December 11, 2018
 .Dt EFIRT 9
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@
 .Ft int
 .Fn efi_get_time_capabilities "struct efi_tmcap *tmcap"
 .Ft int
-.Fn efi_reset_system "void"
+.Fn efi_reset_system "enum efi_reset type"
 .Ft int
 .Fn efi_set_time "struct efi_tm *tm"
 .Ft int
@@ -123,7 +123,20 @@ if the time could not be retrieved due to a hardware error.
 .Pp
 The
 .Fn efi_reset_system
-function requests a warm reset and reboot of the system.
+function requests a reset of the system.
+The
+.Fa type
+argument may be one of the
+.Vt enum efi_reset
+values:
+.Bl -tag -width ".Dv EFI_RESET_SHUTDOWN"
+.It Dv EFI_RESET_COLD
+Perform a cold reset of the system, and reboot.
+.It Dv EFI_RESET_WARM
+Perform a warm reset of the system, and reboot.
+.It Dv EFI_RESET_SHUTDOWN
+Power off the system.
+.El
 .Pp
 The
 .Fn efi_set_time
@@ -239,7 +252,7 @@ The variable could not be saved due to a hardware error.
 .It Dv EROFS
 The variable in question is read-only or may not be deleted.
 .It Dv EDOOFUS
-The varialbe could not be set due to an authentication failure.
+The variable could not be set due to an authentication failure.
 .It Dv ENOENT
 The variable trying to be updated or deleted was not found.
 .El

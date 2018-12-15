@@ -691,6 +691,7 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
 
 /* debug functions */
 
+#if 0
 MEM_STATIC double ZSTD_fWeight(U32 rawStat)
 {
     U32 const fp_accuracy = 8;
@@ -714,6 +715,7 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
                 u, table[u], ZSTD_fWeight(sum) - ZSTD_fWeight(table[u]) );
     }
 }
+#endif
 
 #if defined (__cplusplus)
 }

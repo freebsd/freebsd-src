@@ -42,8 +42,9 @@
 	{0xeb9d2d32,0x2d88,0x11d3,0x9a,0x16,{0x00,0x90,0x27,0x3f,0xc1,0x4d}}
 
 enum efi_reset {
-	EFI_RESET_COLD,
-	EFI_RESET_WARM
+	EFI_RESET_COLD = 0,
+	EFI_RESET_WARM = 1,
+	EFI_RESET_SHUTDOWN = 2,
 };
 
 typedef uint16_t	efi_char;
@@ -184,7 +185,7 @@ int efi_rt_ok(void);
 int efi_get_table(struct uuid *uuid, void **ptr);
 int efi_get_time(struct efi_tm *tm);
 int efi_get_time_capabilities(struct efi_tmcap *tmcap);
-int efi_reset_system(void);
+int efi_reset_system(enum efi_reset type);
 int efi_set_time(struct efi_tm *tm);
 int efi_var_get(uint16_t *name, struct uuid *vendor, uint32_t *attrib,
     size_t *datasize, void *data);
