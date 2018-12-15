@@ -161,7 +161,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 int
 ffs_verify_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 {
-	uint32_t save_ckhash;
+	uint32_t ckhash, save_ckhash;
 
 	/*
 	 * Return success if unallocated or we are not doing inode check-hash.
@@ -174,10 +174,11 @@ ffs_verify_dinode_ckhash(struct fs *fs, struct ufs2_dinode *dip)
 	 */
 	save_ckhash = dip->di_ckhash;
 	dip->di_ckhash = 0;
-	if (save_ckhash != calculate_crc32c(~0L, (void *)dip, sizeof(*dip)))
-		return (EINVAL);
+	ckhash = calculate_crc32c(~0L, (void *)dip, sizeof(*dip));
 	dip->di_ckhash = save_ckhash;
-	return (0);
+	if (save_ckhash == ckhash)
+		return (0);
+	return (EINVAL);
 }
 
 /*
