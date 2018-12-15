@@ -118,55 +118,145 @@ ENTRY(_rtld_bind_start)
 END(_rtld_bind_start)
 
 /*
- * uint64_t _rtld_tlsdesc(struct tlsdesc *);
+ * struct rel_tlsdesc {
+ *  uint64_t resolver_fnc;
+ *  uint64_t resolver_arg;
  *
- * struct tlsdesc {
- *  uint64_t ptr;
- *  uint64_t data;
- * };
  *
- * Returns the data.
+ * uint64_t _rtld_tlsdesc_static(struct rel_tlsdesc *);
+ *
+ * Resolver function for TLS symbols resolved at load time
  */
-ENTRY(_rtld_tlsdesc)
+ENTRY(_rtld_tlsdesc_static)
+	.cfi_startproc
 	ldr	x0, [x0, #8]
 	ret
-END(_rtld_tlsdesc)
+	.cfi_endproc
+END(_rtld_tlsdesc_static)
 
 /*
- * uint64_t _rtld_tlsdesc_dynamic(struct tlsdesc *);
+ * uint64_t _rtld_tlsdesc_undef(void);
  *
- * TODO: We could lookup the saved index here to skip saving the entire stack.
+ * Resolver function for weak and undefined TLS symbols
+ */
+ENTRY(_rtld_tlsdesc_undef)
+	.cfi_startproc
+	str	x1, [sp, #-16]!
+	.cfi_adjust_cfa_offset	16
+
+	mrs	x1, tpidr_el0
+	ldr	x0, [x0, #8]
+	sub	x0, x0, x1
+
+	ldr	x1, [sp], #16
+	.cfi_adjust_cfa_offset 	-16
+	.cfi_endproc
+	ret
+END(_rtld_tlsdesc_undef)
+
+/*
+ * uint64_t _rtld_tlsdesc_dynamic(struct rel_tlsdesc *);
+ *
+ * Resolver function for TLS symbols from dlopen()
  */
 ENTRY(_rtld_tlsdesc_dynamic)
-	/* Store any registers we may use in rtld_tlsdesc_handle */
-	stp	x29, x30, [sp, #-(10 * 16)]!
+	.cfi_startproc
+
+	/* Save registers used in fast path */
+	stp	x1,  x2, [sp, #(-2 * 16)]!
+	stp	x3,  x4, [sp, #(1 * 16)]
+	.cfi_adjust_cfa_offset	2 * 16
+	.cfi_rel_offset		x1, 0
+	.cfi_rel_offset		x2, 8
+	.cfi_rel_offset		x3, 16
+	.cfi_rel_offset		x4, 24
+
+	/* Test fastpath - inlined version of tls_get_addr_common(). */
+	ldr	x1, [x0, #8]		/* tlsdesc ptr */
+	mrs	x4, tpidr_el0
+	ldr	x0, [x4]		/* DTV pointer */
+	ldr	x2, [x0]		/* dtv[0] (generation count) */
+	ldr	x3, [x1]		/* tlsdec->dtv_gen */
+	cmp	x2, x3
+	b.ne	1f			/* dtv[0] != tlsdec->dtv_gen */
+
+	ldr	w2, [x1, #8]		/* tlsdec->tls_index */
+	add	w2, w2, #1
+	ldr     x3, [x0, w2, sxtw #3]	/* dtv[tlsdesc->tls_index + 1] */
+	cbz	x3, 1f
+
+	/* Return (dtv[tlsdesc->tls_index + 1] + tlsdesc->tls_offs - tp) */
+	ldr	x2, [x1, #16]		/* tlsdec->tls_offs */
+	add 	x2, x2, x3
+	sub	x0, x2, x4
+	/* Restore registers and return */
+	ldp	 x3,  x4, [sp, #(1 * 16)]
+	ldp	 x1,  x2, [sp], #(2 * 16)
+	.cfi_adjust_cfa_offset 	-2 * 16
+	ret
+
+	/*
+	 * Slow path
+	  * return(
+	 *    tls_get_addr_common(tp, tlsdesc->tls_index, tlsdesc->tls_offs));
+	 *
+	 */
+1:
+	/* Save all interger registers */
+	stp	x29, x30, [sp, #-(8 * 16)]!
+	.cfi_adjust_cfa_offset	8 * 16
+	.cfi_rel_offset		x29, 0
+	.cfi_rel_offset		x30, 8
+
 	mov	x29, sp
-	stp	x1, x2,   [sp, #(1 * 16)]
-	stp	x3, x4,   [sp, #(2 * 16)]
-	stp	x5, x6,   [sp, #(3 * 16)]
-	stp	x7, x8,   [sp, #(4 * 16)]
-	stp	x9, x10,  [sp, #(5 * 16)]
-	stp	x11, x12, [sp, #(6 * 16)]
-	stp	x13, x14, [sp, #(7 * 16)]
-	stp	x15, x16, [sp, #(8 * 16)]
-	stp	x17, x18, [sp, #(9 * 16)]
+	stp	x5,   x6, [sp, #(1 * 16)]
+	stp	x7,   x8, [sp, #(2 * 16)]
+	stp	x9,  x10, [sp, #(3 * 16)]
+	stp	x11, x12, [sp, #(4 * 16)]
+	stp	x13, x14, [sp, #(5 * 16)]
+	stp	x15, x16, [sp, #(6 * 16)]
+	stp	x17, x18, [sp, #(7 * 16)]
+	.cfi_rel_offset		 x5, 16
+	.cfi_rel_offset		 x6, 24
+	.cfi_rel_offset		 x7, 32
+	.cfi_rel_offset		 x8, 40
+	.cfi_rel_offset		 x9, 48
+	.cfi_rel_offset		x10, 56
+	.cfi_rel_offset		x11, 64
+	.cfi_rel_offset		x12, 72
+	.cfi_rel_offset		x13, 80
+	.cfi_rel_offset		x14, 88
+	.cfi_rel_offset		x15, 96
+	.cfi_rel_offset		x16, 104
+	.cfi_rel_offset		x17, 112
+	.cfi_rel_offset		x18, 120
 
 	/* Find the tls offset */
-	ldr	x0, [x0, #8]
-	mov	x1, #1
-	bl	rtld_tlsdesc_handle
+	mov	x0, x4			/* tp */
+	mov	x3, x1			/* tlsdesc ptr */
+	ldr	w1, [x3, #8]		/* tlsdec->tls_index */
+	ldr	x2, [x3, #16]		/* tlsdec->tls_offs */
+	bl	tls_get_addr_common
+	mrs	x1, tpidr_el0
+	sub	x0, x0, x1
 
-	/* Restore the registers */
-	ldp	x17, x18, [sp, #(9 * 16)]
-	ldp	x15, x16, [sp, #(8 * 16)]
-	ldp	x13, x14, [sp, #(7 * 16)]
-	ldp	x11, x12, [sp, #(6 * 16)]
-	ldp	x9, x10,  [sp, #(5 * 16)]
-	ldp	x7, x8,   [sp, #(4 * 16)]
-	ldp	x5, x6,   [sp, #(3 * 16)]
-	ldp	x3, x4,   [sp, #(2 * 16)]
-	ldp	x1, x2,   [sp, #(1 * 16)]
-	ldp	x29, x30, [sp], #(10 * 16)
+	/* Restore slow patch registers */
+	ldp	x17, x18, [sp, #(7 * 16)]
+	ldp	x15, x16, [sp, #(6 * 16)]
+	ldp	x13, x14, [sp, #(5 * 16)]
+	ldp	x11, x12, [sp, #(4 * 16)]
+	ldp	x9, x10,  [sp, #(3 * 16)]
+	ldp	x7, x8,   [sp, #(2 * 16)]
+	ldp	x5, x6,   [sp, #(1 * 16)]
+	ldp	x29, x30, [sp], #(8 * 16)
+	.cfi_adjust_cfa_offset 	-8 * 16
+	.cfi_restore		x29
+	.cfi_restore		x30
 
+	/* Restore fast path registers and return */
+	ldp	 x3,  x4, [sp, #16]
+	ldp	 x1,  x2, [sp], #(2 * 16)
+	.cfi_adjust_cfa_offset	-2 * 16
+	.cfi_endproc
 	ret
 END(_rtld_tlsdesc_dynamic)
