@@ -111,6 +111,7 @@ csb_ktoa_kick_enable(struct nm_csb_ktoa __user *csb_ktoa, uint32_t val)
 	CSB_WRITE(csb_ktoa, kern_need_kick, val);
 }
 
+#ifdef SYNC_KLOOP_POLL
 /* Are application interrupt enabled or disabled? */
 static inline uint32_t
 csb_atok_intr_enabled(struct nm_csb_atok __user *csb_atok)
@@ -121,6 +122,7 @@ csb_atok_intr_enabled(struct nm_csb_atok __user *csb_atok)
 
 	return v;
 }
+#endif  /* SYNC_KLOOP_POLL */
 
 static inline void
 sync_kloop_kring_dump(const char *title, const struct netmap_kring *kring)
