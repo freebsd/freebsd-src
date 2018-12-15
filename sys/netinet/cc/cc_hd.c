@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/khelp/h_ertt.h>
 
-#define	CAST_PTR_INT(X)	(*((int*)(X)))
-
 /* Largest possible number returned by random(). */
 #define	RANDOM_MAX	INT_MAX
 
@@ -188,8 +186,7 @@ hd_pmax_handler(SYSCTL_HANDLER_ARGS)
 	new = V_hd_pmax;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) == 0 ||
-		    CAST_PTR_INT(req->newptr) > 100)
+		if (new == 0 || new > 100)
 			error = EINVAL;
 		else
 			V_hd_pmax = new;
@@ -207,7 +204,7 @@ hd_qmin_handler(SYSCTL_HANDLER_ARGS)
 	new = V_hd_qmin;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) > V_hd_qthresh)
+		if (new > V_hd_qthresh)
 			error = EINVAL;
 		else
 			V_hd_qmin = new;
@@ -225,8 +222,7 @@ hd_qthresh_handler(SYSCTL_HANDLER_ARGS)
 	new = V_hd_qthresh;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) < 1 ||
-		    CAST_PTR_INT(req->newptr) < V_hd_qmin)
+		if (new == 0 || new < V_hd_qmin)
 			error = EINVAL;
 		else
 			V_hd_qthresh = new;
