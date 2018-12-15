@@ -429,6 +429,9 @@ mv_pcib_probe(device_t self)
 	    OF_parent(node), "marvell,armada-370-pcie")))
 		return (ENXIO);
 
+	if (!ofw_bus_status_okay(self))
+		return (ENXIO);
+
 	device_set_desc(self, "Marvell Integrated PCI/PCI-E Controller");
 	return (BUS_PROBE_DEFAULT);
 }
