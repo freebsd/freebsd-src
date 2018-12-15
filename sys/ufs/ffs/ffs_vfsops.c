@@ -1692,6 +1692,7 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ip->i_ea_refs = 0;
 	ip->i_nextclustercg = -1;
 	ip->i_flag = fs->fs_magic == FS_UFS1_MAGIC ? 0 : IN_UFS2;
+	ip->i_mode = 0; /* ensure error cases below throw away vnode */
 #ifdef QUOTA
 	{
 		int i;
