@@ -22,13 +22,24 @@ case "$weekly_noid_enable" in
 
 	exclude=''
 	if [ $(sysctl -n security.jail.jailed) = 0 ]; then
+	    # For jail_conf
+	    . /etc/rc.subr
+	    load_rc_config jail
+
 	    sep=:
 	    OIFS="$IFS"
 	    IFS="$sep"
-	    for param in $(jail -f "`sysrc -n jail_conf`" -e "$sep" 2>/dev/null)
+	    for param in $(jail -f "$jail_conf" -e "$sep" 2>/dev/null)
 	    do
 		case "$param" in
-		    path=*) exclude="$exclude -path ${param#path=} -prune -or"
+		    path=*)
+			_p=${param#path=}
+			if [ -z "$_p" -o "$_p" = / ]; then
+				continue
+			fi
+
+			exclude="$exclude -path $_p -prune -or"
+			;;
 		esac
 	    done
 	    IFS="$OIFS"
