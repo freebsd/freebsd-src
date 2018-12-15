@@ -309,6 +309,8 @@ ginode(ino_t inumber)
 		if (preen || reply("FIX") != 0) {
 			if (preen)
 				printf(" (FIXED)\n");
+			ffs_update_dinode_ckhash(&sblock,
+			    (struct ufs2_dinode *)dp);
 			inodirty(dp);
 		}
 	}
