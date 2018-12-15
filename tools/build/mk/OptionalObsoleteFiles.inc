@@ -8513,14 +8513,6 @@ OLD_FILES+=usr/share/man/man1/tftp.1.gz
 OLD_FILES+=usr/share/man/man8/tftpd.8.gz
 .endif
 
-.if ${MK_TIMED} == no
-OLD_FILES+=usr/sbin/timed
-OLD_FILES+=usr/sbin/timedc
-OLD_FILES+=usr/share/man/man8/timed.8.gz
-OLD_FILES+=usr/share/man/man8/timedc.8.gz
-.endif
-
-.if ${MK_TOOLCHAIN} == no
 OLD_FILES+=usr/bin/addr2line
 OLD_FILES+=usr/bin/as
 OLD_FILES+=usr/bin/byacc
