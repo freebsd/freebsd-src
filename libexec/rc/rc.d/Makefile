@@ -291,10 +291,6 @@ SMRCD=		sendmail
 SMRCDPACKAGE=	sendmail
 .endif
 
-.if ${MK_TIMED} != "no"
-CONFS+=		timed
-.endif
-
 .if ${MK_UNBOUND} != "no"
 CONFGROUPS+=	UNBOUND
 UNBOUND+=	local_unbound

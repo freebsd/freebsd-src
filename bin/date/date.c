@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <utmpx.h>
 
-#include "extern.h"
 #include "vary.h"
 
 #ifndef	TM_YEAR_BASE
@@ -67,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static time_t tval;
-int retval;
 
 static void badformat(void);
 static void iso8601_usage(const char *);
@@ -248,7 +246,7 @@ printdate(const char *buf)
 	(void)printf("%s\n", buf);
 	if (fflush(stdout))
 		err(1, "stdout");
-	exit(retval);
+	exit(EXIT_SUCCESS);
 }
 
 static void
@@ -370,7 +368,7 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 
 	if (!jflag) {
 		/* set the time */
-		if (nflag || netsettime(tval)) {
+		if (nflag) {
 			utx.ut_type = OLD_TIME;
 			memset(utx.ut_id, 0, sizeof(utx.ut_id));
 			(void)gettimeofday(&utx.ut_tv, NULL);
