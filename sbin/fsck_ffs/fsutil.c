@@ -576,9 +576,7 @@ blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 		slowio_start();
 	totalreads++;
 	diskreads++;
-	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK BLK", blk);
-	else if (read(fd, buf, (int)size) == size) {
+	if (pread(fd, buf, (int)size, offset) == size) {
 		if (bkgrdflag)
 			slowio_end();
 		return (0);
@@ -595,14 +593,11 @@ blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 	} else
 		rwerror("READ BLK", blk);
 
-	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK BLK", blk);
 	errs = 0;
 	memset(buf, 0, (size_t)size);
 	printf("THE FOLLOWING DISK SECTORS COULD NOT BE READ:");
 	for (cp = buf, i = 0; i < size; i += secsize, cp += secsize) {
-		if (read(fd, cp, (int)secsize) != secsize) {
-			(void)lseek(fd, offset + i + secsize, 0);
+		if (pread(fd, cp, (int)secsize, offset + i) != secsize) {
 			if (secsize != dev_bsize && dev_bsize != 1)
 				printf(" %jd (%jd),",
 				    (intmax_t)(blk * dev_bsize + i) / secsize,
@@ -629,22 +624,16 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size)
 		return;
 	offset = blk;
 	offset *= dev_bsize;
-	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK BLK", blk);
-	else if (write(fd, buf, size) == size) {
+	if (pwrite(fd, buf, size, offset) == size) {
 		fsmodified = 1;
 		return;
 	}
 	resolved = 0;
 	rwerror("WRITE BLK", blk);
-	if (lseek(fd, offset, 0) < 0)
-		rwerror("SEEK BLK", blk);
 	printf("THE FOLLOWING SECTORS COULD NOT BE WRITTEN:");
 	for (cp = buf, i = 0; i < size; i += dev_bsize, cp += dev_bsize)
-		if (write(fd, cp, dev_bsize) != dev_bsize) {
-			(void)lseek(fd, offset + i + dev_bsize, 0);
+		if (pwrite(fd, cp, dev_bsize, offset + i) != dev_bsize)
 			printf(" %jd,", (intmax_t)blk + i / dev_bsize);
-		}
 	printf("\n");
 	return;
 }
