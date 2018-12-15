@@ -402,7 +402,7 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
  * Process the PLT relocations.
  */
 int
-reloc_plt(Obj_Entry *obj)
+reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
