@@ -193,6 +193,10 @@ main(int argc, char **argv)
 				mdio.md_options |= MD_READONLY;
 			else if (!strcmp(optarg, "noreadonly"))
 				mdio.md_options &= ~MD_READONLY;
+			else if (!strcmp(optarg, "ro"))
+				mdio.md_options |= MD_READONLY;
+			else if (!strcmp(optarg, "noro"))
+				mdio.md_options &= ~MD_READONLY;
 			else if (!strcmp(optarg, "reserve"))
 				mdio.md_options |= MD_RESERVE;
 			else if (!strcmp(optarg, "noreserve"))
