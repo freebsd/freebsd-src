@@ -527,10 +527,11 @@ zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 	pa.fd = open(devname, O_RDONLY);
 	if (pa.fd == -1)
 		return (ENXIO);
-	/* Probe the whole disk */
-	ret = zfs_probe(pa.fd, pool_guid);
-	if (ret == 0)
-		return (0);
+	/*
+	 * We will not probe the whole disk, we can not boot from such
+	 * disks and some systems will misreport the disk sizes and will
+	 * hang while accessing the disk.
+	 */
 
 	/* Probe each partition */
 	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);
