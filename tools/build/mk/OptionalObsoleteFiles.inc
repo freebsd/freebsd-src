@@ -38,7 +38,7 @@ OLD_FILES+=usr/tests/usr.sbin/sa/v2-i386-usr.in
 OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-sav.in
 OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-u.out
 OLD_FILES+=usr/tests/usr.sbin/sa/v2-sparc64-usr.in
-OLD_FILES+=usr/tests/usr.sbin/sa
+OLD_DIRS+=usr/tests/usr.sbin/sa
 .endif
 
 .if ${MK_ACPI} == no
