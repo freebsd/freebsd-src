@@ -313,7 +313,7 @@ main(int argc, char *const *argv)
 			break;
 		case 'c':
 			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > LONG_MAX || ltmp <=0)
+			if (*ep || ep == optarg || ltmp <= 0)
 				errx(EX_USAGE,
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
