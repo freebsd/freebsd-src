@@ -160,6 +160,22 @@ OLD_FILES+=usr/share/man/man5/auditdistd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
 OLD_FILES+=usr/share/man/man8/auditdistd.8.gz
+OLD_FILES+=usr/tests/sys/audit/process-control
+OLD_FILES+=usr/tests/sys/audit/open
+OLD_FILES+=usr/tests/sys/audit/network
+OLD_FILES+=usr/tests/sys/audit/miscellaneous
+OLD_FILES+=usr/tests/sys/audit/Kyuafile
+OLD_FILES+=usr/tests/sys/audit/ioctl
+OLD_FILES+=usr/tests/sys/audit/inter-process
+OLD_FILES+=usr/tests/sys/audit/file-write
+OLD_FILES+=usr/tests/sys/audit/file-read
+OLD_FILES+=usr/tests/sys/audit/file-delete
+OLD_FILES+=usr/tests/sys/audit/file-create
+OLD_FILES+=usr/tests/sys/audit/file-close
+OLD_FILES+=usr/tests/sys/audit/file-attribute-modify
+OLD_FILES+=usr/tests/sys/audit/file-attribute-access
+OLD_FILES+=usr/tests/sys/audit/administrative
+OLD_DIRS+=usr/tests/sys/audit
 .endif
 
 .if ${MK_AUTHPF} == no
