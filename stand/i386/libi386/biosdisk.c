@@ -646,7 +646,7 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	}
 
 	if (V86_IO_BUFFER_SIZE / BD(dev).bd_sectorsize == 0)
-		panic("BUG: Real mode buffer is too small\n");
+		panic("BUG: Real mode buffer is too small");
 
 	bbuf = PTOV(V86_IO_BUFFER);
 	rest = size;
