@@ -4057,6 +4057,36 @@ bus_generic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 }
 
 /**
+ * @brief Helper function for implementing BUS_SUSPEND_INTR().
+ *
+ * This simple implementation of BUS_SUSPEND_INTR() simply calls the
+ * BUS_SUSPEND_INTR() method of the parent of @p dev.
+ */
+int
+bus_generic_suspend_intr(device_t dev, device_t child, struct resource *irq)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_SUSPEND_INTR(dev->parent, child, irq));
+	return (EINVAL);
+}
+
+/**
+ * @brief Helper function for implementing BUS_RESUME_INTR().
+ *
+ * This simple implementation of BUS_RESUME_INTR() simply calls the
+ * BUS_RESUME_INTR() method of the parent of @p dev.
+ */
+int
+bus_generic_resume_intr(device_t dev, device_t child, struct resource *irq)
+{
+	/* Propagate up the bus hierarchy until someone handles it. */
+	if (dev->parent)
+		return (BUS_RESUME_INTR(dev->parent, child, irq));
+	return (EINVAL);
+}
+
+/**
  * @brief Helper function for implementing BUS_ADJUST_RESOURCE().
  *
  * This simple implementation of BUS_ADJUST_RESOURCE() simply calls the
@@ -4621,6 +4651,34 @@ bus_teardown_intr(device_t dev, struct resource *r, void *cookie)
 	if (dev->parent == NULL)
 		return (EINVAL);
 	return (BUS_TEARDOWN_INTR(dev->parent, dev, r, cookie));
+}
+
+/**
+ * @brief Wrapper function for BUS_SUSPEND_INTR().
+ *
+ * This function simply calls the BUS_SUSPEND_INTR() method of the
+ * parent of @p dev.
+ */
+int
+bus_suspend_intr(device_t dev, struct resource *r)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_SUSPEND_INTR(dev->parent, dev, r));
+}
+
+/**
+ * @brief Wrapper function for BUS_RESUME_INTR().
+ *
+ * This function simply calls the BUS_RESUME_INTR() method of the
+ * parent of @p dev.
+ */
+int
+bus_resume_intr(device_t dev, struct resource *r)
+{
+	if (dev->parent == NULL)
+		return (EINVAL);
+	return (BUS_RESUME_INTR(dev->parent, dev, r));
 }
 
 /**
