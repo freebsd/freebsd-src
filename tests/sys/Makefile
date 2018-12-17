@@ -6,7 +6,7 @@ TESTSDIR=		${TESTSBASE}/sys
 
 TESTS_SUBDIRS+=		acl
 TESTS_SUBDIRS+=		aio
-TESTS_SUBDIRS+=		audit
+TESTS_SUBDIRS+=		${_audit}
 TESTS_SUBDIRS+=		auditpipe
 TESTS_SUBDIRS+=		capsicum
 TESTS_SUBDIRS+=		${_cddl}
@@ -26,6 +26,10 @@ TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		sys
 TESTS_SUBDIRS+=		vfs
 TESTS_SUBDIRS+=		vm
+
+.if ${MK_AUDIT} != "no"
+_audit=	audit
+.endif
 
 .if ${MK_CDDL} != "no"
 _cddl=	cddl
