@@ -485,6 +485,10 @@ int	bus_generic_suspend(device_t dev);
 int	bus_generic_suspend_child(device_t dev, device_t child);
 int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
+int	bus_generic_suspend_intr(device_t dev, device_t child,
+				  struct resource *irq);
+int	bus_generic_resume_intr(device_t dev, device_t child,
+				  struct resource *irq);
 int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
 				   struct resource *r,
 				   struct resource_map *map);
@@ -535,6 +539,8 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_filter_t filter, driver_intr_t handler, 
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
+int	bus_suspend_intr(device_t dev, struct resource *r);
+int	bus_resume_intr(device_t dev, struct resource *r);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
 int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
 			  const char *fmt, ...) __printflike(4, 5);

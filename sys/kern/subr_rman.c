@@ -94,6 +94,7 @@ struct resource_i {
 	rman_res_t	r_end;		/* index of the last entry (inclusive) */
 	u_int	r_flags;
 	void	*r_virtual;	/* virtual address of this resource */
+	void	*r_irq_cookie;	/* interrupt cookie for this (interrupt) resource */
 	device_t r_dev;	/* device which has allocated this resource */
 	struct rman *r_rm;	/* resource manager from whence this came */
 	int	r_rid;		/* optional rid for this resource. */
@@ -866,6 +867,20 @@ rman_get_virtual(struct resource *r)
 {
 
 	return (r->__r_i->r_virtual);
+}
+
+void
+rman_set_irq_cookie(struct resource *r, void *c)
+{
+
+	r->__r_i->r_irq_cookie = c;
+}
+
+void *
+rman_get_irq_cookie(struct resource *r)
+{
+
+	return (r->__r_i->r_irq_cookie);
 }
 
 void
