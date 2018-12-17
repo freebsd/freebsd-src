@@ -1256,7 +1256,8 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd)
 	    (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST) ?
 		32 : contigmask((uint8_t *)&(a[1]), 32);
 	if (mb == 32 && co.do_resolv)
-		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
+		he = gethostbyaddr((char *)&(a[0]), sizeof(in_addr_t),
+		    AF_INET);
 	if (he != NULL)		/* resolved to name */
 		bprintf(bp, "%s", he->h_name);
 	else if (mb == 0)	/* any */
@@ -1510,6 +1511,7 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 			bprintf(bp, " %s", pe->p_name);
 		else
 			bprintf(bp, " %u", cmd->arg1);
+		state->proto = cmd->arg1;
 		break;
 	case O_MACADDR2:
 		print_mac(bp, insntod(cmd, mac));
@@ -1991,10 +1993,10 @@ print_proto(struct buf_pr *bp, struct format_opts *fo,
     struct show_state *state)
 {
 	ipfw_insn *cmd;
-	int l, proto, ip4, ip6, tmp;
+	int l, proto, ip4, ip6;
 
 	/* Count all O_PROTO, O_IP4, O_IP6 instructions. */
-	proto = tmp = ip4 = ip6 = 0;
+	proto = ip4 = ip6 = 0;
 	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
 	    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
 		switch (cmd->opcode) {
@@ -2030,18 +2032,13 @@ print_proto(struct buf_pr *bp, struct format_opts *fo,
 	if (cmd == NULL || (cmd->len & F_OR))
 		for (l = proto; l > 0; l--) {
 			cmd = print_opcode(bp, fo, state, O_PROTO);
-			if (cmd != NULL && (cmd->len & F_OR) == 0)
+			if (cmd == NULL || (cmd->len & F_OR) == 0)
 				break;
-			tmp = cmd->arg1;
 		}
 	/* Initialize proto, it is used by print_newports() */
-	if (tmp != 0)
-		state->proto = tmp;
-	else if (ip6 != 0)
-		state->proto = IPPROTO_IPV6;
-	else
-		state->proto = IPPROTO_IP;
 	state->flags |= HAVE_PROTO;
+	if (state->proto == 0 && ip6 != 0)
+		state->proto = IPPROTO_IPV6;
 }
 
 static int
