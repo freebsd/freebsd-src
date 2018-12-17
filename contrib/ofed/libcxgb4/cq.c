@@ -283,6 +283,12 @@ next_cqe:
 
 static int cqe_completes_wr(struct t4_cqe *cqe, struct t4_wq *wq)
 {
+	if (DRAIN_CQE(cqe)) {
+		fprintf(stderr, "Unexpected DRAIN CQE qp id %u!\n",
+			wq->sq.qid);
+		return 0;
+	}
+
 	if (CQE_OPCODE(cqe) == FW_RI_TERMINATE)
 		return 0;
 
@@ -367,6 +373,15 @@ static int poll_cq(struct t4_wq *wq, struct t4_cq *cq, struct t4_cqe *cqe,
 	 */
 	if (wq == NULL) {
 		ret = -EAGAIN;
+		goto skip_cqe;
+	}
+
+	/*
+	 * Special cqe for drain WR completions...
+	 */
+	if (DRAIN_CQE(hw_cqe)) {
+		*cookie = CQE_DRAIN_COOKIE(hw_cqe);
+		*cqe = *hw_cqe;
 		goto skip_cqe;
 	}
 

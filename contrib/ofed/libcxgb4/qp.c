@@ -396,6 +396,116 @@ static void ring_kernel_db(struct c4iw_qp *qhp, u32 qid, u16 idx)
 	assert(!ret);
 }
 
+static int ibv_to_fw_opcode(int ib_opcode)
+{
+	int opcode;
+
+	switch (ib_opcode) {
+	case IBV_WR_SEND_WITH_INV:
+		opcode = FW_RI_SEND_WITH_INV;
+		break;
+	case IBV_WR_SEND:
+		opcode = FW_RI_SEND;
+		break;
+	case IBV_WR_RDMA_WRITE:
+		opcode = FW_RI_RDMA_WRITE;
+		break;
+	case IBV_WR_RDMA_WRITE_WITH_IMM:
+		opcode = FW_RI_WRITE_IMMEDIATE;
+		break;
+	case IBV_WR_RDMA_READ:
+		opcode = FW_RI_READ_REQ;
+		break;
+	default:
+		opcode = -EINVAL;
+	}
+	return opcode;
+}
+
+static int complete_sq_drain_wr(struct c4iw_qp *qhp, struct ibv_send_wr *wr)
+{
+	struct t4_cqe cqe = {};
+	struct c4iw_cq *schp;
+	struct t4_cq *cq;
+	int opcode;
+
+	schp = to_c4iw_cq(qhp->ibv_qp.send_cq);
+	cq = &schp->cq;
+
+	opcode = ibv_to_fw_opcode(wr->opcode);
+	if (opcode < 0)
+		return opcode;
+
+	PDBG("drain sq id %u\n", qhp->wq.sq.qid);
+	cqe.u.drain_cookie = wr->wr_id;
+	cqe.header = htobe32(V_CQE_STATUS(T4_ERR_SWFLUSH) |
+				 V_CQE_OPCODE(opcode) |
+				 V_CQE_TYPE(1) |
+				 V_CQE_SWCQE(1) |
+				 V_CQE_DRAIN(1) |
+				 V_CQE_QPID(qhp->wq.sq.qid));
+
+	pthread_spin_lock(&schp->lock);
+	cqe.bits_type_ts = htobe64(V_CQE_GENBIT((u64)cq->gen));
+	cq->sw_queue[cq->sw_pidx] = cqe;
+	t4_swcq_produce(cq);
+	pthread_spin_unlock(&schp->lock);
+
+	t4_clear_cq_armed(&schp->cq);
+	return 0;
+}
+
+static int complete_sq_drain_wrs(struct c4iw_qp *qhp, struct ibv_send_wr *wr,
+				 struct ibv_send_wr **bad_wr)
+{
+	int ret = 0;
+
+	while (wr) {
+		ret = complete_sq_drain_wr(qhp, wr);
+		if (ret) {
+			*bad_wr = wr;
+			break;
+		}
+		wr = wr->next;
+	}
+	return ret;
+}
+
+static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ibv_recv_wr *wr)
+{
+	struct t4_cqe cqe = {};
+	struct c4iw_cq *rchp;
+	struct t4_cq *cq;
+
+	rchp = to_c4iw_cq(qhp->ibv_qp.recv_cq);
+	cq = &rchp->cq;
+
+	PDBG("drain rq id %u\n", qhp->wq.sq.qid);
+	cqe.u.drain_cookie = wr->wr_id;
+	cqe.header = htobe32(V_CQE_STATUS(T4_ERR_SWFLUSH) |
+				 V_CQE_OPCODE(FW_RI_SEND) |
+				 V_CQE_TYPE(0) |
+				 V_CQE_SWCQE(1) |
+				 V_CQE_DRAIN(1) |
+				 V_CQE_QPID(qhp->wq.sq.qid));
+
+	pthread_spin_lock(&rchp->lock);
+	cqe.bits_type_ts = htobe64(V_CQE_GENBIT((u64)cq->gen));
+	cq->sw_queue[cq->sw_pidx] = cqe;
+	t4_swcq_produce(cq);
+	pthread_spin_unlock(&rchp->lock);
+
+	t4_clear_cq_armed(&rchp->cq);
+}
+
+static void complete_rq_drain_wrs(struct c4iw_qp *qhp, struct ibv_recv_wr *wr)
+{
+	while (wr) {
+		complete_rq_drain_wr(qhp, wr);
+		wr = wr->next;
+	}
+}
+
 static void post_write_cmpl(struct c4iw_qp *qhp, struct ibv_send_wr *wr)
 {
 	bool send_signaled = (wr->next->send_flags & IBV_SEND_SIGNALED) ||
@@ -472,10 +582,15 @@ int c4iw_post_send(struct ibv_qp *ibqp, struct ibv_send_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	pthread_spin_lock(&qhp->lock);
-	if (t4_wq_in_error(&qhp->wq)) {
+
+	/*
+	 * If the qp has been flushed, then just insert a special
+	 * drain cqe.
+	 */
+	if (qhp->wq.flushed) {
 		pthread_spin_unlock(&qhp->lock);
-		*bad_wr = wr;
-		return -EINVAL;
+		err = complete_sq_drain_wrs(qhp, wr, bad_wr);
+		return err;
 	}
 	num_wrs = t4_sq_avail(&qhp->wq);
 	if (num_wrs == 0) {
@@ -612,10 +727,15 @@ int c4iw_post_receive(struct ibv_qp *ibqp, struct ibv_recv_wr *wr,
 
 	qhp = to_c4iw_qp(ibqp);
 	pthread_spin_lock(&qhp->lock);
-	if (t4_wq_in_error(&qhp->wq)) {
+
+	/*
+	 * If the qp has been flushed, then just insert a special
+	 * drain cqe.
+	 */
+	if (qhp->wq.flushed) {
 		pthread_spin_unlock(&qhp->lock);
-		*bad_wr = wr;
-		return -EINVAL;
+		complete_rq_drain_wrs(qhp, wr);
+		return err;
 	}
 	INC_STAT(recv);
 	num_wrs = t4_rq_avail(&qhp->wq);
