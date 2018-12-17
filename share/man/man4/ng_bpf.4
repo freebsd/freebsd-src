@@ -156,7 +156,7 @@ INHOOK="hook1"
 MATCHHOOK="hook2"
 NOTMATCHHOOK="hook3"
 
-BPFPROG=$( tcpdump -s 8192 -ddd ${PATTERN} | \\
+BPFPROG=$( tcpdump -s 8192 -p -ddd ${PATTERN} | \\
            ( read len ; \\
              echo -n "bpf_prog_len=$len" ; \\
              echo -n "bpf_prog=[" ; \\
