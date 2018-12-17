@@ -38,6 +38,16 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181215: Migration of CTM to ports
+OLD_FILES+=usr/sbin/ctm
+OLD_FILES+=usr/sbin/ctm_dequeue
+OLD_FILES+=usr/sbin/ctm_rmail
+OLD_FILES+=usr/sbin/ctm_smail
+OLD_FILES+=usr/share/man/man1/ctm.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_dequeue.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_rmail.1.gz
+OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
+OLD_FILES+=usr/share/man/man5/ctm.5.gz
 # 20181214: Remove timed files
 OLD_FILES+=etc/rc.d/timed
 OLD_FILES+=usr/sbin/timed
