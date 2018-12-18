@@ -1259,7 +1259,6 @@ PrPopDirective (
         AslGbl_DirectiveInfo[Info->Directive].Name,
         Info->Argument, AslGbl_IgnoringThisCodeBlock ? "TRUE" : "FALSE");
 
-    ACPI_FREE (Info);
     return (AE_OK);
 }
 

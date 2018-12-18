@@ -1,4 +1,115 @@
 ----------------------------------------
+13 December 2018. Summary of changes for version 20181213:
+
+
+1) ACPICA Kernel-resident Subsystem:
+
+Fixed some buffer length issues with the GenericSerialBus, related to two 
+of the bidirectional protocols: AttribRawProcessBytes and AttribRawBytes, 
+which are rarely seen in the field. For these, the LEN field of the ASL 
+buffer is now ignored. Hans de Goede
+
+Implemented a new object evaluation trace mechanism for control methods 
+and data objects. This includes nested control methods. It is 
+particularly useful for examining the ACPI execution during system 
+initialization since the output is relatively terse. The flag below 
+enables the output of the trace via the ACPI_DEBUG_PRINT_RAW interface:
+   #define ACPI_LV_EVALUATION          0x00080000
+
+Examples:
+   Enter evaluation       :  _SB.PCI0._INI (Method)
+   Exit evaluation        :  _SB.PCI0._INI
+   Enter evaluation       :  _OSI (Method)
+   Exit evaluation        :  _OSI
+   Enter evaluation       :  _SB.PCI0.TEST (Method)
+   Nested method call     :     _SB.PCI0.NST1
+   Exit nested method     :     _SB.PCI0.NST1
+   Exit evaluation        :  _SB.PCI0.TEST
+
+Added two recently-defined _OSI strings. See 
+https://docs.microsoft.com/en-us/windows-hardware/drivers/acpi/winacpi-
+osi.
+   "Windows 2018"
+   "Windows 2018.2"
+
+Update for buffer-to-string conversions via the ToHexString ASL operator. 
+A "0x" is now prepended to each of the hex values in the output string. 
+This provides compatibility with other ACPI implementations. The ACPI 
+specification is somewhat vague on this issue.
+   Example output string after conversion: 
+"0x01,0x02,0x03,0x04,0x05,0x06"
+
+Return a run-time error for TermArg expressions within individual package 
+elements. Although this is technically supported by the ASL grammar, 
+other ACPI implementations do not support this either. Also, this fixes a 
+fault if this type of construct is ever encountered (it never has been).
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL: Implemented a new compile option (-ww) that will promote individual 
+warnings and remarks to errors. This is intended to enhance the firmware 
+build process.
+
+AcpiExec: Implemented a new command-line option (-eo) to support the new 
+object evaluation trace mechanism described above.
+
+Disassembler: Added support to disassemble OEMx tables as AML/ASL tables 
+instead of a "unknown table" message.
+
+AcpiHelp: Improved support for the "special" predefined names such as 
+_Lxx, _Exx, _EJx, _T_x, etc. For these, any legal hex value can now be 
+used for "xx" and "x".
+
+----------------------------------------
+31 October 2018. Summary of changes for version 20181031:
+
+
+An Operation Region regression was fixed by properly adding address 
+ranges to a global list during initialization. This allows OS to 
+accurately check for overlapping regions between native devices (such as 
+PCI) and Operation regions as well as checking for region conflicts 
+between two Operation Regions.
+
+Added support for the 2-byte extended opcodes in the code/feature that 
+attempts to continue parsing during the table load phase. Skip parsing 
+Device declarations (and other extended opcodes) when an error occurs 
+during parsing. Previously, only single-byte opcodes were supported.
+
+Cleanup: Simplified the module-level code support by eliminating a 
+useless global variable (AcpiGbl_GroupModuleLeveCode).
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+iASL/Preprocessor: Fixed a regression where an incorrect use of ACPI_FREE 
+could cause a fault in the preprocessor. This was an inadvertent side-
+effect from moving more allocations/frees to the local cache/memory 
+mechanism.
+
+iASL: Enhanced error detection by validating that all NameSeg elements 
+within a NamePatch actually exist. The previous behavior was spotty at 
+best, and such errors could be improperly ignored at compiler time (never 
+at runtime, however. There are two new error messages, as shown in the 
+examples below:
+
+dsdt.asl     33:     CreateByteField (TTTT.BXXX, 1, CBF1)
+Error    6161 -                              ^ One or more objects within 
+the Pathname do not exist (TTTT.BXXX)
+
+dsdt.asl     34:     CreateByteField (BUF1, UUUU.INT1, BBBB.CBF1)
+Error    6160 -        One or more prefix Scopes do not exist ^  
+(BBBB.CBF1)
+
+iASL: Disassembler/table-compiler: Added support for the static data 
+table TPM2 revision 3 (an older version of TPM2). The support has been 
+added for the compiler and the disassembler.
+
+Fixed compilation of DOS format data table file on Unix/Linux systems. 
+iASL now properly detects line continuations (\) for DOS format data 
+table definition language files on when executing on Unix/Linux.
+
+----------------------------------------
 03 October 2018. Summary of changes for version 20181003:
 
 

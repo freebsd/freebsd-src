@@ -497,6 +497,51 @@ AcpiDmDumpTcpa (
  * DESCRIPTION: Format the contents of a TPM2.
  *
  ******************************************************************************/
+static void
+AcpiDmDumpTpm2Rev3 (
+    ACPI_TABLE_HEADER       *Table)
+{
+    UINT32                  Offset = sizeof (ACPI_TABLE_TPM23);
+    ACPI_TABLE_TPM23        *CommonHeader = ACPI_CAST_PTR (ACPI_TABLE_TPM23, Table);
+    ACPI_TPM23_TRAILER      *Subtable = ACPI_ADD_PTR (ACPI_TPM23_TRAILER, Table, Offset);
+    ACPI_STATUS             Status;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoTpm23);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Optional subtable if start method is ACPI start method */
+
+    switch (CommonHeader->StartMethod)
+    {
+    case ACPI_TPM23_ACPI_START_METHOD:
+
+        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
+            Table->Length - Offset, AcpiDmTableInfoTpm23a);
+        break;
+
+    default:
+        break;
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpTpm2
+ *
+ * PARAMETERS:  Table               - A TPM2 table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a TPM2.
+ *
+ ******************************************************************************/
 
 void
 AcpiDmDumpTpm2 (
@@ -509,9 +554,16 @@ AcpiDmDumpTpm2 (
     ACPI_STATUS             Status;
 
 
+    if (Table->Revision == 3)
+    {
+        AcpiDmDumpTpm2Rev3(Table);
+        return;
+    }
+
     /* Main table */
 
     Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoTpm2);
+
     if (ACPI_FAILURE (Status))
     {
         return;
