@@ -77,8 +77,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/khelp/h_ertt.h>
 
-#define	CAST_PTR_INT(X)	(*((int*)(X)))
-
 /*
  * Private signal type for rate based congestion signal.
  * See <netinet/cc.h> for appropriate bit-range to use for private signals.
@@ -260,8 +258,7 @@ vegas_alpha_handler(SYSCTL_HANDLER_ARGS)
 	new = V_vegas_alpha;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) < 1 ||
-		    CAST_PTR_INT(req->newptr) > V_vegas_beta)
+		if (new == 0 || new > V_vegas_beta)
 			error = EINVAL;
 		else
 			V_vegas_alpha = new;
@@ -279,8 +276,7 @@ vegas_beta_handler(SYSCTL_HANDLER_ARGS)
 	new = V_vegas_beta;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) < 1 ||
-		    CAST_PTR_INT(req->newptr) < V_vegas_alpha)
+		if (new == 0 || new < V_vegas_alpha)
 			 error = EINVAL;
 		else
 			V_vegas_beta = new;
