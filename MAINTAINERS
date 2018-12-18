@@ -110,7 +110,7 @@ iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
 sys/dev/drm*	imp	Pre-commit review requested in phabricator. Changes need to
-				be mirrored in gitub repo.
+			be mirrored in github repo.
 sys/dev/usb/wlan adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/arm/allwinner	manu	Pre-commit review requested
 sys/arm64/rockchip	manu	Pre-commit review requested
