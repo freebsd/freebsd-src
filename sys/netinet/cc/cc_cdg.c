@@ -78,8 +78,6 @@ __FBSDID("$FreeBSD$");
 
 #define	CDG_VERSION "0.1"
 
-#define	CAST_PTR_INT(X) (*((int*)(X)))
-
 /* Private delay-gradient induced congestion control signal. */
 #define	CC_CDG_DELAY 0x01000000
 
@@ -356,22 +354,37 @@ cdg_cb_destroy(struct cc_var *ccv)
 static int
 cdg_beta_handler(SYSCTL_HANDLER_ARGS)
 {
+	int error;
+	uint32_t new;
 
-	if (req->newptr != NULL &&
-	    (CAST_PTR_INT(req->newptr) == 0 || CAST_PTR_INT(req->newptr) > 100))
-		return (EINVAL);
+	new = *(uint32_t *)arg1;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr != NULL) {
+		if (new == 0 || new > 100)
+			error = EINVAL;
+		else
+			*(uint32_t *)arg1 = new;
+	}
 
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
+	return (error);
 }
 
 static int
 cdg_exp_backoff_scale_handler(SYSCTL_HANDLER_ARGS)
 {
+	int error;
+	uint32_t new;
 
-	if (req->newptr != NULL && CAST_PTR_INT(req->newptr) < 1)
-		return (EINVAL);
+	new = *(uint32_t *)arg1;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr != NULL) {
+		if (new < 1)
+			error = EINVAL;
+		else
+			*(uint32_t *)arg1 = new;
+	}
 
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
+	return (error);
 }
 
 static inline unsigned long
