@@ -2833,12 +2833,12 @@ iwi_auth_and_assoc(struct iwi_softc *sc, struct ieee80211vap *vap)
 
 	IWI_LOCK_ASSERT(sc);
 
-	ni = ieee80211_ref_node(vap->iv_bss);
-
 	if (sc->flags & IWI_FLAG_ASSOCIATED) {
 		DPRINTF(("Already associated\n"));
 		return (-1);
 	}
+
+	ni = ieee80211_ref_node(vap->iv_bss);
 
 	IWI_STATE_BEGIN(sc, IWI_FW_ASSOCIATING);
 	error = 0;
