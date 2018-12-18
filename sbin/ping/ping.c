@@ -708,7 +708,7 @@ main(int argc, char *const *argv)
 	 * We must connect(2) our socket before this point.
 	 */
 	caph_cache_catpages();
-	if (caph_enter() < 0)
+	if (caph_enter_casper() < 0)
 		err(1, "cap_enter");
 
 	cap_rights_init(&rights, CAP_RECV, CAP_EVENT, CAP_SETSOCKOPT);
