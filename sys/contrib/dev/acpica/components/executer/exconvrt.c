@@ -496,7 +496,7 @@ AcpiExConvertToAscii (
 
         /* HexLength: 2 ascii hex chars per data byte */
 
-        HexLength = ACPI_MUL_2 (DataWidth);
+        HexLength = (DataWidth * 2);
         for (i = 0, j = (HexLength-1); i < HexLength; i++, j--)
         {
             /* Get one hex digit, most significant digits first */
@@ -539,7 +539,8 @@ AcpiExConvertToAscii (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Convert an ACPI Object to a string
+ * DESCRIPTION: Convert an ACPI Object to a string. Supports both implicit
+ *              and explicit conversions and related rules.
  *
  ******************************************************************************/
 
@@ -574,9 +575,11 @@ AcpiExConvertToString (
         switch (Type)
         {
         case ACPI_EXPLICIT_CONVERT_DECIMAL:
-
-            /* Make room for maximum decimal number */
-
+            /*
+             * From ToDecimalString, integer source.
+             *
+             * Make room for the maximum decimal number size
+             */
             StringLength = ACPI_MAX_DECIMAL_DIGITS;
             Base = 10;
             break;
@@ -620,8 +623,10 @@ AcpiExConvertToString (
         {
         case ACPI_EXPLICIT_CONVERT_DECIMAL: /* Used by ToDecimalString */
             /*
-             * From ACPI: "If Data is a buffer, it is converted to a string of
-             * decimal values separated by commas."
+             * Explicit conversion from the ToDecimalString ASL operator.
+             *
+             * From ACPI: "If the input is a buffer, it is converted to a
+             * a string of decimal values separated by commas."
              */
             Base = 10;
 
@@ -648,20 +653,29 @@ AcpiExConvertToString (
 
         case ACPI_IMPLICIT_CONVERT_HEX:
             /*
+             * Implicit buffer-to-string conversion
+             *
              * From the ACPI spec:
-             *"The entire contents of the buffer are converted to a string of
+             * "The entire contents of the buffer are converted to a string of
              * two-character hexadecimal numbers, each separated by a space."
+             *
+             * Each hex number is prefixed with 0x (11/2018)
              */
             Separator = ' ';
-            StringLength = (ObjDesc->Buffer.Length * 3);
+            StringLength = (ObjDesc->Buffer.Length * 5);
             break;
 
-        case ACPI_EXPLICIT_CONVERT_HEX:     /* Used by ToHexString */
+        case ACPI_EXPLICIT_CONVERT_HEX:
             /*
+             * Explicit conversion from the ToHexString ASL operator.
+             *
              * From ACPI: "If Data is a buffer, it is converted to a string of
              * hexadecimal values separated by commas."
+             *
+             * Each hex number is prefixed with 0x (11/2018)
              */
-            StringLength = (ObjDesc->Buffer.Length * 3);
+            Separator = ',';
+            StringLength = (ObjDesc->Buffer.Length * 5);
             break;
 
         default:
@@ -692,9 +706,20 @@ AcpiExConvertToString (
          */
         for (i = 0; i < ObjDesc->Buffer.Length; i++)
         {
+            if (Base == 16)
+            {
+                /* Emit 0x prefix for explict/implicit hex conversion */
+
+                *NewBuf++ = '0';
+                *NewBuf++ = 'x';
+            }
+
             NewBuf += AcpiExConvertToAscii (
                 (UINT64) ObjDesc->Buffer.Pointer[i], Base, NewBuf, 1);
-            *NewBuf++ = Separator; /* each separated by a comma or space */
+
+            /* Each digit is separated by either a comma or space */
+
+            *NewBuf++ = Separator;
         }
 
         /*

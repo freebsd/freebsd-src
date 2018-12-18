@@ -222,7 +222,7 @@ ApCheckForPredefinedMethod (
 
         if (MethodInfo->NumArguments != 0)
         {
-            sprintf (AslGbl_MsgBuffer, "%s requires %u", Op->Asl.ExternalName, 0);
+            sprintf (AslGbl_MsgBuffer, "%s requires %d", Op->Asl.ExternalName, 0);
 
             AslError (ASL_WARNING, ASL_MSG_RESERVED_ARG_COUNT_HI, Op,
                 AslGbl_MsgBuffer);

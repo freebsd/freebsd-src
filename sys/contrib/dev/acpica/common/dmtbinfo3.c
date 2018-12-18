@@ -446,6 +446,26 @@ ACPI_DMTABLE_INFO           AcpiDmTableInfoTcpaServer[] =
  *
  ******************************************************************************/
 
+/* TPM2 revision 3 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoTpm23[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_TPM23_OFFSET (Reserved),           "Reserved", 0},
+    {ACPI_DMT_UINT64,   ACPI_TPM23_OFFSET (ControlAddress),     "Control Address", 0},
+    {ACPI_DMT_UINT32,   ACPI_TPM23_OFFSET (StartMethod),        "Start Method", 0},
+    ACPI_DMT_TERMINATOR
+};
+
+/* Trailer in the case that StartMethod == 2 */
+
+ACPI_DMTABLE_INFO           AcpiDmTableInfoTpm23a[] =
+{
+    {ACPI_DMT_UINT32,   ACPI_TPM23A_OFFSET (Reserved),          "Reserved", DT_OPTIONAL},
+    ACPI_DMT_TERMINATOR
+};
+
+/* TPM2 revision 4 */
+
 ACPI_DMTABLE_INFO           AcpiDmTableInfoTpm2[] =
 {
     {ACPI_DMT_UINT16,   ACPI_TPM2_OFFSET (PlatformClass),           "Platform Class", 0},
