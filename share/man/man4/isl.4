@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 03, 2016
+.Dd December 18, 2018
 .Dt ISL 4
 .Os
 .Sh NAME
@@ -46,7 +46,13 @@ isl_load="YES"
 ig4_load="YES"
 .Ed
 .Pp
-In
+On many Chromebook models this driver can be automatically configured with the
+help of the
+.Xr chromebook_platform 4
+driver.
+Alternatively, the
+.Nm
+driver can be manually configured in
 .Pa /boot/device.hints :
 .Cd hint.isl.0.at="iicbus0"
 .Cd hint.isl.0.addr="0x88"
@@ -106,6 +112,7 @@ $ pkg install intel-backlight
 $ sh /usr/local/share/examples/intel-backlight/isl_backlight.sh
 .Ed
 .Sh SEE ALSO
+.Xr chromebook_platform 4 ,
 .Xr ig4 4 ,
 .Xr iicbus 4
 .Sh AUTHORS
