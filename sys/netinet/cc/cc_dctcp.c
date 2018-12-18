@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/cc/cc.h>
 #include <netinet/cc/cc_module.h>
 
-#define	CAST_PTR_INT(X)	(*((int*)(X)))
-
 #define MAX_ALPHA_VALUE 1024
 VNET_DEFINE_STATIC(uint32_t, dctcp_alpha) = 0;
 #define V_dctcp_alpha	    VNET(dctcp_alpha)
@@ -400,7 +398,7 @@ dctcp_alpha_handler(SYSCTL_HANDLER_ARGS)
 	new = V_dctcp_alpha;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) > 1)
+		if (new > 1)
 			error = EINVAL;
 		else {
 			if (new > MAX_ALPHA_VALUE)
@@ -422,7 +420,7 @@ dctcp_shift_g_handler(SYSCTL_HANDLER_ARGS)
 	new = V_dctcp_shift_g;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) > 1)
+		if (new > 1)
 			error = EINVAL;
 		else
 			V_dctcp_shift_g = new;
@@ -440,7 +438,7 @@ dctcp_slowstart_handler(SYSCTL_HANDLER_ARGS)
 	new = V_dctcp_slowstart;
 	error = sysctl_handle_int(oidp, &new, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (CAST_PTR_INT(req->newptr) > 1)
+		if (new > 1)
 			error = EINVAL;
 		else
 			V_dctcp_slowstart = new;
