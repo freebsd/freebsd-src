@@ -44,7 +44,6 @@ contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
-dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
@@ -110,5 +109,8 @@ autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
+sys/dev/drm*	imp	Pre-commit review requested in phabricator. Changes need to
+				be mirrored in gitub repo.
+sys/dev/usb/wlan adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/arm/allwinner	manu	Pre-commit review requested
 sys/arm64/rockchip	manu	Pre-commit review requested
