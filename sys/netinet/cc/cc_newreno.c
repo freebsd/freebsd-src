@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_NEWRENO, "newreno data",
 	"newreno beta values");
 
-#define	CAST_PTR_INT(X) (*((int*)(X)))
-
 static void	newreno_cb_destroy(struct cc_var *ccv);
 static void	newreno_ack_received(struct cc_var *ccv, uint16_t type);
 static void	newreno_after_idle(struct cc_var *ccv);
@@ -364,15 +362,21 @@ newreno_ctl_output(struct cc_var *ccv, struct sockopt *sopt, void *buf)
 static int
 newreno_beta_handler(SYSCTL_HANDLER_ARGS)
 {
+	int error;
+	uint32_t new;
 
-	if (req->newptr != NULL ) {
+	new = *(uint32_t *)arg1;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr != NULL ) {
 		if (arg1 == &VNET_NAME(newreno_beta_ecn) && !V_cc_do_abe)
-			return (EACCES);
-		if (CAST_PTR_INT(req->newptr) <= 0 || CAST_PTR_INT(req->newptr) > 100)
-			return (EINVAL);
+			error = EACCES;
+		else if (new == 0 || new > 100)
+			error = EINVAL;
+		else
+			*(uint32_t *)arg1 = new;
 	}
 
-	return (sysctl_handle_int(oidp, arg1, arg2, req));
+	return (error);
 }
 
 SYSCTL_DECL(_net_inet_tcp_cc_newreno);
