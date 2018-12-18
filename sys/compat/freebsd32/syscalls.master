@@ -388,7 +388,7 @@
 				    uint32_t length1, uint32_t length2); }
 202	AUE_SYSCTL	STD	{ int freebsd32___sysctl(int *name, \
 				    u_int namelen, void *old, \
-				    uint32_t *oldlenp, void *new, \
+				    uint32_t *oldlenp, const void *new, \
 				    uint32_t newlen); }
 203	AUE_MLOCK	NOPROTO	{ int mlock(const void *addr, \
 				    size_t len); }
