@@ -238,19 +238,18 @@ extern bitstr_t proc_id_grpidmap;
 extern bitstr_t proc_id_sessidmap;
 extern bitstr_t proc_id_reapmap;
 
+/*
+ * Find an unused process ID
+ *
+ * If RFHIGHPID is set (used during system boot), do not allocate
+ * low-numbered pids.
+ */
 static int
 fork_findpid(int flags)
 {
 	pid_t result;
 	int trypid;
 
-	/*
-	 * Find an unused process ID.  We remember a range of unused IDs
-	 * ready to use (from lastpid+1 through pidchecked-1).
-	 *
-	 * If RFHIGHPID is set (used during system boot), do not allocate
-	 * low-numbered pids.
-	 */
 	trypid = lastpid + 1;
 	if (flags & RFHIGHPID) {
 		if (trypid < 10)
@@ -280,7 +279,7 @@ retry:
 	if (bit_test(&proc_id_grpidmap, result) ||
 	    bit_test(&proc_id_sessidmap, result) ||
 	    bit_test(&proc_id_reapmap, result)) {
-		trypid++;
+		trypid = result + 1;
 		goto retry;
 	}
 
