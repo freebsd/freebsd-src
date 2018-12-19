@@ -1205,7 +1205,7 @@ restart:
 DB_SHOW_COMMAND(malloc, db_show_malloc)
 {
 	struct malloc_type_internal *mtip;
-	struct malloc_type_internal *mtsp;
+	struct malloc_type_stats *mtsp;
 	struct malloc_type *mtp;
 	uint64_t allocs, frees;
 	uint64_t alloced, freed;
@@ -1221,10 +1221,10 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 		freed = 0;
 		for (i = 0; i <= mp_maxid; i++) {
 			mtsp = zpcpu_get_cpu(mtip->mti_stats, i);
-			allocs += mtip->mti_stats[i].mts_numallocs;
-			frees += mtip->mti_stats[i].mts_numfrees;
-			alloced += mtip->mti_stats[i].mts_memalloced;
-			freed += mtip->mti_stats[i].mts_memfreed;
+			allocs += mtsp->mts_numallocs;
+			frees += mtsp->mts_numfrees;
+			alloced += mtsp->mts_memalloced;
+			freed += mtsp->mts_memfreed;
 		}
 		db_printf("%18s %12ju %12juK %12ju\n",
 		    mtp->ks_shortdesc, allocs - frees,
