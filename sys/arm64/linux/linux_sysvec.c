@@ -124,8 +124,6 @@ linux_fetch_syscall_args(struct thread *td)
 
 	sa->code = td->td_frame->tf_x[8];
 	/* LINUXTODO: generic syscall? */
-	if (p->p_sysent->sv_mask)
-		sa->code &= p->p_sysent->sv_mask;
 	if (sa->code >= p->p_sysent->sv_size)
 		sa->callp = &p->p_sysent->sv_table[0];
 	else
@@ -364,7 +362,6 @@ linux_vsyscall(struct thread *td)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= linux_errtbl,
 	.sv_transtrap	= linux_translate_traps,

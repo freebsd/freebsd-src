@@ -850,7 +850,6 @@ linux_get_machine(const char **dst)
 struct sysentvec linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= linux_errtbl,
 	.sv_transtrap	= linux_translate_traps,
@@ -887,7 +886,6 @@ INIT_SYSENTVEC(aout_sysvec, &linux_sysvec);
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_mask	= 0,
 	.sv_errsize	= ELAST + 1,
 	.sv_errtbl	= linux_errtbl,
 	.sv_transtrap	= linux_translate_traps,

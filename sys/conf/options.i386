@@ -22,7 +22,6 @@ PV_STATS		opt_pmap.h
 # they are handled like options for static filesystems
 # (see src/sys/conf/options), except for broken debugging options.
 COMPAT_AOUT		opt_dontuse.h
-IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
