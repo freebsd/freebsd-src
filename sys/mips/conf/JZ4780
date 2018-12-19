@@ -4,6 +4,8 @@
 
 #NO_UNIVERSE
 
+# Note: SMP on 32-bit mips is no longer supported, which affects this config file.
+
 ident		JZ4780
 machine		mips mipselhf
 cpu		CPU_XBURST

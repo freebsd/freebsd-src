@@ -4,6 +4,8 @@
 
 #NO_UNIVERSE
 
+# Note: SMP on 32-bit mips is no longer supported, which affects this config file.
+
 include		"JZ4780"
 ident		CI20
 
