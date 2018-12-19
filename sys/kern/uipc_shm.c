@@ -113,7 +113,7 @@ static LIST_HEAD(, shm_mapping) *shm_dictionary;
 static struct sx shm_dict_lock;
 static struct mtx shm_timestamp_lock;
 static u_long shm_hash;
-static struct unrhdr *shm_ino_unr;
+static struct unrhdr64 shm_ino_unr;
 static dev_t shm_dev_ino;
 
 #define	SHM_HASH(fnv)	(&shm_dictionary[(fnv) & shm_hash])
@@ -531,7 +531,6 @@ struct shmfd *
 shm_alloc(struct ucred *ucred, mode_t mode)
 {
 	struct shmfd *shmfd;
-	int ino;
 
 	shmfd = malloc(sizeof(*shmfd), M_SHMFD, M_WAITOK | M_ZERO);
 	shmfd->shm_size = 0;
@@ -549,11 +548,7 @@ shm_alloc(struct ucred *ucred, mode_t mode)
 	vfs_timestamp(&shmfd->shm_birthtime);
 	shmfd->shm_atime = shmfd->shm_mtime = shmfd->shm_ctime =
 	    shmfd->shm_birthtime;
-	ino = alloc_unr(shm_ino_unr);
-	if (ino == -1)
-		shmfd->shm_ino = 0;
-	else
-		shmfd->shm_ino = ino;
+	shmfd->shm_ino = alloc_unr64(&shm_ino_unr);
 	refcount_init(&shmfd->shm_refs, 1);
 	mtx_init(&shmfd->shm_mtx, "shmrl", NULL, MTX_DEF);
 	rangelock_init(&shmfd->shm_rl);
@@ -584,8 +579,6 @@ shm_drop(struct shmfd *shmfd)
 		rangelock_destroy(&shmfd->shm_rl);
 		mtx_destroy(&shmfd->shm_mtx);
 		vm_object_deallocate(shmfd->shm_object);
-		if (shmfd->shm_ino != 0)
-			free_unr(shm_ino_unr, shmfd->shm_ino);
 		free(shmfd, M_SHMFD);
 	}
 }
@@ -624,8 +617,7 @@ shm_init(void *arg)
 	mtx_init(&shm_timestamp_lock, "shm timestamps", NULL, MTX_DEF);
 	sx_init(&shm_dict_lock, "shm dictionary");
 	shm_dictionary = hashinit(1024, M_SHMFD, &shm_hash);
-	shm_ino_unr = new_unrhdr(1, INT32_MAX, NULL);
-	KASSERT(shm_ino_unr != NULL, ("shm fake inodes not initialized"));
+	new_unrhdr64(&shm_ino_unr, 1);
 	shm_dev_ino = devfs_alloc_cdp_inode();
 	KASSERT(shm_dev_ino > 0, ("shm dev inode not initialized"));
 }
