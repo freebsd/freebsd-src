@@ -1148,7 +1148,6 @@ ENTRY(suword16_nosmap)
 
 	movw	%si,(%rdi)
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1167,7 +1166,6 @@ ENTRY(suword16_smap)
 	movw	%si,(%rdi)
 	clac
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1185,7 +1183,6 @@ ENTRY(subyte_nosmap)
 	movl	%esi,%eax
 	movb	%al,(%rdi)
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
@@ -1205,7 +1202,6 @@ ENTRY(subyte_smap)
 	movb	%al,(%rdi)
 	clac
 	xorl	%eax,%eax
-	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
 	POP_FRAME_POINTER
 	ret
