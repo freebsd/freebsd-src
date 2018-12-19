@@ -428,3 +428,27 @@ struct asmc_softc {
 	                          "TCXC", "THSP", "Memory Bank A", "PCH Die", \
 	                          "Ta0P", "Heatpipe", "Mainboard Proximity 1", "Mainboard Proximity 2", \
 	                          "Palm Rest", "Memory Proximity" }
+
+#define	ASMC_MBA7_TEMPS		{ "TB0T", "TB1T", "TB2T", \
+                         	  "TC0E", "TC0F", "TC0P", \
+	                          "TC1C", "TC2C", \
+	                          "TCGC", "TCSA", "TCXC", \
+	                          "THSP", "TM0P", "TPCD", \
+	                          "TW0P" "Ta0P", "Th1H", \
+	                          "Tm0P", "Ts0P", "Ts0S", NULL }
+
+#define	ASMC_MBA7_TEMPNAMES	{ "enclosure1", "enclosure2", "enclosure3", \
+	                          "cputemp1", "cputemp2", "cpuproximity", \
+	                          "cpucore1", "cpucore2", \
+	                          "pecigpu", "pecisa", "pecicpu", \
+	                          "thunderboltproximity", "memorybank", "pchdie", \
+	                          "wirelessproximity", "airflowproximity", "heatpipe", \
+	                          "mainboardproximity", "palmrest", "memoryproximity" }
+
+#define	ASMC_MBA7_TEMPDESCS	{ "Enclosure Bottom 1", "Enclosure Bottom 2", "Enclosure Bottom 3", \
+	                          "CPU Temp 1", "CPU Temp 2", "CPU Proximity", \
+	                          "CPU Core 1", "CPU Core 2", \
+	                          "PECI GPU", "PECI SA", "PECI CPU", \
+	                          "Thunderbolt Proximity", "Memory Bank A", "PCH Die", \
+	                          "Wireless Proximity", "Airflow Proxmity", "Heatpipe", \
+	                          "Mainboard Proximity", "Palm Rest", "Memory Proximity" }
