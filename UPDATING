@@ -16,6 +16,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181219	p7	FreeBSD-SA-18:15.bootpd
+			FreeBSD-EN-18:16.ptrace
+			FreeBSD-EN-18:17.vm
+			FreeBSD-EN-18:18.zfs
+
+	bootpd: validate hardware type [SA-18:15.bootpd]
+
+	Only clear a pending thread event if one is pending. [EN-18:16.ptrace]
+
+	Update the free page count when blacklisting pages. [EN-18:17.vm]
+
+	Resolve a hang in ZFS during vnode reclamation [EN-18:18.zfs]
+
+
 20181204	p6	FreeBSD-SA-18:14.bhyve
 
 	Fix insufficient bounds checking in bhyve(8) device model.
