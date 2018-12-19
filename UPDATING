@@ -16,6 +16,10 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181219:	p1	FreeBSD-SA-18:15.bootpd
+
+	bootpd: validate hardware type [SA-18:15.bootpd]
+
 20181211:
 	12.0-RELEASE.
 
