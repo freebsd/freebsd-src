@@ -38,6 +38,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20181219: ibcs removal
+OLD_FILES+=usr/share/examples/ibcs2/hello.uu
+OLD_FILES+=usr/share/examples/ibcs2/README
+OLD_DIRS+=usr/share/examples/ibcs2
 # 20181215: Migration of CTM to ports
 OLD_FILES+=usr/sbin/ctm
 OLD_FILES+=usr/sbin/ctm_dequeue

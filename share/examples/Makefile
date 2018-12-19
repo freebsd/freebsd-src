@@ -16,7 +16,6 @@ LDIRS=	BSD_daemon \
 	drivers \
 	etc \
 	find_interface \
-	ibcs2 \
 	indent \
 	ipfw \
 	jails \
@@ -98,11 +97,6 @@ SE_FIND_INTERFACE= \
 	Makefile \
 	README \
 	find_interface.c
-
-SE_DIRS+=	ibcs2
-SE_IBCS2=	\
-	README \
-	hello.uu
 
 SE_DIRS+=	indent
 SE_INDENT=	indent.pro
