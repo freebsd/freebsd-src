@@ -1841,29 +1841,21 @@ computejumps(struct parse *p, struct re_guts *g)
 {
 	int ch;
 	int mindex;
-	int cmin, cmax;
-
-	/*
-	 * For UTF-8 we process only the first 128 characters corresponding to
-	 * the POSIX locale.
-	 */
-	cmin = MB_CUR_MAX == 1 ? CHAR_MIN : 0;
-	cmax = MB_CUR_MAX == 1 ? CHAR_MAX : 127;
 
 	/* Avoid making errors worse */
 	if (p->error != 0)
 		return;
 
-	g->charjump = (int *)malloc((cmax - cmin + 1) * sizeof(int));
+	g->charjump = (int *)malloc((NC_MAX + 1) * sizeof(int));
 	if (g->charjump == NULL)	/* Not a fatal error */
 		return;
 	/* Adjust for signed chars, if necessary */
-	g->charjump = &g->charjump[-(cmin)];
+	g->charjump = &g->charjump[-(CHAR_MIN)];
 
 	/* If the character does not exist in the pattern, the jump
 	 * is equal to the number of characters in the pattern.
 	 */
-	for (ch = cmin; ch < cmax + 1; ch++)
+	for (ch = CHAR_MIN; ch < (CHAR_MAX + 1); ch++)
 		g->charjump[ch] = g->mlen;
 
 	/* If the character does exist, compute the jump that would
