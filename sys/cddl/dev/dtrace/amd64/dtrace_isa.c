@@ -37,6 +37,7 @@
 #include <machine/md_var.h>
 #include <machine/reg.h>
 #include <machine/stack.h>
+#include <x86/ifunc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -663,4 +664,71 @@ dtrace_fuword64(void *uaddr)
 		return (0);
 	}
 	return (dtrace_fuword64_nocheck(uaddr));
+}
+
+/*
+ * ifunc resolvers for SMAP support
+ */
+void dtrace_copy_nosmap(uintptr_t, uintptr_t, size_t);
+void dtrace_copy_smap(uintptr_t, uintptr_t, size_t);
+DEFINE_IFUNC(, void, dtrace_copy, (uintptr_t, uintptr_t, size_t), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_copy_smap : dtrace_copy_nosmap);
+}
+
+void dtrace_copystr_nosmap(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
+void dtrace_copystr_smap(uintptr_t, uintptr_t, size_t, volatile uint16_t *);
+DEFINE_IFUNC(, void, dtrace_copystr, (uintptr_t, uintptr_t, size_t,
+    volatile uint16_t *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_copystr_smap : dtrace_copystr_nosmap);
+}
+
+uintptr_t dtrace_fulword_nosmap(void *);
+uintptr_t dtrace_fulword_smap(void *);
+DEFINE_IFUNC(, uintptr_t, dtrace_fulword, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_fulword_smap : dtrace_fulword_nosmap);
+}
+
+uint8_t dtrace_fuword8_nocheck_nosmap(void *);
+uint8_t dtrace_fuword8_nocheck_smap(void *);
+DEFINE_IFUNC(, uint8_t, dtrace_fuword8_nocheck, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_fuword8_nocheck_smap : dtrace_fuword8_nocheck_nosmap);
+}
+
+uint16_t dtrace_fuword16_nocheck_nosmap(void *);
+uint16_t dtrace_fuword16_nocheck_smap(void *);
+DEFINE_IFUNC(, uint16_t, dtrace_fuword16_nocheck, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_fuword16_nocheck_smap : dtrace_fuword16_nocheck_nosmap);
+}
+
+uint32_t dtrace_fuword32_nocheck_nosmap(void *);
+uint32_t dtrace_fuword32_nocheck_smap(void *);
+DEFINE_IFUNC(, uint32_t, dtrace_fuword32_nocheck, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_fuword32_nocheck_smap : dtrace_fuword32_nocheck_nosmap);
+}
+
+uint64_t dtrace_fuword64_nocheck_nosmap(void *);
+uint64_t dtrace_fuword64_nocheck_smap(void *);
+DEFINE_IFUNC(, uint64_t, dtrace_fuword64_nocheck, (void *), static)
+{
+
+	return ((cpu_stdext_feature & CPUID_STDEXT_SMAP) != 0 ?
+	    dtrace_fuword64_nocheck_smap : dtrace_fuword64_nocheck_nosmap);
 }
