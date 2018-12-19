@@ -231,7 +231,7 @@ tmpfs_mount(struct mount *mp)
 
 	tmp->tm_pages_max = pages;
 	tmp->tm_pages_used = 0;
-	tmp->tm_ino_unr = new_unrhdr(2, INT_MAX, &tmp->tm_allnode_lock);
+	new_unrhdr64(&tmp->tm_ino_unr, 2);
 	tmp->tm_dirent_pool = uma_zcreate("TMPFS dirent",
 	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
@@ -248,7 +248,6 @@ tmpfs_mount(struct mount *mp)
 	if (error != 0 || root == NULL) {
 		uma_zdestroy(tmp->tm_node_pool);
 		uma_zdestroy(tmp->tm_dirent_pool);
-		delete_unrhdr(tmp->tm_ino_unr);
 		free(tmp, M_TMPFSMNT);
 		return (error);
 	}
@@ -343,8 +342,6 @@ tmpfs_free_tmp(struct tmpfs_mount *tmp)
 
 	uma_zdestroy(tmp->tm_dirent_pool);
 	uma_zdestroy(tmp->tm_node_pool);
-	clear_unrhdr(tmp->tm_ino_unr);
-	delete_unrhdr(tmp->tm_ino_unr);
 
 	mtx_destroy(&tmp->tm_allnode_lock);
 	MPASS(tmp->tm_pages_used == 0);
