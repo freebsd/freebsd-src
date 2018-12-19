@@ -124,22 +124,8 @@ int
 kern_getppid(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	struct proc *pp;
-	int ppid;
 
-	PROC_LOCK(p);
-	if (!(p->p_flag & P_TRACED)) {
-		ppid = p->p_pptr->p_pid;
-		PROC_UNLOCK(p);
-	} else {
-		PROC_UNLOCK(p);
-		sx_slock(&proctree_lock);
-		pp = proc_realparent(p);
-		ppid = pp->p_pid;
-		sx_sunlock(&proctree_lock);
-	}
-
-	return (ppid);
+	return (p->p_oppid);
 }
 
 /*
