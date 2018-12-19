@@ -644,6 +644,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		pptr = p1;
 	}
 	p2->p_pptr = pptr;
+	p2->p_oppid = pptr->p_pid;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	LIST_INIT(&p2->p_reaplist);
 	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
@@ -775,7 +776,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			CTR2(KTR_PTRACE,
 			    "do_fork: attaching to new child pid %d: oppid %d",
 			    p2->p_pid, p2->p_oppid);
-			proc_reparent(p2, p1->p_pptr);
+			proc_reparent(p2, p1->p_pptr, false);
 		}
 		PROC_UNLOCK(p2);
 		sx_xunlock(&proctree_lock);
