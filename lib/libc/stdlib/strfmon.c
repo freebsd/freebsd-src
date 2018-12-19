@@ -92,7 +92,8 @@ __FBSDID("$FreeBSD$");
 } while (0)
 
 #define GRPSEP do {						\
-	*--bufend = thousands_sep;				\
+	bufend -= thousands_sep_size;				\
+	memcpy(bufend, thousands_sep, thousands_sep_size);	\
 	groups++;						\
 } while (0)
 
@@ -520,7 +521,7 @@ get_groups(int size, char *grouping) {
 	return (chars);
 }
 
-/* convert double to ASCII */
+/* convert double to locale-encoded string */
 static char *
 __format_grouped_double(double value, int *flags,
 			int left_prec, int right_prec, int pad_char) {
@@ -536,18 +537,23 @@ __format_grouped_double(double value, int *flags,
 
 	struct lconv	*lc = localeconv();
 	char		*grouping;
-	char		decimal_point;
-	char		thousands_sep;
+	const char	*decimal_point;
+	const char	*thousands_sep;
+	size_t		decimal_point_size;
+	size_t		thousands_sep_size;
 
 	int groups = 0;
 
 	grouping = lc->mon_grouping;
-	decimal_point = *lc->mon_decimal_point;
-	if (decimal_point == '\0')
-		decimal_point = *lc->decimal_point;
-	thousands_sep = *lc->mon_thousands_sep;
-	if (thousands_sep == '\0')
-		thousands_sep = *lc->thousands_sep;
+	decimal_point = lc->mon_decimal_point;
+	if (*decimal_point == '\0')
+		decimal_point = lc->decimal_point;
+	thousands_sep = lc->mon_thousands_sep;
+	if (*thousands_sep == '\0')
+		thousands_sep = lc->thousands_sep;
+
+	decimal_point_size = strlen(decimal_point);
+	thousands_sep_size = strlen(thousands_sep);
 
 	/* fill left_prec with default value */
 	if (left_prec == -1)
@@ -574,7 +580,8 @@ __format_grouped_double(double value, int *flags,
 		return (NULL);
 
 	/* make sure that we've enough space for result string */
-	bufsize = avalue_size * 2 + 1;
+	bufsize = avalue_size * (1 + thousands_sep_size) + decimal_point_size +
+	    1;
 	rslt = calloc(1, bufsize);
 	if (rslt == NULL) {
 		free(avalue);
@@ -593,12 +600,13 @@ __format_grouped_double(double value, int *flags,
 		bufend -= right_prec;
 		memcpy(bufend, avalue + avalue_size+padded-right_prec,
 		    right_prec);
-		*--bufend = decimal_point;
+		bufend -= decimal_point_size;
+		memcpy(bufend, decimal_point, decimal_point_size);
 		avalue_size -= (right_prec + 1);
 	}
 
 	if ((*flags & NEED_GROUPING) &&
-	    thousands_sep != '\0' &&	/* XXX: need investigation */
+	    thousands_sep_size > 0 &&	/* XXX: need investigation */
 	    *grouping != CHAR_MAX &&
 	    *grouping > 0) {
 		while (avalue_size > (int)*grouping) {
@@ -626,8 +634,9 @@ __format_grouped_double(double value, int *flags,
 	} else {
 		bufend -= avalue_size;
 		memcpy(bufend, avalue+padded, avalue_size);
+		/* decrease assumed $decimal_point */
 		if (right_prec == 0)
-			padded--;	/* decrease assumed $decimal_point */
+			padded -= decimal_point_size;
 	}
 
 	/* do padding with pad_char */
