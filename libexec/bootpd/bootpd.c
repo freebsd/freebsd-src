@@ -636,6 +636,10 @@ handle_request()
 	char *homedir, *bootfile;
 	int n;
 
+	if (bp->bp_htype >= hwinfocnt) {
+		report(LOG_NOTICE, "bad hw addr type %u", bp->bp_htype);
+		return;
+	}
 	bp->bp_file[sizeof(bp->bp_file)-1] = '\0';
 
 	/* XXX - SLIP init: Set bp_ciaddr = recv_addr here? */
