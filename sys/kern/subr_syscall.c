@@ -165,7 +165,7 @@ syscallenter(struct thread *td)
 static inline void
 syscallret(struct thread *td, int error)
 {
-	struct proc *p, *p2;
+	struct proc *p;
 	struct syscall_args *sa;
 	ksiginfo_t ksi;
 	int traced, error1;
@@ -230,41 +230,6 @@ syscallret(struct thread *td, int error)
 		PROC_UNLOCK(p);
 	}
 
-	if (__predict_false(td->td_pflags & TDP_RFPPWAIT)) {
-		/*
-		 * Preserve synchronization semantics of vfork.  If
-		 * waiting for child to exec or exit, fork set
-		 * P_PPWAIT on child, and there we sleep on our proc
-		 * (in case of exit).
-		 *
-		 * Do it after the ptracestop() above is finished, to
-		 * not block our debugger until child execs or exits
-		 * to finish vfork wait.
-		 */
-		td->td_pflags &= ~TDP_RFPPWAIT;
-		p2 = td->td_rfppwait_p;
-again:
-		PROC_LOCK(p2);
-		while (p2->p_flag & P_PPWAIT) {
-			PROC_LOCK(p);
-			if (thread_suspend_check_needed()) {
-				PROC_UNLOCK(p2);
-				thread_suspend_check(0);
-				PROC_UNLOCK(p);
-				goto again;
-			} else {
-				PROC_UNLOCK(p);
-			}
-			cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
-		}
-		PROC_UNLOCK(p2);
-
-		if (td->td_dbgflags & TDB_VFORK) {
-			PROC_LOCK(p);
-			if (p->p_ptevents & PTRACE_VFORK)
-				ptracestop(td, SIGTRAP, NULL);
-			td->td_dbgflags &= ~TDB_VFORK;
-			PROC_UNLOCK(p);
-		}
-	}
+	if (__predict_false(td->td_pflags & TDP_RFPPWAIT))
+		fork_rfppwait(td);
 }
