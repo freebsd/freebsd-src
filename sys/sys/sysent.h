@@ -95,7 +95,6 @@ struct vnode;
 struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
-	u_int		sv_mask;	/* optional mask to index */
 	int		sv_errsize;	/* size of errno translation table */
 	const int 	*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap)(int, int);
