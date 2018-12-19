@@ -29,7 +29,8 @@ mips/ingenic/jz4780_aic.c	optional sound xdma
 mips/ingenic/jz4780_codec.c	optional sound
 
 # SMP
-mips/ingenic/jz4780_mp.c	optional smp
+mips/ingenic/jz4780_mp.c	optional smp \
+	warning "* * * * * 32-bit mips SMP unsupported * * * * *"
 mips/ingenic/jz4780_mpboot.S	optional smp
 
 # Custom interface between pinctrl and gpio
