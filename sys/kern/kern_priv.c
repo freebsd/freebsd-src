@@ -194,10 +194,12 @@ priv_check_cred(struct ucred *cred, int priv)
 	 */
 	error = EPERM;
 out:
-	if (error)
-		SDT_PROBE1(priv, kernel, priv_check, priv__err, priv);
-	else
-		SDT_PROBE1(priv, kernel, priv_check, priv__ok, priv);
+	if (SDT_PROBES_ENABLED()) {
+		if (error)
+			SDT_PROBE1(priv, kernel, priv_check, priv__err, priv);
+		else
+			SDT_PROBE1(priv, kernel, priv_check, priv__ok, priv);
+	}
 	return (error);
 }
 
