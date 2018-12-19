@@ -1020,9 +1020,9 @@ reclaim_wr_resources(void *arg, int count)
 	struct tom_data *td = arg;
 	STAILQ_HEAD(, wrqe) twr_list = STAILQ_HEAD_INITIALIZER(twr_list);
 	struct cpl_act_open_req *cpl;
-	u_int opcode, atid;
+	u_int opcode, atid, tid;
 	struct wrqe *wr;
-	struct adapter *sc;
+	struct adapter *sc = td_adapter(td);
 
 	mtx_lock(&td->unsent_wr_lock);
 	STAILQ_SWAP(&td->unsent_wr_list, &twr_list, wrqe);
@@ -1038,10 +1038,14 @@ reclaim_wr_resources(void *arg, int count)
 		case CPL_ACT_OPEN_REQ:
 		case CPL_ACT_OPEN_REQ6:
 			atid = G_TID_TID(be32toh(OPCODE_TID(cpl)));
-			sc = td_adapter(td);
-
 			CTR2(KTR_CXGBE, "%s: atid %u ", __func__, atid);
 			act_open_failure_cleanup(sc, atid, EHOSTUNREACH);
+			free(wr, M_CXGBE);
+			break;
+		case CPL_PASS_ACCEPT_RPL:
+			tid = GET_TID(cpl);
+			CTR2(KTR_CXGBE, "%s: tid %u ", __func__, tid);
+			synack_failure_cleanup(sc, tid);
 			free(wr, M_CXGBE);
 			break;
 		default:
