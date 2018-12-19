@@ -96,6 +96,6 @@ ASSYM(TF_T, offsetof(struct trapframe, tf_t));
 ASSYM(TF_S, offsetof(struct trapframe, tf_s));
 ASSYM(TF_A, offsetof(struct trapframe, tf_a));
 ASSYM(TF_SEPC, offsetof(struct trapframe, tf_sepc));
-ASSYM(TF_SBADADDR, offsetof(struct trapframe, tf_sbadaddr));
+ASSYM(TF_STVAL, offsetof(struct trapframe, tf_stval));
 ASSYM(TF_SCAUSE, offsetof(struct trapframe, tf_scause));
 ASSYM(TF_SSTATUS, offsetof(struct trapframe, tf_sstatus));

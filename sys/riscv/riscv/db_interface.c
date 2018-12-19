@@ -98,7 +98,7 @@ struct db_variable db_regs[] = {
 	{ "a7",		DB_OFFSET(tf_a[7]),	db_frame },
 	{ "sepc",	DB_OFFSET(tf_sepc),	db_frame },
 	{ "sstatus",	DB_OFFSET(tf_sstatus),	db_frame },
-	{ "sbadaddr",	DB_OFFSET(tf_sbadaddr),	db_frame },
+	{ "stval",	DB_OFFSET(tf_stval),	db_frame },
 	{ "scause",	DB_OFFSET(tf_scause),	db_frame },
 };
 
