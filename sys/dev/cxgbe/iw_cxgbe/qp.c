@@ -65,7 +65,7 @@ struct cpl_set_tcb_rpl;
 
 #include "iw_cxgbe.h"
 #include "user.h"
-extern int use_dsgl;
+
 static int creds(struct toepcb *toep, struct inpcb *inp, size_t wrsize);
 static int max_fr_immd = T4_MAX_FR_IMMD;//SYSCTL parameter later...
 
