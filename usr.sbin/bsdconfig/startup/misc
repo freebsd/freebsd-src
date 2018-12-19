@@ -73,7 +73,6 @@ dialog_menu_main()
 	if [ "$UNAME_P" = "i386" ]; then
 		var_list="$var_list
 			apm_enable
-			ibcs2_enable
 		" # END-QUOTE
 	fi
 
@@ -94,7 +93,6 @@ dialog_menu_main()
 		export msg_nis_server     msg_nis_server_desc
 		export msg_accounting     msg_accounting_desc
 		export msg_lpd            msg_lpd_desc
-		export msg_sco            msg_sco_desc
 		:| awk \
 			-v uname_p="$UNAME_P"            \
 			-v menu_tags="$DIALOG_MENU_TAGS" \
@@ -223,21 +221,6 @@ dialog_menu_main()
 			mprint(tag, ENVIRON["msg_lpd_desc"])
 			if (ditem == char) defaultitem = tag
 
-			if ( uname_p == "i386" )
-			{
-				#
-				# SCO: This host wants to be able to run IBCS2
-				#      binaries.
-				#
-				char = substr(menu_tags, i++, 1)
-				mark = ( ENVIRON["ibcs2_enable"] ~ \
-						/^[Yy][Ee][Ss]$/ ? "X" : " " )
-				subtag = ENVIRON["msg_sco"]
-				tag = sprintf(mtag_fmt, char, mark, subtag)
-				mprint(tag, ENVIRON["msg_sco_desc"])
-				if (ditem == char) defaultitem = tag
-			}
-
 			printf "\"\n"
 
 			if ( defaultitem )
@@ -343,9 +326,6 @@ while :; do
 	?" ["?"] $msg_lpd")
 		f_eval_catch -dk err "$0" f_sysrc_set \
 			'f_sysrc_set lpd_enable "%s"' "$reverse" ;;
-	?" ["?"] $msg_sco")
-		f_eval_catch -dk err "$0" f_sysrc_set \
-			'f_sysrc_set ibcs2_enable "%s"' "$reverse" ;;
 	# Multi-variable On/Off toggle bits
 	?" ["?"] $msg_nis_client")
 		if f_eval_catch -dk err "$0" f_sysrc_set \
