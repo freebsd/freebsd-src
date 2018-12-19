@@ -1782,8 +1782,7 @@ dev/flash/cqspi.c		optional cqspi fdt xdma
 dev/flash/mx25l.c		optional mx25l
 dev/flash/n25q.c		optional n25q fdt
 dev/flash/qspi_if.m		optional cqspi fdt | n25q fdt
-dev/fxp/if_fxp.c		optional fxp \
-	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS}"
+dev/fxp/if_fxp.c		optional fxp
 dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
