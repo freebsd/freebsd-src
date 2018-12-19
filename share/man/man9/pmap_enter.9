@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2018
+.Dd December 16, 2018
 .Dt PMAP_ENTER 9
 .Os
 .Sh NAME
@@ -119,6 +119,14 @@ It is advised to clear
 for destroyed mappings if the implementation can ensure
 that no other writeable managed mappings for the previously
 mapped pages exist.
+.Pp
+If the request modifies an existing mapping to use a different physical
+page, an implementation of
+.Nm
+must invalidate the previous mapping before installing the new one.
+This ensures that all threads sharing the pmap keep a consistent
+view of the mapping, which is necessary for the correct handling
+of CoW (copy on write) faults.
 .Pp
 If the page
 .Fa m
