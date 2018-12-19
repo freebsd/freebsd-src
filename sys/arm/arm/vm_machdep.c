@@ -190,8 +190,6 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	if (call == SYS___syscall) {
 		register_t *ap = &frame->tf_r0;
 		register_t code = ap[_QUAD_LOWWORD];
-		if (td->td_proc->p_sysent->sv_mask)
-			code &= td->td_proc->p_sysent->sv_mask;
 		fixup = (code != SYS_lseek);
 	}
 #endif

@@ -558,8 +558,6 @@ cpu_fetch_syscall_args(struct thread *td)
 		regcnt--;
 	}
 
-	if (p->p_sysent->sv_mask)
-		sa->code &= p->p_sysent->sv_mask;
 	if (sa->code >= p->p_sysent->sv_size)
 		sa->callp = &p->p_sysent->sv_table[0];
 	else

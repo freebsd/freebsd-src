@@ -612,9 +612,6 @@ options 	EFIRT
 # Enable 32-bit runtime support for FreeBSD/i386 binaries.
 options 	COMPAT_FREEBSD32
 
-# Enable iBCS2 runtime support for SCO and ISC binaries
-#XXX#options 	IBCS2
-
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
 

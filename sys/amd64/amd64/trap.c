@@ -991,8 +991,6 @@ cpu_fetch_syscall_args_fallback(struct thread *td, struct syscall_args *sa)
 		reg++;
 		regcnt--;
 	}
- 	if (p->p_sysent->sv_mask)
- 		sa->code &= p->p_sysent->sv_mask;
 
  	if (sa->code >= p->p_sysent->sv_size)
  		sa->callp = &p->p_sysent->sv_table[0];
@@ -1039,9 +1037,6 @@ cpu_fetch_syscall_args(struct thread *td)
 	sa->callp = &p->p_sysent->sv_table[sa->code];
 	sa->narg = sa->callp->sy_narg;
 	KASSERT(sa->narg <= nitems(sa->args), ("Too many syscall arguments!"));
-
-	if (p->p_sysent->sv_mask)
-		sa->code &= p->p_sysent->sv_mask;
 
 	if (__predict_false(sa->narg > NARGREGS))
 		return (cpu_fetch_syscall_args_fallback(td, sa));

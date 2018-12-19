@@ -508,25 +508,6 @@ i386/i386/trap.c		standard
 i386/i386/uio_machdep.c		standard
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
-i386/ibcs2/ibcs2_errno.c	optional ibcs2
-i386/ibcs2/ibcs2_fcntl.c	optional ibcs2
-i386/ibcs2/ibcs2_ioctl.c	optional ibcs2
-i386/ibcs2/ibcs2_ipc.c		optional ibcs2
-i386/ibcs2/ibcs2_isc.c		optional ibcs2
-i386/ibcs2/ibcs2_isc_sysent.c	optional ibcs2
-i386/ibcs2/ibcs2_misc.c		optional ibcs2
-i386/ibcs2/ibcs2_msg.c		optional ibcs2
-i386/ibcs2/ibcs2_other.c	optional ibcs2
-i386/ibcs2/ibcs2_signal.c	optional ibcs2
-i386/ibcs2/ibcs2_socksys.c	optional ibcs2
-i386/ibcs2/ibcs2_stat.c		optional ibcs2
-i386/ibcs2/ibcs2_sysent.c	optional ibcs2
-i386/ibcs2/ibcs2_sysi86.c	optional ibcs2
-i386/ibcs2/ibcs2_sysvec.c	optional ibcs2
-i386/ibcs2/ibcs2_util.c		optional ibcs2
-i386/ibcs2/ibcs2_xenix.c	optional ibcs2
-i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
-i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_copyout.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux
