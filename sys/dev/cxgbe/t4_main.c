@@ -4092,6 +4092,18 @@ get_params__post_init(struct adapter *sc)
 	else
 		sc->params.filter2_wr_support = 0;
 
+	/*
+	 * Find out whether we're allowed to use the ULPTX MEMWRITE DSGL.
+	 * This is queried separately for the same reason as other params above.
+	 */
+	param[0] = FW_PARAM_DEV(ULPTX_MEMWRITE_DSGL);
+	val[0] = 0;
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+	if (rc == 0)
+		sc->params.ulptx_memwrite_dsgl = val[0] != 0;
+	else
+		sc->params.ulptx_memwrite_dsgl = false;
+
 	/* get capabilites */
 	bzero(&caps, sizeof(caps));
 	caps.op_to_write = htobe32(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |

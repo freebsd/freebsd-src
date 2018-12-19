@@ -1265,6 +1265,15 @@ static int snd_win = 128 * 1024;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, snd_win, CTLFLAG_RWTUN, &snd_win, 0,
 		"TCP send window in bytes (default = 128KB)");
 
+int use_dsgl = 1;
+SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, use_dsgl, CTLFLAG_RWTUN, &use_dsgl, 0,
+		"Use DSGL for PBL/FastReg (default=1)");
+
+int inline_threshold = 128;
+SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, inline_threshold, CTLFLAG_RWTUN, &inline_threshold, 0,
+		"inline vs dsgl threshold (default=128)");
+
+
 static void
 start_ep_timer(struct c4iw_ep *ep)
 {
