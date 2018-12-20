@@ -36,6 +36,22 @@ MALLOC_DEFINE(M_TPM20, "tpm_buffer", "buffer for tpm 2.0 driver");
 static void tpm20_discard_buffer(void *arg);
 static int tpm20_save_state(device_t dev, bool suspend);
 
+static d_open_t		tpm20_open;
+static d_close_t	tpm20_close;
+static d_read_t		tpm20_read;
+static d_write_t	tpm20_write;
+static d_ioctl_t	tpm20_ioctl;
+
+static struct cdevsw tpm20_cdevsw = {
+	.d_version = D_VERSION,
+	.d_open = tpm20_open,
+	.d_close = tpm20_close,
+	.d_read = tpm20_read,
+	.d_write = tpm20_write,
+	.d_ioctl = tpm20_ioctl,
+	.d_name = "tpm20",
+};
+
 int
 tpm20_read(struct cdev *dev, struct uio *uio, int flags)
 {
@@ -162,7 +178,7 @@ tpm20_init(struct tpm_sc *sc)
 	sc->pending_data_length = 0;
 
 	make_dev_args_init(&args);
-	args.mda_devsw = &tpm_cdevsw;
+	args.mda_devsw = &tpm20_cdevsw;
 	args.mda_uid = UID_ROOT;
 	args.mda_gid = GID_WHEEL;
 	args.mda_mode = TPM_CDEV_PERM_FLAG;
