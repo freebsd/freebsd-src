@@ -1054,6 +1054,9 @@ swcr_freesession_locked(device_t dev, u_int64_t tid)
 
 		case CRYPTO_MD5:
 		case CRYPTO_SHA1:
+		case CRYPTO_AES_128_NIST_GMAC:
+		case CRYPTO_AES_192_NIST_GMAC:
+		case CRYPTO_AES_256_NIST_GMAC:
 			axf = swd->sw_axf;
 
 			if (swd->sw_ictx)
