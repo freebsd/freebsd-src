@@ -429,7 +429,7 @@ static void process_timeout(struct c4iw_ep *ep)
 		abort = 0;
 		break;
 	default:
-		CTR4(KTR_IW_CXGBE, "%s unexpected state ep %p tid %u state %u\n"
+		CTR4(KTR_IW_CXGBE, "%s unexpected state ep %p tid %u state %u"
 				, __func__, ep, ep->hwtid, ep->com.state);
 		abort = 0;
 	}
@@ -1020,7 +1020,7 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 	ret = soaccept(new_so, (struct sockaddr **)&remote);
 	if (ret != 0) {
 		CTR4(KTR_IW_CXGBE,
-				"%s:listen sock:%p, new sock:%p, ret:%d\n",
+				"%s:listen sock:%p, new sock:%p, ret:%d",
 				__func__, master_lep->com.so, new_so, ret);
 		if (remote != NULL)
 			free(remote, M_SONAME);
@@ -2309,7 +2309,7 @@ process_mpa_request(struct c4iw_ep *ep)
 				MPA_V2_IRD_ORD_MASK;
 			ep->ord = min_t(u32, ep->ord,
 					cur_max_read_depth(ep->com.dev));
-			CTR3(KTR_IW_CXGBE, "%s initiator ird %u ord %u\n",
+			CTR3(KTR_IW_CXGBE, "%s initiator ird %u ord %u",
 				 __func__, ep->ird, ep->ord);
 			if (ntohs(mpa_v2_params->ird) & MPA_V2_PEER2PEER_MODEL)
 				if (peer2peer) {
@@ -2463,7 +2463,7 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			ep->ird = 1;
 	}
 
-	CTR4(KTR_IW_CXGBE, "%s %d ird %d ord %d\n", __func__, __LINE__,
+	CTR4(KTR_IW_CXGBE, "%s %d ird %d ord %d", __func__, __LINE__,
 			ep->ird, ep->ord);
 
 	ep->com.cm_id = cm_id;
