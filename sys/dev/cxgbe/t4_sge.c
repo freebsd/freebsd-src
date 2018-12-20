@@ -3435,6 +3435,8 @@ alloc_rxq(struct vi_info *vi, struct sge_rxq *rxq, int intr_idx, int idx,
 	if (vi->ifp->if_capenable & IFCAP_LRO)
 		rxq->iq.flags |= IQ_LRO_ENABLED;
 #endif
+	if (vi->ifp->if_capenable & IFCAP_HWRXTSTMP)
+		rxq->iq.flags |= IQ_RX_TIMESTAMP;
 	rxq->ifp = vi->ifp;
 
 	children = SYSCTL_CHILDREN(oid);
