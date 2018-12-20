@@ -576,7 +576,7 @@ static void free_qp_work(struct work_struct *work)
 	ucontext = qhp->ucontext;
 	rhp = qhp->rhp;
 
-	CTR3(KTR_IW_CXGBE, "%s qhp %p ucontext %p\n", __func__,
+	CTR3(KTR_IW_CXGBE, "%s qhp %p ucontext %p", __func__,
 			qhp, ucontext);
 	destroy_qp(&rhp->rdev, &qhp->wq,
 		   ucontext ? &ucontext->uctx : &rhp->rdev.uctx);
@@ -1878,10 +1878,10 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->ibqp.qp_num = qhp->wq.sq.qid;
 	init_timer(&(qhp->timer));
 
-	CTR5(KTR_IW_CXGBE, "%s sq id %u size %u memsize %zu num_entries %u\n",
+	CTR5(KTR_IW_CXGBE, "%s sq id %u size %u memsize %zu num_entries %u",
 		 __func__, qhp->wq.sq.qid,
 		 qhp->wq.sq.size, qhp->wq.sq.memsize, attrs->cap.max_send_wr);
-	CTR5(KTR_IW_CXGBE, "%s rq id %u size %u memsize %zu num_entries %u\n",
+	CTR5(KTR_IW_CXGBE, "%s rq id %u size %u memsize %zu num_entries %u",
 		 __func__, qhp->wq.rq.qid,
 		 qhp->wq.rq.size, qhp->wq.rq.memsize, attrs->cap.max_recv_wr);
 	return &qhp->ibqp;
