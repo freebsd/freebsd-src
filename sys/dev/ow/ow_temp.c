@@ -232,7 +232,7 @@ ow_temp_attach(device_t dev)
 	if (kproc_create(ow_temp_event_thread, sc, &sc->event_thread, 0, 0,
 	    "%s event thread", device_get_nameunit(dev))) {
 		device_printf(dev, "unable to create event thread.\n");
-		panic("cbb_create_event_thread");
+		panic("ow_temp_attach, can't create thread");
 	}
 
 	return 0;
