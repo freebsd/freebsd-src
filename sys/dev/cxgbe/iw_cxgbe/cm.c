@@ -841,7 +841,7 @@ setiwsockopt(struct socket *so)
 	sopt.sopt_val = (caddr_t)&on;
 	sopt.sopt_valsize = sizeof on;
 	sopt.sopt_td = NULL;
-	rc = sosetopt(so, &sopt);
+	rc = -sosetopt(so, &sopt);
 	if (rc) {
 		log(LOG_ERR, "%s: can't set TCP_NODELAY on so %p (%d)\n",
 		    __func__, so, rc);
@@ -1651,7 +1651,7 @@ send_abort(struct c4iw_ep *ep)
 	sopt.sopt_val = (caddr_t)&l;
 	sopt.sopt_valsize = sizeof l;
 	sopt.sopt_td = NULL;
-	rc = sosetopt(so, &sopt);
+	rc = -sosetopt(so, &sopt);
 	if (rc != 0) {
 		log(LOG_ERR, "%s: sosetopt(%p, linger = 0) failed with %d.\n",
 		    __func__, so, rc);
@@ -2542,7 +2542,7 @@ c4iw_sock_create(struct sockaddr_storage *laddr, struct socket **so)
 		on = 1;
 		sopt.sopt_val = &on;
 		sopt.sopt_valsize = sizeof(on);
-		ret = sosetopt(sock, &sopt);
+		ret = -sosetopt(sock, &sopt);
 		if (ret != 0) {
 			log(LOG_ERR, "%s: sosetopt(%p, SO_REUSEADDR) "
 				"failed with %d.\n", __func__, sock, ret);
@@ -2554,14 +2554,14 @@ c4iw_sock_create(struct sockaddr_storage *laddr, struct socket **so)
 		on = 1;
 		sopt.sopt_val = &on;
 		sopt.sopt_valsize = sizeof(on);
-		ret = sosetopt(sock, &sopt);
+		ret = -sosetopt(sock, &sopt);
 		if (ret != 0) {
 			log(LOG_ERR, "%s: sosetopt(%p, SO_REUSEPORT) "
 				"failed with %d.\n", __func__, sock, ret);
 		}
 	}
 
-	ret = sobind(sock, (struct sockaddr *)laddr, curthread);
+	ret = -sobind(sock, (struct sockaddr *)laddr, curthread);
 	if (ret) {
 		CTR2(KTR_IW_CXGBE, "%s:Failed to bind socket. err %p",
 				__func__, ret);
@@ -2745,7 +2745,7 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		goto fail;
 	}
 
-	rc = solisten(lep->com.so, backlog, curthread);
+	rc = -solisten(lep->com.so, backlog, curthread);
 	if (rc) {
 		CTR3(KTR_IW_CXGBE, "%s:Failed to listen on sock:%p. err %d",
 				__func__, lep->com.so, rc);
