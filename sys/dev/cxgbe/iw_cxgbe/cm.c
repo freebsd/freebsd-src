@@ -1273,6 +1273,9 @@ int inline_threshold = 128;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, inline_threshold, CTLFLAG_RWTUN, &inline_threshold, 0,
 		"inline vs dsgl threshold (default=128)");
 
+static int reuseaddr = 0;
+SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, reuseaddr, CTLFLAG_RWTUN, &reuseaddr, 0,
+		"Enable SO_REUSEADDR & SO_REUSEPORT socket options on all iWARP client connections(default = 0)");
 
 static void
 start_ep_timer(struct c4iw_ep *ep)
@@ -2519,8 +2522,9 @@ static int
 c4iw_sock_create(struct sockaddr_storage *laddr, struct socket **so)
 {
 	int ret;
-	int size;
+	int size, on;
 	struct socket *sock = NULL;
+	struct sockopt sopt;
 
 	ret = sock_create_kern(laddr->ss_family,
 			SOCK_STREAM, IPPROTO_TCP, &sock);
@@ -2528,6 +2532,33 @@ c4iw_sock_create(struct sockaddr_storage *laddr, struct socket **so)
 		CTR2(KTR_IW_CXGBE, "%s:Failed to create TCP socket. err %d",
 				__func__, ret);
 		return ret;
+	}
+
+	if (reuseaddr) {
+		bzero(&sopt, sizeof(struct sockopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = SOL_SOCKET;
+		sopt.sopt_name = SO_REUSEADDR;
+		on = 1;
+		sopt.sopt_val = &on;
+		sopt.sopt_valsize = sizeof(on);
+		ret = sosetopt(sock, &sopt);
+		if (ret != 0) {
+			log(LOG_ERR, "%s: sosetopt(%p, SO_REUSEADDR) "
+				"failed with %d.\n", __func__, sock, ret);
+		}
+		bzero(&sopt, sizeof(struct sockopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = SOL_SOCKET;
+		sopt.sopt_name = SO_REUSEPORT;
+		on = 1;
+		sopt.sopt_val = &on;
+		sopt.sopt_valsize = sizeof(on);
+		ret = sosetopt(sock, &sopt);
+		if (ret != 0) {
+			log(LOG_ERR, "%s: sosetopt(%p, SO_REUSEPORT) "
+				"failed with %d.\n", __func__, sock, ret);
+		}
 	}
 
 	ret = sobind(sock, (struct sockaddr *)laddr, curthread);
