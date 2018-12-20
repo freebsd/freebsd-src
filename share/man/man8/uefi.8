@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2018
+.Dd December 14, 2018
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -77,20 +77,16 @@ The default
 boot configuration for
 .Fx
 installs
-.Pa boot1.efi
+.Pa loader.efi
 in the default path.
 .It
-.Pa boot1.efi
+.Pa loader.efi
 reads boot configuration from
 .Pa /boot.config
 or
 .Pa /boot/config .
-Unlike other first-stage boot loaders,
-.Pa boot1.efi
-passes the configuration to the next stage boot loader and does not
-itself act on the contents of the file.
 .It
-.Pa boot1.efi
+.Pa loader.efi
 searches partitions of type
 .Li freebsd-ufs
 and
@@ -98,7 +94,7 @@ and
 for
 .Pa loader.efi .
 The search begins with partitions on the device from which
-.Pa boot1.efi
+.Pa loader.efi
 was loaded, and continues with other available partitions.
 If both
 .Li freebsd-ufs
@@ -107,9 +103,6 @@ and
 partitions exist on the same device the
 .Li freebsd-zfs
 partition is preferred.
-.Pa boot1.efi
-then loads and executes
-.Pa loader.efi .
 .It
 .Pa loader.efi
 loads and boots the kernel, as described in
@@ -122,20 +115,8 @@ system console is automatically selected when booting via
 .Nm .
 .Sh FILES
 .Bl -tag -width /boot/loader -compact
-.It Pa /boot/boot1.efi
-First stage
 .Nm
 bootstrap
-.It Pa /boot/boot1.efifat
-.Xr msdosfs 5
-FAT file system image containing
-.Pa boot1.efi
-for use by
-.Xr bsdinstall 8
-and the
-.Ar bootcode
-argument to
-.Xr gpart 8 .
 .It Pa /boot/loader.efi
 Final stage bootstrap
 .It Pa /boot/kernel/kernel

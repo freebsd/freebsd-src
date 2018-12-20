@@ -25,6 +25,9 @@
 
 set -e
 
+scriptdir=$(dirname $(realpath $0))
+. ${scriptdir}/../../tools/boot/install-boot.sh
+
 if [ -z $ETDUMP ]; then
 	ETDUMP=etdump
 fi
@@ -43,18 +46,12 @@ if [ "$1" = "-b" ]; then
 	bootable="-o bootimage=i386;$BASEBITSDIR/boot/cdboot -o no-emul-boot"
 
 	# Make EFI system partition (should be done with makefs in the future)
-	dd if=/dev/zero of=efiboot.img bs=4k count=200
-	device=`mdconfig -a -t vnode -f efiboot.img`
-	newfs_msdos -F 12 -m 0xf8 /dev/$device
-	mkdir efi
-	mount -t msdosfs /dev/$device efi
-	mkdir -p efi/efi/boot
-	cp "$BASEBITSDIR/boot/loader.efi" efi/efi/boot/bootx64.efi
-	umount efi
-	rmdir efi
-	mdconfig -d -u $device
-	bootable="$bootable -o bootimage=i386;efiboot.img -o no-emul-boot -o platformid=efi"
-	
+	# The ISO file is a special case, in that it only has a maximum of
+	# 800 KB available for the boot code. So make an 800 KB ESP
+	espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+	make_esp_file ${espfilename} 800 ${BASEBITSDIR}/boot/loader.efi
+	bootable="$bootable -o bootimage=i386;${espfilename} -o no-emul-boot -o platformid=efi"
+
 	shift
 else
 	BASEBITSDIR="$3"
@@ -73,7 +70,7 @@ publisher="The FreeBSD Project.  https://www.FreeBSD.org/"
 echo "/dev/iso9660/$LABEL / cd9660 ro 0 0" > "$BASEBITSDIR/etc/fstab"
 $MAKEFS -t cd9660 $bootable -o rockridge -o label="$LABEL" -o publisher="$publisher" "$NAME" "$@"
 rm -f "$BASEBITSDIR/etc/fstab"
-rm -f efiboot.img
+rm -f ${espfilename}
 
 if [ "$bootable" != "" ]; then
 	# Look for the EFI System Partition image we dropped in the ISO image.

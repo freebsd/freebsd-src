@@ -301,7 +301,7 @@ create_diskimage_mbr ( ) (
 		# s1 is boot, s2 is cfg, s3 is /, not sure how to make that
 		# boot (marked as active) with mkimg yet
 		mkimg -a 2 ${fmtarg} ${bootmbr} -s mbr \
-			-p efi:=${NANO_WORLDDIR}/boot/boot1.efifat \
+			-p efi:=${NANO_WORLDDIR}/boot/efiboot.img \
 			-p ${s2}:=${NANO_LOG}/_.s2 \
 			-p ${s3}:=${NANO_LOG}/_.s3 \
 			-o ${out}
@@ -310,7 +310,7 @@ create_diskimage_mbr ( ) (
 		# p1 is boot for uefi, p2 is boot for gpt, p3 is cfg, p4 is /
 		# and p5 is alt-root (after resize)
 		mkimg -a 2 ${fmtarg} ${bootmbr} -s gpt \
-			-p efi:=${NANO_WORLDDIR}/boot/boot1.efifat \
+			-p efi:=${NANO_WORLDDIR}/boot/efiboot.img \
 			-p freebsd-boot:=${NAANO_WORLDDIR}/boot/gptboot \
 			-p ${p3}:=${NANO_LOG}/_.p3 \
 			-p ${p4}:=${NANO_LOG}/_.p4 \

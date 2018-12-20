@@ -213,7 +213,6 @@ KLDLOAD='kldload %s'
 LN_SF='ln -sf "%s" "%s"'
 MKDIR_P='mkdir -p "%s"'
 MOUNT_TYPE='mount -t %s "%s" "%s"'
-NEWFS_ESP='newfs_msdos -F %s -L "%s" "%s"'
 PRINTF_CONF="printf '%s=\"%%s\"\\\n' %s >> \"%s\""
 PRINTF_FSTAB='printf "$FSTAB_FMT" "%s" "%s" "%s" "%s" "%s" "%s" >> "%s"'
 SHELL_TRUNCATE=':> "%s"'
@@ -851,29 +850,7 @@ zfs_create_diskpart()
 			             "$align_small" efiboot$index efi 200M \
 			             $disk || return $FAILURE
 
-			f_eval_catch $funcname mkdir "$MKDIR_P" \
-				     "$BSDINSTALL_TMPETC/esp" ||
-				     return $FAILURE
-			f_eval_catch $funcname newfs_msdos "$NEWFS_ESP" "16" \
-				     "EFISYS" "/dev/${disk}p1" ||
-				     return $FAILURE
-			f_eval_catch $funcname mount "$MOUNT_TYPE" "msdosfs" \
-				     "/dev/${disk}p1" \
-				     "$BSDINSTALL_TMPETC/esp" ||
-				     return $FAILURE
-			f_eval_catch $funcname mkdir "$MKDIR_P" \
-				     "$BSDINSTALL_TMPETC/esp/efi/boot" ||
-				     return $FAILURE
-			f_eval_catch $funcname cp "$COPY" "/boot/loader.efi" \
-				     "$BSDINSTALL_TMPETC/esp/efi/boot/$ZFSBOOT_ESP_NAME" ||
-				     return $FAILURE
-			f_eval_catch $funcname echo "$ECHO_OVERWRITE" \
-				     "$ZFSBOOT_ESP_NAME" \
-				     "$BSDINSTALL_TMPETC/esp/efi/boot/startup.nsh" ||
-				     return $FAILURE
-			f_eval_catch $funcname umount "$UMOUNT" \
-				     "$BSDINSTALL_TMPETC/esp" ||
-				     return $FAILURE
+			# We'll configure the ESP in bootconfig
 		fi
 
 		if [ "$ZFSBOOT_BOOT_TYPE" = "BIOS" -o \
@@ -1593,20 +1570,6 @@ arm64)
 		: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
 	fi
 	;;
-esac
-
-#
-# The EFI loader installed in the ESP (EFI System Partition) must
-# have the expected name in order to load correctly.
-#
-[ "$ZFSBOOT_ESP_NAME" ] || case "${UNAME_m:-$( uname -m )}" in
-	arm64) ZFSBOOT_ESP_NAME=BOOTaa64.efi ;;
-	arm) ZFSBOOT_ESP_NAME=BOOTarm.efi ;;
-	i386) ZFSBOOT_ESP_NAME=BOOTia32.efi ;;
-	amd64) ZFSBOOT_ESP_NAME=BOOTx64.efi ;;
-	*)
-		f_dprintf "Unsupported architecture: %s" $UNAME_m
-		f_die
 esac
 
 #
