@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <libutil.h>
 #include <inttypes.h>
 
@@ -192,7 +193,9 @@ newfs_command(const char *fstype, char *command, int use_default)
 		for (i = 0; i < (int)nitems(items); i++) {
 			if (items[i].state == 0)
 				continue;
-			if (strcmp(items[i].name, "FAT16") == 0)
+			if (strcmp(items[i].name, "FAT32") == 0)
+				strcat(command, "-F 32 -c 1");
+			else if (strcmp(items[i].name, "FAT16") == 0)
 				strcat(command, "-F 16 ");
 			else if (strcmp(items[i].name, "FAT12") == 0)
 				strcat(command, "-F 12 ");
@@ -400,7 +403,7 @@ gpart_bootcode(struct ggeom *gp)
 		    TRUE);
 		return;
 	}
-		
+
 	bootsize = lseek(bootfd, 0, SEEK_END);
 	boot = malloc(bootsize);
 	lseek(bootfd, 0, SEEK_SET);
@@ -706,8 +709,17 @@ set_default_part_metadata(const char *name, const char *scheme,
 	if (strcmp(type, "freebsd-swap") == 0)
 		mountpoint = "none";
 	if (strcmp(type, bootpart_type(scheme, &default_bootmount)) == 0) {
-		if (default_bootmount == NULL)
+		if (default_bootmount == NULL) {
+
+			int fd = open("/tmp/bsdinstall-esps", O_CREAT | O_WRONLY | O_APPEND,
+						  0600);
+			if (fd > 0) {
+				write(fd, md->name, strlen(md->name));
+				close(fd);
+			}
+
 			md->bootcode = 1;
+		}
 		else if (mountpoint == NULL || strlen(mountpoint) == 0)
 			mountpoint = default_bootmount;
 	}
