@@ -35,8 +35,7 @@
 #include "partedit.h"
 
 /* EFI partition size in bytes */
-#define	EFI_BOOTPART_SIZE	(200 * 1024 * 1024)
-#define	EFI_BOOTPART_PATH	"/boot/boot1.efifat"
+#define	EFI_BOOTPART_SIZE	(260 * 1024 * 1024)
 
 const char *
 default_scheme(void)
@@ -95,10 +94,7 @@ const char *
 partcode_path(const char *part_type, const char *fs_type)
 {
 
-	if (strcmp(part_type, "GPT") == 0)
-		return (EFI_BOOTPART_PATH);
-
-	/* No boot partition data for non-GPT */
+	/* No boot partition data for ARM64 */
 	return (NULL);
 }
 

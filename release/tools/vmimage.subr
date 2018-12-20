@@ -6,6 +6,9 @@
 # Common functions for virtual machine image build scripts.
 #
 
+scriptdir=$(dirname $(realpath $0))
+. ${scriptdir}/../../tools/boot/install-boot.sh
+
 export PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 trap "cleanup" INT QUIT TRAP ABRT TERM
 
@@ -29,10 +32,14 @@ write_partition_layout() {
 				-o ${VMIMAGE}
 			;;
 		arm64:aarch64)
+			# Create an ESP
+			espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+			make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
 			mkimg -s mbr -f ${VMFORMAT} \
-				-p efi:=${BOOTFILES}/efi/boot1/boot1.efifat \
+				-p efi:=${espfilename} \
 				-p freebsd:=${VMBASE} \
 				-o ${VMIMAGE}
+			rm ${espfilename}
 			;;
 		powerpc:powerpc*)
 			mkimg -s apm -f ${VMFORMAT} \
