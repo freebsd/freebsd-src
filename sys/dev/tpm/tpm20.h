@@ -153,12 +153,14 @@ RD4(struct tpm_sc *sc, bus_size_t off)
 
 	return (bus_read_4(sc->mem_res, off));
 }
+#ifdef __amd64__
 static inline uint64_t
 RD8(struct tpm_sc *sc, bus_size_t off)
 {
 
 	return (bus_read_8(sc->mem_res, off));
 }
+#endif
 static inline void
 WR1(struct tpm_sc *sc, bus_size_t off, uint8_t val)
 {
