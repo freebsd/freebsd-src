@@ -1087,6 +1087,14 @@ efx_bist_stop(
 #define	EFX_FEATURE_FW_ASSISTED_TSO	0x00001000
 #define	EFX_FEATURE_FW_ASSISTED_TSO_V2	0x00002000
 
+typedef enum efx_tunnel_protocol_e {
+	EFX_TUNNEL_PROTOCOL_NONE = 0,
+	EFX_TUNNEL_PROTOCOL_VXLAN,
+	EFX_TUNNEL_PROTOCOL_GENEVE,
+	EFX_TUNNEL_PROTOCOL_NVGRE,
+	EFX_TUNNEL_NPROTOS
+} efx_tunnel_protocol_t;
+
 typedef struct efx_nic_cfg_s {
 	uint32_t		enc_board_type;
 	uint32_t		enc_phy_type;
@@ -1184,6 +1192,7 @@ typedef struct efx_nic_cfg_s {
 	boolean_t		enc_init_evq_v2_supported;
 	boolean_t		enc_pm_and_rxdp_counters;
 	boolean_t		enc_mac_stats_40g_tx_size_bins;
+	uint32_t		enc_tunnel_encapsulations_supported;
 	/* External port identifier */
 	uint8_t			enc_external_port;
 	uint32_t		enc_mcdi_max_payload_length;
