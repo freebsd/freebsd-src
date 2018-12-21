@@ -190,7 +190,9 @@ static	__checkReturn	efx_rc_t
 siena_phy_cfg(
 	__in		efx_nic_t *enp)
 {
+#if EFSYS_OPT_PHY_STATS
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
+#endif	/* EFSYS_OPT_PHY_STATS */
 	efx_rc_t rc;
 
 	/* Fill out fields in enp->en_port and enp->en_nic_cfg from MCDI */
