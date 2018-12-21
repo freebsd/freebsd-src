@@ -319,8 +319,8 @@ efx_mcdi_read_sensors(
 	__in		uint32_t size)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_READ_SENSORS_EXT_IN_LEN,
-			    MC_CMD_READ_SENSORS_EXT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_READ_SENSORS_EXT_IN_LEN,
+		MC_CMD_READ_SENSORS_EXT_OUT_LEN);
 	uint32_t addr_lo, addr_hi;
 	efx_rc_t rc;
 
@@ -358,8 +358,8 @@ efx_mcdi_sensor_info_npages(
 	__out		uint32_t *npagesp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SENSOR_INFO_EXT_IN_LEN,
-			    MC_CMD_SENSOR_INFO_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SENSOR_INFO_EXT_IN_LEN,
+		MC_CMD_SENSOR_INFO_OUT_LENMAX);
 	int page;
 	efx_rc_t rc;
 
@@ -402,8 +402,8 @@ efx_mcdi_sensor_info(
 	__in			size_t npages)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SENSOR_INFO_EXT_IN_LEN,
-			    MC_CMD_SENSOR_INFO_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SENSOR_INFO_EXT_IN_LEN,
+		MC_CMD_SENSOR_INFO_OUT_LENMAX);
 	uint32_t page;
 	efx_rc_t rc;
 
