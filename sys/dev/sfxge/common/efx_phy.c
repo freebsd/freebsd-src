@@ -314,7 +314,7 @@ efx_phy_module_get_info(
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT(data != NULL);
 
-	if ((uint32_t)offset + len > 0xff) {
+	if ((uint32_t)offset + len > 0x100) {
 		rc = EINVAL;
 		goto fail1;
 	}
