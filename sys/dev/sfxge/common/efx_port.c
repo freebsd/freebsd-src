@@ -114,7 +114,6 @@ efx_port_poll(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 
 	EFSYS_ASSERT(emop != NULL);
-	EFSYS_ASSERT(!epp->ep_mac_stats_pending);
 
 	if (link_modep == NULL)
 		link_modep = &ignore_link_mode;
