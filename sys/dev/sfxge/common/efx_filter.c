@@ -307,7 +307,7 @@ efx_filter_spec_init_rx(
 	memset(spec, 0, sizeof (*spec));
 	spec->efs_priority = priority;
 	spec->efs_flags = EFX_FILTER_FLAG_RX | flags;
-	spec->efs_rss_context = EFX_FILTER_SPEC_RSS_CONTEXT_DEFAULT;
+	spec->efs_rss_context = EFX_RSS_CONTEXT_DEFAULT;
 	spec->efs_dmaq_id = (uint16_t)erp->er_index;
 }
 
