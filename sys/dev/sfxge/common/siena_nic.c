@@ -213,6 +213,77 @@ fail1:
 	return (rc);
 }
 
+#define	SIENA_BIU_MAGIC0	0x01234567
+#define	SIENA_BIU_MAGIC1	0xfedcba98
+
+static	__checkReturn	efx_rc_t
+siena_nic_biu_test(
+	__in		efx_nic_t *enp)
+{
+	efx_oword_t oword;
+	efx_rc_t rc;
+
+	/*
+	 * Write magic values to scratch registers 0 and 1, then
+	 * verify that the values were written correctly.  Interleave
+	 * the accesses to ensure that the BIU is not just reading
+	 * back the cached value that was last written.
+	 */
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_DRIVER_DW0, SIENA_BIU_MAGIC0);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_DRIVER_REG, 0, &oword, B_TRUE);
+
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_DRIVER_DW0, SIENA_BIU_MAGIC1);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_DRIVER_REG, 1, &oword, B_TRUE);
+
+	EFX_BAR_TBL_READO(enp, FR_AZ_DRIVER_REG, 0, &oword, B_TRUE);
+	if (EFX_OWORD_FIELD(oword, FRF_AZ_DRIVER_DW0) != SIENA_BIU_MAGIC0) {
+		rc = EIO;
+		goto fail1;
+	}
+
+	EFX_BAR_TBL_READO(enp, FR_AZ_DRIVER_REG, 1, &oword, B_TRUE);
+	if (EFX_OWORD_FIELD(oword, FRF_AZ_DRIVER_DW0) != SIENA_BIU_MAGIC1) {
+		rc = EIO;
+		goto fail2;
+	}
+
+	/*
+	 * Perform the same test, with the values swapped.  This
+	 * ensures that subsequent tests don't start with the correct
+	 * values already written into the scratch registers.
+	 */
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_DRIVER_DW0, SIENA_BIU_MAGIC1);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_DRIVER_REG, 0, &oword, B_TRUE);
+
+	EFX_POPULATE_OWORD_1(oword, FRF_AZ_DRIVER_DW0, SIENA_BIU_MAGIC0);
+	EFX_BAR_TBL_WRITEO(enp, FR_AZ_DRIVER_REG, 1, &oword, B_TRUE);
+
+	EFX_BAR_TBL_READO(enp, FR_AZ_DRIVER_REG, 0, &oword, B_TRUE);
+	if (EFX_OWORD_FIELD(oword, FRF_AZ_DRIVER_DW0) != SIENA_BIU_MAGIC1) {
+		rc = EIO;
+		goto fail3;
+	}
+
+	EFX_BAR_TBL_READO(enp, FR_AZ_DRIVER_REG, 1, &oword, B_TRUE);
+	if (EFX_OWORD_FIELD(oword, FRF_AZ_DRIVER_DW0) != SIENA_BIU_MAGIC0) {
+		rc = EIO;
+		goto fail4;
+	}
+
+	return (0);
+
+fail4:
+	EFSYS_PROBE(fail4);
+fail3:
+	EFSYS_PROBE(fail3);
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 	__checkReturn	efx_rc_t
 siena_nic_probe(
 	__in		efx_nic_t *enp)
@@ -227,7 +298,7 @@ siena_nic_probe(
 	EFSYS_ASSERT3U(enp->en_family, ==, EFX_FAMILY_SIENA);
 
 	/* Test BIU */
-	if ((rc = efx_nic_biu_test(enp)) != 0)
+	if ((rc = siena_nic_biu_test(enp)) != 0)
 		goto fail1;
 
 	/* Clear the region register */
