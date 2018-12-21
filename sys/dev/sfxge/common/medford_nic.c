@@ -315,6 +315,13 @@ medford_board_cfg(
 	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
 	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
 
+	/*
+	 * The maximum supported transmit queue size is 2048. TXQs with 4096
+	 * descriptors are not supported as the top bit is used for vfifo
+	 * stuffing.
+	 */
+	encp->enc_txq_max_ndescs = 2048;
+
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
 	encp->enc_piobuf_limit = MEDFORD_PIOBUF_NBUFS;
