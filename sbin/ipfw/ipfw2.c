@@ -940,7 +940,8 @@ strtoport(char *s, char **end, int base, int proto)
 	/*
 	 * find separator. '\\' escapes the next char.
 	 */
-	for (s1 = s; *s1 && (isalnum(*s1) || *s1 == '\\') ; s1++)
+	for (s1 = s; *s1 && (isalnum(*s1) || *s1 == '\\' ||
+	    *s1 == '_' || *s1 == '.') ; s1++)
 		if (*s1 == '\\' && s1[1] != '\0')
 			s1++;
 
