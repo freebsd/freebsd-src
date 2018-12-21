@@ -252,6 +252,7 @@ struct mpr_command {
 	uint32_t			cm_req_busaddr;
 	bus_addr_t			cm_sense_busaddr;
 	struct callout			cm_callout;
+	mpr_command_callback_t		*cm_timeout_handler;
 };
 
 struct mpr_column_map {
@@ -613,6 +614,7 @@ mpr_alloc_command(struct mpr_softc *sc)
 
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
 	cm->cm_state = MPR_CM_STATE_BUSY;
+	cm->cm_timeout_handler = NULL;
 	return (cm);
 }
 
@@ -654,6 +656,7 @@ mpr_alloc_high_priority_command(struct mpr_softc *sc)
 
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
 	cm->cm_state = MPR_CM_STATE_BUSY;
+	cm->cm_timeout_handler = NULL;
 	return (cm);
 }
 

@@ -3815,12 +3815,15 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command **cmp, int timeout,
 	}
 
 	if (error == EWOULDBLOCK) {
-		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s, timeout=%d,"
-		    " elapsed=%jd\n", __func__, timeout,
-		    (intmax_t)cur_time.tv_sec);
-		rc = mpr_reinit(sc);
-		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
-		    "failed");
+		if (cm->cm_timeout_handler == NULL) {
+			mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s, timeout=%d,"
+			    " elapsed=%jd\n", __func__, timeout,
+			    (intmax_t)cur_time.tv_sec);
+			rc = mpr_reinit(sc);
+			mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
+			    "failed");
+		} else
+			cm->cm_timeout_handler(sc, cm);
 		if (sc->mpr_flags & MPR_FLAGS_REALLOCATED) {
 			/*
 			 * Tell the caller that we freed the command in a
