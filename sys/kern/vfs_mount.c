@@ -895,6 +895,7 @@ vfs_domount_first(
 	 */
 	error1 = 0;
 	if ((error = VFS_MOUNT(mp)) != 0 ||
+	    (error1 = VFS_STATFS(mp, &mp->mnt_stat)) != 0 ||
 	    (error1 = VFS_ROOT(mp, LK_EXCLUSIVE, &newdp)) != 0) {
 		if (error1 != 0) {
 			error = error1;
@@ -916,7 +917,6 @@ vfs_domount_first(
 		vfs_freeopts(mp->mnt_opt);
 	mp->mnt_opt = mp->mnt_optnew;
 	*optlist = NULL;
-	(void)VFS_STATFS(mp, &mp->mnt_stat);
 
 	/*
 	 * Prevent external consumers of mount options from reading mnt_optnew.
