@@ -1050,10 +1050,6 @@ struct efx_txq_s {
 	} while (B_FALSE)
 
 extern	__checkReturn	efx_rc_t
-efx_nic_biu_test(
-	__in		efx_nic_t *enp);
-
-extern	__checkReturn	efx_rc_t
 efx_mac_select(
 	__in		efx_nic_t *enp);
 
