@@ -303,14 +303,14 @@ efx_tx_qcreate(
 	__out		unsigned int *addedp)
 {
 	const efx_tx_ops_t *etxop = enp->en_etxop;
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_txq_t *etp;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_TX);
 
-	EFSYS_ASSERT3U(enp->en_tx_qcount + 1, <, encp->enc_txq_limit);
+	EFSYS_ASSERT3U(enp->en_tx_qcount + 1, <,
+	    enp->en_nic_cfg.enc_txq_limit);
 
 	/* Allocate an TXQ object */
 	EFSYS_KMEM_ALLOC(enp->en_esip, sizeof (efx_txq_t), etp);
