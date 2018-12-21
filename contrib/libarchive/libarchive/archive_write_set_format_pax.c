@@ -522,11 +522,13 @@ add_pax_acl(struct archive_write *a,
 		    ARCHIVE_ERRNO_FILE_FORMAT, "%s %s %s",
 		    "Can't translate ", attr, " to UTF-8");
 		return(ARCHIVE_WARN);
-	} else if (*p != '\0') {
+	}
+
+	if (*p != '\0') {
 		add_pax_attr(&(pax->pax_header),
 		    attr, p);
-		free(p);
 	}
+	free(p);
 	return(ARCHIVE_OK);
 }
 
@@ -660,7 +662,7 @@ archive_write_pax_header(struct archive_write *a,
 			 * case getting WCS failed. On POSIX, this is a
 			 * normal operation.
 			 */
-			if (p != NULL && p[strlen(p) - 1] != '/') {
+			if (p != NULL && p[0] != '\0' && p[strlen(p) - 1] != '/') {
 				struct archive_string as;
 
 				archive_string_init(&as);
