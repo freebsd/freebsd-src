@@ -731,15 +731,8 @@ efx_mac_stats_upload(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 	EFSYS_ASSERT(emop != NULL);
 
-	/*
-	 * Don't assert !ep_mac_stats_pending, because the client might
-	 * have failed to finalise statistics when previously stopping
-	 * the port.
-	 */
 	if ((rc = emop->emo_stats_upload(enp, esmp)) != 0)
 		goto fail1;
-
-	epp->ep_mac_stats_pending = B_TRUE;
 
 	return (0);
 
@@ -800,8 +793,6 @@ efx_mac_stats_update(
 	EFSYS_ASSERT(emop != NULL);
 
 	rc = emop->emo_stats_update(enp, esmp, essp, generationp);
-	if (rc == 0)
-		epp->ep_mac_stats_pending = B_FALSE;
 
 	return (rc);
 }
