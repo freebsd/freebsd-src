@@ -759,6 +759,11 @@ ef10_tx_qdesc_vlantci_create(
 	__in	uint16_t vlan_tci,
 	__out	efx_desc_t *edp);
 
+extern	void
+ef10_tx_qdesc_checksum_create(
+	__in	efx_txq_t *etp,
+	__in	uint16_t flags,
+	__out	efx_desc_t *edp);
 
 #if EFSYS_OPT_QSTATS
 
