@@ -123,7 +123,7 @@ static int mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate);
 static int mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
     Mpi2SataPassthroughReply_t *mpi_reply, char *id_buffer, int sz,
     u32 devinfo);
-static void mpssas_ata_id_timeout(void *data);
+static void mpssas_ata_id_timeout(struct mps_softc *, struct mps_command *);
 int mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info, u8 *is_SATA_SSD);
 static int mpssas_volume_add(struct mps_softc *sc,
@@ -959,23 +959,19 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 	cm->cm_length = htole32(sz);
 
 	/*
-	 * Start a timeout counter specifically for the SATA ID command. This
-	 * is used to fix a problem where the FW does not send a reply sometimes
+	 * Use a custom handler to avoid reinit'ing the controller on timeout.
+	 * This fixes a problem where the FW does not send a reply sometimes
 	 * when a bad disk is in the topology. So, this is used to timeout the
 	 * command so that processing can continue normally.
 	 */
-	mps_dprint(sc, MPS_XINFO, "%s start timeout counter for SATA ID "
-	    "command\n", __func__);
-	callout_reset(&cm->cm_callout, MPS_ATA_ID_TIMEOUT * hz,
-	    mpssas_ata_id_timeout, cm);
-	error = mps_wait_command(sc, &cm, 60, CAN_SLEEP);
-	mps_dprint(sc, MPS_XINFO, "%s stop timeout counter for SATA ID "
-	    "command\n", __func__);
-	/* XXX KDM need to fix the case where this command is destroyed */
-	callout_stop(&cm->cm_callout);
+	cm->cm_timeout_handler = mpssas_ata_id_timeout;
 
-	if (cm != NULL)
-		reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
+	error = mps_wait_command(sc, &cm, MPS_ATA_ID_TIMEOUT, CAN_SLEEP);
+
+	/* mpssas_ata_id_timeout does not reset controller */
+	KASSERT(cm != NULL, ("%s: surprise command freed", __func__));
+
+	reply = (Mpi2SataPassthroughReply_t *)cm->cm_reply;
 	if (error || (reply == NULL)) {
 		/* FIXME */
  		/*
@@ -1002,62 +998,28 @@ out:
 	/*
 	 * If the SATA_ID_TIMEOUT flag has been set for this command, don't free
 	 * it.  The command and buffer will be freed after sending an Abort
-	 * Task TM.  If the command did timeout, use EWOULDBLOCK.
+	 * Task TM.
 	 */
-	if ((cm != NULL)
-	    && (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0) {
+	if ((cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0) {
 		mps_free_command(sc, cm);
 		free(buffer, M_MPT2);
-	} else if (error == 0)
-		error = EWOULDBLOCK;
+	}
 	return (error);
 }
 
 static void
-mpssas_ata_id_timeout(void *data)
+mpssas_ata_id_timeout(struct mps_softc *sc, struct mps_command *cm)
 {
-	struct mps_softc *sc;
-	struct mps_command *cm;
 
-	cm = (struct mps_command *)data;
-	sc = cm->cm_sc;
-	mtx_assert(&sc->mps_mtx, MA_OWNED);
-
-	mps_dprint(sc, MPS_INFO, "%s checking ATA ID command %p sc %p\n",
+	mps_dprint(sc, MPS_INFO, "%s ATA ID command timeout cm %p sc %p\n",
 	    __func__, cm, sc);
-	if ((callout_pending(&cm->cm_callout)) ||
-	    (!callout_active(&cm->cm_callout))) {
-		mps_dprint(sc, MPS_INFO, "%s ATA ID command almost timed out\n",
-		    __func__);
-		return;
-	}
-	callout_deactivate(&cm->cm_callout);
 
 	/*
-	 * Run the interrupt handler to make sure it's not pending.  This
-	 * isn't perfect because the command could have already completed
-	 * and been re-used, though this is unlikely.
-	 */
-	mps_intr_locked(sc);
-	if (cm->cm_state == MPS_CM_STATE_FREE) {
-		mps_dprint(sc, MPS_INFO, "%s ATA ID command almost timed out\n",
-		    __func__);
-		return;
-	}
-
-	mps_dprint(sc, MPS_INFO, "ATA ID command timeout cm %p\n", cm);
-
-	/*
-	 * Send wakeup() to the sleeping thread that issued this ATA ID command.
-	 * wakeup() will cause msleep to return a 0 (not EWOULDBLOCK), and this
-	 * will keep reinit() from being called. This way, an Abort Task TM can
-	 * be issued so that the timed out command can be cleared.  The Abort
-	 * Task cannot be sent from here because the driver has not completed
-	 * setting up targets.  Instead, the command is flagged so that special
-	 * handling will be used to send the abort.
+	 * The Abort Task cannot be sent from here because the driver has not
+	 * completed setting up targets.  Instead, the command is flagged so
+	 * that special handling will be used to send the abort.
 	 */
 	cm->cm_flags |= MPS_CM_FLAGS_SATA_ID_TIMEOUT;
-	wakeup(cm);
 }
 
 static int
