@@ -823,7 +823,7 @@ fail1:
 	for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
 		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
-		efx_mcdi_free_piobuf(enp, *handlep);
+		(void) efx_mcdi_free_piobuf(enp, *handlep);
 		*handlep = EFX_PIOBUF_HANDLE_INVALID;
 	}
 	enp->en_arch.ef10.ena_piobuf_count = 0;
@@ -840,7 +840,7 @@ ef10_nic_free_piobufs(
 	for (i = 0; i < enp->en_arch.ef10.ena_piobuf_count; i++) {
 		handlep = &enp->en_arch.ef10.ena_piobuf_handle[i];
 
-		efx_mcdi_free_piobuf(enp, *handlep);
+		(void) efx_mcdi_free_piobuf(enp, *handlep);
 		*handlep = EFX_PIOBUF_HANDLE_INVALID;
 	}
 	enp->en_arch.ef10.ena_piobuf_count = 0;

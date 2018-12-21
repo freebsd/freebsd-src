@@ -438,7 +438,7 @@ ef10_mac_filter_default_rxq_clear(
 
 	ef10_filter_default_rxq_clear(enp);
 
-	efx_filter_reconfigure(enp, epp->ep_mac_addr,
+	(void) efx_filter_reconfigure(enp, epp->ep_mac_addr,
 				    epp->ep_all_unicst, epp->ep_mulcst,
 				    epp->ep_all_mulcst, epp->ep_brdcst,
 				    epp->ep_mulcst_addr_list,
