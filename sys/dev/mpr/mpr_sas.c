@@ -1169,6 +1169,12 @@ mprsas_complete_all_commands(struct mpr_softc *sc)
 		cm->cm_reply = NULL;
 		completed = 0;
 
+		if (cm->cm_flags & MPR_CM_FLAGS_SATA_ID_TIMEOUT) {
+			MPASS(cm->cm_data);
+			free(cm->cm_data, M_MPR);
+			cm->cm_data = NULL;
+		}
+
 		if (cm->cm_flags & MPR_CM_FLAGS_POLLED)
 			cm->cm_flags |= MPR_CM_FLAGS_COMPLETE;
 
