@@ -782,9 +782,11 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	/* most fields are the same, copy from master and then fix */
 	*sna = *mna;
 	sna->up.nm_mem = netmap_mem_get(mna->up.nm_mem);
-	/* swap the number of tx/rx rings */
+	/* swap the number of tx/rx rings and slots */
 	sna->up.num_tx_rings = mna->up.num_rx_rings;
+	sna->up.num_tx_desc  = mna->up.num_rx_desc;
 	sna->up.num_rx_rings = mna->up.num_tx_rings;
+	sna->up.num_rx_desc  = mna->up.num_tx_desc;
 	snprintf(sna->up.name, sizeof(sna->up.name), "%s}%s", pna->name, pipe_id);
 	sna->role = NM_PIPE_ROLE_SLAVE;
 	error = netmap_attach_common(&sna->up);
