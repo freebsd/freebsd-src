@@ -818,6 +818,7 @@ out:
 	for (i = 1; i < sc->num_reqs; i++) {
 		cm = &sc->commands[i];
 		if (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) {
+			free(cm->cm_data, M_MPT2);
 			mps_free_command(sc, cm);
 		}
 	}
@@ -1000,15 +1001,15 @@ mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 out:
 	/*
 	 * If the SATA_ID_TIMEOUT flag has been set for this command, don't free
-	 * it.  The command will be freed after sending a target reset TM. If
-	 * the command did timeout, use EWOULDBLOCK.
+	 * it.  The command and buffer will be freed after sending an Abort
+	 * Task TM.  If the command did timeout, use EWOULDBLOCK.
 	 */
 	if ((cm != NULL)
-	 && (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0)
+	    && (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) == 0) {
 		mps_free_command(sc, cm);
-	else if (error == 0)
+		free(buffer, M_MPT2);
+	} else if (error == 0)
 		error = EWOULDBLOCK;
-	free(buffer, M_MPT2);
 	return (error);
 }
 
