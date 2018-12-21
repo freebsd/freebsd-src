@@ -1817,6 +1817,9 @@ efx_rx_scatter_enable(
 	__in		unsigned int buf_size);
 #endif	/* EFSYS_OPT_RX_SCATTER */
 
+/* Handle to represent use of the default RSS context. */
+#define	EFX_RSS_CONTEXT_DEFAULT	0xffffffff
+
 #if EFSYS_OPT_RX_SCALE
 
 typedef enum efx_rx_hash_alg_e {
@@ -2206,7 +2209,6 @@ typedef struct efx_filter_spec_s {
 
 
 /* Default values for use in filter specifications */
-#define	EFX_FILTER_SPEC_RSS_CONTEXT_DEFAULT	0xffffffff
 #define	EFX_FILTER_SPEC_RX_DMAQ_ID_DROP		0xfff
 #define	EFX_FILTER_SPEC_VID_UNSPEC		0xffff
 
