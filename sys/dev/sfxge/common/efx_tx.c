@@ -905,6 +905,7 @@ siena_tx_qcreate(
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_oword_t oword;
 	uint32_t size;
+	uint16_t inner_csum;
 	efx_rc_t rc;
 
 	_NOTE(ARGUNUSED(esmp))
@@ -934,6 +935,12 @@ siena_tx_qcreate(
 		goto fail3;
 	}
 
+	inner_csum = EFX_TXQ_CKSUM_INNER_IPV4 | EFX_TXQ_CKSUM_INNER_TCPUDP;
+	if ((flags & inner_csum) != 0) {
+		rc = EINVAL;
+		goto fail4;
+	}
+
 	/* Set up the new descriptor queue */
 	*addedp = 0;
 
@@ -956,6 +963,8 @@ siena_tx_qcreate(
 
 	return (0);
 
+fail4:
+	EFSYS_PROBE(fail4);
 fail3:
 	EFSYS_PROBE(fail3);
 fail2:
