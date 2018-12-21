@@ -462,10 +462,11 @@ efx_nvram_validate(
 	if ((rc = envop->envo_type_to_partn(enp, type, &partn)) != 0)
 		goto fail1;
 
-	if (envop->envo_type_to_partn != NULL &&
-	    ((rc = envop->envo_buffer_validate(enp, partn,
-	    partn_data, partn_size)) != 0))
-		goto fail2;
+	if (envop->envo_buffer_validate != NULL) {
+		if ((rc = envop->envo_buffer_validate(enp, partn,
+			    partn_data, partn_size)) != 0)
+			goto fail2;
+	}
 
 	return (0);
 
