@@ -88,7 +88,8 @@ usage(void)
 "       mdconfig -l [-v] [-n] [-f file] [-u unit]\n"
 "       mdconfig file\n");
 	fprintf(stderr, "\t\ttype = {malloc, vnode, swap}\n");
-	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
+	fprintf(stderr, "\t\toption = {cluster, compress, force,\n");
+	fprintf(stderr, "\t\t          readonly, reserve, ro, verify}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%db (B),\n");
 	fprintf(stderr, "\t\t       %%dk (kB), %%dm (MB), %%dg (GB), \n");
 	fprintf(stderr, "\t\t       %%dt (TB), or %%dp (PB)\n");
