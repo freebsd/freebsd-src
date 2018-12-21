@@ -1166,10 +1166,6 @@ siena_rx_qcreate(
 
 #if EFSYS_OPT_RX_SCATTER
 	case EFX_RXQ_TYPE_SCATTER:
-		if (enp->en_family < EFX_FAMILY_SIENA) {
-			rc = EINVAL;
-			goto fail4;
-		}
 		jumbo = B_TRUE;
 		break;
 #endif	/* EFSYS_OPT_RX_SCATTER */
