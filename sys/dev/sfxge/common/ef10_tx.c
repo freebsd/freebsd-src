@@ -290,9 +290,9 @@ ef10_tx_qpio_enable(
 fail3:
 	EFSYS_PROBE(fail3);
 	ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
-	etp->et_pio_size = 0;
 fail2:
 	EFSYS_PROBE(fail2);
+	etp->et_pio_size = 0;
 fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
