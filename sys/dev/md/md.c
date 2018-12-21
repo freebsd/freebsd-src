@@ -880,7 +880,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	struct buf *pb;
 	bus_dma_segment_t *vlist;
 	struct thread *td;
-	off_t iolen, len, zerosize;
+	off_t iolen, iostart, len, zerosize;
 	int ma_offs, npages;
 
 	switch (bp->bio_cmd) {
@@ -983,13 +983,10 @@ unmapped_step:
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 	}
-	/*
-	 * When reading set IO_DIRECT to try to avoid double-caching
-	 * the data.  When writing IO_DIRECT is not optimal.
-	 */
+	iostart = auio.uio_offset;
 	if (auio.uio_rw == UIO_READ) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
+		error = VOP_READ(vp, &auio, 0, sc->cred);
 		VOP_UNLOCK(vp, 0);
 	} else {
 		(void) vn_start_write(vp, &mp, V_WAIT);
@@ -1001,6 +998,11 @@ unmapped_step:
 		if (error == 0)
 			sc->flags &= ~MD_VERIFY;
 	}
+
+	/* When MD_CACHE is set, try to avoid double-caching the data. */
+	if (error == 0 && (sc->flags & MD_CACHE) == 0)
+		VOP_ADVISE(vp, iostart, auio.uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 
 	if (pb != NULL) {
 		pmap_qremove((vm_offset_t)pb->b_data, npages);
@@ -1464,7 +1466,8 @@ mdcreate_vnode(struct md_s *sc, struct md_req *mdr, struct thread *td)
 		sc->fwheads = mdr->md_fwheads;
 	snprintf(sc->ident, sizeof(sc->ident), "MD-DEV%ju-INO%ju",
 	    (uintmax_t)vattr.va_fsid, (uintmax_t)vattr.va_fileid);
-	sc->flags = mdr->md_options & (MD_FORCE | MD_ASYNC | MD_VERIFY);
+	sc->flags = mdr->md_options & (MD_ASYNC | MD_CACHE | MD_FORCE |
+	    MD_VERIFY);
 	if (!(flags & FWRITE))
 		sc->flags |= MD_READONLY;
 	sc->vnode = nd.ni_vp;
@@ -2184,6 +2187,9 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				g_conf_printf_escaped(sb, "%s", mp->file);
 				sbuf_printf(sb, "</file>\n");
 			}
+			if (mp->type == MD_VNODE)
+				sbuf_printf(sb, "%s<cache>%s</cache>\n", indent,
+				    (mp->flags & MD_CACHE) == 0 ? "off": "on");
 			sbuf_printf(sb, "%s<label>", indent);
 			g_conf_printf_escaped(sb, "%s", mp->label);
 			sbuf_printf(sb, "</label>\n");
