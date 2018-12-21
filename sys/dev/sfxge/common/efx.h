@@ -2165,29 +2165,37 @@ typedef unsigned int efx_filter_flags_t;
  * Flags which specify the fields to match on. The values are the same as in the
  * MC_CMD_FILTER_OP/MC_CMD_FILTER_OP_EXT commands.
  */
-typedef enum efx_filter_match_flags_e {
-	EFX_FILTER_MATCH_REM_HOST = 0x0001,	/* Match by remote IP host
-						 * address */
-	EFX_FILTER_MATCH_LOC_HOST = 0x0002,	/* Match by local IP host
-						 * address */
-	EFX_FILTER_MATCH_REM_MAC = 0x0004,	/* Match by remote MAC address */
-	EFX_FILTER_MATCH_REM_PORT = 0x0008,	/* Match by remote TCP/UDP port */
-	EFX_FILTER_MATCH_LOC_MAC = 0x0010,	/* Match by remote TCP/UDP port */
-	EFX_FILTER_MATCH_LOC_PORT = 0x0020,	/* Match by local TCP/UDP port */
-	EFX_FILTER_MATCH_ETHER_TYPE = 0x0040,	/* Match by Ether-type */
-	EFX_FILTER_MATCH_INNER_VID = 0x0080,	/* Match by inner VLAN ID */
-	EFX_FILTER_MATCH_OUTER_VID = 0x0100,	/* Match by outer VLAN ID */
-	EFX_FILTER_MATCH_IP_PROTO = 0x0200,	/* Match by IP transport
-						 * protocol */
-	/* For encapsulated packets, match all multicast inner frames */
-	EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST = 0x01000000,
-	/* For encapsulated packets, match all unicast inner frames */
-	EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST = 0x02000000,
-	/* Match otherwise-unmatched multicast and broadcast packets */
-	EFX_FILTER_MATCH_UNKNOWN_MCAST_DST = 0x40000000,
-	/* Match otherwise-unmatched unicast packets */
-	EFX_FILTER_MATCH_UNKNOWN_UCAST_DST = 0x80000000,
-} efx_filter_match_flags_t;
+
+/* Match by remote IP host address */
+#define	EFX_FILTER_MATCH_REM_HOST		0x00000001
+/* Match by local IP host address */
+#define	EFX_FILTER_MATCH_LOC_HOST		0x00000002
+/* Match by remote MAC address */
+#define	EFX_FILTER_MATCH_REM_MAC		0x00000004
+/* Match by remote TCP/UDP port */
+#define	EFX_FILTER_MATCH_REM_PORT		0x00000008
+/* Match by remote TCP/UDP port */
+#define	EFX_FILTER_MATCH_LOC_MAC		0x00000010
+/* Match by local TCP/UDP port */
+#define	EFX_FILTER_MATCH_LOC_PORT		0x00000020
+/* Match by Ether-type */
+#define	EFX_FILTER_MATCH_ETHER_TYPE		0x00000040
+/* Match by inner VLAN ID */
+#define	EFX_FILTER_MATCH_INNER_VID		0x00000080
+/* Match by outer VLAN ID */
+#define	EFX_FILTER_MATCH_OUTER_VID		0x00000100
+/* Match by IP transport protocol */
+#define	EFX_FILTER_MATCH_IP_PROTO		0x00000200
+/* For encapsulated packets, match all multicast inner frames */
+#define	EFX_FILTER_MATCH_IFRM_UNKNOWN_MCAST_DST	0x01000000
+/* For encapsulated packets, match all unicast inner frames */
+#define	EFX_FILTER_MATCH_IFRM_UNKNOWN_UCAST_DST	0x02000000
+/* Match otherwise-unmatched multicast and broadcast packets */
+#define	EFX_FILTER_MATCH_UNKNOWN_MCAST_DST	0x40000000
+/* Match otherwise-unmatched unicast packets */
+#define	EFX_FILTER_MATCH_UNKNOWN_UCAST_DST	0x80000000
+
+typedef uint32_t efx_filter_match_flags_t;
 
 typedef enum efx_filter_priority_s {
 	EFX_FILTER_PRI_HINT = 0,	/* Performance hint */
