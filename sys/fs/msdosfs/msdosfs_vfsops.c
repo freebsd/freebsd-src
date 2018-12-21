@@ -418,9 +418,12 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 		return (error);
 	}
 	dev_ref(dev);
-	VOP_UNLOCK(devvp, 0);
-
 	bo = &devvp->v_bufobj;
+	VOP_UNLOCK(devvp, 0);
+	if (dev->si_iosize_max != 0)
+		mp->mnt_iosize_max = dev->si_iosize_max;
+	if (mp->mnt_iosize_max > MAXPHYS)
+		mp->mnt_iosize_max = MAXPHYS;
 
 	/*
 	 * Read the boot sector of the filesystem, and then check the
