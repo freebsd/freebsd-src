@@ -43,12 +43,11 @@ efx_mcdi_get_rxdp_config(
 	__out		uint32_t *end_paddingp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_RXDP_CONFIG_IN_LEN,
-			    MC_CMD_GET_RXDP_CONFIG_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_RXDP_CONFIG_IN_LEN,
+		MC_CMD_GET_RXDP_CONFIG_OUT_LEN);
 	uint32_t end_padding;
 	efx_rc_t rc;
 
-	memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_RXDP_CONFIG;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_RXDP_CONFIG_IN_LEN;
