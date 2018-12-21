@@ -24,8 +24,8 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2016
-.Dt NMREPLAY 1
+.Dd December 21, 2018
+.Dt NMREPLAY 8
 .Os
 .Sh NAME
 .Nm nmreplay
@@ -43,6 +43,8 @@
 .Op Fl w Ar wait-link
 .Op Fl v
 .Op Fl C Ar cpu-placement
+.El
+.Ek
 .Sh DESCRIPTION
 .Nm
 works like
@@ -63,6 +65,9 @@ Command line options are as follows
 Name of the pcap file to replay.
 .It Fl i Ar interface
 Name of the netmap interface to use as output.
+See
+.Xr netmap 4
+for interface name format.
 .It Fl v
 Enable verbose mode
 .It Fl b Ar batch-size
@@ -71,7 +76,7 @@ Maximum batch size to use during transmissions.
 normally transmits packets one at a time, but it may use
 larger batches, up to the value specified with this option,
 when running at high rates.
-.It Fl B Ar bps | Cm constant, Ns Ar bps | Cm ether, Ns Ar bps | Cm real Ns Op , Ns Ar speedup
+.It Fl B Ar bps | Cm constant , Ns Ar bps | Cm ether , Ns Ar bps | Cm real Ns Op , Ns Ar speedup
 Bandwidth to be used for transmission.
 .Ar bps
 is a floating point number optionally follow by a character
@@ -85,11 +90,12 @@ indicates that the ethernet framing (160 bits) and CRC (32 bits)
 will be included in the computation of the packet size.
 .Cm real
 means transmission will occur according to the timestamps
-recorded in the trace. The optional
+recorded in the trace.
+The optional
 .Ar speedup
 multiplier (defaults to 1) indicates how much faster
 or slower than real time the trace should be replayed.
-.It Fl D Ar dt | Cm constant, Ns Ar dt | Cm uniform, Ns Ar dmin,dmax | Cm exp, Ar dmin,davg
+.It Fl D Ar dt | Cm constant , Ns Ar dt | Cm uniform , Ns Ar dmin,dmax | Cm exp , Ar dmin,davg
 Adds additional delay to the packet transmission, whose distribution
 can be constant, uniform or exponential.
 .Ar dt, dmin, dmax, avt
@@ -98,7 +104,7 @@ by a character (s, m, u, n) to indicate seconds, milliseconds,
 microseconds, nanoseconds.
 The delay is added to the transmit time and adjusted so that there is
 never packet reordering.
-.It Fl L Ar x | Cm plr, Ns Ar x | Cm ber, Ns Ar x
+.It Fl L Ar x | Cm plr , Ns Ar x | Cm ber , Ns Ar x
 Simulates packet or bit errors, causing offending packets to be dropped.
 .Ar x
 is a floating point number indicating the packet or bit error rate.
@@ -113,14 +119,7 @@ creates an in-memory schedule with all packets to be transmitted,
 and then launches a separate thread to take care of transmissions
 while the main thread reports statistics every second.
 .Sh SEE ALSO
-.Pa http://info.iet.unipi.it/~luigi/netmap/
-.Pp
-Luigi Rizzo, Revisiting network I/O APIs: the netmap framework,
-Communications of the ACM, 55 (3), pp.45-51, March 2012
-.Pp
-Luigi Rizzo, Giuseppe Lettieri,
-VALE, a switched ethernet for virtual machines,
-ACM CoNEXT'12, December 2012, Nice
+.Xr netmap 4
 .Sh AUTHORS
 .An -nosplit
 .Nm
