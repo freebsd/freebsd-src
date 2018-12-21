@@ -70,7 +70,7 @@ efx_mcdi_init_txq(
 	    EFX_TXQ_NBUFS(enp->en_nic_cfg.enc_txq_max_ndescs));
 
 	npages = EFX_TXQ_NBUFS(size);
-	if (npages > MC_CMD_INIT_TXQ_IN_DMA_ADDR_MAXNUM) {
+	if (MC_CMD_INIT_TXQ_IN_LEN(npages) > sizeof (payload)) {
 		rc = EINVAL;
 		goto fail1;
 	}
