@@ -1454,6 +1454,7 @@ void netmap_set_all_rings(struct netmap_adapter *, int stopped);
 void netmap_disable_all_rings(struct ifnet *);
 void netmap_enable_all_rings(struct ifnet *);
 
+int netmap_buf_size_validate(const struct netmap_adapter *na, unsigned mtu);
 int netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 		uint32_t nr_mode, uint16_t nr_ringid, uint64_t nr_flags);
 void netmap_do_unregif(struct netmap_priv_d *priv);
