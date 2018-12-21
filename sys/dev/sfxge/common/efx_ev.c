@@ -228,14 +228,14 @@ efx_ev_qcreate(
 	__deref_out	efx_evq_t **eepp)
 {
 	const efx_ev_ops_t *eevop = enp->en_eevop;
-	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_evq_t *eep;
 	efx_rc_t rc;
 
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_EV);
 
-	EFSYS_ASSERT3U(enp->en_ev_qcount + 1, <, encp->enc_evq_limit);
+	EFSYS_ASSERT3U(enp->en_ev_qcount + 1, <,
+	    enp->en_nic_cfg.enc_evq_limit);
 
 	switch (flags & EFX_EVQ_FLAGS_NOTIFY_MASK) {
 	case EFX_EVQ_FLAGS_NOTIFY_INTERRUPT:
