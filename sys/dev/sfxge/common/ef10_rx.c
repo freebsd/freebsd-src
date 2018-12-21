@@ -657,6 +657,8 @@ ef10_rx_qpost(
 	unsigned int offset;
 	unsigned int id;
 
+	_NOTE(ARGUNUSED(completed))
+
 	/* The client driver must not overfill the queue */
 	EFSYS_ASSERT3U(added - completed + n, <=,
 	    EFX_RXQ_LIMIT(erp->er_mask + 1));
