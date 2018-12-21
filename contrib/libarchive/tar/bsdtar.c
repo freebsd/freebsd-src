@@ -137,6 +137,7 @@ main(int argc, char **argv)
 	char			 compression, compression2;
 	const char		*compression_name, *compression2_name;
 	const char		*compress_program;
+	char			*tptr;
 	char			 possible_help_request;
 	char			 buff[16];
 
@@ -270,10 +271,15 @@ main(int argc, char **argv)
 			/* libarchive doesn't need this; just ignore it. */
 			break;
 		case 'b': /* SUSv2 */
-			t = atoi(bsdtar->argument);
-			if (t <= 0 || t > 8192)
-				lafe_errc(1, 0,
-				    "Argument to -b is out of range (1..8192)");
+			errno = 0;
+			tptr = NULL;
+			t = (int)strtol(bsdtar->argument, &tptr, 10);
+			if (errno || t <= 0 || t > 8192 ||
+			    *(bsdtar->argument) == '\0' || tptr == NULL ||
+			    *tptr != '\0') {
+				lafe_errc(1, 0, "Invalid or out of range "
+				    "(1..8192) argument to -b");
+			}
 			bsdtar->bytes_per_block = 512 * t;
 			/* Explicit -b forces last block size. */
 			bsdtar->bytes_in_last_block = bsdtar->bytes_per_block;
@@ -324,10 +330,13 @@ main(int argc, char **argv)
 			bsdtar->filename = bsdtar->argument;
 			break;
 		case OPTION_GID: /* cpio */
-			t = atoi(bsdtar->argument);
-			if (t < 0)
-				lafe_errc(1, 0,
-				    "Argument to --gid must be positive");
+			errno = 0;
+			tptr = NULL;
+			t = (int)strtol(bsdtar->argument, &tptr, 10);
+			if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+			    tptr == NULL || *tptr != '\0') {
+				lafe_errc(1, 0, "Invalid argument to --gid");
+			}
 			bsdtar->gid = t;
 			break;
 		case OPTION_GNAME: /* cpio */
@@ -623,12 +632,14 @@ main(int argc, char **argv)
 			break;
 		case OPTION_STRIP_COMPONENTS: /* GNU tar 1.15 */
 			errno = 0;
-			bsdtar->strip_components = strtol(bsdtar->argument,
-			    NULL, 0);
-			if (errno)
-				lafe_errc(1, 0,
-				    "Invalid --strip-components argument: %s",
-				    bsdtar->argument);
+			tptr = NULL;
+			t = (int)strtol(bsdtar->argument, &tptr, 10);
+			if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+			    tptr == NULL || *tptr != '\0') {
+				lafe_errc(1, 0, "Invalid argument to "
+				    "--strip-components");
+			}
+			bsdtar->strip_components = t;
 			break;
 		case 'T': /* GNU tar */
 			bsdtar->names_from_file = bsdtar->argument;
@@ -648,10 +659,13 @@ main(int argc, char **argv)
 			set_mode(bsdtar, opt);
 			break;
 		case OPTION_UID: /* cpio */
-			t = atoi(bsdtar->argument);
-			if (t < 0)
-				lafe_errc(1, 0,
-				    "Argument to --uid must be positive");
+			errno = 0;
+			tptr = NULL;
+			t = (int)strtol(bsdtar->argument, &tptr, 10);
+			if (errno || t < 0 || *(bsdtar->argument) == '\0' ||
+			    tptr == NULL || *tptr != '\0') {
+				lafe_errc(1, 0, "Invalid argument to --uid");
+			}
 			bsdtar->uid = t;
 			break;
 		case OPTION_UNAME: /* cpio */

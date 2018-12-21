@@ -159,6 +159,7 @@ TESTS_SRCS= \
 	test_read_format_mtree_crash747.c	\
 	test_read_format_pax_bz2.c		\
 	test_read_format_rar.c			\
+	test_read_format_rar5.c			\
 	test_read_format_rar_encryption_data.c	\
 	test_read_format_rar_encryption_header.c	\
 	test_read_format_rar_encryption_partially.c	\
@@ -508,6 +509,27 @@ FILES+=	test_read_format_rar_sfx.exe.uu
 FILES+=	test_read_format_rar_subblock.rar.uu
 FILES+=	test_read_format_rar_unicode.rar.uu
 FILES+=	test_read_format_rar_windows.rar.uu
+FILES+=	test_read_format_rar5_arm.rar.uu
+FILES+=	test_read_format_rar5_blake2.rar.uu
+FILES+=	test_read_format_rar5_compressed.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part01.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part02.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part03.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part04.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part05.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part06.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part07.rar.uu
+FILES+=	test_read_format_rar5_multiarchive.part08.rar.uu
+FILES+=	test_read_format_rar5_multiarchive_solid.part01.rar.uu                                                                   
+FILES+=	test_read_format_rar5_multiarchive_solid.part02.rar.uu                                                                   
+FILES+=	test_read_format_rar5_multiarchive_solid.part03.rar.uu                                                                   
+FILES+=	test_read_format_rar5_multiarchive_solid.part04.rar.uu                                                                   
+FILES+=	test_read_format_rar5_multiple_files.rar.uu
+FILES+=	test_read_format_rar5_multiple_files_solid.rar.uu                                                                        
+FILES+=	test_read_format_rar5_solid.rar.uu
+FILES+=	test_read_format_rar5_stored.rar.uu
+FILES+=	test_read_format_rar5_stored_manyfiles.rar.uu
+FILES+=	test_read_format_rar5_win32.rar.uu
 FILES+=	test_read_format_raw.bufr.uu
 FILES+=	test_read_format_raw.data.Z.uu
 FILES+=	test_read_format_raw.data.uu
