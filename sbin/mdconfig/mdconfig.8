@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2017
+.Dd December 21, 2018
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -206,6 +206,32 @@ backed devices: avoid
 .Dv IO_SYNC
 for increased performance but
 at the risk of deadlocking the entire kernel.
+.It Oo Cm no Oc Ns Cm cache
+For
+.Cm vnode
+backed devices: enable/disable caching of data in system caches.
+The default is to not cache.
+.Pp
+Accesses via the device are converted to accesses via the vnode.
+The caching policy for the vnode is used initially.
+This is normally to cache.
+This caching policy is retained if the
+.Cm cache
+option is used.
+Otherwise, caching is limited
+by releasing data from caches soon after each access.
+The release has the same semantics as the
+.Dv POSIX_FADV_DONTNEED
+feature of
+.Xr posix_fadvise 2 .
+The result is that with normal (non-zfs) caching,
+buffers are released from the buffer cache soon after they are constructed,
+but their data is kept in the page cache at lower priority.
+.Pp
+The
+.Cm cache
+option tends to waste memory by giving unwanted double caching,
+but it saves time if there is memory to spare.
 .It Oo Cm no Oc Ns Cm reserve
 Allocate and reserve all needed storage from the start, rather than as needed.
 .It Oo Cm no Oc Ns Cm cluster
