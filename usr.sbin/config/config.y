@@ -479,8 +479,7 @@ rmopt_schedule(struct opt_head *list, char *name)
 {
 	struct opt *op;
 
-	op = findopt(list, name);
-	if (op != NULL) {
+	while ((op = findopt(list, name)) != NULL) {
 		SLIST_REMOVE(list, op, opt, op_next);
 		free(op->op_name);
 		free(op);
