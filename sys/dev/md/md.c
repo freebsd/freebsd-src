@@ -1241,12 +1241,22 @@ md_kthread(void *arg)
 			error = sc->start(sc, bp);
 		}
 
+		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+			/*
+			 * Devstat uses (bio_bcount, bio_resid) for
+			 * determining the length of the completed part of
+			 * the i/o.  g_io_deliver() will translate from
+			 * bio_completed to that, but it also destroys the
+			 * bio so we must do our own translation.
+			 */
+			bp->bio_bcount = bp->bio_length;
+			bp->bio_resid = (error == -1 ? bp->bio_bcount : 0);
+			devstat_end_transaction_bio(sc->devstat, bp);
+		}
 		if (error != -1) {
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, error);
 		}
-		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)
-			devstat_end_transaction_bio(sc->devstat, bp);
 	}
 }
 
