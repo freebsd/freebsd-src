@@ -3304,16 +3304,19 @@ netmap_poll(struct netmap_priv_d *priv, int events, NM_SELRECORD_T *sr)
 	}
 	if (want_rx) {
 		enum txrx t = NR_RX;
-		want_rx = 0; /* look for a reason to run the handlers */
+		int rxsync_needed = 0;
+
+		/* look for a reason to run the handlers */
 		for (i = priv->np_qfirst[t]; i < priv->np_qlast[t]; i++) {
 			kring = NMR(na, t)[i];
 			if (kring->ring->cur == kring->ring->tail /* try fetch new buffers */
 			    || kring->rhead != kring->ring->head /* release buffers */) {
-				want_rx = 1;
+				rxsync_needed = 1;
+				break;
 			}
 		}
-		if (!want_rx)
-			revents |= events & (POLLIN | POLLRDNORM); /* we have data */
+		if (!rxsync_needed)
+			revents |= want_rx; /* we have data */
 	}
 #endif
 
