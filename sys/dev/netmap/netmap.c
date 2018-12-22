@@ -3292,31 +3292,38 @@ netmap_poll(struct netmap_priv_d *priv, int events, NM_SELRECORD_T *sr)
 	 * that we must call nm_os_selrecord() unconditionally.
 	 */
 	if (want_tx) {
-		enum txrx t = NR_TX;
-		for (i = priv->np_qfirst[t]; want[t] && i < priv->np_qlast[t]; i++) {
+		const enum txrx t = NR_TX;
+		for (i = priv->np_qfirst[t]; i < priv->np_qlast[t]; i++) {
 			kring = NMR(na, t)[i];
-			/* XXX compare ring->cur and kring->tail */
-			if (!nm_ring_empty(kring->ring)) {
+			if (kring->ring->cur != kring->ring->tail) {
+				/* Some unseen TX space is available, so what
+				 * we don't need to run txsync. */
 				revents |= want[t];
-				want[t] = 0;	/* also breaks the loop */
+				want[t] = 0;
+				break;
 			}
 		}
 	}
 	if (want_rx) {
-		enum txrx t = NR_RX;
+		const enum txrx t = NR_RX;
 		int rxsync_needed = 0;
 
-		/* look for a reason to run the handlers */
 		for (i = priv->np_qfirst[t]; i < priv->np_qlast[t]; i++) {
 			kring = NMR(na, t)[i];
-			if (kring->ring->cur == kring->ring->tail /* try fetch new buffers */
-			    || kring->rhead != kring->ring->head /* release buffers */) {
+			if (kring->ring->cur == kring->ring->tail
+				|| kring->rhead != kring->ring->head) {
+				/* There are no unseen packets on this ring,
+				 * or there are some buffers to be returned
+				 * to the netmap port. We therefore go ahead
+				 * and run rxsync. */
 				rxsync_needed = 1;
 				break;
 			}
 		}
-		if (!rxsync_needed)
-			revents |= want_rx; /* we have data */
+		if (!rxsync_needed) {
+			revents |= want_rx;
+			want_rx = 0;
+		}
 	}
 #endif
 
