@@ -1094,7 +1094,7 @@ vop_stdadvise(struct vop_advise_args *ap)
 		 * pages usually remain in VMIO for some time.
 		 */
 		bsize = vp->v_bufobj.bo_bsize;
-		bstart = roundup(ap->a_start, bsize);
+		bstart = rounddown(ap->a_start, bsize);
 		bend = roundup(ap->a_end, bsize);
 
 		/*
