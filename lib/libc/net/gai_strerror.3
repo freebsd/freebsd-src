@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2006
+.Dd December 23, 2018
 .Dt GAI_STRERROR 3
 .Os
 .Sh NAME
@@ -44,38 +44,30 @@ The following error codes and their meaning are defined in
 .Pp
 .Bl -tag -width ".Dv EAI_BADFLAGS" -offset indent -compact
 .It Dv EAI_AGAIN
-temporary failure in name resolution
+Name could not be resolved at this time
 .It Dv EAI_BADFLAGS
-invalid value for
-.Fa ai_flags
+flags parameter had an invalid value
 .It Dv EAI_BADHINTS
 invalid value for
 .Fa hints
 .It Dv EAI_FAIL
-non-recoverable failure in name resolution
+Non-recoverable failure in name resolution
 .It Dv EAI_FAMILY
-.Fa ai_family
-not supported
+Address family was not recognized
 .It Dv EAI_MEMORY
-memory allocation failure
+Memory allocation failure
 .It Dv EAI_NONAME
-.Fa hostname
-or
-.Fa servname
-not provided, or not known
+Name does not resolve
 .It Dv EAI_OVERFLOW
 argument buffer overflow
 .It Dv EAI_PROTOCOL
-resolved protocol is unknown
+Resolved protocol is unknown
 .It Dv EAI_SERVICE
-.Fa servname
-not supported for
-.Fa ai_socktype
+Service was not recognized for socket type
 .It Dv EAI_SOCKTYPE
-.Fa ai_socktype
-not supported
+Intended socket type was not recognized
 .It Dv EAI_SYSTEM
-system error returned in
+System error returned in
 .Va errno
 .El
 .Sh RETURN VALUES
@@ -90,3 +82,8 @@ is out of range, an implementation-specific error message string is returned.
 .Sh SEE ALSO
 .Xr getaddrinfo 3 ,
 .Xr getnameinfo 3
+.Sh STANDARDS
+.Bl -tag -width ".It RFC 2743"
+.It RFC 3493
+Basic Socket Interface Extensions for IPv6
+.El
