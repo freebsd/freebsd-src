@@ -1,3 +1,26 @@
+2018-12-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181221
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseVErrorInternal use .PARSEDIR
+	    and apply if relative, and then use .PARSEFILE
+	    for consistent result.
+
+2018-12-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181220
+	  Merge with NetBSD make, pick up
+	  o parse.c: ParseVErrorInternal use .CURDIR if .PARSEDIR
+	    is relative
+	  o var.c: avoid SEGFAULT in .unexport-env
+	    when MAKELEVEL is not set
+
+2018-12-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION: 20181216
+	  Merge with NetBSD make, pick up
+	  o fix for unit-tests/varquote.mk on Debian
+
 2018-09-21  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* VERSION: 20180919
