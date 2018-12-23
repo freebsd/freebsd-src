@@ -337,8 +337,10 @@ nvdimm_spa_g_thread(void *arg)
 				auio.uio_td = curthread;
 				error = uiomove_fromphys(bp->bio_ma,
 				    bp->bio_ma_offset, bp->bio_length, &auio);
+				bp->bio_resid = auio.uio_resid;
 			} else {
 				nvdimm_spa_g_all_unmapped(spa, bp, bp->bio_cmd);
+				bp->bio_resid = bp->bio_length;
 				error = 0;
 			}
 		} else {
@@ -353,7 +355,9 @@ nvdimm_spa_g_thread(void *arg)
 			    UIO_WRITE;
 			auio.uio_td = curthread;
 			error = nvdimm_spa_uio(spa, &auio);
+			bp->bio_resid = auio.uio_resid;
 		}
+		bp->bio_bcount = bp->bio_length;
 		devstat_end_transaction_bio(spa->spa_g_devstat, bp);
 completed:
 		bp->bio_completed = bp->bio_length;
