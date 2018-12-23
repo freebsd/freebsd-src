@@ -25,7 +25,8 @@ of mk-files (mk.tar.gz_).  NetBSD provided much of the original structure.
 
 Since then I've added a lot of features to NetBSD's make and hence to
 bmake which is kept closely in sync.  The mk-files however have 
-diverged quite a bit, though ideas are still picked up from NetBSD.
+diverged quite a bit, though ideas are still picked up from NetBSD
+and FreeBSD.
 
 Basics
 ------
@@ -399,6 +400,20 @@ to avoid possible conflicts during parallel builds.
 This precludes the use of suffix rules to drive ``make depend``, so 
 dep.mk_ handles that if specifically requested.
 
+options.mk
+----------
+
+Inspired by FreeBSD's ``bsd.own.mk`` more flexible.
+FreeBSD now have similar functionality in ``bsd.mkopt.mk``.
+
+It allows users to express their intent with respect to options
+``MK_*`` by setting ``WITH_*`` or ``WITHOUT_*``.
+
+Note: ``WITHOUT_*`` wins if both are set, and makefiles can set
+``NO_*`` to say they cannot handle that option, or even ``MK_*`` if
+they really need to.
+
+
 own.mk
 ------
 
@@ -406,6 +421,13 @@ Normally included by ``init.mk`` (included by ``lib.mk`` and
 ``prog.mk`` etc), sets macros for default ownership  etc.
 
 It includes ``${MAKECONF}`` if it is defined and exists.
+
+ldorder.mk
+----------
+
+Leverages ``bmake`` to compute optimal link order for libraries.
+This works nicely and makes refactoring a breeze - so long as you
+have not (or few) cicular dependencies between libraries.
 
 man.mk
 ------
@@ -477,5 +499,5 @@ where you unpacked the tar file, you can::
 .. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.16 2014/09/05 04:41:16 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.18 2018/12/08 07:27:15 sjg Exp $
 :Copyright: Crufty.NET
