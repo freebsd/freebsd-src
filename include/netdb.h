@@ -168,7 +168,7 @@ struct addrinfo {
 #define	EAI_AGAIN	 2	/* name could not be resolved at this time */
 #define	EAI_BADFLAGS	 3	/* flags parameter had an invalid value */
 #define	EAI_FAIL	 4	/* non-recoverable failure in name resolution */
-#define	EAI_FAMILY	 5	/* address family was recognized */
+#define	EAI_FAMILY	 5	/* address family not recognized */
 #define	EAI_MEMORY	 6	/* memory allocation failure */
 #if 0
 /* Obsoleted on RFC 2553bis-02 */
