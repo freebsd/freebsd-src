@@ -449,7 +449,7 @@ ports attached to the switch)
 #include <machine/bus.h>	/* bus_dmamap_* */
 #include <sys/endian.h>
 #include <sys/refcount.h>
-#include <net/ethernet.h>      /* ETHER_BPF_MTAP */
+#include <net/ethernet.h>	/* ETHER_BPF_MTAP */
 
 
 #elif defined(linux)
@@ -2117,6 +2117,53 @@ netmap_csb_validate(struct netmap_priv_d *priv, struct nmreq_opt_csb *csbo)
 	return 0;
 }
 
+/* Ensure that the netmap adapter can support the given MTU.
+ * @return EINVAL if the na cannot be set to mtu, 0 otherwise.
+ */
+int
+netmap_buf_size_validate(const struct netmap_adapter *na, unsigned mtu) {
+	unsigned nbs = NETMAP_BUF_SIZE(na);
+
+	if (mtu <= na->rx_buf_maxsize) {
+		/* The MTU fits a single NIC slot. We only
+		 * Need to check that netmap buffers are
+		 * large enough to hold an MTU. NS_MOREFRAG
+		 * cannot be used in this case. */
+		if (nbs < mtu) {
+			nm_prerr("error: netmap buf size (%u) "
+				 "< device MTU (%u)", nbs, mtu);
+			return EINVAL;
+		}
+	} else {
+		/* More NIC slots may be needed to receive
+		 * or transmit a single packet. Check that
+		 * the adapter supports NS_MOREFRAG and that
+		 * netmap buffers are large enough to hold
+		 * the maximum per-slot size. */
+		if (!(na->na_flags & NAF_MOREFRAG)) {
+			nm_prerr("error: large MTU (%d) needed "
+				 "but %s does not support "
+				 "NS_MOREFRAG", mtu,
+				 na->ifp->if_xname);
+			return EINVAL;
+		} else if (nbs < na->rx_buf_maxsize) {
+			nm_prerr("error: using NS_MOREFRAG on "
+				 "%s requires netmap buf size "
+				 ">= %u", na->ifp->if_xname,
+				 na->rx_buf_maxsize);
+			return EINVAL;
+		} else {
+			nm_prinf("info: netmap application on "
+				 "%s needs to support "
+				 "NS_MOREFRAG "
+				 "(MTU=%u,netmap_buf_size=%u)",
+				 na->ifp->if_xname, mtu, nbs);
+		}
+	}
+	return 0;
+}
+
+
 /*
  * possibly move the interface to netmap-mode.
  * If success it returns a pointer to netmap_if, otherwise NULL.
@@ -2226,11 +2273,10 @@ netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 		 */
 		if (na->ifp && nm_priv_rx_enabled(priv)) {
 			/* This netmap adapter is attached to an ifnet. */
-			unsigned nbs = NETMAP_BUF_SIZE(na);
 			unsigned mtu = nm_os_ifnet_mtu(na->ifp);
 
 			ND("%s: mtu %d rx_buf_maxsize %d netmap_buf_size %d",
-					na->name, mtu, na->rx_buf_maxsize, nbs);
+				na->name, mtu, na->rx_buf_maxsize, NETMAP_BUF_SIZE(na));
 
 			if (na->rx_buf_maxsize == 0) {
 				nm_prerr("%s: error: rx_buf_maxsize == 0", na->name);
@@ -2238,45 +2284,9 @@ netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 				goto err_drop_mem;
 			}
 
-			if (mtu <= na->rx_buf_maxsize) {
-				/* The MTU fits a single NIC slot. We only
-				 * Need to check that netmap buffers are
-				 * large enough to hold an MTU. NS_MOREFRAG
-				 * cannot be used in this case. */
-				if (nbs < mtu) {
-					nm_prerr("error: netmap buf size (%u) "
-						"< device MTU (%u)", nbs, mtu);
-					error = EINVAL;
-					goto err_drop_mem;
-				}
-			} else {
-				/* More NIC slots may be needed to receive
-				 * or transmit a single packet. Check that
-				 * the adapter supports NS_MOREFRAG and that
-				 * netmap buffers are large enough to hold
-				 * the maximum per-slot size. */
-				if (!(na->na_flags & NAF_MOREFRAG)) {
-					nm_prerr("error: large MTU (%d) needed "
-						"but %s does not support "
-						"NS_MOREFRAG", mtu,
-						na->ifp->if_xname);
-					error = EINVAL;
-					goto err_drop_mem;
-				} else if (nbs < na->rx_buf_maxsize) {
-					nm_prerr("error: using NS_MOREFRAG on "
-						"%s requires netmap buf size "
-						">= %u", na->ifp->if_xname,
-						na->rx_buf_maxsize);
-					error = EINVAL;
-					goto err_drop_mem;
-				} else {
-					nm_prinf("info: netmap application on "
-						"%s needs to support "
-						"NS_MOREFRAG "
-						"(MTU=%u,netmap_buf_size=%u)",
-						na->ifp->if_xname, mtu, nbs);
-				}
-			}
+			error = netmap_buf_size_validate(na, mtu);
+			if (error)
+				goto err_drop_mem;
 		}
 
 		/*
