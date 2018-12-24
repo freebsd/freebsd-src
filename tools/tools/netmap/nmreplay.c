@@ -26,71 +26,68 @@
  */
 
 
-#if 0 /* COMMENT */
-
-This program implements NMREPLAY, a program to replay a pcap file
-enforcing the output rate and possibly random losses and delay
-distributions.
-It is meant to be run from the command line and implemented with a main
-control thread for monitoring, plus a thread to push packets out.
-
-The control thread parses command line arguments, prepares a
-schedule for transmission in a memory buffer and then sits
-in a loop where it periodically reads traffic statistics from
-the other threads and prints them out on the console.
-
-The transmit buffer contains headers and packets. Each header
-includes a timestamp that determines when the packet should be sent out.
-A "consumer" thread cons() reads from the queue and transmits packets
-on the output netmap port when their time has come.
-
-The program does CPU pinning and sets the scheduler and priority
-for the "cons" threads. Externally one should do the
-assignment of other threads (e.g. interrupt handlers) and
-make sure that network interfaces are configured properly.
-
---- Main functions of the program ---
-within each function, q is used as a pointer to the queue holding
-packets and parameters.
-
-pcap_prod()
-
-    reads from the pcap file and prepares packets to transmit.
-    After reading a packet from the pcap file, the following information
-    are extracted which can be used to determine the schedule:
-
-    	q->cur_pkt	points to the buffer containing the packet
-	q->cur_len	packet length, excluding CRC
-	q->cur_caplen	available packet length (may be shorter than cur_len)
-	q->cur_tt	transmission time for the packet, computed from the trace.
-
-    The following functions are then called in sequence:
-
-    q->c_loss (set with the -L command line option) decides
-    	whether the packet should be dropped before even queuing.
-	This is generally useful to emulate random loss.
-	The function is supposed to set q->c_drop = 1 if the
-	packet should be dropped, or leave it to 0 otherwise.
-
-    q->c_bw (set with the -B command line option) is used to
-        enforce the transmit bandwidth. The function must store
-	in q->cur_tt the transmission time (in nanoseconds) of
-	the packet, which is typically proportional to the length
-	of the packet, i.e. q->cur_tt = q->cur_len / <bandwidth>
-	Variants are possible, eg. to account for constant framing
-	bits as on the ethernet, or variable channel acquisition times,
-	etc.
-	This mechanism can also be used to simulate variable queueing
-	delay e.g. due to the presence of cross traffic.
-
-    q->c_delay (set with the -D option) implements delay emulation.
-	The function should set q->cur_delay to the additional
-	delay the packet is subject to. The framework will take care of
-	computing the actual exit time of a packet so that there is no
-	reordering.
-
-
-#endif /* COMMENT */
+/*
+ * This program implements NMREPLAY, a program to replay a pcap file
+ * enforcing the output rate and possibly random losses and delay
+ * distributions.
+ * It is meant to be run from the command line and implemented with a main
+ * control thread for monitoring, plus a thread to push packets out.
+ *
+ * The control thread parses command line arguments, prepares a
+ * schedule for transmission in a memory buffer and then sits
+ * in a loop where it periodically reads traffic statistics from
+ * the other threads and prints them out on the console.
+ *
+ * The transmit buffer contains headers and packets. Each header
+ * includes a timestamp that determines when the packet should be sent out.
+ * A "consumer" thread cons() reads from the queue and transmits packets
+ * on the output netmap port when their time has come.
+ *
+ * The program does CPU pinning and sets the scheduler and priority
+ * for the "cons" threads. Externally one should do the
+ * assignment of other threads (e.g. interrupt handlers) and
+ * make sure that network interfaces are configured properly.
+ *
+ * --- Main functions of the program ---
+ * within each function, q is used as a pointer to the queue holding
+ * packets and parameters.
+ *
+ * pcap_prod()
+ *
+ *	reads from the pcap file and prepares packets to transmit.
+ *	After reading a packet from the pcap file, the following information
+ *	are extracted which can be used to determine the schedule:
+ *
+ *   	q->cur_pkt	points to the buffer containing the packet
+ *	q->cur_len	packet length, excluding CRC
+ *	q->cur_caplen	available packet length (may be shorter than cur_len)
+ *	q->cur_tt	transmission time for the packet, computed from the trace.
+ *
+ *  The following functions are then called in sequence:
+ *
+ *  q->c_loss (set with the -L command line option) decides
+ *	whether the packet should be dropped before even queuing.
+ *	This is generally useful to emulate random loss.
+ *	The function is supposed to set q->c_drop = 1 if the
+ *	packet should be dropped, or leave it to 0 otherwise.
+ *
+ *   q->c_bw (set with the -B command line option) is used to
+ *      enforce the transmit bandwidth. The function must store
+ *	in q->cur_tt the transmission time (in nanoseconds) of
+ *	the packet, which is typically proportional to the length
+ *	of the packet, i.e. q->cur_tt = q->cur_len / <bandwidth>
+ *	Variants are possible, eg. to account for constant framing
+ *	bits as on the ethernet, or variable channel acquisition times,
+ *	etc.
+ *	This mechanism can also be used to simulate variable queueing
+ *	delay e.g. due to the presence of cross traffic.
+ *
+ *   q->c_delay (set with the -D option) implements delay emulation.
+ *	The function should set q->cur_delay to the additional
+ *	delay the packet is subject to. The framework will take care of
+ *	computing the actual exit time of a packet so that there is no
+ *	reordering.
+ */
 
 // debugging macros
 #define NED(_fmt, ...)	do {} while (0)
@@ -117,21 +114,20 @@ pcap_prod()
 
 /*
  *
-A packet in the queue is q_pkt plus the payload.
-
-For the packet descriptor we need the following:
-
-    -	position of next packet in the queue (can go backwards).
-	We can reduce to 32 bits if we consider alignments,
-	or we just store the length to be added to the current
-	value and assume 0 as a special index.
-    -	actual packet length (16 bits may be ok)
-    -	queue output time, in nanoseconds (64 bits)
-    -	delay line output time, in nanoseconds
-	One of the two can be packed to a 32bit value
-
-A convenient coding uses 32 bytes per packet.
-
+ * A packet in the queue is q_pkt plus the payload.
+ *
+ * For the packet descriptor we need the following:
+ *
+ *  -	position of next packet in the queue (can go backwards).
+ *	We can reduce to 32 bits if we consider alignments,
+ *	or we just store the length to be added to the current
+ *	value and assume 0 as a special index.
+ *  -	actual packet length (16 bits may be ok)
+ *  -	queue output time, in nanoseconds (64 bits)
+ *  -	delay line output time, in nanoseconds
+ *	One of the two can be packed to a 32bit value
+ *
+ * A convenient coding uses 32 bytes per packet.
  */
 
 struct q_pkt {
@@ -411,7 +407,7 @@ readpcap(const char *fn)
      * average bandwidth of the trace, as follows
      *   first_pkt_ts = p[0].len / avg_bw
      * In turn avg_bw = (total_len - p[0].len)/(p[n-1].ts - p[0].ts)
-     * so 
+     * so
      *   first_ts =  p[0].ts - p[0].len * (p[n-1].ts - p[0].ts) / (total_len - p[0].len)
      */
     if (pf->tot_bytes == first_len) {
@@ -773,7 +769,7 @@ pcap_prod(void *_pa)
     need = loops * pf->tot_bytes_rounded + sizeof(struct q_pkt);
     q->buf = calloc(1, need);
     if (q->buf == NULL) {
-	D("alloc %ld bytes for queue failed, exiting",(_P64)need);
+	D("alloc %lld bytes for queue failed, exiting",(long long)need);
 	goto fail;
     }
     q->prod_head = q->prod_tail = 0;
@@ -834,7 +830,7 @@ pcap_prod(void *_pa)
 	/* insure no reordering and spacing by transmission time */
 	q->qt_tx = (t_tx >= q->qt_tx + tt) ? t_tx : q->qt_tx + tt;
 	enq(q);
-	
+
 	q->tx++;
 	ND("ins %d q->prod_tail = %lu", (int)insert, (unsigned long)q->prod_tail);
     }
@@ -881,6 +877,7 @@ cons(void *_pa)
 	     * add to q->t0 the time for the last packet
 	     */
 	    q->t0 += last_ts;
+	    set_tns_now(&q->cons_now, q->t0);
 	    q->cons_head = 0;	//restart from beginning of the queue
 	    continue;
 	}
@@ -896,9 +893,7 @@ cons(void *_pa)
 	    continue;
 	}
 	/* XXX copy is inefficient but simple */
-	pending++;
-	if (nm_inject(pa->pb, (char *)(p + 1), p->pktlen) == 0 ||
-		pending > q->burst) {
+	if (nm_inject(pa->pb, (char *)(p + 1), p->pktlen) == 0) {
 	    RD(1, "inject failed len %d now %ld tx %ld h %ld t %ld next %ld",
 		(int)p->pktlen, (u_long)q->cons_now, (u_long)p->pt_tx,
 		(u_long)q->_head, (u_long)q->_tail, (u_long)p->next);
@@ -906,6 +901,12 @@ cons(void *_pa)
 	    pending = 0;
 	    continue;
 	}
+	pending++;
+	if (pending > q->burst) {
+	    ioctl(pa->pb->fd, NIOCTXSYNC, 0);
+	    pending = 0;
+	}
+
 	q->cons_head = p->next;
 	/* drain packets from the queue */
 	q->rx++;
@@ -973,7 +974,7 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: nmreplay [-v] [-D delay] [-B {[constant,]bps|ether,bps|real,speedup}] [-L loss]\n"
-	    "\t[-b burst] -i ifa-or-pcap-file -i ifb\n");
+	    "\t[-b burst] -f pcap-file -i <netmap:ifname|valeSSS:PPP>\n");
 	exit(1);
 }
 
@@ -1263,9 +1264,9 @@ main(int argc, char **argv)
 	    struct _qs *q0 = &bp[0].q;
 
 	    sleep(1);
-	    ED("%ld -> %ld maxq %d round %ld",
-		(_P64)(q0->rx - olda.rx), (_P64)(q0->tx - olda.tx),
-		q0->rx_qmax, (_P64)q0->prod_max_gap
+	    ED("%lld -> %lld maxq %d round %lld",
+		(long long)(q0->rx - olda.rx), (long long)(q0->tx - olda.tx),
+		q0->rx_qmax, (long long)q0->prod_max_gap
 		);
 	    ED("plr nominal %le actual %le",
 		(double)(q0->c_loss.d[0])/(1<<24),
@@ -1531,7 +1532,7 @@ uniform_delay_parse(struct _qs *q, struct _cfg *dst, int ac, char *av[])
 	dmax = parse_time(av[2]);
 	if (dmin == U_PARSE_ERR || dmax == U_PARSE_ERR || dmin > dmax)
 		return 1;
-	D("dmin %ld dmax %ld", (_P64)dmin, (_P64)dmax);
+	D("dmin %lld dmax %lld", (long long)dmin, (long long)dmax);
 	dst->d[0] = dmin;
 	dst->d[1] = dmax;
 	dst->d[2] = dmax - dmin;
@@ -1594,22 +1595,22 @@ exp_delay_run(struct _qs *q, struct _cfg *arg)
 {
 	uint64_t *t = (uint64_t *)arg->arg;
         q->cur_delay = t[my_random24() & (PTS_D_EXP - 1)];
-	RD(5, "delay %lu", (_P64)q->cur_delay);
+	RD(5, "delay %llu", (unsigned long long)q->cur_delay);
         return 0;
 }
 
 
 /* unused arguments in configuration */
-#define _CFG_END	NULL, 0, {0}, {0}
+#define TLEM_CFG_END	NULL, 0, {0}, {0}
 
 static struct _cfg delay_cfg[] = {
 	{ const_delay_parse, const_delay_run,
-		"constant,delay", _CFG_END },
+		"constant,delay", TLEM_CFG_END },
 	{ uniform_delay_parse, uniform_delay_run,
-		"uniform,dmin,dmax # dmin <= dmax", _CFG_END },
+		"uniform,dmin,dmax # dmin <= dmax", TLEM_CFG_END },
 	{ exp_delay_parse, exp_delay_run,
-		"exp,dmin,davg # dmin <= davg", _CFG_END },
-	{ NULL, NULL, NULL, _CFG_END }
+		"exp,dmin,davg # dmin <= davg", TLEM_CFG_END },
+	{ NULL, NULL, NULL, TLEM_CFG_END }
 };
 
 /* standard bandwidth, also accepts just a number */
@@ -1702,12 +1703,12 @@ real_bw_run(struct _qs *q, struct _cfg *arg)
 
 static struct _cfg bw_cfg[] = {
 	{ const_bw_parse, const_bw_run,
-		"constant,bps", _CFG_END },
+		"constant,bps", TLEM_CFG_END },
 	{ ether_bw_parse, ether_bw_run,
-		"ether,bps", _CFG_END },
+		"ether,bps", TLEM_CFG_END },
 	{ real_bw_parse, real_bw_run,
-		"real,scale", _CFG_END },
-	{ NULL, NULL, NULL, _CFG_END }
+		"real,scale", TLEM_CFG_END },
+	{ NULL, NULL, NULL, TLEM_CFG_END }
 };
 
 /*
@@ -1813,8 +1814,8 @@ const_ber_run(struct _qs *q, struct _cfg *arg)
 
 static struct _cfg loss_cfg[] = {
 	{ const_plr_parse, const_plr_run,
-		"plr,prob # 0 <= prob <= 1", _CFG_END },
+		"plr,prob # 0 <= prob <= 1", TLEM_CFG_END },
 	{ const_ber_parse, const_ber_run,
-		"ber,prob # 0 <= prob <= 1", _CFG_END },
-	{ NULL, NULL, NULL, _CFG_END }
+		"ber,prob # 0 <= prob <= 1", TLEM_CFG_END },
+	{ NULL, NULL, NULL, TLEM_CFG_END }
 };
