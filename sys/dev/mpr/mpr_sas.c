@@ -3312,7 +3312,7 @@ mprsas_action_resetdev(struct mprsas_softc *sassc, union ccb *ccb)
 	KASSERT(ccb->ccb_h.target_id < sassc->maxtargets, ("Target %d out of "
 	    "bounds in XPT_RESET_DEV\n", ccb->ccb_h.target_id));
 	sc = sassc->sc;
-	tm = mpr_alloc_command(sc);
+	tm = mprsas_alloc_tm(sc);
 	if (tm == NULL) {
 		mpr_dprint(sc, MPR_ERROR, "command alloc failure in "
 		    "mprsas_action_resetdev\n");
@@ -3337,8 +3337,8 @@ mprsas_action_resetdev(struct mprsas_softc *sassc, union ccb *ccb)
 	mpr_dprint(sc, MPR_INFO, "%s: Sending reset for target ID %d\n",
 	    __func__, targ->tid);
 	tm->cm_targ = targ;
-	targ->flags |= MPRSAS_TARGET_INRESET;
 
+	mprsas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
 	mpr_map_command(sc, tm);
 }
 
