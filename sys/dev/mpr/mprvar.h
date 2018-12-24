@@ -657,6 +657,8 @@ mpr_alloc_high_priority_command(struct mpr_softc *sc)
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
 	cm->cm_state = MPR_CM_STATE_BUSY;
 	cm->cm_timeout_handler = NULL;
+	cm->cm_desc.HighPriority.RequestFlags =
+	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	return (cm);
 }
 

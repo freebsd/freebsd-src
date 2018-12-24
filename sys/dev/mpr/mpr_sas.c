@@ -229,9 +229,12 @@ mprsas_startup_decrement(struct mprsas_softc *sassc)
 	}
 }
 
-/* The firmware requires us to stop sending commands when we're doing task
- * management, so refcount the TMs and keep the simq frozen when any are in
+/*
+ * The firmware requires us to stop sending commands when we're doing task
+ * management.
  * use.
+ * XXX The logic for serializing the device has been made lazy and moved to
+ * mprsas_prepare_for_tm().
  */
 struct mpr_command *
 mprsas_alloc_tm(struct mpr_softc *sc)
@@ -467,8 +470,6 @@ mprsas_prepare_volume_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	cm->cm_targ = targ;
 	cm->cm_data = NULL;
-	cm->cm_desc.HighPriority.RequestFlags =
-	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	cm->cm_complete = mprsas_remove_volume;
 	cm->cm_complete_data = (void *)(uintptr_t)handle;
 
@@ -531,8 +532,6 @@ mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	cm->cm_targ = targ;
 	cm->cm_data = NULL;
-	cm->cm_desc.HighPriority.RequestFlags =
-	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	cm->cm_complete = mprsas_remove_device;
 	cm->cm_complete_data = (void *)(uintptr_t)handle;
 
@@ -1494,8 +1493,6 @@ mprsas_send_reset(struct mpr_softc *sc, struct mpr_command *tm, uint8_t type)
 	}
 
 	tm->cm_data = NULL;
-	tm->cm_desc.HighPriority.RequestFlags =
-	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete_data = (void *)tm;
 
 	callout_reset(&tm->cm_callout, MPR_RESET_TIMEOUT * hz,
@@ -1623,8 +1620,6 @@ mprsas_send_abort(struct mpr_softc *sc, struct mpr_command *tm,
 	req->TaskMID = htole16(cm->cm_desc.Default.SMID);
 
 	tm->cm_data = NULL;
-	tm->cm_desc.HighPriority.RequestFlags =
-	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete = mprsas_abort_complete;
 	tm->cm_complete_data = (void *)tm;
 	tm->cm_targ = cm->cm_targ;
@@ -3336,8 +3331,6 @@ mprsas_action_resetdev(struct mprsas_softc *sassc, union ccb *ccb)
 	req->MsgFlags = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 
 	tm->cm_data = NULL;
-	tm->cm_desc.HighPriority.RequestFlags =
-	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete = mprsas_resetdev_complete;
 	tm->cm_complete_data = ccb;
 
@@ -3750,6 +3743,13 @@ mprsas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 #endif /* (__FreeBSD_version < 901503) || \
           ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000006)) */
 
+/*
+ * Set the INRESET flag for this target so that no I/O will be sent to
+ * the target until the reset has completed.  If an I/O request does
+ * happen, the devq will be frozen.  The CCB holds the path which is
+ * used to release the devq.  The devq is released and the CCB is freed
+ * when the TM completes.
+ */
 void
 mprsas_prepare_for_tm(struct mpr_softc *sc, struct mpr_command *tm,
     struct mprsas_target *target, lun_id_t lun_id)
@@ -3757,13 +3757,6 @@ mprsas_prepare_for_tm(struct mpr_softc *sc, struct mpr_command *tm,
 	union ccb *ccb;
 	path_id_t path_id;
 
-	/*
-	 * Set the INRESET flag for this target so that no I/O will be sent to
-	 * the target until the reset has completed.  If an I/O request does
-	 * happen, the devq will be frozen.  The CCB holds the path which is
-	 * used to release the devq.  The devq is released and the CCB is freed
-	 * when the TM completes.
-	 */
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb) {
 		path_id = cam_sim_path(sc->sassc->sim);
