@@ -248,12 +248,14 @@ Default
 .Pa /etc/ddb.conf .
 .It Va kld_list
 .Pq Vt str
-A list of kernel modules to load right after the local
-disks are mounted.
+A whitespace-separated list of kernel modules to load right after
+the local disks are mounted, without any
+.Pa .ko
+extension or path.
 Loading modules at this point in the boot process is
 much faster than doing it via
 .Pa /boot/loader.conf
-for those modules not necessary for mounting local disk.
+for those modules not necessary for mounting local disks.
 .It Va kldxref_enable
 .Pq Vt bool
 Set to
