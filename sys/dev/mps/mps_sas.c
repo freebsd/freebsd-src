@@ -3057,7 +3057,7 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	    ("Target %d out of bounds in XPT_RESET_DEV\n",
 	     ccb->ccb_h.target_id));
 	sc = sassc->sc;
-	tm = mps_alloc_command(sc);
+	tm = mpssas_alloc_tm(sc);
 	if (tm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
 		    "command alloc failure in mpssas_action_resetdev\n");
@@ -3079,8 +3079,8 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	tm->cm_complete = mpssas_resetdev_complete;
 	tm->cm_complete_data = ccb;
 	tm->cm_targ = targ;
-	targ->flags |= MPSSAS_TARGET_INRESET;
 
+	mpssas_prepare_for_tm(sc, tm, targ, CAM_LUN_WILDCARD);
 	mps_map_command(sc, tm);
 }
 
