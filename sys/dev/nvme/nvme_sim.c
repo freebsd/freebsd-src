@@ -150,8 +150,6 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 
 	ctrlr = sim2ctrlr(sim);
 
-	mtx_assert(&ctrlr->lock, MA_OWNED);
-
 	switch (ccb->ccb_h.func_code) {
 	case XPT_CALC_GEOMETRY:		/* Calculate Geometry Totally nuts ? XXX */
 		/* 
@@ -289,7 +287,7 @@ nvme_sim_new_controller(struct nvme_controller *ctrlr)
 
 	sc->s_sim = cam_sim_alloc(nvme_sim_action, nvme_sim_poll,
 	    "nvme", sc, device_get_unit(ctrlr->dev),
-	    &ctrlr->lock, max_trans, max_trans, devq);
+	    NULL, max_trans, max_trans, devq);
 	if (sc->s_sim == NULL) {
 		printf("Failed to allocate a sim\n");
 		cam_simq_free(devq);
@@ -320,10 +318,7 @@ static void *
 nvme_sim_new_ns(struct nvme_namespace *ns, void *sc_arg)
 {
 	struct nvme_sim_softc *sc = sc_arg;
-	struct nvme_controller *ctrlr = sc->s_ctrlr;
 	union ccb *ccb;
-
-	mtx_lock(&ctrlr->lock);
 
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
@@ -340,8 +335,6 @@ nvme_sim_new_ns(struct nvme_namespace *ns, void *sc_arg)
 
 	xpt_rescan(ccb);
 
-	mtx_unlock(&ctrlr->lock);
-
 	return (ns);
 }
 
@@ -349,14 +342,11 @@ static void
 nvme_sim_controller_fail(void *ctrlr_arg)
 {
 	struct nvme_sim_softc *sc = ctrlr_arg;
-	struct nvme_controller *ctrlr = sc->s_ctrlr;
 
-	mtx_lock(&ctrlr->lock);
 	xpt_async(AC_LOST_DEVICE, sc->s_path, NULL);
 	xpt_free_path(sc->s_path);
 	xpt_bus_deregister(cam_sim_path(sc->s_sim));
 	cam_sim_free(sc->s_sim, /*free_devq*/TRUE);
-	mtx_unlock(&ctrlr->lock);
 	free(sc, M_NVME);
 }
 
