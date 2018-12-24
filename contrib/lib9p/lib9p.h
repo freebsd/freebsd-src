@@ -51,6 +51,8 @@
 #define	L9P_NUMTHREADS      8
 
 struct l9p_request;
+struct l9p_backend;
+struct l9p_fid;
 
 /*
  * Functions to implement underlying transport for lib9p.
@@ -73,14 +75,13 @@ struct l9p_request;
  * l9p_connection_recv().
  */
 struct l9p_transport {
-	void	*lt_aux;
-	int	(*lt_get_response_buffer)(struct l9p_request *,
-					  struct iovec *, size_t *, void *);
-	int	(*lt_send_response)(struct l9p_request *,
-				    const struct iovec *, size_t, size_t,
-				    void *);
-	void	(*lt_drop_response)(struct l9p_request *,
-				    const struct iovec *, size_t, void *);
+	void *lt_aux;
+	int (*lt_get_response_buffer)(struct l9p_request *, struct iovec *,
+	    size_t *, void *);
+	int (*lt_send_response)(struct l9p_request *, const struct iovec *,
+	    size_t, size_t, void *);
+	void (*lt_drop_response)(struct l9p_request *, const struct iovec *,
+	    size_t, void *);
 };
 
 enum l9p_pack_mode {
@@ -119,8 +120,6 @@ struct l9p_message {
 	size_t lm_size;
 };
 
-struct l9p_fid;
-
 /*
  * Data structure for a request/response pair (Tfoo/Rfoo).
  *
@@ -158,7 +157,7 @@ struct l9p_request {
 	struct iovec lr_data_iov[L9P_MAX_IOV];	/* iovecs for req + resp */
 	size_t lr_data_niov;			/* actual size of data_iov */
 
-	int	lr_error;		/* result from l9p_dispatch_request */
+	int lr_error;			/* result from l9p_dispatch_request */
 
 	/* proteced by threadpool mutex */
 	enum l9p_workstate lr_workstate;	/* threadpool: work state */
@@ -204,7 +203,6 @@ struct l9p_connection {
 	LIST_ENTRY(l9p_connection) lc_link;
 };
 
-struct l9p_backend;
 struct l9p_server {
 	struct l9p_backend *ls_backend;
 	enum l9p_version ls_max_version;

@@ -90,9 +90,8 @@ ht_find_locked(struct ht *h, uint32_t hash)
 	entry = &h->ht_entries[hash % h->ht_nentries];
 
 	TAILQ_FOREACH(item, &entry->hte_items, hti_link) {
-		if (item->hti_hash == hash) {
+		if (item->hti_hash == hash)
 			return (item->hti_data);
-		}
 	}
 
 	return (NULL);

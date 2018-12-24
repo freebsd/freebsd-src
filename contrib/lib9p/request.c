@@ -1385,9 +1385,11 @@ l9p_dispatch_tmkdir(struct l9p_request *req)
 	if (error)
 		return (error);
 
-	be = conn->lc_server->ls_backend;
+	/* Slashes embedded in the name are not allowed */
+	if (strchr(req->lr_req.tlcreate.name, '/') != NULL)
+		return (EINVAL);
 
-	/* TODO: check new directory name */
+	be = conn->lc_server->ls_backend;
 	error = be->mkdir != NULL ? be->mkdir(be->softc, req) : ENOSYS;
 	return (error);
 }

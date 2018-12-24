@@ -61,7 +61,7 @@ static inline int
 ht_rdlock(struct ht *h)
 {
 
-	return pthread_rwlock_rdlock(&h->ht_rwlock);
+	return (pthread_rwlock_rdlock(&h->ht_rwlock));
 }
 
 /*
@@ -71,7 +71,7 @@ static inline int
 ht_wrlock(struct ht *h)
 {
 
-	return pthread_rwlock_wrlock(&h->ht_rwlock);
+	return (pthread_rwlock_wrlock(&h->ht_rwlock));
 }
 
 /*
@@ -81,7 +81,7 @@ static inline int
 ht_unlock(struct ht *h)
 {
 
-	return pthread_rwlock_unlock(&h->ht_rwlock);
+	return (pthread_rwlock_unlock(&h->ht_rwlock));
 }
 
 void ht_init(struct ht *h, ssize_t size);

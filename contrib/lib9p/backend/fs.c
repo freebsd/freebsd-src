@@ -2076,7 +2076,8 @@ fs_wstat(void *softc, struct l9p_request *req)
 			error = ENOMEM;
 			goto out;
 		}
-		if (rename(file->ff_name, tmp) != 0) {
+		if (renameat(file->ff_dirfd, file->ff_name, file->ff_dirfd,
+		    tmp) != 0) {
 			error = errno;
 			free(tmp);
 			goto out;
@@ -2340,7 +2341,7 @@ fs_rename(void *softc, struct l9p_request *req)
 	if (tmp == NULL)
 		return (ENOMEM);
 
-	if (rename(file->ff_name, tmp) != 0) {
+	if (renameat(file->ff_dirfd, file->ff_name, file->ff_dirfd, tmp) != 0) {
 		error = errno;
 		free(tmp);
 		return (error);
@@ -2855,7 +2856,7 @@ fs_renameat(void *softc, struct l9p_request *req)
 			return (error);
 	}
 
-	if (rename(onb, nnb))
+	if (renameat(off->ff_dirfd, onb, nff->ff_dirfd, nnb))
 		error = errno;
 
 	return (error);
