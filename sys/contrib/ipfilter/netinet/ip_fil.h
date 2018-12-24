@@ -1813,9 +1813,6 @@ extern	int	ipf_resolvefunc __P((ipf_main_softc_t *, void *));
 extern	void	*ipf_resolvenic __P((ipf_main_softc_t *, char *, int));
 extern	int	ipf_send_icmp_err __P((int, fr_info_t *, int));
 extern	int	ipf_send_reset __P((fr_info_t *));
-#if  (defined(__FreeBSD_version) && (__FreeBSD_version < 501000)) || \
-     !defined(_KERNEL) || defined(linux)
-#endif
 extern	void	ipf_apply_timeout __P((ipftq_t *, u_int));
 extern	ipftq_t	*ipf_addtimeoutqueue __P((ipf_main_softc_t *, ipftq_t **,
 					  u_int));
