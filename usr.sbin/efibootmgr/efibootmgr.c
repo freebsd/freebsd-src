@@ -96,6 +96,7 @@ typedef struct _bmgr_opts {
 static struct option lopts[] = {
 	{"activate", required_argument, NULL, 'a'},
 	{"bootnext", required_argument, NULL, 'n'}, /* set bootnext */
+	{"bootnum", required_argument, NULL, 'b'},
 	{"bootorder", required_argument, NULL, 'o'}, /* set order */
 	{"copy", required_argument, NULL, 'C'},		/* Copy boot method */
 	{"create", no_argument, NULL, 'c'},
@@ -191,7 +192,7 @@ parse_args(int argc, char *argv[])
 {
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "A:a:B:C:cDe:hk:L:l:Nn:Oo:Tt:v",
+	while ((ch = getopt_long(argc, argv, "A:a:B:b:C:cDe:hk:L:l:Nn:Oo:Tt:v",
 		    lopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
