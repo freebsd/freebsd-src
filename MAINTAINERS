@@ -38,6 +38,7 @@ subsystem	login	notes
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/compiler-rt	dim	Pre-commit review preferred.
+contrib/ipfilter	cy	Pre-commit review requested.
 contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
@@ -88,6 +89,7 @@ share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit r
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
+sys/contrib/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
