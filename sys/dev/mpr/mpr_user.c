@@ -835,8 +835,6 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 		task->TaskMID = cm->cm_desc.Default.SMID;
 
 		cm->cm_data = NULL;
-		cm->cm_desc.HighPriority.RequestFlags =
-		    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 		cm->cm_complete = NULL;
 		cm->cm_complete_data = NULL;
 
