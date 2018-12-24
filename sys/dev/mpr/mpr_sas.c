@@ -239,10 +239,16 @@ mprsas_startup_decrement(struct mprsas_softc *sassc)
 struct mpr_command *
 mprsas_alloc_tm(struct mpr_softc *sc)
 {
+	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
 	struct mpr_command *tm;
 
 	MPR_FUNCTRACE(sc);
 	tm = mpr_alloc_high_priority_command(sc);
+	if (tm == NULL)
+		return (NULL);
+
+	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
+	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	return tm;
 }
 
@@ -462,7 +468,6 @@ mprsas_prepare_volume_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
 	req->DevHandle = targ->handle;
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 
 	/* SAS Hard Link Reset / SATA Link Reset */
@@ -494,7 +499,7 @@ mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle)
 {
 	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
 	struct mpr_softc *sc;
-	struct mpr_command *cm;
+	struct mpr_command *tm;
 	struct mprsas_target *targ = NULL;
 
 	MPR_FUNCTRACE(sassc->sc);
@@ -512,8 +517,8 @@ mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	targ->flags |= MPRSAS_TARGET_INREMOVAL;
 
-	cm = mprsas_alloc_tm(sc);
-	if (cm == NULL) {
+	tm = mprsas_alloc_tm(sc);
+	if (tm == NULL) {
 		mpr_dprint(sc, MPR_ERROR, "%s: command alloc failure\n",
 		    __func__);
 		return;
@@ -521,25 +526,24 @@ mprsas_prepare_remove(struct mprsas_softc *sassc, uint16_t handle)
 
 	mprsas_rescan_target(sc, targ);
 
-	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
+	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	memset(req, 0, sizeof(*req));
 	req->DevHandle = htole16(targ->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 
 	/* SAS Hard Link Reset / SATA Link Reset */
 	req->MsgFlags = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 
-	cm->cm_targ = targ;
-	cm->cm_data = NULL;
-	cm->cm_complete = mprsas_remove_device;
-	cm->cm_complete_data = (void *)(uintptr_t)handle;
+	tm->cm_targ = targ;
+	tm->cm_data = NULL;
+	tm->cm_complete = mprsas_remove_device;
+	tm->cm_complete_data = (void *)(uintptr_t)handle;
 
 	mpr_dprint(sc, MPR_INFO, "%s: Sending reset for target ID %d\n",
 	    __func__, targ->tid);
-	mprsas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
+	mprsas_prepare_for_tm(sc, tm, targ, CAM_LUN_WILDCARD);
 
-	mpr_map_command(sc, cm);
+	mpr_map_command(sc, tm);
 }
 
 static void
@@ -1456,7 +1460,6 @@ mprsas_send_reset(struct mpr_softc *sc, struct mpr_command *tm, uint8_t type)
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = htole16(target->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = type;
 
 	if (type == MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET) {
@@ -1611,7 +1614,6 @@ mprsas_send_abort(struct mpr_softc *sc, struct mpr_command *tm,
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = htole16(targ->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK;
 
 	/* XXX Need to handle invalid LUNs */
@@ -3324,7 +3326,6 @@ mprsas_action_resetdev(struct mprsas_softc *sassc, union ccb *ccb)
 	targ = &sassc->targets[ccb->ccb_h.target_id];
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = htole16(targ->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 
 	/* SAS Hard Link Reset / SATA Link Reset */
@@ -3338,7 +3339,7 @@ mprsas_action_resetdev(struct mprsas_softc *sassc, union ccb *ccb)
 	    __func__, targ->tid);
 	tm->cm_targ = targ;
 
-	mprsas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
+	mprsas_prepare_for_tm(sc, tm, targ, CAM_LUN_WILDCARD);
 	mpr_map_command(sc, tm);
 }
 
