@@ -363,22 +363,24 @@ FreeBSD 5.2           |      |                 |                       |
  |   11.1  FreeBSD    |     |      |           |                       |
  |     |    10.4      |     |      |      OpenBSD 6.2          DragonFly 5.0.1
  |     |              |     |      |           |                       |
- |     |              |     |  NetBSD 7.1.1    |               DragonFly 5.0.2
- |     |              |     |      |           |                       |
- |     |              |     |  NetBSD 7.1.2    |                       |
- |     |              |     |      |           |                       |
- |     |              |     |      |      OpenBSD 6.3                  |
- |     |              |  NetBSD    |           |               DragonFly 5.2.0
- |     |              |    8.0     |           |                       |
- |     |              |     |      |           |               DragonFly 5.2.1
- |     |              |     |      |           |                       |
- |     |              |     |      |           |               DragonFly 5.2.2
- |  FreeBSD           |     |  NetBSD 7.2      |                       |
- |   11.2             |     |      |           |                       |
- |     |              |     |      |      OpenBSD 6.4                  |
- |     v              |     |      |           |                       |
- |                    |     |      v           |                       |
-FreeBSD 12 -current   | NetBSD -current   OpenBSD -current    DragonFly -current
+ |     `------.       |     |  NetBSD 7.1.1    |               DragonFly 5.0.2
+ |            |       |     |      |           |                       |
+ |            |       |     |  NetBSD 7.1.2    |                       |
+ |            |       |     |      |           |                       |
+ |            |       |     |      |      OpenBSD 6.3                  |
+ |            |       |  NetBSD    |           |               DragonFly 5.2.0
+ |            |       |    8.0     |           |                       |
+ |            |       |     |      |           |               DragonFly 5.2.1
+ |            |       |     |      |           |                       |
+ |            |       |     |      |           |               DragonFly 5.2.2
+ |         FreeBSD    |     |  NetBSD 7.2      |                       |
+ |           11.2     |     |      |           |                       |
+ |                    |     |      |      OpenBSD 6.4                  |
+ |                    |     |      |           |               DragonFly 5.4.0
+ *--FreeBSD           |     |      v           |                       |
+ |   12.0             |     |                  |               DragonFly 5.4.1
+ |                    |     |                  |                       |
+FreeBSD 13 -current   | NetBSD -current   OpenBSD -current    DragonFly -current
  |                    |     |                  |                       |
  v                    v     v                  v                       v
 
@@ -755,6 +757,9 @@ FreeBSD 11.2		2018-06-27 [FBD]
 NetBSD 8.0		2018-07-17 [NBD]
 NetBSD 7.2		2018-08-29 [NBD]
 OpenBSD 6.4		2018-10-18 [OBD]
+DragonFly 5.4.0		2018-12-03 [DFB]
+FreeBSD 12.0		2018-12-11 [FBD]
+DragonFly 5.4.1		2018-12-24 [DFB]
 
 Bibliography
 ------------------------
