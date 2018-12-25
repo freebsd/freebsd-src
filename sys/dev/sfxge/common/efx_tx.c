@@ -144,6 +144,7 @@ static const efx_tx_ops_t	__efx_tx_siena_ops = {
 	NULL,					/* etxo_qdesc_tso_create */
 	NULL,					/* etxo_qdesc_tso2_create */
 	NULL,					/* etxo_qdesc_vlantci_create */
+	NULL,					/* etxo_qdesc_checksum_create */
 #if EFSYS_OPT_QSTATS
 	siena_tx_qstats_update,			/* etxo_qstats_update */
 #endif
@@ -170,6 +171,7 @@ static const efx_tx_ops_t	__efx_tx_hunt_ops = {
 	ef10_tx_qdesc_tso_create,		/* etxo_qdesc_tso_create */
 	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
 	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
+	ef10_tx_qdesc_checksum_create,		/* etxo_qdesc_checksum_create */
 #if EFSYS_OPT_QSTATS
 	ef10_tx_qstats_update,			/* etxo_qstats_update */
 #endif
@@ -196,6 +198,7 @@ static const efx_tx_ops_t	__efx_tx_medford_ops = {
 	NULL,					/* etxo_qdesc_tso_create */
 	ef10_tx_qdesc_tso2_create,		/* etxo_qdesc_tso2_create */
 	ef10_tx_qdesc_vlantci_create,		/* etxo_qdesc_vlantci_create */
+	ef10_tx_qdesc_checksum_create,		/* etxo_qdesc_checksum_create */
 #if EFSYS_OPT_QSTATS
 	ef10_tx_qstats_update,			/* etxo_qstats_update */
 #endif
@@ -643,6 +646,21 @@ efx_tx_qdesc_vlantci_create(
 	EFSYS_ASSERT(etxop->etxo_qdesc_vlantci_create != NULL);
 
 	etxop->etxo_qdesc_vlantci_create(etp, tci, edp);
+}
+
+	void
+efx_tx_qdesc_checksum_create(
+	__in	efx_txq_t *etp,
+	__in	uint16_t flags,
+	__out	efx_desc_t *edp)
+{
+	efx_nic_t *enp = etp->et_enp;
+	const efx_tx_ops_t *etxop = enp->en_etxop;
+
+	EFSYS_ASSERT3U(etp->et_magic, ==, EFX_TXQ_MAGIC);
+	EFSYS_ASSERT(etxop->etxo_qdesc_checksum_create != NULL);
+
+	etxop->etxo_qdesc_checksum_create(etp, flags, edp);
 }
 
 
