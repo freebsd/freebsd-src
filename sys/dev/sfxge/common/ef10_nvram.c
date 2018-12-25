@@ -1831,7 +1831,7 @@ ef10_nvram_partn_write_segment_tlv(
 		goto fail7;
 
 	/* Unlock the partition */
-	ef10_nvram_partn_unlock(enp, partn, NULL);
+	(void) ef10_nvram_partn_unlock(enp, partn, NULL);
 
 	EFSYS_KMEM_FREE(enp->en_esip, partn_size, partn_data);
 
@@ -1846,7 +1846,7 @@ fail5:
 fail4:
 	EFSYS_PROBE(fail4);
 
-	ef10_nvram_partn_unlock(enp, partn, NULL);
+	(void) ef10_nvram_partn_unlock(enp, partn, NULL);
 fail3:
 	EFSYS_PROBE(fail3);
 
