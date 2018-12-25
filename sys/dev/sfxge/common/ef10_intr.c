@@ -78,8 +78,8 @@ efx_mcdi_trigger_interrupt(
 	__in		unsigned int level)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_TRIGGER_INTERRUPT_IN_LEN,
-			    MC_CMD_TRIGGER_INTERRUPT_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_TRIGGER_INTERRUPT_IN_LEN,
+		MC_CMD_TRIGGER_INTERRUPT_OUT_LEN);
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
@@ -90,7 +90,6 @@ efx_mcdi_trigger_interrupt(
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_TRIGGER_INTERRUPT;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_TRIGGER_INTERRUPT_IN_LEN;

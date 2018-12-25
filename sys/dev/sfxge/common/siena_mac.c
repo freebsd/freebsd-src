@@ -95,14 +95,13 @@ siena_mac_reconfigure(
 	efx_port_t *epp = &(enp->en_port);
 	efx_oword_t multicast_hash[2];
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MAX(MC_CMD_SET_MAC_IN_LEN,
-				MC_CMD_SET_MAC_OUT_LEN),
-			    MAX(MC_CMD_SET_MCAST_HASH_IN_LEN,
-				MC_CMD_SET_MCAST_HASH_OUT_LEN))];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MAX(MC_CMD_SET_MAC_IN_LEN, MC_CMD_SET_MCAST_HASH_IN_LEN),
+		MAX(MC_CMD_SET_MAC_OUT_LEN, MC_CMD_SET_MCAST_HASH_OUT_LEN));
+
 	unsigned int fcntl;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MAC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_MAC_IN_LEN;
