@@ -181,10 +181,10 @@ bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv, *mountpoint;
 	int jid, opt, ret;
-	bool default_hostname, default_name, interactive, unjail;
+	bool default_hostname, interactive, unjail;
 	pid_t pid;
 
-	default_hostname = default_name = interactive = unjail = true;
+	default_hostname = interactive = unjail = true;
 	jpcnt = INIT_PARAMCOUNT;
 	jp = malloc(jpcnt * sizeof(*jp));
 	if (jp == NULL)
@@ -206,8 +206,6 @@ bectl_cmd_jail(int argc, char *argv[])
 				 * optarg has been modified to null terminate
 				 * at the assignment operator.
 				 */
-				if (strcmp(optarg, "name") == 0)
-					default_name = false;
 				if (strcmp(optarg, "host.hostname") == 0)
 					default_hostname = false;
 			}
@@ -217,8 +215,6 @@ bectl_cmd_jail(int argc, char *argv[])
 			break;
 		case 'u':
 			if ((ret = jailparam_delarg(optarg)) == 0) {
-				if (strcmp(optarg, "name") == 0)
-					default_name = true;
 				if (strcmp(optarg, "host.hostname") == 0)
 					default_hostname = true;
 			} else if (ret != ENOENT) {
@@ -259,8 +255,6 @@ bectl_cmd_jail(int argc, char *argv[])
 		return (1);
 	}
 
-	if (default_name)
-		jailparam_add("name", bootenv);
 	if (default_hostname)
 		jailparam_add("host.hostname", bootenv);
 
@@ -316,15 +310,23 @@ bectl_cmd_jail(int argc, char *argv[])
 static int
 bectl_search_jail_paths(const char *mnt)
 {
-	char jailpath[MAXPATHLEN];
 	int jid;
+	char lastjid[16];
+	char jailpath[MAXPATHLEN];
+
+	/* jail_getv expects name/value strings */
+	snprintf(lastjid, sizeof(lastjid), "%d", 0);
 
 	jid = 0;
-	(void)mnt;
-	while ((jid = jail_getv(0, "lastjid", &jid, "path", &jailpath,
+	while ((jid = jail_getv(0, "lastjid", lastjid, "path", &jailpath,
 	    NULL)) != -1) {
+
+		/* the jail we've been looking for */
 		if (strcmp(jailpath, mnt) == 0)
 			return (jid);
+
+		/* update lastjid and keep on looking */
+		snprintf(lastjid, sizeof(lastjid), "%d", jid);
 	}
 
 	return (-1);
@@ -354,8 +356,11 @@ bectl_locate_jail(const char *ident)
 		return (-1);
 
 	if (nvlist_lookup_nvlist(belist, ident, &props) == 0) {
-		/* We'll attempt to resolve the jid by way of mountpoint */
-		if (nvlist_lookup_string(props, "mountpoint", &mnt) == 0) {
+
+		/* path where a boot environment is mounted */
+		if (nvlist_lookup_string(props, "mounted", &mnt) == 0) {
+
+			/* looking for a jail that matches our bootenv path */
 			jid = bectl_search_jail_paths(mnt);
 			be_prop_list_free(belist);
 			return (jid);
