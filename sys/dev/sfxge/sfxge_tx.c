@@ -33,7 +33,7 @@
 
 /* Theory of operation:
  *
- * Tx queues allocation and mapping
+ * Tx queues allocation and mapping on Siena
  *
  * One Tx queue with enabled checksum offload is allocated per Rx channel
  * (event queue).  Also 2 Tx queues (one without checksum offload and one
@@ -44,6 +44,17 @@
  *	if event queue index is 0, TxQ-index = TxQ-label * [0..SFXGE_TXQ_NTYPES)
  *	else TxQ-index = SFXGE_TXQ_NTYPES + EvQ-index - 1
  * See sfxge_get_txq_by_label() sfxge_ev.c
+ *
+ * Tx queue allocation and mapping on EF10
+ *
+ * One Tx queue with enabled checksum offload is allocated per Rx
+ * channel (event queue). Checksum offload on all Tx queues is enabled or
+ * disabled dynamically by inserting option descriptors, so the additional
+ * queues used on Siena are not required.
+ *
+ * TxQ label is always set to zero on EF10 hardware.
+ * So, event queue to Tx queue mapping is simple:
+ * TxQ-index = EvQ-index
  */
 
 #include <sys/cdefs.h>
@@ -137,25 +148,7 @@ static void sfxge_tx_qlist_post(struct sfxge_txq *txq);
 static void sfxge_tx_qunblock(struct sfxge_txq *txq);
 static int sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			      const bus_dma_segment_t *dma_seg, int n_dma_seg,
-			      int vlan_tagged);
-
-static int
-sfxge_tx_maybe_insert_tag(struct sfxge_txq *txq, struct mbuf *mbuf)
-{
-	uint16_t this_tag = ((mbuf->m_flags & M_VLANTAG) ?
-			     mbuf->m_pkthdr.ether_vtag :
-			     0);
-
-	if (this_tag == txq->hw_vlan_tci)
-		return (0);
-
-	efx_tx_qdesc_vlantci_create(txq->common,
-				    bswap16(this_tag),
-				    &txq->pend_desc[0]);
-	txq->n_pend_desc = 1;
-	txq->hw_vlan_tci = this_tag;
-	return (1);
-}
+			      int n_extra_descs);
 
 static inline void
 sfxge_next_stmp(struct sfxge_txq *txq, struct sfxge_tx_mapping **pstmp)
@@ -168,6 +161,61 @@ sfxge_next_stmp(struct sfxge_txq *txq, struct sfxge_tx_mapping **pstmp)
 		(*pstmp)++;
 }
 
+static int
+sfxge_tx_maybe_toggle_cksum_offload(struct sfxge_txq *txq, struct mbuf *mbuf,
+				    struct sfxge_tx_mapping **pstmp)
+{
+	uint16_t new_hw_cksum_flags;
+	efx_desc_t *desc;
+
+	if (mbuf->m_pkthdr.csum_flags &
+	    (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6 | CSUM_TSO)) {
+		/*
+		 * We always set EFX_TXQ_CKSUM_IPV4 here because this
+		 * configuration is the most useful, and this won't
+		 * cause any trouble in case of IPv6 traffic anyway.
+		 */
+		new_hw_cksum_flags = EFX_TXQ_CKSUM_IPV4 | EFX_TXQ_CKSUM_TCPUDP;
+	} else if (mbuf->m_pkthdr.csum_flags & CSUM_DELAY_IP) {
+		new_hw_cksum_flags = EFX_TXQ_CKSUM_IPV4;
+	} else {
+		new_hw_cksum_flags = 0;
+	}
+
+	if (new_hw_cksum_flags == txq->hw_cksum_flags)
+		return (0);
+
+	desc = &txq->pend_desc[txq->n_pend_desc];
+	efx_tx_qdesc_checksum_create(txq->common, new_hw_cksum_flags, desc);
+	txq->hw_cksum_flags = new_hw_cksum_flags;
+	txq->n_pend_desc++;
+
+	sfxge_next_stmp(txq, pstmp);
+
+	return (1);
+}
+
+static int
+sfxge_tx_maybe_insert_tag(struct sfxge_txq *txq, struct mbuf *mbuf,
+			  struct sfxge_tx_mapping **pstmp)
+{
+	uint16_t this_tag = ((mbuf->m_flags & M_VLANTAG) ?
+			     mbuf->m_pkthdr.ether_vtag :
+			     0);
+	efx_desc_t *desc;
+
+	if (this_tag == txq->hw_vlan_tci)
+		return (0);
+
+	desc = &txq->pend_desc[txq->n_pend_desc];
+	efx_tx_qdesc_vlantci_create(txq->common, bswap16(this_tag), desc);
+	txq->hw_vlan_tci = this_tag;
+	txq->n_pend_desc++;
+
+	sfxge_next_stmp(txq, pstmp);
+
+	return (1);
+}
 
 void
 sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
@@ -359,8 +407,9 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	int rc;
 	int i;
 	int eop;
+	uint16_t hw_cksum_flags_prev;
 	uint16_t hw_vlan_tci_prev;
-	int vlan_tagged;
+	int n_extra_descs;
 
 	KASSERT(!txq->blocked, ("txq->blocked"));
 
@@ -411,14 +460,20 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 
 	used_map = &stmp->map;
 
+	hw_cksum_flags_prev = txq->hw_cksum_flags;
 	hw_vlan_tci_prev = txq->hw_vlan_tci;
 
-	vlan_tagged = sfxge_tx_maybe_insert_tag(txq, mbuf);
-	if (vlan_tagged) {
-		sfxge_next_stmp(txq, &stmp);
-	}
+	/*
+	 * The order of option descriptors, which are used to leverage VLAN tag
+	 * and checksum offloads, might be important. Changing checksum offload
+	 * between VLAN option and packet descriptors probably does not work.
+	 */
+	n_extra_descs = sfxge_tx_maybe_toggle_cksum_offload(txq, mbuf, &stmp);
+	n_extra_descs += sfxge_tx_maybe_insert_tag(txq, mbuf, &stmp);
+
 	if (mbuf->m_pkthdr.csum_flags & CSUM_TSO) {
-		rc = sfxge_tx_queue_tso(txq, mbuf, dma_seg, n_dma_seg, vlan_tagged);
+		rc = sfxge_tx_queue_tso(txq, mbuf, dma_seg, n_dma_seg,
+					n_extra_descs);
 		if (rc < 0)
 			goto reject_mapped;
 		stmp = &txq->stmp[(rc - 1) & txq->ptr_mask];
@@ -429,7 +484,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 
 		i = 0;
 		for (;;) {
-			desc = &txq->pend_desc[i + vlan_tagged];
+			desc = &txq->pend_desc[i + n_extra_descs];
 			eop = (i == n_dma_seg - 1);
 			efx_tx_qdesc_dma_create(txq->common,
 						dma_seg[i].ds_addr,
@@ -441,7 +496,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 			i++;
 			sfxge_next_stmp(txq, &stmp);
 		}
-		txq->n_pend_desc = n_dma_seg + vlan_tagged;
+		txq->n_pend_desc = n_dma_seg + n_extra_descs;
 	}
 
 	/*
@@ -465,6 +520,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 
 reject_mapped:
 	txq->hw_vlan_tci = hw_vlan_tci_prev;
+	txq->hw_cksum_flags = hw_cksum_flags_prev;
 	bus_dmamap_unload(txq->packet_dma_tag, *used_map);
 reject:
 	/* Drop the packet on the floor. */
@@ -838,8 +894,9 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 		("interface not up"));
 
 	/* Pick the desired transmit queue. */
-	if (m->m_pkthdr.csum_flags &
-	    (CSUM_DELAY_DATA | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO)) {
+	if (sc->txq_dynamic_cksum_toggle_supported |
+	    (m->m_pkthdr.csum_flags &
+	     (CSUM_DELAY_DATA | CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_TSO))) {
 		int index = 0;
 
 #ifdef RSS
@@ -865,7 +922,9 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 		if (m->m_pkthdr.csum_flags & CSUM_TSO)
 			sfxge_parse_tx_packet(m);
 #endif
-		txq = sc->txq[SFXGE_TXQ_IP_TCP_UDP_CKSUM + index];
+		index += (sc->txq_dynamic_cksum_toggle_supported == B_FALSE) ?
+			 SFXGE_TXQ_IP_TCP_UDP_CKSUM : 0;
+		txq = sc->txq[index];
 	} else if (m->m_pkthdr.csum_flags & CSUM_DELAY_IP) {
 		txq = sc->txq[SFXGE_TXQ_IP_CKSUM];
 	} else {
@@ -1308,7 +1367,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 static int
 sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 		   const bus_dma_segment_t *dma_seg, int n_dma_seg,
-		   int vlan_tagged)
+		   int n_extra_descs)
 {
 	struct sfxge_tso_state tso;
 	unsigned int id;
@@ -1325,7 +1384,7 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 	tso.in_len = dma_seg->ds_len - (tso.header_len - skipped);
 	tso.dma_addr = dma_seg->ds_addr + (tso.header_len - skipped);
 
-	id = (txq->added + vlan_tagged) & txq->ptr_mask;
+	id = (txq->added + n_extra_descs) & txq->ptr_mask;
 	if (__predict_false(tso_start_new_packet(txq, &tso, &id)))
 		return (-1);
 
@@ -1489,6 +1548,8 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	efx_sram_buf_tbl_clear(sc->enp, txq->buf_base_id,
 	    EFX_TXQ_NBUFS(sc->txq_entries));
 
+	txq->hw_cksum_flags = 0;
+
 	SFXGE_EVQ_UNLOCK(evq);
 	SFXGE_TXQ_UNLOCK(txq);
 }
@@ -1509,6 +1570,10 @@ sfxge_tx_max_pkt_desc(const struct sfxge_softc *sc, enum sfxge_txq_type type,
 	unsigned int sw_tso_max_descs;
 	unsigned int fa_tso_v1_max_descs = 0;
 	unsigned int fa_tso_v2_max_descs = 0;
+
+	/* Checksum offload Tx option descriptor may be required */
+	if (sc->txq_dynamic_cksum_toggle_supported)
+		max_descs++;
 
 	/* VLAN tagging Tx option descriptor may be required */
 	if (efx_nic_cfg_get(sc->enp)->enc_hw_tx_insert_vlan_enabled)
@@ -1554,6 +1619,7 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 	efsys_mem_t *esmp;
 	uint16_t flags;
 	unsigned int tso_fw_assisted;
+	unsigned int label;
 	struct sfxge_evq *evq;
 	unsigned int desc_index;
 	int rc;
@@ -1595,8 +1661,10 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 		break;
 	}
 
+	label = (sc->txq_dynamic_cksum_toggle_supported) ? 0 : txq->type;
+
 	/* Create the common code transmit queue. */
-	if ((rc = efx_tx_qcreate(sc->enp, index, txq->type, esmp,
+	if ((rc = efx_tx_qcreate(sc->enp, index, label, esmp,
 	    sc->txq_entries, txq->buf_base_id, flags, evq->common,
 	    &txq->common, &desc_index)) != 0) {
 		/* Retry if no FATSOv2 resources, otherwise fail */
@@ -1606,7 +1674,7 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 		/* Looks like all FATSOv2 contexts are used */
 		flags &= ~EFX_TXQ_FATSOV2;
 		tso_fw_assisted &= ~SFXGE_FATSOV2;
-		if ((rc = efx_tx_qcreate(sc->enp, index, txq->type, esmp,
+		if ((rc = efx_tx_qcreate(sc->enp, index, label, esmp,
 		    sc->txq_entries, txq->buf_base_id, flags, evq->common,
 		    &txq->common, &desc_index)) != 0)
 			goto fail;
@@ -1628,6 +1696,9 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 						  tso_fw_assisted);
 
 	txq->hw_vlan_tci = 0;
+
+	txq->hw_cksum_flags = flags &
+			      (EFX_TXQ_CKSUM_IPV4 | EFX_TXQ_CKSUM_TCPUDP);
 
 	SFXGE_TXQ_UNLOCK(txq);
 
@@ -1990,13 +2061,15 @@ sfxge_tx_init(struct sfxge_softc *sc)
 	}
 
 	/* Initialize the transmit queues */
-	if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_NON_CKSUM,
-	    SFXGE_TXQ_NON_CKSUM, 0)) != 0)
-		goto fail;
+	if (sc->txq_dynamic_cksum_toggle_supported == B_FALSE) {
+		if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_NON_CKSUM,
+		    SFXGE_TXQ_NON_CKSUM, 0)) != 0)
+			goto fail;
 
-	if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_IP_CKSUM,
-	    SFXGE_TXQ_IP_CKSUM, 0)) != 0)
-		goto fail2;
+		if ((rc = sfxge_tx_qinit(sc, SFXGE_TXQ_IP_CKSUM,
+		    SFXGE_TXQ_IP_CKSUM, 0)) != 0)
+			goto fail2;
+	}
 
 	for (index = 0;
 	     index < sc->txq_count - SFXGE_EVQ0_N_TXQ(sc) + 1;

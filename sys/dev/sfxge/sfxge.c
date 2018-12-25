@@ -760,6 +760,11 @@ sfxge_create(struct sfxge_softc *sc)
 	}
 	sc->rxq_entries = sfxge_rx_ring_entries;
 
+	if (efx_nic_cfg_get(enp)->enc_features & EFX_FEATURE_TXQ_CKSUM_OP_DESC)
+		sc->txq_dynamic_cksum_toggle_supported = B_TRUE;
+	else
+		sc->txq_dynamic_cksum_toggle_supported = B_FALSE;
+
 	if (!ISP2(sfxge_tx_ring_entries) ||
 	    (sfxge_tx_ring_entries < EFX_TXQ_MINNDESCS) ||
 	    (sfxge_tx_ring_entries > efx_nic_cfg_get(enp)->enc_txq_max_ndescs)) {
