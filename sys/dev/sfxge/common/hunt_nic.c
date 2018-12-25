@@ -318,6 +318,12 @@ hunt_board_cfg(
 	encp->enc_rxq_limit = EFX_RXQ_LIMIT_TARGET;
 	encp->enc_txq_limit = EFX_TXQ_LIMIT_TARGET;
 
+	/*
+	 * The workaround for bug35388 uses the top bit of transmit queue
+	 * descriptor writes, preventing the use of 4096 descriptor TXQs.
+	 */
+	encp->enc_txq_max_ndescs = encp->enc_bug35388_workaround ? 2048 : 4096;
+
 	encp->enc_buftbl_limit = 0xFFFFFFFF;
 
 	encp->enc_piobuf_limit = HUNT_PIOBUF_NBUFS;
