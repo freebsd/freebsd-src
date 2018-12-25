@@ -67,7 +67,7 @@ efx_mcdi_init_txq(
 	efx_rc_t rc;
 
 	EFSYS_ASSERT(EFX_TXQ_MAX_BUFS >=
-	    EFX_TXQ_NBUFS(EFX_TXQ_MAXNDESCS(&enp->en_nic_cfg)));
+	    EFX_TXQ_NBUFS(enp->en_nic_cfg.enc_txq_max_ndescs));
 
 	npages = EFX_TXQ_NBUFS(size);
 	if (npages > MC_CMD_INIT_TXQ_IN_DMA_ADDR_MAXNUM) {

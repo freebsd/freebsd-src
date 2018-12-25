@@ -911,7 +911,7 @@ siena_tx_qcreate(
 	    (1 << FRF_AZ_TX_DESCQ_LABEL_WIDTH));
 	EFSYS_ASSERT3U(label, <, EFX_EV_TX_NLABELS);
 
-	EFSYS_ASSERT(ISP2(EFX_TXQ_MAXNDESCS(encp)));
+	EFSYS_ASSERT(ISP2(encp->enc_txq_max_ndescs));
 	EFX_STATIC_ASSERT(ISP2(EFX_TXQ_MINNDESCS));
 
 	if (!ISP2(n) || (n < EFX_TXQ_MINNDESCS) || (n > EFX_EVQ_MAXNEVS)) {
@@ -923,7 +923,7 @@ siena_tx_qcreate(
 		goto fail2;
 	}
 	for (size = 0;
-	    (1 << size) <= (EFX_TXQ_MAXNDESCS(encp) / EFX_TXQ_MINNDESCS);
+	    (1 << size) <= (int)(encp->enc_txq_max_ndescs / EFX_TXQ_MINNDESCS);
 	    size++)
 		if ((1 << size) == (int)(n / EFX_TXQ_MINNDESCS))
 			break;
