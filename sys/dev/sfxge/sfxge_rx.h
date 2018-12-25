@@ -159,6 +159,7 @@ struct sfxge_rxq {
 	enum sfxge_rxq_state		init_state;
 	unsigned int			entries;
 	unsigned int			ptr_mask;
+	efx_rxq_t			*common;
 
 	struct sfxge_rx_sw_desc		*queue __aligned(CACHE_LINE_SIZE);
 	unsigned int			added;
@@ -173,8 +174,7 @@ struct sfxge_rxq {
 	struct callout			refill_callout;
 	unsigned int			refill_delay;
 
-	efx_rxq_t			*common __aligned(CACHE_LINE_SIZE);
-	volatile enum sfxge_flush_state	flush_state;
+	volatile enum sfxge_flush_state	flush_state __aligned(CACHE_LINE_SIZE);
 };
 
 /*
