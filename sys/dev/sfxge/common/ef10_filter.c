@@ -992,7 +992,7 @@ ef10_filter_supported_filters(
 	size_t list_length;
 	uint32_t i;
 	efx_rc_t rc;
-	uint32_t all_filter_flags =
+	efx_filter_match_flags_t all_filter_flags =
 	    (EFX_FILTER_MATCH_REM_HOST | EFX_FILTER_MATCH_LOC_HOST |
 	    EFX_FILTER_MATCH_REM_MAC | EFX_FILTER_MATCH_REM_PORT |
 	    EFX_FILTER_MATCH_LOC_MAC | EFX_FILTER_MATCH_LOC_PORT |
