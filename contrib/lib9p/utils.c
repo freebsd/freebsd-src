@@ -262,7 +262,7 @@ static bool
 l9p_describe_bits(const char *str, uint64_t value, const char *oc,
     const struct descbits *db, struct sbuf *sb)
 {
-	char *sep;
+	const char *sep;
 	char bracketbuf[2] = "";
 	bool printed = false;
 
@@ -275,7 +275,7 @@ l9p_describe_bits(const char *str, uint64_t value, const char *oc,
 	for (; db->db_name != NULL; db++) {
 		if ((value & db->db_mask) == db->db_match) {
 			sbuf_printf(sb, "%s%s", sep, db->db_name);
-			sep = (char *)",";
+			sep = ",";
 			printed = true;
 
 			/*

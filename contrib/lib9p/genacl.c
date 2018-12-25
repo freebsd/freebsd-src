@@ -100,7 +100,7 @@ l9p_check_aces(int32_t mask, struct l9p_acl *acl, struct stat *st,
 	uint32_t i;
 	struct l9p_ace *ace;
 #ifdef ACE_DEBUG
-	char *acetype, *allowdeny;
+	const char *acetype, *allowdeny;
 	bool show_tid;
 #endif
 	bool match;
@@ -559,7 +559,7 @@ l9p_posix_acl_to_acl(acl_t sysacl)
 #endif
 
 #if defined(HAVE_FREEBSD_ACLS)
-int
+static int
 l9p_frombsdnfs4(acl_entry_t sysace, struct l9p_ace *ace)
 {
 	acl_tag_t tag;			/* e.g., USER_OBJ, GROUP, etc */

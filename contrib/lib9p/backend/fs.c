@@ -416,6 +416,7 @@ fs_getpwuid(struct fs_softc *sc, uid_t uid, struct r_pgdata *pg)
 #if defined(WITH_CASPER)
 	return (r_cap_getpwuid(sc->fs_cappwd, uid, pg));
 #else
+	(void)sc;
 	return (r_getpwuid(uid, pg));
 #endif
 }
@@ -426,6 +427,7 @@ fs_getgrgid(struct fs_softc *sc, gid_t gid, struct r_pgdata *pg)
 #if defined(WITH_CASPER)
 	return (r_cap_getgrgid(sc->fs_capgrp, gid, pg));
 #else
+	(void)sc;
 	return (r_getgrgid(gid, pg));
 #endif
 }
@@ -456,8 +458,8 @@ fs_buildname(struct l9p_fid *dir, char *name, char *buf, size_t size)
  * parent, or if the discovered parent is not a directory.
  */
 static int
-fs_pdir(struct fs_softc *sc, struct l9p_fid *fid, char *buf, size_t size,
-    struct stat *st)
+fs_pdir(struct fs_softc *sc __unused, struct l9p_fid *fid, char *buf,
+    size_t size, struct stat *st)
 {
 	struct fs_fid *ff;
 	char *path;
@@ -1750,7 +1752,6 @@ fs_walk(void *softc, struct l9p_request *req)
 {
 	struct l9p_acl *acl;
 	struct fs_authinfo *ai;
-	struct fs_softc *sc = softc;
 	struct fs_fid *file = req->lr_fid->lo_aux;
 	struct fs_fid *newfile;
 	struct stat st;
@@ -2720,7 +2721,7 @@ fs_getlock(void *softc __unused, struct l9p_request *req)
 
 	req->lr_resp.getlock = req->lr_req.getlock;
 	req->lr_resp.getlock.type = L9PL_LOCK_TYPE_UNLOCK;
-	req->lr_resp.getlock.client_id = (char *)"";  /* XXX what should go here? */
+	req->lr_resp.getlock.client_id = strdup("");  /* XXX what should go here? */
 	return (0);
 }
 
@@ -2954,7 +2955,6 @@ l9p_backend_fs_init(struct l9p_backend **backendp, int rootfd)
 {
 	struct l9p_backend *backend;
 	struct fs_softc *sc;
-	const char *rroot;
 	int error;
 #if defined(WITH_CASPER)
 	cap_channel_t *capcas;

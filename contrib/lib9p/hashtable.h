@@ -54,6 +54,11 @@ struct ht_iter {
 	ssize_t			htit_slot;
 };
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wthread-safety-analysis"
+#endif
+
 /*
  * Obtain read-lock on hash table.
  */
@@ -83,6 +88,10 @@ ht_unlock(struct ht *h)
 
 	return (pthread_rwlock_unlock(&h->ht_rwlock));
 }
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 void ht_init(struct ht *h, ssize_t size);
 void ht_destroy(struct ht *h);
