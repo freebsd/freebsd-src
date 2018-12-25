@@ -196,11 +196,10 @@ siena_phy_get_link(
 	__out		siena_link_state_t *slsp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_LINK_IN_LEN,
-			    MC_CMD_GET_LINK_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_LINK_IN_LEN,
+		MC_CMD_GET_LINK_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_LINK;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_LINK_IN_LEN;
@@ -271,10 +270,9 @@ siena_phy_reconfigure(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MAX(MC_CMD_SET_ID_LED_IN_LEN,
-				MC_CMD_SET_ID_LED_OUT_LEN),
-			    MAX(MC_CMD_SET_LINK_IN_LEN,
-				MC_CMD_SET_LINK_OUT_LEN))];
+	EFX_MCDI_DECLARE_BUF(payload,
+		MAX(MC_CMD_SET_ID_LED_IN_LEN, MC_CMD_SET_LINK_IN_LEN),
+		MAX(MC_CMD_SET_ID_LED_OUT_LEN, MC_CMD_SET_LINK_OUT_LEN));
 	uint32_t cap_mask;
 #if EFSYS_OPT_PHY_LED_CONTROL
 	unsigned int led_mode;
@@ -282,7 +280,6 @@ siena_phy_reconfigure(
 	unsigned int speed;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_LINK;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_LINK_IN_LEN;
@@ -388,12 +385,11 @@ siena_phy_verify(
 	__in		efx_nic_t *enp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_PHY_STATE_IN_LEN,
-			    MC_CMD_GET_PHY_STATE_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_PHY_STATE_IN_LEN,
+		MC_CMD_GET_PHY_STATE_OUT_LEN);
 	uint32_t state;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_PHY_STATE;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_PHY_STATE_IN_LEN;
@@ -557,11 +553,10 @@ siena_phy_stats_update(
 	uint32_t vmask = encp->enc_mcdi_phy_stat_mask;
 	uint64_t smask;
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_PHY_STATS_IN_LEN,
-			    MC_CMD_PHY_STATS_OUT_DMA_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_PHY_STATS_IN_LEN,
+		MC_CMD_PHY_STATS_OUT_DMA_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_PHY_STATS;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_PHY_STATS_IN_LEN;
@@ -646,14 +641,13 @@ siena_phy_bist_poll(
 	__in			size_t count)
 {
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
-	uint8_t payload[MAX(MC_CMD_POLL_BIST_IN_LEN,
-			    MCDI_CTL_SDU_LEN_MAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_POLL_BIST_IN_LEN,
+		MCDI_CTL_SDU_LEN_MAX);
 	uint32_t value_mask = 0;
 	efx_mcdi_req_t req;
 	uint32_t result;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_POLL_BIST;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_POLL_BIST_IN_LEN;
