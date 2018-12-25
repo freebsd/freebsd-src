@@ -1623,6 +1623,8 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 	txq->max_pkt_desc = sfxge_tx_max_pkt_desc(sc, txq->type,
 						  tso_fw_assisted);
 
+	txq->hw_vlan_tci = 0;
+
 	SFXGE_TXQ_UNLOCK(txq);
 
 	return (0);
@@ -1839,7 +1841,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	txq->type = type;
 	txq->evq_index = evq_index;
 	txq->init_state = SFXGE_TXQ_INITIALIZED;
-	txq->hw_vlan_tci = 0;
 
 	return (0);
 
