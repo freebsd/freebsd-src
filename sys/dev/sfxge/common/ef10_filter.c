@@ -1234,6 +1234,108 @@ fail1:
 	return (rc);
 }
 
+typedef struct ef10_filter_encap_entry_s {
+	uint16_t		ether_type;
+	efx_tunnel_protocol_t	encap_type;
+	uint32_t		inner_frame_match;
+} ef10_filter_encap_entry_t;
+
+#define EF10_ENCAP_FILTER_ENTRY(ipv, encap_type, inner_frame_match)	\
+	{ EFX_ETHER_TYPE_##ipv, EFX_TUNNEL_PROTOCOL_##encap_type,		\
+	    EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_##inner_frame_match }
+
+static ef10_filter_encap_entry_t ef10_filter_encap_list[] = {
+	EF10_ENCAP_FILTER_ENTRY(IPV4, VXLAN, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV4, VXLAN, MCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, VXLAN, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, VXLAN, MCAST_DST),
+
+	EF10_ENCAP_FILTER_ENTRY(IPV4, GENEVE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV4, GENEVE, MCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, GENEVE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, GENEVE, MCAST_DST),
+
+	EF10_ENCAP_FILTER_ENTRY(IPV4, NVGRE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV4, NVGRE, MCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, NVGRE, UCAST_DST),
+	EF10_ENCAP_FILTER_ENTRY(IPV6, NVGRE, MCAST_DST),
+};
+
+#undef EF10_ENCAP_FILTER_ENTRY
+
+static	__checkReturn	efx_rc_t
+ef10_filter_insert_encap_filters(
+	__in		efx_nic_t *enp,
+	__in		boolean_t mulcst,
+	__in		efx_filter_flags_t filter_flags)
+{
+	ef10_filter_table_t *table = enp->en_filter.ef_ef10_filter_table;
+	uint32_t i;
+	efx_rc_t rc;
+
+	EFX_STATIC_ASSERT(EFX_ARRAY_SIZE(ef10_filter_encap_list) <=
+			    EFX_ARRAY_SIZE(table->eft_encap_filter_indexes));
+
+	/*
+	 * On Medford, full-featured firmware can identify packets as being
+	 * tunnel encapsulated, even if no encapsulated packet offloads are in
+	 * use. When packets are identified as such, ordinary filters are not
+	 * applied, only ones specific to encapsulated packets. Hence we need to
+	 * insert filters for encapsulated packets in order to receive them.
+	 *
+	 * Separate filters need to be inserted for each ether type,
+	 * encapsulation type, and inner frame type (unicast or multicast). To
+	 * keep things simple and reduce the number of filters needed, catch-all
+	 * filters for all combinations of types are inserted, even if
+	 * all_unicst or all_mulcst have not been set. (These catch-all filters
+	 * may well, however, fail to insert on unprivileged functions.)
+	 */
+	table->eft_encap_filter_count = 0;
+	for (i = 0; i < EFX_ARRAY_SIZE(ef10_filter_encap_list); i++) {
+		efx_filter_spec_t spec;
+		ef10_filter_encap_entry_t *encap_filter =
+			&ef10_filter_encap_list[i];
+
+		/*
+		 * Skip multicast filters if we've not been asked for
+		 * any multicast traffic.
+		 */
+		if ((mulcst == B_FALSE) &&
+		    (encap_filter->inner_frame_match ==
+		     EFX_FILTER_INNER_FRAME_MATCH_UNKNOWN_MCAST_DST))
+				continue;
+
+		efx_filter_spec_init_rx(&spec, EFX_FILTER_PRI_AUTO,
+					filter_flags,
+					table->eft_default_rxq);
+		efx_filter_spec_set_ether_type(&spec, encap_filter->ether_type);
+		rc = efx_filter_spec_set_encap_type(&spec,
+					    encap_filter->encap_type,
+					    encap_filter->inner_frame_match);
+		if (rc != 0)
+			goto fail1;
+
+		rc = ef10_filter_add_internal(enp, &spec, B_TRUE,
+			    &table->eft_encap_filter_indexes[
+				    table->eft_encap_filter_count]);
+		if (rc != 0) {
+			if (rc != EACCES)
+				goto fail2;
+		} else {
+			table->eft_encap_filter_count++;
+		}
+	}
+
+	return (0);
+
+fail2:
+	EFSYS_PROBE(fail2);
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
 static			void
 ef10_filter_remove_old(
 	__in		efx_nic_t *enp)
@@ -1329,6 +1431,12 @@ ef10_filter_reconfigure(
 		}
 		table->eft_mulcst_filter_count = 0;
 
+		for (i = 0; i < table->eft_encap_filter_count; i++) {
+			(void) ef10_filter_delete_internal(enp,
+					table->eft_encap_filter_indexes[i]);
+		}
+		table->eft_encap_filter_count = 0;
+
 		return (0);
 	}
 
@@ -1345,6 +1453,10 @@ ef10_filter_reconfigure(
 	for (i = 0; i < table->eft_mulcst_filter_count; i++) {
 		ef10_filter_set_entry_auto_old(table,
 					table->eft_mulcst_filter_indexes[i]);
+	}
+	for (i = 0; i < table->eft_encap_filter_count; i++) {
+		ef10_filter_set_entry_auto_old(table,
+					table->eft_encap_filter_indexes[i]);
 	}
 
 	/*
@@ -1461,6 +1573,13 @@ ef10_filter_reconfigure(
 					goto fail4;
 			}
 		}
+	}
+
+	if (encp->enc_tunnel_encapsulations_supported != 0) {
+		/* Try to insert filters for encapsulated packets. */
+		(void) ef10_filter_insert_encap_filters(enp,
+					    mulcst || all_mulcst || brdcst,
+					    filter_flags);
 	}
 
 	/* Remove old filters which were not renewed */
