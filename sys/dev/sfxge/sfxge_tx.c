@@ -359,6 +359,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	int rc;
 	int i;
 	int eop;
+	uint16_t hw_vlan_tci_prev;
 	int vlan_tagged;
 
 	KASSERT(!txq->blocked, ("txq->blocked"));
@@ -409,6 +410,8 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	bus_dmamap_sync(txq->packet_dma_tag, stmp->map, BUS_DMASYNC_PREWRITE);
 
 	used_map = &stmp->map;
+
+	hw_vlan_tci_prev = txq->hw_vlan_tci;
 
 	vlan_tagged = sfxge_tx_maybe_insert_tag(txq, mbuf);
 	if (vlan_tagged) {
@@ -461,6 +464,7 @@ static int sfxge_tx_queue_mbuf(struct sfxge_txq *txq, struct mbuf *mbuf)
 	return (0);
 
 reject_mapped:
+	txq->hw_vlan_tci = hw_vlan_tci_prev;
 	bus_dmamap_unload(txq->packet_dma_tag, *used_map);
 reject:
 	/* Drop the packet on the floor. */
