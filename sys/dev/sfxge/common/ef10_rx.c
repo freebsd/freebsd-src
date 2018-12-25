@@ -130,7 +130,7 @@ efx_mcdi_fini_rxq(
 
 	efx_mcdi_execute_quiet(enp, &req);
 
-	if ((req.emr_rc != 0) && (req.emr_rc != MC_CMD_ERR_EALREADY)) {
+	if ((req.emr_rc != 0) && (req.emr_rc != EALREADY)) {
 		rc = req.emr_rc;
 		goto fail1;
 	}
