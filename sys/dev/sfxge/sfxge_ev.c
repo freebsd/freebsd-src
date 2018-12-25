@@ -267,8 +267,11 @@ sfxge_get_txq_by_label(struct sfxge_evq *evq, enum sfxge_txq_type label)
 {
 	unsigned int index;
 
-	KASSERT((evq->index == 0 && label < SFXGE_EVQ0_N_TXQ(evq->sc)) ||
-	    (label == SFXGE_TXQ_IP_TCP_UDP_CKSUM), ("unexpected txq label"));
+	KASSERT((evq->sc->txq_dynamic_cksum_toggle_supported) ? (label == 0) :
+		((evq->index == 0 && label < SFXGE_TXQ_NTYPES) ||
+		 (label == SFXGE_TXQ_IP_TCP_UDP_CKSUM)),
+		("unexpected txq label"));
+
 	index = (evq->index == 0) ?
 		label : (evq->index - 1 + SFXGE_EVQ0_N_TXQ(evq->sc));
 	return (evq->sc->txq[index]);
