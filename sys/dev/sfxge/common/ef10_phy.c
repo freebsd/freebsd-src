@@ -283,7 +283,9 @@ ef10_phy_reconfigure(
 	uint8_t payload[MAX(MC_CMD_SET_LINK_IN_LEN,
 			    MC_CMD_SET_LINK_OUT_LEN)];
 	uint32_t cap_mask;
+#if EFSYS_OPT_PHY_LED_CONTROL
 	unsigned int led_mode;
+#endif
 	unsigned int speed;
 	boolean_t supported;
 	efx_rc_t rc;
