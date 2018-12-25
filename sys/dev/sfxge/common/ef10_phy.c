@@ -528,13 +528,25 @@ ef10_bist_poll(
 	unsigned long *valuesp,
 	__in			size_t count)
 {
+	/*
+	 * MCDI_CTL_SDU_LEN_MAX_V1 is large enough cover all BIST results,
+	 * whilst not wasting stack.
+	 */
+	uint8_t payload[MAX(MC_CMD_POLL_BIST_IN_LEN, MCDI_CTL_SDU_LEN_MAX_V1)];
 	efx_nic_cfg_t *encp = &(enp->en_nic_cfg);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_POLL_BIST_IN_LEN,
-			    MCDI_CTL_SDU_LEN_MAX)];
 	uint32_t value_mask = 0;
 	uint32_t result;
 	efx_rc_t rc;
+
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_SFT9001_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_MRSFP_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
+	EFX_STATIC_ASSERT(MC_CMD_POLL_BIST_OUT_MEM_LEN <=
+	    MCDI_CTL_SDU_LEN_MAX_V1);
 
 	_NOTE(ARGUNUSED(type))
 
@@ -543,7 +555,7 @@ ef10_bist_poll(
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_POLL_BIST_IN_LEN;
 	req.emr_out_buf = payload;
-	req.emr_out_length = MCDI_CTL_SDU_LEN_MAX;
+	req.emr_out_length = MCDI_CTL_SDU_LEN_MAX_V1;
 
 	efx_mcdi_execute(enp, &req);
 
