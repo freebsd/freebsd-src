@@ -2159,7 +2159,7 @@ efx_tx_qdestroy(
 /* Filter is for TX */
 #define	EFX_FILTER_FLAG_TX		0x10
 
-typedef unsigned int efx_filter_flags_t;
+typedef uint8_t efx_filter_flags_t;
 
 /*
  * Flags which specify the fields to match on. The values are the same as in the
@@ -2216,22 +2216,22 @@ typedef enum efx_filter_priority_s {
  */
 
 typedef struct efx_filter_spec_s {
-	uint32_t		efs_match_flags;
-	uint32_t		efs_priority:2;
-	uint32_t		efs_flags:6;
-	uint32_t		efs_dmaq_id:12;
-	uint32_t		efs_rss_context;
-	uint16_t		efs_outer_vid;
-	uint16_t		efs_inner_vid;
-	uint8_t			efs_loc_mac[EFX_MAC_ADDR_LEN];
-	uint8_t			efs_rem_mac[EFX_MAC_ADDR_LEN];
-	uint16_t		efs_ether_type;
-	uint8_t			efs_ip_proto;
-	efx_tunnel_protocol_t	efs_encap_type;
-	uint16_t		efs_loc_port;
-	uint16_t		efs_rem_port;
-	efx_oword_t		efs_rem_host;
-	efx_oword_t		efs_loc_host;
+	efx_filter_match_flags_t	efs_match_flags;
+	uint8_t				efs_priority;
+	efx_filter_flags_t		efs_flags;
+	uint16_t			efs_dmaq_id;
+	uint32_t			efs_rss_context;
+	uint16_t			efs_outer_vid;
+	uint16_t			efs_inner_vid;
+	uint8_t				efs_loc_mac[EFX_MAC_ADDR_LEN];
+	uint8_t				efs_rem_mac[EFX_MAC_ADDR_LEN];
+	uint16_t			efs_ether_type;
+	uint8_t				efs_ip_proto;
+	efx_tunnel_protocol_t		efs_encap_type;
+	uint16_t			efs_loc_port;
+	uint16_t			efs_rem_port;
+	efx_oword_t			efs_rem_host;
+	efx_oword_t			efs_loc_host;
 } efx_filter_spec_t;
 
 
