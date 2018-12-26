@@ -1106,7 +1106,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 				    SenseCount)), sizeof(struct
 				    scsi_sense_data));
 				mpr_unlock(sc);
-				copyout(cm->cm_sense, cm->cm_req + 64,
+				copyout(cm->cm_sense,
+				    (PTRIN(data->PtrReply + sizeof(MPI2_SCSI_IO_REPLY))),
 				    sense_len);
 				mpr_lock(sc);
 			}
@@ -1140,7 +1141,9 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 			sz = MIN(le32toh(nvme_error_reply->ErrorResponseCount),
 			    NVME_ERROR_RESPONSE_SIZE);
 			mpr_unlock(sc);
-			copyout(cm->cm_sense, cm->nvme_error_response, sz);
+			copyout(cm->cm_sense,
+			    (PTRIN(data->PtrReply +
+			    sizeof(MPI2_SCSI_IO_REPLY))), sz);
 			mpr_lock(sc);
 		}
 	}
