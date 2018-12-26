@@ -9,6 +9,7 @@ ATF_TESTS_SH+=	anchor \
 		pass_block \
 		forward \
 		fragmentation \
+		nat \
 		set_tos \
 		route_to \
 		synproxy \
