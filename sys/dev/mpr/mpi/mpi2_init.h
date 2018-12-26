@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 2012-2015 LSI Corp.
- * Copyright (c) 2013-2016 Avago Technologies
- * All rights reserved.
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,15 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  * $FreeBSD$
  */
 
 /*
- *  Copyright (c) 2000-2015 LSI Corporation.
- *  Copyright (c) 2013-2016 Avago Technologies
- *  All rights reserved.
+ *  Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *           Name:  mpi2_init.h
@@ -62,7 +58,7 @@
  *  05-21-08  02.00.05  Fixed typo in name of Mpi2SepRequest_t.
  *  10-02-08  02.00.06  Removed Untagged and No Disconnect values from SCSI IO
  *                      Control field Task Attribute flags.
- *                      Moved LUN field defines to mpi2.h because they are
+ *                      Moved LUN field defines to mpi2.h becasue they are
  *                      common to many structures.
  *  05-06-09  02.00.07  Changed task management type of Query Unit Attention to
  *                      Query Asynchronous Event.
