@@ -11,6 +11,7 @@ ATF_TESTS_SH+=	anchor \
 		fragmentation \
 		nat \
 		set_tos \
+		rdr \
 		route_to \
 		synproxy \
 		set_skip \
