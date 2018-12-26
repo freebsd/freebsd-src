@@ -58,6 +58,7 @@
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Oo Fl O Ar file-system-property Ns = Ns Ar value Oc Ns ...
 .Op Fl R Ar root
+.Op Fl t Ar tempname
 .Ar pool vdev Ns ...
 .Nm
 .Cm destroy
@@ -95,7 +96,7 @@
 .Op Fl R Ar root
 .Nm
 .Cm import
-.Op Fl Dfm
+.Op Fl Dfmt
 .Op Fl F Op Fl n
 .Op Fl -rewind-to-checkpoint
 .Op Fl c Ar cachefile Ns | Ns Fl d Ar dir
@@ -871,6 +872,7 @@ specified device or devices are cleared.
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Oo Fl O Ar file-system-property Ns = Ns Ar value Oc Ns ...
 .Op Fl R Ar root
+.Op Fl t Ar tempname
 .Ar pool vdev Ns ...
 .Xc
 Creates a new storage pool containing the virtual devices specified on the
@@ -992,6 +994,16 @@ for a list of valid properties that can be set.
 .It Fl R Ar root
 Equivalent to
 .Fl o Sy cachefile Ns = Ns Sy none Fl o Sy altroot Ns = Ns Ar root
+.It Fl t Ar tempname
+Sets the in-core pool name to
+.Pa tempname
+while the on-disk name will be the name specified as the pool name
+.Pa pool .
+This will set the default cachefile property to
+.Sy none.
+This is intended to handle name space collisions when creating pools
+for other systems, such as virtual machines or physical machines
+whose pools live on network block devices.
 .El
 .It Xo
 .Nm
@@ -1237,7 +1249,7 @@ property to
 .It Xo
 .Nm
 .Cm import
-.Op Fl Dfm
+.Op Fl Dfmt
 .Op Fl F Op Fl n
 .Op Fl -rewind-to-checkpoint
 .Op Fl c Ar cachefile Ns | Ns Fl d Ar dir
@@ -1328,6 +1340,20 @@ and the
 .Sy altroot
 property to
 .Ar root .
+.It Fl t
+Used with
+.Ar newpool .
+Specifies that
+.Ar newpool
+is temporary.
+Temporary pool names last until export.
+Ensures that the original pool name will be used in all label updates and
+therefore is retained upon export.
+Will also set
+.Sy cachefile
+property to
+.Sy none
+when not explicitly specified.
 .It Fl -rewind-to-checkpoint
 Rewinds pool to the checkpointed state.
 Once the pool is imported with this flag there is no way to undo the rewind.

@@ -210,6 +210,7 @@ typedef enum {
 	ZPOOL_PROP_MAXBLOCKSIZE,
 	ZPOOL_PROP_BOOTSIZE,
 	ZPOOL_PROP_CHECKPOINT,
+	ZPOOL_PROP_TNAME,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 
@@ -855,7 +856,7 @@ typedef struct vdev_stat {
  * is passed between kernel and userland as an nvlist uint64 array.
  */
 typedef struct ddt_object {
-	uint64_t	ddo_count;	/* number of elments in ddt 	*/
+	uint64_t	ddo_count;	/* number of elments in ddt	*/
 	uint64_t	ddo_dspace;	/* size of ddt on disk		*/
 	uint64_t	ddo_mspace;	/* size of ddt in-core		*/
 } ddt_object_t;
@@ -1061,6 +1062,7 @@ typedef enum {
 #define	ZFS_IMPORT_MISSING_LOG	0x4
 #define	ZFS_IMPORT_ONLY		0x8
 #define	ZFS_IMPORT_CHECKPOINT	0x10
+#define	ZFS_IMPORT_TEMP_NAME	0x20
 
 /*
  * Channel program argument/return nvlist keys and defaults.
