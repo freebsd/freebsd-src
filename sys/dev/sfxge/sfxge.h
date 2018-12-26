@@ -289,6 +289,8 @@ struct sfxge_softc {
 	efx_nic_t			*enp;
 	efsys_lock_t			enp_lock;
 
+	boolean_t			txq_dynamic_cksum_toggle_supported;
+
 	unsigned int			rxq_entries;
 	unsigned int			txq_entries;
 
