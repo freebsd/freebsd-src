@@ -1488,7 +1488,7 @@ ef10_filter_reconfigure(
 	/*
 	 * Insert or renew unicast filters.
 	 *
-	 * Frimware does not perform chaining on unicast filters. As traffic is
+	 * Firmware does not perform chaining on unicast filters. As traffic is
 	 * therefore only delivered to the first matching filter, we should
 	 * always insert the specific filter for our MAC address, to try and
 	 * ensure we get that traffic.
