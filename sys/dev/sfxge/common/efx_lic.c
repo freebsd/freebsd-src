@@ -522,7 +522,7 @@ efx_lic_v1v2_find_key(
 	return (found);
 
 fail1:
-	EFSYS_PROBE(fail1);
+	EFSYS_PROBE1(fail1, boolean_t, B_FALSE);
 
 	return (B_FALSE);
 }
@@ -565,7 +565,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE(fail1);
+	EFSYS_PROBE1(fail1, boolean_t, B_FALSE);
 
 	return (B_FALSE);
 }
@@ -1187,7 +1187,7 @@ fail3:
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
-	EFSYS_PROBE(fail1);
+	EFSYS_PROBE1(fail1, boolean_t, B_FALSE);
 
 	return (B_FALSE);
 }
