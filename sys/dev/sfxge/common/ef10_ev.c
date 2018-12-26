@@ -576,7 +576,7 @@ ef10_ev_qdestroy(
 	EFSYS_ASSERT(enp->en_family == EFX_FAMILY_HUNTINGTON ||
 	    enp->en_family == EFX_FAMILY_MEDFORD);
 
-	(void) efx_mcdi_fini_evq(eep->ee_enp, eep->ee_index);
+	(void) efx_mcdi_fini_evq(enp, eep->ee_index);
 }
 
 	__checkReturn	efx_rc_t
