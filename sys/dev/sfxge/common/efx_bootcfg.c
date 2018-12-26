@@ -293,7 +293,7 @@ fail1:
 				efx_rc_t
 efx_bootcfg_read(
 	__in			efx_nic_t *enp,
-	__out_bcount(size)	caddr_t data,
+	__out_bcount(size)	uint8_t *data,
 	__in			size_t size)
 {
 	uint8_t *payload = NULL;
@@ -356,7 +356,7 @@ efx_bootcfg_read(
 		goto fail7;
 
 	/* Verify that the area is correctly formatted and checksummed */
-	rc = efx_bootcfg_verify(enp, (caddr_t)payload, sector_length,
+	rc = efx_bootcfg_verify(enp, payload, sector_length,
 	    &used_bytes);
 	if (rc != 0 || used_bytes == 0) {
 		payload[0] = (uint8_t)(~DHCP_END & 0xff);
@@ -433,7 +433,7 @@ fail1:
 				efx_rc_t
 efx_bootcfg_write(
 	__in			efx_nic_t *enp,
-	__in_bcount(size)	caddr_t data,
+	__in_bcount(size)	uint8_t *data,
 	__in			size_t size)
 {
 	uint8_t *partn_data;
