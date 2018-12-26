@@ -97,6 +97,38 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+typedef struct _MPI2_CONFIG_PAGE_MAN_11
+{
+    MPI2_CONFIG_PAGE_HEADER             Header;         	/* 0x00 */
+    U8					FlashTime;		/* 0x04 */
+    U8					NVTime;			/* 0x05 */
+    U16					Flag;			/* 0x06 */
+    U8					RFIoTimeout;		/* 0x08 */
+    U8					EEDPTagMode;		/* 0x09 */
+    U8					AWTValue;		/* 0x0A */
+    U8					Reserve1;		/* 0x0B */
+    U8					MaxCmdFrames;		/* 0x0C */
+    U8					Reserve2;		/* 0x0D */
+    U16					AddlFlags;		/* 0x0E */
+    U32					SysRefClk;		/* 0x10 */
+    U64					Reserve3[3];		/* 0x14 */
+    U16					AddlFlags2;		/* 0x2C */
+    U8					AddlFlags3;		/* 0x2E */
+    U8					Reserve4;		/* 0x2F */
+    U64					opDebugEnable;		/* 0x30 */
+    U64					PlDebugEnable;		/* 0x38 */
+    U64					IrDebugEnable;		/* 0x40 */
+    U32					BoardPowerRequirement;	/* 0x48 */
+    U8					NVMeAbortTO;		/* 0x4C */
+    U8					Reserve5;		/* 0x4D */
+    U16					Reserve6;		/* 0x4E */
+    U32					Reserve7[3];		/* 0x50 */
+} MPI2_CONFIG_PAGE_MAN_11,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_MAN_11,
+  Mpi2ManufacturingPage11_t, MPI2_POINTER pMpi2ManufacturingPage11_t;
+
+#define MPI2_MAN_PG11_ADDLFLAGS2_CUSTOM_TM_HANDLING_MASK	(0x0010)
+
 /**
  * struct dev_mapping_table - device mapping information
  * @physical_id: SAS address for drives or WWID for RAID volumes
@@ -471,6 +503,8 @@ struct mpr_softc {
 	char				exclude_ids[80];
 
 	struct timeval			lastfail;
+	uint8_t				custom_nvme_tm_handling;
+	uint8_t				nvme_abort_timeout;
 };
 
 struct mpr_config_params {
@@ -812,6 +846,8 @@ int mpr_config_get_volume_wwid(struct mpr_softc *sc, u16 volume_handle,
 int mpr_config_get_raid_pd_pg0(struct mpr_softc *sc,
     Mpi2ConfigReply_t *mpi_reply, Mpi2RaidPhysDiskPage0_t *config_page,
     u32 page_address);
+int mpr_config_get_man_pg11(struct mpr_softc *sc, Mpi2ConfigReply_t *mpi_reply,
+    Mpi2ManufacturingPage11_t *config_page);
 void mprsas_ir_shutdown(struct mpr_softc *sc, int howto);
 
 int mpr_reinit(struct mpr_softc *sc);
