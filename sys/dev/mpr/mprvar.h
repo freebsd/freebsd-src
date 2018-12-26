@@ -530,7 +530,14 @@ struct scsi_read_capacity_eedp
 static __inline uint32_t
 mpr_regread(struct mpr_softc *sc, uint32_t offset)
 {
-	return (bus_space_read_4(sc->mpr_btag, sc->mpr_bhandle, offset));
+	uint32_t ret_val, i = 0;
+	do {
+		ret_val =
+		    bus_space_read_4(sc->mpr_btag, sc->mpr_bhandle, offset);
+	} while((sc->mpr_flags & MPR_FLAGS_SEA_IOC) &&
+	    (ret_val == 0) && (++i < 3));
+
+	return ret_val;
 }
 
 static __inline void
