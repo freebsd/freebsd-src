@@ -1819,7 +1819,6 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 
 	txq->type = type;
 	txq->evq_index = evq_index;
-	txq->txq_index = txq_index;
 	txq->init_state = SFXGE_TXQ_INITIALIZED;
 	txq->hw_vlan_tci = 0;
 
