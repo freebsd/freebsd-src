@@ -1273,7 +1273,7 @@ badusage:
 /*
  * zpool destroy <pool>
  *
- * 	-f	Forcefully unmount any datasets
+ *	-f	Forcefully unmount any datasets
  *
  * Destroy the given pool.  Automatically unmounts any datasets in the pool.
  */
@@ -2165,8 +2165,8 @@ do_import(nvlist_t *config, const char *newname, const char *mntopts,
  * zpool checkpoint <pool>
  *       checkpoint --discard <pool>
  *
- *       -d         Discard the checkpoint from a checkpointed
- *       --discard  pool.
+ *	-d	Discard the checkpoint from a checkpointed
+ *	--discard  pool.
  *
  * Checkpoints the specified pool, by taking a "snapshot" of its
  * current state. A pool can only have one checkpoint at a time.
@@ -2242,45 +2242,45 @@ zpool_do_checkpoint(int argc, char **argv)
  *              [-d dir | -c cachefile] [-f] [-n] [-F] [-t]
  *              <pool | id> [newpool]
  *
- *	 -c	Read pool information from a cachefile instead of searching
+ *	-c	Read pool information from a cachefile instead of searching
  *		devices.
  *
- *       -d	Scan in a specific directory, other than /dev/dsk.  More than
+ *	-d	Scan in a specific directory, other than /dev/dsk.  More than
  *		one directory can be specified using multiple '-d' options.
  *
- *       -D     Scan for previously destroyed pools or import all or only
- *              specified destroyed pools.
+ *	-D	Scan for previously destroyed pools or import all or only
+ *		specified destroyed pools.
  *
- *       -R	Temporarily import the pool, with all mountpoints relative to
+ *	-R	Temporarily import the pool, with all mountpoints relative to
  *		the given root.  The pool will remain exported when the machine
  *		is rebooted.
  *
- *       -V	Import even in the presence of faulted vdevs.  This is an
- *       	intentionally undocumented option for testing purposes, and
- *       	treats the pool configuration as complete, leaving any bad
+ *	-V	Import even in the presence of faulted vdevs.  This is an
+ *		intentionally undocumented option for testing purposes, and
+ *		treats the pool configuration as complete, leaving any bad
  *		vdevs in the FAULTED state. In other words, it does verbatim
  *		import.
  *
- *       -f	Force import, even if it appears that the pool is active.
+ *	-f	Force import, even if it appears that the pool is active.
  *
- *       -F     Attempt rewind if necessary.
+ *	-F	Attempt rewind if necessary.
  *
- *       -n     See if rewind would work, but don't actually rewind.
+ *	-n	See if rewind would work, but don't actually rewind.
  *
- *       -N     Import the pool but don't mount datasets.
+ *	-N	Import the pool but don't mount datasets.
  *
- *       -t     Use newpool as a temporary pool name instead of renaming
- *       	the pool.
+ *	-t	Use newpool as a temporary pool name instead of renaming
+ *		the pool.
  *
- *       -T     Specify a starting txg to use for import. This option is
- *       	intentionally undocumented option for testing purposes.
+ *	-T	Specify a starting txg to use for import. This option is
+ *		intentionally undocumented option for testing purposes.
  *
- *       -a	Import all pools found.
+ *	-a	Import all pools found.
  *
- *       -o	Set property=value and/or temporary mount options (without '=').
+ *	-o	Set property=value and/or temporary mount options (without '=').
  *
- *       --rewind-to-checkpoint
- *       	Import the pool and revert back to the checkpoint.
+ *	--rewind-to-checkpoint
+ *		Import the pool and revert back to the checkpoint.
  *
  * The import command scans for pools to import, and import pools based on pool
  * name and GUID.  The pool can also be renamed as part of the import process.
@@ -3440,7 +3440,7 @@ list_callback(zpool_handle_t *zhp, void *data)
  *	-o	List of properties to display.  Defaults to
  *		"name,size,allocated,free,expandsize,fragmentation,capacity,"
  *		"dedupratio,health,altroot"
- * 	-p	Diplay values in parsable (exact) format.
+ *	-p	Diplay values in parsable (exact) format.
  *	-T	Display a timestamp in date(1) or Unix format
  *
  * List all pools in the system, whether or not they're healthy.  Output space
@@ -6083,7 +6083,7 @@ get_callback(zpool_handle_t *zhp, void *data)
  *		by a single tab.
  *	-o	List of columns to display.  Defaults to
  *		"name,property,value,source".
- * 	-p	Diplay values in parsable (exact) format.
+ *	-p	Diplay values in parsable (exact) format.
  *
  * Get properties of pools in the system. Output space statistics
  * for each one as well as other attributes.
