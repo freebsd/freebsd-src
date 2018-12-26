@@ -501,6 +501,14 @@ efx_ev_qpoll(
 			if (should_abort) {
 				/* Ignore subsequent events */
 				total = index + 1;
+
+				/*
+				 * Poison batch to ensure the outer
+				 * loop is broken out of.
+				 */
+				EFSYS_ASSERT(batch <= EFX_EV_BATCH);
+				batch += (EFX_EV_BATCH << 1);
+				EFSYS_ASSERT(total != batch);
 				break;
 			}
 		}
