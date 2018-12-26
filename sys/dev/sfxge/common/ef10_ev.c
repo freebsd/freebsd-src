@@ -434,7 +434,12 @@ efx_mcdi_fini_evq(
 	return (0);
 
 fail1:
-	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+	/*
+	 * EALREADY is not an error, but indicates that the MC has rebooted and
+	 * that the EVQ has already been destroyed.
+	 */
+	if (rc != EALREADY)
+		EFSYS_PROBE1(fail1, efx_rc_t, rc);
 
 	return (rc);
 }
