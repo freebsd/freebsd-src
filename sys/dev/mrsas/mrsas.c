@@ -171,6 +171,9 @@ void	mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
 void mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd,
 	union ccb *ccb_ptr, u_int8_t status, u_int8_t extStatus,
 	u_int32_t data_length, u_int8_t *sense);
+void
+mrsas_write_64bit_req_desc(struct mrsas_softc *sc, u_int32_t req_desc_lo,
+    u_int32_t req_desc_hi);
 
 
 SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD, 0, "MRSAS Driver Parameters");
@@ -2728,7 +2731,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 
 	mrsas_disable_intr(sc);
 	mrsas_dprint(sc, MRSAS_OCR, "Issuing IOC INIT command to FW.\n");
-	mrsas_fire_cmd(sc, req_desc.addr.u.low, req_desc.addr.u.high);
+	mrsas_write_64bit_req_desc(sc, req_desc.addr.u.low, req_desc.addr.u.high);
 
 	/*
 	 * Poll response timer to wait for Firmware response.  While this
@@ -2752,6 +2755,15 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 		else
 			device_printf(sc->mrsas_dev, "IOC Init failed, status = 0x%x\n", init_frame->cmd_status);
 		retcode = 1;
+	}
+
+	if (sc->is_aero) {
+		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		    outbound_scratch_pad_2));
+		sc->atomic_desc_support = (scratch_pad_2 &
+			MR_ATOMIC_DESCRIPTOR_SUPPORT_OFFSET) ? 1 : 0;
+		device_printf(sc->mrsas_dev, "FW supports atomic descriptor: %s\n",
+			sc->atomic_desc_support ? "Yes" : "No");
 	}
 
 	mrsas_free_ioc_cmd(sc);
@@ -2853,16 +2865,13 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 }
 
 /*
- * mrsas_fire_cmd:	Sends command to FW
+ * mrsas_write_64bit_req_dsc:	Writes 64 bit request descriptor to FW
  * input:			Adapter softstate
- * 					request descriptor address low
- * 					request descriptor address high
- *
- * This functions fires the command to Firmware by writing to the
- * inbound_low_queue_port and inbound_high_queue_port.
+ * 				request descriptor address low
+ * 				request descriptor address high
  */
 void
-mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
+mrsas_write_64bit_req_desc(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi)
 {
 	mtx_lock(&sc->pci_lock);
@@ -2871,6 +2880,26 @@ mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
 	mrsas_write_reg(sc, offsetof(mrsas_reg_set, inbound_high_queue_port),
 	    req_desc_hi);
 	mtx_unlock(&sc->pci_lock);
+}
+
+/*
+ * mrsas_fire_cmd:	Sends command to FW
+ * input:		Adapter softstate
+ * 			request descriptor address low
+ * 			request descriptor address high
+ *
+ * This functions fires the command to Firmware by writing to the
+ * inbound_low_queue_port and inbound_high_queue_port.
+ */
+void
+mrsas_fire_cmd(struct mrsas_softc *sc, u_int32_t req_desc_lo,
+    u_int32_t req_desc_hi)
+{
+	if (sc->atomic_desc_support)
+		mrsas_write_reg(sc, offsetof(mrsas_reg_set, inbound_single_queue_port),
+		    req_desc_lo);
+	else
+		mrsas_write_64bit_req_desc(sc, req_desc_lo, req_desc_hi);
 }
 
 /*

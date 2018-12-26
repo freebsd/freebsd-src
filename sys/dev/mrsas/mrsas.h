@@ -1259,7 +1259,7 @@ typedef struct _mrsas_register_set {
 
 	u_int32_t inbound_high_queue_port;	/* 00C4h */
 
-	u_int32_t reserved_5;		/* 00C8h */
+	u_int32_t inbound_single_queue_port;	/* 00C8h */
 	u_int32_t res_6[11];		/* CCh */
 	u_int32_t host_diag;
 	u_int32_t seq_offset;
@@ -2316,6 +2316,8 @@ struct mrsas_ctrl_info {
  */
 #define MR_CAN_HANDLE_SYNC_CACHE_OFFSET     0X01000000
 
+#define MR_ATOMIC_DESCRIPTOR_SUPPORT_OFFSET (1 << 24)
+
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
  * commands that can be outstanding) at any time. The driver must report a
@@ -3366,6 +3368,7 @@ struct mrsas_softc {
 	boolean_t is_ventura;
 	boolean_t is_aero;
 	boolean_t msix_combined;
+	boolean_t atomic_desc_support;
 	u_int16_t maxRaidMapSize;
 
 	/* Non dma-able memory. Driver local copy. */
