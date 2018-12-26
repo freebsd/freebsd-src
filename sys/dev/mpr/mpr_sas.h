@@ -82,6 +82,7 @@ struct mprsas_target {
 	uint8_t		supports_SSU;
 	uint8_t		is_nvme;
 	uint32_t	MDTS;
+	uint8_t		controller_reset_timeout;
 };
 
 struct mprsas_softc {
