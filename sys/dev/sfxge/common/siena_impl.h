@@ -58,6 +58,15 @@ siena_nic_init(
 
 #if EFSYS_OPT_DIAG
 
+extern	efx_sram_pattern_fn_t	__efx_sram_pattern_fns[];
+
+typedef struct siena_register_set_s {
+	unsigned int		address;
+	unsigned int		step;
+	unsigned int		rows;
+	efx_oword_t		mask;
+} siena_register_set_t;
+
 extern	__checkReturn	efx_rc_t
 siena_nic_register_test(
 	__in		efx_nic_t *enp);
