@@ -91,6 +91,15 @@ __FBSDID("$FreeBSD$");
 #define	MRSAS_TOMCAT                0x0017
 #define	MRSAS_VENTURA_4PORT         0x001B
 #define	MRSAS_CRUSADER_4PORT        0x001C
+#define	MRSAS_AERO_10E0             0x10E0
+#define	MRSAS_AERO_10E1             0x10E1
+#define	MRSAS_AERO_10E2             0x10E2
+#define	MRSAS_AERO_10E3             0x10E3
+#define	MRSAS_AERO_10E4             0x10E4
+#define	MRSAS_AERO_10E5             0x10E5
+#define	MRSAS_AERO_10E6             0x10E6
+#define	MRSAS_AERO_10E7             0x10E7
+
 
 /*
  * Firmware State Defines
@@ -3355,6 +3364,7 @@ struct mrsas_softc {
 
 	u_int32_t nvme_page_size;
 	boolean_t is_ventura;
+	boolean_t is_aero;
 	boolean_t msix_combined;
 	u_int16_t maxRaidMapSize;
 

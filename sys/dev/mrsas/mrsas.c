@@ -201,6 +201,14 @@ MRSAS_CTLR_ID device_table[] = {
 	{0x1000, MRSAS_TOMCAT, 0xffff, 0xffff, "AVAGO Tomcat SAS Controller"},
 	{0x1000, MRSAS_VENTURA_4PORT, 0xffff, 0xffff, "AVAGO Ventura_4Port SAS Controller"},
 	{0x1000, MRSAS_CRUSADER_4PORT, 0xffff, 0xffff, "AVAGO Crusader_4Port SAS Controller"},
+	{0x1000, MRSAS_AERO_10E0, 0xffff, 0xffff, "BROADCOM AERO-10E0 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E1, 0xffff, 0xffff, "BROADCOM AERO-10E1 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E2, 0xffff, 0xffff, "BROADCOM AERO-10E2 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E3, 0xffff, 0xffff, "BROADCOM AERO-10E3 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E4, 0xffff, 0xffff, "BROADCOM AERO-10E4 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E5, 0xffff, 0xffff, "BROADCOM AERO-10E5 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E6, 0xffff, 0xffff, "BROADCOM AERO-10E6 SAS Controller"},
+	{0x1000, MRSAS_AERO_10E7, 0xffff, 0xffff, "BROADCOM AERO-10E7 SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -845,20 +853,37 @@ mrsas_attach(device_t dev)
 	sc->mrsas_dev = dev;
 	sc->device_id = pci_get_device(dev);
 
-	if ((sc->device_id == MRSAS_INVADER) ||
-	    (sc->device_id == MRSAS_FURY) ||
-	    (sc->device_id == MRSAS_INTRUDER) ||
-	    (sc->device_id == MRSAS_INTRUDER_24) ||
-	    (sc->device_id == MRSAS_CUTLASS_52) ||
-	    (sc->device_id == MRSAS_CUTLASS_53)) {
+	switch (sc->device_id) {
+	case MRSAS_INVADER:
+	case MRSAS_FURY:
+	case MRSAS_INTRUDER:
+	case MRSAS_INTRUDER_24:
+	case MRSAS_CUTLASS_52:
+	case MRSAS_CUTLASS_53:
 		sc->mrsas_gen3_ctrl = 1;
-	} else if ((sc->device_id == MRSAS_VENTURA) ||
-	    (sc->device_id == MRSAS_CRUSADER) ||
-	    (sc->device_id == MRSAS_HARPOON) ||
-	    (sc->device_id == MRSAS_TOMCAT) ||
-	    (sc->device_id == MRSAS_VENTURA_4PORT) ||
-	    (sc->device_id == MRSAS_CRUSADER_4PORT)) {
+		break;
+	case MRSAS_VENTURA:
+	case MRSAS_CRUSADER:
+	case MRSAS_HARPOON:
+	case MRSAS_TOMCAT:
+	case MRSAS_VENTURA_4PORT:
+	case MRSAS_CRUSADER_4PORT:
 		sc->is_ventura = true;
+		break;
+	case MRSAS_AERO_10E1:
+	case MRSAS_AERO_10E5:
+		device_printf(dev, "Adapter is in configurable secure mode\n");
+	case MRSAS_AERO_10E2:
+	case MRSAS_AERO_10E6:
+		sc->is_aero = true;
+		break;
+	case MRSAS_AERO_10E0:
+	case MRSAS_AERO_10E3:
+	case MRSAS_AERO_10E4:
+	case MRSAS_AERO_10E7:
+		device_printf(dev, "Adapter is in non-secure mode\n");
+		return SUCCESS;
+
 	}
 
 	mrsas_get_tunables(sc);
@@ -874,8 +899,8 @@ mrsas_attach(device_t dev)
 	cmd |= PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
-	/* For Ventura system registers are mapped to BAR0 */
-	if (sc->is_ventura)
+	/* For Ventura/Aero system registers are mapped to BAR0 */
+	if (sc->is_ventura || sc->is_aero)
 		sc->reg_res_id = PCIR_BAR(0);	/* BAR0 offset */
 	else
 		sc->reg_res_id = PCIR_BAR(1);	/* BAR1 offset */
@@ -1099,7 +1124,7 @@ mrsas_detach(device_t dev)
 	mrsas_shutdown_ctlr(sc, MR_DCMD_CTRL_SHUTDOWN);
 	mrsas_disable_intr(sc);
 
-	if (sc->is_ventura && sc->streamDetectByLD) {
+	if ((sc->is_ventura || sc->is_aero) && sc->streamDetectByLD) {
 		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i)
 			free(sc->streamDetectByLD[i], M_MRSAS);
 		free(sc->streamDetectByLD, M_MRSAS);
@@ -2285,7 +2310,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	if (ret != SUCCESS) {
 		return (ret);
 	}
-	if (sc->is_ventura) {
+	if (sc->is_ventura || sc->is_aero) {
 		scratch_pad_3 = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad_3));
 #if VD_EXT_DEBUG
 		device_printf(sc->mrsas_dev, "scratch_pad_3 0x%x\n", scratch_pad_3);
@@ -2316,7 +2341,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 			fw_msix_count = sc->msix_vectors;
 
 			if ((sc->mrsas_gen3_ctrl && (sc->msix_vectors > 8)) ||
-				(sc->is_ventura && (sc->msix_vectors > 16)))
+				((sc->is_ventura || sc->is_aero) && (sc->msix_vectors > 16)))
 				sc->msix_combined = true;
 			/*
 			 * Save 1-15 reply post index
@@ -2359,7 +2384,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		return (1);
 	}
 
-	if (sc->is_ventura) {
+	if (sc->is_ventura || sc->is_aero) {
 		scratch_pad_4 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad_4));
 		if ((scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK) >= MR_DEFAULT_NVME_PAGE_SHIFT)
@@ -2424,7 +2449,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		return (1);
 	}
 
-	if (sc->is_ventura && sc->drv_stream_detection) {
+	if ((sc->is_ventura || sc->is_aero) && sc->drv_stream_detection) {
 		sc->streamDetectByLD = malloc(sizeof(PTR_LD_STREAM_DETECT) *
 						MAX_LOGICAL_DRIVES_EXT, M_MRSAS, M_NOWAIT);
 		if (!sc->streamDetectByLD) {
@@ -2678,7 +2703,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
 	/* driver support Extended MSIX */
-	if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
+	if (sc->mrsas_gen3_ctrl || sc->is_ventura || sc->is_aero) {
 		init_frame->driver_operations.
 		    mfi_capabilities.support_additional_msix = 1;
 	}
@@ -3306,7 +3331,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 
 			megasas_setup_jbod_map(sc);
 
-			if (sc->is_ventura && sc->streamDetectByLD) {
+			if ((sc->is_ventura || sc->is_aero) && sc->streamDetectByLD) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
 					memset(sc->streamDetectByLD[i], 0, sizeof(LD_STREAM_DETECT));
 					sc->streamDetectByLD[i]->mruBitMap = MR_STREAM_BITMAP;
@@ -3834,7 +3859,7 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 
 	io_req = mpt_cmd->io_request;
 
-	if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
+	if (sc->mrsas_gen3_ctrl || sc->is_ventura || sc->is_aero) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = (pMpi25IeeeSgeChain64_t)&io_req->SGL;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
