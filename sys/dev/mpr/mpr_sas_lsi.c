@@ -683,6 +683,24 @@ skip_fp_send:
 		}
 		break;
 	}
+	case MPI2_EVENT_PCIE_DEVICE_STATUS_CHANGE:
+	{
+		pMpi26EventDataPCIeDeviceStatusChange_t	pcie_status_event_data;
+		pcie_status_event_data =
+		   (pMpi26EventDataPCIeDeviceStatusChange_t)fw_event->event_data;
+
+		switch (pcie_status_event_data->ReasonCode) {
+		case MPI26_EVENT_PCIDEV_STAT_RC_PCIE_HOT_RESET_FAILED:
+		{
+			mpr_printf(sc, "PCIe Host Reset failed on DevHandle "
+			    "0x%x\n", pcie_status_event_data->DevHandle);
+			break;
+		}
+		default:
+			break;
+		}
+		break;
+	}
 	case MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR:
 	{
 		pMpi25EventDataSasDeviceDiscoveryError_t discovery_error_data;
@@ -1317,6 +1335,8 @@ mprsas_add_pcie_device(struct mpr_softc *sc, u16 handle, u8 linkrate)
 	targ->connector_name[3] = ((char *)&config_page.ConnectorName)[3];
 	targ->is_nvme = device_info & MPI26_PCIE_DEVINFO_NVME;
 	targ->MDTS = config_page2.MaximumDataTransferSize;
+	if (targ->is_nvme)
+		targ->controller_reset_timeout = config_page2.ControllerResetTO;
 	/*
 	 * Assume always TRUE for encl_level_valid because there is no valid
 	 * flag for PCIe.
