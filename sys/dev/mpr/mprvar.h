@@ -341,6 +341,7 @@ struct mpr_softc {
 #define	MPR_FLAGS_ATTACH_DONE	(1 << 5)
 #define	MPR_FLAGS_GEN35_IOC	(1 << 6)
 #define	MPR_FLAGS_REALLOCATED	(1 << 7)
+#define	MPR_FLAGS_SEA_IOC	(1 << 8)
 	u_int				mpr_debug;
 	int				msi_msgs;
 	u_int				reqframesz;
