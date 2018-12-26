@@ -64,7 +64,7 @@ efx_port_init(
 	epp->ep_emop->emo_reconfigure(enp);
 
 	/* Pick up current phy capababilities */
-	efx_port_poll(enp, NULL);
+	(void) efx_port_poll(enp, NULL);
 
 	/*
 	 * Turn on the PHY if available, otherwise reset it, and

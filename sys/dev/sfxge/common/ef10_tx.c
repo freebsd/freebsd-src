@@ -298,7 +298,7 @@ ef10_tx_qpio_enable(
 
 fail3:
 	EFSYS_PROBE(fail3);
-	ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
+	(void) ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
 	etp->et_pio_size = 0;
 fail2:
 	EFSYS_PROBE(fail2);
@@ -316,10 +316,12 @@ ef10_tx_qpio_disable(
 
 	if (etp->et_pio_size != 0) {
 		/* Unlink the piobuf from this TXQ */
-		ef10_nic_pio_unlink(enp, etp->et_index);
+		if (ef10_nic_pio_unlink(enp, etp->et_index) != 0)
+			return;
 
 		/* Free the sub-allocated PIO block */
-		ef10_nic_pio_free(enp, etp->et_pio_bufnum, etp->et_pio_blknum);
+		(void) ef10_nic_pio_free(enp, etp->et_pio_bufnum,
+		    etp->et_pio_blknum);
 		etp->et_pio_size = 0;
 		etp->et_pio_write_offset = 0;
 	}
