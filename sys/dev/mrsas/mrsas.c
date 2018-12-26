@@ -95,6 +95,8 @@ mrsas_get_pd_info(struct mrsas_softc *sc, u_int16_t device_id);
 static struct mrsas_softc *
 mrsas_get_softc_instance(struct cdev *dev,
     u_long cmd, caddr_t arg);
+u_int32_t
+mrsas_read_reg_with_retries(struct mrsas_softc *sc, int offset);
 u_int32_t mrsas_read_reg(struct mrsas_softc *sc, int offset);
 u_int8_t
 mrsas_build_mptmfi_passthru(struct mrsas_softc *sc,
@@ -272,6 +274,22 @@ mrsas_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (0);
 }
 
+u_int32_t
+mrsas_read_reg_with_retries(struct mrsas_softc *sc, int offset)
+{
+	u_int32_t i = 0, ret_val;
+
+	if (sc->is_aero) {
+		do {
+			ret_val = mrsas_read_reg(sc, offset);
+			i++;
+		} while(ret_val == 0 && i < 3);
+	} else
+		ret_val = mrsas_read_reg(sc, offset);
+
+	return ret_val;
+}
+
 /*
  * Register Read/Write Functions
  *
@@ -332,7 +350,7 @@ mrsas_clear_intr(struct mrsas_softc *sc)
 	u_int32_t status;
 
 	/* Read received interrupt */
-	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_intr_status));
+	status = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, outbound_intr_status));
 
 	/* Not our interrupt, so just return */
 	if (!(status & MFI_FUSION_ENABLE_INTERRUPT_MASK))
@@ -2314,7 +2332,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		return (ret);
 	}
 	if (sc->is_ventura || sc->is_aero) {
-		scratch_pad_3 = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad_3));
+		scratch_pad_3 = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, outbound_scratch_pad_3));
 #if VD_EXT_DEBUG
 		device_printf(sc->mrsas_dev, "scratch_pad_3 0x%x\n", scratch_pad_3);
 #endif
@@ -2325,10 +2343,10 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	/* MSI-x index 0- reply post host index register */
 	sc->msix_reg_offset[0] = MPI2_REPLY_POST_HOST_INDEX_OFFSET;
 	/* Check if MSI-X is supported while in ready state */
-	msix_enable = (mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad)) & 0x4000000) >> 0x1a;
+	msix_enable = (mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, outbound_scratch_pad)) & 0x4000000) >> 0x1a;
 
 	if (msix_enable) {
-		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		scratch_pad_2 = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad_2));
 
 		/* Check max MSI-X vectors */
@@ -2388,7 +2406,7 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	}
 
 	if (sc->is_ventura || sc->is_aero) {
-		scratch_pad_4 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		scratch_pad_4 = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad_4));
 		if ((scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK) >= MR_DEFAULT_NVME_PAGE_SHIFT)
 			sc->nvme_page_size = 1 << (scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK);
@@ -2529,7 +2547,7 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 	int i = 0;
 
 	/* Read FW status register */
-	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
+	status = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
 
 	sc->max_fw_cmds = status & MRSAS_FWSTATE_MAXCMD_MASK;
 
@@ -2544,7 +2562,7 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
 	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE +
 	    (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (sc->max_fw_cmds + 1));
-	scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+	scratch_pad_2 = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 	    outbound_scratch_pad_2));
 	/*
 	 * If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
@@ -2682,7 +2700,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	}
 
 	if (!sc->block_sync_cache) {
-		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		scratch_pad_2 = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad_2));
 		sc->fw_sync_cache_support = (scratch_pad_2 &
 		    MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
@@ -2758,7 +2776,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	}
 
 	if (sc->is_aero) {
-		scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		scratch_pad_2 = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad_2));
 		sc->atomic_desc_support = (scratch_pad_2 &
 			MR_ATOMIC_DESCRIPTOR_SUPPORT_OFFSET) ? 1 : 0;
@@ -2920,7 +2938,7 @@ mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr)
 	u_int32_t cur_state;
 	u_int32_t abs_state, curr_abs_state;
 
-	val = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
+	val = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
 	fw_state = val & MFI_STATE_MASK;
 	max_wait = MRSAS_RESET_WAIT_TIME;
 
@@ -2928,7 +2946,7 @@ mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr)
 		device_printf(sc->mrsas_dev, "Waiting for FW to come to ready state\n");
 
 	while (fw_state != MFI_STATE_READY) {
-		abs_state = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
+		abs_state = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
 		switch (fw_state) {
 		case MFI_STATE_FAULT:
 			device_printf(sc->mrsas_dev, "FW is in FAULT state!!\n");
@@ -2956,7 +2974,7 @@ mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr)
 			mrsas_disable_intr(sc);
 			mrsas_write_reg(sc, offsetof(mrsas_reg_set, doorbell), MFI_RESET_FLAGS);
 			for (i = 0; i < max_wait * 1000; i++) {
-				if (mrsas_read_reg(sc, offsetof(mrsas_reg_set, doorbell)) & 1)
+				if (mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set, doorbell)) & 1)
 					DELAY(1000);
 				else
 					break;
@@ -2994,9 +3012,9 @@ mrsas_transition_to_ready(struct mrsas_softc *sc, int ocr)
 		 * The cur_state should not last for more than max_wait secs
 		 */
 		for (i = 0; i < (max_wait * 1000); i++) {
-			fw_state = (mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+			fw_state = (mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 			    outbound_scratch_pad)) & MFI_STATE_MASK);
-			curr_abs_state = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+			curr_abs_state = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 			    outbound_scratch_pad));
 			if (abs_state == curr_abs_state)
 				DELAY(1000);
@@ -3071,7 +3089,7 @@ mrsas_ocr_thread(void *arg)
 			    "Hardware critical error", __func__);
 			break;
 		}
-		fw_status = mrsas_read_reg(sc,
+		fw_status = mrsas_read_reg_with_retries(sc,
 		    offsetof(mrsas_reg_set, outbound_scratch_pad));
 		fw_state = fw_status & MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset ||
@@ -3230,7 +3248,7 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 
 		mtx_lock(&sc->sim_lock);
 
-		status_reg = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		status_reg = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad));
 		abs_state = status_reg & MFI_STATE_MASK;
 		reset_adapter = status_reg & MFI_RESET_ADAPTER;
@@ -3260,12 +3278,12 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 			    MPI2_WRSEQ_6TH_KEY_VALUE);
 
 			/* Check that the diag write enable (DRWE) bit is on */
-			host_diag = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+			host_diag = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 			    fusion_host_diag));
 			retry = 0;
 			while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
 				DELAY(100 * 1000);
-				host_diag = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+				host_diag = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 				    fusion_host_diag));
 				if (retry++ == 100) {
 					mrsas_dprint(sc, MRSAS_OCR,
@@ -3282,12 +3300,12 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 			DELAY(3000 * 1000);
 
 			/* Make sure reset adapter bit is cleared */
-			host_diag = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+			host_diag = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 			    fusion_host_diag));
 			retry = 0;
 			while (host_diag & HOST_DIAG_RESET_ADAPTER) {
 				DELAY(100 * 1000);
-				host_diag = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+				host_diag = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 				    fusion_host_diag));
 				if (retry++ == 1000) {
 					mrsas_dprint(sc, MRSAS_OCR,
@@ -3298,13 +3316,13 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 			if (host_diag & HOST_DIAG_RESET_ADAPTER)
 				continue;
 
-			abs_state = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+			abs_state = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 			    outbound_scratch_pad)) & MFI_STATE_MASK;
 			retry = 0;
 
 			while ((abs_state <= MFI_STATE_FW_INIT) && (retry++ < 1000)) {
 				DELAY(100 * 1000);
-				abs_state = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+				abs_state = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 				    outbound_scratch_pad)) & MFI_STATE_MASK;
 			}
 			if (abs_state <= MFI_STATE_FW_INIT) {
@@ -3479,7 +3497,7 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 			goto out;
 		}
 		/* Check if firmware is in fault state */
-		fw_state = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		fw_state = mrsas_read_reg_with_retries(sc, offsetof(mrsas_reg_set,
 		    outbound_scratch_pad)) & MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT) {
 			mrsas_dprint(sc, MRSAS_OCR,
