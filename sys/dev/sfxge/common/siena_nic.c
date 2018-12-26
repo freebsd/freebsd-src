@@ -156,6 +156,8 @@ siena_board_cfg(
 	encp->enc_rxq_limit = MIN(EFX_RXQ_LIMIT_TARGET, nrxq);
 	encp->enc_txq_limit = MIN(EFX_TXQ_LIMIT_TARGET, ntxq);
 
+	encp->enc_txq_max_ndescs = 4096;
+
 	encp->enc_buftbl_limit = SIENA_SRAM_ROWS -
 	    (encp->enc_txq_limit * EFX_TXQ_DC_NDESCS(EFX_TXQ_DC_SIZE)) -
 	    (encp->enc_rxq_limit * EFX_RXQ_DC_NDESCS(EFX_RXQ_DC_SIZE));
