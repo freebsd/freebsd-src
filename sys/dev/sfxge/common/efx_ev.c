@@ -1419,6 +1419,8 @@ efx_ev_qstat_name(
 	__in	efx_nic_t *enp,
 	__in	unsigned int id)
 {
+	_NOTE(ARGUNUSED(enp))
+
 	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
 	EFSYS_ASSERT3U(id, <, EV_NQSTATS);
 
