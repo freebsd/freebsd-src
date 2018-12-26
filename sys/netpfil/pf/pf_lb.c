@@ -324,6 +324,12 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	   src node was created just a moment ago in pf_create_state and it
 	   needs to be filled in with routing decision calculated here. */
 	if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
+		/* If the supplied address is the same as the current one we've
+		 * been asked before, so tell the caller that there's no other
+		 * address to be had. */
+		if (PF_AEQ(naddr, &(*sn)->raddr, af))
+			return (1);
+
 		PF_ACPY(naddr, &(*sn)->raddr, af);
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf_map_addr: src tracking maps ");

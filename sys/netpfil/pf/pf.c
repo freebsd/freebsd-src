@@ -5513,6 +5513,8 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin_len = sizeof(dst);
 	dst.sin_addr = ip->ip_dst;
 
+	bzero(&naddr, sizeof(naddr));
+
 	if (TAILQ_EMPTY(&r->rpool.list)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("%s: TAILQ_EMPTY(&r->rpool.list)\n", __func__));
@@ -5671,6 +5673,8 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	dst.sin6_family = AF_INET6;
 	dst.sin6_len = sizeof(dst);
 	dst.sin6_addr = ip6->ip6_dst;
+
+	bzero(&naddr, sizeof(naddr));
 
 	if (TAILQ_EMPTY(&r->rpool.list)) {
 		DPFPRINTF(PF_DEBUG_URGENT,
