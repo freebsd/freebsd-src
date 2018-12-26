@@ -147,7 +147,7 @@ efx_port_loopback_set(
 	EFSYS_ASSERT(link_mode < EFX_LINK_NMODES);
 
 	if (EFX_TEST_QWORD_BIT(encp->enc_loopback_types[link_mode],
-		loopback_type) == 0) {
+		(int)loopback_type) == 0) {
 		rc = ENOTSUP;
 		goto fail1;
 	}
