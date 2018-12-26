@@ -624,8 +624,9 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 			sc->eedp_enabled = TRUE;
 		if (sc->facts->IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_TLR)
 			sc->control_TLR = TRUE;
-		if (sc->facts->IOCCapabilities &
-		    MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ)
+		if ((sc->facts->IOCCapabilities &
+		    MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ) &&
+		    (sc->mpr_flags & MPR_FLAGS_SEA_IOC))
 			sc->atomic_desc_capable = TRUE;
 
 		mpr_resize_queues(sc);
