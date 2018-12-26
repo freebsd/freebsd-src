@@ -2457,6 +2457,11 @@ daprobedone(struct cam_periph *periph, union ccb *ccb)
 		printf("%s%d: %s\n", periph->periph_name,
 		    periph->unit_number, buf);
 	}
+	if ((softc->disk->d_flags & DISKFLAG_WRITE_PROTECT) != 0 &&
+	    (softc->flags & DA_FLAG_ANNOUNCED) == 0) {
+		printf("%s%d: Write Protected\n", periph->periph_name,
+		    periph->unit_number);
+	}
 
 	/*
 	 * Since our peripheral may be invalidated by an error
