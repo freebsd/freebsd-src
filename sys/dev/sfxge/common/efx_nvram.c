@@ -924,7 +924,7 @@ efx_mcdi_nvram_update_finish(
 	efx_mcdi_req_t req;
 	uint8_t payload[MAX(MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN,
 			    MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN)];
-	uint32_t result = 0; /* FIXME: use MC_CMD_NVRAM_VERIFY_RC_UNKNOWN */
+	uint32_t result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
 	efx_rc_t rc;
 
 	(void) memset(payload, 0, sizeof (payload));
