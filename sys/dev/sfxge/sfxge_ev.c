@@ -436,16 +436,79 @@ sfxge_ev_wake_up(void *arg, uint32_t index)
 #if EFSYS_OPT_QSTATS
 
 static void
+sfxge_evq_stat_update(struct sfxge_evq *evq)
+{
+	clock_t now;
+
+	SFXGE_EVQ_LOCK(evq);
+
+	if (__predict_false(evq->init_state != SFXGE_EVQ_STARTED))
+		goto out;
+
+	now = ticks;
+	if ((unsigned int)(now - evq->stats_update_time) < (unsigned int)hz)
+		goto out;
+
+	evq->stats_update_time = now;
+	efx_ev_qstats_update(evq->common, evq->stats);
+
+out:
+	SFXGE_EVQ_UNLOCK(evq);
+}
+
+static int
+sfxge_evq_stat_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct sfxge_evq *evq = arg1;
+	struct sfxge_softc *sc = evq->sc;
+	unsigned int id = arg2;
+
+	SFXGE_ADAPTER_LOCK(sc);
+
+	sfxge_evq_stat_update(evq);
+
+	SFXGE_ADAPTER_UNLOCK(sc);
+
+	return (SYSCTL_OUT(req, &evq->stats[id], sizeof(evq->stats[id])));
+}
+
+static int
+sfxge_evq_stat_init(struct sfxge_evq *evq)
+{
+	struct sfxge_softc *sc = evq->sc;
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->dev);
+	char name[16];
+	struct sysctl_oid *evq_stats_node;
+	unsigned int id;
+
+	snprintf(name, sizeof(name), "%u", evq->index);
+	evq_stats_node = SYSCTL_ADD_NODE(ctx,
+					 SYSCTL_CHILDREN(sc->evqs_stats_node),
+					 OID_AUTO, name, CTLFLAG_RD, NULL, "");
+	if (evq_stats_node == NULL)
+		return (ENOMEM);
+
+	for (id = 0; id < EV_NQSTATS; id++) {
+		SYSCTL_ADD_PROC(
+			ctx, SYSCTL_CHILDREN(evq_stats_node),
+			OID_AUTO, efx_ev_qstat_name(sc->enp, id),
+			CTLTYPE_U64|CTLFLAG_RD,
+			evq, id, sfxge_evq_stat_handler, "Q",
+			"");
+	}
+
+	return (0);
+}
+
+static void
 sfxge_ev_stat_update(struct sfxge_softc *sc)
 {
 	struct sfxge_evq *evq;
 	unsigned int index;
 	clock_t now;
+	unsigned int id;
 
 	SFXGE_ADAPTER_LOCK(sc);
-
-	if (__predict_false(sc->evq[0]->init_state != SFXGE_EVQ_STARTED))
-		goto out;
 
 	now = ticks;
 	if ((unsigned int)(now - sc->ev_stats_update_time) < (unsigned int)hz)
@@ -453,12 +516,14 @@ sfxge_ev_stat_update(struct sfxge_softc *sc)
 
 	sc->ev_stats_update_time = now;
 
-	/* Add event counts from each event queue in turn */
+	memset(sc->ev_stats, 0, sizeof(sc->ev_stats));
+
+	/* Update and add event counts from each event queue in turn */
 	for (index = 0; index < sc->evq_count; index++) {
 		evq = sc->evq[index];
-		SFXGE_EVQ_LOCK(evq);
-		efx_ev_qstats_update(evq->common, sc->ev_stats);
-		SFXGE_EVQ_UNLOCK(evq);
+		sfxge_evq_stat_update(evq);
+		for (id = 0; id < EV_NQSTATS; id++)
+			sc->ev_stats[id] += evq->stats[id];
 	}
 out:
 	SFXGE_ADAPTER_UNLOCK(sc);
@@ -665,7 +730,7 @@ sfxge_ev_qstop(struct sfxge_softc *sc, unsigned int index)
 
 #if EFSYS_OPT_QSTATS
 	/* Add event counts before discarding the common evq state */
-	efx_ev_qstats_update(evq->common, sc->ev_stats);
+	efx_ev_qstats_update(evq->common, evq->stats);
 #endif
 
 	efx_ev_qdestroy(evq->common);
@@ -866,7 +931,24 @@ sfxge_ev_qinit(struct sfxge_softc *sc, unsigned int index)
 
 	evq->init_state = SFXGE_EVQ_INITIALIZED;
 
+#if EFSYS_OPT_QSTATS
+	rc = sfxge_evq_stat_init(evq);
+	if (rc != 0)
+		goto fail_evq_stat_init;
+#endif
+
 	return (0);
+
+#if EFSYS_OPT_QSTATS
+fail_evq_stat_init:
+	evq->init_state = SFXGE_EVQ_UNINITIALIZED;
+	SFXGE_EVQ_LOCK_DESTROY(evq);
+	sfxge_dma_free(esmp);
+	sc->evq[index] = NULL;
+	free(evq, M_SFXGE);
+
+	return (rc);
+#endif
 }
 
 void
@@ -915,6 +997,16 @@ sfxge_ev_init(struct sfxge_softc *sc)
 			sc, 0, sfxge_int_mod_handler, "IU",
 			"sfxge interrupt moderation (us)");
 
+#if EFSYS_OPT_QSTATS
+	sc->evqs_stats_node = SYSCTL_ADD_NODE(
+		device_get_sysctl_ctx(sc->dev), SYSCTL_CHILDREN(sc->stats_node),
+		OID_AUTO, "evq", CTLFLAG_RD, NULL, "Event queues stats");
+	if (sc->evqs_stats_node == NULL) {
+		rc = ENOMEM;
+		goto fail_evqs_stats_node;
+	}
+#endif
+
 	/*
 	 * Initialize the event queue(s) - one per interrupt.
 	 */
@@ -933,6 +1025,9 @@ fail:
 	while (--index >= 0)
 		sfxge_ev_qfini(sc, index);
 
+#if EFSYS_OPT_QSTATS
+fail_evqs_stats_node:
+#endif
 	sc->evq_count = 0;
 	return (rc);
 }
