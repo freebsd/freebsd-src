@@ -507,12 +507,11 @@ efx_mcdi_nvram_partitions(
 	__out			unsigned int *npartnp)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_PARTITIONS_IN_LEN,
-			    MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_PARTITIONS_IN_LEN,
+		MC_CMD_NVRAM_PARTITIONS_OUT_LENMAX);
 	unsigned int npartn;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_PARTITIONS;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_PARTITIONS_IN_LEN;
@@ -570,11 +569,10 @@ efx_mcdi_nvram_metadata(
 	__in			size_t size)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_METADATA_IN_LEN,
-			    MC_CMD_NVRAM_METADATA_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_METADATA_IN_LEN,
+		MC_CMD_NVRAM_METADATA_OUT_LENMAX);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_METADATA;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_METADATA_IN_LEN;
@@ -660,12 +658,11 @@ efx_mcdi_nvram_info(
 	__out_opt		uint32_t *erase_sizep,
 	__out_opt		uint32_t *write_sizep)
 {
-	uint8_t payload[MAX(MC_CMD_NVRAM_INFO_IN_LEN,
-			    MC_CMD_NVRAM_INFO_V2_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_INFO_IN_LEN,
+		MC_CMD_NVRAM_INFO_V2_OUT_LEN);
 	efx_mcdi_req_t req;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_INFO;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_INFO_IN_LEN;
@@ -721,12 +718,11 @@ efx_mcdi_nvram_update_start(
 	__in			efx_nic_t *enp,
 	__in			uint32_t partn)
 {
-	uint8_t payload[MAX(MC_CMD_NVRAM_UPDATE_START_V2_IN_LEN,
-			    MC_CMD_NVRAM_UPDATE_START_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_UPDATE_START_V2_IN_LEN,
+		MC_CMD_NVRAM_UPDATE_START_OUT_LEN);
 	efx_mcdi_req_t req;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_UPDATE_START;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_UPDATE_START_V2_IN_LEN;
@@ -763,8 +759,8 @@ efx_mcdi_nvram_read(
 	__in			uint32_t mode)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_READ_IN_V2_LEN,
-			    MC_CMD_NVRAM_READ_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_READ_IN_V2_LEN,
+		MC_CMD_NVRAM_READ_OUT_LENMAX);
 	efx_rc_t rc;
 
 	if (size > MC_CMD_NVRAM_READ_OUT_LENMAX) {
@@ -772,7 +768,6 @@ efx_mcdi_nvram_read(
 		goto fail1;
 	}
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_READ;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_READ_IN_V2_LEN;
@@ -818,11 +813,10 @@ efx_mcdi_nvram_erase(
 	__in			size_t size)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_ERASE_IN_LEN,
-			    MC_CMD_NVRAM_ERASE_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_ERASE_IN_LEN,
+		MC_CMD_NVRAM_ERASE_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_ERASE;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_ERASE_IN_LEN;
@@ -932,12 +926,11 @@ efx_mcdi_nvram_update_finish(
 {
 	const efx_nic_cfg_t *encp = &enp->en_nic_cfg;
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN,
-			    MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN,
+		MC_CMD_NVRAM_UPDATE_FINISH_V2_OUT_LEN);
 	uint32_t result = MC_CMD_NVRAM_VERIFY_RC_UNKNOWN;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_UPDATE_FINISH;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_UPDATE_FINISH_V2_IN_LEN;
@@ -1004,12 +997,11 @@ efx_mcdi_nvram_test(
 	__in			uint32_t partn)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_NVRAM_TEST_IN_LEN,
-			    MC_CMD_NVRAM_TEST_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_NVRAM_TEST_IN_LEN,
+		MC_CMD_NVRAM_TEST_OUT_LEN);
 	int result;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_NVRAM_TEST;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_NVRAM_TEST_IN_LEN;

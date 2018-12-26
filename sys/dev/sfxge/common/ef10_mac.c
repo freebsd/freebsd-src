@@ -102,11 +102,10 @@ efx_mcdi_vadapter_set_mac(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_VADAPTOR_SET_MAC_IN_LEN,
-			    MC_CMD_VADAPTOR_SET_MAC_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_VADAPTOR_SET_MAC_IN_LEN,
+		MC_CMD_VADAPTOR_SET_MAC_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_VADAPTOR_SET_MAC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_VADAPTOR_SET_MAC_IN_LEN;
@@ -168,11 +167,10 @@ efx_mcdi_mtu_set(
 	__in		uint32_t mtu)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_MAC_EXT_IN_LEN,
-			    MC_CMD_SET_MAC_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SET_MAC_EXT_IN_LEN,
+		MC_CMD_SET_MAC_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MAC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_MAC_EXT_IN_LEN;
@@ -205,11 +203,10 @@ efx_mcdi_mtu_get(
 	__out		size_t *mtu)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_MAC_EXT_IN_LEN,
-			    MC_CMD_SET_MAC_V2_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SET_MAC_EXT_IN_LEN,
+		MC_CMD_SET_MAC_V2_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MAC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_MAC_EXT_IN_LEN;
@@ -301,11 +298,10 @@ ef10_mac_reconfigure(
 {
 	efx_port_t *epp = &(enp->en_port);
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_SET_MAC_IN_LEN,
-			    MC_CMD_SET_MAC_OUT_LEN)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_SET_MAC_IN_LEN,
+		MC_CMD_SET_MAC_OUT_LEN);
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_SET_MAC;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_SET_MAC_IN_LEN;
