@@ -80,6 +80,29 @@
 	<entry><para>Deferred kernel loading breaks loader
 	    password</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:16.ptrace.asc">FreeBSD-EN-18:16.ptrace</link></entry>
+	<entry>19&nbsp;December&nbsp;2018</entry>
+	<entry><para>Kernel panic when attaching to stopped
+	    process</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:17.vm.asc">FreeBSD-EN-18:17.vm</link></entry>
+	<entry>19&nbsp;December&nbsp;2018</entry>
+	<entry><para>Kernel panic under load on &intel; Skylake&trade;
+	    CPUs</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-18:18.zfs.asc">FreeBSD-EN-18:18.zfs</link></entry>
+	<entry>19&nbsp;December&nbsp;2018</entry>
+	<entry><para>ZFS vnode reclaim deadlock</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
