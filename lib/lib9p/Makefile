@@ -2,7 +2,7 @@
 
 .PATH: ${.CURDIR}/../../contrib/lib9p
 CFLAGS+=-I${.CURDIR}/../../contrib/lib9p
-CFLAGS+=-DL9P_DEBUG=L9P_DEBUG -DACE_DEBUG -DWITH_CASPER -g -O0
+CFLAGS+=-DWITH_CASPER
 
 LIB=		9p
 PACKAGE=	lib${LIB}
