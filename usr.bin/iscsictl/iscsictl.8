@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2016
+.Dd December 27, 2018
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -40,13 +40,13 @@
 .Op Fl u Ar user Fl s Ar secret
 .Op Fl w Ar timeout
 .Op Fl r
-.Op Fl e Cm on | off
+.Op Fl e Cm on Ns | Ns Cm off
 .Nm
 .Fl A
 .Fl d Ar discovery-host
 .Op Fl u Ar user Fl s Ar secret
 .Op Fl r
-.Op Fl e Cm on | off
+.Op Fl e Cm on Ns | Ns Cm off
 .Nm
 .Fl A
 .Fl a Op Fl c Ar path
@@ -60,7 +60,7 @@
 .Op Fl t Ar target
 .Op Fl u Ar user
 .Op Fl s Ar secret
-.Op Fl e Cm on | off
+.Op Fl e Cm on Ns | Ns Cm off
 .Nm
 .Fl M
 .Fl i Ar session-id
@@ -85,7 +85,7 @@ The
 utility is used to configure the iSCSI initiator.
 .Pp
 The following options are available:
-.Bl -tag -width ".Fl A"
+.Bl -tag -width "-d discovery-host"
 .It Fl -libxo
 Generate output via
 .Xr libxo 3
@@ -104,38 +104,40 @@ List sessions.
 .It Fl a
 When adding, add all sessions defined in the configuration file.
 When removing, remove all currently established sessions.
-.It Fl c
+.It Fl c Ar path
 Path to the configuration file.
 The default is
 .Pa /etc/iscsi.conf .
-.It Fl d
+.It Fl d Ar discovery-host
 Target host name or address used for SendTargets discovery.
 When used, it will add a temporary discovery session.
 After discovery is done, sessions will be added for each discovered target,
 and the temporary discovery session will be removed.
-.It Fl e
+.It Fl e Cm on Ns | Ns Cm off
 Enable or disable the session.
 This is ignored for discovery sessions, but gets passed down to normal
 sessions they add.
-.It Fl i
+.It Fl i Ar session-id
 Session ID, as displayed by
 .Nm
 .Fl v .
-.It Fl n
-The "nickname" of session defined in the configuration file.
-.It Fl p
-Target portal - host name or address - for statically defined targets.
+.It Fl n Ar nickname
+The
+.Ar nickname
+of a session defined in the configuration file.
+.It Fl p Ar portal
+Target portal \(em host name or address \(em for statically defined targets.
 .It Fl r
 Use iSER (iSCSI over RDMA) instead of plain iSCSI over TCP/IP.
-.It Fl s
+.It Fl s Ar secret
 CHAP secret.
-.It Fl t
+.It Fl t Ar target
 Target name.
-.It Fl u
+.It Fl u Ar user
 CHAP login.
 .It Fl v
 Verbose mode.
-.It Fl w
+.It Fl w Ar timeout
 Instead of returning immediately, wait up to
 .Ar timeout
 seconds until all configured sessions are successfully established.
