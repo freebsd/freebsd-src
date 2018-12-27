@@ -156,7 +156,7 @@ SYSCTL_ULONG(_vfs, OID_AUTO, mnt_free_list_batch, CTLFLAG_RW,
  */
 enum vtype iftovt_tab[16] = {
 	VNON, VFIFO, VCHR, VNON, VDIR, VNON, VBLK, VNON,
-	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VBAD,
+	VREG, VNON, VLNK, VNON, VSOCK, VNON, VNON, VNON
 };
 int vttoif_tab[10] = {
 	0, S_IFREG, S_IFDIR, S_IFBLK, S_IFCHR, S_IFLNK,
