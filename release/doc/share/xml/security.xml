@@ -70,6 +70,13 @@
 	<entry>4&nbsp;December&nbsp;2018</entry>
 	<entry><para>Insufficient bounds checking</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-18:15.bootpd.asc">FreeBSD-SA-18:15.bootpd</link></entry>
+	<entry>19&nbsp;December&nbsp;2018</entry>
+	<entry><para>Buffer overflow</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
