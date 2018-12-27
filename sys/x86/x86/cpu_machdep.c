@@ -891,7 +891,7 @@ hw_ssb_recalculate(bool all_cpus)
 		hw_ssb_set(true, all_cpus);
 		break;
 	case 2: /* auto */
-		hw_ssb_set((cpu_ia32_arch_caps & IA32_ARCH_CAP_SSBD_NO) != 0 ?
+		hw_ssb_set((cpu_ia32_arch_caps & IA32_ARCH_CAP_SSB_NO) != 0 ?
 		    false : true, all_cpus);
 		break;
 	}

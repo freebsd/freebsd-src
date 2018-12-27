@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd November 2, 2018
 .Dt VOP_CREATE 9
 .Os
 .Sh NAME
@@ -48,7 +48,7 @@
 .Ft int
 .Fn VOP_MKDIR "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
 .Ft int
-.Fn VOP_SYMLINK "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap" "char *target"
+.Fn VOP_SYMLINK "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap" "const char *target"
 .Sh DESCRIPTION
 These entry points create a new file, socket, fifo, device, directory or symlink
 in a given directory.

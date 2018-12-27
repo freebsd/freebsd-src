@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 
 extern int fl_pad;	/* XXXNM */
 
-SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe netmap parameters");
-
 /*
  * 0 = normal netmap rx
  * 1 = black hole
@@ -87,7 +85,9 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_holdoff_tmr_idx, CTLFLAG_RWTUN,
  *  1: no backpressure, drop packets for the congested queue immediately.
  */
 static int nm_cong_drop = 1;
-TUNABLE_INT("hw.cxgbe.nm_cong_drop", &nm_cong_drop);
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_cong_drop, CTLFLAG_RDTUN,
+    &nm_cong_drop, 0,
+    "Congestion control for netmap rx queues (0 = backpressure, 1 = drop");
 
 int starve_fl = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
@@ -100,6 +100,15 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, starve_fl, CTLFLAG_RWTUN,
 int lazy_tx_credit_flush = 1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, lazy_tx_credit_flush, CTLFLAG_RWTUN,
     &lazy_tx_credit_flush, 0, "lazy credit flush for netmap tx queues.");
+
+/*
+ * Split the netmap rx queues into two groups that populate separate halves of
+ * the RSS indirection table.  This allows filters with hashmask to steer to a
+ * particular group of queues.
+ */
+static int nm_split_rss = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_split_rss, CTLFLAG_RWTUN,
+    &nm_split_rss, 0, "Split the netmap rx queues into two groups.");
 
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
@@ -333,7 +342,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	struct netmap_kring *kring;
 	struct sge_nm_rxq *nm_rxq;
 	struct sge_nm_txq *nm_txq;
-	int rc, i, j, hwidx;
+	int rc, i, j, hwidx, defq, nrssq;
 	struct hw_buf_info *hwb;
 
 	ASSERT_SYNCHRONIZED_OP(sc);
@@ -403,17 +412,71 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		vi->nm_rss = malloc(vi->rss_size * sizeof(uint16_t), M_CXGBE,
 		    M_ZERO | M_WAITOK);
 	}
-	for (i = 0; i < vi->rss_size;) {
-		for_each_nm_rxq(vi, j, nm_rxq) {
-			vi->nm_rss[i++] = nm_rxq->iq_abs_id;
-			if (i == vi->rss_size)
-				break;
+
+	MPASS(vi->nnmrxq > 0);
+	if (nm_split_rss == 0 || vi->nnmrxq == 1) {
+		for (i = 0; i < vi->rss_size;) {
+			for_each_nm_rxq(vi, j, nm_rxq) {
+				vi->nm_rss[i++] = nm_rxq->iq_abs_id;
+				if (i == vi->rss_size)
+					break;
+			}
+		}
+		defq = vi->nm_rss[0];
+	} else {
+		/* We have multiple queues and we want to split the table. */
+		MPASS(nm_split_rss != 0);
+		MPASS(vi->nnmrxq > 1);
+
+		nm_rxq = &sc->sge.nm_rxq[vi->first_nm_rxq];
+		nrssq = vi->nnmrxq;
+		if (vi->nnmrxq & 1) {
+			/*
+			 * Odd number of queues. The first rxq is designated the
+			 * default queue, the rest are split evenly.
+			 */
+			defq = nm_rxq->iq_abs_id;
+			nm_rxq++;
+			nrssq--;
+		} else {
+			/*
+			 * Even number of queues split into two halves.  The
+			 * first rxq in one of the halves is designated the
+			 * default queue.
+			 */
+#if 1
+			/* First rxq in the first half. */
+			defq = nm_rxq->iq_abs_id;
+#else
+			/* First rxq in the second half. */
+			defq = nm_rxq[vi->nnmrxq / 2].iq_abs_id;
+#endif
+		}
+
+		i = 0;
+		while (i < vi->rss_size / 2) {
+			for (j = 0; j < nrssq / 2; j++) {
+				vi->nm_rss[i++] = nm_rxq[j].iq_abs_id;
+				if (i == vi->rss_size / 2)
+					break;
+			}
+		}
+		while (i < vi->rss_size) {
+			for (j = nrssq / 2; j < nrssq; j++) {
+				vi->nm_rss[i++] = nm_rxq[j].iq_abs_id;
+				if (i == vi->rss_size)
+					break;
+			}
 		}
 	}
 	rc = -t4_config_rss_range(sc, sc->mbox, vi->viid, 0, vi->rss_size,
 	    vi->nm_rss, vi->rss_size);
 	if (rc != 0)
 		if_printf(ifp, "netmap rss_config failed: %d\n", rc);
+
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, defq, 0, 0);
+	if (rc != 0)
+		if_printf(ifp, "netmap rss hash/defaultq config failed: %d\n", rc);
 
 	return (rc);
 }
@@ -429,6 +492,9 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 
 	ASSERT_SYNCHRONIZED_OP(sc);
 
+	if (!nm_netmap_on(na))
+		return (0);
+
 	if ((vi->flags & VI_INIT_DONE) == 0)
 		return (0);
 
@@ -436,6 +502,9 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	    vi->rss, vi->rss_size);
 	if (rc != 0)
 		if_printf(ifp, "failed to restore RSS config: %d\n", rc);
+	rc = -t4_config_vi_rss(sc, sc->mbox, vi->viid, vi->hashen, vi->rss[0], 0, 0);
+	if (rc != 0)
+		if_printf(ifp, "failed to restore RSS hash/defaultq: %d\n", rc);
 	nm_clear_native_flags(na);
 
 	for_each_nm_txq(vi, i, nm_txq) {
@@ -913,7 +982,7 @@ cxgbe_nm_attach(struct vi_info *vi)
 	na.nm_register = cxgbe_netmap_reg;
 	na.num_tx_rings = vi->nnmtxq;
 	na.num_rx_rings = vi->nnmrxq;
-	netmap_attach(&na);
+	netmap_attach(&na);	/* This adds IFCAP_NETMAP to if_capabilities */
 }
 
 void

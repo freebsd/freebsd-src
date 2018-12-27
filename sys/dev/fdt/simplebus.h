@@ -61,4 +61,6 @@ device_t simplebus_add_device(device_t dev, phandle_t node, u_int order,
     const char *name, int unit, struct simplebus_devinfo *di);
 struct simplebus_devinfo *simplebus_setup_dinfo(device_t dev, phandle_t node,
     struct simplebus_devinfo *di);
+int simplebus_fill_ranges(phandle_t node,
+    struct simplebus_softc *sc);
 #endif	/* _FDT_SIMPLEBUS_H */

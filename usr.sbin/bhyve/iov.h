@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2016 Jakub Klama <jceel@FreeBSD.org>.
+ * Copyright (c) 2018 Alexander Motin <mav@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,12 +33,12 @@
 #ifndef _IOV_H_
 #define	_IOV_H_
 
-void seek_iov(struct iovec *iov1, size_t niov1, struct iovec *iov2,
-    size_t *niov2, size_t seek);
-size_t truncate_iov(struct iovec *iov, size_t niov, size_t length);
-size_t count_iov(struct iovec *iov, size_t niov);
-ssize_t iov_to_buf(struct iovec *iov, size_t niov, void **buf);
-ssize_t buf_to_iov(void *buf, size_t buflen, struct iovec *iov, size_t niov,
+void seek_iov(const struct iovec *iov1, int niov1, struct iovec *iov2,
+    int *niov2, size_t seek);
+void truncate_iov(struct iovec *iov, int *niov, size_t length);
+size_t count_iov(const struct iovec *iov, int niov);
+ssize_t iov_to_buf(const struct iovec *iov, int niov, void **buf);
+ssize_t buf_to_iov(const void *buf, size_t buflen, struct iovec *iov, int niov,
     size_t seek);
 
 #endif	/* _IOV_H_ */

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2017
+.Dd November 21, 2018
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -93,6 +93,8 @@ struct timeout_task;
 .Fn taskqueue_drain_timeout "struct taskqueue *queue" "struct timeout_task *timeout_task"
 .Ft void
 .Fn taskqueue_drain_all "struct taskqueue *queue"
+.Ft void
+.Fn taskqueue_quiesce "struct taskqueue *queue"
 .Ft void
 .Fn taskqueue_block "struct taskqueue *queue"
 .Ft void
@@ -298,6 +300,12 @@ do not extend the wait time of
 and may complete after
 .Fn taskqueue_drain_all
 returns.
+The
+.Fn taskqueue_quiesce
+function is used to wait for the queue to become empty and for all
+running tasks to finish.
+To avoid blocking indefinitely, the caller must ensure by some mechanism
+that tasks will eventually stop being posted to the queue.
 .Pp
 The
 .Fn taskqueue_block

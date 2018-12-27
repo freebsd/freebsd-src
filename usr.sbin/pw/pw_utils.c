@@ -71,7 +71,7 @@ get_userconfig(const char *config)
 
 	if (config != NULL)
 		return (read_userconfig(config));
-	snprintf(defaultcfg, sizeof(defaultcfg), "%s/pw.conf", conf.etcpath);
+	snprintf(defaultcfg, sizeof(defaultcfg), "%s/" _PW_CONF, conf.etcpath);
 	return (read_userconfig(defaultcfg));
 }
 

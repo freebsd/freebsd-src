@@ -298,6 +298,8 @@ fix_dosisms(char *p)
 	}
 }
 
+#define SIZE(dp, edp) (size_t)((intptr_t)(void *)edp - (intptr_t)(void *)dp)
+
 enum { BOOT_INFO_OK = 0, BAD_CHOICE = 1, NOT_SPECIFIC = 2  };
 static int
 match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
@@ -349,7 +351,7 @@ match_boot_info(EFI_LOADED_IMAGE *img __unused, char *boot_info, size_t bisz)
 	edp = (EFI_DEVICE_PATH *)(walker + fplen);
 	if ((char *)edp > ep)
 		return NOT_SPECIFIC;
-	while (dp < edp) {
+	while (dp < edp && SIZE(dp, edp) > sizeof(EFI_DEVICE_PATH)) {
 		text = efi_devpath_name(dp);
 		if (text != NULL) {
 			printf("   BootInfo Path: %S\n", text);

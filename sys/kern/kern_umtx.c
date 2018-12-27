@@ -3796,6 +3796,9 @@ umtx_shm_object_terminated(vm_object_t object)
 	struct umtx_shm_reg *reg, *reg1;
 	bool dofree;
 
+	if (LIST_EMPTY(USHM_OBJ_UMTX(object)))
+		return;
+
 	dofree = false;
 	mtx_lock(&umtx_shm_lock);
 	LIST_FOREACH_SAFE(reg, USHM_OBJ_UMTX(object), ushm_obj_link, reg1) {
@@ -4351,7 +4354,7 @@ static const _umtx_op_func op_table_compat32[] = {
 };
 
 int
-freebsd32_umtx_op(struct thread *td, struct freebsd32_umtx_op_args *uap)
+freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
 {
 
 	if ((unsigned)uap->op < nitems(op_table_compat32)) {

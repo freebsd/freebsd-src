@@ -105,7 +105,139 @@ static  struct amd_descr amd_pmcdesc[AMD_NPMCS] =
 	},
 	.pm_evsel   = AMD_PMC_EVSEL_3,
 	.pm_perfctr = AMD_PMC_PERFCTR_3
-    }
+     },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_4,
+	.pm_perfctr = AMD_PMC_PERFCTR_4
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_5,
+	.pm_perfctr = AMD_PMC_PERFCTR_5
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_0,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_0
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_1,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_1
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_2,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_2
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_3,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_3
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_4,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_4
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_L3_5,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_L3_5
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_0,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_0
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_1,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_1
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_2,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_2
+    },
+    {
+	.pm_descr =
+	{
+		.pd_name  = "",
+		.pd_class = -1,
+		.pd_caps  = AMD_PMC_CAPS,
+		.pd_width = 48
+	},
+	.pm_evsel   = AMD_PMC_EVSEL_EP_DF_3,
+	.pm_perfctr = AMD_PMC_PERFCTR_EP_DF_3
+     }
 };
 
 struct amd_event_code_map {
@@ -435,7 +567,7 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
 	int i;
-	uint32_t allowed_unitmask, caps, config, unitmask;
+	uint64_t allowed_unitmask, caps, config, unitmask;
 	enum pmc_event pe;
 	const struct pmc_descr *pd;
 
@@ -455,6 +587,13 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = pm->pm_caps;
 
 	PMCDBG2(MDP,ALL,1,"amd-allocate ri=%d caps=0x%x", ri, caps);
+
+	if((ri >= 0 && ri < 6) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_CORE))
+		return EINVAL;
+	if((ri >= 6 && ri < 12) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_L3_CACHE))
+		return EINVAL;
+	if((ri >= 12 && ri < 16) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_DATA_FABRIC))
+		return EINVAL;
 
 	if ((pd->pd_caps & caps) != caps)
 		return EPERM;
@@ -556,7 +695,7 @@ amd_release_pmc(int cpu, int ri, struct pmc *pmc)
 static int
 amd_start_pmc(int cpu, int ri)
 {
-	uint32_t config;
+	uint64_t config;
 	struct pmc *pm;
 	struct pmc_hw *phw;
 	const struct amd_descr *pd;
@@ -636,7 +775,7 @@ static int
 amd_intr(struct trapframe *tf)
 {
 	int i, error, retval, cpu;
-	uint32_t config, evsel, perfctr;
+	uint64_t config, evsel, perfctr;
 	struct pmc *pm;
 	struct amd_cpu *pac;
 	pmc_value_t v;
@@ -688,8 +827,8 @@ amd_intr(struct trapframe *tf)
 
 		KASSERT((config & ~AMD_PMC_ENABLE) ==
 		    (pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE),
-		    ("[amd,%d] config mismatch reg=0x%x pm=0x%x", __LINE__,
-			config, pm->pm_md.pm_amd.pm_amd_evsel));
+		    ("[amd,%d] config mismatch reg=0x%jx pm=0x%jx", __LINE__,
+			 (uintmax_t)config, (uintmax_t)pm->pm_md.pm_amd.pm_amd_evsel));
 
 		wrmsr(evsel, config & ~AMD_PMC_ENABLE);
 		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));

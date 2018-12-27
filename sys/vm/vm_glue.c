@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domainset.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -298,7 +299,7 @@ vm_sync_icache(vm_map_t map, vm_offset_t va, vm_offset_t sz)
 
 struct kstack_cache_entry *kstack_cache;
 static int kstack_cache_size = 128;
-static int kstacks;
+static int kstacks, kstack_domain_iter;
 static struct mtx kstack_cache_mtx;
 MTX_SYSINIT(kstack_cache, &kstack_cache_mtx, "kstkch", MTX_DEF);
 
@@ -367,6 +368,17 @@ vm_thread_new(struct thread *td, int pages)
 		printf("vm_thread_new: kstack allocation failed\n");
 		vm_object_deallocate(ksobj);
 		return (0);
+	}
+
+	/*
+	 * Ensure that kstack objects can draw pages from any memory
+	 * domain.  Otherwise a local memory shortage can block a process
+	 * swap-in.
+	 */
+	if (vm_ndomains > 1) {
+		ksobj->domain.dr_policy = DOMAINSET_RR();
+		ksobj->domain.dr_iter =
+		    atomic_fetchadd_int(&kstack_domain_iter, 1);
 	}
 
 	atomic_add_int(&kstacks, 1);

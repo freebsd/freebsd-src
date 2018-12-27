@@ -203,7 +203,7 @@ DEFINE_TEST(test_write_disk_perms)
 	failure("dir_overwrite_0744: st.st_mode=%o", st.st_mode);
 	assertEqualInt(st.st_mode & 0777, 0744);
 
-	/* For dir, the owner should get left when not overwritting. */
+	/* For dir, the owner should get left when not overwriting. */
 	assertMakeDir("dir_owner", 0744);
 
 	if (getuid() == 0) {

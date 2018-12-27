@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
 #include "common/t4_regs_values.h"
+#include "t4_clip.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -98,7 +99,8 @@ do_act_establish(struct sge_iq *iq, const struct rss_header *rss,
 		goto done;
 	}
 
-	make_established(toep, cpl->snd_isn, cpl->rcv_isn, cpl->tcp_opt);
+	make_established(toep, be32toh(cpl->snd_isn) - 1,
+	    be32toh(cpl->rcv_isn) - 1, cpl->tcp_opt);
 
 	if (toep->ulp_mode == ULP_MODE_TLS)
 		tls_establish(toep);
@@ -316,7 +318,6 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
     struct sockaddr *nam)
 {
 	struct adapter *sc = tod->tod_softc;
-	struct tom_data *td = tod_td(tod);
 	struct toepcb *toep = NULL;
 	struct wrqe *wr = NULL;
 	struct ifnet *rt_ifp = rt->rt_ifp;
@@ -409,7 +410,7 @@ t4_connect(struct toedev *tod, struct socket *so, struct rtentry *rt,
 		if ((inp->inp_vflag & INP_IPV6) == 0)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOTSUP);
 
-		toep->ce = hold_lip(td, &inp->in6p_laddr, NULL);
+		toep->ce = t4_hold_lip(sc, &inp->in6p_laddr, NULL);
 		if (toep->ce == NULL)
 			DONT_OFFLOAD_ACTIVE_OPEN(ENOENT);
 
@@ -496,7 +497,7 @@ failed:
 		if (toep->l2te)
 			t4_l2t_release(toep->l2te);
 		if (toep->ce)
-			release_lip(td, toep->ce);
+			t4_release_lip(sc, toep->ce);
 		free_toepcb(toep);
 	}
 

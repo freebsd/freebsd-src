@@ -125,6 +125,8 @@ ListCmd(int ac, char **av)
 				break;
 			ninfo++;
 			nlist->numnames--;
+			if (nlist->numnames > 0)
+				printf("\n");
 		}
 	} else {
 		while (nlist->numnames > 0) {

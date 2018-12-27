@@ -1,9 +1,9 @@
 /*
- * $Id: mouse.c,v 1.20 2012/12/21 10:00:30 tom Exp $
+ * $Id: mouse.c,v 1.24 2017/01/31 00:27:21 tom Exp $
  *
  * mouse.c -- mouse support for dialog
  *
- * Copyright 2002-2007,2012	Thomas E. Dickey
+ * Copyright 2002-2016,2017	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -55,6 +55,7 @@ void
 dlg_mouse_setcode(int code)
 {
     basecode = code;
+    DLG_TRACE(("# mouse_setcode %d\n", code));
 }
 
 void
@@ -86,21 +87,34 @@ dlg_mouse_mkregion(int y, int x, int height, int width, int code)
     mseRegion *butPtr;
 
     if ((butPtr = find_region_by_code(basecode + code)) == 0) {
-	butPtr = dlg_malloc(mseRegion, 1);
+	butPtr = dlg_calloc(mseRegion, 1);
 	assert_ptr(butPtr, "dlg_mouse_mkregion");
 	butPtr->next = regionList;
 	regionList = butPtr;
     }
-    if (butPtr != 0) {
-	butPtr->mode = -1;
-	butPtr->step_x = 0;
-	butPtr->step_y = 0;
-	butPtr->y = basey + y;
-	butPtr->Y = basey + y + height;
-	butPtr->x = basex + x;
-	butPtr->X = basex + x + width;
-	butPtr->code = basecode + code;
+
+    if ((butPtr->mode != -1) ||
+	(butPtr->step_x != 0) ||
+	(butPtr->step_y != 0) ||
+	(butPtr->y != (basey + y)) ||
+	(butPtr->Y != (basey + y + height)) ||
+	(butPtr->x != (basex + x)) ||
+	(butPtr->X != (basex + x + width)) ||
+	(butPtr->code != basecode + code)) {
+	DLG_TRACE(("# mouse_mkregion %d,%d %dx%d %d (%d)\n",
+		   y, x, height, width,
+		   butPtr->code, code));
     }
+
+    butPtr->mode = -1;
+    butPtr->step_x = 0;
+    butPtr->step_y = 0;
+    butPtr->y = basey + y;
+    butPtr->Y = basey + y + height;
+    butPtr->x = basex + x;
+    butPtr->X = basex + x + width;
+    butPtr->code = basecode + code;
+
     return butPtr;
 }
 

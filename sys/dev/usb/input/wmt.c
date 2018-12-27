@@ -856,6 +856,12 @@ wmt_cont_max_parse(struct wmt_softc *sc, const void *r_ptr, uint16_t r_len)
 	}
 }
 
+static const STRUCT_USB_HOST_ID wmt_devs[] = {
+	/* generic HID class w/o boot interface */
+	{USB_IFACE_CLASS(UICLASS_HID),
+	 USB_IFACE_SUBCLASS(0),},
+};
+
 static devclass_t wmt_devclass;
 
 static device_method_t wmt_methods[] = {
@@ -876,3 +882,4 @@ DRIVER_MODULE(wmt, uhub, wmt_driver, wmt_devclass, NULL, 0);
 MODULE_DEPEND(wmt, usb, 1, 1, 1);
 MODULE_DEPEND(wmt, evdev, 1, 1, 1);
 MODULE_VERSION(wmt, 1);
+USB_PNP_HOST_INFO(wmt_devs);

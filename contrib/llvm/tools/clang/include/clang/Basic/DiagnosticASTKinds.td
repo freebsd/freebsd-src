@@ -168,7 +168,7 @@ def warn_integer_constant_overflow : Warning<
   "overflow in expression; result is %0 with type %1">,
   InGroup<DiagGroup<"integer-overflow">>;
 
-// This is a temporary diagnostic, and shall be removed once our 
+// This is a temporary diagnostic, and shall be removed once our
 // implementation is complete, and like the preceding constexpr notes belongs
 // in Sema.
 def note_unimplemented_constexpr_lambda_feature_ast : Note<
@@ -273,6 +273,8 @@ def note_odr_objc_synthesize_ivar_here : Note<
   "property is synthesized to ivar %0 here">;
 
 // Importing C++ ASTs
+def note_odr_friend : Note<"friend declared here">;
+def note_odr_missing_friend : Note<"no corresponding friend here">;
 def err_odr_different_num_template_parameters : Error<
   "template parameter lists have a different number of parameters (%0 vs %1)">;
 def note_odr_template_parameter_list : Note<

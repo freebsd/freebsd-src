@@ -71,6 +71,7 @@
 #define	cpu_getstack(td)	((td)->td_frame->sp)
 #define	cpu_setstack(td, nsp)	((td)->td_frame->sp = (nsp))
 #define	cpu_spinwait()		/* nothing */
+#define	cpu_lock_delay()	DELAY(1)
 
 /*
  * A machine-independent interface to the CPU's counter.

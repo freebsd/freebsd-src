@@ -165,7 +165,7 @@ struct sysctl_req {
 	size_t		 oldlen;
 	size_t		 oldidx;
 	int		(*oldfunc)(struct sysctl_req *, const void *, size_t);
-	void		*newptr;
+	const void		*newptr;
 	size_t		 newlen;
 	size_t		 newidx;
 	int		(*newfunc)(struct sysctl_req *, void *, size_t);
@@ -215,6 +215,9 @@ int sysctl_handle_counter_u64_array(SYSCTL_HANDLER_ARGS);
 
 int sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS);
+
+int sysctl_msec_to_sbintime(SYSCTL_HANDLER_ARGS);
+int sysctl_usec_to_sbintime(SYSCTL_HANDLER_ARGS);
 
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
@@ -799,6 +802,42 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	    NULL);							\
 })
 
+/* OID expressing a sbintime_t as microseconds */
+#define	SYSCTL_SBINTIME_USEC(parent, nbr, name, access, ptr, descr)	\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    (ptr), 0, sysctl_usec_to_sbintime, "Q", descr);		\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64)
+#define	SYSCTL_ADD_SBINTIME_USEC(ctx, parent, nbr, name, access, ptr, descr) \
+({									\
+	sbintime_t *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    __ptr, 0, sysctl_usec_to_sbintime, "Q", __DESCR(descr),	\
+	    NULL);							\
+})
+
+/* OID expressing a sbintime_t as milliseconds */
+#define	SYSCTL_SBINTIME_MSEC(parent, nbr, name, access, ptr, descr)	\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    (ptr), 0, sysctl_msec_to_sbintime, "Q", descr);		\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64)
+#define	SYSCTL_ADD_SBINTIME_MSEC(ctx, parent, nbr, name, access, ptr, descr) \
+({									\
+	sbintime_t *__ptr = (ptr);					\
+	CTASSERT(((access) & CTLTYPE) == 0 ||				\
+	    ((access) & SYSCTL_CT_ASSERT_MASK) == CTLTYPE_S64);		\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    __ptr, 0, sysctl_msec_to_sbintime, "Q", __DESCR(descr),	\
+	    NULL);							\
+})
+
 /*
  * A macro to generate a read-only sysctl to indicate the presence of optional
  * kernel features.
@@ -1044,7 +1083,7 @@ int	kernel_sysctlbyname(struct thread *td, char *name, void *old,
 	    size_t *oldlenp, void *new, size_t newlen, size_t *retval,
 	    int flags);
 int	userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
-	    size_t *oldlenp, int inkernel, void *new, size_t newlen,
+	    size_t *oldlenp, int inkernel, const void *new, size_t newlen,
 	    size_t *retval, int flags);
 int	sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 	    int *nindx, struct sysctl_req *req);

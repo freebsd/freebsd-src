@@ -138,11 +138,12 @@ nm_tx_pending(struct netmap_ring *r)
 	return nm_ring_next(r, r->tail) != r->head;
 }
 
-
+/* Compute the number of slots available in the netmap ring. We use
+ * ring->head as explained in the comment above nm_ring_empty(). */
 static inline uint32_t
 nm_ring_space(struct netmap_ring *ring)
 {
-        int ret = ring->tail - ring->cur;
+        int ret = ring->tail - ring->head;
         if (ret < 0)
                 ret += ring->num_slots;
         return ret;
@@ -1029,20 +1030,35 @@ nm_inject(struct nm_desc *d, const void *buf, size_t size)
 	for (c = 0; c < n ; c++, ri++) {
 		/* compute current ring to use */
 		struct netmap_ring *ring;
-		uint32_t i, idx;
+		uint32_t i, j, idx;
+		size_t rem;
 
 		if (ri > d->last_tx_ring)
 			ri = d->first_tx_ring;
 		ring = NETMAP_TXRING(d->nifp, ri);
-		if (nm_ring_empty(ring)) {
-			continue;
+		rem = size;
+		j = ring->cur;
+		while (rem > ring->nr_buf_size && j != ring->tail) {
+			rem -= ring->nr_buf_size;
+			j = nm_ring_next(ring, j);
 		}
+		if (j == ring->tail && rem > 0)
+			continue;
 		i = ring->cur;
+		while (i != j) {
+			idx = ring->slot[i].buf_idx;
+			ring->slot[i].len = ring->nr_buf_size;
+			ring->slot[i].flags = NS_MOREFRAG;
+			nm_pkt_copy(buf, NETMAP_BUF(ring, idx), ring->nr_buf_size);
+			i = nm_ring_next(ring, i);
+			buf = (char *)buf + ring->nr_buf_size;
+		}
 		idx = ring->slot[i].buf_idx;
-		ring->slot[i].len = size;
-		nm_pkt_copy(buf, NETMAP_BUF(ring, idx), size);
-		d->cur_tx_ring = ri;
+		ring->slot[i].len = rem;
+		ring->slot[i].flags = 0;
+		nm_pkt_copy(buf, NETMAP_BUF(ring, idx), rem);
 		ring->head = ring->cur = nm_ring_next(ring, i);
+		d->cur_tx_ring = ri;
 		return size;
 	}
 	return 0; /* fail */
@@ -1076,18 +1092,36 @@ nm_dispatch(struct nm_desc *d, int cnt, nm_cb_t cb, u_char *arg)
 		ring = NETMAP_RXRING(d->nifp, ri);
 		for ( ; !nm_ring_empty(ring) && cnt != got; got++) {
 			u_int idx, i;
+			u_char *oldbuf;
+			struct netmap_slot *slot;
 			if (d->hdr.buf) { /* from previous round */
 				cb(arg, &d->hdr, d->hdr.buf);
 			}
 			i = ring->cur;
-			idx = ring->slot[i].buf_idx;
+			slot = &ring->slot[i];
+			idx = slot->buf_idx;
 			/* d->cur_rx_ring doesn't change inside this loop, but
 			 * set it here, so it reflects d->hdr.buf's ring */
 			d->cur_rx_ring = ri;
-			d->hdr.slot = &ring->slot[i];
-			d->hdr.buf = (u_char *)NETMAP_BUF(ring, idx);
+			d->hdr.slot = slot;
+			oldbuf = d->hdr.buf = (u_char *)NETMAP_BUF(ring, idx);
 			// __builtin_prefetch(buf);
-			d->hdr.len = d->hdr.caplen = ring->slot[i].len;
+			d->hdr.len = d->hdr.caplen = slot->len;
+			while (slot->flags & NS_MOREFRAG) {
+				u_char *nbuf;
+				u_int oldlen = slot->len;
+				i = nm_ring_next(ring, i);
+				slot = &ring->slot[i];
+				d->hdr.len += slot->len;
+				nbuf = (u_char *)NETMAP_BUF(ring, slot->buf_idx);
+				if (oldbuf != NULL && nbuf - oldbuf == ring->nr_buf_size &&
+						oldlen == ring->nr_buf_size) {
+					d->hdr.caplen += slot->len;
+					oldbuf = nbuf;
+				} else {
+					oldbuf = NULL;
+				}
+			}
 			d->hdr.ts = ring->ts;
 			ring->head = ring->cur = nm_ring_next(ring, i);
 		}

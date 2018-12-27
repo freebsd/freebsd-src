@@ -346,7 +346,7 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 		return;
 
 	if (!tapdclone ||
-	    (!tapuopen && priv_check_cred(cred, PRIV_NET_IFCREATE, 0) != 0))
+	    (!tapuopen && priv_check_cred(cred, PRIV_NET_IFCREATE) != 0))
 		return;
 
 	unit = 0;

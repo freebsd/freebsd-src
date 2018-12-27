@@ -160,10 +160,8 @@ main(int argc, char **argv)
 	struct addrinfo *ai_udp, *ai_tcp, *ai_udp6, *ai_tcp6, hints;
 	struct netconfig *nconf_udp, *nconf_tcp, *nconf_udp6, *nconf_tcp6;
 	struct netbuf nb_udp, nb_tcp, nb_udp6, nb_tcp6;
-	struct sockaddr_in inetpeer;
-	struct sockaddr_in6 inet6peer;
+	struct sockaddr_storage peer;
 	fd_set ready, sockbits;
-	fd_set v4bits, v6bits;
 	int ch, connect_type_cnt, i, maxsock, msgsock;
 	socklen_t len;
 	int on = 1, unregister, reregister, sock;
@@ -480,8 +478,6 @@ main(int argc, char **argv)
 	}
 
 	(void)signal(SIGUSR1, cleanup);
-	FD_ZERO(&v4bits);
-	FD_ZERO(&v6bits);
 	FD_ZERO(&sockbits);
  
 	rpcbregcnt = 0;
@@ -663,7 +659,6 @@ main(int argc, char **argv)
 				}
 				freeaddrinfo(ai_tcp);
 				FD_SET(tcpsock, &sockbits);
-				FD_SET(tcpsock, &v4bits); 
 				maxsock = tcpsock;
 				connect_type_cnt++;
 			}
@@ -742,7 +737,6 @@ main(int argc, char **argv)
 				}
 				freeaddrinfo(ai_tcp6);
 				FD_SET(tcp6sock, &sockbits);
-				FD_SET(tcp6sock, &v6bits);
 				if (maxsock < tcp6sock)
 					maxsock = tcp6sock;
 				connect_type_cnt++;
@@ -816,52 +810,25 @@ main(int argc, char **argv)
 		}
 		for (tcpsock = 0; tcpsock <= maxsock; tcpsock++) {
 			if (FD_ISSET(tcpsock, &ready)) {
-				if (FD_ISSET(tcpsock, &v4bits)) {
-					len = sizeof(inetpeer);
-					if ((msgsock = accept(tcpsock,
-					    (struct sockaddr *)&inetpeer, &len)) < 0) {
-						error = errno;
-						syslog(LOG_ERR, "accept failed: %m");
-						if (error == ECONNABORTED ||
-						    error == EINTR)
-							continue;
-						nfsd_exit(1);
-					}
-					memset(inetpeer.sin_zero, 0,
-						sizeof(inetpeer.sin_zero));
-					if (setsockopt(msgsock, SOL_SOCKET,
-					    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
-						syslog(LOG_ERR,
-						    "setsockopt SO_KEEPALIVE: %m");
-					addsockargs.sock = msgsock;
-					addsockargs.name = (caddr_t)&inetpeer;
-					addsockargs.namelen = len;
-					nfssvc(nfssvc_addsock, &addsockargs);
-					(void)close(msgsock);
-				} else if (FD_ISSET(tcpsock, &v6bits)) {
-					len = sizeof(inet6peer);
-					if ((msgsock = accept(tcpsock,
-					    (struct sockaddr *)&inet6peer,
-					    &len)) < 0) {
-						error = errno;
-						syslog(LOG_ERR,
-						     "accept failed: %m");
-						if (error == ECONNABORTED ||
-						    error == EINTR)
-							continue;
-						nfsd_exit(1);
-					}
-					if (setsockopt(msgsock, SOL_SOCKET,
-					    SO_KEEPALIVE, (char *)&on,
-					    sizeof(on)) < 0)
-						syslog(LOG_ERR, "setsockopt "
-						    "SO_KEEPALIVE: %m");
-					addsockargs.sock = msgsock;
-					addsockargs.name = (caddr_t)&inet6peer;
-					addsockargs.namelen = len;
-					nfssvc(nfssvc_addsock, &addsockargs);
-					(void)close(msgsock);
+				len = sizeof(peer);
+				if ((msgsock = accept(tcpsock,
+				    (struct sockaddr *)&peer, &len)) < 0) {
+					error = errno;
+					syslog(LOG_ERR, "accept failed: %m");
+					if (error == ECONNABORTED ||
+					    error == EINTR)
+						continue;
+					nfsd_exit(1);
 				}
+				if (setsockopt(msgsock, SOL_SOCKET,
+				    SO_KEEPALIVE, (char *)&on, sizeof(on)) < 0)
+					syslog(LOG_ERR,
+					    "setsockopt SO_KEEPALIVE: %m");
+				addsockargs.sock = msgsock;
+				addsockargs.name = (caddr_t)&peer;
+				addsockargs.namelen = len;
+				nfssvc(nfssvc_addsock, &addsockargs);
+				(void)close(msgsock);
 			}
 		}
 	}

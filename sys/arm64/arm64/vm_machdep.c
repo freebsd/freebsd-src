@@ -111,7 +111,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_daif = 0;
+	td2->td_md.md_saved_daif = td1->td_md.md_saved_daif & ~DAIF_I_MASKED;
 }
 
 void
@@ -182,7 +182,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_daif = 0;
+	td->td_md.md_saved_daif = td0->td_md.md_saved_daif & ~DAIF_I_MASKED;
 }
 
 /*

@@ -74,13 +74,13 @@ FEATURE(racct, "Resource Accounting");
  */
 static int pcpu_threshold = 1;
 #ifdef RACCT_DEFAULT_TO_DISABLED
-int racct_enable = 0;
+bool __read_frequently racct_enable = false;
 #else
-int racct_enable = 1;
+bool __read_frequently racct_enable = true;
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, racct, CTLFLAG_RW, 0, "Resource Accounting");
-SYSCTL_UINT(_kern_racct, OID_AUTO, enable, CTLFLAG_RDTUN, &racct_enable,
+SYSCTL_BOOL(_kern_racct, OID_AUTO, enable, CTLFLAG_RDTUN, &racct_enable,
     0, "Enable RACCT/RCTL");
 SYSCTL_UINT(_kern_racct, OID_AUTO, pcpu_threshold, CTLFLAG_RW, &pcpu_threshold,
     0, "Processes with higher %cpu usage than this value can be throttled.");
@@ -726,6 +726,18 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount, int force)
  * even if it's above the limit.
  */
 int
+racct_set_unlocked(struct proc *p, int resource, uint64_t amount)
+{
+	int error;
+
+	ASSERT_RACCT_ENABLED();
+	PROC_LOCK(p);
+	error = racct_set(p, resource, amount);
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+int
 racct_set(struct proc *p, int resource, uint64_t amount)
 {
 	int error;
@@ -967,13 +979,13 @@ racct_proc_fork_done(struct proc *child)
 	if (!racct_enable)
 		return;
 
-	PROC_LOCK_ASSERT(child, MA_OWNED);
-
 #ifdef RCTL
+	PROC_LOCK(child);
 	RACCT_LOCK();
 	rctl_enforce(child, RACCT_NPROC, 0);
 	rctl_enforce(child, RACCT_NTHR, 0);
 	RACCT_UNLOCK();
+	PROC_UNLOCK(child);
 #endif
 }
 
@@ -1085,6 +1097,22 @@ racct_move(struct racct *dest, struct racct *src)
 	racct_add_racct(dest, src);
 	racct_sub_racct(src, src);
 	RACCT_UNLOCK();
+}
+
+void
+racct_proc_throttled(struct proc *p)
+{
+
+	ASSERT_RACCT_ENABLED();
+
+	PROC_LOCK(p);
+	while (p->p_throttled != 0) {
+		msleep(p->p_racct, &p->p_mtx, 0, "racct",
+		    p->p_throttled < 0 ? 0 : p->p_throttled);
+		if (p->p_throttled > 0)
+			p->p_throttled = 0;
+	}
+	PROC_UNLOCK(p);
 }
 
 /*
@@ -1228,11 +1256,13 @@ racctd(void)
 
 		sx_slock(&allproc_lock);
 
+		sx_slock(&zombproc_lock);
 		LIST_FOREACH(p, &zombproc, p_list) {
 			PROC_LOCK(p);
 			racct_set(p, RACCT_PCTCPU, 0);
 			PROC_UNLOCK(p);
 		}
+		sx_sunlock(&zombproc_lock);
 
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);

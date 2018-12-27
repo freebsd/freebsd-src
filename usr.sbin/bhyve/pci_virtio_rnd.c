@@ -168,6 +168,7 @@ pci_vtrnd_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	len = read(fd, &v, sizeof(v));
 	if (len <= 0) {
 		WPRINTF(("vtrnd: /dev/random not ready, read(): %d", len));
+		close(fd);
 		return (1);
 	}
 

@@ -426,17 +426,6 @@ options 	TWA_DEBUG		# 0-10; 10 prints the most messages.
 device		twa			# 3ware 9000 series PATA/SATA RAID
 
 #
-# SCSI host adapters:
-#
-# ncv: NCR 53C500 based SCSI host adapters.
-# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
-# stg: TMC 18C30, 18C50 based SCSI host adapters.
-
-device		ncv
-device		nsp
-device		stg
-
-#
 # Adaptec FSA RAID controllers, including integrated DELL controllers,
 # the Dell PERC 2/QC and the HP NetRAID-4M
 device		aac
@@ -623,9 +612,6 @@ options 	EFIRT
 # Enable 32-bit runtime support for FreeBSD/i386 binaries.
 options 	COMPAT_FREEBSD32
 
-# Enable iBCS2 runtime support for SCO and ISC binaries
-#XXX#options 	IBCS2
-
 # Emulate spx device for client side of SVR3 local X interface
 #XXX#options 	SPX_HACK
 
@@ -651,6 +637,11 @@ options 	LINPROCFS
 #Enable the linux-like sys filesystem support (requires COMPAT_LINUX32
 # and PSEUDOFS)
 options 	LINSYSFS
+
+#####################################################################
+# ZFS support
+
+options		ZFS
 
 #####################################################################
 # VM OPTIONS

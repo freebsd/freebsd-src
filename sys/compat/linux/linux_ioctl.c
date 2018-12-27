@@ -161,17 +161,19 @@ DATA_SET(linux_ioctl_handler_set, video2_handler);
 DATA_SET(linux_ioctl_handler_set, fbsd_usb);
 DATA_SET(linux_ioctl_handler_set, evdev_handler);
 
-struct handler_element
-{
-	TAILQ_ENTRY(handler_element) list;
-	int	(*func)(struct thread *, struct linux_ioctl_args *);
-	int	low, high, span;
-};
-
-static TAILQ_HEAD(, handler_element) handlers =
-    TAILQ_HEAD_INITIALIZER(handlers);
+#ifdef __i386__
+static TAILQ_HEAD(, linux_ioctl_handler_element) linux_ioctl_handlers =
+    TAILQ_HEAD_INITIALIZER(linux_ioctl_handlers);
 static struct sx linux_ioctl_sx;
 SX_SYSINIT(linux_ioctl, &linux_ioctl_sx, "Linux ioctl handlers");
+#else
+extern TAILQ_HEAD(, linux_ioctl_handler_element) linux_ioctl_handlers;
+extern struct sx linux_ioctl_sx;
+#endif
+#ifdef COMPAT_LINUX32
+static TAILQ_HEAD(, linux_ioctl_handler_element) linux32_ioctl_handlers =
+    TAILQ_HEAD_INITIALIZER(linux32_ioctl_handlers);
+#endif
 
 /*
  * hdio related ioctls for VMWare support
@@ -3684,7 +3686,7 @@ int
 linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 {
 	struct file *fp;
-	struct handler_element *he;
+	struct linux_ioctl_handler_element *he;
 	int error, cmd;
 
 #ifdef DEBUG
@@ -3705,7 +3707,20 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	cmd = args->cmd & 0xffff;
 	sx_slock(&linux_ioctl_sx);
 	mtx_lock(&Giant);
-	TAILQ_FOREACH(he, &handlers, list) {
+#ifdef COMPAT_LINUX32
+	TAILQ_FOREACH(he, &linux32_ioctl_handlers, list) {
+		if (cmd >= he->low && cmd <= he->high) {
+			error = (*he->func)(td, args);
+			if (error != ENOIOCTL) {
+				mtx_unlock(&Giant);
+				sx_sunlock(&linux_ioctl_sx);
+				fdrop(fp, td);
+				return (error);
+			}
+		}
+	}
+#endif
+	TAILQ_FOREACH(he, &linux_ioctl_handlers, list) {
 		if (cmd >= he->low && cmd <= he->high) {
 			error = (*he->func)(td, args);
 			if (error != ENOIOCTL) {
@@ -3737,7 +3752,7 @@ linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 int
 linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 {
-	struct handler_element *he, *cur;
+	struct linux_ioctl_handler_element *he, *cur;
 
 	if (h == NULL || h->func == NULL)
 		return (EINVAL);
@@ -3747,7 +3762,7 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 	 * create a new element.
 	 */
 	sx_xlock(&linux_ioctl_sx);
-	TAILQ_FOREACH(he, &handlers, list) {
+	TAILQ_FOREACH(he, &linux_ioctl_handlers, list) {
 		if (he->func == h->func)
 			break;
 	}
@@ -3756,7 +3771,7 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 		    M_LINUX, M_WAITOK);
 		he->func = h->func;
 	} else
-		TAILQ_REMOVE(&handlers, he, list);
+		TAILQ_REMOVE(&linux_ioctl_handlers, he, list);
 
 	/* Initialize range information. */
 	he->low = h->low;
@@ -3764,14 +3779,14 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 	he->span = h->high - h->low + 1;
 
 	/* Add the element to the list, sorted on span. */
-	TAILQ_FOREACH(cur, &handlers, list) {
+	TAILQ_FOREACH(cur, &linux_ioctl_handlers, list) {
 		if (cur->span > he->span) {
 			TAILQ_INSERT_BEFORE(cur, he, list);
 			sx_xunlock(&linux_ioctl_sx);
 			return (0);
 		}
 	}
-	TAILQ_INSERT_TAIL(&handlers, he, list);
+	TAILQ_INSERT_TAIL(&linux_ioctl_handlers, he, list);
 	sx_xunlock(&linux_ioctl_sx);
 
 	return (0);
@@ -3780,15 +3795,15 @@ linux_ioctl_register_handler(struct linux_ioctl_handler *h)
 int
 linux_ioctl_unregister_handler(struct linux_ioctl_handler *h)
 {
-	struct handler_element *he;
+	struct linux_ioctl_handler_element *he;
 
 	if (h == NULL || h->func == NULL)
 		return (EINVAL);
 
 	sx_xlock(&linux_ioctl_sx);
-	TAILQ_FOREACH(he, &handlers, list) {
+	TAILQ_FOREACH(he, &linux_ioctl_handlers, list) {
 		if (he->func == h->func) {
-			TAILQ_REMOVE(&handlers, he, list);
+			TAILQ_REMOVE(&linux_ioctl_handlers, he, list);
 			sx_xunlock(&linux_ioctl_sx);
 			free(he, M_LINUX);
 			return (0);
@@ -3798,3 +3813,69 @@ linux_ioctl_unregister_handler(struct linux_ioctl_handler *h)
 
 	return (EINVAL);
 }
+
+#ifdef COMPAT_LINUX32
+int
+linux32_ioctl_register_handler(struct linux_ioctl_handler *h)
+{
+	struct linux_ioctl_handler_element *he, *cur;
+
+	if (h == NULL || h->func == NULL)
+		return (EINVAL);
+
+	/*
+	 * Reuse the element if the handler is already on the list, otherwise
+	 * create a new element.
+	 */
+	sx_xlock(&linux_ioctl_sx);
+	TAILQ_FOREACH(he, &linux32_ioctl_handlers, list) {
+		if (he->func == h->func)
+			break;
+	}
+	if (he == NULL) {
+		he = malloc(sizeof(*he), M_LINUX, M_WAITOK);
+		he->func = h->func;
+	} else
+		TAILQ_REMOVE(&linux32_ioctl_handlers, he, list);
+
+	/* Initialize range information. */
+	he->low = h->low;
+	he->high = h->high;
+	he->span = h->high - h->low + 1;
+
+	/* Add the element to the list, sorted on span. */
+	TAILQ_FOREACH(cur, &linux32_ioctl_handlers, list) {
+		if (cur->span > he->span) {
+			TAILQ_INSERT_BEFORE(cur, he, list);
+			sx_xunlock(&linux_ioctl_sx);
+			return (0);
+		}
+	}
+	TAILQ_INSERT_TAIL(&linux32_ioctl_handlers, he, list);
+	sx_xunlock(&linux_ioctl_sx);
+
+	return (0);
+}
+
+int
+linux32_ioctl_unregister_handler(struct linux_ioctl_handler *h)
+{
+	struct linux_ioctl_handler_element *he;
+
+	if (h == NULL || h->func == NULL)
+		return (EINVAL);
+
+	sx_xlock(&linux_ioctl_sx);
+	TAILQ_FOREACH(he, &linux32_ioctl_handlers, list) {
+		if (he->func == h->func) {
+			TAILQ_REMOVE(&linux32_ioctl_handlers, he, list);
+			sx_xunlock(&linux_ioctl_sx);
+			free(he, M_LINUX);
+			return (0);
+		}
+	}
+	sx_xunlock(&linux_ioctl_sx);
+
+	return (EINVAL);
+}
+#endif

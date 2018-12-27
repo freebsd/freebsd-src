@@ -132,36 +132,41 @@ struct phys_sge_pairs {
 #define CHCR_ENCRYPT_OP 0
 #define CHCR_DECRYPT_OP 1
 
-#define CHCR_SCMD_PROTO_VERSION_GENERIC 4
+#define SCMD_ENCDECCTRL_ENCRYPT 0
+#define SCMD_ENCDECCTRL_DECRYPT 1
 
-#define CHCR_SCMD_CIPHER_MODE_NOP               0
-#define CHCR_SCMD_CIPHER_MODE_AES_CBC           1
-#define CHCR_SCMD_CIPHER_MODE_AES_GCM           2
-#define CHCR_SCMD_CIPHER_MODE_AES_CTR           3
-#define CHCR_SCMD_CIPHER_MODE_GENERIC_AES       4
-#define CHCR_SCMD_CIPHER_MODE_AES_XTS           6
-#define CHCR_SCMD_CIPHER_MODE_AES_CCM           7
+#define SCMD_PROTO_VERSION_TLS_1_2 0
+#define SCMD_PROTO_VERSION_TLS_1_1 1
+#define SCMD_PROTO_VERSION_GENERIC 4
 
-#define CHCR_SCMD_AUTH_MODE_NOP             0
-#define CHCR_SCMD_AUTH_MODE_SHA1            1
-#define CHCR_SCMD_AUTH_MODE_SHA224          2
-#define CHCR_SCMD_AUTH_MODE_SHA256          3
-#define CHCR_SCMD_AUTH_MODE_GHASH           4
-#define CHCR_SCMD_AUTH_MODE_SHA512_224      5
-#define CHCR_SCMD_AUTH_MODE_SHA512_256      6
-#define CHCR_SCMD_AUTH_MODE_SHA512_384      7
-#define CHCR_SCMD_AUTH_MODE_SHA512_512      8
-#define CHCR_SCMD_AUTH_MODE_CBCMAC          9
-#define CHCR_SCMD_AUTH_MODE_CMAC            10
+#define SCMD_CIPH_MODE_NOP               0
+#define SCMD_CIPH_MODE_AES_CBC           1
+#define SCMD_CIPH_MODE_AES_GCM           2
+#define SCMD_CIPH_MODE_AES_CTR           3
+#define SCMD_CIPH_MODE_GENERIC_AES       4
+#define SCMD_CIPH_MODE_AES_XTS           6
+#define SCMD_CIPH_MODE_AES_CCM           7
 
-#define CHCR_SCMD_HMAC_CTRL_NOP             0
-#define CHCR_SCMD_HMAC_CTRL_NO_TRUNC        1
-#define CHCR_SCMD_HMAC_CTRL_TRUNC_RFC4366   2
-#define CHCR_SCMD_HMAC_CTRL_IPSEC_96BIT     3
-#define CHCR_SCMD_HMAC_CTRL_PL1		    4
-#define CHCR_SCMD_HMAC_CTRL_PL2		    5
-#define CHCR_SCMD_HMAC_CTRL_PL3		    6
-#define CHCR_SCMD_HMAC_CTRL_DIV2	    7
+#define SCMD_AUTH_MODE_NOP             0
+#define SCMD_AUTH_MODE_SHA1            1
+#define SCMD_AUTH_MODE_SHA224          2
+#define SCMD_AUTH_MODE_SHA256          3
+#define SCMD_AUTH_MODE_GHASH           4
+#define SCMD_AUTH_MODE_SHA512_224      5
+#define SCMD_AUTH_MODE_SHA512_256      6
+#define SCMD_AUTH_MODE_SHA512_384      7
+#define SCMD_AUTH_MODE_SHA512_512      8
+#define SCMD_AUTH_MODE_CBCMAC          9
+#define SCMD_AUTH_MODE_CMAC            10
+
+#define SCMD_HMAC_CTRL_NOP             0
+#define SCMD_HMAC_CTRL_NO_TRUNC        1
+#define SCMD_HMAC_CTRL_TRUNC_RFC4366   2
+#define SCMD_HMAC_CTRL_IPSEC_96BIT     3
+#define SCMD_HMAC_CTRL_PL1             4
+#define SCMD_HMAC_CTRL_PL2             5
+#define SCMD_HMAC_CTRL_PL3             6
+#define SCMD_HMAC_CTRL_DIV2            7
 
 /* This are not really mac key size. They are intermediate values
  * of sha engine and its size

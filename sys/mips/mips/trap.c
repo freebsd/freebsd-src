@@ -442,8 +442,6 @@ cpu_fetch_syscall_args(struct thread *td)
 	 * XXX
 	 * Shouldn't this go before switching on the code?
 	 */
-	if (se->sv_mask)
-		sa->code &= se->sv_mask;
 
 	if (sa->code >= se->sv_size)
 		sa->callp = &se->sv_table[0];
@@ -1100,7 +1098,7 @@ err:
 #endif
 
 #ifdef KDB
-		if (debugger_on_panic) {
+		if (debugger_on_trap) {
 			kdb_why = KDB_WHY_TRAP;
 			kdb_trap(type, 0, trapframe);
 			kdb_why = KDB_WHY_UNSET;

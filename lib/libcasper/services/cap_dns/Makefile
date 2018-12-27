@@ -6,7 +6,7 @@ SHLIBDIR?=	/lib/casper
 
 PACKAGE=libcasper
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 INCSDIR?=	${INCLUDEDIR}/casper
 
 .if ${MK_CASPER} != "no"
@@ -30,6 +30,7 @@ MLINKS+=cap_dns.3 libcap_dns.3
 MLINKS+=cap_dns.3 cap_gethostbyname.3
 MLINKS+=cap_dns.3 cap_gethostbyname2.3
 MLINKS+=cap_dns.3 cap_gethostbyaddr.3
+MLINKS+=cap_dns.3 cap_getaddrinfo.3
 MLINKS+=cap_dns.3 cap_getnameinfo.3
 MLINKS+=cap_dns.3 cap_dns_type_limit.3
 MLINKS+=cap_dns.3 cap_dns_family_limit.3

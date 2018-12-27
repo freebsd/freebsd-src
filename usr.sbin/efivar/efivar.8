@@ -86,8 +86,17 @@ This flag implies
 .Fl -write
 unless the
 .Fl -append
-flag is given.
-This behavior is not well understood and is currently unimplemented.
+or
+.Fl -print
+flags are given.
+This behavior is not well understood and is currently unimplemented
+for writes.
+When
+.Fl -print
+is specified, the contents of the file are used as the value to
+print using any other specified flags.
+This is used primarily for testing purposes for more complicated
+variable decoding.
 .It Fl a Fl -append
 Append the specified value to the UEFI variable rather than replacing
 it.

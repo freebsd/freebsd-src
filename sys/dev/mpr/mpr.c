@@ -2,6 +2,7 @@
  * Copyright (c) 2009 Yahoo! Inc.
  * Copyright (c) 2011-2015 LSI Corp.
  * Copyright (c) 2013-2016 Avago Technologies
+ * Copyright 2000-2020 Broadcom Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Avago Technologies (LSI) MPT-Fusion Host Adapter FreeBSD
+ * Broadcom Inc. (LSI) MPT-Fusion Host Adapter FreeBSD
  *
  */
 
@@ -624,8 +625,9 @@ mpr_iocfacts_allocate(struct mpr_softc *sc, uint8_t attaching)
 			sc->eedp_enabled = TRUE;
 		if (sc->facts->IOCCapabilities & MPI2_IOCFACTS_CAPABILITY_TLR)
 			sc->control_TLR = TRUE;
-		if (sc->facts->IOCCapabilities &
-		    MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ)
+		if ((sc->facts->IOCCapabilities &
+		    MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ) &&
+		    (sc->mpr_flags & MPR_FLAGS_SEA_IOC))
 			sc->atomic_desc_capable = TRUE;
 
 		mpr_resize_queues(sc);
@@ -2493,12 +2495,13 @@ void
 mpr_intr_locked(void *data)
 {
 	MPI2_REPLY_DESCRIPTORS_UNION *desc;
+	MPI2_DIAG_RELEASE_REPLY *rel_rep;
+	mpr_fw_diagnostic_buffer_t *pBuffer;
 	struct mpr_softc *sc;
+	uint64_t tdesc;
 	struct mpr_command *cm = NULL;
 	uint8_t flags;
 	u_int pq;
-	MPI2_DIAG_RELEASE_REPLY *rel_rep;
-	mpr_fw_diagnostic_buffer_t *pBuffer;
 
 	sc = (struct mpr_softc *)data;
 
@@ -2510,6 +2513,17 @@ mpr_intr_locked(void *data)
 	for ( ;; ) {
 		cm = NULL;
 		desc = &sc->post_queue[sc->replypostindex];
+
+		/*
+		 * Copy and clear out the descriptor so that any reentry will
+		 * immediately know that this descriptor has already been
+		 * looked at.  There is unfortunate casting magic because the
+		 * MPI API doesn't have a cardinal 64bit type.
+		 */
+		tdesc = 0xffffffffffffffff;
+		tdesc = atomic_swap_64((uint64_t *)desc, tdesc);
+		desc = (MPI2_REPLY_DESCRIPTORS_UNION *)&tdesc;
+
 		flags = desc->Default.ReplyFlags &
 		    MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 		if ((flags == MPI2_RPY_DESCRIPT_FLAGS_UNUSED) ||
@@ -2604,7 +2618,8 @@ mpr_intr_locked(void *data)
 				cm = &sc->commands[
 				    le16toh(desc->AddressReply.SMID)];
 				KASSERT(cm->cm_state == MPR_CM_STATE_INQUEUE,
-				    ("command not inqueue\n"));
+				    ("command SMID %d not inqueue\n",
+				    desc->AddressReply.SMID));
 				cm->cm_state = MPR_CM_STATE_BUSY;
 				cm->cm_reply = reply;
 				cm->cm_reply_data =
@@ -2630,9 +2645,6 @@ mpr_intr_locked(void *data)
 				mpr_display_reply_info(sc,cm->cm_reply);
 			mpr_complete_command(sc, cm);
 		}
-
-		desc->Words.Low = 0xffffffff;
-		desc->Words.High = 0xffffffff;
 	}
 
 	if (pq != sc->replypostindex) {
@@ -3805,12 +3817,15 @@ mpr_wait_command(struct mpr_softc *sc, struct mpr_command **cmp, int timeout,
 	}
 
 	if (error == EWOULDBLOCK) {
-		mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s, timeout=%d,"
-		    " elapsed=%jd\n", __func__, timeout,
-		    (intmax_t)cur_time.tv_sec);
-		rc = mpr_reinit(sc);
-		mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
-		    "failed");
+		if (cm->cm_timeout_handler == NULL) {
+			mpr_dprint(sc, MPR_FAULT, "Calling Reinit from %s, timeout=%d,"
+			    " elapsed=%jd\n", __func__, timeout,
+			    (intmax_t)cur_time.tv_sec);
+			rc = mpr_reinit(sc);
+			mpr_dprint(sc, MPR_FAULT, "Reinit %s\n", (rc == 0) ? "success" :
+			    "failed");
+		} else
+			cm->cm_timeout_handler(sc, cm);
 		if (sc->mpr_flags & MPR_FLAGS_REALLOCATED) {
 			/*
 			 * Tell the caller that we freed the command in a

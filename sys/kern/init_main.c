@@ -52,9 +52,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/epoch.h>
 #include <sys/exec.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/imgact.h>
 #include <sys/jail.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -399,7 +401,6 @@ null_set_syscall_retval(struct thread *td __unused, int error __unused)
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
-	.sv_mask	= 0,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -510,6 +511,7 @@ proc0_init(void *dummy __unused)
 	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
 	td->td_domain.dr_policy = td->td_cpuset->cs_domain;
+	epoch_thread_init(td);
 	prison0_init();
 	p->p_peers = 0;
 	p->p_leader = p;
@@ -714,15 +716,13 @@ SYSCTL_INT(_kern, OID_AUTO, init_shutdown_timeout,
 static void
 start_init(void *dummy)
 {
-	vm_offset_t addr;
-	struct execve_args args;
-	int options, error;
-	size_t pathlen;
+	struct image_args args;
+	int error;
 	char *var, *path;
 	char *free_init_path, *tmp_init_path;
-	char *ucp, **uap, *arg0, *arg1;
 	struct thread *td;
 	struct proc *p;
+	struct vmspace *oldvmspace;
 
 	TSENTER();	/* Here so we don't overlap with mi_startup. */
 
@@ -734,16 +734,6 @@ start_init(void *dummy)
 	/* Wipe GELI passphrase from the environment. */
 	kern_unsetenv("kern.geom.eli.passphrase");
 
-	/*
-	 * Need just enough stack to hold the faked-up "execve()" arguments.
-	 */
-	addr = p->p_sysent->sv_usrstack - PAGE_SIZE;
-	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE, 0,
-	    VMFS_NO_SPACE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
-		panic("init: couldn't allocate argument space");
-	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
-	p->p_vmspace->vm_ssize = 1;
-
 	if ((var = kern_getenv("init_path")) != NULL) {
 		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
@@ -751,58 +741,25 @@ start_init(void *dummy)
 	free_init_path = tmp_init_path = strdup(init_path, M_TEMP);
 	
 	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
-		pathlen = strlen(path) + 1;
 		if (bootverbose)
 			printf("start_init: trying %s\n", path);
 			
-		/*
-		 * Move out the boot flag argument.
-		 */
-		options = 0;
-		ucp = (char *)p->p_sysent->sv_usrstack;
-		(void)subyte(--ucp, 0);		/* trailing zero */
-		if (boothowto & RB_SINGLE) {
-			(void)subyte(--ucp, 's');
-			options = 1;
-		}
-#ifdef notyet
-                if (boothowto & RB_FASTBOOT) {
-			(void)subyte(--ucp, 'f');
-			options = 1;
-		}
-#endif
+		memset(&args, 0, sizeof(args));
+		error = exec_alloc_args(&args);
+		if (error != 0)
+			panic("%s: Can't allocate space for init arguments %d",
+			    __func__, error);
 
-#ifdef BOOTCDROM
-		(void)subyte(--ucp, 'C');
-		options = 1;
-#endif
-
-		if (options == 0)
-			(void)subyte(--ucp, '-');
-		(void)subyte(--ucp, '-');		/* leading hyphen */
-		arg1 = ucp;
-
-		/*
-		 * Move out the file name (also arg 0).
-		 */
-		ucp -= pathlen;
-		copyout(path, ucp, pathlen);
-		arg0 = ucp;
-
-		/*
-		 * Move out the arg pointers.
-		 */
-		uap = (char **)rounddown2((intptr_t)ucp, sizeof(intptr_t));
-		(void)suword((caddr_t)--uap, (long)0);	/* terminator */
-		(void)suword((caddr_t)--uap, (long)(intptr_t)arg1);
-		(void)suword((caddr_t)--uap, (long)(intptr_t)arg0);
-
-		/*
-		 * Point at the arguments.
-		 */
-		args.fname = arg0;
-		args.argv = uap;
-		args.envv = NULL;
+		error = exec_args_add_fname(&args, path, UIO_SYSSPACE);
+		if (error != 0)
+			panic("%s: Can't add fname %d", __func__, error);
+		error = exec_args_add_arg(&args, path, UIO_SYSSPACE);
+		if (error != 0)
+			panic("%s: Can't add argv[0] %d", __func__, error);
+		if (boothowto & RB_SINGLE)
+			error = exec_args_add_arg(&args, "-s", UIO_SYSSPACE);
+		if (error != 0)
+			panic("%s: Can't add argv[0] %d", __func__, error);
 
 		/*
 		 * Now try to exec the program.  If can't for any reason
@@ -811,7 +768,19 @@ start_init(void *dummy)
 		 * Otherwise, return via fork_trampoline() all the way
 		 * to user mode as init!
 		 */
-		if ((error = sys_execve(td, &args)) == EJUSTRETURN) {
+		KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0,
+		    ("nested execve"));
+		oldvmspace = td->td_proc->p_vmspace;
+		error = kern_execve(td, &args, NULL);
+		KASSERT(error != 0,
+		    ("kern_execve returned success, not EJUSTRETURN"));
+		if (error == EJUSTRETURN) {
+			if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
+				KASSERT(p->p_vmspace != oldvmspace,
+				    ("oldvmspace still used"));
+				vmspace_free(oldvmspace);
+				td->td_pflags &= ~TDP_EXECVMSPC;
+			}
 			free(free_init_path, M_TEMP);
 			TSEXIT();
 			return;

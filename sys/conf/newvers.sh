@@ -45,8 +45,8 @@
 #                      included if the tree is modified.
 
 TYPE="FreeBSD"
-REVISION="12.0"
-BRANCH="ALPHA9"
+REVISION="13.0"
+BRANCH="CURRENT"
 if [ -n "${BRANCH_OVERRIDE}" ]; then
 	BRANCH=${BRANCH_OVERRIDE}
 fi
@@ -75,6 +75,34 @@ findvcs()
 	cd ${savedir}
 	return 1
 }
+
+git_tree_modified()
+{
+	# git diff-index lists both files that are known to have changes as
+	# well as those with metadata that does not match what is recorded in
+	# git's internal state.  The latter case is indicated by an all-zero
+	# destination file hash.
+
+	local fifo
+
+	fifo=$(mktemp -u)
+	mkfifo -m 600 $fifo || exit 1
+	$git_cmd --work-tree=${VCSTOP} diff-index HEAD > $fifo &
+	while read smode dmode ssha dsha status file; do
+		if ! expr $dsha : '^00*$' >/dev/null; then
+			rm $fifo
+			return 0
+		fi
+		if ! $git_cmd --work-tree=${VCSTOP} diff --quiet -- "${file}"; then
+			rm $fifo
+			return 0
+		fi
+	done < $fifo
+	# No files with content differences.
+	rm $fifo
+	return 1
+}
+
 
 if [ -z "${SYSDIR}" ]; then
     SYSDIR=$(dirname $0)/..
@@ -240,8 +268,7 @@ if [ -n "$git_cmd" ] ; then
 	if [ -n "$git_b" ] ; then
 		git="${git}(${git_b})"
 	fi
-	if $git_cmd --work-tree=${VCSTOP} diff-index \
-	    --name-only HEAD | read dummy; then
+	if git_tree_modified; then
 		git="${git}-dirty"
 		modified=true
 	fi
@@ -300,7 +327,7 @@ else
 	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
 
-cat << EOF > vers.c
+vers_content_new=$(cat << EOF
 $COPYRIGHT
 #define SCCSSTR "@(#)${VERINFO}"
 #define VERSTR "${VERSTR}"
@@ -314,5 +341,10 @@ char osrelease[sizeof(RELSTR) > 32 ? sizeof(RELSTR) : 32] = RELSTR;
 int osreldate = ${RELDATE};
 char kern_ident[] = "${i}";
 EOF
+)
+vers_content_old=$(cat vers.c 2>/dev/null || true)
+if [ "$vers_content_new" != "$vers_content_old" ]; then
+	echo "$vers_content_new" > vers.c
+fi
 
 echo $((v + 1)) > version

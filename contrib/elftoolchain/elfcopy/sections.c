@@ -689,7 +689,7 @@ filter_reloc(struct elfcopy *ecp, struct section *s)
 	Elf32_Rela	*rela32;
 	Elf64_Rela	*rela64;
 	Elf_Data	*id;
-	uint64_t	 cap, n, nrels;
+	uint64_t	 cap, n, nrels, sym;
 	int		 elferr, i;
 
 	if (gelf_getshdr(s->is, &ish) == NULL)
@@ -698,15 +698,13 @@ filter_reloc(struct elfcopy *ecp, struct section *s)
 
 	/* We don't want to touch relocation info for dynamic symbols. */
 	if ((ecp->flags & SYMTAB_EXIST) == 0) {
-		if (ish.sh_link == 0 || ecp->secndx[ish.sh_link] == 0) {
-			/*
-			 * This reloc section applies to the symbol table
-			 * that was stripped, so discard whole section.
-			 */
-			s->nocopy = 1;
-			s->sz = 0;
-		}
-		return;
+		/*
+		 * No symbol table in output.  If sh_link points to a section
+		 * that exists in the output object, this relocation section
+		 * is for dynamic symbols.  Don't touch it.
+		 */
+		if (ish.sh_link != 0 && ecp->secndx[ish.sh_link] != 0)
+			return;
 	} else {
 		/* Symbol table exist, check if index equals. */
 		if (ish.sh_link != elf_ndxscn(ecp->symtab->is))
@@ -747,28 +745,45 @@ filter_reloc(struct elfcopy *ecp, struct section *s)
 			if (gelf_getrel(id, i, &rel) != &rel)
 				errx(EXIT_FAILURE, "gelf_getrel failed: %s",
 				    elf_errmsg(-1));
+			sym = GELF_R_SYM(rel.r_info);
 		} else {
 			if (gelf_getrela(id, i, &rela) != &rela)
 				errx(EXIT_FAILURE, "gelf_getrel failed: %s",
 				    elf_errmsg(-1));
+			sym = GELF_R_SYM(rela.r_info);
 		}
-		name = elf_strptr(ecp->ein, elf_ndxscn(ecp->strtab->is),
-		    GELF_R_SYM(rel.r_info));
-		if (name == NULL)
-			errx(EXIT_FAILURE, "elf_strptr failed: %s",
-			    elf_errmsg(-1));
-		if (lookup_symop_list(ecp, name, SYMOP_KEEP) != NULL) {
-			if (ecp->oec == ELFCLASS32) {
-				if (s->type == SHT_REL)
-					COPYREL(rel, 32);
-				else
-					COPYREL(rela, 32);
-			} else {
-				if (s->type == SHT_REL)
-					COPYREL(rel, 64);
-				else
-					COPYREL(rela, 64);
-			}
+		/*
+		 * If a relocation references a symbol and we are omitting
+		 * either that symbol or the entire symbol table we cannot
+		 * produce valid output, and so just omit the relocation.
+		 * Broken output like this is generally not useful, but some
+		 * uses of elfcopy/strip rely on it - for example, GCC's build
+		 * process uses it to check for build reproducibility by
+		 * stripping objects and comparing them.
+		 *
+		 * Relocations that do not reference a symbol are retained.
+		 */
+		if (sym != 0) {
+			if (ish.sh_link == 0 || ecp->secndx[ish.sh_link] == 0)
+				continue;
+			name = elf_strptr(ecp->ein, elf_ndxscn(ecp->strtab->is),
+			    sym);
+			if (name == NULL)
+				errx(EXIT_FAILURE, "elf_strptr failed: %s",
+				    elf_errmsg(-1));
+			if (lookup_symop_list(ecp, name, SYMOP_KEEP) == NULL)
+				continue;
+		}
+		if (ecp->oec == ELFCLASS32) {
+			if (s->type == SHT_REL)
+				COPYREL(rel, 32);
+			else
+				COPYREL(rela, 32);
+		} else {
+			if (s->type == SHT_REL)
+				COPYREL(rel, 64);
+			else
+				COPYREL(rela, 64);
 		}
 	}
 	elferr = elf_errno();

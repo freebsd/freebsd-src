@@ -115,8 +115,6 @@ cpu_fetch_syscall_args(struct thread *td)
 		nap--;
 	}
 
-	if (p->p_sysent->sv_mask)
-		sa->code &= p->p_sysent->sv_mask;
 	if (sa->code >= p->p_sysent->sv_size)
 		sa->callp = &p->p_sysent->sv_table[0];
 	else
@@ -256,7 +254,7 @@ no_pmap_fault:
 			printf(" esr:         %.8lx\n", esr);
 
 #ifdef KDB
-			if (debugger_on_panic) {
+			if (debugger_on_trap) {
 				kdb_why = KDB_WHY_TRAP;
 				handled = kdb_trap(ESR_ELx_EXCEPTION(esr), 0,
 				    frame);

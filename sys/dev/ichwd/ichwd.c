@@ -76,6 +76,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ichwd/ichwd.h>
 
+#include <x86/pci_cfgreg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pci_private.h>
+
 static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_82801AA,  "Intel 82801AA watchdog timer",	1, 1 },
 	{ DEVICEID_82801AB,  "Intel 82801AB watchdog timer",	1, 1 },
@@ -289,6 +293,12 @@ static struct ichwd_device ichwd_devices[] = {
 	{ 0, NULL, 0, 0 },
 };
 
+static struct ichwd_device ichwd_smb_devices[] = {
+	{ DEVICEID_LEWISBURG_SMB, "Lewisburg watchdog timer",		10, 4 },
+	{ DEVICEID_SRPTLP_SMB,    "Sunrise Point-LP watchdog timer",	10, 4 },
+	{ 0, NULL, 0, 0 },
+};
+
 static devclass_t ichwd_devclass;
 
 #define ichwd_read_tco_1(sc, off) \
@@ -304,6 +314,8 @@ static devclass_t ichwd_devclass;
 /* NB: TCO version 3 devices use the gcs_res resource for the PMC register. */
 #define ichwd_read_pmc_4(sc, off) \
 	bus_read_4((sc)->gcs_res, (off))
+#define ichwd_read_gc_4(sc, off) \
+	bus_read_4((sc)->gc_res, (off))
 
 #define ichwd_write_tco_1(sc, off, val) \
 	bus_write_1((sc)->tco_res, (off), (val))
@@ -318,6 +330,8 @@ static devclass_t ichwd_devclass;
 /* NB: TCO version 3 devices use the gcs_res resource for the PMC register. */
 #define ichwd_write_pmc_4(sc, off, val) \
 	bus_write_4((sc)->gcs_res, (off), (val))
+#define ichwd_write_gc_4(sc, off, val) \
+	bus_write_4((sc)->gc_res, (off), (val))
 
 #define ichwd_verbose_printf(dev, ...) \
 	do {						\
@@ -374,7 +388,8 @@ ichwd_sts_reset(struct ichwd_softc *sc)
 	 * be done in two separate operations.
 	 */
 	ichwd_write_tco_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
-	ichwd_write_tco_2(sc, TCO2_STS, TCO_BOOT_STS);
+	if (sc->tco_version < 4)
+		ichwd_write_tco_2(sc, TCO2_STS, TCO_BOOT_STS);
 }
 
 /*
@@ -488,6 +503,14 @@ ichwd_clear_noreboot(struct ichwd_softc *sc)
 		if (status & ICH_PMC_NO_REBOOT)
 			rc = EIO;
 		break;
+	case 4:
+		status = ichwd_read_gc_4(sc, 0);
+		status &= ~SMB_GC_NO_REBOOT;
+		ichwd_write_gc_4(sc, 0, status);
+		status = ichwd_read_gc_4(sc, 0);
+		if (status & SMB_GC_NO_REBOOT)
+			rc = EIO;
+		break;
 	default:
 		ichwd_verbose_printf(sc->device,
 		    "Unknown TCO Version: %d, can't set NO_REBOOT.\n",
@@ -560,6 +583,36 @@ ichwd_find_ich_lpc_bridge(device_t isa, struct ichwd_device **id_p)
 	return (NULL);
 }
 
+static device_t
+ichwd_find_smb_dev(device_t isa, struct ichwd_device **id_p)
+{
+	struct ichwd_device *id;
+	device_t isab, smb;
+	uint16_t devid;
+
+	/*
+	 * Check if SMBus controller provides TCO configuration.
+	 * The controller's device and function are fixed and we expect
+	 * it to be on the same bus as ISA bridge.
+	 */
+	isab = device_get_parent(isa);
+	smb = pci_find_dbsf(pci_get_domain(isab), pci_get_bus(isab), 31, 4);
+	if (smb == NULL)
+		return (NULL);
+	if (pci_get_vendor(smb) != VENDORID_INTEL)
+		return (NULL);
+	devid = pci_get_device(smb);
+	for (id = ichwd_smb_devices; id->desc != NULL; ++id) {
+		if (devid == id->device) {
+			if (id_p != NULL)
+				*id_p = id;
+			return (smb);
+		}
+	}
+
+	return (NULL);
+}
+
 /*
  * Look for an ICH LPC interface bridge.  If one is found, register an
  * ichwd device.  There can be only one.
@@ -568,14 +621,26 @@ static void
 ichwd_identify(driver_t *driver, device_t parent)
 {
 	struct ichwd_device *id_p;
-	device_t ich = NULL;
+	device_t ich, smb;
 	device_t dev;
+	uint64_t base_address64;
 	uint32_t base_address;
+	uint32_t ctl;
 	int rc;
 
 	ich = ichwd_find_ich_lpc_bridge(parent, &id_p);
-	if (ich == NULL)
-		return;
+	if (ich == NULL) {
+		smb = ichwd_find_smb_dev(parent, &id_p);
+		if (smb == NULL)
+			return;
+	}
+
+	KASSERT(id_p->tco_version >= 1,
+	    ("unexpected TCO version %d", id_p->tco_version));
+	KASSERT(id_p->tco_version != 4 || smb != NULL,
+	    ("could not find PCI SMBus device for TCOv4"));
+	KASSERT(id_p->tco_version >= 4 || ich != NULL,
+	    ("could not find PCI LPC bridge device for TCOv1-3"));
 
 	/* good, add child to bus */
 	if ((dev = device_find_child(parent, driver->name, 0)) == NULL)
@@ -609,6 +674,51 @@ ichwd_identify(driver_t *driver, device_t parent)
 			    "Can not set TCO v%d memory resource for PBASE\n",
 			    id_p->tco_version);
 		break;
+	case 4:
+		/* Get TCO base address. */
+		ctl = pci_read_config(smb, ICH_TCOCTL, 4);
+		if ((ctl & ICH_TCOCTL_TCO_BASE_EN) == 0) {
+			ichwd_verbose_printf(dev,
+			    "TCO v%d decoding is not enabled\n",
+			    id_p->tco_version);
+			break;
+		}
+		base_address = pci_read_config(smb, ICH_TCOBASE, 4);
+		rc = bus_set_resource(dev, SYS_RES_IOPORT, 0,
+		    base_address & ICH_TCOBASE_ADDRMASK, ICH_TCOBASE_SIZE);
+		if (rc != 0) {
+			ichwd_verbose_printf(dev,
+			    "Can not set TCO v%d I/O resource (err = %d)\n",
+			    id_p->tco_version, rc);
+		}
+
+		/*
+		 * Unhide Primary to Sideband Bridge (P2SB) PCI device, so that
+		 * we can discover the base address of Private Configuration
+		 * Space via the bridge's BAR.
+		 * Then hide back the bridge.
+		 */
+		pci_cfgregwrite(0, 31, 1, 0xe1, 0, 1);
+		base_address64 = pci_cfgregread(0, 31, 1, SBREG_BAR + 4, 4);
+		base_address64 <<= 32;
+		base_address64 |= pci_cfgregread(0, 31, 1, SBREG_BAR, 4);
+		base_address64 &= ~0xfull;
+		pci_cfgregwrite(0, 31, 1, 0xe1, 1, 1);
+
+		/*
+		 * No Reboot bit is in General Control register, offset 0xc,
+		 * within the SMBus target port, ID 0xc6.
+		 */
+		base_address64 += PCR_REG_OFF(SMB_PORT_ID, SMB_GC_REG);
+		rc = bus_set_resource(dev, SYS_RES_MEMORY, 1, base_address64,
+		    SMB_GC_SIZE);
+		if (rc != 0) {
+			ichwd_verbose_printf(dev,
+			    "Can not set TCO v%d PCR I/O resource (err = %d)\n",
+			    id_p->tco_version, rc);
+		}
+
+		break;
 	default:
 		ichwd_verbose_printf(dev,
 		    "Can not set unknown TCO v%d memory resource for unknown base address\n",
@@ -626,7 +736,8 @@ ichwd_probe(device_t dev)
 	if (isa_get_logicalid(dev) != 0)
 		return (ENXIO);
 
-	if (ichwd_find_ich_lpc_bridge(device_get_parent(dev), &id_p) == NULL)
+	if (ichwd_find_ich_lpc_bridge(device_get_parent(dev), &id_p) == NULL &&
+	    ichwd_find_smb_dev(device_get_parent(dev), &id_p) == NULL)
 		return (ENXIO);
 
 	device_set_desc_copy(dev, id_p->desc);
@@ -634,7 +745,71 @@ ichwd_probe(device_t dev)
 }
 
 static int
-ichwd_attach(device_t dev)
+ichwd_smb_attach(device_t dev)
+{
+	struct ichwd_softc *sc;
+	struct ichwd_device *id_p;
+	device_t isab, pmdev;
+	device_t smb;
+	uint32_t acpi_base;
+
+	sc = device_get_softc(dev);
+	smb = ichwd_find_smb_dev(device_get_parent(dev), &id_p);
+	if (smb == NULL)
+		return (ENXIO);
+
+	sc->ich_version = id_p->ich_version;
+	sc->tco_version = id_p->tco_version;
+
+	/* Allocate TCO control I/O register space. */
+	sc->tco_rid = 0;
+	sc->tco_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &sc->tco_rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->tco_res == NULL) {
+		device_printf(dev, "unable to reserve TCO registers\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * Allocate General Control I/O register in PCH
+	 * Private Configuration Space (PCR).
+	 */
+	sc->gc_rid = 1;
+	sc->gc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->gc_rid,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->gc_res == NULL) {
+		device_printf(dev, "unable to reserve hidden P2SB registers\n");
+		return (ENXIO);
+	}
+
+	/* Get ACPI base address. */
+	isab = device_get_parent(device_get_parent(dev));
+	pmdev = pci_find_dbsf(pci_get_domain(isab), pci_get_bus(isab), 31, 2);
+	if (pmdev == NULL) {
+		device_printf(dev, "unable to find Power Management device\n");
+		return (ENXIO);
+	}
+	acpi_base = pci_read_config(pmdev, ICH_PMBASE, 4) & 0xffffff00;
+	if (acpi_base == 0) {
+		device_printf(dev, "ACPI base address is not set\n");
+		return (ENXIO);
+	}
+
+	/* Allocate SMI control I/O register space. */
+	sc->smi_rid = 2;
+	sc->smi_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->smi_rid,
+	    acpi_base + SMI_BASE, acpi_base + SMI_BASE + SMI_LEN - 1, SMI_LEN,
+	    RF_ACTIVE | RF_SHAREABLE);
+	if (sc->smi_res == NULL) {
+		device_printf(dev, "unable to reserve SMI registers\n");
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
+ichwd_lpc_attach(device_t dev)
 {
 	struct ichwd_softc *sc;
 	struct ichwd_device *id_p;
@@ -642,13 +817,11 @@ ichwd_attach(device_t dev)
 	unsigned int pmbase = 0;
 
 	sc = device_get_softc(dev);
-	sc->device = dev;
 
 	ich = ichwd_find_ich_lpc_bridge(device_get_parent(dev), &id_p);
-	if (ich == NULL) {
-		device_printf(sc->device, "Can not find ICH device.\n");
-		goto fail;
-	}
+	if (ich == NULL)
+		return (ENXIO);
+
 	sc->ich = ich;
 	sc->ich_version = id_p->ich_version;
 	sc->tco_version = id_p->tco_version;
@@ -657,7 +830,7 @@ ichwd_attach(device_t dev)
 	pmbase = pci_read_config(ich, ICH_PMBASE, 2) & ICH_PMBASE_MASK;
 	if (pmbase == 0) {
 		device_printf(dev, "ICH PMBASE register is empty\n");
-		goto fail;
+		return (ENXIO);
 	}
 
 	/* allocate I/O register space */
@@ -667,7 +840,7 @@ ichwd_attach(device_t dev)
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->smi_res == NULL) {
 		device_printf(dev, "unable to reserve SMI registers\n");
-		goto fail;
+		return (ENXIO);
 	}
 
 	sc->tco_rid = 1;
@@ -676,7 +849,7 @@ ichwd_attach(device_t dev)
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->tco_res == NULL) {
 		device_printf(dev, "unable to reserve TCO registers\n");
-		goto fail;
+		return (ENXIO);
 	}
 
 	sc->gcs_rid = 0;
@@ -685,9 +858,23 @@ ichwd_attach(device_t dev)
 		    &sc->gcs_rid, RF_ACTIVE|RF_SHAREABLE);
 		if (sc->gcs_res == NULL) {
 			device_printf(dev, "unable to reserve GCS registers\n");
-			goto fail;
+			return (ENXIO);
 		}
 	}
+
+	return (0);
+}
+
+static int
+ichwd_attach(device_t dev)
+{
+	struct ichwd_softc *sc;
+
+	sc = device_get_softc(dev);
+	sc->device = dev;
+
+	if (ichwd_lpc_attach(dev) != 0 && ichwd_smb_attach(dev) != 0)
+		goto fail;
 
 	if (ichwd_clear_noreboot(sc) != 0)
 		goto fail;
@@ -724,8 +911,11 @@ ichwd_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    sc->smi_rid, sc->smi_res);
 	if (sc->gcs_res != NULL)
-		bus_release_resource(ich, SYS_RES_MEMORY,
+		bus_release_resource(sc->ich, SYS_RES_MEMORY,
 		    sc->gcs_rid, sc->gcs_res);
+	if (sc->gc_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->gc_rid, sc->gc_res);
 
 	return (ENXIO);
 }
@@ -761,6 +951,9 @@ ichwd_detach(device_t dev)
 	if (sc->gcs_res)
 		bus_release_resource(sc->ich, SYS_RES_MEMORY, sc->gcs_rid,
 		    sc->gcs_res);
+	if (sc->gc_res)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->gc_rid,
+		    sc->gc_res);
 
 	return (0);
 }

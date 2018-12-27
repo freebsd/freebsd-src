@@ -1,9 +1,9 @@
 /*
- *  $Id: inputstr.c,v 1.83 2013/09/23 23:19:26 tom Exp $
+ *  $Id: inputstr.c,v 1.88 2018/06/18 22:10:54 tom Exp $
  *
  *  inputstr.c -- functions for input/display of a string
  *
- *  Copyright 2000-2012,2013	Thomas E. Dickey
+ *  Copyright 2000-2017,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -105,14 +105,14 @@ show_tsearch(const void *nodep, const VISIT which, const int depth)
     const CACHE *p = *(CACHE * const *) nodep;
     (void) depth;
     if (which == postorder || which == leaf) {
-	dlg_trace_msg("\tcache %p %p:%s\n", p, p->string, p->string);
+	DLG_TRACE(("# cache %p %p:%s\n", p, p->string, p->string));
     }
 }
 
 static void
 trace_cache(const char *fn, int ln)
 {
-    dlg_trace_msg("trace_cache %s@%d\n", fn, ln);
+    DLG_TRACE(("# trace_cache %s@%d\n", fn, ln));
     twalk(sorted_cache, show_tsearch);
 }
 
@@ -120,14 +120,16 @@ trace_cache(const char *fn, int ln)
 #define trace_cache(fn, ln)	/* nothing */
 #endif
 
+#define CMP(a,b) (((a) > (b)) ? 1 : (((a) < (b)) ? -1 : 0))
+
 static int
 compare_cache(const void *a, const void *b)
 {
     const CACHE *p = (const CACHE *) a;
     const CACHE *q = (const CACHE *) b;
-    int result = (p->cache_num - q->cache_num);
+    int result = CMP(p->cache_num, q->cache_num);
     if (result == 0)
-	result = (int) (p->string_at - q->string_at);
+	result = CMP(p->string_at, q->string_at);
     return result;
 }
 #endif
@@ -456,7 +458,7 @@ dlg_index_columns(const char *string)
 		if (ch == TAB)
 		    cache->list[inx + 1] =
 			((cache->list[inx] | 7) + 1) - cache->list[inx];
-		else if (isprint(ch))
+		else if (isprint(UCH(ch)))
 		    cache->list[inx + 1] = 1;
 		else {
 		    const char *printable;
@@ -714,7 +716,7 @@ dlg_show_string(WINDOW *win,
 
 	compute_edit_offset(string, chr_offset, x_last, &input_x, &scrollamt);
 
-	(void) wattrset(win, attr);
+	dlg_attrset(win, attr);
 	(void) wmove(win, y_base, x_base);
 	for (i = scrollamt, k = 0; i < limit && k < x_last; ++i) {
 	    int check = cols[i + 1] - cols[scrollamt];

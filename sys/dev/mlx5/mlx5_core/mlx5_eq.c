@@ -254,8 +254,10 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			break;
 
 		case MLX5_EVENT_TYPE_CMD:
-			if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR)
-				mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector));
+			if (dev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+				mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector),
+				    MLX5_CMD_MODE_EVENTS);
+			}
 			break;
 
 		case MLX5_EVENT_TYPE_PORT_CHANGE:
@@ -615,6 +617,12 @@ static const char *mlx5_port_module_event_error_type_to_string(u8 error_type)
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED:
 		return "Cable is shorted";
+	case MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED:
+		return "One or more network ports have been powered "
+			"down due to insufficient/unadvertised power on "
+			"the PCIe slot. Please refer to the card's user "
+			"manual for power specifications or contact "
+			"Mellanox support.";
 
 	default:
 		return "Unknown error type";

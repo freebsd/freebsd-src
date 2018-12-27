@@ -64,6 +64,7 @@
 #include <sys/mutex.h>
 #include <sys/endian.h>
 #include <sys/errno.h>
+#include <sys/sysctl.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -124,6 +125,8 @@ typedef u_int64_t		pptptime_t;
 #define PPTP_MIN_TIMEOUT	(PPTP_TIME_SCALE / 83)	/* 12 milliseconds */
 #define PPTP_MAX_TIMEOUT	(3 * PPTP_TIME_SCALE)	/* 3 seconds */
 
+#define PPTP_REORDER_TIMEOUT	1
+
 /* When we receive a packet, we wait to see if there's an outgoing packet
    we can piggy-back the ACK off of. These parameters determine the mimimum
    and maxmimum length of time we're willing to wait in order to do that.
@@ -141,6 +144,34 @@ typedef u_int64_t		pptptime_t;
 
 #define SESSHASHSIZE		0x0020
 #define SESSHASH(x)		(((x) ^ ((x) >> 8)) & (SESSHASHSIZE - 1))
+
+SYSCTL_NODE(_net_graph, OID_AUTO, pptpgre, CTLFLAG_RW, 0, "PPTPGRE");
+
+/*
+ * Reorder queue maximum length. Zero disables reorder.
+ *
+ * The node may keep reorder_max queue entries per session
+ * if reorder is enabled, plus allocate one more for short time.
+ *
+ * Be conservative in memory consumption by default.
+ * Lots of sessions with large queues can overflow M_NETGRAPH zone.
+ */
+static int reorder_max = 1; /* reorder up to two swapped packets in a row */
+SYSCTL_UINT(_net_graph_pptpgre, OID_AUTO, reorder_max, CTLFLAG_RWTUN,
+	&reorder_max, 0, "Reorder queue maximum length");
+
+static int reorder_timeout = PPTP_REORDER_TIMEOUT;
+SYSCTL_UINT(_net_graph_pptpgre, OID_AUTO, reorder_timeout, CTLFLAG_RWTUN,
+	&reorder_timeout, 0, "Reorder timeout is milliseconds");
+
+/* Packet reorder FIFO queue */
+struct ng_pptpgre_roq {
+	SLIST_ENTRY(ng_pptpgre_roq)  next;	/* next entry of the queue */
+	item_p			item;		/* netgraph item */
+	u_int32_t		seq;		/* packet sequence number */
+};
+SLIST_HEAD(ng_pptpgre_roq_head, ng_pptpgre_roq);
+typedef struct ng_pptpgre_roq_head roqh;
 
 /* We keep packet retransmit and acknowlegement state in this struct */
 struct ng_pptpgre_sess {
@@ -161,6 +192,9 @@ struct ng_pptpgre_sess {
 	u_int32_t		winAck;		/* seq when xmitWin will grow */
 	pptptime_t		timeSent[PPTP_XMIT_WIN];
 	LIST_ENTRY(ng_pptpgre_sess) sessions;
+	roqh			roq;		/* reorder queue head */
+	u_int8_t		roq_len;	/* reorder queue length */
+	struct callout		reorderTimer;	/* reorder timeout handler */
 };
 typedef struct ng_pptpgre_sess *hpriv_p;
 
@@ -187,13 +221,19 @@ static ng_disconnect_t	ng_pptpgre_disconnect;
 static int	ng_pptpgre_xmit(hpriv_p hpriv, item_p item);
 static void	ng_pptpgre_start_send_ack_timer(hpriv_p hpriv);
 static void	ng_pptpgre_start_recv_ack_timer(hpriv_p hpriv);
+static void	ng_pptpgre_start_reorder_timer(hpriv_p hpriv);
 static void	ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
 static void	ng_pptpgre_send_ack_timeout(node_p node, hook_p hook,
 		    void *arg1, int arg2);
+static void	ng_pptpgre_reorder_timeout(node_p node, hook_p hook,
+		    void *arg1, int arg2);
 static hpriv_p	ng_pptpgre_find_session(priv_p privp, u_int16_t cid);
 static void	ng_pptpgre_reset(hpriv_p hpriv);
 static pptptime_t ng_pptpgre_time(void);
+static void	ng_pptpgre_ack(const hpriv_p hpriv);
+static int	ng_pptpgre_sendq(const hpriv_p hpriv, roqh *q,
+		    const struct ng_pptpgre_roq *st);
 
 /* Parse type for struct ng_pptpgre_conf */
 static const struct ng_parse_struct_field ng_pptpgre_conf_type_fields[]
@@ -291,6 +331,10 @@ ng_pptpgre_constructor(node_p node)
 	ng_callout_init(&priv->uppersess.rackTimer);
 	priv->uppersess.node = node;
 
+	SLIST_INIT(&priv->uppersess.roq);
+	priv->uppersess.roq_len = 0;
+	ng_callout_init(&priv->uppersess.reorderTimer);
+
 	for (i = 0; i < SESSHASHSIZE; i++)
 	    LIST_INIT(&priv->sesshash[i]);
 
@@ -348,6 +392,11 @@ ng_pptpgre_newhook(node_p node, hook_p hook, const char *name)
 		hpriv->conf.cid = cid;
 		hpriv->node = node;
 		hpriv->hook = hook;
+
+		SLIST_INIT(&hpriv->roq);
+		hpriv->roq_len = 0;
+		ng_callout_init(&hpriv->reorderTimer);
+
 		NG_HOOK_SET_PRIVATE(hook, hpriv);
 
 		hash = SESSHASH(cid);
@@ -646,6 +695,49 @@ done:
 	return (error);
 }
 
+static void
+ng_pptpgre_ack(const hpriv_p hpriv)
+{
+	mtx_assert(&hpriv->mtx, MA_OWNED);
+	if (!(callout_pending(&hpriv->sackTimer))) {
+		/* If delayed ACK is disabled, send it now */
+		if (!hpriv->conf.enableDelayedAck) {	/* ack now */
+			ng_pptpgre_xmit(hpriv, NULL);
+			/* ng_pptpgre_xmit() drops the mutex */
+			return;
+		}
+		/* ack later */
+		ng_pptpgre_start_send_ack_timer(hpriv);
+		mtx_unlock(&hpriv->mtx);
+		return;
+	}
+	mtx_unlock(&hpriv->mtx);
+}
+
+/*
+ * Delivers packets from the queue "q" to upper layers. Frees delivered
+ * entries with the exception of one equal to "st" that is allocated
+ * on caller's stack and not on the heap.
+ */
+static int
+ng_pptpgre_sendq(const hpriv_p hpriv, roqh *q, const struct ng_pptpgre_roq *st)
+{
+	struct ng_pptpgre_roq *np;
+	struct mbuf *m;
+	int error = 0;
+
+	mtx_assert(&hpriv->mtx, MA_NOTOWNED);
+	while (!SLIST_EMPTY(q)) {
+		np = SLIST_FIRST(q);
+		SLIST_REMOVE_HEAD(q, next);
+		NGI_GET_M(np->item, m);
+		NG_FWD_NEW_DATA(error, np->item, hpriv->hook, m);
+		if (np != st)
+			free(np, M_NETGRAPH);
+	}
+	return (error);
+}
+
 /*
  * Handle an incoming packet.  The packet includes the IP header.
  */
@@ -661,7 +753,14 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 	int error = 0;
 	struct mbuf *m;
 
-	NGI_GET_M(item, m);
+	roqh sendq = SLIST_HEAD_INITIALIZER(sendq);  /* send queue on stack */
+	struct ng_pptpgre_roq *last = NULL;	/* last packet in the sendq */
+	struct ng_pptpgre_roq *np, *prev;
+	struct ng_pptpgre_roq temp = { { NULL }, NULL, 0 };
+	long diff;
+	u_int32_t seq;
+
+	m = NGI_M(item);
 	/* Update stats */
 	priv->stats.recvPackets++;
 	priv->stats.recvOctets += m->m_pkthdr.len;
@@ -673,18 +772,23 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 	}
 
 	/* Safely pull up the complete IP+GRE headers */
-	if (m->m_len < sizeof(*ip) + sizeof(*gre)
-	    && (m = m_pullup(m, sizeof(*ip) + sizeof(*gre))) == NULL) {
-		priv->stats.memoryFailures++;
-		ERROUT(ENOBUFS);
+	if (m->m_len < sizeof(*ip) + sizeof(*gre)) {
+		if ((m = m_pullup(m, sizeof(*ip) + sizeof(*gre))) == NULL) {
+			priv->stats.memoryFailures++;
+			_NGI_M(item) = NULL;
+			ERROUT(ENOBUFS);
+		}
+		_NGI_M(item) = m;
 	}
 	ip = mtod(m, const struct ip *);
 	iphlen = ip->ip_hl << 2;
 	if (m->m_len < iphlen + sizeof(*gre)) {
 		if ((m = m_pullup(m, iphlen + sizeof(*gre))) == NULL) {
 			priv->stats.memoryFailures++;
+			_NGI_M(item) = NULL;
 			ERROUT(ENOBUFS);
 		}
+		_NGI_M(item) = m;
 		ip = mtod(m, const struct ip *);
 	}
 	gre = (const struct greheader *)((const u_char *)ip + iphlen);
@@ -696,8 +800,10 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 	if (m->m_len < iphlen + grelen) {
 		if ((m = m_pullup(m, iphlen + grelen)) == NULL) {
 			priv->stats.memoryFailures++;
+			_NGI_M(item) = NULL;
 			ERROUT(ENOBUFS);
 		}
+		_NGI_M(item) = m;
 		ip = mtod(m, const struct ip *);
 		gre = (const struct greheader *)((const u_char *)ip + iphlen);
 	}
@@ -726,7 +832,6 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 		const u_int32_t	ack = be32dec(&gre->data[gre->hasSeq]);
 		const int index = ack - hpriv->recvAck - 1;
 		long sample;
-		long diff;
 
 		/* Sanity check ack value */
 		if (PPTP_SEQ_DIFF(ack, hpriv->xmitSeq) > 0) {
@@ -773,54 +878,178 @@ ng_pptpgre_rcvdata_lower(hook_p hook, item_p item)
 badAck:
 
 	/* See if frame contains any data */
-	if (gre->hasSeq) {
-		const u_int32_t seq = be32dec(&gre->data[0]);
+	if (!gre->hasSeq) {		/* no data to deliver */
+		priv->stats.recvLoneAcks++;
+		mtx_unlock(&hpriv->mtx);
+		ERROUT(0);
+	}
 
-		/* Sanity check sequence number */
-		if (PPTP_SEQ_DIFF(seq, hpriv->recvSeq) <= 0) {
-			if (seq == hpriv->recvSeq)
-				priv->stats.recvDuplicates++;
-			else
-				priv->stats.recvOutOfOrder++;
+	seq = be32dec(&gre->data[0]);
+
+	diff = PPTP_SEQ_DIFF(seq, hpriv->recvSeq);
+	if (diff <= 0) {			/* late or duplicate packet */
+		if (diff < 0 && reorder_max == 0)	/* reorder disabled */
+			priv->stats.recvOutOfOrder++;	/* late */
+		else
+			priv->stats.recvDuplicates++;	/* duplicate */
+		mtx_unlock(&hpriv->mtx);
+		ERROUT(EINVAL);
+	}
+
+	/* Trim mbuf down to internal payload */
+	m_adj(m, iphlen + grelen);
+	if (extralen > 0)
+		m_adj(m, -extralen);
+
+#define INIT_SENDQ(t) do {				\
+		t.item = item;				\
+		t.seq = seq;				\
+		SLIST_INSERT_HEAD(&sendq, &t, next);	\
+		last = &t;				\
+		hpriv->recvSeq = seq;			\
+		goto deliver;				\
+	} while(0)
+
+	if (diff == 1)
+		/* the packet came in order, place it at the start of sendq */
+		INIT_SENDQ(temp);
+
+	/* The packet came too early, try to enqueue it.
+	 *
+	 * Check for duplicate in the queue. After this loop, "prev" will be
+	 * NULL if the packet should become new head of the queue,
+	 * or else it should be inserted after the "prev".
+	 */
+	prev = SLIST_FIRST(&hpriv->roq);
+	SLIST_FOREACH(np, &hpriv->roq, next) {
+		diff = PPTP_SEQ_DIFF(np->seq, seq);
+		if (diff == 0) { /* do not add duplicate, drop it */
+			priv->stats.recvDuplicates++;
 			mtx_unlock(&hpriv->mtx);
 			ERROUT(EINVAL);
 		}
-		hpriv->recvSeq = seq;
-
-		/* We need to acknowledge this packet; do it soon... */
-		if (!(callout_pending(&hpriv->sackTimer))) {
-			/* If delayed ACK is disabled, send it now */
-			if (!hpriv->conf.enableDelayedAck) {	/* ack now */
-				ng_pptpgre_xmit(hpriv, NULL);
-				/* ng_pptpgre_xmit() drops the mutex */
-			} else {				/* ack later */
-				ng_pptpgre_start_send_ack_timer(hpriv);
-				mtx_unlock(&hpriv->mtx);
-			}
-		} else
-			mtx_unlock(&hpriv->mtx);
-
-		/* Trim mbuf down to internal payload */
-		m_adj(m, iphlen + grelen);
-		if (extralen > 0)
-			m_adj(m, -extralen);
-
-		mtx_assert(&hpriv->mtx, MA_NOTOWNED);
-
-		/* Deliver frame to upper layers */
-		NG_FWD_NEW_DATA(error, item, hpriv->hook, m);
-	} else {
-		priv->stats.recvLoneAcks++;
-		mtx_unlock(&hpriv->mtx);
-		NG_FREE_ITEM(item);
-		NG_FREE_M(m);		/* no data to deliver */
+		if (diff > 0) {		/* we found newer packet */
+			if (np == prev)	/* that is the head of the queue */
+			    prev = NULL; /* put current packet to the head */
+			break;
+		}
+		prev = np;
 	}
 
+	priv->stats.recvOutOfOrder++;	/* duplicate not found */
+	if (hpriv->roq_len < reorder_max)
+		goto enqueue;	/* reorder enabled and there is a room */
+
+	/*
+	 * There is no room in the queue or reorder disabled.
+	 *
+	 * It the latter case, we may still have non-empty reorder queue
+	 * if reorder was disabled in process of reordering.
+	 * Then we correctly deliver the queue without growing it.
+	 *
+	 * In both cases, no malloc()'s until the queue is shortened.
+	 */
+	priv->stats.recvReorderOverflow++;
+	if (prev == NULL) {	  /* new packet goes before the head      */
+		INIT_SENDQ(temp); /* of reorder queue, so put it to sendq */
+	}
+#undef INIT_SENDQ
+
+	/*
+	 * Current packet goes after the head of reorder queue.
+	 * Move the head to sendq to make room for current packet.
+	 */
+	np = SLIST_FIRST(&hpriv->roq);
+	if (prev == np)
+		prev = NULL;
+	SLIST_REMOVE_HEAD(&hpriv->roq, next);
+	hpriv->roq_len--;	/* we are allowed to use malloc() now */
+	SLIST_INSERT_HEAD(&sendq, np, next);
+	last = np;
+	hpriv->recvSeq = np->seq;
+
+enqueue:
+	np = malloc(sizeof(*np), M_NETGRAPH, M_NOWAIT | M_ZERO);
+	if (np == NULL) {
+		priv->stats.memoryFailures++;
+		/*
+		 * Emergency: we cannot save new data.
+		 * Flush the queue delivering all queued packets preceeding
+		 * current one despite of gaps.
+		 */
+		while (!SLIST_EMPTY(&hpriv->roq)) {
+			np = SLIST_FIRST(&hpriv->roq);
+			if (np->seq > seq)
+				break;
+			SLIST_REMOVE_HEAD(&hpriv->roq, next);
+			hpriv->roq_len--;
+			if (last == NULL)
+				SLIST_INSERT_HEAD(&sendq, np, next);
+			else
+				SLIST_INSERT_AFTER(last, np, next);
+			last = np;
+		}
+
+		/*
+		 * Pretend we got all packets till the current one
+		 * and acknowledge it.
+		 */
+		hpriv->recvSeq = seq;
+		ng_pptpgre_ack(hpriv);	/* drops lock */
+		ng_pptpgre_sendq(hpriv, &sendq, &temp);
+		NG_FWD_NEW_DATA(error, item, hpriv->hook, m);
+		ERROUT(ENOMEM);
+	}
+
+	/* Add current (early) packet to the reorder queue. */
+	np->item = item;
+	np->seq = seq;
+	if (prev == NULL)
+		SLIST_INSERT_HEAD(&hpriv->roq, np, next);
+	else
+		SLIST_INSERT_AFTER(prev, np, next);
+	hpriv->roq_len++;
+
+deliver:
+	/* Look if we have some packets in sequence after sendq. */
+	while (!SLIST_EMPTY(&hpriv->roq)) {
+		np = SLIST_FIRST(&hpriv->roq);
+		if (PPTP_SEQ_DIFF(np->seq, hpriv->recvSeq) > 1)
+			break; /* the gap in the sequence */
+
+		/* "np" is in sequence, move it to the sendq. */
+		SLIST_REMOVE_HEAD(&hpriv->roq, next);
+		hpriv->roq_len--;
+		hpriv->recvSeq = np->seq;
+
+		if (last == NULL)
+			SLIST_INSERT_HEAD(&sendq, np, next);
+		else
+			SLIST_INSERT_AFTER(last, np, next);
+		last = np;
+	}
+
+	if (SLIST_EMPTY(&hpriv->roq)) {
+		if (callout_pending(&hpriv->reorderTimer))
+			ng_uncallout(&hpriv->reorderTimer, hpriv->node);
+	} else {
+		if (!callout_pending(&hpriv->reorderTimer))
+			ng_pptpgre_start_reorder_timer(hpriv);
+	}
+
+	if (SLIST_EMPTY(&sendq)) {
+		/* Current packet has been queued, nothing to free/deliver. */
+		mtx_unlock(&hpriv->mtx);
+		return (error);
+	}
+
+	/* We need to acknowledge last packet; do it soon... */
+	ng_pptpgre_ack(hpriv);		/* drops lock */
+	ng_pptpgre_sendq(hpriv, &sendq, &temp);
 	return (error);
 
 done:
 	NG_FREE_ITEM(item);
-	NG_FREE_M(m);
 	return (error);
 }
 
@@ -916,6 +1145,68 @@ ng_pptpgre_send_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	mtx_assert(&hpriv->mtx, MA_NOTOWNED);
 }
 
+/*
+ * Start a timer for the reorder queue. This assumes the timer is not
+ * already running.
+ */
+static void
+ng_pptpgre_start_reorder_timer(hpriv_p hpriv)
+{
+	int ticks;
+
+	/* Be conservative: timeout can happen up to 1 tick early */
+	ticks = (((reorder_timeout * hz) + 1000 - 1) / 1000) + 1;
+	ng_callout(&hpriv->reorderTimer, hpriv->node, hpriv->hook,
+		ticks, ng_pptpgre_reorder_timeout, hpriv, 0);
+}
+
+/*
+ * The oldest packet spent too much time in the reorder queue.
+ * Deliver it and next packets in sequence, if any.
+ */
+static void
+ng_pptpgre_reorder_timeout(node_p node, hook_p hook, void *arg1, int arg2)
+{
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	const hpriv_p hpriv = arg1;
+	roqh sendq = SLIST_HEAD_INITIALIZER(sendq);
+	struct ng_pptpgre_roq *np, *last = NULL;
+
+	priv->stats.recvReorderTimeouts++;
+	mtx_lock(&hpriv->mtx);
+	if (SLIST_EMPTY(&hpriv->roq)) { /* should not happen */
+		mtx_unlock(&hpriv->mtx);
+		return;
+	}
+
+	last = np = SLIST_FIRST(&hpriv->roq);
+	hpriv->roq_len--;
+	SLIST_REMOVE_HEAD(&hpriv->roq, next);
+	SLIST_INSERT_HEAD(&sendq, np, next);
+
+	/* Look if we have more packets in sequence */
+	while (!SLIST_EMPTY(&hpriv->roq)) {
+		np = SLIST_FIRST(&hpriv->roq);
+		if (PPTP_SEQ_DIFF(np->seq, last->seq) > 1)
+			break; /* the gap in the sequence */
+
+		/* Next packet is in sequence, move it to the sendq. */
+		hpriv->roq_len--;
+		SLIST_REMOVE_HEAD(&hpriv->roq, next);
+		SLIST_INSERT_AFTER(last, np, next);
+		last = np;
+	}
+
+	hpriv->recvSeq = last->seq;
+	if (!SLIST_EMPTY(&hpriv->roq))
+		ng_pptpgre_start_reorder_timer(hpriv);
+
+	/* We need to acknowledge last packet; do it soon... */
+	ng_pptpgre_ack(hpriv);		/* drops lock */
+	ng_pptpgre_sendq(hpriv, &sendq, NULL);
+	mtx_assert(&hpriv->mtx, MA_NOTOWNED);
+}
+
 /*************************************************************************
 		    MISC FUNCTIONS
 *************************************************************************/
@@ -943,6 +1234,8 @@ ng_pptpgre_find_session(priv_p privp, u_int16_t cid)
 static void
 ng_pptpgre_reset(hpriv_p hpriv)
 {
+	struct ng_pptpgre_roq *np;
+
 	/* Reset adaptive timeout state */
 	hpriv->ato = PPTP_MAX_TIMEOUT;
 	hpriv->rtt = PPTP_TIME_SCALE / 10;
@@ -965,6 +1258,16 @@ ng_pptpgre_reset(hpriv_p hpriv)
 	/* Stop timers */
 	ng_uncallout(&hpriv->sackTimer, hpriv->node);
 	ng_uncallout(&hpriv->rackTimer, hpriv->node);
+	ng_uncallout(&hpriv->reorderTimer, hpriv->node);
+
+	/* Clear reorder queue */
+	while (!SLIST_EMPTY(&hpriv->roq)) {
+		np = SLIST_FIRST(&hpriv->roq);
+		SLIST_REMOVE_HEAD(&hpriv->roq, next);
+		NG_FREE_ITEM(np->item);
+		free(np, M_NETGRAPH);
+	}
+	hpriv->roq_len = 0;
 }
 
 /*

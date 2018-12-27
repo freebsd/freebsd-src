@@ -67,7 +67,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
     u_int64_t stripRow, u_int16_t stripRef, struct IO_REQUEST_INFO *io_info,
     RAID_CONTEXT * pRAID_Context,
     MR_DRV_RAID_MAP_ALL * map);
-u_int16_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
+u_int8_t MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL *map);
 u_int32_t MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
 u_int16_t 
@@ -103,7 +103,7 @@ static MR_SPAN_BLOCK_INFO *
 MR_LdSpanInfoGet(u_int32_t ld,
     MR_DRV_RAID_MAP_ALL * map);
 MR_LD_RAID *MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map);
-void	MR_PopulateDrvRaidMap(struct mrsas_softc *sc);
+static int MR_PopulateDrvRaidMap(struct mrsas_softc *sc);
 
 
 /*
@@ -219,6 +219,12 @@ MR_PdDevHandleGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL * map)
 	return map->raidMap.devHndlInfo[pd].curDevHdl;
 }
 
+static u_int8_t MR_PdInterfaceTypeGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL *map)
+{
+    return map->raidMap.devHndlInfo[pd].interfaceType;
+}
+
+
 static u_int16_t
 MR_ArPdGet(u_int32_t ar, u_int32_t arm, MR_DRV_RAID_MAP_ALL * map)
 {
@@ -237,7 +243,7 @@ MR_LdSpanInfoGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map)
 	return &map->raidMap.ldSpanMap[ld].spanBlock[0];
 }
 
-u_int16_t
+u_int8_t
 MR_TargetIdToLdGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map)
 {
 	return map->raidMap.ldTgtIdToLd[ldTgtId];
@@ -266,26 +272,203 @@ MR_LdBlockSizeGet(u_int32_t ldTgtId, MR_DRV_RAID_MAP_ALL * map)
 }
 
 /*
+ * This function will Populate Driver Map using Dynamic firmware raid map
+ */
+static int
+MR_PopulateDrvRaidMapVentura(struct mrsas_softc *sc)
+{
+	unsigned int i, j;
+	u_int16_t ld_count;
+
+	MR_FW_RAID_MAP_DYNAMIC *fw_map_dyn;
+	MR_RAID_MAP_DESC_TABLE *desc_table;
+	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
+	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
+	void *raid_map_data = NULL;
+
+	fw_map_dyn = (MR_FW_RAID_MAP_DYNAMIC *) sc->raidmap_mem[(sc->map_id & 1)];
+
+	if (fw_map_dyn == NULL) {
+		device_printf(sc->mrsas_dev,
+		    "from %s %d map0  %p map1 %p map size %d \n", __func__, __LINE__,
+		    sc->raidmap_mem[0], sc->raidmap_mem[1], sc->maxRaidMapSize);
+		return 1;
+	}
+#if VD_EXT_DEBUG
+	device_printf(sc->mrsas_dev,
+	    " raidMapSize 0x%x, descTableOffset 0x%x, "
+	    " descTableSize 0x%x, descTableNumElements 0x%x \n",
+	    fw_map_dyn->raidMapSize, fw_map_dyn->descTableOffset,
+	    fw_map_dyn->descTableSize, fw_map_dyn->descTableNumElements);
+#endif
+	desc_table = (MR_RAID_MAP_DESC_TABLE *) ((char *)fw_map_dyn +
+	    fw_map_dyn->descTableOffset);
+	if (desc_table != fw_map_dyn->raidMapDescTable) {
+		device_printf(sc->mrsas_dev,
+		    "offsets of desc table are not matching returning "
+		    " FW raid map has been changed: desc %p original %p\n",
+		    desc_table, fw_map_dyn->raidMapDescTable);
+	}
+	memset(drv_map, 0, sc->drv_map_sz);
+	ld_count = fw_map_dyn->ldCount;
+	pDrvRaidMap->ldCount = ld_count;
+	pDrvRaidMap->fpPdIoTimeoutSec = fw_map_dyn->fpPdIoTimeoutSec;
+	pDrvRaidMap->totalSize = sizeof(MR_DRV_RAID_MAP_ALL);
+	/* point to actual data starting point */
+	raid_map_data = (char *)fw_map_dyn +
+	    fw_map_dyn->descTableOffset + fw_map_dyn->descTableSize;
+
+	for (i = 0; i < fw_map_dyn->descTableNumElements; ++i) {
+		if (!desc_table) {
+			device_printf(sc->mrsas_dev,
+			    "desc table is null, coming out %p \n", desc_table);
+			return 1;
+		}
+#if VD_EXT_DEBUG
+		device_printf(sc->mrsas_dev, "raid_map_data %p \n", raid_map_data);
+		device_printf(sc->mrsas_dev,
+		    "desc table %p \n", desc_table);
+		device_printf(sc->mrsas_dev,
+		    "raidmap type %d, raidmapOffset 0x%x, "
+		    " raid map number of elements 0%x, raidmapsize 0x%x\n",
+		    desc_table->raidMapDescType, desc_table->raidMapDescOffset,
+		    desc_table->raidMapDescElements, desc_table->raidMapDescBufferSize);
+#endif
+		switch (desc_table->raidMapDescType) {
+		case RAID_MAP_DESC_TYPE_DEVHDL_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo = (MR_DEV_HANDLE_INFO *)
+			    ((char *)raid_map_data + desc_table->raidMapDescOffset);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "devHndlInfo address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo);
+#endif
+			memcpy(pDrvRaidMap->devHndlInfo, fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo,
+			    sizeof(MR_DEV_HANDLE_INFO) * desc_table->raidMapDescElements);
+			break;
+		case RAID_MAP_DESC_TYPE_TGTID_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd = (u_int16_t *)
+			    ((char *)raid_map_data + desc_table->raidMapDescOffset);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "ldTgtIdToLd  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd);
+#endif
+			for (j = 0; j < desc_table->raidMapDescElements; j++) {
+				pDrvRaidMap->ldTgtIdToLd[j] = fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd[j];
+#if VD_EXT_DEBUG
+				device_printf(sc->mrsas_dev,
+				    " %d drv ldTgtIdToLd %d\n",	j, pDrvRaidMap->ldTgtIdToLd[j]);
+#endif
+			}
+			break;
+		case RAID_MAP_DESC_TYPE_ARRAY_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo = (MR_ARRAY_INFO *) ((char *)raid_map_data +
+			    desc_table->raidMapDescOffset);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "arMapInfo  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo);
+#endif
+			memcpy(pDrvRaidMap->arMapInfo, fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo,
+			    sizeof(MR_ARRAY_INFO) * desc_table->raidMapDescElements);
+			break;
+		case RAID_MAP_DESC_TYPE_SPAN_INFO:
+			fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap = (MR_LD_SPAN_MAP *) ((char *)raid_map_data +
+			    desc_table->raidMapDescOffset);
+			memcpy(pDrvRaidMap->ldSpanMap, fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap,
+			    sizeof(MR_LD_SPAN_MAP) * desc_table->raidMapDescElements);
+#if VD_EXT_DEBUG
+			device_printf(sc->mrsas_dev,
+			    "ldSpanMap  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap);
+			device_printf(sc->mrsas_dev,
+			    "MR_LD_SPAN_MAP size 0x%lx\n", sizeof(MR_LD_SPAN_MAP));
+			for (j = 0; j < ld_count; j++) {
+				printf("mrsas(%d) : fw_map_dyn->ldSpanMap[%d].ldRaid.targetId 0x%x "
+				    "fw_map_dyn->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+				    j, j, fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid.targetId, j,
+				    fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid.seqNum,
+				    (u_int32_t)fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid.rowSize);
+				printf("mrsas(%d) : pDrvRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x "
+				    "pDrvRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+				    j, j, pDrvRaidMap->ldSpanMap[j].ldRaid.targetId, j,
+				    pDrvRaidMap->ldSpanMap[j].ldRaid.seqNum,
+				    (u_int32_t)pDrvRaidMap->ldSpanMap[j].ldRaid.rowSize);
+				printf("mrsas : drv raid map all %p raid map %p LD RAID MAP %p/%p\n",
+				    drv_map, pDrvRaidMap, &fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap[j].ldRaid,
+				    &pDrvRaidMap->ldSpanMap[j].ldRaid);
+			}
+#endif
+			break;
+		default:
+			device_printf(sc->mrsas_dev,
+			    "wrong number of desctableElements %d\n",
+			    fw_map_dyn->descTableNumElements);
+		}
+		++desc_table;
+	}
+	return 0;
+}
+
+/*
  * This function will Populate Driver Map using firmware raid map
  */
-void
+static int
 MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 {
 	MR_FW_RAID_MAP_ALL *fw_map_old = NULL;
+	MR_FW_RAID_MAP_EXT *fw_map_ext;
 	MR_FW_RAID_MAP *pFwRaidMap = NULL;
 	unsigned int i;
+	u_int16_t ld_count;
 
 	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
 
-	if (sc->max256vdSupport) {
-		memcpy(sc->ld_drv_map[sc->map_id & 1],
-		    sc->raidmap_mem[sc->map_id & 1],
-		    sc->current_map_sz);
-		/*
-		 * New Raid map will not set totalSize, so keep expected
-		 * value for legacy code in ValidateMapInfo
-		 */
+	if (sc->maxRaidMapSize) {
+		return MR_PopulateDrvRaidMapVentura(sc);
+	} else if (sc->max256vdSupport) {
+		fw_map_ext = (MR_FW_RAID_MAP_EXT *) sc->raidmap_mem[(sc->map_id & 1)];
+		ld_count = (u_int16_t)(fw_map_ext->ldCount);
+		if (ld_count > MAX_LOGICAL_DRIVES_EXT) {
+			device_printf(sc->mrsas_dev,
+			    "mrsas: LD count exposed in RAID map in not valid\n");
+			return 1;
+		}
+#if VD_EXT_DEBUG
+		for (i = 0; i < ld_count; i++) {
+			printf("mrsas : Index 0x%x Target Id 0x%x Seq Num 0x%x Size 0/%lx\n",
+			    i, fw_map_ext->ldSpanMap[i].ldRaid.targetId,
+			    fw_map_ext->ldSpanMap[i].ldRaid.seqNum,
+			    fw_map_ext->ldSpanMap[i].ldRaid.size);
+		}
+#endif
+		memset(drv_map, 0, sc->drv_map_sz);
+		pDrvRaidMap->ldCount = ld_count;
+		pDrvRaidMap->fpPdIoTimeoutSec = fw_map_ext->fpPdIoTimeoutSec;
+		for (i = 0; i < (MAX_LOGICAL_DRIVES_EXT); i++) {
+			pDrvRaidMap->ldTgtIdToLd[i] = (u_int16_t)fw_map_ext->ldTgtIdToLd[i];
+		}
+		memcpy(pDrvRaidMap->ldSpanMap, fw_map_ext->ldSpanMap, sizeof(MR_LD_SPAN_MAP) * ld_count);
+#if VD_EXT_DEBUG
+		for (i = 0; i < ld_count; i++) {
+			printf("mrsas(%d) : fw_map_ext->ldSpanMap[%d].ldRaid.targetId 0x%x "
+			    "fw_map_ext->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n",
+			    i, i, fw_map_ext->ldSpanMap[i].ldRaid.targetId, i,
+			    fw_map_ext->ldSpanMap[i].ldRaid.seqNum,
+			    (u_int32_t)fw_map_ext->ldSpanMap[i].ldRaid.rowSize);
+			printf("mrsas(%d) : pDrvRaidMap->ldSpanMap[%d].ldRaid.targetId 0x%x"
+			    "pDrvRaidMap->ldSpanMap[%d].ldRaid.seqNum 0x%x size 0x%x\n", i, i,
+			    pDrvRaidMap->ldSpanMap[i].ldRaid.targetId, i,
+			    pDrvRaidMap->ldSpanMap[i].ldRaid.seqNum,
+			    (u_int32_t)pDrvRaidMap->ldSpanMap[i].ldRaid.rowSize);
+			printf("mrsas : drv raid map all %p raid map %p LD RAID MAP %p/%p\n",
+			    drv_map, pDrvRaidMap, &fw_map_ext->ldSpanMap[i].ldRaid,
+			    &pDrvRaidMap->ldSpanMap[i].ldRaid);
+		}
+#endif
+		memcpy(pDrvRaidMap->arMapInfo, fw_map_ext->arMapInfo,
+		    sizeof(MR_ARRAY_INFO) * MAX_API_ARRAYS_EXT);
+		memcpy(pDrvRaidMap->devHndlInfo, fw_map_ext->devHndlInfo,
+		    sizeof(MR_DEV_HANDLE_INFO) * MAX_RAIDMAP_PHYSICAL_DEVICES);
+
 		pDrvRaidMap->totalSize = sizeof(MR_FW_RAID_MAP_EXT);
 	} else {
 		fw_map_old = (MR_FW_RAID_MAP_ALL *) sc->raidmap_mem[(sc->map_id & 1)];
@@ -339,6 +522,7 @@ MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 		    sizeof(MR_DEV_HANDLE_INFO) *
 		    MAX_RAIDMAP_PHYSICAL_DEVICES);
 	}
+	return 0;
 }
 
 /*
@@ -354,7 +538,8 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 	if (!sc) {
 		return 1;
 	}
-	MR_PopulateDrvRaidMap(sc);
+	if (MR_PopulateDrvRaidMap(sc))
+		return 0;
 
 	MR_DRV_RAID_MAP_ALL *drv_map = sc->ld_drv_map[(sc->map_id & 1)];
 	MR_DRV_RAID_MAP *pDrvRaidMap = &drv_map->raidMap;
@@ -365,7 +550,9 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 	pDrvRaidMap = &drv_map->raidMap;
 	PLD_SPAN_INFO ldSpanInfo = (PLD_SPAN_INFO) & sc->log_to_span;
 
-	if (sc->max256vdSupport)
+	if (sc->maxRaidMapSize)
+		expected_map_size = sizeof(MR_DRV_RAID_MAP_ALL);
+	else if (sc->max256vdSupport)
 		expected_map_size = sizeof(MR_FW_RAID_MAP_EXT);
 	else
 		expected_map_size =
@@ -740,12 +927,14 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
     RAID_CONTEXT * pRAID_Context, MR_DRV_RAID_MAP_ALL * map)
 {
 	MR_LD_RAID *raid = MR_LdRaidGet(ld, map);
-	u_int32_t pd, arRef;
+	u_int32_t pd, arRef, r1_alt_pd;
 	u_int8_t physArm, span;
 	u_int64_t row;
 	u_int8_t retval = TRUE;
 	u_int64_t *pdBlock = &io_info->pdBlock;
 	u_int16_t *pDevHandle = &io_info->devHandle;
+	u_int8_t  *pPdInterface = &io_info->pdInterface;
+
 	u_int32_t logArm, rowMod, armQ, arm;
 
 	/* Get row and span from io_info for Uneven Span IO. */
@@ -769,23 +958,39 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	arRef = MR_LdSpanArrayGet(ld, span, map);
 	pd = MR_ArPdGet(arRef, physArm, map);
 
-	if (pd != MR_PD_INVALID)
+	if (pd != MR_PD_INVALID) {
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
-	else {
-		*pDevHandle = MR_PD_INVALID;
-		if ((raid->level >= 5) && ((!sc->mrsas_gen3_ctrl) || (sc->mrsas_gen3_ctrl &&
-		    raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
+		*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+		/* get second pd also for raid 1/10 fast path writes */
+		if ((raid->level == 1) && !io_info->isRead) {
+			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
+			if (r1_alt_pd != MR_PD_INVALID)
+				io_info->r1_alt_dev_handle = MR_PdDevHandleGet(r1_alt_pd, map);
+		}
+	} else {
+		*pDevHandle = MR_DEVHANDLE_INVALID;
+		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
+			(sc->mrsas_gen3_ctrl &&
+			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			pd = MR_ArPdGet(arRef, physArm + 1, map);
-			if (pd != MR_PD_INVALID)
+			if (pd != MR_PD_INVALID) {
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
+				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+			}
 		}
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
-	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
-	io_info->span_arm = pRAID_Context->spanArm;
+	if (sc->is_ventura || sc->is_aero) {
+		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
+		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+	} else {
+		pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = pRAID_Context->spanArm;
+	}
 	return retval;
 }
 
@@ -825,6 +1030,9 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 
 	ld = MR_TargetIdToLdGet(ldTgtId, map);
 	raid = MR_LdRaidGet(ld, map);
+
+	/* check read ahead bit */
+	io_info->raCapable = raid->capability.raCapable;
 
 	if (raid->rowDataSize == 0) {
 		if (MR_LdSpanPtrGet(ld, 0, map)->spanRowDataSize == 0)
@@ -958,7 +1166,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 	pRAID_Context->timeoutValue = map->raidMap.fpPdIoTimeoutSec;
 	if (sc->mrsas_gen3_ctrl)
 		pRAID_Context->regLockFlags = (isRead) ? raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
-	else
+	else if (sc->device_id == MRSAS_TBOLT)
 		pRAID_Context->regLockFlags = (isRead) ? REGION_TYPE_SHARED_READ : raid->regTypeReqOnWrite;
 	pRAID_Context->VirtualDiskTgtId = raid->targetId;
 	pRAID_Context->regLockRowLBA = regStart;
@@ -976,8 +1184,18 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		    MR_GetPhyParams(sc, ld, start_strip,
 		    ref_in_start_stripe, io_info, pRAID_Context, map);
 		/* If IO on an invalid Pd, then FP is not possible */
-		if (io_info->devHandle == MR_PD_INVALID)
+		if (io_info->devHandle == MR_DEVHANDLE_INVALID)
 			io_info->fpOkForIo = FALSE;
+		/*
+		 * if FP possible, set the SLUD bit in regLockFlags for
+		 * ventura
+		 */
+		else if ((sc->is_ventura || sc->is_aero) && !isRead &&
+			    (raid->writeMode == MR_RL_WRITE_BACK_MODE) && (raid->level <= 1) &&
+		    raid->capability.fpCacheBypassCapable) {
+			((RAID_CONTEXT_G35 *) pRAID_Context)->routingFlags.bits.sld = 1;
+		}
+
 		return retval;
 	} else if (isRead) {
 		for (stripIdx = 0; stripIdx < num_strips; stripIdx++) {
@@ -1335,6 +1553,7 @@ mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 {
 	MR_LD_RAID *raid;
 	MR_DRV_RAID_MAP_ALL *drv_map;
+	u_int16_t pd1_devHandle;
 	u_int16_t pend0, pend1, ld;
 	u_int64_t diff0, diff1;
 	u_int8_t bestArm, pd0, pd1, span, arm;
@@ -1358,23 +1577,30 @@ mrsas_get_best_arm_pd(struct mrsas_softc *sc,
 	pd1 = MR_ArPdGet(arRef, (arm + 1) >= span_row_size ?
 	    (arm + 1 - span_row_size) : arm + 1, drv_map);
 
-	/* get the pending cmds for the data and mirror arms */
-	pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
-	pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd1]);
+	/* Get PD1 Dev Handle */
+	pd1_devHandle = MR_PdDevHandleGet(pd1, drv_map);
+	if (pd1_devHandle == MR_DEVHANDLE_INVALID) {
+		bestArm = arm;
+	} else {
+		/* get the pending cmds for the data and mirror arms */
+		pend0 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd0]);
+		pend1 = mrsas_atomic_read(&lbInfo->scsi_pending_cmds[pd1]);
 
-	/* Determine the disk whose head is nearer to the req. block */
-	diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[pd0]);
-	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[pd1]);
-	bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
+		/* Determine the disk whose head is nearer to the req. block */
+		diff0 = ABS_DIFF(block, lbInfo->last_accessed_block[pd0]);
+		diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[pd1]);
+		bestArm = (diff0 <= diff1 ? arm : arm ^ 1);
 
-	if ((bestArm == arm && pend0 > pend1 + sc->lb_pending_cmds) ||
-	    (bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
-		bestArm ^= 1;
+		if ((bestArm == arm && pend0 > pend1 + sc->lb_pending_cmds) ||
+		    (bestArm != arm && pend1 > pend0 + sc->lb_pending_cmds))
+			bestArm ^= 1;
 
-	/* Update the last accessed block on the correct pd */
+		/* Update the last accessed block on the correct pd */
+		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
+		io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
+	}
+
 	lbInfo->last_accessed_block[bestArm == arm ? pd0 : pd1] = block + count - 1;
-	io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | bestArm;
-	io_info->pd_after_lb = (bestArm == arm) ? pd0 : pd1;
 #if SPAN_DEBUG
 	if (arm != bestArm)
 		printf("AVAGO Debug R1 Load balance occur - span 0x%x arm 0x%x bestArm 0x%x "
@@ -1407,6 +1633,7 @@ mrsas_get_updated_dev_handle(struct mrsas_softc *sc,
 	/* get best new arm */
 	arm_pd = mrsas_get_best_arm_pd(sc, lbInfo, io_info);
 	devHandle = MR_PdDevHandleGet(arm_pd, drv_map);
+	io_info->pdInterface = MR_PdInterfaceTypeGet(arm_pd, drv_map);
 	mrsas_atomic_inc(&lbInfo->scsi_pending_cmds[arm_pd]);
 
 	return devHandle;
@@ -1431,13 +1658,14 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
     RAID_CONTEXT * pRAID_Context, MR_DRV_RAID_MAP_ALL * map)
 {
 	MR_LD_RAID *raid = MR_LdRaidGet(ld, map);
-	u_int32_t pd, arRef;
+	u_int32_t pd, arRef, r1_alt_pd;
 	u_int8_t physArm, span;
 	u_int64_t row;
 	u_int8_t retval = TRUE;
 	int error_code = 0;
 	u_int64_t *pdBlock = &io_info->pdBlock;
 	u_int16_t *pDevHandle = &io_info->devHandle;
+	u_int8_t  *pPdInterface = &io_info->pdInterface;
 	u_int32_t rowMod, armQ, arm, logArm;
 
 	row = mega_div64_32(stripRow, raid->rowDataSize);
@@ -1473,26 +1701,42 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 
 	pd = MR_ArPdGet(arRef, physArm, map);	/* Get the Pd. */
 
-	if (pd != MR_PD_INVALID)
+	if (pd != MR_PD_INVALID) {
 		/* Get dev handle from Pd */
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
-	else {
-		*pDevHandle = MR_PD_INVALID;	/* set dev handle as invalid. */
-		if ((raid->level >= 5) && ((!sc->mrsas_gen3_ctrl) || (sc->mrsas_gen3_ctrl &&
-		    raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
+		*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+		/* get second pd also for raid 1/10 fast path writes */
+		if ((raid->level == 1) && !io_info->isRead) {
+			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
+			if (r1_alt_pd != MR_PD_INVALID)
+				io_info->r1_alt_dev_handle = MR_PdDevHandleGet(r1_alt_pd, map);
+		}
+	} else {
+		*pDevHandle = MR_DEVHANDLE_INVALID;	/* set dev handle as invalid. */
+		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
+			(sc->mrsas_gen3_ctrl &&
+			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			/* Get Alternate Pd. */
 			pd = MR_ArPdGet(arRef, physArm + 1, map);
-			if (pd != MR_PD_INVALID)
+			if (pd != MR_PD_INVALID) {
 				/* Get dev handle from Pd. */
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
+				*pPdInterface = MR_PdInterfaceTypeGet(pd, map);
+			}
 		}
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
-	pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
-	io_info->span_arm = pRAID_Context->spanArm;
+	if (sc->is_ventura || sc->is_aero) {
+		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
+		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+	} else {
+		pRAID_Context->spanArm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
+		io_info->span_arm = pRAID_Context->spanArm;
+	}
 	return retval;
 }
 

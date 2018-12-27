@@ -302,6 +302,7 @@ restart:
 		return (error);
 	}
 	vp = nd.ni_vp;
+	vnode_create_vobject(nd.ni_vp, fs->fs_size, td);
 	vp->v_vflag |= VV_SYSTEM;
 	ip = VTOI(vp);
 	devvp = ITODEVVP(ip);
@@ -795,6 +796,7 @@ out1:
 		brelse(nbp);
 	} else {
 		loc = blkoff(fs, fs->fs_sblockloc);
+		copy_fs->fs_ckhash = ffs_calc_sbhash(copy_fs);
 		bcopy((char *)copy_fs, &nbp->b_data[loc], (u_int)fs->fs_sbsize);
 		bawrite(nbp);
 	}
@@ -1333,12 +1335,14 @@ expunge_ufs2(snapvp, cancelip, fs, acctfunc, expungetype, clearmode)
 	 */
 	dip = (struct ufs2_dinode *)bp->b_data +
 	    ino_to_fsbo(fs, cancelip->i_number);
-	if (clearmode || cancelip->i_effnlink == 0)
-		dip->di_mode = 0;
 	dip->di_size = 0;
 	dip->di_blocks = 0;
 	dip->di_flags &= ~SF_SNAPSHOT;
 	bzero(&dip->di_db[0], (UFS_NDADDR + UFS_NIADDR) * sizeof(ufs2_daddr_t));
+	if (clearmode || cancelip->i_effnlink == 0)
+		dip->di_mode = 0;
+	else
+		ffs_update_dinode_ckhash(fs, dip);
 	bdwrite(bp);
 	/*
 	 * Now go through and expunge all the blocks in the file

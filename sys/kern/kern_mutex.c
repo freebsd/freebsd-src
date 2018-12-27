@@ -486,7 +486,7 @@ __mtx_lock_sleep(volatile uintptr_t *c, uintptr_t v)
 	int64_t all_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	int doing_lockprof;
+	int doing_lockprof = 0;
 #endif
 
 	td = curthread;
@@ -690,7 +690,7 @@ _mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t v)
 	int64_t spin_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	int doing_lockprof;
+	int doing_lockprof = 0;
 #endif
 
 	tid = (uintptr_t)curthread;
@@ -1206,7 +1206,7 @@ _mtx_lock_indefinite_check(struct mtx *m, struct lock_delay_arg *ldap)
 
 	ldap->spin_cnt++;
 	if (ldap->spin_cnt < 60000000 || kdb_active || panicstr != NULL)
-		DELAY(1);
+		cpu_lock_delay();
 	else {
 		td = mtx_owner(m);
 

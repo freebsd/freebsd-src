@@ -202,6 +202,7 @@ enum g_part_ctl {
 #define	G_PART_PARM_BOOTCODE	0x1000
 #define	G_PART_PARM_ATTRIB	0x2000
 #define	G_PART_PARM_FORCE	0x4000
+#define G_PART_PARM_SKIP_DSN	0x8000
 
 struct g_part_parms {
 	unsigned int	gpp_parms;
@@ -220,6 +221,7 @@ struct g_part_parms {
 	unsigned int	gpp_codesize;
 	const char	*gpp_attrib;
 	unsigned int	gpp_force;
+	unsigned int	gpp_skip_dsn;
 };
 
 void g_part_geometry_heads(off_t, u_int, off_t *, u_int *);

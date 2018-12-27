@@ -27,9 +27,11 @@ LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
 LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
 LIBVER  := $(shell echo $(LIBVER_SCRIPT))
 
-ZSTD_VERSION=$(LIBVER)
+ZSTD_VERSION = $(LIBVER)
 
-ifeq ($(shell $(CC) -v 2>&1 | grep -c "gcc version "), 1)
+GREP = grep --color=never
+
+ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
 ALIGN_LOOP = -falign-loops=32
 else
 ALIGN_LOOP =
@@ -38,12 +40,15 @@ endif
 CPPFLAGS+= -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
            -I$(ZSTDDIR)/dictBuilder \
            -DXXH_NAMESPACE=ZSTD_
+ifeq ($(OS),Windows_NT)   # MinGW assumed
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+endif
 CFLAGS  ?= -O3
 DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-            -Wredundant-decls
+            -Wredundant-decls -Wmissing-prototypes
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -55,11 +60,11 @@ ZSTD_FILES := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 ZSTDDECOMP_O = $(ZSTDDIR)/decompress/zstd_decompress.o
 
-ZSTD_LEGACY_SUPPORT ?= 4
+ZSTD_LEGACY_SUPPORT ?= 5
 ZSTDLEGACY_FILES :=
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+	ZSTDLEGACY_FILES += $(shell ls $(ZSTDDIR)/legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 	CPPFLAGS += -I$(ZSTDDIR)/legacy
 else
@@ -129,6 +134,18 @@ else
 LZ4_MSG := $(NO_LZ4_MSG)
 endif
 
+# explicit backtrace enable/disable for Linux & Darwin
+ifeq ($(BACKTRACE), 0)
+DEBUGFLAGS += -DBACKTRACE_ENABLE=0
+endif
+ifeq (,$(filter Windows%, $(OS)))
+ifeq ($(BACKTRACE), 1)
+DEBUGFLAGS += -DBACKTRACE_ENABLE=1
+DEBUGFLAGS_LD += -rdynamic
+endif
+endif
+
+
 .PHONY: default
 default: zstd-release
 
@@ -141,7 +158,7 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy
 $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
@@ -154,11 +171,12 @@ endif
 	$(CC) $(FLAGS) $^ $(RES_FILE) -o $@$(EXT) $(LDFLAGS)
 
 .PHONY: zstd-release
-zstd-release: DEBUGFLAGS :=
+zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
+zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
 zstd32 : CPPFLAGS += $(THREAD_CPP)
-zstd32 : LDFLAGS += $(THREAD_LD) 
+zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
@@ -170,17 +188,17 @@ zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o fileio.c bench.o datagen.
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
-zstd-nomt : THREAD_LD :=
+zstd-nomt : THREAD_LD  :=
 zstd-nomt : THREAD_MSG := - multi-threading disabled
 zstd-nomt : zstd
 
 zstd-nogz : ZLIBCPP :=
-zstd-nogz : ZLIBLD :=
+zstd-nogz : ZLIBLD  :=
 zstd-nogz : ZLIB_MSG := - gzip support is disabled
 zstd-nogz : zstd
 
 zstd-noxz : LZMACPP :=
-zstd-noxz : LZMALD :=
+zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
@@ -231,25 +249,53 @@ MD2ROFF_FLAGS = --roff --warnings --manual="User Commands" --organization="zstd 
 zstd.1: zstd.1.md ../lib/zstd.h
 	cat $< | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
 
+zstdgrep.1: zstdgrep.1.md ../lib/zstd.h
+	cat $< | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
+
+zstdless.1: zstdless.1.md ../lib/zstd.h
+	cat $< | $(MD2ROFF) $(MD2ROFF_FLAGS) | sed -n '/^\.\\\".*/!p' > $@
+
 .PHONY: man
-man: zstd.1
+man: zstd.1 zstdgrep.1 zstdless.1
 
 .PHONY: clean-man
 clean-man:
 	rm zstd.1
+	rm zstdgrep.1
+	rm zstdless.1
 
 .PHONY: preview-man
 preview-man: clean-man man
 	man ./zstd.1
+	man ./zstdgrep.1
+	man ./zstdless.1
 
 #-----------------------------------------------------------------------------
-# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+# make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
+EGREP = egrep --color=never
+
+# Print a two column output of targets and their description. To add a target description, put a
+# comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:
+#
+## list: Print all targets and their descriptions (if provided)
 .PHONY: list
 list:
-	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
+	@TARGETS=$$($(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null \
+		| awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' \
+		| $(EGREP) -v  -e '^[^[:alnum:]]' | sort); \
+	{ \
+	    printf "Target Name\tDescription\n"; \
+	    printf "%0.s-" {1..16}; printf "\t"; printf "%0.s-" {1..40}; printf "\n"; \
+	    for target in $$TARGETS; do \
+	        line=$$($(EGREP) "^##[[:space:]]+$$target:" $(lastword $(MAKEFILE_LIST))); \
+	        description=$$(echo $$line | awk '{i=index($$0,":"); print substr($$0,i+1)}' | xargs); \
+	        printf "$$target\t$$description\n"; \
+	    done \
+	} | column -t -s $$'\t'
+
 
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase
@@ -296,6 +342,8 @@ install: zstd
 	@$(INSTALL_MAN) zstd.1 $(DESTDIR)$(MAN1DIR)/zstd.1
 	@ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/zstdcat.1
 	@ln -sf zstd.1 $(DESTDIR)$(MAN1DIR)/unzstd.1
+	@$(INSTALL_MAN) zstdgrep.1 $(DESTDIR)$(MAN1DIR)/zstdgrep.1
+	@$(INSTALL_MAN) zstdless.1 $(DESTDIR)$(MAN1DIR)/zstdless.1
 	@echo zstd installation completed
 
 .PHONY: uninstall
@@ -305,6 +353,8 @@ uninstall:
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
 	@$(RM) $(DESTDIR)$(BINDIR)/zstd
+	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
+	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1
 	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdcat.1
 	@$(RM) $(DESTDIR)$(MAN1DIR)/unzstd.1
 	@$(RM) $(DESTDIR)$(MAN1DIR)/zstd.1

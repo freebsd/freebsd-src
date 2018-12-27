@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2018
+.Dd November 7, 2018
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -491,16 +491,22 @@ Check for the existence of the listed directories
 before running the
 .Cm start
 method.
+The list is checked before running
+.Va start_precmd .
 .It Va required_files
 Check for the readability of the listed files
 before running the
 .Cm start
 method.
+The list is checked before running
+.Va start_precmd .
 .It Va required_modules
 Ensure that the listed kernel modules are loaded
 before running the
 .Cm start
 method.
+The list is checked after running
+.Va start_precmd .
 This is done after invoking the commands from
 .Va start_precmd
 so that the missing modules are not loaded in vain
@@ -531,6 +537,8 @@ on each of the list variables
 before running the
 .Cm start
 method.
+The list is checked after running
+.Va start_precmd .
 .It Va ${name}_chdir
 Directory to
 .Ic cd

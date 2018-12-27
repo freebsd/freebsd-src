@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2018
+.Dd November 27, 2018
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -49,6 +49,7 @@
 .Nm
 .Op Fl qv
 .Op Fl f Ar conf_file
+.Op Fl e Ar separator
 .Op Fl rR
 .Op Cm * | Ar jail ...
 .Nm
@@ -63,6 +64,7 @@
 The
 .Nm
 utility creates new jails, or modifies or removes existing jails.
+It can also print a list of configured jails and their parameters.
 A jail
 .Pq or Dq prison
 is specified via parameters on the command line, or in the
@@ -71,6 +73,7 @@ file.
 .Pp
 At least one of the options
 .Fl c ,
+.Fl e ,
 .Fl m
 or
 .Fl r
@@ -86,6 +89,15 @@ and
 .Va name
 parameters (if specified on the command line)
 must not refer to an existing jail.
+.It Fl e Ar separator
+Exhibit a list of all configured non-wildcard jails and their parameters.
+No jail creation, modification or removal performed if this option is used.
+The
+.Ar separator
+string is used to separate parameters.
+Use
+.Xr jls 8
+utility to list running jails.
 .It Fl m
 Modify an existing jail.
 One of the
@@ -549,6 +561,11 @@ option.
 The jail root may administer quotas on the jail's filesystem(s).
 This includes filesystems that the jail may share with other jails or
 with non-jailed parts of the system.
+.It Va allow.read_msgbuf
+Jailed users may read the kernel message buffer.
+If the
+.Va security.bsd.unprivileged_read_msgbuf
+MIB entry is zero, this will be restricted to the root user.
 .It Va allow.socket_af
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
@@ -565,6 +582,8 @@ memory subject to
 and resource limits.
 .It Va allow.reserved_ports
 The jail root may bind to ports lower than 1024.
+.It Va allow.unprivileged_proc_debug
+Unprivileged processes in the jail may use debugging facilities.
 .El
 .El
 .Pp

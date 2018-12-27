@@ -36,7 +36,6 @@
 .In sys/mouse.h
 .Sh DESCRIPTION
 The mouse drivers
-.Xr mse 4 ,
 .Xr psm 4 ,
 .Xr ums 4
 and
@@ -360,8 +359,6 @@ command.
 .Bl -tag -width /dev/sysmouseXX -compact
 .It Pa /dev/cuau%d
 serial ports
-.It Pa /dev/mse%d
-bus and InPort mouse device
 .It Pa /dev/psm%d
 PS/2 mouse device
 .It Pa /dev/sysmouse
@@ -371,7 +368,6 @@ USB mouse device
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
-.Xr mse 4 ,
 .Xr psm 4 ,
 .Xr sysmouse 4 ,
 .Xr ums 4 ,

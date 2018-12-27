@@ -102,7 +102,6 @@ procfs_doprocregs(PFS_FILL_ARGS)
 		return (EBUSY);
 	}
 
-	/* XXXKSE: */
 	td2 = FIRST_THREAD_IN_PROC(p);
 #ifdef COMPAT_FREEBSD32
 	if (SV_CURPROC_FLAG(SV_ILP32)) {
@@ -111,8 +110,10 @@ procfs_doprocregs(PFS_FILL_ARGS)
 			return (EINVAL);
 		}
 		wrap32 = 1;
-	}
+		memset(&r32, 0, sizeof(r32));
+	} else
 #endif
+		memset(&r, 0, sizeof(r));
 	error = PROC(read, regs, td2, &r);
 	if (error == 0) {
 		PROC_UNLOCK(p);

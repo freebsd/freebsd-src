@@ -1085,7 +1085,6 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
     l_uint flags)
 {
 	struct cmsghdr *cmsg;
-	struct cmsgcred cmcred;
 	struct mbuf *control;
 	struct msghdr msg;
 	struct l_cmsghdr linux_cmsg;
@@ -1096,6 +1095,8 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	struct sockaddr *sa;
 	sa_family_t sa_family;
 	void *data;
+	l_size_t len;
+	l_size_t clen;
 	int error;
 
 	error = copyin(msghdr, &linux_msg, sizeof(linux_msg));
@@ -1126,9 +1127,8 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		return (error);
 
 	control = NULL;
-	cmsg = NULL;
 
-	if ((ptr_cmsg = LINUX_CMSG_FIRSTHDR(&linux_msg)) != NULL) {
+	if (linux_msg.msg_controllen >= sizeof(struct l_cmsghdr)) {
 		error = kern_getsockname(td, s, &sa, &datalen);
 		if (error != 0)
 			goto bad;
@@ -1136,9 +1136,13 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 		free(sa, M_SONAME);
 
 		error = ENOBUFS;
-		cmsg = malloc(CMSG_HDRSZ, M_LINUX, M_WAITOK|M_ZERO);
 		control = m_get(M_WAITOK, MT_CONTROL);
+		MCLGET(control, M_WAITOK);
+		data = mtod(control, void *);
+		datalen = 0;
 
+		ptr_cmsg = PTRIN(linux_msg.msg_control);
+		clen = linux_msg.msg_controllen;
 		do {
 			error = copyin(ptr_cmsg, &linux_cmsg,
 			    sizeof(struct l_cmsghdr));
@@ -1146,13 +1150,18 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				goto bad;
 
 			error = EINVAL;
-			if (linux_cmsg.cmsg_len < sizeof(struct l_cmsghdr))
+			if (linux_cmsg.cmsg_len < sizeof(struct l_cmsghdr) ||
+			    linux_cmsg.cmsg_len > clen)
+				goto bad;
+
+			if (datalen + CMSG_HDRSZ > MCLBYTES)
 				goto bad;
 
 			/*
 			 * Now we support only SCM_RIGHTS and SCM_CRED,
 			 * so return EINVAL in any other cmsg_type
 			 */
+			cmsg = data;
 			cmsg->cmsg_type =
 			    linux_to_bsd_cmsg_type(linux_cmsg.cmsg_type);
 			cmsg->cmsg_level =
@@ -1170,35 +1179,41 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 			if (sa_family != AF_UNIX)
 				continue;
 
-			data = LINUX_CMSG_DATA(ptr_cmsg);
-			datalen = linux_cmsg.cmsg_len - L_CMSG_HDRSZ;
-
-			switch (cmsg->cmsg_type)
-			{
-			case SCM_RIGHTS:
-				break;
-
-			case SCM_CREDS:
-				data = &cmcred;
-				datalen = sizeof(cmcred);
+			if (cmsg->cmsg_type == SCM_CREDS) {
+				len = sizeof(struct cmsgcred);
+				if (datalen + CMSG_SPACE(len) > MCLBYTES)
+					goto bad;
 
 				/*
 				 * The lower levels will fill in the structure
 				 */
-				bzero(data, datalen);
-				break;
+				memset(CMSG_DATA(data), 0, len);
+			} else {
+				len = linux_cmsg.cmsg_len - L_CMSG_HDRSZ;
+				if (datalen + CMSG_SPACE(len) < datalen ||
+				    datalen + CMSG_SPACE(len) > MCLBYTES)
+					goto bad;
+
+				error = copyin(LINUX_CMSG_DATA(ptr_cmsg),
+				    CMSG_DATA(data), len);
+				if (error != 0)
+					goto bad;
 			}
 
-			cmsg->cmsg_len = CMSG_LEN(datalen);
+			cmsg->cmsg_len = CMSG_LEN(len);
+			data = (char *)data + CMSG_SPACE(len);
+			datalen += CMSG_SPACE(len);
 
-			error = ENOBUFS;
-			if (!m_append(control, CMSG_HDRSZ, (c_caddr_t)cmsg))
-				goto bad;
-			if (!m_append(control, datalen, (c_caddr_t)data))
-				goto bad;
-		} while ((ptr_cmsg = LINUX_CMSG_NXTHDR(&linux_msg, ptr_cmsg)));
+			if (clen <= LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len))
+				break;
 
-		if (m_length(control, NULL) == 0) {
+			clen -= LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len);
+			ptr_cmsg = (struct l_cmsghdr *)((char *)ptr_cmsg +
+			    LINUX_CMSG_ALIGN(linux_cmsg.cmsg_len));
+		} while(clen >= sizeof(struct l_cmsghdr));
+
+		control->m_len = datalen;
+		if (datalen == 0) {
 			m_freem(control);
 			control = NULL;
 		}
@@ -1212,8 +1227,6 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 bad:
 	m_freem(control);
 	free(iov, M_IOV);
-	if (cmsg)
-		free(cmsg, M_LINUX);
 	return (error);
 }
 
@@ -1520,7 +1533,7 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		int s;
 		int level;
 		int name;
-		caddr_t val;
+		const void *val;
 		int valsize;
 	} */ bsd_args;
 	l_timeval linux_tv;
@@ -1570,10 +1583,11 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	bsd_args.valsize = args->optlen;
 
 	if (name == IPV6_NEXTHOP) {
-		linux_to_bsd_sockaddr((struct sockaddr *)bsd_args.val,
-			bsd_args.valsize);
+		linux_to_bsd_sockaddr(__DECONST(struct sockaddr *,
+		    bsd_args.val), bsd_args.valsize);
 		error = sys_setsockopt(td, &bsd_args);
-		bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.val);
+		bsd_to_linux_sockaddr(__DECONST(struct sockaddr *,
+		    bsd_args.val));
 	} else
 		error = sys_setsockopt(td, &bsd_args);
 

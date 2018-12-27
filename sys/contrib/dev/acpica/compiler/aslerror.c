@@ -201,6 +201,11 @@ AePrintSubError (
     FILE                    *OutputFile,
     ASL_ERROR_MSG           *Enode);
 
+static UINT8
+GetModifiedLevel (
+    UINT8                   Level,
+    UINT16                  MessageId);
+
 
 /*******************************************************************************
  *
@@ -968,11 +973,12 @@ AslLogNewError (
     ASL_ERROR_MSG           *SubError)
 {
     ASL_ERROR_MSG           *Enode = NULL;
+    UINT8                   ModifiedLevel = GetModifiedLevel (Level, MessageId);
 
 
-    AslInitEnode (&Enode, Level, MessageId, LineNumber, LogicalLineNumber,
-        LogicalByteOffset, Column, Filename, Message, SourceLine,
-        SubError);
+    AslInitEnode (&Enode, ModifiedLevel, MessageId, LineNumber,
+        LogicalLineNumber, LogicalByteOffset, Column, Filename, Message,
+        SourceLine, SubError);
 
     /* Add the new node to the error node list */
 
@@ -985,7 +991,7 @@ AslLogNewError (
         AePrintException (ASL_FILE_STDERR, Enode, NULL);
     }
 
-    AslGbl_ExceptionCount[Level]++;
+    AslGbl_ExceptionCount[ModifiedLevel]++;
     if (AslGbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
         printf ("\nMaximum error count (%u) exceeded\n", ASL_MAX_ERROR_COUNT);
@@ -998,6 +1004,44 @@ AslLogNewError (
 
     return;
 }
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    GetModifiedLevel
+ *
+ * PARAMETERS:  Level           - Seriousness (Warning/error, etc.)
+ *              MessageId       - Index into global message buffer
+ *
+ * RETURN:      UINT8           - modified level
+ *
+ * DESCRIPTION: Get the modified level of exception codes that are reported as
+ *              errors from the -ww option.
+ *
+ ******************************************************************************/
+
+static UINT8
+GetModifiedLevel (
+    UINT8                   Level,
+    UINT16                  MessageId)
+{
+    UINT16                  i;
+    UINT16                  ExceptionCode;
+
+
+    ExceptionCode = AeBuildFullExceptionCode (Level, MessageId);
+
+    for (i = 0; i < AslGbl_ElevatedMessagesIndex; i++)
+    {
+        if (ExceptionCode == AslGbl_ElevatedMessages[i])
+        {
+            return (ASL_ERROR);
+        }
+    }
+
+    return (Level);
+}
+
 
 /*******************************************************************************
  *
@@ -1097,7 +1141,7 @@ AslExpectException (
 
     if (AslGbl_ExpectedMessagesIndex >= ASL_MAX_EXPECTED_MESSAGES)
     {
-        printf ("Too many messages have been registered as expected (max %u)\n",
+        printf ("Too many messages have been registered as expected (max %d)\n",
             ASL_MAX_DISABLED_MESSAGES);
         return (AE_LIMIT);
     }
@@ -1144,7 +1188,7 @@ AslDisableException (
 
     if (AslGbl_DisabledMessagesIndex >= ASL_MAX_DISABLED_MESSAGES)
     {
-        printf ("Too many messages have been disabled (max %u)\n",
+        printf ("Too many messages have been disabled (max %d)\n",
             ASL_MAX_DISABLED_MESSAGES);
         return (AE_LIMIT);
     }
@@ -1154,6 +1198,51 @@ AslDisableException (
     return (AE_OK);
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AslElevateException
+ *
+ * PARAMETERS:  MessageIdString     - ID of excepted exception during compile
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Enter a message ID into the global elevated exceptions table.
+ *              These messages will be considered as compilation errors.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AslElevateException (
+    char                    *MessageIdString)
+{
+    UINT32                  MessageId;
+
+
+    /* Convert argument to an integer and validate it */
+
+    MessageId = (UINT32) strtoul (MessageIdString, NULL, 0);
+
+    if (MessageId > 6999)
+    {
+        printf ("\"%s\" is not a valid warning/remark/erro ID\n",
+            MessageIdString);
+        return (AE_BAD_PARAMETER);
+    }
+
+    /* Insert value into the global expected message array */
+
+    if (AslGbl_ElevatedMessagesIndex >= ASL_MAX_ELEVATED_MESSAGES)
+    {
+        printf ("Too many messages have been registered as elevated (max %d)\n",
+            ASL_MAX_DISABLED_MESSAGES);
+        return (AE_LIMIT);
+    }
+
+    AslGbl_ElevatedMessages[AslGbl_ExpectedMessagesIndex] = MessageId;
+    AslGbl_ElevatedMessagesIndex++;
+    return (AE_OK);
+}
 
 /*******************************************************************************
  *

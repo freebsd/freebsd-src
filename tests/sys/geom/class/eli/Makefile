@@ -21,10 +21,6 @@ ATF_TESTS_SH+=	setkey_test
 
 ${PACKAGE}FILES+=		conf.sh
 
-.for t in ${TAP_TESTS_SH}
-TEST_METADATA.$t+=	required_user="root"
-.endfor
-
 CFLAGS.pbkdf2_test=	-I${SRCTOP}/sys
 
 SRCS.pbkdf2_test=	\

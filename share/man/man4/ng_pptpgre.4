@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pptpgre.8,v 1.2 1999/12/08 00:20:53 archie Exp $
 .\"
-.Dd November 13, 2012
+.Dd November 4, 2018
 .Dt NG_PPTPGRE 4
 .Os
 .Sh NAME
@@ -141,11 +141,33 @@ This command atomically gets and resets the node statistics, returning a
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when both hooks have been disconnected.
+.Sh SYSCTL VARIABLES
+A set of
+.Xr sysctl 8
+variables controls ability of this node to deal with some
+amount of packet reorder that sometimes happens in transit.
+Packet reorder results in packet drops (unless the order is restored)
+as PPP protocol can not deliver reordered data.
+These variables are shown below together
+with their default value and meaning:
+.Bl -tag -width indent
+.It Va net.graph.pptpgre.reorder_max: 1
+Defines maximum length of node's private reorder queue
+used to keep data waiting for late packets.
+Zero value disables reordering.
+Default value allows the node to restore the order for two packets swapped
+in transit.
+Greater values allow the node to deliver packets being late after more
+packets in sequence at cost of increased kernel memory usage.
+.It Va net.graph.pptpgre.reorder_timeout: 1
+Defines time value in miliseconds used to wait for late packets.
+.El
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr ng_ksocket 4 ,
 .Xr ng_ppp 4 ,
-.Xr ngctl 8
+.Xr ngctl 8 ,
+.Xr sysctl 8
 .Rs
 .%A K. Hamzeh
 .%A G. Pall

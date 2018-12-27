@@ -74,6 +74,7 @@ struct g_concat_disk {
 	struct g_concat_softc	*d_softc;
 	off_t			 d_start;
 	off_t			 d_end;
+	int			 d_candelete;
 	int			 d_removed;
 };
 

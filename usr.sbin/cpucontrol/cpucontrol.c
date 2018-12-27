@@ -34,18 +34,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#include <err.h>
+#include <errno.h>
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <err.h>
 #include <sysexits.h>
-#include <dirent.h>
 
 #include <sys/queue.h>
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/cpuctl.h>
@@ -74,16 +76,6 @@ int	verbosity_level = 0;
 #define	HIGH(val)	(uint32_t)(((val) >> 32) & 0xffffffff)
 #define	LOW(val)	(uint32_t)((val) & 0xffffffff)
 
-/*
- * Macros for freeing SLISTs, probably must be in /sys/queue.h
- */
-#define	SLIST_FREE(head, field, freef) do {				\
-		typeof(SLIST_FIRST(head)) __elm0;			\
-		typeof(SLIST_FIRST(head)) __elm;			\
-		SLIST_FOREACH_SAFE(__elm, (head), field, __elm0)	\
-			(void)(freef)(__elm);				\
-} while(0);
-
 struct datadir {
 	const char		*path;
 	SLIST_ENTRY(datadir)	next;
@@ -102,7 +94,6 @@ static struct ucode_handler {
 #define NHANDLERS (sizeof(handlers) / sizeof(*handlers))
 
 static void	usage(void);
-static int	isdir(const char *path);
 static int	do_cpuid(const char *cmdarg, const char *dev);
 static int	do_cpuid_count(const char *cmdarg, const char *dev);
 static int	do_msr(const char *cmdarg, const char *dev);
@@ -120,20 +111,6 @@ usage(void)
 	fprintf(stderr, "Usage: %s [-vh] [-d datadir] [-m msr[=value] | "
 	    "-i level | -i level,level_type | -e | -u] device\n", name);
 	exit(EX_USAGE);
-}
-
-static int
-isdir(const char *path)
-{
-	int error;
-	struct stat st;
-
-	error = stat(path, &st);
-	if (error < 0) {
-		WARN(0, "stat(%s)", path);
-		return (error);
-	}
-	return (st.st_mode & S_IFDIR);
 }
 
 static int
@@ -361,16 +338,77 @@ do_eval_cpu_features(const char *dev)
 }
 
 static int
+try_a_fw_image(const char *dev_path, int devfd, int fwdfd, const char *dpath,
+    const char *fname, struct ucode_handler *handler)
+{
+	struct ucode_update_params parm;
+	struct stat st;
+	char *fw_path;
+	void *fw_map;
+	int fwfd, rc;
+
+	rc = 0;
+	fw_path = NULL;
+	fw_map = MAP_FAILED;
+	fwfd = openat(fwdfd, fname, O_RDONLY);
+	if (fwfd < 0) {
+		WARN(0, "openat(%s, %s)", dpath, fname);
+		goto out;
+	}
+
+	rc = asprintf(&fw_path, "%s/%s", dpath, fname);
+	if (rc == -1) {
+		WARNX(0, "out of memory");
+		rc = ENOMEM;
+		goto out;
+	}
+
+	rc = fstat(fwfd, &st);
+	if (rc != 0) {
+		WARN(0, "fstat(%s)", fw_path);
+		rc = 0;
+		goto out;
+	}
+	if (st.st_size <= 0) {
+		WARN(0, "%s: empty", fw_path);
+		goto out;
+	}
+
+	fw_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fwfd, 0);
+	if (fw_map == MAP_FAILED) {
+		WARN(0, "mmap(%s)", fw_path);
+		goto out;
+	}
+
+
+	memset(&parm, 0, sizeof(parm));
+	parm.devfd = devfd;
+	parm.fwimage = fw_map;
+	parm.fwsize = st.st_size;
+	parm.dev_path = dev_path;
+	parm.fw_path = fw_path;
+
+	handler->update(&parm);
+
+out:
+	if (fw_map != MAP_FAILED)
+		munmap(fw_map, st.st_size);
+	free(fw_path);
+	if (fwfd >= 0)
+		close(fwfd);
+	return (rc);
+}
+
+static int
 do_update(const char *dev)
 {
-	int fd;
+	int fd, fwdfd;
 	unsigned int i;
 	int error;
 	struct ucode_handler *handler;
 	struct datadir *dir;
 	DIR *dirp;
 	struct dirent *direntry;
-	char buf[MAXPATHLEN];
 
 	fd = open(dev, O_RDONLY);
 	if (fd < 0) {
@@ -379,7 +417,7 @@ do_update(const char *dev)
 	}
 
 	/*
-	 * Find the appropriate handler for device.
+	 * Find the appropriate handler for CPU.
 	 */
 	for (i = 0; i < NHANDLERS; i++)
 		if (handlers[i].probe(fd) == 0)
@@ -387,39 +425,54 @@ do_update(const char *dev)
 	if (i < NHANDLERS)
 		handler = &handlers[i];
 	else {
-		WARNX(0, "cannot find the appropriate handler for device");
+		WARNX(0, "cannot find the appropriate handler for %s", dev);
 		close(fd);
 		return (1);
 	}
 	close(fd);
 
+	fd = open(dev, O_RDWR);
+	if (fd < 0) {
+		WARN(0, "error opening %s for writing", dev);
+		return (1);
+	}
+
 	/*
 	 * Process every image in specified data directories.
 	 */
 	SLIST_FOREACH(dir, &datadirs, next) {
-		dirp = opendir(dir->path);
-		if (dirp == NULL) {
-			WARNX(1, "skipping directory %s: not accessible", dir->path);
+		fwdfd = open(dir->path, O_RDONLY);
+		if (fwdfd < 0) {
+			WARN(1, "skipping directory %s: not accessible", dir->path);
 			continue;
 		}
+		dirp = fdopendir(fwdfd);
+		if (dirp == NULL) {
+			WARNX(0, "out of memory");
+			close(fwdfd);
+			close(fd);
+			return (1);
+		}
+
 		while ((direntry = readdir(dirp)) != NULL) {
 			if (direntry->d_namlen == 0)
 				continue;
-			error = snprintf(buf, sizeof(buf), "%s/%s", dir->path,
-			    direntry->d_name);
-			if ((unsigned)error >= sizeof(buf))
-				WARNX(0, "skipping %s, buffer too short",
-				    direntry->d_name);
-			if (isdir(buf) != 0) {
-				WARNX(2, "skipping %s: is a directory", buf);
+			if (direntry->d_type == DT_DIR)
 				continue;
+
+			error = try_a_fw_image(dev, fd, fwdfd, dir->path,
+			    direntry->d_name, handler);
+			if (error != 0) {
+				closedir(dirp);
+				close(fd);
+				return (1);
 			}
-			handler->update(dev, buf);
 		}
 		error = closedir(dirp);
 		if (error != 0)
 			WARN(0, "closedir(%s)", dir->path);
 	}
+	close(fd);
 	return (0);
 }
 
@@ -441,6 +494,7 @@ datadir_add(const char *path)
 int
 main(int argc, char *argv[])
 {
+	struct datadir *elm;
 	int c, flags;
 	const char *cmdarg;
 	const char *dev;
@@ -511,6 +565,9 @@ main(int argc, char *argv[])
 	default:
 		usage();	/* Only one command can be selected. */
 	}
-	SLIST_FREE(&datadirs, next, free);
+	while ((elm = SLIST_FIRST(&datadirs)) != NULL) {
+		SLIST_REMOVE_HEAD(&datadirs, next);
+		free(elm);
+	}
 	return (error == 0 ? 0 : 1);
 }

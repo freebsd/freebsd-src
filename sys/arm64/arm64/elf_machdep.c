@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 static struct sysentvec elf64_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
-	.sv_mask	= 0,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -106,21 +105,6 @@ static Elf64_Brandinfo freebsd_brand_info = {
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_FIRST,
     (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_info);
-
-static Elf64_Brandinfo freebsd_brand_oinfo = {
-	.brand		= ELFOSABI_FREEBSD,
-	.machine	= EM_AARCH64,
-	.compat_3_brand	= "FreeBSD",
-	.emul_path	= NULL,
-	.interp_path	= "/usr/libexec/ld-elf.so.1",
-	.sysvec		= &elf64_freebsd_sysvec,
-	.interp_newpath	= NULL,
-	.brand_note	= &elf64_freebsd_brandnote,
-	.flags		= BI_CAN_EXEC_DYN | BI_BRAND_NOTE
-};
-
-SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
-    (sysinit_cfunc_t)elf64_insert_brand_entry, &freebsd_brand_oinfo);
 
 void
 elf64_dump_thread(struct thread *td __unused, void *dst __unused,

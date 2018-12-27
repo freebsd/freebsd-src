@@ -93,6 +93,8 @@
 	<language name="fr"
 		encoding="ISO8859-1 ISO8859-15"
 		countries="CA" />
+	<language name="ga"
+		countries="IE" />		<!-- UTF-8 only -->
 	<language name="he"
 		countries="IL" />
 	<language name="hi"
@@ -568,6 +570,9 @@
 	<translation encoding="US-ASCII" cldr="POUND SIGN" string="GBP" />
 	<translation encoding="US-ASCII"
 	    cldr="NO-BREAK SPACE" unicode="SPACE" />
+
+	<translation encoding="ISO8859-1 ISO8859-15"
+	    cldr="NARROW NO-BREAK SPACE" unicode="NO-BREAK SPACE" />
 
 	<!-- punctuation and currency -->
 	<translation encoding="ISO8859-1 ISO8859-15"

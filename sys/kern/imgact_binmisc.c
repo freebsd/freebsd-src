@@ -649,21 +649,12 @@ imgact_binmisc_exec(struct image_params *imgp)
 		s++;
 	}
 
-	/* Check to make sure we won't overrun the stringspace. */
-	if (offset > imgp->args->stringspace) {
+	/* Make room for the interpreter */
+	error = exec_args_adjust_args(imgp->args, 0, offset);
+	if (error != 0) {
 		sx_sunlock(&interp_list_sx);
-		error = E2BIG;
 		goto done;
 	}
-
-	/* Make room for the interpreter */
-	bcopy(imgp->args->begin_argv, imgp->args->begin_argv + offset,
-	    imgp->args->endp - imgp->args->begin_argv);
-
-	/* Adjust everything by the offset. */
-	imgp->args->begin_envv += offset;
-	imgp->args->endp += offset;
-	imgp->args->stringspace -= offset;
 
 	/* Add the new argument(s) in the count. */
 	imgp->args->argc += ibe->ibe_interp_argcnt;

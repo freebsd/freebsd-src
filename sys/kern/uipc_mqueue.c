@@ -393,7 +393,7 @@ mqnode_free(struct mqfs_node *node)
 static __inline void
 mqnode_addref(struct mqfs_node *node)
 {
-	atomic_fetchadd_int(&node->mn_refcount, 1);
+	atomic_add_int(&node->mn_refcount, 1);
 }
 
 static __inline void
@@ -1032,7 +1032,7 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 	sx_assert(&pn->mn_info->mi_lock, SX_LOCKED);
 
 	if (ucred->cr_uid != pn->mn_uid &&
-	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN, 0)) != 0)
+	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN)) != 0)
 		error = EACCES;
 	else if (!pn->mn_deleted) {
 		parent = pn->mn_parent;
@@ -1428,7 +1428,6 @@ mqfs_readdir(struct vop_readdir_args *ap)
 		entry.d_fileno = pn->mn_fileno;
 		for (i = 0; i < MQFS_NAMELEN - 1 && pn->mn_name[i] != '\0'; ++i)
 			entry.d_name[i] = pn->mn_name[i];
-		entry.d_name[i] = 0;
 		entry.d_namlen = i;
 		switch (pn->mn_type) {
 		case mqfstype_root:
@@ -1447,6 +1446,7 @@ mqfs_readdir(struct vop_readdir_args *ap)
 			panic("%s has unexpected node type: %d", pn->mn_name,
 				pn->mn_type);
 		}
+		dirent_terminate(&entry);
 		if (entry.d_reclen > uio->uio_resid)
                         break;
 		if (offset >= uio->uio_offset) {
@@ -2581,7 +2581,7 @@ mqf_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 		gid = pn->mn_gid;
 	if (((uid != pn->mn_uid && uid != active_cred->cr_uid) ||
 	    (gid != pn->mn_gid && !groupmember(gid, active_cred))) &&
-	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(active_cred, PRIV_VFS_CHOWN)))
 		goto out;
 	pn->mn_uid = uid;
 	pn->mn_gid = gid;

@@ -261,7 +261,7 @@ typedef	__uint64_t	kvaddr_t;
 typedef	__uint64_t	ksize_t;
 
 typedef	__vm_offset_t	vm_offset_t;
-typedef	__int64_t	vm_ooffset_t;
+typedef	__uint64_t	vm_ooffset_t;
 typedef	__vm_paddr_t	vm_paddr_t;
 typedef	__uint64_t	vm_pindex_t;
 typedef	__vm_size_t	vm_size_t;
@@ -400,10 +400,10 @@ __minor(dev_t _d)
 }
 #define	makedev(M, m)	__makedev((M), (m))
 static __inline dev_t
-__makedev(int _M, int _m)
+__makedev(int _Major, int _Minor)
 {
-	return (((dev_t)(_M & 0xffffff00) << 32) | ((_M & 0xff) << 8) |
-	    ((dev_t)(_m & 0xff00) << 24) | (_m & 0xffff00ff));
+	return (((dev_t)(_Major & 0xffffff00) << 32) | ((_Major & 0xff) << 8) |
+	    ((dev_t)(_Minor & 0xff00) << 24) | (_Minor & 0xffff00ff));
 }
 
 /*

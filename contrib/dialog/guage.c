@@ -1,9 +1,9 @@
 /*
- *  $Id: guage.c,v 1.68 2013/09/22 19:10:22 tom Exp $
+ *  $Id: guage.c,v 1.76 2018/06/21 08:23:43 tom Exp $
  *
  *  guage.c -- implements the gauge dialog
  *
- *  Copyright 2000-2012,2013	Thomas E. Dickey
+ *  Copyright 2000-2015,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -121,14 +121,14 @@ repaint_text(MY_OBJ * obj)
     WINDOW *dialog = obj->obj.win;
     int i, x;
 
-    if (dialog != 0 && obj->obj.input != 0) {
+    if (dialog != 0) {
 	(void) werase(dialog);
 	dlg_draw_box2(dialog, 0, 0, obj->height, obj->width, dialog_attr,
 		      border_attr, border2_attr);
 
 	dlg_draw_title(dialog, obj->title);
 
-	(void) wattrset(dialog, dialog_attr);
+	dlg_attrset(dialog, dialog_attr);
 	dlg_draw_helpline(dialog, FALSE);
 	dlg_print_autowrap(dialog, obj->prompt, obj->height, obj->width);
 
@@ -145,7 +145,7 @@ repaint_text(MY_OBJ * obj)
 	 * attribute.
 	 */
 	(void) wmove(dialog, obj->height - 3, 4);
-	(void) wattrset(dialog, gauge_attr);
+	dlg_attrset(dialog, gauge_attr);
 
 	for (i = 0; i < (obj->width - 2 * (3 + MARGIN)); i++)
 	    (void) waddch(dialog, ' ');
@@ -160,9 +160,9 @@ repaint_text(MY_OBJ * obj)
 	 */
 	x = (obj->percent * (obj->width - 2 * (3 + MARGIN))) / 100;
 	if ((gauge_attr & A_REVERSE) != 0) {
-	    wattroff(dialog, A_REVERSE);
+	    dlg_attroff(dialog, A_REVERSE);
 	} else {
-	    (void) wattrset(dialog, A_REVERSE);
+	    dlg_attrset(dialog, A_REVERSE);
 	}
 	(void) wmove(dialog, obj->height - 3, 4);
 	for (i = 0; i < x; i++) {
@@ -182,11 +182,13 @@ handle_input(DIALOG_CALLBACK * cb)
 {
     MY_OBJ *obj = (MY_OBJ *) cb;
     bool result;
+    bool cleanup = FALSE;
     int status;
     char buf[MY_LEN + 1];
 
     if (dialog_state.pipe_input == 0) {
 	status = -1;
+	cleanup = TRUE;
     } else if ((status = read_data(buf, dialog_state.pipe_input)) > 0) {
 
 	if (isMarker(buf)) {
@@ -222,16 +224,19 @@ handle_input(DIALOG_CALLBACK * cb)
     } else {
 	if (feof(dialog_state.pipe_input) ||
 	    (ferror(dialog_state.pipe_input) && errno != EINTR)) {
-	    delink(obj);
-	    dlg_remove_callback(cb);
+	    cleanup = TRUE;
 	}
     }
 
+    repaint_text(obj);
     if (status > 0) {
 	result = TRUE;
-	repaint_text(obj);
     } else {
 	result = FALSE;
+	if (cleanup) {
+	    dlg_remove_callback(cb);
+	    delink(obj);
+	}
     }
 
     return result;
@@ -240,7 +245,7 @@ handle_input(DIALOG_CALLBACK * cb)
 static bool
 handle_my_getc(DIALOG_CALLBACK * cb, int ch, int fkey, int *result)
 {
-    int status = TRUE;
+    bool status = TRUE;
 
     *result = DLG_EXIT_OK;
     if (cb != 0) {
@@ -265,6 +270,8 @@ my_cleanup(DIALOG_CALLBACK * cb)
 	    free(obj->prompt);
 	    obj->prompt = obj->prompt_buf;
 	}
+	free(obj->title);
+	dlg_del_window(obj->obj.win);
 	delink(obj);
     }
 }
@@ -369,12 +376,12 @@ dlg_free_gauge(void *objptr)
 {
     MY_OBJ *obj = (MY_OBJ *) objptr;
 
-    curs_set(1);
     if (valid(obj)) {
-	delink(obj);
 	obj->obj.keep_win = FALSE;
 	dlg_remove_callback(&(obj->obj));
+	delink(obj);
     }
+    curs_set(1);
 }
 
 /*
@@ -397,6 +404,13 @@ dialog_gauge(const char *title,
     void *objptr = dlg_allocate_gauge(title, cprompt, height, width, percent);
     MY_OBJ *obj = (MY_OBJ *) objptr;
 
+    DLG_TRACE(("# gauge args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2N("percent", percent);
+
     dlg_add_callback_ref((DIALOG_CALLBACK **) & obj, my_cleanup);
     dlg_update_gauge(obj, percent);
 
@@ -407,6 +421,7 @@ dialog_gauge(const char *title,
 	if (fkey && ch == KEY_RESIZE) {
 	    MY_OBJ *oldobj = obj;
 
+	    dlg_will_resize(obj->obj.win);
 	    dlg_mouse_free_regions();
 
 	    obj = dlg_allocate_gauge(title,

@@ -106,13 +106,18 @@
 #define	FREEBSD32_USRSTACK	FREEBSD32_SHAREDPAGE
 
 #ifdef __powerpc64__
+#ifndef LOCORE
 #define	VM_MIN_KERNEL_ADDRESS		0xe000000000000000UL
 #define	VM_MAX_KERNEL_ADDRESS		0xe0000007ffffffffUL
+#else
+#define	VM_MIN_KERNEL_ADDRESS		0xe000000000000000
+#define	VM_MAX_KERNEL_ADDRESS		0xe0000007ffffffff
+#endif
 #define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 #endif
 
 #ifdef AIM
-#define	KERNBASE		0x00100100UL	/* start of kernel virtual */
+#define	KERNBASE		0x00100100	/* start of kernel virtual */
 
 #ifndef __powerpc64__
 #define	VM_MIN_KERNEL_ADDRESS	((vm_offset_t)KERNEL_SR << ADDR_SR_SHFT)
@@ -128,16 +133,9 @@
 
 #else /* Book-E */
 
-#ifdef __powerpc64__
-#ifndef LOCORE
-#define	KERNBASE	0xe000000000000100UL	/* start of kernel virtual */
-#else
-#define	KERNBASE	0xe000000000000100	/* start of kernel virtual */
-#endif
-#else
-#define	KERNBASE		0xc0000000	/* start of kernel virtual */
-
-#define	VM_MIN_KERNEL_ADDRESS	KERNBASE
+#define	KERNBASE		0x04000100	/* start of kernel physical */
+#ifndef __powerpc64__
+#define	VM_MIN_KERNEL_ADDRESS	0xc0000000
 #define	VM_MAX_KERNEL_ADDRESS	0xffffefff
 #define	VM_MAX_SAFE_KERNEL_ADDRESS	VM_MAX_KERNEL_ADDRESS
 #endif

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include <assert.h>
 #include <err.h>
@@ -960,8 +961,11 @@ sse42_supported(void)
 int
 rfb_init(char *hostname, int port, int wait, char *password)
 {
+	int e;
+	char servname[6];
 	struct rfb_softc *rc;
-	struct sockaddr_in sin;
+	struct addrinfo *ai;
+	struct addrinfo hints;
 	int on = 1;
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
@@ -978,29 +982,43 @@ rfb_init(char *hostname, int port, int wait, char *password)
 
 	rc->password = password;
 
-	rc->sfd = socket(AF_INET, SOCK_STREAM, 0);
+	snprintf(servname, sizeof(servname), "%d", port ? port : 5900);
+
+	if (!hostname || strlen(hostname) == 0)
+#if defined(INET)
+		hostname = "127.0.0.1";
+#elif defined(INET6)
+		hostname = "[::1]";
+#endif
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV | AI_PASSIVE;
+
+	if ((e = getaddrinfo(hostname, servname, &hints, &ai)) != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(e));
+		return(-1);
+	}
+
+	rc->sfd = socket(ai->ai_family, ai->ai_socktype, 0);
 	if (rc->sfd < 0) {
 		perror("socket");
+		freeaddrinfo(ai);
 		return (-1);
 	}
 
 	setsockopt(rc->sfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_port = port ? htons(port) : htons(5900);
-	if (hostname && strlen(hostname) > 0)
-		inet_pton(AF_INET, hostname, &(sin.sin_addr));
-	else
-		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-	if (bind(rc->sfd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+	if (bind(rc->sfd, ai->ai_addr, ai->ai_addrlen) < 0) {
 		perror("bind");
+		freeaddrinfo(ai);
 		return (-1);
 	}
 
 	if (listen(rc->sfd, 1) < 0) {
 		perror("listen");
+		freeaddrinfo(ai);
 		return (-1);
 	}
 
@@ -1028,5 +1046,6 @@ rfb_init(char *hostname, int port, int wait, char *password)
 		pthread_mutex_unlock(&rc->mtx);
 	}
 
+	freeaddrinfo(ai);
 	return (0);
 }

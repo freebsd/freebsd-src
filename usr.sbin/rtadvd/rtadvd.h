@@ -196,6 +196,9 @@ struct	rainfo {
 	uint16_t	rai_mininterval;	/* MinRtrAdvInterval */
 	int 	rai_managedflg;		/* AdvManagedFlag */
 	int	rai_otherflg;		/* AdvOtherConfigFlag */
+#ifdef DRAFT_IETF_6MAN_IPV6ONLY_FLAG
+	int	rai_ipv6onlyflg;	/* AdvIPv6OnlyFlag */
+#endif
 
 	int	rai_rtpref;		/* router preference */
 	uint32_t	rai_linkmtu;		/* AdvLinkMTU */

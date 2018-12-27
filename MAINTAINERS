@@ -38,13 +38,13 @@ subsystem	login	notes
 atf			freebsd-testing,jmmv,ngie	Pre-commit review requested.
 ath(4)		adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 contrib/compiler-rt	dim	Pre-commit review preferred.
+contrib/ipfilter	cy	Pre-commit review requested.
 contrib/libc++		dim	Pre-commit review preferred.
 contrib/libcxxrt	dim	Pre-commit review preferred.
 contrib/llvm		dim	Pre-commit review preferred.
 contrib/llvm/tools/lldb	emaste	Pre-commit review preferred.
 contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
 contrib/pjdfstest	freebsd-testing,asomers,ngie,pjd	Pre-commit review requested.
-dev/usb/wlan	adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 *env(3)		secteam	Due to the problematic security history of this
 			code, please have patches reviewed by secteam.
 etc/mail	gshapiro	Pre-commit review requested.  Keep in sync with -STABLE.
@@ -89,6 +89,7 @@ share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit r
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
+sys/contrib/ipfilter	cy	Pre-commit review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
@@ -110,5 +111,8 @@ autofs(5)	trasz	Pre-commit review recommended.
 iscsi(4)	trasz	Pre-commit review recommended.
 rctl(8)		trasz	Pre-commit review recommended.
 sys/dev/ofw	nwhitehorn	Pre-commit review recommended.
+sys/dev/drm*	imp	Pre-commit review requested in phabricator. Changes need to
+			be mirrored in github repo.
+sys/dev/usb/wlan adrian	Pre-commit review requested, send to freebsd-wireless@freebsd.org
 sys/arm/allwinner	manu	Pre-commit review requested
 sys/arm64/rockchip	manu	Pre-commit review requested

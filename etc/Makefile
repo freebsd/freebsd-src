@@ -4,6 +4,8 @@
 .include <src.opts.mk>
 
 FILESGROUPS=	FILES
+NLS_ALIASES=	POSIX C \
+		en_US.US_ASCII C
 
 # No need as it is empty and just causes rebuilds since this file does so much.
 UPDATE_DEPENDFILE=	no
@@ -157,42 +159,34 @@ distrib-cleanup: .PHONY
 	done
 
 distrib-dirs: ${MTREES:N/*} distrib-cleanup .PHONY
-	@set ${MTREES}; \
-	while test $$# -ge 2; do \
-		m=${.CURDIR}/$$1; \
-		shift; \
-		d=${DESTDIR}$$1; \
-		shift; \
-		test -d $$d || mkdir -p $$d; \
-		${ECHO} ${MTREE_CMD} -deU ${MTREE_FSCHG} \
-		    ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
-		${MTREE_FILTER} $$m | \
-		${MTREE_CMD} -deU ${MTREE_FSCHG} ${MTREE_FOLLOWS_SYMLINKS} \
-		    -p $$d; \
-	done; true
+.for _m _d in ${MTREES}
+	@m=${.CURDIR}/${_m}; \
+	d=${DESTDIR}${_d}; \
+	test -d $$d || mkdir -p $$d; \
+	${ECHO} ${MTREE_CMD} -deU ${MTREE_FSCHG} \
+	    ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
+	${MTREE_FILTER} $$m | \
+	${MTREE_CMD} -deU ${MTREE_FSCHG} ${MTREE_FOLLOWS_SYMLINKS} \
+	    -p $$d
+.endfor
 .if defined(NO_ROOT)
-	@set ${MTREES}; \
-	while test $$# -ge 2; do \
-		m=${.CURDIR}/$$1; \
-		shift; \
-		d=$$1; \
-		test "$$d" == "/" && d=""; \
-		d=${DISTBASE}$$d; \
-		shift; \
-		test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
-		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
-		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
-		${MTREE_FILTER} $$m | \
-		${MTREE_CMD:N-W} -C -K all | sed s#^\.#.$$d# | \
-		    ${METALOG.add} ; \
-	done; true
+.for _m _d in ${MTREES}
+	@m=${.CURDIR}/${_m}; \
+	d=${_d}; \
+	test "$$d" == "/" && d=""; \
+	d=${DISTBASE}$$d; \
+	test -d ${DESTDIR}/$$d || mkdir -p ${DESTDIR}/$$d; \
+	${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K all | " \
+	    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
+	${MTREE_FILTER} $$m | \
+	${MTREE_CMD:N-W} -C -K all | sed s#^\.#.$$d# | \
+	    ${METALOG.add}
+.endfor
 .endif
 .if ${MK_NLS} != "no"
-	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
-	while [ $$# -gt 0 ] ; do \
-		${INSTALL_SYMLINK} "$$2" "${DESTDIR}${SHAREDIR}/nls/$$1"; \
-		shift; shift; \
-	done
+.for alias nls in ${NLS_ALIASES}
+	${INSTALL_SYMLINK} "${nls}" "${DESTDIR}${SHAREDIR}/nls/${alias}"
+.endfor
 .endif
 
 etc-examples: ${META_DEPS}

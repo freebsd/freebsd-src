@@ -73,7 +73,7 @@ static const efx_vpd_ops_t	__efx_vpd_siena_ops = {
 
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 static const efx_vpd_ops_t	__efx_vpd_ef10_ops = {
 	ef10_vpd_init,		/* evpdo_init */
@@ -88,7 +88,7 @@ static const efx_vpd_ops_t	__efx_vpd_ef10_ops = {
 	ef10_vpd_fini,		/* evpdo_fini */
 };
 
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn		efx_rc_t
 efx_vpd_init(
@@ -119,6 +119,12 @@ efx_vpd_init(
 		evpdop = &__efx_vpd_ef10_ops;
 		break;
 #endif	/* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		evpdop = &__efx_vpd_ef10_ops;
+		break;
+#endif	/* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		EFSYS_ASSERT(0);
@@ -933,7 +939,7 @@ efx_vpd_hunk_set(
 		}
 
 		/* Modify tag length (large resource type) */
-		taglen += (dest - source);
+		taglen += (uint16_t)(dest - source);
 		EFX_POPULATE_WORD_1(word, EFX_WORD_0, taglen);
 		data[offset - 2] = EFX_WORD_FIELD(word, EFX_BYTE_0);
 		data[offset - 1] = EFX_WORD_FIELD(word, EFX_BYTE_1);

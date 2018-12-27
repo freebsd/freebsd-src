@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "STOREUTL 1"
-.TH STOREUTL 1 "2018-09-11" "1.1.1" "OpenSSL"
+.TH STOREUTL 1 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -203,8 +203,11 @@ returned.
 .IP "\fB\-subject arg\fR" 4
 .IX Item "-subject arg"
 Search for an object having the subject name \fBarg\fR.
-The arg must be formatted as \fI/type0=value0/type1=value1/type2=...\fR,
-characters may be escaped by \e (backslash), no spaces are skipped.
+The arg must be formatted as \fI/type0=value0/type1=value1/type2=...\fR.
+Keyword characters may be escaped by \e (backslash), and whitespace is retained.
+Empty values are permitted but are ignored for the search.  That is,
+a search with an empty value will have the same effect as not specifying
+the type at all.
 .IP "\fB\-issuer arg\fR" 4
 .IX Item "-issuer arg"
 .PD 0

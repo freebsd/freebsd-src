@@ -44,6 +44,9 @@
 #include <netinet/tcp.h>
 #include <machine/in_cksum.h>
 
+#include <net/dlt.h>
+#include <net/ethernet.h>
+
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
 
@@ -241,6 +244,20 @@ static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	  NULL,
 	  &ng_nat_libalias_info_type
 	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_SET_DLT,
+	  "setdlt",
+	  &ng_parse_uint8_type,
+	  NULL
+	},
+	{
+	  NGM_NAT_COOKIE,
+	  NGM_NAT_GET_DLT,
+	  "getdlt",
+	  NULL,
+	  &ng_parse_uint8_type
+	},
 	{ 0 }
 };
 
@@ -277,6 +294,7 @@ struct ng_nat_priv {
 	uint32_t	rdrcount;	/* number or redirects in list */
 	uint32_t	nextid;		/* for next in turn in list */
 	struct rdrhead	redirhead;	/* redirect list header */
+	uint8_t		dlt;		/* DLT_XXX from bpf.h */
 };
 typedef struct ng_nat_priv *priv_p;
 
@@ -302,6 +320,7 @@ ng_nat_constructor(node_p node)
 	/* Init redirects housekeeping. */
 	priv->rdrcount = 0;
 	priv->nextid = 1;
+	priv->dlt = DLT_RAW;
 	STAILQ_INIT(&priv->redirhead);
 
 	/* Link structs together. */
@@ -694,11 +713,34 @@ ng_nat_rcvmsg(node_p node, item_p item, hook_p lasthook)
 #undef COPY
 		    }
 			break;
+		case NGM_NAT_SET_DLT:
+			if (msg->header.arglen != sizeof(uint8_t)) {
+				error = EINVAL;
+				break;
+			}
+			switch (*(uint8_t *) msg->data) {
+			case DLT_EN10MB:
+			case DLT_RAW:
+				priv->dlt = *(uint8_t *) msg->data;
+				break;
+			default:
+				error = EINVAL;
+				break;
+			}
+			break;
 		default:
 			error = EINVAL;		/* unknown command */
 			break;
 		}
 		break;
+		case NGM_NAT_GET_DLT:
+			NG_MKRESPONSE(resp, msg, sizeof(uint8_t), M_WAITOK);
+                        if (resp == NULL) {
+                                error = ENOMEM;
+				break;
+			}
+			*((uint8_t *) resp->data) = priv->dlt;
+			break;
 	default:
 		error = EINVAL;			/* unknown cookie type */
 		break;
@@ -715,7 +757,7 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	struct mbuf	*m;
 	struct ip	*ip;
-	int rval, error = 0;
+	int rval, ipofs, error = 0;
 	char *c;
 
 	/* We have no required hooks. */
@@ -738,10 +780,37 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	NGI_M(item) = m;
 
-	c = mtod(m, char *);
-	ip = mtod(m, struct ip *);
+	switch (priv->dlt) {
+	case DLT_RAW:
+		ipofs = 0;
+		break;
+	case DLT_EN10MB:
+	    {
+		struct ether_header *eh;
 
-	KASSERT(m->m_pkthdr.len == ntohs(ip->ip_len),
+		if (m->m_pkthdr.len < sizeof(struct ether_header)) {
+			NG_FREE_ITEM(item);
+			return (ENXIO);
+		}
+		eh = mtod(m, struct ether_header *);
+		switch (ntohs(eh->ether_type)) {
+		case ETHERTYPE_IP:
+		case ETHERTYPE_IPV6:
+			ipofs = sizeof(struct ether_header);
+			break;
+		default:
+			goto send;
+		}
+		break;
+	    }
+	default:
+		panic("Corrupted priv->dlt: %u", priv->dlt);
+	}
+
+	c = (char *)mtodo(m, ipofs);
+	ip = (struct ip *)mtodo(m, ipofs);
+
+	KASSERT(m->m_pkthdr.len == ipofs + ntohs(ip->ip_len),
 	    ("ng_nat: ip_len != m_pkthdr.len"));
 
 	/*
@@ -753,7 +822,8 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 	 *		PKT_ALIAS_DENY_INCOMING flag is set.
 	 */
 	if (hook == priv->in) {
-		rval = LibAliasIn(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
+		rval = LibAliasIn(priv->lib, c, m->m_len - ipofs +
+		    M_TRAILINGSPACE(m));
 		if (rval == PKT_ALIAS_ERROR ||
 		    rval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
 		    (rval == PKT_ALIAS_IGNORED &&
@@ -763,7 +833,8 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 			return (EINVAL);
 		}
 	} else if (hook == priv->out) {
-		rval = LibAliasOut(priv->lib, c, m->m_len + M_TRAILINGSPACE(m));
+		rval = LibAliasOut(priv->lib, c, m->m_len - ipofs +
+		    M_TRAILINGSPACE(m));
 		if (rval == PKT_ALIAS_ERROR) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
@@ -773,7 +844,7 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	if (rval == PKT_ALIAS_RESPOND)
 		m->m_flags |= M_SKIP_FIREWALL;
-	m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len);
+	m->m_pkthdr.len = m->m_len = ntohs(ip->ip_len) + ipofs;
 
 	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 &&
 	    ip->ip_p == IPPROTO_TCP) {

@@ -116,6 +116,8 @@ bindump(uint8_t *data, size_t datalen)
 
 #define LOAD_OPTION_ACTIVE 1
 
+#define SIZE(dp, edp) (size_t)((intptr_t)(void *)edp - (intptr_t)(void *)dp)
+
 void
 efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int uflag)
 {
@@ -159,9 +161,8 @@ efi_print_load_option(uint8_t *data, size_t datalen, int Aflag, int bflag, int u
 	ucs2_to_utf8(descr, &str);
 	printf("%s", str);
 	free(str);
-	while (dp < edp) {
-		efidp_format_device_path(buf, sizeof(buf), dp,
-		    (intptr_t)(void *)edp - (intptr_t)(void *)dp);
+	while (dp < edp && SIZE(dp, edp) > sizeof(efidp_header)) {
+		efidp_format_device_path(buf, sizeof(buf), dp, SIZE(dp, edp));
 		dp = (efidp)((char *)dp + efidp_size(dp));
 		printf(" %s\n", buf);
 	}

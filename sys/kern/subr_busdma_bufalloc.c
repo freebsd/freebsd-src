@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/busdma_bufalloc.h>
+#include <sys/domainset.h>
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
@@ -152,18 +153,15 @@ void *
 busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, vm_size_t size, int domain,
     uint8_t *pflag, int wait)
 {
-#ifdef VM_MEMATTR_UNCACHEABLE
 
+#ifdef VM_MEMATTR_UNCACHEABLE
 	/* Inform UMA that this allocator uses kernel_arena/object. */
 	*pflag = UMA_SLAB_KERNEL;
 
-	return ((void *)kmem_alloc_attr_domain(domain, size, wait, 0,
-	    BUS_SPACE_MAXADDR, VM_MEMATTR_UNCACHEABLE));
-
+	return ((void *)kmem_alloc_attr_domainset(DOMAINSET_FIXED(domain), size,
+	    wait, 0, BUS_SPACE_MAXADDR, VM_MEMATTR_UNCACHEABLE));
 #else
-
 	panic("VM_MEMATTR_UNCACHEABLE unavailable");
-
 #endif	/* VM_MEMATTR_UNCACHEABLE */
 }
 

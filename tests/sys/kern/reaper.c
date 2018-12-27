@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/procctl.h>
+#include <sys/procdesc.h>
 #include <sys/wait.h>
 
 #include <atf-c.h>
@@ -740,6 +741,40 @@ ATF_TC_BODY(reaper_kill_subtree, tc)
 	ATF_REQUIRE_EQ(0, r);
 }
 
+ATF_TC_WITHOUT_HEAD(reaper_pdfork);
+ATF_TC_BODY(reaper_pdfork, tc)
+{
+	struct procctl_reaper_status st;
+	pid_t child, grandchild, parent, pid;
+	int pd, r, status;
+
+	parent = getpid();
+	r = procctl(P_PID, parent, PROC_REAP_ACQUIRE, NULL);
+	ATF_REQUIRE_EQ(r, 0);
+
+	child = pdfork(&pd, 0);
+	ATF_REQUIRE(child != -1);
+	if (child == 0) {
+		grandchild = pdfork(&pd, 0);
+		if (grandchild == -1)
+			_exit(1);
+		if (grandchild == 0)
+			pause();
+		_exit(0);
+	}
+	pid = waitpid(child, &status, 0);
+	ATF_REQUIRE_EQ(pid, child);
+	r = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+	ATF_REQUIRE_EQ(r, 0);
+
+	r = procctl(P_PID, parent, PROC_REAP_STATUS, &st);
+	ATF_REQUIRE_EQ(r, 0);
+	ATF_CHECK((st.rs_flags & REAPER_STATUS_OWNED) != 0);
+	ATF_CHECK(st.rs_reaper == parent);
+	ATF_CHECK(st.rs_children == 1);
+	ATF_CHECK(st.rs_descendants == 1);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -754,5 +789,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, reaper_kill_empty);
 	ATF_TP_ADD_TC(tp, reaper_kill_normal);
 	ATF_TP_ADD_TC(tp, reaper_kill_subtree);
+	ATF_TP_ADD_TC(tp, reaper_pdfork);
 	return (atf_no_error());
 }

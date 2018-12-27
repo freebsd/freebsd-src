@@ -50,6 +50,7 @@ static char *rcsid =
 
 %}
 
+%option never-interactive
 %option noinput
 %option nounput
 %option yylineno

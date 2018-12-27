@@ -120,7 +120,8 @@ extern "C" {
 #define	EFX_DWORD_3_LBN 96
 #define	EFX_DWORD_3_WIDTH 32
 
-/* There are intentionally no EFX_QWORD_0 or EFX_QWORD_1 field definitions
+/*
+ * There are intentionally no EFX_QWORD_0 or EFX_QWORD_1 field definitions
  * here as the implementaion of EFX_QWORD_FIELD and EFX_OWORD_FIELD do not
  * support field widths larger than 32 bits.
  */
@@ -356,6 +357,16 @@ extern int fix_lint;
 #endif
 
 /*
+ * Saturation arithmetic subtract with minimum equal to zero.
+ *
+ * Use saturating arithmetic to ensure a non-negative result. This
+ * avoids undefined behaviour (and compiler warnings) when used as a
+ * shift count.
+ */
+#define	EFX_SSUB(_val, _sub) \
+	((_val) > (_sub) ? ((_val) - (_sub)) : 0)
+
+/*
  * Extract bit field portion [low,high) from the native-endian element
  * which contains bits [min,max).
  *
@@ -374,8 +385,8 @@ extern int fix_lint;
 	((FIX_LINT(_low > _max) || FIX_LINT(_high < _min)) ?		\
 		0U :							\
 		((_low > _min) ?					\
-			((_element) >> (_low - _min)) :			\
-			((_element) << (_min - _low))))
+			((_element) >> EFX_SSUB(_low, _min)) :		\
+			((_element) << EFX_SSUB(_min, _low))))
 
 /*
  * Extract bit field portion [low,high) from the 64-bit little-endian
@@ -564,29 +575,29 @@ extern int fix_lint;
 	(((_low > _max) || (_high < _min)) ?				\
 		0U :							\
 		((_low > _min) ?					\
-			(((uint64_t)(_value)) << (_low - _min)) :	\
-			(((uint64_t)(_value)) >> (_min - _low))))
+			(((uint64_t)(_value)) << EFX_SSUB(_low, _min)) :\
+			(((uint64_t)(_value)) >> EFX_SSUB(_min, _low))))
 
 #define	EFX_INSERT_NATIVE32(_min, _max, _low, _high, _value)		\
 	(((_low > _max) || (_high < _min)) ?				\
 		0U :							\
 		((_low > _min) ?					\
-			(((uint32_t)(_value)) << (_low - _min)) :	\
-			(((uint32_t)(_value)) >> (_min - _low))))
+			(((uint32_t)(_value)) << EFX_SSUB(_low, _min)) :\
+			(((uint32_t)(_value)) >> EFX_SSUB(_min, _low))))
 
 #define	EFX_INSERT_NATIVE16(_min, _max, _low, _high, _value)		\
 	(((_low > _max) || (_high < _min)) ?				\
 		0U :							\
 		(uint16_t)((_low > _min) ?				\
-				((_value) << (_low - _min)) :		\
-				((_value) >> (_min - _low))))
+				((_value) << EFX_SSUB(_low, _min)) :	\
+				((_value) >> EFX_SSUB(_min, _low))))
 
 #define	EFX_INSERT_NATIVE8(_min, _max, _low, _high, _value)		\
 	(((_low > _max) || (_high < _min)) ?				\
 		0U :							\
 		(uint8_t)((_low > _min) ?				\
-				((_value) << (_low - _min)) :	\
-				((_value) >> (_min - _low))))
+				((_value) << EFX_SSUB(_low, _min)) :	\
+				((_value) >> EFX_SSUB(_min, _low))))
 
 /*
  * Construct bit field portion
@@ -1315,22 +1326,22 @@ extern int fix_lint;
 
 #define	EFX_SHIFT64(_bit, _base)					\
 	(((_bit) >= (_base) && (_bit) < (_base) + 64) ?			\
-		((uint64_t)1 << ((_bit) - (_base))) :			\
+		((uint64_t)1 << EFX_SSUB((_bit), (_base))) :		\
 		0U)
 
 #define	EFX_SHIFT32(_bit, _base)					\
 	(((_bit) >= (_base) && (_bit) < (_base) + 32) ?			\
-		((uint32_t)1 << ((_bit) - (_base))) :			\
+		((uint32_t)1 << EFX_SSUB((_bit),(_base))) :		\
 		0U)
 
 #define	EFX_SHIFT16(_bit, _base)					\
 	(((_bit) >= (_base) && (_bit) < (_base) + 16) ?			\
-		(uint16_t)(1 << ((_bit) - (_base))) :			\
+		(uint16_t)(1 << EFX_SSUB((_bit), (_base))) :		\
 		0U)
 
 #define	EFX_SHIFT8(_bit, _base)						\
 	(((_bit) >= (_base) && (_bit) < (_base) + 8) ?			\
-		(uint8_t)(1 << ((_bit) - (_base))) :			\
+		(uint8_t)(1 << EFX_SSUB((_bit), (_base))) :		\
 		0U)
 
 #define	EFX_SET_OWORD_BIT64(_oword, _bit)				\

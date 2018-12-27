@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd December 19, 2018
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -248,12 +248,14 @@ Default
 .Pa /etc/ddb.conf .
 .It Va kld_list
 .Pq Vt str
-A list of kernel modules to load right after the local
-disks are mounted.
+A whitespace-separated list of kernel modules to load right after
+the local disks are mounted, without any
+.Pa .ko
+extension or path.
 Loading modules at this point in the boot process is
 much faster than doing it via
 .Pa /boot/loader.conf
-for those modules not necessary for mounting local disk.
+for those modules not necessary for mounting local disks.
 .It Va kldxref_enable
 .Pq Vt bool
 Set to
@@ -3256,11 +3258,9 @@ is set to
 this is the actual port the mouse is on.
 It might be
 .Pa /dev/cuau0
-for a COM1 serial mouse,
+for a COM1 serial mouse, or
 .Pa /dev/psm0
-for a PS/2 mouse or
-.Pa /dev/mse0
-for a bus mouse, for example.
+for a PS/2 mouse, for example.
 .It Va moused_flags
 .Pq Vt str
 If
@@ -3542,21 +3542,6 @@ Set to
 to enable system accounting through the
 .Xr accton 8
 facility.
-.It Va ibcs2_enable
-.Pq Vt bool
-Set to
-.Dq Li YES
-to enable iBCS2 (SCO) binary emulation at system initial boot
-time.
-.It Va ibcs2_loaders
-.Pq Vt str
-If not set to
-.Dq Li NO
-and if
-.Va ibcs2_enable
-is set to
-.Dq Li YES ,
-this specifies a list of additional iBCS2 loaders to enable.
 .It Va firstboot_sentinel
 .Pq Vt str
 This variable specifies the full path to a
@@ -4511,6 +4496,14 @@ at boot time.
 The directory where the files exported by USB LUN are located.
 The default directory is
 .Pa /var/cfumass .
+.It Va service_delete_empty
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+.Ql Li service delete
+removes empty
+.Dq Li rc.conf.d
+files.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -4599,6 +4592,7 @@ The default directory is
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
 .Xr sdpd 8 ,
+.Xr service 8 ,
 .Xr sshd 8 ,
 .Xr swapon 8 ,
 .Xr sysctl 8 ,

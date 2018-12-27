@@ -252,7 +252,7 @@ acpi_cpu_probe(device_t dev)
     if (type != ACPI_TYPE_PROCESSOR && type != ACPI_TYPE_DEVICE)
 	return (ENXIO);
     if (type == ACPI_TYPE_DEVICE &&
-	ACPI_ID_PROBE(device_get_parent(dev), dev, cpudev_ids) == NULL)
+	ACPI_ID_PROBE(device_get_parent(dev), dev, cpudev_ids, NULL) >= 0)
 	return (ENXIO);
 
     handle = acpi_get_handle(dev);

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domainset.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -373,16 +374,16 @@ dmar_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s", __func__);
 
 	tag = (struct bus_dma_tag_dmar *)dmat;
-	map = malloc_domain(sizeof(*map), M_DMAR_DMAMAP,
-	    tag->common.domain, M_NOWAIT | M_ZERO);
+	map = malloc_domainset(sizeof(*map), M_DMAR_DMAMAP,
+	    DOMAINSET_PREF(tag->common.domain), M_NOWAIT | M_ZERO);
 	if (map == NULL) {
 		*mapp = NULL;
 		return (ENOMEM);
 	}
 	if (tag->segments == NULL) {
-		tag->segments = malloc_domain(sizeof(bus_dma_segment_t) *
+		tag->segments = malloc_domainset(sizeof(bus_dma_segment_t) *
 		    tag->common.nsegments, M_DMAR_DMAMAP,
-		    tag->common.domain, M_NOWAIT);
+		    DOMAINSET_PREF(tag->common.domain), M_NOWAIT);
 		if (tag->segments == NULL) {
 			free_domain(map, M_DMAR_DMAMAP);
 			*mapp = NULL;
@@ -447,13 +448,13 @@ dmar_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	if (tag->common.maxsize < PAGE_SIZE &&
 	    tag->common.alignment <= tag->common.maxsize &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		*vaddr = malloc_domain(tag->common.maxsize, M_DEVBUF,
-		    tag->common.domain, mflags);
+		*vaddr = malloc_domainset(tag->common.maxsize, M_DEVBUF,
+		    DOMAINSET_PREF(tag->common.domain), mflags);
 		map->flags |= BUS_DMAMAP_DMAR_MALLOC;
 	} else {
-		*vaddr = (void *)kmem_alloc_attr_domain(tag->common.domain,
-		    tag->common.maxsize, mflags, 0ul, BUS_SPACE_MAXADDR,
-		    attr);
+		*vaddr = (void *)kmem_alloc_attr_domainset(
+		    DOMAINSET_PREF(tag->common.domain), tag->common.maxsize,
+		    mflags, 0ul, BUS_SPACE_MAXADDR, attr);
 		map->flags |= BUS_DMAMAP_DMAR_KMEM_ALLOC;
 	}
 	if (*vaddr == NULL) {

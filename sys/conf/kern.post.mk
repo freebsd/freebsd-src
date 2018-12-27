@@ -28,6 +28,10 @@ MKMODULESENV+=	WITH_CTF="${WITH_CTF}"
 MKMODULESENV+=	WITH_EXTRA_TCP_STACKS="${WITH_EXTRA_TCP_STACKS}"
 .endif
 
+.if defined(SAN_CFLAGS)
+MKMODULESENV+=	SAN_CFLAGS="${SAN_CFLAGS}"
+.endif
+
 # Allow overriding the kernel debug directory, so kernel and user debug may be
 # installed in different directories. Setting it to "" restores the historical
 # behavior of installing debug files in the kernel directory.
@@ -35,14 +39,33 @@ KERN_DEBUGDIR?=	${DEBUGDIR}
 
 .MAIN: all
 
+.if !defined(NO_MODULES)
+# Default prefix used for modules installed from ports
+LOCALBASE?=	/usr/local
+
+LOCAL_MODULES_DIR?= ${LOCALBASE}/sys/modules
+
+# Default to installing all modules installed by ports unless overridden
+# by the user.
+.if !defined(LOCAL_MODULES) && exists($LOCAL_MODULES_DIR)
+LOCAL_MODULES!= ls ${LOCAL_MODULES_DIR}
+.endif
+.endif
+
 .for target in all clean cleandepend cleandir clobber depend install \
     ${_obj} reinstall tags
 ${target}: kernel-${target}
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
+.if !defined(NO_MODULES)
 ${target}: modules-${target}
 modules-${target}:
+.if !defined(MODULES_WITH_WORLD) && exists($S/modules)
 	cd $S/modules; ${MKMODULESENV} ${MAKE} \
 	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
+.endif
+.for module in ${LOCAL_MODULES}
+	cd ${LOCAL_MODULES_DIR}/${module}; ${MKMODULESENV} ${MAKE} \
+	    ${target:S/^reinstall$/install/:S/^clobber$/cleandir/}
+.endfor
 .endif
 .endfor
 
@@ -51,8 +74,6 @@ modules-${target}:
 #
 # The ports tree needs some environment variables defined to match the new kernel
 #
-# Ports search for some dependencies in PATH, so add the location of the installed files
-LOCALBASE?=	/usr/local
 # SRC_BASE is how the ports tree refers to the location of the base source files
 .if !defined(SRC_BASE)
 SRC_BASE=	${SYSDIR:H:tA}
@@ -64,6 +85,9 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		    ${MAKEOBJDIRPREFIX}${SRC_BASE}/include/osreldate.h
 .endif
 # Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
+#
+# Ports search for some dependencies in PATH, so add the location of the
+# installed files
 WRKDIRPREFIX?=	${.OBJDIR}
 PORTSMODULESENV=\
 	env \
@@ -110,7 +134,7 @@ kernel-clobber:
 
 kernel-obj:
 
-.if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
+.if !defined(NO_MODULES)
 modules: modules-all
 
 .if !defined(NO_MODULES_OBJ)

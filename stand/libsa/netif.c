@@ -182,7 +182,7 @@ netif_attach(struct netif *nif, struct iodesc *desc, void *machdep_hint)
 	desc->io_netif = nif; 
 #ifdef PARANOID
 	if (drv->netif_init == NULL)
-		panic("%s%d: no netif_init support\n", drv->netif_bname,
+		panic("%s%d: no netif_init support", drv->netif_bname,
 		    nif->nif_unit);
 #endif
 	drv->netif_init(desc, machdep_hint);
@@ -201,7 +201,7 @@ netif_detach(struct netif *nif)
 #endif
 #ifdef PARANOID
 	if (drv->netif_end == NULL)
-		panic("%s%d: no netif_end support\n", drv->netif_bname,
+		panic("%s%d: no netif_end support", drv->netif_bname,
 		    nif->nif_unit);
 #endif
 	drv->netif_end(nif);
@@ -222,7 +222,7 @@ netif_get(struct iodesc *desc, void **pkt, time_t timo)
 #endif
 #ifdef PARANOID
 	if (drv->netif_get == NULL)
-		panic("%s%d: no netif_get support\n", drv->netif_bname,
+		panic("%s%d: no netif_get support", drv->netif_bname,
 		    nif->nif_unit);
 #endif
 	rv = drv->netif_get(desc, pkt, timo);
@@ -249,7 +249,7 @@ netif_put(struct iodesc *desc, void *pkt, size_t len)
 #endif
 #ifdef PARANOID
 	if (drv->netif_put == NULL)
-		panic("%s%d: no netif_put support\n", drv->netif_bname,
+		panic("%s%d: no netif_put support", drv->netif_bname,
 		    nif->nif_unit);
 #endif
 	rv = drv->netif_put(desc, pkt, len);

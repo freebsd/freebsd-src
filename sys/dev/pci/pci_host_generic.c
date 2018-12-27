@@ -69,25 +69,6 @@ __FBSDID("$FreeBSD$");
 	(((func) & PCIE_FUNC_MASK) << PCIE_FUNC_SHIFT)	|	\
 	((reg) & PCIE_REG_MASK))
 
-typedef void (*pci_host_generic_quirk_function)(device_t);
-
-struct pci_host_generic_quirk_entry {
-	int impl;
-	int part;
-	int var;
-	int rev;
-	pci_host_generic_quirk_function func;
-};
-
-struct pci_host_generic_block_entry {
-	int impl;
-	int part;
-	int var;
-	int rev;
-	int bus;
-	int slot;
-};
-
 /* Forward prototypes */
 
 static uint32_t generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
@@ -99,24 +80,6 @@ static int generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result);
 static int generic_pcie_write_ivar(device_t dev, device_t child, int index,
     uintptr_t value);
-
-#if defined(__aarch64__)
-static void pci_host_generic_apply_quirks(device_t);
-static void thunderx2_ahci_bar_quirk(device_t);
-
-struct pci_host_generic_quirk_entry pci_host_generic_quirks[] =
-{
-	{CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0, 0, thunderx2_ahci_bar_quirk},
-	{0, 0, 0, 0, NULL}
-};
-
-struct pci_host_generic_block_entry pci_host_generic_blocked[] =
-{
-	/* ThunderX2 AHCI on second socket */
-	{CPU_IMPL_CAVIUM, CPU_PART_THUNDERX2, 0, 0, 0x80, 0x10},
-	{0, 0, 0, 0, 0, 0}
-};
-#endif
 
 int
 pci_host_generic_core_attach(device_t dev)
@@ -144,7 +107,7 @@ pci_host_generic_core_attach(device_t dev)
 		return (error);
 
 	rid = 0;
-	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE | RF_SHAREABLE);
+	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
 	if (sc->res == NULL) {
 		device_printf(dev, "could not map memory.\n");
 		return (ENXIO);
@@ -171,33 +134,8 @@ pci_host_generic_core_attach(device_t dev)
 		return (error);
 	}
 
-#if defined(__aarch64__)
-	pci_host_generic_apply_quirks(dev);
-#endif
-
 	return (0);
 }
-
-#if defined(__aarch64__)
-static void
-pci_host_generic_apply_quirks(device_t dev)
-{
-	struct pci_host_generic_quirk_entry *quirk;
-
-	quirk = pci_host_generic_quirks;
-	while (1) {
-		if (quirk->impl == 0)
-			break;
-
-		if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-		    quirk->impl, quirk->part, quirk->var, quirk->rev) &&
-		    quirk->func != NULL)
-			quirk->func(dev);
-
-		quirk++;
-	}
-}
-#endif
 
 static uint32_t
 generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
@@ -208,32 +146,15 @@ generic_pcie_read_config(device_t dev, u_int bus, u_int slot,
 	bus_space_tag_t	t;
 	uint64_t offset;
 	uint32_t data;
-#if defined(__aarch64__)
-	struct pci_host_generic_block_entry *block;
-#endif
-
-	if ((bus > PCI_BUSMAX) || (slot > PCI_SLOTMAX) ||
-	    (func > PCI_FUNCMAX) || (reg > PCIE_REGMAX))
-		return (~0U);
-
-#if defined(__aarch64__)
-	block = pci_host_generic_blocked;
-	while (1) {
-		if (block->impl == 0)
-			break;
-
-		if (CPU_MATCH(CPU_IMPL_MASK | CPU_PART_MASK,
-		    block->impl, block->part, block->var, block->rev) &&
-		    block->bus == bus && block->slot == slot)
-			return (~0);
-
-		block++;
-	}
-#endif
 
 	sc = device_get_softc(dev);
+	if ((bus < sc->bus_start) || (bus > sc->bus_end))
+		return (~0U);
+	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
+	    (reg > PCIE_REGMAX))
+		return (~0U);
 
-	offset = PCIE_ADDR_OFFSET(bus, slot, func, reg);
+	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 	t = sc->bst;
 	h = sc->bsh;
 
@@ -263,13 +184,14 @@ generic_pcie_write_config(device_t dev, u_int bus, u_int slot,
 	bus_space_tag_t t;
 	uint64_t offset;
 
-	if ((bus > PCI_BUSMAX) || (slot > PCI_SLOTMAX) ||
-	    (func > PCI_FUNCMAX) || (reg > PCIE_REGMAX))
+	sc = device_get_softc(dev);
+	if ((bus < sc->bus_start) || (bus > sc->bus_end))
+		return;
+	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
+	    (reg > PCIE_REGMAX))
 		return;
 
-	sc = device_get_softc(dev);
-
-	offset = PCIE_ADDR_OFFSET(bus, slot, func, reg);
+	offset = PCIE_ADDR_OFFSET(bus - sc->bus_start, slot, func, reg);
 
 	t = sc->bst;
 	h = sc->bsh;
@@ -301,14 +223,11 @@ generic_pcie_read_ivar(device_t dev, device_t child, int index,
     uintptr_t *result)
 {
 	struct generic_pcie_core_softc *sc;
-	int secondary_bus;
 
 	sc = device_get_softc(dev);
 
 	if (index == PCIB_IVAR_BUS) {
-		/* this pcib adds only pci bus 0 as child */
-		secondary_bus = 0;
-		*result = secondary_bus;
+		*result = sc->bus_start;
 		return (0);
 
 	}
@@ -390,7 +309,7 @@ pci_host_generic_core_alloc_resource(device_t dev, device_t child, int type,
 
 	rm = generic_pcie_rman(sc, type);
 	if (rm == NULL)
-		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev,
+		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 		    type, rid, start, end, count, flags));
 
 	if (bootverbose) {
@@ -419,6 +338,82 @@ fail:
 	    __func__, type, *rid, start, end, count, flags);
 
 	return (NULL);
+}
+
+static int
+generic_pcie_activate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	struct generic_pcie_core_softc *sc;
+	uint64_t phys_base;
+	uint64_t pci_base;
+	uint64_t size;
+	int found;
+	int res;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	if ((res = rman_activate_resource(r)) != 0)
+		return (res);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+		found = 0;
+		for (i = 0; i < MAX_RANGES_TUPLES; i++) {
+			pci_base = sc->ranges[i].pci_base;
+			phys_base = sc->ranges[i].phys_base;
+			size = sc->ranges[i].size;
+
+			if ((rid > pci_base) && (rid < (pci_base + size))) {
+				found = 1;
+				break;
+			}
+		}
+		if (found) {
+			rman_set_start(r, rman_get_start(r) + phys_base);
+			rman_set_end(r, rman_get_end(r) + phys_base);
+			res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev),
+			    child, type, rid, r);
+		} else {
+			device_printf(dev,
+			    "Failed to activate IOPORT resource\n");
+			res = 0;
+		}
+		break;
+	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
+		res = BUS_ACTIVATE_RESOURCE(device_get_parent(dev), child,
+		    type, rid, r);
+		break;
+	default:
+		break;
+	}
+
+	return (res);
+}
+
+static int
+generic_pcie_deactivate_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r)
+{
+	int res;
+
+	if ((res = rman_deactivate_resource(r)) != 0)
+		return (res);
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+	case SYS_RES_IRQ:
+		res = BUS_DEACTIVATE_RESOURCE(device_get_parent(dev), child,
+		    type, rid, r);
+		break;
+	default:
+		break;
+	}
+
+	return (res);
 }
 
 static int
@@ -456,6 +451,8 @@ static device_method_t generic_pcie_methods[] = {
 	DEVMETHOD(bus_write_ivar,		generic_pcie_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		pci_host_generic_core_alloc_resource),
 	DEVMETHOD(bus_adjust_resource,		generic_pcie_adjust_resource),
+	DEVMETHOD(bus_activate_resource,	generic_pcie_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,	generic_pcie_deactivate_resource),
 	DEVMETHOD(bus_release_resource,		pci_host_generic_core_release_resource),
 	DEVMETHOD(bus_setup_intr,		bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		bus_generic_teardown_intr),
@@ -472,22 +469,3 @@ static device_method_t generic_pcie_methods[] = {
 
 DEFINE_CLASS_0(pcib, generic_pcie_core_driver,
     generic_pcie_methods, sizeof(struct generic_pcie_core_softc));
-
-#if defined(__aarch64__)
-static void thunderx2_ahci_bar_quirk(device_t dev)
-{
-
-	/*
-	 * XXX:
-	 * On ThunderX2, AHCI BAR2 address is wrong. It needs to precisely
-	 * match the one described in datasheet. Fixup it unconditionally.
-	 */
-	if (device_get_unit(dev) == 0) {
-		device_printf(dev, "running AHCI BAR fixup\n");
-		PCIB_WRITE_CONFIG(dev, 0, 16, 0, 0x18, 0x01440000, 4);
-		PCIB_WRITE_CONFIG(dev, 0, 16, 0, 0x1c, 0x40, 4);
-		PCIB_WRITE_CONFIG(dev, 0, 16, 1, 0x18, 0x01450000, 4);
-		PCIB_WRITE_CONFIG(dev, 0, 16, 1, 0x1c, 0x40, 4);
-	}
-}
-#endif

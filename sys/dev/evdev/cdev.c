@@ -349,6 +349,19 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	if (client->ec_revoked || evdev == NULL)
 		return (ENODEV);
 
+	/*
+	 * Fix evdev state corrupted with discarding of kdb events.
+	 * EVIOCGKEY and EVIOCGLED ioctls can suffer from this.
+	 */
+	if (evdev->ev_kdb_active) {
+		EVDEV_LOCK(evdev);
+		if (evdev->ev_kdb_active) {
+			evdev->ev_kdb_active = false;
+			evdev_restore_after_kdb(evdev);
+		}
+		EVDEV_UNLOCK(evdev);
+	}
+
 	/* file I/O ioctl handling */
 	switch (cmd) {
 	case FIOSETOWN:

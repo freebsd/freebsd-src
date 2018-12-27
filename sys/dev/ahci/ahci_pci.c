@@ -350,6 +350,7 @@ static const struct {
 	{0x01861039, 0x00, "SiS 968",		0},
 	{0xa01c177d, 0x00, "ThunderX",		AHCI_Q_ABAR0|AHCI_Q_1MSI},
 	{0x00311c36, 0x00, "Annapurna",		AHCI_Q_FORCE_PI|AHCI_Q_RESTORE_CAP|AHCI_Q_NOMSIX},
+	{0x1600144d, 0x00, "Samsung",		AHCI_Q_NOMSI},
 	{0x00000000, 0x00, NULL,		0}
 };
 
@@ -357,10 +358,7 @@ static int
 ahci_pci_ctlr_reset(device_t dev)
 {
 
-	if (pci_read_config(dev, PCIR_DEVVENDOR, 4) == 0x28298086 &&
-	    (pci_read_config(dev, 0x92, 1) & 0xfe) == 0x04)
-		pci_write_config(dev, 0x92, 0x01, 1);
-	return ahci_ctlr_reset(dev);
+	return(ahci_ctlr_reset(dev));
 }
 
 static int

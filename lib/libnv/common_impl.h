@@ -34,6 +34,15 @@
 #ifndef	_COMMON_IMPL_H_
 #define	_COMMON_IMPL_H_
 
-#define	fd_is_valid(fd)	(fcntl((fd), F_GETFL) != -1 || errno != EBADF)
+#include <errno.h>
+#include <fcntl.h>
+#include <stdbool.h>
+
+static inline bool
+fd_is_valid(int fd)
+{
+
+	return (fcntl(fd, F_GETFD) != -1 || errno != EBADF);
+}
 
 #endif	/* !_COMMON_IMPL_H_ */

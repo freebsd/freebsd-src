@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <common/t4_msg.h>
 #include "iw_cxgbe.h"
 
-int use_dsgl = 1;
 #define T4_ULPTX_MIN_IO 32
 #define C4IW_MAX_INLINE_SIZE 96
+#define T4_ULPTX_MAX_DMA 1024
 
 static int
 mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
@@ -57,7 +57,57 @@ mr_exceeds_hw_limits(struct c4iw_dev *dev, u64 length)
 }
 
 static int
-write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
+_c4iw_write_mem_dma_aligned(struct c4iw_rdev *rdev, u32 addr, u32 len,
+				void *data, int wait)
+{
+	struct adapter *sc = rdev->adap;
+	struct ulp_mem_io *ulpmc;
+	struct ulptx_sgl *sgl;
+	u8 wr_len;
+	int ret = 0;
+	struct c4iw_wr_wait wr_wait;
+	struct wrqe *wr;
+
+	addr &= 0x7FFFFFF;
+
+	if (wait)
+		c4iw_init_wr_wait(&wr_wait);
+	wr_len = roundup(sizeof *ulpmc + sizeof *sgl, 16);
+
+	wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
+	if (wr == NULL)
+		return -ENOMEM;
+	ulpmc = wrtod(wr);
+
+	memset(ulpmc, 0, wr_len);
+	INIT_ULPTX_WR(ulpmc, wr_len, 0, 0);
+	ulpmc->wr.wr_hi = cpu_to_be32(V_FW_WR_OP(FW_ULPTX_WR) |
+				    (wait ? F_FW_WR_COMPL : 0));
+	ulpmc->wr.wr_lo = wait ? (u64)(unsigned long)&wr_wait : 0;
+	ulpmc->wr.wr_mid = cpu_to_be32(V_FW_WR_LEN16(DIV_ROUND_UP(wr_len, 16)));
+	ulpmc->cmd = cpu_to_be32(V_ULPTX_CMD(ULP_TX_MEM_WRITE) |
+			       V_T5_ULP_MEMIO_ORDER(1) |
+			V_T5_ULP_MEMIO_FID(sc->sge.ofld_rxq[0].iq.abs_id));
+	ulpmc->dlen = cpu_to_be32(V_ULP_MEMIO_DATA_LEN(len>>5));
+	ulpmc->len16 = cpu_to_be32(DIV_ROUND_UP(wr_len-sizeof(ulpmc->wr), 16));
+	ulpmc->lock_addr = cpu_to_be32(V_ULP_MEMIO_ADDR(addr));
+
+	sgl = (struct ulptx_sgl *)(ulpmc + 1);
+	sgl->cmd_nsge = cpu_to_be32(V_ULPTX_CMD(ULP_TX_SC_DSGL) |
+				    V_ULPTX_NSGE(1));
+	sgl->len0 = cpu_to_be32(len);
+	sgl->addr0 = cpu_to_be64((u64)data);
+
+	t4_wrq_tx(sc, wr);
+
+	if (wait)
+		ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
+	return ret;
+}
+
+
+static int
+_c4iw_write_mem_inline(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 {
 	struct adapter *sc = rdev->adap;
 	struct ulp_mem_io *ulpmc;
@@ -84,7 +134,7 @@ write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 
 		wr = alloc_wrqe(wr_len, &sc->sge.ctrlq[0]);
 		if (wr == NULL)
-			return (0);
+			return -ENOMEM;
 		ulpmc = wrtod(wr);
 
 		memset(ulpmc, 0, wr_len);
@@ -93,7 +143,8 @@ write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 		if (i == (num_wqe-1)) {
 			ulpmc->wr.wr_hi = cpu_to_be32(V_FW_WR_OP(FW_ULPTX_WR) |
 						    F_FW_WR_COMPL);
-			ulpmc->wr.wr_lo = (__force __be64)(unsigned long) &wr_wait;
+			ulpmc->wr.wr_lo =
+				       (__force __be64)(unsigned long) &wr_wait;
 		} else
 			ulpmc->wr.wr_hi = cpu_to_be32(V_FW_WR_OP(FW_ULPTX_WR));
 		ulpmc->wr.wr_mid = cpu_to_be32(
@@ -126,6 +177,69 @@ write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
 	ret = c4iw_wait_for_reply(rdev, &wr_wait, 0, 0, NULL, __func__);
 	return ret;
 }
+
+static int
+_c4iw_write_mem_dma(struct c4iw_rdev *rdev, u32 addr, u32 len, void *data)
+{
+	struct c4iw_dev *rhp = rdev_to_c4iw_dev(rdev);
+	u32 remain = len;
+	u32 dmalen;
+	int ret = 0;
+	dma_addr_t daddr;
+	dma_addr_t save;
+
+	daddr = dma_map_single(rhp->ibdev.dma_device, data, len, DMA_TO_DEVICE);
+	if (dma_mapping_error(rhp->ibdev.dma_device, daddr))
+		return -1;
+	save = daddr;
+
+	while (remain > inline_threshold) {
+		if (remain < T4_ULPTX_MAX_DMA) {
+			if (remain & ~T4_ULPTX_MIN_IO)
+				dmalen = remain & ~(T4_ULPTX_MIN_IO-1);
+			else
+				dmalen = remain;
+		} else
+			dmalen = T4_ULPTX_MAX_DMA;
+		remain -= dmalen;
+		ret = _c4iw_write_mem_dma_aligned(rdev, addr, dmalen,
+				(void *)daddr, !remain);
+		if (ret)
+			goto out;
+		addr += dmalen >> 5;
+		data = (u64 *)data + dmalen;
+		daddr = daddr + dmalen;
+	}
+	if (remain)
+		ret = _c4iw_write_mem_inline(rdev, addr, remain, data);
+out:
+	dma_unmap_single(rhp->ibdev.dma_device, save, len, DMA_TO_DEVICE);
+	return ret;
+}
+
+/*
+ * write len bytes of data into addr (32B aligned address)
+ * If data is NULL, clear len byte of memory to zero.
+ */
+static int
+write_adapter_mem(struct c4iw_rdev *rdev, u32 addr, u32 len,
+			     void *data)
+{
+	if (rdev->adap->params.ulptx_memwrite_dsgl && use_dsgl) {
+		if (len > inline_threshold) {
+			if (_c4iw_write_mem_dma(rdev, addr, len, data)) {
+				log(LOG_ERR, "%s: dma map "
+				       "failure (non fatal)\n", __func__);
+				return _c4iw_write_mem_inline(rdev, addr, len,
+							      data);
+			} else
+				return 0;
+		} else
+			return _c4iw_write_mem_inline(rdev, addr, len, data);
+	} else
+		return _c4iw_write_mem_inline(rdev, addr, len, data);
+}
+
 
 /*
  * Build and write a TPT entry.

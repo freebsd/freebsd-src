@@ -814,7 +814,8 @@ vmx_init(int ipinum)
 		return (error);
 	}
 
-	guest_l1d_flush = (cpu_ia32_arch_caps & IA32_ARCH_CAP_RDCL_NO) == 0;
+	guest_l1d_flush = (cpu_ia32_arch_caps &
+	    IA32_ARCH_CAP_SKIP_L1DFL_VMENTRY) == 0;
 	TUNABLE_INT_FETCH("hw.vmm.l1d_flush", &guest_l1d_flush);
 
 	/*

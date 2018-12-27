@@ -246,6 +246,7 @@ DIRDEPS+= \
 	usr.bin/lex/lib \
 	usr.bin/limits \
 	usr.bin/locale \
+	usr.bin/localedef \
 	usr.bin/locate/bigram \
 	usr.bin/locate/code \
 	usr.bin/locate/locate \

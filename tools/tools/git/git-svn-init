@@ -35,6 +35,10 @@
 GIT_IN_PATH=$(which git)
 GIT=${GIT-${GIT_IN_PATH}}
 
+GIT_DOCS_REPO=${GIT_DOCS_REPO-git://github.com/freebsd/freebsd-doc.git}
+GIT_SVN_DOCS_ROOT_URI=${GIT_SVN_DOCS_ROOT_URI-svn.freebsd.org/doc}
+GIT_SVN_DOCS_URI=${GIV_SVN_DOCS_URI-repo.freebsd.org/doc}
+
 GIT_PORTS_REPO=${GIT_PORTS_REPO-git://github.com/freebsd/freebsd-ports.git}
 GIT_SVN_PORTS_ROOT_URI=${GIT_SVN_PORTS_ROOT_URI-svn.freebsd.org/ports}
 GIT_SVN_PORTS_URI=${GIT_SVN_PORTS_URI-repo.freebsd.org/ports}
@@ -43,6 +47,7 @@ GIT_SRC_REPO=${GIT_SRC_REPO-git://github.com/freebsd/freebsd.git}
 GIT_SVN_SRC_ROOT_URI=${GIT_SVN_SRC_ROOT_URI-svn.freebsd.org/base}
 GIT_SVN_SRC_URI=${GIT_SVN_SRC_URI-repo.freebsd.org/base}
 
+GIT_SVN_DOCS_PUSH_URI=$GIT_SVN_DOCS_URI
 GIT_SVN_PORTS_PUSH_URI=$GIT_SVN_PORTS_URI
 GIT_SVN_SRC_PUSH_URI=$GIT_SVN_SRC_URI
 
@@ -58,6 +63,7 @@ both ports and src under freebsd in the current working directory.
 -n	Dry run
 -p	Exclude ports
 -s	Exclude src
+-d	Exclude docs
 
 EOF
 }
@@ -138,7 +144,11 @@ doit()
 		local svn_root_uri=$GIT_SVN_SRC_ROOT_URI
 		local svn_uri=$GIT_SVN_SRC_URI
 		local svn_push_uri=$GIT_SVN_SRC_PUSH_URI
-	else
+	elif [ "$3" = "docs" ] ; then
+		local svn_root_uri=$GIT_SVN_DOCS_ROOT_URI
+		local svn_uri=$GIT_SVN_DOCS_URI
+		local svn_push_uri=$GIT_SVN_DOCS_PUSH_URI
+	elif [ "$3" = "ports" ] ; then
 		local svn_root_uri=$GIT_SVN_PORTS_ROOT_URI
 		local svn_uri=$GIT_SVN_PORTS_URI
 		local svn_push_uri=$GIT_SVN_PORTS_PUSH_URI
@@ -160,7 +170,8 @@ doit()
 
 ports=1
 source=1
-while getopts "hb:nr:sp" opt; do
+docs=1
+while getopts "hb:nr:sdp" opt; do
 	case "$opt" in
 		b)
 			base_path="$OPTARG"
@@ -173,6 +184,9 @@ while getopts "hb:nr:sp" opt; do
 			;;
 		s)
 			source=0
+			;;
+		d)
+			docs=0
 			;;
 		h|*)
 			usage
@@ -190,4 +204,8 @@ fi
 
 if [ "$ports" -eq 1 ]; then
 	doit ${GIT_PORTS_REPO} ${base_path:-freebsd} "ports"
+fi
+
+if [ "$docs" -eq 1 ]; then
+	doit ${GIT_DOCS_REPO} ${base_path:-freebsd} "docs"
 fi

@@ -45,7 +45,7 @@ add_and_delete(void)
         struct stat s;
         if (fstat(kqfd, &s) != -1)
             errx(1, "kqueue inherited across fork! (%s() at %s:%d)",
-	        __func__, __FILE__, __LINE__);
+                __func__, __FILE__, __LINE__);
 
         pause();
         exit(2);

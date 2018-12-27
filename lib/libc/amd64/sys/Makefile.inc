@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 SRCS+=	\
-	amd64_detect_rdfsgsbase.c \
 	amd64_get_fsbase.c \
 	amd64_get_gsbase.c \
 	amd64_set_fsbase.c \

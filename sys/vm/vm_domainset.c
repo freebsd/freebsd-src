@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
@@ -62,26 +63,13 @@ static int vm_domainset_default_stride = 64;
  * Determine which policy is to be used for this allocation.
  */
 static void
-vm_domainset_iter_init(struct vm_domainset_iter *di, struct vm_object *obj,
-    vm_pindex_t pindex)
+vm_domainset_iter_init(struct vm_domainset_iter *di, struct domainset *ds,
+    int *iter, struct vm_object *obj, vm_pindex_t pindex)
 {
-	struct domainset *domain;
-	struct thread *td;
 
-	/*
-	 * object policy takes precedence over thread policy.  The policies
-	 * are immutable and unsynchronized.  Updates can race but pointer
-	 * loads are assumed to be atomic.
-	 */
-	if (obj != NULL && (domain = obj->domain.dr_policy) != NULL) {
-		di->di_domain = domain;
-		di->di_iter = &obj->domain.dr_iterator;
-	} else {
-		td = curthread;
-		di->di_domain = td->td_domain.dr_policy;
-		di->di_iter = &td->td_domain.dr_iterator;
-	}
-	di->di_policy = di->di_domain->ds_policy;
+	di->di_domain = ds;
+	di->di_iter = iter;
+	di->di_policy = ds->ds_policy;
 	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE) {
 #if VM_NRESERVLEVEL > 0
 		if (vm_object_reserv(obj)) {
@@ -211,26 +199,30 @@ void
 vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
     vm_pindex_t pindex, int *domain, int *req)
 {
+	struct domainset_ref *dr;
 
-	vm_domainset_iter_init(di, obj, pindex);
+	/*
+	 * Object policy takes precedence over thread policy.  The policies
+	 * are immutable and unsynchronized.  Updates can race but pointer
+	 * loads are assumed to be atomic.
+	 */
+	if (obj != NULL && obj->domain.dr_policy != NULL)
+		dr = &obj->domain;
+	else
+		dr = &curthread->td_domain;
+	vm_domainset_iter_init(di, dr->dr_policy, &dr->dr_iter, obj, pindex);
 	di->di_flags = *req;
 	*req = (di->di_flags & ~(VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) |
 	    VM_ALLOC_NOWAIT;
 	vm_domainset_iter_first(di, domain);
 	if (vm_page_count_min_domain(*domain))
-		vm_domainset_iter_page(di, domain, req);
+		vm_domainset_iter_page(di, obj, domain);
 }
 
 int
-vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *req)
+vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
+    int *domain)
 {
-
-	/*
-	 * If we exhausted all options with NOWAIT and did a WAITFAIL it
-	 * is time to return an error to the caller.
-	 */
-	if ((*req & VM_ALLOC_WAITFAIL) != 0)
-		return (ENOMEM);
 
 	/* If there are more domains to visit we run the iterator. */
 	while (--di->di_n != 0) {
@@ -238,6 +230,8 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *req)
 		if (!di->di_minskip || !vm_page_count_min_domain(*domain))
 			return (0);
 	}
+
+	/* If we skipped domains below min restart the search. */
 	if (di->di_minskip) {
 		di->di_minskip = false;
 		vm_domainset_iter_first(di, domain);
@@ -248,34 +242,53 @@ vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *req)
 	if ((di->di_flags & (VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL)) == 0)
 		return (ENOMEM);
 
-	/*
-	 * We have visited all domains with non-blocking allocations, try
-	 * from the beginning with a blocking allocation.
-	 */
+	/* Wait for one of the domains to accumulate some free pages. */
+	if (obj != NULL)
+		VM_OBJECT_WUNLOCK(obj);
+	vm_wait_doms(&di->di_domain->ds_mask);
+	if (obj != NULL)
+		VM_OBJECT_WLOCK(obj);
+	if ((di->di_flags & VM_ALLOC_WAITFAIL) != 0)
+		return (ENOMEM);
+
+	/* Restart the search. */
 	vm_domainset_iter_first(di, domain);
-	*req = di->di_flags;
 
 	return (0);
 }
 
-
-void
-vm_domainset_iter_malloc_init(struct vm_domainset_iter *di,
-    struct vm_object *obj, int *domain, int *flags)
+static void
+_vm_domainset_iter_policy_init(struct vm_domainset_iter *di, int *domain,
+    int *flags)
 {
 
-	vm_domainset_iter_init(di, obj, 0);
-	if (di->di_policy == DOMAINSET_POLICY_INTERLEAVE)
-		di->di_policy = DOMAINSET_POLICY_ROUNDROBIN;
 	di->di_flags = *flags;
 	*flags = (di->di_flags & ~M_WAITOK) | M_NOWAIT;
 	vm_domainset_iter_first(di, domain);
 	if (vm_page_count_min_domain(*domain))
-		vm_domainset_iter_malloc(di, domain, flags);
+		vm_domainset_iter_policy(di, domain);
+}
+
+void
+vm_domainset_iter_policy_init(struct vm_domainset_iter *di,
+    struct domainset *ds, int *domain, int *flags)
+{
+
+	vm_domainset_iter_init(di, ds, &curthread->td_domain.dr_iter, NULL, 0);
+	_vm_domainset_iter_policy_init(di, domain, flags);
+}
+
+void
+vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *di,
+    struct domainset_ref *dr, int *domain, int *flags)
+{
+
+	vm_domainset_iter_init(di, dr->dr_policy, &dr->dr_iter, NULL, 0);
+	_vm_domainset_iter_policy_init(di, domain, flags);
 }
 
 int
-vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
+vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 {
 
 	/* If there are more domains to visit we run the iterator. */
@@ -296,45 +309,54 @@ vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
 	if ((di->di_flags & M_WAITOK) == 0)
 		return (ENOMEM);
 
-	/*
-	 * We have visited all domains with non-blocking allocations, try
-	 * from the beginning with a blocking allocation.
-	 */
+	/* Wait for one of the domains to accumulate some free pages. */
+	vm_wait_doms(&di->di_domain->ds_mask);
+
+	/* Restart the search. */
 	vm_domainset_iter_first(di, domain);
-	*flags = di->di_flags;
 
 	return (0);
 }
 
 #else /* !NUMA */
+
 int
-vm_domainset_iter_page(struct vm_domainset_iter *di, int *domain, int *flags)
+vm_domainset_iter_page(struct vm_domainset_iter *di, struct vm_object *obj,
+    int *domain)
 {
 
 	return (EJUSTRETURN);
 }
 
 void
-vm_domainset_iter_page_init(struct vm_domainset_iter *di,
-            struct vm_object *obj, vm_pindex_t pindex, int *domain, int *flags)
+vm_domainset_iter_page_init(struct vm_domainset_iter *di, struct vm_object *obj,
+    vm_pindex_t pindex, int *domain, int *flags)
 {
 
 	*domain = 0;
 }
 
 int
-vm_domainset_iter_malloc(struct vm_domainset_iter *di, int *domain, int *flags)
+vm_domainset_iter_policy(struct vm_domainset_iter *di, int *domain)
 {
 
 	return (EJUSTRETURN);
 }
 
 void
-vm_domainset_iter_malloc_init(struct vm_domainset_iter *di,
-            struct vm_object *obj, int *domain, int *flags)
+vm_domainset_iter_policy_init(struct vm_domainset_iter *di,
+    struct domainset *ds, int *domain, int *flags)
 {
 
 	*domain = 0;
 }
 
-#endif
+void
+vm_domainset_iter_policy_ref_init(struct vm_domainset_iter *di,
+    struct domainset_ref *dr, int *domain, int *flags)
+{
+
+	*domain = 0;
+}
+
+#endif /* NUMA */

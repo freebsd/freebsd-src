@@ -34,7 +34,7 @@ int
 _libelf_is_mips64el(Elf *e)
 {
 
-	return (e->e_kind == ELF_K_ELF &&
+	return (e->e_kind == ELF_K_ELF && e->e_class == ELFCLASS64 &&
 	    e->e_u.e_elf.e_ehdr.e_ehdr64->e_machine == EM_MIPS &&
 	    e->e_u.e_elf.e_ehdr.e_ehdr64->e_ident[EI_DATA] == ELFDATA2LSB);
 }

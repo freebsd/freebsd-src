@@ -526,6 +526,8 @@ sendfile_getsock(struct thread *td, int s, struct file **sock_fp,
 	*so = (*sock_fp)->f_data;
 	if ((*so)->so_type != SOCK_STREAM)
 		return (EINVAL);
+	if (SOLISTENING(*so))
+		return (ENOTCONN);
 	return (0);
 }
 

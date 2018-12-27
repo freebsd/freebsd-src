@@ -401,6 +401,13 @@ FBSD_1.5 {
 	cpuset_setdomain;
 };
 
+FBSD_1.6 {
+	fhlink;
+	fhlinkat;
+	fhreadlink;
+	getfhat;
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;

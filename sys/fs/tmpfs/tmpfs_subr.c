@@ -39,6 +39,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/fnv_hash.h>
 #include <sys/lock.h>
@@ -50,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/rwlock.h>
 #include <sys/stat.h>
-#include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -182,7 +182,7 @@ tmpfs_ref_node_locked(struct tmpfs_node *node)
 int
 tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
     uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *parent,
-    char *target, dev_t rdev, struct tmpfs_node **node)
+    const char *target, dev_t rdev, struct tmpfs_node **node)
 {
 	struct tmpfs_node *nnode;
 	vm_object_t obj;
@@ -230,7 +230,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	nnode->tn_uid = uid;
 	nnode->tn_gid = gid;
 	nnode->tn_mode = mode;
-	nnode->tn_id = alloc_unr(tmp->tm_ino_unr);
+	nnode->tn_id = alloc_unr64(&tmp->tm_ino_unr);
 	nnode->tn_refcount = 1;
 
 	/* Type-specific initialization. */
@@ -368,13 +368,6 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		panic("tmpfs_free_node: type %p %d", node, (int)node->tn_type);
 	}
 
-	/*
-	 * If we are unmounting there is no need for going through the overhead
-	 * of freeing the inodes from the unr individually, so free them all in
-	 * one go later.
-	 */
-	if (!detach)
-		free_unr(tmp->tm_ino_unr, node->tn_id);
 	uma_zfree(tmp->tm_node_pool, node);
 	TMPFS_LOCK(tmp);
 	tmpfs_free_tmp(tmp);
@@ -717,7 +710,7 @@ tmpfs_free_vp(struct vnode *vp)
  */
 int
 tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
-    struct componentname *cnp, char *target)
+    struct componentname *cnp, const char *target)
 {
 	int error;
 	struct tmpfs_dirent *de;
@@ -1127,8 +1120,8 @@ tmpfs_dir_getdotdent(struct tmpfs_node *node, struct uio *uio)
 	dent.d_type = DT_DIR;
 	dent.d_namlen = 1;
 	dent.d_name[0] = '.';
-	dent.d_name[1] = '\0';
 	dent.d_reclen = GENERIC_DIRSIZ(&dent);
+	dirent_terminate(&dent);
 
 	if (dent.d_reclen > uio->uio_resid)
 		error = EJUSTRETURN;
@@ -1171,8 +1164,8 @@ tmpfs_dir_getdotdotdent(struct tmpfs_node *node, struct uio *uio)
 	dent.d_namlen = 2;
 	dent.d_name[0] = '.';
 	dent.d_name[1] = '.';
-	dent.d_name[2] = '\0';
 	dent.d_reclen = GENERIC_DIRSIZ(&dent);
+	dirent_terminate(&dent);
 
 	if (dent.d_reclen > uio->uio_resid)
 		error = EJUSTRETURN;
@@ -1292,8 +1285,8 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, int maxcookies,
 		d.d_namlen = de->td_namelen;
 		MPASS(de->td_namelen < sizeof(d.d_name));
 		(void)memcpy(d.d_name, de->ud.td_name, de->td_namelen);
-		d.d_name[de->td_namelen] = '\0';
 		d.d_reclen = GENERIC_DIRSIZ(&d);
+		dirent_terminate(&d);
 
 		/* Stop reading if the directory entry we are treating is
 		 * bigger than the amount of data that can be returned. */
@@ -1529,7 +1522,7 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 	 * Unprivileged processes are not permitted to unset system
 	 * flags, or modify flags if any system flags are set.
 	 */
-	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
+	if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS)) {
 		if (node->tn_flags &
 		    (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 			error = securelevel_gt(cred, 0);
@@ -1586,11 +1579,11 @@ tmpfs_chmod(struct vnode *vp, mode_t mode, struct ucred *cred, struct thread *p)
 	 * process is not a member of.
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE))
 			return (EFTYPE);
 	}
 	if (!groupmember(node->tn_gid, cred) && (mode & S_ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID);
 		if (error)
 			return (error);
 	}
@@ -1656,7 +1649,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	 */
 	if ((uid != node->tn_uid ||
 	    (gid != node->tn_gid && !groupmember(gid, cred))) &&
-	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN)))
 		return (error);
 
 	ogid = node->tn_gid;
@@ -1668,7 +1661,7 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	node->tn_status |= TMPFS_NODE_CHANGED;
 
 	if ((node->tn_mode & (S_ISUID | S_ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0))
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID))
 			node->tn_mode &= ~(S_ISUID | S_ISGID);
 	}
 

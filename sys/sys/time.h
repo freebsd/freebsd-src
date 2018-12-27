@@ -161,6 +161,25 @@ sbttobt(sbintime_t _sbt)
  * Decimal<->sbt conversions.  Multiplying or dividing by SBT_1NS results in
  * large roundoff errors which sbttons() and nstosbt() avoid.  Millisecond and
  * microsecond functions are also provided for completeness.
+ *
+ * These functions return the smallest sbt larger or equal to the
+ * number of seconds requested so that sbttoX(Xtosbt(y)) == y.  Unlike
+ * top of second computations below, which require that we tick at the
+ * top of second, these need to be rounded up so we do whatever for at
+ * least as long as requested.
+ *
+ * The naive computation we'd do is this
+ *	((unit * 2^64 / SIFACTOR) + 2^32-1) >> 32
+ * However, that overflows. Instead, we compute
+ *	((unit * 2^63 / SIFACTOR) + 2^31-1) >> 32
+ * and use pre-computed constants that are the ceil of the 2^63 / SIFACTOR
+ * term to ensure we are using exactly the right constant. We use the lesser
+ * evil of ull rather than a uint64_t cast to ensure we have well defined
+ * right shift semantics. With these changes, we get all the ns, us and ms
+ * conversions back and forth right.
+ * Note: This file is used for both kernel and userland includes, so we can't
+ * rely on KASSERT being defined, nor can we pollute the namespace by including
+ * assert.h.
  */
 static __inline int64_t
 sbttons(sbintime_t _sbt)
@@ -172,8 +191,18 @@ sbttons(sbintime_t _sbt)
 static __inline sbintime_t
 nstosbt(int64_t _ns)
 {
+	sbintime_t sb = 0;
 
-	return ((_ns * (((uint64_t)1 << 63) / 500000000)) >> 32);
+#ifdef KASSERT
+	KASSERT(_ns >= 0, ("Negative values illegal for nstosbt: %jd", _ns));
+#endif
+	if (_ns >= SBT_1S) {
+		sb = (_ns / 1000000000) * SBT_1S;
+		_ns = _ns % 1000000000;
+	}
+	/* 9223372037 = ceil(2^63 / 1000000000) */
+	sb += ((_ns * 9223372037ull) + 0x7fffffff) >> 31;
+	return (sb);
 }
 
 static __inline int64_t
@@ -186,8 +215,18 @@ sbttous(sbintime_t _sbt)
 static __inline sbintime_t
 ustosbt(int64_t _us)
 {
+	sbintime_t sb = 0;
 
-	return ((_us * (((uint64_t)1 << 63) / 500000)) >> 32);
+#ifdef KASSERT
+	KASSERT(_us >= 0, ("Negative values illegal for ustosbt: %jd", _us));
+#endif
+	if (_us >= SBT_1S) {
+		sb = (_us / 1000000) * SBT_1S;
+		_us = _us % 1000000;
+	}
+	/* 9223372036855 = ceil(2^63 / 1000000) */
+	sb += ((_us * 9223372036855ull) + 0x7fffffff) >> 31;
+	return (sb);
 }
 
 static __inline int64_t
@@ -200,8 +239,18 @@ sbttoms(sbintime_t _sbt)
 static __inline sbintime_t
 mstosbt(int64_t _ms)
 {
+	sbintime_t sb = 0;
 
-	return ((_ms * (((uint64_t)1 << 63) / 500)) >> 32);
+#ifdef KASSERT
+	KASSERT(_ms >= 0, ("Negative values illegal for mstosbt: %jd", _ms));
+#endif
+	if (_ms >= SBT_1S) {
+		sb = (_ms / 1000) * SBT_1S;
+		_ms = _ms % 1000;
+	}
+	/* 9223372036854776 = ceil(2^63 / 1000) */
+	sb += ((_ms * 9223372036854776ull) + 0x7fffffff) >> 31;
+	return (sb);
 }
 
 /*-

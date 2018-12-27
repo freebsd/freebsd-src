@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -56,8 +57,10 @@ xen_msi_init(void)
 {
 
 	MPASS(num_io_irqs > 0);
-	first_msi_irq = min(MINIMUM_MSI_INT, num_io_irqs);
-	num_io_irqs = first_msi_irq + NUM_MSI_INTS;
+	first_msi_irq = num_io_irqs;
+	if (num_msi_irqs > UINT_MAX - first_msi_irq)
+		panic("num_msi_irq too high");
+	num_io_irqs = first_msi_irq + num_msi_irqs;
 
 	mtx_init(&msi_lock, "msi", NULL, MTX_DEF);
 }
@@ -73,7 +76,7 @@ xen_msi_alloc(device_t dev, int count, int maxcount, int *irqs)
 	mtx_lock(&msi_lock);
 
 	/* If we would exceed the max, give up. */
-	if ((msi_last_irq + count) > NUM_MSI_INTS) {
+	if (msi_last_irq + count > num_msi_irqs) {
 		mtx_unlock(&msi_lock);
 		return (ENXIO);
 	}

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2018
+.Dd December 6, 2018
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -109,8 +109,8 @@ system:
 .Bd -literal -offset indent
 svnlite co https://svn.FreeBSD.org/base/head src
 cd src
-make -j8 buildworld buildkernel installkernel
-reboot
+make -sj8 buildworld buildkernel installkernel
+shutdown -r now
 .Ed
 .Pp
 After reboot:
@@ -118,6 +118,45 @@ After reboot:
 cd src
 make -j8 installworld
 reboot
+.Ed
+.Pp
+Rebuild and reinstall a single piece of userspace, in this
+case
+.Xr ls 1 :
+.Bd -literal -offset indent
+cd src/bin/ls
+make clean all install
+.Ed
+.Pp
+Quickly rebuild and reinstall the kernel, only recompiling the files
+changed since last build; note that this will only work if the full kernel
+build has been completed in the past, not on a fresh source tree:
+.Bd -literal -offset indent
+cd src
+make -sj8 kernel KERNFAST=1
+.Ed
+.Pp
+To rebuild parts of
+.Fx
+for another CPU architecture,
+first prepare your source tree by building the cross-toolchain:
+.Bd -literal -offset indent
+cd src
+make -sj8 toolchain TARGET_ARCH=armv6
+.Ed
+.Pp
+Afterwards, to build and install a single piece of userspace, use:
+.Bd -literal -offset indent
+cd src/bin/ls
+make buildenv TARGET_ARCH=armv6
+make clean all install DESTDIR=/clients/arm
+.Ed
+.Pp
+Likewise, to quickly rebuild and reinstall the kernel, use:
+.Bd -literal -offset indent
+cd src
+make buildenv TARGET_ARCH=armv6
+make -sj8 kernel KERNFAST=1 DESTDIR=/clients/arm
 .Ed
 .Sh SEE ALSO
 .Xr svnlite 1 ,

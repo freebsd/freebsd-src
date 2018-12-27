@@ -294,7 +294,6 @@ struct knote {
 #define KN_DETACHED	0x08			/* knote is detached */
 #define KN_MARKER	0x20			/* ignore this knote */
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
-#define KN_HASKQLOCK	0x80			/* for _inevent */
 #define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
 	int			kn_influx;
 	int			kn_sfflags;	/* saved filter flags */
@@ -349,7 +348,7 @@ void	knlist_cleardel(struct knlist *knl, struct thread *td,
 	knlist_cleardel((knl), (td), (islocked), 1)
 void	knote_fdclose(struct thread *p, int fd);
 int 	kqfd_register(int fd, struct kevent *kev, struct thread *p,
-	    int waitok);
+	    int mflag);
 int	kqueue_add_filteropts(int filt, struct filterops *filtops);
 int	kqueue_del_filteropts(int filt);
 

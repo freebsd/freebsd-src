@@ -74,6 +74,12 @@ SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread z util sbuf cam 9p casper cap_pwd cap_grp
 
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+=-DINET
+.endif
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+=-DINET6
+.endif
 .if ${MK_OPENSSL} == "no"
 CFLAGS+=-DNO_OPENSSL
 .else

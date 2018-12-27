@@ -175,7 +175,8 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn)
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp)
 {
 	boolean_t reboot;
 	efx_rc_t rc;
@@ -188,7 +189,7 @@ siena_nvram_partn_unlock(
 		    partn == MC_CMD_NVRAM_TYPE_PHY_PORT1 ||
 		    partn == MC_CMD_NVRAM_TYPE_DISABLED_CALLISTO);
 
-	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, NULL);
+	rc = efx_mcdi_nvram_update_finish(enp, partn, reboot, verify_resultp);
 	if (rc != 0)
 		goto fail1;
 
@@ -244,6 +245,7 @@ siena_nvram_type_to_partn(
 	efx_mcdi_iface_t *emip = &(enp->en_mcdi.em_emip);
 	unsigned int i;
 
+	EFSYS_ASSERT3U(type, !=, EFX_NVRAM_INVALID);
 	EFSYS_ASSERT3U(type, <, EFX_NVRAM_NTYPES);
 	EFSYS_ASSERT(partnp != NULL);
 
@@ -331,15 +333,20 @@ siena_nvram_get_dynamic_cfg(
 	if ((rc = siena_nvram_partn_size(enp, partn, &size)) != 0)
 		goto fail1;
 
+	if (size < SIENA_NVRAM_CHUNK) {
+		rc = EINVAL;
+		goto fail2;
+	}
+
 	EFSYS_KMEM_ALLOC(enp->en_esip, size, dcfg);
 	if (dcfg == NULL) {
 		rc = ENOMEM;
-		goto fail2;
+		goto fail3;
 	}
 
 	if ((rc = siena_nvram_partn_read(enp, partn, 0,
 	    (caddr_t)dcfg, SIENA_NVRAM_CHUNK)) != 0)
-		goto fail3;
+		goto fail4;
 
 	/* Verify the magic */
 	if (EFX_DWORD_FIELD(dcfg->magic, EFX_DWORD_0)
@@ -374,7 +381,7 @@ siena_nvram_get_dynamic_cfg(
 		if ((rc = siena_nvram_partn_read(enp, partn, SIENA_NVRAM_CHUNK,
 		    (caddr_t)dcfg + SIENA_NVRAM_CHUNK,
 		    region - SIENA_NVRAM_CHUNK)) != 0)
-			goto fail4;
+			goto fail5;
 	}
 
 	/* Verify checksum */
@@ -416,13 +423,15 @@ done:
 
 	return (0);
 
+fail5:
+	EFSYS_PROBE(fail5);
 fail4:
 	EFSYS_PROBE(fail4);
-fail3:
-	EFSYS_PROBE(fail3);
 
 	EFSYS_KMEM_FREE(enp->en_esip, size, dcfg);
 
+fail3:
+	EFSYS_PROBE(fail3);
 fail2:
 	EFSYS_PROBE(fail2);
 fail1:
@@ -438,12 +447,11 @@ siena_nvram_get_subtype(
 	__out			uint32_t *subtypep)
 {
 	efx_mcdi_req_t req;
-	uint8_t payload[MAX(MC_CMD_GET_BOARD_CFG_IN_LEN,
-			    MC_CMD_GET_BOARD_CFG_OUT_LENMAX)];
+	EFX_MCDI_DECLARE_BUF(payload, MC_CMD_GET_BOARD_CFG_IN_LEN,
+		MC_CMD_GET_BOARD_CFG_OUT_LENMAX);
 	efx_word_t *fw_list;
 	efx_rc_t rc;
 
-	(void) memset(payload, 0, sizeof (payload));
 	req.emr_cmd = MC_CMD_GET_BOARD_CFG;
 	req.emr_in_buf = payload;
 	req.emr_in_length = MC_CMD_GET_BOARD_CFG_IN_LEN;
@@ -592,11 +600,12 @@ fail1:
 	__checkReturn		efx_rc_t
 siena_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn)
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp)
 {
 	efx_rc_t rc;
 
-	if ((rc = siena_nvram_partn_unlock(enp, partn)) != 0)
+	if ((rc = siena_nvram_partn_unlock(enp, partn, verify_resultp)) != 0)
 		goto fail1;
 
 	return (0);
@@ -710,7 +719,7 @@ siena_nvram_partn_set_version(
 
 	EFSYS_KMEM_FREE(enp->en_esip, length, dcfg);
 
-	siena_nvram_partn_unlock(enp, dcfg_partn);
+	siena_nvram_partn_unlock(enp, dcfg_partn, NULL);
 
 	return (0);
 

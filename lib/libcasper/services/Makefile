@@ -3,6 +3,7 @@
 .include <src.opts.mk>
 
 SUBDIR=		cap_dns
+SUBDIR+=	cap_fileargs
 SUBDIR+=	cap_grp
 SUBDIR+=	cap_pwd
 SUBDIR+=	cap_random

@@ -528,7 +528,6 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	struct tseg_qent *p = NULL;
 	struct tseg_qent *nq = NULL;
 	struct tseg_qent *te = NULL;
-	struct tseg_qent tqs;
 	struct mbuf *mlast = NULL;
 	struct sockbuf *sb;
 	struct socket *so = tp->t_inpcb->inp_socket;
@@ -580,7 +579,8 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	 */
 	lenofoh = tcp_reass_overhead_of_chain(m, &mlast);
 	sb = &tp->t_inpcb->inp_socket->so_rcv;
-	if ((sb->sb_mbcnt + tp->t_segqmbuflen + lenofoh) > sb->sb_mbmax) {
+	if ((th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) &&
+	    (sb->sb_mbcnt + tp->t_segqmbuflen + lenofoh) > sb->sb_mbmax) {
 		/* No room */
 		TCPSTAT_INC(tcps_rcvreassfull);
 #ifdef TCP_REASS_COUNTERS
@@ -589,6 +589,11 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 #ifdef TCP_REASS_LOGGING
 		tcp_log_reassm(tp, NULL, NULL, th->th_seq, lenofoh, TCP_R_LOG_LIMIT_REACHED, 0);
 #endif
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: mbuf count limit reached, "
+			    "segment dropped\n", s, __func__);
+			free(s, M_TCPLOG);
+		}
 		m_freem(m);
 		*tlenp = 0;
 #ifdef TCP_REASS_LOGGING
@@ -937,6 +942,20 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, tcp_seq *seq_start,
 	 * is understood.
 	 */
 new_entry:
+	if (th->th_seq == tp->rcv_nxt && TCPS_HAVEESTABLISHED(tp->t_state)) {
+		tp->rcv_nxt += *tlenp;
+		flags = th->th_flags & TH_FIN;
+		TCPSTAT_INC(tcps_rcvoopack);
+		TCPSTAT_ADD(tcps_rcvoobyte, *tlenp);
+		SOCKBUF_LOCK(&so->so_rcv);
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+			m_freem(m);
+		} else {
+			sbappendstream_locked(&so->so_rcv, m, 0);
+		}
+		sorwakeup_locked(so);
+		return (flags);
+	}
 	if (tcp_new_limits) {
 		if ((tp->t_segqlen > tcp_reass_queue_guard) &&
 		    (*tlenp < MSIZE)) {
@@ -961,9 +980,7 @@ new_entry:
 			return (0);
 		}
 	} else {
-
-		if ((th->th_seq != tp->rcv_nxt || !TCPS_HAVEESTABLISHED(tp->t_state)) &&
-		    tp->t_segqlen >= min((so->so_rcv.sb_hiwat / tp->t_maxseg) + 1,
+		if (tp->t_segqlen >= min((so->so_rcv.sb_hiwat / tp->t_maxseg) + 1,
 					 tcp_reass_maxqueuelen)) {
 			TCPSTAT_INC(tcps_rcvreassfull);
 			*tlenp = 0;
@@ -1053,8 +1070,7 @@ present:
 		KASSERT(tp->t_segqmbuflen >= q->tqe_mbuf_cnt,
 			("tp:%p seg queue goes negative", tp));
 		tp->t_segqmbuflen -= q->tqe_mbuf_cnt;
-		if (q != &tqs) 
-			uma_zfree(tcp_reass_zone, q);
+		uma_zfree(tcp_reass_zone, q);
 		tp->t_segqlen--;
 		q = nq;
 	} while (q && q->tqe_start == tp->rcv_nxt);

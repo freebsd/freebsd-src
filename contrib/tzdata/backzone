@@ -16,13 +16,13 @@
 # the file 'backward'.
 
 # Although zones in this file may be of some use for analyzing
-# pre-1970 time stamps, they are less reliable, cover only a tiny
+# pre-1970 timestamps, they are less reliable, cover only a tiny
 # sliver of the pre-1970 era, and cannot feasibly be improved to cover
 # most of the era.  Because the zones are out of normal scope for the
 # database, less effort is put into maintaining this file.  Many of
 # the zones were formerly in other source files, but were removed or
 # replaced by links as their data entries were questionable and/or they
-# differed from other zones only in pre-1970 time stamps.
+# differed from other zones only in pre-1970 timestamps.
 
 # Unless otherwise specified, the source for data through 1990 is:
 # Thomas G. Shanks and Rique Pottenger, The International Atlas (6th edition),

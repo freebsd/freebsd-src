@@ -61,6 +61,7 @@ struct ipq {
 	u_char	ipq_ttl;		/* time for reass q to live */
 	u_char	ipq_p;			/* protocol of this fragment */
 	u_short	ipq_id;			/* sequence id for reassembly */
+	int	ipq_maxoff;		/* total length of packet */
 	struct mbuf *ipq_frags;		/* to ip headers of fragments */
 	struct	in_addr ipq_src,ipq_dst;
 	u_char	ipq_nfrags;		/* # frags in this packet */

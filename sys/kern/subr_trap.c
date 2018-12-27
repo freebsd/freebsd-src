@@ -198,16 +198,8 @@ userret(struct thread *td, struct trapframe *frame)
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
 #ifdef RACCT
-	if (racct_enable && p->p_throttled != 0) {
-		PROC_LOCK(p);
-		while (p->p_throttled != 0) {
-			msleep(p->p_racct, &p->p_mtx, 0, "racct",
-			    p->p_throttled < 0 ? 0 : p->p_throttled);
-			if (p->p_throttled > 0)
-				p->p_throttled = 0;
-		}
-		PROC_UNLOCK(p);
-	}
+	if (__predict_false(racct_enable && p->p_throttled != 0))
+		racct_proc_throttled(p);
 #endif
 }
 

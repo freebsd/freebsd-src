@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <machine/cpufunc.h>
+#include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
 
@@ -53,14 +54,21 @@ __FBSDID("$FreeBSD$");
 #define	SMN_ADDR_REG	0x60
 #define	SMN_DATA_REG	0x64
 
+#define	PCI_DEVICE_ID_AMD_17H_ROOT		0x1450
+#define	PCI_DEVICE_ID_AMD_17H_ROOT_DF_F3	0x1463
+#define	PCI_DEVICE_ID_AMD_17H_M10H_ROOT		0x15d0
+#define	PCI_DEVICE_ID_AMD_17H_M10H_ROOT_DF_F3	0x15eb
+
 struct amdsmn_softc {
 	struct mtx smn_lock;
 };
 
 static struct pciid {
-	uint32_t	device_id;
+	uint16_t	amdsmn_vendorid;
+	uint16_t	amdsmn_deviceid;
 } amdsmn_ids[] = {
-	{ 0x14501022 },
+	{ CPU_VENDOR_AMD, PCI_DEVICE_ID_AMD_17H_ROOT },
+	{ CPU_VENDOR_AMD, PCI_DEVICE_ID_AMD_17H_M10H_ROOT },
 };
 
 /*
@@ -89,18 +97,21 @@ static driver_t amdsmn_driver = {
 static devclass_t amdsmn_devclass;
 DRIVER_MODULE(amdsmn, hostb, amdsmn_driver, amdsmn_devclass, NULL, NULL);
 MODULE_VERSION(amdsmn, 1);
-MODULE_PNP_INFO("W32:vendor/device", pci, amdsmn, amdsmn_ids,
+MODULE_PNP_INFO("U16:vendor;U16:device", pci, amdsmn, amdsmn_ids,
     nitems(amdsmn_ids));
 
 static bool
 amdsmn_match(device_t parent)
 {
-	uint32_t devid;
+	uint16_t vendor, device;
 	size_t i;
 
-	devid = pci_get_devid(parent);
+	vendor = pci_get_vendor(parent);
+	device = pci_get_device(parent);
+
 	for (i = 0; i < nitems(amdsmn_ids); i++)
-		if (amdsmn_ids[i].device_id == devid)
+		if (vendor == amdsmn_ids[i].amdsmn_vendorid &&
+		    device == amdsmn_ids[i].amdsmn_deviceid)
 			return (true);
 	return (false);
 }

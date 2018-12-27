@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
  * Shift an (unsigned) quad value right (logical shift right).
  */
 quad_t
-__lshrdi3(a, shift)
-	quad_t a;
-	qshift_t shift;
+__lshrdi3(quad_t a, qshift_t shift)
 {
 	union uu aa;
 

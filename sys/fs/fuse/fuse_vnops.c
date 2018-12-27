@@ -242,7 +242,7 @@ fuse_vnop_access(struct vop_access_args *ap)
 	}
 	if (!(data->dataflags & FSESS_INITED)) {
 		if (vnode_isvroot(vp)) {
-			if (priv_check_cred(cred, PRIV_VFS_ADMIN, 0) ||
+			if (priv_check_cred(cred, PRIV_VFS_ADMIN) ||
 			    (fuse_match_cred(data->daemoncred, cred) == 0)) {
 				return 0;
 			}
@@ -1708,7 +1708,7 @@ fuse_vnop_symlink(struct vop_symlink_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	char *target = ap->a_target;
+	const char *target = ap->a_target;
 
 	struct fuse_dispatcher fdi;
 

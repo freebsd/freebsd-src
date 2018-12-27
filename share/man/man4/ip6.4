@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2018
+.Dd November 1, 2018
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -652,9 +652,8 @@ An ancillary data object was improperly formed.
 .Xr setsockopt 2 ,
 .Xr socket 2 ,
 .Xr CMSG_DATA 3 ,
-.\" .Xr inet6_option_space 3 ,
-.\" .Xr inet6_rthdr_space 3 ,
 .Xr if_nametoindex 3 ,
+.Xr inet6_opt_init 3 ,
 .Xr bpf 4 ,
 .Xr icmp6 4 ,
 .Xr inet6 4 ,
@@ -686,16 +685,42 @@ An ancillary data object was improperly formed.
 .%D March 1999
 .Re
 .Rs
+.%A R. Gilligan
+.%A S. Thomson
+.%A J. Bound
+.%A J. McCann
+.%A W. Stevens
+.%T Basic Socket Interface Extensions for IPv6
+.%R RFC 3493
+.%D February 2003
+.Re
+.Rs
+.%A W. Stevens
+.%A M. Thomas
+.%A E. Nordmark
+.%A T. Jinmei
+.%T Advanced Sockets Application Program Interface (API) for IPv6
+.%R RFC 3542
+.%D May 2003
+.Re
+.Rs
+.%A S. Deering
+.%A R. Hinden
+.%T Internet Protocol, Version 6 (IPv6) Specification
+.%R RFC 8200
+.%D July 2017
+.Re
+.Rs
 .%A W. Stevens
 .%A B. Fenner
 .%A A. Rudoff
-.%T UNIX Network Programming, third edition
+.%T UNIX Network Programming, 3rd Edition
+.%I Addison-Wesley Professional
+.%D November 2003
 .Re
 .Sh STANDARDS
-Most of the socket options are defined in RFC 2292 or RFC 2553.
-The
-.Dv IPV6_V6ONLY
-socket option is defined in RFC 3493 Section 5.3.
+Most of the socket options are defined in RFC 2292 / 3542 or
+RFC 2553 / 3493.
 The
 .Dv IPV6_PORTRANGE
 socket option and the conflict resolution rule are not defined in the

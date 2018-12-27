@@ -222,20 +222,28 @@ int mlx5_query_nic_vport_min_inline(struct mlx5_core_dev *mdev,
 }
 EXPORT_SYMBOL_GPL(mlx5_query_nic_vport_min_inline);
 
-void mlx5_query_min_inline(struct mlx5_core_dev *mdev,
-			   u8 *min_inline_mode)
+int mlx5_query_min_inline(struct mlx5_core_dev *mdev,
+			  u8 *min_inline_mode)
 {
+	int err;
+
 	switch (MLX5_CAP_ETH(mdev, wqe_inline_mode)) {
 	case MLX5_CAP_INLINE_MODE_L2:
 		*min_inline_mode = MLX5_INLINE_MODE_L2;
+		err = 0;
 		break;
 	case MLX5_CAP_INLINE_MODE_VPORT_CONTEXT:
-		mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode);
+		err = mlx5_query_nic_vport_min_inline(mdev, 0, min_inline_mode);
 		break;
 	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
 		*min_inline_mode = MLX5_INLINE_MODE_NONE;
+		err = 0;
+		break;
+	default:
+		err = -EINVAL;
 		break;
 	}
+	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_min_inline);
 
@@ -1597,8 +1605,8 @@ int mlx5_query_vport_counter(struct mlx5_core_dev *dev,
 
 	err = mlx5_cmd_exec(dev, in, in_sz, out,  out_size);
 
-	kvfree(in);
 ex:
+	kvfree(in);
 	return err;
 }
 EXPORT_SYMBOL_GPL(mlx5_query_vport_counter);

@@ -151,6 +151,7 @@ enum Argtype {
 	PQuadHex,
 	PUInt,
 	Readlinkres,
+	ShmName,
 	StringArray,
 
 	/* Pointers to structures. */

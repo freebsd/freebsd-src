@@ -140,17 +140,20 @@ int hash_nt_password_hash(const u8 *password_hash, u8 *password_hash_hash)
  * @challenge: 8-octet Challenge (IN)
  * @password_hash: 16-octet PasswordHash (IN)
  * @response: 24-octet Response (OUT)
+ * Returns: 0 on success, -1 on failure
  */
-void challenge_response(const u8 *challenge, const u8 *password_hash,
-			u8 *response)
+int challenge_response(const u8 *challenge, const u8 *password_hash,
+		       u8 *response)
 {
 	u8 zpwd[7];
-	des_encrypt(challenge, password_hash, response);
-	des_encrypt(challenge, password_hash + 7, response + 8);
+
+	if (des_encrypt(challenge, password_hash, response) < 0 ||
+	    des_encrypt(challenge, password_hash + 7, response + 8) < 0)
+		return -1;
 	zpwd[0] = password_hash[14];
 	zpwd[1] = password_hash[15];
 	os_memset(zpwd + 2, 0, 5);
-	des_encrypt(challenge, zpwd, response + 16);
+	return des_encrypt(challenge, zpwd, response + 16);
 }
 
 
@@ -175,9 +178,9 @@ int generate_nt_response(const u8 *auth_challenge, const u8 *peer_challenge,
 
 	if (challenge_hash(peer_challenge, auth_challenge, username,
 			   username_len, challenge) ||
-	    nt_password_hash(password, password_len, password_hash))
+	    nt_password_hash(password, password_len, password_hash) ||
+	    challenge_response(challenge, password_hash, response))
 		return -1;
-	challenge_response(challenge, password_hash, response);
 	return 0;
 }
 
@@ -202,9 +205,9 @@ int generate_nt_response_pwhash(const u8 *auth_challenge,
 
 	if (challenge_hash(peer_challenge, auth_challenge,
 			   username, username_len,
-			   challenge))
+			   challenge) ||
+	    challenge_response(challenge, password_hash, response))
 		return -1;
-	challenge_response(challenge, password_hash, response);
 	return 0;
 }
 
@@ -304,9 +307,10 @@ int nt_challenge_response(const u8 *challenge, const u8 *password,
 			  size_t password_len, u8 *response)
 {
 	u8 password_hash[16];
-	if (nt_password_hash(password, password_len, password_hash))
+
+	if (nt_password_hash(password, password_len, password_hash) ||
+	    challenge_response(challenge, password_hash, response))
 		return -1;
-	challenge_response(challenge, password_hash, response);
 	return 0;
 }
 
@@ -487,12 +491,15 @@ int new_password_encrypted_with_old_nt_password_hash(
  * @password_hash: 16-octer PasswordHash (IN)
  * @block: 16-octet Block (IN)
  * @cypher: 16-octer Cypher (OUT)
+ * Returns: 0 on success, -1 on failure
  */
-void nt_password_hash_encrypted_with_block(const u8 *password_hash,
-					   const u8 *block, u8 *cypher)
+int nt_password_hash_encrypted_with_block(const u8 *password_hash,
+					  const u8 *block, u8 *cypher)
 {
-	des_encrypt(password_hash, block, cypher);
-	des_encrypt(password_hash + 8, block + 7, cypher + 8);
+	if (des_encrypt(password_hash, block, cypher) < 0 ||
+	    des_encrypt(password_hash + 8, block + 7, cypher + 8) < 0)
+		return -1;
+	return 0;
 }
 
 
@@ -515,10 +522,10 @@ int old_nt_password_hash_encrypted_with_new_nt_password_hash(
 	if (nt_password_hash(old_password, old_password_len,
 			     old_password_hash) ||
 	    nt_password_hash(new_password, new_password_len,
-			     new_password_hash))
+			     new_password_hash) ||
+	    nt_password_hash_encrypted_with_block(old_password_hash,
+						  new_password_hash,
+						  encrypted_password_hash))
 		return -1;
-	nt_password_hash_encrypted_with_block(old_password_hash,
-					      new_password_hash,
-					      encrypted_password_hash);
 	return 0;
 }

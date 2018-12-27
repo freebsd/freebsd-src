@@ -1,9 +1,9 @@
 /*
- *  $Id: textbox.c,v 1.110 2012/12/01 01:48:08 tom Exp $
+ *  $Id: textbox.c,v 1.117 2018/06/19 22:57:01 tom Exp $
  *
  *  textbox.c -- implements the text box
  *
- *  Copyright 2000-2011,2012	Thomas E.  Dickey
+ *  Copyright 2000-2017,2018	Thomas E.  Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -92,7 +92,7 @@ lseek_end(MY_OBJ * obj, long offset)
 {
     long actual = lseek_obj(obj, offset, SEEK_END);
 
-    if (actual > offset) {
+    if (offset == 0L && actual > offset) {
 	obj->file_size = actual;
     }
 }
@@ -103,7 +103,7 @@ lseek_cur(MY_OBJ * obj, long offset)
     long actual = lseek_obj(obj, offset, SEEK_CUR);
 
     if (actual != offset) {
-	dlg_trace_msg("Lseek returned %ld, expected %ld\n", actual, offset);
+	DLG_TRACE(("# Lseek returned %ld, expected %ld\n", actual, offset));
     }
 }
 
@@ -525,7 +525,7 @@ get_search_term(WINDOW *dialog, char *input, int height, int width)
 		  searchbox_attr,
 		  searchbox_border_attr,
 		  searchbox_border2_attr);
-    (void) wattrset(widget, searchbox_title_attr);
+    dlg_attrset(widget, searchbox_title_attr);
     (void) wmove(widget, 0, (box_width - len_caption) / 2);
 
     indx = dlg_index_wchars(caption);
@@ -599,7 +599,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
 	    }
 #endif
 	    /* ESC pressed, or no search term, reprint page to clear box */
-	    (void) wattrset(obj->text, dialog_attr);
+	    dlg_attrset(obj->text, dialog_attr);
 	    back_lines(obj, obj->page_length);
 	    return TRUE;
 	}
@@ -644,7 +644,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
 	    back_lines(obj, 1L);
 	}
 	/* Reprint page */
-	(void) wattrset(obj->text, dialog_attr);
+	dlg_attrset(obj->text, dialog_attr);
 	moved = TRUE;
     } else {			/* no need to find */
 	(void) beep();
@@ -656,7 +656,7 @@ perform_search(MY_OBJ * obj, int height, int width, int key, char *search_term)
  * Display text from a file in a dialog box.
  */
 int
-dialog_textbox(const char *title, const char *file, int height, int width)
+dialog_textbox(const char *title, const char *filename, int height, int width)
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
@@ -679,7 +679,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 	DLG_KEYS_DATA( DLGK_PAGE_LAST,  'G' ),
 	DLG_KEYS_DATA( DLGK_PAGE_LAST,  KEY_END ),
 	DLG_KEYS_DATA( DLGK_PAGE_LAST,  KEY_LL ),
-	DLG_KEYS_DATA( DLGK_PAGE_NEXT,  ' ' ),
+	DLG_KEYS_DATA( DLGK_PAGE_NEXT,  CHR_SPACE ),
 	DLG_KEYS_DATA( DLGK_PAGE_NEXT,  KEY_NPAGE ),
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,  'B' ),
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,  'b' ),
@@ -709,6 +709,12 @@ dialog_textbox(const char *title, const char *file, int height, int width)
     int button = dlg_default_button();
     int min_width = 12;
 
+    DLG_TRACE(("# textbox args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("filename", filename);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+
     search_term[0] = '\0';	/* no search term entered yet */
 
     memset(&obj, 0, sizeof(obj));
@@ -719,8 +725,8 @@ dialog_textbox(const char *title, const char *file, int height, int width)
     obj.buttons = dlg_exit_label();
 
     /* Open input file for reading */
-    if ((obj.fd = open(file, O_RDONLY)) == -1)
-	dlg_exiterr("Can't open input file %s", file);
+    if ((obj.fd = open(filename, O_RDONLY)) == -1)
+	dlg_exiterr("Can't open input file %s", filename);
 
     /* Get file size. Actually, 'file_size' is the real file size - 1,
        since it's only the last byte offset from the beginning */
@@ -738,7 +744,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 #endif
     moved = TRUE;
 
-    dlg_auto_sizefile(title, file, &height, &width, 2, min_width);
+    dlg_auto_sizefile(title, filename, &height, &width, 2, min_width);
     dlg_print_size(height, width);
     dlg_ctl_size(height, width);
 
@@ -942,6 +948,7 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;
@@ -949,7 +956,6 @@ dialog_textbox(const char *title, const char *file, int height, int width)
 		/* repaint */
 		dlg_clear();
 		dlg_del_window(dialog);
-		refresh();
 		dlg_mouse_free_regions();
 		goto retry;
 #endif

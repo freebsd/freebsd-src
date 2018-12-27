@@ -148,12 +148,19 @@ loop:
 	if (I_IS_UFS1(ip)) {
 		*((struct ufs1_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din1;
-		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
+		/*
+		 * XXX: FIX? The entropy here is desirable,
+		 * but the harvesting may be expensive
+		 */
 		random_harvest_queue(&(ip->i_din1), sizeof(ip->i_din1), RANDOM_FS_ATIME);
 	} else {
+		ffs_update_dinode_ckhash(fs, ip->i_din2);
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
-		/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
+		/*
+		 * XXX: FIX? The entropy here is desirable,
+		 * but the harvesting may be expensive
+		 */
 		random_harvest_queue(&(ip->i_din2), sizeof(ip->i_din2), RANDOM_FS_ATIME);
 	}
 	if (waitfor)

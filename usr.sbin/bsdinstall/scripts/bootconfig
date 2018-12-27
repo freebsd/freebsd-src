@@ -1,5 +1,6 @@
 #!/bin/sh
 #-
+# Copyright (c) 2018 Rebecca Cran
 # Copyright (c) 2017 Nathan Whitehorn
 # All rights reserved.
 #
@@ -26,6 +27,11 @@
 #
 # $FreeBSD$
 
+die() {
+	echo $*
+	exit 1
+}
+
 if [ `uname -m` == powerpc ]; then
 	platform=`sysctl -n hw.platform`
 	if [ "$platform" == ps3 -o "$platform" == powernv ]; then
@@ -35,6 +41,115 @@ if [ `uname -m` == powerpc ]; then
 	fi
 fi
 
-# For new-style EFI booting, add code here
-# Add boot0cfg for MBR BIOS booting?
+# Update the ESP (EFI System Partition) with the new bootloader
+if [ "$(uname -m)" = "amd64" ] || [ "$(uname -m)" = "i386" ]; then
+	X86_BOOTMETHOD=$(sysctl -n machdep.bootmethod)
+fi
 
+if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
+	UFSBOOT_ESPS=$(cat /tmp/bsdinstall-esps)
+	num_esps=0
+
+	if [ -n "$ZFSBOOT_DISKS" ]; then
+		# We're in a ZFS install environment
+		for disk in $ZFSBOOT_DISKS; do
+			index=$(gpart show "$disk" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
+			# Check that $index is an integer
+			[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null
+			if [ $? -ne 0 ]; then
+				continue
+			fi
+
+			if [ -e "/dev/${disk}p${index}" ]; then
+				ESPS="$ESPS ${disk}p${index}"
+			elif [ -e "/dev/${disk}s${index}" ]; then
+				ESPS="$ESPS ${disk}s${index}"
+			else
+				continue
+			fi
+
+			num_esps=$((num_esps + 1))
+		done
+	fi
+
+	if [ -n "$UFSBOOT_ESPS" ]; then
+		# We're in a UFS install environment
+		for partition in $UFSBOOT_ESPS; do
+			ESPS="$ESPS $partition"
+			num_esps=$((num_esps + 1))
+		done
+	fi
+
+	if [ -z "$ESPS" ]; then
+		# The installer hasn't given us any ESPs to use.
+		# Try and figure out which to use by looking for an
+		# unformatted efi partition
+		for disk in $(sysctl -n kern.disks); do
+			hasfreebsd=$(gpart show "$disk" | cut -w -f 4,5 | grep "freebsd")
+			if [ -n "$hasfreebsd" ]; then
+				index=$(gpart show "$disk" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
+				# Check that $index is a valid integer
+				[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null 
+				if [ $? -ne 0 ]; then
+					continue
+				fi
+
+				mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+				if [ -e "/dev/${disk}p${index}" ]; then
+					dev=${disk}p${index}
+				elif [ -e "/dev/${disk}s${index}" ]; then
+					dev=/${disk}s${index}
+				else
+					continue
+				fi
+
+				# Try and mount it. If it fails, assume it's
+				# unformatted and should be used.
+				mount -t msdosfs "/dev/${dev}" "${mntpt}"
+				if [ $? -ne 0 ]; then
+					ESPS="$ESPS ${dev}"
+					num_esps=$((num_esps + 1))
+				else
+					umount "${mntpt}"
+				fi
+				rmdir "${mntpt}"
+			fi
+		done
+	fi
+
+	for esp in $ESPS; do
+		newfs_msdos -F 32 -c 1 -L EFISYS "/dev/$esp" > /dev/null 2>&1
+		if [ $? -ne 0 ]; then
+			die "Failed to format ESP $esp as FAT32"
+		fi
+
+		mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+		mount -t msdosfs "/dev/${esp}" "${mntpt}"
+		if [ $? -ne 0 ]; then
+			die "Failed to mount ESP ${dev} on ${mntpt}"
+		fi
+
+		mkdir -p "$mntpt/EFI/freebsd"
+		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/EFI/freebsd/loader.efi"
+
+		if [ "$num_esps" -gt 1 ]; then
+			bootlabel="FreeBSD (${esp})"
+		else
+			bootlabel="FreeBSD"
+		fi
+
+		efibootmgr --create --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
+
+		umount "${mntpt}"
+		rmdir "${mntpt}"
+
+		# When creating new entries, efibootmgr doesn't mark them active, so we need to
+		# do so. It doesn't make it easy to find which entry it just added, so rely on
+		# the fact that it places the new entry first in BootOrder.
+		bootorder=$(efivar --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-BootOrder --print --no-name --hex | head -1)
+		bootentry=$(echo "$bootorder" | cut -w -f 3)$(echo "$bootorder" | cut -w -f 2)
+		efibootmgr --activate "$bootentry" > /dev/null
+	done
+fi
+
+# Add boot0cfg for MBR BIOS booting?

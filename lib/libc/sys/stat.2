@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd December 5, 2018
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -84,11 +84,24 @@ and
 .Fn lstat
 except when the
 .Fa path
-specifies a relative path.
-In this case the status is retrieved from a file relative to
+specifies a relative path, or the
+.Dv AT_BENEATH
+flag is provided.
+For
+.Fn fstatat
+and relative
+.Fa path ,
+the status is retrieved from a file relative to
 the directory associated with the file descriptor
 .Fa fd
 instead of the current working directory.
+For
+.Dv AT_BENEATH
+and absolute
+.Fa path ,
+the status is retrieved from a file specified by the
+.Fa path ,
+but additional permission checks are performed, see below.
 .Pp
 The values for the
 .Fa flag
@@ -100,6 +113,13 @@ defined in
 If
 .Fa path
 names a symbolic link, the status of the symbolic link is returned.
+.It Dv AT_BENEATH
+Only stat files and directories below the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
 .El
 .Pp
 If
@@ -117,6 +137,23 @@ respectively, depending on whether or not the
 .Dv AT_SYMLINK_NOFOLLOW
 bit is set in
 .Fa flag .
+.Pp
+When
+.Fn fstatat
+is called with an absolute
+.Fa path
+without the
+.Dv AT_BENEATH
+flag, it ignores the
+.Fa fd
+argument.
+When
+.Dv AT_BENEATH
+is specified with an absolute
+.Fa path ,
+a directory passed by the
+.Fa fd
+argument is used as the topping point for the resolution.
 .Pp
 The
 .Fa sb
@@ -156,45 +193,53 @@ are:
 .Bl -tag -width ".Va st_birthtim"
 .It Va st_atim
 Time when file data was last accessed.
-Changed by the
-.Xr mknod 2 ,
-.Xr utimes 2 ,
+Changed implicitly by syscalls such as
 .Xr read 2
 and
-.Xr readv 2
-system calls.
+.Xr readv 2 ,
+and explicitly by
+.Xr utimes 2 .
 .It Va st_mtim
 Time when file data was last modified.
-Changed by the
-.Xr mkdir 2 ,
-.Xr mkfifo 2 ,
-.Xr mknod 2 ,
-.Xr utimes 2 ,
-.Xr write 2
+Changed implicitly by syscalls such as
+.Xr truncate 2 ,
+.Xr write 2 ,
 and
-.Xr writev 2
-system calls.
+.Xr writev 2 ,
+and explicitly by
+.Xr utimes 2 .
+Also, any syscall which modifies directory content changes the
+.Va st_mtim
+for the affected directory.
+For instance,
+.Xr creat 2 ,
+.Xr mkdir 2 ,
+.Xr rename 2 ,
+.Xr link 2 ,
+and
+.Xr unlink 2 .
 .It Va st_ctim
 Time when file status was last changed (inode data modification).
-Changed by the
+Changed implicitly by any syscall that affects file metadata, including
+.Va st_mtim ,
+such as
 .Xr chflags 2 ,
 .Xr chmod 2 ,
 .Xr chown 2 ,
-.Xr creat 2 ,
-.Xr link 2 ,
-.Xr mkdir 2 ,
-.Xr mkfifo 2 ,
-.Xr mknod 2 ,
-.Xr rename 2 ,
-.Xr rmdir 2 ,
-.Xr symlink 2 ,
 .Xr truncate 2 ,
-.Xr unlink 2 ,
 .Xr utimes 2 ,
-.Xr write 2
 and
-.Xr writev 2
-system calls.
+.Xr write 2 .
+Also, any syscall which modifies directory content changes the
+.Va st_ctim
+for the affected directory.
+For instance,
+.Xr creat 2 ,
+.Xr mkdir 2 ,
+.Xr rename 2 ,
+.Xr link 2 ,
+and
+.Xr unlink 2 .
 .It Va st_birthtim
 Time when the inode was created.
 .El
@@ -397,6 +442,24 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fn fstatat ,
+and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr access 2 ,

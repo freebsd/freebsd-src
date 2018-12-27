@@ -64,8 +64,8 @@ g_confdot_provider(struct sbuf *sb, struct g_provider *pp)
 {
 
 	sbuf_printf(sb, "z%p [shape=hexagon,label=\"%s\\nr%dw%de%d\\nerr#%d\\n"
-	    "sector=%u\\nstripe=%u\"];\n", pp, pp->name, pp->acr, pp->acw,
-	    pp->ace, pp->error, pp->sectorsize, pp->stripesize);
+	    "sector=%u\\nstripe=%ju\"];\n", pp, pp->name, pp->acr, pp->acw,
+	    pp->ace, pp->error, pp->sectorsize, (uintmax_t)pp->stripesize);
 }
 
 static void
@@ -216,8 +216,8 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	sbuf_printf(sb, "\t  <mediasize>%jd</mediasize>\n",
 	    (intmax_t)pp->mediasize);
 	sbuf_printf(sb, "\t  <sectorsize>%u</sectorsize>\n", pp->sectorsize);
-	sbuf_printf(sb, "\t  <stripesize>%u</stripesize>\n", pp->stripesize);
-	sbuf_printf(sb, "\t  <stripeoffset>%u</stripeoffset>\n", pp->stripeoffset);
+	sbuf_printf(sb, "\t  <stripesize>%ju</stripesize>\n", (uintmax_t)pp->stripesize);
+	sbuf_printf(sb, "\t  <stripeoffset>%ju</stripeoffset>\n", (uintmax_t)pp->stripeoffset);
 	if (pp->flags & G_PF_WITHER)
 		sbuf_printf(sb, "\t  <wither/>\n");
 	else if (pp->geom->flags & G_GEOM_WITHER)

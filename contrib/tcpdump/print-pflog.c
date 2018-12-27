@@ -97,8 +97,12 @@ pflog_print(netdissect_options *ndo, const struct pfloghdr *hdr)
 	else
 		ND_PRINT((ndo, "rule %u.%s.%u/", rulenr, hdr->ruleset, subrulenr));
 
-	ND_PRINT((ndo, "%s: %s %s on %s: ",
-	    tok2str(pf_reasons, "unkn(%u)", hdr->reason),
+	ND_PRINT((ndo, "%s", tok2str(pf_reasons, "unkn(%u)", hdr->reason)));
+
+	if (hdr->uid != UID_MAX)
+		ND_PRINT((ndo, " [uid %u]", (unsigned)hdr->uid));
+
+	ND_PRINT((ndo, ": %s %s on %s: ",
 	    tok2str(pf_actions, "unkn(%u)", hdr->action),
 	    tok2str(pf_directions, "unkn(%u)", hdr->dir),
 	    hdr->ifname));

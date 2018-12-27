@@ -45,8 +45,7 @@ __FBSDID("$FreeBSD$");
  * Convert (signed) quad to double.
  */
 double
-__floatdidf(x)
-	quad_t x;
+__floatdidf(quad_t x)
 {
 	double d;
 	union uu u;

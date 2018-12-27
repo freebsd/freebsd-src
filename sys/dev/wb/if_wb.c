@@ -694,6 +694,8 @@ wb_attach(dev)
 		goto fail;
 	}
 
+	gone_by_fcp101_dev(dev);
+
 fail:
 	if (error)
 		wb_detach(dev);

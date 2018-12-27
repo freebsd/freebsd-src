@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd February 5, 2017
+.Dd November 3, 2018
 .Dt ED 1
 .Os
 .Sh NAME
@@ -9,12 +9,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl
-.Op Fl sx
+.Op Fl s
 .Op Fl p Ar string
 .Op Ar file
 .Nm red
 .Op Fl
-.Op Fl sx
+.Op Fl s
 .Op Fl p Ar string
 .Op Ar file
 .Sh DESCRIPTION
@@ -141,11 +141,6 @@ Suppress diagnostics.
 This should be used if
 .Nm Ns 's
 standard input is from a script.
-.It Fl x
-Prompt for an encryption key to be used in subsequent reads and writes
-(see the
-.Em x
-command).
 .It Fl p Ar string
 Specify a command prompt.
 This may be toggled on and off with the
@@ -865,12 +860,6 @@ This is similar to the
 .Em w
 command, expect that the previous contents of file is not clobbered.
 The current address is unchanged.
-.It x
-Prompt for an encryption key which is used in subsequent reads and
-writes.
-If a newline alone is entered as the key, then encryption is
-turned off.
-Otherwise, echoing is disabled while a key is read.
 .It Pf (.+1)z n
 Scroll
 .Ar n

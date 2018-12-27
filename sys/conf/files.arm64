@@ -31,6 +31,7 @@ arm/allwinner/aw_gpio.c		optional	gpio aw_gpio fdt
 arm/allwinner/aw_mmc.c		optional	mmc aw_mmc fdt | mmccam aw_mmc fdt
 arm/allwinner/aw_nmi.c		optional	aw_nmi fdt \
 	compile-with "${NORMAL_C} -I$S/gnu/dts/include"
+arm/allwinner/aw_pwm.c		optional	aw_pwm fdt
 arm/allwinner/aw_rsb.c		optional	aw_rsb fdt
 arm/allwinner/aw_rtc.c		optional	aw_rtc fdt
 arm/allwinner/aw_sid.c		optional	aw_sid nvmem fdt
@@ -88,6 +89,13 @@ arm/broadcom/bcm2835/bcm2835_vcio.c		optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2835_wdog.c		optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm2836.c			optional soc_brcm_bcm2837 fdt
 arm/broadcom/bcm2835/bcm283x_dwc_fdt.c		optional dwcotg fdt soc_brcm_bcm2837
+arm/mv/gpio.c					optional mv_gpio fdt
+arm/mv/mvebu_pinctrl.c				optional mvebu_pinctrl fdt
+arm/mv/mv_cp110_icu.c				optional mv_cp110_icu fdt
+arm/mv/mv_ap806_gicp.c				optional mv_ap806_gicp fdt
+arm/mv/mv_ap806_clock.c				optional SOC_MARVELL_8K fdt
+arm/mv/mv_cp110_clock.c				optional SOC_MARVELL_8K fdt
+arm/mv/mv_thermal.c				optional SOC_MARVELL_8K mv_thermal fdt
 arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
 arm64/acpica/acpi_machdep.c	optional	acpi
@@ -188,6 +196,7 @@ dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
 dev/acpica/acpi_pci_link.c	optional	acpi pci
 dev/acpica/acpi_pcib.c		optional	acpi pci
+dev/acpica/acpi_pxm.c		optional	acpi
 dev/ahci/ahci_generic.c		optional	ahci
 dev/axgbe/if_axgbe.c		optional	axgbe
 dev/axgbe/xgbe-desc.c		optional	axgbe
@@ -195,6 +204,7 @@ dev/axgbe/xgbe-dev.c		optional	axgbe
 dev/axgbe/xgbe-drv.c		optional	axgbe
 dev/axgbe/xgbe-mdio.c		optional	axgbe
 dev/cpufreq/cpufreq_dt.c	optional	cpufreq fdt
+dev/iicbus/twsi/mv_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/a10_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/twsi.c		optional	twsi fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
@@ -252,17 +262,20 @@ cddl/dev/dtrace/aarch64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}
 cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 cddl/dev/fbt/aarch64/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 
-arm64/rockchip/rk_i2c.c			optional rk_i2c fdt soc_rockchip_rk3328
-arm64/rockchip/rk_grf.c			optional fdt soc_rockchip_rk3328
-arm64/rockchip/rk_pinctrl.c		optional fdt soc_rockchip_rk3328
-arm64/rockchip/rk_gpio.c		optional fdt soc_rockchip_rk3328
-arm64/rockchip/clk/rk_cru.c		optional fdt soc_rockchip_rk3328
-arm64/rockchip/clk/rk_clk_armclk.c	optional fdt soc_rockchip_rk3328
-arm64/rockchip/clk/rk_clk_composite.c	optional fdt soc_rockchip_rk3328
-arm64/rockchip/clk/rk_clk_gate.c	optional fdt soc_rockchip_rk3328
-arm64/rockchip/clk/rk_clk_mux.c		optional fdt soc_rockchip_rk3328
-arm64/rockchip/clk/rk_clk_pll.c		optional fdt soc_rockchip_rk3328
+arm64/rockchip/rk_i2c.c			optional rk_i2c fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/rk805.c			optional rk805 fdt soc_rockchip_rk3328
+arm64/rockchip/rk_grf.c			optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/rk_pinctrl.c		optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/rk_gpio.c		optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/clk/rk_cru.c		optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/clk/rk_clk_armclk.c	optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/clk/rk_clk_composite.c	optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/clk/rk_clk_gate.c	optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/clk/rk_clk_mux.c		optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
+arm64/rockchip/clk/rk_clk_pll.c		optional fdt soc_rockchip_rk3328 soc_rockchip_rk3399
 arm64/rockchip/clk/rk3328_cru.c		optional fdt soc_rockchip_rk3328
-arm64/rockchip/if_dwc_rk.c		optional dwc_rk fdt soc_rockchip_rk3328
+arm64/rockchip/clk/rk3399_cru.c		optional fdt soc_rockchip_rk3399
+arm64/rockchip/clk/rk3399_pmucru.c	optional fdt soc_rockchip_rk3399
+arm64/rockchip/if_dwc_rk.c		optional dwc_rk fdt soc_rockchip_rk3328 soc_rockchip_rk3399
 dev/dwc/if_dwc.c			optional dwc_rk
 dev/dwc/if_dwc_if.m			optional dwc_rk

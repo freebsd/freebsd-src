@@ -721,11 +721,11 @@ nandfs_chmod(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 	 * jail(8).
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE, 0))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE))
 			return (EFTYPE);
 	}
 	if (!groupmember(inode->i_gid, cred) && (mode & ISGID)) {
-		error = priv_check_cred(cred, PRIV_VFS_SETGID, 0);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID);
 		if (error)
 			return (error);
 	}
@@ -734,7 +734,7 @@ nandfs_chmod(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 	 * Deny setting setuid if we are not the file owner.
 	 */
 	if ((mode & ISUID) && inode->i_uid != cred->cr_uid) {
-		error = priv_check_cred(cred, PRIV_VFS_ADMIN, 0);
+		error = priv_check_cred(cred, PRIV_VFS_ADMIN);
 		if (error)
 			return (error);
 	}
@@ -777,7 +777,7 @@ nandfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	 */
 	if (((uid != inode->i_uid && uid != cred->cr_uid) ||
 	    (gid != inode->i_gid && !groupmember(gid, cred))) &&
-	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, 0)))
+	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN)))
 		return (error);
 	ogid = inode->i_gid;
 	ouid = inode->i_uid;
@@ -788,7 +788,7 @@ nandfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 	node->nn_flags |= IN_CHANGE;
 	if ((inode->i_mode & (ISUID | ISGID)) &&
 	    (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID, 0))
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID))
 			inode->i_mode &= ~(ISUID | ISGID);
 	}
 	DPRINTF(VNCALL, ("%s: vp %p, cred %p, td %p - ret OK\n", __func__, vp,
@@ -839,7 +839,7 @@ nandfs_setattr(struct vop_setattr_args *ap)
 		 */
 
 		flags = inode->i_flags;
-		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS, 0)) {
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS)) {
 			if (flags & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
 				if (error)
@@ -1226,13 +1226,16 @@ nandfs_readdir(struct vop_readdir_args *ap)
 			ndirent = (struct nandfs_dir_entry *)pos;
 
 			name_len = ndirent->name_len;
-			memset(&dirent, 0, sizeof(struct dirent));
+			memset(&dirent, 0, sizeof(dirent));
 			dirent.d_fileno = ndirent->inode;
 			if (dirent.d_fileno) {
 				dirent.d_type = ndirent->file_type;
 				dirent.d_namlen = name_len;
 				strncpy(dirent.d_name, ndirent->name, name_len);
 				dirent.d_reclen = GENERIC_DIRSIZ(&dirent);
+				/* NOTE: d_off is the offset of the *next* entry. */
+				dirent.d_off = diroffset + ndirent->rec_len;
+				dirent_terminate(&dirent);
 				DPRINTF(READDIR, ("copying `%*.*s`\n", name_len,
 				    name_len, dirent.d_name));
 			}
@@ -1246,7 +1249,7 @@ nandfs_readdir(struct vop_readdir_args *ap)
 
 			/* Transfer */
 			if (dirent.d_fileno)
-				uiomove(&dirent, GENERIC_DIRSIZ(&dirent), uio);
+				uiomove(&dirent, dirent.d_reclen, uio);
 
 			/* Advance */
 			diroffset += ndirent->rec_len;
@@ -1939,8 +1942,8 @@ nandfs_symlink(struct vop_symlink_args *ap)
 
 
 	len = strlen(ap->a_target);
-	error = vn_rdwr(UIO_WRITE, *vpp, ap->a_target, len, (off_t)0,
-	    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
+	error = vn_rdwr(UIO_WRITE, *vpp, __DECONST(void *, ap->a_target),
+	    len, (off_t)0, UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,
 	    cnp->cn_cred, NOCRED, NULL, NULL);
 	if (error)
 		vput(*vpp);

@@ -68,9 +68,8 @@ void getsysctl(const char *name, void *ptr, size_t len)
 		    strerror(errno));
 	}
 	if (nlen != len) {
-		error("sysctl(%s...) expected %lu, got %lu", name,
-		    (unsigned long)len, (unsigned long)nlen);
-    }
+		error("sysctl(%s...) expected %zu, got %zu", name, len, nlen);
+	}
 }
 
 /*

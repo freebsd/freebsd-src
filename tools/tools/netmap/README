@@ -1,9 +1,13 @@
 $FreeBSD$
 
-This directory contains examples that use netmap
+This directory contains applications that use the netmap API
 
-	pkt-gen		a packet sink/source using the netmap API
+	pkt-gen		a multi-function packet generator and traffic sink
 
-	bridge		a two-port jumper wire, also using the native API
+	bridge		a two-port jumper wire, also using the netmap API
 
-	vale-ctl	the program to control VALE bridges
+	vale-ctl	the program to control and inspect VALE switches
+
+	lb		an L3/L4 load balancer
+
+	nmreplay	a tool to playback a pcap file to a netmap port

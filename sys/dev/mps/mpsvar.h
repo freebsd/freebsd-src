@@ -250,6 +250,7 @@ struct mps_command {
 	uint32_t			cm_req_busaddr;
 	uint32_t			cm_sense_busaddr;
 	struct callout			cm_callout;
+	mps_command_callback_t		*cm_timeout_handler;
 };
 
 struct mps_column_map {
@@ -581,6 +582,7 @@ mps_alloc_command(struct mps_softc *sc)
 
 	TAILQ_REMOVE(&sc->req_list, cm, cm_link);
 	cm->cm_state = MPS_CM_STATE_BUSY;
+	cm->cm_timeout_handler = NULL;
 	return (cm);
 }
 
@@ -622,6 +624,9 @@ mps_alloc_high_priority_command(struct mps_softc *sc)
 
 	TAILQ_REMOVE(&sc->high_priority_req_list, cm, cm_link);
 	cm->cm_state = MPS_CM_STATE_BUSY;
+	cm->cm_timeout_handler = NULL;
+	cm->cm_desc.HighPriority.RequestFlags =
+	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	return (cm);
 }
 

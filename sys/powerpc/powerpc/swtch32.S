@@ -212,4 +212,8 @@ ENTRY(fork_trampoline)
 					   trapframe to simulate FRAME_SETUP
 					   does when allocating space for
 					   a frame pointer/saved LR */
+#ifdef __SPE__
+	li	%r3,SPEFSCR_FINVE|SPEFSCR_FDBZE|SPEFSCR_FUNFE|SPEFSCR_FOVFE
+	mtspr	SPR_SPEFSCR, %r3
+#endif
 	b	trapexit

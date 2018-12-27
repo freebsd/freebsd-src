@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_GTASKQUEUE, "gtaskqueue", "Group Task Queues");
 static void	gtaskqueue_thread_enqueue(void *);
 static void	gtaskqueue_thread_loop(void *arg);
+static int	task_is_running(struct gtaskqueue *queue, struct gtask *gtask);
+static void	gtaskqueue_drain_locked(struct gtaskqueue *queue, struct gtask *gtask);
 
 TASKQGROUP_DEFINE(softirq, mp_ncpus, 1);
 TASKQGROUP_DEFINE(config, 1, 1);
@@ -183,6 +185,44 @@ gtaskqueue_free(struct gtaskqueue *queue)
 	free(queue, M_GTASKQUEUE);
 }
 
+/*
+ * Wait for all to complete, then prevent it from being enqueued
+ */
+void
+grouptask_block(struct grouptask *grouptask)
+{
+	struct gtaskqueue *queue = grouptask->gt_taskqueue;
+	struct gtask *gtask = &grouptask->gt_task;
+
+#ifdef INVARIANTS
+	if (queue == NULL) {
+		gtask_dump(gtask);
+		panic("queue == NULL");
+	}
+#endif
+	TQ_LOCK(queue);
+	gtask->ta_flags |= TASK_NOENQUEUE;
+  	gtaskqueue_drain_locked(queue, gtask);
+	TQ_UNLOCK(queue);
+}
+
+void
+grouptask_unblock(struct grouptask *grouptask)
+{
+	struct gtaskqueue *queue = grouptask->gt_taskqueue;
+	struct gtask *gtask = &grouptask->gt_task;
+
+#ifdef INVARIANTS
+	if (queue == NULL) {
+		gtask_dump(gtask);
+		panic("queue == NULL");
+	}
+#endif
+	TQ_LOCK(queue);
+	gtask->ta_flags &= ~TASK_NOENQUEUE;
+	TQ_UNLOCK(queue);
+}
+
 int
 grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *gtask)
 {
@@ -196,6 +236,10 @@ grouptaskqueue_enqueue(struct gtaskqueue *queue, struct gtask *gtask)
 	if (gtask->ta_flags & TASK_ENQUEUED) {
 		TQ_UNLOCK(queue);
 		return (0);
+	}
+	if (gtask->ta_flags & TASK_NOENQUEUE) {
+		TQ_UNLOCK(queue);
+		return (EAGAIN);
 	}
 	STAILQ_INSERT_TAIL(&queue->tq_queue, gtask, ta_link);
 	gtask->ta_flags |= TASK_ENQUEUED;
@@ -378,6 +422,13 @@ gtaskqueue_cancel(struct gtaskqueue *queue, struct gtask *gtask)
 	return (error);
 }
 
+static void
+gtaskqueue_drain_locked(struct gtaskqueue *queue, struct gtask *gtask)
+{
+	while ((gtask->ta_flags & TASK_ENQUEUED) || task_is_running(queue, gtask))
+		TQ_SLEEP(queue, gtask, &queue->tq_mutex, PWAIT, "-", 0);
+}
+
 void
 gtaskqueue_drain(struct gtaskqueue *queue, struct gtask *gtask)
 {
@@ -386,8 +437,7 @@ gtaskqueue_drain(struct gtaskqueue *queue, struct gtask *gtask)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	TQ_LOCK(queue);
-	while ((gtask->ta_flags & TASK_ENQUEUED) || task_is_running(queue, gtask))
-		TQ_SLEEP(queue, gtask, &queue->tq_mutex, PWAIT, "-", 0);
+	gtaskqueue_drain_locked(queue, gtask);
 	TQ_UNLOCK(queue);
 }
 
@@ -803,6 +853,7 @@ taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask)
 {
 	int i;
 
+	grouptask_block(gtask);
 	mtx_lock(&qgroup->tqg_lock);
 	for (i = 0; i < qgroup->tqg_cnt; i++)
 		if (qgroup->tqg_queue[i].tgc_taskq == gtask->gt_taskqueue)
@@ -813,6 +864,7 @@ taskqgroup_detach(struct taskqgroup *qgroup, struct grouptask *gtask)
 	LIST_REMOVE(gtask, gt_list);
 	mtx_unlock(&qgroup->tqg_lock);
 	gtask->gt_taskqueue = NULL;
+	gtask->gt_task.ta_flags &= ~TASK_NOENQUEUE;
 }
 
 static void

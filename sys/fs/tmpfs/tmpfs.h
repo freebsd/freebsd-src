@@ -353,7 +353,7 @@ struct tmpfs_mount {
 	ino_t			tm_nodes_max;
 
 	/* unrhdr used to allocate inode numbers */
-	struct unrhdr *		tm_ino_unr;
+	struct unrhdr64		tm_ino_unr;
 
 	/* Number of nodes currently that are in use. */
 	ino_t			tm_nodes_inuse;
@@ -411,7 +411,7 @@ void	tmpfs_ref_node(struct tmpfs_node *node);
 void	tmpfs_ref_node_locked(struct tmpfs_node *node);
 int	tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *, enum vtype,
 	    uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *,
-	    char *, dev_t, struct tmpfs_node **);
+	    const char *, dev_t, struct tmpfs_node **);
 void	tmpfs_free_node(struct tmpfs_mount *, struct tmpfs_node *);
 bool	tmpfs_free_node_locked(struct tmpfs_mount *, struct tmpfs_node *, bool);
 void	tmpfs_free_tmp(struct tmpfs_mount *);
@@ -424,7 +424,7 @@ int	tmpfs_alloc_vp(struct mount *, struct tmpfs_node *, int,
 	    struct vnode **);
 void	tmpfs_free_vp(struct vnode *);
 int	tmpfs_alloc_file(struct vnode *, struct vnode **, struct vattr *,
-	    struct componentname *, char *);
+	    struct componentname *, const char *);
 void	tmpfs_check_mtime(struct vnode *);
 void	tmpfs_dir_attach(struct vnode *, struct tmpfs_dirent *);
 void	tmpfs_dir_detach(struct vnode *, struct tmpfs_dirent *);

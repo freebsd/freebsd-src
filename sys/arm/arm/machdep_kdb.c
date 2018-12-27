@@ -104,6 +104,7 @@ fill_regs(struct thread *td, struct reg *regs)
 	regs->r_cpsr = tf->tf_spsr;
 	return (0);
 }
+
 int
 fill_fpregs(struct thread *td, struct fpreg *regs)
 {
@@ -134,8 +135,11 @@ set_fpregs(struct thread *td, struct fpreg *regs)
 int
 fill_dbregs(struct thread *td, struct dbreg *regs)
 {
+
+	bzero(regs, sizeof(*regs));
 	return (0);
 }
+
 int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {

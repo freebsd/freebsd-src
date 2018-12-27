@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd July 19, 2018
+.Dd November 10, 2018
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -268,10 +268,12 @@ will examine all files listed in the configuration file.
 .Nm
 configuration file
 .It Pa /etc/newsyslog.conf.d
-Each file in this directory will be included by the default
+By default each file in this directory ending in '.conf' and not beginning with
+a '.' will be included by the default
 .Pa newsyslog.conf .
 .It Pa /usr/local/etc/newsyslog.conf.d
-Each file in this directory will be included by the default
+By default each file in this directory ending in '.conf' and not beginning with
+a '.' will be included by the default
 .Pa newsyslog.conf .
 .El
 .Sh COMPATIBILITY

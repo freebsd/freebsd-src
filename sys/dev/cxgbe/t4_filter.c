@@ -864,8 +864,8 @@ set_filter(struct adapter *sc, struct t4_filter *t)
 	if (t->fs.val.iport >= sc->params.nports)
 		return (EINVAL);
 
-	/* Can't specify an iq if not steering to it */
-	if (!t->fs.dirsteer && t->fs.iq)
+	/* Can't specify an iqid/rss_info if not steering. */
+	if (!t->fs.dirsteer && !t->fs.dirsteerhash && !t->fs.maskhash && t->fs.iq)
 		return (EINVAL);
 
 	/* Validate against the global filter mode and ingress config */

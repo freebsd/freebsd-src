@@ -1,9 +1,9 @@
 /*
- *  $Id: inputbox.c,v 1.76 2012/12/03 11:46:50 tom Exp $
+ *  $Id: inputbox.c,v 1.84 2018/06/21 23:29:35 tom Exp $
  *
  *  inputbox.c -- implements the input box
  *
- *  Copyright 2000-2011,2012 Thomas E. Dickey
+ *  Copyright 2000-2016,2018 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -49,6 +49,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	TOGGLEKEY_BINDINGS,
 	END_KEYS_BINDING
     };
     static DLG_KEYS_BINDING binding2[] = {
@@ -56,6 +57,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
+	/* no TOGGLEKEY_BINDINGS, since that includes space... */
 	END_KEYS_BINDING
     };
     /* *INDENT-ON* */
@@ -72,8 +74,8 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
     int key, fkey, code;
     int result = DLG_EXIT_UNKNOWN;
     int state;
-    int first;
-    int edited;
+    bool first;
+    bool edited;
     char *input;
     WINDOW *dialog;
     WINDOW *editor;
@@ -81,6 +83,14 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
     const char **buttons = dlg_ok_labels();
 
     dlg_does_output();
+
+    DLG_TRACE(("# inputbox args:\n"));
+    DLG_TRACE2S("title", title);
+    DLG_TRACE2S("message", cprompt);
+    DLG_TRACE2N("height", height);
+    DLG_TRACE2N("width", width);
+    DLG_TRACE2S("init", init);
+    DLG_TRACE2N("password", password);
 
     dlg_tab_correct_str(prompt);
 
@@ -122,7 +132,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
     dlg_draw_bottom_box2(dialog, border_attr, border2_attr, dialog_attr);
     dlg_draw_title(dialog, title);
 
-    (void) wattrset(dialog, dialog_attr);
+    dlg_attrset(dialog, dialog_attr);
     dlg_draw_helpline(dialog, FALSE);
     dlg_print_autowrap(dialog, prompt, height, width);
 
@@ -142,7 +152,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 
     if (*input != '\0') {
 	dlg_show_string(editor, input, chr_offset, inputbox_attr,
-			0, 0, box_width, password, first);
+			0, 0, box_width, (bool) (password != 0), first);
 	wsyncup(editor);
 	wcursyncup(editor);
     }
@@ -162,7 +172,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 	if (!first) {
 	    if (*input != '\0' && !edited) {
 		dlg_show_string(editor, input, chr_offset, inputbox_attr,
-				0, 0, box_width, password, first);
+				0, 0, box_width, (bool) (password != 0), first);
 		wmove(editor, 0, chr_offset);
 		wsyncup(editor);
 		wcursyncup(editor);
@@ -188,7 +198,7 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 
 	    if (edit) {
 		dlg_show_string(editor, input, chr_offset, inputbox_attr,
-				0, 0, box_width, password, first);
+				0, 0, box_width, (bool) (password != 0), first);
 		wsyncup(editor);
 		wcursyncup(editor);
 		first = FALSE;
@@ -221,13 +231,14 @@ dialog_inputbox(const char *title, const char *cprompt, int height, int width,
 		show_buttons = TRUE;
 		state = dlg_next_ok_buttonindex(state, sTEXT);
 		break;
-	    case ' ':		/* FIXME: conflict with inputstr.c */
+	    case DLGK_TOGGLE:
 	    case DLGK_ENTER:
 		dlg_del_window(dialog);
 		result = (state >= 0) ? dlg_enter_buttoncode(state) : DLG_EXIT_OK;
 		break;
 #ifdef KEY_RESIZE
 	    case KEY_RESIZE:
+		dlg_will_resize(dialog);
 		/* reset data */
 		height = old_height;
 		width = old_width;

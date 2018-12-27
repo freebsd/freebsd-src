@@ -249,7 +249,7 @@ static void
 g_stripe_copy(struct g_stripe_softc *sc, char *src, char *dst, off_t offset,
     off_t length, int mode)
 {
-	u_int stripesize;
+	off_t stripesize;
 	size_t len;
 
 	stripesize = sc->sc_stripesize;
@@ -265,8 +265,8 @@ g_stripe_copy(struct g_stripe_softc *sc, char *src, char *dst, off_t offset,
 		}
 		length -= len;
 		KASSERT(length >= 0,
-		    ("Length < 0 (stripesize=%zu, offset=%jd, length=%jd).",
-		    (size_t)stripesize, (intmax_t)offset, (intmax_t)length));
+		    ("Length < 0 (stripesize=%ju, offset=%ju, length=%jd).",
+		    (uintmax_t)stripesize, (uintmax_t)offset, (intmax_t)length));
 		if (length > stripesize)
 			len = stripesize;
 		else
@@ -307,10 +307,11 @@ static int
 g_stripe_start_fast(struct bio *bp, u_int no, off_t offset, off_t length)
 {
 	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
-	u_int nparts = 0, stripesize;
 	struct g_stripe_softc *sc;
 	char *addr, *data = NULL;
 	struct bio *cbp;
+	off_t stripesize;
+	u_int nparts = 0;
 	int error;
 
 	sc = bp->bio_to->geom->softc;
@@ -436,7 +437,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 {
 	TAILQ_HEAD(, bio) queue = TAILQ_HEAD_INITIALIZER(queue);
 	struct g_stripe_softc *sc;
-	uint32_t stripesize;
+	off_t stripesize;
 	struct bio *cbp;
 	char *addr;
 	int error;
@@ -571,9 +572,9 @@ g_stripe_flush(struct g_stripe_softc *sc, struct bio *bp)
 static void
 g_stripe_start(struct bio *bp)
 {
-	off_t offset, start, length, nstripe;
+	off_t offset, start, length, nstripe, stripesize;
 	struct g_stripe_softc *sc;
-	u_int no, stripesize;
+	u_int no;
 	int error, fast = 0;
 
 	sc = bp->bio_to->geom->softc;
@@ -1044,7 +1045,7 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 	struct g_stripe_softc *sc;
 	struct g_geom *gp;
 	struct sbuf *sb;
-	intmax_t *stripesize;
+	off_t *stripesize;
 	const char *name;
 	char param[16];
 	int *nargs;
@@ -1076,7 +1077,7 @@ g_stripe_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "stripesize");
 		return;
 	}
-	md.md_stripesize = *stripesize;
+	md.md_stripesize = (uint32_t)*stripesize;
 	bzero(md.md_provider, sizeof(md.md_provider));
 	/* This field is not important here. */
 	md.md_provsize = 0;
@@ -1243,8 +1244,8 @@ g_stripe_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		    (u_int)cp->index);
 	} else {
 		sbuf_printf(sb, "%s<ID>%u</ID>\n", indent, (u_int)sc->sc_id);
-		sbuf_printf(sb, "%s<Stripesize>%u</Stripesize>\n", indent,
-		    (u_int)sc->sc_stripesize);
+		sbuf_printf(sb, "%s<Stripesize>%ju</Stripesize>\n", indent,
+		    (uintmax_t)sc->sc_stripesize);
 		sbuf_printf(sb, "%s<Type>", indent);
 		switch (sc->sc_type) {
 		case G_STRIPE_TYPE_AUTOMATIC:

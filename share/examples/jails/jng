@@ -51,7 +51,7 @@
 # 	#     arguments given to `jng bridge xxx' in exec.prestart value.
 # 	#
 # 	vnet;
-# 	vnet.interface = "ng0_xxx ng1_xxx ...";
+# 	vnet.interface = ng0_xxx, ng1_xxx, ...;
 # 
 # 	exec.clean;
 # 	exec.system_user = "root";

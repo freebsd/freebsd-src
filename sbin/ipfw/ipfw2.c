@@ -940,7 +940,8 @@ strtoport(char *s, char **end, int base, int proto)
 	/*
 	 * find separator. '\\' escapes the next char.
 	 */
-	for (s1 = s; *s1 && (isalnum(*s1) || *s1 == '\\') ; s1++)
+	for (s1 = s; *s1 && (isalnum(*s1) || *s1 == '\\' ||
+	    *s1 == '_' || *s1 == '.') ; s1++)
 		if (*s1 == '\\' && s1[1] != '\0')
 			s1++;
 
@@ -1256,7 +1257,8 @@ print_ip(struct buf_pr *bp, const struct format_opts *fo, ipfw_insn_ip *cmd)
 	    (cmd->o.opcode == O_IP_SRC || cmd->o.opcode == O_IP_DST) ?
 		32 : contigmask((uint8_t *)&(a[1]), 32);
 	if (mb == 32 && co.do_resolv)
-		he = gethostbyaddr((char *)&(a[0]), sizeof(u_long), AF_INET);
+		he = gethostbyaddr((char *)&(a[0]), sizeof(in_addr_t),
+		    AF_INET);
 	if (he != NULL)		/* resolved to name */
 		bprintf(bp, "%s", he->h_name);
 	else if (mb == 0)	/* any */
@@ -1510,6 +1512,7 @@ print_instruction(struct buf_pr *bp, const struct format_opts *fo,
 			bprintf(bp, " %s", pe->p_name);
 		else
 			bprintf(bp, " %u", cmd->arg1);
+		state->proto = cmd->arg1;
 		break;
 	case O_MACADDR2:
 		print_mac(bp, insntod(cmd, mac));
@@ -1946,7 +1949,7 @@ print_action_instruction(struct buf_pr *bp, const struct format_opts *fo,
 		if (s != NULL)
 			bprintf(bp, "setdscp %s", s);
 		else
-			bprintf(bp, "setdscp %s", cmd->arg1 & 0x3F);
+			bprintf(bp, "setdscp %u", cmd->arg1 & 0x3F);
 		break;
 	case O_REASS:
 		bprintf(bp, "reass");
@@ -1991,10 +1994,10 @@ print_proto(struct buf_pr *bp, struct format_opts *fo,
     struct show_state *state)
 {
 	ipfw_insn *cmd;
-	int l, proto, ip4, ip6, tmp;
+	int l, proto, ip4, ip6;
 
 	/* Count all O_PROTO, O_IP4, O_IP6 instructions. */
-	proto = tmp = ip4 = ip6 = 0;
+	proto = ip4 = ip6 = 0;
 	for (l = state->rule->act_ofs, cmd = state->rule->cmd;
 	    l > 0; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
 		switch (cmd->opcode) {
@@ -2030,18 +2033,13 @@ print_proto(struct buf_pr *bp, struct format_opts *fo,
 	if (cmd == NULL || (cmd->len & F_OR))
 		for (l = proto; l > 0; l--) {
 			cmd = print_opcode(bp, fo, state, O_PROTO);
-			if (cmd != NULL && (cmd->len & F_OR) == 0)
+			if (cmd == NULL || (cmd->len & F_OR) == 0)
 				break;
-			tmp = cmd->arg1;
 		}
 	/* Initialize proto, it is used by print_newports() */
-	if (tmp != 0)
-		state->proto = tmp;
-	else if (ip6 != 0)
-		state->proto = IPPROTO_IPV6;
-	else
-		state->proto = IPPROTO_IP;
 	state->flags |= HAVE_PROTO;
+	if (state->proto == 0 && ip6 != 0)
+		state->proto = IPPROTO_IPV6;
 }
 
 static int
@@ -2207,6 +2205,12 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	 */
 	if (co->comment_only != 0)
 		goto end;
+
+	if (rule->flags & IPFW_RULE_JUSTOPTS) {
+		state.flags |= HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP;
+		goto justopts;
+	}
+
 	print_proto(bp, fo, &state);
 
 	/* Print source */
@@ -2219,6 +2223,7 @@ show_static_rule(struct cmdline_opts *co, struct format_opts *fo,
 	print_address(bp, fo, &state, dst_opcodes, nitems(dst_opcodes),
 	    O_IP_DSTPORT, HAVE_DSTIP);
 
+justopts:
 	/* Print the rest of options */
 	while (print_opcode(bp, fo, &state, -1))
 		;
@@ -2240,10 +2245,9 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 	uint16_t rulenum;
 	char buf[INET6_ADDRSTRLEN];
 
-	if (!co->do_expired) {
-		if (!d->expire && !(d->dyn_type == O_LIMIT_PARENT))
-			return;
-	}
+	if (d->expire == 0 && d->dyn_type != O_LIMIT_PARENT)
+		return;
+
 	bcopy(&d->rule, &rulenum, sizeof(rulenum));
 	bprintf(bp, "%05d", rulenum);
 	if (fo->pcwidth > 0 || fo->bcwidth > 0) {
@@ -2285,6 +2289,33 @@ show_dyn_state(struct cmdline_opts *co, struct format_opts *fo,
 	if (d->kidx != 0)
 		bprintf(bp, " :%s", object_search_ctlv(fo->tstate,
 		    d->kidx, IPFW_TLV_STATE_NAME));
+
+#define	BOTH_SYN	(TH_SYN | (TH_SYN << 8))
+#define	BOTH_FIN	(TH_FIN | (TH_FIN << 8))
+	if (co->verbose) {
+		bprintf(bp, " state 0x%08x%s", d->state,
+		    d->state ? " ": ",");
+		if (d->state & IPFW_DYN_ORPHANED)
+			bprintf(bp, "ORPHANED,");
+		if ((d->state & BOTH_SYN) == BOTH_SYN)
+			bprintf(bp, "BOTH_SYN,");
+		else {
+			if (d->state & TH_SYN)
+				bprintf(bp, "F_SYN,");
+			if (d->state & (TH_SYN << 8))
+				bprintf(bp, "R_SYN,");
+		}
+		if ((d->state & BOTH_FIN) == BOTH_FIN)
+			bprintf(bp, "BOTH_FIN,");
+		else {
+			if (d->state & TH_FIN)
+				bprintf(bp, "F_FIN,");
+			if (d->state & (TH_FIN << 8))
+				bprintf(bp, "R_FIN,");
+		}
+		bprintf(bp, " f_ack 0x%x, r_ack 0x%x", d->ack_fwd,
+		    d->ack_rev);
+	}
 }
 
 static int
@@ -2688,7 +2719,8 @@ ipfw_list(int ac, char *av[], int show_counters)
 	cfg = NULL;
 	sfo.show_counters = show_counters;
 	sfo.show_time = co.do_time;
-	sfo.flags = IPFW_CFG_GET_STATIC;
+	if (co.do_dynamic != 2)
+		sfo.flags |= IPFW_CFG_GET_STATIC;
 	if (co.do_dynamic != 0)
 		sfo.flags |= IPFW_CFG_GET_STATES;
 	if ((sfo.show_counters | sfo.show_time) != 0)
@@ -2733,17 +2765,15 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	fo->set_mask = cfg->set_mask;
 
 	ctlv = (ipfw_obj_ctlv *)(cfg + 1);
+	if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
+		object_sort_ctlv(ctlv);
+		fo->tstate = ctlv;
+		readsz += ctlv->head.length;
+		ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv + ctlv->head.length);
+	}
 
 	if (cfg->flags & IPFW_CFG_GET_STATIC) {
 		/* We've requested static rules */
-		if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
-			object_sort_ctlv(ctlv);
-			fo->tstate = ctlv;
-			readsz += ctlv->head.length;
-			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
-			    ctlv->head.length);
-		}
-
 		if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
 			rbase = (ipfw_obj_tlv *)(ctlv + 1);
 			rcnt = ctlv->count;
@@ -2770,10 +2800,12 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	if (ac == 0) {
 		fo->first = 0;
 		fo->last = IPFW_DEFAULT_RULE;
-		list_static_range(co, fo, &bp, rbase, rcnt);
+		if (cfg->flags & IPFW_CFG_GET_STATIC)
+			list_static_range(co, fo, &bp, rbase, rcnt);
 
 		if (co->do_dynamic && dynsz > 0) {
-			printf("## Dynamic rules (%d %zu):\n", fo->dcnt, dynsz);
+			printf("## Dynamic rules (%d %zu):\n", fo->dcnt,
+			    dynsz);
 			list_dyn_range(co, fo, &bp, dynbase, dynsz);
 		}
 
@@ -2792,6 +2824,9 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 			warnx("invalid rule number: %s", *(lav - 1));
 			continue;
 		}
+
+		if ((cfg->flags & IPFW_CFG_GET_STATIC) == 0)
+			continue;
 
 		if (list_static_range(co, fo, &bp, rbase, rcnt) == 0) {
 			/* give precedence to other error(s) */
@@ -3306,6 +3341,8 @@ ipfw_delete(char *av[])
 					rt.flags |= IPFW_RCFLAG_SET;
 				}
 			}
+			if (co.do_dynamic == 2)
+				rt.flags |= IPFW_RCFLAG_DYNAMIC;
 			i = do_range_cmd(IP_FW_XDEL, &rt);
 			if (i != 0) {
 				exitval = EX_UNAVAILABLE;
@@ -3313,7 +3350,8 @@ ipfw_delete(char *av[])
 					continue;
 				warn("rule %u: setsockopt(IP_FW_XDEL)",
 				    rt.start_rule);
-			} else if (rt.new_set == 0 && do_set == 0) {
+			} else if (rt.new_set == 0 && do_set == 0 &&
+			    co.do_dynamic != 2) {
 				exitval = EX_UNAVAILABLE;
 				if (co.do_quiet)
 					continue;
@@ -4340,8 +4378,10 @@ chkarg:
 		}
 	} else if (first_cmd != cmd) {
 		errx(EX_DATAERR, "invalid protocol ``%s''", *av);
-	} else
+	} else {
+		rule->flags |= IPFW_RULE_JUSTOPTS;
 		goto read_options;
+	}
     OR_BLOCK(get_proto);
 
 	/*

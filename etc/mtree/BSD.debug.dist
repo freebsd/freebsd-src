@@ -19,6 +19,8 @@
             ..
             geom
             ..
+            nvmecontrol
+            ..
         ..
         libexec
         ..
@@ -29,7 +31,7 @@
             ..
             lib
                 clang
-                    6.0.1
+                    7.0.1
                         lib
                             freebsd
                             ..

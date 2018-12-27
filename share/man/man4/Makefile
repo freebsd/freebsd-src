@@ -23,13 +23,10 @@ MAN=	aac.4 \
 	${_acpi_wmi.4} \
 	ada.4 \
 	adm6996fc.4 \
-	adv.4 \
-	adw.4 \
 	ae.4 \
 	${_aesni.4} \
 	age.4 \
 	agp.4 \
-	aha.4 \
 	ahc.4 \
 	ahci.4 \
 	ahd.4 \
@@ -135,7 +132,6 @@ MAN=	aac.4 \
 	disc.4 \
 	divert.4 \
 	${_dpms.4} \
-	dpt.4 \
 	ds1307.4 \
 	ds3231.4 \
 	${_dtrace_provs} \
@@ -243,7 +239,6 @@ MAN=	aac.4 \
 	ixl.4 \
 	jedec_dimm.4 \
 	jme.4 \
-	joy.4 \
 	kbdmux.4 \
 	keyboard.4 \
 	kld.4 \
@@ -269,6 +264,7 @@ MAN=	aac.4 \
 	mac_lomac.4 \
 	mac_mls.4 \
 	mac_none.4 \
+	mac_ntpd.4 \
 	mac_partition.4 \
 	mac_portacl.4 \
 	mac_seeotheruids.4 \
@@ -309,8 +305,6 @@ MAN=	aac.4 \
 	my.4 \
 	nand.4 \
 	nandsim.4 \
-	ncr.4 \
-	ncv.4 \
 	${_ndis.4} \
 	net80211.4 \
 	netdump.4 \
@@ -329,6 +323,7 @@ MAN=	aac.4 \
 	ng_btsocket.4 \
 	ng_car.4 \
 	ng_ccatm.4 \
+	ng_checksum.4 \
 	ng_cisco.4 \
 	ng_deflate.4 \
 	ng_device.4 \
@@ -378,7 +373,6 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	ng_vlan.4 \
 	nmdm.4 \
-	nsp.4 \
 	${_ntb.4} \
 	${_ntb_hw_intel.4} \
 	${_ntb_hw_plx.4} \
@@ -511,7 +505,6 @@ MAN=	aac.4 \
 	sppp.4 \
 	ste.4 \
 	stf.4 \
-	stg.4 \
 	stge.4 \
 	sym.4 \
 	syncache.4 \

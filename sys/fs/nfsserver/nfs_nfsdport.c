@@ -996,8 +996,7 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			if (nvap->na_type == VCHR && rdev == 0xffffffff)
 				nvap->na_type = VFIFO;
                         if (nvap->na_type != VFIFO &&
-			    (error = priv_check_cred(nd->nd_cred,
-			     PRIV_VFS_MKNOD_DEV, 0))) {
+			    (error = priv_check_cred(nd->nd_cred, PRIV_VFS_MKNOD_DEV))) {
 				vrele(ndp->ni_startdir);
 				nfsvno_relpathbuf(ndp);
 				vput(ndp->ni_dvp);
@@ -1091,7 +1090,7 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		nfsvno_relpathbuf(ndp);
 	} else {
 		if (nvap->na_type != VFIFO &&
-		    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV, 0))) {
+		    (error = priv_check_cred(cred, PRIV_VFS_MKNOD_DEV))) {
 			vrele(ndp->ni_startdir);
 			nfsvno_relpathbuf(ndp);
 			vput(ndp->ni_dvp);
@@ -2107,9 +2106,15 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	 * cookie) should be in the reply. At least one client "hints" 0,
 	 * so I set it to cnt for that case. I also round it up to the
 	 * next multiple of DIRBLKSIZ.
+	 * Since the size of a Readdirplus directory entry reply will always
+	 * be greater than a directory entry returned by VOP_READDIR(), it
+	 * does not make sense to read more than NFS_SRVMAXDATA() via
+	 * VOP_READDIR().
 	 */
 	if (siz <= 0)
 		siz = cnt;
+	else if (siz > NFS_SRVMAXDATA(nd))
+		siz = NFS_SRVMAXDATA(nd);
 	siz = ((siz + DIRBLKSIZ - 1) & ~(DIRBLKSIZ - 1));
 
 	if (nd->nd_flag & ND_NFSV4) {
@@ -2416,10 +2421,22 @@ again:
 						}
 					}
 				}
-				if (!r) {
-				    if (refp == NULL &&
-					((nd->nd_flag & ND_NFSV3) ||
-					 NFSNONZERO_ATTRBIT(&attrbits))) {
+
+				/*
+				 * If we failed to look up the entry, then it
+				 * has become invalid, most likely removed.
+				 */
+				if (r != 0) {
+					if (needs_unbusy)
+						vfs_unbusy(new_mp);
+					goto invalid;
+				}
+				KASSERT(refp != NULL || nvp != NULL,
+				    ("%s: undetected lookup error", __func__));
+
+				if (refp == NULL &&
+				    ((nd->nd_flag & ND_NFSV3) ||
+				     NFSNONZERO_ATTRBIT(&attrbits))) {
 					r = nfsvno_getfh(nvp, &nfh, p);
 					if (!r)
 					    r = nfsvno_getattr(nvp, nvap, nd, p,
@@ -2440,17 +2457,25 @@ again:
 					    if (new_mp == mp)
 						new_mp = nvp->v_mount;
 					}
-				    }
-				} else {
-				    nvp = NULL;
 				}
-				if (r) {
+
+				/*
+				 * If we failed to get attributes of the entry,
+				 * then just skip it for NFSv3 (the traditional
+				 * behavior in the old NFS server).
+				 * For NFSv4 the behavior is controlled by
+				 * RDATTRERROR: we either ignore the error or
+				 * fail the request.
+				 * Note that RDATTRERROR is never set for NFSv3.
+				 */
+				if (r != 0) {
 					if (!NFSISSET_ATTRBIT(&attrbits,
 					    NFSATTRBIT_RDATTRERROR)) {
-						if (nvp != NULL)
-							vput(nvp);
+						vput(nvp);
 						if (needs_unbusy != 0)
 							vfs_unbusy(new_mp);
+						if ((nd->nd_flag & ND_NFSV3))
+							goto invalid;
 						nd->nd_repstat = r;
 						break;
 					}
@@ -2519,6 +2544,7 @@ again:
 			if (dirlen <= cnt)
 				entrycnt++;
 		}
+invalid:
 		cpos += dp->d_reclen;
 		dp = (struct dirent *)cpos;
 		cookiep++;

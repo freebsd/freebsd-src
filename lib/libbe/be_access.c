@@ -164,37 +164,18 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 {
 	int err, mntflags;
 	char be[BE_MAXPATHLEN];
-	struct statfs *mntbuf;
-	int mntsize;
-	char *mntpath;
+	zfs_handle_t *root_hdl;
 
 	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
 
-	if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0) {
-		if (errno == EIO)
-			return (set_error(lbh, BE_ERR_IO));
-		return (set_error(lbh, BE_ERR_NOMOUNT));
-	}
+	if ((root_hdl = zfs_open(lbh->lzh, be, ZFS_TYPE_FILESYSTEM)) == NULL)
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-	mntpath = NULL;
-	for (int i = 0; i < mntsize; ++i) {
-		/* 0x000000de is the type number of zfs */
-		if (mntbuf[i].f_type != 0x000000de)
-			continue;
+	mntflags = (flags & BE_MNT_FORCE) ? MS_FORCE : 0;
 
-		if (strcmp(mntbuf[i].f_mntfromname, be) == 0) {
-			mntpath = mntbuf[i].f_mntonname;
-			break;
-		}
-	}
-
-	if (mntpath == NULL)
-		return (set_error(lbh, BE_ERR_NOMOUNT));
-
-	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
-
-	if ((err = unmount(mntpath, mntflags)) != 0) {
+	if (zfs_unmount(root_hdl, NULL, mntflags) != 0) {
+		zfs_close(root_hdl);
 		switch (errno) {
 		case ENAMETOOLONG:
 			return (set_error(lbh, BE_ERR_PATHLEN));
@@ -210,6 +191,7 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 			return (set_error(lbh, BE_ERR_UNKNOWN));
 		}
 	}
+	zfs_close(root_hdl);
 
-	return (set_error(lbh, BE_ERR_SUCCESS));
+	return (BE_ERR_SUCCESS);
 }

@@ -155,18 +155,14 @@ struct qm_trace {
 #endif	/* QUEUE_MACRO_DEBUG_TRACE */
 
 #ifdef QUEUE_MACRO_DEBUG_TRASH
+#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
 #define	TRASHIT(x)		do {(x) = (void *)-1;} while (0)
 #define	QMD_IS_TRASHED(x)	((x) == (void *)(intptr_t)-1)
 #else	/* !QUEUE_MACRO_DEBUG_TRASH */
+#define	QMD_SAVELINK(name, link)
 #define	TRASHIT(x)
 #define	QMD_IS_TRASHED(x)	0
 #endif	/* QUEUE_MACRO_DEBUG_TRASH */
-
-#if defined(QUEUE_MACRO_DEBUG_TRACE) || defined(QUEUE_MACRO_DEBUG_TRASH)
-#define	QMD_SAVELINK(name, link)	void **name = (void *)&(link)
-#else	/* !QUEUE_MACRO_DEBUG_TRACE && !QUEUE_MACRO_DEBUG_TRASH */
-#define	QMD_SAVELINK(name, link)
-#endif	/* QUEUE_MACRO_DEBUG_TRACE || QUEUE_MACRO_DEBUG_TRASH */
 
 #ifdef __cplusplus
 /*

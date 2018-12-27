@@ -345,99 +345,111 @@ acpi_ec_probe(device_t dev)
     struct acpi_ec_params *params;
     static char *ec_ids[] = { "PNP0C09", NULL };
 
+    ret = ENXIO;
+
     /* Check that this is a device and that EC is not disabled. */
     if (acpi_get_type(dev) != ACPI_TYPE_DEVICE || acpi_disabled("ec"))
-	return (ENXIO);
+	return (ret);
 
-    /*
-     * If probed via ECDT, set description and continue.  Otherwise,
-     * we can access the namespace and make sure this is not a
-     * duplicate probe.
-     */
-    ret = ENXIO;
-    ecdt = 0;
+    if (device_is_devclass_fixed(dev)) {
+	/*
+	 * If probed via ECDT, set description and continue. Otherwise, we can
+	 * access the namespace and make sure this is not a duplicate probe.
+	 */
+        ecdt = 1;
+        params = acpi_get_private(dev);
+	if (params != NULL)
+	    ret = 0;
+
+	goto out;
+    } else
+	ecdt = 0;
+
+    ret = ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids, NULL);
+    if (ret > 0)
+	return (ret);
+
+    params = malloc(sizeof(struct acpi_ec_params), M_TEMP, M_WAITOK | M_ZERO);
+
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
-    params = acpi_get_private(dev);
-    if (params != NULL) {
-	ecdt = 1;
-	ret = 0;
-    } else if (ACPI_ID_PROBE(device_get_parent(dev), dev, ec_ids)) {
-	params = malloc(sizeof(struct acpi_ec_params), M_TEMP,
-			M_WAITOK | M_ZERO);
-	h = acpi_get_handle(dev);
+    h = acpi_get_handle(dev);
 
-	/*
-	 * Read the unit ID to check for duplicate attach and the
-	 * global lock value to see if we should acquire it when
-	 * accessing the EC.
-	 */
-	status = acpi_GetInteger(h, "_UID", &params->uid);
-	if (ACPI_FAILURE(status))
-	    params->uid = 0;
-	status = acpi_GetInteger(h, "_GLK", &params->glk);
-	if (ACPI_FAILURE(status))
-	    params->glk = 0;
+    /*
+     * Read the unit ID to check for duplicate attach and the global lock value
+     * to see if we should acquire it when accessing the EC.
+     */
+    status = acpi_GetInteger(h, "_UID", &params->uid);
+    if (ACPI_FAILURE(status))
+	params->uid = 0;
 
-	/*
-	 * Evaluate the _GPE method to find the GPE bit used by the EC to
-	 * signal status (SCI).  If it's a package, it contains a reference
-	 * and GPE bit, similar to _PRW.
-	 */
-	status = AcpiEvaluateObject(h, "_GPE", NULL, &buf);
-	if (ACPI_FAILURE(status)) {
-	    device_printf(dev, "can't evaluate _GPE - %s\n",
-			  AcpiFormatException(status));
-	    goto out;
-	}
-	obj = (ACPI_OBJECT *)buf.Pointer;
-	if (obj == NULL)
-	    goto out;
-
-	switch (obj->Type) {
-	case ACPI_TYPE_INTEGER:
-	    params->gpe_handle = NULL;
-	    params->gpe_bit = obj->Integer.Value;
-	    break;
-	case ACPI_TYPE_PACKAGE:
-	    if (!ACPI_PKG_VALID(obj, 2))
-		goto out;
-	    params->gpe_handle =
-		acpi_GetReference(NULL, &obj->Package.Elements[0]);
-	    if (params->gpe_handle == NULL ||
-		acpi_PkgInt32(obj, 1, &params->gpe_bit) != 0)
-		goto out;
-	    break;
-	default:
-	    device_printf(dev, "_GPE has invalid type %d\n", obj->Type);
-	    goto out;
-	}
-
-	/* Store the values we got from the namespace for attach. */
-	acpi_set_private(dev, params);
-
-	/*
-	 * Check for a duplicate probe.  This can happen when a probe
-	 * via ECDT succeeded already.  If this is a duplicate, disable
-	 * this device.
-	 */
-	peer = devclass_get_device(acpi_ec_devclass, params->uid);
-	if (peer == NULL || !device_is_alive(peer))
-	    ret = 0;
-	else
-	    device_disable(dev);
+    /*
+     * Check for a duplicate probe. This can happen when a probe via ECDT
+     * succeeded already. If this is a duplicate, disable this device.
+     *
+     * NB: It would seem device_disable would be sufficient to not get
+     * duplicated devices, and ENXIO isn't needed, however, device_probe() only
+     * checks DF_ENABLED at the start and so disabling it here is too late to
+     * prevent device_attach() from being called.
+     */
+    peer = devclass_get_device(acpi_ec_devclass, params->uid);
+    if (peer != NULL && device_is_alive(peer)) {
+	device_disable(dev);
+	ret = ENXIO;
+	goto out;
     }
 
+    status = acpi_GetInteger(h, "_GLK", &params->glk);
+    if (ACPI_FAILURE(status))
+	params->glk = 0;
+
+    /*
+     * Evaluate the _GPE method to find the GPE bit used by the EC to signal
+     * status (SCI).  If it's a package, it contains a reference and GPE bit,
+     * similar to _PRW.
+     */
+    status = AcpiEvaluateObject(h, "_GPE", NULL, &buf);
+    if (ACPI_FAILURE(status)) {
+	device_printf(dev, "can't evaluate _GPE - %s\n", AcpiFormatException(status));
+	goto out;
+    }
+
+    obj = (ACPI_OBJECT *)buf.Pointer;
+    if (obj == NULL)
+	goto out;
+
+    switch (obj->Type) {
+    case ACPI_TYPE_INTEGER:
+	params->gpe_handle = NULL;
+	params->gpe_bit = obj->Integer.Value;
+	break;
+    case ACPI_TYPE_PACKAGE:
+	if (!ACPI_PKG_VALID(obj, 2))
+	    goto out;
+	params->gpe_handle = acpi_GetReference(NULL, &obj->Package.Elements[0]);
+	if (params->gpe_handle == NULL ||
+	    acpi_PkgInt32(obj, 1, &params->gpe_bit) != 0)
+		goto out;
+	break;
+    default:
+	device_printf(dev, "_GPE has invalid type %d\n", obj->Type);
+	goto out;
+    }
+
+    /* Store the values we got from the namespace for attach. */
+    acpi_set_private(dev, params);
+
+    if (buf.Pointer)
+	AcpiOsFree(buf.Pointer);
 out:
-    if (ret == 0) {
+    if (ret <= 0) {
 	snprintf(desc, sizeof(desc), "Embedded Controller: GPE %#x%s%s",
 		 params->gpe_bit, (params->glk) ? ", GLK" : "",
 		 ecdt ? ", ECDT" : "");
 	device_set_desc_copy(dev, desc);
     } else
 	free(params, M_TEMP);
-    if (buf.Pointer)
-	AcpiOsFree(buf.Pointer);
+
     return (ret);
 }
 

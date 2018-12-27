@@ -332,12 +332,11 @@ freebsd32_sigaltstack(struct thread *td,
  * the pointers.
  */
 int
-freebsd32_exec_copyin_args(struct image_args *args, char *fname,
+freebsd32_exec_copyin_args(struct image_args *args, const char *fname,
     enum uio_seg segflg, u_int32_t *argv, u_int32_t *envv)
 {
 	char *argp, *envp;
 	u_int32_t *p32, arg;
-	size_t length;
 	int error;
 
 	bzero(args, sizeof(*args));
@@ -355,19 +354,9 @@ freebsd32_exec_copyin_args(struct image_args *args, char *fname,
 	/*
 	 * Copy the file name.
 	 */
-	if (fname != NULL) {
-		args->fname = args->buf;
-		error = (segflg == UIO_SYSSPACE) ?
-		    copystr(fname, args->fname, PATH_MAX, &length) :
-		    copyinstr(fname, args->fname, PATH_MAX, &length);
-		if (error != 0)
-			goto err_exit;
-	} else
-		length = 0;
-
-	args->begin_argv = args->buf + length;
-	args->endp = args->begin_argv;
-	args->stringspace = ARG_MAX;
+	error = exec_args_add_fname(args, fname, segflg);
+	if (error != 0)
+		goto err_exit;
 
 	/*
 	 * extract arguments first
@@ -380,19 +369,11 @@ freebsd32_exec_copyin_args(struct image_args *args, char *fname,
 		if (arg == 0)
 			break;
 		argp = PTRIN(arg);
-		error = copyinstr(argp, args->endp, args->stringspace, &length);
-		if (error) {
-			if (error == ENAMETOOLONG)
-				error = E2BIG;
+		error = exec_args_add_arg(args, argp, UIO_USERSPACE);
+		if (error != 0)
 			goto err_exit;
-		}
-		args->stringspace -= length;
-		args->endp += length;
-		args->argc++;
 	}
 			
-	args->begin_envv = args->endp;
-
 	/*
 	 * extract environment strings
 	 */
@@ -405,16 +386,9 @@ freebsd32_exec_copyin_args(struct image_args *args, char *fname,
 			if (arg == 0)
 				break;
 			envp = PTRIN(arg);
-			error = copyinstr(envp, args->endp, args->stringspace,
-			    &length);
-			if (error) {
-				if (error == ENAMETOOLONG)
-					error = E2BIG;
+			error = exec_args_add_env(args, envp, UIO_USERSPACE);
+			if (error != 0)
 				goto err_exit;
-			}
-			args->stringspace -= length;
-			args->endp += length;
-			args->envc++;
 		}
 	}
 
@@ -463,25 +437,14 @@ freebsd32_fexecve(struct thread *td, struct freebsd32_fexecve_args *uap)
 	return (error);
 }
 
-#if defined(COMPAT_FREEBSD11)
-int
-freebsd11_freebsd32_mknod(struct thread *td,
-    struct freebsd11_freebsd32_mknod_args *uap)
-{
-
-	return (kern_mknodat(td, AT_FDCWD, uap->path, UIO_USERSPACE, uap->mode,
-	    uap->dev));
-}
 
 int
-freebsd11_freebsd32_mknodat(struct thread *td,
-    struct freebsd11_freebsd32_mknodat_args *uap)
+freebsd32_mknodat(struct thread *td, struct freebsd32_mknodat_args *uap)
 {
 
-	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
-	    uap->dev));
+	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE,
+	    uap->mode, PAIR32TO64(dev_t, uap->dev)));
 }
-#endif /* COMPAT_FREEBSD11 */
 
 int
 freebsd32_mprotect(struct thread *td, struct freebsd32_mprotect_args *uap)
@@ -2260,7 +2223,7 @@ freebsd11_freebsd32_fhstat(struct thread *td,
 #endif
 
 int
-freebsd32_sysctl(struct thread *td, struct freebsd32_sysctl_args *uap)
+freebsd32___sysctl(struct thread *td, struct freebsd32___sysctl_args *uap)
 {
 	int error, name[CTL_MAXNAME];
 	size_t j, oldlen;

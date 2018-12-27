@@ -478,6 +478,10 @@ struct bxe_device_type
 #define BXE_FW_RX_ALIGN_END   (1 << BXE_RX_ALIGN_SHIFT)
 
 #define BXE_PXP_DRAM_ALIGN (BXE_RX_ALIGN_SHIFT - 5) /* XXX ??? */
+#define BXE_SET_ERROR_BIT(sc, error) \
+{ \
+                (sc)->error_status |= (error); \
+}
 
 struct bxe_bar {
     struct resource    *resource;
@@ -1391,6 +1395,8 @@ struct bxe_softc {
     struct taskqueue       *chip_tq;
     char                   chip_tq_name[32];
 
+    struct timeout_task        sp_err_timeout_task;
+
     /* slowpath interrupt taskqueue */
     struct task      sp_tq_task;
     struct taskqueue *sp_tq;
@@ -1544,6 +1550,16 @@ struct bxe_softc {
 #define BXE_RECOVERY_WAIT        3
 #define BXE_RECOVERY_FAILED      4
 #define BXE_RECOVERY_NIC_LOADING 5
+
+#define BXE_ERR_TXQ_STUCK       0x1  /* Tx queue stuck detected by driver. */
+#define BXE_ERR_MISC            0x2  /* MISC ERR */
+#define BXE_ERR_PARITY          0x4  /* Parity error detected. */
+#define BXE_ERR_STATS_TO        0x8  /* Statistics timeout detected. */
+#define BXE_ERR_MC_ASSERT       0x10 /* MC assert attention received. */
+#define BXE_ERR_PANIC           0x20 /* Driver asserted. */
+#define BXE_ERR_MCP_ASSERT      0x40 /* MCP assert attention received. No Recovery*/
+#define BXE_ERR_GLOBAL          0x80 /* PCIe/PXP/IGU/MISC/NIG device blocks error- needs PCIe/Fundamental reset */
+        uint32_t error_status;
 
     uint32_t rx_mode;
 #define BXE_RX_MODE_NONE     0

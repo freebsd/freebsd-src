@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2016
+.Dd November 17, 2018
 .Dt MOUNT_FUSEFS 8
 .Os
 .Sh NAME
@@ -339,12 +339,16 @@ does not call any external utility and also provides a hacky
 .Xr umount 8
 .Sh HISTORY
 .Nm
-appeared in
-.Fx 10.0
-as the part of the
+was written as the part of the
 .Fx
-implementation of the Fuse userspace filesystem
-framework (see http://fuse.sourceforge.net).
+implementation of the Fuse userspace filesystem framework (see
+.Xr https://github.com/libfuse/libfuse )
+and first appeared in the
+.Pa sysutils/fusefs-kmod
+port, supporting
+.Fx 6.0 .
+It was added to the base system in
+.Fx 10.0 .
 .Sh CAVEATS
 This user interface is
 .Fx

@@ -65,46 +65,6 @@ struct rk_clk_pll_sc {
 #define	DEVICE_UNLOCK(_clk)					\
 	CLKDEV_DEVICE_UNLOCK(clknode_get_device(_clk))
 
-#define	RK_CLK_PLL_FBDIV_OFFSET		0
-#define	RK_CLK_PLL_FBDIV_SHIFT		0
-#define	RK_CLK_PLL_FBDIV_MASK		0xFFF
-
-#define	RK_CLK_PLL_POSTDIV1_OFFSET	0
-#define	RK_CLK_PLL_POSTDIV1_SHIFT	12
-#define	RK_CLK_PLL_POSTDIV1_MASK	0x7000
-
-#define	RK_CLK_PLL_DSMPD_OFFSET		4
-#define	RK_CLK_PLL_DSMPD_SHIFT		12
-#define	RK_CLK_PLL_DSMPD_MASK		0x1000
-
-#define	RK_CLK_PLL_REFDIV_OFFSET	4
-#define	RK_CLK_PLL_REFDIV_SHIFT		0
-#define	RK_CLK_PLL_REFDIV_MASK		0x3F
-
-#define	RK_CLK_PLL_POSTDIV2_OFFSET	4
-#define	RK_CLK_PLL_POSTDIV2_SHIFT	6
-#define	RK_CLK_PLL_POSTDIV2_MASK	0x1C0
-
-#define	RK_CLK_PLL_FRAC_OFFSET		8
-#define	RK_CLK_PLL_FRAC_SHIFT		0
-#define	RK_CLK_PLL_FRAC_MASK		0xFFFFFF
-
-#define	RK_CLK_PLL_LOCK_MASK		0x400
-
-#define	RK_CLK_PLL_WRITE_MASK		0xFFFF0000
-
-static int
-rk_clk_pll_init(struct clknode *clk, device_t dev)
-{
-	struct rk_clk_pll_sc *sc;
-
-	sc = clknode_get_softc(clk);
-
-	clknode_init_parent_idx(clk, 0);
-
-	return (0);
-}
-
 static int
 rk_clk_pll_set_gate(struct clknode *clk, bool enable)
 {
@@ -128,8 +88,48 @@ rk_clk_pll_set_gate(struct clknode *clk, bool enable)
 	return (0);
 }
 
+#define	RK3328_CLK_PLL_FBDIV_OFFSET	0
+#define	RK3328_CLK_PLL_FBDIV_SHIFT	0
+#define	RK3328_CLK_PLL_FBDIV_MASK	0xFFF
+
+#define	RK3328_CLK_PLL_POSTDIV1_OFFSET	0
+#define	RK3328_CLK_PLL_POSTDIV1_SHIFT	12
+#define	RK3328_CLK_PLL_POSTDIV1_MASK	0x7000
+
+#define	RK3328_CLK_PLL_DSMPD_OFFSET	4
+#define	RK3328_CLK_PLL_DSMPD_SHIFT	12
+#define	RK3328_CLK_PLL_DSMPD_MASK	0x1000
+
+#define	RK3328_CLK_PLL_REFDIV_OFFSET	4
+#define	RK3328_CLK_PLL_REFDIV_SHIFT	0
+#define	RK3328_CLK_PLL_REFDIV_MASK	0x3F
+
+#define	RK3328_CLK_PLL_POSTDIV2_OFFSET	4
+#define	RK3328_CLK_PLL_POSTDIV2_SHIFT	6
+#define	RK3328_CLK_PLL_POSTDIV2_MASK	0x1C0
+
+#define	RK3328_CLK_PLL_FRAC_OFFSET	8
+#define	RK3328_CLK_PLL_FRAC_SHIFT	0
+#define	RK3328_CLK_PLL_FRAC_MASK	0xFFFFFF
+
+#define	RK3328_CLK_PLL_LOCK_MASK	0x400
+
+#define	RK3328_CLK_PLL_WRITE_MASK	0xFFFF0000
+
 static int
-rk_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
+rk3328_clk_pll_init(struct clknode *clk, device_t dev)
+{
+	struct rk_clk_pll_sc *sc;
+
+	sc = clknode_get_softc(clk);
+
+	clknode_init_parent_idx(clk, 0);
+
+	return (0);
+}
+
+static int
+rk3328_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 {
 	struct rk_clk_pll_sc *sc;
 	uint64_t rate;
@@ -145,14 +145,14 @@ rk_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 	READ4(clk, sc->base_offset + 4, &raw2);
 	READ4(clk, sc->base_offset + 8, &raw3);
 
-	fbdiv = (raw1 & RK_CLK_PLL_FBDIV_MASK) >> RK_CLK_PLL_FBDIV_SHIFT;
-	postdiv1 = (raw1 & RK_CLK_PLL_POSTDIV1_MASK) >> RK_CLK_PLL_POSTDIV1_SHIFT;
+	fbdiv = (raw1 & RK3328_CLK_PLL_FBDIV_MASK) >> RK3328_CLK_PLL_FBDIV_SHIFT;
+	postdiv1 = (raw1 & RK3328_CLK_PLL_POSTDIV1_MASK) >> RK3328_CLK_PLL_POSTDIV1_SHIFT;
 
-	dsmpd = (raw2 & RK_CLK_PLL_DSMPD_MASK) >> RK_CLK_PLL_DSMPD_SHIFT;
-	refdiv = (raw2 & RK_CLK_PLL_REFDIV_MASK) >> RK_CLK_PLL_REFDIV_SHIFT;
-	postdiv2 = (raw2 & RK_CLK_PLL_POSTDIV2_MASK) >> RK_CLK_PLL_POSTDIV2_SHIFT;
+	dsmpd = (raw2 & RK3328_CLK_PLL_DSMPD_MASK) >> RK3328_CLK_PLL_DSMPD_SHIFT;
+	refdiv = (raw2 & RK3328_CLK_PLL_REFDIV_MASK) >> RK3328_CLK_PLL_REFDIV_SHIFT;
+	postdiv2 = (raw2 & RK3328_CLK_PLL_POSTDIV2_MASK) >> RK3328_CLK_PLL_POSTDIV2_SHIFT;
 
-	frac = (raw3 & RK_CLK_PLL_FRAC_MASK) >> RK_CLK_PLL_FRAC_SHIFT;
+	frac = (raw3 & RK3328_CLK_PLL_FRAC_MASK) >> RK3328_CLK_PLL_FRAC_SHIFT;
 
 	DEVICE_UNLOCK(clk);
 
@@ -174,7 +174,7 @@ rk_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
 }
 
 static int
-rk_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
+rk3328_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
     int flags, int *stop)
 {
 	struct rk_clk_pll_rate *rates;
@@ -204,24 +204,24 @@ rk_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	/* Setting postdiv1 and fbdiv */
 	READ4(clk, sc->base_offset, &reg);
-	reg &= ~(RK_CLK_PLL_POSTDIV1_MASK | RK_CLK_PLL_FBDIV_MASK);
-	reg |= rates->postdiv1 << RK_CLK_PLL_POSTDIV1_SHIFT;
-	reg |= rates->fbdiv << RK_CLK_PLL_FBDIV_SHIFT;
-	WRITE4(clk, sc->base_offset, reg | RK_CLK_PLL_WRITE_MASK);
+	reg &= ~(RK3328_CLK_PLL_POSTDIV1_MASK | RK3328_CLK_PLL_FBDIV_MASK);
+	reg |= rates->postdiv1 << RK3328_CLK_PLL_POSTDIV1_SHIFT;
+	reg |= rates->fbdiv << RK3328_CLK_PLL_FBDIV_SHIFT;
+	WRITE4(clk, sc->base_offset, reg | RK3328_CLK_PLL_WRITE_MASK);
 
 	/* Setting dsmpd, postdiv2 and refdiv */
 	READ4(clk, sc->base_offset + 0x4, &reg);
-	reg &= ~(RK_CLK_PLL_DSMPD_MASK | RK_CLK_PLL_POSTDIV2_MASK |
-	    RK_CLK_PLL_REFDIV_MASK);
-	reg |= rates->dsmpd << RK_CLK_PLL_DSMPD_SHIFT;
-	reg |= rates->postdiv2 << RK_CLK_PLL_POSTDIV2_SHIFT;
-	reg |= rates->refdiv << RK_CLK_PLL_REFDIV_SHIFT;
-	WRITE4(clk, sc->base_offset + 0x4, reg | RK_CLK_PLL_WRITE_MASK);
+	reg &= ~(RK3328_CLK_PLL_DSMPD_MASK | RK3328_CLK_PLL_POSTDIV2_MASK |
+	    RK3328_CLK_PLL_REFDIV_MASK);
+	reg |= rates->dsmpd << RK3328_CLK_PLL_DSMPD_SHIFT;
+	reg |= rates->postdiv2 << RK3328_CLK_PLL_POSTDIV2_SHIFT;
+	reg |= rates->refdiv << RK3328_CLK_PLL_REFDIV_SHIFT;
+	WRITE4(clk, sc->base_offset + 0x4, reg | RK3328_CLK_PLL_WRITE_MASK);
 
 	/* Setting frac */
 	READ4(clk, sc->base_offset + 0x8, &reg);
-	reg &= ~RK_CLK_PLL_FRAC_MASK;
-	reg |= rates->frac << RK_CLK_PLL_FRAC_SHIFT;
+	reg &= ~RK3328_CLK_PLL_FRAC_MASK;
+	reg |= rates->frac << RK3328_CLK_PLL_FRAC_SHIFT;
 	WRITE4(clk, sc->base_offset + 0x8, reg);
 
 	/* Setting to normal mode */
@@ -232,7 +232,7 @@ rk_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	/* Reading lock */
 	for (timeout = 1000; timeout; timeout--) {
 		READ4(clk, sc->base_offset + 0x4, &reg);
-		if ((reg & RK_CLK_PLL_LOCK_MASK) == 0)
+		if ((reg & RK3328_CLK_PLL_LOCK_MASK) == 0)
 			break;
 		DELAY(1);
 	}
@@ -243,25 +243,236 @@ rk_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 	return (0);
 }
 
-static clknode_method_t rk_clk_pll_clknode_methods[] = {
+static clknode_method_t rk3328_clk_pll_clknode_methods[] = {
 	/* Device interface */
-	CLKNODEMETHOD(clknode_init,		rk_clk_pll_init),
+	CLKNODEMETHOD(clknode_init,		rk3328_clk_pll_init),
 	CLKNODEMETHOD(clknode_set_gate,		rk_clk_pll_set_gate),
-	CLKNODEMETHOD(clknode_recalc_freq,	rk_clk_pll_recalc),
-	CLKNODEMETHOD(clknode_set_freq,		rk_clk_pll_set_freq),
+	CLKNODEMETHOD(clknode_recalc_freq,	rk3328_clk_pll_recalc),
+	CLKNODEMETHOD(clknode_set_freq,		rk3328_clk_pll_set_freq),
 	CLKNODEMETHOD_END
 };
 
-DEFINE_CLASS_1(rk_clk_pll_clknode, rk_clk_pll_clknode_class,
-    rk_clk_pll_clknode_methods, sizeof(struct rk_clk_pll_sc), clknode_class);
+DEFINE_CLASS_1(rk3328_clk_pll_clknode, rk3328_clk_pll_clknode_class,
+    rk3328_clk_pll_clknode_methods, sizeof(struct rk_clk_pll_sc), clknode_class);
 
 int
-rk_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
+rk3328_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
 {
 	struct clknode *clk;
 	struct rk_clk_pll_sc *sc;
 
-	clk = clknode_create(clkdom, &rk_clk_pll_clknode_class,
+	clk = clknode_create(clkdom, &rk3328_clk_pll_clknode_class,
+	    &clkdef->clkdef);
+	if (clk == NULL)
+		return (1);
+
+	sc = clknode_get_softc(clk);
+
+	sc->base_offset = clkdef->base_offset;
+	sc->gate_offset = clkdef->gate_offset;
+	sc->gate_shift = clkdef->gate_shift;
+	sc->mode_reg = clkdef->mode_reg;
+	sc->mode_val = clkdef->mode_val;
+	sc->flags = clkdef->flags;
+	sc->rates = clkdef->rates;
+	sc->frac_rates = clkdef->frac_rates;
+
+	clknode_register(clkdom, clk);
+
+	return (0);
+}
+
+#define	RK3399_CLK_PLL_FBDIV_OFFSET		0
+#define	RK3399_CLK_PLL_FBDIV_SHIFT		0
+#define	RK3399_CLK_PLL_FBDIV_MASK		0xFFF
+
+#define	RK3399_CLK_PLL_POSTDIV2_OFFSET	4
+#define	RK3399_CLK_PLL_POSTDIV2_SHIFT	12
+#define	RK3399_CLK_PLL_POSTDIV2_MASK	0x7000
+
+#define	RK3399_CLK_PLL_POSTDIV1_OFFSET	4
+#define	RK3399_CLK_PLL_POSTDIV1_SHIFT	8
+#define	RK3399_CLK_PLL_POSTDIV1_MASK	0x700
+
+#define	RK3399_CLK_PLL_REFDIV_OFFSET	4
+#define	RK3399_CLK_PLL_REFDIV_SHIFT	0
+#define	RK3399_CLK_PLL_REFDIV_MASK	0x3F
+
+#define	RK3399_CLK_PLL_FRAC_OFFSET	8
+#define	RK3399_CLK_PLL_FRAC_SHIFT	0
+#define	RK3399_CLK_PLL_FRAC_MASK	0xFFFFFF
+
+#define	RK3399_CLK_PLL_DSMPD_OFFSET	0xC
+#define	RK3399_CLK_PLL_DSMPD_SHIFT	3
+#define	RK3399_CLK_PLL_DSMPD_MASK	0x8
+
+#define	RK3399_CLK_PLL_LOCK_OFFSET	8
+#define	RK3399_CLK_PLL_LOCK_MASK	0x400
+
+#define	RK3399_CLK_PLL_MODE_OFFSET	0xC
+#define	RK3399_CLK_PLL_MODE_MASK	0x300
+#define	RK3399_CLK_PLL_MODE_SLOW	0
+#define	RK3399_CLK_PLL_MODE_NORMAL	1
+#define	RK3399_CLK_PLL_MODE_DEEPSLOW	2
+#define	RK3399_CLK_PLL_MODE_SHIFT	8
+
+#define	RK3399_CLK_PLL_WRITE_MASK	0xFFFF0000
+
+static int
+rk3399_clk_pll_init(struct clknode *clk, device_t dev)
+{
+	struct rk_clk_pll_sc *sc;
+	uint32_t reg;
+
+	sc = clknode_get_softc(clk);
+
+	/* Setting to normal mode */
+	READ4(clk, sc->base_offset + RK3399_CLK_PLL_MODE_OFFSET, &reg);
+	reg &= ~RK3399_CLK_PLL_MODE_MASK;
+	reg |= RK3399_CLK_PLL_MODE_NORMAL << RK3399_CLK_PLL_MODE_SHIFT;
+	WRITE4(clk, sc->base_offset + RK3399_CLK_PLL_MODE_OFFSET,
+	    reg | RK3399_CLK_PLL_WRITE_MASK);
+
+	clknode_init_parent_idx(clk, 0);
+
+	return (0);
+}
+
+static int
+rk3399_clk_pll_recalc(struct clknode *clk, uint64_t *freq)
+{
+	struct rk_clk_pll_sc *sc;
+	uint64_t rate;
+	uint32_t dsmpd, refdiv, fbdiv;
+	uint32_t postdiv1, postdiv2, frac;
+	uint32_t raw1, raw2, raw3, raw4;
+
+	sc = clknode_get_softc(clk);
+
+	DEVICE_LOCK(clk);
+	READ4(clk, sc->base_offset, &raw1);
+	READ4(clk, sc->base_offset + 4, &raw2);
+	READ4(clk, sc->base_offset + 8, &raw3);
+	READ4(clk, sc->base_offset + 0xC, &raw4);
+	DEVICE_UNLOCK(clk);
+
+	fbdiv = (raw1 & RK3399_CLK_PLL_FBDIV_MASK) >> RK3399_CLK_PLL_FBDIV_SHIFT;
+
+	postdiv1 = (raw2 & RK3399_CLK_PLL_POSTDIV1_MASK) >> RK3399_CLK_PLL_POSTDIV1_SHIFT;
+	postdiv2 = (raw2 & RK3399_CLK_PLL_POSTDIV2_MASK) >> RK3399_CLK_PLL_POSTDIV2_SHIFT;
+	refdiv = (raw2 & RK3399_CLK_PLL_REFDIV_MASK) >> RK3399_CLK_PLL_REFDIV_SHIFT;
+
+	frac = (raw3 & RK3399_CLK_PLL_FRAC_MASK) >> RK3399_CLK_PLL_FRAC_SHIFT;
+
+	dsmpd = (raw4 & RK3399_CLK_PLL_DSMPD_MASK) >> RK3399_CLK_PLL_DSMPD_SHIFT;
+
+	rate = *freq * fbdiv / refdiv;
+	if (dsmpd == 0) {
+		/* Fractional mode */
+		uint64_t frac_rate;
+
+		frac_rate = *freq * frac / refdiv;
+		rate += frac_rate >> 24;
+	}
+
+	*freq = rate / postdiv1 / postdiv2;
+
+	if (*freq % 2)
+		*freq = *freq + 1;
+
+	return (0);
+}
+
+static int
+rk3399_clk_pll_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
+    int flags, int *stop)
+{
+	struct rk_clk_pll_rate *rates;
+	struct rk_clk_pll_sc *sc;
+	uint32_t reg;
+	int timeout;
+
+	sc = clknode_get_softc(clk);
+
+	if (sc->rates)
+		rates = sc->rates;
+	else if (sc->frac_rates)
+		rates = sc->frac_rates;
+	else
+		return (EINVAL);
+
+	for (; rates->freq; rates++) {
+		if (rates->freq == *fout)
+			break;
+	}
+	if (rates->freq == 0) {
+		*stop = 1;
+		return (EINVAL);
+	}
+
+	DEVICE_LOCK(clk);
+
+	/* Setting fbdiv */
+	READ4(clk, sc->base_offset, &reg);
+	reg &= ~RK3399_CLK_PLL_FBDIV_MASK;
+	reg |= rates->fbdiv << RK3399_CLK_PLL_FBDIV_SHIFT;
+	WRITE4(clk, sc->base_offset, reg | RK3399_CLK_PLL_WRITE_MASK);
+
+	/* Setting postdiv1, postdiv2 and refdiv */
+	READ4(clk, sc->base_offset + 0x4, &reg);
+	reg &= ~(RK3399_CLK_PLL_POSTDIV1_MASK | RK3399_CLK_PLL_POSTDIV2_MASK |
+	    RK3399_CLK_PLL_REFDIV_MASK);
+	reg |= rates->postdiv1 << RK3399_CLK_PLL_POSTDIV1_SHIFT;
+	reg |= rates->postdiv2 << RK3399_CLK_PLL_POSTDIV2_SHIFT;
+	reg |= rates->refdiv << RK3399_CLK_PLL_REFDIV_SHIFT;
+	WRITE4(clk, sc->base_offset + 0x4, reg | RK3399_CLK_PLL_WRITE_MASK);
+
+	/* Setting frac */
+	READ4(clk, sc->base_offset + 0x8, &reg);
+	reg &= ~RK3399_CLK_PLL_FRAC_MASK;
+	reg |= rates->frac << RK3399_CLK_PLL_FRAC_SHIFT;
+	WRITE4(clk, sc->base_offset + 0x8, reg | RK3399_CLK_PLL_WRITE_MASK);
+
+	/* Setting to normal mode and dsmpd */
+	READ4(clk, sc->base_offset + 0xC, &reg);
+	reg &= ~RK3399_CLK_PLL_MODE_MASK;
+	reg |= RK3399_CLK_PLL_MODE_NORMAL << RK3399_CLK_PLL_MODE_SHIFT;
+	reg |= rates->dsmpd << RK3399_CLK_PLL_DSMPD_SHIFT;
+	WRITE4(clk, sc->base_offset + 0xC, reg | RK3399_CLK_PLL_WRITE_MASK);
+
+	/* Reading lock */
+	for (timeout = 1000; timeout; timeout--) {
+		READ4(clk, sc->base_offset + RK3399_CLK_PLL_LOCK_OFFSET, &reg);
+		if ((reg & RK3399_CLK_PLL_LOCK_MASK) == 0)
+			break;
+		DELAY(1);
+	}
+
+	DEVICE_UNLOCK(clk);
+
+	*stop = 1;
+	return (0);
+}
+
+static clknode_method_t rk3399_clk_pll_clknode_methods[] = {
+	/* Device interface */
+	CLKNODEMETHOD(clknode_init,		rk3399_clk_pll_init),
+	CLKNODEMETHOD(clknode_set_gate,		rk_clk_pll_set_gate),
+	CLKNODEMETHOD(clknode_recalc_freq,	rk3399_clk_pll_recalc),
+	CLKNODEMETHOD(clknode_set_freq,		rk3399_clk_pll_set_freq),
+	CLKNODEMETHOD_END
+};
+
+DEFINE_CLASS_1(rk3399_clk_pll_clknode, rk3399_clk_pll_clknode_class,
+    rk3399_clk_pll_clknode_methods, sizeof(struct rk_clk_pll_sc), clknode_class);
+
+int
+rk3399_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef)
+{
+	struct clknode *clk;
+	struct rk_clk_pll_sc *sc;
+
+	clk = clknode_create(clkdom, &rk3399_clk_pll_clknode_class,
 	    &clkdef->clkdef);
 	if (clk == NULL)
 		return (1);

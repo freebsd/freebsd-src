@@ -584,7 +584,7 @@ needsFrameBaseReg(MachineInstr *MI, int64_t Offset) const {
   // don't know for sure yet whether we'll need that, so we guess based
   // on whether there are any local variables that would trigger it.
   unsigned StackAlign = TFI->getStackAlignment();
-  if (TFI->hasFP(MF) && 
+  if (TFI->hasFP(MF) &&
       !((MFI.getLocalFrameMaxAlign() > StackAlign) && canRealignStack(MF))) {
     if (isFrameOffsetLegal(MI, getFrameRegister(MF), FPOffset))
       return false;
@@ -838,10 +838,10 @@ bool ARMBaseRegisterInfo::shouldCoalesce(MachineInstr *MI,
   auto AFI = MF->getInfo<ARMFunctionInfo>();
   auto It = AFI->getCoalescedWeight(MBB);
 
-  DEBUG(dbgs() << "\tARM::shouldCoalesce - Coalesced Weight: "
-    << It->second << "\n");
-  DEBUG(dbgs() << "\tARM::shouldCoalesce - Reg Weight: "
-    << NewRCWeight.RegWeight << "\n");
+  LLVM_DEBUG(dbgs() << "\tARM::shouldCoalesce - Coalesced Weight: "
+                    << It->second << "\n");
+  LLVM_DEBUG(dbgs() << "\tARM::shouldCoalesce - Reg Weight: "
+                    << NewRCWeight.RegWeight << "\n");
 
   // This number is the largest round number that which meets the criteria:
   //  (1) addresses PR18825

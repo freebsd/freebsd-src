@@ -36,6 +36,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/domainset.h>
 #include <sys/eventhandler.h>
 #include <sys/gtaskqueue.h>
 #include <sys/jail.h>
@@ -77,14 +78,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 
 #include "hwpmc_soft.h"
-
-#ifdef NUMA
-#define NDOMAINS vm_ndomains
-#else
-#define NDOMAINS 1
-#define malloc_domain(size, type, domain, flags) malloc((size), (type), (flags))
-#define free_domain(addr, type) free(addr, type)
-#endif
 
 #define PMC_EPOCH_ENTER() struct epoch_tracker pmc_et; epoch_enter_preempt(global_epoch_preempt, &pmc_et)
 #define PMC_EPOCH_EXIT() epoch_exit_preempt(global_epoch_preempt, &pmc_et)
@@ -4956,8 +4949,11 @@ pmc_process_samples(int cpu, ring_type_t ring)
 
 		/* If there is a pending AST wait for completion */
 		if (ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING) {
-			/* if sample is more than 65 ms old, drop it */
-			if (ticks - ps->ps_ticks > (hz >> 4)) {
+			/* if we've been waiting more than 1 tick to 
+			 * collect a callchain for this record then
+			 * drop it and move on.
+			 */
+			if (ticks - ps->ps_ticks > 1) {
 				/*
 				 * track how often we hit this as it will
 				 * preferentially lose user samples
@@ -5643,15 +5639,16 @@ pmc_initialize(void)
 			continue;
 		pc = pcpu_find(cpu);
 		domain = pc->pc_domain;
-		sb = malloc_domain(sizeof(struct pmc_samplebuffer) +
-			pmc_nsamples * sizeof(struct pmc_sample), M_PMC, domain,
-		    M_WAITOK|M_ZERO);
+		sb = malloc_domainset(sizeof(struct pmc_samplebuffer) +
+		    pmc_nsamples * sizeof(struct pmc_sample), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 
 		KASSERT(pmc_pcpu[cpu] != NULL,
 		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
 
-		sb->ps_callchains = malloc_domain(pmc_callchaindepth * pmc_nsamples *
-			sizeof(uintptr_t), M_PMC, domain, M_WAITOK|M_ZERO);
+		sb->ps_callchains = malloc_domainset(pmc_callchaindepth *
+		    pmc_nsamples * sizeof(uintptr_t), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 
 		for (n = 0, ps = sb->ps_samples; n < pmc_nsamples; n++, ps++)
 			ps->ps_pc = sb->ps_callchains +
@@ -5659,35 +5656,27 @@ pmc_initialize(void)
 
 		pmc_pcpu[cpu]->pc_sb[PMC_HR] = sb;
 
-		sb = malloc_domain(sizeof(struct pmc_samplebuffer) +
-			pmc_nsamples * sizeof(struct pmc_sample), M_PMC, domain,
-		    M_WAITOK|M_ZERO);
+		sb = malloc_domainset(sizeof(struct pmc_samplebuffer) +
+		    pmc_nsamples * sizeof(struct pmc_sample), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 
-		KASSERT(pmc_pcpu[cpu] != NULL,
-		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
-
-		sb->ps_callchains = malloc_domain(pmc_callchaindepth * pmc_nsamples *
-			sizeof(uintptr_t), M_PMC, domain, M_WAITOK|M_ZERO);
-
+		sb->ps_callchains = malloc_domainset(pmc_callchaindepth *
+		    pmc_nsamples * sizeof(uintptr_t), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 		for (n = 0, ps = sb->ps_samples; n < pmc_nsamples; n++, ps++)
 			ps->ps_pc = sb->ps_callchains +
 			    (n * pmc_callchaindepth);
 
 		pmc_pcpu[cpu]->pc_sb[PMC_SR] = sb;
 
-		sb = malloc_domain(sizeof(struct pmc_samplebuffer) +
-			pmc_nsamples * sizeof(struct pmc_sample), M_PMC, domain,
-		    M_WAITOK|M_ZERO);
-
-		KASSERT(pmc_pcpu[cpu] != NULL,
-		    ("[pmc,%d] cpu=%d Null per-cpu data", __LINE__, cpu));
-
-		sb->ps_callchains = malloc_domain(pmc_callchaindepth * pmc_nsamples *
-		    sizeof(uintptr_t), M_PMC, domain, M_WAITOK|M_ZERO);
-
+		sb = malloc_domainset(sizeof(struct pmc_samplebuffer) +
+		    pmc_nsamples * sizeof(struct pmc_sample), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
+		sb->ps_callchains = malloc_domainset(pmc_callchaindepth *
+		    pmc_nsamples * sizeof(uintptr_t), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 		for (n = 0, ps = sb->ps_samples; n < pmc_nsamples; n++, ps++)
-			ps->ps_pc = sb->ps_callchains +
-			    (n * pmc_callchaindepth);
+			ps->ps_pc = sb->ps_callchains + n * pmc_callchaindepth;
 
 		pmc_pcpu[cpu]->pc_sb[PMC_UR] = sb;
 	}

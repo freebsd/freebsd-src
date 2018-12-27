@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitstring.h>
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/fcntl.h>
@@ -232,27 +233,23 @@ sysctl_kern_randompid(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
     0, 0, sysctl_kern_randompid, "I", "Random PID modulus. Special values: 0: disable, 1: choose random value");
 
+extern bitstr_t proc_id_pidmap;
+extern bitstr_t proc_id_grpidmap;
+extern bitstr_t proc_id_sessidmap;
+extern bitstr_t proc_id_reapmap;
+
+/*
+ * Find an unused process ID
+ *
+ * If RFHIGHPID is set (used during system boot), do not allocate
+ * low-numbered pids.
+ */
 static int
 fork_findpid(int flags)
 {
-	struct proc *p;
+	pid_t result;
 	int trypid;
-	static int pidchecked = 0;
 
-	/*
-	 * Requires allproc_lock in order to iterate over the list
-	 * of processes, and proctree_lock to access p_pgrp.
-	 */
-	sx_assert(&allproc_lock, SX_LOCKED);
-	sx_assert(&proctree_lock, SX_LOCKED);
-
-	/*
-	 * Find an unused process ID.  We remember a range of unused IDs
-	 * ready to use (from lastpid+1 through pidchecked-1).
-	 *
-	 * If RFHIGHPID is set (used during system boot), do not allocate
-	 * low-numbered pids.
-	 */
 	trypid = lastpid + 1;
 	if (flags & RFHIGHPID) {
 		if (trypid < 10)
@@ -261,6 +258,7 @@ fork_findpid(int flags)
 		if (randompid)
 			trypid += arc4random() % randompid;
 	}
+	mtx_lock(&procid_lock);
 retry:
 	/*
 	 * If the process ID prototype has wrapped around,
@@ -271,67 +269,30 @@ retry:
 		trypid = trypid % pid_max;
 		if (trypid < 100)
 			trypid += 100;
-		pidchecked = 0;
 	}
-	if (trypid >= pidchecked) {
-		int doingzomb = 0;
 
-		pidchecked = PID_MAX;
-		/*
-		 * Scan the active and zombie procs to check whether this pid
-		 * is in use.  Remember the lowest pid that's greater
-		 * than trypid, so we can avoid checking for a while.
-		 *
-		 * Avoid reuse of the process group id, session id or
-		 * the reaper subtree id.  Note that for process group
-		 * and sessions, the amount of reserved pids is
-		 * limited by process limit.  For the subtree ids, the
-		 * id is kept reserved only while there is a
-		 * non-reaped process in the subtree, so amount of
-		 * reserved pids is limited by process limit times
-		 * two.
-		 */
-		p = LIST_FIRST(&allproc);
-again:
-		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
-			while (p->p_pid == trypid ||
-			    p->p_reapsubtree == trypid ||
-			    (p->p_pgrp != NULL &&
-			    (p->p_pgrp->pg_id == trypid ||
-			    (p->p_session != NULL &&
-			    p->p_session->s_sid == trypid)))) {
-				trypid++;
-				if (trypid >= pidchecked)
-					goto retry;
-			}
-			if (p->p_pid > trypid && pidchecked > p->p_pid)
-				pidchecked = p->p_pid;
-			if (p->p_pgrp != NULL) {
-				if (p->p_pgrp->pg_id > trypid &&
-				    pidchecked > p->p_pgrp->pg_id)
-					pidchecked = p->p_pgrp->pg_id;
-				if (p->p_session != NULL &&
-				    p->p_session->s_sid > trypid &&
-				    pidchecked > p->p_session->s_sid)
-					pidchecked = p->p_session->s_sid;
-			}
-		}
-		if (!doingzomb) {
-			doingzomb = 1;
-			p = LIST_FIRST(&zombproc);
-			goto again;
-		}
+	bit_ffc_at(&proc_id_pidmap, trypid, pid_max, &result);
+	if (result == -1) {
+		trypid = 100;
+		goto retry;
+	}
+	if (bit_test(&proc_id_grpidmap, result) ||
+	    bit_test(&proc_id_sessidmap, result) ||
+	    bit_test(&proc_id_reapmap, result)) {
+		trypid = result + 1;
+		goto retry;
 	}
 
 	/*
 	 * RFHIGHPID does not mess with the lastpid counter during boot.
 	 */
-	if (flags & RFHIGHPID)
-		pidchecked = 0;
-	else
-		lastpid = trypid;
+	if ((flags & RFHIGHPID) == 0)
+		lastpid = result;
 
-	return (trypid);
+	bit_set(&proc_id_pidmap, result);
+	mtx_unlock(&procid_lock);
+
+	return (result);
 }
 
 static int
@@ -394,24 +355,23 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	struct filedesc_to_leader *fdtol;
 	struct sigacts *newsigacts;
 
-	sx_assert(&proctree_lock, SX_LOCKED);
 	sx_assert(&allproc_lock, SX_XLOCKED);
 
 	p1 = td->td_proc;
 
 	trypid = fork_findpid(fr->fr_flags);
-
 	p2->p_state = PRS_NEW;		/* protect against others */
 	p2->p_pid = trypid;
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	allproc_gen++;
+	sx_xlock(PIDHASHLOCK(p2->p_pid));
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
+	sx_xunlock(PIDHASHLOCK(p2->p_pid));
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
 	sx_xunlock(&allproc_lock);
-	sx_xunlock(&proctree_lock);
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
@@ -643,11 +603,14 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		pptr = p1;
 	}
 	p2->p_pptr = pptr;
+	p2->p_oppid = pptr->p_pid;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	LIST_INIT(&p2->p_reaplist);
 	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
-	if (p2->p_reaper == p1)
+	if (p2->p_reaper == p1 && p1 != initproc) {
 		p2->p_reapsubtree = p2->p_pid;
+		proc_id_set_cond(PROC_ID_REAP, p2->p_pid);
+	}
 	sx_xunlock(&proctree_lock);
 
 	/* Inform accounting that we have forked. */
@@ -716,11 +679,6 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	if ((fr->fr_flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
-	/*
-	 * Hold the process so that it cannot exit after we make it runnable,
-	 * but before we wait for the debugger.
-	 */
-	_PHOLD(p2);
 	if (fr->fr_flags & RFPPWAIT) {
 		td->td_pflags |= TDP_RFPPWAIT;
 		td->td_rfppwait_p = p2;
@@ -729,15 +687,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	PROC_UNLOCK(p2);
 
 	/*
+	 * Tell any interested parties about the new process.
+	 */
+	knote_fork(p1->p_klist, p2->p_pid);
+
+	/*
 	 * Now can be swapped.
 	 */
 	_PRELE(p1);
 	PROC_UNLOCK(p1);
-
-	/*
-	 * Tell any interested parties about the new process.
-	 */
-	knote_fork(p1->p_klist, p2->p_pid);
 	SDT_PROBE3(proc, , , create, p2, p1, fr->fr_flags);
 
 	if (fr->fr_flags & RFPROCDESC) {
@@ -774,13 +732,17 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 			CTR2(KTR_PTRACE,
 			    "do_fork: attaching to new child pid %d: oppid %d",
 			    p2->p_pid, p2->p_oppid);
-			proc_reparent(p2, p1->p_pptr);
+			proc_reparent(p2, p1->p_pptr, false);
 		}
 		PROC_UNLOCK(p2);
 		sx_xunlock(&proctree_lock);
 	}
-	
+
+	racct_proc_fork_done(p2);
+
 	if ((fr->fr_flags & RFSTOPPED) == 0) {
+		if (fr->fr_pidp != NULL)
+			*fr->fr_pidp = p2->p_pid;
 		/*
 		 * If RFSTOPPED not requested, make child runnable and
 		 * add to run queue.
@@ -789,16 +751,54 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		TD_SET_CAN_RUN(td2);
 		sched_add(td2, SRQ_BORING);
 		thread_unlock(td2);
-		if (fr->fr_pidp != NULL)
-			*fr->fr_pidp = p2->p_pid;
 	} else {
 		*fr->fr_procp = p2;
 	}
+}
 
+void
+fork_rfppwait(struct thread *td)
+{
+	struct proc *p, *p2;
+
+	MPASS(td->td_pflags & TDP_RFPPWAIT);
+
+	p = td->td_proc;
+	/*
+	 * Preserve synchronization semantics of vfork.  If
+	 * waiting for child to exec or exit, fork set
+	 * P_PPWAIT on child, and there we sleep on our proc
+	 * (in case of exit).
+	 *
+	 * Do it after the ptracestop() above is finished, to
+	 * not block our debugger until child execs or exits
+	 * to finish vfork wait.
+	 */
+	td->td_pflags &= ~TDP_RFPPWAIT;
+	p2 = td->td_rfppwait_p;
+again:
 	PROC_LOCK(p2);
-	_PRELE(p2);
-	racct_proc_fork_done(p2);
+	while (p2->p_flag & P_PPWAIT) {
+		PROC_LOCK(p);
+		if (thread_suspend_check_needed()) {
+			PROC_UNLOCK(p2);
+			thread_suspend_check(0);
+			PROC_UNLOCK(p);
+			goto again;
+		} else {
+			PROC_UNLOCK(p);
+		}
+		cv_timedwait(&p2->p_pwait, &p2->p_mtx, hz);
+	}
 	PROC_UNLOCK(p2);
+
+	if (td->td_dbgflags & TDB_VFORK) {
+		PROC_LOCK(p);
+		if (p->p_ptevents & PTRACE_VFORK)
+			ptracestop(td, SIGTRAP, NULL);
+		td->td_dbgflags &= ~TDB_VFORK;
+		PROC_UNLOCK(p);
+	}
 }
 
 int
@@ -882,8 +882,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * processes; don't let root exceed the limit.
 	 */
 	nprocs_new = atomic_fetchadd_int(&nprocs, 1) + 1;
-	if ((nprocs_new >= maxproc - 10 && priv_check_cred(td->td_ucred,
-	    PRIV_MAXPROC, 0) != 0) || nprocs_new >= maxproc) {
+	if ((nprocs_new >= maxproc - 10 && priv_check_cred(td->td_ucred, PRIV_MAXPROC) != 0) || nprocs_new >= maxproc) {
 		error = EAGAIN;
 		sx_xlock(&allproc_lock);
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
@@ -972,8 +971,6 @@ fork1(struct thread *td, struct fork_req *fr)
 	newproc->p_klist = knlist_alloc(&newproc->p_mtx);
 	STAILQ_INIT(&newproc->p_ktr);
 
-	/* We have to lock the process tree while we look for a pid. */
-	sx_xlock(&proctree_lock);
 	sx_xlock(&allproc_lock);
 
 	/*
@@ -982,7 +979,7 @@ fork1(struct thread *td, struct fork_req *fr)
 	 *
 	 * XXXRW: Can we avoid privilege here if it's not needed?
 	 */
-	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, 0);
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT);
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {
@@ -996,7 +993,6 @@ fork1(struct thread *td, struct fork_req *fr)
 
 	error = EAGAIN;
 	sx_xunlock(&allproc_lock);
-	sx_xunlock(&proctree_lock);
 #ifdef MAC
 	mac_proc_destroy(newproc);
 #endif

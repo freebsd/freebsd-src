@@ -78,11 +78,11 @@ fbt_patch_tracepoint(fbt_probe_t *fbt, fbt_patchval_t val)
 	switch(fbt->fbtp_patchval) {
 	case FBT_C_PATCHVAL:
 		*(uint16_t *)fbt->fbtp_patchpoint = (uint16_t)val;
-		cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, 2);
+		fence_i();
 		break;
 	case FBT_PATCHVAL:
 		*fbt->fbtp_patchpoint = val;
-		cpu_icache_sync_range((vm_offset_t)fbt->fbtp_patchpoint, 4);
+		fence_i();
 		break;
 	};
 }

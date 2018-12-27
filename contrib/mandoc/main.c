@@ -248,7 +248,13 @@ main(int argc, char *argv[])
 			outmode = OUTMODE_ALL;
 			break;
 		case 'M':
+#ifdef __FreeBSD__
+			defpaths = strdup(optarg);
+			if (defpaths == NULL)
+				err(1, "strdup");
+#else
 			defpaths = optarg;
+#endif
 			break;
 		case 'm':
 			auxpaths = optarg;
@@ -380,9 +386,34 @@ main(int argc, char *argv[])
 		    outmode == OUTMODE_ONE)
 			search.firstmatch = 1;
 
+#ifdef __FreeBSD__
+		/*
+		 * Use manpath(1) to populate defpaths if -M is not specified.
+		 * Don't treat any failures as fatal.
+		 */
+		if (defpaths == NULL) {
+			FILE *fp;
+			size_t linecap = 0;
+			ssize_t linelen;
+
+			if ((fp = popen("/usr/bin/manpath -q", "r")) != NULL) {
+				if ((linelen = getline(&defpaths,
+				    &linecap, fp)) > 0) {
+					/* Strip trailing newline */
+					defpaths[linelen - 1] = '\0';
+				}
+				pclose(fp);
+			}
+		}
+#endif
+
 		/* Access the mandoc database. */
 
 		manconf_parse(&conf, conf_file, defpaths, auxpaths);
+#ifdef __FreeBSD__
+		free(defpaths);
+#endif
+
 		if ( ! mansearch(&search, &conf.manpath,
 		    argc, argv, &res, &sz))
 			usage(search.argmode);

@@ -43,13 +43,10 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-static void
-devlist_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, DEVLIST_USAGE);
-	exit(1);
-}
+#define DEVLIST_USAGE							       \
+	"devlist\n"
+
+#define NVME_MAX_UNIT 256
 
 static inline uint32_t
 ns_get_sector_size(struct nvme_namespace_data *nsdata)
@@ -64,8 +61,8 @@ ns_get_sector_size(struct nvme_namespace_data *nsdata)
 	return (1 << lbads);
 }
 
-void
-devlist(int argc, char *argv[])
+static void
+devlist(const struct nvme_function *nf, int argc, char *argv[])
 {
 	struct nvme_controller_data	cdata;
 	struct nvme_namespace_data	nsdata;
@@ -77,26 +74,24 @@ devlist(int argc, char *argv[])
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
 		default:
-			devlist_usage();
+			usage(nf);
 		}
 	}
 
 	ctrlr = -1;
 	found = 0;
 
-	while (1) {
+	while (ctrlr < NVME_MAX_UNIT) {
 		ctrlr++;
 		sprintf(name, "%s%d", NVME_CTRLR_PREFIX, ctrlr);
 
 		ret = open_dev(name, &fd, 0, 0);
 
-		if (ret != 0) {
-			if (ret == EACCES) {
-				warnx("could not open "_PATH_DEV"%s\n", name);
-				continue;
-			} else
-				break;
-		}
+		if (ret == EACCES) {
+			warnx("could not open "_PATH_DEV"%s\n", name);
+			continue;
+		} else if (ret != 0)
+			continue;
 
 		found++;
 		read_controller_data(fd, &cdata);
@@ -124,3 +119,5 @@ devlist(int argc, char *argv[])
 
 	exit(1);
 }
+
+NVME_COMMAND(top, devlist, devlist, DEVLIST_USAGE);

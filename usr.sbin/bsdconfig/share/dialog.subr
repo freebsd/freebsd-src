@@ -79,7 +79,6 @@ unset XDIALOG_INFOBOX_TIMEOUT
 DIALOG_OK=${SUCCESS:-0}
 DIALOG_CANCEL=${FAILURE:-1}
 DIALOG_HELP=2
-DIALOG_ITEM_HELP=2
 DIALOG_EXTRA=3
 DIALOG_ITEM_HELP=4
 export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
@@ -647,7 +646,7 @@ f_dialog_infobox_size()
 		# Xdialog(1)).
 		#
 		if [ ! "$USE_XDIALOG" ]; then
-			__n=$(( ${#__hline} + 10 ))
+			__n=$(( ${#__hline} + 12 ))
 			[ $__n -gt $__width ] && __width=$__n
 		fi
 

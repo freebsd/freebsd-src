@@ -19,23 +19,62 @@ LIBVER := $(shell echo $(LIBVER_SCRIPT))
 VERSION?= $(LIBVER)
 
 CPPFLAGS+= -I. -I./common -DXXH_NAMESPACE=ZSTD_
+ifeq ($(OS),Windows_NT)   # MinGW assumed
+CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
+endif
 CFLAGS  ?= -O3
-DEBUGFLAGS = -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-            -Wredundant-decls
+            -Wredundant-decls -Wmissing-prototypes
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS)
 
+GREP = grep --color=never
 
-ZSTD_FILES := $(sort $(wildcard common/*.c compress/*.c decompress/*.c dictBuilder/*.c deprecated/*.c))
+ZSTDCOMMON_FILES := $(sort $(wildcard common/*.c))
+ZSTDCOMP_FILES := $(sort $(wildcard compress/*.c))
+ZSTDDECOMP_FILES := $(sort $(wildcard decompress/*.c))
+ZDICT_FILES := $(sort $(wildcard dictBuilder/*.c))
+ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
+ZSTD_FILES := $(ZSTDCOMMON_FILES)
 
-ZSTD_LEGACY_SUPPORT ?= 4
+ZSTD_LEGACY_SUPPORT ?= 5
+ZSTD_LIB_COMPRESSION ?= 1
+ZSTD_LIB_DECOMPRESSION ?= 1
+ZSTD_LIB_DICTBUILDER ?= 1
+ZSTD_LIB_DEPRECATED ?= 1
+
+ifeq ($(ZSTD_LIB_COMPRESSION), 0)
+	ZSTD_LIB_DICTBUILDER = 0
+	ZSTD_LIB_DEPRECATED = 0
+endif
+
+ifeq ($(ZSTD_LIB_DECOMPRESSION), 0)
+	ZSTD_LEGACY_SUPPORT = 0
+	ZSTD_LIB_DEPRECATED = 0
+endif
+
+ifneq ($(ZSTD_LIB_COMPRESSION), 0)
+	ZSTD_FILES += $(ZSTDCOMP_FILES)
+endif
+
+ifneq ($(ZSTD_LIB_DECOMPRESSION), 0)
+	ZSTD_FILES += $(ZSTDDECOMP_FILES)
+endif
+
+ifneq ($(ZSTD_LIB_DEPRECATED), 0)
+	ZSTD_FILES += $(ZDEPR_FILES)
+endif
+
+ifneq ($(ZSTD_LIB_DICTBUILDER), 0)
+	ZSTD_FILES += $(ZDICT_FILES)
+endif
 
 ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
 ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-	ZSTD_FILES += $(shell ls legacy/*.c | grep 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
+	ZSTD_FILES += $(shell ls legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
 endif
 	CPPFLAGS += -I./legacy
 endif
@@ -43,7 +82,7 @@ CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
 ZSTD_OBJ   := $(patsubst %.c,%.o,$(ZSTD_FILES))
 
-# OS X linker doesn't support -soname, and use different extension
+# macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
 ifeq ($(shell uname), Darwin)
 	SHARED_EXT = dylib
@@ -56,8 +95,6 @@ else
 	SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
 	SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
-
-LIBZSTD = libzstd.$(SHARED_EXT_VER)
 
 
 .PHONY: default all clean install uninstall
@@ -74,18 +111,27 @@ libzstd.a: $(ZSTD_OBJ)
 libzstd.a-mt: CPPFLAGS += -DZSTD_MULTITHREAD
 libzstd.a-mt: libzstd.a
 
+ifneq (,$(filter Windows%,$(OS)))
+
+LIBZSTD = dll\libzstd.dll
+$(LIBZSTD): $(ZSTD_FILES)
+	@echo compiling dynamic library $(LIBVER)
+	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o $@
+	dlltool -D $@ -d dll\libzstd.def -l dll\libzstd.lib
+
+else
+
+LIBZSTD = libzstd.$(SHARED_EXT_VER)
 $(LIBZSTD): LDFLAGS += -shared -fPIC -fvisibility=hidden
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-ifneq (,$(filter Windows%,$(OS)))
-	@$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -shared $^ -o dll\libzstd.dll
-	dlltool -D dll\libzstd.dll -d dll\libzstd.def -l dll\libzstd.lib
-else
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
 	@ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $@ libzstd.$(SHARED_EXT)
+
 endif
+
 
 libzstd : $(LIBZSTD)
 
@@ -111,16 +157,16 @@ libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 
 clean:
-	@$(RM) -r *.dSYM   # Mac OS-X specific
+	@$(RM) -r *.dSYM   # macOS-specific
 	@$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
 	@$(RM) dll/libzstd.dll dll/libzstd.lib libzstd-nomt*
 	@$(RM) common/*.o compress/*.o decompress/*.o dictBuilder/*.o legacy/*.o deprecated/*.o
 	@echo Cleaning library completed
 
 #-----------------------------------------------------------------------------
-# make install is validated only for Linux, OSX, BSD, Hurd and Solaris targets
+# make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase
@@ -134,7 +180,7 @@ LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
-ifneq (,$(filter $(shell uname),OpenBSD FreeBSD NetBSD DragonFly))
+ifneq (,$(filter $(shell uname),FreeBSD NetBSD DragonFly))
 PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
 PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
@@ -159,20 +205,32 @@ libzstd.pc: libzstd.pc.in
              -e 's|@VERSION@|$(VERSION)|' \
              $< >$@
 
-install: libzstd.a libzstd libzstd.pc
-	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/ $(DESTDIR)$(INCLUDEDIR)/
+install: install-pc install-static install-shared install-includes
+	@echo zstd static and shared library installed
+
+install-pc: libzstd.pc
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
 	@$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
-	@echo Installing libraries
+
+install-static: libzstd.a
+	@echo Installing static library
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
+
+install-shared: libzstd
+	@echo Installing shared library
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	@$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
 	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	@ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+
+install-includes:
 	@echo Installing includes
+	@$(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	@$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
 	@$(INSTALL_DATA) deprecated/zbuff.h $(DESTDIR)$(INCLUDEDIR)     # prototypes generate deprecation warnings
 	@$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
-	@echo zstd static and shared library installed
 
 uninstall:
 	@$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a

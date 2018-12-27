@@ -33,7 +33,7 @@ case "$daily_status_mailq_enable" in
 		*)
 		    mailq;;
 	    esac | tee /dev/stderr |
-	    egrep -v '(mqueue is empty|Total requests)' | wc -l)
+	    egrep -v '((Mail |m)queue is empty|Total requests)' | wc -l)
 	    [ $rc -gt 0 ] && rc=1 || rc=0
 
 	    case "$daily_status_include_submit_mailq" in

@@ -6,7 +6,7 @@ SUBDIR=		engines
 .include <bsd.own.mk>
 
 LIB=		crypto
-SHLIB_MAJOR=	9
+SHLIB_MAJOR=	111
 VERSION_MAP=	${.CURDIR}/Version.map
 
 NO_LINT=
@@ -16,9 +16,9 @@ NO_LINT=
 .endif
 .include "Makefile.inc"
 
-SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c init.c mem.c
-SRCS+=	mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c o_str.c
-SRCS+=	o_time.c threads_pthread.c uid.c
+SRCS=	cpt_err.c cryptlib.c ctype.c cversion.c ex_data.c getenv.c init.c
+SRCS+=	mem.c mem_dbg.c mem_sec.c o_dir.c o_fips.c o_fopen.c o_init.c
+SRCS+=	o_str.c o_time.c threads_pthread.c uid.c
 .if defined(ASM_aarch64)
 SRCS+=	arm64cpuid.S armcap.c
 ACFLAGS.arm64cpuid.S=	-march=armv8-a+crypto
@@ -192,8 +192,8 @@ SRCS+=	ecp_nistz256-x86.S ecp_nistz256.c
 .endif
 
 # engine
-SRCS+=	eng_all.c eng_cnf.c eng_ctrl.c eng_dyn.c eng_err.c eng_fat.c
-SRCS+=	eng_init.c eng_lib.c eng_list.c eng_openssl.c eng_pkey.c
+SRCS+=	eng_all.c eng_cnf.c eng_ctrl.c eng_devcrypto.c eng_dyn.c eng_err.c
+SRCS+=	eng_fat.c eng_init.c eng_lib.c eng_list.c eng_openssl.c eng_pkey.c
 SRCS+=	eng_rdrand.c eng_table.c tb_asnmth.c tb_cipher.c tb_dh.c tb_digest.c
 SRCS+=	tb_dsa.c tb_eckey.c tb_pkmeth.c tb_rand.c tb_rsa.c
 

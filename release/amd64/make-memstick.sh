@@ -12,6 +12,9 @@
 
 set -e
 
+scriptdir=$(dirname $(realpath $0))
+. ${scriptdir}/../../tools/boot/install-boot.sh
+
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 export PATH
 
@@ -36,11 +39,16 @@ makefs -B little -o label=FreeBSD_Install -o version=2 ${2}.part ${1}
 rm ${1}/etc/fstab
 rm ${1}/etc/rc.conf.local
 
+# Make an ESP in a file.
+espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+make_esp_file ${espfilename} ${fat32min} ${1}/boot/loader.efi
+
 mkimg -s mbr \
     -b ${1}/boot/mbr \
-    -p efi:=${1}/boot/boot1.efifat \
+    -p efi:=${espfilename} \
     -p freebsd:-"mkimg -s bsd -b ${1}/boot/boot -p freebsd-ufs:=${2}.part" \
     -a 2 \
     -o ${2}
+rm ${espfilename}
 rm ${2}.part
 

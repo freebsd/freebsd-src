@@ -31,8 +31,7 @@
 
 #define TRACE_WANTED 32
 
-/* #ifndef NDEBUG */
-#if 0
+#ifndef NDEBUG
 #define TRACE_IN(x)	nscd_trace_in(#x, __FILE__, __LINE__)
 #define TRACE_POINT()	nscd_trace_point(__FILE__, __LINE__)
 #define TRACE_MSG(x)	nscd_trace_msg(x, __FILE__, __LINE__)

@@ -8,13 +8,12 @@
 # Modified by John Marino to suit DragonFly needs
 #
 
-.if !defined(CLDRDIR)
-CLDRDIR!=	grep ^cldr etc/unicode.conf | cut -f 2 -d " "
+.OBJDIR:	.
+
+.if !defined(UNIDIR)
+.error UNIDIR is not set
 .endif
-.if !defined(UNIDATADIR)
-UNIDATADIR!=	grep ^unidata etc/unicode.conf | cut -f 2 -d " "
-.endif
-PASSON=		CLDRDIR="${CLDRDIR}" UNIDATADIR="${UNIDATADIR}"
+PASSON=		UNIDIR="${UNIDIR}"
 
 ETCDIR=		${.CURDIR}/etc
 
@@ -47,12 +46,7 @@ COLLATIONS_SPECIAL_ENV+=	${area}.${enc}
 .endfor
 PASSON+=	COLLATIONS_SPECIAL="${COLLATIONS_SPECIAL_ENV}"
 
-.if defined(LC)
-LC:=	--lc=${LC}
-.endif
-
 all:
-	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
 .for t in ${TYPES}
 .  if ${KNOWN:M${t}}
 	test -d ${t} || mkdir ${t}
@@ -67,8 +61,9 @@ install: install-${t}
 install-${t}:
 .  if ${KNOWN:M${t}}
 	rm -rf ${.CURDIR}/${t}.draft
-	rm -rf ${.CURDIR}/../../../share/${t}
-	mv ${.CURDIR}/${t} ${.CURDIR}/../../../share/${t}
+	rm -f ${.CURDIR}/../../../share/${t}/Makefile
+	rm -f ${.CURDIR}/../../../share/${t}/*.src
+	mv ${.CURDIR}/${t}/* ${.CURDIR}/../../../share/${t}/
 .  endif
 .endfor
 
@@ -84,31 +79,26 @@ post-install:
 gen-${t}:
 	mkdir -p ${t} ${t}.draft
 	perl -I tools tools/cldr2def.pl \
-		--cldr=$$(realpath ${CLDRDIR}) \
-		--unidata=$$(realpath ${UNIDATADIR}) \
+		--unidir=$$(realpath ${UNIDIR}) \
 		--etc=$$(realpath ${ETCDIR}) \
-		--type=${t} ${LC}
+		--type=${t}
 
 build-${t}: gen-${t}
 	env ${PASSON} tools/finalize ${t}
 .endfor
 
-gen-ctypedef:	transfer-rollup
+gen-ctypedef:	ctype-rollup
 static-colldef: gen-colldef
 build-colldef:	static-colldef
 
 static-colldef:
 .for area enc in ${COLLATION_SPECIAL}
-	awk -f tools/extract-colldef.awk ${CLDRDIR}/posix/${area}.${enc}.src > colldef.draft/${area}.${enc}.src
+	awk -f tools/extract-colldef.awk ${UNIDIR}/posix/${area}.${enc}.src > \
+	    colldef.draft/${area}.${enc}.src
 .endfor
 
-transfer-rollup:
-	cp ${ETCDIR}/common.UTF-8.src ${CLDRDIR}/posix/xx_Comm_US.UTF-8.src
-
-rollup:
-	perl -I tools tools/utf8-rollup.pl \
-		--cldr=$$(realpath ${CLDRDIR}) \
-		--etc=$$(realpath ${ETCDIR})
+ctype-rollup:
+	perl -I tools tools/utf8-rollup.pl --unidir=$$(realpath ${UNIDIR})
 
 clean:
 .for t in ${TYPES}
@@ -121,7 +111,7 @@ BASE_LOCALES_OF_INTEREST?= \
 	cs_CZ da_DK de_AT de_CH de_DE el_GR en_AU en_CA \
 	en_GB en_HK en_IE en_NZ en_PH en_SG en_US en_ZA \
 	es_AR es_CR es_ES es_MX et_EE eu_ES fi_FI fr_BE \
-	fr_CA fr_CH fr_FR he_IL hi_IN hr_HR hu_HU hy_AM \
+	fr_CA fr_CH fr_FR ga_IE he_IL hi_IN hr_HR hu_HU hy_AM \
 	is_IS it_CH it_IT ja_JP ko_KR lt_LT lv_LV \
 	nb_NO nl_BE nl_NL nn_NO pl_PL pt_BR pt_PT ro_RO \
 	ru_RU se_FI se_NO sk_SK sl_SI sv_FI sv_SE tr_TR \
@@ -157,33 +147,33 @@ ENCODINGS=	Big5 \
 
 
 POSIX:
-.if exists (${CLDRDIR}/tools/java/cldr.jar)
-	mkdir -p ${CLDRDIR}/posix
+.if exists (${UNIDIR}/tools/java/cldr.jar)
+	mkdir -p ${UNIDIR}/posix
 .  for area in ${BASE_LOCALES_OF_INTEREST}
-.    if !exists(${CLDRDIR}/posix/${area}.UTF-8.src)
-	java -DCLDR_DIR=${CLDRDIR:Q} -jar ${CLDRDIR}/tools/java/cldr.jar \
+.    if !exists(${UNIDIR}/posix/${area}.UTF-8.src)
+	java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GeneratePOSIX \
-		-d ${CLDRDIR}/posix -m ${area} -c UTF-8
+		-d ${UNIDIR}/posix -m ${area} -c UTF-8
 .    endif
 .  endfor
 .  for area encoding in ${COLLATION_SPECIAL}
-.    if !exists(${CLDRDIR}/posix/${area}.${encoding}.src)
-	java -DCLDR_DIR=${CLDRDIR:Q} -jar ${CLDRDIR}/tools/java/cldr.jar \
+.    if !exists(${UNIDIR}/posix/${area}.${encoding}.src)
+	java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GeneratePOSIX \
-		-d ${CLDRDIR}/posix -m ${area} -c ${encoding}
+		-d ${UNIDIR}/posix -m ${area} -c ${encoding}
 .    endif
 .  endfor
 .  for enc in ${ENCODINGS}
-.  if !exists(${CLDRDIR}/posix/${enc}.cm)
-	java -DCLDR_DIR=${CLDRDIR:Q} -jar ${CLDRDIR}/tools/java/cldr.jar \
+.  if !exists(${UNIDIR}/posix/${enc}.cm)
+	java -DCLDR_DIR=${UNIDIR:Q} -jar ${UNIDIR}/tools/java/cldr.jar \
 		org.unicode.cldr.posix.GenerateCharmap \
-		-d ${CLDRDIR}/posix -c ${enc}
+		-d ${UNIDIR}/posix -c ${enc}
 .  endif
 .  endfor
 .else
 	@echo "Please install CLDR toolset for the desired release"
-	@echo "It should go at ${CLDRDIR}/tools"
+	@echo "It should go at ${UNIDIR}/tools"
 .endif
 
 clean-POSIX:
-	rm -f ${CLDRDIR}/posix/*
+	rm -f ${UNIDIR}/posix/*

@@ -174,7 +174,6 @@ static void process_newconn(struct c4iw_listen_ep *master_lep,
 		free(__a, M_SONAME); \
 	} while (0)
 
-#ifdef KTR
 static char *states[] = {
 	"idle",
 	"listen",
@@ -190,7 +189,6 @@ static char *states[] = {
 	"dead",
 	NULL,
 };
-#endif
 
 static void deref_cm_id(struct c4iw_ep_common *epc)
 {
@@ -431,7 +429,7 @@ static void process_timeout(struct c4iw_ep *ep)
 		abort = 0;
 		break;
 	default:
-		CTR4(KTR_IW_CXGBE, "%s unexpected state ep %p tid %u state %u\n"
+		CTR4(KTR_IW_CXGBE, "%s unexpected state ep %p tid %u state %u"
 				, __func__, ep, ep->hwtid, ep->com.state);
 		abort = 0;
 	}
@@ -843,7 +841,7 @@ setiwsockopt(struct socket *so)
 	sopt.sopt_val = (caddr_t)&on;
 	sopt.sopt_valsize = sizeof on;
 	sopt.sopt_td = NULL;
-	rc = sosetopt(so, &sopt);
+	rc = -sosetopt(so, &sopt);
 	if (rc) {
 		log(LOG_ERR, "%s: can't set TCP_NODELAY on so %p (%d)\n",
 		    __func__, so, rc);
@@ -883,7 +881,9 @@ uninit_iwarp_socket(struct socket *so)
 static void
 process_data(struct c4iw_ep *ep)
 {
+	int ret = 0;
 	int disconnect = 0;
+	struct c4iw_qp_attributes attrs = {0};
 
 	CTR5(KTR_IW_CXGBE, "%s: so %p, ep %p, state %s, sbused %d", __func__,
 	    ep->com.so, ep, states[ep->com.state], sbused(&ep->com.so->so_rcv));
@@ -898,9 +898,16 @@ process_data(struct c4iw_ep *ep)
 			/* Refered in process_newconn() */
 			c4iw_put_ep(&ep->parent_ep->com);
 		break;
+	case FPDU_MODE:
+		MPASS(ep->com.qp != NULL);
+		attrs.next_state = C4IW_QP_STATE_TERMINATE;
+		ret = c4iw_modify_qp(ep->com.dev, ep->com.qp,
+					C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
+		if (ret != -EINPROGRESS)
+			disconnect = 1;
+		break;
 	default:
-		if (sbused(&ep->com.so->so_rcv))
-			log(LOG_ERR, "%s: Unexpected streaming data. ep %p, "
+		log(LOG_ERR, "%s: Unexpected streaming data. ep %p, "
 			    "state %d, so %p, so_state 0x%x, sbused %u\n",
 			    __func__, ep, ep->com.state, ep->com.so,
 			    ep->com.so->so_state, sbused(&ep->com.so->so_rcv));
@@ -1013,7 +1020,7 @@ process_newconn(struct c4iw_listen_ep *master_lep, struct socket *new_so)
 	ret = soaccept(new_so, (struct sockaddr **)&remote);
 	if (ret != 0) {
 		CTR4(KTR_IW_CXGBE,
-				"%s:listen sock:%p, new sock:%p, ret:%d\n",
+				"%s:listen sock:%p, new sock:%p, ret:%d",
 				__func__, master_lep->com.so, new_so, ret);
 		if (remote != NULL)
 			free(remote, M_SONAME);
@@ -1180,7 +1187,24 @@ process_socket_event(struct c4iw_ep *ep)
 	}
 
 	/* rx data */
-	process_data(ep);
+	if (sbused(&ep->com.so->so_rcv)) {
+		process_data(ep);
+		return;
+	}
+
+	/* Socket events for 'MPA Request Received' and 'Close Complete'
+	 * were already processed earlier in their previous events handlers.
+	 * Hence, these socket events are skipped.
+	 * And any other socket events must have handled above.
+	 */
+	MPASS((ep->com.state == MPA_REQ_RCVD) || (ep->com.state == MORIBUND));
+
+	if ((ep->com.state != MPA_REQ_RCVD) && (ep->com.state != MORIBUND))
+		log(LOG_ERR, "%s: Unprocessed socket event so %p, "
+		"so_state 0x%x, so_err %d, sb_state 0x%x, ep %p, ep_state %s\n",
+		__func__, so, so->so_state, so->so_error, so->so_rcv.sb_state,
+			ep, states[state]);
+
 }
 
 SYSCTL_NODE(_hw, OID_AUTO, iw_cxgbe, CTLFLAG_RD, 0, "iw_cxgbe driver parameters");
@@ -1240,6 +1264,18 @@ SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, rcv_win, CTLFLAG_RWTUN, &rcv_win, 0,
 static int snd_win = 128 * 1024;
 SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, snd_win, CTLFLAG_RWTUN, &snd_win, 0,
 		"TCP send window in bytes (default = 128KB)");
+
+int use_dsgl = 1;
+SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, use_dsgl, CTLFLAG_RWTUN, &use_dsgl, 0,
+		"Use DSGL for PBL/FastReg (default=1)");
+
+int inline_threshold = 128;
+SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, inline_threshold, CTLFLAG_RWTUN, &inline_threshold, 0,
+		"inline vs dsgl threshold (default=128)");
+
+static int reuseaddr = 0;
+SYSCTL_INT(_hw_iw_cxgbe, OID_AUTO, reuseaddr, CTLFLAG_RWTUN, &reuseaddr, 0,
+		"Enable SO_REUSEADDR & SO_REUSEPORT socket options on all iWARP client connections(default = 0)");
 
 static void
 start_ep_timer(struct c4iw_ep *ep)
@@ -1615,7 +1651,7 @@ send_abort(struct c4iw_ep *ep)
 	sopt.sopt_val = (caddr_t)&l;
 	sopt.sopt_valsize = sizeof l;
 	sopt.sopt_td = NULL;
-	rc = sosetopt(so, &sopt);
+	rc = -sosetopt(so, &sopt);
 	if (rc != 0) {
 		log(LOG_ERR, "%s: sosetopt(%p, linger = 0) failed with %d.\n",
 		    __func__, so, rc);
@@ -1633,6 +1669,7 @@ send_abort(struct c4iw_ep *ep)
 	 * handler(not yet implemented) of iw_cxgbe driver.
 	 */
 	release_ep_resources(ep);
+	ep->com.state = DEAD;
 
 	return (0);
 }
@@ -2272,7 +2309,7 @@ process_mpa_request(struct c4iw_ep *ep)
 				MPA_V2_IRD_ORD_MASK;
 			ep->ord = min_t(u32, ep->ord,
 					cur_max_read_depth(ep->com.dev));
-			CTR3(KTR_IW_CXGBE, "%s initiator ird %u ord %u\n",
+			CTR3(KTR_IW_CXGBE, "%s initiator ird %u ord %u",
 				 __func__, ep->ird, ep->ord);
 			if (ntohs(mpa_v2_params->ird) & MPA_V2_PEER2PEER_MODEL)
 				if (peer2peer) {
@@ -2426,7 +2463,7 @@ int c4iw_accept_cr(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			ep->ird = 1;
 	}
 
-	CTR4(KTR_IW_CXGBE, "%s %d ird %d ord %d\n", __func__, __LINE__,
+	CTR4(KTR_IW_CXGBE, "%s %d ird %d ord %d", __func__, __LINE__,
 			ep->ird, ep->ord);
 
 	ep->com.cm_id = cm_id;
@@ -2485,8 +2522,9 @@ static int
 c4iw_sock_create(struct sockaddr_storage *laddr, struct socket **so)
 {
 	int ret;
-	int size;
+	int size, on;
 	struct socket *sock = NULL;
+	struct sockopt sopt;
 
 	ret = sock_create_kern(laddr->ss_family,
 			SOCK_STREAM, IPPROTO_TCP, &sock);
@@ -2496,7 +2534,34 @@ c4iw_sock_create(struct sockaddr_storage *laddr, struct socket **so)
 		return ret;
 	}
 
-	ret = sobind(sock, (struct sockaddr *)laddr, curthread);
+	if (reuseaddr) {
+		bzero(&sopt, sizeof(struct sockopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = SOL_SOCKET;
+		sopt.sopt_name = SO_REUSEADDR;
+		on = 1;
+		sopt.sopt_val = &on;
+		sopt.sopt_valsize = sizeof(on);
+		ret = -sosetopt(sock, &sopt);
+		if (ret != 0) {
+			log(LOG_ERR, "%s: sosetopt(%p, SO_REUSEADDR) "
+				"failed with %d.\n", __func__, sock, ret);
+		}
+		bzero(&sopt, sizeof(struct sockopt));
+		sopt.sopt_dir = SOPT_SET;
+		sopt.sopt_level = SOL_SOCKET;
+		sopt.sopt_name = SO_REUSEPORT;
+		on = 1;
+		sopt.sopt_val = &on;
+		sopt.sopt_valsize = sizeof(on);
+		ret = -sosetopt(sock, &sopt);
+		if (ret != 0) {
+			log(LOG_ERR, "%s: sosetopt(%p, SO_REUSEPORT) "
+				"failed with %d.\n", __func__, sock, ret);
+		}
+	}
+
+	ret = -sobind(sock, (struct sockaddr *)laddr, curthread);
 	if (ret) {
 		CTR2(KTR_IW_CXGBE, "%s:Failed to bind socket. err %p",
 				__func__, ret);
@@ -2540,6 +2605,7 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto out;
 	}
 	ep = alloc_ep(sizeof(*ep), GFP_KERNEL);
+	cm_id->provider_data = ep;
 
 	init_timer(&ep->timer);
 	ep->plen = conn_param->private_data_len;
@@ -2600,22 +2666,24 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		goto fail;
 
 	setiwsockopt(ep->com.so);
+	init_iwarp_socket(ep->com.so, &ep->com);
 	err = -soconnect(ep->com.so, (struct sockaddr *)&ep->com.remote_addr,
 		ep->com.thread);
-	if (!err) {
-		init_iwarp_socket(ep->com.so, &ep->com);
-		goto out;
-	} else
+	if (err)
 		goto fail_free_so;
+	CTR2(KTR_IW_CXGBE, "%s:ccE, ep %p", __func__, ep);
+	return 0;
 
 fail_free_so:
+	uninit_iwarp_socket(ep->com.so);
+	ep->com.state = DEAD;
 	sock_release(ep->com.so);
 fail:
 	deref_cm_id(&ep->com);
 	c4iw_put_ep(&ep->com);
 	ep = NULL;
 out:
-	CTR2(KTR_IW_CXGBE, "%s:ccE ret:%d", __func__, err);
+	CTR2(KTR_IW_CXGBE, "%s:ccE Error %d", __func__, err);
 	return err;
 }
 
@@ -2677,7 +2745,7 @@ c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		goto fail;
 	}
 
-	rc = solisten(lep->com.so, backlog, curthread);
+	rc = -solisten(lep->com.so, backlog, curthread);
 	if (rc) {
 		CTR3(KTR_IW_CXGBE, "%s:Failed to listen on sock:%p. err %d",
 				__func__, lep->com.so, rc);

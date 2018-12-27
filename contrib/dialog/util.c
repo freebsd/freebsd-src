@@ -1,9 +1,9 @@
 /*
- *  $Id: util.c,v 1.258 2013/09/22 00:41:40 tom Exp $
+ *  $Id: util.c,v 1.272 2018/06/21 23:47:10 tom Exp $
  *
  *  util.c -- miscellaneous utilities for dialog
  *
- *  Copyright 2000-2012,2013	Thomas E. Dickey
+ *  Copyright 2000-2016,2018	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -193,7 +193,7 @@ dlg_put_backtitle(void)
 	chtype attr = A_NORMAL;
 	int backwidth = dlg_count_columns(dialog_vars.backtitle);
 
-	(void) wattrset(stdscr, screen_attr);
+	dlg_attrset(stdscr, screen_attr);
 	(void) wmove(stdscr, 0, 1);
 	dlg_print_text(stdscr, dialog_vars.backtitle, COLS - 2, &attr);
 	for (i = 0; i < COLS - backwidth; i++)
@@ -215,7 +215,7 @@ dlg_attr_clear(WINDOW *win, int height, int width, chtype attr)
 {
     int i, j;
 
-    (void) wattrset(win, attr);
+    dlg_attrset(win, attr);
     for (i = 0; i < height; i++) {
 	(void) wmove(win, i, 0);
 	for (j = 0; j < width; j++)
@@ -555,15 +555,19 @@ dlg_color_pair(int foreground, int background)
 static chtype
 define_color(WINDOW *win, int foreground)
 {
-    chtype attrs = dlg_get_attrs(win);
     int pair;
     short fg, bg, background;
-
-    if ((pair = PAIR_NUMBER(attrs)) != 0
-	&& pair_content((short) pair, &fg, &bg) != ERR) {
-	background = bg;
-    } else {
+    if (dialog_state.text_only) {
 	background = COLOR_BLACK;
+    } else {
+	chtype attrs = dlg_get_attrs(win);
+
+	if ((pair = PAIR_NUMBER(attrs)) != 0
+	    && pair_content((short) pair, &fg, &bg) != ERR) {
+	    background = bg;
+	} else {
+	    background = COLOR_BLACK;
+	}
     }
     return dlg_color_pair(foreground, background);
 }
@@ -674,13 +678,13 @@ dlg_print_listitem(WINDOW *win,
 	attrs[1] = tag_selected_attr;
 	attrs[0] = tag_attr;
 
-	(void) wattrset(win, selected ? attrs[3] : attrs[2]);
+	dlg_attrset(win, selected ? attrs[3] : attrs[2]);
 	(void) waddnstr(win, text, indx[1]);
 
 	if ((int) strlen(text) > indx[1]) {
 	    limit = dlg_limit_columns(text, climit, 1);
 	    if (limit > 1) {
-		(void) wattrset(win, selected ? attrs[1] : attrs[0]);
+		dlg_attrset(win, selected ? attrs[1] : attrs[0]);
 		(void) waddnstr(win,
 				text + indx[1],
 				indx[limit] - indx[1]);
@@ -694,7 +698,7 @@ dlg_print_listitem(WINDOW *win,
 	limit = dlg_limit_columns(text, climit, 0);
 
 	if (limit > 0) {
-	    (void) wattrset(win, selected ? attrs[1] : attrs[0]);
+	    dlg_attrset(win, selected ? attrs[1] : attrs[0]);
 	    dlg_print_text(win, text, cols[limit], &attr);
 	}
     }
@@ -718,7 +722,12 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
     int combined = 0;
 #endif
 
-    getyx(win, y_origin, x_origin);
+    if (dialog_state.text_only) {
+	y_origin = y_after = 0;
+	x_origin = x_after = 0;
+    } else {
+	getyx(win, y_origin, x_origin);
+    }
     while (cols > 0 && (*txt != '\0')) {
 	if (dialog_vars.colors) {
 	    while (isOurEscape(txt)) {
@@ -792,12 +801,29 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
 	 * more blanks.
 	 */
 	thisTab = (CharOf(*txt) == TAB);
-	if (thisTab) {
-	    getyx(win, y_before, x_before);
-	    (void) y_before;
+	if (dialog_state.text_only) {
+	    y_before = y_after;
+	    x_before = x_after;
+	} else {
+	    if (thisTab) {
+		getyx(win, y_before, x_before);
+		(void) y_before;
+	    }
 	}
-	(void) waddch(win, CharOf(*txt++) | useattr);
-	getyx(win, y_after, x_after);
+	if (dialog_state.text_only) {
+	    int ch = CharOf(*txt++);
+	    if (thisTab) {
+		while ((x_after++) % 8) {
+		    fputc(' ', dialog_state.output);
+		}
+	    } else {
+		fputc(ch, dialog_state.output);
+		x_after++;	/* FIXME: handle meta per locale */
+	    }
+	} else {
+	    (void) waddch(win, CharOf(*txt++) | useattr);
+	    getyx(win, y_after, x_after);
+	}
 	if (thisTab && (y_after == y_origin))
 	    tabbed += (x_after - x_before);
 	if ((y_after != y_origin) ||
@@ -808,6 +834,9 @@ dlg_print_text(WINDOW *win, const char *txt, int cols, chtype *attr)
 	    )) {
 	    ended = TRUE;
 	}
+    }
+    if (dialog_state.text_only) {
+	fputc('\n', dialog_state.output);
     }
 }
 
@@ -843,12 +872,14 @@ dlg_print_line(WINDOW *win,
      * is less, and set wrap_ptr to the end of the last word in the line.
      */
     for (n = 0; n < limit; ++n) {
-	test_ptr = prompt + indx[test_inx];
-	if (*test_ptr == '\n' || *test_ptr == '\0' || cur_x >= (rm + hidden))
+	int ch = *(test_ptr = prompt + indx[test_inx]);
+	if (ch == '\n' || ch == '\0' || cur_x >= (rm + hidden))
 	    break;
-	if (*test_ptr == TAB && n == 0) {
+	if (ch == TAB && n == 0) {
 	    tabbed = 8;		/* workaround for leading tabs */
-	} else if (*test_ptr == ' ' && n != 0 && prompt[indx[n - 1]] != ' ') {
+	} else if (isblank(UCH(ch))
+		   && n != 0
+		   && !isblank(UCH(prompt[indx[n - 1]]))) {
 	    wrap_inx = n;
 	    *x = cur_x;
 	} else if (dialog_vars.colors && isOurEscape(test_ptr)) {
@@ -867,9 +898,9 @@ dlg_print_line(WINDOW *win,
      * we don't have to wrap it at the end of the previous word.
      */
     test_ptr = prompt + indx[test_inx];
-    if (*test_ptr == '\n' || *test_ptr == ' ' || *test_ptr == '\0') {
+    if (*test_ptr == '\n' || isblank(UCH(*test_ptr)) || *test_ptr == '\0') {
 	wrap_inx = test_inx;
-	while (wrap_inx > 0 && prompt[indx[wrap_inx - 1]] == ' ') {
+	while (wrap_inx > 0 && isblank(UCH(prompt[indx[wrap_inx - 1]]))) {
 	    wrap_inx--;
 	}
 	*x = lm + indx[wrap_inx];
@@ -911,19 +942,20 @@ dlg_print_line(WINDOW *win,
      * Print the line if we have a window pointer.  Otherwise this routine
      * is just being called for sizing the window.
      */
-    if (win) {
+    if (dialog_state.text_only || win) {
 	dlg_print_text(win, prompt, (cols[wrap_inx] - hidden), attr);
     }
 
     /* *x tells the calling function how long the line was */
-    if (*x == 1)
+    if (*x == 1) {
 	*x = rm;
+    }
 
     *x -= hidden;
 
     /* Find the start of the next line and return a pointer to it */
     test_ptr = wrap_ptr;
-    while (*test_ptr == ' ')
+    while (isblank(UCH(*test_ptr)))
 	test_ptr++;
     if (*test_ptr == '\n')
 	test_ptr++;
@@ -947,7 +979,9 @@ justify_text(WINDOW *win,
     int bm = limit_y;		/* bottom margin */
     int last_y = 0, last_x = 0;
 
-    if (win) {
+    dialog_state.text_height = 0;
+    dialog_state.text_width = 0;
+    if (dialog_state.text_only || win) {
 	rm -= (2 * MARGIN);
 	bm -= (2 * MARGIN);
     }
@@ -1050,12 +1084,12 @@ dlg_print_scrolled(WINDOW *win,
 #endif
 	dummy = newwin(high, width, 0, 0);
 	if (dummy == 0) {
-	    (void) wattrset(win, dialog_attr);
+	    dlg_attrset(win, dialog_attr);
 	    dlg_print_autowrap(win, prompt, height + 1 + (3 * MARGIN), width);
 	    last = 0;
 	} else {
 	    wbkgdset(dummy, dialog_attr | ' ');
-	    (void) wattrset(dummy, dialog_attr);
+	    dlg_attrset(dummy, dialog_attr);
 	    werase(dummy);
 	    dlg_print_autowrap(dummy, prompt, high, width);
 	    getyx(dummy, y, x);
@@ -1081,12 +1115,12 @@ dlg_print_scrolled(WINDOW *win,
 		if (percent > 100)
 		    percent = 100;
 		if (offset != 0 || percent != 100) {
-		    (void) wattrset(win, position_indicator_attr);
+		    dlg_attrset(win, position_indicator_attr);
 		    (void) wmove(win, MARGIN + height, wide - 4);
 		    (void) sprintf(buffer, "%d%%", percent);
 		    (void) waddstr(win, buffer);
 		    if ((len = (int) strlen(buffer)) < 4) {
-			(void) wattrset(win, border_attr);
+			dlg_attrset(win, border_attr);
 			whline(win, dlg_boxchar(ACS_HLINE), 4 - len);
 		    }
 		}
@@ -1097,7 +1131,7 @@ dlg_print_scrolled(WINDOW *win,
 #endif
     {
 	(void) offset;
-	(void) wattrset(win, dialog_attr);
+	dlg_attrset(win, dialog_attr);
 	dlg_print_autowrap(win, prompt, height + 1 + (3 * MARGIN), width);
 	last = 0;
     }
@@ -1243,11 +1277,12 @@ real_auto_size(const char *title,
     int x = (dialog_vars.begin_set ? dialog_vars.begin_x : 2);
     int y = (dialog_vars.begin_set ? dialog_vars.begin_y : 1);
     int title_length = title ? dlg_count_columns(title) : 0;
-    int nc = 4;
     int high;
     int wide;
     int save_high = *height;
     int save_wide = *width;
+    int max_high;
+    int max_wide;
 
     if (prompt == 0) {
 	if (*height == 0)
@@ -1255,6 +1290,9 @@ real_auto_size(const char *title,
 	if (*width == 0)
 	    *width = -1;
     }
+
+    max_high = (*height < 0);
+    max_wide = (*width < 0);
 
     if (*height > 0) {
 	high = *height;
@@ -1287,16 +1325,25 @@ real_auto_size(const char *title,
 	*width = title_length;
     }
 
+    dialog_state.text_height = *height;
+    dialog_state.text_width = *width;
+
     if (*width < mincols && save_wide == 0)
 	*width = mincols;
     if (prompt != 0) {
-	*width += nc;
-	*height += boxlines + 2;
+	*width += ((2 * MARGIN) + SHADOW_COLS);
+	*height += boxlines + (2 * MARGIN);
     }
+
     if (save_high > 0)
 	*height = save_high;
     if (save_wide > 0)
 	*width = save_wide;
+
+    if (max_high)
+	*height = SLINES - (dialog_vars.begin_set ? dialog_vars.begin_y : 0);
+    if (max_wide)
+	*width = SCOLS - (dialog_vars.begin_set ? dialog_vars.begin_x : 0);
 }
 
 /* End of real_auto_size() */
@@ -1309,6 +1356,10 @@ dlg_auto_size(const char *title,
 	      int boxlines,
 	      int mincols)
 {
+    DLG_TRACE(("# dlg_auto_size(%d,%d) limits %d,%d\n",
+	       *height, *width,
+	       boxlines, mincols));
+
     real_auto_size(title, prompt, height, width, boxlines, mincols);
 
     if (*width > SCOLS) {
@@ -1316,8 +1367,12 @@ dlg_auto_size(const char *title,
 	*width = SCOLS;
     }
 
-    if (*height > SLINES)
+    if (*height > SLINES) {
 	*height = SLINES;
+    }
+    DLG_TRACE(("# ...dlg_auto_size(%d,%d) also %d,%d\n",
+	       *height, *width,
+	       dialog_state.text_height, dialog_state.text_width));
 }
 
 /*
@@ -1360,12 +1415,16 @@ dlg_auto_sizefile(const char *title,
     }
 
     while (!feof(fd)) {
+	if (ferror(fd))
+	    break;
 	offset = 0;
-	while (((ch = getc(fd)) != '\n') && !feof(fd))
-	    if ((ch == TAB) && (dialog_vars.tab_correct))
+	while (((ch = getc(fd)) != '\n') && !feof(fd)) {
+	    if ((ch == TAB) && (dialog_vars.tab_correct)) {
 		offset += dialog_state.tab_len - (offset % dialog_state.tab_len);
-	    else
+	    } else {
 		offset++;
+	    }
+	}
 
 	if (offset > len)
 	    len = (int) offset;
@@ -1382,27 +1441,6 @@ dlg_auto_sizefile(const char *title,
        Msgbox-like widget instead have to put all <text> correctly. */
 
     (void) fclose(fd);
-}
-
-static chtype
-dlg_get_cell_attrs(WINDOW *win)
-{
-    chtype result;
-#ifdef USE_WIDE_CURSES
-    cchar_t wch;
-    wchar_t cc;
-    attr_t attrs;
-    short pair;
-    if (win_wch(win, &wch) == OK
-	&& getcchar(&wch, &cc, &attrs, &pair, NULL) == OK) {
-	result = attrs;
-    } else {
-	result = 0;
-    }
-#else
-    result = winch(win) & (A_ATTRIBUTES & ~A_COLOR);
-#endif
-    return result;
 }
 
 /*
@@ -1428,7 +1466,7 @@ dlg_draw_box2(WINDOW *win, int y, int x, int height, int width,
     int i, j;
     chtype save = dlg_get_attrs(win);
 
-    (void) wattrset(win, 0);
+    dlg_attrset(win, 0);
     for (i = 0; i < height; i++) {
 	(void) wmove(win, y + i, x);
 	for (j = 0; j < width; j++)
@@ -1451,7 +1489,7 @@ dlg_draw_box2(WINDOW *win, int y, int x, int height, int width,
 	    else
 		(void) waddch(win, boxchar | ' ');
     }
-    (void) wattrset(win, save);
+    dlg_attrset(win, save);
 }
 
 void
@@ -1586,7 +1624,7 @@ repaint_cell(DIALOG_WINDOWS * dw, bool draw, int y, int x)
 	chtype the_cell = dlg_get_attrs(cellwin);
 	chtype the_attr = (draw ? shadow_attr : the_cell);
 
-	if (dlg_get_cell_attrs(cellwin) & A_ALTCHARSET) {
+	if (winch(cellwin) & A_ALTCHARSET) {
 	    the_attr |= A_ALTCHARSET;
 	}
 #if USE_WCHGAT
@@ -1614,7 +1652,7 @@ repaint_shadow(DIALOG_WINDOWS * dw, bool draw, int y, int x, int height, int wid
     if (UseShadow(dw)) {
 #if !USE_WCHGAT
 	chtype save = dlg_get_attrs(dw->shadow);
-	(void) wattrset(dw->shadow, draw ? shadow_attr : screen_attr);
+	dlg_attrset(dw->shadow, draw ? shadow_attr : screen_attr);
 #endif
 	for (i = 0; i < SHADOW_ROWS; ++i) {
 	    for (j = 0; j < width; ++j) {
@@ -1628,7 +1666,7 @@ repaint_shadow(DIALOG_WINDOWS * dw, bool draw, int y, int x, int height, int wid
 	}
 	(void) wnoutrefresh(dw->shadow);
 #if !USE_WCHGAT
-	(void) wattrset(dw->shadow, save);
+	dlg_attrset(dw->shadow, save);
 #endif
     }
 }
@@ -1795,8 +1833,10 @@ dlg_beeping(void)
 void
 dlg_print_size(int height, int width)
 {
-    if (dialog_vars.print_siz)
+    if (dialog_vars.print_siz) {
 	fprintf(dialog_state.output, "Size: %d, %d\n", height, width);
+	DLG_TRACE(("# print size: %dx%d\n", height, width));
+    }
 }
 
 void
@@ -1904,9 +1944,12 @@ dlg_strempty(void)
 char *
 dlg_strclone(const char *cprompt)
 {
-    char *prompt = dlg_malloc(char, strlen(cprompt) + 1);
-    assert_ptr(prompt, "dlg_strclone");
-    strcpy(prompt, cprompt);
+    char *prompt = 0;
+    if (cprompt != 0) {
+	prompt = dlg_malloc(char, strlen(cprompt) + 1);
+	assert_ptr(prompt, "dlg_strclone");
+	strcpy(prompt, cprompt);
+    }
     return prompt;
 }
 
@@ -1989,10 +2032,10 @@ dlg_draw_title(WINDOW *win, const char *title)
 	chtype save = dlg_get_attrs(win);
 	int x = centered(getmaxx(win), title);
 
-	(void) wattrset(win, title_attr);
+	dlg_attrset(win, title_attr);
 	wmove(win, 0, x);
 	dlg_print_text(win, title, getmaxx(win) - x, &attr);
-	(void) wattrset(win, save);
+	dlg_attrset(win, save);
 	dlg_finish_string(title);
     }
 }
@@ -2004,14 +2047,14 @@ dlg_draw_bottom_box2(WINDOW *win, chtype on_left, chtype on_right, chtype on_ins
     int height = getmaxy(win);
     int i;
 
-    (void) wattrset(win, on_left);
+    dlg_attrset(win, on_left);
     (void) wmove(win, height - 3, 0);
     (void) waddch(win, dlg_boxchar(ACS_LTEE));
     for (i = 0; i < width - 2; i++)
 	(void) waddch(win, dlg_boxchar(ACS_HLINE));
-    (void) wattrset(win, on_right);
+    dlg_attrset(win, on_right);
     (void) waddch(win, dlg_boxchar(ACS_RTEE));
-    (void) wattrset(win, on_inside);
+    dlg_attrset(win, on_inside);
     (void) wmove(win, height - 2, 1);
     for (i = 0; i < width - 2; i++)
 	(void) waddch(win, ' ');
@@ -2147,6 +2190,34 @@ dlg_move_window(WINDOW *win, int height, int width, int y, int x)
 	}
     }
 }
+
+/*
+ * Having just received a KEY_RESIZE, wait a short time to ignore followup
+ * KEY_RESIZE events.
+ */
+void
+dlg_will_resize(WINDOW *win)
+{
+    int n, ch, base;
+    int caught = 0;
+
+    dlg_trace_win(win);
+    wtimeout(win, 20);
+    for (n = base = 0; n < base + 10; ++n) {
+	if ((ch = wgetch(win)) != ERR) {
+	    if (ch == KEY_RESIZE) {
+		base = n;
+		++caught;
+	    } else {
+		ungetch(ch);
+		break;
+	    }
+	}
+    }
+    dlg_trace_msg("# caught %d KEY_RESIZE key%s\n",
+		  1 + caught,
+		  caught == 1 ? "" : "s");
+}
 #endif /* KEY_RESIZE */
 
 WINDOW *
@@ -2213,7 +2284,7 @@ dlg_item_help(const char *txt)
 	chtype attr = A_NORMAL;
 	int y, x;
 
-	(void) wattrset(stdscr, itemhelp_attr);
+	dlg_attrset(stdscr, itemhelp_attr);
 	(void) wmove(stdscr, LINES - 1, 0);
 	(void) wclrtoeol(stdscr);
 	(void) addch(' ');
@@ -2259,18 +2330,18 @@ dlg_strcmp(const char *a, const char *b)
 static bool
 trim_blank(char *base, char *dst)
 {
-    int count = 0;
+    int count = isblank(UCH(*dst));
 
     while (dst-- != base) {
 	if (*dst == '\n') {
-	    return FALSE;
-	} else if (*dst != ' ') {
-	    return (count > 1);
-	} else {
+	    break;
+	} else if (isblank(UCH(*dst))) {
 	    count++;
+	} else {
+	    break;
 	}
     }
-    return FALSE;
+    return (count > 1);
 }
 
 /*
@@ -2301,7 +2372,7 @@ dlg_trim_string(char *s)
 		 * then ignore the '\n'.  This eliminates the need to escape
 		 * the '\n' character (no need to use "\n\").
 		 */
-		while (*p1 == ' ')
+		while (isblank(UCH(*p1)))
 		    p1++;
 		if (*p1 == '\n')
 		    p = p1 + 1;
@@ -2310,15 +2381,15 @@ dlg_trim_string(char *s)
 		    *s++ = *p++;
 		else {
 		    /* Replace the '\n' with a space if cr_wrap is not set */
-		    if (!trim_blank(base, s))
+		    if (!trim_blank(base, p))
 			*s++ = ' ';
 		    p++;
 		}
 	    } else		/* If *p != '\n' */
 		*s++ = *p++;
 	} else if (dialog_vars.trim_whitespace) {
-	    if (*p == ' ') {
-		if (*(s - 1) != ' ') {
+	    if (isblank(UCH(*p))) {
+		if (!isblank(UCH(*(s - 1)))) {
 		    *s++ = ' ';
 		    p++;
 		} else
@@ -2326,7 +2397,7 @@ dlg_trim_string(char *s)
 	    } else if (*p == '\n') {
 		if (dialog_vars.cr_wrap)
 		    *s++ = *p++;
-		else if (*(s - 1) != ' ') {
+		else if (!isblank(UCH(*(s - 1)))) {
 		    /* Strip '\n's if cr_wrap is not set. */
 		    *s++ = ' ';
 		    p++;
@@ -2335,8 +2406,8 @@ dlg_trim_string(char *s)
 	    } else
 		*s++ = *p++;
 	} else {		/* If there are no "\n" strings */
-	    if (*p == ' ' && !dialog_vars.nocollapse) {
-		if (!trim_blank(base, s))
+	    if (isblank(UCH(*p)) && !dialog_vars.nocollapse) {
+		if (!trim_blank(base, p))
 		    *s++ = *p;
 		p++;
 	    } else
@@ -2510,7 +2581,7 @@ dlg_add_quoted(char *string)
 	dlg_add_result(my_quote);
 	while (*string != '\0') {
 	    temp[0] = *string++;
-	    if (strchr(my_quote, *temp) || strchr(must_fix, *temp))
+	    if ((strchr) (my_quote, *temp) || (strchr) (must_fix, *temp))
 		dlg_add_result("\\");
 	    dlg_add_result(temp);
 	}

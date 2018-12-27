@@ -28,7 +28,7 @@
 .\"	@(#)getdirentries.2	8.2 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd May 28, 2017
+.Dd Nov 14, 2018
 .Dt GETDIRENTRIES 2
 .Os
 .Sh NAME
@@ -88,6 +88,11 @@ Files that are linked by hard links (see
 have the same
 .Fa d_fileno .
 The
+.Fa d_off
+field returns a cookie which can be used with
+.Xr lseek 2
+to position the directory descriptor to the next entry.
+The
 .Fa d_reclen
 entry is the length, in bytes, of the directory record.
 The
@@ -140,8 +145,17 @@ a value returned in the location pointed to by
 .Fa basep
 .Po Fn getdirentries
 only
-.Pc
+.Pc ,
+a value returned in the
+.Fa d_off
+field,
 or zero.
+.Sh IMPLEMENTATION NOTES
+The
+.Fa d_off
+field is being used as a cookie to readdir for nfs servers.
+These cookies can be cached and allow to read directory entries at a specific
+offset on demand.
 .Sh RETURN VALUES
 If successful, the number of bytes actually transferred is returned.
 Otherwise, -1 is returned and the global variable

@@ -35,9 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/eventhandler.h>
+#include <sys/sx.h>
 #include <sys/sysctl.h>
 
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
@@ -47,6 +49,11 @@ FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
 MODULE_VERSION(linux_common, 1);
 
 SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
+
+TAILQ_HEAD(, linux_ioctl_handler_element) linux_ioctl_handlers =
+    TAILQ_HEAD_INITIALIZER(linux_ioctl_handlers);
+struct sx linux_ioctl_sx;
+SX_SYSINIT(linux_ioctl, &linux_ioctl_sx, "Linux ioctl handlers");
 
 static eventhandler_tag linux_exec_tag;
 static eventhandler_tag linux_thread_dtor_tag;

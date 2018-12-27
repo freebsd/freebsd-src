@@ -94,6 +94,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/trap.h>
 #include <machine/vmparam.h>
 
+#include <vm/pmap.h>
+
 #ifdef FPU_EMU
 #include <powerpc/fpu/fpu_extern.h>
 #endif
@@ -121,6 +123,10 @@ static int	grab_mcontext32(struct thread *td, mcontext32_t *, int flags);
 #endif
 
 static int	grab_mcontext(struct thread *, mcontext_t *, int);
+
+#ifdef __powerpc64__
+extern struct sysentvec elf64_freebsd_sysvec_v2;
+#endif
 
 void
 sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
@@ -783,6 +789,7 @@ freebsd32_getcontext(struct thread *td, struct freebsd32_getcontext_args *uap)
 	if (uap->ucp == NULL)
 		ret = EINVAL;
 	else {
+		bzero(&uc, sizeof(uc));
 		get_mcontext32(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
@@ -822,6 +829,7 @@ freebsd32_swapcontext(struct thread *td, struct freebsd32_swapcontext_args *uap)
 	if (uap->oucp == NULL || uap->ucp == NULL)
 		ret = EINVAL;
 	else {
+		bzero(&uc, sizeof(uc));
 		get_mcontext32(td, &uc.uc_mcontext, GET_MC_CLEAR_RET);
 		PROC_LOCK(td->td_proc);
 		uc.uc_sigmask = td->td_sigmask;
@@ -859,8 +867,6 @@ cpu_set_syscall_retval(struct thread *td, int error)
 	if (tf->fixreg[0] == SYS___syscall &&
 	    (SV_PROC_FLAG(p, SV_ILP32))) {
 		int code = tf->fixreg[FIRSTARG + 1];
-		if (p->p_sysent->sv_mask)
-			code &= p->p_sysent->sv_mask;
 		fixup = (
 #if defined(COMPAT_FREEBSD6) && defined(SYS_freebsd6_lseek)
 		    code != SYS_freebsd6_lseek &&
@@ -971,6 +977,10 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	pcb2->pcb_context[0] = pcb2->pcb_lr;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
+#ifdef __SPE__
+	pcb2->pcb_vec.vscr = SPEFSCR_FINVE | SPEFSCR_FDBZE |
+	    SPEFSCR_FUNFE | SPEFSCR_FOVFE;
+#endif
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
@@ -1006,16 +1016,27 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 		#endif
 	} else {
 	    #ifdef __powerpc64__
-		register_t entry_desc[3];
-		(void)copyin((void *)entry, entry_desc, sizeof(entry_desc));
-		tf->srr0 = entry_desc[0];
-		tf->fixreg[2] = entry_desc[1];
-		tf->fixreg[11] = entry_desc[2];
+		if (td->td_proc->p_sysent == &elf64_freebsd_sysvec_v2) {
+			tf->srr0 = (register_t)entry;
+			/* ELFv2 ABI requires that the global entry point be in r12. */
+			tf->fixreg[12] = (register_t)entry;
+		}
+		else {
+			register_t entry_desc[3];
+			(void)copyin((void *)entry, entry_desc, sizeof(entry_desc));
+			tf->srr0 = entry_desc[0];
+			tf->fixreg[2] = entry_desc[1];
+			tf->fixreg[11] = entry_desc[2];
+		}
 		tf->srr1 = psl_userset | PSL_FE_DFLT;
 	    #endif
 	}
 
 	td->td_pcb->pcb_flags = 0;
+#ifdef __SPE__
+	td->td_pcb->pcb_vec.vscr = SPEFSCR_FINVE | SPEFSCR_FDBZE |
+	    SPEFSCR_FUNFE | SPEFSCR_FOVFE;
+#endif
 
 	td->td_retval[0] = (register_t)entry;
 	td->td_retval[1] = 0;
@@ -1091,6 +1112,14 @@ ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
 	}
 	sig = fpu_emulate(frame, &pcb->pcb_fpu);
 #endif
+	if (sig == SIGILL) {
+		if (pcb->pcb_lastill != frame->srr0) {
+			/* Allow a second chance, in case of cache sync issues. */
+			sig = 0;
+			pmap_sync_icache(PCPU_GET(curpmap), frame->srr0, 4);
+			pcb->pcb_lastill = frame->srr0;
+		}
+	}
 
 	return (sig);
 }

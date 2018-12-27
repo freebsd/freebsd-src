@@ -3260,7 +3260,11 @@ test_summarize(int failed, int skips_num)
 static int
 test_run(int i, const char *tmpdir)
 {
+#ifdef PATH_MAX
+	char workdir[PATH_MAX];
+#else
 	char workdir[1024];
+#endif
 	char logfilename[64];
 	int failures_before = failures;
 	int skips_before = skips;
@@ -3509,8 +3513,13 @@ main(int argc, char **argv)
 	const char *progname;
 	char **saved_argv;
 	const char *tmp, *option_arg, *p;
-	char tmpdir[256], *pwd, *testprogdir, *tmp2 = NULL, *vlevel = NULL;
-	char tmpdir_timestamp[256];
+#ifdef PATH_MAX
+	char tmpdir[PATH_MAX];
+#else
+	char tmpdir[256];
+#endif
+	char *pwd, *testprogdir, *tmp2 = NULL, *vlevel = NULL;
+	char tmpdir_timestamp[32];
 
 	(void)argc; /* UNUSED */
 
@@ -3734,8 +3743,15 @@ main(int argc, char **argv)
 		strftime(tmpdir_timestamp, sizeof(tmpdir_timestamp),
 		    "%Y-%m-%dT%H.%M.%S",
 		    localtime(&now));
-		sprintf(tmpdir, "%s/%s.%s-%03d", tmp, progname,
-		    tmpdir_timestamp, i);
+		if ((strlen(tmp) + 1 + strlen(progname) + 1 +
+		    strlen(tmpdir_timestamp) + 1 + 3) >
+		    (sizeof(tmpdir) / sizeof(char))) {
+			fprintf(stderr,
+			    "ERROR: Temp directory pathname too long\n");
+			exit(1);
+		}
+		snprintf(tmpdir, sizeof(tmpdir), "%s/%s.%s-%03d", tmp,
+		    progname, tmpdir_timestamp, i);
 		if (assertMakeDir(tmpdir,0755))
 			break;
 		if (i >= 999) {

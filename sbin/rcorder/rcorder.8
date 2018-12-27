@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2016
+.Dd October 27, 2018
 .Dt RCORDER 8
 .Os
 .Sh NAME
@@ -136,6 +136,23 @@ There must be at least one file with no dependencies in the set of
 arguments passed to
 .Nm
 in order for it to find a starting place in the dependency ordering.
+.Sh KEYWORDS
+There are several
+.Em KEYWORDs
+in use:
+.Bl -tag -width ".Cm shutdown" -offset indent
+.It Cm firstboot, nojail, nojailvnet, nostart
+Used by
+.Xr rc 8 .
+.It Cm resume
+Used by
+.Nm /etc/rc.resume
+(see
+.Xr acpiconf 8 )
+.It Cm shutdown
+Used by
+.Xr rc.shutdown 8 .
+.El
 .Sh DIAGNOSTICS
 The
 .Nm
@@ -156,7 +173,9 @@ A set of files has a circular dependency which was detected while
 processing the stated file.
 .El
 .Sh SEE ALSO
-.Xr rc 8
+.Xr acpiconf 8 ,
+.Xr rc 8 ,
+.Xr rc.shutdown 8
 .Sh HISTORY
 The
 .Nm

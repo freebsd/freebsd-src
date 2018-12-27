@@ -28,7 +28,7 @@
 .\"     @(#)chown.2	8.4 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd November 11, 2018
 .Dt CHOWN 2
 .Os
 .Sh NAME
@@ -118,6 +118,14 @@ list, defined in
 If
 .Fa path
 names a symbolic link, ownership of the symbolic link is changed.
+.It Dv AT_BENEATH
+Only allow to change ownership of a file which is beneath of
+the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
 .El
 .Pp
 If
@@ -227,6 +235,24 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fn fchownat ,
+and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr chgrp 1 ,

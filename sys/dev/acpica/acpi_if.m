@@ -78,12 +78,19 @@ CODE {
 #
 # char **ids:  array of ID strings to consider
 #
-# Returns:  ID string matched or NULL if no match
+# char **match:  Pointer to store ID string matched or NULL if no match
+#                pass NULL if not needed.
 #
-METHOD char * id_probe {
+# Returns: BUS_PROBE_DEFAULT if _HID match
+#          BUS_PROBE_LOW_PRIORITY  if _CID match and not _HID match
+#          ENXIO if no match.
+#
+
+METHOD int id_probe {
 	device_t	bus;
 	device_t	dev;
 	char		**ids;
+	char 		**match;
 } DEFAULT acpi_generic_id_probe;
 
 #

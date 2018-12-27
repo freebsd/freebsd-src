@@ -227,16 +227,24 @@ mpssas_startup_decrement(struct mpssas_softc *sassc)
 	}
 }
 
-/* The firmware requires us to stop sending commands when we're doing task
- * management, so refcount the TMs and keep the simq frozen when any are in
- * use.
+/*
+ * The firmware requires us to stop sending commands when we're doing task
+ * management.
+ * XXX The logic for serializing the device has been made lazy and moved to
+ * mpssas_prepare_for_tm().
  */
 struct mps_command *
 mpssas_alloc_tm(struct mps_softc *sc)
 {
+	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
 	struct mps_command *tm;
 
 	tm = mps_alloc_high_priority_command(sc);
+	if (tm == NULL)
+		return (NULL);
+
+	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
+	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	return tm;
 }
 
@@ -424,7 +432,7 @@ mpssas_prepare_volume_remove(struct mpssas_softc *sassc, uint16_t handle)
 {
 	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
 	struct mps_softc *sc;
-	struct mps_command *cm;
+	struct mps_command *tm;
 	struct mpssas_target *targ = NULL;
 
 	MPS_FUNCTRACE(sassc->sc);
@@ -453,8 +461,8 @@ mpssas_prepare_volume_remove(struct mpssas_softc *sassc, uint16_t handle)
 
 	targ->flags |= MPSSAS_TARGET_INREMOVAL;
 
-	cm = mpssas_alloc_tm(sc);
-	if (cm == NULL) {
+	tm = mpssas_alloc_tm(sc);
+	if (tm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
 		    "%s: command alloc failure\n", __func__);
 		return;
@@ -462,26 +470,23 @@ mpssas_prepare_volume_remove(struct mpssas_softc *sassc, uint16_t handle)
 
 	mpssas_rescan_target(sc, targ);
 
-	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
+	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = targ->handle;
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 
 	/* SAS Hard Link Reset / SATA Link Reset */
 	req->MsgFlags = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 
-	cm->cm_targ = targ;
-	cm->cm_data = NULL;
-	cm->cm_desc.HighPriority.RequestFlags =
-	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
-	cm->cm_complete = mpssas_remove_volume;
-	cm->cm_complete_data = (void *)(uintptr_t)handle;
+	tm->cm_targ = targ;
+	tm->cm_data = NULL;
+	tm->cm_complete = mpssas_remove_volume;
+	tm->cm_complete_data = (void *)(uintptr_t)handle;
 
 	mps_dprint(sc, MPS_INFO, "%s: Sending reset for target ID %d\n",
 	    __func__, targ->tid);
-	mpssas_prepare_for_tm(sc, cm, targ, CAM_LUN_WILDCARD);
+	mpssas_prepare_for_tm(sc, tm, targ, CAM_LUN_WILDCARD);
 
-	mps_map_command(sc, cm);
+	mps_map_command(sc, tm);
 }
 
 /*
@@ -528,7 +533,6 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle)
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
 	memset(req, 0, sizeof(*req));
 	req->DevHandle = htole16(targ->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 
 	/* SAS Hard Link Reset / SATA Link Reset */
@@ -536,7 +540,6 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle)
 
 	cm->cm_targ = targ;
 	cm->cm_data = NULL;
-	cm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	cm->cm_complete = mpssas_remove_device;
 	cm->cm_complete_data = (void *)(uintptr_t)handle;
 
@@ -1108,6 +1111,12 @@ mpssas_complete_all_commands(struct mps_softc *sc)
 		cm->cm_reply = NULL;
 		completed = 0;
 
+		if (cm->cm_flags & MPS_CM_FLAGS_SATA_ID_TIMEOUT) {
+			MPASS(cm->cm_data);
+			free(cm->cm_data, M_MPT2);
+			cm->cm_data = NULL;
+		}
+
 		if (cm->cm_flags & MPS_CM_FLAGS_POLLED)
 			cm->cm_flags |= MPS_CM_FLAGS_COMPLETE;
 
@@ -1393,7 +1402,6 @@ mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm, uint8_t type)
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = htole16(target->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = type;
 
 	if (type == MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET) {
@@ -1422,7 +1430,6 @@ mpssas_send_reset(struct mps_softc *sc, struct mps_command *tm, uint8_t type)
 	}
 
 	tm->cm_data = NULL;
-	tm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete_data = (void *)tm;
 
 	callout_reset(&tm->cm_callout, MPS_RESET_TIMEOUT * hz,
@@ -1542,7 +1549,6 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = htole16(targ->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK;
 
 	/* XXX Need to handle invalid LUNs */
@@ -1551,7 +1557,6 @@ mpssas_send_abort(struct mps_softc *sc, struct mps_command *tm, struct mps_comma
 	req->TaskMID = htole16(cm->cm_desc.Default.SMID);
 
 	tm->cm_data = NULL;
-	tm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete = mpssas_abort_complete;
 	tm->cm_complete_data = (void *)tm;
 	tm->cm_targ = cm->cm_targ;
@@ -3054,7 +3059,7 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	    ("Target %d out of bounds in XPT_RESET_DEV\n",
 	     ccb->ccb_h.target_id));
 	sc = sassc->sc;
-	tm = mps_alloc_command(sc);
+	tm = mpssas_alloc_tm(sc);
 	if (tm == NULL) {
 		mps_dprint(sc, MPS_ERROR,
 		    "command alloc failure in mpssas_action_resetdev\n");
@@ -3066,19 +3071,17 @@ mpssas_action_resetdev(struct mpssas_softc *sassc, union ccb *ccb)
 	targ = &sassc->targets[ccb->ccb_h.target_id];
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)tm->cm_req;
 	req->DevHandle = htole16(targ->handle);
-	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
 	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
 
 	/* SAS Hard Link Reset / SATA Link Reset */
 	req->MsgFlags = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
 
 	tm->cm_data = NULL;
-	tm->cm_desc.HighPriority.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
 	tm->cm_complete = mpssas_resetdev_complete;
 	tm->cm_complete_data = ccb;
 	tm->cm_targ = targ;
-	targ->flags |= MPSSAS_TARGET_INRESET;
 
+	mpssas_prepare_for_tm(sc, tm, targ, CAM_LUN_WILDCARD);
 	mps_map_command(sc, tm);
 }
 
@@ -3469,6 +3472,13 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 #endif /* (__FreeBSD_version < 901503) || \
           ((__FreeBSD_version >= 1000000) && (__FreeBSD_version < 1000006)) */
 
+/*
+ * Set the INRESET flag for this target so that no I/O will be sent to
+ * the target until the reset has completed.  If an I/O request does
+ * happen, the devq will be frozen.  The CCB holds the path which is
+ * used to release the devq.  The devq is released and the CCB is freed
+ * when the TM completes.
+ */
 void
 mpssas_prepare_for_tm(struct mps_softc *sc, struct mps_command *tm,
     struct mpssas_target *target, lun_id_t lun_id)
@@ -3476,13 +3486,6 @@ mpssas_prepare_for_tm(struct mps_softc *sc, struct mps_command *tm,
 	union ccb *ccb;
 	path_id_t path_id;
 
-	/*
-	 * Set the INRESET flag for this target so that no I/O will be sent to
-	 * the target until the reset has completed.  If an I/O request does
-	 * happen, the devq will be frozen.  The CCB holds the path which is
-	 * used to release the devq.  The devq is released and the CCB is freed
-	 * when the TM completes.
-	 */
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb) {
 		path_id = cam_sim_path(sc->sassc->sim);

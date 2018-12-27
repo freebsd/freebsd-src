@@ -1929,7 +1929,8 @@ zfs_mount(vfs_t *vfsp)
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
 
-	zfs_root_setvnode((zfsvfs_t *)vfsp->vfs_data);
+	if (error == 0)
+		zfs_root_setvnode((zfsvfs_t *)vfsp->vfs_data);
 
 #ifdef illumos
 	/*

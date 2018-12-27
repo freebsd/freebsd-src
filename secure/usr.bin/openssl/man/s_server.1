@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "S_SERVER 1"
-.TH S_SERVER 1 "2018-09-11" "1.1.1" "OpenSSL"
+.TH S_SERVER 1 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -492,12 +492,13 @@ Inhibit printing of session and certificate information.
 Sends a status message back to the client when it connects. This includes
 information about the ciphers used and various session parameters.
 The output is in \s-1HTML\s0 format so this option will normally be used with a
-web browser.
+web browser. Cannot be used in conjunction with \fB\-early_data\fR.
 .IP "\fB\-WWW\fR" 4
 .IX Item "-WWW"
 Emulates a simple web server. Pages will be resolved relative to the
 current directory, for example if the \s-1URL\s0 https://myhost/page.html is
-requested the file ./page.html will be loaded.
+requested the file ./page.html will be loaded. Cannot be used in conjunction
+with \fB\-early_data\fR.
 .IP "\fB\-tlsextdebug\fR" 4
 .IX Item "-tlsextdebug"
 Print a hex dump of any \s-1TLS\s0 extensions received from the server.
@@ -507,7 +508,8 @@ Emulates a simple web server. Pages will be resolved relative to the
 current directory, for example if the \s-1URL\s0 https://myhost/page.html is
 requested the file ./page.html will be loaded. The files loaded are
 assumed to contain a complete and correct \s-1HTTP\s0 response (lines that
-are part of the \s-1HTTP\s0 response line and headers must end with \s-1CRLF\s0).
+are part of the \s-1HTTP\s0 response line and headers must end with \s-1CRLF\s0). Cannot be
+used in conjunction with \fB\-early_data\fR.
 .IP "\fB\-id_prefix val\fR" 4
 .IX Item "-id_prefix val"
 Generate \s-1SSL/TLS\s0 session IDs prefixed by \fBval\fR. This is mostly useful
@@ -560,7 +562,8 @@ output.
 .IP "\fB\-rev\fR" 4
 .IX Item "-rev"
 Simple test server which just reverses the text received from the client
-and sends it back to the server. Also sets \fB\-brief\fR.
+and sends it back to the server. Also sets \fB\-brief\fR. Cannot be used in
+conjunction with \fB\-early_data\fR.
 .IP "\fB\-async\fR" 4
 .IX Item "-async"
 Switch on asynchronous mode. Cryptographic operations will be performed
@@ -745,7 +748,8 @@ flag). The default value is approximately 16k. The argument must be an integer
 greater than or equal to 0.
 .IP "\fB\-early_data\fR" 4
 .IX Item "-early_data"
-Accept early data where possible.
+Accept early data where possible. Cannot be used in conjunction with \fB\-www\fR,
+\&\fB\-WWW\fR, \fB\-HTTP\fR or \fB\-rev\fR.
 .IP "\fB\-anti_replay\fR, \fB\-no_anti_replay\fR" 4
 .IX Item "-anti_replay, -no_anti_replay"
 Switches replay protection on or off, respectively. Replay protection is on by

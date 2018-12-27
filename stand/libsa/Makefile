@@ -155,9 +155,9 @@ SRCS+=ffs_subr.c ffs_tables.c
 
 CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2
 
-# explicit_bzero
+# explicit_bzero and calculate_crc32c
 .PATH: ${SYSDIR}/libkern
-SRCS+=  explicit_bzero.c
+SRCS+=  explicit_bzero.c crc32_libkern.c
 
 # Maybe GELI
 .if ${MK_LOADER_GELI} == "yes"

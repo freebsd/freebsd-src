@@ -38,6 +38,7 @@
 #define	_MACHINE_CPU_H_
 
 #include <machine/atomic.h>
+#include <machine/cpufunc.h>
 #include <machine/frame.h>
 
 #define	TRAPF_PC(tfp)		((tfp)->tf_ra)
@@ -46,6 +47,7 @@
 #define	cpu_getstack(td)	((td)->td_frame->tf_sp)
 #define	cpu_setstack(td, sp)	((td)->td_frame->tf_sp = (sp))
 #define	cpu_spinwait()		/* nothing */
+#define	cpu_lock_delay()	DELAY(1)
 
 #ifdef _KERNEL
 
@@ -85,8 +87,7 @@ static __inline uint64_t
 get_cyclecount(void)
 {
 
-	/* TODO: This is bogus */
-	return (1);
+	return (rdcycle());
 }
 
 #endif

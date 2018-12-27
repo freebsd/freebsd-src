@@ -421,6 +421,7 @@ user_add_with_pw_conf_body()
 	atf_check -s exit:0 \
 		${PW} useradd foo -C ${HOME}/pw.conf
 }
+
 atf_test_case user_add_defaultgroup
 user_add_defaultgroup_body()
 {
@@ -433,6 +434,25 @@ user_add_defaultgroup_body()
 	atf_check -s exit:0 \
 		-o inline:"foo:*:1001:442::0:0:User &:/home/foo:/bin/sh\n" \
 		${PW} usershow foo
+}
+
+atf_test_case user_add_conf_defaultpasswd
+user_add_conf_defaultpasswd_body()
+{
+	populate_etc_skel
+
+	atf_check -s exit:0 ${PW} useradd -D -w no
+	atf_check -o inline:"defaultpasswd = \"no\"\n" \
+	    grep defaultpasswd ${HOME}/pw.conf
+	atf_check -s exit:0 ${PW} useradd -D -w none
+	atf_check -o inline:"defaultpasswd = \"none\"\n" \
+	    grep defaultpasswd ${HOME}/pw.conf
+	atf_check -s exit:0 ${PW} useradd -D -w random
+	atf_check -o inline:"defaultpasswd = \"random\"\n" \
+	    grep defaultpasswd ${HOME}/pw.conf
+	atf_check -s exit:0 ${PW} useradd -D -w yes
+	atf_check -o inline:"defaultpasswd = \"yes\"\n" \
+	    grep defaultpasswd ${HOME}/pw.conf
 }
 
 atf_init_test_cases() {
@@ -472,4 +492,6 @@ atf_init_test_cases() {
 	atf_add_test_case user_add_w_yes
 	atf_add_test_case user_add_with_pw_conf
 	atf_add_test_case user_add_defaultgroup
+
+	atf_add_test_case user_add_conf_defaultpasswd
 }

@@ -319,11 +319,9 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 
 	if (capsicum) {
 		cap_rights_init(&rights_ro, CAP_READ, CAP_FSTAT, CAP_SEEK);
-		if (cap_rights_limit(fileno(f1), &rights_ro) < 0
-		    && errno != ENOSYS)
+		if (caph_rights_limit(fileno(f1), &rights_ro) < 0)
 			err(2, "unable to limit rights on: %s", file1);
-		if (cap_rights_limit(fileno(f2), &rights_ro) < 0 &&
-		    errno != ENOSYS)
+		if (caph_rights_limit(fileno(f2), &rights_ro) < 0)
 			err(2, "unable to limit rights on: %s", file2);
 		if (fileno(f1) == STDIN_FILENO || fileno(f2) == STDIN_FILENO) {
 			/* stding has already been limited */

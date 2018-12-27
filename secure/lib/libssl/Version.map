@@ -507,5 +507,10 @@ OPENSSL_1_1_1 {
         SSL_verify_client_post_handshake;
         SSL_write_early_data;
         SSL_write_ex;
-    local: *;
 } OPENSSL_1_1_0d;
+
+OPENSSL_1_1_1a {
+    global:
+        SSL_get_signature_type_nid;
+    local: *;
+} OPENSSL_1_1_1;

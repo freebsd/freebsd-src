@@ -372,14 +372,17 @@ cpu_thread_free(struct thread *td)
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
+	struct trapframe *frame;
+
+	frame = td->td_frame;
+	if (__predict_true(error == 0)) {
+		frame->tf_rax = td->td_retval[0];
+		frame->tf_rdx = td->td_retval[1];
+		frame->tf_rflags &= ~PSL_C;
+		return;
+	}
 
 	switch (error) {
-	case 0:
-		td->td_frame->tf_rax = td->td_retval[0];
-		td->td_frame->tf_rdx = td->td_retval[1];
-		td->td_frame->tf_rflags &= ~PSL_C;
-		break;
-
 	case ERESTART:
 		/*
 		 * Reconstruct pc, we know that 'syscall' is 2 bytes,
@@ -393,8 +396,8 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		 * Require full context restore to get the arguments
 		 * in the registers reloaded at return to usermode.
 		 */
-		td->td_frame->tf_rip -= td->td_frame->tf_err;
-		td->td_frame->tf_r10 = td->td_frame->tf_rcx;
+		frame->tf_rip -= frame->tf_err;
+		frame->tf_r10 = frame->tf_rcx;
 		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 		break;
 
@@ -402,8 +405,8 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	default:
-		td->td_frame->tf_rax = SV_ABI_ERRNO(td->td_proc, error);
-		td->td_frame->tf_rflags |= PSL_C;
+		frame->tf_rax = SV_ABI_ERRNO(td->td_proc, error);
+		frame->tf_rflags |= PSL_C;
 		break;
 	}
 }

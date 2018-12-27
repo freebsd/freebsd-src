@@ -35,7 +35,7 @@ EXCEPTIONS:  Code for dealing with exceptions appears in
 exceptions.c.  The C language doesn't include exception handling,
 so I implement it using setjmp and longjmp.  The global variable
 exception contains the type of exception.  EXERROR is raised by
-calling error.  EXINT is an interrupt.
+calling error or errorwithstatus.  EXINT is an interrupt.
 
 INTERRUPTS:  In an interactive shell, an interrupt will cause an
 EXINT exception to return to the main command loop.  (Exception:

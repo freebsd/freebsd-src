@@ -37,16 +37,6 @@
  * This driver is heavily based on VirtIO PCI interface driver.
  */
 
-/*
- * FDT example:
- *		virtio_block@1000 {
- *			compatible = "virtio,mmio";
- *			reg = <0x1000 0x100>;
- *			interrupts = <63>;
- *			interrupt-parent = <&GIC>;
- *		};
- */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -60,11 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
-#include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
@@ -81,25 +66,6 @@ struct vtmmio_virtqueue {
 	int			 vtv_no_intr;
 };
 
-struct vtmmio_softc {
-	device_t			dev;
-	device_t			platform;
-	struct resource			*res[2];
-
-	uint64_t			vtmmio_features;
-	uint32_t			vtmmio_flags;
-
-	/* This "bus" will only ever have one child. */
-	device_t			vtmmio_child_dev;
-	struct virtio_feature_desc	*vtmmio_child_feat_desc;
-
-	int				vtmmio_nvqs;
-	struct vtmmio_virtqueue		*vtmmio_vqs;
-	void				*ih;
-};
-
-static int	vtmmio_probe(device_t);
-static int	vtmmio_attach(device_t);
 static int	vtmmio_detach(device_t);
 static int	vtmmio_suspend(device_t);
 static int	vtmmio_resume(device_t);
@@ -170,7 +136,6 @@ do {								\
 
 static device_method_t vtmmio_methods[] = {
 	/* Device interface. */
-	DEVMETHOD(device_probe,			  vtmmio_probe),
 	DEVMETHOD(device_attach,		  vtmmio_attach),
 	DEVMETHOD(device_detach,		  vtmmio_detach),
 	DEVMETHOD(device_suspend,		  vtmmio_suspend),
@@ -199,19 +164,10 @@ static device_method_t vtmmio_methods[] = {
 	DEVMETHOD_END
 };
 
-static driver_t vtmmio_driver = {
-	"virtio_mmio",
-	vtmmio_methods,
-	sizeof(struct vtmmio_softc)
-};
+DEFINE_CLASS_0(virtio_mmio, vtmmio_driver, vtmmio_methods,
+    sizeof(struct vtmmio_softc));
 
-devclass_t vtmmio_devclass;
-
-DRIVER_MODULE(virtio_mmio, simplebus, vtmmio_driver, vtmmio_devclass, 0, 0);
-DRIVER_MODULE(virtio_mmio, ofwbus, vtmmio_driver, vtmmio_devclass, 0, 0);
 MODULE_VERSION(virtio_mmio, 1);
-MODULE_DEPEND(virtio_mmio, simplebus, 1, 1, 1);
-MODULE_DEPEND(virtio_mmio, virtio, 1, 1, 1);
 
 static int
 vtmmio_setup_intr(device_t dev, enum intr_type type)
@@ -248,55 +204,7 @@ vtmmio_setup_intr(device_t dev, enum intr_type type)
 	return (0);
 }
 
-static int
-vtmmio_probe(device_t dev)
-{
-
-	if (!ofw_bus_status_okay(dev))
-		return (ENXIO);
-
-	if (!ofw_bus_is_compatible(dev, "virtio,mmio"))
-		return (ENXIO);
-
-	device_set_desc(dev, "VirtIO MMIO adapter");
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-vtmmio_setup_platform(struct vtmmio_softc *sc)
-{
-	phandle_t platform_node;
-	struct fdt_ic *ic;
-	phandle_t xref;
-	phandle_t node;
-
-	sc->platform = NULL;
-
-	if ((node = ofw_bus_get_node(sc->dev)) == -1)
-		return (ENXIO);
-
-	if (OF_searchencprop(node, "platform", &xref,
-		sizeof(xref)) == -1) {
-		return (ENXIO);
-	}
-
-	platform_node = OF_node_from_xref(xref);
-
-	SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
-		if (ic->iph == platform_node) {
-			sc->platform = ic->dev;
-			break;
-		}
-	}
-
-	if (sc->platform == NULL) {
-		/* No platform-specific device. Ignore it. */
-	}
-
-	return (0);
-}
-
-static int
+int
 vtmmio_attach(device_t dev)
 {
 	struct vtmmio_softc *sc;
@@ -305,8 +213,6 @@ vtmmio_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-
-	vtmmio_setup_platform(sc);
 
 	rid = 0;
 	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,

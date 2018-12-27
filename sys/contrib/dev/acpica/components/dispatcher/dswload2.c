@@ -448,6 +448,15 @@ AcpiDsLoad2BeginOp (
         }
 #endif
 
+        /*
+         * For name creation opcodes, the full namepath prefix must
+         * exist, except for the final (new) nameseg.
+         */
+        if (WalkState->OpInfo->Flags & AML_NAMED)
+        {
+            Flags |= ACPI_NS_PREFIX_MUST_EXIST;
+        }
+
         /* Add new entry or lookup existing entry */
 
         Status = AcpiNsLookup (WalkState->ScopeInfo, BufferPtr, ObjectType,
@@ -520,10 +529,8 @@ AcpiDsLoad2EndOp (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_PARSE_OBJECT       *Arg;
     ACPI_NAMESPACE_NODE     *NewNode;
-#ifndef ACPI_NO_METHOD_EXECUTION
     UINT32                  i;
     UINT8                   RegionSpace;
-#endif
 
 
     ACPI_FUNCTION_TRACE (DsLoad2EndOp);
@@ -613,7 +620,6 @@ AcpiDsLoad2EndOp (
 
     switch (WalkState->OpInfo->Type)
     {
-#ifndef ACPI_NO_METHOD_EXECUTION
 
     case AML_TYPE_CREATE_FIELD:
         /*
@@ -709,13 +715,11 @@ AcpiDsLoad2EndOp (
         }
 
         break;
-#endif /* ACPI_NO_METHOD_EXECUTION */
 
     case AML_TYPE_NAMED_COMPLEX:
 
         switch (Op->Common.AmlOpcode)
         {
-#ifndef ACPI_NO_METHOD_EXECUTION
         case AML_REGION_OP:
         case AML_DATA_REGION_OP:
 
@@ -800,7 +804,6 @@ AcpiDsLoad2EndOp (
             }
             break;
 
-#endif /* ACPI_NO_METHOD_EXECUTION */
 
         default:
 

@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2017
+.Dd November 14, 2018
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -759,6 +759,9 @@ interfaces (implies
 .Dv IFCAP_TSO ) .
 .It Dv IFCAP_LINKSTATE
 This Ethernet interface supports dynamic link state changes.
+.It Dv IFCAP_NETMAP
+This Ethernet interface supports
+.Xr netmap  4 .
 .El
 .Pp
 The ability of advanced network interfaces to offload certain

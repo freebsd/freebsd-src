@@ -227,6 +227,9 @@ sn_attach(device_t dev)
 		sn_detach(dev);
 		return err;
 	}
+
+	gone_by_fcp101_dev(dev);
+
 	return 0;
 }
 

@@ -51,18 +51,14 @@
  * IRQ values returned by ACPI methods such as _CRS can be used
  * directly by the ACPI bus driver.
  *
- * MSI interrupts allocate a block of interrupts starting at either
- * the end of the I/O APIC range or 256, whichever is higher.  When
- * running under the Xen Hypervisor, an additional range of IRQ values
- * are available for binding to event channel events.  We use 256 as
- * the minimum IRQ value for MSI interrupts to attempt to leave 255
- * unused since 255 is used in PCI to indicate an invalid INTx IRQ.
+ * MSI interrupts allocate a block of interrupts starting at the end
+ * of the I/O APIC range.  When running under the Xen Hypervisor, an
+ * additional range of IRQ values are available for binding to event
+ * channel events.
  */
-#define	NUM_MSI_INTS	512
-#define	MINIMUM_MSI_INT	256
-
 extern u_int first_msi_irq;
 extern u_int num_io_irqs;
+extern u_int num_msi_irqs;
 
 /*
  * Default base address for MSI messages on x86 platforms.

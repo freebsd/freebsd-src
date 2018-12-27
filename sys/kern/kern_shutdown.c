@@ -115,13 +115,18 @@ SYSCTL_INT(_kern, OID_AUTO, panic_reboot_wait_time, CTLFLAG_RWTUN,
 
 #ifdef KDB
 #ifdef KDB_UNATTENDED
-int debugger_on_panic = 0;
+static int debugger_on_panic = 0;
 #else
-int debugger_on_panic = 1;
+static int debugger_on_panic = 1;
 #endif
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &debugger_on_panic, 0, "Run debugger on kernel panic");
+
+int debugger_on_trap = 0;
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_trap,
+    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+    &debugger_on_trap, 0, "Run debugger on kernel trap before panic");
 
 #ifdef KDB_TRACE
 static int trace_on_panic = 1;

@@ -174,6 +174,12 @@ AcpiDbMethodEnd (
     ACPI_WALK_STATE         *WalkState);
 #endif
 
+#ifdef ACPI_DISASSEMBLER
+static ACPI_PARSE_OBJECT *
+AcpiDbGetDisplayOp (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op);
+#endif
 
 /*******************************************************************************
  *
@@ -273,6 +279,74 @@ AcpiDbSignalBreakPoint (
 }
 
 
+#ifdef ACPI_DISASSEMBLER
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbGetDisplayOp
+ *
+ * PARAMETERS:  WalkState       - Current walk
+ *              Op              - Current executing op (from aml interpreter)
+ *
+ * RETURN:      Opcode to display
+ *
+ * DESCRIPTION: Find the opcode to display during single stepping
+ *
+ ******************************************************************************/
+
+static ACPI_PARSE_OBJECT *
+AcpiDbGetDisplayOp (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *DisplayOp;
+    ACPI_PARSE_OBJECT       *ParentOp;
+
+    DisplayOp = Op;
+    ParentOp = Op->Common.Parent;
+    if (ParentOp)
+    {
+        if ((WalkState->ControlState) &&
+            (WalkState->ControlState->Common.State ==
+                ACPI_CONTROL_PREDICATE_EXECUTING))
+        {
+            /*
+             * We are executing the predicate of an IF or WHILE statement
+             * Search upwards for the containing IF or WHILE so that the
+             * entire predicate can be displayed.
+             */
+            while (ParentOp)
+            {
+                if ((ParentOp->Common.AmlOpcode == AML_IF_OP) ||
+                    (ParentOp->Common.AmlOpcode == AML_WHILE_OP))
+                {
+                    DisplayOp = ParentOp;
+                    break;
+                }
+                ParentOp = ParentOp->Common.Parent;
+            }
+        }
+        else
+        {
+            while (ParentOp)
+            {
+                if ((ParentOp->Common.AmlOpcode == AML_IF_OP)     ||
+                    (ParentOp->Common.AmlOpcode == AML_ELSE_OP)   ||
+                    (ParentOp->Common.AmlOpcode == AML_SCOPE_OP)  ||
+                    (ParentOp->Common.AmlOpcode == AML_METHOD_OP) ||
+                    (ParentOp->Common.AmlOpcode == AML_WHILE_OP))
+                {
+                    break;
+                }
+                DisplayOp = ParentOp;
+                ParentOp = ParentOp->Common.Parent;
+            }
+        }
+    }
+    return DisplayOp;
+}
+#endif
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbSingleStep
@@ -296,8 +370,6 @@ AcpiDbSingleStep (
     ACPI_PARSE_OBJECT       *Next;
     ACPI_STATUS             Status = AE_OK;
     UINT32                  OriginalDebugLevel;
-    ACPI_PARSE_OBJECT       *DisplayOp;
-    ACPI_PARSE_OBJECT       *ParentOp;
     UINT32                  AmlOffset;
 
 
@@ -393,53 +465,11 @@ AcpiDbSingleStep (
         Next = Op->Common.Next;
         Op->Common.Next = NULL;
 
-
-        DisplayOp = Op;
-        ParentOp = Op->Common.Parent;
-        if (ParentOp)
-        {
-            if ((WalkState->ControlState) &&
-                (WalkState->ControlState->Common.State ==
-                    ACPI_CONTROL_PREDICATE_EXECUTING))
-            {
-                /*
-                 * We are executing the predicate of an IF or WHILE statement
-                 * Search upwards for the containing IF or WHILE so that the
-                 * entire predicate can be displayed.
-                 */
-                while (ParentOp)
-                {
-                    if ((ParentOp->Common.AmlOpcode == AML_IF_OP) ||
-                        (ParentOp->Common.AmlOpcode == AML_WHILE_OP))
-                    {
-                        DisplayOp = ParentOp;
-                        break;
-                    }
-                    ParentOp = ParentOp->Common.Parent;
-                }
-            }
-            else
-            {
-                while (ParentOp)
-                {
-                    if ((ParentOp->Common.AmlOpcode == AML_IF_OP)     ||
-                        (ParentOp->Common.AmlOpcode == AML_ELSE_OP)   ||
-                        (ParentOp->Common.AmlOpcode == AML_SCOPE_OP)  ||
-                        (ParentOp->Common.AmlOpcode == AML_METHOD_OP) ||
-                        (ParentOp->Common.AmlOpcode == AML_WHILE_OP))
-                    {
-                        break;
-                    }
-                    DisplayOp = ParentOp;
-                    ParentOp = ParentOp->Common.Parent;
-                }
-            }
-        }
-
         /* Now we can disassemble and display it */
 
 #ifdef ACPI_DISASSEMBLER
-        AcpiDmDisassemble (WalkState, DisplayOp, ACPI_UINT32_MAX);
+        AcpiDmDisassemble (WalkState, AcpiDbGetDisplayOp (WalkState, Op),
+            ACPI_UINT32_MAX);
 #else
         /*
          * The AML Disassembler is not configured - at least we can

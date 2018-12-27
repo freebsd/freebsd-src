@@ -1157,7 +1157,7 @@ nfscl_procdoesntexist(u_int8_t *own)
 	tl.cval[2] = *own++;
 	tl.cval[3] = *own++;
 	pid = tl.lval;
-	p = pfind_locked(pid);
+	p = pfind(pid);
 	if (p == NULL)
 		return (1);
 	if (p->p_stats == NULL) {

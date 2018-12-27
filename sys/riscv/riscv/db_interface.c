@@ -98,7 +98,7 @@ struct db_variable db_regs[] = {
 	{ "a7",		DB_OFFSET(tf_a[7]),	db_frame },
 	{ "sepc",	DB_OFFSET(tf_sepc),	db_frame },
 	{ "sstatus",	DB_OFFSET(tf_sstatus),	db_frame },
-	{ "sbadaddr",	DB_OFFSET(tf_sbadaddr),	db_frame },
+	{ "stval",	DB_OFFSET(tf_stval),	db_frame },
 	{ "scause",	DB_OFFSET(tf_scause),	db_frame },
 };
 
@@ -151,11 +151,8 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 		while (size-- > 0)
 			*dst++ = *data++;
 
-		fence();
-
-		/* Clean D-cache and invalidate I-cache */
-		cpu_dcache_wb_range(addr, (vm_size_t)size);
-		cpu_icache_sync_range(addr, (vm_size_t)size);
+		/* Invalidate I-cache */
+		fence_i();
 	}
 	(void)kdb_jmpbuf(prev_jb);
 

@@ -93,6 +93,8 @@
 #define	SDHCI_QUIRK_PRESET_VALUE_BROKEN			(1 << 27)
 /* Controller does not support or the support for ACMD12 is broken. */
 #define	SDHCI_QUIRK_BROKEN_AUTO_STOP			(1 << 28)
+/* Controller supports eMMC HS400 mode if SDHCI_CAN_SDR104 is set. */
+#define	SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104		(1 << 29)
 
 /*
  * Controller registers

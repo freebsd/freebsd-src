@@ -218,21 +218,39 @@ struct asmc_softc {
 				  "Heatsink 2", "Memory Controller", \
 				  "PCI Express Slot Pin", "PCI Express Slot (unk)" }
 
-#define ASMC_MBP8_TEMPS		{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
+#define ASMC_MBP81_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TCFC", "TCGC", "TCSA", "TM0S", "TMBS", \
+				  "TP0P", "TPCD", "TW0P", "Th1H", "Ts0P", \
+				  "Ts0S", NULL }
+
+#define ASMC_MBP81_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TCFC", "TCGC", "TCSA", "TM0S", "TMBS", \
+				  "TP0P", "TPCD", "wireless", "Th1H", "Ts0P", \
+				  "Ts0S" }
+
+#define ASMC_MBP81_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TCFC", "TCGC", "TCSA", "TM0S", "TMBS", \
+				  "TP0P", "TPCD", "TW0P", "Th1H", "Ts0P", \
+				  "Ts0S" }
+
+#define ASMC_MBP82_TEMPS	{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "TG0D", "TG0P", "THSP", "TM0S", \
 				  "TMBS", "TP0P", "TPCD", "TW0P", "Th1H", \
 				  "Th2H", "Tm0P", "Ts0P", "Ts0S", NULL }
 
-#define ASMC_MBP8_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
+#define ASMC_MBP82_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "graphics", "TG0P", "THSP", "TM0S", \
 				  "TMBS", "TP0P", "TPCD", "wireless", "Th1H", \
 				  "Th2H", "memory", "Ts0P", "Ts0S" }
 
-#define ASMC_MBP8_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
+#define ASMC_MBP82_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
 				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
 				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
 				  "TCTD", "TG0D", "TG0P", "THSP", "TM0S", \
@@ -321,7 +339,105 @@ struct asmc_softc {
 				  "Northbridge Proximity Temperature", \
 				  "Wireless Module Proximity Temperature", }
 
-#define ASMC_MP_TEMPS		{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
+#define ASMC_MM52_TEMPS		{ "TA0P", "TA1P", \
+				  "TC0D", "TC0P", \
+				  "TG0D", "TG1D", \
+				  "TG0P", "TG0M", \
+				  "TI0P", \
+				  "TM0S", "TMBS", \
+				  "TM0P", "TP0P", \
+				  "TPCD", "Tp0C", \
+				  "TW0P", NULL }
+
+#define ASMC_MM52_TEMPNAMES	{ "ambient_air_proximity", "ambient_cpu_pch_wireless_dimm", \
+				  "cpu_die", "cpu_proximity", \
+				  "gpu_diode1", "gpu_diode2", \
+				  "gpu_proximity", "gpu_integrated_switcher", \
+				  "thunderbolt_proximity", \
+				  "memory_slot1", "memory_slot2", \
+				  "memory_proximity", "pch_controller_proximity", \
+				  "pch_controller_die", "pwr_supply", \
+				  "wireless_proximity", }
+ 
+#define ASMC_MM52_TEMPDESCS	{ "Ambient Air Proximity Temperature", \
+				  "Combo Ambient CPU PCH Wireless DIMM Temperature", \
+				  "CPU Die Temperature", "CPU Proximity Temperature", \
+				  "GPU Diode 1 Temperature" , "GPU Diode 2 Temperature", \
+				  "GPU Proximity Temperature", \
+				  "Integrated Graphics/GPU Switcher Temperature", \
+				  "Thunderbolt Proximity Temperature", \
+				  "Memory Slot 1 Temperature", \
+				  "Memory Slot 2 Temperature", \
+				  "Memory Slots Proximity Temperature", \
+				  "Platform Controller Hub Proximity Temperature", \
+				  "Platform Controller Hub Die Temperature", \
+				  "Power Supply Temperature", \
+				  "Wireless Module Proximity Temperature", }
+
+#define ASMC_MP1_TEMPS		{ "TA0P", \
+				  "TCAH", "TCBH", \
+				  "TC0P", "TC0C", "TC1C", \
+				  "TC2C", "TC3C", "THTG", \
+				  "TH0P", "TH1P", \
+				  "TH2P", "TH3P", \
+				  "TM0P", "TM1P", "TM2P", \
+				  "TM8P", "TM9P", "TMAP", \
+				  "TM0S", "TM1S", "TM2P", "TM3S", \
+				  "TM8S", "TM9S", "TMAS", "TMBS", \
+				  "TN0H", "TS0C", \
+				  "Tp0C", "Tp1C", "Tv0S", "Tv1S", NULL }
+
+#define ASMC_MP1_TEMPNAMES	{ "ambient", \
+				  "cpu_a_heatsink", "cpu_b_heatsink", \
+				  "cpu_a_proximity", "cpu_core0", "cpu_core1", \
+				  "cpu_core2", "cpu_core3", "THTG", \
+				  "hdd_bay0", "hdd_bay1", \
+				  "hdd_bay2", "hdd_bay3", \
+				  "memory_card_a_proximity0", \
+				  "memory_card_a_proximity1", \
+				  "memory_card_a_proximity2", \
+				  "memory_card_b_proximity0", \
+				  "memory_card_b_proximity1", \
+				  "memory_card_b_proximity2", \
+				  "memory_card_a_slot0", \
+				  "memory_card_a_slot1", \
+				  "memory_card_a_slot2", \
+				  "memory_card_a_slot3", \
+				  "memory_card_b_slot0", \
+				  "memory_card_b_slot1", \
+				  "memory_card_b_slot2", \
+				  "memory_card_b_slot3", \
+				  "mch_heatsink", "expansion_slots", \
+				  "power_supply_loc0", "power_supply_loc1", \
+				  "Tv0S", "Tv1S", }
+
+#define ASMC_MP1_TEMPDESCS	{ "Ambient Air", \
+				  "CPU A Heatsink", "CPU B Heatsink", \
+				  "CPU A Proximity", \
+				  "CPU Core 1", "CPU Core 2", \
+				  "CPU Core 3", "CPU Core 4", "THTG", \
+				  "Hard Drive Bay 1", "Hard Drive Bay 2", \
+				  "Hard Drive Bay 3", "Hard Drive Bay 4", \
+				  "Memory Riser A, Proximity 1", \
+				  "Memory Riser A, Proximity 2", \
+				  "Memory Riser A, Proximity 3", \
+				  "Memory Riser B, Proximity 1", \
+				  "Memory Riser B, Proximity 2", \
+				  "Memory Riser B, Proximity 3", \
+				  "Memory Riser A, Slot 1", \
+				  "Memory Riser A, Slot 2", \
+				  "Memory Riser A, Slot 3", \
+				  "Memory Riser A, Slot 4", \
+				  "Memory Riser B, Slot 1", \
+				  "Memory Riser B, Slot 2", \
+				  "Memory Riser B, Slot 3", \
+				  "Memory Riser B, Slot 4", \
+				  "MCH Heatsink", "Expansion Slots", \
+				  "Power Supply, Location 1", \
+				  "Power Supply, Location 2", \
+				  "Tv0S", "Tv1S", }
+
+#define ASMC_MP2_TEMPS		{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
 				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
 				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
@@ -330,7 +446,7 @@ struct asmc_softc {
 				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
 				  NULL }
 
-#define ASMC_MP_TEMPNAMES	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
+#define ASMC_MP2_TEMPNAMES	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
 				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
 				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
@@ -338,7 +454,7 @@ struct asmc_softc {
 				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
 				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", }
 
-#define ASMC_MP_TEMPDESCS	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
+#define ASMC_MP2_TEMPDESCS	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
 				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
 				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
@@ -428,3 +544,27 @@ struct asmc_softc {
 	                          "TCXC", "THSP", "Memory Bank A", "PCH Die", \
 	                          "Ta0P", "Heatpipe", "Mainboard Proximity 1", "Mainboard Proximity 2", \
 	                          "Palm Rest", "Memory Proximity" }
+
+#define	ASMC_MBA7_TEMPS		{ "TB0T", "TB1T", "TB2T", \
+                         	  "TC0E", "TC0F", "TC0P", \
+	                          "TC1C", "TC2C", \
+	                          "TCGC", "TCSA", "TCXC", \
+	                          "THSP", "TM0P", "TPCD", \
+	                          "TW0P" "Ta0P", "Th1H", \
+	                          "Tm0P", "Ts0P", "Ts0S", NULL }
+
+#define	ASMC_MBA7_TEMPNAMES	{ "enclosure1", "enclosure2", "enclosure3", \
+	                          "cputemp1", "cputemp2", "cpuproximity", \
+	                          "cpucore1", "cpucore2", \
+	                          "pecigpu", "pecisa", "pecicpu", \
+	                          "thunderboltproximity", "memorybank", "pchdie", \
+	                          "wirelessproximity", "airflowproximity", "heatpipe", \
+	                          "mainboardproximity", "palmrest", "memoryproximity" }
+
+#define	ASMC_MBA7_TEMPDESCS	{ "Enclosure Bottom 1", "Enclosure Bottom 2", "Enclosure Bottom 3", \
+	                          "CPU Temp 1", "CPU Temp 2", "CPU Proximity", \
+	                          "CPU Core 1", "CPU Core 2", \
+	                          "PECI GPU", "PECI SA", "PECI CPU", \
+	                          "Thunderbolt Proximity", "Memory Bank A", "PCH Die", \
+	                          "Wireless Proximity", "Airflow Proxmity", "Heatpipe", \
+	                          "Mainboard Proximity", "Palm Rest", "Memory Proximity" }

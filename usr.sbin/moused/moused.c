@@ -198,8 +198,6 @@ static int	hscroll_movement;
 /* interface (the table must be ordered by MOUSE_IF_XXX in mouse.h) */
 static symtab_t rifs[] = {
     { "serial",		MOUSE_IF_SERIAL,	0 },
-    { "bus",		MOUSE_IF_BUS,		0 },
-    { "inport",		MOUSE_IF_INPORT,	0 },
     { "ps/2",		MOUSE_IF_PS2,		0 },
     { "sysmouse",	MOUSE_IF_SYSMOUSE,	0 },
     { "usb",		MOUSE_IF_USB,		0 },
@@ -213,8 +211,8 @@ static const char *rnames[] = {
     "logitech",
     "mmseries",
     "mouseman",
-    "busmouse",
-    "inportmouse",
+    "wasbusmouse",
+    "wasinportmouse",
     "ps/2",
     "mmhitab",
     "glidepoint",
@@ -290,12 +288,8 @@ static symtab_t pnpprod[] = {
     /* Mitsumi Wireless Scroll Mouse */
     { "MTM6401",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
 
-    /* MS bus */
-    { "PNP0F00",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
     /* MS serial */
     { "PNP0F01",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
-    /* MS InPort */
-    { "PNP0F02",	MOUSE_PROTO_INPORT,	MOUSE_MODEL_GENERIC },
     /* MS PS/2 */
     { "PNP0F03",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
     /*
@@ -322,8 +316,6 @@ static symtab_t pnpprod[] = {
     { "PNP0F0B",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MS serial comatible */
     { "PNP0F0C",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
-    /* MS InPort comatible */
-    { "PNP0F0D",	MOUSE_PROTO_INPORT,	MOUSE_MODEL_GENERIC },
     /* MS PS/2 comatible */
     { "PNP0F0E",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
     /* MS BallPoint comatible */
@@ -332,8 +324,6 @@ static symtab_t pnpprod[] = {
     /* TI QuickPort */
     { "PNP0F10",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
-    /* MS bus comatible */
-    { "PNP0F11",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
     /* Logitech PS/2 */
     { "PNP0F12",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
     /* PS/2 */
@@ -342,16 +332,12 @@ static symtab_t pnpprod[] = {
     /* MS Kids Mouse */
     { "PNP0F14",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
-    /* Logitech bus */
-    { "PNP0F15",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
 #if notyet
     /* Logitech SWIFT */
     { "PNP0F16",	MOUSE_PROTO_XXX,	MOUSE_MODEL_GENERIC },
 #endif
     /* Logitech serial compat */
     { "PNP0F17",	MOUSE_PROTO_LOGIMOUSEMAN, MOUSE_MODEL_GENERIC },
-    /* Logitech bus compatible */
-    { "PNP0F18",	MOUSE_PROTO_BUS,	MOUSE_MODEL_GENERIC },
     /* Logitech PS/2 compatible */
     { "PNP0F19",	MOUSE_PROTO_PS2,	MOUSE_MODEL_GENERIC },
 #if notyet
@@ -859,15 +845,6 @@ main(int argc, char *argv[])
 
     /* the default port name */
     switch(rodent.rtype) {
-
-    case MOUSE_PROTO_INPORT:
-	/* INPORT and BUS are the same... */
-	rodent.rtype = MOUSE_PROTO_BUS;
-	/* FALLTHROUGH */
-    case MOUSE_PROTO_BUS:
-	if (!rodent.portname)
-	    rodent.portname = "/dev/mse0";
-	break;
 
     case MOUSE_PROTO_PS2:
 	if (!rodent.portname)
@@ -1519,9 +1496,6 @@ r_identify(void)
 	    logwarnx("unknown mouse protocol (%d)", rodent.mode.protocol);
 	    return (MOUSE_PROTO_UNKNOWN);
 	} else {
-	    /* INPORT and BUS are the same... */
-	    if (rodent.mode.protocol == MOUSE_PROTO_INPORT)
-		rodent.mode.protocol = MOUSE_PROTO_BUS;
 	    if (rodent.mode.protocol != rodent.rtype) {
 		/* Hmm, the driver doesn't agree with the user... */
 		if (rodent.rtype != MOUSE_PROTO_UNKNOWN)
@@ -1559,8 +1533,6 @@ r_identify(void)
 	} else {
 	    rodent.mode.protocol = MOUSE_PROTO_UNKNOWN;
 	}
-	if (rodent.mode.protocol == MOUSE_PROTO_INPORT)
-	    rodent.mode.protocol = MOUSE_PROTO_BUS;
 
 	/* make final adjustment */
 	if (rodent.mode.protocol != MOUSE_PROTO_UNKNOWN) {
@@ -1771,8 +1743,6 @@ r_init(void)
 	    setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
 	/* FALLTHROUGH */
 
-    case MOUSE_PROTO_BUS:
-    case MOUSE_PROTO_INPORT:
     case MOUSE_PROTO_PS2:
 	if (rodent.rate >= 0)
 	    rodent.mode.rate = rodent.rate;
@@ -2160,13 +2130,6 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	}
 	prev_x = x;
 	prev_y = y;
-	break;
-
-    case MOUSE_PROTO_BUS:		/* Bus */
-    case MOUSE_PROTO_INPORT:		/* InPort */
-	act->button = butmapmsc[(~pBuf[0]) & MOUSE_MSC_BUTTONS];
-	act->dx =   (signed char)pBuf[1];
-	act->dy = - (signed char)pBuf[2];
 	break;
 
     case MOUSE_PROTO_PS2:		/* PS/2 */

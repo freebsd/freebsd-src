@@ -29,11 +29,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
-#include <sys/types.h>
+#include <sys/ucred.h>
 
 #include <ctype.h>
-#include <kenv.h>
 #include <libgen.h>
 #include <libzfs_core.h>
 #include <stdio.h>
@@ -55,23 +56,30 @@ static int be_create_child_cloned(libbe_handle_t *lbh, const char *active);
  * zfs_be_root set by loader(8).  data is expected to be a libbe_handle_t *.
  */
 static int
-be_locate_rootfs(zfs_handle_t *chkds, void *data)
+be_locate_rootfs(libbe_handle_t *lbh)
 {
-	libbe_handle_t *lbh;
-	char *mntpoint;
+	struct statfs sfs;
+	struct extmnttab entry;
+	zfs_handle_t *zfs;
 
-	lbh = (libbe_handle_t *)data;
-	if (lbh == NULL)
+	/*
+	 * Check first if root is ZFS; if not, we'll bail on rootfs capture.
+	 * Unfortunately needed because zfs_path_to_zhandle will emit to
+	 * stderr if / isn't actually a ZFS filesystem, which we'd like
+	 * to avoid.
+	 */
+	if (statfs("/", &sfs) == 0) {
+		statfs2mnttab(&sfs, &entry);
+		if (strcmp(entry.mnt_fstype, MNTTYPE_ZFS) != 0)
+			return (1);
+	} else
+		return (1);
+	zfs = zfs_path_to_zhandle(lbh->lzh, "/", ZFS_TYPE_FILESYSTEM);
+	if (zfs == NULL)
 		return (1);
 
-	mntpoint = NULL;
-	if (zfs_is_mounted(chkds, &mntpoint) && strcmp(mntpoint, "/") == 0) {
-		strlcpy(lbh->rootfs, zfs_get_name(chkds), sizeof(lbh->rootfs));
-		free(mntpoint);
-		return (1);
-	} else if(mntpoint != NULL)
-		free(mntpoint);
-
+	strlcpy(lbh->rootfs, zfs_get_name(zfs), sizeof(lbh->rootfs));
+	zfs_close(zfs);
 	return (0);
 }
 
@@ -80,35 +88,14 @@ be_locate_rootfs(zfs_handle_t *chkds, void *data)
  * dataset, for example, zroot/ROOT.
  */
 libbe_handle_t *
-libbe_init(void)
+libbe_init(const char *root)
 {
-	struct stat sb;
-	dev_t root_dev, boot_dev;
 	libbe_handle_t *lbh;
-	zfs_handle_t *rootds;
 	char *poolname, *pos;
 	int pnamelen;
 
 	lbh = NULL;
 	poolname = pos = NULL;
-	rootds = NULL;
-
-	/* Verify that /boot and / are mounted on the same filesystem */
-	/* TODO: use errno here?? */
-	if (stat("/", &sb) != 0)
-		goto err;
-
-	root_dev = sb.st_dev;
-
-	if (stat("/boot", &sb) != 0)
-		goto err;
-
-	boot_dev = sb.st_dev;
-
-	if (root_dev != boot_dev) {
-		fprintf(stderr, "/ and /boot not on same device, quitting\n");
-		goto err;
-	}
 
 	if ((lbh = calloc(1, sizeof(libbe_handle_t))) == NULL)
 		goto err;
@@ -116,15 +103,24 @@ libbe_init(void)
 	if ((lbh->lzh = libzfs_init()) == NULL)
 		goto err;
 
-	/* Obtain path to boot environment root */
-	if ((kenv(KENV_GET, "zfs_be_root", lbh->root,
-	    sizeof(lbh->root))) == -1)
-		goto err;
-
-	/* Remove leading 'zfs:' if present, otherwise use value as-is */
-	if (strcmp(lbh->root, "zfs:") == 0)
-		strlcpy(lbh->root, strchr(lbh->root, ':') + sizeof(char),
-		    sizeof(lbh->root));
+	/*
+	 * Grab rootfs, we'll work backwards from there if an optional BE root
+	 * has not been passed in.
+	 */
+	if (be_locate_rootfs(lbh) != 0) {
+		if (root == NULL)
+			goto err;
+		*lbh->rootfs = '\0';
+	}
+	if (root == NULL) {
+		/* Strip off the final slash from rootfs to get the be root */
+		strlcpy(lbh->root, lbh->rootfs, sizeof(lbh->root));
+		pos = strrchr(lbh->root, '/');
+		if (pos == NULL)
+			goto err;
+		*pos = '\0';
+	} else
+		strlcpy(lbh->root, root, sizeof(lbh->root));
 
 	if ((pos = strchr(lbh->root, '/')) == NULL)
 		goto err;
@@ -142,17 +138,6 @@ libbe_init(void)
 
 	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_BOOTFS, lbh->bootfs,
 	    sizeof(lbh->bootfs), NULL, true) != 0)
-		goto err;
-
-	/* Obtain path to boot environment rootfs (currently booted) */
-	/* XXX Get dataset mounted at / by kenv/GUID from mountroot? */
-	if ((rootds = zfs_open(lbh->lzh, lbh->root, ZFS_TYPE_DATASET)) == NULL)
-		goto err;
-
-	zfs_iter_filesystems(rootds, be_locate_rootfs, lbh);
-	zfs_close(rootds);
-	rootds = NULL;
-	if (*lbh->rootfs == '\0')
 		goto err;
 
 	return (lbh);
@@ -337,6 +322,7 @@ be_deep_clone_prop(int prop, void *cb)
 	zprop_source_t src;
 	char pval[BE_MAXPATHLEN];
 	char source[BE_MAXPATHLEN];
+	char *val;
 
 	dccb = cb;
 	/* Skip some properties we don't want to touch */
@@ -356,7 +342,15 @@ be_deep_clone_prop(int prop, void *cb)
 	if (src != ZPROP_SRC_LOCAL)
 		return (ZPROP_CONT);
 
-	nvlist_add_string(dccb->props, zfs_prop_to_name(prop), (char *)pval);
+	/* Augment mountpoint with altroot, if needed */
+	val = pval;
+	if (prop == ZFS_PROP_MOUNTPOINT && *dccb->altroot != '\0') {
+		if (pval[strlen(dccb->altroot)] == '\0')
+			strlcpy(pval, "/", sizeof(pval));
+		else
+			val = pval + strlen(dccb->altroot);
+	}
+	nvlist_add_string(dccb->props, zfs_prop_to_name(prop), val);
 
 	return (ZPROP_CONT);
 }
@@ -399,6 +393,10 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 
 	dccb.zhp = ds;
 	dccb.props = props;
+	if (zpool_get_prop(isdc->lbh->active_phandle, ZPOOL_PROP_ALTROOT,
+	    dccb.altroot, sizeof(dccb.altroot), NULL, true) != 0 ||
+	    strcmp(dccb.altroot, "-") == 0)
+		*dccb.altroot = '\0';
 	if (zprop_iter(be_deep_clone_prop, &dccb, B_FALSE, B_FALSE,
 	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL)
 		return (-1);
@@ -503,10 +501,6 @@ be_create_from_existing(libbe_handle_t *lbh, const char *name, const char *old)
 int
 be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 {
-	zfs_handle_t *zfs_hdl;
-	char buf[BE_MAXPATHLEN];
-	char *delim_pos;
-	int err = BE_ERR_SUCCESS;
 
 	if (strlen(snap_name) >= BE_MAXPATHLEN)
 		return (BE_ERR_PATHLEN);
@@ -515,27 +509,7 @@ be_validate_snap(libbe_handle_t *lbh, const char *snap_name)
 	    ZFS_TYPE_SNAPSHOT))
 		return (BE_ERR_NOENT);
 
-	strlcpy(buf, snap_name, sizeof(buf));
-
-	/* Find the base filesystem of the snapshot */
-	if ((delim_pos = strchr(buf, '@')) == NULL)
-		return (BE_ERR_INVALIDNAME);
-	*delim_pos = '\0';
-
-	if ((zfs_hdl =
-	    zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
-		return (BE_ERR_NOORIGIN);
-
-	if ((err = zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, buf,
-	    sizeof(buf), NULL, NULL, 0, 1)) != 0)
-		err = BE_ERR_BADMOUNT;
-
-	if ((err != 0) && (strncmp(buf, "/", sizeof(buf)) != 0))
-		err = BE_ERR_BADMOUNT;
-
-	zfs_close(zfs_hdl);
-
-	return (err);
+	return (BE_ERR_SUCCESS);
 }
 
 
@@ -922,13 +896,29 @@ be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,
 	return (0);
 }
 
+/*
+ * Deactivate old BE dataset; currently just sets canmount=noauto
+ */
+static int
+be_deactivate(libbe_handle_t *lbh, const char *ds)
+{
+	zfs_handle_t *zfs;
+
+	if ((zfs = zfs_open(lbh->lzh, ds, ZFS_TYPE_DATASET)) == NULL)
+		return (1);
+	if (zfs_prop_set(zfs, "canmount", "noauto") != 0)
+		return (1);
+	zfs_close(zfs);
+	return (0);
+}
 
 int
 be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
 	char buf[BE_MAXPATHLEN];
-	nvlist_t *config, *vdevs;
+	nvlist_t *config, *dsprops, *vdevs;
+	char *origin;
 	uint64_t pool_guid;
 	zfs_handle_t *zhp;
 	int err;
@@ -960,6 +950,9 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 
 		return (be_set_nextboot(lbh, vdevs, pool_guid, buf));
 	} else {
+		if (be_deactivate(lbh, lbh->bootfs) != 0)
+			return (-1);
+
 		/* Obtain bootenv zpool */
 		err = zpool_set_prop(lbh->active_phandle, "bootfs", be_path);
 		if (err)
@@ -969,7 +962,18 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 		if (zhp == NULL)
 			return (-1);
 
-		err = zfs_promote(zhp);
+		if (be_prop_list_alloc(&dsprops) != 0)
+			return (-1);
+
+		if (be_get_dataset_props(lbh, be_path, dsprops) != 0) {
+			nvlist_free(dsprops);
+			return (-1);
+		}
+
+		if (nvlist_lookup_string(dsprops, "origin", &origin) == 0)
+			err = zfs_promote(zhp);
+		nvlist_free(dsprops);
+
 		zfs_close(zhp);
 
 		if (err)

@@ -510,7 +510,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 	u_##TYPE v;						\
 								\
 	v = *p;							\
-	mb();							\
+	powerpc_lwsync();					\
 	return (v);						\
 }								\
 								\
@@ -852,6 +852,9 @@ atomic_swap_64(volatile u_long *p, u_long v)
 #define	atomic_fetchadd_64	atomic_fetchadd_long
 #define	atomic_swap_long	atomic_swap_64
 #define	atomic_swap_ptr		atomic_swap_64
+#else
+#define	atomic_swap_long(p,v)	atomic_swap_32((volatile u_int *)(p), v)
+#define	atomic_swap_ptr(p,v)	atomic_swap_32((volatile u_int *)(p), v)
 #endif
 
 #undef __ATOMIC_REL

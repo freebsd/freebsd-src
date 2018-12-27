@@ -262,7 +262,7 @@ main(int argc, char **argv)
 
 		dbg_csp = fscs;
 		/* ... and dump it */
-		for(dbg_csc=0; dbg_csc<sblock.fs_ncg; dbg_csc++) {
+		for (dbg_csc = 0; dbg_csc < sblock.fs_ncg; dbg_csc++) {
 			snprintf(dbg_line, sizeof(dbg_line),
 			    "%d. csum in fscs", dbg_csc);
 			DBG_DUMP_CSUM(&sblock,
@@ -342,8 +342,8 @@ void
 dump_whole_ufs1_inode(ino_t inode, int level)
 {
 	DBG_FUNC("dump_whole_ufs1_inode")
-	struct ufs1_dinode	*ino;
-	int	rb, mode;
+	union dinodep dp;
+	int	rb;
 	unsigned int	ind2ctr, ind3ctr;
 	ufs1_daddr_t	*ind2ptr, *ind3ptr;
 	char	comment[80];
@@ -353,10 +353,10 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 	/*
 	 * Read the inode from disk/cache.
 	 */
-	if (getino(&disk, (void **)&ino, inode, &mode) == -1)
-		err(1, "getino: %s", disk.d_error);
+	if (getinode(&disk, &dp, inode) == -1)
+		err(1, "getinode: %s", disk.d_error);
 
-	if(ino->di_nlink==0) {
+	if (dp.dp1->di_nlink == 0) {
 		DBG_LEAVE;
 		return;	/* inode not in use */
 	}
@@ -368,7 +368,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 	if (level & 0x100) {
 		DBG_DUMP_INO(&sblock,
 		    comment,
-		    ino);
+		    dp.dp1);
 	}
 
 	if (!(level & 0x200)) {
@@ -379,13 +379,13 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 	/*
 	 * Ok, now prepare for dumping all direct and indirect pointers.
 	 */
-	rb = howmany(ino->di_size, sblock.fs_bsize) - UFS_NDADDR;
-	if(rb>0) {
+	rb = howmany(dp.dp1->di_size, sblock.fs_bsize) - UFS_NDADDR;
+	if (rb > 0) {
 		/*
 		 * Dump single indirect block.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[0]), (void *)&i1blk, 
-			(size_t)sblock.fs_bsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock, dp.dp1->di_ib[0]),
+		    (void *)&i1blk, (size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
 		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 0",
@@ -394,14 +394,14 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 		    comment,
 		    i1blk,
 		    (size_t)rb);
-		rb-=howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t));
+		rb -= howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t));
 	}
-	if(rb>0) {
+	if (rb > 0) {
 		/*
 		 * Dump double indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[1]), (void *)&i2blk, 
-			(size_t)sblock.fs_bsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock, dp.dp1->di_ib[1]),
+		    (void *)&i2blk, (size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
 		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 1",
@@ -410,12 +410,12 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 		    comment,
 		    i2blk,
 		    howmany(rb, howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t))));
-		for(ind2ctr=0; ((ind2ctr < howmany(sblock.fs_bsize,
-			sizeof(ufs1_daddr_t))) && (rb>0)); ind2ctr++) {
-			ind2ptr=&((ufs1_daddr_t *)(void *)&i2blk)[ind2ctr];
+		for (ind2ctr = 0; ((ind2ctr < howmany(sblock.fs_bsize,
+			sizeof(ufs1_daddr_t))) && (rb > 0)); ind2ctr++) {
+			ind2ptr = &((ufs1_daddr_t *)(void *)&i2blk)[ind2ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind2ptr), (void *)&i1blk, 
-				(size_t)sblock.fs_bsize) == -1) {
+			if (bread(&disk, fsbtodb(&sblock, *ind2ptr),
+			    (void *)&i1blk, (size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
@@ -425,15 +425,15 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			    comment,
 			    i1blk,
 			    (size_t)rb);
-			rb-=howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t));
+			rb -= howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t));
 		}
 	}
-	if(rb>0) {
+	if (rb > 0) {
 		/*
 		 * Dump triple indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[2]), (void *)&i3blk, 
-			(size_t)sblock.fs_bsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock, dp.dp1->di_ib[2]),
+		    (void *)&i3blk, (size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
 		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 2",
@@ -445,12 +445,12 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 		    howmany(rb,
 		      SQUARE(howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t)))));
 #undef SQUARE
-		for(ind3ctr=0; ((ind3ctr<howmany(sblock.fs_bsize,
-			sizeof(ufs1_daddr_t)))&&(rb>0)); ind3ctr++) {
-			ind3ptr=&((ufs1_daddr_t *)(void *)&i3blk)[ind3ctr];
+		for (ind3ctr = 0; ((ind3ctr < howmany(sblock.fs_bsize,
+			sizeof(ufs1_daddr_t))) && (rb > 0)); ind3ctr++) {
+			ind3ptr = &((ufs1_daddr_t *)(void *)&i3blk)[ind3ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind3ptr), (void *)&i2blk, 
-				(size_t)sblock.fs_bsize) == -1) {
+			if (bread(&disk, fsbtodb(&sblock, *ind3ptr),
+			    (void *)&i2blk, (size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
@@ -461,8 +461,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			    i2blk,
 			    howmany(rb,
 			      howmany(sblock.fs_bsize, sizeof(ufs1_daddr_t))));
-			for(ind2ctr=0; ((ind2ctr < howmany(sblock.fs_bsize,
-			    sizeof(ufs1_daddr_t)))&&(rb>0)); ind2ctr++) {
+			for (ind2ctr = 0; ((ind2ctr < howmany(sblock.fs_bsize,
+			     sizeof(ufs1_daddr_t))) && (rb > 0)); ind2ctr++) {
 				ind2ptr=&((ufs1_daddr_t *)(void *)&i2blk)
 				    [ind2ctr];
 				if (bread(&disk, fsbtodb(&sblock, *ind2ptr),
@@ -477,7 +477,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 				    comment,
 				    i1blk,
 				    (size_t)rb);
-				rb-=howmany(sblock.fs_bsize,
+				rb -= howmany(sblock.fs_bsize,
 				    sizeof(ufs1_daddr_t));
 			}
 		}
@@ -496,8 +496,8 @@ void
 dump_whole_ufs2_inode(ino_t inode, int level)
 {
 	DBG_FUNC("dump_whole_ufs2_inode")
-	struct ufs2_dinode	*ino;
-	int	rb, mode;
+	union dinodep dp;
+	int	rb;
 	unsigned int	ind2ctr, ind3ctr;
 	ufs2_daddr_t	*ind2ptr, *ind3ptr;
 	char	comment[80];
@@ -507,10 +507,10 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 	/*
 	 * Read the inode from disk/cache.
 	 */
-	if (getino(&disk, (void **)&ino, inode, &mode) == -1)
-		err(1, "getino: %s", disk.d_error);
+	if (getinode(&disk, &dp, inode) == -1)
+		err(1, "getinode: %s", disk.d_error);
 
-	if (ino->di_nlink == 0) {
+	if (dp.dp2->di_nlink == 0) {
 		DBG_LEAVE;
 		return;	/* inode not in use */
 	}
@@ -520,7 +520,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 	 */
 	snprintf(comment, sizeof(comment), "Inode 0x%08jx", (uintmax_t)inode);
 	if (level & 0x100) {
-		DBG_DUMP_INO(&sblock, comment, ino);
+		DBG_DUMP_INO(&sblock, comment, dp.dp2);
 	}
 
 	if (!(level & 0x200)) {
@@ -531,13 +531,13 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 	/*
 	 * Ok, now prepare for dumping all direct and indirect pointers.
 	 */
-	rb = howmany(ino->di_size, sblock.fs_bsize) - UFS_NDADDR;
+	rb = howmany(dp.dp2->di_size, sblock.fs_bsize) - UFS_NDADDR;
 	if (rb > 0) {
 		/*
 		 * Dump single indirect block.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[0]), (void *)&i1blk, 
-			(size_t)sblock.fs_bsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock, dp.dp2->di_ib[0]),
+		    (void *)&i1blk, (size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
 		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 0",
@@ -549,8 +549,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 		/*
 		 * Dump double indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[1]), (void *)&i2blk, 
-			(size_t)sblock.fs_bsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock, dp.dp2->di_ib[1]),
+		    (void *)&i2blk, (size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
 		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 1",
@@ -563,8 +563,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			sizeof(ufs2_daddr_t))) && (rb>0)); ind2ctr++) {
 			ind2ptr = &((ufs2_daddr_t *)(void *)&i2blk)[ind2ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind2ptr), (void *)&i1blk, 
-				(size_t)sblock.fs_bsize) == -1) {
+			if (bread(&disk, fsbtodb(&sblock, *ind2ptr),
+			    (void *)&i1blk, (size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
@@ -578,8 +578,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 		/*
 		 * Dump triple indirect blocks.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, ino->di_ib[2]), (void *)&i3blk, 
-			(size_t)sblock.fs_bsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock, dp.dp2->di_ib[2]),
+		    (void *)&i3blk, (size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
 		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 2",
@@ -595,8 +595,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			sizeof(ufs2_daddr_t))) && (rb > 0)); ind3ctr++) {
 			ind3ptr = &((ufs2_daddr_t *)(void *)&i3blk)[ind3ctr];
 
-			if (bread(&disk, fsbtodb(&sblock, *ind3ptr), (void *)&i2blk, 
-				(size_t)sblock.fs_bsize) == -1) {
+			if (bread(&disk, fsbtodb(&sblock, *ind3ptr),
+			    (void *)&i2blk, (size_t)sblock.fs_bsize) == -1) {
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
@@ -610,8 +610,9 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			for (ind2ctr = 0; ((ind2ctr < howmany(sblock.fs_bsize,
 				sizeof(ufs2_daddr_t))) && (rb > 0)); ind2ctr++) {
 				ind2ptr = &((ufs2_daddr_t *)(void *)&i2blk) [ind2ctr];
-				if (bread(&disk, fsbtodb(&sblock, *ind2ptr), (void *)&i1blk, 
-					(size_t)sblock.fs_bsize) == -1) {
+				if (bread(&disk, fsbtodb(&sblock, *ind2ptr),
+				    (void *)&i1blk, (size_t)sblock.fs_bsize)
+				    == -1) {
 					err(1, "bread: %s", disk.d_error);
 				}
 				snprintf(comment, sizeof(comment),

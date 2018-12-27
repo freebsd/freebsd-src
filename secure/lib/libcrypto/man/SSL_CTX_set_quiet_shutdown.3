@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_SET_QUIET_SHUTDOWN 3"
-.TH SSL_CTX_SET_QUIET_SHUTDOWN 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH SSL_CTX_SET_QUIET_SHUTDOWN 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -165,7 +165,7 @@ It is not changed when \fISSL_clear\fR\|(3) is called.
 .SH "NOTES"
 .IX Header "NOTES"
 Normally when a \s-1SSL\s0 connection is finished, the parties must send out
-\&\*(L"close notify\*(R" alert messages using \fISSL_shutdown\fR\|(3)
+close_notify alert messages using \fISSL_shutdown\fR\|(3)
 for a clean shutdown.
 .PP
 When setting the \*(L"quiet shutdown\*(R" flag to 1, \fISSL_shutdown\fR\|(3)
@@ -173,7 +173,7 @@ will set the internal flags to SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN.
 (\fISSL_shutdown\fR\|(3) then behaves like
 \&\fISSL_set_shutdown\fR\|(3) called with
 SSL_SENT_SHUTDOWN|SSL_RECEIVED_SHUTDOWN.)
-The session is thus considered to be shutdown, but no \*(L"close notify\*(R" alert
+The session is thus considered to be shutdown, but no close_notify alert
 is sent to the peer. This behaviour violates the \s-1TLS\s0 standard.
 .PP
 The default is normal shutdown behaviour as described by the \s-1TLS\s0 standard.
@@ -191,7 +191,7 @@ setting.
 \&\fISSL_clear\fR\|(3), \fISSL_free\fR\|(3)
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2001\-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

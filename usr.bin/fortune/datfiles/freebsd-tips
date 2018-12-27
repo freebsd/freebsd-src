@@ -554,3 +554,9 @@ Use "sysrc name=value" to add an entry and "sysrc -x name" to delete an entry.
 
 		-- Lars Engels <lme@FreeBSD.org>
 %
+You can upload the dmesg of your system to help developers get an overview of commonly used hardware and peripherals for FreeBSD.
+Use the curl package to upload it in one command:
+curl -v -d "nickname=$USER" -d "description=FreeBSD/$(uname -m) on \
+$(kenv smbios.system.maker) $(kenv smbios.system.product)" -d "do=addd" \
+--data-urlencode 'dmesg@/var/run/dmesg.boot' http://dmesgd.nycbug.org/index.cgi
+%

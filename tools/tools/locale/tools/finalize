@@ -116,13 +116,13 @@ then
 	else {last1 = $1; last2 = $2}}' ${TEMP2} > ${TEMP3}
 	rm -f ${TEMP2}
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
-		${CLDRDIR}/posix/UTF-8.cm \
+		${UNIDIR}/posix/UTF-8.cm \
 		> ${base}/../etc/final-maps/map.UTF-8
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
-		${CLDRDIR}/posix/eucCN.cm \
+		${UNIDIR}/posix/eucCN.cm \
 		> ${base}/../etc/final-maps/map.eucCN
 	/usr/bin/sed -E -e 's/[ ]+/ /g' \
-		${CLDRDIR}/posix/eucCN.cm \
+		${UNIDIR}/posix/eucCN.cm \
 		> ${base}/../etc/final-maps/map.GB2312
 	CHARMAPS="ARMSCII-8 Big5 CP1131 CP1251 \
 		CP866 GBK ISCII-DEV ISO8859-1 \

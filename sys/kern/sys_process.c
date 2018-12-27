@@ -387,8 +387,9 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			error = EINVAL;
 			break;
 		}
-		while (entry != &map->header &&
-		    (entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
+		KASSERT((map->header.eflags & MAP_ENTRY_IS_SUB_MAP) == 0,
+		    ("Submap in map header"));
+		while ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) != 0) {
 			entry = entry->next;
 			index++;
 		}
@@ -540,6 +541,9 @@ struct ptrace_args {
  *   copyin(uap->addr, &r.reg32, sizeof r.reg32);
  * .. except this is done at runtime.
  */
+#define	BZERO(a, s)		wrap32 ? \
+	bzero(a ## 32, s ## 32) : \
+	bzero(a, s)
 #define	COPYIN(u, k, s)		wrap32 ? \
 	copyin(u, k ## 32, s ## 32) : \
 	copyin(u, k, s)
@@ -547,6 +551,7 @@ struct ptrace_args {
 	copyout(k ## 32, u, s ## 32) : \
 	copyout(k, u, s)
 #else
+#define	BZERO(a, s)		bzero(a, s)
 #define	COPYIN(u, k, s)		copyin(u, k, s)
 #define	COPYOUT(k, u, s)	copyout(k, u, s)
 #endif
@@ -572,7 +577,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		struct ptrace_lwpinfo32 pl32;
 		struct ptrace_vm_entry32 pve32;
 #endif
-		char args[nitems(td->td_sa.args) * sizeof(register_t)];
+		char args[sizeof(td->td_sa.args)];
 		int ptevents;
 	} r;
 	void *addr;
@@ -589,11 +594,17 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	addr = &r;
 	switch (uap->req) {
 	case PT_GET_EVENT_MASK:
-	case PT_GETREGS:
-	case PT_GETFPREGS:
-	case PT_GETDBREGS:
 	case PT_LWPINFO:
 	case PT_GET_SC_ARGS:
+		break;
+	case PT_GETREGS:
+		BZERO(&r.reg, sizeof r.reg);
+		break;
+	case PT_GETFPREGS:
+		BZERO(&r.fpreg, sizeof r.fpreg);
+		break;
+	case PT_GETDBREGS:
+		BZERO(&r.dbreg, sizeof r.dbreg);
 		break;
 	case PT_SETREGS:
 		error = COPYIN(uap->addr, &r.reg, sizeof r.reg);
@@ -661,6 +672,7 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 }
 #undef COPYIN
 #undef COPYOUT
+#undef BZERO
 
 #ifdef COMPAT_FREEBSD32
 /*
@@ -694,7 +706,6 @@ proc_set_traced(struct proc *p, bool stop)
 	if (stop)
 		p->p_flag2 |= P2_PTRACE_FSTP;
 	p->p_ptevents = PTRACE_DEFAULT;
-	p->p_oppid = p->p_pptr->p_pid;
 }
 
 int
@@ -918,7 +929,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		 */
 		proc_set_traced(p, true);
 		if (p->p_pptr != td->td_proc) {
-			proc_reparent(p, td->td_proc);
+			proc_reparent(p, td->td_proc, false);
 		}
 		CTR2(KTR_PTRACE, "PT_ATTACH: pid %d, oppid %d", p->p_pid,
 		    p->p_oppid);
@@ -1112,7 +1123,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				PROC_UNLOCK(p->p_pptr);
 
 				pp = proc_realparent(p);
-				proc_reparent(p, pp);
+				proc_reparent(p, pp, false);
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
 				CTR3(KTR_PTRACE,
@@ -1121,7 +1132,6 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			} else
 				CTR2(KTR_PTRACE, "PT_DETACH: pid %d, sig %d",
 				    p->p_pid, data);
-			p->p_oppid = 0;
 			p->p_ptevents = 0;
 			FOREACH_THREAD_IN_PROC(p, td3) {
 				if ((td3->td_dbgflags & TDB_FSTP) != 0) {

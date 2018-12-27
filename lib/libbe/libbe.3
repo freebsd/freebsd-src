@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2018
+.Dd November 21, 2018
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .Sh SYNOPSIS
 .In be.h
 .Ft "libbe_handle_t *hdl" Ns
-.Fn libbe_init void
+.Fn libbe_init "const char *be_root"
 .Pp
 .Ft void
 .Fn libbe_close "libbe_handle_t *hdl"
@@ -157,13 +157,16 @@ errno otherwise as described in
 .Pp
 The
 .Fn libbe_init
-function initializes
+function takes an optional BE root and initializes
 .Nm ,
 returning a
 .Vt "libbe_handle_t *"
 on success, or
 .Dv NULL
 on error.
+If a BE root is supplied,
+.Nm
+will only operate out of that pool and BE root.
 An error may occur if:
 .Bl -column
 .It /boot and / are not on the same filesystem and device,
@@ -184,11 +187,15 @@ invalidating the handle in the process.
 .Pp
 The
 .Fn be_active_name
-function returns the name of the currently booted boot environment,
+function returns the name of the currently booted boot environment.
+This boot environment may not belong to the same BE root as the root libbe
+is operating on!
 .Pp
 The
 .Fn be_active_path
 function returns the full path of the currently booted boot environment.
+This boot environment may not belong to the same BE root as the root libbe
+is operating on!
 .Pp
 The
 .Fn be_nextboot_name
@@ -433,32 +440,51 @@ The
 .Fn be_prop_list_free
 function will free the property list.
 .Sh DIAGNOSTICS
-Upon error, one of the following values will be returned.
-.\" TODO: make each entry on its own line.
-.Bd -ragged -offset indent
-BE_ERR_SUCCESS,
-BE_ERR_INVALIDNAME,
-BE_ERR_EXISTS,
-BE_ERR_NOENT,
-BE_ERR_PERMS,
-BE_ERR_DESTROYACT,
-BE_ERR_DESTROYMNT,
-BE_ERR_BADPATH,
-BE_ERR_PATHBUSY,
-BE_ERR_PATHLEN,
-BE_ERR_BADMOUNT,
-BE_ERR_NOORIGIN,
-BE_ERR_MOUNTED,
-BE_ERR_NOMOUNT,
-BE_ERR_ZFSOPEN,
-BE_ERR_ZFSCLONE,
-BE_ERR_IO,
-BE_ERR_NOPOOL,
-BE_ERR_NOMEM,
+Upon error, one of the following values will be returned:
+.Bl -dash -offset indent -compact
+.It
+BE_ERR_SUCCESS
+.It
+BE_ERR_INVALIDNAME
+.It
+BE_ERR_EXISTS
+.It
+BE_ERR_NOENT
+.It
+BE_ERR_PERMS
+.It
+BE_ERR_DESTROYACT
+.It
+BE_ERR_DESTROYMNT
+.It
+BE_ERR_BADPATH
+.It
+BE_ERR_PATHBUSY
+.It
+BE_ERR_PATHLEN
+.It
+BE_ERR_BADMOUNT
+.It
+BE_ERR_NOORIGIN
+.It
+BE_ERR_MOUNTED
+.It
+BE_ERR_NOMOUNT
+.It
+BE_ERR_ZFSOPEN
+.It
+BE_ERR_ZFSCLONE
+.It
+BE_ERR_IO
+.It
+BE_ERR_NOPOOL
+.It
+BE_ERR_NOMEM
+.It
 BE_ERR_UNKNOWN
-.Ed
+.El
 .Sh SEE ALSO
-.Xr be 1
+.Xr bectl 8
 .Sh HISTORY
 .Nm
 and its corresponding command,

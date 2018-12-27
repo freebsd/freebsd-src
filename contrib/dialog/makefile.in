@@ -1,7 +1,7 @@
-# $Id: makefile.in,v 1.87 2013/09/02 19:51:58 tom Exp $
+# $Id: makefile.in,v 1.97 2018/06/09 01:05:18 tom Exp $
 # template makefile for DIALOG
 ##############################################################################
-# Copyright (c) 1999-2012,2013 Thomas E. Dickey                              #
+# Copyright (c) 1999-2017,2018 Thomas E. Dickey                              #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -31,6 +31,7 @@
 SHELL		= /bin/sh
 
 srcdir		= @srcdir@
+top_srcdir	= @top_srcdir@
 VPATH		= @srcdir@
 
 prefix		= @prefix@
@@ -42,13 +43,14 @@ top_builddir	= .
 x		= @EXEEXT@
 o		= .@OBJEXT@
 
-DESTDIR		=
+DESTDIR		= @DESTDIR@
 
 THIS		= dialog
 
 CFG_ROOTNAME	= @CFG_ROOTNAME@
 HDR_ROOTNAME	= @HDR_ROOTNAME@
 LIB_ROOTNAME	= @LIB_ROOTNAME@
+LIB_PREFIX	= @LIB_PREFIX@
 LIB_SUFFIX	= @LIB_SUFFIX@
 
 VERSION_MAJOR	= @VERSION_MAJOR@
@@ -57,12 +59,18 @@ VERSION		= $(VERSION_MAJOR).$(VERSION_MINOR)
 REL_VERSION	= @REL_VERSION@
 ABI_VERSION	= @ABI_VERSION@
 LIB_ROOTNAME	= @LIB_ROOTNAME@
+
+RESULTING_SYMS	= @RESULTING_SYMS@
+VERSIONED_SYMS	= @VERSIONED_SYMS@
+
 @SET_SHLIB_VARS@
 
 bindir		= @bindir@
 includedir	= @includedir@
 libdir		= @libdir@
 mandir		= @mandir@
+manext		= 1
+libext		= 3
 
 BINDIR		= $(DESTDIR)$(bindir)
 INCLUDEDIR	= $(DESTDIR)$(includedir)
@@ -81,6 +89,7 @@ EXTRA_CFLAGS	= @EXTRA_CFLAGS@
 CC		= @CC@
 CPP		= @CPP@
 AR		= @AR@
+ARFLAGS		= @ARFLAGS@
 LDFLAGS		= @EXTRA_LDFLAGS@ @LDFLAGS@
 LIBS		= @LIBS@ @INTLLIBS@
 RANLIB		= @LIB_PREP@
@@ -123,7 +132,7 @@ PROG		= @PACKAGE@$x
 #
 # Standard .c to .o compile line.
 #
-.SUFFIXES: .c .i $o .html .1 .3 .man .ps .pdf .txt
+.SUFFIXES: .c .i $o .1 .man .txt @MAN2HTML_NOTE@ .html @GROFF_NOTE@ .ps .pdf 
 .c.i :
 	@RULE_CC@
 	@ECHO_CC@$(CPP) $(CPPFLAGS) -c $< >$@
@@ -131,17 +140,17 @@ PROG		= @PACKAGE@$x
 	@RULE_CC@
 	@ECHO_CC@$(LIBTOOL_COMPILE) $(CC) $(CFLAGS) $(EXTRA_CFLAGS) $(CPPFLAGS) -c $<
 
-.1.html :
-	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | groff -P -o0 -I$*_ -Thtml -man" >$@
+@NROFF_NOTE@.1.txt :
+@NROFF_NOTE@	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -Tascii -man | col -bx" >$@
 
-.1.ps :
-	$(SHELL) -c "tbl $< | groff -man" >$@
-
-.1.txt :
-	GROFF_NO_SGR=stupid $(SHELL) -c "tbl $< | nroff -Tascii -man | col -bx" >$@
-
-.ps.pdf :
-	ps2pdf $*.ps
+@MAN2HTML_NOTE@.1.html :
+@MAN2HTML_NOTE@	./@MAN2HTML_TEMP@ $* 1 man >$@
+@MAN2HTML_NOTE@
+@GROFF_NOTE@.1.ps :
+@GROFF_NOTE@	$(SHELL) -c "tbl $< | groff -man" >$@
+@GROFF_NOTE@
+@GROFF_NOTE@.ps.pdf :
+@GROFF_NOTE@	ps2pdf $*.ps
 
 EXTRAOBJS = @EXTRAOBJS@
 OBJECTS = $(EXTRAOBJS) \
@@ -160,6 +169,7 @@ OBJECTS = $(EXTRAOBJS) \
 	mousewget$o \
 	msgbox$o \
 	textbox$o \
+	ttysize$o \
 	ui_getc$o \
 	util$o \
 	version$o \
@@ -194,7 +204,7 @@ dialog$o \
 $(OBJECTS) : $(srcdir)/dialog.h $(srcdir)/dlg_keys.h dlg_config.h VERSION
 
 $(PROG)$x : $(LIB) dialog$o @INTLDIR_MAKE@ @INTLLIBS@
-	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(LDFLAGS) $(LIBS)
+	$(LINK) -o $@ dialog$o -L. -l@PACKAGE@ $(CFLAGS) $(LDFLAGS) $(LIBS)
 
 clean	\
 distclean \
@@ -219,6 +229,7 @@ distclean :: clean
 	$(RM) makefile dlg_config.h config.cache config.log config.status
 	$(RM) samples/install/makefile
 	$(RM) headers-sh
+	$(RM) man2html.*
 	$(RM) dialog-config
 
 install :: install-bin install-man
@@ -243,16 +254,16 @@ uninstall-bin :
 	$(RM) $(BINDIR)/$(ACTUAL_PROG)$x
 
 install-man :: $(MAN1DIR)
-	@ echo "** installing $(ACTUAL_PROG).1"
+	@ echo "** installing $(ACTUAL_PROG).$(manext)"
 	@ $(SHELL) $(srcdir)/rename.sh \
 		$(srcdir)/dialog.1 \
-		$(MAN1DIR)/$(ACTUAL_PROG).1 \
+		$(MAN1DIR)/$(ACTUAL_PROG).$(manext) \
 		$(ACTUAL_PROG) \
 		@PACKAGE@ \
 		$(INSTALL_DATA)
 
 uninstall-man ::
-	$(RM) $(MAN1DIR)/$(ACTUAL_PROG).1
+	$(RM) $(MAN1DIR)/$(ACTUAL_PROG).$(manext)
 
 # most users do not want/need the library, so the install rules are distinct.
 install-lib :: $(BINDIR) dialog-config
@@ -279,26 +290,27 @@ uninstall-lib :: $(LIB_DIRS)
 	@ $(SHELL) headers-sh $(RM) $(INCLUDEDIR) .         dlg_config.h
 
 install-lib :: $(MAN3DIR)
-	@ echo "** installing @PACKAGE@.3"
+	@ echo "** installing @PACKAGE@.$(libext)"
 	@ $(SHELL) $(srcdir)/rename.sh \
 		$(srcdir)/dialog.3 \
-		$(MAN3DIR)/@PACKAGE@.3 \
+		$(MAN3DIR)/@PACKAGE@.$(libext) \
 		$(ACTUAL_PROG) \
 		@PACKAGE@ \
 		$(INSTALL_DATA)
 
 uninstall-lib ::
-	$(RM) $(MAN3DIR)/@PACKAGE@.3
+	$(RM) $(MAN3DIR)/@PACKAGE@.$(libext)
 
 headers.sed : headers-sh
 	$(SHELL) headers-sh $(INCLUDEDIR) $(srcdir)
 
 ################################################################################
 TOP_DOCS = \
-	dialog.html \
-	dialog.pdf \
-	dialog.ps \
-	dialog.txt
+@NROFF_NOTE@	dialog.txt \
+@MAN2HTML_NOTE@	dialog.html \
+@GROFF_NOTE@	dialog.pdf \
+@GROFF_NOTE@	dialog.ps
+
 dialog.html : dialog.1
 dialog.pdf : dialog.ps
 dialog.ps : dialog.1
@@ -311,10 +323,11 @@ dialog_lib.1 : dialog.3
 
 LIB_DOCS = \
 	dialog_lib.1 \
-	dialog_lib.html \
-	dialog_lib.pdf \
-	dialog_lib.ps \
-	dialog_lib.txt
+@NROFF_NOTE@	dialog_lib.txt \
+@MAN2HTML_NOTE@	dialog_lib.html \
+@GROFF_NOTE@	dialog_lib.pdf \
+@GROFF_NOTE@	dialog_lib.ps
+
 dialog_lib.html : dialog_lib.1
 dialog_lib.pdf : dialog_lib.ps
 dialog_lib.ps : dialog_lib.1

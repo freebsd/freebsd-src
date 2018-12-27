@@ -129,13 +129,13 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_SM4_CBC 3"
-.TH EVP_SM4_CBC 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_SM4_CBC 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_sm4_cbc, EVP_sm4_ecb, EVP_sm4_cfb, EVP_sm4_ofb, EVP_sm4_ctr \&\- EVP SM4 cipher
+EVP_sm4_cbc, EVP_sm4_ecb, EVP_sm4_cfb, EVP_sm4_cfb128, EVP_sm4_ofb, EVP_sm4_ctr \&\- EVP SM4 cipher
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
@@ -144,6 +144,7 @@ EVP_sm4_cbc, EVP_sm4_ecb, EVP_sm4_cfb, EVP_sm4_ofb, EVP_sm4_ctr \&\- EVP SM4 cip
 \& const EVP_CIPHER *EVP_sm4_cbc(void);
 \& const EVP_CIPHER *EVP_sm4_ecb(void);
 \& const EVP_CIPHER *EVP_sm4_cfb(void);
+\& const EVP_CIPHER *EVP_sm4_cfb128(void);
 \& const EVP_CIPHER *EVP_sm4_ofb(void);
 \& const EVP_CIPHER *EVP_sm4_ctr(void);
 .Ve
@@ -152,8 +153,8 @@ EVP_sm4_cbc, EVP_sm4_ecb, EVP_sm4_cfb, EVP_sm4_ofb, EVP_sm4_ctr \&\- EVP SM4 cip
 The \s-1SM4\s0 blockcipher (\s-1GB/T 32907\-2016\s0) for \s-1EVP.\s0
 .PP
 All modes below use a key length of 128 bits and acts on blocks of 128 bits.
-.IP "\fIEVP_sm4_cbc()\fR, \fIEVP_sm4_ecb()\fR, \fIEVP_sm4_cfb()\fR, \fIEVP_sm4_ofb()\fR, \fIEVP_sm4_ctr()\fR" 4
-.IX Item "EVP_sm4_cbc(), EVP_sm4_ecb(), EVP_sm4_cfb(), EVP_sm4_ofb(), EVP_sm4_ctr()"
+.IP "\fIEVP_sm4_cbc()\fR, \fIEVP_sm4_ecb()\fR, \fIEVP_sm4_cfb()\fR, \fIEVP_sm4_cfb128()\fR, \fIEVP_sm4_ofb()\fR, \fIEVP_sm4_ctr()\fR" 4
+.IX Item "EVP_sm4_cbc(), EVP_sm4_ecb(), EVP_sm4_cfb(), EVP_sm4_cfb128(), EVP_sm4_ofb(), EVP_sm4_ctr()"
 The \s-1SM4\s0 blockcipher with a 128\-bit key in \s-1CBC, ECB, CFB, OFB\s0 and \s-1CTR\s0 modes
 respectively.
 .SH "RETURN VALUES"

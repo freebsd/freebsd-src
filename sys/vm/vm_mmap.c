@@ -129,14 +129,8 @@ sys_sstk(struct thread *td, struct sstk_args *uap)
 }
 
 #if defined(COMPAT_43)
-#ifndef _SYS_SYSPROTO_H_
-struct getpagesize_args {
-	int dummy;
-};
-#endif
-
 int
-ogetpagesize(struct thread *td, struct getpagesize_args *uap)
+ogetpagesize(struct thread *td, struct ogetpagesize_args *uap)
 {
 
 	td->td_retval[0] = PAGE_SIZE;
@@ -985,7 +979,7 @@ kern_mlock(struct proc *proc, struct ucred *cred, uintptr_t addr0, size_t len)
 	unsigned long nsize;
 	int error;
 
-	error = priv_check_cred(cred, PRIV_VM_MLOCK, 0);
+	error = priv_check_cred(cred, PRIV_VM_MLOCK);
 	if (error)
 		return (error);
 	addr = addr0;

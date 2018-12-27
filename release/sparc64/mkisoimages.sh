@@ -22,6 +22,8 @@
 # resulting ISO image, base-bits-dir contains the image contents and
 # extra-bits-dir, if provided, contains additional files to be merged
 # into base-bits-dir as part of making the image.
+set -e
+
 if [ $# -lt 3 ]; then
 	echo "Usage: $0 [-b] image-label image-name base-bits-dir [extra-bits-dir]" > /dev/stderr
 	exit 1

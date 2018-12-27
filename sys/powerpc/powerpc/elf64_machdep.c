@@ -58,7 +58,6 @@ static void exec_setregs_funcdesc(struct thread *td, struct image_params *imgp,
 struct sysentvec elf64_freebsd_sysvec_v1 = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
-	.sv_mask	= 0,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -97,7 +96,6 @@ INIT_SYSENTVEC(elf64_sysvec_v1, &elf64_freebsd_sysvec_v1);
 struct sysentvec elf64_freebsd_sysvec_v2 = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= sysent,
-	.sv_mask	= 0,
 	.sv_errsize	= 0,
 	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
@@ -332,7 +330,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 #if !defined(_CALL_ELF) || _CALL_ELF == 1
 		memcpy(where, (Elf_Addr *)addr, 3*sizeof(Elf_Addr));
 #else
-		memcpy(where, (Elf_Addr *)addr, sizeof(Elf_Addr));
+		*where = addr;
 #endif
 		__asm __volatile("dcbst 0,%0; sync" :: "r"(where) : "memory");
 		break;

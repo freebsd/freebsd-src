@@ -127,6 +127,14 @@
  */
 #define CK_EPOCH_GRACE 3U
 
+/*
+ * CK_EPOCH_LENGTH must be a power-of-2 (because (CK_EPOCH_LENGTH - 1) is used
+ * as a mask, and it must be at least 3 (see comments above).
+ */
+#if (CK_EPOCH_LENGTH < 3 || (CK_EPOCH_LENGTH & (CK_EPOCH_LENGTH - 1)) != 0)
+#error "CK_EPOCH_LENGTH must be a power of 2 and >= 3"
+#endif
+
 enum {
 	CK_EPOCH_STATE_USED = 0,
 	CK_EPOCH_STATE_FREE = 1
@@ -348,7 +356,7 @@ ck_epoch_scan(struct ck_epoch *global,
 	return NULL;
 }
 
-static void
+static unsigned int
 ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e, ck_stack_t *deferred)
 {
 	unsigned int epoch = e & (CK_EPOCH_LENGTH - 1);
@@ -366,6 +374,7 @@ ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e, ck_stack_t *de
 			ck_stack_push_spnc(deferred, &entry->stack_entry);
 		else
 			entry->function(entry);
+
 		i++;
 	}
 
@@ -381,7 +390,7 @@ ck_epoch_dispatch(struct ck_epoch_record *record, unsigned int e, ck_stack_t *de
 		ck_pr_sub_uint(&record->n_pending, i);
 	}
 
-	return;
+	return i;
 }
 
 /*
@@ -560,16 +569,28 @@ ck_epoch_poll_deferred(struct ck_epoch_record *record, ck_stack_t *deferred)
 	unsigned int epoch;
 	struct ck_epoch_record *cr = NULL;
 	struct ck_epoch *global = record->global;
+	unsigned int n_dispatch;
 
 	epoch = ck_pr_load_uint(&global->epoch);
 
 	/* Serialize epoch snapshots with respect to global epoch. */
 	ck_pr_fence_memory();
+
+	/*
+	 * At this point, epoch is the current global epoch value.
+	 * There may or may not be active threads which observed epoch - 1.
+	 * (ck_epoch_scan() will tell us that). However, there should be
+	 * no active threads which observed epoch - 2.
+	 *
+	 * Note that checking epoch - 2 is necessary, as race conditions can
+	 * allow another thread to increment the global epoch before this
+	 * thread runs.
+	 */
+	n_dispatch = ck_epoch_dispatch(record, epoch - 2, deferred);
+
 	cr = ck_epoch_scan(global, cr, epoch, &active);
-	if (cr != NULL) {
-		record->epoch = epoch;
-		return false;
-	}
+	if (cr != NULL)
+		return (n_dispatch > 0);
 
 	/* We are at a grace period if all threads are inactive. */
 	if (active == false) {
@@ -580,10 +601,17 @@ ck_epoch_poll_deferred(struct ck_epoch_record *record, ck_stack_t *deferred)
 		return true;
 	}
 
-	/* If an active thread exists, rely on epoch observation. */
+	/*
+	 * If an active thread exists, rely on epoch observation.
+	 *
+	 * All the active threads entered the epoch section during
+	 * the current epoch. Therefore, we can now run the handlers
+	 * for the immediately preceding epoch and attempt to
+	 * advance the epoch if it hasn't been already.
+	 */
 	(void)ck_pr_cas_uint(&global->epoch, epoch, epoch + 1);
 
-	ck_epoch_dispatch(record, epoch + 1, deferred);
+	ck_epoch_dispatch(record, epoch - 1, deferred);
 	return true;
 }
 

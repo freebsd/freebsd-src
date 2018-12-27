@@ -44,7 +44,8 @@ Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
       IsSystem(false), IsExternC(false), IsInferred(false),
       InferSubmodules(false), InferExplicitSubmodules(false),
       InferExportWildcard(false), ConfigMacrosExhaustive(false),
-      NoUndeclaredIncludes(false), NameVisibility(Hidden) {
+      NoUndeclaredIncludes(false), ModuleMapIsPrivate(false),
+      NameVisibility(Hidden) {
   if (Parent) {
     if (!Parent->isAvailable())
       IsAvailable = false;
@@ -54,8 +55,10 @@ Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
       IsExternC = true;
     if (Parent->NoUndeclaredIncludes)
       NoUndeclaredIncludes = true;
+    if (Parent->ModuleMapIsPrivate)
+      ModuleMapIsPrivate = true;
     IsMissingRequirement = Parent->IsMissingRequirement;
-    
+
     Parent->SubModuleIndex[Name] = Parent->SubModules.size();
     Parent->SubModules.push_back(this);
   }
@@ -68,7 +71,7 @@ Module::~Module() {
   }
 }
 
-/// \brief Determine whether a translation unit built using the current
+/// Determine whether a translation unit built using the current
 /// language options has the given feature.
 static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
                        const TargetInfo &Target) {
@@ -78,6 +81,11 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
                         .Case("coroutines", LangOpts.CoroutinesTS)
                         .Case("cplusplus", LangOpts.CPlusPlus)
                         .Case("cplusplus11", LangOpts.CPlusPlus11)
+                        .Case("cplusplus14", LangOpts.CPlusPlus14)
+                        .Case("cplusplus17", LangOpts.CPlusPlus17)
+                        .Case("c99", LangOpts.C99)
+                        .Case("c11", LangOpts.C11)
+                        .Case("c17", LangOpts.C17)
                         .Case("freestanding", LangOpts.Freestanding)
                         .Case("gnuinlineasm", LangOpts.GNUAsm)
                         .Case("objc", LangOpts.ObjC1)
@@ -95,11 +103,16 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
 
 bool Module::isAvailable(const LangOptions &LangOpts, const TargetInfo &Target,
                          Requirement &Req,
-                         UnresolvedHeaderDirective &MissingHeader) const {
+                         UnresolvedHeaderDirective &MissingHeader,
+                         Module *&ShadowingModule) const {
   if (IsAvailable)
     return true;
 
   for (const Module *Current = this; Current; Current = Current->Parent) {
+    if (Current->ShadowingModule) {
+      ShadowingModule = Current->ShadowingModule;
+      return false;
+    }
     for (unsigned I = 0, N = Current->Requirements.size(); I != N; ++I) {
       if (hasFeature(Current->Requirements[I].first, LangOpts, Target) !=
               Current->Requirements[I].second) {
@@ -121,10 +134,10 @@ bool Module::isSubModuleOf(const Module *Other) const {
   do {
     if (This == Other)
       return true;
-    
+
     This = This->Parent;
   } while (This);
-  
+
   return false;
 }
 
@@ -132,7 +145,7 @@ const Module *Module::getTopLevelModule() const {
   const Module *Result = this;
   while (Result->Parent)
     Result = Result->Parent;
-  
+
   return Result;
 }
 
@@ -168,16 +181,16 @@ static void printModuleId(raw_ostream &OS, const Container &C) {
 
 std::string Module::getFullModuleName(bool AllowStringLiterals) const {
   SmallVector<StringRef, 2> Names;
-  
+
   // Build up the set of module names (from innermost to outermost).
   for (const Module *M = this; M; M = M->Parent)
     Names.push_back(M->Name);
-  
+
   std::string Result;
 
   llvm::raw_string_ostream Out(Result);
   printModuleId(Out, Names.rbegin(), Names.rend(), AllowStringLiterals);
-  Out.flush(); 
+  Out.flush();
 
   return Result;
 }
@@ -194,7 +207,7 @@ bool Module::fullModuleNameIs(ArrayRef<StringRef> nameParts) const {
 Module::DirectoryName Module::getUmbrellaDir() const {
   if (Header U = getUmbrellaHeader())
     return {"", U.Entry->getDir()};
-  
+
   return {UmbrellaAsWritten, Umbrella.dyn_cast<const DirectoryEntry *>()};
 }
 
@@ -375,7 +388,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
   }
 
   OS << " {\n";
-  
+
   if (!Requirements.empty()) {
     OS.indent(Indent + 2);
     OS << "requires ";
@@ -388,7 +401,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     }
     OS << "\n";
   }
-  
+
   if (Header H = getUmbrellaHeader()) {
     OS.indent(Indent + 2);
     OS << "umbrella header \"";
@@ -398,7 +411,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS.indent(Indent + 2);
     OS << "umbrella \"";
     OS.write_escaped(D.NameAsWritten);
-    OS << "\"\n";    
+    OS << "\"\n";
   }
 
   if (!ConfigMacros.empty() || ConfigMacrosExhaustive) {
@@ -455,7 +468,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS.indent(Indent + 2);
     OS << "export_as" << ExportAsModule << "\n";
   }
-  
+
   for (submodule_const_iterator MI = submodule_begin(), MIEnd = submodule_end();
        MI != MIEnd; ++MI)
     // Print inferred subframework modules so that we don't need to re-infer
@@ -464,7 +477,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     // those header files anyway.
     if (!(*MI)->IsInferred || (*MI)->IsFramework)
       (*MI)->print(OS, Indent + 2);
-  
+
   for (unsigned I = 0, N = Exports.size(); I != N; ++I) {
     OS.indent(Indent + 2);
     OS << "export ";
@@ -541,7 +554,7 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
     OS.indent(Indent + 2);
     OS << "}\n";
   }
-  
+
   OS.indent(Indent);
   OS << "}\n";
 }

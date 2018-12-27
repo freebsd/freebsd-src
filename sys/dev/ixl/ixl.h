@@ -203,7 +203,7 @@
 
 #define IXL_VSI_DATA_PORT	0x01
 
-#define IXLV_MAX_QUEUES		16
+#define IAVF_MAX_QUEUES		16
 #define IXL_MAX_VSI_QUEUES	(2 * (I40E_VSILAN_QTABLE_MAX_INDEX + 1))
 
 #define IXL_RX_CTX_BASE_UNITS	128
@@ -258,6 +258,8 @@
 	(CSUM_IP_UDP|CSUM_IP6_UDP)
 #define IXL_CSUM_SCTP \
 	(CSUM_IP_SCTP|CSUM_IP6_SCTP)
+#define IXL_CSUM_IPV4 \
+	(CSUM_IP|CSUM_IP_TSO)
 
 /* Pre-11 counter(9) compatibility */
 #if __FreeBSD_version >= 1100036

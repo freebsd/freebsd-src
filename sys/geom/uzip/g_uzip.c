@@ -849,9 +849,9 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_error_provider(pp2, 0);
 	g_access(cp, -1, 0, 0);
 
-	DPRINTF(GUZ_DBG_INFO, ("%s: taste ok (%d, %jd), (%d, %d), %x\n",
-	    gp->name, pp2->sectorsize, (intmax_t)pp2->mediasize,
-	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
+	DPRINTF(GUZ_DBG_INFO, ("%s: taste ok (%d, %ju), (%ju, %ju), %x\n",
+	    gp->name, pp2->sectorsize, (uintmax_t)pp2->mediasize,
+	    (uintmax_t)pp2->stripeoffset, (uintmax_t)pp2->stripesize, pp2->flags));
 	DPRINTF(GUZ_DBG_INFO, ("%s: %u x %u blocks\n", gp->name, sc->nblocks,
 	    sc->blksz));
 	return (gp);

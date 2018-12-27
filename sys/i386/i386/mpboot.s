@@ -99,6 +99,20 @@ NON_GPROF_ENTRY(MPentry)
 	movl	%cr4, %eax
 	orl	$CR4_PAE, %eax
 	movl	%eax, %cr4
+	movl	$0x80000000, %eax
+	cpuid
+	movl	$0x80000001, %ebx
+	cmpl	%ebx, %eax
+	jb	1f
+	movl	%ebx, %eax
+	cpuid
+	testl	$AMDID_NX, %edx
+	je	1f
+	movl	$MSR_EFER, %ecx
+	rdmsr
+	orl	$EFER_NXE,%eax
+	wrmsr
+1:
 #else
 	movl	IdlePTD, %eax
 	movl	%eax,%cr3	

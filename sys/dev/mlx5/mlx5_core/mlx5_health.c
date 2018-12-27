@@ -59,6 +59,11 @@ enum  {
 	MLX5_SENSOR_FW_SYND_RFR		= 5,
 };
 
+static int mlx5_fw_reset_enable = 1;
+SYSCTL_INT(_hw_mlx5, OID_AUTO, fw_reset_enable, CTLFLAG_RWTUN,
+    &mlx5_fw_reset_enable, 0,
+    "Enable firmware reset");
+
 static int lock_sem_sw_reset(struct mlx5_core_dev *dev)
 {
 	int ret;
@@ -136,7 +141,7 @@ static void mlx5_trigger_cmd_completions(struct mlx5_core_dev *dev)
 	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
 
 	mlx5_core_dbg(dev, "vector 0x%jx\n", (uintmax_t)vector);
-	mlx5_cmd_comp_handler(dev, vector);
+	mlx5_cmd_comp_handler(dev, vector, MLX5_CMD_MODE_EVENTS);
 	return;
 
 no_trig:
@@ -180,10 +185,13 @@ static u32 check_fatal_sensors(struct mlx5_core_dev *dev)
 
 static void reset_fw_if_needed(struct mlx5_core_dev *dev)
 {
-	bool supported = (ioread32be(&dev->iseg->initializing) >>
-			  MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
+	bool supported;
 	u32 cmdq_addr, fatal_error;
 
+	if (!mlx5_fw_reset_enable)
+		return;
+	supported = (ioread32be(&dev->iseg->initializing) >>
+	    MLX5_FW_RESET_SUPPORTED_OFFSET) & 1;
 	if (!supported)
 		return;
 
@@ -269,7 +277,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 	mlx5_core_err(dev, "system error event triggered\n");
 
 err_state_done:
-	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 0);
+	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 1);
 	mutex_unlock(&dev->intf_state_mutex);
 }
 
@@ -516,9 +524,17 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 		  round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL));
 }
 
-void mlx5_stop_health_poll(struct mlx5_core_dev *dev)
+void mlx5_stop_health_poll(struct mlx5_core_dev *dev, bool disable_health)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
+	unsigned long flags;
+
+	if (disable_health) {
+		spin_lock_irqsave(&health->wq_lock, flags);
+		set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
+		set_bit(MLX5_DROP_NEW_RECOVERY_WORK, &health->flags);
+		spin_unlock_irqrestore(&health->wq_lock, flags);
+	}
 
 	del_timer_sync(&health->timer);
 }

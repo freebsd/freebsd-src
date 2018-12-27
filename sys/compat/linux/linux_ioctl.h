@@ -770,7 +770,18 @@ struct linux_ioctl_handler {
 	int	low, high;
 };
 
+struct linux_ioctl_handler_element
+{
+	TAILQ_ENTRY(linux_ioctl_handler_element) list;
+	int	(*func)(struct thread *, struct linux_ioctl_args *);
+	int	low, high, span;
+};
+
 int	linux_ioctl_register_handler(struct linux_ioctl_handler *h);
 int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
+#ifdef COMPAT_LINUX32
+int	linux32_ioctl_register_handler(struct linux_ioctl_handler *h);
+int	linux32_ioctl_unregister_handler(struct linux_ioctl_handler *h);
+#endif
 
 #endif /* !_LINUX_IOCTL_H_ */

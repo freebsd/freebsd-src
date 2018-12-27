@@ -6,7 +6,7 @@ SEARCH_DIR("/usr/lib");
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  kernphys = 0x200000;
+  kernphys = 0x200000; /* 2MB superpage size */
   . = kernbase + kernphys + SIZEOF_HEADERS;
   /*
    * Use the AT keyword in order to set the right LMA that contains

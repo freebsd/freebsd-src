@@ -189,9 +189,9 @@ fetch_default_port(const char *scheme)
 
 	if ((se = getservbyname(scheme, "tcp")) != NULL)
 		return (ntohs(se->s_port));
-	if (strcasecmp(scheme, SCHEME_FTP) == 0)
+	if (strcmp(scheme, SCHEME_FTP) == 0)
 		return (FTP_DEFAULT_PORT);
-	if (strcasecmp(scheme, SCHEME_HTTP) == 0)
+	if (strcmp(scheme, SCHEME_HTTP) == 0)
 		return (HTTP_DEFAULT_PORT);
 	return (0);
 }
@@ -202,9 +202,9 @@ fetch_default_port(const char *scheme)
 int
 fetch_default_proxy_port(const char *scheme)
 {
-	if (strcasecmp(scheme, SCHEME_FTP) == 0)
+	if (strcmp(scheme, SCHEME_FTP) == 0)
 		return (FTP_DEFAULT_PROXY_PORT);
-	if (strcasecmp(scheme, SCHEME_HTTP) == 0)
+	if (strcmp(scheme, SCHEME_HTTP) == 0)
 		return (HTTP_DEFAULT_PROXY_PORT);
 	return (0);
 }

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2018
+.Dd December 3, 2018
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -168,16 +168,16 @@ are:
 .Bl -tag -width ".Cm distributeworld"
 .It Cm buildenv
 Spawn an interactive shell with environment variables set up for
-cross-building the system.
-The target architecture needs to be specified with
+building the system or individual components.
+For cross-building the target architecture needs to be specified with
 .Xr make 1
 variables
 .Va TARGET_ARCH
 and
 .Va TARGET .
 .Pp
-This target is only useful after a complete cross-toolchain including
-the compiler, linker, assembler, headers and libraries has been
+This target is only useful after a complete toolchain (including
+the compiler, linker, assembler, headers and libraries) has been
 built; see the
 .Cm toolchain
 target below.
@@ -804,7 +804,7 @@ system for the armv6 architecture on an amd64 host:
 .Bd -literal -offset indent
 cd /usr/src
 make TARGET_ARCH=armv6 buildworld buildkernel
-make TARGET_ARCH=armv6 DESTDIR=/clients/arm64 installworld installkernel
+make TARGET_ARCH=armv6 DESTDIR=/clients/arm installworld installkernel
 .Ed
 .Sh SEE ALSO
 .Xr cc 1 ,

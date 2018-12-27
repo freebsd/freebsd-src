@@ -55,6 +55,7 @@ struct libbe_deep_clone {
 struct libbe_dccb {
 	zfs_handle_t *zhp;
 	nvlist_t *props;
+	char altroot[MAXPATHLEN];
 };
 
 typedef struct prop_data {

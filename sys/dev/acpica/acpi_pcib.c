@@ -188,6 +188,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
+    lnkdev = NULL;
     interrupt = PCI_INVALID_IRQ;
 
     /* ACPI numbers pins 0-3, not 1-4 like the BIOS. */
@@ -252,7 +253,12 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
 
 out:
     ACPI_SERIAL_END(pcib);
-
+#ifdef INTRNG
+    if (PCI_INTERRUPT_VALID(interrupt)) {
+	interrupt  = acpi_map_intr(dev, interrupt, lnkdev);
+	KASSERT(PCI_INTERRUPT_VALID(interrupt), ("mapping fail"));
+    }
+#endif
     return_VALUE(interrupt);
 }
 

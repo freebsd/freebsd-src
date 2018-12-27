@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/time.h>
 
+#include <amd64/vmm/intel/vmcs.h>
+
 #include <machine/atomic.h>
 #include <machine/segments.h>
 
@@ -88,6 +90,73 @@ __FBSDID("$FreeBSD$");
 
 #define MB		(1024UL * 1024)
 #define GB		(1024UL * MB)
+
+static const char * const vmx_exit_reason_desc[] = {
+	[EXIT_REASON_EXCEPTION] = "Exception or non-maskable interrupt (NMI)",
+	[EXIT_REASON_EXT_INTR] = "External interrupt",
+	[EXIT_REASON_TRIPLE_FAULT] = "Triple fault",
+	[EXIT_REASON_INIT] = "INIT signal",
+	[EXIT_REASON_SIPI] = "Start-up IPI (SIPI)",
+	[EXIT_REASON_IO_SMI] = "I/O system-management interrupt (SMI)",
+	[EXIT_REASON_SMI] = "Other SMI",
+	[EXIT_REASON_INTR_WINDOW] = "Interrupt window",
+	[EXIT_REASON_NMI_WINDOW] = "NMI window",
+	[EXIT_REASON_TASK_SWITCH] = "Task switch",
+	[EXIT_REASON_CPUID] = "CPUID",
+	[EXIT_REASON_GETSEC] = "GETSEC",
+	[EXIT_REASON_HLT] = "HLT",
+	[EXIT_REASON_INVD] = "INVD",
+	[EXIT_REASON_INVLPG] = "INVLPG",
+	[EXIT_REASON_RDPMC] = "RDPMC",
+	[EXIT_REASON_RDTSC] = "RDTSC",
+	[EXIT_REASON_RSM] = "RSM",
+	[EXIT_REASON_VMCALL] = "VMCALL",
+	[EXIT_REASON_VMCLEAR] = "VMCLEAR",
+	[EXIT_REASON_VMLAUNCH] = "VMLAUNCH",
+	[EXIT_REASON_VMPTRLD] = "VMPTRLD",
+	[EXIT_REASON_VMPTRST] = "VMPTRST",
+	[EXIT_REASON_VMREAD] = "VMREAD",
+	[EXIT_REASON_VMRESUME] = "VMRESUME",
+	[EXIT_REASON_VMWRITE] = "VMWRITE",
+	[EXIT_REASON_VMXOFF] = "VMXOFF",
+	[EXIT_REASON_VMXON] = "VMXON",
+	[EXIT_REASON_CR_ACCESS] = "Control-register accesses",
+	[EXIT_REASON_DR_ACCESS] = "MOV DR",
+	[EXIT_REASON_INOUT] = "I/O instruction",
+	[EXIT_REASON_RDMSR] = "RDMSR",
+	[EXIT_REASON_WRMSR] = "WRMSR",
+	[EXIT_REASON_INVAL_VMCS] =
+	    "VM-entry failure due to invalid guest state",
+	[EXIT_REASON_INVAL_MSR] = "VM-entry failure due to MSR loading",
+	[EXIT_REASON_MWAIT] = "MWAIT",
+	[EXIT_REASON_MTF] = "Monitor trap flag",
+	[EXIT_REASON_MONITOR] = "MONITOR",
+	[EXIT_REASON_PAUSE] = "PAUSE",
+	[EXIT_REASON_MCE_DURING_ENTRY] =
+	    "VM-entry failure due to machine-check event",
+	[EXIT_REASON_TPR] = "TPR below threshold",
+	[EXIT_REASON_APIC_ACCESS] = "APIC access",
+	[EXIT_REASON_VIRTUALIZED_EOI] = "Virtualized EOI",
+	[EXIT_REASON_GDTR_IDTR] = "Access to GDTR or IDTR",
+	[EXIT_REASON_LDTR_TR] = "Access to LDTR or TR",
+	[EXIT_REASON_EPT_FAULT] = "EPT violation",
+	[EXIT_REASON_EPT_MISCONFIG] = "EPT misconfiguration",
+	[EXIT_REASON_INVEPT] = "INVEPT",
+	[EXIT_REASON_RDTSCP] = "RDTSCP",
+	[EXIT_REASON_VMX_PREEMPT] = "VMX-preemption timer expired",
+	[EXIT_REASON_INVVPID] = "INVVPID",
+	[EXIT_REASON_WBINVD] = "WBINVD",
+	[EXIT_REASON_XSETBV] = "XSETBV",
+	[EXIT_REASON_APIC_WRITE] = "APIC write",
+	[EXIT_REASON_RDRAND] = "RDRAND",
+	[EXIT_REASON_INVPCID] = "INVPCID",
+	[EXIT_REASON_VMFUNC] = "VMFUNC",
+	[EXIT_REASON_ENCLS] = "ENCLS",
+	[EXIT_REASON_RDSEED] = "RDSEED",
+	[EXIT_REASON_PM_LOG_FULL] = "Page-modification log full",
+	[EXIT_REASON_XSAVES] = "XSAVES",
+	[EXIT_REASON_XRSTORS] = "XRSTORS"
+};
 
 typedef int (*vmexit_handler_t)(struct vmctx *, struct vm_exit *, int *vcpu);
 extern int vmexit_task_switch(struct vmctx *, struct vm_exit *, int *vcpu);
@@ -506,13 +575,21 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 
 #define	DEBUG_EPT_MISCONFIG
 #ifdef DEBUG_EPT_MISCONFIG
-#define	EXIT_REASON_EPT_MISCONFIG	49
 #define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
-#define	VMCS_IDENT(x)			((x) | 0x80000000)
 
 static uint64_t ept_misconfig_gpa, ept_misconfig_pte[4];
 static int ept_misconfig_ptenum;
 #endif
+
+static const char *
+vmexit_vmx_desc(uint32_t exit_reason)
+{
+
+	if (exit_reason >= nitems(vmx_exit_reason_desc) ||
+	    vmx_exit_reason_desc[exit_reason] == NULL)
+		return ("Unknown");
+	return (vmx_exit_reason_desc[exit_reason]);
+}
 
 static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
@@ -523,7 +600,8 @@ vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	fprintf(stderr, "\trip\t\t0x%016lx\n", vmexit->rip);
 	fprintf(stderr, "\tinst_length\t%d\n", vmexit->inst_length);
 	fprintf(stderr, "\tstatus\t\t%d\n", vmexit->u.vmx.status);
-	fprintf(stderr, "\texit_reason\t%u\n", vmexit->u.vmx.exit_reason);
+	fprintf(stderr, "\texit_reason\t%u (%s)\n", vmexit->u.vmx.exit_reason,
+	    vmexit_vmx_desc(vmexit->u.vmx.exit_reason));
 	fprintf(stderr, "\tqualification\t0x%016lx\n",
 	    vmexit->u.vmx.exit_qualification);
 	fprintf(stderr, "\tinst_type\t\t%d\n", vmexit->u.vmx.inst_type);

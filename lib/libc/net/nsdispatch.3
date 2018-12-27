@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 2010
+.Dd October 15, 2018
 .Dt NSDISPATCH 3
 .Os
 .Sh NAME
@@ -112,10 +112,7 @@ which case they are selected using the
 and
 .Fa method_name
 arguments along with the configured source.
-(The methods supplied via
-.Fa dtab
-take priority over those implemented in NSS modules in the event
-of a conflict.)
+Modules must use source names different from the built-in ones.
 .Pp
 .Va defaults
 contains a list of default sources to try if

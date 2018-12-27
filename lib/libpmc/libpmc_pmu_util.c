@@ -146,6 +146,8 @@ pmu_alias_get(const char *name)
 struct pmu_event_desc {
 	uint64_t ped_period;
 	uint64_t ped_offcore_rsp;
+	uint64_t ped_l3_thread;
+	uint64_t ped_l3_slice;
 	uint32_t ped_event;
 	uint32_t ped_frontend;
 	uint32_t ped_ldlat;
@@ -270,6 +272,10 @@ pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 			ped->ped_ch_mask = strtol(value, NULL, 16);
 		else if (strcmp(key, "config1") == 0)
 			ped->ped_config1 = strtol(value, NULL, 16);
+		else if (strcmp(key, "l3_thread_mask") == 0)
+			ped->ped_l3_thread = strtol(value, NULL, 16);
+		else if (strcmp(key, "l3_slice_mask") == 0)
+			ped->ped_l3_slice = strtol(value, NULL, 16);
 		else {
 			debug = getenv("PMUDEBUG");
 			if (debug != NULL && strcmp(debug, "true") == 0 && value != NULL)
@@ -407,33 +413,50 @@ pmc_pmu_print_counter_full(const char *ev)
 }
 
 static int
-pmc_pmu_amd_pmcallocate(const char *event_name __unused, struct pmc_op_pmcallocate *pm,
+pmc_pmu_amd_pmcallocate(const char *event_name, struct pmc_op_pmcallocate *pm,
 	struct pmu_event_desc *ped)
 {
 	struct pmc_md_amd_op_pmcallocate *amd;
+	const struct pmu_event *pe;
+	int idx = -1;
 
 	amd = &pm->pm_md.pm_amd;
-	amd->pm_amd_config = AMD_PMC_TO_EVENTMASK(ped->ped_event);
 	if (ped->ped_umask > 0) {
 		pm->pm_caps |= PMC_CAP_QUALIFIER;
 		amd->pm_amd_config |= AMD_PMC_TO_UNITMASK(ped->ped_umask);
 	}
 	pm->pm_class = PMC_CLASS_K8;
+	pe = pmu_event_get(NULL, event_name, &idx);
 
-	if ((pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) == 0 ||
-		(pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) ==
-		(PMC_CAP_USER|PMC_CAP_SYSTEM))
-		amd->pm_amd_config |= (AMD_PMC_USR | AMD_PMC_OS);
-	else if (pm->pm_caps & PMC_CAP_USER)
-		amd->pm_amd_config |= AMD_PMC_USR;
-	else if (pm->pm_caps & PMC_CAP_SYSTEM)
-		amd->pm_amd_config |= AMD_PMC_OS;
-	if (ped->ped_edge)
-		amd->pm_amd_config |= AMD_PMC_EDGE;
-	if (ped->ped_inv)
-		amd->pm_amd_config |= AMD_PMC_EDGE;
-	if (pm->pm_caps & PMC_CAP_INTERRUPT)
-		amd->pm_amd_config |= AMD_PMC_INT;
+	if (strcmp("l3cache", pe->topic) == 0){
+		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK(ped->ped_event);
+		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_L3_CACHE;
+		amd->pm_amd_config |= AMD_PMC_TO_L3SLICE(ped->ped_l3_slice);
+		amd->pm_amd_config |= AMD_PMC_TO_L3CORE(ped->ped_l3_thread);
+	}
+	else if (strcmp("data fabric", pe->topic) == 0){
+
+		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK_DF(ped->ped_event);
+		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_DATA_FABRIC;
+	}
+	else{
+		amd->pm_amd_config |= AMD_PMC_TO_EVENTMASK(ped->ped_event);
+		amd->pm_amd_sub_class = PMC_AMD_SUB_CLASS_CORE;
+		if ((pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) == 0 ||
+			(pm->pm_caps & (PMC_CAP_USER|PMC_CAP_SYSTEM)) ==
+			(PMC_CAP_USER|PMC_CAP_SYSTEM))
+			amd->pm_amd_config |= (AMD_PMC_USR | AMD_PMC_OS);
+		else if (pm->pm_caps & PMC_CAP_USER)
+			amd->pm_amd_config |= AMD_PMC_USR;
+		else if (pm->pm_caps & PMC_CAP_SYSTEM)
+			amd->pm_amd_config |= AMD_PMC_OS;
+		if (ped->ped_edge)
+			amd->pm_amd_config |= AMD_PMC_EDGE;
+		if (ped->ped_inv)
+			amd->pm_amd_config |= AMD_PMC_EDGE;
+		if (pm->pm_caps & PMC_CAP_INTERRUPT)
+			amd->pm_amd_config |= AMD_PMC_INT;
+	}
 	return (0);
 }
 

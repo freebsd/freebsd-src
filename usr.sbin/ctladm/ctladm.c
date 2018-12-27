@@ -667,7 +667,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	}
 
 bailout:
-	nvlist_destroy(req.args_nvl);
+	nvlist_destroy(option_list);
 	free(driver);
 	return (retval);
 
@@ -2542,7 +2542,7 @@ cctl_create_lun(int fd, int argc, char **argv, char *combinedopt)
 	fprintf(stdout, "Device ID:     %s\n", req.reqdata.create.device_id);
 
 bailout:
-	nvlist_destroy(req.args_nvl);
+	nvlist_destroy(option_list);
 	return (retval);
 }
 
@@ -2644,7 +2644,7 @@ cctl_rm_lun(int fd, int argc, char **argv, char *combinedopt)
 	printf("LUN %d removed successfully\n", lun_id);
 
 bailout:
-	nvlist_destroy(req.args_nvl);
+	nvlist_destroy(option_list);
 	return (retval);
 }
 
@@ -2764,7 +2764,7 @@ cctl_modify_lun(int fd, int argc, char **argv, char *combinedopt)
 	printf("LUN %d modified successfully\n", lun_id);
 
 bailout:
-	nvlist_destroy(req.args_nvl);
+	nvlist_destroy(option_list);
 	return (retval);
 }
 

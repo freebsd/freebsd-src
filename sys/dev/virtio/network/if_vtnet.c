@@ -1192,6 +1192,12 @@ vtnet_rxq_populate(struct vtnet_rxq *rxq)
 	struct virtqueue *vq;
 	int nbufs, error;
 
+#ifdef DEV_NETMAP
+	error = vtnet_netmap_rxq_populate(rxq);
+	if (error >= 0)
+		return (error);
+#endif  /* DEV_NETMAP */
+
 	vq = rxq->vtnrx_vq;
 	error = ENOSPC;
 
@@ -1221,12 +1227,20 @@ vtnet_rxq_free_mbufs(struct vtnet_rxq *rxq)
 	struct virtqueue *vq;
 	struct mbuf *m;
 	int last;
+#ifdef DEV_NETMAP
+	int netmap_bufs = vtnet_netmap_queue_on(rxq->vtnrx_sc, NR_RX,
+						rxq->vtnrx_id);
+#else  /* !DEV_NETMAP */
+	int netmap_bufs = 0;
+#endif /* !DEV_NETMAP */
 
 	vq = rxq->vtnrx_vq;
 	last = 0;
 
-	while ((m = virtqueue_drain(vq, &last)) != NULL)
-		m_freem(m);
+	while ((m = virtqueue_drain(vq, &last)) != NULL) {
+		if (!netmap_bufs)
+			m_freem(m);
+	}
 
 	KASSERT(virtqueue_empty(vq),
 	    ("%s: mbufs remaining in rx queue %p", __func__, rxq));
@@ -1772,12 +1786,6 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 	VTNET_RXQ_LOCK_ASSERT(rxq);
 
-#ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, 0, &deq)) {
-		return (FALSE);
-	}
-#endif /* DEV_NETMAP */
-
 	while (count-- > 0) {
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL)
@@ -1870,6 +1878,11 @@ vtnet_rx_vq_intr(void *xrxq)
 		vtnet_rxq_disable_intr(rxq);
 		return;
 	}
+
+#ifdef DEV_NETMAP
+	if (netmap_rx_irq(ifp, rxq->vtnrx_id, &more) != NM_IRQ_PASS)
+		return;
+#endif /* DEV_NETMAP */
 
 	VTNET_RXQ_LOCK(rxq);
 
@@ -1971,13 +1984,21 @@ vtnet_txq_free_mbufs(struct vtnet_txq *txq)
 	struct virtqueue *vq;
 	struct vtnet_tx_header *txhdr;
 	int last;
+#ifdef DEV_NETMAP
+	int netmap_bufs = vtnet_netmap_queue_on(txq->vtntx_sc, NR_TX,
+						txq->vtntx_id);
+#else  /* !DEV_NETMAP */
+	int netmap_bufs = 0;
+#endif /* !DEV_NETMAP */
 
 	vq = txq->vtntx_vq;
 	last = 0;
 
 	while ((txhdr = virtqueue_drain(vq, &last)) != NULL) {
-		m_freem(txhdr->vth_mbuf);
-		uma_zfree(vtnet_tx_header_zone, txhdr);
+		if (!netmap_bufs) {
+			m_freem(txhdr->vth_mbuf);
+			uma_zfree(vtnet_tx_header_zone, txhdr);
+		}
 	}
 
 	KASSERT(virtqueue_empty(vq),
@@ -2465,13 +2486,6 @@ vtnet_txq_eof(struct vtnet_txq *txq)
 	deq = 0;
 	VTNET_TXQ_LOCK_ASSERT(txq);
 
-#ifdef DEV_NETMAP
-	if (netmap_tx_irq(txq->vtntx_sc->vtnet_ifp, txq->vtntx_id)) {
-		virtqueue_disable_intr(vq); // XXX luigi
-		return 0; // XXX or 1 ?
-	}
-#endif /* DEV_NETMAP */
-
 	while ((txhdr = virtqueue_dequeue(vq, NULL)) != NULL) {
 		m = txhdr->vth_mbuf;
 		deq++;
@@ -2512,6 +2526,11 @@ vtnet_tx_vq_intr(void *xtxq)
 		vtnet_txq_disable_intr(txq);
 		return;
 	}
+
+#ifdef DEV_NETMAP
+	if (netmap_tx_irq(ifp, txq->vtntx_id) != NM_IRQ_PASS)
+		return;
+#endif /* DEV_NETMAP */
 
 	VTNET_TXQ_LOCK(txq);
 
@@ -2769,11 +2788,6 @@ vtnet_drain_rxtx_queues(struct vtnet_softc *sc)
 	struct vtnet_txq *txq;
 	int i;
 
-#ifdef DEV_NETMAP
-	if (nm_native_on(NA(sc->vtnet_ifp)))
-		return;
-#endif /* DEV_NETMAP */
-
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
 		vtnet_rxq_free_mbufs(rxq);
@@ -2938,11 +2952,6 @@ vtnet_init_rx_queues(struct vtnet_softc *sc)
 	    ("%s: too many rx mbufs %d for %d segments", __func__,
 	    sc->vtnet_rx_nmbufs, sc->vtnet_rx_nsegs));
 
-#ifdef DEV_NETMAP
-	if (vtnet_netmap_init_rx_buffers(sc))
-		return 0;
-#endif /* DEV_NETMAP */
-
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
 
@@ -3092,13 +3101,6 @@ vtnet_init(void *xsc)
 	struct vtnet_softc *sc;
 
 	sc = xsc;
-
-#ifdef DEV_NETMAP
-	if (!NA(sc->vtnet_ifp)) {
-		D("try to attach again");
-		vtnet_netmap_attach(sc);
-	}
-#endif /* DEV_NETMAP */
 
 	VTNET_CORE_LOCK(sc);
 	vtnet_init_locked(sc);

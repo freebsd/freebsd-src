@@ -102,8 +102,6 @@ struct cc_var {
 #define	CCF_ACKNOW		0x0008	/* Will this ack be sent now? */
 #define	CCF_IPHDR_CE		0x0010	/* Does this packet set CE bit? */
 #define	CCF_TCPHDR_CWR		0x0020	/* Does this packet set CWR bit? */
-#define	CCF_MAX_CWND		0x0040	/* Have we reached maximum cwnd? */
-#define	CCF_CHG_MAX_CWND	0x0080	/* Cubic max_cwnd changed, for K */
 
 /* ACK types passed to the ack_received() hook. */
 #define	CC_ACK		0x0001	/* Regular in sequence ACK. */
@@ -183,5 +181,7 @@ extern struct rwlock cc_list_lock;
 #define	CC_LIST_WLOCK()		rw_wlock(&cc_list_lock)
 #define	CC_LIST_WUNLOCK()	rw_wunlock(&cc_list_lock)
 #define	CC_LIST_LOCK_ASSERT()	rw_assert(&cc_list_lock, RA_LOCKED)
+
+#define CC_ALGOOPT_LIMIT	2048
 
 #endif /* _NETINET_CC_CC_H_ */

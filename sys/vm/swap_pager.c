@@ -547,12 +547,12 @@ swap_pager_swap_init(void)
 	mtx_unlock(&pbuf_mtx);
 
 	/*
-	 * Initialize our zone, guessing on the number we need based
-	 * on the number of pages in the system.
+	 * Initialize our zone, taking the user's requested size or
+	 * estimating the number we need based on the number of pages
+	 * in the system.
 	 */
-	n = vm_cnt.v_page_count / 2;
-	if (maxswzone && n > maxswzone / sizeof(struct swblk))
-		n = maxswzone / sizeof(struct swblk);
+	n = maxswzone != 0 ? maxswzone / sizeof(struct swblk) :
+	    vm_cnt.v_page_count / 2;
 	swpctrie_zone = uma_zcreate("swpctrie", pctrie_node_size(), NULL, NULL,
 	    pctrie_zone_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	if (swpctrie_zone == NULL)
@@ -580,7 +580,7 @@ swap_pager_swap_init(void)
 	n = uma_zone_get_max(swblk_zone);
 
 	if (n < n2)
-		printf("Swap blk zone entries reduced from %lu to %lu.\n",
+		printf("Swap blk zone entries changed from %lu to %lu.\n",
 		    n2, n);
 	swap_maxpages = n * SWAP_META_PAGES;
 	swzone = n * sizeof(struct swblk);
@@ -756,7 +756,7 @@ done:
 	return (blk);
 }
 
-static int
+static bool
 swp_pager_isondev(daddr_t blk, struct swdevt *sp)
 {
 
@@ -770,7 +770,7 @@ swp_pager_strategy(struct buf *bp)
 
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (bp->b_blkno >= sp->sw_first && bp->b_blkno < sp->sw_end) {
+		if (swp_pager_isondev(bp->b_blkno, sp)) {
 			mtx_unlock(&sw_dev_mtx);
 			if ((sp->sw_flags & SW_UNMAPPED) != 0 &&
 			    unmapped_buf_allowed) {
@@ -804,7 +804,7 @@ swp_pager_freeswapspace(daddr_t blk, daddr_t npages)
 		return;
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (blk >= sp->sw_first && blk < sp->sw_end) {
+		if (swp_pager_isondev(blk, sp)) {
 			sp->sw_used -= npages;
 			/*
 			 * If we are attempting to stop swapping on
@@ -1972,13 +1972,13 @@ swp_pager_meta_free(vm_object_t object, vm_pindex_t pindex, vm_pindex_t count)
 			swp_pager_update_freerange(&s_free, &n_free, sb->d[i]);
 			sb->d[i] = SWAPBLK_NONE;
 		}
+		pindex = sb->p + SWAP_META_PAGES;
 		if (swp_pager_swblk_empty(sb, 0, start) &&
 		    swp_pager_swblk_empty(sb, limit, SWAP_META_PAGES)) {
 			SWAP_PCTRIE_REMOVE(&object->un_pager.swp.swp_blks,
 			    sb->p);
 			uma_zfree(swblk_zone, sb);
 		}
-		pindex = sb->p + SWAP_META_PAGES;
 	}
 	swp_pager_freeswapspace(s_free, n_free);
 }

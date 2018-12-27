@@ -64,9 +64,9 @@
 
 #define DRV_NAME	MLX4_IB_DRV_NAME
 #ifndef DRV_VERSION
-#define DRV_VERSION	"3.4.1"
+#define DRV_VERSION	"3.5.0"
 #endif
-#define DRV_RELDATE	"February 2018"
+#define DRV_RELDATE	"November 2018"
 
 #define MLX4_IB_FLOW_MAX_PRIO 0xFFF
 #define MLX4_IB_FLOW_QPN_MASK 0xFFFFFF

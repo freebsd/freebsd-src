@@ -66,22 +66,24 @@ usage(bool explicit)
 	FILE *fp;
 
 	fp =  explicit ? stdout : stderr;
-	fprintf(fp,
+	fprintf(fp, "%s",
 	    "usage:\tbectl {-h | -? | subcommand [args...]}\n"
-	    "\tbectl activate [-t] beName\n"
-	    "\tbectl create [-e {nonActiveBe | -e beName@snapshot}] beName\n"
-	    "\tbectl create beName@snapshot\n"
-	    "\tbectl destroy [-F] {beName | beName@snapshot}\n"
-	    "\tbectl export sourceBe\n"
-	    "\tbectl import targetBe\n"
 #if SOON
 	    "\tbectl add (path)*\n"
 #endif
-	    "\tbectl jail [{-b | -U}] [{-o key=value | -u key}]... bootenv [utility [argument ...]]\n"
-	    "\tbectl list [-a] [-D] [-H] [-s]\n"
+	    "\tbectl activate [-t] beName\n"
+	    "\tbectl create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
+	    "\tbectl create [-r] beName@snapshot\n"
+	    "\tbectl destroy [-F] {beName | beName@snapshot}\n"
+	    "\tbectl export sourceBe\n"
+	    "\tbectl import targetBe\n"
+	    "\tbectl jail {-b | -U} [{-o key=value | -u key}]... "
+	    "{jailID | jailName}\n"
+	    "\t      bootenv [utility [argument ...]]\n"
+	    "\tbectl list [-DHas]\n"
 	    "\tbectl mount beName [mountpoint]\n"
 	    "\tbectl rename origBeName newBeName\n"
-	    "\tbectl {ujail | unjail} ⟨jailID | jailName | bootenv)\n"
+	    "\tbectl {ujail | unjail} {jailID | jailName} bootenv\n"
 	    "\tbectl {umount | unmount} [-f] beName\n");
 
 	return (explicit ? 0 : EX_USAGE);
@@ -489,12 +491,25 @@ int
 main(int argc, char *argv[])
 {
 	const char *command;
+	char *root;
 	int command_index, rc;
 
+	root = NULL;
 	if (argc < 2)
 		return (usage(false));
 
-	command = argv[1];
+	if (strcmp(argv[1], "-r") == 0) {
+		if (argc < 4)
+			return (usage(false));
+		root = strdup(argv[2]);
+		command = argv[3];
+		argc -= 3;
+		argv += 3;
+	} else {
+		command = argv[1];
+		argc -= 1;
+		argv += 1;
+	}
 
 	/* Handle command aliases */
 	if (strcmp(command, "umount") == 0)
@@ -512,13 +527,12 @@ main(int argc, char *argv[])
 	}
 
 
-	if ((be = libbe_init()) == NULL)
+	if ((be = libbe_init(root)) == NULL)
 		return (-1);
 
 	libbe_print_on_error(be, true);
 
-	/* XXX TODO: can be simplified if offset by 2 instead of one */
-	rc = command_map[command_index].fn(argc-1, argv+1);
+	rc = command_map[command_index].fn(argc, argv);
 
 	libbe_close(be);
 	return (rc);

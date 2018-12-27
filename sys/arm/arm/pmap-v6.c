@@ -3037,7 +3037,7 @@ get_pv_entry(pmap_t pmap, boolean_t try)
 		if (ratecheck(&lastprint, &printinterval))
 			printf("Approaching the limit on PV entries, consider "
 			    "increasing either the vm.pmap.shpgperproc or the "
-			    "vm.pmap.pv_entry_max tunable.\n");
+			    "vm.pmap.pv_entries tunable.\n");
 retry:
 	pc = TAILQ_FIRST(&pmap->pm_pvchunk);
 	if (pc != NULL) {

@@ -28,7 +28,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd November 11, 2018
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -89,6 +89,14 @@ Remove the directory entry specified by
 and
 .Fa path
 as a directory, not a normal file.
+.It Dv AT_BENEATH
+Only unlink files and directories which are beneath of the topping
+directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
 .El
 .Pp
 If
@@ -200,6 +208,24 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fn unlinkat ,
+and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr chflags 2 ,

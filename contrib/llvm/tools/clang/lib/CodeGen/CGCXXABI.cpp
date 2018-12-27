@@ -51,9 +51,9 @@ CGCallee CGCXXABI::EmitLoadOfMemberFunctionPointer(
   ErrorUnsupportedABI(CGF, "calls through member pointers");
 
   ThisPtrForCall = This.getPointer();
-  const FunctionProtoType *FPT = 
+  const FunctionProtoType *FPT =
     MPT->getPointeeType()->getAs<FunctionProtoType>();
-  const CXXRecordDecl *RD = 
+  const CXXRecordDecl *RD =
     cast<CXXRecordDecl>(MPT->getClass()->getAs<RecordType>()->getDecl());
   llvm::FunctionType *FTy = CGM.getTypes().GetFunctionType(
       CGM.getTypes().arrangeCXXMethodType(RD, FPT, /*FD=*/nullptr));
@@ -285,6 +285,20 @@ CGCXXABI::EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
 
   ErrorUnsupportedABI(CGF, "complete object detection in ctor");
   return nullptr;
+}
+
+void CGCXXABI::setCXXDestructorDLLStorage(llvm::GlobalValue *GV,
+                                          const CXXDestructorDecl *Dtor,
+                                          CXXDtorType DT) const {
+  // Assume the base C++ ABI has no special rules for destructor variants.
+  CGM.setDLLImportDLLExport(GV, Dtor);
+}
+
+llvm::GlobalValue::LinkageTypes CGCXXABI::getCXXDestructorLinkage(
+    GVALinkage Linkage, const CXXDestructorDecl *Dtor, CXXDtorType DT) const {
+  // Delegate back to CGM by default.
+  return CGM.getLLVMLinkageForDeclarator(Dtor, Linkage,
+                                         /*isConstantVariable=*/false);
 }
 
 bool CGCXXABI::NeedsVTTParameter(GlobalDecl GD) {

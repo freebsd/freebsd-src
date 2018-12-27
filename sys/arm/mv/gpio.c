@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
+#ifdef __aarch64__
+#include "opt_soc.h"
+#endif
+
 #define GPIO_MAX_INTR_COUNT	8
 #define GPIO_PINS_PER_REG	32
 #define GPIO_GENERIC_CAP	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |		\
@@ -74,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #define DEBOUNCE_CHECK_TICKS	((hz / 1000) * DEBOUNCE_CHECK_MS)
 
 struct mv_gpio_softc {
+	device_t		dev;
 	device_t		sc_busdev;
 	struct resource	*	mem_res;
 	int			mem_rid;
@@ -83,6 +88,7 @@ struct mv_gpio_softc {
 	void			*ih_cookie[GPIO_MAX_INTR_COUNT];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
+	uint32_t		offset;
 	struct mtx		mutex;
 	uint8_t			pin_num;	/* number of GPIO pins */
 	uint8_t			irq_num;	/* number of real IRQs occupied by GPIO controller */
@@ -187,11 +193,15 @@ static driver_t mv_gpio_driver = {
 
 static devclass_t mv_gpio_devclass;
 
-DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0);
+EARLY_DRIVER_MODULE(mv_gpio, simplebus, mv_gpio_driver, mv_gpio_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LAST);
 
-struct ofw_compat_data gpio_controllers[] = {
-	{ "mrvl,gpio", (uintptr_t)true },
-	{ "marvell,orion-gpio", (uintptr_t)true },
+struct ofw_compat_data compat_data[] = {
+	{ "mrvl,gpio", 1 },
+	{ "marvell,orion-gpio", 1 },
+#ifdef SOC_MARVELL_8K
+	{ "marvell,armada-8k-gpio", 1 },
+#endif
 	{ NULL, 0 }
 };
 
@@ -201,7 +211,7 @@ mv_gpio_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_search_compatible(dev, gpio_controllers)->ocd_data == 0)
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Marvell Integrated GPIO Controller");
@@ -209,60 +219,74 @@ mv_gpio_probe(device_t dev)
 }
 
 static int
-mv_gpio_attach(device_t dev)
+mv_gpio_setup_interrupts(struct mv_gpio_softc *sc, phandle_t node)
 {
-	int i, size;
-	struct mv_gpio_softc *sc;
-	pcell_t pincnt = 0;
-	pcell_t irq_cells = 0;
 	phandle_t iparent;
-
-	sc = (struct mv_gpio_softc *)device_get_softc(dev);
-	if (sc == NULL)
-		return (ENXIO);
-
-	if (OF_getencprop(ofw_bus_get_node(dev), "pin-count", &pincnt,
-	    sizeof(pcell_t)) >= 0 ||
-	    OF_getencprop(ofw_bus_get_node(dev), "ngpios", &pincnt,
-	    sizeof(pcell_t)) >= 0) {
-		sc->pin_num = MIN(pincnt, MV_GPIO_MAX_NPINS);
-		if (bootverbose)
-			device_printf(dev, "%d pins available\n", sc->pin_num);
-	} else {
-		device_printf(dev, "ERROR: no pin-count or ngpios entry found!\n");
-		return (ENXIO);
-	}
-
-	/* Assign generic capabilities to every gpio pin */
-	for(i = 0; i < sc->pin_num; i++)
-		sc->gpio_setup[i].gp_caps = GPIO_GENERIC_CAP;
+	pcell_t irq_cells;
+	int i, size;
 
 	/* Find root interrupt controller */
-	iparent = ofw_bus_find_iparent(ofw_bus_get_node(dev));
+	iparent = ofw_bus_find_iparent(node);
 	if (iparent == 0) {
-		device_printf(dev, "No interrupt-parrent found. "
+		device_printf(sc->dev, "No interrupt-parrent found. "
 				"Error in DTB\n");
 		return (ENXIO);
 	} else {
 		/* While at parent - store interrupt cells prop */
 		if (OF_searchencprop(OF_node_from_xref(iparent),
 		    "#interrupt-cells", &irq_cells, sizeof(irq_cells)) == -1) {
-			device_printf(dev, "DTB: Missing #interrupt-cells "
+			device_printf(sc->dev, "DTB: Missing #interrupt-cells "
 			    "property in interrupt parent node\n");
 			return (ENXIO);
 		}
 	}
 
-	size = OF_getproplen(ofw_bus_get_node(dev), "interrupts");
+	size = OF_getproplen(node, "interrupts");
 	if (size != -1) {
 		size = size / sizeof(pcell_t);
 		size = size / irq_cells;
 		sc->irq_num = size;
-		device_printf(dev, "%d IRQs available\n", sc->irq_num);
+		device_printf(sc->dev, "%d IRQs available\n", sc->irq_num);
 	} else {
-		device_printf(dev, "ERROR: no interrupts entry found!\n");
+		device_printf(sc->dev, "ERROR: no interrupts entry found!\n");
 		return (ENXIO);
 	}
+
+	for (i = 0; i < sc->irq_num; i++) {
+		sc->irq_rid[i] = i;
+		sc->irq_res[i] = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ,
+			&sc->irq_rid[i], RF_ACTIVE);
+		if (!sc->irq_res[i]) {
+			mtx_destroy(&sc->mutex);
+			device_printf(sc->dev,
+			    "could not allocate gpio%d interrupt\n", i+1);
+			return (ENXIO);
+		}
+	}
+
+	device_printf(sc->dev, "Disable interrupts (offset = %x + EDGE(0x18)\n", sc->offset);
+	/* Disable all interrupts */
+	bus_space_write_4(sc->bst, sc->bsh, sc->offset + GPIO_INT_EDGE_MASK, 0);
+	device_printf(sc->dev, "Disable interrupts (offset = %x + LEV(0x1C))\n", sc->offset);
+	bus_space_write_4(sc->bst, sc->bsh, sc->offset + GPIO_INT_LEV_MASK, 0);
+
+	for (i = 0; i < sc->irq_num; i++) {
+		device_printf(sc->dev, "Setup intr %d\n", i);
+		if (bus_setup_intr(sc->dev, sc->irq_res[i],
+		    INTR_TYPE_MISC,
+		    (driver_filter_t *)mv_gpio_intr, NULL,
+		    sc, &sc->ih_cookie[i]) != 0) {
+			mtx_destroy(&sc->mutex);
+			bus_release_resource(sc->dev, SYS_RES_IRQ,
+				sc->irq_rid[i], sc->irq_res[i]);
+			device_printf(sc->dev, "could not set up intr %d\n", i);
+			return (ENXIO);
+		}
+	}
+
+	/* Clear interrupt status. */
+	device_printf(sc->dev, "Clear int status (offset = %x)\n", sc->offset);
+	bus_space_write_4(sc->bst, sc->bsh, sc->offset + GPIO_INT_CAUSE, 0);
 
 	sc->debounce_callouts = (struct callout **)malloc(sc->pin_num *
 	    sizeof(struct callout *), M_DEVBUF, M_WAITOK | M_ZERO);
@@ -274,11 +298,46 @@ mv_gpio_attach(device_t dev)
 	if (sc->debounce_counters == NULL)
 		return (ENOMEM);
 
+	return (0);
+}
+
+static int
+mv_gpio_attach(device_t dev)
+{
+	int i, rv;
+	struct mv_gpio_softc *sc;
+	phandle_t node;
+	pcell_t pincnt = 0;
+
+	sc = (struct mv_gpio_softc *)device_get_softc(dev);
+	if (sc == NULL)
+		return (ENXIO);
+
+	node = ofw_bus_get_node(dev);
+	sc->dev = dev;
+
+	if (OF_getencprop(node, "pin-count", &pincnt, sizeof(pcell_t)) >= 0 ||
+	    OF_getencprop(node, "ngpios", &pincnt, sizeof(pcell_t)) >= 0) {
+		sc->pin_num = MIN(pincnt, MV_GPIO_MAX_NPINS);
+		if (bootverbose)
+			device_printf(dev, "%d pins available\n", sc->pin_num);
+	} else {
+		device_printf(dev, "ERROR: no pin-count or ngpios entry found!\n");
+		return (ENXIO);
+	}
+
+	if (OF_getencprop(node, "offset", &sc->offset, sizeof(sc->offset)) == -1)
+		sc->offset = 0;
+
+	/* Assign generic capabilities to every gpio pin */
+	for(i = 0; i < sc->pin_num; i++)
+		sc->gpio_setup[i].gp_caps = GPIO_GENERIC_CAP;
+
 	mtx_init(&sc->mutex, device_get_nameunit(dev), NULL, MTX_SPIN);
 
 	sc->mem_rid = 0;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-		 RF_ACTIVE);
+		 RF_ACTIVE | RF_SHAREABLE );
 
 	if (!sc->mem_res) {
 		mtx_destroy(&sc->mutex);
@@ -289,37 +348,9 @@ mv_gpio_attach(device_t dev)
 	sc->bst = rman_get_bustag(sc->mem_res);
 	sc->bsh = rman_get_bushandle(sc->mem_res);
 
-	for (i = 0; i < sc->irq_num; i++) {
-		sc->irq_rid[i] = i;
-		sc->irq_res[i] = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-			&sc->irq_rid[i], RF_ACTIVE);
-		if (!sc->irq_res[i]) {
-			mtx_destroy(&sc->mutex);
-			device_printf(dev,
-			    "could not allocate gpio%d interrupt\n", i+1);
-			return (ENXIO);
-		}
-	}
-
-	/* Disable all interrupts */
-	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_EDGE_MASK, 0);
-	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_LEV_MASK, 0);
-
-	for (i = 0; i < sc->irq_num; i++) {
-		if (bus_setup_intr(dev, sc->irq_res[i],
-		    INTR_TYPE_MISC,
-		    (driver_filter_t *)mv_gpio_intr, NULL,
-		    sc, &sc->ih_cookie[i]) != 0) {
-			mtx_destroy(&sc->mutex);
-			bus_release_resource(dev, SYS_RES_IRQ,
-				sc->irq_rid[i], sc->irq_res[i]);
-			device_printf(dev, "could not set up intr %d\n", i);
-			return (ENXIO);
-		}
-	}
-
-	/* Clear interrupt status. */
-	bus_space_write_4(sc->bst, sc->bsh, GPIO_INT_CAUSE, 0);
+	rv = mv_gpio_setup_interrupts(sc, node);
+	if (rv != 0)
+		return (rv);
 
 	sc->sc_busdev = gpiobus_attach_bus(dev);
 	if (sc->sc_busdev == NULL) {
@@ -540,6 +571,8 @@ mv_gpio_configure(device_t dev, uint32_t pin, uint32_t flags, uint32_t mask)
 		return (EINVAL);
 
 	if (mask & MV_GPIO_IN_DEBOUNCE) {
+		if (sc->irq_num == 0)
+			return (EINVAL);
 		error = mv_gpio_debounce_prepare(dev, pin);
 		if (error != 0)
 			return (error);
@@ -845,7 +878,7 @@ mv_gpio_reg_read(device_t dev, uint32_t reg)
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
-	return (bus_space_read_4(sc->bst, sc->bsh, reg));
+	return (bus_space_read_4(sc->bst, sc->bsh, sc->offset + reg));
 }
 
 static void
@@ -854,7 +887,7 @@ mv_gpio_reg_write(device_t dev, uint32_t reg, uint32_t val)
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
 
-	bus_space_write_4(sc->bst, sc->bsh, reg, val);
+	bus_space_write_4(sc->bst, sc->bsh, sc->offset + reg, val);
 }
 
 static void

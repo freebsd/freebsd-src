@@ -79,6 +79,8 @@ command_line_arguments_head()
 }
 command_line_arguments_body()
 {
+	atf_skip "https://bugs.freebsd.org/233587"
+
 	arguments="my arguments"
 
 	start_program $arguments
@@ -103,6 +105,8 @@ environment_head()
 }
 environment_body()
 {
+	atf_skip "https://bugs.freebsd.org/233588"
+
 	var="MY_VARIABLE=foo"
 	eval "export $var"
 

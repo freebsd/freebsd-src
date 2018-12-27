@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DTS!=ls *.dts
+DTS!=ls ${.CURDIR}/*.dts
 
 all: test-dts
 

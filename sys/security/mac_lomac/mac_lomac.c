@@ -1139,7 +1139,7 @@ lomac_ifnet_check_relabel(struct ucred *cred, struct ifnet *ifp,
 		 *
 		 * XXXRW: This is also redundant to a higher layer check.
 		 */
-		error = priv_check_cred(cred, PRIV_NET_SETIFMAC, 0);
+		error = priv_check_cred(cred, PRIV_NET_SETIFMAC);
 		if (error)
 			return (EPERM);
 

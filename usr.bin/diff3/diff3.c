@@ -717,19 +717,19 @@ main(int argc, char **argv)
 	fp[0] = fopen(file1, "r");
 	if (fp[0] == NULL)
 		err(2, "Can't open %s", file1);
-	if (cap_rights_limit(fileno(fp[0]), &rights_ro) < 0)
+	if (caph_rights_limit(fileno(fp[0]), &rights_ro) < 0)
 		err(2, "unable to limit rights on: %s", file1);
 
 	fp[1] = fopen(file2, "r");
 	if (fp[1] == NULL)
 		err(2, "Can't open %s", file2);
-	if (cap_rights_limit(fileno(fp[1]), &rights_ro) < 0)
+	if (caph_rights_limit(fileno(fp[1]), &rights_ro) < 0)
 		err(2, "unable to limit rights on: %s", file2);
 
 	fp[2] = fopen(file3, "r");
 	if (fp[2] == NULL)
 		err(2, "Can't open %s", file3);
-	if (cap_rights_limit(fileno(fp[2]), &rights_ro) < 0)
+	if (caph_rights_limit(fileno(fp[2]), &rights_ro) < 0)
 		err(2, "unable to limit rights on: %s", file3);
 
 	if (pipe(fd13))

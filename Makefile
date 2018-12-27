@@ -33,6 +33,7 @@
 # targets             - Print a list of supported TARGET/TARGET_ARCH pairs
 #                       for world and kernel targets.
 # toolchains          - Build a toolchain for all world and kernel targets.
+# sysent              - (Re)build syscall entries from syscalls.master.
 # xdev                - xdev-build + xdev-install for the architecture
 #                       specified with TARGET and TARGET_ARCH.
 # xdev-build          - Build cross-development tools.
@@ -61,9 +62,10 @@
 # Most of the user-driven targets (as listed above) are implemented in
 # Makefile.inc1.  The exceptions are universe, tinderbox and targets.
 #
-# If you want to build your system from source be sure that /usr/obj has
-# at least 6GB of diskspace available.  A complete 'universe' build requires
-# about 100GB of space.
+# If you want to build your system from source, be sure that /usr/obj has
+# at least 6 GB of disk space available.  A complete 'universe' build of
+# r340283 (2018-11) required 167 GB of space.  ZFS lz4 compression
+# achieved a 2.18x ratio, reducing actual space to 81 GB.
 #
 # For individuals wanting to build from the sources currently on their
 # system, the simple instructions are:
@@ -135,6 +137,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries maninstall \
 	obj objlink showconfig tags toolchain update \
+	sysent \
 	_worldtmp _legacy _bootstrap-tools _cleanobj _obj \
 	_build-tools _build-metadata _cross-tools _includes _libraries \
 	build32 distribute32 install32 buildsoft distributesoft installsoft \
@@ -610,10 +613,13 @@ _need_lld_${target}_${target_arch} != \
 # XXX: Passing HOST_OBJTOP into the PATH would allow skipping legacy,
 #      bootstrap-tools, and cross-tools.  Need to ensure each tool actually
 #      supports all TARGETS though.
+# For now we only pass UNIVERSE_TOOLCHAIN_PATH which will be added at the end
+# of STRICTTMPPATH to ensure that the target-specific binaries come first.
 MAKE_PARAMS_${target}+= \
 	XCC="${HOST_OBJTOP}/tmp/usr/bin/cc" \
 	XCXX="${HOST_OBJTOP}/tmp/usr/bin/c++" \
-	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp"
+	XCPP="${HOST_OBJTOP}/tmp/usr/bin/cpp" \
+	UNIVERSE_TOOLCHAIN_PATH=${HOST_OBJTOP}/tmp/usr/bin
 .endif
 .if defined(_need_lld_${target}_${target_arch}) && \
     ${_need_lld_${target}_${target_arch}} == "yes"

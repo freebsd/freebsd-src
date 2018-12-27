@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 12, 2018
+.Dd November 10, 2018
 .Dt RM 1
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f | i
-.Op Fl dIPRrvWx
+.Op Fl dIRrvWx
 .Ar
 .Nm unlink
 .Op Fl -
@@ -86,26 +86,9 @@ This is a far less intrusive option than
 .Fl i
 yet provides almost the same level of protection against mistakes.
 .It Fl P
-Overwrite regular files before deleting them.
-Files are overwritten three times, first with the byte pattern 0xff,
-then 0x00, and then 0xff again, before they are deleted.
-Files with multiple links will not be overwritten nor deleted
-and a warning will be issued.
-If the
-.Fl f
-option is specified, files with multiple links will also be overwritten
-and deleted.
-No warning will be issued.
-.Pp
-Specifying this flag for a read only file will cause
-.Nm
-to generate an error message and exit.
-The file will not be removed or overwritten.
-.Pp
-N.B.: The
-.Fl P
-flag is not considered a security feature
-.Pq see Sx BUGS .
+This flag has no effect.
+It is kept only for backwards compatibility with
+.Bx 4.4 Lite2 .
 .It Fl R
 Attempt to remove the file hierarchy rooted in each
 .Ar file
@@ -192,12 +175,6 @@ For example:
 .Pp
 .Dl "rm /home/user/-filename"
 .Dl "rm ./-filename"
-.Pp
-When
-.Fl P
-is specified with
-.Fl f
-the file will be overwritten and removed even if it has hard links.
 .Sh EXAMPLES
 Recursively remove all files contained within the
 .Pa foobar
@@ -227,6 +204,12 @@ Also, historical
 .Bx
 implementations prompted on the standard output,
 not the standard error output.
+.Pp
+The
+.Fl P
+option does not have any effect as of
+.Fx 13
+and may be removed in the future.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr rmdir 1 ,
@@ -250,15 +233,3 @@ A
 .Nm
 command appeared in
 .At v1 .
-.Sh BUGS
-The
-.Fl P
-option assumes that the underlying storage overwrites file blocks
-when data is written to an existing offset.
-Several factors including the file system and its backing store could defeat
-this assumption.
-This includes, but is not limited to file systems that use a
-Copy-On-Write strategy (e.g. ZFS or UFS when snapshots are being used), Flash
-media that are using a wear leveling algorithm, or when the backing datastore
-does journaling, etc.
-In addition, only regular files are overwritten, other types of files are not.

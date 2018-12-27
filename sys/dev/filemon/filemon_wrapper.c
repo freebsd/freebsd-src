@@ -129,8 +129,7 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 		/* If the credentials changed then cease tracing. */
 		if (imgp->newcred != NULL &&
 		    imgp->credential_setid &&
-		    priv_check_cred(filemon->cred,
-		    PRIV_DEBUG_DIFFCRED, 0) != 0) {
+		    priv_check_cred(filemon->cred, PRIV_DEBUG_DIFFCRED) != 0) {
 			/*
 			 * It may have changed to NULL already, but
 			 * will not be re-attached by anything else.
@@ -149,7 +148,8 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
 }
 
 static void
-_filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
+_filemon_wrapper_openat(struct thread *td, const char *upath, int flags,
+    int fd)
 {
 	int error;
 	struct file *fp;
@@ -262,7 +262,8 @@ copyfail:
 }
 
 static void
-_filemon_wrapper_link(struct thread *td, char *upath1, char *upath2)
+_filemon_wrapper_link(struct thread *td, const char *upath1,
+    const char *upath2)
 {
 	struct filemon *filemon;
 	int error;

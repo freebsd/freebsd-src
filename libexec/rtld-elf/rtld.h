@@ -54,7 +54,7 @@ typedef unsigned char bool;
 extern size_t tls_last_offset;
 extern size_t tls_last_size;
 extern size_t tls_static_space;
-extern int tls_dtv_generation;
+extern Elf_Addr tls_dtv_generation;
 extern int tls_max_index;
 
 extern int npagesizes;
@@ -151,7 +151,6 @@ typedef struct Struct_Obj_Entry {
     /* These items are computed by map_object() or by digest_phdr(). */
     caddr_t mapbase;		/* Base address of mapped region */
     size_t mapsize;		/* Size of mapped region in bytes */
-    size_t textsize;		/* Size of text segment in bytes */
     Elf_Addr vaddrbase;		/* Base address in shared object file */
     caddr_t relocbase;		/* Relocation constant = mapbase - vaddrbase */
     const Elf_Dyn *dynamic;	/* Dynamic section */
@@ -211,12 +210,12 @@ typedef struct Struct_Obj_Entry {
     Elf32_Word maskwords_bm_gnu;  	/* Bloom filter words - 1 (bitmask) */
     Elf32_Word shift2_gnu;		/* Bloom filter shift count */
     Elf32_Word dynsymcount;		/* Total entries in dynsym table */
-    Elf_Addr *bloom_gnu;		/* Bloom filter used by GNU hash func */
+    const Elf_Addr *bloom_gnu;		/* Bloom filter used by GNU hash func */
     const Elf_Hashelt *buckets_gnu;	/* GNU hash table bucket array */
     const Elf_Hashelt *chain_zero_gnu;	/* GNU hash table value array (Zeroed) */
 
-    char *rpath;		/* Search path specified in object */
-    char *runpath;		/* Search path with different priority */
+    const char *rpath;		/* Search path specified in object */
+    const char *runpath;	/* Search path with different priority */
     Needed_Entry *needed;	/* Shared objects needed by this one (%) */
     Needed_Entry *needed_filtees;
     Needed_Entry *needed_aux_filtees;
@@ -236,6 +235,7 @@ typedef struct Struct_Obj_Entry {
     int fini_array_num; 	/* Number of entries in fini_array */
 
     int32_t osrel;		/* OSREL note value */
+    uint32_t fctl0;		/* FEATURE_CONTROL note desc[0] value */
 
     bool mainprog : 1;		/* True if this is the main program */
     bool rtld : 1;		/* True if this is the dynamic linker */
@@ -264,6 +264,7 @@ typedef struct Struct_Obj_Entry {
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
     bool non_plt_gnu_ifunc : 1;	/* Object has non-plt IFUNC references */
+    bool ifuncs_resolved : 1;	/* Object ifuncs were already resolved */
     bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
@@ -399,7 +400,7 @@ int convert_prot(int elfflags);
 int do_copy_relocations(Obj_Entry *);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *, int flags,
     struct Struct_RtldLockState *);
-int reloc_plt(Obj_Entry *);
+int reloc_plt(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_jmpslots(Obj_Entry *, int flags, struct Struct_RtldLockState *);
 int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_gnu_ifunc(Obj_Entry *, int flags, struct Struct_RtldLockState *);

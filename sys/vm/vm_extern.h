@@ -44,6 +44,7 @@ struct vmem;
 #ifdef _KERNEL
 struct cdev;
 struct cdevsw;
+struct domainset;
 
 /* These operate on kernel virtual addresses only. */
 vm_offset_t kva_alloc(vm_size_t);
@@ -56,16 +57,17 @@ void kmap_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);
 /* These operate on virtual addresses backed by memory. */
 vm_offset_t kmem_alloc_attr(vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
-vm_offset_t kmem_alloc_attr_domain(int domain, vm_size_t size, int flags,
-    vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
+vm_offset_t kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size,
+    int flags, vm_paddr_t low, vm_paddr_t high, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_contig(vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
     vm_memattr_t memattr);
-vm_offset_t kmem_alloc_contig_domain(int domain, vm_size_t size, int flags,
-    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary,
-    vm_memattr_t memattr);
+vm_offset_t kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size,
+    int flags, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, vm_memattr_t memattr);
 vm_offset_t kmem_malloc(vm_size_t size, int flags);
-vm_offset_t kmem_malloc_domain(int domain, vm_size_t size, int flags);
+vm_offset_t kmem_malloc_domainset(struct domainset *ds, vm_size_t size,
+    int flags);
 void kmem_free(vm_offset_t addr, vm_size_t size);
 
 /* This provides memory for previously allocated address space. */

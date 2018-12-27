@@ -105,7 +105,6 @@ struct pci_vtscsi_config {
 struct pci_vtscsi_queue {
 	struct pci_vtscsi_softc *         vsq_sc;
 	struct vqueue_info *              vsq_vq;
-	int                               vsq_ctl_fd;
 	pthread_mutex_t                   vsq_mtx;
 	pthread_mutex_t                   vsq_qmtx;
 	pthread_cond_t                    vsq_cv;
@@ -389,7 +388,7 @@ pci_vtscsi_tmf_handle(struct pci_vtscsi_softc *sc,
 	ctl_scsi_zero_io(io);
 
 	io->io_hdr.io_type = CTL_IO_TASK;
-	io->io_hdr.nexus.targ_port = tmf->lun[1];
+	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(tmf->lun);
 	io->taskio.tag_type = CTL_TAG_SIMPLE;
 	io->taskio.tag_num = (uint32_t)tmf->id;
@@ -462,7 +461,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	struct pci_vtscsi_req_cmd_wr *cmd_wr;
 	struct iovec data_iov_in[VTSCSI_MAXSEG], data_iov_out[VTSCSI_MAXSEG];
 	union ctl_io *io;
-	size_t data_niov_in, data_niov_out;
+	int data_niov_in, data_niov_out;
 	void *ext_data_ptr = NULL;
 	uint32_t ext_data_len = 0, ext_sg_entries = 0;
 	int err;
@@ -472,15 +471,15 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 	seek_iov(iov_out, niov_out, data_iov_out, &data_niov_out,
 	    VTSCSI_OUT_HEADER_LEN(sc));
 
-	truncate_iov(iov_in, niov_in, VTSCSI_IN_HEADER_LEN(sc));
-	truncate_iov(iov_out, niov_out, VTSCSI_OUT_HEADER_LEN(sc));
+	truncate_iov(iov_in, &niov_in, VTSCSI_IN_HEADER_LEN(sc));
+	truncate_iov(iov_out, &niov_out, VTSCSI_OUT_HEADER_LEN(sc));
 	iov_to_buf(iov_in, niov_in, (void **)&cmd_rd);
 
 	cmd_wr = malloc(VTSCSI_OUT_HEADER_LEN(sc));
 	io = ctl_scsi_alloc_io(sc->vss_iid);
 	ctl_scsi_zero_io(io);
 
-	io->io_hdr.nexus.targ_port = cmd_rd->lun[1];
+	io->io_hdr.nexus.initid = sc->vss_iid;
 	io->io_hdr.nexus.targ_lun = pci_vtscsi_get_lun(cmd_rd->lun);
 
 	io->io_hdr.io_type = CTL_IO_SCSI;
@@ -499,7 +498,21 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 
 	io->scsiio.sense_len = sc->vss_config.sense_size;
 	io->scsiio.tag_num = (uint32_t)cmd_rd->id;
-	io->scsiio.tag_type = CTL_TAG_SIMPLE;
+	switch (cmd_rd->task_attr) {
+	case VIRTIO_SCSI_S_ORDERED:
+		io->scsiio.tag_type = CTL_TAG_ORDERED;
+		break;
+	case VIRTIO_SCSI_S_HEAD:
+		io->scsiio.tag_type = CTL_TAG_HEAD_OF_QUEUE;
+		break;
+	case VIRTIO_SCSI_S_ACA:
+		io->scsiio.tag_type = CTL_TAG_ACA;
+		break;
+	case VIRTIO_SCSI_S_SIMPLE:
+	default:
+		io->scsiio.tag_type = CTL_TAG_SIMPLE;
+		break;
+	}
 	io->scsiio.ext_sg_entries = ext_sg_entries;
 	io->scsiio.ext_data_ptr = ext_data_ptr;
 	io->scsiio.ext_data_len = ext_data_len;
@@ -515,7 +528,7 @@ pci_vtscsi_request_handle(struct pci_vtscsi_queue *q, struct iovec *iov_in,
 		sbuf_delete(sb);
 	}
 
-	err = ioctl(q->vsq_ctl_fd, CTL_IO, io);
+	err = ioctl(sc->vss_ctl_fd, CTL_IO, io);
 	if (err != 0) {
 		WPRINTF(("CTL_IO: err=%d (%s)\n", errno, strerror(errno)));
 		cmd_wr->response = VIRTIO_SCSI_S_FAILURE;
@@ -552,7 +565,8 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		n = vq_getchain(vq, &idx, iov, VTSCSI_MAXSEG, NULL);
 		bufsize = iov_to_buf(iov, n, &buf);
 		iolen = pci_vtscsi_control_handle(sc, buf, bufsize);
-		buf_to_iov(buf + bufsize - iolen, iolen, iov, n, iolen);
+		buf_to_iov(buf + bufsize - iolen, iolen, iov, n,
+		    bufsize - iolen);
 
 		/*
 		 * Release this chain and handle more
@@ -560,6 +574,7 @@ pci_vtscsi_controlq_notify(void *vsc, struct vqueue_info *vq)
 		vq_relchain(vq, idx, iolen);
 	}
 	vq_endchains(vq, 1);	/* Generate interrupt if appropriate. */
+	free(buf);
 }
 
 static void
@@ -623,13 +638,7 @@ pci_vtscsi_init_queue(struct pci_vtscsi_softc *sc,
 	int i;
 
 	queue->vsq_sc = sc;
-	queue->vsq_ctl_fd = open("/dev/cam/ctl", O_RDWR);
 	queue->vsq_vq = &sc->vss_vq[num + 2];
-
-	if (queue->vsq_ctl_fd < 0) {
-		WPRINTF(("cannot open /dev/cam/ctl: %s\n", strerror(errno)));
-		return (-1);
-	}
 
 	pthread_mutex_init(&queue->vsq_mtx, NULL);
 	pthread_mutex_init(&queue->vsq_qmtx, NULL);
@@ -656,24 +665,34 @@ static int
 pci_vtscsi_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	struct pci_vtscsi_softc *sc;
-	char *optname = NULL;
-	char *opt;
-	int i;
+	char *opt, *optname;
+	const char *devname;
+	int i, optidx = 0;
 
 	sc = calloc(1, sizeof(struct pci_vtscsi_softc));
-	sc->vss_ctl_fd = open("/dev/cam/ctl", O_RDWR);
-
-	if (sc->vss_ctl_fd < 0) {
-		WPRINTF(("cannot open /dev/cam/ctl: %s\n", strerror(errno)));
-		return (1);
+	devname = "/dev/cam/ctl";
+	while ((opt = strsep(&opts, ",")) != NULL) {
+		optname = strsep(&opt, "=");
+		if (opt == NULL && optidx == 0) {
+			if (optname[0] != 0)
+				devname = optname;
+		} else if (strcmp(optname, "dev") == 0 && opt != NULL) {
+			devname = opt;
+		} else if (strcmp(optname, "iid") == 0 && opt != NULL) {
+			sc->vss_iid = strtoul(opt, NULL, 10);
+		} else {
+			fprintf(stderr, "Invalid option %s\n", optname);
+			free(sc);
+			return (1);
+		}
+		optidx++;
 	}
 
-	while ((opt = strsep(&opts, ",")) != NULL) {
-		if ((optname = strsep(&opt, "=")) != NULL) {
-			if (strcmp(optname, "iid") == 0) {
-				sc->vss_iid = strtoul(opt, NULL, 10);
-			}
-		}
+	sc->vss_ctl_fd = open(devname, O_RDWR);
+	if (sc->vss_ctl_fd < 0) {
+		WPRINTF(("cannot open %s: %s\n", devname, strerror(errno)));
+		free(sc);
+		return (1);
 	}
 
 	vi_softc_linkup(&sc->vss_vs, &vtscsi_vi_consts, sc, pi, sc->vss_vq);

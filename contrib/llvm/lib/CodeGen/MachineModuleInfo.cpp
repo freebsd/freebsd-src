@@ -15,7 +15,6 @@
 #include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/TargetLoweringObjectFile.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
@@ -27,6 +26,7 @@
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include <algorithm>
 #include <cassert>
@@ -314,10 +314,10 @@ public:
     MMI.deleteMachineFunctionFor(F);
     return true;
   }
-  
+
   StringRef getPassName() const override {
     return "Free MachineFunction";
-  } 
+  }
 };
 
 } // end anonymous namespace

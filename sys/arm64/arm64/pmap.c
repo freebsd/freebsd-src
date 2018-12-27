@@ -2382,8 +2382,40 @@ pmap_pv_insert_l2(pmap_t pmap, vm_offset_t va, pd_entry_t l2e, u_int flags,
 	return (true);
 }
 
+static void
+pmap_remove_kernel_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t va)
+{
+	pt_entry_t newl2, oldl2;
+	vm_page_t ml3;
+	vm_paddr_t ml3pa;
+
+	KASSERT(!VIRT_IN_DMAP(va), ("removing direct mapping of %#lx", va));
+	KASSERT(pmap == kernel_pmap, ("pmap %p is not kernel_pmap", pmap));
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	ml3 = pmap_remove_pt_page(pmap, va);
+	if (ml3 == NULL)
+		panic("pmap_remove_kernel_l2: Missing pt page");
+
+	ml3pa = VM_PAGE_TO_PHYS(ml3);
+	newl2 = ml3pa | L2_TABLE;
+
+	/*
+	 * Initialize the page table page.
+	 */
+	pagezero((void *)PHYS_TO_DMAP(ml3pa));
+
+	/*
+	 * Demote the mapping.  The caller must have already invalidated the
+	 * mapping (i.e., the "break" in break-before-make).
+	 */
+	oldl2 = pmap_load_store(l2, newl2);
+	KASSERT(oldl2 == 0, ("%s: found existing mapping at %p: %#lx",
+	    __func__, l2, oldl2));
+}
+
 /*
- * pmap_remove_l2: do the things to unmap a level 2 superpage in a process
+ * pmap_remove_l2: Do the things to unmap a level 2 superpage.
  */
 static int
 pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
@@ -2419,16 +2451,18 @@ pmap_remove_l2(pmap_t pmap, pt_entry_t *l2, vm_offset_t sva,
 				vm_page_aflag_clear(m, PGA_WRITEABLE);
 		}
 	}
-	KASSERT(pmap != kernel_pmap,
-	    ("Attempting to remove an l2 kernel page"));
-	ml3 = pmap_remove_pt_page(pmap, sva);
-	if (ml3 != NULL) {
-		pmap_resident_count_dec(pmap, 1);
-		KASSERT(ml3->wire_count == NL3PG,
-		    ("pmap_remove_l2: l3 page wire count error"));
-		ml3->wire_count = 1;
-		vm_page_unwire_noq(ml3);
-		pmap_add_delayed_free_list(ml3, free, FALSE);
+	if (pmap == kernel_pmap) {
+		pmap_remove_kernel_l2(pmap, l2, sva);
+	} else {
+		ml3 = pmap_remove_pt_page(pmap, sva);
+		if (ml3 != NULL) {
+			pmap_resident_count_dec(pmap, 1);
+			KASSERT(ml3->wire_count == NL3PG,
+			    ("pmap_remove_l2: l3 page wire count error"));
+			ml3->wire_count = 1;
+			vm_page_unwire_noq(ml3);
+			pmap_add_delayed_free_list(ml3, free, FALSE);
+		}
 	}
 	return (pmap_unuse_pt(pmap, sva, l1e, free));
 }
@@ -4604,8 +4638,9 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		 if (size == 0)
 			 return (NULL);
 
-		 /* Calculate how many full L2 blocks are needed for the mapping */
-		l2_blocks = (roundup2(pa + size, L2_SIZE) - rounddown2(pa, L2_SIZE)) >> L2_SHIFT;
+		 /* Calculate how many L2 blocks are needed for the mapping */
+		l2_blocks = (roundup2(pa + size, L2_SIZE) -
+		    rounddown2(pa, L2_SIZE)) >> L2_SHIFT;
 
 		offset = pa & L2_OFFSET;
 
@@ -4652,19 +4687,21 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 		for (i = 0; i < l2_blocks; i++) {
 			pde = pmap_pde(kernel_pmap, va, &lvl);
 			KASSERT(pde != NULL,
-			    ("pmap_mapbios: Invalid page entry, va: 0x%lx", va));
-			KASSERT(lvl == 1, ("pmap_mapbios: Invalid level %d", lvl));
+			    ("pmap_mapbios: Invalid page entry, va: 0x%lx",
+			    va));
+			KASSERT(lvl == 1,
+			    ("pmap_mapbios: Invalid level %d", lvl));
 
 			/* Insert L2_BLOCK */
 			l2 = pmap_l1_to_l2(pde, va);
 			pmap_load_store(l2,
 			    pa | ATTR_DEFAULT | ATTR_XN |
 			    ATTR_IDX(CACHED_MEMORY) | L2_BLOCK);
-			pmap_invalidate_range(kernel_pmap, va, va + L2_SIZE);
 
 			va += L2_SIZE;
 			pa += L2_SIZE;
 		}
+		pmap_invalidate_all(kernel_pmap);
 
 		va = preinit_map_va + (start_idx * L2_SIZE);
 
@@ -4697,34 +4734,43 @@ pmap_unmapbios(vm_offset_t va, vm_size_t size)
 	pd_entry_t *pde;
 	pt_entry_t *l2;
 	int i, lvl, l2_blocks, block;
+	bool preinit_map;
 
-	l2_blocks = (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
+	l2_blocks =
+	   (roundup2(va + size, L2_SIZE) - rounddown2(va, L2_SIZE)) >> L2_SHIFT;
 	KASSERT(l2_blocks > 0, ("pmap_unmapbios: invalid size %lx", size));
 
 	/* Remove preinit mapping */
+	preinit_map = false;
 	block = 0;
 	for (i = 0; i < PMAP_PREINIT_MAPPING_COUNT; i++) {
 		ppim = pmap_preinit_mapping + i;
 		if (ppim->va == va) {
-			KASSERT(ppim->size == size, ("pmap_unmapbios: size mismatch"));
+			KASSERT(ppim->size == size,
+			    ("pmap_unmapbios: size mismatch"));
 			ppim->va = 0;
 			ppim->pa = 0;
 			ppim->size = 0;
+			preinit_map = true;
 			offset = block * L2_SIZE;
 			va_trunc = rounddown2(va, L2_SIZE) + offset;
 
 			/* Remove L2_BLOCK */
 			pde = pmap_pde(kernel_pmap, va_trunc, &lvl);
 			KASSERT(pde != NULL,
-			    ("pmap_unmapbios: Invalid page entry, va: 0x%lx", va_trunc));
+			    ("pmap_unmapbios: Invalid page entry, va: 0x%lx",
+			    va_trunc));
 			l2 = pmap_l1_to_l2(pde, va_trunc);
 			pmap_load_clear(l2);
-			pmap_invalidate_range(kernel_pmap, va_trunc, va_trunc + L2_SIZE);
 
 			if (block == (l2_blocks - 1))
-				return;
+				break;
 			block++;
 		}
+	}
+	if (preinit_map) {
+		pmap_invalidate_all(kernel_pmap);
+		return;
 	}
 
 	/* Unmap the pages reserved with kva_alloc. */

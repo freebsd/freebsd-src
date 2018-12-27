@@ -16,8 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
-	FreeBSD 12.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
+	FreeBSD 13.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -30,6 +30,94 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 12.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20181220:
+	r342286 modifies the NFSv4 server so that it obeys vfs.nfsd.nfs_privport
+	in the same as it is applied to NFSv2 and 3.  This implies that NFSv4
+	servers that have vfs.nfsd.nfs_privport set will only allow mounts
+	from clients using a reserved port#. Since both the FreeBSD and Linux
+	NFSv4 clients use reserved port#s by default, this should not affect
+	most NFSv4 mounts.
+
+20181219:
+	The XLP config has been removed. We can't support 64-bit atomics in this
+	kernel because it is running in 32-bit mode. XLP users must transition
+	to running a 64-bit kernel (XLP64 or XLPN32).
+
+	The mips GXEMUL support has been removed from FreeBSD. MALTA* + qemu is
+	the preferred emulator today and we don't need two different ones.
+
+	The old sibyte / swarm / Broadcom BCM1250 support has been
+	removed from the mips port.
+
+20181211:
+	Clang, llvm, lld, lldb, compiler-rt and libc++ have been upgraded to
+	7.0.1.  Please see the 20141231 entry below for information about
+	prerequisites and upgrading, if you are not already using clang 3.5.0
+	or higher.
+
+20181211:
+	Remove the timed and netdate programs from the base tree.  Setting
+	the time with these deamons has been obsolete for over a decade.
+
+20181126:
+	On amd64, arm64 and armv7 (architectures that install LLVM's ld.lld
+	linker as /usr/bin/ld) GNU ld is no longer installed as ld.bfd, as
+	it produces broken binaries when ifuncs are in use.  Users needing
+	GNU ld should install the binutils port or package.
+
+20181123:
+	The BSD crtbegin and crtend code has been enabled by default. It has
+	had extensive testing on amd64, arm64, and i386. It can be disabled
+	by building a world with -DWITHOUT_BSD_CRTBEGIN.
+
+20181115:
+	The set of CTM commands (ctm, ctm_smail, ctm_rmail, ctm_dequeue)
+	has been converted to a port (misc/ctm) and will be removed from
+	FreeBSD-13.  It is available as a package (ctm) for all supported
+	FreeBSD versions.
+
+20181110:
+	The default newsyslog.conf(5) file has been changed to only include
+	files in /etc/newsyslog.conf.d/ and /usr/local/etc/newsyslog.conf.d/ if
+	the filenames end in '.conf' and do not begin with a '.'.
+
+	You should check the configuration files in these two directories match
+	this naming convention. You can verify which configuration files are
+	being included using the command:
+		$ newsyslog -Nrv
+
+20181015:
+	Ports for the DRM modules have been simplified. Now, amd64 users should
+	just install the drm-kmod port. All others should install
+	drm-legacy-kmod.
+
+	Graphics hardware that's newer than about 2010 usually works with
+	drm-kmod.  For hardware older than 2013, however, some users will need
+	to use drm-legacy-kmod if drm-kmod doesn't work for them. Hardware older
+	than 2008 usually only works in drm-legacy-kmod. The graphics team can
+	only commit to hardware made since 2013 due to the complexity of the
+	market and difficulty to test all the older cards effectively. If you
+	have hardware supported by drm-kmod, you are strongly encouraged to use
+	that as you will get better support.
+
+	Other than KPI chasing, drm-legacy-kmod will not be updated. As outlined
+	elsewhere, the drm and drm2 modules will be eliminated from the src base
+	soon (with a limited exception for arm). Please update to the package asap
+	and report any issues to x11@freebsd.org.
+
+	Generally, anybody using the drm*-kmod packages should add
+	WITHOUT_DRM_MODULE=t and WITHOUT_DRM2_MODULE=t to avoid nasty
+	cross-threading surprises, especially with automatic driver
+	loading from X11 startup. These will become the defaults in 13-current
+	shortly.
+
+20181012:
+	The ixlv(4) driver has been renamed to iavf(4).  As a consequence,
+	custom kernel and module loading configuration files must be updated
+	accordingly.  Moreover, interfaces previous presented as ixlvN to the
+	system are now exposed as iavfN and network configuration files must
+	be adjusted as necessary.
 
 20181009:
 	OpenSSL has been updated to version 1.1.1.  This update included

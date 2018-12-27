@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2018
+.Dd November 4, 2018
 .Dt CAPSICUM_HELPERS 3
 .Os
 .Sh NAME
@@ -34,7 +34,12 @@
 .Nm caph_limit_stdout ,
 .Nm caph_limit_stdio ,
 .Nm caph_cache_tzdata ,
-.Nm caph_cache_catpages
+.Nm caph_cache_catpages ,
+.Nm caph_enter ,
+.Nm caph_enter_casper ,
+.Nm caph_rights_limit ,
+.Nm caph_ioctls_limit ,
+.Nm caph_fcntls_limit
 .Nd "set of the capsicum helpers, part of the libcapsicum"
 .Sh LIBRARY
 .Lb libcapsicum
@@ -45,7 +50,11 @@
 .Ft int
 .Fn caph_enter_casper "void"
 .Ft int
-.Fn caph_limit_stream "int fd" "int flags"
+.Fn caph_rights_limit "inf fd" "const cap_righst_t *rights"
+.Ft int
+.Fn caph_ioctls_limit "inf fd" "const unsigned long *cmds" "size_t ncmds"
+.Ft int
+.Fn caph_fcntls_limit "inf fd" "uint32_t fcntlrights"
 .Ft int
 .Fn caph_limit_stdin "void"
 .Ft int
@@ -60,9 +69,17 @@
 .Fn caph_cache_catpages "void"
 .Sh DESCRIPTION
 The
-.Nm caph_enter
-is equivalent to the
-.Xr cap_enter 2
+.Nm caph_enter ,
+.Nm caph_rights_limit ,
+.Nm caph_ioctls_limit
+and
+.Nm caph_fcntls_limit
+are respectively equivalent to
+.Xr cap_enter 2 ,
+.Xr cap_rights_limit 2 ,
+.Xr cap_ioctls_limit 2
+and
+.Xr cap_fcntls_limit 2 ,
 it returns success when the kernel is built without support of the capability
 mode.
 .Pp
@@ -125,4 +142,5 @@ among others.
 .Ed
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
+.Xr cap_rights_limit 2 ,
 .Xr rights 4

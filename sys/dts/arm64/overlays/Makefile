@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DTSO!=ls *.dtso
+DTSO!=ls ${.CURDIR}/*.dtso
 
 all: test-dtso
 

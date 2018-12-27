@@ -1,9 +1,9 @@
 /*
- *  $Id: dlg_keys.c,v 1.34 2011/10/14 00:41:08 tom Exp $
+ *  $Id: dlg_keys.c,v 1.45 2018/05/28 17:27:10 tom Exp $
  *
  *  dlg_keys.c -- runtime binding support for dialog
  *
- *  Copyright 2006-2009,2011 Thomas E. Dickey
+ *  Copyright 2006-2017,2018 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -25,6 +25,10 @@
 #include <dlg_keys.h>
 
 #define LIST_BINDINGS struct _list_bindings
+
+#define CHR_BACKSLASH   '\\'
+#define IsOctal(ch)     ((ch) >= '0' && (ch) <= '7')
+#define TableSize(name) (sizeof(name)/sizeof(name[0]))
 
 LIST_BINDINGS {
     LIST_BINDINGS *link;
@@ -57,10 +61,11 @@ dlg_register_window(WINDOW *win, const char *name, DLG_KEYS_BINDING * binding)
 	p->win = win;
 	p->name = name;
 	p->binding = binding;
-	if (q != 0)
+	if (q != 0) {
 	    q->link = p;
-	else
+	} else {
 	    all_bindings = p;
+	}
     }
 #if defined(HAVE_DLG_TRACE) && defined(HAVE_RC_FILE)
     /*
@@ -70,8 +75,10 @@ dlg_register_window(WINDOW *win, const char *name, DLG_KEYS_BINDING * binding)
      * registered, there is no other way to see what bindings are available,
      * than by running dialog and tracing it.
      */
-    dlg_trace_msg("# dlg_register_window %s\n", name);
+    DLG_TRACE(("# dlg_register_window %s\n", name));
+    dlg_dump_keys(dialog_state.trace_output);
     dlg_dump_window_keys(dialog_state.trace_output, win);
+    DLG_TRACE(("# ...done dlg_register_window %s\n", name));
 #endif
 }
 
@@ -194,8 +201,8 @@ dlg_unregister_window(WINDOW *win)
  * Parameters:
  *	win is the window on which the wgetch() was done.
  *	curses_key is the value returned by wgetch().
- *	fkey in/out (on input, it is true if curses_key is a function key,
- *		and on output, it is true if the result is a function key).
+ *	fkey in/out (on input, it is nonzero if curses_key is a function key,
+ *		and on output, it is nonzero if the result is a function key).
  */
 int
 dlg_lookup_key(WINDOW *win, int curses_key, int *fkey)
@@ -230,7 +237,9 @@ dlg_lookup_key(WINDOW *win, int curses_key, int *fkey)
 	    }
 	}
 	for (p = all_bindings; p != 0; p = p->link) {
-	    if (p->win == win || (p->win == 0 && !strcmp(p->name, name))) {
+	    if (p->win == win ||
+		(p->win == 0 &&
+		 (!strcmp(p->name, name) || !strcmp(p->name, WILDNAME)))) {
 		int function_key = (*fkey != 0);
 		for (q = p->binding; q->is_function_key >= 0; ++q) {
 		    if (p->buttons
@@ -318,7 +327,7 @@ typedef struct {
 
 #define ASCII_NAME(name,code)  { #name, code }
 #define CURSES_NAME(upper) { #upper, KEY_ ## upper }
-#define COUNT_CURSES  sizeof(curses_names)/sizeof(curses_names[0])
+#define COUNT_CURSES  TableSize(curses_names)
 static const CODENAME curses_names[] =
 {
     ASCII_NAME(ESC, '\033'),
@@ -417,7 +426,7 @@ static const CODENAME curses_names[] =
 };
 
 #define DIALOG_NAME(upper) { #upper, DLGK_ ## upper }
-#define COUNT_DIALOG  sizeof(dialog_names)/sizeof(dialog_names[0])
+#define COUNT_DIALOG  TableSize(dialog_names)
 static const CODENAME dialog_names[] =
 {
     DIALOG_NAME(OK),
@@ -453,8 +462,28 @@ static const CODENAME dialog_names[] =
     DIALOG_NAME(FINAL),
     DIALOG_NAME(SELECT),
     DIALOG_NAME(HELPFILE),
-    DIALOG_NAME(TRACE)
+    DIALOG_NAME(TRACE),
+    DIALOG_NAME(TOGGLE)
 };
+
+#define MAP2(letter,actual) { letter, actual }
+
+static const struct {
+    int letter;
+    int actual;
+} escaped_letters[] = {
+
+    MAP2('a', DLG_CTRL('G')),
+	MAP2('b', DLG_CTRL('H')),
+	MAP2('f', DLG_CTRL('L')),
+	MAP2('n', DLG_CTRL('J')),
+	MAP2('r', DLG_CTRL('M')),
+	MAP2('s', CHR_SPACE),
+	MAP2('t', DLG_CTRL('I')),
+	MAP2('\\', '\\'),
+};
+
+#undef MAP2
 
 static char *
 skip_white(char *s)
@@ -574,8 +603,52 @@ make_binding(char *widget, int curses_key, int is_function, int dialog_key)
     return result;
 }
 
+static int
+decode_escaped(char **string)
+{
+    unsigned n;
+    int result = 0;
+
+    if (IsOctal(**string)) {
+	int limit = 3;
+	while (limit-- > 0 && IsOctal(**string)) {
+	    int ch = (**string);
+	    *string += 1;
+	    result = (result << 3) | (ch - '0');
+	}
+    } else {
+	for (n = 0; n < TableSize(escaped_letters); ++n) {
+	    if (**string == escaped_letters[n].letter) {
+		*string += 1;
+		result = escaped_letters[n].actual;
+		break;
+	    }
+	}
+    }
+    return result;
+}
+
+static char *
+encode_escaped(int value)
+{
+    static char result[80];
+    unsigned n;
+    bool found = FALSE;
+    for (n = 0; n < TableSize(escaped_letters); ++n) {
+	if (value == escaped_letters[n].actual) {
+	    found = TRUE;
+	    sprintf(result, "%c", escaped_letters[n].letter);
+	    break;
+	}
+    }
+    if (!found) {
+	sprintf(result, "%03o", value & 0xff);
+    }
+    return result;
+}
+
 /*
- * Parse the parameters of the "bindkeys" configuration-file entry.  This
+ * Parse the parameters of the "bindkey" configuration-file entry.  This
  * expects widget name which may be "*", followed by curses key definition and
  * then dialog key definition.
  *
@@ -612,8 +685,8 @@ dlg_parse_bindkey(char *params)
 	while (*p != '\0' && curses_key < 0) {
 	    if (escaped) {
 		escaped = FALSE;
-		curses_key = *p;
-	    } else if (*p == '\\') {
+		curses_key = decode_escaped(&p);
+	    } else if (*p == CHR_BACKSLASH) {
 		escaped = TRUE;
 	    } else if (modified) {
 		if (*p == '?') {
@@ -690,6 +763,12 @@ dump_curses_key(FILE *fp, int curses_key)
 	    }
 	}
 	if (!found) {
+#ifdef KEY_MOUSE
+	    if (is_DLGK_MOUSE(curses_key)) {
+		fprintf(fp, "MOUSE-");
+		dump_curses_key(fp, curses_key - M_EVENT);
+	    } else
+#endif
 	    if (curses_key >= KEY_F(0)) {
 		fprintf(fp, "F%d", curses_key - KEY_F(0));
 	    } else {
@@ -704,8 +783,12 @@ dump_curses_key(FILE *fp, int curses_key)
 	fprintf(fp, "~%c", curses_key - 64);
     } else if (curses_key == 255) {
 	fprintf(fp, "~?");
+    } else if (curses_key > 32 &&
+	       curses_key < 127 &&
+	       curses_key != CHR_BACKSLASH) {
+	fprintf(fp, "%c", curses_key);
     } else {
-	fprintf(fp, "\\%c", curses_key);
+	fprintf(fp, "%c%s", CHR_BACKSLASH, encode_escaped(curses_key));
     }
 }
 
@@ -727,12 +810,28 @@ dump_dialog_key(FILE *fp, int dialog_key)
 }
 
 static void
-dump_one_binding(FILE *fp, const char *widget, DLG_KEYS_BINDING * binding)
+dump_one_binding(FILE *fp,
+		 WINDOW *win,
+		 const char *widget,
+		 DLG_KEYS_BINDING * binding)
 {
+    int actual;
+    int fkey = (binding->curses_key > 255);
+
     fprintf(fp, "bindkey %s ", widget);
     dump_curses_key(fp, binding->curses_key);
     fputc(' ', fp);
     dump_dialog_key(fp, binding->dialog_key);
+    actual = dlg_lookup_key(win, binding->curses_key, &fkey);
+#ifdef KEY_MOUSE
+    if (is_DLGK_MOUSE(binding->curses_key) && is_DLGK_MOUSE(actual)) {
+	;			/* EMPTY */
+    } else
+#endif
+    if (actual != binding->dialog_key) {
+	fprintf(fp, "\t# overridden by ");
+	dump_dialog_key(fp, actual);
+    }
     fputc('\n', fp);
 }
 
@@ -752,12 +851,13 @@ dlg_dump_window_keys(FILE *fp, WINDOW *win)
 	for (p = all_bindings; p != 0; p = p->link) {
 	    if (p->win == win) {
 		if (dlg_strcmp(last, p->name)) {
-		    fprintf(fp, "\n# key bindings for %s widgets\n",
-			    !strcmp(p->name, WILDNAME) ? "all" : p->name);
+		    fprintf(fp, "# key bindings for %s widgets%s\n",
+			    !strcmp(p->name, WILDNAME) ? "all" : p->name,
+			    win == 0 ? " (user-defined)" : "");
 		    last = p->name;
 		}
 		for (q = p->binding; q->is_function_key >= 0; ++q) {
-		    dump_one_binding(fp, p->name, q);
+		    dump_one_binding(fp, win, p->name, q);
 		}
 	    }
 	}

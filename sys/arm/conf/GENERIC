@@ -169,6 +169,7 @@ device		aw_cir
 device		spibus
 device		spigen
 device		bcm2835_spi
+device		mv_spi
 device		ti_spi
 
 # ADC support

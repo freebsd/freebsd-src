@@ -13,6 +13,15 @@ pft_init()
 	fi
 }
 
+pfsynct_init()
+{
+	pft_init
+
+	if ! kldstat -q -m pfsync; then
+		atf_skip "This test requires pfsync"
+	fi
+}
+
 pft_mkepair()
 {
 	ifname=$(ifconfig epair create)
@@ -66,4 +75,9 @@ pft_cleanup()
 		done
 		rm created_interfaces.lst
 	fi
+}
+
+pfsynct_cleanup()
+{
+	pft_cleanup
 }

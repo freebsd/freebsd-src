@@ -2176,6 +2176,21 @@ static struct protosw in6_carp_protosw = {
 };
 #endif
 
+#ifdef VIMAGE
+#if defined(__i386__)
+/*
+ * XXX This is a hack to work around an absolute relocation outside
+ * set_vnet by one (on the stop symbol) for carpstats.  Add a dummy variable
+ * to the end of the file in the hope that the linker will just keep the
+ * order (as it seems to do at the moment).  It is understood to be fragile.
+ * See PR 230857 for a longer discussion of the problem and the referenced
+ * review for possible alternate solutions.  Each is a hack; we just need
+ * the least intrusive one for the next release.
+ */
+VNET_DEFINE(char, carp_zzz) = 0xde;
+#endif
+#endif
+
 static void
 carp_mod_cleanup(void)
 {

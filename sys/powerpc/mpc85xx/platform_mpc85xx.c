@@ -68,6 +68,7 @@ extern void *ap_pcpu;
 extern vm_paddr_t kernload;		/* Kernel physical load address */
 extern uint8_t __boot_page[];		/* Boot page body */
 extern uint32_t bp_kernload;
+extern vm_offset_t __startkernel;
 
 struct cpu_release {
 	uint32_t entry_h;
@@ -346,7 +347,7 @@ mpc85xx_smp_start_cpu_epapr(platform_t plat, struct pcpu *pc)
 	rel_va = rel_page + (rel_pa & PAGE_MASK);
 	pmap_kenter(rel_page, rel_pa & ~PAGE_MASK);
 	rel = (struct cpu_release *)rel_va;
-	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
+	bptr = pmap_kextract((uintptr_t)__boot_page);
 	cpu_flush_dcache(__DEVOLATILE(struct cpu_release *,rel), sizeof(*rel));
 	rel->pir = pc->pc_cpuid; __asm __volatile("sync");
 	rel->entry_h = (bptr >> 32);
@@ -415,7 +416,7 @@ mpc85xx_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/* Flush caches to have our changes hit DRAM. */
 	cpu_flush_dcache(__boot_page, 4096);
 
-	bptr = ((vm_paddr_t)(uintptr_t)__boot_page - KERNBASE) + kernload;
+	bptr = pmap_kextract((uintptr_t)__boot_page);
 	KASSERT((bptr & 0xfff) == 0,
 	    ("%s: boot page is not aligned (%#jx)", __func__, (uintmax_t)bptr));
 	if (mpc85xx_is_qoriq()) {

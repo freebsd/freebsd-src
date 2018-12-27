@@ -66,6 +66,21 @@ static bool isBuiltinUnreachable(const Stmt *S) {
   return false;
 }
 
+static bool isBuiltinAssumeFalse(const CFGBlock *B, const Stmt *S,
+                                 ASTContext &C) {
+  if (B->empty())  {
+    // Happens if S is B's terminator and B contains nothing else
+    // (e.g. a CFGBlock containing only a goto).
+    return false;
+  }
+  if (Optional<CFGStmt> CS = B->back().getAs<CFGStmt>()) {
+    if (const auto *CE = dyn_cast<CallExpr>(CS->getStmt())) {
+      return CE->getCallee()->IgnoreCasts() == S && CE->isBuiltinAssumeFalse(C);
+    }
+  }
+  return false;
+}
+
 static bool isDeadReturn(const CFGBlock *B, const Stmt *S) {
   // Look to see if the current control flow ends with a 'return', and see if
   // 'S' is a substatement. The 'return' may not be the last element in the
@@ -186,7 +201,7 @@ static bool isConfigurationValue(const Stmt *S,
   // Special case looking for the sigil '()' around an integer literal.
   if (const ParenExpr *PE = dyn_cast<ParenExpr>(S))
     if (!PE->getLocStart().isMacroID())
-      return isConfigurationValue(PE->getSubExpr(), PP, SilenceableCondVal, 
+      return isConfigurationValue(PE->getSubExpr(), PP, SilenceableCondVal,
                                   IncludeIntegers, true);
 
   if (const Expr *Ex = dyn_cast<Expr>(S))
@@ -295,19 +310,19 @@ static unsigned scanFromBlock(const CFGBlock *Start,
                               Preprocessor *PP,
                               bool IncludeSometimesUnreachableEdges) {
   unsigned count = 0;
-  
+
   // Prep work queue
   SmallVector<const CFGBlock*, 32> WL;
-  
+
   // The entry block may have already been marked reachable
   // by the caller.
   if (!Reachable[Start->getBlockID()]) {
     ++count;
     Reachable[Start->getBlockID()] = true;
   }
-  
+
   WL.push_back(Start);
-  
+
   // Find the reachable blocks from 'Start'.
   while (!WL.empty()) {
     const CFGBlock *item = WL.pop_back_val();
@@ -322,7 +337,7 @@ static unsigned scanFromBlock(const CFGBlock *Start,
     if (!IncludeSometimesUnreachableEdges)
       TreatAllSuccessorsAsReachable = false;
 
-    for (CFGBlock::const_succ_iterator I = item->succ_begin(), 
+    for (CFGBlock::const_succ_iterator I = item->succ_begin(),
          E = item->succ_end(); I != E; ++I) {
       const CFGBlock *B = *I;
       if (!B) do {
@@ -372,6 +387,7 @@ namespace {
     llvm::BitVector &Reachable;
     SmallVector<const CFGBlock *, 10> WorkList;
     Preprocessor &PP;
+    ASTContext &C;
 
     typedef SmallVector<std::pair<const CFGBlock *, const Stmt *>, 12>
     DeferredLocsTy;
@@ -379,10 +395,10 @@ namespace {
     DeferredLocsTy DeferredLocs;
 
   public:
-    DeadCodeScan(llvm::BitVector &reachable, Preprocessor &PP)
+    DeadCodeScan(llvm::BitVector &reachable, Preprocessor &PP, ASTContext &C)
     : Visited(reachable.size()),
       Reachable(reachable),
-      PP(PP) {}
+      PP(PP), C(C) {}
 
     void enqueue(const CFGBlock *block);
     unsigned scanBackwards(const CFGBlock *Start,
@@ -600,7 +616,8 @@ void DeadCodeScan::reportDeadCode(const CFGBlock *B,
 
   if (isa<BreakStmt>(S)) {
     UK = reachable_code::UK_Break;
-  } else if (isTrivialDoWhile(B, S) || isBuiltinUnreachable(S)) {
+  } else if (isTrivialDoWhile(B, S) || isBuiltinUnreachable(S) ||
+             isBuiltinAssumeFalse(B, S, C)) {
     return;
   }
   else if (isDeadReturn(B, S)) {
@@ -627,7 +644,7 @@ void DeadCodeScan::reportDeadCode(const CFGBlock *B,
                            Loc, SourceRange(), SourceRange(Loc, Loc), R2);
       return;
     }
-    
+
     // Check if the dead block has a predecessor whose branch has
     // a configuration value that *could* be modified to
     // silence the warning.
@@ -673,7 +690,7 @@ void FindUnreachableCode(AnalysisDeclContext &AC, Preprocessor &PP,
     scanMaybeReachableFromBlock(&cfg->getEntry(), PP, reachable);
   if (numReachable == cfg->getNumBlockIDs())
     return;
-  
+
   // If there aren't explicit EH edges, we should include the 'try' dispatch
   // blocks as roots.
   if (!AC.getCFGBuildOptions().AddEHEdges) {
@@ -686,16 +703,16 @@ void FindUnreachableCode(AnalysisDeclContext &AC, Preprocessor &PP,
   }
 
   // There are some unreachable blocks.  We need to find the root blocks that
-  // contain code that should be considered unreachable.  
+  // contain code that should be considered unreachable.
   for (CFG::iterator I = cfg->begin(), E = cfg->end(); I != E; ++I) {
     const CFGBlock *block = *I;
     // A block may have been marked reachable during this loop.
     if (reachable[block->getBlockID()])
       continue;
-    
-    DeadCodeScan DS(reachable, PP);
+
+    DeadCodeScan DS(reachable, PP, AC.getASTContext());
     numReachable += DS.scanBackwards(block, CB);
-    
+
     if (numReachable == cfg->getNumBlockIDs())
       return;
   }

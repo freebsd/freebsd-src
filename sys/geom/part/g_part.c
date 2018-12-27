@@ -367,9 +367,9 @@ g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
 				offset = e1->gpe_offset;
 			if ((offset + pp->stripeoffset) % pp->stripesize) {
 				DPRINTF("partition %d on (%s, %s) is not "
-				    "aligned on %u bytes\n", e1->gpe_index,
+				    "aligned on %ju bytes\n", e1->gpe_index,
 				    pp->name, table->gpt_scheme->name,
-				    pp->stripesize);
+				    (uintmax_t)pp->stripesize);
 				/* Don't treat this as a critical failure */
 			}
 		}
@@ -820,7 +820,7 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 		G_PART_FULLNAME(table, entry, sb, gp->name);
 		if (pp->stripesize > 0 && entry->gpe_pp->stripeoffset != 0)
 			sbuf_printf(sb, " added, but partition is not "
-			    "aligned on %u bytes\n", pp->stripesize);
+			    "aligned on %ju bytes\n", (uintmax_t)pp->stripesize);
 		else
 			sbuf_cat(sb, " added\n");
 		sbuf_finish(sb);
@@ -1627,6 +1627,7 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		if (!strcmp(verb, "bootcode")) {
 			ctlreq = G_PART_CTL_BOOTCODE;
 			mparms |= G_PART_PARM_GEOM | G_PART_PARM_BOOTCODE;
+			oparms |= G_PART_PARM_SKIP_DSN;
 		}
 		break;
 	case 'c':
@@ -1744,6 +1745,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 				parm = G_PART_PARM_SIZE;
 			else if (!strcmp(ap->name, "start"))
 				parm = G_PART_PARM_START;
+			else if (!strcmp(ap->name, "skip_dsn"))
+				parm = G_PART_PARM_SKIP_DSN;
 			break;
 		case 't':
 			if (!strcmp(ap->name, "type"))
@@ -1803,6 +1806,10 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 			break;
 		case G_PART_PARM_SIZE:
 			error = g_part_parm_quad(req, ap->name, &gpp.gpp_size);
+			break;
+		case G_PART_PARM_SKIP_DSN:
+			error = g_part_parm_uint32(req, ap->name,
+			    &gpp.gpp_skip_dsn);
 			break;
 		case G_PART_PARM_START:
 			error = g_part_parm_quad(req, ap->name,

@@ -189,7 +189,7 @@ retry:
 #endif
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
-	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
+	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE) &&
 	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
 		goto nospace;
 	if (bpref >= fs->fs_size)
@@ -284,7 +284,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, flags, cred, bpp)
 #endif /* INVARIANTS */
 	reclaimed = 0;
 retry:
-	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, 0) &&
+	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0) {
 		goto nospace;
 	}
@@ -2537,6 +2537,23 @@ ffs_blkrelease_finish(ump, key)
 	if (((ump->um_flags & UM_CANDELETE) == 0) || dotrimcons == 0)
 		return;
 	/*
+	 * If the vfs.ffs.dotrimcons sysctl option is enabled while
+	 * a file deletion is active, specifically after a call
+	 * to ffs_blkrelease_start() but before the call to
+	 * ffs_blkrelease_finish(), ffs_blkrelease_start() will
+	 * have handed out SINGLETON_KEY rather than starting a
+	 * collection sequence. Thus if we get a SINGLETON_KEY
+	 * passed to ffs_blkrelease_finish(), we just return rather
+	 * than trying to finish the nonexistent sequence.
+	 */
+	if (key == SINGLETON_KEY) {
+#ifdef INVARIANTS
+		printf("%s: vfs.ffs.dotrimcons enabled on active filesystem\n",
+		    ump->um_mountp->mnt_stat.f_mntonname);
+#endif
+		return;
+	}
+	/*
 	 * We are done with sending blocks using this key. Look up the key
 	 * using the DONE alloctype (in tp) to request that it be unhashed
 	 * as we will not be adding to it. If the key has never been used,
@@ -3399,7 +3416,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		vn_finished_write(mp);
 		mp = NULL;
 		error = kern_unlinkat(td, AT_FDCWD, (char *)(intptr_t)cmd.value,
-		    UIO_USERSPACE, (ino_t)cmd.size);
+		    UIO_USERSPACE, 0, (ino_t)cmd.size);
 		break;
 
 	case FFS_SET_INODE:

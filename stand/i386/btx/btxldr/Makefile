@@ -17,6 +17,3 @@ ORG=${LOADER_ADDRESS}
 LDFLAGS+=${LDFLAGS_BIN}
 
 .include <bsd.prog.mk>
-
-# XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS.btxldr.S=	${CLANG_NO_IAS}

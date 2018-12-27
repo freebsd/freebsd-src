@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_SET_BIO 3"
-.TH SSL_SET_BIO 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH SSL_SET_BIO 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -204,7 +204,7 @@ Because of this complexity, this function should be avoided;
 use \fISSL_set0_rbio()\fR and \fISSL_set0_wbio()\fR instead.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
-\&\fISSL_set_bio()\fR, \fISSL_set_rbio()\fR and \fISSL_set_wbio()\fR cannot fail.
+\&\fISSL_set_bio()\fR, \fISSL_set0_rbio()\fR and \fISSL_set0_wbio()\fR cannot fail.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fISSL_get_rbio\fR\|(3),
@@ -215,7 +215,7 @@ use \fISSL_set0_rbio()\fR and \fISSL_set0_wbio()\fR instead.
 \&\fISSL_set0_rbio()\fR and \fISSL_set0_wbio()\fR were added in OpenSSL 1.1.0.
 .SH "COPYRIGHT"
 .IX Header "COPYRIGHT"
-Copyright 2000\-2017 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000\-2018 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the OpenSSL license (the \*(L"License\*(R").  You may not use
 this file except in compliance with the License.  You can obtain a copy

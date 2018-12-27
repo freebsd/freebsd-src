@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <pwd.h>
 #include <string.h>
 #include <time.h>
+#include <libufs.h>
 
 #include "fsck.h"
 
@@ -102,7 +103,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-					inodirty();
+					inodirty(dp);
 
 				}
 			}
@@ -142,7 +143,7 @@ ckinode(union dinode *dp, struct inodesc *idesc)
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-					inodirty();
+					inodirty(dp);
 					break;
 				}
 			}
@@ -221,7 +222,7 @@ iblock(struct inodesc *idesc, long ilevel, off_t isize, int type)
 					printf(
 					    "YOU MUST RERUN FSCK AFTERWARDS\n");
 					rerun = 1;
-					inodirty();
+					inodirty(dp);
 					bp->b_flags &= ~B_INUSE;
 					return(STOP);
 				}
@@ -285,6 +286,7 @@ union dinode *
 ginode(ino_t inumber)
 {
 	ufs2_daddr_t iblk;
+	union dinode *dp;
 
 	if (inumber < UFS_ROOTINO || inumber > maxino)
 		errx(EEXIT, "bad inode number %ju to ginode",
@@ -300,7 +302,19 @@ ginode(ino_t inumber)
 	if (sblock.fs_magic == FS_UFS1_MAGIC)
 		return ((union dinode *)
 		    &pbp->b_un.b_dinode1[inumber % INOPB(&sblock)]);
-	return ((union dinode *)&pbp->b_un.b_dinode2[inumber % INOPB(&sblock)]);
+	dp = (union dinode *)&pbp->b_un.b_dinode2[inumber % INOPB(&sblock)];
+	if (ffs_verify_dinode_ckhash(&sblock, (struct ufs2_dinode *)dp) != 0) {
+		pwarn("INODE CHECK-HASH FAILED");
+		prtinode(inumber, dp);
+		if (preen || reply("FIX") != 0) {
+			if (preen)
+				printf(" (FIXED)\n");
+			ffs_update_dinode_ckhash(&sblock,
+			    (struct ufs2_dinode *)dp);
+			inodirty(dp);
+		}
+	}
+	return (dp);
 }
 
 /*
@@ -342,7 +356,26 @@ getnextinode(ino_t inumber, int rebuildcg)
 		nextinop = inobuf.b_un.b_buf;
 	}
 	dp = (union dinode *)nextinop;
-	if (rebuildcg && nextinop == inobuf.b_un.b_buf) {
+	if (sblock.fs_magic == FS_UFS1_MAGIC)
+		nextinop += sizeof(struct ufs1_dinode);
+	else
+		nextinop += sizeof(struct ufs2_dinode);
+	if ((ckhashadd & CK_INODE) != 0) {
+		ffs_update_dinode_ckhash(&sblock, (struct ufs2_dinode *)dp);
+		dirty(&inobuf);
+	}
+	if (ffs_verify_dinode_ckhash(&sblock, (struct ufs2_dinode *)dp) != 0) {
+		pwarn("INODE CHECK-HASH FAILED");
+		prtinode(inumber, dp);
+		if (preen || reply("FIX") != 0) {
+			if (preen)
+				printf(" (FIXED)\n");
+			ffs_update_dinode_ckhash(&sblock,
+			    (struct ufs2_dinode *)dp);
+			dirty(&inobuf);
+		}
+	}
+	if (rebuildcg && (char *)dp == inobuf.b_un.b_buf) {
 		/*
 		 * Try to determine if we have reached the end of the
 		 * allocated inodes.
@@ -355,7 +388,7 @@ getnextinode(ino_t inumber, int rebuildcg)
 				UFS_NIADDR * sizeof(ufs2_daddr_t)) ||
 			      dp->dp2.di_mode || dp->dp2.di_size)
 				return (NULL);
-			goto inodegood;
+			return (dp);
 		}
 		if (!ftypeok(dp))
 			return (NULL);
@@ -389,11 +422,6 @@ getnextinode(ino_t inumber, int rebuildcg)
 			if (DIP(dp, di_ib[j]) != 0)
 				return (NULL);
 	}
-inodegood:
-	if (sblock.fs_magic == FS_UFS1_MAGIC)
-		nextinop += sizeof(struct ufs1_dinode);
-	else
-		nextinop += sizeof(struct ufs2_dinode);
 	return (dp);
 }
 
@@ -519,9 +547,11 @@ inocleanup(void)
 }
 
 void
-inodirty(void)
+inodirty(union dinode *dp)
 {
 
+	if (sblock.fs_magic == FS_UFS2_MAGIC)
+		ffs_update_dinode_ckhash(&sblock, (struct ufs2_dinode *)dp);
 	dirty(pbp);
 }
 
@@ -534,7 +564,8 @@ clri(struct inodesc *idesc, const char *type, int flag)
 	if (flag == 1) {
 		pwarn("%s %s", type,
 		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE");
-		pinode(idesc->id_number);
+		prtinode(idesc->id_number, dp);
+		printf("\n");
 	}
 	if (preen || reply("CLEAR") == 1) {
 		if (preen)
@@ -544,7 +575,7 @@ clri(struct inodesc *idesc, const char *type, int flag)
 			(void)ckinode(dp, idesc);
 			inoinfo(idesc->id_number)->ino_state = USTATE;
 			clearinode(dp);
-			inodirty();
+			inodirty(dp);
 		} else {
 			cmd.value = idesc->id_number;
 			cmd.size = -DIP(dp, di_nlink);
@@ -600,9 +631,8 @@ clearentry(struct inodesc *idesc)
 }
 
 void
-pinode(ino_t ino)
+prtinode(ino_t ino, union dinode *dp)
 {
-	union dinode *dp;
 	char *p;
 	struct passwd *pw;
 	time_t t;
@@ -610,7 +640,6 @@ pinode(ino_t ino)
 	printf(" I=%lu ", (u_long)ino);
 	if (ino < UFS_ROOTINO || ino > maxino)
 		return;
-	dp = ginode(ino);
 	printf(" OWNER=");
 	if ((pw = getpwuid((int)DIP(dp, di_uid))) != NULL)
 		printf("%s ", pw->pw_name);
@@ -693,7 +722,7 @@ allocino(ino_t request, int type)
 	default:
 		return (0);
 	}
-	dirty(cgbp);
+	cgdirty(cgbp);
 	dp = ginode(ino);
 	DIP_SET(dp, di_db[0], allocblk((long)1));
 	if (DIP(dp, di_db[0]) == 0) {
@@ -711,7 +740,7 @@ allocino(ino_t request, int type)
 	DIP_SET(dp, di_size, sblock.fs_fsize);
 	DIP_SET(dp, di_blocks, btodb(sblock.fs_fsize));
 	n_files++;
-	inodirty();
+	inodirty(dp);
 	inoinfo(ino)->ino_type = IFTODT(type);
 	return (ino);
 }
@@ -732,7 +761,7 @@ freeino(ino_t ino)
 	dp = ginode(ino);
 	(void)ckinode(dp, &idesc);
 	clearinode(dp);
-	inodirty();
+	inodirty(dp);
 	inoinfo(ino)->ino_state = USTATE;
 	n_files--;
 }

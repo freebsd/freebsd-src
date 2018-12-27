@@ -1,6 +1,6 @@
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2008
+.Dd October 23, 2018
 .Dt LDD 1
 .Os
 .Sh NAME
@@ -57,6 +57,14 @@ option displays a verbose listing of the dynamic linking headers
 encoded in the executable.
 See the source code and include
 files for the definitive meaning of all the fields.
+.Sh IMPLEMENTATION NOTES
+.Nm
+lists the dependencies of an executable by setting
+.Xr rtld 1
+environment variables and running the executable in a child process.
+If the executable is corrupt or invalid,
+.Nm
+may therefore fail without providing any diagnostic error messages.
 .Sh EXAMPLES
 The following is an example of a shell pipeline which uses the
 .Fl f
@@ -67,6 +75,7 @@ which link against libc.so.6:
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr nm 1 ,
+.Xr readelf 1 ,
 .Xr rtld 1
 .Sh HISTORY
 A

@@ -89,6 +89,7 @@ struct pcb {
 			register_t	dbcr0;
 		} booke;
 	} pcb_cpu;
+	vm_offset_t pcb_lastill;	/* Last illegal instruction */
 };
 #endif
 

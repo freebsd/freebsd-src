@@ -129,7 +129,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_SHUTDOWN 3"
-.TH SSL_SHUTDOWN 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH SSL_SHUTDOWN 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -146,69 +146,76 @@ SSL_shutdown \- shut down a TLS/SSL connection
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 \&\fISSL_shutdown()\fR shuts down an active \s-1TLS/SSL\s0 connection. It sends the
-\&\*(L"close notify\*(R" shutdown alert to the peer.
+close_notify shutdown alert to the peer.
 .SH "NOTES"
 .IX Header "NOTES"
-\&\fISSL_shutdown()\fR tries to send the \*(L"close notify\*(R" shutdown alert to the peer.
+\&\fISSL_shutdown()\fR tries to send the close_notify shutdown alert to the peer.
 Whether the operation succeeds or not, the \s-1SSL_SENT_SHUTDOWN\s0 flag is set and
 a currently open session is considered closed and good and will be kept in the
 session cache for further reuse.
 .PP
-The shutdown procedure consists of 2 steps: the sending of the \*(L"close notify\*(R"
-shutdown alert and the reception of the peer's \*(L"close notify\*(R" shutdown
-alert. According to the \s-1TLS\s0 standard, it is acceptable for an application
-to only send its shutdown alert and then close the underlying connection
-without waiting for the peer's response (this way resources can be saved,
-as the process can already terminate or serve another connection).
-When the underlying connection shall be used for more communications, the
-complete shutdown procedure (bidirectional \*(L"close notify\*(R" alerts) must be
-performed, so that the peers stay synchronized.
+The shutdown procedure consists of two steps: sending of the close_notify
+shutdown alert, and reception of the peer's close_notify shutdown alert.
+The order of those two steps depends on the application.
 .PP
-\&\fISSL_shutdown()\fR supports both uni\- and bidirectional shutdown by its 2 step
-behaviour.
+It is acceptable for an application to only send its shutdown alert and
+then close the underlying connection without waiting for the peer's response.
+This way resources can be saved, as the process can already terminate or
+serve another connection.
+This should only be done when it is known that the other side will not send more
+data, otherwise there is a risk of a truncation attack.
+.PP
+When a client only writes and never reads from the connection, and the server
+has sent a session ticket to establish a session, the client might not be able
+to resume the session because it did not received and process the session ticket
+from the server.
+In case the application wants to be able to resume the session, it is recommended to
+do a complete shutdown procedure (bidirectional close_notify alerts).
+.PP
+When the underlying connection shall be used for more communications, the
+complete shutdown procedure must be performed, so that the peers stay
+synchronized.
 .PP
 \&\fISSL_shutdown()\fR only closes the write direction.
 It is not possible to call \fISSL_write()\fR after calling \fISSL_shutdown()\fR.
 The read direction is closed by the peer.
 .SS "First to close the connection"
 .IX Subsection "First to close the connection"
-When the application is the first party to send the \*(L"close notify\*(R"
+When the application is the first party to send the close_notify
 alert, \fISSL_shutdown()\fR will only send the alert and then set the
 \&\s-1SSL_SENT_SHUTDOWN\s0 flag (so that the session is considered good and will
 be kept in the cache).
-\&\fISSL_shutdown()\fR will then return with 0.
+If successful, \fISSL_shutdown()\fR will return 0.
+.PP
 If a unidirectional shutdown is enough (the underlying connection shall be
-closed anyway), this first call to \fISSL_shutdown()\fR is sufficient.
+closed anyway), this first successful call to \fISSL_shutdown()\fR is sufficient.
 .PP
 In order to complete the bidirectional shutdown handshake, the peer needs
-to send back a \*(L"close notify\*(R" alert.
+to send back a close_notify alert.
 The \s-1SSL_RECEIVED_SHUTDOWN\s0 flag will be set after receiving and processing
 it.
-\&\fISSL_shutdown()\fR will return 1 when it has been received.
 .PP
-The peer is still allowed to send data after receiving the \*(L"close notify\*(R"
+The peer is still allowed to send data after receiving the close_notify
 event.
-If the peer did send data it needs to be processed by calling \fISSL_read()\fR
-before calling \fISSL_shutdown()\fR a second time.
+When it is done sending data, it will send the close_notify alert.
+\&\fISSL_read()\fR should be called until all data is received.
 \&\fISSL_read()\fR will indicate the end of the peer data by returning <= 0
 and \fISSL_get_error()\fR returning \s-1SSL_ERROR_ZERO_RETURN.\s0
-It is recommended to call \fISSL_read()\fR between \fISSL_shutdown()\fR calls.
 .SS "Peer closes the connection"
 .IX Subsection "Peer closes the connection"
-If the peer already sent the \*(L"close notify\*(R" alert \fBand\fR it was
+If the peer already sent the close_notify alert \fBand\fR it was
 already processed implicitly inside another function
 (\fISSL_read\fR\|(3)), the \s-1SSL_RECEIVED_SHUTDOWN\s0 flag is set.
 \&\fISSL_read()\fR will return <= 0 in that case, and \fISSL_get_error()\fR will return
 \&\s-1SSL_ERROR_ZERO_RETURN.\s0
-\&\fISSL_shutdown()\fR will send the \*(L"close notify\*(R" alert, set the \s-1SSL_SENT_SHUTDOWN\s0
-flag and will immediately return with 1.
+\&\fISSL_shutdown()\fR will send the close_notify alert, set the \s-1SSL_SENT_SHUTDOWN\s0
+flag.
+If successful, \fISSL_shutdown()\fR will return 1.
+.PP
 Whether \s-1SSL_RECEIVED_SHUTDOWN\s0 is already set can be checked using the
 \&\fISSL_get_shutdown()\fR (see also \fISSL_set_shutdown\fR\|(3) call.
 .SH "NOTES"
 .IX Header "NOTES"
-It is recommended to do a bidirectional shutdown by checking the return value
-of \fISSL_shutdown()\fR and call it again until it returns 1 or a fatal error.
-.PP
 The behaviour of \fISSL_shutdown()\fR additionally depends on the underlying \s-1BIO.\s0
 If the underlying \s-1BIO\s0 is \fBblocking\fR, \fISSL_shutdown()\fR will only return once the
 handshake step has been finished or an error occurred.
@@ -224,8 +231,13 @@ nothing is to be done, but \fIselect()\fR can be used to check for the required
 condition. When using a buffering \s-1BIO,\s0 like a \s-1BIO\s0 pair, data must be written
 into or retrieved out of the \s-1BIO\s0 before being able to continue.
 .PP
+After \fISSL_shutdown()\fR returned 0, it is possible to call \fISSL_shutdown()\fR again
+to wait for the peer's close_notify alert.
+\&\fISSL_shutdown()\fR will return 1 in that case.
+However, it is recommended to wait for it using \fISSL_read()\fR instead.
+.PP
 \&\fISSL_shutdown()\fR can be modified to only set the connection to \*(L"shutdown\*(R"
-state but not actually send the \*(L"close notify\*(R" alert messages,
+state but not actually send the close_notify alert messages,
 see \fISSL_CTX_set_quiet_shutdown\fR\|(3).
 When \*(L"quiet shutdown\*(R" is enabled, \fISSL_shutdown()\fR will always succeed
 and return 1.
@@ -233,15 +245,15 @@ and return 1.
 .IX Header "RETURN VALUES"
 The following return values can occur:
 .IP "0" 4
-The shutdown is not yet finished: the \*(L"close notify\*(R" was send but the peer
+The shutdown is not yet finished: the close_notify was sent but the peer
 did not send it back yet.
-Call \fISSL_shutdown()\fR again to do a bidirectional shutdown.
+Call \fISSL_read()\fR to do a bidirectional shutdown.
 The output of \fISSL_get_error\fR\|(3) may be misleading, as an
 erroneous \s-1SSL_ERROR_SYSCALL\s0 may be flagged even though no error occurred.
 .IP "1" 4
 .IX Item "1"
-The shutdown was successfully completed. The \*(L"close notify\*(R" alert was sent
-and the peer's \*(L"close notify\*(R" alert was received.
+The shutdown was successfully completed. The close_notify alert was sent
+and the peer's close_notify alert was received.
 .IP "<0" 4
 .IX Item "<0"
 The shutdown was not successful.

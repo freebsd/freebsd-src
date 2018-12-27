@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// \brief Enums/classes describing ABI related information about constructors,
+/// Enums/classes describing ABI related information about constructors,
 /// destructors and thunks.
 ///
 //===----------------------------------------------------------------------===//
@@ -21,7 +21,7 @@
 
 namespace clang {
 
-/// \brief C++ constructor types.
+/// C++ constructor types.
 enum CXXCtorType {
   Ctor_Complete,       ///< Complete object ctor
   Ctor_Base,           ///< Base object ctor
@@ -30,7 +30,7 @@ enum CXXCtorType {
   Ctor_DefaultClosure, ///< Default closure variant of a ctor
 };
 
-/// \brief C++ destructor types.
+/// C++ destructor types.
 enum CXXDtorType {
     Dtor_Deleting, ///< Deleting dtor
     Dtor_Complete, ///< Complete object dtor
@@ -38,29 +38,29 @@ enum CXXDtorType {
     Dtor_Comdat    ///< The COMDAT used for dtors
 };
 
-/// \brief A return adjustment.
+/// A return adjustment.
 struct ReturnAdjustment {
-  /// \brief The non-virtual adjustment from the derived object to its
+  /// The non-virtual adjustment from the derived object to its
   /// nearest virtual base.
   int64_t NonVirtual;
 
-  /// \brief Holds the ABI-specific information about the virtual return
+  /// Holds the ABI-specific information about the virtual return
   /// adjustment, if needed.
   union VirtualAdjustment {
     // Itanium ABI
     struct {
-      /// \brief The offset (in bytes), relative to the address point
+      /// The offset (in bytes), relative to the address point
       /// of the virtual base class offset.
       int64_t VBaseOffsetOffset;
     } Itanium;
 
     // Microsoft ABI
     struct {
-      /// \brief The offset (in bytes) of the vbptr, relative to the beginning
+      /// The offset (in bytes) of the vbptr, relative to the beginning
       /// of the derived class.
       uint32_t VBPtrOffset;
 
-      /// \brief Index of the virtual base in the vbtable.
+      /// Index of the virtual base in the vbtable.
       uint32_t VBIndex;
     } Microsoft;
 
@@ -81,12 +81,12 @@ struct ReturnAdjustment {
       return memcmp(this, &RHS, sizeof(RHS)) < 0;
     }
   } Virtual;
-  
+
   ReturnAdjustment() : NonVirtual(0) {}
-  
+
   bool isEmpty() const { return !NonVirtual && Virtual.isEmpty(); }
 
-  friend bool operator==(const ReturnAdjustment &LHS, 
+  friend bool operator==(const ReturnAdjustment &LHS,
                          const ReturnAdjustment &RHS) {
     return LHS.NonVirtual == RHS.NonVirtual && LHS.Virtual.Equals(RHS.Virtual);
   }
@@ -103,32 +103,32 @@ struct ReturnAdjustment {
     return LHS.NonVirtual == RHS.NonVirtual && LHS.Virtual.Less(RHS.Virtual);
   }
 };
-  
-/// \brief A \c this pointer adjustment.
+
+/// A \c this pointer adjustment.
 struct ThisAdjustment {
-  /// \brief The non-virtual adjustment from the derived object to its
+  /// The non-virtual adjustment from the derived object to its
   /// nearest virtual base.
   int64_t NonVirtual;
 
-  /// \brief Holds the ABI-specific information about the virtual this
+  /// Holds the ABI-specific information about the virtual this
   /// adjustment, if needed.
   union VirtualAdjustment {
     // Itanium ABI
     struct {
-      /// \brief The offset (in bytes), relative to the address point,
+      /// The offset (in bytes), relative to the address point,
       /// of the virtual call offset.
       int64_t VCallOffsetOffset;
     } Itanium;
 
     struct {
-      /// \brief The offset of the vtordisp (in bytes), relative to the ECX.
+      /// The offset of the vtordisp (in bytes), relative to the ECX.
       int32_t VtordispOffset;
 
-      /// \brief The offset of the vbptr of the derived class (in bytes),
+      /// The offset of the vbptr of the derived class (in bytes),
       /// relative to the ECX after vtordisp adjustment.
       int32_t VBPtrOffset;
 
-      /// \brief The offset (in bytes) of the vbase offset in the vbtable.
+      /// The offset (in bytes) of the vbase offset in the vbtable.
       int32_t VBOffsetOffset;
     } Microsoft;
 
@@ -149,12 +149,12 @@ struct ThisAdjustment {
       return memcmp(this, &RHS, sizeof(RHS)) < 0;
     }
   } Virtual;
-  
+
   ThisAdjustment() : NonVirtual(0) { }
 
   bool isEmpty() const { return !NonVirtual && Virtual.isEmpty(); }
 
-  friend bool operator==(const ThisAdjustment &LHS, 
+  friend bool operator==(const ThisAdjustment &LHS,
                          const ThisAdjustment &RHS) {
     return LHS.NonVirtual == RHS.NonVirtual && LHS.Virtual.Equals(RHS.Virtual);
   }
@@ -162,28 +162,28 @@ struct ThisAdjustment {
   friend bool operator!=(const ThisAdjustment &LHS, const ThisAdjustment &RHS) {
     return !(LHS == RHS);
   }
-  
+
   friend bool operator<(const ThisAdjustment &LHS,
                         const ThisAdjustment &RHS) {
     if (LHS.NonVirtual < RHS.NonVirtual)
       return true;
-    
+
     return LHS.NonVirtual == RHS.NonVirtual && LHS.Virtual.Less(RHS.Virtual);
   }
 };
 
 class CXXMethodDecl;
 
-/// \brief The \c this pointer adjustment as well as an optional return
+/// The \c this pointer adjustment as well as an optional return
 /// adjustment for a thunk.
 struct ThunkInfo {
-  /// \brief The \c this pointer adjustment.
+  /// The \c this pointer adjustment.
   ThisAdjustment This;
-    
-  /// \brief The return adjustment.
+
+  /// The return adjustment.
   ReturnAdjustment Return;
 
-  /// \brief Holds a pointer to the overridden method this thunk is for,
+  /// Holds a pointer to the overridden method this thunk is for,
   /// if needed by the ABI to distinguish different thunks with equal
   /// adjustments. Otherwise, null.
   /// CAUTION: In the unlikely event you need to sort ThunkInfos, consider using
@@ -204,7 +204,7 @@ struct ThunkInfo {
   bool isEmpty() const {
     return This.isEmpty() && Return.isEmpty() && Method == nullptr;
   }
-};  
+};
 
 } // end namespace clang
 

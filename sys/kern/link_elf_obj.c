@@ -368,6 +368,11 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 
 				dpcpu = dpcpu_alloc(shdr[i].sh_size);
 				if (dpcpu == NULL) {
+					printf("%s: pcpu module space is out "
+					    "of space; cannot allocate %#jx "
+					    "for %s\n", __func__,
+					    (uintmax_t)shdr[i].sh_size,
+					    filename);
 					error = ENOSPC;
 					goto out;
 				}
@@ -382,6 +387,11 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 
 				vnet_data = vnet_data_alloc(shdr[i].sh_size);
 				if (vnet_data == NULL) {
+					printf("%s: vnet module space is out "
+					    "of space; cannot allocate %#jx "
+					    "for %s\n", __func__,
+					    (uintmax_t)shdr[i].sh_size,
+					    filename);
 					error = ENOSPC;
 					goto out;
 				}
@@ -847,14 +857,30 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
 			if (ef->progtab[pb].name != NULL && 
-			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
+			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
 				ef->progtab[pb].addr =
 				    dpcpu_alloc(shdr[i].sh_size);
+				if (ef->progtab[pb].addr == NULL) {
+					printf("%s: pcpu module space is out "
+					    "of space; cannot allocate %#jx "
+					    "for %s\n", __func__,
+					    (uintmax_t)shdr[i].sh_size,
+					    filename);
+				}
+			}
 #ifdef VIMAGE
 			else if (ef->progtab[pb].name != NULL &&
-			    !strcmp(ef->progtab[pb].name, VNET_SETNAME))
+			    !strcmp(ef->progtab[pb].name, VNET_SETNAME)) {
 				ef->progtab[pb].addr =
 				    vnet_data_alloc(shdr[i].sh_size);
+				if (ef->progtab[pb].addr == NULL) {
+					printf("%s: vnet module space is out "
+					    "of space; cannot allocate %#jx "
+					    "for %s\n", __func__,
+					    (uintmax_t)shdr[i].sh_size,
+					    filename);
+				}
+			}
 #endif
 			else
 				ef->progtab[pb].addr =

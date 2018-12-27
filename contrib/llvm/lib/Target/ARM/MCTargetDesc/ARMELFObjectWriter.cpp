@@ -64,7 +64,7 @@ bool ARMELFObjectWriter::needsRelocateWithSymbol(const MCSymbol &Sym,
   }
 }
 
-// Need to examine the Fixup when determining whether to 
+// Need to examine the Fixup when determining whether to
 // emit the relocation as an explicit symbol or as a section relative
 // offset
 unsigned ARMELFObjectWriter::getRelocType(MCContext &Ctx, const MCValue &Target,
@@ -236,9 +236,7 @@ unsigned ARMELFObjectWriter::GetRelocTypeInner(const MCValue &Target,
   }
 }
 
-std::unique_ptr<MCObjectWriter>
-llvm::createARMELFObjectWriter(raw_pwrite_stream &OS, uint8_t OSABI,
-                               bool IsLittleEndian) {
-  return createELFObjectWriter(llvm::make_unique<ARMELFObjectWriter>(OSABI), OS,
-                               IsLittleEndian);
+std::unique_ptr<MCObjectTargetWriter>
+llvm::createARMELFObjectWriter(uint8_t OSABI) {
+  return llvm::make_unique<ARMELFObjectWriter>(OSABI);
 }

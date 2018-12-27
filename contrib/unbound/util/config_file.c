@@ -177,7 +177,7 @@ config_create(void)
 	cfg->if_automatic = 0;
 	cfg->so_rcvbuf = 0;
 	cfg->so_sndbuf = 0;
-	cfg->so_reuseport = 1;
+	cfg->so_reuseport = REUSEPORT_DEFAULT;
 	cfg->ip_transparent = 0;
 	cfg->ip_freebind = 0;
 	cfg->num_ifs = 0;

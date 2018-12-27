@@ -1,9 +1,9 @@
 /*
- *  $Id: dlg_keys.h,v 1.32 2012/12/21 21:54:30 tom Exp $
+ *  $Id: dlg_keys.h,v 1.36 2016/08/28 21:23:17 tom Exp $
  *
  *  dlg_keys.h -- runtime binding support for dialog
  *
- *  Copyright 2005-2011,2012 Thomas E.  Dickey
+ *  Copyright 2005-2012,2016 Thomas E.  Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -96,7 +96,8 @@ typedef enum {
     DLGK_FINAL,
     DLGK_SELECT,
     DLGK_HELPFILE,
-    DLGK_TRACE
+    DLGK_TRACE,
+    DLGK_TOGGLE
 } DLG_KEYS_ENUM;
 
 #define is_DLGK_MOUSE(code)	((code) >= M_EVENT)
@@ -146,13 +147,16 @@ typedef enum {
 	DLG_KEYS_DATA( DLGK_PAGE_PREV,	'b' )
 
 #define TRAVERSE_BINDINGS \
-	DLG_KEYS_DATA( DLGK_ENTER,	' ' ), \
+	DLG_KEYS_DATA( DLGK_ENTER,	CHR_SPACE ), \
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_DOWN ), \
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ), \
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ), \
 	DLG_KEYS_DATA( DLGK_FIELD_PREV,	KEY_UP ), \
 	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_BTAB ), \
 	DLG_KEYS_DATA( DLGK_FIELD_PREV, KEY_LEFT )
+
+#define TOGGLEKEY_BINDINGS \
+	DLG_KEYS_DATA( DLGK_TOGGLE,	CHR_SPACE )
 
 extern int dlg_lookup_key(WINDOW * /*win*/, int /*curses_key*/, int * /*dialog_key*/);
 extern int dlg_result_key(int /*dialog_key*/, int /*fkey*/, int * /*resultp*/);

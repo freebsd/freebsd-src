@@ -146,7 +146,6 @@ struct  ether_addr {
 #  define	COPYIN(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))
 #  define	COPYOUT(a,b,c)	copyout((caddr_t)(a), (caddr_t)(b), (c))
 
-#   define NETBSD_PF
 # else
 #  include <inttypes.h>
 # endif /* _KERNEL */
@@ -757,16 +756,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 # define	TCP_OFF_A(x,y)	(x)->th_off = (y)
 #endif
 #define	IPMINLEN(i, h)	((i)->ip_len >= (IP_HL(i) * 4 + sizeof(struct h)))
-
-
-/*
- * XXX - This is one of those *awful* hacks which nobody likes
- */
-#ifdef	ultrix
-#define	A_A
-#else
-#define	A_A	&
-#endif
 
 #define	TCPF_ALL	(TH_FIN|TH_SYN|TH_RST|TH_PUSH|TH_ACK|TH_URG|\
 			 TH_ECN|TH_CWR)
@@ -1410,10 +1399,6 @@ typedef	struct	tcpiphdr	tcpiphdr_t;
 #define	ICMP_MAX_UNREACH	14
 #undef	ICMP_MAXTYPE
 #define	ICMP_MAXTYPE		18
-
-#ifndef	IFNAMSIZ
-#define	IFNAMSIZ		16
-#endif
 
 #ifndef	LOG_FTP
 # define	LOG_FTP		(11<<3)

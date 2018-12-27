@@ -82,12 +82,16 @@ SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
  * Interfaces with GIF_IGNORE_SOURCE flag are linked into plain list.
  */
 VNET_DEFINE_STATIC(struct gif_list *, ipv4_hashtbl) = NULL;
+VNET_DEFINE_STATIC(struct gif_list *, ipv4_srchashtbl) = NULL;
 VNET_DEFINE_STATIC(struct gif_list, ipv4_list) = CK_LIST_HEAD_INITIALIZER();
 #define	V_ipv4_hashtbl		VNET(ipv4_hashtbl)
+#define	V_ipv4_srchashtbl	VNET(ipv4_srchashtbl)
 #define	V_ipv4_list		VNET(ipv4_list)
 
 #define	GIF_HASH(src, dst)	(V_ipv4_hashtbl[\
     in_gif_hashval((src), (dst)) & (GIF_HASH_SIZE - 1)])
+#define	GIF_SRCHASH(src)	(V_ipv4_srchashtbl[\
+    fnv_32_buf(&(src), sizeof(src), FNV1_32_INIT) & (GIF_HASH_SIZE - 1)])
 #define	GIF_HASH_SC(sc)		GIF_HASH((sc)->gif_iphdr->ip_src.s_addr,\
     (sc)->gif_iphdr->ip_dst.s_addr)
 static uint32_t
@@ -119,6 +123,44 @@ in_gif_checkdup(const struct gif_softc *sc, in_addr_t src, in_addr_t dst)
 	return (0);
 }
 
+/*
+ * Check that ingress address belongs to local host.
+ */
+static void
+in_gif_set_running(struct gif_softc *sc)
+{
+
+	if (in_localip(sc->gif_iphdr->ip_src))
+		GIF2IFP(sc)->if_drv_flags |= IFF_DRV_RUNNING;
+	else
+		GIF2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
+}
+
+/*
+ * ifaddr_event handler.
+ * Clear IFF_DRV_RUNNING flag when ingress address disappears to prevent
+ * source address spoofing.
+ */
+static void
+in_gif_srcaddr(void *arg __unused, const struct sockaddr *sa,
+    int event __unused)
+{
+	const struct sockaddr_in *sin;
+	struct gif_softc *sc;
+
+	/* Check that VNET is ready */
+	if (V_ipv4_hashtbl == NULL)
+		return;
+
+	MPASS(in_epoch(net_epoch_preempt));
+	sin = (const struct sockaddr_in *)sa;
+	CK_LIST_FOREACH(sc, &GIF_SRCHASH(sin->sin_addr.s_addr), srchash) {
+		if (sc->gif_iphdr->ip_src.s_addr != sin->sin_addr.s_addr)
+			continue;
+		in_gif_set_running(sc);
+	}
+}
+
 static void
 in_gif_attach(struct gif_softc *sc)
 {
@@ -127,6 +169,9 @@ in_gif_attach(struct gif_softc *sc)
 		CK_LIST_INSERT_HEAD(&V_ipv4_list, sc, chain);
 	else
 		CK_LIST_INSERT_HEAD(&GIF_HASH_SC(sc), sc, chain);
+
+	CK_LIST_INSERT_HEAD(&GIF_SRCHASH(sc->gif_iphdr->ip_src.s_addr),
+	    sc, srchash);
 }
 
 int
@@ -139,6 +184,7 @@ in_gif_setopts(struct gif_softc *sc, u_int options)
 
 	if ((options & GIF_IGNORE_SOURCE) !=
 	    (sc->gif_options & GIF_IGNORE_SOURCE)) {
+		CK_LIST_REMOVE(sc, srchash);
 		CK_LIST_REMOVE(sc, chain);
 		sc->gif_options = options;
 		in_gif_attach(sc);
@@ -172,8 +218,10 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 			error = EADDRNOTAVAIL;
 			break;
 		}
-		if (V_ipv4_hashtbl == NULL)
+		if (V_ipv4_hashtbl == NULL) {
 			V_ipv4_hashtbl = gif_hashinit();
+			V_ipv4_srchashtbl = gif_hashinit();
+		}
 		error = in_gif_checkdup(sc, src->sin_addr.s_addr,
 		    dst->sin_addr.s_addr);
 		if (error == EADDRNOTAVAIL)
@@ -188,6 +236,7 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		ip->ip_dst.s_addr = dst->sin_addr.s_addr;
 		if (sc->gif_family != 0) {
 			/* Detach existing tunnel first */
+			CK_LIST_REMOVE(sc, srchash);
 			CK_LIST_REMOVE(sc, chain);
 			GIF_WAIT();
 			free(sc->gif_hdr, M_GIF);
@@ -196,6 +245,7 @@ in_gif_ioctl(struct gif_softc *sc, u_long cmd, caddr_t data)
 		sc->gif_family = AF_INET;
 		sc->gif_iphdr = ip;
 		in_gif_attach(sc);
+		in_gif_set_running(sc);
 		break;
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
@@ -342,6 +392,7 @@ done:
 	return (ret);
 }
 
+static const struct srcaddrtab *ipv4_srcaddrtab;
 static struct {
 	const struct encap_config encap;
 	const struct encaptab *cookie;
@@ -387,6 +438,9 @@ in_gif_init(void)
 
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
+
+	ipv4_srcaddrtab = ip_encap_register_srcaddr(in_gif_srcaddr,
+	    NULL, M_WAITOK);
 	for (i = 0; i < nitems(ipv4_encap_cfg); i++)
 		ipv4_encap_cfg[i].cookie = ip_encap_attach(
 		    &ipv4_encap_cfg[i].encap, NULL, M_WAITOK);
@@ -400,8 +454,13 @@ in_gif_uninit(void)
 	if (IS_DEFAULT_VNET(curvnet)) {
 		for (i = 0; i < nitems(ipv4_encap_cfg); i++)
 			ip_encap_detach(ipv4_encap_cfg[i].cookie);
+		ip_encap_unregister_srcaddr(ipv4_srcaddrtab);
 	}
-	if (V_ipv4_hashtbl != NULL)
+	if (V_ipv4_hashtbl != NULL) {
 		gif_hashdestroy(V_ipv4_hashtbl);
+		V_ipv4_hashtbl = NULL;
+		GIF_WAIT();
+		gif_hashdestroy(V_ipv4_srchashtbl);
+	}
 }
 

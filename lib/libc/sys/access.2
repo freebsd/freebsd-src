@@ -28,7 +28,7 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2014
+.Dd November 11, 2018
 .Dt ACCESS 2
 .Os
 .Sh NAME
@@ -120,6 +120,13 @@ list, defined in
 The checks for accessibility are performed using the effective user and group
 IDs instead of the real user and group ID as required in a call to
 .Fn access .
+.It Dv AT_BENEATH
+Only operate on files and directories below the topping directory.
+See the description of the
+.Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
 .El
 .Pp
 Even if a process's real or effective user has appropriate privileges
@@ -195,6 +202,24 @@ argument is not an absolute path and
 is neither
 .Dv AT_FDCWD
 nor a file descriptor associated with a directory.
+.It Bq Er ENOTCAPABLE
+.Fa path
+is an absolute path,
+or contained a ".." component leading to a
+directory outside of the directory hierarchy specified by
+.Fa fd ,
+and the process is in capability mode.
+.It Bq Er ENOTCAPABLE
+The
+.Dv AT_BENEATH
+flag was provided to
+.Fn faccessat ,
+and the absolute
+.Fa path
+does not have its tail fully contained under the topping directory,
+or the relative
+.Fa path
+escapes it.
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,

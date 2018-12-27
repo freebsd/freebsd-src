@@ -45,7 +45,7 @@ siena_mac_multicast_list_set(
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_SIENA
-static const efx_mac_ops_t	__efx_siena_mac_ops = {
+static const efx_mac_ops_t	__efx_mac_siena_ops = {
 	siena_mac_poll,				/* emo_poll */
 	siena_mac_up,				/* emo_up */
 	siena_mac_reconfigure,			/* emo_addr_set */
@@ -60,6 +60,7 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	siena_mac_stats_get_mask,		/* emo_stats_get_mask */
+	efx_mcdi_mac_stats_clear,		/* emo_stats_clear */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	siena_mac_stats_update			/* emo_stats_update */
@@ -67,8 +68,8 @@ static const efx_mac_ops_t	__efx_siena_mac_ops = {
 };
 #endif	/* EFSYS_OPT_SIENA */
 
-#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD
-static const efx_mac_ops_t	__efx_ef10_mac_ops = {
+#if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
+static const efx_mac_ops_t	__efx_mac_ef10_ops = {
 	ef10_mac_poll,				/* emo_poll */
 	ef10_mac_up,				/* emo_up */
 	ef10_mac_addr_set,			/* emo_addr_set */
@@ -84,12 +85,13 @@ static const efx_mac_ops_t	__efx_ef10_mac_ops = {
 #endif	/* EFSYS_OPT_LOOPBACK */
 #if EFSYS_OPT_MAC_STATS
 	ef10_mac_stats_get_mask,		/* emo_stats_get_mask */
+	efx_mcdi_mac_stats_clear,		/* emo_stats_clear */
 	efx_mcdi_mac_stats_upload,		/* emo_stats_upload */
 	efx_mcdi_mac_stats_periodic,		/* emo_stats_periodic */
 	ef10_mac_stats_update			/* emo_stats_update */
 #endif	/* EFSYS_OPT_MAC_STATS */
 };
-#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD */
+#endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
 
 	__checkReturn			efx_rc_t
 efx_mac_pdu_set(
@@ -519,7 +521,7 @@ efx_mac_filter_default_rxq_clear(
 
 #if EFSYS_OPT_NAMES
 
-/* START MKCONFIG GENERATED EfxMacStatNamesBlock c11b91b42f922516 */
+/* START MKCONFIG GENERATED EfxMacStatNamesBlock 1a45a82fcfb30c1b */
 static const char * const __efx_mac_stat_name[] = {
 	"rx_octets",
 	"rx_pkts",
@@ -602,6 +604,31 @@ static const char * const __efx_mac_stat_name[] = {
 	"vadapter_tx_bad_packets",
 	"vadapter_tx_bad_bytes",
 	"vadapter_tx_overflow",
+	"fec_uncorrected_errors",
+	"fec_corrected_errors",
+	"fec_corrected_symbols_lane0",
+	"fec_corrected_symbols_lane1",
+	"fec_corrected_symbols_lane2",
+	"fec_corrected_symbols_lane3",
+	"ctpio_vi_busy_fallback",
+	"ctpio_long_write_success",
+	"ctpio_missing_dbell_fail",
+	"ctpio_overflow_fail",
+	"ctpio_underflow_fail",
+	"ctpio_timeout_fail",
+	"ctpio_noncontig_wr_fail",
+	"ctpio_frm_clobber_fail",
+	"ctpio_invalid_wr_fail",
+	"ctpio_vi_clobber_fallback",
+	"ctpio_unqualified_fallback",
+	"ctpio_runt_fallback",
+	"ctpio_success",
+	"ctpio_fallback",
+	"ctpio_poison",
+	"ctpio_erase",
+	"rxdp_scatter_disabled_trunc",
+	"rxdp_hlb_idle",
+	"rxdp_hlb_timeout",
 };
 /* END MKCONFIG GENERATED EfxMacStatNamesBlock */
 
@@ -719,6 +746,29 @@ fail1:
 }
 
 	__checkReturn			efx_rc_t
+efx_mac_stats_clear(
+	__in				efx_nic_t *enp)
+{
+	efx_port_t *epp = &(enp->en_port);
+	const efx_mac_ops_t *emop = epp->ep_emop;
+	efx_rc_t rc;
+
+	EFSYS_ASSERT3U(enp->en_magic, ==, EFX_NIC_MAGIC);
+	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
+	EFSYS_ASSERT(emop != NULL);
+
+	if ((rc = emop->emo_stats_clear(enp)) != 0)
+		goto fail1;
+
+	return (0);
+
+fail1:
+	EFSYS_PROBE1(fail1, efx_rc_t, rc);
+
+	return (rc);
+}
+
+	__checkReturn			efx_rc_t
 efx_mac_stats_upload(
 	__in				efx_nic_t *enp,
 	__in				efsys_mem_t *esmp)
@@ -731,15 +781,8 @@ efx_mac_stats_upload(
 	EFSYS_ASSERT3U(enp->en_mod_flags, &, EFX_MOD_PORT);
 	EFSYS_ASSERT(emop != NULL);
 
-	/*
-	 * Don't assert !ep_mac_stats_pending, because the client might
-	 * have failed to finalise statistics when previously stopping
-	 * the port.
-	 */
 	if ((rc = emop->emo_stats_upload(enp, esmp)) != 0)
 		goto fail1;
-
-	epp->ep_mac_stats_pending = B_TRUE;
 
 	return (0);
 
@@ -800,8 +843,6 @@ efx_mac_stats_update(
 	EFSYS_ASSERT(emop != NULL);
 
 	rc = emop->emo_stats_update(enp, esmp, essp, generationp);
-	if (rc == 0)
-		epp->ep_mac_stats_pending = B_FALSE;
 
 	return (rc);
 }
@@ -820,24 +861,31 @@ efx_mac_select(
 	switch (enp->en_family) {
 #if EFSYS_OPT_SIENA
 	case EFX_FAMILY_SIENA:
-		emop = &__efx_siena_mac_ops;
+		emop = &__efx_mac_siena_ops;
 		type = EFX_MAC_SIENA;
 		break;
 #endif /* EFSYS_OPT_SIENA */
 
 #if EFSYS_OPT_HUNTINGTON
 	case EFX_FAMILY_HUNTINGTON:
-		emop = &__efx_ef10_mac_ops;
+		emop = &__efx_mac_ef10_ops;
 		type = EFX_MAC_HUNTINGTON;
 		break;
 #endif /* EFSYS_OPT_HUNTINGTON */
 
 #if EFSYS_OPT_MEDFORD
 	case EFX_FAMILY_MEDFORD:
-		emop = &__efx_ef10_mac_ops;
+		emop = &__efx_mac_ef10_ops;
 		type = EFX_MAC_MEDFORD;
 		break;
 #endif /* EFSYS_OPT_MEDFORD */
+
+#if EFSYS_OPT_MEDFORD2
+	case EFX_FAMILY_MEDFORD2:
+		emop = &__efx_mac_ef10_ops;
+		type = EFX_MAC_MEDFORD2;
+		break;
+#endif /* EFSYS_OPT_MEDFORD2 */
 
 	default:
 		rc = EINVAL;

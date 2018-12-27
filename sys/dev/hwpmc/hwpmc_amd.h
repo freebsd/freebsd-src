@@ -44,9 +44,39 @@
 #define	AMD_PMC_PERFCTR_1	0xC0010005
 #define	AMD_PMC_PERFCTR_2	0xC0010006
 #define	AMD_PMC_PERFCTR_3	0xC0010007
+/* CORE */
+#define	AMD_PMC_EVSEL_4		0xC0010208
+#define	AMD_PMC_EVSEL_5		0xC001020A
 
+#define	AMD_PMC_PERFCTR_4	0xC0010209
+#define	AMD_PMC_PERFCTR_5	0xC001020B
+/* L3 */
+#define	AMD_PMC_EVSEL_EP_L3_0	0xC0010230
+#define	AMD_PMC_EVSEL_EP_L3_1	0xC0010232
+#define	AMD_PMC_EVSEL_EP_L3_2	0xC0010234
+#define	AMD_PMC_EVSEL_EP_L3_3	0xC0010236
+#define	AMD_PMC_EVSEL_EP_L3_4	0xC0010238
+#define	AMD_PMC_EVSEL_EP_L3_5	0xC001023A
 
-#define	AMD_NPMCS		4
+#define	AMD_PMC_PERFCTR_EP_L3_0	0xC0010231
+#define	AMD_PMC_PERFCTR_EP_L3_1	0xC0010233
+#define	AMD_PMC_PERFCTR_EP_L3_2	0xC0010235
+#define	AMD_PMC_PERFCTR_EP_L3_3	0xC0010237
+#define	AMD_PMC_PERFCTR_EP_L3_4	0xC0010239
+#define	AMD_PMC_PERFCTR_EP_L3_5	0xC001023B
+/* DF */
+#define	AMD_PMC_EVSEL_EP_DF_0	0xC0010240
+#define	AMD_PMC_EVSEL_EP_DF_1	0xC0010242
+#define	AMD_PMC_EVSEL_EP_DF_2	0xC0010244
+#define	AMD_PMC_EVSEL_EP_DF_3	0xC0010246
+
+#define	AMD_PMC_PERFCTR_EP_DF_0	0xC0010241
+#define	AMD_PMC_PERFCTR_EP_DF_1	0xC0010243
+#define	AMD_PMC_PERFCTR_EP_DF_2	0xC0010245
+#define	AMD_PMC_PERFCTR_EP_DF_3	0xC0010247
+
+#define	AMD_NPMCS		16
+
 
 #define	AMD_PMC_COUNTERMASK	0xFF000000
 #define	AMD_PMC_TO_COUNTER(x)	(((x) << 24) & AMD_PMC_COUNTERMASK)
@@ -57,6 +87,10 @@
 #define	AMD_PMC_EDGE		(1 << 18)
 #define	AMD_PMC_OS		(1 << 17)
 #define	AMD_PMC_USR		(1 << 16)
+#define	AMD_PMC_L3SLICEMASK	(0x000F000000000000)
+#define	AMD_PMC_L3COREMASK	(0xFF00000000000000)
+#define	AMD_PMC_TO_L3SLICE(x)	(((x) << 48) & AMD_PMC_L3SLICEMASK)
+#define	AMD_PMC_TO_L3CORE(x)	(((x) << 56) & AMD_PMC_L3COREMASK)
 
 #define	AMD_PMC_UNITMASK_M	0x10
 #define	AMD_PMC_UNITMASK_O	0x08
@@ -70,6 +104,7 @@
 
 #define	AMD_PMC_TO_UNITMASK(x)	(((x) << 8) & AMD_PMC_UNITMASK)
 #define	AMD_PMC_TO_EVENTMASK(x)	(((x) & 0xFF) | (((uint64_t)(x) & 0xF00) << 24))
+#define	AMD_PMC_TO_EVENTMASK_DF(x)	(((x) & 0xFF) | (((uint64_t)(x) & 0x0F00) << 24)) | (((uint64_t)(x) & 0x3000) << 47)
 #define	AMD_VALID_BITS		(AMD_PMC_COUNTERMASK | AMD_PMC_INVERT |	\
 	AMD_PMC_ENABLE | AMD_PMC_INT | AMD_PMC_PC | AMD_PMC_EDGE | 	\
 	AMD_PMC_OS | AMD_PMC_USR | AMD_PMC_UNITMASK | AMD_PMC_EVENTMASK)
@@ -84,15 +119,22 @@
 #define	AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(V)	(-(V))
 #define	AMD_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
 
+enum sub_class{
+	PMC_AMD_SUB_CLASS_CORE,
+	PMC_AMD_SUB_CLASS_L3_CACHE,
+	PMC_AMD_SUB_CLASS_DATA_FABRIC
+};
+
 struct pmc_md_amd_op_pmcallocate {
-	uint32_t	pm_amd_config;
+	uint64_t	pm_amd_config;
+	uint32_t	pm_amd_sub_class;
 };
 
 #ifdef _KERNEL
 
 /* MD extension for 'struct pmc' */
 struct pmc_md_amd_pmc {
-	uint32_t	pm_amd_evsel;
+	uint64_t	pm_amd_evsel;
 };
 
 #endif /* _KERNEL */

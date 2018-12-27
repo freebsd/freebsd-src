@@ -219,9 +219,9 @@ __thr_fork(void)
 		_thr_rwl_rdlock(&_thr_atfork_lock);
 
 		if (was_threaded) {
-			__isthreaded = 1;
+			_thr_setthreaded(1);
 			_malloc_postfork();
-			__isthreaded = 0;
+			_thr_setthreaded(0);
 		}
 
 		/* Ready to continue, unblock signals. */ 

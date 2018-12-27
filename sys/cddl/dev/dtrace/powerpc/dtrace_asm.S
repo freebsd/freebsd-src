@@ -72,7 +72,7 @@ ASENTRY_NOPROF(dtrace_interrupt_disable)
 	rldicl	%r0,%r3,48,1
 	rotldi	%r0,%r0,16
 #else
-	rlwinm	%r0,%r3,0,~PSL_EE /* Clear EE flag */
+	rlwinm	%r0,%r3,0,17,15 /* Clear EE flag */
 #endif
 	mtmsr	%r0
 	blr

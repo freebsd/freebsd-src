@@ -156,8 +156,7 @@ readunits(const char *userfile)
 		}
 	}
 	cap_rights_init(&unitfilerights, CAP_READ, CAP_FSTAT);
-	if (cap_rights_limit(fileno(unitfile), &unitfilerights) < 0
-		&& errno != ENOSYS)
+	if (caph_rights_limit(fileno(unitfile), &unitfilerights) < 0)
 		err(1, "cap_rights_limit() failed");
 	while (!feof(unitfile)) {
 		if (!fgets(line, sizeof(line), unitfile))

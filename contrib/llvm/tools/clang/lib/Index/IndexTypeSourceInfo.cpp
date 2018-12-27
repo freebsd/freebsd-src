@@ -37,7 +37,7 @@ public:
       Relations.emplace_back((unsigned)SymbolRole::RelationIBTypeOf, Parent);
     }
   }
-  
+
   bool shouldWalkTypesOfTypeLocs() const { return false; }
 
 #define TRY_TO(CALL_EXPR)                                                      \
@@ -129,7 +129,7 @@ public:
   template<typename TypeLocType>
   bool HandleTemplateSpecializationTypeLoc(TypeLocType TL) {
     if (const auto *T = TL.getTypePtr()) {
-      if (IndexCtx.shouldIndexImplicitTemplateInsts()) {
+      if (IndexCtx.shouldIndexImplicitInstantiation()) {
         if (CXXRecordDecl *RD = T->getAsCXXRecordDecl())
           IndexCtx.handleReference(RD, TL.getTemplateNameLoc(),
                                    Parent, ParentDC, SymbolRoleSet(), Relations);
@@ -193,7 +193,7 @@ void IndexingContext::indexTypeSourceInfo(TypeSourceInfo *TInfo,
                                           bool isIBType) {
   if (!TInfo || TInfo->getTypeLoc().isNull())
     return;
-  
+
   indexTypeLoc(TInfo->getTypeLoc(), Parent, DC, isBase, isIBType);
 }
 

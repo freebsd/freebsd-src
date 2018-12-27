@@ -445,7 +445,7 @@ __rw_rlock_hard(struct rwlock *rw, struct thread *td, uintptr_t v
 	int64_t all_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state;
+	uintptr_t state = 0;
 	int doing_lockprof = 0;
 #endif
 
@@ -913,7 +913,7 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 	int64_t all_time = 0;
 #endif
 #if defined(KDTRACE_HOOKS) || defined(LOCK_PROFILING)
-	uintptr_t state;
+	uintptr_t state = 0;
 	int doing_lockprof = 0;
 #endif
 	int extra_work = 0;
@@ -1439,7 +1439,7 @@ __rw_assert(const volatile uintptr_t *c, int what, const char *file, int line)
 {
 	const struct rwlock *rw;
 
-	if (panicstr != NULL)
+	if (SCHEDULER_STOPPED())
 		return;
 
 	rw = rwlock2rw(c);

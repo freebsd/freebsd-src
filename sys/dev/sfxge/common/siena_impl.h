@@ -44,7 +44,16 @@
 extern "C" {
 #endif
 
+#ifndef EFX_TXQ_DC_SIZE
+#define	EFX_TXQ_DC_SIZE 1 /* 16 descriptors */
+#endif
+#ifndef EFX_RXQ_DC_SIZE
+#define	EFX_RXQ_DC_SIZE 3 /* 64 descriptors */
+#endif
+#define	EFX_TXQ_DC_NDESCS(_dcsize)	(8 << (_dcsize))
+
 #define	SIENA_NVRAM_CHUNK 0x80
+
 
 extern	__checkReturn	efx_rc_t
 siena_nic_probe(
@@ -59,6 +68,15 @@ siena_nic_init(
 	__in		efx_nic_t *enp);
 
 #if EFSYS_OPT_DIAG
+
+extern	efx_sram_pattern_fn_t	__efx_sram_pattern_fns[];
+
+typedef struct siena_register_set_s {
+	unsigned int		address;
+	unsigned int		step;
+	unsigned int		rows;
+	efx_oword_t		mask;
+} siena_register_set_t;
 
 extern	__checkReturn	efx_rc_t
 siena_nic_register_test(
@@ -147,7 +165,8 @@ siena_nvram_partn_lock(
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_unlock(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_get_dynamic_cfg(
@@ -219,7 +238,8 @@ siena_nvram_partn_write(
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_rw_finish(
 	__in			efx_nic_t *enp,
-	__in			uint32_t partn);
+	__in			uint32_t partn,
+	__out_opt		uint32_t *verify_resultp);
 
 extern	__checkReturn		efx_rc_t
 siena_nvram_partn_get_version(

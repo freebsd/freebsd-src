@@ -48,7 +48,7 @@ wcsnrtombs_l(char * __restrict dst, const wchar_t ** __restrict src, size_t nwc,
 {
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->wcsnrtombs;
+		ps = &(XLOCALE_CTYPE(locale)->wcsnrtombs);
 	return (XLOCALE_CTYPE(locale)->__wcsnrtombs(dst, src, nwc, len, ps));
 }
 size_t

@@ -60,6 +60,7 @@ const char *cfname;
 int iflag;
 int note_remove;
 int verbose;
+const char *separator = "\t";
 
 static void clear_persist(struct cfjail *j);
 static int update_jail(struct cfjail *j);
@@ -69,8 +70,9 @@ static void jail_quoted_warnx(const struct cfjail *j, const char *name_msg,
     const char *noname_msg);
 static int jailparam_set_note(const struct cfjail *j, struct jailparam *jp,
     unsigned njp, int flags);
-static void print_jail(FILE *fp, struct cfjail *j, int oldcl);
+static void print_jail(FILE *fp, struct cfjail *j, int oldcl, int running);
 static void print_param(FILE *fp, const struct cfparam *p, int sep, int doname);
+static void show_jails(void);
 static void quoted_print(FILE *fp, char *str);
 static void usage(void);
 
@@ -151,13 +153,17 @@ main(int argc, char **argv)
 	cfname = CONF_FILE;
 	JidFile = NULL;
 
-	while ((ch = getopt(argc, argv, "cdf:hiJ:lmn:p:qrRs:u:U:v")) != -1) {
+	while ((ch = getopt(argc, argv, "cde:f:hiJ:lmn:p:qrRs:u:U:v")) != -1) {
 		switch (ch) {
 		case 'c':
 			op |= JF_START;
 			break;
 		case 'd':
 			dflag = 1;
+			break;
+		case 'e':
+			op |= JF_SHOW;
+			separator = optarg;
 			break;
 		case 'f':
 			cfname = optarg;
@@ -276,7 +282,13 @@ main(int argc, char **argv)
 					    ? NULL : "false");
 			}
 		}
-	} else if (op == JF_STOP) {
+	} else if (op == JF_STOP || op == JF_SHOW) {
+		/* Just print list of all configured non-wildcard jails */
+		if (op == JF_SHOW) {
+			load_config();
+			show_jails();
+			exit(0);
+		}
 		/* Jail remove, perhaps using the config file */
 		if (!docf || argc == 0)
 			usage();
@@ -439,7 +451,7 @@ main(int argc, char **argv)
 		jail_create_done:
 			clear_persist(j);
 			if (jfp != NULL)
-				print_jail(jfp, j, oldcl);
+				print_jail(jfp, j, oldcl, 1);
 			dep_done(j, 0);
 			break;
 
@@ -918,16 +930,18 @@ jailparam_set_note(const struct cfjail *j, struct jailparam *jp, unsigned njp,
  * Print a jail record.
  */
 static void
-print_jail(FILE *fp, struct cfjail *j, int oldcl)
+print_jail(FILE *fp, struct cfjail *j, int oldcl, int running)
 {
 	struct cfparam *p;
+	int printsep;
 
 	if (oldcl) {
-		fprintf(fp, "%d\t", j->jid);
+		if (running)
+			fprintf(fp, "%d%s", j->jid, separator);
 		print_param(fp, j->intparams[KP_PATH], ',', 0);
-		putc('\t', fp);
+		fputs(separator, fp);
 		print_param(fp, j->intparams[KP_HOST_HOSTNAME], ',', 0);
-		putc('\t', fp);
+		fputs(separator, fp);
 #ifdef INET
 		print_param(fp, j->intparams[KP_IP4_ADDR], ',', 0);
 #ifdef INET6
@@ -941,17 +955,36 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl)
 #ifdef INET6
 		print_param(fp, j->intparams[KP_IP6_ADDR], ',', 0);
 #endif
-		putc('\t', fp);
+		fputs(separator, fp);
 		print_param(fp, j->intparams[IP_COMMAND], ' ', 0);
 	} else {
-		fprintf(fp, "jid=%d", j->jid);
+		printsep = 0;
+		if (running) {
+			fprintf(fp, "jid=%d", j->jid);
+			printsep = 1;
+		}
 		TAILQ_FOREACH(p, &j->params, tq)
 			if (strcmp(p->name, "jid")) {
-				putc(' ', fp);
+				if (printsep)
+					fputs(separator, fp);
+				else
+					printsep = 1;
 				print_param(fp, p, ',', 1);
 			}
 	}
 	putc('\n', fp);
+}
+
+/*
+ * Exhibit list of all configured non-wildcard jails
+ */
+static void
+show_jails(void)
+{
+	struct cfjail *j;
+	
+	TAILQ_FOREACH(j, &cfjails, tq)
+		print_jail(stdout, j, 0, 0);
 }
 
 /*
@@ -1007,7 +1040,7 @@ usage(void)
 	(void)fprintf(stderr,
 	    "usage: jail [-dhilqv] [-J jid_file] [-u username] [-U username]\n"
 	    "            -[cmr] param=value ... [command=command ...]\n"
-	    "       jail [-dqv] [-f file] -[cmr] [jail]\n"
+	    "       jail [-dqv] [-f file] [-e separator] -[cmr] [jail]\n"
 	    "       jail [-qv] [-f file] -[rR] ['*' | jail ...]\n"
 	    "       jail [-dhilqv] [-J jid_file] [-u username] [-U username]\n"
 	    "            [-n jailname] [-s securelevel]\n"

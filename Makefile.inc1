@@ -103,8 +103,11 @@ MK_GCC_BOOTSTRAP=	no
 # here since we will always have the right make, unlike in src/Makefile
 # Don't include bsd.linker.mk yet until XBINUTILS is handled (after src.opts.mk)
 _NO_INCLUDE_LINKERMK=	t
+# We also want the X_COMPILER* variables if we are using an external toolchain.
+_WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.compiler.mk"
 .undef _NO_INCLUDE_LINKERMK
+.undef _WANT_TOOLCHAIN_CROSS_VARS
 # src.opts.mk depends on COMPILER_FEATURES
 .include "share/mk/src.opts.mk"
 
@@ -126,9 +129,9 @@ TARGET_ABI=	gnueabi
 .endif
 .endif
 MACHINE_ABI?=	unknown
-MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd12.0
+MACHINE_TRIPLE?=${MACHINE_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${MACHINE_ABI}-freebsd13.0
 TARGET_ABI?=	unknown
-TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd12.0
+TARGET_TRIPLE?=	${TARGET_ARCH:S/amd64/x86_64/:C/hf$//:S/mipsn32/mips64/}-${TARGET_ABI}-freebsd13.0
 KNOWN_ARCHES?=	aarch64/arm64 \
 		amd64 \
 		arm \
@@ -180,7 +183,7 @@ CROSS_BINUTILS_PREFIX?=${CROSS_TOOLCHAIN_PREFIX}
 # support the target architecture), provide a default cross-binutils prefix.
 # This allows riscv64 builds, for example, to automatically use the
 # riscv64-binutils port or package.
-.if !make(showconfig)
+.if !make(showconfig) && !defined(_NO_INCLUDE_COMPILERMK)
 .if !empty(BROKEN_OPTIONS:MBINUTILS_BOOTSTRAP) && \
     ${MK_LLD_BOOTSTRAP} == "no" && \
     !defined(CROSS_BINUTILS_PREFIX)
@@ -205,7 +208,10 @@ X${BINUTIL}?=	${${BINUTIL}}
 MK_LLD_BOOTSTRAP=	no
 .endif
 
+# We also want the X_LINKER* variables if we are using an external toolchain.
+_WANT_TOOLCHAIN_CROSS_VARS=	t
 .include "share/mk/bsd.linker.mk"
+.undef _WANT_TOOLCHAIN_CROSS_VARS
 
 # Begin WITH_SYSTEM_COMPILER / WITH_SYSTEM_LD
 
@@ -574,8 +580,25 @@ BUILD_ARCH!=	uname -p
 WORLDTMP?=	${OBJTOP}/tmp
 BPATH=		${CCACHE_WRAPPER_PATH_PFX}${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/bin
 XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin
-STRICTTMPPATH=	${BPATH}:${XPATH}
+
+# When building we want to find the cross tools before the host tools in ${BPATH}.
+# We also need to add UNIVERSE_TOOLCHAIN_PATH so that we can find the shared
+# toolchain files (clang, lld, etc.) during make universe/tinderbox
+STRICTTMPPATH=	${XPATH}:${BPATH}:${UNIVERSE_TOOLCHAIN_PATH}
+# We should not be using tools from /usr/bin accidentally since this could cause
+# the build to break on other systems that don't have that tool. For now we
+# still allow using the old behaviour (inheriting $PATH) if
+# BUILD_WITH_STRICT_TMPPATH is set to 0 but this will eventually be removed.
+
+# Currently strict $PATH can cause build failures and does not work yet with
+# USING_SYSTEM_LINKER/USING_SYSTEM_COMPILER. Once these issues have been
+# resolved it will be turned on by default.
+BUILD_WITH_STRICT_TMPPATH?=0
+.if ${BUILD_WITH_STRICT_TMPPATH} != 0
+TMPPATH=	${STRICTTMPPATH}
+.else
 TMPPATH=	${STRICTTMPPATH}:${PATH}
+.endif
 
 #
 # Avoid running mktemp(1) unless actually needed.
@@ -583,7 +606,15 @@ TMPPATH=	${STRICTTMPPATH}:${PATH}
 # when in the middle of installing over this system.
 #
 .if make(distributeworld) || make(installworld) || make(stageworld)
-INSTALLTMP!=	mktemp -d -u -t install
+.if ${BUILD_WITH_STRICT_TMPPATH} != 0
+MKTEMP=${WORLDTMP}/legacy/usr/bin/mktemp
+.if !exists(${MKTEMP})
+.error "mktemp binary doesn't exist in expected location: ${MKTEMP}"
+.endif
+.else
+MKTEMP=mktemp
+.endif
+INSTALLTMP!=	${MKTEMP} -d -u -t install
 .endif
 
 .if make(stagekernel) || make(distributekernel)
@@ -641,6 +672,8 @@ CROSSENV+=	BUILD_TOOLS_META=.NOMETA
 CROSSENV+=	${TARGET_CFLAGS}
 .endif
 
+BOOTSTRAPPING_OSRELDATE?=${OSRELDATE}
+
 # bootstrap-tools stage
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		TOOLS_PREFIX=${TOOLS_PREFIX_UNDEF:U${WORLDTMP}} \
@@ -652,14 +685,14 @@ BSARGS= 	DESTDIR= \
 		OBJTOP='${WORLDTMP}/obj-tools' \
 		OBJROOT='$${OBJTOP}/' \
 		MAKEOBJDIRPREFIX= \
-		BOOTSTRAPPING=${OSRELDATE} \
+		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
 		BWPHASE=${.TARGET:C,^_,,} \
 		SSP_CFLAGS= \
 		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_LLDB=no MK_TESTS=no \
+		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no \
 		MK_INCLUDES=yes
 
 BMAKE=		\
@@ -674,13 +707,13 @@ TMAKE=		\
 		${BMAKEENV} ${MAKE} ${WORLD_FLAGS} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
-		BOOTSTRAPPING=${OSRELDATE} \
+		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
 		BWPHASE=${.TARGET:C,^_,,} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_LLDB=no MK_TESTS=no
+		MK_LLDB=no MK_RETPOLINE=no MK_TESTS=no
 
 # cross-tools stage
 # TOOLS_PREFIX set in BMAKE
@@ -699,11 +732,11 @@ KTMAKE=		\
 		OBJTOP='${WORLDTMP}/obj-kernel-tools' \
 		OBJROOT='$${OBJTOP}/' \
 		MAKEOBJDIRPREFIX= \
-		BOOTSTRAPPING=${OSRELDATE} \
+		BOOTSTRAPPING=${BOOTSTRAPPING_OSRELDATE} \
 		SSP_CFLAGS= \
 		MK_HTML=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
+		-DNO_CPU_CFLAGS MK_RETPOLINE=no MK_WARNS=no MK_CTF=no
 
 # world stage
 WMAKEENV=	${CROSSENV} \
@@ -868,6 +901,9 @@ WORLDTMP_MTREEFLAGS=	-deUW
 DESTDIR_MTREEFLAGS+=	-W
 .endif
 MTREE?=	mtree
+.if ${BUILD_WITH_STRICT_TMPPATH} != 0
+MTREE=	${WORLDTMP}/legacy/usr/sbin/mtree
+.endif
 WORLDTMP_MTREE=	${MTREE} ${WORLDTMP_MTREEFLAGS}
 DESTDIR_MTREE=	${MTREE} ${DESTDIR_MTREEFLAGS}
 
@@ -903,14 +939,13 @@ _sanity_check: .PHONY .MAKE
 _cleanobj_fast_depend_hack: .PHONY
 # Syscall stubs rewritten in C and obsolete MD assembly implementations
 # Date      SVN Rev  Syscalls
-# 20170624  r320278  fstat fstatat fstatfs getdirentries getfsstat statfs
 # 20180404  r332048  sigreturn
 # 20180405  r332080  shmat
 # 20180406  r332119  setlogin
 # 20180411  r332443  exect
 # 20180525  r334224  vadvise
 # 20180604  r334626  brk sbrk
-.for f in brk exect fstat fstatat fstatfs getdirentries getfsstat sbrk setlogin shmat sigreturn statfs vadvise
+.for f in brk exect sbrk setlogin shmat sigreturn vadvise
 	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
 	    egrep -qw '${f}\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
 		echo "Removing stale dependencies for ${f} syscall wrappers"; \
@@ -918,33 +953,36 @@ _cleanobj_fast_depend_hack: .PHONY
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endfor
-# 20170607 remove stale dependencies for utimens* wrappers removed in r319663
-.for f in futimens utimensat
+# 20181013  r339348  bcopy reimplemented as .c
+.for f in bcopy memcpy memmove
 	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
-	    egrep -q '/${f}.c' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo "Removing stale dependencies for ${f} syscall wrappers"; \
+	    egrep -qw 'bcopy\.[sS]' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
+		echo "Removing stale dependencies for bcopy"; \
 		rm -f ${OBJTOP}/lib/libc/.depend.${f}.* \
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
 	fi
 .endfor
-# 20170523 remove stale generated asm files for functions which are no longer
-# syscalls after r302092 (pipe) and r318736 (others)
-.for f in getdents lstat mknod pipe stat
-	@if [ -e "${OBJTOP}/lib/libc/${f}.s" ] || \
-	    [ -e "${OBJTOP}/lib/libc/${f}.S" ] ; then \
-		echo "Removing stale generated ${f} syscall files"; \
-		rm -f ${OBJTOP}/lib/libc/${f}.* \
-		    ${OBJTOP}/lib/libc/.depend.${f}.* \
-		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/${f}.*} \
-		    ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*}; \
+# 20181115  r340463  bzero reimplemented as .c
+	@if [ -e "${OBJTOP}/lib/libc/.depend.bzero.o" ] && \
+	    egrep -qw 'bzero\.[sS]' ${OBJTOP}/lib/libc/.depend.bzero.o; then \
+		echo "Removing stale dependencies for bzero"; \
+		rm -f ${OBJTOP}/lib/libc/.depend.bzero.* \
+		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libc/.depend.bzero.*}; \
 	fi
-.endfor
 # 20181009 track migration from ntp's embedded libevent to updated one
 	@if [ -e "${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.bufferevent_openssl.o" ] && \
 	    egrep -q 'contrib/ntp/sntp/libevent/bufferevent_openssl.c' \
 	    ${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.bufferevent_openssl.o ; then \
 		echo "Removing stale libevent dependencies"; \
 		rm -f ${OBJTOP}/usr.sbin/ntp/libntpevent/.depend.*; \
+	fi
+
+# 20181209  r341759 track migration across wpa update
+	@if [ -e "${OBJTOP}/usr.sbin/wpa/wpa_supplicant/.depend.rrm.o" ] && \
+	    egrep -q 'src/ap/rrm.c' \
+	    ${OBJTOP}/usr.sbin/wpa/wpa_supplicant/.depend.rrm.o; then \
+		echo "Removing stale wpa dependencies"; \
+		rm -f ${OBJTOP}/usr.sbin/wpa/*/.depend*; \
 	fi
 
 _worldtmp: .PHONY
@@ -955,10 +993,15 @@ _worldtmp: .PHONY
 .if !defined(NO_CLEAN)
 	rm -rf ${WORLDTMP}
 .else
+# Note: for delete-old we need to set $PATH to also include the host $PATH
+# since otherwise a partial build with missing symlinks in ${WORLDTMP}/legacy/
+# will fail to run due to missing binaries. $WMAKE sets PATH to only ${TMPPATH}
+# so we remove that assingnment from $WMAKE and prepend the new $PATH
 	${_+_}@if [ -e "${WORLDTMP}" ]; then \
 		echo ">>> Deleting stale files in build tree..."; \
-		cd ${.CURDIR}; ${WMAKE} -DBATCH_DELETE_OLD_FILES \
-		    delete-old delete-old-libs >/dev/null; \
+		cd ${.CURDIR}; env PATH=${TMPPATH}:${PATH} ${WMAKE:NPATH=*} \
+		    _NO_INCLUDE_COMPILERMK=t -DBATCH_DELETE_OLD_FILES delete-old \
+		    delete-old-libs >/dev/null; \
 	fi
 	rm -rf ${WORLDTMP}/legacy/usr/include
 .if ${USING_SYSTEM_COMPILER} == "yes"
@@ -979,6 +1022,11 @@ _worldtmp: .PHONY
 # available on the target system (this happens e.g. when building on non-FreeBSD)
 	cd ${.CURDIR}/tools/build; \
 	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy installdirs
+# In order to build without inheriting $PATH we need to add symlinks to the host
+# tools in $WORLDTMP for the tools that we don't build during bootstrap-tools
+	cd ${.CURDIR}/tools/build; \
+	    ${MAKE} DIRPRFX=tools/build/ DESTDIR=${WORLDTMP}/legacy host-symlinks
+
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1010,19 +1058,21 @@ _cleanobj:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.1: cleaning up the object tree"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR}
+	# Avoid including bsd.compiler.mk in clean and obj with _NO_INCLUDE_COMPILERMK
+	# since the restricted $PATH might not contain a valid cc binary
+	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t ${CLEANDIR}
 .if defined(LIBCOMPAT)
-	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} -f Makefile.inc1 ${CLEANDIR}
+	${_+_}cd ${.CURDIR}; ${LIBCOMPATWMAKE} _NO_INCLUDE_COMPILERMK=t -f Makefile.inc1 ${CLEANDIR}
 .endif
 .else
-	${_+_}cd ${.CURDIR}; ${WMAKE} _cleanobj_fast_depend_hack
+	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t _cleanobj_fast_depend_hack
 .endif	# !defined(NO_CLEAN)
 _obj:
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 2.2: rebuilding the object tree"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${WMAKE} obj
+	${_+_}cd ${.CURDIR}; ${WMAKE} _NO_INCLUDE_COMPILERMK=t obj
 _build-tools:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1252,7 +1302,7 @@ ITOOLS+=makewhatis
 #
 
 # Non-base distributions produced by the base system
-EXTRA_DISTRIBUTIONS=	doc
+EXTRA_DISTRIBUTIONS=
 .if defined(LIBCOMPAT)
 EXTRA_DISTRIBUTIONS+=	lib${libcompat}
 .endif
@@ -1262,7 +1312,7 @@ EXTRA_DISTRIBUTIONS+=	tests
 
 DEBUG_DISTRIBUTIONS=
 .if ${MK_DEBUG_FILES} != "no"
-DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,doc,,:S,tests,,}
+DEBUG_DISTRIBUTIONS+=	base ${EXTRA_DISTRIBUTIONS:S,tests,,}
 .endif
 
 MTREE_MAGIC?=	mtree 2.0
@@ -1397,6 +1447,17 @@ packageworld: .PHONY
 	    tar cvLf - usr/lib/debug | \
 	    ${XZ_CMD} > ${PACKAGEDIR}/${dist}-dbg.txz
 . endif
+.endfor
+
+_sysent_dirs=	sys/kern
+_sysent_dirs+=	sys/compat/freebsd32
+_sysent_dirs+=	sys/amd64/linux		\
+		sys/amd64/linux32	\
+		sys/arm64/linux		\
+		sys/i386/linux
+sysent: .PHONY
+.for _dir in ${_sysent_dirs}
+	${_+_}${MAKE} -C ${.CURDIR}/${_dir} sysent
 .endfor
 
 #
@@ -1936,14 +1997,6 @@ update: .PHONY
 # build-tools or cross-tools.
 #
 
-# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
-# r296685 fix cross-endian objcopy
-# r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
-# r334881 added libdwarf constants used by ctfconvert.
-# r338478 fixed a crash in objcopy for mips64el objects
-.if ${BOOTSTRAPPING} < 1200084
-_elftoolchain_libs= lib/libelf lib/libdwarf
-.endif
 
 # libnv and libl are both requirements for config(8), which is an unconditional
 # bootstrap-tool.
@@ -1955,7 +2008,7 @@ legacy: .PHONY
 	false
 .endif
 
-.for _tool in tools/build ${_elftoolchain_libs} ${_config_deps}
+.for _tool in tools/build ${_config_deps}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
@@ -1969,9 +2022,33 @@ legacy: .PHONY
 # bootstrap-tools: Build tools needed for compatibility. These are binaries that
 # are built to build other binaries in the system. However, the focus of these
 # binaries is usually quite narrow. Bootstrap tools use the host's compiler and
-# libraries, augmented by -legacy.
+# libraries, augmented by -legacy, in addition to the libraries built during
+# bootstrap-tools.
 #
 _bt=		_bootstrap-tools
+
+# We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
+# accidentally run tools that are incompatible but happen to be in $PATH.
+# This is especially important when building on Linux/MacOS where many of the
+# programs used during the build accept different flags or generate different
+# output. On those platforms we only symlink the tools known to be compatible
+# (e.g. basic utilities such as mkdir) into ${WORLDTMP} and build all others
+# from the FreeBSD sources during the bootstrap-tools stage.
+# We want to build without the user's $PATH starting in the bootstrap-tools
+# phase so the tools used in that phase (ln, cp, etc) must have already been
+# linked to $WORLDTMP. The tools are listed in the _host_tools_to_symlink
+# variable in tools/build/Makefile and are linked during the legacy phase.
+# Since they could be Linux or MacOS binaries, too we must only use flags that
+# are portable across operating systems.
+
+# If BOOTSTRAP_ALL_TOOLS is set we will build all the required tools from the
+# current source tree. Otherwise we create a symlink to the version found in
+# $PATH during the bootstrap-tools stage.
+.if defined(BOOTSTRAP_ALL_TOOLS)
+# BOOTSTRAPPING will be set on the command line so we can't override it here.
+# Instead set BOOTSTRAPPING_OSRELDATE so that the value 0 is set ${BSARGS}
+BOOTSTRAPPING_OSRELDATE:=	0
+.endif
 
 .if ${MK_GAMES} != "no"
 _strfile=	usr.bin/fortune/strfile
@@ -1985,12 +2062,34 @@ _gperf=		gnu/usr.bin/gperf
 _vtfontcvt=	usr.bin/vtfontcvt
 .endif
 
+# If we are not building the bootstrap because BOOTSTRAPPING is sufficient
+# we symlink the host version to $WORLDTMP instead. By doing this we can also
+# detect when a bootstrap tool is being used without the required MK_FOO.
+# If you add a new bootstrap tool where we could also use the host version,
+# please ensure that you also add a .else case where you add the tool to the
+# _bootstrap_tools_links variable.
 .if ${BOOTSTRAPPING} < 1000033
 _m4=		usr.bin/m4
 _lex=		usr.bin/lex
+# Note: lex needs m4 to build but m4 also depends on lex. However, lex can be
+# bootstrapped so we build lex first.
+${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd ${_bt}-usr.bin/yacc ${_bt}-${_lex}
+_bt_m4_depend=${_bt}-${_m4}
+_bt_lex_depend=${_bt}-${_lex} ${_bt_m4_depend}
+.else
+_bootstrap_tools_links+=m4 lex
+.endif
 
-${_bt}-usr.bin/m4: ${_bt}-lib/libopenbsd
-${_bt}-usr.bin/lex: ${_bt}-usr.bin/m4
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
+# r296685 fix cross-endian objcopy
+# r310724 fixed PR 215350, a crash in libdwarf with objects built by GCC 6.2.
+# r334881 added libdwarf constants used by ctfconvert.
+# r338478 fixed a crash in objcopy for mips64el objects
+# r339083 libelf: correct mips64el test to use ELF header
+.if ${BOOTSTRAPPING} < 1200085
+_elftoolchain_libs= lib/libelf lib/libdwarf
+${_bt}-lib/libelf: ${_bt_m4_depend}
+${_bt}-lib/libdwarf: ${_bt_m4_depend}
 .endif
 
 # r245440 mtree -N support added
@@ -2002,17 +2101,23 @@ _nmtree=	lib/libmd \
 
 ${_bt}-lib/libnetbsd: ${_bt}-lib/libmd
 ${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
+.else
+_bootstrap_tools_links+=mtree
 .endif
 
 # r246097: log addition login.conf.db, passwd, pwd.db, and spwd.db with cat -l
 .if ${BOOTSTRAPPING} < 1000027
 _cat=		bin/cat
+.else
+_bootstrap_tools_links+=cat
 .endif
 
 # r277259 crunchide: Correct 64-bit section header offset
 # r281674 crunchide: always include both 32- and 64-bit ELF support
 .if ${BOOTSTRAPPING} < 1100078
 _crunchide=	usr.sbin/crunch/crunchide
+.else
+_bootstrap_tools_links+=crunchide
 .endif
 
 # r285986 crunchen: use STRIPBIN rather than STRIP
@@ -2022,12 +2127,16 @@ _crunchide=	usr.sbin/crunch/crunchide
     (${MK_AUTO_OBJ} == "yes" && ${BOOTSTRAPPING} < 1100114) || \
     (${MK_META_MODE} == "yes" && ${BOOTSTRAPPING} < 1200006)
 _crunchgen=	usr.sbin/crunch/crunchgen
+.else
+_bootstrap_tools_links+=crunchgen
 .endif
 
 # r296926 -P keymap search path, MFC to stable/10 in r298297
 .if ${BOOTSTRAPPING} < 1003501 || \
 	(${BOOTSTRAPPING} >= 1100000 && ${BOOTSTRAPPING} < 1100103)
 _kbdcontrol=	usr.sbin/kbdcontrol
+.else
+_bootstrap_tools_links+=kbdcontrol
 .endif
 
 _yacc=		lib/liby \
@@ -2063,6 +2172,10 @@ _dtc= usr.bin/dtc
 _dtc= gnu/usr.bin/dtc
 .endif
 
+.if ${MK_LOCALES} != "no"
+_localedef=	usr.bin/localedef
+.endif
+
 .if ${MK_KERBEROS} != "no"
 _kerberos5_bootstrap_tools= \
 	kerberos5/tools/make-roken \
@@ -2073,11 +2186,108 @@ _kerberos5_bootstrap_tools= \
 	usr.bin/compile_et
 
 .ORDER: ${_kerberos5_bootstrap_tools:C/^/${_bt}-/g}
+.for _tool in ${_kerberos5_bootstrap_tools}
+${_bt}-${_tool}: ${_bt}-usr.bin/yacc ${_bt_lex_depend}
+.endfor
 .endif
 
 ${_bt}-usr.bin/mandoc: ${_bt}-lib/libopenbsd
 
-bootstrap-tools: .PHONY
+# The tools listed in _basic_bootstrap_tools will generally not be
+# bootstrapped unless BOOTSTRAP_ALL_TOOL is set. However, when building on a
+# Linux or MacOS host the host versions are incompatible so we need to build
+# them from the source tree. Usually the link name will be the same as the subdir,
+# but some directories such as grep or test install multiple binaries. In that
+# case we use the _basic_bootstrap_tools_multilink variable which is a list of
+# subdirectory and comma-separated list of files.
+_basic_bootstrap_tools_multilink=usr.bin/grep grep,egrep,fgrep
+_basic_bootstrap_tools_multilink+=bin/test test,[
+# bootstrap tools needed by buildworld:
+_basic_bootstrap_tools=usr.bin/awk usr.bin/cut bin/expr usr.bin/gencat \
+    usr.bin/join usr.bin/mktemp bin/rmdir usr.bin/sed usr.bin/sort \
+    usr.bin/truncate usr.bin/tsort
+# elf2aout is required for sparc64 build
+_basic_bootstrap_tools+=usr.bin/elf2aout
+# file2c is required for building usr.sbin/config:
+_basic_bootstrap_tools+=usr.bin/file2c
+# uuencode/uudecode required for share/tabset
+_basic_bootstrap_tools+=usr.bin/uuencode usr.bin/uudecode
+# xargs is required by mkioctls
+_basic_bootstrap_tools+=usr.bin/xargs
+# cap_mkdb is required for share/termcap:
+_basic_bootstrap_tools+=usr.bin/cap_mkdb
+# ldd is required for installcheck (TODO: just always use /usr/bin/ldd instead?)
+_basic_bootstrap_tools+=usr.bin/ldd
+# services_mkdb/pwd_mkdb are required for installworld:
+_basic_bootstrap_tools+=usr.sbin/services_mkdb usr.sbin/pwd_mkdb
+# sysctl/chflags are required for installkernel:
+_basic_bootstrap_tools+=sbin/sysctl bin/chflags
+# mkfifo is used by sys/conf/newvers.sh
+_basic_bootstrap_tools+=usr.bin/mkfifo
+
+.if ${MK_AMD} != "no"
+# unifdef is only used by usr.sbin/amd/libamu/Makefile
+_basic_bootstrap_tools+=usr.bin/unifdef
+.endif
+
+.if ${MK_BOOT} != "no"
+_basic_bootstrap_tools+=bin/dd
+# xz/unxz is used by EFI
+_basic_bootstrap_tools_multilink+=usr.bin/xz xz,unxz
+# md5 is used by boot/beri (and possibly others)
+_basic_bootstrap_tools+=sbin/md5
+.if defined(BOOTSTRAP_ALL_TOOLS)
+${_bt}-sbin/md5: ${_bt}-lib/libmd
+.endif
+.endif
+
+.if ${MK_ZONEINFO} != "no"
+_basic_bootstrap_tools+=usr.sbin/zic usr.sbin/tzsetup
+.endif
+
+.if defined(BOOTSTRAP_ALL_TOOLS)
+_other_bootstrap_tools+=${_basic_bootstrap_tools}
+.for _subdir _links in ${_basic_bootstrap_tools_multilink}
+_other_bootstrap_tools+=${_subdir}
+.endfor
+${_bt}-usr.bin/awk: ${_bt_lex_depend} ${_bt}-usr.bin/yacc
+${_bt}-bin/expr: ${_bt_lex_depend} ${_bt}-usr.bin/yacc
+# If we are bootstrapping file2c, we have to build it before config:
+${_bt}-usr.sbin/config: ${_bt}-usr.bin/file2c ${_bt_lex_depend}
+# Note: no symlink to make/bmake in the !BOOTSTRAP_ALL_TOOLS case here since
+# the links to make/bmake make links will have already have been created in the
+# `make legacy` step. Not adding a link to make is important on non-FreeBSD
+# since "make" will usually point to GNU make there.
+_other_bootstrap_tools+=usr.bin/bmake
+.else
+# All tools in _basic_bootstrap_tools have the same name as the subdirectory
+# so we can use :T to get the name of the symlinks that we need to create.
+_bootstrap_tools_links+=${_basic_bootstrap_tools:T}
+.for _subdir _links in ${_basic_bootstrap_tools_multilink}
+_bootstrap_tools_links+=${_links:S/,/ /g}
+.endfor
+.endif	# defined(BOOTSTRAP_ALL_TOOLS)
+
+# Link the tools that we need for building but don't need to bootstrap because
+# the host version is known to be compatible into ${WORLDTMP}/legacy
+# We do this before building any of the bootstrap tools in case they depend on
+# the presence of any of the links (e.g. as m4/lex/awk)
+${_bt}-links: .PHONY
+
+.for _tool in ${_bootstrap_tools_links}
+${_bt}-link-${_tool}: .PHONY .MAKE
+	@if [ ! -e "${WORLDTMP}/legacy/bin/${_tool}" ]; then \
+		source_path=`which ${_tool}`; \
+		if [ ! -e "$${source_path}" ] ; then \
+			echo "Cannot find host tool '${_tool}'"; false; \
+		fi; \
+		ln -sfnv "$${source_path}" "${WORLDTMP}/legacy/bin/${_tool}"; \
+	fi
+${_bt}-links: ${_bt}-link-${_tool}
+.endfor
+
+
+bootstrap-tools: ${_bt}-links .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
@@ -2090,6 +2300,7 @@ bootstrap-tools: .PHONY
     ${_dtc} \
     ${_cat} \
     ${_kbdcontrol} \
+    ${_elftoolchain_libs} \
     usr.bin/lorder \
     lib/libopenbsd \
     usr.bin/mandoc \
@@ -2097,6 +2308,7 @@ bootstrap-tools: .PHONY
     ${_yacc} \
     ${_m4} \
     ${_lex} \
+    ${_other_bootstrap_tools} \
     usr.bin/xinstall \
     ${_gensnmptree} \
     usr.sbin/config \
@@ -2105,10 +2317,13 @@ bootstrap-tools: .PHONY
     ${_nmtree} \
     ${_vtfontcvt} \
     ${_localedef}
-${_bt}-${_tool}: .PHONY .MAKE
+${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
+		if [ "${_tool}" = "usr.bin/lex" ]; then \
+			${MAKE} DIRPRFX=${_tool}/ bootstrap; \
+		fi; \
 		${MAKE} DIRPRFX=${_tool}/ all; \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${WORLDTMP}/legacy install
 
@@ -2186,7 +2401,7 @@ kernel-tools: .PHONY
 # we get done with the earlier stages. It is the last set of tools needed
 # to begin building the target binaries.
 #
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
+.if ${TARGET_ARCH} != ${MACHINE_ARCH} || ${BUILD_WITH_STRICT_TMPPATH} != 0
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 _btxld=		usr.sbin/btxld
 .endif
@@ -2239,9 +2454,14 @@ _gcc=		gnu/usr.bin/cc
 _usb_tools=	stand/usb/tools
 .endif
 
+.if ${BUILD_WITH_STRICT_TMPPATH} != 0 || defined(BOOTSTRAP_ALL_TOOLS)
+_ar=usr.bin/ar
+.endif
+
 cross-tools: .MAKE .PHONY
 .for _tool in \
     ${LOCAL_XTOOL_DIRS} \
+    ${_ar} \
     ${_clang_libs} \
     ${_clang} \
     ${_lld} \
@@ -2374,6 +2594,7 @@ NXBMAKEARGS+= \
 	MK_OFED=no \
 	MK_OPENSSH=no \
 	MK_PROFILE=no \
+	MK_RETPOLINE=no \
 	MK_SENDMAIL=no \
 	MK_SVNLITE=no \
 	MK_TESTS=no \
@@ -2477,8 +2698,10 @@ _prereq_libs+= gnu/lib/libssp/libssp_nonshared
 # gnu/lib/csu, gnu/lib/libgcc, lib/csu and lib/libc must be built before
 # all shared libraries for ELF.
 #
-_startup_libs=	gnu/lib/csu
-_startup_libs+=	lib/csu
+_startup_libs=	lib/csu
+.if ${MK_BSD_CRTBEGIN} == "no"
+_startup_libs+=	gnu/lib/csu
+.endif
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 _startup_libs+=	lib/libc_nonshared
@@ -2785,7 +3008,7 @@ delete-old-files: .PHONY
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | sort | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -2801,7 +3024,7 @@ delete-old-files: .PHONY
 	done
 # Remove catpages without corresponding manpages.
 	@exec 3<&0; \
-	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
+	find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | sort | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
 	while read catpage; do \
 		read manpage; \
@@ -2825,7 +3048,7 @@ check-old-files: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done
+	done | sort
 # Check for catpages without corresponding manpages.
 	@find ${DESTDIR}/usr/share/man/cat* ! -type d 2>/dev/null | \
 	sed -ep -e's:${DESTDIR}/usr/share/man/cat:${DESTDIR}/usr/share/man/man:' | \
@@ -2834,7 +3057,7 @@ check-old-files: .PHONY
 		if [ ! -e "$${manpage}" ]; then \
 			echo $${catpage}; \
 	        fi; \
-	done
+	done | sort
 
 delete-old-libs: .PHONY
 	@echo ">>> Removing old libraries"
@@ -2842,7 +3065,7 @@ delete-old-libs: .PHONY
 	@exec 3<&0; \
 	cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_LIBS | xargs -n1 | \
+	    -V OLD_LIBS | xargs -n1 | sort | \
 	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
@@ -2872,7 +3095,7 @@ check-old-libs: .PHONY
 			  echo "${DESTDIR}${DEBUGDIR}/$${file}.$${ext}"; \
 		  fi; \
 		done; \
-	done
+	done | sort
 
 delete-old-dirs: .PHONY
 	@echo ">>> Removing old directories"
@@ -2897,7 +3120,7 @@ check-old-dirs: .PHONY
 	@echo ">>> Checking for old directories"
 	@cd ${.CURDIR}; \
 	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
-	    -V OLD_DIRS | xargs -n1 | \
+	    -V OLD_DIRS | xargs -n1 | sort -r | \
 	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \

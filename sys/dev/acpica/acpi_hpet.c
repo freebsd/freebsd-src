@@ -396,7 +396,7 @@ hpet_mmap(struct cdev *cdev, vm_ooffset_t offset, vm_paddr_t *paddr,
 	struct hpet_softc *sc;
 
 	sc = cdev->si_drv1;
-	if (offset > rman_get_size(sc->mem_res))
+	if (offset >= rman_get_size(sc->mem_res))
 		return (EINVAL);
 	if (!sc->mmap_allow_write && (nprot & PROT_WRITE))
 		return (EPERM);
@@ -450,16 +450,15 @@ hpet_identify(driver_t *driver, device_t parent)
 static int
 hpet_probe(device_t dev)
 {
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
+	int rv;
 
+	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 	if (acpi_disabled("hpet") || acpi_hpet_disabled)
 		return (ENXIO);
-	if (acpi_get_handle(dev) != NULL &&
-	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL)
-		return (ENXIO);
-
-	device_set_desc(dev, "High Precision Event Timer");
-	return (0);
+	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids, NULL);
+	if (rv <= 0)
+	   device_set_desc(dev, "High Precision Event Timer");
+	return (rv);
 }
 
 static int

@@ -151,8 +151,8 @@ sfxge_estimate_rsrc_limits(struct sfxge_softc *sc)
 
 	limits.edl_min_evq_count = 1;
 	limits.edl_max_evq_count = evq_max;
-	limits.edl_min_txq_count = SFXGE_TXQ_NTYPES;
-	limits.edl_max_txq_count = evq_max + SFXGE_TXQ_NTYPES - 1;
+	limits.edl_min_txq_count = SFXGE_EVQ0_N_TXQ(sc);
+	limits.edl_max_txq_count = evq_max + SFXGE_EVQ0_N_TXQ(sc) - 1;
 	limits.edl_min_rxq_count = 1;
 	limits.edl_max_rxq_count = evq_max;
 
@@ -168,12 +168,12 @@ sfxge_estimate_rsrc_limits(struct sfxge_softc *sc)
 		return (rc);
 	}
 
-	KASSERT(txq_allocated >= SFXGE_TXQ_NTYPES,
-		("txq_allocated < SFXGE_TXQ_NTYPES"));
+	KASSERT(txq_allocated >= SFXGE_EVQ0_N_TXQ(sc),
+		("txq_allocated < %u", SFXGE_EVQ0_N_TXQ(sc)));
 
 	sc->evq_max = MIN(evq_allocated, evq_max);
 	sc->evq_max = MIN(rxq_allocated, sc->evq_max);
-	sc->evq_max = MIN(txq_allocated - (SFXGE_TXQ_NTYPES - 1),
+	sc->evq_max = MIN(txq_allocated - (SFXGE_EVQ0_N_TXQ(sc) - 1),
 			  sc->evq_max);
 
 	KASSERT(sc->evq_max <= evq_max,
@@ -205,7 +205,7 @@ sfxge_set_drv_limits(struct sfxge_softc *sc)
 	limits.edl_min_evq_count = limits.edl_max_evq_count =
 	    sc->intr.n_alloc;
 	limits.edl_min_txq_count = limits.edl_max_txq_count =
-	    sc->intr.n_alloc + SFXGE_TXQ_NTYPES - 1;
+	    sc->intr.n_alloc + SFXGE_EVQ0_N_TXQ(sc) - 1;
 	limits.edl_min_rxq_count = limits.edl_max_rxq_count =
 	    sc->intr.n_alloc;
 
@@ -651,11 +651,11 @@ sfxge_bar_init(struct sfxge_softc *sc)
 {
 	efsys_bar_t *esbp = &sc->bar;
 
-	esbp->esb_rid = PCIR_BAR(EFX_MEM_BAR);
+	esbp->esb_rid = PCIR_BAR(sc->mem_bar);
 	if ((esbp->esb_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
 	    &esbp->esb_rid, RF_ACTIVE)) == NULL) {
 		device_printf(sc->dev, "Cannot allocate BAR region %d\n",
-		    EFX_MEM_BAR);
+		    sc->mem_bar);
 		return (ENXIO);
 	}
 	esbp->esb_tag = rman_get_bustag(esbp->esb_res);
@@ -722,14 +722,14 @@ sfxge_create(struct sfxge_softc *sc)
 	if ((error = sfxge_dma_init(sc)) != 0)
 		goto fail;
 
+	error = efx_family(pci_get_vendor(dev), pci_get_device(dev),
+	    &sc->family, &sc->mem_bar);
+	KASSERT(error == 0, ("Family should be filtered by sfxge_probe()"));
+
 	/* Map the device registers. */
 	DBGPRINT(sc->dev, "bar_init...");
 	if ((error = sfxge_bar_init(sc)) != 0)
 		goto fail;
-
-	error = efx_family(pci_get_vendor(dev), pci_get_device(dev),
-	    &sc->family);
-	KASSERT(error == 0, ("Family should be filtered by sfxge_probe()"));
 
 	DBGPRINT(sc->dev, "nic_create...");
 
@@ -748,7 +748,7 @@ sfxge_create(struct sfxge_softc *sc)
 
 	/* Probe the NIC and build the configuration data area. */
 	DBGPRINT(sc->dev, "nic_probe...");
-	if ((error = efx_nic_probe(enp)) != 0)
+	if ((error = efx_nic_probe(enp, EFX_FW_VARIANT_DONT_CARE)) != 0)
 		goto fail5;
 
 	if (!ISP2(sfxge_rx_ring_entries) ||
@@ -762,12 +762,17 @@ sfxge_create(struct sfxge_softc *sc)
 	}
 	sc->rxq_entries = sfxge_rx_ring_entries;
 
+	if (efx_nic_cfg_get(enp)->enc_features & EFX_FEATURE_TXQ_CKSUM_OP_DESC)
+		sc->txq_dynamic_cksum_toggle_supported = B_TRUE;
+	else
+		sc->txq_dynamic_cksum_toggle_supported = B_FALSE;
+
 	if (!ISP2(sfxge_tx_ring_entries) ||
 	    (sfxge_tx_ring_entries < EFX_TXQ_MINNDESCS) ||
-	    (sfxge_tx_ring_entries > EFX_TXQ_MAXNDESCS(efx_nic_cfg_get(enp)))) {
+	    (sfxge_tx_ring_entries > efx_nic_cfg_get(enp)->enc_txq_max_ndescs)) {
 		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
 		    SFXGE_PARAM_TX_RING, sfxge_tx_ring_entries,
-		    EFX_TXQ_MINNDESCS, EFX_TXQ_MAXNDESCS(efx_nic_cfg_get(enp)));
+		    EFX_TXQ_MINNDESCS, efx_nic_cfg_get(enp)->enc_txq_max_ndescs);
 		error = EINVAL;
 		goto fail_tx_ring_entries;
 	}
@@ -1154,13 +1159,14 @@ sfxge_probe(device_t dev)
 	uint16_t pci_vendor_id;
 	uint16_t pci_device_id;
 	efx_family_t family;
+	unsigned int mem_bar;
 	int rc;
 
 	pci_vendor_id = pci_get_vendor(dev);
 	pci_device_id = pci_get_device(dev);
 
 	DBGPRINT(dev, "PCI ID %04x:%04x", pci_vendor_id, pci_device_id);
-	rc = efx_family(pci_vendor_id, pci_device_id, &family);
+	rc = efx_family(pci_vendor_id, pci_device_id, &family, &mem_bar);
 	if (rc != 0) {
 		DBGPRINT(dev, "efx_family fail %d", rc);
 		return (ENXIO);
@@ -1178,6 +1184,11 @@ sfxge_probe(device_t dev)
 
 	if (family == EFX_FAMILY_MEDFORD) {
 		device_set_desc(dev, "Solarflare SFC9200 family");
+		return (0);
+	}
+
+	if (family == EFX_FAMILY_MEDFORD2) {
+		device_set_desc(dev, "Solarflare SFC9250 family");
 		return (0);
 	}
 

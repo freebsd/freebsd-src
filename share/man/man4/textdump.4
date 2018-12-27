@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2008
+.Dd November 30, 2018
 .Dt TEXTDUMP 4
 .Os
 .Sh NAME
@@ -73,30 +73,30 @@ Captured
 .Xr ddb 4
 output, if the capture facility has been used.
 May be disabled by clearing the
-.Dv debug.ddb.textdump.do_ddb
+.Va debug.ddb.textdump.do_ddb
 sysctl.
 .It Pa config.txt
 Kernel configuration, if
 .Cd options INCLUDE_CONFIG_FILE
 has been compiled into the kernel.
 May be disabled by clearing the
-.Dv debug.ddb.textdump.do_config
+.Va debug.ddb.textdump.do_config
 sysctl.
 .It Pa msgbuf.txt
 Kernel message buffer, including recent console output if the capture
 facility has been used.
 May be disabled by clearing the
-.Dv debug.ddb.textdump.do_msgbuf
+.Va debug.ddb.textdump.do_msgbuf
 sysctl.
 .It Pa panic.txt
 Kernel panic string, if the kernel panicked before the dump was generated.
 May be disabled by clearing the
-.Dv debug.ddb.textdump.do_panic
+.Va debug.ddb.textdump.do_panic
 sysctl.
 .It Pa version.txt
 Kernel version string.
 My be disabled by clearing the
-.Dv debug.ddb.textdump.do_version
+.Va debug.ddb.textdump.do_version
 sysctl.
 .El
 .Pp
@@ -115,7 +115,7 @@ dump will be regular memory dumps; however, by using the
 command in
 .Xr ddb 4 ,
 or by setting the
-.Dv debug.ddb.textdump.pending
+.Va debug.ddb.textdump.pending
 sysctl to 1 using
 .Xr sysctl 8 ,
 it is possible to request that the next dump be a textdump.
@@ -155,7 +155,7 @@ as well as other diagnostics useful to debug the textdump facility itself.
 .El
 .Sh EXAMPLES
 In the following example, the script
-.Dv kdb.enter.panic
+.Va kdb.enter.panic
 will run when the kernel debugger is entered as a result of a panic, enable
 output capture, dump several useful pieces of debugging information, and then
 invoke panic in order to force a kernel dump to be written out followed by a
@@ -166,7 +166,7 @@ script kdb.enter.panic=textdump set; capture on; show allpcpu; bt;
 .Ed
 .Pp
 In the following example, the script
-.Dv kdb.enter.witness
+.Va kdb.enter.witness
 will run when the kernel debugger is entered as a result of a witness
 violation, printing lock-related information for the user:
 .Bd -literal -offset indent

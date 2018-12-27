@@ -54,25 +54,25 @@ struct BaseSubobjectInfo {
   const BaseSubobjectInfo *Derived;
 };
 
-/// \brief Externally provided layout. Typically used when the AST source, such
+/// Externally provided layout. Typically used when the AST source, such
 /// as DWARF, lacks all the information that was available at compile time, such
 /// as alignment attributes on fields and pragmas in effect.
 struct ExternalLayout {
   ExternalLayout() : Size(0), Align(0) {}
 
-  /// \brief Overall record size in bits.
+  /// Overall record size in bits.
   uint64_t Size;
 
-  /// \brief Overall record alignment in bits.
+  /// Overall record alignment in bits.
   uint64_t Align;
 
-  /// \brief Record field offsets in bits.
+  /// Record field offsets in bits.
   llvm::DenseMap<const FieldDecl *, uint64_t> FieldOffsets;
 
-  /// \brief Direct, non-virtual base offsets.
+  /// Direct, non-virtual base offsets.
   llvm::DenseMap<const CXXRecordDecl *, CharUnits> BaseOffsets;
 
-  /// \brief Virtual base offsets.
+  /// Virtual base offsets.
   llvm::DenseMap<const CXXRecordDecl *, CharUnits> VirtualBaseOffsets;
 
   /// Get the offset of the given field. The external source must provide
@@ -105,7 +105,7 @@ struct ExternalLayout {
 class EmptySubobjectMap {
   const ASTContext &Context;
   uint64_t CharWidth;
-  
+
   /// Class - The class whose empty entries we're keeping track of.
   const CXXRecordDecl *Class;
 
@@ -113,35 +113,35 @@ class EmptySubobjectMap {
   typedef llvm::TinyPtrVector<const CXXRecordDecl *> ClassVectorTy;
   typedef llvm::DenseMap<CharUnits, ClassVectorTy> EmptyClassOffsetsMapTy;
   EmptyClassOffsetsMapTy EmptyClassOffsets;
-  
+
   /// MaxEmptyClassOffset - The highest offset known to contain an empty
   /// base subobject.
   CharUnits MaxEmptyClassOffset;
-  
+
   /// ComputeEmptySubobjectSizes - Compute the size of the largest base or
   /// member subobject that is empty.
   void ComputeEmptySubobjectSizes();
-  
+
   void AddSubobjectAtOffset(const CXXRecordDecl *RD, CharUnits Offset);
-  
+
   void UpdateEmptyBaseSubobjects(const BaseSubobjectInfo *Info,
                                  CharUnits Offset, bool PlacingEmptyBase);
-  
-  void UpdateEmptyFieldSubobjects(const CXXRecordDecl *RD, 
+
+  void UpdateEmptyFieldSubobjects(const CXXRecordDecl *RD,
                                   const CXXRecordDecl *Class,
                                   CharUnits Offset);
   void UpdateEmptyFieldSubobjects(const FieldDecl *FD, CharUnits Offset);
-  
+
   /// AnyEmptySubobjectsBeyondOffset - Returns whether there are any empty
   /// subobjects beyond the given offset.
   bool AnyEmptySubobjectsBeyondOffset(CharUnits Offset) const {
     return Offset <= MaxEmptyClassOffset;
   }
 
-  CharUnits 
+  CharUnits
   getFieldOffset(const ASTRecordLayout &Layout, unsigned FieldNo) const {
     uint64_t FieldOffset = Layout.getFieldOffset(FieldNo);
-    assert(FieldOffset % CharWidth == 0 && 
+    assert(FieldOffset % CharWidth == 0 &&
            "Field offset not at char boundary!");
 
     return Context.toCharUnitsFromBits(FieldOffset);
@@ -154,7 +154,7 @@ protected:
   bool CanPlaceBaseSubobjectAtOffset(const BaseSubobjectInfo *Info,
                                      CharUnits Offset);
 
-  bool CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD, 
+  bool CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD,
                                       const CXXRecordDecl *Class,
                                       CharUnits Offset) const;
   bool CanPlaceFieldSubobjectAtOffset(const FieldDecl *FD,
@@ -228,7 +228,7 @@ void EmptySubobjectMap::ComputeEmptySubobjectSizes() {
 }
 
 bool
-EmptySubobjectMap::CanPlaceSubobjectAtOffset(const CXXRecordDecl *RD, 
+EmptySubobjectMap::CanPlaceSubobjectAtOffset(const CXXRecordDecl *RD,
                                              CharUnits Offset) const {
   // We only need to check empty bases.
   if (!RD->isEmpty())
@@ -245,8 +245,8 @@ EmptySubobjectMap::CanPlaceSubobjectAtOffset(const CXXRecordDecl *RD,
   // There is already an empty class of the same type at this offset.
   return false;
 }
-  
-void EmptySubobjectMap::AddSubobjectAtOffset(const CXXRecordDecl *RD, 
+
+void EmptySubobjectMap::AddSubobjectAtOffset(const CXXRecordDecl *RD,
                                              CharUnits Offset) {
   // We only care about empty bases.
   if (!RD->isEmpty())
@@ -257,9 +257,9 @@ void EmptySubobjectMap::AddSubobjectAtOffset(const CXXRecordDecl *RD,
   ClassVectorTy &Classes = EmptyClassOffsets[Offset];
   if (std::find(Classes.begin(), Classes.end(), RD) != Classes.end())
     return;
-  
+
   Classes.push_back(RD);
-  
+
   // Update the empty class offset.
   if (Offset > MaxEmptyClassOffset)
     MaxEmptyClassOffset = Offset;
@@ -296,10 +296,10 @@ EmptySubobjectMap::CanPlaceBaseSubobjectAtOffset(const BaseSubobjectInfo *Info,
         return false;
     }
   }
-  
+
   // Traverse all member variables.
   unsigned FieldNo = 0;
-  for (CXXRecordDecl::field_iterator I = Info->Class->field_begin(), 
+  for (CXXRecordDecl::field_iterator I = Info->Class->field_begin(),
        E = Info->Class->field_end(); I != E; ++I, ++FieldNo) {
     if (I->isBitField())
       continue;
@@ -312,15 +312,15 @@ EmptySubobjectMap::CanPlaceBaseSubobjectAtOffset(const BaseSubobjectInfo *Info,
   return true;
 }
 
-void EmptySubobjectMap::UpdateEmptyBaseSubobjects(const BaseSubobjectInfo *Info, 
+void EmptySubobjectMap::UpdateEmptyBaseSubobjects(const BaseSubobjectInfo *Info,
                                                   CharUnits Offset,
                                                   bool PlacingEmptyBase) {
   if (!PlacingEmptyBase && Offset >= SizeOfLargestEmptySubobject) {
     // We know that the only empty subobjects that can conflict with empty
     // subobject of non-empty bases, are empty bases that can be placed at
-    // offset zero. Because of this, we only need to keep track of empty base 
+    // offset zero. Because of this, we only need to keep track of empty base
     // subobjects with offsets less than the size of the largest empty
-    // subobject for our class.    
+    // subobject for our class.
     return;
   }
 
@@ -338,7 +338,7 @@ void EmptySubobjectMap::UpdateEmptyBaseSubobjects(const BaseSubobjectInfo *Info,
 
   if (Info->PrimaryVirtualBaseInfo) {
     BaseSubobjectInfo *PrimaryVirtualBaseInfo = Info->PrimaryVirtualBaseInfo;
-    
+
     if (Info == PrimaryVirtualBaseInfo->Derived)
       UpdateEmptyBaseSubobjects(PrimaryVirtualBaseInfo, Offset,
                                 PlacingEmptyBase);
@@ -346,7 +346,7 @@ void EmptySubobjectMap::UpdateEmptyBaseSubobjects(const BaseSubobjectInfo *Info,
 
   // Traverse all member variables.
   unsigned FieldNo = 0;
-  for (CXXRecordDecl::field_iterator I = Info->Class->field_begin(), 
+  for (CXXRecordDecl::field_iterator I = Info->Class->field_begin(),
        E = Info->Class->field_end(); I != E; ++I, ++FieldNo) {
     if (I->isBitField())
       continue;
@@ -373,7 +373,7 @@ bool EmptySubobjectMap::CanPlaceBaseAtOffset(const BaseSubobjectInfo *Info,
 }
 
 bool
-EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD, 
+EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD,
                                                   const CXXRecordDecl *Class,
                                                   CharUnits Offset) const {
   // We don't have to keep looking past the maximum offset that's known to
@@ -383,7 +383,7 @@ EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD,
 
   if (!CanPlaceSubobjectAtOffset(RD, Offset))
     return false;
-  
+
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
 
   // Traverse all non-virtual bases.
@@ -408,7 +408,7 @@ EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD,
         return false;
     }
   }
-    
+
   // Traverse all member variables.
   unsigned FieldNo = 0;
   for (CXXRecordDecl::field_iterator I = RD->field_begin(), E = RD->field_end();
@@ -417,7 +417,7 @@ EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const CXXRecordDecl *RD,
       continue;
 
     CharUnits FieldOffset = Offset + getFieldOffset(Layout, FieldNo);
-    
+
     if (!CanPlaceFieldSubobjectAtOffset(*I, FieldOffset))
       return false;
   }
@@ -432,7 +432,7 @@ EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const FieldDecl *FD,
   // contain an empty class.
   if (!AnyEmptySubobjectsBeyondOffset(Offset))
     return true;
-  
+
   QualType T = FD->getType();
   if (const CXXRecordDecl *RD = T->getAsCXXRecordDecl())
     return CanPlaceFieldSubobjectAtOffset(RD, RD, Offset);
@@ -454,7 +454,7 @@ EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const FieldDecl *FD,
       // contain an empty class.
       if (!AnyEmptySubobjectsBeyondOffset(ElementOffset))
         return true;
-      
+
       if (!CanPlaceFieldSubobjectAtOffset(RD, RD, ElementOffset))
         return false;
 
@@ -466,23 +466,23 @@ EmptySubobjectMap::CanPlaceFieldSubobjectAtOffset(const FieldDecl *FD,
 }
 
 bool
-EmptySubobjectMap::CanPlaceFieldAtOffset(const FieldDecl *FD, 
+EmptySubobjectMap::CanPlaceFieldAtOffset(const FieldDecl *FD,
                                          CharUnits Offset) {
   if (!CanPlaceFieldSubobjectAtOffset(FD, Offset))
     return false;
-  
+
   // We are able to place the member variable at this offset.
   // Make sure to update the empty base subobject map.
   UpdateEmptyFieldSubobjects(FD, Offset);
   return true;
 }
 
-void EmptySubobjectMap::UpdateEmptyFieldSubobjects(const CXXRecordDecl *RD, 
+void EmptySubobjectMap::UpdateEmptyFieldSubobjects(const CXXRecordDecl *RD,
                                                    const CXXRecordDecl *Class,
                                                    CharUnits Offset) {
   // We know that the only empty subobjects that can conflict with empty
   // field subobjects are subobjects of empty bases that can be placed at offset
-  // zero. Because of this, we only need to keep track of empty field 
+  // zero. Because of this, we only need to keep track of empty field
   // subobjects with offsets less than the size of the largest empty
   // subobject for our class.
   if (Offset >= SizeOfLargestEmptySubobject)
@@ -512,7 +512,7 @@ void EmptySubobjectMap::UpdateEmptyFieldSubobjects(const CXXRecordDecl *RD,
       UpdateEmptyFieldSubobjects(VBaseDecl, Class, VBaseOffset);
     }
   }
-  
+
   // Traverse all member variables.
   unsigned FieldNo = 0;
   for (CXXRecordDecl::field_iterator I = RD->field_begin(), E = RD->field_end();
@@ -525,7 +525,7 @@ void EmptySubobjectMap::UpdateEmptyFieldSubobjects(const CXXRecordDecl *RD,
     UpdateEmptyFieldSubobjects(*I, FieldOffset);
   }
 }
-  
+
 void EmptySubobjectMap::UpdateEmptyFieldSubobjects(const FieldDecl *FD,
                                                    CharUnits Offset) {
   QualType T = FD->getType();
@@ -543,13 +543,13 @@ void EmptySubobjectMap::UpdateEmptyFieldSubobjects(const FieldDecl *FD,
 
     const CXXRecordDecl *RD = RT->getAsCXXRecordDecl();
     const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
-    
+
     uint64_t NumElements = Context.getConstantArrayElementCount(AT);
     CharUnits ElementOffset = Offset;
-    
+
     for (uint64_t I = 0; I != NumElements; ++I) {
       // We know that the only empty subobjects that can conflict with empty
-      // field subobjects are subobjects of empty bases that can be placed at 
+      // field subobjects are subobjects of empty bases that can be placed at
       // offset zero. Because of this, we only need to keep track of empty field
       // subobjects with offsets less than the size of the largest empty
       // subobject for our class.
@@ -579,26 +579,29 @@ protected:
   /// Alignment - The current alignment of the record layout.
   CharUnits Alignment;
 
-  /// \brief The alignment if attribute packed is not used.
+  /// The alignment if attribute packed is not used.
   CharUnits UnpackedAlignment;
+
+  /// \brief The maximum of the alignments of top-level members.
+  CharUnits UnadjustedAlignment;
 
   SmallVector<uint64_t, 16> FieldOffsets;
 
-  /// \brief Whether the external AST source has provided a layout for this
+  /// Whether the external AST source has provided a layout for this
   /// record.
   unsigned UseExternalLayout : 1;
 
-  /// \brief Whether we need to infer alignment, even when we have an 
+  /// Whether we need to infer alignment, even when we have an
   /// externally-provided layout.
   unsigned InferAlignment : 1;
-  
+
   /// Packed - Whether the record is packed or not.
   unsigned Packed : 1;
 
   unsigned IsUnion : 1;
 
   unsigned IsMac68kAlign : 1;
-  
+
   unsigned IsMsStruct : 1;
 
   /// UnfilledBitsInLastUnit - If the last field laid out was a bitfield,
@@ -632,7 +635,7 @@ protected:
   /// pointer, as opposed to inheriting one from a primary base class.
   bool HasOwnVFPtr;
 
-  /// \brief the flag of field offset changing due to packed attribute.
+  /// the flag of field offset changing due to packed attribute.
   bool HasPackedField;
 
   typedef llvm::DenseMap<const CXXRecordDecl *, CharUnits> BaseOffsetsMapTy;
@@ -662,6 +665,7 @@ protected:
                              EmptySubobjectMap *EmptySubobjects)
       : Context(Context), EmptySubobjects(EmptySubobjects), Size(0),
         Alignment(CharUnits::One()), UnpackedAlignment(CharUnits::One()),
+        UnadjustedAlignment(CharUnits::One()),
         UseExternalLayout(false), InferAlignment(false), Packed(false),
         IsUnion(false), IsMac68kAlign(false), IsMsStruct(false),
         UnfilledBitsInLastUnit(0), LastBitfieldTypeSize(0),
@@ -687,14 +691,14 @@ protected:
 
   /// BaseSubobjectInfoAllocator - Allocator for BaseSubobjectInfo objects.
   llvm::SpecificBumpPtrAllocator<BaseSubobjectInfo> BaseSubobjectInfoAllocator;
-  
+
   typedef llvm::DenseMap<const CXXRecordDecl *, BaseSubobjectInfo *>
     BaseSubobjectInfoMapTy;
 
   /// VirtualBaseInfo - Map from all the (direct or indirect) virtual bases
   /// of the class we're laying out to their base subobject info.
   BaseSubobjectInfoMapTy VirtualBaseInfo;
-  
+
   /// NonVirtualBaseInfo - Map from all the direct non-virtual bases of the
   /// class we're laying out to their base subobject info.
   BaseSubobjectInfoMapTy NonVirtualBaseInfo;
@@ -705,7 +709,7 @@ protected:
 
   /// ComputeBaseSubobjectInfo - Compute the base subobject information for a
   /// single class and all of its base classes.
-  BaseSubobjectInfo *ComputeBaseSubobjectInfo(const CXXRecordDecl *RD, 
+  BaseSubobjectInfo *ComputeBaseSubobjectInfo(const CXXRecordDecl *RD,
                                               bool IsVirtual,
                                               BaseSubobjectInfo *Derived);
 
@@ -749,23 +753,23 @@ protected:
     UpdateAlignment(NewAlignment, NewAlignment);
   }
 
-  /// \brief Retrieve the externally-supplied field offset for the given
+  /// Retrieve the externally-supplied field offset for the given
   /// field.
   ///
   /// \param Field The field whose offset is being queried.
   /// \param ComputedOffset The offset that we've computed for this field.
-  uint64_t updateExternalFieldOffset(const FieldDecl *Field, 
+  uint64_t updateExternalFieldOffset(const FieldDecl *Field,
                                      uint64_t ComputedOffset);
-  
+
   void CheckFieldPadding(uint64_t Offset, uint64_t UnpaddedOffset,
                           uint64_t UnpackedOffset, unsigned UnpackedAlign,
                           bool isPacked, const FieldDecl *D);
 
   DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
 
-  CharUnits getSize() const { 
+  CharUnits getSize() const {
     assert(Size % Context.getCharWidth() == 0);
-    return Context.toCharUnitsFromBits(Size); 
+    return Context.toCharUnitsFromBits(Size);
   }
   uint64_t getSizeInBits() const { return Size; }
 
@@ -774,9 +778,9 @@ protected:
 
   CharUnits getAligment() const { return Alignment; }
 
-  CharUnits getDataSize() const { 
+  CharUnits getDataSize() const {
     assert(DataSize % Context.getCharWidth() == 0);
-    return Context.toCharUnitsFromBits(DataSize); 
+    return Context.toCharUnitsFromBits(DataSize);
   }
   uint64_t getDataSizeInBits() const { return DataSize; }
 
@@ -867,7 +871,7 @@ void ItaniumRecordLayoutBuilder::DeterminePrimaryBase(const CXXRecordDecl *RD) {
 BaseSubobjectInfo *ItaniumRecordLayoutBuilder::ComputeBaseSubobjectInfo(
     const CXXRecordDecl *RD, bool IsVirtual, BaseSubobjectInfo *Derived) {
   BaseSubobjectInfo *Info;
-  
+
   if (IsVirtual) {
     // Check if we already have info about this virtual base.
     BaseSubobjectInfo *&InfoSlot = VirtualBaseInfo[RD];
@@ -882,7 +886,7 @@ BaseSubobjectInfo *ItaniumRecordLayoutBuilder::ComputeBaseSubobjectInfo(
   } else {
     Info = new (BaseSubobjectInfoAllocator.Allocate()) BaseSubobjectInfo;
   }
-  
+
   Info->Class = RD;
   Info->IsVirtual = IsVirtual;
   Info->Derived = nullptr;
@@ -898,10 +902,10 @@ BaseSubobjectInfo *ItaniumRecordLayoutBuilder::ComputeBaseSubobjectInfo(
       // This base does have a primary virtual base.
       PrimaryVirtualBase = Layout.getPrimaryBase();
       assert(PrimaryVirtualBase && "Didn't have a primary virtual base!");
-      
+
       // Now check if we have base subobject info about this primary base.
       PrimaryVirtualBaseInfo = VirtualBaseInfo.lookup(PrimaryVirtualBase);
-      
+
       if (PrimaryVirtualBaseInfo) {
         if (PrimaryVirtualBaseInfo->Derived) {
           // We did have info about this primary base, and it turns out that it
@@ -925,19 +929,19 @@ BaseSubobjectInfo *ItaniumRecordLayoutBuilder::ComputeBaseSubobjectInfo(
 
     Info->Bases.push_back(ComputeBaseSubobjectInfo(BaseDecl, IsVirtual, Info));
   }
-  
+
   if (PrimaryVirtualBase && !PrimaryVirtualBaseInfo) {
     // Traversing the bases must have created the base info for our primary
     // virtual base.
     PrimaryVirtualBaseInfo = VirtualBaseInfo.lookup(PrimaryVirtualBase);
     assert(PrimaryVirtualBaseInfo &&
            "Did not create a primary virtual base!");
-      
+
     // Claim the primary virtual base as our primary virtual base.
     Info->PrimaryVirtualBaseInfo = PrimaryVirtualBaseInfo;
     PrimaryVirtualBaseInfo->Derived = Info;
   }
-  
+
   return Info;
 }
 
@@ -967,7 +971,7 @@ void ItaniumRecordLayoutBuilder::ComputeBaseSubobjectInfo(
 
 void ItaniumRecordLayoutBuilder::EnsureVTablePointerAlignment(
     CharUnits UnpackedBaseAlign) {
-  CharUnits BaseAlign = (Packed) ? CharUnits::One() : UnpackedBaseAlign;
+  CharUnits BaseAlign = Packed ? CharUnits::One() : UnpackedBaseAlign;
 
   // The maximum field alignment overrides base align.
   if (!MaxFieldAlignment.isZero()) {
@@ -990,7 +994,7 @@ void ItaniumRecordLayoutBuilder::LayoutNonVirtualBases(
 
   // Compute base subobject info.
   ComputeBaseSubobjectInfo(RD);
-  
+
   // If we have a primary base class, lay it out.
   if (PrimaryBase) {
     if (PrimaryBaseIsVirtual) {
@@ -1008,9 +1012,9 @@ void ItaniumRecordLayoutBuilder::LayoutNonVirtualBases(
 
       LayoutVirtualBase(PrimaryBaseInfo);
     } else {
-      BaseSubobjectInfo *PrimaryBaseInfo = 
+      BaseSubobjectInfo *PrimaryBaseInfo =
         NonVirtualBaseInfo.lookup(PrimaryBase);
-      assert(PrimaryBaseInfo && 
+      assert(PrimaryBaseInfo &&
              "Did not find base info for non-virtual primary base!");
 
       LayoutNonVirtualBase(PrimaryBaseInfo);
@@ -1020,9 +1024,9 @@ void ItaniumRecordLayoutBuilder::LayoutNonVirtualBases(
   // primary base, add it in now.
   } else if (RD->isDynamicClass()) {
     assert(DataSize == 0 && "Vtable pointer must be at offset zero!");
-    CharUnits PtrWidth = 
+    CharUnits PtrWidth =
       Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(0));
-    CharUnits PtrAlign = 
+    CharUnits PtrAlign =
       Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerAlign(0));
     EnsureVTablePointerAlignment(PtrAlign);
     HasOwnVFPtr = true;
@@ -1070,14 +1074,14 @@ void ItaniumRecordLayoutBuilder::AddPrimaryVirtualBaseOffsets(
   // This base isn't interesting, it has no virtual bases.
   if (!Info->Class->getNumVBases())
     return;
-  
+
   // First, check if we have a virtual primary base to add offsets for.
   if (Info->PrimaryVirtualBaseInfo) {
-    assert(Info->PrimaryVirtualBaseInfo->IsVirtual && 
+    assert(Info->PrimaryVirtualBaseInfo->IsVirtual &&
            "Primary virtual base is not virtual!");
     if (Info->PrimaryVirtualBaseInfo->Derived == Info) {
       // Add the offset.
-      assert(!VBases.count(Info->PrimaryVirtualBaseInfo->Class) && 
+      assert(!VBases.count(Info->PrimaryVirtualBaseInfo->Class) &&
              "primary vbase offset already exists!");
       VBases.insert(std::make_pair(Info->PrimaryVirtualBaseInfo->Class,
                                    ASTRecordLayout::VBaseInfo(Offset, false)));
@@ -1147,13 +1151,13 @@ void ItaniumRecordLayoutBuilder::LayoutVirtualBases(
 void ItaniumRecordLayoutBuilder::LayoutVirtualBase(
     const BaseSubobjectInfo *Base) {
   assert(!Base->Derived && "Trying to lay out a primary virtual base!");
-  
+
   // Layout the base.
   CharUnits Offset = LayoutBase(Base);
 
   // Add its base class offset.
   assert(!VBases.count(Base->Class) && "vbase offset already exists!");
-  VBases.insert(std::make_pair(Base->Class, 
+  VBases.insert(std::make_pair(Base->Class,
                        ASTRecordLayout::VBaseInfo(Offset, false)));
 
   AddPrimaryVirtualBaseOffsets(Base, Offset);
@@ -1163,9 +1167,9 @@ CharUnits
 ItaniumRecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
   const ASTRecordLayout &Layout = Context.getASTRecordLayout(Base->Class);
 
-  
+
   CharUnits Offset;
-  
+
   // Query the external layout to see if it provides an offset.
   bool HasExternalLayout = false;
   if (UseExternalLayout) {
@@ -1174,10 +1178,17 @@ ItaniumRecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
     else
       HasExternalLayout = External.getExternalVBaseOffset(Base->Class, Offset);
   }
-  
+
+  // Clang <= 6 incorrectly applied the 'packed' attribute to base classes.
+  // Per GCC's documentation, it only applies to non-static data members.
   CharUnits UnpackedBaseAlign = Layout.getNonVirtualAlignment();
-  CharUnits BaseAlign = (Packed) ? CharUnits::One() : UnpackedBaseAlign;
- 
+  CharUnits BaseAlign =
+      (Packed && ((Context.getLangOpts().getClangABICompat() <=
+                   LangOptions::ClangABI::Ver6) ||
+                  Context.getTargetInfo().getTriple().isPS4()))
+          ? CharUnits::One()
+          : UnpackedBaseAlign;
+
   // If we have an empty base class, try to place it at offset 0.
   if (Base->Class->isEmpty() &&
       (!HasExternalLayout || Offset == CharUnits::Zero()) &&
@@ -1213,7 +1224,7 @@ ItaniumRecordLayoutBuilder::LayoutBase(const BaseSubobjectInfo *Base) {
       InferAlignment = false;
     }
   }
-  
+
   if (!Base->Class->isEmpty()) {
     // Update the data size.
     setDataSize(Offset + Layout.getNonVirtualSize());
@@ -1234,7 +1245,7 @@ void ItaniumRecordLayoutBuilder::InitializeLayout(const Decl *D) {
     IsMsStruct = RD->isMsStruct(Context);
   }
 
-  Packed = D->hasAttr<PackedAttr>();  
+  Packed = D->hasAttr<PackedAttr>();
 
   // Honor the default struct packing maximum alignment flag.
   if (unsigned DefaultMaxFieldAlignment = Context.getLangOpts().PackStruct) {
@@ -1256,7 +1267,7 @@ void ItaniumRecordLayoutBuilder::InitializeLayout(const Decl *D) {
     if (unsigned MaxAlign = D->getMaxAlignment())
       UpdateAlignment(Context.toCharUnitsFromBits(MaxAlign));
   }
-  
+
   // If there is an external AST source, ask it for the various offsets.
   if (const RecordDecl *RD = dyn_cast<RecordDecl>(D))
     if (ExternalASTSource *Source = Context.getExternalSource()) {
@@ -1410,7 +1421,7 @@ void ItaniumRecordLayoutBuilder::LayoutWideBitField(uint64_t FieldSize,
     setDataSize(std::max(getDataSizeInBits(), RoundedFieldSize));
     FieldOffset = 0;
   } else {
-    // The bitfield is allocated starting at the next offset aligned 
+    // The bitfield is allocated starting at the next offset aligned
     // appropriately for T', with length n bits.
     FieldOffset = llvm::alignTo(getDataSizeInBits(), Context.toBits(TypeAlign));
 
@@ -1504,9 +1515,10 @@ void ItaniumRecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
     FieldAlign = TypeSize;
 
     // If the previous field was not a bitfield, or was a bitfield
-    // with a different storage unit size, we're done with that
-    // storage unit.
-    if (LastBitfieldTypeSize != TypeSize) {
+    // with a different storage unit size, or if this field doesn't fit into
+    // the current storage unit, we're done with that storage unit.
+    if (LastBitfieldTypeSize != TypeSize ||
+        UnfilledBitsInLastUnit < FieldSize) {
       // Also, ignore zero-length bitfields after non-bitfields.
       if (!LastBitfieldTypeSize && !FieldSize)
         FieldAlign = 1;
@@ -1601,7 +1613,7 @@ void ItaniumRecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
     bool AllowPadding = MaxFieldAlignment.isZero();
 
     // Compute the real offset.
-    if (FieldSize == 0 || 
+    if (FieldSize == 0 ||
         (AllowPadding &&
          (FieldOffset & (FieldAlign-1)) + FieldSize > TypeSize)) {
       FieldOffset = llvm::alignTo(FieldOffset, FieldAlign);
@@ -1699,7 +1711,9 @@ void ItaniumRecordLayoutBuilder::LayoutBitField(const FieldDecl *D) {
   setSize(std::max(getSizeInBits(), getDataSizeInBits()));
 
   // Remember max struct/class alignment.
-  UpdateAlignment(Context.toCharUnitsFromBits(FieldAlign), 
+  UnadjustedAlignment =
+      std::max(UnadjustedAlignment, Context.toCharUnitsFromBits(FieldAlign));
+  UpdateAlignment(Context.toCharUnitsFromBits(FieldAlign),
                   Context.toCharUnitsFromBits(UnpackedFieldAlign));
 }
 
@@ -1717,7 +1731,7 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
   LastBitfieldTypeSize = 0;
 
   bool FieldPacked = Packed || D->hasAttr<PackedAttr>();
-  CharUnits FieldOffset = 
+  CharUnits FieldOffset =
     IsUnion ? CharUnits::Zero() : getDataSize();
   CharUnits FieldSize;
   CharUnits FieldAlign;
@@ -1732,12 +1746,12 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
     FieldAlign = Context.getTypeAlignInChars(ATy->getElementType());
   } else if (const ReferenceType *RT = D->getType()->getAs<ReferenceType>()) {
     unsigned AS = Context.getTargetAddressSpace(RT->getPointeeType());
-    FieldSize = 
+    FieldSize =
       Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerWidth(AS));
-    FieldAlign = 
+    FieldAlign =
       Context.toCharUnitsFromBits(Context.getTargetInfo().getPointerAlign(AS));
   } else {
-    std::pair<CharUnits, CharUnits> FieldInfo = 
+    std::pair<CharUnits, CharUnits> FieldInfo =
       Context.getTypeInfoInChars(D->getType());
     FieldSize = FieldInfo.first;
     FieldAlign = FieldInfo.second;
@@ -1745,7 +1759,7 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
     if (IsMsStruct) {
       // If MS bitfield layout is required, figure out what type is being
       // laid out and align the field to the width of that type.
-      
+
       // Resolve all typedefs down to their base type and round up the field
       // alignment if necessary.
       QualType T = Context.getBaseElementType(D->getType());
@@ -1791,7 +1805,7 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
 
   if (FieldPacked)
     FieldAlign = CharUnits::One();
-  CharUnits MaxAlignmentInChars = 
+  CharUnits MaxAlignmentInChars =
     Context.toCharUnitsFromBits(D->getMaxAlignment());
   FieldAlign = std::max(FieldAlign, MaxAlignmentInChars);
   UnpackedFieldAlign = std::max(UnpackedFieldAlign, MaxAlignmentInChars);
@@ -1809,12 +1823,12 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
   if (UseExternalLayout) {
     FieldOffset = Context.toCharUnitsFromBits(
                     updateExternalFieldOffset(D, Context.toBits(FieldOffset)));
-    
+
     if (!IsUnion && EmptySubobjects) {
       // Record the fact that we're placing a field at this offset.
       bool Allowed = EmptySubobjects->CanPlaceFieldAtOffset(D, FieldOffset);
       (void)Allowed;
-      assert(Allowed && "Externally-placed field cannot be placed here");      
+      assert(Allowed && "Externally-placed field cannot be placed here");
     }
   } else {
     if (!IsUnion && EmptySubobjects) {
@@ -1825,12 +1839,12 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
       }
     }
   }
-  
+
   // Place this field at the current location.
   FieldOffsets.push_back(Context.toBits(FieldOffset));
 
   if (!UseExternalLayout)
-    CheckFieldPadding(Context.toBits(FieldOffset), UnpaddedFieldOffset, 
+    CheckFieldPadding(Context.toBits(FieldOffset), UnpaddedFieldOffset,
                       Context.toBits(UnpackedFieldOffset),
                       Context.toBits(UnpackedFieldAlign), FieldPacked, D);
 
@@ -1854,6 +1868,7 @@ void ItaniumRecordLayoutBuilder::LayoutField(const FieldDecl *D,
   setSize(std::max(getSizeInBits(), getDataSizeInBits()));
 
   // Remember max struct/class alignment.
+  UnadjustedAlignment = std::max(UnadjustedAlignment, FieldAlign);
   UpdateAlignment(FieldAlign, UnpackedFieldAlign);
 }
 
@@ -1951,12 +1966,12 @@ ItaniumRecordLayoutBuilder::updateExternalFieldOffset(const FieldDecl *Field,
     Alignment = CharUnits::One();
     InferAlignment = false;
   }
-  
+
   // Use the externally-supplied field offset.
   return ExternalFieldOffset;
 }
 
-/// \brief Get diagnostic %select index for tag kind for
+/// Get diagnostic %select index for tag kind for
 /// field padding diagnostic message.
 /// WARNING: Indexes apply to particular diagnostics only!
 ///
@@ -1982,7 +1997,7 @@ void ItaniumRecordLayoutBuilder::CheckFieldPadding(
   // be done by clients of the AST, such as codegen.
   if (D->getLocation().isInvalid())
     return;
-  
+
   unsigned CharBitNum = Context.getTargetInfo().getCharWidth();
 
   // Warn if padding was introduced to the struct/class.
@@ -2133,7 +2148,7 @@ static bool mustSkipTailPadding(TargetCXXABI ABI, const CXXRecordDecl *RD) {
     // mode; fortunately, that is true because we want to assign
     // consistently semantics to the type-traits intrinsics (or at
     // least as many of them as possible).
-    return RD->isTrivial() && RD->isStandardLayout();
+    return RD->isTrivial() && RD->isCXX11StandardLayout();
   }
 
   llvm_unreachable("bad tail-padding use kind");
@@ -2247,9 +2262,9 @@ private:
 public:
   void layout(const RecordDecl *RD);
   void cxxLayout(const CXXRecordDecl *RD);
-  /// \brief Initializes size and alignment and honors some flags.
+  /// Initializes size and alignment and honors some flags.
   void initializeLayout(const RecordDecl *RD);
-  /// \brief Initialized C++ layout, compute alignment and virtual alignment and
+  /// Initialized C++ layout, compute alignment and virtual alignment and
   /// existence of vfptrs and vbptrs.  Alignment is needed before the vfptr is
   /// laid out.
   void initializeCXXLayout(const CXXRecordDecl *RD);
@@ -2260,93 +2275,93 @@ public:
                             const ASTRecordLayout *&PreviousBaseLayout);
   void injectVFPtr(const CXXRecordDecl *RD);
   void injectVBPtr(const CXXRecordDecl *RD);
-  /// \brief Lays out the fields of the record.  Also rounds size up to
+  /// Lays out the fields of the record.  Also rounds size up to
   /// alignment.
   void layoutFields(const RecordDecl *RD);
   void layoutField(const FieldDecl *FD);
   void layoutBitField(const FieldDecl *FD);
-  /// \brief Lays out a single zero-width bit-field in the record and handles
+  /// Lays out a single zero-width bit-field in the record and handles
   /// special cases associated with zero-width bit-fields.
   void layoutZeroWidthBitField(const FieldDecl *FD);
   void layoutVirtualBases(const CXXRecordDecl *RD);
   void finalizeLayout(const RecordDecl *RD);
-  /// \brief Gets the size and alignment of a base taking pragma pack and
+  /// Gets the size and alignment of a base taking pragma pack and
   /// __declspec(align) into account.
   ElementInfo getAdjustedElementInfo(const ASTRecordLayout &Layout);
-  /// \brief Gets the size and alignment of a field taking pragma  pack and
+  /// Gets the size and alignment of a field taking pragma  pack and
   /// __declspec(align) into account.  It also updates RequiredAlignment as a
   /// side effect because it is most convenient to do so here.
   ElementInfo getAdjustedElementInfo(const FieldDecl *FD);
-  /// \brief Places a field at an offset in CharUnits.
+  /// Places a field at an offset in CharUnits.
   void placeFieldAtOffset(CharUnits FieldOffset) {
     FieldOffsets.push_back(Context.toBits(FieldOffset));
   }
-  /// \brief Places a bitfield at a bit offset.
+  /// Places a bitfield at a bit offset.
   void placeFieldAtBitOffset(uint64_t FieldOffset) {
     FieldOffsets.push_back(FieldOffset);
   }
-  /// \brief Compute the set of virtual bases for which vtordisps are required.
+  /// Compute the set of virtual bases for which vtordisps are required.
   void computeVtorDispSet(
       llvm::SmallPtrSetImpl<const CXXRecordDecl *> &HasVtorDispSet,
       const CXXRecordDecl *RD) const;
   const ASTContext &Context;
-  /// \brief The size of the record being laid out.
+  /// The size of the record being laid out.
   CharUnits Size;
-  /// \brief The non-virtual size of the record layout.
+  /// The non-virtual size of the record layout.
   CharUnits NonVirtualSize;
-  /// \brief The data size of the record layout.
+  /// The data size of the record layout.
   CharUnits DataSize;
-  /// \brief The current alignment of the record layout.
+  /// The current alignment of the record layout.
   CharUnits Alignment;
-  /// \brief The maximum allowed field alignment. This is set by #pragma pack.
+  /// The maximum allowed field alignment. This is set by #pragma pack.
   CharUnits MaxFieldAlignment;
-  /// \brief The alignment that this record must obey.  This is imposed by
+  /// The alignment that this record must obey.  This is imposed by
   /// __declspec(align()) on the record itself or one of its fields or bases.
   CharUnits RequiredAlignment;
-  /// \brief The size of the allocation of the currently active bitfield.
+  /// The size of the allocation of the currently active bitfield.
   /// This value isn't meaningful unless LastFieldIsNonZeroWidthBitfield
   /// is true.
   CharUnits CurrentBitfieldSize;
-  /// \brief Offset to the virtual base table pointer (if one exists).
+  /// Offset to the virtual base table pointer (if one exists).
   CharUnits VBPtrOffset;
-  /// \brief Minimum record size possible.
+  /// Minimum record size possible.
   CharUnits MinEmptyStructSize;
-  /// \brief The size and alignment info of a pointer.
+  /// The size and alignment info of a pointer.
   ElementInfo PointerInfo;
-  /// \brief The primary base class (if one exists).
+  /// The primary base class (if one exists).
   const CXXRecordDecl *PrimaryBase;
-  /// \brief The class we share our vb-pointer with.
+  /// The class we share our vb-pointer with.
   const CXXRecordDecl *SharedVBPtrBase;
-  /// \brief The collection of field offsets.
+  /// The collection of field offsets.
   SmallVector<uint64_t, 16> FieldOffsets;
-  /// \brief Base classes and their offsets in the record.
+  /// Base classes and their offsets in the record.
   BaseOffsetsMapTy Bases;
-  /// \brief virtual base classes and their offsets in the record.
+  /// virtual base classes and their offsets in the record.
   ASTRecordLayout::VBaseOffsetsMapTy VBases;
-  /// \brief The number of remaining bits in our last bitfield allocation.
+  /// The number of remaining bits in our last bitfield allocation.
   /// This value isn't meaningful unless LastFieldIsNonZeroWidthBitfield is
   /// true.
   unsigned RemainingBitsInField;
   bool IsUnion : 1;
-  /// \brief True if the last field laid out was a bitfield and was not 0
+  /// True if the last field laid out was a bitfield and was not 0
   /// width.
   bool LastFieldIsNonZeroWidthBitfield : 1;
-  /// \brief True if the class has its own vftable pointer.
+  /// True if the class has its own vftable pointer.
   bool HasOwnVFPtr : 1;
-  /// \brief True if the class has a vbtable pointer.
+  /// True if the class has a vbtable pointer.
   bool HasVBPtr : 1;
-  /// \brief True if the last sub-object within the type is zero sized or the
+  /// True if the last sub-object within the type is zero sized or the
   /// object itself is zero sized.  This *does not* count members that are not
   /// records.  Only used for MS-ABI.
   bool EndsWithZeroSizedObject : 1;
-  /// \brief True if this class is zero sized or first base is zero sized or
+  /// True if this class is zero sized or first base is zero sized or
   /// has this property.  Only used for MS-ABI.
   bool LeadsWithZeroSizedBase : 1;
 
-  /// \brief True if the external AST source provided a layout for this record.
+  /// True if the external AST source provided a layout for this record.
   bool UseExternalLayout : 1;
 
-  /// \brief The layout provided by the external AST source. Only active if
+  /// The layout provided by the external AST source. Only active if
   /// UseExternalLayout is true.
   ExternalLayout External;
 };
@@ -2437,7 +2452,9 @@ void MicrosoftRecordLayoutBuilder::cxxLayout(const CXXRecordDecl *RD) {
   auto RoundingAlignment = Alignment;
   if (!MaxFieldAlignment.isZero())
     RoundingAlignment = std::min(RoundingAlignment, MaxFieldAlignment);
-  NonVirtualSize = Size = Size.alignTo(RoundingAlignment);
+  if (!UseExternalLayout)
+    Size = Size.alignTo(RoundingAlignment);
+  NonVirtualSize = Size;
   RequiredAlignment = std::max(
       RequiredAlignment, Context.toCharUnitsFromBits(RD->getMaxAlignment()));
   layoutVirtualBases(RD);
@@ -2611,8 +2628,8 @@ void MicrosoftRecordLayoutBuilder::layoutNonVirtualBase(
   }
 
   if (!FoundBase) {
-    if (MDCUsesEBO && BaseDecl->isEmpty() &&
-        BaseLayout.getNonVirtualSize() == CharUnits::Zero()) {
+    if (MDCUsesEBO && BaseDecl->isEmpty()) {
+      assert(BaseLayout.getNonVirtualSize() == CharUnits::Zero());
       BaseOffset = CharUnits::Zero();
     } else {
       // Otherwise, lay the base out at the end of the MDC.
@@ -2638,21 +2655,16 @@ void MicrosoftRecordLayoutBuilder::layoutField(const FieldDecl *FD) {
   LastFieldIsNonZeroWidthBitfield = false;
   ElementInfo Info = getAdjustedElementInfo(FD);
   Alignment = std::max(Alignment, Info.Alignment);
-  if (IsUnion) {
-    placeFieldAtOffset(CharUnits::Zero());
-    Size = std::max(Size, Info.Size);
-  } else {
-    CharUnits FieldOffset;
-    if (UseExternalLayout) {
-      FieldOffset =
-          Context.toCharUnitsFromBits(External.getExternalFieldOffset(FD));
-      assert(FieldOffset >= Size && "field offset already allocated");
-    } else {
-      FieldOffset = Size.alignTo(Info.Alignment);
-    }
-    placeFieldAtOffset(FieldOffset);
-    Size = FieldOffset + Info.Size;
-  }
+  CharUnits FieldOffset;
+  if (UseExternalLayout)
+    FieldOffset =
+        Context.toCharUnitsFromBits(External.getExternalFieldOffset(FD));
+  else if (IsUnion)
+    FieldOffset = CharUnits::Zero();
+  else
+    FieldOffset = Size.alignTo(Info.Alignment);
+  placeFieldAtOffset(FieldOffset);
+  Size = std::max(Size, FieldOffset + Info.Size);
 }
 
 void MicrosoftRecordLayoutBuilder::layoutBitField(const FieldDecl *FD) {
@@ -2669,7 +2681,7 @@ void MicrosoftRecordLayoutBuilder::layoutBitField(const FieldDecl *FD) {
   // Check to see if this bitfield fits into an existing allocation.  Note:
   // MSVC refuses to pack bitfields of formal types with different sizes
   // into the same allocation.
-  if (!IsUnion && LastFieldIsNonZeroWidthBitfield &&
+  if (!UseExternalLayout && !IsUnion && LastFieldIsNonZeroWidthBitfield &&
       CurrentBitfieldSize == Info.Size && Width <= RemainingBitsInField) {
     placeFieldAtBitOffset(Context.toBits(Size) - RemainingBitsInField);
     RemainingBitsInField -= Width;
@@ -2677,7 +2689,14 @@ void MicrosoftRecordLayoutBuilder::layoutBitField(const FieldDecl *FD) {
   }
   LastFieldIsNonZeroWidthBitfield = true;
   CurrentBitfieldSize = Info.Size;
-  if (IsUnion) {
+  if (UseExternalLayout) {
+    auto FieldBitOffset = External.getExternalFieldOffset(FD);
+    placeFieldAtBitOffset(FieldBitOffset);
+    auto NewSize = Context.toCharUnitsFromBits(
+        llvm::alignTo(FieldBitOffset + Width, Context.getCharWidth()));
+    Size = std::max(Size, NewSize);
+    Alignment = std::max(Alignment, Info.Alignment);
+  } else if (IsUnion) {
     placeFieldAtOffset(CharUnits::Zero());
     Size = std::max(Size, Info.Size);
     // TODO: Add a Sema warning that MS ignores bitfield alignment in unions.
@@ -2953,7 +2972,7 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
 
   if (D->hasExternalLexicalStorage() && !D->getDefinition())
     getExternalSource()->CompleteType(const_cast<RecordDecl*>(D));
-    
+
   D = D->getDefinition();
   assert(D && "Cannot get layout of forward declarations!");
   assert(!D->isInvalidDecl() && "Cannot get layout of invalid decl!");
@@ -2972,7 +2991,8 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
     if (const auto *RD = dyn_cast<CXXRecordDecl>(D)) {
       Builder.cxxLayout(RD);
       NewEntry = new (*this) ASTRecordLayout(
-          *this, Builder.Size, Builder.Alignment, Builder.RequiredAlignment,
+          *this, Builder.Size, Builder.Alignment, Builder.Alignment,
+          Builder.RequiredAlignment,
           Builder.HasOwnVFPtr, Builder.HasOwnVFPtr || Builder.PrimaryBase,
           Builder.VBPtrOffset, Builder.DataSize, Builder.FieldOffsets,
           Builder.NonVirtualSize, Builder.Alignment, CharUnits::Zero(),
@@ -2982,7 +3002,8 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
     } else {
       Builder.layout(D);
       NewEntry = new (*this) ASTRecordLayout(
-          *this, Builder.Size, Builder.Alignment, Builder.RequiredAlignment,
+          *this, Builder.Size, Builder.Alignment, Builder.Alignment,
+          Builder.RequiredAlignment,
           Builder.Size, Builder.FieldOffsets);
     }
   } else {
@@ -3003,7 +3024,7 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
       CharUnits NonVirtualSize =
           skipTailPadding ? DataSize : Builder.NonVirtualSize;
       NewEntry = new (*this) ASTRecordLayout(
-          *this, Builder.getSize(), Builder.Alignment,
+          *this, Builder.getSize(), Builder.Alignment, Builder.UnadjustedAlignment,
           /*RequiredAlignment : used by MS-ABI)*/
           Builder.Alignment, Builder.HasOwnVFPtr, RD->isDynamicClass(),
           CharUnits::fromQuantity(-1), DataSize, Builder.FieldOffsets,
@@ -3016,7 +3037,7 @@ ASTContext::getASTRecordLayout(const RecordDecl *D) const {
       Builder.Layout(D);
 
       NewEntry = new (*this) ASTRecordLayout(
-          *this, Builder.getSize(), Builder.Alignment,
+          *this, Builder.getSize(), Builder.Alignment, Builder.UnadjustedAlignment,
           /*RequiredAlignment : used by MS-ABI)*/
           Builder.Alignment, Builder.getSize(), Builder.FieldOffsets);
     }
@@ -3037,7 +3058,7 @@ const CXXMethodDecl *ASTContext::getCurrentKeyFunction(const CXXRecordDecl *RD) 
     return nullptr;
 
   assert(RD->getDefinition() && "Cannot get key function for forward decl!");
-  RD = cast<CXXRecordDecl>(RD->getDefinition());
+  RD = RD->getDefinition();
 
   // Beware:
   //  1) computing the key function might trigger deserialization, which might
@@ -3170,6 +3191,7 @@ ASTContext::getObjCLayout(const ObjCInterfaceDecl *D,
   const ASTRecordLayout *NewEntry =
     new (*this) ASTRecordLayout(*this, Builder.getSize(),
                                 Builder.Alignment,
+                                Builder.UnadjustedAlignment,
                                 /*RequiredAlignment : used by MS-ABI)*/
                                 Builder.Alignment,
                                 Builder.getDataSize(),
@@ -3199,7 +3221,7 @@ static void PrintBitFieldOffset(raw_ostream &OS, CharUnits Offset,
       BufferOS << Begin << '-' << (Begin + Width - 1);
     }
   }
-  
+
   OS << llvm::right_justify(Buffer, 10) << " | ";
   OS.indent(IndentLevel * 2);
 }
@@ -3307,7 +3329,7 @@ static void DumpRecordLayout(raw_ostream &OS, const RecordDecl *RD,
 
   // Dump virtual bases.
   if (CXXRD && IncludeVirtualBases) {
-    const ASTRecordLayout::VBaseOffsetsMapTy &VtorDisps = 
+    const ASTRecordLayout::VBaseOffsetsMapTy &VtorDisps =
       Layout.getVBaseOffsetsMap();
 
     for (const CXXBaseSpecifier &Base : CXXRD->vbases()) {

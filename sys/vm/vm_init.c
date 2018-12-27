@@ -68,6 +68,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/domainset.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/proc.h>
@@ -117,11 +118,22 @@ vm_mem_init(void *dummy)
 {
 
 	/*
-	 * Initializes resident memory structures. From here on, all physical
+	 * Initialize static domainsets, used by various allocators.
+	 */
+	domainset_init();
+
+	/*
+	 * Initialize resident memory structures.  From here on, all physical
 	 * memory is accounted for, and we use only virtual addresses.
 	 */
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(virtual_avail);
+
+	/*
+	 * Set an initial domain policy for thread0 so that allocations
+	 * can work.
+	 */
+	domainset_zero();
 
 #ifdef	UMA_MD_SMALL_ALLOC
 	/* Announce page availability to UMA. */

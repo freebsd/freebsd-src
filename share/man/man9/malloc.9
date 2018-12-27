@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2018
+.Dd October 30, 2018
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -46,13 +46,9 @@
 .Ft void *
 .Fn malloc "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
-.Fn malloc_domain "size_t size" "struct malloc_type *type" "int domain" "int flags"
-.Ft void *
 .Fn mallocarray "size_t nmemb" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void
 .Fn free "void *addr" "struct malloc_type *type"
-.Ft void
-.Fn free_domain "void *addr" "struct malloc_type *type"
 .Ft void *
 .Fn realloc "void *addr" "size_t size" "struct malloc_type *type" "int flags"
 .Ft void *
@@ -62,6 +58,12 @@
 .In sys/malloc.h
 .In sys/kernel.h
 .Fn MALLOC_DEFINE type shortdesc longdesc
+.In sys/param.h
+.In sys/domainset.h
+.Ft void *
+.Fn malloc_domainset "size_t size" "struct malloc_type *type" "struct domainset *ds" "int flags"
+.Ft void
+.Fn free_domain "void *addr" "struct malloc_type *type"
 .Sh DESCRIPTION
 The
 .Fn malloc
@@ -70,12 +72,15 @@ object whose size is specified by
 .Fa size .
 .Pp
 The
-.Fn malloc_domain
-variant allocates the object from the specified memory domain.  Memory allocated
-with this function should be returned with
-.Fn free_domain .
+.Fn malloc_domainset
+variant allocates memory from a specific
+.Xr numa 4
+domain using the specified domain selection policy.
 See
-.Xr numa 9 for more details.
+.Xr domainset 9
+for some example policies.
+Memory allocated with this function should be returned with
+.Fn free_domain .
 .Pp
 The
 .Fn mallocarray
@@ -310,7 +315,9 @@ functions.
 Failing consistency checks will cause a panic or a system console
 message.
 .Sh SEE ALSO
+.Xr numa 4 ,
 .Xr vmstat 8 ,
 .Xr contigmalloc 9 ,
+.Xr domainset 9 ,
 .Xr memguard 9 ,
 .Xr vnode 9

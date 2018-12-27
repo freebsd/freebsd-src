@@ -254,14 +254,14 @@ fileerror(ino_t cwd, ino_t ino, const char *errmesg)
 	char pathbuf[MAXPATHLEN + 1];
 
 	pwarn("%s ", errmesg);
-	pinode(ino);
-	printf("\n");
-	getpathname(pathbuf, cwd, ino);
 	if (ino < UFS_ROOTINO || ino > maxino) {
-		pfatal("NAME=%s\n", pathbuf);
+		pfatal("out-of-range inode number %ju", (uintmax_t)ino);
 		return;
 	}
 	dp = ginode(ino);
+	prtinode(ino, dp);
+	printf("\n");
+	getpathname(pathbuf, cwd, ino);
 	if (ftypeok(dp))
 		pfatal("%s=%s\n",
 		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE",
@@ -309,7 +309,7 @@ adjust(struct inodesc *idesc, int lcnt)
 	if (lcnt != 0) {
 		pwarn("LINK COUNT %s", (lfdir == idesc->id_number) ? lfname :
 			((DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE"));
-		pinode(idesc->id_number);
+		prtinode(idesc->id_number, dp);
 		printf(" COUNT %d SHOULD BE %d",
 			DIP(dp, di_nlink), DIP(dp, di_nlink) - lcnt);
 		if (preen || usedsoftdep) {
@@ -323,7 +323,7 @@ adjust(struct inodesc *idesc, int lcnt)
 		if (preen || reply("ADJUST") == 1) {
 			if (bkgrdflag == 0) {
 				DIP_SET(dp, di_nlink, DIP(dp, di_nlink) - lcnt);
-				inodirty();
+				inodirty(dp);
 			} else {
 				cmd.value = idesc->id_number;
 				cmd.size = -lcnt;
@@ -390,7 +390,8 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 	dp = ginode(orphan);
 	lostdir = (DIP(dp, di_mode) & IFMT) == IFDIR;
 	pwarn("UNREF %s ", lostdir ? "DIR" : "FILE");
-	pinode(orphan);
+	prtinode(orphan, dp);
+	printf("\n");
 	if (preen && DIP(dp, di_size) == 0)
 		return (0);
 	if (cursnapshot != 0) {
@@ -449,7 +450,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			pfatal("SORRY. CANNOT CREATE lost+found DIRECTORY\n\n");
 			return (0);
 		}
-		inodirty();
+		inodirty(dp);
 		idesc.id_type = ADDR;
 		idesc.id_func = pass4check;
 		idesc.id_number = oldlfdir;
@@ -474,7 +475,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 			(void)makeentry(orphan, lfdir, "..");
 		dp = ginode(lfdir);
 		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
-		inodirty();
+		inodirty(dp);
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
 		if (parentdir != (ino_t)-1) {
@@ -535,7 +536,7 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 	dp = ginode(parent);
 	if (DIP(dp, di_size) % DIRBLKSIZ) {
 		DIP_SET(dp, di_size, roundup(DIP(dp, di_size), DIRBLKSIZ));
-		inodirty();
+		inodirty(dp);
 	}
 	if ((ckinode(dp, &idesc) & ALTERED) != 0)
 		return (1);
@@ -591,7 +592,7 @@ expanddir(union dinode *dp, char *name)
 	else if (reply("EXPAND") == 0)
 		goto bad;
 	dirty(bp);
-	inodirty();
+	inodirty(dp);
 	return (1);
 bad:
 	DIP_SET(dp, di_db[lastbn], DIP(dp, di_db[lastbn + 1]));
@@ -632,7 +633,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
 	DIP_SET(dp, di_nlink, 2);
-	inodirty();
+	inodirty(dp);
 	if (ino == UFS_ROOTINO) {
 		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
 		cacheino(dp, ino);
@@ -653,7 +654,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	}
 	dp = ginode(parent);
 	DIP_SET(dp, di_nlink, DIP(dp, di_nlink) + 1);
-	inodirty();
+	inodirty(dp);
 	return (ino);
 }
 
@@ -668,7 +669,7 @@ freedir(ino_t ino, ino_t parent)
 	if (ino != parent) {
 		dp = ginode(parent);
 		DIP_SET(dp, di_nlink, DIP(dp, di_nlink) - 1);
-		inodirty();
+		inodirty(dp);
 	}
 	freeino(ino);
 }

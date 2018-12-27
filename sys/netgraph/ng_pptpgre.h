@@ -100,6 +100,10 @@ struct ng_pptpgre_stats {
 	u_int32_t recvLoneAcks;		/* ack-only packets rec'd */
 	u_int32_t recvAckTimeouts;	/* times peer failed to ack in time */
 	u_int32_t memoryFailures;	/* times we couldn't allocate memory */
+	u_int32_t recvReorderOverflow;	/* times we dropped GRE packet
+					   due to overflow of reorder queue */
+	u_int32_t recvReorderTimeouts;	/* times we flushed reorder queue
+					   due to timeout */
 };
 
 /* Keep this in sync with the above structure definition */
@@ -120,6 +124,8 @@ struct ng_pptpgre_stats {
 	  { "recvLoneAcks",	&ng_parse_uint32_type	},	\
 	  { "recvAckTimeouts",	&ng_parse_uint32_type	},	\
 	  { "memoryFailures",	&ng_parse_uint32_type	},	\
+	  { "recvReorderOverflow", &ng_parse_uint32_type},	\
+	  { "recvReorderTimeouts", &ng_parse_uint32_type},	\
 	  { NULL }						\
 }
 

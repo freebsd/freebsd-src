@@ -41,29 +41,24 @@ __FBSDID("$FreeBSD$");
 
 #include "nvmecontrol.h"
 
-static void
-reset_usage(void)
-{
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, RESET_USAGE);
-	exit(1);
-}
+#define RESET_USAGE							       \
+	"reset <controller id>\n"
 
-void
-reset(int argc, char *argv[])
+static void
+reset(const struct nvme_function *nf, int argc, char *argv[])
 {
 	int	ch, fd;
 
 	while ((ch = getopt(argc, argv, "")) != -1) {
 		switch ((char)ch) {
 		default:
-			reset_usage();
+			usage(nf);
 		}
 	}
 
 	/* Check that a controller was specified. */
 	if (optind >= argc)
-		reset_usage();
+		usage(nf);
 
 	open_dev(argv[optind], &fd, 1, 1);
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0)
@@ -71,3 +66,5 @@ reset(int argc, char *argv[])
 
 	exit(0);
 }
+
+NVME_COMMAND(top, reset, reset, RESET_USAGE);

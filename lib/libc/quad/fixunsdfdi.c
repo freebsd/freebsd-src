@@ -51,8 +51,7 @@ __FBSDID("$FreeBSD$");
  * of range becomes UQUAD_MAX.
  */
 u_quad_t
-__fixunsdfdi(x)
-	double x;
+__fixunsdfdi(double x)
 {
 	double toppart;
 	union uu t;

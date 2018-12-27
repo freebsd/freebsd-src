@@ -157,7 +157,7 @@ setup(void)
 	getfdtype(&in);
 
 	cap_rights_init(&rights, CAP_READ, CAP_SEEK);
-	if (cap_rights_limit(in.fd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(in.fd, &rights) == -1)
 		err(1, "unable to limit capability rights");
 
 	if (files_cnt > 1 && !(in.flags & ISTAPE))
@@ -188,10 +188,9 @@ setup(void)
 
 	getfdtype(&out);
 
-	if (cap_rights_limit(out.fd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(out.fd, &rights) == -1)
 		err(1, "unable to limit capability rights");
-	if (cap_ioctls_limit(out.fd, cmds, nitems(cmds)) == -1 &&
-	    errno != ENOSYS)
+	if (caph_ioctls_limit(out.fd, cmds, nitems(cmds)) == -1)
 		err(1, "unable to limit capability rights");
 
 	if (in.fd != STDIN_FILENO && out.fd != STDIN_FILENO) {
@@ -512,7 +511,7 @@ void
 dd_out(int force)
 {
 	u_char *outp;
-	size_t cnt, i, n;
+	size_t cnt, n;
 	ssize_t nw;
 	static int warned;
 	int sparse;
@@ -545,12 +544,8 @@ dd_out(int force)
 		do {
 			sparse = 0;
 			if (ddflags & C_SPARSE) {
-				sparse = 1;	/* Is buffer sparse? */
-				for (i = 0; i < cnt; i++)
-					if (outp[i] != 0) {
-						sparse = 0;
-						break;
-					}
+				/* Is buffer sparse? */
+				sparse = BISZERO(outp, cnt);
 			}
 			if (sparse && !force) {
 				pending += cnt;

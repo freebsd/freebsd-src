@@ -461,6 +461,8 @@ struct ahci_channel {
 	struct mtx_padalign	mtx;		/* state lock */
 	STAILQ_HEAD(, ccb_hdr)	doneq;		/* queue of completed CCBs */
 	int			batch;		/* doneq is in use */
+
+	int			disablephy;	/* keep PHY disabled */
 };
 
 struct ahci_enclosure {

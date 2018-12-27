@@ -335,6 +335,7 @@ static int
 nss_configure(void)
 {
 	static time_t	 confmod;
+	static int	 already_initialized = 0;
 	struct stat	 statbuf;
 	int		 result, isthreaded;
 	const char	*path;
@@ -352,6 +353,16 @@ nss_configure(void)
 	if (path == NULL)
 #endif
 		path = _PATH_NS_CONF;
+#ifndef NS_REREAD_CONF
+	/*
+	 * Define NS_REREAD_CONF to have nsswitch notice changes
+	 * to nsswitch.conf(5) during runtime.  This involves calling
+	 * stat(2) every time, which can result in performance hit.
+	 */
+	if (already_initialized)
+		return (0);
+	already_initialized = 1;
+#endif /* NS_REREAD_CONF */
 	if (stat(path, &statbuf) != 0)
 		return (0);
 	if (statbuf.st_mtime <= confmod)
@@ -486,9 +497,19 @@ nss_load_module(const char *source, nss_module_register_fn reg_fn)
 		 */
 		mod.handle = nss_builtin_handle;
 		fn = reg_fn;
-	} else if (!is_dynamic())
+	} else if (!is_dynamic()) {
 		goto fin;
-	else {
+	} else if (strcmp(source, NSSRC_CACHE) == 0 ||
+	    strcmp(source, NSSRC_COMPAT) == 0 ||
+	    strcmp(source, NSSRC_DB) == 0 ||
+	    strcmp(source, NSSRC_DNS) == 0 ||
+	    strcmp(source, NSSRC_FILES) == 0 ||
+	    strcmp(source, NSSRC_NIS) == 0) {
+		/*
+		 * Avoid calling dlopen(3) for built-in modules.
+		 */
+		goto fin;
+	} else {
 		if (snprintf(buf, sizeof(buf), "nss_%s.so.%d", mod.name,
 		    NSS_MODULE_INTERFACE_VERSION) >= (int)sizeof(buf))
 			goto fin;

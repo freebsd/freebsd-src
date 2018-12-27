@@ -24,14 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2018
+.Dd October 30, 2018
 .Dt DOMAINSET 9
 .Os
 .Sh NAME
 .Nm domainset(9)
-\(em
-.Nm domainset_create ,
-.Nm sysctl_handle_domainset .
 .Nd domainset functions and operation
 .Sh SYNOPSIS
 .In sys/_domainset.h
@@ -46,6 +43,12 @@ struct domainset {
 };
 .Ed
 .Pp
+.Ft struct domainset *
+.Fn DOMAINSET_FIXED domain
+.Ft struct domainset *
+.Fn DOMAINSET_RR
+.Ft struct domainset *
+.Fn DOMAINSET_PREF domain
 .Ft struct domainset *
 .Fn domainset_create "const struct domainset *key"
 .Ft int
@@ -98,6 +101,27 @@ This gives good distribution among memory domains while keeping system
 efficiency higher and is preferential to round-robin for general use.
 .El
 .Pp
+The
+.Fn DOMAINSET_FIXED ,
+.Fn DOMAINSET_RR
+and
+.Fn DOMAINSET_PREF
+macros provide pointers to global pre-defined policies for use when the
+desired policy is known at compile time.
+.Fn DOMAINSET_FIXED
+is a policy which only permits allocations from the specified domain.
+.Fn DOMAINSET_RR
+provides round-robin selection among all domains in the system.
+The
+.Fn DOMAINSET_PREF
+policies attempt allocation from the specified domain, but unlike
+.Fn DOMAINSET_FIXED
+will fall back to other domains to satisfy the request.
+These policies should be used in preference to
+.Fn DOMAINSET_FIXED
+to avoid blocking indefinitely on a
+.Dv M_WAITOK
+request.
 The
 .Fn domainset_create
 function takes a partially filled in domainset as a key and returns a

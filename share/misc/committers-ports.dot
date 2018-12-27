@@ -33,6 +33,7 @@ asami [label="Satoshi Asami\nasami@FreeBSD.org\n1994/11/18\n2001/09/11"]
 billf [label="Bill Fumerola\nbillf@FreeBSD.org\n1998/11/11\n2006/12/14"]
 jmallett [label="Juli Mallett\njmallett@FreeBSD.org\n2003/01/16\n2006/08/10"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03\n2007/07/01"]
+sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17\n2018/12/03"]
 steve [label="Steve Price\nsteve@FreeBSD.org\nxxxx/xx/xx\nxxxx/xx/xx"]
 will [label="Will Andrews\nwill@FreeBSD.org\n2000/03/20\n2006/09/01"]
 
@@ -220,6 +221,7 @@ rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rezny [label="Matthew Rezny\nrezny@FreeBSD.org\n2017/01/09"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
+rigoletto [label="Alexandre C. Guimaraes\nrigoletto@FreeBSD.org\n2018/10/01"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 robak [label="Bartek Rutkowski\nrobak@FreeBSD.org\n2014/06/10"]
@@ -237,8 +239,8 @@ sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
 shurd [label="Stephen Hurd\nshurd@FreeBSD.org\n2014/06/14"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2005/01/08"]
+skozlov [label="Sergey Kozlov\nskozlov@FreeBSD.org\n2018/09/21"]
 skreuzer [label="Steven Kreuzer\nskreuzer@FreeBSD.org\n2009/03/25"]
-sobomax[label="Maxim Sobolev\nsobomax@FreeBSD.org\n2000/05/17"]
 sperber[label="Armin Pirkovitsch\nsperber@FreeBSD.org\n2012/04/15"]
 stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2006/09/18"]
 stefan [label="Stefan Walter\nstefan@FreeBSD.org\n2006/05/07"]
@@ -549,6 +551,7 @@ mat -> tcberner
 mat -> thierry
 mat -> tobik
 mat -> woodsb02
+mat -> rigoletto
 
 matthew -> leres
 matthew -> lifanov
@@ -651,6 +654,8 @@ sahil -> eadler
 
 sat -> beech
 
+sbruno -> skozlov
+
 sem -> az
 sem -> anray
 sem -> delphij
@@ -708,6 +713,7 @@ tcberner -> joneum
 tcberner -> yuri
 tcberner -> fernape
 tcberner -> arrowd
+tcberner -> rigoletto
 
 thierry -> jadawin
 thierry -> riggs

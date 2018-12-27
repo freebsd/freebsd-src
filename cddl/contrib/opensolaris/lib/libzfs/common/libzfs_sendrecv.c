@@ -2140,7 +2140,6 @@ recv_rename(libzfs_handle_t *hdl, const char *name, const char *tryname,
     int baselen, char *newname, recvflags_t *flags)
 {
 	static int seq;
-	zfs_cmd_t zc = { 0 };
 	int err;
 	prop_changelist_t *clp;
 	zfs_handle_t *zhp;
@@ -2157,19 +2156,13 @@ recv_rename(libzfs_handle_t *hdl, const char *name, const char *tryname,
 	if (err)
 		return (err);
 
-	zc.zc_objset_type = DMU_OST_ZFS;
-	(void) strlcpy(zc.zc_name, name, sizeof (zc.zc_name));
-
 	if (tryname) {
 		(void) strcpy(newname, tryname);
-
-		(void) strlcpy(zc.zc_value, tryname, sizeof (zc.zc_value));
-
 		if (flags->verbose) {
 			(void) printf("attempting rename %s to %s\n",
-			    zc.zc_name, zc.zc_value);
+			    name, newname);
 		}
-		err = ioctl(hdl->libzfs_fd, ZFS_IOC_RENAME, &zc);
+		err = lzc_rename(name, newname);
 		if (err == 0)
 			changelist_rename(clp, name, tryname);
 	} else {
@@ -2181,13 +2174,11 @@ recv_rename(libzfs_handle_t *hdl, const char *name, const char *tryname,
 
 		(void) snprintf(newname, ZFS_MAX_DATASET_NAME_LEN,
 		    "%.*srecv-%u-%u", baselen, name, getpid(), seq);
-		(void) strlcpy(zc.zc_value, newname, sizeof (zc.zc_value));
-
 		if (flags->verbose) {
 			(void) printf("failed - trying rename %s to %s\n",
-			    zc.zc_name, zc.zc_value);
+			    name, newname);
 		}
-		err = ioctl(hdl->libzfs_fd, ZFS_IOC_RENAME, &zc);
+		err = lzc_rename(name, newname);
 		if (err == 0)
 			changelist_rename(clp, name, newname);
 		if (err && flags->verbose) {
@@ -2212,7 +2203,6 @@ static int
 recv_destroy(libzfs_handle_t *hdl, const char *name, int baselen,
     char *newname, recvflags_t *flags)
 {
-	zfs_cmd_t zc = { 0 };
 	int err = 0;
 	prop_changelist_t *clp;
 	zfs_handle_t *zhp;
@@ -2235,17 +2225,20 @@ recv_destroy(libzfs_handle_t *hdl, const char *name, int baselen,
 	if (err)
 		return (err);
 
-	zc.zc_objset_type = DMU_OST_ZFS;
-	zc.zc_defer_destroy = defer;
-	(void) strlcpy(zc.zc_name, name, sizeof (zc.zc_name));
-
 	if (flags->verbose)
-		(void) printf("attempting destroy %s\n", zc.zc_name);
-	err = ioctl(hdl->libzfs_fd, ZFS_IOC_DESTROY, &zc);
+		(void) printf("attempting destroy %s\n", name);
+	if (zhp->zfs_type == ZFS_TYPE_SNAPSHOT) {
+		nvlist_t *nv = fnvlist_alloc();
+		fnvlist_add_boolean(nv, name);
+		err = lzc_destroy_snaps(nv, defer, NULL);
+		fnvlist_free(nv);
+	} else {
+		err = lzc_destroy(name);
+	}
 	if (err == 0) {
 		if (flags->verbose)
 			(void) printf("success\n");
-		changelist_remove(clp, zc.zc_name);
+		changelist_remove(clp, name);
 	}
 
 	(void) changelist_postfix(clp);

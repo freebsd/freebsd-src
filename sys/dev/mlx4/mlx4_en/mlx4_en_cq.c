@@ -44,6 +44,10 @@ static void mlx4_en_cq_event(struct mlx4_cq *cq, enum mlx4_event event)
 	return;
 }
 
+static void mlx4_en_tx_que(void *arg, int pending)
+{
+
+}
 
 int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 		      struct mlx4_en_cq **pcq,

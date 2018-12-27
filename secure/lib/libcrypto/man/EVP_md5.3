@@ -129,19 +129,20 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_MD5 3"
-.TH EVP_MD5 3 "2018-09-11" "1.1.1" "OpenSSL"
+.TH EVP_MD5 3 "2018-11-20" "1.1.1a" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
 .nh
 .SH "NAME"
-EVP_md5 \&\- MD5 For EVP
+EVP_md5, EVP_md5_sha1 \&\- MD5 For EVP
 .SH "SYNOPSIS"
 .IX Header "SYNOPSIS"
 .Vb 1
 \& #include <openssl/evp.h>
 \&
 \& const EVP_MD *EVP_md5(void);
+\& const EVP_MD *EVP_md5_sha1(void);
 .Ve
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd October 24 2018
 .Dt CS 4 i386
 .Os
 .Sh NAME
@@ -52,6 +52,14 @@ In
 .Cd hint.cs.0.port="0x300"
 .Cd hint.cs.0.irq="10"
 .Cd hint.cs.0.maddr="0xd000"
+.Sh DEPRECATION NOTICE
+The
+.Nm
+driver is not present in
+.Fx 13.0
+and later.
+See https://github.com/freebsd/fcp/blob/master/fcp-0101.md for more
+information.
 .Sh DESCRIPTION
 The
 .Nm

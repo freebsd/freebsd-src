@@ -35,8 +35,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ctype.h>
+#include <sys/domainset.h>
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -330,22 +331,6 @@ pmc_soft_ev_release(struct pmc_soft *ps)
 	mtx_unlock_spin(&pmc_softs_mtx);
 }
 
-#ifdef NUMA
-#define NDOMAINS vm_ndomains
-
-static int
-getdomain(int cpu)
-{
-	struct pcpu *pc;
-
-	pc = pcpu_find(cpu);
-	return (pc->pc_domain);
-}
-#else
-#define NDOMAINS 1
-#define malloc_domain(size, type, domain, flags) malloc((size), (type), (flags))
-#define getdomain(cpu) 0
-#endif
 /*
  *  Initialise hwpmc.
  */
@@ -360,17 +345,18 @@ init_hwpmc(void *dummy __unused)
 		    "range.\n", pmc_softevents);
 		pmc_softevents = PMC_EV_DYN_COUNT;
 	}
-	pmc_softs = malloc(pmc_softevents * sizeof(struct pmc_soft *), M_PMCHOOKS, M_NOWAIT|M_ZERO);
-	KASSERT(pmc_softs != NULL, ("cannot allocate soft events table"));
+	pmc_softs = malloc(pmc_softevents * sizeof(*pmc_softs), M_PMCHOOKS,
+	    M_WAITOK | M_ZERO);
 
-	for (domain = 0; domain < NDOMAINS; domain++) {
-		pmc_dom_hdrs[domain] = malloc_domain(sizeof(struct pmc_domain_buffer_header), M_PMC, domain,
-										M_WAITOK|M_ZERO);
+	for (domain = 0; domain < vm_ndomains; domain++) {
+		pmc_dom_hdrs[domain] = malloc_domainset(
+		    sizeof(struct pmc_domain_buffer_header), M_PMC,
+		    DOMAINSET_PREF(domain), M_WAITOK | M_ZERO);
 		mtx_init(&pmc_dom_hdrs[domain]->pdbh_mtx, "pmc_bufferlist_mtx", "pmc-leaf", MTX_SPIN);
 		TAILQ_INIT(&pmc_dom_hdrs[domain]->pdbh_head);
 	}
 	CPU_FOREACH(cpu) {
-		domain = getdomain(cpu);
+		domain = pcpu_find(cpu)->pc_domain;
 		KASSERT(pmc_dom_hdrs[domain] != NULL, ("no mem allocated for domain: %d", domain));
 		pmc_dom_hdrs[domain]->pdbh_ncpus++;
 	}

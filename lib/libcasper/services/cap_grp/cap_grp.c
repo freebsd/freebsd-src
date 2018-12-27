@@ -157,7 +157,7 @@ group_unpack(const nvlist_t *nvl, struct group *grp, char *buffer,
 	if (!nvlist_exists_string(nvl, "gr_name"))
 		return (EINVAL);
 
-	memset(grp, 0, sizeof(*grp));
+	explicit_bzero(grp, sizeof(*grp));
 
 	error = group_unpack_string(nvl, "gr_name", &grp->gr_name, &buffer,
 	    &bufsize);

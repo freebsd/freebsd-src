@@ -532,7 +532,7 @@
 struct thread;
 struct ucred;
 int	priv_check(struct thread *td, int priv);
-int	priv_check_cred(struct ucred *cred, int priv, int flags);
+int	priv_check_cred(struct ucred *cred, int priv);
 #endif
 
 #endif /* !_SYS_PRIV_H_ */

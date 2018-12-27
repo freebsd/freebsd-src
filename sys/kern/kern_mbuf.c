@@ -33,8 +33,9 @@ __FBSDID("$FreeBSD$");
 #include "opt_param.h"
 
 #include <sys/param.h>
+#include <sys/conf.h>
+#include <sys/domainset.h>
 #include <sys/malloc.h>
-#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
@@ -418,6 +419,8 @@ nd_buf_import(void *arg, void **store, int count, int domain __unused,
 		trash_init(m, q == &nd_mbufq ? MSIZE : nd_clsize, flags);
 		store[i] = m;
 	}
+	KASSERT((flags & M_WAITOK) == 0 || i == count,
+	    ("%s: ran out of pre-allocated mbufs", __func__));
 	return (i);
 }
 
@@ -456,6 +459,8 @@ nd_pack_import(void *arg __unused, void **store, int count, int domain __unused,
 		mb_ctor_clust(clust, nd_clsize, m, 0);
 		store[i] = m;
 	}
+	KASSERT((flags & M_WAITOK) == 0 || i == count,
+	    ("%s: ran out of pre-allocated mbufs", __func__));
 	return (i);
 }
 
@@ -586,8 +591,9 @@ mbuf_jumbo_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *flags,
 
 	/* Inform UMA that this allocator uses kernel_map/object. */
 	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig_domain(domain, bytes, wait,
-	    (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0, VM_MEMATTR_DEFAULT));
+	return ((void *)kmem_alloc_contig_domainset(DOMAINSET_FIXED(domain),
+	    bytes, wait, (vm_paddr_t)0, ~(vm_paddr_t)0, 1, 0,
+	    VM_MEMATTR_DEFAULT));
 }
 
 /*

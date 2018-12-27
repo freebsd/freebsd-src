@@ -20,6 +20,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/DemandedBits.h"
 #include "llvm/Analysis/GlobalsModRef.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
@@ -99,7 +100,7 @@ static bool bitTrackingDCE(Function &F, DemandedBits &DB) {
       // For live instructions that have all dead bits, first make them dead by
       // replacing all uses with something else. Then, if they don't need to
       // remain live (because they have side effects, etc.) we can remove them.
-      DEBUG(dbgs() << "BDCE: Trivializing: " << I << " (all bits dead)\n");
+      LLVM_DEBUG(dbgs() << "BDCE: Trivializing: " << I << " (all bits dead)\n");
 
       clearAssumptionsOfUsers(&I, DB);
 
@@ -114,6 +115,7 @@ static bool bitTrackingDCE(Function &F, DemandedBits &DB) {
     if (!DB.isInstructionDead(&I))
       continue;
 
+    salvageDebugInfo(I);
     Worklist.push_back(&I);
     I.dropAllReferences();
     Changed = true;

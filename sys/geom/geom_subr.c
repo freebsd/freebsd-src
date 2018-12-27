@@ -1409,8 +1409,8 @@ db_show_geom_provider(int indent, struct g_provider *pp)
 		gprintln("  geom:         %s (%p)", pp->geom->name, pp->geom);
 		gprintln("  mediasize:    %jd", (intmax_t)pp->mediasize);
 		gprintln("  sectorsize:   %u", pp->sectorsize);
-		gprintln("  stripesize:   %u", pp->stripesize);
-		gprintln("  stripeoffset: %u", pp->stripeoffset);
+		gprintln("  stripesize:   %ju", (uintmax_t)pp->stripesize);
+		gprintln("  stripeoffset: %ju", (uintmax_t)pp->stripeoffset);
 		gprintln("  access:       r%dw%de%d", pp->acr, pp->acw,
 		    pp->ace);
 		gprintln("  flags:        %s (0x%04x)",

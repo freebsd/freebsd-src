@@ -255,6 +255,7 @@ extern int                  AslCompilerdebug;
 #define ASL_STRING_BUFFER_SIZE          (1024 * 32) /* 32k */
 #define ASL_MAX_DISABLED_MESSAGES       32
 #define ASL_MAX_EXPECTED_MESSAGES       32
+#define ASL_MAX_ELEVATED_MESSAGES       32
 #define HEX_TABLE_LINE_SIZE             8
 #define HEX_LISTING_LINE_SIZE           8
 
@@ -319,7 +320,6 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_AllExceptionsDisable
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_PruneParseTree, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoTypechecking, TRUE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_EnableReferenceTypechecking, FALSE);
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoExternals, TRUE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoExternalsInPlace, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_DoAslConversion, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (AslGbl_OptimizeTrivialParseNodes, TRUE);
@@ -394,6 +394,7 @@ ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentAmlOffset, 0)
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_CurrentLine, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_DisabledMessagesIndex, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_ExpectedMessagesIndex, 0);
+ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_ElevatedMessagesIndex, 0);
 ASL_EXTERN UINT8                    ASL_INIT_GLOBAL (AslGbl_HexBytesWereWritten, FALSE);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_NumNamespaceObjects, 0);
 ASL_EXTERN UINT32                   ASL_INIT_GLOBAL (AslGbl_ReservedMethods, 0);
@@ -435,6 +436,7 @@ ASL_EXTERN char                     AslGbl_StringBuffer[ASL_STRING_BUFFER_SIZE];
 ASL_EXTERN char                     AslGbl_StringBuffer2[ASL_STRING_BUFFER_SIZE];
 ASL_EXTERN UINT32                   AslGbl_DisabledMessages[ASL_MAX_DISABLED_MESSAGES];
 ASL_EXTERN ASL_EXPECTED_MESSAGE     AslGbl_ExpectedMessages[ASL_MAX_EXPECTED_MESSAGES];
+ASL_EXTERN UINT32                   AslGbl_ElevatedMessages[ASL_MAX_ELEVATED_MESSAGES];
 
 
 #endif /* __ASLGLOBAL_H */

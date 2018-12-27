@@ -365,6 +365,9 @@ ed_attach(device_t dev)
 #endif
 		printf("\n");
 	}
+
+	gone_by_fcp101_dev(dev);
+
 	return (0);
 }
 

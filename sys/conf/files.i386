@@ -151,7 +151,6 @@ dev/acpica/acpi_pci_link.c	optional acpi pci
 dev/acpica/acpi_pcib.c		optional acpi pci
 dev/acpica/acpi_pcib_acpi.c	optional acpi pci
 dev/acpica/acpi_pcib_pci.c	optional acpi pci
-dev/advansys/adv_isa.c		optional adv isa
 dev/agp/agp_ali.c		optional agp
 dev/agp/agp_amd.c		optional agp
 dev/agp/agp_amd64.c		optional agp
@@ -161,7 +160,6 @@ dev/agp/agp_intel.c		optional agp
 dev/agp/agp_nvidia.c		optional agp
 dev/agp/agp_sis.c		optional agp
 dev/agp/agp_via.c		optional agp
-dev/aic/aic_isa.c		optional aic isa
 dev/amdsbwd/amdsbwd.c		optional amdsbwd
 dev/amdsmn/amdsmn.c		optional amdsmn | amdtemp
 dev/amdtemp/amdtemp.c		optional amdtemp
@@ -278,8 +276,6 @@ dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
 dev/le/if_le_isa.c		optional le isa
-dev/mse/mse.c			optional mse
-dev/mse/mse_isa.c		optional mse isa
 dev/nctgpio/nctgpio.c		optional nctgpio
 dev/nfe/if_nfe.c		optional nfe pci
 dev/ntb/if_ntb/if_ntb.c		optional if_ntb
@@ -336,6 +332,7 @@ dev/vmware/vmci/vmci_resource.c		optional	vmci
 dev/acpica/acpi_if.m		standard
 dev/acpica/acpi_hpet.c		optional acpi
 dev/acpica/acpi_timer.c		optional acpi
+dev/acpica/acpi_pxm.c		optional acpi
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wbwd/wbwd.c			optional wbwd
 dev/isci/isci.c							optional isci
@@ -511,25 +508,6 @@ i386/i386/trap.c		standard
 i386/i386/uio_machdep.c		standard
 i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
-i386/ibcs2/ibcs2_errno.c	optional ibcs2
-i386/ibcs2/ibcs2_fcntl.c	optional ibcs2
-i386/ibcs2/ibcs2_ioctl.c	optional ibcs2
-i386/ibcs2/ibcs2_ipc.c		optional ibcs2
-i386/ibcs2/ibcs2_isc.c		optional ibcs2
-i386/ibcs2/ibcs2_isc_sysent.c	optional ibcs2
-i386/ibcs2/ibcs2_misc.c		optional ibcs2
-i386/ibcs2/ibcs2_msg.c		optional ibcs2
-i386/ibcs2/ibcs2_other.c	optional ibcs2
-i386/ibcs2/ibcs2_signal.c	optional ibcs2
-i386/ibcs2/ibcs2_socksys.c	optional ibcs2
-i386/ibcs2/ibcs2_stat.c		optional ibcs2
-i386/ibcs2/ibcs2_sysent.c	optional ibcs2
-i386/ibcs2/ibcs2_sysi86.c	optional ibcs2
-i386/ibcs2/ibcs2_sysvec.c	optional ibcs2
-i386/ibcs2/ibcs2_util.c		optional ibcs2
-i386/ibcs2/ibcs2_xenix.c	optional ibcs2
-i386/ibcs2/ibcs2_xenix_sysent.c	optional ibcs2
-i386/ibcs2/imgact_coff.c	optional ibcs2
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_copyout.c	optional compat_linux
 i386/linux/linux_dummy.c	optional compat_linux

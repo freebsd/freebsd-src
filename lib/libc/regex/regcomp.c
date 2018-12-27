@@ -1846,7 +1846,7 @@ computejumps(struct parse *p, struct re_guts *g)
 	if (p->error != 0)
 		return;
 
-	g->charjump = (int*) malloc((NC + 1) * sizeof(int));
+	g->charjump = (int *)malloc((NC_MAX + 1) * sizeof(int));
 	if (g->charjump == NULL)	/* Not a fatal error */
 		return;
 	/* Adjust for signed chars, if necessary */

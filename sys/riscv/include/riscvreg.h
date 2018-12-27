@@ -223,4 +223,23 @@
 	val;								\
 })
 
+#if __riscv_xlen == 32
+#define	csr_read64(csr)							\
+({	uint64_t val;							\
+	uint32_t high, low;						\
+	__asm __volatile("1: "						\
+			 "csrr t0, " #csr "h\n"				\
+			 "csrr %0, " #csr "\n"				\
+			 "csrr %1, " #csr "h\n"				\
+			 "bne t0, %1, 1b"				\
+			 : "=r" (low), "=r" (high)			\
+			 :						\
+			 : "t0");					\
+	val = (low | ((uint64_t)high << 32));				\
+	val;								\
+})
+#else
+#define	csr_read64(csr)		((uint64_t)csr_read(csr))
+#endif
+
 #endif /* !_MACHINE_RISCVREG_H_ */

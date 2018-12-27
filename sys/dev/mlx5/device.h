@@ -549,6 +549,7 @@ enum {
 	MLX5_MODULE_EVENT_ERROR_UNSUPPORTED_CABLE                     = 0x5,
 	MLX5_MODULE_EVENT_ERROR_HIGH_TEMPERATURE                      = 0x6,
 	MLX5_MODULE_EVENT_ERROR_CABLE_IS_SHORTED                      = 0x7,
+	MLX5_MODULE_EVENT_ERROR_PCIE_SYSTEM_POWER_SLOT_EXCEEDED       = 0xc,
 };
 
 struct mlx5_eqe_port_module_event {
@@ -1032,6 +1033,12 @@ enum mlx5_qcam_feature_groups {
 
 #define	MLX5_CAP_QCAM_FEATURE(mdev, fld) \
 	MLX5_GET(qcam_reg, (mdev)->caps.qcam, qos_feature_cap_mask.feature_cap.fld)
+
+#define MLX5_CAP_FPGA(mdev, cap) \
+	MLX5_GET(fpga_cap, (mdev)->caps.fpga, cap)
+
+#define MLX5_CAP64_FPGA(mdev, cap) \
+	MLX5_GET64(fpga_cap, (mdev)->caps.fpga, cap)
 
 enum {
 	MLX5_CMD_STAT_OK			= 0x0,

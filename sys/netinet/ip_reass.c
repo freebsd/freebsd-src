@@ -211,21 +211,33 @@ ip_reass(struct mbuf *m)
 	 * convert offset of this to bytes.
 	 */
 	ip->ip_len = htons(ntohs(ip->ip_len) - hlen);
-	if (ip->ip_off & htons(IP_MF)) {
-		/*
-		 * Make sure that fragments have a data length
-		 * that's a non-zero multiple of 8 bytes.
-		 */
-		if (ip->ip_len == htons(0) || (ntohs(ip->ip_len) & 0x7) != 0) {
-			IPSTAT_INC(ips_toosmall); /* XXX */
-			IPSTAT_INC(ips_fragdropped);
-			m_freem(m);
-			return (NULL);
-		}
+	/*
+	 * Make sure that fragments have a data length
+	 * that's a non-zero multiple of 8 bytes, unless
+	 * this is the last fragment.
+	 */
+	if (ip->ip_len == htons(0) ||
+	    ((ip->ip_off & htons(IP_MF)) && (ntohs(ip->ip_len) & 0x7) != 0)) {
+		IPSTAT_INC(ips_toosmall); /* XXX */
+		IPSTAT_INC(ips_fragdropped);
+		m_freem(m);
+		return (NULL);
+	}
+	if (ip->ip_off & htons(IP_MF))
 		m->m_flags |= M_IP_FRAG;
-	} else
+	else
 		m->m_flags &= ~M_IP_FRAG;
 	ip->ip_off = htons(ntohs(ip->ip_off) << 3);
+
+	/*
+	 * Make sure the fragment lies within a packet of valid size.
+	 */
+	if (ntohs(ip->ip_len) + ntohs(ip->ip_off) > IP_MAXPACKET) {
+		IPSTAT_INC(ips_toolong);
+		IPSTAT_INC(ips_fragdropped);
+		m_freem(m);
+		return (NULL);
+	}
 
 	/*
 	 * Attempt reassembly; if it succeeds, proceed.
@@ -291,9 +303,28 @@ ip_reass(struct mbuf *m)
 		fp->ipq_src = ip->ip_src;
 		fp->ipq_dst = ip->ip_dst;
 		fp->ipq_frags = m;
+		if (m->m_flags & M_IP_FRAG)
+			fp->ipq_maxoff = -1;
+		else
+			fp->ipq_maxoff = ntohs(ip->ip_off) + ntohs(ip->ip_len);
 		m->m_nextpkt = NULL;
 		goto done;
 	} else {
+		/*
+		 * If we already saw the last fragment, make sure
+		 * this fragment's offset looks sane. Otherwise, if
+		 * this is the last fragment, record its endpoint.
+		 */
+		if (fp->ipq_maxoff > 0) {
+			i = ntohs(ip->ip_off) + ntohs(ip->ip_len);
+			if (((m->m_flags & M_IP_FRAG) && i >= fp->ipq_maxoff) ||
+			    ((m->m_flags & M_IP_FRAG) == 0 &&
+			    i != fp->ipq_maxoff)) {
+				fp = NULL;
+				goto dropfrag;
+			}
+		} else if ((m->m_flags & M_IP_FRAG) == 0)
+			fp->ipq_maxoff = ntohs(ip->ip_off) + ntohs(ip->ip_len);
 		fp->ipq_nfrags++;
 		atomic_add_int(&nfrags, 1);
 #ifdef MAC

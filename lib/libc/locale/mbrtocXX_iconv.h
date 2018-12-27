@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include "../iconv/citrus_hash.h"
 #include "../iconv/citrus_module.h"
 #include "../iconv/citrus_iconv.h"
-#include "xlocale_private.h"
+#include "mblocal.h"
 
 typedef struct {
 	bool			initialized;
@@ -68,7 +68,7 @@ mbrtocXX_l(charXX_t * __restrict pc, const char * __restrict s, size_t n,
 
 	FIX_LOCALE(locale);
 	if (ps == NULL)
-		ps = &locale->mbrtocXX;
+		ps = &(XLOCALE_CTYPE(locale)->mbrtocXX);
 	cs = (_ConversionState *)ps;
 	handle = &cs->iconv;
 

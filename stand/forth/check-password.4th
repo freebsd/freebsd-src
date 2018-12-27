@@ -129,7 +129,7 @@ variable readlen             \ input length
 	again \ Enter was not pressed; repeat
 ;
 
-only forth definitions also password-processing
+only forth definitions also password-processing also support-functions
 
 : check-password ( -- )
 
@@ -161,6 +161,7 @@ only forth definitions also password-processing
 	\ We should prevent the user from visiting the menu or dropping to the
 	\ interactive loader(8) prompt, but still allow the machine to boot...
 
+	any_conf_read? if load_kernel load_modules then
 	0 autoboot
 
 	\ Only reached if autoboot fails for any reason (including if/when

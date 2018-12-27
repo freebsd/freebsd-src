@@ -241,16 +241,16 @@ The
 .Xr resolvconf 8
 script is used by default.
 .It Fl u
-Specifies whether adding the source address of Router Advertisement
-messages to the interface name in an argument of the RDNSS and DNSSL
-script.
+Specifies whether to add the source address of Router Advertisement
+messages to the interface name in the parameters of the RDNSS and DNSSL
+scripts.
 .Pp
 If
 .Fl u
-is specified, the interface name in the script argument will be
+is specified, the interface name in the script parameters will be
 .Ql ifname:slaac:[RA-source-address] .
 .Pp
-If not, it will be
+Otherwise it will be
 .Ql ifname:slaac .
 .El
 .Sh FILES

@@ -98,7 +98,7 @@ struct uhso_softc {
 	struct ifnet		*sc_ifp;
 	struct mbuf		*sc_mwait;	/* Partial packet */
 	size_t			sc_waitlen;	/* No. of outstanding bytes */
-	struct ifqueue		sc_rxq;
+	struct mbufq		sc_rxq;
 	struct callout		sc_c;
 
 	/* TTY related structures */
@@ -560,6 +560,7 @@ uhso_attach(device_t self)
 	sc->sc_dev = self;
 	sc->sc_udev = uaa->device;
 	mtx_init(&sc->sc_mtx, "uhso", NULL, MTX_DEF);
+	mbufq_init(&sc->sc_rxq, INT_MAX);	/* XXXGL: sane maximum */
 	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_radio = 1;
@@ -1626,11 +1627,13 @@ uhso_ifnet_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		if (actlen > 0 && (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			pc = usbd_xfer_get_frame(xfer, 0);
+			if (mbufq_full(&sc->sc_rxq))
+				break;
 			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			usbd_copy_out(pc, 0, mtod(m, uint8_t *), actlen);
 			m->m_pkthdr.len = m->m_len = actlen;
 			/* Enqueue frame for further processing */
-			_IF_ENQUEUE(&sc->sc_rxq, m);
+			mbufq_enqueue(&sc->sc_rxq, m);
 			if (!callout_pending(&sc->sc_c) ||
 			    !callout_active(&sc->sc_c)) {
 				callout_schedule(&sc->sc_c, 1);
@@ -1676,8 +1679,7 @@ uhso_if_rxflush(void *arg)
 	mwait = sc->sc_mwait;
 	for (;;) {
 		if (m == NULL) {
-			_IF_DEQUEUE(&sc->sc_rxq, m);
-			if (m == NULL)
+			if ((m = mbufq_dequeue(&sc->sc_rxq)) == NULL)
 				break;
 			UHSO_DPRINTF(3, "dequeue m=%p, len=%d\n", m, m->m_len);
 		}

@@ -41,9 +41,13 @@
 #include <dev/mlx5/srq.h>
 #include <linux/delay.h>
 #include <dev/mlx5/mlx5_ifc.h>
+#include <dev/mlx5/mlx5_fpga/core.h>
+#include <dev/mlx5/mlx5_lib/mlx5.h>
 #include "mlx5_core.h"
 #include "fs_core.h"
 
+static const char mlx5_version[] = "Mellanox Core driver "
+	DRIVER_VERSION " (" DRIVER_RELDATE ")";
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -60,6 +64,8 @@ MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec t
 static int prof_sel = MLX5_DEFAULT_PROF;
 module_param_named(prof_sel, prof_sel, int, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
+
+SYSCTL_NODE(_hw, OID_AUTO, mlx5, CTLFLAG_RW, 0, "mlx5 HW controls");
 
 #define NUMA_NO_NODE       -1
 
@@ -730,7 +736,8 @@ static void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *pr
 		}
 }
 
-static int mlx5_register_device(struct mlx5_core_dev *dev)
+int
+mlx5_register_device(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
@@ -744,7 +751,8 @@ static int mlx5_register_device(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-static void mlx5_unregister_device(struct mlx5_core_dev *dev)
+void
+mlx5_unregister_device(struct mlx5_core_dev *dev)
 {
 	struct mlx5_priv *priv = &dev->priv;
 	struct mlx5_interface *intf;
@@ -908,6 +916,9 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	mlx5_init_srq_table(dev);
 	mlx5_init_mr_table(dev);
 
+	mlx5_init_reserved_gids(dev);
+	mlx5_fpga_init(dev);
+
 #ifdef RATELIMIT
 	err = mlx5_init_rl_table(dev);
 	if (err) {
@@ -937,6 +948,8 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 #ifdef RATELIMIT
 	mlx5_cleanup_rl_table(dev);
 #endif
+	mlx5_fpga_cleanup(dev);
+	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cleanup_mr_table(dev);
 	mlx5_cleanup_srq_table(dev);
 	mlx5_cleanup_qp_table(dev);
@@ -1071,6 +1084,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_free_comp_eqs;
 	}
 
+	err = mlx5_fpga_device_start(dev);
+	if (err) {
+		dev_err(&pdev->dev, "fpga device start failed %d\n", err);
+		goto err_fpga_start;
+	}
+
 	err = mlx5_register_device(dev);
 	if (err) {
 		dev_err(&pdev->dev, "mlx5_register_device failed %d\n", err);
@@ -1084,6 +1103,7 @@ out:
 	mutex_unlock(&dev->intf_state_mutex);
 	return 0;
 
+err_fpga_start:
 err_fs:
 	mlx5_cleanup_fs(dev);
 
@@ -1105,7 +1125,7 @@ err_cleanup_once:
 		mlx5_cleanup_once(dev);
 
 err_stop_poll:
-	mlx5_stop_health_poll(dev);
+	mlx5_stop_health_poll(dev, boot);
 	if (mlx5_cmd_teardown_hca(dev)) {
 		device_printf((&dev->pdev->dev)->bsddev, "ERR: ""tear_down_hca failed, skip cleanup\n");
 		goto out_err;
@@ -1148,6 +1168,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 
 	mlx5_unregister_device(dev);
 
+	mlx5_fpga_device_stop(dev);
 	mlx5_cleanup_fs(dev);
 	unmap_bf_area(dev);
 	mlx5_wait_for_reclaim_vfs_pages(dev);
@@ -1157,7 +1178,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_disable_msix(dev);
         if (cleanup)
                 mlx5_cleanup_once(dev);
-	mlx5_stop_health_poll(dev);
+	mlx5_stop_health_poll(dev, cleanup);
 	err = mlx5_cmd_teardown_hca(dev);
 	if (err) {
 		device_printf((&dev->pdev->dev)->bsddev, "ERR: ""tear_down_hca failed, skip cleanup\n");
@@ -1211,12 +1232,15 @@ static int init_one(struct pci_dev *pdev,
 		priv->pci_dev_data = id->driver_data;
 
 	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profiles)) {
-		printf("mlx5_core: WARN: ""selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
+		device_printf(bsddev, "WARN: selected profile out of range, selecting default (%d)\n", MLX5_DEFAULT_PROF);
 		prof_sel = MLX5_DEFAULT_PROF;
 	}
 	dev->profile = &profiles[prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
+
+	/* Set desc */
+	device_set_desc(bsddev, mlx5_version);
 
 	sysctl_ctx_init(&dev->sysctl_ctx);
 	SYSCTL_ADD_INT(&dev->sysctl_ctx,
@@ -1226,38 +1250,38 @@ static int init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
-        mutex_init(&dev->pci_status_mutex);
-        mutex_init(&dev->intf_state_mutex);
+	mutex_init(&dev->pci_status_mutex);
+	mutex_init(&dev->intf_state_mutex);
 	err = mlx5_pci_init(dev, priv);
 	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_pci_init failed %d\n", err);
+		device_printf(bsddev, "ERR: mlx5_pci_init failed %d\n", err);
 		goto clean_dev;
 	}
 
-        err = mlx5_health_init(dev);
-        if (err) {
-                device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_health_init failed %d\n", err);
-                goto close_pci;
-        }
+	err = mlx5_health_init(dev);
+	if (err) {
+		device_printf(bsddev, "ERR: mlx5_health_init failed %d\n", err);
+		goto close_pci;
+	}
 
 	mlx5_pagealloc_init(dev);
 
 	err = mlx5_load_one(dev, priv, true);
 	if (err) {
-		device_printf((&pdev->dev)->bsddev, "ERR: ""mlx5_register_device failed %d\n", err);
+		device_printf(bsddev, "ERR: mlx5_load_one failed %d\n", err);
 		goto clean_health;
 	}
 
 	mlx5_fwdump_prep(dev);
 
-	pci_save_state(pdev->dev.bsddev);
+	pci_save_state(bsddev);
 	return 0;
 
 clean_health:
 	mlx5_pagealloc_cleanup(dev);
-        mlx5_health_cleanup(dev);
+	mlx5_health_cleanup(dev);
 close_pci:
-        mlx5_pci_close(dev, priv);
+	mlx5_pci_close(dev, priv);
 clean_dev:
 	sysctl_ctx_free(&dev->sysctl_ctx);
 	kfree(dev);
@@ -1403,6 +1427,12 @@ static int mlx5_try_fast_unload(struct mlx5_core_dev *dev)
 		mlx5_core_dbg(dev, "Device in internal error state, giving up\n");
 		return -EAGAIN;
 	}
+
+	/* Panic tear down fw command will stop the PCI bus communication
+	 * with the HCA, so the health polll is no longer needed.
+	 */
+	mlx5_drain_health_wq(dev);
+	mlx5_stop_health_poll(dev, false);
 
 	err = mlx5_cmd_force_teardown_hca(dev);
 	if (err) {

@@ -74,11 +74,8 @@ pass5(void)
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
 	newcg->cg_niblk = fs->fs_ipg;
 	/* check to see if we are to add a cylinder group check hash */
-	if ((ckhashadd & CK_CYLGRP) != 0) {
-		fs->fs_metackhash |= CK_CYLGRP;
+	if ((ckhashadd & CK_CYLGRP) != 0)
 		rewritecg = 1;
-		sbdirty();
-	}
 	if (cvtlevel >= 3) {
 		if (fs->fs_maxcontig < 2 && fs->fs_contigsumsize > 0) {
 			if (preen)
@@ -185,14 +182,19 @@ pass5(void)
 			ckhash = cg->cg_ckhash;
 			cg->cg_ckhash = 0;
 			thishash = calculate_crc32c(~0L, cg, fs->fs_cgsize);
-			if (ckhash != thishash)
+			if (ckhash == thishash) {
+				cg->cg_ckhash = ckhash;
+			} else {
 				pwarn("CG %d: BAD CHECK-HASH %#x vs %#x\n",
 				    c, ckhash, thishash);
-			cg->cg_ckhash = ckhash;
+				cg->cg_ckhash = thishash;
+				cgdirty(cgbp);
+			}
 		}
 		newcg->cg_time = cg->cg_time;
 		newcg->cg_old_time = cg->cg_old_time;
 		newcg->cg_unrefs = cg->cg_unrefs;
+		newcg->cg_ckhash = cg->cg_ckhash;
 		newcg->cg_cgx = c;
 		dbase = cgbase(fs, c);
 		dmax = dbase + fs->fs_fpg;
@@ -329,11 +331,6 @@ pass5(void)
 				sump[run]++;
 			}
 		}
-		if ((fs->fs_metackhash & CK_CYLGRP) != 0) {
-			newcg->cg_ckhash = 0;
-			newcg->cg_ckhash =
-			    calculate_crc32c(~0L, (void *)newcg, fs->fs_cgsize);
-		}
 
 		if (bkgrdflag != 0) {
 			cstotal.cs_nffree += cg->cg_cs.cs_nffree;
@@ -355,14 +352,14 @@ pass5(void)
 		}
 		if (rewritecg) {
 			memmove(cg, newcg, (size_t)fs->fs_cgsize);
-			dirty(cgbp);
+			cgdirty(cgbp);
 			continue;
 		}
 		if (cursnapshot == 0 &&
 		    memcmp(newcg, cg, basesize) != 0 &&
 		    dofix(&idesc[2], "SUMMARY INFORMATION BAD")) {
 			memmove(cg, newcg, (size_t)basesize);
-			dirty(cgbp);
+			cgdirty(cgbp);
 		}
 		if (bkgrdflag != 0 || usedsoftdep || debug)
 			update_maps(cg, newcg, bkgrdflag);
@@ -371,7 +368,7 @@ pass5(void)
 		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
 			memmove(cg_inosused(cg), cg_inosused(newcg),
 			      (size_t)mapsize);
-			dirty(cgbp);
+			cgdirty(cgbp);
 		}
 	}
 	if (cursnapshot == 0 &&

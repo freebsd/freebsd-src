@@ -160,9 +160,7 @@ tws_cam_attach(struct tws_softc *sc)
     */
     sc->sim = cam_sim_alloc(tws_action, tws_poll, "tws", sc,
                       device_get_unit(sc->tws_dev), 
-#if (__FreeBSD_version >= 700000)
                       &sc->sim_lock,
-#endif
                       tws_cam_depth, 1, devq);
                       /* 1, 1, devq); */
     if (sc->sim == NULL) {
@@ -172,9 +170,7 @@ tws_cam_attach(struct tws_softc *sc)
     /* Register the bus. */
     mtx_lock(&sc->sim_lock);
     if (xpt_bus_register(sc->sim, 
-#if (__FreeBSD_version >= 700000)
                          sc->tws_dev, 
-#endif
                          0) != CAM_SUCCESS) {
         cam_sim_free(sc->sim, TRUE); /* passing true will free the devq */
         sc->sim = NULL; /* so cam_detach will not try to free it */
@@ -269,7 +265,6 @@ tws_action(struct cam_sim *sim, union ccb *ccb)
         {
             TWS_TRACE_DEBUG(sc, "get tran settings", sim, ccb);
 
-#if (__FreeBSD_version >= 700000 )
             ccb->cts.protocol = PROTO_SCSI;
             ccb->cts.protocol_version = SCSI_REV_2;
             ccb->cts.transport = XPORT_SPI;
@@ -279,10 +274,6 @@ tws_action(struct cam_sim *sim, union ccb *ccb)
             ccb->cts.xport_specific.spi.flags = CTS_SPI_FLAGS_DISC_ENB;
             ccb->cts.proto_specific.scsi.valid = CTS_SCSI_VALID_TQ;
             ccb->cts.proto_specific.scsi.flags = CTS_SCSI_FLAGS_TAG_ENB;
-#else
-            ccb->cts.valid = (CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID);
-            ccb->cts.flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-#endif
             ccb->ccb_h.status = CAM_REQ_CMP;
             xpt_done(ccb);
 
@@ -314,13 +305,11 @@ tws_action(struct cam_sim *sim, union ccb *ccb)
             strlcpy(ccb->cpi.sim_vid, "FreeBSD", SIM_IDLEN);
             strlcpy(ccb->cpi.hba_vid, "3ware", HBA_IDLEN);
             strlcpy(ccb->cpi.dev_name, cam_sim_name(sim), DEV_IDLEN);
-#if (__FreeBSD_version >= 700000 )
             ccb->cpi.transport = XPORT_SPI;
             ccb->cpi.transport_version = 2;
             ccb->cpi.protocol = PROTO_SCSI;
             ccb->cpi.protocol_version = SCSI_REV_2;
             ccb->cpi.maxio = TWS_MAX_IO_SIZE;
-#endif
             ccb->ccb_h.status = CAM_REQ_CMP;
             xpt_done(ccb);
 

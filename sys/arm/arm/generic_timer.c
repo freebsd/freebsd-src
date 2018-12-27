@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ACPI
 #include <contrib/dev/acpica/include/acpi.h>
 #include <dev/acpica/acpivar.h>
-#include "acpi_bus_if.h"
 #endif
 
 #define	GT_CTRL_ENABLE		(1 << 0)
@@ -323,11 +322,11 @@ arm_tmr_fdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (ofw_bus_is_compatible(dev, "arm,armv7-timer")) {
-		device_set_desc(dev, "ARMv7 Generic Timer");
-		return (BUS_PROBE_DEFAULT);
-	} else if (ofw_bus_is_compatible(dev, "arm,armv8-timer")) {
+	if (ofw_bus_is_compatible(dev, "arm,armv8-timer")) {
 		device_set_desc(dev, "ARMv8 Generic Timer");
+		return (BUS_PROBE_DEFAULT);
+	} else if (ofw_bus_is_compatible(dev, "arm,armv7-timer")) {
+		device_set_desc(dev, "ARMv7 Generic Timer");
 		return (BUS_PROBE_DEFAULT);
 	}
 
@@ -340,8 +339,6 @@ static void
 arm_tmr_acpi_add_irq(device_t parent, device_t dev, int rid, u_int irq)
 {
 
-	irq = ACPI_BUS_MAP_INTR(parent, dev, irq,
-		INTR_TRIGGER_LEVEL, INTR_POLARITY_HIGH);
 	BUS_SET_RESOURCE(parent, dev, SYS_RES_IRQ, rid, irq, 1);
 }
 

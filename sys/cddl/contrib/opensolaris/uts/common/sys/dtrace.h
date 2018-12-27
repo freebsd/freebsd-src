@@ -2435,12 +2435,11 @@ extern void dtrace_helpers_destroy(proc_t *);
 
 #elif defined(__powerpc__)
 
-#define DTRACE_INVOP_RET	1
-#define DTRACE_INVOP_BCTR	2
-#define DTRACE_INVOP_BLR	3
-#define DTRACE_INVOP_JUMP	4
-#define DTRACE_INVOP_MFLR_R0	5
-#define DTRACE_INVOP_NOP	6
+#define DTRACE_INVOP_BCTR	1
+#define DTRACE_INVOP_BLR	2
+#define DTRACE_INVOP_JUMP	3
+#define DTRACE_INVOP_MFLR_R0	4
+#define DTRACE_INVOP_NOP	5
 
 #elif defined(__arm__)
 

@@ -3321,6 +3321,19 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 }
 
 /**
+ *	t4_get_fw_hdr - read the firmware header
+ *	@adapter: the adapter
+ *	@hdr: where to place the version
+ *
+ *	Reads the FW header from flash into caller provided buffer.
+ */
+int t4_get_fw_hdr(struct adapter *adapter, struct fw_hdr *hdr)
+{
+	return t4_read_flash(adapter, FLASH_FW_START,
+	    sizeof (*hdr) / sizeof (uint32_t), (uint32_t *)hdr, 1);
+}
+
+/**
  *	t4_get_bs_version - read the firmware bootstrap version
  *	@adapter: the adapter
  *	@vers: where to place the version
@@ -6900,7 +6913,7 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 	 * If a legitimate mailbox is provided, issue a RESET command
 	 * with a HALT indication.
 	 */
-	if (mbox <= M_PCIE_FW_MASTER) {
+	if (adap->flags & FW_OK && mbox <= M_PCIE_FW_MASTER) {
 		struct fw_reset_cmd c;
 
 		memset(&c, 0, sizeof(c));
@@ -6939,64 +6952,24 @@ int t4_fw_halt(struct adapter *adap, unsigned int mbox, int force)
 /**
  *	t4_fw_restart - restart the firmware by taking the uP out of RESET
  *	@adap: the adapter
- *	@reset: if we want to do a RESET to restart things
  *
  *	Restart firmware previously halted by t4_fw_halt().  On successful
  *	return the previous PF Master remains as the new PF Master and there
  *	is no need to issue a new HELLO command, etc.
- *
- *	We do this in two ways:
- *
- *	 1. If we're dealing with newer firmware we'll simply want to take
- *	    the chip's microprocessor out of RESET.  This will cause the
- *	    firmware to start up from its start vector.  And then we'll loop
- *	    until the firmware indicates it's started again (PCIE_FW.HALT
- *	    reset to 0) or we timeout.
- *
- *	 2. If we're dealing with older firmware then we'll need to RESET
- *	    the chip since older firmware won't recognize the PCIE_FW.HALT
- *	    flag and automatically RESET itself on startup.
  */
-int t4_fw_restart(struct adapter *adap, unsigned int mbox, int reset)
+int t4_fw_restart(struct adapter *adap, unsigned int mbox)
 {
-	if (reset) {
-		/*
-		 * Since we're directing the RESET instead of the firmware
-		 * doing it automatically, we need to clear the PCIE_FW.HALT
-		 * bit.
-		 */
-		t4_set_reg_field(adap, A_PCIE_FW, F_PCIE_FW_HALT, 0);
+	int ms;
 
-		/*
-		 * If we've been given a valid mailbox, first try to get the
-		 * firmware to do the RESET.  If that works, great and we can
-		 * return success.  Otherwise, if we haven't been given a
-		 * valid mailbox or the RESET command failed, fall back to
-		 * hitting the chip with a hammer.
-		 */
-		if (mbox <= M_PCIE_FW_MASTER) {
-			t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, 0);
-			msleep(100);
-			if (t4_fw_reset(adap, mbox,
-					F_PIORST | F_PIORSTMODE) == 0)
-				return 0;
-		}
-
-		t4_write_reg(adap, A_PL_RST, F_PIORST | F_PIORSTMODE);
-		msleep(2000);
-	} else {
-		int ms;
-
-		t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, 0);
-		for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
-			if (!(t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_HALT))
-				return FW_SUCCESS;
-			msleep(100);
-			ms += 100;
-		}
-		return -ETIMEDOUT;
+	t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, 0);
+	for (ms = 0; ms < FW_CMD_MAX_TIMEOUT; ) {
+		if (!(t4_read_reg(adap, A_PCIE_FW) & F_PCIE_FW_HALT))
+			return FW_SUCCESS;
+		msleep(100);
+		ms += 100;
 	}
-	return 0;
+
+	return -ETIMEDOUT;
 }
 
 /**
@@ -7026,7 +6999,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
 	unsigned int bootstrap =
 	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
-	int reset, ret;
+	int ret;
 
 	if (!t4_fw_matches_chip(adap, fw_hdr))
 		return -EINVAL;
@@ -7041,41 +7014,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	if (ret < 0 || bootstrap)
 		return ret;
 
-	/*
-	 * Older versions of the firmware don't understand the new
-	 * PCIE_FW.HALT flag and so won't know to perform a RESET when they
-	 * restart.  So for newly loaded older firmware we'll have to do the
-	 * RESET for it so it starts up on a clean slate.  We can tell if
-	 * the newly loaded firmware will handle this right by checking
-	 * its header flags to see if it advertises the capability.
-	 */
-	reset = ((be32_to_cpu(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
-	return t4_fw_restart(adap, mbox, reset);
-}
-
-/*
- * Card doesn't have a firmware, install one.
- */
-int t4_fw_forceinstall(struct adapter *adap, const u8 *fw_data,
-    unsigned int size)
-{
-	const struct fw_hdr *fw_hdr = (const struct fw_hdr *)fw_data;
-	unsigned int bootstrap =
-	    be32_to_cpu(fw_hdr->magic) == FW_HDR_MAGIC_BOOTSTRAP;
-	int ret;
-
-	if (!t4_fw_matches_chip(adap, fw_hdr) || bootstrap)
-		return -EINVAL;
-
-	t4_set_reg_field(adap, A_CIM_BOOT_CFG, F_UPCRST, F_UPCRST);
-	t4_write_reg(adap, A_PCIE_FW, 0);	/* Clobber internal state */
-	ret = t4_load_fw(adap, fw_data, size);
-	if (ret < 0)
-		return ret;
-	t4_write_reg(adap, A_PL_RST, F_PIORST | F_PIORSTMODE);
-	msleep(1000);
-
-	return (0);
+	return t4_fw_restart(adap, mbox);
 }
 
 /**

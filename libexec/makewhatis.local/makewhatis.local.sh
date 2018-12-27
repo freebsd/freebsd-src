@@ -47,10 +47,10 @@ done
 dirs=`echo $dirs | sed 's/:/ /g'`
 case X"$dirs" in X) echo "usage: $0 [options] directories ..."; exit 1;; esac
 
-localdirs=`find -H $dirs -fstype local -type d -prune -print`
+localdirs=`find -H $dirs -fstype local \! -fstype rdonly -type d -prune -print`
 
 case X"$localdirs" in
-	X) 	echo "$0: no local-mounted manual directories found: $dirs"
+	X) 	echo "$0: no local rw-mounted manual directories found: $dirs"
 		exit 1;;
 	*) 	exec `basename $0 .local` $opt $localdirs;;
 esac

@@ -977,7 +977,7 @@ trap_fatal(frame, eva)
 	    curproc->p_pid, curthread->td_name);
 
 #ifdef KDB
-	if (debugger_on_panic) {
+	if (debugger_on_trap) {
 		kdb_why = KDB_WHY_TRAP;
 		frame->tf_err = eva;	/* smuggle fault address to ddb */
 		handled = kdb_trap(type, 0, frame);
@@ -1095,8 +1095,6 @@ cpu_fetch_syscall_args(struct thread *td)
 		params += sizeof(quad_t);
 	}
 
- 	if (p->p_sysent->sv_mask)
- 		sa->code &= p->p_sysent->sv_mask;
  	if (sa->code >= p->p_sysent->sv_size)
  		sa->callp = &p->p_sysent->sv_table[0];
   	else

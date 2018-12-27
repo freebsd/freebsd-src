@@ -306,14 +306,11 @@ parent(int sock)
 	CHECK(name == NULL);
 }
 
-int
-main(void)
+static void
+send_nvlist(void)
 {
 	int status, socks[2];
 	pid_t pid;
-
-	printf("1..134\n");
-	fflush(stdout);
 
 	if (socketpair(PF_UNIX, SOCK_STREAM, 0, socks) < 0)
 		err(1, "socketpair() failed");
@@ -326,7 +323,7 @@ main(void)
 		/* Child. */
 		close(socks[0]);
 		child(socks[1]);
-		return (0);
+		_exit(0);
 	default:
 		/* Parent. */
 		close(socks[1]);
@@ -336,6 +333,35 @@ main(void)
 
 	if (waitpid(pid, &status, 0) < 0)
 		err(1, "waitpid() failed");
+}
+
+static void
+send_closed_fd(void)
+{
+	nvlist_t *nvl;
+	int error, socks[2];
+
+	if (socketpair(PF_UNIX, SOCK_STREAM, 0, socks) < 0)
+		err(1, "socketpair() failed");
+
+	nvl = nvlist_create(0);
+	nvlist_add_descriptor(nvl, "fd", 12345);
+	error = nvlist_error(nvl);
+	CHECK(error == EBADF);
+
+	error = nvlist_send(socks[1], nvl);
+	CHECK(error != 0 && errno == EBADF);
+}
+
+int
+main(void)
+{
+
+	printf("1..136\n");
+	fflush(stdout);
+
+	send_nvlist();
+	send_closed_fd();
 
 	return (0);
 }

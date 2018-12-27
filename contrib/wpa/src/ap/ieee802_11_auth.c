@@ -244,6 +244,7 @@ int hostapd_check_acl(struct hostapd_data *hapd, const u8 *addr,
  * @psk: Linked list buffer for returning WPA PSK
  * @identity: Buffer for returning identity (from RADIUS)
  * @radius_cui: Buffer for returning CUI (from RADIUS)
+ * @is_probe_req: Whether this query for a Probe Request frame
  * Returns: HOSTAPD_ACL_ACCEPT, HOSTAPD_ACL_REJECT, or HOSTAPD_ACL_PENDING
  *
  * The caller is responsible for freeing the returned *identity and *radius_cui
@@ -254,7 +255,8 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 			    u32 *acct_interim_interval,
 			    struct vlan_description *vlan_id,
 			    struct hostapd_sta_wpa_psk_short **psk,
-			    char **identity, char **radius_cui)
+			    char **identity, char **radius_cui,
+			    int is_probe_req)
 {
 	int res;
 
@@ -280,6 +282,12 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 		return HOSTAPD_ACL_REJECT;
 #else /* CONFIG_NO_RADIUS */
 		struct hostapd_acl_query_data *query;
+
+		if (is_probe_req) {
+			/* Skip RADIUS queries for Probe Request frames to avoid
+			 * excessive load on the authentication server. */
+			return HOSTAPD_ACL_ACCEPT;
+		};
 
 		/* Check whether ACL cache has an entry for this station */
 		res = hostapd_acl_cache_get(hapd, addr, session_timeout,
@@ -327,14 +335,13 @@ int hostapd_allowed_address(struct hostapd_data *hapd, const u8 *addr,
 			return HOSTAPD_ACL_REJECT;
 		}
 
-		query->auth_msg = os_malloc(len);
+		query->auth_msg = os_memdup(msg, len);
 		if (query->auth_msg == NULL) {
 			wpa_printf(MSG_ERROR, "Failed to allocate memory for "
 				   "auth frame.");
 			hostapd_acl_query_free(query);
 			return HOSTAPD_ACL_REJECT;
 		}
-		os_memcpy(query->auth_msg, msg, len);
 		query->auth_msg_len = len;
 		query->next = hapd->acl_queries;
 		hapd->acl_queries = query;
@@ -665,9 +672,11 @@ void hostapd_acl_deinit(struct hostapd_data *hapd)
 
 #ifndef CONFIG_NO_RADIUS
 	hostapd_acl_cache_free(hapd->acl_cache);
+	hapd->acl_cache = NULL;
 #endif /* CONFIG_NO_RADIUS */
 
 	query = hapd->acl_queries;
+	hapd->acl_queries = NULL;
 	while (query) {
 		prev = query;
 		query = query->next;

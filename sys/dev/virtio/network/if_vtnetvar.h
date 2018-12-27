@@ -79,6 +79,9 @@ struct vtnet_rxq {
 	struct vtnet_rxq_stats	 vtnrx_stats;
 	struct taskqueue	*vtnrx_tq;
 	struct task		 vtnrx_intrtask;
+#ifdef DEV_NETMAP
+	struct virtio_net_hdr_mrg_rxbuf vtnrx_shrhdr;
+#endif  /* DEV_NETMAP */
 	char			 vtnrx_name[16];
 } __aligned(CACHE_LINE_SIZE);
 
@@ -114,6 +117,9 @@ struct vtnet_txq {
 #ifndef VTNET_LEGACY_TX
 	struct task		 vtntx_defrtask;
 #endif
+#ifdef DEV_NETMAP
+	struct virtio_net_hdr_mrg_rxbuf vtntx_shrhdr;
+#endif  /* DEV_NETMAP */
 	char			 vtntx_name[16];
 } __aligned(CACHE_LINE_SIZE);
 

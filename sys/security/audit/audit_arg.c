@@ -536,7 +536,7 @@ audit_arg_auditinfo_addr(struct auditinfo_addr *au_info)
 }
 
 void
-audit_arg_text(char *text)
+audit_arg_text(const char *text)
 {
 	struct kaudit_record *ar;
 

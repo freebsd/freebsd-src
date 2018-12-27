@@ -30,6 +30,8 @@
     etc
         X11
         ..
+        authpf
+        ..
         autofs
         ..
         bluetooth
@@ -87,6 +89,8 @@
         casper
         ..
         geom
+        ..
+        nvmecontrol
         ..
     ..
     libexec

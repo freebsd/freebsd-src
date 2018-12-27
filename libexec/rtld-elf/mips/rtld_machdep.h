@@ -43,6 +43,9 @@ struct Struct_Obj_Entry;
 Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
     const struct Struct_Obj_Entry *defobj, const struct Struct_Obj_Entry *obj,
     const Elf_Rel *rel);
+Elf_Addr _mips_rtld_bind(struct Struct_Obj_Entry *obj, Elf_Size reloff);
+void *_mips_get_tls(void);
+
 
 #define make_function_pointer(def, defobj) \
 	((defobj)->relocbase + (def)->st_value)

@@ -485,6 +485,10 @@ int	bus_generic_suspend(device_t dev);
 int	bus_generic_suspend_child(device_t dev, device_t child);
 int	bus_generic_teardown_intr(device_t dev, device_t child,
 				  struct resource *irq, void *cookie);
+int	bus_generic_suspend_intr(device_t dev, device_t child,
+				  struct resource *irq);
+int	bus_generic_resume_intr(device_t dev, device_t child,
+				  struct resource *irq);
 int	bus_generic_unmap_resource(device_t dev, device_t child, int type,
 				   struct resource *r,
 				   struct resource_map *map);
@@ -535,6 +539,8 @@ int	bus_setup_intr(device_t dev, struct resource *r, int flags,
 		       driver_filter_t filter, driver_intr_t handler, 
 		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
+int	bus_suspend_intr(device_t dev, struct resource *r);
+int	bus_resume_intr(device_t dev, struct resource *r);
 int	bus_bind_intr(device_t dev, struct resource *r, int cpu);
 int	bus_describe_intr(device_t dev, struct resource *irq, void *cookie,
 			  const char *fmt, ...) __printflike(4, 5);
@@ -612,6 +618,7 @@ void	device_set_desc(device_t dev, const char* desc);
 void	device_set_desc_copy(device_t dev, const char* desc);
 int	device_set_devclass(device_t dev, const char *classname);
 int	device_set_devclass_fixed(device_t dev, const char *classname);
+bool	device_is_devclass_fixed(device_t dev);
 int	device_set_driver(device_t dev, driver_t *driver);
 void	device_set_flags(device_t dev, u_int32_t flags);
 void	device_set_softc(device_t dev, void *softc);

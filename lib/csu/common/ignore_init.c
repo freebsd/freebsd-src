@@ -1,17 +1,17 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ * SPDX-License-Identifier: BSD-1-Clause
  *
  * Copyright 2012 Konstantin Belousov <kib@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2018 The FreeBSD Foundation
+ *
+ * Parts of this software was developed by Konstantin Belousov
+ * <kib@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -29,7 +29,9 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/elf.h>
 #include <sys/elf_common.h>
+
 #include "notes.h"
 
 extern int main(int, char **, char **);
@@ -45,6 +47,39 @@ extern void _init(void) __hidden;
 
 extern int _DYNAMIC;
 #pragma weak _DYNAMIC
+
+#if defined(CRT_IRELOC_RELA)
+extern const Elf_Rela __rela_iplt_start[] __weak_symbol __hidden;
+extern const Elf_Rela __rela_iplt_end[] __weak_symbol __hidden;
+
+#include "reloc.c"
+
+static void
+process_irelocs(void)
+{
+	const Elf_Rela *r;
+
+	for (r = &__rela_iplt_start[0]; r < &__rela_iplt_end[0]; r++)
+		crt1_handle_rela(r);
+}
+#elif defined(CRT_IRELOC_REL)
+extern const Elf_Rel __rel_iplt_start[] __weak_symbol __hidden;
+extern const Elf_Rel __rel_iplt_end[] __weak_symbol __hidden;
+
+#include "reloc.c"
+
+static void
+process_irelocs(void)
+{
+	const Elf_Rel *r;
+
+	for (r = &__rel_iplt_start[0]; r < &__rel_iplt_end[0]; r++)
+		crt1_handle_rel(r);
+}
+#elif defined(CRT_IRELOC_SUPPRESS)
+#else
+#error "Define platform reloc type"
+#endif
 
 char **environ;
 const char *__progname = "";

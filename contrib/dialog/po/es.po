@@ -7,62 +7,62 @@ msgid ""
 msgstr ""
 "Project-Id-Version: dialog 1.1.20080819\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"POT-Creation-Date: 2008-06-18 18:26-0400\n"
 "PO-Revision-Date: 2010-02-14 14:26+0100\n"
 "Last-Translator: Santiago Vila Doncel <sanvila@unex.es>\n"
-"Language-Team: Spanish <es@li.org>\n"
+"Language-Team: Spanish <es@tp.org.es>\n"
 "Language: es\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8-bit\n"
 
-#: buttons.c:387
+#: buttons.c:385
 msgid "Yes"
 msgstr "Sí"
 
-#: buttons.c:395
+#: buttons.c:393
 msgid "No"
 msgstr "No"
 
-#: buttons.c:403
+#: buttons.c:401
 msgid "OK"
 msgstr "Aceptar"
 
-#: buttons.c:411
+#: buttons.c:409
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: buttons.c:419
+#: buttons.c:417
 msgid "EXIT"
 msgstr "Salir"
 
-#: buttons.c:427
+#: buttons.c:425
 msgid "Extra"
 msgstr "Extra"
 
-#: buttons.c:435
+#: buttons.c:433
 msgid "Help"
 msgstr "Ayuda"
 
 #. Headline "Month"
-#: calendar.c:298
+#: calendar.c:273
 msgid "Month"
 msgstr "Mes"
 
 #. Headline "Year"
-#: calendar.c:318
+#: calendar.c:293
 msgid "Year"
 msgstr "Año"
 
-#: dialog.c:756
+#: dialog.c:741
 msgid "Rename"
 msgstr "Renombrar"
 
-#: fselect.c:571
+#: fselect.c:550
 msgid "Directories"
 msgstr "Directorios"
 
-#: fselect.c:572
+#: fselect.c:551
 msgid "Files"
 msgstr "Ficheros"
 
@@ -107,6 +107,6 @@ msgstr "N/A"
 msgid "Overall Progress"
 msgstr "Progreso total"
 
-#: textbox.c:468
+#: textbox.c:489
 msgid "Search"
 msgstr "Buscar"

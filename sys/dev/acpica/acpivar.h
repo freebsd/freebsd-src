@@ -349,6 +349,10 @@ ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index,
 		    ACPI_RESOURCE **resp);
 ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 		    ACPI_RESOURCE *res);
+UINT8		acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision);
+ACPI_STATUS	acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid,
+		    int revision, uint64_t function, union acpi_object *package,
+		    ACPI_BUFFER *out_buf);
 ACPI_STATUS	acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid,
 		    int revision, int count, uint32_t *caps_in,
 		    uint32_t *caps_out, bool query);
@@ -367,7 +371,11 @@ int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
 		    u_int flags);
 void		acpi_walk_subtables(void *first, void *end,
 		    acpi_subtable_handler *handler, void *arg);
-BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
+int		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
+#define ACPI_MATCHHID_NOMATCH 0
+#define ACPI_MATCHHID_HID 1
+#define ACPI_MATCHHID_CID 2
+
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
@@ -395,6 +403,9 @@ extern struct	acpi_parse_resource_set acpi_res_parse_set;
 
 int		acpi_identify(void);
 void		acpi_config_intr(device_t dev, ACPI_RESOURCE *res);
+#ifdef INTRNG
+int		acpi_map_intr(device_t dev, u_int irq, ACPI_HANDLE handle);
+#endif
 ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 		    struct resource *res, ACPI_RESOURCE *acpi_res);
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
@@ -513,6 +524,15 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 #define	KTR_ACPI		KTR_DEV
 
 SYSCTL_DECL(_debug_acpi);
+
+/*
+ * Parse and use proximity information in SRAT and SLIT.
+ */
+int		acpi_pxm_init(int ncpus, vm_paddr_t maxphys);
+void		acpi_pxm_parse_tables(void);
+void		acpi_pxm_set_mem_locality(void);
+void		acpi_pxm_set_cpu_locality(void);
+void		acpi_pxm_free(void);
 
 /*
  * Map a PXM to a VM domain.
