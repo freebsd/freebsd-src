@@ -25,6 +25,7 @@ SUBDIR_BOOTSTRAP= \
 SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	.WAIT \
 	geom \
+	lib9p \
 	libalias \
 	libarchive \
 	libauditd \
