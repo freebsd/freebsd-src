@@ -149,7 +149,7 @@ svc_handler(struct thread *td, struct trapframe *frame)
 
 static void
 data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
-    uint64_t far, int lower)
+    uint64_t far, int lower, int exec)
 {
 	struct vm_map *map;
 	struct proc *p;
@@ -229,6 +229,8 @@ no_pmap_fault:
 
 	va = trunc_page(far);
 	ftype = ((esr >> 6) & 1) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
+	if (exec)
+		ftype |= VM_PROT_EXECUTE;
 
 	/* Fault in the page. */
 	error = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
@@ -336,7 +338,8 @@ do_el1h_sync(struct thread *td, struct trapframe *frame)
 	case EXCP_DATA_ABORT:
 		far = READ_SPECIALREG(far_el1);
 		intr_enable();
-		data_abort(td, frame, esr, far, 0);
+		data_abort(td, frame, esr, far, 0,
+		    exception == EXCP_INSN_ABORT);
 		break;
 	case EXCP_BRK:
 #ifdef KDTRACE_HOOKS
@@ -433,7 +436,8 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 	case EXCP_INSN_ABORT_L:
 	case EXCP_DATA_ABORT_L:
 	case EXCP_DATA_ABORT:
-		data_abort(td, frame, esr, far, 1);
+		data_abort(td, frame, esr, far, 1,
+		    exception == EXCP_INSN_ABORT_L);
 		break;
 	case EXCP_UNKNOWN:
 		if (!undef_insn(0, frame))
