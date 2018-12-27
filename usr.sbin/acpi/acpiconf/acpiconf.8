@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2018
+.Dd December 27, 2018
 .Dt ACPICONF 8
 .Os
 .Sh NAME
@@ -49,7 +49,9 @@ The following command-line options are recognized:
 .It Fl h
 Displays a summary of available options.
 .It Fl i Ar batt
-Get design information about the specified battery.
+Get design information and current status of the battery specified
+by its number, starting with
+.Cm 0 .
 .It Fl k Ar ack
 Ack or abort a pending suspend request using the argument provided.
 .Sy Most users should not use this option directly.
