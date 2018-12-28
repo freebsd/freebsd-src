@@ -276,6 +276,7 @@ struct ichwd_softc {
 #define	DEVICEID_WCPT_LP7	0x9cc7
 #define	DEVICEID_WCPT_LP9	0x9cc9
 #define	DEVICEID_LEWISBURG_SMB	0xa1a3
+#define	DEVICEID_SRPTLP_SMB	0x9d23
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define	ICH_GEN_STA		0xd4
