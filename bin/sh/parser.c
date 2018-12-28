@@ -1978,7 +1978,9 @@ getprompt(void *unused __unused)
 {
 	static char ps[PROMPTLEN];
 	const char *fmt;
+	const char *home;
 	const char *pwd;
+	size_t homelen;
 	int i, trim;
 	static char internal_error[] = "??";
 
@@ -2039,8 +2041,24 @@ getprompt(void *unused __unused)
 				    *pwd == '/' && pwd[1] != '\0')
 					strlcpy(&ps[i], strrchr(pwd, '/') + 1,
 					    PROMPTLEN - i);
-				else
-					strlcpy(&ps[i], pwd, PROMPTLEN - i);
+				else {
+					home = lookupvar("HOME");
+					if (home != NULL)
+						homelen = strlen(home);
+					if (home != NULL &&
+					    strcmp(home, "/") != 0 &&
+					    strncmp(pwd, home, homelen) == 0 &&
+					    (pwd[homelen] == '/' ||
+					    pwd[homelen] == '\0')) {
+						strlcpy(&ps[i], "~",
+						    PROMPTLEN - i);
+						strlcpy(&ps[i + 1],
+						    pwd + homelen,
+						    PROMPTLEN - i - 1);
+					} else {
+						strlcpy(&ps[i], pwd, PROMPTLEN - i);
+					}
+				}
 				/* Skip to end of path. */
 				while (ps[i + 1] != '\0')
 					i++;
