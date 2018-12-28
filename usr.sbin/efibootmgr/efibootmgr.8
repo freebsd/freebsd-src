@@ -1,4 +1,4 @@
-.\" Copyright (c) 2017 Netflix, Inc
+.\" Copyright (c) 2017-2018 Netflix, Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,19 +24,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2018
+.Dd December 28, 2018
 .Dt EFIBOOTMGR 8
 .Os
 .Sh NAME
 .Nm efibootmgr 
 .Nd manipulate the EFI Boot Manager
 .Sh SYNOPSIS
-.Op Fl aAnNB Ar Bootvar
+.Op Fl aAnNB Ar bootnum
 .Op Fl t Ar timeout
 .Op Fl T
 .Op Fl o Ar bootorder
-.Op Fl verbose
-.Op Fl c -k Ar kernel -l Ar loader [-L Ar label] [--dry-run] [-b Bootvar]
+.Op Fl v
+.Op Fl c l Ar loader [ Fl k Ar kernel ] [ Fl L Ar label ] [ Fl -dry-run ] [ Fl b Ar bootnum ]
 .Sh "DESCRIPTION"
 .Nm
 manipulates how UEFI Boot Managers boot the system.
@@ -59,7 +59,7 @@ The currently booting method is communicated using
 A global timeout can also be set.
 .Pp
 .Nm
-requires that the kernel efirt module to get and set these
+requires that the kernel efirt module be loaded to get and set these
 non-volatile variables.
 .Pp
 The following options are available:
@@ -70,45 +70,45 @@ Create a new Boot Variable
 The path to and name of the loader.
 .It Fl k -kernel Ar kernel
 The path to and name of the kernel.
-.It Fl b Bootvar
-When creating an entry, use Bootvar as the index.
+.It Fl b -bootnum Ar bootnum
+When creating a new entry, use bootnum as the index.
 Fail if it already exists.
 .It Fl L -label Ar label
 An optional description for the entry.
 .It Fl D -dry-run
-Process but do not set the given BootVar.
-.It Fl B -delete Ar BootVarNum
-Delete the given BootVar Num.
-.It Fl a -activate Ar BootVarNum
-Activate the given BootVarNum.
-.It Fl A -deactivate Ar BootVarNum
-Deactivate the given BootVarNum.
-.It Fl n -bootnext  Ar BootVarNum
-Set BootVarNum as the BootNext variable.
+Process but do not change any variables.
+.It Fl B -delete Ar bootnum
+Delete the given bootnum boot entry.
+.It Fl a -activate Ar bootnum
+Activate the given bootnum boot entry.
+.It Fl A -deactivate Ar bootnum
+Deactivate the given bootnum boot entry.
+.It Fl n -bootnext Ar bootnum
+Set bootnum boot entry as the BootNext variable.
 .It Fl N -delete-bootnext 
-Delete the BootNext optional BootVar.
+Delete the BootNext optional variable.
 .It Fl o -bootorder Ar bootorder
-Set BootOrder variable to the given comma delimited set of BootVarNums.
+Set BootOrder variable to the given comma delimited set of bootnums.
 The numbers are in hex to match BootXXXX, but may omit leading zeros.
 .It Fl t -set-timeout Ar timeout
 Set the bootmenu timeout value.
 .It Fl T -del-timeout
 Delete the BootTimeout variable.
 .It Fl v -verbose
-Display the device path of BootVars in the output.
+Display the device path of boot entries in the output.
 .El
 .Pp
-.Sh Exammples
+.Sh Examples
 .Pp
 To Display the current Boot related variables in the system:
 .Pp
 .Dl efibootmgr [-v]
 .Pp
-This will display the optional BootNext BootVar, BootCurrent,
-or currently booted BootVar, followed by the optional Timeout value, any
-BootOrder that maybe set, followed finally by all currently defined Boot
+This will display the optional BootNext bootnum, BootCurrent,
+or currently booted bootnum, followed by the optional Timeout value, any
+BootOrder that may be set, followed finally by all currently defined Boot
 variables, active or not. The verbose flag will augment this output with
-the hardrive partition uuids, size/offset and device-path of the
+the disk partition uuids, size/offset and device-path of the
 variable.
 .Pp
 The
@@ -117,28 +117,28 @@ program can be used to create new EFI boot variables. To create a new
 boot var pointing to an installation with its EFI partition mounted
 under /mnt, the given loader and a label "FreeBSD-11":
 .Pp
-.Dl efibootmgr -c -l /mnt/EFI/BOOT/BOOTX64.EFI -L FreeBSD-11
+.Dl efibootmgr -c -l /mnt/EFI/freebsd/loader.efi -L FreeBSD-11
 .Pp
-This will result in the next available BootVarNum being assigned to a
-new UEFI load variable, and given the label "FreeBSD-11" such as:
+This will result in the next available bootnum being assigned to a
+new UEFI boot variable, and given the label "FreeBSD-11" such as:
 .Pp
 .Dl Boot0009 FreeBSD-11
 .Pp
-Note newly created BootVars are created inactive. The active state is denoted
-by an '*' following the BootVar name in the output.  They are also inserted
+Note newly created boot entries are created inactive. The active state is denoted
+by an '*' following the BootXXXX name in the output.  They are also inserted
 into the first position of current BootOrder variable if it exists. They
 must first be set to active before being considered available to attempt booting from, else they
 are ignored.
 .Pp
 .Dl efibootmgr -B 0009
 .Pp
-Will delete the given BootVar Boot0009
+Will delete the given boot entry Boot0009
 .Pp
-To set a given newly created BootVar active use:
+To set a given newly created boot entry active use:
 .Pp
 .Dl efibootmgr -a 0009
 .Pp
-To set a given BootVar to be used as the BootNext variable, irrespective
+To set a given boot entry to be used as the BootNext variable, irrespective
 of its active state, use:
 .Pp
 .Dl efibootmgr -n 0009
