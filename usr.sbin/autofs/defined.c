@@ -266,6 +266,7 @@ defined_init(void)
 
 	defined_add("ARCH", name.machine);
 	defined_add("CPU", name.machine);
+	defined_add("DOLLAR", "$");
 	defined_add("HOST", name.nodename);
 	defined_add("OSNAME", name.sysname);
 	defined_add("OSREL", name.release);
