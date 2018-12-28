@@ -388,7 +388,7 @@ _pfind(pid_t pid, bool zombie)
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW ||
-			    (zombie && p->p_state == PRS_ZOMBIE)) {
+			    (!zombie && p->p_state == PRS_ZOMBIE)) {
 				PROC_UNLOCK(p);
 				p = NULL;
 			}
