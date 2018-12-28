@@ -633,6 +633,13 @@ ichwd_identify(driver_t *driver, device_t parent)
 			return;
 	}
 
+	KASSERT(id_p->tco_version >= 1,
+	    ("unexpected TCO version %d", id_p->tco_version));
+	KASSERT(id_p->tco_version != 4 || smb != NULL,
+	    ("could not find PCI SMBus device for TCOv4"));
+	KASSERT(id_p->tco_version >= 4 || ich != NULL,
+	    ("could not find PCI LPC bridge device for TCOv1-3"));
+
 	/* good, add child to bus */
 	if ((dev = device_find_child(parent, driver->name, 0)) == NULL)
 		dev = BUS_ADD_CHILD(parent, 0, driver->name, 0);
