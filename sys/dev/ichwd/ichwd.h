@@ -57,6 +57,9 @@ struct ichwd_softc {
 	int			 gcs_rid;
 	struct resource		*gcs_res;
 
+	int			 gc_rid;
+	struct resource		*gc_res;
+
 	eventhandler_tag	 ev_tag;
 };
 
@@ -297,6 +300,18 @@ struct ichwd_softc {
 #define	ICH_TCOCTL			0x54    /* TCO Control */
 #define	ICH_TCOCTL_TCO_BASE_EN		0x0100  /* TCO Base decoding enabled */
 #define	ICH_TCOCTL_TCO_BASE_LOCK	0x0001  /* TCOBASE is locked */
+
+/*
+ * Configuration registers in Sunrise Point and Lewisburg PCH Sideband Interface
+ * and Private Configuration Space.
+ */
+#define	SBREG_BAR		0x10
+#define	SMB_GC_REG		0xc
+#define	SMB_GC_SIZE		4
+#define	SMB_GC_NO_REBOOT	0x2
+#define	SMB_PORT_ID		0xc6
+#define	PCR_PORTID_SHIFT	16
+#define	PCR_REG_OFF(pid, reg)	(((pid) << PCR_PORTID_SHIFT) | (reg))
 
 /* register names and locations (relative to PMBASE) */
 #define	SMI_BASE		0x30 /* base address for SMI registers */
