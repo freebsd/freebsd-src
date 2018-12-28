@@ -87,7 +87,7 @@ SVCPOOL		*nfsrvd_pool;
 static int	nfs_privport = 0;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_RWTUN,
     &nfs_privport, 0,
-    "Only allow clients using a privileged port for NFSv2 and 3");
+    "Only allow clients using a privileged port for NFSv2, 3 and 4");
 
 static int	nfs_minvers = NFS_VER2;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers, CTLFLAG_RWTUN,
@@ -159,7 +159,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_mreq = NULL;
 	nd.nd_cred = NULL;
 
-	if (nfs_privport && (nd.nd_flag & ND_NFSV4) == 0) {
+	if (nfs_privport != 0) {
 		/* Check if source port is privileged */
 		u_short port;
 		struct sockaddr *nam = nd.nd_nam;
