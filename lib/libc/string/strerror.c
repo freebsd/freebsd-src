@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
  * statically linked binaries.
  */
 static void
-errstr(int num, char *uprefix, char *buf, size_t len)
+errstr(int num, const char *uprefix, char *buf, size_t len)
 {
 	char *t;
 	unsigned int uerr;
