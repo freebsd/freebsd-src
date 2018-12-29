@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20181228:
+	r342562 modifies the NFSv4 server so that it obeys vfs.nfsd.nfs_privport
+	in the same as it is applied to NFSv2 and 3.  This implies that NFSv4
+	servers that have vfs.nfsd.nfs_privport set will only allow mounts
+	from clients using a reserved port#. Since both the FreeBSD and Linux
+	NFSv4 clients use reserved port#s by default, this should not affect
+	most NFSv4 mounts.
+
 20181107:
 	The '%I' format in the kern.corefile sysctl limits the number of
 	core files that a process can generate to the number stored in the
