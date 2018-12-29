@@ -122,6 +122,18 @@ $ZSTD --fast=5000000000 -f tmp && die "too large numeric value : must fail"
 $ZSTD -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
 $ECHO "test : too large numeric argument"
 $ZSTD --fast=9999999999 -f tmp  && die "should have refused numeric value"
+$ECHO "test : set compression level with environment variable ZSTD_CLEVEL"
+ZSTD_CLEVEL=12  $ZSTD -f tmp # positive compression level
+ZSTD_CLEVEL=-12 $ZSTD -f tmp # negative compression level
+ZSTD_CLEVEL=+12 $ZSTD -f tmp # valid: verbose '+' sign
+ZSTD_CLEVEL=    $ZSTD -f tmp # empty env var, warn and revert to default setting
+ZSTD_CLEVEL=-   $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=a   $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=+a  $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=3a7 $ZSTD -f tmp # malformed env var, warn and revert to default setting
+ZSTD_CLEVEL=50000000000  $ZSTD -f tmp # numeric value too large, warn and revert to default setting
+$ECHO "test : override ZSTD_CLEVEL with command line option"
+ZSTD_CLEVEL=12  $ZSTD --fast=3 -f tmp # overridden by command line option
 $ECHO "test : compress to stdout"
 $ZSTD tmp -c > tmpCompressed
 $ZSTD tmp --stdout > tmpCompressed       # long command format
@@ -179,8 +191,15 @@ $ECHO foo > tmpro
 chmod 400 tmpro.zst
 $ZSTD -q tmpro && die "should have refused to overwrite read-only file"
 $ZSTD -q -f tmpro
+$ECHO "test: --no-progress flag"
+$ZSTD tmpro -c --no-progress | $ZSTD -d -f -o "$INTOVOID" --no-progress
+$ZSTD tmpro -cv --no-progress | $ZSTD -dv -f -o "$INTOVOID" --no-progress
 rm -f tmpro tmpro.zst
-
+$ECHO "test: overwrite input file (must fail)"
+$ZSTD tmp -fo tmp && die "zstd compression overwrote the input file"
+$ZSTD tmp.zst -dfo tmp.zst && die "zstd decompression overwrote the input file"
+$ECHO "test: detect that input file does not exist"
+$ZSTD nothere && die "zstd hasn't detected that input file does not exist"
 
 $ECHO "test : file removal"
 $ZSTD -f --rm tmp
@@ -213,7 +232,7 @@ rm tmp*
 $ECHO "test : compress multiple files"
 $ECHO hello > tmp1
 $ECHO world > tmp2
-$ZSTD tmp1 tmp2 -o "$INTOVOID"
+$ZSTD tmp1 tmp2 -o "$INTOVOID" -f
 $ZSTD tmp1 tmp2 -c | $ZSTD -t
 $ZSTD tmp1 tmp2 -o tmp.zst
 test ! -f tmp1.zst
@@ -221,7 +240,7 @@ test ! -f tmp2.zst
 $ZSTD tmp1 tmp2
 $ZSTD -t tmp1.zst tmp2.zst
 $ZSTD -dc tmp1.zst tmp2.zst
-$ZSTD tmp1.zst tmp2.zst -o "$INTOVOID"
+$ZSTD tmp1.zst tmp2.zst -o "$INTOVOID" -f
 $ZSTD -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 $ZSTD tmp1 tmp2 -f -o tmpexists
@@ -237,14 +256,15 @@ $ECHO "\n===>  Advanced compression parameters "
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
 $ECHO "Hello world!" | $ZSTD --zstd=windowLog=21,slog  - -o tmp.zst && die "wrong parameters not detected!"
+$ECHO "Hello world!" | $ZSTD --zstd=strategy=10        - -o tmp.zst && die "parameter out of bound not detected!"  # > btultra2 : does not exist
 test ! -f tmp.zst  # tmp.zst should not be created
 roundTripTest -g512K
-roundTripTest -g512K " --zstd=slen=3,tlen=48,strat=6"
+roundTripTest -g512K " --zstd=mml=3,tlen=48,strat=6"
 roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
-roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,searchLength=3,targetLength=48,strategy=6"
-roundTripTest -g512K " --single-thread --long --zstd=ldmHashLog=20,ldmSearchLength=64,ldmBucketSizeLog=1,ldmHashEveryLog=7"
-roundTripTest -g512K " --single-thread --long --zstd=ldmhlog=20,ldmslen=64,ldmblog=1,ldmhevery=7"
-roundTripTest -g512K 19
+roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,minMatch=3,targetLength=48,strategy=6"
+roundTripTest -g512K " --single-thread --long --zstd=ldmHashLog=20,ldmMinMatch=64,ldmBucketSizeLog=1,ldmHashRateLog=7"
+roundTripTest -g512K " --single-thread --long --zstd=lhlog=20,lmml=64,lblog=1,lhrlog=7"
+roundTripTest -g64K  "19 --zstd=strat=9"   # btultra2
 
 
 $ECHO "\n===>  Pass-Through mode "
@@ -541,6 +561,9 @@ $ECHO "bench negative level"
 $ZSTD -bi0 --fast tmp1
 $ECHO "with recursive and quiet modes"
 $ZSTD -rqi1b1e2 tmp1
+$ECHO "benchmark decompression only"
+$ZSTD -f tmp1
+$ZSTD -b -d -i1 tmp1.zst
 
 $ECHO "\n===>  zstd compatibility tests "
 
@@ -744,17 +767,17 @@ then
     ./datagen -g2MB > tmp
     refSize=$($ZSTD tmp -6 -c --zstd=wlog=18         | wc -c)
     ov9Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=9 | wc -c)
-    ov0Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=0 | wc -c)
+    ov1Size=$($ZSTD tmp -6 -c --zstd=wlog=18,ovlog=1 | wc -c)
     if [ $refSize -eq $ov9Size ]; then
         echo ov9Size should be different from refSize
         exit 1
     fi
-    if [ $refSize -eq $ov0Size ]; then
-        echo ov0Size should be different from refSize
+    if [ $refSize -eq $ov1Size ]; then
+        echo ov1Size should be different from refSize
         exit 1
     fi
-    if [ $ov9Size -ge $ov0Size ]; then
-        echo ov9Size=$ov9Size should be smaller than ov0Size=$ov0Size
+    if [ $ov9Size -ge $ov1Size ]; then
+        echo ov9Size=$ov9Size should be smaller than ov1Size=$ov1Size
         exit 1
     fi
 
@@ -832,6 +855,12 @@ roundTripTest -g27000000 " --adapt=min=1,max=4"
 $ECHO "===>   test: --adapt must fail on incoherent bounds "
 ./datagen > tmp
 $ZSTD -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
+
+$ECHO "\n===>   rsyncable mode "
+roundTripTest -g10M " --rsyncable"
+roundTripTest -g10M " --rsyncable -B100K"
+$ECHO "===>   test: --rsyncable must fail with --single-thread"
+$ZSTD -f -vv --rsyncable --single-thread tmp && die "--rsyncable must fail with --single-thread"
 
 
 if [ "$1" != "--test-large-data" ]; then
