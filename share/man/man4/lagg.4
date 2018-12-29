@@ -146,7 +146,7 @@ modes will use the RSS hash from the network card if available to avoid
 computing one, this may give poor traffic distribution if the hash is invalid
 or uses less of the protocol header information.
 Local hash computation can be forced per interface by setting the
-.Cm use_flowid
+.Cm -use_flowid
 .Xr ifconfig 8
 flag.
 The default for new interfaces is set via the
