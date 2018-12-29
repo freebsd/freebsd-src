@@ -18,7 +18,7 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hBits = cParams->hashLog;
-    U32  const mls = cParams->searchLength;
+    U32  const mls = cParams->minMatch;
     const BYTE* const base = ms->window.base;
     const BYTE* ip = base + ms->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
@@ -27,18 +27,18 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
     /* Always insert every fastHashFillStep position into the hash table.
      * Insert the other positions if their hash entry is empty.
      */
-    for (; ip + fastHashFillStep - 1 <= iend; ip += fastHashFillStep) {
+    for ( ; ip + fastHashFillStep < iend + 2; ip += fastHashFillStep) {
         U32 const current = (U32)(ip - base);
-        U32 i;
-        for (i = 0; i < fastHashFillStep; ++i) {
-            size_t const hash = ZSTD_hashPtr(ip + i, hBits, mls);
-            if (i == 0 || hashTable[hash] == 0)
-                hashTable[hash] = current + i;
-            /* Only load extra positions for ZSTD_dtlm_full */
-            if (dtlm == ZSTD_dtlm_fast)
-                break;
-        }
-    }
+        size_t const hash0 = ZSTD_hashPtr(ip, hBits, mls);
+        hashTable[hash0] = current;
+        if (dtlm == ZSTD_dtlm_fast) continue;
+        /* Only load extra positions for ZSTD_dtlm_full */
+        {   U32 p;
+            for (p = 1; p < fastHashFillStep; ++p) {
+                size_t const hash = ZSTD_hashPtr(ip + p, hBits, mls);
+                if (hashTable[hash] == 0) {  /* not yet filled */
+                    hashTable[hash] = current + p;
+    }   }   }   }
 }
 
 FORCE_INLINE_TEMPLATE
@@ -235,7 +235,7 @@ size_t ZSTD_compressBlock_fast(
         void const* src, size_t srcSize)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
-    U32 const mls = cParams->searchLength;
+    U32 const mls = cParams->minMatch;
     assert(ms->dictMatchState == NULL);
     switch(mls)
     {
@@ -256,7 +256,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState(
         void const* src, size_t srcSize)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
-    U32 const mls = cParams->searchLength;
+    U32 const mls = cParams->minMatch;
     assert(ms->dictMatchState != NULL);
     switch(mls)
     {
@@ -375,7 +375,7 @@ size_t ZSTD_compressBlock_fast_extDict(
         void const* src, size_t srcSize)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
-    U32 const mls = cParams->searchLength;
+    U32 const mls = cParams->minMatch;
     switch(mls)
     {
     default: /* includes case 3 */
