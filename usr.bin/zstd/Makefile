@@ -1,10 +1,13 @@
 # $FreeBSD$
 
 PROG=	zstd
-SRCS=	bench.c \
+SRCS=	\
+	benchfn.c \
+	benchzstd.c \
 	datagen.c \
 	dibio.c \
 	fileio.c \
+	util.c \
 	zstdcli.c
 
 CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/programs \

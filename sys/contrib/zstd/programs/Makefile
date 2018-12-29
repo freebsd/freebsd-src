@@ -29,7 +29,12 @@ LIBVER  := $(shell echo $(LIBVER_SCRIPT))
 
 ZSTD_VERSION = $(LIBVER)
 
-GREP = grep --color=never
+HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
+GREP_OPTIONS ?=
+ifeq ($HAVE_COLORNEVER, 1)
+GREP_OPTIONS += --color=never
+endif
+GREP = grep $(GREP_OPTIONS)
 
 ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
 ALIGN_LOOP = -falign-loops=32
@@ -48,7 +53,7 @@ DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith -Wformat-security \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-            -Wredundant-decls -Wmissing-prototypes
+            -Wredundant-decls -Wmissing-prototypes -Wc++-compat
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS    = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 
@@ -91,7 +96,7 @@ VOID = /dev/null
 
 # thread detection
 NO_THREAD_MSG := ==> no threads, building without multithreading support
-HAVE_PTHREAD := $(shell printf '\#include <pthread.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_pthread$(EXT) -x c - -pthread 2> $(VOID) && rm have_pthread$(EXT) && echo 1 || echo 0)
+HAVE_PTHREAD := $(shell printf '\#include <pthread.h>\nint main(void) { return 0; }' > have_pthread.c && $(CC) $(FLAGS) -o have_pthread$(EXT) have_pthread.c -pthread 2> $(VOID) && rm have_pthread$(EXT) && echo 1 || echo 0; rm have_pthread.c)
 HAVE_THREAD := $(shell [ "$(HAVE_PTHREAD)" -eq "1" -o -n "$(filter Windows%,$(OS))" ] && echo 1 || echo 0)
 ifeq ($(HAVE_THREAD), 1)
 THREAD_MSG := ==> building with threading support
@@ -103,7 +108,7 @@ endif
 
 # zlib detection
 NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
-HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_zlib$(EXT) -x c - -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0)
+HAVE_ZLIB := $(shell printf '\#include <zlib.h>\nint main(void) { return 0; }' > have_zlib.c && $(CC) $(FLAGS) -o have_zlib$(EXT) have_zlib.c -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0; rm have_zlib.c)
 ifeq ($(HAVE_ZLIB), 1)
 ZLIB_MSG := ==> building zstd with .gz compression support
 ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
@@ -114,7 +119,7 @@ endif
 
 # lzma detection
 NO_LZMA_MSG := ==> no liblzma, building zstd without .xz/.lzma support
-HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lzma$(EXT) -x c - -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0)
+HAVE_LZMA := $(shell printf '\#include <lzma.h>\nint main(void) { return 0; }' > have_lzma.c && $(CC) $(FLAGS) -o have_lzma$(EXT) have_lzma.c -llzma 2> $(VOID) && rm have_lzma$(EXT) && echo 1 || echo 0; rm have_lzma.c)
 ifeq ($(HAVE_LZMA), 1)
 LZMA_MSG := ==> building zstd with .xz/.lzma compression support
 LZMACPP = -DZSTD_LZMACOMPRESS -DZSTD_LZMADECOMPRESS
@@ -125,7 +130,7 @@ endif
 
 # lz4 detection
 NO_LZ4_MSG := ==> no liblz4, building zstd without .lz4 support
-HAVE_LZ4 := $(shell printf '\#include <lz4frame.h>\n\#include <lz4.h>\nint main(void) { return 0; }' | $(CC) $(FLAGS) -o have_lz4$(EXT) -x c - -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0)
+HAVE_LZ4 := $(shell printf '\#include <lz4frame.h>\n\#include <lz4.h>\nint main(void) { return 0; }' > have_lz4.c && $(CC) $(FLAGS) -o have_lz4$(EXT) have_lz4.c -llz4 2> $(VOID) && rm have_lz4$(EXT) && echo 1 || echo 0; rm have_lz4.c)
 ifeq ($(HAVE_LZ4), 1)
 LZ4_MSG := ==> building zstd with .lz4 compression support
 LZ4CPP = -DZSTD_LZ4COMPRESS -DZSTD_LZ4DECOMPRESS
@@ -160,7 +165,7 @@ $(ZSTDDECOMP_O): CFLAGS += $(ALIGN_LOOP)
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd : $(ZSTDLIB_FILES) zstdcli.o fileio.o bench.o datagen.o dibio.o
+zstd : $(ZSTDLIB_FILES) zstdcli.o util.o fileio.o benchfn.o benchzstd.o datagen.o dibio.o
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
@@ -178,13 +183,13 @@ zstd-release: zstd
 zstd32 : CPPFLAGS += $(THREAD_CPP)
 zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
-zstd32 : $(ZSTDLIB_FILES) zstdcli.c fileio.c bench.c datagen.c dibio.c
+zstd32 : $(ZSTDLIB_FILES) zstdcli.c util.c fileio.c benchfn.c benchzstd.c datagen.c dibio.c
 ifneq (,$(filter Windows%,$(OS)))
 	windres/generate_res.bat
 endif
 	$(CC) -m32 $(FLAGS) $^ $(RES32_FILE) -o $@$(EXT)
 
-zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o fileio.c bench.o datagen.o dibio.o
+zstd-nolegacy : $(ZSTD_FILES) $(ZDICT_FILES) zstdcli.o util.o fileio.c benchfn.o benchzstd.o datagen.o dibio.o
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd-nomt : THREAD_CPP :=
@@ -203,27 +208,27 @@ zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
 
-zstd-pgo : MOREFLAGS = -fprofile-generate
-zstd-pgo : clean zstd
+zstd-pgo :
+	$(MAKE) clean
+	$(MAKE) zstd MOREFLAGS=-fprofile-generate
 	./zstd -b19i1 $(PROFILE_WITH)
 	./zstd -b16i1 $(PROFILE_WITH)
 	./zstd -b9i2 $(PROFILE_WITH)
 	./zstd -b $(PROFILE_WITH)
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
-	$(RM) zstd
-	$(RM) $(ZSTDDECOMP_O)
+	$(RM) zstd *.o $(ZSTDDECOMP_O) $(ZSTDDIR)/compress/*.o
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 # minimal target, with only zstd compression and decompression. no bench. no legacy.
 zstd-small: CFLAGS = -Os -s
-zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c fileio.c
+zstd-frugal zstd-small: $(ZSTD_FILES) zstdcli.c util.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o $@$(EXT)
 
-zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c fileio.c
+zstd-decompress: $(ZSTDCOMMON_FILES) $(ZSTDDECOMP_FILES) zstdcli.c util.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
 
-zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c fileio.c
+zstd-compress: $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) zstdcli.c util.c fileio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
 
 zstdmt: zstd
@@ -275,7 +280,12 @@ preview-man: clean-man man
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
 
-EGREP = egrep --color=never
+HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
+EGREP_OPTIONS ?=
+ifeq ($HAVE_COLORNEVER, 1)
+EGREP_OPTIONS += --color=never
+endif
+EGREP = egrep $(EGREP_OPTIONS)
 
 # Print a two column output of targets and their description. To add a target description, put a
 # comment in the Makefile with the format "## <TARGET>: <DESCRIPTION>".  For example:
@@ -352,6 +362,7 @@ uninstall:
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdless
 	@$(RM) $(DESTDIR)$(BINDIR)/zstdcat
 	@$(RM) $(DESTDIR)$(BINDIR)/unzstd
+	@$(RM) $(DESTDIR)$(BINDIR)/zstdmt
 	@$(RM) $(DESTDIR)$(BINDIR)/zstd
 	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdless.1
 	@$(RM) $(DESTDIR)$(MAN1DIR)/zstdgrep.1

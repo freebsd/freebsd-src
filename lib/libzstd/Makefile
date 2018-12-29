@@ -13,7 +13,9 @@ SRCS=	entropy_common.c \
 	zstd_compress.c \
 	zstdmt_compress.c \
 	huf_decompress.c \
+	zstd_ddict.c \
 	zstd_decompress.c \
+	zstd_decompress_block.c \
 	zbuff_common.c \
 	zbuff_compress.c \
 	zbuff_decompress.c \

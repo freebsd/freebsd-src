@@ -291,13 +291,13 @@ zstdio_init(size_t maxiosize, int level)
 		goto out;
 	}
 
-	rc = ZSTD_CCtx_setParameter(dump_compressor, ZSTD_p_checksumFlag, 1);
+	rc = ZSTD_CCtx_setParameter(dump_compressor, ZSTD_c_checksumFlag, 1);
 	if (ZSTD_isError(rc)) {
 		printf("%s: error setting checksumFlag: %s\n", __func__,
 		    ZSTD_getErrorName(rc));
 		goto out;
 	}
-	rc = ZSTD_CCtx_setParameter(dump_compressor, ZSTD_p_compressionLevel,
+	rc = ZSTD_CCtx_setParameter(dump_compressor, ZSTD_c_compressionLevel,
 	    level);
 	if (ZSTD_isError(rc)) {
 		printf("%s: error setting compressLevel: %s\n", __func__,
