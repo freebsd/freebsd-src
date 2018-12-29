@@ -2417,7 +2417,7 @@ src/dst address for IPv4 or IPv6.
 .It Cm l4
 src/dst port for TCP/UDP/SCTP.
 .El
-.It Cm use_flowid
+.It Cm -use_flowid
 Enable local hash computation for RSS hash on the interface.
 The
 .Li loadbalance
@@ -2426,7 +2426,7 @@ and
 modes will use the RSS hash from the network card if available
 to avoid computing one, this may give poor traffic distribution
 if the hash is invalid or uses less of the protocol header information.
-.Cm use_flowid
+.Cm -use_flowid
 disables use of RSS hash from the network card.
 The default value can be set via the
 .Va net.link.lagg.default_use_flowid
@@ -2439,8 +2439,8 @@ and
 .Li 1
 means
 .Dq enabled .
-.It Cm -use_flowid
-Disable local hash computation for RSS hash on the interface.
+.It Cm use_flowid
+Use the RSS hash from the network card if available.
 .It Cm flowid_shift Ar number
 Set a shift parameter for RSS local hash computation.
 Hash is calculated by using flowid bits in a packet header mbuf
