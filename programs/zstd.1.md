@@ -144,6 +144,14 @@ the last one takes effect.
     Due to the chaotic nature of dynamic adaptation, compressed result is not reproducible.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
+* `--rsyncable` :
+    `zstd` will periodically synchronize the compression state to make the
+    compressed file more rsync-friendly. There is a negligible impact to
+    compression ratio, and the faster compression levels will see a small
+    compression speed hit.
+    This feature does not work with `--single-thread`. You probably don't want
+    to use it with long range mode, since it will decrease the effectiveness of
+    the synchronization points, but your milage may vary.
 * `-D file`:
     use `file` as Dictionary to compress or decompress FILE(s)
 * `--no-dictID`:
@@ -187,6 +195,8 @@ the last one takes effect.
 * `-q`, `--quiet`:
     suppress warnings, interactivity, and notifications.
     specify twice to suppress errors too.
+* `--no-progress`:
+    do not display the progress bar, but keep all other messages.
 * `-C`, `--[no-]check`:
     add integrity check computed from uncompressed data (default: enabled)
 * `--`:
@@ -331,9 +341,10 @@ The list of available _options_:
 - `strategy`=_strat_, `strat`=_strat_:
     Specify a strategy used by a match finder.
 
-    There are 8 strategies numbered from 1 to 8, from faster to stronger:
-    1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy, 4=ZSTD\_lazy,
-    5=ZSTD\_lazy2, 6=ZSTD\_btlazy2, 7=ZSTD\_btopt, 8=ZSTD\_btultra.
+    There are 9 strategies numbered from 1 to 9, from faster to stronger:
+    1=ZSTD\_fast, 2=ZSTD\_dfast, 3=ZSTD\_greedy,
+    4=ZSTD\_lazy, 5=ZSTD\_lazy2, 6=ZSTD\_btlazy2,
+    7=ZSTD\_btopt, 8=ZSTD\_btultra, 9=ZSTD\_btultra2.
 
 - `windowLog`=_wlog_, `wlog`=_wlog_:
     Specify the maximum number of bits for a match distance.
@@ -375,19 +386,19 @@ The list of available _options_:
 
     The minimum _slog_ is 1 and the maximum is 26.
 
-- `searchLength`=_slen_, `slen`=_slen_:
+- `minMatch`=_mml_, `mml`=_mml_:
     Specify the minimum searched length of a match in a hash table.
 
     Larger search lengths usually decrease compression ratio but improve
     decompression speed.
 
-    The minimum _slen_ is 3 and the maximum is 7.
+    The minimum _mml_ is 3 and the maximum is 7.
 
 - `targetLen`=_tlen_, `tlen`=_tlen_:
     The impact of this field vary depending on selected strategy.
 
-    For ZSTD\_btopt and ZSTD\_btultra, it specifies the minimum match length
-    that causes match finder to stop searching for better matches.
+    For ZSTD\_btopt, ZSTD\_btultra and ZSTD\_btultra2, it specifies
+    the minimum match length that causes match finder to stop searching.
     A larger `targetLen` usually improves compression ratio
     but decreases compression speed.
 
@@ -406,13 +417,14 @@ The list of available _options_:
     Reloading more data improves compression ratio, but decreases speed.
 
     The minimum _ovlog_ is 0, and the maximum is 9.
-    0 means "no overlap", hence completely independent jobs.
+    1 means "no overlap", hence completely independent jobs.
     9 means "full overlap", meaning up to `windowSize` is reloaded from previous job.
-    Reducing _ovlog_ by 1 reduces the amount of reload by a factor 2.
-    Default _ovlog_ is 6, which means "reload `windowSize / 8`".
-    Exception : the maximum compression level (22) has a default _ovlog_ of 9.
+    Reducing _ovlog_ by 1 reduces the reloaded amount by a factor 2.
+    For example, 8 means "windowSize/2", and 6 means "windowSize/8".
+    Value 0 is special and means "default" : _ovlog_ is automatically determined by `zstd`.
+    In which case, _ovlog_ will range from 6 to 9, depending on selected _strat_.
 
-- `ldmHashLog`=_ldmhlog_, `ldmhlog`=_ldmhlog_:
+- `ldmHashLog`=_lhlog_, `lhlog`=_lhlog_:
     Specify the maximum size for a hash table used for long distance matching.
 
     This option is ignored unless long distance matching is enabled.
@@ -420,18 +432,18 @@ The list of available _options_:
     Bigger hash tables usually improve compression ratio at the expense of more
     memory during compression and a decrease in compression speed.
 
-    The minimum _ldmhlog_ is 6 and the maximum is 26 (default: 20).
+    The minimum _lhlog_ is 6 and the maximum is 26 (default: 20).
 
-- `ldmSearchLength`=_ldmslen_, `ldmslen`=_ldmslen_:
+- `ldmMinMatch`=_lmml_, `lmml`=_lmml_:
     Specify the minimum searched length of a match for long distance matching.
 
     This option is ignored unless long distance matching is enabled.
 
     Larger/very small values usually decrease compression ratio.
 
-    The minimum _ldmslen_ is 4 and the maximum is 4096 (default: 64).
+    The minimum _lmml_ is 4 and the maximum is 4096 (default: 64).
 
-- `ldmBucketSizeLog`=_ldmblog_, `ldmblog`=_ldmblog_:
+- `ldmBucketSizeLog`=_lblog_, `lblog`=_lblog_:
     Specify the size of each bucket for the hash table used for long distance
     matching.
 
@@ -440,9 +452,9 @@ The list of available _options_:
     Larger bucket sizes improve collision resolution but decrease compression
     speed.
 
-    The minimum _ldmblog_ is 0 and the maximum is 8 (default: 3).
+    The minimum _lblog_ is 0 and the maximum is 8 (default: 3).
 
-- `ldmHashEveryLog`=_ldmhevery_, `ldmhevery`=_ldmhevery_:
+- `ldmHashRateLog`=_lhrlog_, `lhrlog`=_lhrlog_:
     Specify the frequency of inserting entries into the long distance matching
     hash table.
 
@@ -451,13 +463,13 @@ The list of available _options_:
     Larger values will improve compression speed. Deviating far from the
     default value will likely result in a decrease in compression ratio.
 
-    The default value is `wlog - ldmhlog`.
+    The default value is `wlog - lhlog`.
 
 ### Example
 The following parameters sets advanced compression options to something
 similar to predefined level 19 for files bigger than 256 KB:
 
-`--zstd`=wlog=23,clog=23,hlog=22,slog=6,slen=3,tlen=48,strat=6
+`--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 
 ### -B#:
 Select the size of each compression job.
