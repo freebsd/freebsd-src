@@ -404,7 +404,7 @@ again:
 	/* Do we need to create some new sources? */
 	if (cnt < count) {
 		/* If we would exceed the max, give up. */
-		if (i + (count - cnt) >= first_msi_irq + NUM_MSI_INTS) {
+		if (i + (count - cnt) > first_msi_irq + NUM_MSI_INTS) {
 			mtx_unlock(&msi_lock);
 			free(mirqs, M_MSI);
 			return (ENXIO);
@@ -639,13 +639,14 @@ again:
 			break;
 	}
 
+	/* Are all IRQs in use? */
+	if (i == first_msi_irq + NUM_MSI_INTS) {
+		mtx_unlock(&msi_lock);
+		return (ENXIO);
+	}
+
 	/* Do we need to create a new source? */
 	if (msi == NULL) {
-		/* If we would exceed the max, give up. */
-		if (i + 1 >= first_msi_irq + NUM_MSI_INTS) {
-			mtx_unlock(&msi_lock);
-			return (ENXIO);
-		}
 		mtx_unlock(&msi_lock);
 
 		/* Create a new source. */
