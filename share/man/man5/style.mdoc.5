@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2018
+.Dd December 29, 2018
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@ file style guide
 This file specifies the preferred style for manual pages in the
 .Fx
 source tree.
-.Ss Code examples
+.Ss Code Examples
 .Bl -dash -width ""
 .It
 Use literal formatting for examples and literal shell commands, e.g.:
@@ -68,7 +68,53 @@ Then run
 .Dq Nm make Cm install Cm clean .
 .Ed
 .El
-.Ss Synopsis formatting
+.Ss EXAMPLES Section
+.Bl -dash -width ""
+.It
+Format the
+.Sx EXAMPLES
+section in the following way:
+.Bd -literal -offset indent
+\&.Bl -tag -width 0n
+\&.It Sy Example 1\&: No Doing Something
+\&.Pp
+The following command does something.
+\&.Bd -literal -offset 2n
+\&.Li # Ic make -VLEGAL
+\&.Ed
+\&.It Sy Example 2\&: No Doing Something Different
+\&.Pp
+The following command does something different.
+\&.Bd -literal -offset 2n
+\&.Li # Ic bectl list
+\&.Ed
+\&.Pp
+It is good to know this command.
+\&.El
+\&.El
+.Ed
+.Pp
+which renders as:
+.Bd -filled -offset indent
+.Bl -tag -width 0n
+.It Sy Example 1\&: No Doing Something
+.Pp
+The following command does something.
+.Bd -literal -offset 2n
+.Li # Ic make -VLEGAL
+.Ed
+.It Sy Example 2\&: No Doing Something Different
+.Pp
+The following command does something different.
+.Bd -literal -offset 2n
+.Li # Ic bectl list
+.Ed
+.Pp
+It is good to know this command.
+.El
+.Ed
+.El
+.Ss Synopsis Formatting
 .Bl -dash -width ""
 .It
 Do not put whitespace between alternative parameters separated with a pipe
