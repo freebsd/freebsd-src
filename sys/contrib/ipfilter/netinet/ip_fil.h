@@ -1435,22 +1435,6 @@ typedef	struct	ipftune	{
 # define	CDEV_MAJOR	79
 #endif
 
-/*
- * Post NetBSD 1.2 has the PFIL interface for packet filters.  This turns
- * on those hooks.  We don't need any special mods in non-IP Filter code
- * with this!
- */
-#if (defined(NetBSD) && (NetBSD > 199609) && (NetBSD <= 1991011)) || \
-    (defined(NetBSD1_2) && NetBSD1_2 > 1) || \
-    (defined(__FreeBSD__) && (__FreeBSD_version >= 500043))
-# if (defined(NetBSD) && NetBSD >= 199905)
-#  define PFIL_HOOKS
-# endif
-# ifdef PFIL_HOOKS
-#  define NETBSD_PF
-# endif
-#endif
-
 #ifdef _KERNEL
 # define	FR_VERBOSE(verb_pr)
 # define	FR_DEBUG(verb_pr)
