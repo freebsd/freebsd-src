@@ -146,7 +146,6 @@ struct  ether_addr {
 #  define	COPYIN(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))
 #  define	COPYOUT(a,b,c)	copyout((caddr_t)(a), (caddr_t)(b), (c))
 
-#   define NETBSD_PF
 # else
 #  include <inttypes.h>
 # endif /* _KERNEL */
