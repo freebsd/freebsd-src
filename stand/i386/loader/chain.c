@@ -113,7 +113,7 @@ command_chain(int argc, char *argv[])
 	relocater_data[0].dest = 0x7C00;
 	relocater_data[0].size = size;
 
-	relocator_edx = bd_unit2bios(rootdev->dd.d_unit);
+	relocator_edx = bd_unit2bios(rootdev);
 	relocator_esi = relocater_size;
 	relocator_ds = 0;
 	relocator_es = 0;
