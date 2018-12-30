@@ -144,7 +144,7 @@ struct vop_vector ffs_fifoops1 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
 	.vop_fdatasync =	ffs_fdatasync,
-	.vop_reallocblks =	ffs_reallocblks, /* XXX: really ??? */
+	.vop_lock1 =		ffs_lock,
 	.vop_vptofh =		ffs_vptofh,
 };
 
