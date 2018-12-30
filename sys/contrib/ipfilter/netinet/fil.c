@@ -4266,8 +4266,6 @@ copyoutptr(softc, src, dst, size)
 	}
 	return error;
 }
-#ifdef	_KERNEL
-#endif
 
 
 /* ------------------------------------------------------------------------ */
