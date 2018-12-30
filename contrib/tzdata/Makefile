@@ -380,15 +380,18 @@ AWK=		awk
 # is typically nicer if it works.
 KSHELL=		/bin/bash
 
+# Name of curl <https://curl.haxx.se/>, used for HTML validation.
+CURL=		curl
+
 # The path where SGML DTDs are kept and the catalog file(s) to use when
-# validating.  The default should work on both Debian and Red Hat.
+# validating HTML 4.01.  The default should work on both Debian and Red Hat.
 SGML_TOPDIR= /usr
 SGML_DTDDIR= $(SGML_TOPDIR)/share/xml/w3c-sgml-lib/schema/dtd
 SGML_SEARCH_PATH= $(SGML_DTDDIR)/REC-html401-19991224
 SGML_CATALOG_FILES= \
   $(SGML_TOPDIR)/share/doc/w3-recs/html/www.w3.org/TR/1999/REC-html401-19991224/HTML4.cat:$(SGML_TOPDIR)/share/sgml/html/4.01/HTML4.cat
 
-# The name, arguments and environment of a program to validate your web pages.
+# The name, arguments and environment of a program to validate HTML 4.01.
 # See <http://openjade.sourceforge.net/doc/> for a validator, and
 # <https://validator.w3.org/source/> for a validation library.
 # Set VALIDATE=':' if you do not have such a program.
@@ -488,6 +491,7 @@ MANTXTS=	newctime.3.txt newstrftime.3.txt newtzset.3.txt \
 COMMON=		calendars CONTRIBUTING LICENSE Makefile \
 			NEWS README theory.html version
 WEB_PAGES=	tz-art.html tz-how-to.html tz-link.html
+CHECK_WEB_PAGES=check_tz-art.html check_tz-how-to.html check_tz-link.html
 DOCS=		$(MANS) date.1 $(MANTXTS) $(WEB_PAGES)
 PRIMARY_YDATA=	africa antarctica asia australasia \
 		europe northamerica southamerica
@@ -799,9 +803,15 @@ check_tzs:	$(TZS) $(TZS_NEW)
 		fi
 		touch $@
 
-# This checks only the HTML 4.01 strict page.
-# To check the the other pages, use <https://validator.w3.org/>.
-check_web:	tz-how-to.html
+check_web:	$(CHECK_WEB_PAGES)
+check_tz-art.html: tz-art.html
+check_tz-link.html: tz-link.html
+check_tz-art.html check_tz-link.html:
+		$(CURL) -sS --url https://validator.w3.org/nu/ -F out=gnu \
+		    -F file=@$$(expr $@ : 'check_\(.*\)') -o $@.out && \
+		  test ! -s $@.out || { cat $@.out; exit 1; }
+		mv $@.out $@
+check_tz-how-to.html: tz-how-to.html
 		$(VALIDATE_ENV) $(VALIDATE) $(VALIDATE_FLAGS) tz-how-to.html
 		touch $@
 
@@ -1068,7 +1078,7 @@ zic.o:		private.h tzfile.h version.h
 
 .PHONY: ALL INSTALL all
 .PHONY: check check_time_t_alternatives
-.PHONY: check_zishrink
+.PHONY: check_web check_zishrink
 .PHONY: clean clean_misc dummy.zd force_tzs
 .PHONY: install install_data maintainer-clean names
 .PHONY: posix_only posix_packrat posix_right public

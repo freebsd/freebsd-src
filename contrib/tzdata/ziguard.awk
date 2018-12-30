@@ -54,7 +54,7 @@ DATAFORM != "main" {
     }
   }
 
-  # If this line should differ due to Namibia using Rule SAVE suffixes,
+  # If this line should differ due to Namibia using negative SAVE values,
   # uncomment the desired version and comment out the undesired one.
   Rule_Namibia = /^#?Rule[\t ]+Namibia[\t ]/
   Zone_using_Namibia_rule \
@@ -86,6 +86,23 @@ DATAFORM != "main" {
   if (!vanguard && $1 == "Rule" && $7 == "Sat>=8" && $8 == "25:00") {
     sub(/Sat>=8/, "Sun>=9")
     sub(/25:00/, " 1:00")
+  }
+
+  # In rearguard format, change the Morocco lines with negative SAVE values
+  # to use positive SAVE values.
+  if (!vanguard && $1 == "Rule" && $2 == "Morocco" && $4 == 2018 \
+      && $6 == "Oct") {
+    sub(/\t2018\t/, "\t2017\t")
+  }
+  if (!vanguard && $1 == "Rule" && $2 == "Morocco" && 2019 <= $3) {
+    if ($9 == "0") {
+      sub(/\t0\t/, "\t1:00\t")
+    } else {
+      sub(/\t-1:00\t/, "\t0\t")
+    }
+  }
+  if (!vanguard && $1 == "1:00" && $2 == "Morocco" && $3 == "+01/+00") {
+    sub(/1:00\tMorocco\t\+01\/\+00$/, "0:00\tMorocco\t+00/+01")
   }
 }
 
