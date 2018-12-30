@@ -550,7 +550,7 @@ static devclass_t sdhci_xenon_devclass;
 DRIVER_MODULE(sdhci_xenon, simplebus, sdhci_xenon_driver, sdhci_xenon_devclass,
     NULL, NULL);
 
-MODULE_DEPEND(sdhci_xenon, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhci_xenon);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_xenon);
 #endif
