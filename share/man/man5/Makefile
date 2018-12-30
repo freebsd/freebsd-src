@@ -71,6 +71,7 @@ MAN=	acct.5 \
 	tmpfs.5
 
 MLINKS=	dir.5 dirent.5
+MLINKS+=ext2fs.5 ext4fs.5
 MLINKS+=fs.5 inode.5
 MLINKS+=hosts.equiv.5 rhosts.5
 MLINKS+=msdosfs.5 msdos.5
