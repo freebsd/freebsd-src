@@ -1698,7 +1698,6 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 			 * capability; this may also change when we pull
 			 * aggregation up into net80211
 			 */
-			seqno = ni->ni_txseqs[tid]++;
 			*(uint16_t *)wh->i_seq =
 			    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
 			M_SEQNO_SET(m, seqno);
