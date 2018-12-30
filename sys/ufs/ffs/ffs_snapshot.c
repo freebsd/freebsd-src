@@ -300,6 +300,7 @@ restart:
 		return (error);
 	}
 	vp = nd.ni_vp;
+	vnode_create_vobject(nd.ni_vp, fs->fs_size, td);
 	vp->v_vflag |= VV_SYSTEM;
 	ip = VTOI(vp);
 	devvp = ITODEVVP(ip);
