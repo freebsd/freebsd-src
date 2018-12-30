@@ -469,10 +469,10 @@ bd_get_diskinfo_ext(struct bdinfo *bd)
 	 * Sector size must be a multiple of 512 bytes.
 	 * An alternate test would be to check power of 2,
 	 * powerof2(params.sector_size).
-	 * 4K is largest read buffer we can use at this time.
+	 * 16K is largest read buffer we can use at this time.
 	 */
 	if (params.sector_size >= 512 &&
-	    params.sector_size <= 4096 &&
+	    params.sector_size <= 16384 &&
 	    (params.sector_size % BIOSDISK_SECSIZE) == 0)
 		bd->bd_sectorsize = params.sector_size;
 
@@ -861,8 +861,8 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	struct disk_devdesc *dev = (struct disk_devdesc *)devdata;
 	bdinfo_t *bd;
 	uint64_t disk_blocks, offset, d_offset;
-	size_t blks, blkoff, bsize, rest;
-	caddr_t bbuf;
+	size_t blks, blkoff, bsize, bio_size, rest;
+	caddr_t bbuf = NULL;
 	int rc;
 
 	bd = bd_get_bdinfo(&dev->dd);
@@ -937,14 +937,25 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 		DEBUG("short I/O %d", blks);
 	}
 
-	if (V86_IO_BUFFER_SIZE / bd->bd_sectorsize == 0)
-		panic("BUG: Real mode buffer is too small");
+	bio_size = min(BIO_BUFFER_SIZE, size);
+	while (bio_size > bd->bd_sectorsize) {
+		bbuf = bio_alloc(bio_size);
+		if (bbuf != NULL)
+			break;
+		bio_size -= bd->bd_sectorsize;
+	}
+	if (bbuf == NULL) {
+		bio_size = V86_IO_BUFFER_SIZE;
+		if (bio_size / bd->bd_sectorsize == 0)
+			panic("BUG: Real mode buffer is too small");
 
-	bbuf = PTOV(V86_IO_BUFFER);
+		/* Use alternate 4k buffer */
+		bbuf = PTOV(V86_IO_BUFFER);
+	}
 	rest = size;
-
+	rc = 0;
 	while (blks > 0) {
-		int x = min(blks, V86_IO_BUFFER_SIZE / bd->bd_sectorsize);
+		int x = min(blks, bio_size / bd->bd_sectorsize);
 
 		switch (rw & F_MASK) {
 		case F_READ:
@@ -953,8 +964,10 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 			if (rest < bsize)
 				bsize = rest;
 
-			if ((rc = bd_io(dev, bd, dblk, x, bbuf, BD_RD)) != 0)
-				return (EIO);
+			if ((rc = bd_io(dev, bd, dblk, x, bbuf, BD_RD)) != 0) {
+				rc = EIO;
+				goto error;
+			}
 
 			bcopy(bbuf + blkoff, buf, bsize);
 			break;
@@ -986,13 +999,16 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 			 * Put your Data In, and shake it all about
 			 */
 			bcopy(buf, bbuf + blkoff, bsize);
-			if ((rc = bd_io(dev, bd, dblk, x, bbuf, BD_WR)) != 0)
-				return (EIO);
+			if ((rc = bd_io(dev, bd, dblk, x, bbuf, BD_WR)) != 0) {
+				rc = EIO;
+				goto error;
+			}
 
 			break;
 		default:
 			/* DO NOTHING */
-			return (EROFS);
+			rc = EROFS;
+			goto error;
 		}
 
 		blkoff = 0;
@@ -1004,7 +1020,10 @@ bd_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 
 	if (rsize != NULL)
 		*rsize = size;
-	return (0);
+error:
+	if (bbuf != PTOV(V86_IO_BUFFER))
+		bio_free(bbuf, bio_size);
+	return (rc);
 }
 
 static int
