@@ -755,7 +755,7 @@ static driver_t ti_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_ti, simplebus, ti_sdhci_driver, ti_sdhci_devclass, NULL,
     NULL);
-MODULE_DEPEND(sdhci_ti, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhci_ti);
 
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_ti);

@@ -1287,7 +1287,7 @@ static driver_t bcm_sdhost_driver = {
 
 DRIVER_MODULE(sdhost_bcm, simplebus, bcm_sdhost_driver, bcm_sdhost_devclass,
     NULL, NULL);
-MODULE_DEPEND(sdhost_bcm, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhost_bcm);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhost_bcm);
 #endif
