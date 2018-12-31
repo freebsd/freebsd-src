@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20181230:
+	r342635 changes the way efibootmgr(8) works by requiring users to add
+	the -b (bootnum) parameter for commands where the bootnum was previously
+	specified with each option. For example 'efibootmgr -B 0001' is now
+	'efibootmgr -B -b 0001'.
+
 20181220:
 	r342286 modifies the NFSv4 server so that it obeys vfs.nfsd.nfs_privport
 	in the same as it is applied to NFSv2 and 3.  This implies that NFSv4
