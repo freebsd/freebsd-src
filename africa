@@ -1144,10 +1144,20 @@ Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun # Saint-Denis
 # the switch is from 01:00 to 02:00 ... [Decree No. 25/2017]
 # http://www.mnec.gov.st/index.php/publicacoes/documentos/file/90-decreto-lei-n-25-2017
 
+# From Vadim Nasardinov (2018-12-29):
+# São Tomé and Príncipe is about to do the following on Jan 1, 2019:
+# https://www.stp-press.st/2018/12/05/governo-jesus-ja-decidiu-repor-hora-legal-sao-tomense/
+#
+# From Michael Deckers (2018-12-30):
+# https://www.legis-palop.org/download.jsp?idFile=102818
+# ... [The legal time of the country, which coincides with universal
+# coordinated time, will be restituted at 2 o'clock on day 1 of January, 2019.]
+
 Zone	Africa/Sao_Tome	 0:26:56 -	LMT	1884
 			-0:36:45 -	LMT	1912 Jan  1 00:00u # Lisbon MT
 			 0:00	-	GMT	2018 Jan  1 01:00
-			 1:00	-	WAT
+			 1:00	-	WAT	2019 Jan  1 02:00
+			 0:00	-	GMT
 
 # Senegal
 # See Africa/Abidjan.
