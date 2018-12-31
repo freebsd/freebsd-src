@@ -84,10 +84,11 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 		# The installer hasn't given us any ESPs to use.
 		# Try and figure out which to use by looking for an
 		# unformatted efi partition
-		for disk in $(sysctl -n kern.disks); do
-			hasfreebsd=$(gpart show "$disk" | cut -w -f 4,5 | grep "freebsd")
+
+		for geom in $(gpart status -sg | awk '{print $1}'); do
+			hasfreebsd=$(gpart show "${geom}" | cut -w -f 4,5 | grep "freebsd")
 			if [ -n "$hasfreebsd" ]; then
-				index=$(gpart show "$disk" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
+				index=$(gpart show "${geom}" | cut -w -f 4,5 | grep "efi" | cut -w -f 1)
 				# Check that $index is a valid integer
 				[ -n "$index" ] && [ "$index" -eq "$index" ] && [ "$index" -ge 0 ] 2> /dev/null 
 				if [ $? -ne 0 ]; then
@@ -95,17 +96,17 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 				fi
 
 				mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
-				if [ -e "/dev/${disk}p${index}" ]; then
-					dev=${disk}p${index}
-				elif [ -e "/dev/${disk}s${index}" ]; then
-					dev=/${disk}s${index}
+				if [ -e "/dev/${geom}p${index}" ]; then
+					dev=${geom}p${index}
+				elif [ -e "/dev/${geom}s${index}" ]; then
+					dev=/${geom}s${index}
 				else
 					continue
 				fi
 
 				# Try and mount it. If it fails, assume it's
 				# unformatted and should be used.
-				mount -t msdosfs "/dev/${dev}" "${mntpt}"
+				mount -t msdosfs -o ro "/dev/${dev}" "${mntpt}"
 				if [ $? -ne 0 ]; then
 					ESPS="$ESPS ${dev}"
 					num_esps=$((num_esps + 1))
@@ -118,17 +119,20 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 	fi
 
 	for esp in $ESPS; do
+		echo "Formatting /dev/${esp} as FAT32"
 		newfs_msdos -F 32 -c 1 -L EFISYS "/dev/$esp" > /dev/null 2>&1
 		if [ $? -ne 0 ]; then
 			die "Failed to format ESP $esp as FAT32"
 		fi
 
 		mntpt=$(mktemp -d /tmp/stand-test.XXXXXX)
+		echo "Mounting ESP /dev/${esp}"
 		mount -t msdosfs "/dev/${esp}" "${mntpt}"
 		if [ $? -ne 0 ]; then
 			die "Failed to mount ESP ${dev} on ${mntpt}"
 		fi
 
+		echo "Installing loader.efi onto ESP"
 		mkdir -p "$mntpt/EFI/freebsd"
 		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/EFI/freebsd/loader.efi"
 
@@ -138,8 +142,10 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 			bootlabel="FreeBSD"
 		fi
 
+		echo "Creating UEFI boot entry"
 		efibootmgr --create --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
 
+		echo "Unmounting ESP"
 		umount "${mntpt}"
 		rmdir "${mntpt}"
 
@@ -149,6 +155,7 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 		bootorder=$(efivar --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-BootOrder --print --no-name --hex | head -1)
 		bootentry=$(echo "$bootorder" | cut -w -f 3)$(echo "$bootorder" | cut -w -f 2)
 		efibootmgr --activate "$bootentry" > /dev/null
+		echo "Finished configuring /dev/${esp} as ESP"
 	done
 fi
 
