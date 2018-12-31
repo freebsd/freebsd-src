@@ -183,7 +183,7 @@ port_info_get(struct TestContext *ctx)
 		perror("ioctl(/dev/netmap, NIOCCTRL, PORT_INFO_GET)");
 		return ret;
 	}
-	printf("nr_memsize %lu\n", req.nr_memsize);
+	printf("nr_memsize %llu\n", (unsigned long long)req.nr_memsize);
 	printf("nr_tx_slots %u\n", req.nr_tx_slots);
 	printf("nr_rx_slots %u\n", req.nr_rx_slots);
 	printf("nr_tx_rings %u\n", req.nr_tx_rings);
@@ -216,8 +216,9 @@ port_register(struct TestContext *ctx)
 	int ret;
 
 	printf("Testing NETMAP_REQ_REGISTER(mode=%d,ringid=%d,"
-	       "flags=0x%lx) on '%s'\n",
-	       ctx->nr_mode, ctx->nr_ringid, ctx->nr_flags, ctx->ifname);
+	       "flags=0x%llx) on '%s'\n",
+	       ctx->nr_mode, ctx->nr_ringid, (unsigned long long)ctx->nr_flags,
+	       ctx->ifname);
 
 	nmreq_hdr_init(&hdr, ctx->ifname);
 	hdr.nr_reqtype = NETMAP_REQ_REGISTER;
@@ -238,8 +239,8 @@ port_register(struct TestContext *ctx)
 		perror("ioctl(/dev/netmap, NIOCCTRL, REGISTER)");
 		return ret;
 	}
-	printf("nr_offset 0x%lx\n", req.nr_offset);
-	printf("nr_memsize %lu\n", req.nr_memsize);
+	printf("nr_offset 0x%llx\n", (unsigned long long)req.nr_offset);
+	printf("nr_memsize %llu\n", (unsigned long long)req.nr_memsize);
 	printf("nr_tx_slots %u\n", req.nr_tx_slots);
 	printf("nr_rx_slots %u\n", req.nr_rx_slots);
 	printf("nr_tx_rings %u\n", req.nr_tx_rings);
@@ -687,15 +688,18 @@ pools_info_get(struct TestContext *ctx)
 		perror("ioctl(/dev/netmap, NIOCCTRL, POOLS_INFO_GET)");
 		return ret;
 	}
-	printf("nr_memsize %lu\n", req.nr_memsize);
+	printf("nr_memsize %llu\n", (unsigned long long)req.nr_memsize);
 	printf("nr_mem_id %u\n", req.nr_mem_id);
-	printf("nr_if_pool_offset 0x%lx\n", req.nr_if_pool_offset);
+	printf("nr_if_pool_offset 0x%llx\n",
+		(unsigned long long)req.nr_if_pool_offset);
 	printf("nr_if_pool_objtotal %u\n", req.nr_if_pool_objtotal);
 	printf("nr_if_pool_objsize %u\n", req.nr_if_pool_objsize);
-	printf("nr_ring_pool_offset 0x%lx\n", req.nr_if_pool_offset);
+	printf("nr_ring_pool_offset 0x%llx\n",
+		(unsigned long long)req.nr_if_pool_offset);
 	printf("nr_ring_pool_objtotal %u\n", req.nr_ring_pool_objtotal);
 	printf("nr_ring_pool_objsize %u\n", req.nr_ring_pool_objsize);
-	printf("nr_buf_pool_offset 0x%lx\n", req.nr_buf_pool_offset);
+	printf("nr_buf_pool_offset 0x%llx\n",
+		(unsigned long long)req.nr_buf_pool_offset);
 	printf("nr_buf_pool_objtotal %u\n", req.nr_buf_pool_objtotal);
 	printf("nr_buf_pool_objsize %u\n", req.nr_buf_pool_objsize);
 
