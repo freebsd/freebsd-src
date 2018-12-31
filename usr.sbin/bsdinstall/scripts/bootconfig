@@ -143,18 +143,12 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 		fi
 
 		echo "Creating UEFI boot entry"
-		efibootmgr --create --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
+		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
 
 		echo "Unmounting ESP"
 		umount "${mntpt}"
 		rmdir "${mntpt}"
 
-		# When creating new entries, efibootmgr doesn't mark them active, so we need to
-		# do so. It doesn't make it easy to find which entry it just added, so rely on
-		# the fact that it places the new entry first in BootOrder.
-		bootorder=$(efivar --name 8be4df61-93ca-11d2-aa0d-00e098032b8c-BootOrder --print --no-name --hex | head -1)
-		bootentry=$(echo "$bootorder" | cut -w -f 3)$(echo "$bootorder" | cut -w -f 2)
-		efibootmgr --activate "$bootentry" > /dev/null
 		echo "Finished configuring /dev/${esp} as ESP"
 	done
 fi
