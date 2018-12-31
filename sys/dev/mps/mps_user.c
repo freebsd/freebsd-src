@@ -1043,10 +1043,12 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 			if (((MPI2_SCSI_IO_REPLY *)rpl)->SCSIState &
 			    MPI2_SCSI_STATE_AUTOSENSE_VALID) {
 				sense_len =
-				    MIN((le32toh(((MPI2_SCSI_IO_REPLY *)rpl)->SenseCount)),
-				    sizeof(struct scsi_sense_data));
+				    MIN((le32toh(((MPI2_SCSI_IO_REPLY *)rpl)->
+				    SenseCount)), sizeof(struct
+				    scsi_sense_data));
 				mps_unlock(sc);
-				copyout(cm->cm_sense, cm->cm_req + 64, sense_len);
+				copyout(cm->cm_sense, (PTRIN(data->PtrReply +
+				    sizeof(MPI2_SCSI_IO_REPLY))), sense_len);
 				mps_lock(sc);
 			}
 		}
