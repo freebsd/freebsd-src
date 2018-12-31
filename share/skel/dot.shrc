@@ -32,8 +32,8 @@ alias g='egrep -i'
 # alias rm='rm -i'
 
 
-# # set prompt: ``username@hostname$ '' 
-# PS1="`whoami`@\h\\$ "
+# # set prompt: ``username@hostname:directory $ '' 
+# PS1="`whoami`@\h:\w \\$ "
 
 # search path for cd(1)
 # CDPATH=:$HOME
