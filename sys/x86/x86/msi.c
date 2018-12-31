@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -150,6 +151,10 @@ struct pic msi_pic = {
 };
 
 u_int first_msi_irq;
+
+u_int num_msi_irqs = 512;
+SYSCTL_UINT(_machdep, OID_AUTO, num_msi_irqs, CTLFLAG_RDTUN, &num_msi_irqs, 0,
+    "Number of IRQs reserved for MSI and MSI-X interrupts");
 
 #ifdef SMP
 /**
@@ -329,8 +334,13 @@ msi_init(void)
 	}
 #endif
 
+	if (num_msi_irqs == 0)
+		return;
+
 	first_msi_irq = max(MINIMUM_MSI_INT, num_io_irqs);
-	num_io_irqs = first_msi_irq + NUM_MSI_INTS;
+	if (num_msi_irqs > UINT_MAX - first_msi_irq)
+		panic("num_msi_irq too high");
+	num_io_irqs = first_msi_irq + num_msi_irqs;
 
 	msi_enabled = 1;
 	intr_register_pic(&msi_pic);
@@ -344,7 +354,7 @@ msi_create_source(void)
 	u_int irq;
 
 	mtx_lock(&msi_lock);
-	if (msi_last_irq >= NUM_MSI_INTS) {
+	if (msi_last_irq >= num_msi_irqs) {
 		mtx_unlock(&msi_lock);
 		return;
 	}
@@ -385,7 +395,7 @@ again:
 
 	/* Try to find 'count' free IRQs. */
 	cnt = 0;
-	for (i = first_msi_irq; i < first_msi_irq + NUM_MSI_INTS; i++) {
+	for (i = first_msi_irq; i < first_msi_irq + num_msi_irqs; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(i);
 
 		/* End of allocated sources, so break. */
@@ -404,7 +414,7 @@ again:
 	/* Do we need to create some new sources? */
 	if (cnt < count) {
 		/* If we would exceed the max, give up. */
-		if (i + (count - cnt) > first_msi_irq + NUM_MSI_INTS) {
+		if (i + (count - cnt) > first_msi_irq + num_msi_irqs) {
 			mtx_unlock(&msi_lock);
 			free(mirqs, M_MSI);
 			return (ENXIO);
@@ -580,7 +590,7 @@ msi_map(int irq, uint64_t *addr, uint32_t *data)
 #ifdef ACPI_DMAR
 	if (!msi->msi_msix) {
 		for (k = msi->msi_count - 1, i = first_msi_irq; k > 0 &&
-		    i < first_msi_irq + NUM_MSI_INTS; i++) {
+		    i < first_msi_irq + num_msi_irqs; i++) {
 			if (i == msi->msi_irq)
 				continue;
 			msi1 = (struct msi_intsrc *)intr_lookup_source(i);
@@ -627,7 +637,7 @@ again:
 	mtx_lock(&msi_lock);
 
 	/* Find a free IRQ. */
-	for (i = first_msi_irq; i < first_msi_irq + NUM_MSI_INTS; i++) {
+	for (i = first_msi_irq; i < first_msi_irq + num_msi_irqs; i++) {
 		msi = (struct msi_intsrc *)intr_lookup_source(i);
 
 		/* End of allocated sources, so break. */
@@ -640,7 +650,7 @@ again:
 	}
 
 	/* Are all IRQs in use? */
-	if (i == first_msi_irq + NUM_MSI_INTS) {
+	if (i == first_msi_irq + num_msi_irqs) {
 		mtx_unlock(&msi_lock);
 		return (ENXIO);
 	}
