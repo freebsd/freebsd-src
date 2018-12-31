@@ -343,7 +343,7 @@ msi_init(void)
 
 	first_msi_irq = num_io_irqs;
 	if (num_msi_irqs > UINT_MAX - first_msi_irq)
-		panic("num_msi_irq too high");
+		panic("num_msi_irqs too high");
 	num_io_irqs = first_msi_irq + num_msi_irqs;
 
 	msi_enabled = 1;
