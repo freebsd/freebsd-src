@@ -861,6 +861,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "I-O DATA", "USB Flash Disk*",
 		 "*"}, /*quirks*/ DA_Q_NO_RC16
 	},
+	{
+		/*
+		 * 16GB SLC CHIPFANCIER
+		 * PR: usb/234503
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "16G SLC", "CHIPFANCIER",
+		 "1.00"}, /*quirks*/ DA_Q_NO_RC16
+       },
 	/* ATA/SATA devices over SAS/USB/... */
 	{
 		/* Hitachi Advanced Format (4k) drives */
