@@ -125,7 +125,7 @@
 
 /*
  * The initial number of kernel page table pages that are constructed
- * by locore must be sufficient to map vm_page_array.  That number can
+ * by pmap_cold() must be sufficient to map vm_page_array[].  That number can
  * be calculated as follows:
  *     max_phys / PAGE_SIZE * sizeof(struct vm_page) / NBPDR
  * PAE:      max_phys 16G, sizeof(vm_page) 76, NBPDR 2M, 152 page table pages.
@@ -228,7 +228,7 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  * a kernel page table page after the corresponding virtual addresses have
  * been promoted to a 2/4MB page mapping.
  *
- * KPTmap is first initialized by locore to support just NPKT page table
+ * KPTmap is first initialized by pmap_cold() to support just NPKT page table
  * pages.  Later, it is reinitialized by pmap_bootstrap() to allow for
  * expansion of the kernel page table.
  */
