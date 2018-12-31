@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Netflix, Inc.
+ * Copyright (c) 2017-2018 Netflix, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,16 +94,16 @@ typedef struct _bmgr_opts {
 } bmgr_opts_t;
 
 static struct option lopts[] = {
-	{"activate", required_argument, NULL, 'a'},
-	{"bootnext", required_argument, NULL, 'n'}, /* set bootnext */
+	{"activate", no_argument, NULL, 'a'},
+	{"bootnext", no_argument, NULL, 'n'}, /* set bootnext */
 	{"bootnum", required_argument, NULL, 'b'},
 	{"bootorder", required_argument, NULL, 'o'}, /* set order */
 	{"copy", required_argument, NULL, 'C'},		/* Copy boot method */
 	{"create", no_argument, NULL, 'c'},
-	{"deactivate", required_argument, NULL, 'A'},
+	{"deactivate", no_argument, NULL, 'A'},
 	{"del-timout", no_argument, NULL, 'T'},
-	{"delete", required_argument, NULL, 'B'},
-	{"delete-bootnext", required_argument, NULL, 'N'},
+	{"delete", no_argument, NULL, 'B'},
+	{"delete-bootnext", no_argument, NULL, 'N'},
 	{"dry-run", no_argument, NULL, 'D'},
 	{"env", required_argument, NULL, 'e'},
 	{"help", no_argument, NULL, 'h'},
@@ -171,37 +171,35 @@ set_bootvar(const char *name, uint8_t *data, size_t size)
 
 
 #define USAGE \
-	"   [-aAnNB Bootvar] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help] \n\
-  [-c -l loader [-k kernel ] [-L label] [--dry-run] [-b Bootvar]]"
+	"   [-aAnB -b bootnum] [-N] [-t timeout] [-T] [-o bootorder] [-O] [--verbose] [--help]\n\
+  [-c -l loader [-k kernel] [-L label] [--dry-run] [-b bootnum]]"
 
 #define CREATE_USAGE \
-	"       efibootmgr -c -l loader [-k kernel] [-L label] [--dry-run]"
+	"       efibootmgr -c -l loader [-k kernel] [-L label] [--dry-run] [-b bootnum] [-a]"
 #define ORDER_USAGE \
 	"       efibootmgr -o bootvarnum1,bootvarnum2,..."
 #define TIMEOUT_USAGE \
 	"       efibootmgr -t seconds"
 #define DELETE_USAGE \
-	"       efibootmgr -B bootvarnum"
+	"       efibootmgr -B -b bootnum"
 #define ACTIVE_USAGE \
-	"       efibootmgr [-a | -A] bootvarnum"
+	"       efibootmgr [-a | -A] -b bootnum"
 #define BOOTNEXT_USAGE \
-	"       efibootmgr [-n | -N] bootvarnum"
+	"       efibootmgr [-n | -N] -b bootnum"
 
 static void
 parse_args(int argc, char *argv[])
 {
 	int ch;
 
-	while ((ch = getopt_long(argc, argv, "A:a:B:b:C:cDe:hk:L:l:Nn:Oo:Tt:v",
+	while ((ch = getopt_long(argc, argv, "AaBb:C:cDe:hk:L:l:NnOo:Tt:v",
 		    lopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
 			opts.set_inactive = true;
-			opts.bootnum = strtoul(optarg, NULL, 16);
 			break;
 		case 'a':
 			opts.set_active = true;
-			opts.bootnum = strtoul(optarg, NULL, 16);
 			break;
 		case 'b':
 			opts.has_bootnum = true;
@@ -209,7 +207,6 @@ parse_args(int argc, char *argv[])
 			break;
 		case 'B':
 			opts.delete = true;
-			opts.bootnum = strtoul(optarg, NULL, 16);
 			break;
 		case 'C':
 			opts.copy = true;
@@ -246,7 +243,6 @@ parse_args(int argc, char *argv[])
 			break;
 		case 'n':
 			opts.set_bootnext = true;
-			opts.bootnum = strtoul(optarg, NULL, 16);
 			break;
 		case 'O':
 			opts.once = true;
@@ -275,6 +271,15 @@ parse_args(int argc, char *argv[])
 
 	if (opts.order && !(opts.order))
 		errx(1, "%s", ORDER_USAGE);
+
+	if ((opts.set_inactive || opts.set_active) && !opts.has_bootnum)
+		errx(1, "%s", ACTIVE_USAGE);
+
+	if (opts.delete && !opts.has_bootnum)
+		errx(1, "%s", DELETE_USAGE);
+
+	if (opts.set_bootnext && !opts.has_bootnum)
+		errx(1, "%s", BOOTNEXT_USAGE);
 }
 
 
