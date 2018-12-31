@@ -1107,9 +1107,8 @@ mpr_user_pass_thru(struct mpr_softc *sc, mpr_pass_thru_t *data)
 				    SenseCount)), sizeof(struct
 				    scsi_sense_data));
 				mpr_unlock(sc);
-				copyout(cm->cm_sense,
-				    (PTRIN(data->PtrReply + sizeof(MPI2_SCSI_IO_REPLY))),
-				    sense_len);
+				copyout(cm->cm_sense, (PTRIN(data->PtrReply +
+				    sizeof(MPI2_SCSI_IO_REPLY))), sense_len);
 				mpr_lock(sc);
 			}
 		}
