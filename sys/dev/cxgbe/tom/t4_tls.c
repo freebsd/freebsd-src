@@ -1368,7 +1368,7 @@ t4_push_tls_records(struct adapter *sc, struct toepcb *toep, int drop)
 		tp->snd_max += plen;
 
 		SOCKBUF_LOCK(sb);
-		sbsndptr(sb, tls_ofld->sb_off, plen, &sndptroff);
+		sbsndptr_adv(sb, sb->sb_sndptr, plen);
 		tls_ofld->sb_off += plen;
 		SOCKBUF_UNLOCK(sb);
 
