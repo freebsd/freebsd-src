@@ -71,8 +71,7 @@ cdev_alloc(void)
 	struct linux_cdev *cdev;
 
 	cdev = kzalloc(sizeof(struct linux_cdev), M_WAITOK);
-	if (cdev != NULL)
-		kobject_init(&cdev->kobj, &linux_cdev_ktype);
+	kobject_init(&cdev->kobj, &linux_cdev_ktype);
 	cdev->refs = 1;
 	return (cdev);
 }
