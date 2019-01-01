@@ -256,7 +256,7 @@ reloc_nonplt_object(Obj_Entry *obj_rtld __unused, Obj_Entry *obj,
 
 		*(Elf_Addr **)where = *where * sizeof(Elf_Addr)
 		    + (Elf_Addr *)(def->st_value + rela->r_addend
-		    + defobj->tlsoffset - TLS_TP_OFFSET);
+		    + defobj->tlsoffset - TLS_TP_OFFSET - TLS_TCB_SIZE);
 
 		break;
 
