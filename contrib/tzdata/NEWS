@@ -1,14 +1,103 @@
 News for the tz database
 
-Release 2018g - 2018-10-26 22:22:45 -0700
+Release 2018i - 2018-12-30 11:05:43 -0800
 
   Briefly:
-    Morocco switches to permanent +01 on 2018-10-27.
+    São Tomé and Príncipe switches from +01 to +00 on 2019-01-01.
 
   Changes to future timestamps
 
-    Morocco switches from +00/+01 to permanent +01 effective 2018-10-27,
-    so its clocks will not fall back on 2018-10-28 as previously scheduled.
+    Due to a change in government, São Tomé and Príncipe switches back
+    from +01 to +00 on 2019-01-01 at 02:00.  (Thanks to Vadim
+    Nasardinov and Michael Deckers.)
+
+
+Release 2018h - 2018-12-23 17:59:32 -0800
+
+  Briefly:
+    Qyzylorda, Kazakhstan moved from +06 to +05 on 2018-12-21.
+    New zone Asia/Qostanay because Qostanay, Kazakhstan didn't move.
+    Metlakatla, Alaska observes PST this winter only.
+    Guess Morocco will continue to adjust clocks around Ramadan.
+    Add predictions for Iran from 2038 through 2090.
+
+  Changes to future timestamps
+
+    Guess that Morocco will continue to fall back just before and
+    spring forward just after Ramadan, the practice since 2012.
+    (Thanks to Maamar Abdelkader.)  This means Morocco will observe
+    negative DST during Ramadan in main and vanguard formats, and in
+    rearguard format it stays in the +00 timezone and observes
+    ordinary DST in all months other than Ramadan.  As before, extend
+    this guesswork to the year 2037.  As a consequence, Morocco is
+    scheduled to observe three DST transitions in some Gregorian years
+    (e.g., 2033) due to the mismatch between the Gregorian and Islamic
+    calendars.
+
+    The table of exact transitions for Iranian DST has been extended.
+    It formerly cut off before the year 2038 in a nod to 32-bit time_t.
+    It now cuts off before 2091 as there is doubt about how the Persian
+    calendar will treat 2091.  This change predicts DST transitions in
+    2038-9, 2042-3, and 2046-7 to occur one day later than previously
+    predicted.  As before, post-cutoff transitions are approximated.
+
+  Changes to past and future timestamps
+
+    Qyzylorda (aka Kyzylorda) oblast in Kazakhstan moved from +06 to
+    +05 on 2018-12-21.  This is a zone split as Qostanay (aka
+    Kostanay) did not switch, so create a zone Asia/Qostanay.
+
+    Metlakatla moved from Alaska to Pacific standard time on 2018-11-04.
+    It did not change clocks that day and remains on -08 this winter.
+    (Thanks to Ryan Stanley.)  It will revert to the usual Alaska
+    rules next spring, so this change affects only timestamps
+    from 2018-11-04 through 2019-03-10.
+
+  Change to past timestamps
+
+    Kwajalein's 1993-08-20 transition from -12 to +12 was at 24:00,
+    not 00:00.  I transcribed the time incorrectly from Shanks.
+    (Thanks to Phake Nick.)
+
+    Nauru's 1979 transition was on 02-10 at 02:00, not 05-01 at 00:00.
+    (Thanks to Phake Nick.)
+
+    Guam observed DST irregularly from 1959 through 1977.
+    (Thanks to Phake Nick.)
+
+    Hong Kong observed DST in 1941 starting 06-15 (not 04-01), then on
+    10-01 changed standard time to +08:30 (not +08).  Its transition
+    back to +08 after WWII was on 1945-09-15, not the previous day.
+    Its 1904-10-30 change took effect at 01:00 +08 (not 00:00 LMT).
+    (Thanks to Phake Nick, Steve Allen, and Joseph Myers.)  Also,
+    its 1952 fallback was on 11-02 (not 10-25).
+
+    This release contains many changes to timestamps before 1946 due
+    to Japanese possession or occupation of Pacific/Chuuk,
+    Pacific/Guam, Pacific/Kosrae, Pacific/Kwajalein, Pacific/Majuro,
+    Pacific/Nauru, Pacific/Palau, and Pacific/Pohnpei.
+    (Thanks to Phake Nick.)
+
+    Assume that the Spanish East Indies was like the Philippines and
+    observed American time until the end of 1844.  This affects
+    Pacific/Chuuk, Pacific/Kosrae, Pacific/Palau, and Pacific/Pohnpei.
+
+  Changes to past tm_isdst flags
+
+    For the recent Morocco change, the tm_isdst flag should be 1 from
+    2018-10-27 00:00 to 2018-10-28 03:00.  (Thanks to Michael Deckers.)
+    Give a URL to the official decree.  (Thanks to Matt Johnson.)
+
+
+Release 2018g - 2018-10-26 22:22:45 -0700
+
+  Briefly:
+    Morocco switches to permanent +01 on 2018-10-28.
+
+  Changes to future timestamps
+
+    Morocco switches from +00/+01 to permanent +01 effective 2018-10-28,
+    so its clocks will not fall back as previously scheduled.
     (Thanks to Mohamed Essedik Najd and Brian Inglis.)
 
   Changes to code
@@ -119,7 +208,7 @@ Release 2018f - 2018-10-18 00:14:18 -0700
     localtime.c no longer ignores TZif POSIX-style TZ strings that
     specify only standard time.  Instead, these TZ strings now
     override the default time type for timestamps after the last
-    transition (or for all time stamps if there are no transitions),
+    transition (or for all timestamps if there are no transitions),
     just as DST strings specifying DST have always done.
 
     leapseconds.awk now outputs "#updated" and "#expires" comments,
