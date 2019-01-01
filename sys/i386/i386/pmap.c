@@ -735,7 +735,7 @@ pmap_init_reserved_pages(void)
 		pc->pc_cmap_pte2 = vtopte(pages + PAGE_SIZE);
 		pc->pc_cmap_addr1 = (caddr_t)pages;
 		pc->pc_cmap_addr2 = (caddr_t)(pages + PAGE_SIZE);
-		pc->pc_qmap_addr = pages + atop(2);
+		pc->pc_qmap_addr = pages + ptoa(2);
 	}
 }
  
