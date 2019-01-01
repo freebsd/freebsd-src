@@ -36,7 +36,7 @@
 
 /* FreeBSD */
 #define COPYRIGHT_FreeBSD \
-	"Copyright (c) 1992-2018 The FreeBSD Project.\n"
+	"Copyright (c) 1992-2019 The FreeBSD Project.\n"
 
 /* Foundation */
 #define	TRADEMARK_Foundation \
