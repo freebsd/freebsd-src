@@ -81,5 +81,6 @@ r88e_parse_rom(struct rtwn_softc *sc, uint8_t *buf)
 	    __func__,rs->regulatory);
 
 	sc->thermal_meter = rom->thermal_meter;
-	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
+
+	rtwn_r92c_set_rom_opts(sc, buf);
 }

@@ -58,7 +58,7 @@ struct r92c_softc {
 	void		(*rs_tx_enable_ampdu)(void *, int);
 	void		(*rs_tx_setup_hwseq)(void *);
 	void		(*rs_tx_setup_macid)(void *, int);
-	void		(*rs_set_name)(struct rtwn_softc *);
+	void		(*rs_set_rom_opts)(struct rtwn_softc *, uint8_t *);
 
 	int		rf_read_delay[3];
 	uint32_t	rf_chnlbw[R92C_MAX_CHAINS];
@@ -77,7 +77,7 @@ struct r92c_softc {
 	((R92C_SOFTC(_sc)->rs_tx_setup_hwseq)((_buf)))
 #define rtwn_r92c_tx_setup_macid(_sc, _buf, _id) \
 	((R92C_SOFTC(_sc)->rs_tx_setup_macid)((_buf), (_id)))
-#define rtwn_r92c_set_name(_sc) \
-	((R92C_SOFTC(_sc)->rs_set_name)((_sc)))
+#define rtwn_r92c_set_rom_opts(_sc, _buf) \
+	((R92C_SOFTC(_sc)->rs_set_rom_opts)((_sc), (_buf)))
 
 #endif	/* R92C_VAR_H */

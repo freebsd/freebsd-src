@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/usb/r92cu_tx_desc.h>
 
 #include <dev/rtwn/rtl8188e/r88e_priv.h>
+#include <dev/rtwn/rtl8188e/r88e_rom_image.h>	/* for 'macaddr' field */
 
 #include <dev/rtwn/rtl8188e/usb/r88eu.h>
 
@@ -64,6 +65,14 @@ __FBSDID("$FreeBSD$");
 static struct rtwn_r88e_txpwr r88e_txpwr;
 
 void	r88eu_attach(struct rtwn_usb_softc *);
+
+static void
+r88eu_set_macaddr(struct rtwn_softc *sc, uint8_t *buf)
+{
+	struct r88e_rom *rom = (struct r88e_rom *)buf;
+
+	IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, rom->macaddr);
+}
 
 static void
 r88e_postattach(struct rtwn_softc *sc)
@@ -93,7 +102,7 @@ r88eu_attach_private(struct rtwn_softc *sc)
 	rs->rs_tx_enable_ampdu		= r88e_tx_enable_ampdu;
 	rs->rs_tx_setup_hwseq		= r88e_tx_setup_hwseq;
 	rs->rs_tx_setup_macid		= r88e_tx_setup_macid;
-	rs->rs_set_name			= rtwn_nop_softc;	/* not used */
+	rs->rs_set_rom_opts		= r88eu_set_macaddr;
 
 	rs->rf_read_delay[0]		= 10;
 	rs->rf_read_delay[1]		= 100;
