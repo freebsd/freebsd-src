@@ -149,7 +149,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_llt_init			= r92c_llt_init;
 	sc->sc_set_page_size		= r92c_set_page_size;
 	sc->sc_lc_calib			= r92c_lc_calib;
-	sc->sc_iq_calib			= r88e_iq_calib;	/* XXX TODO */
+	sc->sc_iq_calib			= r88e_iq_calib;
 	sc->sc_read_chipid_vendor	= rtwn_nop_softc_uint32;
 	sc->sc_adj_devcaps		= r88eu_adj_devcaps;
 	sc->sc_vap_preattach		= rtwn_nop_softc_vap;
