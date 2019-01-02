@@ -38,7 +38,6 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 # include <sys/mbuf.h>
 # include <sys/sockopt.h>
-# include <sys/mbuf.h>
 #include <sys/socket.h>
 # include <sys/selinfo.h>
 # include <netinet/tcp_var.h>
