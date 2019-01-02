@@ -107,8 +107,8 @@ __FBSDID("$FreeBSD$");
 	sd	t0, (TF_SEPC)(sp)
 	csrr	t0, sstatus
 	sd	t0, (TF_SSTATUS)(sp)
-	csrr	t0, sbadaddr
-	sd	t0, (TF_SBADADDR)(sp)
+	csrr	t0, stval
+	sd	t0, (TF_STVAL)(sp)
 	csrr	t0, scause
 	sd	t0, (TF_SCAUSE)(sp)
 .endm
