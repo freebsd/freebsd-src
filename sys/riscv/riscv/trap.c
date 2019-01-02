@@ -170,7 +170,7 @@ static void
 data_abort(struct trapframe *frame, int usermode)
 {
 	struct vm_map *map;
-	uint64_t sbadaddr;
+	uint64_t stval;
 	struct thread *td;
 	struct pcb *pcb;
 	vm_prot_t ftype;
@@ -188,7 +188,7 @@ data_abort(struct trapframe *frame, int usermode)
 	td = curthread;
 	p = td->td_proc;
 	pcb = td->td_pcb;
-	sbadaddr = frame->tf_sbadaddr;
+	stval = frame->tf_stval;
 
 	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
 	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
@@ -197,7 +197,7 @@ data_abort(struct trapframe *frame, int usermode)
 
 	if (usermode)
 		map = &td->td_proc->p_vmspace->vm_map;
-	else if (sbadaddr >= VM_MAX_USER_ADDRESS)
+	else if (stval >= VM_MAX_USER_ADDRESS)
 		map = kernel_map;
 	else {
 		if (pcb->pcb_onfault == 0)
@@ -205,7 +205,7 @@ data_abort(struct trapframe *frame, int usermode)
 		map = &td->td_proc->p_vmspace->vm_map;
 	}
 
-	va = trunc_page(sbadaddr);
+	va = trunc_page(stval);
 
 	if ((frame->tf_scause == EXCP_FAULT_STORE) ||
 	    (frame->tf_scause == EXCP_STORE_PAGE_FAULT)) {
@@ -247,7 +247,7 @@ data_abort(struct trapframe *frame, int usermode)
 				ucode = SEGV_ACCERR;
 			else
 				ucode = SEGV_MAPERR;
-			call_trapsignal(td, sig, ucode, (void *)sbadaddr);
+			call_trapsignal(td, sig, ucode, (void *)stval);
 		} else {
 			if (pcb->pcb_onfault != 0) {
 				frame->tf_a[0] = error;
@@ -265,7 +265,7 @@ done:
 
 fatal:
 	dump_regs(frame);
-	panic("Fatal page fault at %#lx: %#016lx", frame->tf_sepc, sbadaddr);
+	panic("Fatal page fault at %#lx: %#016lx", frame->tf_sepc, stval);
 }
 
 void
@@ -322,8 +322,8 @@ do_trap_supervisor(struct trapframe *frame)
 		break;
 	default:
 		dump_regs(frame);
-		panic("Unknown kernel exception %x badaddr %lx\n",
-			exception, frame->tf_sbadaddr);
+		panic("Unknown kernel exception %x trap value %lx\n",
+		    exception, frame->tf_stval);
 	}
 }
 
@@ -390,7 +390,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	default:
 		dump_regs(frame);
-		panic("Unknown userland exception %x, badaddr %lx\n",
-			exception, frame->tf_sbadaddr);
+		panic("Unknown userland exception %x, trap value %lx\n",
+		    exception, frame->tf_stval);
 	}
 }
