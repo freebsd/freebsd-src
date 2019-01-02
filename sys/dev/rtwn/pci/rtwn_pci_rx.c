@@ -193,7 +193,7 @@ rtwn_pci_rx_buf_copy(struct rtwn_pci_softc *pc)
 	 * descriptor - same as for PCIe, but without rxbufaddr* fields.
 	 */
 	desc_size = sizeof(struct rtwn_rx_stat_common);
-	KASSERT(sizeof(pc->pc_rx_buf) < desc_size,
+	KASSERT(sizeof(pc->pc_rx_buf) >= desc_size,
 	    ("adjust size for PCIe Rx buffer!"));
 
 	memcpy(pc->pc_rx_buf, rx_desc, desc_size);
