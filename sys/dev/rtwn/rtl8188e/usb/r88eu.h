@@ -33,7 +33,4 @@ void	r88eu_init_intr(struct rtwn_softc *);
 void	r88eu_init_rx_agg(struct rtwn_softc *);
 void	r88eu_post_init(struct rtwn_softc *);
 
-/* r88eu_rx.c */
-int	r88eu_classify_intr(struct rtwn_softc *, void *, int);
-
 #endif	/* RTL8188EU_H */

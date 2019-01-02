@@ -130,7 +130,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_get_rx_stats		= r88e_get_rx_stats;
 	sc->sc_get_rssi_cck		= r88e_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r88e_get_rssi_ofdm;
-	sc->sc_classify_intr		= r88eu_classify_intr;
+	sc->sc_classify_intr		= r88e_classify_intr;
 	sc->sc_handle_tx_report		= r88e_ratectl_tx_complete;
 	sc->sc_handle_c2h_report	= r88e_handle_c2h_report;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;
