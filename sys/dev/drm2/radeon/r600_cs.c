@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 
 static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 					struct radeon_cs_reloc **cs_reloc);
-static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
-					struct radeon_cs_reloc **cs_reloc);
 typedef int (*next_reloc_t)(struct radeon_cs_parser*, struct radeon_cs_reloc**);
 static next_reloc_t r600_cs_packet_next_reloc = &r600_cs_packet_next_reloc_mm;
 #ifdef FREEBSD_WIP /* FreeBSD: to please GCC 4.2. */
@@ -881,53 +879,6 @@ static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 	}
 	/* FIXME: we assume reloc size is 4 dwords */
 	*cs_reloc = p->relocs_ptr[(idx / 4)];
-	return 0;
-}
-
-/**
- * r600_cs_packet_next_reloc_nomm() - parse next packet which should be reloc packet3
- * @parser:		parser structure holding parsing context.
- * @data:		pointer to relocation data
- * @offset_start:	starting offset
- * @offset_mask:	offset mask (to align start offset on)
- * @reloc:		reloc informations
- *
- * Check next packet is relocation packet3, do bo validation and compute
- * GPU offset using the provided start.
- **/
-static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
-					struct radeon_cs_reloc **cs_reloc)
-{
-	struct radeon_cs_chunk *relocs_chunk;
-	struct radeon_cs_packet p3reloc;
-	unsigned idx;
-	int r;
-
-	if (p->chunk_relocs_idx == -1) {
-		DRM_ERROR("No relocation chunk !\n");
-		return -EINVAL;
-	}
-	*cs_reloc = NULL;
-	relocs_chunk = &p->chunks[p->chunk_relocs_idx];
-	r = r600_cs_packet_parse(p, &p3reloc, p->idx);
-	if (r) {
-		return r;
-	}
-	p->idx += p3reloc.count + 2;
-	if (p3reloc.type != PACKET_TYPE3 || p3reloc.opcode != PACKET3_NOP) {
-		DRM_ERROR("No packet3 for relocation for packet at %d.\n",
-			  p3reloc.idx);
-		return -EINVAL;
-	}
-	idx = radeon_get_ib_value(p, p3reloc.idx + 1);
-	if (idx >= relocs_chunk->length_dw) {
-		DRM_ERROR("Relocs at %d after relocations chunk end %d !\n",
-			  idx, relocs_chunk->length_dw);
-		return -EINVAL;
-	}
-	*cs_reloc = p->relocs;
-	(*cs_reloc)->lobj.gpu_offset = (u64)relocs_chunk->kdata[idx + 3] << 32;
-	(*cs_reloc)->lobj.gpu_offset |= relocs_chunk->kdata[idx + 0];
 	return 0;
 }
 
@@ -2456,105 +2407,6 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 	free(p->track, DRM_MEM_DRIVER);
 	p->track = NULL;
 	return 0;
-}
-
-static int r600_cs_parser_relocs_legacy(struct radeon_cs_parser *p)
-{
-	if (p->chunk_relocs_idx == -1) {
-		return 0;
-	}
-	p->relocs = malloc(sizeof(struct radeon_cs_reloc),
-	    DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
-	if (p->relocs == NULL) {
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-/**
- * cs_parser_fini() - clean parser states
- * @parser:	parser structure holding parsing context.
- * @error:	error number
- *
- * If error is set than unvalidate buffer, otherwise just free memory
- * used by parsing context.
- **/
-static void r600_cs_parser_fini(struct radeon_cs_parser *parser, int error)
-{
-	unsigned i;
-
-	free(parser->relocs, DRM_MEM_DRIVER);
-	for (i = 0; i < parser->nchunks; i++) {
-		free(parser->chunks[i].kdata, DRM_MEM_DRIVER);
-		if (parser->rdev && (parser->rdev->flags & RADEON_IS_AGP)) {
-			free(parser->chunks[i].kpage[0], DRM_MEM_DRIVER);
-			free(parser->chunks[i].kpage[1], DRM_MEM_DRIVER);
-		}
-	}
-	free(parser->chunks, DRM_MEM_DRIVER);
-	free(parser->chunks_array, DRM_MEM_DRIVER);
-	free(parser->track, DRM_MEM_DRIVER);
-}
-
-int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
-			unsigned family, u32 *ib, int *l)
-{
-	struct radeon_cs_parser parser;
-	struct radeon_cs_chunk *ib_chunk;
-	struct r600_cs_track *track;
-	int r;
-
-	/* initialize tracker */
-	track = malloc(sizeof(*track), DRM_MEM_DRIVER, M_NOWAIT | M_ZERO);
-	if (track == NULL)
-		return -ENOMEM;
-	r600_cs_track_init(track);
-	r600_cs_legacy_get_tiling_conf(dev, &track->npipes, &track->nbanks, &track->group_size);
-	/* initialize parser */
-	memset(&parser, 0, sizeof(struct radeon_cs_parser));
-	parser.filp = filp;
-	parser.dev = dev->dev;
-	parser.rdev = NULL;
-	parser.family = family;
-	parser.track = track;
-	parser.ib.ptr = ib;
-	r = radeon_cs_parser_init(&parser, data);
-	if (r) {
-		DRM_ERROR("Failed to initialize parser !\n");
-		r600_cs_parser_fini(&parser, r);
-		return r;
-	}
-	r = r600_cs_parser_relocs_legacy(&parser);
-	if (r) {
-		DRM_ERROR("Failed to parse relocation !\n");
-		r600_cs_parser_fini(&parser, r);
-		return r;
-	}
-	/* Copy the packet into the IB, the parser will read from the
-	 * input memory (cached) and write to the IB (which can be
-	 * uncached). */
-	ib_chunk = &parser.chunks[parser.chunk_ib_idx];
-	parser.ib.length_dw = ib_chunk->length_dw;
-	*l = parser.ib.length_dw;
-	r = r600_cs_parse(&parser);
-	if (r) {
-		DRM_ERROR("Invalid command stream !\n");
-		r600_cs_parser_fini(&parser, r);
-		return r;
-	}
-	r = radeon_cs_finish_pages(&parser);
-	if (r) {
-		DRM_ERROR("Invalid command stream !\n");
-		r600_cs_parser_fini(&parser, r);
-		return r;
-	}
-	r600_cs_parser_fini(&parser, r);
-	return r;
-}
-
-void r600_cs_legacy_init(void)
-{
-	r600_cs_packet_next_reloc = &r600_cs_packet_next_reloc_nomm;
 }
 
 /*

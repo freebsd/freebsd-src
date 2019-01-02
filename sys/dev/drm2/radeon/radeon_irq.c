@@ -221,41 +221,6 @@ irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS)
 	return IRQ_HANDLED;
 }
 
-static int radeon_emit_irq(struct drm_device * dev)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	unsigned int ret;
-	RING_LOCALS;
-
-	atomic_inc(&dev_priv->swi_emitted);
-	ret = atomic_read(&dev_priv->swi_emitted);
-
-	BEGIN_RING(4);
-	OUT_RING_REG(RADEON_LAST_SWI_REG, ret);
-	OUT_RING_REG(RADEON_GEN_INT_STATUS, RADEON_SW_INT_FIRE);
-	ADVANCE_RING();
-	COMMIT_RING();
-
-	return ret;
-}
-
-static int radeon_wait_irq(struct drm_device * dev, int swi_nr)
-{
-	drm_radeon_private_t *dev_priv =
-	    (drm_radeon_private_t *) dev->dev_private;
-	int ret = 0;
-
-	if (RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr)
-		return 0;
-
-	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
-
-	DRM_WAIT_ON(ret, dev_priv->swi_queue, 3 * DRM_HZ,
-		    RADEON_READ(RADEON_LAST_SWI_REG) >= swi_nr);
-
-	return ret;
-}
-
 u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -281,52 +246,6 @@ u32 radeon_get_vblank_counter(struct drm_device *dev, int crtc)
 		else
 			return RADEON_READ(RADEON_CRTC2_CRNT_FRAME);
 	}
-}
-
-/* Needs the lock as it touches the ring.
- */
-int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_emit_t *emit = data;
-	int result;
-
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
-
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
-		return -EINVAL;
-
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
-
-	result = radeon_emit_irq(dev);
-
-	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
-		DRM_ERROR("copy_to_user\n");
-		return -EFAULT;
-	}
-
-	return 0;
-}
-
-/* Doesn't need the hardware lock.
- */
-int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv)
-{
-	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_wait_t *irqwait = data;
-
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
-
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
-		return -EINVAL;
-
-	return radeon_wait_irq(dev, irqwait->irq_seq);
 }
 
 /* drm_dma.h hooks
