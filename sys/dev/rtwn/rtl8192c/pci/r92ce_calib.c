@@ -75,55 +75,58 @@ r92ce_iq_calib_chain(struct rtwn_softc *sc, int chain, uint16_t tx[2],
     uint16_t rx[2])
 {
 	uint32_t status;
-	int offset = chain * 0x20;
 
 	if (chain == 0) {	/* IQ calibration for chain 0. */
 		/* IQ calibration settings for chain 0. */
-		rtwn_bb_write(sc, 0xe30, 0x10008c1f);
-		rtwn_bb_write(sc, 0xe34, 0x10008c1f);
-		rtwn_bb_write(sc, 0xe38, 0x82140102);
+		rtwn_bb_write(sc, R92C_TX_IQK_TONE(0), 0x10008c1f);
+		rtwn_bb_write(sc, R92C_RX_IQK_TONE(0), 0x10008c1f);
+		rtwn_bb_write(sc, R92C_TX_IQK_PI(0), 0x82140102);
 
 		if (sc->ntxchains > 1) {
-			rtwn_bb_write(sc, 0xe3c, 0x28160202);	/* 2T */
+			rtwn_bb_write(sc, R92C_RX_IQK_PI(0), 0x28160202);
 			/* IQ calibration settings for chain 1. */
-			rtwn_bb_write(sc, 0xe50, 0x10008c22);
-			rtwn_bb_write(sc, 0xe54, 0x10008c22);
-			rtwn_bb_write(sc, 0xe58, 0x82140102);
-			rtwn_bb_write(sc, 0xe5c, 0x28160202);
+			rtwn_bb_write(sc, R92C_TX_IQK_TONE(1), 0x10008c22);
+			rtwn_bb_write(sc, R92C_RX_IQK_TONE(1), 0x10008c22);
+			rtwn_bb_write(sc, R92C_TX_IQK_PI(1), 0x82140102);
+			rtwn_bb_write(sc, R92C_RX_IQK_PI(1), 0x28160202);
 		} else
-			rtwn_bb_write(sc, 0xe3c, 0x28160502);	/* 1T */
+			rtwn_bb_write(sc, R92C_RX_IQK_PI(0), 0x28160502);
 
 		/* LO calibration settings. */
-		rtwn_bb_write(sc, 0xe4c, 0x001028d1);
+		rtwn_bb_write(sc, R92C_IQK_AGC_RSP, 0x001028d1);
 		/* We're doing LO and IQ calibration in one shot. */
-		rtwn_bb_write(sc, 0xe48, 0xf9000000);
-		rtwn_bb_write(sc, 0xe48, 0xf8000000);
+		rtwn_bb_write(sc, R92C_IQK_AGC_PTS, 0xf9000000);
+		rtwn_bb_write(sc, R92C_IQK_AGC_PTS, 0xf8000000);
 
 	} else {		/* IQ calibration for chain 1. */
 		/* We're doing LO and IQ calibration in one shot. */
-		rtwn_bb_write(sc, 0xe60, 0x00000002);
-		rtwn_bb_write(sc, 0xe60, 0x00000000);
+		rtwn_bb_write(sc, R92C_IQK_AGC_CONT, 2);
+		rtwn_bb_write(sc, R92C_IQK_AGC_CONT, 0);
 	}
 
 	/* Give LO and IQ calibrations the time to complete. */
 	rtwn_delay(sc, 1000);
 
 	/* Read IQ calibration status. */
-	status = rtwn_bb_read(sc, 0xeac);
+	status = rtwn_bb_read(sc, R92C_RX_POWER_IQK_AFTER(0));
 
 	if (status & (1 << (28 + chain * 3)))
 		return (0);	/* Tx failed. */
 	/* Read Tx IQ calibration results. */
-	tx[0] = (rtwn_bb_read(sc, 0xe94 + offset) >> 16) & 0x3ff;
-	tx[1] = (rtwn_bb_read(sc, 0xe9c + offset) >> 16) & 0x3ff;
+	tx[0] = MS(rtwn_bb_read(sc, R92C_TX_POWER_IQK_BEFORE(chain)),
+	    R92C_POWER_IQK_RESULT);
+	tx[1] = MS(rtwn_bb_read(sc, R92C_TX_POWER_IQK_AFTER(chain)),
+	    R92C_POWER_IQK_RESULT);
 	if (tx[0] == 0x142 || tx[1] == 0x042)
 		return (0);	/* Tx failed. */
 
 	if (status & (1 << (27 + chain * 3)))
 		return (1);	/* Rx failed. */
 	/* Read Rx IQ calibration results. */
-	rx[0] = (rtwn_bb_read(sc, 0xea4 + offset) >> 16) & 0x3ff;
-	rx[1] = (rtwn_bb_read(sc, 0xeac + offset) >> 16) & 0x3ff;
+	rx[0] = MS(rtwn_bb_read(sc, R92C_RX_POWER_IQK_BEFORE(chain)),
+	    R92C_POWER_IQK_RESULT);
+	rx[1] = MS(rtwn_bb_read(sc, R92C_RX_POWER_IQK_AFTER(chain)),
+	    R92C_POWER_IQK_RESULT);
 	if (rx[0] == 0x132 || rx[1] == 0x036)
 		return (1);	/* Rx failed. */
 
@@ -200,18 +203,18 @@ r92ce_iq_calib_run(struct rtwn_softc *sc, int n, uint16_t tx[2][2],
 	if (sc->ntxchains > 1)
 		rtwn_bb_write(sc, 0x0b6c, 0x00080000);
 
-	rtwn_bb_write(sc, 0x0e28, 0x80800000);
-	rtwn_bb_write(sc, 0x0e40, 0x01007c00);
-	rtwn_bb_write(sc, 0x0e44, 0x01004800);
+	rtwn_bb_write(sc, R92C_FPGA0_IQK, 0x80800000);
+	rtwn_bb_write(sc, R92C_TX_IQK, 0x01007c00);
+	rtwn_bb_write(sc, R92C_RX_IQK, 0x01004800);
 
 	rtwn_bb_write(sc, 0x0b68, 0x00080000);
 
 	for (chain = 0; chain < sc->ntxchains; chain++) {
 		if (chain > 0) {
 			/* Put chain 0 on standby. */
-			rtwn_bb_write(sc, 0x0e28, 0x00);
+			rtwn_bb_write(sc, R92C_FPGA0_IQK, 0);
 			rtwn_bb_write(sc, R92C_LSSI_PARAM(0), 0x00010000);
-			rtwn_bb_write(sc, 0x0e28, 0x80800000);
+			rtwn_bb_write(sc, R92C_FPGA0_IQK, 0x80800000);
 
 			/* Enable chain 1. */
 			for (i = 0; i < nitems(reg_adda); i++)
@@ -257,7 +260,7 @@ r92ce_iq_calib_run(struct rtwn_softc *sc, int n, uint16_t tx[2][2],
 	    vals->fpga0_rfifacesw1);
 	rtwn_bb_write(sc, R92C_OFDM0_TRMUXPAR, vals->ofdm0_trmuxpar);
 
-	rtwn_bb_write(sc, 0x0e28, 0x00);
+	rtwn_bb_write(sc, R92C_FPGA0_IQK, 0);
 	rtwn_bb_write(sc, R92C_LSSI_PARAM(0), 0x00032ed3);
 	if (sc->ntxchains > 1)
 		rtwn_bb_write(sc, R92C_LSSI_PARAM(1), 0x00032ed3);
