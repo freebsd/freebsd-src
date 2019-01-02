@@ -70,20 +70,8 @@ r88e_crystalcap_write(struct rtwn_softc *sc)
 }
 
 void
-r88e_init_bb(struct rtwn_softc *sc)
+r88e_init_bb_common(struct rtwn_softc *sc)
 {
-
-	/* Enable BB and RF. */
-	rtwn_setbits_2(sc, R92C_SYS_FUNC_EN, 0,
-	    R92C_SYS_FUNC_EN_BBRSTB | R92C_SYS_FUNC_EN_BB_GLB_RST |
-	    R92C_SYS_FUNC_EN_DIO_RF);
-
-	rtwn_write_1(sc, R92C_RF_CTRL,
-	    R92C_RF_CTRL_EN | R92C_RF_CTRL_RSTB | R92C_RF_CTRL_SDMRSTB);
-	rtwn_write_1(sc, R92C_SYS_FUNC_EN,
-	    R92C_SYS_FUNC_EN_USBA | R92C_SYS_FUNC_EN_USBD |
-	    R92C_SYS_FUNC_EN_BB_GLB_RST | R92C_SYS_FUNC_EN_BBRSTB);
-
 	r92c_init_bb_common(sc);
 
 	rtwn_bb_write(sc, R92C_OFDM0_AGCCORE1(0), 0x69553422);
@@ -92,67 +80,4 @@ r88e_init_bb(struct rtwn_softc *sc)
 	rtwn_delay(sc, 1);
 
 	r88e_crystalcap_write(sc);
-}
-
-int
-r88e_power_on(struct rtwn_softc *sc)
-{
-#define RTWN_CHK(res) do {	\
-	if (res != 0)		\
-		return (EIO);	\
-} while(0)
-	int ntries;
-
-	/* Wait for power ready bit. */
-	for (ntries = 0; ntries < 5000; ntries++) {
-		if (rtwn_read_4(sc, R92C_APS_FSMCO) & R92C_APS_FSMCO_SUS_HOST)
-			break;
-		rtwn_delay(sc, 10);
-	}
-	if (ntries == 5000) {
-		device_printf(sc->sc_dev,
-		    "timeout waiting for chip power up\n");
-		return (ETIMEDOUT);
-	}
-
-	/* Reset BB. */
-	RTWN_CHK(rtwn_setbits_1(sc, R92C_SYS_FUNC_EN,
-	    R92C_SYS_FUNC_EN_BBRSTB | R92C_SYS_FUNC_EN_BB_GLB_RST, 0));
-
-	RTWN_CHK(rtwn_setbits_1(sc, R92C_AFE_XTAL_CTRL + 2, 0, 0x80));
-
-	/* Disable HWPDN. */
-	RTWN_CHK(rtwn_setbits_1_shift(sc, R92C_APS_FSMCO,
-	    R92C_APS_FSMCO_APDM_HPDN, 0, 1));
-
-	/* Disable WL suspend. */
-	RTWN_CHK(rtwn_setbits_1_shift(sc, R92C_APS_FSMCO,
-	    R92C_APS_FSMCO_AFSM_HSUS | R92C_APS_FSMCO_AFSM_PCIE, 0, 1));
-
-	RTWN_CHK(rtwn_setbits_1_shift(sc, R92C_APS_FSMCO,
-	    0, R92C_APS_FSMCO_APFM_ONMAC, 1));
-	for (ntries = 0; ntries < 5000; ntries++) {
-		if (!(rtwn_read_2(sc, R92C_APS_FSMCO) &
-		    R92C_APS_FSMCO_APFM_ONMAC))
-			break;
-		rtwn_delay(sc, 10);
-	}
-	if (ntries == 5000)
-		return (ETIMEDOUT);
-
-	/* Enable LDO normal mode. */
-	RTWN_CHK(rtwn_setbits_1(sc, R92C_LPLDO_CTRL,
-	    R92C_LPLDO_CTRL_SLEEP, 0));
-
-	/* Enable MAC DMA/WMAC/SCHEDULE/SEC blocks. */
-	RTWN_CHK(rtwn_write_2(sc, R92C_CR, 0));
-	RTWN_CHK(rtwn_setbits_2(sc, R92C_CR, 0,
-	    R92C_CR_HCI_TXDMA_EN | R92C_CR_TXDMA_EN |
-	    R92C_CR_HCI_RXDMA_EN | R92C_CR_RXDMA_EN |
-	    R92C_CR_PROTOCOL_EN | R92C_CR_SCHEDULE_EN |
-	    ((sc->sc_hwcrypto != RTWN_CRYPTO_SW) ? R92C_CR_ENSEC : 0) |
-	    R92C_CR_CALTMR_EN));
-
-	return (0);
-#undef RTWN_CHK
 }
