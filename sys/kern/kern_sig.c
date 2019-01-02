@@ -2803,6 +2803,8 @@ issignal(struct thread *td)
 			sig = ptracestop(td, sig, &td->td_dbgksi);
 			mtx_lock(&ps->ps_mtx);
 
+			td->td_dbgksi.ksi_signo = 0;
+
 			/* 
 			 * Keep looking if the debugger discarded the signal
 			 * or replaced it with a masked signal.
