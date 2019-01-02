@@ -258,7 +258,7 @@ writebounds(int savedirfd, int bounds)
 	FILE *fp;
 
 	if ((fp = xfopenat(savedirfd, "bounds", O_WRONLY | O_CREAT | O_TRUNC,
-	    "w", 0644)) < 0) {
+	    "w", 0644)) == NULL) {
 		logmsg(LOG_WARNING, "unable to write to bounds file: %m");
 		return;
 	}
