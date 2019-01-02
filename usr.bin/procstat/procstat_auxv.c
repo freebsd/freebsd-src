@@ -179,6 +179,12 @@ procstat_auxv(struct procstat *procstat, struct kinfo_proc *kipp)
 			    prefix, "AT_TIMEKEEP", auxv[i].a_un.a_ptr);
 			break;
 #endif
+#ifdef AT_EHDRFLAGS
+		case AT_EHDRFLAGS:
+			xo_emit("{dw:/%s}{Lw:/%-16s/%s}{:AT_EHDRFLAGS/%#lx}\n",
+			    prefix, "AT_EHDRFLAGS", (u_long)auxv[i].a_un.a_val);
+			break;
+#endif
 		default:
 			xo_emit("{dw:/%s}{Lw:/%16ld/%ld}{:UNKNOWN/%#lx}\n",
 			    prefix, auxv[i].a_type, auxv[i].a_un.a_val);
