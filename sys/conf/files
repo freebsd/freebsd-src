@@ -2859,9 +2859,11 @@ dev/rtwn/rtl8188e/r88e_tx.c	optional rtwn
 dev/rtwn/rtl8188e/r88e_rf.c	optional rtwn
 dev/rtwn/rtl8188e/r88e_rom.c	optional rtwn
 dev/rtwn/rtl8188e/r88e_rx.c	optional rtwn
+dev/rtwn/rtl8188e/pci/r88ee_attach.c	optional rtwn_pci pci
+dev/rtwn/rtl8188e/pci/r88ee_init.c	optional rtwn_pci pci
+dev/rtwn/rtl8188e/pci/r88ee_rx.c	optional rtwn_pci pci
 dev/rtwn/rtl8188e/usb/r88eu_attach.c	optional rtwn_usb
 dev/rtwn/rtl8188e/usb/r88eu_init.c	optional rtwn_usb
-dev/rtwn/rtl8188e/usb/r88eu_rx.c	optional rtwn_usb
 # RTL8192C
 dev/rtwn/rtl8192c/r92c_attach.c	optional rtwn
 dev/rtwn/rtl8192c/r92c_beacon.c	optional rtwn
@@ -2924,6 +2926,20 @@ dev/rtwn/rtl8821a/r21a_rx.c	optional rtwn
 dev/rtwn/rtl8821a/usb/r21au_attach.c	optional rtwn_usb
 dev/rtwn/rtl8821a/usb/r21au_dfs.c	optional rtwn_usb
 dev/rtwn/rtl8821a/usb/r21au_init.c	optional rtwn_usb
+rtwn-rtl8188eefw.c		optional rtwn-rtl8188eefw | rtwnfw	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eefw.fw:rtwn-rtl8188eefw:111 -mrtwn-rtl8188eefw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"rtwn-rtl8188eefw.c"
+rtwn-rtl8188eefw.fwo		optional rtwn-rtl8188eefw | rtwnfw	\
+	dependency	"rtwn-rtl8188eefw.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"rtwn-rtl8188eefw.fwo"
+rtwn-rtl8188eefw.fw		optional rtwn-rtl8188eefw | rtwnfw	\
+	dependency	"$S/contrib/dev/rtwn/rtwn-rtl8188eefw.fw.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"rtwn-rtl8188eefw.fw"
 rtwn-rtl8188eufw.c		optional rtwn-rtl8188eufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eufw.fw:rtwn-rtl8188eufw:111 -mrtwn-rtl8188eufw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
