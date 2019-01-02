@@ -197,7 +197,8 @@ rtwn_pci_tx_done(struct rtwn_softc *sc, int qid)
 	RTWN_DPRINTF(sc, RTWN_DEBUG_INTR, "%s: qid %d, last %d, cur %d\n",
 	    __func__, qid, ring->last, ring->cur);
 
-	bus_dmamap_sync(ring->desc_dmat, ring->desc_map, BUS_DMASYNC_POSTREAD);
+	bus_dmamap_sync(ring->desc_dmat, ring->desc_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	while(ring->last != ring->cur) {
 		data = &ring->tx_data[ring->last];
