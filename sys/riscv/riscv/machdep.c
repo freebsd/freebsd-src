@@ -427,7 +427,9 @@ void
 cpu_halt(void)
 {
 
-	panic("cpu_halt");
+	intr_disable();
+	for (;;)
+		__asm __volatile("wfi");
 }
 
 /*
