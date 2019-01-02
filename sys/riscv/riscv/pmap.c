@@ -211,7 +211,7 @@ __FBSDID("$FreeBSD$");
 
 /* The list of all the user pmaps */
 LIST_HEAD(pmaplist, pmap);
-static struct pmaplist allpmaps;
+static struct pmaplist allpmaps = LIST_HEAD_INITIALIZER();
 
 struct pmap kernel_pmap_store;
 
@@ -506,16 +506,11 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 void
 pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 {
-	u_int l1_slot, l2_slot, avail_slot, map_slot, used_map_slot;
-	uint64_t kern_delta;
-	pt_entry_t *l2;
-	vm_offset_t va, freemempos;
+	u_int l1_slot, l2_slot, avail_slot, map_slot;
+	vm_offset_t freemempos;
 	vm_offset_t dpcpu, msgbufpv;
-	vm_paddr_t pa, min_pa, max_pa;
+	vm_paddr_t end, max_pa, min_pa, pa, start;
 	int i;
-
-	kern_delta = KERNBASE - kernstart;
-	physmem = 0;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
 	printf("%lx\n", l1pt);
@@ -525,21 +520,16 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	kernel_pmap_store.pm_l1 = (pd_entry_t *)l1pt;
 	PMAP_LOCK_INIT(kernel_pmap);
 
- 	/*
-	 * Initialize the global pv list lock.
-	 */
 	rw_init(&pvh_global_lock, "pmap pv global");
 
-	LIST_INIT(&allpmaps);
-
-	/* Assume the address we were loaded to is a valid physical address */
-	min_pa = max_pa = KERNBASE - kern_delta;
+	/* Assume the address we were loaded to is a valid physical address. */
+	min_pa = max_pa = kernstart;
 
 	/*
 	 * Find the minimum physical address. physmap is sorted,
 	 * but may contain empty ranges.
 	 */
-	for (i = 0; i < (physmap_idx * 2); i += 2) {
+	for (i = 0; i < physmap_idx * 2; i += 2) {
 		if (physmap[i] == physmap[i + 1])
 			continue;
 		if (physmap[i] <= min_pa)
@@ -554,66 +544,17 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	/* Create a direct map region early so we can use it for pa -> va */
 	pmap_bootstrap_dmap(l1pt, min_pa, max_pa);
 
-	va = KERNBASE;
-	pa = KERNBASE - kern_delta;
-
-	/*
-	 * Start to initialize phys_avail by copying from physmap
-	 * up to the physical address KERNBASE points at.
-	 */
-	map_slot = avail_slot = 0;
-	for (; map_slot < (physmap_idx * 2); map_slot += 2) {
-		if (physmap[map_slot] == physmap[map_slot + 1])
-			continue;
-
-		if (physmap[map_slot] <= pa &&
-		    physmap[map_slot + 1] > pa)
-			break;
-
-		phys_avail[avail_slot] = physmap[map_slot];
-		phys_avail[avail_slot + 1] = physmap[map_slot + 1];
-		physmem += (phys_avail[avail_slot + 1] -
-		    phys_avail[avail_slot]) >> PAGE_SHIFT;
-		avail_slot += 2;
-	}
-
-	/* Add the memory before the kernel */
-	if (physmap[avail_slot] < pa) {
-		phys_avail[avail_slot] = physmap[map_slot];
-		phys_avail[avail_slot + 1] = pa;
-		physmem += (phys_avail[avail_slot + 1] -
-		    phys_avail[avail_slot]) >> PAGE_SHIFT;
-		avail_slot += 2;
-	}
-	used_map_slot = map_slot;
-
 	/*
 	 * Read the page table to find out what is already mapped.
 	 * This assumes we have mapped a block of memory from KERNBASE
 	 * using a single L1 entry.
 	 */
-	l2 = pmap_early_page_idx(l1pt, KERNBASE, &l1_slot, &l2_slot);
+	(void)pmap_early_page_idx(l1pt, KERNBASE, &l1_slot, &l2_slot);
 
 	/* Sanity check the index, KERNBASE should be the first VA */
 	KASSERT(l2_slot == 0, ("The L2 index is non-zero"));
 
-	/* Find how many pages we have mapped */
-	for (; l2_slot < Ln_ENTRIES; l2_slot++) {
-		if ((l2[l2_slot] & PTE_V) == 0)
-			break;
-
-		/* Check locore used L2 superpages */
-		KASSERT((l2[l2_slot] & PTE_RX) != 0,
-		    ("Invalid bootstrap L2 table"));
-
-		va += L2_SIZE;
-		pa += L2_SIZE;
-	}
-
-	va = roundup2(va, L2_SIZE);
-
-	freemempos = KERNBASE + kernlen;
-	freemempos = roundup2(freemempos, PAGE_SIZE);
+	freemempos = roundup2(KERNBASE + kernlen, PAGE_SIZE);
 
 	/* Create the l3 tables for the early devmap */
 	freemempos = pmap_bootstrap_l3(l1pt,
@@ -640,31 +581,32 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	
 	pa = pmap_early_vtophys(l1pt, freemempos);
 
-	/* Finish initialising physmap */
-	map_slot = used_map_slot;
-	for (; avail_slot < (PHYS_AVAIL_SIZE - 2) &&
-	    map_slot < (physmap_idx * 2); map_slot += 2) {
-		if (physmap[map_slot] == physmap[map_slot + 1]) {
-			continue;
-		}
+	/* Initialize phys_avail. */
+	for (avail_slot = map_slot = physmem = 0; map_slot < physmap_idx * 2;
+	    map_slot += 2) {
+		start = physmap[map_slot];
+		end = physmap[map_slot + 1];
 
-		/* Have we used the current range? */
-		if (physmap[map_slot + 1] <= pa) {
+		if (start == end)
 			continue;
-		}
+		if (start >= kernstart && end <= pa)
+			continue;
 
-		/* Do we need to split the entry? */
-		if (physmap[map_slot] < pa) {
+		if (start < kernstart && end > kernstart)
+			end = kernstart;
+		else if (start < pa && end > pa)
+			start = pa;
+		phys_avail[avail_slot] = start;
+		phys_avail[avail_slot + 1] = end;
+		physmem += (end - start) >> PAGE_SHIFT;
+		avail_slot += 2;
+
+		if (end != physmap[map_slot + 1] && end > pa) {
 			phys_avail[avail_slot] = pa;
 			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
-		} else {
-			phys_avail[avail_slot] = physmap[map_slot];
-			phys_avail[avail_slot + 1] = physmap[map_slot + 1];
+			physmem += (physmap[map_slot + 1] - pa) >> PAGE_SHIFT;
+			avail_slot += 2;
 		}
-		physmem += (phys_avail[avail_slot + 1] -
-		    phys_avail[avail_slot]) >> PAGE_SHIFT;
-
-		avail_slot += 2;
 	}
 	phys_avail[avail_slot] = 0;
 	phys_avail[avail_slot + 1] = 0;
