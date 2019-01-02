@@ -178,13 +178,13 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_post_init		= r88eu_post_init;
 	sc->sc_init_bcnq1_boundary	= rtwn_nop_int_softc;
 
-	sc->mac_prog			= &rtl8188eu_mac[0];
-	sc->mac_size			= nitems(rtl8188eu_mac);
-	sc->bb_prog			= &rtl8188eu_bb[0];
-	sc->bb_size			= nitems(rtl8188eu_bb);
-	sc->agc_prog			= &rtl8188eu_agc[0];
-	sc->agc_size			= nitems(rtl8188eu_agc);
-	sc->rf_prog			= &rtl8188eu_rf[0];
+	sc->mac_prog			= &rtl8188e_mac[0];
+	sc->mac_size			= nitems(rtl8188e_mac);
+	sc->bb_prog			= &rtl8188e_bb[0];
+	sc->bb_size			= nitems(rtl8188e_bb);
+	sc->agc_prog			= &rtl8188e_agc[0];
+	sc->agc_size			= nitems(rtl8188e_agc);
+	sc->rf_prog			= &rtl8188e_rf[0];
 
 	sc->name			= "RTL8188EU";
 	sc->fwname			= "rtwn-rtl8188eufw";
