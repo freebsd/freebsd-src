@@ -691,6 +691,7 @@
 #define R92C_FPGA1_TXINFO		0x90c
 #define R92C_CCK0_SYSTEM		0xa00
 #define R92C_CCK0_AFESETTING		0xa04
+#define R92C_CONFIG_ANT(chain)		(0xb68 + (chain) * 4)
 #define R92C_OFDM0_TRXPATHENA		0xc04
 #define R92C_OFDM0_TRMUXPAR		0xc08
 #define R92C_OFDM0_RXIQIMBALANCE(chain)	(0xc14 + (chain) * 8)
@@ -703,6 +704,20 @@
 #define R92C_OFDM0_RXIQEXTANTA		0xca0
 #define R92C_OFDM0_TXPSEUDONOISEWGT	0xce4
 #define R92C_OFDM1_LSTF			0xd00
+#define R92C_FPGA0_IQK			0xe28
+#define R92C_TX_IQK_TONE(chain)		(0xe30 + (chain) * 32)
+#define R92C_RX_IQK_TONE(chain)		(0xe34 + (chain) * 32)
+#define R92C_TX_IQK_PI(chain)		(0xe38 + (chain) * 32)
+#define R92C_RX_IQK_PI(chain)		(0xe3c + (chain) * 32)
+#define R92C_TX_IQK			0xe40
+#define R92C_RX_IQK			0xe44
+#define R92C_IQK_AGC_PTS		0xe48
+#define R92C_IQK_AGC_RSP		0xe4c
+#define R92C_IQK_AGC_CONT		0xe60
+#define R92C_TX_POWER_IQK_BEFORE(chain)	(0xe94 + (chain) * 32)
+#define R92C_TX_POWER_IQK_AFTER(chain)	(0xe9c + (chain) * 32)
+#define R92C_RX_POWER_IQK_BEFORE(chain)	(0xea4 + (chain) * 32)
+#define R92C_RX_POWER_IQK_AFTER(chain)	(0xeac + (chain) * 32)
 
 /* Bits for R92C_FPGA[01]_RFMOD. */
 #define R92C_RFMOD_40MHZ	0x00000001
@@ -827,6 +842,10 @@
 /* Bits for R92C_OFDM0_AGCCORE1(i). */
 #define R92C_OFDM0_AGCCORE1_GAIN_M	0x0000007f
 #define R92C_OFDM0_AGCCORE1_GAIN_S	0
+
+/* Bits for R92C_[RT]X_POWER_IQK*. */
+#define R92C_POWER_IQK_RESULT_S		16
+#define R92C_POWER_IQK_RESULT_M		0x03ff0000
 
 
 /*
