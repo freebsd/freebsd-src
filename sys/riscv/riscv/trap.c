@@ -167,7 +167,7 @@ svc_handler(struct trapframe *frame)
 }
 
 static void
-data_abort(struct trapframe *frame, int lower)
+data_abort(struct trapframe *frame, int usermode)
 {
 	struct vm_map *map;
 	uint64_t sbadaddr;
@@ -176,9 +176,7 @@ data_abort(struct trapframe *frame, int lower)
 	vm_prot_t ftype;
 	vm_offset_t va;
 	struct proc *p;
-	int ucode;
-	int error;
-	int sig;
+	int error, sig, ucode;
 
 #ifdef KDB
 	if (kdb_active) {
@@ -188,19 +186,23 @@ data_abort(struct trapframe *frame, int lower)
 #endif
 
 	td = curthread;
+	p = td->td_proc;
 	pcb = td->td_pcb;
 	sbadaddr = frame->tf_sbadaddr;
 
-	p = td->td_proc;
+	if (td->td_critnest != 0 || td->td_intr_nesting_level != 0 ||
+	    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
+	    "Kernel page fault") != 0)
+		goto fatal;
 
-	if (lower)
+	if (usermode)
 		map = &td->td_proc->p_vmspace->vm_map;
+	else if (sbadaddr >= VM_MAX_USER_ADDRESS)
+		map = kernel_map;
 	else {
-		/* The top bit tells us which range to use */
-		if ((sbadaddr >> 63) == 1)
-			map = kernel_map;
-		else
-			map = &td->td_proc->p_vmspace->vm_map;
+		if (pcb->pcb_onfault == 0)
+			goto fatal;
+		map = &td->td_proc->p_vmspace->vm_map;
 	}
 
 	va = trunc_page(sbadaddr);
@@ -239,7 +241,7 @@ data_abort(struct trapframe *frame, int lower)
 	}
 
 	if (error != KERN_SUCCESS) {
-		if (lower) {
+		if (usermode) {
 			sig = SIGSEGV;
 			if (error == KERN_PROTECTION_FAILURE)
 				ucode = SEGV_ACCERR;
@@ -247,21 +249,23 @@ data_abort(struct trapframe *frame, int lower)
 				ucode = SEGV_MAPERR;
 			call_trapsignal(td, sig, ucode, (void *)sbadaddr);
 		} else {
-			if (td->td_intr_nesting_level == 0 &&
-			    pcb->pcb_onfault != 0) {
+			if (pcb->pcb_onfault != 0) {
 				frame->tf_a[0] = error;
 				frame->tf_sepc = pcb->pcb_onfault;
 				return;
 			}
-			dump_regs(frame);
-			panic("vm_fault failed: %lx, va 0x%016lx",
-				frame->tf_sepc, sbadaddr);
+			goto fatal;
 		}
 	}
 
 done:
-	if (lower)
+	if (usermode)
 		userret(td, frame);
+	return;
+
+fatal:
+	dump_regs(frame);
+	panic("Fatal page fault at %#lx: %#016lx", frame->tf_sepc, sbadaddr);
 }
 
 void
