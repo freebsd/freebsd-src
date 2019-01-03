@@ -127,6 +127,12 @@ EFI_STATUS efi_getenv(EFI_GUID *g, const char *v, void *data, __size_t *len);
 EFI_STATUS efi_global_getenv(const char *v, void *data, __size_t *len);
 EFI_STATUS efi_setenv_freebsd_wcs(const char *varname, CHAR16 *valstr);
 
+/* guids and names */
+bool efi_guid_to_str(const EFI_GUID *, char **);
+bool efi_str_to_guid(const char *, EFI_GUID *);
+bool efi_name_to_guid(const char *, EFI_GUID *);
+bool efi_guid_to_name(EFI_GUID *, char **);
+
 /* efipart.c */
 int	efipart_inithandles(void);
 
