@@ -43,8 +43,10 @@ Revision History
 #include "efibind.h"
 #include "efidef.h"
 #include "efidevp.h"
+#include "efipciio.h"
 #include "efiprot.h"
 #include "eficon.h"
+#include "eficonsctl.h"
 #include "efiser.h"
 #include "efi_nii.h"
 #include "efipxebc.h"
@@ -53,6 +55,11 @@ Revision History
 #include "efifs.h"
 #include "efierr.h"
 #include "efigop.h"
+#include "efiip.h"
+#include "efiudp.h"
+#include "efitcp.h"
+#include "efipoint.h"
+#include "efiuga.h"
 
 /*
  * FreeBSD UUID
