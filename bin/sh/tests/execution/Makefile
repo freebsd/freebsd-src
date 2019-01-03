@@ -17,6 +17,7 @@ ${PACKAGE}FILES+=		bg7.0
 ${PACKAGE}FILES+=		bg8.0
 ${PACKAGE}FILES+=		bg9.0
 ${PACKAGE}FILES+=		bg10.0 bg10.0.stdout
+${PACKAGE}FILES+=		env1.0
 ${PACKAGE}FILES+=		fork1.0
 ${PACKAGE}FILES+=		fork2.0
 ${PACKAGE}FILES+=		fork3.0
