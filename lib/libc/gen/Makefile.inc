@@ -339,7 +339,8 @@ MLINKS+=dlopen.3 fdlopen.3 \
 	dlopen.3 dlclose.3 \
 	dlopen.3 dlerror.3 \
 	dlopen.3 dlfunc.3 \
-	dlopen.3 dlsym.3
+	dlopen.3 dlsym.3 \
+	dlopen.3 dlvsym.3
 MLINKS+=err.3 err_set_exit.3 \
 	err.3 err_set_file.3 \
 	err.3 errc.3 \
