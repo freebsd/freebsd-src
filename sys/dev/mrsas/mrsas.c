@@ -90,6 +90,8 @@ static void mrsas_update_ext_vd_details(struct mrsas_softc *sc);
 static int
 mrsas_issue_blocked_abort_cmd(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd_to_abort);
+static void
+mrsas_get_pd_info(struct mrsas_softc *sc, u_int16_t device_id);
 static struct mrsas_softc *
 mrsas_get_softc_instance(struct cdev *dev,
     u_long cmd, caddr_t arg);
@@ -141,9 +143,6 @@ void	mrsas_free_ctlr_info_cmd(struct mrsas_softc *sc);
 void
 mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc,
     struct mrsas_mfi_cmd *cmd, u_int8_t status);
-void
-mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status,
-    u_int8_t extStatus);
 struct mrsas_mfi_cmd *mrsas_get_mfi_cmd(struct mrsas_softc *sc);
 
 MRSAS_REQUEST_DESCRIPTOR_UNION *mrsas_build_mpt_cmd
@@ -167,6 +166,12 @@ mrsas_get_request_desc(struct mrsas_softc *sc,
 extern int mrsas_bus_scan_sim(struct mrsas_softc *sc, struct cam_sim *sim);
 static int mrsas_alloc_evt_log_info_cmd(struct mrsas_softc *sc);
 static void mrsas_free_evt_log_info_cmd(struct mrsas_softc *sc);
+void	mrsas_release_mpt_cmd(struct mrsas_mpt_cmd *cmd);
+
+void mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd,
+	union ccb *ccb_ptr, u_int8_t status, u_int8_t extStatus,
+	u_int32_t data_length, u_int8_t *sense);
+
 
 SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD, 0, "MRSAS Driver Parameters");
 
@@ -190,6 +195,12 @@ MRSAS_CTLR_ID device_table[] = {
 	{0x1000, MRSAS_INTRUDER_24, 0xffff, 0xffff, "AVAGO Intruder_24 SAS Controller"},
 	{0x1000, MRSAS_CUTLASS_52, 0xffff, 0xffff, "AVAGO Cutlass_52 SAS Controller"},
 	{0x1000, MRSAS_CUTLASS_53, 0xffff, 0xffff, "AVAGO Cutlass_53 SAS Controller"},
+	{0x1000, MRSAS_VENTURA, 0xffff, 0xffff, "AVAGO Ventura SAS Controller"},
+	{0x1000, MRSAS_CRUSADER, 0xffff, 0xffff, "AVAGO Crusader SAS Controller"},
+	{0x1000, MRSAS_HARPOON, 0xffff, 0xffff, "AVAGO Harpoon SAS Controller"},
+	{0x1000, MRSAS_TOMCAT, 0xffff, 0xffff, "AVAGO Tomcat SAS Controller"},
+	{0x1000, MRSAS_VENTURA_4PORT, 0xffff, 0xffff, "AVAGO Ventura_4Port SAS Controller"},
+	{0x1000, MRSAS_CRUSADER_4PORT, 0xffff, 0xffff, "AVAGO Crusader_4Port SAS Controller"},
 	{0, 0, 0, 0, NULL}
 };
 
@@ -436,7 +447,16 @@ mrsas_setup_sysctl(struct mrsas_softc *sc)
 	    OID_AUTO, "block_sync_cache", CTLFLAG_RW,
 	    &sc->block_sync_cache, 0,
 	    "Block SYNC CACHE at driver. <default: 0, send it to FW>");
-
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "stream detection", CTLFLAG_RW,
+		&sc->drv_stream_detection, 0,
+		"Disable/Enable Stream detection. <default: 1, Enable Stream Detection>");
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "prp_count", CTLFLAG_RD,
+	    &sc->prp_count.val_rdonly, 0, "Number of IOs for which PRPs are built");
+	SYSCTL_ADD_INT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
+	    OID_AUTO, "SGE holes", CTLFLAG_RD,
+	    &sc->sge_holes.val_rdonly, 0, "Number of IOs with holes in SGEs");
 }
 
 /*
@@ -451,12 +471,14 @@ mrsas_get_tunables(struct mrsas_softc *sc)
 	char tmpstr[80];
 
 	/* XXX default to some debugging for now */
-	sc->mrsas_debug = MRSAS_FAULT;
+	sc->mrsas_debug =
+		(MRSAS_FAULT | MRSAS_OCR | MRSAS_INFO | MRSAS_TRACE | MRSAS_AEN);
 	sc->mrsas_io_timeout = MRSAS_IO_TIMEOUT;
 	sc->mrsas_fw_fault_check_delay = 1;
 	sc->reset_count = 0;
 	sc->reset_in_progress = 0;
 	sc->block_sync_cache = 0;
+	sc->drv_stream_detection = 1;
 
 	/*
 	 * Grab the global variables.
@@ -815,7 +837,7 @@ static int
 mrsas_attach(device_t dev)
 {
 	struct mrsas_softc *sc = device_get_softc(dev);
-	uint32_t cmd, bar, error;
+	uint32_t cmd, error;
 
 	memset(sc, 0, sizeof(struct mrsas_softc));
 
@@ -830,7 +852,14 @@ mrsas_attach(device_t dev)
 	    (sc->device_id == MRSAS_CUTLASS_52) ||
 	    (sc->device_id == MRSAS_CUTLASS_53)) {
 		sc->mrsas_gen3_ctrl = 1;
-    }
+	} else if ((sc->device_id == MRSAS_VENTURA) ||
+	    (sc->device_id == MRSAS_CRUSADER) ||
+	    (sc->device_id == MRSAS_HARPOON) ||
+	    (sc->device_id == MRSAS_TOMCAT) ||
+	    (sc->device_id == MRSAS_VENTURA_4PORT) ||
+	    (sc->device_id == MRSAS_CRUSADER_4PORT)) {
+		sc->is_ventura = true;
+	}
 
 	mrsas_get_tunables(sc);
 
@@ -845,9 +874,12 @@ mrsas_attach(device_t dev)
 	cmd |= PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
-	bar = pci_read_config(dev, MRSAS_PCI_BAR1, 4);
+	/* For Ventura system registers are mapped to BAR0 */
+	if (sc->is_ventura)
+		sc->reg_res_id = PCIR_BAR(0);	/* BAR0 offset */
+	else
+		sc->reg_res_id = PCIR_BAR(1);	/* BAR1 offset */
 
-	sc->reg_res_id = MRSAS_PCI_BAR1;/* BAR1 offset */
 	if ((sc->reg_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &(sc->reg_res_id), RF_ACTIVE))
 	    == NULL) {
@@ -866,6 +898,7 @@ mrsas_attach(device_t dev)
 	mtx_init(&sc->mpt_cmd_pool_lock, "mrsas_mpt_cmd_pool_lock", NULL, MTX_DEF);
 	mtx_init(&sc->mfi_cmd_pool_lock, "mrsas_mfi_cmd_pool_lock", NULL, MTX_DEF);
 	mtx_init(&sc->raidmap_lock, "mrsas_raidmap_lock", NULL, MTX_DEF);
+	mtx_init(&sc->stream_lock, "mrsas_stream_lock", NULL, MTX_DEF);
 
 	/* Intialize linked list */
 	TAILQ_INIT(&sc->mrsas_mpt_cmd_list_head);
@@ -873,6 +906,8 @@ mrsas_attach(device_t dev)
 
 	mrsas_atomic_set(&sc->fw_outstanding, 0);
 	mrsas_atomic_set(&sc->target_reset_outstanding, 0);
+	mrsas_atomic_set(&sc->prp_count, 0);
+	mrsas_atomic_set(&sc->sge_holes, 0);
 
 	sc->io_cmds_highwater = 0;
 
@@ -932,6 +967,7 @@ attach_fail_fw:
 	mtx_destroy(&sc->mpt_cmd_pool_lock);
 	mtx_destroy(&sc->mfi_cmd_pool_lock);
 	mtx_destroy(&sc->raidmap_lock);
+	mtx_destroy(&sc->stream_lock);
 attach_fail:
 	if (sc->reg_res) {
 		bus_release_resource(sc->mrsas_dev, SYS_RES_MEMORY,
@@ -946,6 +982,7 @@ attach_fail:
 static void
 mrsas_ich_startup(void *arg)
 {
+	int i = 0;
 	struct mrsas_softc *sc = (struct mrsas_softc *)arg;
 
 	/*
@@ -980,6 +1017,13 @@ mrsas_ich_startup(void *arg)
 
 	/* Enable Interrupts */
 	mrsas_enable_intr(sc);
+
+	/* Call DCMD get_pd_info for all system PDs */
+	for (i = 0; i < MRSAS_MAX_PD; i++) {
+		if ((sc->target_list[i].target_id != 0xffff) &&
+			sc->pd_info_mem)
+			mrsas_get_pd_info(sc, sc->target_list[i].target_id);
+	}
 
 	/* Initiate AEN (Asynchronous Event Notification) */
 	if (mrsas_start_aen(sc)) {
@@ -1054,6 +1098,14 @@ mrsas_detach(device_t dev)
 	mrsas_flush_cache(sc);
 	mrsas_shutdown_ctlr(sc, MR_DCMD_CTRL_SHUTDOWN);
 	mrsas_disable_intr(sc);
+
+	if (sc->is_ventura && sc->streamDetectByLD) {
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i)
+			free(sc->streamDetectByLD[i], M_MRSAS);
+		free(sc->streamDetectByLD, M_MRSAS);
+		sc->streamDetectByLD = NULL;
+	}
+
 	mrsas_cam_detach(sc);
 	mrsas_teardown_intr(sc);
 	mrsas_free_mem(sc);
@@ -1065,6 +1117,7 @@ mrsas_detach(device_t dev)
 	mtx_destroy(&sc->mpt_cmd_pool_lock);
 	mtx_destroy(&sc->mfi_cmd_pool_lock);
 	mtx_destroy(&sc->raidmap_lock);
+	mtx_destroy(&sc->stream_lock);
 
 	/* Wait for all the semaphores to be released */
 	while (sema_value(&sc->ioctl_count_sema) != MRSAS_MAX_IOCTL_CMDS)
@@ -1094,7 +1147,7 @@ void
 mrsas_free_mem(struct mrsas_softc *sc)
 {
 	int i;
-	u_int32_t max_cmd;
+	u_int32_t max_fw_cmds;
 	struct mrsas_mfi_cmd *mfi_cmd;
 	struct mrsas_mpt_cmd *mpt_cmd;
 
@@ -1182,6 +1235,16 @@ mrsas_free_mem(struct mrsas_softc *sc)
 		bus_dma_tag_destroy(sc->evt_detail_tag);
 
 	/*
+	 * Free PD info memory
+	 */
+	if (sc->pd_info_phys_addr)
+		bus_dmamap_unload(sc->pd_info_tag, sc->pd_info_dmamap);
+	if (sc->pd_info_mem != NULL)
+		bus_dmamem_free(sc->pd_info_tag, sc->pd_info_mem, sc->pd_info_dmamap);
+	if (sc->pd_info_tag != NULL)
+		bus_dma_tag_destroy(sc->pd_info_tag);
+
+	/*
 	 * Free MFI frames
 	 */
 	if (sc->mfi_cmd_list) {
@@ -1196,9 +1259,9 @@ mrsas_free_mem(struct mrsas_softc *sc)
 	/*
 	 * Free MPT internal command list
 	 */
-	max_cmd = sc->max_fw_cmds;
+	max_fw_cmds = sc->max_fw_cmds;
 	if (sc->mpt_cmd_list) {
-		for (i = 0; i < max_cmd; i++) {
+		for (i = 0; i < max_fw_cmds; i++) {
 			mpt_cmd = sc->mpt_cmd_list[i];
 			bus_dmamap_destroy(sc->data_tag, mpt_cmd->data_dmamap);
 			free(sc->mpt_cmd_list[i], M_MRSAS);
@@ -1538,14 +1601,14 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 	Mpi2ReplyDescriptorsUnion_t *desc;
 	MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR *reply_desc;
 	MRSAS_RAID_SCSI_IO_REQUEST *scsi_io_req;
-	struct mrsas_mpt_cmd *cmd_mpt;
+	struct mrsas_mpt_cmd *cmd_mpt, *r1_cmd = NULL;
 	struct mrsas_mfi_cmd *cmd_mfi;
-	u_int8_t reply_descript_type;
+	u_int8_t reply_descript_type, *sense;
 	u_int16_t smid, num_completed;
 	u_int8_t status, extStatus;
 	union desc_value desc_val;
 	PLD_LOAD_BALANCE_INFO lbinfo;
-	u_int32_t device_id;
+	u_int32_t device_id, data_length;
 	int threshold_reply_count = 0;
 #if TM_DEBUG
 	MR_TASK_MANAGE_REQUEST *mr_tm_req;
@@ -1573,8 +1636,10 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		cmd_mpt = sc->mpt_cmd_list[smid - 1];
 		scsi_io_req = (MRSAS_RAID_SCSI_IO_REQUEST *) cmd_mpt->io_request;
 
-		status = scsi_io_req->RaidContext.status;
-		extStatus = scsi_io_req->RaidContext.exStatus;
+		status = scsi_io_req->RaidContext.raid_context.status;
+		extStatus = scsi_io_req->RaidContext.raid_context.exStatus;
+		sense = cmd_mpt->sense;
+		data_length = scsi_io_req->DataLength;
 
 		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_SCSI_TASK_MGMT:
@@ -1590,16 +1655,45 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:	/* Fast Path IO. */
 			device_id = cmd_mpt->ccb_ptr->ccb_h.target_id;
 			lbinfo = &sc->load_balance_info[device_id];
+			/* R1 load balancing for READ */
 			if (cmd_mpt->load_balance == MRSAS_LOAD_BALANCE_FLAG) {
 				mrsas_atomic_dec(&lbinfo->scsi_pending_cmds[cmd_mpt->pd_r1_lb]);
 				cmd_mpt->load_balance &= ~MRSAS_LOAD_BALANCE_FLAG;
 			}
 			/* Fall thru and complete IO */
 		case MRSAS_MPI2_FUNCTION_LD_IO_REQUEST:
-			mrsas_map_mpt_cmd_status(cmd_mpt, status, extStatus);
-			mrsas_cmd_done(sc, cmd_mpt);
-			scsi_io_req->RaidContext.status = 0;
-			scsi_io_req->RaidContext.exStatus = 0;
+			if (cmd_mpt->r1_alt_dev_handle == MR_DEVHANDLE_INVALID) {
+				mrsas_map_mpt_cmd_status(cmd_mpt, cmd_mpt->ccb_ptr, status,
+				    extStatus, data_length, sense);
+				mrsas_cmd_done(sc, cmd_mpt);
+			} else {
+				/*
+				 * If the peer  Raid  1/10 fast path failed,
+				 * mark IO as failed to the scsi layer.
+				 * Overwrite the current status by the failed status
+				 * and make sure that if any command fails,
+				 * driver returns fail status to CAM.
+				 */
+				cmd_mpt->cmd_completed = 1;
+				r1_cmd = cmd_mpt->peer_cmd;
+				if (r1_cmd->cmd_completed) {
+					if (r1_cmd->io_request->RaidContext.raid_context.status != MFI_STAT_OK) {
+						status = r1_cmd->io_request->RaidContext.raid_context.status;
+						extStatus = r1_cmd->io_request->RaidContext.raid_context.exStatus;
+						data_length = r1_cmd->io_request->DataLength;
+						sense = r1_cmd->sense;
+					}
+					r1_cmd->ccb_ptr = NULL;
+					if (r1_cmd->callout_owner) {
+						callout_stop(&r1_cmd->cm_callout);
+						r1_cmd->callout_owner  = false;
+					}
+					mrsas_release_mpt_cmd(r1_cmd);
+					mrsas_map_mpt_cmd_status(cmd_mpt, cmd_mpt->ccb_ptr, status,
+					    extStatus, data_length, sense);
+					mrsas_cmd_done(sc, cmd_mpt);
+				}
+			}
 			mrsas_atomic_dec(&sc->fw_outstanding);
 			break;
 		case MRSAS_MPI2_FUNCTION_PASSTHRU_IO_REQUEST:	/* MFI command */
@@ -1648,7 +1742,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 		 */
 		if (threshold_reply_count >= THRESHOLD_REPLY_COUNT) {
 			if (sc->msix_enable) {
-				if (sc->mrsas_gen3_ctrl)
+				if (sc->msix_combined)
 					mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 					    ((MSIxIndex & 0x7) << 24) |
 					    sc->last_reply_idx[MSIxIndex]);
@@ -1669,7 +1763,7 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
 
 	/* Clear response interrupt */
 	if (sc->msix_enable) {
-			if (sc->mrsas_gen3_ctrl) {
+		if (sc->msix_combined) {
 			mrsas_write_reg(sc, sc->msix_reg_offset[MSIxIndex / 8],
 			    ((MSIxIndex & 0x7) << 24) |
 			    sc->last_reply_idx[MSIxIndex]);
@@ -1692,40 +1786,41 @@ mrsas_complete_cmd(struct mrsas_softc *sc, u_int32_t MSIxIndex)
  * CCB.
  */
 void
-mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8_t extStatus)
+mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, union ccb *ccb_ptr, u_int8_t status,
+    u_int8_t extStatus, u_int32_t data_length, u_int8_t *sense)
 {
 	struct mrsas_softc *sc = cmd->sc;
 	u_int8_t *sense_data;
 
 	switch (status) {
 	case MFI_STAT_OK:
-		cmd->ccb_ptr->ccb_h.status = CAM_REQ_CMP;
+		ccb_ptr->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case MFI_STAT_SCSI_IO_FAILED:
 	case MFI_STAT_SCSI_DONE_WITH_ERROR:
-		cmd->ccb_ptr->ccb_h.status = CAM_SCSI_STATUS_ERROR;
-		sense_data = (u_int8_t *)&cmd->ccb_ptr->csio.sense_data;
+		ccb_ptr->ccb_h.status = CAM_SCSI_STATUS_ERROR;
+		sense_data = (u_int8_t *)&ccb_ptr->csio.sense_data;
 		if (sense_data) {
 			/* For now just copy 18 bytes back */
-			memcpy(sense_data, cmd->sense, 18);
-			cmd->ccb_ptr->csio.sense_len = 18;
-			cmd->ccb_ptr->ccb_h.status |= CAM_AUTOSNS_VALID;
+			memcpy(sense_data, sense, 18);
+			ccb_ptr->csio.sense_len = 18;
+			ccb_ptr->ccb_h.status |= CAM_AUTOSNS_VALID;
 		}
 		break;
 	case MFI_STAT_LD_OFFLINE:
 	case MFI_STAT_DEVICE_NOT_FOUND:
-		if (cmd->ccb_ptr->ccb_h.target_lun)
-			cmd->ccb_ptr->ccb_h.status |= CAM_LUN_INVALID;
+		if (ccb_ptr->ccb_h.target_lun)
+			ccb_ptr->ccb_h.status |= CAM_LUN_INVALID;
 		else
-			cmd->ccb_ptr->ccb_h.status |= CAM_DEV_NOT_THERE;
+			ccb_ptr->ccb_h.status |= CAM_DEV_NOT_THERE;
 		break;
 	case MFI_STAT_CONFIG_SEQ_MISMATCH:
-		cmd->ccb_ptr->ccb_h.status |= CAM_REQUEUE_REQ;
+		ccb_ptr->ccb_h.status |= CAM_REQUEUE_REQ;
 		break;
 	default:
 		device_printf(sc->mrsas_dev, "FW cmd complete status %x\n", status);
-		cmd->ccb_ptr->ccb_h.status = CAM_REQ_CMP_ERR;
-		cmd->ccb_ptr->csio.scsi_status = status;
+		ccb_ptr->ccb_h.status = CAM_REQ_CMP_ERR;
+		ccb_ptr->csio.scsi_status = status;
 	}
 	return;
 }
@@ -1741,8 +1836,8 @@ mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd, u_int8_t status, u_int8_t ex
 static int
 mrsas_alloc_mem(struct mrsas_softc *sc)
 {
-	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size,
-	          chain_frame_size, evt_detail_size, count;
+	u_int32_t verbuf_size, io_req_size, reply_desc_size, sense_size, chain_frame_size,
+		evt_detail_size, count, pd_info_size;
 
 	/*
 	 * Allocate parent DMA tag
@@ -1912,6 +2007,7 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Cannot load sense buf memory\n");
 		return (ENOMEM);
 	}
+
 	/*
 	 * Allocate for Event detail structure
 	 */
@@ -1942,6 +2038,38 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Cannot load Event detail buffer memory\n");
 		return (ENOMEM);
 	}
+
+	/*
+	 * Allocate for PD INFO structure
+	 */
+	pd_info_size = sizeof(struct mrsas_pd_info);
+	if (bus_dma_tag_create(sc->mrsas_parent_tag,
+	    1, 0,
+	    BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR,
+	    NULL, NULL,
+	    pd_info_size,
+	    1,
+	    pd_info_size,
+	    BUS_DMA_ALLOCNOW,
+	    NULL, NULL,
+	    &sc->pd_info_tag)) {
+		device_printf(sc->mrsas_dev, "Cannot create PD INFO tag\n");
+		return (ENOMEM);
+	}
+	if (bus_dmamem_alloc(sc->pd_info_tag, (void **)&sc->pd_info_mem,
+	    BUS_DMA_NOWAIT, &sc->pd_info_dmamap)) {
+		device_printf(sc->mrsas_dev, "Cannot alloc PD INFO buffer memory\n");
+		return (ENOMEM);
+	}
+	bzero(sc->pd_info_mem, pd_info_size);
+	if (bus_dmamap_load(sc->pd_info_tag, sc->pd_info_dmamap,
+	    sc->pd_info_mem, pd_info_size, mrsas_addr_cb,
+	    &sc->pd_info_phys_addr, BUS_DMA_NOWAIT)) {
+		device_printf(sc->mrsas_dev, "Cannot load PD INFO buffer memory\n");
+		return (ENOMEM);
+	}
+
 	/*
 	 * Create a dma tag for data buffers; size will be the maximum
 	 * possible I/O size (280kB).
@@ -2147,14 +2275,24 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	u_int32_t max_sectors_1;
 	u_int32_t max_sectors_2;
 	u_int32_t tmp_sectors;
-	u_int32_t scratch_pad_2;
+	u_int32_t scratch_pad_2, scratch_pad_3, scratch_pad_4;
 	int msix_enable = 0;
 	int fw_msix_count = 0;
+	int i, j;
 
 	/* Make sure Firmware is ready */
 	ret = mrsas_transition_to_ready(sc, ocr);
 	if (ret != SUCCESS) {
 		return (ret);
+	}
+	if (sc->is_ventura) {
+		scratch_pad_3 = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad_3));
+#if VD_EXT_DEBUG
+		device_printf(sc->mrsas_dev, "scratch_pad_3 0x%x\n", scratch_pad_3);
+#endif
+		sc->maxRaidMapSize = ((scratch_pad_3 >>
+		    MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT) &
+		    MR_MAX_RAID_MAP_SIZE_MASK);
 	}
 	/* MSI-x index 0- reply post host index register */
 	sc->msix_reg_offset[0] = MPI2_REPLY_POST_HOST_INDEX_OFFSET;
@@ -2177,6 +2315,15 @@ mrsas_init_fw(struct mrsas_softc *sc)
 			    >> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
 			fw_msix_count = sc->msix_vectors;
 
+			if ((sc->mrsas_gen3_ctrl && (sc->msix_vectors > 8)) ||
+				(sc->is_ventura && (sc->msix_vectors > 16)))
+				sc->msix_combined = true;
+			/*
+			 * Save 1-15 reply post index
+			 * address to local memory Index 0
+			 * is already saved from reg offset
+			 * MPI2_REPLY_POST_HOST_INDEX_OFFSET
+			 */
 			for (loop = 1; loop < MR_MAX_MSIX_REG_ARRAY;
 			    loop++) {
 				sc->msix_reg_offset[loop] =
@@ -2199,10 +2346,28 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		    "Online CPU %d Current MSIX <%d>\n",
 		    fw_msix_count, mp_ncpus, sc->msix_vectors);
 	}
+	/*
+     * MSI-X host index 0 is common for all adapter.
+     * It is used for all MPT based Adapters.
+	 */
+	if (sc->msix_combined) {
+		sc->msix_reg_offset[0] =
+		    MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET;
+	}
 	if (mrsas_init_adapter(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Adapter initialize Fail.\n");
 		return (1);
 	}
+
+	if (sc->is_ventura) {
+		scratch_pad_4 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
+		    outbound_scratch_pad_4));
+		if ((scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK) >= MR_DEFAULT_NVME_PAGE_SHIFT)
+			sc->nvme_page_size = 1 << (scratch_pad_4 & MR_NVME_PAGE_SIZE_MASK);
+
+		device_printf(sc->mrsas_dev, "NVME page size\t: (%d)\n", sc->nvme_page_size);
+	}
+
 	/* Allocate internal commands for pass-thru */
 	if (mrsas_alloc_mfi_cmds(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Allocate MFI cmd failed.\n");
@@ -2230,12 +2395,21 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	if (sc->use_seqnum_jbod_fp)
 		device_printf(sc->mrsas_dev, "FW supports JBOD Map \n");
 
+	if (sc->support_morethan256jbod)
+		device_printf(sc->mrsas_dev, "FW supports JBOD Map Ext \n");
+
 	if (mrsas_setup_raidmap(sc) != SUCCESS) {
 		device_printf(sc->mrsas_dev, "Error: RAID map setup FAILED !!! "
 		    "There seems to be some problem in the controller\n"
 		    "Please contact to the SUPPORT TEAM if the problem persists\n");
 	}
 	megasas_setup_jbod_map(sc);
+
+
+	memset(sc->target_list, 0,
+		MRSAS_MAX_TM_TARGETS * sizeof(struct mrsas_target));
+	for (i = 0; i < MRSAS_MAX_TM_TARGETS; i++)
+		sc->target_list[i].target_id = 0xffff;
 
 	/* For pass-thru, get PD/LD list and controller info */
 	memset(sc->pd_list, 0,
@@ -2249,6 +2423,30 @@ mrsas_init_fw(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev, "Get LD lsit failed.\n");
 		return (1);
 	}
+
+	if (sc->is_ventura && sc->drv_stream_detection) {
+		sc->streamDetectByLD = malloc(sizeof(PTR_LD_STREAM_DETECT) *
+						MAX_LOGICAL_DRIVES_EXT, M_MRSAS, M_NOWAIT);
+		if (!sc->streamDetectByLD) {
+			device_printf(sc->mrsas_dev,
+				"unable to allocate stream detection for pool of LDs\n");
+			return (1);
+		}
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {
+			sc->streamDetectByLD[i] = malloc(sizeof(LD_STREAM_DETECT), M_MRSAS, M_NOWAIT);
+			if (!sc->streamDetectByLD[i]) {
+				device_printf(sc->mrsas_dev, "unable to allocate stream detect by LD\n");
+				for (j = 0; j < i; ++j)
+					free(sc->streamDetectByLD[j], M_MRSAS);
+				free(sc->streamDetectByLD, M_MRSAS);
+				sc->streamDetectByLD = NULL;
+				return (1);
+			}
+			memset(sc->streamDetectByLD[i], 0, sizeof(LD_STREAM_DETECT));
+			sc->streamDetectByLD[i]->mruBitMap = MR_STREAM_BITMAP;
+		}
+	}
+
 	/*
 	 * Compute the max allowed sectors per IO: The controller info has
 	 * two limits on max sectors. Driver should use the minimum of these
@@ -2298,25 +2496,26 @@ int
 mrsas_init_adapter(struct mrsas_softc *sc)
 {
 	uint32_t status;
-	u_int32_t max_cmd, scratch_pad_2;
+	u_int32_t scratch_pad_2;
 	int ret;
 	int i = 0;
 
 	/* Read FW status register */
 	status = mrsas_read_reg(sc, offsetof(mrsas_reg_set, outbound_scratch_pad));
 
-	/* Get operational params from status register */
 	sc->max_fw_cmds = status & MRSAS_FWSTATE_MAXCMD_MASK;
 
 	/* Decrement the max supported by 1, to correlate with FW */
 	sc->max_fw_cmds = sc->max_fw_cmds - 1;
-	max_cmd = sc->max_fw_cmds;
+	sc->max_scsi_cmds = sc->max_fw_cmds -
+	    (MRSAS_FUSION_INT_CMDS + MRSAS_MAX_IOCTL_CMDS);
 
 	/* Determine allocation size of command frames */
-	sc->reply_q_depth = ((max_cmd + 1 + 15) / 16 * 16) * 2;
-	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * max_cmd;
+	sc->reply_q_depth = ((sc->max_fw_cmds + 1 + 15) / 16 * 16) * 2;
+	sc->request_alloc_sz = sizeof(MRSAS_REQUEST_DESCRIPTOR_UNION) * sc->max_fw_cmds;
 	sc->reply_alloc_sz = sizeof(MPI2_REPLY_DESCRIPTORS_UNION) * (sc->reply_q_depth);
-	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE + (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (max_cmd + 1));
+	sc->io_frames_alloc_sz = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE +
+	    (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * (sc->max_fw_cmds + 1));
 	scratch_pad_2 = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
 	    outbound_scratch_pad_2));
 	/*
@@ -2334,15 +2533,17 @@ mrsas_init_adapter(struct mrsas_softc *sc)
 		    ((scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_MASK) >> 5)
 		    * MEGASAS_256K_IO;
 
-	sc->chain_frames_alloc_sz = sc->max_chain_frame_sz * max_cmd;
+	sc->chain_frames_alloc_sz = sc->max_chain_frame_sz * sc->max_fw_cmds;
 	sc->max_sge_in_main_msg = (MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE -
 	    offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL)) / 16;
 
 	sc->max_sge_in_chain = sc->max_chain_frame_sz / sizeof(MPI2_SGE_IO_UNION);
 	sc->max_num_sge = sc->max_sge_in_main_msg + sc->max_sge_in_chain - 2;
 
-	mrsas_dprint(sc, MRSAS_INFO, "Avago Debug: MAX sge 0x%X MAX chain frame size 0x%X \n",
-	    sc->max_num_sge, sc->max_chain_frame_sz);
+	mrsas_dprint(sc, MRSAS_INFO,
+	    "max sge: 0x%x, max chain frame size: 0x%x, "
+	    "max fw cmd: 0x%x\n", sc->max_num_sge,
+	    sc->max_chain_frame_sz, sc->max_fw_cmds);
 
 	/* Used for pass thru MFI frame (DCMD) */
 	sc->chain_offset_mfi_pthru = offsetof(MRSAS_RAID_SCSI_IO_REQUEST, SGL) / 16;
@@ -2441,7 +2642,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	struct mrsas_init_frame *init_frame;
 	pMpi2IOCInitRequest_t IOCInitMsg;
 	MRSAS_REQUEST_DESCRIPTOR_UNION req_desc;
-	u_int8_t max_wait = MRSAS_IOC_INIT_WAIT_TIME;
+	u_int8_t max_wait = MRSAS_INTERNAL_CMD_WAIT_TIME;
 	bus_addr_t phys_addr;
 	int i, retcode = 0;
 	u_int32_t scratch_pad_2;
@@ -2469,6 +2670,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	IOCInitMsg->ReplyDescriptorPostQueueAddress = sc->reply_desc_phys_addr;
 	IOCInitMsg->SystemRequestFrameBaseAddress = sc->io_request_phys_addr;
 	IOCInitMsg->HostMSIxVectors = (sc->msix_vectors > 0 ? sc->msix_vectors : 0);
+	IOCInitMsg->HostPageSize = MR_DEFAULT_NVME_PAGE_SHIFT;
 
 	init_frame = (struct mrsas_init_frame *)sc->ioc_init_mem;
 	init_frame->cmd = MFI_CMD_INIT;
@@ -2476,7 +2678,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
 
 	/* driver support Extended MSIX */
-		if (sc->mrsas_gen3_ctrl) {
+	if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
 		init_frame->driver_operations.
 		    mfi_capabilities.support_additional_msix = 1;
 	}
@@ -2545,14 +2747,14 @@ int
 mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 {
 	int i, j;
-	u_int32_t max_cmd, count;
+	u_int32_t max_fw_cmds, count;
 	struct mrsas_mpt_cmd *cmd;
 	pMpi2ReplyDescriptorsUnion_t reply_desc;
 	u_int32_t offset, chain_offset, sense_offset;
 	bus_addr_t io_req_base_phys, chain_frame_base_phys, sense_base_phys;
 	u_int8_t *io_req_base, *chain_frame_base, *sense_base;
 
-	max_cmd = sc->max_fw_cmds;
+	max_fw_cmds = sc->max_fw_cmds;
 
 	sc->req_desc = malloc(sc->request_alloc_sz, M_MRSAS, M_NOWAIT);
 	if (!sc->req_desc) {
@@ -2566,13 +2768,14 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	sc->mpt_cmd_list = malloc(sizeof(struct mrsas_mpt_cmd *) * max_cmd, M_MRSAS, M_NOWAIT);
+	sc->mpt_cmd_list = malloc(sizeof(struct mrsas_mpt_cmd *) * max_fw_cmds,
+	    M_MRSAS, M_NOWAIT);
 	if (!sc->mpt_cmd_list) {
 		device_printf(sc->mrsas_dev, "Cannot alloc memory for mpt_cmd_list.\n");
 		return (ENOMEM);
 	}
-	memset(sc->mpt_cmd_list, 0, sizeof(struct mrsas_mpt_cmd *) * max_cmd);
-	for (i = 0; i < max_cmd; i++) {
+	memset(sc->mpt_cmd_list, 0, sizeof(struct mrsas_mpt_cmd *) * max_fw_cmds);
+	for (i = 0; i < max_fw_cmds; i++) {
 		sc->mpt_cmd_list[i] = malloc(sizeof(struct mrsas_mpt_cmd),
 		    M_MRSAS, M_NOWAIT);
 		if (!sc->mpt_cmd_list[i]) {
@@ -2590,7 +2793,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 	chain_frame_base_phys = (bus_addr_t)sc->chain_frame_phys_addr;
 	sense_base = (u_int8_t *)sc->sense_mem;
 	sense_base_phys = (bus_addr_t)sc->sense_phys_addr;
-	for (i = 0; i < max_cmd; i++) {
+	for (i = 0; i < max_fw_cmds; i++) {
 		cmd = sc->mpt_cmd_list[i];
 		offset = MRSAS_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * i;
 		chain_offset = sc->max_chain_frame_sz * i;
@@ -2598,6 +2801,7 @@ mrsas_alloc_mpt_cmds(struct mrsas_softc *sc)
 		memset(cmd, 0, sizeof(struct mrsas_mpt_cmd));
 		cmd->index = i + 1;
 		cmd->ccb_ptr = NULL;
+		cmd->r1_alt_dev_handle = MR_DEVHANDLE_INVALID;
 		callout_init_mtx(&cmd->cm_callout, &sc->sim_lock, 0);
 		cmd->sync_cmd_idx = (u_int32_t)MRSAS_ULONG_MAX;
 		cmd->sc = sc;
@@ -2949,13 +3153,27 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 		mtx_unlock(&sc->sim_lock);
 		for (i = 0; i < sc->max_fw_cmds; i++) {
 			mpt_cmd = sc->mpt_cmd_list[i];
+
+			if (mpt_cmd->peer_cmd) {
+				mrsas_dprint(sc, MRSAS_OCR,
+				    "R1 FP command [%d] - (mpt_cmd) %p, (peer_cmd) %p\n",
+				    i, mpt_cmd, mpt_cmd->peer_cmd);
+			}
+
 			if (mpt_cmd->ccb_ptr) {
-				ccb = (union ccb *)(mpt_cmd->ccb_ptr);
-				ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
-				mrsas_cmd_done(sc, mpt_cmd);
-				mrsas_atomic_dec(&sc->fw_outstanding);
+				if (mpt_cmd->callout_owner) {
+					ccb = (union ccb *)(mpt_cmd->ccb_ptr);
+					ccb->ccb_h.status = CAM_SCSI_BUS_RESET;
+					mrsas_cmd_done(sc, mpt_cmd);
+				} else {
+					mpt_cmd->ccb_ptr = NULL;
+					mrsas_release_mpt_cmd(mpt_cmd);
+				}
 			}
 		}
+
+		mrsas_atomic_set(&sc->fw_outstanding, 0);
+
 		mtx_lock(&sc->sim_lock);
 
 		status_reg = mrsas_read_reg(sc, offsetof(mrsas_reg_set,
@@ -3088,6 +3306,13 @@ mrsas_reset_ctrl(struct mrsas_softc *sc, u_int8_t reset_reason)
 
 			megasas_setup_jbod_map(sc);
 
+			if (sc->is_ventura && sc->streamDetectByLD) {
+				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
+					memset(sc->streamDetectByLD[i], 0, sizeof(LD_STREAM_DETECT));
+					sc->streamDetectByLD[i]->mruBitMap = MR_STREAM_BITMAP;
+				}
+			}
+
 			mrsas_clear_bit(MRSAS_FUSION_IN_RESET, &sc->reset_flags);
 			mrsas_enable_intr(sc);
 			sc->adprecovery = MRSAS_HBA_OPERATIONAL;
@@ -3172,7 +3397,7 @@ mrsas_complete_outstanding_ioctls(struct mrsas_softc *sc)
 			if (cmd_mfi->sync_cmd && cmd_mfi->frame->hdr.cmd != MFI_CMD_ABORT) {
 				for (MSIxIndex = 0; MSIxIndex < count; MSIxIndex++)
 					mrsas_complete_mptmfi_passthru(sc, cmd_mfi,
-					    cmd_mpt->io_request->RaidContext.status);
+					    cmd_mpt->io_request->RaidContext.raid_context.status);
 			}
 		}
 	}
@@ -3339,6 +3564,9 @@ mrsas_get_ctrl_info(struct mrsas_softc *sc)
 
 	sc->use_seqnum_jbod_fp =
 	    sc->ctrl_info->adapterOperations3.useSeqNumJbodFP;
+	sc->support_morethan256jbod =
+		sc->ctrl_info->adapterOperations4.supportPdMapTargetId;
+
 	sc->disableOnlineCtrlReset =
 	    sc->ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
 
@@ -3362,8 +3590,10 @@ dcmd_timeout:
 static void 
 mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 {
+	u_int32_t ventura_map_sz = 0;
 	sc->max256vdSupport =
-	sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+		sc->ctrl_info->adapterOperations3.supportMaxExtLDs;
+
 	/* Below is additional check to address future FW enhancement */
 	if (sc->ctrl_info->max_lds > 64)
 		sc->max256vdSupport = 1;
@@ -3380,20 +3610,33 @@ mrsas_update_ext_vd_details(struct mrsas_softc *sc)
 		sc->fw_supported_pd_count = MAX_PHYSICAL_DEVICES;
 	}
 
-	sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) *
-	    (sc->fw_supported_vd_count - 1));
-	sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
-	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP) +
-	    (sizeof(MR_LD_SPAN_MAP) *
-	    (sc->drv_supported_vd_count - 1));
+	if (sc->maxRaidMapSize) {
+		ventura_map_sz = sc->maxRaidMapSize *
+		    MR_MIN_MAP_SIZE;
+		sc->current_map_sz = ventura_map_sz;
+		sc->max_map_sz = ventura_map_sz;
+	} else {
+		sc->old_map_sz = sizeof(MR_FW_RAID_MAP) +
+		    (sizeof(MR_LD_SPAN_MAP) * (sc->fw_supported_vd_count - 1));
+		sc->new_map_sz = sizeof(MR_FW_RAID_MAP_EXT);
+		sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
+		if (sc->max256vdSupport)
+			sc->current_map_sz = sc->new_map_sz;
+		else
+			sc->current_map_sz = sc->old_map_sz;
+	}
 
-	sc->max_map_sz = max(sc->old_map_sz, sc->new_map_sz);
-
-	if (sc->max256vdSupport)
-		sc->current_map_sz = sc->new_map_sz;
-	else
-		sc->current_map_sz = sc->old_map_sz;
+	sc->drv_map_sz = sizeof(MR_DRV_RAID_MAP_ALL);
+#if VD_EXT_DEBUG
+	device_printf(sc->mrsas_dev, "sc->maxRaidMapSize 0x%x \n",
+	    sc->maxRaidMapSize);
+	device_printf(sc->mrsas_dev,
+	    "new_map_sz = 0x%x, old_map_sz = 0x%x, "
+	    "ventura_map_sz = 0x%x, current_map_sz = 0x%x "
+	    "fusion->drv_map_sz =0x%x, size of driver raid map 0x%lx \n",
+	    sc->new_map_sz, sc->old_map_sz, ventura_map_sz,
+	    sc->current_map_sz, sc->drv_map_sz, sizeof(MR_DRV_RAID_MAP_ALL));
+#endif
 }
 
 /*
@@ -3591,7 +3834,7 @@ mrsas_build_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *mfi_cm
 
 	io_req = mpt_cmd->io_request;
 
-		if (sc->mrsas_gen3_ctrl) {
+	if (sc->mrsas_gen3_ctrl || sc->is_ventura) {
 		pMpi25IeeeSgeChain64_t sgl_ptr_end = (pMpi25IeeeSgeChain64_t)&io_req->SGL;
 
 		sgl_ptr_end += sc->max_sge_in_main_msg - 1;
@@ -4106,6 +4349,113 @@ mrsas_sync_map_info(struct mrsas_softc *sc)
 	return (retcode);
 }
 
+/* Input:	dcmd.opcode		- MR_DCMD_PD_GET_INFO
+  *		dcmd.mbox.s[0]		- deviceId for this physical drive
+  *		dcmd.sge IN		- ptr to returned MR_PD_INFO structure
+  * Desc:	Firmware return the physical drive info structure
+  *
+  */
+static void
+mrsas_get_pd_info(struct mrsas_softc *sc, u_int16_t device_id)
+{
+	int retcode;
+	u_int8_t do_ocr = 1;
+	struct mrsas_mfi_cmd *cmd;
+	struct mrsas_dcmd_frame *dcmd;
+
+	cmd = mrsas_get_mfi_cmd(sc);
+
+	if (!cmd) {
+		device_printf(sc->mrsas_dev,
+		    "Cannot alloc for get PD info cmd\n");
+		return;
+	}
+	dcmd = &cmd->frame->dcmd;
+
+	memset(sc->pd_info_mem, 0, sizeof(struct mrsas_pd_info));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->mbox.s[0] = device_id;
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = MFI_FRAME_DIR_READ;
+	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
+	dcmd->data_xfer_len = sizeof(struct mrsas_pd_info);
+	dcmd->opcode = MR_DCMD_PD_GET_INFO;
+	dcmd->sgl.sge32[0].phys_addr = (u_int32_t)sc->pd_info_phys_addr;
+	dcmd->sgl.sge32[0].length = sizeof(struct mrsas_pd_info);
+
+	if (!sc->mask_interrupts)
+		retcode = mrsas_issue_blocked_cmd(sc, cmd);
+	else
+		retcode = mrsas_issue_polled(sc, cmd);
+
+	if (retcode == ETIMEDOUT)
+		goto dcmd_timeout;
+
+	sc->target_list[device_id].interface_type =
+		sc->pd_info_mem->state.ddf.pdType.intf;
+
+	do_ocr = 0;
+
+dcmd_timeout:
+
+	if (do_ocr)
+		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
+
+	if (!sc->mask_interrupts)
+		mrsas_release_mfi_cmd(cmd);
+}
+
+/*
+ * mrsas_add_target:				Add target ID of system PD/VD to driver's data structure.
+ * sc:						Adapter's soft state
+ * target_id:					Unique target id per controller(managed by driver)
+ *						for system PDs- target ID ranges from 0 to (MRSAS_MAX_PD - 1)
+ *						for VDs- target ID ranges from MRSAS_MAX_PD to MRSAS_MAX_TM_TARGETS
+ * return:					void
+ * Descripton:					This function will be called whenever system PD or VD is created.
+ */
+static void mrsas_add_target(struct mrsas_softc *sc,
+	u_int16_t target_id)
+{
+	sc->target_list[target_id].target_id = target_id;
+
+	device_printf(sc->mrsas_dev,
+		"%s created target ID: 0x%x\n",
+		(target_id < MRSAS_MAX_PD ? "System PD" : "VD"),
+		(target_id < MRSAS_MAX_PD ? target_id : (target_id - MRSAS_MAX_PD)));
+	/*
+	 * If interrupts are enabled, then only fire DCMD to get pd_info
+	 * for system PDs
+	 */
+	if (!sc->mask_interrupts && sc->pd_info_mem &&
+		(target_id < MRSAS_MAX_PD))
+		mrsas_get_pd_info(sc, target_id);
+
+}
+
+/*
+ * mrsas_remove_target:			Remove target ID of system PD/VD from driver's data structure.
+ * sc:						Adapter's soft state
+ * target_id:					Unique target id per controller(managed by driver)
+ *						for system PDs- target ID ranges from 0 to (MRSAS_MAX_PD - 1)
+ *						for VDs- target ID ranges from MRSAS_MAX_PD to MRSAS_MAX_TM_TARGETS
+ * return:					void
+ * Descripton:					This function will be called whenever system PD or VD is deleted
+ */
+static void mrsas_remove_target(struct mrsas_softc *sc,
+	u_int16_t target_id)
+{
+	sc->target_list[target_id].target_id = 0xffff;
+	device_printf(sc->mrsas_dev,
+		"%s deleted target ID: 0x%x\n",
+		(target_id < MRSAS_MAX_PD ? "System PD" : "VD"),
+		(target_id < MRSAS_MAX_PD ? target_id : (target_id - MRSAS_MAX_PD)));
+}
+
 /*
  * mrsas_get_pd_list:           Returns FW's PD list structure input:
  * Adapter soft state
@@ -4182,7 +4532,17 @@ mrsas_get_pd_list(struct mrsas_softc *sc)
 			    pd_addr->scsiDevType;
 			sc->local_pd_list[pd_addr->deviceId].driveState =
 			    MR_PD_STATE_SYSTEM;
+			if (sc->target_list[pd_addr->deviceId].target_id == 0xffff)
+				mrsas_add_target(sc, pd_addr->deviceId);
 			pd_addr++;
+		}
+		for (pd_index = 0; pd_index < MRSAS_MAX_PD; pd_index++) {
+			if ((sc->local_pd_list[pd_index].driveState !=
+				MR_PD_STATE_SYSTEM) &&
+				(sc->target_list[pd_index].target_id !=
+				0xffff)) {
+				mrsas_remove_target(sc, pd_index);
+			}
 		}
 		/*
 		 * Use mutext/spinlock if pd_list component size increase more than
@@ -4215,7 +4575,7 @@ dcmd_timeout:
 static int
 mrsas_get_ld_list(struct mrsas_softc *sc)
 {
-	int ld_list_size, retcode = 0, ld_index = 0, ids = 0;
+	int ld_list_size, retcode = 0, ld_index = 0, ids = 0, drv_tgt_id;
 	u_int8_t do_ocr = 1;
 	struct mrsas_mfi_cmd *cmd;
 	struct mrsas_dcmd_frame *dcmd;
@@ -4277,11 +4637,21 @@ mrsas_get_ld_list(struct mrsas_softc *sc)
 		sc->CurLdCount = ld_list_mem->ldCount;
 		memset(sc->ld_ids, 0xff, MAX_LOGICAL_DRIVES_EXT);
 		for (ld_index = 0; ld_index < ld_list_mem->ldCount; ld_index++) {
+			ids = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
+			drv_tgt_id = ids + MRSAS_MAX_PD;
 			if (ld_list_mem->ldList[ld_index].state != 0) {
-				ids = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
 				sc->ld_ids[ids] = ld_list_mem->ldList[ld_index].ref.ld_context.targetId;
+				if (sc->target_list[drv_tgt_id].target_id ==
+					0xffff)
+					mrsas_add_target(sc, drv_tgt_id);
+			} else {
+				if (sc->target_list[drv_tgt_id].target_id !=
+					0xffff)
+					mrsas_remove_target(sc,
+						drv_tgt_id);
 			}
 		}
+
 		do_ocr = 0;
 	}
 dcmd_timeout:
