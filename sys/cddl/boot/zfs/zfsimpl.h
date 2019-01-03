@@ -1121,6 +1121,8 @@ typedef struct sa_hdr_phys {
 #define	SA_PARENT_OFFSET	40
 #define	SA_SYMLINK_OFFSET	160
 
+#define	ZIO_OBJSET_MAC_LEN		32
+
 /*
  * Intent log header - this on disk structure holds fields to manage
  * the log.  All fields are 64 bit to easily handle cross architectures.
@@ -1133,17 +1135,24 @@ typedef struct zil_header {
 	uint64_t zh_pad[5];
 } zil_header_t;
 
-#define	OBJSET_PHYS_SIZE 2048
+#define	OBJSET_PHYS_SIZE_V2 2048
+#define	OBJSET_PHYS_SIZE_V3 4096
 
 typedef struct objset_phys {
 	dnode_phys_t os_meta_dnode;
 	zil_header_t os_zil_header;
 	uint64_t os_type;
 	uint64_t os_flags;
-	char os_pad[OBJSET_PHYS_SIZE - sizeof (dnode_phys_t)*3 -
-	    sizeof (zil_header_t) - sizeof (uint64_t)*2];
+	uint8_t os_portable_mac[ZIO_OBJSET_MAC_LEN];
+	uint8_t os_local_mac[ZIO_OBJSET_MAC_LEN];
+	char os_pad0[OBJSET_PHYS_SIZE_V2 - sizeof (dnode_phys_t)*3 -
+		sizeof (zil_header_t) - sizeof (uint64_t)*2 -
+		2*ZIO_OBJSET_MAC_LEN];
 	dnode_phys_t os_userused_dnode;
 	dnode_phys_t os_groupused_dnode;
+	dnode_phys_t os_projectused_dnode;
+	char os_pad1[OBJSET_PHYS_SIZE_V3 - OBJSET_PHYS_SIZE_V2 -
+	    sizeof (dnode_phys_t)];
 } objset_phys_t;
 
 typedef struct dsl_dir_phys {
