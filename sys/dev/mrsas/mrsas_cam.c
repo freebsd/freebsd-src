@@ -1577,7 +1577,8 @@ static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *s
 	struct mrsas_softc *sc = cmd->sc;
 	int sge_len, offset, num_prp_in_chain = 0;
 	pMpi25IeeeSgeChain64_t main_chain_element, ptr_first_sgl, sgl_ptr;
-	u_int64_t *ptr_sgl, *ptr_sgl_phys;
+	u_int64_t *ptr_sgl;
+	bus_addr_t ptr_sgl_phys;
 	u_int64_t sge_addr;
 	u_int32_t page_mask, page_mask_result, i = 0;
 	u_int32_t first_prp_len;
@@ -1600,14 +1601,15 @@ static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *s
 	 */
 	page_mask = mr_nvme_pg_size - 1;
 	ptr_sgl = (u_int64_t *) cmd->chain_frame;
-	ptr_sgl_phys = (u_int64_t *) cmd->chain_frame_phys_addr;;
+	ptr_sgl_phys = cmd->chain_frame_phys_addr;
+	memset(ptr_sgl, 0, sc->max_chain_frame_sz);
 
 	/* Build chain frame element which holds all PRPs except first*/
 	main_chain_element = (pMpi25IeeeSgeChain64_t)
 	    ((u_int8_t *)sgl_ptr + sizeof(MPI25_IEEE_SGE_CHAIN64));
 
 
-	main_chain_element->Address = (u_int64_t) ptr_sgl_phys;
+	main_chain_element->Address = cmd->chain_frame_phys_addr;
 	main_chain_element->NextChainOffset = 0;
 	main_chain_element->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 					IEEE_SGE_FLAGS_SYSTEM_ADDR |
