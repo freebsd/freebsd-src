@@ -488,6 +488,7 @@ vendor ASAHIOPTICAL	0x0a17	Asahi Optical
 vendor BOCASYSTEMS	0x0a43	Boca Systems
 vendor SHANTOU		0x0a46	ShanTou
 vendor MEDIAGEAR	0x0a48	MediaGear
+vendor PLOYTEC		0x0a4a	Ploytec GmbH
 vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor MEDELI		0x0a67	Medeli
@@ -3573,6 +3574,9 @@ product PLANEX2 GWUSNANO	0xab28	GW-USNano
 
 /* Plextor Corp. */
 product PLEXTOR 40_12_40U	0x0011	PlexWriter 40/12/40U
+
+/* Ploytec GmbH */
+product PLOYTEC SPL_CRIMSON_1	0xc150	SPL Crimson Revision 1
 
 /* PLX products */
 product PLX TESTBOARD		0x9060	test board
