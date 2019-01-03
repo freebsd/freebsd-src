@@ -257,15 +257,13 @@ static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
 static int pmap_unuse_l3(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 
-/*
- * These load the old table data and store the new value.
- * They need to be atomic as the System MMU may write to the table at
- * the same time as the CPU.
- */
-#define	pmap_load_store(table, entry) atomic_swap_64(table, entry)
-#define	pmap_set(table, mask) atomic_set_64(table, mask)
-#define	pmap_load_clear(table) atomic_swap_64(table, 0)
-#define	pmap_load(table) (*table)
+#define	pmap_clear(pte)			pmap_store(pte, 0)
+#define	pmap_clear_bits(pte, bits)	atomic_clear_64(pte, bits)
+#define	pmap_load_store(pte, entry)	atomic_swap_64(pte, entry)
+#define	pmap_load_clear(pte)		pmap_load_store(pte, 0)
+#define	pmap_load(pte)			atomic_load_64(pte)
+#define	pmap_store(pte, entry)		atomic_store_64(pte, entry)
+#define	pmap_store_bits(pte, bits)	atomic_set_64(pte, bits)
 
 /********************/
 /* Inline functions */
@@ -384,10 +382,7 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
 
 	LIST_FOREACH(user_pmap, &allpmaps, pm_list) {
 		l1 = &user_pmap->pm_l1[l1index];
-		if (entry)
-			pmap_load_store(l1, entry);
-		else
-			pmap_load_clear(l1);
+		pmap_store(l1, entry);
 	}
 }
 
@@ -455,7 +450,7 @@ pmap_bootstrap_dmap(vm_offset_t kern_l1, vm_paddr_t min_pa, vm_paddr_t max_pa)
 		pn = (pa / PAGE_SIZE);
 		entry = PTE_KERN;
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(&l1[l1_slot], entry);
+		pmap_store(&l1[l1_slot], entry);
 	}
 
 	/* Set the upper limit of the DMAP region */
@@ -489,7 +484,7 @@ pmap_bootstrap_l3(vm_offset_t l1pt, vm_offset_t va, vm_offset_t l3_start)
 		pn = (pa / PAGE_SIZE);
 		entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(&l2[l2_slot], entry);
+		pmap_store(&l2[l2_slot], entry);
 		l3pt += PAGE_SIZE;
 	}
 
@@ -875,7 +870,7 @@ pmap_kenter_device(vm_offset_t sva, vm_size_t size, vm_paddr_t pa)
 		pn = (pa / PAGE_SIZE);
 		entry = PTE_KERN;
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(l3, entry);
+		pmap_store(l3, entry);
 
 		va += PAGE_SIZE;
 		pa += PAGE_SIZE;
@@ -896,8 +891,7 @@ pmap_kremove(vm_offset_t va)
 	l3 = pmap_l3(kernel_pmap, va);
 	KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
 
-	pmap_load_clear(l3);
-
+	pmap_clear(l3);
 	sfence_vma();
 }
 
@@ -916,7 +910,7 @@ pmap_kremove_device(vm_offset_t sva, vm_size_t size)
 	while (size != 0) {
 		l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("Invalid page table, va: 0x%lx", va));
-		pmap_load_clear(l3);
+		pmap_clear(l3);
 
 		va += PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -973,7 +967,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 
 		entry = PTE_KERN;
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(l3, entry);
+		pmap_store(l3, entry);
 
 		va += L3_SIZE;
 	}
@@ -993,14 +987,10 @@ pmap_qremove(vm_offset_t sva, int count)
 
 	KASSERT(sva >= VM_MIN_KERNEL_ADDRESS, ("usermode va %lx", sva));
 
-	va = sva;
-	while (count-- > 0) {
+	for (va = sva; count-- > 0; va += PAGE_SIZE) {
 		l3 = pmap_l3(kernel_pmap, va);
 		KASSERT(l3 != NULL, ("pmap_kremove: Invalid address"));
-
-		pmap_load_clear(l3);
-
-		va += PAGE_SIZE;
+		pmap_clear(l3);
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 }
@@ -1057,13 +1047,13 @@ _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m, struct spglist *free)
 		/* PD page */
 		pd_entry_t *l1;
 		l1 = pmap_l1(pmap, va);
-		pmap_load_clear(l1);
+		pmap_clear(l1);
 		pmap_distribute_l1(pmap, pmap_l1_index(va), 0);
 	} else {
 		/* PTE page */
 		pd_entry_t *l2;
 		l2 = pmap_l2(pmap, va);
-		pmap_load_clear(l2);
+		pmap_clear(l2);
 	}
 	pmap_resident_count_dec(pmap, 1);
 	if (m->pindex < NUPDE) {
@@ -1207,7 +1197,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pn = (VM_PAGE_TO_PHYS(m) / PAGE_SIZE);
 		entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(l1, entry);
+		pmap_store(l1, entry);
 		pmap_distribute_l1(pmap, l1index, entry);
 	} else {
 		vm_pindex_t l1index;
@@ -1236,7 +1226,7 @@ _pmap_alloc_l3(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp)
 		pn = (VM_PAGE_TO_PHYS(m) / PAGE_SIZE);
 		entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(l2, entry);
+		pmap_store(l2, entry);
 	}
 
 	pmap_resident_count_inc(pmap, 1);
@@ -1367,7 +1357,7 @@ pmap_growkernel(vm_offset_t addr)
 			pn = (paddr / PAGE_SIZE);
 			entry = (PTE_V);
 			entry |= (pn << PTE_PPN0_S);
-			pmap_load_store(l1, entry);
+			pmap_store(l1, entry);
 			pmap_distribute_l1(kernel_pmap,
 			    pmap_l1_index(kernel_vm_end), entry);
 			continue; /* try again */
@@ -1396,7 +1386,7 @@ pmap_growkernel(vm_offset_t addr)
 		pn = (paddr / PAGE_SIZE);
 		entry = (PTE_V);
 		entry |= (pn << PTE_PPN0_S);
-		pmap_load_store(l2, entry);
+		pmap_store(l2, entry);
 
 		pmap_invalidate_page(kernel_pmap, kernel_vm_end);
 
@@ -1908,7 +1898,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			if ((l3 & PTE_V) != 0) {
 				entry = pmap_load(l3p);
 				entry &= ~PTE_W;
-				pmap_load_store(l3p, entry);
+				pmap_store(l3p, entry);
 				/* XXX: Use pmap_invalidate_range */
 				pmap_invalidate_page(pmap, sva);
 			}
@@ -1945,7 +1935,7 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype)
 		new_l3 |= PTE_D;
 
 	if (orig_l3 != new_l3) {
-		pmap_load_store(l3, new_l3);
+		pmap_store(l3, new_l3);
 		pmap_invalidate_page(pmap, va);
 		rv = 1;
 		goto done;
@@ -2062,7 +2052,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				l1 = pmap_l1(pmap, va);
 				entry = (PTE_V);
 				entry |= (l2_pn << PTE_PPN0_S);
-				pmap_load_store(l1, entry);
+				pmap_store(l1, entry);
 				pmap_distribute_l1(pmap, pmap_l1_index(va), entry);
 				l2 = pmap_l1_to_l2(l1, va);
 			}
@@ -2081,7 +2071,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			l3_pn = (l3_pa / PAGE_SIZE);
 			entry = (PTE_V);
 			entry |= (l3_pn << PTE_PPN0_S);
-			pmap_load_store(l2, entry);
+			pmap_store(l2, entry);
 			l3 = pmap_l2_to_l3(l2, va);
 		}
 		pmap_invalidate_page(pmap, va);
@@ -2209,7 +2199,7 @@ validate:
 		    (PTE_D | PTE_SW_MANAGED))
 			vm_page_dirty(m);
 	} else {
-		pmap_load_store(l3, new_l3);
+		pmap_store(l3, new_l3);
 	}
 
 	if (lock != NULL)
@@ -2290,10 +2280,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	struct spglist free;
 	vm_paddr_t phys;
 	pd_entry_t *l2;
-	pt_entry_t *l3;
-	vm_paddr_t pa;
-	pt_entry_t entry;
-	pn_t pn;
+	pt_entry_t *l3, newl3;
 
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
 	    (m->oflags & VPO_UNMANAGED) != 0,
@@ -2399,7 +2386,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if (prot & VM_PROT_EXECUTE)
 		pmap_sync_icache(pmap, va, PAGE_SIZE);
 
-	pmap_load_store(l3, entry);
+	pmap_store(l3, entry);
 
 	pmap_invalidate_page(pmap, va);
 	return (mpte);
@@ -2742,7 +2729,7 @@ pmap_remove_pages(pmap_t pmap)
 				    ("pmap_remove_pages: bad l3 %#jx",
 				    (uintmax_t)tl3));
 
-				pmap_load_clear(l3);
+				pmap_clear(l3);
 
 				/*
 				 * Update the vm_page_t clean/reference bits.
