@@ -1041,7 +1041,7 @@ command_quit(int argc, char *argv[])
 COMMAND_SET(memmap, "memmap", "print memory map", command_memmap);
 
 static int
-command_memmap(int argc, char *argv[])
+command_memmap(int argc __unused, char *argv[] __unused)
 {
 	UINTN sz;
 	EFI_MEMORY_DESCRIPTOR *map, *p;
@@ -1050,22 +1050,6 @@ command_memmap(int argc, char *argv[])
 	EFI_STATUS status;
 	int i, ndesc;
 	char line[80];
-	static char *types[] = {
-	    "Reserved",
-	    "LoaderCode",
-	    "LoaderData",
-	    "BootServicesCode",
-	    "BootServicesData",
-	    "RuntimeServicesCode",
-	    "RuntimeServicesData",
-	    "ConventionalMemory",
-	    "UnusableMemory",
-	    "ACPIReclaimMemory",
-	    "ACPIMemoryNVS",
-	    "MemoryMappedIO",
-	    "MemoryMappedIOPortSpace",
-	    "PalCode"
-	};
 
 	sz = 0;
 	status = BS->GetMemoryMap(&sz, 0, &key, &dsz, &dver);
@@ -1091,9 +1075,12 @@ command_memmap(int argc, char *argv[])
 
 	for (i = 0, p = map; i < ndesc;
 	     i++, p = NextMemoryDescriptor(p, dsz)) {
-		printf("%23s %012jx %012jx %08jx ", types[p->Type],
-		    (uintmax_t)p->PhysicalStart, (uintmax_t)p->VirtualStart,
-		    (uintmax_t)p->NumberOfPages);
+		snprintf(line, sizeof(line), "%23s %012jx %012jx %08jx ",
+		    efi_memory_type(p->Type), (uintmax_t)p->PhysicalStart,
+		    (uintmax_t)p->VirtualStart, (uintmax_t)p->NumberOfPages);
+		if (pager_output(line))
+			break;
+
 		if (p->Attribute & EFI_MEMORY_UC)
 			printf("UC ");
 		if (p->Attribute & EFI_MEMORY_WC)
@@ -1110,6 +1097,12 @@ command_memmap(int argc, char *argv[])
 			printf("RP ");
 		if (p->Attribute & EFI_MEMORY_XP)
 			printf("XP ");
+		if (p->Attribute & EFI_MEMORY_NV)
+			printf("NV ");
+		if (p->Attribute & EFI_MEMORY_MORE_RELIABLE)
+			printf("MR ");
+		if (p->Attribute & EFI_MEMORY_RO)
+			printf("RO ");
 		if (pager_output("\n"))
 			break;
 	}
