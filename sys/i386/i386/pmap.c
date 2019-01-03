@@ -569,7 +569,7 @@ pmap_cold(void)
 /*
  *	Bootstrap the system enough to run with virtual memory.
  *
- *	On the i386 this is called after pmap_cold() created intial
+ *	On the i386 this is called after pmap_cold() created initial
  *	kernel page table and enabled paging, and just syncs the pmap
  *	module with what has already been done.
  */
