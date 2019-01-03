@@ -569,9 +569,9 @@ pmap_cold(void)
 /*
  *	Bootstrap the system enough to run with virtual memory.
  *
- *	On the i386 this is called after mapping has already been enabled
- *	in locore.s with the page table created in pmap_cold(),
- *	and just syncs the pmap module with what has already been done.
+ *	On the i386 this is called after pmap_cold() created intial
+ *	kernel page table and enabled paging, and just syncs the pmap
+ *	module with what has already been done.
  */
 void
 pmap_bootstrap(vm_paddr_t firstaddr)
@@ -594,11 +594,12 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	vm_phys_add_seg(KPTphys, KPTphys + ptoa(nkpt));
 
 	/*
-	 * Initialize the first available kernel virtual address.  However,
-	 * using "firstaddr" may waste a few pages of the kernel virtual
-	 * address space, because locore may not have mapped every physical
-	 * page that it allocated.  Preferably, locore would provide a first
-	 * unused virtual address in addition to "firstaddr".
+	 * Initialize the first available kernel virtual address.
+	 * However, using "firstaddr" may waste a few pages of the
+	 * kernel virtual address space, because pmap_cold() may not
+	 * have mapped every physical page that it allocated.
+	 * Preferably, pmap_cold() would provide a first unused
+	 * virtual address in addition to "firstaddr".
 	 */
 	virtual_avail = (vm_offset_t)firstaddr;
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
@@ -665,7 +666,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	/*
 	 * KPTmap is used by pmap_kextract().
 	 *
-	 * KPTmap is first initialized by locore.  However, that initial
+	 * KPTmap is first initialized by pmap_cold().  However, that initial
 	 * KPTmap can only support NKPT page table pages.  Here, a larger
 	 * KPTmap is created that can support KVA_PAGES page table pages.
 	 */
