@@ -32,13 +32,14 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2017
+.Dd January 2, 2019
 .Dt DLOPEN 3
 .Os
 .Sh NAME
 .Nm dlopen ,
 .Nm fdlopen ,
 .Nm dlsym ,
+.Nm dlvsym ,
 .Nm dlfunc ,
 .Nm dlerror ,
 .Nm dlclose
@@ -53,6 +54,8 @@
 .Fn fdlopen "int fd" "int mode"
 .Ft void *
 .Fn dlsym "void * restrict handle" "const char * restrict symbol"
+.Ft void *
+.Fn dlvsym "void * restrict handle" "const char * restrict symbol" "const char * restrict version"
 .Ft dlfunc_t
 .Fn dlfunc "void * restrict handle" "const char * restrict symbol"
 .Ft char *
@@ -74,7 +77,8 @@ provides access to the shared object in
 .Fa path ,
 returning a descriptor that can be used for later
 references to the object in calls to
-.Fn dlsym
+.Fn dlsym ,
+.Fn dlvsym
 and
 .Fn dlclose .
 If
@@ -300,6 +304,16 @@ condition which may be queried with
 .Fn dlerror .
 .Pp
 The
+.Fn dlvsym
+function behaves like
+.Fn dlsym ,
+but takes an extra argument
+.Fa version :
+a null-terminated character string which is used to request a specific version
+of
+.Fa symbol .
+.Pp
+The
 .Fn dlfunc
 function
 implements all of the behavior of
@@ -328,6 +342,7 @@ occurred during a call to
 .Fn dladdr ,
 .Fn dlinfo ,
 .Fn dlsym ,
+.Fn dlvsym ,
 .Fn dlfunc ,
 or
 .Fn dlclose .
@@ -375,7 +390,10 @@ using the
 option to
 .Xr ld 1
 for symbols defined in the executable to become visible to
-.Fn dlsym .
+.Fn dlsym ,
+.Fn dlvsym
+or
+.Fn dlfunc
 .Pp
 Other ELF platforms require linking with
 .Lb libdl
@@ -397,6 +415,7 @@ The
 .Fn dlopen ,
 .Fn fdlopen ,
 .Fn dlsym ,
+.Fn dlvsym ,
 and
 .Fn dlfunc
 functions
