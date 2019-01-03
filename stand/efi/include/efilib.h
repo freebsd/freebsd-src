@@ -108,6 +108,9 @@ void delay(int usecs);
 /* EFI environment initialization. */
 void efi_init_environment(void);
 
+/* EFI Memory type strings. */
+const char *efi_memory_type(EFI_MEMORY_TYPE);
+
 /* CHAR16 utility functions. */
 int wcscmp(CHAR16 *, CHAR16 *);
 void cpy8to16(const char *, CHAR16 *, size_t);
