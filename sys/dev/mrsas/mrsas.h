@@ -91,6 +91,15 @@ __FBSDID("$FreeBSD$");
 #define	MRSAS_TOMCAT                0x0017
 #define	MRSAS_VENTURA_4PORT         0x001B
 #define	MRSAS_CRUSADER_4PORT        0x001C
+#define	MRSAS_AERO_10E0             0x10E0
+#define	MRSAS_AERO_10E1             0x10E1
+#define	MRSAS_AERO_10E2             0x10E2
+#define	MRSAS_AERO_10E3             0x10E3
+#define	MRSAS_AERO_10E4             0x10E4
+#define	MRSAS_AERO_10E5             0x10E5
+#define	MRSAS_AERO_10E6             0x10E6
+#define	MRSAS_AERO_10E7             0x10E7
+
 
 /*
  * Firmware State Defines
@@ -110,7 +119,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	BYTE_ALIGNMENT					1
 #define	MRSAS_MAX_NAME_LENGTH			32
-#define	MRSAS_VERSION					"07.708.02.00-fbsd"
+#define	MRSAS_VERSION					"07.709.01.00-fbsd"
 #define	MRSAS_ULONG_MAX					0xFFFFFFFFFFFFFFFF
 #define	MRSAS_DEFAULT_TIMEOUT			0x14	/* Temporarily set */
 #define	DONE							0
@@ -1250,7 +1259,7 @@ typedef struct _mrsas_register_set {
 
 	u_int32_t inbound_high_queue_port;	/* 00C4h */
 
-	u_int32_t reserved_5;		/* 00C8h */
+	u_int32_t inbound_single_queue_port;	/* 00C8h */
 	u_int32_t res_6[11];		/* CCh */
 	u_int32_t host_diag;
 	u_int32_t seq_offset;
@@ -2307,6 +2316,8 @@ struct mrsas_ctrl_info {
  */
 #define MR_CAN_HANDLE_SYNC_CACHE_OFFSET     0X01000000
 
+#define MR_ATOMIC_DESCRIPTOR_SUPPORT_OFFSET (1 << 24)
+
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
  * commands that can be outstanding) at any time. The driver must report a
@@ -3355,7 +3366,9 @@ struct mrsas_softc {
 
 	u_int32_t nvme_page_size;
 	boolean_t is_ventura;
+	boolean_t is_aero;
 	boolean_t msix_combined;
+	boolean_t atomic_desc_support;
 	u_int16_t maxRaidMapSize;
 
 	/* Non dma-able memory. Driver local copy. */

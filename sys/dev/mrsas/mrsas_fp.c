@@ -983,7 +983,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
-	if (sc->is_ventura) {
+	if (sc->is_ventura || sc->is_aero) {
 		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
 		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
 		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
@@ -1190,7 +1190,7 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		 * if FP possible, set the SLUD bit in regLockFlags for
 		 * ventura
 		 */
-		else if ((sc->is_ventura) && !isRead &&
+		else if ((sc->is_ventura || sc->is_aero) && !isRead &&
 			    (raid->writeMode == MR_RL_WRITE_BACK_MODE) && (raid->level <= 1) &&
 		    raid->capability.fpCacheBypassCapable) {
 			((RAID_CONTEXT_G35 *) pRAID_Context)->routingFlags.bits.sld = 1;
@@ -1729,7 +1729,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 	}
 
 	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
-	if (sc->is_ventura) {
+	if (sc->is_ventura || sc->is_aero) {
 		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
 		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
 		io_info->span_arm = (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
