@@ -2365,19 +2365,14 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	 */
 	pmap_resident_count_inc(pmap, 1);
 
-	pa = VM_PAGE_TO_PHYS(m);
-	pn = (pa / PAGE_SIZE);
-
-	entry = PTE_V | PTE_R;
-	if (prot & VM_PROT_EXECUTE)
-		entry |= PTE_X;
-	entry |= (pn << PTE_PPN0_S);
-
-	/*
-	 * Now validate mapping with RO protection
-	 */
+	newl3 = ((VM_PAGE_TO_PHYS(m) / PAGE_SIZE) << PTE_PPN0_S) |
+	    PTE_V | PTE_R;
+	if ((prot & VM_PROT_EXECUTE) != 0)
+		newl3 |= PTE_X;
 	if ((m->oflags & VPO_UNMANAGED) == 0)
-		entry |= PTE_SW_MANAGED;
+		newl3 |= PTE_SW_MANAGED;
+	if (va < VM_MAX_USER_ADDRESS)
+		newl3 |= PTE_U;
 
 	/*
 	 * Sync the i-cache on all harts before updating the PTE
@@ -2386,7 +2381,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if (prot & VM_PROT_EXECUTE)
 		pmap_sync_icache(pmap, va, PAGE_SIZE);
 
-	pmap_store(l3, entry);
+	pmap_store(l3, newl3);
 
 	pmap_invalidate_page(pmap, va);
 	return (mpte);
