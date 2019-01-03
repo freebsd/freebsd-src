@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 24, 2017
+.Dd January 3, 2019
 .Dt RTWNFW 4
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@ This will include all firmware images inside the kernel.
 If you want to pick only the firmware image for your network adapter choose one
 of the following:
 .Bd -ragged -offset indent
+.Cd "device rtwn-rtl8188eefw"
 .Cd "device rtwn-rtl8188eufw"
 .Cd "device rtwn-rtl8192cfwE_B"
 .Cd "device rtwn-rtl8192cfwE"
@@ -55,6 +56,7 @@ Alternatively, to load all firmware images as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
+rtwn-rtl8188eefw_load="YES"
 rtwn-rtl8188eufw_load="YES"
 rtwn-rtl8192cfwE_B_load="YES"
 rtwn-rtl8192cfwE_load="YES"
@@ -67,6 +69,8 @@ rtwn-rtl8821aufw_load="YES"
 .Sh DESCRIPTION
 rtwn-rtl8192cfwE and rtl8192cfwE_B modules provide access
 to firmware sets for the Realtek RTL8188CE chip based PCIe adapters.
+rtwn-rtl8188ee module provides access to firmware sets for the
+Realtek RTL8188EE chip based PCIe adapters.
 Other modules provide access to firmware sets for the Realtek RTL8188CUS,
 RTL8188CE-VAU, RTL8188EUS, RTL8188RU, RTL8192CU, RTL8192EU, RTL8812AU and
 RTL8821AU chip based USB WiFi adapters.
