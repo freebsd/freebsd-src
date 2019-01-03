@@ -228,6 +228,7 @@ CTASSERT((DMAP_MIN_ADDRESS  & ~L1_OFFSET) == DMAP_MIN_ADDRESS);
 CTASSERT((DMAP_MAX_ADDRESS  & ~L1_OFFSET) == DMAP_MAX_ADDRESS);
 
 static struct rwlock_padalign pvh_global_lock;
+static struct mtx_padalign allpmaps_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -380,10 +381,12 @@ pmap_distribute_l1(struct pmap *pmap, vm_pindex_t l1index,
 	if (pmap != kernel_pmap)
 		return;
 
+	mtx_lock(&allpmaps_lock);
 	LIST_FOREACH(user_pmap, &allpmaps, pm_list) {
 		l1 = &user_pmap->pm_l1[l1index];
 		pmap_store(l1, entry);
 	}
+	mtx_unlock(&allpmaps_lock);
 }
 
 static pt_entry_t *
@@ -636,9 +639,10 @@ pmap_init(void)
 	int i;
 
 	/*
-	 * Initialize the pv chunk list mutex.
+	 * Initialize the pv chunk and pmap list mutexes.
 	 */
 	mtx_init(&pv_chunks_mutex, "pmap pv chunk list", NULL, MTX_DEF);
+	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_DEF);
 
 	/*
 	 * Initialize the pool of pv list locks.
@@ -1132,7 +1136,9 @@ pmap_pinit(pmap_t pmap)
 	memcpy(pmap->pm_l1, kernel_pmap->pm_l1, PAGE_SIZE);
 
 	/* Add to the list of all user pmaps */
+	mtx_lock(&allpmaps_lock);
 	LIST_INSERT_HEAD(&allpmaps, pmap, pm_list);
+	mtx_unlock(&allpmaps_lock);
 
 	return (1);
 }
@@ -1296,7 +1302,9 @@ pmap_release(pmap_t pmap)
 	vm_page_free_zero(m);
 
 	/* Remove pmap from the allpmaps list */
+	mtx_lock(&allpmaps_lock);
 	LIST_REMOVE(pmap, pm_list);
+	mtx_unlock(&allpmaps_lock);
 
 	/* Remove kernel pagetables */
 	bzero(pmap->pm_l1, PAGE_SIZE);
