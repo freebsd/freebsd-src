@@ -1114,73 +1114,30 @@ command_memmap(int argc __unused, char *argv[] __unused)
 COMMAND_SET(configuration, "configuration", "print configuration tables",
     command_configuration);
 
-static const char *
-guid_to_string(EFI_GUID *guid)
-{
-	static char buf[40];
-
-	sprintf(buf, "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-	    guid->Data1, guid->Data2, guid->Data3, guid->Data4[0],
-	    guid->Data4[1], guid->Data4[2], guid->Data4[3], guid->Data4[4],
-	    guid->Data4[5], guid->Data4[6], guid->Data4[7]);
-	return (buf);
-}
-
 static int
 command_configuration(int argc, char *argv[])
 {
-	char line[80];
 	UINTN i;
+	char *name;
 
-	snprintf(line, sizeof(line), "NumberOfTableEntries=%lu\n",
+	printf("NumberOfTableEntries=%lu\n",
 		(unsigned long)ST->NumberOfTableEntries);
-	pager_open();
-	if (pager_output(line)) {
-		pager_close();
-		return (CMD_OK);
-	}
 
 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
 		EFI_GUID *guid;
 
 		printf("  ");
 		guid = &ST->ConfigurationTable[i].VendorGuid;
-		if (!memcmp(guid, &mps, sizeof(EFI_GUID)))
-			printf("MPS Table");
-		else if (!memcmp(guid, &acpi, sizeof(EFI_GUID)))
-			printf("ACPI Table");
-		else if (!memcmp(guid, &acpi20, sizeof(EFI_GUID)))
-			printf("ACPI 2.0 Table");
-		else if (!memcmp(guid, &smbios, sizeof(EFI_GUID)))
-			printf("SMBIOS Table %p",
-			    ST->ConfigurationTable[i].VendorTable);
-		else if (!memcmp(guid, &smbios3, sizeof(EFI_GUID)))
-			printf("SMBIOS3 Table");
-		else if (!memcmp(guid, &dxe, sizeof(EFI_GUID)))
-			printf("DXE Table");
-		else if (!memcmp(guid, &hoblist, sizeof(EFI_GUID)))
-			printf("HOB List Table");
-		else if (!memcmp(guid, &lzmadecomp, sizeof(EFI_GUID)))
-			printf("LZMA Compression");
-		else if (!memcmp(guid, &mpcore, sizeof(EFI_GUID)))
-			printf("ARM MpCore Information Table");
-		else if (!memcmp(guid, &esrt, sizeof(EFI_GUID)))
-			printf("ESRT Table");
-		else if (!memcmp(guid, &memtype, sizeof(EFI_GUID)))
-			printf("Memory Type Information Table");
-		else if (!memcmp(guid, &debugimg, sizeof(EFI_GUID)))
-			printf("Debug Image Info Table");
-		else if (!memcmp(guid, &fdtdtb, sizeof(EFI_GUID)))
-			printf("FDT Table");
-		else
-			printf("Unknown Table (%s)", guid_to_string(guid));
-		snprintf(line, sizeof(line), " at %p\n",
-		    ST->ConfigurationTable[i].VendorTable);
-		if (pager_output(line))
-			break;
+
+		if (efi_guid_to_name(guid, &name) == true) {
+			printf(name);
+			free(name);
+		} else {
+			printf("Error while translating UUID to name");
+		}
+		printf(" at %p\n", ST->ConfigurationTable[i].VendorTable);
 	}
 
-	pager_close();
 	return (CMD_OK);
 }
 
@@ -1235,6 +1192,75 @@ command_mode(int argc, char *argv[])
 	if (i != 0)
 		printf("Select a mode with the command \"mode <number>\"\n");
 
+	return (CMD_OK);
+}
+
+COMMAND_SET(lsefi, "lsefi", "list EFI handles", command_lsefi);
+
+static int
+command_lsefi(int argc __unused, char *argv[] __unused)
+{
+	char *name;
+	EFI_HANDLE *buffer = NULL;
+	EFI_HANDLE handle;
+	UINTN bufsz = 0, i, j;
+	EFI_STATUS status;
+	int ret;
+
+	status = BS->LocateHandle(AllHandles, NULL, NULL, &bufsz, buffer);
+	if (status != EFI_BUFFER_TOO_SMALL) {
+		snprintf(command_errbuf, sizeof (command_errbuf),
+		    "unexpected error: %lld", (long long)status);
+		return (CMD_ERROR);
+	}
+	if ((buffer = malloc(bufsz)) == NULL) {
+		sprintf(command_errbuf, "out of memory");
+		return (CMD_ERROR);
+	}
+
+	status = BS->LocateHandle(AllHandles, NULL, NULL, &bufsz, buffer);
+	if (EFI_ERROR(status)) {
+		free(buffer);
+		snprintf(command_errbuf, sizeof (command_errbuf),
+		    "LocateHandle() error: %lld", (long long)status);
+		return (CMD_ERROR);
+	}
+
+	pager_open();
+	for (i = 0; i < (bufsz / sizeof (EFI_HANDLE)); i++) {
+		UINTN nproto = 0;
+		EFI_GUID **protocols = NULL;
+
+		handle = buffer[i];
+		printf("Handle %p", handle);
+		if (pager_output("\n"))
+			break;
+		/* device path */
+
+		status = BS->ProtocolsPerHandle(handle, &protocols, &nproto);
+		if (EFI_ERROR(status)) {
+			snprintf(command_errbuf, sizeof (command_errbuf),
+			    "ProtocolsPerHandle() error: %lld",
+			    (long long)status);
+			continue;
+		}
+
+		for (j = 0; j < nproto; j++) {
+			if (efi_guid_to_name(protocols[j], &name) == true) {
+				printf("  %s", name);
+				free(name);
+			} else {
+				printf("Error while translating UUID to name");
+			}
+			if ((ret = pager_output("\n")) != 0)
+				break;
+		}
+		BS->FreePool(protocols);
+		if (ret != 0)
+			break;
+	}
+	pager_close();
+	free(buffer);
 	return (CMD_OK);
 }
 
