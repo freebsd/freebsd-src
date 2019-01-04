@@ -983,6 +983,7 @@ pci_nvme_handle_admin_cmd(struct pci_nvme_softc* sc, uint64_t value)
 			cq = &sc->compl_queues[0];
 
 			cp = &(cq->qbase)[cq->tail];
+			cp->cdw0 = compl.cdw0;
 			cp->sqid = 0;
 			cp->sqhd = sqhead;
 			cp->cid = cmd->cid;
