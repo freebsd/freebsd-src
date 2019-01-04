@@ -272,13 +272,22 @@ struct asmc_model asmc_models[] = {
 	  ASMC_MM52_TEMPS, ASMC_MM52_TEMPNAMES, ASMC_MM52_TEMPDESCS
 	},
 
-	/* Idem for the MacPro */
+	/* Idem for the Mac Pro "Quad Core" (original) */
+	{
+	  "MacPro1,1", "Apple SMC Mac Pro (Quad Core)",
+	  NULL, NULL, NULL,
+	  ASMC_FAN_FUNCS,
+	  NULL, NULL, NULL,
+	  ASMC_MP1_TEMPS, ASMC_MP1_TEMPNAMES, ASMC_MP1_TEMPDESCS
+	},
+
+	/* Idem for the Mac Pro (8-core) */
 	{
 	  "MacPro2", "Apple SMC Mac Pro (8-core)",
 	  NULL, NULL, NULL,
 	  ASMC_FAN_FUNCS,
 	  NULL, NULL, NULL,
-	  ASMC_MP_TEMPS, ASMC_MP_TEMPNAMES, ASMC_MP_TEMPDESCS
+	  ASMC_MP2_TEMPS, ASMC_MP2_TEMPNAMES, ASMC_MP2_TEMPDESCS
 	},
 
 	/* Idem for the MacPro  2010*/
