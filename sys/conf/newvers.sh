@@ -202,12 +202,6 @@ if [ -z "${svnversion}" ] && [ -x /usr/bin/svnliteversion ] ; then
 	fi
 fi
 
-for dir in /usr/bin /usr/local/bin; do
-	if [ -x "${dir}/p4" ] && [ -z ${p4_cmd} ] ; then
-		p4_cmd=${dir}/p4
-	fi
-done
-
 if findvcs .git; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/git" ] ; then
@@ -274,25 +268,6 @@ if [ -n "$git_cmd" ] ; then
 	fi
 fi
 
-if [ -n "$p4_cmd" ] ; then
-	p4version=`cd ${SYSDIR} && $p4_cmd changes -m1 "./...#have" 2>&1 | \
-		awk '{ print $2 }'`
-	case "$p4version" in
-	[0-9]*)
-		p4version=" ${p4version}"
-		p4opened=`cd ${SYSDIR} && $p4_cmd opened ./... 2>&1`
-		case "$p4opened" in
-		File*) ;;
-		//*)
-			p4version="${p4version}+edit"
-			modified=true
-			;;
-		esac
-		;;
-	*)	unset p4version ;;
-	esac
-fi
-
 if [ -n "$hg_cmd" ] ; then
 	hg=`$hg_cmd id 2>/dev/null`
 	hgsvn=`$hg_cmd svn info 2>/dev/null | \
@@ -320,10 +295,10 @@ done
 shift $((OPTIND - 1))
 
 if [ -z "${include_metadata}" ]; then
-	VERINFO="${VERSION}${svn}${git}${hg}${p4version} ${i}"
+	VERINFO="${VERSION}${svn}${git}${hg} ${i}"
 	VERSTR="${VERINFO}\\n"
 else
-	VERINFO="${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
+	VERINFO="${VERSION} #${v}${svn}${git}${hg}: ${t}"
 	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
 
