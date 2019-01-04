@@ -517,6 +517,8 @@ chrp_smp_topo(platform_t plat)
 		ncpus++;
 	}
 
+	mp_ncores = ncores;
+
 	if (ncpus % ncores != 0) {
 		printf("WARNING: Irregular SMP topology. Performance may be "
 		     "suboptimal (%d CPUS, %d cores)\n", ncpus, ncores);
@@ -527,6 +529,7 @@ chrp_smp_topo(platform_t plat)
 	if (ncpus == ncores)
 		return (smp_topo_none());
 
+	smp_threads_per_core = ncpus / ncores;
 	return (smp_topo_1level(CG_SHARE_L1, ncpus / ncores, CG_FLAG_SMT));
 }
 #endif

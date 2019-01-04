@@ -186,6 +186,11 @@ cpu_mp_start(void)
 next:
 		error = platform_smp_next_cpu(&cpu);
 	}
+
+#ifdef SMP
+	/* Probe mp_ncores and smp_threads_per_core as a side effect. */
+	(void)cpu_topo();
+#endif
 }
 
 void
