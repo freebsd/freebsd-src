@@ -58,14 +58,8 @@ are considered fragments of the single long
 output line into which they are assembled.
 The name `\fB\-\fP' means the standard input, and may be repeated.
 .Pp
-Normally, each option affects only the
-.Ar file
-after it.
-If the option letter is capitalized it affects all subsequent files
-until it appears again uncapitalized.
-The options are described below:
 .Bl -tag -width indent
-.It Fl f Ar min . Ns Ar max
+.It Fl f Ar min . Ns Ar max , Fl F Ar min . Ns Ar max
 Print line fragments according to the format string
 .Ar min . Ns Ar max ,
 where
@@ -78,21 +72,41 @@ If
 begins with a zero, zeros will be added to make up the field width,
 and if it begins with a `\-', the fragment will be left-adjusted
 within the field.
-.It Fl p Ar min . Ns Ar max
+Using
+.Fl f
+applies only to the next file while
+.Fl F
+applies to all subsequent files until it appears again uncapitalized.
+.It Fl p Ar min . Ns Ar max , Fl P Ar min . Ns Ar max
 Like
 .Fl f ,
 but pad this file's field when end-of-file is reached
 and other files are still active.
-.It Fl s Ar sepstring
+Using
+.Fl p
+applies only to the next file while
+.Fl P
+applies to all subsequent files until it appears again uncapitalized.
+.It Fl s Ar sepstring , Fl S Ar sepstring
 Print
 .Ar sepstring
 before printing line fragments from the next file.
 This option may appear after the last file.
-.It Fl t Ar c
+Using
+.Fl s
+applies only to the next file while
+.Fl S
+applies to all subsequent files until it appears again uncapitalized.
+.It Fl t Ar c , Fl T Ar c
 The input line terminator is
 .Ar c
 instead of a newline.
 The newline normally appended to each output line is omitted.
+Using
+.Fl t
+applies only to the next file while
+.Fl T
+applies to all subsequent files until it appears again uncapitalized.
 .El
 .Pp
 To print files simultaneously for easy viewing use
