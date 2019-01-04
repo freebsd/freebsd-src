@@ -243,11 +243,15 @@ if [ -n "$git_cmd" ] ; then
 		svn=" r${gitsvn}"
 		git="=${git}"
 	else
-		gitsvn=`$git_cmd log --grep '^git-svn-id:' | \
+#		Log searches are limited to 10k commits to speed up failures.
+#		We assume that if a tree is more than 10k commits out-of-sync
+#		with FreeBSD, it has forked the the OS and the SVN rev no
+#		longer matters.
+		gitsvn=`$git_cmd log -n 10000 |
 		    grep '^    git-svn-id:' | head -1 | \
 		    sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
 		if [ -z "$gitsvn" ] ; then
-			gitsvn=`$git_cmd log --format='format:%N' | \
+			gitsvn=`$git_cmd log -n 10000 --format='format:%N' | \
 			     grep '^svn ' | head -1 | \
 			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p'`
 		fi
