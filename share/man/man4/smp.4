@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2018
+.Dd January 4, 2019
 .Dt SMP 4
 .Os
 .Sh NAME
@@ -35,27 +35,6 @@
 The
 .Nm
 kernel implements symmetric multi-processor support.
-.Sh COMPATIBILITY
-Support for multi-processor systems is present for all Tier-1
-architectures on
-.Fx .
-Currently, this includes amd64, i386 and sparc64.
-Support is enabled using
-.Cd options SMP .
-It is permissible to use the SMP kernel configuration on non-SMP equipped
-motherboards.
-.Sh I386 NOTES
-For i386 systems, the
-.Nm
-kernel supports motherboards that follow the Intel MP specification,
-version 1.4.
-In addition to
-.Cd options SMP ,
-i386 also requires
-.Cd device apic .
-The
-.Xr mptable 1
-command may be used to view the status of multi-processor support.
 .Pp
 .Nm
 support can be disabled by setting the loader tunable
@@ -66,6 +45,13 @@ The number of CPUs detected by the system is available in
 the read-only sysctl variable
 .Va hw.ncpu .
 .Pp
+The number of online threads per CPU core is available in the read-only sysctl
+variable
+.Va kern.smp.threads_per_core .
+The number of physical CPU cores detected by the system is available in the
+read-only sysctl variable
+.Va kern.smp.cores .
+.Pp
 .Fx
 allows specific CPUs on a multi-processor system to be disabled.
 This can be done using the
@@ -73,6 +59,12 @@ This can be done using the
 tunable, where X is the APIC ID of a CPU.
 Setting this tunable to 1 will result in the corresponding CPU being
 disabled.
+.Pp
+.Fx
+supports simultaneous multithreading on x86 and powerpc platforms.
+On x86, the logical CPUs can be disabled by setting the
+.Va machdep.hyperthreading_allowed
+tunable to zero.
 .Pp
 The
 .Xr sched_ule 4
@@ -122,13 +114,26 @@ two quad-core processors is:
 .Pp
 This information is used internally by the kernel to schedule related
 tasks on CPUs that are closely grouped together.
-.Pp
-.Fx
-supports hyperthreading on Intel CPU's on the i386 and AMD64 platforms.
-Because using logical CPUs can cause performance penalties under certain loads,
-the logical CPUs can be disabled by setting the
-.Va machdep.hyperthreading_allowed
-tunable to zero.
+.Sh COMPATIBILITY
+Support for multi-processor systems is present for all Tier-1 and Tier-2
+architectures on
+.Fx .
+Currently, this includes x86, powerpc, arm, and sparc64.
+Support is enabled using
+.Cd options SMP .
+It is permissible to use the SMP kernel configuration on non-SMP hardware.
+.Sh I386 NOTES
+For i386 systems, the
+.Nm
+kernel supports motherboards that follow the Intel MP specification,
+version 1.4.
+In addition to
+.Cd options SMP ,
+i386 also requires
+.Cd device apic .
+The
+.Xr mptable 1
+command may be used to view the status of multi-processor support.
 .Sh SEE ALSO
 .Xr cpuset 1 ,
 .Xr mptable 1 ,
@@ -166,3 +171,20 @@ in
 also introduced support for SMP on the sparc64 architecture.
 .Sh AUTHORS
 .An Steve Passe Aq Mt fsmp@FreeBSD.org
+.Sh CAVEATS
+The
+.Va kern.smp.threads_per_core
+and
+.Va kern.smp.cores
+sysctl variables are provided as a best-effort guess.
+If an architecture or platform adds SMT and
+.Fx
+has not yet implemented detection, the reported values may be inaccurate.
+In this case,
+.Va kern.smp.threads_per_core
+will report
+.Dv 1
+and
+.Va kern.smp.cores
+will report the same value as
+.Va hw.ncpu .

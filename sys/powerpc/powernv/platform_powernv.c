@@ -435,12 +435,16 @@ powernv_smp_topo(platform_t plat)
 		break;
 	}
 
+	smp_threads_per_core = nthreads;
+
 	if (mp_ncpus % nthreads != 0) {
 		printf("WARNING: Irregular SMP topology. Performance may be "
 		     "suboptimal (%d threads, %d on first core)\n",
 		     mp_ncpus, nthreads);
 		return (smp_topo_none());
 	}
+
+	mp_ncores = mp_ncpus / nthreads;
 
 	/* Don't do anything fancier for non-threaded SMP */
 	if (nthreads == 1)
