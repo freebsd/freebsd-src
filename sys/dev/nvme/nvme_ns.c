@@ -498,8 +498,6 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 	struct nvme_completion_poll_status	status;
 	int                                     res;
 	int					unit;
-	uint16_t				oncs;
-	uint8_t					dsm;
 	uint8_t					flbas_fmt;
 	uint8_t					vwc_present;
 
@@ -569,9 +567,7 @@ nvme_ns_construct(struct nvme_namespace *ns, uint32_t id,
 		return (ENXIO);
 	}
 
-	oncs = ctrlr->cdata.oncs;
-	dsm = (oncs >> NVME_CTRLR_DATA_ONCS_DSM_SHIFT) & NVME_CTRLR_DATA_ONCS_DSM_MASK;
-	if (dsm)
+	if (nvme_ctrlr_has_dataset_mgmt(&ctrlr->cdata))
 		ns->flags |= NVME_NS_DEALLOCATE_SUPPORTED;
 
 	vwc_present = (ctrlr->cdata.vwc >> NVME_CTRLR_DATA_VWC_PRESENT_SHIFT) &
