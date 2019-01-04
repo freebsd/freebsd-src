@@ -244,21 +244,21 @@ fi
 
 if [ -n "$git_cmd" ] ; then
 	git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
-	svn=`$git_cmd svn find-rev $git 2>/dev/null`
-	if [ -n "$svn" ] ; then
-		svn=" r${svn}"
+	gitsvn=`$git_cmd svn find-rev $git 2>/dev/null`
+	if [ -n "$gitsvn" ] ; then
+		svn=" r${gitsvn}"
 		git="=${git}"
 	else
-		svn=`$git_cmd log --grep '^git-svn-id:' | \
+		gitsvn=`$git_cmd log --grep '^git-svn-id:' | \
 		    grep '^    git-svn-id:' | head -1 | \
 		    sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
-		if [ -z "$svn" ] ; then
-			svn=`$git_cmd log --format='format:%N' | \
+		if [ -z "$gitsvn" ] ; then
+			gitsvn=`$git_cmd log --format='format:%N' | \
 			     grep '^svn ' | head -1 | \
 			     sed -n 's/^.*revision=\([0-9][0-9]*\).*$/\1/p'`
 		fi
-		if [ -n "$svn" ] ; then
-			svn=" r${svn}"
+		if [ -n "$gitsvn" ] ; then
+			svn=" r${gitsvn}"
 			git="+${git}"
 		else
 			git=" ${git}"
@@ -295,10 +295,10 @@ fi
 
 if [ -n "$hg_cmd" ] ; then
 	hg=`$hg_cmd id 2>/dev/null`
-	svn=`$hg_cmd svn info 2>/dev/null | \
+	hgsvn=`$hg_cmd svn info 2>/dev/null | \
 		awk -F': ' '/Revision/ { print $2 }'`
-	if [ -n "$svn" ] ; then
-		svn=" r${svn}"
+	if [ -n "$hgsvn" ] ; then
+		svn=" r${hgsvn}"
 	fi
 	if [ -n "$hg" ] ; then
 		hg=" ${hg}"
