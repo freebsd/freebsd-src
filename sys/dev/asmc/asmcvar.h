@@ -337,6 +337,41 @@ struct asmc_softc {
 				  "Northbridge Proximity Temperature", \
 				  "Wireless Module Proximity Temperature", }
 
+#define ASMC_MM52_TEMPS		{ "TA0P", "TA1P", \
+				  "TC0D", "TC0P", \
+				  "TG0D", "TG1D", \
+				  "TG0P", "TG0M", \
+				  "TI0P", \
+				  "TM0S", "TMBS", \
+				  "TM0P", "TP0P", \
+				  "TPCD", "Tp0C", \
+				  "TW0P", NULL }
+
+#define ASMC_MM52_TEMPNAMES	{ "ambient_air_proximity", "ambient_cpu_pch_wireless_dimm", \
+				  "cpu_die", "cpu_proximity", \
+				  "gpu_diode1", "gpu_diode2", \
+				  "gpu_proximity", "gpu_integrated_switcher", \
+				  "thunderbolt_proximity", \
+				  "memory_slot1", "memory_slot2", \
+				  "memory_proximity", "pch_controller_proximity", \
+				  "pch_controller_die", "pwr_supply", \
+				  "wireless_proximity", }
+ 
+#define ASMC_MM52_TEMPDESCS	{ "Ambient Air Proximity Temperature", \
+				  "Combo Ambient CPU PCH Wireless DIMM Temperature", \
+				  "CPU Die Temperature", "CPU Proximity Temperature", \
+				  "GPU Diode 1 Temperature" , "GPU Diode 2 Temperature", \
+				  "GPU Proximity Temperature", \
+				  "Integrated Graphics/GPU Switcher Temperature", \
+				  "Thunderbolt Proximity Temperature", \
+				  "Memory Slot 1 Temperature", \
+				  "Memory Slot 2 Temperature", \
+				  "Memory Slots Proximity Temperature", \
+				  "Platform Controller Hub Proximity Temperature", \
+				  "Platform Controller Hub Die Temperature", \
+				  "Power Supply Temperature", \
+				  "Wireless Module Proximity Temperature", }
+
 #define ASMC_MP_TEMPS		{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
 				  "TC2C", "TC2D", "TC3C", "TC3D", "THTG", \
