@@ -167,8 +167,10 @@ extern cpuset_t logical_cpus_mask;
 
 extern u_int mp_maxid;
 extern int mp_maxcpus;
+extern int mp_ncores;
 extern int mp_ncpus;
 extern volatile int smp_started;
+extern int smp_threads_per_core;
 
 extern cpuset_t all_cpus;
 extern cpuset_t cpuset_domain[MAXMEMDOM]; 	/* CPUs in each NUMA domain. */

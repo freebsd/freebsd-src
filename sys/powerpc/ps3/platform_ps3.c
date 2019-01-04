@@ -246,6 +246,8 @@ ps3_smp_start_cpu(platform_t plat, struct pcpu *pc)
 static struct cpu_group *
 ps3_smp_topo(platform_t plat)
 {
+	mp_ncores = 1;
+	smp_threads_per_core = 2;
 	return (smp_topo_1level(CG_SHARE_L1, 2, CG_FLAG_SMT));
 }
 #endif
