@@ -93,6 +93,16 @@ static int nvme_debug = 0;
 
 /* helpers */
 
+/* Convert a zero-based value into a one-based value */
+#define ONE_BASED(zero)		((zero) + 1)
+/* Convert a one-based value into a zero-based value */
+#define ZERO_BASED(one)		((one)  - 1)
+
+/* Encode number of SQ's and CQ's for Set/Get Features */
+#define NVME_FEATURE_NUM_QUEUES(sc) \
+	(ZERO_BASED((sc)->num_squeues) & 0xffff) | \
+	(ZERO_BASED((sc)->num_cqueues) & 0xffff) << 16;
+
 #define	NVME_DOORBELL_OFFSET	offsetof(struct nvme_registers, doorbell)
 
 enum nvme_controller_register_offsets {
@@ -192,8 +202,8 @@ struct pci_nvme_softc {
 
 	struct pci_nvme_blockstore nvstore;
 
-	uint16_t	max_qentries; /* max entries per queue */
-	uint32_t	max_queues;
+	uint16_t	max_qentries;	/* max entries per queue */
+	uint32_t	max_queues;	/* max number of IO SQ's or CQ's */
 	uint32_t	num_cqueues;
 	uint32_t	num_squeues;
 
@@ -203,7 +213,10 @@ struct pci_nvme_softc {
 	uint32_t	ioslots;
 	sem_t		iosemlock;
 
-	/* status and guest memory mapped queues */
+	/*
+	 * Memory mapped Submission and Completion queues
+	 * Each array includes both Admin and IO queues
+	 */
 	struct nvme_completion_queue *compl_queues;
 	struct nvme_submission_queue *submit_queues;
 
@@ -357,7 +370,7 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 {
 	DPRINTF(("%s\r\n", __func__));
 
-	sc->regs.cap_lo = (sc->max_qentries & NVME_CAP_LO_REG_MQES_MASK) |
+	sc->regs.cap_lo = (ZERO_BASED(sc->max_qentries) & NVME_CAP_LO_REG_MQES_MASK) |
 	    (1 << NVME_CAP_LO_REG_CQR_SHIFT) |
 	    (60 << NVME_CAP_LO_REG_TO_SHIFT);
 
@@ -370,7 +383,7 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 
 	sc->num_cqueues = sc->num_squeues = sc->max_queues;
 	if (sc->submit_queues != NULL) {
-		for (int i = 0; i <= sc->max_queues; i++) {
+		for (int i = 0; i < sc->num_squeues + 1; i++) {
 			/*
 			 * The Admin Submission Queue is at index 0.
 			 * It must not be changed at reset otherwise the
@@ -380,26 +393,31 @@ pci_nvme_reset_locked(struct pci_nvme_softc *sc)
 				sc->submit_queues[i].qbase = NULL;
 				sc->submit_queues[i].size = 0;
 				sc->submit_queues[i].cqid = 0;
-
-				sc->compl_queues[i].qbase = NULL;
-				sc->compl_queues[i].size = 0;
 			}
 			sc->submit_queues[i].tail = 0;
 			sc->submit_queues[i].head = 0;
 			sc->submit_queues[i].busy = 0;
+		}
+	} else
+		sc->submit_queues = calloc(sc->num_squeues + 1,
+		                        sizeof(struct nvme_submission_queue));
+
+	if (sc->compl_queues != NULL) {
+		for (int i = 0; i < sc->num_cqueues + 1; i++) {
+			/* See Admin Submission Queue note above */
+			if (i != 0) {
+				sc->compl_queues[i].qbase = NULL;
+				sc->compl_queues[i].size = 0;
+			}
 
 			sc->compl_queues[i].tail = 0;
 			sc->compl_queues[i].head = 0;
 		}
-	} else
-		sc->submit_queues = calloc(sc->max_queues + 1,
-		                        sizeof(struct nvme_submission_queue));
-
-	if (sc->compl_queues == NULL) {
-		sc->compl_queues = calloc(sc->max_queues + 1,
+	} else {
+		sc->compl_queues = calloc(sc->num_cqueues + 1,
 		                        sizeof(struct nvme_completion_queue));
 
-		for (int i = 0; i <= sc->num_cqueues; i++)
+		for (int i = 0; i < sc->num_cqueues + 1; i++)
 			pthread_mutex_init(&sc->compl_queues[i].mtx, NULL);
 	}
 }
@@ -443,7 +461,7 @@ nvme_opc_delete_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 	uint16_t qid = command->cdw10 & 0xffff;
 
 	DPRINTF(("%s DELETE_IO_SQ %u\r\n", __func__, qid));
-	if (qid == 0 || qid > sc->num_cqueues) {
+	if (qid == 0 || qid > sc->num_squeues) {
 		WPRINTF(("%s NOT PERMITTED queue id %u / num_squeues %u\r\n",
 		        __func__, qid, sc->num_squeues));
 		pci_nvme_status_tc(&compl->status, NVME_SCT_COMMAND_SPECIFIC,
@@ -464,7 +482,7 @@ nvme_opc_create_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		uint16_t qid = command->cdw10 & 0xffff;
 		struct nvme_submission_queue *nsq;
 
-		if (qid > sc->num_squeues) {
+		if ((qid == 0) || (qid > sc->num_squeues)) {
 			WPRINTF(("%s queue index %u > num_squeues %u\r\n",
 			        __func__, qid, sc->num_squeues));
 			pci_nvme_status_tc(&compl->status,
@@ -474,7 +492,7 @@ nvme_opc_create_io_sq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		}
 
 		nsq = &sc->submit_queues[qid];
-		nsq->size = ((command->cdw10 >> 16) & 0xffff) + 1;
+		nsq->size = ONE_BASED((command->cdw10 >> 16) & 0xffff);
 
 		nsq->qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx, command->prp1,
 		              sizeof(struct nvme_command) * (size_t)nsq->size);
@@ -529,7 +547,7 @@ nvme_opc_create_io_cq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		uint16_t qid = command->cdw10 & 0xffff;
 		struct nvme_completion_queue *ncq;
 
-		if (qid > sc->num_cqueues) {
+		if ((qid == 0) || (qid > sc->num_cqueues)) {
 			WPRINTF(("%s queue index %u > num_cqueues %u\r\n",
 			        __func__, qid, sc->num_cqueues));
 			pci_nvme_status_tc(&compl->status,
@@ -541,7 +559,7 @@ nvme_opc_create_io_cq(struct pci_nvme_softc* sc, struct nvme_command* command,
 		ncq = &sc->compl_queues[qid];
 		ncq->intr_en = (command->cdw11 & NVME_CMD_CDW11_IEN) >> 1;
 		ncq->intr_vec = (command->cdw11 >> 16) & 0xffff;
-		ncq->size = ((command->cdw10 >> 16) & 0xffff) + 1;
+		ncq->size = ONE_BASED((command->cdw10 >> 16) & 0xffff);
 
 		ncq->qbase = vm_map_gpa(sc->nsc_pi->pi_vmctx,
 		             command->prp1,
@@ -649,6 +667,45 @@ nvme_opc_identify(struct pci_nvme_softc* sc, struct nvme_command* command,
 }
 
 static int
+nvme_set_feature_queues(struct pci_nvme_softc* sc, struct nvme_command* command,
+	struct nvme_completion* compl)
+{
+	uint16_t nqr;	/* Number of Queues Requested */
+
+	nqr = command->cdw11 & 0xFFFF;
+	if (nqr == 0xffff) {
+		WPRINTF(("%s: Illegal NSQR value %#x\n", __func__, nqr));
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return (-1);
+	}
+
+	sc->num_squeues = ONE_BASED(nqr);
+	if (sc->num_squeues > sc->max_queues) {
+		DPRINTF(("NSQR=%u is greater than max %u\n", sc->num_squeues,
+					sc->max_queues));
+		sc->num_squeues = sc->max_queues;
+	}
+
+	nqr = (command->cdw11 >> 16) & 0xFFFF;
+	if (nqr == 0xffff) {
+		WPRINTF(("%s: Illegal NCQR value %#x\n", __func__, nqr));
+		pci_nvme_status_genc(&compl->status, NVME_SC_INVALID_FIELD);
+		return (-1);
+	}
+
+	sc->num_cqueues = ONE_BASED(nqr);
+	if (sc->num_cqueues > sc->max_queues) {
+		DPRINTF(("NCQR=%u is greater than max %u\n", sc->num_cqueues,
+					sc->max_queues));
+		sc->num_cqueues = sc->max_queues;
+	}
+
+	compl->cdw0 = NVME_FEATURE_NUM_QUEUES(sc);
+
+	return (0);
+}
+
+static int
 nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 	struct nvme_completion* compl)
 {
@@ -678,19 +735,7 @@ nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 		DPRINTF(("  volatile write cache 0x%x\r\n", command->cdw11));
 		break;
 	case NVME_FEAT_NUMBER_OF_QUEUES:
-		sc->num_squeues = command->cdw11 & 0xFFFF;
-		sc->num_cqueues = (command->cdw11 >> 16) & 0xFFFF;
-		DPRINTF(("  number of queues (submit %u, completion %u)\r\n",
-		        sc->num_squeues, sc->num_cqueues));
-
-		if (sc->num_squeues == 0 || sc->num_squeues > sc->max_queues)
-			sc->num_squeues = sc->max_queues;
-		if (sc->num_cqueues == 0 || sc->num_cqueues > sc->max_queues)
-			sc->num_cqueues = sc->max_queues;
-
-		compl->cdw0 = (sc->num_squeues & 0xFFFF) |
-		              ((sc->num_cqueues & 0xFFFF) << 16);
-
+		nvme_set_feature_queues(sc, command, compl);
 		break;
 	case NVME_FEAT_INTERRUPT_COALESCING:
 		DPRINTF(("  interrupt coalescing 0x%x\r\n", command->cdw11));
@@ -706,7 +751,7 @@ nvme_opc_set_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 		DPRINTF(("  interrupt vector configuration 0x%x\r\n",
 		        command->cdw11));
 
-		for (uint32_t i = 0; i <= sc->num_cqueues; i++) {
+		for (uint32_t i = 0; i < sc->num_cqueues + 1; i++) {
 			if (sc->compl_queues[i].intr_vec == iv) {
 				if (command->cdw11 & (1 << 16))
 					sc->compl_queues[i].intr_en |=
@@ -788,16 +833,7 @@ nvme_opc_get_features(struct pci_nvme_softc* sc, struct nvme_command* command,
 		DPRINTF(("  volatile write cache\r\n"));
 		break;
 	case NVME_FEAT_NUMBER_OF_QUEUES:
-		compl->cdw0 = 0;
-		if (sc->num_squeues == 0)
-			compl->cdw0 |= sc->max_queues & 0xFFFF;
-		else
-			compl->cdw0 |= sc->num_squeues & 0xFFFF;
-
-		if (sc->num_cqueues == 0)
-			compl->cdw0 |= (sc->max_queues & 0xFFFF) << 16;
-		else
-			compl->cdw0 |= (sc->num_cqueues & 0xFFFF) << 16;
+		compl->cdw0 = NVME_FEATURE_NUM_QUEUES(sc);
 
 		DPRINTF(("  number of queues (submit %u, completion %u)\r\n",
 		        compl->cdw0 & 0xFFFF,
@@ -1812,7 +1848,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	/* allocate size of nvme registers + doorbell space for all queues */
 	pci_membar_sz = sizeof(struct nvme_registers) +
-	                2*sizeof(uint32_t)*(sc->max_queues);
+	                2*sizeof(uint32_t)*(sc->max_queues + 1);
 
 	DPRINTF(("nvme membar size: %u\r\n", pci_membar_sz));
 
@@ -1822,7 +1858,7 @@ pci_nvme_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		goto done;
 	}
 
-	error = pci_emul_add_msixcap(pi, sc->max_queues, NVME_MSIX_BAR);
+	error = pci_emul_add_msixcap(pi, sc->max_queues + 1, NVME_MSIX_BAR);
 	if (error) {
 		WPRINTF(("%s pci add msixcap failed\r\n", __func__));
 		goto done;
