@@ -2947,15 +2947,13 @@ retry_pv_loop:
 			}
 		}
 		l3 = pmap_l3(pmap, pv->pv_va);
-retry:
 		oldl3 = pmap_load(l3);
-
+retry:
 		if ((oldl3 & PTE_W) != 0) {
-			newl3 = oldl3 & ~PTE_W;
-			if (!atomic_cmpset_long(l3, oldl3, newl3))
+			newl3 = oldl3 & ~(PTE_D | PTE_W);
+			if (!atomic_fcmpset_long(l3, &oldl3, newl3))
 				goto retry;
-			/* TODO: check for PTE_D? */
-			if ((oldl3 & PTE_A) != 0)
+			if ((oldl3 & PTE_D) != 0)
 				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, pv->pv_va);
 		}
