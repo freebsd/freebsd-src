@@ -5079,6 +5079,9 @@ reclaim_tx_descs(struct sge_txq *txq, u_int n)
 		KASSERT(can_reclaim >= ndesc,
 		    ("%s: unexpected number of credits: %d, %d",
 		    __func__, can_reclaim, ndesc));
+		KASSERT(ndesc != 0,
+		    ("%s: descriptor with no credits: cidx %d",
+		    __func__, eq->cidx));
 
 		for (m = txsd->m; m != NULL; m = nextpkt) {
 			nextpkt = m->m_nextpkt;
