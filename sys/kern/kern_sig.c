@@ -3100,7 +3100,7 @@ killproc(struct proc *p, char *why)
 	    p->p_comm);
 	log(LOG_ERR, "pid %d (%s), jid %d, uid %d, was killed: %s\n",
 	    p->p_pid, p->p_comm, p->p_ucred->cr_prison->pr_id,
-	    p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+	    p->p_ucred->cr_uid, why);
 	proc_wkilled(p);
 	kern_psignal(p, SIGKILL);
 }
@@ -3146,7 +3146,7 @@ sigexit(struct thread *td, int sig)
 			    "pid %d (%s), jid %d, uid %d: exited on "
 			    "signal %d%s\n", p->p_pid, p->p_comm,
 			    p->p_ucred->cr_prison->pr_id,
-			    td->td_ucred ? td->td_ucred->cr_uid : -1,
+			    td->td_ucred->cr_uid,
 			    sig &~ WCOREFLAG,
 			    sig & WCOREFLAG ? " (core dumped)" : "");
 	} else
