@@ -2754,6 +2754,9 @@ pmap_remove_pages(pmap_t pmap)
 				pmap_resident_count_dec(pmap, 1);
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 				m->md.pv_gen++;
+				if (TAILQ_EMPTY(&m->md.pv_list) &&
+				    (m->aflags & PGA_WRITEABLE) != 0)
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 
 				pmap_unuse_l3(pmap, pv->pv_va, ptepde, &free);
 				freed++;
