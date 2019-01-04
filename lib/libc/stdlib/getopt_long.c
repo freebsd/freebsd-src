@@ -481,6 +481,8 @@ start:
 #endif
 		if (*place == '-') {
 			place++;		/* --foo long option */
+			if (*place == '\0')
+				return (BADARG);	/* malformed option */
 #ifdef GNU_COMPATIBLE
 			dash_prefix = DD_PREFIX;
 #endif
