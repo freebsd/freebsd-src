@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -177,35 +178,45 @@ SYSCTL_PROC(_kern, KERN_ARND, arandom,
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
-	u_long val;
+	u_long val, p;
 
-	val = ctob(physmem);
+	p = SIZE_T_MAX >> PAGE_SHIFT;
+	if (physmem < p)
+		p = physmem;
+	val = ctob(p);
 	return (sysctl_handle_long(oidp, &val, 0, req));
 }
-
 SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "LU", "");
+    0, 0, sysctl_hw_physmem, "LU", "");
 
 static int
 sysctl_hw_realmem(SYSCTL_HANDLER_ARGS)
 {
-	u_long val;
-	val = ctob(realmem);
+	u_long val, p;
+
+	p = SIZE_T_MAX >> PAGE_SHIFT;
+	if (realmem < p)
+		p = realmem;
+	val = ctob(p);
 	return (sysctl_handle_long(oidp, &val, 0, req));
 }
 SYSCTL_PROC(_hw, HW_REALMEM, realmem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_realmem, "LU", "");
+    0, 0, sysctl_hw_realmem, "LU", "");
+
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
-	u_long val;
+	u_long val, p, p1;
 
-	val = ctob(physmem - vm_wire_count());
+	p1 = physmem - vm_wire_count();
+	p = SIZE_T_MAX >> PAGE_SHIFT;
+	if (p1 < p)
+		p = p1;
+	val = ctob(p);
 	return (sysctl_handle_long(oidp, &val, 0, req));
 }
-
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_ULONG | CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "LU", "");
+    0, 0, sysctl_hw_usermem, "LU", "");
 
 SYSCTL_LONG(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 
