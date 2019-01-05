@@ -1748,13 +1748,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 	data_start = round_page(kernelend);
 	data_end = data_start;
 
-	/*
-	 * Addresses of preloaded modules (like file systems) use
-	 * physical addresses. Make sure we relocate those into
-	 * virtual addresses.
-	 */
-	preload_addr_relocate = kernstart - kernload;
-
 	/* Allocate the dynamic per-cpu area. */
 	dpcpu = (void *)data_end;
 	data_end += DPCPU_SIZE;
