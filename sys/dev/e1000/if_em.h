@@ -277,7 +277,7 @@
 #define EM_MSIX_LINK		0x01000000 /* For 82574 use */
 #define ETH_ZLEN		60
 #define ETH_ADDR_LEN		6
-#define CSUM_OFFLOAD		7	/* Offload bits in mbuf flag */
+#define CSUM_OFFLOAD		(CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP) /* Offload bits in mbuf flag */
 
 /*
  * 82574 has a nonstandard address for EIAC
