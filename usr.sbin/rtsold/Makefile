@@ -17,8 +17,22 @@
 PROG=	rtsold
 MAN=	rtsold.8
 MLINKS=	rtsold.8 rtsol.8
-SRCS=	rtsold.c rtsol.c if.c probe.c dump.c rtsock.c
+SRCS=	cap_llflags.c \
+	cap_script.c \
+	cap_sendmsg.c \
+	dump.c \
+	if.c \
+	rtsock.c \
+	rtsol.c \
+	rtsold.c
 
-WARNS?=	3
+LIBADD= util
+
+.include <src.opts.mk>
+
+.if ${MK_CASPER} != "no"
+CFLAGS+= -DWITH_CASPER
+LIBADD+= casper cap_syslog nv
+.endif
 
 .include <bsd.prog.mk>
