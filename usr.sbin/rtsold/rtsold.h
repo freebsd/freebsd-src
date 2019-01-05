@@ -60,12 +60,13 @@ struct rainfo {
 	TAILQ_HEAD(, ra_opt)	rai_ra_opt;
 };
 
+/* Per-interface tracking info. */
 struct ifinfo {
-	TAILQ_ENTRY(ifinfo)	ifi_next;	/* pointer to the next interface */
+	TAILQ_ENTRY(ifinfo) ifi_next;	/* pointer to the next interface */
 
 	struct sockaddr_dl *sdl; /* link-layer address */
 	char ifname[IFNAMSIZ];	/* interface name */
-	u_int32_t linkid;	/* link ID of this interface */
+	uint32_t linkid;	/* link ID of this interface */
 	int active;		/* interface status */
 	int probeinterval;	/* interval of probe timer (if necessary) */
 	int probetimer;		/* rest of probe timer */
@@ -77,7 +78,6 @@ struct ifinfo {
 	int dadcount;
 	struct timespec timer;
 	struct timespec expire;
-	int errors;		/* # of errors we've got - detect wedge */
 #define IFI_DNSOPT_STATE_NOINFO		0
 #define IFI_DNSOPT_STATE_RECEIVED     	1
 	int ifi_rdnss;		/* RDNSS option state */
@@ -150,6 +150,7 @@ extern TAILQ_HEAD(ifinfo_head_t, ifinfo) ifinfo_head;
 	} while (0)
 
 /* rtsold.c */
+struct cap_channel;
 extern struct timespec tm_max;
 extern int dflag;
 extern int aflag;
@@ -157,6 +158,8 @@ extern int Fflag;
 extern int uflag;
 extern const char *otherconf_script;
 extern const char *resolvconf_script;
+extern struct cap_channel *capllflags, *capscript, *capsendmsg, *capsyslog;
+
 struct ifinfo *find_ifinfo(int);
 struct rainfo *find_rainfo(struct ifinfo *, struct sockaddr_in6 *);
 void rtsol_timer_update(struct ifinfo *);
@@ -165,6 +168,7 @@ extern void warnmsg(int, const char *, const char *, ...)
 extern int ra_opt_handler(struct ifinfo *);
 
 /* if.c */
+struct nd_opt_hdr;
 extern int ifinit(void);
 extern int interface_up(char *);
 extern int interface_status(struct ifinfo *);
@@ -173,17 +177,23 @@ extern void lladdropt_fill(struct sockaddr_dl *, struct nd_opt_hdr *);
 extern struct sockaddr_dl *if_nametosdl(char *);
 
 /* rtsol.c */
-extern int rssock;
-extern int sockopen(void);
-extern void sendpacket(struct ifinfo *);
+extern int recvsockopen(void);
 extern void rtsol_input(int);
 
-/* probe.c */
-extern int probe_init(void);
-extern void defrouter_probe(struct ifinfo *);
+/* cap_llflags.c */
+extern int cap_llflags_get(struct cap_channel *, const char *, int *);
+
+/* cap_script.c */
+extern int cap_script_run(struct cap_channel *, const char *const *);
+extern int cap_script_wait(struct cap_channel *, int *);
+
+/* cap_sendmsg.c */
+extern int cap_probe_defrouters(struct cap_channel *, struct ifinfo *);
+extern int cap_rssend(struct cap_channel *, struct ifinfo *);
 
 /* dump.c */
-extern void rtsold_dump_file(const char *);
+extern FILE *rtsold_init_dumpfile(const char *);
+extern void rtsold_dump(FILE *);
 extern const char *sec2str(const struct timespec *);
 
 /* rtsock.c */
