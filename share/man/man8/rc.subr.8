@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2018
+.Dd January 5, 2019
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -771,7 +771,7 @@ The following variables are available to the methods
 as well as after
 .Ic run_rc_command
 has completed:
-.Bl -tag -width ".Va rc_flags" -offset indent
+.Bl -tag -width ".Va rc_service" -offset indent
 .It Va rc_arg
 Argument provided to
 .Ic run_rc_command ,
@@ -785,6 +785,8 @@ unless overridden by the environment variable
 This variable may be changed by the
 .Ar argument Ns Va _precmd
 method.
+.It Va rc_service
+Path to the service script being executed, in case it needs to re-invoke itself.
 .It Va rc_pid
 PID of
 .Va command
