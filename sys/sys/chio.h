@@ -266,7 +266,7 @@ struct changer_set_voltag_request {
 
 
 #define	CESTATUS_BITS	\
-	"\20\6INEAB\5EXENAB\4ACCESS\3EXCEPT\2IMPEXP\1FULL"
+	"\20\6INENAB\5EXENAB\4ACCESS\3EXCEPT\2IMPEXP\1FULL"
 
 #define	CHIOMOVE	_IOW('c', 0x01, struct changer_move)
 #define	CHIOEXCHANGE	_IOW('c', 0x02, struct changer_exchange)
