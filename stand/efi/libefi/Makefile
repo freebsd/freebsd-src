@@ -44,7 +44,7 @@ CFLAGS+= -fPIC -mno-red-zone
 .endif
 CFLAGS+= -I${EFIINC}
 CFLAGS+= -I${EFIINCMD}
-.if ${MK_ZFS} != "no"
+.if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
 CFLAGS+=	-DEFI_ZFS_BOOT
 .endif
