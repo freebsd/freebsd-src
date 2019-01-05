@@ -165,7 +165,7 @@ SRCS+=  explicit_bzero.c crc32_libkern.c
 .endif
 
 # Maybe ZFS
-.if ${MK_ZFS} == "yes"
+.if ${MK_LOADER_ZFS} == "yes"
 .include "${SASRC}/zfs/Makefile.inc"
 .endif
 
