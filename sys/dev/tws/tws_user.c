@@ -92,9 +92,13 @@ tws_passthru(struct tws_softc *sc, void *buf)
     struct tws_request *req;
     struct tws_ioctl_no_data_buf *ubuf = (struct tws_ioctl_no_data_buf *)buf;
     int error;
+    u_int32_t buffer_length;
     u_int16_t lun4;
 
-
+    buffer_length = roundup2(ubuf->driver_pkt.buffer_length, 512);
+    if ( buffer_length > TWS_MAX_IO_SIZE ) {
+        return(EINVAL);
+    }
     if ( tws_get_state(sc) != TWS_ONLINE) {
         return(EBUSY);
     }
@@ -118,7 +122,7 @@ tws_passthru(struct tws_softc *sc, void *buf)
         }
     } while(1);
 
-    req->length = (ubuf->driver_pkt.buffer_length + 511) & ~511;
+    req->length = buffer_length;
     TWS_TRACE_DEBUG(sc, "datal,rid", req->length, req->request_id);
     if ( req->length ) {
         req->data = sc->ioctl_data_mem;
