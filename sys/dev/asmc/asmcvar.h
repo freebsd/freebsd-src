@@ -360,6 +360,27 @@ struct asmc_softc {
 				  "Northbridge Proximity Temperature", \
 				  "Wireless Module Proximity Temperature", }
 
+#define ASMC_MM41_TEMPS		{ "TA0P", "TC0D", "TC0G", "TC0H", "TC0P", \
+				  "TC0p", "TCPG", "TH0G", "TH0P", "TH0p", \
+				  "TM0G", "TM0P", "TM0p", "TN0D", "TN0G", \
+				  "TN0P", "TN0p", "TN1D", "TN1E", "TN1F", \
+				  "TN1G", "TN1S", "TNPG", "TO0P", "TO0p", \
+				  "TW0P", "Tm0P", "Tp0C", NULL }
+
+#define ASMC_MM41_TEMPNAMES	{ "TA0P", "TC0D", "TC0G", "TC0H", "TC0P", \
+				  "TC0p", "TCPG", "TH0G", "TH0P", "TH0p", \
+				  "TM0G", "TM0P", "TM0p", "TN0D", "TN0G", \
+				  "TN0P", "TN0p", "TN1D", "TN1E", "TN1F", \
+				  "TN1G", "TN1S", "TNPG", "TO0P", "TO0p", \
+				  "TW0P", "Tm0P", "Tp0C", NULL }
+
+#define ASMC_MM41_TEMPDESCS	{ "TA0P", "TC0D", "TC0G", "TC0H", "TC0P", \
+				  "TC0p", "TCPG", "TH0G", "TH0P", "TH0p", \
+				  "TM0G", "TM0P", "TM0p", "TN0D", "TN0G", \
+				  "TN0P", "TN0p", "TN1D", "TN1E", "TN1F", \
+				  "TN1G", "TN1S", "TNPG", "TO0P", "TO0p", \
+				  "TW0P", "Tm0P", "Tp0C", NULL }
+
 #define ASMC_MM52_TEMPS		{ "TA0P", "TA1P", \
 				  "TC0D", "TC0P", \
 				  "TG0D", "TG1D", \
