@@ -180,12 +180,8 @@ apply_to_page_range(struct mm_struct *mm, unsigned long address,
 	return (-ENOTSUP);
 }
 
-static inline int
-zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
-    unsigned long size)
-{
-	return (-ENOTSUP);
-}
+int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+    unsigned long size);
 
 static inline int
 remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
