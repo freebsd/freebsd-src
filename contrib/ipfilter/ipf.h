@@ -49,9 +49,7 @@ struct file;
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
-#ifndef	TCP_PAWS_IDLE	/* IRIX */
 # include <netinet/tcp.h>
-#endif
 #include <netinet/udp.h>
 
 #include <arpa/inet.h>
