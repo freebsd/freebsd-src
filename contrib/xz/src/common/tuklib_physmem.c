@@ -45,6 +45,7 @@
 #	include <sys/systemcfg.h>
 
 #elif defined(TUKLIB_PHYSMEM_SYSCONF)
+#	include <limits.h>
 #	include <unistd.h>
 
 #elif defined(TUKLIB_PHYSMEM_SYSCTL)
@@ -145,13 +146,16 @@ tuklib_physmem(void)
 #elif defined(TUKLIB_PHYSMEM_SYSCONF)
 	const long pagesize = sysconf(_SC_PAGESIZE);
 	const long pages = sysconf(_SC_PHYS_PAGES);
-	if (pagesize != -1 && pages != -1)
+	if (pagesize != -1 && pages != -1) {
 		// According to docs, pagesize * pages can overflow.
 		// Simple case is 32-bit box with 4 GiB or more RAM,
 		// which may report exactly 4 GiB of RAM, and "long"
 		// being 32-bit will overflow. Casting to uint64_t
 		// hopefully avoids overflows in the near future.
 		ret = (uint64_t)pagesize * (uint64_t)pages;
+		if (ret > SIZE_T_MAX)
+			ret = SIZE_T_MAX;
+	}
 
 #elif defined(TUKLIB_PHYSMEM_SYSCTL)
 	int name[2] = {
