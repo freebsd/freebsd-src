@@ -38,8 +38,6 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20181115: libbe(3) SHLIBDIR fixed to reflect correct location
-OLD_LIBS+=usr/lib/libbe.so.1
 # 20180812: move of libmlx5.so.1 and libibverbs.so.1
 OLD_LIBS+=usr/lib/libmlx5.so.1
 OLD_LIBS+=usr/lib/libibverbs.so.1
