@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2013
+.Dd January 6, 2019
 .Dt POWERD 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Fl p Ar ival
 .Op Fl P Ar pidfile
 .Op Fl r Ar percent
+.Op Fl s Ar source
 .Op Fl v
 .Sh DESCRIPTION
 The
@@ -117,6 +118,14 @@ The default is
 Specifies the CPU load percent level where adaptive
 mode should consider the CPU running and increase performance.
 The default is 75% or higher.
+.It Fl s Ar source
+Enforces method for AC line state refresh; by default, it is chosen
+automatically.
+The set of valid methods is
+.Cm sysctl , devd
+and
+.Cm apm
+(i386 only).
 .It Fl v
 Verbose mode.
 Messages about power changes will be printed to stdout and
