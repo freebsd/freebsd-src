@@ -3893,7 +3893,7 @@ DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 DB_SHOW_COMMAND(pginfo, vm_page_print_pginfo)
 {
 	vm_page_t m;
-	boolean_t phys;
+	boolean_t phys, virt;
 
 	if (!have_addr) {
 		db_printf("show pginfo addr\n");
@@ -3901,7 +3901,10 @@ DB_SHOW_COMMAND(pginfo, vm_page_print_pginfo)
 	}
 
 	phys = strchr(modif, 'p') != NULL;
-	if (phys)
+	virt = strchr(modif, 'v') != NULL;
+	if (virt)
+		m = PHYS_TO_VM_PAGE(pmap_kextract(addr));
+	else if (phys)
 		m = PHYS_TO_VM_PAGE(addr);
 	else
 		m = (vm_page_t)addr;
