@@ -28,14 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "image.h"
 #include "format.h"
-#include "mkimg.h"
 
 static int
 raw_resize(lba_t imgsz __unused)
