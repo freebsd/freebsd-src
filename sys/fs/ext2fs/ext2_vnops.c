@@ -1857,6 +1857,11 @@ ext2_vinit(struct mount *mntp, struct vop_vector *fifoops, struct vnode **vpp)
 	vp = *vpp;
 	ip = VTOI(vp);
 	vp->v_type = IFTOVT(ip->i_mode);
+	/*
+	 * Only unallocated inodes should be of type VNON.
+	 */
+	if (ip->i_mode != 0 && vp->v_type == VNON)
+		return (EINVAL);
 	if (vp->v_type == VFIFO)
 		vp->v_op = fifoops;
 
