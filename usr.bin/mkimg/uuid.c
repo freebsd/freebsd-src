@@ -28,7 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "endian.h"
