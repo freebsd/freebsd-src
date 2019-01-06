@@ -672,6 +672,25 @@ static struct cdev_pager_ops linux_cdev_pager_ops[2] = {
   },
 };
 
+int
+zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
+    unsigned long size)
+{
+	vm_object_t obj;
+	vm_page_t m;
+
+	obj = vma->vm_obj;
+	if (obj == NULL || (obj->flags & OBJ_UNMANAGED) != 0)
+		return (-ENOTSUP);
+	VM_OBJECT_RLOCK(obj);
+	for (m = vm_page_find_least(obj, OFF_TO_IDX(address));
+	    m != NULL && m->pindex < OFF_TO_IDX(address + size);
+	    m = TAILQ_NEXT(m, listq))
+		pmap_remove_all(m);
+	VM_OBJECT_RUNLOCK(obj);
+	return (0);
+}
+
 #define	OPW(fp,td,code) ({			\
 	struct file *__fpop;			\
 	__typeof(code) __retval;		\
