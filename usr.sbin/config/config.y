@@ -97,7 +97,7 @@ static void newdev(char *name);
 static void newfile(char *name);
 static void newenvvar(char *name, bool is_file);
 static void rmdev_schedule(struct device_head *dh, char *name);
-static void newopt(struct opt_head *list, char *name, char *value, int append, int dupe);
+static void newopt(struct opt_head *list, char *name, char *value, int append);
 static void rmopt_schedule(struct opt_head *list, char *name);
 
 static char *
@@ -210,7 +210,7 @@ System_spec:
 	  ;
 
 System_id:
-	Save_id { newopt(&mkopt, ns("KERNEL"), $1, 0, 0); };
+	Save_id { newopt(&mkopt, ns("KERNEL"), $1, 0); };
 
 System_parameter_list:
 	  System_parameter_list ID
@@ -230,13 +230,13 @@ NoOpt_list:
 		;
 Option:
 	Save_id {
-		newopt(&opt, $1, NULL, 0, 1);
+		newopt(&opt, $1, NULL, 0);
 		if (strchr($1, '=') != NULL)
 			errx(1, "%s:%d: The `=' in options should not be "
 			    "quoted", yyfile, yyline);
 	      } |
 	Save_id EQUALS Opt_value {
-		newopt(&opt, $1, $3, 0, 1);
+		newopt(&opt, $1, $3, 0);
 	      } ;
 
 NoOption:
@@ -264,10 +264,10 @@ Mkopt_list:
 		;
 
 Mkoption:
-	Save_id { newopt(&mkopt, $1, ns(""), 0, 0); } |
-	Save_id EQUALS { newopt(&mkopt, $1, ns(""), 0, 0); } |
-	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0, 0); } |
-	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1, 0); } ;
+	Save_id { newopt(&mkopt, $1, ns(""), 0); } |
+	Save_id EQUALS { newopt(&mkopt, $1, ns(""), 0); } |
+	Save_id EQUALS Opt_value { newopt(&mkopt, $1, $3, 0); } |
+	Save_id PLUSEQUALS Opt_value { newopt(&mkopt, $1, $3, 1); } ;
 
 Dev:
 	ID { $$ = $1; }
@@ -293,7 +293,7 @@ NoDev_list:
 
 Device:
 	Dev {
-		newopt(&opt, devopt($1), ns("1"), 0, 0);
+		newopt(&opt, devopt($1), ns("1"), 0);
 		/* and the device part */
 		newdev($1);
 		}
@@ -430,7 +430,7 @@ findopt(struct opt_head *list, char *name)
  * Add an option to the list of options.
  */
 static void
-newopt(struct opt_head *list, char *name, char *value, int append, int dupe)
+newopt(struct opt_head *list, char *name, char *value, int append)
 {
 	struct opt *op, *op2;
 
@@ -443,7 +443,7 @@ newopt(struct opt_head *list, char *name, char *value, int append, int dupe)
 	}
 
 	op2 = findopt(list, name);
-	if (op2 != NULL && !append && !dupe) {
+	if (op2 != NULL && !append) {
 		fprintf(stderr,
 		    "WARNING: duplicate option `%s' encountered.\n", name);
 		return;
@@ -456,15 +456,9 @@ newopt(struct opt_head *list, char *name, char *value, int append, int dupe)
 	op->op_ownfile = 0;
 	op->op_value = value;
 	if (op2 != NULL) {
-		if (append) {
-			while (SLIST_NEXT(op2, op_append) != NULL)
-				op2 = SLIST_NEXT(op2, op_append);
-			SLIST_NEXT(op2, op_append) = op;
-		} else {
-			while (SLIST_NEXT(op2, op_next) != NULL)
-				op2 = SLIST_NEXT(op2, op_next);
-			SLIST_NEXT(op2, op_next) = op;
-		}
+		while (SLIST_NEXT(op2, op_append) != NULL)
+			op2 = SLIST_NEXT(op2, op_append);
+		SLIST_NEXT(op2, op_append) = op;
 	} else
 		SLIST_INSERT_HEAD(list, op, op_next);
 }
@@ -477,7 +471,8 @@ rmopt_schedule(struct opt_head *list, char *name)
 {
 	struct opt *op;
 
-	while ((op = findopt(list, name)) != NULL) {
+	op = findopt(list, name);
+	if (op != NULL) {
 		SLIST_REMOVE(list, op, opt, op_next);
 		free(op->op_name);
 		free(op);
