@@ -29,11 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/errno.h>
 #include <assert.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "endian.h"
 #include "image.h"
