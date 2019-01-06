@@ -289,6 +289,7 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 SUBDIR.${MK_OFED}+=	ofed
+SUBDIR.${MK_ZFS}+=	libbe
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
