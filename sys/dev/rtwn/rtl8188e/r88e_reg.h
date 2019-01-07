@@ -79,6 +79,7 @@
  * RF (6052) registers.
  */
 #define R88E_RF_T_METER		0x42
+#define R88E_RF_WE_LUT		0xef
 
 /* Bits for R92C_RF_CHNLBW. */
 #define R88E_RF_CHNLBW_BW20	0x00c00
