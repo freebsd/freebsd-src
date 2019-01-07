@@ -2267,7 +2267,6 @@ OLD_FILES+=usr/libexec/cc1plus
 
 .if ${MK_DICT} == no
 OLD_FILES+=usr/share/dict/README
-OLD_FILES+=usr/share/dict/eign
 OLD_FILES+=usr/share/dict/freebsd
 OLD_FILES+=usr/share/dict/propernames
 OLD_FILES+=usr/share/dict/web2
