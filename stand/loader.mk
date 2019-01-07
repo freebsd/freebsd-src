@@ -155,6 +155,10 @@ vers.c: ${LDRSRC}/newvers.sh ${VERSION_FILE}
 	sh ${LDRSRC}/newvers.sh ${REPRO_FLAG} ${VERSION_FILE} \
 	    ${NEWVERSWHAT}
 
+.if ${MK_LOADER_VERBOSE} != "no"
+CFLAGS+=	-DELF_VERBOSE
+.endif
+
 .if !empty(HELP_FILES)
 HELP_FILES+=	${LDRSRC}/help.common
 
