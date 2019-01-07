@@ -118,4 +118,5 @@ db_show_mdpcpu(struct pcpu *pc)
 	db_printf("trampstk     = 0x%x\n", pc->pc_trampstk);
 	db_printf("kesp0        = 0x%x\n", pc->pc_kesp0);
 	db_printf("common_tssp  = 0x%x\n", (u_int)pc->pc_common_tssp);
+	db_printf("tlb gen      = %u\n", pc->pc_smp_tlb_done);
 }
