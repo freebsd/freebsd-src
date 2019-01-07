@@ -4894,7 +4894,7 @@ iflib_device_resume(device_t dev)
 
 	CTX_LOCK(ctx);
 	IFDI_RESUME(ctx);
-	iflib_init_locked(ctx);
+	iflib_if_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 	for (int i = 0; i < NTXQSETS(ctx); i++, txq++)
 		iflib_txq_check_drain(txq, IFLIB_RESTART_BUDGET);
