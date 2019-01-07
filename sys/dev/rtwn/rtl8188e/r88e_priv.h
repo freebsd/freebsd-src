@@ -37,7 +37,7 @@ struct rtwn_r88e_txpwr {
 /*
  * MAC initialization values.
  */
-static const struct rtwn_mac_prog rtl8188eu_mac[] = {
+static const struct rtwn_mac_prog rtl8188e_mac[] = {
 	{ 0x026, 0x41 }, { 0x027, 0x35 }, { 0x040, 0x00 }, { 0x428, 0x0a },
 	{ 0x429, 0x10 }, { 0x430, 0x00 }, { 0x431, 0x01 }, { 0x432, 0x02 },
 	{ 0x433, 0x04 }, { 0x434, 0x05 }, { 0x435, 0x06 }, { 0x436, 0x07 },
@@ -66,7 +66,7 @@ static const struct rtwn_mac_prog rtl8188eu_mac[] = {
 /*
  * Baseband initialization values.
  */
-static const uint16_t rtl8188eu_bb_regs[] = {
+static const uint16_t rtl8188e_bb_regs[] = {
 	0x800, 0x804, 0x808, 0x80c, 0x810, 0x814, 0x818, 0x81c,
 	0x820, 0x824, 0x828, 0x82c, 0x830, 0x834, 0x838, 0x83c,
 	0x840, 0x844, 0x848, 0x84c, 0x850, 0x854, 0x858, 0x85c,
@@ -93,7 +93,7 @@ static const uint16_t rtl8188eu_bb_regs[] = {
 	0xed8, 0xedc, 0xee0, 0xee8, 0xeec, 0xf14, 0xf4c, 0xf00
 };
 
-static const uint32_t rtl8188eu_bb_vals[] = {
+static const uint32_t rtl8188e_bb_vals[] = {
 	0x80040000, 0x00000003, 0x0000fc00, 0x0000000a, 0x10001331,
 	0x020c3d10, 0x02200385, 0x00000000, 0x01000100, 0x00390204,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
@@ -135,17 +135,17 @@ static const uint32_t rtl8188eu_bb_vals[] = {
 	0x00000000, 0x00000300
 };
 
-static const struct rtwn_bb_prog rtl8188eu_bb[] = {
+static const struct rtwn_bb_prog rtl8188e_bb[] = {
 	{
-		nitems(rtl8188eu_bb_regs),
-		rtl8188eu_bb_regs,
-		rtl8188eu_bb_vals,
+		nitems(rtl8188e_bb_regs),
+		rtl8188e_bb_regs,
+		rtl8188e_bb_vals,
 		{ 0 },
 		NULL
 	}
 };
 
-static const uint32_t rtl8188eu_agc_vals[] = {
+static const uint32_t rtl8188e_agc_vals[] = {
 	0xfb000001, 0xfb010001, 0xfb020001, 0xfb030001, 0xfb040001,
 	0xfb050001, 0xfa060001, 0xf9070001, 0xf8080001, 0xf7090001,
 	0xf60a0001, 0xf50b0001, 0xf40c0001, 0xf30d0001, 0xf20e0001,
@@ -174,10 +174,10 @@ static const uint32_t rtl8188eu_agc_vals[] = {
 	0x407d0001, 0x407e0001, 0x407f0001
 };
 
-static const struct rtwn_agc_prog rtl8188eu_agc[] = {
+static const struct rtwn_agc_prog rtl8188e_agc[] = {
 	{
-		nitems(rtl8188eu_agc_vals),
-		rtl8188eu_agc_vals,
+		nitems(rtl8188e_agc_vals),
+		rtl8188e_agc_vals,
 		{ 0 },
 		NULL
 	}
@@ -186,7 +186,7 @@ static const struct rtwn_agc_prog rtl8188eu_agc[] = {
 /*
  * RF initialization values.
  */
-static const uint8_t rtl8188eu_rf_regs[] = {
+static const uint8_t rtl8188e_rf_regs[] = {
 	0x00, 0x08, 0x18, 0x19, 0x1e, 0x1f, 0x2f, 0x3f, 0x42, 0x57,
 	0x58, 0x67, 0x83, 0xb0, 0xb1, 0xb2, 0xb4, 0xb6, 0xb7, 0xb8,
 	0xb9, 0xba, 0xbb, 0xbf, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
@@ -199,7 +199,7 @@ static const uint8_t rtl8188eu_rf_regs[] = {
 	0x1f, 0xfe, 0xfe, 0x1e, 0x1f, 0x00
 };
 
-static const uint32_t rtl8188eu_rf_vals[] = {
+static const uint32_t rtl8188e_rf_vals[] = {
 	0x30000, 0x84000, 0x00407, 0x00012, 0x80009, 0x00880, 0x1a060,
 	0x00000, 0x060c0, 0xd0000, 0xbe180, 0x01552, 0x00000, 0xff8fc,
 	0x54400, 0xccc19, 0x43003, 0x4953e, 0x1c718, 0x060ff, 0x80001,
@@ -216,11 +216,11 @@ static const uint32_t rtl8188eu_rf_vals[] = {
 	0x0c350, 0x0c350, 0x00001, 0x80000, 0x33e60
 };
 
-static const struct rtwn_rf_prog rtl8188eu_rf[] = {
+static const struct rtwn_rf_prog rtl8188e_rf[] = {
 	{
-		nitems(rtl8188eu_rf_regs),
-		rtl8188eu_rf_regs,
-		rtl8188eu_rf_vals,
+		nitems(rtl8188e_rf_regs),
+		rtl8188e_rf_regs,
+		rtl8188e_rf_vals,
 		{ 0 },
 		NULL
 	},
