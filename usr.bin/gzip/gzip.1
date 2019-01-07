@@ -1,4 +1,4 @@
-.\"	$NetBSD: gzip.1,v 1.30 2017/10/22 17:36:49 abhinav Exp $
+.\"	$NetBSD: gzip.1,v 1.31 2018/10/26 22:10:15 christos Exp $
 .\"
 .\" Copyright (c) 1997, 2003, 2004, 2008, 2009, 2015, 2017 Matthew R. Green
 .\" All rights reserved.
@@ -25,7 +25,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd November 21, 2017
+.Dd January 7, 2018
 .Dt GZIP 1
 .Os
 .Sh NAME
@@ -109,6 +109,7 @@ This version of
 is also capable of decompressing files compressed using
 .Xr compress 1 ,
 .Xr bzip2 1 ,
+.Ar lzip ,
 or
 .Xr xz 1 .
 .Sh OPTIONS
@@ -224,7 +225,7 @@ This implementation of
 was ported based on the
 .Nx
 .Nm
-version 20170803,
+version 20181111,
 and first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
