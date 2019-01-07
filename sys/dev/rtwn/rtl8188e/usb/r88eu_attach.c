@@ -140,7 +140,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_efuse_postread		= rtwn_nop_softc;
 	sc->sc_parse_rom		= r88e_parse_rom;
 	sc->sc_set_led			= r88e_set_led;
-	sc->sc_power_on			= r88e_power_on;
+	sc->sc_power_on			= r88eu_power_on;
 	sc->sc_power_off		= r88eu_power_off;
 #ifndef RTWN_WITHOUT_UCODE
 	sc->sc_fw_reset			= r88e_fw_reset;
@@ -172,7 +172,7 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_init_ampdu		= rtwn_nop_softc;
 	sc->sc_init_intr		= r88eu_init_intr;
 	sc->sc_init_edca		= r92c_init_edca;
-	sc->sc_init_bb			= r88e_init_bb;
+	sc->sc_init_bb			= r88eu_init_bb;
 	sc->sc_init_rf			= r92c_init_rf;
 	sc->sc_init_antsel		= rtwn_nop_softc;
 	sc->sc_post_init		= r88eu_post_init;
@@ -190,11 +190,11 @@ r88eu_attach(struct rtwn_usb_softc *uc)
 	sc->fwname			= "rtwn-rtl8188eufw";
 	sc->fwsig			= 0x88e;
 
-	sc->page_count			= R88E_TX_PAGE_COUNT;
+	sc->page_count			= R88EU_TX_PAGE_COUNT;
 	sc->pktbuf_count		= R88E_TXPKTBUF_COUNT;
 
 	sc->ackto			= 0x40;
-	sc->npubqpages			= R88E_PUBQ_NPAGES;
+	sc->npubqpages			= R88EU_PUBQ_NPAGES;
 	sc->page_size			= R92C_TX_PAGE_SIZE;
 
 	sc->txdesc_len			= sizeof(struct r92cu_tx_desc);
