@@ -1272,13 +1272,16 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 
 	if (pf->intr_filter != NULL || pf->intr_handler != NULL)
 		panic("Only one interrupt handler per function allowed");
-	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_filter, 
-	    intr ? pccard_intr : NULL, pf, cookiep);
-	if (err != 0)
-		return (err);
 	pf->intr_filter = filt;
 	pf->intr_handler = intr;
 	pf->intr_handler_arg = arg;
+	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_filter,
+	    intr ? pccard_intr : NULL, pf, cookiep);
+	if (err != 0) {
+		pf->intr_filter = NULL;
+		pf->intr_handler = NULL;
+		return (err);
+	}
 	pf->intr_handler_cookie = *cookiep;
 	if (pccard_mfc(sc)) {
 		pccard_ccr_write(pf, PCCARD_CCR_OPTION,
