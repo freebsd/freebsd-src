@@ -96,7 +96,7 @@ r92c_parse_rom(struct rtwn_softc *sc, uint8_t *buf)
 	    __func__, rs->regulatory);
 
 	/* Need to be set before postinit() (but after preinit()). */
-	rtwn_r92c_set_name(sc);
+	rtwn_r92c_set_rom_opts(sc, buf);
 	r92c_set_chains(sc);
 
 	for (j = 0; j < R92C_GROUP_2G; j++) {
