@@ -58,10 +58,10 @@ __FBSDID("$FreeBSD$");
 
 
 int
-r92ce_classify_intr(struct rtwn_softc *sc, void *arg, int len __unused)
+r92ce_get_intr_status(struct rtwn_pci_softc *pc, int *rings)
 {
+	struct rtwn_softc *sc = &pc->pc_sc;
 	uint32_t status;
-	int *rings = arg;
 	int ret;
 
 	*rings = 0;

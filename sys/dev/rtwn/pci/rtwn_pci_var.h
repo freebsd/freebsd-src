@@ -26,6 +26,9 @@
 #define RTWN_PCI_RX_LIST_COUNT		256
 #define RTWN_PCI_TX_LIST_COUNT		256
 
+/* sizeof(struct rtwn_rx_stat_common) + R88E_INTR_MSG_LEN */
+#define	RTWN_PCI_RX_TMP_BUF_SIZE	84
+
 struct rtwn_rx_data {
 	bus_dmamap_t		map;
 	struct mbuf		*m;
@@ -95,8 +98,8 @@ enum {
 /* Shortcuts */
 /* Vendor driver treats RX errors like ROK... */
 #define RTWN_PCI_INTR_RX \
-	(RTWN_PCI_INTR_RX_OVERFLOW | RTWN_PCI_INTR_RX_DESC_UNAVAIL | \
-	 RTWN_PCI_INTR_RX_DONE)
+	(RTWN_PCI_INTR_RX_ERROR | RTWN_PCI_INTR_RX_OVERFLOW | \
+	 RTWN_PCI_INTR_RX_DESC_UNAVAIL | RTWN_PCI_INTR_RX_DONE)
 
 
 struct rtwn_pci_softc {
@@ -109,6 +112,7 @@ struct rtwn_pci_softc {
 	void			*pc_ih;
 	bus_size_t		pc_mapsize;
 
+	uint8_t			pc_rx_buf[RTWN_PCI_RX_TMP_BUF_SIZE];
 	struct rtwn_rx_ring	rx_ring;
 	struct rtwn_tx_ring	tx_ring[RTWN_PCI_NTXQUEUES];
 
@@ -122,6 +126,8 @@ struct rtwn_pci_softc {
 				    void *, bus_dma_segment_t *);
 	void			(*pc_copy_tx_desc)(void *, const void *);
 	void			(*pc_enable_intr)(struct rtwn_pci_softc *);
+	int			(*pc_get_intr_status)(struct rtwn_pci_softc *,
+				    int *);
 };
 #define RTWN_PCI_SOFTC(sc)	((struct rtwn_pci_softc *)(sc))
 
@@ -133,5 +139,7 @@ struct rtwn_pci_softc {
 	(((_pc)->pc_copy_tx_desc)((_dest), (_src)))
 #define rtwn_pci_enable_intr(_pc) \
 	(((_pc)->pc_enable_intr)((_pc)))
+#define rtwn_pci_get_intr_status(_pc, _tx_rings) \
+	(((_pc)->pc_get_intr_status)((_pc), (_tx_rings)))
 
 #endif	/* RTWN_PCI_VAR_H */

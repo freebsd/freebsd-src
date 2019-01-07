@@ -155,6 +155,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	pc->pc_tx_postsetup		= r92ce_tx_postsetup;
 	pc->pc_copy_tx_desc		= r92ce_copy_tx_desc;
 	pc->pc_enable_intr		= r92ce_enable_intr;
+	pc->pc_get_intr_status		= r92ce_get_intr_status;
 
 	pc->pc_qmap			= 0xf771;
 	pc->tcr				=
@@ -175,7 +176,7 @@ r92ce_attach(struct rtwn_pci_softc *pc)
 	sc->sc_get_rx_stats		= r92c_get_rx_stats;
 	sc->sc_get_rssi_cck		= r92c_get_rssi_cck;
 	sc->sc_get_rssi_ofdm		= r92c_get_rssi_ofdm;
-	sc->sc_classify_intr		= r92ce_classify_intr;
+	sc->sc_classify_intr		= r92c_classify_intr;
 	sc->sc_handle_tx_report		= rtwn_nop_softc_uint8_int;
 	sc->sc_handle_c2h_report	= rtwn_nop_softc_uint8_int;
 	sc->sc_check_frame		= rtwn_nop_int_softc_mbuf;

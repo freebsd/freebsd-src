@@ -47,7 +47,6 @@ void	r92cu_post_init(struct rtwn_softc *);
 void	r92cu_set_led(struct rtwn_softc *, int, int);
 
 /* r92cu_rx.c */
-int	r92cu_classify_intr(struct rtwn_softc *, void *, int);
 int	r92cu_align_rx(int, int);
 
 /* r92cu_tx.c */

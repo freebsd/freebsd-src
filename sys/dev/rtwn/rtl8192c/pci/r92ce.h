@@ -60,7 +60,7 @@ void	r92ce_post_init(struct rtwn_softc *);
 void	r92ce_set_led(struct rtwn_softc *, int, int);
 
 /* r92ce_rx.c */
-int	r92ce_classify_intr(struct rtwn_softc *, void *, int);
+int	r92ce_get_intr_status(struct rtwn_pci_softc *, int *);
 void	r92ce_enable_intr(struct rtwn_pci_softc *);
 void	r92ce_start_xfers(struct rtwn_softc *);
 

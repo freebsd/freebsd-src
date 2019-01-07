@@ -50,13 +50,6 @@ __FBSDID("$FreeBSD$");
 
 
 int
-r92cu_classify_intr(struct rtwn_softc *sc, void *buf, int len)
-{
-	/* NB: reports are fetched from C2H_MSG register. */
-	return (RTWN_RX_DATA);
-}
-
-int
 r92cu_align_rx(int totlen, int len)
 {
 	return (roundup2(totlen, 128));

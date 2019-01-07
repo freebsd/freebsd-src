@@ -81,6 +81,7 @@ void	r88e_rf_write(struct rtwn_softc *, int, uint8_t, uint32_t);
 void	r88e_parse_rom(struct rtwn_softc *, uint8_t *);
 
 /* r88e_rx.c */
+int	r88e_classify_intr(struct rtwn_softc *, void *, int);
 void	r88e_ratectl_tx_complete(struct rtwn_softc *, uint8_t *, int);
 void	r88e_handle_c2h_report(struct rtwn_softc *, uint8_t *, int);
 int8_t	r88e_get_rssi_cck(struct rtwn_softc *, void *);

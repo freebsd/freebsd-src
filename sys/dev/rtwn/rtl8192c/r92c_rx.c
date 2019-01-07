@@ -52,6 +52,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_rx_desc.h>
 
 
+int
+r92c_classify_intr(struct rtwn_softc *sc, void *buf, int len)
+{
+	/* NB: reports are fetched from C2H_MSG register. */
+	return (RTWN_RX_DATA);
+}
+
 int8_t
 r92c_get_rssi_cck(struct rtwn_softc *sc, void *physt)
 {

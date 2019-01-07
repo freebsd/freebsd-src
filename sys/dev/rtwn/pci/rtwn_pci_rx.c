@@ -83,12 +83,12 @@ rtwn_pci_setup_rx_desc(struct rtwn_pci_softc *pc,
 }
 
 static void
-rtwn_pci_rx_frame(struct rtwn_softc *sc, struct rtwn_rx_stat_pci *rx_desc,
-    int desc_idx)
+rtwn_pci_rx_frame(struct rtwn_pci_softc *pc)
 {
-	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
+	struct rtwn_softc *sc = &pc->pc_sc;
 	struct rtwn_rx_ring *ring = &pc->rx_ring;
-	struct rtwn_rx_data *rx_data = &ring->rx_data[desc_idx];
+	struct rtwn_rx_stat_pci *rx_desc = &ring->desc[ring->cur];
+	struct rtwn_rx_data *rx_data = &ring->rx_data[ring->cur];
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211_node *ni;
 	uint32_t rxdw0;
@@ -148,9 +148,6 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct rtwn_rx_stat_pci *rx_desc,
 			panic("%s: could not load old RX mbuf",
 			    device_get_name(sc->sc_dev));
 
-		/* Physical address may have changed. */
-		rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr,
-		    MJUMPAGESIZE, desc_idx);
 		goto fail;
 	}
 
@@ -164,10 +161,6 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct rtwn_rx_stat_pci *rx_desc,
 	RTWN_DPRINTF(sc, RTWN_DEBUG_RECV,
 	    "%s: Rx frame len %d, infosz %d, shift %d\n",
 	    __func__, pktlen, infosz, shift);
-
-	/* Update RX descriptor. */
-	rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr, MJUMPAGESIZE,
-	    desc_idx);
 
 	/* Send the frame to the 802.11 layer. */
 	RTWN_UNLOCK(sc);
@@ -184,6 +177,72 @@ rtwn_pci_rx_frame(struct rtwn_softc *sc, struct rtwn_rx_stat_pci *rx_desc,
 
 fail:
 	counter_u64_add(ic->ic_ierrors, 1);
+}
+
+static int
+rtwn_pci_rx_buf_copy(struct rtwn_pci_softc *pc)
+{
+	struct rtwn_rx_ring *ring = &pc->rx_ring;
+	struct rtwn_rx_stat_pci *rx_desc = &ring->desc[ring->cur];
+	struct rtwn_rx_data *rx_data = &ring->rx_data[ring->cur];
+	uint32_t rxdw0;
+	int desc_size, pktlen;
+
+	/*
+	 * NB: tx_report() / c2h_report() expects to see USB Rx
+	 * descriptor - same as for PCIe, but without rxbufaddr* fields.
+	 */
+	desc_size = sizeof(struct rtwn_rx_stat_common);
+	KASSERT(sizeof(pc->pc_rx_buf) >= desc_size,
+	    ("adjust size for PCIe Rx buffer!"));
+
+	memcpy(pc->pc_rx_buf, rx_desc, desc_size);
+
+	rxdw0 = le32toh(rx_desc->rxdw0);
+	pktlen = MS(rxdw0, RTWN_RXDW0_PKTLEN);
+
+	if (pktlen > sizeof(pc->pc_rx_buf) - desc_size)
+	{
+		/* Looks like an ordinary Rx frame. */
+		return (desc_size);
+	}
+
+	bus_dmamap_sync(ring->data_dmat, rx_data->map, BUS_DMASYNC_POSTREAD);
+	memcpy(pc->pc_rx_buf + desc_size, mtod(rx_data->m, void *), pktlen);
+
+	return (desc_size + pktlen);
+}
+
+static void
+rtwn_pci_tx_report(struct rtwn_pci_softc *pc, int len)
+{
+	struct rtwn_softc *sc = &pc->pc_sc;
+
+	if (sc->sc_ratectl != RTWN_RATECTL_NET80211) {
+		/* shouldn't happen */
+		device_printf(sc->sc_dev,
+		    "%s called while ratectl = %d!\n",
+		     __func__, sc->sc_ratectl);
+		return;
+	}
+
+	RTWN_NT_LOCK(sc);
+	rtwn_handle_tx_report(sc, pc->pc_rx_buf, len);
+	RTWN_NT_UNLOCK(sc);
+
+#ifdef IEEE80211_SUPPORT_SUPERG
+	/*
+	 * NB: this will executed only when 'report' bit is set.
+	 */
+	if (sc->sc_tx_n_active > 0 && --sc->sc_tx_n_active <= 1)
+		rtwn_cmd_sleepable(sc, NULL, 0, rtwn_ff_flush_all);
+#endif
+}
+
+static void
+rtwn_pci_c2h_report(struct rtwn_pci_softc *pc, int len)
+{
+	rtwn_handle_c2h_report(&pc->pc_sc, pc->pc_rx_buf, len);
 }
 
 static void
@@ -263,21 +322,50 @@ rtwn_pci_rx_done(struct rtwn_softc *sc)
 {
 	struct rtwn_pci_softc *pc = RTWN_PCI_SOFTC(sc);
 	struct rtwn_rx_ring *ring = &pc->rx_ring;
+	struct rtwn_rx_stat_pci *rx_desc;
+	struct rtwn_rx_data *rx_data;
+	int len;
 
 	bus_dmamap_sync(ring->desc_dmat, ring->desc_map, BUS_DMASYNC_POSTREAD);
 
 	for (;;) {
-		struct rtwn_rx_stat_pci *rx_desc = &ring->desc[ring->cur];
+		rx_desc = &ring->desc[ring->cur];
+		rx_data = &ring->rx_data[ring->cur];
 
 		if (le32toh(rx_desc->rxdw0) & RTWN_RXDW0_OWN)
 			break;
 
-		rtwn_pci_rx_frame(sc, rx_desc, ring->cur);
+		len = rtwn_pci_rx_buf_copy(pc);
+
+		switch (rtwn_classify_intr(sc, pc->pc_rx_buf, len)) {
+		case RTWN_RX_DATA:
+			rtwn_pci_rx_frame(pc);
+			break;
+		case RTWN_RX_TX_REPORT:
+			rtwn_pci_tx_report(pc, len);
+			break;
+		case RTWN_RX_OTHER:
+			rtwn_pci_c2h_report(pc, len);
+			break;
+		default:
+			/* NOTREACHED */
+			KASSERT(0, ("unknown Rx classification code"));
+			break;
+		}
+
+		/* Update / reset RX descriptor (and set OWN bit). */
+		rtwn_pci_setup_rx_desc(pc, rx_desc, rx_data->paddr,
+		    MJUMPAGESIZE, ring->cur);
 
 		if (!(sc->sc_flags & RTWN_RUNNING))
 			return;
 
-		ring->cur = (ring->cur + 1) % RTWN_PCI_RX_LIST_COUNT;
+		/* NB: device can reuse current descriptor. */
+		bus_dmamap_sync(ring->desc_dmat, ring->desc_map,
+		    BUS_DMASYNC_POSTREAD);
+
+		if (le32toh(rx_desc->rxdw0) & RTWN_RXDW0_OWN)
+			ring->cur = (ring->cur + 1) % RTWN_PCI_RX_LIST_COUNT;
 	}
 }
 
@@ -289,13 +377,13 @@ rtwn_pci_intr(void *arg)
 	int i, status, tx_rings;
 
 	RTWN_LOCK(sc);
-	status = rtwn_classify_intr(sc, &tx_rings, 0);
+	status = rtwn_pci_get_intr_status(pc, &tx_rings);
 	RTWN_DPRINTF(sc, RTWN_DEBUG_INTR, "%s: status %08X, tx_rings %08X\n",
 	    __func__, status, tx_rings);
 	if (status == 0 && tx_rings == 0)
 		goto unlock;
 
-	if (status & RTWN_PCI_INTR_RX) {
+	if (status & (RTWN_PCI_INTR_RX | RTWN_PCI_INTR_TX_REPORT)) {
 		rtwn_pci_rx_done(sc);
 		if (!(sc->sc_flags & RTWN_RUNNING))
 			goto unlock;
