@@ -275,6 +275,8 @@ cbb_enable_func_intr(struct cbb_softc *sc)
 	reg = (exca_getb(&sc->exca[0], EXCA_INTR) & ~EXCA_INTR_IRQ_MASK) | 
 	    EXCA_INTR_IRQ_NONE;
 	exca_putb(&sc->exca[0], EXCA_INTR, reg);
+	PCI_MASK_CONFIG(sc->dev, CBBR_BRIDGECTRL,
+	    & ~CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
 }
 
 int
@@ -873,8 +875,6 @@ cbb_power(device_t brdev, int volts)
 			reg_ctrl &= ~TOPIC97_REG_CTRL_CLKRUN_ENA;
 		pci_write_config(sc->dev, TOPIC_REG_CTRL, reg_ctrl, 4);
 	}
-	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
-	    & ~CBBM_BRIDGECTRL_INTR_IREQ_ISA_EN, 2);
 	retval = 1;
 done:;
 	if (volts != 0 && sc->chipset == CB_O2MICRO)
