@@ -24,9 +24,7 @@
 /*
  * Global definitions.
  */
-#define R88E_PUBQ_NPAGES	142
 #define R88E_TXPKTBUF_COUNT	177
-#define R88E_TX_PAGE_COUNT	169
 
 #define R88E_MACID_MAX		63
 #define R88E_RX_DMA_BUFFER_SIZE	0x2400
@@ -67,9 +65,8 @@ int	r88e_set_pwrmode(struct rtwn_softc *, struct ieee80211vap *, int);
 #endif
 
 /* r88e_init.c */
-void	r88e_init_bb(struct rtwn_softc *);
+void	r88e_init_bb_common(struct rtwn_softc *);
 void	r88e_init_rf(struct rtwn_softc *);
-int	r88e_power_on(struct rtwn_softc *);
 
 /* r88e_led.c */
 void	r88e_set_led(struct rtwn_softc *, int, int);
