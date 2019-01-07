@@ -188,8 +188,7 @@ next:
 	}
 
 #ifdef SMP
-	/* Probe mp_ncores and smp_threads_per_core as a side effect. */
-	(void)cpu_topo();
+	platform_smp_probe_threads();
 #endif
 }
 

@@ -242,6 +242,12 @@ platform_smp_ap_init()
 	PLATFORM_SMP_AP_INIT(plat_obj);
 }
 
+void
+platform_smp_probe_threads(void)
+{
+	PLATFORM_SMP_PROBE_THREADS(plat_obj);
+}
+
 #ifdef SMP
 struct cpu_group *
 cpu_topo(void)

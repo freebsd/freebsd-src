@@ -71,6 +71,7 @@ static int powernv_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static void powernv_smp_ap_init(platform_t);
 #ifdef SMP
 static int powernv_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void powernv_smp_probe_threads(platform_t);
 static struct cpu_group *powernv_smp_topo(platform_t plat);
 #endif
 static void powernv_reset(platform_t);
@@ -89,6 +90,7 @@ static platform_method_t powernv_methods[] = {
 	PLATFORMMETHOD(platform_smp_get_bsp,	powernv_smp_get_bsp),
 #ifdef SMP
 	PLATFORMMETHOD(platform_smp_start_cpu,	powernv_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_probe_threads,	powernv_smp_probe_threads),
 	PLATFORMMETHOD(platform_smp_topo,	powernv_smp_topo),
 #endif
 
@@ -403,8 +405,8 @@ powernv_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	return (0);
 }
 
-static struct cpu_group *
-powernv_smp_topo(platform_t plat)
+static void
+powernv_smp_probe_threads(platform_t plat)
 {
 	char buf[8];
 	phandle_t cpu, dev, root;
@@ -436,21 +438,26 @@ powernv_smp_topo(platform_t plat)
 	}
 
 	smp_threads_per_core = nthreads;
+	if (mp_ncpus % nthreads == 0)
+		mp_ncores = mp_ncpus / nthreads;
+}
 
-	if (mp_ncpus % nthreads != 0) {
+static struct cpu_group *
+powernv_smp_topo(platform_t plat)
+{
+	if (mp_ncpus % smp_threads_per_core != 0) {
 		printf("WARNING: Irregular SMP topology. Performance may be "
 		     "suboptimal (%d threads, %d on first core)\n",
-		     mp_ncpus, nthreads);
+		     mp_ncpus, smp_threads_per_core);
 		return (smp_topo_none());
 	}
 
-	mp_ncores = mp_ncpus / nthreads;
-
 	/* Don't do anything fancier for non-threaded SMP */
-	if (nthreads == 1)
+	if (smp_threads_per_core == 1)
 		return (smp_topo_none());
 
-	return (smp_topo_1level(CG_SHARE_L1, nthreads, CG_FLAG_SMT));
+	return (smp_topo_1level(CG_SHARE_L1, smp_threads_per_core,
+	    CG_FLAG_SMT));
 }
 
 #endif
