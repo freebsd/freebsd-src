@@ -44,11 +44,24 @@ struct r88e_rom {
 	uint8_t		reserved4[3];
 	uint8_t		rf_ant_opt;
 	uint8_t		reserved5[6];
-	uint16_t	vid;
-	uint16_t	pid;
-	uint8_t		usb_opt;
-	uint8_t		reserved6[2];
-	uint8_t		macaddr[IEEE80211_ADDR_LEN];
+
+	union {
+		struct {
+			uint16_t	vid;
+			uint16_t	pid;
+			uint8_t		usb_opt;
+			uint8_t		reserved6[2];
+			uint8_t		macaddr[IEEE80211_ADDR_LEN];
+		} __packed usb;
+
+		struct {
+			uint8_t		macaddr[IEEE80211_ADDR_LEN];
+			uint16_t	vid;
+			uint16_t	pid;
+			uint8_t		reserved6[3];
+		} __packed pci;
+	} __packed diff_d0;
+
 	uint8_t		reserved7[2];
 	uint8_t		string[33];	/* "realtek 802.11n NIC" */
 	uint8_t		reserved8[256];
