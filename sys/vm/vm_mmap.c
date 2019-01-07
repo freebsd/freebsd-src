@@ -97,6 +97,9 @@ __FBSDID("$FreeBSD$");
 int old_mlock = 0;
 SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RWTUN, &old_mlock, 0,
     "Do not apply RLIMIT_MEMLOCK on mlockall");
+static int mincore_mapped = 1;
+SYSCTL_INT(_vm, OID_AUTO, mincore_mapped, CTLFLAG_RWTUN, &mincore_mapped, 0,
+    "mincore reports mappings, not residency");
 
 #ifdef MAP_32BIT
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
@@ -808,7 +811,16 @@ RestartScan:
 		retry:
 			m = NULL;
 			mincoreinfo = pmap_mincore(pmap, addr, &locked_pa);
-			if (locked_pa != 0) {
+			if (mincore_mapped) {
+				/*
+				 * We only care about this pmap's
+				 * mapping of the page, if any.
+				 */
+				if (locked_pa != 0) {
+					vm_page_unlock(PHYS_TO_VM_PAGE(
+					    locked_pa));
+				}
+			} else if (locked_pa != 0) {
 				/*
 				 * The page is mapped by this process but not
 				 * both accessed and modified.  It is also
