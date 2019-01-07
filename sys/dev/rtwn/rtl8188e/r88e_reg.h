@@ -32,6 +32,7 @@
 #define R88E_HISR			0x0b4
 #define R88E_HIMRE			0x0b8
 #define R88E_HISRE			0x0bc
+#define R88E_XCK_OUT_CTRL	0x07c
 /* MAC General Configuration. */
 #define R88E_32K_CTRL			0x194
 #define R88E_HMEBOX_EXT(idx)		(0x1f0 + (idx) * 4)
@@ -121,5 +122,8 @@
 #define R88E_RF_T_METER_VAL_M	0x0fc00
 #define R88E_RF_T_METER_VAL_S	10
 #define R88E_RF_T_METER_START	0x30000
+
+/* Bits for R88E_XCK_OUT_CTRL. */
+#define R88E_XCK_OUT_CTRL_EN	1
 
 #endif	/* R88E_REG_H */

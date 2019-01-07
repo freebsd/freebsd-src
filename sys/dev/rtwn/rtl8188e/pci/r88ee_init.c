@@ -84,8 +84,15 @@ r88ee_power_on(struct rtwn_softc *sc)
 {
 	int ntries;
 
-	/* Wait for power ready bit. */
-	for (ntries = 0; ntries < 5000; ntries++) {
+	/* Disable XTAL output for power saving. */
+	rtwn_setbits_1(sc, R88E_XCK_OUT_CTRL, R88E_XCK_OUT_CTRL_EN, 0);
+
+	/* Unlock ISO/CLK/Power control register. */
+	rtwn_setbits_2(sc, R92C_APS_FSMCO, R92C_APS_FSMCO_APDM_HPDN, 0);
+	rtwn_write_1(sc, R92C_RSV_CTRL, 0);
+
+	/* Wait for power ready bit */
+	for(ntries = 0; ntries < 5000; ntries++) {
 		if (rtwn_read_4(sc, R92C_APS_FSMCO) & R92C_APS_FSMCO_SUS_HOST)
 			break;
 		rtwn_delay(sc, 10);
@@ -95,9 +102,6 @@ r88ee_power_on(struct rtwn_softc *sc)
 		    "timeout waiting for chip power up\n");
 		return (ETIMEDOUT);
 	}
-
-	/* Unlock ISO/CLK/Power control register. */
-	rtwn_write_1(sc, R92C_RSV_CTRL, 0);
 
 	/* Reset BB. */
 	rtwn_setbits_1(sc, R92C_SYS_FUNC_EN,
@@ -114,6 +118,7 @@ r88ee_power_on(struct rtwn_softc *sc)
 	rtwn_setbits_1_shift(sc, R92C_APS_FSMCO,
 	    R92C_APS_FSMCO_AFSM_HSUS | R92C_APS_FSMCO_AFSM_PCIE, 0, 1);
 
+	/* Auto-enable WLAN */
 	rtwn_setbits_1_shift(sc, R92C_APS_FSMCO,
 	    0, R92C_APS_FSMCO_APFM_ONMAC, 1);
 	for (ntries = 0; ntries < 5000; ntries++) {
@@ -129,6 +134,12 @@ r88ee_power_on(struct rtwn_softc *sc)
 
 	/* Enable LDO normal mode. */
 	rtwn_setbits_1(sc, R92C_LPLDO_CTRL, R92C_LPLDO_CTRL_SLEEP, 0);
+
+	rtwn_setbits_1(sc, R92C_APS_FSMCO, 0, R92C_APS_FSMCO_PDN_EN);
+	rtwn_setbits_1(sc, R92C_PCIE_CTRL_REG + 2, 0, 0x04);
+	rtwn_setbits_1(sc, R92C_AFE_XTAL_CTRL_EXT + 1, 0, 0x02);
+	rtwn_setbits_1(sc, R92C_SYS_CLKR, 0, 0x08);
+	rtwn_setbits_2(sc, R92C_GPIO_MUXCFG, R92C_GPIO_MUXCFG_ENSIC, 0);
 
 	/* Enable MAC DMA/WMAC/SCHEDULE/SEC blocks. */
 	rtwn_write_2(sc, R92C_CR, 0);
