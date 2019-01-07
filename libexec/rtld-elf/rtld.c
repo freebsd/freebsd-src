@@ -2864,7 +2864,7 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	init_pltgot(obj);
 
 	/* Process the PLT relocations. */
-	if (reloc_plt(obj) == -1)
+	if (reloc_plt(obj, flags, lockstate) == -1)
 		return (-1);
 	/* Relocate the jump slots if we are doing immediate binding. */
 	if ((obj->bind_now || bind_now) && reloc_jmpslots(obj, flags,
