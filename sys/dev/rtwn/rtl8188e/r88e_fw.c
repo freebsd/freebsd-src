@@ -109,7 +109,11 @@ r88e_fw_reset(struct rtwn_softc *sc, int reason)
 
 	reg = rtwn_read_2(sc, R92C_SYS_FUNC_EN);
 	rtwn_write_2(sc, R92C_SYS_FUNC_EN, reg & ~R92C_SYS_FUNC_EN_CPUEN);
-	rtwn_write_2(sc, R92C_SYS_FUNC_EN, reg | R92C_SYS_FUNC_EN_CPUEN);
+
+	if (reason != RTWN_FW_RESET_SHUTDOWN) {
+		rtwn_write_2(sc, R92C_SYS_FUNC_EN,
+		    reg | R92C_SYS_FUNC_EN_CPUEN);
+	}
 }
 
 void
