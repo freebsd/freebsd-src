@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd November 12, 2016
+.Dd January 7, 2019
 .Dt RTWN_PCI 4
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device rtwn"
 .Cd "device rtwn_pci"
 .Cd "device pci"
 .Cd "device wlan"
