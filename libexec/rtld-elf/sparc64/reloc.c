@@ -487,7 +487,8 @@ reloc_nonplt_object(Obj_Entry *obj, const Elf_Rela *rela, SymCache *cache,
 }
 
 int
-reloc_plt(Obj_Entry *obj)
+reloc_plt(Obj_Entry *obj __unused, int flags __unused,
+    RtldLockState *lockstate __unused)
 {
 #if 0
 	const Obj_Entry *defobj;
