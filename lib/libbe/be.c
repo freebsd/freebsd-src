@@ -211,7 +211,8 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_FILESYSTEM))
 			return (set_error(lbh, BE_ERR_NOENT));
 
-		if (strcmp(path, lbh->rootfs) == 0)
+		if (strcmp(path, lbh->rootfs) == 0 ||
+		    strcmp(path, lbh->bootfs) == 0)
 			return (set_error(lbh, BE_ERR_DESTROYACT));
 
 		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_FILESYSTEM);
