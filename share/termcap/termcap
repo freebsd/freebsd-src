@@ -3543,6 +3543,20 @@ ti800|ti omni 800:\
 ti931|ti 931:\
 	:al=\EN:am:bs:cd=\EJ:ce=\EI:cl=\EL:cm=\EY%+ %+ :co#80:dl=\EO:do=\EB:\
 	:eo:ho=\EH:li#24:ku=\EA:kd=\EB:kr=\EC:kl=\ED:mi:nd:sf=\Eb:sr=\Ea:up=\EA:
+# From Robert Clausecker <fuz@fuz.su>
+#
+# Terminal entries for the Texas Instruments 703/707
+# hardcopy terminals.
+#
+# The terminal can switch between 80 and 132 column mode
+# using \EPC\\ and \EPD\\, but I don't think there is a
+# capability for that.
+ti703|ti707|Texas Instruments Silent 703/707, 80 cols:\
+	:am:hc:os:xn:\
+	:co#80:it#8:\
+	:do=\n:le=\b:cr=\r:nd= :bl=^G:ta=\t:is=\EPC\\:
+ti703-w|ti707-w|Texas Instruments Silent 703/707, 132 cols:\
+	:co#132:is=\EPD\\:tc=ti703:
 # # --------------------------------
 #
 # v: TELEVIDEO
