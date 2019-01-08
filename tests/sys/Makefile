@@ -20,6 +20,7 @@ TESTS_SUBDIRS+=		mac
 TESTS_SUBDIRS+=		mqueue
 TESTS_SUBDIRS+=		netinet
 TESTS_SUBDIRS+=		netipsec
+TESTS_SUBDIRS+=		netmap
 TESTS_SUBDIRS+=		netpfil
 TESTS_SUBDIRS+=		opencrypto
 TESTS_SUBDIRS+=		posixshm
