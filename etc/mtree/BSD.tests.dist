@@ -752,6 +752,8 @@
             tunnel
             ..
         ..
+    netmap
+    ..
         netpfil
             pf
                 ioctl
