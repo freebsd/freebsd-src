@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -185,7 +185,7 @@ AsCountLines (
 
 #define MODULE_HEADER_BEGIN "/******************************************************************************\n *\n * Module Name:";
 #define MODULE_HEADER_END   " *****************************************************************************/\n\n"
-#define INTEL_COPYRIGHT     " * Copyright (C) 2000 - 2018, Intel Corp.\n"
+#define INTEL_COPYRIGHT     " * Copyright (C) 2000 - 2019, Intel Corp.\n"
 
 /* Opening signature of the Intel legal header */
 
