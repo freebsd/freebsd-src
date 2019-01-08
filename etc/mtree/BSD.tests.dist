@@ -486,6 +486,8 @@
         ..
         netinet
         ..
+        netmap
+        ..
         opencrypto
         ..
         pjdfstest
