@@ -1,0 +1,19 @@
+simple dapl test just for initial openIB uDAPL testing...
+
+       dtest/dtest.c
+       dtest/makefile
+       dtest/dat.conf
+
+to build (default uDAPL name == IB1, ib device  ==  mthca0, port == 1)
+       edit makefile and change path (DAT_LIB) to appropriate libdat.so
+       edit dat.conf and change path to appropriate libdapl.so
+       cp dat.conf to /etc/dat.conf
+
+to run:
+       server: dtest
+       client: dtest -h hostname
+
+for verbose uDAPL and uDAT debug:
+
+       export DAPL_DBG_TYPE=0xffff
+       export DAT_DBG_TYPE=0xffff

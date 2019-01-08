@@ -1,0 +1,66 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.57)
+AC_INIT(librdmacm, 1.0.11, general@lists.openfabrics.org)
+AC_CONFIG_SRCDIR([src/cma.c])
+AC_CONFIG_AUX_DIR(config)
+AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(librdmacm, 1.0.11)
+
+AM_PROG_LIBTOOL
+
+AC_ARG_WITH([valgrind],
+    AC_HELP_STRING([--with-valgrind],
+		   [Enable valgrind annotations - default NO]))
+
+if test "$with_valgrind" != "" && test "$with_valgrind" != "no"; then
+	AC_DEFINE([INCLUDE_VALGRIND], 1,
+		  [Define to 1 to enable valgrind annotations])
+	if test -d $with_valgrind; then
+		CPPFLAGS="$CPPLFAGS -I$with_valgrind/include"
+	fi
+fi
+
+AC_ARG_ENABLE(libcheck, [  --disable-libcheck      do not test for presence of ib libraries],
+[       if test "$enableval" = "no"; then
+                disable_libcheck=yes
+        fi
+])
+
+dnl Checks for programs
+AC_PROG_CC
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_CHECK_SIZEOF(long)
+
+dnl Checks for libraries
+if test "$disable_libcheck" != "yes"; then
+AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
+    AC_MSG_ERROR([ibv_get_device_list() not found.  librdmacm requires libibverbs.]))
+fi
+
+dnl Checks for header files.
+AC_HEADER_STDC
+if test "$disable_libcheck" != "yes"; then
+AC_CHECK_HEADER(infiniband/verbs.h, [],
+    AC_MSG_ERROR([<infiniband/verbs.h> not found.  Is libibverbs installed?]))
+
+if test "$with_valgrind" != "" && test "$with_valgrind" != "no"; then
+AC_CHECK_HEADER(valgrind/memcheck.h, [],
+    AC_MSG_ERROR([valgrind requested but <valgrind/memcheck.h> not found.]))
+fi
+
+fi
+
+AC_CACHE_CHECK(whether ld accepts --version-script, ac_cv_version_script,
+    if test -n "`$LD --help < /dev/null 2>/dev/null | grep version-script`"; then
+        ac_cv_version_script=yes
+    else
+        ac_cv_version_script=no
+    fi)
+
+AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$ac_cv_version_script" = "yes")
+
+AC_CONFIG_FILES([Makefile librdmacm.spec])
+AC_OUTPUT

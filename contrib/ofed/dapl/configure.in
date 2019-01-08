@@ -1,0 +1,101 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.57)
+AC_INIT(dapl, 2.0.26, linux-rdma@vger.kernel.org)
+AC_CONFIG_SRCDIR([dat/udat/udat.c])
+AC_CONFIG_AUX_DIR(config)
+AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(dapl, 2.0.26)
+
+AM_PROG_LIBTOOL
+
+AC_ARG_ENABLE(libcheck, [  --disable-libcheck      do not test for presence of ib libraries],
+[       if test x$enableval = xno ; then
+                disable_libcheck=yes
+        fi
+])
+
+dnl Checks for programs
+AC_PROG_CC
+
+dnl Checks for libraries
+if test "$disable_libcheck" != "yes"
+then
+AC_CHECK_LIB(ibverbs, ibv_get_device_list, [],
+    AC_MSG_ERROR([ibv_get_device_list() not found.  libdapl requires libibverbs.]))
+fi
+
+dnl Checks for header files.
+if test "$disable_libcheck" != "yes"
+then
+AC_CHECK_HEADER(infiniband/verbs.h, [],
+    AC_MSG_ERROR([<infiniband/verbs.h> not found.  Is libibverbs installed?]))
+fi
+
+AC_CACHE_CHECK(whether ld accepts --version-script, ac_cv_version_script,
+    if test -n "`$LD --help < /dev/null 2>/dev/null | grep version-script`"; then
+        ac_cv_version_script=yes
+    else
+        ac_cv_version_script=no
+    fi)
+AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$ac_cv_version_script" = "yes")
+
+dnl Support debug mode build - if enable-debug provided the DEBUG variable is set 
+AC_ARG_ENABLE(debug,
+[  --enable-debug Turn on debug mode, default=off],
+[case "${enableval}" in
+  yes) debug=true ;;
+  no)  debug=false ;;
+  *) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+esac],[debug=false])
+AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
+
+dnl Support ib_extension build - if enable-ext-type == ib 
+AC_ARG_ENABLE(ext-type,
+[  --enable-ext-type Enable extensions support for library: ib, none, default=ib],
+ [ if   test "x$enableval" = "xib" ; then
+      ext_type=ib
+   elif test "x$enableval" = "xnone" ; then
+      ext_type=none
+   else
+      echo
+      echo "Error!"
+      echo "Unknown extension type' type"
+      exit -1
+   fi
+ ],[ext_type=ib])
+AM_CONDITIONAL(EXT_TYPE_IB, test "$ext_type" = "ib")
+
+dnl Check for Redhat EL release 4
+AC_CACHE_CHECK(Check for RHEL4 system, ac_cv_rhel4,
+    if test -f /etc/redhat-release &&
+       test -n "`grep -e "release 4" /etc/redhat-release`"; then
+        ac_cv_rhel4=yes
+    else
+        ac_cv_rhel4=no
+    fi)
+AM_CONDITIONAL(OS_RHEL4, test "$ac_cv_rhel4" = "yes")
+
+dnl Check for Redhat EL release 5
+AC_CACHE_CHECK(Check for RHEL5 system, ac_cv_rhel5,
+    if test -f /etc/redhat-release &&
+       test -n "`grep -e "release 5" /etc/redhat-release`"; then
+        ac_cv_rhel5=yes
+    else
+        ac_cv_rhel5=no
+    fi)
+AM_CONDITIONAL(OS_RHEL5, test "$ac_cv_rhel5" = "yes")
+
+dnl Check for SuSE release 11
+AC_CACHE_CHECK(Check for SUSE_11 system, ac_cv_suse11,
+    if test -f /etc/SuSE-release &&
+       test -n "`grep -e "VERSION = 11" /etc/SuSE-release`"; then
+        ac_cv_suse11=yes
+    else
+        ac_cv_suse11=no
+    fi)
+AM_CONDITIONAL(OS_SUSE11, test "$ac_cv_suse11" = "yes")
+
+AC_CONFIG_FILES([Makefile test/dtest/Makefile test/dapltest/Makefile dapl.spec])
+
+AC_OUTPUT

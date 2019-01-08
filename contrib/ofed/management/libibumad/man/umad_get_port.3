@@ -1,0 +1,82 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_GET_PORT 3  "May 21, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_get_port, umad_release_port \- open and close an InfiniBand port
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_get_port(char " "*ca_name" ", int " "portnum" ", umad_port_t " "*port" );
+.nl
+.BI "int umad_release_port(umad_port_t " "*port" );
+.fi
+.SH "DESCRIPTION"
+.B umad_get_port()
+fills the
+.I port
+structure with the IB port attributes specified by
+.I ca_name
+and
+.I portnum
+, or the default port if
+.I ca_name
+is NULL and
+.I portnum
+is zero. If only one of
+.I ca_name
+and
+.I portnum
+are specified, the other is used as a filter.
+For example, passing a NULL
+.I ca_name
+and 2 for the
+.I portnum
+means get a port from any of the local IB devices, as long as it is
+the second port.
+Note that the library may use some reference scheme to support port caching
+therefore
+.B umad_release_port()
+should be called before the
+.I port
+structure can be deallocated.
+The argument
+.I port
+is an
+.B umad_port_t
+struct, as specified in <infiniband/umad.h>.
+.PP
+.nf
+typedef struct umad_port {
+.in +8
+char ca_name[UMAD_CA_NAME_LEN];                 /* Name of the device */
+int portnum;                                    /* Physical port number */
+uint base_lid;                                  /* Base port LID */
+uint lmc;                                       /* LMC of LID */
+uint sm_lid;                                    /* SM LID */
+uint sm_sl;                                     /* SM service level */
+uint state;                                     /* Logical port state */
+uint phys_state;                                /* Physical port state */
+uint rate;                                      /* Port link bit rate */
+uint64_t capmask;                               /* Port capabilities */
+uint64_t gid_prefix;                            /* Gid prefix of this port */
+uint64_t port_guid;                             /* GUID of this port */
+.in -8
+} umad_port_t;
+.fi
+.PP
+.B umad_release_port()
+releases the resources that were allocated by the
+.B umad_get_port()
+function for the specified IB
+.I port\fR.
+.SH "RETURN VALUE"
+.B umad_get_port()
+and
+.B umad_release_port()
+return 0 on success, and a negative value on error.
+.SH "AUTHORS"
+.TP
+Hal Rosenstock <halr@voltaire.com>
+.TP
+Dotan Barak <dotanb@mellanox.co.il>

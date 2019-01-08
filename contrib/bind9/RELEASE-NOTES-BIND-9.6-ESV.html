@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!--
+ - Copyright (C) 2010  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: RELEASE-NOTES-BIND-9.6-ESV.html,v 1.1.2.2 2010/11/29 01:16:39 tbox Exp $ -->
+
+<html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /><title></title><link rel="stylesheet" type="text/css" href="release-notes.css" /><meta name="generator" content="DocBook XSL Stylesheets V1.76.1" /></head><body><div class="article"><div class="titlepage"><hr /></div>
+
+  <div class="section" title="Introduction"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36111950"></a>Introduction</h2></div></div></div>
+    
+    <p>
+			BIND 9.6-ESV-R3 is a maintenance release for BIND 9.6-ESV.
+		</p>
+    <p>
+			This document summarizes changes from BIND 9.6-ESV-R1 to BIND 9.6-ESV-R3.
+			Please see the CHANGES file in the source code release for a
+			complete list of all changes.
+		</p>
+  </div>
+
+  <div class="section" title="Download"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112014"></a>Download</h2></div></div></div>
+    
+    <p>
+			The latest release of BIND 9 software can always be found
+	 		on our web site at
+      <a class="ulink" href="http://www.isc.org/software/bind" target="_top">http://www.isc.org/software/bind</a>.
+  		There you will find additional information about each release,
+ 			source code, and some pre-compiled versions for certain operating
+ 			systems.
+		</p>
+  </div>
+
+  <div class="section" title="Support"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112037"></a>Support</h2></div></div></div>
+    
+    <p>Product support information is available on
+      <a class="ulink" href="http://www.isc.org/services/support" target="_top">http://www.isc.org/services/support</a>
+      for paid support options.  Free support is provided by our user
+ 			community via a mailing list.  Information on all public email
+ 			lists is available at
+      <a class="ulink" href="https://lists.isc.org/mailman/listinfo" target="_top">https://lists.isc.org/mailman/listinfo</a>.
+    </p>
+  </div>
+
+  <div class="section" title="New Features"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36111986"></a>New Features</h2></div></div></div>
+    
+		<div class="section" title="9.6-ESV-R2"><div class="titlepage"><div><div><h3 class="title"><a id="id36112025"></a>9.6-ESV-R2</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+		<div class="section" title="9.6-ESV-R3"><div class="titlepage"><div><div><h3 class="title"><a id="id36112098"></a>9.6-ESV-R3</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+  </div>
+
+  <div class="section" title="Feature Changes"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112120"></a>Feature Changes</h2></div></div></div>
+    
+		<div class="section" title="9.6-ESV-R2"><div class="titlepage"><div><div><h3 class="title"><a id="id36112125"></a>9.6-ESV-R2</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+		<div class="section" title="9.6-ESV-R3"><div class="titlepage"><div><div><h3 class="title"><a id="id36112135"></a>9.6-ESV-R3</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+  </div>
+
+  <div class="section" title="Security Fixes"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112146"></a>Security Fixes</h2></div></div></div>
+    
+		<div class="section" title="9.6-ESV-R2"><div class="titlepage"><div><div><h3 class="title"><a id="id36112151"></a>9.6-ESV-R2</h3></div></div></div>
+			
+			<p>None.</p>
+		</div>
+		<div class="section" title="9.6-ESV-R3"><div class="titlepage"><div><div><h3 class="title"><a id="id36112160"></a>9.6-ESV-R3</h3></div></div></div>
+			
+			<div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem">
+				 	Adding a NO DATA signed negative response to cache failed to clear
+				  any matching RRSIG records already in cache. A subsequent lookup
+				  of the cached NO DATA entry could crash named (INSIST) when the
+				  unexpected RRSIG was also returned with the NO DATA cache entry.
+				  [RT #22288] [CVE-2010-3613] [VU#706148]
+				</li><li class="listitem">
+					BIND, acting as a DNSSEC validator, was determining if the NS RRset
+				  is insecure based on a value that could mean either that the RRset
+				  is actually insecure or that there wasn't a matching key for the RRSIG
+				  in the DNSKEY RRset when resuming from validating the DNSKEY RRset.
+				  This can happen when in the middle of a DNSKEY algorithm rollover,
+				  when two different algorithms were used to sign a zone but only the
+				  new set of keys are in the zone DNSKEY RRset.
+					[RT #22309] [CVE-2010-3614] [VU#837744]
+				</li></ul></div>
+		</div>
+  </div>
+
+  <div class="section" title="Bug Fixes"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112186"></a>Bug Fixes</h2></div></div></div>
+    
+		<div class="section" title="9.6-ESV-R2"><div class="titlepage"><div><div><h3 class="title"><a id="id36112191"></a>9.6-ESV-R2</h3></div></div></div>
+			
+	    <div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem">
+					Check that named successfully skips NSEC3 records
+					that fail to match the NSEC3PARAM record currently
+					in use.
+					[RT #21868]
+				</li><li class="listitem">
+					Worked around a race condition in the cache database memory
+					handling.  Without this fix a DNS cache DB or ADB could
+					incorrectly stay in an over memory state, effectively refusing
+					further caching, which subsequently made a BIND 9 caching
+					server unworkable.
+					[RT #21818]
+				</li><li class="listitem">
+					BIND did not properly handle non-cacheable negative responses
+					from insecure zones. This caused several non-protocol-compliant
+					zones to become unresolvable.  BIND is now more accepting of
+					responses it receives from less strict servers.
+					[RT #21555]
+				</li><li class="listitem">
+					The resolver could attempt to destroy a fetch context too
+					soon, resulting in a crash.
+					[RT #19878]
+				</li><li class="listitem">
+					The placeholder negative caching element was not
+					properly constructed triggering a crash (INSIST) in 
+					dns_ncache_towire().
+					[RT #21346]
+				</li><li class="listitem">
+					Handle the introduction of new trusted-keys and
+					DS, DLV RRsets better.
+					[RT #21097]
+				</li><li class="listitem">
+					Fix arguments to dns_keytable_findnextkeynode() call.
+					[RT #20877]
+				</li></ul></div>
+		</div>
+		<div class="section" title="9.6-ESV-R3"><div class="titlepage"><div><div><h3 class="title"><a id="id36112232"></a>9.6-ESV-R3</h3></div></div></div>
+			
+	    <div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem">
+					Microsoft changed the behavior of sockets between NT/XP based
+				  stacks vs Vista/windows7 stacks. Server 2003/2008 have the older
+				  behavior, 2008r2 has the new behavior. With the change, different
+				  error results are possible, so ISC adapted BIND to handle the new
+				  error results.
+				  This resolves an issue where sockets would shut down on
+				  Windows servers causing named to stop responding to queries.
+					[RT #21906]
+				</li><li class="listitem">
+				 	Windows has non-POSIX compliant behavior in its rename() and unlink()
+				  calls. This caused journal compaction to fail on Windows BIND servers
+				  with the log error: "dns_journal_compact failed: failure".
+					[RT #22434]
+				</li><li class="listitem">
+					'host -D' now turns on debugging messages earlier.
+					[RT #22361]
+				</li><li class="listitem">
+          isc_print_vsnprintf() failed to check if there was
+					space available in the buffer when adding a left
+					justified character with a non zero width,
+					(e.g. "%-1c").
+					[RT #22270]
+				</li><li class="listitem">
+          view-&gt;queryacl was being overloaded.  Seperate the
+					usage into view-&gt;queryacl, view-&gt;cacheacl and
+					view-&gt;queryonacl.
+					[RT #22114]
+				</li><li class="listitem">
+          win32: add more dependencies to BINDBuild.dsw.
+          [RT #22062]
+				</li><li class="listitem">
+          win32: named-checkzone and named-checkconf failed
+          to initialise winsock.
+					[RT #21932]
+				</li><li class="listitem">
+          named failed to generate a correct signed response
+          in a optout, delegation only zone with no secure
+          delegations.
+					[RT #22007]
+				</li></ul></div>
+		</div>
+  </div>
+  
+  <div class="section" title="Known issues in this release"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112280"></a>Known issues in this release</h2></div></div></div>
+    
+    <div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem">
+        <p>
+          "make test" will fail on OSX and possibly other operating systems.
+          The failure occurs in a new test to check for allow-query ACLs.
+          The failure is caused because the source address is not specified on
+          the dig commands issued in the test.
+        </p>
+        <p>
+          If running "make test" is part of your usual acceptance process,
+          please edit the file <code class="code">bin/tests/system/allow_query/test.sh</code>
+          and add
+          </p><p>
+            <code class="code">-b 10.53.0.2</code>
+          </p><p>
+          to the <code class="code">DIGOPTS</code> line.
+        </p>
+      </li></ul></div>
+  </div>
+
+  <div class="section" title="Thank You"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a id="id36112315"></a>Thank You</h2></div></div></div>
+    
+    <p>
+      Thank you to everyone who assisted us in making this release possible.
+      If you would like to contribute to ISC to assist us in continuing to make
+      quality open source software, please visit our donations page at
+      <a class="ulink" href="http://www.isc.org/supportisc" target="_top">http://www.isc.org/supportisc</a>.
+    </p>
+  </div>
+</div></body></html>

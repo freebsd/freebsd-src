@@ -1,0 +1,232 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_PREREQ(2.57)
+AC_INIT(opensm, 3.3.0, general@lists.openfabrics.org)
+AC_CONFIG_SRCDIR([opensm/osm_opensm.c])
+AC_CONFIG_AUX_DIR(config)
+AC_CONFIG_HEADERS(include/config.h include/opensm/osm_config.h)
+AM_INIT_AUTOMAKE
+
+AC_SUBST(RELEASE, ${RELEASE:-unknown})
+AC_SUBST(TARBALL, ${TARBALL:-${PACKAGE}-${VERSION}.tar.gz})
+
+dnl NOTE: AC_DEFINE's and AC_DEFINE_UNQUOTED's which are used in header files
+dnl       MUST have a corresponding entry in include/opensm/osm_config.h.in to
+dnl       ensure plugin compatibility.
+AC_DEFINE(_OSM_CONFIG_H_, 1, mark config.h inclusion)
+
+dnl Defines the Language
+AC_LANG_C
+
+dnl Required for cases make defines a MAKE=make ??? Why
+AC_PROG_MAKE_SET
+AC_PROG_CC
+AC_PROG_LIBTOOL
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_PROG_YACC
+AC_PROG_LEX
+
+AC_CHECK_PROGS(_YACC_,$YACC,none)
+if test "$_YACC_" = "none"
+then
+  AC_MSG_ERROR([No bison/byacc/yacc found.])
+fi
+
+AC_CHECK_PROGS(_LEX_,$LEX,none)
+if test "$_LEX_" = "none"
+then
+  AC_MSG_ERROR([No flex/lex found.])
+fi
+
+dnl Checks for libraries
+AC_CHECK_LIB(pthread, pthread_mutex_init, [],
+	AC_MSG_ERROR([pthread_mutex_init() not found.  libosmcomp requires libpthread.]))
+AC_CHECK_LIB(dl, dlopen, [],
+	AC_MSG_ERROR([dlopen() not found. OpenSM requires libdl.]))
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_HEADER_TIME
+AC_STRUCT_TM
+AC_C_VOLATILE
+
+dnl We use --version-script with ld if possible
+AC_CACHE_CHECK(whether ld accepts --version-script, ac_cv_version_script,
+if test -n "`$LD --help < /dev/null 2>/dev/null | grep version-script`"; then
+	ac_cv_version_script=yes
+else
+	ac_cv_version_script=no
+fi)
+AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$ac_cv_version_script" = "yes")
+
+dnl Define an input config option to control debug compile
+AC_ARG_ENABLE(debug,    [  --enable-debug          Turn on debugging],
+[case "${enableval}" in
+	yes) debug=true ;;
+	no)  debug=false ;;
+	*) AC_MSG_ERROR(bad value ${enableval} for --enable-debug) ;;
+esac],debug=false)
+if test x$debug = xtrue ; then
+	AC_DEFINE(OSM_DEBUG, 1, [ define 1 if OpenSM build is in a debug mode ])
+fi
+AM_CONDITIONAL(DEBUG, test x$debug = xtrue)
+
+AC_ARG_ENABLE(libcheck, [  --disable-libcheck      do not test for presence of ib libraries],
+[if test x$enableval = xno ; then
+	disable_libcheck=yes
+fi])
+
+dnl check if they want the socket console
+OPENIB_OSM_CONSOLE_SOCKET_SEL
+
+dnl select performance manager or not
+OPENIB_OSM_PERF_MGR_SEL
+
+dnl resolve <sysconfdir> config dir.
+conf_dir_tmp1="`eval echo ${sysconfdir} | sed 's/^NONE/$ac_default_prefix/'`"
+SYS_CONFIG_DIR="`eval echo $conf_dir_tmp1`"
+
+dnl Check for a different subdir for the config files.
+OPENSM_CONFIG_SUB_DIR=opensm
+AC_MSG_CHECKING(for --with-opensm-conf-sub-dir)
+AC_ARG_WITH(opensm-conf-sub-dir,
+    AC_HELP_STRING([--with-opensm-conf-sub-dir=dir],
+                   [define a directory name for opensm's conf files <sysconfdir>/<dir> (default "opensm")]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        OPENSM_CONFIG_SUB_DIR=$withval
+        ;;
+    esac ]
+)
+dnl this needs to be configured for rpmbuilds separate from the full path
+dnl "OPENSM_CONFIG_DIR"
+AC_SUBST(OPENSM_CONFIG_SUB_DIR)
+
+OPENSM_CONFIG_DIR=$SYS_CONFIG_DIR/$OPENSM_CONFIG_SUB_DIR
+AC_MSG_RESULT($OPENSM_CONFIG_DIR)
+AC_DEFINE_UNQUOTED(OPENSM_CONFIG_DIR,
+	["$OPENSM_CONFIG_DIR"],
+	[Define OpenSM config directory])
+AC_SUBST(OPENSM_CONFIG_DIR)
+
+dnl Check for a different default OpenSm config file
+OPENSM_CONFIG_FILE=opensm.conf
+AC_MSG_CHECKING(for --with-opensm-conf-file )
+AC_ARG_WITH(opensm-conf-file,
+    AC_HELP_STRING([--with-opensm-conf-file=file],
+                   [define a default OpenSM config file (default opensm.conf)]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        OPENSM_CONFIG_FILE=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT(${OPENSM_CONFIG_FILE})
+AC_DEFINE_UNQUOTED(HAVE_DEFAULT_OPENSM_CONFIG_FILE,
+	["$OPENSM_CONFIG_DIR/$OPENSM_CONFIG_FILE"],
+	[Define a default OpenSM config file])
+AC_SUBST(OPENSM_CONFIG_FILE)
+
+dnl Check for a different default node name map file
+NODENAMEMAPFILE=ib-node-name-map
+AC_MSG_CHECKING(for --with-node-name-map )
+AC_ARG_WITH(node-name-map,
+    AC_HELP_STRING([--with-node-name-map=file],
+                   [define a default node name map file (default ib-node-name-map)]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        NODENAMEMAPFILE=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT($NODENAMEMAPFILE)
+AC_DEFINE_UNQUOTED(HAVE_DEFAULT_NODENAME_MAP,
+	["$OPENSM_CONFIG_DIR/$NODENAMEMAPFILE"],
+	[Define a default node name map file])
+AC_SUBST(NODENAMEMAPFILE)
+
+dnl Check for a different partition conf file
+PARTITION_CONFIG_FILE=partitions.conf
+AC_MSG_CHECKING(for --with-partitions-conf)
+AC_ARG_WITH(partitions-conf,
+    AC_HELP_STRING([--with-partitions-conf=file],
+                   [define a partitions config file (default partitions.conf)]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        PARTITION_CONFIG_FILE=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT($PARTITION_CONFIG_FILE)
+AC_DEFINE_UNQUOTED(HAVE_DEFAULT_PARTITION_CONFIG_FILE,
+	["$OPENSM_CONFIG_DIR/$PARTITION_CONFIG_FILE"],
+	[Define a Partition config file])
+AC_SUBST(PARTITION_CONFIG_FILE)
+
+dnl Check for a different QOS policy file
+QOS_POLICY_FILE=qos-policy.conf
+AC_MSG_CHECKING(for --with-qos-policy-conf)
+AC_ARG_WITH(qos-policy-conf,
+    AC_HELP_STRING([--with-qos-policy-conf=file],
+                   [define a QOS policy config file (default qos-policy.conf)]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        QOS_POLICY_FILE=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT($QOS_POLICY_FILE)
+AC_DEFINE_UNQUOTED(HAVE_DEFAULT_QOS_POLICY_FILE,
+	["$OPENSM_CONFIG_DIR/$QOS_POLICY_FILE"],
+	[Define a QOS policy config file])
+AC_SUBST(QOS_POLICY_FILE)
+
+dnl Check for a different prefix-routes file
+PREFIX_ROUTES_FILE=prefix-routes.conf
+AC_MSG_CHECKING(for --with-prefix-routes-conf)
+AC_ARG_WITH(prefix-routes-conf,
+    AC_HELP_STRING([--with-prefix-routes-conf=file],
+                   [define a Prefix Routes config file (default is prefix-routes.conf)]),
+    [ case "$withval" in
+    no)
+        ;;
+    *)
+        PREFIX_ROUTES_FILE=$withval
+        ;;
+    esac ]
+)
+AC_MSG_RESULT($PREFIX_ROUTES_FILE)
+AC_DEFINE_UNQUOTED(HAVE_DEFAULT_PREFIX_ROUTES_FILE,
+	["$OPENSM_CONFIG_DIR/$PREFIX_ROUTES_FILE"],
+	[Define a Prefix Routes config file])
+AC_SUBST(PREFIX_ROUTES_FILE)
+
+dnl select example event plugin or not
+OPENIB_OSM_DEFAULT_EVENT_PLUGIN_SEL
+
+dnl Provide user option to select vendor
+OPENIB_APP_OSMV_SEL
+
+dnl Checks for headers and libraries
+OPENIB_APP_OSMV_CHECK_HEADER
+OPENIB_APP_OSMV_CHECK_LIB
+
+AC_CONFIG_FILES([man/opensm.8 scripts/opensm.init scripts/redhat-opensm.init scripts/sldd.sh])
+
+dnl Create the following Makefiles
+AC_OUTPUT([include/opensm/osm_version.h Makefile include/Makefile complib/Makefile libvendor/Makefile opensm/Makefile osmeventplugin/Makefile osmtest/Makefile opensm.spec])

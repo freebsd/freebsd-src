@@ -1,0 +1,19 @@
+config INFINIBAND_QLGC_VNIC
+	tristate "QLogic VNIC - Support for QLogic Ethernet Virtual I/O Controller"
+	depends on INFINIBAND && NETDEVICES && INET
+	---help---
+	  Support for the QLogic Ethernet Virtual I/O Controller
+	  (EVIC). In conjunction with the EVIC, this provides virtual
+	  ethernet interfaces and transports ethernet packets over
+	  InfiniBand so that you can communicate with Ethernet networks
+	  using your IB device.
+
+config INFINIBAND_QLGC_VNIC_STATS
+	bool "QLogic VNIC Statistics"
+	depends on INFINIBAND_QLGC_VNIC
+	default n
+	---help---
+	  This option compiles statistics collecting code into the
+	  data path of the QLogic VNIC driver to help in profiling and fine
+	  tuning. This adds some overhead in the interest of gathering
+	  data.

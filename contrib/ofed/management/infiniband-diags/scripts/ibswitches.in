@@ -1,0 +1,79 @@
+#!/bin/sh
+
+IBPATH=${IBPATH:-@IBSCRIPTPATH@}
+
+function usage() {
+	echo Usage: `basename $0` "[-h] [<topology-file> | -C ca_name" \
+	    "-P ca_port -t(imeout) timeout_ms]"
+	exit -1
+}
+
+topofile=""
+ca_info=""
+
+while [ "$1" ]; do
+	case $1 in
+	-h)
+		usage
+		;;
+	-P | -C | -t | -timeout)
+		case $2 in
+		-*)
+			usage
+			;;
+		esac
+		if [ x$2 = x ] ; then
+			usage
+		fi
+		ca_info="$ca_info $1 $2"
+		shift
+		;;
+	-*)
+		usage
+		;;
+	*)
+		if [ "$topofile" ]; then
+			usage
+		fi
+		topofile="$1"
+		;;
+	esac
+	shift
+done
+
+if [ "$topofile" ]; then
+	netcmd="cat $topofile"
+else
+	netcmd="$IBPATH/ibnetdiscover $ca_info"
+fi
+
+text="`eval $netcmd`"
+rv=$?
+echo "$text" | awk '
+/^Switch/	{
+			l=$0
+			desc=substr(l, match(l, "#[ \t]*")+RLENGTH)
+			pi=match(desc, "port 0.*")
+			pinfo=substr(desc, pi)
+			desc=substr(desc, 1, pi-2)
+			type="base"
+			ti=match(desc, type)
+			if (ti==0) {
+				type="enhanced"
+				ti=match(desc, type)
+				if (ti!=0)
+					desc=substr(desc, 1, ti-2)
+			} else
+				desc=substr(desc, 1, ti-2)
+			if (ti==0)
+				print $1 "\t: 0x" substr($3, 4, 16) " ports " $2 " "\
+					desc " " pinfo
+			else
+				print $1 "\t: 0x" substr($3, 4, 16) " ports " $2 " "\
+					desc " " type " " pinfo}
+/^ib/	{print $0; next}
+/ibpanic:/	{print $0}
+/ibwarn:/	{print $0}
+/iberror:/	{print $0}
+'
+exit $rv
