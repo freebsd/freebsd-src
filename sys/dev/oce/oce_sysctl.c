@@ -66,7 +66,7 @@ static void oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 
 
 extern char component_revision[32];
-uint32_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_NUM_ELE];
+uint8_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_SIZE];
 
 struct flash_img_attri {
 	int img_offset;
