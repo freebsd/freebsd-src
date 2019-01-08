@@ -2484,6 +2484,26 @@ so_setsockopt(struct socket *so, int level, int optname, void *optval,
 	return (sosetopt(so, &sopt));
 }
 
+static int so_discard_rcv_calls;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, so_discard_rcv_calls, CTLFLAG_RD,
+        &so_discard_rcv_calls, 0, "Number of open sockets");
+
+
+
+
+static int
+so_discard_rcv(struct socket *so, void *arg, int waitflag)
+{
+	struct sockbuf *sb;
+
+	so_discard_rcv_calls++;
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK_ASSERT(sb);
+	sbflush_locked(sb);
+	return (SU_OK);
+}
+
 int
 sosetopt(struct socket *so, struct sockopt *sopt)
 {
@@ -2677,7 +2697,31 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			error = EOPNOTSUPP;
 #endif
 			break;
-
+		case SO_DISCARD_RECV: {
+			struct sockbuf *sb = &so->so_rcv;
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+			    sizeof optval);
+			if (error)
+				goto bad;
+			SOCKBUF_LOCK(&so->so_rcv);
+			if (optval == 1) {
+				if (sb->sb_upcall != NULL) {
+					error = EBUSY;
+				} else {
+					soupcall_set(so, SO_RCV,
+					    &so_discard_rcv, NULL);
+				}
+			} else if (optval == 0) {
+				if (sb->sb_upcall == so_discard_rcv)
+					soupcall_clear(so, SO_RCV);
+				else
+					error = EINVAL;
+			} else {
+				error = ENOPROTOOPT;
+			}
+			SOCKBUF_UNLOCK(&so->so_rcv);
+				      }
+			break;
 		default:
 			if (V_socket_hhh[HHOOK_SOCKET_OPT]->hhh_nhooks > 0)
 				error = hhook_run_socket(so, sopt,
@@ -2863,6 +2907,10 @@ integer:
 
 		case SO_LISTENINCQLEN:
 			optval = so->so_incqlen;
+			goto integer;
+
+		case SO_DISCARD_RECV:
+			optval = (so->so_rcv.sb_upcall == so_discard_rcv) ? 1 : 0;
 			goto integer;
 
 		default:

@@ -158,6 +158,7 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
 #define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
+#define	SO_DISCARD_RECV	0x1017		/* discard recieved data */
 #endif
 
 /*
