@@ -1099,6 +1099,14 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		* Pentax Digital Camera
+		* PR: usb/93389
+		*/
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "PENTAX", "DIGITAL CAMERA",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * LG UP3S MP3 player
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "LG", "UP3S",
