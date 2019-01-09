@@ -2048,9 +2048,7 @@ ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 
 	/*
 	 * Scan though each interface, looking for ones that have addresses
-	 * in this address family and the requested fib.  Maintain a reference
-	 * on ifa_maybe once we find one, as we release the IF_ADDR_RLOCK() that
-	 * kept it stable when we move onto the next interface.
+	 * in this address family and the requested fib.
 	 */
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
