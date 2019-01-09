@@ -195,3 +195,25 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 
 	return (BE_ERR_SUCCESS);
 }
+
+/*
+ * This function will blow away the input buffer as needed if we're discovered
+ * to be looking at a root-mount.  If the mountpoint is naturally beyond the
+ * root, however, the buffer may be left intact and a pointer to the section
+ * past altroot will be returned instead for the caller's perusal.
+ */
+char *
+be_mountpoint_augmented(libbe_handle_t *lbh, char *mountpoint)
+{
+
+	if (lbh->altroot_len == 0)
+		return (mountpoint);
+	if (mountpoint == NULL || *mountpoint == '\0')
+		return (mountpoint);
+
+	if (mountpoint[lbh->altroot_len] == '\0') {
+		*(mountpoint + 1) = '\0';
+		return (mountpoint);
+	} else
+		return (mountpoint + lbh->altroot_len);
+}
