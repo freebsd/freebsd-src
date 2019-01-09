@@ -36,11 +36,12 @@
 #include "be.h"
 
 struct libbe_handle {
-	libzfs_handle_t *lzh;
-	zpool_handle_t *active_phandle;
 	char root[BE_MAXPATHLEN];
 	char rootfs[BE_MAXPATHLEN];
 	char bootfs[BE_MAXPATHLEN];
+	size_t altroot_len;
+	zpool_handle_t *active_phandle;
+	libzfs_handle_t *lzh;
 	be_error_t error;
 	bool print_on_err;
 };
@@ -53,9 +54,9 @@ struct libbe_deep_clone {
 };
 
 struct libbe_dccb {
+	libbe_handle_t *lbh;
 	zfs_handle_t *zhp;
 	nvlist_t *props;
-	char altroot[MAXPATHLEN];
 };
 
 typedef struct prop_data {
@@ -66,6 +67,8 @@ typedef struct prop_data {
 
 int prop_list_builder_cb(zfs_handle_t *, void *);
 int be_proplist_update(prop_data_t *);
+
+char *be_mountpoint_augmented(libbe_handle_t *lbh, char *mountpoint);
 
 /* Clobbers any previous errors */
 int set_error(libbe_handle_t *, be_error_t);
