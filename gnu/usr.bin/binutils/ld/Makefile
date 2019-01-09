@@ -63,6 +63,9 @@ FILESDIR=	${SCRIPTDIR}
 HOST=		${TARGET_TUPLE}
 LIBSEARCHPATH=	\"=/lib\":\"=/usr/lib\"
 .for ext in ${ELF_SCR_EXT}
+.if !empty(LDSCRIPTS) && ${LDSCRIPTS:M${NATIVE_EMULATION}.${ext}} != ""
+.error "NATIVE_EMULATION scripts were added to LDSCRIPTS: ${LDSCRIPTS:M${NATIVE_EMULATION}.${ext}}"
+.endif
 LDSCRIPTS+=	${NATIVE_EMULATION}.${ext}
 ldscripts/${NATIVE_EMULATION}.${ext}: e${NATIVE_EMULATION}.c
 .endfor
