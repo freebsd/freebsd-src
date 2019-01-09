@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -371,6 +371,59 @@ AcpiBiosError (
 }
 
 ACPI_EXPORT_SYMBOL (AcpiBiosError)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiBiosException
+ *
+ * PARAMETERS:  ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              Status              - Status value to be decoded/formatted
+ *              Format              - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print an "ACPI Firmware Error" message with module/line/version
+ *              info as well as decoded ACPI_STATUS.
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiBiosException (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    ACPI_STATUS             Status,
+    const char              *Format,
+    ...)
+{
+    va_list                 ArgList;
+
+
+    ACPI_MSG_REDIRECT_BEGIN;
+
+    /* For AE_OK, just print the message */
+
+    if (ACPI_SUCCESS (Status))
+    {
+        AcpiOsPrintf (ACPI_MSG_BIOS_ERROR);
+
+    }
+    else
+    {
+        AcpiOsPrintf (ACPI_MSG_BIOS_ERROR "%s, ",
+            AcpiFormatException (Status));
+    }
+
+    va_start (ArgList, Format);
+    AcpiOsVprintf (Format, ArgList);
+    ACPI_MSG_SUFFIX;
+    va_end (ArgList);
+
+    ACPI_MSG_REDIRECT_END;
+}
+
+ACPI_EXPORT_SYMBOL (AcpiBiosException)
 
 
 /*******************************************************************************
