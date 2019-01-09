@@ -981,9 +981,9 @@ is another test program which interconnects two
 ports.
 It can be used for transparent forwarding between
 interfaces, as in
-.Dl bridge -i ix0 -i ix1
+.Dl bridge -i netmap:ix0 -i netmap:ix1
 or even connect the NIC to the host stack using netmap
-.Dl bridge -i ix0 -i ix0
+.Dl bridge -i netmap:ix0
 .Ss USING THE NATIVE API
 The following code implements a traffic generator
 .Pp
