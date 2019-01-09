@@ -1,4 +1,29 @@
 ----------------------------------------
+08 January 2019. Summary of changes for version 20190108:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2019. This affects all source code modules.
+
+
+2) iASL Compiler/Disassembler and Tools:
+
+ASL test suite (ASLTS): Updated all copyrights to 2019.
+
+Tools: Updated all signon copyrights to 2019.
+
+AcpiExec: Added a new option to dump extra information concerning any 
+memory leaks detected by the internal object/cache tracking mechanism. -
+va
+
+iASL: Updated the table template for the TPM2 table to the newest version 
+of the table (Revision 4)
+
+
+----------------------------------------
 13 December 2018. Summary of changes for version 20181213:
 
 
