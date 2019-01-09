@@ -1263,7 +1263,8 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 			if (inp->inp_options) {
 				struct mbuf *options;
 
-				options = m_dup(inp->inp_options, M_NOWAIT);
+				options = m_copym(inp->inp_options, 0,
+				    M_COPYALL, M_NOWAIT);
 				INP_RUNLOCK(inp);
 				if (options != NULL) {
 					error = sooptcopyout(sopt,
