@@ -16,6 +16,17 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190109	p8	FreeBSD-EN-19:03.sqlite
+			FreeBSD-EN-19:04.tzdata
+			FreeBSD-EN-19:05.kqueue
+
+	Update sqlite3-3.20.0 --> sqlite3-3.26.0 (3260000) [EN-19:03.sqlite]
+
+	Import tzdata 2018h, 2018i [EN-19:04.tzdata]
+
+	Avoid unsynchronized updates to kn_status. [EN-19:05.kqueue]
+
+
 20181219	p7	FreeBSD-SA-18:15.bootpd
 			FreeBSD-EN-18:16.ptrace
 			FreeBSD-EN-18:17.vm
