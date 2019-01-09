@@ -410,11 +410,11 @@ tbr_timeout(arg)
 {
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
-	int active, s;
+	struct epoch_tracker et;
+	int active;
 
 	active = 0;
-	s = splnet();
-	IFNET_RLOCK_NOSLEEP();
+	NET_EPOCH_ENTER(et);
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -431,8 +431,7 @@ tbr_timeout(arg)
 		CURVNET_RESTORE();
 	}
 	VNET_LIST_RUNLOCK_NOSLEEP();
-	IFNET_RUNLOCK_NOSLEEP();
-	splx(s);
+	NET_EPOCH_EXIT(et);
 	if (active > 0)
 		CALLOUT_RESET(&tbr_callout, 1, tbr_timeout, (void *)0);
 	else

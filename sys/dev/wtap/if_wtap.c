@@ -91,6 +91,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 	struct ifnet *ifp;
 	struct wtap_softc *sc;
 	uint8_t buf[1024];
+	struct epoch_tracker et;
 	int buf_len;
 
 	uprintf("write device %s \"echo.\"\n", devtoname(dev));
@@ -106,7 +107,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 	m_copyback(m, 0, buf_len, buf);
 
 	CURVNET_SET(TD_TO_VNET(curthread));
-	IFNET_RLOCK_NOSLEEP();
+	NET_EPOCH_ENTER(et);
 
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		printf("ifp->if_xname = %s\n", ifp->if_xname);
@@ -119,7 +120,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 	}
 
-	IFNET_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	return(err);

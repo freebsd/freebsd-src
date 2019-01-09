@@ -727,6 +727,7 @@ rip6_disconnect(struct socket *so)
 static int
 rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct ifaddr *ifa = NULL;
@@ -744,20 +745,20 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
 		return (error);
 
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
 	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL) {
-		NET_EPOCH_EXIT();
+		NET_EPOCH_EXIT(et);
 		return (EADDRNOTAVAIL);
 	}
 	if (ifa != NULL &&
 	    ((struct in6_ifaddr *)ifa)->ia6_flags &
 	    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY|
 	     IN6_IFF_DETACHED|IN6_IFF_DEPRECATED)) {
-		NET_EPOCH_EXIT();
+		NET_EPOCH_EXIT(et);
 		return (EADDRNOTAVAIL);
 	}
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	INP_INFO_WLOCK(&V_ripcbinfo);
 	INP_WLOCK(inp);
 	inp->in6p_laddr = addr->sin6_addr;

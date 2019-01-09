@@ -1150,11 +1150,12 @@ ipoib_remove_one(struct ib_device *device, void *client_data)
 static int
 ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
 {
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	int retval = 0;
 
 	CURVNET_SET(dev->if_vnet);
-	IF_ADDR_RLOCK(dev);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &dev->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr == NULL ||
 		    ifa->ifa_addr->sa_family != addr->sa_family ||
@@ -1166,7 +1167,7 @@ ipoib_match_dev_addr(const struct sockaddr *addr, struct net_device *dev)
 			break;
 		}
 	}
-	IF_ADDR_RUNLOCK(dev);
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	return (retval);

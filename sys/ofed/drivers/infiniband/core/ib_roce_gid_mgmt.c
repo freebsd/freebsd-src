@@ -186,6 +186,8 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 	    CURVNET_SET(vnet_iter);
 	    IFNET_RLOCK();
 	    CK_STAILQ_FOREACH(idev, &V_ifnet, if_link) {
+		struct epoch_tracker et;
+
 		if (idev != ndev) {
 			if (idev->if_type != IFT_L2VLAN)
 				continue;
@@ -194,7 +196,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		}
 
 		/* clone address information for IPv4 and IPv6 */
-		IF_ADDR_RLOCK(idev);
+		NET_EPOCH_ENTER(et);
 #if defined(INET)
 		CK_STAILQ_FOREACH(ifa, &idev->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr == NULL ||
@@ -232,7 +234,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 			STAILQ_INSERT_TAIL(&ipx_head, entry, entry);
 		}
 #endif
-		IF_ADDR_RUNLOCK(idev);
+		NET_EPOCH_EXIT(et);
 	    }
 	    IFNET_RUNLOCK();
 	    CURVNET_RESTORE();

@@ -240,6 +240,7 @@ generate_tmp_ifid(u_int8_t *seed0, const u_int8_t *seed1, u_int8_t *ret)
 int
 in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 {
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 	u_int8_t *addr;
@@ -248,7 +249,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	static u_int8_t allone[8] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
@@ -260,7 +261,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 		goto found;
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	return -1;
 
@@ -283,7 +284,7 @@ found:
 
 		/* look at IEEE802/EUI64 only */
 		if (addrlen != 8 && addrlen != 6) {
-			IF_ADDR_RUNLOCK(ifp);
+			NET_EPOCH_EXIT(et);
 			return -1;
 		}
 
@@ -293,11 +294,11 @@ found:
 		 * card insertion.
 		 */
 		if (bcmp(addr, allzero, addrlen) == 0) {
-			IF_ADDR_RUNLOCK(ifp);
+			NET_EPOCH_EXIT(et);
 			return -1;
 		}
 		if (bcmp(addr, allone, addrlen) == 0) {
-			IF_ADDR_RUNLOCK(ifp);
+			NET_EPOCH_EXIT(et);
 			return -1;
 		}
 
@@ -324,17 +325,17 @@ found:
 		 * identifier source (can be renumbered).
 		 * we don't do this.
 		 */
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		return -1;
 
 	default:
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		return -1;
 	}
 
 	/* sanity check: g bit must not indicate "group" */
 	if (EUI64_GROUP(in6)) {
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		return -1;
 	}
 
@@ -347,11 +348,11 @@ found:
 	 */
 	if ((in6->s6_addr[8] & ~(EUI64_GBIT | EUI64_UBIT)) == 0x00 &&
 	    bcmp(&in6->s6_addr[9], allzero, 7) == 0) {
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		return -1;
 	}
 
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 	return 0;
 }
 
@@ -366,6 +367,7 @@ static int
 get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
     struct in6_addr *in6)
 {
+	struct epoch_tracker et;
 	struct ifnet *ifp;
 
 	/* first, try to get it from the interface itself */
@@ -383,7 +385,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 	}
 
 	/* next, try to get it from some other hardware interface */
-	IFNET_RLOCK_NOSLEEP();
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp == ifp0)
 			continue;
@@ -398,11 +400,11 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 			nd6log((LOG_DEBUG,
 			    "%s: borrow interface identifier from %s\n",
 			    if_name(ifp0), if_name(ifp)));
-			IFNET_RUNLOCK_NOSLEEP();
+			NET_EPOCH_EXIT(et);
 			goto success;
 		}
 	}
-	IFNET_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 
 	/* last resort: get from random number source */
 	if (get_rand_ifid(ifp, in6) == 0) {

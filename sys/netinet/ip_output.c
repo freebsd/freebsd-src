@@ -215,6 +215,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
     struct ip_moptions *imo, struct inpcb *inp)
 {
 	struct rm_priotracker in_ifa_tracker;
+	struct epoch_tracker et;
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
@@ -285,7 +286,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = ip->ip_dst;
 	}
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 again:
 	/*
 	 * Validate route against routing table additions;
@@ -733,7 +734,7 @@ done:
 		 * calling RTFREE on it again.
 		 */
 		ro->ro_rt = NULL;
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	return (error);
  bad:
 	m_freem(m);

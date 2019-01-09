@@ -1012,6 +1012,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	struct sockaddr *sa;
 	struct sockaddr_in *sin;
 	struct route sro;
+	struct epoch_tracker et;
 	int error;
 
 	KASSERT(laddr != NULL, ("%s: laddr NULL", __func__));
@@ -1047,7 +1048,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	 * network and try to find a corresponding interface to take
 	 * the source address from.
 	 */
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	if (sro.ro_rt == NULL || sro.ro_rt->rt_ifp == NULL) {
 		struct in_ifaddr *ia;
 		struct ifnet *ifp;
@@ -1211,7 +1212,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 	}
 
 done:
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	if (sro.ro_rt != NULL)
 		RTFREE(sro.ro_rt);
 	return (error);

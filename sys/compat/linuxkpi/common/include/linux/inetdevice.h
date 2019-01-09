@@ -37,6 +37,7 @@ static inline struct net_device *
 ip_dev_find(struct vnet *vnet, uint32_t addr)
 {
 	struct sockaddr_in sin;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 
@@ -44,7 +45,7 @@ ip_dev_find(struct vnet *vnet, uint32_t addr)
 	sin.sin_addr.s_addr = addr;
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET_QUIET(vnet);
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	CURVNET_RESTORE();
@@ -54,7 +55,7 @@ ip_dev_find(struct vnet *vnet, uint32_t addr)
 	} else {
 		ifp = NULL;
 	}
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	return (ifp);
 }
 
@@ -62,6 +63,7 @@ static inline struct net_device *
 ip6_dev_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 {
 	struct sockaddr_in6 sin6;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 
@@ -74,7 +76,7 @@ ip6_dev_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 		/* embed the IPv6 scope ID */
 		sin6.sin6_addr.s6_addr16[1] = htons(scope_id);
 	}
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET_QUIET(vnet);
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin6);
 	CURVNET_RESTORE();
@@ -84,7 +86,7 @@ ip6_dev_find(struct vnet *vnet, struct in6_addr addr, uint16_t scope_id)
 	} else {
 		ifp = NULL;
 	}
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	return (ifp);
 }
 
