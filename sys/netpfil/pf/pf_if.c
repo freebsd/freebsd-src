@@ -300,13 +300,15 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 		return (1);
 
 	if (rule_kif->pfik_group != NULL) {
-		IF_ADDR_RLOCK(packet_kif->pfik_ifp);
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(p, &packet_kif->pfik_ifp->if_groups, ifgl_next)
 			if (p->ifgl_group == rule_kif->pfik_group) {
-				IF_ADDR_RUNLOCK(packet_kif->pfik_ifp);
+				NET_EPOCH_EXIT(et);
 				return (1);
 			}
-		IF_ADDR_RUNLOCK(packet_kif->pfik_ifp);
+		NET_EPOCH_EXIT(et);
 	}
 
 
@@ -473,11 +475,13 @@ pfi_kif_update(struct pfi_kif *kif)
 
 	/* again for all groups kif is member of */
 	if (kif->pfik_ifp != NULL) {
-		IF_ADDR_RLOCK(kif->pfik_ifp);
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
 			pfi_kif_update((struct pfi_kif *)
 			    ifgl->ifgl_group->ifg_pf_kif);
-		IF_ADDR_RUNLOCK(kif->pfik_ifp);
+		NET_EPOCH_EXIT(et);
 	}
 }
 
@@ -513,10 +517,12 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 	if (kif->pfik_ifp != NULL)
 		pfi_instance_add(kif->pfik_ifp, net, flags);
 	else if (kif->pfik_group != NULL) {
-		IFNET_RLOCK_NOSLEEP();
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
 			pfi_instance_add(ifgm->ifgm_ifp, net, flags);
-		IFNET_RUNLOCK_NOSLEEP();
+		NET_EPOCH_EXIT(et);
 	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, V_pfi_buffer, V_pfi_buffer_cnt, &size2,
@@ -528,11 +534,12 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 static void
 pfi_instance_add(struct ifnet *ifp, int net, int flags)
 {
+	struct epoch_tracker et;
 	struct ifaddr	*ia;
 	int		 got4 = 0, got6 = 0;
 	int		 net2, af;
 
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ia, &ifp->if_addrhead, ifa_link) {
 		if (ia->ifa_addr == NULL)
 			continue;
@@ -590,7 +597,7 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		else
 			pfi_address_add(ia->ifa_addr, af, net2);
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 }
 
 static void
@@ -758,15 +765,17 @@ pfi_skip_if(const char *filter, struct pfi_kif *p)
 	if (filter[n-1] >= '0' && filter[n-1] <= '9')
 		return (1);	/* group names may not end in a digit */
 	if (p->pfik_ifp != NULL) {
-		IF_ADDR_RLOCK(p->pfik_ifp);
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(i, &p->pfik_ifp->if_groups, ifgl_next) {
 			if (!strncmp(i->ifgl_group->ifg_group, filter,
 			      IFNAMSIZ)) {
-				IF_ADDR_RUNLOCK(p->pfik_ifp);
+				NET_EPOCH_EXIT(et);
 				return (0); /* iface is in group "filter" */
 			}
 		}
-		IF_ADDR_RUNLOCK(p->pfik_ifp);
+		NET_EPOCH_EXIT(et);
 	}
 	return (1);
 }

@@ -367,12 +367,13 @@ inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
 struct in_multi *
 inm_lookup(struct ifnet *ifp, const struct in_addr ina)
 {
+	struct epoch_tracker et;
 	struct in_multi *inm;
 
 	IN_MULTI_LIST_LOCK_ASSERT();
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	inm = inm_lookup_locked(ifp, ina);
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	return (inm);
 }
@@ -1887,13 +1888,15 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 			if (!in_nullhost(imo->imo_multicast_addr)) {
 				mreqn.imr_address = imo->imo_multicast_addr;
 			} else if (ifp != NULL) {
+				struct epoch_tracker et;
+
 				mreqn.imr_ifindex = ifp->if_index;
-				NET_EPOCH_ENTER();
+				NET_EPOCH_ENTER(et);
 				IFP_TO_IA(ifp, ia, &in_ifa_tracker);
 				if (ia != NULL)
 					mreqn.imr_address =
 					    IA_SIN(ia)->sin_addr;
-				NET_EPOCH_EXIT();
+				NET_EPOCH_EXIT(et);
 			}
 		}
 		INP_WUNLOCK(inp);
@@ -2966,6 +2969,7 @@ static int
 sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 {
 	struct in_addr			 src, group;
+	struct epoch_tracker		 et;
 	struct ifnet			*ifp;
 	struct ifmultiaddr		*ifma;
 	struct in_multi			*inm;
@@ -3012,7 +3016,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 
 	IN_MULTI_LIST_LOCK();
 
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -3041,7 +3045,7 @@ sysctl_ip_mcast_filters(SYSCTL_HANDLER_ARGS)
 				break;
 		}
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	IN_MULTI_LIST_UNLOCK();
 

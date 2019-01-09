@@ -874,16 +874,18 @@ add_vif(struct vifctl *vifcp)
 	 */
 	ifp = NULL;
     } else {
+	struct epoch_tracker et;
+
 	sin.sin_addr = vifcp->vifc_lcl_addr;
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	if (ifa == NULL) {
-		NET_EPOCH_EXIT();
+		NET_EPOCH_EXIT(et);
 	    VIF_UNLOCK();
 	    return EADDRNOTAVAIL;
 	}
 	ifp = ifa->ifa_ifp;
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
     }
 
     if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {

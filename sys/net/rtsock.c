@@ -440,6 +440,9 @@ static int
 rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
     struct rtentry *rt, union sockaddr_union *saun, struct ucred *cred)
 {
+#if defined(INET) || defined(INET6)
+	struct epoch_tracker et;
+#endif
 
 	/* First, see if the returned address is part of the jail. */
 	if (prison_if(cred, rt->rt_ifa->ifa_addr) == 0) {
@@ -460,7 +463,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
-		IF_ADDR_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -472,7 +475,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
@@ -502,7 +505,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
-		IF_ADDR_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -515,7 +518,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
@@ -786,16 +789,17 @@ route_output(struct mbuf *m, struct socket *so, ...)
 
 			if (rt->rt_ifp != NULL && 
 			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
+				struct epoch_tracker et;
 				struct ifaddr *ifa;
 
-				NET_EPOCH_ENTER();
+				NET_EPOCH_ENTER(et);
 				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,
 						RT_ALL_FIBS);
 				if (ifa != NULL)
 					rt_maskedcopy(ifa->ifa_addr,
 						      &laddr,
 						      ifa->ifa_netmask);
-				NET_EPOCH_EXIT();
+				NET_EPOCH_EXIT(et);
 			} else
 				rt_maskedcopy(rt->rt_ifa->ifa_addr,
 					      &laddr,
@@ -1559,7 +1563,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	struct rt_addrinfo info;
 	struct sockaddr_storage ss;
 
-	IFNET_RLOCK_NOSLEEP_ASSERT();
+	NET_EPOCH_ASSERT();
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
@@ -1753,7 +1757,7 @@ sysctl_iflist(int af, struct walkarg *w)
 
 	bzero((caddr_t)&info, sizeof(info));
 	bzero(&ifd, sizeof(ifd));
-	NET_EPOCH_ENTER_ET(et);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
@@ -1803,7 +1807,7 @@ sysctl_iflist(int af, struct walkarg *w)
 		info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
-	NET_EPOCH_EXIT_ET(et);
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1811,6 +1815,7 @@ static int
 sysctl_ifmalist(int af, struct walkarg *w)
 {
 	struct rt_addrinfo info;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct ifmultiaddr *ifma;
 	struct ifnet *ifp;
@@ -1819,13 +1824,13 @@ sysctl_ifmalist(int af, struct walkarg *w)
 	error = 0;
 	bzero((caddr_t)&info, sizeof(info));
 
-	IFNET_RLOCK_NOSLEEP();
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
-		IF_ADDR_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
@@ -1852,11 +1857,11 @@ sysctl_ifmalist(int af, struct walkarg *w)
 					break;
 			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		if (error != 0)
 			break;
 	}
-	IFNET_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 
@@ -1935,11 +1940,13 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		for (error = 0; error == 0 && i <= lim; i++) {
 			rnh = rt_tables_get_rnh(fib, i);
 			if (rnh != NULL) {
+				struct epoch_tracker et;
+
 				RIB_RLOCK(rnh); 
-				IFNET_RLOCK_NOSLEEP();
+				NET_EPOCH_ENTER(et);
 			    	error = rnh->rnh_walktree(&rnh->head,
 				    sysctl_dumpentry, &w);
-				IFNET_RUNLOCK_NOSLEEP();
+				NET_EPOCH_EXIT(et);
 				RIB_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
