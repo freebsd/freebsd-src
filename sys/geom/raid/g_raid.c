@@ -1075,23 +1075,19 @@ g_raid_candelete(struct g_raid_softc *sc, struct bio *bp)
 	struct g_provider *pp;
 	struct g_raid_volume *vol;
 	struct g_raid_subdisk *sd;
-	int *val;
-	int i;
+	int i, val;
 
-	val = (int *)bp->bio_data;
 	pp = bp->bio_to;
 	vol = pp->private;
-	*val = 0;
 	for (i = 0; i < vol->v_disks_count; i++) {
 		sd = &vol->v_subdisks[i];
 		if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
 			continue;
-		if (sd->sd_disk->d_candelete) {
-			*val = 1;
+		if (sd->sd_disk->d_candelete)
 			break;
-		}
 	}
-	g_io_deliver(bp, 0);
+	val = i < vol->v_disks_count;
+	g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
 }
 
 static void
