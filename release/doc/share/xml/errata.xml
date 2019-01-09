@@ -103,6 +103,29 @@
 	<entry>19&nbsp;December&nbsp;2018</entry>
 	<entry><para>ZFS vnode reclaim deadlock</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:03.sqlite.asc">FreeBSD-EN-19:03.sqlite</link></entry>
+	<entry>9&nbsp;January&nbsp;2019</entry>
+	<entry><para>sqlite update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:04.tzdata.asc">FreeBSD-EN-19:04.tzdata</link></entry>
+	<entry>9&nbsp;January&nbsp;2019</entry>
+	<entry><para>Timezone database information
+	    update</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-19:05.kqueue.asc">FreeBSD-EN-19:05.kqueue</link></entry>
+	<entry>9&nbsp;January&nbsp;2019</entry>
+	<entry><para>kqueue race condition and kernel
+	    panic</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
