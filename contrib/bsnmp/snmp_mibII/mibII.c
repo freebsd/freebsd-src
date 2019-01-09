@@ -411,7 +411,7 @@ mibif_reset_hc_timer(void)
 		hc_update_timer = NULL;
 	}
 	update_hc_counters(NULL);
-	if ((hc_update_timer = timer_start_repeat(ticks * 10, ticks * 10,
+	if ((hc_update_timer = timer_start_repeat(ticks, ticks,
 	    update_hc_counters, NULL, module)) == NULL) {
 		syslog(LOG_ERR, "timer_start(%u): %m", ticks);
 		return;
