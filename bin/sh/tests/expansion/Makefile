@@ -21,6 +21,7 @@ ${PACKAGE}FILES+=	arith11.0
 ${PACKAGE}FILES+=	arith12.0
 ${PACKAGE}FILES+=	arith13.0
 ${PACKAGE}FILES+=	arith14.0
+${PACKAGE}FILES+=	arith15.0
 ${PACKAGE}FILES+=	assign1.0
 ${PACKAGE}FILES+=	cmdsubst1.0
 ${PACKAGE}FILES+=	cmdsubst2.0
