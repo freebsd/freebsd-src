@@ -4195,7 +4195,7 @@ sys_getfhat(struct thread *td, struct getfhat_args *uap)
 {
 
 	if ((uap->flags & ~(AT_SYMLINK_NOFOLLOW | AT_BENEATH)) != 0)
-	    return (EINVAL);
+		return (EINVAL);
 	return (kern_getfhat(td, uap->flags, uap->fd, uap->path, UIO_USERSPACE,
 	    uap->fhp));
 }
