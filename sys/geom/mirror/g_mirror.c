@@ -1075,16 +1075,15 @@ g_mirror_candelete(struct bio *bp)
 {
 	struct g_mirror_softc *sc;
 	struct g_mirror_disk *disk;
-	int *val;
+	int val;
 
 	sc = bp->bio_to->private;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (disk->d_flags & G_MIRROR_DISK_FLAG_CANDELETE)
 			break;
 	}
-	val = (int *)bp->bio_data;
-	*val = (disk != NULL);
-	g_io_deliver(bp, 0);
+	val = disk != NULL;
+	g_handleattr(bp, "GEOM::candelete", &val, sizeof(val));
 }
 
 static void
