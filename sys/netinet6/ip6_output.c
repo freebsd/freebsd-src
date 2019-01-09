@@ -571,52 +571,72 @@ again:
 		counter_u64_add(rt->rt_pksent, 1);
 	}
 
-
-	/*
-	 * The outgoing interface must be in the zone of source and
-	 * destination addresses.
-	 */
-	origifp = ifp;
-
+	/* Setup data structures for scope ID checks. */
 	src0 = ip6->ip6_src;
-	if (in6_setscope(&src0, origifp, &zone))
-		goto badscope;
 	bzero(&src_sa, sizeof(src_sa));
 	src_sa.sin6_family = AF_INET6;
 	src_sa.sin6_len = sizeof(src_sa);
 	src_sa.sin6_addr = ip6->ip6_src;
-	if (sa6_recoverscope(&src_sa) || zone != src_sa.sin6_scope_id)
-		goto badscope;
 
 	dst0 = ip6->ip6_dst;
-	if (in6_setscope(&dst0, origifp, &zone))
-		goto badscope;
 	/* re-initialize to be sure */
 	bzero(&dst_sa, sizeof(dst_sa));
 	dst_sa.sin6_family = AF_INET6;
 	dst_sa.sin6_len = sizeof(dst_sa);
 	dst_sa.sin6_addr = ip6->ip6_dst;
-	if (sa6_recoverscope(&dst_sa) || zone != dst_sa.sin6_scope_id) {
-		goto badscope;
+
+	/* Check for valid scope ID. */
+	if (in6_setscope(&src0, ifp, &zone) == 0 &&
+	    sa6_recoverscope(&src_sa) == 0 && zone == src_sa.sin6_scope_id &&
+	    in6_setscope(&dst0, ifp, &zone) == 0 &&
+	    sa6_recoverscope(&dst_sa) == 0 && zone == dst_sa.sin6_scope_id) {
+		/*
+		 * The outgoing interface is in the zone of the source
+		 * and destination addresses.
+		 *
+		 * Because the loopback interface cannot receive
+		 * packets with a different scope ID than its own,
+		 * there is a trick is to pretend the outgoing packet
+		 * was received by the real network interface, by
+		 * setting "origifp" different from "ifp". This is
+		 * only allowed when "ifp" is a loopback network
+		 * interface. Refer to code in nd6_output_ifp() for
+		 * more details.
+		 */
+		origifp = ifp;
+	
+		/*
+		 * We should use ia_ifp to support the case of sending
+		 * packets to an address of our own.
+		 */
+		if (ia != NULL && ia->ia_ifp)
+			ifp = ia->ia_ifp;
+
+	} else if ((ifp->if_flags & IFF_LOOPBACK) == 0 ||
+	    sa6_recoverscope(&src_sa) != 0 ||
+	    sa6_recoverscope(&dst_sa) != 0 ||
+	    dst_sa.sin6_scope_id == 0 ||
+	    (src_sa.sin6_scope_id != 0 &&
+	    src_sa.sin6_scope_id != dst_sa.sin6_scope_id) ||
+	    (origifp = ifnet_byindex(dst_sa.sin6_scope_id)) == NULL) {
+		/*
+		 * If the destination network interface is not a
+		 * loopback interface, or the destination network
+		 * address has no scope ID, or the source address has
+		 * a scope ID set which is different from the
+		 * destination address one, or there is no network
+		 * interface representing this scope ID, the address
+		 * pair is considered invalid.
+		 */
+		IP6STAT_INC(ip6s_badscope);
+		in6_ifstat_inc(ifp, ifs6_out_discard);
+		if (error == 0)
+			error = EHOSTUNREACH; /* XXX */
+		goto bad;
 	}
 
-	/* We should use ia_ifp to support the case of
-	 * sending packets to an address of our own.
-	 */
-	if (ia != NULL && ia->ia_ifp)
-		ifp = ia->ia_ifp;
+	/* All scope ID checks are successful. */
 
-	/* scope check is done. */
-	goto routefound;
-
-  badscope:
-	IP6STAT_INC(ip6s_badscope);
-	in6_ifstat_inc(origifp, ifs6_out_discard);
-	if (error == 0)
-		error = EHOSTUNREACH; /* XXX */
-	goto bad;
-
-  routefound:
 	if (rt && !IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
 		if (opt && opt->ip6po_nextroute.ro_rt) {
 			/*
