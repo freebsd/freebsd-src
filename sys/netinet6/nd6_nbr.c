@@ -613,6 +613,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *saddr6,
 void
 nd6_na_input(struct mbuf *m, int off, int icmp6len)
 {
+	struct epoch_tracker et;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
 	struct nd_neighbor_advert *nd_na;
@@ -740,9 +741,9 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	IF_AFDATA_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	ln = nd6_lookup(&taddr6, LLE_EXCLUSIVE, ifp);
-	IF_AFDATA_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 	if (ln == NULL) {
 		goto freeit;
 	}

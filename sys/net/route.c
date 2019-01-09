@@ -593,11 +593,12 @@ rtredirect_fib(struct sockaddr *dst,
 	int error = 0;
 	short *stat = NULL;
 	struct rt_addrinfo info;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct rib_head *rnh;
 
 	ifa = NULL;
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	if (rnh == NULL) {
 		error = EAFNOSUPPORT;
@@ -692,7 +693,7 @@ done:
 	if (rt)
 		RTFREE_LOCKED(rt);
  out:
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	if (error)
 		V_rtstat.rts_badredirect++;
 	else if (stat != NULL)
@@ -1279,6 +1280,7 @@ rt_notifydelete(struct rtentry *rt, struct rt_addrinfo *info)
 int
 rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 {
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	int needref, error;
 
@@ -1288,7 +1290,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 	 */
 	error = 0;
 	needref = (info->rti_ifa == NULL);
-	NET_EPOCH_ENTER();
+	NET_EPOCH_ENTER(et);
 	if (info->rti_ifp == NULL && ifpaddr != NULL &&
 	    ifpaddr->sa_family == AF_LINK &&
 	    (ifa = ifa_ifwithnet(ifpaddr, 0, fibnum)) != NULL) {
@@ -1316,7 +1318,7 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 		ifa_ref(info->rti_ifa);
 	} else
 		error = ENETUNREACH;
-	NET_EPOCH_EXIT();
+	NET_EPOCH_EXIT(et);
 	return (error);
 }
 

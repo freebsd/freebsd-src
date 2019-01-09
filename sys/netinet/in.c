@@ -139,20 +139,21 @@ in_localip(struct in_addr in)
 int
 in_ifhasaddr(struct ifnet *ifp, struct in_addr in)
 {
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
 		ia = (struct in_ifaddr *)ifa;
 		if (ia->ia_addr.sin_addr.s_addr == in.s_addr) {
-			IF_ADDR_RUNLOCK(ifp);
+			NET_EPOCH_EXIT(et);
 			return (1);
 		}
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	return (0);
 }
@@ -228,6 +229,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	struct sockaddr_in *addr = (struct sockaddr_in *)&ifr->ifr_addr;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	int error;
@@ -277,7 +279,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 * address was specified, find that one instead of the
 	 * first one on the interface, if possible.
 	 */
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET)
 			continue;
@@ -295,7 +297,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			}
 
 	if (ifa == NULL) {
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		return (EADDRNOTAVAIL);
 	}
 
@@ -326,7 +328,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		break;
 	}
 
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
@@ -340,6 +342,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	const struct sockaddr_in *mask = &ifra->ifra_mask;
 	const struct sockaddr_in *dstaddr = &ifra->ifra_dstaddr;
 	const int vhid = (cmd == SIOCAIFADDR) ? ifra->ifra_vhid : 0;
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	struct in_ifaddr *ia;
 	bool iaIsFirst;
@@ -376,7 +379,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 */
 	iaIsFirst = true;
 	ia = NULL;
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in_ifaddr *it;
 
@@ -389,7 +392,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0)
 			ia = it;
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 
 	if (ia != NULL)
 		(void )in_difaddr_ioctl(cmd, data, ifp, td);
@@ -919,7 +922,7 @@ in_ifscrub_all(void)
 	IFNET_RLOCK();
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		/* Cannot lock here - lock recursion. */
-		/* IF_ADDR_RLOCK(ifp); */
+		/* NET_EPOCH_ENTER(et); */
 		CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -935,7 +938,7 @@ in_ifscrub_all(void)
 			(void)in_control(NULL, SIOCDIFADDR, (caddr_t)&ifr,
 			    ifp, NULL);
 		}
-		/* IF_ADDR_RUNLOCK(ifp); */
+		/* NET_EPOCH_EXIT(et); */
 		in_purgemaddrs(ifp);
 		igmp_domifdetach(ifp);
 	}
@@ -967,6 +970,7 @@ in_ifaddr_broadcast(struct in_addr in, struct in_ifaddr *ia)
 int
 in_broadcast(struct in_addr in, struct ifnet *ifp)
 {
+	struct epoch_tracker et;
 	struct ifaddr *ifa;
 	int found;
 
@@ -980,14 +984,14 @@ in_broadcast(struct in_addr in, struct ifnet *ifp)
 	 * Look through the list of addresses for a match
 	 * with a broadcast address.
 	 */
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (ifa->ifa_addr->sa_family == AF_INET &&
 		    in_ifaddr_broadcast(in, (struct in_ifaddr *)ifa)) {
 			found = 1;
 			break;
 		}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 	return (found);
 }
 

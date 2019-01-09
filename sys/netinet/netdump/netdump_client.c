@@ -1061,6 +1061,7 @@ static struct cdev *netdump_cdev;
 static int
 netdump_configure(struct netdump_conf *conf, struct thread *td)
 {
+	struct epoch_tracker et;
 	struct ifnet *ifp;
 
 	CURVNET_SET(TD_TO_VNET(td));
@@ -1068,13 +1069,13 @@ netdump_configure(struct netdump_conf *conf, struct thread *td)
 		CURVNET_RESTORE();
 		return (EINVAL);
 	}
-	IFNET_RLOCK_NOSLEEP();
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (strcmp(ifp->if_xname, conf->ndc_iface) == 0)
 			break;
 	}
 	/* XXX ref */
-	IFNET_RUNLOCK_NOSLEEP();
+	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 
 	if (ifp == NULL)

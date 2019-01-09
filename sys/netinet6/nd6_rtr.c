@@ -511,11 +511,13 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 	ifp = rt->rt_ifp;
 	if (ifp != NULL) {
-		IF_ADDR_RLOCK(ifp);
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		ifa = CK_STAILQ_FIRST(&ifp->if_addrhead);
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		ifa_ref(ifa);
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 	} else
 		ifa = NULL;
@@ -789,6 +791,7 @@ defrouter_del(struct nd_defrouter *dr)
 void
 defrouter_select_fib(int fibnum)
 {
+	struct epoch_tracker et;
 	struct nd_defrouter *dr, *selected_dr, *installed_dr;
 	struct llentry *ln = NULL;
 
@@ -815,14 +818,14 @@ defrouter_select_fib(int fibnum)
 	 */
 	selected_dr = installed_dr = NULL;
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
-		IF_AFDATA_RLOCK(dr->ifp);
+		NET_EPOCH_ENTER(et);
 		if (selected_dr == NULL && dr->ifp->if_fib == fibnum &&
 		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			selected_dr = dr;
 			defrouter_ref(selected_dr);
 		}
-		IF_AFDATA_RUNLOCK(dr->ifp);
+		NET_EPOCH_EXIT(et);
 		if (ln != NULL) {
 			LLE_RUNLOCK(ln);
 			ln = NULL;
@@ -866,7 +869,7 @@ defrouter_select_fib(int fibnum)
 			}
 		}
 	} else if (installed_dr != NULL) {
-		IF_AFDATA_RLOCK(installed_dr->ifp);
+		NET_EPOCH_ENTER(et);
 		if ((ln = nd6_lookup(&installed_dr->rtaddr, 0,
 		                     installed_dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln) &&
@@ -875,7 +878,7 @@ defrouter_select_fib(int fibnum)
 			defrouter_rele(selected_dr);
 			selected_dr = installed_dr;
 		}
-		IF_AFDATA_RUNLOCK(installed_dr->ifp);
+		NET_EPOCH_EXIT(et);
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);
 	}
@@ -1271,6 +1274,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	int auth;
 	struct in6_addrlifetime lt6_tmp;
 	char ip6buf[INET6_ADDRSTRLEN];
+	struct epoch_tracker et;
 
 	auth = 0;
 	if (m) {
@@ -1384,7 +1388,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	 * consider autoconfigured addresses while RFC2462 simply said
 	 * "address".
 	 */
-	IF_ADDR_RLOCK(ifp);
+	NET_EPOCH_ENTER(et);
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *ifa6;
 		u_int32_t remaininglifetime;
@@ -1507,7 +1511,7 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 		ifa6->ia6_lifetime = lt6_tmp;
 		ifa6->ia6_updatetime = time_uptime;
 	}
-	IF_ADDR_RUNLOCK(ifp);
+	NET_EPOCH_EXIT(et);
 	if (ia6_match == NULL && new->ndpr_vltime) {
 		int ifidlen;
 
@@ -1596,6 +1600,7 @@ end:
 static struct nd_pfxrouter *
 find_pfxlist_reachable_router(struct nd_prefix *pr)
 {
+	struct epoch_tracker et;
 	struct nd_pfxrouter *pfxrtr;
 	struct llentry *ln;
 	int canreach;
@@ -1603,9 +1608,9 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 	ND6_LOCK_ASSERT();
 
 	LIST_FOREACH(pfxrtr, &pr->ndpr_advrtrs, pfr_entry) {
-		IF_AFDATA_RLOCK(pfxrtr->router->ifp);
+		NET_EPOCH_ENTER(et);
 		ln = nd6_lookup(&pfxrtr->router->rtaddr, 0, pfxrtr->router->ifp);
-		IF_AFDATA_RUNLOCK(pfxrtr->router->ifp);
+		NET_EPOCH_EXIT(et);
 		if (ln == NULL)
 			continue;
 		canreach = ND6_IS_LLINFO_PROBREACH(ln);
@@ -1944,15 +1949,17 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
 	    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST);
 	if (ifa == NULL) {
+		struct epoch_tracker et;
+
 		/* XXX: freebsd does not have ifa_ifwithaf */
-		IF_ADDR_RLOCK(ifp);
+		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_INET6) {
 				ifa_ref(ifa);
 				break;
 			}
 		}
-		IF_ADDR_RUNLOCK(ifp);
+		NET_EPOCH_EXIT(et);
 		/* should we care about ia6_flags? */
 	}
 	if (ifa == NULL) {
