@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20190109:	p2	FreeBSD-EN-19:01.cc_cubic
+			FreeBSD-EN-19:02.tcp
+			FreeBSD-EN-19:03.sqlite
+			FreeBSD-EN-19:04.tzdata
+
+	Revert CC Cubic: fix underflow for cubic_cwnd() [EN-19:01.cc_cubic]
+
+	Fix a TCP handling of received segments. [EN-19:02.tcp]
+
+	Update sqlite3-3.23.1 --> sqlite3-3.26.0 (3260000) [EN-19:03.sqlite]
+
+	Import tzdata 2018h, 2018i [EN-19:04.tzdata]
+
 20181219:	p1	FreeBSD-SA-18:15.bootpd
 
 	bootpd: validate hardware type [SA-18:15.bootpd]
