@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -467,7 +467,7 @@ AcpiUtGetNodeName (
 static const char           *AcpiGbl_DescTypeNames[] =
 {
     /* 00 */ "Not a Descriptor",
-    /* 01 */ "Cached",
+    /* 01 */ "Cached Object",
     /* 02 */ "State-Generic",
     /* 03 */ "State-Update",
     /* 04 */ "State-Package",
@@ -478,10 +478,10 @@ static const char           *AcpiGbl_DescTypeNames[] =
     /* 09 */ "State-Result",
     /* 10 */ "State-Notify",
     /* 11 */ "State-Thread",
-    /* 12 */ "Walk",
-    /* 13 */ "Parser",
-    /* 14 */ "Operand",
-    /* 15 */ "Node"
+    /* 12 */ "Tree Walk State",
+    /* 13 */ "Parse Tree Op",
+    /* 14 */ "Operand Object",
+    /* 15 */ "Namespace Node"
 };
 
 

@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -566,7 +566,7 @@ AcpiExOpcode_2A_1T_1R (
 
         if (ACPI_FAILURE (Status))
         {
-            ACPI_EXCEPTION ((AE_INFO, Status,
+            ACPI_BIOS_EXCEPTION ((AE_INFO, Status,
                 "Index (0x%X%8.8X) is beyond end of object (length 0x%X)",
                 ACPI_FORMAT_UINT64 (Index), (UINT32) Length));
             goto Cleanup;

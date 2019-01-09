@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2018, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2019, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -347,6 +347,7 @@
 #define ACPI_EXCEPTION(plist)           AcpiException plist
 #define ACPI_ERROR(plist)               AcpiError plist
 #define ACPI_BIOS_WARNING(plist)        AcpiBiosWarning plist
+#define ACPI_BIOS_EXCEPTION(plist)      AcpiBiosException plist
 #define ACPI_BIOS_ERROR(plist)          AcpiBiosError plist
 #define ACPI_DEBUG_OBJECT(obj,l,i)      AcpiExDoDebugObject(obj,l,i)
 
@@ -359,6 +360,7 @@
 #define ACPI_EXCEPTION(plist)
 #define ACPI_ERROR(plist)
 #define ACPI_BIOS_WARNING(plist)
+#define ACPI_BIOS_EXCEPTION(plist)
 #define ACPI_BIOS_ERROR(plist)
 #define ACPI_DEBUG_OBJECT(obj,l,i)
 
