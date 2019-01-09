@@ -193,7 +193,7 @@ affixdir(char *name, struct dir_ent *dirent)
 	/*
 	 * If the host is set then also add the hostname to the filename.
 	 */
-	if (auditd_hostlen != -1)
+	if (auditd_hostlen > 0)
 		asprintf(&fn, "%s/%s.%s", dirent->dirname, name, auditd_host);
 	else
 		asprintf(&fn, "%s/%s", dirent->dirname, name);
