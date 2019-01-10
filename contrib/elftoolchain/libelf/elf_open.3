@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_open.3 3181 2015-04-10 13:22:51Z emaste $
+.\" $Id: elf_open.3 3643 2018-10-14 21:09:24Z jkoshy $
 .\"
 .Dd May 31, 2012
-.Os
 .Dt ELF_OPEN 3
+.Os
 .Sh NAME
 .Nm elf_open
 .Nd open ELF objects and ar(1) archives
@@ -67,6 +67,9 @@ archive contained in the memory area pointed to by the argument
 The argument
 .Ar sz
 specifies the size of the memory area in bytes.
+.Sh RETURN VALUES
+The function returns a pointer to a ELF descriptor if successful, or
+NULL if an error occurred.
 .Sh COMPATIBILITY
 These functions are non-standard extensions to the ELF(3) API set.
 .Pp
@@ -79,9 +82,6 @@ and
 .Xr ar 1
 archives, returning an Elf descriptor of type
 .Dv ELF_K_NONE .
-.Sh RETURN VALUES
-The function returns a pointer to a ELF descriptor if successful, or
-NULL if an error occurred.
 .Sh ERRORS
 These functions can fail with the following errors:
 .Bl -tag -width "[ELF_E_RESOURCE]"

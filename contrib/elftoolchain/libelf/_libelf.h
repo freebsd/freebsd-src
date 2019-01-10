@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: _libelf.h 3174 2015-03-27 17:13:41Z emaste $
+ * $Id: _libelf.h 3632 2018-10-10 21:12:43Z jkoshy $
  */
 
 #ifndef	__LIBELF_H_
@@ -194,6 +194,9 @@ enum {
  * Function Prototypes.
  */
 
+typedef int _libelf_translator_function(unsigned char *_dst, size_t dsz,
+    unsigned char *_src, size_t _cnt, int _byteswap);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -207,12 +210,12 @@ Elf_Arsym *_libelf_ar_process_bsd_symtab(Elf *_ar, size_t *_dst);
 Elf_Arsym *_libelf_ar_process_svr4_symtab(Elf *_ar, size_t *_dst);
 long	 _libelf_checksum(Elf *_e, int _elfclass);
 void	*_libelf_ehdr(Elf *_e, int _elfclass, int _allocate);
+int	_libelf_elfmachine(Elf *_e);
 unsigned int _libelf_falign(Elf_Type _t, int _elfclass);
 size_t	_libelf_fsize(Elf_Type _t, int _elfclass, unsigned int _version,
     size_t count);
-int	(*_libelf_get_translator(Elf_Type _t, int _direction, int _elfclass))
-	    (unsigned char *_dst, size_t dsz, unsigned char *_src,
-	     size_t _cnt, int _byteswap);
+_libelf_translator_function *_libelf_get_translator(Elf_Type _t,
+    int _direction, int _elfclass, int _elfmachine);
 void	*_libelf_getphdr(Elf *_e, int _elfclass);
 void	*_libelf_getshdr(Elf_Scn *_scn, int _elfclass);
 void	_libelf_init_elf(Elf *_e, Elf_Kind _kind);
@@ -233,7 +236,7 @@ int	_libelf_setshnum(Elf *_e, void *_eh, int _elfclass, size_t _shnum);
 int	_libelf_setshstrndx(Elf *_e, void *_eh, int _elfclass,
     size_t _shstrndx);
 Elf_Data *_libelf_xlate(Elf_Data *_d, const Elf_Data *_s,
-    unsigned int _encoding, int _elfclass, int _direction);
+    unsigned int _encoding, int _elfclass, int _elfmachine, int _direction);
 int	_libelf_xlate_shtype(uint32_t _sht);
 #ifdef __cplusplus
 }
