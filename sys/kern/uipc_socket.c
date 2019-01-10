@@ -2755,12 +2755,10 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		if (so->so_proto->pr_ctloutput != NULL) {
+		if (so->so_proto->pr_ctloutput != NULL)
 			error = (*so->so_proto->pr_ctloutput)(so, sopt);
-			CURVNET_RESTORE();
-			return (error);
-		}
-		error = ENOPROTOOPT;
+		else
+			error = ENOPROTOOPT;
 	} else {
 		switch (sopt->sopt_name) {
 		case SO_ACCEPTFILTER:
