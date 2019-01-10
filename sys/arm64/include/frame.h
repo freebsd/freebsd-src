@@ -56,7 +56,7 @@ struct arm64_frame {
 };
 
 /*
- * Signal frame, pushedonto the user stack
+ * Signal frame, pushed onto the user stack.
  */
 struct sigframe {
 	siginfo_t       sf_si;          /* actual saved siginfo */
@@ -64,7 +64,7 @@ struct sigframe {
 };
 
 /*
- * There is no fixed frame layout, other than to be 16-byte aligned
+ * There is no fixed frame layout, other than to be 16-byte aligned.
  */
 struct frame {
 	int dummy;
