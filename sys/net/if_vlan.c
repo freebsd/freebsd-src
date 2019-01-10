@@ -607,7 +607,7 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 	struct ifvlantrunk *trunk;
 	struct sockaddr_dl *sdl;
 
-	/* Need the rmlock since this is run on taskqueue_swi. */
+	/* Need the epoch since this is run on taskqueue_swi. */
 	NET_EPOCH_ENTER(et);
 	trunk = ifp->if_vlantrunk;
 	if (trunk == NULL) {
