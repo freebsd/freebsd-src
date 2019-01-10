@@ -1262,7 +1262,6 @@ in6_joingroup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
-#ifdef INVARIANTS
 	/*
 	 * Sanity: Check scope zone ID was set for ifp, if and
 	 * only if group is scoped to an interface.
@@ -1274,7 +1273,6 @@ in6_joingroup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 		KASSERT(mcaddr->s6_addr16[1] != 0,
 		    ("%s: scope zone ID not set", __func__));
 	}
-#endif
 
 	IN6_MULTI_LOCK_ASSERT();
 	IN6_MULTI_LIST_UNLOCK_ASSERT();
