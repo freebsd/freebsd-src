@@ -83,16 +83,19 @@ exec_command(int argc, const char *const argv[])
 	child_pid = fork();
 	if (child_pid == 0) {
 		char **av;
+		int fds[3];
 
 		/* Child process. Redirect stdin, stdout
 		 * and stderr. */
-		close(0);
-		close(1);
-		close(2);
-		if (open("/dev/null", O_RDONLY) < 0 ||
-			open("/dev/null", O_RDONLY) < 0 ||
-			open("/dev/null", O_RDONLY) < 0) {
-			return -1;
+		for (i = 0; i < 3; i++) {
+			close(i);
+			fds[i] = open("/dev/null", O_RDONLY);
+			if (fds[i] < 0) {
+				for (i--; i >= 0; i--) {
+					close(fds[i]);
+				}
+				return -1;
+			}
 		}
 
 		/* Make a copy of the arguments, passing them to execvp. */
@@ -128,7 +131,8 @@ exec_command(int argc, const char *const argv[])
 #define THRET_FAILURE	((void *)0)
 
 struct TestContext {
-	char ifname[128];
+	char ifname[64];
+	char ifname_ext[128];
 	char bdgname[64];
 	uint32_t nr_tx_slots;   /* slots in tx rings */
 	uint32_t nr_rx_slots;   /* slots in rx rings */
@@ -171,9 +175,9 @@ port_info_get(struct TestContext *ctx)
 	int success;
 	int ret;
 
-	printf("Testing NETMAP_REQ_PORT_INFO_GET on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_PORT_INFO_GET on '%s'\n", ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_PORT_INFO_GET;
 	hdr.nr_body    = (uintptr_t)&req;
 	memset(&req, 0, sizeof(req));
@@ -218,9 +222,9 @@ port_register(struct TestContext *ctx)
 	printf("Testing NETMAP_REQ_REGISTER(mode=%d,ringid=%d,"
 	       "flags=0x%llx) on '%s'\n",
 	       ctx->nr_mode, ctx->nr_ringid, (unsigned long long)ctx->nr_flags,
-	       ctx->ifname);
+	       ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_REGISTER;
 	hdr.nr_body    = (uintptr_t)&req;
 	hdr.nr_options = (uintptr_t)ctx->nr_opt;
@@ -284,10 +288,10 @@ niocregif(struct TestContext *ctx, int netmap_api)
 	int success;
 	int ret;
 
-	printf("Testing legacy NIOCREGIF on '%s'\n", ctx->ifname);
+	printf("Testing legacy NIOCREGIF on '%s'\n", ctx->ifname_ext);
 
 	memset(&req, 0, sizeof(req));
-	memcpy(req.nr_name, ctx->ifname, sizeof(req.nr_name));
+	memcpy(req.nr_name, ctx->ifname_ext, sizeof(req.nr_name));
 	req.nr_name[sizeof(req.nr_name) - 1] = '\0';
 	req.nr_version = netmap_api;
 	req.nr_ringid     = ctx->nr_ringid;
@@ -399,7 +403,7 @@ legacy_regif_extra_bufs(struct TestContext *ctx)
 static int
 legacy_regif_extra_bufs_pipe(struct TestContext *ctx)
 {
-	strncat(ctx->ifname, "{pipeexbuf", sizeof(ctx->ifname));
+	strncat(ctx->ifname_ext, "{pipeexbuf", sizeof(ctx->ifname_ext));
 	ctx->nr_mode = NR_REG_ALL_NIC;
 	ctx->nr_extra_bufs = 58;	/* arbitrary number of extra bufs */
 
@@ -409,7 +413,7 @@ legacy_regif_extra_bufs_pipe(struct TestContext *ctx)
 static int
 legacy_regif_extra_bufs_pipe_vale(struct TestContext *ctx)
 {
-	strncpy(ctx->ifname, "valeX1:Y4", sizeof(ctx->ifname));
+	strncpy(ctx->ifname_ext, "valeX1:Y4", sizeof(ctx->ifname_ext));
 	return legacy_regif_extra_bufs_pipe(ctx);
 }
 
@@ -478,10 +482,10 @@ vale_attach(struct TestContext *ctx)
 {
 	struct nmreq_vale_attach req;
 	struct nmreq_header hdr;
-	char vpname[sizeof(ctx->bdgname) + 1 + sizeof(ctx->ifname)];
+	char vpname[sizeof(ctx->bdgname) + 1 + sizeof(ctx->ifname_ext)];
 	int ret;
 
-	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname);
+	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname_ext);
 
 	printf("Testing NETMAP_REQ_VALE_ATTACH on '%s'\n", vpname);
 	nmreq_hdr_init(&hdr, vpname);
@@ -516,7 +520,7 @@ vale_detach(struct TestContext *ctx)
 	char vpname[256];
 	int ret;
 
-	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname);
+	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname_ext);
 
 	printf("Testing NETMAP_REQ_VALE_DETACH on '%s'\n", vpname);
 	nmreq_hdr_init(&hdr, vpname);
@@ -560,9 +564,9 @@ port_hdr_set_and_get(struct TestContext *ctx)
 	struct nmreq_header hdr;
 	int ret;
 
-	printf("Testing NETMAP_REQ_PORT_HDR_SET on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_PORT_HDR_SET on '%s'\n", ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_PORT_HDR_SET;
 	hdr.nr_body    = (uintptr_t)&req;
 	memset(&req, 0, sizeof(req));
@@ -577,7 +581,7 @@ port_hdr_set_and_get(struct TestContext *ctx)
 		return -1;
 	}
 
-	printf("Testing NETMAP_REQ_PORT_HDR_GET on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_PORT_HDR_GET on '%s'\n", ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_PORT_HDR_GET;
 	req.nr_hdr_len = 0;
 	ret            = ioctl(ctx->fd, NIOCCTRL, &hdr);
@@ -603,7 +607,7 @@ vale_ephemeral_port_hdr_manipulation(struct TestContext *ctx)
 {
 	int ret;
 
-	strncpy(ctx->ifname, "vale:eph0", sizeof(ctx->ifname));
+	strncpy(ctx->ifname_ext, "vale:eph0", sizeof(ctx->ifname_ext));
 	ctx->nr_mode = NR_REG_ALL_NIC;
 	if ((ret = port_register(ctx))) {
 		return ret;
@@ -632,11 +636,11 @@ vale_persistent_port(struct TestContext *ctx)
 	int result;
 	int ret;
 
-	strncpy(ctx->ifname, "per4", sizeof(ctx->ifname));
+	strncpy(ctx->ifname_ext, "per4", sizeof(ctx->ifname_ext));
 
-	printf("Testing NETMAP_REQ_VALE_NEWIF on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_VALE_NEWIF on '%s'\n", ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_VALE_NEWIF;
 	hdr.nr_body    = (uintptr_t)&req;
 	memset(&req, 0, sizeof(req));
@@ -654,7 +658,7 @@ vale_persistent_port(struct TestContext *ctx)
 	/* Attach the persistent VALE port to a switch and then detach. */
 	result = vale_attach_detach(ctx);
 
-	printf("Testing NETMAP_REQ_VALE_DELIF on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_VALE_DELIF on '%s'\n", ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_VALE_DELIF;
 	hdr.nr_body    = (uintptr_t)NULL;
 	ret            = ioctl(ctx->fd, NIOCCTRL, &hdr);
@@ -676,9 +680,9 @@ pools_info_get(struct TestContext *ctx)
 	struct nmreq_header hdr;
 	int ret;
 
-	printf("Testing NETMAP_REQ_POOLS_INFO_GET on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_POOLS_INFO_GET on '%s'\n", ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_POOLS_INFO_GET;
 	hdr.nr_body    = (uintptr_t)&req;
 	memset(&req, 0, sizeof(req));
@@ -739,14 +743,14 @@ pools_info_get_and_register(struct TestContext *ctx)
 static int
 pools_info_get_empty_ifname(struct TestContext *ctx)
 {
-	strncpy(ctx->ifname, "", sizeof(ctx->ifname));
+	strncpy(ctx->ifname_ext, "", sizeof(ctx->ifname_ext));
 	return pools_info_get(ctx) != 0 ? 0 : -1;
 }
 
 static int
 pipe_master(struct TestContext *ctx)
 {
-	strncat(ctx->ifname, "{pipeid1", sizeof(ctx->ifname));
+	strncat(ctx->ifname_ext, "{pipeid1", sizeof(ctx->ifname_ext));
 	ctx->nr_mode = NR_REG_NIC_SW;
 
 	if (port_register(ctx) == 0) {
@@ -761,7 +765,7 @@ pipe_master(struct TestContext *ctx)
 static int
 pipe_slave(struct TestContext *ctx)
 {
-	strncat(ctx->ifname, "}pipeid2", sizeof(ctx->ifname));
+	strncat(ctx->ifname_ext, "}pipeid2", sizeof(ctx->ifname_ext));
 	ctx->nr_mode = NR_REG_ALL_NIC;
 
 	return port_register(ctx);
@@ -772,7 +776,7 @@ pipe_slave(struct TestContext *ctx)
 static int
 pipe_port_info_get(struct TestContext *ctx)
 {
-	strncat(ctx->ifname, "}pipeid3", sizeof(ctx->ifname));
+	strncat(ctx->ifname_ext, "}pipeid3", sizeof(ctx->ifname_ext));
 
 	return port_info_get(ctx);
 }
@@ -780,7 +784,7 @@ pipe_port_info_get(struct TestContext *ctx)
 static int
 pipe_pools_info_get(struct TestContext *ctx)
 {
-	strncat(ctx->ifname, "{xid", sizeof(ctx->ifname));
+	strncat(ctx->ifname_ext, "{xid", sizeof(ctx->ifname_ext));
 
 	return pools_info_get(ctx);
 }
@@ -794,7 +798,7 @@ vale_polling_enable(struct TestContext *ctx)
 	char vpname[256];
 	int ret;
 
-	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname);
+	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname_ext);
 	printf("Testing NETMAP_REQ_VALE_POLLING_ENABLE on '%s'\n", vpname);
 
 	nmreq_hdr_init(&hdr, vpname);
@@ -826,7 +830,7 @@ vale_polling_disable(struct TestContext *ctx)
 	char vpname[256];
 	int ret;
 
-	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname);
+	snprintf(vpname, sizeof(vpname), "%s:%s", ctx->bdgname, ctx->ifname_ext);
 	printf("Testing NETMAP_REQ_VALE_POLLING_DISABLE on '%s'\n", vpname);
 
 	nmreq_hdr_init(&hdr, vpname);
@@ -861,8 +865,9 @@ vale_polling_enable_disable(struct TestContext *ctx)
 		 * because it is currently broken. We are happy to see that
 		 * it fails. */
 		return 0;
-#endif
+#else
 		return ret;
+#endif
 	}
 
 	if ((ret = vale_polling_disable(ctx))) {
@@ -913,7 +918,7 @@ unsupported_option(struct TestContext *ctx)
 {
 	struct nmreq_option opt, save;
 
-	printf("Testing unsupported option on %s\n", ctx->ifname);
+	printf("Testing unsupported option on %s\n", ctx->ifname_ext);
 
 	memset(&opt, 0, sizeof(opt));
 	opt.nro_reqtype = 1234;
@@ -933,7 +938,7 @@ infinite_options(struct TestContext *ctx)
 {
 	struct nmreq_option opt;
 
-	printf("Testing infinite list of options on %s\n", ctx->ifname);
+	printf("Testing infinite list of options on %s\n", ctx->ifname_ext);
 
 	opt.nro_reqtype = 1234;
 	push_option(&opt, ctx);
@@ -1045,7 +1050,7 @@ _extmem_option(struct TestContext *ctx,
 
 	save = e;
 
-	strncpy(ctx->ifname, "vale0:0", sizeof(ctx->ifname));
+	strncpy(ctx->ifname_ext, "vale0:0", sizeof(ctx->ifname_ext));
 	ctx->nr_tx_slots = 16;
 	ctx->nr_rx_slots = 16;
 
@@ -1235,9 +1240,9 @@ sync_kloop_stop(struct TestContext *ctx)
 	struct nmreq_header hdr;
 	int ret;
 
-	printf("Testing NETMAP_REQ_SYNC_KLOOP_STOP on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_SYNC_KLOOP_STOP on '%s'\n", ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_SYNC_KLOOP_STOP;
 	ret            = ioctl(ctx->fd, NIOCCTRL, &hdr);
 	if (ret != 0) {
@@ -1255,9 +1260,9 @@ sync_kloop_worker(void *opaque)
 	struct nmreq_header hdr;
 	int ret;
 
-	printf("Testing NETMAP_REQ_SYNC_KLOOP_START on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_SYNC_KLOOP_START on '%s'\n", ctx->ifname_ext);
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_SYNC_KLOOP_START;
 	hdr.nr_body    = (uintptr_t)&req;
 	hdr.nr_options = (uintptr_t)ctx->nr_opt;
@@ -1423,12 +1428,12 @@ csb_enable(struct TestContext *ctx)
 	saveopt = opt.nro_opt;
 	saveopt.nro_status = 0;
 
-	nmreq_hdr_init(&hdr, ctx->ifname);
+	nmreq_hdr_init(&hdr, ctx->ifname_ext);
 	hdr.nr_reqtype = NETMAP_REQ_CSB_ENABLE;
 	hdr.nr_options = (uintptr_t)ctx->nr_opt;
 	hdr.nr_body = (uintptr_t)NULL;
 
-	printf("Testing NETMAP_REQ_CSB_ENABLE on '%s'\n", ctx->ifname);
+	printf("Testing NETMAP_REQ_CSB_ENABLE on '%s'\n", ctx->ifname_ext);
 
 	ret           = ioctl(ctx->fd, NIOCCTRL, &hdr);
 	if (ret != 0) {
@@ -1894,6 +1899,8 @@ main(int argc, char **argv)
 		}
 		memcpy(&ctxcopy, &ctx_, sizeof(ctxcopy));
 		ctxcopy.fd = fd;
+		memcpy(ctxcopy.ifname_ext, ctxcopy.ifname,
+			sizeof(ctxcopy.ifname));
 		ret        = tests[i].test(&ctxcopy);
 		if (ret != 0) {
 			printf("Test #%d [%s] failed\n", i + 1, tests[i].name);
