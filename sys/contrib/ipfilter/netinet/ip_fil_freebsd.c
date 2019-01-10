@@ -132,24 +132,10 @@ ipf_check_wrapper(void *arg, struct mbuf **mp, struct ifnet *ifp, int dir)
 	struct ip *ip = mtod(*mp, struct ip *);
 	int rv;
 
-	/*
-	 * IPFilter expects evreything in network byte order
-	 */
-#if (__FreeBSD_version < 1000019)
-	ip->ip_len = htons(ip->ip_len);
-	ip->ip_off = htons(ip->ip_off);
-#endif
 	CURVNET_SET(ifp->if_vnet);
 	rv = ipf_check(&V_ipfmain, ip, ip->ip_hl << 2, ifp, (dir == PFIL_OUT),
 		       mp);
 	CURVNET_RESTORE();
-#if (__FreeBSD_version < 1000019)
-	if ((rv == 0) && (*mp != NULL)) {
-		ip = mtod(*mp, struct ip *);
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
-	}
-#endif
 	return rv;
 }
 
