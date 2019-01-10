@@ -257,7 +257,7 @@ again:
 		ret = EACCES;
 		if (ip_dn_io_ptr == NULL)
 			break; /* i.e. drop */
-		MPASS(args->flags & IPFW_ARGS_REF);
+		MPASS(args.flags & IPFW_ARGS_REF);
 		if (mtod(*m0, struct ip *)->ip_v == 4)
 			ret = ip_dn_io_ptr(m0, dir, &args);
 		else if (mtod(*m0, struct ip *)->ip_v == 6)
@@ -281,7 +281,7 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
-		MPASS(args->flags & IPFW_ARGS_REF);
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ret = ipfw_divert(m0, dir, &args.rule,
 			(ipfw == IP_FW_TEE) ? 1 : 0);
 		/* continue processing for the original packet (tee). */
@@ -295,7 +295,7 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
-		MPASS(args->flags & IPFW_ARGS_REF);
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ret = ng_ipfw_input_p(m0, dir, &args,
 			(ipfw == IP_FW_NGTEE) ? 1 : 0);
 		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
@@ -406,7 +406,7 @@ again:
 
 		*m0 = NULL;
 		dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
-		MPASS(args->flags & IPFW_ARGS_REF);
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
 		return 0;
 
@@ -416,7 +416,7 @@ again:
 			ret = EACCES;
 			break; /* i.e. drop */
 		}
-		MPASS(args->flags & IPFW_ARGS_REF);
+		MPASS(args.flags & IPFW_ARGS_REF);
 		ret = ng_ipfw_input_p(m0, (dir == PFIL_IN) ? DIR_IN : DIR_OUT,
 			&args, (i == IP_FW_NGTEE) ? 1 : 0);
 		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
