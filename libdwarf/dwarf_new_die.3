@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_new_die.3 2074 2011-10-27 03:34:33Z jkoshy $
+.\" $Id: dwarf_new_die.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd September 4, 2011
-.Os
 .Dt DWARF_NEW_DIE 3
+.Os
 .Sh NAME
 .Nm dwarf_new_die
 .Nd allocate a new debugging information entry
@@ -106,27 +106,6 @@ returns
 .Dv DW_DLV_BADADDR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_new_die
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
-.It Bq Er DW_DLE_ARGUMENT
-Argument
-.Ar dbg
-was NULL.
-.It Bq Er DW_DLE_ARGUMENT
-More than one of the arguments
-.Ar parent ,
-.Ar child ,
-.Ar left
-and
-.Ar right
-were non-NULL.
-.It Bq Er DW_DLE_MEMORY
-An out of memory condition was encountered during the execution of the
-function.
-.El
 .Sh EXAMPLES
 To create debugging information entries and add them to the producer
 instance, use:
@@ -156,6 +135,27 @@ if (dwarf_add_die_to_debug(dbg, die1, &de) != DW_DLV_OK) {
 	return;
 }
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_new_die
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar dbg
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+More than one of the arguments
+.Ar parent ,
+.Ar child ,
+.Ar left
+and
+.Ar right
+were non-NULL.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_add_die_to_debug 3 ,

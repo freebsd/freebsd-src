@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: dwarf_init.3 2122 2011-11-09 15:35:14Z jkoshy $
+.\" $Id: dwarf_init.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_INIT 3
+.Os
 .Sh NAME
 .Nm dwarf_init ,
 .Nm dwarf_elf_init
@@ -137,6 +137,11 @@ The
 .Vt Dwarf_Debug
 instance returned by these functions should be freed using
 .Fn dwarf_finish .
+.Sh IMPLEMENTATION NOTES
+The current implementation does not support access modes
+.Dv DW_DLC_RDWR
+and
+.Dv DW_DLC_WRITE .
 .Sh RETURN VALUES
 These functions return the following values:
 .Bl -tag -width ".Bq Er DW_DLV_NO_ENTRY"
@@ -151,11 +156,6 @@ or
 .Ar "elf"
 did not contain debug information.
 .El
-.Sh IMPLEMENTATION NOTES
-The current implementation does not support access modes
-.Dv DW_DLC_RDWR
-and
-.Dv DW_DLC_WRITE .
 .Sh EXAMPLES
 To initialize a
 .Vt Dwarf_Debug

@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_object_init.3 2074 2011-10-27 03:34:33Z jkoshy $
+.\" $Id: dwarf_object_init.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd September 29, 2011
-.Os
 .Dt DWARF_OBJECT_INIT 3
+.Os
 .Sh NAME
 .Nm dwarf_object_init
 .Nd allocate a DWARF debug descriptor with application-specific file \
@@ -44,7 +44,6 @@ access methods
 .Fa "Dwarf_Error *err"
 .Fc
 .Sh DESCRIPTION
-.Pp
 The
 .Fn dwarf_object_init
 function allocates and returns a
@@ -202,7 +201,7 @@ function returns
 In case of an error, the function returns
 .Dv DW_DLV_ERROR
 and sets the argument
-.Ar err.
+.Ar err .
 .Sh ERRORS
 The
 .Fn dwarf_object_init

@@ -1,0 +1,213 @@
+#!/bin/sh
+#
+# Copyright (c) 2018, Joseph Koshy. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer
+#    in this position and unchanged.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# $Id$
+
+# Given a list of objects that use the test(3) API, this script will
+# generate test case and test function descriptors based on the symbols
+# contained in those objects.
+
+usage()
+{
+	echo Usage: `basename $0`: "[options] objects..."
+	echo
+	echo "Generate test(3) scaffolding from objects."
+	echo "Options include:"
+	echo
+	echo "\t-o out\t\tcreate output file \"out\" [default \"tc.c\"]."
+	echo
+}
+
+output_file="tc.c"
+prefix_tc_descr='tc_description_'
+prefix_tc_setup='tc_setup_'
+prefix_tc_tags='tc_tags_'
+prefix_tc_teardown='tc_teardown_'
+prefix_tf='tf_'
+prefix_tf_descr='tf_description_'
+prefix_tf_tags='tf_tags_'
+
+
+args=`getopt o: $*`
+if [ ${?} -ne 0 ]; then
+	usage
+	exit 2
+fi
+
+set -- ${args}
+
+for i
+do
+	case "${i}" in
+	-o )
+		output_file="${2}"
+		shift; shift;;
+	-- )
+		shift; break;;
+	esac
+done
+
+if [ ${#} -eq 0 ]; then
+	usage
+	exit 2
+fi
+
+exec > ${output_file}
+cat <<EOF
+/* GENERATED FROM: ${@} */
+#include <stddef.h>
+#include "test.h"
+#include "test_runner.h"
+EOF
+
+if ! nm ${*} | sort -k 3 | \
+	awk -v prefix_tc_descr=${prefix_tc_descr} \
+	    -v prefix_tc_setup=${prefix_tc_setup} \
+	    -v prefix_tc_tags=${prefix_tc_tags} \
+	    -v prefix_tc_teardown=${prefix_tc_teardown} \
+	    -v prefix_tf=${prefix_tf} \
+	    -v prefix_tf_descr=${prefix_tf_descr} \
+	    -v prefix_tf_tags=${prefix_tf_tags} '
+	function suffix(value, prefix) {
+		return substr(value, length(prefix) + 1);
+	}
+	function matched_test_case(tf_name,  tc_matched) {
+		tc_matched = ""
+		for (tc_name in test_cases) {
+			if (tf_name ~ tc_name "_" &&
+			    length(tc_name) > length(tc_matched)) {
+				tc_matched = tc_name
+			}
+		}
+		if (tc_matched != "")
+			return tc_matched
+		return DEFAULT
+	}
+	function print_test_case_record(tc_name) {
+		printf("\t{\n")
+		printf("\t\t.tc_name = \"%s\",\n", tc_name)
+		printf("\t\t.tc_description = %s,\n", test_case_descriptions[tc_name])
+		printf("\t\t.tc_tags = %s,\n", test_case_tags[tc_name])
+		printf("\t\t.tc_tests = test_functions_%s\n", tc_name)
+		printf("\t},\n")
+	}
+	function delete_test_functions(tc_name) {
+		for (tf_name in test_functions) {
+			if (matched_test_case(tf_name) == tc_name)
+				delete test_functions[tf_name]
+		}
+	}
+	function print_test_functions_record(tc_name) {
+		printf("struct test_descriptor test_functions_%s[] = {\n", tc_name)
+		for (tf_name in test_functions) {
+			if (tc_name != matched_test_case(tf_name))
+				continue
+			printf("\t{\n")
+			printf("\t\t.t_name = \"%s\",\n", tf_name)
+			printf("\t\t.t_description = %s,\n",
+				test_function_descriptions[tf_name])
+			printf("\t\t.t_func = %s,\n", prefix_tf tf_name)
+			printf("\t\t.t_tags = %s\n", test_function_tags[tf_name])
+			printf("\t},\n")
+		}
+		printf("};\n")
+	}
+	function is_non_empty(array,  i) {
+		for (i in array) return 1
+		return 0
+	}
+	BEGIN {
+		DEFAULT = "default"
+		test_case_descriptions[DEFAULT] = "NULL"
+		test_case_tags[DEFAULT] = "NULL"
+	}
+	($2 == "R" || $2 == "D") && $3 ~ "^" prefix_tc_descr {
+		printf("extern testcase_description %s;\n", $3)
+		tc_name = suffix($3, prefix_tc_descr)
+		test_cases[tc_name] = 1
+		test_case_descriptions[tc_name] = $3
+	}
+	$2 == "T" && $3 ~ "^" prefix_tc_setup {
+		tc_name = suffix($3, prefix_tc_setup)
+		test_cases[tc_name] = 1
+		test_case_setup[tc_name] = $3
+	}
+	($2 == "R" || $2 == "D") && $3 ~ "^" prefix_tc_tags {
+		printf("extern testcase_tags %s;\n", $3)
+		tc_name = suffix($3, prefix_tc_tags)
+		test_cases[tc_name] = 1
+		test_case_tags[tc_name] = $3
+	}
+	$2 == "T" && $3 ~ "^" prefix_tc_teardown {
+		tc_name = suffix($3, prefix_tc_teardown)
+		test_cases[tc_name] = 1
+		test_case_teardown[tc_name] = $3
+	}
+	($2 == "R" || $2 == "D") && $3 ~ "^" prefix_tf_descr {
+		printf("extern test_description %s;\n", $3)
+		tf_name = suffix($3, prefix_tf_descr)
+		test_function_descriptions[tf_name] = $3
+	}
+	($2 == "R" || $2 == "D") && $3 ~ "^" prefix_tf_tags {
+		printf("extern test_tags %s;\n", $3)
+		tf_name = suffix($3, prefix_tf_tags)
+		test_function_tags[tf_name] = $3
+	}
+	$2 == "T" && $3 ~ "^" prefix_tf {
+		printf("test_function %s;\n", $3)
+		tf_name = suffix($3, prefix_tf)
+		test_functions[tf_name] = 1
+	}
+	END {
+		for (tf_name in test_functions) {
+			if (test_function_descriptions[tf_name] == "")
+				test_function_descriptions[tf_name] = "NULL"
+			if (test_function_tags[tf_name] == "")
+				test_function_tags[tf_name] = "NULL"
+		}
+		for (tc_name in test_cases) {
+			if (test_case_descriptions[tc_name] == "")
+				test_case_descriptions[tc_name] = "NULL"
+			if (test_case_tags[tc_name] == "")
+				test_case_tags[tc_name] = "NULL"
+		}
+		for (tc_name in test_cases) {
+			print_test_functions_record(tc_name)
+			delete_test_functions(tc_name)
+		}
+		needs_default = is_non_empty(test_functions)
+		if (needs_default)
+			print_test_functions_record(DEFAULT)
+		printf("struct test_case_descriptor test_cases[] = {\n")
+		for (tc_name in test_cases)
+			print_test_case_record(tc_name)
+		if (needs_default)
+			print_test_case_record(DEFAULT)
+		printf("};\n")
+	}'; then
+    # Cleanup in case of an error.
+    rm ${output_file}
+    exit 1
+fi

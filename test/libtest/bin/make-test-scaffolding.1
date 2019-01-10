@@ -1,0 +1,111 @@
+.\" Copyright (c) 2018, Joseph Koshy.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id$
+.\"
+.Dd December 25, 2018
+.Dt TEST 1
+.Os
+.Sh NAME
+.Nm make-test-scaffolding
+.Nd generate scaffolding for tests
+.Sh SYNOPSIS
+.Nm
+.Op Fl o Ar output_file
+.Ar test_object ...
+.Sh DESCRIPTION
+The
+.Nm
+utility takes as input object files containing symbols following
+its naming convention and generates the scaffolding needed to assemble
+a test executable.
+.Pp
+The
+.Nm
+utility expects symbols to be named using the following conventions:
+.Bl -bullet
+.It
+Test case descriptions are named using the
+.Li tc_description_
+prefix, followed by the name of the test case.
+For example, the symbol
+.Sy tc_description_helloworld
+would name the description of a test case named
+.Dq helloworld .
+.It
+Test set up functions are named using a
+.Li tc_setup_
+prefix, followed by the name of a test case.
+For example, the function
+.Fn tc_setup_helloworld
+would name the set up function for a test case named
+.Dq helloworld .
+.It
+Test tear down functions are named using a
+.Li tc_teardown_
+prefix, followed by the name of a test case.
+For example, the function
+.Fn tc_teardown_helloworld
+would name the tear down function for a test case named
+.Dq helloworld .
+.It
+Tags for test cases are named using symbols with a
+.Li tc_tags_
+prefix, followed by the name of their test case.
+.It
+Test functions are named using a
+.Li tf_
+prefix, followed by the name for their containing test case and a
+disambiguating suffix.
+For example, the two test functions
+.Fn tf_helloworld_sayhello
+and
+.Fn tf_helloworld_saygoodbye
+would be associated with the test case named
+.Dq helloworld .
+.Pp
+A test function that is not associated with a test case will be
+added to a special test case named
+.Dq default .
+.It
+Tags for test functions are named using symbols with a
+.Li tf_tags_
+prefix, followed by the name of their test case.
+.El
+.Pp
+The
+.Nm
+utility will generate a C source file containing the appropriate
+.Vt "struct test_descriptor"
+and
+.Vt "struct test_case_descriptor"
+structures for use by a test driver.
+.Sh SEE ALSO
+.Xr test 3 ,
+.Xr test_runner 3
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An Joseph Koshy Aq Mt jkoshy@users.sourceforge.net .

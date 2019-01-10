@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3449 2016-05-03 13:59:29Z emaste $");
+ELFTC_VCSID("$Id: segments.c 3615 2018-05-17 04:12:24Z kaiwang27 $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -78,6 +78,8 @@ add_to_inseg_list(struct elfcopy *ecp, struct section *s)
 		    s->type != SHT_NOBITS)
 			continue;
 		if (s->vma + s->sz > seg->vaddr + seg->msz)
+			continue;
+		if (seg->type == PT_TLS && ((s->flags & SHF_TLS) == 0))
 			continue;
 
 		insert_to_inseg_list(seg, s);

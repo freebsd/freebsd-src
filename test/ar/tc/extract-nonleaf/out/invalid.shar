@@ -1,0 +1,54 @@
+#!/bin/sh
+# This is invalid, a shell archive (produced by GNU sharutils 4.15.2).
+# To extract the files from this archive, save it to some FILE, remove
+# everything before the '#!/bin/sh' line above, then type 'sh FILE'.
+#
+lock_dir=_sh29263
+# Existing files will *not* be overwritten, unless '-c' is specified.
+#
+# This shar contains:
+# length mode       name
+# ------ ---------- ------------------------------------------
+#    152 -rw-rw-r-- invalid.a
+#
+if test "X$1" = "X-c"
+then keep_file=''
+else keep_file=true
+fi
+echo=echo
+shar_tty=
+shar_n=
+shar_c='\n'
+if test ! -d ${lock_dir} ; then :
+else ${echo} "lock directory ${lock_dir} exists"
+     exit 1
+fi
+if mkdir ${lock_dir} ; then :
+else ${echo} "failed to create ${lock_dir} lock directory"
+     exit 1
+fi
+# ============= invalid.a ==============
+if test -n "${keep_file}" && test -f 'invalid.a'
+then
+${echo} "x - SKIPPING invalid.a (file already exists)"
+
+else
+${echo} "x - extracting invalid.a (text)"
+  sed 's/^X//' << 'SHAR_EOF' > 'invalid.a' &&
+X!<arch>
+Xa/s1/           0           0     0     644     12        `
+Xs1-contents
+Xs1/             0           0     0     644     12        `
+Xs1-contents
+SHAR_EOF
+:
+if test $? -ne 0
+then ${echo} "restore of invalid.a failed"
+fi
+fi
+if rm -fr ${lock_dir}
+then ${echo} "x - removed lock directory ${lock_dir}."
+else ${echo} "x - failed to remove lock directory ${lock_dir}."
+     exit 1
+fi
+exit 0

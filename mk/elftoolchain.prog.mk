@@ -1,7 +1,7 @@
 #
 # Rules for building programs.
 #
-# $Id: elftoolchain.prog.mk 3607 2018-04-13 19:41:17Z jkoshy $
+# $Id: elftoolchain.prog.mk 3652 2018-12-23 07:59:42Z jkoshy $
 
 .if !defined(TOP)
 .error	Make variable \"TOP\" has not been defined.
@@ -120,5 +120,5 @@ clobber:	clean os-specific-clobber .PHONY
 CFLAGS:=	${CFLAGS:N-O*} -g
 .endif
 
-# Bring in rules related to test code.
-.include "${TOP}/mk/elftoolchain.test.mk"
+# Bring in rules related to running the related test suite.
+.include "${TOP}/mk/elftoolchain.test-target.mk"

@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_getshdrstrndx.3 467 2009-08-05 18:18:49Z jkoshy $
+.\" $Id: elf_getshdrstrndx.3 3643 2018-10-14 21:09:24Z jkoshy $
 .\"
 .Dd August 5, 2009
-.Os
 .Dt ELF_GETSHDRSTRNDX 3
+.Os
 .Sh NAME
 .Nm elf_getshdrstrndx
 .Nd retrieve the index of the section name string table
@@ -46,7 +46,6 @@ and stores it into the location pointed to by argument
 .Pp
 This function allow applications to process both normal ELF
 objects and ELF objects that use extended section numbering uniformly.
-.Pp
 .Sh RETURN VALUES
 These functions return zero if successful, or -1 in case of an error.
 .Sh ERRORS

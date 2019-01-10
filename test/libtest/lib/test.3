@@ -1,0 +1,110 @@
+.\" Copyright (c) 2018, Joseph Koshy.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id$
+.\"
+.Dd December 25, 2018
+.Dt TEST 3
+.Os
+.Sh NAME
+.Nm test
+.Nd API for writing tests
+.Sh LIBRARY
+.Lb libtest
+.Sh SYNOPSIS
+.In test.h
+.Ft enum testcase_status
+.Fn testcase_setup "testcase_state *state"
+.Ft enum testcase_status
+.Fn testcase_teardown "testcase_state state"
+.Ft enum test_result
+.Fn test_function "testcase_state state"
+.Vt "const char"
+.Va test_description [] ;
+.Vt "const char *"
+.Va test_tags [] ;
+.Vt "const char"
+.Va testcase_description [] ;
+.Vt "const char *"
+.Va testcase_tags [] ;
+.Sh DESCRIPTION
+The
+.Lb libtest
+implements an API for writing tests.
+.Ss Concepts
+Tests are implemented using test functions, where each test function
+verifies a specific assertion about the system being tested.
+Test functions are associated with the following:
+.Bl -bullet -compact
+.It
+An optional human-readable test description.
+.It
+An optional set of tags.
+Tags are used to select or deselect specific tests in a run.
+.El
+.Pp
+Test functions are further grouped into test cases, where a test case
+contains a logical group of assertions about the system under test.
+Test cases are associated the following:
+.Bl -bullet -compact
+.It
+An optional human-readable test case description.
+.It
+An optional test case set up function.
+If specified, this set up function would be invoked prior to any test
+function contained in the test case.
+The set up function can allocate and initialize test-specific state, to be
+passed to test functions.
+If no set up function is specified for the test case, a default no-op
+function will be supplied.
+.It
+An optional test case tear down function.
+The tear down function will be invoked after all test functions have been
+invoked.
+It would be responsible for deallocating any resources that its corresponding
+set up function had allocated.
+If no tear down function is specified for a test case, a default no-op
+function will be supplied.
+.It
+An optional set of tags for the test case.
+These tags are used to select or delect specific test cases in a given test
+run.
+.El
+.Pp
+One or more test cases would be linked with a test driver to form a
+test executable.
+The default test driver supplied allows the test cases and specific tests
+within the executable to be specified on the command line.
+.Ss Scaffolding Generation
+The
+.Xr make-test-scaffolding 1
+script will generate the scaffolding needed to produce a test executable
+from object files containing symbols following its naming conventions.
+.Sh SEE ALSO
+.Xr make-test-scaffolding 1
+.Sh AUTHORS
+The
+.Lb libtest
+was written by
+.An Joseph Koshy Aq Mt jkoshy@users.sourceforge.net .

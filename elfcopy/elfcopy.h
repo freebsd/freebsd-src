@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 3446 2016-05-03 01:31:17Z emaste $
+ * $Id: elfcopy.h 3615 2018-05-17 04:12:24Z kaiwang27 $
  */
 
 #include <sys/queue.h>
@@ -127,6 +127,7 @@ struct section {
 	uint64_t	 cap;	/* section capacity */
 	uint64_t	 align;	/* section alignment */
 	uint64_t	 type;	/* section type */
+	uint64_t	 flags;	/* section flags */
 	uint64_t	 vma;	/* section virtual addr */
 	uint64_t	 lma;	/* section load addr */
 	uint64_t	 pad_sz;/* section padding size */

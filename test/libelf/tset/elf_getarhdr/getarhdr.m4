@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: getarhdr.m4 1388 2011-01-26 02:29:24Z jkoshy $
+ * $Id: getarhdr.m4 3622 2018-09-29 07:44:28Z jkoshy $
  */
 
 #include <sys/types.h>
@@ -297,7 +297,7 @@ tcArMember$1(void)
 		}
 
 		if (arh->ar_mode != sb.st_mode) {
-			TP_FAIL("\%s\" mode: 0%x != 0%o.", *fn,
+			TP_FAIL("\"%s\" mode: 0%o != 0%o.", *fn,
 			    arh->ar_mode, sb.st_mode);
 			goto done;
 		}
