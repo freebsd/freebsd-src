@@ -72,7 +72,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: ar.c 3319 2016-01-13 21:37:53Z jkoshy $");
+ELFTC_VCSID("$Id: ar.c 3629 2018-09-30 19:26:28Z jkoshy $");
 
 enum options
 {
@@ -100,11 +100,12 @@ main(int argc, char **argv)
 	struct bsdar	*bsdar, bsdar_storage;
 	char		*arcmd, *argv1_saved;
 	size_t		 len;
-	int		 i, opt;
+	int		 exitcode, i, opt;
 
 	bsdar = &bsdar_storage;
 	memset(bsdar, 0, sizeof(*bsdar));
 
+	exitcode = EXIT_SUCCESS;
 	arcmd = argv1_saved = NULL;
 	bsdar->output = stdout;
 
@@ -152,9 +153,9 @@ main(int argc, char **argv)
 
 		bsdar->options |= AR_S;
 		while ((bsdar->filename = *argv++) != NULL)
-			ar_write_archive(bsdar, 's');
+			exitcode |= ar_write_archive(bsdar, 's');
 
-		exit(EXIT_SUCCESS);
+		exit(exitcode);
 	} else {
 		if (argc < 2)
 			bsdar_usage();
@@ -331,30 +332,33 @@ main(int argc, char **argv)
 
 	if ((!bsdar->mode || strchr("ptx", bsdar->mode)) &&
 	    bsdar->options & AR_S) {
-		ar_write_archive(bsdar, 's');
+		exitcode = ar_write_archive(bsdar, 's');
 		if (!bsdar->mode)
-			exit(EXIT_SUCCESS);
+			exit(exitcode);
 	}
 
 	switch(bsdar->mode) {
 	case 'd': case 'm': case 'q': case 'r':
-		ar_write_archive(bsdar, bsdar->mode);
+		exitcode = ar_write_archive(bsdar, bsdar->mode);
 		break;
 
 	case 'p': case 't': case 'x':
-		ar_read_archive(bsdar, bsdar->mode);
+		exitcode = ar_read_archive(bsdar, bsdar->mode);
 		break;
 	default:
 		bsdar_usage();
 		/* NOTREACHED */
 	}
 
-	for (i = 0; i < bsdar->argc; i++)
-		if (bsdar->argv[i] != NULL)
+	for (i = 0; i < bsdar->argc; i++) {
+		if (bsdar->argv[i] != NULL) {
 			bsdar_warnc(bsdar, 0, "%s: not found in archive",
 			    bsdar->argv[i]);
+			exitcode = EXIT_FAILURE;
+		}
+	}
 
-	exit(EXIT_SUCCESS);
+	exit(exitcode);
 }
 
 static void

@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_expand_frame_instructions.3 3181 2015-04-10 13:22:51Z emaste $
+.\" $Id: dwarf_expand_frame_instructions.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_EXPAND_FRAME_INSTRUCTIONS 3
+.Os
 .Sh NAME
 .Nm dwarf_expand_frame_instructions
 .Nd expand frame instructions
@@ -104,32 +104,7 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_expand_frame_instructions
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar cie ,
-.Ar instructions ,
-.Ar ret_ops
-or
-.Ar ret_opcnt
-was NULL.
-.It Bq Er DW_DLE_ARGUMENT
-Argument
-.Ar len
-was 0.
-.It Bq Er DW_DLE_MEMORY
-An out of memory condition was encountered during the execution of
-this function.
-.It Bq Er DW_DLE_FRAME_INSTR_EXEC_ERROR
-An unknown instruction was found in the instruction bytes provided
-in argument
-.Ar instructions .
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To retrieve and expand the frame instructions for a given FDE
 descriptor, use:
 .Bd -literal -offset indent
@@ -164,12 +139,37 @@ for (i = 0; i < opcnt; i++) {
 /* Free the memory area when no longer needed. */
 dwarf_dealloc(dbg, ops, DW_DLA_FRAME_BLOCK);
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_expand_frame_instructions
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar cie ,
+.Ar instructions ,
+.Ar ret_ops
+or
+.Ar ret_opcnt
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar len
+was 0.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of
+this function.
+.It Bq Er DW_DLE_FRAME_INSTR_EXEC_ERROR
+An unknown instruction was found in the instruction bytes provided
+in argument
+.Ar instructions .
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_frame_instructions_dealloc 3 ,
-.Xr dwarf_get_cie_info 3 ,
 .Xr dwarf_get_cie_index 3 ,
-.Xr dwarf_get_cie_of_fde ,
+.Xr dwarf_get_cie_info 3 ,
+.Xr dwarf_get_cie_of_fde 3 ,
 .Xr dwarf_get_fde_at_pc 3 ,
 .Xr dwarf_get_fde_info_for_all_regs 3 ,
 .Xr dwarf_get_fde_info_for_all_regs3 3 ,
