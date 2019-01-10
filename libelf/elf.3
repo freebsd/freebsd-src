@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf.3 3195 2015-05-12 17:22:19Z emaste $
+.\" $Id: elf.3 3643 2018-10-14 21:09:24Z jkoshy $
 .\"
-.Dd July 28, 2014
-.Os
+.Dd October 10, 2018
 .Dt ELF 3
+.Os
 .Sh NAME
 .Nm elf
 .Nd API for manipulating ELF objects
@@ -116,9 +116,12 @@ library offers translation facilities
 .Xr elf64_xlatetof 3
 and
 .Xr elf64_xlatetom 3 )
-to and from these
-representations and also provides higher-level APIs that retrieve and store
-data from the ELF object in a transparent manner.
+to and from these representations.
+It also provides higher-level APIs
+.Xr ( gelf_xlatetof 3 ,
+.Xr gelf_xlatetom 3 )
+that retrieve and store data from the ELF object in a class-agnostic
+manner.
 .Ss Library Working Version
 Conceptually, there are three version numbers associated with an
 application using the ELF library to manipulate ELF objects:
@@ -155,7 +158,7 @@ Used for class-independent data types.
 .It Dv ELF_C_
 Used for command values used in a few functions.
 These symbols are defined as members of the
-.Vt Dv Elf_Cmd
+.Vt Elf_Cmd
 enumeration.
 .It Dv ELF_E_
 Used for error numbers.
@@ -237,7 +240,6 @@ The
 .Vt Elf
 structure is opaque and has no members visible to the
 application.
-.\" TODO describe the Elf_Arhdr and Elf_Arsym structures.
 .It Vt Elf_Data
 An
 .Vt Elf_Data
@@ -409,7 +411,7 @@ Same as
 .El
 .Pp
 Section types in the range
-.Ns [ Dv SHT_LOOS ,
+.Dv [ SHT_LOOS ,
 .Dv SHT_HIUSER ]
 are otherwise considered to be of type
 .Dv ELF_T_BYTE .
@@ -419,7 +421,7 @@ in the ELF library.
 Each function listed here is described further in its own manual page.
 .Bl -tag -width indent
 .It "Archive Access"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn elf_getarsym
 Retrieve the archive symbol table.
 .It Fn elf_getarhdr
@@ -436,7 +438,7 @@ Random access inside an
 archive.
 .El
 .It "Data Structures"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn elf_getdata
 Retrieve translated data for an ELF section.
 .It Fn elf_getscn
@@ -469,7 +471,7 @@ Allocate an Executable Header in an ELF object.
 Allocate or resize the Program Header Table in an ELF object.
 .El
 .It "Data Translation"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn elf32_xlatetof , Fn elf64_xlatetof
 Translate an ELF data structure from its native representation to its
 file representation.
@@ -478,14 +480,14 @@ Translate an ELF data structure from its file representation to a
 native representation.
 .El
 .It "Error Reporting"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn elf_errno
 Retrieve the current error.
 .It Fn elf_errmsg
 Retrieve a human readable description of the current error.
 .El
 .It "Initialization"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn elf_begin
 Opens an
 .Xr ar 1
@@ -529,9 +531,11 @@ back to the underlying file.
 Compute checksum of an ELF object.
 .It Fn elf_getident
 Retrieve the identification bytes for an ELF object.
-.It Fn elf_getshnum
+.It Fn elf_getphdrnum
+Retrieve the number of program headers in an ELF object.
+.It Fn elf_getshdrnum
 Retrieve the number of sections in an ELF object.
-.It Fn elf_getshstrndx
+.It Fn elf_getshdrstrndx
 Retrieve the section index of the section name string table in
 an ELF object.
 .It Fn elf_hash
@@ -601,6 +605,7 @@ library will reclaim the space used by the
 descriptor itself.
 .Sh SEE ALSO
 .Xr gelf 3 ,
+.Xr ar 5 ,
 .Xr elf 5
 .Sh HISTORY
 The original ELF(3) API was developed for Unix System V.

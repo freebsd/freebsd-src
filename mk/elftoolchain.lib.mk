@@ -1,5 +1,5 @@
 #
-# $Id: elftoolchain.lib.mk 3594 2018-04-11 18:26:50Z jkoshy $
+# $Id: elftoolchain.lib.mk 3652 2018-12-23 07:59:42Z jkoshy $
 #
 
 .if !defined(TOP)
@@ -67,5 +67,5 @@ ${DESTDIR}${INCSDIR}/${inc}: ${inc}
 
 .endif	# OpenBSD
 
-# Bring in rules related to test code.
-.include "${TOP}/mk/elftoolchain.test.mk"
+# Bring in rules related to running the related test suite.
+.include "${TOP}/mk/elftoolchain.test-target.mk"

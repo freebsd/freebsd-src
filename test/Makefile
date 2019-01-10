@@ -1,11 +1,12 @@
-# $Id: Makefile 2827 2012-12-29 16:43:15Z jkoshy $
+# $Id: Makefile 3653 2018-12-25 12:31:28Z jkoshy $
 #
 # TET-based test suites used by the Elftoolchain project.
 #
 
 TOP=		..
 
-# Build TET first.
+# Build TET and LIBTEST first.
+SUBDIR+=	libtest
 SUBDIR+=	tet
 
 # Build tests for libraries.

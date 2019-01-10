@@ -14,7 +14,7 @@ operating systems.
   Operating System    Version    Supported Architectures
   -----------------   --------   -----------------------
   `DragonFly BSD`_    5.2        amd64
-  FreeBSD_            11.1       amd64 & i386
+  FreeBSD_            11.2       amd64 & i386
   Minix_              3.0.2      i386
   NetBSD_             7.1.2      i386
   OpenBSD_            6.3        amd64
@@ -56,7 +56,7 @@ Prerequisites
     - Building additional documentation is not currently supported
       under DragonFly BSD.
 
-:FreeBSD 11.1:
+:FreeBSD 11.2:
     - The core libraries and utilities should build out of the box on
       a stock install of FreeBSD.
 
@@ -73,7 +73,7 @@ Prerequisites
             % sudo pkg install python py27-yaml
 
     - Building additional documentation is not currently supported under
-      FreeBSD 11.1.
+      FreeBSD 11.2.
 
 :Minix 3.2.0:
     - The following packages are pre-requisites for building the
@@ -242,7 +242,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: INSTALL 3613 2018-04-21 19:34:37Z jkoshy $
+.. $Id: INSTALL 3667 2018-12-28 22:19:46Z emaste $
 
 .. Local Variables:
 .. mode: rst

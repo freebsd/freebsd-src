@@ -1,4 +1,4 @@
-# $Id: func.sh 2080 2011-10-27 04:23:24Z jkoshy $
+# $Id: func.sh 3626 2018-09-29 19:26:57Z jkoshy $
 # `init' initializes test engine global data.
 #
 init() {
@@ -72,7 +72,7 @@ udecode() {
     fi
 
     cd $1 || exit 1
-    find . -type f -execdir uudecode {} \;
+    find . -type f -a -name '*.uu' -execdir uudecode {} \;
     find . -type f -name '*.uu' -delete
 }
 

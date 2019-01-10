@@ -40,7 +40,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: write.c 3183 2015-04-10 16:18:42Z emaste $");
+ELFTC_VCSID("$Id: write.c 3629 2018-09-30 19:26:28Z jkoshy $");
 
 #define _ARMAG_LEN 8		/* length of the magic string */
 #define _ARHDR_LEN 60		/* length of the archive header */
@@ -352,17 +352,20 @@ read_objs(struct bsdar *bsdar, const char *archive, int checkargv)
 
 /*
  * Write an archive.
+ *
+ * Returns EXIT_SUCCESS if the write succeeded or EXIT_FAILURE otherwise.
  */
-void
+int
 ar_write_archive(struct bsdar *bsdar, int mode)
 {
 	struct ar_obj		 *nobj, *obj, *obj_temp, *pos;
 	struct stat		  sb;
 	const char		 *bname;
 	char			**av;
-	int			  i;
+	int			  exitcode, i;
 
 	TAILQ_INIT(&bsdar->v_obj);
+	exitcode = EXIT_SUCCESS;
 	nobj = NULL;
 	pos = NULL;
 	memset(&sb, 0, sizeof(sb));
@@ -376,16 +379,16 @@ ar_write_archive(struct bsdar *bsdar, int mode)
 	 */
 	if (stat(bsdar->filename, &sb) != 0) {
 		if (errno != ENOENT) {
-			bsdar_warnc(bsdar, 0, "stat %s failed",
+			bsdar_warnc(bsdar, errno, "stat %s failed",
 			    bsdar->filename);
-			return;
+			return (EXIT_FAILURE);
 		}
 
 		/* We do not create archive in mode 'd', 'm' and 's'.  */
 		if (mode != 'r' && mode != 'q') {
 			bsdar_warnc(bsdar, 0, "%s: no such file",
 			    bsdar->filename);
-			return;
+			return (EXIT_FAILURE);
 		}
 
 		/* Issue a message if the '-c' option was not specified. */
@@ -474,8 +477,10 @@ ar_write_archive(struct bsdar *bsdar, int mode)
 				 */
 				nobj = create_obj_from_file(bsdar, *av,
 				    obj->mtime);
-				if (nobj == NULL)
+				if (nobj == NULL) {
+					exitcode = EXIT_FAILURE;
 					goto skip_obj;
+				}
 			}
 
 			if (bsdar->options & AR_V)
@@ -510,9 +515,13 @@ new_archive:
 		av = &bsdar->argv[i];
 		if (*av != NULL && (mode == 'r' || mode == 'q')) {
 			nobj = create_obj_from_file(bsdar, *av, 0);
-			if (nobj != NULL)
-				insert_obj(bsdar, nobj, pos);
-			if (bsdar->options & AR_V && nobj != NULL)
+			if (nobj == NULL) {
+				exitcode = EXIT_FAILURE;
+				*av = NULL;
+				continue;
+			}
+			insert_obj(bsdar, nobj, pos);
+			if (bsdar->options & AR_V)
 				(void)fprintf(bsdar->output, "a - %s\n", *av);
 			*av = NULL;
 		}
@@ -521,6 +530,8 @@ new_archive:
 write_objs:
 	write_objs(bsdar);
 	write_cleanup(bsdar);
+
+	return (exitcode);
 }
 
 /*

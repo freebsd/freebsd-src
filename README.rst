@@ -1,8 +1,7 @@
 The Elftoolchain Project
 ========================
 
-.. contents::
-..
+.. contents:: Table of Contents
 
 Description
 -----------
@@ -15,26 +14,26 @@ This software implements essential compilation tools and libraries for:
 The project currently implements the following utilities and
 libraries:
 
-    =========== ============================================
-    Name        Description
-    =========== ============================================
-    ar          Archive manager.
-    addr2line   Debug tool.
-    brandelf    Manage the ELF brand on executables.
-    c++filt     Translate encoded symbols.
-    elfcopy     Copy and translate between object formats.
-    elfdump     Diagnostic tool.
-    findtextrel Find undesired text relocations.
-    libdwarf    DWARF access library.
-    libelf      ELF access library.
-    mcs         Manage comment sections.
-    nm          List symbols in an ELF object.
-    ranlib      Add archive symbol tables to an archive.
-    readelf     Display ELF information.
-    size        List object sizes.
-    strings     Extract printable strings.
-    strip       Discard information from ELF objects.
-    =========== ============================================
+=========== ============================================
+Name        Description
+=========== ============================================
+ar          Archive manager.
+addr2line   Debug tool.
+brandelf    Manage the ELF brand on executables.
+c++filt     Translate encoded symbols.
+elfcopy     Copy and translate between object formats.
+elfdump     Diagnostic tool.
+findtextrel Find undesired text relocations.
+libdwarf    DWARF access library.
+libelf      ELF access library.
+mcs         Manage comment sections.
+nm          List symbols in an ELF object.
+ranlib      Add archive symbol tables to an archive.
+readelf     Display ELF information.
+size        List object sizes.
+strings     Extract printable strings.
+strip       Discard information from ELF objects.
+=========== ============================================
 
 .. _ELF: http://en.wikipedia.org/wiki/Executable_and_Linkable_Format
 .. _DWARF: http://www.dwarfstd.org/
@@ -58,10 +57,12 @@ Tracking Ongoing Development
 
 The project uses subversion_ for its version control system.
 
-The subversion branch for the current set of sources may be accessed
-at the following URL:
+.. _subversion: https://subversion.apache.org/
 
-  https://elftoolchain.svn.sourceforge.net/svnroot/elftoolchain/trunk
+The subversion branch for the current set of sources may be accessed
+at the following URL::
+
+    https://elftoolchain.svn.sourceforge.net/svnroot/elftoolchain/trunk
 
 The project's source tree may be checked out from its repository by
 using the ``svn checkout`` command::
@@ -71,13 +72,11 @@ using the ``svn checkout`` command::
 Checked-out sources may be kept upto-date by running ``svn update``
 inside the source directory::
 
-   % svn update
+    % svn update
 
 
 Instructions on building and installing the software are given in the
 file ``INSTALL`` in the current directory.
-
-.. _Subversion: 
 
 Downloading Released Software
 -----------------------------
@@ -120,7 +119,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: README 2146 2011-11-11 09:39:00Z jkoshy $
+.. $Id: README.rst 3656 2018-12-26 09:46:24Z jkoshy $
 
 .. Local Variables:
 .. mode: rst

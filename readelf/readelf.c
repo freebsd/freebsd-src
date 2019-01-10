@@ -47,7 +47,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: readelf.c 3580 2017-09-15 23:29:59Z emaste $");
+ELFTC_VCSID("$Id: readelf.c 3649 2018-11-24 03:26:23Z emaste $");
 
 /*
  * readelf(1) options.
@@ -1115,6 +1115,7 @@ note_type_freebsd(unsigned int nt)
 	case 1: return "NT_FREEBSD_ABI_TAG";
 	case 2: return "NT_FREEBSD_NOINIT_TAG";
 	case 3: return "NT_FREEBSD_ARCH_TAG";
+	case 4: return "NT_FREEBSD_FEATURE_CTL";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -2372,11 +2373,22 @@ dump_phdr(struct readelf *re)
 		}
 		printf("   %2.2d     ", i);
 		/* skip NULL section. */
-		for (j = 1; (size_t)j < re->shnum; j++)
-			if (re->sl[j].addr >= phdr.p_vaddr &&
-			    re->sl[j].addr + re->sl[j].sz <=
+		for (j = 1; (size_t)j < re->shnum; j++) {
+			if (re->sl[j].off < phdr.p_offset)
+				continue;
+			if (re->sl[j].off + re->sl[j].sz >
+			    phdr.p_offset + phdr.p_filesz &&
+			    re->sl[j].type != SHT_NOBITS)
+				continue;
+			if (re->sl[j].addr < phdr.p_vaddr ||
+			    re->sl[j].addr + re->sl[j].sz >
 			    phdr.p_vaddr + phdr.p_memsz)
-				printf("%s ", re->sl[j].name);
+				continue;
+			if (phdr.p_type == PT_TLS &&
+			    (re->sl[j].flags & SHF_TLS) == 0)
+				continue;
+			printf("%s ", re->sl[j].name);
+		}
 		printf("\n");
 	}
 #undef	PH_HDR
@@ -4697,7 +4709,7 @@ dump_dwarf_line_decoded(struct readelf *re)
 		    DW_DLV_OK)
 			dir = NULL;
 		printf("CU: ");
-		if (dir && file)
+		if (dir && file && file[0] != '/')
 			printf("%s/", dir);
 		if (file)
 			printf("%s", file);
