@@ -1,4 +1,4 @@
-# $Id: Makefile 3594 2018-04-11 18:26:50Z jkoshy $
+# $Id: Makefile 3632 2018-10-10 21:12:43Z jkoshy $
 
 TOP=	..
 
@@ -52,6 +52,7 @@ SRCS=	elf.c							\
 	libelf_checksum.c					\
 	libelf_data.c						\
 	libelf_ehdr.c						\
+	libelf_elfmachine.c					\
 	libelf_extended.c					\
 	libelf_memory.c						\
 	libelf_open.c						\
