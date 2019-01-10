@@ -180,10 +180,12 @@ int
 bectl_cmd_jail(int argc, char *argv[])
 {
 	char *bootenv, *mountpoint;
-	int jid, opt, ret;
+	int jid, mntflags, opt, ret;
 	bool default_hostname, interactive, unjail;
 	pid_t pid;
 
+	/* XXX TODO: Allow shallow */
+	mntflags = BE_MNT_DEEP;
 	default_hostname = interactive = unjail = true;
 	jpcnt = INIT_PARAMCOUNT;
 	jp = malloc(jpcnt * sizeof(*jp));
@@ -250,7 +252,7 @@ bectl_cmd_jail(int argc, char *argv[])
 		mountpoint = NULL;
 	else
 		mountpoint = mnt_loc;
-	if (be_mount(be, bootenv, mountpoint, 0, mnt_loc) != BE_ERR_SUCCESS) {
+	if (be_mount(be, bootenv, mountpoint, mntflags, mnt_loc) != BE_ERR_SUCCESS) {
 		fprintf(stderr, "could not mount bootenv\n");
 		return (1);
 	}
@@ -301,7 +303,7 @@ bectl_cmd_jail(int argc, char *argv[])
 
 	if (unjail) {
 		jail_remove(jid);
-		unmount(mnt_loc, 0);
+		be_unmount(be, bootenv, 0);
 	}
 
 	return (0);
@@ -415,7 +417,7 @@ bectl_cmd_unjail(int argc, char *argv[])
 	}
 
 	jail_remove(jid);
-	unmount(path, 0);
+	be_unmount(be, target, 0);
 
 	return (0);
 }
