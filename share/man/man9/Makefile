@@ -90,6 +90,7 @@ MAN=	accept_filter.9 \
 	device_add_child.9 \
 	DEVICE_ATTACH.9 \
 	device_delete_child.9 \
+	device_delete_children.9 \
 	DEVICE_DETACH.9 \
 	device_enable.9 \
 	device_find_child.9 \
