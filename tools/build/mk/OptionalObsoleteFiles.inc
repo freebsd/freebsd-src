@@ -504,6 +504,7 @@ OLD_FILES+=usr/lib32/libsdp_p.a
 .endif
 OLD_FILES+=usr/sbin/ath3kfw
 OLD_FILES+=usr/sbin/bcmfw
+OLD_FILES+=usr/sbin/bluetooth-config
 OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/sbin/bthidcontrol
 OLD_FILES+=usr/sbin/bthidd
@@ -580,6 +581,7 @@ OLD_FILES+=usr/share/man/man5/bluetooth.protocols.5.gz
 OLD_FILES+=usr/share/man/man5/hcsecd.conf.5.gz
 OLD_FILES+=usr/share/man/man8/ath3kfw.8.gz
 OLD_FILES+=usr/share/man/man8/bcmfw.8.gz
+OLD_FILES+=usr/share/man/man8/bluetooth-config.8.gz
 OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
 OLD_FILES+=usr/share/man/man8/bthidcontrol.8.gz
 OLD_FILES+=usr/share/man/man8/bthidd.8.gz

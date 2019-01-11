@@ -4,6 +4,7 @@
 .include <src.opts.mk>
 
 SUBDIR= \
+	bluetooth-config \
 	bt3cfw \
 	btpand \
 	hccontrol \
