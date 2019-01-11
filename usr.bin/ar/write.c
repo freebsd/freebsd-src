@@ -627,6 +627,9 @@ write_objs(struct bsdar *bsdar)
 		if (strlen(obj->name) > _MAXNAMELEN_SVR4)
 			add_to_ar_str_table(bsdar, obj->name);
 		bsdar->rela_off += _ARHDR_LEN + obj->size + obj->size % 2;
+		if (bsdar->rela_off > UINT32_MAX)
+			bsdar_errc(bsdar, EX_SOFTWARE, 0,
+			    "Symbol table offset overflow");
 	}
 
 	/*
@@ -658,9 +661,13 @@ write_objs(struct bsdar *bsdar)
 		pm_sz = _ARMAG_LEN + (_ARHDR_LEN + s_sz);
 		if (bsdar->as != NULL)
 			pm_sz += _ARHDR_LEN + bsdar->as_sz;
-		for (i = 0; (size_t)i < bsdar->s_cnt; i++)
+		for (i = 0; (size_t)i < bsdar->s_cnt; i++) {
+			if (*(bsdar->s_so + i) > UINT32_MAX - pm_sz)
+				bsdar_errc(bsdar, EX_SOFTWARE, 0,
+				    "Symbol table offset overflow");
 			*(bsdar->s_so + i) = htobe32(*(bsdar->s_so + i) +
 			    pm_sz);
+		}
 	}
 
 	if ((a = archive_write_new()) == NULL)
