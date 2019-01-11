@@ -276,8 +276,8 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent)
 				nvl = fnvlist_alloc();
 
 			if (spa->spa_import_flags & ZFS_IMPORT_TEMP_NAME) {
-				pool_name = fnvlist_lookup_string(spa->spa_config,
-					ZPOOL_CONFIG_POOL_NAME);
+				pool_name = fnvlist_lookup_string(
+				    spa->spa_config, ZPOOL_CONFIG_POOL_NAME);
 			} else {
 				pool_name = spa_name(spa);
 			}
@@ -419,7 +419,7 @@ spa_config_generate(spa_t *spa, vdev_t *vd, uint64_t txg, int getstats)
 	 */
 	if (spa->spa_import_flags & ZFS_IMPORT_TEMP_NAME) {
 		pool_name = fnvlist_lookup_string(spa->spa_config,
-			ZPOOL_CONFIG_POOL_NAME);
+		    ZPOOL_CONFIG_POOL_NAME);
 	} else {
 		pool_name = spa_name(spa);
 	}
