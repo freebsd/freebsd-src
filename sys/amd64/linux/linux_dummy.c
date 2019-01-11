@@ -162,7 +162,7 @@ linux_ ## s ## xattr(						\
     struct thread *td, struct linux_ ## s ## xattr_args *arg)	\
 {								\
 								\
-	return (ENOATTR);					\
+	return (EOPNOTSUPP);					\
 }
 DUMMY_XATTR(set);
 DUMMY_XATTR(lset);
