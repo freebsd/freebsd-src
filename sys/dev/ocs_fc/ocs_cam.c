@@ -886,9 +886,11 @@ int32_t
 ocs_scsi_ini_new_sport(ocs_sport_t *sport)
 {
 	ocs_t *ocs = sport->ocs;
+	ocs_fcport *fcp = FCPORT(ocs, 0);
 
-	if(!sport->is_vport) {
-		sport->tgt_data = FCPORT(ocs, 0);
+	if (!sport->is_vport) {
+		sport->tgt_data = fcp;
+		fcp->fc_id = sport->fc_id;	
 	}
 
 	return 0;
@@ -911,6 +913,12 @@ ocs_scsi_ini_new_sport(ocs_sport_t *sport)
 void
 ocs_scsi_ini_del_sport(ocs_sport_t *sport)
 {
+	ocs_t *ocs = sport->ocs;
+	ocs_fcport *fcp = FCPORT(ocs, 0);
+
+	if (!sport->is_vport) {
+		fcp->fc_id = 0;	
+	}
 }
 
 void 
@@ -1984,6 +1992,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
 		struct ccb_pathinq_settings_fc *fc = &cpi->xport_specific.fc;
+		ocs_fcport *fcp = FCPORT(ocs, bus);
 
 		uint64_t wwn = 0;
 		ocs_xport_stats_t value;
@@ -2011,9 +2020,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		wwn = *((uint64_t *)ocs_scsi_get_property_ptr(ocs, OCS_SCSI_WWNN));
 		fc->wwnn = be64toh(wwn);
 
-		if (ocs->domain && ocs->domain->attached) {
-			fc->port = ocs->domain->sport->fc_id;
-		}
+		fc->port = fcp->fc_id;
 
 		if (ocs->config_tgt) {
 			cpi->target_sprt =
@@ -2059,7 +2066,7 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings_fc *fc = &cts->xport_specific.fc;
 		ocs_xport_stats_t value;
 		ocs_fcport *fcp = FCPORT(ocs, bus);
-		ocs_node_t	*fnode = NULL;
+		ocs_fc_target_t *tgt = NULL;
 
 		if (ocs->ocs_xport != OCS_XPORT_FC) {
 			ocs_set_ccb_status(ccb, CAM_REQ_INVALID);
@@ -2067,8 +2074,14 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
-		fnode = ocs_node_get_instance(ocs, fcp->tgt[cts->ccb_h.target_id].node_id);
-		if (fnode == NULL) {
+		if (cts->ccb_h.target_id > OCS_MAX_TARGETS) {
+			ocs_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
+			xpt_done(ccb);
+			break;
+		}
+
+		tgt = &fcp->tgt[cts->ccb_h.target_id];
+		if (tgt->state == OCS_TGT_STATE_NONE) { 
 			ocs_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
 			break;
@@ -2086,11 +2099,11 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 		ocs_xport_status(ocs->xport, OCS_XPORT_LINK_SPEED, &value);
 		fc->bitrate = value.value * 100;
 
-		fc->wwpn = ocs_node_get_wwpn(fnode);
+		fc->wwpn = tgt->wwpn;
 
-		fc->wwnn = ocs_node_get_wwnn(fnode);
+		fc->wwnn = tgt->wwnn;
 
-		fc->port = fnode->rnode.fc_id;
+		fc->port = tgt->port_id;
 
 		fc->valid = CTS_FC_VALID_SPEED |
 			CTS_FC_VALID_WWPN |
