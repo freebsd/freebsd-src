@@ -1830,7 +1830,6 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			continue;
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
-		NET_EPOCH_ENTER(et);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
@@ -1857,7 +1856,6 @@ sysctl_ifmalist(int af, struct walkarg *w)
 					break;
 			}
 		}
-		NET_EPOCH_EXIT(et);
 		if (error != 0)
 			break;
 	}
