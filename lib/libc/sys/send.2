@@ -28,7 +28,7 @@
 .\"     From: @(#)send.2	8.2 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2018
+.Dd January 4, 2019
 .Dt SEND 2
 .Os
 .Sh NAME
@@ -121,7 +121,8 @@ argument may include one or more of the following:
 .Bd -literal
 #define	MSG_OOB		0x00001 /* process out-of-band data */
 #define	MSG_DONTROUTE	0x00004 /* bypass routing, use direct interface */
-#define MSG_EOR		0x00008 /* data completes record */
+#define	MSG_EOR		0x00008 /* data completes record */
+#define	MSG_DONTWAIT	0x00080 /* do not block */
 #define	MSG_EOF		0x00100 /* data completes transaction */
 #define	MSG_NOSIGNAL	0x20000 /* do not generate SIGPIPE on EOF */
 .Ed
@@ -138,6 +139,9 @@ data.
 .Dv MSG_EOR
 is used to indicate a record mark for protocols which support the
 concept.
+The
+.Dv MSG_DONTWAIT
+flag request the call to return when it would block otherwise.
 .Dv MSG_EOF
 requests that the sender side of a socket be shut down, and that an
 appropriate indication be sent at the end of the specified data;
@@ -201,8 +205,9 @@ An invalid user space address was specified for an argument.
 The socket requires that message be sent atomically,
 and the size of the message to be sent made this impossible.
 .It Bq Er EAGAIN
-The socket is marked non-blocking and the requested operation
-would block.
+The socket is marked non-blocking, or
+.Dv MSG_DONTWAIT
+is specified, and the requested operation would block.
 .It Bq Er ENOBUFS
 The system was unable to allocate an internal buffer.
 The operation may succeed when buffers become available.
