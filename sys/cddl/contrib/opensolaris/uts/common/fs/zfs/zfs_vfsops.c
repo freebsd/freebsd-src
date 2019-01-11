@@ -144,7 +144,7 @@ zfs_getquota(zfsvfs_t *zfsvfs, uid_t id, int isgroup, struct dqblk64 *dqp)
 	quotaobj = isgroup ? zfsvfs->z_groupquota_obj : zfsvfs->z_userquota_obj;
 
 	if (quotaobj == 0 || zfsvfs->z_replay) {
-		error = ENOENT;
+		error = EINVAL;
 		goto done;
 	}
 	(void)sprintf(buf, "%llx", (longlong_t)id);
