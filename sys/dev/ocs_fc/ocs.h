@@ -84,6 +84,7 @@ typedef struct ocs_fcport_s {
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	uint32_t		role;
+	uint32_t                fc_id;
 
 	ocs_fc_target_t	tgt[OCS_MAX_TARGETS];
 	int lost_device_time;
