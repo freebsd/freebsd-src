@@ -369,6 +369,8 @@ try_a_fw_image(const char *dev_path, int devfd, int fwdfd, const char *dpath,
 		rc = 0;
 		goto out;
 	}
+	if (!S_ISREG(st.st_mode))
+		goto out;
 	if (st.st_size <= 0) {
 		WARN(0, "%s: empty", fw_path);
 		goto out;
