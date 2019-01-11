@@ -12832,7 +12832,7 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	if (SCTP_SO_IS_NBIO(so)
-	    || (flags & MSG_NBIO)
+	    || (flags & (MSG_NBIO | MSG_DONTWAIT)) != 0
 	    ) {
 		non_blocking = 1;
 	}
