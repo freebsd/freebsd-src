@@ -3807,6 +3807,8 @@ kern/kern_hhook.c		standard
 kern/kern_idle.c		standard
 kern/kern_intr.c		standard
 kern/kern_jail.c		standard
+kern/kern_kcov.c		optional kcov			\
+	compile-with		"${NORMAL_C} -fno-sanitize-coverage=trace-pc,trace-cmp"
 kern/kern_khelp.c		standard
 kern/kern_kthread.c		standard
 kern/kern_ktr.c			optional ktr

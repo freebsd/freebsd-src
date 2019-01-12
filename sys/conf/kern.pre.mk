@@ -117,6 +117,12 @@ KUBSAN_ENABLED!=	grep KUBSAN opt_global.h || true ; echo
 .if !empty(KUBSAN_ENABLED)
 SAN_CFLAGS+=	-fsanitize=undefined
 .endif
+
+KCOV_ENABLED!=	grep KCOV opt_kcov.h || true ; echo
+.if !empty(KCOV_ENABLED)
+SAN_CFLAGS+=	-fsanitize-coverage=trace-pc,trace-cmp
+.endif
+
 CFLAGS+=	${SAN_CFLAGS}
 
 # Put configuration-specific C flags last (except for ${PROF}) so that they
