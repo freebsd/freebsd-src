@@ -28,7 +28,7 @@
 .\" $FreeBSD$
 .\" $Id: $
 .\"
-.Dd July 27, 2012
+.Dd Jan 9, 2019
 .Dt VALE 4
 .Os
 .Sh NAME
@@ -85,7 +85,7 @@ changed to sysctl variables in future releases.
 .Nm
 uses the following sysctl variables to control operation:
 .Bl -tag -width dev.netmap.verbose
-.It dev.netmap.bridge
+.It dev.netmap.bridge_batch
 The maximum number of packets processed internally
 in each iteration.
 Defaults to 1024, use lower values to trade latency
