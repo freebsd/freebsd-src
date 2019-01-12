@@ -126,6 +126,7 @@ struct xicp_softc {
 	/* XXX: inefficient -- hash table? tree? */
 	struct xicp_intvec intvecs[256];
 	int nintvecs;
+	int ipi_vec;
 	bool xics_emu;
 };
 
@@ -398,15 +399,17 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			else
 				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(hwref)),
 				    0xff);
+			i = sc->ipi_vec;
+		} else {
+
+			/* XXX: super inefficient */
+			for (i = 0; i < sc->nintvecs; i++) {
+				if (sc->intvecs[i].irq == xirr)
+					break;
+			}
+			KASSERT(i < sc->nintvecs, ("Unmapped XIRR"));
 		}
 
-		/* XXX: super inefficient */
-		for (i = 0; i < sc->nintvecs; i++) {
-			if (sc->intvecs[i].irq == xirr)
-				break;
-		}
-
-		KASSERT(i < sc->nintvecs, ("Unmapped XIRR"));
 		powerpc_dispatch_intr(sc->intvecs[i].vector, tf);
 	}
 }
@@ -437,9 +440,11 @@ xicp_enable(device_t dev, u_int irq, u_int vector, void **priv)
 	intr->cpu = cpu;
 	mb();
 
-	/* IPIs are also enabled */
-	if (irq == MAX_XICP_IRQS)
+	/* IPIs are also enabled.  Stash off the vector index */
+	if (irq == MAX_XICP_IRQS) {
+		sc->ipi_vec = intr - sc->intvecs;
 		return;
+	}
 
 	if (rtas_exists()) {
 		rtas_call_method(sc->ibm_set_xive, 3, 1, irq, cpu,
