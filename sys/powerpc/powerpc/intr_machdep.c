@@ -96,6 +96,7 @@ static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 struct powerpc_intr {
 	struct intr_event *event;
 	long	*cntp;
+	void	*priv;		/* PIC-private data */
 	u_int	irq;
 	device_t pic;
 	u_int	intline;
@@ -158,7 +159,7 @@ smp_intr_init(void *dummy __unused)
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
 		if (i != NULL && i->event != NULL && i->pic == root_pic)
-			PIC_BIND(i->pic, i->intline, i->cpu);
+			PIC_BIND(i->pic, i->intline, i->cpu, &i->priv);
 	}
 }
 SYSINIT(smp_intr_init, SI_SUB_SMP, SI_ORDER_ANY, smp_intr_init, NULL);
@@ -281,7 +282,7 @@ powerpc_intr_eoi(void *arg)
 {
 	struct powerpc_intr *i = arg;
 
-	PIC_EOI(i->pic, i->intline);
+	PIC_EOI(i->pic, i->intline, i->priv);
 }
 
 static void
@@ -289,8 +290,8 @@ powerpc_intr_pre_ithread(void *arg)
 {
 	struct powerpc_intr *i = arg;
 
-	PIC_MASK(i->pic, i->intline);
-	PIC_EOI(i->pic, i->intline);
+	PIC_MASK(i->pic, i->intline, i->priv);
+	PIC_EOI(i->pic, i->intline, i->priv);
 }
 
 static void
@@ -298,7 +299,7 @@ powerpc_intr_post_ithread(void *arg)
 {
 	struct powerpc_intr *i = arg;
 
-	PIC_UNMASK(i->pic, i->intline);
+	PIC_UNMASK(i->pic, i->intline, i->priv);
 }
 
 static int
@@ -313,7 +314,7 @@ powerpc_assign_intr_cpu(void *arg, int cpu)
 		CPU_SETOF(cpu, &i->cpu);
 
 	if (!cold && i->pic != NULL && i->pic == root_pic)
-		PIC_BIND(i->pic, i->intline, i->cpu);
+		PIC_BIND(i->pic, i->intline, i->cpu, &i->priv);
 
 	return (0);
 #else
@@ -465,7 +466,7 @@ powerpc_enable_intr(void)
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
 		if (i->event != NULL)
-			PIC_ENABLE(i->pic, i->intline, vector);
+			PIC_ENABLE(i->pic, i->intline, vector, &i->priv);
 	}
 
 	return (0);
@@ -512,10 +513,11 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 				PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
 			if (i->pic == root_pic)
-				PIC_BIND(i->pic, i->intline, i->cpu);
+				PIC_BIND(i->pic, i->intline, i->cpu, &i->priv);
 
 			if (enable)
-				PIC_ENABLE(i->pic, i->intline, i->vector);
+				PIC_ENABLE(i->pic, i->intline, i->vector,
+				    &i->priv);
 		}
 	}
 	return (error);
@@ -602,7 +604,7 @@ powerpc_dispatch_intr(u_int vector, struct trapframe *tf)
 	 * This prevents races in IPI handling.
 	 */
 	if (i->ipi)
-		PIC_EOI(i->pic, i->intline);
+		PIC_EOI(i->pic, i->intline, i->priv);
 
 	if (intr_event_handle(ie, tf) != 0) {
 		goto stray;
@@ -619,7 +621,7 @@ stray:
 		}
 	}
 	if (i != NULL)
-		PIC_MASK(i->pic, i->intline);
+		PIC_MASK(i->pic, i->intline, i->priv);
 }
 
 void
@@ -631,7 +633,7 @@ powerpc_intr_mask(u_int irq)
 	if (i == NULL || i->pic == NULL)
 		return;
 
-	PIC_MASK(i->pic, i->intline);
+	PIC_MASK(i->pic, i->intline, i->priv);
 }
 
 void
@@ -643,5 +645,5 @@ powerpc_intr_unmask(u_int irq)
 	if (i == NULL || i->pic == NULL)
 		return;
 
-	PIC_UNMASK(i->pic, i->intline);
+	PIC_UNMASK(i->pic, i->intline, i->priv);
 }

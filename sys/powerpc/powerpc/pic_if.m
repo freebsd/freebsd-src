@@ -48,6 +48,7 @@ METHOD void bind {
 	device_t	dev;
 	u_int		irq;
 	cpuset_t	cpumask;
+	void		**priv;
 };
 
 METHOD void translate_code {
@@ -74,11 +75,13 @@ METHOD void enable {
 	device_t	dev;
 	u_int		irq;
 	u_int		vector;
+	void		**priv;
 };
 
 METHOD void eoi {
 	device_t	dev;
 	u_int		irq;
+	void		*priv;
 };
 
 METHOD void ipi {
@@ -89,10 +92,12 @@ METHOD void ipi {
 METHOD void mask {
 	device_t	dev;
 	u_int		irq;
+	void		*priv;
 };
 
 METHOD void unmask {
 	device_t	dev;
 	u_int		irq;
+	void		*priv;
 };
 

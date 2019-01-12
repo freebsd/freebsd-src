@@ -93,8 +93,8 @@ static int opalpci_route_interrupt(device_t bus, device_t dev, int pin);
 /*
  * MSI PIC interface.
  */
-static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector);
-static void opalpic_pic_eoi(device_t dev, u_int irq);
+static void opalpic_pic_enable(device_t dev, u_int irq, u_int vector, void **);
+static void opalpic_pic_eoi(device_t dev, u_int irq, void *);
 
 /* Bus interface */
 static bus_dma_tag_t opalpci_get_dma_tag(device_t dev, device_t child);
@@ -675,22 +675,22 @@ opalpci_map_msi(device_t dev, device_t child, int irq, uint64_t *addr,
 }
 
 static void
-opalpic_pic_enable(device_t dev, u_int irq, u_int vector)
+opalpic_pic_enable(device_t dev, u_int irq, u_int vector, void **priv)
 {
 	struct opalpci_softc *sc = device_get_softc(dev);
 
-	PIC_ENABLE(root_pic, irq, vector);
-	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
+	PIC_ENABLE(root_pic, irq, vector, priv);
+	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq, priv);
 }
 
-static void opalpic_pic_eoi(device_t dev, u_int irq)
+static void opalpic_pic_eoi(device_t dev, u_int irq, void *priv)
 {
 	struct opalpci_softc *sc;
 
 	sc = device_get_softc(dev);
 	opal_call(OPAL_PCI_MSI_EOI, sc->phb_id, irq);
 
-	PIC_EOI(root_pic, irq);
+	PIC_EOI(root_pic, irq, priv);
 }
 
 static bus_dma_tag_t
