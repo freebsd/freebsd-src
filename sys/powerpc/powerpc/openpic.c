@@ -233,7 +233,7 @@ openpic_common_attach(device_t dev, uint32_t node)
  */
 
 void
-openpic_bind(device_t dev, u_int irq, cpuset_t cpumask)
+openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 {
 	struct openpic_softc *sc;
 
@@ -302,7 +302,7 @@ openpic_dispatch(device_t dev, struct trapframe *tf)
 }
 
 void
-openpic_enable(device_t dev, u_int irq, u_int vector)
+openpic_enable(device_t dev, u_int irq, u_int vector, void **priv __unused)
 {
 	struct openpic_softc *sc;
 	uint32_t x;
@@ -322,7 +322,7 @@ openpic_enable(device_t dev, u_int irq, u_int vector)
 }
 
 void
-openpic_eoi(device_t dev, u_int irq __unused)
+openpic_eoi(device_t dev, u_int irq __unused, void *priv __unused)
 {
 	struct openpic_softc *sc;
 	u_int cpuid;
@@ -348,7 +348,7 @@ openpic_ipi(device_t dev, u_int cpu)
 }
 
 void
-openpic_mask(device_t dev, u_int irq)
+openpic_mask(device_t dev, u_int irq, void *priv __unused)
 {
 	struct openpic_softc *sc;
 	uint32_t x;
@@ -366,7 +366,7 @@ openpic_mask(device_t dev, u_int irq)
 }
 
 void
-openpic_unmask(device_t dev, u_int irq)
+openpic_unmask(device_t dev, u_int irq, void *priv __unused)
 {
 	struct openpic_softc *sc;
 	uint32_t x;

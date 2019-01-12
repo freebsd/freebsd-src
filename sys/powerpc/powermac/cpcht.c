@@ -512,9 +512,10 @@ static int	openpic_cpcht_probe(device_t);
 static int	openpic_cpcht_attach(device_t);
 static void	openpic_cpcht_config(device_t, u_int irq,
 		    enum intr_trigger trig, enum intr_polarity pol);
-static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector);
-static void	openpic_cpcht_unmask(device_t, u_int irq);
-static void	openpic_cpcht_eoi(device_t, u_int irq);
+static void	openpic_cpcht_enable(device_t, u_int irq, u_int vector,
+		    void **priv);
+static void	openpic_cpcht_unmask(device_t, u_int irq, void *priv);
+static void	openpic_cpcht_eoi(device_t, u_int irq, void *priv);
 
 static device_method_t  openpic_cpcht_methods[] = {
 	/* Device interface */
@@ -649,12 +650,12 @@ openpic_cpcht_config(device_t dev, u_int irq, enum intr_trigger trig,
 }
 
 static void
-openpic_cpcht_enable(device_t dev, u_int irq, u_int vec)
+openpic_cpcht_enable(device_t dev, u_int irq, u_int vec, void **priv)
 {
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_enable(dev, irq, vec);
+	openpic_enable(dev, irq, vec, priv);
 
 	sc = device_get_softc(dev);
 
@@ -674,16 +675,16 @@ openpic_cpcht_enable(device_t dev, u_int irq, u_int vec)
 		mtx_unlock_spin(&sc->sc_ht_mtx);
 	}
 		
-	openpic_cpcht_eoi(dev, irq);
+	openpic_cpcht_eoi(dev, irq, *priv);
 }
 
 static void
-openpic_cpcht_unmask(device_t dev, u_int irq)
+openpic_cpcht_unmask(device_t dev, u_int irq, void *priv)
 {
 	struct openpic_cpcht_softc *sc;
 	uint32_t ht_irq;
 
-	openpic_unmask(dev, irq);
+	openpic_unmask(dev, irq, priv);
 
 	sc = device_get_softc(dev);
 
@@ -703,11 +704,11 @@ openpic_cpcht_unmask(device_t dev, u_int irq)
 		mtx_unlock_spin(&sc->sc_ht_mtx);
 	}
 
-	openpic_cpcht_eoi(dev, irq);
+	openpic_cpcht_eoi(dev, irq, priv);
 }
 
 static void
-openpic_cpcht_eoi(device_t dev, u_int irq)
+openpic_cpcht_eoi(device_t dev, u_int irq, void *priv)
 {
 	struct openpic_cpcht_softc *sc;
 	uint32_t off, mask;
@@ -737,5 +738,5 @@ openpic_cpcht_eoi(device_t dev, u_int irq)
 		}
 	}
 
-	openpic_eoi(dev, irq);
+	openpic_eoi(dev, irq, priv);
 }
