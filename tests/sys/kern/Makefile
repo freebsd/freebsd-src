@@ -5,7 +5,7 @@ TESTSRC=	${SRCTOP}/contrib/netbsd-tests/kernel
 
 TESTSDIR=	${TESTSBASE}/sys/kern
 
-ATF_TESTS_C+=	kcov
+#ATF_TESTS_C+=	kcov
 ATF_TESTS_C+=	kern_copyin
 ATF_TESTS_C+=	kern_descrip_test
 ATF_TESTS_C+=	ptrace_test
