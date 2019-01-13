@@ -29,8 +29,12 @@
  *
  */
 
+#include <sys/errno.h>
 #include <machine/asm.h>
 #include <machine/param.h>
+
+#include "assym.inc"
+
 __FBSDID("$FreeBSD$");
 
 /*
