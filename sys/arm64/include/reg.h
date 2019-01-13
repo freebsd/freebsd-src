@@ -42,7 +42,11 @@ struct reg {
 };
 
 struct reg32 {
-	int dummy;
+	unsigned int r[13];
+	unsigned int r_sp;
+	unsigned int r_lr;
+	unsigned int r_pc;
+	unsigned int r_cpsr;
 };
 
 struct fpreg {

@@ -276,17 +276,36 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 int
 fill_regs32(struct thread *td, struct reg32 *regs)
 {
+	int i;
+	struct trapframe *tf;
 
-	printf("ARM64TODO: fill_regs32");
-	return (EDOOFUS);
+	tf = td->td_frame;
+	for (i = 0; i < 13; i++)
+		regs->r[i] = tf->tf_x[i];
+	regs->r_sp = tf->tf_sp;
+	regs->r_lr = tf->tf_lr;
+	regs->r_pc = tf->tf_elr;
+	regs->r_cpsr = tf->tf_spsr;
+
+	return (0);
 }
 
 int
 set_regs32(struct thread *td, struct reg32 *regs)
 {
+	int i;
+	struct trapframe *tf;
 
-	printf("ARM64TODO: set_regs32");
-	return (EDOOFUS);
+	tf = td->td_frame;
+	for (i = 0; i < 13; i++)
+		tf->tf_x[i] = regs->r[i];
+	tf->tf_sp = regs->r_sp;
+	tf->tf_lr = regs->r_lr;
+	tf->tf_elr = regs->r_pc;
+	tf->tf_spsr = regs->r_cpsr;
+
+
+	return (0);
 }
 
 int
