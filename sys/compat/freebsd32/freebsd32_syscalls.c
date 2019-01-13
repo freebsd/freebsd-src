@@ -6,7 +6,7 @@
  */
 
 const char *freebsd32_syscallnames[] = {
-#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
 #define PAD64_REQUIRED
 #endif
 	"syscall",			/* 0 = syscall */
