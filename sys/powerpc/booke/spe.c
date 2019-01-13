@@ -425,7 +425,7 @@ static uint32_t
 spe_save_reg_high(int reg)
 {
 	uint32_t vec[2];
-#define EVSTDW(n)   case n: __asm ("evstdw %1,0(%0)" \
+#define EVSTDW(n)   case n: __asm __volatile ("evstdw %1,0(%0)" \
 		:: "b"(vec), "n"(n)); break;
 	switch (reg) {
 	EVSTDW(0);	EVSTDW(1);	EVSTDW(2);	EVSTDW(3);
@@ -448,7 +448,7 @@ spe_save_reg_high(int reg)
 static void
 spe_load_reg_high(int reg, uint32_t val)
 {
-#define	EVLDW(n)   case n: __asm __volatile("evmergelo "#n",%0,0," \
+#define	EVLDW(n)   case n: __asm __volatile("evmergelo "#n",%0,"#n \
 	    :: "r"(val)); break;
 	switch (reg) {
 	EVLDW(1);	EVLDW(2);	EVLDW(3);	EVLDW(4);
