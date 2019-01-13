@@ -49,8 +49,14 @@ pft_set_rules()
 	jname=$1
 	shift
 
-	# Flush all states, rules, fragments, ...
-	jexec ${jname} pfctl -F all
+	if [ $jname == "noflush" ];
+	then
+		jname=$1
+		shift
+	else
+		# Flush all states, rules, fragments, ...
+		jexec ${jname} pfctl -F all
+	fi
 
 	while [ $# -gt 0 ]; do
 		printf "$1\n"
