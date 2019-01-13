@@ -447,7 +447,7 @@ reloc_jmpslots(Obj_Entry *obj, int flags, RtldLockState *lockstate)
  * Update the value of a PLT jump slot.
  */
 Elf_Addr
-reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
+reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj __unused,
     const Obj_Entry *obj __unused, const Elf_Rel *rel __unused)
 {
 
