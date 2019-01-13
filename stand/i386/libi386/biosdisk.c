@@ -136,6 +136,8 @@ static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static int bd_print(int verbose);
 static int cd_print(int verbose);
 static int fd_print(int verbose);
+static void bd_reset_disk(int);
+static int bd_get_diskinfo_std(struct bdinfo *);
 
 struct devsw biosfd = {
 	.dv_name = "fd",
@@ -252,20 +254,52 @@ bd_unit2bios(struct i386_devdesc *dev)
 }
 
 /*
+ * Use INT13 AH=15 - Read Drive Type.
+ */
+static int
+fd_count(void)
+{
+	int drive;
+
+	for (drive = 0; drive < MAXBDDEV; drive++) {
+		bd_reset_disk(drive);
+
+		v86.ctl = V86_FLAGS;
+		v86.addr = 0x13;
+		v86.eax = 0x1500;
+		v86.edx = drive;
+		v86int();
+
+		if (V86_CY(v86.efl))
+			break;
+
+		if ((v86.eax & 0x300) == 0)
+			break;
+	}
+
+	return (drive);
+}
+
+/*
  * Quiz the BIOS for disk devices, save a little info about them.
  */
 static int
 fd_init(void)
 {
-	int unit;
+	int unit, numfd;
 	bdinfo_t *bd;
 
-	for (unit = 0; unit < MAXBDDEV; unit++) {
+	numfd = fd_count();
+	for (unit = 0; unit < numfd; unit++) {
 		if ((bd = calloc(1, sizeof(*bd))) == NULL)
 			break;
+
+		bd->bd_sectorsize = BIOSDISK_SECSIZE;
 		bd->bd_flags = BD_FLOPPY;
 		bd->bd_unit = unit;
-		if (!bd_int13probe(bd)) {
+
+		/* Use std diskinfo for floppy drive */
+		if (bd_get_diskinfo_std(bd) != 0) {
 			free(bd);
 			break;
 		}
@@ -382,6 +416,10 @@ bc_add(int biosdev)
 static int
 bd_check_extensions(int unit)
 {
+	/* do not use ext calls for floppy devices */
+	if (unit < 0x80)
+		return (0);
+
 	/* Determine if we can use EDD with this device. */
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
