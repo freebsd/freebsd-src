@@ -54,7 +54,7 @@
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
-#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
 #define PAD64_REQUIRED
 #endif
 
