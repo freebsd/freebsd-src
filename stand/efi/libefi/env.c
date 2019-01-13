@@ -47,6 +47,49 @@ efi_init_environment(void)
 
 COMMAND_SET(efishow, "efi-show", "print some or all EFI variables", command_efi_show);
 
+const char *
+efi_memory_type(EFI_MEMORY_TYPE type)
+{
+	const char *types[] = {
+	    "Reserved",
+	    "LoaderCode",
+	    "LoaderData",
+	    "BootServicesCode",
+	    "BootServicesData",
+	    "RuntimeServicesCode",
+	    "RuntimeServicesData",
+	    "ConventionalMemory",
+	    "UnusableMemory",
+	    "ACPIReclaimMemory",
+	    "ACPIMemoryNVS",
+	    "MemoryMappedIO",
+	    "MemoryMappedIOPortSpace",
+	    "PalCode",
+	    "PersistentMemory"
+	};
+
+	switch (type) {
+	case EfiReservedMemoryType:
+	case EfiLoaderCode:
+	case EfiLoaderData:
+	case EfiBootServicesCode:
+	case EfiBootServicesData:
+	case EfiRuntimeServicesCode:
+	case EfiRuntimeServicesData:
+	case EfiConventionalMemory:
+	case EfiUnusableMemory:
+	case EfiACPIReclaimMemory:
+	case EfiACPIMemoryNVS:
+	case EfiMemoryMappedIO:
+	case EfiMemoryMappedIOPortSpace:
+	case EfiPalCode:
+	case EfiPersistentMemory:
+		return (types[type]);
+	default:
+		return ("Unknown");
+	}
+}
+
 static int
 efi_print_var(CHAR16 *varnamearg, EFI_GUID *matchguid, int lflag)
 {
