@@ -53,7 +53,7 @@
 
 /* The casts are bogus but will do for now. */
 struct sysent freebsd32_sysent[] = {
-#if !defined(PAD64_REQUIRED) && (defined(__powerpc__) || defined(__mips__))
+#if !defined(PAD64_REQUIRED) && !defined(__amd64__)
 #define PAD64_REQUIRED
 #endif
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_STATIC },		/* 0 = syscall */
