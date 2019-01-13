@@ -147,3 +147,24 @@ ENTRY(arm64_icache_sync_range)
 	ic	ialluis
 	dsb	ish
 END(arm64_icache_sync_range)
+
+/*
+ * int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t)
+ */
+ENTRY(arm64_icache_sync_range_checked)
+	adr	x5, cache_maint_fault
+	SET_FAULT_HANDLER(x5, x6)
+	/* XXX: See comment in arm64_icache_sync_range */
+	cache_handle_range	dcop = cvau
+	ic	ialluis
+	dsb ish
+	SET_FAULT_HANDLER(xzr, x6)
+	mov	x0, #0
+	ret
+END(arm64_icache_sync_range_checked)
+
+ENTRY(cache_maint_fault)
+	SET_FAULT_HANDLER(xzr, x1)
+	mov	x0, #EFAULT
+	ret
+END(cache_maint_fault)

@@ -138,12 +138,14 @@ extern int64_t dczva_line_size;
 
 #define	cpu_idcache_wbinv_range(a, s)	arm64_idcache_wbinv_range((a), (s))
 #define	cpu_icache_sync_range(a, s)	arm64_icache_sync_range((a), (s))
+#define cpu_icache_sync_range_checked(a, s) arm64_icache_sync_range_checked((a), (s))
 
 void arm64_nullop(void);
 void arm64_setttb(vm_offset_t);
 void arm64_tlb_flushID(void);
 void arm64_tlb_flushID_SE(vm_offset_t);
 void arm64_icache_sync_range(vm_offset_t, vm_size_t);
+int arm64_icache_sync_range_checked(vm_offset_t, vm_size_t);
 void arm64_idcache_wbinv_range(vm_offset_t, vm_size_t);
 void arm64_dcache_wbinv_range(vm_offset_t, vm_size_t);
 void arm64_dcache_inv_range(vm_offset_t, vm_size_t);
