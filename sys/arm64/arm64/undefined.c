@@ -35,10 +35,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/signal.h>
+#include <sys/signalvar.h>
+#include <sys/sysent.h>
 
 #include <machine/frame.h>
 #include <machine/undefined.h>
+#include <machine/vmparam.h>
 
 MALLOC_DEFINE(M_UNDEF, "undefhandler", "Undefined instruction handler data");
 
@@ -83,6 +88,33 @@ id_aa64mmfr2_handler(vm_offset_t va, uint32_t insn, struct trapframe *frame,
 	return (0);
 }
 
+#ifdef COMPAT_FREEBSD32
+/* arm32 GDB breakpoints */
+#define GDB_BREAKPOINT	0xe6000011
+#define GDB5_BREAKPOINT	0xe7ffdefe
+static int
+gdb_trapper(vm_offset_t va, uint32_t insn, struct trapframe *frame,
+		uint32_t esr)
+{
+	struct thread *td = curthread;
+
+	if (insn == GDB_BREAKPOINT || insn == GDB5_BREAKPOINT) {
+		if (SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
+		    va < VM_MAXUSER_ADDRESS) {
+			ksiginfo_t ksi;
+
+			ksiginfo_init_trap(&ksi);
+			ksi.ksi_signo = SIGTRAP;
+			ksi.ksi_code = TRAP_TRACE;
+			ksi.ksi_addr = (void *)va;
+			trapsignal(td, &ksi);
+			return 1;
+		}
+	}
+	return 0;
+}
+#endif
+
 void
 undef_init(void)
 {
@@ -91,6 +123,9 @@ undef_init(void)
 	LIST_INIT(&undef_handlers[1]);
 
 	install_undef_handler(false, id_aa64mmfr2_handler);
+#ifdef COMPAT_FREEBSD32
+	install_undef_handler(true, gdb_trapper);
+#endif
 }
 
 void *

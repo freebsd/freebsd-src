@@ -81,6 +81,10 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_VER	1
 #endif
 
+#if __ELF_WORD_SIZE == 32
+#define	ET_DYN_LOAD_ADDR 0x12000
+#else
 #define	ET_DYN_LOAD_ADDR 0x100000
+#endif
 
 #endif /* !_MACHINE_ELF_H_ */

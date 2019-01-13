@@ -78,6 +78,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		 * this may not have happened.
 		 */
 		td1->td_pcb->pcb_tpidr_el0 = READ_SPECIALREG(tpidr_el0);
+		td1->td_pcb->pcb_tpidrro_el0 = READ_SPECIALREG(tpidrro_el0);
 #ifdef VFP
 		if ((td1->td_pcb->pcb_fpflags & PCB_FP_STARTED) != 0)
 			vfp_save_state(td1, td1->td_pcb);
@@ -97,7 +98,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	bcopy(td1->td_frame, tf, sizeof(*tf));
 	tf->tf_x[0] = 0;
 	tf->tf_x[1] = 0;
-	tf->tf_spsr = 0;
+	tf->tf_spsr = td1->td_frame->tf_spsr & PSR_M_32;
 
 	td2->td_frame = tf;
 
@@ -195,7 +196,11 @@ cpu_set_upcall(struct thread *td, void (*entry)(void *), void *arg,
 {
 	struct trapframe *tf = td->td_frame;
 
-	tf->tf_sp = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
+	/* 32bits processes use r13 for sp */
+	if (td->td_frame->tf_spsr & PSR_M_32)
+		tf->tf_x[13] = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
+	else
+		tf->tf_sp = STACKALIGN((uintptr_t)stack->ss_sp + stack->ss_size);
 	tf->tf_elr = (register_t)entry;
 	tf->tf_x[0] = (register_t)arg;
 }
@@ -209,9 +214,19 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		return (EINVAL);
 
 	pcb = td->td_pcb;
-	pcb->pcb_tpidr_el0 = (register_t)tls_base;
-	if (td == curthread)
-		WRITE_SPECIALREG(tpidr_el0, tls_base);
+	if (td->td_frame->tf_spsr & PSR_M_32) {
+		/* 32bits arm stores the user TLS into tpidrro */
+		pcb->pcb_tpidrro_el0 = (register_t)tls_base;
+		pcb->pcb_tpidr_el0 = (register_t)tls_base;
+		if (td == curthread) {
+			WRITE_SPECIALREG(tpidrro_el0, tls_base);
+			WRITE_SPECIALREG(tpidr_el0, tls_base);
+		}
+	} else {
+		pcb->pcb_tpidr_el0 = (register_t)tls_base;
+		if (td == curthread)
+			WRITE_SPECIALREG(tpidr_el0, tls_base);
+	}
 
 	return (0);
 }

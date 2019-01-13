@@ -61,4 +61,30 @@ struct __mcontext {
 
 typedef struct __mcontext mcontext_t;
 
+#ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32_signal.h>
+typedef struct __mcontext32 {
+	uint32_t		mc_gregset[17];
+	uint32_t		mc_vfp_size;
+	uint32_t		mc_vfp_ptr;
+	uint32_t		mc_spare[33];
+} mcontext32_t;
+
+typedef struct __ucontext32 {
+	sigset_t		uc_sigmask;
+	mcontext32_t		uc_mcontext;
+	u_int32_t		uc_link;
+	struct sigaltstack32	uc_stack;
+	u_int32_t		uc_flags;
+	u_int32_t		__spare__[4];
+} ucontext32_t;
+
+typedef struct __mcontext32_vfp {
+	__uint64_t	mcv_reg[32];
+	__uint32_t	mcv_fpscr;
+} mcontext32_vfp_t;
+
+#endif /* COMPAT_FREEBSD32 */
+
+
 #endif	/* !_MACHINE_UCONTEXT_H_ */

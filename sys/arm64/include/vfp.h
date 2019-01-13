@@ -65,6 +65,11 @@ int fpu_kern_leave(struct thread *, struct fpu_kern_ctx *);
 int fpu_kern_thread(u_int);
 int is_fpu_kern_thread(u_int);
 
+/* Convert to and from Aarch32 FPSCR to Aarch64 FPCR/FPSR */
+#define VFP_FPSCR_FROM_SRCR(vpsr, vpcr) ((vpsr) | ((vpcr) & 0x7c00000))
+#define VFP_FPSR_FROM_FPSCR(vpscr) ((vpscr) &~ 0x7c00000)
+#define VFP_FPCR_FROM_FPSCR(vpsrc) ((vpsrc) & 0x7c00000)
+
 #endif
 
 #endif
