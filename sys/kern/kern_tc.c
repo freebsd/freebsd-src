@@ -145,7 +145,8 @@ sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
 
 	getboottime(&boottime);
 
-#ifndef __mips__
+/* i386 is the only arch which uses a 32bits time_t */
+#ifdef __amd64__
 #ifdef SCTL_MASK32
 	int tv[2];
 
