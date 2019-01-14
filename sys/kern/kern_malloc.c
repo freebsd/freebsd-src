@@ -920,13 +920,16 @@ kmeminit(void)
 	 * variable:
 	 */
 	if (vm_kmem_size == 0) {
-		vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
-
+		vm_kmem_size = mem_size / vm_kmem_size_scale;
+		vm_kmem_size = vm_kmem_size * PAGE_SIZE < vm_kmem_size ?
+		    vm_kmem_size_max : vm_kmem_size * PAGE_SIZE;
 		if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min)
 			vm_kmem_size = vm_kmem_size_min;
 		if (vm_kmem_size_max > 0 && vm_kmem_size >= vm_kmem_size_max)
 			vm_kmem_size = vm_kmem_size_max;
 	}
+	if (vm_kmem_size == 0)
+		panic("Tune VM_KMEM_SIZE_* for the platform");
 
 	/*
 	 * The amount of KVA space that is preallocated to the
