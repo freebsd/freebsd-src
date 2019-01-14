@@ -211,7 +211,9 @@ CFLAGS+=-I${KRB5DIR}/lib/hx509
 CFLAGS+=-I${KRB5DIR}/lib/hx509/ref
 CFLAGS+=-I${KRB5DIR}/lib/asn1
 CFLAGS+=-I${KRB5DIR}/lib/wind
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${SRCTOP}/contrib/com_err
+CFLAGS+=-I.
 
 GEN_OCSP= \
 	asn1_OCSPBasicOCSPResponse.x \
