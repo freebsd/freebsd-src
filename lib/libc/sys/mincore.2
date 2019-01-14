@@ -28,7 +28,7 @@
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2018
+.Dd January 7, 2019
 .Dt MINCORE 2
 .Os
 .Sh NAME
@@ -47,7 +47,8 @@ system call determines whether each of the pages in the region beginning at
 .Fa addr
 and continuing for
 .Fa len
-bytes is resident.
+bytes is resident or mapped, depending on the value of sysctl
+.Va vm.mincore_mapped .
 .\"The beginning address,
 .\".Fa addr ,
 .\"is first rounded down to a multiple of the page size (see
@@ -85,6 +86,18 @@ The only way to ensure that a page is resident is to lock it into memory
 with the
 .Xr mlock 2
 system call.
+.Pp
+If the
+.Va vm.mincore_mapped
+sysctl is set to a non-zero value (default), only the current process'
+mappings of the pages in the specified virtual address range are examined.
+This does not preclude the system from returning
+.Dv MINCORE_REFERENCED_OTHER
+and
+.Dv MINCORE_MODIFIED_OTHER
+statuses.
+Otherwise, if the sysctl value is zero, all resident pages backing the
+specified address range are examined, regardless of the mapping state.
 .Sh RETURN VALUES
 .Rv -std mincore
 .Sh ERRORS
