@@ -34,7 +34,8 @@ SRCS=	ad.c \
 	rename_c.c \
 	send_recv.c
 
-CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
+	-I${SRCTOP}/contrib/com_err -I.
 
 .include <bsd.lib.mk>
 

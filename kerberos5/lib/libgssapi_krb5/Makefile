@@ -78,7 +78,9 @@ CFLAGS+=-I${KRB5DIR}/lib/gssapi/krb5
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/krb5
 CFLAGS+=-I${KRB5DIR}/lib/asn1
-CFLAGS+=-I${KRB5DIR}/lib/roken -I.
+CFLAGS+=-I${KRB5DIR}/lib/roken
+CFLAGS+=-I${SRCTOP}/contrib/com_err
+CFLAGS+=-I.
 
 .include <bsd.lib.mk>
 

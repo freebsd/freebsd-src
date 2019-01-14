@@ -9,6 +9,7 @@ CFLAGS+=-I${KRB5DIR}/lib/asn1
 CFLAGS+=-I${KRB5DIR}/lib/hx509
 CFLAGS+=-I${KRB5DIR}/lib/ntlm
 CFLAGS+=-I${KRB5DIR}/kdc
+CFLAGS+=-I${SRCTOP}/contrib/com_err
 CFLAGS+=-I${.OBJDIR:H:H}/lib/libkrb5
 LIBADD=	hdb krb5 roken vers
 DPADD=	${LDAPDPADD}
