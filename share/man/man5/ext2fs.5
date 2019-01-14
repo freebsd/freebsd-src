@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 4, 2018
+.Dd December 30, 2018
 .Dt EXT2FS 5
 .Os
 .Sh NAME
@@ -47,13 +47,15 @@ The
 driver will permit the
 .Fx
 kernel to access
-.Tn ext2 ,
-.Tn ext3 ,
+ext2
+file systems and its derivatives.
+It currently implements most of the features required by
+.Em ext3
 and
-.Tn ext4
+.Em ext4
 file systems.
 Support for Extended Attributes in
-.Tn ext4
+.Em ext4
 is experimental.
 Journalling and encryption are currently not supported.
 .Sh EXAMPLES
@@ -77,14 +79,28 @@ driver first appeared in
 .An -nosplit
 The
 .Nm
-kernel implementation was written by
+kernel implementation is derived from code written,
+or modified,
+by
 .An Godmar Back
-or modified by him using the CSRG sources.
+using the UFS CSRG sources for CMU Mach.
 .Pp
 .An John Dyson
-and others in the
+did the initial port to
+.Fx .
+.An Aditya Sarawgi
+merged important parts of the allocation code from a clean-room
+.Nx
+implementation.
+.An Zheng Liu
+and
+.An Fedor Upurov
+implemented the read and write support respectively for
+.Em ext4
+filesystems.
+The
 .Fx
-Project made modifications.
+community has contributed a huge amount of modifications.
 .Pp
-This manual page was written by
+The initial version of this manual page was written by
 .An Craig Rodrigues Aq Mt rodrigc@FreeBSD.org .
