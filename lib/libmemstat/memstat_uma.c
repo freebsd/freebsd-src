@@ -29,6 +29,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/counter.h>
 #include <sys/cpuset.h>
 #include <sys/sysctl.h>
 
@@ -406,9 +407,12 @@ memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle)
 			 * Reset the statistics on a current node.
 			 */
 			_memstat_mt_reset_stats(mtp, mp_maxid + 1);
-			mtp->mt_numallocs = uz.uz_allocs;
-			mtp->mt_numfrees = uz.uz_frees;
-			mtp->mt_failures = uz.uz_fails;
+			mtp->mt_numallocs = kvm_counter_u64_fetch(kvm,
+			    (unsigned long )uz.uz_allocs);
+			mtp->mt_numfrees = kvm_counter_u64_fetch(kvm,
+			    (unsigned long )uz.uz_frees);
+			mtp->mt_failures = kvm_counter_u64_fetch(kvm,
+			    (unsigned long )uz.uz_fails);
 			mtp->mt_sleeps = uz.uz_sleeps;
 			if (kz.uk_flags & UMA_ZFLAG_INTERNAL)
 				goto skip_percpu;
