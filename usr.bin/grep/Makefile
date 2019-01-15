@@ -10,7 +10,7 @@ MAN1=	grep.1 zgrep.1
 .else
 PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
-MAN1=	grep.1 zgrep.1
+MAN1=	bsdgrep.1 zgrep.1
 
 bsdgrep.1: grep.1
 	${CP} ${.ALLSRC} ${.TARGET}
