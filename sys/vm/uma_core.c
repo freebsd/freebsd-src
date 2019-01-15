@@ -1715,6 +1715,15 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 	return (0);
 }
 
+static void
+zone_alloc_counters(uma_zone_t zone)
+{
+
+	zone->uz_allocs = counter_u64_alloc(M_WAITOK);
+	zone->uz_frees = counter_u64_alloc(M_WAITOK);
+	zone->uz_fails = counter_u64_alloc(M_WAITOK);
+}
+
 /*
  * Zone header ctor.  This initializes all fields, locks, etc.
  *
@@ -1736,9 +1745,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_slab = zone_fetch_slab;
 	zone->uz_init = NULL;
 	zone->uz_fini = NULL;
-	zone->uz_allocs = 0;
-	zone->uz_frees = 0;
-	zone->uz_fails = 0;
 	zone->uz_sleeps = 0;
 	zone->uz_count = 0;
 	zone->uz_count_min = 0;
@@ -1749,6 +1755,14 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_domain = (struct uma_zone_domain *)&zone->uz_cpu[mp_ncpus];
 	zone->uz_bkt_max = ULONG_MAX;
 	timevalclear(&zone->uz_ratecheck);
+
+	if (__predict_true(booted == BOOT_RUNNING))
+		zone_alloc_counters(zone);
+	else {
+		zone->uz_allocs = EARLY_COUNTER;
+		zone->uz_frees = EARLY_COUNTER;
+		zone->uz_fails = EARLY_COUNTER;
+	}
 
 	/*
 	 * This is a pure cache zone, no kegs.
@@ -1908,6 +1922,9 @@ zone_dtor(void *arg, int size, void *udata)
 		rw_wunlock(&uma_rwlock);
 		zone_free_item(kegs, keg, NULL, SKIP_NONE);
 	}
+	counter_u64_free(zone->uz_allocs);
+	counter_u64_free(zone->uz_frees);
+	counter_u64_free(zone->uz_fails);
 	if (zone->uz_lockptr == &zone->uz_lock)
 		ZONE_LOCK_FINI(zone);
 }
@@ -1928,12 +1945,19 @@ zone_foreach(void (*zfunc)(uma_zone_t))
 	uma_keg_t keg;
 	uma_zone_t zone;
 
-	rw_rlock(&uma_rwlock);
+	/*
+	 * Before BOOT_RUNNING we are guaranteed to be single
+	 * threaded, so locking isn't needed. Startup functions
+	 * are allowed to use M_WAITOK.
+	 */
+	if (__predict_true(booted == BOOT_RUNNING))
+		rw_rlock(&uma_rwlock);
 	LIST_FOREACH(keg, &uma_kegs, uk_link) {
 		LIST_FOREACH(zone, &keg->uk_zones, uz_link)
 			zfunc(zone);
 	}
-	rw_runlock(&uma_rwlock);
+	if (__predict_true(booted == BOOT_RUNNING))
+		rw_runlock(&uma_rwlock);
 }
 
 /*
@@ -2109,6 +2133,7 @@ uma_startup3(void)
 	uma_dbg_cnt = counter_u64_alloc(M_WAITOK);
 	uma_skip_cnt = counter_u64_alloc(M_WAITOK);
 #endif
+	zone_foreach(zone_alloc_counters);
 	callout_init(&uma_callout, 1);
 	callout_reset(&uma_callout, UMA_TIMEOUT * hz, uma_timeout, NULL);
 	booted = BOOT_RUNNING;
@@ -2387,7 +2412,7 @@ zalloc_start:
 		    zone->uz_dtor != trash_dtor) &&
 #endif
 		    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
-			atomic_add_long(&zone->uz_fails, 1);
+			counter_u64_add(zone->uz_fails, 1);
 			zone_free_item(zone, item, udata, SKIP_DTOR | SKIP_CNT);
 			return (NULL);
 		}
@@ -2845,7 +2870,7 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags, int max)
 
 	if (bucket->ub_cnt == 0) {
 		bucket_free(zone, bucket, udata);
-		atomic_add_long(&zone->uz_fails, 1);
+		counter_u64_add(zone->uz_fails, 1);
 		return (NULL);
 	}
 
@@ -2905,7 +2930,6 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 	}
 
 	zone->uz_items++;
-	zone->uz_allocs++;
 	ZONE_UNLOCK(zone);
 
 	if (domain != UMA_ANYDOMAIN) {
@@ -2947,6 +2971,7 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 	if (flags & M_ZERO)
 		uma_zero_item(item, zone);
 
+	counter_u64_add(zone->uz_allocs, 1);
 	CTR3(KTR_UMA, "zone_alloc_item item %p from %s(%p)", item,
 	    zone->uz_name, zone);
 
@@ -2955,9 +2980,8 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 fail:
 	ZONE_LOCK(zone);
 	zone->uz_items--;
-	zone->uz_allocs--;
 	ZONE_UNLOCK(zone);
-	atomic_add_long(&zone->uz_fails, 1);
+	counter_u64_add(zone->uz_fails, 1);
 	CTR2(KTR_UMA, "zone_alloc_item failed from %s(%p)",
 	    zone->uz_name, zone);
 	return (NULL);
@@ -3268,8 +3292,9 @@ zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 	if (skip & SKIP_CNT)
 		return;
 
+	counter_u64_add(zone->uz_frees, 1);
+
 	ZONE_LOCK(zone);
-	zone->uz_frees++;
 	zone->uz_items--;
 	if (zone->uz_sleepers > 0 && zone->uz_items < zone->uz_max_items)
 		wakeup_one(zone);
@@ -3358,7 +3383,8 @@ uma_zone_get_cur(uma_zone_t zone)
 	u_int i;
 
 	ZONE_LOCK(zone);
-	nitems = zone->uz_allocs - zone->uz_frees;
+	nitems = counter_u64_fetch(zone->uz_allocs) -
+	    counter_u64_fetch(zone->uz_frees);
 	CPU_FOREACH(i) {
 		/*
 		 * See the comment in sysctl_vm_zone_stats() regarding the
@@ -3801,8 +3827,8 @@ uma_zone_sumstat(uma_zone_t z, long *cachefreep, uint64_t *allocsp,
 		allocs += cache->uc_allocs;
 		frees += cache->uc_frees;
 	}
-	allocs += z->uz_allocs;
-	frees += z->uz_frees;
+	allocs += counter_u64_fetch(z->uz_allocs);
+	frees += counter_u64_fetch(z->uz_frees);
 	sleeps += z->uz_sleeps;
 	if (cachefreep != NULL)
 		*cachefreep = cachefree;
@@ -3895,9 +3921,9 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 				zdom = &z->uz_domain[i];
 				uth.uth_zone_free += zdom->uzd_nitems;
 			}
-			uth.uth_allocs = z->uz_allocs;
-			uth.uth_frees = z->uz_frees;
-			uth.uth_fails = z->uz_fails;
+			uth.uth_allocs = counter_u64_fetch(z->uz_allocs);
+			uth.uth_frees = counter_u64_fetch(z->uz_frees);
+			uth.uth_fails = counter_u64_fetch(z->uz_fails);
 			uth.uth_sleeps = z->uz_sleeps;
 			/*
 			 * While it is not normally safe to access the cache
@@ -4105,8 +4131,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
-				allocs = z->uz_allocs;
-				frees = z->uz_frees;
+				allocs = counter_u64_fetch(z->uz_allocs);
+				frees = counter_u64_fetch(z->uz_frees);
 				sleeps = z->uz_sleeps;
 				cachefree = 0;
 			} else
