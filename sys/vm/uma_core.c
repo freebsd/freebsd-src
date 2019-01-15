@@ -2924,7 +2924,8 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 			zone->uz_sleeps++;
 			zone->uz_sleepers++;
 			while (zone->uz_items >= zone->uz_max_items)
-				mtx_sleep(zone, zone->uz_lockptr, PVM, "zonelimit", 0);
+				mtx_sleep(zone, zone->uz_lockptr, PVM,
+				    "zonelimit", 0);
 			zone->uz_sleepers--;
 			if (zone->uz_sleepers > 0 &&
 			    zone->uz_items + 1 < zone->uz_max_items)
