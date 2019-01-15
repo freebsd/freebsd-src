@@ -261,7 +261,7 @@ led_set(char const *name, char const *cmd)
 	mtx_unlock(&led_mtx);
 	if (sb != NULL)
 		sbuf_delete(sb);
-	return (0);
+	return (error);
 }
 
 static struct cdevsw led_cdevsw = {
