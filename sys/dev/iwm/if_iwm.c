@@ -626,7 +626,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			goto parse_out;
 		}
 		len -= roundup2(tlv_len, 4);
-		data += sizeof(tlv) + roundup2(tlv_len, 4);
+		data += sizeof(*tlv) + roundup2(tlv_len, 4);
 
 		switch ((int)tlv_type) {
 		case IWM_UCODE_TLV_PROBE_MAX_LEN:
