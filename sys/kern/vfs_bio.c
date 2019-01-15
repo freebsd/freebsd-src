@@ -86,7 +86,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/swap_pager.h>
-#include "opt_swap.h"
 
 static MALLOC_DEFINE(M_BIOBUF, "biobuf", "BIO buffer");
 
@@ -1017,10 +1016,6 @@ bd_speedup(void)
 	mtx_unlock(&bdlock);
 }
 
-#ifndef NSWBUF_MIN
-#define	NSWBUF_MIN	16
-#endif
-
 #ifdef __i386__
 #define	TRANSIENT_DENOM	5
 #else
@@ -1130,19 +1125,8 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	}
 
 	/*
-	 * swbufs are used as temporary holders for I/O, such as paging I/O.
-	 * We have no less then 16 and no more then 256.
-	 */
-	nswbuf = min(nbuf / 4, 256);
-	TUNABLE_INT_FETCH("kern.nswbuf", &nswbuf);
-	if (nswbuf < NSWBUF_MIN)
-		nswbuf = NSWBUF_MIN;
-
-	/*
 	 * Reserve space for the buffer cache buffers
 	 */
-	swbuf = (void *)v;
-	v = (caddr_t)(swbuf + nswbuf);
 	buf = (void *)v;
 	v = (caddr_t)(buf + nbuf);
 

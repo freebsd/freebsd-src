@@ -1267,7 +1267,7 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 			goto unref;
 		}
 
-		job->pbuf = pbuf = (struct buf *)getpbuf(NULL);
+		job->pbuf = pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
 		BUF_KERNPROC(pbuf);
 		AIO_LOCK(ki);
 		ki->kaio_buffer_count++;
@@ -1318,7 +1318,7 @@ doerror:
 		AIO_LOCK(ki);
 		ki->kaio_buffer_count--;
 		AIO_UNLOCK(ki);
-		relpbuf(pbuf, NULL);
+		uma_zfree(pbuf_zone, pbuf);
 		job->pbuf = NULL;
 	}
 	g_destroy_bio(bp);
@@ -2344,7 +2344,7 @@ aio_biowakeup(struct bio *bp)
 	ki = userp->p_aioinfo;
 	if (job->pbuf) {
 		pmap_qremove((vm_offset_t)job->pbuf->b_data, job->npages);
-		relpbuf(job->pbuf, NULL);
+		uma_zfree(pbuf_zone, job->pbuf);
 		job->pbuf = NULL;
 		atomic_subtract_int(&num_buf_aio, 1);
 		AIO_LOCK(ki);

@@ -63,7 +63,9 @@ SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0,
 #endif
 
 static MALLOC_DEFINE(M_SEGMENT, "cl_savebuf", "cluster_save buffer");
+static uma_zone_t cluster_pbuf_zone;
 
+static void cluster_init(void *);
 static struct cluster_save *cluster_collectbufs(struct vnode *vp,
 	    struct buf *last_bp, int gbflags);
 static struct buf *cluster_rbuild(struct vnode *vp, u_quad_t filesize,
@@ -82,6 +84,15 @@ SYSCTL_INT(_vfs, OID_AUTO, read_max, CTLFLAG_RW, &read_max, 0,
 static int read_min = 1;
 SYSCTL_INT(_vfs, OID_AUTO, read_min, CTLFLAG_RW, &read_min, 0,
     "Cluster read min block count");
+
+SYSINIT(cluster, SI_SUB_CPU, SI_ORDER_ANY, cluster_init, NULL);
+
+static void
+cluster_init(void *dummy)
+{
+
+	cluster_pbuf_zone = pbuf_zsecond_create("clpbuf", nswbuf / 2);
+}
 
 /*
  * Read data to a buf, including read-ahead if we find this to be beneficial.
@@ -372,7 +383,7 @@ cluster_rbuild(struct vnode *vp, u_quad_t filesize, daddr_t lbn,
 		((tbp->b_flags & B_VMIO) == 0) || (run <= 1) )
 		return tbp;
 
-	bp = trypbuf(&cluster_pbuf_freecnt);
+	bp = uma_zalloc(cluster_pbuf_zone, M_NOWAIT);
 	if (bp == NULL)
 		return tbp;
 
@@ -603,7 +614,7 @@ cluster_callback(struct buf *bp)
 		bufdone(tbp);
 	}
 	pbrelvp(bp);
-	relpbuf(bp, &cluster_pbuf_freecnt);
+	uma_zfree(cluster_pbuf_zone, bp);
 }
 
 /*
@@ -856,9 +867,8 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
-		  ((bp = (vp->v_vflag & VV_MD) != 0 ?
-		  trypbuf(&cluster_pbuf_freecnt) :
-		  getpbuf(&cluster_pbuf_freecnt)) == NULL)) {
+		  ((bp = uma_zalloc(cluster_pbuf_zone,
+		  (vp->v_vflag & VV_MD) != 0 ? M_NOWAIT : M_WAITOK)) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;

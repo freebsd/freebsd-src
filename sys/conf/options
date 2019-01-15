@@ -187,7 +187,7 @@ NO_ADAPTIVE_SX
 NO_EVENTTIMERS		opt_timer.h
 NO_OBSOLETE_CODE	opt_global.h
 NO_SYSCTL_DESCR	opt_global.h
-NSWBUF_MIN	opt_swap.h
+NSWBUF_MIN	opt_param.h
 MBUF_PACKET_ZONE_DISABLE	opt_global.h
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 PCI_HP		opt_pci.h
