@@ -52,6 +52,14 @@ ID="/usr/bin/id"
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
 PS="/bin/ps -ww"
 JID=0
+# rc_service provides the path to the service script that we are executing.
+# This is not being set here in an execution context, necessarily, so it's
+# really just a reasonable guess, and it will get overwritten later if
+# we are executing from some other means than direct execution by service(8)
+# or manual invocation of the service script.  The prime example of this is
+# during system startup, all rc scripts will be invoked via /etc/rc, so
+# run_rc_script will overwrite rc_service with the file being sourced.
+rc_service="$0"
 
 #
 #	functions
@@ -863,6 +871,9 @@ check_startmsgs()
 #			by $flags from the environment.
 #			This variable may be changed by the precmd method.
 #
+#       rc_service      Path to the service being executed, in case the service
+#                       needs to re-invoke itself.
+#
 #	rc_pid		PID of command (if appropriate)
 #
 #	rc_fast		Not empty if "fast" was provided (q.v.)
@@ -1333,6 +1344,7 @@ run_rc_script()
 		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
+	rc_service="$_file"
 	case "$_file" in
 	/etc/rc.d/*.sh)			# no longer allowed in the base
 		warn "Ignoring old-style startup script $_file"
