@@ -98,6 +98,9 @@ amrr_setinterval(const struct ieee80211vap *vap, int msecs)
 	struct ieee80211_amrr *amrr = vap->iv_rs;
 	int t;
 
+	if (!amrr)
+		return;
+
 	if (msecs < 100)
 		msecs = 100;
 	t = msecs_to_ticks(msecs);
@@ -151,6 +154,12 @@ amrr_node_init(struct ieee80211_node *ni)
 	struct ieee80211_amrr *amrr = vap->iv_rs;
 	struct ieee80211_amrr_node *amn;
 	uint8_t rate;
+
+	if (!amrr) {
+		if_printf(vap->iv_ifp, "ratectl structure was not allocated, "
+		    "per-node structure allocation skipped\n");
+		return;
+	}
 
 	if (ni->ni_rctls == NULL) {
 		ni->ni_rctls = amn = malloc(sizeof(struct ieee80211_amrr_node),
@@ -303,9 +312,18 @@ static int
 amrr_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
 {
 	struct ieee80211_amrr_node *amn = ni->ni_rctls;
-	struct ieee80211_amrr *amrr = amn->amn_amrr;
+	struct ieee80211_amrr *amrr;
 	const struct ieee80211_rateset *rs = NULL;
 	int rix;
+
+	/* XXX should return -1 here, but drivers may not expect this... */
+	if (!amn)
+	{
+		ni->ni_txrate = ni->ni_rates.rs_rates[0];
+		return 0;
+	}
+
+	amrr = amn->amn_amrr;
 
 	/* 11n or not? Pick the right rateset */
 	if (amrr_node_is_11n(ni)) {
@@ -346,6 +364,9 @@ amrr_tx_complete(const struct ieee80211vap *vap,
 	struct ieee80211_amrr_node *amn = ni->ni_rctls;
 	int retries = *(int *)arg1;
 
+	if (!amn)
+		return;
+
 	amn->amn_txcnt++;
 	if (ok)
 		amn->amn_success++;
@@ -374,9 +395,12 @@ amrr_sysctl_interval(SYSCTL_HANDLER_ARGS)
 {
 	struct ieee80211vap *vap = arg1;
 	struct ieee80211_amrr *amrr = vap->iv_rs;
-	int msecs = ticks_to_msecs(amrr->amrr_interval);
-	int error;
+	int msecs, error;
 
+	if (!amrr)
+		return ENOMEM;
+
+	msecs = ticks_to_msecs(amrr->amrr_interval);
 	error = sysctl_handle_int(oidp, &msecs, 0, req);
 	if (error || !req->newptr)
 		return error;
@@ -389,6 +413,9 @@ amrr_sysctlattach(struct ieee80211vap *vap,
     struct sysctl_ctx_list *ctx, struct sysctl_oid *tree)
 {
 	struct ieee80211_amrr *amrr = vap->iv_rs;
+
+	if (!amrr)
+		return;
 
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "amrr_rate_interval", CTLTYPE_INT | CTLFLAG_RW, vap,
