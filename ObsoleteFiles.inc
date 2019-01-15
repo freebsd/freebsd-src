@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190114: old pbuf allocator removed
+OLD_FILES+=usr/share/man/man9/pbuf.9.gz
 # 20181219: ibcs removal
 OLD_FILES+=usr/share/examples/ibcs2/hello.uu
 OLD_FILES+=usr/share/examples/ibcs2/README
