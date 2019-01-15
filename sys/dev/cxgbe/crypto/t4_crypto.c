@@ -1652,12 +1652,6 @@ ccr_attach(device_t dev)
 	struct ccr_softc *sc;
 	int32_t cid;
 
-	/*
-	 * TODO: Crypto requests will panic if the parent device isn't
-	 * initialized so that the queues are up and running.  Need to
-	 * figure out how to handle that correctly, maybe just reject
-	 * requests if the adapter isn't fully initialized?
-	 */
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 	sc->adapter = device_get_softc(device_get_parent(dev));
@@ -2058,6 +2052,16 @@ ccr_newsession(device_t dev, crypto_session_t cses, struct cryptoini *cri)
 	}
 
 	sc = device_get_softc(dev);
+
+	/*
+	 * XXX: Don't create a session if the queues aren't
+	 * initialized.  This is racy as the rxq can be destroyed by
+	 * the associated VI detaching.  Eventually ccr should use
+	 * dedicated queues.
+	 */
+	if (sc->rxq->iq.adapter == NULL || sc->txq->adapter == NULL)
+		return (ENXIO);
+	
 	mtx_lock(&sc->lock);
 	if (sc->detaching) {
 		mtx_unlock(&sc->lock);
