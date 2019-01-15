@@ -71,7 +71,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_swap.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -324,9 +323,8 @@ swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred)
 
 static int swap_pager_full = 2;	/* swap space exhaustion (task killing) */
 static int swap_pager_almost_full = 1; /* swap space exhaustion (w/hysteresis)*/
-static int nsw_rcount;		/* free read buffers			*/
-static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
-static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
+static struct mtx swbuf_mtx;	/* to sync nsw_wcount_async */
+static int nsw_wcount_async;	/* limit async write buffers */
 static int nsw_wcount_async_max;/* assigned maximum			*/
 static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 
@@ -352,6 +350,8 @@ static struct sx sw_alloc_sx;
 	(&swap_pager_object_list[((int)(intptr_t)handle >> 4) & (NOBJLISTS-1)])
 
 static struct pagerlst	swap_pager_object_list[NOBJLISTS];
+static uma_zone_t swwbuf_zone;
+static uma_zone_t swrbuf_zone;
 static uma_zone_t swblk_zone;
 static uma_zone_t swpctrie_zone;
 
@@ -539,12 +539,12 @@ swap_pager_swap_init(void)
 	 */
 	nsw_cluster_max = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
 
-	mtx_lock(&pbuf_mtx);
-	nsw_rcount = (nswbuf + 1) / 2;
-	nsw_wcount_sync = (nswbuf + 3) / 4;
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
-	mtx_unlock(&pbuf_mtx);
+	mtx_init(&swbuf_mtx, "async swbuf mutex", NULL, MTX_DEF);
+
+	swwbuf_zone = pbuf_zsecond_create("swwbuf", nswbuf / 4);
+	swrbuf_zone = pbuf_zsecond_create("swrbuf", nswbuf / 2);
 
 	/*
 	 * Initialize our zone, taking the user's requested size or
@@ -1205,7 +1205,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 	    ("no swap blocking containing %p(%jx)", object, (uintmax_t)pindex));
 
 	VM_OBJECT_WUNLOCK(object);
-	bp = getpbuf(&nsw_rcount);
+	bp = uma_zalloc(swrbuf_zone, M_WAITOK);
 	/* Pages cannot leave the object while busy. */
 	for (i = 0, p = bm; i < count; i++, p = TAILQ_NEXT(p, listq)) {
 		MPASS(p->pindex == bm->pindex + i);
@@ -1406,12 +1406,17 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		 * All I/O parameters have been satisfied, build the I/O
 		 * request and assign the swap space.
 		 */
-		if (sync == TRUE) {
-			bp = getpbuf(&nsw_wcount_sync);
-		} else {
-			bp = getpbuf(&nsw_wcount_async);
-			bp->b_flags = B_ASYNC;
+		if (sync != TRUE) {
+			mtx_lock(&swbuf_mtx);
+			while (nsw_wcount_async == 0)
+				msleep(&nsw_wcount_async, &swbuf_mtx, PVM,
+				    "swbufa", 0);
+			nsw_wcount_async--;
+			mtx_unlock(&swbuf_mtx);
 		}
+		bp = uma_zalloc(swwbuf_zone, M_WAITOK);
+		if (sync != TRUE)
+			bp->b_flags = B_ASYNC;
 		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
 
@@ -1634,15 +1639,13 @@ swp_pager_async_iodone(struct buf *bp)
 	/*
 	 * release the physical I/O buffer
 	 */
-	relpbuf(
-	    bp,
-	    ((bp->b_iocmd == BIO_READ) ? &nsw_rcount :
-		((bp->b_flags & B_ASYNC) ?
-		    &nsw_wcount_async :
-		    &nsw_wcount_sync
-		)
-	    )
-	);
+	if (bp->b_flags & B_ASYNC) {
+		mtx_lock(&swbuf_mtx);
+		if (++nsw_wcount_async == 1)
+			wakeup(&nsw_wcount_async);
+		mtx_unlock(&swbuf_mtx);
+	}
+	uma_zfree((bp->b_iocmd == BIO_READ) ? swrbuf_zone : swwbuf_zone, bp);
 }
 
 int
@@ -2627,6 +2630,7 @@ swapgeom_done(struct bio *bp2)
 		bp->b_ioflags |= BIO_ERROR;
 	bp->b_resid = bp->b_bcount - bp2->bio_completed;
 	bp->b_error = bp2->bio_error;
+	bp->b_caller1 = NULL;
 	bufdone(bp);
 	sp = bp2->bio_caller1;
 	mtx_lock(&sw_dev_mtx);
@@ -2666,6 +2670,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		return;
 	}
 
+	bp->b_caller1 = bio;
 	bio->bio_caller1 = sp;
 	bio->bio_caller2 = bp;
 	bio->bio_cmd = bp->b_iocmd;
@@ -2880,7 +2885,7 @@ sysctl_swap_async_max(SYSCTL_HANDLER_ARGS)
 	if (new > nswbuf / 2 || new < 1)
 		return (EINVAL);
 
-	mtx_lock(&pbuf_mtx);
+	mtx_lock(&swbuf_mtx);
 	while (nsw_wcount_async_max != new) {
 		/*
 		 * Adjust difference.  If the current async count is too low,
@@ -2895,11 +2900,11 @@ sysctl_swap_async_max(SYSCTL_HANDLER_ARGS)
 		} else {
 			nsw_wcount_async_max -= nsw_wcount_async;
 			nsw_wcount_async = 0;
-			msleep(&nsw_wcount_async, &pbuf_mtx, PSWP,
+			msleep(&nsw_wcount_async, &swbuf_mtx, PSWP,
 			    "swpsysctl", 0);
 		}
 	}
-	mtx_unlock(&pbuf_mtx);
+	mtx_unlock(&swbuf_mtx);
 
 	return (0);
 }

@@ -936,7 +936,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		/*
 		 * Get the buffer.
 		 */
-		mapinfo->bp[i] = getpbuf(NULL);
+		mapinfo->bp[i] = uma_zalloc(pbuf_zone, M_WAITOK);
 
 		/* put our pointer in the data slot */
 		mapinfo->bp[i]->b_data = *data_ptrs[i];
@@ -962,9 +962,9 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 			for (j = 0; j < i; ++j) {
 				*data_ptrs[j] = mapinfo->bp[j]->b_caller1;
 				vunmapbuf(mapinfo->bp[j]);
-				relpbuf(mapinfo->bp[j], NULL);
+				uma_zfree(pbuf_zone, mapinfo->bp[j]);
 			}
-			relpbuf(mapinfo->bp[i], NULL);
+			uma_zfree(pbuf_zone, mapinfo->bp[i]);
 			PRELE(curproc);
 			return(EACCES);
 		}
@@ -1052,7 +1052,7 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		vunmapbuf(mapinfo->bp[i]);
 
 		/* release the buffer */
-		relpbuf(mapinfo->bp[i], NULL);
+		uma_zfree(pbuf_zone, mapinfo->bp[i]);
 	}
 
 	/* allow ourselves to be swapped once again */
