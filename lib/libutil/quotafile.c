@@ -101,7 +101,7 @@ hasquota(struct fstab *fs, int type, char *qfnamep, int qfbufsize)
 		return (0);
 	}
 	if (cp) {
-		strncpy(qfnamep, cp, qfbufsize);
+		strlcpy(qfnamep, cp, qfbufsize);
 	} else {
 		(void)snprintf(qfnamep, qfbufsize, "%s/%s.%s", fs->fs_file,
 		    QUOTAFILENAME, qfextension[type]);
