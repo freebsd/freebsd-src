@@ -3758,8 +3758,8 @@ uma_print_zone(uma_zone_t zone)
 	uma_cache_t cache;
 	int i;
 
-	printf("zone: %s(%p) size %d maxitems %lu flags %#x\n",
-	    zone->uz_name, zone, zone->uz_size, zone->uz_max_items,
+	printf("zone: %s(%p) size %d maxitems %ju flags %#x\n",
+	    zone->uz_name, zone, zone->uz_size, (uintmax_t)zone->uz_max_items,
 	    zone->uz_flags);
 	if (zone->uz_lockptr != &zone->uz_lock)
 		uma_print_keg(zone->uz_keg);
