@@ -37,7 +37,6 @@ ${group}GRP=	${SHAREGRP}
 ${group}MODE?=	${SHAREMODE}
 ${group}DIR?=	BINDIR
 STAGE_SETS+=	${group:C,[/*],_,g}
-STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${group}DIR}
 
 .if defined(NO_ROOT)
 .if !defined(${group}TAGS) || ! ${${group}TAGS:Mpackage=*}
@@ -57,6 +56,7 @@ DIRS+=	${group}DIR
 _${group}DIR=	${group}DIR
 .endif
 
+STAGE_DIR.${group:C,[/*],_,g}= ${STAGE_OBJTOP}${${_${group}DIR}}
 
 .for file in ${${group}}
 ${group}OWN_${file}?=	${${group}OWN}
@@ -100,7 +100,7 @@ ${group}NAME_${file}?=	${file:T}
 STAGE_AS_SETS+=	${file}
 STAGE_AS_${file}= ${${group}NAME_${file}}
 # XXX {group}OWN,GRP,MODE
-STAGE_DIR.${file}= ${STAGE_OBJTOP}${${group}DIR_${file}}
+STAGE_DIR.${file}= ${STAGE_OBJTOP}${${_${group}DIR_${file}}}
 stage_as.${file}: ${file}
 
 installfiles-${group}: _${group}INS1_${file}
