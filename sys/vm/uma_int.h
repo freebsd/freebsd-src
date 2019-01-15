@@ -231,7 +231,9 @@ typedef struct uma_domain * uma_domain_t;
  *
  */
 struct uma_keg {
-	struct mtx	uk_lock;	/* Lock for the keg */
+	struct mtx	uk_lock;	/* Lock for the keg must be first.
+					 * See shared uz_keg/uz_lockptr
+					 * member of struct uma_zone. */
 	struct uma_hash	uk_hash;
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 
@@ -242,7 +244,6 @@ struct uma_keg {
 	uint32_t	uk_reserve;	/* Number of reserved items. */
 	uint32_t	uk_size;	/* Requested size of each item */
 	uint32_t	uk_rsize;	/* Real size of each item */
-	uint32_t	uk_maxpages;	/* Maximum number of pages to alloc */
 
 	uma_init	uk_init;	/* Keg's init routine */
 	uma_fini	uk_fini;	/* Keg's fini routine */
@@ -304,12 +305,6 @@ struct uma_slab {
 typedef struct uma_slab * uma_slab_t;
 typedef uma_slab_t (*uma_slaballoc)(uma_zone_t, uma_keg_t, int, int);
 
-struct uma_klink {
-	LIST_ENTRY(uma_klink)	kl_link;
-	uma_keg_t		kl_keg;
-};
-typedef struct uma_klink *uma_klink_t;
-
 struct uma_zone_domain {
 	LIST_HEAD(,uma_bucket)	uzd_buckets;	/* full buckets */
 	long		uzd_nitems;	/* total item count */
@@ -328,26 +323,30 @@ typedef struct uma_zone_domain * uma_zone_domain_t;
  */
 struct uma_zone {
 	/* Offset 0, used in alloc/free fast/medium fast path and const. */
-	struct mtx	*uz_lockptr;
-	const char	*uz_name;	/* Text name of the zone */
+	union {
+		uma_keg_t	uz_keg;		/* This zone's keg */
+		struct mtx 	*uz_lockptr;	/* To keg or to self */
+	};
 	struct uma_zone_domain	*uz_domain;	/* per-domain buckets */
 	uint32_t	uz_flags;	/* Flags inherited from kegs */
 	uint32_t	uz_size;	/* Size inherited from kegs */
 	uma_ctor	uz_ctor;	/* Constructor for each allocation */
 	uma_dtor	uz_dtor;	/* Destructor */
-	uma_init	uz_init;	/* Initializer for each item */
-	uma_fini	uz_fini;	/* Finalizer for each item. */
+	uint64_t	uz_items;	/* Total items count */
+	uint64_t	uz_max_items;	/* Maximum number of items to alloc */
+	uint32_t	uz_sleepers;	/* Number of sleepers on memory */
+	uint16_t	uz_count;	/* Amount of items in full bucket */
+	uint16_t	uz_count_max;	/* Maximum amount of items there */
 
 	/* Offset 64, used in bucket replenish. */
 	uma_import	uz_import;	/* Import new memory to cache. */
 	uma_release	uz_release;	/* Release memory from cache. */
 	void		*uz_arg;	/* Import/release argument. */
+	uma_init	uz_init;	/* Initializer for each item */
+	uma_fini	uz_fini;	/* Finalizer for each item. */
 	uma_slaballoc	uz_slab;	/* Allocate a slab from the backend. */
-	uint16_t	uz_count;	/* Amount of items in full bucket */
-	uint16_t	uz_count_min;	/* Minimal amount of items there */
-	/* 32bit pad on 64bit. */
-	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */
-	LIST_HEAD(,uma_klink)	uz_kegs;	/* List of kegs. */
+	uint64_t	uz_bkt_count;    /* Items in bucket cache */
+	uint64_t	uz_bkt_max;	/* Maximum bucket cache size */
 
 	/* Offset 128 Rare. */
 	/*
@@ -356,19 +355,19 @@ struct uma_zone {
 	 * members to reduce alignment overhead.
 	 */
 	struct mtx	uz_lock;	/* Lock for the zone */
-	struct uma_klink	uz_klink;	/* klink for first keg. */
+	LIST_ENTRY(uma_zone) uz_link;	/* List of all zones in keg */
+	const char	*uz_name;	/* Text name of the zone */
 	/* The next two fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */
 	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
 	struct task	uz_maxaction;	/* Task to run when at limit */
+	uint16_t	uz_count_min;	/* Minimal amount of items in bucket */
 
-	/* 16 bytes of pad. */
-
-	/* Offset 256, atomic stats. */
-	volatile u_long	uz_allocs UMA_ALIGN; /* Total number of allocations */
-	volatile u_long	uz_fails;	/* Total number of alloc failures */
-	volatile u_long	uz_frees;	/* Total number of frees */
+	/* Offset 256, stats. */
+	uint64_t	uz_allocs UMA_ALIGN; /* Total number of allocations */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
+	uint64_t	uz_frees;	/* Total number of frees */
+	volatile u_long	uz_fails;	/* Total number of alloc failures */
 
 	/*
 	 * This HAS to be the last item because we adjust the zone size
@@ -382,24 +381,14 @@ struct uma_zone {
 /*
  * These flags must not overlap with the UMA_ZONE flags specified in uma.h.
  */
-#define	UMA_ZFLAG_MULTI		0x04000000	/* Multiple kegs in the zone. */
+#define	UMA_ZFLAG_CACHE		0x04000000	/* uma_zcache_create()d it */
 #define	UMA_ZFLAG_DRAINING	0x08000000	/* Running zone_drain. */
 #define	UMA_ZFLAG_BUCKET	0x10000000	/* Bucket zone. */
 #define UMA_ZFLAG_INTERNAL	0x20000000	/* No offpage no PCPU. */
-#define UMA_ZFLAG_FULL		0x40000000	/* Reached uz_maxpages */
 #define UMA_ZFLAG_CACHEONLY	0x80000000	/* Don't ask VM for buckets. */
 
 #define	UMA_ZFLAG_INHERIT						\
     (UMA_ZFLAG_INTERNAL | UMA_ZFLAG_CACHEONLY | UMA_ZFLAG_BUCKET)
-
-static inline uma_keg_t
-zone_first_keg(uma_zone_t zone)
-{
-	uma_klink_t klink;
-
-	klink = LIST_FIRST(&zone->uz_kegs);
-	return (klink != NULL) ? klink->kl_keg : NULL;
-}
 
 #undef UMA_ALIGN
 
@@ -425,6 +414,13 @@ void uma_large_free(uma_slab_t slab);
 #define	KEG_LOCK_FINI(k)	mtx_destroy(&(k)->uk_lock)
 #define	KEG_LOCK(k)	mtx_lock(&(k)->uk_lock)
 #define	KEG_UNLOCK(k)	mtx_unlock(&(k)->uk_lock)
+#define	KEG_LOCK_ASSERT(k)	mtx_assert(&(k)->uk_lock, MA_OWNED)
+
+#define	KEG_GET(zone, keg) do {					\
+	(keg) = (zone)->uz_keg;					\
+	KASSERT((void *)(keg) != (void *)&(zone)->uz_lock,	\
+	    ("%s: Invalid zone %p type", __func__, (zone)));	\
+	} while (0)
 
 #define	ZONE_LOCK_INIT(z, lc)					\
 	do {							\
