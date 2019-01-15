@@ -79,7 +79,7 @@ extern struct vop_vector newnfs_vnodeops;
 extern struct vop_vector newnfs_fifoops;
 extern uma_zone_t newnfsnode_zone;
 extern struct buf_ops buf_ops_newnfs;
-extern int ncl_pbuf_freecnt;
+extern uma_zone_t ncl_pbuf_zone;
 extern short nfsv4_cbport;
 extern int nfscl_enablecallb;
 extern int nfs_numnfscbd;
@@ -1023,7 +1023,7 @@ nfscl_init(void)
 		return;
 	inited = 1;
 	nfscl_inited = 1;
-	ncl_pbuf_freecnt = nswbuf / 2 + 1;
+	ncl_pbuf_zone = pbuf_zsecond_create("nfspbuf", nswbuf / 2);
 }
 
 /*
@@ -1357,6 +1357,7 @@ nfscl_modevent(module_t mod, int type, void *data)
 #if 0
 		ncl_call_invalcaches = NULL;
 		nfsd_call_nfscl = NULL;
+		uma_zdestroy(ncl_pbuf_zone);
 		/* and get rid of the mutexes */
 		mtx_destroy(&ncl_iod_mutex);
 		loaded = 0;

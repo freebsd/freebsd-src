@@ -104,7 +104,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		maxpages = btoc(MIN(uio->uio_resid, MAXPHYS)) + 1;
 		pages = malloc(sizeof(*pages) * maxpages, M_DEVBUF, M_WAITOK);
 	} else {
-		pbuf = getpbuf(NULL);
+		pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
 		sa = pbuf->b_data;
 		maxpages = btoc(MAXPHYS);
 		pages = pbuf->b_pages;
@@ -220,7 +220,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	}
 doerror:
 	if (pbuf)
-		relpbuf(pbuf, NULL);
+		uma_zfree(pbuf_zone, pbuf);
 	else if (pages)
 		free(pages, M_DEVBUF);
 	g_destroy_bio(bp);
