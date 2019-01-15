@@ -736,11 +736,13 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 		for (i = 0; i < bucket->ub_cnt; i++) 
 			zone->uz_fini(bucket->ub_bucket[i], zone->uz_size);
 	zone->uz_release(zone->uz_arg, bucket->ub_bucket, bucket->ub_cnt);
-	ZONE_LOCK(zone);
-	zone->uz_items -= bucket->ub_cnt;
-	if (zone->uz_sleepers && zone->uz_items < zone->uz_max_items)
-		wakeup_one(zone);
-	ZONE_UNLOCK(zone);
+	if (zone->uz_max_items > 0) {
+		ZONE_LOCK(zone);
+		zone->uz_items -= bucket->ub_cnt;
+		if (zone->uz_sleepers && zone->uz_items < zone->uz_max_items)
+			wakeup_one(zone);
+		ZONE_UNLOCK(zone);
+	}
 	bucket->ub_cnt = 0;
 }
 
@@ -2515,9 +2517,9 @@ zalloc_start:
 			goto zalloc_item;
 		maxbucket = MIN(zone->uz_count,
 		    zone->uz_max_items - zone->uz_items);
+		zone->uz_items += maxbucket;
 	} else
 		maxbucket = zone->uz_count;
-	zone->uz_items += maxbucket;
 	ZONE_UNLOCK(zone);
 
 	/*
@@ -2530,9 +2532,8 @@ zalloc_start:
 	    zone->uz_name, zone, bucket);
 	ZONE_LOCK(zone);
 	if (bucket != NULL) {
-		if (bucket->ub_cnt < maxbucket) {
-			MPASS(zone->uz_flags & UMA_ZFLAG_CACHE ||
-			    zone->uz_items >= maxbucket - bucket->ub_cnt);
+		if (zone->uz_max_items > 0 && bucket->ub_cnt < maxbucket) {
+			MPASS(zone->uz_items >= maxbucket - bucket->ub_cnt);
 			zone->uz_items -= maxbucket - bucket->ub_cnt;
 			if (zone->uz_sleepers > 0 &&
 			    zone->uz_items < zone->uz_max_items)
@@ -2562,7 +2563,7 @@ zalloc_start:
 			zone_put_bucket(zone, zdom, bucket, false);
 		ZONE_UNLOCK(zone);
 		goto zalloc_start;
-	} else {
+	} else if (zone->uz_max_items > 0) {
 		zone->uz_items -= maxbucket;
 		if (zone->uz_sleepers > 0 &&
 		    zone->uz_items + 1 < zone->uz_max_items)
@@ -2912,24 +2913,25 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 
 	ZONE_LOCK_ASSERT(zone);
 
-	if (zone->uz_max_items > 0 && zone->uz_items >= zone->uz_max_items) {
-		zone_log_warning(zone);
-		zone_maxaction(zone);
-		if (flags & M_NOWAIT) {
-			ZONE_UNLOCK(zone);
-			return (NULL);
+	if (zone->uz_max_items > 0) {
+		if (zone->uz_items >= zone->uz_max_items) {
+			zone_log_warning(zone);
+			zone_maxaction(zone);
+			if (flags & M_NOWAIT) {
+				ZONE_UNLOCK(zone);
+				return (NULL);
+			}
+			zone->uz_sleeps++;
+			zone->uz_sleepers++;
+			while (zone->uz_items >= zone->uz_max_items)
+				mtx_sleep(zone, zone->uz_lockptr, PVM, "zonelimit", 0);
+			zone->uz_sleepers--;
+			if (zone->uz_sleepers > 0 &&
+			    zone->uz_items + 1 < zone->uz_max_items)
+				wakeup_one(zone);
 		}
-		zone->uz_sleeps++;
-		zone->uz_sleepers++;
-		while (zone->uz_items >= zone->uz_max_items)
-			mtx_sleep(zone, zone->uz_lockptr, PVM, "zonelimit", 0);
-		zone->uz_sleepers--;
-		if (zone->uz_sleepers > 0 &&
-		    zone->uz_items + 1 < zone->uz_max_items)
-			wakeup_one(zone);
+		zone->uz_items++;
 	}
-
-	zone->uz_items++;
 	ZONE_UNLOCK(zone);
 
 	if (domain != UMA_ANYDOMAIN) {
@@ -2978,9 +2980,11 @@ zone_alloc_item_locked(uma_zone_t zone, void *udata, int domain, int flags)
 	return (item);
 
 fail:
-	ZONE_LOCK(zone);
-	zone->uz_items--;
-	ZONE_UNLOCK(zone);
+	if (zone->uz_max_items > 0) {
+		ZONE_LOCK(zone);
+		zone->uz_items--;
+		ZONE_UNLOCK(zone);
+	}
 	counter_u64_add(zone->uz_fails, 1);
 	CTR2(KTR_UMA, "zone_alloc_item failed from %s(%p)",
 	    zone->uz_name, zone);
@@ -3294,11 +3298,14 @@ zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 
 	counter_u64_add(zone->uz_frees, 1);
 
-	ZONE_LOCK(zone);
-	zone->uz_items--;
-	if (zone->uz_sleepers > 0 && zone->uz_items < zone->uz_max_items)
-		wakeup_one(zone);
-	ZONE_UNLOCK(zone);
+	if (zone->uz_max_items > 0) {
+		ZONE_LOCK(zone);
+		zone->uz_items--;
+		if (zone->uz_sleepers > 0 &&
+		    zone->uz_items < zone->uz_max_items)
+			wakeup_one(zone);
+		ZONE_UNLOCK(zone);
+	}
 }
 
 /* See uma.h */
@@ -3902,8 +3909,11 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 			uth.uth_align = kz->uk_align;
 			uth.uth_size = kz->uk_size;
 			uth.uth_rsize = kz->uk_rsize;
-			uth.uth_pages += (z->uz_items / kz->uk_ipers) *
-			    kz->uk_ppera;
+			if (z->uz_max_items > 0)
+				uth.uth_pages = (z->uz_items / kz->uk_ipers) *
+					kz->uk_ppera;
+			else
+				uth.uth_pages = kz->uk_pages;
 			uth.uth_maxpages += (z->uz_max_items / kz->uk_ipers) *
 			    kz->uk_ppera;
 			uth.uth_limit = z->uz_max_items;
