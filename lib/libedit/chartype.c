@@ -157,7 +157,7 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 		if (ct_conv_wbuff_resize(conv, bufspace + CT_BUFSIZ) == -1)
 			return NULL;
 
-	wargv = el_malloc((size_t)argc * sizeof(*wargv));
+	wargv = el_malloc((size_t)(argc + 1) * sizeof(*wargv));
 
 	for (i = 0, p = conv->wbuff; i < argc; ++i) {
 		if (!argv[i]) {   /* don't pass null pointers to mbstowcs */
@@ -175,6 +175,7 @@ ct_decode_argv(int argc, const char *argv[], ct_buffer_t *conv)
 		bufspace -= (size_t)bytes;
 		p += bytes;
 	}
+	wargv[i] = NULL;
 
 	return wargv;
 }
