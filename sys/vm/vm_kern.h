@@ -74,7 +74,6 @@ extern struct vmem *kmem_arena;
 extern struct vmem *buffer_arena;
 extern struct vmem *transient_arena;
 extern struct vmem *memguard_arena;
-extern vm_offset_t swapbkva;
 extern u_long vm_kmem_size;
 extern u_int exec_map_entries;
 extern u_int exec_map_entry_size;
