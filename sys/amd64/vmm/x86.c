@@ -136,18 +136,23 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
 			if (vmm_is_amd()) {
-				/*
-				 * XXX this might appear silly because AMD
-				 * cpus don't have threads.
-				 *
-				 * However this matches the logical cpus as
-				 * advertised by leaf 0x1 and will work even
-				 * if threads is set incorrectly on an AMD host.
-				 */
 				vm_get_topology(vm, &sockets, &cores, &threads,
 				    &maxcpus);
-				logical_cpus = threads * cores;
-				regs[2] = logical_cpus - 1;
+				/*
+				 * Here, width is ApicIdCoreIdSize, present on
+				 * at least Family 15h and newer.  It
+				 * represents the "number of bits in the
+				 * initial apicid that indicate thread id
+				 * within a package."
+				 *
+				 * Our topo_probe_amd() uses it for
+				 * pkg_id_shift and other OSes may rely on it.
+				 */
+				width = MIN(0xF, log2(threads * cores));
+				if (width < 0x4)
+					width = 0;
+				logical_cpus = MIN(0xFF, threads * cores - 1);
+				regs[2] = (width << AMDID_COREID_SIZE_SHIFT) | logical_cpus;
 			}
 			break;
 
@@ -155,9 +160,9 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			cpuid_count(*eax, *ecx, regs);
 
 			/*
-			 * Hide SVM and Topology Extension features from guest.
+			 * Hide SVM from guest.
 			 */
-			regs[2] &= ~(AMDID2_SVM | AMDID2_TOPOLOGY);
+			regs[2] &= ~AMDID2_SVM;
 
 			/*
 			 * Don't advertise extended performance counter MSRs
@@ -217,6 +222,68 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			 */
 			if (tsc_is_invariant && smp_tsc)
 				regs[3] |= AMDPM_TSC_INVARIANT;
+			break;
+
+		case CPUID_8000_001D:
+			/* AMD Cache topology, like 0000_0004 for Intel. */
+			if (!vmm_is_amd())
+				goto default_leaf;
+
+			/*
+			 * Similar to Intel, generate a ficticious cache
+			 * topology for the guest with L3 shared by the
+			 * package, and L1 and L2 local to a core.
+			 */
+			vm_get_topology(vm, &sockets, &cores, &threads,
+			    &maxcpus);
+			switch (*ecx) {
+			case 0:
+				logical_cpus = threads;
+				level = 1;
+				func = 1;	/* data cache */
+				break;
+			case 1:
+				logical_cpus = threads;
+				level = 2;
+				func = 3;	/* unified cache */
+				break;
+			case 2:
+				logical_cpus = threads * cores;
+				level = 3;
+				func = 3;	/* unified cache */
+				break;
+			default:
+				logical_cpus = 0;
+				level = 0;
+				func = 0;
+				break;
+			}
+
+			logical_cpus = MIN(0xfff, logical_cpus - 1);
+			regs[0] = (logical_cpus << 14) | (1 << 8) |
+			    (level << 5) | func;
+			regs[1] = (func > 0) ? (CACHE_LINE_SIZE - 1) : 0;
+			regs[2] = 0;
+			regs[3] = 0;
+			break;
+
+		case CPUID_8000_001E:
+			/* AMD Family 16h+ additional identifiers */
+			if (!vmm_is_amd() || CPUID_TO_FAMILY(cpu_id) < 0x16)
+				goto default_leaf;
+
+			vm_get_topology(vm, &sockets, &cores, &threads,
+			    &maxcpus);
+			regs[0] = vcpu_id;
+			threads = MIN(0xFF, threads - 1);
+			regs[1] = (threads << 8) |
+			    (vcpu_id >> log2(threads + 1));
+			/*
+			 * XXX Bhyve topology cannot yet represent >1 node per
+			 * processor.
+			 */
+			regs[2] = 0;
+			regs[3] = 0;
 			break;
 
 		case CPUID_0000_0001:
@@ -359,7 +426,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 				    CPUID_STDEXT_AVX512F |
 				    CPUID_STDEXT_AVX512PF |
 				    CPUID_STDEXT_AVX512ER |
-				    CPUID_STDEXT_AVX512CD);
+				    CPUID_STDEXT_AVX512CD | CPUID_STDEXT_SHA);
 				regs[2] = 0;
 				regs[3] = 0;
 
@@ -391,35 +458,42 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 
 		case CPUID_0000_000B:
 			/*
-			 * Processor topology enumeration
+			 * Intel processor topology enumeration
 			 */
-			vm_get_topology(vm, &sockets, &cores, &threads,
-			    &maxcpus);
-			if (*ecx == 0) {
-				logical_cpus = threads;
-				width = log2(logical_cpus);
-				level = CPUID_TYPE_SMT;
-				x2apic_id = vcpu_id;
-			}
+			if (vmm_is_intel()) {
+				vm_get_topology(vm, &sockets, &cores, &threads,
+				    &maxcpus);
+				if (*ecx == 0) {
+					logical_cpus = threads;
+					width = log2(logical_cpus);
+					level = CPUID_TYPE_SMT;
+					x2apic_id = vcpu_id;
+				}
 
-			if (*ecx == 1) {
-				logical_cpus = threads * cores;
-				width = log2(logical_cpus);
-				level = CPUID_TYPE_CORE;
-				x2apic_id = vcpu_id;
-			}
+				if (*ecx == 1) {
+					logical_cpus = threads * cores;
+					width = log2(logical_cpus);
+					level = CPUID_TYPE_CORE;
+					x2apic_id = vcpu_id;
+				}
 
-			if (!cpuid_leaf_b || *ecx >= 2) {
-				width = 0;
-				logical_cpus = 0;
-				level = 0;
-				x2apic_id = 0;
-			}
+				if (!cpuid_leaf_b || *ecx >= 2) {
+					width = 0;
+					logical_cpus = 0;
+					level = 0;
+					x2apic_id = 0;
+				}
 
-			regs[0] = width & 0x1f;
-			regs[1] = logical_cpus & 0xffff;
-			regs[2] = (level << 8) | (*ecx & 0xff);
-			regs[3] = x2apic_id;
+				regs[0] = width & 0x1f;
+				regs[1] = logical_cpus & 0xffff;
+				regs[2] = (level << 8) | (*ecx & 0xff);
+				regs[3] = x2apic_id;
+			} else {
+				regs[0] = 0;
+				regs[1] = 0;
+				regs[2] = 0;
+				regs[3] = 0;
+			}
 			break;
 
 		case CPUID_0000_000D:
@@ -481,6 +555,7 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 			break;
 
 		default:
+default_leaf:
 			/*
 			 * The leaf value has already been clamped so
 			 * simply pass this through, keeping count of
