@@ -561,6 +561,7 @@ vendor NETAC		0x0dd8	Netac
 vendor SITECOMEU	0x0df6	Sitecom Europe
 vendor MOBILEACTION	0x0df7	Mobile Action
 vendor AMIGO		0x0e0b	Amigo Technology
+vendor SMART2		0x0e39	Smart Modular Technologies
 vendor SPEEDDRAGON	0x0e55	Speed Dragon Multimedia
 vendor HAWKING		0x0e66	Hawking
 vendor FOSSIL		0x0e67	Fossil, Inc
@@ -4372,6 +4373,9 @@ product SKANHEX SX_520Z		0x5200	SX 520z Camera
 
 /* Smart Technologies products */
 product SMART PL2303		0x2303	Serial adapter
+
+/* Smart Modular Technologies products */
+product SMART2 G2MEMKEY		0x1700	G2 Memory Key
 
 /* SmartBridges products */
 product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB Ethernet
