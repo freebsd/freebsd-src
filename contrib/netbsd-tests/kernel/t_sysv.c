@@ -47,6 +47,7 @@
 #include <unistd.h>
 
 #include <sys/ipc.h>
+#include <sys/mman.h>
 #include <sys/msg.h>
 #include <sys/param.h>
 #include <sys/sem.h>
@@ -772,17 +773,25 @@ ATF_TC_BODY(shm, tc)
 		atf_tc_fail("sender: received unexpected signal");
 }
 
-ATF_TC_CLEANUP(shm, tc)
+static void
+shmid_cleanup(const char *name)
 {
-	int sender_shmid;
+	int shmid;
 
 	/*
 	 * Remove the shared memory area if it exists.
 	 */
-	sender_shmid = read_int("sender_shmid");
-	if (sender_shmid != -1)
-		if (shmctl(sender_shmid, IPC_RMID, NULL) == -1)
+	shmid = read_int(name);
+	if (shmid != -1) {
+		if (shmctl(shmid, IPC_RMID, NULL) == -1)
 			err(1, "shmctl IPC_RMID");
+	}
+}
+
+ATF_TC_CLEANUP(shm, tc)
+{
+
+	shmid_cleanup("sender_shmid");
 }
 
 void
@@ -837,12 +846,53 @@ sharer(void)
 	exit(0);
 }
 
+#ifdef SHM_REMAP
+ATF_TC_WITH_CLEANUP(shm_remap);
+ATF_TC_HEAD(shm_remap, tc)
+{
+
+	atf_tc_set_md_var(tc, "descr", "Checks SHM_REMAP");
+}
+
+ATF_TC_BODY(shm_remap, tc)
+{
+	char *shm_buf;
+	int shmid_remap;
+
+	pgsize = sysconf(_SC_PAGESIZE);
+
+	shmkey = get_ftok(4160);
+	ATF_REQUIRE_MSG(shmkey != (key_t)-1, "get_ftok failed");
+
+	ATF_REQUIRE_MSG((shmid_remap = shmget(shmkey, pgsize,
+	    IPC_CREAT | 0640)) != -1, "shmget: %d", errno);
+	write_int("shmid_remap", shmid_remap);
+
+	ATF_REQUIRE_MSG((shm_buf = mmap(NULL, pgsize, PROT_READ | PROT_WRITE,
+	    MAP_ANON | MAP_PRIVATE, -1, 0)) != MAP_FAILED, "mmap: %d", errno);
+
+	ATF_REQUIRE_MSG(shmat(shmid_remap, shm_buf, 0) == (void *)-1,
+	    "shmat without MAP_REMAP succeeded");
+	ATF_REQUIRE_MSG(shmat(shmid_remap, shm_buf, SHM_REMAP) == shm_buf,
+	    "shmat(SHM_REMAP): %d", errno);
+}
+
+ATF_TC_CLEANUP(shm_remap, tc)
+{
+
+	shmid_cleanup("shmid_remap");
+}
+#endif	/* SHM_REMAP */
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, msg);
 	ATF_TP_ADD_TC(tp, sem);
 	ATF_TP_ADD_TC(tp, shm);
+#ifdef SHM_REMAP
+	ATF_TP_ADD_TC(tp, shm_remap);
+#endif
 
 	return atf_no_error();
 }
