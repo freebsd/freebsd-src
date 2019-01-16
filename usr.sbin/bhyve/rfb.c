@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 
 #include <assert.h>
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <pthread.h>
@@ -1024,7 +1027,7 @@ rfb_init(char *hostname, int port, int wait, char *password)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(rc->sfd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(rc->sfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
