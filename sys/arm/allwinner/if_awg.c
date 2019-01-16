@@ -750,6 +750,31 @@ awg_disable_intr(struct awg_softc *sc)
 	WR4(sc, EMAC_INT_EN, 0);
 }
 
+static int
+awg_reset(struct awg_softc *sc)
+{
+	int retry;
+
+	/* Soft reset all registers and logic */
+	WR4(sc, EMAC_BASIC_CTL_1, BASIC_CTL_SOFT_RST);
+
+	/* Wait for soft reset bit to self-clear */
+	for (retry = SOFT_RST_RETRY; retry > 0; retry--) {
+		if ((RD4(sc, EMAC_BASIC_CTL_1) & BASIC_CTL_SOFT_RST) == 0)
+			break;
+		DELAY(10);
+	}
+	if (retry == 0) {
+		device_printf(sc->dev, "soft reset timed out\n");
+#ifdef AWG_DEBUG
+		awg_dump_regs(sc->dev);
+#endif
+		return (ETIMEDOUT);
+	}
+
+	return (0);
+}
+
 static void
 awg_init_locked(struct awg_softc *sc)
 {
@@ -764,6 +789,12 @@ awg_init_locked(struct awg_softc *sc)
 
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
+
+	awg_reset(sc);
+
+	/* Write transmit and receive descriptor base address registers */
+	WR4(sc, EMAC_TX_DMA_LIST, sc->tx.desc_ring_paddr);
+	WR4(sc, EMAC_RX_DMA_LIST, sc->rx.desc_ring_paddr);
 
 	awg_setup_rxfilter(sc);
 
@@ -1653,40 +1684,6 @@ awg_phy_reset(device_t dev)
 	return (0);
 }
 
-static int
-awg_reset(device_t dev)
-{
-	struct awg_softc *sc;
-	int retry;
-
-	sc = device_get_softc(dev);
-
-	/* Reset PHY if necessary */
-	if (awg_phy_reset(dev) != 0) {
-		device_printf(dev, "failed to reset PHY\n");
-		return (ENXIO);
-	}
-
-	/* Soft reset all registers and logic */
-	WR4(sc, EMAC_BASIC_CTL_1, BASIC_CTL_SOFT_RST);
-
-	/* Wait for soft reset bit to self-clear */
-	for (retry = SOFT_RST_RETRY; retry > 0; retry--) {
-		if ((RD4(sc, EMAC_BASIC_CTL_1) & BASIC_CTL_SOFT_RST) == 0)
-			break;
-		DELAY(10);
-	}
-	if (retry == 0) {
-		device_printf(dev, "soft reset timed out\n");
-#ifdef AWG_DEBUG
-		awg_dump_regs(dev);
-#endif
-		return (ETIMEDOUT);
-	}
-
-	return (0);
-}
-
 static void
 awg_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
@@ -1840,10 +1837,6 @@ awg_setup_dma(device_t dev)
 	bus_dmamap_sync(sc->rx.desc_tag, sc->rx.desc_map,
 	    BUS_DMASYNC_PREWRITE);
 
-	/* Write transmit and receive descriptor base address registers */
-	WR4(sc, EMAC_TX_DMA_LIST, sc->tx.desc_ring_paddr);
-	WR4(sc, EMAC_RX_DMA_LIST, sc->rx.desc_ring_paddr);
-
 	return (0);
 }
 
@@ -1888,10 +1881,12 @@ awg_attach(device_t dev)
 	/* Read MAC address before resetting the chip */
 	awg_get_eaddr(dev, eaddr);
 
-	/* Soft reset EMAC core */
-	error = awg_reset(dev);
-	if (error != 0)
+	/* Reset PHY if necessary */
+	error = awg_phy_reset(dev);
+	if (error != 0) {
+		device_printf(dev, "failed to reset PHY\n");
 		return (error);
+	}
 
 	/* Setup DMA descriptors */
 	error = awg_setup_dma(dev);
