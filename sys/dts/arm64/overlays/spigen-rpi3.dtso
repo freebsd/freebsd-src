@@ -4,7 +4,7 @@
 /plugin/;
 
 / {
-	compatible = "brcm,bcm2836";
+	compatible = "brcm,bcm2837";
 };
 	
 &{/soc/spi@7e204000} {
