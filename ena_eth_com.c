@@ -386,7 +386,7 @@ int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
 
 	/* num_bufs +1 for potential meta desc */
 	if (!ena_com_sq_have_enough_space(io_sq, num_bufs + 1)) {
-		ena_trc_err("Not enough space in the tx queue\n");
+		ena_trc_dbg("Not enough space in the tx queue\n");
 		return ENA_COM_NO_MEM;
 	}
 
