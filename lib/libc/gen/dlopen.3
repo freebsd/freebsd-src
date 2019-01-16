@@ -32,11 +32,12 @@
 .\" @(#) dlopen.3 1.6 90/01/31 SMI
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2019
+.Dd January 15, 2019
 .Dt DLOPEN 3
 .Os
 .Sh NAME
 .Nm dlopen ,
+.Nm dlopenat ,
 .Nm fdlopen ,
 .Nm dlsym ,
 .Nm dlvsym ,
@@ -50,6 +51,8 @@
 .In dlfcn.h
 .Ft void *
 .Fn dlopen "const char *path" "int mode"
+.Ft void *
+.Fn dlopenat "int fd" "const char *path" "int mode"
 .Ft void *
 .Fn fdlopen "int fd" "int mode"
 .Ft void *
@@ -169,6 +172,24 @@ If
 fails, it returns a null pointer, and sets an error condition which may
 be interrogated with
 .Fn dlerror .
+.Pp
+The
+.Fn dlopenat
+function is equivalent to
+.Fn dlopen
+except in the case where the path specifies a relative path.
+In this case the file to be opened is determined relative to the
+directory associated with the file descriptor fd instead of the
+current working directory.
+If
+.Fn dlopenat
+is passed the special value
+.Dv AT_FDCWD
+in the
+.Fa fd
+parameter, the current working directory is used and the behavior is
+identical to a call to
+.Fn dlopen .
 .Pp
 The
 .Fn fdlopen
