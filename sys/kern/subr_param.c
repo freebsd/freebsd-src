@@ -291,10 +291,7 @@ init_param2(long physpages)
 	 * Physical buffers are pre-allocated buffers (struct buf) that
 	 * are used as temporary holders for I/O, such as paging I/O.
 	 */
-	nswbuf = min(nbuf / 4, 256);
 	TUNABLE_INT_FETCH("kern.nswbuf", &nswbuf);
-	if (nswbuf < NSWBUF_MIN)
-		nswbuf = NSWBUF_MIN;
 
 	/*
 	 * The default for maxpipekva is min(1/64 of the kernel address space,

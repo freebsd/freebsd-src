@@ -1124,6 +1124,12 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 			nbuf = buf_sz / BKVASIZE;
 	}
 
+	if (nswbuf == 0) {
+		nswbuf = min(nbuf / 4, 256);
+		if (nswbuf < NSWBUF_MIN)
+			nswbuf = NSWBUF_MIN;
+	}
+
 	/*
 	 * Reserve space for the buffer cache buffers
 	 */
