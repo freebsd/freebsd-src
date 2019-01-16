@@ -365,7 +365,7 @@ struct uma_zone {
 	uint16_t	uz_count_min;	/* Minimal amount of items in bucket */
 
 	/* Offset 256, stats. */
-	counter_u64_t	uz_allocs; /* Total number of allocations */
+	counter_u64_t	uz_allocs;	/* Total number of allocations */
 	counter_u64_t	uz_frees;	/* Total number of frees */
 	counter_u64_t	uz_fails;	/* Total number of alloc failures */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
