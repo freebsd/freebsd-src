@@ -221,11 +221,9 @@ again:
 		panic("startup: table size inconsistency");
 
 	/*
-	 * Allocate the clean map to hold all of the paging and I/O virtual
-	 * memory.
+	 * Allocate the clean map to hold all of I/O virtual memory.
 	 */
-	size = (long)nbuf * BKVASIZE + (long)nswbuf * MAXPHYS +
-	    (long)bio_transient_maxcnt * MAXPHYS;
+	size = (long)nbuf * BKVASIZE + (long)bio_transient_maxcnt * MAXPHYS;
 	kmi->clean_sva = firstaddr = kva_alloc(size);
 	kmi->clean_eva = firstaddr + size;
 
@@ -240,13 +238,6 @@ again:
 	kmi->buffer_eva = kmi->buffer_sva + size;
 	vmem_init(buffer_arena, "buffer arena", kmi->buffer_sva, size,
 	    PAGE_SIZE, (mp_ncpus > 4) ? BKVASIZE * 8 : 0, 0);
-	firstaddr += size;
-
-	/*
-	 * Now swap kva.
-	 */
-	swapbkva = firstaddr;
-	size = (long)nswbuf * MAXPHYS;
 	firstaddr += size;
 
 	/*
