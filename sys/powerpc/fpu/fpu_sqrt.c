@@ -226,12 +226,12 @@ fpu_sqrt(struct fpemu *fe)
 		return (x);
 	}
 	if (x->fp_sign) {
+		fe->fe_cx |= FPSCR_VXSQRT;
 		return (fpu_newnan(fe));
 	}
 	if (ISINF(x)) {
-		fe->fe_cx |= FPSCR_VXSQRT;
-		DUMPFPN(FPE_REG, 0);
-		return (0);
+		DUMPFPN(FPE_REG, x);
+		return (x);
 	}
 
 	/*
