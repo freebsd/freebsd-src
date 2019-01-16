@@ -120,6 +120,7 @@ void	*dlopen(const char *, int);
 void	*dlsym(void * __restrict, const char * __restrict);
 
 #if __BSD_VISIBLE
+void	*dlopenat(int, const char *, int);
 void	*fdlopen(int, int);
 int	 dladdr(const void * __restrict, Dl_info * __restrict);
 dlfunc_t dlfunc(void * __restrict, const char * __restrict);
