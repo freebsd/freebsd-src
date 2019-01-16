@@ -168,6 +168,7 @@ static int	iwn_alloc_tx_ring(struct iwn_softc *, struct iwn_tx_ring *,
 		    int);
 static void	iwn_reset_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
 static void	iwn_free_tx_ring(struct iwn_softc *, struct iwn_tx_ring *);
+static void	iwn_check_tx_ring(struct iwn_softc *, int);
 static void	iwn5000_ict_reset(struct iwn_softc *);
 static int	iwn_read_eeprom(struct iwn_softc *,
 		    uint8_t macaddr[IEEE80211_ADDR_LEN]);
@@ -199,6 +200,8 @@ static void	iwn_calib_timeout(void *);
 static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_rx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
+static void	iwn_agg_tx_complete(struct iwn_softc *, struct iwn_tx_ring *,
+		    int, int, int);
 static void	iwn_rx_compressed_ba(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn5000_rx_calib_results(struct iwn_softc *,
 		    struct iwn_rx_desc *);
@@ -207,10 +210,13 @@ static void	iwn4965_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
 static void	iwn5000_tx_done(struct iwn_softc *, struct iwn_rx_desc *,
 		    struct iwn_rx_data *);
+static void	iwn_adj_ampdu_ptr(struct iwn_softc *, struct iwn_tx_ring *);
 static void	iwn_tx_done(struct iwn_softc *, struct iwn_rx_desc *, int, int,
 		    uint8_t);
-static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, int, int,
-		    void *);
+static int	iwn_ampdu_check_bitmap(uint64_t, int, int);
+static int	iwn_ampdu_index_check(struct iwn_softc *, struct iwn_tx_ring *,
+		    uint64_t, int, int);
+static void	iwn_ampdu_tx_done(struct iwn_softc *, int, int, int, void *);
 static void	iwn_cmd_done(struct iwn_softc *, struct iwn_rx_desc *);
 static void	iwn_notif_intr(struct iwn_softc *);
 static void	iwn_wakeup_intr(struct iwn_softc *);
@@ -2075,6 +2081,8 @@ iwn_reset_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 			ieee80211_free_node(data->ni);
 			data->ni = NULL;
 		}
+		data->remapped = 0;
+		data->long_retries = 0;
 	}
 	/* Clear TX descriptors. */
 	memset(ring->desc, 0, ring->desc_dma.size);
@@ -2110,6 +2118,42 @@ iwn_free_tx_ring(struct iwn_softc *sc, struct iwn_tx_ring *ring)
 	if (ring->data_dmat != NULL) {
 		bus_dma_tag_destroy(ring->data_dmat);
 		ring->data_dmat = NULL;
+	}
+}
+
+static void
+iwn_check_tx_ring(struct iwn_softc *sc, int qid)
+{
+	struct iwn_tx_ring *ring = &sc->txq[qid];
+
+	KASSERT(ring->queued >= 0, ("%s: ring->queued (%d) for queue %d < 0!",
+	    __func__, ring->queued, qid));
+
+	if (qid >= sc->firstaggqueue) {
+		struct iwn_ops *ops = &sc->ops;
+		struct ieee80211_tx_ampdu *tap = sc->qid2tap[qid];
+
+		if (ring->queued == 0 && !IEEE80211_AMPDU_RUNNING(tap)) {
+			uint16_t ssn = tap->txa_start & 0xfff;
+			uint8_t tid = tap->txa_tid;
+			int *res = tap->txa_private;
+
+			iwn_nic_lock(sc);
+			ops->ampdu_tx_stop(sc, qid, tid, ssn);
+			iwn_nic_unlock(sc);
+
+			sc->qid2tap[qid] = NULL;
+			free(res, M_DEVBUF);
+		}
+	}
+
+	if (ring->queued < IWN_TX_RING_LOMARK) {
+		sc->qfullmsk &= ~(1 << qid);
+
+		if (ring->queued == 0)
+			sc->sc_tx_timer = 0;
+		else
+			sc->sc_tx_timer = 5;
 	}
 }
 
@@ -3169,104 +3213,129 @@ iwn_rx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 
 }
 
+static void
+iwn_agg_tx_complete(struct iwn_softc *sc, struct iwn_tx_ring *ring, int tid,
+    int idx, int success)
+{
+	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
+	struct iwn_tx_data *data = &ring->data[idx];
+	struct iwn_node *wn;
+	struct mbuf *m;
+	struct ieee80211_node *ni;
+
+	KASSERT(data->ni != NULL, ("idx %d: no node", idx));
+	KASSERT(data->m != NULL, ("idx %d: no mbuf", idx));
+
+	/* Unmap and free mbuf. */
+	bus_dmamap_sync(ring->data_dmat, data->map,
+	    BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(ring->data_dmat, data->map);
+	m = data->m, data->m = NULL;
+	ni = data->ni, data->ni = NULL;
+	wn = (void *)ni;
+
+#if 0
+	/* XXX causes significant performance degradation. */
+	txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
+		     IEEE80211_RATECTL_STATUS_LONG_RETRY;
+	txs->long_retries = data->long_retries - 1;
+#else
+	txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY;
+#endif
+	txs->short_retries = wn->agg[tid].short_retries;
+	if (success)
+		txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+	else
+		txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
+
+	wn->agg[tid].short_retries = 0;
+	data->long_retries = 0;
+
+	DPRINTF(sc, IWN_DEBUG_AMPDU, "%s: freeing m %p ni %p idx %d qid %d\n",
+	    __func__, m, ni, idx, ring->qid);
+	ieee80211_ratectl_tx_complete(ni, txs);
+	ieee80211_tx_complete(ni, m, !success);
+}
+
 /* Process an incoming Compressed BlockAck. */
 static void
 iwn_rx_compressed_ba(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 {
-	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
-	struct iwn_ops *ops = &sc->ops;
+	struct iwn_tx_ring *ring;
+	struct iwn_tx_data *data;
 	struct iwn_node *wn;
-	struct ieee80211_node *ni;
 	struct iwn_compressed_ba *ba = (struct iwn_compressed_ba *)(desc + 1);
-	struct iwn_tx_ring *txq;
-	struct iwn_tx_data *txdata;
 	struct ieee80211_tx_ampdu *tap;
-	struct mbuf *m;
 	uint64_t bitmap;
-	uint16_t ssn;
 	uint8_t tid;
-	int i, lastidx, qid, *res, shift;
-	int tx_ok = 0, tx_err = 0;
+	int i, qid, shift;
+	int tx_ok = 0;
 
-	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT, "->%s begin\n", __func__);
+	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
 	qid = le16toh(ba->qid);
-	txq = &sc->txq[ba->qid];
-	tap = sc->qid2tap[ba->qid];
+	tap = sc->qid2tap[qid];
+	ring = &sc->txq[qid];
 	tid = tap->txa_tid;
 	wn = (void *)tap->txa_ni;
 
-	res = NULL;
-	ssn = 0;
-	if (!IEEE80211_AMPDU_RUNNING(tap)) {
-		res = tap->txa_private;
-		ssn = tap->txa_start & 0xfff;
-	}
-
-	for (lastidx = le16toh(ba->ssn) & 0xff; txq->read != lastidx;) {
-		txdata = &txq->data[txq->read];
-
-		/* Unmap and free mbuf. */
-		bus_dmamap_sync(txq->data_dmat, txdata->map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(txq->data_dmat, txdata->map);
-		m = txdata->m, txdata->m = NULL;
-		ni = txdata->ni, txdata->ni = NULL;
-
-		KASSERT(ni != NULL, ("no node"));
-		KASSERT(m != NULL, ("no mbuf"));
-
-		DPRINTF(sc, IWN_DEBUG_XMIT, "%s: freeing m=%p\n", __func__, m);
-		ieee80211_tx_complete(ni, m, 1);
-
-		txq->queued--;
-		txq->read = (txq->read + 1) % IWN_TX_RING_COUNT;
-	}
-
-	if (txq->queued == 0 && res != NULL) {
-		iwn_nic_lock(sc);
-		ops->ampdu_tx_stop(sc, qid, tid, ssn);
-		iwn_nic_unlock(sc);
-		sc->qid2tap[qid] = NULL;
-		free(res, M_DEVBUF);
-		return;
-	}
+	DPRINTF(sc, IWN_DEBUG_AMPDU, "%s: qid %d tid %d seq %04X ssn %04X\n"
+	    "bitmap: ba %016jX wn %016jX, start %d\n",
+	    __func__, qid, tid, le16toh(ba->seq), le16toh(ba->ssn),
+	    (uintmax_t)le64toh(ba->bitmap), (uintmax_t)wn->agg[tid].bitmap,
+	    wn->agg[tid].startidx);
 
 	if (wn->agg[tid].bitmap == 0)
 		return;
 
 	shift = wn->agg[tid].startidx - ((le16toh(ba->seq) >> 4) & 0xff);
-	if (shift < 0)
+	if (shift <= -64)
 		shift += 0x100;
 
-	if (wn->agg[tid].nframes > (64 - shift))
-		return;
-
 	/*
-	 * Walk the bitmap and calculate how many successful and failed
-	 * attempts are made.
+	 * Walk the bitmap and calculate how many successful attempts
+	 * are made.
 	 *
 	 * Yes, the rate control code doesn't know these are A-MPDU
-	 * subframes and that it's okay to fail some of these.
+	 * subframes; due to that long_retries stats are not used here.
 	 */
-	ni = tap->txa_ni;
-	bitmap = (le64toh(ba->bitmap) >> shift) & wn->agg[tid].bitmap;
-	for (i = 0; bitmap; i++) {
-		txs->flags = 0;		/* XXX TODO */
-		if ((bitmap & 1) == 0) {
-			tx_err ++;
-			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
-		} else {
-			tx_ok ++;
-			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
+	bitmap = le64toh(ba->bitmap);
+	if (shift >= 0)
+		bitmap >>= shift;
+	else
+		bitmap <<= -shift;
+	bitmap &= wn->agg[tid].bitmap;
+	wn->agg[tid].bitmap = 0;
+
+	for (i = wn->agg[tid].startidx;
+	     bitmap;
+	     bitmap >>= 1, i = (i + 1) % IWN_TX_RING_COUNT) {
+		if ((bitmap & 1) == 0)
+			continue;
+
+		data = &ring->data[i];
+		if (__predict_false(data->m == NULL)) {
+			/*
+			 * There is no frame; skip this entry.
+			 *
+			 * NB: it is "ok" to have both
+			 * 'tx done' + 'compressed BA' replies for frame
+			 * with STATE_SCD_QUERY status.
+			 */
+			DPRINTF(sc, IWN_DEBUG_AMPDU,
+			    "%s: ring %d: no entry %d\n", __func__, qid, i);
+			continue;
 		}
-		ieee80211_ratectl_tx_complete(ni, txs);
-		bitmap >>= 1;
+
+		tx_ok++;
+		iwn_agg_tx_complete(sc, ring, tid, i, 1);
 	}
 
-	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_XMIT,
-	    "->%s: end; %d ok; %d err\n",__func__, tx_ok, tx_err);
+	ring->queued -= tx_ok;
+	iwn_check_tx_ring(sc, qid);
 
+	DPRINTF(sc, IWN_DEBUG_TRACE | IWN_DEBUG_AMPDU,
+	    "->%s: end; %d ok\n",__func__, tx_ok);
 }
 
 /*
@@ -3514,9 +3583,9 @@ iwn4965_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	    stat->rate, le16toh(stat->duration),
 	    le32toh(stat->status));
 
-	if (qid >= sc->firstaggqueue) {
-		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
-		    stat->rtsfailcnt, stat->ackfailcnt, &stat->status);
+	if (qid >= sc->firstaggqueue && stat->nframes != 1) {
+		iwn_ampdu_tx_done(sc, qid, stat->nframes, stat->rtsfailcnt,
+		    &stat->status);
 	} else {
 		iwn_tx_done(sc, desc, stat->rtsfailcnt, stat->ackfailcnt,
 		    le32toh(stat->status) & 0xff);
@@ -3544,13 +3613,30 @@ iwn5000_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	iwn5000_reset_sched(sc, qid, desc->idx);
 #endif
 
-	if (qid >= sc->firstaggqueue) {
-		iwn_ampdu_tx_done(sc, qid, desc->idx, stat->nframes,
-		    stat->rtsfailcnt, stat->ackfailcnt, &stat->status);
+	if (qid >= sc->firstaggqueue && stat->nframes != 1) {
+		iwn_ampdu_tx_done(sc, qid, stat->nframes, stat->rtsfailcnt,
+		    &stat->status);
 	} else {
 		iwn_tx_done(sc, desc, stat->rtsfailcnt, stat->ackfailcnt,
 		    le16toh(stat->status) & 0xff);
 	}
+}
+
+static void
+iwn_adj_ampdu_ptr(struct iwn_softc *sc, struct iwn_tx_ring *ring)
+{
+	int i;
+
+	for (i = ring->read; i != ring->cur; i = (i + 1) % IWN_TX_RING_COUNT) {
+		struct iwn_tx_data *data = &ring->data[i];
+
+		if (data->m != NULL)
+			break;
+
+		data->remapped = 0;
+	}
+
+	ring->read = i;
 }
 
 /*
@@ -3566,7 +3652,18 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int rtsfailcnt,
 	struct mbuf *m;
 	struct ieee80211_node *ni;
 
+	if (__predict_false(data->m == NULL &&
+	    ring->qid >= sc->firstaggqueue)) {
+		/*
+		 * There is no frame; skip this entry.
+		 */
+		DPRINTF(sc, IWN_DEBUG_AMPDU, "%s: ring %d: no entry %d\n",
+		    __func__, ring->qid, desc->idx);
+		return;
+	}
+
 	KASSERT(data->ni != NULL, ("no node"));
+	KASSERT(data->m != NULL, ("no mbuf"));
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
 
@@ -3575,6 +3672,19 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int rtsfailcnt,
 	bus_dmamap_unload(ring->data_dmat, data->map);
 	m = data->m, data->m = NULL;
 	ni = data->ni, data->ni = NULL;
+
+	data->long_retries = 0;
+
+	if (ring->qid >= sc->firstaggqueue)
+		iwn_adj_ampdu_ptr(sc, ring);
+
+	/*
+	 * XXX f/w may hang (device timeout) when desc->idx - ring->read == 64
+	 * (aggregation queues only).
+	 */
+
+	ring->queued--;
+	iwn_check_tx_ring(sc, ring->qid);
 
 	/*
 	 * Update rate control statistics for the node.
@@ -3624,10 +3734,6 @@ iwn_tx_done(struct iwn_softc *sc, struct iwn_rx_desc *desc, int rtsfailcnt,
 		ieee80211_tx_complete(ni, m,
 		    (status & IWN_TX_FAIL) != 0);
 
-	sc->sc_tx_timer = 0;
-	if (--ring->queued < IWN_TX_RING_LOMARK)
-		sc->qfullmsk &= ~(1 << ring->qid);
-
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 }
 
@@ -3664,148 +3770,218 @@ iwn_cmd_done(struct iwn_softc *sc, struct iwn_rx_desc *desc)
 	wakeup(&ring->desc[desc->idx]);
 }
 
-static void
-iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
-    int rtsfailcnt, int ackfailcnt, void *stat)
+static int
+iwn_ampdu_check_bitmap(uint64_t bitmap, int start, int idx)
 {
-	struct iwn_ops *ops = &sc->ops;
-	struct iwn_tx_ring *ring = &sc->txq[qid];
-	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
-	struct iwn_tx_data *data;
-	struct mbuf *m;
-	struct iwn_node *wn;
-	struct ieee80211_node *ni;
-	struct ieee80211_tx_ampdu *tap;
-	uint64_t bitmap;
-	uint32_t *status = stat;
-	uint16_t *aggstatus = stat;
-	uint16_t ssn;
-	uint8_t tid;
-	int bit, i, lastidx, *res, seqno, shift, start;
+	int bit, shift;
 
-	/* XXX TODO: status is le16 field! Grr */
-
-	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
-	DPRINTF(sc, IWN_DEBUG_XMIT, "%s: nframes=%d, status=0x%08x\n",
-	    __func__,
-	    nframes,
-	    *status);
-
-	tap = sc->qid2tap[qid];
-	tid = tap->txa_tid;
-	wn = (void *)tap->txa_ni;
-	ni = tap->txa_ni;
-
-	/*
-	 * XXX TODO: ACK and RTS failures would be nice here!
-	 */
-
-	/*
-	 * A-MPDU single frame status - if we failed to transmit it
-	 * in A-MPDU, then it may be a permanent failure.
-	 *
-	 * XXX TODO: check what the Linux iwlwifi driver does here;
-	 * there's some permanent and temporary failures that may be
-	 * handled differently.
-	 */
-	if (nframes == 1) {
-		txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
-			     IEEE80211_RATECTL_STATUS_LONG_RETRY;
-		txs->short_retries = rtsfailcnt;
-		txs->long_retries = ackfailcnt;
-		if ((*status & 0xff) != 1 && (*status & 0xff) != 2) {
-#ifdef	NOT_YET
-			printf("ieee80211_send_bar()\n");
-#endif
-			/*
-			 * If we completely fail a transmit, make sure a
-			 * notification is pushed up to the rate control
-			 * layer.
-			 */
-			/* XXX */
-			txs->status = IEEE80211_RATECTL_TX_FAIL_UNSPECIFIED;
-		} else {
-			/*
-			 * If nframes=1, then we won't be getting a BA for
-			 * this frame.  Ensure that we correctly update the
-			 * rate control code with how many retries were
-			 * needed to send it.
-			 */
-			txs->status = IEEE80211_RATECTL_TX_SUCCESS;
-		}
-		ieee80211_ratectl_tx_complete(ni, txs);
+	bit = idx - start;
+	shift = 0;
+	if (bit >= 64) {
+		shift = 0x100 - bit;
+		bit = 0;
+	} else if (bit <= -64)
+		bit = 0x100 + bit;
+	else if (bit < 0) {
+		shift = -bit;
+		bit = 0;
 	}
 
-	bitmap = 0;
-	start = idx;
+	if (bit - shift >= 64)
+		return (0);
+
+	return ((bitmap & (1ULL << (bit - shift))) != 0);
+}
+
+/*
+ * Firmware bug workaround: in case if 'retries' counter
+ * overflows 'seqno' field will be incremented:
+ *    status|sequence|status|sequence|status|sequence
+ *     0000    0A48    0001    0A49    0000    0A6A
+ *     1000    0A48    1000    0A49    1000    0A6A
+ *     2000    0A48    2000    0A49    2000    0A6A
+ * ...
+ *     E000    0A48    E000    0A49    E000    0A6A
+ *     F000    0A48    F000    0A49    F000    0A6A
+ *     0000    0A49    0000    0A49    0000    0A6B
+ *     1000    0A49    1000    0A49    1000    0A6B
+ * ...
+ *     D000    0A49    D000    0A49    D000    0A6B
+ *     E000    0A49    E001    0A49    E000    0A6B
+ *     F000    0A49    F001    0A49    F000    0A6B
+ *     0000    0A4A    0000    0A4B    0000    0A6A
+ *     1000    0A4A    1000    0A4B    1000    0A6A
+ * ...
+ *
+ * Odd 'seqno' numbers are incremened by 2 every 2 overflows.
+ * For even 'seqno' % 4 != 0 overflow is cyclic (0 -> +1 -> 0).
+ * Not checked with nretries >= 64.
+ *
+ */
+static int
+iwn_ampdu_index_check(struct iwn_softc *sc, struct iwn_tx_ring *ring,
+    uint64_t bitmap, int start, int idx)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct iwn_tx_data *data;
+	int diff, min_retries, max_retries, new_idx, loop_end;
+
+	new_idx = idx - IWN_LONG_RETRY_LIMIT_LOG;
+	if (new_idx < 0)
+		new_idx += IWN_TX_RING_COUNT;
+
+	/*
+	 * Corner case: check if retry count is not too big;
+	 * reset device otherwise.
+	 */
+	if (!iwn_ampdu_check_bitmap(bitmap, start, new_idx)) {
+		data = &ring->data[new_idx];
+		if (data->long_retries > IWN_LONG_RETRY_LIMIT) {
+			device_printf(sc->sc_dev,
+			    "%s: retry count (%d) for idx %d/%d overflow, "
+			    "resetting...\n", __func__, data->long_retries,
+			    ring->qid, new_idx);
+			ieee80211_restart_all(ic);
+			return (-1);
+		}
+	}
+
+	/* Correct index if needed. */
+	loop_end = idx;
+	do {
+		data = &ring->data[new_idx];
+		diff = idx - new_idx;
+		if (diff < 0)
+			diff += IWN_TX_RING_COUNT;
+
+		min_retries = IWN_LONG_RETRY_FW_OVERFLOW * diff;
+		if ((new_idx % 2) == 0)
+			max_retries = IWN_LONG_RETRY_FW_OVERFLOW * (diff + 1);
+		else
+			max_retries = IWN_LONG_RETRY_FW_OVERFLOW * (diff + 2);
+
+		if (!iwn_ampdu_check_bitmap(bitmap, start, new_idx) &&
+		    ((data->long_retries >= min_retries &&
+		      data->long_retries < max_retries) ||
+		     (diff == 1 &&
+		      (new_idx & 0x03) == 0x02 &&
+		      data->long_retries >= IWN_LONG_RETRY_FW_OVERFLOW))) {
+			DPRINTF(sc, IWN_DEBUG_AMPDU,
+			    "%s: correcting index %d -> %d in queue %d"
+			    " (retries %d)\n", __func__, idx, new_idx,
+			    ring->qid, data->long_retries);
+			return (new_idx);
+		}
+
+		new_idx = (new_idx + 1) % IWN_TX_RING_COUNT;
+	} while (new_idx != loop_end);
+
+	return (idx);
+}
+
+static void
+iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int nframes, int rtsfailcnt,
+    void *stat)
+{
+	struct iwn_tx_ring *ring = &sc->txq[qid];
+	struct ieee80211_tx_ampdu *tap = sc->qid2tap[qid];
+	struct iwn_node *wn = (void *)tap->txa_ni;
+	struct iwn_tx_data *data;
+	uint64_t bitmap = 0;
+	uint16_t *aggstatus = stat;
+	uint8_t tid = tap->txa_tid;
+	int bit, i, idx, shift, start, tx_err;
+
+	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
+
+	start = le16toh(*(aggstatus + nframes * 2)) & 0xff;
+
 	for (i = 0; i < nframes; i++) {
-		if (le16toh(aggstatus[i * 2]) & 0xc)
+		uint16_t status = le16toh(aggstatus[i * 2]);
+
+		if (status & IWN_AGG_TX_STATE_IGNORE_MASK)
 			continue;
 
-		idx = le16toh(aggstatus[2*i + 1]) & 0xff;
+		idx = le16toh(aggstatus[i * 2 + 1]) & 0xff;
+		data = &ring->data[idx];
+		if (data->remapped) {
+			idx = iwn_ampdu_index_check(sc, ring, bitmap, start, idx);
+			if (idx == -1) {
+				/* skip error (device will be restarted anyway). */
+				continue;
+			}
+
+			/* Index may have changed. */
+			data = &ring->data[idx];
+		}
+
+		/*
+		 * XXX Sometimes (rarely) some frames are excluded from events.
+		 * XXX Due to that long_retries counter may be wrong.
+		 */
+		data->long_retries &= ~0x0f;
+		data->long_retries += IWN_AGG_TX_TRY_COUNT(status) + 1;
+
+		if (data->long_retries >= IWN_LONG_RETRY_FW_OVERFLOW) {
+			int diff, wrong_idx;
+
+			diff = data->long_retries / IWN_LONG_RETRY_FW_OVERFLOW;
+			wrong_idx = (idx + diff) % IWN_TX_RING_COUNT;
+
+			/*
+			 * Mark the entry so the above code will check it
+			 * next time.
+			 */
+			ring->data[wrong_idx].remapped = 1;
+		}
+
+		if (status & IWN_AGG_TX_STATE_UNDERRUN_MSK) {
+			/*
+			 * NB: count retries but postpone - it was not
+			 * transmitted.
+			 */
+			continue;
+		}
+
 		bit = idx - start;
 		shift = 0;
 		if (bit >= 64) {
-			shift = 0x100 - idx + start;
+			shift = 0x100 - bit;
 			bit = 0;
-			start = idx;
 		} else if (bit <= -64)
-			bit = 0x100 - start + idx;
+			bit = 0x100 + bit;
 		else if (bit < 0) {
-			shift = start - idx;
-			start = idx;
+			shift = -bit;
 			bit = 0;
 		}
 		bitmap = bitmap << shift;
 		bitmap |= 1ULL << bit;
 	}
-	tap = sc->qid2tap[qid];
-	tid = tap->txa_tid;
-	wn = (void *)tap->txa_ni;
-	wn->agg[tid].bitmap = bitmap;
 	wn->agg[tid].startidx = start;
-	wn->agg[tid].nframes = nframes;
+	wn->agg[tid].bitmap = bitmap;
+	wn->agg[tid].short_retries = rtsfailcnt;
 
-	res = NULL;
-	ssn = 0;
-	if (!IEEE80211_AMPDU_RUNNING(tap)) {
-		res = tap->txa_private;
-		ssn = tap->txa_start & 0xfff;
+	DPRINTF(sc, IWN_DEBUG_AMPDU, "%s: nframes %d start %d bitmap %016jX\n",
+	    __func__, nframes, start, (uintmax_t)bitmap);
+
+	i = ring->read;
+
+	for (tx_err = 0;
+	     i != wn->agg[tid].startidx;
+	     i = (i + 1) % IWN_TX_RING_COUNT) {
+		data = &ring->data[i];
+		data->remapped = 0;
+		if (data->m == NULL)
+			continue;
+
+		tx_err++;
+		iwn_agg_tx_complete(sc, ring, tid, i, 0);
 	}
 
-	/* This is going nframes DWORDS into the descriptor? */
-	seqno = le32toh(*(status + nframes)) & 0xfff;
-	for (lastidx = (seqno & 0xff); ring->read != lastidx;) {
-		data = &ring->data[ring->read];
+	ring->read = wn->agg[tid].startidx;
+	ring->queued -= tx_err;
 
-		/* Unmap and free mbuf. */
-		bus_dmamap_sync(ring->data_dmat, data->map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(ring->data_dmat, data->map);
-		m = data->m, data->m = NULL;
-		ni = data->ni, data->ni = NULL;
-
-		KASSERT(ni != NULL, ("no node"));
-		KASSERT(m != NULL, ("no mbuf"));
-		DPRINTF(sc, IWN_DEBUG_XMIT, "%s: freeing m=%p\n", __func__, m);
-		ieee80211_tx_complete(ni, m, 1);
-
-		ring->queued--;
-		ring->read = (ring->read + 1) % IWN_TX_RING_COUNT;
-	}
-
-	if (ring->queued == 0 && res != NULL) {
-		iwn_nic_lock(sc);
-		ops->ampdu_tx_stop(sc, qid, tid, ssn);
-		iwn_nic_unlock(sc);
-		sc->qid2tap[qid] = NULL;
-		free(res, M_DEVBUF);
-		return;
-	}
-
-	sc->sc_tx_timer = 0;
-	if (ring->queued < IWN_TX_RING_LOMARK)
-		sc->qfullmsk &= ~(1 << ring->qid);
+	iwn_check_tx_ring(sc, qid);
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s: end\n",__func__);
 }
@@ -4369,7 +4545,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
 	uint32_t flags;
-	uint16_t seqno, qos;
+	uint16_t qos;
 	uint8_t tid, type;
 	int ac, totlen, rate;
 
@@ -4411,25 +4587,17 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	 */
 
 	ac = M_WME_GETAC(m);
-	seqno = ni->ni_txseqs[tid];
 	if (m->m_flags & M_AMPDU_MPDU) {
 		struct ieee80211_tx_ampdu *tap = &ni->ni_tx_ampdu[ac];
 
-		if (!IEEE80211_AMPDU_RUNNING(tap)) {
+		if (!IEEE80211_AMPDU_RUNNING(tap))
 			return (EINVAL);
-		}
 
-		/*
-		 * Queue this frame to the hardware ring that we've
-		 * negotiated AMPDU TX on.
-		 *
-		 * Note that the sequence number must match the TX slot
-		 * being used!
-		 */
+		/* NB: clear Fragment Number field. */
+		/* XXX move this to net80211 */
+		*(uint16_t *)wh->i_seq = 0;
+
 		ac = *(int *)tap->txa_private;
-		*(uint16_t *)wh->i_seq =
-		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-		ni->ni_txseqs[tid]++;
 	}
 
 	/* Encrypt the frame if need be. */
@@ -4498,15 +4666,42 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 
 	ring = &sc->txq[ac];
-	if ((m->m_flags & M_AMPDU_MPDU) != 0 &&
-	    (seqno % 256) != ring->cur) {
-		device_printf(sc->sc_dev,
-		    "%s: m=%p: seqno (%d) (%d) != ring index (%d) !\n",
-		    __func__,
-		    m,
-		    seqno,
-		    seqno % 256,
-		    ring->cur);
+	if (m->m_flags & M_AMPDU_MPDU) {
+		uint16_t seqno = ni->ni_txseqs[tid];
+
+		if (ring->queued > IWN_TX_RING_COUNT / 2 &&
+		    (ring->cur + 1) % IWN_TX_RING_COUNT == ring->read) {
+			DPRINTF(sc, IWN_DEBUG_AMPDU, "%s: no more space "
+			    "(queued %d) left in %d queue!\n",
+			    __func__, ring->queued, ac);
+			return (ENOBUFS);
+		}
+
+		/*
+		 * Queue this frame to the hardware ring that we've
+		 * negotiated AMPDU TX on.
+		 *
+		 * Note that the sequence number must match the TX slot
+		 * being used!
+		 */
+		if ((seqno % 256) != ring->cur) {
+			device_printf(sc->sc_dev,
+			    "%s: m=%p: seqno (%d) (%d) != ring index (%d) !\n",
+			    __func__,
+			    m,
+			    seqno,
+			    seqno % 256,
+			    ring->cur);
+
+			/* XXX until D9195 will not be committed */
+			ni->ni_txseqs[tid] &= ~0xff;
+			ni->ni_txseqs[tid] += ring->cur;
+			seqno = ni->ni_txseqs[tid];
+		}
+
+		*(uint16_t *)wh->i_seq =
+		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+		ni->ni_txseqs[tid]++;
 	}
 
 	/* Prepare TX firmware command. */
@@ -4667,6 +4862,13 @@ iwn_tx_cmd(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 
 	desc = &ring->desc[ring->cur];
 	data = &ring->data[ring->cur];
+
+	if (__predict_false(data->m != NULL || data->ni != NULL)) {
+		device_printf(sc->sc_dev, "%s: ni (%p) or m (%p) for idx %d "
+		    "in queue %d is not NULL!\n", __func__, data->ni, data->m,
+		    ring->cur, ring->qid);
+		return EIO;
+	}
 
 	/* Prepare TX firmware command. */
 	cmd = &ring->cmd[ring->cur];
