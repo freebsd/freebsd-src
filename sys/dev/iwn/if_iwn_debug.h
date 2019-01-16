@@ -44,6 +44,7 @@ enum {
 	IWN_DEBUG_PWRSAVE	= 0x00004000,	/* Power save operations */
 	IWN_DEBUG_SCAN		= 0x00008000,	/* Scan related operations */
 	IWN_DEBUG_STATS		= 0x00010000,	/* Statistics updates */
+	IWN_DEBUG_AMPDU		= 0x00020000,	/* A-MPDU specific Tx */
 	IWN_DEBUG_REGISTER	= 0x20000000,	/* print chipset register */
 	IWN_DEBUG_TRACE		= 0x40000000,	/* Print begin and start driver function */
 	IWN_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
