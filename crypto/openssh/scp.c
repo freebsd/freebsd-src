@@ -1047,7 +1047,8 @@ sink(int argc, char **argv)
 			size = size * 10 + (*cp++ - '0');
 		if (*cp++ != ' ')
 			SCREWUP("size not delimited");
-		if ((strchr(cp, '/') != NULL) || (strcmp(cp, "..") == 0)) {
+		if (*cp == '\0' || strchr(cp, '/') != NULL ||
+		    strcmp(cp, ".") == 0 || strcmp(cp, "..") == 0) {
 			run_err("error: unexpected filename: %s", cp);
 			exit(1);
 		}
