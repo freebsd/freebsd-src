@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/iodev.h>
 
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -674,9 +677,9 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 
 #ifndef WITHOUT_CAPSICUM
-	if (cap_rights_limit(pcifd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(pcifd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (cap_ioctls_limit(pcifd, pci_ioctls, nitems(pci_ioctls)) == -1 && errno != ENOSYS)
+	if (caph_ioctls_limit(pcifd, pci_ioctls, nitems(pci_ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
@@ -689,9 +692,9 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	}
 
 #ifndef WITHOUT_CAPSICUM
-	if (cap_rights_limit(iofd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(iofd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (cap_ioctls_limit(iofd, io_ioctls, nitems(io_ioctls)) == -1 && errno != ENOSYS)
+	if (caph_ioctls_limit(iofd, io_ioctls, nitems(io_ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
@@ -706,7 +709,7 @@ passthru_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_clear(&rights, CAP_IOCTL);
 	cap_rights_set(&rights, CAP_MMAP_RW);
-	if (cap_rights_limit(memfd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(memfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 

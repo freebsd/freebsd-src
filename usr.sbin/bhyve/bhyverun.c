@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
-#include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
 #include <sysexits.h>
@@ -949,15 +948,13 @@ do_open(const char *vmname)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_IOCTL, CAP_MMAP_RW);
-	if (cap_rights_limit(vm_get_device_fd(ctx), &rights) == -1 &&
-	    errno != ENOSYS)
+	if (caph_rights_limit(vm_get_device_fd(ctx), &rights) == -1) 
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	vm_get_ioctls(&ncmds);
 	cmds = vm_get_ioctls(NULL);
 	if (cmds == NULL)
 		errx(EX_OSERR, "out of memory");
-	if (cap_ioctls_limit(vm_get_device_fd(ctx), cmds, ncmds) == -1 &&
-	    errno != ENOSYS)
+	if (caph_ioctls_limit(vm_get_device_fd(ctx), cmds, ncmds) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 	free((cap_ioctl_t *)cmds);
 #endif

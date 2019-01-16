@@ -43,6 +43,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/un.h>
 
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -328,7 +331,7 @@ pci_vtcon_sock_add(struct pci_vtcon_softc *sc, const char *name,
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(s, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(s, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 

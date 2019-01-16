@@ -684,14 +684,12 @@ uart_set_backend(struct uart_softc *sc, const char *opts)
 #ifndef WITHOUT_CAPSICUM
 		cap_rights_init(&rights, CAP_EVENT, CAP_IOCTL, CAP_READ,
 		    CAP_WRITE);
-		if (cap_rights_limit(sc->tty.fd, &rights) == -1 &&
-		    errno != ENOSYS)
+		if (caph_rights_limit(sc->tty.fd, &rights) == -1)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
-		if (cap_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1 &&
-		    errno != ENOSYS)
+		if (caph_ioctls_limit(sc->tty.fd, cmds, nitems(cmds)) == -1)
 			errx(EX_OSERR, "Unable to apply rights for sandbox");
 		if (!uart_stdio) {
-			if (caph_limit_stdin() == -1 && errno != ENOSYS)
+			if (caph_limit_stdin() == -1)
 				errx(EX_OSERR,
 				    "Unable to apply rights for sandbox");
 		}

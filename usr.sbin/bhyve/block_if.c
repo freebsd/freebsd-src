@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 
 #include <assert.h>
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -473,7 +476,7 @@ blockif_open(const char *optstr, const char *ident)
 	if (ro)
 		cap_rights_clear(&rights, CAP_FSYNC, CAP_WRITE);
 
-	if (cap_rights_limit(fd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(fd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
@@ -504,7 +507,7 @@ blockif_open(const char *optstr, const char *ident)
 		psectsz = sbuf.st_blksize;
 
 #ifndef WITHOUT_CAPSICUM
-	if (cap_ioctls_limit(fd, cmds, nitems(cmds)) == -1 && errno != ENOSYS)
+	if (caph_ioctls_limit(fd, cmds, nitems(cmds)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 

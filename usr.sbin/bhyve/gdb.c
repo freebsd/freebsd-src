@@ -1252,9 +1252,9 @@ limit_gdb_socket(int s)
 
 	cap_rights_init(&rights, CAP_ACCEPT, CAP_EVENT, CAP_READ, CAP_WRITE,
 	    CAP_SETSOCKOPT, CAP_IOCTL);
-	if (cap_rights_limit(s, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(s, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
-	if (cap_ioctls_limit(s, ioctls, nitems(ioctls)) == -1 && errno != ENOSYS)
+	if (caph_ioctls_limit(s, ioctls, nitems(ioctls)) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 }
 #endif

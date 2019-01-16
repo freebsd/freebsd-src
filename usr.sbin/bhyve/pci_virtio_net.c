@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <net/netmap_user.h>
 
+#ifndef WITHOUT_CAPSICUM
+#include <capsicum_helpers.h>
+#endif
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -779,7 +782,7 @@ pci_vtnet_tap_setup(struct pci_vtnet_softc *sc, char *devname)
 
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_init(&rights, CAP_EVENT, CAP_READ, CAP_WRITE);
-	if (cap_rights_limit(sc->vsc_tapfd, &rights) == -1 && errno != ENOSYS)
+	if (caph_rights_limit(sc->vsc_tapfd, &rights) == -1)
 		errx(EX_OSERR, "Unable to apply rights for sandbox");
 #endif
 
