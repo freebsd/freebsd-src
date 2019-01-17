@@ -882,7 +882,9 @@ fork1(struct thread *td, struct fork_req *fr)
 	 * processes; don't let root exceed the limit.
 	 */
 	nprocs_new = atomic_fetchadd_int(&nprocs, 1) + 1;
-	if ((nprocs_new >= maxproc - 10 && priv_check_cred(td->td_ucred, PRIV_MAXPROC) != 0) || nprocs_new >= maxproc) {
+	if ((nprocs_new >= maxproc - 10 &&
+	    priv_check_cred(td->td_ucred, PRIV_MAXPROC) != 0) ||
+	    nprocs_new >= maxproc) {
 		error = EAGAIN;
 		sx_xlock(&allproc_lock);
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
