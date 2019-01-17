@@ -116,14 +116,16 @@ main(int argc, char *argv[])
 	if (argc < 2 || argc > 4)
 		usage();
 
+	if (caph_limit_stdio() == -1)
+		err(ERR_EXIT, "failed to limit stdio");
+
 	/* Backward compatibility -- handle "-" meaning stdin. */
 	special = 0;
 	if (strcmp(file1 = argv[0], "-") == 0) {
 		special = 1;
-		fd1 = 0;
+		fd1 = STDIN_FILENO;
 		file1 = "stdin";
-	}
-	else if ((fd1 = open(file1, oflag, 0)) < 0 && errno != EMLINK) {
+	} else if ((fd1 = open(file1, oflag, 0)) < 0 && errno != EMLINK) {
 		if (!sflag)
 			err(ERR_EXIT, "%s", file1);
 		else
@@ -134,10 +136,9 @@ main(int argc, char *argv[])
 			errx(ERR_EXIT,
 				"standard input may only be specified once");
 		special = 1;
-		fd2 = 0;
+		fd2 = STDIN_FILENO;
 		file2 = "stdin";
-	}
-	else if ((fd2 = open(file2, oflag, 0)) < 0 && errno != EMLINK) {
+	} else if ((fd2 = open(file2, oflag, 0)) < 0 && errno != EMLINK) {
 		if (!sflag)
 			err(ERR_EXIT, "%s", file2);
 		else
@@ -174,16 +175,6 @@ main(int argc, char *argv[])
 		err(ERR_EXIT, "unable to limit fcntls for %s", file1);
 	if (caph_fcntls_limit(fd2, fcntls) < 0)
 		err(ERR_EXIT, "unable to limit fcntls for %s", file2);
-
-	if (!special) {
-		cap_rights_init(&rights);
-		if (caph_rights_limit(STDIN_FILENO, &rights) < 0) {
-			err(ERR_EXIT, "unable to limit stdio");
-		}
-	}
-
-	if (caph_limit_stdout() == -1 || caph_limit_stderr() == -1)
-		err(ERR_EXIT, "unable to limit stdio");
 
 	caph_cache_catpages();
 
