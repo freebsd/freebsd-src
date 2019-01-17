@@ -204,6 +204,7 @@
 #define	BSM_ERRNO_EKEYREJECTED		222	/* Linux-specific. */
 #define	BSM_ERRNO_ENOTCAPABLE		223	/* FreeBSD-specific. */
 #define	BSM_ERRNO_ECAPMODE		224	/* FreeBSD-specific. */
+#define	BSM_ERRNO_EINTEGRITY		225	/* FreeBSD-specific. */
 
 /*
  * In the event that OpenBSM doesn't have a file representation of a local
