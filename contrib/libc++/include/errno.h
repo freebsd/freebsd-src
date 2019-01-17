@@ -56,6 +56,7 @@ static const int __elast3 = 106;
 #if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
+#endif
 
 #elif !defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
@@ -63,6 +64,7 @@ static const int __elast3 = 106;
 #if defined(ELAST)
 #undef ELAST
 #define ELAST EOWNERDEAD
+#endif
 
 #elif !defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define EOWNERDEAD __elast1
@@ -70,12 +72,14 @@ static const int __elast3 = 106;
 #if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
+#endif
 
 #elif !defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
 #define EOWNERDEAD __elast1
 #if defined(ELAST)
 #undef ELAST
 #define ELAST EOWNERDEAD
+#endif
 
 #elif defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
@@ -83,18 +87,21 @@ static const int __elast3 = 106;
 #if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
+#endif
 
 #elif defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
 #if defined(ELAST)
 #undef ELAST
 #define ELAST ENOTRECOVERABLE
+#endif
 
 #elif defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define EINTEGRITY __elast1
 #if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
+#endif
 
 #endif // !defined(OWNERDEAD) && !defined(NOTRECOVERABLE) && !defined(INTEGRITY)
 
