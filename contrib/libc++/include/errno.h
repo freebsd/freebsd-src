@@ -39,13 +39,13 @@ Macros:
 
 static const int __elast1 = ELAST+1;
 static const int __elast2 = ELAST+2;
-static const int __elast2 = ELAST+3;
+static const int __elast3 = ELAST+3;
 
 #else
 
 static const int __elast1 = 104;
 static const int __elast2 = 105;
-static const int __elast2 = 106;
+static const int __elast3 = 106;
 
 #endif
 
