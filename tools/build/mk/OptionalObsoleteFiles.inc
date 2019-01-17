@@ -7354,6 +7354,7 @@ OLD_FILES+=usr/share/man/man8/rtquery.8.gz
 .endif
 
 .if ${MK_SENDMAIL} == no
+OLD_FILES+=etc/mtree/BSD.sendmail.dist
 OLD_FILES+=etc/newsyslog.conf.d/sendmail.conf
 OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
@@ -7592,6 +7593,7 @@ OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.ucbvax.m4
 OLD_DIRS+=usr/share/sendmail/cf/siteconfig
 OLD_DIRS+=usr/share/sendmail/cf
 OLD_DIRS+=usr/share/sendmail
+OLD_DIRS+=var/spool/clientmqueue
 .endif
 
 .if ${MK_SERVICESDB} == no
