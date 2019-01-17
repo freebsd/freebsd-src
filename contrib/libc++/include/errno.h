@@ -35,7 +35,7 @@ Macros:
 
 #if !defined(EOWNERDEAD) || !defined(ENOTRECOVERABLE) || !defined(EINTEGRITY)
 
-#ifdef ELAST
+#if defined(ELAST)
 
 static const int __elast1 = ELAST+1;
 static const int __elast2 = ELAST+2;
@@ -53,46 +53,46 @@ static const int __elast2 = 106;
 #define ENOTRECOVERABLE __elast1
 #define EOWNERDEAD __elast2
 #define EINTEGRITY __elast3
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
 
 #elif !defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
 #define EOWNERDEAD __elast2
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST EOWNERDEAD
 
 #elif !defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define EOWNERDEAD __elast1
 #define EINTEGRITY __elast2
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
 
 #elif !defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
 #define EOWNERDEAD __elast1
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST EOWNERDEAD
 
 #elif defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
 #define EINTEGRITY __elast2
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
 
 #elif defined(EOWNERDEAD) && !defined(ENOTRECOVERABLE) && defined(EINTEGRITY)
 #define ENOTRECOVERABLE __elast1
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST ENOTRECOVERABLE
 
 #elif defined(EOWNERDEAD) && defined(ENOTRECOVERABLE) && !defined(EINTEGRITY)
 #define EINTEGRITY __elast1
-#ifdef ELAST
+#if defined(ELAST)
 #undef ELAST
 #define ELAST EINTEGRITY
 
