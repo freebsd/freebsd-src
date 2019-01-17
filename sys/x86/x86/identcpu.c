@@ -1021,13 +1021,34 @@ printcpuinfo(void)
 			}
 
 			if (amd_extended_feature_extensions != 0) {
+				u_int amd_fe_masked;
+
+				amd_fe_masked = amd_extended_feature_extensions;
+				if ((amd_fe_masked & AMDFEID_IBRS) == 0)
+					amd_fe_masked &=
+					    ~(AMDFEID_IBRS_ALWAYSON |
+						AMDFEID_PREFER_IBRS);
+				if ((amd_fe_masked & AMDFEID_STIBP) == 0)
+					amd_fe_masked &=
+					    ~AMDFEID_STIBP_ALWAYSON;
+
 				printf("\n  "
 				    "AMD Extended Feature Extensions ID EBX="
-				    "0x%b", amd_extended_feature_extensions,
+				    "0x%b", amd_fe_masked,
 				    "\020"
 				    "\001CLZERO"
 				    "\002IRPerf"
-				    "\003XSaveErPtr");
+				    "\003XSaveErPtr"
+				    "\015IBPB"
+				    "\017IBRS"
+				    "\020STIBP"
+				    "\021IBRS_ALWAYSON"
+				    "\022STIBP_ALWAYSON"
+				    "\023PREFER_IBRS"
+				    "\031SSBD"
+				    "\032VIRT_SSBD"
+				    "\033SSB_NO"
+				    );
 			}
 
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)

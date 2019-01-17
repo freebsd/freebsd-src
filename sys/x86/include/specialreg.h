@@ -374,6 +374,17 @@
 #define	AMDFEID_CLZERO		0x00000001
 #define	AMDFEID_IRPERF		0x00000002
 #define	AMDFEID_XSAVEERPTR	0x00000004
+#define	AMDFEID_IBPB		0x00001000
+#define	AMDFEID_IBRS		0x00004000
+#define	AMDFEID_STIBP		0x00008000
+/* The below are only defined if the corresponding base feature above exists. */
+#define	AMDFEID_IBRS_ALWAYSON	0x00010000
+#define	AMDFEID_STIBP_ALWAYSON	0x00020000
+#define	AMDFEID_PREFER_IBRS	0x00040000
+#define	AMDFEID_SSBD		0x01000000
+/* SSBD via MSRC001_011F instead of MSR 0x48: */
+#define	AMDFEID_VIRT_SSBD	0x02000000
+#define	AMDFEID_SSB_NO		0x04000000
 
 /*
  * AMD extended function 8000_0008h ecx info
@@ -719,6 +730,10 @@
 /*
  * IA32_SPEC_CTRL and IA32_PRED_CMD MSRs are described in the Intel'
  * document 336996-001 Speculative Execution Side Channel Mitigations.
+ *
+ * AMD uses the same MSRs and bit definitions, as described in 111006-B
+ * "Indirect Branch Control Extension" and 124441 "Speculative Store Bypass
+ * Disable."
  */
 /* MSR IA32_SPEC_CTRL */
 #define	IA32_SPEC_CTRL_IBRS	0x00000001
