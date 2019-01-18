@@ -106,7 +106,8 @@ static struct rwlock_padalign vm_phys_fictitious_reg_lock;
 MALLOC_DEFINE(M_FICT_PAGES, "vm_fictitious", "Fictitious VM pages");
 
 static struct vm_freelist __aligned(CACHE_LINE_SIZE)
-    vm_phys_free_queues[MAXMEMDOM][VM_NFREELIST][VM_NFREEPOOL][VM_NFREEORDER];
+    vm_phys_free_queues[MAXMEMDOM][VM_NFREELIST][VM_NFREEPOOL]
+    [VM_NFREEORDER_MAX];
 
 static int __read_mostly vm_nfreelists;
 
