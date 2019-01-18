@@ -1595,12 +1595,10 @@ do {								\
 				break;
 
 			case IPPROTO_CARP:
-				PULLUP_TO(hlen, ulp, struct carp_header);
-				if (((struct carp_header *)ulp)->carp_version !=
-				    CARP_VERSION) 
-					return (IP_FW_DENY);
-				if (((struct carp_header *)ulp)->carp_type !=
-				    CARP_ADVERTISEMENT) 
+				PULLUP_TO(hlen, ulp, offsetof(
+				    struct carp_header, carp_counter));
+				if (CARP_ADVERTISEMENT !=
+				    ((struct carp_header *)ulp)->carp_type)
 					return (IP_FW_DENY);
 				break;
 
