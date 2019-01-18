@@ -136,6 +136,14 @@ x86_emulate_cpuid(struct vm *vm, int vcpu_id,
 		case CPUID_8000_0008:
 			cpuid_count(*eax, *ecx, regs);
 			if (vmm_is_amd()) {
+				/*
+				 * As on Intel (0000_0007:0, EDX), mask out
+				 * unsupported or unsafe AMD extended features
+				 * (8000_0008 EBX).
+				 */
+				regs[1] &= (AMDFEID_CLZERO | AMDFEID_IRPERF |
+				    AMDFEID_XSAVEERPTR);
+
 				vm_get_topology(vm, &sockets, &cores, &threads,
 				    &maxcpus);
 				/*
