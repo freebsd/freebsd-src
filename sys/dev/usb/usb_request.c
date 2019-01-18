@@ -1595,8 +1595,9 @@ usbd_req_get_port_status(struct usb_device *udev, struct mtx *mtx,
 	USETW(req.wValue, 0);
 	req.wIndex[0] = port;
 	req.wIndex[1] = 0;
-	USETW(req.wLength, sizeof *ps);
-	return (usbd_do_request(udev, mtx, &req, ps));
+	USETW(req.wLength, sizeof(*ps));
+
+	return (usbd_do_request_flags(udev, mtx, &req, ps, 0, NULL, 1000));
 }
 
 /*------------------------------------------------------------------------*
