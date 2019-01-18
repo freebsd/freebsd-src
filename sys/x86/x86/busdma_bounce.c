@@ -139,7 +139,7 @@ static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     int commit);
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
-    vm_offset_t vaddr, bus_addr_t addr1, bus_addr_t addr2, bus_size_t size);
+    vm_offset_t vaddr, vm_paddr_t addr1, vm_paddr_t addr2, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     pmap_t pmap, void *buf, bus_size_t buflen, int flags);
@@ -507,7 +507,7 @@ static void
 _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags)
 {
-	bus_addr_t curaddr;
+	vm_paddr_t curaddr;
 	bus_size_t sgsize;
 
 	if (map != &nobounce_dmamap && map->pagesneeded == 0) {
@@ -536,7 +536,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 {
 	vm_offset_t vaddr;
 	vm_offset_t vendaddr;
-	bus_addr_t paddr;
+	vm_paddr_t paddr;
 	bus_size_t sg_len;
 
 	if (map != &nobounce_dmamap && map->pagesneeded == 0) {
@@ -643,11 +643,18 @@ _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
  * Add a single contiguous physical range to the segment list.
  */
 static int
-_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
+_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t curaddr,
     bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
 {
 	bus_addr_t baddr, bmask;
 	int seg;
+
+	KASSERT(curaddr <= BUS_SPACE_MAXADDR,
+	    ("ds_addr %#jx > BUS_SPACE_MAXADDR %#jx; dmat %p fl %#x low %#jx "
+	    "hi %#jx",
+	    (uintmax_t)curaddr, (uintmax_t)BUS_SPACE_MAXADDR,
+	    dmat, dmat->bounce_flags, (uintmax_t)dmat->common.lowaddr,
+	    (uintmax_t)dmat->common.highaddr));
 
 	/*
 	 * Make sure we don't cross any boundaries.
@@ -695,7 +702,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
     int *segp)
 {
 	bus_size_t sgsize;
-	bus_addr_t curaddr;
+	vm_paddr_t curaddr;
 	int error;
 
 	if (map == NULL)
@@ -747,7 +754,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     int *segp)
 {
 	bus_size_t sgsize, max_sgsize;
-	bus_addr_t curaddr;
+	vm_paddr_t curaddr;
 	vm_offset_t kvaddr, vaddr;
 	int error;
 
@@ -1194,7 +1201,7 @@ reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int commit)
 
 static bus_addr_t
 add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
-    bus_addr_t addr1, bus_addr_t addr2, bus_size_t size)
+    vm_paddr_t addr1, vm_paddr_t addr2, bus_size_t size)
 {
 	struct bounce_zone *bz;
 	struct bounce_page *bpage;
