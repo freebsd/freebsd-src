@@ -118,7 +118,8 @@ typedef enum {
 	ADA_Q_4K		= 0x01,
 	ADA_Q_NCQ_TRIM_BROKEN	= 0x02,
 	ADA_Q_LOG_BROKEN	= 0x04,
-	ADA_Q_SMR_DM		= 0x08
+	ADA_Q_SMR_DM		= 0x08,
+	ADA_Q_NO_TRIM		= 0x10
 } ada_quirks;
 
 #define ADA_Q_BIT_STRING	\
@@ -126,7 +127,8 @@ typedef enum {
 	"\0014K"		\
 	"\002NCQ_TRIM_BROKEN"	\
 	"\003LOG_BROKEN"	\
-	"\004SMR_DM"
+	"\004SMR_DM"		\
+	"\005NO_TRIM"
 
 typedef enum {
 	ADA_CCB_RAHEAD		= 0x01,
@@ -540,6 +542,14 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		 */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSA2M*", "*" },
 		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * KingDian S200 60GB P0921B
+		 * Trimming crash the SSD
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KingDian S200 *", "*" },
+		/*quirks*/ADA_Q_NO_TRIM
 	},
 	{
 		/*
@@ -1810,6 +1820,10 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_flags = DISKFLAG_DIRECT_COMPLETION | DISKFLAG_CANZONE;
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
+	/* Device lies about TRIM capability. */
+	if ((softc->quirks & ADA_Q_NO_TRIM) &&
+	    (softc->flags & ADA_FLAG_CAN_TRIM))
+		softc->flags &= ~ADA_FLAG_CAN_TRIM;
 	if (softc->flags & ADA_FLAG_CAN_TRIM) {
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 		softc->disk->d_delmaxsize = softc->params.secsize *
