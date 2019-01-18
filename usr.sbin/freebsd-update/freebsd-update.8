@@ -27,7 +27,7 @@
 .\"
 .Dd June 14, 2017
 .Dt FREEBSD-UPDATE 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm freebsd-update
 .Nd fetch and install binary updates to FreeBSD
@@ -47,9 +47,12 @@
 The
 .Nm
 tool is used to fetch, install, and rollback binary
-updates to the FreeBSD base system.
+updates to the
+.Fx
+base system.
 Note that updates are only available if they are being built for the
-FreeBSD release and architecture being used; in particular, the
+.Fx
+release and architecture being used; in particular, the
 .Fx
 Security Team only builds updates for releases shipped in binary form
 by the
