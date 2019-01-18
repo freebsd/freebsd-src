@@ -6522,6 +6522,7 @@ OLD_FILES+=usr/bin/ypcat
 OLD_FILES+=usr/bin/ypchfn
 OLD_FILES+=usr/bin/ypchpass
 OLD_FILES+=usr/bin/ypchsh
+OLD_FILES+=usr/bin/ypldap
 OLD_FILES+=usr/bin/ypmatch
 OLD_FILES+=usr/bin/yppasswd
 OLD_FILES+=usr/bin/ypwhich
