@@ -497,7 +497,7 @@ run_command(struct cfjail *j)
 		argv = alloca(7 * sizeof(char *));
 		path = string_param(j->intparams[KP_PATH]);
 		if (path == NULL) {
-			jail_warnx(j, "mount.devfs: no path");
+			jail_warnx(j, "mount.devfs: no jail root path defined");
 			return -1;
 		}
 		devpath = alloca(strlen(path) + 5);
@@ -528,7 +528,7 @@ run_command(struct cfjail *j)
 		argv = alloca(7 * sizeof(char *));
 		path = string_param(j->intparams[KP_PATH]);
 		if (path == NULL) {
-			jail_warnx(j, "mount.fdescfs: no path");
+			jail_warnx(j, "mount.fdescfs: no jail root path defined");
 			return -1;
 		}
 		devpath = alloca(strlen(path) + 8);
@@ -554,7 +554,7 @@ run_command(struct cfjail *j)
 		argv = alloca(7 * sizeof(char *));
 		path = string_param(j->intparams[KP_PATH]);
 		if (path == NULL) {
-			jail_warnx(j, "mount.procfs: no path");
+			jail_warnx(j, "mount.procfs: no jail root path defined");
 			return -1;
 		}
 		devpath = alloca(strlen(path) + 6);
