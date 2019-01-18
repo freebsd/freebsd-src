@@ -60,6 +60,7 @@ enum SPA_mapping_type {
 	SPA_TYPE_VOLATILE_VIRTUAL_CD	= 5,
 	SPA_TYPE_PERSISTENT_VIRTUAL_DISK= 6,
 	SPA_TYPE_PERSISTENT_VIRTUAL_CD	= 7,
+	SPA_TYPE_UNKNOWN		= 127,
 };
 
 struct SPA_mapping {
@@ -88,6 +89,7 @@ extern int spa_mappings_cnt;
 
 MALLOC_DECLARE(M_NVDIMM);
 
+enum SPA_mapping_type nvdimm_spa_type_from_uuid(struct uuid *);
 struct nvdimm_dev *nvdimm_find_by_handle(nfit_handle_t nv_handle);
 int nvdimm_iterate_nfit(ACPI_TABLE_NFIT *nfitbl, enum AcpiNfitType type,
     int (*cb)(void *, void *), void *arg);
