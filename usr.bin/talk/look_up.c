@@ -59,13 +59,9 @@ check_local(void)
 	struct sockaddr addr;
 
 	/* the rest of msg was set up in get_names */
-#ifdef MSG_EOR
 	/* copy new style sockaddr to old, swap family (short in old) */
-	msg.ctl_addr = *(struct osockaddr *)&ctl_addr;
+	msg.ctl_addr = *(struct tsockaddr *)&ctl_addr;
 	msg.ctl_addr.sa_family = htons(ctl_addr.sin_family);
-#else
-	msg.ctl_addr = *(struct sockaddr *)&ctl_addr;
-#endif
 	/* must be initiating a talk */
 	if (!look_for_invite(rp))
 		return (0);

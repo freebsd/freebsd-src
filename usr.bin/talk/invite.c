@@ -77,13 +77,9 @@ invite_remote(void)
 	itimer.it_interval = itimer.it_value;
 	if (listen(sockt, 5) != 0)
 		p_error("Error on attempt to listen for caller");
-#ifdef MSG_EOR
 	/* copy new style sockaddr to old, swap family (short in old) */
-	msg.addr = *(struct osockaddr *)&my_addr;  /* XXX new to old  style*/
+	msg.addr = *(struct tsockaddr *)&my_addr;
 	msg.addr.sa_family = htons(my_addr.sin_family);
-#else
-	msg.addr = *(struct sockaddr *)&my_addr;
-#endif
 	msg.id_num = htonl(-1);		/* an impossible id_num */
 	invitation_waiting = 1;
 	announce_invite();
