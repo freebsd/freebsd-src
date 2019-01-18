@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/include/busdma_impl.h>
 
 #ifdef __i386__
-#define MAX_BPAGES 512
+#define MAX_BPAGES (Maxmem > atop(0x100000000ULL) ? 8192 : 512)
 #else
 #define MAX_BPAGES 8192
 #endif
