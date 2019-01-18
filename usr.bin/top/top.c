@@ -110,7 +110,8 @@ static const struct option longopts[] = {
     { "uids", no_argument, NULL, 'u' },
     { "version", no_argument, NULL, 'v' },
 	{ "swap", no_argument, NULL, 'w' },
-	{ "system-idle-procs", no_argument, NULL, 'z' }
+	{ "system-idle-procs", no_argument, NULL, 'z' },
+	{ NULL, 0, NULL, 0 }
 };
 
 static void
