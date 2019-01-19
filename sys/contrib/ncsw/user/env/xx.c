@@ -763,7 +763,7 @@ XX_PhysToVirt(physAddress_t addr)
 		return ((void *)(pv->pv_va + ((vm_offset_t)addr & PAGE_MASK)));
 
 	if (PMAP_HAS_DMAP)
-		return ((void *)PHYS_TO_DMAP(addr));
+		return ((void *)(uintptr_t)PHYS_TO_DMAP(addr));
 
 	printf("NetCommSW: "
 	    "Unable to translate physical address 0x%09jx!\n", (uintmax_t)addr);
