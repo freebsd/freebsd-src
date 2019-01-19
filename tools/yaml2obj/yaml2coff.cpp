@@ -24,6 +24,7 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/WithColor.h"
 #include "llvm/Support/raw_ostream.h"
 #include <vector>
 
@@ -46,7 +47,8 @@ struct COFFParser {
 
   bool isPE() const { return Obj.OptionalHeader.hasValue(); }
   bool is64Bit() const {
-    return Obj.Header.Machine == COFF::IMAGE_FILE_MACHINE_AMD64;
+    return Obj.Header.Machine == COFF::IMAGE_FILE_MACHINE_AMD64 ||
+           Obj.Header.Machine == COFF::IMAGE_FILE_MACHINE_ARM64;
   }
 
   uint32_t getFileAlignment() const {
@@ -519,7 +521,15 @@ static bool writeCOFF(COFFParser &CP, raw_ostream &OS) {
     assert(S.Header.SizeOfRawData >= S.SectionData.binary_size());
     OS << num_zeros(S.Header.SizeOfRawData - S.SectionData.binary_size());
     for (const COFFYAML::Relocation &R : S.Relocations) {
-      uint32_t SymbolTableIndex = SymbolTableIndexMap[R.SymbolName];
+      uint32_t SymbolTableIndex;
+      if (R.SymbolTableIndex) {
+        if (!R.SymbolName.empty())
+          WithColor::error()
+              << "Both SymbolName and SymbolTableIndex specified\n";
+        SymbolTableIndex = *R.SymbolTableIndex;
+      } else {
+        SymbolTableIndex = SymbolTableIndexMap[R.SymbolName];
+      }
       OS << binary_le(R.VirtualAddress)
          << binary_le(SymbolTableIndex)
          << binary_le(R.Type);

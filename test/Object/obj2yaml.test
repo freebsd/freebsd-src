@@ -651,7 +651,7 @@ WASM-NEXT: FileHeader:
 WASM-NEXT:   Version:         0x00000001
 WASM:        - Type:            CUSTOM
 WASM-NEXT:     Name:            linking
-WASM-NEXT:     Version:         1
+WASM-NEXT:     Version:         2
 WASM-NEXT:     SymbolTable:
 WASM-NEXT:       - Index:           0
 WASM-NEXT:         Kind:            FUNCTION
@@ -667,13 +667,15 @@ WASM-NEXT:         Size:            13
 WASM-NEXT:       - Index:           2
 WASM:              Name:            puts
 WASM:            - Index:           3
-WASM:              Name:            SomeOtherFunction
+WASM:              Name:            .LSomeOtherFunction_bitcast
 WASM:            - Index:           4
+WASM:              Name:            SomeOtherFunction
+WASM:            - Index:           5
 WASM:              Name:            var
 WASM:          SegmentInfo:
 WASM-NEXT:       - Index:           0
 WASM-NEXT:         Name:            .rodata..L.str
-WASM-NEXT:         Alignment:       1
+WASM-NEXT:         Alignment:       0
 WASM-NEXT:         Flags:           [  ]
 WASM-NEXT:       - Index:           1
 WASM:      ...

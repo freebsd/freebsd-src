@@ -231,7 +231,8 @@ void TestAllForms() {
   std::unique_ptr<DWARFContext> DwarfContext = DWARFContext::create(**Obj);
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
   auto DieDG = U->getUnitDIE(false);
   EXPECT_TRUE(DieDG.isValid());
 
@@ -496,7 +497,8 @@ template <uint16_t Version, class AddrType> void TestChildren() {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto DieDG = U->getUnitDIE(false);
@@ -672,8 +674,10 @@ template <uint16_t Version, class AddrType> void TestReferences() {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 2u);
-  DWARFCompileUnit *U1 = DwarfContext->getCompileUnitAtIndex(0);
-  DWARFCompileUnit *U2 = DwarfContext->getCompileUnitAtIndex(1);
+  DWARFCompileUnit *U1 =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
+  DWARFCompileUnit *U2 =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(1));
 
   // Get the compile unit DIE is valid.
   auto Unit1DieDG = U1->getUnitDIE(false);
@@ -880,7 +884,8 @@ template <uint16_t Version, class AddrType> void TestAddresses() {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto DieDG = U->getUnitDIE(false);
@@ -1002,6 +1007,99 @@ TEST(DWARFDebugInfo, TestDWARF32Version4Addr8Addresses) {
   TestAddresses<4, AddrType>();
 }
 
+TEST(DWARFDebugInfo, TestStringOffsets) {
+  Triple Triple = getHostTripleForAddrSize(sizeof(void *));
+  if (!isConfigurationSupported(Triple))
+    return;
+
+  const char *String1 = "Hello";
+  const char *String2 = "World";
+
+  auto ExpectedDG = dwarfgen::Generator::create(Triple, 5);
+  ASSERT_THAT_EXPECTED(ExpectedDG, Succeeded());
+  dwarfgen::Generator *DG = ExpectedDG.get().get();
+  dwarfgen::CompileUnit &CU = DG->addCompileUnit();
+  dwarfgen::DIE CUDie = CU.getUnitDIE();
+
+  CUDie.addStrOffsetsBaseAttribute();
+
+  uint16_t Attr = DW_AT_lo_user;
+
+  // Create our strings. First we create a non-indexed reference to String1,
+  // followed by an indexed String2. Finally, we add an indexed reference to
+  // String1.
+  const auto Attr1 = static_cast<dwarf::Attribute>(Attr++);
+  CUDie.addAttribute(Attr1, DW_FORM_strp, String1);
+
+  const auto Attr2 = static_cast<dwarf::Attribute>(Attr++);
+  CUDie.addAttribute(Attr2, DW_FORM_strx, String2);
+
+  const auto Attr3 = static_cast<dwarf::Attribute>(Attr++);
+  CUDie.addAttribute(Attr3, DW_FORM_strx, String1);
+
+  // Generate the DWARF
+  StringRef FileBytes = DG->generate();
+  MemoryBufferRef FileBuffer(FileBytes, "dwarf");
+  auto Obj = object::ObjectFile::createObjectFile(FileBuffer);
+  ASSERT_TRUE((bool)Obj);
+  std::unique_ptr<DWARFContext> DwarfContext = DWARFContext::create(**Obj);
+  uint32_t NumCUs = DwarfContext->getNumCompileUnits();
+  ASSERT_EQ(NumCUs, 1u);
+  DWARFUnit *U = DwarfContext->getUnitAtIndex(0);
+  auto DieDG = U->getUnitDIE(false);
+  ASSERT_TRUE(DieDG.isValid());
+
+  // Now make sure the string offsets came out properly. Attr2 should have index
+  // 0 (because it was the first indexed string) even though the string itself
+  // was added eariler.
+  auto Extracted1 = toString(DieDG.find(Attr1));
+  ASSERT_TRUE((bool)Extracted1);
+  EXPECT_STREQ(String1, *Extracted1);
+
+  Optional<DWARFFormValue> Form2 = DieDG.find(Attr2);
+  ASSERT_TRUE((bool)Form2);
+  EXPECT_EQ(0u, Form2->getRawUValue());
+  auto Extracted2 = toString(Form2);
+  ASSERT_TRUE((bool)Extracted2);
+  EXPECT_STREQ(String2, *Extracted2);
+
+  Optional<DWARFFormValue> Form3 = DieDG.find(Attr3);
+  ASSERT_TRUE((bool)Form3);
+  EXPECT_EQ(1u, Form3->getRawUValue());
+  auto Extracted3 = toString(Form3);
+  ASSERT_TRUE((bool)Extracted3);
+  EXPECT_STREQ(String1, *Extracted3);
+}
+
+TEST(DWARFDebugInfo, TestEmptyStringOffsets) {
+  Triple Triple = getHostTripleForAddrSize(sizeof(void *));
+  if (!isConfigurationSupported(Triple))
+    return;
+
+  const char *String1 = "Hello";
+
+  auto ExpectedDG = dwarfgen::Generator::create(Triple, 5);
+  ASSERT_THAT_EXPECTED(ExpectedDG, Succeeded());
+  dwarfgen::Generator *DG = ExpectedDG.get().get();
+  dwarfgen::CompileUnit &CU = DG->addCompileUnit();
+  dwarfgen::DIE CUDie = CU.getUnitDIE();
+
+  uint16_t Attr = DW_AT_lo_user;
+
+  // We shall insert only one string. It will be referenced directly.
+  const auto Attr1 = static_cast<dwarf::Attribute>(Attr++);
+  CUDie.addAttribute(Attr1, DW_FORM_strp, String1);
+
+  // Generate the DWARF
+  StringRef FileBytes = DG->generate();
+  MemoryBufferRef FileBuffer(FileBytes, "dwarf");
+  auto Obj = object::ObjectFile::createObjectFile(FileBuffer);
+  ASSERT_TRUE((bool)Obj);
+  std::unique_ptr<DWARFContext> DwarfContext = DWARFContext::create(**Obj);
+  EXPECT_TRUE(
+      DwarfContext->getDWARFObj().getStringOffsetSection().Data.empty());
+}
+
 TEST(DWARFDebugInfo, TestRelations) {
   Triple Triple = getHostTripleForAddrSize(sizeof(void *));
   if (!isConfigurationSupported(Triple))
@@ -1055,7 +1153,8 @@ TEST(DWARFDebugInfo, TestRelations) {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto CUDie = U->getUnitDIE(false);
@@ -1127,6 +1226,10 @@ TEST(DWARFDebugInfo, TestRelations) {
               testing::ElementsAre(B, C, D));
   EXPECT_THAT(std::vector<DWARFDie>(A.rbegin(), A.rend()),
               testing::ElementsAre(D, C, B));
+
+  // Make sure conversion from reverse iterator works as expected.
+  EXPECT_EQ(A.rbegin().base(), A.end());
+  EXPECT_EQ(A.rend().base(), A.begin());
 
   // Make sure iterator is bidirectional.
   {
@@ -1222,7 +1325,8 @@ TEST(DWARFDebugInfo, TestChildIterators) {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto CUDie = U->getUnitDIE(false);
@@ -1284,7 +1388,8 @@ TEST(DWARFDebugInfo, TestEmptyChildren) {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto CUDie = U->getUnitDIE(false);
@@ -1331,7 +1436,8 @@ TEST(DWARFDebugInfo, TestAttributeIterators) {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto CUDie = U->getUnitDIE(false);
@@ -1399,7 +1505,8 @@ TEST(DWARFDebugInfo, TestFindRecurse) {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto CUDie = U->getUnitDIE(false);
@@ -1606,7 +1713,8 @@ TEST(DWARFDebugInfo, TestFindAttrs) {
   // Verify the number of compile units is correct.
   uint32_t NumCUs = DwarfContext->getNumCompileUnits();
   EXPECT_EQ(NumCUs, 1u);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
 
   // Get the compile unit DIE is valid.
   auto CUDie = U->getUnitDIE(false);
@@ -1665,7 +1773,8 @@ TEST(DWARFDebugInfo, TestImplicitConstAbbrevs) {
   auto Obj = object::ObjectFile::createObjectFile(FileBuffer);
   EXPECT_TRUE((bool)Obj);
   std::unique_ptr<DWARFContext> DwarfContext = DWARFContext::create(**Obj);
-  DWARFCompileUnit *U = DwarfContext->getCompileUnitAtIndex(0);
+  DWARFCompileUnit *U =
+      cast<DWARFCompileUnit>(DwarfContext->getUnitAtIndex(0));
   EXPECT_TRUE((bool)U);
 
   const auto *Abbrevs = U->getAbbreviations();

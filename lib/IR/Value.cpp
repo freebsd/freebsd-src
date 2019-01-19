@@ -16,7 +16,6 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SetVector.h"
-#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -130,20 +129,11 @@ void Value::destroyValueName() {
 }
 
 bool Value::hasNUses(unsigned N) const {
-  const_use_iterator UI = use_begin(), E = use_end();
-
-  for (; N; --N, ++UI)
-    if (UI == E) return false;  // Too few.
-  return UI == E;
+  return hasNItems(use_begin(), use_end(), N);
 }
 
 bool Value::hasNUsesOrMore(unsigned N) const {
-  const_use_iterator UI = use_begin(), E = use_end();
-
-  for (; N; --N, ++UI)
-    if (UI == E) return false;  // Too few.
-
-  return true;
+  return hasNItemsOrMore(use_begin(), use_end(), N);
 }
 
 bool Value::isUsedInBasicBlock(const BasicBlock *BB) const {
@@ -405,7 +395,7 @@ static bool contains(Value *Expr, Value *V) {
 }
 #endif // NDEBUG
 
-void Value::doRAUW(Value *New, bool NoMetadata) {
+void Value::doRAUW(Value *New, ReplaceMetadataUses ReplaceMetaUses) {
   assert(New && "Value::replaceAllUsesWith(<null>) is invalid!");
   assert(!contains(New, this) &&
          "this->replaceAllUsesWith(expr(this)) is NOT valid!");
@@ -415,7 +405,7 @@ void Value::doRAUW(Value *New, bool NoMetadata) {
   // Notify all ValueHandles (if present) that this value is going away.
   if (HasValueHandle)
     ValueHandleBase::ValueIsRAUWd(this, New);
-  if (!NoMetadata && isUsedByMetadata())
+  if (ReplaceMetaUses == ReplaceMetadataUses::Yes && isUsedByMetadata())
     ValueAsMetadata::handleRAUW(this, New);
 
   while (!materialized_use_empty()) {
@@ -437,11 +427,11 @@ void Value::doRAUW(Value *New, bool NoMetadata) {
 }
 
 void Value::replaceAllUsesWith(Value *New) {
-  doRAUW(New, false /* NoMetadata */);
+  doRAUW(New, ReplaceMetadataUses::Yes);
 }
 
 void Value::replaceNonMetadataUsesWith(Value *New) {
-  doRAUW(New, true /* NoMetadata */);
+  doRAUW(New, ReplaceMetadataUses::No);
 }
 
 // Like replaceAllUsesWith except it does not handle constants or basic blocks.
@@ -512,8 +502,8 @@ static const Value *stripPointerCastsAndOffsets(const Value *V) {
         return V;
       V = GA->getAliasee();
     } else {
-      if (auto CS = ImmutableCallSite(V)) {
-        if (const Value *RV = CS.getReturnedArgOperand()) {
+      if (const auto *Call = dyn_cast<CallBase>(V)) {
+        if (const Value *RV = Call->getReturnedArgOperand()) {
           V = RV;
           continue;
         }
@@ -521,9 +511,9 @@ static const Value *stripPointerCastsAndOffsets(const Value *V) {
         // but it can't be marked with returned attribute, that's why it needs
         // special case.
         if (StripKind == PSK_ZeroIndicesAndAliasesAndInvariantGroups &&
-            (CS.getIntrinsicID() == Intrinsic::launder_invariant_group ||
-             CS.getIntrinsicID() == Intrinsic::strip_invariant_group)) {
-          V = CS.getArgOperand(0);
+            (Call->getIntrinsicID() == Intrinsic::launder_invariant_group ||
+             Call->getIntrinsicID() == Intrinsic::strip_invariant_group)) {
+          V = Call->getArgOperand(0);
           continue;
         }
       }
@@ -582,8 +572,8 @@ Value::stripAndAccumulateInBoundsConstantOffsets(const DataLayout &DL,
     } else if (auto *GA = dyn_cast<GlobalAlias>(V)) {
       V = GA->getAliasee();
     } else {
-      if (auto CS = ImmutableCallSite(V))
-        if (const Value *RV = CS.getReturnedArgOperand()) {
+      if (const auto *Call = dyn_cast<CallBase>(V))
+        if (const Value *RV = Call->getReturnedArgOperand()) {
           V = RV;
           continue;
         }
@@ -617,10 +607,11 @@ uint64_t Value::getPointerDereferenceableBytes(const DataLayout &DL,
       DerefBytes = A->getDereferenceableOrNullBytes();
       CanBeNull = true;
     }
-  } else if (auto CS = ImmutableCallSite(this)) {
-    DerefBytes = CS.getDereferenceableBytes(AttributeList::ReturnIndex);
+  } else if (const auto *Call = dyn_cast<CallBase>(this)) {
+    DerefBytes = Call->getDereferenceableBytes(AttributeList::ReturnIndex);
     if (DerefBytes == 0) {
-      DerefBytes = CS.getDereferenceableOrNullBytes(AttributeList::ReturnIndex);
+      DerefBytes =
+          Call->getDereferenceableOrNullBytes(AttributeList::ReturnIndex);
       CanBeNull = true;
     }
   } else if (const LoadInst *LI = dyn_cast<LoadInst>(this)) {
@@ -692,8 +683,8 @@ unsigned Value::getPointerAlignment(const DataLayout &DL) const {
       if (AllocatedType->isSized())
         Align = DL.getPrefTypeAlignment(AllocatedType);
     }
-  } else if (auto CS = ImmutableCallSite(this))
-    Align = CS.getAttributes().getRetAlignment();
+  } else if (const auto *Call = dyn_cast<CallBase>(this))
+    Align = Call->getAttributes().getRetAlignment();
   else if (const LoadInst *LI = dyn_cast<LoadInst>(this))
     if (MDNode *MD = LI->getMetadata(LLVMContext::MD_align)) {
       ConstantInt *CI = mdconst::extract<ConstantInt>(MD->getOperand(0));

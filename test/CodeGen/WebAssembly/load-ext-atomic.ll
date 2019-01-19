@@ -1,4 +1,4 @@
-; RUN: llc < %s -mattr=+atomics,+sign-ext -asm-verbose=false -disable-wasm-fallthrough-return-opt -disable-wasm-explicit-locals | FileCheck %s
+; RUN: llc < %s -mattr=+atomics,+sign-ext -asm-verbose=false -disable-wasm-fallthrough-return-opt -wasm-disable-explicit-locals -wasm-keep-registers | FileCheck %s
 
 ; Test that extending loads are assembled properly.
 
@@ -84,7 +84,7 @@ define i64 @zext_i16_i64(i16 *%p) {
 
 ; CHECK-LABEL: sext_i32_i64:
 ; CHECK: i32.atomic.load $push0=, 0($0){{$}}
-; CHECK: i64.extend_s/i32 $push1=, $pop0{{$}}
+; CHECK: i64.extend_i32_s $push1=, $pop0{{$}}
 ; CHECK-NEXT: return $pop1{{$}}
 define i64 @sext_i32_i64(i32 *%p) {
   %v = load atomic i32, i32* %p seq_cst, align 4

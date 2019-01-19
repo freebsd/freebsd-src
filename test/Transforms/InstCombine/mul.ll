@@ -409,7 +409,7 @@ define i32 @test32(i32 %X) {
 
 define <2 x i32> @test32vec(<2 x i32> %X) {
 ; CHECK-LABEL: @test32vec(
-; CHECK-NEXT:    [[MUL:%.*]] = shl nsw <2 x i32> [[X:%.*]], <i32 31, i32 31>
+; CHECK-NEXT:    [[MUL:%.*]] = shl <2 x i32> [[X:%.*]], <i32 31, i32 31>
 ; CHECK-NEXT:    ret <2 x i32> [[MUL]]
 ;
   %mul = mul nsw <2 x i32> %X, <i32 -2147483648, i32 -2147483648>
@@ -441,4 +441,79 @@ define i128 @test34(i128 %X) {
 ;
   %mul = mul nsw i128 %X, 2
   ret i128 %mul
+}
+
+define i32 @test_mul_canonicalize_op0(i32 %x, i32 %y) {
+; CHECK-LABEL: @test_mul_canonicalize_op0(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub i32 0, [[TMP1]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %neg = sub i32 0, %x
+  %mul = mul i32 %neg, %y
+  ret i32 %mul
+}
+
+define i32 @test_mul_canonicalize_op1(i32 %x, i32 %z) {
+; CHECK-LABEL: @test_mul_canonicalize_op1(
+; CHECK-NEXT:    [[Y:%.*]] = mul i32 [[Z:%.*]], 3
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[Y]], [[X:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub i32 0, [[TMP1]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %y = mul i32 %z, 3
+  %neg = sub i32 0, %x
+  %mul = mul i32 %y, %neg
+  ret i32 %mul
+}
+
+define i32 @test_mul_canonicalize_nsw(i32 %x, i32 %y) {
+; CHECK-LABEL: @test_mul_canonicalize_nsw(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i32 [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub i32 0, [[TMP1]]
+; CHECK-NEXT:    ret i32 [[MUL]]
+;
+  %neg = sub nsw i32 0, %x
+  %mul = mul nsw i32 %neg, %y
+  ret i32 %mul
+}
+
+define <2 x i32> @test_mul_canonicalize_vec(<2 x i32> %x, <2 x i32> %y) {
+; CHECK-LABEL: @test_mul_canonicalize_vec(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul <2 x i32> [[X:%.*]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = sub <2 x i32> zeroinitializer, [[TMP1]]
+; CHECK-NEXT:    ret <2 x i32> [[MUL]]
+;
+  %neg = sub <2 x i32> <i32 0, i32 0>, %x
+  %mul = mul <2 x i32> %neg, %y
+  ret <2 x i32> %mul
+}
+
+define i32 @test_mul_canonicalize_multiple_uses(i32 %x, i32 %y) {
+; CHECK-LABEL: @test_mul_canonicalize_multiple_uses(
+; CHECK-NEXT:    [[NEG:%.*]] = sub i32 0, [[X:%.*]]
+; CHECK-NEXT:    [[MUL:%.*]] = mul i32 [[NEG]], [[Y:%.*]]
+; CHECK-NEXT:    [[MUL2:%.*]] = mul i32 [[MUL]], [[NEG]]
+; CHECK-NEXT:    ret i32 [[MUL2]]
+;
+  %neg = sub i32 0, %x
+  %mul = mul i32 %neg, %y
+  %mul2 = mul i32 %mul, %neg
+  ret i32 %mul2
+}
+
+@X = global i32 5
+
+define i64 @test_mul_canonicalize_neg_is_not_undone(i64 %L1) {
+; Check we do not undo the canonicalization of 0 - (X * Y), if Y is a constant
+; expr.
+; CHECK-LABEL: @test_mul_canonicalize_neg_is_not_undone(
+; CHECK-NEXT:    [[TMP1:%.*]] = mul i64 [[L1:%.*]], ptrtoint (i32* @X to i64)
+; CHECK-NEXT:    [[B4:%.*]] = sub i64 0, [[TMP1]]
+; CHECK-NEXT:    ret i64 [[B4]]
+;
+  %v1 = ptrtoint i32* @X to i64
+  %B8 = sub i64 0, %v1
+  %B4 = mul i64 %B8, %L1
+  ret i64 %B4
 }

@@ -15,7 +15,6 @@ add_llvm_unittest(IRTests
   ConstantsTest.cpp
   DebugInfoTest.cpp
   DebugTypeODRUniquingTest.cpp
-  DeferredDominanceTest.cpp
   DominatorTreeTest.cpp
   DominatorTreeBatchUpdatesTest.cpp
   DomTreeUpdaterTest.cpp
@@ -31,7 +30,6 @@ add_llvm_unittest(IRTests
   ModuleTest.cpp
   PassManagerTest.cpp
   PatternMatch.cpp
-  TypeBuilderTest.cpp
   TypesTest.cpp
   UseTest.cpp
   UserTest.cpp
@@ -41,3 +39,5 @@ add_llvm_unittest(IRTests
   VerifierTest.cpp
   WaymarkTest.cpp
   )
+
+target_link_libraries(IRTests PRIVATE LLVMTestingSupport)

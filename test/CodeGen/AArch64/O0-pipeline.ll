@@ -32,7 +32,10 @@
 ; CHECK-NEXT:       Safe Stack instrumentation pass
 ; CHECK-NEXT:       Insert stack protectors
 ; CHECK-NEXT:       Module Verifier
+; CHECK-NEXT:       Analysis containing CSE Info
 ; CHECK-NEXT:       IRTranslator
+; CHECK-NEXT:       AArch64PreLegalizerCombiner
+; CHECK-NEXT:       Analysis containing CSE Info
 ; CHECK-NEXT:       Legalizer
 ; CHECK-NEXT:       RegBankSelect
 ; CHECK-NEXT:       Localizer
@@ -49,8 +52,10 @@
 ; CHECK-NEXT:       Prologue/Epilogue Insertion & Frame Finalization
 ; CHECK-NEXT:       Post-RA pseudo instruction expansion pass
 ; CHECK-NEXT:       AArch64 pseudo instruction expansion pass
+; CHECK-NEXT:       AArch64 speculation hardening pass
 ; CHECK-NEXT:       Analyze Machine Code For Garbage Collection
 ; CHECK-NEXT:       Branch relaxation pass
+; CHECK-NEXT:       AArch64 Branch Targets
 ; CHECK-NEXT:       Contiguously Lay Out Funclets
 ; CHECK-NEXT:       StackMap Liveness Analysis
 ; CHECK-NEXT:       Live DEBUG_VALUE analysis
