@@ -383,6 +383,19 @@ void PrintAddressSpaceLayout() {
           kHighShadowBeg > kMidMemEnd);
 }
 
+#if defined(__thumb__) && defined(__linux__)
+#define START_BACKGROUND_THREAD_IN_ASAN_INTERNAL
+#endif
+
+#ifndef START_BACKGROUND_THREAD_IN_ASAN_INTERNAL
+static bool UNUSED __local_asan_dyninit = [] {
+  MaybeStartBackgroudThread();
+  SetSoftRssLimitExceededCallback(AsanSoftRssLimitExceededCallback);
+
+  return false;
+}();
+#endif
+
 static void AsanInitInternal() {
   if (LIKELY(asan_inited)) return;
   SanitizerToolName = "AddressSanitizer";
@@ -395,6 +408,14 @@ static void AsanInitInternal() {
   // Initialize flags. This must be done early, because most of the
   // initialization steps look at flags().
   InitializeFlags();
+
+  // Stop performing init at this point if we are being loaded via
+  // dlopen() and the platform supports it.
+  if (SANITIZER_SUPPORTS_INIT_FOR_DLOPEN && UNLIKELY(HandleDlopenInit())) {
+    asan_init_is_running = false;
+    VReport(1, "AddressSanitizer init is being performed for dlopen().\n");
+    return;
+  }
 
   AsanCheckIncompatibleRT();
   AsanCheckDynamicRTPrereqs();
@@ -419,6 +440,8 @@ static void AsanInitInternal() {
 
   __asan_option_detect_stack_use_after_return =
       flags()->detect_stack_use_after_return;
+
+  __sanitizer::InitializePlatformEarly();
 
   // Re-exec ourselves if we need to set additional env or command line args.
   MaybeReexec();
@@ -447,8 +470,10 @@ static void AsanInitInternal() {
   allocator_options.SetFrom(flags(), common_flags());
   InitializeAllocator(allocator_options);
 
+#ifdef START_BACKGROUND_THREAD_IN_ASAN_INTERNAL
   MaybeStartBackgroudThread();
   SetSoftRssLimitExceededCallback(AsanSoftRssLimitExceededCallback);
+#endif
 
   // On Linux AsanThread::ThreadStart() calls malloc() that's why asan_inited
   // should be set to 1 prior to initializing the threads.

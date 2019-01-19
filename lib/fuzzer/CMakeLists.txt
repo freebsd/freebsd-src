@@ -3,8 +3,8 @@ set(LIBFUZZER_SOURCES
   FuzzerDataFlowTrace.cpp
   FuzzerDriver.cpp
   FuzzerExtFunctionsDlsym.cpp
-  FuzzerExtFunctionsDlsymWin.cpp
   FuzzerExtFunctionsWeak.cpp
+  FuzzerExtFunctionsWindows.cpp
   FuzzerExtraCounters.cpp
   FuzzerIO.cpp
   FuzzerIOPosix.cpp
@@ -25,6 +25,8 @@ set(LIBFUZZER_SOURCES
   FuzzerUtilWindows.cpp)
 
 set(LIBFUZZER_HEADERS
+  FuzzerBuiltins.h
+  FuzzerBuiltinsMsvc.h
   FuzzerCommand.h
   FuzzerCorpus.h
   FuzzerDataFlowTrace.h
@@ -124,12 +126,12 @@ if(OS_NAME MATCHES "Linux|Fuchsia" AND COMPILER_RT_LIBCXX_PATH)
     set(LIBCXX_${arch}_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libcxx_fuzzer_${arch})
     add_custom_libcxx(libcxx_fuzzer_${arch} ${LIBCXX_${arch}_PREFIX}
       CFLAGS ${TARGET_CFLAGS}
-             -D_LIBCPP_ABI_VERSION=Fuzzer
              -D_LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS=1
              -fvisibility=hidden
       CMAKE_ARGS -DCMAKE_CXX_COMPILER_WORKS=ON
                  -DLIBCXX_ENABLE_EXCEPTIONS=OFF
                  -DLIBCXX_ENABLE_SHARED=OFF
+                 -DLIBCXX_ABI_NAMESPACE=Fuzzer
                  -DLIBCXX_CXX_ABI=none)
     target_compile_options(RTfuzzer.${arch} PRIVATE -isystem ${LIBCXX_${arch}_PREFIX}/include/c++/v1)
     add_dependencies(RTfuzzer.${arch} libcxx_fuzzer_${arch}-build)

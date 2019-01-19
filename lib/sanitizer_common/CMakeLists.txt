@@ -16,8 +16,10 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_linux.cc
   sanitizer_linux_s390.cc
   sanitizer_mac.cc
+  sanitizer_netbsd.cc
   sanitizer_openbsd.cc
   sanitizer_persistent_allocator.cc
+  sanitizer_platform_limits_freebsd.cc
   sanitizer_platform_limits_linux.cc
   sanitizer_platform_limits_netbsd.cc
   sanitizer_platform_limits_openbsd.cc
@@ -36,6 +38,7 @@ set(SANITIZER_SOURCES_NOTERMINATION
   sanitizer_suppressions.cc
   sanitizer_tls_get_addr.cc
   sanitizer_thread_registry.cc
+  sanitizer_type_traits.cc
   sanitizer_win.cc)
 
 if(UNIX AND NOT APPLE AND NOT OS_NAME MATCHES "SunOS")
@@ -143,6 +146,7 @@ set(SANITIZER_IMPL_HEADERS
   sanitizer_libignore.h
   sanitizer_linux.h
   sanitizer_list.h
+  sanitizer_local_address_space_view.h
   sanitizer_mac.h
   sanitizer_malloc_mac.inc
   sanitizer_mutex.h
@@ -158,6 +162,7 @@ set(SANITIZER_IMPL_HEADERS
   sanitizer_procmaps.h
   sanitizer_quarantine.h
   sanitizer_report_decorator.h
+  sanitizer_ring_buffer.h
   sanitizer_rtems.h
   sanitizer_signal_interceptors.inc
   sanitizer_stackdepot.h
@@ -187,11 +192,8 @@ set(SANITIZER_IMPL_HEADERS
 
 include_directories(..)
 
-set(SANITIZER_COMMON_DEFINITIONS)
-
-include(CheckIncludeFile)
-append_have_file_definition(rpc/xdr.h HAVE_RPC_XDR_H SANITIZER_COMMON_DEFINITIONS)
-append_have_file_definition(tirpc/rpc/xdr.h HAVE_TIRPC_RPC_XDR_H SANITIZER_COMMON_DEFINITIONS)
+set(SANITIZER_COMMON_DEFINITIONS
+  HAVE_RPC_XDR_H=${HAVE_RPC_XDR_H})
 
 set(SANITIZER_CFLAGS ${SANITIZER_COMMON_CFLAGS})
 append_rtti_flag(OFF SANITIZER_CFLAGS)
