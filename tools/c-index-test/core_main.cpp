@@ -20,6 +20,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Serialization/ASTReader.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -73,6 +74,7 @@ static cl::opt<std::string>
 static void printSymbolInfo(SymbolInfo SymInfo, raw_ostream &OS);
 static void printSymbolNameAndUSR(const Decl *D, ASTContext &Ctx,
                                   raw_ostream &OS);
+static void printSymbolNameAndUSR(const clang::Module *Mod, raw_ostream &OS);
 
 namespace {
 
@@ -131,8 +133,9 @@ public:
     return true;
   }
 
-  bool handleModuleOccurence(const ImportDecl *ImportD, SymbolRoleSet Roles,
-                             SourceLocation Loc) override {
+  bool handleModuleOccurence(const ImportDecl *ImportD,
+                             const clang::Module *Mod,
+                             SymbolRoleSet Roles, SourceLocation Loc) override {
     ASTContext &Ctx = ImportD->getASTContext();
     SourceManager &SM = Ctx.getSourceManager();
 
@@ -145,7 +148,8 @@ public:
     printSymbolInfo(getSymbolInfo(ImportD), OS);
     OS << " | ";
 
-    OS << ImportD->getImportedModule()->getFullModuleName() << " | ";
+    printSymbolNameAndUSR(Mod, OS);
+    OS << " | ";
 
     printSymbolRoles(Roles, OS);
     OS << " |\n";
@@ -202,11 +206,11 @@ static void dumpModuleFileInputs(serialization::ModuleFile &Mod,
   });
 }
 
-static bool printSourceSymbols(ArrayRef<const char *> Args,
-                               bool dumpModuleImports,
-                               bool indexLocals) {
+static bool printSourceSymbols(const char *Executable,
+                               ArrayRef<const char *> Args,
+                               bool dumpModuleImports, bool indexLocals) {
   SmallVector<const char *, 4> ArgsWithProgName;
-  ArgsWithProgName.push_back("clang");
+  ArgsWithProgName.push_back(Executable);
   ArgsWithProgName.append(Args.begin(), Args.end());
   IntrusiveRefCntPtr<DiagnosticsEngine>
     Diags(CompilerInstance::createDiagnostics(new DiagnosticOptions));
@@ -307,6 +311,12 @@ static void printSymbolNameAndUSR(const Decl *D, ASTContext &Ctx,
   }
 }
 
+static void printSymbolNameAndUSR(const clang::Module *Mod, raw_ostream &OS) {
+  assert(Mod);
+  OS << Mod->getFullModuleName() << " | ";
+  generateFullUSRForModule(Mod, OS);
+}
+
 //===----------------------------------------------------------------------===//
 // Command line processing.
 //===----------------------------------------------------------------------===//
@@ -314,6 +324,8 @@ static void printSymbolNameAndUSR(const Decl *D, ASTContext &Ctx,
 int indextest_core_main(int argc, const char **argv) {
   sys::PrintStackTraceOnErrorSignal(argv[0]);
   PrettyStackTraceProgram X(argc, argv);
+  void *MainAddr = (void*) (intptr_t) indextest_core_main;
+  std::string Executable = llvm::sys::fs::getMainExecutable(argv[0], MainAddr);
 
   assert(argv[1] == StringRef("core"));
   ++argv;
@@ -343,7 +355,9 @@ int indextest_core_main(int argc, const char **argv) {
       errs() << "error: missing compiler args; pass '-- <compiler arguments>'\n";
       return 1;
     }
-    return printSourceSymbols(CompArgs, options::DumpModuleImports, options::IncludeLocals);
+    return printSourceSymbols(Executable.c_str(), CompArgs,
+                              options::DumpModuleImports,
+                              options::IncludeLocals);
   }
 
   return 0;

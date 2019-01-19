@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -std=c++11 %s
+// RUN: %clang_cc1 -verify -std=c++14 -fcxx-exceptions %s
 
 namespace RedeclAliasTypedef {
   template<typename U> using T = int;
@@ -178,4 +178,18 @@ struct S {
   using U = T<I>;
 };
 static_assert(__is_same(S<3>::U, X[2]), ""); // expected-error {{static_assert failed}}
+}
+
+namespace PR39623 {
+template <class T>
+using void_t = void;
+
+template <class T, class = void_t<typename T::wait_what>>
+int sfinae_me() { return 0; } // expected-note{{candidate template ignored: substitution failure}}
+
+int g = sfinae_me<int>(); // expected-error{{no matching function for call to 'sfinae_me'}}
+}
+
+namespace NullExceptionDecl {
+template<int... I> auto get = []() { try { } catch(...) {}; return I; }; // expected-error{{initializer contains unexpanded parameter pack 'I'}}
 }

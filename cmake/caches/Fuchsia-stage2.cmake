@@ -1,29 +1,33 @@
-# This file sets up a CMakeCache for the second stage of a Fuchsia toolchain
-# build.
+# This file sets up a CMakeCache for the second stage of a Fuchsia toolchain build.
 
 set(LLVM_TARGETS_TO_BUILD X86;ARM;AArch64 CACHE STRING "")
 
 set(PACKAGE_VENDOR Fuchsia CACHE STRING "")
 
-set(LLVM_INCLUDE_EXAMPLES OFF CACHE BOOL "")
-set(LLVM_INCLUDE_DOCS OFF CACHE BOOL "")
 set(LLVM_ENABLE_BACKTRACES OFF CACHE BOOL "")
+if(NOT APPLE)
+  set(LLVM_ENABLE_LLD ON CACHE BOOL "")
+endif()
+set(LLVM_ENABLE_LTO ON CACHE BOOL "")
+set(LLVM_ENABLE_MODULES ON CACHE BOOL "")
 set(LLVM_ENABLE_PER_TARGET_RUNTIME_DIR ON CACHE BOOL "")
 set(LLVM_ENABLE_TERMINFO OFF CACHE BOOL "")
 set(LLVM_ENABLE_ZLIB ON CACHE BOOL "")
 set(LLVM_EXTERNALIZE_DEBUGINFO ON CACHE BOOL "")
-set(CLANG_PLUGIN_SUPPORT OFF CACHE BOOL "")
+set(LLVM_INCLUDE_EXAMPLES OFF CACHE BOOL "")
+set(LLVM_INCLUDE_DOCS OFF CACHE BOOL "")
 
-set(LLVM_ENABLE_LTO ON CACHE BOOL "")
+set(CLANG_DEFAULT_CXX_STDLIB libc++ CACHE STRING "")
 if(NOT APPLE)
-  set(LLVM_ENABLE_LLD ON CACHE BOOL "")
   set(CLANG_DEFAULT_LINKER lld CACHE STRING "")
   set(CLANG_DEFAULT_OBJCOPY llvm-objcopy CACHE STRING "")
 endif()
-set(CLANG_DEFAULT_CXX_STDLIB libc++ CACHE STRING "")
 set(CLANG_DEFAULT_RTLIB compiler-rt CACHE STRING "")
+set(CLANG_PLUGIN_SUPPORT OFF CACHE BOOL "")
 
-set(LLVM_ENABLE_ASSERTIONS ON CACHE BOOL "")
+set(ENABLE_LINKER_BUILD_ID ON CACHE BOOL "")
+set(ENABLE_X86_RELAX_RELOCATIONS ON CACHE BOOL "")
+
 set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-O3 -gline-tables-only -DNDEBUG" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -gline-tables-only -DNDEBUG" CACHE STRING "")
@@ -31,38 +35,49 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -gline-tables-only -DNDEBUG" CACHE STRIN
 if(APPLE)
   list(APPEND BUILTIN_TARGETS "default")
   list(APPEND RUNTIME_TARGETS "default")
-elseif(UNIX)
-  foreach(target i386;x86_64;armhf;aarch64)
-    if(LINUX_${target}_SYSROOT)
-      # Set the per-target builtins options.
-      list(APPEND BUILTIN_TARGETS "${target}-linux-gnu")
-      set(BUILTINS_${target}-linux-gnu_CMAKE_SYSTEM_NAME Linux CACHE STRING "")
-      set(BUILTINS_${target}-linux-gnu_CMAKE_BUILD_TYPE Release CACHE STRING "")
-      set(BUILTINS_${target}-linux-gnu_CMAKE_SYSROOT ${LINUX_${target}_SYSROOT} CACHE STRING "")
 
-      # Set the per-target runtimes options.
-      list(APPEND RUNTIME_TARGETS "${target}-linux-gnu")
-      set(RUNTIMES_${target}-linux-gnu_CMAKE_SYSTEM_NAME Linux CACHE STRING "")
-      set(RUNTIMES_${target}-linux-gnu_CMAKE_BUILD_TYPE Release CACHE STRING "")
-      set(RUNTIMES_${target}-linux-gnu_CMAKE_SYSROOT ${LINUX_${target}_SYSROOT} CACHE STRING "")
-      set(RUNTIMES_${target}-linux-gnu_LLVM_ENABLE_ASSERTIONS ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBUNWIND_ENABLE_SHARED OFF CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBUNWIND_USE_COMPILER_RT ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBUNWIND_INSTALL_LIBRARY OFF CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXXABI_USE_COMPILER_RT ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXXABI_ENABLE_SHARED OFF CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXXABI_USE_LLVM_UNWINDER ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXXABI_ENABLE_STATIC_UNWINDER ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXXABI_INSTALL_LIBRARY OFF CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXX_USE_COMPILER_RT ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXX_ENABLE_SHARED OFF CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_LIBCXX_ENABLE_STATIC_ABI_LIBRARY ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_SANITIZER_CXX_ABI "libc++" CACHE STRING "")
-      set(RUNTIMES_${target}-linux-gnu_SANITIZER_CXX_ABI_INTREE ON CACHE BOOL "")
-      set(RUNTIMES_${target}-linux-gnu_COMPILER_RT_USE_BUILTINS_LIBRARY ON CACHE BOOL "")
-    endif()
-  endforeach()
+  set(COMPILER_RT_ENABLE_IOS OFF CACHE BOOL "")
+  set(COMPILER_RT_ENABLE_TVOS OFF CACHE BOOL "")
+  set(COMPILER_RT_ENABLE_WATCHOS OFF CACHE BOOL "")
 endif()
+
+foreach(target aarch64-linux-gnu;armv7-linux-gnueabihf;i386-linux-gnu;x86_64-linux-gnu)
+  if(LINUX_${target}_SYSROOT)
+    # Set the per-target builtins options.
+    list(APPEND BUILTIN_TARGETS "${target}")
+    set(BUILTINS_${target}_CMAKE_SYSTEM_NAME Linux CACHE STRING "")
+    set(BUILTINS_${target}_CMAKE_BUILD_TYPE Release CACHE STRING "")
+    set(BUILTINS_${target}_CMAKE_SYSROOT ${LINUX_${target}_SYSROOT} CACHE STRING "")
+    set(BUILTINS_${target}_CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld" CACHE STRING "")
+    set(BUILTINS_${target}_CMAKE_MODULE_LINKER_FLAGS "-fuse-ld=lld" CACHE STRING "")
+    set(BUILTINS_${target}_CMAKE_EXE_LINKER_FLAG "-fuse-ld=lld" CACHE STRING "")
+
+    # Set the per-target runtimes options.
+    list(APPEND RUNTIME_TARGETS "${target}")
+    set(RUNTIMES_${target}_CMAKE_SYSTEM_NAME Linux CACHE STRING "")
+    set(RUNTIMES_${target}_CMAKE_BUILD_TYPE Release CACHE STRING "")
+    set(RUNTIMES_${target}_CMAKE_SYSROOT ${LINUX_${target}_SYSROOT} CACHE STRING "")
+    set(RUNTIMES_${target}_CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld" CACHE STRING "")
+    set(RUNTIMES_${target}_CMAKE_MODULE_LINKER_FLAGS "-fuse-ld=lld" CACHE STRING "")
+    set(RUNTIMES_${target}_CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld" CACHE STRING "")
+    set(RUNTIMES_${target}_LLVM_ENABLE_ASSERTIONS ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBUNWIND_ENABLE_SHARED OFF CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBUNWIND_USE_COMPILER_RT ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBUNWIND_INSTALL_LIBRARY OFF CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXXABI_USE_COMPILER_RT ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXXABI_ENABLE_SHARED OFF CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXXABI_USE_LLVM_UNWINDER ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXXABI_ENABLE_STATIC_UNWINDER ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXXABI_INSTALL_LIBRARY OFF CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXX_USE_COMPILER_RT ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXX_ENABLE_SHARED OFF CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXX_ENABLE_STATIC_ABI_LIBRARY ON CACHE BOOL "")
+    set(RUNTIMES_${target}_LIBCXX_ABI_VERSION 2 CACHE STRING "")
+    set(RUNTIMES_${target}_SANITIZER_CXX_ABI "libc++" CACHE STRING "")
+    set(RUNTIMES_${target}_SANITIZER_CXX_ABI_INTREE ON CACHE BOOL "")
+    set(RUNTIMES_${target}_COMPILER_RT_USE_BUILTINS_LIBRARY ON CACHE BOOL "")
+  endif()
+endforeach()
 
 if(FUCHSIA_SDK)
   set(FUCHSIA_aarch64_NAME arm64)
@@ -78,25 +93,25 @@ if(FUCHSIA_SDK)
     list(APPEND BUILTIN_TARGETS "${target}-fuchsia")
     set(BUILTINS_${target}-fuchsia_CMAKE_SYSTEM_NAME Fuchsia CACHE STRING "")
     set(BUILTINS_${target}-fuchsia_CMAKE_BUILD_TYPE Release CACHE STRING "")
-    set(BUILTINS_${target}-fuchsia_CMAKE_ASM_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE PATH "")
-    set(BUILTINS_${target}-fuchsia_CMAKE_C_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE PATH "")
-    set(BUILTINS_${target}-fuchsia_CMAKE_CXX_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE PATH "")
-    set(BUILTINS_${target}-fuchsia_CMAKE_SHARED_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE PATH "")
-    set(BUILTINS_${target}-fuchsia_CMAKE_MODULE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE PATH "")
-    set(BUILTINS_${target}-fuchsia_CMAKE_EXE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE PATH "")
+    set(BUILTINS_${target}-fuchsia_CMAKE_ASM_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE STRING "")
+    set(BUILTINS_${target}-fuchsia_CMAKE_C_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE STRING "")
+    set(BUILTINS_${target}-fuchsia_CMAKE_CXX_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE STRING "")
+    set(BUILTINS_${target}-fuchsia_CMAKE_SHARED_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE STRING "")
+    set(BUILTINS_${target}-fuchsia_CMAKE_MODULE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE STRING "")
+    set(BUILTINS_${target}-fuchsia_CMAKE_EXE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE STRING "")
     set(BUILTINS_${target}-fuchsia_CMAKE_SYSROOT ${FUCHSIA_${target}_SYSROOT} CACHE PATH "")
 
     # Set the per-target runtimes options.
     list(APPEND RUNTIME_TARGETS "${target}-fuchsia")
     set(RUNTIMES_${target}-fuchsia_CMAKE_SYSTEM_NAME Fuchsia CACHE STRING "")
     set(RUNTIMES_${target}-fuchsia_CMAKE_BUILD_TYPE Release CACHE STRING "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_BUILD_WITH_INSTALL_RPATH ON CACHE STRING "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_ASM_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE PATH "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_C_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE PATH "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_CXX_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE PATH "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_SHARED_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE PATH "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_MODULE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE PATH "")
-    set(RUNTIMES_${target}-fuchsia_CMAKE_EXE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE PATH "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_BUILD_WITH_INSTALL_RPATH ON CACHE BOOL "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_ASM_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE STRING "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_C_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE STRING "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_CXX_FLAGS ${FUCHSIA_${target}_COMPILER_FLAGS} CACHE STRING "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_SHARED_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE STRING "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_MODULE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE STRING "")
+    set(RUNTIMES_${target}-fuchsia_CMAKE_EXE_LINKER_FLAGS ${FUCHSIA_${target}_LINKER_FLAGS} CACHE STRING "")
     set(RUNTIMES_${target}-fuchsia_CMAKE_SYSROOT ${FUCHSIA_${target}_SYSROOT} CACHE PATH "")
     set(RUNTIMES_${target}-fuchsia_LLVM_ENABLE_ASSERTIONS ON CACHE BOOL "")
     set(RUNTIMES_${target}-fuchsia_LIBUNWIND_USE_COMPILER_RT ON CACHE BOOL "")
@@ -109,6 +124,8 @@ if(FUCHSIA_SDK)
     set(RUNTIMES_${target}-fuchsia_LIBCXX_USE_COMPILER_RT ON CACHE BOOL "")
     set(RUNTIMES_${target}-fuchsia_LIBCXX_ENABLE_STATIC_ABI_LIBRARY ON CACHE BOOL "")
     set(RUNTIMES_${target}-fuchsia_LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY OFF CACHE BOOL "")
+    set(RUNTIMES_${target}-fuchsia_LIBCXX_HERMETIC_STATIC_LIBRARY ON CACHE BOOL "")
+    set(RUNTIMES_${target}-fuchsia_LIBCXX_ABI_VERSION 2 CACHE STRING "")
   endforeach()
 
   set(LLVM_RUNTIME_SANITIZERS "Address" CACHE STRING "")
@@ -127,6 +144,7 @@ set(LLVM_TOOLCHAIN_TOOLS
   llvm-cov
   llvm-cxxfilt
   llvm-dwarfdump
+  llvm-dwp
   llvm-lib
   llvm-nm
   llvm-objcopy
@@ -138,6 +156,7 @@ set(LLVM_TOOLCHAIN_TOOLS
   llvm-size
   llvm-strip
   llvm-symbolizer
+  llvm-xray
   opt
   sancov
   CACHE STRING "")
@@ -147,6 +166,7 @@ set(LLVM_DISTRIBUTION_COMPONENTS
   libclang
   lld
   LTO
+  clang-apply-replacements
   clang-format
   clang-headers
   clang-include-fixer

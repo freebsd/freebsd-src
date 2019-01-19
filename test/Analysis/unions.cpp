@@ -1,4 +1,4 @@
-// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,debug.ExprInspection %s -verify
+// RUN: %clang_analyze_cc1 -analyzer-checker=core,unix.Malloc,debug.ExprInspection %s -analyzer-config eagerly-assume=false -verify
 
 extern void clang_analyzer_eval(bool);
 extern "C" char *strdup(const char *s);
@@ -90,9 +90,8 @@ namespace PR17596 {
     char str[] = "abc";
     vv.s = str;
 
-    // FIXME: This is a leak of uu.s.
     uu = vv;
-  }
+  } // expected-warning{{leak}}
 
   void testIndirectInvalidation() {
     IntOrString uu;

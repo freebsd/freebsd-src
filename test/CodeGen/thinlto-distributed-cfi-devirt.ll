@@ -4,9 +4,11 @@
 ; It additionally enables -fwhole-program-vtables to get more information in
 ; TYPE_IDs of GLOBALVAL_SUMMARY_BLOCK.
 
-; RUN: opt -thinlto-bc -o %t.o %s
+; RUN: opt -thinlto-bc -thinlto-split-lto-unit -o %t.o %s
 
+; FIXME: Fix machine verifier issues and remove -verify-machineinstrs=0. PR39436.
 ; RUN: llvm-lto2 run -thinlto-distributed-indexes %t.o \
+; RUN:   -verify-machineinstrs=0 \
 ; RUN:   -o %t2.index \
 ; RUN:   -r=%t.o,test,px \
 ; RUN:   -r=%t.o,_ZN1A1nEi,p \
