@@ -209,6 +209,7 @@ intr_lookup(u_int irq)
 
 	i->event = NULL;
 	i->cntp = NULL;
+	i->priv = NULL;
 	i->trig = INTR_TRIGGER_CONFORM;
 	i->pol = INTR_POLARITY_CONFORM;
 	i->irq = irq;

@@ -295,6 +295,20 @@ xics_attach(device_t dev)
 	return (0);
 }
 
+static __inline struct xicp_intvec *
+xicp_setup_priv(struct xicp_softc *sc, u_int irq, void **priv)
+{
+	if (*priv == NULL) {
+		KASSERT(sc->nintvecs + 1 < nitems(sc->intvecs),
+			("Too many XICP interrupts"));
+		mtx_lock(&sc->sc_mtx);
+		*priv = &sc->intvecs[sc->nintvecs++];
+		mtx_unlock(&sc->sc_mtx);
+	}
+
+	return (*priv);
+}
+
 /*
  * PIC I/F methods.
  */
@@ -311,10 +325,7 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 	if (irq == MAX_XICP_IRQS)
 		return;
 
-	if (*priv == NULL)
-		*priv = &sc->intvecs[sc->nintvecs++];
-
-	iv = *priv;
+	iv = xicp_setup_priv(sc, irq, priv);
 
 	/*
 	 * This doesn't appear to actually support affinity groups, so pick a
@@ -426,14 +437,7 @@ xicp_enable(device_t dev, u_int irq, u_int vector, void **priv)
 	/* Bind to this CPU to start: distrib. ID is last entry in gserver# */
 	cpu = PCPU_GET(hwref);
 
-	if (*priv == NULL) {
-		KASSERT(sc->nintvecs + 1 < nitems(sc->intvecs),
-			("Too many XICP interrupts"));
-		mtx_lock(&sc->sc_mtx);
-		*priv = &sc->intvecs[sc->nintvecs++];
-		mtx_unlock(&sc->sc_mtx);
-	}
-	intr = *priv;
+	intr = xicp_setup_priv(sc, irq, priv);
 
 	intr->irq = irq;
 	intr->vector = vector;
