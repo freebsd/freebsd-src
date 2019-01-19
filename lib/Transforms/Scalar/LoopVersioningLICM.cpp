@@ -360,10 +360,11 @@ bool LoopVersioningLICM::legalLoopMemoryAccesses() {
 bool LoopVersioningLICM::instructionSafeForVersioning(Instruction *I) {
   assert(I != nullptr && "Null instruction found!");
   // Check function call safety
-  if (isa<CallInst>(I) && !AA->doesNotAccessMemory(CallSite(I))) {
-    LLVM_DEBUG(dbgs() << "    Unsafe call site found.\n");
-    return false;
-  }
+  if (auto *Call = dyn_cast<CallBase>(I))
+    if (!AA->doesNotAccessMemory(Call)) {
+      LLVM_DEBUG(dbgs() << "    Unsafe call site found.\n");
+      return false;
+    }
   // Avoid loops with possiblity of throw
   if (I->mayThrow()) {
     LLVM_DEBUG(dbgs() << "    May throw instruction found in loop body\n");
@@ -594,6 +595,11 @@ bool LoopVersioningLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
 
   if (skipLoop(L))
     return false;
+
+  // Do not do the transformation if disabled by metadata.
+  if (hasLICMVersioningTransformation(L) & TM_Disable)
+    return false;
+
   // Get Analysis information.
   AA = &getAnalysis<AAResultsWrapperPass>().getAAResults();
   SE = &getAnalysis<ScalarEvolutionWrapperPass>().getSE();
@@ -628,6 +634,8 @@ bool LoopVersioningLICM::runOnLoop(Loop *L, LPPassManager &LPM) {
     // Set Loop Versioning metaData for version loop.
     addStringMetadataToLoop(LVer.getVersionedLoop(), LICMVersioningMetaData);
     // Set "llvm.mem.parallel_loop_access" metaData to versioned loop.
+    // FIXME: "llvm.mem.parallel_loop_access" annotates memory access
+    // instructions, not loops.
     addStringMetadataToLoop(LVer.getVersionedLoop(),
                             "llvm.mem.parallel_loop_access");
     // Update version loop with aggressive aliasing assumption.

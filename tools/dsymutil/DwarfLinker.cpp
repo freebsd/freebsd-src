@@ -155,6 +155,40 @@ static bool isODRAttribute(uint16_t Attr) {
   llvm_unreachable("Improper attribute.");
 }
 
+static bool isTypeTag(uint16_t Tag) {
+  switch (Tag) {
+  case dwarf::DW_TAG_array_type:
+  case dwarf::DW_TAG_class_type:
+  case dwarf::DW_TAG_enumeration_type:
+  case dwarf::DW_TAG_pointer_type:
+  case dwarf::DW_TAG_reference_type:
+  case dwarf::DW_TAG_string_type:
+  case dwarf::DW_TAG_structure_type:
+  case dwarf::DW_TAG_subroutine_type:
+  case dwarf::DW_TAG_typedef:
+  case dwarf::DW_TAG_union_type:
+  case dwarf::DW_TAG_ptr_to_member_type:
+  case dwarf::DW_TAG_set_type:
+  case dwarf::DW_TAG_subrange_type:
+  case dwarf::DW_TAG_base_type:
+  case dwarf::DW_TAG_const_type:
+  case dwarf::DW_TAG_constant:
+  case dwarf::DW_TAG_file_type:
+  case dwarf::DW_TAG_namelist:
+  case dwarf::DW_TAG_packed_type:
+  case dwarf::DW_TAG_volatile_type:
+  case dwarf::DW_TAG_restrict_type:
+  case dwarf::DW_TAG_atomic_type:
+  case dwarf::DW_TAG_interface_type:
+  case dwarf::DW_TAG_unspecified_type:
+  case dwarf::DW_TAG_shared_type:
+    return true;
+  default:
+    break;
+  }
+  return false;
+}
+
 bool DwarfLinker::DIECloner::getDIENames(const DWARFDie &Die,
                                          AttributesInfo &Info,
                                          OffsetsStringPool &StringPool,
@@ -222,6 +256,7 @@ static bool analyzeContextInfo(const DWARFDie &DIE, unsigned ParentIdx,
                                CompileUnit &CU, DeclContext *CurrentDeclContext,
                                UniquingStringPool &StringPool,
                                DeclContextTree &Contexts,
+                               uint64_t ModulesEndOffset,
                                bool InImportedModule = false) {
   unsigned MyIdx = CU.getOrigUnit().getDIEIndex(DIE);
   CompileUnit::DIEInfo &Info = CU.getInfo(MyIdx);
@@ -262,20 +297,27 @@ static bool analyzeContextInfo(const DWARFDie &DIE, unsigned ParentIdx,
   Info.Prune = InImportedModule;
   if (DIE.hasChildren())
     for (auto Child : DIE.children())
-      Info.Prune &= analyzeContextInfo(Child, MyIdx, CU, CurrentDeclContext,
-                                       StringPool, Contexts, InImportedModule);
+      Info.Prune &=
+          analyzeContextInfo(Child, MyIdx, CU, CurrentDeclContext, StringPool,
+                             Contexts, ModulesEndOffset, InImportedModule);
 
   // Prune this DIE if it is either a forward declaration inside a
   // DW_TAG_module or a DW_TAG_module that contains nothing but
   // forward declarations.
   Info.Prune &= (DIE.getTag() == dwarf::DW_TAG_module) ||
-                dwarf::toUnsigned(DIE.find(dwarf::DW_AT_declaration), 0);
+                (isTypeTag(DIE.getTag()) &&
+                 dwarf::toUnsigned(DIE.find(dwarf::DW_AT_declaration), 0));
 
-  // Don't prune it if there is no definition for the DIE.
-  Info.Prune &= Info.Ctxt && Info.Ctxt->getCanonicalDIEOffset();
+  // Only prune forward declarations inside a DW_TAG_module for which a
+  // definition exists elsewhere.
+  if (ModulesEndOffset == 0)
+    Info.Prune &= Info.Ctxt && Info.Ctxt->getCanonicalDIEOffset();
+  else
+    Info.Prune &= Info.Ctxt && Info.Ctxt->getCanonicalDIEOffset() > 0 &&
+                  Info.Ctxt->getCanonicalDIEOffset() <= ModulesEndOffset;
 
   return Info.Prune;
-}
+} // namespace dsymutil
 
 static bool dieNeedsChildrenToBeMeaningful(uint32_t Tag) {
   switch (Tag) {
@@ -442,7 +484,7 @@ bool DwarfLinker::RelocationManager::findValidRelocs(
   // the file, this allows us to just keep an index in the relocation
   // array that we advance during our walk, rather than resorting to
   // some associative container. See DwarfLinker::NextValidReloc.
-  llvm::sort(ValidRelocs.begin(), ValidRelocs.end());
+  llvm::sort(ValidRelocs);
   return true;
 }
 
@@ -1258,40 +1300,6 @@ bool DwarfLinker::RelocationManager::applyValidRelocs(
   return Applied;
 }
 
-static bool isTypeTag(uint16_t Tag) {
-  switch (Tag) {
-  case dwarf::DW_TAG_array_type:
-  case dwarf::DW_TAG_class_type:
-  case dwarf::DW_TAG_enumeration_type:
-  case dwarf::DW_TAG_pointer_type:
-  case dwarf::DW_TAG_reference_type:
-  case dwarf::DW_TAG_string_type:
-  case dwarf::DW_TAG_structure_type:
-  case dwarf::DW_TAG_subroutine_type:
-  case dwarf::DW_TAG_typedef:
-  case dwarf::DW_TAG_union_type:
-  case dwarf::DW_TAG_ptr_to_member_type:
-  case dwarf::DW_TAG_set_type:
-  case dwarf::DW_TAG_subrange_type:
-  case dwarf::DW_TAG_base_type:
-  case dwarf::DW_TAG_const_type:
-  case dwarf::DW_TAG_constant:
-  case dwarf::DW_TAG_file_type:
-  case dwarf::DW_TAG_namelist:
-  case dwarf::DW_TAG_packed_type:
-  case dwarf::DW_TAG_volatile_type:
-  case dwarf::DW_TAG_restrict_type:
-  case dwarf::DW_TAG_atomic_type:
-  case dwarf::DW_TAG_interface_type:
-  case dwarf::DW_TAG_unspecified_type:
-  case dwarf::DW_TAG_shared_type:
-    return true;
-  default:
-    break;
-  }
-  return false;
-}
-
 static bool isObjCSelector(StringRef Name) {
   return Name.size() > 2 && (Name[0] == '-' || Name[0] == '+') &&
          (Name[1] == '[');
@@ -1693,10 +1701,12 @@ void DwarfLinker::patchLineTableForUnit(CompileUnit &Unit,
   DWARFDataExtractor LineExtractor(
       OrigDwarf.getDWARFObj(), OrigDwarf.getDWARFObj().getLineSection(),
       OrigDwarf.isLittleEndian(), Unit.getOrigUnit().getAddressByteSize());
+  if (Options.Translator)
+    return Streamer->translateLineTable(LineExtractor, StmtOffset, Options);
 
   Error Err = LineTable.parse(LineExtractor, &StmtOffset, OrigDwarf,
-                              &Unit.getOrigUnit());
-  DWARFDebugLine::warn(std::move(Err));
+                              &Unit.getOrigUnit(), DWARFContext::dumpWarning);
+  DWARFContext::dumpWarning(std::move(Err));
 
   // This vector is the output line table.
   std::vector<DWARFDebugLine::Row> NewRows;
@@ -2024,7 +2034,7 @@ bool DwarfLinker::registerModuleReference(
     const DWARFDie &CUDie, const DWARFUnit &Unit, DebugMap &ModuleMap,
     const DebugMapObject &DMO, RangesTy &Ranges, OffsetsStringPool &StringPool,
     UniquingStringPool &UniquingStringPool, DeclContextTree &ODRContexts,
-    unsigned &UnitID, unsigned Indent) {
+    uint64_t ModulesEndOffset, unsigned &UnitID, unsigned Indent, bool Quiet) {
   std::string PCMfile = dwarf::toString(
       CUDie.find({dwarf::DW_AT_dwo_name, dwarf::DW_AT_GNU_dwo_name}), "");
   if (PCMfile.empty())
@@ -2036,11 +2046,12 @@ bool DwarfLinker::registerModuleReference(
 
   std::string Name = dwarf::toString(CUDie.find(dwarf::DW_AT_name), "");
   if (Name.empty()) {
-    reportWarning("Anonymous module skeleton CU for " + PCMfile, DMO);
+    if (!Quiet)
+      reportWarning("Anonymous module skeleton CU for " + PCMfile, DMO);
     return true;
   }
 
-  if (Options.Verbose) {
+  if (!Quiet && Options.Verbose) {
     outs().indent(Indent);
     outs() << "Found clang module reference " << PCMfile;
   }
@@ -2050,24 +2061,25 @@ bool DwarfLinker::registerModuleReference(
     // FIXME: Until PR27449 (https://llvm.org/bugs/show_bug.cgi?id=27449) is
     // fixed in clang, only warn about DWO_id mismatches in verbose mode.
     // ASTFileSignatures will change randomly when a module is rebuilt.
-    if (Options.Verbose && (Cached->second != DwoId))
+    if (!Quiet && Options.Verbose && (Cached->second != DwoId))
       reportWarning(Twine("hash mismatch: this object file was built against a "
                           "different version of the module ") +
                         PCMfile,
                     DMO);
-    if (Options.Verbose)
+    if (!Quiet && Options.Verbose)
       outs() << " [cached].\n";
     return true;
   }
-  if (Options.Verbose)
+  if (!Quiet && Options.Verbose)
     outs() << " ...\n";
 
   // Cyclic dependencies are disallowed by Clang, but we still
   // shouldn't run into an infinite loop, so mark it as processed now.
   ClangModules.insert({PCMfile, DwoId});
-  if (Error E = loadClangModule(PCMfile, PCMpath, Name, DwoId, ModuleMap, DMO,
-                                Ranges, StringPool, UniquingStringPool,
-                                ODRContexts, UnitID, Indent + 2)) {
+  if (Error E =
+          loadClangModule(PCMfile, PCMpath, Name, DwoId, ModuleMap, DMO, Ranges,
+                          StringPool, UniquingStringPool, ODRContexts,
+                          ModulesEndOffset, UnitID, Indent + 2, Quiet)) {
     consumeError(std::move(E));
     return false;
   }
@@ -2096,14 +2108,12 @@ DwarfLinker::loadObject(const DebugMapObject &Obj, const DebugMap &Map) {
   return *Object;
 }
 
-Error DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
-                                   StringRef ModuleName, uint64_t DwoId,
-                                   DebugMap &ModuleMap,
-                                   const DebugMapObject &DMO, RangesTy &Ranges,
-                                   OffsetsStringPool &StringPool,
-                                   UniquingStringPool &UniquingStringPool,
-                                   DeclContextTree &ODRContexts,
-                                   unsigned &UnitID, unsigned Indent) {
+Error DwarfLinker::loadClangModule(
+    StringRef Filename, StringRef ModulePath, StringRef ModuleName,
+    uint64_t DwoId, DebugMap &ModuleMap, const DebugMapObject &DMO,
+    RangesTy &Ranges, OffsetsStringPool &StringPool,
+    UniquingStringPool &UniquingStringPool, DeclContextTree &ODRContexts,
+    uint64_t ModulesEndOffset, unsigned &UnitID, unsigned Indent, bool Quiet) {
   SmallString<80> Path(Options.PrependPath);
   if (sys::path::is_relative(Filename))
     sys::path::append(Path, ModulePath, Filename);
@@ -2164,8 +2174,8 @@ Error DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
     if (!CUDie)
       continue;
     if (!registerModuleReference(CUDie, *CU, ModuleMap, DMO, Ranges, StringPool,
-                                 UniquingStringPool, ODRContexts, UnitID,
-                                 Indent)) {
+                                 UniquingStringPool, ODRContexts,
+                                 ModulesEndOffset, UnitID, Indent, Quiet)) {
       if (Unit) {
         std::string Err =
             (Filename +
@@ -2179,7 +2189,7 @@ Error DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
       // ASTFileSignatures will change randomly when a module is rebuilt.
       uint64_t PCMDwoId = getDwoId(CUDie, *CU);
       if (PCMDwoId != DwoId) {
-        if (Options.Verbose)
+        if (!Quiet && Options.Verbose)
           reportWarning(
               Twine("hash mismatch: this object file was built against a "
                     "different version of the module ") +
@@ -2194,14 +2204,14 @@ Error DwarfLinker::loadClangModule(StringRef Filename, StringRef ModulePath,
                                             ModuleName);
       Unit->setHasInterestingContent();
       analyzeContextInfo(CUDie, 0, *Unit, &ODRContexts.getRoot(),
-                         UniquingStringPool, ODRContexts);
+                         UniquingStringPool, ODRContexts, ModulesEndOffset);
       // Keep everything.
       Unit->markEverythingAsKept();
     }
   }
   if (!Unit->getOrigUnit().getUnitDIE().hasChildren())
     return Error::success();
-  if (Options.Verbose) {
+  if (!Quiet && Options.Verbose) {
     outs().indent(Indent);
     outs() << "cloning .debug_info from " << Filename << "\n";
   }
@@ -2237,17 +2247,16 @@ void DwarfLinker::DIECloner::cloneAllCompileUnits(
     if (Linker.Options.NoOutput)
       continue;
 
-    if (LLVM_LIKELY(!Linker.Options.Update)) {
-      // FIXME: for compatibility with the classic dsymutil, we emit an empty
-      // line table for the unit, even if the unit doesn't actually exist in
-      // the DIE tree.
+    // FIXME: for compatibility with the classic dsymutil, we emit
+    // an empty line table for the unit, even if the unit doesn't
+    // actually exist in the DIE tree.
+    if (LLVM_LIKELY(!Linker.Options.Update) || Linker.Options.Translator)
       Linker.patchLineTableForUnit(*CurrentUnit, DwarfContext, Ranges, DMO);
-      Linker.emitAcceleratorEntriesForUnit(*CurrentUnit);
-      Linker.patchRangesForUnit(*CurrentUnit, DwarfContext, DMO);
-      Linker.Streamer->emitLocationsForUnit(*CurrentUnit, DwarfContext);
-    } else {
-      Linker.emitAcceleratorEntriesForUnit(*CurrentUnit);
-    }
+    Linker.emitAcceleratorEntriesForUnit(*CurrentUnit);
+    if (Linker.Options.Update)
+      continue;
+    Linker.patchRangesForUnit(*CurrentUnit, DwarfContext, DMO);
+    Linker.Streamer->emitLocationsForUnit(*CurrentUnit, DwarfContext);
   }
 
   if (Linker.Options.NoOutput)
@@ -2372,7 +2381,7 @@ bool DwarfLinker::link(const DebugMap &Map) {
   // This Dwarf string pool which is used for emission. It must be used
   // serially as the order of calling getStringOffset matters for
   // reproducibility.
-  OffsetsStringPool OffsetsStringPool;
+  OffsetsStringPool OffsetsStringPool(Options.Translator);
 
   // ODR Contexts for the link.
   DeclContextTree ODRContexts;
@@ -2409,15 +2418,20 @@ bool DwarfLinker::link(const DebugMap &Map) {
         warn(Err.message());
         continue;
       }
-      if (!Options.NoTimestamp &&
-          Stat.getLastModificationTime() !=
-              sys::TimePoint<>(LinkContext.DMO.getTimestamp())) {
-        // Not using the helper here as we can easily stream TimePoint<>.
-        WithColor::warning()
-            << "Timestamp mismatch for " << File << ": "
-            << Stat.getLastModificationTime() << " and "
-            << sys::TimePoint<>(LinkContext.DMO.getTimestamp()) << "\n";
-        continue;
+      if (!Options.NoTimestamp) {
+        // The modification can have sub-second precision so we need to cast
+        // away the extra precision that's not present in the debug map.
+        auto ModificationTime =
+            std::chrono::time_point_cast<std::chrono::seconds>(
+                Stat.getLastModificationTime());
+        if (ModificationTime != LinkContext.DMO.getTimestamp()) {
+          // Not using the helper here as we can easily stream TimePoint<>.
+          WithColor::warning()
+              << "Timestamp mismatch for " << File << ": "
+              << Stat.getLastModificationTime() << " and "
+              << sys::TimePoint<>(LinkContext.DMO.getTimestamp()) << "\n";
+          continue;
+        }
       }
 
       // Copy the module into the .swift_ast section.
@@ -2466,14 +2480,10 @@ bool DwarfLinker::link(const DebugMap &Map) {
         DumpOpts.Verbose = Options.Verbose;
         CUDie.dump(outs(), 0, DumpOpts);
       }
-
-      if (!CUDie || LLVM_UNLIKELY(Options.Update) ||
-          !registerModuleReference(CUDie, *CU, ModuleMap, LinkContext.DMO,
-                                   LinkContext.Ranges, OffsetsStringPool,
-                                   UniquingStringPool, ODRContexts, UnitID)) {
-        LinkContext.CompileUnits.push_back(llvm::make_unique<CompileUnit>(
-            *CU, UnitID++, !Options.NoODR && !Options.Update, ""));
-      }
+      if (CUDie && !LLVM_UNLIKELY(Options.Update))
+        registerModuleReference(CUDie, *CU, ModuleMap, LinkContext.DMO,
+                                LinkContext.Ranges, OffsetsStringPool,
+                                UniquingStringPool, ODRContexts, 0, UnitID);
     }
   }
 
@@ -2481,37 +2491,54 @@ bool DwarfLinker::link(const DebugMap &Map) {
   if (MaxDwarfVersion == 0)
     MaxDwarfVersion = 3;
 
+  // At this point we know how much data we have emitted. We use this value to
+  // compare canonical DIE offsets in analyzeContextInfo to see if a definition
+  // is already emitted, without being affected by canonical die offsets set
+  // later. This prevents undeterminism when analyze and clone execute
+  // concurrently, as clone set the canonical DIE offset and analyze reads it.
+  const uint64_t ModulesEndOffset = OutputDebugInfoSize;
+
   // These variables manage the list of processed object files.
   // The mutex and condition variable are to ensure that this is thread safe.
   std::mutex ProcessedFilesMutex;
   std::condition_variable ProcessedFilesConditionVariable;
   BitVector ProcessedFiles(NumObjects, false);
 
-  // Now do analyzeContextInfo in parallel as it is particularly expensive.
-  auto AnalyzeLambda = [&]() {
-    for (unsigned i = 0, e = NumObjects; i != e; ++i) {
-      auto &LinkContext = ObjectContexts[i];
+  //  Analyzing the context info is particularly expensive so it is executed in
+  //  parallel with emitting the previous compile unit.
+  auto AnalyzeLambda = [&](size_t i) {
+    auto &LinkContext = ObjectContexts[i];
 
-      if (!LinkContext.ObjectFile) {
-        std::unique_lock<std::mutex> LockGuard(ProcessedFilesMutex);
-        ProcessedFiles.set(i);
-        ProcessedFilesConditionVariable.notify_one();
+    if (!LinkContext.ObjectFile || !LinkContext.DwarfContext)
+      return;
+
+    for (const auto &CU : LinkContext.DwarfContext->compile_units()) {
+      updateDwarfVersion(CU->getVersion());
+      // The !registerModuleReference() condition effectively skips
+      // over fully resolved skeleton units. This second pass of
+      // registerModuleReferences doesn't do any new work, but it
+      // will collect top-level errors, which are suppressed. Module
+      // warnings were already displayed in the first iteration.
+      bool Quiet = true;
+      auto CUDie = CU->getUnitDIE(false);
+      if (!CUDie || LLVM_UNLIKELY(Options.Update) ||
+          !registerModuleReference(CUDie, *CU, ModuleMap, LinkContext.DMO,
+                                   LinkContext.Ranges, OffsetsStringPool,
+                                   UniquingStringPool, ODRContexts,
+                                   ModulesEndOffset, UnitID, Quiet)) {
+        LinkContext.CompileUnits.push_back(llvm::make_unique<CompileUnit>(
+            *CU, UnitID++, !Options.NoODR && !Options.Update, ""));
+      }
+    }
+
+    // Now build the DIE parent links that we will use during the next phase.
+    for (auto &CurrentUnit : LinkContext.CompileUnits) {
+      auto CUDie = CurrentUnit->getOrigUnit().getUnitDIE();
+      if (!CUDie)
         continue;
-      }
-
-      // Now build the DIE parent links that we will use during the next phase.
-      for (auto &CurrentUnit : LinkContext.CompileUnits) {
-        auto CUDie = CurrentUnit->getOrigUnit().getUnitDIE();
-        if (!CUDie)
-          continue;
-        analyzeContextInfo(CurrentUnit->getOrigUnit().getUnitDIE(), 0,
-                           *CurrentUnit, &ODRContexts.getRoot(),
-                           UniquingStringPool, ODRContexts);
-      }
-
-      std::unique_lock<std::mutex> LockGuard(ProcessedFilesMutex);
-      ProcessedFiles.set(i);
-      ProcessedFilesConditionVariable.notify_one();
+      analyzeContextInfo(CurrentUnit->getOrigUnit().getUnitDIE(), 0,
+                         *CurrentUnit, &ODRContexts.getRoot(),
+                         UniquingStringPool, ODRContexts, ModulesEndOffset);
     }
   };
 
@@ -2519,57 +2546,48 @@ bool DwarfLinker::link(const DebugMap &Map) {
   // Note, although this loop runs in serial, it can run in parallel with
   // the analyzeContextInfo loop so long as we process files with indices >=
   // than those processed by analyzeContextInfo.
-  auto CloneLambda = [&]() {
-    for (unsigned i = 0, e = NumObjects; i != e; ++i) {
-      {
-        std::unique_lock<std::mutex> LockGuard(ProcessedFilesMutex);
-        if (!ProcessedFiles[i]) {
-          ProcessedFilesConditionVariable.wait(
-              LockGuard, [&]() { return ProcessedFiles[i]; });
-        }
-      }
+  auto CloneLambda = [&](size_t i) {
+    auto &LinkContext = ObjectContexts[i];
+    if (!LinkContext.ObjectFile)
+      return;
 
-      auto &LinkContext = ObjectContexts[i];
-      if (!LinkContext.ObjectFile)
-        continue;
-
-      // Then mark all the DIEs that need to be present in the linked output
-      // and collect some information about them.
-      // Note that this loop can not be merged with the previous one because
-      // cross-cu references require the ParentIdx to be setup for every CU in
-      // the object file before calling this.
-      if (LLVM_UNLIKELY(Options.Update)) {
-        for (auto &CurrentUnit : LinkContext.CompileUnits)
-          CurrentUnit->markEverythingAsKept();
-        Streamer->copyInvariantDebugSection(*LinkContext.ObjectFile);
-      } else {
-        for (auto &CurrentUnit : LinkContext.CompileUnits)
-          lookForDIEsToKeep(LinkContext.RelocMgr, LinkContext.Ranges,
-                            LinkContext.CompileUnits,
-                            CurrentUnit->getOrigUnit().getUnitDIE(),
-                            LinkContext.DMO, *CurrentUnit, 0);
-      }
-
-      // The calls to applyValidRelocs inside cloneDIE will walk the reloc
-      // array again (in the same way findValidRelocsInDebugInfo() did). We
-      // need to reset the NextValidReloc index to the beginning.
-      LinkContext.RelocMgr.resetValidRelocs();
-      if (LinkContext.RelocMgr.hasValidRelocs() ||
-          LLVM_UNLIKELY(Options.Update))
-        DIECloner(*this, LinkContext.RelocMgr, DIEAlloc,
-                  LinkContext.CompileUnits, Options)
-            .cloneAllCompileUnits(*LinkContext.DwarfContext, LinkContext.DMO,
-                                  LinkContext.Ranges, OffsetsStringPool);
-      if (!Options.NoOutput && !LinkContext.CompileUnits.empty() &&
-          LLVM_LIKELY(!Options.Update))
-        patchFrameInfoForObject(
-            LinkContext.DMO, LinkContext.Ranges, *LinkContext.DwarfContext,
-            LinkContext.CompileUnits[0]->getOrigUnit().getAddressByteSize());
-
-      // Clean-up before starting working on the next object.
-      endDebugObject(LinkContext);
+    // Then mark all the DIEs that need to be present in the linked output
+    // and collect some information about them.
+    // Note that this loop can not be merged with the previous one because
+    // cross-cu references require the ParentIdx to be setup for every CU in
+    // the object file before calling this.
+    if (LLVM_UNLIKELY(Options.Update)) {
+      for (auto &CurrentUnit : LinkContext.CompileUnits)
+        CurrentUnit->markEverythingAsKept();
+      Streamer->copyInvariantDebugSection(*LinkContext.ObjectFile);
+    } else {
+      for (auto &CurrentUnit : LinkContext.CompileUnits)
+        lookForDIEsToKeep(LinkContext.RelocMgr, LinkContext.Ranges,
+                          LinkContext.CompileUnits,
+                          CurrentUnit->getOrigUnit().getUnitDIE(),
+                          LinkContext.DMO, *CurrentUnit, 0);
     }
 
+    // The calls to applyValidRelocs inside cloneDIE will walk the reloc
+    // array again (in the same way findValidRelocsInDebugInfo() did). We
+    // need to reset the NextValidReloc index to the beginning.
+    LinkContext.RelocMgr.resetValidRelocs();
+    if (LinkContext.RelocMgr.hasValidRelocs() || LLVM_UNLIKELY(Options.Update))
+      DIECloner(*this, LinkContext.RelocMgr, DIEAlloc, LinkContext.CompileUnits,
+                Options)
+          .cloneAllCompileUnits(*LinkContext.DwarfContext, LinkContext.DMO,
+                                LinkContext.Ranges, OffsetsStringPool);
+    if (!Options.NoOutput && !LinkContext.CompileUnits.empty() &&
+        LLVM_LIKELY(!Options.Update))
+      patchFrameInfoForObject(
+          LinkContext.DMO, LinkContext.Ranges, *LinkContext.DwarfContext,
+          LinkContext.CompileUnits[0]->getOrigUnit().getAddressByteSize());
+
+    // Clean-up before starting working on the next object.
+    endDebugObject(LinkContext);
+  };
+
+  auto EmitLambda = [&]() {
     // Emit everything that's global.
     if (!Options.NoOutput) {
       Streamer->emitAbbrevs(Abbreviations, MaxDwarfVersion);
@@ -2591,20 +2609,48 @@ bool DwarfLinker::link(const DebugMap &Map) {
     }
   };
 
-  // FIXME: The DwarfLinker can have some very deep recursion that can max
-  // out the (significantly smaller) stack when using threads. We don't
-  // want this limitation when we only have a single thread.
+  auto AnalyzeAll = [&]() {
+    for (unsigned i = 0, e = NumObjects; i != e; ++i) {
+      AnalyzeLambda(i);
+
+      std::unique_lock<std::mutex> LockGuard(ProcessedFilesMutex);
+      ProcessedFiles.set(i);
+      ProcessedFilesConditionVariable.notify_one();
+    }
+  };
+
+  auto CloneAll = [&]() {
+    for (unsigned i = 0, e = NumObjects; i != e; ++i) {
+      {
+        std::unique_lock<std::mutex> LockGuard(ProcessedFilesMutex);
+        if (!ProcessedFiles[i]) {
+          ProcessedFilesConditionVariable.wait(
+              LockGuard, [&]() { return ProcessedFiles[i]; });
+        }
+      }
+
+      CloneLambda(i);
+    }
+    EmitLambda();
+  };
+
+  // To limit memory usage in the single threaded case, analyze and clone are
+  // run sequentially so the LinkContext is freed after processing each object
+  // in endDebugObject.
   if (Options.Threads == 1) {
-    AnalyzeLambda();
-    CloneLambda();
+    for (unsigned i = 0, e = NumObjects; i != e; ++i) {
+      AnalyzeLambda(i);
+      CloneLambda(i);
+    }
+    EmitLambda();
   } else {
     ThreadPool pool(2);
-    pool.async(AnalyzeLambda);
-    pool.async(CloneLambda);
+    pool.async(AnalyzeAll);
+    pool.async(CloneAll);
     pool.wait();
   }
 
-  return Options.NoOutput ? true : Streamer->finish(Map);
+  return Options.NoOutput ? true : Streamer->finish(Map, Options.Translator);
 } // namespace dsymutil
 
 bool linkDwarf(raw_fd_ostream &OutFile, BinaryHolder &BinHolder,

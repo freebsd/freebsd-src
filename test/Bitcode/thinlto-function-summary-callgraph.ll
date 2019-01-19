@@ -17,7 +17,8 @@
 ; CHECK-NEXT: <FUNCTION op0=17 op1=4
 ; CHECK:       <GLOBALVAL_SUMMARY_BLOCK
 ; CHECK-NEXT:    <VERSION
-; See if the call to func is registered.
+; CHECK-NEXT:    <FLAGS
+; See if the call to func is registered
 ; CHECK-NEXT:    <PERMODULE {{.*}} op4=1
 ; CHECK-NEXT:  </GLOBALVAL_SUMMARY_BLOCK>
 ; CHECK: <STRTAB_BLOCK
@@ -33,7 +34,7 @@
 ; COMBINED-NEXT:    <VALUE_GUID
 ; COMBINED-NEXT:    <COMBINED
 ; See if the call to func is registered.
-; COMBINED-NEXT:    <COMBINED {{.*}} op6=[[FUNCID]]/>
+; COMBINED-NEXT:    <COMBINED {{.*}} op8=[[FUNCID]]/>
 ; COMBINED-NEXT:  </GLOBALVAL_SUMMARY_BLOCK>
 
 ; ModuleID = 'thinlto-function-summary-callgraph.ll'

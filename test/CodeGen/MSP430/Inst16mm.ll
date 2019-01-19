@@ -6,7 +6,7 @@ target triple = "msp430-generic-generic"
 
 define void @mov() nounwind {
 ; CHECK-LABEL: mov:
-; CHECK: mov.w	&bar, &foo
+; CHECK: mov	&bar, &foo
         %1 = load i16, i16* @bar
         store i16 %1, i16* @foo
         ret void
@@ -14,7 +14,7 @@ define void @mov() nounwind {
 
 define void @add() nounwind {
 ; CHECK-LABEL: add:
-; CHECK: add.w	&bar, &foo
+; CHECK: add	&bar, &foo
 	%1 = load i16, i16* @bar
 	%2 = load i16, i16* @foo
 	%3 = add i16 %2, %1
@@ -24,7 +24,7 @@ define void @add() nounwind {
 
 define void @and() nounwind {
 ; CHECK-LABEL: and:
-; CHECK: and.w	&bar, &foo
+; CHECK: and	&bar, &foo
 	%1 = load i16, i16* @bar
 	%2 = load i16, i16* @foo
 	%3 = and i16 %2, %1
@@ -34,7 +34,7 @@ define void @and() nounwind {
 
 define void @bis() nounwind {
 ; CHECK-LABEL: bis:
-; CHECK: bis.w	&bar, &foo
+; CHECK: bis	&bar, &foo
 	%1 = load i16, i16* @bar
 	%2 = load i16, i16* @foo
 	%3 = or i16 %2, %1
@@ -44,7 +44,7 @@ define void @bis() nounwind {
 
 define void @xor() nounwind {
 ; CHECK-LABEL: xor:
-; CHECK: xor.w	&bar, &foo
+; CHECK: xor	&bar, &foo
 	%1 = load i16, i16* @bar
 	%2 = load i16, i16* @foo
 	%3 = xor i16 %2, %1
@@ -64,6 +64,25 @@ entry:
  %0 = load i16, i16* %retval                          ; <i16> [#uses=1]
  ret i16 %0
 ; CHECK-LABEL: mov2:
-; CHECK-DAG:	mov.w	2(r1), 6(r1)
-; CHECK-DAG:	mov.w	0(r1), 4(r1)
+; CHECK-DAG:	mov	2(r1), 6(r1)
+; CHECK-DAG:	mov	0(r1), 4(r1)
+}
+
+define void @cmp(i16* %g, i16* %i) {
+entry:
+; CHECK-LABEL: cmp:
+; CHECK: cmp 8(r12), 4(r13)
+  %add.ptr = getelementptr inbounds i16, i16* %g, i16 4
+  %0 = load i16, i16* %add.ptr, align 2
+  %add.ptr1 = getelementptr inbounds i16, i16* %i, i16 2
+  %1 = load i16, i16* %add.ptr1, align 2
+  %cmp = icmp sgt i16 %0, %1
+  br i1 %cmp, label %if.then, label %if.end
+
+if.then:                                          ; preds = %entry
+  store i16 0, i16* %g, align 2
+  br label %if.end
+
+if.end:                                           ; preds = %if.then, %entry
+  ret void
 }

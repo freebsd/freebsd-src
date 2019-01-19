@@ -1,5 +1,5 @@
-; RUN: llc -fast-isel-sink-local-values -verify-machineinstrs -disable-fp-elim -enable-shrink-wrap=false < %s -mtriple=aarch64-apple-ios -disable-post-ra | FileCheck -allow-deprecated-dag-overlap --check-prefix=CHECK-APPLE %s
-; RUN: llc -fast-isel-sink-local-values -verify-machineinstrs -disable-fp-elim -O0 -fast-isel < %s -mtriple=aarch64-apple-ios -disable-post-ra | FileCheck -allow-deprecated-dag-overlap --check-prefix=CHECK-O0 %s
+; RUN: llc -fast-isel-sink-local-values -verify-machineinstrs -frame-pointer=all -enable-shrink-wrap=false < %s -mtriple=aarch64-apple-ios -disable-post-ra | FileCheck -allow-deprecated-dag-overlap --check-prefix=CHECK-APPLE %s
+; RUN: llc -fast-isel-sink-local-values -verify-machineinstrs -frame-pointer=all -O0 -fast-isel < %s -mtriple=aarch64-apple-ios -disable-post-ra | FileCheck -allow-deprecated-dag-overlap --check-prefix=CHECK-O0 %s
 
 declare i8* @malloc(i64)
 declare void @free(i8*)
@@ -314,13 +314,12 @@ define float @foo_vararg(%swift_error** swifterror %error_ptr_ref, ...) {
 ; CHECK-APPLE-DAG: strb [[ID]], [x0, #8]
 
 ; First vararg
-; CHECK-APPLE-DAG: orr {{x[0-9]+}}, [[ARGS]], #0x8
 ; CHECK-APPLE-DAG: ldr {{w[0-9]+}}, [{{.*}}[[TMP]], #16]
 ; Second vararg
-; CHECK-APPLE-DAG: ldr {{w[0-9]+}}, [{{x[0-9]+}}], #8
+; CHECK-APPLE-DAG: ldr {{w[0-9]+}}, [{{.*}}[[TMP]], #24]
 ; CHECK-APPLE-DAG: add {{x[0-9]+}}, {{x[0-9]+}}, #16
 ; Third vararg
-; CHECK-APPLE: ldr {{w[0-9]+}}, [{{x[0-9]+}}], #8
+; CHECK-APPLE-DAG: ldr {{w[0-9]+}}, [{{.*}}[[TMP]], #32]
 
 ; CHECK-APPLE: mov x21, x0
 ; CHECK-APPLE-NOT: x21

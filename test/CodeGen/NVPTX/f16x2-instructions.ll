@@ -1,15 +1,15 @@
 ; ## Full FP16 support enabled by default.
 ; RUN: llc < %s -mtriple=nvptx64-nvidia-cuda -mcpu=sm_53 -asm-verbose=false \
-; RUN:          -O0 -disable-post-ra -disable-fp-elim -verify-machineinstrs \
+; RUN:          -O0 -disable-post-ra -frame-pointer=all -verify-machineinstrs \
 ; RUN: | FileCheck -allow-deprecated-dag-overlap -check-prefixes CHECK,CHECK-F16 %s
 ; ## FP16 support explicitly disabled.
 ; RUN: llc < %s -mtriple=nvptx64-nvidia-cuda -mcpu=sm_53 -asm-verbose=false \
-; RUN:          -O0 -disable-post-ra -disable-fp-elim --nvptx-no-f16-math \
+; RUN:          -O0 -disable-post-ra -frame-pointer=all --nvptx-no-f16-math \
 ; RUN:           -verify-machineinstrs \
 ; RUN: | FileCheck -allow-deprecated-dag-overlap -check-prefixes CHECK,CHECK-NOF16 %s
 ; ## FP16 is not supported by hardware.
 ; RUN: llc < %s -O0 -mtriple=nvptx64-nvidia-cuda -mcpu=sm_52 -asm-verbose=false \
-; RUN:          -disable-post-ra -disable-fp-elim -verify-machineinstrs \
+; RUN:          -disable-post-ra -frame-pointer=all -verify-machineinstrs \
 ; RUN: | FileCheck -allow-deprecated-dag-overlap -check-prefixes CHECK,CHECK-NOF16 %s
 
 target datalayout = "e-m:o-i64:64-i128:128-n32:64-S128"
@@ -823,10 +823,8 @@ define <2 x half> @test_uitofp_2xi32(<2 x i32> %a) #0 {
 
 ; CHECK-LABEL: test_uitofp_2xi64(
 ; CHECK:      ld.param.v2.u64 {[[A0:%rd[0-9]+]], [[A1:%rd[0-9]+]]}, [test_uitofp_2xi64_param_0];
-; CHECK-DAG:  cvt.rn.f32.u64  [[F0:%f[0-9]+]], [[A0]];
-; CHECK-DAG:  cvt.rn.f32.u64  [[F1:%f[0-9]+]], [[A1]];
-; CHECK-DAG:  cvt.rn.f16.f32  [[R0:%h[0-9]+]], [[F0]];
-; CHECK-DAG:  cvt.rn.f16.f32  [[R1:%h[0-9]+]], [[F1]];
+; CHECK-DAG:  cvt.rn.f16.u64  [[R0:%h[0-9]+]], [[A0]];
+; CHECK-DAG:  cvt.rn.f16.u64  [[R1:%h[0-9]+]], [[A1]];
 ; CHECK:      mov.b32         [[R:%hh[0-9]+]], {[[R0]], [[R1]]}
 ; CHECK:      st.param.b32    [func_retval0+0], [[R]];
 ; CHECK:      ret;
@@ -849,10 +847,8 @@ define <2 x half> @test_sitofp_2xi32(<2 x i32> %a) #0 {
 
 ; CHECK-LABEL: test_sitofp_2xi64(
 ; CHECK:      ld.param.v2.u64 {[[A0:%rd[0-9]+]], [[A1:%rd[0-9]+]]}, [test_sitofp_2xi64_param_0];
-; CHECK-DAG:  cvt.rn.f32.s64  [[F0:%f[0-9]+]], [[A0]];
-; CHECK-DAG:  cvt.rn.f32.s64  [[F1:%f[0-9]+]], [[A1]];
-; CHECK-DAG:  cvt.rn.f16.f32  [[R0:%h[0-9]+]], [[F0]];
-; CHECK-DAG:  cvt.rn.f16.f32  [[R1:%h[0-9]+]], [[F1]];
+; CHECK-DAG:  cvt.rn.f16.s64  [[R0:%h[0-9]+]], [[A0]];
+; CHECK-DAG:  cvt.rn.f16.s64  [[R1:%h[0-9]+]], [[A1]];
 ; CHECK:      mov.b32         [[R:%hh[0-9]+]], {[[R0]], [[R1]]}
 ; CHECK:      st.param.b32    [func_retval0+0], [[R]];
 ; CHECK:      ret;

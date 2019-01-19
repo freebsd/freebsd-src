@@ -32,8 +32,8 @@ declare i32 @bar(i32, i32) #1
 ; Function Attrs: nounwind readnone
 declare void @llvm.dbg.value(metadata, i64, metadata, metadata) #2
 
-attributes #0 = { nounwind "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv4" "unsafe-fp-math"="false" "use-soft-float"="false" }
-attributes #1 = { "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="hexagonv4" "unsafe-fp-math"="false" "use-soft-float"="false" }
+attributes #0 = { nounwind "target-cpu"="hexagonv5" }
+attributes #1 = { "target-cpu"="hexagonv5" }
 attributes #2 = { nounwind readnone }
 attributes #3 = { nounwind }
 
@@ -41,7 +41,7 @@ attributes #3 = { nounwind }
 !llvm.module.flags = !{!11, !12}
 !llvm.ident = !{!13}
 
-!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0 (http://llvm.org/git/clang.git 15506a21305e212c406f980ed9b6b1bac785df56)", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
+!0 = distinct !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang version 3.8.0", isOptimized: true, runtimeVersion: 0, emissionKind: FullDebug, enums: !2)
 !1 = !DIFile(filename: "cfi-late.c", directory: "/test")
 !2 = !{}
 !4 = distinct !DISubprogram(name: "foo", scope: !1, file: !1, line: 3, type: !5, isLocal: false, isDefinition: true, scopeLine: 3, flags: DIFlagPrototyped, isOptimized: true, unit: !0, retainedNodes: !8)
@@ -53,7 +53,7 @@ attributes #3 = { nounwind }
 !10 = !DILocalVariable(name: "y", arg: 2, scope: !4, file: !1, line: 3, type: !7)
 !11 = !{i32 2, !"Dwarf Version", i32 4}
 !12 = !{i32 2, !"Debug Info Version", i32 3}
-!13 = !{!"clang version 3.8.0 (http://llvm.org/git/clang.git 15506a21305e212c406f980ed9b6b1bac785df56)"}
+!13 = !{!"clang version 3.8.0"}
 !14 = !DIExpression()
 !15 = !DILocation(line: 3, column: 13, scope: !4)
 !16 = !DILocation(line: 3, column: 20, scope: !4)

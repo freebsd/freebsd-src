@@ -74,6 +74,16 @@ OPTIONS
   file are newline-separated. Lines starting with '#' are skipped. Entries may
   be of the form <filename> or <weight>,<filename>.
 
+.. option:: -remapping-file=path, -r=path
+
+  Specify a file which contains a remapping from symbol names in the input
+  profile to the symbol names that should be used in the output profile. The
+  file should consist of lines of the form ``<input-symbol> <output-symbol>``.
+  Blank lines and lines starting with ``#`` are skipped.
+
+  The :doc:`llvm-cxxmap <llvm-cxxmap>` tool can be used to generate the symbol
+  remapping file.
+
 .. option:: -instr (default)
 
  Specify that the input profile is an instrumentation-based profile.
@@ -193,7 +203,7 @@ OPTIONS
  annotations.
 
 .. option:: -topn=n
-	     
+
  Instruct the profile dumper to show the top ``n`` functions with the
  hottest basic blocks in the summary section. By default, the topn functions
  are not dumped.
@@ -205,6 +215,16 @@ OPTIONS
 .. option:: -memop-sizes
 
  Show the profiled sizes of the memory intrinsic calls for shown functions.
+
+.. option:: -value-cutoff=n
+
+ Show only those functions whose max count values are greater or equal to ``n``.
+ By default, the value-cutoff is set to 0.
+
+.. option:: -list-below-cutoff
+
+ Only output names of functions whose max count value are below the cutoff
+ value.
 
 EXIT STATUS
 -----------

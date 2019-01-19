@@ -95,7 +95,12 @@ MockObjectLayer::ObjectPtr createTestObject() {
   LLVMContext Ctx;
   ModuleBuilder MB(Ctx, TM->getTargetTriple().str(), "TestModule");
   MB.getModule()->setDataLayout(TM->createDataLayout());
-  auto *Main = MB.createFunctionDecl<void(int, char**)>("main");
+  auto *Main = MB.createFunctionDecl(
+      FunctionType::get(Type::getInt32Ty(Ctx),
+                        {Type::getInt32Ty(Ctx),
+                         Type::getInt8PtrTy(Ctx)->getPointerTo()},
+                        false),
+      "main");
   Main->getBasicBlockList().push_back(BasicBlock::Create(Ctx));
   IRBuilder<> B(&Main->back());
   B.CreateRet(ConstantInt::getSigned(Type::getInt32Ty(Ctx), 42));
@@ -112,10 +117,9 @@ TEST(RemoteObjectLayer, AddObject) {
 
   auto Channels = createPairedQueueChannels();
 
-  auto ReportError =
-    [](Error Err) {
-      logAllUnhandledErrors(std::move(Err), llvm::errs(), "");
-    };
+  auto ReportError = [](Error Err) {
+    logAllUnhandledErrors(std::move(Err), llvm::errs());
+  };
 
   // Copy the bytes out of the test object: the copy will be used to verify
   // that the original is correctly transmitted over RPC to the mock layer.
@@ -225,10 +229,9 @@ TEST(RemoteObjectLayer, RemoveObject) {
 
   auto Channels = createPairedQueueChannels();
 
-  auto ReportError =
-    [](Error Err) {
-      logAllUnhandledErrors(std::move(Err), llvm::errs(), "");
-    };
+  auto ReportError = [](Error Err) {
+    logAllUnhandledErrors(std::move(Err), llvm::errs());
+  };
 
   RPCEndpoint ClientEP(*Channels.first, true);
   RemoteObjectClientLayer<RPCEndpoint> Client(ClientEP, ReportError);
@@ -489,10 +492,9 @@ TEST(RemoteObjectLayer, EmitAndFinalize) {
 
   auto Channels = createPairedQueueChannels();
 
-  auto ReportError =
-    [](Error Err) {
-      logAllUnhandledErrors(std::move(Err), llvm::errs(), "");
-    };
+  auto ReportError = [](Error Err) {
+    logAllUnhandledErrors(std::move(Err), llvm::errs());
+  };
 
   RPCEndpoint ClientEP(*Channels.first, true);
   RemoteObjectClientLayer<RPCEndpoint> Client(ClientEP, ReportError);

@@ -46,6 +46,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetIntrinsicInfo.h"
 #include "llvm/Target/TargetMachine.h"
+#include "SDNodeDbgValue.h"
 #include <cstdint>
 #include <iterator>
 
@@ -123,6 +124,7 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::RETURNADDR:                 return "RETURNADDR";
   case ISD::ADDROFRETURNADDR:           return "ADDROFRETURNADDR";
   case ISD::FRAMEADDR:                  return "FRAMEADDR";
+  case ISD::SPONENTRY:                  return "SPONENTRY";
   case ISD::LOCAL_RECOVER:              return "LOCAL_RECOVER";
   case ISD::READ_REGISTER:              return "READ_REGISTER";
   case ISD::WRITE_REGISTER:             return "WRITE_REGISTER";
@@ -174,25 +176,34 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   // Unary operators
   case ISD::FABS:                       return "fabs";
   case ISD::FMINNUM:                    return "fminnum";
+  case ISD::STRICT_FMINNUM:             return "strict_fminnum";
   case ISD::FMAXNUM:                    return "fmaxnum";
-  case ISD::FMINNAN:                    return "fminnan";
-  case ISD::FMAXNAN:                    return "fmaxnan";
+  case ISD::STRICT_FMAXNUM:             return "strict_fmaxnum";
+  case ISD::FMINNUM_IEEE:               return "fminnum_ieee";
+  case ISD::FMAXNUM_IEEE:               return "fmaxnum_ieee";
+  case ISD::FMINIMUM:                   return "fminimum";
+  case ISD::FMAXIMUM:                   return "fmaximum";
   case ISD::FNEG:                       return "fneg";
   case ISD::FSQRT:                      return "fsqrt";
   case ISD::STRICT_FSQRT:               return "strict_fsqrt";
+  case ISD::FCBRT:                      return "fcbrt";
   case ISD::FSIN:                       return "fsin";
   case ISD::STRICT_FSIN:                return "strict_fsin";
   case ISD::FCOS:                       return "fcos";
   case ISD::STRICT_FCOS:                return "strict_fcos";
   case ISD::FSINCOS:                    return "fsincos";
   case ISD::FTRUNC:                     return "ftrunc";
+  case ISD::STRICT_FTRUNC:              return "strict_ftrunc";
   case ISD::FFLOOR:                     return "ffloor";
+  case ISD::STRICT_FFLOOR:              return "strict_ffloor";
   case ISD::FCEIL:                      return "fceil";
+  case ISD::STRICT_FCEIL:               return "strict_fceil";
   case ISD::FRINT:                      return "frint";
   case ISD::STRICT_FRINT:               return "strict_frint";
   case ISD::FNEARBYINT:                 return "fnearbyint";
   case ISD::STRICT_FNEARBYINT:          return "strict_fnearbyint";
   case ISD::FROUND:                     return "fround";
+  case ISD::STRICT_FROUND:              return "strict_fround";
   case ISD::FEXP:                       return "fexp";
   case ISD::STRICT_FEXP:                return "strict_fexp";
   case ISD::FEXP2:                      return "fexp2";
@@ -226,6 +237,8 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::SRL:                        return "srl";
   case ISD::ROTL:                       return "rotl";
   case ISD::ROTR:                       return "rotr";
+  case ISD::FSHL:                       return "fshl";
+  case ISD::FSHR:                       return "fshr";
   case ISD::FADD:                       return "fadd";
   case ISD::STRICT_FADD:                return "strict_fadd";
   case ISD::FSUB:                       return "fsub";
@@ -279,6 +292,12 @@ std::string SDNode::getOperationName(const SelectionDAG *G) const {
   case ISD::SHL_PARTS:                  return "shl_parts";
   case ISD::SRA_PARTS:                  return "sra_parts";
   case ISD::SRL_PARTS:                  return "srl_parts";
+
+  case ISD::SADDSAT:                    return "saddsat";
+  case ISD::UADDSAT:                    return "uaddsat";
+  case ISD::SSUBSAT:                    return "ssubsat";
+  case ISD::USUBSAT:                    return "usubsat";
+  case ISD::SMULFIX:                    return "smulfix";
 
   // Conversion operators.
   case ISD::SIGN_EXTEND:                return "sign_extend";
@@ -681,7 +700,24 @@ void SDNode::print_details(raw_ostream &OS, const SelectionDAG *G) const {
     OS << ':' << L->getLine();
     if (unsigned C = L->getColumn())
       OS << ':' << C;
+
+    for (SDDbgValue *Dbg : G->GetDbgValues(this)) {
+      if (Dbg->getKind() != SDDbgValue::SDNODE || Dbg->isInvalidated())
+        continue;
+      Dbg->dump(OS);
+    }
   }
+}
+
+LLVM_DUMP_METHOD void SDDbgValue::dump(raw_ostream &OS) const {
+ OS << " DbgVal";
+ if (kind==SDNODE)
+   OS << '(' << u.s.ResNo << ')';
+ OS << ":\"" << Var->getName() << '"';
+#ifndef NDEBUG
+ if (Expr->getNumElements())
+   Expr->dump();
+#endif
 }
 
 /// Return true if this node is so simple that we should just print it inline
