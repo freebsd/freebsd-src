@@ -20,7 +20,6 @@ add_clang_library(clangStaticAnalyzerCore
   CheckerContext.cpp
   CheckerHelpers.cpp
   CheckerManager.cpp
-  CheckerRegistry.cpp
   CommonBugCategories.cpp
   ConstraintManager.cpp
   CoreEngine.cpp
@@ -44,14 +43,16 @@ add_clang_library(clangStaticAnalyzerCore
   RangeConstraintManager.cpp
   RangedConstraintManager.cpp
   RegionStore.cpp
-  SValBuilder.cpp
-  SVals.cpp
+  RetainSummaryManager.cpp
+  SarifDiagnostics.cpp
   SimpleConstraintManager.cpp
   SimpleSValBuilder.cpp
-  SMTConstraintManager.cpp
   Store.cpp
   SubEngine.cpp
+  SValBuilder.cpp
+  SVals.cpp
   SymbolManager.cpp
+  TaintManager.cpp
   WorkList.cpp
   Z3ConstraintManager.cpp
 

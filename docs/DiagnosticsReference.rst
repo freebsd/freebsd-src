@@ -7885,6 +7885,10 @@ This diagnostic is enabled by default.
 |                                                                                               |+---------------------+|
 +-----------------------------------------------------------------------------------------------+-----------------------+
 
+-Woverride-init
+---------------
+Synonym for `-Winitializer-overrides`_.
+
 
 -Woverride-module
 -----------------
@@ -8637,9 +8641,9 @@ Also controls `-Wpragma-pack-suspicious-include`_.
 
 **Diagnostic text:**
 
-+---------------------------------------------------------------------------------------------------------------+
-|:warning:`warning:` |nbsp| :diagtext:`the current #pragma pack aligment value is modified in the included file`|
-+---------------------------------------------------------------------------------------------------------------+
++----------------------------------------------------------------------------------------------------------------+
+|:warning:`warning:` |nbsp| :diagtext:`the current #pragma pack alignment value is modified in the included file`|
++----------------------------------------------------------------------------------------------------------------+
 
 +---------------------------------------------------------------------------------------------+
 |:warning:`warning:` |nbsp| :diagtext:`unterminated '#pragma pack (push, ...)' at end of file`|

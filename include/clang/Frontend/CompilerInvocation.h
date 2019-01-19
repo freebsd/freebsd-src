@@ -10,11 +10,11 @@
 #ifndef LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H
 #define LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H
 
+#include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangOptions.h"
-#include "clang/Frontend/CodeGenOptions.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Frontend/LangStandard.h"
@@ -34,6 +34,12 @@ namespace opt {
 class ArgList;
 
 } // namespace opt
+
+namespace vfs {
+
+class FileSystem;
+
+} // namespace vfs
 
 } // namespace llvm
 
@@ -217,20 +223,13 @@ public:
   /// @}
 };
 
-namespace vfs {
-
-class FileSystem;
-
-} // namespace vfs
-
-IntrusiveRefCntPtr<vfs::FileSystem>
+IntrusiveRefCntPtr<llvm::vfs::FileSystem>
 createVFSFromCompilerInvocation(const CompilerInvocation &CI,
                                 DiagnosticsEngine &Diags);
 
-IntrusiveRefCntPtr<vfs::FileSystem>
-createVFSFromCompilerInvocation(const CompilerInvocation &CI,
-                                DiagnosticsEngine &Diags,
-                                IntrusiveRefCntPtr<vfs::FileSystem> BaseFS);
+IntrusiveRefCntPtr<llvm::vfs::FileSystem> createVFSFromCompilerInvocation(
+    const CompilerInvocation &CI, DiagnosticsEngine &Diags,
+    IntrusiveRefCntPtr<llvm::vfs::FileSystem> BaseFS);
 
 } // namespace clang
 

@@ -122,7 +122,7 @@ public:
 
 /// Subclasses \c clang::FixItAction so that we can install the custom
 /// \c FixItRewriter.
-class FixItAction : public clang::FixItAction {
+class ClangCheckFixItAction : public clang::FixItAction {
 public:
   bool BeginSourceFileAction(clang::CompilerInstance& CI) override {
     FixItOpts.reset(new FixItOptions);
@@ -167,6 +167,7 @@ int main(int argc, const char **argv) {
   // Clear adjusters because -fsyntax-only is inserted by the default chain.
   Tool.clearArgumentsAdjusters();
   Tool.appendArgumentsAdjuster(getClangStripOutputAdjuster());
+  Tool.appendArgumentsAdjuster(getClangStripDependencyFileAdjuster());
 
   // Running the analyzer requires --analyze. Other modes can work with the
   // -fsyntax-only option.
@@ -180,7 +181,7 @@ int main(int argc, const char **argv) {
   if (Analyze)
     FrontendFactory = newFrontendActionFactory<clang::ento::AnalysisAction>();
   else if (Fixit)
-    FrontendFactory = newFrontendActionFactory<FixItAction>();
+    FrontendFactory = newFrontendActionFactory<ClangCheckFixItAction>();
   else
     FrontendFactory = newFrontendActionFactory(&CheckFactory);
 

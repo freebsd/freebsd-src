@@ -15,7 +15,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
@@ -125,7 +125,6 @@ public:
   }
 
   std::shared_ptr<PathDiagnosticPiece> VisitNode(const ExplodedNode *Succ,
-                                                 const ExplodedNode *Pred,
                                                  BugReporterContext &BRC,
                                                  BugReport &BR) override;
 
@@ -1003,7 +1002,6 @@ void NonLocalizedStringChecker::checkPostStmt(const ObjCStringLiteral *SL,
 
 std::shared_ptr<PathDiagnosticPiece>
 NonLocalizedStringBRVisitor::VisitNode(const ExplodedNode *Succ,
-                                       const ExplodedNode *Pred,
                                        BugReporterContext &BRC, BugReport &BR) {
   if (Satisfied)
     return nullptr;
@@ -1400,7 +1398,8 @@ void ento::registerNonLocalizedStringChecker(CheckerManager &mgr) {
   NonLocalizedStringChecker *checker =
       mgr.registerChecker<NonLocalizedStringChecker>();
   checker->IsAggressive =
-      mgr.getAnalyzerOptions().getBooleanOption("AggressiveReport", false);
+      mgr.getAnalyzerOptions().getCheckerBooleanOption("AggressiveReport",
+                                                       false, checker);
 }
 
 void ento::registerEmptyLocalizationContextChecker(CheckerManager &mgr) {

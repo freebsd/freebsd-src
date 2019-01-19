@@ -100,6 +100,7 @@ namespace {
     void VisitUsingDecl(UsingDecl *D);
     void VisitUsingShadowDecl(UsingShadowDecl *D);
     void VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D);
+    void VisitOMPRequiresDecl(OMPRequiresDecl *D);
     void VisitOMPDeclareReductionDecl(OMPDeclareReductionDecl *D);
     void VisitOMPCapturedExprDecl(OMPCapturedExprDecl *D);
 
@@ -422,7 +423,8 @@ void DeclPrinter::VisitDeclContext(DeclContext *DC, bool Indent) {
 
     // FIXME: Need to be able to tell the DeclPrinter when
     const char *Terminator = nullptr;
-    if (isa<OMPThreadPrivateDecl>(*D) || isa<OMPDeclareReductionDecl>(*D))
+    if (isa<OMPThreadPrivateDecl>(*D) || isa<OMPDeclareReductionDecl>(*D) ||
+        isa<OMPRequiresDecl>(*D))
       Terminator = nullptr;
     else if (isa<ObjCMethodDecl>(*D) && cast<ObjCMethodDecl>(*D)->hasBody())
       Terminator = nullptr;
@@ -544,7 +546,7 @@ void DeclPrinter::VisitEnumConstantDecl(EnumConstantDecl *D) {
   prettyPrintAttributes(D);
   if (Expr *Init = D->getInitExpr()) {
     Out << " = ";
-    Init->printPretty(Out, nullptr, Policy, Indentation, &Context);
+    Init->printPretty(Out, nullptr, Policy, Indentation, "\n", &Context);
   }
 }
 
@@ -1091,6 +1093,10 @@ void DeclPrinter::VisitFunctionTemplateDecl(FunctionTemplateDecl *D) {
       printTemplateParameters(FD->getTemplateParameterList(I));
   }
   VisitRedeclarableTemplateDecl(D);
+  // Declare target attribute is special one, natural spelling for the pragma
+  // assumes "ending" construct so print it here.
+  if (D->getTemplatedDecl()->hasAttr<OMPDeclareTargetDeclAttr>())
+    Out << "#pragma omp end declare target\n";
 
   // Never print "instantiations" for deduction guides (they don't really
   // have them).
@@ -1537,6 +1543,15 @@ void DeclPrinter::VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D) {
       ND->printQualifiedName(Out);
     }
     Out << ")";
+  }
+}
+
+void DeclPrinter::VisitOMPRequiresDecl(OMPRequiresDecl *D) {
+  Out << "#pragma omp requires ";
+  if (!D->clauselist_empty()) {
+    OMPClausePrinter Printer(Out, Policy);
+    for (auto I = D->clauselist_begin(), E = D->clauselist_end(); I != E; ++I)
+      Printer.Visit(*I);
   }
 }
 
