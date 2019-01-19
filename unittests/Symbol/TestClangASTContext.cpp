@@ -13,11 +13,11 @@
 
 #include "clang/AST/DeclCXX.h"
 
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangUtil.h"
 #include "lldb/Symbol/Declaration.h"
-#include "lldb/Symbol/GoASTContext.h"
 
 using namespace clang;
 using namespace lldb;
@@ -25,9 +25,15 @@ using namespace lldb_private;
 
 class TestClangASTContext : public testing::Test {
 public:
-  static void SetUpTestCase() { HostInfo::Initialize(); }
+  static void SetUpTestCase() {
+    FileSystem::Initialize();
+    HostInfo::Initialize();
+  }
 
-  static void TearDownTestCase() { HostInfo::Terminate(); }
+  static void TearDownTestCase() {
+    HostInfo::Terminate();
+    FileSystem::Terminate();
+  }
 
   virtual void SetUp() override {
     std::string triple = HostInfo::GetTargetTriple();
@@ -232,11 +238,6 @@ TEST_F(TestClangASTContext, TestIsClangType) {
 
   // Default constructed type should fail
   EXPECT_FALSE(ClangUtil::IsClangType(CompilerType()));
-
-  // Go type should fail
-  GoASTContext go_ast;
-  CompilerType go_type(&go_ast, bool_ctype);
-  EXPECT_FALSE(ClangUtil::IsClangType(go_type));
 }
 
 TEST_F(TestClangASTContext, TestRemoveFastQualifiers) {
@@ -337,15 +338,19 @@ TEST_F(TestClangASTContext, TestRecordHasFields) {
   EXPECT_NE(nullptr, non_empty_base_field_decl);
   EXPECT_TRUE(ClangASTContext::RecordHasFields(non_empty_base_decl));
 
+  std::vector<std::unique_ptr<clang::CXXBaseSpecifier>> bases;
+
   // Test that a record with no direct fields, but fields in a base returns true
   CompilerType empty_derived = m_ast->CreateRecordType(
       nullptr, lldb::eAccessPublic, "EmptyDerived", clang::TTK_Struct,
       lldb::eLanguageTypeC_plus_plus, nullptr);
   ClangASTContext::StartTagDeclarationDefinition(empty_derived);
-  CXXBaseSpecifier *non_empty_base_spec = m_ast->CreateBaseClassSpecifier(
-      non_empty_base.GetOpaqueQualType(), lldb::eAccessPublic, false, false);
-  bool result = m_ast->SetBaseClassesForClassType(
-      empty_derived.GetOpaqueQualType(), &non_empty_base_spec, 1);
+  std::unique_ptr<clang::CXXBaseSpecifier> non_empty_base_spec =
+      m_ast->CreateBaseClassSpecifier(non_empty_base.GetOpaqueQualType(),
+                                      lldb::eAccessPublic, false, false);
+  bases.push_back(std::move(non_empty_base_spec));
+  bool result = m_ast->TransferBaseClasses(empty_derived.GetOpaqueQualType(),
+                                           std::move(bases));
   ClangASTContext::CompleteTagDeclarationDefinition(empty_derived);
   EXPECT_TRUE(result);
   CXXRecordDecl *empty_derived_non_empty_base_cxx_decl =
@@ -353,7 +358,7 @@ TEST_F(TestClangASTContext, TestRecordHasFields) {
   RecordDecl *empty_derived_non_empty_base_decl =
       ClangASTContext::GetAsRecordDecl(empty_derived);
   EXPECT_EQ(1u, ClangASTContext::GetNumBaseClasses(
-                   empty_derived_non_empty_base_cxx_decl, false));
+                    empty_derived_non_empty_base_cxx_decl, false));
   EXPECT_TRUE(
       ClangASTContext::RecordHasFields(empty_derived_non_empty_base_decl));
 
@@ -363,10 +368,12 @@ TEST_F(TestClangASTContext, TestRecordHasFields) {
       nullptr, lldb::eAccessPublic, "EmptyDerived2", clang::TTK_Struct,
       lldb::eLanguageTypeC_plus_plus, nullptr);
   ClangASTContext::StartTagDeclarationDefinition(empty_derived2);
-  CXXBaseSpecifier *non_empty_vbase_spec = m_ast->CreateBaseClassSpecifier(
-      non_empty_base.GetOpaqueQualType(), lldb::eAccessPublic, true, false);
-  result = m_ast->SetBaseClassesForClassType(empty_derived2.GetOpaqueQualType(),
-                                             &non_empty_vbase_spec, 1);
+  std::unique_ptr<CXXBaseSpecifier> non_empty_vbase_spec =
+      m_ast->CreateBaseClassSpecifier(non_empty_base.GetOpaqueQualType(),
+                                      lldb::eAccessPublic, true, false);
+  bases.push_back(std::move(non_empty_vbase_spec));
+  result = m_ast->TransferBaseClasses(empty_derived2.GetOpaqueQualType(),
+                                      std::move(bases));
   ClangASTContext::CompleteTagDeclarationDefinition(empty_derived2);
   EXPECT_TRUE(result);
   CXXRecordDecl *empty_derived_non_empty_vbase_cxx_decl =
@@ -374,12 +381,9 @@ TEST_F(TestClangASTContext, TestRecordHasFields) {
   RecordDecl *empty_derived_non_empty_vbase_decl =
       ClangASTContext::GetAsRecordDecl(empty_derived2);
   EXPECT_EQ(1u, ClangASTContext::GetNumBaseClasses(
-                   empty_derived_non_empty_vbase_cxx_decl, false));
+                    empty_derived_non_empty_vbase_cxx_decl, false));
   EXPECT_TRUE(
       ClangASTContext::RecordHasFields(empty_derived_non_empty_vbase_decl));
-
-  delete non_empty_base_spec;
-  delete non_empty_vbase_spec;
 }
 
 TEST_F(TestClangASTContext, TemplateArguments) {
@@ -417,7 +421,7 @@ TEST_F(TestClangASTContext, TemplateArguments) {
                              clang::AutoTypeKeyword::Auto, false));
 
   CompilerType int_type(m_ast->getASTContext(), m_ast->getASTContext()->IntTy);
-  for(CompilerType t: { type, typedef_type, auto_type }) {
+  for (CompilerType t : {type, typedef_type, auto_type}) {
     SCOPED_TRACE(t.GetTypeName().AsCString());
 
     EXPECT_EQ(m_ast->GetTemplateArgumentKind(t.GetOpaqueQualType(), 0),

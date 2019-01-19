@@ -55,10 +55,11 @@
 #include <unistd.h>
 
 #include "lldb/Host/ConnectionFileDescriptor.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/HostInfo.h"
 #include "lldb/Host/ThreadLauncher.h"
-#include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/ProcessLaunchInfo.h"
 #include "lldb/Utility/ArchSpec.h"
 #include "lldb/Utility/CleanUp.h"
 #include "lldb/Utility/DataBufferHeap.h"
@@ -100,12 +101,12 @@ using namespace lldb_private;
 bool Host::GetBundleDirectory(const FileSpec &file,
                               FileSpec &bundle_directory) {
 #if defined(__APPLE__)
-  if (llvm::sys::fs::is_directory(file.GetPath())) {
+  if (FileSystem::Instance().IsDirectory(file)) {
     char path[PATH_MAX];
     if (file.GetPath(path, sizeof(path))) {
       CFCBundle bundle(path);
       if (bundle.GetPath(path, sizeof(path))) {
-        bundle_directory.SetFile(path, false, FileSpec::Style::native);
+        bundle_directory.SetFile(path, FileSpec::Style::native);
         return true;
       }
     }
@@ -117,7 +118,7 @@ bool Host::GetBundleDirectory(const FileSpec &file,
 
 bool Host::ResolveExecutableInBundle(FileSpec &file) {
 #if defined(__APPLE__)
-  if (llvm::sys::fs::is_directory(file.GetPath())) {
+  if (FileSystem::Instance().IsDirectory(file)) {
     char path[PATH_MAX];
     if (file.GetPath(path, sizeof(path))) {
       CFCBundle bundle(path);
@@ -125,7 +126,7 @@ bool Host::ResolveExecutableInBundle(FileSpec &file) {
       if (url.get()) {
         if (::CFURLGetFileSystemRepresentation(url.get(), YES, (UInt8 *)path,
                                                sizeof(path))) {
-          file.SetFile(path, false, FileSpec::Style::native);
+          file.SetFile(path, FileSpec::Style::native);
           return true;
         }
       }
@@ -225,7 +226,7 @@ LaunchInNewTerminalWithAppleScript(const char *exe_path,
 
   darwin_debug_file_spec.GetFilename().SetCString("darwin-debug");
 
-  if (!darwin_debug_file_spec.Exists()) {
+  if (!FileSystem::Instance().Exists(darwin_debug_file_spec)) {
     error.SetErrorStringWithFormat(
         "the 'darwin-debug' executable doesn't exists at '%s'",
         darwin_debug_file_spec.GetPath().c_str());
@@ -485,11 +486,9 @@ static bool GetMacOSXProcessCPUType(ProcessInstanceInfo &process_info) {
         bool host_cpu_is_64bit;
         uint32_t is64bit_capable;
         size_t is64bit_capable_len = sizeof(is64bit_capable);
-        if (sysctlbyname("hw.cpu64bit_capable", &is64bit_capable,
-                         &is64bit_capable_len, NULL, 0) == 0)
-          host_cpu_is_64bit = true;
-        else
-          host_cpu_is_64bit = false;
+        host_cpu_is_64bit =
+            sysctlbyname("hw.cpu64bit_capable", &is64bit_capable,
+                         &is64bit_capable_len, NULL, 0) == 0;
 
         // if the host is an armv8 device, its cpusubtype will be in
         // CPU_SUBTYPE_ARM64 numbering
@@ -541,8 +540,7 @@ static bool GetMacOSXProcessArgs(const ProcessInstanceInfoMatch *match_info_ptr,
            triple_arch == llvm::Triple::x86_64);
       const char *cstr = data.GetCStr(&offset);
       if (cstr) {
-        process_info.GetExecutableFile().SetFile(cstr, false,
-                                                 FileSpec::Style::native);
+        process_info.GetExecutableFile().SetFile(cstr, FileSpec::Style::native);
 
         if (match_info_ptr == NULL ||
             NameMatches(
@@ -629,7 +627,7 @@ uint32_t Host::FindProcesses(const ProcessInstanceInfoMatch &match_info,
   int mib[3] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL};
 
   size_t pid_data_size = 0;
-  if (::sysctl(mib, 4, NULL, &pid_data_size, NULL, 0) != 0)
+  if (::sysctl(mib, 3, nullptr, &pid_data_size, nullptr, 0) != 0)
     return 0;
 
   // Add a few extra in case a few more show up
@@ -639,7 +637,7 @@ uint32_t Host::FindProcesses(const ProcessInstanceInfoMatch &match_info,
   kinfos.resize(estimated_pid_count);
   pid_data_size = kinfos.size() * sizeof(struct kinfo_proc);
 
-  if (::sysctl(mib, 4, &kinfos[0], &pid_data_size, NULL, 0) != 0)
+  if (::sysctl(mib, 3, &kinfos[0], &pid_data_size, nullptr, 0) != 0)
     return 0;
 
   const size_t actual_pid_count = (pid_data_size / sizeof(struct kinfo_proc));
@@ -660,7 +658,7 @@ uint32_t Host::FindProcesses(const ProcessInstanceInfoMatch &match_info,
     if (our_uid == 0)
       kinfo_user_matches = true;
 
-    if (kinfo_user_matches == false || // Make sure the user is acceptable
+    if (!kinfo_user_matches || // Make sure the user is acceptable
         static_cast<lldb::pid_t>(kinfo.kp_proc.p_pid) ==
             our_pid ||                   // Skip this process
         kinfo.kp_proc.p_pid == 0 ||      // Skip kernel (kernel pid is zero)
@@ -1273,21 +1271,19 @@ static bool ShouldLaunchUsingXPC(ProcessLaunchInfo &launch_info) {
 
 Status Host::LaunchProcess(ProcessLaunchInfo &launch_info) {
   Status error;
+
+  FileSystem &fs = FileSystem::Instance();
   FileSpec exe_spec(launch_info.GetExecutableFile());
 
-  llvm::sys::fs::file_status stats;
-  status(exe_spec.GetPath(), stats);
-  if (!exists(stats)) {
-    exe_spec.ResolvePath();
-    status(exe_spec.GetPath(), stats);
-  }
-  if (!exists(stats)) {
-    exe_spec.ResolveExecutableLocation();
-    status(exe_spec.GetPath(), stats);
-  }
-  if (!exists(stats)) {
+  if (!fs.Exists(exe_spec))
+    FileSystem::Instance().Resolve(exe_spec);
+
+  if (!fs.Exists(exe_spec))
+    FileSystem::Instance().ResolveExecutableLocation(exe_spec);
+
+  if (!fs.Exists(exe_spec)) {
     error.SetErrorStringWithFormatv("executable doesn't exist: '{0}'",
-                                    launch_info.GetExecutableFile());
+                                    exe_spec);
     return error;
   }
 
@@ -1337,7 +1333,7 @@ Status Host::ShellExpandArguments(ProcessLaunchInfo &launch_info) {
       return error;
     }
     expand_tool_spec.AppendPathComponent("lldb-argdumper");
-    if (!expand_tool_spec.Exists()) {
+    if (!FileSystem::Instance().Exists(expand_tool_spec)) {
       error.SetErrorStringWithFormat(
           "could not find the lldb-argdumper tool: %s",
           expand_tool_spec.GetPath().c_str());
@@ -1354,14 +1350,14 @@ Status Host::ShellExpandArguments(ProcessLaunchInfo &launch_info) {
     int status;
     std::string output;
     FileSpec cwd(launch_info.GetWorkingDirectory());
-    if (!cwd.Exists()) {
+    if (!FileSystem::Instance().Exists(cwd)) {
       char *wd = getcwd(nullptr, 0);
       if (wd == nullptr) {
         error.SetErrorStringWithFormat(
             "cwd does not exist; cannot launch with shell argument expansion");
         return error;
       } else {
-        FileSpec working_dir(wd, false);
+        FileSpec working_dir(wd);
         free(wd);
         launch_info.SetWorkingDirectory(working_dir);
       }

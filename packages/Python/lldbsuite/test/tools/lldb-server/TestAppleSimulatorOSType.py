@@ -19,7 +19,13 @@ class TestAppleSimulatorOSType(gdbremote_testcase.GdbRemoteTestCaseBase):
         sim_devices = json.loads(sim_devices_str)['devices']
         # Find an available simulator for the requested platform
         deviceUDID = None
-        for (runtime,devices) in sim_devices.items():
+        for simulator in sim_devices:
+            if isinstance(simulator,dict):
+                runtime = simulator['name']
+                devices = simulator['devices']
+            else:
+                runtime = simulator
+                devices = sim_devices[simulator]
             if not platform in runtime.lower():
                 continue
             for device in devices:
@@ -95,18 +101,21 @@ class TestAppleSimulatorOSType(gdbremote_testcase.GdbRemoteTestCaseBase):
 
     @apple_simulator_test('iphone')
     @debugserver_test
+    @skipIfDarwinEmbedded
     def test_simulator_ostype_ios(self):
         self.check_simulator_ostype(sdk='iphonesimulator',
                                     platform='ios')
 
     @apple_simulator_test('appletv')
     @debugserver_test
+    @skipIfDarwinEmbedded
     def test_simulator_ostype_tvos(self):
         self.check_simulator_ostype(sdk='appletvsimulator',
                                     platform='tvos')
 
     @apple_simulator_test('watch')
     @debugserver_test
+    @skipIfDarwinEmbedded
     def test_simulator_ostype_watchos(self):
         self.check_simulator_ostype(sdk='watchsimulator',
                                     platform='watchos', arch='i386')

@@ -9,6 +9,24 @@ import lit.TestRunner
 import lit.util
 from lit.formats.base import TestFormat
 
+def getBuildDir(cmd):
+    found = False
+    for arg in cmd:
+        if found:
+            return arg
+        if arg == '--build-dir':
+            found = True
+    return None
+
+def mkdir_p(path):
+    import errno
+    try:
+        os.makedirs(path)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+    if not os.path.isdir(path):
+        raise OSError(errno.ENOTDIR, "%s is not a directory"%path)
 
 class LLDBTest(TestFormat):
     def __init__(self, dotest_cmd):
@@ -44,10 +62,27 @@ class LLDBTest(TestFormat):
             return (lit.Test.UNSUPPORTED, 'Test is unsupported')
 
         testPath, testFile = os.path.split(test.getSourcePath())
-        # On Windows, the system does not always correctly interpret shebang lines.
-        # To make sure we can execute the tests, add python exe as the first parameter
-        # of the command.
+        # On Windows, the system does not always correctly interpret
+        # shebang lines.  To make sure we can execute the tests, add
+        # python exe as the first parameter of the command.
         cmd = [sys.executable] + self.dotest_cmd + [testPath, '-p', testFile]
+
+        # The macOS system integrity protection (SIP) doesn't allow injecting
+        # libraries into system binaries, but this can be worked around by
+        # copying the binary into a different location.
+        if 'DYLD_INSERT_LIBRARIES' in test.config.environment and \
+                (sys.executable.startswith('/System/') or \
+                sys.executable.startswith('/usr/')):
+            builddir = getBuildDir(cmd)
+            mkdir_p(builddir)
+            copied_python = os.path.join(builddir, 'copied-system-python')
+            if not os.path.isfile(copied_python):
+                import shutil, subprocess
+                python = subprocess.check_output([
+                    '/usr/bin/python2.7', '-c',
+                    'import sys; print sys.executable']).strip()
+                shutil.copy(python, copied_python)
+            cmd[0] = copied_python
 
         try:
             out, err, exitCode = lit.util.executeCommand(
@@ -59,7 +94,10 @@ class LLDBTest(TestFormat):
                 litConfig.maxIndividualTestTime))
 
         if exitCode:
-            return lit.Test.FAIL, out + err
+            if 'FAIL:' in out or 'FAIL:' in err:
+                return lit.Test.FAIL, out + err
+            if 'XPASS:' in out or 'XPASS:' in err:
+                return lit.Test.XPASS, out + err
 
         passing_test_line = 'RESULT: PASSED'
         if passing_test_line not in out and passing_test_line not in err:

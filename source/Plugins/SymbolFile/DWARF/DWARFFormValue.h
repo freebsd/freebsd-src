@@ -11,9 +11,10 @@
 #define SymbolFileDWARF_DWARFFormValue_h_
 
 #include "DWARFDataExtractor.h"
-#include <stddef.h> // for NULL
+#include <stddef.h>
 
 class DWARFUnit;
+class SymbolFileDWARF;
 
 class DWARFFormValue {
 public:
@@ -55,12 +56,17 @@ public:
   };
 
   DWARFFormValue();
+  DWARFFormValue(const DWARFUnit *cu);
   DWARFFormValue(const DWARFUnit *cu, dw_form_t form);
   const DWARFUnit *GetCompileUnit() const { return m_cu; }
   void SetCompileUnit(const DWARFUnit *cu) { m_cu = cu; }
   dw_form_t Form() const { return m_form; }
+  dw_form_t& FormRef() { return m_form; }
   void SetForm(dw_form_t form) { m_form = form; }
   const ValueType &Value() const { return m_value; }
+  ValueType &ValueRef() { return m_value; }
+  void SetValue(const ValueType &val) { m_value = val; }
+
   void Dump(lldb_private::Stream &s) const;
   bool ExtractValue(const lldb_private::DWARFDataExtractor &data,
                     lldb::offset_t *offset_ptr);

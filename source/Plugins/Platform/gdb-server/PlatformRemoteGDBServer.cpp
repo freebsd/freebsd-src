@@ -10,9 +10,6 @@
 #include "PlatformRemoteGDBServer.h"
 #include "lldb/Host/Config.h"
 
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
@@ -43,7 +40,7 @@ static bool g_initialized = false;
 void PlatformRemoteGDBServer::Initialize() {
   Platform::Initialize();
 
-  if (g_initialized == false) {
+  if (!g_initialized) {
     g_initialized = true;
     PluginManager::RegisterPlugin(
         PlatformRemoteGDBServer::GetPluginNameStatic(),
@@ -107,7 +104,7 @@ Status PlatformRemoteGDBServer::ResolveExecutable(
   // Resolve any executable within an apk on Android?
   // Host::ResolveExecutableInBundle (resolved_module_spec.GetFileSpec());
 
-  if (resolved_module_spec.GetFileSpec().Exists() ||
+  if (FileSystem::Instance().Exists(resolved_module_spec.GetFileSpec()) ||
       module_spec.GetUUID().IsValid()) {
     if (resolved_module_spec.GetArchitecture().IsValid() ||
         resolved_module_spec.GetUUID().IsValid()) {
@@ -142,7 +139,7 @@ Status PlatformRemoteGDBServer::ResolveExecutable(
     }
 
     if (error.Fail() || !exe_module_sp) {
-      if (resolved_module_spec.GetFileSpec().Readable()) {
+      if (FileSystem::Instance().Readable(resolved_module_spec.GetFileSpec())) {
         error.SetErrorStringWithFormat(
             "'%s' doesn't contain any '%s' platform architectures: %s",
             resolved_module_spec.GetFileSpec().GetPath().c_str(),
@@ -488,8 +485,8 @@ lldb::ProcessSP PlatformRemoteGDBServer::DebugProcess(
         if (target == NULL) {
           TargetSP new_target_sp;
 
-          error = debugger.GetTargetList().CreateTarget(debugger, "", "", false,
-                                                        NULL, new_target_sp);
+          error = debugger.GetTargetList().CreateTarget(
+              debugger, "", "", eLoadDependentsNo, NULL, new_target_sp);
           target = new_target_sp.get();
         } else
           error.Clear();
@@ -499,8 +496,8 @@ lldb::ProcessSP PlatformRemoteGDBServer::DebugProcess(
 
           // The darwin always currently uses the GDB remote debugger plug-in
           // so even when debugging locally we are debugging remotely!
-          process_sp = target->CreateProcess(
-              launch_info.GetListenerForProcess(debugger), "gdb-remote", NULL);
+          process_sp = target->CreateProcess(launch_info.GetListener(),
+                                             "gdb-remote", NULL);
 
           if (process_sp) {
             error = process_sp->ConnectRemote(nullptr, connect_url.c_str());
@@ -574,8 +571,8 @@ lldb::ProcessSP PlatformRemoteGDBServer::Attach(
         if (target == NULL) {
           TargetSP new_target_sp;
 
-          error = debugger.GetTargetList().CreateTarget(debugger, "", "", false,
-                                                        NULL, new_target_sp);
+          error = debugger.GetTargetList().CreateTarget(
+              debugger, "", "", eLoadDependentsNo, NULL, new_target_sp);
           target = new_target_sp.get();
         } else
           error.Clear();

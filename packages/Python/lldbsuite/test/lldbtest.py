@@ -72,8 +72,7 @@ from lldbsuite.support import encoded_file
 from lldbsuite.support import funcutils
 
 # See also dotest.parseOptionsAndInitTestdirs(), where the environment variables
-# LLDB_COMMAND_TRACE and LLDB_DO_CLEANUP are set from '-t' and '-r dir'
-# options.
+# LLDB_COMMAND_TRACE is set from '-t' option.
 
 # By default, traceAlways is False.
 if "LLDB_COMMAND_TRACE" in os.environ and os.environ[
@@ -740,6 +739,11 @@ class Base(unittest2.TestCase):
         else:
             self.lldbMiExec = None
 
+        if "LLDBVSCODE_EXEC" in os.environ:
+            self.lldbVSCodeExec = os.environ["LLDBVSCODE_EXEC"]
+        else:
+            self.lldbVSCodeExec = None
+
         # If we spawn an lldb process for test (via pexpect), do not load the
         # init file unless told otherwise.
         if "NO_LLDBINIT" in os.environ and "NO" == os.environ["NO_LLDBINIT"]:
@@ -1215,12 +1219,15 @@ class Base(unittest2.TestCase):
                 if os.path.isfile(src):
                     dst = src.replace(self.log_basename, dst_log_basename)
                     if os.name == "nt" and os.path.isfile(dst):
-                        # On Windows, renaming a -> b will throw an exception if b exists.  On non-Windows platforms
-                        # it silently replaces the destination.  Ultimately this means that atomic renames are not
-                        # guaranteed to be possible on Windows, but we need this to work anyway, so just remove the
-                        # destination first if it already exists.
+                        # On Windows, renaming a -> b will throw an exception if
+                        # b exists.  On non-Windows platforms it silently
+                        # replaces the destination.  Ultimately this means that
+                        # atomic renames are not guaranteed to be possible on
+                        # Windows, but we need this to work anyway, so just
+                        # remove the destination first if it already exists.
                         remove_file(dst)
 
+                    lldbutil.mkdir_p(os.path.dirname(dst))
                     os.rename(src, dst)
         else:
             # success!  (and we don't want log files) delete log files
@@ -1301,18 +1308,6 @@ class Base(unittest2.TestCase):
             if m:
                 version = m.group(1)
         return version
-
-    def getGoCompilerVersion(self):
-        """ Returns a string that represents the go compiler version, or None if go is not found.
-        """
-        compiler = which("go")
-        if compiler:
-            version_output = system([[compiler, "version"]])[0]
-            for line in version_output.split(os.linesep):
-                m = re.search('go version (devel|go\\S+)', line)
-                if m:
-                    return m.group(1)
-        return None
 
     def platformIsDarwin(self):
         """Returns true if the OS triple for the selected platform is any valid apple OS"""
@@ -1581,12 +1576,6 @@ class Base(unittest2.TestCase):
         if not module.buildGModules(self, architecture, compiler,
                                     dictionary, testdir, testname):
             raise Exception("Don't know how to build binary with gmodules")
-
-    def buildGo(self):
-        """Build the default go binary.
-        """
-        exe = self.getBuildArtifact("a.out")
-        system([[which('go'), 'build -gcflags "-N -l" -o %s main.go' % exe]])
 
     def signBinary(self, binary_path):
         if sys.platform.startswith("darwin"):
@@ -1875,18 +1864,16 @@ class TestBase(Base):
         # decorators.
         Base.setUp(self)
 
-        if self.child:
-            # Set the clang modules cache path.
-            assert(self.getDebugInfo() == 'default')
-            mod_cache = os.path.join(self.getBuildDir(), "module-cache")
-            self.runCmd('settings set symbols.clang-modules-cache-path "%s"'
-                        % mod_cache)
+        # Set the clang modules cache path used by LLDB.
+        mod_cache = os.path.join(os.path.join(os.environ["LLDB_BUILD"],
+                                              "module-cache-lldb"))
+        self.runCmd('settings set symbols.clang-modules-cache-path "%s"'
+                    % mod_cache)
 
-            # Disable Spotlight lookup. The testsuite creates
-            # different binaries with the same UUID, because they only
-            # differ in the debug info, which is not being hashed.
-            self.runCmd('settings set symbols.enable-external-lookup false')
-
+        # Disable Spotlight lookup. The testsuite creates
+        # different binaries with the same UUID, because they only
+        # differ in the debug info, which is not being hashed.
+        self.runCmd('settings set symbols.enable-external-lookup false')
 
         if "LLDB_MAX_LAUNCH_COUNT" in os.environ:
             self.maxLaunchCount = int(os.environ["LLDB_MAX_LAUNCH_COUNT"])
@@ -2074,8 +2061,17 @@ class TestBase(Base):
                     print("Command '" + cmd + "' failed!", file=sbuf)
 
         if check:
+            output = ""
+            if self.res.GetOutput():
+              output += "\nCommand output:\n" + self.res.GetOutput()
+            if self.res.GetError():
+              output += "\nError output:\n" + self.res.GetError()
+            if msg:
+              msg += output
+            if cmd:
+              cmd += output
             self.assertTrue(self.res.Succeeded(),
-                            msg if msg else CMD_MSG(cmd))
+                            msg if (msg) else CMD_MSG(cmd))
 
     def match(
             self,
@@ -2133,6 +2129,126 @@ class TestBase(Base):
                         msg if msg else EXP_MSG(str, output, exe))
 
         return match_object
+
+    def check_completion_with_desc(self, str_input, match_desc_pairs):
+        interp = self.dbg.GetCommandInterpreter()
+        match_strings = lldb.SBStringList()
+        description_strings = lldb.SBStringList()
+        num_matches = interp.HandleCompletionWithDescriptions(str_input, len(str_input), 0, -1, match_strings, description_strings)
+        self.assertEqual(len(description_strings), len(match_strings))
+
+        missing_pairs = []
+        for pair in match_desc_pairs:
+            found_pair = False
+            for i in range(num_matches + 1):
+                match_candidate = match_strings.GetStringAtIndex(i)
+                description_candidate = description_strings.GetStringAtIndex(i)
+                if match_candidate == pair[0] and description_candidate == pair[1]:
+                    found_pair = True
+                    break
+            if not found_pair:
+                missing_pairs.append(pair)
+
+        if len(missing_pairs):
+            error_msg = "Missing pairs:\n"
+            for pair in missing_pairs:
+                error_msg += " [" + pair[0] + ":" + pair[1] + "]\n"
+            error_msg += "Got the following " + str(num_matches) + " completions back:\n"
+            for i in range(num_matches + 1):
+                match_candidate = match_strings.GetStringAtIndex(i)
+                description_candidate = description_strings.GetStringAtIndex(i)
+                error_msg += "[" + match_candidate + ":" + description_candidate + "]\n"
+            self.assertEqual(0, len(missing_pairs), error_msg)
+
+    def complete_exactly(self, str_input, patterns):
+        self.complete_from_to(str_input, patterns, True)
+
+    def complete_from_to(self, str_input, patterns, turn_off_re_match=False):
+        """Test that the completion mechanism completes str_input to patterns,
+        where patterns could be a pattern-string or a list of pattern-strings"""
+        # Patterns should not be None in order to proceed.
+        self.assertFalse(patterns is None)
+        # And should be either a string or list of strings.  Check for list type
+        # below, if not, make a list out of the singleton string.  If patterns
+        # is not a string or not a list of strings, there'll be runtime errors
+        # later on.
+        if not isinstance(patterns, list):
+            patterns = [patterns]
+
+        interp = self.dbg.GetCommandInterpreter()
+        match_strings = lldb.SBStringList()
+        num_matches = interp.HandleCompletion(str_input, len(str_input), 0, -1, match_strings)
+        common_match = match_strings.GetStringAtIndex(0)
+        if num_matches == 0:
+            compare_string = str_input
+        else:
+            if common_match != None and len(common_match) > 0:
+                compare_string = str_input + common_match
+            else:
+                compare_string = ""
+                for idx in range(1, num_matches+1):
+                    compare_string += match_strings.GetStringAtIndex(idx) + "\n"
+
+        for p in patterns:
+            if turn_off_re_match:
+                self.expect(
+                    compare_string, msg=COMPLETION_MSG(
+                        str_input, p, match_strings), exe=False, substrs=[p])
+            else:
+                self.expect(
+                    compare_string, msg=COMPLETION_MSG(
+                        str_input, p, match_strings), exe=False, patterns=[p])
+
+    def filecheck(
+            self,
+            command,
+            check_file,
+            filecheck_options = ''):
+        # Run the command.
+        self.runCmd(
+                command,
+                msg="FileCheck'ing result of `{0}`".format(command))
+
+        # Get the error text if there was an error, and the regular text if not.
+        output = self.res.GetOutput() if self.res.Succeeded() \
+                else self.res.GetError()
+
+        # Assemble the absolute path to the check file. As a convenience for
+        # LLDB inline tests, assume that the check file is a relative path to
+        # a file within the inline test directory.
+        if check_file.endswith('.pyc'):
+            check_file = check_file[:-1]
+        check_file_abs = os.path.abspath(check_file)
+
+        # Run FileCheck.
+        filecheck_bin = configuration.get_filecheck_path()
+        if not filecheck_bin:
+            self.assertTrue(False, "No valid FileCheck executable specified")
+        filecheck_args = [filecheck_bin, check_file_abs]
+        if filecheck_options:
+            filecheck_args.append(filecheck_options)
+        subproc = Popen(filecheck_args, stdin=PIPE, stdout=PIPE, stderr=PIPE, universal_newlines = True)
+        cmd_stdout, cmd_stderr = subproc.communicate(input=output)
+        cmd_status = subproc.returncode
+
+        filecheck_cmd = " ".join(filecheck_args)
+        filecheck_trace = """
+--- FileCheck trace (code={0}) ---
+{1}
+
+FileCheck input:
+{2}
+
+FileCheck output:
+{3}
+{4}
+""".format(cmd_status, filecheck_cmd, output, cmd_stdout, cmd_stderr)
+
+        trace = cmd_status != 0 or traceAlways
+        with recording(self, trace) as sbuf:
+            print(filecheck_trace, file=sbuf)
+
+        self.assertTrue(cmd_status == 0)
 
     def expect(
             self,

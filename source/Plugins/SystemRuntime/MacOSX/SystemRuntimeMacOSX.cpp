@@ -59,6 +59,7 @@ SystemRuntime *SystemRuntimeMacOSX::CreateInstance(Process *process) {
       case llvm::Triple::IOS:
       case llvm::Triple::TvOS:
       case llvm::Triple::WatchOS:
+      // NEED_BRIDGEOS_TRIPLE case llvm::Triple::BridgeOS:
         create = triple_ref.getVendor() == llvm::Triple::Apple;
         break;
       default:
@@ -276,7 +277,7 @@ void SystemRuntimeMacOSX::ReadLibdispatchOffsetsAddress() {
 
   // libdispatch symbols were in libSystem.B.dylib up through Mac OS X 10.6
   // ("Snow Leopard")
-  ModuleSpec libSystem_module_spec(FileSpec("libSystem.B.dylib", false));
+  ModuleSpec libSystem_module_spec(FileSpec("libSystem.B.dylib"));
   ModuleSP module_sp(m_process->GetTarget().GetImages().FindFirstModule(
       libSystem_module_spec));
   if (module_sp)
@@ -286,7 +287,7 @@ void SystemRuntimeMacOSX::ReadLibdispatchOffsetsAddress() {
   // libdispatch symbols are in their own dylib as of Mac OS X 10.7 ("Lion")
   // and later
   if (dispatch_queue_offsets_symbol == NULL) {
-    ModuleSpec libdispatch_module_spec(FileSpec("libdispatch.dylib", false));
+    ModuleSpec libdispatch_module_spec(FileSpec("libdispatch.dylib"));
     module_sp = m_process->GetTarget().GetImages().FindFirstModule(
         libdispatch_module_spec);
     if (module_sp)
@@ -330,7 +331,7 @@ void SystemRuntimeMacOSX::ReadLibpthreadOffsetsAddress() {
       "pthread_layout_offsets");
   const Symbol *libpthread_layout_offsets_symbol = NULL;
 
-  ModuleSpec libpthread_module_spec(FileSpec("libsystem_pthread.dylib", false));
+  ModuleSpec libpthread_module_spec(FileSpec("libsystem_pthread.dylib"));
   ModuleSP module_sp(m_process->GetTarget().GetImages().FindFirstModule(
       libpthread_module_spec));
   if (module_sp) {
@@ -378,7 +379,7 @@ void SystemRuntimeMacOSX::ReadLibdispatchTSDIndexesAddress() {
       "dispatch_tsd_indexes");
   const Symbol *libdispatch_tsd_indexes_symbol = NULL;
 
-  ModuleSpec libpthread_module_spec(FileSpec("libdispatch.dylib", false));
+  ModuleSpec libpthread_module_spec(FileSpec("libdispatch.dylib"));
   ModuleSP module_sp(m_process->GetTarget().GetImages().FindFirstModule(
       libpthread_module_spec));
   if (module_sp) {

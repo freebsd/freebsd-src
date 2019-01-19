@@ -10,13 +10,9 @@
 #ifndef liblldb_ObjectContainerUniversalMachO_h_
 #define liblldb_ObjectContainerUniversalMachO_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Host/SafeMachO.h"
 #include "lldb/Symbol/ObjectContainer.h"
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/Utility/SafeMachO.h"
 
 class ObjectContainerUniversalMachO : public lldb_private::ObjectContainer {
 public:

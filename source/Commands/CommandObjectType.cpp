@@ -9,16 +9,12 @@
 
 #include "CommandObjectType.h"
 
-// C Includes
-// C++ Includes
 #include <algorithm>
 #include <cctype>
 #include <functional>
 
-// Project includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/IOHandler.h"
-#include "lldb/Core/State.h"
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/Host/OptionParser.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
@@ -39,9 +35,9 @@
 #include "lldb/Target/ThreadList.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/RegularExpression.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/StringList.h"
 
-// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
 
 using namespace lldb;
@@ -99,23 +95,23 @@ static bool WarnOnPotentialUnquotedUnsignedType(Args &command,
   return false;
 }
 
-static OptionDefinition g_type_summary_add_options[] = {
+static constexpr OptionDefinition g_type_summary_add_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL,                false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL,                false, "no-value",        'v', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't show the value, just show the summary, for this type." },
-  { LLDB_OPT_SET_ALL,                false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL,                false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL,                false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Type names are actually regular expressions." },
-  { LLDB_OPT_SET_1,                  true,  "inline-children", 'c', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "If true, inline all child values into summary string." },
-  { LLDB_OPT_SET_1,                  false, "omit-names",      'O', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "If true, omit value names in the summary display." },
-  { LLDB_OPT_SET_2,                  true,  "summary-string",  's', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeSummaryString,  "Summary string used to display text and object contents." },
-  { LLDB_OPT_SET_3,                  false, "python-script",   'o', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePythonScript,   "Give a one-liner Python script as part of the command." },
-  { LLDB_OPT_SET_3,                  false, "python-function", 'F', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePythonFunction, "Give the name of a Python function to use for this type." },
-  { LLDB_OPT_SET_3,                  false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Input Python code to use for this type manually." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "expand",          'e', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Expand aggregate data types to show children on separate lines." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "hide-empty",      'h', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Do not expand aggregate data types with no children." },
-  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "name",            'n', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,           "A name for this summary string." }
+  { LLDB_OPT_SET_ALL,                false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
+  { LLDB_OPT_SET_ALL,                false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
+  { LLDB_OPT_SET_ALL,                false, "no-value",        'v', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't show the value, just show the summary, for this type." },
+  { LLDB_OPT_SET_ALL,                false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
+  { LLDB_OPT_SET_ALL,                false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
+  { LLDB_OPT_SET_ALL,                false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Type names are actually regular expressions." },
+  { LLDB_OPT_SET_1,                  true,  "inline-children", 'c', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "If true, inline all child values into summary string." },
+  { LLDB_OPT_SET_1,                  false, "omit-names",      'O', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "If true, omit value names in the summary display." },
+  { LLDB_OPT_SET_2,                  true,  "summary-string",  's', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeSummaryString,  "Summary string used to display text and object contents." },
+  { LLDB_OPT_SET_3,                  false, "python-script",   'o', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePythonScript,   "Give a one-liner Python script as part of the command." },
+  { LLDB_OPT_SET_3,                  false, "python-function", 'F', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePythonFunction, "Give the name of a Python function to use for this type." },
+  { LLDB_OPT_SET_3,                  false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Input Python code to use for this type manually." },
+  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "expand",          'e', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Expand aggregate data types to show children on separate lines." },
+  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "hide-empty",      'h', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Do not expand aggregate data types with no children." },
+  { LLDB_OPT_SET_2 | LLDB_OPT_SET_3, false, "name",            'n', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,           "A name for this summary string." }
     // clang-format on
 };
 
@@ -301,15 +297,15 @@ static const char *g_synth_addreader_instructions =
     "        '''Optional'''\n"
     "class synthProvider:\n";
 
-static OptionDefinition g_type_synth_add_options[] = {
+static constexpr OptionDefinition g_type_synth_add_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,     "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,        "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_2,   false, "python-class",    'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypePythonClass, "Use this Python class to produce synthetic children." },
-  { LLDB_OPT_SET_3,   false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Type Python code to generate a class that provides synthetic children." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,        "Type names are actually regular expressions." }
+  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,     "If true, cascade through typedef chains." },
+  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Don't use this format for pointers-to-type objects." },
+  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Don't use this format for references-to-type objects." },
+  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,        "Add this to the given category instead of the default one." },
+  { LLDB_OPT_SET_2,   false, "python-class",    'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypePythonClass, "Use this Python class to produce synthetic children." },
+  { LLDB_OPT_SET_3,   false, "input-python",    'P', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Type Python code to generate a class that provides synthetic children." },
+  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,        "Type names are actually regular expressions." }
     // clang-format on
 };
 
@@ -531,14 +527,14 @@ public:
 // CommandObjectTypeFormatAdd
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_type_format_add_options[] = {
+static constexpr OptionDefinition g_type_format_add_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,    "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean, "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,    "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,    "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,    "Type names are actually regular expressions." },
-  { LLDB_OPT_SET_2,   false, "type",            't', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,    "Format variables as if they were of this type." }
+  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,    "Add this to the given category instead of the default one." },
+  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean, "If true, cascade through typedef chains." },
+  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,    "Don't use this format for pointers-to-type objects." },
+  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,    "Don't use this format for references-to-type objects." },
+  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,    "Type names are actually regular expressions." },
+  { LLDB_OPT_SET_2,   false, "type",            't', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,    "Format variables as if they were of this type." }
     // clang-format on
 };
 
@@ -754,11 +750,11 @@ protected:
   }
 };
 
-static OptionDefinition g_type_formatter_delete_options[] = {
+static constexpr OptionDefinition g_type_formatter_delete_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_1, false, "all",      'a', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Delete from every category." },
-  { LLDB_OPT_SET_2, false, "category", 'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,     "Delete from given category." },
-  { LLDB_OPT_SET_3, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Delete from given language's category." }
+  { LLDB_OPT_SET_1, false, "all",      'a', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Delete from every category." },
+  { LLDB_OPT_SET_2, false, "category", 'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,     "Delete from given category." },
+  { LLDB_OPT_SET_3, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Delete from given language's category." }
     // clang-format on
 };
 
@@ -896,9 +892,9 @@ protected:
   }
 };
 
-static OptionDefinition g_type_formatter_clear_options[] = {
+static constexpr OptionDefinition g_type_formatter_clear_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "all", 'a', OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone, "Clear every category." }
+  { LLDB_OPT_SET_ALL, false, "all", 'a', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Clear every category." }
     // clang-format on
 };
 
@@ -1013,6 +1009,14 @@ public:
             "type format clear", "Delete all existing format styles.") {}
 };
 
+
+static constexpr OptionDefinition g_type_formatter_list_options[] = {
+  // clang-format off
+  {LLDB_OPT_SET_1, false, "category-regex", 'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,     "Only show categories matching this filter."},
+  {LLDB_OPT_SET_2, false, "language",       'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Only show the category for a specific language."}
+  // clang-format on
+};
+
 template <typename FormatterType>
 class CommandObjectTypeFormatterList : public CommandObjectParsed {
   typedef typename FormatterType::SharedPointer FormatterSharedPointer;
@@ -1055,13 +1059,7 @@ class CommandObjectTypeFormatterList : public CommandObjectParsed {
     }
 
     llvm::ArrayRef<OptionDefinition> GetDefinitions() override {
-      static OptionDefinition g_option_table[] = {
-          // clang-format off
-            {LLDB_OPT_SET_1, false, "category-regex", 'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,     "Only show categories matching this filter."},
-            {LLDB_OPT_SET_2, false, "language",       'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Only show the category for a specific language."}
-          // clang-format on
-      };
-      return llvm::ArrayRef<OptionDefinition>(g_option_table);
+      return llvm::makeArrayRef(g_type_formatter_list_options);
     }
 
     // Instance variables to hold the values for command options.
@@ -1784,10 +1782,10 @@ protected:
 // CommandObjectTypeCategoryDefine
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_type_category_define_options[] = {
+static constexpr OptionDefinition g_type_category_define_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "enabled",  'e', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "If specified, this category will be created enabled." },
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Specify the language that this category is supported for." }
+  { LLDB_OPT_SET_ALL, false, "enabled",  'e', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "If specified, this category will be created enabled." },
+  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Specify the language that this category is supported for." }
     // clang-format on
 };
 
@@ -1891,9 +1889,9 @@ protected:
 // CommandObjectTypeCategoryEnable
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_type_category_enable_options[] = {
+static constexpr OptionDefinition g_type_category_enable_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Enable the category for this language." },
+  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Enable the category for this language." },
     // clang-format on
 };
 
@@ -2068,9 +2066,9 @@ protected:
 // CommandObjectTypeCategoryDisable
 //-------------------------------------------------------------------------
 
-OptionDefinition g_type_category_disable_options[] = {
+OptionDefinition constexpr g_type_category_disable_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Enable the category for this language." }
+  { LLDB_OPT_SET_ALL, false, "language", 'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Enable the category for this language." }
     // clang-format on
 };
 
@@ -2492,14 +2490,14 @@ bool CommandObjectTypeSynthAdd::AddSynth(ConstString type_name,
 
 #endif // LLDB_DISABLE_PYTHON
 
-static OptionDefinition g_type_filter_add_options[] = {
+static constexpr OptionDefinition g_type_filter_add_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
-  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
-  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
-  { LLDB_OPT_SET_ALL, false, "child",           'c', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeExpressionPath, "Include this expression path in the synthetic view." },
-  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,           "Type names are actually regular expressions." }
+  { LLDB_OPT_SET_ALL, false, "cascade",         'C', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeBoolean,        "If true, cascade through typedef chains." },
+  { LLDB_OPT_SET_ALL, false, "skip-pointers",   'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for pointers-to-type objects." },
+  { LLDB_OPT_SET_ALL, false, "skip-references", 'r', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Don't use this format for references-to-type objects." },
+  { LLDB_OPT_SET_ALL, false, "category",        'w', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeName,           "Add this to the given category instead of the default one." },
+  { LLDB_OPT_SET_ALL, false, "child",           'c', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeExpressionPath, "Include this expression path in the synthetic view." },
+  { LLDB_OPT_SET_ALL, false, "regex",           'x', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,           "Type names are actually regular expressions." }
     // clang-format on
 };
 
@@ -2747,10 +2745,10 @@ protected:
 //----------------------------------------------------------------------
 // "type lookup"
 //----------------------------------------------------------------------
-static OptionDefinition g_type_lookup_options[] = {
+static constexpr OptionDefinition g_type_lookup_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "show-help", 'h', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Display available help for types" },
-  { LLDB_OPT_SET_ALL, false, "language",  'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeLanguage, "Which language's types should the search scope be" }
+  { LLDB_OPT_SET_ALL, false, "show-help", 'h', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Display available help for types" },
+  { LLDB_OPT_SET_ALL, false, "language",  'l', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeLanguage, "Which language's types should the search scope be" }
     // clang-format on
 };
 
@@ -2909,7 +2907,7 @@ public:
     if (StackFrame *frame = m_exe_ctx.GetFramePtr()) {
       guessed_language = GuessLanguage(frame);
       if (guessed_language != eLanguageTypeUnknown) {
-        std::sort(
+        llvm::sort(
             languages.begin(), languages.end(),
             [guessed_language](Language *lang1, Language *lang2) -> bool {
               if (!lang1 || !lang2)

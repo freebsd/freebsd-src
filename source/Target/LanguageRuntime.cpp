@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/LanguageRuntime.h"
 #include "Plugins/Language/ObjC/ObjCLanguage.h"
 #include "lldb/Core/PluginManager.h"
@@ -125,11 +121,11 @@ public:
       return eCallbackReturnStop;
   }
 
-  Searcher::Depth GetDepth() override {
+  lldb::SearchDepth GetDepth() override {
     if (SetActualResolver())
       return m_actual_resolver_sp->GetDepth();
     else
-      return eDepthTarget;
+      return lldb::eSearchDepthTarget;
   }
 
   void GetDescription(Stream *s) override {

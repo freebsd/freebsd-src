@@ -74,13 +74,14 @@ def _check_expected_version(comparison, expected, actual):
         LooseVersion(expected_str))
 
 
+_re_pattern_type = type(re.compile(''))
 def _match_decorator_property(expected, actual):
     if actual is None or expected is None:
         return True
 
     if isinstance(expected, no_match):
         return not _match_decorator_property(expected.item, actual)
-    elif isinstance(expected, (re._pattern_type,) + six.string_types):
+    elif isinstance(expected, (_re_pattern_type,) + six.string_types):
         return re.search(expected, actual) is not None
     elif hasattr(expected, "__iter__"):
         return any([x is not None and _match_decorator_property(x, actual)
@@ -192,10 +193,10 @@ def _decorateTest(mode,
             py_version is None) or _check_expected_version(
             py_version[0], py_version[1], sys.version_info)
         skip_for_macos_version = (macos_version is None) or (
-            _check_expected_version(
+            (platform.mac_ver()[0] != "") and (_check_expected_version(
                 macos_version[0],
                 macos_version[1],
-                platform.mac_ver()[0]))
+                platform.mac_ver()[0])))
 
         # For the test to be skipped, all specified (e.g. not None) parameters must be True.
         # An unspecified parameter means "any", so those are marked skip by default.  And we skip
@@ -457,12 +458,6 @@ def expectedFlakey(expected_fn, bugnumber=None):
         return expectedFailure_impl
 
 
-def expectedFlakeyDsym(bugnumber=None):
-    def fn(self):
-        return self.getDebugInfo() == "dwarf"
-    return expectedFlakey(fn, bugnumber)
-
-
 def expectedFlakeyOS(oslist, bugnumber=None, compilers=None):
     def fn(self):
         return (self.getPlatform() in oslist and
@@ -600,28 +595,6 @@ def skipUnlessDarwin(func):
     return skipUnlessPlatform(lldbplatformutil.getDarwinOSTriples())(func)
 
 
-def skipUnlessGoInstalled(func):
-    """Decorate the item to skip tests when no Go compiler is available."""
-
-    def is_go_missing(self):
-        compiler = self.getGoCompilerVersion()
-        if not compiler:
-            return "skipping because go compiler not found"
-        match_version = re.search(r"(\d+\.\d+(\.\d+)?)", compiler)
-        if not match_version:
-            # Couldn't determine version.
-            return "skipping because go version could not be parsed out of {}".format(
-                compiler)
-        else:
-            min_strict_version = StrictVersion("1.4.0")
-            compiler_strict_version = StrictVersion(match_version.group(1))
-            if compiler_strict_version < min_strict_version:
-                return "skipping because available version ({}) does not meet minimum required version ({})".format(
-                    compiler_strict_version, min_strict_version)
-        return None
-    return skipTestIfFn(is_go_missing)(func)
-
-
 def skipIfHostIncompatibleWithRemote(func):
     """Decorate the item to skip tests if binaries built on this host are incompatible."""
 
@@ -686,6 +659,30 @@ def skipUnlessSupportedTypeAttribute(attr):
             return "Compiler does not support attribute %s"%(attr)
         return None
     return skipTestIfFn(compiler_doesnt_support_struct_attribute)
+
+def skipUnlessHasCallSiteInfo(func):
+    """Decorate the function to skip testing unless call site info from clang is available."""
+
+    def is_compiler_clang_with_call_site_info(self):
+        compiler_path = self.getCompiler()
+        compiler = os.path.basename(compiler_path)
+        if not compiler.startswith("clang"):
+            return "Test requires clang as compiler"
+
+        f = tempfile.NamedTemporaryFile()
+        cmd = "echo 'int main() {}' | " \
+              "%s -g -glldb -O1 -S -emit-llvm -x c -o %s -" % (compiler_path, f.name)
+        if os.popen(cmd).close() is not None:
+            return "Compiler can't compile with call site info enabled"
+
+        with open(f.name, 'r') as ir_output_file:
+            buf = ir_output_file.read()
+
+        if 'DIFlagAllCallsDescribed' not in buf:
+            return "Compiler did not introduce DIFlagAllCallsDescribed IR flag"
+
+        return None
+    return skipTestIfFn(is_compiler_clang_with_call_site_info)(func)
 
 def skipUnlessThreadSanitizer(func):
     """Decorate the item to skip test unless Clang -fsanitize=thread is supported."""
@@ -810,3 +807,10 @@ def skipUnlessFeature(feature):
             except subprocess.CalledProcessError:
                 return "%s is not supported on this system." % feature
     return skipTestIfFn(is_feature_enabled)
+
+def skipIfSanitized(func):
+    """Skip this test if the environment is set up to run LLDB itself under ASAN."""
+    def is_sanitized():
+        return (('DYLD_INSERT_LIBRARIES' in os.environ) and
+                'libclang_rt.asan' in os.environ['DYLD_INSERT_LIBRARIES'])
+    return skipTestIfFn(is_sanitized)(func)

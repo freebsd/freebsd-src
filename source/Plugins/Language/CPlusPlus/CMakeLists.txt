@@ -9,13 +9,16 @@ add_lldb_library(lldbPluginCPlusPlusLanguage PLUGIN
   LibCxxInitializerList.cpp
   LibCxxList.cpp
   LibCxxMap.cpp
+  LibCxxOptional.cpp
   LibCxxQueue.cpp
   LibCxxTuple.cpp
   LibCxxUnorderedMap.cpp
+  LibCxxVariant.cpp
   LibCxxVector.cpp
   LibStdcpp.cpp
   LibStdcppTuple.cpp
   LibStdcppUniquePointer.cpp
+  MSVCUndecoratedNameParser.cpp
 
   LINK_LIBS
     lldbCore
@@ -24,6 +27,8 @@ add_lldb_library(lldbPluginCPlusPlusLanguage PLUGIN
     lldbSymbol
     lldbTarget
     lldbUtility
+    lldbPluginClangCommon
+
   LINK_COMPONENTS
     Support
 )

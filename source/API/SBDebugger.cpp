@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 #include "SystemInitializerFull.h"
 
@@ -41,7 +37,6 @@
 
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/State.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StructuredDataImpl.h"
 #include "lldb/DataFormatters/DataVisualization.h"
@@ -53,6 +48,7 @@
 #include "lldb/Target/Process.h"
 #include "lldb/Target/TargetList.h"
 #include "lldb/Utility/Args.h"
+#include "lldb/Utility/State.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
@@ -90,7 +86,7 @@ static llvm::sys::DynamicLibrary LoadPlugin(const lldb::DebuggerSP &debugger_sp,
                            "lldb::PluginInitialize(lldb::SBDebugger)");
     }
   } else {
-    if (spec.Exists())
+    if (FileSystem::Instance().Exists(spec))
       error.SetErrorString("this file does not represent a loadable dylib");
     else
       error.SetErrorString("no such file");
@@ -129,13 +125,23 @@ SBDebugger &SBDebugger::operator=(const SBDebugger &rhs) {
 }
 
 void SBDebugger::Initialize() {
+  SBInitializerOptions options;
+  SBDebugger::Initialize(options);
+}
+
+lldb::SBError SBDebugger::Initialize(SBInitializerOptions &options) {
   Log *log(GetLogIfAllCategoriesSet(LIBLLDB_LOG_API));
 
   if (log)
     log->Printf("SBDebugger::Initialize ()");
 
-  g_debugger_lifetime->Initialize(llvm::make_unique<SystemInitializerFull>(),
-                                  LoadPlugin);
+  SBError error;
+  if (auto e = g_debugger_lifetime->Initialize(
+          llvm::make_unique<SystemInitializerFull>(), *options.m_opaque_up,
+          LoadPlugin)) {
+    error.SetError(Status(std::move(e)));
+  }
+  return error;
 }
 
 void SBDebugger::Terminate() { g_debugger_lifetime->Terminate(); }
@@ -558,7 +564,8 @@ lldb::SBTarget SBDebugger::CreateTarget(const char *filename,
     platform_options.SetPlatformName(platform_name);
 
     sb_error.ref() = m_opaque_sp->GetTargetList().CreateTarget(
-        *m_opaque_sp, filename, target_triple, add_dependent_modules,
+        *m_opaque_sp, filename, target_triple,
+        add_dependent_modules ? eLoadDependentsYes : eLoadDependentsNo,
         &platform_options, target_sp);
 
     if (sb_error.Success())
@@ -587,7 +594,8 @@ SBDebugger::CreateTargetWithFileAndTargetTriple(const char *filename,
   if (m_opaque_sp) {
     const bool add_dependent_modules = true;
     Status error(m_opaque_sp->GetTargetList().CreateTarget(
-        *m_opaque_sp, filename, target_triple, add_dependent_modules, nullptr,
+        *m_opaque_sp, filename, target_triple,
+        add_dependent_modules ? eLoadDependentsYes : eLoadDependentsNo, nullptr,
         target_sp));
     sb_target.SetSP(target_sp);
   }
@@ -613,7 +621,8 @@ SBTarget SBDebugger::CreateTargetWithFileAndArch(const char *filename,
     const bool add_dependent_modules = true;
 
     error = m_opaque_sp->GetTargetList().CreateTarget(
-        *m_opaque_sp, filename, arch_cstr, add_dependent_modules, nullptr,
+        *m_opaque_sp, filename, arch_cstr,
+        add_dependent_modules ? eLoadDependentsYes : eLoadDependentsNo, nullptr,
         target_sp);
 
     if (error.Success()) {
@@ -638,7 +647,9 @@ SBTarget SBDebugger::CreateTarget(const char *filename) {
     Status error;
     const bool add_dependent_modules = true;
     error = m_opaque_sp->GetTargetList().CreateTarget(
-        *m_opaque_sp, filename, "", add_dependent_modules, nullptr, target_sp);
+        *m_opaque_sp, filename, "",
+        add_dependent_modules ? eLoadDependentsYes : eLoadDependentsNo, nullptr,
+        target_sp);
 
     if (error.Success()) {
       m_opaque_sp->GetTargetList().SetSelectedTarget(target_sp.get());
@@ -730,7 +741,7 @@ SBTarget SBDebugger::FindTargetWithFileAndArch(const char *filename,
         m_opaque_sp->GetPlatformList().GetSelectedPlatform().get(), arch_name);
     TargetSP target_sp(
         m_opaque_sp->GetTargetList().FindTargetWithExecutableAndArchitecture(
-            FileSpec(filename, false), arch_name ? &arch : nullptr));
+            FileSpec(filename), arch_name ? &arch : nullptr));
     sb_target.SetSP(target_sp);
   }
   return sb_target;
@@ -1048,6 +1059,12 @@ const char *SBDebugger::GetPrompt() const {
 void SBDebugger::SetPrompt(const char *prompt) {
   if (m_opaque_sp)
     m_opaque_sp->SetPrompt(llvm::StringRef::withNullAsEmpty(prompt));
+}
+
+const char *SBDebugger::GetReproducerPath() const {
+  return (m_opaque_sp
+              ? ConstString(m_opaque_sp->GetReproducerPath()).GetCString()
+              : nullptr);
 }
 
 ScriptLanguage SBDebugger::GetScriptLanguage() const {

@@ -7,13 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
 
-// Project includes
 #include "CommandObjectExpression.h"
 #include "Plugins/ExpressionParser/Clang/ClangExpressionVariable.h"
 #include "lldb/Core/Debugger.h"
@@ -43,29 +39,32 @@ CommandObjectExpression::CommandOptions::CommandOptions() : OptionGroup() {}
 
 CommandObjectExpression::CommandOptions::~CommandOptions() = default;
 
-static OptionEnumValueElement g_description_verbosity_type[] = {
+static constexpr OptionEnumValueElement g_description_verbosity_type[] = {
     {eLanguageRuntimeDescriptionDisplayVerbosityCompact, "compact",
      "Only show the description string"},
     {eLanguageRuntimeDescriptionDisplayVerbosityFull, "full",
-     "Show the full output, including persistent variable's name and type"},
-    {0, nullptr, nullptr}};
+     "Show the full output, including persistent variable's name and type"} };
 
-static OptionDefinition g_expression_options[] = {
+static constexpr OptionEnumValues DescriptionVerbosityTypes() {
+  return OptionEnumValues(g_description_verbosity_type);
+}
+
+static constexpr OptionDefinition g_expression_options[] = {
     // clang-format off
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "all-threads",           'a', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeBoolean,              "Should we run all threads if the execution doesn't complete on one thread."},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "ignore-breakpoints",    'i', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeBoolean,              "Ignore breakpoint hits while running expressions"},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "timeout",               't', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeUnsignedInteger,      "Timeout value (in microseconds) for running the expression."},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "unwind-on-error",       'u', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeBoolean,              "Clean up program state if the expression causes a crash, or raises a signal.  "
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "all-threads",           'a', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeBoolean,              "Should we run all threads if the execution doesn't complete on one thread."},
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "ignore-breakpoints",    'i', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeBoolean,              "Ignore breakpoint hits while running expressions"},
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "timeout",               't', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeUnsignedInteger,      "Timeout value (in microseconds) for running the expression."},
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "unwind-on-error",       'u', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeBoolean,              "Clean up program state if the expression causes a crash, or raises a signal.  "
                                                                                                                                                                                   "Note, unlike gdb hitting a breakpoint is controlled by another option (-i)."},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "debug",                 'g', OptionParser::eNoArgument,       nullptr, nullptr,                      0, eArgTypeNone,                 "When specified, debug the JIT code by setting a breakpoint on the first instruction "
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "debug",                 'g', OptionParser::eNoArgument,       nullptr, {},                          0, eArgTypeNone,                 "When specified, debug the JIT code by setting a breakpoint on the first instruction "
                                                                                                                                                                                   "and forcing breakpoints to not be ignored (-i0) and no unwinding to happen on error (-u0)."},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "language",              'l', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeLanguage,             "Specifies the Language to use when parsing the expression.  If not set the target.language "
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "language",              'l', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeLanguage,             "Specifies the Language to use when parsing the expression.  If not set the target.language "
                                                                                                                                                                                   "setting is used." },
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "apply-fixits",          'X', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeLanguage,             "If true, simple fix-it hints will be automatically applied to the expression." },
-  {LLDB_OPT_SET_1,                  false, "description-verbosity", 'v', OptionParser::eOptionalArgument, nullptr, g_description_verbosity_type, 0, eArgTypeDescriptionVerbosity, "How verbose should the output of this expression be, if the object description is asked for."},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "top-level",             'p', OptionParser::eNoArgument,       nullptr, nullptr,                      0, eArgTypeNone,                 "Interpret the expression as a complete translation unit, without injecting it into the local "
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "apply-fixits",          'X', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeLanguage,             "If true, simple fix-it hints will be automatically applied to the expression." },
+  {LLDB_OPT_SET_1,                  false, "description-verbosity", 'v', OptionParser::eOptionalArgument, nullptr, DescriptionVerbosityTypes(), 0, eArgTypeDescriptionVerbosity, "How verbose should the output of this expression be, if the object description is asked for."},
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "top-level",             'p', OptionParser::eNoArgument,       nullptr, {},                          0, eArgTypeNone,                 "Interpret the expression as a complete translation unit, without injecting it into the local "
                                                                                                                                                                                   "context.  Allows declaration of persistent, top-level entities without a $ prefix."},
-  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "allow-jit",             'j', OptionParser::eRequiredArgument, nullptr, nullptr,                      0, eArgTypeBoolean,              "Controls whether the expression can fall back to being JITted if it's not supported by "
+  {LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "allow-jit",             'j', OptionParser::eRequiredArgument, nullptr, {},                          0, eArgTypeBoolean,              "Controls whether the expression can fall back to being JITted if it's not supported by "
                                                                                                                                                                                   "the interpreter (defaults to true)."}
     // clang-format on
 };
@@ -307,6 +306,72 @@ CommandObjectExpression::~CommandObjectExpression() = default;
 
 Options *CommandObjectExpression::GetOptions() { return &m_option_group; }
 
+int CommandObjectExpression::HandleCompletion(CompletionRequest &request) {
+  EvaluateExpressionOptions options;
+  options.SetCoerceToId(m_varobj_options.use_objc);
+  options.SetLanguage(m_command_options.language);
+  options.SetExecutionPolicy(lldb_private::eExecutionPolicyNever);
+  options.SetAutoApplyFixIts(false);
+  options.SetGenerateDebugInfo(false);
+
+  // We need a valid execution context with a frame pointer for this
+  // completion, so if we don't have one we should try to make a valid
+  // execution context.
+  if (m_interpreter.GetExecutionContext().GetFramePtr() == nullptr)
+    m_interpreter.UpdateExecutionContext(nullptr);
+
+  // This didn't work, so let's get out before we start doing things that
+  // expect a valid frame pointer.
+  if (m_interpreter.GetExecutionContext().GetFramePtr() == nullptr)
+    return 0;
+
+  ExecutionContext exe_ctx(m_interpreter.GetExecutionContext());
+
+  Target *target = exe_ctx.GetTargetPtr();
+
+  if (!target)
+    target = GetDummyTarget();
+
+  if (!target)
+    return 0;
+
+  unsigned cursor_pos = request.GetRawCursorPos();
+  llvm::StringRef code = request.GetRawLine();
+
+  const std::size_t original_code_size = code.size();
+
+  // Remove the first token which is 'expr' or some alias/abbreviation of that.
+  code = llvm::getToken(code).second.ltrim();
+  OptionsWithRaw args(code);
+  code = args.GetRawPart();
+
+  // The position where the expression starts in the command line.
+  assert(original_code_size >= code.size());
+  std::size_t raw_start = original_code_size - code.size();
+
+  // Check if the cursor is actually in the expression string, and if not, we
+  // exit.
+  // FIXME: We should complete the options here.
+  if (cursor_pos < raw_start)
+    return 0;
+
+  // Make the cursor_pos again relative to the start of the code string.
+  assert(cursor_pos >= raw_start);
+  cursor_pos -= raw_start;
+
+  auto language = exe_ctx.GetFrameRef().GetLanguage();
+
+  Status error;
+  lldb::UserExpressionSP expr(target->GetUserExpressionForLanguage(
+      code, llvm::StringRef(), language, UserExpression::eResultTypeAny,
+      options, error));
+  if (error.Fail())
+    return 0;
+
+  expr->Complete(exe_ctx, request, cursor_pos);
+  return request.GetNumberOfMatches();
+}
+
 static lldb_private::Status
 CanBeUsedForElementCountPrinting(ValueObject &valobj) {
   CompilerType type(valobj.GetCompilerType());
@@ -355,8 +420,7 @@ bool CommandObjectExpression::EvaluateExpression(llvm::StringRef expr,
     if (m_command_options.auto_apply_fixits == eLazyBoolCalculate)
       auto_apply_fixits = target->GetEnableAutoApplyFixIts();
     else
-      auto_apply_fixits =
-          m_command_options.auto_apply_fixits == eLazyBoolYes ? true : false;
+      auto_apply_fixits = m_command_options.auto_apply_fixits == eLazyBoolYes;
 
     options.SetAutoApplyFixIts(auto_apply_fixits);
 

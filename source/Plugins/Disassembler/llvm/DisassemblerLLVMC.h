@@ -10,13 +10,10 @@
 #ifndef liblldb_DisassemblerLLVMC_h_
 #define liblldb_DisassemblerLLVMC_h_
 
-// C Includes
-// C++ Includes
 #include <memory>
 #include <mutex>
 #include <string>
 
-// Project includes
 #include "lldb/Core/Address.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/PluginManager.h"
@@ -76,19 +73,6 @@ protected:
                                           uint64_t *ReferenceType,
                                           uint64_t ReferencePC,
                                           const char **ReferenceName);
-
-  void Lock(InstructionLLVMC *inst,
-            const lldb_private::ExecutionContext *exe_ctx) {
-    m_mutex.lock();
-    m_inst = inst;
-    m_exe_ctx = exe_ctx;
-  }
-
-  void Unlock() {
-    m_inst = NULL;
-    m_exe_ctx = NULL;
-    m_mutex.unlock();
-  }
 
   const lldb_private::ExecutionContext *m_exe_ctx;
   InstructionLLVMC *m_inst;

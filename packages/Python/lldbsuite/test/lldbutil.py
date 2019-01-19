@@ -330,6 +330,20 @@ def sort_stopped_threads(process,
 # Utility functions for setting breakpoints
 # ==================================================
 
+def run_break_set_by_script(
+        test,
+        class_name,
+        extra_options=None,
+        num_expected_locations=1):
+    """Set a scripted breakpoint.  Check that it got the right number of locations."""
+    test.assertTrue(class_name is not None, "Must pass in a class name.")
+    command = "breakpoint set -P " + class_name
+    if extra_options is not None:
+        command += " " + extra_options
+
+    break_results = run_break_set_command(test, command)
+    check_breakpoint_result(test, break_results, num_locations=num_expected_locations)
+    return get_bpno_from_match(break_results)
 
 def run_break_set_by_file_and_line(
         test,
@@ -511,7 +525,7 @@ def run_break_set_command(test, command):
     patterns = [
         r"^Breakpoint (?P<bpno>[0-9]+): (?P<num_locations>[0-9]+) locations\.$",
         r"^Breakpoint (?P<bpno>[0-9]+): (?P<num_locations>no) locations \(pending\)\.",
-        r"^Breakpoint (?P<bpno>[0-9]+): where = (?P<module>.*)`(?P<symbol>[+\-]{0,1}[^+]+)( \+ (?P<offset>[0-9]+)){0,1}( \[inlined\] (?P<inline_symbol>.*)){0,1} at (?P<file>[^:]+):(?P<line_no>[0-9]+), address = (?P<address>0x[0-9a-fA-F]+)$",
+        r"^Breakpoint (?P<bpno>[0-9]+): where = (?P<module>.*)`(?P<symbol>[+\-]{0,1}[^+]+)( \+ (?P<offset>[0-9]+)){0,1}( \[inlined\] (?P<inline_symbol>.*)){0,1} at (?P<file>[^:]+):(?P<line_no>[0-9]+)(?P<column>(:[0-9]+)?), address = (?P<address>0x[0-9a-fA-F]+)$",
         r"^Breakpoint (?P<bpno>[0-9]+): where = (?P<module>.*)`(?P<symbol>.*)( \+ (?P<offset>[0-9]+)){0,1}, address = (?P<address>0x[0-9a-fA-F]+)$"]
     match_object = test.match(command, patterns)
     break_results = match_object.groupdict()
@@ -722,6 +736,8 @@ def is_thread_crashed(test, thread):
     elif test.getPlatform() == "linux":
         return thread.GetStopReason() == lldb.eStopReasonSignal and thread.GetStopReasonDataAtIndex(
             0) == thread.GetProcess().GetUnixSignals().GetSignalNumberFromName("SIGSEGV")
+    elif test.getPlatform() == "windows":
+        return "Exception 0xc0000005" in thread.GetStopDescription(100)
     else:
         return "invalid address" in thread.GetStopDescription(100)
 
@@ -737,7 +753,7 @@ def get_crashed_threads(test, process):
 
 # Helper functions for run_to_{source,name}_breakpoint:
 
-def run_to_breakpoint_make_target(test, exe_name, in_cwd):
+def run_to_breakpoint_make_target(test, exe_name = "a.out", in_cwd = True):
     if in_cwd:
         exe = test.getBuildArtifact(exe_name)
 
@@ -746,7 +762,7 @@ def run_to_breakpoint_make_target(test, exe_name, in_cwd):
     test.assertTrue(target, "Target: %s is not valid."%(exe_name))
     return target
 
-def run_to_breakpoint_do_run(test, target, bkpt, launch_info):
+def run_to_breakpoint_do_run(test, target, bkpt, launch_info = None):
 
     # Launch the process, and do not stop at the entry point.
     if not launch_info:
@@ -819,8 +835,30 @@ def run_to_source_breakpoint(test, bkpt_pattern, source_spec,
     breakpoint = target.BreakpointCreateBySourceRegex(
             bkpt_pattern, source_spec, bkpt_module)
     test.assertTrue(breakpoint.GetNumLocations() > 0,
-                    'No locations found for source breakpoint: "%s", file: "%s", dir: "%s"'%(bkpt_pattern, source_spec.GetFilename(), source_spec.GetDirectory()))
+        'No locations found for source breakpoint: "%s", file: "%s", dir: "%s"'
+        %(bkpt_pattern, source_spec.GetFilename(), source_spec.GetDirectory()))
     return run_to_breakpoint_do_run(test, target, breakpoint, launch_info)
+
+def run_to_line_breakpoint(test, source_spec, line_number, column = 0,
+                           launch_info = None, exe_name = "a.out",
+                           bkpt_module = None,
+                           in_cwd = True):
+    """Start up a target, using exe_name as the executable, and run it to
+       a breakpoint set by (source_spec, line_number(, column)).
+
+       The rest of the behavior is the same as run_to_name_breakpoint.
+    """
+
+    target = run_to_breakpoint_make_target(test, exe_name, in_cwd)
+    # Set the breakpoints
+    breakpoint = target.BreakpointCreateByLocation(
+        source_spec, line_number, column, 0, lldb.SBFileSpecList())
+    test.assertTrue(breakpoint.GetNumLocations() > 0,
+        'No locations found for line breakpoint: "%s:%d(:%d)", dir: "%s"'
+        %(source_spec.GetFilename(), line_number, column,
+          source_spec.GetDirectory()))
+    return run_to_breakpoint_do_run(test, target, breakpoint, launch_info)
+
 
 def continue_to_breakpoint(process, bkpt):
     """ Continues the process, if it stops, returns the threads stopped at bkpt; otherwise, returns None"""

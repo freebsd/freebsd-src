@@ -46,6 +46,9 @@ count = 1
 arch = None        # Must be initialized after option parsing
 compiler = None    # Must be initialized after option parsing
 
+# Path to the FileCheck testing tool. Not optional.
+filecheck = None
+
 # The arch might dictate some specific CFLAGS to be passed to the toolchain to build
 # the inferior programs.  The global variable cflags_extras provides a hook to do
 # just that.
@@ -110,9 +113,13 @@ lldb_platform_working_dir = None
 # The base directory in which the tests are being built.
 test_build_dir = None
 
+# The only directory to scan for tests. If multiple test directories are
+# specified, and an exclusive test subdirectory is specified, the latter option
+# takes precedence.
+exclusive_test_subdir = None
+
 # Parallel execution settings
 is_inferior_test_runner = False
-multiprocess_test_subdir = None
 num_threads = None
 no_multiprocess_test_runner = False
 test_runner_name = None
@@ -144,3 +151,42 @@ def shouldSkipBecauseOfCategories(test_categories):
             return True
 
     return False
+
+
+def get_absolute_path_to_exclusive_test_subdir():
+    """
+    If an exclusive test subdirectory is specified, return its absolute path.
+    Otherwise return None.
+    """
+    test_directory = os.path.dirname(os.path.realpath(__file__))
+
+    if not exclusive_test_subdir:
+        return
+
+    if len(exclusive_test_subdir) > 0:
+        test_subdir = os.path.join(test_directory, exclusive_test_subdir)
+        if os.path.isdir(test_subdir):
+            return test_subdir
+
+        print('specified test subdirectory {} is not a valid directory\n'
+                .format(test_subdir))
+
+
+def get_absolute_path_to_root_test_dir():
+    """
+    If an exclusive test subdirectory is specified, return its absolute path.
+    Otherwise, return the absolute path of the root test directory.
+    """
+    test_subdir = get_absolute_path_to_exclusive_test_subdir()
+    if test_subdir:
+        return test_subdir
+
+    return os.path.dirname(os.path.realpath(__file__))
+
+
+def get_filecheck_path():
+    """
+    Get the path to the FileCheck testing tool.
+    """
+    if filecheck and os.path.lexists(filecheck):
+        return filecheck

@@ -25,7 +25,6 @@ class BreakpointCommandTestCase(TestBase):
         self.build()
         self.breakpoint_command_sequence()
 
-    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24528")
     def test_script_parameters(self):
         """Test a sequence of breakpoint command add, list, and delete."""
         self.build()
@@ -45,7 +44,6 @@ class BreakpointCommandTestCase(TestBase):
         self.addTearDownHook(
             lambda: self.runCmd("settings clear auto-confirm"))
 
-    @expectedFailureAll(oslist=["windows"], bugnumber="llvm.org/pr24528")
     def test_delete_all_breakpoints(self):
         """Test that deleting all breakpoints works."""
         self.build()
@@ -133,9 +131,9 @@ class BreakpointCommandTestCase(TestBase):
             patterns=[
                 "1: file = '.*main.c', line = %d, exact_match = 0, locations = 1" %
                 self.line,
-                "1.1: .+at main.c:%d, .+unresolved, hit count = 0" %
+                "1.1: .+at main.c:%d:?[0-9]*, .+unresolved, hit count = 0" %
                 self.line,
-                "2.1: .+at main.c:%d, .+unresolved, hit count = 0" %
+                "2.1: .+at main.c:%d:?[0-9]*, .+unresolved, hit count = 0" %
                 self.line])
 
         self.expect("breakpoint command list 1", "Breakpoint 1 command ok",

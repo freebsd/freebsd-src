@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 // This is the DynamicLoader plugin for Darwin (macOS / iPhoneOS / tvOS /
-// watchOS)
+// watchOS / BridgeOS)
 // platforms earlier than 2016, where lldb would read the "dyld_all_image_infos"
 // dyld internal structure to understand where things were loaded and the
 // solib loaded/unloaded notification function we put a breakpoint on gives us
@@ -21,17 +21,13 @@
 #ifndef liblldb_DynamicLoaderMacOSXDYLD_h_
 #define liblldb_DynamicLoaderMacOSXDYLD_h_
 
-// C Includes
-// C++ Includes
 #include <mutex>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
+#include "lldb/Host/SafeMachO.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/Utility/SafeMachO.h"
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/UUID.h"
 

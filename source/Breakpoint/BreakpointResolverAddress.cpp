@@ -9,10 +9,6 @@
 
 #include "lldb/Breakpoint/BreakpointResolverAddress.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Module.h"
@@ -66,7 +62,7 @@ BreakpointResolver *BreakpointResolverAddress::CreateFromStructuredData(
       error.SetErrorString("BRA::CFSD: Couldn't read module name entry.");
       return nullptr;
     }
-    module_filespec.SetFile(module_name, false, FileSpec::Style::native);
+    module_filespec.SetFile(module_name, FileSpec::Style::native);
   }
   return new BreakpointResolverAddress(bkpt, address, module_filespec);
 }
@@ -173,8 +169,8 @@ BreakpointResolverAddress::SearchCallback(SearchFilter &filter,
   return Searcher::eCallbackReturnStop;
 }
 
-Searcher::Depth BreakpointResolverAddress::GetDepth() {
-  return Searcher::eDepthTarget;
+lldb::SearchDepth BreakpointResolverAddress::GetDepth() {
+  return lldb::eSearchDepthTarget;
 }
 
 void BreakpointResolverAddress::GetDescription(Stream *s) {
