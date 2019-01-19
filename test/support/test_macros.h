@@ -11,7 +11,18 @@
 #ifndef SUPPORT_TEST_MACROS_HPP
 #define SUPPORT_TEST_MACROS_HPP
 
-#include <ciso646> // Get STL specific macros like _LIBCPP_VERSION
+// Attempt to get STL specific macros like _LIBCPP_VERSION using the most
+// minimal header possible. If we're testing libc++, we should use `<__config>`.
+// If <__config> isn't available, fall back to <ciso646>.
+#ifdef __has_include
+# if __has_include("<__config>")
+#   include <__config>
+#   define TEST_IMP_INCLUDED_HEADER
+# endif
+#endif
+#ifndef TEST_IMP_INCLUDED_HEADER
+#include <ciso646>
+#endif
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
@@ -69,6 +80,7 @@
 #define TEST_CLANG_VER (__clang_major__ * 100) + __clang_minor__
 #elif defined(__GNUC__)
 #define TEST_GCC_VER (__GNUC__ * 100 + __GNUC_MINOR__)
+#define TEST_GCC_VER_NEW (TEST_GCC_VER * 10 + __GNUC_PATCHLEVEL__)
 #endif
 
 /* Make a nice name for the standard version */
@@ -87,11 +99,14 @@
 #endif
 #endif
 
-// Attempt to deduce GCC version
-#if defined(_LIBCPP_VERSION) && __has_include(<features.h>)
+// Attempt to deduce the GLIBC version
+#if (defined(__has_include) && __has_include(<features.h>)) || \
+    defined(__linux__)
 #include <features.h>
+#if defined(__GLIBC_PREREQ)
 #define TEST_HAS_GLIBC
 #define TEST_GLIBC_PREREQ(major, minor) __GLIBC_PREREQ(major, minor)
+#endif
 #endif
 
 #if TEST_STD_VER >= 11
@@ -112,7 +127,11 @@
 #   define TEST_THROW_SPEC(...) throw(__VA_ARGS__)
 # endif
 #else
-#define TEST_ALIGNOF(...) __alignof(__VA_ARGS__)
+#if defined(TEST_COMPILER_CLANG)
+# define TEST_ALIGNOF(...) _Alignof(__VA_ARGS__)
+#else
+# define TEST_ALIGNOF(...) __alignof(__VA_ARGS__)
+#endif
 #define TEST_ALIGNAS(...) __attribute__((__aligned__(__VA_ARGS__)))
 #define TEST_CONSTEXPR
 #define TEST_CONSTEXPR_CXX14
@@ -124,22 +143,33 @@
 
 // Sniff out to see if the underling C library has C11 features
 // Note that at this time (July 2018), MacOS X and iOS do NOT.
-#if __ISO_C_VISIBLE >= 2011
+// This is cribbed from __config; but lives here as well because we can't assume libc++
+#if __ISO_C_VISIBLE >= 2011 || TEST_STD_VER >= 11
 #  if defined(__FreeBSD__)
+//  Specifically, FreeBSD does NOT have timespec_get, even though they have all
+//  the rest of C11 - this is PR#38495
 #    define TEST_HAS_C11_FEATURES
 #  elif defined(__Fuchsia__)
 #    define TEST_HAS_C11_FEATURES
+#    define TEST_HAS_TIMESPEC_GET
 #  elif defined(__linux__)
-#    if !defined(_LIBCPP_HAS_MUSL_LIBC)
-#      if _LIBCPP_GLIBC_PREREQ(2, 17)
+// This block preserves the old behavior used by include/__config:
+// _LIBCPP_GLIBC_PREREQ would be defined to 0 if __GLIBC_PREREQ was not
+// available. The configuration here may be too vague though, as Bionic, uClibc,
+// newlib, etc may all support these features but need to be configured.
+#    if defined(TEST_GLIBC_PREREQ)
+#      if TEST_GLIBC_PREREQ(2, 17)
+#        define TEST_HAS_TIMESPEC_GET
 #        define TEST_HAS_C11_FEATURES
 #      endif
-#    else // defined(_LIBCPP_HAS_MUSL_LIBC)
+#    elif defined(_LIBCPP_HAS_MUSL_LIBC)
 #      define TEST_HAS_C11_FEATURES
+#      define TEST_HAS_TIMESPEC_GET
 #    endif
 #  elif defined(_WIN32)
 #    if defined(_MSC_VER) && !defined(__MINGW32__)
 #      define TEST_HAS_C11_FEATURES // Using Microsoft's C Runtime library
+#      define TEST_HAS_TIMESPEC_GET
 #    endif
 #  endif
 #endif
@@ -196,8 +226,9 @@
 
 // FIXME: Fix this feature check when either (A) a compiler provides a complete
 // implementation, or (b) a feature check macro is specified
+#if !defined(_MSC_VER) || defined(__clang__) || _MSC_VER < 1920 || _MSVC_LANG <= 201703L
 #define TEST_HAS_NO_SPACESHIP_OPERATOR
-
+#endif
 
 #if TEST_STD_VER < 11
 #define ASSERT_NOEXCEPT(...)
@@ -274,6 +305,16 @@ inline void DoNotOptimize(Tp const& value) {
 }
 #endif
 
+#if defined(__GNUC__)
+#define TEST_ALWAYS_INLINE __attribute__((always_inline))
+#define TEST_NOINLINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define TEST_ALWAYS_INLINE __forceinline
+#define TEST_NOINLINE __declspec(noinline)
+#else
+#define TEST_ALWAYS_INLINE
+#define TEST_NOINLINE
+#endif
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop

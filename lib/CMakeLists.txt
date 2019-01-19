@@ -41,14 +41,14 @@ add_library_flags_if(LIBCXX_COVERAGE_LIBRARY "${LIBCXX_COVERAGE_LIBRARY}")
 
 if (APPLE AND (LIBCXX_CXX_ABI_LIBNAME STREQUAL "libcxxabi" OR
                LIBCXX_CXX_ABI_LIBNAME STREQUAL "default"))
-  set(LIBCXX_OSX_REEXPORT_SYSTEM_ABI_LIBRARY ON)
+  set(LIBCXX_OSX_REEXPORT_LIBCXXABI_SYMBOLS ON)
 endif()
 
 if (LIBCXX_STATICALLY_LINK_ABI_IN_SHARED_LIBRARY)
   add_library_flags("-Wl,--whole-archive" "-Wl,-Bstatic")
   add_library_flags("${LIBCXX_CXX_ABI_LIBRARY}")
   add_library_flags("-Wl,-Bdynamic" "-Wl,--no-whole-archive")
-elseif (LIBCXX_OSX_REEXPORT_SYSTEM_ABI_LIBRARY)
+elseif (LIBCXX_OSX_REEXPORT_LIBCXXABI_SYMBOLS)
   add_library_flags("${LIBCXX_CXX_ABI_LIBRARY}")
 else ()
  add_interface_library("${LIBCXX_CXX_ABI_LIBRARY}")
@@ -129,7 +129,7 @@ if (LIBCXX_TARGETING_MSVC)
   add_library_flags(iso_stdio_wide_specifiers)
 endif()
 
-if (LIBCXX_OSX_REEXPORT_SYSTEM_ABI_LIBRARY)
+if (LIBCXX_OSX_REEXPORT_LIBCXXABI_SYMBOLS)
   if (NOT DEFINED LIBCXX_LIBCPPABI_VERSION)
     set(LIBCXX_LIBCPPABI_VERSION "2") # Default value
     execute_process(
@@ -149,80 +149,95 @@ if (LIBCXX_OSX_REEXPORT_SYSTEM_ABI_LIBRARY)
   endif()
 
   if ( CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "10.6" )
-    add_definitions(-D__STRICT_ANSI__)
-    add_link_flags(
-      "-compatibility_version 1"
-      "-current_version 1"
-      "-install_name /usr/lib/libc++.1.dylib"
-      "-Wl,-reexport_library,/usr/lib/libc++abi.dylib"
-      "-Wl,-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/libc++unexp.exp"
-      "/usr/lib/libSystem.B.dylib")
+    message(FATAL_ERROR "Mac OSX 10.6 is not supported anymore as a deployment "
+                        "target. If you need support for this, please contact "
+                        "the libc++ maintainers.")
   else()
-	  if (DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
-      list(FIND CMAKE_OSX_ARCHITECTURES "armv7" OSX_HAS_ARMV7)
-      if (NOT OSX_HAS_ARMV7 EQUAL -1)
-        set(OSX_RE_EXPORT_LINE
-          "${CMAKE_OSX_SYSROOT}/usr/lib/libc++abi.dylib"
-          "-Wl,-reexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/libc++sjlj-abi.exp")
-      else()
-        set(OSX_RE_EXPORT_LINE
-          "-Wl,-reexport_library,${CMAKE_OSX_SYSROOT}/usr/lib/libc++abi.dylib")
-      endif()
+    if ("armv7" IN_LIST CMAKE_OSX_ARCHITECTURES)
+      set(RE_EXPORT_LIST "${CMAKE_CURRENT_SOURCE_DIR}/libc++sjlj-abi.exp")
     else()
-      set(OSX_RE_EXPORT_LINE "/usr/lib/libc++abi.dylib -Wl,-reexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/libc++abi${LIBCXX_LIBCPPABI_VERSION}.exp")
-      if (NOT LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS)
-        add_link_flags("/usr/lib/libc++abi.dylib -Wl,-reexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/libc++abi-new-delete.exp")
-      endif()
+      set(RE_EXPORT_LIST "${CMAKE_CURRENT_SOURCE_DIR}/libc++abi${LIBCXX_LIBCPPABI_VERSION}.exp")
     endif()
     add_link_flags(
       "-compatibility_version 1"
       "-install_name /usr/lib/libc++.1.dylib"
-      "-Wl,-unexported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/libc++unexp.exp"
-      "${OSX_RE_EXPORT_LINE}"
-      "-Wl,-force_symbols_not_weak_list,${CMAKE_CURRENT_SOURCE_DIR}/notweak.exp"
-      "-Wl,-force_symbols_weak_list,${CMAKE_CURRENT_SOURCE_DIR}/weak.exp")
+      "-Wl,-unexported_symbols_list,\"${CMAKE_CURRENT_SOURCE_DIR}/libc++unexp.exp\""
+      "-Wl,-reexported_symbols_list,\"${RE_EXPORT_LIST}\""
+      "-Wl,-force_symbols_not_weak_list,\"${CMAKE_CURRENT_SOURCE_DIR}/notweak.exp\""
+      "-Wl,-force_symbols_weak_list,\"${CMAKE_CURRENT_SOURCE_DIR}/weak.exp\"")
+
+    if (NOT LIBCXX_ENABLE_NEW_DELETE_DEFINITIONS)
+      add_link_flags("-Wl,-reexported_symbols_list,\"${CMAKE_CURRENT_SOURCE_DIR}/libc++abi-new-delete.exp\"")
+    endif()
   endif()
 endif()
 
 split_list(LIBCXX_COMPILE_FLAGS)
 split_list(LIBCXX_LINK_FLAGS)
 
-# Add an object library that contains the compiled source files.
-add_library(cxx_objects OBJECT ${exclude_from_all} ${LIBCXX_SOURCES} ${LIBCXX_HEADERS})
-if(LIBCXX_CXX_ABI_HEADER_TARGET)
-  add_dependencies(cxx_objects ${LIBCXX_CXX_ABI_HEADER_TARGET})
-endif()
-if(WIN32 AND NOT MINGW)
-  target_compile_definitions(cxx_objects
-                             PRIVATE
-                               # Ignore the -MSC_VER mismatch, as we may build
-                               # with a different compatibility version.
-                               _ALLOW_MSC_VER_MISMATCH
-                               # Don't check the msvcprt iterator debug levels
-                               # as we will define the iterator types; libc++
-                               # uses a different macro to identify the debug
-                               # level.
-                               _ALLOW_ITERATOR_DEBUG_LEVEL_MISMATCH
-                               # We are building the c++ runtime, don't pull in
-                               # msvcprt.
-                               _CRTBLD
-                               # Don't warn on the use of "deprecated"
-                               # "insecure" functions which are standards
-                               # specified.
-                               _CRT_SECURE_NO_WARNINGS
-                               # Use the ISO conforming behaviour for conversion
-                               # in printf, scanf.
-                               _CRT_STDIO_ISO_WIDE_SPECIFIERS)
-endif()
+macro(cxx_object_library name)
+  cmake_parse_arguments(ARGS "" "" "DEFINES;FLAGS" ${ARGN})
 
-set_target_properties(cxx_objects
-  PROPERTIES
-    COMPILE_FLAGS "${LIBCXX_COMPILE_FLAGS}"
-)
+  # Add an object library that contains the compiled source files.
+  add_library(${name} OBJECT ${exclude_from_all} ${LIBCXX_SOURCES} ${LIBCXX_HEADERS})
+  if(LIBCXX_CXX_ABI_HEADER_TARGET)
+    add_dependencies(${name} ${LIBCXX_CXX_ABI_HEADER_TARGET})
+  endif()
+  if(WIN32 AND NOT MINGW)
+    target_compile_definitions(${name}
+                               PRIVATE
+                                 # Ignore the -MSC_VER mismatch, as we may build
+                                 # with a different compatibility version.
+                                 _ALLOW_MSC_VER_MISMATCH
+                                 # Don't check the msvcprt iterator debug levels
+                                 # as we will define the iterator types; libc++
+                                 # uses a different macro to identify the debug
+                                 # level.
+                                 _ALLOW_ITERATOR_DEBUG_LEVEL_MISMATCH
+                                 # We are building the c++ runtime, don't pull in
+                                 # msvcprt.
+                                 _CRTBLD
+                                 # Don't warn on the use of "deprecated"
+                                 # "insecure" functions which are standards
+                                 # specified.
+                                 _CRT_SECURE_NO_WARNINGS
+                                 # Use the ISO conforming behaviour for conversion
+                                 # in printf, scanf.
+                                 _CRT_STDIO_ISO_WIDE_SPECIFIERS)
+  endif()
+
+  if(ARGS_DEFINES)
+    target_compile_definitions(${name} PRIVATE ${ARGS_DEFINES})
+  endif()
+
+  set_target_properties(${name}
+    PROPERTIES
+      COMPILE_FLAGS ${LIBCXX_COMPILE_FLAGS}
+  )
+
+  if(ARGS_FLAGS)
+    target_compile_options(${name} PRIVATE ${ARGS_FLAGS})
+  endif()
+endmacro()
+
+if(LIBCXX_HERMETIC_STATIC_LIBRARY)
+  append_flags_if_supported(CXX_STATIC_OBJECTS_FLAGS -fvisibility=hidden)
+  append_flags_if_supported(CXX_STATIC_OBJECTS_FLAGS -fvisibility-global-new-delete-hidden)
+  cxx_object_library(cxx_static_objects
+    DEFINES _LIBCPP_DISABLE_VISIBILITY_ANNOTATIONS
+    FLAGS ${CXX_STATIC_OBJECTS_FLAGS})
+  cxx_object_library(cxx_shared_objects)
+  set(cxx_static_sources $<TARGET_OBJECTS:cxx_static_objects>)
+  set(cxx_shared_sources $<TARGET_OBJECTS:cxx_shared_objects>)
+else()
+  cxx_object_library(cxx_objects)
+  set(cxx_static_sources $<TARGET_OBJECTS:cxx_objects>)
+  set(cxx_shared_sources $<TARGET_OBJECTS:cxx_objects>)
+endif()
 
 # Build the shared library.
 if (LIBCXX_ENABLE_SHARED)
-  add_library(cxx_shared SHARED $<TARGET_OBJECTS:cxx_objects>)
+  add_library(cxx_shared SHARED ${cxx_shared_sources})
   if(COMMAND llvm_setup_rpath)
     llvm_setup_rpath(cxx_shared)
   endif()
@@ -249,7 +264,7 @@ endif()
 
 # Build the static library.
 if (LIBCXX_ENABLE_STATIC)
-  add_library(cxx_static STATIC $<TARGET_OBJECTS:cxx_objects>)
+  add_library(cxx_static STATIC ${cxx_static_sources})
   target_link_libraries(cxx_static ${LIBCXX_LIBRARIES})
   set(CMAKE_STATIC_LIBRARY_PREFIX "lib")
   set_target_properties(cxx_static
