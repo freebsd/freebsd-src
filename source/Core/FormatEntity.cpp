@@ -10,29 +10,28 @@
 #include "lldb/Core/FormatEntity.h"
 
 #include "lldb/Core/Address.h"
-#include "lldb/Core/AddressRange.h" // for AddressRange
+#include "lldb/Core/AddressRange.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/DumpRegisterValue.h"
 #include "lldb/Core/Module.h"
-#include "lldb/Core/RegisterValue.h" // for RegisterValue
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/DataVisualization.h"
-#include "lldb/DataFormatters/FormatClasses.h" // for TypeNameSpecifier...
+#include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/FormatManager.h"
-#include "lldb/DataFormatters/TypeSummary.h" // for TypeSummaryImpl::...
+#include "lldb/DataFormatters/TypeSummary.h"
 #include "lldb/Expression/ExpressionVariable.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Symbol/Block.h"
 #include "lldb/Symbol/CompileUnit.h"
-#include "lldb/Symbol/CompilerType.h" // for CompilerType
+#include "lldb/Symbol/CompilerType.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Symbol/LineEntry.h"
 #include "lldb/Symbol/Symbol.h"
-#include "lldb/Symbol/SymbolContext.h" // for SymbolContext
+#include "lldb/Symbol/SymbolContext.h"
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/ExecutionContext.h"
-#include "lldb/Target/ExecutionContextScope.h" // for ExecutionContextS...
+#include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -42,31 +41,32 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/AnsiTerminal.h"
-#include "lldb/Utility/ArchSpec.h"    // for ArchSpec
-#include "lldb/Utility/ConstString.h" // for ConstString, oper...
+#include "lldb/Utility/ArchSpec.h"
+#include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/FileSpec.h"
-#include "lldb/Utility/Log.h"        // for Log
-#include "lldb/Utility/Logging.h"    // for GetLogIfAllCatego...
-#include "lldb/Utility/SharingPtr.h" // for SharingPtr
+#include "lldb/Utility/Log.h"
+#include "lldb/Utility/Logging.h"
+#include "lldb/Utility/RegisterValue.h"
+#include "lldb/Utility/SharingPtr.h"
 #include "lldb/Utility/Stream.h"
 #include "lldb/Utility/StreamString.h"
-#include "lldb/Utility/StringList.h"     // for StringList
-#include "lldb/Utility/StructuredData.h" // for StructuredData::O...
-#include "lldb/lldb-defines.h"           // for LLDB_INVALID_ADDRESS
-#include "lldb/lldb-forward.h"           // for ValueObjectSP
+#include "lldb/Utility/StringList.h"
+#include "lldb/Utility/StructuredData.h"
+#include "lldb/lldb-defines.h"
+#include "lldb/lldb-forward.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"       // for Triple, Triple::O...
-#include "llvm/Support/Compiler.h" // for LLVM_FALLTHROUGH
+#include "llvm/ADT/Triple.h"
+#include "llvm/Support/Compiler.h"
 
-#include <ctype.h>     // for isxdigit
-#include <inttypes.h>  // for PRIu64, PRIx64
-#include <memory>      // for shared_ptr, opera...
-#include <stdio.h>     // for sprintf
-#include <stdlib.h>    // for strtoul
-#include <string.h>    // for size_t, strchr
-#include <type_traits> // for move
-#include <utility>     // for pair
+#include <ctype.h>
+#include <inttypes.h>
+#include <memory>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <type_traits>
+#include <utility>
 
 namespace lldb_private {
 class ScriptInterpreter;
@@ -128,6 +128,7 @@ static FormatEntity::Entry::Definition g_frame_child_entries[] = {
     ENTRY("flags", FrameRegisterFlags, UInt64),
     ENTRY("no-debug", FrameNoDebug, None),
     ENTRY_CHILDREN("reg", FrameRegisterByName, UInt64, g_string_entry),
+    ENTRY("is-artificial", FrameIsArtificial, UInt32),
 };
 
 static FormatEntity::Entry::Definition g_function_child_entries[] = {
@@ -146,6 +147,7 @@ static FormatEntity::Entry::Definition g_function_child_entries[] = {
 static FormatEntity::Entry::Definition g_line_child_entries[] = {
     ENTRY_CHILDREN("file", LineEntryFile, None, g_file_child_entries),
     ENTRY("number", LineEntryLineNumber, UInt32),
+    ENTRY("column", LineEntryColumn, UInt32),
     ENTRY("start-addr", LineEntryStartAddress, UInt64),
     ENTRY("end-addr", LineEntryEndAddress, UInt64),
 };
@@ -356,6 +358,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(FrameRegisterFP);
     ENUM_TO_CSTR(FrameRegisterFlags);
     ENUM_TO_CSTR(FrameRegisterByName);
+    ENUM_TO_CSTR(FrameIsArtificial);
     ENUM_TO_CSTR(ScriptFrame);
     ENUM_TO_CSTR(FunctionID);
     ENUM_TO_CSTR(FunctionDidChange);
@@ -372,6 +375,7 @@ const char *FormatEntity::Entry::TypeToCString(Type t) {
     ENUM_TO_CSTR(FunctionIsOptimized);
     ENUM_TO_CSTR(LineEntryFile);
     ENUM_TO_CSTR(LineEntryLineNumber);
+    ENUM_TO_CSTR(LineEntryColumn);
     ENUM_TO_CSTR(LineEntryStartAddress);
     ENUM_TO_CSTR(LineEntryEndAddress);
     ENUM_TO_CSTR(CurrentPCArrow);
@@ -1487,6 +1491,13 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
     }
     return false;
 
+  case Entry::Type::FrameIsArtificial: {
+    if (exe_ctx)
+      if (StackFrame *frame = exe_ctx->GetFramePtr())
+        return frame->IsArtificial();
+    return false;
+  }
+
   case Entry::Type::ScriptFrame:
     if (exe_ctx) {
       StackFrame *frame = exe_ctx->GetFramePtr();
@@ -1810,6 +1821,16 @@ bool FormatEntity::Format(const Entry &entry, Stream &s,
       if (!entry.printf_format.empty())
         format = entry.printf_format.c_str();
       s.Printf(format, sc->line_entry.line);
+      return true;
+    }
+    return false;
+
+  case Entry::Type::LineEntryColumn:
+    if (sc && sc->line_entry.IsValid() && sc->line_entry.column) {
+      const char *format = "%" PRIu32;
+      if (!entry.printf_format.empty())
+        format = entry.printf_format.c_str();
+      s.Printf(format, sc->line_entry.column);
       return true;
     }
     return false;

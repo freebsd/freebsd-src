@@ -9,10 +9,6 @@
 
 #include "CommandObjectSource.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/FileLineResolver.h"
 #include "lldb/Core/Module.h"
@@ -41,15 +37,15 @@ using namespace lldb_private;
 // CommandObjectSourceInfo - debug line entries dumping command
 //----------------------------------------------------------------------
 
-static OptionDefinition g_source_info_options[] = {
+static constexpr OptionDefinition g_source_info_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "count",    'c', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeCount,               "The number of line entries to display." },
-  { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "shlib",    's', OptionParser::eRequiredArgument, nullptr, nullptr, CommandCompletions::eModuleCompletion,     eArgTypeShlibName,           "Look up the source in the given module or shared library (can be specified more than once)." },
-  { LLDB_OPT_SET_1,                  false, "file",     'f', OptionParser::eRequiredArgument, nullptr, nullptr, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,            "The file from which to display source." },
-  { LLDB_OPT_SET_1,                  false, "line",     'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeLineNum,             "The line number at which to start the displaying lines." },
-  { LLDB_OPT_SET_1,                  false, "end-line", 'e', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeLineNum,             "The line number at which to stop displaying lines." },
-  { LLDB_OPT_SET_2,                  false, "name",     'n', OptionParser::eRequiredArgument, nullptr, nullptr, CommandCompletions::eSymbolCompletion,     eArgTypeSymbol,              "The name of a function whose source to display." },
-  { LLDB_OPT_SET_3,                  false, "address",  'a', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line." },
+  { LLDB_OPT_SET_ALL,                false, "count",    'c', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeCount,               "The number of line entries to display." },
+  { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "shlib",    's', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eModuleCompletion,     eArgTypeShlibName,           "Look up the source in the given module or shared library (can be specified more than once)." },
+  { LLDB_OPT_SET_1,                  false, "file",     'f', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,            "The file from which to display source." },
+  { LLDB_OPT_SET_1,                  false, "line",     'l', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeLineNum,             "The line number at which to start the displaying lines." },
+  { LLDB_OPT_SET_1,                  false, "end-line", 'e', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeLineNum,             "The line number at which to stop displaying lines." },
+  { LLDB_OPT_SET_2,                  false, "name",     'n', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSymbolCompletion,     eArgTypeSymbol,              "The name of a function whose source to display." },
+  { LLDB_OPT_SET_3,                  false, "address",  'a', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line." },
     // clang-format on
 };
 
@@ -517,7 +513,7 @@ protected:
 
   // Dump the line entries found in the file specified in the option.
   bool DumpLinesForFile(CommandReturnObject &result) {
-    FileSpec file_spec(m_options.file_name, false);
+    FileSpec file_spec(m_options.file_name);
     const char *filename = m_options.file_name.c_str();
     Target *target = m_exe_ctx.GetTargetPtr();
     const ModuleList &module_list =
@@ -596,7 +592,7 @@ protected:
     m_module_list.Clear();
     if (!m_options.modules.empty()) {
       for (size_t i = 0, e = m_options.modules.size(); i < e; ++i) {
-        FileSpec module_file_spec(m_options.modules[i], false);
+        FileSpec module_file_spec(m_options.modules[i]);
         if (module_file_spec) {
           ModuleSpec module_spec(module_file_spec);
           if (target->GetImages().FindModules(module_spec, m_module_list) == 0)
@@ -653,16 +649,16 @@ protected:
 // CommandObjectSourceList
 //-------------------------------------------------------------------------
 
-static OptionDefinition g_source_list_options[] = {
+static constexpr OptionDefinition g_source_list_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL,                false, "count",            'c', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeCount,               "The number of source lines to display." },
-  { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "shlib",            's', OptionParser::eRequiredArgument, nullptr, nullptr, CommandCompletions::eModuleCompletion,     eArgTypeShlibName,           "Look up the source file in the given shared library." },
-  { LLDB_OPT_SET_ALL,                false, "show-breakpoints", 'b', OptionParser::eNoArgument,       nullptr, nullptr, 0,                                         eArgTypeNone,                "Show the line table locations from the debug information that indicate valid places to set source level breakpoints." },
-  { LLDB_OPT_SET_1,                  false, "file",             'f', OptionParser::eRequiredArgument, nullptr, nullptr, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,            "The file from which to display source." },
-  { LLDB_OPT_SET_1,                  false, "line",             'l', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeLineNum,             "The line number at which to start the display source." },
-  { LLDB_OPT_SET_2,                  false, "name",             'n', OptionParser::eRequiredArgument, nullptr, nullptr, CommandCompletions::eSymbolCompletion,     eArgTypeSymbol,              "The name of a function whose source to display." },
-  { LLDB_OPT_SET_3,                  false, "address",          'a', OptionParser::eRequiredArgument, nullptr, nullptr, 0,                                         eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line." },
-  { LLDB_OPT_SET_4,                  false, "reverse",          'r', OptionParser::eNoArgument,       nullptr, nullptr, 0,                                         eArgTypeNone,                "Reverse the listing to look backwards from the last displayed block of source." },
+  { LLDB_OPT_SET_ALL,                false, "count",            'c', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeCount,               "The number of source lines to display." },
+  { LLDB_OPT_SET_1 | LLDB_OPT_SET_2, false, "shlib",            's', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eModuleCompletion,     eArgTypeShlibName,           "Look up the source file in the given shared library." },
+  { LLDB_OPT_SET_ALL,                false, "show-breakpoints", 'b', OptionParser::eNoArgument,       nullptr, {}, 0,                                         eArgTypeNone,                "Show the line table locations from the debug information that indicate valid places to set source level breakpoints." },
+  { LLDB_OPT_SET_1,                  false, "file",             'f', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,            "The file from which to display source." },
+  { LLDB_OPT_SET_1,                  false, "line",             'l', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeLineNum,             "The line number at which to start the display source." },
+  { LLDB_OPT_SET_2,                  false, "name",             'n', OptionParser::eRequiredArgument, nullptr, {}, CommandCompletions::eSymbolCompletion,     eArgTypeSymbol,              "The name of a function whose source to display." },
+  { LLDB_OPT_SET_3,                  false, "address",          'a', OptionParser::eRequiredArgument, nullptr, {}, 0,                                         eArgTypeAddressOrExpression, "Lookup the address and display the source information for the corresponding file and line." },
+  { LLDB_OPT_SET_4,                  false, "reverse",          'r', OptionParser::eNoArgument,       nullptr, {}, 0,                                         eArgTypeNone,                "Reverse the listing to look backwards from the last displayed block of source." },
     // clang-format on
 };
 
@@ -921,7 +917,7 @@ protected:
     if (num_modules > 0) {
       ModuleList matching_modules;
       for (size_t i = 0; i < num_modules; ++i) {
-        FileSpec module_file_spec(m_options.modules[i], false);
+        FileSpec module_file_spec(m_options.modules[i]);
         if (module_file_spec) {
           ModuleSpec module_spec(module_file_spec);
           matching_modules.Clear();
@@ -946,7 +942,7 @@ protected:
     if (num_modules > 0) {
       ModuleList matching_modules;
       for (size_t i = 0; i < num_modules; ++i) {
-        FileSpec module_file_spec(m_options.modules[i], false);
+        FileSpec module_file_spec(m_options.modules[i]);
         if (module_file_spec) {
           ModuleSpec module_spec(module_file_spec);
           matching_modules.Clear();
@@ -1203,14 +1199,16 @@ protected:
       if (!m_options.modules.empty()) {
         ModuleList matching_modules;
         for (size_t i = 0, e = m_options.modules.size(); i < e; ++i) {
-          FileSpec module_file_spec(m_options.modules[i], false);
+          FileSpec module_file_spec(m_options.modules[i]);
           if (module_file_spec) {
             ModuleSpec module_spec(module_file_spec);
             matching_modules.Clear();
             target->GetImages().FindModules(module_spec, matching_modules);
             num_matches += matching_modules.ResolveSymbolContextForFilePath(
                 filename, 0, check_inlines,
-                eSymbolContextModule | eSymbolContextCompUnit, sc_list);
+                SymbolContextItem(eSymbolContextModule |
+                                  eSymbolContextCompUnit),
+                sc_list);
           }
         }
       } else {

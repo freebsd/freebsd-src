@@ -83,6 +83,7 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   endif()
 
   include(AddLLVM)
+  include(TableGen)
   include(HandleLLVMOptions)
   include(CheckAtomic)
 
@@ -100,17 +101,15 @@ if (CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
   # Import CMake library targets from LLVM and Clang.
   include("${LLVM_OBJ_ROOT}/lib${LLVM_LIBDIR_SUFFIX}/cmake/llvm/LLVMConfig.cmake")
-  # cmake/clang/ClangConfig.cmake is not created when LLVM and Clang are built together.
   if (EXISTS "${LLVM_OBJ_ROOT}/lib${LLVM_LIBDIR_SUFFIX}/cmake/clang/ClangConfig.cmake")
     include("${LLVM_OBJ_ROOT}/lib${LLVM_LIBDIR_SUFFIX}/cmake/clang/ClangConfig.cmake")
   endif()
 
   set(PACKAGE_VERSION "${LLVM_PACKAGE_VERSION}")
-
-  set(LLVM_BINARY_DIR ${CMAKE_BINARY_DIR})
+  set(LLVM_INCLUDE_TESTS ON CACHE INTERNAL "")
 
   set(CMAKE_INCLUDE_CURRENT_DIR ON)
-  include_directories("${LLVM_BINARY_DIR}/include" "${LLVM_MAIN_INCLUDE_DIR}")
+  include_directories("${CMAKE_BINARY_DIR}/include" "${LLVM_MAIN_INCLUDE_DIR}")
   # Next three include directories are needed when llvm-config is located in build directory.
   # LLVM and Clang are assumed to be built together
   if (EXISTS "${LLVM_OBJ_ROOT}/include")

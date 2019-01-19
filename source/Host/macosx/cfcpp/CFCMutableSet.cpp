@@ -9,10 +9,6 @@
 
 #include "CFCMutableSet.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 //----------------------------------------------------------------------
 // CFCString constructor
@@ -64,7 +60,7 @@ const void *CFCMutableSet::GetValue(const void *value) const {
 const void *CFCMutableSet::AddValue(const void *value, bool can_create) {
   CFMutableSetRef set = get();
   if (set == NULL) {
-    if (can_create == false)
+    if (!can_create)
       return NULL;
     set = ::CFSetCreateMutable(kCFAllocatorDefault, 0, &kCFTypeSetCallBacks);
     reset(set);

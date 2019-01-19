@@ -10,7 +10,6 @@
 #include "ThreadGDBRemote.h"
 
 #include "lldb/Breakpoint/Watchpoint.h"
-#include "lldb/Core/State.h"
 #include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
@@ -20,6 +19,7 @@
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Target/Unwind.h"
 #include "lldb/Utility/DataExtractor.h"
+#include "lldb/Utility/State.h"
 #include "lldb/Utility/StreamString.h"
 
 #include "ProcessGDBRemote.h"
@@ -197,13 +197,10 @@ void ThreadGDBRemote::SetQueueLibdispatchQueueAddress(
 }
 
 bool ThreadGDBRemote::ThreadHasQueueInformation() const {
-  if (m_thread_dispatch_qaddr != 0 &&
-      m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS &&
-      m_dispatch_queue_t != LLDB_INVALID_ADDRESS &&
-      m_queue_kind != eQueueKindUnknown && m_queue_serial_number != 0) {
-    return true;
-  }
-  return false;
+  return m_thread_dispatch_qaddr != 0 &&
+         m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS &&
+         m_dispatch_queue_t != LLDB_INVALID_ADDRESS &&
+         m_queue_kind != eQueueKindUnknown && m_queue_serial_number != 0;
 }
 
 LazyBool ThreadGDBRemote::GetAssociatedWithLibdispatchQueue() {

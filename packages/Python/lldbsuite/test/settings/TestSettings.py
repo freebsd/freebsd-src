@@ -132,7 +132,7 @@ class SettingsCommandTestCase(TestBase):
 
         # Change the default format to print function.name rather than
         # function.name-with-args
-        format_string = "frame #${frame.index}: ${frame.pc}{ ${module.file.basename}`${function.name}{${function.pc-offset}}}{ at ${line.file.fullpath}:${line.number}}{, lang=${language}}\n"
+        format_string = "frame #${frame.index}: ${frame.pc}{ ${module.file.basename}\`${function.name}{${function.pc-offset}}}{ at ${line.file.fullpath}:${line.number}}{, lang=${language}}\n"
         self.runCmd("settings set frame-format %s" % format_string)
 
         # Immediately test the setting.
@@ -418,11 +418,11 @@ class SettingsCommandTestCase(TestBase):
         # Set to known value
         self.runCmd("settings set target.language c89")
         # Set to new value with trailing whitespace
-        self.runCmd("settings set target.language go ")
+        self.runCmd("settings set target.language c11 ")
         self.expect(
             "settings show target.language",
             SETTING_MSG("target.language"),
-            startstr="target.language (language) = go")
+            startstr="target.language (language) = c11")
         self.runCmd("settings clear target.language", check=False)
         # arguments
         self.runCmd("settings set target.run-args 1 2 3")  # Set to known value

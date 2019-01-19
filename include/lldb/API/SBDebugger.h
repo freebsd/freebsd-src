@@ -13,6 +13,7 @@
 #include <stdio.h>
 
 #include "lldb/API/SBDefines.h"
+#include "lldb/API/SBInitializerOptions.h"
 #include "lldb/API/SBPlatform.h"
 
 namespace lldb {
@@ -45,6 +46,7 @@ public:
   lldb::SBDebugger &operator=(const lldb::SBDebugger &rhs);
 
   static void Initialize();
+  static lldb::SBError Initialize(SBInitializerOptions &options);
 
   static void Terminate();
 
@@ -109,7 +111,7 @@ public:
                                              const char *archname);
 
   lldb::SBTarget CreateTarget(const char *filename);
-  
+
   lldb::SBTarget GetDummyTarget();
 
   // Return true if target is deleted from the target list of the debugger.
@@ -225,6 +227,8 @@ public:
   const char *GetPrompt() const;
 
   void SetPrompt(const char *prompt);
+
+  const char *GetReproducerPath() const;
 
   lldb::ScriptLanguage GetScriptLanguage() const;
 

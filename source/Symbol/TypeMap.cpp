@@ -7,11 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
@@ -27,7 +24,6 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
 
-// Project includes
 #include "lldb/Symbol/SymbolFile.h"
 #include "lldb/Symbol/SymbolVendor.h"
 #include "lldb/Symbol/Type.h"
@@ -227,8 +223,7 @@ void TypeMap::RemoveMismatchedTypes(const std::string &type_scope,
       } else {
         // The type we are currently looking at doesn't exists in a namespace
         // or class, so it only matches if there is no type scope...
-        keep_match =
-            type_scope.empty() && type_basename.compare(match_type_name) == 0;
+        keep_match = type_scope.empty() && type_basename == match_type_name;
       }
     }
 

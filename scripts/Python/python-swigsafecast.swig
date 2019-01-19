@@ -27,15 +27,6 @@ SBTypeToSWIGWrapper (PyObject* py_object)
 
 template <>
 PyObject*
-SBTypeToSWIGWrapper (const char* c_str)
-{
-    if (c_str)
-        return PyString_FromString(c_str);
-    return NULL;
-}
-
-template <>
-PyObject*
 SBTypeToSWIGWrapper (unsigned int* c_int)
 {
     if (!c_int)
@@ -146,4 +137,18 @@ PyObject*
 SBTypeToSWIGWrapper (lldb::SBTypeSummaryOptions* summary_options_sb)
 {
     return SWIG_NewPointerObj((void *) summary_options_sb, SWIGTYPE_p_lldb__SBTypeSummaryOptions, 0);
+}
+
+template <>
+PyObject*
+SBTypeToSWIGWrapper (lldb::SBStructuredData* structured_data_sb)
+{
+    return SWIG_NewPointerObj((void *) structured_data_sb, SWIGTYPE_p_lldb__SBStructuredData, 0);
+}
+
+template <>
+PyObject*
+SBTypeToSWIGWrapper (lldb::SBSymbolContext* sym_ctx_sb)
+{
+    return SWIG_NewPointerObj((void *) sym_ctx_sb, SWIGTYPE_p_lldb__SBSymbolContext, 0);
 }

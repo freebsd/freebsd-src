@@ -409,7 +409,7 @@ static Status HandleFileAction(ProcessLaunchInfo &launch_info,
           // Check in case our file action open wants to open the slave
           const char *slave_path = launch_info.GetPTY().GetSlaveName(NULL, 0);
           if (slave_path) {
-            FileSpec slave_spec(slave_path, false);
+            FileSpec slave_spec(slave_path);
             if (file_spec == slave_spec) {
               int slave_fd = launch_info.GetPTY().GetSlaveFileDescriptor();
               if (slave_fd == PseudoTerminal::invalid_fd)
@@ -591,7 +591,7 @@ void CoreSimulatorSupport::DeviceSet::ForEach(
     std::function<bool(const Device &)> f) {
   const size_t n = GetNumDevices();
   for (NSUInteger i = 0; i < n; ++i) {
-    if (f(GetDeviceAtIndex(i)) == false)
+    if (!f(GetDeviceAtIndex(i)))
       break;
   }
 }

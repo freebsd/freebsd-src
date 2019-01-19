@@ -10,10 +10,6 @@
 #ifndef liblldb_BreakpointResolverAddress_h_
 #define liblldb_BreakpointResolverAddress_h_
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointResolver.h"
 #include "lldb/Core/ModuleSpec.h"
 
@@ -51,7 +47,7 @@ public:
                                           SymbolContext &context, Address *addr,
                                           bool containing) override;
 
-  Searcher::Depth GetDepth() override;
+  lldb::SearchDepth GetDepth() override;
 
   void GetDescription(Stream *s) override;
 

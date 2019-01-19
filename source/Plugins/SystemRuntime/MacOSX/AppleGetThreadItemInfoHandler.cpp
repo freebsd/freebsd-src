@@ -10,10 +10,6 @@
 
 #include "AppleGetThreadItemInfoHandler.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 
 #include "lldb/Core/Module.h"
 #include "lldb/Core/Value.h"
@@ -252,7 +248,7 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
 
   error.Clear();
 
-  if (thread.SafeToCallFunctions() == false) {
+  if (!thread.SafeToCallFunctions()) {
     if (log)
       log->Printf("Not safe to call functions on thread 0x%" PRIx64,
                   thread.GetID());
@@ -351,6 +347,7 @@ AppleGetThreadItemInfoHandler::GetThreadItemInfo(Thread &thread,
   options.SetStopOthers(true);
   options.SetTimeout(std::chrono::milliseconds(500));
   options.SetTryAllThreads(false);
+  options.SetIsForUtilityExpr(true);
   thread.CalculateExecutionContext(exe_ctx);
 
   if (!m_get_thread_item_info_impl_code) {

@@ -10,18 +10,14 @@
 #ifndef liblldb_CommunicationKDP_h_
 #define liblldb_CommunicationKDP_h_
 
-// C Includes
-// C++ Includes
 #include <list>
 #include <mutex>
 #include <string>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/Communication.h"
-#include "lldb/Core/Listener.h"
 #include "lldb/Core/StreamBuffer.h"
-#include "lldb/Host/Predicate.h"
+#include "lldb/Utility/Listener.h"
+#include "lldb/Utility/Predicate.h"
 #include "lldb/lldb-private.h"
 
 class CommunicationKDP : public lldb_private::Communication {

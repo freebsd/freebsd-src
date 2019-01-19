@@ -15,7 +15,6 @@
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
-#include "lldb/Core/State.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Host/Symbols.h"
 #include "lldb/Interpreter/OptionValueProperties.h"
@@ -29,6 +28,7 @@
 #include "lldb/Utility/DataBuffer.h"
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 #include "DynamicLoaderDarwinKernel.h"
 
@@ -58,7 +58,7 @@ enum KASLRScanType {
                            // range looking for a kernel
 };
 
-OptionEnumValueElement g_kaslr_kernel_scan_enum_values[] = {
+static constexpr OptionEnumValueElement g_kaslr_kernel_scan_enum_values[] = {
     {eKASLRScanNone, "none",
      "Do not read memory looking for a Darwin kernel when attaching."},
     {eKASLRScanLowgloAddresses, "basic", "Check for the Darwin kernel's load "
@@ -68,17 +68,15 @@ OptionEnumValueElement g_kaslr_kernel_scan_enum_values[] = {
                                     "the Darwin kernel's load address."},
     {eKASLRScanExhaustiveScan, "exhaustive-scan",
      "Scan through the entire potential address range of Darwin kernel (only "
-     "on 32-bit targets)."},
-    {0, NULL, NULL}};
+     "on 32-bit targets)."}};
 
-static PropertyDefinition g_properties[] = {
-    {"load-kexts", OptionValue::eTypeBoolean, true, true, NULL, NULL,
+static constexpr PropertyDefinition g_properties[] = {
+    {"load-kexts", OptionValue::eTypeBoolean, true, true, NULL, {},
      "Automatically loads kext images when attaching to a kernel."},
     {"scan-type", OptionValue::eTypeEnum, true, eKASLRScanNearPC, NULL,
-     g_kaslr_kernel_scan_enum_values, "Control how many reads lldb will make "
-                                      "while searching for a Darwin kernel on "
-                                      "attach."},
-    {NULL, OptionValue::eTypeInvalid, false, 0, NULL, NULL, NULL}};
+     OptionEnumValues(g_kaslr_kernel_scan_enum_values),
+     "Control how many reads lldb will make while searching for a Darwin "
+     "kernel on attach."}};
 
 enum { ePropertyLoadKexts, ePropertyScanType };
 
@@ -149,6 +147,7 @@ DynamicLoader *DynamicLoaderDarwinKernel::CreateInstance(Process *process,
     case llvm::Triple::IOS:
     case llvm::Triple::TvOS:
     case llvm::Triple::WatchOS:
+    // NEED_BRIDGEOS_TRIPLE case llvm::Triple::BridgeOS:
       if (triple_ref.getVendor() != llvm::Triple::Apple) {
         return NULL;
       }
@@ -212,13 +211,13 @@ DynamicLoaderDarwinKernel::SearchForKernelAtSameLoadAddr(Process *process) {
       exe_objfile->GetStrata() != ObjectFile::eStrataKernel)
     return LLDB_INVALID_ADDRESS;
 
-  if (!exe_objfile->GetHeaderAddress().IsValid())
+  if (!exe_objfile->GetBaseAddress().IsValid())
     return LLDB_INVALID_ADDRESS;
 
   if (CheckForKernelImageAtAddress(
-          exe_objfile->GetHeaderAddress().GetFileAddress(), process) ==
+          exe_objfile->GetBaseAddress().GetFileAddress(), process) ==
       exe_module->GetUUID())
-    return exe_objfile->GetHeaderAddress().GetFileAddress();
+    return exe_objfile->GetBaseAddress().GetFileAddress();
 
   return LLDB_INVALID_ADDRESS;
 }
@@ -294,6 +293,18 @@ DynamicLoaderDarwinKernel::SearchForKernelNearPC(Process *process) {
     return LLDB_INVALID_ADDRESS;
   addr_t pc = thread->GetRegisterContext()->GetPC(LLDB_INVALID_ADDRESS);
 
+  // The kernel is always loaded in high memory, if the top bit is zero,
+  // this isn't a kernel.
+  if (process->GetTarget().GetArchitecture().GetAddressByteSize() == 8) {
+    if ((pc & (1ULL << 63)) == 0) {
+      return LLDB_INVALID_ADDRESS;
+    }
+  } else {
+    if ((pc & (1ULL << 31)) == 0) {
+      return LLDB_INVALID_ADDRESS;
+    }
+  }
+
   if (pc == LLDB_INVALID_ADDRESS)
     return LLDB_INVALID_ADDRESS;
 
@@ -308,12 +319,13 @@ DynamicLoaderDarwinKernel::SearchForKernelNearPC(Process *process) {
   // Search backwards 32 megabytes, looking for the start of the kernel at each
   // one-megabyte boundary.
   for (int i = 0; i < 32; i++, addr -= 0x100000) {
+    // x86_64 kernels are at offset 0
     if (CheckForKernelImageAtAddress(addr, process).IsValid())
       return addr;
+    // 32-bit arm kernels are at offset 0x1000 (one 4k page)
     if (CheckForKernelImageAtAddress(addr + 0x1000, process).IsValid())
       return addr + 0x1000;
-    if (CheckForKernelImageAtAddress(addr + 0x2000, process).IsValid())
-      return addr + 0x2000;
+    // 64-bit arm kernels are at offset 0x4000 (one 16k page)
     if (CheckForKernelImageAtAddress(addr + 0x4000, process).IsValid())
       return addr + 0x4000;
   }
@@ -352,12 +364,13 @@ lldb::addr_t DynamicLoaderDarwinKernel::SearchForKernelViaExhaustiveSearch(
   addr_t addr = kernel_range_low;
 
   while (addr >= kernel_range_low && addr < kernel_range_high) {
+    // x86_64 kernels are at offset 0
     if (CheckForKernelImageAtAddress(addr, process).IsValid())
       return addr;
+    // 32-bit arm kernels are at offset 0x1000 (one 4k page)
     if (CheckForKernelImageAtAddress(addr + 0x1000, process).IsValid())
       return addr + 0x1000;
-    if (CheckForKernelImageAtAddress(addr + 0x2000, process).IsValid())
-      return addr + 0x2000;
+    // 64-bit arm kernels are at offset 0x4000 (one 16k page)
     if (CheckForKernelImageAtAddress(addr + 0x4000, process).IsValid())
       return addr + 0x4000;
     addr += 0x100000;
@@ -388,8 +401,8 @@ DynamicLoaderDarwinKernel::ReadMachHeader(addr_t addr, Process *process, llvm::M
     if (::memcmp (&header.magic, &magicks[i], sizeof (uint32_t)) == 0)
         found_matching_pattern = true;
 
-  if (found_matching_pattern == false)
-      return false;
+  if (!found_matching_pattern)
+    return false;
 
   if (header.magic == llvm::MachO::MH_CIGAM ||
       header.magic == llvm::MachO::MH_CIGAM_64) {
@@ -425,7 +438,7 @@ DynamicLoaderDarwinKernel::CheckForKernelImageAtAddress(lldb::addr_t addr,
 
   llvm::MachO::mach_header header;
 
-  if (ReadMachHeader (addr, process, header) == false)
+  if (!ReadMachHeader(addr, process, header))
     return UUID();
 
   // First try a quick test -- read the first 4 bytes and see if there is a
@@ -436,8 +449,8 @@ DynamicLoaderDarwinKernel::CheckForKernelImageAtAddress(lldb::addr_t addr,
   if (header.filetype == llvm::MachO::MH_EXECUTE &&
       (header.flags & llvm::MachO::MH_DYLDLINK) == 0) {
     // Create a full module to get the UUID
-    ModuleSP memory_module_sp = process->ReadModuleFromMemory(
-        FileSpec("temp_mach_kernel", false), addr);
+    ModuleSP memory_module_sp =
+        process->ReadModuleFromMemory(FileSpec("temp_mach_kernel"), addr);
     if (!memory_module_sp.get())
       return UUID();
 
@@ -605,16 +618,10 @@ void DynamicLoaderDarwinKernel::KextImageInfo::SetProcessStopId(
 bool DynamicLoaderDarwinKernel::KextImageInfo::
 operator==(const KextImageInfo &rhs) {
   if (m_uuid.IsValid() || rhs.GetUUID().IsValid()) {
-    if (m_uuid == rhs.GetUUID()) {
-      return true;
-    }
-    return false;
+    return m_uuid == rhs.GetUUID();
   }
 
-  if (m_name == rhs.GetName() && m_load_address == rhs.GetLoadAddress())
-    return true;
-
-  return false;
+  return m_name == rhs.GetName() && m_load_address == rhs.GetLoadAddress();
 }
 
 void DynamicLoaderDarwinKernel::KextImageInfo::SetName(const char *name) {
@@ -647,16 +654,16 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::ReadMemoryModule(
   if (m_load_address == LLDB_INVALID_ADDRESS)
     return false;
 
-  FileSpec file_spec;
-  file_spec.SetFile(m_name.c_str(), false, FileSpec::Style::native);
+  FileSpec file_spec(m_name.c_str());
 
   llvm::MachO::mach_header mh;
   size_t size_to_read = 512;
-  if (ReadMachHeader (m_load_address, process, mh)) {
-    if (mh.magic == llvm::MachO::MH_CIGAM || llvm::MachO::MH_MAGIC)
-      size_to_read = sizeof (llvm::MachO::mach_header) + mh.sizeofcmds;
-    if (mh.magic == llvm::MachO::MH_CIGAM_64 || llvm::MachO::MH_MAGIC_64)
-      size_to_read = sizeof (llvm::MachO::mach_header_64) + mh.sizeofcmds;
+  if (ReadMachHeader(m_load_address, process, mh)) {
+    if (mh.magic == llvm::MachO::MH_CIGAM || mh.magic == llvm::MachO::MH_MAGIC)
+      size_to_read = sizeof(llvm::MachO::mach_header) + mh.sizeofcmds;
+    if (mh.magic == llvm::MachO::MH_CIGAM_64 ||
+        mh.magic == llvm::MachO::MH_MAGIC_64)
+      size_to_read = sizeof(llvm::MachO::mach_header_64) + mh.sizeofcmds;
   }
 
   ModuleSP memory_module_sp =
@@ -732,7 +739,7 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::ReadMemoryModule(
 }
 
 bool DynamicLoaderDarwinKernel::KextImageInfo::IsKernel() const {
-  return m_kernel_image == true;
+  return m_kernel_image;
 }
 
 void DynamicLoaderDarwinKernel::KextImageInfo::SetIsKernel(bool is_kernel) {
@@ -784,7 +791,7 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::LoadImageUsingMemoryModule(
       // to do anything useful. This will force a clal to
       if (IsKernel()) {
         if (Symbols::DownloadObjectAndSymbolFile(module_spec, true)) {
-          if (module_spec.GetFileSpec().Exists()) {
+          if (FileSystem::Instance().Exists(module_spec.GetFileSpec())) {
             m_module_sp.reset(new Module(module_spec.GetFileSpec(),
                                          target.GetArchitecture()));
             if (m_module_sp.get() &&
@@ -807,7 +814,7 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::LoadImageUsingMemoryModule(
             PlatformDarwinKernel::GetPluginNameStatic());
         if (platform_name == g_platform_name) {
           ModuleSpec kext_bundle_module_spec(module_spec);
-          FileSpec kext_filespec(m_name.c_str(), false);
+          FileSpec kext_filespec(m_name.c_str());
           kext_bundle_module_spec.GetFileSpec() = kext_filespec;
           platform_sp->GetSharedModule(
               kext_bundle_module_spec, process, m_module_sp,
@@ -847,7 +854,7 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::LoadImageUsingMemoryModule(
         target.GetImages().AppendIfNeeded(m_module_sp);
         if (IsKernel() &&
             target.GetExecutableModulePointer() != m_module_sp.get()) {
-          target.SetExecutableModule(m_module_sp, false);
+          target.SetExecutableModule(m_module_sp, eLoadDependentsNo);
         }
       }
     }
@@ -932,7 +939,7 @@ bool DynamicLoaderDarwinKernel::KextImageInfo::LoadImageUsingMemoryModule(
       ObjectFile *kernel_object_file = m_module_sp->GetObjectFile();
       if (kernel_object_file) {
         addr_t file_address =
-            kernel_object_file->GetHeaderAddress().GetFileAddress();
+            kernel_object_file->GetBaseAddress().GetFileAddress();
         if (m_load_address != LLDB_INVALID_ADDRESS &&
             file_address != LLDB_INVALID_ADDRESS) {
           s->Printf("Kernel slid 0x%" PRIx64 " in memory.\n",
@@ -1006,10 +1013,10 @@ void DynamicLoaderDarwinKernel::LoadKernelModuleIfNeeded() {
         ObjectFile *kernel_object_file = m_kernel.GetModule()->GetObjectFile();
         if (kernel_object_file) {
           addr_t load_address =
-              kernel_object_file->GetHeaderAddress().GetLoadAddress(
+              kernel_object_file->GetBaseAddress().GetLoadAddress(
                   &m_process->GetTarget());
           addr_t file_address =
-              kernel_object_file->GetHeaderAddress().GetFileAddress();
+              kernel_object_file->GetBaseAddress().GetFileAddress();
           if (load_address != LLDB_INVALID_ADDRESS && load_address != 0) {
             m_kernel.SetLoadAddress(load_address);
             if (load_address != file_address) {
@@ -1281,7 +1288,7 @@ bool DynamicLoaderDarwinKernel::ParseKextSummaries(
 
     const uint32_t num_of_new_kexts = kext_summaries.size();
     for (uint32_t new_kext = 0; new_kext < num_of_new_kexts; new_kext++) {
-      if (to_be_added[new_kext] == true) {
+      if (to_be_added[new_kext]) {
         KextImageInfo &image_info = kext_summaries[new_kext];
         if (load_kexts) {
           if (!image_info.LoadImageUsingMemoryModule(m_process)) {

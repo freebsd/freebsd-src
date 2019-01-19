@@ -10,18 +10,14 @@
 #ifndef liblldb_ClangExpressionDeclMap_h_
 #define liblldb_ClangExpressionDeclMap_h_
 
-// C Includes
 #include <signal.h>
 #include <stdint.h>
 
-// C++ Includes
 #include <vector>
 
 #include "ClangASTSource.h"
 #include "ClangExpressionVariable.h"
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/ClangForward.h"
 #include "lldb/Core/Value.h"
 #include "lldb/Expression/Materializer.h"
@@ -324,12 +320,6 @@ public:
   ///
   /// @param[in] namespace_decl
   ///     If valid and module is non-NULL, the parent namespace.
-  ///
-  /// @param[in] name
-  ///     The name as a plain C string.  The NameSearchContext contains
-  ///     a DeclarationName for the name so at first the name may seem
-  ///     redundant, but ClangExpressionDeclMap operates in RTTI land so
-  ///     it can't access DeclarationName.
   ///
   /// @param[in] current_id
   ///     The ID for the current FindExternalVisibleDecls invocation,

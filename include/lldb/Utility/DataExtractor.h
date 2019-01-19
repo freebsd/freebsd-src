@@ -11,9 +11,10 @@
 #define LLDB_UTILITY_DATAEXTRACTOR_H
 
 #include "lldb/lldb-defines.h"
-#include "lldb/lldb-enumerations.h" // for ByteOrder
-#include "lldb/lldb-forward.h"      // for DataBufferSP
+#include "lldb/lldb-enumerations.h"
+#include "lldb/lldb-forward.h"
 #include "lldb/lldb-types.h"
+#include "llvm/ADT/ArrayRef.h"
 
 #include <cassert>
 #include <stdint.h>
@@ -29,7 +30,6 @@ namespace llvm {
 template <typename T> class SmallVectorImpl;
 }
 
-// C++ Includes
 
 namespace lldb_private {
 
@@ -1094,6 +1094,10 @@ public:
   }
 
   void Checksum(llvm::SmallVectorImpl<uint8_t> &dest, uint64_t max_data = 0);
+
+  llvm::ArrayRef<uint8_t> GetData() const {
+    return {GetDataStart(), size_t(GetByteSize())};
+  }
 
 protected:
   //------------------------------------------------------------------

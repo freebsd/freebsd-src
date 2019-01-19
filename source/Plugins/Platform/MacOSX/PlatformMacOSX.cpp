@@ -10,12 +10,9 @@
 #include "PlatformMacOSX.h"
 #include "lldb/Host/Config.h"
 
-// C++ Includes
 
 #include <sstream>
 
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleList.h"
@@ -83,7 +80,7 @@ PlatformSP PlatformMacOSX::CreateInstance(bool force, const ArchSpec *arch) {
   const bool is_host = false;
 
   bool create = force;
-  if (create == false && arch && arch->IsValid()) {
+  if (!create && arch && arch->IsValid()) {
     const llvm::Triple &triple = arch->GetTriple();
     switch (triple.getVendor()) {
     case llvm::Triple::Apple:
@@ -93,7 +90,7 @@ PlatformSP PlatformMacOSX::CreateInstance(bool force, const ArchSpec *arch) {
 #if defined(__APPLE__)
     // Only accept "unknown" for vendor if the host is Apple and it "unknown"
     // wasn't specified (it was just returned because it was NOT specified)
-    case llvm::Triple::UnknownArch:
+    case llvm::Triple::UnknownVendor:
       create = !arch->TripleVendorWasSpecified();
       break;
 #endif
@@ -218,14 +215,14 @@ ConstString PlatformMacOSX::GetSDKDirectory(lldb_private::Target &target) {
                           "SDKs/MacOSX%u.%u.sdk",
                           xcode_contents_path.c_str(), versions[0],
                           versions[1]);
-          fspec.SetFile(sdk_path.GetString(), false, FileSpec::Style::native);
-          if (fspec.Exists())
+          fspec.SetFile(sdk_path.GetString(), FileSpec::Style::native);
+          if (FileSystem::Instance().Exists(fspec))
             return ConstString(sdk_path.GetString());
         }
 
         if (!default_xcode_sdk.empty()) {
-          fspec.SetFile(default_xcode_sdk, false, FileSpec::Style::native);
-          if (fspec.Exists())
+          fspec.SetFile(default_xcode_sdk, FileSpec::Style::native);
+          if (FileSystem::Instance().Exists(fspec))
             return ConstString(default_xcode_sdk);
         }
       }
@@ -259,7 +256,7 @@ PlatformMacOSX::GetFileWithUUID(const lldb_private::FileSpec &platform_file,
 #endif
     std::string remote_os_build;
     m_remote_platform_sp->GetOSBuildString(remote_os_build);
-    if (local_os_build.compare(remote_os_build) == 0) {
+    if (local_os_build == remote_os_build) {
       // same OS version: the local file is good enough
       local_file = platform_file;
       return Status();
@@ -268,8 +265,8 @@ PlatformMacOSX::GetFileWithUUID(const lldb_private::FileSpec &platform_file,
       std::string cache_path(GetLocalCacheDirectory());
       std::string module_path(platform_file.GetPath());
       cache_path.append(module_path);
-      FileSpec module_cache_spec(cache_path, false);
-      if (module_cache_spec.Exists()) {
+      FileSpec module_cache_spec(cache_path);
+      if (FileSystem::Instance().Exists(module_cache_spec)) {
         local_file = module_cache_spec;
         return Status();
       }
@@ -284,7 +281,7 @@ PlatformMacOSX::GetFileWithUUID(const lldb_private::FileSpec &platform_file,
       err = GetFile(platform_file, module_cache_spec);
       if (err.Fail())
         return err;
-      if (module_cache_spec.Exists()) {
+      if (FileSystem::Instance().Exists(module_cache_spec)) {
         local_file = module_cache_spec;
         return Status();
       } else
