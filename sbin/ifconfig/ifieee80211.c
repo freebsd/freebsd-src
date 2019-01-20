@@ -77,6 +77,7 @@
 #include <net80211/ieee80211_superg.h>
 #include <net80211/ieee80211_tdma.h>
 #include <net80211/ieee80211_mesh.h>
+#include <net80211/ieee80211_wps.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -3129,13 +3130,6 @@ printrsnie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 	}
 }
 
-/* XXX move to a public include file */
-#define IEEE80211_WPS_DEV_PASS_ID	0x1012
-#define IEEE80211_WPS_SELECTED_REG	0x1041
-#define IEEE80211_WPS_SETUP_STATE	0x1044
-#define IEEE80211_WPS_UUID_E		0x1047
-#define IEEE80211_WPS_VERSION		0x104a
-
 #define BE_READ_2(p)					\
 	((u_int16_t)					\
 	 ((((const u_int8_t *)(p))[1]      ) |		\
@@ -3157,6 +3151,7 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 			"R"	/* Registrar-specified */
 		};
 		int n;
+		int f;
 
 		ie +=6, len -= 4;		/* NB: len is payload only */
 
@@ -3165,6 +3160,7 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 		while (len) {
 			uint16_t tlv_type = BE_READ_2(ie);
 			uint16_t tlv_len  = BE_READ_2(ie + 2);
+			uint16_t cfg_mthd;
 
 			/* some devices broadcast invalid WPS frames */
 			if (tlv_len > len) {
@@ -3177,29 +3173,190 @@ printwpsie(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 			ie += 4, len -= 4;
 
 			switch (tlv_type) {
-			case IEEE80211_WPS_VERSION:
+			case IEEE80211_WPS_ATTR_VERSION:
 				printf("v:%d.%d", *ie >> 4, *ie & 0xf);
 				break;
-			case IEEE80211_WPS_SETUP_STATE:
-				/* Only 1 and 2 are valid */
-				if (*ie == 0 || *ie >= 3)
-					printf(" state:B");
+			case IEEE80211_WPS_ATTR_AP_SETUP_LOCKED:
+				printf(" ap_setup:%s", *ie ? "locked" :
+				    "unlocked");
+				break;
+			case IEEE80211_WPS_ATTR_CONFIG_METHODS:
+			case IEEE80211_WPS_ATTR_SELECTED_REGISTRAR_CONFIG_METHODS:
+				if (tlv_type == IEEE80211_WPS_ATTR_SELECTED_REGISTRAR_CONFIG_METHODS)
+					printf(" sel_reg_cfg_mthd:");
 				else
-					printf(" st:%s", *ie == 1 ? "N" : "C");
+					printf(" cfg_mthd:" );
+				cfg_mthd = BE_READ_2(ie);
+				f = 0;
+				for (n = 15; n >= 0; n--) {
+					if (f) {
+						printf(",");
+						f = 0;
+					}
+					switch (cfg_mthd & (1 << n)) {
+					case 0:
+						break;
+					case IEEE80211_WPS_CONFIG_USBA:
+						printf("usba");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_ETHERNET:
+						printf("ethernet");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_LABEL:
+						printf("label");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_DISPLAY:
+						if (!(cfg_mthd &
+						    (IEEE80211_WPS_CONFIG_VIRT_DISPLAY |
+						    IEEE80211_WPS_CONFIG_PHY_DISPLAY)))
+						    {
+							printf("display");
+							f++;
+						}
+						break;
+					case IEEE80211_WPS_CONFIG_EXT_NFC_TOKEN:
+						printf("ext_nfc_tokenk");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_INT_NFC_TOKEN:
+						printf("int_nfc_token");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_NFC_INTERFACE:
+						printf("nfc_interface");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_PUSHBUTTON:
+						if (!(cfg_mthd &
+						    (IEEE80211_WPS_CONFIG_VIRT_PUSHBUTTON |
+						    IEEE80211_WPS_CONFIG_PHY_PUSHBUTTON))) {
+							printf("push_button");
+							f++;
+						}
+						break;
+					case IEEE80211_WPS_CONFIG_KEYPAD:
+						printf("keypad");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_VIRT_PUSHBUTTON:
+						printf("virtual_push_button");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_PHY_PUSHBUTTON:
+						printf("physical_push_button");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_P2PS:
+						printf("p2ps");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_VIRT_DISPLAY:
+						printf("virtual_display");
+						f++;
+						break;
+					case IEEE80211_WPS_CONFIG_PHY_DISPLAY:
+						printf("physical_display");
+						f++;
+						break;
+					default:
+						printf("unknown_wps_config<%04x>",
+						    cfg_mthd & (1 << n));
+						f++;
+						break;
+					}
+				}
 				break;
-			case IEEE80211_WPS_SELECTED_REG:
-				printf(" sel:%s", *ie ? "T" : "F");
+			case IEEE80211_WPS_ATTR_DEV_NAME:
+				printf(" device_name:<%.*s>", tlv_len, ie);
 				break;
-			case IEEE80211_WPS_DEV_PASS_ID:
+			case IEEE80211_WPS_ATTR_DEV_PASSWORD_ID:
 				n = LE_READ_2(ie);
 				if (n < nitems(dev_pass_id))
 					printf(" dpi:%s", dev_pass_id[n]);
 				break;
-			case IEEE80211_WPS_UUID_E:
+			case IEEE80211_WPS_ATTR_MANUFACTURER:
+				printf(" manufacturer:<%.*s>", tlv_len, ie);
+				break;
+			case IEEE80211_WPS_ATTR_MODEL_NAME:
+				printf(" model_name:<%.*s>", tlv_len, ie);
+				break;
+			case IEEE80211_WPS_ATTR_MODEL_NUMBER:
+				printf(" model_number:<%.*s>", tlv_len, ie);
+				break;
+			case IEEE80211_WPS_ATTR_PRIMARY_DEV_TYPE:
+				printf(" prim_dev:");
+				for (n = 0; n < tlv_len; n++)
+					printf("%02x", ie[n]);
+				break;
+			case IEEE80211_WPS_ATTR_RF_BANDS:
+				printf(" rf:");
+				f = 0;
+				for (n = 7; n >= 0; n--) {
+					if (f) {
+						printf(",");
+						f = 0;
+					}
+					switch (*ie & (1 << n)) {
+					case 0:
+						break;
+					case IEEE80211_WPS_RF_BAND_24GHZ:
+						printf("2.4Ghz");
+						f++;
+						break;
+					case IEEE80211_WPS_RF_BAND_50GHZ:
+						printf("5Ghz");
+						f++;
+						break;
+					case IEEE80211_WPS_RF_BAND_600GHZ:
+						printf("60Ghz");
+						f++;
+						break;
+					default:
+						printf("unknown<%02x>",
+						    *ie & (1 << n));
+						f++;
+						break;
+					}
+				}
+				break;
+			case IEEE80211_WPS_ATTR_RESPONSE_TYPE:
+				printf(" resp_type:0x%02x", *ie);
+				break;
+			case IEEE80211_WPS_ATTR_SELECTED_REGISTRAR:
+				printf(" sel:%s", *ie ? "T" : "F");
+				break;
+			case IEEE80211_WPS_ATTR_SERIAL_NUMBER:
+				printf(" serial_number:<%.*s>", tlv_len, ie);
+				break;
+			case IEEE80211_WPS_ATTR_UUID_E:
 				printf(" uuid-e:");
 				for (n = 0; n < (tlv_len - 1); n++)
 					printf("%02x-", ie[n]);
 				printf("%02x", ie[n]);
+				break;
+			case IEEE80211_WPS_ATTR_VENDOR_EXT:
+				printf(" vendor:");
+				for (n = 0; n < tlv_len; n++)
+					printf("%02x", ie[n]);
+				break;
+			case IEEE80211_WPS_ATTR_WPS_STATE:
+				switch (*ie) {
+				case IEEE80211_WPS_STATE_NOT_CONFIGURED:
+					printf(" state:N");
+					break;
+				case IEEE80211_WPS_STATE_CONFIGURED:
+					printf(" state:C");
+					break;
+				default:
+					printf(" state:B<%02x>", *ie);
+					break;
+				}
+				break;
+			default:
+				printf(" unknown_wps_attr:0x%x", tlv_type);
 				break;
 			}
 			ie += tlv_len, len -= tlv_len;
@@ -3353,6 +3510,7 @@ iswpsoui(const uint8_t *frm)
 static const char *
 iename(int elemid)
 {
+	static char iename_buf[64];
 	switch (elemid) {
 	case IEEE80211_ELEMID_FHPARMS:	return " FHPARMS";
 	case IEEE80211_ELEMID_CFPARMS:	return " CFPARMS";
@@ -3370,10 +3528,21 @@ iename(int elemid)
 	case IEEE80211_ELEMID_MEASREP:	return " MEASREP";
 	case IEEE80211_ELEMID_QUIET:	return " QUIET";
 	case IEEE80211_ELEMID_IBSSDFS:	return " IBSSDFS";
+	case IEEE80211_ELEMID_RESERVED_47:
+					return " RESERVED_47";
+	case IEEE80211_ELEMID_MOBILITY_DOMAIN:
+					return " MOBILITY_DOMAIN";
+	case IEEE80211_ELEMID_RRM_ENACAPS:
+					return " RRM_ENCAPS";
+	case IEEE80211_ELEMID_OVERLAP_BSS_SCAN_PARAM:
+					return " OVERLAP_BSS";
 	case IEEE80211_ELEMID_TPC:	return " TPC";
 	case IEEE80211_ELEMID_CCKM:	return " CCKM";
+	case IEEE80211_ELEMID_EXTCAP:	return " EXTCAP";
 	}
-	return " ???";
+	snprintf(iename_buf, sizeof(iename_buf), " UNKNOWN_ELEMID_%d",
+	    elemid);
+	return (const char *) iename_buf;
 }
 
 static void
