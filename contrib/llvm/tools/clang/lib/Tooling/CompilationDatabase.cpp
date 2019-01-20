@@ -218,6 +218,25 @@ private:
   ArrayRef<std::string> Arr;
 };
 
+// Filter of tools unused flags such as -no-integrated-as and -Wa,*.
+// They are not used for syntax checking, and could confuse targets
+// which don't support these options.
+struct FilterUnusedFlags {
+  bool operator() (StringRef S) {
+    return (S == "-no-integrated-as") || S.startswith("-Wa,");
+  }
+};
+
+std::string GetClangToolCommand() {
+  static int Dummy;
+  std::string ClangExecutable =
+      llvm::sys::fs::getMainExecutable("clang", (void *)&Dummy);
+  SmallString<128> ClangToolPath;
+  ClangToolPath = llvm::sys::path::parent_path(ClangExecutable);
+  llvm::sys::path::append(ClangToolPath, "clang-tool");
+  return ClangToolPath.str();
+}
+
 } // namespace
 
 /// Strips any positional args and possible argv[0] from a command-line
@@ -257,9 +276,10 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
       Diagnostics));
   NewDriver->setCheckInputsExist(false);
 
-  // This becomes the new argv[0]. The value is actually not important as it
-  // isn't used for invoking Tools.
-  Args.insert(Args.begin(), "clang-tool");
+  // This becomes the new argv[0]. The value is used to detect libc++ include
+  // dirs on Mac, it isn't used for other platforms.
+  std::string Argv0 = GetClangToolCommand();
+  Args.insert(Args.begin(), Argv0.c_str());
 
   // By adding -c, we force the driver to treat compilation as the last phase.
   // It will then issue warnings via Diagnostics about un-used options that
@@ -275,10 +295,7 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
   // up with no jobs but then this is the user's fault.
   Args.push_back("placeholder.cpp");
 
-  // Remove -no-integrated-as; it's not used for syntax checking,
-  // and it confuses targets which don't support this option.
-  Args.erase(std::remove_if(Args.begin(), Args.end(),
-                            MatchesAny(std::string("-no-integrated-as"))),
+  Args.erase(std::remove_if(Args.begin(), Args.end(), FilterUnusedFlags()),
              Args.end());
 
   const std::unique_ptr<driver::Compilation> Compilation(
@@ -291,9 +308,11 @@ static bool stripPositionalArgs(std::vector<const char *> Args,
   CompileJobAnalyzer CompileAnalyzer;
 
   for (const auto &Cmd : Jobs) {
-    // Collect only for Assemble and Compile jobs. If we do all jobs we get
-    // duplicates since Link jobs point to Assemble jobs as inputs.
+    // Collect only for Assemble, Backend, and Compile jobs. If we do all jobs
+    // we get duplicates since Link jobs point to Assemble jobs as inputs.
+    // -flto* flags make the BackendJobClass, which still needs analyzer.
     if (Cmd.getSource().getKind() == driver::Action::AssembleJobClass ||
+        Cmd.getSource().getKind() == driver::Action::BackendJobClass ||
         Cmd.getSource().getKind() == driver::Action::CompileJobClass) {
       CompileAnalyzer.run(&Cmd.getSource());
     }
@@ -358,7 +377,7 @@ FixedCompilationDatabase::loadFromFile(StringRef Path, std::string &ErrorMsg) {
 
 FixedCompilationDatabase::
 FixedCompilationDatabase(Twine Directory, ArrayRef<std::string> CommandLine) {
-  std::vector<std::string> ToolCommandLine(1, "clang-tool");
+  std::vector<std::string> ToolCommandLine(1, GetClangToolCommand());
   ToolCommandLine.insert(ToolCommandLine.end(),
                          CommandLine.begin(), CommandLine.end());
   CompileCommands.emplace_back(Directory, StringRef(),
