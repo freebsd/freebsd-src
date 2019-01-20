@@ -604,6 +604,97 @@ ieee80211_validate_frame(struct mbuf *m,
 	return (0);
 }
 
+static int
+ieee80211_validate_rate(struct ieee80211_node *ni, uint8_t rate)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+
+	if (IEEE80211_IS_HT_RATE(rate)) {
+		if ((ic->ic_htcaps & IEEE80211_HTC_HT) == 0)
+			return (EINVAL);
+
+		rate = IEEE80211_RV(rate);
+		if (rate <= 31) {
+			if (rate > ic->ic_txstream * 8 - 1)
+				return (EINVAL);
+
+			return (0);
+		}
+
+		if (rate == 32) {
+			if ((ic->ic_htcaps & IEEE80211_HTC_TXMCS32) == 0)
+				return (EINVAL);
+
+			return (0);
+		}
+
+		if ((ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) == 0)
+			return (EINVAL);
+
+		switch (ic->ic_txstream) {
+		case 0:
+		case 1:
+			return (EINVAL);
+		case 2:
+			if (rate > 38)
+				return (EINVAL);
+
+			return (0);
+		case 3:
+			if (rate > 52)
+				return (EINVAL);
+
+			return (0);
+		case 4:
+		default:
+			if (rate > 76)
+				return (EINVAL);
+
+			return (0);
+		}
+	}
+
+	if (!ieee80211_isratevalid(ic->ic_rt, rate))
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+ieee80211_sanitize_rates(struct ieee80211_node *ni, struct mbuf *m,
+    const struct ieee80211_bpf_params *params)
+{
+	int error;
+
+	if (!params)
+		return (0);	/* nothing to do */
+
+	/* NB: most drivers assume that ibp_rate0 is set (!= 0). */
+	if (params->ibp_rate0 != 0) {
+		error = ieee80211_validate_rate(ni, params->ibp_rate0);
+		if (error != 0)
+			return (error);
+	} else {
+		/* XXX pre-setup some default (e.g., mgmt / mcast) rate */
+		/* XXX __DECONST? */
+		(void) m;
+	}
+
+	if (params->ibp_rate1 != 0 &&
+	    (error = ieee80211_validate_rate(ni, params->ibp_rate1)) != 0)
+		return (error);
+
+	if (params->ibp_rate2 != 0 &&
+	    (error = ieee80211_validate_rate(ni, params->ibp_rate2)) != 0)
+		return (error);
+
+	if (params->ibp_rate3 != 0 &&
+	    (error = ieee80211_validate_rate(ni, params->ibp_rate3)) != 0)
+		return (error);
+
+	return (0);
+}
+
 /*
  * 802.11 output routine. This is (currently) used only to
  * connect bpf write calls to the 802.11 layer for injecting
@@ -717,6 +808,10 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		    m->m_pkthdr.len - ieee80211_hdrsize(wh));
 	} else
 		M_WME_SETAC(m, WME_AC_BE);
+
+	error = ieee80211_sanitize_rates(ni, m, params);
+	if (error != 0)
+		senderr(error);
 
 	IEEE80211_NODE_STAT(ni, tx_data);
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
