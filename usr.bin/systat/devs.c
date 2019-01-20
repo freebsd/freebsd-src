@@ -195,7 +195,7 @@ dsmatchselect(const char *args, devstat_select_mode select_mode, int maxshowdevs
 
 	if (!args) {
 		warnx("dsmatchselect: no arguments");
-		return(0);
+		return(1);
 	}
 
 	/*
