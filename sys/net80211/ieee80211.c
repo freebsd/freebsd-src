@@ -405,8 +405,10 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	 * The VAP is responsible for setting and clearing
 	 * the VIMAGE context.
 	 */
-	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL)
+	while ((vap = TAILQ_FIRST(&ic->ic_vaps)) != NULL) {
+		ieee80211_com_vdetach(vap);
 		ieee80211_vap_destroy(vap);
+	}
 	ieee80211_waitfor_parent(ic);
 
 	ieee80211_sysctl_detach(ic);
