@@ -651,3 +651,19 @@ xgetc(int fn)
 	    return 0;
     }
 }
+
+int
+getchar(void)
+{
+
+	return xgetc(0);
+}
+
+void
+exit(int code)
+{
+
+        printf("error: loader exit\n");
+        while (1);
+        __unreachable();
+}
