@@ -9,15 +9,11 @@
 
 #include "RegisterContextMemory.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "DynamicRegisterInfo.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/DataBufferHeap.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/Status.h"
 
 using namespace lldb;

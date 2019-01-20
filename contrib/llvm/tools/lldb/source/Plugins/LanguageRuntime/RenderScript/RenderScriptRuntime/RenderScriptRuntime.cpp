@@ -7,12 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
 #include "llvm/ADT/StringSwitch.h"
 
-// Project includes
 #include "RenderScriptRuntime.h"
 #include "RenderScriptScriptGroup.h"
 
@@ -20,7 +16,6 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/DumpDataExtractor.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/RegisterValue.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/DumpValueObjectOptions.h"
 #include "lldb/Expression/UserExpression.h"
@@ -41,8 +36,8 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/Args.h"
 #include "lldb/Utility/ConstString.h"
-#include "lldb/Utility/DataBufferLLVM.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/RegisterValue.h"
 #include "lldb/Utility/RegularExpression.h"
 #include "lldb/Utility/Status.h"
 
@@ -2079,10 +2074,8 @@ bool RenderScriptRuntime::JITElementPacked(Element &elem,
 
   // If this Element has subelements then JIT rsaElementGetSubElements() for
   // details about its fields
-  if (*elem.field_count.get() > 0 && !JITSubelements(elem, context, frame_ptr))
-    return false;
-
-  return true;
+  return !(*elem.field_count.get() > 0 &&
+           !JITSubelements(elem, context, frame_ptr));
 }
 
 // JITs the RS runtime for information about the subelements/fields of a struct
@@ -2305,10 +2298,7 @@ bool RenderScriptRuntime::RefreshAllocation(AllocationDetails *alloc,
   SetElementSize(alloc->element);
 
   // Use GetOffsetPointer() to infer size of the allocation
-  if (!JITAllocationSize(alloc, frame_ptr))
-    return false;
-
-  return true;
+  return JITAllocationSize(alloc, frame_ptr);
 }
 
 // Function attempts to set the type_name member of the paramaterised Element
@@ -2529,21 +2519,22 @@ bool RenderScriptRuntime::LoadAllocation(Stream &strm, const uint32_t alloc_id,
          "Allocation information not available");
 
   // Check we can read from file
-  FileSpec file(path, true);
-  if (!file.Exists()) {
+  FileSpec file(path);
+  FileSystem::Instance().Resolve(file);
+  if (!FileSystem::Instance().Exists(file)) {
     strm.Printf("Error: File %s does not exist", path);
     strm.EOL();
     return false;
   }
 
-  if (!file.Readable()) {
+  if (!FileSystem::Instance().Readable(file)) {
     strm.Printf("Error: File %s does not have readable permissions", path);
     strm.EOL();
     return false;
   }
 
   // Read file into data buffer
-  auto data_sp = DataBufferLLVM::CreateFromPath(file.GetPath());
+  auto data_sp = FileSystem::Instance().CreateDataBuffer(file.GetPath());
 
   // Cast start of buffer to FileHeader and use pointer to read metadata
   void *file_buf = data_sp->GetBytes();
@@ -2753,9 +2744,14 @@ bool RenderScriptRuntime::SaveAllocation(Stream &strm, const uint32_t alloc_id,
          "Allocation information not available");
 
   // Check we can create writable file
-  FileSpec file_spec(path, true);
-  File file(file_spec, File::eOpenOptionWrite | File::eOpenOptionCanCreate |
-                           File::eOpenOptionTruncate);
+  FileSpec file_spec(path);
+  FileSystem::Instance().Resolve(file_spec);
+  File file;
+  FileSystem::Instance().Open(file, file_spec,
+                              File::eOpenOptionWrite |
+                                  File::eOpenOptionCanCreate |
+                                  File::eOpenOptionTruncate);
+
   if (!file) {
     strm.Printf("Error: Failed to open '%s' for writing", path);
     strm.EOL();
@@ -3079,7 +3075,8 @@ bool RSModuleDescriptor::ParseRSInfo() {
   const addr_t size = info_sym->GetByteSize();
   const FileSpec fs = m_module->GetFileSpec();
 
-  auto buffer = DataBufferLLVM::CreateSliceFromPath(fs.GetPath(), size, addr);
+  auto buffer =
+      FileSystem::Instance().CreateDataBuffer(fs.GetPath(), size, addr);
   if (!buffer)
     return false;
 
@@ -3718,7 +3715,8 @@ bool RenderScriptRuntime::GetKernelCoordinate(RSCoordinate &coord,
       continue;
 
     // Find the function name
-    const SymbolContext sym_ctx = frame_sp->GetSymbolContext(false);
+    const SymbolContext sym_ctx =
+        frame_sp->GetSymbolContext(eSymbolContextFunction);
     const ConstString func_name = sym_ctx.GetFunctionName();
     if (!func_name)
       continue;
@@ -4171,13 +4169,13 @@ public:
   }
 };
 
-static OptionDefinition g_renderscript_reduction_bp_set_options[] = {
+static constexpr OptionDefinition g_renderscript_reduction_bp_set_options[] = {
     {LLDB_OPT_SET_1, false, "function-role", 't',
-     OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeOneLiner,
+     OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeOneLiner,
      "Break on a comma separated set of reduction kernel types "
      "(accumulator,outcoverter,combiner,initializer"},
     {LLDB_OPT_SET_1, false, "coordinate", 'c', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeValue,
+     nullptr, {}, 0, eArgTypeValue,
      "Set a breakpoint on a single invocation of the kernel with specified "
      "coordinate.\n"
      "Coordinate takes the form 'x[,y][,z] where x,y,z are positive "
@@ -4330,9 +4328,9 @@ private:
   CommandOptions m_options;
 };
 
-static OptionDefinition g_renderscript_kernel_bp_set_options[] = {
+static constexpr OptionDefinition g_renderscript_kernel_bp_set_options[] = {
     {LLDB_OPT_SET_1, false, "coordinate", 'c', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeValue,
+     nullptr, {}, 0, eArgTypeValue,
      "Set a breakpoint on a single invocation of the kernel with specified "
      "coordinate.\n"
      "Coordinate takes the form 'x[,y][,z] where x,y,z are positive "
@@ -4602,9 +4600,9 @@ public:
   }
 };
 
-static OptionDefinition g_renderscript_runtime_alloc_dump_options[] = {
+static constexpr OptionDefinition g_renderscript_runtime_alloc_dump_options[] = {
     {LLDB_OPT_SET_1, false, "file", 'f', OptionParser::eRequiredArgument,
-     nullptr, nullptr, 0, eArgTypeFilename,
+     nullptr, {}, 0, eArgTypeFilename,
      "Print results to specified file instead of command line."}};
 
 class CommandObjectRenderScriptRuntimeContext : public CommandObjectMultiword {
@@ -4650,8 +4648,9 @@ public:
 
       switch (short_option) {
       case 'f':
-        m_outfile.SetFile(option_arg, true, FileSpec::Style::native);
-        if (m_outfile.Exists()) {
+        m_outfile.SetFile(option_arg, FileSpec::Style::native);
+        FileSystem::Instance().Resolve(m_outfile);
+        if (FileSystem::Instance().Exists(m_outfile)) {
           m_outfile.Clear();
           err.SetErrorStringWithFormat("file already exists: '%s'",
                                        option_arg.str().c_str());
@@ -4706,16 +4705,17 @@ public:
         m_options.m_outfile; // Dump allocation to file instead
     if (outfile_spec) {
       // Open output file
-      char path[256];
-      outfile_spec.GetPath(path, sizeof(path));
-      if (outfile_stream.GetFile()
-              .Open(path, File::eOpenOptionWrite | File::eOpenOptionCanCreate)
-              .Success()) {
+      std::string path = outfile_spec.GetPath();
+      auto error = FileSystem::Instance().Open(
+          outfile_stream.GetFile(), outfile_spec,
+          File::eOpenOptionWrite | File::eOpenOptionCanCreate);
+      if (error.Success()) {
         output_strm = &outfile_stream;
-        result.GetOutputStream().Printf("Results written to '%s'", path);
+        result.GetOutputStream().Printf("Results written to '%s'",
+                                        path.c_str());
         result.GetOutputStream().EOL();
       } else {
-        result.AppendErrorWithFormat("Couldn't open file '%s'", path);
+        result.AppendErrorWithFormat("Couldn't open file '%s'", path.c_str());
         result.SetStatus(eReturnStatusFailed);
         return false;
       }
@@ -4738,9 +4738,9 @@ private:
   CommandOptions m_options;
 };
 
-static OptionDefinition g_renderscript_runtime_alloc_list_options[] = {
+static constexpr OptionDefinition g_renderscript_runtime_alloc_list_options[] = {
     {LLDB_OPT_SET_1, false, "id", 'i', OptionParser::eRequiredArgument, nullptr,
-     nullptr, 0, eArgTypeIndex,
+     {}, 0, eArgTypeIndex,
      "Only show details of a single allocation with specified id."}};
 
 class CommandObjectRenderScriptRuntimeAllocationList

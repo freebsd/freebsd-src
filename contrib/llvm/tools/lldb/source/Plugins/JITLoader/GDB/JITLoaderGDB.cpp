@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
 
 #include "llvm/Support/MathExtras.h"
 
@@ -59,10 +58,9 @@ template <typename ptr_t> struct jit_descriptor {
 
 namespace {
 
-PropertyDefinition g_properties[] = {
+static constexpr PropertyDefinition g_properties[] = {
     {"enable-jit-breakpoint", OptionValue::eTypeBoolean, true, true, nullptr,
-     nullptr, "Enable breakpoint on __jit_debug_register_code."},
-    {nullptr, OptionValue::eTypeInvalid, false, 0, nullptr, nullptr, nullptr}};
+     {}, "Enable breakpoint on __jit_debug_register_code."}};
 
 enum { ePropertyEnableJITBreakpoint };
 
@@ -316,7 +314,7 @@ bool JITLoaderGDB::ReadJITDescriptorImpl(bool all_entries) {
       char jit_name[64];
       snprintf(jit_name, 64, "JIT(0x%" PRIx64 ")", symbolfile_addr);
       module_sp = m_process->ReadModuleFromMemory(
-          FileSpec(jit_name, false), symbolfile_addr, symbolfile_size);
+          FileSpec(jit_name), symbolfile_addr, symbolfile_size);
 
       if (module_sp && module_sp->GetObjectFile()) {
         // load the symbol table right away

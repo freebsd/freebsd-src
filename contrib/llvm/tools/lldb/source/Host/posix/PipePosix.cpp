@@ -61,12 +61,13 @@ bool SetCloexecFlag(int fd) {
 std::chrono::time_point<std::chrono::steady_clock> Now() {
   return std::chrono::steady_clock::now();
 }
-}
+} // namespace
 
 PipePosix::PipePosix()
     : m_fds{PipePosix::kInvalidDescriptor, PipePosix::kInvalidDescriptor} {}
 
-PipePosix::PipePosix(int read_fd, int write_fd) : m_fds{read_fd, write_fd} {}
+PipePosix::PipePosix(lldb::pipe_t read, lldb::pipe_t write)
+    : m_fds{read, write} {}
 
 PipePosix::PipePosix(PipePosix &&pipe_posix)
     : PipeBase{std::move(pipe_posix)},
@@ -125,8 +126,8 @@ Status PipePosix::CreateNew(llvm::StringRef name, bool child_process_inherit) {
 Status PipePosix::CreateWithUniqueName(llvm::StringRef prefix,
                                        bool child_process_inherit,
                                        llvm::SmallVectorImpl<char> &name) {
-  llvm::SmallString<PATH_MAX> named_pipe_path;
-  llvm::SmallString<PATH_MAX> pipe_spec((prefix + ".%%%%%%").str());
+  llvm::SmallString<128> named_pipe_path;
+  llvm::SmallString<128> pipe_spec((prefix + ".%%%%%%").str());
   FileSpec tmpdir_file_spec = HostInfo::GetProcessTempDir();
   if (!tmpdir_file_spec)
     tmpdir_file_spec.AppendPathComponent("/tmp");

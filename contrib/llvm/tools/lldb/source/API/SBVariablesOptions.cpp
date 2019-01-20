@@ -9,6 +9,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "lldb/API/SBVariablesOptions.h"
+#include "lldb/API/SBTarget.h"
+#include "lldb/Target/Target.h"
+
+#include "lldb/lldb-private.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -19,6 +23,7 @@ public:
       : m_include_arguments(false), m_include_locals(false),
         m_include_statics(false), m_in_scope_only(false),
         m_include_runtime_support_values(false),
+        m_include_recognized_arguments(eLazyBoolCalculate),
         m_use_dynamic(lldb::eNoDynamicValues) {}
 
   VariablesOptionsImpl(const VariablesOptionsImpl &) = default;
@@ -30,6 +35,16 @@ public:
   bool GetIncludeArguments() const { return m_include_arguments; }
 
   void SetIncludeArguments(bool b) { m_include_arguments = b; }
+
+  bool GetIncludeRecognizedArguments(const lldb::TargetSP &target_sp) const {
+    if (m_include_recognized_arguments != eLazyBoolCalculate)
+        return m_include_recognized_arguments;
+    return target_sp ? target_sp->GetDisplayRecognizedArguments() : false;
+  }
+
+  void SetIncludeRecognizedArguments(bool b) {
+    m_include_recognized_arguments = b ? eLazyBoolYes : eLazyBoolNo;
+  }
 
   bool GetIncludeLocals() const { return m_include_locals; }
 
@@ -61,6 +76,7 @@ private:
   bool m_include_statics : 1;
   bool m_in_scope_only : 1;
   bool m_include_runtime_support_values : 1;
+  LazyBool m_include_recognized_arguments; // can be overridden with a setting
   lldb::DynamicValueType m_use_dynamic;
 };
 
@@ -78,9 +94,7 @@ operator=(const SBVariablesOptions &options) {
 
 SBVariablesOptions::~SBVariablesOptions() = default;
 
-bool SBVariablesOptions::IsValid() const {
-  return m_opaque_ap.get() != nullptr;
-}
+bool SBVariablesOptions::IsValid() const { return m_opaque_ap != nullptr; }
 
 bool SBVariablesOptions::GetIncludeArguments() const {
   return m_opaque_ap->GetIncludeArguments();
@@ -88,6 +102,15 @@ bool SBVariablesOptions::GetIncludeArguments() const {
 
 void SBVariablesOptions::SetIncludeArguments(bool arguments) {
   m_opaque_ap->SetIncludeArguments(arguments);
+}
+
+bool SBVariablesOptions::GetIncludeRecognizedArguments(
+    const lldb::SBTarget &target) const {
+  return m_opaque_ap->GetIncludeRecognizedArguments(target.GetSP());
+}
+
+void SBVariablesOptions::SetIncludeRecognizedArguments(bool arguments) {
+  m_opaque_ap->SetIncludeRecognizedArguments(arguments);
 }
 
 bool SBVariablesOptions::GetIncludeLocals() const {

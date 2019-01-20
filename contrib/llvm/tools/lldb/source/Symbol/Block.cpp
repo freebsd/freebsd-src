@@ -83,7 +83,7 @@ void Block::Dump(Stream *s, addr_t base_addr, int32_t depth,
     size_t num_ranges = m_ranges.GetSize();
     for (size_t i = 0; i < num_ranges; ++i) {
       const Range &range = m_ranges.GetEntryRef(i);
-      if (parent_block != nullptr && parent_block->Contains(range) == false)
+      if (parent_block != nullptr && !parent_block->Contains(range))
         *s << '!';
       else
         *s << ' ';
@@ -369,7 +369,7 @@ void Block::SetInlinedFunctionInfo(const char *name, const char *mangled,
 }
 
 VariableListSP Block::GetBlockVariableList(bool can_create) {
-  if (m_parsed_block_variables == false) {
+  if (!m_parsed_block_variables) {
     if (m_variable_list_sp.get() == nullptr && can_create) {
       m_parsed_block_variables = true;
       SymbolContext sc;
@@ -402,7 +402,7 @@ Block::AppendBlockVariables(bool can_create, bool get_child_block_variables,
     collection::const_iterator pos, end = m_children.end();
     for (pos = m_children.begin(); pos != end; ++pos) {
       Block *child_block = pos->get();
-      if (stop_if_child_block_is_inlined_function == false ||
+      if (!stop_if_child_block_is_inlined_function ||
           child_block->GetInlinedFunctionInfo() == nullptr) {
         num_variables_added += child_block->AppendBlockVariables(
             can_create, get_child_block_variables,
@@ -444,19 +444,16 @@ uint32_t Block::AppendVariables(bool can_create, bool get_parent_variables,
   return num_variables_added;
 }
 
+SymbolFile *Block::GetSymbolFile() {
+  if (ModuleSP module_sp = CalculateSymbolContextModule())
+    if (SymbolVendor *sym_vendor = module_sp->GetSymbolVendor())
+      return sym_vendor->GetSymbolFile();
+  return nullptr;
+}
+
 CompilerDeclContext Block::GetDeclContext() {
-  ModuleSP module_sp = CalculateSymbolContextModule();
-
-  if (module_sp) {
-    SymbolVendor *sym_vendor = module_sp->GetSymbolVendor();
-
-    if (sym_vendor) {
-      SymbolFile *sym_file = sym_vendor->GetSymbolFile();
-
-      if (sym_file)
-        return sym_file->GetDeclContextForUID(GetID());
-    }
-  }
+  if (SymbolFile *sym_file = GetSymbolFile())
+    return sym_file->GetDeclContextForUID(GetID());
   return CompilerDeclContext();
 }
 

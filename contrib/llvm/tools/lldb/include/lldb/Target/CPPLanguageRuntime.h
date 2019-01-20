@@ -11,11 +11,7 @@
 #ifndef liblldb_CPPLanguageRuntime_h_
 #define liblldb_CPPLanguageRuntime_h_
 
-// C Includes
-// C++ Includes
 #include <vector>
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Core/PluginInterface.h"
 #include "lldb/Target/LanguageRuntime.h"
 #include "lldb/lldb-private.h"
@@ -24,6 +20,25 @@ namespace lldb_private {
 
 class CPPLanguageRuntime : public LanguageRuntime {
 public:
+  enum class LibCppStdFunctionCallableCase {
+    Lambda = 0,
+    CallableObject,
+    FreeOrMemberFunction,
+    Invalid
+  };
+
+  struct LibCppStdFunctionCallableInfo {
+    Symbol callable_symbol;
+    Address callable_address;
+    LineEntry callable_line_entry;
+    lldb::addr_t member__f_pointer_value = 0u;
+    LibCppStdFunctionCallableCase callable_case =
+        LibCppStdFunctionCallableCase::Invalid;
+  };
+
+  LibCppStdFunctionCallableInfo
+  FindLibCppStdFunctionCallableInfo(lldb::ValueObjectSP &valobj_sp);
+
   ~CPPLanguageRuntime() override;
 
   lldb::LanguageType GetLanguageType() const override {
@@ -36,6 +51,19 @@ public:
 
   bool GetObjectDescription(Stream &str, Value &value,
                             ExecutionContextScope *exe_scope) override;
+
+  /// Obtain a ThreadPlan to get us into C++ constructs such as std::function.
+  ///
+  /// @param[in] thread
+  ///     Curent thrad of execution.
+  ///
+  /// @param[in] stop_others
+  ///     True if other threads should pause during execution.
+  ///
+  /// @return
+  ///      A ThreadPlan Shared pointer
+  lldb::ThreadPlanSP GetStepThroughTrampolinePlan(Thread &thread,
+                                                  bool stop_others);
 
 protected:
   //------------------------------------------------------------------
