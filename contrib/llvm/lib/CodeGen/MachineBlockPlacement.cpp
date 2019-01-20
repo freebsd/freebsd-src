@@ -316,7 +316,7 @@ class MachineBlockPlacement : public MachineFunctionPass {
   /// A type for a block filter set.
   using BlockFilterSet = SmallSetVector<const MachineBasicBlock *, 16>;
 
-  /// Pair struct containing basic block and taildup profitiability
+  /// Pair struct containing basic block and taildup profitability
   struct BlockAndTailDupResult {
     MachineBasicBlock *BB;
     bool ShouldTailDup;
@@ -2497,7 +2497,8 @@ void MachineBlockPlacement::alignBlocks() {
   // exclusively on the loop info here so that we can align backedges in
   // unnatural CFGs and backedges that were introduced purely because of the
   // loop rotations done during this layout pass.
-  if (F->getFunction().optForSize())
+  if (F->getFunction().optForMinSize() ||
+      (F->getFunction().optForSize() && !TLI->alignLoopsWithOptSize()))
     return;
   BlockChain &FunctionChain = *BlockToChain[&F->front()];
   if (FunctionChain.begin() == FunctionChain.end())

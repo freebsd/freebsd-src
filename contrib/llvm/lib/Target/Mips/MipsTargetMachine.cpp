@@ -56,6 +56,7 @@ extern "C" void LLVMInitializeMipsTarget() {
   initializeMipsDelaySlotFillerPass(*PR);
   initializeMipsBranchExpansionPass(*PR);
   initializeMicroMipsSizeReducePass(*PR);
+  initializeMipsPreLegalizerCombinerPass(*PR);
 }
 
 static std::string computeDataLayout(const Triple &TT, StringRef CPU,
@@ -101,12 +102,6 @@ static Reloc::Model getEffectiveRelocModel(bool JIT,
   return *RM;
 }
 
-static CodeModel::Model getEffectiveCodeModel(Optional<CodeModel::Model> CM) {
-  if (CM)
-    return *CM;
-  return CodeModel::Small;
-}
-
 // On function prologue, the stack is created by decrementing
 // its pointer. Once decremented, all references are done with positive
 // offset from the stack/frame pointer, using StackGrowsUp enables
@@ -121,7 +116,7 @@ MipsTargetMachine::MipsTargetMachine(const Target &T, const Triple &TT,
                                      bool isLittle)
     : LLVMTargetMachine(T, computeDataLayout(TT, CPU, Options, isLittle), TT,
                         CPU, FS, Options, getEffectiveRelocModel(JIT, RM),
-                        getEffectiveCodeModel(CM), OL),
+                        getEffectiveCodeModel(CM, CodeModel::Small), OL),
       isLittle(isLittle), TLOF(llvm::make_unique<MipsTargetObjectFile>()),
       ABI(MipsABIInfo::computeTargetABI(TT, CPU, Options.MCOptions)),
       Subtarget(nullptr), DefaultSubtarget(TT, CPU, FS, isLittle, *this,
@@ -240,8 +235,8 @@ public:
   bool addInstSelector() override;
   void addPreEmitPass() override;
   void addPreRegAlloc() override;
-  void addPreEmit2() ;
   bool addIRTranslator() override;
+  void addPreLegalizeMachineIR() override;
   bool addLegalizeMachineIR() override;
   bool addRegBankSelect() override;
   bool addGlobalInstructionSelect() override;
@@ -286,9 +281,6 @@ MipsTargetMachine::getTargetTransformInfo(const Function &F) {
   return TargetTransformInfo(BasicTTIImpl(this, F));
 }
 
-void MipsPassConfig::addPreEmit2() {
-}
-
 // Implemented by targets that want to run passes immediately before
 // machine code is emitted. return true if -print-machineinstrs should
 // print out the code after the passes.
@@ -320,6 +312,10 @@ void MipsPassConfig::addPreEmitPass() {
 bool MipsPassConfig::addIRTranslator() {
   addPass(new IRTranslator());
   return false;
+}
+
+void MipsPassConfig::addPreLegalizeMachineIR() {
+  addPass(createMipsPreLegalizeCombiner());
 }
 
 bool MipsPassConfig::addLegalizeMachineIR() {
