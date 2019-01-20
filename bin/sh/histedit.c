@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 History *hist;	/* history cookie */
 EditLine *el;	/* editline cookie */
 int displayhist;
-static FILE *el_in, *el_out, *el_err;
+static FILE *el_in, *el_out;
 
 static char *fc_replace(const char *, char *, char *);
 static int not_fcnumber(const char *);
@@ -106,18 +106,16 @@ histedit(void)
 			INTOFF;
 			if (el_in == NULL)
 				el_in = fdopen(0, "r");
-			if (el_err == NULL)
-				el_err = fdopen(1, "w");
 			if (el_out == NULL)
 				el_out = fdopen(2, "w");
-			if (el_in == NULL || el_err == NULL || el_out == NULL)
+			if (el_in == NULL || el_out == NULL)
 				goto bad;
 			term = lookupvar("TERM");
 			if (term)
 				setenv("TERM", term, 1);
 			else
 				unsetenv("TERM");
-			el = el_init(arg0, el_in, el_out, el_err);
+			el = el_init(arg0, el_in, el_out, el_out);
 			if (el != NULL) {
 				if (hist)
 					el_set(el, EL_HIST, history, hist);
