@@ -38,6 +38,7 @@ STATISTIC(NumNoCapture, "Number of arguments inferred as nocapture");
 STATISTIC(NumReadOnlyArg, "Number of arguments inferred as readonly");
 STATISTIC(NumNoAlias, "Number of function returns inferred as noalias");
 STATISTIC(NumNonNull, "Number of function returns inferred as nonnull returns");
+STATISTIC(NumReturnedArg, "Number of arguments inferred as returned");
 
 static bool setDoesNotAccessMemory(Function &F) {
   if (F.doesNotAccessMemory())
@@ -105,6 +106,14 @@ static bool setRetNonNull(Function &F) {
   return true;
 }
 
+static bool setReturnedArg(Function &F, unsigned ArgNo) {
+  if (F.hasParamAttribute(ArgNo, Attribute::Returned))
+    return false;
+  F.addParamAttr(ArgNo, Attribute::Returned);
+  ++NumReturnedArg;
+  return true;
+}
+
 static bool setNonLazyBind(Function &F) {
   if (F.hasFnAttribute(Attribute::NonLazyBind))
     return false;
@@ -155,10 +164,12 @@ bool llvm::inferLibFuncAttributes(Function &F, const TargetLibraryInfo &TLI) {
     Changed |= setOnlyReadsMemory(F, 0);
     return Changed;
   case LibFunc_strcpy:
-  case LibFunc_stpcpy:
+  case LibFunc_strncpy:
   case LibFunc_strcat:
   case LibFunc_strncat:
-  case LibFunc_strncpy:
+    Changed |= setReturnedArg(F, 0);
+    LLVM_FALLTHROUGH;
+  case LibFunc_stpcpy:
   case LibFunc_stpncpy:
     Changed |= setDoesNotThrow(F);
     Changed |= setDoesNotCapture(F, 1);
@@ -270,9 +281,11 @@ bool llvm::inferLibFuncAttributes(Function &F, const TargetLibraryInfo &TLI) {
     Changed |= setDoesNotCapture(F, 1);
     return Changed;
   case LibFunc_memcpy:
+  case LibFunc_memmove:
+    Changed |= setReturnedArg(F, 0);
+    LLVM_FALLTHROUGH;
   case LibFunc_mempcpy:
   case LibFunc_memccpy:
-  case LibFunc_memmove:
     Changed |= setDoesNotThrow(F);
     Changed |= setDoesNotCapture(F, 1);
     Changed |= setOnlyReadsMemory(F, 1);
@@ -741,12 +754,32 @@ bool llvm::hasUnaryFloatFn(const TargetLibraryInfo *TLI, Type *Ty,
                            LibFunc DoubleFn, LibFunc FloatFn,
                            LibFunc LongDoubleFn) {
   switch (Ty->getTypeID()) {
+  case Type::HalfTyID:
+    return false;
   case Type::FloatTyID:
     return TLI->has(FloatFn);
   case Type::DoubleTyID:
     return TLI->has(DoubleFn);
   default:
     return TLI->has(LongDoubleFn);
+  }
+}
+
+StringRef llvm::getUnaryFloatFn(const TargetLibraryInfo *TLI, Type *Ty,
+                                LibFunc DoubleFn, LibFunc FloatFn,
+                                LibFunc LongDoubleFn) {
+  assert(hasUnaryFloatFn(TLI, Ty, DoubleFn, FloatFn, LongDoubleFn) &&
+         "Cannot get name for unavailable function!");
+
+  switch (Ty->getTypeID()) {
+  case Type::HalfTyID:
+    llvm_unreachable("No name for HalfTy!");
+  case Type::FloatTyID:
+    return TLI->getName(FloatFn);
+  case Type::DoubleTyID:
+    return TLI->getName(DoubleFn);
+  default:
+    return TLI->getName(LongDoubleFn);
   }
 }
 
@@ -927,10 +960,10 @@ static void appendTypeSuffix(Value *Op, StringRef &Name,
   }
 }
 
-Value *llvm::emitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
-                                  const AttributeList &Attrs) {
-  SmallString<20> NameBuffer;
-  appendTypeSuffix(Op, Name, NameBuffer);
+static Value *emitUnaryFloatFnCallHelper(Value *Op, StringRef Name,
+                                         IRBuilder<> &B,
+                                         const AttributeList &Attrs) {
+  assert((Name != "") && "Must specify Name to emitUnaryFloatFnCall");
 
   Module *M = B.GetInsertBlock()->getModule();
   Value *Callee = M->getOrInsertFunction(Name, Op->getType(),
@@ -949,8 +982,29 @@ Value *llvm::emitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
   return CI;
 }
 
+Value *llvm::emitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
+                                  const AttributeList &Attrs) {
+  SmallString<20> NameBuffer;
+  appendTypeSuffix(Op, Name, NameBuffer);
+
+  return emitUnaryFloatFnCallHelper(Op, Name, B, Attrs);
+}
+
+Value *llvm::emitUnaryFloatFnCall(Value *Op, const TargetLibraryInfo *TLI,
+                                  LibFunc DoubleFn, LibFunc FloatFn,
+                                  LibFunc LongDoubleFn, IRBuilder<> &B,
+                                  const AttributeList &Attrs) {
+  // Get the name of the function according to TLI.
+  StringRef Name = getUnaryFloatFn(TLI, Op->getType(),
+                                   DoubleFn, FloatFn, LongDoubleFn);
+
+  return emitUnaryFloatFnCallHelper(Op, Name, B, Attrs);
+}
+
 Value *llvm::emitBinaryFloatFnCall(Value *Op1, Value *Op2, StringRef Name,
                                    IRBuilder<> &B, const AttributeList &Attrs) {
+  assert((Name != "") && "Must specify Name to emitBinaryFloatFnCall");
+
   SmallString<20> NameBuffer;
   appendTypeSuffix(Op1, Name, NameBuffer);
 

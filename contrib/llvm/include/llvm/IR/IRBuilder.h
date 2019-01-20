@@ -651,7 +651,7 @@ public:
       ArrayRef<Use> DeoptArgs, ArrayRef<Value *> GCArgs,
       const Twine &Name = "");
 
-  // Conveninence function for the common case when CallArgs are filled in using
+  // Convenience function for the common case when CallArgs are filled in using
   // makeArrayRef(CS.arg_begin(), CS.arg_end()); Use needs to be .get()'ed to
   // get the Value *.
   InvokeInst *
@@ -675,32 +675,44 @@ public:
                              Type *ResultType,
                              const Twine &Name = "");
 
+  /// Create a call to intrinsic \p ID with 1 operand which is mangled on its
+  /// type.
+  CallInst *CreateUnaryIntrinsic(Intrinsic::ID ID, Value *V,
+                                 Instruction *FMFSource = nullptr,
+                                 const Twine &Name = "");
+
   /// Create a call to intrinsic \p ID with 2 operands which is mangled on the
   /// first type.
-  CallInst *CreateBinaryIntrinsic(Intrinsic::ID ID,
-                                  Value *LHS, Value *RHS,
+  CallInst *CreateBinaryIntrinsic(Intrinsic::ID ID, Value *LHS, Value *RHS,
+                                  Instruction *FMFSource = nullptr,
                                   const Twine &Name = "");
 
-  /// Create a call to intrinsic \p ID with no operands.
-  CallInst *CreateIntrinsic(Intrinsic::ID ID,
-                            Instruction *FMFSource = nullptr,
-                            const Twine &Name = "");
-
-  /// Create a call to intrinsic \p ID with 1 or more operands assuming the
-  /// intrinsic and all operands have the same type. If \p FMFSource is
-  /// provided, copy fast-math-flags from that instruction to the intrinsic.
-  CallInst *CreateIntrinsic(Intrinsic::ID ID, ArrayRef<Value *> Args,
+  /// Create a call to intrinsic \p ID with \p args, mangled using \p Types. If
+  /// \p FMFSource is provided, copy fast-math-flags from that instruction to
+  /// the intrinsic.
+  CallInst *CreateIntrinsic(Intrinsic::ID ID, ArrayRef<Type *> Types,
+                            ArrayRef<Value *> Args,
                             Instruction *FMFSource = nullptr,
                             const Twine &Name = "");
 
   /// Create call to the minnum intrinsic.
   CallInst *CreateMinNum(Value *LHS, Value *RHS, const Twine &Name = "") {
-    return CreateBinaryIntrinsic(Intrinsic::minnum, LHS, RHS, Name);
+    return CreateBinaryIntrinsic(Intrinsic::minnum, LHS, RHS, nullptr, Name);
   }
 
   /// Create call to the maxnum intrinsic.
   CallInst *CreateMaxNum(Value *LHS, Value *RHS, const Twine &Name = "") {
-    return CreateBinaryIntrinsic(Intrinsic::maxnum, LHS, RHS, Name);
+    return CreateBinaryIntrinsic(Intrinsic::maxnum, LHS, RHS, nullptr, Name);
+  }
+
+  /// Create call to the minimum intrinsic.
+  CallInst *CreateMinimum(Value *LHS, Value *RHS, const Twine &Name = "") {
+    return CreateBinaryIntrinsic(Intrinsic::minimum, LHS, RHS, nullptr, Name);
+  }
+
+  /// Create call to the maximum intrinsic.
+  CallInst *CreateMaximum(Value *LHS, Value *RHS, const Twine &Name = "") {
+    return CreateBinaryIntrinsic(Intrinsic::maximum, LHS, RHS, nullptr, Name);
   }
 
 private:
@@ -877,19 +889,59 @@ public:
   }
 
   /// Create an invoke instruction.
-  InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
+  InvokeInst *CreateInvoke(FunctionType *Ty, Value *Callee,
+                           BasicBlock *NormalDest, BasicBlock *UnwindDest,
+                           ArrayRef<Value *> Args,
+                           ArrayRef<OperandBundleDef> OpBundles,
+                           const Twine &Name = "") {
+    return Insert(
+        InvokeInst::Create(Ty, Callee, NormalDest, UnwindDest, Args, OpBundles),
+        Name);
+  }
+  InvokeInst *CreateInvoke(FunctionType *Ty, Value *Callee,
+                           BasicBlock *NormalDest, BasicBlock *UnwindDest,
+                           ArrayRef<Value *> Args = None,
+                           const Twine &Name = "") {
+    return Insert(InvokeInst::Create(Ty, Callee, NormalDest, UnwindDest, Args),
+                  Name);
+  }
+
+  InvokeInst *CreateInvoke(Function *Callee, BasicBlock *NormalDest,
+                           BasicBlock *UnwindDest, ArrayRef<Value *> Args,
+                           ArrayRef<OperandBundleDef> OpBundles,
+                           const Twine &Name = "") {
+    return CreateInvoke(Callee->getFunctionType(), Callee, NormalDest,
+                        UnwindDest, Args, OpBundles, Name);
+  }
+
+  InvokeInst *CreateInvoke(Function *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest,
                            ArrayRef<Value *> Args = None,
                            const Twine &Name = "") {
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args),
-                  Name);
+    return CreateInvoke(Callee->getFunctionType(), Callee, NormalDest,
+                        UnwindDest, Args, Name);
   }
+
+  // Deprecated [opaque pointer types]
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, ArrayRef<Value *> Args,
                            ArrayRef<OperandBundleDef> OpBundles,
                            const Twine &Name = "") {
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     OpBundles), Name);
+    return CreateInvoke(
+        cast<FunctionType>(
+            cast<PointerType>(Callee->getType())->getElementType()),
+        Callee, NormalDest, UnwindDest, Args, OpBundles, Name);
+  }
+
+  // Deprecated [opaque pointer types]
+  InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
+                           BasicBlock *UnwindDest,
+                           ArrayRef<Value *> Args = None,
+                           const Twine &Name = "") {
+    return CreateInvoke(
+        cast<FunctionType>(
+            cast<PointerType>(Callee->getType())->getElementType()),
+        Callee, NormalDest, UnwindDest, Args, Name);
   }
 
   ResumeInst *CreateResume(Value *Exn) {
@@ -1300,22 +1352,35 @@ public:
     return Insert(new AllocaInst(Ty, DL.getAllocaAddrSpace(), ArraySize), Name);
   }
 
-  /// Provided to resolve 'CreateLoad(Ptr, "...")' correctly, instead of
+  /// Provided to resolve 'CreateLoad(Ty, Ptr, "...")' correctly, instead of
   /// converting the string to 'bool' for the isVolatile parameter.
-  LoadInst *CreateLoad(Value *Ptr, const char *Name) {
-    return Insert(new LoadInst(Ptr), Name);
-  }
-
-  LoadInst *CreateLoad(Value *Ptr, const Twine &Name = "") {
-    return Insert(new LoadInst(Ptr), Name);
+  LoadInst *CreateLoad(Type *Ty, Value *Ptr, const char *Name) {
+    return Insert(new LoadInst(Ty, Ptr), Name);
   }
 
   LoadInst *CreateLoad(Type *Ty, Value *Ptr, const Twine &Name = "") {
     return Insert(new LoadInst(Ty, Ptr), Name);
   }
 
+  LoadInst *CreateLoad(Type *Ty, Value *Ptr, bool isVolatile,
+                       const Twine &Name = "") {
+    return Insert(new LoadInst(Ty, Ptr, Twine(), isVolatile), Name);
+  }
+
+  // Deprecated [opaque pointer types]
+  LoadInst *CreateLoad(Value *Ptr, const char *Name) {
+    return CreateLoad(Ptr->getType()->getPointerElementType(), Ptr, Name);
+  }
+
+  // Deprecated [opaque pointer types]
+  LoadInst *CreateLoad(Value *Ptr, const Twine &Name = "") {
+    return CreateLoad(Ptr->getType()->getPointerElementType(), Ptr, Name);
+  }
+
+  // Deprecated [opaque pointer types]
   LoadInst *CreateLoad(Value *Ptr, bool isVolatile, const Twine &Name = "") {
-    return Insert(new LoadInst(Ptr, nullptr, isVolatile), Name);
+    return CreateLoad(Ptr->getType()->getPointerElementType(), Ptr, isVolatile,
+                      Name);
   }
 
   StoreInst *CreateStore(Value *Val, Value *Ptr, bool isVolatile = false) {
@@ -1325,22 +1390,41 @@ public:
   /// Provided to resolve 'CreateAlignedLoad(Ptr, Align, "...")'
   /// correctly, instead of converting the string to 'bool' for the isVolatile
   /// parameter.
-  LoadInst *CreateAlignedLoad(Value *Ptr, unsigned Align, const char *Name) {
-    LoadInst *LI = CreateLoad(Ptr, Name);
+  LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
+                              const char *Name) {
+    LoadInst *LI = CreateLoad(Ty, Ptr, Name);
     LI->setAlignment(Align);
     return LI;
   }
+  LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
+                              const Twine &Name = "") {
+    LoadInst *LI = CreateLoad(Ty, Ptr, Name);
+    LI->setAlignment(Align);
+    return LI;
+  }
+  LoadInst *CreateAlignedLoad(Type *Ty, Value *Ptr, unsigned Align,
+                              bool isVolatile, const Twine &Name = "") {
+    LoadInst *LI = CreateLoad(Ty, Ptr, isVolatile, Name);
+    LI->setAlignment(Align);
+    return LI;
+  }
+
+  // Deprecated [opaque pointer types]
+  LoadInst *CreateAlignedLoad(Value *Ptr, unsigned Align, const char *Name) {
+    return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
+                             Align, Name);
+  }
+  // Deprecated [opaque pointer types]
   LoadInst *CreateAlignedLoad(Value *Ptr, unsigned Align,
                               const Twine &Name = "") {
-    LoadInst *LI = CreateLoad(Ptr, Name);
-    LI->setAlignment(Align);
-    return LI;
+    return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
+                             Align, Name);
   }
+  // Deprecated [opaque pointer types]
   LoadInst *CreateAlignedLoad(Value *Ptr, unsigned Align, bool isVolatile,
                               const Twine &Name = "") {
-    LoadInst *LI = CreateLoad(Ptr, isVolatile, Name);
-    LI->setAlignment(Align);
-    return LI;
+    return CreateAlignedLoad(Ptr->getType()->getPointerElementType(), Ptr,
+                             Align, isVolatile, Name);
   }
 
   StoreInst *CreateAlignedStore(Value *Val, Value *Ptr, unsigned Align,
@@ -1479,50 +1563,69 @@ public:
     return Insert(GetElementPtrInst::CreateInBounds(Ty, Ptr, Idxs), Name);
   }
 
-  Value *CreateConstGEP1_64(Value *Ptr, uint64_t Idx0, const Twine &Name = "") {
+  Value *CreateConstGEP1_64(Type *Ty, Value *Ptr, uint64_t Idx0,
+                            const Twine &Name = "") {
     Value *Idx = ConstantInt::get(Type::getInt64Ty(Context), Idx0);
 
     if (auto *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateGetElementPtr(nullptr, PC, Idx), Name);
+      return Insert(Folder.CreateGetElementPtr(Ty, PC, Idx), Name);
 
-    return Insert(GetElementPtrInst::Create(nullptr, Ptr, Idx), Name);
+    return Insert(GetElementPtrInst::Create(Ty, Ptr, Idx), Name);
+  }
+
+  Value *CreateConstGEP1_64(Value *Ptr, uint64_t Idx0, const Twine &Name = "") {
+    return CreateConstGEP1_64(nullptr, Ptr, Idx0, Name);
+  }
+
+  Value *CreateConstInBoundsGEP1_64(Type *Ty, Value *Ptr, uint64_t Idx0,
+                                    const Twine &Name = "") {
+    Value *Idx = ConstantInt::get(Type::getInt64Ty(Context), Idx0);
+
+    if (auto *PC = dyn_cast<Constant>(Ptr))
+      return Insert(Folder.CreateInBoundsGetElementPtr(Ty, PC, Idx), Name);
+
+    return Insert(GetElementPtrInst::CreateInBounds(Ty, Ptr, Idx), Name);
   }
 
   Value *CreateConstInBoundsGEP1_64(Value *Ptr, uint64_t Idx0,
                                     const Twine &Name = "") {
-    Value *Idx = ConstantInt::get(Type::getInt64Ty(Context), Idx0);
-
-    if (auto *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateInBoundsGetElementPtr(nullptr, PC, Idx), Name);
-
-    return Insert(GetElementPtrInst::CreateInBounds(nullptr, Ptr, Idx), Name);
+    return CreateConstInBoundsGEP1_64(nullptr, Ptr, Idx0, Name);
   }
 
-  Value *CreateConstGEP2_64(Value *Ptr, uint64_t Idx0, uint64_t Idx1,
-                    const Twine &Name = "") {
+  Value *CreateConstGEP2_64(Type *Ty, Value *Ptr, uint64_t Idx0, uint64_t Idx1,
+                            const Twine &Name = "") {
     Value *Idxs[] = {
       ConstantInt::get(Type::getInt64Ty(Context), Idx0),
       ConstantInt::get(Type::getInt64Ty(Context), Idx1)
     };
 
     if (auto *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateGetElementPtr(nullptr, PC, Idxs), Name);
+      return Insert(Folder.CreateGetElementPtr(Ty, PC, Idxs), Name);
 
-    return Insert(GetElementPtrInst::Create(nullptr, Ptr, Idxs), Name);
+    return Insert(GetElementPtrInst::Create(Ty, Ptr, Idxs), Name);
+  }
+
+  Value *CreateConstGEP2_64(Value *Ptr, uint64_t Idx0, uint64_t Idx1,
+                            const Twine &Name = "") {
+    return CreateConstGEP2_64(nullptr, Ptr, Idx0, Idx1, Name);
+  }
+
+  Value *CreateConstInBoundsGEP2_64(Type *Ty, Value *Ptr, uint64_t Idx0,
+                                    uint64_t Idx1, const Twine &Name = "") {
+    Value *Idxs[] = {
+      ConstantInt::get(Type::getInt64Ty(Context), Idx0),
+      ConstantInt::get(Type::getInt64Ty(Context), Idx1)
+    };
+
+    if (auto *PC = dyn_cast<Constant>(Ptr))
+      return Insert(Folder.CreateInBoundsGetElementPtr(Ty, PC, Idxs), Name);
+
+    return Insert(GetElementPtrInst::CreateInBounds(Ty, Ptr, Idxs), Name);
   }
 
   Value *CreateConstInBoundsGEP2_64(Value *Ptr, uint64_t Idx0, uint64_t Idx1,
                                     const Twine &Name = "") {
-    Value *Idxs[] = {
-      ConstantInt::get(Type::getInt64Ty(Context), Idx0),
-      ConstantInt::get(Type::getInt64Ty(Context), Idx1)
-    };
-
-    if (auto *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateInBoundsGetElementPtr(nullptr, PC, Idxs),
-                    Name);
-
-    return Insert(GetElementPtrInst::CreateInBounds(nullptr, Ptr, Idxs), Name);
+    return CreateConstInBoundsGEP2_64(nullptr, Ptr, Idx0, Idx1, Name);
   }
 
   Value *CreateStructGEP(Type *Ty, Value *Ptr, unsigned Idx,
@@ -1868,15 +1971,8 @@ public:
     return Insert(PHINode::Create(Ty, NumReservedValues), Name);
   }
 
-  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args = None,
-                       const Twine &Name = "", MDNode *FPMathTag = nullptr) {
-    auto *PTy = cast<PointerType>(Callee->getType());
-    auto *FTy = cast<FunctionType>(PTy->getElementType());
-    return CreateCall(FTy, Callee, Args, Name, FPMathTag);
-  }
-
   CallInst *CreateCall(FunctionType *FTy, Value *Callee,
-                       ArrayRef<Value *> Args, const Twine &Name = "",
+                       ArrayRef<Value *> Args = None, const Twine &Name = "",
                        MDNode *FPMathTag = nullptr) {
     CallInst *CI = CallInst::Create(FTy, Callee, Args, DefaultOperandBundles);
     if (isa<FPMathOperator>(CI))
@@ -1884,18 +1980,42 @@ public:
     return Insert(CI, Name);
   }
 
-  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args,
+  CallInst *CreateCall(FunctionType *FTy, Value *Callee, ArrayRef<Value *> Args,
                        ArrayRef<OperandBundleDef> OpBundles,
                        const Twine &Name = "", MDNode *FPMathTag = nullptr) {
-    CallInst *CI = CallInst::Create(Callee, Args, OpBundles);
+    CallInst *CI = CallInst::Create(FTy, Callee, Args, OpBundles);
     if (isa<FPMathOperator>(CI))
       CI = cast<CallInst>(setFPAttrs(CI, FPMathTag, FMF));
     return Insert(CI, Name);
   }
 
-  CallInst *CreateCall(Function *Callee, ArrayRef<Value *> Args,
+  CallInst *CreateCall(Function *Callee, ArrayRef<Value *> Args = None,
                        const Twine &Name = "", MDNode *FPMathTag = nullptr) {
     return CreateCall(Callee->getFunctionType(), Callee, Args, Name, FPMathTag);
+  }
+
+  CallInst *CreateCall(Function *Callee, ArrayRef<Value *> Args,
+                       ArrayRef<OperandBundleDef> OpBundles,
+                       const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    return CreateCall(Callee->getFunctionType(), Callee, Args, OpBundles, Name,
+                      FPMathTag);
+  }
+
+  // Deprecated [opaque pointer types]
+  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args = None,
+                       const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    return CreateCall(
+        cast<FunctionType>(Callee->getType()->getPointerElementType()), Callee,
+        Args, Name, FPMathTag);
+  }
+
+  // Deprecated [opaque pointer types]
+  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args,
+                       ArrayRef<OperandBundleDef> OpBundles,
+                       const Twine &Name = "", MDNode *FPMathTag = nullptr) {
+    return CreateCall(
+        cast<FunctionType>(Callee->getType()->getPointerElementType()), Callee,
+        Args, OpBundles, Name, FPMathTag);
   }
 
   Value *CreateSelect(Value *C, Value *True, Value *False,
@@ -2114,11 +2234,12 @@ public:
 private:
   /// Helper function that creates an assume intrinsic call that
   /// represents an alignment assumption on the provided Ptr, Mask, Type
-  /// and Offset.
+  /// and Offset. It may be sometimes useful to do some other logic
+  /// based on this alignment check, thus it can be stored into 'TheCheck'.
   CallInst *CreateAlignmentAssumptionHelper(const DataLayout &DL,
                                             Value *PtrValue, Value *Mask,
-                                            Type *IntPtrTy,
-                                            Value *OffsetValue) {
+                                            Type *IntPtrTy, Value *OffsetValue,
+                                            Value **TheCheck) {
     Value *PtrIntValue = CreatePtrToInt(PtrValue, IntPtrTy, "ptrint");
 
     if (OffsetValue) {
@@ -2137,6 +2258,9 @@ private:
     Value *Zero = ConstantInt::get(IntPtrTy, 0);
     Value *MaskedPtr = CreateAnd(PtrIntValue, Mask, "maskedptr");
     Value *InvCond = CreateICmpEQ(MaskedPtr, Zero, "maskcond");
+    if (TheCheck)
+      *TheCheck = InvCond;
+
     return CreateAssumption(InvCond);
   }
 
@@ -2147,9 +2271,13 @@ public:
   /// An optional offset can be provided, and if it is provided, the offset
   /// must be subtracted from the provided pointer to get the pointer with the
   /// specified alignment.
+  ///
+  /// It may be sometimes useful to do some other logic
+  /// based on this alignment check, thus it can be stored into 'TheCheck'.
   CallInst *CreateAlignmentAssumption(const DataLayout &DL, Value *PtrValue,
                                       unsigned Alignment,
-                                      Value *OffsetValue = nullptr) {
+                                      Value *OffsetValue = nullptr,
+                                      Value **TheCheck = nullptr) {
     assert(isa<PointerType>(PtrValue->getType()) &&
            "trying to create an alignment assumption on a non-pointer?");
     auto *PtrTy = cast<PointerType>(PtrValue->getType());
@@ -2157,7 +2285,7 @@ public:
 
     Value *Mask = ConstantInt::get(IntPtrTy, Alignment > 0 ? Alignment - 1 : 0);
     return CreateAlignmentAssumptionHelper(DL, PtrValue, Mask, IntPtrTy,
-                                           OffsetValue);
+                                           OffsetValue, TheCheck);
   }
 
   /// Create an assume intrinsic call that represents an alignment
@@ -2167,11 +2295,15 @@ public:
   /// must be subtracted from the provided pointer to get the pointer with the
   /// specified alignment.
   ///
+  /// It may be sometimes useful to do some other logic
+  /// based on this alignment check, thus it can be stored into 'TheCheck'.
+  ///
   /// This overload handles the condition where the Alignment is dependent
   /// on an existing value rather than a static value.
   CallInst *CreateAlignmentAssumption(const DataLayout &DL, Value *PtrValue,
                                       Value *Alignment,
-                                      Value *OffsetValue = nullptr) {
+                                      Value *OffsetValue = nullptr,
+                                      Value **TheCheck = nullptr) {
     assert(isa<PointerType>(PtrValue->getType()) &&
            "trying to create an alignment assumption on a non-pointer?");
     auto *PtrTy = cast<PointerType>(PtrValue->getType());
@@ -2189,7 +2321,7 @@ public:
                                ConstantInt::get(IntPtrTy, 0), "mask");
 
     return CreateAlignmentAssumptionHelper(DL, PtrValue, Mask, IntPtrTy,
-                                           OffsetValue);
+                                           OffsetValue, TheCheck);
   }
 };
 

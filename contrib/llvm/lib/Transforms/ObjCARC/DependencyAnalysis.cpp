@@ -45,18 +45,15 @@ bool llvm::objcarc::CanAlterRefCount(const Instruction *Inst, const Value *Ptr,
   default: break;
   }
 
-  ImmutableCallSite CS(Inst);
-  assert(CS && "Only calls can alter reference counts!");
+  const auto *Call = cast<CallBase>(Inst);
 
   // See if AliasAnalysis can help us with the call.
-  FunctionModRefBehavior MRB = PA.getAA()->getModRefBehavior(CS);
+  FunctionModRefBehavior MRB = PA.getAA()->getModRefBehavior(Call);
   if (AliasAnalysis::onlyReadsMemory(MRB))
     return false;
   if (AliasAnalysis::onlyAccessesArgPointees(MRB)) {
     const DataLayout &DL = Inst->getModule()->getDataLayout();
-    for (ImmutableCallSite::arg_iterator I = CS.arg_begin(), E = CS.arg_end();
-         I != E; ++I) {
-      const Value *Op = *I;
+    for (const Value *Op : Call->args()) {
       if (IsPotentialRetainableObjPtr(Op, *PA.getAA()) &&
           PA.related(Ptr, Op, DL))
         return true;
@@ -266,13 +263,10 @@ llvm::objcarc::FindDependencies(DependenceKind Flavor,
   for (const BasicBlock *BB : Visited) {
     if (BB == StartBB)
       continue;
-    const TerminatorInst *TI = cast<TerminatorInst>(&BB->back());
-    for (succ_const_iterator SI(TI), SE(TI, false); SI != SE; ++SI) {
-      const BasicBlock *Succ = *SI;
+    for (const BasicBlock *Succ : successors(BB))
       if (Succ != StartBB && !Visited.count(Succ)) {
         DependingInsts.insert(reinterpret_cast<Instruction *>(-1));
         return;
       }
-    }
   }
 }
