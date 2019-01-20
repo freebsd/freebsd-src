@@ -7,18 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/Target/ThreadPlan.h"
 #include "lldb/Core/Debugger.h"
-#include "lldb/Core/State.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/State.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -29,6 +25,7 @@ using namespace lldb_private;
 ThreadPlan::ThreadPlan(ThreadPlanKind kind, const char *name, Thread &thread,
                        Vote stop_vote, Vote run_vote)
     : m_thread(thread), m_stop_vote(stop_vote), m_run_vote(run_vote),
+      m_takes_iteration_count(false), m_could_not_resolve_hw_bp(false),
       m_kind(kind), m_name(name), m_plan_complete_mutex(),
       m_cached_plan_explains_stop(eLazyBoolCalculate), m_plan_complete(false),
       m_plan_private(false), m_okay_to_discard(true), m_is_master_plan(false),

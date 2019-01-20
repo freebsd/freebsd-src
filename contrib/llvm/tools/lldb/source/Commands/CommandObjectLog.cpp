@@ -7,10 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "CommandObjectLog.h"
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Module.h"
@@ -36,18 +32,18 @@
 using namespace lldb;
 using namespace lldb_private;
 
-static OptionDefinition g_log_options[] = {
+static constexpr OptionDefinition g_log_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_1, false, "file",       'f', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeFilename, "Set the destination file to log to." },
-  { LLDB_OPT_SET_1, false, "threadsafe", 't', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Enable thread safe logging to avoid interweaved log lines." },
-  { LLDB_OPT_SET_1, false, "verbose",    'v', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Enable verbose logging." },
-  { LLDB_OPT_SET_1, false, "sequence",   's', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Prepend all log lines with an increasing integer sequence id." },
-  { LLDB_OPT_SET_1, false, "timestamp",  'T', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Prepend all log lines with a timestamp." },
-  { LLDB_OPT_SET_1, false, "pid-tid",    'p', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Prepend all log lines with the process and thread ID that generates the log line." },
-  { LLDB_OPT_SET_1, false, "thread-name",'n', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Prepend all log lines with the thread name for the thread that generates the log line." },
-  { LLDB_OPT_SET_1, false, "stack",      'S', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Append a stack backtrace to each log line." },
-  { LLDB_OPT_SET_1, false, "append",     'a', OptionParser::eNoArgument,       nullptr, nullptr, 0, eArgTypeNone,     "Append to the log file instead of overwriting." },
-  { LLDB_OPT_SET_1, false, "file-function",'F',OptionParser::eNoArgument,      nullptr, nullptr, 0, eArgTypeNone,     "Prepend the names of files and function that generate the logs." },
+  { LLDB_OPT_SET_1, false, "file",       'f', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeFilename, "Set the destination file to log to." },
+  { LLDB_OPT_SET_1, false, "threadsafe", 't', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Enable thread safe logging to avoid interweaved log lines." },
+  { LLDB_OPT_SET_1, false, "verbose",    'v', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Enable verbose logging." },
+  { LLDB_OPT_SET_1, false, "sequence",   's', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Prepend all log lines with an increasing integer sequence id." },
+  { LLDB_OPT_SET_1, false, "timestamp",  'T', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Prepend all log lines with a timestamp." },
+  { LLDB_OPT_SET_1, false, "pid-tid",    'p', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Prepend all log lines with the process and thread ID that generates the log line." },
+  { LLDB_OPT_SET_1, false, "thread-name",'n', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Prepend all log lines with the thread name for the thread that generates the log line." },
+  { LLDB_OPT_SET_1, false, "stack",      'S', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Append a stack backtrace to each log line." },
+  { LLDB_OPT_SET_1, false, "append",     'a', OptionParser::eNoArgument,       nullptr, {}, 0, eArgTypeNone,     "Append to the log file instead of overwriting." },
+  { LLDB_OPT_SET_1, false, "file-function",'F',OptionParser::eNoArgument,      nullptr, {}, 0, eArgTypeNone,     "Prepend the names of files and function that generate the logs." },
     // clang-format on
 };
 
@@ -101,7 +97,8 @@ public:
 
       switch (short_option) {
       case 'f':
-        log_file.SetFile(option_arg, true, FileSpec::Style::native);
+        log_file.SetFile(option_arg, FileSpec::Style::native);
+        FileSystem::Instance().Resolve(log_file);
         break;
       case 't':
         log_options |= LLDB_LOG_OPTION_THREADSAFE;

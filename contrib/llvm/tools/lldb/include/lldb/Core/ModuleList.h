@@ -10,12 +10,12 @@
 #ifndef liblldb_ModuleList_h_
 #define liblldb_ModuleList_h_
 
-#include "lldb/Core/Address.h"     // for Address
-#include "lldb/Core/ModuleSpec.h"  // for ModuleSpec
+#include "lldb/Core/Address.h"
+#include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/UserSettingsController.h"
-#include "lldb/Utility/FileSpec.h" // for FileSpec
+#include "lldb/Utility/FileSpec.h"
 #include "lldb/Utility/Iterable.h"
-#include "lldb/Utility/Status.h" // for Status
+#include "lldb/Utility/Status.h"
 #include "lldb/lldb-enumerations.h"
 #include "lldb/lldb-forward.h"
 #include "lldb/lldb-types.h"
@@ -27,8 +27,8 @@
 #include <mutex>
 #include <vector>
 
-#include <stddef.h> // for size_t
-#include <stdint.h> // for uint32_t
+#include <stddef.h>
+#include <stdint.h>
 
 namespace lldb_private {
 class ConstString;
@@ -300,14 +300,16 @@ public:
   //------------------------------------------------------------------
   /// @see Module::FindFunctions ()
   //------------------------------------------------------------------
-  size_t FindFunctions(const ConstString &name, uint32_t name_type_mask,
+  size_t FindFunctions(const ConstString &name,
+                       lldb::FunctionNameType name_type_mask,
                        bool include_symbols, bool include_inlines, bool append,
                        SymbolContextList &sc_list) const;
 
   //------------------------------------------------------------------
   /// @see Module::FindFunctionSymbols ()
   //------------------------------------------------------------------
-  size_t FindFunctionSymbols(const ConstString &name, uint32_t name_type_mask,
+  size_t FindFunctionSymbols(const ConstString &name,
+                             lldb::FunctionNameType name_type_mask,
                              SymbolContextList &sc_list);
 
   //------------------------------------------------------------------
@@ -415,9 +417,9 @@ public:
   //------------------------------------------------------------------
   /// Find types by name.
   ///
-  /// @param[in] sc
-  ///     A symbol context that scopes where to extract a type list
-  ///     from.
+  /// @param[in] search_first
+  ///     If non-null, this module will be searched before any other
+  ///     modules.
   ///
   /// @param[in] name
   ///     The name of the type we are looking for.
@@ -445,7 +447,7 @@ public:
   /// @return
   ///     The number of matches added to \a type_list.
   //------------------------------------------------------------------
-  size_t FindTypes(const SymbolContext &sc, const ConstString &name,
+  size_t FindTypes(Module *search_first, const ConstString &name,
                    bool name_is_fully_qualified, size_t max_matches,
                    llvm::DenseSet<SymbolFile *> &searched_symbol_files,
                    TypeList &types) const;
@@ -495,26 +497,24 @@ public:
   /// &,uint32_t,SymbolContext&)
   //------------------------------------------------------------------
   uint32_t ResolveSymbolContextForAddress(const Address &so_addr,
-                                          uint32_t resolve_scope,
+                                          lldb::SymbolContextItem resolve_scope,
                                           SymbolContext &sc) const;
 
   //------------------------------------------------------------------
   /// @copydoc Module::ResolveSymbolContextForFilePath (const char
   /// *,uint32_t,bool,uint32_t,SymbolContextList&)
   //------------------------------------------------------------------
-  uint32_t ResolveSymbolContextForFilePath(const char *file_path, uint32_t line,
-                                           bool check_inlines,
-                                           uint32_t resolve_scope,
-                                           SymbolContextList &sc_list) const;
+  uint32_t ResolveSymbolContextForFilePath(
+      const char *file_path, uint32_t line, bool check_inlines,
+      lldb::SymbolContextItem resolve_scope, SymbolContextList &sc_list) const;
 
   //------------------------------------------------------------------
   /// @copydoc Module::ResolveSymbolContextsForFileSpec (const FileSpec
   /// &,uint32_t,bool,uint32_t,SymbolContextList&)
   //------------------------------------------------------------------
-  uint32_t ResolveSymbolContextsForFileSpec(const FileSpec &file_spec,
-                                            uint32_t line, bool check_inlines,
-                                            uint32_t resolve_scope,
-                                            SymbolContextList &sc_list) const;
+  uint32_t ResolveSymbolContextsForFileSpec(
+      const FileSpec &file_spec, uint32_t line, bool check_inlines,
+      lldb::SymbolContextItem resolve_scope, SymbolContextList &sc_list) const;
 
   //------------------------------------------------------------------
   /// Gets the size of the module list.

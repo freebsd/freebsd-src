@@ -10,21 +10,17 @@
 #ifndef liblldb_Thread_h_
 #define liblldb_Thread_h_
 
-// C Includes
-// C++ Includes
 #include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-// Other libraries and framework includes
-// Project includes
-#include "lldb/Core/Broadcaster.h"
-#include "lldb/Core/Event.h"
 #include "lldb/Core/UserSettingsController.h"
 #include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/RegisterCheckpoint.h"
 #include "lldb/Target/StackFrameList.h"
+#include "lldb/Utility/Broadcaster.h"
+#include "lldb/Utility/Event.h"
 #include "lldb/Utility/StructuredData.h"
 #include "lldb/Utility/UserID.h"
 #include "lldb/lldb-private.h"
@@ -57,6 +53,8 @@ public:
   bool GetStepInAvoidsNoDebug() const;
 
   bool GetStepOutAvoidsNoDebug() const;
+
+  uint64_t GetMaxBacktraceDepth() const;
 };
 
 typedef std::shared_ptr<ThreadProperties> ThreadPropertiesSP;
@@ -282,7 +280,7 @@ public:
   /// message).
   //------------------------------------------------------------------
   StructuredData::ObjectSP GetExtendedInfo() {
-    if (m_extended_info_fetched == false) {
+    if (!m_extended_info_fetched) {
       m_extended_info = FetchThreadExtendedInfo();
       m_extended_info_fetched = true;
     }
@@ -496,9 +494,9 @@ public:
 
   // If stop_format is true, this will be the form used when we print stop
   // info. If false, it will be the form we use for thread list and co.
-  void DumpUsingSettingsFormat(Stream &strm, uint32_t frame_idx, 
+  void DumpUsingSettingsFormat(Stream &strm, uint32_t frame_idx,
                                bool stop_format);
- 
+
   bool GetDescription(Stream &s, lldb::DescriptionLevel level,
                       bool print_json_thread, bool print_json_stopinfo);
 
@@ -655,12 +653,16 @@ public:
   /// @param[in] stop_other_threads
   ///    \b true if we will stop other threads while we single step this one.
   ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
+  ///
   /// @return
   ///     A shared pointer to the newly queued thread plan, or nullptr if the
   ///     plan could not be queued.
   //------------------------------------------------------------------
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepSingleInstruction(
-      bool step_over, bool abort_other_plans, bool stop_other_threads);
+      bool step_over, bool abort_other_plans, bool stop_other_threads,
+      Status &status);
 
   //------------------------------------------------------------------
   /// Queues the plan used to step through an address range, stepping  over
@@ -690,6 +692,9 @@ public:
   /// @param[in] stop_other_threads
   ///    \b true if we will stop other threads while we single step this one.
   ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
+  ///
   /// @param[in] step_out_avoids_code_without_debug_info
   ///    If eLazyBoolYes, if the step over steps out it will continue to step
   ///    out till it comes to a frame with debug info.
@@ -702,6 +707,7 @@ public:
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepOverRange(
       bool abort_other_plans, const AddressRange &range,
       const SymbolContext &addr_context, lldb::RunMode stop_other_threads,
+      Status &status,
       LazyBool step_out_avoids_code_without_debug_info = eLazyBoolCalculate);
 
   // Helper function that takes a LineEntry to step, insted of an AddressRange.
@@ -710,6 +716,7 @@ public:
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepOverRange(
       bool abort_other_plans, const LineEntry &line_entry,
       const SymbolContext &addr_context, lldb::RunMode stop_other_threads,
+      Status &status,
       LazyBool step_out_avoids_code_without_debug_info = eLazyBoolCalculate);
 
   //------------------------------------------------------------------
@@ -744,6 +751,9 @@ public:
   /// @param[in] stop_other_threads
   ///    \b true if we will stop other threads while we single step this one.
   ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
+  ///
   /// @param[in] step_in_avoids_code_without_debug_info
   ///    If eLazyBoolYes we will step out if we step into code with no debug
   ///    info.
@@ -761,7 +771,7 @@ public:
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepInRange(
       bool abort_other_plans, const AddressRange &range,
       const SymbolContext &addr_context, const char *step_in_target,
-      lldb::RunMode stop_other_threads,
+      lldb::RunMode stop_other_threads, Status &status,
       LazyBool step_in_avoids_code_without_debug_info = eLazyBoolCalculate,
       LazyBool step_out_avoids_code_without_debug_info = eLazyBoolCalculate);
 
@@ -771,7 +781,7 @@ public:
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepInRange(
       bool abort_other_plans, const LineEntry &line_entry,
       const SymbolContext &addr_context, const char *step_in_target,
-      lldb::RunMode stop_other_threads,
+      lldb::RunMode stop_other_threads, Status &status,
       LazyBool step_in_avoids_code_without_debug_info = eLazyBoolCalculate,
       LazyBool step_out_avoids_code_without_debug_info = eLazyBoolCalculate);
 
@@ -803,6 +813,9 @@ public:
   /// @param[in] run_vote
   ///    See standard meanings for the stop & run votes in ThreadPlan.h.
   ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
+  ///
   /// @param[in] step_out_avoids_code_without_debug_info
   ///    If eLazyBoolYes, if the step over steps out it will continue to step
   ///    out till it comes to a frame with debug info.
@@ -814,10 +827,8 @@ public:
   //------------------------------------------------------------------
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepOut(
       bool abort_other_plans, SymbolContext *addr_context, bool first_insn,
-      bool stop_other_threads,
-      Vote stop_vote, // = eVoteYes,
-      Vote run_vote,  // = eVoteNoOpinion);
-      uint32_t frame_idx,
+      bool stop_other_threads, Vote stop_vote, Vote run_vote,
+      uint32_t frame_idx, Status &status,
       LazyBool step_out_avoids_code_without_debug_info = eLazyBoolCalculate);
 
   //------------------------------------------------------------------
@@ -848,8 +859,14 @@ public:
   ///    \b true if we will stop other threads while we single step this one.
   ///
   /// @param[in] stop_vote
+  ///
   /// @param[in] run_vote
   ///    See standard meanings for the stop & run votes in ThreadPlan.h.
+  ///
+  /// @param[in] frame_idx
+  ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
   ///
   /// @param[in] continue_to_next_branch
   ///    Normally this will enqueue a plan that will put a breakpoint on the
@@ -874,15 +891,12 @@ public:
   //------------------------------------------------------------------
   virtual lldb::ThreadPlanSP QueueThreadPlanForStepOutNoShouldStop(
       bool abort_other_plans, SymbolContext *addr_context, bool first_insn,
-      bool stop_other_threads,
-      Vote stop_vote, // = eVoteYes,
-      Vote run_vote,  // = eVoteNoOpinion);
-      uint32_t frame_idx, bool continue_to_next_branch = false);
+      bool stop_other_threads, Vote stop_vote, Vote run_vote,
+      uint32_t frame_idx, Status &status, bool continue_to_next_branch = false);
 
   //------------------------------------------------------------------
   /// Gets the plan used to step through the code that steps from a function
   /// call site at the current PC into the actual function call.
-  ///
   ///
   /// @param[in] return_stack_id
   ///    The stack id that we will return to (by setting backstop breakpoints on
@@ -897,14 +911,17 @@ public:
   /// @param[in] stop_other_threads
   ///    \b true if we will stop other threads while we single step this one.
   ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
+  ///
   /// @return
   ///     A shared pointer to the newly queued thread plan, or nullptr if the
   ///     plan could not be queued.
   //------------------------------------------------------------------
   virtual lldb::ThreadPlanSP
   QueueThreadPlanForStepThrough(StackID &return_stack_id,
-                                bool abort_other_plans,
-                                bool stop_other_threads);
+                                bool abort_other_plans, bool stop_other_threads,
+                                Status &status);
 
   //------------------------------------------------------------------
   /// Gets the plan used to continue from the current PC.
@@ -922,22 +939,24 @@ public:
   /// @param[in] stop_other_threads
   ///    \b true if we will stop other threads while we single step this one.
   ///
+  /// @param[out] status
+  ///     A status with an error if queuing failed.
+  ///
   /// @return
   ///     A shared pointer to the newly queued thread plan, or nullptr if the
   ///     plan could not be queued.
   //------------------------------------------------------------------
   virtual lldb::ThreadPlanSP
   QueueThreadPlanForRunToAddress(bool abort_other_plans, Address &target_addr,
-                                 bool stop_other_threads);
+                                 bool stop_other_threads, Status &status);
 
-  virtual lldb::ThreadPlanSP
-  QueueThreadPlanForStepUntil(bool abort_other_plans,
-                              lldb::addr_t *address_list, size_t num_addresses,
-                              bool stop_others, uint32_t frame_idx);
+  virtual lldb::ThreadPlanSP QueueThreadPlanForStepUntil(
+      bool abort_other_plans, lldb::addr_t *address_list, size_t num_addresses,
+      bool stop_others, uint32_t frame_idx, Status &status);
 
   virtual lldb::ThreadPlanSP
   QueueThreadPlanForStepScripted(bool abort_other_plans, const char *class_name,
-                                 bool stop_other_threads);
+                                 bool stop_other_threads, Status &status);
 
   //------------------------------------------------------------------
   // Thread Plan accessors:
@@ -1023,7 +1042,7 @@ public:
   ///     false otherwise.
   //------------------------------------------------------------------
   bool CompletedPlanOverridesBreakpoint();
-                   
+
   //------------------------------------------------------------------
   /// Queues a generic thread plan.
   ///
@@ -1038,7 +1057,7 @@ public:
   /// @return
   ///     A pointer to the last completed plan.
   //------------------------------------------------------------------
-  void QueueThreadPlan(lldb::ThreadPlanSP &plan_sp, bool abort_other_plans);
+  Status QueueThreadPlan(lldb::ThreadPlanSP &plan_sp, bool abort_other_plans);
 
   //------------------------------------------------------------------
   /// Discards the plans queued on the plan stack of the current thread.  This
@@ -1233,6 +1252,10 @@ public:
   ///     LLDB_INVALID_ADDRESS is returned if no token is available.
   //----------------------------------------------------------------------
   virtual uint64_t GetExtendedBacktraceToken() { return LLDB_INVALID_ADDRESS; }
+
+  lldb::ValueObjectSP GetCurrentException();
+
+  lldb::ThreadSP GetCurrentExceptionBacktrace();
 
 protected:
   friend class ThreadPlan;

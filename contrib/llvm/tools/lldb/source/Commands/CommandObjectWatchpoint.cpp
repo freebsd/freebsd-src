@@ -10,14 +10,10 @@
 #include "CommandObjectWatchpoint.h"
 #include "CommandObjectWatchpointCommand.h"
 
-// C Includes
-// C++ Includes
 #include <vector>
 
-// Other libraries and framework includes
 #include "llvm/ADT/StringRef.h"
 
-// Project includes
 #include "lldb/Breakpoint/Watchpoint.h"
 #include "lldb/Breakpoint/WatchpointList.h"
 #include "lldb/Core/ValueObject.h"
@@ -142,11 +138,9 @@ bool CommandObjectMultiwordWatchpoint::VerifyWatchpointIDs(
       return false;
     wp_ids.push_back(beg);
   }
-  // It is an error if after the loop, we're still in_range.
-  if (in_range)
-    return false;
 
-  return true; // Success!
+  // It is an error if after the loop, we're still in_range.
+  return !in_range;
 }
 
 //-------------------------------------------------------------------------
@@ -158,11 +152,11 @@ bool CommandObjectMultiwordWatchpoint::VerifyWatchpointIDs(
 //-------------------------------------------------------------------------
 #pragma mark List::CommandOptions
 
-static OptionDefinition g_watchpoint_list_options[] = {
+static constexpr OptionDefinition g_watchpoint_list_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_1, false, "brief",   'b', OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone, "Give a brief description of the watchpoint (no location info)." },
-  { LLDB_OPT_SET_2, false, "full",    'f', OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone, "Give a full description of the watchpoint and its locations." },
-  { LLDB_OPT_SET_3, false, "verbose", 'v', OptionParser::eNoArgument, nullptr, nullptr, 0, eArgTypeNone, "Explain everything we know about the watchpoint (for debugging debugger bugs)." }
+  { LLDB_OPT_SET_1, false, "brief",   'b', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Give a brief description of the watchpoint (no location info)." },
+  { LLDB_OPT_SET_2, false, "full",    'f', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Give a full description of the watchpoint and its locations." },
+  { LLDB_OPT_SET_3, false, "verbose", 'v', OptionParser::eNoArgument, nullptr, {}, 0, eArgTypeNone, "Explain everything we know about the watchpoint (for debugging debugger bugs)." }
     // clang-format on
 };
 
@@ -529,9 +523,9 @@ protected:
 //-------------------------------------------------------------------------
 
 #pragma mark Ignore::CommandOptions
-static OptionDefinition g_watchpoint_ignore_options[] = {
+static constexpr OptionDefinition g_watchpoint_ignore_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, true, "ignore-count", 'i', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeCount, "Set the number of times this watchpoint is skipped before stopping." }
+  { LLDB_OPT_SET_ALL, true, "ignore-count", 'i', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeCount, "Set the number of times this watchpoint is skipped before stopping." }
     // clang-format on
 };
 
@@ -651,9 +645,9 @@ private:
 
 #pragma mark Modify::CommandOptions
 
-static OptionDefinition g_watchpoint_modify_options[] = {
+static constexpr OptionDefinition g_watchpoint_modify_options[] = {
     // clang-format off
-  { LLDB_OPT_SET_ALL, false, "condition", 'c', OptionParser::eRequiredArgument, nullptr, nullptr, 0, eArgTypeExpression, "The watchpoint stops only if this condition expression evaluates to true." }
+  { LLDB_OPT_SET_ALL, false, "condition", 'c', OptionParser::eRequiredArgument, nullptr, {}, 0, eArgTypeExpression, "The watchpoint stops only if this condition expression evaluates to true." }
     // clang-format on
 };
 

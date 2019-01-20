@@ -17,7 +17,6 @@
 #include "lldb/Breakpoint/BreakpointLocation.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/PluginManager.h"
-#include "lldb/Core/Scalar.h"
 #include "lldb/Expression/FunctionCaller.h"
 #include "lldb/Expression/UtilityFunction.h"
 #include "lldb/Symbol/ClangASTContext.h"
@@ -29,6 +28,7 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/ConstString.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/Utility/Scalar.h"
 #include "lldb/Utility/Status.h"
 #include "lldb/Utility/StreamString.h"
 
@@ -58,7 +58,7 @@ bool AppleObjCRuntimeV1::GetDynamicTypeAndAddress(
       class_type_or_name.SetName(class_descriptor->GetClassName());
     }
   }
-  return class_type_or_name.IsEmpty() == false;
+  return !class_type_or_name.IsEmpty();
 }
 
 //------------------------------------------------------------------
@@ -113,8 +113,9 @@ AppleObjCRuntimeV1::CreateExceptionResolver(Breakpoint *bkpt, bool catch_bp,
 
   if (throw_bp)
     resolver_sp.reset(new BreakpointResolverName(
-        bkpt, "objc_exception_throw", eFunctionNameTypeBase,
-        eLanguageTypeUnknown, Breakpoint::Exact, 0, eLazyBoolNo));
+        bkpt, std::get<1>(GetExceptionThrowLocation()).AsCString(),
+        eFunctionNameTypeBase, eLanguageTypeUnknown, Breakpoint::Exact, 0,
+        eLazyBoolNo));
   // FIXME: don't do catch yet.
   return resolver_sp;
 }

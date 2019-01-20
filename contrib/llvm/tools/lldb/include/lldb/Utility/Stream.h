@@ -12,14 +12,15 @@
 
 #include "lldb/Utility/Flags.h"
 #include "lldb/lldb-defines.h"
-#include "lldb/lldb-enumerations.h" // for ByteOrder::eByteOrderInvalid
-#include "llvm/ADT/StringRef.h"     // for StringRef
+#include "lldb/lldb-enumerations.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <stdarg.h>
-#include <stddef.h>    // for size_t
-#include <stdint.h>    // for uint32_t, uint64_t, uint8_t
-#include <type_traits> // for forward
+#include <stddef.h>
+#include <stdint.h>
+#include <type_traits>
 
 namespace lldb_private {
 
@@ -37,6 +38,25 @@ public:
                        /// string mode.
   };
 
+  /// Utility class for counting the bytes that were written to a stream in a
+  /// certain time span.
+  /// @example
+  ///   ByteDelta delta(*this);
+  ///   WriteDataToStream("foo");
+  ///   return *delta;
+  /// @endcode
+  class ByteDelta {
+    Stream *m_stream;
+    /// Bytes we have written so far when ByteDelta was created.
+    size_t m_start;
+
+  public:
+    ByteDelta(Stream &s) : m_stream(&s), m_start(s.GetWrittenBytes()) {}
+    /// Returns the number of bytes written to the given Stream since this
+    /// ByteDelta object was created.
+    size_t operator*() const { return m_stream->GetWrittenBytes() - m_start; }
+  };
+
   //------------------------------------------------------------------
   /// Construct with flags and address size and byte order.
   ///
@@ -51,6 +71,17 @@ public:
   ///
   //------------------------------------------------------------------
   Stream();
+
+  // FIXME: Streams should not be copyable.
+  Stream(const Stream &other) : m_forwarder(*this) { (*this) = other; }
+
+  Stream &operator=(const Stream &rhs) {
+    m_flags = rhs.m_flags;
+    m_addr_size = rhs.m_addr_size;
+    m_byte_order = rhs.m_byte_order;
+    m_indent_level = rhs.m_indent_level;
+    return *this;
+  }
 
   //------------------------------------------------------------------
   /// Destructor
@@ -83,7 +114,13 @@ public:
   /// @return
   ///     The number of bytes that were appended to the stream.
   //------------------------------------------------------------------
-  virtual size_t Write(const void *src, size_t src_len) = 0;
+  size_t Write(const void *src, size_t src_len) {
+    size_t appended_byte_count = WriteImpl(src, src_len);
+    m_bytes_written += appended_byte_count;
+    return appended_byte_count;
+  }
+
+  size_t GetWrittenBytes() const { return m_bytes_written; }
 
   //------------------------------------------------------------------
   // Member functions
@@ -121,14 +158,10 @@ public:
       __attribute__((__format__(__printf__, 2, 3)));
 
   //------------------------------------------------------------------
-  /// Format a C string from a printf style format and variable arguments and
-  /// encode and append the resulting C string as hex bytes.
+  /// Append an uint8_t value in the hexadecimal format to the stream.
   ///
-  /// @param[in] format
-  ///     A printf style format string.
-  ///
-  /// @param[in] ...
-  ///     Any additional arguments needed for the printf format string.
+  /// @param[in] uvalue
+  ///     The value to append.
   ///
   /// @return
   ///     The number of bytes that were appended to the stream.
@@ -504,9 +537,6 @@ public:
   ///
   /// @param[in] uval
   ///     A uint64_t value that was extracted as a SLEB128 value.
-  ///
-  /// @param[in] format
-  ///     The optional printf format that can be overridden.
   //------------------------------------------------------------------
   size_t PutSLEB128(int64_t uval);
 
@@ -518,11 +548,15 @@ public:
   ///
   /// @param[in] uval
   ///     A uint64_t value that was extracted as a ULEB128 value.
-  ///
-  /// @param[in] format
-  ///     The optional printf format that can be overridden.
   //------------------------------------------------------------------
   size_t PutULEB128(uint64_t uval);
+
+  //------------------------------------------------------------------
+  /// Returns a raw_ostream that forwards the data to this Stream object.
+  //------------------------------------------------------------------
+  llvm::raw_ostream &AsRawOstream() {
+    return m_forwarder;
+  }
 
 protected:
   //------------------------------------------------------------------
@@ -533,8 +567,53 @@ protected:
   lldb::ByteOrder
       m_byte_order;   ///< Byte order to use when encoding scalar types.
   int m_indent_level; ///< Indention level.
+  std::size_t m_bytes_written = 0; ///< Number of bytes written so far.
 
-  size_t _PutHex8(uint8_t uvalue, bool add_prefix);
+  void _PutHex8(uint8_t uvalue, bool add_prefix);
+
+  //------------------------------------------------------------------
+  /// Output character bytes to the stream.
+  ///
+  /// Appends \a src_len characters from the buffer \a src to the stream.
+  ///
+  /// @param[in] src
+  ///     A buffer containing at least \a src_len bytes of data.
+  ///
+  /// @param[in] src_len
+  ///     A number of bytes to append to the stream.
+  ///
+  /// @return
+  ///     The number of bytes that were appended to the stream.
+  //------------------------------------------------------------------
+  virtual size_t WriteImpl(const void *src, size_t src_len) = 0;
+
+  //----------------------------------------------------------------------
+  /// @class RawOstreamForward Stream.h "lldb/Utility/Stream.h"
+  /// This is a wrapper class that exposes a raw_ostream interface that just
+  /// forwards to an LLDB stream, allowing to reuse LLVM algorithms that take
+  /// a raw_ostream within the LLDB code base.
+  //----------------------------------------------------------------------
+  class RawOstreamForward : public llvm::raw_ostream {
+    // Note: This stream must *not* maintain its own buffer, but instead
+    // directly write everything to the internal Stream class. Without this,
+    // we would run into the problem that the Stream written byte count would
+    // differ from the actually written bytes by the size of the internal
+    // raw_ostream buffer.
+
+    Stream &m_target;
+    void write_impl(const char *Ptr, size_t Size) override {
+      m_target.Write(Ptr, Size);
+    }
+
+    uint64_t current_pos() const override {
+      return m_target.GetWrittenBytes();
+    }
+
+  public:
+    RawOstreamForward(Stream &target)
+        : llvm::raw_ostream(/*unbuffered*/ true), m_target(target) {}
+  };
+  RawOstreamForward m_forwarder;
 };
 
 } // namespace lldb_private

@@ -9,10 +9,6 @@
 
 #include "lldb/Interpreter/OptionValueLanguage.h"
 
-// C Includes
-// C++ Includes
-// Other libraries and framework includes
-// Project includes
 #include "lldb/DataFormatters/FormatManager.h"
 #include "lldb/Target/Language.h"
 #include "lldb/Utility/Args.h"
@@ -28,7 +24,8 @@ void OptionValueLanguage::DumpValue(const ExecutionContext *exe_ctx,
   if (dump_mask & eDumpOptionValue) {
     if (dump_mask & eDumpOptionType)
       strm.PutCString(" = ");
-    strm.PutCString(Language::GetNameForLanguageType(m_current_value));
+    if (m_current_value != eLanguageTypeUnknown)
+      strm.PutCString(Language::GetNameForLanguageType(m_current_value));
   }
 }
 
