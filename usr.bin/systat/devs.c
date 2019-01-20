@@ -193,6 +193,11 @@ dsmatchselect(const char *args, devstat_select_mode select_mode, int maxshowdevs
 	int i;
 	int retval = 0;
 
+	if (!args) {
+		warnx("dsmatchselect: no arguments");
+		return(0);
+	}
+
 	/*
 	 * Break the (pipe delimited) input string out into separate
 	 * strings.
@@ -250,6 +255,11 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 	char *cp, *tmpstr, *tmpstr1, *buffer;
 	int i;
 	int retval = 0;
+
+	if (!args) {
+		warnx("dsselect: no argument");
+		return(1);
+	}
 
 	/*
 	 * If we've gone through this code before, free previously
