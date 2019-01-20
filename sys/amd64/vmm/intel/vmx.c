@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 	(PROCBASED_INT_WINDOW_EXITING	|				\
 	 PROCBASED_NMI_WINDOW_EXITING)
 
-#define	PROCBASED_CTLS_ONE_SETTING 					\
+#define	PROCBASED_CTLS_ONE_SETTING					\
 	(PROCBASED_SECONDARY_CONTROLS	|				\
 	 PROCBASED_MWAIT_EXITING	|				\
 	 PROCBASED_MONITOR_EXITING	|				\
@@ -347,7 +347,7 @@ vmx_allow_x2apic_msrs(struct vmx *vmx)
 
 	for (i = 0; i < 8; i++)
 		error += guest_msr_ro(vmx, MSR_APIC_TMR0 + i);
-	
+
 	for (i = 0; i < 8; i++)
 		error += guest_msr_ro(vmx, MSR_APIC_IRR0 + i);
 
@@ -495,7 +495,7 @@ vmx_disable(void *arg __unused)
 static int
 vmx_cleanup(void)
 {
-	
+
 	if (pirvec >= 0)
 		lapic_ipi_free(pirvec);
 
@@ -1016,7 +1016,7 @@ static int
 vmx_handle_cpuid(struct vm *vm, int vcpu, struct vmxctx *vmxctx)
 {
 	int handled, func;
-	
+
 	func = vmxctx->guest_rax;
 
 	handled = x86_emulate_cpuid(vm, vcpu,
@@ -2958,7 +2958,7 @@ vmx_get_intr_shadow(struct vmx *vmx, int vcpu, int running, uint64_t *retval)
 	uint64_t gi;
 	int error;
 
-	error = vmcs_getreg(&vmx->vmcs[vcpu], running, 
+	error = vmcs_getreg(&vmx->vmcs[vcpu], running,
 	    VMCS_IDENT(VMCS_GUEST_INTERRUPTIBILITY), &gi);
 	*retval = (gi & HWINTR_BLOCKING) ? 1 : 0;
 	return (error);
@@ -3002,8 +3002,8 @@ vmx_shadow_reg(int reg)
 	switch (reg) {
 	case VM_REG_GUEST_CR0:
 		shreg = VMCS_CR0_SHADOW;
-                break;
-        case VM_REG_GUEST_CR4:
+		break;
+	case VM_REG_GUEST_CR4:
 		shreg = VMCS_CR4_SHADOW;
 		break;
 	default:
@@ -3074,7 +3074,7 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 		if (shadow > 0) {
 			/*
 			 * Store the unmodified value in the shadow
-			 */			
+			 */
 			error = vmcs_setreg(&vmx->vmcs[vcpu], running,
 				    VMCS_IDENT(shadow), val);
 		}
@@ -3257,7 +3257,7 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 		}
 	}
 
-        return (retval);
+	return (retval);
 }
 
 struct vlapic_vtx {
@@ -3539,7 +3539,7 @@ vmx_vlapic_init(void *arg, int vcpuid)
 	struct vmx *vmx;
 	struct vlapic *vlapic;
 	struct vlapic_vtx *vlapic_vtx;
-	
+
 	vmx = arg;
 
 	vlapic = malloc(sizeof(struct vlapic_vtx), M_VLAPIC, M_WAITOK | M_ZERO);
