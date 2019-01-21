@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2019 Mitchell Horne
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -59,19 +60,52 @@ END(copyio_fault)
  * a2 - Size of copy
  */
 	.macro copycommon
-	la	a6, copyio_fault /* Get the handler address */
-	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
+	la	a6, copyio_fault	/* Get the handler address */
+	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */
 	ENTER_USER_ACCESS(a7)
 
-1:	lb	a4, 0(a0)	/* Load from src */
-	addi	a0, a0, 1
-	sb	a4, 0(a1)	/* Store in dest */
-	addi	a1, a1, 1
-	addi	a2, a2, -1	/* len-- */
-	bnez	a2, 1b
+	li	t2, XLEN_BYTES
+	blt	a2, t2, 3f		/* Byte-copy if len < XLEN_BYTES */
 
-	EXIT_USER_ACCESS(a7)
-	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
+	/*
+	 * Compare lower bits of src and dest.
+	 * If they are aligned with each other, we can do word copy.
+	 */
+	andi	t0, a0, (XLEN_BYTES-1)	/* Low bits of src */
+	andi	t1, a1, (XLEN_BYTES-1)	/* Low bits of dest */
+	bne	t0, t1, 3f		/* Misaligned. Go to byte copy */
+	beqz	t0, 2f			/* Already word-aligned, skip ahead */
+
+	/* Byte copy until the first word-aligned address */
+1:	lb	a4, 0(a0)		/* Load byte from src */
+	addi	a0, a0, 1
+	sb	a4, 0(a1)		/* Store byte in dest */
+	addi	a1, a1, 1
+	addi	a2, a2, -1		/* len-- */
+	andi	t0, a0, (XLEN_BYTES-1)
+	bnez	t0, 1b
+
+	/* Copy words */
+2:	ld	a4, 0(a0)		/* Load word from src */
+	addi	a0, a0, XLEN_BYTES
+	sd	a4, 0(a1)		/* Store word in dest */
+	addi	a1, a1, XLEN_BYTES
+	addi	a2, a2, -XLEN_BYTES	/* len -= XLEN_BYTES */
+	bgeu	a2, t2, 2b		/* Again if len >= XLEN_BYTES */
+
+	/* Check if we're finished */
+	beqz	a2, 4f
+
+	/* Copy any remaining bytes */
+3:	lb	a4, 0(a0)		/* Load byte from src */
+	addi	a0, a0, 1
+	sb	a4, 0(a1)		/* Store byte in dest */
+	addi	a1, a1, 1
+	addi	a2, a2, -1		/* len-- */
+	bnez	a2, 3b
+
+4:	EXIT_USER_ACCESS(a7)
+	SET_FAULT_HANDLER(x0, a7)	/* Clear the handler */
 	.endm
 
 /*
