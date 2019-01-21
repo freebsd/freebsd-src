@@ -90,6 +90,7 @@ be_locate_rootfs(libbe_handle_t *lbh)
 libbe_handle_t *
 libbe_init(const char *root)
 {
+	char altroot[MAXPATHLEN];
 	libbe_handle_t *lbh;
 	char *poolname, *pos;
 	int pnamelen;
@@ -139,6 +140,11 @@ libbe_init(const char *root)
 	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_BOOTFS, lbh->bootfs,
 	    sizeof(lbh->bootfs), NULL, true) != 0)
 		goto err;
+
+	if (zpool_get_prop(lbh->active_phandle, ZPOOL_PROP_ALTROOT,
+	    altroot, sizeof(altroot), NULL, true) == 0 &&
+	    strcmp(altroot, "-") != 0)
+		lbh->altroot_len = strlen(altroot);
 
 	return (lbh);
 err:
@@ -314,7 +320,6 @@ be_create(libbe_handle_t *lbh, const char *name)
 	return (set_error(lbh, err));
 }
 
-
 static int
 be_deep_clone_prop(int prop, void *cb)
 {
@@ -345,12 +350,9 @@ be_deep_clone_prop(int prop, void *cb)
 
 	/* Augment mountpoint with altroot, if needed */
 	val = pval;
-	if (prop == ZFS_PROP_MOUNTPOINT && *dccb->altroot != '\0') {
-		if (pval[strlen(dccb->altroot)] == '\0')
-			strlcpy(pval, "/", sizeof(pval));
-		else
-			val = pval + strlen(dccb->altroot);
-	}
+	if (prop == ZFS_PROP_MOUNTPOINT)
+		val = be_mountpoint_augmented(dccb->lbh, val);
+
 	nvlist_add_string(dccb->props, zfs_prop_to_name(prop), val);
 
 	return (ZPROP_CONT);
@@ -392,12 +394,9 @@ be_deep_clone(zfs_handle_t *ds, void *data)
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
 
+	dccb.lbh = isdc->lbh;
 	dccb.zhp = ds;
 	dccb.props = props;
-	if (zpool_get_prop(isdc->lbh->active_phandle, ZPOOL_PROP_ALTROOT,
-	    dccb.altroot, sizeof(dccb.altroot), NULL, true) != 0 ||
-	    strcmp(dccb.altroot, "-") == 0)
-		*dccb.altroot = '\0';
 	if (zprop_iter(be_deep_clone_prop, &dccb, B_FALSE, B_FALSE,
 	    ZFS_TYPE_FILESYSTEM) == ZPROP_INVAL)
 		return (-1);
