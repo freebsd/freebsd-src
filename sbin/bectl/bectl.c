@@ -378,8 +378,10 @@ bectl_cmd_mount(int argc, char *argv[])
 {
 	char result_loc[BE_MAXPATHLEN];
 	char *bootenv, *mountpoint;
-	int err;
+	int err, mntflags;
 
+	/* XXX TODO: Allow shallow */
+	mntflags = BE_MNT_DEEP;
 	if (argc < 2) {
 		fprintf(stderr, "bectl mount: missing argument(s)\n");
 		return (usage(false));
@@ -393,7 +395,7 @@ bectl_cmd_mount(int argc, char *argv[])
 	bootenv = argv[1];
 	mountpoint = ((argc == 3) ? argv[2] : NULL);
 
-	err = be_mount(be, bootenv, mountpoint, 0, result_loc);
+	err = be_mount(be, bootenv, mountpoint, mntflags, result_loc);
 
 	switch (err) {
 	case BE_ERR_SUCCESS:

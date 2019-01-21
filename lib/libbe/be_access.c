@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2017 Kyle J. Kneitinger <kyle@kneit.in>
  * Copyright (c) 2018 Kyle Evans <kevans@FreeBSD.org>
+ * Copyright (c) 2019 Wes Maag <wes@jwmaag.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +39,14 @@ struct be_mountcheck_info {
 	char *name;
 };
 
+struct be_mount_info {
+	libbe_handle_t *lbh;
+	const char *be;
+	const char *mountpoint;
+	int mntflags;
+	int deepmount;
+};
+
 static int
 be_mountcheck_cb(zfs_handle_t *zfs_hdl, void *data)
 {
@@ -55,6 +64,105 @@ be_mountcheck_cb(zfs_handle_t *zfs_hdl, void *data)
 		return (1);
 	}
 	free(mountpoint);
+	return (0);
+}
+
+/*
+ * Called from be_mount, uses the given zfs_handle and attempts to
+ * mount it at the passed mountpoint. If the deepmount flag is set, continue
+ * calling the function for each child dataset.
+ */
+static int
+be_mount_iter(zfs_handle_t *zfs_hdl, void *data)
+{
+	int err;
+	char *mountpoint;
+	char tmp[BE_MAXPATHLEN], zfs_mnt[BE_MAXPATHLEN];
+	struct be_mount_info *info;
+
+	info = (struct be_mount_info *)data;
+
+	if (zfs_is_mounted(zfs_hdl, &mountpoint)) {
+		free(mountpoint);
+		return (0);
+	}
+
+	if (zfs_prop_get_int(zfs_hdl, ZFS_PROP_CANMOUNT) == ZFS_CANMOUNT_OFF)
+		return (0);
+
+	if (zfs_prop_get(zfs_hdl, ZFS_PROP_MOUNTPOINT, zfs_mnt, BE_MAXPATHLEN,
+	    NULL, NULL, 0, 1))
+		return (1);
+
+	if (strcmp("none", zfs_mnt) != 0) {
+		char opt = '\0';
+
+		mountpoint = be_mountpoint_augmented(info->lbh, zfs_mnt);
+
+		snprintf(tmp, BE_MAXPATHLEN, "%s%s", info->mountpoint,
+		    mountpoint);
+
+		if ((err = zmount(zfs_get_name(zfs_hdl), tmp, info->mntflags,
+		 __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0) {
+			switch (errno) {
+			case ENAMETOOLONG:
+				return (set_error(info->lbh, BE_ERR_PATHLEN));
+			case ELOOP:
+			case ENOENT:
+			case ENOTDIR:
+				return (set_error(info->lbh, BE_ERR_BADPATH));
+			case EPERM:
+				return (set_error(info->lbh, BE_ERR_PERMS));
+			case EBUSY:
+				return (set_error(info->lbh, BE_ERR_PATHBUSY));
+			default:
+				return (set_error(info->lbh, BE_ERR_UNKNOWN));
+			}
+		}
+	}
+
+	if (!info->deepmount)
+		return (0);
+
+	return (zfs_iter_filesystems(zfs_hdl, be_mount_iter, info));
+}
+
+
+static int
+be_umount_iter(zfs_handle_t *zfs_hdl, void *data)
+{
+
+	int err;
+	char *mountpoint;
+	struct be_mount_info *info;
+
+	info = (struct be_mount_info *)data;
+
+	if((err = zfs_iter_filesystems(zfs_hdl, be_umount_iter, info)) != 0) {
+		return (err);
+	}
+
+	if (!zfs_is_mounted(zfs_hdl, &mountpoint)) {
+		return (0);
+	}
+	free(mountpoint);
+
+	if (zfs_unmount(zfs_hdl, NULL, info->mntflags) != 0) {
+		switch (errno) {
+		case ENAMETOOLONG:
+			return (set_error(info->lbh, BE_ERR_PATHLEN));
+		case ELOOP:
+		case ENOENT:
+		case ENOTDIR:
+			return (set_error(info->lbh, BE_ERR_BADPATH));
+		case EPERM:
+			return (set_error(info->lbh, BE_ERR_PERMS));
+		case EBUSY:
+			return (set_error(info->lbh, BE_ERR_PATHBUSY));
+		default:
+			return (set_error(info->lbh, BE_ERR_UNKNOWN));
+		}
+	}
 	return (0);
 }
 
@@ -108,8 +216,10 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 {
 	char be[BE_MAXPATHLEN];
 	char mnt_temp[BE_MAXPATHLEN];
-	int mntflags;
+	int mntflags, mntdeep;
 	int err;
+	struct be_mount_info info;
+	zfs_handle_t *zhdl;
 
 	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
@@ -120,6 +230,7 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	if (is_mounted(lbh->lzh, be, NULL))
 		return (set_error(lbh, BE_ERR_MOUNTED));
 
+	mntdeep = (flags & BE_MNT_DEEP) ? 1 : 0;
 	mntflags = (flags & BE_MNT_FORCE) ? MNT_FORCE : 0;
 
 	/* Create mountpoint if it is not specified */
@@ -129,24 +240,20 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 			return (set_error(lbh, BE_ERR_IO));
 	}
 
-	char opt = '\0';
-	if ((err = zmount(be, (mountpoint == NULL) ? mnt_temp : mountpoint,
-	    mntflags, __DECONST(char *, MNTTYPE_ZFS), NULL, 0, &opt, 1)) != 0) {
-		switch (errno) {
-		case ENAMETOOLONG:
-			return (set_error(lbh, BE_ERR_PATHLEN));
-		case ELOOP:
-		case ENOENT:
-		case ENOTDIR:
-			return (set_error(lbh, BE_ERR_BADPATH));
-		case EPERM:
-			return (set_error(lbh, BE_ERR_PERMS));
-		case EBUSY:
-			return (set_error(lbh, BE_ERR_PATHBUSY));
-		default:
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-		}
+	if ((zhdl = zfs_open(lbh->lzh, be, ZFS_TYPE_FILESYSTEM)) == NULL)
+		return (set_error(lbh, BE_ERR_ZFSOPEN));
+
+	info.lbh = lbh;
+	info.be = be;
+	info.mountpoint = (mountpoint == NULL) ? mnt_temp : mountpoint;
+	info.mntflags = mntflags;
+	info.deepmount = mntdeep;
+
+	if((err = be_mount_iter(zhdl, &info) != 0)) {
+		zfs_close(zhdl);
+		return (err);
 	}
+	zfs_close(zhdl);
 
 	if (result_loc != NULL)
 		strlcpy(result_loc, mountpoint == NULL ? mnt_temp : mountpoint,
@@ -155,16 +262,16 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
 	return (BE_ERR_SUCCESS);
 }
 
-
 /*
  * usage
  */
 int
 be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 {
-	int err, mntflags;
+	int err;
 	char be[BE_MAXPATHLEN];
 	zfs_handle_t *root_hdl;
+	struct be_mount_info info;
 
 	if ((err = be_root_concat(lbh, bootenv, be)) != 0)
 		return (set_error(lbh, err));
@@ -172,26 +279,38 @@ be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
 	if ((root_hdl = zfs_open(lbh->lzh, be, ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-	mntflags = (flags & BE_MNT_FORCE) ? MS_FORCE : 0;
+	info.lbh = lbh;
+	info.be = be;
+	info.mountpoint = NULL;
+	info.mntflags = (flags & BE_MNT_FORCE) ? MS_FORCE : 0;
 
-	if (zfs_unmount(root_hdl, NULL, mntflags) != 0) {
+	if ((err = be_umount_iter(root_hdl, &info)) != 0) {
 		zfs_close(root_hdl);
-		switch (errno) {
-		case ENAMETOOLONG:
-			return (set_error(lbh, BE_ERR_PATHLEN));
-		case ELOOP:
-		case ENOENT:
-		case ENOTDIR:
-			return (set_error(lbh, BE_ERR_BADPATH));
-		case EPERM:
-			return (set_error(lbh, BE_ERR_PERMS));
-		case EBUSY:
-			return (set_error(lbh, BE_ERR_PATHBUSY));
-		default:
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-		}
+		return (err);
 	}
-	zfs_close(root_hdl);
 
+	zfs_close(root_hdl);
 	return (BE_ERR_SUCCESS);
+}
+
+/*
+ * This function will blow away the input buffer as needed if we're discovered
+ * to be looking at a root-mount.  If the mountpoint is naturally beyond the
+ * root, however, the buffer may be left intact and a pointer to the section
+ * past altroot will be returned instead for the caller's perusal.
+ */
+char *
+be_mountpoint_augmented(libbe_handle_t *lbh, char *mountpoint)
+{
+
+	if (lbh->altroot_len == 0)
+		return (mountpoint);
+	if (mountpoint == NULL || *mountpoint == '\0')
+		return (mountpoint);
+
+	if (mountpoint[lbh->altroot_len] == '\0') {
+		*(mountpoint + 1) = '\0';
+		return (mountpoint);
+	} else
+		return (mountpoint + lbh->altroot_len);
 }
