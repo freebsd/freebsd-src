@@ -849,7 +849,7 @@ static void processRelocAux(InputSectionBase &Sec, RelExpr Expr, RelType Type,
     return;
   }
   if (Sym.isGnuIFunc() && Config->ZIfuncnoplt) {
-    InX::RelaDyn->addReloc(Type, &Sec, Offset, &Sym, Addend, R_ADDEND, Type);
+    In.RelaDyn->addReloc(Type, &Sec, Offset, &Sym, Addend, R_ADDEND, Type);
     return;
   }
   bool CanWrite = (Sec.Flags & SHF_WRITE) || !Config->ZText;
