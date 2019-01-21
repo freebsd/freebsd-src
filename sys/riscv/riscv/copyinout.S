@@ -52,60 +52,61 @@ copyio_fault_nopcb:
 END(copyio_fault)
 
 /*
- * Copies from a kernel to user address
+ * copycommon - common copy routine
  *
- * int copyout(const void *kaddr, void *udaddr, size_t len)
+ * a0 - Source address
+ * a1 - Destination address
+ * a2 - Size of copy
  */
-ENTRY(copyout)
-	beqz	a2, 2f		/* If len == 0 then skip loop */
-	add	a3, a1, a2
-	li	a4, VM_MAXUSER_ADDRESS
-	bgt	a3, a4, copyio_fault_nopcb
-
+	.macro copycommon
 	la	a6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
 	ENTER_USER_ACCESS(a7)
 
-1:	lb	a4, 0(a0)	/* Load from kaddr */
+1:	lb	a4, 0(a0)	/* Load from src */
 	addi	a0, a0, 1
-	sb	a4, 0(a1)	/* Store in uaddr */
+	sb	a4, 0(a1)	/* Store in dest */
 	addi	a1, a1, 1
 	addi	a2, a2, -1	/* len-- */
 	bnez	a2, 1b
 
 	EXIT_USER_ACCESS(a7)
 	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
+	.endm
 
-2:	li	a0, 0		/* return 0 */
+/*
+ * Copies from a kernel to user address
+ *
+ * int copyout(const void *kaddr, void *udaddr, size_t len)
+ */
+ENTRY(copyout)
+	beqz	a2, copyout_end	/* If len == 0 then skip loop */
+	add	a3, a1, a2
+	li	a4, VM_MAXUSER_ADDRESS
+	bgt	a3, a4, copyio_fault_nopcb
+
+	copycommon
+
+copyout_end:
+	li	a0, 0		/* return 0 */
 	ret
 END(copyout)
 
 /*
  * Copies from a user to kernel address
  *
- * int copyin(const void *uaddr, void *kdaddr, size_t len)
+ * int copyin(const void *uaddr, void *kaddr, size_t len)
  */
 ENTRY(copyin)
-	beqz	a2, 2f		/* If len == 0 then skip loop */
+	beqz	a2, copyin_end	/* If len == 0 then skip loop */
 	add	a3, a0, a2
 	li	a4, VM_MAXUSER_ADDRESS
 	bgt	a3, a4, copyio_fault_nopcb
 
-	la	a6, copyio_fault /* Get the handler address */
-	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
-	ENTER_USER_ACCESS(a7)
+	copycommon
 
-1:	lb	a4, 0(a0)	/* Load from uaddr */
-	addi	a0, a0, 1
-	sb	a4, 0(a1)	/* Store in kaddr */
-	addi	a1, a1, 1
-	addi	a2, a2, -1	/* len-- */
-	bnez	a2, 1b
-
-	EXIT_USER_ACCESS(a7)
-	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
-
-2:	li	a0, 0		/* return 0 */
+copyin_end:
+	li	a0, 0		/* return 0 */
 	ret
 END(copyin)
 
