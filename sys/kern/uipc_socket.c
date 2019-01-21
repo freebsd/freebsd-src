@@ -886,6 +886,8 @@ solisten_wakeup(struct socket *sol)
 	}
 	SOLISTEN_UNLOCK(sol);
 	wakeup_one(&sol->sol_comp);
+	if ((sol->so_state & SS_ASYNC) && sol->so_sigio != NULL)
+		pgsigio(&sol->so_sigio, SIGIO, 0);
 }
 
 /*
