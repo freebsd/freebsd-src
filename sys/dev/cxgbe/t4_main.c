@@ -3324,17 +3324,38 @@ restart:
     V_FW_HDR_FW_VER_BUILD(chip##FW_VERSION_BUILD))
 #define FW_INTFVER(chip, intf) (chip##FW_HDR_INTFVER_##intf)
 
+/* Just enough of fw_hdr to cover all version info. */
+struct fw_h {
+	__u8	ver;
+	__u8	chip;
+	__be16	len512;
+	__be32	fw_ver;
+	__be32	tp_microcode_ver;
+	__u8	intfver_nic;
+	__u8	intfver_vnic;
+	__u8	intfver_ofld;
+	__u8	intfver_ri;
+	__u8	intfver_iscsipdu;
+	__u8	intfver_iscsi;
+	__u8	intfver_fcoepdu;
+	__u8	intfver_fcoe;
+};
+/* Spot check a couple of fields. */
+CTASSERT(offsetof(struct fw_h, fw_ver) == offsetof(struct fw_hdr, fw_ver));
+CTASSERT(offsetof(struct fw_h, intfver_nic) == offsetof(struct fw_hdr, intfver_nic));
+CTASSERT(offsetof(struct fw_h, intfver_fcoe) == offsetof(struct fw_hdr, intfver_fcoe));
+
 struct fw_info {
 	uint8_t chip;
 	char *kld_name;
 	char *fw_mod_name;
-	struct fw_hdr fw_hdr;	/* XXX: waste of space, need a sparse struct */
+	struct fw_h fw_h;
 } fw_info[] = {
 	{
 		.chip = CHELSIO_T4,
 		.kld_name = "t4fw_cfg",
 		.fw_mod_name = "t4fw",
-		.fw_hdr = {
+		.fw_h = {
 			.chip = FW_HDR_CHIP_T4,
 			.fw_ver = htobe32(FW_VERSION(T4)),
 			.intfver_nic = FW_INTFVER(T4, NIC),
@@ -3350,7 +3371,7 @@ struct fw_info {
 		.chip = CHELSIO_T5,
 		.kld_name = "t5fw_cfg",
 		.fw_mod_name = "t5fw",
-		.fw_hdr = {
+		.fw_h = {
 			.chip = FW_HDR_CHIP_T5,
 			.fw_ver = htobe32(FW_VERSION(T5)),
 			.intfver_nic = FW_INTFVER(T5, NIC),
@@ -3366,7 +3387,7 @@ struct fw_info {
 		.chip = CHELSIO_T6,
 		.kld_name = "t6fw_cfg",
 		.fw_mod_name = "t6fw",
-		.fw_hdr = {
+		.fw_h = {
 			.chip = FW_HDR_CHIP_T6,
 			.fw_ver = htobe32(FW_VERSION(T6)),
 			.intfver_nic = FW_INTFVER(T6, NIC),
@@ -3398,7 +3419,7 @@ find_fw_info(int chip)
  * with?
  */
 static int
-fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
+fw_compatible(const struct fw_h *hdr1, const struct fw_h *hdr2)
 {
 
 	/* short circuit if it's the exact same firmware version */
@@ -3465,8 +3486,8 @@ unload_fw_module(struct adapter *sc, const struct firmware *dcfg,
  * +ve errno means a firmware install was attempted but failed.
  */
 static int
-install_kld_firmware(struct adapter *sc, struct fw_hdr *card_fw,
-    const struct fw_hdr *drv_fw, const char *reason, int *already)
+install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
+    const struct fw_h *drv_fw, const char *reason, int *already)
 {
 	const struct firmware *cfg, *fw;
 	const uint32_t c = be32toh(card_fw->fw_ver);
@@ -3571,7 +3592,7 @@ contact_firmware(struct adapter *sc)
 	enum dev_state state;
 	struct fw_info *fw_info;
 	struct fw_hdr *card_fw;		/* fw on the card */
-	const struct fw_hdr *drv_fw;	/* fw bundled with the driver */
+	const struct fw_h *drv_fw;
 
 	fw_info = find_fw_info(chip_id(sc));
 	if (fw_info == NULL) {
@@ -3580,7 +3601,7 @@ contact_firmware(struct adapter *sc)
 		    chip_id(sc));
 		return (EINVAL);
 	}
-	drv_fw = &fw_info->fw_hdr;
+	drv_fw = &fw_info->fw_h;
 
 	/* Read the header of the firmware on the card */
 	card_fw = malloc(sizeof(*card_fw), M_CXGBE, M_ZERO | M_WAITOK);
@@ -3593,7 +3614,8 @@ restart:
 		goto done;
 	}
 
-	rc = install_kld_firmware(sc, card_fw, drv_fw, NULL, &already);
+	rc = install_kld_firmware(sc, (struct fw_h *)card_fw, drv_fw, NULL,
+	    &already);
 	if (rc == ERESTART)
 		goto restart;
 	if (rc != 0)
@@ -3606,7 +3628,7 @@ restart:
 		    "failed to connect to the firmware: %d, %d.  "
 		    "PCIE_FW 0x%08x\n", rc, state, t4_read_reg(sc, A_PCIE_FW));
 #if 0
-		if (install_kld_firmware(sc, card_fw, drv_fw,
+		if (install_kld_firmware(sc, (struct fw_h *)card_fw, drv_fw,
 		    "not responding properly to HELLO", &already) == ERESTART)
 			goto restart;
 #endif
@@ -3617,7 +3639,8 @@ restart:
 
 	if (rc == sc->pf) {
 		sc->flags |= MASTER_PF;
-		rc = install_kld_firmware(sc, card_fw, drv_fw, NULL, &already);
+		rc = install_kld_firmware(sc, (struct fw_h *)card_fw, drv_fw,
+		    NULL, &already);
 		if (rc == ERESTART)
 			rc = 0;
 		else if (rc != 0)
