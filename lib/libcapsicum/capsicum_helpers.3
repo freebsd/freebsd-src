@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2018
+.Dd January 21, 2019
 .Dt CAPSICUM_HELPERS 3
 .Os
 .Sh NAME
@@ -50,11 +50,13 @@
 .Ft int
 .Fn caph_enter_casper "void"
 .Ft int
-.Fn caph_rights_limit "inf fd" "const cap_righst_t *rights"
+.Fn caph_rights_limit "int fd" "const cap_righst_t *rights"
 .Ft int
-.Fn caph_ioctls_limit "inf fd" "const unsigned long *cmds" "size_t ncmds"
+.Fn caph_ioctls_limit "int fd" "const unsigned long *cmds" "size_t ncmds"
 .Ft int
-.Fn caph_fcntls_limit "inf fd" "uint32_t fcntlrights"
+.Fn caph_fcntls_limit "int fd" "uint32_t fcntlrights"
+.Ft int
+.Fn caph_limit_stream "int fd" "int flags"
 .Ft int
 .Fn caph_limit_stdin "void"
 .Ft int
