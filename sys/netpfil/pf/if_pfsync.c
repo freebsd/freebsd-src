@@ -333,6 +333,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 		pfsync_buckets = mp_ncpus * 2;
 
 	sc = malloc(sizeof(struct pfsync_softc), M_PFSYNC, M_WAITOK | M_ZERO);
+	sc->sc_flags |= PFSYNCF_OK;
 	sc->sc_maxupdates = 128;
 
 	ifp = sc->sc_ifp = if_alloc(IFT_PFSYNC);
