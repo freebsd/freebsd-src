@@ -1466,6 +1466,12 @@ awg_setup_extres(device_t dev)
 		goto fail;
 	}
 	if (rst_ephy != NULL) {
+		/*
+		 * The ephy reset is left de-asserted by U-Boot.  Assert it
+		 * here to make sure that we're in a known good state going
+		 * into the PHY reset.
+		 */
+		hwreset_assert(rst_ephy);
 		error = hwreset_deassert(rst_ephy);
 		if (error != 0) {
 			device_printf(dev, "cannot de-assert ephy reset\n");
