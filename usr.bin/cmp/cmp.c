@@ -177,7 +177,8 @@ main(int argc, char *argv[])
 
 	if (!special) {
 		cap_rights_init(&rights);
-		if (caph_rights_limit(STDIN_FILENO, &rights) < 0) {
+		if (cap_rights_limit(STDIN_FILENO, &rights) < 0 &&
+		    errno != ENOSYS) {
 			err(ERR_EXIT, "unable to limit stdio");
 		}
 	}
