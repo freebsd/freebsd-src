@@ -103,7 +103,7 @@ r92c_tx_protection(struct rtwn_softc *sc, struct r92c_tx_desc *txd,
 			rate = rtwn_ctl_mcsrate(ic->ic_rt, ridx);
 		else
 			rate = ieee80211_ctl_rate(ic->ic_rt, ridx2rate[ridx]);
-		ridx = rate2ridx(rate);
+		ridx = rate2ridx(IEEE80211_RV(rate));
 
 		txd->txdw4 |= htole32(SM(R92C_TXDW4_RTSRATE, ridx));
 		/* RTS rate fallback limit (max). */
