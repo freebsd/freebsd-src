@@ -1,4 +1,4 @@
-/*	$NetBSD: gzip.c,v 1.113 2018/06/12 00:42:17 kamil Exp $	*/
+/*	$NetBSD: gzip.c,v 1.116 2018/10/27 11:39:12 skrll Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
@@ -84,6 +84,9 @@ enum filetype {
 #ifndef NO_XZ_SUPPORT
 	FT_XZ,
 #endif
+#ifndef NO_LZ_SUPPORT
+	FT_LZ,
+#endif
 	FT_LAST,
 	FT_UNKNOWN
 };
@@ -108,6 +111,11 @@ enum filetype {
 #include <lzma.h>
 #define XZ_SUFFIX	".xz"
 #define XZ_MAGIC	"\3757zXZ"
+#endif
+
+#ifndef NO_LZ_SUPPORT
+#define LZ_SUFFIX	".lz"
+#define LZ_MAGIC	"LZIP"
 #endif
 
 #define GZ_SUFFIX	".gz"
@@ -155,6 +163,9 @@ static suffixes_t suffixes[] = {
 #ifndef NO_XZ_SUPPORT
 	SUFFIX(XZ_SUFFIX,	""),
 #endif
+#ifndef NO_LZ_SUPPORT
+	SUFFIX(LZ_SUFFIX,	""),
+#endif
 	SUFFIX(GZ_SUFFIX,	""),	/* Overwritten by -S "" */
 #endif /* SMALL */
 #undef SUFFIX
@@ -162,7 +173,7 @@ static suffixes_t suffixes[] = {
 #define NUM_SUFFIXES (nitems(suffixes))
 #define SUFFIX_MAXLEN	30
 
-static	const char	gzip_version[] = "FreeBSD gzip 20171121";
+static	const char	gzip_version[] = "FreeBSD gzip 20190107";
 
 #ifndef SMALL
 static	const char	gzip_copyright[] = \
@@ -246,6 +257,7 @@ static	void	display_license(void);
 static	const suffixes_t *check_suffix(char *, int);
 static	ssize_t	read_retry(int, void *, size_t);
 static	ssize_t	write_retry(int, const void *, size_t);
+static void	print_list_out(off_t, off_t, const char*);
 
 #ifdef SMALL
 #define infile_set(f,t) infile_set(f)
@@ -289,6 +301,11 @@ static	off_t	unpack(int, int, char *, size_t, off_t *);
 
 #ifndef NO_XZ_SUPPORT
 static	off_t	unxz(int, int, char *, size_t, off_t *);
+static	off_t	unxz_len(int);
+#endif
+
+#ifndef NO_LZ_SUPPORT
+static	off_t	unlz(int, int, char *, size_t, off_t *);
 #endif
 
 #ifdef SMALL
@@ -1159,6 +1176,11 @@ file_gettype(u_char *buf)
 		return FT_XZ;
 	else
 #endif
+#ifndef NO_LZ_SUPPORT
+	if (memcmp(buf, LZ_MAGIC, 4) == 0)
+		return FT_LZ;
+	else
+#endif
 		return FT_UNKNOWN;
 }
 
@@ -1632,14 +1654,23 @@ file_uncompress(char *file, char *outfile, size_t outsize)
 #ifndef NO_XZ_SUPPORT
 	case FT_XZ:
 		if (lflag) {
-			maybe_warnx("no -l with xz files");
-			goto lose;
+			size = unxz_len(fd);
+			print_list_out(in_size, size, file);
+			return -1;
 		}
-
 		size = unxz(fd, zfd, NULL, 0, NULL);
 		break;
 #endif
 
+#ifndef NO_LZ_SUPPORT
+	case FT_LZ:
+		if (lflag) {
+			maybe_warnx("no -l with lzip files");
+			goto lose;
+		}
+		size = unlz(fd, zfd, NULL, 0, NULL);
+		break;
+#endif
 #ifndef SMALL
 	case FT_UNKNOWN:
 		if (lflag) {
@@ -1869,6 +1900,12 @@ handle_stdin(void)
 #ifndef NO_XZ_SUPPORT
 	case FT_XZ:
 		usize = unxz(STDIN_FILENO, STDOUT_FILENO,
+			     (char *)header1, sizeof header1, &gsize);
+		break;
+#endif
+#ifndef NO_LZ_SUPPORT
+	case FT_LZ:
+		usize = unlz(STDIN_FILENO, STDOUT_FILENO,
 			     (char *)header1, sizeof header1, &gsize);
 		break;
 #endif
@@ -2197,6 +2234,12 @@ print_list(int fd, off_t out, const char *outfile, time_t ts)
 #else
 	(void)&ts;	/* XXX */
 #endif
+	print_list_out(out, in, outfile);
+}
+
+static void
+print_list_out(off_t out, off_t in, const char *outfile)
+{
 	printf("%12llu %12llu ", (unsigned long long)out, (unsigned long long)in);
 	print_ratio(in, out, stdout);
 	printf(" %s\n", outfile);
@@ -2270,6 +2313,9 @@ display_version(void)
 #endif
 #ifndef NO_XZ_SUPPORT
 #include "unxz.c"
+#endif
+#ifndef NO_LZ_SUPPORT
+#include "unlz.c"
 #endif
 
 static ssize_t
