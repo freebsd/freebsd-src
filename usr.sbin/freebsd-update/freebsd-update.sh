@@ -310,6 +310,7 @@ config_SourceRelease () {
 	if echo ${UNAME_r} | grep -qE '^[0-9.]+$'; then
 		UNAME_r="${UNAME_r}-RELEASE"
 	fi
+	export UNAME_r
 }
 
 # Define what happens to output of utilities
