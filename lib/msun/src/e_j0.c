@@ -81,7 +81,7 @@ S02  =  1.16926784663337450260e-04, /* 0x3F1EA6D2, 0xDD57DBF4 */
 S03  =  5.13546550207318111446e-07, /* 0x3EA13B54, 0xCE84D5A9 */
 S04  =  1.16614003333790000205e-09; /* 0x3E1408BC, 0xF4745D8F */
 
-static const double zero = 0.0;
+static const double zero = 0, qrtr = 0.25;
 
 double
 __ieee754_j0(double x)
@@ -98,7 +98,7 @@ __ieee754_j0(double x)
 		c = cos(x);
 		ss = s-c;
 		cc = s+c;
-		if(ix<0x7fe00000) {  /* make sure x+x not overflow */
+		if(ix<0x7fe00000) {  /* Make sure x+x does not overflow. */
 		    z = -cos(x+x);
 		    if ((s*c)<zero) cc = z/ss;
 		    else 	    ss = z/cc;
@@ -124,9 +124,9 @@ __ieee754_j0(double x)
 	r =  z*(R02+z*(R03+z*(R04+z*R05)));
 	s =  one+z*(S01+z*(S02+z*(S03+z*S04)));
 	if(ix < 0x3FF00000) {	/* |x| < 1.00 */
-	    return one + z*(-0.25+(r/s));
+	    return one + z*((r/s)-qrtr);
 	} else {
-	    u = 0.5*x;
+	    u = x/2;
 	    return((one+u)*(one-u)+z*(r/s));
 	}
 }
@@ -375,6 +375,7 @@ static const double qS2[6] = {
 static __inline double
 qzero(double x)
 {
+	static const double eighth = 0.125;
 	const double *p,*q;
 	double s,r,z;
 	int32_t ix;
@@ -387,5 +388,5 @@ qzero(double x)
 	z = one/(x*x);
 	r = p[0]+z*(p[1]+z*(p[2]+z*(p[3]+z*(p[4]+z*p[5]))));
 	s = one+z*(q[0]+z*(q[1]+z*(q[2]+z*(q[3]+z*(q[4]+z*q[5])))));
-	return (-.125 + r/s)/x;
+	return (r/s-eighth)/x;
 }
