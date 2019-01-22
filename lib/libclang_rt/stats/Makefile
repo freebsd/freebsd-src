@@ -20,6 +20,7 @@ SRCS+=		sanitizer_common/sanitizer_libignore.cc
 SRCS+=		sanitizer_common/sanitizer_linux.cc
 SRCS+=		sanitizer_common/sanitizer_linux_libcdep.cc
 SRCS+=		sanitizer_common/sanitizer_persistent_allocator.cc
+SRCS+=		sanitizer_common/sanitizer_platform_limits_freebsd.cc
 SRCS+=		sanitizer_common/sanitizer_platform_limits_linux.cc
 SRCS+=		sanitizer_common/sanitizer_platform_limits_posix.cc
 SRCS+=		sanitizer_common/sanitizer_posix.cc
@@ -40,6 +41,7 @@ SRCS+=		sanitizer_common/sanitizer_symbolizer_report.cc
 SRCS+=		sanitizer_common/sanitizer_termination.cc
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cc
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cc
+SRCS+=		sanitizer_common/sanitizer_type_traits.cc
 SRCS+=		sanitizer_common/sanitizer_unwind_linux_libcdep.cc
 SRCS+=		stats/stats.cc
 
