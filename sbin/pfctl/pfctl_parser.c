@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 
+#include <search.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +73,6 @@ void		 print_fromto(struct pf_rule_addr *, pf_osfp_t,
 		    struct pf_rule_addr *, u_int8_t, u_int8_t, int, int);
 int		 ifa_skip_if(const char *filter, struct node_host *p);
 
-struct node_host	*ifa_grouplookup(const char *, int);
 struct node_host	*host_if(const char *, int);
 struct node_host	*host_v4(const char *, int);
 struct node_host	*host_v6(const char *, int);
@@ -208,6 +208,19 @@ const struct pf_timeout pf_timeouts[] = {
 	{ "src.track",		PFTM_SRC_NODE },
 	{ NULL,			0 }
 };
+
+static struct hsearch_data isgroup_map;
+
+static __attribute__((constructor)) void
+pfctl_parser_init(void)
+{
+	/*
+	 * As hdestroy() will never be called on these tables, it will be
+	 * safe to use references into the stored data as keys.
+	 */
+	if (hcreate_r(0, &isgroup_map) == 0)
+		err(1, "Failed to create interface group query response map");
+}
 
 const struct icmptypeent *
 geticmptypebynumber(u_int8_t type, sa_family_t af)
@@ -1153,6 +1166,71 @@ check_netmask(struct node_host *h, sa_family_t af)
 
 static struct node_host	*iftab;
 
+/*
+ * Retrieve the list of groups this interface is a member of and make sure
+ * each group is in the group map.
+ */
+static void
+ifa_add_groups_to_map(char *ifa_name)
+{
+	int			 s, len;
+	struct ifgroupreq	 ifgr;
+	struct ifg_req		*ifg;
+
+	s = get_query_socket();
+
+	/* Get size of group list for this interface */
+	memset(&ifgr, 0, sizeof(ifgr));
+	strlcpy(ifgr.ifgr_name, ifa_name, IFNAMSIZ);
+	if (ioctl(s, SIOCGIFGROUP, (caddr_t)&ifgr) == -1)
+		err(1, "SIOCGIFGROUP");
+
+	/* Retrieve group list for this interface */
+	len = ifgr.ifgr_len;
+	ifgr.ifgr_groups =
+	    (struct ifg_req *)calloc(len / sizeof(struct ifg_req),
+		sizeof(struct ifg_req));
+	if (ifgr.ifgr_groups == NULL)
+		err(1, "calloc");
+	if (ioctl(s, SIOCGIFGROUP, (caddr_t)&ifgr) == -1)
+		err(1, "SIOCGIFGROUP");
+
+	ifg = ifgr.ifgr_groups;
+	for (; ifg && len >= sizeof(struct ifg_req); ifg++) {
+		len -= sizeof(struct ifg_req);
+		if (strcmp(ifg->ifgrq_group, "all")) {
+			ENTRY	 		 item;
+			ENTRY			*ret_item;
+			int			*answer;
+	
+			item.key = ifg->ifgrq_group;
+			if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0) {
+				struct ifgroupreq	 ifgr2;
+
+				/* Don't know the answer yet */
+				if ((answer = malloc(sizeof(int))) == NULL)
+					err(1, "malloc");
+
+				bzero(&ifgr2, sizeof(ifgr2));
+				strlcpy(ifgr2.ifgr_name, ifg->ifgrq_group,
+				    sizeof(ifgr2.ifgr_name));
+				if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr2) == 0)
+					*answer = ifgr2.ifgr_len;
+				else
+					*answer = 0;
+
+				item.key = strdup(ifg->ifgrq_group);
+				item.data = answer;
+				if (hsearch_r(item, ENTER, &ret_item,
+					&isgroup_map) == 0)
+					err(1, "interface group query response"
+					    " map insert");
+			}
+		}
+	}
+	free(ifgr.ifgr_groups);
+}
+
 void
 ifa_load(void)
 {
@@ -1220,6 +1298,8 @@ ifa_load(void)
 				    sizeof(struct in6_addr));
 			n->ifindex = ((struct sockaddr_in6 *)
 			    ifa->ifa_addr)->sin6_scope_id;
+		} else if (n->af == AF_LINK) {
+			ifa_add_groups_to_map(ifa->ifa_name);
 		}
 		if ((n->ifname = strdup(ifa->ifa_name)) == NULL)
 			err(1, "ifa_load: strdup");
@@ -1237,7 +1317,7 @@ ifa_load(void)
 	freeifaddrs(ifap);
 }
 
-int
+static int
 get_socket_domain(void)
 {
 	int sdom;
@@ -1257,31 +1337,54 @@ get_socket_domain(void)
 	return (sdom);
 }
 
+int
+get_query_socket(void)
+{
+	static int s = -1;
+
+	if (s == -1) {
+		if ((s = socket(get_socket_domain(), SOCK_DGRAM, 0)) == -1)
+			err(1, "socket");
+	}
+
+	return (s);
+}
+
+/*
+ * Returns the response len if the name is a group, otherwise returns 0.
+ */
+static int
+is_a_group(char *name)
+{
+	ENTRY	 		 item;
+	ENTRY			*ret_item;
+	
+	item.key = name;
+	if (hsearch_r(item, FIND, &ret_item, &isgroup_map) == 0)
+		return (0);
+
+	return (*(int *)ret_item->data);
+}
+
 struct node_host *
-ifa_exists(const char *ifa_name)
+ifa_exists(char *ifa_name)
 {
 	struct node_host	*n;
-	struct ifgroupreq	ifgr;
 	int			s;
 
 	if (iftab == NULL)
 		ifa_load();
 
-	/* check wether this is a group */
-	if ((s = socket(get_socket_domain(), SOCK_DGRAM, 0)) == -1)
-		err(1, "socket");
-	bzero(&ifgr, sizeof(ifgr));
-	strlcpy(ifgr.ifgr_name, ifa_name, sizeof(ifgr.ifgr_name));
-	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == 0) {
+	/* check whether this is a group */
+	s = get_query_socket();
+	if (is_a_group(ifa_name)) {
 		/* fake a node_host */
 		if ((n = calloc(1, sizeof(*n))) == NULL)
 			err(1, "calloc");
 		if ((n->ifname = strdup(ifa_name)) == NULL)
 			err(1, "strdup");
-		close(s);
 		return (n);
 	}
-	close(s);
 
 	for (n = iftab; n; n = n->next) {
 		if (n->af == AF_LINK && !strncmp(n->ifname, ifa_name, IFNAMSIZ))
@@ -1292,23 +1395,19 @@ ifa_exists(const char *ifa_name)
 }
 
 struct node_host *
-ifa_grouplookup(const char *ifa_name, int flags)
+ifa_grouplookup(char *ifa_name, int flags)
 {
 	struct ifg_req		*ifg;
 	struct ifgroupreq	 ifgr;
 	int			 s, len;
 	struct node_host	*n, *h = NULL;
 
-	if ((s = socket(get_socket_domain(), SOCK_DGRAM, 0)) == -1)
-		err(1, "socket");
+	s = get_query_socket();
+	len = is_a_group(ifa_name);
+	if (len == 0)
+		return (NULL);
 	bzero(&ifgr, sizeof(ifgr));
 	strlcpy(ifgr.ifgr_name, ifa_name, sizeof(ifgr.ifgr_name));
-	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1) {
-		close(s);
-		return (NULL);
-	}
-
-	len = ifgr.ifgr_len;
 	if ((ifgr.ifgr_groups = calloc(1, len)) == NULL)
 		err(1, "calloc");
 	if (ioctl(s, SIOCGIFGMEMB, (caddr_t)&ifgr) == -1)
@@ -1327,13 +1426,12 @@ ifa_grouplookup(const char *ifa_name, int flags)
 		}
 	}
 	free(ifgr.ifgr_groups);
-	close(s);
 
 	return (h);
 }
 
 struct node_host *
-ifa_lookup(const char *ifa_name, int flags)
+ifa_lookup(char *ifa_name, int flags)
 {
 	struct node_host	*p = NULL, *h = NULL, *n = NULL;
 	int			 got4 = 0, got6 = 0;
