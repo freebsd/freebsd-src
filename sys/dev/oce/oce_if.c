@@ -470,6 +470,8 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	POCE_SOFTC sc = ifp->if_softc;
+	struct ifi2creq i2c;
+	uint8_t	offset = 0;
 	int rc = 0;
 	uint32_t u;
 
@@ -579,6 +581,38 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 #endif
 
+		break;
+
+	case SIOCGI2C:
+		rc = copyin(ifr_data_get_ptr(ifr), &i2c, sizeof(i2c));
+		if (rc)
+			break;
+
+		if (i2c.dev_addr != PAGE_NUM_A0 &&
+		    i2c.dev_addr != PAGE_NUM_A2) {
+			rc = EINVAL;
+			break;
+		}
+
+		if (i2c.len > sizeof(i2c.data)) {
+			rc = EINVAL;
+			break;
+		}
+
+		rc = oce_mbox_read_transrecv_data(sc, i2c.dev_addr);
+		if(rc) {
+			rc = -rc;
+			break;
+		}
+
+		if (i2c.dev_addr == PAGE_NUM_A0)
+			offset = i2c.offset;
+		else
+			offset = TRANSCEIVER_A0_SIZE + i2c.offset;
+
+		memcpy(&i2c.data[0], &sfp_vpd_dump_buffer[offset], i2c.len);
+
+		rc = copyout(&i2c, ifr_data_get_ptr(ifr), sizeof(i2c));
 		break;
 
 	case SIOCGPRIVATE_0:
