@@ -63,6 +63,11 @@ to
 (including the terminating
 .Ql \e0
 character.)
+If
+.Fa src
+and
+.Fa dst
+overlap, the results are undefined.
 .Pp
 The
 .Fn stpncpy
@@ -89,6 +94,11 @@ Otherwise,
 is
 .Em not
 terminated.
+If
+.Fa src
+and
+.Fa dst
+overlap, the results are undefined.
 .Sh RETURN VALUES
 The
 .Fn strcpy
