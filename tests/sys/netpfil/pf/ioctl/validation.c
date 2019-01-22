@@ -753,6 +753,38 @@ ATF_TC_CLEANUP(commit, tc)
 	COMMON_CLEANUP();
 }
 
+ATF_TC_WITH_CLEANUP(getsrcnodes);
+ATF_TC_HEAD(getsrcnodes, tc)
+{
+	atf_tc_set_md_var(tc, "require.user", "root");
+}
+
+ATF_TC_BODY(getsrcnodes, tc)
+{
+	struct pfioc_src_nodes psn;
+
+	COMMON_HEAD();
+
+	bzero(&psn, sizeof(psn));
+
+	psn.psn_len = -1;
+	if (ioctl(dev, DIOCGETSRCNODES, &psn) != 0)
+		atf_tc_fail("request with size -1 failed");
+
+	psn.psn_len = 1 << 30;
+	if (ioctl(dev, DIOCGETSRCNODES, &psn) != 0)
+		atf_tc_fail("request with size << 30 failed");
+
+	psn.psn_len = 1 << 31;
+	if (ioctl(dev, DIOCGETSRCNODES, &psn) != 0)
+		atf_tc_fail("request with size << 30 failed");
+}
+
+ATF_TC_CLEANUP(getsrcnodes, tc)
+{
+	COMMON_CLEANUP();
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, addtables);
@@ -772,6 +804,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, cxbegin);
 	ATF_TP_ADD_TC(tp, cxrollback);
 	ATF_TP_ADD_TC(tp, commit);
+	ATF_TP_ADD_TC(tp, getsrcnodes);
 
 	return (atf_no_error());
 }
