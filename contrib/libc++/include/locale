@@ -187,6 +187,7 @@ template <class charT> class messages_byname;
 #include <streambuf>
 #include <iterator>
 #include <limits>
+#include <version>
 #ifndef __APPLE__
 #include <cstdarg>
 #endif
@@ -727,7 +728,7 @@ locale::id
 num_get<_CharT, _InputIterator>::id;
 
 template <class _Tp>
-_Tp
+_LIBCPP_HIDDEN _Tp
 __num_get_signed_integral(const char* __a, const char* __a_end,
                           ios_base::iostate& __err, int __base)
 {
@@ -762,7 +763,7 @@ __num_get_signed_integral(const char* __a, const char* __a_end,
 }
 
 template <class _Tp>
-_Tp
+_LIBCPP_HIDDEN _Tp
 __num_get_unsigned_integral(const char* __a, const char* __a_end,
                             ios_base::iostate& __err, int __base)
 {
@@ -2408,6 +2409,23 @@ private:
     string_type __analyze(char __fmt, const ctype<_CharT>&);
 };
 
+#define _LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION(_CharT) \
+template <> _LIBCPP_FUNC_VIS time_base::dateorder __time_get_storage<_CharT>::__do_date_order() const; \
+template <> _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const char*); \
+template <> _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const string&); \
+template <> _LIBCPP_FUNC_VIS void __time_get_storage<_CharT>::init(const ctype<_CharT>&); \
+template <> _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::string_type __time_get_storage<_CharT>::__analyze(char, const ctype<_CharT>&); \
+extern template _LIBCPP_FUNC_VIS time_base::dateorder __time_get_storage<_CharT>::__do_date_order() const; \
+extern template _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const char*); \
+extern template _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::__time_get_storage(const string&); \
+extern template _LIBCPP_FUNC_VIS void __time_get_storage<_CharT>::init(const ctype<_CharT>&); \
+extern template _LIBCPP_FUNC_VIS __time_get_storage<_CharT>::string_type __time_get_storage<_CharT>::__analyze(char, const ctype<_CharT>&); \
+/**/
+
+_LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION(char)
+_LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION(wchar_t)
+#undef _LIBCPP_TIME_GET_STORAGE_EXPLICIT_INSTANTIATION
+
 template <class _CharT, class _InputIterator = istreambuf_iterator<_CharT> >
 class _LIBCPP_TEMPLATE_VIS time_get_byname
     : public time_get<_CharT, _InputIterator>,
@@ -3550,6 +3568,7 @@ messages<_CharT>::do_open(const basic_string<char>& __nm, const locale&) const
         __cat = static_cast<catalog>((static_cast<size_t>(__cat) >> 1));
     return __cat;
 #else // !_LIBCPP_HAS_CATOPEN
+    _LIBCPP_UNUSED_VAR(__nm);
     return -1;
 #endif // _LIBCPP_HAS_CATOPEN
 }
@@ -3573,6 +3592,9 @@ messages<_CharT>::do_get(catalog __c, int __set, int __msgid,
                                                         __n, __n + strlen(__n));
     return __w;
 #else // !_LIBCPP_HAS_CATOPEN
+    _LIBCPP_UNUSED_VAR(__c);
+    _LIBCPP_UNUSED_VAR(__set);
+    _LIBCPP_UNUSED_VAR(__msgid);
     return __dflt;
 #endif // _LIBCPP_HAS_CATOPEN
 }
@@ -3586,6 +3608,8 @@ messages<_CharT>::do_close(catalog __c) const
         __c <<= 1;
     nl_catd __cat = (nl_catd)__c;
     catclose(__cat);
+#else // !_LIBCPP_HAS_CATOPEN
+    _LIBCPP_UNUSED_VAR(__c);
 #endif // _LIBCPP_HAS_CATOPEN
 }
 
