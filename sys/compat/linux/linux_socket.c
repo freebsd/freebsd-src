@@ -1632,6 +1632,11 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		case LOCAL_PEERCRED:
 			if (args->optlen < sizeof(lxu))
 				return (EINVAL);
+			/*
+			 * LOCAL_PEERCRED is not served at the SOL_SOCKET level,
+			 * but by the Unix socket's level 0.
+			 */
+			bsd_args.level = 0;
 			xulen = sizeof(xu);
 			error = kern_getsockopt(td, args->s, bsd_args.level,
 			    name, &xu, UIO_SYSSPACE, &xulen);
