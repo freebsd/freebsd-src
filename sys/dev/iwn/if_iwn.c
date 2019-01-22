@@ -131,8 +131,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 
 static int	iwn_probe(device_t);
 static int	iwn_attach(device_t);
-static int	iwn4965_attach(struct iwn_softc *, uint16_t);
-static int	iwn5000_attach(struct iwn_softc *, uint16_t);
+static void	iwn4965_attach(struct iwn_softc *, uint16_t);
+static void	iwn5000_attach(struct iwn_softc *, uint16_t);
 static int	iwn_config_specific(struct iwn_softc *, uint16_t);
 static void	iwn_radiotap_attach(struct iwn_softc *);
 static void	iwn_sysctlattach(struct iwn_softc *);
@@ -495,14 +495,9 @@ iwn_attach(device_t dev)
 	 * Let's set those up first.
 	 */
 	if (sc->hw_type == IWN_HW_REV_TYPE_4965)
-		error = iwn4965_attach(sc, pci_get_device(dev));
+		iwn4965_attach(sc, pci_get_device(dev));
 	else
-		error = iwn5000_attach(sc, pci_get_device(dev));
-	if (error != 0) {
-		device_printf(dev, "could not attach device, error %d\n",
-		    error);
-		goto fail;
-	}
+		iwn5000_attach(sc, pci_get_device(dev));
 
 	/*
 	 * Next, let's setup the various parameters of each NIC.
@@ -1224,12 +1219,13 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 	return 0;
 }
 
-static int
+static void
 iwn4965_attach(struct iwn_softc *sc, uint16_t pid)
 {
 	struct iwn_ops *ops = &sc->ops;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->%s begin\n", __func__);
+
 	ops->load_firmware = iwn4965_load_firmware;
 	ops->read_eeprom = iwn4965_read_eeprom;
 	ops->post_alive = iwn4965_post_alive;
@@ -1264,11 +1260,9 @@ iwn4965_attach(struct iwn_softc *sc, uint16_t pid)
 	sc->sc_flags |= IWN_FLAG_BTCOEX;
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "%s: end\n",__func__);
-
-	return 0;
 }
 
-static int
+static void
 iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 {
 	struct iwn_ops *ops = &sc->ops;
@@ -1303,7 +1297,7 @@ iwn5000_attach(struct iwn_softc *sc, uint16_t pid)
 	sc->reset_noise_gain = IWN5000_PHY_CALIB_RESET_NOISE_GAIN;
 	sc->noise_gain = IWN5000_PHY_CALIB_NOISE_GAIN;
 
-	return 0;
+	DPRINTF(sc, IWN_DEBUG_TRACE, "%s: end\n",__func__);
 }
 
 /*
@@ -4592,10 +4586,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 
 		if (!IEEE80211_AMPDU_RUNNING(tap))
 			return (EINVAL);
-
-		/* NB: clear Fragment Number field. */
-		/* XXX move this to net80211 */
-		*(uint16_t *)wh->i_seq = 0;
 
 		ac = *(int *)tap->txa_private;
 	}
