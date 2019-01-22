@@ -4587,10 +4587,6 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 		if (!IEEE80211_AMPDU_RUNNING(tap))
 			return (EINVAL);
 
-		/* NB: clear Fragment Number field. */
-		/* XXX move this to net80211 */
-		*(uint16_t *)wh->i_seq = 0;
-
 		ac = *(int *)tap->txa_private;
 	}
 
