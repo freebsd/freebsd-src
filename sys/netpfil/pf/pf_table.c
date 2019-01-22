@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 #include <net/pfvar.h>
 
+#define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
+
 #define	ACCEPT_FLAGS(flags, oklist)		\
 	do {					\
 		if ((flags & ~(oklist)) &	\
@@ -1985,7 +1987,8 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	}
 	if ((ke == NULL || ke->pfrke_not) != notrule) {
 		if (op_pass != PFR_OP_PASS)
-			printf("pfr_update_stats: assertion failed.\n");
+			DPFPRINTF(PF_DEBUG_URGENT,
+			    ("pfr_update_stats: assertion failed.\n"));
 		op_pass = PFR_OP_XPASS;
 	}
 	kt->pfrkt_packets[dir_out][op_pass]++;
