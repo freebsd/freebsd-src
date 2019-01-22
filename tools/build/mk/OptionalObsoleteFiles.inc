@@ -4337,6 +4337,7 @@ OLD_FILES+=usr/include/c++/v1/algorithm
 OLD_FILES+=usr/include/c++/v1/any
 OLD_FILES+=usr/include/c++/v1/array
 OLD_FILES+=usr/include/c++/v1/atomic
+OLD_FILES+=usr/include/c++/v1/bit
 OLD_FILES+=usr/include/c++/v1/bitset
 OLD_FILES+=usr/include/c++/v1/cassert
 OLD_FILES+=usr/include/c++/v1/ccomplex
