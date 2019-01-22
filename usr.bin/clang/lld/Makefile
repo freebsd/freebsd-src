@@ -85,12 +85,13 @@ LDADD+=		${OBJTOP}/lib/clang/lib${lib}/lib${lib}.a
 .endfor
 
 LLVM_TBLGEN?=	llvm-tblgen
-ELF/Options.inc: ${LLD_SRCS}/ELF/Options.td
-	${LLVM_TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include \
-	    -d ${.TARGET:C/$/.d/} -o ${.TARGET} \
-	    ${LLVM_SRCS}/tools/lld/ELF/Options.td
-TGHDRS+=	ELF/Options.inc
+INCFILE=	Options.inc
+TDFILE=		${LLD_SRCS}/ELF/Options.td
+GENOPT=		-gen-opt-parser-defs
+${INCFILE}: ${TDFILE}
+	${LLVM_TBLGEN} ${GENOPT} -I ${LLVM_SRCS}/include -d ${.TARGET:C/$/.d/} \
+	    -o ${.TARGET} ${TDFILE}
+TGHDRS+=	${INCFILE}
 
 DPSRCS+=	${TGHDRS}
 CLEANFILES+=	${TGHDRS} ${TGHDRS:C/$/.d/}
