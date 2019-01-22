@@ -9901,8 +9901,10 @@ bool ClangASTContext::LayoutRecordType(
   lldb_private::ClangASTImporter *importer = nullptr;
   if (ast->m_dwarf_ast_parser_ap)
     importer = &ast->m_dwarf_ast_parser_ap->GetClangASTImporter();
+#ifdef LLDB_ENABLE_ALL
   if (!importer && ast->m_pdb_ast_parser_ap)
     importer = &ast->m_pdb_ast_parser_ap->GetClangASTImporter();
+#endif // LLDB_ENABLE_ALL
   if (!importer)
     return false;
 
