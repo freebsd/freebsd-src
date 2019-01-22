@@ -54,6 +54,11 @@ bytes from string
 .Fa src
 to string
 .Fa dst .
+If
+.Fa src
+and
+.Fa dst
+overlap, the results are not defined.
 .Sh RETURN VALUES
 The
 .Fn memcpy
