@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 2019mmdd: new libc++ import which bumps version from 7.0.1 to 8.0.0.
+OLD_FILES+=usr/include/c++/v1/experimental/dynarray
 # 2019mmdd: new clang import which bumps version from 7.0.1 to 8.0.0.
 OLD_FILES+=usr/lib/clang/7.0.1/include/sanitizer/allocator_interface.h
 OLD_FILES+=usr/lib/clang/7.0.1/include/sanitizer/asan_interface.h
