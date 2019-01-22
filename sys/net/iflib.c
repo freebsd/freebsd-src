@@ -289,8 +289,6 @@ typedef struct iflib_sw_tx_desc_array {
 
 /* magic number that should be high enough for any hardware */
 #define IFLIB_MAX_TX_SEGS		128
-/* bnxt supports 64 with hardware LRO enabled */
-#define IFLIB_MAX_RX_SEGS		64
 #define IFLIB_RX_COPY_THRESH		128
 #define IFLIB_MAX_RX_REFRESH		32
 /* The minimum descriptors per second before we start coalescing */
@@ -1327,16 +1325,13 @@ _iflib_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 }
 
 int
-iflib_dma_alloc(if_ctx_t ctx, int size, iflib_dma_info_t dma, int mapflags)
+iflib_dma_alloc_align(if_ctx_t ctx, int size, int align, iflib_dma_info_t dma, int mapflags)
 {
 	int err;
-	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	device_t dev = ctx->ifc_dev;
 
-	KASSERT(sctx->isc_q_align != 0, ("alignment value not initialized"));
-
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
-				sctx->isc_q_align, 0,	/* alignment, bounds */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
+				align, 0,		/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
@@ -1384,6 +1379,16 @@ fail_0:
 	dma->idi_tag = NULL;
 
 	return (err);
+}
+
+int
+iflib_dma_alloc(if_ctx_t ctx, int size, iflib_dma_info_t dma, int mapflags)
+{
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
+
+	KASSERT(sctx->isc_q_align != 0, ("alignment value not initialized"));
+
+	return (iflib_dma_alloc_align(ctx, size, sctx->isc_q_align, dma, mapflags));
 }
 
 int
@@ -4368,11 +4373,8 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	ctx->ifc_softc = sc;
 
 	if ((err = iflib_register(ctx)) != 0) {
-		if (ctx->ifc_flags & IFC_SC_ALLOCATED)
-			free(sc, M_IFLIB);
-		free(ctx, M_IFLIB);
 		device_printf(dev, "iflib_register failed %d\n", err);
-		return (err);
+		goto fail_ctx_free;
 	}
 	iflib_add_device_sysctl_pre(ctx);
 
@@ -4382,9 +4384,8 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	iflib_reset_qvalues(ctx);
 	CTX_LOCK(ctx);
 	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
-		CTX_UNLOCK(ctx);
 		device_printf(dev, "IFDI_ATTACH_PRE failed %d\n", err);
-		return (err);
+		goto fail_unlock;
 	}
 	_iflib_pre_assert(scctx);
 	ctx->ifc_txrx = *scctx->isc_txrx;
@@ -4414,7 +4415,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			/* round down instead? */
 			device_printf(dev, "# rx descriptors must be a power of 2\n");
 			err = EINVAL;
-			goto fail;
+			goto fail_iflib_detach;
 		}
 	}
 	for (i = 0; i < sctx->isc_ntxqs; i++) {
@@ -4422,7 +4423,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 			device_printf(dev,
 			    "# tx descriptors must be a power of 2");
 			err = EINVAL;
-			goto fail;
+			goto fail_iflib_detach;
 		}
 	}
 
@@ -4492,7 +4493,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	/* Get memory for the station queues */
 	if ((err = iflib_queues_alloc(ctx))) {
 		device_printf(dev, "Unable to allocate queue memory\n");
-		goto fail;
+		goto fail_intr_free;
 	}
 
 	if ((err = iflib_qset_structures_setup(ctx)))
@@ -4511,7 +4512,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	IFDI_INTR_DISABLE(ctx);
 	if (msix > 1 && (err = IFDI_MSIX_INTR_ASSIGN(ctx, msix)) != 0) {
 		device_printf(dev, "IFDI_MSIX_INTR_ASSIGN failed %d\n", err);
-		goto fail_intr_free;
+		goto fail_queues;
 	}
 	if (msix <= 1) {
 		rid = 0;
@@ -4521,7 +4522,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		}
 		if ((err = iflib_legacy_setup(ctx, ctx->isc_legacy_intr, ctx->ifc_softc, &rid, "irq0")) != 0) {
 			device_printf(dev, "iflib_legacy_setup failed %d\n", err);
-			goto fail_intr_free;
+			goto fail_queues;
 		}
 	}
 
@@ -4557,14 +4558,18 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 fail_detach:
 	ether_ifdetach(ctx->ifc_ifp);
 fail_intr_free:
+	iflib_free_intr_mem(ctx);
 fail_queues:
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
-fail:
-	iflib_free_intr_mem(ctx);
+fail_iflib_detach:
 	IFDI_DETACH(ctx);
+fail_unlock:
 	CTX_UNLOCK(ctx);
-
+fail_ctx_free:
+        if (ctx->ifc_flags & IFC_SC_ALLOCATED)
+                free(ctx->ifc_softc, M_IFLIB);
+        free(ctx, M_IFLIB);
 	return (err);
 }
 
@@ -4593,9 +4598,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 
 	if ((err = iflib_register(ctx)) != 0) {
 		device_printf(dev, "%s: iflib_register failed %d\n", __func__, err);
-		free(sc, M_IFLIB);
-		free(ctx, M_IFLIB);
-		return (err);
+		goto fail_ctx_free;
 	}
 	iflib_add_device_sysctl_pre(ctx);
 
@@ -4609,14 +4612,14 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 
 	if ((err = IFDI_ATTACH_PRE(ctx)) != 0) {
 		device_printf(dev, "IFDI_ATTACH_PRE failed %d\n", err);
-		return (err);
+		goto fail_ctx_free;
 	}
 	if (sctx->isc_flags & IFLIB_GEN_MAC)
 		iflib_gen_mac(ctx);
 	if ((err = IFDI_CLONEATTACH(ctx, clctx->cc_ifc, clctx->cc_name,
 								clctx->cc_params)) != 0) {
 		device_printf(dev, "IFDI_CLONEATTACH failed %d\n", err);
-		return (err);
+		goto fail_ctx_free;
 	}
 	ifmedia_add(&ctx->ifc_media, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
 	ifmedia_add(&ctx->ifc_media, IFM_ETHER | IFM_AUTO, 0, NULL);
@@ -4674,7 +4677,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 			/* round down instead? */
 			device_printf(dev, "# rx descriptors must be a power of 2\n");
 			err = EINVAL;
-			goto fail;
+			goto fail_iflib_detach;
 		}
 	}
 	for (i = 0; i < sctx->isc_ntxqs; i++) {
@@ -4682,7 +4685,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 			device_printf(dev,
 			    "# tx descriptors must be a power of 2");
 			err = EINVAL;
-			goto fail;
+			goto fail_iflib_detach;
 		}
 	}
 
@@ -4728,7 +4731,7 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 	/* Get memory for the station queues */
 	if ((err = iflib_queues_alloc(ctx))) {
 		device_printf(dev, "Unable to allocate queue memory\n");
-		goto fail;
+		goto fail_iflib_detach;
 	}
 
 	if ((err = iflib_qset_structures_setup(ctx))) {
@@ -4768,8 +4771,11 @@ fail_detach:
 fail_queues:
 	iflib_tx_structures_free(ctx);
 	iflib_rx_structures_free(ctx);
-fail:
+fail_iflib_detach:
 	IFDI_DETACH(ctx);
+fail_ctx_free:
+	free(ctx->ifc_softc, M_IFLIB);
+	free(ctx, M_IFLIB);
 	return (err);
 }
 

@@ -54,7 +54,6 @@ device		miibus
 device		vr		
 device		wlan		
 options 	IEEE80211_DEBUG	
-options 	IEEE80211_AMPDU_AGE 
 options 	IEEE80211_SUPPORT_MESH	
 device		wlan_wep	
 device		wlan_ccmp	

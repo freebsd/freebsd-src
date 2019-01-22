@@ -480,9 +480,10 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, autoneg, CTLFLAG_RDTUN, &t4_autoneg, 0,
 
 /*
  * Firmware auto-install by driver during attach (0, 1, 2 = prohibited, allowed,
- * encouraged respectively).
+ * encouraged respectively).  '-n' is the same as 'n' except the firmware
+ * version used in the checks is read from the firmware bundled with the driver.
  */
-static unsigned int t4_fw_install = 1;
+static int t4_fw_install = 1;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, fw_install, CTLFLAG_RDTUN, &t4_fw_install, 0,
     "Firmware auto-install (0 = prohibited, 1 = allowed, 2 = encouraged)");
 
@@ -3324,17 +3325,38 @@ restart:
     V_FW_HDR_FW_VER_BUILD(chip##FW_VERSION_BUILD))
 #define FW_INTFVER(chip, intf) (chip##FW_HDR_INTFVER_##intf)
 
+/* Just enough of fw_hdr to cover all version info. */
+struct fw_h {
+	__u8	ver;
+	__u8	chip;
+	__be16	len512;
+	__be32	fw_ver;
+	__be32	tp_microcode_ver;
+	__u8	intfver_nic;
+	__u8	intfver_vnic;
+	__u8	intfver_ofld;
+	__u8	intfver_ri;
+	__u8	intfver_iscsipdu;
+	__u8	intfver_iscsi;
+	__u8	intfver_fcoepdu;
+	__u8	intfver_fcoe;
+};
+/* Spot check a couple of fields. */
+CTASSERT(offsetof(struct fw_h, fw_ver) == offsetof(struct fw_hdr, fw_ver));
+CTASSERT(offsetof(struct fw_h, intfver_nic) == offsetof(struct fw_hdr, intfver_nic));
+CTASSERT(offsetof(struct fw_h, intfver_fcoe) == offsetof(struct fw_hdr, intfver_fcoe));
+
 struct fw_info {
 	uint8_t chip;
 	char *kld_name;
 	char *fw_mod_name;
-	struct fw_hdr fw_hdr;	/* XXX: waste of space, need a sparse struct */
+	struct fw_h fw_h;
 } fw_info[] = {
 	{
 		.chip = CHELSIO_T4,
 		.kld_name = "t4fw_cfg",
 		.fw_mod_name = "t4fw",
-		.fw_hdr = {
+		.fw_h = {
 			.chip = FW_HDR_CHIP_T4,
 			.fw_ver = htobe32(FW_VERSION(T4)),
 			.intfver_nic = FW_INTFVER(T4, NIC),
@@ -3350,7 +3372,7 @@ struct fw_info {
 		.chip = CHELSIO_T5,
 		.kld_name = "t5fw_cfg",
 		.fw_mod_name = "t5fw",
-		.fw_hdr = {
+		.fw_h = {
 			.chip = FW_HDR_CHIP_T5,
 			.fw_ver = htobe32(FW_VERSION(T5)),
 			.intfver_nic = FW_INTFVER(T5, NIC),
@@ -3366,7 +3388,7 @@ struct fw_info {
 		.chip = CHELSIO_T6,
 		.kld_name = "t6fw_cfg",
 		.fw_mod_name = "t6fw",
-		.fw_hdr = {
+		.fw_h = {
 			.chip = FW_HDR_CHIP_T6,
 			.fw_ver = htobe32(FW_VERSION(T6)),
 			.intfver_nic = FW_INTFVER(T6, NIC),
@@ -3398,7 +3420,7 @@ find_fw_info(int chip)
  * with?
  */
 static int
-fw_compatible(const struct fw_hdr *hdr1, const struct fw_hdr *hdr2)
+fw_compatible(const struct fw_h *hdr1, const struct fw_h *hdr2)
 {
 
 	/* short circuit if it's the exact same firmware version */
@@ -3465,14 +3487,19 @@ unload_fw_module(struct adapter *sc, const struct firmware *dcfg,
  * +ve errno means a firmware install was attempted but failed.
  */
 static int
-install_kld_firmware(struct adapter *sc, struct fw_hdr *card_fw,
-    const struct fw_hdr *drv_fw, const char *reason, int *already)
+install_kld_firmware(struct adapter *sc, struct fw_h *card_fw,
+    const struct fw_h *drv_fw, const char *reason, int *already)
 {
 	const struct firmware *cfg, *fw;
 	const uint32_t c = be32toh(card_fw->fw_ver);
-	const uint32_t d = be32toh(drv_fw->fw_ver);
-	uint32_t k;
-	int rc;
+	uint32_t d, k;
+	int rc, fw_install;
+	struct fw_h bundled_fw;
+	bool load_attempted;
+
+	cfg = fw = NULL;
+	load_attempted = false;
+	fw_install = t4_fw_install < 0 ? -t4_fw_install : t4_fw_install;
 
 	if (reason != NULL)
 		goto install;
@@ -3487,7 +3514,23 @@ install_kld_firmware(struct adapter *sc, struct fw_hdr *card_fw,
 		return (0);
 	}
 
-	if (!fw_compatible(card_fw, drv_fw)) {
+	memcpy(&bundled_fw, drv_fw, sizeof(bundled_fw));
+	if (t4_fw_install < 0) {
+		rc = load_fw_module(sc, &cfg, &fw);
+		if (rc != 0 || fw == NULL) {
+			device_printf(sc->dev,
+			    "failed to load firmware module: %d. cfg %p, fw %p;"
+			    " will use compiled-in firmware version for"
+			    "hw.cxgbe.fw_install checks.\n",
+			    rc, cfg, fw);
+		} else {
+			memcpy(&bundled_fw, fw->data, sizeof(bundled_fw));
+		}
+		load_attempted = true;
+	}
+	d = be32toh(bundled_fw.fw_ver);
+
+	if (!fw_compatible(card_fw, &bundled_fw)) {
 		reason = "incompatible or unusable";
 		goto install;
 	}
@@ -3497,25 +3540,64 @@ install_kld_firmware(struct adapter *sc, struct fw_hdr *card_fw,
 		goto install;
 	}
 
-	if (t4_fw_install == 2 && d != c) {
+	if (fw_install == 2 && d != c) {
 		reason = "different than the version bundled with this driver";
 		goto install;
 	}
 
-	return (0);
+	/* No reason to do anything to the firmware already on the card. */
+	rc = 0;
+	goto done;
 
 install:
+	rc = 0;
 	if ((*already)++)
-		return (0);
+		goto done;
 
-	if (t4_fw_install == 0) {
+	if (fw_install == 0) {
 		device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
 		    "but the driver is prohibited from installing a firmware "
 		    "on the card.\n",
 		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
 		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason);
 
-		return (0);
+		goto done;
+	}
+
+	/*
+	 * We'll attempt to install a firmware.  Load the module first (if it
+	 * hasn't been loaded already).
+	 */
+	if (!load_attempted) {
+		rc = load_fw_module(sc, &cfg, &fw);
+		if (rc != 0 || fw == NULL) {
+			device_printf(sc->dev,
+			    "failed to load firmware module: %d. cfg %p, fw %p\n",
+			    rc, cfg, fw);
+			/* carry on */
+		}
+	}
+	if (fw == NULL) {
+		device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
+		    "but the driver cannot take corrective action because it "
+		    "is unable to load the firmware module.\n",
+		    G_FW_HDR_FW_VER_MAJOR(c), G_FW_HDR_FW_VER_MINOR(c),
+		    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason);
+		rc = sc->flags & FW_OK ? 0 : ENOENT;
+		goto done;
+	}
+	k = be32toh(((const struct fw_hdr *)fw->data)->fw_ver);
+	if (k != d) {
+		MPASS(t4_fw_install > 0);
+		device_printf(sc->dev,
+		    "firmware in KLD (%u.%u.%u.%u) is not what the driver was "
+		    "expecting (%u.%u.%u.%u) and will not be used.\n",
+		    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
+		    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k),
+		    G_FW_HDR_FW_VER_MAJOR(d), G_FW_HDR_FW_VER_MINOR(d),
+		    G_FW_HDR_FW_VER_MICRO(d), G_FW_HDR_FW_VER_BUILD(d));
+		rc = sc->flags & FW_OK ? 0 : EINVAL;
+		goto done;
 	}
 
 	device_printf(sc->dev, "firmware on card (%u.%u.%u.%u) is %s, "
@@ -3524,25 +3606,6 @@ install:
 	    G_FW_HDR_FW_VER_MICRO(c), G_FW_HDR_FW_VER_BUILD(c), reason,
 	    G_FW_HDR_FW_VER_MAJOR(d), G_FW_HDR_FW_VER_MINOR(d),
 	    G_FW_HDR_FW_VER_MICRO(d), G_FW_HDR_FW_VER_BUILD(d));
-
-	rc = load_fw_module(sc, &cfg, &fw);
-	if (rc != 0 || fw == NULL) {
-		device_printf(sc->dev,
-		    "failed to load firmware module: %d. cfg %p, fw %p\n", rc,
-		    cfg, fw);
-		rc = sc->flags & FW_OK ? 0 : ENOENT;
-		goto done;
-	}
-	k = be32toh(((const struct fw_hdr *)fw->data)->fw_ver);
-	if (k != d) {
-		device_printf(sc->dev,
-		    "firmware in KLD (%u.%u.%u.%u) is not what the driver was "
-		    "compiled with and will not be used.\n",
-		    G_FW_HDR_FW_VER_MAJOR(k), G_FW_HDR_FW_VER_MINOR(k),
-		    G_FW_HDR_FW_VER_MICRO(k), G_FW_HDR_FW_VER_BUILD(k));
-		rc = sc->flags & FW_OK ? 0 : EINVAL;
-		goto done;
-	}
 
 	rc = -t4_fw_upgrade(sc, sc->mbox, fw->data, fw->datasize, 0);
 	if (rc != 0) {
@@ -3571,7 +3634,7 @@ contact_firmware(struct adapter *sc)
 	enum dev_state state;
 	struct fw_info *fw_info;
 	struct fw_hdr *card_fw;		/* fw on the card */
-	const struct fw_hdr *drv_fw;	/* fw bundled with the driver */
+	const struct fw_h *drv_fw;
 
 	fw_info = find_fw_info(chip_id(sc));
 	if (fw_info == NULL) {
@@ -3580,7 +3643,7 @@ contact_firmware(struct adapter *sc)
 		    chip_id(sc));
 		return (EINVAL);
 	}
-	drv_fw = &fw_info->fw_hdr;
+	drv_fw = &fw_info->fw_h;
 
 	/* Read the header of the firmware on the card */
 	card_fw = malloc(sizeof(*card_fw), M_CXGBE, M_ZERO | M_WAITOK);
@@ -3593,7 +3656,8 @@ restart:
 		goto done;
 	}
 
-	rc = install_kld_firmware(sc, card_fw, drv_fw, NULL, &already);
+	rc = install_kld_firmware(sc, (struct fw_h *)card_fw, drv_fw, NULL,
+	    &already);
 	if (rc == ERESTART)
 		goto restart;
 	if (rc != 0)
@@ -3606,7 +3670,7 @@ restart:
 		    "failed to connect to the firmware: %d, %d.  "
 		    "PCIE_FW 0x%08x\n", rc, state, t4_read_reg(sc, A_PCIE_FW));
 #if 0
-		if (install_kld_firmware(sc, card_fw, drv_fw,
+		if (install_kld_firmware(sc, (struct fw_h *)card_fw, drv_fw,
 		    "not responding properly to HELLO", &already) == ERESTART)
 			goto restart;
 #endif
@@ -3617,7 +3681,8 @@ restart:
 
 	if (rc == sc->pf) {
 		sc->flags |= MASTER_PF;
-		rc = install_kld_firmware(sc, card_fw, drv_fw, NULL, &already);
+		rc = install_kld_firmware(sc, (struct fw_h *)card_fw, drv_fw,
+		    NULL, &already);
 		if (rc == ERESTART)
 			rc = 0;
 		else if (rc != 0)
