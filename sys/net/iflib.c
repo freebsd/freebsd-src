@@ -289,8 +289,6 @@ typedef struct iflib_sw_tx_desc_array {
 
 /* magic number that should be high enough for any hardware */
 #define IFLIB_MAX_TX_SEGS		128
-/* bnxt supports 64 with hardware LRO enabled */
-#define IFLIB_MAX_RX_SEGS		64
 #define IFLIB_RX_COPY_THRESH		128
 #define IFLIB_MAX_RX_REFRESH		32
 /* The minimum descriptors per second before we start coalescing */
@@ -1327,16 +1325,13 @@ _iflib_dmamap_cb(void *arg, bus_dma_segment_t *segs, int nseg, int err)
 }
 
 int
-iflib_dma_alloc(if_ctx_t ctx, int size, iflib_dma_info_t dma, int mapflags)
+iflib_dma_alloc_align(if_ctx_t ctx, int size, int align, iflib_dma_info_t dma, int mapflags)
 {
 	int err;
-	if_shared_ctx_t sctx = ctx->ifc_sctx;
 	device_t dev = ctx->ifc_dev;
 
-	KASSERT(sctx->isc_q_align != 0, ("alignment value not initialized"));
-
-	err = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
-				sctx->isc_q_align, 0,	/* alignment, bounds */
+	err = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
+				align, 0,		/* alignment, bounds */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
@@ -1384,6 +1379,16 @@ fail_0:
 	dma->idi_tag = NULL;
 
 	return (err);
+}
+
+int
+iflib_dma_alloc(if_ctx_t ctx, int size, iflib_dma_info_t dma, int mapflags)
+{
+	if_shared_ctx_t sctx = ctx->ifc_sctx;
+
+	KASSERT(sctx->isc_q_align != 0, ("alignment value not initialized"));
+
+	return (iflib_dma_alloc_align(ctx, size, sctx->isc_q_align, dma, mapflags));
 }
 
 int
