@@ -93,7 +93,6 @@ static int	check_commit_fairq(int, int, struct pfctl_altq *);
 static void		 gsc_add_sc(struct gen_sc *, struct service_curve *);
 static int		 is_gsc_under_sc(struct gen_sc *,
 			     struct service_curve *);
-static void		 gsc_destroy(struct gen_sc *);
 static struct segment	*gsc_getentry(struct gen_sc *, double);
 static int		 gsc_add_seg(struct gen_sc *, double, double, double,
 			     double);
@@ -1127,17 +1126,6 @@ is_gsc_under_sc(struct gen_sc *gsc, struct service_curve *sc)
 			return (0);
 	}
 	return (1);
-}
-
-static void
-gsc_destroy(struct gen_sc *gsc)
-{
-	struct segment	*s;
-
-	while ((s = LIST_FIRST(gsc)) != NULL) {
-		LIST_REMOVE(s, _next);
-		free(s);
-	}
 }
 
 /*
