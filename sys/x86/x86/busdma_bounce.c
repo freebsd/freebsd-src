@@ -138,7 +138,6 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				  vm_offset_t vaddr, bus_addr_t addr1,
 				  bus_addr_t addr2, bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
-int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 				    pmap_t pmap, void *buf, bus_size_t buflen,
 				    int flags);
