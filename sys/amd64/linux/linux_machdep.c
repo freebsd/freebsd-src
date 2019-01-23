@@ -200,6 +200,7 @@ linux_sigaltstack(struct thread *td, struct linux_sigaltstack_args *uap)
 	l_stack_t lss;
 	int error;
 
+	memset(&lss, 0, sizeof(lss));
 	LINUX_CTR2(sigaltstack, "%p, %p", uap->uss, uap->uoss);
 
 	if (uap->uss != NULL) {

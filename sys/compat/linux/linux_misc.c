@@ -1079,9 +1079,8 @@ linux_waitid(struct thread *td, struct linux_waitid_args *args)
 	}
 	if (args->info != NULL) {
 		p = td->td_proc;
-		if (td->td_retval[0] == 0)
-			bzero(&lsi, sizeof(lsi));
-		else {
+		bzero(&lsi, sizeof(lsi));
+		if (td->td_retval[0] != 0) {
 			sig = bsd_to_linux_signal(siginfo.si_signo);
 			siginfo_to_lsiginfo(&siginfo, &lsi, sig);
 		}
