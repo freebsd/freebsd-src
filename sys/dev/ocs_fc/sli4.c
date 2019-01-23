@@ -1867,10 +1867,7 @@ sli_cmd_common_create_cq(sli4_t *sli4, void *buf, size_t size,
 		}
 	}
 		break;
-	default:
-		ocs_log_test(sli4->os, "unsupported IF_TYPE %d\n", if_type);
-		return -1;
-	}
+	}	
 
 	return (sli_config_off + cmd_size);
 }
@@ -4637,6 +4634,8 @@ sli_cq_alloc_set(sli4_t *sli4, sli4_queue_t *qs[], uint32_t num_cqs,
 		return -1;
 	}
 
+	memset(&dma, 0, sizeof(dma));
+
 	/* Align the queue DMA memory */
 	for (i = 0; i < num_cqs; i++) {
 		if (__sli_queue_init(sli4, qs[i], SLI_QTYPE_CQ, SLI4_CQE_BYTES,
@@ -4886,7 +4885,7 @@ sli_queue_reset(sli4_t *sli4, sli4_queue_t *q)
 	}
 
 	if (q->dma.virt != NULL) {
-		ocs_memset(q->dma.virt, 0, (q->size * q->length));
+		ocs_memset(q->dma.virt, 0, (q->size * (uint64_t)q->length));
 	}
 
 	ocs_unlock(&q->lock);
@@ -8479,6 +8478,8 @@ sli_fc_rq_set_alloc(sli4_t *sli4, uint32_t num_rq_pairs,
 	ocs_dma_t dma;
 	sli4_res_common_create_queue_set_t *rsp = NULL;
 	sli4_req_fcoe_rq_create_v2_t    *req = NULL;
+
+	ocs_memset(&dma, 0, sizeof(dma));
 
 	for (i = 0; i < (num_rq_pairs * 2); i++) {
 		if (__sli_queue_init(sli4, qs[i], SLI_QTYPE_RQ, SLI4_FCOE_RQE_SIZE,

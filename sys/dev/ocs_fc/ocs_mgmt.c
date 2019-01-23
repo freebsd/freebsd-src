@@ -2129,7 +2129,7 @@ set_port_protocol(ocs_t *ocs, char *name, char *value)
 		if (ocs_sem_p(&(result.semaphore), OCS_SEM_FOREVER) != 0) {
 			/* Undefined failure */
 			ocs_log_err(ocs, "ocs_sem_p failed\n");
-			rc = -ENXIO;
+			return -ENXIO;
 		}
 		if (result.status == 0) {
 			/* Success. */
@@ -2321,7 +2321,7 @@ set_active_profile(ocs_t *ocs, char *name, char *value)
 		if (ocs_sem_p(&(result.semaphore), OCS_SEM_FOREVER) != 0) {
 			/* Undefined failure */
 			ocs_log_err(ocs, "ocs_sem_p failed\n");
-			rc = -ENXIO;
+			return -ENXIO;
 		}
 		if (result.status == 0) {
 			/* Success. */
@@ -2527,8 +2527,8 @@ set_nv_wwn(ocs_t *ocs, char *name, char *wwn_p)
 	char *wwpn_p = NULL;
 	char *wwnn_p = NULL;
 	int32_t rc = -1;
-	int wwpn;
-	int wwnn;
+	int wwpn = 0;
+	int wwnn = 0;
 	int i;
 
 	/* This is a read-modify-write operation, so first we have to read
@@ -2556,8 +2556,13 @@ set_nv_wwn(ocs_t *ocs, char *name, char *wwn_p)
 		wwnn_p = wwn_p;
 	}
 
-	wwpn = ocs_strcmp(wwpn_p, "NA");
-	wwnn = ocs_strcmp(wwnn_p, "NA");
+	if (wwpn_p != NULL) {
+		wwpn = ocs_strcmp(wwpn_p, "NA");
+	}
+
+	if (wwnn_p != NULL) {
+		wwnn = ocs_strcmp(wwnn_p, "NA");
+	}
 
 	/* Parse the new WWPN */
 	if ((wwpn_p != NULL) && (wwpn != 0)) {

@@ -591,7 +591,7 @@ ocs_device_detach(ocs_t *ocs)
                 }
 
 		ocs_cam_detach(ocs);
-		ocs_free(ocs, ocs->fcports, sizeof(ocs->fcports));
+		ocs_free(ocs, ocs->fcports, sizeof(*(ocs->fcports)));
 
 		for (i = 0; (io = ocs_io_get_instance(ocs, i)); i++) {
 			if (bus_dmamap_destroy(ocs->buf_dmat, io->tgt_io.dmap)) {
