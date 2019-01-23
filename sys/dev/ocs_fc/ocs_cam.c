@@ -1164,15 +1164,24 @@ ocs_scsi_del_target(ocs_node_t *node, ocs_scsi_del_target_reason_e reason)
 	struct ocs_softc *ocs = node->ocs;
 	ocs_fcport	*fcp = NULL;
 	ocs_fc_target_t *tgt = NULL;
-	uint32_t	tgt_id;
+	int32_t	tgt_id;
+
+	if (ocs == NULL) {
+		ocs_log_err(ocs,"OCS is NULL \n");
+		return -1;
+	}
 
 	fcp = node->sport->tgt_data;
 	if (fcp == NULL) {
 		ocs_log_err(ocs,"FCP is NULL \n");
-		return 0;
+		return -1;
 	}
 
 	tgt_id = ocs_tgt_find(fcp, node);
+	if (tgt_id == -1) {
+		ocs_log_err(ocs,"target is invalid\n");
+		return -1;
+	}
 
 	tgt = &fcp->tgt[tgt_id];
 
@@ -1781,13 +1790,9 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 	ocs_io_t *io = NULL;
 	ocs_scsi_sgl_t sgl[OCS_FC_MAX_SGL];
 	int32_t sgl_count;
+	ocs_fcport	*fcp;
 
-	ocs_fcport	*fcp = NULL;
 	fcp = FCPORT(ocs, cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path)));
-	if (fcp == NULL) {
-		device_printf(ocs->dev, "%s: fcp is NULL\n", __func__);
-		return -1;
-	}
 
 	if (fcp->tgt[ccb_h->target_id].state == OCS_TGT_STATE_LOST) {
 		device_printf(ocs->dev, "%s: device LOST %d\n", __func__,
@@ -2250,8 +2255,11 @@ ocs_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_RESET_BUS:
 		if (ocs_xport_control(ocs->xport, OCS_XPORT_PORT_OFFLINE) == 0) {
-			ocs_xport_control(ocs->xport, OCS_XPORT_PORT_ONLINE);
-
+			rc = ocs_xport_control(ocs->xport, OCS_XPORT_PORT_ONLINE);
+			if (rc) {
+				ocs_log_debug(ocs, "Failed to bring port online"
+								" : %d\n", rc);
+			}
 			ocs_set_ccb_status(ccb, CAM_REQ_CMP);
 		} else {
 			ocs_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
