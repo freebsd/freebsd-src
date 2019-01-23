@@ -241,7 +241,7 @@ static void *pcpu_page_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void *startup_alloc(uma_zone_t, vm_size_t, int, uint8_t *, int);
 static void page_free(void *, vm_size_t, uint8_t);
 static void pcpu_page_free(void *, vm_size_t, uint8_t);
-static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int, int);
+static uma_slab_t keg_alloc_slab(uma_keg_t, uma_zone_t, int, int, int);
 static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
 static void bucket_cache_drain(uma_zone_t zone);
@@ -1049,20 +1049,22 @@ zone_drain(uma_zone_t zone)
  * otherwise the keg will be left unlocked.
  *
  * Arguments:
- *	wait  Shall we wait?
+ *	flags   Wait flags for the item initialization routine
+ *	aflags  Wait flags for the slab allocation
  *
  * Returns:
  *	The slab that was allocated or NULL if there is no memory and the
  *	caller specified M_NOWAIT.
  */
 static uma_slab_t
-keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int wait)
+keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int flags,
+    int aflags)
 {
 	uma_alloc allocf;
 	uma_slab_t slab;
 	unsigned long size;
 	uint8_t *mem;
-	uint8_t flags;
+	uint8_t sflags;
 	int i;
 
 	KASSERT(domain >= 0 && domain < vm_ndomains,
@@ -1076,7 +1078,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int wait)
 	slab = NULL;
 	mem = NULL;
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
-		slab = zone_alloc_item(keg->uk_slabzone, NULL, domain, wait);
+		slab = zone_alloc_item(keg->uk_slabzone, NULL, domain, aflags);
 		if (slab == NULL)
 			goto out;
 	}
@@ -1089,16 +1091,16 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int wait)
 	 */
 
 	if ((keg->uk_flags & UMA_ZONE_MALLOC) == 0)
-		wait |= M_ZERO;
+		aflags |= M_ZERO;
 	else
-		wait &= ~M_ZERO;
+		aflags &= ~M_ZERO;
 
 	if (keg->uk_flags & UMA_ZONE_NODUMP)
-		wait |= M_NODUMP;
+		aflags |= M_NODUMP;
 
 	/* zone is passed for legacy reasons. */
 	size = keg->uk_ppera * PAGE_SIZE;
-	mem = allocf(zone, size, domain, &flags, wait);
+	mem = allocf(zone, size, domain, &sflags, aflags);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			zone_free_item(keg->uk_slabzone, slab, NULL, SKIP_NONE);
@@ -1118,7 +1120,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int wait)
 	slab->us_keg = keg;
 	slab->us_data = mem;
 	slab->us_freecount = keg->uk_ipers;
-	slab->us_flags = flags;
+	slab->us_flags = sflags;
 	slab->us_domain = domain;
 	BIT_FILL(SLAB_SETSIZE, &slab->us_free);
 #ifdef INVARIANTS
@@ -1128,7 +1130,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int domain, int wait)
 	if (keg->uk_init != NULL) {
 		for (i = 0; i < keg->uk_ipers; i++)
 			if (keg->uk_init(slab->us_data + (keg->uk_rsize * i),
-			    keg->uk_size, wait) != 0)
+			    keg->uk_size, flags) != 0)
 				break;
 		if (i != keg->uk_ipers) {
 			keg_free_slab(keg, slab, i);
@@ -2698,7 +2700,7 @@ restart:
 		    zone->uz_items <= zone->uz_max_items,
 		    ("%s: zone %p overflow", __func__, zone));
 
-		slab = keg_alloc_slab(keg, zone, domain, aflags);
+		slab = keg_alloc_slab(keg, zone, domain, flags, aflags);
 		/*
 		 * If we got a slab here it's safe to mark it partially used
 		 * and return.  We assume that the caller is going to remove
@@ -3548,24 +3550,34 @@ uma_prealloc(uma_zone_t zone, int items)
 	uma_domain_t dom;
 	uma_slab_t slab;
 	uma_keg_t keg;
-	int domain, flags, slabs;
+	int aflags, domain, slabs;
 
 	KEG_GET(zone, keg);
 	KEG_LOCK(keg);
 	slabs = items / keg->uk_ipers;
 	if (slabs * keg->uk_ipers < items)
 		slabs++;
-	flags = M_WAITOK;
-	vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain, &flags);
 	while (slabs-- > 0) {
-		slab = keg_alloc_slab(keg, zone, domain, flags);
-		if (slab == NULL)
-			return;
-		MPASS(slab->us_keg == keg);
-		dom = &keg->uk_domain[slab->us_domain];
-		LIST_INSERT_HEAD(&dom->ud_free_slab, slab, us_link);
-		if (vm_domainset_iter_policy(&di, &domain) != 0)
-			break;
+		aflags = M_NOWAIT;
+		vm_domainset_iter_policy_ref_init(&di, &keg->uk_dr, &domain,
+		    &aflags);
+		for (;;) {
+			slab = keg_alloc_slab(keg, zone, domain, M_WAITOK,
+			    aflags);
+			if (slab != NULL) {
+				MPASS(slab->us_keg == keg);
+				dom = &keg->uk_domain[slab->us_domain];
+				LIST_INSERT_HEAD(&dom->ud_free_slab, slab,
+				    us_link);
+				break;
+			}
+			KEG_LOCK(keg);
+			if (vm_domainset_iter_policy(&di, &domain) != 0) {
+				KEG_UNLOCK(keg);
+				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
+				KEG_LOCK(keg);
+			}
+		}
 	}
 	KEG_UNLOCK(keg);
 }
