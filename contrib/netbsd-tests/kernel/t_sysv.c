@@ -842,9 +842,9 @@ sharer(void)
 ATF_TP_ADD_TCS(tp)
 {
 
-	ATF_TP_ADD_TC(tp, msg); 
-	ATF_TP_ADD_TC(tp, sem); 
-	ATF_TP_ADD_TC(tp, shm); 
+	ATF_TP_ADD_TC(tp, msg);
+	ATF_TP_ADD_TC(tp, sem);
+	ATF_TP_ADD_TC(tp, shm);
 
 	return atf_no_error();
 }
