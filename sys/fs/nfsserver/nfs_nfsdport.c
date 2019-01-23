@@ -3192,8 +3192,7 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 			error = EPERM;
 		if (!error) {
 		    len = sizeof (struct nfsd_dumpclients) * dumplist.ndl_size;
-		    dumpclients = (struct nfsd_dumpclients *)malloc(len,
-			M_TEMP, M_WAITOK);
+		    dumpclients = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
 		    nfsrv_dumpclients(dumpclients, dumplist.ndl_size);
 		    error = copyout(dumpclients,
 			CAST_USER_ADDR_T(dumplist.ndl_list), len);
@@ -3211,8 +3210,7 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		if (!error) {
 			len = sizeof (struct nfsd_dumplocks) *
 				dumplocklist.ndllck_size;
-			dumplocks = (struct nfsd_dumplocks *)malloc(len,
-				M_TEMP, M_WAITOK);
+			dumplocks = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
 			nfsrv_dumplocks(nd.ni_vp, dumplocks,
 			    dumplocklist.ndllck_size, p);
 			vput(nd.ni_vp);
