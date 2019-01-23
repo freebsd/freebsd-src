@@ -1946,7 +1946,6 @@ struct netmap_priv_d {
 	 * (N entries). */
 	struct nm_csb_ktoa	*np_csb_ktoa_base;
 
-	struct thread	*np_td;		/* kqueue, just debugging */
 #ifdef linux
 	struct file	*np_filp;  /* used by sync kloop */
 #endif /* linux */
