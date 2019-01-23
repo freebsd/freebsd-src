@@ -288,7 +288,7 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 			;
 		if (*cp)
 			*cp++ = '\0';
-		if (cp - args == 0)
+		if (cp - tmpstr1 == 0)
 			break;
 		for (i = 0; i < num_devices; i++) {
 			asprintf(&buffer, "%s%d", dev_select[i].device_name,
@@ -312,7 +312,7 @@ dsselect(const char *args, devstat_select_mode select_mode, int maxshowdevs,
 		}
 		if (i >= num_devices)
 			error("%s: unknown drive", args);
-		args = cp;
+		tmpstr1 = cp;
 	}
 	free(tmpstr);
 
