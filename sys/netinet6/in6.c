@@ -2342,6 +2342,18 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		LLE_WLOCK(lle);
 	else
 		LLE_RLOCK(lle);
+
+	/*
+	 * If the afdata lock is not held, the LLE may have been unlinked while
+	 * we were blocked on the LLE lock.  Check for this case.
+	 */
+	if (__predict_false((lle->la_flags & LLE_LINKED) == 0)) {
+		if (flags & LLE_EXCLUSIVE)
+			LLE_WUNLOCK(lle);
+		else
+			LLE_RUNLOCK(lle);
+		return (NULL);
+	}
 	return (lle);
 }
 
