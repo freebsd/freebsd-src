@@ -289,7 +289,7 @@ verify_source_and_dest(const char* dest_filename, int src_fd, off_t offset,
 	length = (nbytes == 0) ? (size_t)(src_file_size - offset) : nbytes;
 
 	ATF_REQUIRE_EQ_MSG(dest_file_size, length,
-	    "number of bytes written out to %s (%zu) doesn't match the "
+	    "number of bytes written out to %s (%ju) doesn't match the "
 	    "expected number of bytes (%zu)", dest_filename, dest_file_size,
 	    length);
 
