@@ -195,7 +195,7 @@ setup_server(int domain, int type, int port)
 static void
 server_cat(const char *dest_filename, int server_sock, size_t len)
 {
-	void *buffer;
+	char *buffer;
 	int recv_sock;
 	ssize_t received_bytes;
 
@@ -268,7 +268,7 @@ static void
 verify_source_and_dest(const char* dest_filename, int src_fd, off_t offset,
     size_t nbytes)
 {
-	void *dest_pointer, *src_pointer;
+	char *dest_pointer, *src_pointer;
 	off_t dest_file_size, src_file_size;
 	size_t length;
 	int dest_fd;
@@ -384,7 +384,7 @@ ATF_TC_BODY(fd_positive_file_v6, tc)
 static void
 fd_positive_shm_test(int domain)
 {
-	void *shm_pointer;
+	char *shm_pointer;
 	off_t offset;
 	size_t nbytes, pattern_size;
 	pid_t server_pid;
@@ -687,9 +687,9 @@ hdtr_positive_test(int domain)
 		client_sock = setup_tcp_client(domain, port);
 
 		rc = asprintf(&pattern, "%s%s%s",
-		    testcases[i].include_headers ? headers[0].iov_base : "",
+		    testcases[i].include_headers ? (char *)headers[0].iov_base : "",
 		    DETERMINISTIC_PATTERN,
-		    testcases[i].include_trailers ? trailers[0].iov_base : "");
+		    testcases[i].include_trailers ? (char *)trailers[0].iov_base : "");
 		ATF_REQUIRE_MSG(rc != -1, "asprintf failed: %s", strerror(errno));
 
 		atf_utils_create_file(SOURCE_FILE ".full", "%s", pattern);
