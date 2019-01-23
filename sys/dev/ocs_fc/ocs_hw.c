@@ -242,10 +242,7 @@ ocs_hw_get_num_chutes(ocs_hw_t *hw)
 static ocs_hw_rtn_e
 ocs_hw_link_event_init(ocs_hw_t *hw)
 {
-	if (hw == NULL) {
-		ocs_log_err(hw->os, "bad parameter hw=%p\n", hw);
-		return OCS_HW_RTN_ERROR;
-	}
+	ocs_hw_assert(hw);
 
 	hw->link.status = SLI_LINK_STATUS_MAX;
 	hw->link.topology = SLI_LINK_TOPO_NONE;
@@ -1757,6 +1754,7 @@ ocs_hw_get(ocs_hw_t *hw, ocs_hw_property_e prop, uint32_t *value)
 		break;
 	case OCS_HW_MAX_VPORTS:
 		*value = sli_get_max_rsrc(&hw->sli, SLI_RSRC_FCOE_VPI);
+		break;
 	default:
 		ocs_log_test(hw->os, "unsupported property %#x\n", prop);
 		rc = OCS_HW_RTN_ERROR;
@@ -1996,6 +1994,7 @@ ocs_hw_set(ocs_hw_t *hw, ocs_hw_property_e prop, uint32_t value)
 		break;
 	case OCS_ESOC:
 		hw->config.esoc = value;
+		break;
 	case OCS_HW_HIGH_LOGIN_MODE:
 		rc = sli_set_hlm(&hw->sli, value);
 		break;
@@ -4395,7 +4394,7 @@ ocs_hw_send_frame(ocs_hw_t *hw, fc_header_le_t *hdr, uint8_t sof, uint8_t eof, o
 
 	OCS_STAT(wq->use_count++);
 
-	return rc ? OCS_HW_RTN_ERROR : OCS_HW_RTN_SUCCESS;
+	return OCS_HW_RTN_SUCCESS;
 }
 
 ocs_hw_rtn_e
@@ -4696,7 +4695,7 @@ ocs_hw_io_overflow_sgl(ocs_hw_t *hw, ocs_hw_io_t *io)
 	}
 
 	/* fail if we don't have an overflow SGL registered */
-	if (io->ovfl_sgl == NULL) {
+	if (io->ovfl_io == NULL || io->ovfl_sgl == NULL) {
 		return OCS_HW_RTN_ERROR;
 	}
 
@@ -6320,6 +6319,11 @@ ocs_hw_config_watchdog_timer(ocs_hw_t *hw)
 {
 	ocs_hw_rtn_e rc = OCS_HW_RTN_SUCCESS;
 	uint8_t *buf = ocs_malloc(hw->os, SLI4_BMBX_SIZE, OCS_M_NOWAIT);
+
+	if (!buf) {
+		ocs_log_err(hw->os, "no buffer for command\n");
+		return OCS_HW_RTN_NO_MEMORY;
+	}
 
 	sli4_cmd_lowlevel_set_watchdog(&hw->sli, buf, SLI4_BMBX_SIZE, hw->watchdog_timeout);
 	rc = ocs_hw_command(hw, buf, OCS_CMD_NOWAIT, ocs_hw_cb_cfg_watchdog, NULL);
@@ -8486,7 +8490,14 @@ ocs_hw_cq_process(ocs_hw_t *hw, hw_cq_t *cq)
 			break;
 		case SLI_QENTRY_WQ_RELEASE: {
 			uint32_t wq_id = rid;
-			uint32_t index = ocs_hw_queue_hash_find(hw->wq_hash, wq_id);
+			int32_t index = ocs_hw_queue_hash_find(hw->wq_hash, wq_id);
+
+			if (unlikely(index < 0)) {
+				ocs_log_err(hw->os, "unknown idx=%#x rid=%#x\n",
+					    index, rid);
+				break;
+			}
+
 			hw_wq_t *wq = hw->hw_wq[index];
 
 			/* Submit any HW IOs that are on the WQ pending list */
@@ -9300,7 +9311,8 @@ ocs_hw_cb_link(void *ctx, void *e)
 
 		hw->link.status = event->status;
 
-		for (i = 0; d = hw->domains[i], i < SLI4_MAX_FCFI; i++) {
+		for (i = 0; i < SLI4_MAX_FCFI; i++) {
+			d = hw->domains[i];
 			if (d != NULL &&
 			    hw->callback.domain != NULL) {
 				hw->callback.domain(hw->args.domain, OCS_HW_DOMAIN_LOST, d);
@@ -9322,6 +9334,9 @@ ocs_hw_cb_fip(void *ctx, void *e)
 	ocs_domain_t	*domain = NULL;
 	sli4_fip_event_t *event = e;
 
+	ocs_hw_assert(event);
+	ocs_hw_assert(hw);
+
 	/* Find the associated domain object */
 	if (event->type == SLI4_FCOE_FIP_FCF_CLEAR_VLINK) {
 		ocs_domain_t *d = NULL;
@@ -9330,7 +9345,8 @@ ocs_hw_cb_fip(void *ctx, void *e)
 		/* Clear VLINK is different from the other FIP events as it passes back
 		 * a VPI instead of a FCF index. Check all attached SLI ports for a
 		 * matching VPI */
-		for (i = 0; d = hw->domains[i], i < SLI4_MAX_FCFI; i++) {
+		for (i = 0; i < SLI4_MAX_FCFI; i++) {
+			d = hw->domains[i];
 			if (d != NULL) {
 				ocs_sport_t	*sport = NULL;
 
@@ -11202,6 +11218,7 @@ target_wqe_timer_nop_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 	ocs_hw_io_t *io_next = NULL;
 	uint64_t ticks_current = ocs_get_os_ticks();
 	uint32_t sec_elapsed;
+	ocs_hw_rtn_e rc;
 
 	sli4_mbox_command_header_t	*hdr = (sli4_mbox_command_header_t *)mqe;
 
@@ -11213,34 +11230,39 @@ target_wqe_timer_nop_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 
 	/* loop through active WQE list and check for timeouts */
 	ocs_lock(&hw->io_lock);
-		ocs_list_foreach_safe(&hw->io_timed_wqe, io, io_next) {
-			sec_elapsed = ((ticks_current - io->submit_ticks) / ocs_get_os_tick_freq());
+	ocs_list_foreach_safe(&hw->io_timed_wqe, io, io_next) {
+		sec_elapsed = ((ticks_current - io->submit_ticks) / ocs_get_os_tick_freq());
 
-			/*
-			 * If elapsed time > timeout, abort it. No need to check type since
-			 * it wouldn't be on this list unless it was a target WQE
-			 */
-			if (sec_elapsed > io->tgt_wqe_timeout) {
-				ocs_log_test(hw->os, "IO timeout xri=0x%x tag=0x%x type=%d\n",
-					     io->indicator, io->reqtag, io->type);
+		/*
+		 * If elapsed time > timeout, abort it. No need to check type since
+		 * it wouldn't be on this list unless it was a target WQE
+		 */
+		if (sec_elapsed > io->tgt_wqe_timeout) {
+			ocs_log_test(hw->os, "IO timeout xri=0x%x tag=0x%x type=%d\n",
+				     io->indicator, io->reqtag, io->type);
 
-				/* remove from active_wqe list so won't try to abort again */
-				ocs_list_remove(&hw->io_timed_wqe, io);
+			/* remove from active_wqe list so won't try to abort again */
+			ocs_list_remove(&hw->io_timed_wqe, io);
 
-				/* save status of "timed out" for when abort completes */
-				io->status_saved = 1;
-				io->saved_status = SLI4_FC_WCQE_STATUS_TARGET_WQE_TIMEOUT;
-				io->saved_ext = 0;
-				io->saved_len = 0;
+			/* save status of "timed out" for when abort completes */
+			io->status_saved = 1;
+			io->saved_status = SLI4_FC_WCQE_STATUS_TARGET_WQE_TIMEOUT;
+			io->saved_ext = 0;
+			io->saved_len = 0;
 
-				/* now abort outstanding IO */
-				ocs_hw_io_abort(hw, io, FALSE, NULL, NULL);
+			/* now abort outstanding IO */
+			rc = ocs_hw_io_abort(hw, io, FALSE, NULL, NULL);
+			if (rc) {
+				ocs_log_test(hw->os,
+					"abort failed xri=%#x tag=%#x rc=%d\n",
+					io->indicator, io->reqtag, rc);
 			}
-			/*
-			 * need to go through entire list since each IO could have a
-			 * different timeout value
-			 */
 		}
+		/*
+		 * need to go through entire list since each IO could have a
+		 * different timeout value
+		 */
+	}
 	ocs_unlock(&hw->io_lock);
 
 	/* if we're not in the middle of shutting down, schedule next timer */

@@ -149,13 +149,16 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 				default_lengths[QTOP_CQ] = len;
 				break;
 			}
+			
+			if (!eq || !next_qt) {
+				goto fail;
+			}
 
 			/* If this CQ is for MRQ, then delay the creation */
 			if (!use_mrq || next_qt->entry != QTOP_RQ) {
 				cq = hw_new_cq(eq, len);
 				if (cq == NULL) {
-					hw_queue_teardown(hw);
-					return OCS_HW_RTN_NO_MEMORY;
+					goto fail;
 				}
 			}
 			break;
@@ -173,11 +176,13 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 				hw_queue_teardown(hw);
 				return OCS_HW_RTN_NO_MEMORY;
 			}
+			
+			if (cq == NULL)
+				goto fail;
 
 			wq = hw_new_wq(cq, len, qt->class, hw->ulp_start + qt->ulp);
 			if (wq == NULL) {
-				hw_queue_teardown(hw);
-				return OCS_HW_RTN_NO_MEMORY;
+				goto fail;
 			}
 
 			/* Place this WQ on the EQ WQ array */
@@ -249,10 +254,12 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 				break;
 			}
 
+			if (cq == NULL)
+				goto fail;
+
 			mq = hw_new_mq(cq, len);
 			if (mq == NULL) {
-				hw_queue_teardown(hw);
-				return OCS_HW_RTN_NO_MEMORY;
+				goto fail;
 			}
 			break;
 
@@ -332,6 +339,9 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 	}
 
 	return OCS_HW_RTN_SUCCESS;
+fail:
+	hw_queue_teardown(hw);
+	return OCS_HW_RTN_NO_MEMORY;
 
 }
 
@@ -737,8 +747,9 @@ error:
 	for (i = 0; i < num_rq_pairs; i++) {
 		if (rqs[i] != NULL) {
 			if (rqs[i]->rq_tracker != NULL) {
-				ocs_free(hw->os, rq->rq_tracker,
-					 sizeof(ocs_hw_sequence_t*) * rq->entry_count);
+				ocs_free(hw->os, rqs[i]->rq_tracker,
+					 sizeof(ocs_hw_sequence_t*) *
+					 rqs[i]->entry_count);
 			}
 			ocs_free(hw->os, rqs[i], sizeof(*rqs[i]));
 		}
@@ -861,9 +872,9 @@ hw_del_wq(hw_wq_t *wq)
 void
 hw_del_rq(hw_rq_t *rq)
 {
-	ocs_hw_t *hw = rq->cq->eq->hw;
 
 	if (rq != NULL) {
+		ocs_hw_t *hw = rq->cq->eq->hw;
 		/* Free RQ tracker */
 		if (rq->rq_tracker != NULL) {
 			ocs_free(hw->os, rq->rq_tracker, sizeof(ocs_hw_sequence_t*) * rq->entry_count);

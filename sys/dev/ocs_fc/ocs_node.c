@@ -253,7 +253,7 @@ ocs_node_create_pool(ocs_t *ocs, uint32_t node_count)
 
 	if (0 == ocs_hw_get(&ocs->hw, OCS_HW_MAX_SGE, &max_sge) &&
 	    0 == ocs_hw_get(&ocs->hw, OCS_HW_N_SGL, &num_sgl)) {
-		max_xfer_size = max_sge * num_sgl;
+		max_xfer_size = (max_sge * (uint64_t)num_sgl);
 	} else {
 		max_xfer_size = 65536;
 	}
