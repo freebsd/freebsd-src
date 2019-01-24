@@ -139,15 +139,6 @@ struct iwm_tx_radiotap_header {
 
 #define IWM_UCODE_SECTION_MAX 16
 
-/*
- * fw_status is used to determine if we've already parsed the firmware file
- *
- * In addition to the following, status < 0 ==> -error
- */
-#define IWM_FW_STATUS_NONE		0
-#define IWM_FW_STATUS_INPROGRESS	1
-#define IWM_FW_STATUS_DONE		2
-
 /**
  * enum iwm_ucode_type
  *
@@ -197,7 +188,6 @@ struct iwm_fw_desc {
 
 struct iwm_fw_info {
 	const struct firmware *fw_fp;
-	int fw_status;
 
 	struct iwm_fw_sects {
 		struct iwm_fw_desc fw_sect[IWM_UCODE_SECTION_MAX];
