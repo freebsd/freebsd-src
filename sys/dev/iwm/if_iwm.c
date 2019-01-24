@@ -1651,7 +1651,7 @@ iwm_trans_pcie_fw_alive(struct iwm_softc *sc, uint32_t scd_base_addr)
 	iwm_nic_unlock(sc);
 
 	/* Enable L1-Active */
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
 		iwm_clear_bits_prph(sc, IWM_APMG_PCIDEV_STT_REG,
 		    IWM_APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 	}
@@ -2069,7 +2069,7 @@ static int
 iwm_get_sku(const struct iwm_softc *sc, const uint16_t *nvm_sw,
 	    const uint16_t *phy_sku)
 {
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + IWM_SKU);
 
 	return le32_to_cpup((const uint32_t *)(phy_sku + IWM_SKU_8000));
@@ -2078,7 +2078,7 @@ iwm_get_sku(const struct iwm_softc *sc, const uint16_t *nvm_sw,
 static int
 iwm_get_nvm_version(const struct iwm_softc *sc, const uint16_t *nvm_sw)
 {
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + IWM_NVM_VERSION);
 	else
 		return le32_to_cpup((const uint32_t *)(nvm_sw +
@@ -2089,7 +2089,7 @@ static int
 iwm_get_radio_cfg(const struct iwm_softc *sc, const uint16_t *nvm_sw,
 		  const uint16_t *phy_sku)
 {
-        if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+        if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000)
                 return le16_to_cpup(nvm_sw + IWM_RADIO_CFG);
 
         return le32_to_cpup((const uint32_t *)(phy_sku + IWM_RADIO_CFG_8000));
@@ -2100,7 +2100,7 @@ iwm_get_n_hw_addrs(const struct iwm_softc *sc, const uint16_t *nvm_sw)
 {
 	int n_hw_addr;
 
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000)
 		return le16_to_cpup(nvm_sw + IWM_N_HW_ADDRS);
 
 	n_hw_addr = le32_to_cpup((const uint32_t *)(nvm_sw + IWM_N_HW_ADDRS_8000));
@@ -2112,7 +2112,7 @@ static void
 iwm_set_radio_cfg(const struct iwm_softc *sc, struct iwm_nvm_data *data,
 		  uint32_t radio_cfg)
 {
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
 		data->radio_cfg_type = IWM_NVM_RF_CFG_TYPE_MSK(radio_cfg);
 		data->radio_cfg_step = IWM_NVM_RF_CFG_STEP_MSK(radio_cfg);
 		data->radio_cfg_dash = IWM_NVM_RF_CFG_DASH_MSK(radio_cfg);
@@ -2138,7 +2138,7 @@ iwm_set_hw_address(struct iwm_softc *sc, struct iwm_nvm_data *data,
 		iwm_set_hw_address_from_csr(sc, data);
         } else
 #endif
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
 		const uint8_t *hw_addr = (const uint8_t *)(nvm_hw + IWM_HW_ADDR);
 
 		/* The byte order is little endian 16 bit, meaning 214365 */
@@ -2170,7 +2170,7 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 	uint32_t sku, radio_cfg;
 	uint16_t lar_config;
 
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
 		data = malloc(sizeof(*data) +
 		    IWM_NUM_CHANNELS * sizeof(uint16_t),
 		    M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -2194,7 +2194,7 @@ iwm_parse_nvm_data(struct iwm_softc *sc,
 
 	data->n_hw_addrs = iwm_get_n_hw_addrs(sc, nvm_sw);
 
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000) { /* TODO: use IWL_NVM_EXT */
 		uint16_t lar_offset = data->nvm_version < 0xE39 ?
 				       IWM_NVM_LAR_OFFSET_8000_OLD :
 				       IWM_NVM_LAR_OFFSET_8000;
@@ -2241,7 +2241,7 @@ iwm_parse_nvm_sections(struct iwm_softc *sc, struct iwm_nvm_section *sections)
 			    "Can't parse empty OTP/NVM sections\n");
 			return NULL;
 		}
-	} else if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+	} else if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000) {
 		/* SW and REGULATORY sections are mandatory */
 		if (!sections[IWM_NVM_SECTION_TYPE_SW].data ||
 		    !sections[IWM_NVM_SECTION_TYPE_REGULATORY].data) {
@@ -2677,7 +2677,7 @@ iwm_start_fw(struct iwm_softc *sc, const struct iwm_fw_img *fw)
 	IWM_WRITE(sc, IWM_CSR_UCODE_DRV_GP1_CLR, IWM_CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000)
 		ret = iwm_pcie_load_given_ucode_8000(sc, fw);
 	else
 		ret = iwm_pcie_load_given_ucode(sc, fw);
@@ -2828,7 +2828,7 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 				      IWM_MVM_UCODE_ALIVE_TIMEOUT);
 	IWM_LOCK(sc);
 	if (error) {
-		if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+		if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000) {
 			uint32_t a = 0x5a5a5a5a, b = 0x5a5a5a5a;
 			if (iwm_nic_lock(sc)) {
 				a = iwm_read_prph(sc, IWM_SB_CPU_1_STATUS);
@@ -2929,12 +2929,13 @@ iwm_run_init_mvm_ucode(struct iwm_softc *sc, int justnvm)
 		IEEE80211_ADDR_COPY(sc->sc_ic.ic_macaddr, sc->nvm_data->hw_addr);
 		goto error;
 	}
-
-	ret = iwm_send_bt_init_conf(sc);
-	if (ret) {
-		device_printf(sc->sc_dev,
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
+		ret = iwm_send_bt_init_conf(sc);
+		if (ret) {
+			device_printf(sc->sc_dev,
 		    "failed to send bt coex configuration: %d\n", ret);
-		goto error;
+			goto error;
+		}
 	}
 
 	/* Send TX valid antennas before triggering calibrations */
@@ -4459,7 +4460,7 @@ iwm_mvm_is_lar_supported(struct iwm_softc *sc)
 	 * Enable LAR only if it is supported by the FW (TLV) &&
 	 * enabled in the NVM
 	 */
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000)
 		return nvm_lar && tlv_lar;
 	else
 		return tlv_lar;
@@ -5811,7 +5812,7 @@ iwm_attach(device_t dev)
 	 * "dash" value). To keep hw_rev backwards compatible - we'll store it
 	 * in the old format.
 	 */
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000) {
 		int ret;
 		uint32_t hw_step;
 

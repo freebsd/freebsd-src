@@ -261,7 +261,7 @@ iwm_nic_lock(struct iwm_softc *sc)
 	IWM_SETBITS(sc, IWM_CSR_GP_CNTRL,
 	    IWM_CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
+	if (sc->cfg->device_family >= IWM_DEVICE_FAMILY_8000)
 		DELAY(2);
 
 	if (iwm_poll_bit(sc, IWM_CSR_GP_CNTRL,
@@ -454,7 +454,7 @@ iwm_apm_init(struct iwm_softc *sc)
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET, "iwm apm start\n");
 
 	/* Disable L0S exit timer (platform NMI Work/Around) */
-	if (sc->cfg->device_family != IWM_DEVICE_FAMILY_8000) {
+	if (sc->cfg->device_family < IWM_DEVICE_FAMILY_8000) {
 		IWM_SETBITS(sc, IWM_CSR_GIO_CHICKEN_BITS,
 		    IWM_CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
 	}
