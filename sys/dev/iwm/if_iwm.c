@@ -5375,15 +5375,9 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 			break;
 		}
 
-		case IWM_TIME_EVENT_NOTIFICATION: {
-			struct iwm_time_event_notif *notif;
-			notif = (void *)pkt->data;
-
-			IWM_DPRINTF(sc, IWM_DEBUG_INTR,
-			    "TE notif status = 0x%x action = 0x%x\n",
-			    notif->status, notif->action);
+		case IWM_TIME_EVENT_NOTIFICATION:
+			iwm_mvm_rx_time_event_notif(sc, pkt);
 			break;
-		}
 
 		/*
 		 * Firmware versions 21 and 22 generate some DEBUG_LOG_MSG
