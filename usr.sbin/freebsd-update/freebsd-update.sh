@@ -2195,7 +2195,7 @@ upgrade_guess_components () {
 		    sort -k 2,2 -t ' ' > compfreq.present
 		join -t ' ' -1 2 -2 2 compfreq.present compfreq.total |
 		    while read S P T; do
-			if [ ${P} -gt `expr ${T} / 2` ]; then
+			if [ ${T} -ne 0 -a ${P} -gt `expr ${T} / 2` ]; then
 				echo ${S}
 			fi
 		    done > comp.present
