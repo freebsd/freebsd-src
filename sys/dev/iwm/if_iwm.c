@@ -2723,75 +2723,48 @@ static int
 iwm_alive_fn(struct iwm_softc *sc, struct iwm_rx_packet *pkt, void *data)
 {
 	struct iwm_mvm_alive_data *alive_data = data;
-	struct iwm_mvm_alive_resp_ver1 *palive1;
-	struct iwm_mvm_alive_resp_ver2 *palive2;
+	struct iwm_mvm_alive_resp_v3 *palive3;
 	struct iwm_mvm_alive_resp *palive;
+	struct iwm_umac_alive *umac;
+	struct iwm_lmac_alive *lmac1;
+	struct iwm_lmac_alive *lmac2 = NULL;
+	uint16_t status;
 
-	if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive1)) {
-		palive1 = (void *)pkt->data;
-
-		sc->support_umac_log = FALSE;
-                sc->error_event_table =
-                        le32toh(palive1->error_event_table_ptr);
-                sc->log_event_table =
-                        le32toh(palive1->log_event_table_ptr);
-                alive_data->scd_base_addr = le32toh(palive1->scd_base_ptr);
-
-                alive_data->valid = le16toh(palive1->status) ==
-                                    IWM_ALIVE_STATUS_OK;
-                IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-			    "Alive VER1 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			     le16toh(palive1->status), palive1->ver_type,
-                             palive1->ver_subtype, palive1->flags);
-	} else if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive2)) {
-		palive2 = (void *)pkt->data;
-		sc->error_event_table =
-			le32toh(palive2->error_event_table_ptr);
-		sc->log_event_table =
-			le32toh(palive2->log_event_table_ptr);
-		alive_data->scd_base_addr = le32toh(palive2->scd_base_ptr);
-		sc->umac_error_event_table =
-                        le32toh(palive2->error_info_addr);
-
-		alive_data->valid = le16toh(palive2->status) ==
-				    IWM_ALIVE_STATUS_OK;
-		if (sc->umac_error_event_table)
-			sc->support_umac_log = TRUE;
-
-		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-			    "Alive VER2 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			    le16toh(palive2->status), palive2->ver_type,
-			    palive2->ver_subtype, palive2->flags);
-
-		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-			    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
-			    palive2->umac_major, palive2->umac_minor);
-	} else if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive)) {
+	if (iwm_rx_packet_payload_len(pkt) == sizeof(*palive)) {
 		palive = (void *)pkt->data;
-
-		sc->error_event_table =
-			le32toh(palive->error_event_table_ptr);
-		sc->log_event_table =
-			le32toh(palive->log_event_table_ptr);
-		alive_data->scd_base_addr = le32toh(palive->scd_base_ptr);
-		sc->umac_error_event_table =
-			le32toh(palive->error_info_addr);
-
-		alive_data->valid = le16toh(palive->status) ==
-				    IWM_ALIVE_STATUS_OK;
-		if (sc->umac_error_event_table)
-			sc->support_umac_log = TRUE;
-
-		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-			    "Alive VER3 ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
-			    le16toh(palive->status), palive->ver_type,
-			    palive->ver_subtype, palive->flags);
-
-		IWM_DPRINTF(sc, IWM_DEBUG_RESET,
-			    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
-			    le32toh(palive->umac_major),
-			    le32toh(palive->umac_minor));
+		umac = &palive->umac_data;
+		lmac1 = &palive->lmac_data[0];
+		lmac2 = &palive->lmac_data[1];
+		status = le16toh(palive->status);
+	} else {
+		palive3 = (void *)pkt->data;
+		umac = &palive3->umac_data;
+		lmac1 = &palive3->lmac_data;
+		status = le16toh(palive3->status);
 	}
+
+	sc->error_event_table[0] = le32toh(lmac1->error_event_table_ptr);
+	if (lmac2)
+		sc->error_event_table[1] =
+			le32toh(lmac2->error_event_table_ptr);
+	sc->log_event_table = le32toh(lmac1->log_event_table_ptr);
+	sc->umac_error_event_table = le32toh(umac->error_info_addr);
+	alive_data->scd_base_addr = le32toh(lmac1->scd_base_ptr);
+	alive_data->valid = status == IWM_ALIVE_STATUS_OK;
+	if (sc->umac_error_event_table)
+		sc->support_umac_log = TRUE;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_FW,
+		    "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
+		    status, lmac1->ver_type, lmac1->ver_subtype);
+
+	if (lmac2)
+		IWM_DPRINTF(sc, IWM_DEBUG_FW, "Alive ucode CDB\n");
+
+	IWM_DPRINTF(sc, IWM_DEBUG_FW,
+		    "UMAC version: Major - 0x%x, Minor - 0x%x\n",
+		    le32toh(umac->umac_major),
+		    le32toh(umac->umac_minor));
 
 	return TRUE;
 }
@@ -5052,7 +5025,7 @@ iwm_nic_error(struct iwm_softc *sc)
 	uint32_t base;
 
 	device_printf(sc->sc_dev, "dumping device error log\n");
-	base = sc->error_event_table;
+	base = sc->error_event_table[0];
 	if (base < 0x800000) {
 		device_printf(sc->sc_dev,
 		    "Invalid error log pointer 0x%08x\n", base);
