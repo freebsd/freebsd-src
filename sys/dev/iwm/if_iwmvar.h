@@ -404,8 +404,6 @@ struct iwm_node {
 	int			in_assoc;
 
 	struct iwm_lq_cmd	in_lq;
-
-	uint8_t			in_ridx[IEEE80211_RATE_MAXSIZE];
 };
 #define IWM_NODE(_ni)		((struct iwm_node *)(_ni))
 
