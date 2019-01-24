@@ -2144,41 +2144,13 @@ enum {
 
 #define IWM_ALIVE_FLG_RFKILL	(1 << 0)
 
-struct iwm_mvm_alive_resp_ver1 {
-	uint16_t status;
-	uint16_t flags;
-	uint8_t ucode_minor;
-	uint8_t ucode_major;
-	uint16_t id;
-	uint8_t api_minor;
-	uint8_t api_major;
+struct iwm_lmac_alive {
+	uint32_t ucode_major;
+	uint32_t ucode_minor;
 	uint8_t ver_subtype;
 	uint8_t ver_type;
 	uint8_t mac;
 	uint8_t opt;
-	uint16_t reserved2;
-	uint32_t timestamp;
-	uint32_t error_event_table_ptr;	/* SRAM address for error log */
-	uint32_t log_event_table_ptr;	/* SRAM address for event log */
-	uint32_t cpu_register_ptr;
-	uint32_t dbgm_config_ptr;
-	uint32_t alive_counter_ptr;
-	uint32_t scd_base_ptr;		/* SRAM address for SCD */
-} __packed; /* IWM_ALIVE_RES_API_S_VER_1 */
-
-struct iwm_mvm_alive_resp_ver2 {
-	uint16_t status;
-	uint16_t flags;
-	uint8_t ucode_minor;
-	uint8_t ucode_major;
-	uint16_t id;
-	uint8_t api_minor;
-	uint8_t api_major;
-	uint8_t ver_subtype;
-	uint8_t ver_type;
-	uint8_t mac;
-	uint8_t opt;
-	uint16_t reserved2;
 	uint32_t timestamp;
 	uint32_t error_event_table_ptr;	/* SRAM address for error log */
 	uint32_t log_event_table_ptr;	/* SRAM address for LMAC event log */
@@ -2188,36 +2160,28 @@ struct iwm_mvm_alive_resp_ver2 {
 	uint32_t scd_base_ptr;		/* SRAM address for SCD */
 	uint32_t st_fwrd_addr;		/* pointer to Store and forward */
 	uint32_t st_fwrd_size;
-	uint8_t umac_minor;		/* UMAC version: minor */
-	uint8_t umac_major;		/* UMAC version: major */
-	uint16_t umac_id;		/* UMAC version: id */
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
+
+struct iwm_umac_alive {
+	uint32_t umac_major;		/* UMAC version: major */
+	uint32_t umac_minor;		/* UMAC version: minor */
 	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
 	uint32_t dbg_print_buff_addr;
-} __packed; /* ALIVE_RES_API_S_VER_2 */
+} __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
+
+struct iwm_mvm_alive_resp_v3 {
+	uint16_t status;
+	uint16_t flags;
+	struct iwm_lmac_alive lmac_data;
+	struct iwm_umac_alive umac_data;
+} __packed; /* ALIVE_RES_API_S_VER_3 */
 
 struct iwm_mvm_alive_resp {
 	uint16_t status;
 	uint16_t flags;
-	uint32_t ucode_minor;
-	uint32_t ucode_major;
-	uint8_t ver_subtype;
-	uint8_t ver_type;
-	uint8_t mac;
-	uint8_t opt;
-	uint32_t timestamp;
-	uint32_t error_event_table_ptr;	/* SRAM address for error log */
-	uint32_t log_event_table_ptr;	/* SRAM address for LMAC event log */
-	uint32_t cpu_register_ptr;
-	uint32_t dbgm_config_ptr;
-	uint32_t alive_counter_ptr;
-	uint32_t scd_base_ptr;		/* SRAM address for SCD */
-	uint32_t st_fwrd_addr;		/* pointer to Store and forward */
-	uint32_t st_fwrd_size;
-	uint32_t umac_minor;		/* UMAC version: minor */
-	uint32_t umac_major;		/* UMAC version: major */
-	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
-	uint32_t dbg_print_buff_addr;
-} __packed; /* ALIVE_RES_API_S_VER_3 */
+	struct iwm_lmac_alive lmac_data[2];
+	struct iwm_umac_alive umac_data;
+} __packed; /* ALIVE_RES_API_S_VER_4 */
 
 /* Error response/notification */
 enum {
