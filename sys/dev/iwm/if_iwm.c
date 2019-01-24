@@ -353,7 +353,9 @@ static int	iwm_release(struct iwm_softc *, struct iwm_node *);
 static struct ieee80211_node *
 		iwm_node_alloc(struct ieee80211vap *,
 		               const uint8_t[IEEE80211_ADDR_LEN]);
-static void	iwm_setrates(struct iwm_softc *, struct iwm_node *);
+static uint8_t	iwm_rate_from_ucode_rate(uint32_t);
+static int	iwm_rate2ridx(struct iwm_softc *, uint8_t);
+static void	iwm_setrates(struct iwm_softc *, struct iwm_node *, int);
 static int	iwm_media_change(struct ifnet *);
 static int	iwm_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwm_endscan_cb(void *, int);
@@ -3317,7 +3319,11 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	struct iwm_mvm_tx_resp *tx_resp = (void *)pkt->data;
 	struct ieee80211_ratectl_tx_status *txs = &sc->sc_txs;
 	struct ieee80211_node *ni = &in->in_ni;
+	struct ieee80211vap *vap = ni->ni_vap;
 	int status = le16toh(tx_resp->status.status) & IWM_TX_STATUS_MSK;
+	int new_rate, cur_rate = vap->iv_bss->ni_txrate;
+	boolean_t rate_matched;
+	uint8_t tx_resp_rate;
 
 	KASSERT(tx_resp->frame_count == 1, ("too many frames"));
 
@@ -3332,6 +3338,17 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	    tx_resp->failure_frame,
 	    le32toh(tx_resp->initial_rate),
 	    (int) le16toh(tx_resp->wireless_media_time));
+
+	tx_resp_rate = iwm_rate_from_ucode_rate(le32toh(tx_resp->initial_rate));
+
+	/* For rate control, ignore frames sent at different initial rate */
+	rate_matched = (tx_resp_rate != 0 && tx_resp_rate == cur_rate);
+
+	if (tx_resp_rate != 0 && cur_rate != 0 && !rate_matched) {
+		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
+		    "tx_resp_rate doesn't match ni_txrate (tx_resp_rate=%u "
+		    "ni_txrate=%d)\n", tx_resp_rate, cur_rate);
+	}
 
 	txs->flags = IEEE80211_RATECTL_STATUS_SHORT_RETRY |
 		     IEEE80211_RATECTL_STATUS_LONG_RETRY;
@@ -3356,7 +3373,18 @@ iwm_mvm_rx_tx_cmd_single(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
 	} else {
 		txs->status = IEEE80211_RATECTL_TX_SUCCESS;
 	}
-	ieee80211_ratectl_tx_complete(ni, txs);
+
+	if (rate_matched) {
+		ieee80211_ratectl_tx_complete(ni, txs);
+
+		int rix = ieee80211_ratectl_rate(vap->iv_bss, NULL, 0);
+		new_rate = vap->iv_bss->ni_txrate;
+		if (new_rate != 0 && new_rate != cur_rate) {
+			struct iwm_node *in = IWM_NODE(vap->iv_bss);
+			iwm_setrates(sc, in, rix);
+			iwm_mvm_send_lq_cmd(sc, &in->in_lq, FALSE);
+		}
+ 	}
 
 	return (txs->status != IEEE80211_RATECTL_TX_SUCCESS);
 }
@@ -3482,37 +3510,6 @@ iwm_update_sched(struct iwm_softc *sc, int qid, int idx, uint8_t sta_id,
 }
 #endif
 
-/*
- * Take an 802.11 (non-n) rate, find the relevant rate
- * table entry.  return the index into in_ridx[].
- *
- * The caller then uses that index back into in_ridx
- * to figure out the rate index programmed /into/
- * the firmware for this given node.
- */
-static int
-iwm_tx_rateidx_lookup(struct iwm_softc *sc, struct iwm_node *in,
-    uint8_t rate)
-{
-	int i;
-	uint8_t r;
-
-	for (i = 0; i < nitems(in->in_ridx); i++) {
-		r = iwm_rates[in->in_ridx[i]].rate;
-		if (rate == r)
-			return (i);
-	}
-
-	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
-	    "%s: couldn't find an entry for rate=%d\n",
-	    __func__,
-	    rate);
-
-	/* XXX Return the first */
-	/* XXX TODO: have it return the /lowest/ */
-	return (0);
-}
-
 static int
 iwm_tx_rateidx_global_lookup(struct iwm_softc *sc, uint8_t rate)
 {
@@ -3565,22 +3562,15 @@ iwm_tx_fill_cmd(struct iwm_softc *sc, struct iwm_node *in,
 		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
 		    "%s: FIXED_RATE (%d)\n", __func__, tp->ucastrate);
 	} else {
-		int i;
-
 		/* for data frames, use RS table */
 		IWM_DPRINTF(sc, IWM_DEBUG_TXRATE, "%s: DATA\n", __func__);
-		/* XXX pass pktlen */
-		(void) ieee80211_ratectl_rate(ni, NULL, 0);
-		i = iwm_tx_rateidx_lookup(sc, in, ni->ni_txrate);
-		ridx = in->in_ridx[i];
+		ridx = iwm_rate2ridx(sc, ni->ni_txrate);
+		if (ridx == -1)
+			ridx = 0;
 
 		/* This is the index into the programmed table */
-		tx->initial_rate_index = i;
+		tx->initial_rate_index = 0;
 		tx->tx_flags |= htole32(IWM_TX_CMD_FLG_STA_RATE);
-
-		IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
-		    "%s: start with i=%d, txrate %d\n",
-		    __func__, i, iwm_rates[ridx].rate);
 	}
 
 	IWM_DPRINTF(sc, IWM_DEBUG_XMIT | IWM_DEBUG_TXRATE,
@@ -4165,6 +4155,19 @@ iwm_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	    M_NOWAIT | M_ZERO);
 }
 
+static uint8_t
+iwm_rate_from_ucode_rate(uint32_t rate_n_flags)
+{
+	uint8_t plcp = rate_n_flags & 0xff;
+	int i;
+
+	for (i = 0; i <= IWM_RIDX_MAX; i++) {
+		if (iwm_rates[i].plcp == plcp)
+			return iwm_rates[i].rate;
+	}
+	return 0;
+}
+
 uint8_t
 iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx)
 {
@@ -4180,14 +4183,35 @@ iwm_ridx2rate(struct ieee80211_rateset *rs, int ridx)
 	return 0;
 }
 
+static int
+iwm_rate2ridx(struct iwm_softc *sc, uint8_t rate)
+{
+	int i;
+
+	for (i = 0; i <= IWM_RIDX_MAX; i++) {
+		if (iwm_rates[i].rate == rate)
+			return i;
+	}
+
+	device_printf(sc->sc_dev,
+	    "%s: WARNING: device rate for %u not found!\n",
+	    __func__, rate);
+
+	return -1;
+}
+
+
 static void
-iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
+iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
 {
 	struct ieee80211_node *ni = &in->in_ni;
 	struct iwm_lq_cmd *lq = &in->in_lq;
-	int nrates = ni->ni_rates.rs_nrates;
+	struct ieee80211_rateset *rs = &ni->ni_rates;
+	int nrates = rs->rs_nrates;
 	int i, ridx, tab = 0;
 //	int txant = 0;
+
+	KASSERT(rix >= 0 && rix < nrates, ("invalid rix"));
 
 	if (nrates > nitems(lq->rs_table)) {
 		device_printf(sc->sc_dev,
@@ -4200,44 +4224,10 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 		    "%s: node supports 0 rates, odd!\n", __func__);
 		return;
 	}
+	nrates = imin(rix + 1, nrates);
 
-	/*
-	 * XXX .. and most of iwm_node is not initialised explicitly;
-	 * it's all just 0x0 passed to the firmware.
-	 */
-
-	/* first figure out which rates we should support */
-	/* XXX TODO: this isn't 11n aware /at all/ */
-	memset(&in->in_ridx, -1, sizeof(in->in_ridx));
 	IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
 	    "%s: nrates=%d\n", __func__, nrates);
-
-	/*
-	 * Loop over nrates and populate in_ridx from the highest
-	 * rate to the lowest rate.  Remember, in_ridx[] has
-	 * IEEE80211_RATE_MAXSIZE entries!
-	 */
-	for (i = 0; i < min(nrates, IEEE80211_RATE_MAXSIZE); i++) {
-		int rate = ni->ni_rates.rs_rates[(nrates - 1) - i] & IEEE80211_RATE_VAL;
-
-		/* Map 802.11 rate to HW rate index. */
-		for (ridx = 0; ridx <= IWM_RIDX_MAX; ridx++)
-			if (iwm_rates[ridx].rate == rate)
-				break;
-		if (ridx > IWM_RIDX_MAX) {
-			device_printf(sc->sc_dev,
-			    "%s: WARNING: device rate for %d not found!\n",
-			    __func__, rate);
-		} else {
-			IWM_DPRINTF(sc, IWM_DEBUG_TXRATE,
-			    "%s: rate: i: %d, rate=%d, ridx=%d\n",
-			    __func__,
-			    i,
-			    rate,
-			    ridx);
-			in->in_ridx[i] = ridx;
-		}
-	}
 
 	/* then construct a lq_cmd based on those */
 	memset(lq, 0, sizeof(*lq));
@@ -4262,12 +4252,14 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 	 * Note that we add the rates in the highest rate first
 	 * (opposite of ni_rates).
 	 */
-	/*
-	 * XXX TODO: this should be looping over the min of nrates
-	 * and LQ_MAX_RETRY_NUM.  Sigh.
-	 */
 	for (i = 0; i < nrates; i++) {
+		int rate = rs->rs_rates[rix - i] & IEEE80211_RATE_VAL;
 		int nextant;
+
+		/* Map 802.11 rate to HW rate index. */
+		ridx = iwm_rate2ridx(sc, rate);
+		if (ridx == -1)
+			continue;
 
 #if 0
 		if (txant == 0)
@@ -4277,12 +4269,6 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in)
 #else
 		nextant = iwm_mvm_get_valid_tx_ant(sc);
 #endif
-		/*
-		 * Map the rate id into a rate index into
-		 * our hardware table containing the
-		 * configuration to use for this rate.
-		 */
-		ridx = in->in_ridx[i];
 		tab = iwm_rates[ridx].plcp;
 		tab |= nextant << IWM_RATE_MCS_ANT_POS;
 		if (IWM_RIDX_IS_CCK(ridx))
@@ -4474,7 +4460,8 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		iwm_mvm_enable_beacon_filter(sc, ivp);
 		iwm_mvm_power_update_mac(sc);
 		iwm_mvm_update_quotas(sc, ivp);
-		iwm_setrates(sc, in);
+		int rix = ieee80211_ratectl_rate(&in->in_ni, NULL, 0);
+		iwm_setrates(sc, in, rix);
 
 		if ((error = iwm_mvm_send_lq_cmd(sc, &in->in_lq, TRUE)) != 0) {
 			device_printf(sc->sc_dev,
