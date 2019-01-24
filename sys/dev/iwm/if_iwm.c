@@ -305,16 +305,16 @@ static int	iwm_pcie_load_section(struct iwm_softc *, uint8_t,
 static int	iwm_pcie_load_firmware_chunk(struct iwm_softc *, uint32_t,
 					     bus_addr_t, uint32_t);
 static int	iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
-						const struct iwm_fw_sects *,
+						const struct iwm_fw_img *,
 						int, int *);
 static int	iwm_pcie_load_cpu_sections(struct iwm_softc *,
-					   const struct iwm_fw_sects *,
+					   const struct iwm_fw_img *,
 					   int, int *);
 static int	iwm_pcie_load_given_ucode_8000(struct iwm_softc *,
-					       const struct iwm_fw_sects *);
+					       const struct iwm_fw_img *);
 static int	iwm_pcie_load_given_ucode(struct iwm_softc *,
-					  const struct iwm_fw_sects *);
-static int	iwm_start_fw(struct iwm_softc *, const struct iwm_fw_sects *);
+					  const struct iwm_fw_img *);
+static int	iwm_start_fw(struct iwm_softc *, const struct iwm_fw_img *);
 static int	iwm_send_tx_ant_cfg(struct iwm_softc *, uint8_t);
 static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
 static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
@@ -426,7 +426,7 @@ static int
 iwm_firmware_store_section(struct iwm_softc *sc,
     enum iwm_ucode_type type, const uint8_t *data, size_t dlen)
 {
-	struct iwm_fw_sects *fws;
+	struct iwm_fw_img *fws;
 	struct iwm_fw_desc *fwone;
 
 	if (type >= IWM_UCODE_TYPE_MAX)
@@ -434,11 +434,11 @@ iwm_firmware_store_section(struct iwm_softc *sc,
 	if (dlen < sizeof(uint32_t))
 		return EINVAL;
 
-	fws = &sc->sc_fw.fw_sects[type];
+	fws = &sc->sc_fw.img[type];
 	if (fws->fw_count >= IWM_UCODE_SECTION_MAX)
 		return EINVAL;
 
-	fwone = &fws->fw_sect[fws->fw_count];
+	fwone = &fws->sec[fws->fw_count];
 
 	/* first 32bit are device load offset */
 	memcpy(&fwone->offset, data, sizeof(uint32_t));
@@ -536,7 +536,7 @@ iwm_fw_info_free(struct iwm_fw_info *fw)
 {
 	firmware_put(fw->fw_fp, FIRMWARE_UNLOAD);
 	fw->fw_fp = NULL;
-	memset(fw->fw_sects, 0, sizeof(fw->fw_sects));
+	memset(fw->img, 0, sizeof(fw->img));
 }
 
 static int
@@ -545,7 +545,7 @@ iwm_read_firmware(struct iwm_softc *sc)
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	const struct iwm_tlv_ucode_header *uhdr;
 	const struct iwm_ucode_tlv *tlv;
-	struct iwm_ucode_capabilities *capa = &sc->ucode_capa;
+	struct iwm_ucode_capabilities *capa = &sc->sc_fw.ucode_capa;
 	enum iwm_ucode_tlv_type tlv_type;
 	const struct firmware *fwp;
 	const uint8_t *data;
@@ -694,11 +694,11 @@ iwm_read_firmware(struct iwm_softc *sc)
 			}
 			num_of_cpus = le32_to_cpup((const uint32_t *)tlv_data);
 			if (num_of_cpus == 2) {
-				fw->fw_sects[IWM_UCODE_REGULAR].is_dual_cpus =
+				fw->img[IWM_UCODE_REGULAR].is_dual_cpus =
 					TRUE;
-				fw->fw_sects[IWM_UCODE_INIT].is_dual_cpus =
+				fw->img[IWM_UCODE_INIT].is_dual_cpus =
 					TRUE;
-				fw->fw_sects[IWM_UCODE_WOWLAN].is_dual_cpus =
+				fw->img[IWM_UCODE_WOWLAN].is_dual_cpus =
 					TRUE;
 			} else if ((num_of_cpus > 2) || (num_of_cpus < 1)) {
 				device_printf(sc->sc_dev,
@@ -831,10 +831,10 @@ iwm_read_firmware(struct iwm_softc *sc)
 				goto out;
 			}
 
-			sc->sc_fw.fw_sects[IWM_UCODE_REGULAR].paging_mem_size =
+			sc->sc_fw.img[IWM_UCODE_REGULAR].paging_mem_size =
 			    paging_mem_size;
 			usniffer_img = IWM_UCODE_REGULAR_USNIFFER;
-			sc->sc_fw.fw_sects[usniffer_img].paging_mem_size =
+			sc->sc_fw.img[usniffer_img].paging_mem_size =
 			    paging_mem_size;
 			break;
 
@@ -2447,7 +2447,7 @@ iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 
 static int
 iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
-	const struct iwm_fw_sects *image, int cpu, int *first_ucode_section)
+	const struct iwm_fw_img *image, int cpu, int *first_ucode_section)
 {
 	int shift_param;
 	int i, ret = 0, sec_num = 0x1;
@@ -2470,15 +2470,15 @@ iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
 		 * PAGING_SEPARATOR_SECTION delimiter - separate between
 		 * CPU2 non paged to CPU2 paging sec.
 		 */
-		if (!image->fw_sect[i].data ||
-		    image->fw_sect[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
-		    image->fw_sect[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
+		if (!image->sec[i].data ||
+		    image->sec[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->sec[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
 			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 				    "Break since Data not valid or Empty section, sec = %d\n",
 				    i);
 			break;
 		}
-		ret = iwm_pcie_load_section(sc, i, &image->fw_sect[i]);
+		ret = iwm_pcie_load_section(sc, i, &image->sec[i]);
 		if (ret)
 			return ret;
 
@@ -2509,7 +2509,7 @@ iwm_pcie_load_cpu_sections_8000(struct iwm_softc *sc,
 
 static int
 iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
-	const struct iwm_fw_sects *image, int cpu, int *first_ucode_section)
+	const struct iwm_fw_img *image, int cpu, int *first_ucode_section)
 {
 	int shift_param;
 	int i, ret = 0;
@@ -2532,16 +2532,16 @@ iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
 		 * PAGING_SEPARATOR_SECTION delimiter - separate between
 		 * CPU2 non paged to CPU2 paging sec.
 		 */
-		if (!image->fw_sect[i].data ||
-		    image->fw_sect[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
-		    image->fw_sect[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
+		if (!image->sec[i].data ||
+		    image->sec[i].offset == IWM_CPU1_CPU2_SEPARATOR_SECTION ||
+		    image->sec[i].offset == IWM_PAGING_SEPARATOR_SECTION) {
 			IWM_DPRINTF(sc, IWM_DEBUG_RESET,
 				    "Break since Data not valid or Empty section, sec = %d\n",
 				     i);
 			break;
 		}
 
-		ret = iwm_pcie_load_section(sc, i, &image->fw_sect[i]);
+		ret = iwm_pcie_load_section(sc, i, &image->sec[i]);
 		if (ret)
 			return ret;
 	}
@@ -2553,8 +2553,7 @@ iwm_pcie_load_cpu_sections(struct iwm_softc *sc,
 }
 
 static int
-iwm_pcie_load_given_ucode(struct iwm_softc *sc,
-	const struct iwm_fw_sects *image)
+iwm_pcie_load_given_ucode(struct iwm_softc *sc, const struct iwm_fw_img *image)
 {
 	int ret = 0;
 	int first_ucode_section;
@@ -2593,7 +2592,7 @@ iwm_pcie_load_given_ucode(struct iwm_softc *sc,
 
 int
 iwm_pcie_load_given_ucode_8000(struct iwm_softc *sc,
-	const struct iwm_fw_sects *image)
+	const struct iwm_fw_img *image)
 {
 	int ret = 0;
 	int first_ucode_section;
@@ -2631,8 +2630,7 @@ iwm_enable_fw_load_int(struct iwm_softc *sc)
 
 /* XXX Add proper rfkill support code */
 static int
-iwm_start_fw(struct iwm_softc *sc,
-	const struct iwm_fw_sects *fw)
+iwm_start_fw(struct iwm_softc *sc, const struct iwm_fw_img *fw)
 {
 	int ret;
 
@@ -2824,12 +2822,12 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 {
 	struct iwm_notification_wait alive_wait;
 	struct iwm_mvm_alive_data alive_data;
-	const struct iwm_fw_sects *fw;
+	const struct iwm_fw_img *fw;
 	enum iwm_ucode_type old_type = sc->cur_ucode;
 	int error;
 	static const uint16_t alive_cmd[] = { IWM_MVM_ALIVE };
 
-	fw = &sc->sc_fw.fw_sects[ucode_type];
+	fw = &sc->sc_fw.img[ucode_type];
 	sc->cur_ucode = ucode_type;
 	sc->ucode_loaded = FALSE;
 
@@ -4473,7 +4471,7 @@ static boolean_t
 iwm_mvm_is_lar_supported(struct iwm_softc *sc)
 {
 	boolean_t nvm_lar = sc->nvm_data->lar_enabled;
-	boolean_t tlv_lar = fw_has_capa(&sc->ucode_capa,
+	boolean_t tlv_lar = fw_has_capa(&sc->sc_fw.ucode_capa,
 					IWM_UCODE_TLV_CAPA_LAR_SUPPORT);
 
 	if (iwm_lar_disable)
@@ -4492,9 +4490,9 @@ iwm_mvm_is_lar_supported(struct iwm_softc *sc)
 static boolean_t
 iwm_mvm_is_wifi_mcc_supported(struct iwm_softc *sc)
 {
-	return fw_has_api(&sc->ucode_capa,
+	return fw_has_api(&sc->sc_fw.ucode_capa,
 			  IWM_UCODE_TLV_API_WIFI_MCC_UPDATE) ||
-	       fw_has_capa(&sc->ucode_capa,
+	       fw_has_capa(&sc->sc_fw.ucode_capa,
 			   IWM_UCODE_TLV_CAPA_LAR_MULTI_MCC);
 }
 
@@ -4515,7 +4513,7 @@ iwm_send_update_mcc_cmd(struct iwm_softc *sc, const char *alpha2)
 	int n_channels;
 	uint16_t mcc;
 #endif
-	int resp_v2 = fw_has_capa(&sc->ucode_capa,
+	int resp_v2 = fw_has_capa(&sc->sc_fw.ucode_capa,
 	    IWM_UCODE_TLV_CAPA_LAR_SUPPORT_V2);
 
 	if (!iwm_mvm_is_lar_supported(sc)) {
@@ -4674,7 +4672,7 @@ iwm_init_hw(struct iwm_softc *sc)
 	if ((error = iwm_send_update_mcc_cmd(sc, "ZZ")) != 0)
 		goto error;
 
-	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
+	if (fw_has_capa(&sc->sc_fw.ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		if ((error = iwm_mvm_config_umac_scan(sc)) != 0)
 			goto error;
 	}
@@ -6208,7 +6206,7 @@ iwm_scan_start(struct ieee80211com *ic)
 		device_printf(sc->sc_dev,
 		    "%s: Previous scan not completed yet\n", __func__);
 	}
-	if (fw_has_capa(&sc->ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
+	if (fw_has_capa(&sc->sc_fw.ucode_capa, IWM_UCODE_TLV_CAPA_UMAC_SCAN))
 		error = iwm_mvm_umac_scan(sc);
 	else
 		error = iwm_mvm_lmac_scan(sc);

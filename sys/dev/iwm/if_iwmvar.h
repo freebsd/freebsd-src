@@ -186,15 +186,20 @@ struct iwm_fw_desc {
 	uint32_t offset;	/* offset in the device */
 };
 
+struct iwm_fw_img {
+	struct iwm_fw_desc sec[IWM_UCODE_SECTION_MAX];
+	int fw_count;
+	int is_dual_cpus;
+	uint32_t paging_mem_size;
+};
+
 struct iwm_fw_info {
 	const struct firmware *fw_fp;
 
-	struct iwm_fw_sects {
-		struct iwm_fw_desc fw_sect[IWM_UCODE_SECTION_MAX];
-		int fw_count;
-		int is_dual_cpus;
-		uint32_t paging_mem_size;
-	} fw_sects[IWM_UCODE_TYPE_MAX];
+	/* ucode images */
+	struct iwm_fw_img img[IWM_UCODE_TYPE_MAX];
+
+	struct iwm_ucode_capabilities ucode_capa;
 
 	uint32_t phy_config;
 	uint8_t valid_tx_ant;
@@ -470,7 +475,6 @@ struct iwm_softc {
 	int			ucode_loaded;
 	char			sc_fwver[32];
 
-	struct iwm_ucode_capabilities ucode_capa;
 	char			sc_fw_mcc[3];
 
 	int			sc_intmask;
