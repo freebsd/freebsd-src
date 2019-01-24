@@ -884,6 +884,13 @@ in6_purgemaddrs(struct ifnet *ifp)
 	IN6_MULTI_LIST_UNLOCK();
 	IN6_MULTI_UNLOCK();
 	in6m_release_list_deferred(&purgeinms);
+
+	/*
+	 * Make sure all multicast deletions invoking if_ioctl() are
+	 * completed before returning. Else we risk accessing a freed
+	 * ifnet structure pointer.
+	 */
+	in6m_release_wait();
 }
 
 void
