@@ -1949,13 +1949,11 @@ fetch_create_manifest () {
 
 	# Report to the user if any updates were avoided due to local changes
 	if [ -s modifiedfiles ]; then
-		echo
-		echo -n "The following files are affected by updates, "
-		echo "but no changes have"
-		echo -n "been downloaded because the files have been "
-		echo "modified locally:"
-		cat modifiedfiles
-	fi | $PAGER
+		cat - modifiedfiles <<- EOF | ${PAGER}
+			The folling files are affected by updates but no changes have
+			been downloaded because the files have been modified locally:
+		EOF
+	fi
 	rm modifiedfiles
 
 	# If no files will be updated, tell the user and exit
@@ -1981,30 +1979,29 @@ fetch_create_manifest () {
 
 	# Report removed files, if any
 	if [ -s files.removed ]; then
-		echo
-		echo -n "The following files will be removed "
-		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
-		cat files.removed
-	fi | $PAGER
+		cat - files.removed <<- EOF | ${PAGER}
+			The following files will be removed as part of updating to
+			${RELNUM}-p${RELPATCHNUM}:
+		EOF
+	fi
 	rm files.removed
 
 	# Report added files, if any
 	if [ -s files.added ]; then
-		echo
-		echo -n "The following files will be added "
-		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
-		cat files.added
-	fi | $PAGER
+		cat - files.added <<- EOF | ${PAGER}
+			The following files will be added as part of updating to
+			${RELNUM}-p${RELPATCHNUM}:
+		EOF
+	fi
 	rm files.added
 
 	# Report updated files, if any
 	if [ -s files.updated ]; then
-		echo
-		echo -n "The following files will be updated "
-		echo "as part of updating to ${RELNUM}-p${RELPATCHNUM}:"
-
-		cat files.updated
-	fi | $PAGER
+		cat - files.updated <<- EOF | ${PAGER}
+			The following files will be updated as part of updating to
+			${RELNUM}-p${RELPATCHNUM}:
+		EOF
+	fi
 	rm files.updated
 
 	# Create a directory for the install manifest.
