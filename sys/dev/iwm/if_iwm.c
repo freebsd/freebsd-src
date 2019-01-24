@@ -4225,6 +4225,9 @@ iwm_bring_down_firmware(struct iwm_softc *sc, struct ieee80211vap *vap)
 	struct iwm_vap *ivp = IWM_VAP(vap);
 	int error;
 
+	/* Avoid Tx watchdog triggering, when transfers get dropped here. */
+	sc->sc_tx_timer = 0;
+
 	ivp->iv_auth = 0;
 	if (sc->sc_firmware_state == 3) {
 		iwm_xmit_queue_drain(sc);
@@ -4328,10 +4331,6 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	IEEE80211_UNLOCK(ic);
 	IWM_LOCK(sc);
-
-	/* Avoid Tx watchdog triggering, when a connectionm is dropped. */
-	if (vap->iv_state == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN)
-		sc->sc_tx_timer = 0;
 
 	if ((sc->sc_flags & IWM_FLAG_SCAN_RUNNING) &&
 	    (nstate == IEEE80211_S_AUTH ||
