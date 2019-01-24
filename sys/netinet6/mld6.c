@@ -243,6 +243,10 @@ static int	mld_v1enable = 1;
 SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RWTUN,
     &mld_v1enable, 0, "Enable fallback to MLDv1");
 
+static int	mld_v2enable = 1;
+SYSCTL_INT(_net_inet6_mld, OID_AUTO, v2enable, CTLFLAG_RWTUN,
+    &mld_v2enable, 0, "Enable MLDv2");
+
 static int	mld_use_allow = 1;
 SYSCTL_INT(_net_inet6_mld, OID_AUTO, use_allow, CTLFLAG_RWTUN,
     &mld_use_allow, 0, "Use ALLOW/BLOCK for RFC 4604 SSM joins/leaves");
@@ -817,7 +821,12 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	char			 ip6tbuf[INET6_ADDRSTRLEN];
 #endif
 
-	is_general_query = 0;
+	if (!mld_v2enable) {
+		CTR3(KTR_MLD, "ignore v2 query src %s on ifp %p(%s)",
+		    ip6_sprintf(ip6tbuf, &ip6->ip6_src),
+		    ifp, if_name(ifp));
+		return (0);
+	}
 
 	/*
 	 * RFC3810 Section 6.2: MLD queries must originate from
@@ -829,6 +838,8 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		    ifp, if_name(ifp));
 		return (0);
 	}
+
+	is_general_query = 0;
 
 	CTR2(KTR_MLD, "input v2 query on ifp %p(%s)", ifp, if_name(ifp));
 
