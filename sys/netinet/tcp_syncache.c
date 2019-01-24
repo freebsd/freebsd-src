@@ -156,7 +156,7 @@ static int	 syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
  * Transmit the SYN,ACK fewer times than TCP_MAXRXTSHIFT specifies.
  * 3 retransmits corresponds to a timeout with default values of
  * TCPTV_RTOBASE * (                 1 +
- *                  tcp_syn_backoff[1] + 
+ *                  tcp_syn_backoff[1] +
  *                  tcp_syn_backoff[2] +
  *                  tcp_syn_backoff[3]) + 3 * tcp_rexmit_slop,
  * 3000 ms * (1 + 1 + 1 + 1) +  3 * 200 ms = 12300 ms,
