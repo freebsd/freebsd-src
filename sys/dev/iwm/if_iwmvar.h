@@ -566,6 +566,12 @@ struct iwm_softc {
 
 	/* Unique ID (assigned by the firmware) of the current Time Event. */
 	uint32_t		sc_time_event_uid;
+
+	/* Duration of the Time Event in TU. */
+	uint32_t		sc_time_event_duration;
+
+	/* Expected end of the Time Event in HZ ticks. */
+	int			sc_time_event_end_ticks;
 };
 
 #define IWM_LOCK_INIT(_sc) \

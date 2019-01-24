@@ -159,12 +159,73 @@ __FBSDID("$FreeBSD$");
 #include <dev/iwm/if_iwm_pcie_trans.h>
 #include <dev/iwm/if_iwm_time_event.h>
 
+#define TU_TO_HZ(tu)	(((uint64_t)(tu) * 1024 * hz) / 1000000)
+
+static void
+iwm_mvm_te_clear_data(struct iwm_softc *sc)
+{
+	sc->sc_time_event_uid = 0;
+	sc->sc_time_event_duration = 0;
+	sc->sc_time_event_end_ticks = 0;
+	sc->sc_flags &= ~IWM_FLAG_TE_ACTIVE;
+}
+
 /*
- * For the high priority TE use a time event type that has similar priority to
- * the FW's action scan priority.
+ * Handles a FW notification for an event that is known to the driver.
+ *
+ * @mvm: the mvm component
+ * @te_data: the time event data
+ * @notif: the notification data corresponding the time event data.
  */
-#define IWM_MVM_ROC_TE_TYPE_NORMAL IWM_TE_P2P_DEVICE_DISCOVERABLE
-#define IWM_MVM_ROC_TE_TYPE_MGMT_TX IWM_TE_P2P_CLIENT_ASSOC
+static void
+iwm_mvm_te_handle_notif(struct iwm_softc *sc,
+    struct iwm_time_event_notif *notif)
+{
+	IWM_DPRINTF(sc, IWM_DEBUG_TE,
+	    "Handle time event notif - UID = 0x%x action %d\n",
+	    le32toh(notif->unique_id),
+	    le32toh(notif->action));
+
+	if (!le32toh(notif->status)) {
+		const char *msg;
+
+		if (notif->action & htole32(IWM_TE_V2_NOTIF_HOST_EVENT_START))
+			msg = "Time Event start notification failure";
+		else
+			msg = "Time Event end notification failure";
+
+		IWM_DPRINTF(sc, IWM_DEBUG_TE, "%s\n", msg);
+	}
+
+	if (le32toh(notif->action) & IWM_TE_V2_NOTIF_HOST_EVENT_END) {
+		IWM_DPRINTF(sc, IWM_DEBUG_TE,
+		    "TE ended - current time %d, estimated end %d\n",
+		    ticks, sc->sc_time_event_end_ticks);
+
+		iwm_mvm_te_clear_data(sc);
+	} else if (le32toh(notif->action) & IWM_TE_V2_NOTIF_HOST_EVENT_START) {
+		sc->sc_time_event_end_ticks =
+		    ticks + TU_TO_HZ(sc->sc_time_event_duration);
+	} else {
+		device_printf(sc->sc_dev, "Got TE with unknown action\n");
+	}
+}
+
+/*
+ * The Rx handler for time event notifications
+ */
+void
+iwm_mvm_rx_time_event_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt)
+{
+	struct iwm_time_event_notif *notif = (void *)pkt->data;
+
+	IWM_DPRINTF(sc, IWM_DEBUG_TE,
+	    "Time event notification - UID = 0x%x action %d\n",
+	    le32toh(notif->unique_id),
+	    le32toh(notif->action));
+
+	iwm_mvm_te_handle_notif(sc, notif);
+}
 
 static int
 iwm_mvm_te_notif(struct iwm_softc *sc, struct iwm_rx_packet *pkt,
@@ -241,6 +302,8 @@ iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
 	IWM_DPRINTF(sc, IWM_DEBUG_TE,
 	    "Add new TE, duration %d TU\n", le32toh(te_cmd->duration));
 
+	sc->sc_time_event_duration = le32toh(te_cmd->duration);
+
 	/*
 	 * Use a notification wait, which really just processes the
 	 * command response and doesn't wait for anything, in order
@@ -278,8 +341,6 @@ iwm_mvm_time_event_send_add(struct iwm_softc *sc, struct iwm_vap *ivp,
 
 	return ret;
 }
-
-#define TU_TO_HZ(tu)	(((uint64_t)(tu) * 1024 * hz) / 1000000)
 
 void
 iwm_mvm_protect_session(struct iwm_softc *sc, struct iwm_vap *ivp,
@@ -362,7 +423,7 @@ iwm_mvm_stop_session_protection(struct iwm_softc *sc, struct iwm_vap *ivp)
 	    "%s: Removing TE 0x%x\n", __func__, le32toh(time_cmd.id));
 	if (iwm_mvm_send_cmd_pdu(sc, IWM_TIME_EVENT_CMD, 0, sizeof(time_cmd),
 	    &time_cmd) == 0)
-		sc->sc_flags &= ~IWM_FLAG_TE_ACTIVE;
+		iwm_mvm_te_clear_data(sc);
 
 	DELAY(100);
 }
