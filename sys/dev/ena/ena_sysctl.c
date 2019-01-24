@@ -32,13 +32,51 @@ __FBSDID("$FreeBSD$");
 
 #include "ena_sysctl.h"
 
-static int	ena_sysctl_update_stats(SYSCTL_HANDLER_ARGS);
+static void	ena_sysctl_add_wd(struct ena_adapter *);
 static void	ena_sysctl_add_stats(struct ena_adapter *);
 
 void
 ena_sysctl_add_nodes(struct ena_adapter *adapter)
 {
+	ena_sysctl_add_wd(adapter);
 	ena_sysctl_add_stats(adapter);
+}
+
+static void
+ena_sysctl_add_wd(struct ena_adapter *adapter)
+{
+	device_t dev;
+
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = adapter->pdev;
+
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	/* Sysctl calls for Watchdog service */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "wd_active",
+	    CTLFLAG_RWTUN, &adapter->wd_active, 0,
+	    "Watchdog is active");
+
+	SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, "keep_alive_timeout",
+	    CTLFLAG_RWTUN, &adapter->keep_alive_timeout,
+	    "Timeout for Keep Alive messages");
+
+	SYSCTL_ADD_QUAD(ctx, child, OID_AUTO, "missing_tx_timeout",
+	    CTLFLAG_RWTUN, &adapter->missing_tx_timeout,
+	    "Timeout for TX completion");
+
+	SYSCTL_ADD_U32(ctx, child, OID_AUTO, "missing_tx_max_queues",
+	    CTLFLAG_RWTUN, &adapter->missing_tx_max_queues, 0,
+	    "Number of TX queues to check per run");
+
+	SYSCTL_ADD_U32(ctx, child, OID_AUTO, "missing_tx_threshold",
+	    CTLFLAG_RWTUN, &adapter->missing_tx_threshold, 0,
+	    "Max number of timeouted packets");
 }
 
 static void
@@ -198,6 +236,12 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
 		    "small_copy_len_pkt", CTLFLAG_RD,
 		    &rx_stats->small_copy_len_pkt, "Small copy packet count");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "bad_req_id", CTLFLAG_RD,
+		    &rx_stats->bad_req_id, "Bad request id count");
+		SYSCTL_ADD_COUNTER_U64(ctx, rx_list, OID_AUTO,
+		    "empty_rx_ring", CTLFLAG_RD,
+		    &rx_stats->empty_rx_ring, "RX descriptors depletion count");
 	}
 
 	/* Stats read from device */
@@ -205,20 +249,17 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    CTLFLAG_RD, NULL, "Statistics from hardware");
 	hw_list = SYSCTL_CHILDREN(hw_node);
 
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
-	    &hw_stats->rx_packets, 0, "Packets received");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
-	    &hw_stats->tx_packets, 0, "Packets transmitted");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
-	    &hw_stats->rx_bytes, 0, "Bytes received");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
-	    &hw_stats->tx_bytes, 0, "Bytes transmitted");
-	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
-	    &hw_stats->rx_drops, 0, "Receive packet drops");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_packets", CTLFLAG_RD,
+	    &hw_stats->rx_packets, "Packets received");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "tx_packets", CTLFLAG_RD,
+	    &hw_stats->tx_packets, "Packets transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_bytes", CTLFLAG_RD,
+	    &hw_stats->rx_bytes, "Bytes received");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "tx_bytes", CTLFLAG_RD,
+	    &hw_stats->tx_bytes, "Bytes transmitted");
+	SYSCTL_ADD_COUNTER_U64(ctx, hw_list, OID_AUTO, "rx_drops", CTLFLAG_RD,
+	    &hw_stats->rx_drops, "Receive packet drops");
 
-	SYSCTL_ADD_PROC(ctx, hw_list, OID_AUTO, "update_stats",
-	    CTLTYPE_INT|CTLFLAG_RD, adapter, 0, ena_sysctl_update_stats,
-	    "A", "Update stats from hardware");
 	/* ENA Admin queue stats */
 	admin_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "admin_stats",
 	    CTLFLAG_RD, NULL, "ENA Admin Queue statistics");
@@ -234,18 +275,5 @@ ena_sysctl_add_stats(struct ena_adapter *adapter)
 	    &admin_stats->out_of_space, 0, "Queue out of space");
 	SYSCTL_ADD_U32(ctx, admin_list, OID_AUTO, "no_completion", CTLFLAG_RD,
 	    &admin_stats->no_completion, 0, "Commands not completed");
-}
-
-static int
-ena_sysctl_update_stats(SYSCTL_HANDLER_ARGS)
-{
-	struct ena_adapter *adapter = (struct ena_adapter *)arg1;
-	int rc;
-
-	if (adapter->up)
-		ena_update_stats_counters(adapter);
-
-	rc = sysctl_handle_string(oidp, "", 1, req);
-	return (rc);
 }
 

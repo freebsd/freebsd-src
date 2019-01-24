@@ -186,6 +186,7 @@ static inline long PTR_ERR(const void *ptr)
 #define ENA_COM_NO_MEM		ENOMEM
 #define	ENA_COM_NO_SPACE	ENOSPC
 #define ENA_COM_TRY_AGAIN	-1
+#define	ENA_COM_UNSUPPORTED	EOPNOTSUPP
 #define	ENA_COM_NO_DEVICE	ENODEV
 #define	ENA_COM_PERMISSION	EPERM
 #define ENA_COM_TIMER_EXPIRED	ETIMEDOUT
@@ -281,6 +282,17 @@ void	ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg,
 int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
     int mapflags);
 
+#define ENA_MEMCPY_TO_DEVICE_64(dst, src, size)				\
+	do {								\
+		int count, i;						\
+		volatile uint64_t *to = (volatile uint64_t *)(dst);	\
+		const uint64_t *from = (const uint64_t *)(src);		\
+		count = (size) / 8;					\
+									\
+		for (i = 0; i < count; i++, from++, to++)		\
+			*to = *from;					\
+	} while (0)
+
 #define ENA_MEM_ALLOC(dmadev, size) malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO)
 #define ENA_MEM_ALLOC_NODE(dmadev, size, virt, node, dev_node) (virt = NULL)
 #define ENA_MEM_FREE(dmadev, ptr) free(ptr, M_DEVBUF)
@@ -321,6 +333,9 @@ int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
 			 ((struct ena_bus*)bus)->reg_bar_h,		\
 			 (bus_size_t)(offset))
 
+#define ENA_DB_SYNC(mem_handle)	bus_dmamap_sync((mem_handle)->tag,	\
+	(mem_handle)->map, BUS_DMASYNC_PREREAD)
+
 #define time_after(a,b)	((long)((unsigned long)(b) - (unsigned long)(a)) < 0)
 
 #define VLAN_HLEN 	sizeof(struct ether_vlan_header)
@@ -359,9 +374,6 @@ void prefetch(void *x)
 			__var;			\
 		})
 
-#include "ena_common_defs.h"
-#include "ena_admin_defs.h"
-#include "ena_eth_io_defs.h"
-#include "ena_regs_defs.h"
+#include "ena_defs/ena_includes.h"
 
 #endif /* ENA_PLAT_H_ */
