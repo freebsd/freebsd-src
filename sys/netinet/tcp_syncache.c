@@ -159,7 +159,7 @@ static int	 syncookie_cmp(struct in_conninfo *inc, struct syncache_head *sch,
  *                  tcp_syn_backoff[1] +
  *                  tcp_syn_backoff[2] +
  *                  tcp_syn_backoff[3]) + 3 * tcp_rexmit_slop,
- * 3000 ms * (1 + 1 + 1 + 1) +  3 * 200 ms = 12300 ms,
+ * 3000 ms * (1 + 1 + 1 + 1) +  3 * 200 ms = 12600 ms,
  * the odds are that the user has given up attempting to connect by then.
  */
 #define SYNCACHE_MAXREXMTS		3
