@@ -1959,8 +1959,9 @@ fetch_create_manifest () {
 	# Report to the user if any updates were avoided due to local changes
 	if [ -s modifiedfiles ]; then
 		cat - modifiedfiles <<- EOF | ${PAGER}
-			The folling files are affected by updates but no changes have
-			been downloaded because the files have been modified locally:
+			The following files are affected by updates. No changes have
+			been downloaded, however, because the files have been modified
+			locally:
 		EOF
 	fi
 	rm modifiedfiles
