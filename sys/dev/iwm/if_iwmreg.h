@@ -1794,11 +1794,6 @@ enum {
 	/* Thermal Throttling*/
 	IWM_REPLY_THERMAL_MNG_BACKOFF = 0x7e,
 
-	/* Scanning */
-	IWM_SCAN_ABORT_CMD = 0x81,
-	IWM_SCAN_START_NOTIFICATION = 0x82,
-	IWM_SCAN_RESULTS_NOTIFICATION = 0x83,
-
 	/* NVM */
 	IWM_NVM_ACCESS_CMD = 0x88,
 
@@ -4952,50 +4947,14 @@ struct iwm_periodic_scan_complete {
 	uint32_t reserved;
 } __packed;
 
-/* How many statistics are gathered for each channel */
-#define IWM_SCAN_RESULTS_STATISTICS 1
-
 /**
- * enum iwm_scan_complete_status - status codes for scan complete notifications
- * @IWM_SCAN_COMP_STATUS_OK:  scan completed successfully
- * @IWM_SCAN_COMP_STATUS_ABORT: scan was aborted by user
- * @IWM_SCAN_COMP_STATUS_ERR_SLEEP: sending null sleep packet failed
- * @IWM_SCAN_COMP_STATUS_ERR_CHAN_TIMEOUT: timeout before channel is ready
- * @IWM_SCAN_COMP_STATUS_ERR_PROBE: sending probe request failed
- * @IWM_SCAN_COMP_STATUS_ERR_WAKEUP: sending null wakeup packet failed
- * @IWM_SCAN_COMP_STATUS_ERR_ANTENNAS: invalid antennas chosen at scan command
- * @IWM_SCAN_COMP_STATUS_ERR_INTERNAL: internal error caused scan abort
- * @IWM_SCAN_COMP_STATUS_ERR_COEX: medium was lost ot WiMax
- * @IWM_SCAN_COMP_STATUS_P2P_ACTION_OK: P2P public action frame TX was successful
- *	(not an error!)
- * @IWM_SCAN_COMP_STATUS_ITERATION_END: indicates end of one repeatition the driver
- *	asked for
- * @IWM_SCAN_COMP_STATUS_ERR_ALLOC_TE: scan could not allocate time events
-*/
-enum iwm_scan_complete_status {
-	IWM_SCAN_COMP_STATUS_OK = 0x1,
-	IWM_SCAN_COMP_STATUS_ABORT = 0x2,
-	IWM_SCAN_COMP_STATUS_ERR_SLEEP = 0x3,
-	IWM_SCAN_COMP_STATUS_ERR_CHAN_TIMEOUT = 0x4,
-	IWM_SCAN_COMP_STATUS_ERR_PROBE = 0x5,
-	IWM_SCAN_COMP_STATUS_ERR_WAKEUP = 0x6,
-	IWM_SCAN_COMP_STATUS_ERR_ANTENNAS = 0x7,
-	IWM_SCAN_COMP_STATUS_ERR_INTERNAL = 0x8,
-	IWM_SCAN_COMP_STATUS_ERR_COEX = 0x9,
-	IWM_SCAN_COMP_STATUS_P2P_ACTION_OK = 0xA,
-	IWM_SCAN_COMP_STATUS_ITERATION_END = 0x0B,
-	IWM_SCAN_COMP_STATUS_ERR_ALLOC_TE = 0x0C,
-};
-
-/**
- * struct iwm_scan_results_notif - scan results for one channel
- * ( IWM_SCAN_RESULTS_NOTIFICATION = 0x83 )
+ * struct iwm_scan_results_notif - scan results for one channel -
+ *      SCAN_RESULT_NTF_API_S_VER_3
  * @channel: which channel the results are from
  * @band: 0 for 5.2 GHz, 1 for 2.4 GHz
  * @probe_status: IWM_SCAN_PROBE_STATUS_*, indicates success of probe request
  * @num_probe_not_sent: # of request that weren't sent due to not enough time
  * @duration: duration spent in channel, in usecs
- * @statistics: statistics gathered for this channel
  */
 struct iwm_scan_results_notif {
 	uint8_t channel;
@@ -5003,8 +4962,7 @@ struct iwm_scan_results_notif {
 	uint8_t probe_status;
 	uint8_t num_probe_not_sent;
 	uint32_t duration;
-	uint32_t statistics[IWM_SCAN_RESULTS_STATISTICS];
-} __packed; /* IWM_SCAN_RESULT_NTF_API_S_VER_2 */
+} __packed;
 
 enum iwm_scan_framework_client {
 	IWM_SCAN_CLIENT_SCHED_SCAN	= (1 << 0),
