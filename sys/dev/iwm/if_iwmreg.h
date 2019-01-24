@@ -1790,6 +1790,7 @@ enum {
 	/* Power - legacy power table command */
 	IWM_POWER_TABLE_CMD = 0x77,
 	IWM_PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
+	IWM_LTR_CONFIG = 0xee,
 
 	/* Thermal Throttling*/
 	IWM_REPLY_THERMAL_MNG_BACKOFF = 0x7e,
@@ -3521,6 +3522,57 @@ struct iwm_nonqos_seq_query_cmd {
  */
 
 /* Power Management Commands, Responses, Notifications */
+
+/**
+ * enum iwm_ltr_config_flags - masks for LTR config command flags
+ * @IWM_LTR_CFG_FLAG_FEATURE_ENABLE: Feature operational status
+ * @IWM_LTR_CFG_FLAG_HW_DIS_ON_SHADOW_REG_ACCESS: allow LTR change on shadow
+ *      memory access
+ * @IWM_LTR_CFG_FLAG_HW_EN_SHRT_WR_THROUGH: allow LTR msg send on ANY LTR
+ *      reg change
+ * @IWM_LTR_CFG_FLAG_HW_DIS_ON_D0_2_D3: allow LTR msg send on transition from
+ *      D0 to D3
+ * @IWM_LTR_CFG_FLAG_SW_SET_SHORT: fixed static short LTR register
+ * @IWM_LTR_CFG_FLAG_SW_SET_LONG: fixed static short LONG register
+ * @IWM_LTR_CFG_FLAG_DENIE_C10_ON_PD: allow going into C10 on PD
+ */
+enum iwm_ltr_config_flags {
+	IWM_LTR_CFG_FLAG_FEATURE_ENABLE = (1 << 0),
+	IWM_LTR_CFG_FLAG_HW_DIS_ON_SHADOW_REG_ACCESS = (1 << 1),
+	IWM_LTR_CFG_FLAG_HW_EN_SHRT_WR_THROUGH = (1 << 2),
+	IWM_LTR_CFG_FLAG_HW_DIS_ON_D0_2_D3 = (1 << 3),
+	IWM_LTR_CFG_FLAG_SW_SET_SHORT = (1 << 4),
+	IWM_LTR_CFG_FLAG_SW_SET_LONG = (1 << 5),
+	IWM_LTR_CFG_FLAG_DENIE_C10_ON_PD = (1 << 6),
+};
+
+/**
+ * struct iwm_ltr_config_cmd_v1 - configures the LTR
+ * @flags: See %enum iwm_ltr_config_flags
+ */
+struct iwm_ltr_config_cmd_v1 {
+	uint32_t flags;
+	uint32_t static_long;
+	uint32_t static_short;
+} __packed; /* LTR_CAPABLE_API_S_VER_1 */
+
+#define IWM_LTR_VALID_STATES_NUM 4
+
+/**
+ * struct iwm_ltr_config_cmd - configures the LTR
+ * @flags: See %enum iwm_ltr_config_flags
+ * @static_long:
+ * @static_short:
+ * @ltr_cfg_values:
+ * @ltr_short_idle_timeout:
+ */
+struct iwm_ltr_config_cmd {
+	uint32_t flags;
+	uint32_t static_long;
+	uint32_t static_short;
+	uint32_t ltr_cfg_values[IWM_LTR_VALID_STATES_NUM];
+	uint32_t ltr_short_idle_timeout;
+} __packed; /* LTR_CAPABLE_API_S_VER_2 */
 
 /* Radio LP RX Energy Threshold measured in dBm */
 #define IWM_POWER_LPRX_RSSI_THRESHOLD	75
