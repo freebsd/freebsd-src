@@ -4329,6 +4329,10 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	IEEE80211_UNLOCK(ic);
 	IWM_LOCK(sc);
 
+	/* Avoid Tx watchdog triggering, when a connectionm is dropped. */
+	if (vap->iv_state == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN)
+		sc->sc_tx_timer = 0;
+
 	if ((sc->sc_flags & IWM_FLAG_SCAN_RUNNING) &&
 	    (nstate == IEEE80211_S_AUTH ||
 	     nstate == IEEE80211_S_ASSOC ||
