@@ -1866,8 +1866,6 @@ enum {
 	IWM_NET_DETECT_PROFILES_CMD = 0x57,
 	IWM_NET_DETECT_HOTSPOTS_CMD = 0x58,
 	IWM_NET_DETECT_HOTSPOTS_QUERY_CMD = 0x59,
-
-	IWM_REPLY_MAX = 0xff,
 };
 
 enum iwm_phy_ops_subcmd_ids {
