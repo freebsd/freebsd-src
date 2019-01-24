@@ -245,7 +245,7 @@ static int	iwm_firmware_store_section(struct iwm_softc *,
                                            const uint8_t *, size_t);
 static int	iwm_set_default_calib(struct iwm_softc *, const void *);
 static void	iwm_fw_info_free(struct iwm_fw_info *);
-static int	iwm_read_firmware(struct iwm_softc *, enum iwm_ucode_type);
+static int	iwm_read_firmware(struct iwm_softc *);
 static int	iwm_alloc_fwmem(struct iwm_softc *);
 static int	iwm_alloc_sched(struct iwm_softc *);
 static int	iwm_alloc_kw(struct iwm_softc *);
@@ -536,12 +536,11 @@ iwm_fw_info_free(struct iwm_fw_info *fw)
 {
 	firmware_put(fw->fw_fp, FIRMWARE_UNLOAD);
 	fw->fw_fp = NULL;
-	/* don't touch fw->fw_status */
 	memset(fw->fw_sects, 0, sizeof(fw->fw_sects));
 }
 
 static int
-iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
+iwm_read_firmware(struct iwm_softc *sc)
 {
 	struct iwm_fw_info *fw = &sc->sc_fw;
 	const struct iwm_tlv_ucode_header *uhdr;
@@ -558,24 +557,11 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 	int error = 0;
 	size_t len;
 
-	if (fw->fw_status == IWM_FW_STATUS_DONE &&
-	    ucode_type != IWM_UCODE_INIT)
-		return 0;
-
-	while (fw->fw_status == IWM_FW_STATUS_INPROGRESS)
-		msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfwp", 0);
-	fw->fw_status = IWM_FW_STATUS_INPROGRESS;
-
-	if (fw->fw_fp != NULL)
-		iwm_fw_info_free(fw);
-
 	/*
 	 * Load firmware into driver memory.
 	 * fw_fp will be set.
 	 */
-	IWM_UNLOCK(sc);
 	fwp = firmware_get(sc->cfg->fw_name);
-	IWM_LOCK(sc);
 	if (fwp == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not read firmware %s (error %d)\n",
@@ -634,9 +620,8 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		case IWM_UCODE_TLV_PROBE_MAX_LEN:
 			if (tlv_len != sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: PROBE_MAX_LEN (%d) != sizeof(uint32_t)\n",
-				    __func__,
-				    (int) tlv_len);
+				    "%s: PROBE_MAX_LEN (%u) != sizeof(uint32_t)\n",
+				    __func__, tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
@@ -655,9 +640,8 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		case IWM_UCODE_TLV_PAN:
 			if (tlv_len) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_PAN: tlv_len (%d) > 0\n",
-				    __func__,
-				    (int) tlv_len);
+				    "%s: IWM_UCODE_TLV_PAN: tlv_len (%u) > 0\n",
+				    __func__, tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
@@ -666,17 +650,15 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 		case IWM_UCODE_TLV_FLAGS:
 			if (tlv_len < sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%d) < sizeof(uint32_t)\n",
-				    __func__,
-				    (int) tlv_len);
+				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
 			if (tlv_len % sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%d) %% sizeof(uint32_t)\n",
-				    __func__,
-				    (int) tlv_len);
+				    "%s: IWM_UCODE_TLV_FLAGS: tlv_len (%u) %% sizeof(uint32_t)\n",
+				    __func__, tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
@@ -698,17 +680,15 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
 				    "%s: iwm_store_cscheme(): returned %d\n",
-				    __func__,
-				    error);
+				    __func__, error);
 				goto parse_out;
 			}
 			break;
 		case IWM_UCODE_TLV_NUM_OF_CPU:
 			if (tlv_len != sizeof(uint32_t)) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_NUM_OF_CPU: tlv_len (%d) != sizeof(uint32_t)\n",
-				    __func__,
-				    (int) tlv_len);
+				    "%s: IWM_UCODE_TLV_NUM_OF_CPU: tlv_len (%u) != sizeof(uint32_t)\n",
+				    __func__, tlv_len);
 				error = EINVAL;
 				goto parse_out;
 			}
@@ -733,8 +713,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    IWM_UCODE_REGULAR, tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
 				    "%s: IWM_UCODE_REGULAR: iwm_firmware_store_section() failed; %d\n",
-				    __func__,
-				    error);
+				    __func__, error);
 				goto parse_out;
 			}
 			break;
@@ -743,8 +722,7 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    IWM_UCODE_INIT, tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
 				    "%s: IWM_UCODE_INIT: iwm_firmware_store_section() failed; %d\n",
-				    __func__,
-				    error);
+				    __func__, error);
 				goto parse_out;
 			}
 			break;
@@ -753,26 +731,23 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			    IWM_UCODE_WOWLAN, tlv_data, tlv_len)) != 0) {
 				device_printf(sc->sc_dev,
 				    "%s: IWM_UCODE_WOWLAN: iwm_firmware_store_section() failed; %d\n",
-				    __func__,
-				    error);
+				    __func__, error);
 				goto parse_out;
 			}
 			break;
 		case IWM_UCODE_TLV_DEF_CALIB:
 			if (tlv_len != sizeof(struct iwm_tlv_calib_data)) {
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_DEV_CALIB: tlv_len (%d) < sizeof(iwm_tlv_calib_data) (%d)\n",
-				    __func__,
-				    (int) tlv_len,
-				    (int) sizeof(struct iwm_tlv_calib_data));
+				    "%s: IWM_UCODE_TLV_DEV_CALIB: tlv_len (%u) < sizeof(iwm_tlv_calib_data) (%zu)\n",
+				    __func__, tlv_len,
+				    sizeof(struct iwm_tlv_calib_data));
 				error = EINVAL;
 				goto parse_out;
 			}
 			if ((error = iwm_set_default_calib(sc, tlv_data)) != 0) {
 				device_printf(sc->sc_dev,
 				    "%s: iwm_set_default_calib() failed: %d\n",
-				    __func__,
-				    error);
+				    __func__, error);
 				goto parse_out;
 			}
 			break;
@@ -780,9 +755,8 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 			if (tlv_len != sizeof(uint32_t)) {
 				error = EINVAL;
 				device_printf(sc->sc_dev,
-				    "%s: IWM_UCODE_TLV_PHY_SKU: tlv_len (%d) < sizeof(uint32_t)\n",
-				    __func__,
-				    (int) tlv_len);
+				    "%s: IWM_UCODE_TLV_PHY_SKU: tlv_len (%u) < sizeof(uint32_t)\n",
+				    __func__, tlv_len);
 				goto parse_out;
 			}
 			sc->sc_fw.phy_config =
@@ -907,12 +881,9 @@ iwm_read_firmware(struct iwm_softc *sc, enum iwm_ucode_type ucode_type)
 
  out:
 	if (error) {
-		fw->fw_status = IWM_FW_STATUS_NONE;
 		if (fw->fw_fp != NULL)
 			iwm_fw_info_free(fw);
-	} else
-		fw->fw_status = IWM_FW_STATUS_DONE;
-	wakeup(&sc->sc_fw);
+	}
 
 	return error;
 }
@@ -2858,11 +2829,6 @@ iwm_mvm_load_ucode_wait_alive(struct iwm_softc *sc,
 	int error;
 	static const uint16_t alive_cmd[] = { IWM_MVM_ALIVE };
 
-	if ((error = iwm_read_firmware(sc, ucode_type)) != 0) {
-		device_printf(sc->sc_dev, "iwm_read_firmware: failed %d\n",
-			error);
-		return error;
-	}
 	fw = &sc->sc_fw.fw_sects[ucode_type];
 	sc->cur_ucode = ucode_type;
 	sc->ucode_loaded = FALSE;
@@ -5849,7 +5815,7 @@ iwm_attach(device_t dev)
 
 	sc->sc_wantresp = -1;
 
-	/* Check device type */
+	/* Match device id */
 	error = iwm_dev_check(dev);
 	if (error != 0)
 		goto fail;
@@ -5987,18 +5953,30 @@ iwm_attach(device_t dev)
 	/* Max RSSI */
 	sc->sc_max_rssi = IWM_MAX_DBM - IWM_MIN_DBM;
 
-	sc->sc_preinit_hook.ich_func = iwm_preinit;
-	sc->sc_preinit_hook.ich_arg = sc;
-	if (config_intrhook_establish(&sc->sc_preinit_hook) != 0) {
-		device_printf(dev, "config_intrhook_establish failed\n");
-		goto fail;
-	}
-
 #ifdef IWM_DEBUG
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "debug",
 	    CTLFLAG_RW, &sc->sc_debug, 0, "control debugging");
 #endif
+
+	error = iwm_read_firmware(sc);
+	if (error) {
+		goto fail;
+	} else if (sc->sc_fw.fw_fp == NULL) {
+		/*
+		 * XXX Add a solution for properly deferring firmware load
+		 *     during bootup.
+		 */
+		goto fail;
+	} else {
+		sc->sc_preinit_hook.ich_func = iwm_preinit;
+		sc->sc_preinit_hook.ich_arg = sc;
+		if (config_intrhook_establish(&sc->sc_preinit_hook) != 0) {
+			device_printf(dev,
+			    "config_intrhook_establish failed\n");
+			goto fail;
+		}
+	}
 
 	IWM_DPRINTF(sc, IWM_DEBUG_RESET | IWM_DEBUG_TRACE,
 	    "<-%s\n", __func__);
