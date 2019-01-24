@@ -104,14 +104,11 @@ extern struct ena_bus_space ebs;
 #define ENA_IOQ 	(1 << 7) /* Detailed info about IO queues. 	      */
 #define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
 
-#ifndef ENA_DEBUG_LEVEL
-#define ENA_DEBUG_LEVEL (ENA_ALERT | ENA_WARNING)
-#endif
+extern int ena_log_level;
 
-#ifdef ENA_TRACE
 #define ena_trace_raw(level, fmt, args...)			\
 	do {							\
-		if (((level) & ENA_DEBUG_LEVEL) != (level))	\
+		if (((level) & ena_log_level) != (level))	\
 			break;					\
 		printf(fmt, ##args);				\
 	} while (0)
@@ -120,10 +117,6 @@ extern struct ena_bus_space ebs;
 	ena_trace_raw(level, "%s() [TID:%d]: "			\
 	    fmt " \n", __func__, curthread->td_tid, ##args)
 
-#else /* ENA_TRACE */
-#define ena_trace_raw(...)
-#define ena_trace(...)
-#endif /* ENA_TRACE */
 
 #define ena_trc_dbg(format, arg...) 	ena_trace(ENA_DBG, format, ##arg)
 #define ena_trc_info(format, arg...) 	ena_trace(ENA_INFO, format, ##arg)
@@ -172,7 +165,7 @@ static inline long PTR_ERR(const void *ptr)
 
 #define GENMASK(h, l)		(((1U << ((h) - (l) + 1)) - 1) << (l))
 #define GENMASK_ULL(h, l)	(((~0ULL) << (l)) & (~0ULL >> (64 - 1 - (h))))
-#define BIT(x)			(1 << (x))
+#define BIT(x)			(1UL << (x))
 
 #define ENA_ABORT() 		BUG()
 #define BUG() 			panic("ENA BUG")
@@ -251,7 +244,12 @@ static inline long PTR_ERR(const void *ptr)
 		    timeout_us * hz / 1000 / 1000 );			\
 		mtx_unlock(&((waitqueue).mtx));				\
 	} while (0)
-#define ENA_WAIT_EVENT_SIGNAL(waitqueue) cv_broadcast(&((waitqueue).wq))
+#define ENA_WAIT_EVENT_SIGNAL(waitqueue)		\
+	do {						\
+		mtx_lock(&((waitqueue).mtx));		\
+		cv_broadcast(&((waitqueue).wq));	\
+		mtx_unlock(&((waitqueue).mtx));		\
+	} while (0)
 
 #define dma_addr_t 	bus_addr_t
 #define u8 		uint8_t
