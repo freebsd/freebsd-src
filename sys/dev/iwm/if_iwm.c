@@ -6301,6 +6301,10 @@ iwm_resume(device_t dev)
 	 * PCI Tx retries from interfering with C3 CPU state.
 	 */
 	pci_write_config(dev, PCI_CFG_RETRY_TIMEOUT, 0x00, 1);
+
+	if (!sc->sc_attached)
+		return 0;
+
 	iwm_init_task(device_get_softc(dev));
 
 	IWM_LOCK(sc);
@@ -6323,6 +6327,9 @@ iwm_suspend(device_t dev)
 	struct iwm_softc *sc = device_get_softc(dev);
 
 	do_stop = !! (sc->sc_ic.ic_nrunning > 0);
+
+	if (!sc->sc_attached)
+		return (0);
 
 	ieee80211_suspend_all(&sc->sc_ic);
 
