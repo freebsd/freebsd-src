@@ -350,7 +350,6 @@ static int	iwm_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			     const struct ieee80211_bpf_params *);
 static int	iwm_mvm_update_quotas(struct iwm_softc *, struct iwm_vap *);
 static int	iwm_auth(struct ieee80211vap *, struct iwm_softc *);
-static int	iwm_release(struct iwm_softc *, struct iwm_node *);
 static struct ieee80211_node *
 		iwm_node_alloc(struct ieee80211vap *,
 		               const uint8_t[IEEE80211_ADDR_LEN]);
@@ -1263,6 +1262,7 @@ iwm_stop_device(struct iwm_softc *sc)
 		iv->phy_ctxt = NULL;
 		iv->is_uploaded = 0;
 	}
+	sc->sc_firmware_state = 0;
 
 	/* device going down, Stop using ICT table */
 	sc->sc_flags &= ~IWM_FLAG_USE_ICT;
@@ -3951,8 +3951,11 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	    __func__,
 	    vap,
 	    ni);
+	IWM_DPRINTF(sc, IWM_DEBUG_STATE, "%s: Current node bssid: %s\n",
+	    __func__, ether_sprintf(ni->ni_bssid));
 
 	in->in_assoc = 0;
+	iv->iv_auth = 1;
 
 	/*
 	 * Firmware bug - it'll crash if the beacon interval is less
@@ -4004,6 +4007,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 			goto out;
 		}
 	}
+	sc->sc_firmware_state = 1;
 
 	if ((error = iwm_mvm_phy_ctxt_changed(sc, &sc->sc_phyctxt[0],
 	    in->in_ni.ni_chan, 1, 1)) != 0) {
@@ -4018,6 +4022,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 		    "%s: binding update cmd\n", __func__);
 		goto out;
 	}
+	sc->sc_firmware_state = 2;
 	/*
 	 * Authentication becomes unreliable when powersaving is left enabled
 	 * here. Powersaving will be activated again when association has
@@ -4037,6 +4042,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 		    "%s: failed to add sta\n", __func__);
 		goto out;
 	}
+	sc->sc_firmware_state = 3;
 
 	/*
 	 * Prevent the FW from wandering off channel during association
@@ -4049,79 +4055,10 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 
 	error = 0;
 out:
+	if (error != 0)
+		iv->iv_auth = 0;
 	ieee80211_free_node(ni);
 	return (error);
-}
-
-static int
-iwm_release(struct iwm_softc *sc, struct iwm_node *in)
-{
-	uint32_t tfd_msk;
-
-	/*
-	 * Ok, so *technically* the proper set of calls for going
-	 * from RUN back to SCAN is:
-	 *
-	 * iwm_mvm_power_mac_disable(sc, in);
-	 * iwm_mvm_mac_ctxt_changed(sc, vap);
-	 * iwm_mvm_rm_sta(sc, in);
-	 * iwm_mvm_update_quotas(sc, NULL);
-	 * iwm_mvm_mac_ctxt_changed(sc, in);
-	 * iwm_mvm_binding_remove_vif(sc, IWM_VAP(in->in_ni.ni_vap));
-	 * iwm_mvm_mac_ctxt_remove(sc, in);
-	 *
-	 * However, that freezes the device not matter which permutations
-	 * and modifications are attempted.  Obviously, this driver is missing
-	 * something since it works in the Linux driver, but figuring out what
-	 * is missing is a little more complicated.  Now, since we're going
-	 * back to nothing anyway, we'll just do a complete device reset.
-	 * Up your's, device!
-	 */
-	/*
-	 * Just using 0xf for the queues mask is fine as long as we only
-	 * get here from RUN state.
-	 */
-	tfd_msk = 0xf;
-	iwm_xmit_queue_drain(sc);
-	iwm_mvm_flush_tx_path(sc, tfd_msk, IWM_CMD_SYNC);
-	/*
-	 * We seem to get away with just synchronously sending the
-	 * IWM_TXPATH_FLUSH command.
-	 */
-//	iwm_trans_wait_tx_queue_empty(sc, tfd_msk);
-	iwm_stop_device(sc);
-	iwm_init_hw(sc);
-	if (in)
-		in->in_assoc = 0;
-	return 0;
-
-#if 0
-	int error;
-
-	iwm_mvm_power_mac_disable(sc, in);
-
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
-		device_printf(sc->sc_dev, "mac ctxt change fail 1 %d\n", error);
-		return error;
-	}
-
-	if ((error = iwm_mvm_rm_sta(sc, in)) != 0) {
-		device_printf(sc->sc_dev, "sta remove fail %d\n", error);
-		return error;
-	}
-	error = iwm_mvm_rm_sta(sc, in);
-	in->in_assoc = 0;
-	iwm_mvm_update_quotas(sc, NULL);
-	if ((error = iwm_mvm_mac_ctxt_changed(sc, vap)) != 0) {
-		device_printf(sc->sc_dev, "mac ctxt change fail 2 %d\n", error);
-		return error;
-	}
-	iwm_mvm_binding_remove_vif(sc, IWM_VAP(in->in_ni.ni_vap));
-
-	iwm_mvm_mac_ctxt_remove(sc, in);
-
-	return error;
-#endif
 }
 
 static struct ieee80211_node *
@@ -4282,6 +4219,97 @@ iwm_media_change(struct ifnet *ifp)
 	return error;
 }
 
+static void
+iwm_bring_down_firmware(struct iwm_softc *sc, struct ieee80211vap *vap)
+{
+	struct iwm_vap *ivp = IWM_VAP(vap);
+	int error;
+
+	ivp->iv_auth = 0;
+	if (sc->sc_firmware_state == 3) {
+		iwm_xmit_queue_drain(sc);
+//		iwm_mvm_flush_tx_path(sc, 0xf, IWM_CMD_SYNC);
+		error = iwm_mvm_rm_sta(sc, vap, TRUE);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to remove station: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state == 3) {
+		error = iwm_mvm_mac_ctxt_changed(sc, vap);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to change mac context: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state == 3) {
+		error = iwm_mvm_sf_update(sc, vap, FALSE);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to update smart FIFO: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state == 3) {
+		error = iwm_mvm_rm_sta_id(sc, vap);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to remove station id: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state == 3) {
+		error = iwm_mvm_update_quotas(sc, NULL);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to update PHY quota: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state == 3) {
+		/* XXX Might need to specify bssid correctly. */
+		error = iwm_mvm_mac_ctxt_changed(sc, vap);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to change mac context: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state == 3) {
+		sc->sc_firmware_state = 2;
+	}
+	if (sc->sc_firmware_state > 1) {
+		error = iwm_mvm_binding_remove_vif(sc, ivp);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to remove channel ctx: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state > 1) {
+		sc->sc_firmware_state = 1;
+	}
+	ivp->phy_ctxt = NULL;
+	if (sc->sc_firmware_state > 0) {
+		error = iwm_mvm_mac_ctxt_changed(sc, vap);
+		if (error) {
+			device_printf(sc->sc_dev,
+			    "%s: Failed to change mac context: %d\n",
+			    __func__, error);
+		}
+	}
+	if (sc->sc_firmware_state > 0) {
+		error = iwm_mvm_power_update_mac(sc);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: failed to update power management\n",
+			    __func__);
+		}
+	}
+	sc->sc_firmware_state = 0;
+}
 
 static int
 iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
@@ -4293,115 +4321,64 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	int error;
 
 	IWM_DPRINTF(sc, IWM_DEBUG_STATE,
-	    "switching state %s -> %s\n",
+	    "switching state %s -> %s arg=0x%x\n",
 	    ieee80211_state_name[vap->iv_state],
-	    ieee80211_state_name[nstate]);
+	    ieee80211_state_name[nstate],
+	    arg);
+
 	IEEE80211_UNLOCK(ic);
 	IWM_LOCK(sc);
 
-	if (vap->iv_state == IEEE80211_S_SCAN && nstate != vap->iv_state)
+	if ((sc->sc_flags & IWM_FLAG_SCAN_RUNNING) &&
+	    (nstate == IEEE80211_S_AUTH ||
+	     nstate == IEEE80211_S_ASSOC ||
+	     nstate == IEEE80211_S_RUN)) {
+		/* Stop blinking for a scan, when authenticating. */
 		iwm_led_blink_stop(sc);
+	}
 
-	/* disable beacon filtering if we're hopping out of RUN */
-	if (vap->iv_state == IEEE80211_S_RUN && nstate != vap->iv_state) {
+	if (vap->iv_state == IEEE80211_S_RUN && nstate != IEEE80211_S_RUN) {
+		iwm_mvm_led_disable(sc);
+		/* disable beacon filtering if we're hopping out of RUN */
 		iwm_mvm_disable_beacon_filter(sc);
-
 		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
+	}
 
-		if (nstate == IEEE80211_S_INIT) {
-			IWM_UNLOCK(sc);
-			IEEE80211_LOCK(ic);
-			error = ivp->iv_newstate(vap, nstate, arg);
-			IEEE80211_UNLOCK(ic);
-			IWM_LOCK(sc);
-			iwm_release(sc, NULL);
-			IWM_UNLOCK(sc);
-			IEEE80211_LOCK(ic);
-			return error;
-		}
-
+	if ((vap->iv_state == IEEE80211_S_RUN ||
+	     vap->iv_state == IEEE80211_S_ASSOC) &&
+	    nstate == IEEE80211_S_INIT) {
 		/*
-		 * It's impossible to directly go RUN->SCAN. If we iwm_release()
-		 * above then the card will be completely reinitialized,
-		 * so the driver must do everything necessary to bring the card
-		 * from INIT to SCAN.
-		 *
-		 * Additionally, upon receiving deauth frame from AP,
-		 * OpenBSD 802.11 stack puts the driver in IEEE80211_S_AUTH
-		 * state. This will also fail with this driver, so bring the FSM
-		 * from IEEE80211_S_RUN to IEEE80211_S_SCAN in this case as well.
-		 *
-		 * XXX TODO: fix this for FreeBSD!
+		 * In this case, iv_newstate() wants to send an 80211 frame on
+		 * the network that we are leaving. So we need to call it,
+		 * before tearing down all the firmware state.
 		 */
-		if (nstate == IEEE80211_S_SCAN ||
-		    nstate == IEEE80211_S_AUTH ||
-		    nstate == IEEE80211_S_ASSOC) {
-			IWM_DPRINTF(sc, IWM_DEBUG_STATE,
-			    "Force transition to INIT; MGT=%d\n", arg);
-			IWM_UNLOCK(sc);
-			IEEE80211_LOCK(ic);
-			/* Always pass arg as -1 since we can't Tx right now. */
-			/*
-			 * XXX arg is just ignored anyway when transitioning
-			 *     to IEEE80211_S_INIT.
-			 */
-			vap->iv_newstate(vap, IEEE80211_S_INIT, -1);
-			IWM_DPRINTF(sc, IWM_DEBUG_STATE,
-			    "Going INIT->SCAN\n");
-			nstate = IEEE80211_S_SCAN;
-			IEEE80211_UNLOCK(ic);
-			IWM_LOCK(sc);
-		}
+		IWM_UNLOCK(sc);
+		IEEE80211_LOCK(ic);
+		ivp->iv_newstate(vap, nstate, arg);
+		IEEE80211_UNLOCK(ic);
+		IWM_LOCK(sc);
+		iwm_bring_down_firmware(sc, vap);
+		IWM_UNLOCK(sc);
+		IEEE80211_LOCK(ic);
+		return 0;
 	}
 
 	switch (nstate) {
 	case IEEE80211_S_INIT:
 	case IEEE80211_S_SCAN:
-		if (vap->iv_state == IEEE80211_S_AUTH ||
-		    vap->iv_state == IEEE80211_S_ASSOC) {
-			int myerr;
-			IWM_UNLOCK(sc);
-			IEEE80211_LOCK(ic);
-			myerr = ivp->iv_newstate(vap, nstate, arg);
-			IEEE80211_UNLOCK(ic);
-			IWM_LOCK(sc);
-			error = iwm_mvm_rm_sta(sc, vap, FALSE);
-                        if (error) {
-                                device_printf(sc->sc_dev,
-				    "%s: Failed to remove station: %d\n",
-				    __func__, error);
-			}
-			error = iwm_mvm_mac_ctxt_changed(sc, vap);
-                        if (error) {
-                                device_printf(sc->sc_dev,
-                                    "%s: Failed to change mac context: %d\n",
-                                    __func__, error);
-                        }
-                        error = iwm_mvm_binding_remove_vif(sc, ivp);
-                        if (error) {
-                                device_printf(sc->sc_dev,
-                                    "%s: Failed to remove channel ctx: %d\n",
-                                    __func__, error);
-                        }
-			ivp->phy_ctxt = NULL;
-			error = iwm_mvm_power_update_mac(sc);
-			if (error != 0) {
-				device_printf(sc->sc_dev,
-				    "%s: failed to update power management\n",
-				    __func__);
-			}
-			IWM_UNLOCK(sc);
-			IEEE80211_LOCK(ic);
-			return myerr;
-		}
 		break;
 
 	case IEEE80211_S_AUTH:
+		iwm_bring_down_firmware(sc, vap);
 		if ((error = iwm_auth(vap, sc)) != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: could not move to auth state: %d\n",
 			    __func__, error);
+			iwm_bring_down_firmware(sc, vap);
+			IWM_UNLOCK(sc);
+			IEEE80211_LOCK(ic);
+			return 1;
 		}
 		break;
 
@@ -5566,6 +5543,8 @@ iwm_intr(void *arg)
 		device_printf(sc->sc_dev,
 		    "  802.11 state %d\n", (vap == NULL) ? -1 : vap->iv_state);
 
+		/* Reset our firmware state tracking. */
+		sc->sc_firmware_state = 0;
 		/* Don't stop the device; just do a VAP restart */
 		IWM_UNLOCK(sc);
 

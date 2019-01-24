@@ -365,6 +365,7 @@ struct iwm_bf_data {
 struct iwm_vap {
 	struct ieee80211vap	iv_vap;
 	int			is_uploaded;
+	int			iv_auth;
 
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
@@ -558,6 +559,9 @@ struct iwm_softc {
 	boolean_t		sc_ps_disabled;
 
 	int			sc_ltr_enabled;
+
+	/* Track firmware state for STA association. */
+	int			sc_firmware_state;
 };
 
 #define IWM_LOCK_INIT(_sc) \
