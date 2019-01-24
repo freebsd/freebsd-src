@@ -645,6 +645,7 @@ struct in6_multi {
 	/* New fields for MLDv2 follow. */
 	struct mld_ifsoftc	*in6m_mli;	/* MLD info */
 	SLIST_ENTRY(in6_multi)	 in6m_nrele;	/* to-be-released by MLD */
+	SLIST_ENTRY(in6_multi)	 in6m_defer;	/* deferred MLDv1 */
 	struct ip6_msource_tree	 in6m_srcs;	/* tree of sources */
 	u_long			 in6m_nsrc;	/* # of tree entries */
 
@@ -670,8 +671,8 @@ struct in6_multi {
 	}			in6m_st[2];	/* state at t0, t1 */
 };
 
-void in6m_disconnect(struct in6_multi *inm);
-extern int ifma6_restart;
+void in6m_disconnect_locked(struct in6_multi_head *inmh, struct in6_multi *inm);
+
 /*
  * Helper function to derive the filter mode on a source entry
  * from its internal counters. Predicates are:
@@ -713,13 +714,25 @@ extern struct sx in6_multi_sx;
 #define	IN6_MULTI_LOCK_ASSERT()	sx_assert(&in6_multi_sx, SA_XLOCKED)
 #define	IN6_MULTI_UNLOCK_ASSERT() sx_assert(&in6_multi_sx, SA_XUNLOCKED)
 
+/*
+ * Get the in6_multi pointer from a ifmultiaddr.
+ * Returns NULL if ifmultiaddr is no longer valid.
+ */
+static __inline struct in6_multi *
+in6m_ifmultiaddr_get_inm(struct ifmultiaddr *ifma)
+{
+
+	NET_EPOCH_ASSERT();
+
+	return ((ifma->ifma_addr->sa_family != AF_INET6 ||	
+	    (ifma->ifma_flags & IFMA_F_ENQUEUED) == 0) ? NULL :
+	    ifma->ifma_protospec);
+}
 
 /*
  * Look up an in6_multi record for an IPv6 multicast address
  * on the interface ifp.
  * If no record found, return NULL.
- *
- * SMPng: The IN6_MULTI_LOCK and IF_ADDR_LOCK on ifp must be held.
  */
 static __inline struct in6_multi *
 in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
@@ -727,18 +740,14 @@ in6m_lookup_locked(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	struct ifmultiaddr *ifma;
 	struct in6_multi *inm;
 
-	inm = NULL;
-	CK_STAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
-		if (ifma->ifma_addr->sa_family == AF_INET6) {
-			inm = (struct in6_multi *)ifma->ifma_protospec;
-			if (inm == NULL)
-				continue;
-			if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
-				break;
-			inm = NULL;
-		}
+	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		inm = in6m_ifmultiaddr_get_inm(ifma);
+		if (inm == NULL)
+			continue;
+		if (IN6_ARE_ADDR_EQUAL(&inm->in6m_addr, mcaddr))
+			return (inm);
 	}
-	return (inm);
+	return (NULL);
 }
 
 /*
@@ -809,7 +818,6 @@ void	in6m_clear_recorded(struct in6_multi *);
 void	in6m_commit(struct in6_multi *);
 void	in6m_print(const struct in6_multi *);
 int	in6m_record_source(struct in6_multi *, const struct in6_addr *);
-void	in6m_release_deferred(struct in6_multi *);
 void	in6m_release_list_deferred(struct in6_multi_head *);
 void	in6m_release_wait(void);
 void	ip6_freemoptions(struct ip6_moptions *);
