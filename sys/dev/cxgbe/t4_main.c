@@ -666,6 +666,10 @@ struct {
 	{0x5419,  "Chelsio T540-LP-BT"},	/* 4 x 10GBaseT */
 	{0x541a,  "Chelsio T540-SO-BT"},	/* 4 x 10GBaseT, nomem */
 	{0x541b,  "Chelsio T540-SO-CR"},	/* 4 x 10G, nomem */
+
+	/* Custom */
+	{0x5483, "Custom T540-CR"},
+	{0x5484, "Custom T540-BT"},
 }, t6_pciids[] = {
 	{0xc006, "Chelsio Terminator 6 FPGA"},	/* T6 PE10K6 FPGA (PF0) */
 	{0x6400, "Chelsio T6-DBG-25"},		/* 2 x 10/25G, debug */
