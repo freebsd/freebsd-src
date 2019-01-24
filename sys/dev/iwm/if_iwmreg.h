@@ -702,8 +702,9 @@ enum iwm_ucode_tlv_api {
  * @IWM_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG: support getting more shared
  *	memory addresses from the firmware.
  * @IWM_UCODE_TLV_CAPA_LQM_SUPPORT: supports Link Quality Measurement
- * @IWM_UCODE_TLV_CAPA_LMAC_UPLOAD: supports upload mode in lmac (1=supported,
- *	0=no support)
+ * @IWM_UCODE_TLV_CAPA_TX_POWER_ACK: reduced TX power API has larger
+ *      command size (command version 4) that supports toggling ACK TX
+ *      power reduction.
  *
  * @IWM_NUM_UCODE_TLV_CAPA: number of bits used
  */
@@ -744,9 +745,9 @@ enum iwm_ucode_tlv_capa {
 	IWM_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT	= 75,
 	IWM_UCODE_TLV_CAPA_CTDP_SUPPORT			= 76,
 	IWM_UCODE_TLV_CAPA_USNIFFER_UNIFIED		= 77,
-	IWM_UCODE_TLV_CAPA_LMAC_UPLOAD			= 79,
 	IWM_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG	= 80,
 	IWM_UCODE_TLV_CAPA_LQM_SUPPORT			= 81,
+	IWM_UCODE_TLV_CAPA_TX_POWER_ACK			= 84,
 
 	IWM_NUM_UCODE_TLV_CAPA = 128
 };
@@ -1916,6 +1917,51 @@ struct iwm_reduce_tx_power_cmd {
 	uint8_t mac_context_id;
 	uint16_t pwr_restriction;
 } __packed; /* IWM_TX_REDUCED_POWER_API_S_VER_1 */
+
+enum iwm_dev_tx_power_cmd_mode {
+	IWM_TX_POWER_MODE_SET_MAC = 0,
+	IWM_TX_POWER_MODE_SET_DEVICE = 1,
+	IWM_TX_POWER_MODE_SET_CHAINS = 2,
+	IWM_TX_POWER_MODE_SET_ACK = 3,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_4 */;
+
+#define IWM_NUM_CHAIN_LIMITS	2
+#define IWM_NUM_SUB_BANDS	5
+
+/**
+ * struct iwm_dev_tx_power_cmd - TX power reduction command
+ * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in 1/8 dBms.
+ * @dev_24: device TX power restriction in 1/8 dBms
+ * @dev_52_low: device TX power restriction upper band - low
+ * @dev_52_high: device TX power restriction upper band - high
+ * @per_chain_restriction: per chain restrictions
+ */
+struct iwm_dev_tx_power_cmd_v3 {
+	uint32_t set_mode;
+	uint32_t mac_context_id;
+	uint16_t pwr_restriction;
+	uint16_t dev_24;
+	uint16_t dev_52_low;
+	uint16_t dev_52_high;
+	uint16_t per_chain_restriction[IWM_NUM_CHAIN_LIMITS][IWM_NUM_SUB_BANDS];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
+
+#define IWM_DEV_MAX_TX_POWER 0x7FFF
+
+/**
+ * struct iwm_dev_tx_power_cmd - TX power reduction command
+ * @v3: version 3 of the command, embedded here for easier software handling
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *      reduction.
+ */
+struct iwm_dev_tx_power_cmd {
+	/* v4 is just an extension of v3 - keep this here */
+	struct iwm_dev_tx_power_cmd_v3 v3;
+	uint8_t enable_ack_reduction;
+	uint8_t reserved[3];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
 /*
  * Calibration control struct.
