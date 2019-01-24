@@ -1022,7 +1022,16 @@ fetch_pick_server () {
 
 # Have we run out of mirrors?
 	if [ `wc -l < serverlist` -eq 0 ]; then
-		echo "No mirrors remaining, giving up."
+		cat <<- EOF
+			No mirrors remaining, giving up.
+
+			This may be because upgrading from this platform (${ARCH})
+			or release (${RELNUM}) is unsupported by `basename $0`. Only
+			platforms with Tier 1 support can be upgraded by `basename $0`.
+			See https://www.freebsd.org/platforms/index.html for more info.
+
+			If unsupported, FreeBSD must be upgraded by source.
+		EOF
 		return 1
 	fi
 
