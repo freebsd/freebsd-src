@@ -851,6 +851,7 @@ ocs_mgmt_firmware_write(ocs_t *ocs, char *name, void *buf, uint32_t buf_len, voi
 		if (arg_out_length > sizeof(status_str)) {
 			arg_out_length = sizeof(status_str);
 		}
+		ocs_memset(status_str, 0, sizeof(status_str));
 		ocs_snprintf(status_str, arg_out_length, "%d", change_status);
 		if (ocs_copy_to_user(arg_out, status_str, arg_out_length)) {
 			ocs_log_test(ocs, "copy to user failed for change_status\n");
