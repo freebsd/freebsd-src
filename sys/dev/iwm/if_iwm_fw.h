@@ -107,7 +107,7 @@
 #define IWM_PAGING_TLV_SECURE_MASK 1
 
 extern	void iwm_free_fw_paging(struct iwm_softc *);
-extern	int iwm_save_fw_paging(struct iwm_softc *, const struct iwm_fw_sects *);
-extern	int iwm_send_paging_cmd(struct iwm_softc *, const struct iwm_fw_sects *);
+extern	int iwm_save_fw_paging(struct iwm_softc *, const struct iwm_fw_img *);
+extern	int iwm_send_paging_cmd(struct iwm_softc *, const struct iwm_fw_img *);
 
 #endif	/* __IF_IWM_FW_H__ */
