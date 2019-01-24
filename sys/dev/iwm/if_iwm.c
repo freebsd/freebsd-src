@@ -1263,6 +1263,7 @@ iwm_stop_device(struct iwm_softc *sc)
 		iv->is_uploaded = 0;
 	}
 	sc->sc_firmware_state = 0;
+	sc->sc_flags &= ~IWM_FLAG_TE_ACTIVE;
 
 	/* device going down, Stop using ICT table */
 	sc->sc_flags &= ~IWM_FLAG_USE_ICT;
@@ -4050,8 +4051,7 @@ iwm_auth(struct ieee80211vap *vap, struct iwm_softc *sc)
 	 */
 	/* XXX duration is in units of TU, not MS */
 	duration = IWM_MVM_TE_SESSION_PROTECTION_MAX_TIME_MS;
-	iwm_mvm_protect_session(sc, iv, duration, 500 /* XXX magic number */);
-	DELAY(100);
+	iwm_mvm_protect_session(sc, iv, duration, 500 /* XXX magic number */, TRUE);
 
 	error = 0;
 out:
@@ -4347,6 +4347,15 @@ iwm_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		iwm_mvm_disable_beacon_filter(sc);
 		if (((in = IWM_NODE(vap->iv_bss)) != NULL))
 			in->in_assoc = 0;
+	}
+
+	if ((vap->iv_state == IEEE80211_S_AUTH ||
+	     vap->iv_state == IEEE80211_S_ASSOC ||
+	     vap->iv_state == IEEE80211_S_RUN) &&
+	    (nstate == IEEE80211_S_INIT ||
+	     nstate == IEEE80211_S_SCAN ||
+	     nstate == IEEE80211_S_AUTH)) {
+		iwm_mvm_stop_session_protection(sc, ivp);
 	}
 
 	if ((vap->iv_state == IEEE80211_S_RUN ||
