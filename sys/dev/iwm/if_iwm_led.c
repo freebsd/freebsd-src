@@ -162,6 +162,9 @@ iwm_led_blink_timeout(void *arg)
 {
 	struct iwm_softc *sc = arg;
 
+	if (sc->sc_attached == 0)
+		return;
+
 	if (iwm_mvm_led_is_enabled(sc))
 		iwm_mvm_led_disable(sc);
 	else
