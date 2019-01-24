@@ -320,6 +320,7 @@ static int	iwm_send_phy_cfg_cmd(struct iwm_softc *);
 static int	iwm_mvm_load_ucode_wait_alive(struct iwm_softc *,
                                               enum iwm_ucode_type);
 static int	iwm_run_init_mvm_ucode(struct iwm_softc *, int);
+static int	iwm_mvm_config_ltr(struct iwm_softc *sc);
 static int	iwm_rx_addbuf(struct iwm_softc *, int, int);
 static int	iwm_mvm_get_signal_strength(struct iwm_softc *,
 					    struct iwm_rx_phy_info *);
@@ -3000,6 +3001,19 @@ out:
 	return ret;
 }
 
+static int
+iwm_mvm_config_ltr(struct iwm_softc *sc)
+{
+	struct iwm_ltr_config_cmd cmd = {
+		.flags = htole32(IWM_LTR_CFG_FLAG_FEATURE_ENABLE),
+	};
+
+	if (!sc->sc_ltr_enabled)
+		return 0;
+
+	return iwm_mvm_send_cmd_pdu(sc, IWM_LTR_CONFIG, 0, sizeof(cmd), &cmd);
+}
+
 /*
  * receive side
  */
@@ -4665,6 +4679,9 @@ iwm_init_hw(struct iwm_softc *sc)
 	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_7000)
 		iwm_mvm_tt_tx_backoff(sc, 0);
 
+	if (iwm_mvm_config_ltr(sc) != 0)
+		device_printf(sc->sc_dev, "PCIe LTR configuration failed\n");
+
 	error = iwm_mvm_power_update_device(sc);
 	if (error)
 		goto error;
@@ -5292,6 +5309,7 @@ iwm_handle_rxb(struct iwm_softc *sc, struct mbuf *m)
 		case IWM_MAC_CONTEXT_CMD:
 		case IWM_REPLY_SF_CFG_CMD:
 		case IWM_POWER_TABLE_CMD:
+		case IWM_LTR_CONFIG:
 		case IWM_PHY_CONTEXT_CMD:
 		case IWM_BINDING_CONTEXT_CMD:
 		case IWM_TIME_EVENT_CMD:
