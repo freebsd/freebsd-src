@@ -4829,6 +4829,9 @@ iwm_watchdog(void *arg)
 	struct iwm_softc *sc = arg;
 	struct ieee80211com *ic = &sc->sc_ic;
 
+	if (sc->sc_attached == 0)
+		return;
+
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
