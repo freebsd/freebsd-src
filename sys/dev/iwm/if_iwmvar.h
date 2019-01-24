@@ -538,7 +538,7 @@ struct iwm_softc {
 	int			cmd_hold_nic_awake;
 
 	/* Firmware status */
-	uint32_t		error_event_table;
+	uint32_t		error_event_table[2];
 	uint32_t		log_event_table;
 	uint32_t		umac_error_event_table;
 	int			support_umac_log;
