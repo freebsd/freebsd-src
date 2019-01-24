@@ -1912,8 +1912,6 @@ enum nvm_sku_bits {
 #define IWM_NVM_RF_CFG_TX_ANT_MSK_8000(x)	((x >> 24) & 0xF)
 #define IWM_NVM_RF_CFG_RX_ANT_MSK_8000(x)	((x >> 28) & 0xF)
 
-#define DEFAULT_MAX_TX_POWER 16
-
 /**
  * enum iwm_nvm_channel_flags - channel flags in NVM
  * @IWM_NVM_CHANNEL_VALID: channel is usable for this SKU/geo
@@ -5863,18 +5861,17 @@ iwm_attach(device_t dev)
 	 * "dash" value). To keep hw_rev backwards compatible - we'll store it
 	 * in the old format.
 	 */
-	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000)
-		sc->sc_hw_rev = (sc->sc_hw_rev & 0xfff0) |
-				(IWM_CSR_HW_REV_STEP(sc->sc_hw_rev << 2) << 2);
-
-	if (iwm_prepare_card_hw(sc) != 0) {
-		device_printf(dev, "could not initialize hardware\n");
-		goto fail;
-	}
-
 	if (sc->cfg->device_family == IWM_DEVICE_FAMILY_8000) {
 		int ret;
 		uint32_t hw_step;
+
+		sc->sc_hw_rev = (sc->sc_hw_rev & 0xfff0) |
+				(IWM_CSR_HW_REV_STEP(sc->sc_hw_rev << 2) << 2);
+
+		if (iwm_prepare_card_hw(sc) != 0) {
+			device_printf(dev, "could not initialize hardware\n");
+			goto fail;
+		}
 
 		/*
 		 * In order to recognize C step the driver should read the
