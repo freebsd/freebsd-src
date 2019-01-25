@@ -977,6 +977,9 @@ __FBSDID("$FreeBSD$");
     ((((uint8_t *)&(a)->s_addr)[0] == 169) && \
      (((uint8_t *)&(a)->s_addr)[1] == 254))
 
+/* Maximum size of optval for IPPROTO_SCTP level socket options. */
+#define SCTP_SOCKET_OPTION_LIMIT (64 * 1024)
+
 
 #if defined(_KERNEL)
 #define SCTP_GETTIME_TIMEVAL(x) (getmicrouptime(x))
