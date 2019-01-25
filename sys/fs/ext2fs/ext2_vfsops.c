@@ -416,7 +416,16 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		    es->e3fs_desc_size);
 		return (EINVAL);
 	}
+	/* Check for block size = 1K|2K|4K */
+	if (es->e2fs_log_bsize > 2) {
+		printf("ext2fs: bad block size: %d\n", es->e2fs_log_bsize);
+		return (EINVAL);
+	}
 	/* Check for group size */
+	if (fs->e2fs_bpg == 0) {
+		printf("ext2fs: zero blocks per group\n");
+		return (EINVAL);
+	}
 	if (fs->e2fs_bpg != fs->e2fs_bsize * 8) {
 		printf("ext2fs: non-standard group size unsupported %d\n",
 		    fs->e2fs_bpg);
@@ -424,7 +433,21 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	}
 
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
+	if (fs->e2fs_ipg == 0) {
+		printf("ext2fs: zero inodes per group\n");
+		return (EINVAL);
+	}
 	fs->e2fs_itpg = fs->e2fs_ipg / fs->e2fs_ipb;
+	/* Check for block consistency */
+	if (es->e2fs_first_dblock >= fs->e2fs_bcount) {
+		printf("ext2fs: invalid first data block\n");
+		return (EINVAL);
+	}
+	if (fs->e2fs_rbcount > fs->e2fs_bcount ||
+	    fs->e2fs_fbcount > fs->e2fs_bcount) {
+		printf("ext2fs: invalid block count\n");
+		return (EINVAL);
+	}
 	/* s_resuid / s_resgid ? */
 	fs->e2fs_gcount = howmany(fs->e2fs_bcount - es->e2fs_first_dblock,
 	    EXT2_BLOCKS_PER_GROUP(fs));
