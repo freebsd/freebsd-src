@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 1995
+.Dd January 25, 2018
 .Dt SHMAT 2
 .Os
 .Sh NAME
@@ -104,6 +104,11 @@ The
 .Fa addr
 argument
 was not an acceptable address.
+.It Bq Er EMFILE
+Failed to attach the shared memory segment because the per-process
+.Va kern.ipc.shmseg
+.Xr sysctl 3
+limit was reached.
 .El
 .Pp
 The
