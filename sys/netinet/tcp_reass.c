@@ -38,6 +38,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
+/* For debugging we want counters and BB logging */
+/* #define TCP_REASS_COUNTERS 1 */
+/* #define TCP_REASS_LOGGING 1 */
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/eventhandler.h>
@@ -72,8 +76,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
+#ifdef TCP_REASS_LOGGING
 #include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_hpts.h>
+#endif
 #include <netinet6/tcp6_var.h>
 #include <netinet/tcpip.h>
 #ifdef TCPDEBUG
@@ -91,10 +97,6 @@ __FBSDID("$FreeBSD$");
 #define TCP_R_LOG_ZERO		9
 #define TCP_R_LOG_DUMP		10
 #define TCP_R_LOG_TRIM		11
-
-/* For debugging we want counters and BB logging */
-/* #define TCP_REASS_COUNTERS 1 */
-/* #define TCP_REASS_LOGGING 1 */
 
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
