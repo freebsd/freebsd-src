@@ -62,7 +62,6 @@ device		wlan_amrr
 device		an		
 device		ath		
 device		ath_hal		
-options 	AH_SUPPORT_AR5416	
 device		ath_rate_sample	
 device		wi		
 device		loop		
