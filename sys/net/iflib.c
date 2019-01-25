@@ -2197,17 +2197,17 @@ iflib_rx_sds_free(iflib_rxq_t rxq)
 			fl = &rxq->ifr_fl[i];
 			if (fl->ifl_desc_tag != NULL) {
 				if (fl->ifl_sds.ifsd_map != NULL) {
-					for (j = 0; j < fl->ifl_size; i++) {
-						if (fl->ifl_sds.ifsd_map[i] ==
+					for (j = 0; j < fl->ifl_size; j++) {
+						if (fl->ifl_sds.ifsd_map[j] ==
 						    NULL)
-						continue;
+							continue;
 						bus_dmamap_sync(
 						    fl->ifl_desc_tag,
-						    fl->ifl_sds.ifsd_map[i],
+						    fl->ifl_sds.ifsd_map[j],
 						    BUS_DMASYNC_POSTREAD);
 						bus_dmamap_unload(
 						    fl->ifl_desc_tag,
-						    fl->ifl_sds.ifsd_map[i]);
+						    fl->ifl_sds.ifsd_map[j]);
 					}
 				}
 				bus_dma_tag_destroy(fl->ifl_desc_tag);
