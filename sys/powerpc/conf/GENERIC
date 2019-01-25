@@ -200,7 +200,6 @@ device		kue		# Kawasaki LSI USB Ethernet
 
 # Wireless NIC cards
 options 	IEEE80211_SUPPORT_MESH
-options 	AH_SUPPORT_AR5416
 
 # Misc
 device		iicbus		# I2C bus code

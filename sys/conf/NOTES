@@ -2121,7 +2121,6 @@ device		ath_hal		# pci/cardbus chip support
 #device		ath_rf5112
 #device		ath_rf5413
 #device		ath_ar5416	# AR5416 chips
-options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 # All of the AR5212 parts have a problem when paired with the AR71xx
 # CPUS.  These parts have a bug that triggers a fatal bus error on the AR71xx
 # only.  Details of the exact nature of the bug are sketchy, but some can be

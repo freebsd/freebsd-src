@@ -84,7 +84,6 @@ options 	ATH_ENABLE_11N
 options 	ATH_DIAGAPI
 
 # device		ath_hal
-options 	AH_SUPPORT_AR5416
 options 	AH_DEBUG
 options 	AH_DEBUG_ALQ
 
