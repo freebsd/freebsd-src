@@ -18,13 +18,13 @@
 # set -o vi
 
 
-# some useful aliases
-alias h='fc -l'
-alias j=jobs
-alias m="$PAGER"
-alias ll='ls -laFo'
-alias l='ls -l'
-alias g='egrep -i'
+# # some useful aliases
+# alias h='fc -l'
+# alias j=jobs
+# alias m="$PAGER"
+# alias ll='ls -laFo'
+# alias l='ls -l'
+# alias g='egrep -i'
  
 # # be paranoid
 # alias cp='cp -ip'
