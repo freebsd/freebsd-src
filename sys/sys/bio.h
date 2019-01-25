@@ -67,6 +67,9 @@
 #define	BIO_TRANSIENT_MAPPING	0x20
 #define	BIO_VLIST	0x40
 
+#define	PRINT_BIO_FLAGS "\20\7vlist\6transient_mapping\5unmapped" \
+	"\4ordered\3onqueue\2done\1error"
+
 #ifdef _KERNEL
 struct disk;
 struct bio;
