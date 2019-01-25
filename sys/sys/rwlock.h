@@ -128,7 +128,6 @@
 void	_rw_init_flags(volatile uintptr_t *c, const char *name, int opts);
 void	_rw_destroy(volatile uintptr_t *c);
 void	rw_sysinit(void *arg);
-void	rw_sysinit_flags(void *arg);
 int	_rw_wowned(const volatile uintptr_t *c);
 void	_rw_wlock_cookie(volatile uintptr_t *c, const char *file, int line);
 int	__rw_try_wlock_int(struct rwlock *rw LOCK_FILE_LINE_ARG_DEF);
