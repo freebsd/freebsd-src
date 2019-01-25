@@ -104,27 +104,20 @@ char *tpmcrb_ids[] = {"MSFT0101", NULL};
 static int
 tpmcrb_acpi_probe(device_t dev)
 {
-	struct resource *res;
-	int err, rid = 0;
-	uint32_t caps;
-
+	int err;
+	ACPI_TABLE_TPM23 *tbl;
+	ACPI_STATUS status;
 	err = ACPI_ID_PROBE(device_get_parent(dev), dev, tpmcrb_ids, NULL);
 	if (err > 0)
 		return (err);
-
-	/* Check if device is in CRB mode */
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-	if (res == NULL)
-		return (ENXIO);
-
-	caps = bus_read_4(res, TPM_CRB_INTF_ID);
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, res);
-
-	if ((caps & TPM_CRB_INTF_ID_TYPE) != TPM_CRB_INTF_ID_TYPE_CRB)
-		return (ENXIO);
+	/*Find TPM2 Header*/
+	status = AcpiGetTable(ACPI_SIG_TPM2, 1, (ACPI_TABLE_HEADER **) &tbl);
+	if(ACPI_FAILURE(status) ||
+	   tbl->StartMethod != TPM2_START_METHOD_CRB)
+		err = ENXIO;
 
 	device_set_desc(dev, "Trusted Platform Module 2.0, CRB mode");
-	return (BUS_PROBE_DEFAULT);
+	return (err);
 }
 
 static ACPI_STATUS
