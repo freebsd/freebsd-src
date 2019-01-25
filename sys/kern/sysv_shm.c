@@ -379,7 +379,7 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 	vm_offset_t attach_va;
 	vm_prot_t prot;
 	vm_size_t size;
-	int error, i, rv;
+	int cow, error, find_space, i, rv;
 
 	SYSVSHM_ASSERT_LOCKED();
 	rpr = shm_find_prison(td->td_ucred);
@@ -415,6 +415,7 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		return (EMFILE);
 	size = round_page(shmseg->u.shm_segsz);
 	prot = VM_PROT_READ;
+	cow = MAP_INHERIT_SHARE | MAP_PREFAULT_PARTIAL;
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
 	if (shmaddr != NULL) {
@@ -424,6 +425,9 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 			attach_va = (vm_offset_t)shmaddr;
 		else
 			return (EINVAL);
+		if ((shmflg & SHM_REMAP) != 0)
+			cow |= MAP_REMAP;
+		find_space = VMFS_NO_SPACE;
 	} else {
 		/*
 		 * This is just a hint to vm_map_find() about where to
@@ -431,12 +435,12 @@ kern_shmat_locked(struct thread *td, int shmid, const void *shmaddr,
 		 */
 		attach_va = round_page((vm_offset_t)p->p_vmspace->vm_daddr +
 		    lim_max(td, RLIMIT_DATA));
+		find_space = VMFS_OPTIMAL_SPACE;
 	}
 
 	vm_object_reference(shmseg->object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object, 0, &attach_va,
-	    size, 0, shmaddr != NULL ? VMFS_NO_SPACE : VMFS_OPTIMAL_SPACE,
-	    prot, prot, MAP_INHERIT_SHARE | MAP_PREFAULT_PARTIAL);
+	    size, 0, find_space, prot, prot, cow);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->object);
 		return (ENOMEM);

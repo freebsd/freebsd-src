@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2018
+.Dd January 14, 2019
 .Dt SHMAT 2
 .Os
 .Sh NAME
@@ -64,16 +64,37 @@ kernel.
 .It
 If
 .Fa addr
-is nonzero and SHM_RND is not specified in
+is nonzero and
+.Va SHM_RND
+is not specified in
 .Fa flag ,
 the segment is attached the specified address.
 .It
 If
 .Fa addr
-is specified and SHM_RND is specified,
+is specified and
+.Va SHM_RND
+is specified,
 .Fa addr
 is rounded down to the nearest multiple of SHMLBA.
 .El
+.Pp
+If the
+.Va SHM_REMAP
+flag is specified and the passed
+.Fa addr
+is not
+.Dv NULL ,
+any existing mappings in the virtual addresses range are
+cleared before the segment is attached.
+If the flag is not specified,
+.Fa addr
+is not
+.Dv NULL ,
+and the virtual address range contains
+some pre-existing mappings, the
+.Fn shmat
+call fails.
 .Pp
 The
 .Fn shmdt
@@ -104,6 +125,14 @@ The
 .Fa addr
 argument
 was not an acceptable address.
+.It Bq Er ENOMEM
+The specified
+.Fa addr
+cannot be used for mapping, for instance due to the amount of available
+space being smaller than the segment size,
+or because pre-existing mappings are in the range and no
+.Va SHM_REMAP
+flag was provided.
 .It Bq Er EMFILE
 Failed to attach the shared memory segment because the per-process
 .Va kern.ipc.shmseg
