@@ -177,7 +177,6 @@ device		wlan_amrr	# AMRR transmit rate control algorithm
 device		ath		# Atheros NIC's
 device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
-options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
