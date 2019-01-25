@@ -77,10 +77,15 @@ __FBSDID("$FreeBSD$");
 
 #if VM_NRESERVLEVEL > 0
 
+#ifndef VM_LEVEL_0_ORDER_MAX
+#define	VM_LEVEL_0_ORDER_MAX	VM_LEVEL_0_ORDER
+#endif
+
 /*
  * The number of small pages that are contained in a level 0 reservation
  */
 #define	VM_LEVEL_0_NPAGES	(1 << VM_LEVEL_0_ORDER)
+#define	VM_LEVEL_0_NPAGES_MAX	(1 << VM_LEVEL_0_ORDER_MAX)
 
 /*
  * The number of bits by which a physical address is shifted to obtain the
@@ -114,6 +119,7 @@ typedef	u_long		popmap_t;
  * The number of population map entries in a reservation
  */
 #define	NPOPMAP		howmany(VM_LEVEL_0_NPAGES, NBPOPMAP)
+#define	NPOPMAP_MAX	howmany(VM_LEVEL_0_NPAGES_MAX, NBPOPMAP)
 
 /*
  * Number of elapsed ticks before we update the LRU queue position.  Used
@@ -191,7 +197,7 @@ struct vm_reserv {
 	uint16_t	popcnt;			/* (r) # of pages in use */
 	int		lasttick;		/* (r) last pop update tick. */
 	char		inpartpopq;		/* (d) */
-	popmap_t	popmap[NPOPMAP];	/* (r) bit vector, used pages */
+	popmap_t	popmap[NPOPMAP_MAX];	/* (r) bit vector, used pages */
 };
 
 #define	vm_reserv_lockptr(rv)		(&(rv)->lock)

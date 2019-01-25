@@ -42,6 +42,10 @@
 
 #ifdef _KERNEL
 
+#ifndef VM_NFREEORDER_MAX
+#define	VM_NFREEORDER_MAX	VM_NFREEORDER
+#endif
+
 /* Domains must be dense (non-sparse) and zero-based. */
 struct mem_affinity {
 	vm_paddr_t start;
@@ -63,7 +67,7 @@ struct vm_phys_seg {
 	vm_paddr_t	end;
 	vm_page_t	first_page;
 	int		domain;
-	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER];
+	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
 };
 
 extern struct vm_phys_seg vm_phys_segs[];
