@@ -5524,6 +5524,8 @@ vi_full_uninit(struct vi_info *vi)
 	struct sge_txq *txq;
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
+#endif
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 	struct sge_wrq *ofld_txq;
 #endif
 
@@ -5539,7 +5541,7 @@ vi_full_uninit(struct vi_info *vi)
 			quiesce_txq(sc, txq);
 		}
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 		for_each_ofld_txq(vi, i, ofld_txq) {
 			quiesce_wrq(sc, ofld_txq);
 		}
@@ -6327,15 +6329,9 @@ vi_sysctls(struct vi_info *vi)
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldrxq", CTLFLAG_RD,
 		    &vi->nofldrxq, 0,
 		    "# of rx queues for offloaded TCP connections");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldtxq", CTLFLAG_RD,
-		    &vi->nofldtxq, 0,
-		    "# of tx queues for offloaded TCP connections");
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_rxq",
 		    CTLFLAG_RD, &vi->first_ofld_rxq, 0,
 		    "index of first TOE rx queue");
-		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_txq",
-		    CTLFLAG_RD, &vi->first_ofld_txq, 0,
-		    "index of first TOE tx queue");
 		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "holdoff_tmr_idx_ofld",
 		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
 		    sysctl_holdoff_tmr_idx_ofld, "I",
@@ -6344,6 +6340,16 @@ vi_sysctls(struct vi_info *vi)
 		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
 		    sysctl_holdoff_pktc_idx_ofld, "I",
 		    "holdoff packet counter index for TOE queues");
+	}
+#endif
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
+	if (vi->nofldtxq != 0) {
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldtxq", CTLFLAG_RD,
+		    &vi->nofldtxq, 0,
+		    "# of tx queues for TOE/ETHOFLD");
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "first_ofld_txq",
+		    CTLFLAG_RD, &vi->first_ofld_txq, 0,
+		    "index of first TOE/ETHOFLD tx queue");
 	}
 #endif
 #ifdef DEV_NETMAP
@@ -10011,7 +10017,7 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 					mp_ring_reset_stats(txq->r);
 				}
 
-#ifdef TCP_OFFLOAD
+#if defined(TCP_OFFLOAD) || defined(RATELIMIT)
 				/* nothing to clear for each ofld_rxq */
 
 				for_each_ofld_txq(vi, i, wrq) {
