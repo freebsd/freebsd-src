@@ -2515,20 +2515,12 @@ ieee80211_scanreq(struct ieee80211vap *vap, struct ieee80211_scan_req *sr)
 		    sr->sr_duration > IEEE80211_IOC_SCAN_DURATION_MAX)
 			return EINVAL;
 		sr->sr_duration = msecs_to_ticks(sr->sr_duration);
-		if (sr->sr_duration < 1)
-			sr->sr_duration = 1;
 	}
 	/* convert min/max channel dwell */
-	if (sr->sr_mindwell != 0) {
+	if (sr->sr_mindwell != 0)
 		sr->sr_mindwell = msecs_to_ticks(sr->sr_mindwell);
-		if (sr->sr_mindwell < 1)
-			sr->sr_mindwell = 1;
-	}
-	if (sr->sr_maxdwell != 0) {
+	if (sr->sr_maxdwell != 0)
 		sr->sr_maxdwell = msecs_to_ticks(sr->sr_maxdwell);
-		if (sr->sr_maxdwell < 1)
-			sr->sr_maxdwell = 1;
-	}
 	/* NB: silently reduce ssid count to what is supported */
 	if (sr->sr_nssid > IEEE80211_SCAN_MAX_SSID)
 		sr->sr_nssid = IEEE80211_SCAN_MAX_SSID;
