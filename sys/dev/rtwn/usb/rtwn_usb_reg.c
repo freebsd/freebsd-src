@@ -172,8 +172,6 @@ rtwn_usb_delay(struct rtwn_softc *sc, int usec)
 	/* 1ms delay as default is too big. */
 	if (usec < 1000)
 		DELAY(usec);
-	else {
-		usb_pause_mtx(&sc->sc_mtx,
-		    MAX(msecs_to_ticks(usec / 1000), 1));
-	}
+	else
+		usb_pause_mtx(&sc->sc_mtx, msecs_to_ticks(usec / 1000));
 }

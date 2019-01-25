@@ -38,6 +38,7 @@
 #include <sys/rwlock.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 
 /*
  * Common state locking definitions.
@@ -249,9 +250,8 @@ void	ieee80211_vap_destroy(struct ieee80211vap *);
 	(((_ifp)->if_flags & IFF_UP) && \
 	 ((_ifp)->if_drv_flags & IFF_DRV_RUNNING))
 
-/* XXX TODO: cap these at 1, as hz may not be 1000 */
-#define	msecs_to_ticks(ms)	(((ms)*hz)/1000)
-#define	ticks_to_msecs(t)	(1000*(t) / hz)
+#define	msecs_to_ticks(ms)	MSEC_2_TICKS(ms)
+#define	ticks_to_msecs(t)	TICKS_2_MSEC(t)
 #define	ticks_to_secs(t)	((t) / hz)
 
 #define ieee80211_time_after(a,b) 	((long)(b) - (long)(a) < 0)
