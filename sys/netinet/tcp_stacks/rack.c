@@ -1425,21 +1425,9 @@ rack_cc_after_idle(struct tcpcb *tp, int reduce_largest)
 
 	if (tp->snd_cwnd == 1)
 		i_cwnd = tp->t_maxseg;		/* SYN(-ACK) lost */
-	else if (V_tcp_initcwnd_segments)
-		i_cwnd = min((V_tcp_initcwnd_segments * tp->t_maxseg),
-		    max(2 * tp->t_maxseg, V_tcp_initcwnd_segments * 1460));
-	else if (V_tcp_do_rfc3390)
-		i_cwnd = min(4 * tp->t_maxseg,
-		    max(2 * tp->t_maxseg, 4380));
-	else {
-		/* Per RFC5681 Section 3.1 */
-		if (tp->t_maxseg > 2190)
-			i_cwnd = 2 * tp->t_maxseg;
-		else if (tp->t_maxseg > 1095)
-			i_cwnd = 3 * tp->t_maxseg;
-		else
-			i_cwnd = 4 * tp->t_maxseg;
-	}
+	else 
+		i_cwnd = tcp_compute_initwnd(tcp_maxseg(tp));
+
 	if (reduce_largest) {
 		/*
 		 * Do we reduce the largest cwnd to make 
