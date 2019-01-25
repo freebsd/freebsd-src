@@ -268,6 +268,10 @@ ATF_TC_BODY(cbrtl_powl, tc)
 	long double y, z;
 	size_t i;
 
+#if defined(__amd64__) && defined(__clang__) && __clang_major__ >= 7
+	atf_tc_expect_fail("test fails with clang 7+ - bug 234040");
+#endif
+
 	for (i = 0; i < __arraycount(x); i++) {
 
 		y = cbrtl(x[i]);
