@@ -1921,27 +1921,27 @@ _rxq_refill_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 {
-	struct mbuf *m;
-	int idx, frag_idx = fl->ifl_fragidx;
-        int pidx = fl->ifl_pidx;
-	caddr_t cl, *sd_cl;
-	struct mbuf **sd_m;
 	struct if_rxd_update iru;
 	struct rxq_refill_cb_arg cb_arg;
+	struct mbuf *m;
+	caddr_t cl, *sd_cl;
+	struct mbuf **sd_m;
 	bus_dmamap_t *sd_map;
-	int n, i = 0;
 	bus_addr_t bus_addr, *sd_ba;
-	int err;
+	int err, frag_idx, i, idx, n, pidx;
 	qidx_t credits;
 
 	sd_m = fl->ifl_sds.ifsd_m;
 	sd_map = fl->ifl_sds.ifsd_map;
 	sd_cl = fl->ifl_sds.ifsd_cl;
 	sd_ba = fl->ifl_sds.ifsd_ba;
+	pidx = fl->ifl_pidx;
 	idx = pidx;
+	frag_idx = fl->ifl_fragidx;
 	credits = fl->ifl_credits;
 
-	n  = count;
+	i = 0;
+	n = count;
 	MPASS(n > 0);
 	MPASS(credits + n <= fl->ifl_size);
 
@@ -1963,9 +1963,11 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 		 *
 		 * If the cluster is still set then we know a minimum sized packet was received
 		 */
-		bit_ffc_at(fl->ifl_rx_bitmap, frag_idx, fl->ifl_size,  &frag_idx);
-		if ((frag_idx < 0) || (frag_idx >= fl->ifl_size))
-                	bit_ffc(fl->ifl_rx_bitmap, fl->ifl_size, &frag_idx);
+		bit_ffc_at(fl->ifl_rx_bitmap, frag_idx, fl->ifl_size,
+		    &frag_idx);
+		if (frag_idx < 0)
+			bit_ffc(fl->ifl_rx_bitmap, fl->ifl_size, &frag_idx);
+		MPASS(frag_idx >= 0);
 		if ((cl = sd_cl[frag_idx]) == NULL) {
 			if ((cl = m_cljget(NULL, M_NOWAIT, fl->ifl_buf_size)) == NULL)
 				break;
@@ -1995,12 +1997,12 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			bus_addr = sd_ba[frag_idx];
 		}
 
-		bit_set(fl->ifl_rx_bitmap, frag_idx);
 		MPASS(sd_m[frag_idx] == NULL);
 		if ((m = m_gethdr(M_NOWAIT, MT_NOINIT)) == NULL) {
 			break;
 		}
 		sd_m[frag_idx] = m;
+		bit_set(fl->ifl_rx_bitmap, frag_idx);
 #if MEMORY_LOGGING
 		fl->ifl_m_enqueued++;
 #endif
@@ -2025,7 +2027,6 @@ _iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			fl->ifl_pidx = idx;
 			fl->ifl_credits = credits;
 		}
-
 	}
 
 	if (i) {
@@ -4896,7 +4897,6 @@ iflib_device_deregister(if_ctx_t ctx)
 
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++)
 			free(fl->ifl_rx_bitmap, M_IFLIB);
-			
 	}
 	tqg = qgroup_if_config_tqg;
 	if (ctx->ifc_admin_task.gt_uniq != NULL)
@@ -5304,7 +5304,8 @@ iflib_queues_alloc(if_ctx_t ctx)
 		}
 
 		for (j = 0, fl = rxq->ifr_fl; j < rxq->ifr_nfl; j++, fl++) 
-			fl->ifl_rx_bitmap = bit_alloc(fl->ifl_size, M_IFLIB, M_WAITOK|M_ZERO);
+			fl->ifl_rx_bitmap = bit_alloc(fl->ifl_size, M_IFLIB,
+			    M_WAITOK);
 	}
 
 	/* TXQs */
