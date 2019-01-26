@@ -2397,8 +2397,6 @@ static int
 iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 			     bus_addr_t phy_addr, uint32_t byte_cnt)
 {
-	int ret;
-
 	sc->sc_fw_chunk_done = 0;
 
 	if (!iwm_nic_lock(sc))
@@ -2430,14 +2428,9 @@ iwm_pcie_load_firmware_chunk(struct iwm_softc *sc, uint32_t dst_addr,
 	iwm_nic_unlock(sc);
 
 	/* wait up to 5s for this segment to load */
-	ret = 0;
-	while (!sc->sc_fw_chunk_done) {
-		ret = msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz);
-		if (ret)
-			break;
-	}
+	msleep(&sc->sc_fw, &sc->sc_mtx, 0, "iwmfw", hz * 5);
 
-	if (ret != 0) {
+	if (!sc->sc_fw_chunk_done) {
 		device_printf(sc->sc_dev,
 		    "fw chunk addr 0x%x len %d failed to load\n",
 		    dst_addr, byte_cnt);
