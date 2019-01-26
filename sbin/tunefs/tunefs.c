@@ -191,9 +191,8 @@ main(int argc, char *argv[])
 			i = -1;
 			while (isalnum(Lvalue[++i]) || Lvalue[i] == '_');
 			if (Lvalue[i] != '\0') {
-				errx(10,
-				"bad %s. Valid characters are alphanumerics.",
-				    name);
+				errx(10, "bad %s. Valid characters are "
+				    "alphanumerics and underscores.", name);
 			}
 			if (strlen(Lvalue) >= MAXVOLLEN) {
 				errx(10, "bad %s. Length is longer than %d.",
