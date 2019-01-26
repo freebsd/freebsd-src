@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190126: adv(4) / adw(4) removal
+OLD_FILES+=usr/share/man/man4/adv.4.gz
+OLD_FILES+=usr/share/man/man4/adw.4.gz
 # 20190114: old pbuf allocator removed
 OLD_FILES+=usr/share/man/man9/pbuf.9.gz
 # 20181219: ibcs removal
