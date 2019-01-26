@@ -617,14 +617,15 @@ ieee80211_crypto_decap(struct ieee80211_node *ni, struct mbuf *m, int hdrlen)
 		k = &ni->ni_ucastkey;
 
 	/*
-	 * Insure crypto header is contiguous for all decap work.
+	 * Insure crypto header is contiguous and long enough for all
+	 * decap work.
 	 */
 	cip = k->wk_cipher;
-	if (m->m_len < hdrlen + cip->ic_header &&
-	    (m = m_pullup(m, hdrlen + cip->ic_header)) == NULL) {
+	if (m->m_len < hdrlen + cip->ic_header) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-		    "unable to pullup %s header", cip->ic_name);
-		vap->iv_stats.is_rx_wepfail++;	/* XXX */
+		    "frame is too short (%d < %u) for crypto decap",
+		    cip->ic_name, m->m_len, hdrlen + cip->ic_header);
+		vap->iv_stats.is_rx_tooshort++;
 		return NULL;
 	}
 
