@@ -114,7 +114,7 @@ resolve_localhost(struct addrinfo **res, int domain, int type, int port)
 
 	error = getaddrinfo("localhost", serv, &hints, res);
 	ATF_REQUIRE_EQ_MSG(error, 0,
-	    "getaddrinfo failed: %s", gai_strerror(errno));
+	    "getaddrinfo failed: %s", gai_strerror(error));
 	free(serv);
 }
 
