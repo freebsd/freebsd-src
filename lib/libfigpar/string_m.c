@@ -119,10 +119,9 @@ replaceall(char *source, const char *find, const char *replace)
 
 	/* If replace is longer than find, we'll need to create a temp copy */
 	if (rlen > flen) {
-		temp = malloc(slen + 1);
-		if (errno != 0) /* could not allocate memory */
+		temp = strdup(source);
+		if (temp == NULL) /* could not allocate memory */
 			return (-1);
-		strcpy(temp, source);
 	} else
 		temp = source;
 
