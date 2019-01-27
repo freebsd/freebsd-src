@@ -270,12 +270,12 @@ To see how long it takes a command to run, type the word "time" before the
 command name.
 		-- Dru <genesis@istar.ca>
 %
-To see how much disk space is left on your partitions, use
+To see how much disk space is left on your UFS partitions, use
 
 	df -h
 		-- Dru <genesis@istar.ca>
 %
-To see the 10 largest files on a directory or partition, use
+To see the 10 largest files on a directory or UFS partition, use
 
 	du -h /partition_or_directory_name | sort -rh | head
 		-- Dru <genesis@istar.ca>
@@ -554,9 +554,241 @@ Use "sysrc name=value" to add an entry and "sysrc -x name" to delete an entry.
 
 		-- Lars Engels <lme@FreeBSD.org>
 %
-You can upload the dmesg of your system to help developers get an overview of commonly used hardware and peripherals for FreeBSD.
-Use the curl package to upload it in one command:
+You can upload the dmesg of your system to help developers get an overview of commonly
+used hardware and peripherals for FreeBSD. Use the curl package to upload it like this:
 curl -v -d "nickname=$USER" -d "description=FreeBSD/$(uname -m) on \
 $(kenv smbios.system.maker) $(kenv smbios.system.product)" -d "do=addd" \
 --data-urlencode 'dmesg@/var/run/dmesg.boot' http://dmesgd.nycbug.org/index.cgi
+%
+Want to know how much memory (in bytes) your machine has available? Let
+sysctl(8) tell you with the following command:
+
+sysctl hw.physmem
+
+The number of active CPUs is displayed using this command:
+
+sysctl hw.ncpu
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+When using ZFS as the file system the "df" command will display confusing 
+values. Use the built-in "zfs list" command to get an overview of space usage:
+
+zfs list -o space
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To learn more about what your system is doing, take a look at systat(1). For
+example, to get an overview of I/O happening in the system, run:
+
+systat -iostat
+
+Other values are icmp, icmp6, ifstat, ip, ip6, netstat, pigs, sctp, swap, tcp,
+vmstat, or zarc. You can switch between displays using :<display> and exit
+back to your shell by typing
+
+:quit
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To set a quota of 10 GB for the user named foo on a ZFS dataset, run the
+following command:
+
+# zfs set userquota@foo=10G pool/home/foo
+
+The zfs userspace command can display the quota and current space usage:
+
+# zfs userspace pool/home/foo
+
+To unset a quota, assign "none" as the value. 
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+ZFS can display I/O statistics for a given pool using the iostat subcommand.
+By default, it will display one line of current activity.  To display stats
+every 5 seconds run the following command (cancel with CTRL+C):
+
+zpool iostat 5
+
+To view individual disk activities, specify the -v parameter:
+
+zpool iostat -v
+
+Of course, both can be combined. For more options, see zpool(8).
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+FreeBSD's top(1) utility displays CPU statistics by default.
+To display I/O activity for each process instead, run top like this:
+
+top -m io
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+ZFS keeps a history of commands run against a specific pool using the
+history subcommand to zpool:
+
+zpool history
+
+More details are available using the -i and -l parameters. Note that ZFS
+will not keep the complete pool history forever and will remove older
+events in favor of never ones.
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To display the compression ratio for the ZFS dataset /var/log on the pool
+mypool, run the following command:
+
+zfs get refcompressratio mypool/var/log
+
+The refcompressratio will only display the compression ratio for that specific
+dataset, not the descendant datasets. To include the child datasets, the
+command looks like this:
+
+zfs get compressratio mypool/var
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+You can limit the depth of the displayed datasets in the "zfs list" output
+using the -d parameter. To display only the first level of datasets below
+mypool/usr and not the ones deeper than those, run this command:
+
+zfs list -d 1 mypool/usr
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+The "zfs list" command can be filtered in multiple ways. To display just
+the dataset name, use the -o parameter:
+
+zfs list -o name mypool/usr
+
+More columns and their order can be defined by separating them with commas:
+
+zfs list -o mountpoint,name,avail
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+The output of "zfs list" can be sorted by a specific column using -s.  To
+sort the datasets by the "used" column in ascending order, run this command:
+
+zfs list -s used
+
+To sort in descending order instead, use -S:
+
+zfs list -S used
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To make the "zfs list" output more script-friendly, you can suppress the
+output of the headers for each column by passing the -H parameter:
+
+zfs list -H
+
+Another helpful option for script writers is -p, which displays the numbers
+in non-rounded, exact values:
+
+zfs list -p 
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+Before deleting a dataset or snapshot, perform a dry run using the -n
+parameter. This is to make sure you really want to delete just that
+dataset/snapshot and not any dependent ones. ZFS will display the resulting
+action when -n is combined with the -v option without actually performing
+it:
+
+zfs destroy -rvn mypool@mysnap
+
+Once you are sure this is exactly what you intend to do, remove the -n
+parameter to execute the destroy operation.
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+You can delete a range of ZFS snapshots (a-z) in multiple ways.
+The following will delete d and all earlier snapshots: 
+
+zfs destroy mypool/data@%d
+
+To delete d and all later snapshots:
+
+zfs destroy mypool/data@d%
+
+To delete all dataset snapshots:
+
+zfs destroy mypool/data@%
+
+Make sure to let ZFS perform a dry run (-n option) first and display (-v) what
+it would do to confirm that the delete operation is removing exactly what you 
+intended. 
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To set a custom ZFS property on the mypool pool, you need to provide it
+using the "key1:key2=value" syntax, where the colon (:) is used as the
+separator and identifier from the built-in ZFS properties:
+
+# zfs set warranty:expires=2038-01-19 mypool
+
+The custom property is applied to all datasets and can be queried like any
+built-in properties using zfs get:
+
+zfs get warranty:expires mypool
+
+To reset the value of a custom property, use the inherit subcommand:
+
+# zfs inherit warranty:expires mypool
+
+Removing a custom property from a pool is done using the -r flag to the
+"zfs inherit" command:
+
+# zfs inherit -r warranty:expires mypool
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+To delete a range of ZFS snapshots, use the % (percent) character after the
+full path to the first snapshot that should be included. For example, to
+simulate deleting snapshots a through (including) d, use this command:
+
+# zfs destroy -rvn mypool/tmp@a%d
+
+Once you are sure that this is what you want, remove the -n option:
+
+# zfs destroy -rv mypool/tmp@a%d
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+You can prevent the removal of a ZFS snapshot by using the hold subcommand.
+For example, to prevent the snapshot called milestone from deletion, run the
+following command:
+
+# zfs hold milestone_hold mypool/projects@my_milestone
+
+The "zfs holds" command will list all current snapshots that are protected
+this way (-r for a recursive list):
+
+# zfs holds -r mypool
+
+The TIMESTAMP column in the output of the above command is from when the
+hold was created, not the snapshot it holds. The "zfs destroy" command will
+echo a "dataset is busy" message on the console when it encounters a hold.
+Use "zfs release" to release the hold on the snapshot:
+
+# zfs release milestone_hold mypool/projects@my_milestone
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+A user "sender" needs the following permissions set to send a ZFS dataset:
+
+# zfs allow -u sender send,snapshot txpool
+
+On the receiving side, the user "receiver" requires these permissions:
+
+# zfs allow -u receiver compression,mountpoint,mount,create,receive rxpool
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
+%
+Don't let your zpool fill up completely by creating a dataset with
+reservation.
+
+# zfs create -o refreservation=<5% of total pool space> <poolname>/reserved
+
+You can always shrink the reserve if you need the space, but your pool will
+always have space left this way.
+
+		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
