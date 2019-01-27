@@ -264,7 +264,7 @@ ruptime(const char *host, int aflg, int (*cmp)(const void *, const void *))
 		hsp = &hs[i];
 		wd = &hsp->hs_wd;
 		if (ISDOWN(hsp)) {
-			(void)printf("%-*.*s%s\n",
+			(void)printf("%-*.*s  %s\n",
 			    hostnamewidth, hostnamewidth, wd->wd_hostname,
 			    interval(now - hsp->hs_wd.wd_recvtime, "down"));
 			continue;
