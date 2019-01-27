@@ -81,6 +81,8 @@ ck_spinlock_hclh_lock(struct ck_spinlock_hclh **glob_queue,
 	thread->wait = true;
 	thread->splice = false;
 	thread->cluster_id = (*local_queue)->cluster_id;
+	/* Make sure previous->previous doesn't appear to be NULL */
+	thread->previous = *local_queue;
 
 	/* Serialize with respect to update of local queue. */
 	ck_pr_fence_store_atomic();
@@ -91,13 +93,15 @@ ck_spinlock_hclh_lock(struct ck_spinlock_hclh **glob_queue,
 
 	/* Wait until previous thread from the local queue is done with lock. */
 	ck_pr_fence_load();
-	if (previous->previous != NULL &&
-	    previous->cluster_id == thread->cluster_id) {
-		while (ck_pr_load_uint(&previous->wait) == true)
+	if (previous->previous != NULL) {
+		while (ck_pr_load_uint(&previous->wait) == true &&
+			ck_pr_load_int(&previous->cluster_id) == thread->cluster_id &&
+			ck_pr_load_uint(&previous->splice) == false)
 			ck_pr_stall();
 
 		/* We're head of the global queue, we're done */
-		if (ck_pr_load_uint(&previous->splice) == false)
+		if (ck_pr_load_int(&previous->cluster_id) == thread->cluster_id &&
+				ck_pr_load_uint(&previous->splice) == false)
 			return;
 	}
 
