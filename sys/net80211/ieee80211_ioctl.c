@@ -3337,9 +3337,13 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
-	int error = 0, wait = 0;
+	int error = 0, wait = 0, ic_used;
 	struct ifreq *ifr;
 	struct ifaddr *ifa;			/* XXX */
+
+	ic_used = (cmd != SIOCSIFMTU && cmd != SIOCG80211STATS);
+	if (ic_used && (error = ieee80211_com_vincref(vap)) != 0)
+		return (error);
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -3477,5 +3481,9 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
+
+	if (ic_used)
+		ieee80211_com_vdecref(vap);
+
 	return (error);
 }
