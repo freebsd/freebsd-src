@@ -166,7 +166,8 @@ typedef int dumper_hdr_t(struct dumperinfo *di, struct kerneldumpheader *kdh,
 #define	D_VERSION_01	0x17032005	/* Add d_uid,gid,mode & kind */
 #define	D_VERSION_02	0x28042009	/* Add d_mmap_single */
 #define	D_VERSION_03	0x17122009	/* d_mmap takes memattr,vm_ooffset_t */
-#define	D_VERSION	D_VERSION_03
+#define	D_VERSION_04	0x5c48c353	/* SPECNAMELEN bumped to MAXNAMLEN */
+#define	D_VERSION	D_VERSION_04
 
 /*
  * Flags used for internal housekeeping

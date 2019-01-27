@@ -630,7 +630,7 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 		return (0);
 	}
 
-	if (devsw->d_version != D_VERSION_03) {
+	if (devsw->d_version != D_VERSION_04) {
 		printf(
 		    "WARNING: Device driver \"%s\" has wrong version %s\n",
 		    devsw->d_name == NULL ? "???" : devsw->d_name,
