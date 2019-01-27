@@ -834,5 +834,5 @@ static driver_t imx_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_imx, simplebus, imx_sdhci_driver, imx_sdhci_devclass,
     NULL, NULL);
-MODULE_DEPEND(sdhci_imx, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhci_imx);
 MMC_DECLARE_BRIDGE(sdhci_imx);

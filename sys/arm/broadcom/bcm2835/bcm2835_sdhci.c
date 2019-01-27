@@ -678,5 +678,5 @@ static driver_t bcm_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_bcm, simplebus, bcm_sdhci_driver, bcm_sdhci_devclass,
     NULL, NULL);
-MODULE_DEPEND(sdhci_bcm, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhci_bcm);
 MMC_DECLARE_BRIDGE(sdhci_bcm);
