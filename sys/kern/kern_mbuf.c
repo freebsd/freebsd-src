@@ -1031,8 +1031,7 @@ m_getjcl(int how, short type, int flags, int size)
  * Allocate a given length worth of mbufs and/or clusters (whatever fits
  * best) and return a pointer to the top of the allocated chain.  If an
  * existing mbuf chain is provided, then we will append the new chain
- * to the existing one but still return the top of the newly allocated
- * chain.
+ * to the existing one and return a pointer to the provided mbuf.
  */
 struct mbuf *
 m_getm2(struct mbuf *m, int len, int how, short type, int flags)
