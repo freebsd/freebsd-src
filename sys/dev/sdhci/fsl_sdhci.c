@@ -1005,7 +1005,7 @@ static driver_t fsl_sdhci_driver = {
 
 DRIVER_MODULE(sdhci_fsl, simplebus, fsl_sdhci_driver, fsl_sdhci_devclass,
     NULL, NULL);
-MODULE_DEPEND(sdhci_fsl, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhci_fsl);
 
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_fsl);

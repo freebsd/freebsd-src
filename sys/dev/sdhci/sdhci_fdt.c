@@ -80,6 +80,7 @@ struct sdhci_fdt_softc {
 	u_int		quirks;		/* Chip specific quirks */
 	u_int		caps;		/* If we override SDHCI_CAPABILITIES */
 	uint32_t	max_clk;	/* Max possible freq */
+	uint8_t		sdma_boundary;	/* If we override the SDMA boundary */
 	struct resource *irq_res;	/* IRQ resource */
 	void		*intrhand;	/* Interrupt handle */
 
@@ -206,7 +207,9 @@ sdhci_fdt_probe(device_t dev)
 		device_set_desc(dev, "generic fdt SDHCI controller");
 		break;
 	case SDHCI_FDT_QUALCOMM:
-		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE;
+		sc->quirks = SDHCI_QUIRK_ALL_SLOTS_NON_REMOVABLE |
+		    SDHCI_QUIRK_BROKEN_SDMA_BOUNDARY;
+		sc->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_4K;
 		device_set_desc(dev, "Qualcomm FDT SDHCI controller");
 		break;
 	case SDHCI_FDT_XLNX_ZY7:
@@ -271,6 +274,7 @@ sdhci_fdt_attach(device_t dev)
 		slot->quirks = sc->quirks;
 		slot->caps = sc->caps;
 		slot->max_clk = sc->max_clk;
+		slot->sdma_boundary = sc->sdma_boundary;
 
 		if (sdhci_init_slot(dev, slot, i) != 0)
 			continue;
@@ -353,7 +357,7 @@ static devclass_t sdhci_fdt_devclass;
 
 DRIVER_MODULE(sdhci_fdt, simplebus, sdhci_fdt_driver, sdhci_fdt_devclass,
     NULL, NULL);
-MODULE_DEPEND(sdhci_fdt, sdhci, 1, 1, 1);
+SDHCI_DEPEND(sdhci_fdt);
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(sdhci_fdt);
 #endif
