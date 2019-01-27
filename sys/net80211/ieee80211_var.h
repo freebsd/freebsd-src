@@ -562,7 +562,9 @@ struct ieee80211vap {
 				    const struct wmeParams *wme_params);
 	struct task		iv_wme_task;	/* deferred VAP WME update */
 
-	uint64_t		iv_spare[6];
+	uint64_t		iv_spare[5];
+	uint32_t		iv_com_state;	/* com usage / detached flag */
+	uint32_t		iv_spare1;
 };
 MALLOC_DECLARE(M_80211_VAP);
 
@@ -684,6 +686,12 @@ MALLOC_DECLARE(M_80211_VAP);
 #define	IEEE80211_FVHT_USEVHT160	0x000000010	/* CONF: Use VHT160 */
 #define	IEEE80211_VFHT_BITS \
 	"\20\1VHT\2VHT40\3VHT80\4VHT80P80\5VHT160"
+
+#define	IEEE80211_COM_DETACHED	0x00000001	/* ieee80211_ifdetach called */
+#define	IEEE80211_COM_REF_ADD	0x00000002	/* add / remove reference */
+#define	IEEE80211_COM_REF_M	0xfffffffe	/* reference counter bits */
+#define	IEEE80211_COM_REF_S	1
+#define	IEEE80211_COM_REF_MAX	(IEEE80211_COM_REF_M >> IEEE80211_COM_REF_S)
 
 int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
 void	ieee80211_ifattach(struct ieee80211com *);
