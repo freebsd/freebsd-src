@@ -259,11 +259,20 @@ static int netmap_monitor_parent_txsync(struct netmap_kring *, int);
 static int netmap_monitor_parent_rxsync(struct netmap_kring *, int);
 static int netmap_monitor_parent_notify(struct netmap_kring *, int);
 
+static int
+nm_monitor_dummycb(struct netmap_kring *kring, int flags)
+{
+	(void)kring;
+	(void)flags;
+	return 0;
+}
+
 static void
 nm_monitor_intercept_callbacks(struct netmap_kring *kring)
 {
 	ND("intercept callbacks on %s", kring->name);
-	kring->mon_sync = kring->nm_sync;
+	kring->mon_sync = kring->nm_sync != NULL ?
+		kring->nm_sync : nm_monitor_dummycb;
 	kring->mon_notify = kring->nm_notify;
 	if (kring->tx == NR_TX) {
 		kring->nm_sync = netmap_monitor_parent_txsync;
