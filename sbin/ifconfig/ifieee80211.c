@@ -1454,9 +1454,6 @@ getmodeflags(const char *val)
 	return flags;
 }
 
-#define	IEEE80211_CHAN_HTA	(IEEE80211_CHAN_HT|IEEE80211_CHAN_5GHZ)
-#define	IEEE80211_CHAN_HTG	(IEEE80211_CHAN_HT|IEEE80211_CHAN_2GHZ)
-
 #define	_APPLY(_flags, _base, _param, _v) do {				\
     if (_flags & IEEE80211_CHAN_HT) {					\
 	    if ((_flags & (IEEE80211_CHAN_5GHZ|IEEE80211_CHAN_2GHZ)) == 0) {\
@@ -1646,8 +1643,6 @@ DECL_CMD_FUNC(set80211maxretry, val, d)
 }
 #undef _APPLY_RATE
 #undef _APPLY
-#undef IEEE80211_CHAN_HTA
-#undef IEEE80211_CHAN_HTG
 
 static
 DECL_CMD_FUNC(set80211fragthreshold, val, d)
