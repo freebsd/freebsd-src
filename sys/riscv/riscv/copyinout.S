@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2019 Mitchell Horne
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -52,60 +53,94 @@ copyio_fault_nopcb:
 END(copyio_fault)
 
 /*
+ * copycommon - common copy routine
+ *
+ * a0 - Source address
+ * a1 - Destination address
+ * a2 - Size of copy
+ */
+	.macro copycommon
+	la	a6, copyio_fault	/* Get the handler address */
+	SET_FAULT_HANDLER(a6, a7)	/* Set the handler */
+	ENTER_USER_ACCESS(a7)
+
+	li	t2, XLEN_BYTES
+	blt	a2, t2, 3f		/* Byte-copy if len < XLEN_BYTES */
+
+	/*
+	 * Compare lower bits of src and dest.
+	 * If they are aligned with each other, we can do word copy.
+	 */
+	andi	t0, a0, (XLEN_BYTES-1)	/* Low bits of src */
+	andi	t1, a1, (XLEN_BYTES-1)	/* Low bits of dest */
+	bne	t0, t1, 3f		/* Misaligned. Go to byte copy */
+	beqz	t0, 2f			/* Already word-aligned, skip ahead */
+
+	/* Byte copy until the first word-aligned address */
+1:	lb	a4, 0(a0)		/* Load byte from src */
+	addi	a0, a0, 1
+	sb	a4, 0(a1)		/* Store byte in dest */
+	addi	a1, a1, 1
+	addi	a2, a2, -1		/* len-- */
+	andi	t0, a0, (XLEN_BYTES-1)
+	bnez	t0, 1b
+
+	/* Copy words */
+2:	ld	a4, 0(a0)		/* Load word from src */
+	addi	a0, a0, XLEN_BYTES
+	sd	a4, 0(a1)		/* Store word in dest */
+	addi	a1, a1, XLEN_BYTES
+	addi	a2, a2, -XLEN_BYTES	/* len -= XLEN_BYTES */
+	bgeu	a2, t2, 2b		/* Again if len >= XLEN_BYTES */
+
+	/* Check if we're finished */
+	beqz	a2, 4f
+
+	/* Copy any remaining bytes */
+3:	lb	a4, 0(a0)		/* Load byte from src */
+	addi	a0, a0, 1
+	sb	a4, 0(a1)		/* Store byte in dest */
+	addi	a1, a1, 1
+	addi	a2, a2, -1		/* len-- */
+	bnez	a2, 3b
+
+4:	EXIT_USER_ACCESS(a7)
+	SET_FAULT_HANDLER(x0, a7)	/* Clear the handler */
+	.endm
+
+/*
  * Copies from a kernel to user address
  *
  * int copyout(const void *kaddr, void *udaddr, size_t len)
  */
 ENTRY(copyout)
-	beqz	a2, 2f		/* If len == 0 then skip loop */
+	beqz	a2, copyout_end	/* If len == 0 then skip loop */
 	add	a3, a1, a2
 	li	a4, VM_MAXUSER_ADDRESS
 	bgt	a3, a4, copyio_fault_nopcb
 
-	la	a6, copyio_fault /* Get the handler address */
-	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
-	ENTER_USER_ACCESS(a7)
+	copycommon
 
-1:	lb	a4, 0(a0)	/* Load from kaddr */
-	addi	a0, a0, 1
-	sb	a4, 0(a1)	/* Store in uaddr */
-	addi	a1, a1, 1
-	addi	a2, a2, -1	/* len-- */
-	bnez	a2, 1b
-
-	EXIT_USER_ACCESS(a7)
-	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
-
-2:	li	a0, 0		/* return 0 */
+copyout_end:
+	li	a0, 0		/* return 0 */
 	ret
 END(copyout)
 
 /*
  * Copies from a user to kernel address
  *
- * int copyin(const void *uaddr, void *kdaddr, size_t len)
+ * int copyin(const void *uaddr, void *kaddr, size_t len)
  */
 ENTRY(copyin)
-	beqz	a2, 2f		/* If len == 0 then skip loop */
+	beqz	a2, copyin_end	/* If len == 0 then skip loop */
 	add	a3, a0, a2
 	li	a4, VM_MAXUSER_ADDRESS
 	bgt	a3, a4, copyio_fault_nopcb
 
-	la	a6, copyio_fault /* Get the handler address */
-	SET_FAULT_HANDLER(a6, a7) /* Set the handler */
-	ENTER_USER_ACCESS(a7)
+	copycommon
 
-1:	lb	a4, 0(a0)	/* Load from uaddr */
-	addi	a0, a0, 1
-	sb	a4, 0(a1)	/* Store in kaddr */
-	addi	a1, a1, 1
-	addi	a2, a2, -1	/* len-- */
-	bnez	a2, 1b
-
-	EXIT_USER_ACCESS(a7)
-	SET_FAULT_HANDLER(x0, a7) /* Clear the handler */
-
-2:	li	a0, 0		/* return 0 */
+copyin_end:
+	li	a0, 0		/* return 0 */
 	ret
 END(copyin)
 
