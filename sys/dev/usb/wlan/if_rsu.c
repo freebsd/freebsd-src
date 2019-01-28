@@ -2753,15 +2753,17 @@ static int
 rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni, 
     struct mbuf *m0, struct rsu_data *data)
 {
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct ieee80211com *ic = &sc->sc_ic;
         struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame *wh;
 	struct ieee80211_key *k = NULL;
 	struct r92s_tx_desc *txd;
-	uint8_t type, cipher;
+	uint8_t rate, ridx, type, cipher;
 	int prio = 0;
 	uint8_t which;
 	int hasqos;
+	int ismcast;
 	int xferlen;
 	int qid;
 
@@ -2769,9 +2771,25 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 
 	wh = mtod(m0, struct ieee80211_frame *);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
+	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
 	RSU_DPRINTF(sc, RSU_DEBUG_TX, "%s: data=%p, m=%p\n",
 	    __func__, data, m0);
+
+	/* Choose a TX rate index. */
+	if (type == IEEE80211_FC0_TYPE_MGT ||
+	    type == IEEE80211_FC0_TYPE_CTL ||
+	    (m0->m_flags & M_EAPOL) != 0)
+		rate = tp->mgmtrate;
+	else if (ismcast)
+		rate = tp->mcastrate;
+	else if (tp->ucastrate != IEEE80211_FIXED_RATE_NONE)
+		rate = tp->ucastrate;
+	else
+		rate = 0;
+
+	if (rate != 0)
+		ridx = rate2ridx(rate);
 
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
@@ -2851,8 +2869,17 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	}
 	/* XXX todo: set AGGEN bit if appropriate? */
 	txd->txdw2 |= htole32(R92S_TXDW2_BK);
-	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
+	if (ismcast)
 		txd->txdw2 |= htole32(R92S_TXDW2_BMCAST);
+
+	/* Force mgmt / mcast / ucast rate if needed. */
+	if (rate != 0) {
+		/* Data rate fallback limit (max). */
+		txd->txdw5 |= htole32(SM(R92S_TXDW5_DATARATE_FB_LMT, 0x1f));
+		txd->txdw5 |= htole32(SM(R92S_TXDW5_DATARATE, ridx));
+		txd->txdw4 |= htole32(R92S_TXDW4_DRVRATE);
+	}
+
 	/*
 	 * Firmware will use and increment the sequence number for the
 	 * specified priority.
