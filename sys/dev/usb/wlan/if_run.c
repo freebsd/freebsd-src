@@ -2759,64 +2759,74 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	uint8_t ant, rssi;
 	int8_t nf;
 
-	rxwi = mtod(m, struct rt2860_rxwi *);
-	len = le16toh(rxwi->len) & 0xfff;
 	rxwisize = sizeof(struct rt2860_rxwi);
 	if (sc->mac_ver == 0x5592)
 		rxwisize += sizeof(uint64_t);
 	else if (sc->mac_ver == 0x3593)
 		rxwisize += sizeof(uint32_t);
-	if (__predict_false(len > dmalen)) {
-		m_freem(m);
-		counter_u64_add(ic->ic_ierrors, 1);
-		DPRINTF("bad RXWI length %u > %u\n", len, dmalen);
-		return;
+
+	if (__predict_false(dmalen <
+	    rxwisize + sizeof(struct ieee80211_frame_ack))) {
+		DPRINTF("payload is too short: dma length %u < %zu\n",
+		    dmalen, rxwisize + sizeof(struct ieee80211_frame_ack));
+		goto fail;
 	}
+
+	rxwi = mtod(m, struct rt2860_rxwi *);
+	len = le16toh(rxwi->len) & 0xfff;
+
+	if (__predict_false(len > dmalen - rxwisize)) {
+		DPRINTF("bad RXWI length %u > %u\n", len, dmalen);
+		goto fail;
+	}
+
 	/* Rx descriptor is located at the end */
 	rxd = (struct rt2870_rxd *)(mtod(m, caddr_t) + dmalen);
 	flags = le32toh(rxd->flags);
 
 	if (__predict_false(flags & (RT2860_RX_CRCERR | RT2860_RX_ICVERR))) {
-		m_freem(m);
-		counter_u64_add(ic->ic_ierrors, 1);
 		DPRINTF("%s error.\n", (flags & RT2860_RX_CRCERR)?"CRC":"ICV");
-		return;
+		goto fail;
+	}
+
+	if (flags & RT2860_RX_L2PAD) {
+		/*
+		 * XXX OpenBSD removes padding between header
+		 * and payload here...
+		 */
+		DPRINTFN(8, "received RT2860_RX_L2PAD frame\n");
+		len += 2;
 	}
 
 	m->m_data += rxwisize;
-	m->m_pkthdr.len = m->m_len -= rxwisize;
+	m->m_pkthdr.len = m->m_len = len;
 
 	wh = mtod(m, struct ieee80211_frame *);
 
+	/* XXX wrong for monitor mode */
 	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		m->m_flags |= M_WEP;
 	}
 
-	if (flags & RT2860_RX_L2PAD) {
-		DPRINTFN(8, "received RT2860_RX_L2PAD frame\n");
-		len += 2;
-	}
-
-	ni = ieee80211_find_rxnode(ic,
-	    mtod(m, struct ieee80211_frame_min *));
+	if (len >= sizeof(struct ieee80211_frame_min)) {
+		ni = ieee80211_find_rxnode(ic,
+		    mtod(m, struct ieee80211_frame_min *));
+	} else
+		ni = NULL;
 
 	if (__predict_false(flags & RT2860_RX_MICERR)) {
 		/* report MIC failures to net80211 for TKIP */
 		if (ni != NULL)
 			ieee80211_notify_michael_failure(ni->ni_vap, wh,
 			    rxwi->keyidx);
-		m_freem(m);
-		counter_u64_add(ic->ic_ierrors, 1);
 		DPRINTF("MIC error. Someone is lying.\n");
-		return;
+		goto fail;
 	}
 
 	ant = run_maxrssi_chain(sc, rxwi);
 	rssi = rxwi->rssi[ant];
 	nf = run_rssi2dbm(sc, rssi, ant);
-
-	m->m_pkthdr.len = m->m_len = len;
 
 	if (__predict_false(ieee80211_radiotap_active(ic))) {
 		struct run_rx_radiotap_header *tap = &sc->sc_rxtap;
@@ -2865,6 +2875,12 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 	} else {
 		(void)ieee80211_input_all(ic, m, rssi, nf);
 	}
+
+	return;
+
+fail:
+	m_freem(m);
+	counter_u64_add(ic->ic_ierrors, 1);
 }
 
 static void
@@ -2874,7 +2890,7 @@ run_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct mbuf *m = NULL;
 	struct mbuf *m0;
-	uint32_t dmalen;
+	uint32_t dmalen, mbuf_len;
 	uint16_t rxwisize;
 	int xferlen;
 
@@ -2975,6 +2991,13 @@ tr_setup:
 			break;
 		}
 
+		mbuf_len = dmalen + sizeof(struct rt2870_rxd);
+		if (__predict_false(mbuf_len > MCLBYTES)) {
+			DPRINTF("payload is too big: mbuf_len %u\n", mbuf_len);
+			counter_u64_add(ic->ic_ierrors, 1);
+			break;
+		}
+
 		/* copy aggregated frames to another mbuf */
 		m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (__predict_false(m0 == NULL)) {
@@ -2983,14 +3006,13 @@ tr_setup:
 			break;
 		}
 		m_copydata(m, 4 /* skip 32-bit DMA-len header */,
-		    dmalen + sizeof(struct rt2870_rxd), mtod(m0, caddr_t));
-		m0->m_pkthdr.len = m0->m_len =
-		    dmalen + sizeof(struct rt2870_rxd);
+		    mbuf_len, mtod(m0, caddr_t));
+		m0->m_pkthdr.len = m0->m_len = mbuf_len;
 		run_rx_frame(sc, m0, dmalen);
 
 		/* update data ptr */
-		m->m_data += dmalen + 8;
-		m->m_pkthdr.len = m->m_len -= dmalen + 8;
+		m->m_data += mbuf_len + 4;
+		m->m_pkthdr.len = m->m_len -= mbuf_len + 4;
 	}
 
 	/* make sure we free the source buffer, if any */
