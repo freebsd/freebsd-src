@@ -45,19 +45,19 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 /* Entries EAI_ADDRFAMILY (1) and EAI_NODATA (7) are obsoleted, but left */
-/* for backward compatibility with userland code prior to 2553bis-02 */
+/* for backwards compatibility with userland code prior to RFC2553bis-02 */
 static const char *ai_errlist[] = {
 	"Success",					/* 0 */
-	"Address family for hostname not supported",	/* 1 */
-	"Temporary failure in name resolution",		/* EAI_AGAIN */
-	"Invalid value for ai_flags",			/* EAI_BADFLAGS */
+	"Address family for hostname not supported",	/* 1: Obsolete */
+	"Name could not be resolved at this time",	/* EAI_AGAIN */
+	"Flags parameter had an invalid value",		/* EAI_BADFLAGS */
 	"Non-recoverable failure in name resolution",	/* EAI_FAIL */
-	"ai_family not supported",			/* EAI_FAMILY */
+	"Address family not recognized",		/* EAI_FAMILY */
 	"Memory allocation failure", 			/* EAI_MEMORY */
-	"No address associated with hostname",		/* 7 */
-	"hostname nor servname provided, or not known",	/* EAI_NONAME */
-	"servname not supported for ai_socktype",	/* EAI_SERVICE */
-	"ai_socktype not supported", 			/* EAI_SOCKTYPE */
+	"No address associated with hostname",		/* 7: Obsolete*/
+	"Name does not resolve",			/* EAI_NONAME */
+	"Service was not recognized for socket type",	/* EAI_SERVICE */
+	"Intended socket type was not recognized",	/* EAI_SOCKTYPE */
 	"System error returned in errno", 		/* EAI_SYSTEM */
 	"Invalid value for hints",			/* EAI_BADHINTS */
 	"Resolved protocol is unknown",			/* EAI_PROTOCOL */
