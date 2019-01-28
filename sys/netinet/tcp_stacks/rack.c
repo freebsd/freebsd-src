@@ -5233,7 +5233,8 @@ rack_do_syn_sent(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags |= TF_ACKNOW;
 		}
 
-		if ((thflags & TH_ECE) && V_tcp_do_ecn) {
+		if (((thflags & (TH_CWR | TH_ECE)) == TH_ECE) &&
+		    V_tcp_do_ecn) {
 			tp->t_flags |= TF_ECN_PERMIT;
 			TCPSTAT_INC(tcps_ecn_shs);
 		}
