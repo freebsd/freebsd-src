@@ -13983,7 +13983,7 @@ retry:
 		if (mp == NULL)
 			goto retry;
 	} else if (vp->v_type == VREG || vp->v_type == VDIR ||
-	    vp->v_type == VLNK) {
+	    vp->v_type == VLNK || vp->v_type == VFIFO) {
 		mp = vp->v_mount;
 	} else {
 		return (NULL);
