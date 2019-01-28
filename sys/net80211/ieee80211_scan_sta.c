@@ -472,12 +472,15 @@ add_channels(struct ieee80211vap *vap,
 		if (c == NULL || isexcluded(vap, c))
 			continue;
 		if (mode == IEEE80211_MODE_AUTO) {
+			KASSERT(IEEE80211_IS_CHAN_B(c),
+			    ("%s: wrong channel for 'auto' mode %u / %u\n",
+			    __func__, c->ic_freq, c->ic_flags));
+
 			/*
 			 * XXX special-case 11b/g channels so we select
 			 *     the g channel if both are present.
 			 */
-			if (IEEE80211_IS_CHAN_B(c) &&
-			    (cg = find11gchannel(ic, i, c->ic_freq)) != NULL)
+			if ((cg = find11gchannel(ic, i, c->ic_freq)) != NULL)
 				c = cg;
 		}
 		ss->ss_chans[ss->ss_last++] = c;
