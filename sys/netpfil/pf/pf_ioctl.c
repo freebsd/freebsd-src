@@ -683,6 +683,14 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 	u_int32_t	 ticket;
 	int		 error = 0;
 
+	/*
+	 * No need to re-evaluate the configuration for events on interfaces
+	 * that do not support ALTQ, as it's not possible for such
+	 * interfaces to be part of the configuration.
+	 */
+	if (!ALTQ_IS_READY(&ifp->if_snd))
+		return;
+
 	/* Interrupt userland queue modifications */
 	if (V_altqs_inactive_open)
 		pf_rollback_altq(V_ticket_altqs_inactive);
