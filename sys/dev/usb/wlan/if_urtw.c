@@ -3933,21 +3933,18 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
-	if (actlen < (int)URTW_MIN_RXBUFSZ) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return (NULL);
-	}
-
 	if (sc->sc_flags & URTW_RTL8187B) {
 		struct urtw_8187b_rxhdr *rx;
+
+		if (actlen < sizeof(*rx) + IEEE80211_ACK_LEN)
+			goto fail;
 
 		rx = (struct urtw_8187b_rxhdr *)(data->buf +
 		    (actlen - (sizeof(struct urtw_8187b_rxhdr))));
 		flen = le32toh(rx->flag) & 0xfff;
-		if (flen > actlen) {
-			counter_u64_add(ic->ic_ierrors, 1);
-			return (NULL);
-		}
+		if (flen > actlen - sizeof(*rx))
+			goto fail;
+
 		rate = (le32toh(rx->flag) >> URTW_RX_FLAG_RXRATE_SHIFT) & 0xf;
 		/* XXX correct? */
 		rssi = rx->rssi & URTW_RX_RSSI_MASK;
@@ -3955,13 +3952,14 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 	} else {
 		struct urtw_8187l_rxhdr *rx;
 
+		if (actlen < sizeof(*rx) + IEEE80211_ACK_LEN)
+			goto fail;
+
 		rx = (struct urtw_8187l_rxhdr *)(data->buf +
 		    (actlen - (sizeof(struct urtw_8187l_rxhdr))));
 		flen = le32toh(rx->flag) & 0xfff;
-		if (flen > actlen) {
-			counter_u64_add(ic->ic_ierrors, 1);
-			return (NULL);
-		}
+		if (flen > actlen - sizeof(*rx))
+			goto fail;
 
 		rate = (le32toh(rx->flag) >> URTW_RX_FLAG_RXRATE_SHIFT) & 0xf;
 		/* XXX correct? */
@@ -3969,11 +3967,12 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 		noise = rx->noise;
 	}
 
+	if (flen < IEEE80211_ACK_LEN)
+		goto fail;
+
 	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	if (mnew == NULL) {
-		counter_u64_add(ic->ic_ierrors, 1);
-		return (NULL);
-	}
+	if (mnew == NULL)
+		goto fail;
 
 	m = data->m;
 	data->m = mnew;
@@ -3992,13 +3991,17 @@ urtw_rxeof(struct usb_xfer *xfer, struct urtw_data *data, int *rssi_p,
 	}
 
 	wh = mtod(m, struct ieee80211_frame *);
-	if ((wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) == IEEE80211_FC0_TYPE_DATA)
+	if (IEEE80211_IS_DATA(wh))
 		sc->sc_currate = (rate > 0) ? rate : sc->sc_currate;
 
 	*rssi_p = rssi;
 	*nf_p = noise;		/* XXX correct? */
 
 	return (m);
+
+fail:
+	counter_u64_add(ic->ic_ierrors, 1);
+	return (NULL);
 }
 
 static void
@@ -4006,7 +4009,6 @@ urtw_bulk_rx_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ieee80211com *ic = &sc->sc_ic;
-	struct ieee80211_frame *wh;
 	struct ieee80211_node *ni;
 	struct mbuf *m = NULL;
 	struct urtw_data *data;
@@ -4044,9 +4046,13 @@ setup:
 		 */
 		URTW_UNLOCK(sc);
 		if (m != NULL) {
-			wh = mtod(m, struct ieee80211_frame *);
-			ni = ieee80211_find_rxnode(ic,
-			    (struct ieee80211_frame_min *)wh);
+			if (m->m_pkthdr.len >=
+			    sizeof(struct ieee80211_frame_min)) {
+				ni = ieee80211_find_rxnode(ic,
+				    mtod(m, struct ieee80211_frame_min *));
+			} else
+				ni = NULL;
+
 			if (ni != NULL) {
 				(void) ieee80211_input(ni, m, rssi, nf);
 				/* node is no longer needed */
