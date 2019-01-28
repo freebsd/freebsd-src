@@ -124,6 +124,8 @@ static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
 			      void **);
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
+static	int nexus_suspend_intr(device_t, device_t, struct resource *);
+static	int nexus_resume_intr(device_t, device_t, struct resource *);
 static struct resource_list *nexus_get_reslist(device_t dev, device_t child);
 static	int nexus_set_resource(device_t, device_t, int, int,
 			       rman_res_t, rman_res_t);
@@ -161,6 +163,8 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_unmap_resource,	nexus_unmap_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_suspend_intr,	nexus_suspend_intr),
+	DEVMETHOD(bus_resume_intr,	nexus_resume_intr),
 #ifdef SMP
 	DEVMETHOD(bus_bind_intr,	nexus_bind_intr),
 #endif
@@ -595,6 +599,8 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 
 	error = intr_add_handler(device_get_nameunit(child),
 	    rman_get_start(irq), filter, ihand, arg, flags, cookiep, domain);
+	if (error == 0)
+		rman_set_irq_cookie(irq, *cookiep);
 
 	return (error);
 }
@@ -602,7 +608,24 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 static int
 nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 {
-	return (intr_remove_handler(ih));
+	int error;
+
+	error = intr_remove_handler(ih);
+	if (error == 0)
+		rman_set_irq_cookie(r, NULL);
+	return (error);
+}
+
+static int
+nexus_suspend_intr(device_t dev, device_t child, struct resource *irq)
+{
+	return (intr_event_suspend_handler(rman_get_irq_cookie(irq)));
+}
+
+static int
+nexus_resume_intr(device_t dev, device_t child, struct resource *irq)
+{
+	return (intr_event_resume_handler(rman_get_irq_cookie(irq)));
 }
 
 #ifdef SMP
