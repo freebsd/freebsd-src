@@ -31,11 +31,10 @@ special_head() {
 special_body() {
 	echo 0123456789abcdef > a
 	echo 0123456789abcdeg > b
-	cat a | atf_check -s exit:0 cmp a -
-	cat a | atf_check -s exit:0 cmp - a
-	cat b | atf_check -s not-exit:0 cmp a -
-	cat b | atf_check -s not-exit:0 cmp - a
-	true
+	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp a -"
+	atf_check -s exit:0 -o empty -e empty -x "cat a | cmp - a"
+	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp a -"
+	atf_check -s exit:1 -o not-empty -e empty -x "cat b | cmp - a"
 }
 
 atf_test_case symlink
