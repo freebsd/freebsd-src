@@ -165,6 +165,8 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(MICROSOFT, WLINTELLIMOUSE, 0x0000, 0xffff, UQ_MS_LEADING_BYTE),
 	/* Quirk for Corsair Vengeance K60 keyboard */
 	USB_QUIRK(CORSAIR, K60, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
+	/* Quirk for Corsair Gaming K68 keyboard */
+	USB_QUIRK(CORSAIR, K68, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* Quirk for Corsair Vengeance K70 keyboard */
 	USB_QUIRK(CORSAIR, K70, 0x0000, 0xffff, UQ_KBD_BOOTPROTO),
 	/* Quirk for Corsair K70 RGB keyboard */
