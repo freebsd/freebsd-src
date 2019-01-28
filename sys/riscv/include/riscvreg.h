@@ -155,7 +155,8 @@
 #define	SATP_MODE_SV39	(8ULL << SATP_MODE_S)
 #define	SATP_MODE_SV48	(9ULL << SATP_MODE_S)
 
-#define	XLEN		8
+#define	XLEN		__riscv_xlen
+#define	XLEN_BYTES	(XLEN / 8)
 #define	INSN_SIZE	4
 #define	INSN_C_SIZE	2
 
