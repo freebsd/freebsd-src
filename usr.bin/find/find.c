@@ -208,8 +208,10 @@ find_execute(PLAN *plan, char *paths[])
 			    entry->fts_path, strerror(entry->fts_errno));
 			exitstatus = 1;
 			continue;
-#ifdef FTS_W
+#if defined(FTS_W) && defined(FTS_WHITEOUT)
 		case FTS_W:
+			if (ftsoptions & FTS_WHITEOUT)
+				break;
 			continue;
 #endif /* FTS_W */
 		}
