@@ -47,10 +47,6 @@ struct urtw_data {
 };
 typedef STAILQ_HEAD(, urtw_data) urtw_datahead;
 
-/* XXX not correct..  */
-#define	URTW_MIN_RXBUFSZ						\
-	(sizeof(struct ieee80211_frame_min))
-
 #define URTW_RX_DATA_LIST_COUNT		4
 #define URTW_TX_DATA_LIST_COUNT		16
 #define URTW_RX_MAXSIZE			0x9c4
