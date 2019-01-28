@@ -153,7 +153,8 @@ main(int argc, char *argv[])
 			while (isalnum(volumelabel[++i]) ||
 			    volumelabel[i] == '_');
 			if (volumelabel[i] != '\0') {
-				errx(1, "bad volume label. Valid characters are alphanumerics.");
+				errx(1, "bad volume label. Valid characters "
+				    "are alphanumerics and underscores.");
 			}
 			if (strlen(volumelabel) >= MAXVOLLEN) {
 				errx(1, "bad volume label. Length is longer than %d.",
