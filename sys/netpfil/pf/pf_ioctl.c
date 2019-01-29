@@ -3310,14 +3310,18 @@ DIOCCHANGEADDR_error:
 		struct pf_src_node	*n, *p, *pstore;
 		uint32_t		 i, nr = 0;
 
+		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
+				i++, sh++) {
+			PF_HASHROW_LOCK(sh);
+			LIST_FOREACH(n, &sh->nodes, entry)
+				nr++;
+			PF_HASHROW_UNLOCK(sh);
+		}
+
+		psn->psn_len = min(psn->psn_len,
+		    sizeof(struct pf_src_node) * nr);
+
 		if (psn->psn_len == 0) {
-			for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
-			    i++, sh++) {
-				PF_HASHROW_LOCK(sh);
-				LIST_FOREACH(n, &sh->nodes, entry)
-					nr++;
-				PF_HASHROW_UNLOCK(sh);
-			}
 			psn->psn_len = sizeof(struct pf_src_node) * nr;
 			break;
 		}
