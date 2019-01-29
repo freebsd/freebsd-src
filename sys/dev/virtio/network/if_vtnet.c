@@ -2748,7 +2748,7 @@ vtnet_free_taskqueues(struct vtnet_softc *sc)
 		rxq = &sc->vtnet_rxqs[i];
 		if (rxq->vtnrx_tq != NULL) {
 			taskqueue_free(rxq->vtnrx_tq);
-			rxq->vtnrx_vq = NULL;
+			rxq->vtnrx_tq = NULL;
 		}
 
 		txq = &sc->vtnet_txqs[i];
