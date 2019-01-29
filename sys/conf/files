@@ -3883,6 +3883,8 @@ kern/subr_capability.c		standard
 kern/subr_clock.c		standard
 kern/subr_compressor.c		standard \
 	compile-with "${NORMAL_C} -I$S/contrib/zstd/lib/freebsd"
+kern/subr_coverage.c		optional coverage \
+	compile-with		"${NORMAL_C} -fno-sanitize=all"
 kern/subr_counter.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
