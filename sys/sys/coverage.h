@@ -35,26 +35,26 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_KCOV_H_
-#define _SYS_KCOV_H_
+#ifndef _SYS_COVERAGE_H_
+#define _SYS_COVERAGE_H_
 
-#include <sys/coverage.h>
-#include <sys/ioccom.h>
+#if !defined(_KERNEL) && !defined(_SYS_KCOV_H_)
+#error Do not include this file directly in userspace, use sys/kcov.h
+#endif
 
-#define KCOV_MAXENTRIES		(1 << 24)		/* 16M */
-#define	KCOV_ENTRY_SIZE		8
+#define	COV_CMP_CONST		(1 << 0)
+#define	COV_CMP_SIZE(x)		((x) << 1)
+#define	COV_CMP_MASK		(3 << 1)
+#define	COV_CMP_GET_SIZE(x)	(((x) >> 1) & 3)
 
-#define KCOV_MODE_TRACE_PC	0
-#define KCOV_MODE_TRACE_CMP	1
+#ifdef _KERNEL
+typedef void (*cov_trace_pc_t)(uintptr_t);
+typedef bool (*cov_trace_cmp_t)(uint64_t, uint64_t, uint64_t, uint64_t);
 
-/* KCOV ioctls */
-#define KIOENABLE	_IOWINT('c', 2)	/* Enable coverage recording */
-#define KIODISABLE	_IO('c', 3)	/* Disable coverage recording */
-#define KIOSETBUFSIZE	_IOWINT('c', 4)	/* Set the buffer size */
+void cov_register_cmp(cov_trace_cmp_t);
+void cov_unregister_cmp(void);
+void cov_register_pc(cov_trace_pc_t);
+void cov_unregister_pc(void);
+#endif
 
-#define	KCOV_CMP_CONST		COV_CMP_CONST
-#define	KCOV_CMP_SIZE(x)	COV_CMP_SIZE(x)
-#define	KCOV_CMP_MASK		COV_CMP_MASK
-#define	KCOV_CMP_GET_SIZE(x)	COV_CMP_GET_SIZE(x)
-
-#endif /* _SYS_KCOV_H_ */
+#endif /* _SYS_COVERAGE_H_ */

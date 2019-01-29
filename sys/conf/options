@@ -57,7 +57,6 @@ DDB_CTF		opt_ddb.h
 DDB_NUMSYM	opt_ddb.h
 FULL_BUF_TRACKING	opt_global.h
 GDB
-KCOV		opt_kcov.h
 KDB		opt_global.h
 KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
@@ -234,6 +233,8 @@ VERBOSE_SYSINIT
 ZSTDIO		opt_zstdio.h
 
 # Sanitizers
+COVERAGE	opt_global.h
+KCOV
 KUBSAN		opt_global.h
 
 # POSIX kernel options
