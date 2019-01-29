@@ -129,12 +129,8 @@ ixl_netmap_attach(struct ixl_vsi *vsi)
 
 	na.ifp = vsi->ifp;
 	na.na_flags = NAF_BDG_MAYSLEEP;
-	// XXX check that queues is set.
-	nm_prinf("queues is %p", vsi->queues);
-	if (vsi->queues) {
-		na.num_tx_desc = vsi->queues[0].num_desc;
-		na.num_rx_desc = vsi->queues[0].num_desc;
-	}
+	na.num_tx_desc = vsi->num_tx_desc;
+	na.num_rx_desc = vsi->num_rx_desc;
 	na.nm_txsync = ixl_netmap_txsync;
 	na.nm_rxsync = ixl_netmap_rxsync;
 	na.nm_register = ixl_netmap_reg;
@@ -266,8 +262,10 @@ ixl_netmap_txsync(struct netmap_kring *kring, int flags)
 	/*
 	 * Second part: reclaim buffers for completed transmissions.
 	 */
-	nic_i = LE32_TO_CPU(*(volatile __le32 *)&txr->base[que->num_desc]);
-	if (nic_i != txr->next_to_clean) {
+	nic_i = LE32_TO_CPU(*(volatile __le32 *)&txr->base[que->num_tx_desc]);
+	if (unlikely(nic_i >= que->num_tx_desc)) {
+		nm_prerr("error: invalid value of hw head index %u", nic_i);
+	} else if (nic_i != txr->next_to_clean) {
 		/* some tx completed, increment avail */
 		txr->next_to_clean = nic_i;
 		kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);

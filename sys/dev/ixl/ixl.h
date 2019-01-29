@@ -513,9 +513,6 @@ struct ixl_queue {
 	void			*tag;
 	int			num_tx_desc;	/* both tx and rx */
 	int			num_rx_desc;	/* both tx and rx */
-#ifdef DEV_NETMAP
-	int			num_desc;	/* for compatibility with current netmap code in kernel */
-#endif
 	struct tx_ring		txr;
 	struct rx_ring		rxr;
 	struct task		task;

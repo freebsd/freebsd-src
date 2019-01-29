@@ -659,13 +659,7 @@ ixl_attach(device_t dev)
 #endif
 
 #ifdef DEV_NETMAP
-	if (vsi->num_rx_desc == vsi->num_tx_desc) {
-		vsi->queues[0].num_desc = vsi->num_rx_desc;
-		ixl_netmap_attach(vsi);
-	} else
-		device_printf(dev,
-		    "Netmap is not supported when RX and TX descriptor ring sizes differ\n");
-
+	ixl_netmap_attach(vsi);
 #endif /* DEV_NETMAP */
 
 #ifdef IXL_IW
