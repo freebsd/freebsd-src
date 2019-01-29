@@ -82,7 +82,7 @@ struct nvd_disk {
 	struct nvme_namespace	*ns;
 
 	uint32_t		cur_depth;
-#define	NVD_ODEPTH	(1 << 31)
+#define	NVD_ODEPTH	(1 << 30)
 	uint32_t		ordered_in_flight;
 	u_int			unit;
 
