@@ -170,6 +170,7 @@ __thr_fork(void)
 	 */
 	if (_thr_isthreaded() != 0) {
 		was_threaded = 1;
+		__thr_malloc_prefork(curthread);
 		_malloc_prefork();
 		__thr_pshared_atfork_pre();
 		_rtld_atfork_pre(rtld_locks);
@@ -196,6 +197,10 @@ __thr_fork(void)
 		 * _libpthread_init(), it will add us back to list.
 		 */
 		curthread->tlflags &= ~TLFLAGS_IN_TDLIST;
+
+		/* before thr_self() */
+		if (was_threaded)
+			__thr_malloc_postfork(curthread);
 
 		/* child is a new kernel thread. */
 		thr_self(&curthread->tid);
@@ -241,6 +246,7 @@ __thr_fork(void)
 		_thr_signal_postfork();
 
 		if (was_threaded) {
+			__thr_malloc_postfork(curthread);
 			_rtld_atfork_post(rtld_locks);
 			__thr_pshared_atfork_post();
 			_malloc_postfork();
