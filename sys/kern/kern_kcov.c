@@ -39,28 +39,25 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/file.h>
 #include <sys/kcov.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
-#include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/systm.h>
-#include <sys/types.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
-
-#include <vm/pmap.h>
 
 MALLOC_DEFINE(M_KCOV_INFO, "kcovinfo", "KCOV info type");
 
@@ -138,17 +135,6 @@ static d_close_t	kcov_close;
 static d_mmap_single_t	kcov_mmap_single;
 static d_ioctl_t	kcov_ioctl;
 
-void __sanitizer_cov_trace_pc(void);
-void __sanitizer_cov_trace_cmp1(uint8_t, uint8_t);
-void __sanitizer_cov_trace_cmp2(uint16_t, uint16_t);
-void __sanitizer_cov_trace_cmp4(uint32_t, uint32_t);
-void __sanitizer_cov_trace_cmp8(uint64_t, uint64_t);
-void __sanitizer_cov_trace_const_cmp1(uint8_t, uint8_t);
-void __sanitizer_cov_trace_const_cmp2(uint16_t, uint16_t);
-void __sanitizer_cov_trace_const_cmp4(uint32_t, uint32_t);
-void __sanitizer_cov_trace_const_cmp8(uint64_t, uint64_t);
-void __sanitizer_cov_trace_switch(uint64_t, uint64_t *);
-
 static int  kcov_alloc(struct kcov_info *info, size_t entries);
 static void kcov_init(const void *unused);
 
@@ -169,6 +155,7 @@ SYSCTL_UINT(_kern_kcov, OID_AUTO, max_entries, CTLFLAG_RW,
     "Maximum number of entries in the kcov buffer");
 
 static struct mtx kcov_lock;
+static int active_count;
 
 static struct kcov_info *
 get_kinfo(struct thread *td)
@@ -197,24 +184,12 @@ get_kinfo(struct thread *td)
 	return (info);
 }
 
-/*
- * Main entry point. A call to this function will be inserted
- * at every edge, and if coverage is enabled for the thread
- * this function will add the PC to the buffer.
- */
-void
-__sanitizer_cov_trace_pc(void)
+static void
+trace_pc(uintptr_t ret)
 {
 	struct thread *td;
 	struct kcov_info *info;
 	uint64_t *buf, index;
-
-	/*
-	 * To guarantee curthread is properly set, we exit early
-	 * until the driver has been initialized
-	 */
-	if (cold)
-		return;
 
 	td = curthread;
 	info = get_kinfo(td);
@@ -237,7 +212,7 @@ __sanitizer_cov_trace_pc(void)
 	if (index + 2 > info->entries)
 		return;
 
-	buf[index + 1] = (uint64_t)__builtin_return_address(0);
+	buf[index + 1] = ret;
 	buf[0] = index + 1;
 }
 
@@ -247,13 +222,6 @@ trace_cmp(uint64_t type, uint64_t arg1, uint64_t arg2, uint64_t ret)
 	struct thread *td;
 	struct kcov_info *info;
 	uint64_t *buf, index;
-
-	/*
-	 * To guarantee curthread is properly set, we exit early
-	 * until the driver has been initialized
-	 */
-	if (cold)
-		return (false);
 
 	td = curthread;
 	info = get_kinfo(td);
@@ -285,108 +253,6 @@ trace_cmp(uint64_t type, uint64_t arg1, uint64_t arg2, uint64_t ret)
 	buf[0] = index + 1;
 
 	return (true);
-}
-
-void
-__sanitizer_cov_trace_cmp1(uint8_t arg1, uint8_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(0), arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_cmp2(uint16_t arg1, uint16_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(1), arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_cmp4(uint32_t arg1, uint32_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(2), arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_cmp8(uint64_t arg1, uint64_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(3), arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_const_cmp1(uint8_t arg1, uint8_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(0) | KCOV_CMP_CONST, arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_const_cmp2(uint16_t arg1, uint16_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(1) | KCOV_CMP_CONST, arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_const_cmp4(uint32_t arg1, uint32_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(2) | KCOV_CMP_CONST, arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-void
-__sanitizer_cov_trace_const_cmp8(uint64_t arg1, uint64_t arg2)
-{
-
-	trace_cmp(KCOV_CMP_SIZE(3) | KCOV_CMP_CONST, arg1, arg2,
-	    (uint64_t)__builtin_return_address(0));
-}
-
-/*
- * val is the switch operand
- * cases[0] is the number of case constants
- * cases[1] is the size of val in bits
- * cases[2..n] are the case constants
- */
-void
-__sanitizer_cov_trace_switch(uint64_t val, uint64_t *cases)
-{
-	uint64_t i, count, ret, type;
-
-	count = cases[0];
-	ret = (uint64_t)__builtin_return_address(0);
-
-	switch (cases[1]) {
-	case 8:
-		type = KCOV_CMP_SIZE(0);
-		break;
-	case 16:
-		type = KCOV_CMP_SIZE(1);
-		break;
-	case 32:
-		type = KCOV_CMP_SIZE(2);
-		break;
-	case 64:
-		type = KCOV_CMP_SIZE(3);
-		break;
-	default:
-		return;
-	}
-
-	val |= KCOV_CMP_CONST;
-
-	for (i = 0; i < count; i++)
-		if (!trace_cmp(type, val, cases[i + 2], ret))
-			return;
 }
 
 /*
@@ -455,6 +321,7 @@ kcov_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct kcov_info *info;
 	int error;
+
 
 	if ((error = devfs_get_cdevpriv((void **)&info)) != 0)
 		return (error);
@@ -571,6 +438,16 @@ kcov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag __unused,
 			error = EINVAL;
 			break;
 		}
+
+		/* Lets hope nobody opens this 2 billion times */
+		KASSERT(active_count < INT_MAX,
+		    ("%s: Open too many times", __func__));
+		active_count++;
+		if (active_count == 1) {
+			cov_register_pc(&trace_pc);
+			cov_register_cmp(&trace_cmp);
+		}
+
 		KASSERT(info->thread == NULL,
 		    ("Enabling kcov when already enabled"));
 		info->thread = td;
@@ -589,6 +466,13 @@ kcov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag __unused,
 			error = EINVAL;
 			break;
 		}
+		KASSERT(active_count > 0, ("%s: Open count is zero", __func__));
+		active_count--;
+		if (active_count == 0) {
+			cov_register_pc(&trace_pc);
+			cov_register_cmp(&trace_cmp);
+		}
+
 		td->td_kcov_info = NULL;
 		atomic_store_int(&info->state, KCOV_STATE_READY);
 		/*
@@ -618,6 +502,12 @@ kcov_thread_dtor(void *arg __unused, struct thread *td)
 		return;
 
 	mtx_lock_spin(&kcov_lock);
+	KASSERT(active_count > 0, ("%s: Open count is zero", __func__));
+	active_count--;
+	if (active_count == 0) {
+		cov_register_pc(&trace_pc);
+		cov_register_cmp(&trace_cmp);
+	}
 	td->td_kcov_info = NULL;
 	if (info->state != KCOV_STATE_DYING) {
 		/*
@@ -673,4 +563,4 @@ kcov_init(const void *unused)
 	    EVENTHANDLER_PRI_ANY);
 }
 
-SYSINIT(kcovdev, SI_SUB_DEVFS, SI_ORDER_ANY, kcov_init, NULL);
+SYSINIT(kcovdev, SI_SUB_LAST, SI_ORDER_ANY, kcov_init, NULL);
