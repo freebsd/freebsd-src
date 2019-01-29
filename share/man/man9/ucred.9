@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 19, 2009
+.Dd January 23, 2019
 .Dt UCRED 9
 .Os
 .Sh NAME
@@ -37,8 +37,7 @@
 .Nm crshared ,
 .Nm crcopy ,
 .Nm crdup ,
-.Nm cru2x ,
-.Nm cred_update_thread
+.Nm cru2x
 .Nd "functions related to user credentials"
 .Sh SYNOPSIS
 .In sys/param.h
@@ -61,8 +60,6 @@
 .Fn crsetgroups "struct ucred *cr" "int ngrp" "gid_t *groups"
 .Ft void
 .Fn cru2x "struct ucred *cr" "struct xucred *xcr"
-.Ft void
-.Fn cred_update_thread "struct thread *td"
 .Sh DESCRIPTION
 The
 .Nm
@@ -156,11 +153,6 @@ the former
 (e.g.,
 .Va cr_version ) .
 .Pp
-The
-.Fn cred_update_thread
-function sets the credentials of
-.Fa td
-to that of its process, freeing its old credential if required.
 .Sh RETURN VALUES
 .Fn crget ,
 .Fn crhold ,
