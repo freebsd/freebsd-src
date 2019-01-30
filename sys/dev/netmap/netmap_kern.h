@@ -133,7 +133,10 @@ struct netmap_adapter *netmap_getna(if_t ifp);
 
 struct nm_selinfo {
 	struct selinfo si;
+	struct taskqueue *ntfytq;
+	struct task ntfytask;
 	struct mtx m;
+	char mtxname[32];
 };
 
 
@@ -295,7 +298,7 @@ struct netmap_priv_d;
 struct nm_bdg_args;
 
 /* os-specific NM_SELINFO_T initialzation/destruction functions */
-void nm_os_selinfo_init(NM_SELINFO_T *);
+int nm_os_selinfo_init(NM_SELINFO_T *, const char *name);
 void nm_os_selinfo_uninit(NM_SELINFO_T *);
 
 const char *nm_dump_buf(char *p, int len, int lim, char *dst);
