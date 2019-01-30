@@ -1866,7 +1866,7 @@ ipf_nat_getent(softc, data, getlock)
 	 */
 	if (nat->nat_ptr != NULL)
 		bcopy((char *)nat->nat_ptr, (char *)&ipn->ipn_ipnat,
-		      ipn->ipn_ipnat.in_size);
+		      sizeof(nat->nat_ptr));
 
 	/*
 	 * If we also know the NAT entry has an associated filter rule,
