@@ -119,6 +119,7 @@ static void trap_fatal(struct trapframe *, vm_offset_t);
 void dblfault_handler(void);
 
 extern inthand_t IDTVEC(bpt), IDTVEC(dbg), IDTVEC(int0x80_syscall);
+extern uint64_t pg_nx;
 
 #define MAX_TRAP_MSG		32
 
@@ -871,10 +872,8 @@ trap_pfault(struct trapframe *frame, int usermode, vm_offset_t eva)
 	 */
 	if (frame->tf_err & PGEX_W)
 		ftype = VM_PROT_WRITE;
-#if defined(PAE) || defined(PAE_TABLES)
 	else if ((frame->tf_err & PGEX_I) && pg_nx != 0)
 		ftype = VM_PROT_EXECUTE;
-#endif
 	else
 		ftype = VM_PROT_READ;
 
@@ -935,10 +934,8 @@ trap_fatal(frame, eva)
 		printf("fault code		= %s %s%s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
-#if defined(PAE) || defined(PAE_TABLES)
 			pg_nx != 0 ?
 			(code & PGEX_I ? " instruction" : " data") :
-#endif
 			"",
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");

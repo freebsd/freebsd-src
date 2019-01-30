@@ -148,7 +148,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
 		pmap_qremove((vm_offset_t)ptvmmap, 1);
 		sx_xunlock(&memsxlock);
-		
 	}
 
 	return (error);

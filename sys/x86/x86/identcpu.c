@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/power.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <machine/asmacros.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
@@ -2532,4 +2535,19 @@ print_hypervisor_info(void)
 
 	if (*hv_vendor)
 		printf("Hypervisor: Origin = \"%s\"\n", hv_vendor);
+}
+
+/*
+ * Returns the maximum physical address that can be used with the
+ * current system.
+ */
+vm_paddr_t
+cpu_getmaxphyaddr(void)
+{
+
+#if defined(__i386__)
+	if (!pae_mode)
+		return (0xffffffff);
+#endif
+	return ((1ULL << cpu_maxphyaddr) - 1);
 }

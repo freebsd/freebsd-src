@@ -101,8 +101,12 @@ ENTRY(vm86_bioscall)
 
 	movl	%cr3,%eax
 	pushl	%eax			/* save address space */
-	movl	IdlePTD,%ecx		/* va (and pa) of Idle PTD */
-	movl	%ecx,%ebx
+	cmpb	$0,pae_mode
+	jne	2f
+	movl	IdlePTD_nopae,%ecx	/* va (and pa) of Idle PTD */
+	jmp	3f
+2:	movl	IdlePTD_pae,%ecx
+3:	movl	%ecx,%ebx
 	movl	0(%ebx),%eax
 	pushl	%eax			/* old ptde != 0 when booting */
 	pushl	%ebx			/* keep for reuse */
@@ -112,10 +116,10 @@ ENTRY(vm86_bioscall)
 	movl	SCR_NEWPTD(%edx),%eax	/* mapping for vm86 page table */
 	movl	%eax,0(%ebx)		/* ... install as PTD entry 0 */
 
-#if defined(PAE) || defined(PAE_TABLES)
+	cmpb	$0,pae_mode
+	je	4f
 	movl	IdlePDPT,%ecx
-#endif
-	movl	%ecx,%cr3		/* new page tables */
+4:	movl	%ecx,%cr3		/* new page tables */
 	movl	SCR_VMFRAME(%edx),%esp	/* switch to new stack */
 
 	pushl	%esp
