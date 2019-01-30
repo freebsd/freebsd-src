@@ -329,9 +329,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     va_list 	ap;
     int 	flags = BIOSCODE_FLAG | BIOSDATA_FLAG;
     u_int 	i, arg_start, arg_end;
-    pt_entry_t	*pte;
-    pd_entry_t	*ptd, orig_ptd;
-
+    void	*bios16_pmap_handle;
     arg_start = 0xffffffff;
     arg_end = 0;
 
@@ -388,18 +386,10 @@ bios16(struct bios_args *args, char *fmt, ...)
 	args->seg.args.limit = 0xffff;
     }
 
-    args->seg.code32.base = (u_int)&bios16_jmp & PG_FRAME;
+    args->seg.code32.base = pmap_pg_frame((u_int)&bios16_jmp);
     args->seg.code32.limit = 0xffff;	
 
-    /*
-     * no page table, so create one and install it.
-     */
-    pte = (pt_entry_t *)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-    ptd = IdlePTD;
-    *pte = vm86phystk | PG_RW | PG_V;
-    orig_ptd = *ptd;
-    *ptd = vtophys(pte) | PG_RW | PG_V;
-    pmap_invalidate_all(kernel_pmap);	/* XXX insurance for now */
+    bios16_pmap_handle = pmap_bios16_enter();
 
     stack_top = stack;
     va_start(ap, fmt);
@@ -451,13 +441,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     bioscall_vector.vec16.segment = GSEL(GBIOSCODE16_SEL, SEL_KPL);
 
     i = bios16_call(&args->r, stack_top);
-
-    *ptd = orig_ptd;		/* remove page table */
-    /*
-     * XXX only needs to be invlpg(0) but that doesn't work on the 386
-     */
-    pmap_invalidate_all(kernel_pmap);
-    free(pte, M_TEMP);		/* ... and free it */
+    pmap_bios16_leave(bios16_pmap_handle);
     return (i);
 }
 

@@ -490,15 +490,13 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	if (minbus != 0)
 		return (0);
 
-#ifndef PAE
-	if (base >= 0x100000000) {
+	if (!pae_mode && base >= 0x100000000) {
 		if (bootverbose)
 			printf(
 	    "PCI: Memory Mapped PCI configuration area base 0x%jx too high\n",
 			    (uintmax_t)base);
 		return (0);
 	}
-#endif
 		
 	if (bootverbose)
 		printf("PCIe: Memory Mapped configuration base @ 0x%jx\n",
