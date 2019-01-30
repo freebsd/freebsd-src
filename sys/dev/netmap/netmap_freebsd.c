@@ -58,6 +58,7 @@
 #include <sys/unistd.h> /* RFNOWAIT */
 #include <sys/sched.h> /* sched_bind() */
 #include <sys/smp.h> /* mp_maxid */
+#include <sys/taskqueue.h> /* taskqueue_enqueue(), taskqueue_create(), ... */
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h> /* IFT_ETHER */
@@ -75,16 +76,48 @@
 
 /* ======================== FREEBSD-SPECIFIC ROUTINES ================== */
 
-void nm_os_selinfo_init(NM_SELINFO_T *si) {
-	struct mtx *m = &si->m;
-	mtx_init(m, "nm_kn_lock", NULL, MTX_DEF);
-	knlist_init_mtx(&si->si.si_note, m);
+static void
+nm_kqueue_notify(void *opaque, int pending)
+{
+	struct nm_selinfo *si = opaque;
+
+	/* We use a non-zero hint to distinguish this notification call
+	 * from the call done in kqueue_scan(), which uses hint=0.
+	 */
+	KNOTE_UNLOCKED(&si->si.si_note, /*hint=*/0x100);
+}
+
+int nm_os_selinfo_init(NM_SELINFO_T *si, const char *name) {
+	int err;
+
+	TASK_INIT(&si->ntfytask, 0, nm_kqueue_notify, si);
+	si->ntfytq = taskqueue_create(name, M_NOWAIT,
+	    taskqueue_thread_enqueue, &si->ntfytq);
+	if (si->ntfytq == NULL)
+		return -ENOMEM;
+	err = taskqueue_start_threads(&si->ntfytq, 1, PI_NET, "tq %s", name);
+	if (err) {
+		taskqueue_free(si->ntfytq);
+		si->ntfytq = NULL;
+		return err;
+	}
+
+	snprintf(si->mtxname, sizeof(si->mtxname), "nmkl%s", name);
+	mtx_init(&si->m, si->mtxname, NULL, MTX_DEF);
+	knlist_init_mtx(&si->si.si_note, &si->m);
+
+	return (0);
 }
 
 void
 nm_os_selinfo_uninit(NM_SELINFO_T *si)
 {
-	/* XXX kqueue(9) needed; these will mirror knlist_init. */
+	if (si->ntfytq == NULL) {
+		return;	/* si was not initialized */
+	}
+	taskqueue_drain(si->ntfytq, &si->ntfytask);
+	taskqueue_free(si->ntfytq);
+	si->ntfytq = NULL;
 	knlist_delete(&si->si.si_note, curthread, /*islocked=*/0);
 	knlist_destroy(&si->si.si_note);
 	/* now we don't need the mutex anymore */
@@ -1292,13 +1325,18 @@ nm_os_kctx_destroy(struct nm_kctx *nmk)
 
 /*
  * In addition to calling selwakeuppri(), nm_os_selwakeup() also
- * needs to call KNOTE to wake up kqueue listeners.
- * We use a non-zero 'hint' argument to inform the netmap_knrw()
- * function that it is being called from 'nm_os_selwakeup'; this
- * is necessary because when netmap_knrw() is called by the kevent
- * subsystem (i.e. kevent_scan()) we also need to call netmap_poll().
- * The knote uses a private mutex associated to the 'si' (see struct
- * selinfo, struct nm_selinfo, and nm_os_selinfo_init).
+ * needs to call knote() to wake up kqueue listeners.
+ * This operation is deferred to a taskqueue in order to avoid possible
+ * lock order reversals; these may happen because knote() grabs a
+ * private lock associated to the 'si' (see struct selinfo,
+ * struct nm_selinfo, and nm_os_selinfo_init), and nm_os_selwakeup()
+ * can be called while holding the lock associated to a different
+ * 'si'.
+ * When calling knote() we use a non-zero 'hint' argument to inform
+ * the netmap_knrw() function that it is being called from
+ * 'nm_os_selwakeup'; this is necessary because when netmap_knrw() is
+ * called by the kevent subsystem (i.e. kevent_scan()) we also need to
+ * call netmap_poll().
  *
  * The netmap_kqfilter() function registers one or another f_event
  * depending on read or write mode. A pointer to the struct
@@ -1315,11 +1353,7 @@ nm_os_selwakeup(struct nm_selinfo *si)
 	if (netmap_verbose)
 		nm_prinf("on knote %p", &si->si.si_note);
 	selwakeuppri(&si->si, PI_NET);
-	/* We use a non-zero hint to distinguish this notification call
-	 * from the call done in kqueue_scan(), which uses hint=0.
-	 */
-	KNOTE(&si->si.si_note, /*hint=*/0x100,
-	    mtx_owned(&si->m) ? KNF_LISTLOCKED : 0);
+	taskqueue_enqueue(si->ntfytq, &si->ntfytask);
 }
 
 void
