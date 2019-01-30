@@ -358,7 +358,7 @@ iavf_if_attach_pre(if_ctx_t ctx)
 		goto err_early;
 	}
 
-	iavf_dbg_init(sc, "Allocated PCI resources and MSIX vectors\n");
+	iavf_dbg_init(sc, "Allocated PCI resources and MSI-X vectors\n");
 
 	/*
 	 * XXX: This is called by init_shared_code in the PF driver,
@@ -407,7 +407,8 @@ iavf_if_attach_pre(if_ctx_t ctx)
 		goto err_aq;
 	}
 
-	device_printf(dev, "VSIs %d, QPs %d, MSIX %d, RSS sizes: key %d lut %d\n",
+	device_printf(dev,
+	    "VSIs %d, QPs %d, MSI-X %d, RSS sizes: key %d lut %d\n",
 	    sc->vf_res->num_vsis,
 	    sc->vf_res->num_queue_pairs,
 	    sc->vf_res->max_vectors,
@@ -1485,7 +1486,7 @@ iavf_free_pci_resources(struct iavf_sc *sc)
 	struct ixl_rx_queue	*rx_que = vsi->rx_queues;
 	device_t                dev = sc->dev;
 
-	/* We may get here before stations are setup */
+	/* We may get here before stations are set up */
 	if (rx_que == NULL)
 		goto early;
 
@@ -1498,7 +1499,7 @@ iavf_free_pci_resources(struct iavf_sc *sc)
 early:
 	if (sc->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(0), sc->pci_mem);
+		    rman_get_rid(sc->pci_mem), sc->pci_mem);
 }
 
 
