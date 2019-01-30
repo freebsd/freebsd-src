@@ -624,7 +624,7 @@ struct sysent freebsd32_sysent[] = {
 #else
 	{ AS(freebsd32_procctl_args), (sy_call_t *)freebsd32_procctl, AUE_PROCCTL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 544 = freebsd32_procctl */
 #endif
-	{ AS(freebsd32_ppoll_args), (sy_call_t *)freebsd32_ppoll, AUE_POLL, NULL, 0, 0, 0, SY_THR_STATIC },	/* 545 = freebsd32_ppoll */
+	{ AS(freebsd32_ppoll_args), (sy_call_t *)freebsd32_ppoll, AUE_POLL, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 545 = freebsd32_ppoll */
 	{ AS(freebsd32_futimens_args), (sy_call_t *)freebsd32_futimens, AUE_FUTIMES, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 546 = freebsd32_futimens */
 	{ AS(freebsd32_utimensat_args), (sy_call_t *)freebsd32_utimensat, AUE_FUTIMESAT, NULL, 0, 0, SYF_CAPENABLED, SY_THR_STATIC },	/* 547 = freebsd32_utimensat */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT },			/* 548 = obsolete numa_getaffinity */
