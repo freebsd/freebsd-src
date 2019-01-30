@@ -1904,20 +1904,16 @@ ipf_nat_getent(softc, data, getlock)
 		}
 	}
 	if (error == 0) {
-		if (getlock) {
-			READ_ENTER(&softc->ipf_nat);
-			getlock = 0;
-		}
 		error = ipf_outobjsz(softc, data, ipn, IPFOBJ_NATSAVE,
 				     ipns.ipn_dsize);
 	}
 
 finished:
-	if (getlock) {
-		READ_ENTER(&softc->ipf_nat);
-	}
 	if (ipn != NULL) {
 		KFREES(ipn, ipns.ipn_dsize);
+	}
+	if (getlock) {
+		RWLOCK_EXIT(&softc->ipf_nat);
 	}
 	return error;
 }
