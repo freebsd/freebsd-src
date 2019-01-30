@@ -2841,7 +2841,7 @@ dump_dt_flags_val(uint64_t d_val)
 		printf(" STATIC_TLS");
 	}
 	if (d_val)
-		printf(" %lx", d_val);
+		printf(" %jx", (uintmax_t)d_val);
 	printf("\n");
 }
 
@@ -2945,7 +2945,7 @@ dump_dt_flags_1_val(uint64_t d_val)
 		printf(" GLOBAUDIT");
 	}
 	if (d_val)
-		printf(" %lx", d_val);
+		printf(" %jx", (uintmax_t)d_val);
 	printf("\n");
 }
 
