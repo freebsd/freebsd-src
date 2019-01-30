@@ -397,8 +397,8 @@ vm86_emulate(struct vm86frame *vmf)
 	(sizeof(struct pcb_ext) - sizeof(struct segment_descriptor) + \
 	 INTMAP_SIZE + IOMAP_SIZE + 1)
 
-struct vm86_layout {
-	pt_entry_t	vml_pgtbl[PGTABLE_SIZE];
+struct vm86_layout_pae {
+	uint64_t	vml_pgtbl[PGTABLE_SIZE];
 	struct 	pcb vml_pcb;
 	struct	pcb_ext vml_ext;
 	char	vml_intmap[INTMAP_SIZE];
@@ -406,12 +406,26 @@ struct vm86_layout {
 	char	vml_iomap_trailer;
 };
 
-void
-vm86_initialize(void)
+struct vm86_layout_nopae {
+	uint32_t	vml_pgtbl[PGTABLE_SIZE];
+	struct 	pcb vml_pcb;
+	struct	pcb_ext vml_ext;
+	char	vml_intmap[INTMAP_SIZE];
+	char	vml_iomap[IOMAP_SIZE];
+	char	vml_iomap_trailer;
+};
+
+_Static_assert(sizeof(struct vm86_layout_pae) <= ctob(3),
+    "struct vm86_layout_pae exceeds space allocated in locore.s");
+_Static_assert(sizeof(struct vm86_layout_nopae) <= ctob(3),
+    "struct vm86_layout_nopae exceeds space allocated in locore.s");
+
+static void
+vm86_initialize_pae(void)
 {
 	int i;
 	u_int *addr;
-	struct vm86_layout *vml = (struct vm86_layout *)vm86paddr;
+	struct vm86_layout_pae *vml;
 	struct pcb *pcb;
 	struct pcb_ext *ext;
 	struct soft_segment_descriptor ssd = {
@@ -424,12 +438,6 @@ vm86_initialize(void)
 		0,			/* default 16 size */
 		0			/* granularity */
 	};
-
-	/*
-	 * this should be a compile time error, but cpp doesn't grok sizeof().
-	 */
-	if (sizeof(struct vm86_layout) > ctob(3))
-		panic("struct vm86_layout exceeds space allocated in locore.s");
 
 	/*
 	 * Below is the memory layout that we use for the vm86 region.
@@ -473,6 +481,7 @@ vm86_initialize(void)
 #define vm86_frame	pcb_ebp
 #define pgtable_va	pcb_ebx
 
+	vml = (struct vm86_layout_pae *)vm86paddr;
 	pcb = &vml->vml_pcb;
 	ext = &vml->vml_ext;
 
@@ -482,13 +491,13 @@ vm86_initialize(void)
 	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
 	pcb->vm86_frame = vm86paddr - sizeof(struct vm86frame);
 	pcb->pgtable_va = vm86paddr;
-	pcb->pcb_flags = PCB_VM86CALL; 
+	pcb->pcb_flags = PCB_VM86CALL;
 	pcb->pcb_ext = ext;
 
-	bzero(ext, sizeof(struct pcb_ext)); 
+	bzero(ext, sizeof(struct pcb_ext));
 	ext->ext_tss.tss_esp0 = vm86paddr;
 	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
-	ext->ext_tss.tss_ioopt = 
+	ext->ext_tss.tss_ioopt =
 		((u_int)vml->vml_iomap - (u_int)&ext->ext_tss) << 16;
 	ext->ext_iomap = vml->vml_iomap;
 	ext->ext_vm86.vm86_intmap = vml->vml_intmap;
@@ -502,7 +511,7 @@ vm86_initialize(void)
 	vml->vml_iomap_trailer = 0xff;
 
 	ssd.ssd_base = (u_int)&ext->ext_tss;
-	ssd.ssd_limit = TSS_SIZE - 1; 
+	ssd.ssd_limit = TSS_SIZE - 1;
 	ssdtosd(&ssd, &ext->ext_tssd);
 
 	vm86pcb = pcb;
@@ -515,6 +524,80 @@ vm86_initialize(void)
         msgbufinit((vm_offset_t)vm86paddr + sizeof(struct vm86_layout),
             ctob(3) - sizeof(struct vm86_layout));
 #endif
+}
+
+static void
+vm86_initialize_nopae(void)
+{
+	int i;
+	u_int *addr;
+	struct vm86_layout_nopae *vml;
+	struct pcb *pcb;
+	struct pcb_ext *ext;
+	struct soft_segment_descriptor ssd = {
+		0,			/* segment base address (overwritten) */
+		0,			/* length (overwritten) */
+		SDT_SYS386TSS,		/* segment type */
+		0,			/* priority level */
+		1,			/* descriptor present */
+		0, 0,
+		0,			/* default 16 size */
+		0			/* granularity */
+	};
+
+	vml = (struct vm86_layout_nopae *)vm86paddr;
+	pcb = &vml->vml_pcb;
+	ext = &vml->vml_ext;
+
+	mtx_init(&vm86_lock, "vm86 lock", NULL, MTX_DEF);
+
+	bzero(pcb, sizeof(struct pcb));
+	pcb->new_ptd = vm86pa | PG_V | PG_RW | PG_U;
+	pcb->vm86_frame = vm86paddr - sizeof(struct vm86frame);
+	pcb->pgtable_va = vm86paddr;
+	pcb->pcb_flags = PCB_VM86CALL;
+	pcb->pcb_ext = ext;
+
+	bzero(ext, sizeof(struct pcb_ext));
+	ext->ext_tss.tss_esp0 = vm86paddr;
+	ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
+	ext->ext_tss.tss_ioopt =
+		((u_int)vml->vml_iomap - (u_int)&ext->ext_tss) << 16;
+	ext->ext_iomap = vml->vml_iomap;
+	ext->ext_vm86.vm86_intmap = vml->vml_intmap;
+
+	if (cpu_feature & CPUID_VME)
+		ext->ext_vm86.vm86_has_vme = (rcr4() & CR4_VME ? 1 : 0);
+
+	addr = (u_int *)ext->ext_vm86.vm86_intmap;
+	for (i = 0; i < (INTMAP_SIZE + IOMAP_SIZE) / sizeof(u_int); i++)
+		*addr++ = 0;
+	vml->vml_iomap_trailer = 0xff;
+
+	ssd.ssd_base = (u_int)&ext->ext_tss;
+	ssd.ssd_limit = TSS_SIZE - 1;
+	ssdtosd(&ssd, &ext->ext_tssd);
+
+	vm86pcb = pcb;
+
+#if 0
+        /*
+         * use whatever is leftover of the vm86 page layout as a
+         * message buffer so we can capture early output.
+         */
+        msgbufinit((vm_offset_t)vm86paddr + sizeof(struct vm86_layout),
+            ctob(3) - sizeof(struct vm86_layout));
+#endif
+}
+
+void
+vm86_initialize(void)
+{
+
+	if (pae_mode)
+		vm86_initialize_pae();
+	else
+		vm86_initialize_nopae();
 }
 
 vm_offset_t
@@ -644,19 +727,31 @@ vm86_intcall(int intnum, struct vm86frame *vmf)
 int
 vm86_datacall(int intnum, struct vm86frame *vmf, struct vm86context *vmc)
 {
-	pt_entry_t *pte;
+	uint64_t *pte_pae;
+	uint32_t *pte_nopae;
 	int (*p)(struct vm86frame *);
 	vm_paddr_t page;
 	int i, entry, retval;
 
-	pte = (pt_entry_t *)vm86paddr;
 	mtx_lock(&vm86_lock);
-	for (i = 0; i < vmc->npages; i++) {
-		page = vtophys(vmc->pmap[i].kva & PG_FRAME);
-		entry = vmc->pmap[i].pte_num; 
-		vmc->pmap[i].old_pte = pte[entry];
-		pte[entry] = page | PG_V | PG_RW | PG_U;
-		pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
+	if (pae_mode) {
+		pte_pae = (uint64_t *)vm86paddr;
+		for (i = 0; i < vmc->npages; i++) {
+			page = vtophys(vmc->pmap[i].kva & PG_FRAME_PAE);
+			entry = vmc->pmap[i].pte_num;
+			vmc->pmap[i].old_pte = pte_pae[entry];
+			pte_pae[entry] = page | PG_V | PG_RW | PG_U;
+			pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
+		}
+	} else {
+		pte_nopae = (uint32_t *)vm86paddr;
+		for (i = 0; i < vmc->npages; i++) {
+			page = vtophys(vmc->pmap[i].kva & PG_FRAME_NOPAE);
+			entry = vmc->pmap[i].pte_num;
+			vmc->pmap[i].old_pte = pte_nopae[entry];
+			pte_nopae[entry] = page | PG_V | PG_RW | PG_U;
+			pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
+		}
 	}
 
 	vmf->vmf_trapno = intnum;
@@ -666,10 +761,18 @@ vm86_datacall(int intnum, struct vm86frame *vmf, struct vm86context *vmc)
 	retval = p(vmf);
 	critical_exit();
 
-	for (i = 0; i < vmc->npages; i++) {
-		entry = vmc->pmap[i].pte_num;
-		pte[entry] = vmc->pmap[i].old_pte;
-		pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
+	if (pae_mode) {
+		for (i = 0; i < vmc->npages; i++) {
+			entry = vmc->pmap[i].pte_num;
+			pte_pae[entry] = vmc->pmap[i].old_pte;
+			pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
+		}
+	} else {
+		for (i = 0; i < vmc->npages; i++) {
+			entry = vmc->pmap[i].pte_num;
+			pte_nopae[entry] = vmc->pmap[i].old_pte;
+			pmap_invalidate_page(kernel_pmap, vmc->pmap[i].kva);
+		}
 	}
 	mtx_unlock(&vm86_lock);
 

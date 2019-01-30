@@ -194,8 +194,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc)
 	 * cpususpend_handler() and we will release them soon.  Then each
 	 * will invalidate its TLB.
 	 */
-	PTD[KPTDI] = 0;
-	invltlb_glob();
+	pmap_remap_lowptdi(false);
 #endif
 
 	/* restore the warmstart vector */
@@ -277,7 +276,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		 * be careful to use the kernel map (PTD[0] is for curthread
 		 * which may be a user thread in deprecated APIs).
 		 */
-		PTD[KPTDI] = PTD[LOWPTDI];
+		pmap_remap_lowptdi(true);
 #endif
 
 		/* Call ACPICA to enter the desired sleep state */
@@ -449,12 +448,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	/* Save pointers to some global data. */
 	WAKECODE_FIXUP(wakeup_ret, void *, resumectx);
 #ifndef __amd64__
-#if defined(PAE) || defined(PAE_TABLES)
-	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdpt));
-#else
-	WAKECODE_FIXUP(wakeup_cr3, register_t, vtophys(kernel_pmap->pm_pdir));
-#endif
-
+	WAKECODE_FIXUP(wakeup_cr3, register_t, pmap_get_kcr3());
 #else /* __amd64__ */
 	/* Create the initial 1GB replicated page tables */
 	for (i = 0; i < 512; i++) {

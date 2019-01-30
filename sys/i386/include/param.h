@@ -88,25 +88,23 @@
 #define	CACHE_LINE_SIZE		(1 << CACHE_LINE_SHIFT)
 
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
-#define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
-#define PAGE_MASK	(PAGE_SIZE-1)
-#define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
+#define PAGE_SIZE	(1 << PAGE_SHIFT)	/* bytes/page */
+#define PAGE_MASK	(PAGE_SIZE - 1)
+#define NPTEPG		(PAGE_SIZE / sizeof(pt_entry_t))
 
-#if defined(PAE) || defined(PAE_TABLES)
-#define NPGPTD		4
-#define PDRSHIFT	21		/* LOG2(NBPDR) */
-#define NPGPTD_SHIFT	9
-#else
-#define NPGPTD		1
-#define PDRSHIFT	22		/* LOG2(NBPDR) */
-#define NPGPTD_SHIFT	10
+/* Size in bytes of the page directory */
+#define NBPTD		(NPGPTD << PAGE_SHIFT)
+/* Number of PDEs in page directory, 2048 for PAE, 1024 for non-PAE */
+#define NPDEPTD		(NBPTD / sizeof(pd_entry_t))
+/* Number of PDEs in one page of the page directory, 512 vs. 1024 */
+#define NPDEPG		(PAGE_SIZE / sizeof(pd_entry_t))
+#define PDRMASK		(NBPDR - 1)
+#ifndef PDRSHIFT
+#define	PDRSHIFT	i386_pmap_PDRSHIFT
 #endif
-
-#define NBPTD		(NPGPTD<<PAGE_SHIFT)
-#define NPDEPTD		(NBPTD/(sizeof (pd_entry_t)))
-#define NPDEPG		(PAGE_SIZE/(sizeof (pd_entry_t)))
-#define NBPDR		(1<<PDRSHIFT)	/* bytes/page dir */
-#define PDRMASK		(NBPDR-1)
+#ifndef NBPDR
+#define NBPDR		(1 << PDRSHIFT)	/* bytes/page dir */
+#endif
 
 #define	MAXPAGESIZES	2	/* maximum number of supported page sizes */
 

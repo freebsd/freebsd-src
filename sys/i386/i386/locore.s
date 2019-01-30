@@ -54,15 +54,6 @@
 #include "assym.inc"
 
 /*
- * PTmap is recursive pagemap at top of virtual address space.
- * Within PTmap, the page directory can be found (third indirection).
- */
-	.globl	PTmap,PTD,PTDpde
-	.set	PTmap,(PTDPTDI << PDRSHIFT)
-	.set	PTD,PTmap + (PTDPTDI * PAGE_SIZE)
-	.set	PTDpde,PTD + (PTDPTDI * PDESIZE)
-
-/*
  * Compiled KERNBASE location and the kernel load address, now identical.
  */
 	.globl	kernbase

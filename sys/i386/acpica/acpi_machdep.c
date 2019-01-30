@@ -134,7 +134,7 @@ table_map(vm_paddr_t pa, int offset, vm_offset_t length)
 
 	off = pa & PAGE_MASK;
 	length = round_page(length + off);
-	pa = pa & PG_FRAME;
+	pa = pmap_pg_frame(pa);
 	va = (vm_offset_t)pmap_kenter_temporary(pa, offset) +
 	    (offset * PAGE_SIZE);
 	data = (void *)(va + off);

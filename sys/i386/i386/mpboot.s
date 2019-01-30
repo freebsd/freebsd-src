@@ -81,19 +81,17 @@ NON_GPROF_ENTRY(MPentry)
 	testl	$CPUID_PSE,%edx
 	jz 1f
 	orl	$CR4_PSE,%eax			/* Enable PSE  */
-1:
-	testl	$CPUID_PGE,%edx
-	jz 1f
+1:	testl	$CPUID_PGE,%edx
+	jz 2f
 	orl	$CR4_PGE,%eax			/* Enable PGE  */
-1:	
-	testl	$CPUID_VME,%edx
-	jz 1f
+2:	testl	$CPUID_VME,%edx
+	jz 3f
 	orl	$CR4_VME,%eax			/* Enable VME  */
-1:
-	movl	%eax,%cr4
+3:	movl	%eax,%cr4
 
 	/* Now enable paging mode */
-#if defined(PAE) || defined(PAE_TABLES)
+	cmpl	$0, pae_mode
+	je	4f
 	movl	IdlePDPT, %eax
 	movl	%eax, %cr3
 	movl	%cr4, %eax
@@ -103,21 +101,19 @@ NON_GPROF_ENTRY(MPentry)
 	cpuid
 	movl	$0x80000001, %ebx
 	cmpl	%ebx, %eax
-	jb	1f
+	jb	5f
 	movl	%ebx, %eax
 	cpuid
 	testl	$AMDID_NX, %edx
-	je	1f
+	je	5f
 	movl	$MSR_EFER, %ecx
 	rdmsr
 	orl	$EFER_NXE,%eax
 	wrmsr
-1:
-#else
-	movl	IdlePTD, %eax
+	jmp	5f
+4:	movl	IdlePTD_nopae, %eax
 	movl	%eax,%cr3	
-#endif
-	movl	%cr0,%eax
+5:	movl	%cr0,%eax
 	orl	$CR0_PE|CR0_PG,%eax		/* enable paging */
 	movl	%eax,%cr0			/* let the games begin! */
 	movl	bootSTK,%esp			/* boot stack end loc. */
