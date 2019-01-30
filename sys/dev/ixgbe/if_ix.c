@@ -2021,7 +2021,7 @@ ixgbe_if_msix_intr_assign(if_ctx_t ctx, int msix)
 			cpu_id = rss_getcpu(i % rss_getnumbuckets());
 		} else {
 			/*
-			 * Bind the msix vector, and thus the
+			 * Bind the MSI-X vector, and thus the
 			 * rings to the corresponding cpu.
 			 *
 			 * This just happens to match the default RSS
@@ -3814,7 +3814,7 @@ ixgbe_free_pci_resources(if_ctx_t ctx)
 	struct         ix_rx_queue *que = adapter->rx_queues;
 	device_t       dev = iflib_get_dev(ctx);
 
-	/* Release all msix queue resources */
+	/* Release all MSI-X queue resources */
 	if (adapter->intr_type == IFLIB_INTR_MSIX)
 		iflib_irq_free(ctx, &adapter->irq);
 
@@ -3824,13 +3824,9 @@ ixgbe_free_pci_resources(if_ctx_t ctx)
 		}
 	}
 
-	/*
-	 * Free link/admin interrupt
-	 */
 	if (adapter->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		                     PCIR_BAR(0), adapter->pci_mem);
-
+		    rman_get_rid(adapter->pci_mem), adapter->pci_mem);
 } /* ixgbe_free_pci_resources */
 
 /************************************************************************

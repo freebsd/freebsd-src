@@ -278,7 +278,8 @@ retry:
 	}
 
 	/* Print a subset of the capability information. */
-	device_printf(dev, "PF-ID[%d]: VFs %d, MSIX %d, VF MSIX %d, QPs %d, %s\n",
+	device_printf(dev,
+	    "PF-ID[%d]: VFs %d, MSI-X %d, VF MSI-X %d, QPs %d, %s\n",
 	    hw->pf_id, hw->func_caps.num_vfs, hw->func_caps.num_msix_vectors,
 	    hw->func_caps.num_msix_vectors_vf, hw->func_caps.num_tx_qp,
 	    (hw->func_caps.mdio_port_mode == 2) ? "I2C" :
@@ -505,7 +506,7 @@ ixl_intr(void *arg)
 
 /*********************************************************************
  *
- *  MSIX VSI Interrupt Service routine
+ *  MSI-X VSI Interrupt Service routine
  *
  **********************************************************************/
 int
@@ -524,7 +525,7 @@ ixl_msix_que(void *arg)
 
 /*********************************************************************
  *
- *  MSIX Admin Queue Interrupt Service routine
+ *  MSI-X Admin Queue Interrupt Service routine
  *
  **********************************************************************/
 int
@@ -791,7 +792,7 @@ ixl_configure_intr0_msix(struct ixl_pf *pf)
 	/*
 	 * 0x7FF is the end of the queue list.
 	 * This means we won't use MSI-X vector 0 for a queue interrupt
-	 * in MSIX mode.
+	 * in MSI-X mode.
 	 */
 	wr32(hw, I40E_PFINT_LNKLST0, 0x7FF);
 	/* Value is in 2 usec units, so 0x3E is 62*2 = 124 usecs. */
@@ -909,12 +910,12 @@ ixl_free_pci_resources(struct ixl_pf *pf)
 	device_t		dev = iflib_get_dev(vsi->ctx);
 	struct ixl_rx_queue	*rx_que = vsi->rx_queues;
 
-	/* We may get here before stations are setup */
+	/* We may get here before stations are set up */
 	if (rx_que == NULL)
 		goto early;
 
 	/*
-	**  Release all msix VSI resources:
+	**  Release all MSI-X VSI resources:
 	*/
 	iflib_irq_free(vsi->ctx, &vsi->irq);
 
@@ -923,7 +924,7 @@ ixl_free_pci_resources(struct ixl_pf *pf)
 early:
 	if (pf->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(0), pf->pci_mem);
+		    rman_get_rid(pf->pci_mem), pf->pci_mem);
 }
 
 void
