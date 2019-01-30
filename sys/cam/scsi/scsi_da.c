@@ -3314,9 +3314,7 @@ more:
 			/*
 			 * BIO_FLUSH doesn't currently communicate
 			 * range data, so we synchronize the cache
-			 * over the whole disk.  We also force
-			 * ordered tag semantics the flush applies
-			 * to all previously queued I/O.
+			 * over the whole disk.
 			 */
 			scsi_synchronize_cache(&start_ccb->csio,
 					       /*retries*/1,
