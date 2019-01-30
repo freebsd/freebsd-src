@@ -293,6 +293,8 @@ static void dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die,
 static void dump_dwarf_str(struct readelf *re);
 static void dump_eflags(struct readelf *re, uint64_t e_flags);
 static void dump_elf(struct readelf *re);
+static void dump_dt_flags_val(uint64_t d_val);
+static void dump_dt_flags_1_val(uint64_t d_val);
 static void dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab);
 static void dump_dynamic(struct readelf *re);
 static void dump_liblist(struct readelf *re);
@@ -2804,9 +2806,147 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 	case DT_GNU_PRELINKED:
 		printf(" %s\n", timestamp(dyn->d_un.d_val));
 		break;
+	case DT_FLAGS:
+		dump_dt_flags_val(dyn->d_un.d_val);
+		break;
+	case DT_FLAGS_1:
+		dump_dt_flags_1_val(dyn->d_un.d_val);
+		break;
 	default:
 		printf("\n");
 	}
+}
+
+static void
+dump_dt_flags_val(uint64_t d_val)
+{
+	if (d_val & 0x1) {
+		d_val ^= 0x1;
+		printf(" ORIGIN");
+	}
+	if (d_val & 0x2) {
+		d_val ^= 0x2;
+		printf(" SYMBOLIC");
+	}
+	if (d_val & 0x4) {
+		d_val ^= 0x4;
+		printf(" TEXTREL");
+	}
+	if (d_val & 0x8) {
+		d_val ^= 0x8;
+		printf(" BIND_NOW");
+	}
+	if (d_val & 0x10) {
+		d_val ^= 0x10;
+		printf(" STATIC_TLS");
+	}
+	if (d_val)
+		printf(" %lx", d_val);
+	printf("\n");
+}
+
+static void
+dump_dt_flags_1_val(uint64_t d_val)
+{
+	if (d_val & 0x1) {
+		d_val ^= 0x1;
+		printf(" NOW");
+	}
+	if (d_val & 0x2) {
+		d_val ^= 0x2;
+		printf(" GLOBAL");
+	}
+	if (d_val & 0x4) {
+		d_val ^= 0x4;
+		printf(" GROUP");
+	}
+	if (d_val & 0x8) {
+		d_val ^= 0x8;
+		printf(" NODELETE");
+	}
+	if (d_val & 0x10) {
+		d_val ^= 0x10;
+		printf(" LOADFLTR");
+	}
+	if (d_val & 0x20) {
+		d_val ^= 0x20;
+		printf(" INITFIRST");
+	}
+	if (d_val & 0x40) {
+		d_val ^= 0x40;
+		printf(" NOOPEN");
+	}
+	if (d_val & 0x80) {
+		d_val ^= 0x80;
+		printf(" ORIGIN");
+	}
+	if (d_val & 0x100) {
+		d_val ^= 0x100;
+		printf(" DIRECT");
+	}
+	if (d_val & 0x400) {
+		d_val ^= 0x400;
+		printf(" INTERPOSE");
+	}
+	if (d_val & 0x800) {
+		d_val ^= 0x800;
+		printf(" NODEFLIB");
+	}
+	if (d_val & 0x1000) {
+		d_val ^= 0x1000;
+		printf(" NODUMP");
+	}
+	if (d_val & 0x2000) {
+		d_val ^= 0x2000;
+		printf(" CONFALT");
+	}
+	if (d_val & 0x4000) {
+		d_val ^= 0x4000;
+		printf(" ENDFILTEE");
+	}
+	if (d_val & 0x8000) {
+		d_val ^= 0x8000;
+		printf(" DISPRELDNE");
+	}
+	if (d_val & 0x10000) {
+		d_val ^= 0x10000;
+		printf(" DISPRELPND");
+	}
+	if (d_val & 0x20000) {
+		d_val ^= 0x20000;
+		printf(" NODIRECT");
+	}
+	if (d_val & 0x40000) {
+		d_val ^= 0x40000;
+		printf(" IGNMULDEF");
+	}
+	if (d_val & 0x80000) {
+		d_val ^= 0x80000;
+		printf(" NOKSYMS");
+	}
+	if (d_val & 0x100000) {
+		d_val ^= 0x100000;
+		printf(" NOHDR");
+	}
+	if (d_val & 0x200000) {
+		d_val ^= 0x200000;
+		printf(" EDITED");
+	}
+	if (d_val & 0x400000) {
+		d_val ^= 0x400000;
+		printf(" NORELOC");
+	}
+	if (d_val & 0x800000) {
+		d_val ^= 0x800000;
+		printf(" SYMINTPOSE");
+	}
+	if (d_val & 0x1000000) {
+		d_val ^= 0x1000000;
+		printf(" GLOBAUDIT");
+	}
+	if (d_val)
+		printf(" %lx", d_val);
+	printf("\n");
 }
 
 static void
