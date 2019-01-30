@@ -2655,7 +2655,7 @@ restart:
 			}
 		}
 		l3 = pmap_l3(pmap, pv->pv_va);
-		if (l3 != NULL && (pmap_load(l3) & PTE_SW_WIRED) != 0)
+		if ((pmap_load(l3) & PTE_SW_WIRED) != 0)
 			count++;
 		PMAP_UNLOCK(pmap);
 	}

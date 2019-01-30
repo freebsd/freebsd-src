@@ -85,7 +85,7 @@ void
 nm_os_selinfo_uninit(NM_SELINFO_T *si)
 {
 	/* XXX kqueue(9) needed; these will mirror knlist_init. */
-	knlist_delete(&si->si.si_note, curthread, 0 /* not locked */ );
+	knlist_delete(&si->si.si_note, curthread, /*islocked=*/0);
 	knlist_destroy(&si->si.si_note);
 	/* now we don't need the mutex anymore */
 	mtx_destroy(&si->m);
@@ -240,7 +240,7 @@ nm_os_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 	static int notsupported = 0;
 	if (!notsupported) {
 		notsupported = 1;
-		D("inet4 segmentation not supported");
+		nm_prerr("inet4 segmentation not supported");
 	}
 #endif
 }
@@ -256,7 +256,7 @@ nm_os_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
 	static int notsupported = 0;
 	if (!notsupported) {
 		notsupported = 1;
-		D("inet6 segmentation not supported");
+		nm_prerr("inet6 segmentation not supported");
 	}
 #endif
 }
@@ -288,8 +288,9 @@ freebsd_generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 {
 	int stolen;
 
-	if (!NM_NA_VALID(ifp)) {
-		RD(1, "Warning: got RX packet for invalid emulated adapter");
+	if (unlikely(!NM_NA_VALID(ifp))) {
+		nm_prlim(1, "Warning: RX packet intercepted, but no"
+				" emulated adapter");
 		return;
 	}
 
@@ -315,15 +316,16 @@ nm_os_catch_rx(struct netmap_generic_adapter *gna, int intercept)
 	nm_os_ifnet_lock();
 	if (intercept) {
 		if (gna->save_if_input) {
-			D("cannot intercept again");
-			ret = EINVAL; /* already set */
+			nm_prerr("RX on %s already intercepted", na->name);
+			ret = EBUSY; /* already set */
 			goto out;
 		}
 		gna->save_if_input = ifp->if_input;
 		ifp->if_input = freebsd_generic_rx_handler;
 	} else {
-		if (!gna->save_if_input){
-			D("cannot restore");
+		if (!gna->save_if_input) {
+			nm_prerr("Failed to undo RX intercept on %s",
+				na->name);
 			ret = EINVAL;  /* not saved */
 			goto out;
 		}
@@ -392,11 +394,11 @@ nm_os_generic_xmit_frame(struct nm_os_gen_arg *a)
 	 * we need to copy from the cluster to the netmap buffer.
 	 */
 	if (MBUF_REFCNT(m) != 1) {
-		D("invalid refcnt %d for %p", MBUF_REFCNT(m), m);
+		nm_prerr("invalid refcnt %d for %p", MBUF_REFCNT(m), m);
 		panic("in generic_xmit_frame");
 	}
 	if (m->m_ext.ext_size < len) {
-		RD(5, "size %d < len %d", m->m_ext.ext_size, len);
+		nm_prlim(2, "size %d < len %d", m->m_ext.ext_size, len);
 		len = m->m_ext.ext_size;
 	}
 	bcopy(a->addr, m->m_data, len);
@@ -459,7 +461,6 @@ nm_os_generic_set_features(struct netmap_generic_adapter *gna)
 void
 nm_os_mitigation_init(struct nm_generic_mit *mit, int idx, struct netmap_adapter *na)
 {
-	ND("called");
 	mit->mit_pending = 0;
 	mit->mit_ring_idx = idx;
 	mit->mit_na = na;
@@ -469,21 +470,19 @@ nm_os_mitigation_init(struct nm_generic_mit *mit, int idx, struct netmap_adapter
 void
 nm_os_mitigation_start(struct nm_generic_mit *mit)
 {
-	ND("called");
 }
 
 
 void
 nm_os_mitigation_restart(struct nm_generic_mit *mit)
 {
-	ND("called");
 }
 
 
 int
 nm_os_mitigation_active(struct nm_generic_mit *mit)
 {
-	ND("called");
+
 	return 0;
 }
 
@@ -491,12 +490,12 @@ nm_os_mitigation_active(struct nm_generic_mit *mit)
 void
 nm_os_mitigation_cleanup(struct nm_generic_mit *mit)
 {
-	ND("called");
 }
 
 static int
 nm_vi_dummy(struct ifnet *ifp, u_long cmd, caddr_t addr)
 {
+
 	return EINVAL;
 }
 
@@ -559,7 +558,7 @@ nm_vi_free_index(uint8_t val)
 		}
 	}
 	if (lim == nm_vi_indices.active)
-		D("funny, index %u didn't found", val);
+		nm_prerr("Index %u not found", val);
 	mtx_unlock(&nm_vi_indices.lock);
 }
 #undef NM_VI_MAX
@@ -597,7 +596,7 @@ nm_os_vi_persist(const char *name, struct ifnet **ret)
 
 	ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		D("if_alloc failed");
+		nm_prerr("if_alloc failed");
 		return ENOMEM;
 	}
 	if_initname(ifp, name, IF_DUNIT_NONE);
@@ -638,7 +637,7 @@ struct nm_os_extmem {
 void
 nm_os_extmem_delete(struct nm_os_extmem *e)
 {
-	D("freeing %zx bytes", (size_t)e->size);
+	nm_prinf("freeing %zx bytes", (size_t)e->size);
 	vm_map_remove(kernel_map, e->kva, e->kva + e->size);
 	nm_os_free(e);
 }
@@ -688,7 +687,7 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 	rv = vm_map_lookup(&map, p, VM_PROT_RW, &entry,
 			&obj, &index, &prot, &wired);
 	if (rv != KERN_SUCCESS) {
-		D("address %lx not found", p);
+		nm_prerr("address %lx not found", p);
 		goto out_free;
 	}
 	/* check that we are given the whole vm_object ? */
@@ -707,13 +706,13 @@ nm_os_extmem_create(unsigned long p, struct nmreq_pools_info *pi, int *perror)
 			VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 			VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv != KERN_SUCCESS) {
-		D("vm_map_find(%zx) failed", (size_t)e->size);
+		nm_prerr("vm_map_find(%zx) failed", (size_t)e->size);
 		goto out_rel;
 	}
 	rv = vm_map_wire(kernel_map, e->kva, e->kva + e->size,
 			VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
 	if (rv != KERN_SUCCESS) {
-		D("vm_map_wire failed");
+		nm_prerr("vm_map_wire failed");
 		goto out_rem;
 	}
 
@@ -795,7 +794,7 @@ nm_os_pt_memdev_iomap(struct ptnetmap_memdev *ptn_dev, vm_paddr_t *nm_paddr,
 {
 	int rid;
 
-	D("ptn_memdev_driver iomap");
+	nm_prinf("ptn_memdev_driver iomap");
 
 	rid = PCIR_BAR(PTNETMAP_MEM_PCI_BAR);
 	*mem_size = bus_read_4(ptn_dev->pci_io, PTNET_MDEV_IO_MEMSIZE_HI);
@@ -814,7 +813,7 @@ nm_os_pt_memdev_iomap(struct ptnetmap_memdev *ptn_dev, vm_paddr_t *nm_paddr,
 	*nm_paddr = rman_get_start(ptn_dev->pci_mem);
 	*nm_addr = rman_get_virtual(ptn_dev->pci_mem);
 
-	D("=== BAR %d start %lx len %lx mem_size %lx ===",
+	nm_prinf("=== BAR %d start %lx len %lx mem_size %lx ===",
 			PTNETMAP_MEM_PCI_BAR,
 			(unsigned long)(*nm_paddr),
 			(unsigned long)rman_get_size(ptn_dev->pci_mem),
@@ -832,7 +831,7 @@ nm_os_pt_memdev_ioread(struct ptnetmap_memdev *ptn_dev, unsigned int reg)
 void
 nm_os_pt_memdev_iounmap(struct ptnetmap_memdev *ptn_dev)
 {
-	D("ptn_memdev_driver iounmap");
+	nm_prinf("ptn_memdev_driver iounmap");
 
 	if (ptn_dev->pci_mem) {
 		bus_release_resource(ptn_dev->dev, SYS_RES_MEMORY,
@@ -868,8 +867,6 @@ ptn_memdev_attach(device_t dev)
 	int rid;
 	uint16_t mem_id;
 
-	D("ptn_memdev_driver attach");
-
 	ptn_dev = device_get_softc(dev);
 	ptn_dev->dev = dev;
 
@@ -893,7 +890,7 @@ ptn_memdev_attach(device_t dev)
 	}
 	netmap_mem_get(ptn_dev->nm_mem);
 
-	D("ptn_memdev_driver probe OK - host_mem_id: %d", mem_id);
+	nm_prinf("ptnetmap memdev attached, host memid: %u", mem_id);
 
 	return (0);
 }
@@ -904,10 +901,11 @@ ptn_memdev_detach(device_t dev)
 {
 	struct ptnetmap_memdev *ptn_dev;
 
-	D("ptn_memdev_driver detach");
 	ptn_dev = device_get_softc(dev);
 
 	if (ptn_dev->nm_mem) {
+		nm_prinf("ptnetmap memdev detached, host memid %u",
+			netmap_mem_get_id(ptn_dev->nm_mem));
 		netmap_mem_put(ptn_dev->nm_mem);
 		ptn_dev->nm_mem = NULL;
 	}
@@ -928,7 +926,6 @@ ptn_memdev_detach(device_t dev)
 static int
 ptn_memdev_shutdown(device_t dev)
 {
-	D("ptn_memdev_driver shutdown");
 	return bus_generic_shutdown(dev);
 }
 
@@ -953,7 +950,7 @@ netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	struct netmap_vm_handle_t *vmh = handle;
 
 	if (netmap_verbose)
-		D("handle %p size %jd prot %d foff %jd",
+		nm_prinf("handle %p size %jd prot %d foff %jd",
 			handle, (intmax_t)size, prot, (intmax_t)foff);
 	if (color)
 		*color = 0;
@@ -970,7 +967,7 @@ netmap_dev_pager_dtor(void *handle)
 	struct netmap_priv_d *priv = vmh->priv;
 
 	if (netmap_verbose)
-		D("handle %p", handle);
+		nm_prinf("handle %p", handle);
 	netmap_dtor(priv);
 	free(vmh, M_DEVBUF);
 	dev_rel(dev);
@@ -989,7 +986,7 @@ netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
 	vm_memattr_t memattr;
 	vm_pindex_t pidx;
 
-	ND("object %p offset %jd prot %d mres %p",
+	nm_prdis("object %p offset %jd prot %d mres %p",
 			object, (intmax_t)offset, prot, mres);
 	memattr = object->memattr;
 	pidx = OFF_TO_IDX(offset);
@@ -1045,7 +1042,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 	vm_object_t obj;
 
 	if (netmap_verbose)
-		D("cdev %p foff %jd size %jd objp %p prot %d", cdev,
+		nm_prinf("cdev %p foff %jd size %jd objp %p prot %d", cdev,
 		    (intmax_t )*foff, (intmax_t )objsize, objp, prot);
 
 	vmh = malloc(sizeof(struct netmap_vm_handle_t), M_DEVBUF,
@@ -1070,7 +1067,7 @@ netmap_mmap_single(struct cdev *cdev, vm_ooffset_t *foff,
 		&netmap_cdev_pager_ops, objsize, prot,
 		*foff, NULL);
 	if (obj == NULL) {
-		D("cdev_pager_allocate failed");
+		nm_prerr("cdev_pager_allocate failed");
 		error = EINVAL;
 		goto err_deref;
 	}
@@ -1104,7 +1101,7 @@ static int
 netmap_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	if (netmap_verbose)
-		D("dev %p fflag 0x%x devtype %d td %p",
+		nm_prinf("dev %p fflag 0x%x devtype %d td %p",
 			dev, fflag, devtype, td);
 	return 0;
 }
@@ -1255,11 +1252,11 @@ nm_os_kctx_worker_start(struct nm_kctx *nmk)
 		goto err;
 	}
 
-	D("nm_kthread started td %p", nmk->worker);
+	nm_prinf("nm_kthread started td %p", nmk->worker);
 
 	return 0;
 err:
-	D("nm_kthread start failed err %d", error);
+	nm_prerr("nm_kthread start failed err %d", error);
 	nmk->worker = NULL;
 	return error;
 }
@@ -1294,21 +1291,21 @@ nm_os_kctx_destroy(struct nm_kctx *nmk)
 /******************** kqueue support ****************/
 
 /*
- * nm_os_selwakeup also needs to issue a KNOTE_UNLOCKED.
- * We use a non-zero argument to distinguish the call from the one
- * in kevent_scan() which instead also needs to run netmap_poll().
- * The knote uses a global mutex for the time being. We might
- * try to reuse the one in the si, but it is not allocated
- * permanently so it might be a bit tricky.
+ * In addition to calling selwakeuppri(), nm_os_selwakeup() also
+ * needs to call KNOTE to wake up kqueue listeners.
+ * We use a non-zero 'hint' argument to inform the netmap_knrw()
+ * function that it is being called from 'nm_os_selwakeup'; this
+ * is necessary because when netmap_knrw() is called by the kevent
+ * subsystem (i.e. kevent_scan()) we also need to call netmap_poll().
+ * The knote uses a private mutex associated to the 'si' (see struct
+ * selinfo, struct nm_selinfo, and nm_os_selinfo_init).
  *
- * The *kqfilter function registers one or another f_event
- * depending on read or write mode.
- * In the call to f_event() td_fpop is NULL so any child function
- * calling devfs_get_cdevpriv() would fail - and we need it in
- * netmap_poll(). As a workaround we store priv into kn->kn_hook
- * and pass it as first argument to netmap_poll(), which then
- * uses the failure to tell that we are called from f_event()
- * and do not need the selrecord().
+ * The netmap_kqfilter() function registers one or another f_event
+ * depending on read or write mode. A pointer to the struct
+ * 'netmap_priv_d' is stored into kn->kn_hook, so that it can later
+ * be passed to netmap_poll(). We pass NULL as a third argument to
+ * netmap_poll(), so that the latter only runs the txsync/rxsync
+ * (if necessary), and skips the nm_os_selrecord() calls.
  */
 
 
@@ -1316,12 +1313,13 @@ void
 nm_os_selwakeup(struct nm_selinfo *si)
 {
 	if (netmap_verbose)
-		D("on knote %p", &si->si.si_note);
+		nm_prinf("on knote %p", &si->si.si_note);
 	selwakeuppri(&si->si, PI_NET);
-	/* use a non-zero hint to tell the notification from the
-	 * call done in kqueue_scan() which uses 0
+	/* We use a non-zero hint to distinguish this notification call
+	 * from the call done in kqueue_scan(), which uses hint=0.
 	 */
-	KNOTE_UNLOCKED(&si->si.si_note, 0x100 /* notification */);
+	KNOTE(&si->si.si_note, /*hint=*/0x100,
+	    mtx_owned(&si->m) ? KNF_LISTLOCKED : 0);
 }
 
 void
@@ -1336,8 +1334,8 @@ netmap_knrdetach(struct knote *kn)
 	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
 	struct selinfo *si = &priv->np_si[NR_RX]->si;
 
-	D("remove selinfo %p", si);
-	knlist_remove(&si->si_note, kn, 0);
+	nm_prinf("remove selinfo %p", si);
+	knlist_remove(&si->si_note, kn, /*islocked=*/0);
 }
 
 static void
@@ -1346,15 +1344,16 @@ netmap_knwdetach(struct knote *kn)
 	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
 	struct selinfo *si = &priv->np_si[NR_TX]->si;
 
-	D("remove selinfo %p", si);
-	knlist_remove(&si->si_note, kn, 0);
+	nm_prinf("remove selinfo %p", si);
+	knlist_remove(&si->si_note, kn, /*islocked=*/0);
 }
 
 /*
- * callback from notifies (generated externally) and our
- * calls to kevent(). The former we just return 1 (ready)
- * since we do not know better.
- * In the latter we call netmap_poll and return 0/1 accordingly.
+ * Callback triggered by netmap notifications (see netmap_notify()),
+ * and by the application calling kevent(). In the former case we
+ * just return 1 (events ready), since we are not able to do better.
+ * In the latter case we use netmap_poll() to see which events are
+ * ready.
  */
 static int
 netmap_knrw(struct knote *kn, long hint, int events)
@@ -1363,21 +1362,17 @@ netmap_knrw(struct knote *kn, long hint, int events)
 	int revents;
 
 	if (hint != 0) {
-		ND(5, "call from notify");
-		return 1; /* assume we are ready */
-	}
-	priv = kn->kn_hook;
-	/* the notification may come from an external thread,
-	 * in which case we do not want to run the netmap_poll
-	 * This should be filtered above, but check just in case.
-	 */
-	if (curthread != priv->np_td) { /* should not happen */
-		RD(5, "curthread changed %p %p", curthread, priv->np_td);
+		/* Called from netmap_notify(), typically from a
+		 * thread different from the one issuing kevent().
+		 * Assume we are ready. */
 		return 1;
-	} else {
-		revents = netmap_poll(priv, events, NULL);
-		return (events & revents) ? 1 : 0;
 	}
+
+	/* Called from kevent(). */
+	priv = kn->kn_hook;
+	revents = netmap_poll(priv, events, /*thread=*/NULL);
+
+	return (events & revents) ? 1 : 0;
 }
 
 static int
@@ -1408,7 +1403,7 @@ static struct filterops netmap_wfiltops = {
 /*
  * This is called when a thread invokes kevent() to record
  * a change in the configuration of the kqueue().
- * The 'priv' should be the same as in the netmap device.
+ * The 'priv' is the one associated to the open netmap device.
  */
 static int
 netmap_kqfilter(struct cdev *dev, struct knote *kn)
@@ -1420,31 +1415,26 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 	int ev = kn->kn_filter;
 
 	if (ev != EVFILT_READ && ev != EVFILT_WRITE) {
-		D("bad filter request %d", ev);
+		nm_prerr("bad filter request %d", ev);
 		return 1;
 	}
 	error = devfs_get_cdevpriv((void**)&priv);
 	if (error) {
-		D("device not yet setup");
+		nm_prerr("device not yet setup");
 		return 1;
 	}
 	na = priv->np_na;
 	if (na == NULL) {
-		D("no netmap adapter for this file descriptor");
+		nm_prerr("no netmap adapter for this file descriptor");
 		return 1;
 	}
 	/* the si is indicated in the priv */
 	si = priv->np_si[(ev == EVFILT_WRITE) ? NR_TX : NR_RX];
-	// XXX lock(priv) ?
 	kn->kn_fop = (ev == EVFILT_WRITE) ?
 		&netmap_wfiltops : &netmap_rfiltops;
 	kn->kn_hook = priv;
-	knlist_add(&si->si.si_note, kn, 0);
-	// XXX unlock(priv)
-	ND("register %p %s td %p priv %p kn %p np_nifp %p kn_fp/fpop %s",
-		na, na->ifp->if_xname, curthread, priv, kn,
-		priv->np_nifp,
-		kn->kn_fp == curthread->td_fpop ? "match" : "MISMATCH");
+	knlist_add(&si->si.si_note, kn, /*islocked=*/0);
+
 	return 0;
 }
 
@@ -1542,7 +1532,7 @@ netmap_loader(__unused struct module *module, int event, __unused void *arg)
 		 * then the module can not be unloaded.
 		 */
 		if (netmap_use_count) {
-			D("netmap module can not be unloaded - netmap_use_count: %d",
+			nm_prerr("netmap module can not be unloaded - netmap_use_count: %d",
 					netmap_use_count);
 			error = EBUSY;
 			break;

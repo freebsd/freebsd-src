@@ -806,7 +806,8 @@ ixgbe_initialize_transmit_units(if_ctx_t ctx)
 		IXGBE_WRITE_REG(hw, IXGBE_TDT(j), 0);
 
 		/* Cache the tail address */
-		txr->tx_rs_cidx = txr->tx_rs_pidx = txr->tx_cidx_processed = 0;
+		txr->tx_rs_cidx = txr->tx_rs_pidx;
+		txr->tx_cidx_processed = scctx->isc_ntxd[0] - 1;
 		for (int k = 0; k < scctx->isc_ntxd[0]; k++)
 			txr->tx_rsq[k] = QIDX_INVALID;
 

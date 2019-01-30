@@ -1003,6 +1003,14 @@ void __thr_pshared_destroy(void *key) __hidden;
 void __thr_pshared_atfork_pre(void) __hidden;
 void __thr_pshared_atfork_post(void) __hidden;
 
+void *__thr_calloc(size_t num, size_t size);
+void __thr_free(void *cp);
+void *__thr_malloc(size_t nbytes);
+void *__thr_realloc(void *cp, size_t nbytes);
+void __thr_malloc_init(void);
+void __thr_malloc_prefork(struct pthread *curthread);
+void __thr_malloc_postfork(struct pthread *curthread);
+
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 

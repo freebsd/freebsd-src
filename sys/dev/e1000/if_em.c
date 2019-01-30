@@ -1208,6 +1208,7 @@ static void
 em_if_init(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
+	if_softc_ctx_t scctx = adapter->shared;
 	struct ifnet *ifp = iflib_get_ifp(ctx);
 	struct em_tx_queue *tx_que;
 	int i;
@@ -1240,7 +1241,14 @@ em_if_init(if_ctx_t ctx)
 	for (i = 0, tx_que = adapter->tx_queues; i < adapter->tx_num_queues; i++, tx_que++) {
 		struct tx_ring *txr = &tx_que->txr;
 
-		txr->tx_rs_cidx = txr->tx_rs_pidx = txr->tx_cidx_processed = 0;
+		txr->tx_rs_cidx = txr->tx_rs_pidx;
+
+		/* Initialize the last processed descriptor to be the end of
+		 * the ring, rather than the start, so that we avoid an
+		 * off-by-one error when calculating how many descriptors are
+		 * done in the credits_update function.
+		 */
+		txr->tx_cidx_processed = scctx->isc_ntxd[0] - 1;
 	}
 
 	/* Setup VLAN support, basic and offload if available */

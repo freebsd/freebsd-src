@@ -1086,9 +1086,6 @@ struct rt2860_rxwi {
 /*
  * Channel map for run(4) driver; taken from the table below.
  */
-static const uint8_t run_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
-
 static const uint8_t run_chan_5ghz[] =
 	{ 36, 38, 40, 44, 46, 48, 52, 54, 56, 60, 62, 64, 100, 102, 104,
 	  108, 110, 112, 116, 118, 120, 124, 126, 128, 132, 134, 136, 140,

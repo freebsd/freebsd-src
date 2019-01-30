@@ -66,8 +66,12 @@ static inline void
 sync_kloop_kernel_write(struct nm_csb_ktoa __user *ptr, uint32_t hwcur,
 			   uint32_t hwtail)
 {
+	/* Issue a first store-store barrier to make sure writes to the
+	 * netmap ring do not overcome updates on ktoa->hwcur and ktoa->hwtail. */
+	nm_stst_barrier();
+
 	/*
-	 * The same scheme used in ptnetmap_guest_write_kring_csb() applies here.
+	 * The same scheme used in nm_sync_kloop_appl_write() applies here.
 	 * We allow the application to read a value of hwcur more recent than the value
 	 * of hwtail, since this would anyway result in a consistent view of the
 	 * ring state (and hwcur can never wraparound hwtail, since hwcur must be
@@ -75,11 +79,11 @@ sync_kloop_kernel_write(struct nm_csb_ktoa __user *ptr, uint32_t hwcur,
 	 *
 	 * The following memory barrier scheme is used to make this happen:
 	 *
-	 *          Application          Kernel
+	 *          Application            Kernel
 	 *
-	 *          STORE(hwcur)         LOAD(hwtail)
-	 *          mb() <-------------> mb()
-	 *          STORE(hwtail)        LOAD(hwcur)
+	 *          STORE(hwcur)           LOAD(hwtail)
+	 *          wmb() <------------->  rmb()
+	 *          STORE(hwtail)          LOAD(hwcur)
 	 */
 	CSB_WRITE(ptr, hwcur, hwcur);
 	nm_stst_barrier();
@@ -96,12 +100,16 @@ sync_kloop_kernel_read(struct nm_csb_atok __user *ptr,
 	/*
 	 * We place a memory barrier to make sure that the update of head never
 	 * overtakes the update of cur.
-	 * (see explanation in ptnetmap_guest_write_kring_csb).
+	 * (see explanation in sync_kloop_kernel_write).
 	 */
 	CSB_READ(ptr, head, shadow_ring->head);
-	nm_stst_barrier();
+	nm_ldld_barrier();
 	CSB_READ(ptr, cur, shadow_ring->cur);
 	CSB_READ(ptr, sync_flags, shadow_ring->flags);
+
+	/* Make sure that loads from atok->head and atok->cur are not delayed
+	 * after the loads from the netmap ring. */
+	nm_ldld_barrier();
 }
 
 /* Enable or disable application --> kernel kicks. */
@@ -127,10 +135,10 @@ csb_atok_intr_enabled(struct nm_csb_atok __user *csb_atok)
 static inline void
 sync_kloop_kring_dump(const char *title, const struct netmap_kring *kring)
 {
-	nm_prinf("%s - name: %s hwcur: %d hwtail: %d "
-		"rhead: %d rcur: %d rtail: %d",
-		title, kring->name, kring->nr_hwcur, kring->nr_hwtail,
-		kring->rhead, kring->rcur, kring->rtail);
+	nm_prinf("%s, kring %s, hwcur %d, rhead %d, "
+		"rcur %d, rtail %d, hwtail %d",
+		title, kring->name, kring->nr_hwcur, kring->rhead,
+		kring->rcur, kring->rtail, kring->nr_hwtail);
 }
 
 struct sync_kloop_ring_args {
@@ -240,7 +248,8 @@ netmap_sync_kloop_tx_ring(const struct sync_kloop_ring_args *a)
 			 */
 			/* Reenable notifications. */
 			csb_ktoa_kick_enable(csb_ktoa, 1);
-			/* Doublecheck. */
+			/* Double check, with store-load memory barrier. */
+			nm_stld_barrier();
 			sync_kloop_kernel_read(csb_atok, &shadow_ring, num_slots);
 			if (shadow_ring.head != kring->rhead) {
 				/* We won the race condition, there are more packets to
@@ -358,7 +367,8 @@ netmap_sync_kloop_rx_ring(const struct sync_kloop_ring_args *a)
 			 */
 			/* Reenable notifications. */
 			csb_ktoa_kick_enable(csb_ktoa, 1);
-			/* Doublecheck. */
+			/* Double check, with store-load memory barrier. */
+			nm_stld_barrier();
 			sync_kloop_kernel_read(csb_atok, &shadow_ring, num_slots);
 			if (!sync_kloop_norxslots(kring, shadow_ring.head)) {
 				/* We won the race condition, more slots are available. Disable
@@ -439,6 +449,7 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 	struct sync_kloop_poll_ctx *poll_ctx = NULL;
 #endif  /* SYNC_KLOOP_POLL */
 	int num_rx_rings, num_tx_rings, num_rings;
+	struct sync_kloop_ring_args *args = NULL;
 	uint32_t sleep_us = req->sleep_us;
 	struct nm_csb_atok* csb_atok_base;
 	struct nm_csb_ktoa* csb_ktoa_base;
@@ -487,6 +498,12 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 	num_rx_rings = priv->np_qlast[NR_RX] - priv->np_qfirst[NR_RX];
 	num_tx_rings = priv->np_qlast[NR_TX] - priv->np_qfirst[NR_TX];
 	num_rings = num_tx_rings + num_rx_rings;
+
+	args = nm_os_malloc(num_rings * sizeof(args[0]));
+	if (!args) {
+		err = ENOMEM;
+		goto out;
+	}
 
 	/* Validate notification options. */
 	opt = nmreq_findoption((struct nmreq_option *)(uintptr_t)hdr->nr_options,
@@ -550,21 +567,42 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 		/* Poll for notifications coming from the netmap rings bound to
 		 * this file descriptor. */
 		{
-			NM_SELINFO_T *si[NR_TXRX];
-
 			NMG_LOCK();
-			si[NR_RX] = nm_si_user(priv, NR_RX) ? &na->si[NR_RX] :
-				&na->rx_rings[priv->np_qfirst[NR_RX]]->si;
-			si[NR_TX] = nm_si_user(priv, NR_TX) ? &na->si[NR_TX] :
-				&na->tx_rings[priv->np_qfirst[NR_TX]]->si;
+			poll_wait(priv->np_filp, priv->np_si[NR_TX],
+			    &poll_ctx->wait_table);
+			poll_wait(priv->np_filp, priv->np_si[NR_RX],
+			    &poll_ctx->wait_table);
 			NMG_UNLOCK();
-			poll_wait(priv->np_filp, si[NR_RX], &poll_ctx->wait_table);
-			poll_wait(priv->np_filp, si[NR_TX], &poll_ctx->wait_table);
 		}
 #else   /* SYNC_KLOOP_POLL */
 		opt->nro_status = EOPNOTSUPP;
 		goto out;
 #endif  /* SYNC_KLOOP_POLL */
+	}
+
+	/* Prepare the arguments for netmap_sync_kloop_tx_ring()
+	 * and netmap_sync_kloop_rx_ring(). */
+	for (i = 0; i < num_tx_rings; i++) {
+		struct sync_kloop_ring_args *a = args + i;
+
+		a->kring = NMR(na, NR_TX)[i + priv->np_qfirst[NR_TX]];
+		a->csb_atok = csb_atok_base + i;
+		a->csb_ktoa = csb_ktoa_base + i;
+#ifdef SYNC_KLOOP_POLL
+		if (poll_ctx)
+			a->irq_ctx = poll_ctx->entries[i].irq_ctx;
+#endif /* SYNC_KLOOP_POLL */
+	}
+	for (i = 0; i < num_rx_rings; i++) {
+		struct sync_kloop_ring_args *a = args + num_tx_rings + i;
+
+		a->kring = NMR(na, NR_RX)[i + priv->np_qfirst[NR_RX]];
+		a->csb_atok = csb_atok_base + num_tx_rings + i;
+		a->csb_ktoa = csb_ktoa_base + num_tx_rings + i;
+#ifdef SYNC_KLOOP_POLL
+		if (poll_ctx)
+			a->irq_ctx = poll_ctx->entries[num_tx_rings + i].irq_ctx;
+#endif /* SYNC_KLOOP_POLL */
 	}
 
 	/* Main loop. */
@@ -574,47 +612,40 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 		}
 
 #ifdef SYNC_KLOOP_POLL
-		if (poll_ctx)
-			__set_current_state(TASK_INTERRUPTIBLE);
+		if (poll_ctx) {
+			/* It is important to set the task state as
+			 * interruptible before processing any TX/RX ring,
+			 * so that if a notification on ring Y comes after
+			 * we have processed ring Y, but before we call
+			 * schedule(), we don't miss it. This is true because
+			 * the wake up function will change the the task state,
+			 * and therefore the schedule_timeout() call below
+			 * will observe the change).
+			 */
+			set_current_state(TASK_INTERRUPTIBLE);
+		}
 #endif  /* SYNC_KLOOP_POLL */
 
 		/* Process all the TX rings bound to this file descriptor. */
 		for (i = 0; i < num_tx_rings; i++) {
-			struct sync_kloop_ring_args a = {
-				.kring = NMR(na, NR_TX)[i + priv->np_qfirst[NR_TX]],
-				.csb_atok = csb_atok_base + i,
-				.csb_ktoa = csb_ktoa_base + i,
-			};
+			struct sync_kloop_ring_args *a = args + i;
 
-#ifdef SYNC_KLOOP_POLL
-			if (poll_ctx)
-				a.irq_ctx = poll_ctx->entries[i].irq_ctx;
-#endif /* SYNC_KLOOP_POLL */
-			if (unlikely(nm_kr_tryget(a.kring, 1, NULL))) {
+			if (unlikely(nm_kr_tryget(a->kring, 1, NULL))) {
 				continue;
 			}
-			netmap_sync_kloop_tx_ring(&a);
-			nm_kr_put(a.kring);
+			netmap_sync_kloop_tx_ring(a);
+			nm_kr_put(a->kring);
 		}
 
 		/* Process all the RX rings bound to this file descriptor. */
 		for (i = 0; i < num_rx_rings; i++) {
-			struct sync_kloop_ring_args a = {
-				.kring = NMR(na, NR_RX)[i + priv->np_qfirst[NR_RX]],
-				.csb_atok = csb_atok_base + num_tx_rings + i,
-				.csb_ktoa = csb_ktoa_base + num_tx_rings + i,
-			};
+			struct sync_kloop_ring_args *a = args + num_tx_rings + i;
 
-#ifdef SYNC_KLOOP_POLL
-			if (poll_ctx)
-				a.irq_ctx = poll_ctx->entries[num_tx_rings + i].irq_ctx;
-#endif /* SYNC_KLOOP_POLL */
-
-			if (unlikely(nm_kr_tryget(a.kring, 1, NULL))) {
+			if (unlikely(nm_kr_tryget(a->kring, 1, NULL))) {
 				continue;
 			}
-			netmap_sync_kloop_rx_ring(&a);
-			nm_kr_put(a.kring);
+			netmap_sync_kloop_rx_ring(a);
+			nm_kr_put(a->kring);
 		}
 
 #ifdef SYNC_KLOOP_POLL
@@ -622,7 +653,7 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 			/* If a poll context is present, yield to the scheduler
 			 * waiting for a notification to come either from
 			 * netmap or the application. */
-			schedule_timeout_interruptible(msecs_to_jiffies(1000));
+			schedule_timeout(msecs_to_jiffies(3000));
 		} else
 #endif /* SYNC_KLOOP_POLL */
 		{
@@ -657,6 +688,11 @@ out:
 	}
 #endif /* SYNC_KLOOP_POLL */
 
+	if (args) {
+		nm_os_free(args);
+		args = NULL;
+	}
+
 	/* Reset the kloop state. */
 	NMG_LOCK();
 	priv->np_kloop_state = 0;
@@ -668,12 +704,31 @@ out:
 int
 netmap_sync_kloop_stop(struct netmap_priv_d *priv)
 {
+	struct netmap_adapter *na;
 	bool running = true;
 	int err = 0;
 
+	if (priv->np_nifp == NULL) {
+		return ENXIO;
+	}
+	mb(); /* make sure following reads are not from cache */
+
+	na = priv->np_na;
+	if (!nm_netmap_on(na)) {
+		return ENXIO;
+	}
+
+	/* Set the kloop stopping flag. */
 	NMG_LOCK();
 	priv->np_kloop_state |= NM_SYNC_KLOOP_STOPPING;
 	NMG_UNLOCK();
+
+	/* Send a notification to the kloop, in case it is blocked in
+	 * schedule_timeout(). We can use either RX or TX, because the
+	 * kloop is waiting on both. */
+	nm_os_selwakeup(priv->np_si[NR_RX]);
+
+	/* Wait for the kloop to actually terminate. */
 	while (running) {
 		usleep_range(1000, 1500);
 		NMG_LOCK();
@@ -719,7 +774,7 @@ netmap_pt_guest_txsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	 * packets.
 	 */
 	kring->nr_hwcur = ktoa->hwcur;
-	ptnetmap_guest_write_kring_csb(atok, kring->rcur, kring->rhead);
+	nm_sync_kloop_appl_write(atok, kring->rcur, kring->rhead);
 
         /* Ask for a kick from a guest to the host if needed. */
 	if (((kring->rhead != kring->nr_hwcur || nm_kr_txempty(kring))
@@ -733,7 +788,8 @@ netmap_pt_guest_txsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	 * Second part: reclaim buffers for completed transmissions.
 	 */
 	if (nm_kr_txempty(kring) || (flags & NAF_FORCE_RECLAIM)) {
-                ptnetmap_guest_read_kring_csb(ktoa, kring);
+		nm_sync_kloop_appl_read(ktoa, &kring->nr_hwtail,
+					&kring->nr_hwcur);
 	}
 
         /*
@@ -744,8 +800,10 @@ netmap_pt_guest_txsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	if (nm_kr_txempty(kring) && !(kring->nr_kflags & NKR_NOINTR)) {
 		/* Reenable notifications. */
 		atok->appl_need_kick = 1;
-                /* Double check */
-                ptnetmap_guest_read_kring_csb(ktoa, kring);
+                /* Double check, with store-load memory barrier. */
+		nm_stld_barrier();
+		nm_sync_kloop_appl_read(ktoa, &kring->nr_hwtail,
+					&kring->nr_hwcur);
                 /* If there is new free space, disable notifications */
 		if (unlikely(!nm_kr_txempty(kring))) {
 			atok->appl_need_kick = 0;
@@ -784,7 +842,7 @@ netmap_pt_guest_rxsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	 * hwtail to the hwtail known from the host (read from the CSB).
 	 * This also updates the kring hwcur.
 	 */
-        ptnetmap_guest_read_kring_csb(ktoa, kring);
+	nm_sync_kloop_appl_read(ktoa, &kring->nr_hwtail, &kring->nr_hwcur);
 	kring->nr_kflags &= ~NKR_PENDINTR;
 
 	/*
@@ -792,8 +850,7 @@ netmap_pt_guest_rxsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	 * released, by updating cur and head in the CSB.
 	 */
 	if (kring->rhead != kring->nr_hwcur) {
-		ptnetmap_guest_write_kring_csb(atok, kring->rcur,
-					       kring->rhead);
+		nm_sync_kloop_appl_write(atok, kring->rcur, kring->rhead);
                 /* Ask for a kick from the guest to the host if needed. */
 		if (NM_ACCESS_ONCE(ktoa->kern_need_kick)) {
 			atok->sync_flags = flags;
@@ -809,8 +866,10 @@ netmap_pt_guest_rxsync(struct nm_csb_atok *atok, struct nm_csb_ktoa *ktoa,
 	if (nm_kr_rxempty(kring) && !(kring->nr_kflags & NKR_NOINTR)) {
 		/* Reenable notifications. */
                 atok->appl_need_kick = 1;
-                /* Double check */
-                ptnetmap_guest_read_kring_csb(ktoa, kring);
+                /* Double check, with store-load memory barrier. */
+		nm_stld_barrier();
+		nm_sync_kloop_appl_read(ktoa, &kring->nr_hwtail,
+					&kring->nr_hwcur);
                 /* If there are new slots, disable notifications. */
 		if (!nm_kr_rxempty(kring)) {
                         atok->appl_need_kick = 0;

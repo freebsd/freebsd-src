@@ -1159,7 +1159,7 @@ nm_kr_rxspace(struct netmap_kring *k)
 static inline int
 nm_kr_txempty(struct netmap_kring *kring)
 {
-	return kring->rcur == kring->nr_hwtail;
+	return kring->rhead == kring->nr_hwtail;
 }
 
 /* True if no more completed slots in the rx ring, only valid after
@@ -1946,7 +1946,6 @@ struct netmap_priv_d {
 	 * (N entries). */
 	struct nm_csb_ktoa	*np_csb_ktoa_base;
 
-	struct thread	*np_td;		/* kqueue, just debugging */
 #ifdef linux
 	struct file	*np_filp;  /* used by sync kloop */
 #endif /* linux */
@@ -2246,61 +2245,14 @@ int ptnet_nm_krings_create(struct netmap_adapter *na);
 void ptnet_nm_krings_delete(struct netmap_adapter *na);
 void ptnet_nm_dtor(struct netmap_adapter *na);
 
-/* Guest driver: Write kring pointers (cur, head) to the CSB.
- * This routine is coupled with ptnetmap_host_read_kring_csb(). */
-static inline void
-ptnetmap_guest_write_kring_csb(struct nm_csb_atok *atok, uint32_t cur,
-			       uint32_t head)
-{
-    /*
-     * We need to write cur and head to the CSB but we cannot do it atomically.
-     * There is no way we can prevent the host from reading the updated value
-     * of one of the two and the old value of the other. However, if we make
-     * sure that the host never reads a value of head more recent than the
-     * value of cur we are safe. We can allow the host to read a value of cur
-     * more recent than the value of head, since in the netmap ring cur can be
-     * ahead of head and cur cannot wrap around head because it must be behind
-     * tail. Inverting the order of writes below could instead result into the
-     * host to think head went ahead of cur, which would cause the sync
-     * prologue to fail.
-     *
-     * The following memory barrier scheme is used to make this happen:
-     *
-     *          Guest              Host
-     *
-     *          STORE(cur)         LOAD(head)
-     *          mb() <-----------> mb()
-     *          STORE(head)        LOAD(cur)
-     */
-    atok->cur = cur;
-    nm_stst_barrier();
-    atok->head = head;
-}
-
-/* Guest driver: Read kring pointers (hwcur, hwtail) from the CSB.
- * This routine is coupled with ptnetmap_host_write_kring_csb(). */
-static inline void
-ptnetmap_guest_read_kring_csb(struct nm_csb_ktoa *ktoa,
-                              struct netmap_kring *kring)
-{
-    /*
-     * We place a memory barrier to make sure that the update of hwtail never
-     * overtakes the update of hwcur.
-     * (see explanation in ptnetmap_host_write_kring_csb).
-     */
-    kring->nr_hwtail = ktoa->hwtail;
-    nm_stst_barrier();
-    kring->nr_hwcur = ktoa->hwcur;
-}
-
-/* Helper function wrapping ptnetmap_guest_read_kring_csb(). */
+/* Helper function wrapping nm_sync_kloop_appl_read(). */
 static inline void
 ptnet_sync_tail(struct nm_csb_ktoa *ktoa, struct netmap_kring *kring)
 {
 	struct netmap_ring *ring = kring->ring;
 
 	/* Update hwcur and hwtail as known by the host. */
-        ptnetmap_guest_read_kring_csb(ktoa, kring);
+        nm_sync_kloop_appl_read(ktoa, &kring->nr_hwtail, &kring->nr_hwcur);
 
 	/* nm_sync_finalize */
 	ring->tail = kring->rtail = kring->nr_hwtail;

@@ -80,6 +80,8 @@ enum iwm_device_family {
 	IWM_DEVICE_FAMILY_8000,
 };
 
+#define IWM_DEFAULT_MAX_TX_POWER	22
+
 /* Antenna presence definitions */
 #define	IWM_ANT_NONE	0x0
 #define	IWM_ANT_A	(1 << 0)

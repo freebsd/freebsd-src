@@ -44,10 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/firmware.h>
 #include <sys/kdb.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
-
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -4859,8 +4855,7 @@ run_getradiocaps(struct ieee80211com *ic,
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
-	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    run_chan_2ghz, nitems(run_chan_2ghz), bands, 0);
+	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans, bands, 0);
 
 	if (sc->rf_rev == RT2860_RF_2750 || sc->rf_rev == RT2860_RF_2850 ||
 	    sc->rf_rev == RT3070_RF_3052 || sc->rf_rev == RT3593_RF_3053 ||

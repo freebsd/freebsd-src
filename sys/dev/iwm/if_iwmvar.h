@@ -139,15 +139,6 @@ struct iwm_tx_radiotap_header {
 
 #define IWM_UCODE_SECTION_MAX 16
 
-/*
- * fw_status is used to determine if we've already parsed the firmware file
- *
- * In addition to the following, status < 0 ==> -error
- */
-#define IWM_FW_STATUS_NONE		0
-#define IWM_FW_STATUS_INPROGRESS	1
-#define IWM_FW_STATUS_DONE		2
-
 /**
  * enum iwm_ucode_type
  *
@@ -195,16 +186,20 @@ struct iwm_fw_desc {
 	uint32_t offset;	/* offset in the device */
 };
 
+struct iwm_fw_img {
+	struct iwm_fw_desc sec[IWM_UCODE_SECTION_MAX];
+	int fw_count;
+	int is_dual_cpus;
+	uint32_t paging_mem_size;
+};
+
 struct iwm_fw_info {
 	const struct firmware *fw_fp;
-	int fw_status;
 
-	struct iwm_fw_sects {
-		struct iwm_fw_desc fw_sect[IWM_UCODE_SECTION_MAX];
-		int fw_count;
-		int is_dual_cpus;
-		uint32_t paging_mem_size;
-	} fw_sects[IWM_UCODE_TYPE_MAX];
+	/* ucode images */
+	struct iwm_fw_img img[IWM_UCODE_TYPE_MAX];
+
+	struct iwm_ucode_capabilities ucode_capa;
 
 	uint32_t phy_config;
 	uint8_t valid_tx_ant;
@@ -370,6 +365,7 @@ struct iwm_bf_data {
 struct iwm_vap {
 	struct ieee80211vap	iv_vap;
 	int			is_uploaded;
+	int			iv_auth;
 
 	int			(*iv_newstate)(struct ieee80211vap *,
 				    enum ieee80211_state, int);
@@ -404,8 +400,6 @@ struct iwm_node {
 	int			in_assoc;
 
 	struct iwm_lq_cmd	in_lq;
-
-	uint8_t			in_ridx[IEEE80211_RATE_MAXSIZE];
 };
 #define IWM_NODE(_ni)		((struct iwm_node *)(_ni))
 
@@ -440,6 +434,7 @@ struct iwm_softc {
 #define IWM_FLAG_BUSY		(1 << 4)
 #define IWM_FLAG_SCANNING	(1 << 5)
 #define IWM_FLAG_SCAN_RUNNING	(1 << 6)
+#define IWM_FLAG_TE_ACTIVE	(1 << 7)
 
 	struct intr_config_hook sc_preinit_hook;
 	struct callout		sc_watchdog_to;
@@ -482,7 +477,6 @@ struct iwm_softc {
 	int			ucode_loaded;
 	char			sc_fwver[32];
 
-	struct iwm_ucode_capabilities ucode_capa;
 	char			sc_fw_mcc[3];
 
 	int			sc_intmask;
@@ -544,7 +538,7 @@ struct iwm_softc {
 	int			cmd_hold_nic_awake;
 
 	/* Firmware status */
-	uint32_t		error_event_table;
+	uint32_t		error_event_table[2];
 	uint32_t		log_event_table;
 	uint32_t		umac_error_event_table;
 	int			support_umac_log;
@@ -564,6 +558,20 @@ struct iwm_softc {
 
 	/* Indicate if device power save is allowed */
 	boolean_t		sc_ps_disabled;
+
+	int			sc_ltr_enabled;
+
+	/* Track firmware state for STA association. */
+	int			sc_firmware_state;
+
+	/* Unique ID (assigned by the firmware) of the current Time Event. */
+	uint32_t		sc_time_event_uid;
+
+	/* Duration of the Time Event in TU. */
+	uint32_t		sc_time_event_duration;
+
+	/* Expected end of the Time Event in HZ ticks. */
+	int			sc_time_event_end_ticks;
 };
 
 #define IWM_LOCK_INIT(_sc) \

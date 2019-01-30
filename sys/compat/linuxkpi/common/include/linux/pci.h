@@ -71,7 +71,7 @@ struct pci_device_id {
 #define	PCI_BASE_CLASS_BRIDGE		0x06
 #define	PCI_CLASS_BRIDGE_ISA		0x0601
 
-#define	PCI_ANY_ID		(-1)
+#define	PCI_ANY_ID			-1U
 #define	PCI_VENDOR_ID_APPLE		0x106b
 #define	PCI_VENDOR_ID_ASUSTEK		0x1043
 #define	PCI_VENDOR_ID_ATI		0x1002

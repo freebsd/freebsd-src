@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include "paths.h"
 #include "rtld_tls.h"
 #include "rtld_printf.h"
+#include "rtld_malloc.h"
 #include "rtld_utrace.h"
 #include "notes.h"
 
@@ -2897,16 +2898,6 @@ relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
 	    lockstate) == -1)
 		return (-1);
 
-	/*
-	 * Process the non-PLT IFUNC relocations.  The relocations are
-	 * processed in two phases, because IFUNC resolvers may
-	 * reference other symbols, which must be readily processed
-	 * before resolvers are called.
-	 */
-	if (obj->non_plt_gnu_ifunc &&
-	    reloc_non_plt(obj, rtldobj, flags | SYMLOOK_IFUNC, lockstate))
-		return (-1);
-
 	if (!obj->mainprog && obj_enforce_relro(obj) == -1)
 		return (-1);
 
@@ -5646,4 +5637,33 @@ bzero(void *dest, size_t len)
 
 	for (i = 0; i < len; i++)
 		((char *)dest)[i] = 0;
+}
+
+/* malloc */
+void *
+malloc(size_t nbytes)
+{
+
+	return (__crt_malloc(nbytes));
+}
+
+void *
+calloc(size_t num, size_t size)
+{
+
+	return (__crt_calloc(num, size));
+}
+
+void
+free(void *cp)
+{
+
+	__crt_free(cp);
+}
+
+void *
+realloc(void *cp, size_t nbytes)
+{
+
+	return (__crt_realloc(cp, nbytes));
 }

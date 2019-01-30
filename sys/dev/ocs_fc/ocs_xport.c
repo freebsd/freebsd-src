@@ -292,10 +292,6 @@ ocs_xport_attach_cleanup:
 		ocs_node_free_pool(ocs);
 	}
 
-	if (rq_threads_created) {
-		ocs_xport_rq_threads_teardown(xport);
-	}
-
 	return -1;
 }
 

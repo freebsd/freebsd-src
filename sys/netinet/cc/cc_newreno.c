@@ -199,7 +199,7 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 static void
 newreno_after_idle(struct cc_var *ccv)
 {
-	int rw;
+	uint32_t rw;
 
 	/*
 	 * If we've been idle for more than one retransmit timeout the old
@@ -214,11 +214,7 @@ newreno_after_idle(struct cc_var *ccv)
 	 *
 	 * See RFC5681 Section 4.1. "Restarting Idle Connections".
 	 */
-	if (V_tcp_do_rfc3390)
-		rw = min(4 * CCV(ccv, t_maxseg),
-		    max(2 * CCV(ccv, t_maxseg), 4380));
-	else
-		rw = CCV(ccv, t_maxseg) * 2;
+	rw = tcp_compute_initwnd(tcp_maxseg(ccv->ccvc.tcp));
 
 	CCV(ccv, snd_cwnd) = min(rw, CCV(ccv, snd_cwnd));
 }

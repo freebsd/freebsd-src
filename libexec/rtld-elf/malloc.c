@@ -153,7 +153,7 @@ botch(s)
  */
 
 void *
-malloc(size_t nbytes)
+__crt_malloc(size_t nbytes)
 {
 	union overhead *op;
 	int bucket;
@@ -236,7 +236,7 @@ malloc(size_t nbytes)
 }
 
 void *
-calloc(size_t num, size_t size)
+__crt_calloc(size_t num, size_t size)
 {
 	void *ret;
 
@@ -245,7 +245,7 @@ calloc(size_t num, size_t size)
 		return (NULL);
 	}
 
-	if ((ret = malloc(num * size)) != NULL)
+	if ((ret = __crt_malloc(num * size)) != NULL)
 		memset(ret, 0, num * size);
 
 	return (ret);
@@ -298,7 +298,7 @@ morecore(int bucket)
 }
 
 void
-free(void * cp)
+__crt_free(void *cp)
 {
 	int size;
 	union overhead *op;
@@ -339,7 +339,7 @@ free(void * cp)
 static int realloc_srchlen = 4;	/* 4 should be plenty, -1 =>'s whole list */
 
 void *
-realloc(void *cp, size_t nbytes)
+__crt_realloc(void *cp, size_t nbytes)
 {
 	u_int onb;
 	int i;
@@ -348,7 +348,7 @@ realloc(void *cp, size_t nbytes)
 	int was_alloced = 0;
 
   	if (cp == NULL)
-  		return (malloc(nbytes));
+		return (__crt_malloc(nbytes));
 	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
 	if (op->ov_magic == MAGIC) {
 		was_alloced++;
@@ -393,10 +393,10 @@ realloc(void *cp, size_t nbytes)
 #endif
 			return(cp);
 		} else
-			free(cp);
+			__crt_free(cp);
 	}
-  	if ((res = malloc(nbytes)) == NULL)
-  		return (NULL);
+  	if ((res = __crt_malloc(nbytes)) == NULL)
+		return (NULL);
   	if (cp != res)		/* common optimization if "compacting" */
 		bcopy(cp, res, (nbytes < onb) ? nbytes : onb);
   	return (res);
@@ -467,9 +467,11 @@ morepages(int n)
 		caddr_t	addr = (caddr_t)
 			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
 		if (munmap(addr, pagepool_end - addr) != 0) {
+#ifdef IN_RTLD
 			rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": "
 			    "morepages: cannot munmap %p: %s\n",
 			    addr, rtld_strerror(errno));
+#endif
 		}
 	}
 
@@ -478,9 +480,11 @@ morepages(int n)
 	if ((pagepool_start = mmap(0, n * pagesz,
 			PROT_READ|PROT_WRITE,
 			MAP_ANON|MAP_PRIVATE, fd, 0)) == (caddr_t)-1) {
+#ifdef IN_RTLD
 		rtld_fdprintf(STDERR_FILENO, _BASENAME_RTLD ": morepages: "
 		    "cannot mmap anonymous memory: %s\n",
 		    rtld_strerror(errno));
+#endif
 		return 0;
 	}
 	pagepool_end = pagepool_start + n * pagesz;

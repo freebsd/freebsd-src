@@ -348,7 +348,7 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 	else
 		cpu = PCPU_GET(cpuid);
 
-	if (cpu < 0 || cpu >= mp_ncpus) {
+	if (cpu >= mp_ncpus) {
 		db_printf("Invalid CPU %u\n", cpu);
 		return;
 	}

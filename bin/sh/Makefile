@@ -3,9 +3,12 @@
 
 .include <src.opts.mk>
 
-CONFS=	dot.profile profile
-CONFSDIR_dot.profile=	/root
-CONFSNAME_dot.profile=	.profile
+CONFGROUPS=	ETC ROOT
+ETC=	profile
+ROOT=	dot.shrc dot.profile
+ROOTDIR=	/root
+ROOTNAME_dot.shrc=	.shrc
+ROOTNAME_dot.profile=	.profile
 PACKAGE=runtime
 PROG=	sh
 INSTALLFLAGS= -S

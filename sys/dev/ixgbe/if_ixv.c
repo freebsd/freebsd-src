@@ -1228,7 +1228,13 @@ ixv_initialize_transmit_units(if_ctx_t ctx)
 		/* Set Tx Tail register */
 		txr->tail = IXGBE_VFTDT(j);
 
-		txr->tx_rs_cidx = txr->tx_rs_pidx = txr->tx_cidx_processed = 0;
+		txr->tx_rs_cidx = txr->tx_rs_pidx;
+		/* Initialize the last processed descriptor to be the end of
+		 * the ring, rather than the start, so that we avoid an
+		 * off-by-one error when calculating how many descriptors are
+		 * done in the credits_update function.
+		 */
+		txr->tx_cidx_processed = scctx->isc_ntxd[0] - 1;
 		for (int k = 0; k < scctx->isc_ntxd[0]; k++)
 			txr->tx_rsq[k] = QIDX_INVALID;
 

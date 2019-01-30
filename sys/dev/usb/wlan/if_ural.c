@@ -45,10 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/kdb.h>
 
-#include <machine/bus.h>
-#include <machine/resource.h>
-#include <sys/rman.h>
-
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -360,9 +356,6 @@ static const struct {
 	{ 157, 0x08808, 0x0242d, 0x00281 },
 	{ 161, 0x08808, 0x0242f, 0x00281 }
 };
-
-static const uint8_t ural_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 
 static const uint8_t ural_chan_5ghz[] =
 	{ 36, 40, 44, 48, 52, 56, 60, 64,
@@ -1591,8 +1584,7 @@ ural_getradiocaps(struct ieee80211com *ic,
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
-	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    ural_chan_2ghz, nitems(ural_chan_2ghz), bands, 0);
+	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans, bands, 0);
 
 	if (sc->rf_rev == RAL_RF_5222) {
 		setbit(bands, IEEE80211_MODE_11A);

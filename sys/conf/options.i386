@@ -33,11 +33,6 @@ KVA_PAGES		opt_global.h
 # Physical address extensions and support for >4G ram.  As above.
 PAE			opt_global.h
 
-# Use PAE page tables, but limit memory support to 4GB.
-# This keeps the i386 non-PAE KBI, in particular, drivers see
-# 32bit vm_paddr_t.
-PAE_TABLES		opt_global.h
-
 TIMER_FREQ			opt_clock.h
 
 CPU_ATHLON_SSE_HACK		opt_cpu.h
