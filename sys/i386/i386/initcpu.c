@@ -632,6 +632,7 @@ extern int elf32_nxstack;
 void
 initializecpu(void)
 {
+	uint64_t msr;
 
 	switch (cpu) {
 #ifdef I486_CPU
@@ -744,16 +745,10 @@ initializecpu(void)
 		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
 		cpu_fxsr = hw_instruction_sse = 1;
 	}
-#if defined(PAE) || defined(PAE_TABLES)
-	if ((amd_feature & AMDID_NX) != 0) {
-		uint64_t msr;
-
+	if (elf32_nxstack) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);
-		pg_nx = PG_NX;
-		elf32_nxstack = 1;
 	}
-#endif
 }
 
 void

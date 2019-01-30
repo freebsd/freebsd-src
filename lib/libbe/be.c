@@ -649,32 +649,14 @@ int
 be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 {
 	char buf[BE_MAXPATHLEN];
-	time_t rawtime;
 	nvlist_t *props;
 	zfs_handle_t *zfs;
-	int err, len;
-	char nbuf[24];
+	recvflags_t flags = { .nomount = 1 };
+	int err;
 
-	/*
-	 * We don't need this to be incredibly random, just unique enough that
-	 * it won't conflict with an existing dataset name.  Chopping time
-	 * down to 32 bits is probably good enough for this.
-	 */
-	snprintf(nbuf, 24, "tmp%u",
-	    (uint32_t)(time(NULL) & 0xFFFFFFFF));
-	if ((err = be_root_concat(lbh, nbuf, buf)) != 0)
-		/*
-		 * Technically this is our problem, but we try to use short
-		 * enough names that we won't run into problems except in
-		 * worst-case BE root approaching MAXPATHLEN.
-		 */
-		return (set_error(lbh, BE_ERR_PATHLEN));
+	be_root_concat(lbh, bootenv, buf);
 
-	time(&rawtime);
-	len = strlen(buf);
-	strftime(buf + len, sizeof(buf) - len, "@%F-%T", localtime(&rawtime));
-
-	if ((err = lzc_receive(buf, NULL, NULL, false, fd)) != 0) {
+	if ((err = zfs_receive(lbh->lzh, buf, NULL, &flags, fd, NULL)) != 0) {
 		switch (err) {
 		case EINVAL:
 			return (set_error(lbh, BE_ERR_NOORIGIN));
@@ -687,39 +669,22 @@ be_import(libbe_handle_t *lbh, const char *bootenv, int fd)
 		}
 	}
 
-	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_SNAPSHOT)) == NULL)
+	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	nvlist_alloc(&props, NV_UNIQUE_NAME, KM_SLEEP);
 	nvlist_add_string(props, "canmount", "noauto");
 	nvlist_add_string(props, "mountpoint", "/");
 
-	be_root_concat(lbh, bootenv, buf);
-
-	err = zfs_clone(zfs, buf, props);
-	zfs_close(zfs);
+	err = zfs_prop_set_list(zfs, props);
 	nvlist_free(props);
 
-	if (err != 0)
-		return (set_error(lbh, BE_ERR_UNKNOWN));
-
-	/*
-	 * Finally, we open up the dataset we just cloned the snapshot so that
-	 * we may promote it.  This is necessary in order to clean up the ghost
-	 * snapshot that doesn't need to be seen after the operation is
-	 * complete.
-	 */
-	if ((zfs = zfs_open(lbh->lzh, buf, ZFS_TYPE_DATASET)) == NULL)
-		return (set_error(lbh, BE_ERR_ZFSOPEN));
-
-	err = zfs_promote(zfs);
 	zfs_close(zfs);
 
 	if (err != 0)
 		return (set_error(lbh, BE_ERR_UNKNOWN));
 
-	/* Clean up the temporary snapshot */
-	return (be_destroy(lbh, nbuf, 0));
+	return (0);
 }
 
 #if SOON

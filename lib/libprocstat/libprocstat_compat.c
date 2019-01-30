@@ -36,9 +36,11 @@ __FBSDID("$FreeBSD$");
 
 #include "libprocstat.h"
 
+#define	SPECNAMELEN_COMPAT12	63
+
 struct freebsd11_ptsstat {
 	uint32_t	dev;
-	char		devname[SPECNAMELEN + 1];
+	char		devname[SPECNAMELEN_COMPAT12 + 1];
 };
 
 struct freebsd11_vnstat {
@@ -49,7 +51,7 @@ struct freebsd11_vnstat {
 	uint32_t	vn_fsid;
 	int		vn_type;
 	uint16_t	vn_mode;
-	char		vn_devname[SPECNAMELEN + 1];
+	char		vn_devname[SPECNAMELEN_COMPAT12 + 1];
 };
 struct freebsd11_semstat {
 	uint32_t	value;
@@ -75,8 +77,25 @@ struct freebsd11_sockstat {
 	char		dname[32];
 };
 
+struct freebsd12_vnstat {
+	uint64_t	vn_fileid;
+	uint64_t	vn_size;
+	uint64_t	vn_dev;
+	uint64_t	vn_fsid;
+	char		*vn_mntdir;
+	int		vn_type;
+	uint16_t	vn_mode;
+	char		vn_devname[SPECNAMELEN_COMPAT12 + 1];
+};
+struct freebsd12_ptsstat {
+	uint64_t	dev;
+	char		devname[SPECNAMELEN_COMPAT12 + 1];
+};
+
 int	freebsd11_procstat_get_pts_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_ptsstat *pts, char *errbuf);
+int	freebsd12_procstat_get_pts_info(struct procstat *procstat,
+    struct filestat *fst, struct freebsd12_ptsstat *pts_compat, char *errbuf);
 int	freebsd11_procstat_get_sem_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_semstat *sem, char *errbuf);
 int	freebsd11_procstat_get_shm_info(struct procstat *procstat,
@@ -85,6 +104,10 @@ int	freebsd11_procstat_get_socket_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_sockstat *sock, char *errbuf);
 int	freebsd11_procstat_get_vnode_info(struct procstat *procstat,
     struct filestat *fst, struct freebsd11_vnstat *vn, char *errbuf);
+int	freebsd12_procstat_get_vnode_info(struct procstat *procstat,
+    struct filestat *fst, struct freebsd12_vnstat *vn_compat, char *errbuf);
+
+static const char trunc_name[] = "<TRUNCATED>";
 
 int
 freebsd11_procstat_get_pts_info(struct procstat *procstat,
@@ -97,8 +120,30 @@ freebsd11_procstat_get_pts_info(struct procstat *procstat,
 	if (r != 0)
 		return (r);
 	pts_compat->dev = pts.dev;
-	memcpy(pts_compat->devname, pts.devname,
-	    sizeof(pts_compat->devname));
+	if (strlen(pts.devname) >= sizeof(pts_compat->devname))
+		strcpy(pts_compat->devname, trunc_name);
+	else
+		memcpy(pts_compat->devname, pts.devname,
+		    sizeof(pts_compat->devname));
+	return (0);
+}
+
+int
+freebsd12_procstat_get_pts_info(struct procstat *procstat,
+    struct filestat *fst, struct freebsd12_ptsstat *pts_compat, char *errbuf)
+{
+	struct ptsstat pts;
+	int r;
+
+	r = procstat_get_pts_info(procstat, fst, &pts, errbuf);
+	if (r != 0)
+		return (r);
+	pts_compat->dev = pts.dev;
+	if (strlen(pts.devname) >= sizeof(pts_compat->devname))
+		strcpy(pts_compat->devname, trunc_name);
+	else
+		memcpy(pts_compat->devname, pts.devname,
+		    sizeof(pts_compat->devname));
 	return (0);
 }
 
@@ -174,8 +219,36 @@ freebsd11_procstat_get_vnode_info(struct procstat *procstat,
 	vn_compat->vn_fsid = vn.vn_fsid;
 	vn_compat->vn_type = vn.vn_type;
 	vn_compat->vn_mode = vn.vn_mode;
-	memcpy(vn_compat->vn_devname, vn.vn_devname,
-	    sizeof(vn_compat->vn_devname));
+	if (strlen(vn.vn_devname) >= sizeof(vn_compat->vn_devname))
+		strcpy(vn_compat->vn_devname, trunc_name);
+	else
+		memcpy(vn_compat->vn_devname, vn.vn_devname,
+		    sizeof(vn_compat->vn_devname));
+	return (0);
+}
+
+int
+freebsd12_procstat_get_vnode_info(struct procstat *procstat,
+    struct filestat *fst, struct freebsd12_vnstat *vn_compat, char *errbuf)
+{
+	struct vnstat vn;
+	int r;
+
+	r = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
+	if (r != 0)
+		return (r);
+	vn_compat->vn_fileid = vn.vn_fileid;
+	vn_compat->vn_size = vn.vn_size;
+	vn_compat->vn_mntdir = vn.vn_mntdir;
+	vn_compat->vn_dev = vn.vn_dev;
+	vn_compat->vn_fsid = vn.vn_fsid;
+	vn_compat->vn_type = vn.vn_type;
+	vn_compat->vn_mode = vn.vn_mode;
+	if (strlen(vn.vn_devname) >= sizeof(vn_compat->vn_devname))
+		strcpy(vn_compat->vn_devname, trunc_name);
+	else
+		memcpy(vn_compat->vn_devname, vn.vn_devname,
+		    sizeof(vn_compat->vn_devname));
 	return (0);
 }
 
@@ -186,3 +259,6 @@ __sym_compat(procstat_get_vnode_info, freebsd11_procstat_get_vnode_info,
     FBSD_1.2);
 __sym_compat(procstat_get_sem_info, freebsd11_procstat_get_sem_info, FBSD_1.3);
 __sym_compat(procstat_get_shm_info, freebsd11_procstat_get_shm_info, FBSD_1.3);
+__sym_compat(procstat_get_pts_info, freebsd12_procstat_get_pts_info, FBSD_1.5);
+__sym_compat(procstat_get_vnode_info, freebsd12_procstat_get_vnode_info,
+    FBSD_1.5);

@@ -204,7 +204,6 @@ utmp_chk(char *user, char *tty)
 	struct utmpx lu, *u;
 
 	strncpy(lu.ut_line, tty, sizeof lu.ut_line);
-	setutxent();
 	while ((u = getutxline(&lu)) != NULL)
 		if (u->ut_type == USER_PROCESS &&
 		    strcmp(user, u->ut_user) == 0) {
@@ -237,7 +236,6 @@ search_utmp(int devfd, char *user, char *tty, char *mytty, uid_t myuid)
 	bestatime = 0;
 	user_is_me = 0;
 
-	setutxent();
 	while ((u = getutxent()) != NULL)
 		if (u->ut_type == USER_PROCESS &&
 		    strcmp(user, u->ut_user) == 0) {

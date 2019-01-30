@@ -38,6 +38,7 @@
 #ifndef _SYS_KCOV_H_
 #define _SYS_KCOV_H_
 
+#include <sys/coverage.h>
 #include <sys/ioccom.h>
 
 #define KCOV_MAXENTRIES		(1 << 24)		/* 16M */
@@ -51,9 +52,9 @@
 #define KIODISABLE	_IO('c', 3)	/* Disable coverage recording */
 #define KIOSETBUFSIZE	_IOWINT('c', 4)	/* Set the buffer size */
 
-#define	KCOV_CMP_CONST		(1 << 0)
-#define	KCOV_CMP_SIZE(x)	((x) << 1)
-#define	KCOV_CMP_MASK		(3 << 1)
-#define	KCOV_CMP_GET_SIZE(x)	(((x) >> 1) & 3)
+#define	KCOV_CMP_CONST		COV_CMP_CONST
+#define	KCOV_CMP_SIZE(x)	COV_CMP_SIZE(x)
+#define	KCOV_CMP_MASK		COV_CMP_MASK
+#define	KCOV_CMP_GET_SIZE(x)	COV_CMP_GET_SIZE(x)
 
 #endif /* _SYS_KCOV_H_ */

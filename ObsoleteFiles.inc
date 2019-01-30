@@ -190,6 +190,9 @@ OLD_FILES+=usr/lib/clang/7.0.1/lib/freebsd/libclang_rt.ubsan_standalone_cxx-x86_
 OLD_DIRS+=usr/lib/clang/7.0.1/lib/freebsd
 OLD_DIRS+=usr/lib/clang/7.0.1/lib
 OLD_DIRS+=usr/lib/clang/7.0.1
+# 20190126: adv(4) / adw(4) removal
+OLD_FILES+=usr/share/man/man4/adv.4.gz
+OLD_FILES+=usr/share/man/man4/adw.4.gz
 # 20190114: old pbuf allocator removed
 OLD_FILES+=usr/share/man/man9/pbuf.9.gz
 # 20181219: ibcs removal

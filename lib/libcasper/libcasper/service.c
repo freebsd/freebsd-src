@@ -427,7 +427,7 @@ service_start(struct service *service, int sock, int procfd)
 	service_clean(sock, procfd, service->s_flags);
 
 	if (service_connection_add(service, sock, NULL) == NULL)
-		exit(1);
+		_exit(1);
 
 	for (;;) {
 		FD_ZERO(&fds);
@@ -443,7 +443,7 @@ service_start(struct service *service, int sock, int procfd)
 		nfds = select(maxfd + 1, &fds, NULL, NULL, NULL);
 		if (nfds < 0) {
 			if (errno != EINTR)
-				exit(1);
+				_exit(1);
 			continue;
 		} else if (nfds == 0) {
 			/* Timeout. */
@@ -468,5 +468,5 @@ service_start(struct service *service, int sock, int procfd)
 		}
 	}
 
-	exit(0);
+	_exit(0);
 }

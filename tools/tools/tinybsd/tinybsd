@@ -206,7 +206,7 @@ loadconfig () {
       break
     fi
   done
-  MFSROOT=`confirm_action "$MFSROOT" "Use an MFSROOT? (YES/NO)"`
+  MFSROOT=`confirm_action "$MFSROOT" "Use an MFSROOT? (yes/no)"`
   IMG=`confirm_action "$IMG" "Image file to generate?"`
 
 # example of formatted value (NNN in this case)

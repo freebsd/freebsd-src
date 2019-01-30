@@ -702,8 +702,9 @@ enum iwm_ucode_tlv_api {
  * @IWM_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG: support getting more shared
  *	memory addresses from the firmware.
  * @IWM_UCODE_TLV_CAPA_LQM_SUPPORT: supports Link Quality Measurement
- * @IWM_UCODE_TLV_CAPA_LMAC_UPLOAD: supports upload mode in lmac (1=supported,
- *	0=no support)
+ * @IWM_UCODE_TLV_CAPA_TX_POWER_ACK: reduced TX power API has larger
+ *      command size (command version 4) that supports toggling ACK TX
+ *      power reduction.
  *
  * @IWM_NUM_UCODE_TLV_CAPA: number of bits used
  */
@@ -744,9 +745,9 @@ enum iwm_ucode_tlv_capa {
 	IWM_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT	= 75,
 	IWM_UCODE_TLV_CAPA_CTDP_SUPPORT			= 76,
 	IWM_UCODE_TLV_CAPA_USNIFFER_UNIFIED		= 77,
-	IWM_UCODE_TLV_CAPA_LMAC_UPLOAD			= 79,
 	IWM_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG	= 80,
 	IWM_UCODE_TLV_CAPA_LQM_SUPPORT			= 81,
+	IWM_UCODE_TLV_CAPA_TX_POWER_ACK			= 84,
 
 	IWM_NUM_UCODE_TLV_CAPA = 128
 };
@@ -1790,14 +1791,10 @@ enum {
 	/* Power - legacy power table command */
 	IWM_POWER_TABLE_CMD = 0x77,
 	IWM_PSM_UAPSD_AP_MISBEHAVING_NOTIFICATION = 0x78,
+	IWM_LTR_CONFIG = 0xee,
 
 	/* Thermal Throttling*/
 	IWM_REPLY_THERMAL_MNG_BACKOFF = 0x7e,
-
-	/* Scanning */
-	IWM_SCAN_ABORT_CMD = 0x81,
-	IWM_SCAN_START_NOTIFICATION = 0x82,
-	IWM_SCAN_RESULTS_NOTIFICATION = 0x83,
 
 	/* NVM */
 	IWM_NVM_ACCESS_CMD = 0x88,
@@ -1869,8 +1866,6 @@ enum {
 	IWM_NET_DETECT_PROFILES_CMD = 0x57,
 	IWM_NET_DETECT_HOTSPOTS_CMD = 0x58,
 	IWM_NET_DETECT_HOTSPOTS_QUERY_CMD = 0x59,
-
-	IWM_REPLY_MAX = 0xff,
 };
 
 enum iwm_phy_ops_subcmd_ids {
@@ -1920,6 +1915,51 @@ struct iwm_reduce_tx_power_cmd {
 	uint8_t mac_context_id;
 	uint16_t pwr_restriction;
 } __packed; /* IWM_TX_REDUCED_POWER_API_S_VER_1 */
+
+enum iwm_dev_tx_power_cmd_mode {
+	IWM_TX_POWER_MODE_SET_MAC = 0,
+	IWM_TX_POWER_MODE_SET_DEVICE = 1,
+	IWM_TX_POWER_MODE_SET_CHAINS = 2,
+	IWM_TX_POWER_MODE_SET_ACK = 3,
+}; /* TX_POWER_REDUCED_FLAGS_TYPE_API_E_VER_4 */;
+
+#define IWM_NUM_CHAIN_LIMITS	2
+#define IWM_NUM_SUB_BANDS	5
+
+/**
+ * struct iwm_dev_tx_power_cmd - TX power reduction command
+ * @set_mode: see &enum iwl_dev_tx_power_cmd_mode
+ * @mac_context_id: id of the mac ctx for which we are reducing TX power.
+ * @pwr_restriction: TX power restriction in 1/8 dBms.
+ * @dev_24: device TX power restriction in 1/8 dBms
+ * @dev_52_low: device TX power restriction upper band - low
+ * @dev_52_high: device TX power restriction upper band - high
+ * @per_chain_restriction: per chain restrictions
+ */
+struct iwm_dev_tx_power_cmd_v3 {
+	uint32_t set_mode;
+	uint32_t mac_context_id;
+	uint16_t pwr_restriction;
+	uint16_t dev_24;
+	uint16_t dev_52_low;
+	uint16_t dev_52_high;
+	uint16_t per_chain_restriction[IWM_NUM_CHAIN_LIMITS][IWM_NUM_SUB_BANDS];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_3 */
+
+#define IWM_DEV_MAX_TX_POWER 0x7FFF
+
+/**
+ * struct iwm_dev_tx_power_cmd - TX power reduction command
+ * @v3: version 3 of the command, embedded here for easier software handling
+ * @enable_ack_reduction: enable or disable close range ack TX power
+ *      reduction.
+ */
+struct iwm_dev_tx_power_cmd {
+	/* v4 is just an extension of v3 - keep this here */
+	struct iwm_dev_tx_power_cmd_v3 v3;
+	uint8_t enable_ack_reduction;
+	uint8_t reserved[3];
+} __packed; /* TX_REDUCED_POWER_API_S_VER_4 */
 
 /*
  * Calibration control struct.
@@ -2102,41 +2142,13 @@ enum {
 
 #define IWM_ALIVE_FLG_RFKILL	(1 << 0)
 
-struct iwm_mvm_alive_resp_ver1 {
-	uint16_t status;
-	uint16_t flags;
-	uint8_t ucode_minor;
-	uint8_t ucode_major;
-	uint16_t id;
-	uint8_t api_minor;
-	uint8_t api_major;
+struct iwm_lmac_alive {
+	uint32_t ucode_major;
+	uint32_t ucode_minor;
 	uint8_t ver_subtype;
 	uint8_t ver_type;
 	uint8_t mac;
 	uint8_t opt;
-	uint16_t reserved2;
-	uint32_t timestamp;
-	uint32_t error_event_table_ptr;	/* SRAM address for error log */
-	uint32_t log_event_table_ptr;	/* SRAM address for event log */
-	uint32_t cpu_register_ptr;
-	uint32_t dbgm_config_ptr;
-	uint32_t alive_counter_ptr;
-	uint32_t scd_base_ptr;		/* SRAM address for SCD */
-} __packed; /* IWM_ALIVE_RES_API_S_VER_1 */
-
-struct iwm_mvm_alive_resp_ver2 {
-	uint16_t status;
-	uint16_t flags;
-	uint8_t ucode_minor;
-	uint8_t ucode_major;
-	uint16_t id;
-	uint8_t api_minor;
-	uint8_t api_major;
-	uint8_t ver_subtype;
-	uint8_t ver_type;
-	uint8_t mac;
-	uint8_t opt;
-	uint16_t reserved2;
 	uint32_t timestamp;
 	uint32_t error_event_table_ptr;	/* SRAM address for error log */
 	uint32_t log_event_table_ptr;	/* SRAM address for LMAC event log */
@@ -2146,36 +2158,28 @@ struct iwm_mvm_alive_resp_ver2 {
 	uint32_t scd_base_ptr;		/* SRAM address for SCD */
 	uint32_t st_fwrd_addr;		/* pointer to Store and forward */
 	uint32_t st_fwrd_size;
-	uint8_t umac_minor;		/* UMAC version: minor */
-	uint8_t umac_major;		/* UMAC version: major */
-	uint16_t umac_id;		/* UMAC version: id */
+} __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
+
+struct iwm_umac_alive {
+	uint32_t umac_major;		/* UMAC version: major */
+	uint32_t umac_minor;		/* UMAC version: minor */
 	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
 	uint32_t dbg_print_buff_addr;
-} __packed; /* ALIVE_RES_API_S_VER_2 */
+} __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
+
+struct iwm_mvm_alive_resp_v3 {
+	uint16_t status;
+	uint16_t flags;
+	struct iwm_lmac_alive lmac_data;
+	struct iwm_umac_alive umac_data;
+} __packed; /* ALIVE_RES_API_S_VER_3 */
 
 struct iwm_mvm_alive_resp {
 	uint16_t status;
 	uint16_t flags;
-	uint32_t ucode_minor;
-	uint32_t ucode_major;
-	uint8_t ver_subtype;
-	uint8_t ver_type;
-	uint8_t mac;
-	uint8_t opt;
-	uint32_t timestamp;
-	uint32_t error_event_table_ptr;	/* SRAM address for error log */
-	uint32_t log_event_table_ptr;	/* SRAM address for LMAC event log */
-	uint32_t cpu_register_ptr;
-	uint32_t dbgm_config_ptr;
-	uint32_t alive_counter_ptr;
-	uint32_t scd_base_ptr;		/* SRAM address for SCD */
-	uint32_t st_fwrd_addr;		/* pointer to Store and forward */
-	uint32_t st_fwrd_size;
-	uint32_t umac_minor;		/* UMAC version: minor */
-	uint32_t umac_major;		/* UMAC version: major */
-	uint32_t error_info_addr;	/* SRAM address for UMAC error log */
-	uint32_t dbg_print_buff_addr;
-} __packed; /* ALIVE_RES_API_S_VER_3 */
+	struct iwm_lmac_alive lmac_data[2];
+	struct iwm_umac_alive umac_data;
+} __packed; /* ALIVE_RES_API_S_VER_4 */
 
 /* Error response/notification */
 enum {
@@ -3527,6 +3531,57 @@ struct iwm_nonqos_seq_query_cmd {
 
 /* Power Management Commands, Responses, Notifications */
 
+/**
+ * enum iwm_ltr_config_flags - masks for LTR config command flags
+ * @IWM_LTR_CFG_FLAG_FEATURE_ENABLE: Feature operational status
+ * @IWM_LTR_CFG_FLAG_HW_DIS_ON_SHADOW_REG_ACCESS: allow LTR change on shadow
+ *      memory access
+ * @IWM_LTR_CFG_FLAG_HW_EN_SHRT_WR_THROUGH: allow LTR msg send on ANY LTR
+ *      reg change
+ * @IWM_LTR_CFG_FLAG_HW_DIS_ON_D0_2_D3: allow LTR msg send on transition from
+ *      D0 to D3
+ * @IWM_LTR_CFG_FLAG_SW_SET_SHORT: fixed static short LTR register
+ * @IWM_LTR_CFG_FLAG_SW_SET_LONG: fixed static short LONG register
+ * @IWM_LTR_CFG_FLAG_DENIE_C10_ON_PD: allow going into C10 on PD
+ */
+enum iwm_ltr_config_flags {
+	IWM_LTR_CFG_FLAG_FEATURE_ENABLE = (1 << 0),
+	IWM_LTR_CFG_FLAG_HW_DIS_ON_SHADOW_REG_ACCESS = (1 << 1),
+	IWM_LTR_CFG_FLAG_HW_EN_SHRT_WR_THROUGH = (1 << 2),
+	IWM_LTR_CFG_FLAG_HW_DIS_ON_D0_2_D3 = (1 << 3),
+	IWM_LTR_CFG_FLAG_SW_SET_SHORT = (1 << 4),
+	IWM_LTR_CFG_FLAG_SW_SET_LONG = (1 << 5),
+	IWM_LTR_CFG_FLAG_DENIE_C10_ON_PD = (1 << 6),
+};
+
+/**
+ * struct iwm_ltr_config_cmd_v1 - configures the LTR
+ * @flags: See %enum iwm_ltr_config_flags
+ */
+struct iwm_ltr_config_cmd_v1 {
+	uint32_t flags;
+	uint32_t static_long;
+	uint32_t static_short;
+} __packed; /* LTR_CAPABLE_API_S_VER_1 */
+
+#define IWM_LTR_VALID_STATES_NUM 4
+
+/**
+ * struct iwm_ltr_config_cmd - configures the LTR
+ * @flags: See %enum iwm_ltr_config_flags
+ * @static_long:
+ * @static_short:
+ * @ltr_cfg_values:
+ * @ltr_short_idle_timeout:
+ */
+struct iwm_ltr_config_cmd {
+	uint32_t flags;
+	uint32_t static_long;
+	uint32_t static_short;
+	uint32_t ltr_cfg_values[IWM_LTR_VALID_STATES_NUM];
+	uint32_t ltr_short_idle_timeout;
+} __packed; /* LTR_CAPABLE_API_S_VER_2 */
+
 /* Radio LP RX Energy Threshold measured in dBm */
 #define IWM_POWER_LPRX_RSSI_THRESHOLD	75
 #define IWM_POWER_LPRX_RSSI_THRESHOLD_MAX	94
@@ -4228,29 +4283,6 @@ enum iwm_tx_pm_timeouts {
 #define IWM_TX_CMD_SEC_WEP_KEY_IDX_MSK	0xc0
 #define IWM_TX_CMD_SEC_KEY128		0x08
 
-/* TODO: how does these values are OK with only 16 bit variable??? */
-/*
- * TX command next frame info
- *
- * bits 0:2 - security control (IWM_TX_CMD_SEC_*)
- * bit 3 - immediate ACK required
- * bit 4 - rate is taken from STA table
- * bit 5 - frame belongs to BA stream
- * bit 6 - immediate BA response expected
- * bit 7 - unused
- * bits 8:15 - Station ID
- * bits 16:31 - rate
- */
-#define IWM_TX_CMD_NEXT_FRAME_ACK_MSK		(0x8)
-#define IWM_TX_CMD_NEXT_FRAME_STA_RATE_MSK	(0x10)
-#define IWM_TX_CMD_NEXT_FRAME_BA_MSK		(0x20)
-#define IWM_TX_CMD_NEXT_FRAME_IMM_BA_RSP_MSK	(0x40)
-#define IWM_TX_CMD_NEXT_FRAME_FLAGS_MSK		(0xf8)
-#define IWM_TX_CMD_NEXT_FRAME_STA_ID_MSK	(0xff00)
-#define IWM_TX_CMD_NEXT_FRAME_STA_ID_POS	(8)
-#define IWM_TX_CMD_NEXT_FRAME_RATE_MSK		(0xffff0000)
-#define IWM_TX_CMD_NEXT_FRAME_RATE_POS		(16)
-
 /*
  * TX command Frame life time in us - to be written in pm_frame_timeout
  */
@@ -4288,7 +4320,7 @@ enum iwm_tx_pm_timeouts {
  * @initial_rate_index: index into the rate table for initial TX attempt.
  *	Applied if IWM_TX_CMD_FLG_STA_RATE_MSK is set, normally 0 for data frames.
  * @key: security key
- * @next_frame_flags: IWM_TX_CMD_SEC_* and IWM_TX_CMD_NEXT_FRAME_*
+ * @reserved3: reserved
  * @life_time: frame life time (usecs??)
  * @dram_lsb_ptr: Physical address of scratch area in the command (try_cnt +
  *	btkill_cnd + reserved), first 32 bits. "0" disables usage.
@@ -4952,50 +4984,14 @@ struct iwm_periodic_scan_complete {
 	uint32_t reserved;
 } __packed;
 
-/* How many statistics are gathered for each channel */
-#define IWM_SCAN_RESULTS_STATISTICS 1
-
 /**
- * enum iwm_scan_complete_status - status codes for scan complete notifications
- * @IWM_SCAN_COMP_STATUS_OK:  scan completed successfully
- * @IWM_SCAN_COMP_STATUS_ABORT: scan was aborted by user
- * @IWM_SCAN_COMP_STATUS_ERR_SLEEP: sending null sleep packet failed
- * @IWM_SCAN_COMP_STATUS_ERR_CHAN_TIMEOUT: timeout before channel is ready
- * @IWM_SCAN_COMP_STATUS_ERR_PROBE: sending probe request failed
- * @IWM_SCAN_COMP_STATUS_ERR_WAKEUP: sending null wakeup packet failed
- * @IWM_SCAN_COMP_STATUS_ERR_ANTENNAS: invalid antennas chosen at scan command
- * @IWM_SCAN_COMP_STATUS_ERR_INTERNAL: internal error caused scan abort
- * @IWM_SCAN_COMP_STATUS_ERR_COEX: medium was lost ot WiMax
- * @IWM_SCAN_COMP_STATUS_P2P_ACTION_OK: P2P public action frame TX was successful
- *	(not an error!)
- * @IWM_SCAN_COMP_STATUS_ITERATION_END: indicates end of one repeatition the driver
- *	asked for
- * @IWM_SCAN_COMP_STATUS_ERR_ALLOC_TE: scan could not allocate time events
-*/
-enum iwm_scan_complete_status {
-	IWM_SCAN_COMP_STATUS_OK = 0x1,
-	IWM_SCAN_COMP_STATUS_ABORT = 0x2,
-	IWM_SCAN_COMP_STATUS_ERR_SLEEP = 0x3,
-	IWM_SCAN_COMP_STATUS_ERR_CHAN_TIMEOUT = 0x4,
-	IWM_SCAN_COMP_STATUS_ERR_PROBE = 0x5,
-	IWM_SCAN_COMP_STATUS_ERR_WAKEUP = 0x6,
-	IWM_SCAN_COMP_STATUS_ERR_ANTENNAS = 0x7,
-	IWM_SCAN_COMP_STATUS_ERR_INTERNAL = 0x8,
-	IWM_SCAN_COMP_STATUS_ERR_COEX = 0x9,
-	IWM_SCAN_COMP_STATUS_P2P_ACTION_OK = 0xA,
-	IWM_SCAN_COMP_STATUS_ITERATION_END = 0x0B,
-	IWM_SCAN_COMP_STATUS_ERR_ALLOC_TE = 0x0C,
-};
-
-/**
- * struct iwm_scan_results_notif - scan results for one channel
- * ( IWM_SCAN_RESULTS_NOTIFICATION = 0x83 )
+ * struct iwm_scan_results_notif - scan results for one channel -
+ *      SCAN_RESULT_NTF_API_S_VER_3
  * @channel: which channel the results are from
  * @band: 0 for 5.2 GHz, 1 for 2.4 GHz
  * @probe_status: IWM_SCAN_PROBE_STATUS_*, indicates success of probe request
  * @num_probe_not_sent: # of request that weren't sent due to not enough time
  * @duration: duration spent in channel, in usecs
- * @statistics: statistics gathered for this channel
  */
 struct iwm_scan_results_notif {
 	uint8_t channel;
@@ -5003,8 +4999,7 @@ struct iwm_scan_results_notif {
 	uint8_t probe_status;
 	uint8_t num_probe_not_sent;
 	uint32_t duration;
-	uint32_t statistics[IWM_SCAN_RESULTS_STATISTICS];
-} __packed; /* IWM_SCAN_RESULT_NTF_API_S_VER_2 */
+} __packed;
 
 enum iwm_scan_framework_client {
 	IWM_SCAN_CLIENT_SCHED_SCAN	= (1 << 0),

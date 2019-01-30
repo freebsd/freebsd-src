@@ -118,6 +118,6 @@ rtwn_pci_delay(struct rtwn_softc *sc, int usec)
 		DELAY(usec);
 	else {
 		(void) mtx_sleep(sc, &sc->sc_mtx, 0, "rtwn_pci",
-		    MAX(msecs_to_ticks(usec / 1000), 1));
+		    msecs_to_ticks(usec / 1000));
 	}
 }

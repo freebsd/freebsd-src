@@ -291,7 +291,7 @@ ec_putc(int c)
 #ifdef __amd64__
 		fb = KERNBASE + 0xb8000;
 #else /* __i386__ */
-		fb = PMAP_MAP_LOW + 0xb8000;
+		fb = pmap_get_map_low() + 0xb8000;
 #endif
 		xsize = 80;
 		ysize = 25;

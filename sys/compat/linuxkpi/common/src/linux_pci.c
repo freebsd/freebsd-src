@@ -82,14 +82,21 @@ linux_pci_find(device_t dev, const struct pci_device_id **idp)
 	struct pci_driver *pdrv;
 	uint16_t vendor;
 	uint16_t device;
+	uint16_t subvendor;
+	uint16_t subdevice;
 
 	vendor = pci_get_vendor(dev);
 	device = pci_get_device(dev);
+	subvendor = pci_get_subvendor(dev);
+	subdevice = pci_get_subdevice(dev);
 
 	spin_lock(&pci_lock);
 	list_for_each_entry(pdrv, &pci_drivers, links) {
 		for (id = pdrv->id_table; id->vendor != 0; id++) {
-			if (vendor == id->vendor && device == id->device) {
+			if (vendor == id->vendor &&
+			    (PCI_ANY_ID == id->device || device == id->device) &&
+			    (PCI_ANY_ID == id->subvendor || subvendor == id->subvendor) &&
+			    (PCI_ANY_ID == id->subdevice || subdevice == id->subdevice)) {
 				*idp = id;
 				spin_unlock(&pci_lock);
 				return (pdrv);
@@ -145,8 +152,8 @@ linux_pci_attach(device_t dev)
 	pdev->dev.bsddev = dev;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
-	pdev->device = id->device;
-	pdev->vendor = id->vendor;
+	pdev->device = dinfo->cfg.device;
+	pdev->vendor = dinfo->cfg.vendor;
 	pdev->subsystem_vendor = dinfo->cfg.subvendor;
 	pdev->subsystem_device = dinfo->cfg.subdevice;
 	pdev->class = pci_get_class(dev);

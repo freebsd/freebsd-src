@@ -104,7 +104,7 @@ map le0 10.0.0.0/8 -> 192.168.55.0/24 portmap tcp/udp auto
 In this instance, the word "auto" tells IPFilter to calculate a private
 range of port numbers for each address on the LHS to use without fear
 of them being trampled by others.  This can lead to problems if there are
-connections being generated mire quickly than IPFilter can expire them.
+connections being generated more quickly than IPFilter can expire them.
 In this instance, and if we want to get away from a private range of
 port numbers, we can say:
 .nf

@@ -189,10 +189,12 @@ main(int argc, char *argv[])
 			name = "volume label";
 			Lvalue = optarg;
 			i = -1;
-			while (isalnum(Lvalue[++i]));
+			while (isalnum(Lvalue[++i]) || Lvalue[i] == '_' ||
+			    Lvalue[i] == '-')
+				;
 			if (Lvalue[i] != '\0') {
-				errx(10,
-				"bad %s. Valid characters are alphanumerics.",
+				errx(10, "bad %s. Valid characters are "
+				    "alphanumerics, dashes, and underscores.",
 				    name);
 			}
 			if (strlen(Lvalue) >= MAXVOLLEN) {
