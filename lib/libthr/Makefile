@@ -27,7 +27,7 @@ CFLAGS+=-I${SRCTOP}/lib/libthread_db
 CFLAGS+=-Winline
 
 CFLAGS.thr_stack.c+=	-Wno-cast-align
-CFLAGS.malloc.c+=	-Wno-cast-align
+CFLAGS.rtld_malloc.c+=	-Wno-cast-align
 .include <bsd.compiler.mk>
 .if !(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} < 40300)
 CFLAGS.thr_symbols.c+=	-Wno-missing-variable-declarations
@@ -58,7 +58,7 @@ PRECIOUSLIB=
 .endif
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
-SRCS+= malloc.c
+SRCS+= rtld_malloc.c
 
 .if ${MK_INSTALLLIB} != "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
