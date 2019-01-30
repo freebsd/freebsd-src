@@ -398,7 +398,7 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	/*
 	 * Configure the softc context to attempt to configure the interrupt
 	 * mode now indicated by intr_config.  iflib will follow the usual
-	 * fallback path MSIX -> MSI -> LEGACY, starting at the configured
+	 * fallback path MSI-X -> MSI -> LEGACY, starting at the configured
 	 * starting mode.
 	 */
 	switch (intr_config & 0x03) {
@@ -620,19 +620,18 @@ static void
 vmxnet3_free_resources(struct vmxnet3_softc *sc)
 {
 	device_t dev;
-	int rid;
 
 	dev = sc->vmx_dev;
 
 	if (sc->vmx_res0 != NULL) {
-		rid = PCIR_BAR(0);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->vmx_res0);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_res0), sc->vmx_res0);
 		sc->vmx_res0 = NULL;
 	}
 
 	if (sc->vmx_res1 != NULL) {
-		rid = PCIR_BAR(1);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->vmx_res1);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_res1), sc->vmx_res1);
 		sc->vmx_res1 = NULL;
 	}
 }
@@ -1074,7 +1073,7 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 	ds->automask = sc->vmx_intr_mask_mode == VMXNET3_IMM_AUTO;
 	/*
 	 * Total number of interrupt indexes we are using in the shared
-	 * config data, even though we don't actually allocate MSIX
+	 * config data, even though we don't actually allocate MSI-X
 	 * resources for the tx queues.  Some versions of the device will
 	 * fail to initialize successfully if interrupt indexes are used in
 	 * the shared config that exceed the number of interrupts configured
