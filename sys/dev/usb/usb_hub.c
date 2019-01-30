@@ -750,7 +750,7 @@ repeat:
 		if ((sc->sc_st.port_change & UPS_C_CONNECT_STATUS) ||
 		    (!(sc->sc_st.port_status & UPS_CURRENT_CONNECT_STATUS))) {
 			if (timeout) {
-				DPRINTFN(0, "giving up port reset "
+				DPRINTFN(1, "giving up port reset "
 				    "- device vanished\n");
 				goto error;
 			}
