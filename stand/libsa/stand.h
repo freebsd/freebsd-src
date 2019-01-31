@@ -268,6 +268,7 @@ extern void	*reallocf(void *ptr, size_t size);
 extern void	mallocstats(void);
 
 extern int	printf(const char *fmt, ...) __printflike(1, 2);
+extern int	asprintf(char **buf, const char *cfmt, ...) __printflike(2, 3);
 extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
 extern int	snprintf(char *buf, size_t size, const char *cfmt, ...) __printflike(3, 4);
 extern int	vprintf(const char *fmt, __va_list);
