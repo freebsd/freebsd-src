@@ -1066,7 +1066,9 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	u_int32_t namesz;
 	u_int32_t descsz;
 	u_int32_t desc;
+	u_int32_t type;
 	char *n, *s;
+	const char *nt_type;
 
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	size = elf_get_size(e, sh, SH_SIZE);
