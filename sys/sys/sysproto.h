@@ -560,7 +560,7 @@ struct sysctl_args {
 	char namelen_l_[PADL_(u_int)]; u_int namelen; char namelen_r_[PADR_(u_int)];
 	char old_l_[PADL_(void *)]; void * old; char old_r_[PADR_(void *)];
 	char oldlenp_l_[PADL_(size_t *)]; size_t * oldlenp; char oldlenp_r_[PADR_(size_t *)];
-	char new_l_[PADL_(void *)]; void * new; char new_r_[PADR_(void *)];
+	char new_l_[PADL_(const void *)]; const void * new; char new_r_[PADR_(const void *)];
 	char newlen_l_[PADL_(size_t)]; size_t newlen; char newlen_r_[PADR_(size_t)];
 };
 struct mlock_args {
