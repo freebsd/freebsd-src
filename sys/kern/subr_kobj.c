@@ -125,35 +125,40 @@ kobj_class_compile_common(kobj_class_t cls, kobj_ops_t ops)
 	cls->ops = ops;
 }
 
-void
-kobj_class_compile(kobj_class_t cls)
+static int
+kobj_class_compile1(kobj_class_t cls, int mflags)
 {
 	kobj_ops_t ops;
 
 	KOBJ_ASSERT(MA_NOTOWNED);
 
-	/*
-	 * Allocate space for the compiled ops table.
-	 */
-	ops = malloc(sizeof(struct kobj_ops), M_KOBJ, M_NOWAIT);
-	if (!ops)
-		panic("%s: out of memory", __func__);
+	ops = malloc(sizeof(struct kobj_ops), M_KOBJ, mflags);
+	if (ops == NULL)
+		return (ENOMEM);
 
-	KOBJ_LOCK();
-	
 	/*
 	 * We may have lost a race for kobj_class_compile here - check
 	 * to make sure someone else hasn't already compiled this
 	 * class.
 	 */
+	KOBJ_LOCK();
 	if (cls->ops) {
 		KOBJ_UNLOCK();
 		free(ops, M_KOBJ);
-		return;
+		return (0);
 	}
-
 	kobj_class_compile_common(cls, ops);
 	KOBJ_UNLOCK();
+	return (0);
+}
+
+void
+kobj_class_compile(kobj_class_t cls)
+{
+	int error;
+
+	error = kobj_class_compile1(cls, M_WAITOK);
+	KASSERT(error == 0, ("kobj_class_compile1 returned %d", error));
 }
 
 void
@@ -254,24 +259,6 @@ kobj_class_free(kobj_class_t cls)
 		free(ops, M_KOBJ);
 }
 
-kobj_t
-kobj_create(kobj_class_t cls,
-	    struct malloc_type *mtype,
-	    int mflags)
-{
-	kobj_t obj;
-
-	/*
-	 * Allocate and initialise the new object.
-	 */
-	obj = malloc(cls->size, mtype, mflags | M_ZERO);
-	if (!obj)
-		return NULL;
-	kobj_init(obj, cls);
-
-	return obj;
-}
-
 static void
 kobj_init_common(kobj_t obj, kobj_class_t cls)
 {
@@ -280,30 +267,52 @@ kobj_init_common(kobj_t obj, kobj_class_t cls)
 	cls->refs++;
 }
 
-void
-kobj_init(kobj_t obj, kobj_class_t cls)
+static int
+kobj_init1(kobj_t obj, kobj_class_t cls, int mflags)
 {
-	KOBJ_ASSERT(MA_NOTOWNED);
-  retry:
-	KOBJ_LOCK();
+	int error;
 
-	/*
-	 * Consider compiling the class' method table.
-	 */
-	if (!cls->ops) {
+	KOBJ_LOCK();
+	while (cls->ops == NULL) {
 		/*
 		 * kobj_class_compile doesn't want the lock held
 		 * because of the call to malloc - we drop the lock
 		 * and re-try.
 		 */
 		KOBJ_UNLOCK();
-		kobj_class_compile(cls);
-		goto retry;
+		error = kobj_class_compile1(cls, mflags);
+		if (error != 0)
+			return (error);
+		KOBJ_LOCK();
 	}
-
 	kobj_init_common(obj, cls);
-
 	KOBJ_UNLOCK();
+	return (0);
+}
+
+kobj_t
+kobj_create(kobj_class_t cls, struct malloc_type *mtype, int mflags)
+{
+	kobj_t obj;
+
+	obj = malloc(cls->size, mtype, mflags | M_ZERO);
+	if (obj == NULL)
+		return (NULL);
+	if (kobj_init1(obj, cls, mflags) != 0) {
+		free(obj, mtype);
+		return (NULL);
+	}
+	return (obj);
+}
+
+void
+kobj_init(kobj_t obj, kobj_class_t cls)
+{
+	int error;
+
+	error = kobj_init1(obj, cls, M_NOWAIT);
+	if (error != 0)
+		panic("kobj_init1 failed: error %d", error);
 }
 
 void
