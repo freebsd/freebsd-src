@@ -847,7 +847,8 @@ mb_free_ext(struct mbuf *m)
 	 */
 	if (m->m_flags & M_NOFREE) {
 		freembuf = 0;
-		KASSERT(m->m_ext.ext_type == EXT_EXTREF,
+		KASSERT(m->m_ext.ext_type == EXT_EXTREF ||
+		    m->m_ext.ext_type == EXT_RXRING,
 		    ("%s: no-free mbuf %p has wrong type", __func__, m));
 	} else
 		freembuf = 1;
@@ -890,6 +891,10 @@ mb_free_ext(struct mbuf *m)
 			KASSERT(m->m_ext.ext_free != NULL,
 			    ("%s: ext_free not set", __func__));
 			m->m_ext.ext_free(m);
+			break;
+		case EXT_RXRING:
+			KASSERT(m->m_ext.ext_free == NULL,
+			    ("%s: ext_free is set", __func__));
 			break;
 		default:
 			KASSERT(m->m_ext.ext_type == 0,
