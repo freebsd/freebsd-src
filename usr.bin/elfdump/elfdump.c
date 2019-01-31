@@ -317,9 +317,13 @@ static const char *p_flags[] = {
 	"PF_X|PF_W|PF_R"
 };
 
+#define NT_ELEM(x)	[x] = #x,
 static const char *nt_types[] = {
-	"", "NT_FREEBSD_ABI_TAG", "NT_FREEBSD_NOINIT_TAG",
-	"NT_FREEBSD_ARCH_TAG", "NT_FREEBSD_FEATURE_CTL"
+	"",
+	NT_ELEM(NT_FREEBSD_ABI_TAG)
+	NT_ELEM(NT_FREEBSD_NOINIT_TAG)
+	NT_ELEM(NT_FREEBSD_ARCH_TAG)
+	NT_ELEM(NT_FREEBSD_FEATURE_CTL)
 };
 
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
@@ -1079,7 +1083,7 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
 		type = elf_get_word(e, n, N_TYPE);
-		if (type < nitems(nt_types))
+		if (type < nitems(nt_types) && nt_types[type] != NULL)
 			nt_type = nt_types[type];
 		else
 			nt_type = "Unknown type";
