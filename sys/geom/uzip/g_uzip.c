@@ -886,6 +886,7 @@ g_uzip_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 {
 	struct g_provider *pp;
 
+	KASSERT(gp != NULL, ("NULL geom"));
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, gp->name);
 	g_topology_assert();
 
@@ -895,7 +896,6 @@ g_uzip_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 		return (ENXIO);
 	}
 
-	KASSERT(gp != NULL, ("NULL geom"));
 	pp = LIST_FIRST(&gp->provider);
 	KASSERT(pp != NULL, ("NULL provider"));
 	if (pp->acr > 0 || pp->acw > 0 || pp->ace > 0)
