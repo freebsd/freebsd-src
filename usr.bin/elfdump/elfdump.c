@@ -317,6 +317,11 @@ static const char *p_flags[] = {
 	"PF_X|PF_W|PF_R"
 };
 
+static const char *nt_types[] = {
+	"", "NT_FREEBSD_ABI_TAG", "NT_FREEBSD_NOINIT_TAG",
+	"NT_FREEBSD_ARCH_TAG", "NT_FREEBSD_FEATURE_CTL"
+};
+
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
 sh_types(uint64_t machine, uint64_t sht) {
@@ -1071,9 +1076,14 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	while (n < ((char *)e + offset + size)) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
+		type = elf_get_word(e, n, N_TYPE);
+		if (type < nitems(nt_types))
+			nt_type = nt_types[type];
+		else
+			nt_type = "Unknown type";
 		s = n + sizeof(Elf_Note);
 		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
-		fprintf(out, "\t%s %d\n", s, desc);
+		fprintf(out, "\t%s %d (%s)\n", s, desc, nt_type);
 		n += sizeof(Elf_Note) + namesz + descsz;
 	}
 }
