@@ -379,6 +379,7 @@ static struct if_shared_ctx ixgbe_sctx_init = {
 	.isc_vendor_info = ixgbe_vendor_info_array,
 	.isc_driver_version = ixgbe_driver_version,
 	.isc_driver = &ixgbe_if_driver,
+	.isc_flags = IFLIB_TSO_INIT_IP,
 
 	.isc_nrxd_min = {MIN_RXD},
 	.isc_ntxd_min = {MIN_TXD},
