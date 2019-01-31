@@ -91,10 +91,20 @@ struct SPA_mapping {
 
 MALLOC_DECLARE(M_NVDIMM);
 
+void acpi_nfit_get_dimm_ids(ACPI_TABLE_NFIT *nfitbl, nfit_handle_t **listp,
+    int *countp);
+void acpi_nfit_get_spa_range(ACPI_TABLE_NFIT *nfitbl, uint16_t range_index,
+    ACPI_NFIT_SYSTEM_ADDRESS **spa);
+void acpi_nfit_get_spa_ranges(ACPI_TABLE_NFIT *nfitbl,
+    ACPI_NFIT_SYSTEM_ADDRESS ***listp, int *countp);
+void acpi_nfit_get_region_mappings_by_spa_range(ACPI_TABLE_NFIT *nfitbl,
+    uint16_t spa_range_index, ACPI_NFIT_MEMORY_MAP ***listp, int *countp);
+void acpi_nfit_get_control_region(ACPI_TABLE_NFIT *nfitbl,
+    uint16_t control_region_index, ACPI_NFIT_CONTROL_REGION **out);
+void acpi_nfit_get_flush_addrs(ACPI_TABLE_NFIT *nfitbl, nfit_handle_t dimm,
+    uint64_t ***listp, int *countp);
 enum SPA_mapping_type nvdimm_spa_type_from_uuid(struct uuid *);
 struct nvdimm_dev *nvdimm_find_by_handle(nfit_handle_t nv_handle);
-int nvdimm_iterate_nfit(ACPI_TABLE_NFIT *nfitbl, enum AcpiNfitType type,
-    int (*cb)(void *, void *), void *arg);
 int nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
     enum SPA_mapping_type spa_type);
 void nvdimm_spa_fini(struct SPA_mapping *spa);
