@@ -94,10 +94,12 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include <netinet/ip_var.h>
 #include <netinet/tcp_var.h>
 
 #ifdef SIFTR_IPV6
 #include <netinet/ip6.h>
+#include <netinet/ip6_var.h>
 #include <netinet6/in6_pcb.h>
 #endif /* SIFTR_IPV6 */
 
@@ -831,9 +833,9 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
  * It's very important to use the M_NOWAIT flag with all function calls
  * that support it so that they won't sleep, otherwise you get a panic.
  */
-static int
-siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
-    struct inpcb *inp)
+static pfil_return_t
+siftr_chkpkt(struct mbuf **m, struct ifnet *ifp, int flags,
+    void *ruleset __unused, struct inpcb *inp)
 {
 	struct pkt_node *pn;
 	struct ip *ip;
@@ -841,9 +843,10 @@ siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	struct tcpcb *tp;
 	struct siftr_stats *ss;
 	unsigned int ip_hl;
-	int inp_locally_locked;
+	int inp_locally_locked, dir;
 
 	inp_locally_locked = 0;
+	dir = PFIL_DIR(flags);
 	ss = DPCPU_PTR(ss);
 
 	/*
@@ -1007,15 +1010,13 @@ inp_unlock:
 		INP_RUNLOCK(inp);
 
 ret:
-	/* Returning 0 ensures pfil will not discard the pkt */
-	return (0);
+	return (PFIL_PASS);
 }
 
 
 #ifdef SIFTR_IPV6
 static int
-siftr_chkpkt6(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
-    struct inpcb *inp)
+siftr_chkpkt6(struct mbuf **m, struct ifnet *ifp, int flags, struct inpcb *inp)
 {
 	struct pkt_node *pn;
 	struct ip6_hdr *ip6;
@@ -1023,9 +1024,10 @@ siftr_chkpkt6(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 	struct tcpcb *tp;
 	struct siftr_stats *ss;
 	unsigned int ip6_hl;
-	int inp_locally_locked;
+	int inp_locally_locked, dir;
 
 	inp_locally_locked = 0;
+	dir = PFIL_DIR(flags);
 	ss = DPCPU_PTR(ss);
 
 	/*
@@ -1138,37 +1140,53 @@ ret6:
 }
 #endif /* #ifdef SIFTR_IPV6 */
 
-
+VNET_DEFINE_STATIC(pfil_hook_t, siftr_inet_hook);
+#define	V_siftr_inet_hook	VNET(siftr_inet_hook)
+#ifdef INET6
+VNET_DEFINE_STATIC(pfil_hook_t, siftr_inet6_hook);
+#define	V_siftr_inet6_hook	VNET(siftr_inet6_hook)
+#endif
 static int
 siftr_pfil(int action)
 {
-	struct pfil_head *pfh_inet;
-#ifdef SIFTR_IPV6
-	struct pfil_head *pfh_inet6;
-#endif
+	struct pfil_hook_args pha;
+	struct pfil_link_args pla;
+
+	pha.pa_version = PFIL_VERSION;
+	pha.pa_flags = PFIL_IN | PFIL_OUT;
+	pha.pa_modname = "siftr";
+	pha.pa_ruleset = NULL;
+	pha.pa_rulname = "default";
+
+	pla.pa_version = PFIL_VERSION;
+	pla.pa_flags = PFIL_IN | PFIL_OUT |
+	    PFIL_HEADPTR | PFIL_HOOKPTR;
+
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	VNET_LIST_RLOCK();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
-#ifdef SIFTR_IPV6
-		pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
-#endif
 
 		if (action == HOOK) {
-			pfil_add_hook(siftr_chkpkt, NULL,
-			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+			pha.pa_func = siftr_chkpkt;
+			pha.pa_type = PFIL_TYPE_IP4;
+			V_siftr_inet_hook = pfil_add_hook(&pha);
+			pla.pa_hook = V_siftr_inet_hook;
+			pla.pa_head = V_inet_pfil_head;
+			(void)pfil_link(&pla);
 #ifdef SIFTR_IPV6
-			pfil_add_hook(siftr_chkpkt6, NULL,
-			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pha.pa_func = siftr_chkpkt6;
+			pha.pa_type = PFIL_TYPE_IP6;
+			V_siftr_inet6_hook = pfil_add_hook(&pha);
+			pla.pa_hook = V_siftr_inet6_hook;
+			pla.pa_head = V_inet6_pfil_head;
+			(void)pfil_link(&pla);
 #endif
 		} else if (action == UNHOOK) {
-			pfil_remove_hook(siftr_chkpkt, NULL,
-			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+			pfil_remove_hook(V_siftr_inet_hook);
 #ifdef SIFTR_IPV6
-			pfil_remove_hook(siftr_chkpkt6, NULL,
-			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_remove_hook(V_siftr_inet6_hook);
 #endif
 		}
 		CURVNET_RESTORE();
