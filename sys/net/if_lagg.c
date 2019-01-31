@@ -514,10 +514,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
 #ifdef RATELIMIT
 	ifp->if_snd_tag_alloc = lagg_snd_tag_alloc;
-	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS | IFCAP_TXRTLMT;
-#else
-	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
 #endif
+	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
 
 	/*
 	 * Attach as an ordinary ethernet device, children will be attached
