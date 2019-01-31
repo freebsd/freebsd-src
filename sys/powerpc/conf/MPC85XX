@@ -74,6 +74,7 @@ device		cryptodev
 device		da
 device  	ds1307
 device		ds1553
+device		iflib
 device		em
 device		alc
 device		ether

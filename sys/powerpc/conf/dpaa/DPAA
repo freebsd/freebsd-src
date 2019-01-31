@@ -74,6 +74,7 @@ device		sdhci
 
 # Network devices
 device		miibus		# MII bus support
+device		iflib
 device		em
 
 
