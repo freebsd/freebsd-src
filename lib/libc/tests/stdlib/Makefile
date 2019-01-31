@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+ATF_TESTS_C+=		dynthr_test
 ATF_TESTS_C+=		heapsort_test
 ATF_TESTS_C+=		mergesort_test
 ATF_TESTS_C+=		qsort_test
@@ -61,5 +62,7 @@ LIBADD.${t}+=	netbsd util
 .endfor
 
 LIBADD.strtod_test+=		m
+
+SUBDIR+=	dynthr_mod
 
 .include <bsd.test.mk>
