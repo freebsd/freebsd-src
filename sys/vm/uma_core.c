@@ -2844,7 +2844,7 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags, int max)
 		return (NULL);
 
 	bucket->ub_cnt = zone->uz_import(zone->uz_arg, bucket->ub_bucket,
-	    max, domain, flags);
+	    MIN(max, bucket->ub_entries), domain, flags);
 
 	/*
 	 * Initialize the memory if necessary.
