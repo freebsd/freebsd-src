@@ -40,7 +40,6 @@
 #include <sys/_mutex.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
-#include <net/vnet.h>
 
 struct mbuf;
 struct ifnet;
@@ -100,9 +99,6 @@ struct pfil_head {
 #define	ph_ifnet	 ph_un.phu_ptr
 	LIST_ENTRY(pfil_head) ph_list;
 };
-
-VNET_DECLARE(struct rmlock, pfil_lock);
-#define	V_pfil_lock	VNET(pfil_lock)
 
 /* Public functions for pfil hook management by packet filters. */
 struct pfil_head *pfil_head_get(int, u_long);
