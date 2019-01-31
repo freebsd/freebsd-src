@@ -227,6 +227,31 @@ nvdimm_resume(device_t dev)
 	return (0);
 }
 
+static int
+nvdimm_root_create_spa(void *nfitsubtbl, void *arg)
+{
+	enum SPA_mapping_type spa_type;
+	ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr;
+	struct SPA_mapping *spa;
+	struct nvdimm_root_dev *dev;
+	int error;
+
+	nfitaddr = nfitsubtbl;
+	dev = arg;
+	spa_type = nvdimm_spa_type_from_uuid(
+	    (struct uuid *)nfitaddr->RangeGuid);
+	if (spa_type == SPA_TYPE_UNKNOWN)
+		return (0);
+	spa = malloc(sizeof(struct SPA_mapping), M_NVDIMM, M_WAITOK | M_ZERO);
+	error = nvdimm_spa_init(spa, nfitaddr, spa_type);
+	if (error != 0) {
+		nvdimm_spa_fini(spa);
+		free(spa, M_NVDIMM);
+	}
+	SLIST_INSERT_HEAD(&dev->spas, spa, link);
+	return (0);
+}
+
 static ACPI_STATUS
 nvdimm_root_create_dev(ACPI_HANDLE handle, UINT32 nesting_level, void *context,
     void **return_value)
@@ -276,6 +301,7 @@ nvdimm_root_attach(device_t dev)
 {
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
+	ACPI_TABLE_NFIT *nfitbl;
 	int error;
 
 	handle = acpi_get_handle(dev);
@@ -284,15 +310,33 @@ nvdimm_root_attach(device_t dev)
 	if (ACPI_FAILURE(status))
 		device_printf(dev, "failed adding children\n");
 	error = bus_generic_attach(dev);
+	if (error != 0)
+		return (error);
+	status = AcpiGetTable(ACPI_SIG_NFIT, 1, (ACPI_TABLE_HEADER **)&nfitbl);
+	if (ACPI_FAILURE(status)) {
+		device_printf(dev, "cannot get NFIT\n");
+		return (ENXIO);
+	}
+	error = nvdimm_iterate_nfit(nfitbl, ACPI_NFIT_TYPE_SYSTEM_ADDRESS,
+	    nvdimm_root_create_spa, device_get_softc(dev));
+	AcpiPutTable(&nfitbl->Header);
 	return (error);
 }
 
 static int
 nvdimm_root_detach(device_t dev)
 {
+	struct nvdimm_root_dev *root;
+	struct SPA_mapping *spa, *next;
 	device_t *children;
 	int i, error, num_children;
 
+	root = device_get_softc(dev);
+	SLIST_FOREACH_SAFE(spa, &root->spas, link, next) {
+		nvdimm_spa_fini(spa);
+		SLIST_REMOVE_HEAD(&root->spas, link);
+		free(spa, M_NVDIMM);
+	}
 	error = bus_generic_detach(dev);
 	if (error != 0)
 		return (error);
@@ -356,6 +400,7 @@ static device_method_t nvdimm_root_methods[] = {
 static driver_t	nvdimm_root_driver = {
 	"nvdimm_root",
 	nvdimm_root_methods,
+	sizeof(struct nvdimm_root_dev),
 };
 
 DRIVER_MODULE(nvdimm_root, acpi, nvdimm_root_driver, nvdimm_root_devclass, NULL,
