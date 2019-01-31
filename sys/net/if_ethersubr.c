@@ -90,7 +90,7 @@ CTASSERT(sizeof (struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
 CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
 #endif
 
-VNET_DEFINE(struct pfil_head, link_pfil_hook);	/* Packet filter hooks */
+VNET_DEFINE(pfil_head_t, link_pfil_head);	/* Packet filter hooks */
 
 /* netgraph node hooks for ng_ether(4) */
 void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
@@ -457,7 +457,6 @@ ether_set_pcp(struct mbuf **mp, struct ifnet *ifp, uint8_t pcp)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
-	int error;
 	uint8_t pcp;
 
 	pcp = ifp->if_pcp;
@@ -465,15 +464,14 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	    !ether_set_pcp(&m, ifp, pcp))
 		return (0);
 
-	if (PFIL_HOOKED(&V_link_pfil_hook)) {
-		error = pfil_run_hooks(&V_link_pfil_hook, &m, ifp,
-		    PFIL_OUT, 0, NULL);
-		if (error != 0)
+	if (PFIL_HOOKED_OUT(V_link_pfil_head))
+		switch (pfil_run_hooks(V_link_pfil_head, &m, ifp, PFIL_OUT,
+		    NULL)) {
+		case PFIL_DROPPED:
 			return (EACCES);
-
-		if (m == NULL)
+		case PFIL_CONSUMED:
 			return (0);
-	}
+		}
 
 #ifdef EXPERIMENTAL
 #if defined(INET6) && defined(INET)
@@ -737,14 +735,14 @@ SYSINIT(ether, SI_SUB_INIT_IF, SI_ORDER_ANY, ether_init, NULL);
 static void
 vnet_ether_init(__unused void *arg)
 {
-	int i;
+	struct pfil_head_args args;
 
-	/* Initialize packet filter hooks. */
-	V_link_pfil_hook.ph_type = PFIL_TYPE_AF;
-	V_link_pfil_hook.ph_af = AF_LINK;
-	if ((i = pfil_head_register(&V_link_pfil_hook)) != 0)
-		printf("%s: WARNING: unable to register pfil link hook, "
-			"error %d\n", __func__, i);
+	args.pa_version = PFIL_VERSION;
+	args.pa_flags = PFIL_IN | PFIL_OUT;
+	args.pa_type = PFIL_TYPE_ETHERNET;
+	args.pa_headname = PFIL_ETHER_NAME;
+	V_link_pfil_head = pfil_head_register(&args);
+
 #ifdef VIMAGE
 	netisr_register_vnet(&ether_nh);
 #endif
@@ -756,11 +754,8 @@ VNET_SYSINIT(vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
 static void
 vnet_ether_pfil_destroy(__unused void *arg)
 {
-	int i;
 
-	if ((i = pfil_head_unregister(&V_link_pfil_hook)) != 0)
-		printf("%s: WARNING: unable to unregister pfil link hook, "
-			"error %d\n", __func__, i);
+	pfil_head_unregister(V_link_pfil_head);
 }
 VNET_SYSUNINIT(vnet_ether_pfil_uninit, SI_SUB_PROTO_PFIL, SI_ORDER_ANY,
     vnet_ether_pfil_destroy, NULL);
@@ -818,10 +813,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 	KASSERT(ifp != NULL, ("%s: NULL interface pointer", __func__));
 
 	/* Do not grab PROMISC frames in case we are re-entered. */
-	if (PFIL_HOOKED(&V_link_pfil_hook) && !(m->m_flags & M_PROMISC)) {
-		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_IN, 0,
-		    NULL);
-
+	if (PFIL_HOOKED_IN(V_link_pfil_head) && !(m->m_flags & M_PROMISC)) {
+		i = pfil_run_hooks(V_link_pfil_head, &m, ifp, PFIL_IN, NULL);
 		if (i != 0 || m == NULL)
 			return;
 	}

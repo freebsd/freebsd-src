@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20190131: pfil(9) changed
+OLD_FILES+=usr/share/man/man9/pfil_hook_get.9
+OLD_FILES+=usr/share/man/man9/pfil_rlock.9
+OLD_FILES+=usr/share/man/man9/pfil_runlock.9
+OLD_FILES+=usr/share/man/man9/pfil_wlock.9
+OLD_FILES+=usr/share/man/man9/pfil_wunlock.9
 # 20190126: adv(4) / adw(4) removal
 OLD_FILES+=usr/share/man/man4/adv.4.gz
 OLD_FILES+=usr/share/man/man4/adw.4.gz
