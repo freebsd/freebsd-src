@@ -3567,6 +3567,7 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 {
 	Elf_Note *note;
 	const char *end, *name;
+	uint32_t i;
 
 	printf("\nNotes at offset %#010jx with length %#010jx:\n",
 	    (uintmax_t) off, (uintmax_t) sz);
@@ -3578,7 +3579,9 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 			return;
 		}
 		note = (Elf_Note *)(uintptr_t) buf;
-		name = (char *)(uintptr_t)(note + 1);
+		buf += sizeof(Elf_Note);
+		name = buf;
+		buf += roundup2(note->n_namesz, 4);
 		/*
 		 * The name field is required to be nul-terminated, and
 		 * n_namesz includes the terminating nul in observed
@@ -3596,8 +3599,11 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(name, re->ehdr.e_type,
 		    note->n_type));
-		buf += sizeof(Elf_Note) + roundup2(note->n_namesz, 4) +
-		    roundup2(note->n_descsz, 4);
+		printf("   description data:");
+		for (i = 0; i < note->n_descsz; i++)
+			printf(" %02x", (unsigned char)buf[i]);
+		printf("\n");
+		buf += roundup2(note->n_descsz, 4);
 	}
 }
 
