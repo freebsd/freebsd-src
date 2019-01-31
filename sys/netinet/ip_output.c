@@ -121,11 +121,16 @@ ip_output_pfil(struct mbuf **mp, struct ifnet *ifp, struct inpcb *inp,
 
 	/* Run through list of hooks for output packets. */
 	odst.s_addr = ip->ip_dst.s_addr;
-	*error = pfil_run_hooks(&V_inet_pfil_hook, mp, ifp, PFIL_OUT, 0, inp);
-	m = *mp;
-	if ((*error) != 0 || m == NULL)
+	switch (pfil_run_hooks(V_inet_pfil_head, mp, ifp, PFIL_OUT, inp)) {
+	case PFIL_DROPPED:
+		*error = EPERM;
+		/* FALLTHROUGH */
+	case PFIL_CONSUMED:
 		return 1; /* Finished */
-
+	case PFIL_PASS:
+		*error = 0;
+	}
+	m = *mp;
 	ip = mtod(m, struct ip *);
 
 	/* See if destination IP address was changed by packet filter. */
@@ -568,7 +573,7 @@ sendit:
 #endif /* IPSEC */
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (PFIL_HOOKED(&V_inet_pfil_hook)) {
+	if (PFIL_HOOKED_OUT(V_inet_pfil_head)) {
 		switch (ip_output_pfil(&m, ifp, inp, dst, &fibnum, &error)) {
 		case 1: /* Finished */
 			goto done;
