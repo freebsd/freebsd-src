@@ -44,6 +44,10 @@ __BUS_ACCESSOR(nvdimm_root, acpi_handle, NVDIMM_ROOT, ACPI_HANDLE, ACPI_HANDLE)
 __BUS_ACCESSOR(nvdimm_root, device_handle, NVDIMM_ROOT, DEVICE_HANDLE,
     nfit_handle_t)
 
+struct nvdimm_root_dev {
+	SLIST_HEAD(, SPA_mapping) spas;
+};
+
 struct nvdimm_dev {
 	device_t	nv_dev;
 	nfit_handle_t	nv_handle;
@@ -64,6 +68,7 @@ enum SPA_mapping_type {
 };
 
 struct SPA_mapping {
+	SLIST_ENTRY(SPA_mapping) link;
 	enum SPA_mapping_type	spa_type;
 	int			spa_domain;
 	int			spa_nfit_idx;
@@ -84,14 +89,14 @@ struct SPA_mapping {
 	bool			spa_g_proc_exiting;
 };
 
-extern struct SPA_mapping *spa_mappings;
-extern int spa_mappings_cnt;
-
 MALLOC_DECLARE(M_NVDIMM);
 
 enum SPA_mapping_type nvdimm_spa_type_from_uuid(struct uuid *);
 struct nvdimm_dev *nvdimm_find_by_handle(nfit_handle_t nv_handle);
 int nvdimm_iterate_nfit(ACPI_TABLE_NFIT *nfitbl, enum AcpiNfitType type,
     int (*cb)(void *, void *), void *arg);
+int nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
+    enum SPA_mapping_type spa_type);
+void nvdimm_spa_fini(struct SPA_mapping *spa);
 
 #endif		/* __DEV_NVDIMM_VAR_H__ */

@@ -82,19 +82,6 @@ __FBSDID("$FreeBSD$");
 #define UUID_INITIALIZER_PERSISTENT_VIRTUAL_CD \
     {0x08018188,0x42cd,0xbb48,0x10,0x0f,{0x53,0x87,0xd5,0x3d,0xed,0x3d}}
 
-struct SPA_mapping *spa_mappings;
-int spa_mappings_cnt;
-
-static int
-nvdimm_spa_count(void *nfitsubtbl __unused, void *arg)
-{
-	int *cnt;
-
-	cnt = arg;
-	(*cnt)++;
-	return (0);
-}
-
 static struct nvdimm_SPA_uuid_list_elm {
 	const char		*u_name;
 	struct uuid		u_id;
@@ -419,22 +406,17 @@ nvdimm_spa_g_access(struct g_provider *pp, int r, int w, int e)
 	return (0);
 }
 
-static g_init_t nvdimm_spa_g_init;
-static g_fini_t nvdimm_spa_g_fini;
-
 struct g_class nvdimm_spa_g_class = {
 	.name =		"SPA",
 	.version =	G_VERSION,
 	.start =	nvdimm_spa_g_start,
 	.access =	nvdimm_spa_g_access,
-	.init =		nvdimm_spa_g_init,
-	.fini =		nvdimm_spa_g_fini,
 };
 DECLARE_GEOM_CLASS(nvdimm_spa_g_class, g_spa);
 
-static int
-nvdimm_spa_init_one(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
-    int spa_type)
+int
+nvdimm_spa_init(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
+    enum SPA_mapping_type spa_type)
 {
 	struct make_dev_args mda;
 	struct sglist *spa_sg;
@@ -512,7 +494,7 @@ nvdimm_spa_init_one(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
 		if (error1 == 0)
 			error1 = error;
 	} else {
-		g_topology_assert();
+		g_topology_lock();
 		spa->spa_g = g_new_geomf(&nvdimm_spa_g_class, "spa%d",
 		    spa->spa_nfit_idx);
 		spa->spa_g->softc = spa;
@@ -526,12 +508,13 @@ nvdimm_spa_init_one(struct SPA_mapping *spa, ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr,
 		spa->spa_g_devstat = devstat_new_entry("spa", spa->spa_nfit_idx,
 		    DEV_BSIZE, DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT,
 		    DEVSTAT_PRIORITY_MAX);
+		g_topology_unlock();
 	}
 	return (error1);
 }
 
-static void
-nvdimm_spa_fini_one(struct SPA_mapping *spa)
+void
+nvdimm_spa_fini(struct SPA_mapping *spa)
 {
 
 	mtx_lock(&spa->spa_g_mtx);
@@ -562,88 +545,4 @@ nvdimm_spa_fini_one(struct SPA_mapping *spa)
 	}
 	mtx_destroy(&spa->spa_g_mtx);
 	mtx_destroy(&spa->spa_g_stat_mtx);
-}
-
-static int
-nvdimm_spa_parse(void *nfitsubtbl, void *arg)
-{
-	ACPI_NFIT_SYSTEM_ADDRESS *nfitaddr;
-	struct SPA_mapping *spa;
-	enum SPA_mapping_type spa_type;
-	int error, *i;
-
-	i = arg;
-	spa = &spa_mappings[(*i)++];
-	nfitaddr = nfitsubtbl;
-	spa_type = nvdimm_spa_type_from_uuid(
-	    (struct uuid *)&nfitaddr->RangeGuid);
-	if (spa_type == SPA_TYPE_UNKNOWN) {
-		printf("Unknown SPA UUID %d ", nfitaddr->RangeIndex);
-		printf_uuid((struct uuid *)&nfitaddr->RangeGuid);
-		printf("\n");
-		return (0);
-	}
-	error = nvdimm_spa_init_one(spa, nfitaddr, spa_type);
-	if (error != 0)
-		nvdimm_spa_fini_one(spa);
-	return (0);
-}
-
-static int
-nvdimm_spa_init1(ACPI_TABLE_NFIT *nfitbl)
-{
-	int error, i;
-
-	error = nvdimm_iterate_nfit(nfitbl, ACPI_NFIT_TYPE_SYSTEM_ADDRESS,
-	    nvdimm_spa_count, &spa_mappings_cnt);
-	if (error != 0)
-		return (error);
-	spa_mappings = malloc(sizeof(struct SPA_mapping) * spa_mappings_cnt,
-	    M_NVDIMM, M_WAITOK | M_ZERO);
-	i = 0;
-	error = nvdimm_iterate_nfit(nfitbl, ACPI_NFIT_TYPE_SYSTEM_ADDRESS,
-	    nvdimm_spa_parse, &i);
-	if (error != 0) {
-		free(spa_mappings, M_NVDIMM);
-		spa_mappings = NULL;
-		return (error);
-	}
-	return (0);
-}
-
-static void
-nvdimm_spa_g_init(struct g_class *mp __unused)
-{
-	ACPI_TABLE_NFIT *nfitbl;
-	ACPI_STATUS status;
-	int error;
-
-	spa_mappings_cnt = 0;
-	spa_mappings = NULL;
-	if (acpi_disabled("nvdimm"))
-		return;
-	status = AcpiGetTable(ACPI_SIG_NFIT, 1, (ACPI_TABLE_HEADER **)&nfitbl);
-	if (ACPI_FAILURE(status)) {
-		if (bootverbose)
-			printf("nvdimm_spa_g_init: cannot find NFIT\n");
-		return;
-	}
-	error = nvdimm_spa_init1(nfitbl);
-	if (error != 0)
-		printf("nvdimm_spa_g_init: error %d\n", error);
-	AcpiPutTable(&nfitbl->Header);
-}
-
-static void
-nvdimm_spa_g_fini(struct g_class *mp __unused)
-{
-	int i;
-
-	if (spa_mappings == NULL)
-		return;
-	for (i = 0; i < spa_mappings_cnt; i++)
-		nvdimm_spa_fini_one(&spa_mappings[i]);
-	free(spa_mappings, M_NVDIMM);
-	spa_mappings = NULL;
-	spa_mappings_cnt = 0;
 }
