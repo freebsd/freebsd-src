@@ -181,6 +181,8 @@ device		uart		# Multi-uart driver
 #device		ppi		# Parallel port interface device
 #device		vpo		# Requires scbus and da
 
+device		iflib
+
 # PCI Ethernet NICs.
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 adapter Gigabit Ethernet Card

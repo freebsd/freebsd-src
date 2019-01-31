@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2018
+.Dd January 30, 2019
 .Dt EM 4
 .Os
 .Sh NAME
@@ -39,9 +39,10 @@
 .Nd "Intel(R) PRO/1000 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following line in your
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device iflib"
 .Cd "device em"
 .Ed
 .Pp

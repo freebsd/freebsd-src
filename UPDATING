@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20190131:
+	Iflib is no longer unconditionally compiled into the kernel.  Drivers
+	using iflib and statically compiled into the kernel, now require
+	the 'device iflib' config option.  For the same drivers loaded as
+	modules on kernels not having 'device iflib', the iflib.ko module
+	is loaded automatically.
+
 20181230:
 	r342635 changes the way efibootmgr(8) works by requiring users to add
 	the -b (bootnum) parameter for commands where the bootnum was previously
