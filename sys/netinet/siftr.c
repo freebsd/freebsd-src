@@ -172,8 +172,11 @@ static MALLOC_DEFINE(M_SIFTR_HASHNODE, "siftr_hashnode",
 struct pkt_node {
 	/* Timestamp of pkt as noted in the pfil hook. */
 	struct timeval		tval;
-	/* Direction pkt is travelling; either PFIL_IN or PFIL_OUT. */
-	uint8_t			direction;
+	/* Direction pkt is travelling. */
+	enum {
+		DIR_IN = 0,
+		DIR_OUT = 1,
+	}			direction;
 	/* IP version pkt_node relates to; either INP_IPV4 or INP_IPV6. */
 	uint8_t			ipver;
 	/* Hash of the pkt which triggered the log message. */
@@ -286,11 +289,7 @@ static struct alq *siftr_alq = NULL;
 static struct mtx siftr_pkt_queue_mtx;
 static struct mtx siftr_pkt_mgr_mtx;
 static struct thread *siftr_pkt_manager_thr = NULL;
-/*
- * pfil.h defines PFIL_IN as 1 and PFIL_OUT as 2,
- * which we use as an index into this array.
- */
-static char direction[3] = {'\0', 'i','o'};
+static char direction[2] = {'i','o'};
 
 /* Required function prototypes. */
 static int siftr_sysctl_enabled_handler(SYSCTL_HANDLER_ARGS);
@@ -409,7 +408,7 @@ siftr_process_pkt(struct pkt_node * pkt_node)
 			LIST_INSERT_HEAD(counter_list, hash_node, nodes);
 		} else {
 			/* Malloc failed. */
-			if (pkt_node->direction == PFIL_IN)
+			if (pkt_node->direction == DIR_IN)
 				ss->nskip_in_malloc++;
 			else
 				ss->nskip_out_malloc++;
@@ -812,7 +811,7 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 		INP_RUNLOCK(inp);
 
 	pn->ipver = ipver;
-	pn->direction = dir;
+	pn->direction = (dir == PFIL_IN ? DIR_IN : DIR_OUT);
 
 	/*
 	 * Significantly more accurate than using getmicrotime(), but slower!
