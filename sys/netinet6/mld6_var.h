@@ -160,12 +160,13 @@ struct mld_ifsoftc {
 #define MLD_IFINFO(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->mld_ifinfo)
 
+struct in6_multi_head;
 int	mld_change_state(struct in6_multi *, const int);
 struct mld_ifsoftc *
 	mld_domifattach(struct ifnet *);
 void	mld_domifdetach(struct ifnet *);
 void	mld_fasttimo(void);
-void	mld_ifdetach(struct ifnet *);
+void	mld_ifdetach(struct ifnet *, struct in6_multi_head *);
 int	mld_input(struct mbuf *, int, int);
 void	mld_slowtimo(void);
 
