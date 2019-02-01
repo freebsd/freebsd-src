@@ -62,12 +62,14 @@ CFLAGS+= -DINET6 -DINET
 
 CWARNEXTRA += -Wno-cast-qual
 CWARNEXTRA += -Wno-unused-function
+.if ${COMPILER_TYPE} == "clang"
 CWARNEXTRA += -Wno-gnu-variable-sized-type-not-at-end
+.endif
 CWARNEXTRA += -Wno-missing-prototypes
-CWARNEXTRA += -Wno-constant-conversion
+CWARNEXTRA += ${NO_WCONSTANT_CONVERSION}
 CWARNEXTRA += -Wno-format
 
-CWARNEXTRA += -Wno-shift-sign-overflow
+CWARNEXTRA += ${NO_WSHIFT_COUNT_OVERFLOW}
 CWARNEXTRA += -Wno-empty-body
 
 CFLAGS += -DQLNX_DEBUG

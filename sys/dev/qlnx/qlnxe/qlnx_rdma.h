@@ -51,8 +51,6 @@ typedef struct qlnx_rdma_if qlnx_rdma_if_t;
 
 extern int qlnx_rdma_register_if(qlnx_rdma_if_t *rdma_if);
 extern int qlnx_rdma_deregister_if(qlnx_rdma_if_t *rdma_if);
-extern int qlnx_rdma_ll2_set_mac_filter(void *rdma_ctx, uint8_t *old_mac_address,
-                uint8_t *new_mac_address);
 
 #define QLNX_NUM_CNQ	1
 
