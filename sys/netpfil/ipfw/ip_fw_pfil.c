@@ -533,10 +533,12 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
  * attach or detach hooks for a given protocol family
  */
 VNET_DEFINE_STATIC(pfil_hook_t, ipfw_inet_hook);
-VNET_DEFINE_STATIC(pfil_hook_t, ipfw_inet6_hook);
-VNET_DEFINE_STATIC(pfil_hook_t, ipfw_link_hook);
 #define	V_ipfw_inet_hook	VNET(ipfw_inet_hook)
+#ifdef INET6
+VNET_DEFINE_STATIC(pfil_hook_t, ipfw_inet6_hook);
 #define	V_ipfw_inet6_hook	VNET(ipfw_inet6_hook)
+#endif
+VNET_DEFINE_STATIC(pfil_hook_t, ipfw_link_hook);
 #define	V_ipfw_link_hook	VNET(ipfw_link_hook)
 
 static int
