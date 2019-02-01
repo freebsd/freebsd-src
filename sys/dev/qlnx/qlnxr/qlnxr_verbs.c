@@ -74,16 +74,6 @@ __FBSDID("$FreeBSD$");
 	((unsigned char *)&addr)[2], \
 	((unsigned char *)&addr)[3]
 
-struct ib_srq *qlnxr_create_srq(struct ib_pd *,
-		struct ib_srq_init_attr *,
-		struct ib_udata *);
-
-int qlnxr_destroy_srq(struct ib_srq *);
-
-int qlnxr_modify_srq(struct ib_srq *,
-		struct ib_srq_attr *,
-		enum ib_srq_attr_mask,
-		struct ib_udata *);
 static int
 qlnxr_check_srq_params(struct ib_pd *ibpd,
 	struct qlnxr_dev *dev,
@@ -99,19 +89,6 @@ static int
 qlnxr_alloc_srq_kernel_params(struct qlnxr_srq *srq,
 	struct qlnxr_dev *dev,
 	struct ib_srq_init_attr *init_attr);
-
-extern enum _ecore_status_t
-ecore_rdma_modify_srq(void *rdma_cxt,
-	struct ecore_rdma_modify_srq_in_params *in_params);
-
-extern enum _ecore_status_t
-ecore_rdma_destroy_srq(void *rdma_cxt,
-	struct ecore_rdma_destroy_srq_in_params *in_params);
-
-extern enum _ecore_status_t
-ecore_rdma_create_srq(void *rdma_cxt,
-	struct ecore_rdma_create_srq_in_params *in_params,
-	struct ecore_rdma_create_srq_out_params *out_params);
 
 
 static int
