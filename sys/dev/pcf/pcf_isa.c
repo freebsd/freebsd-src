@@ -109,7 +109,7 @@ pcf_isa_probe(device_t dev)
 
 	/* The port address must be explicitly specified */
 	bus_get_resource(dev, SYS_RES_IOPORT, rid, &start, &count);
-	if ((error = resource_int_value(PCF_NAME, 0, "port", &port) != 0))
+	if ((error = resource_int_value(PCF_NAME, 0, "port", &port)) != 0)
 		return (error);
 
 	/* Probe is only successful for the specified base io */
