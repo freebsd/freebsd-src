@@ -58,6 +58,7 @@
 #define	TS_CONS25	0x0040	/* cons25 emulation. */
 #define	TS_INSTRING	0x0080	/* Inside string. */
 #define	TS_CURSORKEYS	0x0100	/* Cursor keys mode. */
+#define	TS_CONS25KEYS	0x0400	/* Fuller cons25 emul (fix function keys). */
 
 /* Character that blanks a cell. */
 #define	BLANK	' '
@@ -411,7 +412,7 @@ void
 teken_set_cons25(teken_t *t)
 {
 
-	t->t_stateflags |= TS_CONS25;
+	t->t_stateflags |= TS_CONS25 | TS_CONS25KEYS;
 }
 
 /*
@@ -722,6 +723,9 @@ teken_get_sequence(const teken_t *t, unsigned int k)
 {
 
 	/* Cons25 mode. */
+	if ((t->t_stateflags & (TS_CONS25 | TS_CONS25KEYS)) ==
+	    (TS_CONS25 | TS_CONS25KEYS))
+		return (NULL);	/* Don't override good kbd(4) strings. */
 	if (t->t_stateflags & TS_CONS25 &&
 	    k < sizeof special_strings_cons25 / sizeof(char *))
 		return (special_strings_cons25[k]);
