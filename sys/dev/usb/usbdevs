@@ -1524,7 +1524,8 @@ product COREGA FETHER_USB_TXC	0x9601	FEther USB-TXC
 product CORSAIR K60		0x0a60	Corsair Vengeance K60 keyboard
 product CORSAIR K70		0x1b09	Corsair Vengeance K70 keyboard
 product CORSAIR K70_RGB		0x1b13	Corsair K70 RGB Keyboard
-product CORSAIR STRAFE		0x1b15	Cossair STRAFE Gaming keyboard
+product CORSAIR STRAFE		0x1b15	Corsair STRAFE Gaming keyboard
+product CORSAIR STRAFE2		0x1b44	Corsair STRAFE Gaming keyboard
 
 /* Creative products */
 product CREATIVE NOMAD_II	0x1002	Nomad II MP3 player
