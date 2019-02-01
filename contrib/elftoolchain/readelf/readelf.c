@@ -220,6 +220,11 @@ struct mips_option {
 	const char *desc;
 };
 
+struct flag_desc {
+	uint64_t flag;
+	const char *desc;
+};
+
 static void add_dumpop(struct readelf *re, size_t si, const char *sn, int op,
     int t);
 static const char *aeabi_adv_simd_arch(uint64_t simd);
@@ -293,8 +298,7 @@ static void dump_dwarf_ranges_foreach(struct readelf *re, Dwarf_Die die,
 static void dump_dwarf_str(struct readelf *re);
 static void dump_eflags(struct readelf *re, uint64_t e_flags);
 static void dump_elf(struct readelf *re);
-static void dump_dt_flags_val(uint64_t d_val);
-static void dump_dt_flags_1_val(uint64_t d_val);
+static void dump_flags(struct flag_desc *fd, uint64_t flags);
 static void dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab);
 static void dump_dynamic(struct readelf *re);
 static void dump_liblist(struct readelf *re);
@@ -2723,6 +2727,58 @@ dump_arch_dyn_val(struct readelf *re, GElf_Dyn *dyn)
 }
 
 static void
+dump_flags(struct flag_desc *desc, uint64_t val)
+{
+	struct flag_desc *fd;
+
+	for (fd = desc; fd->flag != 0; fd++) {
+		if (val & fd->flag) {
+			val &= ~fd->flag;
+			printf(" %s", fd->desc);
+		}
+	}
+	if (val != 0)
+		printf(" unknown (0x%jx)", (uintmax_t)val);
+}
+
+static struct flag_desc dt_flags[] = {
+	{ DF_ORIGIN,		"ORIGIN" },
+	{ DF_SYMBOLIC,		"SYMBOLIC" },
+	{ DF_TEXTREL,		"TEXTREL" },
+	{ DF_BIND_NOW,		"BIND_NOW" },
+	{ DF_STATIC_TLS,	"STATIC_TLS" },
+	{ 0, NULL }
+};
+
+static struct flag_desc dt_flags_1[] = {
+	{ DF_1_BIND_NOW,	"NOW" },
+	{ DF_1_GLOBAL,		"GLOBAL" },
+	{ 0x4,			"GROUP" },
+	{ DF_1_NODELETE,	"NODELETE" },
+	{ DF_1_LOADFLTR,	"LOADFLTR" },
+	{ 0x20,			"INITFIRST" },
+	{ DF_1_NOOPEN,		"NOOPEN" },
+	{ DF_1_ORIGIN,		"ORIGIN" },
+	{ 0x100,		"DIRECT" },
+	{ DF_1_INTERPOSE,	"INTERPOSE" },
+	{ DF_1_NODEFLIB,	"NODEFLIB" },
+	{ 0x1000,		"NODUMP" },
+	{ 0x2000,		"CONFALT" },
+	{ 0x4000,		"ENDFILTEE" },
+	{ 0x8000,		"DISPRELDNE" },
+	{ 0x10000,		"DISPRELPND" },
+	{ 0x20000,		"NODIRECT" },
+	{ 0x40000,		"IGNMULDEF" },
+	{ 0x80000,		"NOKSYMS" },
+	{ 0x100000,		"NOHDR" },
+	{ 0x200000,		"EDITED" },
+	{ 0x400000,		"NORELOC" },
+	{ 0x800000,		"SYMINTPOSE" },
+	{ 0x1000000,		"GLOBAUDIT" },
+	{ 0, NULL }
+};
+
+static void
 dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 {
 	const char *name;
@@ -2807,146 +2863,14 @@ dump_dyn_val(struct readelf *re, GElf_Dyn *dyn, uint32_t stab)
 		printf(" %s\n", timestamp(dyn->d_un.d_val));
 		break;
 	case DT_FLAGS:
-		dump_dt_flags_val(dyn->d_un.d_val);
+		dump_flags(dt_flags, dyn->d_un.d_val);
 		break;
 	case DT_FLAGS_1:
-		dump_dt_flags_1_val(dyn->d_un.d_val);
+		dump_flags(dt_flags_1, dyn->d_un.d_val);
 		break;
 	default:
 		printf("\n");
 	}
-}
-
-static void
-dump_dt_flags_val(uint64_t d_val)
-{
-	if (d_val & 0x1) {
-		d_val ^= 0x1;
-		printf(" ORIGIN");
-	}
-	if (d_val & 0x2) {
-		d_val ^= 0x2;
-		printf(" SYMBOLIC");
-	}
-	if (d_val & 0x4) {
-		d_val ^= 0x4;
-		printf(" TEXTREL");
-	}
-	if (d_val & 0x8) {
-		d_val ^= 0x8;
-		printf(" BIND_NOW");
-	}
-	if (d_val & 0x10) {
-		d_val ^= 0x10;
-		printf(" STATIC_TLS");
-	}
-	if (d_val)
-		printf(" %jx", (uintmax_t)d_val);
-	printf("\n");
-}
-
-static void
-dump_dt_flags_1_val(uint64_t d_val)
-{
-	if (d_val & 0x1) {
-		d_val ^= 0x1;
-		printf(" NOW");
-	}
-	if (d_val & 0x2) {
-		d_val ^= 0x2;
-		printf(" GLOBAL");
-	}
-	if (d_val & 0x4) {
-		d_val ^= 0x4;
-		printf(" GROUP");
-	}
-	if (d_val & 0x8) {
-		d_val ^= 0x8;
-		printf(" NODELETE");
-	}
-	if (d_val & 0x10) {
-		d_val ^= 0x10;
-		printf(" LOADFLTR");
-	}
-	if (d_val & 0x20) {
-		d_val ^= 0x20;
-		printf(" INITFIRST");
-	}
-	if (d_val & 0x40) {
-		d_val ^= 0x40;
-		printf(" NOOPEN");
-	}
-	if (d_val & 0x80) {
-		d_val ^= 0x80;
-		printf(" ORIGIN");
-	}
-	if (d_val & 0x100) {
-		d_val ^= 0x100;
-		printf(" DIRECT");
-	}
-	if (d_val & 0x400) {
-		d_val ^= 0x400;
-		printf(" INTERPOSE");
-	}
-	if (d_val & 0x800) {
-		d_val ^= 0x800;
-		printf(" NODEFLIB");
-	}
-	if (d_val & 0x1000) {
-		d_val ^= 0x1000;
-		printf(" NODUMP");
-	}
-	if (d_val & 0x2000) {
-		d_val ^= 0x2000;
-		printf(" CONFALT");
-	}
-	if (d_val & 0x4000) {
-		d_val ^= 0x4000;
-		printf(" ENDFILTEE");
-	}
-	if (d_val & 0x8000) {
-		d_val ^= 0x8000;
-		printf(" DISPRELDNE");
-	}
-	if (d_val & 0x10000) {
-		d_val ^= 0x10000;
-		printf(" DISPRELPND");
-	}
-	if (d_val & 0x20000) {
-		d_val ^= 0x20000;
-		printf(" NODIRECT");
-	}
-	if (d_val & 0x40000) {
-		d_val ^= 0x40000;
-		printf(" IGNMULDEF");
-	}
-	if (d_val & 0x80000) {
-		d_val ^= 0x80000;
-		printf(" NOKSYMS");
-	}
-	if (d_val & 0x100000) {
-		d_val ^= 0x100000;
-		printf(" NOHDR");
-	}
-	if (d_val & 0x200000) {
-		d_val ^= 0x200000;
-		printf(" EDITED");
-	}
-	if (d_val & 0x400000) {
-		d_val ^= 0x400000;
-		printf(" NORELOC");
-	}
-	if (d_val & 0x800000) {
-		d_val ^= 0x800000;
-		printf(" SYMINTPOSE");
-	}
-	if (d_val & 0x1000000) {
-		d_val ^= 0x1000000;
-		printf(" GLOBAUDIT");
-	}
-	if (d_val)
-		printf(" %jx", (uintmax_t)d_val);
-	printf("\n");
 }
 
 static void
