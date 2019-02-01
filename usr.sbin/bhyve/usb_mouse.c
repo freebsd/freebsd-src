@@ -70,7 +70,6 @@ enum {
 	UMSTR_MAX
 };
 
-#define UMOUSE_DESC_MAX_LEN	32
 static const char *umouse_desc_strings[] = {
 	"\x04\x09",
 	"BHYVE",
@@ -442,7 +441,7 @@ umouse_request(void *scarg, struct usb_data_xfer *xfer)
 				goto done;
 			}
 
-			slen = 2 + strnlen(str, UMOUSE_DESC_MAX_LEN) * 2;
+			slen = 2 + strlen(str) * 2;
 			udata[0] = slen;
 			udata[1] = UDESC_STRING;
 
