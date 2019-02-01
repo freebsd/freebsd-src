@@ -34,10 +34,6 @@
 
 #include "t4_hw.h"
 
-#define GLBL_INTR_MASK (F_CIM | F_MPS | F_PL | F_PCIE | F_MC0 | F_EDC0 | \
-		F_EDC1 | F_LE | F_TP | F_MA | F_PM_TX | F_PM_RX | F_ULP_RX | \
-		F_CPL_SWITCH | F_SGE | F_ULP_TX)
-
 enum {
 	MAX_NPORTS     = 4,     /* max # of ports */
 	SERNUM_LEN     = 24,    /* Serial # length */
@@ -581,7 +577,7 @@ struct fw_filter_wr;
 void t4_intr_enable(struct adapter *adapter);
 void t4_intr_disable(struct adapter *adapter);
 void t4_intr_clear(struct adapter *adapter);
-int t4_slow_intr_handler(struct adapter *adapter);
+int t4_slow_intr_handler(struct adapter *adapter, bool verbose);
 
 int t4_hash_mac_addr(const u8 *addr);
 int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
@@ -621,9 +617,7 @@ int t4_init_sge_params(struct adapter *adapter);
 int t4_init_tp_params(struct adapter *adap, bool sleep_ok);
 int t4_filter_field_shift(const struct adapter *adap, int filter_sel);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf, int port_id);
-void t4_fatal_err(struct adapter *adapter);
-void t4_db_full(struct adapter *adapter);
-void t4_db_dropped(struct adapter *adapter);
+void t4_fatal_err(struct adapter *adapter, bool fw_error);
 int t4_set_trace_filter(struct adapter *adapter, const struct trace_params *tp,
 			int filter_index, int enable);
 void t4_get_trace_filter(struct adapter *adapter, struct trace_params *tp,
