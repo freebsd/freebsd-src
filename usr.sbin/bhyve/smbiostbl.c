@@ -558,7 +558,7 @@ smbios_generic_initializer(struct smbios_structure *template_entry,
 			int len;
 
 			string = template_strings[i];
-			len = strnlen(string, SMBIOS_MAX_LENGTH) + 1;
+			len = strlen(string) + 1;
 			memcpy(curaddr, string, len);
 			curaddr += len;
 		}
@@ -611,7 +611,7 @@ smbios_type1_initializer(struct smbios_structure *template_entry,
 			return (-1);
 
 		MD5Init(&mdctx);
-		MD5Update(&mdctx, vmname, strnlen(vmname, PATH_MAX));
+		MD5Update(&mdctx, vmname, strlen(vmname));
 		MD5Update(&mdctx, hostname, sizeof(hostname));
 		MD5Final(digest, &mdctx);
 
