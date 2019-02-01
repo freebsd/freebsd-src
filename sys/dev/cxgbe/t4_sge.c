@@ -1394,8 +1394,12 @@ void
 t4_intr_err(void *arg)
 {
 	struct adapter *sc = arg;
+	const bool verbose = (sc->debug_flags & DF_VERBOSE_SLOWINTR) != 0;
 
-	t4_slow_intr_handler(sc);
+	if (sc->flags & ADAP_ERR)
+		return;
+
+	t4_slow_intr_handler(sc, verbose);
 }
 
 /*
