@@ -94,9 +94,8 @@ main(int argc __unused, char *argv[] __unused)
 static void
 help(void)
 {
-	extern char *__progname;
 
-	fprintf(stderr, "usage: %s (heads|hooks|link|unlink)\n", __progname);
+	fprintf(stderr, "usage: %s (heads|hooks|link|unlink)\n", getprogname());
 	exit(0);
 }
 
