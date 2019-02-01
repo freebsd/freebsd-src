@@ -556,7 +556,7 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
 	 * Extract list of in6_multi associated with the detaching ifp
 	 * which the PF_INET6 layer is about to release.
 	 */
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER_ET(et);
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		inm = in6m_ifmultiaddr_get_inm(ifma);
 		if (inm == NULL)
@@ -576,7 +576,7 @@ mld_ifdetach(struct ifnet *ifp, struct in6_multi_head *inmh)
 			}
 		}
 	}
-	NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT_ET(et);
 	IF_ADDR_WUNLOCK(ifp);
 	MLD_UNLOCK();
 }
@@ -1411,7 +1411,7 @@ mld_fasttimo_vnet(struct in6_multi_head *inmh)
 		}
 
 		IF_ADDR_WLOCK(ifp);
-		NET_EPOCH_ENTER(et);
+		NET_EPOCH_ENTER_ET(et);
 		CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			inm = in6m_ifmultiaddr_get_inm(ifma);
 			if (inm == NULL)
@@ -1449,7 +1449,7 @@ mld_fasttimo_vnet(struct in6_multi_head *inmh)
 			mld_dispatch_queue(&scq, 0);
 			break;
 		}
-		NET_EPOCH_EXIT(et);
+		NET_EPOCH_EXIT_ET(et);
 	}
 
 out_locked:
@@ -1685,7 +1685,7 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 	ifp = mli->mli_ifp;
 
 	IF_ADDR_WLOCK(ifp);
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER_ET(et);
 	CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		inm = in6m_ifmultiaddr_get_inm(ifma);
 		if (inm == NULL)
@@ -1721,7 +1721,7 @@ mld_v2_cancel_link_timers(struct mld_ifsoftc *mli)
 			break;
 		}
 	}
-	NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT_ET(et);
 	IF_ADDR_WUNLOCK(ifp);
 	in6m_release_list_deferred(&inmh);
 }

@@ -722,8 +722,6 @@ static __inline struct in6_multi *
 in6m_ifmultiaddr_get_inm(struct ifmultiaddr *ifma)
 {
 
-	NET_EPOCH_ASSERT();
-
 	return ((ifma->ifma_addr->sa_family != AF_INET6 ||	
 	    (ifma->ifma_flags & IFMA_F_ENQUEUED) == 0) ? NULL :
 	    ifma->ifma_protospec);

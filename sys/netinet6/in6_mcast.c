@@ -420,9 +420,9 @@ in6_getmulti(struct ifnet *ifp, const struct in6_addr *group,
 	IN6_MULTI_LOCK_ASSERT();
 	IN6_MULTI_LIST_LOCK();
 	IF_ADDR_WLOCK(ifp);
-	NET_EPOCH_ENTER(et);
+	NET_EPOCH_ENTER_ET(et);
 	inm = in6m_lookup_locked(ifp, group);
-	NET_EPOCH_EXIT(et);
+	NET_EPOCH_EXIT_ET(et);
 
 	if (inm != NULL) {
 		/*
