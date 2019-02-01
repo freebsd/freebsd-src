@@ -585,6 +585,14 @@ in6m_release_list_deferred(struct in6_multi_head *inmh)
 }
 
 void
+in6m_release_wait(void)
+{
+
+	/* Wait for all jobs to complete. */
+	gtaskqueue_drain_all(free_gtask.gt_taskqueue);
+}
+
+void
 in6m_disconnect(struct in6_multi *inm)
 {
 	struct ifnet *ifp;
