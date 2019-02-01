@@ -313,6 +313,8 @@ static void dump_mips_specific_info(struct readelf *re);
 static void dump_notes(struct readelf *re);
 static void dump_notes_content(struct readelf *re, const char *buf, size_t sz,
     off_t off);
+static void dump_notes_data(const char *name, uint32_t type, const char *buf,
+    size_t sz);
 static void dump_svr4_hash(struct section *s);
 static void dump_svr4_hash64(struct readelf *re, struct section *s);
 static void dump_gnu_hash(struct readelf *re, struct section *s);
@@ -3486,12 +3488,58 @@ dump_notes(struct readelf *re)
 	}
 }
 
+static struct flag_desc note_feature_ctl_flags[] = {
+	{ NT_FREEBSD_FCTL_ASLR_DISABLE,		"ASLR_DISABLE" },
+	{ 0, NULL }
+};
+
+static void
+dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
+{
+	size_t i;
+	const uint32_t *ubuf;
+
+	/* Note data is at least 4-byte aligned. */
+	if (((uintptr_t)buf & 3) != 0) {
+		warnx("bad note data alignment");
+		goto unknown;
+	}
+	ubuf = (const uint32_t *)(const void *)buf;
+
+	if (strcmp(name, "FreeBSD") == 0) {
+		switch (type) {
+		case NT_FREEBSD_ABI_TAG:
+			if (sz != 4)
+				goto unknown;
+			printf("   ABI tag: %u\n", ubuf[0]);
+			return;
+		/* NT_FREEBSD_NOINIT_TAG carries no data, treat as unknown. */
+		case NT_FREEBSD_ARCH_TAG:
+			if (sz != 4)
+				goto unknown;
+			printf("   Arch tag: %x\n", ubuf[0]);
+			return;
+		case NT_FREEBSD_FEATURE_CTL:
+			if (sz != 4)
+				goto unknown;
+			printf("   Features:");
+			dump_flags(note_feature_ctl_flags, ubuf[0]);
+			printf("\n");
+			return;
+		}
+	}
+unknown:
+	printf("   description data:");
+	for (i = 0; i < sz; i++)
+		printf(" %02x", (unsigned char)buf[i]);
+	printf("\n");
+}
+
 static void
 dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 {
 	Elf_Note *note;
 	const char *end, *name;
-	uint32_t i;
 
 	printf("\nNotes at offset %#010jx with length %#010jx:\n",
 	    (uintmax_t) off, (uintmax_t) sz);
@@ -3523,10 +3571,7 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(name, re->ehdr.e_type,
 		    note->n_type));
-		printf("   description data:");
-		for (i = 0; i < note->n_descsz; i++)
-			printf(" %02x", (unsigned char)buf[i]);
-		printf("\n");
+		dump_notes_data(name, note->n_type, buf, note->n_descsz);
 		buf += roundup2(note->n_descsz, 4);
 	}
 }
