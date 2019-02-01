@@ -2178,7 +2178,10 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 			IN6_MULTI_UNLOCK();
 			goto out_im6o_free;
 		}
-		in6m_acquire(inm);
+		/*
+		 * NOTE: Refcount from in6_joingroup_locked()
+		 * is protecting membership.
+		 */
 		imo->im6o_membership[idx] = inm;
 	} else {
 		CTR1(KTR_MLD, "%s: merge inm state", __func__);
