@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2018
+.Dd December 4, 2018
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -310,10 +310,9 @@ i.e., omitting the "ip from any to any" string
 when this does not carry any additional information.
 .It Fl d
 When listing, show dynamic rules in addition to static ones.
-.It Fl e
-When listing and
-.Fl d
-is specified, also show expired dynamic rules.
+.It Fl D
+When listing, show only dynamic states.
+When deleting, delete only dynamic states.
 .It Fl f
 Run without prompting for confirmation for commands that can cause problems if misused,
 i.e.,
