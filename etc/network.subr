@@ -257,9 +257,7 @@ ifconfig_down()
 	elif hostapif $1; then
 		/etc/rc.d/hostapd stop $1
 		_cfg=0
-	fi
-
-	if dhcpif $1; then
+	elif dhcpif $1; then
 		/etc/rc.d/dhclient stop $1
 		_cfg=0
 	fi
