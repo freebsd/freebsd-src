@@ -623,7 +623,7 @@ static int
 hash_alloc(struct uma_hash *hash)
 {
 	int oldsize;
-	int alloc;
+	size_t alloc;
 
 	oldsize = hash->uh_hashsize;
 
