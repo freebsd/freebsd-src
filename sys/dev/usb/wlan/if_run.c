@@ -2029,7 +2029,14 @@ run_read_eeprom(struct run_softc *sc)
 static struct ieee80211_node *
 run_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 {
-	return malloc(sizeof (struct run_node), M_DEVBUF, M_NOWAIT | M_ZERO);
+	struct run_node *rn;
+
+	rn = malloc(sizeof (struct run_node), M_80211_NODE, M_NOWAIT | M_ZERO);
+
+	if (rn == NULL)
+		return (NULL);
+
+	return (&rn->ni);
 }
 
 static int
