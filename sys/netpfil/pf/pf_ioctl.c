@@ -4002,6 +4002,26 @@ shutdown_pf(void)
 	return (error);
 }
 
+static pfil_return_t
+pf_check_return(int chk, struct mbuf **m)
+{
+
+	switch (chk) {
+	case PF_PASS:
+		if (*m == NULL)
+			return (PFIL_CONSUMED);
+		else
+			return (PFIL_PASS);
+		break;
+	default:
+		if (*m != NULL) {
+			m_freem(*m);
+			*m = NULL;
+		}
+		return (PFIL_DROPPED);
+	}
+}
+
 #ifdef INET
 static pfil_return_t
 pf_check_in(struct mbuf **m, struct ifnet *ifp, int flags,
@@ -4010,12 +4030,8 @@ pf_check_in(struct mbuf **m, struct ifnet *ifp, int flags,
 	int chk;
 
 	chk = pf_test(PF_IN, flags, ifp, m, inp);
-	if (chk && *m) {
-		m_freem(*m);
-		*m = NULL;
-	}
 
-	return (chk == PF_PASS ? PFIL_PASS : PFIL_DROPPED);
+	return (pf_check_return(chk, m));
 }
 
 static pfil_return_t
@@ -4025,12 +4041,8 @@ pf_check_out(struct mbuf **m, struct ifnet *ifp, int flags,
 	int chk;
 
 	chk = pf_test(PF_OUT, flags, ifp, m, inp);
-	if (chk && *m) {
-		m_freem(*m);
-		*m = NULL;
-	}
 
-	return (chk == PF_PASS ? PFIL_PASS : PFIL_DROPPED);
+	return (pf_check_return(chk, m));
 }
 #endif
 
@@ -4049,12 +4061,8 @@ pf_check6_in(struct mbuf **m, struct ifnet *ifp, int flags,
 	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test6(PF_IN, flags, (*m)->m_flags & M_LOOP ? V_loif : ifp, m, inp);
 	CURVNET_RESTORE();
-	if (chk && *m) {
-		m_freem(*m);
-		*m = NULL;
-	}
 
-	return (chk == PF_PASS ? PFIL_PASS : PFIL_DROPPED);
+	return (pf_check_return(chk, m));
 }
 
 static pfil_return_t
@@ -4066,12 +4074,8 @@ pf_check6_out(struct mbuf **m, struct ifnet *ifp, int flags,
 	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test6(PF_OUT, flags, ifp, m, inp);
 	CURVNET_RESTORE();
-	if (chk && *m) {
-		m_freem(*m);
-		*m = NULL;
-	}
 
-	return (chk == PF_PASS ? PFIL_PASS : PFIL_DROPPED);
+	return (pf_check_return(chk, m));
 }
 #endif /* INET6 */
 
