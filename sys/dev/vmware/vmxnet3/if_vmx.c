@@ -676,14 +676,16 @@ vmxnet3_set_interrupt_idx(struct vmxnet3_softc *sc)
 	scctx = sc->vmx_scctx;
 
 	/*
-	 * There is either one interrupt, or there is one interrupt per
-	 * receive queue.  If there is one interrupt, then all interrupt
-	 * indexes are zero.  If there is one interrupt per receive queue,
-	 * the transmit queue interrupt indexes are assigned the receive
-	 * queue interrupt indexesin round-robin fashion.
-	 *
-	 * The event interrupt is always the last interrupt index.
+	 * There is always one interrupt per receive queue, assigned
+	 * starting with the first interrupt.  When there is only one
+	 * interrupt available, the event interrupt shares the receive queue
+	 * interrupt, otherwise it uses the interrupt following the last
+	 * receive queue interrupt.  Transmit queues are not assigned
+	 * interrupts, so they are given indexes beyond the indexes that
+	 * correspond to the real interrupts.
 	 */
+
+	/* The event interrupt is always the last vector. */
 	sc->vmx_event_intr_idx = scctx->isc_vectors - 1;
 
 	intr_idx = 0;
@@ -1073,14 +1075,14 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 	ds->automask = sc->vmx_intr_mask_mode == VMXNET3_IMM_AUTO;
 	/*
 	 * Total number of interrupt indexes we are using in the shared
-	 * config data, even though we don't actually allocate MSI-X
+	 * config data, even though we don't actually allocate interrupt
 	 * resources for the tx queues.  Some versions of the device will
 	 * fail to initialize successfully if interrupt indexes are used in
 	 * the shared config that exceed the number of interrupts configured
 	 * here.
 	 */
 	ds->nintr = (scctx->isc_vectors == 1) ?
-	    1 : (scctx->isc_nrxqsets + scctx->isc_ntxqsets + 1);
+	    2 : (scctx->isc_nrxqsets + scctx->isc_ntxqsets + 1);
 	ds->evintr = sc->vmx_event_intr_idx;
 	ds->ictrl = VMXNET3_ICTRL_DISABLE_ALL;
 
