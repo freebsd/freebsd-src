@@ -201,6 +201,7 @@ powerpc/powernv/opalcall.S	optional	powernv
 powerpc/powernv/platform_powernv.c optional	powernv
 powerpc/powernv/powernv_centaur.c	optional	powernv
 powerpc/powernv/powernv_xscom.c	optional	powernv
+powerpc/powernv/xive.c		optional	powernv
 powerpc/powerpc/altivec.c	optional	powerpc | powerpc64
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bus_machdep.c	standard
