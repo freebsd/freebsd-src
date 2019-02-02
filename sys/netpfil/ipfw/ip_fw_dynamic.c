@@ -122,6 +122,12 @@ __FBSDID("$FreeBSD$");
 	(d)->bcnt_ ## dir += pktlen;		\
 	} while (0)
 
+#define	DYN_REFERENCED		0x01
+/*
+ * DYN_REFERENCED flag is used to show that state keeps reference to named
+ * object, and this reference should be released when state becomes expired.
+ */
+
 struct dyn_data {
 	void		*parent;	/* pointer to parent rule */
 	uint32_t	chain_id;	/* cached ruleset id */
@@ -129,7 +135,8 @@ struct dyn_data {
 
 	uint32_t	hashval;	/* hash value used for hash resize */
 	uint16_t	fibnum;		/* fib used to send keepalives */
-	uint8_t		_pad[3];
+	uint8_t		_pad[2];
+	uint8_t		flags;		/* internal flags */
 	uint8_t		set;		/* parent rule set number */
 	uint16_t	rulenum;	/* parent rule number */
 	uint32_t	ruleid;		/* parent rule id */
@@ -1399,20 +1406,29 @@ ipfw_dyn_lookup_state(const struct ip_fw_args *args, const void *ulp,
 			 * should be deleted by dyn_expire_states().
 			 *
 			 * In case when dyn_keep_states is enabled, return
-			 * pointer to default rule and corresponding f_pos
-			 * value.
-			 * XXX: In this case we lose the cache efficiency,
-			 *      since f_pos is not cached, because it seems
-			 *      there is no easy way to atomically switch
-			 *      all fields related to parent rule of given
-			 *      state.
+			 * pointer to deleted rule and f_pos value
+			 * corresponding to penultimate rule.
+			 * When we have enabled V_dyn_keep_states, states
+			 * that become orphaned will get the DYN_REFERENCED
+			 * flag and rule will keep around. So we can return
+			 * it. But since it is not in the rules map, we need
+			 * return such f_pos value, so after the state
+			 * handling if the search will continue, the next rule
+			 * will be the last one - the default rule.
 			 */
 			if (V_layer3_chain.map[data->f_pos] == rule) {
 				data->chain_id = V_layer3_chain.id;
 				info->f_pos = data->f_pos;
 			} else if (V_dyn_keep_states != 0) {
-				rule = V_layer3_chain.default_rule;
-				info->f_pos = V_layer3_chain.n_rules - 1;
+				/*
+				 * The original rule pointer is still usable.
+				 * So, we return it, but f_pos need to be
+				 * changed to point to the penultimate rule.
+				 */
+				MPASS(V_layer3_chain.n_rules > 1);
+				data->chain_id = V_layer3_chain.id;
+				data->f_pos = V_layer3_chain.n_rules - 2;
+				info->f_pos = data->f_pos;
 			} else {
 				rule = NULL;
 				info->direction = MATCH_NONE;
@@ -2112,40 +2128,102 @@ dyn_match_range(uint16_t rulenum, uint8_t set, const ipfw_range_tlv *rt)
 	return (1);
 }
 
-static int
-dyn_match_ipv4_state(struct dyn_ipv4_state *s, const ipfw_range_tlv *rt)
+static void
+dyn_acquire_rule(struct ip_fw_chain *ch, struct dyn_data *data,
+    struct ip_fw *rule, uint16_t kidx)
 {
+	struct dyn_state_obj *obj;
+
+	/*
+	 * Do not acquire reference twice.
+	 * This can happen when rule deletion executed for
+	 * the same range, but different ruleset id.
+	 */
+	if (data->flags & DYN_REFERENCED)
+		return;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+	MPASS(kidx != 0);
+
+	data->flags |= DYN_REFERENCED;
+	/* Reference the named object */
+	obj = SRV_OBJECT(ch, kidx);
+	obj->no.refcnt++;
+	MPASS(obj->no.etlv == IPFW_TLV_STATE_NAME);
+
+	/* Reference the parent rule */
+	rule->refcnt++;
+}
+
+static void
+dyn_release_rule(struct ip_fw_chain *ch, struct dyn_data *data,
+    struct ip_fw *rule, uint16_t kidx)
+{
+	struct dyn_state_obj *obj;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+	MPASS(kidx != 0);
+
+	obj = SRV_OBJECT(ch, kidx);
+	if (obj->no.refcnt == 1)
+		dyn_destroy(ch, &obj->no);
+	else
+		obj->no.refcnt--;
+
+	if (--rule->refcnt == 1)
+		ipfw_free_rule(rule);
+}
+
+/*
+ * We do not keep O_LIMIT_PARENT states when V_dyn_keep_states is enabled.
+ * O_LIMIT state is created when new connection is going to be established
+ * and there is no matching state. So, since the old parent rule was deleted
+ * we can't create new states with old parent, and thus we can not account
+ * new connections with already established connections, and can not do
+ * proper limiting.
+ */
+static int
+dyn_match_ipv4_state(struct ip_fw_chain *ch, struct dyn_ipv4_state *s,
+    const ipfw_range_tlv *rt)
+{
+	struct ip_fw *rule;
+	int ret;
 
 	if (s->type == O_LIMIT_PARENT)
 		return (dyn_match_range(s->limit->rulenum,
 		    s->limit->set, rt));
 
+	ret = dyn_match_range(s->data->rulenum, s->data->set, rt);
+	if (ret == 0 || V_dyn_keep_states == 0)
+		return (ret);
+
+	rule = s->data->parent;
 	if (s->type == O_LIMIT)
-		return (dyn_match_range(s->data->rulenum, s->data->set, rt));
-
-	if (V_dyn_keep_states == 0 &&
-	    dyn_match_range(s->data->rulenum, s->data->set, rt))
-		return (1);
-
+		rule = ((struct dyn_ipv4_state *)rule)->limit->parent;
+	dyn_acquire_rule(ch, s->data, rule, s->kidx);
 	return (0);
 }
 
 #ifdef INET6
 static int
-dyn_match_ipv6_state(struct dyn_ipv6_state *s, const ipfw_range_tlv *rt)
+dyn_match_ipv6_state(struct ip_fw_chain *ch, struct dyn_ipv6_state *s,
+    const ipfw_range_tlv *rt)
 {
+	struct ip_fw *rule;
+	int ret;
 
 	if (s->type == O_LIMIT_PARENT)
 		return (dyn_match_range(s->limit->rulenum,
 		    s->limit->set, rt));
 
+	ret = dyn_match_range(s->data->rulenum, s->data->set, rt);
+	if (ret == 0 || V_dyn_keep_states == 0)
+		return (ret);
+
+	rule = s->data->parent;
 	if (s->type == O_LIMIT)
-		return (dyn_match_range(s->data->rulenum, s->data->set, rt));
-
-	if (V_dyn_keep_states == 0 &&
-	    dyn_match_range(s->data->rulenum, s->data->set, rt))
-		return (1);
-
+		rule = ((struct dyn_ipv6_state *)rule)->limit->parent;
+	dyn_acquire_rule(ch, s->data, rule, s->kidx);
 	return (0);
 }
 #endif
@@ -2155,7 +2233,7 @@ dyn_match_ipv6_state(struct dyn_ipv6_state *s, const ipfw_range_tlv *rt)
  * @rt can be used to specify the range of states for deletion.
  */
 static void
-dyn_expire_states(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
+dyn_expire_states(struct ip_fw_chain *ch, ipfw_range_tlv *rt)
 {
 	struct dyn_ipv4_slist expired_ipv4;
 #ifdef INET6
@@ -2163,7 +2241,10 @@ dyn_expire_states(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 	struct dyn_ipv6_state *s6, *s6n, *s6p;
 #endif
 	struct dyn_ipv4_state *s4, *s4n, *s4p;
+	void *rule;
 	int bucket, removed, length, max_length;
+
+	IPFW_UH_WLOCK_ASSERT(ch);
 
 	/*
 	 * Unlink expired states from each bucket.
@@ -2189,7 +2270,8 @@ dyn_expire_states(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 	while (s != NULL) {						\
 		next = CK_SLIST_NEXT(s, entry);				\
 		if ((TIME_LEQ((s)->exp, time_uptime) && extra) ||	\
-		    (rt != NULL && dyn_match_ ## af ## _state(s, rt))) {\
+		    (rt != NULL &&					\
+		     dyn_match_ ## af ## _state(ch, s, rt))) {		\
 			if (prev != NULL)				\
 				CK_SLIST_REMOVE_AFTER(prev, entry);	\
 			else						\
@@ -2201,6 +2283,14 @@ dyn_expire_states(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 				DYN_COUNT_DEC(dyn_parent_count);	\
 			else {						\
 				DYN_COUNT_DEC(dyn_count);		\
+				if (s->data->flags & DYN_REFERENCED) {	\
+					rule = s->data->parent;		\
+					if (s->type == O_LIMIT)		\
+						rule = ((__typeof(s))	\
+						    rule)->limit->parent;\
+					dyn_release_rule(ch, s->data,	\
+					    rule, s->kidx);		\
+				}					\
 				if (s->type == O_LIMIT)	{		\
 					s = s->data->parent;		\
 					DPARENT_COUNT_DEC(s->limit);	\
@@ -2685,6 +2775,42 @@ ipfw_expire_dyn_states(struct ip_fw_chain *chain, ipfw_range_tlv *rt)
 }
 
 /*
+ * Pass through all states and reset eaction for orphaned rules.
+ */
+void
+ipfw_dyn_reset_eaction(struct ip_fw_chain *ch, uint16_t eaction_id,
+    uint16_t default_id, uint16_t instance_id)
+{
+#ifdef INET6
+	struct dyn_ipv6_state *s6;
+#endif
+	struct dyn_ipv4_state *s4;
+	struct ip_fw *rule;
+	uint32_t bucket;
+
+#define	DYN_RESET_EACTION(s, h, b)					\
+	CK_SLIST_FOREACH(s, &V_dyn_ ## h[b], entry) {			\
+		if ((s->data->flags & DYN_REFERENCED) == 0)		\
+			continue;					\
+		rule = s->data->parent;					\
+		if (s->type == O_LIMIT)					\
+			rule = ((__typeof(s))rule)->limit->parent;	\
+		ipfw_reset_eaction(ch, rule, eaction_id,		\
+		    default_id, instance_id);				\
+	}
+
+	IPFW_UH_WLOCK_ASSERT(ch);
+	if (V_dyn_count == 0)
+		return;
+	for (bucket = 0; bucket < V_curr_dyn_buckets; bucket++) {
+		DYN_RESET_EACTION(s4, ipv4, bucket);
+#ifdef INET6
+		DYN_RESET_EACTION(s6, ipv6, bucket);
+#endif
+	}
+}
+
+/*
  * Returns size of dynamic states in legacy format
  */
 int
@@ -2696,11 +2822,40 @@ ipfw_dyn_len(void)
 
 /*
  * Returns number of dynamic states.
+ * Marks every named object index used by dynamic states with bit in @bmask.
+ * Returns number of named objects accounted in bmask via @nocnt.
  * Used by dump format v1 (current).
  */
 uint32_t
-ipfw_dyn_get_count(void)
+ipfw_dyn_get_count(uint32_t *bmask, int *nocnt)
 {
+#ifdef INET6
+	struct dyn_ipv6_state *s6;
+#endif
+	struct dyn_ipv4_state *s4;
+	uint32_t bucket;
+
+#define	DYN_COUNT_OBJECTS(s, h, b)					\
+	CK_SLIST_FOREACH(s, &V_dyn_ ## h[b], entry) {			\
+		MPASS(s->kidx != 0);					\
+		if (ipfw_mark_object_kidx(bmask, IPFW_TLV_STATE_NAME,	\
+		    s->kidx) != 0)					\
+			(*nocnt)++;					\
+	}
+
+	IPFW_UH_RLOCK_ASSERT(&V_layer3_chain);
+
+	/* No need to pass through all the buckets. */
+	*nocnt = 0;
+	if (V_dyn_count + V_dyn_parent_count == 0)
+		return (0);
+
+	for (bucket = 0; bucket < V_curr_dyn_buckets; bucket++) {
+		DYN_COUNT_OBJECTS(s4, ipv4, bucket);
+#ifdef INET6
+		DYN_COUNT_OBJECTS(s6, ipv6, bucket);
+#endif
+	}
 
 	return (V_dyn_count + V_dyn_parent_count);
 }

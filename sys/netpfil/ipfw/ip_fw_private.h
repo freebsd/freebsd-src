@@ -146,6 +146,9 @@ enum {
 /*
  * Function definitions.
  */
+int ipfw_chk(struct ip_fw_args *args);
+struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
+    u_int32_t, u_int32_t, int);
 
 /* attach (arg = 1) or detach (arg = 0) hooks */
 int ipfw_attach_hooks(int);
@@ -156,6 +159,7 @@ void ipfw_nat_destroy(void);
 /* In ip_fw_log.c */
 struct ip;
 struct ip_fw_chain;
+
 void ipfw_bpf_init(int);
 void ipfw_bpf_uninit(int);
 void ipfw_bpf_mtap2(void *, u_int, struct mbuf *);
@@ -168,6 +172,7 @@ VNET_DECLARE(int, verbose_limit);
 #define	V_verbose_limit		VNET(verbose_limit)
 
 /* In ip_fw_dynamic.c */
+struct sockopt_data;
 
 enum { /* result for matching dynamic rules */
 	MATCH_REVERSE = 0,
@@ -176,19 +181,6 @@ enum { /* result for matching dynamic rules */
 	MATCH_UNKNOWN,
 };
 
-/*
- * The lock for dynamic rules is only used once outside the file,
- * and only to release the result of lookup_dyn_rule().
- * Eventually we may implement it with a callback on the function.
- */
-struct ip_fw_chain;
-struct sockopt_data;
-int ipfw_is_dyn_rule(struct ip_fw *rule);
-void ipfw_expire_dyn_states(struct ip_fw_chain *, ipfw_range_tlv *);
-
-struct tcphdr;
-struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
-    u_int32_t, u_int32_t, int);
 /*
  * Macro to determine that we need to do or redo dynamic state lookup.
  * direction == MATCH_UNKNOWN means that this is first lookup, then we need
@@ -219,13 +211,17 @@ struct ip_fw *ipfw_dyn_lookup_state(const struct ip_fw_args *args,
     const void *ulp, int pktlen, const ipfw_insn *cmd,
     struct ipfw_dyn_info *info);
 
+int ipfw_is_dyn_rule(struct ip_fw *rule);
+void ipfw_expire_dyn_states(struct ip_fw_chain *, ipfw_range_tlv *);
 void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
 int ipfw_dump_states(struct ip_fw_chain *chain, struct sockopt_data *sd);
 
 void ipfw_dyn_init(struct ip_fw_chain *);	/* per-vnet initialization */
 void ipfw_dyn_uninit(int);	/* per-vnet deinitialization */
 int ipfw_dyn_len(void);
-uint32_t ipfw_dyn_get_count(void);
+uint32_t ipfw_dyn_get_count(uint32_t *, int *);
+void ipfw_dyn_reset_eaction(struct ip_fw_chain *ch, uint16_t eaction_id,
+    uint16_t default_id, uint16_t instance_id);
 
 /* common variables */
 VNET_DECLARE(int, fw_one_pass);
@@ -280,7 +276,9 @@ struct ip_fw {
 	uint32_t	id;		/* rule id			*/
 	uint32_t	cached_id;	/* used by jump_fast		*/
 	uint32_t	cached_pos;	/* used by jump_fast		*/
+	uint32_t	refcnt;		/* number of references		*/
 
+	struct ip_fw	*next;		/* linked list of deleted rules */
 	ipfw_insn	cmd[1];		/* storage for commands		*/
 };
 
@@ -650,7 +648,6 @@ void ipfw_init_skipto_cache(struct ip_fw_chain *chain);
 void ipfw_destroy_skipto_cache(struct ip_fw_chain *chain);
 int ipfw_find_rule(struct ip_fw_chain *chain, uint32_t key, uint32_t id);
 int ipfw_ctl3(struct sockopt *sopt);
-int ipfw_chk(struct ip_fw_args *args);
 int ipfw_add_protected_rule(struct ip_fw_chain *chain, struct ip_fw *rule,
     int locked);
 void ipfw_reap_add(struct ip_fw_chain *chain, struct ip_fw **head,
@@ -659,7 +656,9 @@ void ipfw_reap_rules(struct ip_fw *head);
 void ipfw_init_counters(void);
 void ipfw_destroy_counters(void);
 struct ip_fw *ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize);
+void ipfw_free_rule(struct ip_fw *rule);
 int ipfw_match_range(struct ip_fw *rule, ipfw_range_tlv *rt);
+int ipfw_mark_object_kidx(uint32_t *bmask, uint16_t etlv, uint16_t kidx);
 
 typedef int (sopt_handler_f)(struct ip_fw_chain *ch,
     ip_fw3_opheader *op3, struct sockopt_data *sd);
@@ -758,6 +757,10 @@ uint16_t ipfw_add_eaction(struct ip_fw_chain *ch, ipfw_eaction_t handler,
 int ipfw_del_eaction(struct ip_fw_chain *ch, uint16_t eaction_id);
 int ipfw_run_eaction(struct ip_fw_chain *ch, struct ip_fw_args *args,
     ipfw_insn *cmd, int *done);
+int ipfw_reset_eaction(struct ip_fw_chain *ch, struct ip_fw *rule,
+    uint16_t eaction_id, uint16_t default_id, uint16_t instance_id);
+int ipfw_reset_eaction_instance(struct ip_fw_chain *ch, uint16_t eaction_id,
+    uint16_t instance_id);
 
 /* In ip_fw_table.c */
 struct table_info;
