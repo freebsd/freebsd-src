@@ -4331,6 +4331,14 @@ get_mcs_mbs_rate_str(uint8_t rate)
 	return (rate & IEEE80211_RATE_MCS) ? "MCS " : "Mb/s";
 }
 
+static uint8_t
+get_rate_value(uint8_t rate)
+{
+	if (rate & IEEE80211_RATE_MCS)
+		return (rate &~ IEEE80211_RATE_MCS);
+	return (rate / 2);
+}
+
 static void
 list_txparams(int s)
 {
@@ -4350,9 +4358,9 @@ list_txparams(int s)
 				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u %s "
 				    "mcast %2u %s maxretry %u",
 				    modename[mode],
-				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
+				    get_rate_value(tp->mgmtrate),
 				    get_mcs_mbs_rate_str(tp->mgmtrate),
-				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    get_rate_value(tp->mcastrate),
 				    get_mcs_mbs_rate_str(tp->mcastrate),
 				    tp->maxretry);
 			else
@@ -4360,9 +4368,9 @@ list_txparams(int s)
 				    "mcast %2u %s maxretry %u",
 				    modename[mode],
 				    tp->ucastrate &~ IEEE80211_RATE_MCS,
-				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
+				    get_rate_value(tp->mgmtrate),
 				    get_mcs_mbs_rate_str(tp->mgmtrate),
-				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    get_rate_value(tp->mcastrate),
 				    get_mcs_mbs_rate_str(tp->mcastrate),
 				    tp->maxretry);
 		} else {
