@@ -100,7 +100,7 @@ struct mv_pci_range {
 };
 
 #define FDT_RANGES_CELLS	((3 + 3 + 2) * 2)
-#define PCI_SPACE_LEN		0x00100000
+#define PCI_SPACE_LEN		0x00400000
 
 static void
 mv_pci_range_dump(struct mv_pci_range *range)

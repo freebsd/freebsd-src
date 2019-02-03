@@ -2935,7 +2935,7 @@ fdt_fixup_ranges(phandle_t root)
 	/* Fix-up SoC ranges according to real fdt_immr_pa */
 	if ((node = fdt_find_compatible(root, "simple-bus", 1)) != 0) {
 		if (fdt_addrsize_cells(node, &addr_cells, &size_cells) == 0 &&
-		    (par_addr_cells = fdt_parent_addr_cells(node) <= 2)) {
+		    ((par_addr_cells = fdt_parent_addr_cells(node)) <= 2)) {
 			tuple_size = sizeof(pcell_t) * (par_addr_cells +
 			   addr_cells + size_cells);
 			len = OF_getprop(node, "ranges", ranges,
