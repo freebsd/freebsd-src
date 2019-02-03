@@ -744,6 +744,9 @@ typedef struct {
 #define	NT_FREEBSD_ARCH_TAG	3
 #define	NT_FREEBSD_FEATURE_CTL	4
 
+/* NT_FREEBSD_FEATURE_CTL desc[0] bits */
+#define	NT_FREEBSD_FCTL_ASLR_DISABLE	0x00000001
+
 /* Values for n_type.  Used in core files. */
 #define	NT_PRSTATUS	1	/* Process status. */
 #define	NT_FPREGSET	2	/* Floating point registers. */
