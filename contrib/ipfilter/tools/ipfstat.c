@@ -5,58 +5,26 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-#ifdef __FreeBSD__
-# ifndef __FreeBSD_cc_version
-#  include <osreldate.h>
-# else
-#  if __FreeBSD_cc_version < 430000
-#   include <osreldate.h>
-#  endif
-# endif
-#endif
 #include <sys/ioctl.h>
 #include <ctype.h>
 #include <fcntl.h>
-#ifdef linux
-# include <linux/a.out.h>
-#else
 # include <nlist.h>
-#endif
 #include <ctype.h>
-#if defined(sun) && (defined(__svr4__) || defined(__SVR4))
+#if defined(sun) && defined(__SVR4)
 # include <stddef.h>
 #endif
 #include "ipf.h"
 #include "netinet/ipl.h"
-#if defined(STATETOP)
-# if defined(_BSDI_VERSION)
-#  undef STATETOP
-# endif
-# if defined(__FreeBSD__) && \
-     (!defined(__FreeBSD_version) || (__FreeBSD_version < 430000))
-#  undef STATETOP
-# endif
-# if defined(__NetBSD_Version__) && (__NetBSD_Version__ < 105000000)
-#  undef STATETOP
-# endif
-# if defined(sun)
-#  if defined(__svr4__) || defined(__SVR4)
+#if defined(STATETOP) 
+# if defined(sun) && defined(__SVR4)
 #   include <sys/select.h>
-#  else
-#   undef STATETOP	/* NOT supported on SunOS4 */
-#  endif
 # endif
-#endif
-#if defined(STATETOP) && !defined(linux)
 # include <netinet/ip_var.h>
 # include <netinet/tcp_fsm.h>
-#endif
-#ifdef STATETOP
 # include <ctype.h>
 # include <signal.h>
 # include <time.h>
-# if SOLARIS || defined(__NetBSD__) || defined(_BSDI_VERSION) || \
-     defined(__sgi)
+# if SOLARIS || defined(__NetBSD__)
 #  ifdef ERR
 #   undef ERR
 #  endif
@@ -66,7 +34,7 @@
 # endif /* SOLARIS */
 #endif /* STATETOP */
 #include "kmem.h"
-#if defined(__NetBSD__) || (__OpenBSD__)
+#if defined(__NetBSD__)
 # include <paths.h>
 #endif
 
@@ -75,9 +43,6 @@ static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed"
 static const char rcsid[] = "@(#)$Id$";
 #endif
 
-#ifdef __hpux
-# define	nlist	nlist64
-#endif
 
 extern	char	*optarg;
 extern	int	optind;
