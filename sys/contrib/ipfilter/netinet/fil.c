@@ -2815,7 +2815,8 @@ ipf_firewall(fin, passp)
 /*                    -2 == requires authentication                         */
 /*              Kernel:                                                     */
 /*                   > 0 == filter error # for packet                       */
-/* Parameters: ip(I)   - pointer to start of IPv4/6 packet                  */
+/* Parameters: ctx(I)  - pointer to the instance context                    */
+/*             ip(I)   - pointer to start of IPv4/6 packet                  */
 /*             hlen(I) - length of header                                   */
 /*             ifp(I)  - pointer to interface this packet is on             */
 /*             out(I)  - 0 == packet going in, 1 == packet going out        */
