@@ -2784,7 +2784,7 @@ ipf_firewall(fin, passp)
 /*             out(I)  - 0 == packet going in, 1 == packet going out        */
 /*             mp(IO)  - pointer to caller's buffer pointer that holds this */
 /*                       IP packet.                                         */
-/* Solaris & HP-UX ONLY :                                                   */
+/* Solaris:                                                                 */
 /*             qpi(I)  - pointer to STREAMS queue information for this      */
 /*                       interface & direction.                             */
 /*                                                                          */
