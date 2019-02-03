@@ -590,7 +590,7 @@ MALLOC_DECLARE(M_IPFILTER);
 #  define	COPYOUT(a,b,c)	(bcopy((caddr_t)(a), (caddr_t)(b), (c)), 0)
 # endif
 
-# ifndef KMALLOC
+# if SOLARIS && !defined(KMALLOC)
 #  define	KMALLOC(a,b)	(a) = (b)new_kmem_alloc(sizeof(*(a)), \
 							KMEM_NOSLEEP)
 #  define	KMALLOCS(a,b,c)	(a) = (b)new_kmem_alloc((c), KMEM_NOSLEEP)
