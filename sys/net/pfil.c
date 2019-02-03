@@ -46,6 +46,8 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/ucred.h>
+#include <sys/jail.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -495,6 +497,7 @@ pfil_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 {
 	int error;
 
+	CURVNET_SET(TD_TO_VNET(td));
 	error = 0;
 	switch (cmd) {
 	case PFILIOC_LISTHEADS:
@@ -507,9 +510,10 @@ pfil_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		error = pfilioc_link((struct pfilioc_link *)addr);
 		break;
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
-
+	CURVNET_RESTORE();
 	return (error);
 }
 
