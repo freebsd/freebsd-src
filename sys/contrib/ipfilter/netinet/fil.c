@@ -20,26 +20,18 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#if defined(_KERNEL) && defined(__FreeBSD_version) && \
-    (__FreeBSD_version >= 220000)
-# if (__FreeBSD_version >= 400000)
+#if defined(_KERNEL) && defined(__FreeBSD_version)
 #  if !defined(IPFILTER_LKM)
 #   include "opt_inet6.h"
 #  endif
-#  if (__FreeBSD_version == 400019)
-#   define CSUM_DELAY_DATA
-#  endif
-# endif
 # include <sys/filio.h>
 #else
 # include <sys/ioctl.h>
 #endif
-#if (defined(__SVR4) || defined(__svr4__)) && defined(sun)
+#if defined(__SVR4) || defined(sun) /* SOLARIS */
 # include <sys/filio.h>
 #endif
-#if !defined(_AIX51)
 # include <sys/fcntl.h>
-#endif
 #if defined(_KERNEL)
 # include <sys/systm.h>
 # include <sys/file.h>
@@ -50,29 +42,18 @@
 # include <stddef.h>
 # include <sys/file.h>
 # define _KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 #endif
-#if !defined(__SVR4) && !defined(__svr4__) && !defined(__hpux) && \
-    !defined(linux)
+#if !defined(__SVR4)
 # include <sys/mbuf.h>
 #else
-# if !defined(linux)
 #  include <sys/byteorder.h>
-# endif
 # if (SOLARIS2 < 5) && defined(sun)
 #  include <sys/dditypes.h>
 # endif
 #endif
-#ifdef __hpux
-# define _NET_ROUTE_INCLUDED
-#endif
-#if !defined(linux)
 # include <sys/protosw.h>
-#endif
 #include <sys/socket.h>
 #include <net/if.h>
 #ifdef sun
@@ -81,25 +62,13 @@ struct file;
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#if defined(__sgi) && defined(IFF_DRVRLOCK) /* IRIX 6 */
-# include <sys/hashing.h>
-# include <netinet/in_var.h>
-#endif
 #include <netinet/tcp.h>
-#if (!defined(__sgi) && !defined(AIX)) || defined(_KERNEL)
 # include <netinet/udp.h>
 # include <netinet/ip_icmp.h>
-#endif
-#ifdef __hpux
-# undef _NET_ROUTE_INCLUDED
-#endif
-#ifdef __osf__
-# undef _RADIX_H_
-#endif
 #include "netinet/ip_compat.h"
 #ifdef	USE_INET6
 # include <netinet/icmp6.h>
-# if !SOLARIS && defined(_KERNEL) && !defined(__osf__) && !defined(__hpux)
+# if !SOLARIS && defined(_KERNEL)
 #  include <netinet6/in6_var.h>
 # endif
 #endif
@@ -122,7 +91,7 @@ struct file;
 #if defined(IPFILTER_BPF) && defined(_KERNEL)
 # include <net/bpf.h>
 #endif
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
+#if defined(__FreeBSD_version)
 # include <sys/malloc.h>
 #endif
 #include "netinet/ipl.h"
@@ -130,10 +99,6 @@ struct file;
 #if defined(__NetBSD__) && (__NetBSD_Version__ >= 104230000)
 # include <sys/callout.h>
 extern struct callout ipf_slowtimer_ch;
-#endif
-#if defined(__OpenBSD__)
-# include <sys/timeout.h>
-extern struct timeout ipf_slowtimer_ch;
 #endif
 /* END OF INCLUDES */
 
@@ -214,10 +179,7 @@ static	int		ipf_updateipid __P((fr_info_t *));
 static	int		ipf_settimeout __P((struct ipf_main_softc_s *,
 					    struct ipftuneable *,
 					    ipftuneval_t *));
-#if !defined(_KERNEL) || (!defined(__NetBSD__) && !defined(__OpenBSD__) && \
-     !defined(__FreeBSD__)) || \
-    FREEBSD_LT_REV(501000) || NETBSD_LT_REV(105000000) || \
-    OPENBSD_LT_REV(200006)
+#if !defined(_KERNEL) || SOLARIS
 static	int		ppsratecheck(struct timeval *, int *, int);
 #endif
 
@@ -3267,12 +3229,6 @@ finished:
 		}
 	} else {
 		LBUMP(ipf_stats[out].fr_pass);
-#if defined(_KERNEL) && defined(__sgi)
-		if ((fin->fin_hbuf != NULL) &&
-		    (mtod(fin->fin_m, struct ip *) != fin->fin_ip)) {
-			COPYBACK(fin->fin_m, 0, fin->fin_plen, fin->fin_hbuf);
-		}
-#endif
 	}
 
 	SPL_X(s);
@@ -5483,10 +5439,7 @@ ipf_resolvefunc(softc, data)
 }
 
 
-#if !defined(_KERNEL) || (!defined(__NetBSD__) && !defined(__OpenBSD__) && \
-     !defined(__FreeBSD__)) || \
-    FREEBSD_LT_REV(501000) || NETBSD_LT_REV(105000000) || \
-    OPENBSD_LT_REV(200006)
+#if !defined(_KERNEL) || SOLARIS
 /*
  * From: NetBSD
  * ppsratecheck(): packets (or events) per second limitation.
@@ -10111,9 +10064,6 @@ ipf_slowtimer(softc)
 	ipf_rule_expire(softc);
 	ipf_sync_expire(softc);
 	softc->ipf_ticks++;
-#   if defined(__OpenBSD__)
-	timeout_add(&ipf_slowtimer_ch, hz/2);
-#   endif
 }
 
 

@@ -25,14 +25,7 @@
 # include <sys/pfmod.h>
 # include <sys/bufmod.h>
 #endif
-#ifdef __osf__
-# include <sys/dlpihdr.h>
-#else
 # include <sys/dlpi.h>
-#endif
-#ifdef __hpux
-# include <sys/dlpi_ext.h>
-#endif
 
 #include <net/if.h>
 #include <netinet/in.h>

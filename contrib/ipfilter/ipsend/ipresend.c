@@ -18,9 +18,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#ifndef	linux
 #include <netinet/ip_var.h>
-#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -37,9 +35,6 @@ extern	struct	ipread	pcap, iphex, iptext;
 
 int	opts = 0;
 #ifndef	DEFAULT_DEVICE
-# ifdef	linux
-char	default_device[] = "eth0";
-# else
 #  ifdef	sun
 char	default_device[] = "le0";
 #  else
@@ -49,15 +44,10 @@ char	default_device[] = "ln0";
 #    ifdef	__bsdi__
 char	default_device[] = "ef0";
 #    else
-#     ifdef	__sgi
-char	default_device[] = "ec0";
-#     else
 char	default_device[] = "lan0";
-#     endif
 #    endif
 #   endif
 #  endif
-# endif
 #else
 char	default_device[] = DEFAULT_DEVICE;
 #endif
