@@ -11,9 +11,7 @@
 #ifndef	__IP_FIL_H__
 #define	__IP_FIL_H__
 
-#if !defined(linux) || !defined(_KERNEL)
 # include <netinet/in.h>
-#endif
 
 #include "netinet/ip_compat.h"
 #include "netinet/ipf_rb.h"
@@ -21,15 +19,11 @@
 # include <sys/callout.h>
 #endif
 #if defined(BSD) && defined(_KERNEL)
-# if NETBSD_LT_REV(399000000) || defined(__osf__) || FREEBSD_LT_REV(500043)
-#  include <sys/select.h>
-# else
 #  include <sys/selinfo.h>
-# endif
 #endif
 
 #ifndef	SOLARIS
-# if defined(sun) && (defined(__svr4__) || defined(__SVR4))
+# if defined(sun) && defined(__SVR4)
 #  define	SOLARIS		1
 # else
 #  define	SOLARIS		0
@@ -44,7 +38,7 @@
 # endif
 #endif
 
-#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
+#if defined(__STDC__) || defined(__GNUC__)
 # define	SIOCADAFR	_IOW('r', 60, struct ipfobj)
 # define	SIOCRMAFR	_IOW('r', 61, struct ipfobj)
 # define	SIOCSETFF	_IOW('r', 62, u_int)
@@ -458,9 +452,6 @@ typedef	struct	fr_info	{
 	mb_t	*fin_qfm;		/* pointer to mblk where pkt starts */
 	void	*fin_qpi;
 	char	fin_ifname[LIFNAMSIZ];
-#endif
-#ifdef	__sgi
-	void	*fin_hbuf;
 #endif
 	void	*fin_fraghdr;		/* pointer to start of ipv6 frag hdr */
 } fr_info_t;
@@ -1425,10 +1416,6 @@ typedef	struct	ipftune	{
 /*
 ** HPUX Port
 */
-#ifdef __hpux
-/* HP-UX locking sequence deadlock detection module lock MAJOR ID */
-# define	IPF_SMAJ	0	/* temp assignment XXX, not critical */
-#endif
 
 #if !defined(CDEV_MAJOR) && defined (__FreeBSD_version) && \
     (__FreeBSD_version >= 220000)
@@ -1624,22 +1611,14 @@ typedef struct ipf_main_softc_s {
 	frentry_t	*ipf_rule_explist[2];
 	ipftoken_t	*ipf_token_head;
 	ipftoken_t	**ipf_token_tail;
-#if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000) && \
-    defined(_KERNEL)
+#if defined(__FreeBSD_version) && defined(_KERNEL)
 	struct callout ipf_slow_ch;
-#endif
-#if defined(linux) && defined(_KERNEL)
-	struct timer_list	ipf_timer;
 #endif
 #if NETBSD_GE_REV(104040000)
 	struct callout	ipf_slow_ch;
 #endif
 #if SOLARIS
-# if SOLARIS2 >= 7
 	timeout_id_t	ipf_slow_ch;
-# else
-	int		ipf_slow_ch;
-# endif
 #endif
 #if defined(_KERNEL)
 # if SOLARIS
@@ -1662,12 +1641,7 @@ typedef struct ipf_main_softc_s {
 	hook_t		*ipf_hk_loop_v6_out;
 #  endif
 # else
-#  if defined(linux) && defined(_KERNEL)
-	struct poll_table_struct	ipf_selwait[IPL_LOGSIZE];
-	wait_queue_head_t		iplh_linux[IPL_LOGSIZE];
-#  else
 	struct selinfo	ipf_selwait[IPL_LOGSIZE];
-#  endif
 # endif
 #endif
 	void		*ipf_slow;
@@ -1697,67 +1671,27 @@ extern	void	ipfilterattach __P((int));
 extern	int	ipl_enable __P((void));
 extern	int	ipl_disable __P((void));
 # ifdef MENTAT
+/* XXX MENTAT is always defined for Solaris */
 extern	int	ipf_check __P((void *, struct ip *, int, void *, int, void *,
 			       mblk_t **));
 #  if SOLARIS
 extern	void	ipf_prependmbt(fr_info_t *, mblk_t *);
-#   if SOLARIS2 >= 7
 extern	int	ipfioctl __P((dev_t, int, intptr_t, int, cred_t *, int *));
-#   else
-extern	int	ipfioctl __P((dev_t, int, int *, int, cred_t *, int *));
-#   endif
-#  endif
-#  ifdef __hpux
-extern	int	ipfioctl __P((dev_t, int, caddr_t, int));
-extern	int	ipf_select __P((dev_t, int));
 #  endif
 extern	int	ipf_qout __P((queue_t *, mblk_t *));
 # else /* MENTAT */
+/* XXX MENTAT is never defined for FreeBSD & NetBSD */
 extern	int	ipf_check __P((void *, struct ip *, int, void *, int, mb_t **));
 extern	int	(*fr_checkp) __P((ip_t *, int, void *, int, mb_t **));
 extern	size_t	mbufchainlen __P((mb_t *));
-#  ifdef	__sgi
-#   include <sys/cred.h>
-extern	int	ipfioctl __P((dev_t, int, caddr_t, int, cred_t *, int *));
-extern	int	ipfilter_sgi_attach __P((void));
-extern	void	ipfilter_sgi_detach __P((void));
-extern	void	ipfilter_sgi_intfsync __P((void));
-#  else
 #   ifdef	IPFILTER_LKM
 extern	int	ipf_identify __P((char *));
 #   endif
-#   if BSDOS_GE_REV(199510) || FREEBSD_GE_REV(220000) || \
-      (defined(NetBSD) && (NetBSD >= 199511)) || defined(__OpenBSD__)
-#    if defined(__NetBSD__) || BSDOS_GE_REV(199701) || \
-       defined(__OpenBSD__) || FREEBSD_GE_REV(300000)
-#     if (__FreeBSD_version >= 500024)
-#      if (__FreeBSD_version >= 502116)
+#     if defined(__FreeBSD_version)
 extern	int	ipfioctl __P((struct cdev*, u_long, caddr_t, int, struct thread *));
-#      else
-extern	int	ipfioctl __P((dev_t, u_long, caddr_t, int, struct thread *));
-#      endif /* __FreeBSD_version >= 502116 */
-#     else
-#      if  NETBSD_GE_REV(499001000)
+#     elif defined(__NetBSD__)
 extern	int	ipfioctl __P((dev_t, u_long, void *, int, struct lwp *));
-#       else
-#       if  NETBSD_GE_REV(399001400)
-extern	int	ipfioctl __P((dev_t, u_long, caddr_t, int, struct lwp *));
-#       else
-extern	int	ipfioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
-#       endif
-#      endif
-#     endif /* __FreeBSD_version >= 500024 */
-#    else
-extern	int	ipfioctl __P((dev_t, int, caddr_t, int, struct proc *));
-#    endif
-#   else
-#    ifdef linux
-extern	int	ipfioctl __P((struct inode *, struct file *, u_int, u_long));
-#    else
-extern	int	ipfioctl __P((dev_t, int, caddr_t, int));
-#    endif
-#   endif /* (_BSDI_VERSION >= 199510) */
-#  endif /* __ sgi */
+#     endif
 # endif /* MENTAT */
 
 # if defined(__FreeBSD_version)

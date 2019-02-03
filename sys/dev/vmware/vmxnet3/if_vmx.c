@@ -398,7 +398,7 @@ vmxnet3_attach_pre(if_ctx_t ctx)
 	/*
 	 * Configure the softc context to attempt to configure the interrupt
 	 * mode now indicated by intr_config.  iflib will follow the usual
-	 * fallback path MSIX -> MSI -> LEGACY, starting at the configured
+	 * fallback path MSI-X -> MSI -> LEGACY, starting at the configured
 	 * starting mode.
 	 */
 	switch (intr_config & 0x03) {
@@ -620,19 +620,18 @@ static void
 vmxnet3_free_resources(struct vmxnet3_softc *sc)
 {
 	device_t dev;
-	int rid;
 
 	dev = sc->vmx_dev;
 
 	if (sc->vmx_res0 != NULL) {
-		rid = PCIR_BAR(0);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->vmx_res0);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_res0), sc->vmx_res0);
 		sc->vmx_res0 = NULL;
 	}
 
 	if (sc->vmx_res1 != NULL) {
-		rid = PCIR_BAR(1);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->vmx_res1);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_res1), sc->vmx_res1);
 		sc->vmx_res1 = NULL;
 	}
 }
@@ -677,14 +676,16 @@ vmxnet3_set_interrupt_idx(struct vmxnet3_softc *sc)
 	scctx = sc->vmx_scctx;
 
 	/*
-	 * There is either one interrupt, or there is one interrupt per
-	 * receive queue.  If there is one interrupt, then all interrupt
-	 * indexes are zero.  If there is one interrupt per receive queue,
-	 * the transmit queue interrupt indexes are assigned the receive
-	 * queue interrupt indexesin round-robin fashion.
-	 *
-	 * The event interrupt is always the last interrupt index.
+	 * There is always one interrupt per receive queue, assigned
+	 * starting with the first interrupt.  When there is only one
+	 * interrupt available, the event interrupt shares the receive queue
+	 * interrupt, otherwise it uses the interrupt following the last
+	 * receive queue interrupt.  Transmit queues are not assigned
+	 * interrupts, so they are given indexes beyond the indexes that
+	 * correspond to the real interrupts.
 	 */
+
+	/* The event interrupt is always the last vector. */
 	sc->vmx_event_intr_idx = scctx->isc_vectors - 1;
 
 	intr_idx = 0;
@@ -1074,14 +1075,14 @@ vmxnet3_init_shared_data(struct vmxnet3_softc *sc)
 	ds->automask = sc->vmx_intr_mask_mode == VMXNET3_IMM_AUTO;
 	/*
 	 * Total number of interrupt indexes we are using in the shared
-	 * config data, even though we don't actually allocate MSIX
+	 * config data, even though we don't actually allocate interrupt
 	 * resources for the tx queues.  Some versions of the device will
 	 * fail to initialize successfully if interrupt indexes are used in
 	 * the shared config that exceed the number of interrupts configured
 	 * here.
 	 */
 	ds->nintr = (scctx->isc_vectors == 1) ?
-	    1 : (scctx->isc_nrxqsets + scctx->isc_ntxqsets + 1);
+	    2 : (scctx->isc_nrxqsets + scctx->isc_ntxqsets + 1);
 	ds->evintr = sc->vmx_event_intr_idx;
 	ds->ictrl = VMXNET3_ICTRL_DISABLE_ALL;
 

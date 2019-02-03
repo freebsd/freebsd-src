@@ -2385,8 +2385,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 			(TF_RCVD_SCALE|TF_REQ_SCALE)) {
 			tp->rcv_scale = tp->request_r_scale;
-			tp->snd_wnd = tiwin;
 		}
+		tp->snd_wnd = tiwin;
 		/*
 		 * Make transitions:
 		 *      SYN-RECEIVED  -> ESTABLISHED

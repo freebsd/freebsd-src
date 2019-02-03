@@ -17,7 +17,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2014
+.Dd January 30, 2019
 .Dt VMX 4
 .Os
 .Sh NAME
@@ -25,9 +25,10 @@
 .Nd VMware VMXNET3 Virtual Interface Controller device
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following line in your
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device iflib"
 .Cd "device vmx"
 .Ed
 .Pp

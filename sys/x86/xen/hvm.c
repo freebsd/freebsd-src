@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 
 #include <xen/xen-os.h>
+#include <xen/error.h>
 #include <xen/features.h>
 #include <xen/gnttab.h>
 #include <xen/hypervisor.h>
@@ -87,6 +88,12 @@ int xen_vector_callback_enabled;
  * PVHv2, and it's always empty for HVM guests.
  */
 uint32_t hvm_start_flags;
+
+/**
+ * Signal whether the vector injected for the event channel upcall requires to
+ * be EOI'ed on the local APIC.
+ */
+bool xen_evtchn_needs_ack;
 
 /*------------------------------- Per-CPU Data -------------------------------*/
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
@@ -223,6 +230,19 @@ xen_hvm_init_shared_info_page(void)
 		panic("HYPERVISOR_memory_op failed");
 }
 
+static int
+set_percpu_callback(unsigned int vcpu)
+{
+	struct xen_hvm_evtchn_upcall_vector vec;
+	int error;
+
+	vec.vcpu = vcpu;
+	vec.vector = IDT_EVTCHN;
+	error = HYPERVISOR_hvm_op(HVMOP_set_evtchn_upcall_vector, &vec);
+
+	return (error != 0 ? xen_translate_error(error) : 0);
+}
+
 /*
  * Tell the hypervisor how to contact us for event channel callbacks.
  */
@@ -240,12 +260,20 @@ xen_hvm_set_callback(device_t dev)
 	if (xen_feature(XENFEAT_hvm_callback_vector) != 0) {
 		int error;
 
-		xhp.value = HVM_CALLBACK_VECTOR(IDT_EVTCHN);
+		error = set_percpu_callback(0);
+		if (error == 0) {
+			xen_evtchn_needs_ack = true;
+			/* Trick toolstack to think we are enlightened */
+			xhp.value = 1;
+		} else
+			xhp.value = HVM_CALLBACK_VECTOR(IDT_EVTCHN);
 		error = HYPERVISOR_hvm_op(HVMOP_set_param, &xhp);
 		if (error == 0) {
 			xen_vector_callback_enabled = 1;
 			return;
-		}
+		} else if (xen_evtchn_needs_ack)
+			panic("Unable to setup fake HVM param: %d", error);
+
 		printf("Xen HVM callback vector registration failed (%d). "
 		    "Falling back to emulated device interrupt\n", error);
 	}
@@ -360,6 +388,7 @@ xen_hvm_init(enum xen_hvm_init_type init_type)
 	}
 
 	xen_vector_callback_enabled = 0;
+	xen_evtchn_needs_ack = false;
 	xen_hvm_set_callback(NULL);
 
 	/*
@@ -426,6 +455,20 @@ xen_hvm_cpu_init(void)
 	    ("Xen PV domain without vcpu_id in cpuid"));
 	PCPU_SET(vcpu_id, (regs[0] & XEN_HVM_CPUID_VCPU_ID_PRESENT) ?
 	    regs[1] : PCPU_GET(acpi_id));
+
+	if (xen_evtchn_needs_ack && !IS_BSP()) {
+		/*
+		 * Setup the per-vpcu event channel upcall vector. This is only
+		 * required when using the new HVMOP_set_evtchn_upcall_vector
+		 * hypercall, which allows using a different vector for each
+		 * vCPU. Note that FreeBSD uses the same vector for all vCPUs
+		 * because it's not dynamically allocated.
+		 */
+		rc = set_percpu_callback(PCPU_GET(vcpu_id));
+		if (rc != 0)
+			panic("Event channel upcall vector setup failed: %d",
+			    rc);
+	}
 
 	/*
 	 * Set the vCPU info.

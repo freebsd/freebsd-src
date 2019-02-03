@@ -792,16 +792,21 @@ again:
 	}
 
 	/* Jump over all PFIL processing if hooks are not active. */
-	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
+	if (!PFIL_HOOKED_OUT(V_inet6_pfil_head))
 		goto passout;
 
 	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
-	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, ifp, PFIL_OUT, 0, inp);
-	if (error != 0 || m == NULL)
+	switch (pfil_run_hooks(V_inet6_pfil_head, &m, ifp, PFIL_OUT, inp)) {
+	case PFIL_PASS:
+		ip6 = mtod(m, struct ip6_hdr *);
+		break;
+	case PFIL_DROPPED:
+		error = EPERM;
+		/* FALLTHROUGH */
+	case PFIL_CONSUMED:
 		goto done;
-	/* adjust pointer */
-	ip6 = mtod(m, struct ip6_hdr *);
+	}
 
 	needfiblookup = 0;
 	/* See if destination IP address was changed by packet filter. */

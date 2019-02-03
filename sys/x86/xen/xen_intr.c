@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xen-os.h>
 
 #include <xen/xen-os.h>
+#include <xen/hvm.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <xen/evtchn/evtchnvar.h>
@@ -620,6 +621,10 @@ xen_intr_handle_upcall(struct trapframe *trap_frame)
 			l1 &= ~(1UL << l1i);
 		}
 	}
+
+	if (xen_evtchn_needs_ack)
+		lapic_eoi();
+
 	critical_exit();
 }
 

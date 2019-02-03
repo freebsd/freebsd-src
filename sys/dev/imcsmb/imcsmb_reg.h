@@ -4,7 +4,6 @@
  * Authors: Joe Kloss; Ravi Pokala (rpokala@freebsd.org)
  *
  * Copyright (c) 2017-2018 Panasas
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

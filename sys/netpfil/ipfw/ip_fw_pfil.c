@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/ethernet.h>
 #include <net/pfil.h>
@@ -85,10 +86,6 @@ int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
 static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
-int ipfw_check_packet(void *, struct mbuf **, struct ifnet *, int,
-	struct inpcb *);
-int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
-	struct inpcb *);
 
 #ifdef SYSCTL_NODE
 
@@ -120,16 +117,17 @@ SYSEND
  * dummynet, divert, netgraph or other modules.
  * The packet may be consumed.
  */
-int
-ipfw_check_packet(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
-    struct inpcb *inp)
+static pfil_return_t
+ipfw_check_packet(struct mbuf **m0, struct ifnet *ifp, int dir,
+    void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
 	struct m_tag *tag;
-	int ipfw, ret;
+	pfil_return_t ret;
+	int ipfw;
 
 	/* convert dir to IPFW values */
-	dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+	dir = (dir & PFIL_IN) ? DIR_IN : DIR_OUT;
 	args.flags = 0;
 again:
 	/*
@@ -155,17 +153,15 @@ again:
 	KASSERT(*m0 != NULL || ipfw == IP_FW_DENY, ("%s: m0 is NULL",
 	    __func__));
 
-	/* breaking out of the switch means drop */
+	ret = PFIL_PASS;
 	switch (ipfw) {
 	case IP_FW_PASS:
 		/* next_hop may be set by ipfw_chk */
 		if ((args.flags & (IPFW_ARGS_NH4 | IPFW_ARGS_NH4PTR |
-		    IPFW_ARGS_NH6 | IPFW_ARGS_NH6PTR)) == 0) {
-			ret = 0;
+		    IPFW_ARGS_NH6 | IPFW_ARGS_NH6PTR)) == 0)
 			break;
-		}
 #if (!defined(INET6) && !defined(INET))
-		ret = EACCES;
+		ret = PFIL_DROPPED;
 #else
 	    {
 		void *psa;
@@ -210,8 +206,8 @@ again:
 			tag = m_tag_get(PACKET_TAG_IPFORWARD, len,
 			    M_NOWAIT);
 			if (tag == NULL) {
-				ret = EACCES;
-				break; /* i.e. drop */
+				ret = PFIL_DROPPED;
+				break;
 			}
 		}
 		if ((args.flags & IPFW_ARGS_NH6) == 0)
@@ -238,7 +234,7 @@ again:
 			 * comparisons.
 			 */
 			if (sa6_embedscope(sa6, V_ip6_use_defzone) != 0) {
-				ret = EACCES;
+				ret = PFIL_DROPPED;
 				break;
 			}
 			if (in6_localip(&sa6->sin6_addr))
@@ -250,20 +246,23 @@ again:
 		break;
 
 	case IP_FW_DENY:
-		ret = EACCES;
-		break; /* i.e. drop */
+		ret = PFIL_DROPPED;
+		break;
 
 	case IP_FW_DUMMYNET:
-		ret = EACCES;
-		if (ip_dn_io_ptr == NULL)
-			break; /* i.e. drop */
+		if (ip_dn_io_ptr == NULL) {
+			ret = PFIL_DROPPED;
+			break;
+		}
 		MPASS(args.flags & IPFW_ARGS_REF);
 		if (mtod(*m0, struct ip *)->ip_v == 4)
-			ret = ip_dn_io_ptr(m0, dir, &args);
+			(void )ip_dn_io_ptr(m0, dir, &args);
 		else if (mtod(*m0, struct ip *)->ip_v == 6)
-			ret = ip_dn_io_ptr(m0, dir | PROTO_IPV6, &args);
-		else
-			break; /* drop it */
+			(void )ip_dn_io_ptr(m0, dir | PROTO_IPV6, &args);
+		else {
+			ret = PFIL_DROPPED;
+			break;
+		}
 		/*
 		 * XXX should read the return value.
 		 * dummynet normally eats the packet and sets *m0=NULL
@@ -273,41 +272,42 @@ again:
 		 */
 		if (*m0 != NULL)
 			goto again;
+		ret = PFIL_CONSUMED;
 		break;
 
 	case IP_FW_TEE:
 	case IP_FW_DIVERT:
 		if (ip_divert_ptr == NULL) {
-			ret = EACCES;
-			break; /* i.e. drop */
+			ret = PFIL_DROPPED;
+			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ret = ipfw_divert(m0, dir, &args.rule,
+		(void )ipfw_divert(m0, dir, &args.rule,
 			(ipfw == IP_FW_TEE) ? 1 : 0);
 		/* continue processing for the original packet (tee). */
 		if (*m0)
 			goto again;
+		ret = PFIL_CONSUMED;
 		break;
 
 	case IP_FW_NGTEE:
 	case IP_FW_NETGRAPH:
 		if (ng_ipfw_input_p == NULL) {
-			ret = EACCES;
-			break; /* i.e. drop */
+			ret = PFIL_DROPPED;
+			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ret = ng_ipfw_input_p(m0, dir, &args,
+		(void )ng_ipfw_input_p(m0, dir, &args,
 			(ipfw == IP_FW_NGTEE) ? 1 : 0);
 		if (ipfw == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
+		ret = PFIL_CONSUMED;
 		break;
 
 	case IP_FW_NAT:
 		/* honor one-pass in case of successful nat */
-		if (V_fw_one_pass) {
-			ret = 0;
+		if (V_fw_one_pass)
 			break;
-		}
 		goto again;
 
 	case IP_FW_REASS:
@@ -317,7 +317,7 @@ again:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
 
-	if (ret != 0) {
+	if (ret != PFIL_PASS) {
 		if (*m0)
 			FREE_PKT(*m0);
 		*m0 = NULL;
@@ -329,16 +329,17 @@ again:
 /*
  * ipfw processing for ethernet packets (in and out).
  */
-int
-ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
-    struct inpcb *inp)
+static pfil_return_t
+ipfw_check_frame(struct mbuf **m0, struct ifnet *ifp, int dir,
+    void *ruleset __unused, struct inpcb *inp)
 {
 	struct ip_fw_args args;
 	struct ether_header save_eh;
 	struct ether_header *eh;
 	struct m_tag *mtag;
 	struct mbuf *m;
-	int i, ret;
+	pfil_return_t ret;
+	int i;
 
 	args.flags = IPFW_ARGS_ETHER;
 again:
@@ -367,7 +368,7 @@ again:
 	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
 
 	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dir == PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
+	args.oif = dir & PFIL_OUT ? ifp: NULL;	/* destination, if any	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	args.inp = inp;	/* used by ipfw uid/gid/jail rules	*/
 	i = ipfw_chk(&args);
@@ -388,46 +389,46 @@ again:
 	}
 	*m0 = m;
 
-	ret = 0;
+	ret = PFIL_PASS;
 	/* Check result of ipfw_chk() */
 	switch (i) {
 	case IP_FW_PASS:
 		break;
 
 	case IP_FW_DENY:
-		ret = EACCES;
-		break; /* i.e. drop */
+		ret = PFIL_DROPPED;
+		break;
 
 	case IP_FW_DUMMYNET:
-		ret = EACCES;
-
-		if (ip_dn_io_ptr == NULL)
-			break; /* i.e. drop */
-
+		if (ip_dn_io_ptr == NULL) {
+			ret = PFIL_DROPPED;
+			break;
+		}
 		*m0 = NULL;
-		dir = (dir == PFIL_IN) ? DIR_IN : DIR_OUT;
+		dir = (dir & PFIL_IN) ? DIR_IN : DIR_OUT;
 		MPASS(args.flags & IPFW_ARGS_REF);
 		ip_dn_io_ptr(&m, dir | PROTO_LAYER2, &args);
-		return 0;
+		return (PFIL_CONSUMED);
 
 	case IP_FW_NGTEE:
 	case IP_FW_NETGRAPH:
 		if (ng_ipfw_input_p == NULL) {
-			ret = EACCES;
-			break; /* i.e. drop */
+			ret = PFIL_DROPPED;
+			break;
 		}
 		MPASS(args.flags & IPFW_ARGS_REF);
-		ret = ng_ipfw_input_p(m0, (dir == PFIL_IN) ? DIR_IN : DIR_OUT,
+		(void )ng_ipfw_input_p(m0, (dir & PFIL_IN) ? DIR_IN : DIR_OUT,
 			&args, (i == IP_FW_NGTEE) ? 1 : 0);
 		if (i == IP_FW_NGTEE) /* ignore errors for NGTEE */
 			goto again;	/* continue with packet */
+		ret = PFIL_CONSUMED;
 		break;
 
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}
 
-	if (ret != 0) {
+	if (ret != PFIL_PASS) {
 		if (*m0)
 			FREE_PKT(*m0);
 		*m0 = NULL;
@@ -531,20 +532,64 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 /*
  * attach or detach hooks for a given protocol family
  */
+VNET_DEFINE_STATIC(pfil_hook_t, ipfw_inet_hook);
+#define	V_ipfw_inet_hook	VNET(ipfw_inet_hook)
+#ifdef INET6
+VNET_DEFINE_STATIC(pfil_hook_t, ipfw_inet6_hook);
+#define	V_ipfw_inet6_hook	VNET(ipfw_inet6_hook)
+#endif
+VNET_DEFINE_STATIC(pfil_hook_t, ipfw_link_hook);
+#define	V_ipfw_link_hook	VNET(ipfw_link_hook)
+
 static int
 ipfw_hook(int onoff, int pf)
 {
-	struct pfil_head *pfh;
-	pfil_func_t hook_func;
+	struct pfil_hook_args pha;
+	struct pfil_link_args pla;
+	pfil_hook_t *h;
 
-	pfh = pfil_head_get(PFIL_TYPE_AF, pf);
-	if (pfh == NULL)
-		return ENOENT;
+	pha.pa_version = PFIL_VERSION;
+	pha.pa_flags = PFIL_IN | PFIL_OUT;
+	pha.pa_modname = "ipfw";
+	pha.pa_ruleset = NULL;
 
-	hook_func = (pf == AF_LINK) ? ipfw_check_frame : ipfw_check_packet;
+	pla.pa_version = PFIL_VERSION;
+	pla.pa_flags = PFIL_IN | PFIL_OUT |
+	    PFIL_HEADPTR | PFIL_HOOKPTR;
 
-	(void) (onoff ? pfil_add_hook : pfil_remove_hook)
-	    (hook_func, NULL, PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh);
+	switch (pf) {
+	case AF_INET:
+		pha.pa_func = ipfw_check_packet;
+		pha.pa_type = PFIL_TYPE_IP4;
+		pha.pa_rulname = "default";
+		h = &V_ipfw_inet_hook;
+		pla.pa_head = V_inet_pfil_head;
+		break;
+#ifdef INET6
+	case AF_INET6:
+		pha.pa_func = ipfw_check_packet;
+		pha.pa_type = PFIL_TYPE_IP6;
+		pha.pa_rulname = "default6";
+		h = &V_ipfw_inet6_hook;
+		pla.pa_head = V_inet6_pfil_head;
+		break;
+#endif
+	case AF_LINK:
+		pha.pa_func = ipfw_check_frame;
+		pha.pa_type = PFIL_TYPE_ETHERNET;
+		pha.pa_rulname = "default-link";
+		h = &V_ipfw_link_hook;
+		pla.pa_head = V_link_pfil_head;
+		break;
+	}
+
+	if (onoff) {
+		*h = pfil_add_hook(&pha);
+		pla.pa_hook = *h;
+		(void)pfil_link(&pla);
+	} else
+		if (*h != NULL)
+			pfil_remove_hook(*h);
 
 	return 0;
 }

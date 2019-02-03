@@ -623,7 +623,7 @@ static int
 hash_alloc(struct uma_hash *hash)
 {
 	int oldsize;
-	int alloc;
+	size_t alloc;
 
 	oldsize = hash->uh_hashsize;
 
@@ -2844,7 +2844,7 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int domain, int flags, int max)
 		return (NULL);
 
 	bucket->ub_cnt = zone->uz_import(zone->uz_arg, bucket->ub_bucket,
-	    max, domain, flags);
+	    MIN(max, bucket->ub_entries), domain, flags);
 
 	/*
 	 * Initialize the memory if necessary.

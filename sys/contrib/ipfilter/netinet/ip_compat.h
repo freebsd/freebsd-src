@@ -33,7 +33,7 @@
 #endif
 
 #ifndef	SOLARIS
-# if defined(sun) && (defined(__svr4__) || defined(__SVR4))
+# if defined(sun) && defined(__SVR4)
 #  define	SOLARIS		1
 # else
 #  define	SOLARIS		0
@@ -41,7 +41,7 @@
 #endif
 
 
-#if defined(__SVR4) || defined(__svr4__) || defined(__sgi)
+#if defined(__SVR4)
 # define index   strchr
 # if !defined(_KERNEL)
 #  define	bzero(a,b)	memset(a,0,b)
@@ -62,11 +62,6 @@
 # endif
 #endif
 
-#if defined(__sgi) || defined(bsdi) || defined(__hpux) || defined(hpux)
-struct  ether_addr {
-        u_char  ether_addr_octet[6];
-};
-#endif
 
 # ifdef __STDC__
 #  define IPL_EXTERN(ep) ipl##ep
@@ -100,15 +95,6 @@ struct  ether_addr {
 				 (__FreeBSD_version > (x)))
 #define	FREEBSD_LT_REV(x)	(defined(__FreeBSD_version) && \
 				 (__FreeBSD_version < (x)))
-#define	BSDOS_GE_REV(x)		(defined(_BSDI_VERSION) && \
-				 (_BSDI_VERSION >= (x)))
-#define	BSDOS_GT_REV(x)		(defined(_BSDI_VERSION) && \
-				 (_BSDI_VERSION > (x)))
-#define	BSDOS_LT_REV(x)		(defined(_BSDI_VERSION) && \
-				 (_BSDI_VERSION < (x)))
-#define	OPENBSD_GE_REV(x)	(defined(OpenBSD) && (OpenBSD >= (x)))
-#define	OPENBSD_GT_REV(x)	(defined(OpenBSD) && (OpenBSD > (x)))
-#define	OPENBSD_LT_REV(x)	(defined(OpenBSD) && (OpenBSD < (x)))
 #define	BSD_GE_YEAR(x)		(defined(BSD) && (BSD >= (x)))
 #define	BSD_GT_YEAR(x)		(defined(BSD) && (BSD > (x)))
 #define	BSD_LT_YEAR(x)		(defined(BSD) && (BSD < (x)))
@@ -321,8 +307,7 @@ typedef union {
 #define	ipf_isw		ipf_lkun_s.ipf_sw
 #define	ipf_magic	ipf_lkun_s.ipf_magic
 
-#if !defined(__GNUC__) || \
-    (defined(__FreeBSD_version) && (__FreeBSD_version >= 503000))
+#if !defined(__GNUC__) || defined(__FreeBSD_version)
 # ifndef	INLINE
 #  define	INLINE
 # endif
@@ -473,11 +458,10 @@ extern	mb_t	*allocmbt(size_t);
 
 
 #ifdef	USE_INET6
-# if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD__) || \
-     defined(__osf__) || defined(linux)
+# if defined(__NetBSD__) || defined(__FreeBSD__)
 #  include <netinet/ip6.h>
 #  include <netinet/icmp6.h>
-#   if defined(_KERNEL) && !defined(__osf__)
+#   if defined(_KERNEL)
 #    include <netinet6/ip6_var.h>
 #   endif
 typedef	struct ip6_hdr	ip6_t;
@@ -497,21 +481,16 @@ typedef	struct ip6_hdr	ip6_t;
 #  define	COPYBACK	m_copyback
 # endif
 #  if (defined(__NetBSD_Version__) && (__NetBSD_Version__ < 105180000)) || \
-       defined(__FreeBSD__) || (defined(OpenBSD) && (OpenBSD < 200206)) || \
-       defined(_BSDI_VERSION)
+       defined(__FreeBSD__)
 #   include <vm/vm.h>
 #  endif
-#  if !defined(__FreeBSD__) || FREEBSD_GE_REV(300000)
-#   if NETBSD_GE_REV(105180000) || OPENBSD_GE_REV(200111)
+#   if NETBSD_GE_REV(105180000)
 #    include <uvm/uvm_extern.h>
 #   else
 #    include <vm/vm_extern.h>
 extern  vm_map_t        kmem_map;
 #   endif
 #   include <sys/proc.h>
-#  else /* !__FreeBSD__ || (__FreeBSD__ && __FreeBSD_version >= 300000) */
-#   include <vm/vm_kern.h>
-#  endif /* !__FreeBSD__ || (__FreeBSD__ && __FreeBSD_version >= 300000) */
 
 #  ifdef IPFILTER_M_IPFILTER
 #    include <sys/malloc.h>
@@ -611,7 +590,7 @@ MALLOC_DECLARE(M_IPFILTER);
 #  define	COPYOUT(a,b,c)	(bcopy((caddr_t)(a), (caddr_t)(b), (c)), 0)
 # endif
 
-# ifndef KMALLOC
+# if SOLARIS && !defined(KMALLOC)
 #  define	KMALLOC(a,b)	(a) = (b)new_kmem_alloc(sizeof(*(a)), \
 							KMEM_NOSLEEP)
 #  define	KMALLOCS(a,b,c)	(a) = (b)new_kmem_alloc((c), KMEM_NOSLEEP)

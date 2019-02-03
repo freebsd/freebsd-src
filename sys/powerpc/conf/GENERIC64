@@ -159,6 +159,8 @@ device		scc
 device		uart
 device		uart_z8530
 
+device		iflib
+
 # Ethernet hardware
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		ix		# Intel PRO/10GbE PCIE PF Ethernet Family

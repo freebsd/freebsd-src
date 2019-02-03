@@ -1635,13 +1635,9 @@ MLINKS+=pci_iov_schema.9 pci_iov_schema_alloc_node.9 \
 MLINKS+=pfil.9 pfil_add_hook.9 \
 	pfil.9 pfil_head_register.9 \
 	pfil.9 pfil_head_unregister.9 \
-	pfil.9 pfil_hook_get.9 \
 	pfil.9 pfil_remove_hook.9 \
-	pfil.9 pfil_rlock.9 \
 	pfil.9 pfil_run_hooks.9 \
-	pfil.9 pfil_runlock.9 \
-	pfil.9 pfil_wlock.9 \
-	pfil.9 pfil_wunlock.9
+	pfil.9 pfil_link.9
 MLINKS+=pfind.9 zpfind.9
 MLINKS+=PHOLD.9 PRELE.9 \
 	PHOLD.9 _PHOLD.9 \

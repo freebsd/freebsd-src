@@ -830,6 +830,7 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 	struct netmap_kring *kring;
 	u_int n[NR_TXRX];
 	enum txrx t;
+	int err = 0;
 
 	if (na->tx_rings != NULL) {
 		if (netmap_debug & NM_DEBUG_ON)
@@ -869,7 +870,6 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 		for (i = 0; i < n[t]; i++) {
 			kring = NMR(na, t)[i];
 			bzero(kring, sizeof(*kring));
-			kring->na = na;
 			kring->notify_na = na;
 			kring->ring_id = i;
 			kring->tx = t;
@@ -895,12 +895,20 @@ netmap_krings_create(struct netmap_adapter *na, u_int tailroom)
 					nm_txrx2str(t), i);
 			ND("ktx %s h %d c %d t %d",
 				kring->name, kring->rhead, kring->rcur, kring->rtail);
+			err = nm_os_selinfo_init(&kring->si, kring->name);
+			if (err) {
+				netmap_krings_delete(na);
+				return err;
+			}
 			mtx_init(&kring->q_lock, (t == NR_TX ? "nm_txq_lock" : "nm_rxq_lock"), NULL, MTX_DEF);
-			nm_os_selinfo_init(&kring->si);
+			kring->na = na;	/* setting this field marks the mutex as initialized */
 		}
-		nm_os_selinfo_init(&na->si[t]);
+		err = nm_os_selinfo_init(&na->si[t], na->name);
+		if (err) {
+			netmap_krings_delete(na);
+			return err;
+		}
 	}
-
 
 	return 0;
 }
@@ -925,7 +933,8 @@ netmap_krings_delete(struct netmap_adapter *na)
 
 	/* we rely on the krings layout described above */
 	for ( ; kring != na->tailroom; kring++) {
-		mtx_destroy(&(*kring)->q_lock);
+		if ((*kring)->na != NULL)
+			mtx_destroy(&(*kring)->q_lock);
 		nm_os_selinfo_uninit(&(*kring)->si);
 	}
 	nm_os_free(na->tx_rings);
@@ -2962,6 +2971,9 @@ nmreq_opt_size_by_type(uint32_t nro_reqtype, uint64_t nro_size)
 	case NETMAP_REQ_OPT_CSB:
 		rv = sizeof(struct nmreq_opt_csb);
 		break;
+	case NETMAP_REQ_OPT_SYNC_KLOOP_MODE:
+		rv = sizeof(struct nmreq_opt_sync_kloop_mode);
+		break;
 	}
 	/* subtract the common header */
 	return rv - sizeof(struct nmreq_option);
@@ -3278,10 +3290,8 @@ netmap_poll(struct netmap_priv_d *priv, int events, NM_SELRECORD_T *sr)
 	 * there are pending packets to send. The latter can be disabled
 	 * passing NETMAP_NO_TX_POLL in the NIOCREG call.
 	 */
-	si[NR_RX] = nm_si_user(priv, NR_RX) ? &na->si[NR_RX] :
-				&na->rx_rings[priv->np_qfirst[NR_RX]]->si;
-	si[NR_TX] = nm_si_user(priv, NR_TX) ? &na->si[NR_TX] :
-				&na->tx_rings[priv->np_qfirst[NR_TX]]->si;
+	si[NR_RX] = priv->np_si[NR_RX];
+	si[NR_TX] = priv->np_si[NR_TX];
 
 #ifdef __FreeBSD__
 	/*

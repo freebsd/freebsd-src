@@ -52,6 +52,7 @@ SUBDIR=adjkerntz \
 	newfs_msdos \
 	nfsiod \
 	nos-tun \
+	pfilctl \
 	ping \
 	rcorder \
 	reboot \
