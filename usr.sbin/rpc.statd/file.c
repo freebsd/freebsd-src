@@ -248,9 +248,12 @@ void init_file(const char *filename)
 /*
    Purpose:	Perform SM_NOTIFY procedure at specified host
    Returns:	TRUE if success, FALSE if failed.
+   Notes:	Only report failure if verbose is non-zero. Caller will
+		only set verbose to non-zero for the first attempt to
+		contact the host.
 */
 
-static int notify_one_host(char *hostname)
+static int notify_one_host(char *hostname, int verbose)
 {
   struct timeval timeout = { 20, 0 };	/* 20 secs timeout		*/
   CLIENT *cli;
@@ -277,7 +280,8 @@ static int notify_one_host(char *hostname)
       (xdrproc_t)xdr_void, &dummy, timeout)
     != RPC_SUCCESS)
   {
-    syslog(LOG_ERR, "Failed to contact rpc.statd at host %s", hostname);
+    if (verbose)
+      syslog(LOG_ERR, "Failed to contact rpc.statd at host %s", hostname);
     clnt_destroy(cli);
     return (FALSE);
   }
@@ -346,7 +350,7 @@ void notify_hosts(void)
     {
       if (hp->notifyReqd)
       {
-        if (notify_one_host(hp->hostname))
+        if (notify_one_host(hp->hostname, attempts == 0))
 	{
 	  hp->notifyReqd = FALSE;
           sync_file();
