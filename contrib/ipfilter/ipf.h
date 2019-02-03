@@ -12,11 +12,6 @@
 #ifndef	__IPF_H__
 #define	__IPF_H__
 
-#if defined(__osf__)
-# define radix_mask ipf_radix_mask
-# define radix_node ipf_radix_node
-# define radix_node_head ipf_radix_node_head
-#endif
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -30,9 +25,6 @@
 # define ADD_KERNEL
 # define _KERNEL
 # define KERNEL
-#endif
-#ifdef __OpenBSD__
-struct file;
 #endif
 #include <sys/uio.h>
 #ifdef ADD_KERNEL
@@ -188,9 +180,8 @@ typedef	struct	proxyrule {
 } proxyrule_t;
 
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || \
-        (_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000) || \
-	SOLARIS || defined(__sgi) || defined(__osf__) || defined(linux)
+#if defined(__NetBSD__) || defined(__FreeBSD_version) || \
+	SOLARIS
 # include <stdarg.h>
 typedef	int	(* ioctlfunc_t) __P((int, ioctlcmd_t, ...));
 #else
@@ -199,13 +190,6 @@ typedef	int	(* ioctlfunc_t) __P((dev_t, ioctlcmd_t, void *));
 typedef	int	(* addfunc_t) __P((int, ioctlfunc_t, void *));
 typedef	int	(* copyfunc_t) __P((void *, void *, size_t));
 
-
-/*
- * SunOS4
- */
-#if defined(sun) && !defined(__SVR4) && !defined(__svr4__)
-extern	int	ioctl __P((int, int, void *));
-#endif
 
 extern	char	thishost[];
 extern	char	flagset[];

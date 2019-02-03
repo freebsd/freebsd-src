@@ -52,9 +52,6 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	MD_ALIGN(x)	(((off_t)(x) + PAGE_MASK) & ~PAGE_MASK)
 #define	DEV_ALIGN(x)	roundup2((off_t)(x), DEV_BSIZE)
 
-extern uint32_t *vm_page_dump;
-extern int vm_page_dump_size;
-
 static struct kerneldumpheader kdh;
 
 /* Handle chunked writes. */
@@ -63,7 +60,6 @@ static void *dump_va;
 static uint64_t counter, progress;
 
 CTASSERT(sizeof(*vm_page_dump) == 4);
-
 
 static int
 is_dumpable(vm_paddr_t pa)

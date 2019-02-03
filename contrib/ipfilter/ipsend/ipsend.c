@@ -21,14 +21,10 @@ static const char rcsid[] = "@(#)$Id$";
 #include <netdb.h>
 #include <string.h>
 #include <netinet/ip.h>
-#ifndef	linux
 # include <netinet/ip_var.h>
-#endif
 #include "ipsend.h"
 #include "ipf.h"
-#ifndef	linux
 # include <netinet/udp_var.h>
-#endif
 
 
 extern	char	*optarg;
@@ -37,27 +33,15 @@ extern	void	iplang __P((FILE *));
 
 char	options[68];
 int	opts;
-#ifdef linux
-char	default_device[] = "eth0";
-#else
 # ifdef ultrix
 char	default_device[] = "ln0";
 # else
 #  ifdef __bsdi__
 char	default_device[] = "ef0";
 #  else
-#   ifdef __sgi
-char	default_device[] = "ec0";
-#   else
-#    ifdef __hpux
-char	default_device[] = "lan0";
-#    else
 char	default_device[] = "le0";
-#    endif /* __hpux */
-#   endif /* __sgi */
 #  endif /* __bsdi__ */
 # endif /* ultrix */
-#endif /* linux */
 
 
 static	void	usage __P((char *));

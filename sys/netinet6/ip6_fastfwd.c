@@ -156,10 +156,10 @@ ip6_tryforward(struct mbuf *m)
 	/*
 	 * Incoming packet firewall processing.
 	 */
-	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
+	if (!PFIL_HOOKED_IN(V_inet6_pfil_head))
 		goto passin;
-	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, rcvif, PFIL_IN, 0,
-	    NULL) != 0 || m == NULL)
+	if (pfil_run_hooks(V_inet6_pfil_head, &m, rcvif, PFIL_IN, NULL) !=
+	    PFIL_PASS)
 		goto dropin;
 	/*
 	 * If packet filter sets the M_FASTFWD_OURS flag, this means
@@ -195,7 +195,7 @@ passin:
 		in6_ifstat_inc(rcvif, ifs6_in_noroute);
 		goto dropin;
 	}
-	if (!PFIL_HOOKED(&V_inet6_pfil_hook)) {
+	if (!PFIL_HOOKED_OUT(V_inet6_pfil_head)) {
 		if (m->m_pkthdr.len > nh.nh_mtu) {
 			in6_ifstat_inc(nh.nh_ifp, ifs6_in_toobig);
 			icmp6_error(m, ICMP6_PACKET_TOO_BIG, 0, nh.nh_mtu);
@@ -208,8 +208,8 @@ passin:
 	/*
 	 * Outgoing packet firewall processing.
 	 */
-	if (pfil_run_hooks(&V_inet6_pfil_hook, &m, nh.nh_ifp, PFIL_OUT,
-	    PFIL_FWD, NULL) != 0 || m == NULL)
+	if (pfil_run_hooks(V_inet6_pfil_head, &m, nh.nh_ifp, PFIL_OUT |
+	    PFIL_FWD, NULL) != PFIL_PASS)
 		goto dropout;
 
 	/*

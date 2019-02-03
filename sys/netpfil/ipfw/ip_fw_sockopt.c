@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/fnv_hash.h>
 #include <net/if.h>
-#include <net/pfil.h>
 #include <net/route.h>
 #include <net/vnet.h>
 #include <vm/vm.h>

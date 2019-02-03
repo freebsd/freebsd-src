@@ -1077,6 +1077,7 @@ t4_attach(device_t dev)
 		rc = partition_resources(sc);
 		if (rc != 0)
 			goto done; /* error message displayed already */
+		t4_intr_clear(sc);
 	}
 
 	rc = get_params__post_init(sc);
@@ -2563,14 +2564,23 @@ vcxgbe_detach(device_t dev)
 }
 
 void
-t4_fatal_err(struct adapter *sc)
+t4_fatal_err(struct adapter *sc, bool fw_error)
 {
-	t4_set_reg_field(sc, A_SGE_CONTROL, F_GLOBALENABLE, 0);
-	t4_intr_disable(sc);
-	log(LOG_EMERG, "%s: encountered fatal error, adapter stopped.\n",
+
+	t4_shutdown_adapter(sc);
+	log(LOG_ALERT, "%s: encountered fatal error, adapter stopped.\n",
 	    device_get_nameunit(sc->dev));
 	if (t4_panic_on_fatal_err)
 		panic("panic requested on fatal error");
+
+	if (fw_error) {
+		ASSERT_SYNCHRONIZED_OP(sc);
+		sc->flags |= ADAP_ERR;
+	} else {
+		ADAPTER_LOCK(sc);
+		sc->flags |= ADAP_ERR;
+		ADAPTER_UNLOCK(sc);
+	}
 }
 
 void
@@ -10067,20 +10077,6 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	}
 
 	return (rc);
-}
-
-void
-t4_db_full(struct adapter *sc)
-{
-
-	CXGBE_UNIMPLEMENTED(__func__);
-}
-
-void
-t4_db_dropped(struct adapter *sc)
-{
-
-	CXGBE_UNIMPLEMENTED(__func__);
 }
 
 #ifdef TCP_OFFLOAD

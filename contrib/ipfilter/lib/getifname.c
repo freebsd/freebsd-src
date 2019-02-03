@@ -25,9 +25,6 @@ char *getifname(ptr)
 #  include <sys/mutex.h>
 #  include <sys/condvar.h>
 # endif
-# ifdef __hpux
-#  include "compat.h"
-# endif
 # include "../pfil/qif.h"
 	char *ifname;
 	qif_t qif;

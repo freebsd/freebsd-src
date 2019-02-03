@@ -10,9 +10,7 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#ifndef __osf__
 # include <net/route.h>
-#endif
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>

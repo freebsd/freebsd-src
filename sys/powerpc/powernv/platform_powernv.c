@@ -59,7 +59,8 @@ __FBSDID("$FreeBSD$");
 extern void *ap_pcpu;
 #endif
 
-extern void xicp_smp_cpu_startup(void);
+void (*powernv_smp_ap_extra_init)(void);
+
 static int powernv_probe(platform_t);
 static int powernv_attach(platform_t);
 void powernv_mem_regions(platform_t, struct mem_region *phys, int *physsz,
@@ -473,7 +474,8 @@ static void
 powernv_smp_ap_init(platform_t platform)
 {
 
-	xicp_smp_cpu_startup();
+	if (powernv_smp_ap_extra_init != NULL)
+		powernv_smp_ap_extra_init();
 }
 
 static void

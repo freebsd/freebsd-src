@@ -317,10 +317,19 @@ static const char *p_flags[] = {
 	"PF_X|PF_W|PF_R"
 };
 
+#define NT_ELEM(x)	[x] = #x,
+static const char *nt_types[] = {
+	"",
+	NT_ELEM(NT_FREEBSD_ABI_TAG)
+	NT_ELEM(NT_FREEBSD_NOINIT_TAG)
+	NT_ELEM(NT_FREEBSD_ARCH_TAG)
+	NT_ELEM(NT_FREEBSD_FEATURE_CTL)
+};
+
 /* http://www.sco.com/developers/gabi/latest/ch4.sheader.html#sh_type */
 static const char *
 sh_types(uint64_t machine, uint64_t sht) {
-	static char unknown_buf[64]; 
+	static char unknown_buf[64];
 
 	if (sht < 0x60000000) {
 		switch (sht) {
@@ -1061,19 +1070,26 @@ elf_print_note(Elf32_Ehdr *e, void *sh)
 	u_int32_t namesz;
 	u_int32_t descsz;
 	u_int32_t desc;
+	u_int32_t type;
 	char *n, *s;
+	const char *nt_type;
 
 	offset = elf_get_off(e, sh, SH_OFFSET);
 	size = elf_get_size(e, sh, SH_SIZE);
 	name = elf_get_word(e, sh, SH_NAME);
 	n = (char *)e + offset;
 	fprintf(out, "\nnote (%s):\n", shstrtab + name);
- 	while (n < ((char *)e + offset + size)) {
+	while (n < ((char *)e + offset + size)) {
 		namesz = elf_get_word(e, n, N_NAMESZ);
 		descsz = elf_get_word(e, n, N_DESCSZ);
- 		s = n + sizeof(Elf_Note);
- 		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
-		fprintf(out, "\t%s %d\n", s, desc);
+		type = elf_get_word(e, n, N_TYPE);
+		if (type < nitems(nt_types) && nt_types[type] != NULL)
+			nt_type = nt_types[type];
+		else
+			nt_type = "Unknown type";
+		s = n + sizeof(Elf_Note);
+		desc = elf_get_word(e, n + sizeof(Elf_Note) + namesz, 0);
+		fprintf(out, "\t%s %d (%s)\n", s, desc, nt_type);
 		n += sizeof(Elf_Note) + namesz + descsz;
 	}
 }

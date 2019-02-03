@@ -2092,15 +2092,18 @@ device		vte		# DM&P Vortex86 RDC R6040 Fast Ethernet
 device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
+# PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
+device		iflib
+device		em		# Intel Pro/1000 Gigabit Ethernet
+device		ix		# Intel Pro/10Gbe PCIE Ethernet
+device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
+
 # PCI Ethernet NICs.
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
 device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		em		# Intel Pro/1000 Gigabit Ethernet
-device		ix		# Intel Pro/10Gbe PCIE Ethernet
-device		ixv		# Intel Pro/10Gbe PCIE Ethernet VF
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		oce		# Emulex 10 GbE (OneConnect Ethernet)

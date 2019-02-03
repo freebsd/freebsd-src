@@ -18,9 +18,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/file.h>
-#if !defined(__sgi) && !defined(__hpux) && !defined(__osf__) && !defined(linux) && !defined(_AIX51)
 #include <kvm.h>
-#endif
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -29,9 +27,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <net/if.h>
-#if defined(linux) || defined(__osf__) || defined(__sgi) || defined(__hpux)
-# include <stdlib.h>
-#endif
 
 #include "kmem.h"
 
@@ -46,82 +41,8 @@ static const char rcsid[] = "@(#)$Id$";
 
 
 
-#if !defined(__sgi) && !defined(__hpux) && !defined(__osf__) && \
-    !defined(linux) && !defined(_AIX51)
-/*
- * For all platforms where there is a libkvm and a kvm_t, we use that...
- */
 static	kvm_t	*kvm_f = NULL;
 
-#else
-/*
- *...and for the others (HP-UX, IRIX, Tru64), we have to provide our own.
- */
-
-typedef	int *	kvm_t;
-
-static	kvm_t	kvm_f = NULL;
-static	char	*kvm_errstr = NULL;
-
-kvm_t kvm_open __P((char *, char *, char *, int, char *));
-int kvm_read __P((kvm_t, u_long, char *, size_t));
-
-kvm_t kvm_open(kernel, core, swap, mode, errstr)
-	char *kernel, *core, *swap;
-	int mode;
-	char *errstr;
-{
-	kvm_t k;
-	int fd;
-
-	kvm_errstr = errstr;
-
-	if (core == NULL)
-		core = "/dev/kmem";
-
-	fd = open(core, mode);
-	if (fd == -1)
-		return NULL;
-	k = malloc(sizeof(*k));
-	if (k == NULL)
-		return NULL;
-	*k = fd;
-	return k;
-}
-
-int kvm_read(kvm, pos, buffer, size)
-	kvm_t kvm;
-	u_long pos;
-	char *buffer;
-	size_t size;
-{
-	int r = 0, left;
-	char *bufp;
-
-	if (lseek(*kvm, pos, 0) == -1) {
-		if (kvm_errstr != NULL) {
-			fprintf(stderr, "%s", kvm_errstr);
-			perror("lseek");
-		}
-		return -1;
-	}
-
-	for (bufp = buffer, left = size; left > 0; bufp += r, left -= r) {
-		r = read(*kvm, bufp, left);
-#ifdef	__osf__
-		/*
-		 * Tru64 returns "0" for successful operation, not the number
-		 * of bytes read.
-		 */
-		if (r == 0)
-			r = left;
-#endif
-		if (r <= 0)
-			return -1;
-	}
-	return r;
-}
-#endif /* !defined(__sgi) && !defined(__hpux) && !defined(__osf__) */
 
 int	openkmem(kern, core)
 	char	*kern, *core;

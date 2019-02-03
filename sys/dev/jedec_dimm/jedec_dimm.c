@@ -5,7 +5,6 @@
  *
  * Copyright (c) 2016 Andriy Gapon <avg@FreeBSD.org>
  * Copyright (c) 2018 Panasas
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

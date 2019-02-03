@@ -20,12 +20,7 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 
 
-#if	defined(sun) && !defined(SOLARIS2)
-#define	STRERROR(x)	sys_errlist[x]
-extern	char	*sys_errlist[];
-#else
 #define	STRERROR(x)	strerror(x)
-#endif
 
 extern	int	optind;
 extern	char	*optarg;
@@ -116,11 +111,7 @@ char *reasons[] = {
 #ifdef	MENTAT
 static	char	*pidfile = "/etc/opt/ipf/ipmon.pid";
 #else
-# if BSD >= 199306
 static	char	*pidfile = "/var/run/ipmon.pid";
-# else
-static	char	*pidfile = "/etc/ipmon.pid";
-# endif
 #endif
 
 static	char	line[2048];
@@ -138,11 +129,7 @@ static	char	*icmpname __P((u_int, u_int));
 static	char	*icmpname6 __P((u_int, u_int));
 static	icmp_type_t *find_icmptype __P((int, icmp_type_t *, size_t));
 static	icmp_subtype_t *find_icmpsubtype __P((int, icmp_subtype_t *, size_t));
-#ifdef __hpux
-static	struct	tm	*get_tm __P((u_32_t));
-#else
 static	struct	tm	*get_tm __P((time_t));
-#endif
 
 char	*portlocalname __P((int, char *, u_int));
 int	main __P((int, char *[]));
@@ -400,11 +387,6 @@ static void init_tabs()
 		if (protocols[0])
 			free(protocols[0]);
 		protocols[0] = strdup("ip");
-#if defined(_AIX51)
-		if (protocols[252])
-			free(protocols[252]);
-		protocols[252] = NULL;
-#endif
 	}
 
 	if (udp_ports != NULL) {
@@ -643,11 +625,7 @@ void dumphex(log, dopts, buf, len)
 
 
 static struct tm *get_tm(sec)
-#ifdef __hpux
-	u_32_t sec;
-#else
 	time_t sec;
-#endif
 {
 	struct tm *tm;
 	time_t t;
@@ -1123,10 +1101,6 @@ static void print_ipflog(conf, buf, blen)
 		sprintf(t, "%dx ", ipl->ipl_count);
 		t += strlen(t);
 	}
-#if (defined(MENTAT) || \
-	(defined(NetBSD) && (NetBSD <= 1991011) && (NetBSD >= 199603)) || \
-	(defined(__FreeBSD__) && (__FreeBSD_version >= 501113)) || \
-	(defined(OpenBSD) && (OpenBSD >= 199603))) || defined(linux)
 	{
 	char	ifname[sizeof(ipf->fl_ifname) + 1];
 
@@ -1134,28 +1108,13 @@ static void print_ipflog(conf, buf, blen)
 	ifname[sizeof(ipf->fl_ifname)] = '\0';
 	sprintf(t, "%s", ifname);
 	t += strlen(t);
-# if defined(MENTAT) || defined(linux)
-#  if defined(linux)
-	/*
-	 * On Linux, the loopback interface is just "lo", not "lo0".
-	 */
-	if (strcmp(ifname, "lo") != 0)
-#  endif
+# if defined(MENTAT)
 		if (ISALPHA(*(t - 1))) {
 			sprintf(t, "%d", ipf->fl_unit);
 			t += strlen(t);
 		}
 # endif
 	}
-#else
-	for (len = 0; len < 3; len++)
-		if (ipf->fl_ifname[len] == '\0')
-			break;
-	if (ipf->fl_ifname[len])
-		len++;
-	sprintf(t, "%*.*s%u", len, len, ipf->fl_ifname, ipf->fl_unit);
-	t += strlen(t);
-#endif
 	if ((ipf->fl_group[0] == (char)~0) && (ipf->fl_group[1] == '\0'))
 		strcat(t, " @-1:");
 	else if (ipf->fl_group[0] == '\0')

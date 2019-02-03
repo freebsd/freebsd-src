@@ -133,7 +133,10 @@ struct netmap_adapter *netmap_getna(if_t ifp);
 
 struct nm_selinfo {
 	struct selinfo si;
+	struct taskqueue *ntfytq;
+	struct task ntfytask;
 	struct mtx m;
+	char mtxname[32];
 };
 
 
@@ -295,7 +298,7 @@ struct netmap_priv_d;
 struct nm_bdg_args;
 
 /* os-specific NM_SELINFO_T initialzation/destruction functions */
-void nm_os_selinfo_init(NM_SELINFO_T *);
+int nm_os_selinfo_init(NM_SELINFO_T *, const char *name);
 void nm_os_selinfo_uninit(NM_SELINFO_T *);
 
 const char *nm_dump_buf(char *p, int len, int lim, char *dst);
@@ -1165,6 +1168,15 @@ nm_kr_txempty(struct netmap_kring *kring)
 /* True if no more completed slots in the rx ring, only valid after
  * rxsync_prologue */
 #define nm_kr_rxempty(_k)	nm_kr_txempty(_k)
+
+/* True if the application needs to wait for more space on the ring
+ * (more received packets or more free tx slots).
+ * Only valid after *xsync_prologue. */
+static inline int
+nm_kr_wouldblock(struct netmap_kring *kring)
+{
+	return kring->rcur == kring->nr_hwtail;
+}
 
 /*
  * protect against multiple threads using the same ring.

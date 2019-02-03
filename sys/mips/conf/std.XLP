@@ -75,6 +75,7 @@ device		ether
 device		xlpge
 #device		re
 device		msk
+device		iflib
 device		em
 
 # Disks
