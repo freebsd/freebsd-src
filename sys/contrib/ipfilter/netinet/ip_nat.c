@@ -31,27 +31,22 @@ struct file;
 # include <sys/uio.h>
 # undef KERNEL
 #endif
-#if defined(_KERNEL) && \
-    defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)
+#if defined(_KERNEL) && defined(__FreeBSD_version)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
 # include <sys/ioctl.h>
 #endif
-#if !defined(AIX)
 # include <sys/fcntl.h>
-#endif
-#if !defined(linux)
 # include <sys/protosw.h>
-#endif
 #include <sys/socket.h>
 #if defined(_KERNEL)
 # include <sys/systm.h>
-# if !defined(__SVR4) && !defined(__svr4__)
+# if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
 #endif
-#if defined(__SVR4) || defined(__svr4__)
+#if defined(__SVR4)
 # include <sys/filio.h>
 # include <sys/byteorder.h>
 # ifdef KERNEL
@@ -60,11 +55,11 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD_version)
 # include <sys/queue.h>
 #endif
 #include <net/if.h>
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD_version)
 # include <net/if_var.h>
 #endif
 #ifdef sun
@@ -80,9 +75,7 @@ struct file;
 extern struct ifnet vpnif;
 #endif
 
-#if !defined(linux)
 # include <netinet/ip_var.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
@@ -97,7 +90,7 @@ extern struct ifnet vpnif;
 #include "netinet/ip_lookup.h"
 #include "netinet/ip_dstlist.h"
 #include "netinet/ip_sync.h"
-#if FREEBSD_GE_REV(300000)
+#if defined(__FreeBSD_version)
 # include <sys/malloc.h>
 #endif
 #ifdef HAS_SYS_MD5_H
@@ -1024,7 +1017,7 @@ ipf_nat_ioctl(softc, data, cmd, mode, uid, ctx)
 				     KAUTH_REQ_NETWORK_FIREWALL_FW,
 				     NULL, NULL, NULL))
 # else
-#  if defined(__FreeBSD_version) && (__FreeBSD_version >= 500034)
+#  if defined(__FreeBSD_version)
 	if (securelevel_ge(curthread->td_ucred, 3) && (mode & FWRITE))
 #  else
 	if ((securelevel >= 3) && (mode & FWRITE))
@@ -1036,11 +1029,7 @@ ipf_nat_ioctl(softc, data, cmd, mode, uid, ctx)
 	}
 #endif
 
-#if defined(__osf__) && defined(_KERNEL)
-	getlock = 0;
-#else
 	getlock = (mode & NAT_LOCKHELD) ? 0 : 1;
-#endif
 
 	n = NULL;
 	nt = NULL;
@@ -3302,7 +3291,7 @@ ipf_nat_finalise(fin, nat)
 	u_32_t sum1, sum2, sumd;
 	frentry_t *fr;
 	u_32_t flags;
-#if SOLARIS && defined(_KERNEL) && (SOLARIS2 >= 6) && defined(ICK_M_CTL_MAGIC)
+#if SOLARIS && defined(_KERNEL) && defined(ICK_M_CTL_MAGIC)
 	qpktinfo_t *qpi = fin->fin_qpi;
 #endif
 
@@ -5234,8 +5223,8 @@ ipf_nat_out(fin, nat, natadd, nflags)
 		uh = (udphdr_t *)(ip + 1);
 		uh->uh_ulen += fin->fin_plen;
 		uh->uh_ulen = htons(uh->uh_ulen);
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-    defined(linux) || defined(BRIDGE_IPF) || defined(__FreeBSD__)
+#if !defined(_KERNEL) || defined(MENTAT) || \
+    defined(BRIDGE_IPF) || defined(__FreeBSD__)
 		ipf_fix_outcksum(0, &ip->ip_sum, sumd, 0);
 #endif
 
@@ -5655,8 +5644,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		}
 		fin->fin_ip->ip_dst = nat->nat_osrcip;
 		fin->fin_daddr = nat->nat_osrcaddr;
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-     defined(__osf__) || defined(linux)
+#if !defined(_KERNEL) || defined(MENTAT)
 		ipf_fix_incksum(0, &fin->fin_ip->ip_sum, ipsumd, 0);
 #endif
 		break;
@@ -5688,8 +5676,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		sum2 += ntohs(ip->ip_off) & IP_DF;
 		CALC_SUMD(sum1, sum2, sumd);
 
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-     defined(__osf__) || defined(linux)
+#if !defined(_KERNEL) || defined(MENTAT)
 		ipf_fix_outcksum(0, &ip->ip_sum, sumd, 0);
 #endif
 		PREP_MB_T(fin, m);
@@ -6208,27 +6195,6 @@ ipf_nat_log(softc, softn, nat, action)
 }
 
 
-#if defined(__OpenBSD__)
-/* ------------------------------------------------------------------------ */
-/* Function:    ipf_nat_ifdetach                                            */
-/* Returns:     Nil                                                         */
-/* Parameters:  ifp(I) - pointer to network interface                       */
-/*                                                                          */
-/* Compatibility interface for OpenBSD to trigger the correct updating of   */
-/* interface references within IPFilter.                                    */
-/* ------------------------------------------------------------------------ */
-void
-ipf_nat_ifdetach(ifp)
-	void *ifp;
-{
-	ipf_main_softc_t *softc;
-
-	softc = ipf_get_softc(0);
-
-	ipf_sync(ifp);
-	return;
-}
-#endif
 
 
 /* ------------------------------------------------------------------------ */
@@ -7459,8 +7425,7 @@ ipf_nat_decap(fin, nat)
 			CALC_SUMD(sum1, sum2, sumd);
 			fin->fin_ip->ip_dst = nat->nat_osrcip;
 			fin->fin_daddr = nat->nat_osrcaddr;
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-     defined(__osf__) || defined(linux)
+#if !defined(_KERNEL) || defined(MENTAT)
 			ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, sumd, 0);
 #endif
 		}

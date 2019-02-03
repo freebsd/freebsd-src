@@ -24,29 +24,24 @@
 # endif
 # include <string.h>
 # define _KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 #endif
-#if defined(_KERNEL) && (__FreeBSD_version >= 220000)
+#if defined(_KERNEL) && defined(__FreeBSD_version)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
 # include <sys/ioctl.h>
 #endif
-#if !defined(linux)
 # include <sys/protosw.h>
-#endif
 #include <sys/socket.h>
 #if defined(_KERNEL)
 # include <sys/systm.h>
-# if !defined(__SVR4) && !defined(__svr4__) && !defined(linux)
+# if !defined(__SVR4)
 #  include <sys/mbuf.h>
 # endif
 #endif
-#if defined(__SVR4) || defined(__svr4__)
+#if defined(__SVR4)
 # include <sys/filio.h>
 # include <sys/byteorder.h>
 # ifdef _KERNEL
@@ -55,11 +50,10 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if (defined(_BSDI_VERSION) && (_BSDI_VERSION >= 199802)) || \
-    (defined(__FreeBSD_version) &&(__FreeBSD_version >= 400000))
+#if defined(__FreeBSD_version)
 # include <sys/queue.h>
 #endif
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(bsdi)
+#if defined(__NetBSD__)
 # include <machine/cpu.h>
 #endif
 #if defined(_KERNEL) && defined(__NetBSD__) && (__NetBSD_Version__ >= 104000000)
@@ -76,10 +70,8 @@ struct file;
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#if !defined(linux)
 # include <netinet/ip_var.h>
-#endif
-#if !defined(_KERNEL) && !defined(__osf__) && !defined(__sgi)
+#if !defined(_KERNEL)
 # define	KERNEL
 # define	_KERNEL
 # define	NOT_KERNEL
@@ -89,34 +81,26 @@ struct file;
 # undef	KERNEL
 #endif
 #include <netinet/tcp.h>
-#if defined(IRIX) && (IRIX < 60516) /* IRIX < 6 */
-extern struct ifqueue   ipintrq;		/* ip packet input queue */
-#else
-# if !defined(__hpux) && !defined(linux)
-#  if __FreeBSD_version >= 300000
+#  if defined(__FreeBSD_version)
 #   include <net/if_var.h>
-#   if __FreeBSD_version >= 500042
 #    define IF_QFULL _IF_QFULL
 #    define IF_DROP _IF_DROP
-#   endif /* __FreeBSD_version >= 500042 */
 #  endif
 #  include <netinet/in_var.h>
 #  include <netinet/tcp_fsm.h>
-# endif
-#endif
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #include "netinet/ip_compat.h"
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_auth.h"
-#if !defined(MENTAT) && !defined(linux)
+#if !defined(MENTAT)
 # include <net/netisr.h>
 # ifdef __FreeBSD__
 #  include <machine/cpufunc.h>
 # endif
 #endif
-#if (__FreeBSD_version >= 300000)
+#if defined(__FreeBSD_version)
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
@@ -232,9 +216,6 @@ ipf_auth_soft_init(softc, arg)
 	bzero((char *)softa->ipf_auth_pkts,
 	      softa->ipf_auth_size * sizeof(*softa->ipf_auth_pkts));
 
-#if defined(linux) && defined(_KERNEL)
-	init_waitqueue_head(&softa->ipf_auth_next_linux);
-#endif
 
 	return 0;
 }
@@ -1106,22 +1087,7 @@ ipf_auth_ioctlloop:
 		error = EINTR;
 	}
 # else /* SOLARIS */
-#  ifdef __hpux
-	{
-	lock_t *l;
-
-	l = get_sleep_lock(&softa->ipf_auth_next);
-	error = sleep(&softa->ipf_auth_next, PZERO+1);
-	spinunlock(l);
-	}
-#  else
-#   ifdef __osf__
-	error = mpsleep(&softa->ipf_auth_next, PSUSP|PCATCH, "ipf_auth_next",
-			0, &softa->ipf_auth_mx, MS_LOCK_SIMPLE);
-#   else
 	error = SLEEP(&softa->ipf_auth_next, "ipf_auth_next");
-#   endif /* __osf__ */
-#  endif /* __hpux */
 # endif /* SOLARIS */
 #endif
 	MUTEX_EXIT(&softa->ipf_auth_mx);

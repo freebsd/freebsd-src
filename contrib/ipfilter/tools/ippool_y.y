@@ -10,9 +10,7 @@
 #include <sys/time.h>
 #include <sys/param.h>
 #include <sys/socket.h>
-#if defined(BSD) && (BSD >= 199306)
 # include <sys/cdefs.h>
-#endif
 #include <sys/ioctl.h>
 
 #include <net/if.h>

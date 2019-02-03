@@ -19,7 +19,7 @@
 # include <osreldate.h>
 #endif
 #ifndef SOLARIS
-# if defined(sun) && (defined(__svr4__) || defined(__SVR4))
+# if defined(sun) && defined(__SVR4)
 #  define	SOLARIS		1
 # else
 #  define	SOLARIS		0
@@ -35,15 +35,11 @@
 # include <ctype.h>
 # define _KERNEL
 # define KERNEL
-# ifdef __OpenBSD__
-struct file;
-# endif
 # include <sys/uio.h>
 # undef _KERNEL
 # undef KERNEL
 #endif
-#if (defined(__FreeBSD_version) && (__FreeBSD_version >= 220000)) && \
-    defined(_KERNEL)
+#if defined(__FreeBSD_version) && defined(_KERNEL)
 # include <sys/fcntl.h>
 # include <sys/filio.h>
 #else
@@ -56,21 +52,15 @@ struct file;
 #  include <sys/proc.h>
 # endif
 #endif /* _KERNEL */
-#if !SOLARIS && !defined(__hpux) && !defined(linux)
-# if (defined(NetBSD) && (NetBSD > 199609)) || \
-     (defined(OpenBSD) && (OpenBSD > 199603)) || \
-     (defined(__FreeBSD_version) && (__FreeBSD_version >= 300000))
+# if defined(NetBSD) || defined(__FreeBSD_version)
 #  include <sys/dirent.h>
-# else
-#  include <sys/dir.h>
-# endif
 # include <sys/mbuf.h>
 # include <sys/select.h>
-# if __FreeBSD_version >= 500000
+# endif
+# if defined(__FreeBSD_version)
 #  include <sys/selinfo.h>
 # endif
-#else
-# if !defined(__hpux) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 #  include <sys/filio.h>
 #  include <sys/cred.h>
 #  include <sys/ddi.h>
@@ -80,24 +70,18 @@ struct file;
 #  include <sys/mkdev.h>
 #  include <sys/dditypes.h>
 #  include <sys/cmn_err.h>
-# endif /* !__hpux */
-#endif /* !SOLARIS && !__hpux */
-#if !defined(linux)
+#endif /* SOLARIS && _KERNEL */
 # include <sys/protosw.h>
-#endif
 #include <sys/socket.h>
 
 #include <net/if.h>
 #ifdef sun
 # include <net/af.h>
 #endif
-#if __FreeBSD_version >= 300000
+#if defined(__FreeBSD_version)
 # include <net/if_var.h>
 #endif
 #include <netinet/in.h>
-#ifdef __sgi
-# include <sys/ddi.h>
-#endif
 # include <netinet/in_var.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -107,9 +91,7 @@ struct file;
 #ifdef USE_INET6
 # include <netinet/icmp6.h>
 #endif
-#if !defined(linux)
 # include <netinet/ip_var.h>
-#endif
 #ifndef _KERNEL
 # include <syslog.h>
 #endif
@@ -120,7 +102,7 @@ struct file;
 #include "netinet/ip_frag.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_auth.h"
-#if (__FreeBSD_version >= 300000) || defined(__NetBSD__)
+#if defined(__FreeBSD_version) || defined(__NetBSD__)
 # include <sys/malloc.h>
 #endif
 /* END OF INCLUDES */
@@ -138,12 +120,6 @@ typedef struct ipf_log_softc_s {
 	ipfmutex_t	ipl_mutex[IPL_LOGSIZE];
 # if SOLARIS && defined(_KERNEL)
 	kcondvar_t	ipl_wait[IPL_LOGSIZE];
-# endif
-# if defined(linux) && defined(_KERNEL)
-	wait_queue_head_t	iplh_linux[IPL_LOGSIZE];
-# endif
-# if defined(__hpux) && defined(_KERNEL)
-	iplog_select_t	ipl_ss[IPL_LOGSIZE];
 # endif
 	iplog_t		**iplh[IPL_LOGSIZE];
 	iplog_t		*iplt[IPL_LOGSIZE];
@@ -386,11 +362,11 @@ ipf_log_pkt(fin, flags)
 	ipflog_t ipfl;
 	u_char p;
 	mb_t *m;
-# if (SOLARIS || defined(__hpux)) && defined(_KERNEL) && !defined(FW_HOOKS)
+# if SOLARIS && defined(_KERNEL) && !defined(FW_HOOKS)
 	qif_t *ifp;
 # else
 	struct ifnet *ifp;
-# endif /* SOLARIS || __hpux */
+# endif /* SOLARIS */
 
 	m = fin->fin_m;
 	if (m == NULL)
@@ -460,14 +436,14 @@ ipf_log_pkt(fin, flags)
 	 * Get the interface number and name to which this packet is
 	 * currently associated.
 	 */
-# if (SOLARIS || defined(__hpux)) && defined(_KERNEL)
+# if SOLARIS && defined(_KERNEL)
 #  if !defined(FW_HOOKS)
 	ipfl.fl_unit = (u_int)ifp->qf_ppa;
 #  endif
 	COPYIFNAME(fin->fin_v, ifp, ipfl.fl_ifname);
 # else
 #  if (defined(NetBSD) && (NetBSD  <= 1991011) && (NetBSD >= 199603)) || \
-      OPENBSD_GE_REV(199603) || defined(linux) || FREEBSD_GE_REV(501113)
+      defined(__FreeBSD_version)
 	COPYIFNAME(fin->fin_v, ifp, ipfl.fl_ifname);
 #  else
 	ipfl.fl_unit = (u_int)ifp->if_unit;
@@ -738,32 +714,9 @@ ipf_log_read(softc, unit, uio)
 			return EINTR;
 		}
 # else
-#  if defined(__hpux) && defined(_KERNEL)
-		lock_t *l;
-
-#   ifdef IPL_SELECT
-		if (uio->uio_fpflags & (FNBLOCK|FNDELAY)) {
-			/* this is no blocking system call */
-			softl->ipl_readers[unit]--;
-			MUTEX_EXIT(&softl->ipl_mutex[unit]);
-			return 0;
-		}
-#   endif
-
-		MUTEX_EXIT(&softl->ipl_mutex[unit]);
-		l = get_sleep_lock(&softl->iplh[unit]);
-		error = sleep(&softl->iplh[unit], PZERO+1);
-		spinunlock(l);
-#  else
-#   if defined(__osf__) && defined(_KERNEL)
-		error = mpsleep(&softl->iplh[unit], PSUSP|PCATCH,  "ipfread", 0,
-				&softl->ipl_mutex, MS_LOCK_SIMPLE);
-#   else
 		MUTEX_EXIT(&softl->ipl_mutex[unit]);
 		SPL_X(s);
 		error = SLEEP(unit + softl->iplh, "ipl sleep");
-#   endif /* __osf__ */
-#  endif /* __hpux */
 		SPL_NET(s);
 		MUTEX_ENTER(&softl->ipl_mutex[unit]);
 		if (error) {
@@ -781,8 +734,7 @@ ipf_log_read(softc, unit, uio)
 		return EIO;
 	}
 
-# if (defined(BSD) && (BSD >= 199101)) || defined(__FreeBSD__) || \
-     defined(__osf__)
+# if (defined(BSD) && (BSD >= 199101)) || defined(__FreeBSD__)
 	uio->uio_rw = UIO_READ;
 # endif
 

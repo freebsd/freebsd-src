@@ -43,9 +43,6 @@ void	dumprules __P((frentry_t *));
 void	drain_log __P((char *));
 void	fixv4sums __P((mb_t *, ip_t *));
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || SOLARIS || \
-	(_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000) || \
-	defined(__osf__) || defined(linux)
 int ipftestioctl __P((int, ioctlcmd_t, ...));
 int ipnattestioctl __P((int, ioctlcmd_t, ...));
 int ipstatetestioctl __P((int, ioctlcmd_t, ...));
@@ -53,15 +50,6 @@ int ipauthtestioctl __P((int, ioctlcmd_t, ...));
 int ipscantestioctl __P((int, ioctlcmd_t, ...));
 int ipsynctestioctl __P((int, ioctlcmd_t, ...));
 int ipooltestioctl __P((int, ioctlcmd_t, ...));
-#else
-int ipftestioctl __P((dev_t, ioctlcmd_t, void *));
-int ipnattestioctl __P((dev_t, ioctlcmd_t, void *));
-int ipstatetestioctl __P((dev_t, ioctlcmd_t, void *));
-int ipauthtestioctl __P((dev_t, ioctlcmd_t, void *));
-int ipsynctestioctl __P((dev_t, ioctlcmd_t, void *));
-int ipscantestioctl __P((dev_t, ioctlcmd_t, void *));
-int ipooltestioctl __P((dev_t, ioctlcmd_t, void *));
-#endif
 
 static	ioctlfunc_t	iocfunctions[IPL_LOGSIZE] = { ipftestioctl,
 						      ipnattestioctl,
@@ -292,15 +280,7 @@ main(argc,argv)
 		ipf_state_flush(softc, 1, 0);
 
 		if (dir && (ifp != NULL) && IP_V(ip) && (m != NULL))
-#if  defined(__sgi) && (IRIX < 60500)
-			(*ifp->if_output)(ifp, (void *)m, NULL);
-#else
-# if TRU64 >= 1885
-			(*ifp->if_output)(ifp, (void *)m, NULL, 0, 0);
-# else
 			(*ifp->if_output)(ifp, (void *)m, NULL, 0);
-# endif
-#endif
 
 		while ((m != NULL) && (m != &mb)) {
 			n = m->mb_next;
@@ -351,9 +331,6 @@ main(argc,argv)
 }
 
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || SOLARIS || \
-	(_BSDI_VERSION >= 199701) || (__FreeBSD_version >= 300000) || \
-	defined(__osf__) || defined(linux)
 int ipftestioctl(int dev, ioctlcmd_t cmd, ...)
 {
 	caddr_t data;
@@ -513,141 +490,6 @@ int ipooltestioctl(int dev, ioctlcmd_t cmd, ...)
 	}
 	return 0;
 }
-#else
-int ipftestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGIPF, cmd, data, FWRITE|FREAD);
-	if ((opts & OPT_DEBUG) || (i != 0))
-		fprintf(stderr, "ipfioctl(IPF,%#x,%p) = %d (%d)\n",
-			cmd, data, i, softc->ipf_interror);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-
-
-int ipnattestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGNAT, cmd, data, FWRITE|FREAD);
-	if ((opts & OPT_DEBUG) || (i != 0))
-		fprintf(stderr, "ipfioctl(NAT,%#x,%p) = %d\n", cmd, data, i);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-
-
-int ipstatetestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGSTATE, cmd, data, FWRITE|FREAD);
-	if ((opts & OPT_DEBUG) || (i != 0))
-		fprintf(stderr, "ipfioctl(STATE,%#x,%p) = %d\n", cmd, data, i);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-
-
-int ipauthtestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGAUTH, cmd, data, FWRITE|FREAD);
-	if ((opts & OPT_DEBUG) || (i != 0))
-		fprintf(stderr, "ipfioctl(AUTH,%#x,%p) = %d\n", cmd, data, i);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-
-
-int ipsynctestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGSYNC, cmd, data, FWRITE|FREAD);
-	if ((opts & OPT_DEBUG) || (i != 0))
-		fprintf(stderr, "ipfioctl(SYNC,%#x,%p) = %d\n", cmd, data, i);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-
-
-int ipscantestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGSCAN, cmd, data, FWRITE|FREAD);
-	if ((opts & OPT_DEBUG) || (i != 0))
-		fprintf(stderr, "ipfioctl(SCAN,%#x,%p) = %d\n", cmd, data, i);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-
-
-int ipooltestioctl(dev, cmd, data)
-	dev_t dev;
-	ioctlcmd_t cmd;
-	void *data;
-{
-	int i;
-
-	dev = dev;	/* gcc -Wextra */
-	i = ipfioctl(softc, IPL_LOGLOOKUP, cmd, data, FWRITE|FREAD);
-	if (opts & OPT_DEBUG)
-		fprintf(stderr, "ipfioctl(POOL,%#x,%p) = %d (%d)\n",
-			cmd, data, i, softc->ipf_interror);
-	if (i != 0) {
-		errno = i;
-		return -1;
-	}
-	return 0;
-}
-#endif
 
 
 int kmemcpy(addr, offset, size)
