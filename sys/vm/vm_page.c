@@ -3279,18 +3279,13 @@ vm_page_dequeue_complete(vm_page_t m)
 void
 vm_page_dequeue_deferred(vm_page_t m)
 {
-	int queue;
+	uint8_t queue;
 
 	vm_page_assert_locked(m);
 
-	queue = atomic_load_8(&m->queue);
-	if (queue == PQ_NONE) {
-		KASSERT((m->aflags & PGA_QUEUE_STATE_MASK) == 0,
-		    ("page %p has queue state", m));
+	if ((queue = vm_page_queue(m)) == PQ_NONE)
 		return;
-	}
-	if ((m->aflags & PGA_DEQUEUE) == 0)
-		vm_page_aflag_set(m, PGA_DEQUEUE);
+	vm_page_aflag_set(m, PGA_DEQUEUE);
 	vm_pqbatch_submit_page(m, queue);
 }
 
@@ -3386,7 +3381,7 @@ vm_page_requeue(vm_page_t m)
 {
 
 	vm_page_assert_locked(m);
-	KASSERT(m->queue != PQ_NONE,
+	KASSERT(vm_page_queue(m) != PQ_NONE,
 	    ("%s: page %p is not logically enqueued", __func__, m));
 
 	if ((m->aflags & PGA_REQUEUE) == 0)
