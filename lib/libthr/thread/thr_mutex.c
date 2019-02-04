@@ -390,6 +390,7 @@ __pthread_mutex_init(pthread_mutex_t * __restrict mutex,
 	}
 	if (mutex_attr == NULL ||
 	    (*mutex_attr)->m_pshared == PTHREAD_PROCESS_PRIVATE) {
+		__thr_malloc_init();
 		return (mutex_init(mutex, mutex_attr ? *mutex_attr : NULL,
 		    __thr_calloc));
 	}

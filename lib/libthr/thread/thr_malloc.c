@@ -46,6 +46,8 @@ void
 __thr_malloc_init(void)
 {
 
+	if (npagesizes != 0)
+		return;
 	npagesizes = getpagesizes(pagesizes_d, nitems(pagesizes_d));
 	if (npagesizes == -1) {
 		npagesizes = 1;
@@ -59,6 +61,8 @@ static void
 thr_malloc_lock(struct pthread *curthread)
 {
 
+	if (curthread == NULL)
+		return;
 	curthread->locklevel++;
 	_thr_umutex_lock(&thr_malloc_umtx, TID(curthread));
 }
@@ -67,6 +71,8 @@ static void
 thr_malloc_unlock(struct pthread *curthread)
 {
 
+	if (curthread == NULL)
+		return;
 	_thr_umutex_unlock(&thr_malloc_umtx, TID(curthread));
 	curthread->locklevel--;
 	_thr_ast(curthread);
