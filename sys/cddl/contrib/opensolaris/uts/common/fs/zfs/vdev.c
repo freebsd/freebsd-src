@@ -191,7 +191,7 @@ SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, default_ms_shift, CTLFLAG_RWTUN,
 int vdev_max_ms_shift = 38;
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_ms_shift, CTLFLAG_RWTUN,
     &vdev_max_ms_shift, 0,
-    "Maximal shift between vdev size and number of metaslabs");
+    "Maximum shift between vdev size and number of metaslabs");
 
 boolean_t vdev_validate_skip = B_FALSE;
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, validate_skip, CTLFLAG_RWTUN,
