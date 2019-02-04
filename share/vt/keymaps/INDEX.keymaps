@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# database for kbdmap(8) 
+# database for kbdmap(8)
 #
 # Format <file>:<lang>:<description>
 #
@@ -9,7 +9,7 @@
 # lang: lang,lang
 #
 # If lang empty use 'en' (us-english) as default.
-# 
+#
 # Example:
 # 	german.iso.kbd:de:deutsch
 # 	german.iso.kbd:en:german
@@ -41,6 +41,12 @@ MENU:tr:Klavye düzeninizi seçiniz
 FONT:en:vgarom-8x16.hex
 
 #
+am.kbd:en:Armenian phonetic layout
+am.kbd:de:Armenische phonetische Tastenbelegung
+am.kbd:fr:Arménien phonétique
+am.kbd:hy:Հայերեն հնչյունային (Phonetic) դասավորություն
+am.kbd:ru:Армянская фонетическая раскладка
+
 be.kbd:en:Belgian
 be.kbd:de:Belgisch
 be.kbd:fr:Belge
@@ -64,11 +70,11 @@ br.kbd:fr:Brésilien (avec accents)
 br.kbd:pt:Brasileiro (com acentos)
 br.kbd:es:Brasileño (con acentos)
 
-br.noacc.kbd:en:Brazilian (without accent keys)
+br.noacc.kbd:en:Brazilian (no accent keys)
 br.noacc.kbd:de:Brasilianisch (ohne Akzente)
 br.noacc.kbd:fr:Brésilien (sans accents)
-br.noacc.kbd:pt:Brasileiro (without accent keys)
-br.noacc.kbd:es:Brasileño (without accent keys)
+br.noacc.kbd:pt:Brasileiro (no accent keys)
+br.noacc.kbd:es:Brasileño (no accent keys)
 
 by.kbd:en:Belarusian
 by.kbd:de:Weißrussisch
@@ -122,22 +128,18 @@ dk.kbd.from-cp865:fr:Danois
 dk.kbd.from-cp865:pt:Dinamarquês
 dk.kbd.from-cp865:es:Danés
 
-dk.macbook.kbd:en:Danish (macbook)
-dk.macbook.kbd:da:Dansk (macbook)
-dk.macbook.kbd:de:Dänisch (Macbook)
-dk.macbook.kbd:fr:Danois (macbook)
-dk.macbook.kbd:pt:Dinamarquês (macbook)
-dk.macbook.kbd:es:Danés (macbook)
+dk.macbook.kbd:en:Danish (MacBook)
+dk.macbook.kbd:da:Dansk (MacBook)
+dk.macbook.kbd:de:Dänisch (MacBook)
+dk.macbook.kbd:fr:Danois (MacBook)
+dk.macbook.kbd:pt:Dinamarquês (MacBook)
+dk.macbook.kbd:es:Danés (MacBook)
 
 nl.kbd:en:Dutch (accent keys)
 nl.kbd:de:Holländisch (mit Akzenten)
 
 nordic.asus-eee.kbd:en:Nordic layout on Asus eeePC
 nordic.asus-eee.kbd:fr:Norvégien phonétique sur Asus eeePC
-
-gr.kbd:en:Greek (104 keys)
-gr.kbd:fr:Grec (104 touches)
-gr.kbd:el:Ελληνικό (104 πλήκτρων)
 
 ee.kbd.from-iso1:en:Estonian
 ee.kbd.from-iso1:de:Estnisch
@@ -178,11 +180,11 @@ fr.acc.kbd:pt:Francês (com acentos)
 fr.acc.kbd:es:Francés (con acentos)
 fr.acc.kbd:uk:Французька (accent keys)
 
-fr.macbook.kbd:en:French Macbook/Macbook Pro (accent keys)
-fr.macbook.kbd:de:Französisch Macbook/Macbook Pro (mit Aksenten)
-fr.macbook.kbd:fr:Français Macbook/Macbook Pro (accent keys)
-fr.macbook.kbd:pt:Francês Macbook/Macbook Pro (com acentos)
-fr.macbook.kbd:es:Francés Macbook/Macbook Pro (con acentos)
+fr.macbook.kbd:en:French (MacBook/MacBook Pro) (accent keys)
+fr.macbook.kbd:de:Französisch (MacBook/MacBook Pro) (mit Aksenten)
+fr.macbook.kbd:fr:Français (MacBook/MacBook Pro) (accent keys)
+fr.macbook.kbd:pt:Francês (MacBook/MacBook Pro) (com acentos)
+fr.macbook.kbd:es:Francés (MacBook/MacBook Pro) (con acentos)
 
 fr.dvorak.kbd:en:French Dvorak-like
 fr.dvorak.kbd:de:Französisch Dvorak
@@ -235,20 +237,24 @@ de.kbd.from-cp850:pt:Alemão
 de.kbd.from-cp850:es:Alemán
 de.kbd.from-cp850:uk:Німецька
 
-gr.elot.acc.kbd:en:Greek ELOT
-gr.elot.acc.kbd:de:Grieschisch ELOT
-gr.elot.acc.kbd:fr:Grec ELOT
-gr.elot.acc.kbd:el:Ελληνικό ΕΛΟΤ
-
 gr.101.acc.kbd:en:Greek (101 keys)
 gr.101.acc.kbd:de:Grieschisch (101 Tasten)
 gr.101.acc.kbd:fr:Grec (101 touches)
 gr.101.acc.kbd:el:Ελληνικό (101 πλήκτρων)
 
+gr.elot.acc.kbd:en:Greek ELOT
+gr.elot.acc.kbd:de:Grieschisch ELOT
+gr.elot.acc.kbd:fr:Grec ELOT
+gr.elot.acc.kbd:el:Ελληνικό ΕΛΟΤ
+
+gr.kbd:en:Greek (104 keys)
+gr.kbd:fr:Grec (104 touches)
+gr.kbd:el:Ελληνικό (104 πλήκτρων)
+
 il.kbd:en:Hebrew
 il.kbd:de:Hebräisch
 il.kbd:fr:Hébreu
-il.kbd::תירבע
+il.kbd:he:תירבע
 
 hr.kbd:en:Croatian
 hr.kbd:de:Kroatisch
@@ -264,12 +270,6 @@ hu.102.kbd:en:Hungarian (102 keys)
 hu.102.kbd:de:Ungarisch (102 Tasten)
 hu.102.kbd:fr:Hongrois (102 touches)
 hu.102.kbd:es:Húngaro (102)
-
-am.kbd:hy:Հայերեն հնչյունային (Phonetic) դասավորություն
-am.kbd:ru:Армянская фонетическая раскладка
-am.kbd:en:Armenian phonetic layout
-am.kbd:fr:Arménien phonétique
-am.kbd:de:Armenische phonetische Tastenbelegung
 
 is.kbd:en:Icelandic
 is.kbd:de:Isländisch
@@ -484,11 +484,11 @@ ch.kbd.from-cp850:fr:Suisse-Allemand
 ch.kbd.from-cp850:pt:Suiço-Alemão
 ch.kbd.from-cp850:es:Germanosuizo
 
-ch.macbook.acc.kbd:en:Swiss-German Macbook/Macbook Pro (accent keys)
-ch.macbook.acc.kbd:de:Schweiz-Deutsch Macbook/Macbook Pro (mit Akzenten)
-ch.macbook.acc.kbd:fr:Suisse-Allemand  Macbook/Macbook Pro (avec accents)
-ch.macbook.acc.kbd:pt:Suiço-Alemão Macbook/Macbook Pro (com acentos)
-ch.macbook.acc.kbd:es:Germanosuizo  Macbook/Macbook Pro (con acentos)
+ch.macbook.acc.kbd:en:Swiss-German (MacBook/MacBook Pro) (accent keys)
+ch.macbook.acc.kbd:de:Schweiz-Deutsch (MacBook/MacBook Pro) (mit Akzenten)
+ch.macbook.acc.kbd:fr:Suisse-Allemand (MacBook/MacBook Pro) (avec accents)
+ch.macbook.acc.kbd:pt:Suiço-Alemão (MacBook/MacBook Pro) (com acentos)
+ch.macbook.acc.kbd:es:Germanosuizo (MacBook/MacBook Pro) (con acentos)
 
 tr.kbd:en:Turkish (Q)
 tr.kbd:de:Türkisch (Q)
@@ -520,11 +520,11 @@ uk.dvorak.kbd:fr:Royaume Uni Dvorak
 uk.dvorak.kbd:pt:Reino Unido Dvorak
 uk.dvorak.kbd:es:Británico Dvorak
 
-uk.macbook.kbd:en:United Kingdom Macbook
-uk.macbook.kbd:de:Vereinigtes Königreich Macbook
-uk.macbook.kbd:fr:Royaume Uni Macbook
-uk.macbook.kbd:pt:Reino Unido Macbook
-uk.macbook.kbd:es:Británico Macbook
+uk.macbook.kbd:en:United Kingdom (MacBook)
+uk.macbook.kbd:de:Vereinigtes Königreich (MacBook)
+uk.macbook.kbd:fr:Royaume Uni (MacBook)
+uk.macbook.kbd:pt:Reino Unido (MacBook)
+uk.macbook.kbd:es:Británico (MacBook)
 
 us.kbd:en:United States of America
 us.kbd:de:US-amerikanisch
@@ -551,7 +551,7 @@ us.dvorakr.kbd:pt:Estados Unidos da América dvorakr
 us.dvorakr.kbd:es:Estadounidense dvorak diestro
 
 us.dvorakl.kbd:en:United States of America lefthand dvorak
-us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand 
+us.dvorakl.kbd:de:US-amerikanisch dvorak linke Hand
 us.dvorakl.kbd:fr:États Unis d'Amérique dvorakl
 us.dvorakl.kbd:pt:Estados Unidos da América dvorakl
 us.dvorakl.kbd:es:Estadounidense dvorak zurdo
@@ -582,11 +582,11 @@ us.unix.kbd:fr:États Unis d'Amérique unix
 us.unix.kbd:pt:Estados Unidos da América unix
 us.unix.kbd:es:Estadounidense Unix tradicional
 
-us.macbook.kbd:en:United States of America Macbook/Macbook Pro ISO-8859-1
-us.macbook.kbd:de:US-amerikanisch Macbook/Macbook Pro ISO-8859-1
-us.macbook.kbd:fr:États Unis d'Amérique Macbook / Macbook Pro ISO-8859-1
-us.macbook.kbd:pt:Estados Unidos da América Macbook/Macbook Pro ISO-8859-1
-us.macbook.kbd:es:Estadounidense Macbook/Macbook Pro ISO-8859-1
+us.macbook.kbd:en:United States of America (MacBook/MacBook Pro) ISO-8859-1
+us.macbook.kbd:de:US-amerikanisch (MacBook/MacBook Pro) ISO-8859-1
+us.macbook.kbd:fr:États Unis d'Amérique (MacBook/MacBook Pro) ISO-8859-1
+us.macbook.kbd:pt:Estados Unidos da América (MacBook/MacBook Pro) ISO-8859-1
+us.macbook.kbd:es:Estadounidense (MacBook/MacBook Pro) ISO-8859-1
 
 ua.kbd.from-iso5:en:Ukrainian
 ua.kbd.from-iso5:de:Ukrainisch
