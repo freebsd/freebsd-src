@@ -897,8 +897,8 @@ dbtrap:
 	mtsprg3	%r1
 
 	GET_TOCBASE(%r1)			/* get new SP */
-	ld	%r1,TOC_REF(tmpstk)(%r1)
-	addi	%r1,%r1,(TMPSTKSZ-48)
+	ld	%r1,TOC_REF(trapstk)(%r1)
+	addi	%r1,%r1,(TRAPSTKSZ-48)
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
