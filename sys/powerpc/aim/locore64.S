@@ -65,6 +65,14 @@ GLOBAL(tmpstk)
 TOC_ENTRY(tmpstk)
 TOC_ENTRY(can_wakeup)
 
+#ifdef KDB
+#define TRAPSTKSZ       4096            /* 4k trap stack */
+GLOBAL(trapstk)
+        .space        TRAPSTKSZ
+TOC_ENTRY(trapstk)
+#endif
+
+
 /*
  * Entry point for bootloaders that do not fully implement ELF and start
  * at the beginning of the image (kexec, notably). In its own section so
