@@ -97,22 +97,31 @@ generate_random_port(int seed)
 static void
 resolve_localhost(struct addrinfo **res, int domain, int type, int port)
 {
+	const char *host;
 	char *serv;
 	struct addrinfo hints;
 	int error;
 
-	ATF_REQUIRE_MSG(domain == AF_INET || domain == AF_INET6,
-	    "unhandled domain: %d", domain);
+	switch (domain) {
+	case AF_INET:
+		host = "127.0.0.1";
+		break;
+	case AF_INET6:
+		host = "::1";
+		break;
+	default:
+		atf_tc_fail("unhandled domain: %d", domain);
+	}
 
 	ATF_REQUIRE_MSG(asprintf(&serv, "%d", port) >= 0,
 	    "asprintf failed: %s", strerror(errno));
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = domain;
-	hints.ai_flags = AI_ADDRCONFIG|AI_NUMERICSERV;
+	hints.ai_flags = AI_ADDRCONFIG|AI_NUMERICSERV|AI_NUMERICHOST;
 	hints.ai_socktype = type;
 
-	error = getaddrinfo("localhost", serv, &hints, res);
+	error = getaddrinfo(host, serv, &hints, res);
 	ATF_REQUIRE_EQ_MSG(error, 0,
 	    "getaddrinfo failed: %s", gai_strerror(error));
 	free(serv);
