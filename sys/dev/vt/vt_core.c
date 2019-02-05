@@ -2114,11 +2114,20 @@ vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
 	case _IO('K', 8):
 		cmd = KDMKTONE;
 		break;
+	case _IO('K', 10):
+		cmd = KDSETMODE;
+		break;
+	case _IO('K', 13):
+		cmd = KDSBORDER;
+		break;
 	case _IO('K', 63):
 		cmd = KIOCSOUND;
 		break;
 	case _IO('K', 66):
 		cmd = KDSETLED;
+		break;
+	case _IO('c', 104):
+		cmd = CONS_SETWINORG;
 		break;
 	case _IO('c', 110):
 		cmd = CONS_SETKBD;
