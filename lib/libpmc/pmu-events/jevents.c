@@ -54,6 +54,10 @@
 #include "json.h"
 #include "jevents.h"
 
+static int
+nftw_ordered(const char *path, int (*fn)(const char *, const struct stat *, int,
+	struct FTW *), int nfds, int ftwflags);
+
 _Noreturn void	 _Exit(int);
 
 int verbose;
@@ -1122,7 +1126,7 @@ int main(int argc, char *argv[])
 
 	maxfds = get_maxfds();
 	mapfile = NULL;
-	rc = nftw(ldirname, preprocess_arch_std_files, maxfds, 0);
+	rc = nftw_ordered(ldirname, preprocess_arch_std_files, maxfds, 0);
 	if (rc && verbose) {
 		pr_info("%s: Error preprocessing arch standard files %s: %s\n",
 			prog, ldirname, strerror(errno));
@@ -1135,7 +1139,7 @@ int main(int argc, char *argv[])
 		goto empty_map;
 	}
 
-	rc = nftw(ldirname, process_one_file, maxfds, 0);
+	rc = nftw_ordered(ldirname, process_one_file, maxfds, 0);
 	if (rc && verbose) {
 		pr_info("%s: Error walking file tree %s\n", prog, ldirname);
 		goto empty_map;
@@ -1168,4 +1172,91 @@ empty_map:
 	create_empty_mapping(output_file);
 	free_arch_std_events();
 	return 0;
+}
+
+#include <fts.h>
+
+static int
+fts_compare(const FTSENT * const *a, const FTSENT * const *b)
+{
+	return (strcmp((*a)->fts_name, (*b)->fts_name));
+}
+
+static int
+nftw_ordered(const char *path, int (*fn)(const char *, const struct stat *, int,
+     struct FTW *), int nfds, int ftwflags)
+{
+	char * const paths[2] = { (char *)path, NULL };
+	struct FTW ftw;
+	FTSENT *cur;
+	FTS *ftsp;
+	int error = 0, ftsflags, fnflag, postorder, sverrno;
+
+	/* XXX - nfds is currently unused */
+	if (nfds < 1) {
+		errno = EINVAL;
+		return (-1);
+	}
+
+	ftsflags = FTS_COMFOLLOW;
+	if (!(ftwflags & FTW_CHDIR))
+		ftsflags |= FTS_NOCHDIR;
+	if (ftwflags & FTW_MOUNT)
+		ftsflags |= FTS_XDEV;
+	if (ftwflags & FTW_PHYS)
+		ftsflags |= FTS_PHYSICAL;
+	else
+		ftsflags |= FTS_LOGICAL;
+	postorder = (ftwflags & FTW_DEPTH) != 0;
+	ftsp = fts_open(paths, ftsflags, fts_compare);
+	if (ftsp == NULL)
+		return (-1);
+	while ((cur = fts_read(ftsp)) != NULL) {
+		switch (cur->fts_info) {
+		case FTS_D:
+			if (postorder)
+				continue;
+			fnflag = FTW_D;
+			break;
+		case FTS_DC:
+			continue;
+		case FTS_DNR:
+			fnflag = FTW_DNR;
+			break;
+		case FTS_DP:
+			if (!postorder)
+				continue;
+			fnflag = FTW_DP;
+			break;
+		case FTS_F:
+		case FTS_DEFAULT:
+			fnflag = FTW_F;
+			break;
+		case FTS_NS:
+		case FTS_NSOK:
+			fnflag = FTW_NS;
+			break;
+		case FTS_SL:
+			fnflag = FTW_SL;
+			break;
+		case FTS_SLNONE:
+			fnflag = FTW_SLN;
+			break;
+		default:
+			error = -1;
+			goto done;
+		}
+		ftw.base = cur->fts_pathlen - cur->fts_namelen;
+		ftw.level = cur->fts_level;
+		error = fn(cur->fts_path, cur->fts_statp, fnflag, &ftw);
+		if (error != 0)
+			break;
+	}
+done:
+	sverrno = errno;
+	if (fts_close(ftsp) != 0 && error == 0)
+		error = -1;
+	else
+		errno = sverrno;
+	return (error);
 }
