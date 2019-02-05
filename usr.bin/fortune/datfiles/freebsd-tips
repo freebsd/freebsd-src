@@ -275,7 +275,7 @@ To see how much disk space is left on your UFS partitions, use
 	df -h
 		-- Dru <genesis@istar.ca>
 %
-To see the 10 largest files on a directory or UFS partition, use
+To see the 10 largest files in a directory or on a UFS partition, use
 
 	du -h /partition_or_directory_name | sort -rh | head
 		-- Dru <genesis@istar.ca>
@@ -560,10 +560,13 @@ curl -v -d "nickname=$USER" -d "description=FreeBSD/$(uname -m) on \
 $(kenv smbios.system.maker) $(kenv smbios.system.product)" -d "do=addd" \
 --data-urlencode 'dmesg@/var/run/dmesg.boot' http://dmesgd.nycbug.org/index.cgi
 %
-Want to know how much memory (in bytes) your machine has available? Let
+Want to know how much memory (in bytes) your machine has installed? Let
 sysctl(8) tell you with the following command:
 
-sysctl hw.physmem
+sysctl hw.realmem
+
+The realmem value is memory before the kernel and modules are loaded, whereas
+hw.physmem is what is left after they were loaded. 
 
 The number of active CPUs is displayed using this command:
 
@@ -571,20 +574,24 @@ sysctl hw.ncpu
 
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
-When using ZFS as the file system the "df" command will display confusing 
-values. Use the built-in "zfs list" command to get an overview of space usage:
+When using ZFS as the file system the "df" command is reporting the pool size
+and not file system sizes. It also does not know about descendent ZFS
+datasets, snapshots, quotas, and reservations with their individual space usage. 
+Use the built-in "zfs list" command to get a better overview of space usage:
 
 zfs list -o space
 
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
 To learn more about what your system is doing, take a look at systat(1). For
-example, to get an overview of I/O happening in the system, run:
+example, to get various of statistics related to virtual memory usage, process
+scheduling, device interrupts, system name translation caching, and disk I/O,
+enter the following:
 
-systat -iostat
+systat -vmstat
 
-Other values are icmp, icmp6, ifstat, ip, ip6, netstat, pigs, sctp, swap, tcp,
-vmstat, or zarc. You can switch between displays using :<display> and exit
+Other values are icmp, icmp6, ifstat, iostat, ip, ip6, netstat, pigs, sctp,
+swap, tcp, or zarc. You can switch between displays using :<display> and exit
 back to your shell by typing
 
 :quit
@@ -694,7 +701,7 @@ dataset/snapshot and not any dependent ones. ZFS will display the resulting
 action when -n is combined with the -v option without actually performing
 it:
 
-zfs destroy -rvn mypool@mysnap
+zfs destroy -nrv mypool@mysnap
 
 Once you are sure this is exactly what you intend to do, remove the -n
 parameter to execute the destroy operation.
