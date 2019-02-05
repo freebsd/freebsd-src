@@ -172,8 +172,8 @@ igb_netmap_txsync(struct netmap_kring *kring, int flags)
 	if (flags & NAF_FORCE_RECLAIM || nm_kr_txempty(kring)) {
 		/* record completed transmissions using TDH */
 		nic_i = E1000_READ_REG(&adapter->hw, E1000_TDH(kring->ring_id));
-		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
-			D("TDH wrap %d", nic_i);
+		if (unlikely(nic_i >= kring->nkr_num_slots)) {
+			nm_prerr("TDH wrap at idx %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
 		}
 		txr->next_to_clean = nic_i;
