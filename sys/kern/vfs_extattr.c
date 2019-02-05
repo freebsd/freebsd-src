@@ -633,7 +633,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 	if (nbytes > IOSIZE_MAX)
 		return (EINVAL);
 
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 
 	auiop = NULL;
 	sizep = NULL;
