@@ -767,11 +767,6 @@ cpu_idle_booke(sbintime_t sbt)
 	case FSL_E500mc:
 	case FSL_E5500:
 	case FSL_E6500:
-		/*
-		 * Base binutils doesn't know what the 'wait' instruction is, so
-		 * use the opcode encoding here.
-		 */
-		__asm __volatile(".long 0x7c00007c");
 		break;
 	default:
 		powerpc_sync();
