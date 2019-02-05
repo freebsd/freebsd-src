@@ -139,7 +139,7 @@ nm_is_zmon(struct netmap_adapter *na)
 static int
 netmap_monitor_txsync(struct netmap_kring *kring, int flags)
 {
-	RD(1, "%s %x", kring->name, flags);
+	nm_prlim(1, "%s %x", kring->name, flags);
 	return EIO;
 }
 
@@ -158,7 +158,7 @@ netmap_monitor_rxsync(struct netmap_kring *kring, int flags)
 		/* parent left netmap mode */
 		return EIO;
 	}
-	ND("%s %x", kring->name, flags);
+	nm_prdis("%s %x", kring->name, flags);
 	kring->nr_hwcur = kring->rhead;
 	mb();
 	return 0;
@@ -230,8 +230,8 @@ nm_monitor_dealloc(struct netmap_kring *kring)
 {
 	if (kring->monitors) {
 		if (kring->n_monitors > 0) {
-			D("freeing not empty monitor array for %s (%d dangling monitors)!", kring->name,
-					kring->n_monitors);
+			nm_prerr("freeing not empty monitor array for %s (%d dangling monitors)!",
+			    kring->name, kring->n_monitors);
 		}
 		nm_os_free(kring->monitors);
 		kring->monitors = NULL;
@@ -270,7 +270,7 @@ nm_monitor_dummycb(struct netmap_kring *kring, int flags)
 static void
 nm_monitor_intercept_callbacks(struct netmap_kring *kring)
 {
-	ND("intercept callbacks on %s", kring->name);
+	nm_prdis("intercept callbacks on %s", kring->name);
 	kring->mon_sync = kring->nm_sync != NULL ?
 		kring->nm_sync : nm_monitor_dummycb;
 	kring->mon_notify = kring->nm_notify;
@@ -286,7 +286,7 @@ nm_monitor_intercept_callbacks(struct netmap_kring *kring)
 static void
 nm_monitor_restore_callbacks(struct netmap_kring *kring)
 {
-	ND("restoring callbacks on %s", kring->name);
+	nm_prdis("restoring callbacks on %s", kring->name);
 	kring->nm_sync = kring->mon_sync;
 	kring->mon_sync = NULL;
 	if (kring->tx == NR_RX) {
@@ -333,7 +333,7 @@ netmap_monitor_add(struct netmap_kring *mkring, struct netmap_kring *kring, int 
 
 	if (nm_monitor_none(ikring)) {
 		/* this is the first monitor, intercept the callbacks */
-		ND("%s: intercept callbacks on %s", mkring->name, ikring->name);
+		nm_prdis("%s: intercept callbacks on %s", mkring->name, ikring->name);
 		nm_monitor_intercept_callbacks(ikring);
 	}
 
@@ -513,11 +513,11 @@ netmap_monitor_reg_common(struct netmap_adapter *na, int onoff, int zmon)
 	int i;
 	enum txrx t, s;
 
-	ND("%p: onoff %d", na, onoff);
+	nm_prdis("%p: onoff %d", na, onoff);
 	if (onoff) {
 		if (pna == NULL) {
 			/* parent left netmap mode, fatal */
-			D("%s: internal error", na->name);
+			nm_prerr("%s: parent left netmap mode", na->name);
 			return ENXIO;
 		}
 		for_rx_tx(t) {
@@ -592,7 +592,7 @@ netmap_zmon_parent_sync(struct netmap_kring *kring, int flags, enum txrx tx)
 	      mlim; // = mkring->nkr_num_slots - 1;
 
 	if (mkring == NULL) {
-		RD(5, "NULL monitor on %s", kring->name);
+		nm_prlim(5, "NULL monitor on %s", kring->name);
 		return 0;
 	}
 	mring = mkring->ring;
@@ -653,7 +653,7 @@ netmap_zmon_parent_sync(struct netmap_kring *kring, int flags, enum txrx tx)
 		tmp = ms->buf_idx;
 		ms->buf_idx = s->buf_idx;
 		s->buf_idx = tmp;
-		ND(5, "beg %d buf_idx %d", beg, tmp);
+		nm_prdis(5, "beg %d buf_idx %d", beg, tmp);
 
 		tmp = ms->len;
 		ms->len = s->len;
@@ -770,7 +770,7 @@ netmap_monitor_parent_sync(struct netmap_kring *kring, u_int first_new, int new_
 			     *dst = NMB(mkring->na, ms);
 
 			if (unlikely(copy_len > max_len)) {
-				RD(5, "%s->%s: truncating %d to %d", kring->name,
+				nm_prlim(5, "%s->%s: truncating %d to %d", kring->name,
 						mkring->name, copy_len, max_len);
 				copy_len = max_len;
 			}
@@ -849,7 +849,7 @@ static int
 netmap_monitor_parent_notify(struct netmap_kring *kring, int flags)
 {
 	int (*notify)(struct netmap_kring*, int);
-	ND(5, "%s %x", kring->name, flags);
+	nm_prdis(5, "%s %x", kring->name, flags);
 	/* ?xsync callbacks have tryget called by their callers
 	 * (NIOCREGIF and poll()), but here we have to call it
 	 * by ourself
@@ -909,12 +909,12 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		req->nr_flags |= (NR_MONITOR_TX | NR_MONITOR_RX);
 	}
 	if ((req->nr_flags & (NR_MONITOR_TX | NR_MONITOR_RX)) == 0) {
-		ND("not a monitor");
+		nm_prdis("not a monitor");
 		return 0;
 	}
 	/* this is a request for a monitor adapter */
 
-	ND("flags %lx", req->nr_flags);
+	nm_prdis("flags %lx", req->nr_flags);
 
 	/* First, try to find the adapter that we want to monitor.
 	 * We use the same req, after we have turned off the monitor flags.
@@ -927,24 +927,23 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	error = netmap_get_na(hdr, &pna, &ifp, nmd, create);
 	hdr->nr_body = (uintptr_t)req;
 	if (error) {
-		D("parent lookup failed: %d", error);
+		nm_prerr("parent lookup failed: %d", error);
 		return error;
 	}
-	ND("found parent: %s", pna->name);
+	nm_prdis("found parent: %s", pna->name);
 
 	if (!nm_netmap_on(pna)) {
 		/* parent not in netmap mode */
 		/* XXX we can wait for the parent to enter netmap mode,
 		 * by intercepting its nm_register callback (2014-03-16)
 		 */
-		D("%s not in netmap mode", pna->name);
+		nm_prerr("%s not in netmap mode", pna->name);
 		error = EINVAL;
 		goto put_out;
 	}
 
 	mna = nm_os_malloc(sizeof(*mna));
 	if (mna == NULL) {
-		D("memory error");
 		error = ENOMEM;
 		goto put_out;
 	}
@@ -954,7 +953,7 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	error = netmap_interp_ringid(&mna->priv, req->nr_mode, req->nr_ringid,
 					req->nr_flags);
 	if (error) {
-		D("ringid error");
+		nm_prerr("ringid error");
 		goto free_out;
 	}
 	snprintf(mna->up.name, sizeof(mna->up.name), "%s/%s%s%s#%lu", pna->name,
@@ -1013,7 +1012,7 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 
 	error = netmap_attach_common(&mna->up);
 	if (error) {
-		D("attach_common error");
+		nm_prerr("netmap_attach_common failed");
 		goto mem_put_out;
 	}
 
@@ -1024,7 +1023,7 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	netmap_adapter_get(*na);
 
 	/* keep the reference to the parent */
-	ND("monitor ok");
+	nm_prdis("monitor ok");
 
 	/* drop the reference to the ifp, if any */
 	if (ifp)
