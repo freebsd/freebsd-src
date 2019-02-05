@@ -1831,8 +1831,10 @@ m_dispose_extcontrolm(struct mbuf *m)
 					fd = *fds++;
 					error = fget(td, fd,
 					    cap_rights_init(&rights), &fp);
-					if (error == 0)
+					if (error == 0) {
 						fdclose(td, fp, fd);
+						fdrop(fp, td);
+					}
 				}
 			}
 			clen -= datalen;
