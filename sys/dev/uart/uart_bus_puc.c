@@ -3,7 +3,7 @@
  *
  * Copyright (c) 2006 Marcel Moolenaar.  All rights reserved.
  * Copyright (c) 2002 JF Hay.  All rights reserved.
- * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2001 M. Warner Losh.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

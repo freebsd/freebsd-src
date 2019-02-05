@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2006 Bernd Walter.  All rights reserved.
- * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2006 M. Warner Losh.
  * Copyright (c) 2017 Marius Strobl <marius@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
