@@ -412,7 +412,14 @@ void
 teken_set_cons25(teken_t *t)
 {
 
-	t->t_stateflags |= TS_CONS25 | TS_CONS25KEYS;
+	t->t_stateflags |= TS_CONS25;
+}
+
+void
+teken_set_cons25keys(teken_t *t)
+{
+
+	t->t_stateflags |= TS_CONS25KEYS;
 }
 
 /*

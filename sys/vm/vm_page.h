@@ -351,8 +351,10 @@ extern struct mtx_padalign pa_lock[];
  * queue, and cleared when the dequeue request is processed.  A page may
  * have PGA_DEQUEUE set and PGA_ENQUEUED cleared, for instance if a dequeue
  * is requested after the page is scheduled to be enqueued but before it is
- * actually inserted into the page queue.  The page lock must be held to set
- * this flag, and the queue lock for the page must be held to clear it.
+ * actually inserted into the page queue.  For allocated pages, the page lock
+ * must be held to set this flag, but it may be set by vm_page_free_prep()
+ * without the page lock held.  The page queue lock must be held to clear the
+ * PGA_DEQUEUE flag.
  *
  * PGA_REQUEUE is set when the page is scheduled to be enqueued or requeued
  * in its page queue.  The page lock must be held to set this flag, and the

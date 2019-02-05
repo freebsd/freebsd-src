@@ -3112,8 +3112,8 @@ allproc_loop:
 			PROC_UNLOCK(p);
 			continue;
 		}
-		_PHOLD(p);
 		sx_xunlock(&allproc_lock);
+		_PHOLD(p);
 		r = thread_single(p, SINGLE_ALLPROC);
 		if (r != 0)
 			restart = true;

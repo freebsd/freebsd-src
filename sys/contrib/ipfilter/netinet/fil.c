@@ -6119,9 +6119,7 @@ ipf_getifname(ifp, buffer)
 	char *buffer;
 {
 	static char namebuf[LIFNAMSIZ];
-# if defined(MENTAT) || defined(__FreeBSD__) || defined(__osf__) || \
-     defined(__sgi) || defined(linux) || defined(_AIX51) || \
-     (defined(sun) && !defined(__SVR4) && !defined(__svr4__))
+# if defined(MENTAT) || defined(__FreeBSD__)
 	int unit, space;
 	char temp[20];
 	char *s;
@@ -6131,9 +6129,7 @@ ipf_getifname(ifp, buffer)
 		buffer = namebuf;
 	(void) strncpy(buffer, ifp->if_name, LIFNAMSIZ);
 	buffer[LIFNAMSIZ - 1] = '\0';
-# if defined(MENTAT) || defined(__FreeBSD__) || defined(__osf__) || \
-     defined(__sgi) || defined(_AIX51) || \
-     (defined(sun) && !defined(__SVR4) && !defined(__svr4__))
+# if defined(MENTAT) || defined(__FreeBSD__)
 	for (s = buffer; *s; s++)
 		;
 	unit = ifp->if_unit;

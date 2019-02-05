@@ -66,6 +66,8 @@
 .Fn teken_set_8bit "teken_t *t"
 .Ft void
 .Fn teken_set_cons25 "teken_t *t"
+.Ft void
+.Fn teken_set_cons25keys "teken_t *t"
 .Sh DESCRIPTION
 The
 .Nm
@@ -194,11 +196,24 @@ which can be used to support character sets like CP437 and ISO-8859-1.
 .Pp
 The
 .Fn teken_set_cons25
-function switches terminal emulation to
+function sets the terminal emulation to
 .Dv cons25 ,
-which is used by versions of
+which was the default for
+.Xr syscons 4
+in versions of
 .Fx
 prior to 9.0.
+This function is only useful for initialization.
+The emulation can be changed at any time using an escape sequence,
+and this function is not used then.
+.Pp
+The
+.Fn teken_set_cons25keys
+function tells the
+.Fn teken_get_sequence
+function to not interpret special keys in
+.Dv cons25
+mode.
 .Sh SEE ALSO
 .Xr ncurses 3 ,
 .Xr termcap 3 ,
