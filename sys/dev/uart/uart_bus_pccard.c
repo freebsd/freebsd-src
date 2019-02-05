@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2001 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2001 M. Warner Losh.
  * Copyright (c) 2003 Norikatsu Shigemura, Takenori Watanabe All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
