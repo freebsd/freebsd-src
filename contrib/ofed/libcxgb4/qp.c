@@ -788,20 +788,6 @@ int c4iw_post_receive(struct ibv_qp *ibqp, struct ibv_recv_wr *wr,
 	return err;
 }
 
-static void update_qp_state(struct c4iw_qp *qhp)
-{
-	struct ibv_query_qp cmd;
-	struct ibv_qp_attr attr;
-	struct ibv_qp_init_attr iattr;
-	int ret;
-
-	ret = ibv_cmd_query_qp(&qhp->ibv_qp, &attr, IBV_QP_STATE, &iattr,
-			       &cmd, sizeof cmd);
-	assert(!ret);
-	if (!ret)
-		qhp->ibv_qp.state = attr.qp_state;
-}
-
 /*
  * Assumes qhp lock is held.
  */
@@ -813,7 +799,7 @@ void c4iw_flush_qp(struct c4iw_qp *qhp)
 	if (qhp->wq.flushed)
 		return;
 
-	update_qp_state(qhp);
+	qhp->ibv_qp.state = IBV_QPS_ERR;
 
 	rchp = to_c4iw_cq(qhp->ibv_qp.recv_cq);
 	schp = to_c4iw_cq(qhp->ibv_qp.send_cq);
