@@ -77,6 +77,21 @@
 	<entry>19&nbsp;December&nbsp;2018</entry>
 	<entry><para>Buffer overflow</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:01.syscall.asc">FreeBSD-SA-19:01.syscall</link></entry>
+	<entry>5&nbsp;February&nbsp;2019</entry>
+	<entry><para>Kernel data register leak</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-19:02.fd.asc">FreeBSD-SA-19:02.fd</link></entry>
+	<entry>5&nbsp;February&nbsp;2019</entry>
+	<entry><para>File description reference count
+	    leak</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
