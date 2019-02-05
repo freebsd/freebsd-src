@@ -29,6 +29,8 @@
 #ifndef _MKIMG_ENDIAN_H_
 #define _MKIMG_ENDIAN_H_
 
+#include <stdint.h>
+
 static __inline uint16_t
 be16dec(const void *pp)
 {
