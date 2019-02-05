@@ -1350,8 +1350,6 @@ nm_os_kctx_destroy(struct nm_kctx *nmk)
 void
 nm_os_selwakeup(struct nm_selinfo *si)
 {
-	if (netmap_verbose)
-		nm_prinf("on knote %p", &si->si.si_note);
 	selwakeuppri(&si->si, PI_NET);
 	taskqueue_enqueue(si->ntfytq, &si->ntfytask);
 }
