@@ -172,8 +172,8 @@ lem_netmap_txsync(struct netmap_kring *kring, int flags)
 		kring->last_reclaim = ticks;
 		/* record completed transmissions using TDH */
 		nic_i = E1000_READ_REG(&adapter->hw, E1000_TDH(0));
-		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
-			D("TDH wrap %d", nic_i);
+		if (unlikely(nic_i >= kring->nkr_num_slots)) {
+			nm_prerr("TDH wrap at idx %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
 		}
 		adapter->next_tx_to_clean = nic_i;
@@ -226,7 +226,7 @@ lem_netmap_rxsync(struct netmap_kring *kring, int flags)
 				break;
 			len = le16toh(curr->length) - 4; // CRC
 			if (len < 0) {
-				RD(5, "bogus pkt (%d) size %d nic idx %d", n, len, nic_i);
+				nm_prlim(2, "bogus pkt (%d) size %d nic idx %d", n, len, nic_i);
 				len = 0;
 			}
 			ring->slot[nm_i].len = len;
@@ -238,7 +238,7 @@ lem_netmap_rxsync(struct netmap_kring *kring, int flags)
 			nic_i = nm_next(nic_i, lim);
 		}
 		if (n) { /* update the state variables */
-			ND("%d new packets at nic %d nm %d tail %d",
+			nm_prdis("%d new packets at nic %d nm %d tail %d",
 				n,
 				adapter->next_rx_desc_to_check,
 				netmap_idx_n2k(kring, adapter->next_rx_desc_to_check),
