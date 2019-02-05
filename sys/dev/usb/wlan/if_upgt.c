@@ -41,7 +41,6 @@
 #include <net/if_types.h>
 
 #include <sys/bus.h>
-#include <machine/bus.h>
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_phy.h>
