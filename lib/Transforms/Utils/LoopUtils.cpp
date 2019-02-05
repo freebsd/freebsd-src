@@ -217,7 +217,10 @@ static Optional<bool> getOptionalBoolLoopAttribute(const Loop *TheLoop,
     // When the value is absent it is interpreted as 'attribute set'.
     return true;
   case 2:
-    return mdconst::extract_or_null<ConstantInt>(MD->getOperand(1).get());
+    if (ConstantInt *IntMD =
+            mdconst::extract_or_null<ConstantInt>(MD->getOperand(1).get()))
+      return IntMD->getZExtValue();
+    return true;
   }
   llvm_unreachable("unexpected number of options");
 }
@@ -376,16 +379,16 @@ TransformationMode llvm::hasVectorizeTransformation(Loop *L) {
   Optional<int> InterleaveCount =
       getOptionalIntLoopAttribute(L, "llvm.loop.interleave.count");
 
-  if (Enable == true) {
-    // 'Forcing' vector width and interleave count to one effectively disables
-    // this tranformation.
-    if (VectorizeWidth == 1 && InterleaveCount == 1)
-      return TM_SuppressedByUser;
-    return TM_ForcedByUser;
-  }
+  // 'Forcing' vector width and interleave count to one effectively disables
+  // this tranformation.
+  if (Enable == true && VectorizeWidth == 1 && InterleaveCount == 1)
+    return TM_SuppressedByUser;
 
   if (getBooleanLoopAttribute(L, "llvm.loop.isvectorized"))
     return TM_Disable;
+
+  if (Enable == true)
+    return TM_ForcedByUser;
 
   if (VectorizeWidth == 1 && InterleaveCount == 1)
     return TM_Disable;

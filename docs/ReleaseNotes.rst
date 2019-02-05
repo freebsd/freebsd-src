@@ -48,6 +48,12 @@ Non-comprehensive list of changes in this release
   functionality.  See `Writing an LLVM Pass
   <WritingAnLLVMPass.html#setting-up-the-build-environment>`_.
 
+* For MinGW, references to data variables that might need to be imported
+  from a dll are accessed via a stub, to allow the linker to convert it to
+  a dllimport if needed.
+
+* Added support for labels as offsets in ``.reloc`` directive.
+
 .. NOTE
    If you would like to document a larger change, then you can add a
    subsection about it right here. You can copy the following boilerplate
@@ -62,17 +68,44 @@ Changes to the LLVM IR
 ----------------------
 
 
+Changes to the AArch64 Target
+-----------------------------
+
+* Added support for the ``.arch_extension`` assembler directive, just like
+  on ARM.
+
+
 Changes to the ARM Backend
 --------------------------
 
  During this release ...
 
 
+Changes to the Hexagon Target
+--------------------------
+
+* Added support for Hexagon/HVX V66 ISA.
+
 Changes to the MIPS Target
 --------------------------
 
- During this release ...
+* Improved support of GlobalISel instruction selection framework.
 
+* Implemented emission of ``R_MIPS_JALR`` and ``R_MICROMIPS_JALR``
+  relocations. These relocations provide hints to a linker for optimization
+  of jumps to protected symbols.
+
+* ORC JIT has been supported for MIPS and MIPS64 architectures.
+
+* Assembler now suggests alternative MIPS instruction mnemonics when
+  an invalid one is specified.
+
+* Improved support for MIPS N32 ABI.
+
+* Added new instructions (``pll.ps``, ``plu.ps``, ``cvt.s.pu``,
+  ``cvt.s.pl``, ``cvt.ps``, ``sigrie``).
+
+* Numerous bug fixes and code cleanups.
 
 Changes to the PowerPC Target
 -----------------------------
@@ -123,7 +156,16 @@ Changes to the DAG infrastructure
 External Open Source Projects Using LLVM 8
 ==========================================
 
-* A project...
+Zig Programming Language
+------------------------
+
+`Zig <https://ziglang.org>`_  is a system programming language intended to be
+an alternative to C. It provides high level features such as generics, compile
+time function execution, and partial evaluation, while exposing low level LLVM
+IR features such as aliases and intrinsics. Zig uses Clang to provide automatic
+import of .h symbols, including inline functions and simple macros. Zig uses
+LLD combined with lazily building compiler-rt to provide out-of-the-box
+cross-compiling for all supported targets.
 
 
 Additional Information
