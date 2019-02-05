@@ -40,6 +40,9 @@ ELF Improvements
 
 * The following flags have been added: ``-z interpose``, ``-z global``
 
+* lld now uses the ``sigrie`` instruction as a trap instruction for
+  MIPS targets.
+
 COFF Improvements
 -----------------
 
@@ -65,6 +68,13 @@ MinGW Improvements
   from GCC in setups with DWARF exceptions though, where object files are
   linked in a different order than with GNU ld, inserting a DWARF exception
   table terminator too early.)
+
+* lld now supports COFF embedded directives for linking to nondefault
+  libraries, just like for the normal COFF target.
+
+* Actually generate a codeview build id signature, even if not creating a PDB.
+  Previously, the ``--build-id`` option did not actually generate a build id
+  unless ``--pdb`` was specified.
 
 MachO Improvements
 ------------------
