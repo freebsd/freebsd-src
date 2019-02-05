@@ -71,6 +71,7 @@ DESCRIPTION
                    CanonicalizeHostname
                    CanonicalizeMaxDots
                    CanonicalizePermittedCNAMEs
+                   CASignatureAlgorithms
                    CertificateFile
                    ChallengeResponseAuthentication
                    CheckHostIP
@@ -159,4 +160,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 6.4                      July 19, 2018                     OpenBSD 6.4
+OpenBSD 6.4                   September 20, 2018                   OpenBSD 6.4

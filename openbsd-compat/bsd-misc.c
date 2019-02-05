@@ -313,12 +313,12 @@ getsid(pid_t pid)
 #undef fflush
 int _ssh_compat_fflush(FILE *f)
 {
-	int r1, r2, r3;
+	int r1, r2;
 
 	if (f == NULL) {
-		r2 = fflush(stdout);
-		r3 = fflush(stderr);
-		if (r1 == -1 || r2 == -1 || r3 == -1)
+		r1 = fflush(stdout);
+		r2 = fflush(stderr);
+		if (r1 == -1 || r2 == -1)
 			return -1;
 		return 0;
 	}

@@ -187,8 +187,9 @@ DESCRIPTION
              may be specified on a per-host basis in the configuration file.
 
      -M      Places the ssh client into M-bM-^@M-^\masterM-bM-^@M-^] mode for connection sharing.
-             Multiple -M options places ssh into M-bM-^@M-^\masterM-bM-^@M-^] mode with
-             confirmation required before slave connections are accepted.
+             Multiple -M options places ssh into M-bM-^@M-^\masterM-bM-^@M-^] mode but with
+             confirmation required using ssh-askpass(1) before each operation
+             that changes the multiplexing state (e.g. opening a new session).
              Refer to the description of ControlMaster in ssh_config(5) for
              details.
 
@@ -236,6 +237,7 @@ DESCRIPTION
                    CanonicalizeHostname
                    CanonicalizeMaxDots
                    CanonicalizePermittedCNAMEs
+                   CASignatureAlgorithms
                    CertificateFile
                    ChallengeResponseAuthentication
                    CheckHostIP
@@ -319,10 +321,12 @@ DESCRIPTION
              Queries ssh for the algorithms supported for the specified
              version 2.  The available features are: cipher (supported
              symmetric ciphers), cipher-auth (supported symmetric ciphers that
-             support authenticated encryption), mac (supported message
-             integrity codes), kex (key exchange algorithms), key (key types),
-             key-cert (certificate key types), key-plain (non-certificate key
-             types), and protocol-version (supported SSH protocol versions).
+             support authenticated encryption), help (supported query terms
+             for use with the -Q flag), mac (supported message integrity
+             codes), kex (key exchange algorithms), key (key types), key-cert
+             (certificate key types), key-plain (non-certificate key types),
+             protocol-version (supported SSH protocol versions), and sig
+             (supported signature algorithms).
 
      -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
@@ -975,4 +979,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.4                      July 19, 2018                     OpenBSD 6.4
+OpenBSD 6.4                   September 20, 2018                   OpenBSD 6.4

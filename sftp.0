@@ -103,6 +103,7 @@ DESCRIPTION
                    CanonicalizeHostname
                    CanonicalizeMaxDots
                    CanonicalizePermittedCNAMEs
+                   CASignatureAlgorithms
                    CertificateFile
                    ChallengeResponseAuthentication
                    CheckHostIP
@@ -375,4 +376,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.4                      July 23, 2018                     OpenBSD 6.4
+OpenBSD 6.4                   September 20, 2018                   OpenBSD 6.4
