@@ -1301,6 +1301,10 @@ static DeclAccessPair findDecomposableBaseClass(Sema &S, SourceLocation Loc,
 static bool checkMemberDecomposition(Sema &S, ArrayRef<BindingDecl*> Bindings,
                                      ValueDecl *Src, QualType DecompType,
                                      const CXXRecordDecl *OrigRD) {
+  if (S.RequireCompleteType(Src->getLocation(), DecompType,
+                            diag::err_incomplete_type))
+    return true;
+
   CXXCastPath BasePath;
   DeclAccessPair BasePair =
       findDecomposableBaseClass(S, Src->getLocation(), OrigRD, BasePath);
@@ -5885,9 +5889,6 @@ static bool canPassInRegisters(Sema &S, CXXRecordDecl *D,
                                TargetInfo::CallingConvKind CCK) {
   if (D->isDependentType() || D->isInvalidDecl())
     return false;
-
-  if (D->hasAttr<TrivialABIAttr>())
-    return true;
 
   // Clang <= 4 used the pre-C++11 rule, which ignores move operations.
   // The PS4 platform ABI follows the behavior of Clang 3.2.

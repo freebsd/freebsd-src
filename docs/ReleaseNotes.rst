@@ -127,6 +127,10 @@ Non-comprehensive list of changes in this release
   manually and rely on the old behaviour you will need to add appropriate
   compiler flags for finding the corresponding libc++ include directory.
 
+- The integrated assembler is used now by default for all MIPS targets.
+
+- Improved support for MIPS N32 ABI and MIPS R6 target triples.
+
 New Compiler Flags
 ------------------
 
@@ -135,6 +139,13 @@ New Compiler Flags
   Clang has now options to filter or exclude some files when
   instrumenting for gcov-based profiling.
   See the :doc:`UsersManual` for details.
+
+- When using a custom stack alignment, the ``stackrealign`` attribute is now
+  implicitly set on the main function.
+
+- Emission of ``R_MIPS_JALR`` and ``R_MICROMIPS_JALR`` relocations can now
+  be controlled by the ``-mrelax-pic-calls`` and ``-mno-relax-pic-calls``
+  options.
 
 - ...
 
@@ -179,6 +190,15 @@ Windows Support
   `dllexport` and `dllimport` attributes not apply to inline member functions.
   This can significantly reduce compile and link times. See the `User's Manual
   <UsersManual.html#the-zc-dllexportinlines-option>`_ for more info.
+
+- For MinGW, ``-municode`` now correctly defines ``UNICODE`` during
+  preprocessing.
+
+- For MinGW, clang now produces vtables and RTTI for dllexported classes
+  without key functions. This fixes building Qt in debug mode.
+
+- Allow using Address Sanitizer and Undefined Behaviour Sanitizer on MinGW.
+
 - ...
 
 
@@ -233,12 +253,15 @@ ABI Changes in Clang
 OpenMP Support in Clang
 ----------------------------------
 
-- Support relational-op != (not-equal) as one of the canonical forms of random
-  access iterator.
+- OpenMP 5.0 features
 
-- Added support for mapping of the lambdas in target regions.
-
-- Added parsing/sema analysis for OpenMP 5.0 requires directive.
+  - Support relational-op != (not-equal) as one of the canonical forms of random
+    access iterator.
+  - Added support for mapping of the lambdas in target regions.
+  - Added parsing/sema analysis for the requires directive.
+  - Support nested declare target directives.
+  - Make the `this` pointer implicitly mapped as `map(this[:1])`.
+  - Added the `close` *map-type-modifier*.
 
 - Various bugfixes and improvements.
 
@@ -249,6 +272,15 @@ New features supported for Cuda devices:
 - Extended number of constructs that can be executed in SPMD mode.
 
 - Fixed support for lastprivate/reduction variables in SPMD constructs.
+
+- New collapse clause scheme to avoid expensive remainder operations.
+
+- New default schedule for distribute and parallel constructs.
+
+- Simplified code generation for distribute and parallel in SPMD mode.
+
+- Flag (``-fopenmp_optimistic_collapse``) for user to limit collapsed
+  loop counter width when safe to do so.
 
 - General performance improvement.
 
