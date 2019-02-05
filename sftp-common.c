@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-common.c,v 1.30 2017/06/10 06:36:46 djm Exp $ */
+/* $OpenBSD: sftp-common.c,v 1.31 2018/09/13 15:23:32 millert Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -215,7 +215,7 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 {
 	int ulen, glen, sz = 0;
 	struct tm *ltime = localtime(&st->st_mtime);
-	char *user, *group;
+	const char *user, *group;
 	char buf[1024], lc[8], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
 	char sbuf[FMT_SCALED_STRSIZE];
 	time_t now;

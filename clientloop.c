@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.317 2018/07/11 18:53:29 markus Exp $ */
+/* $OpenBSD: clientloop.c,v 1.318 2018/09/21 12:46:22 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -279,7 +279,7 @@ client_x11_get_proto(struct ssh *ssh, const char *display,
     const char *xauth_path, u_int trusted, u_int timeout,
     char **_proto, char **_data)
 {
-	char cmd[1024], line[512], xdisplay[512];
+	char *cmd, line[512], xdisplay[512];
 	char xauthfile[PATH_MAX], xauthdir[PATH_MAX];
 	static char proto[512], data[512];
 	FILE *f;
@@ -343,19 +343,30 @@ client_x11_get_proto(struct ssh *ssh, const char *display,
 				return -1;
 			}
 
-			if (timeout >= UINT_MAX - X11_TIMEOUT_SLACK)
-				x11_timeout_real = UINT_MAX;
-			else
-				x11_timeout_real = timeout + X11_TIMEOUT_SLACK;
-			if ((r = snprintf(cmd, sizeof(cmd),
-			    "%s -f %s generate %s " SSH_X11_PROTO
-			    " untrusted timeout %u 2>" _PATH_DEVNULL,
-			    xauth_path, xauthfile, display,
-			    x11_timeout_real)) < 0 ||
-			    (size_t)r >= sizeof(cmd))
-				fatal("%s: cmd too long", __func__);
+			if (timeout == 0) {
+				/* auth doesn't time out */
+				xasprintf(&cmd, "%s -f %s generate %s %s "
+				    "untrusted 2>%s",
+				    xauth_path, xauthfile, display,
+				    SSH_X11_PROTO, _PATH_DEVNULL);
+			} else {
+				/* Add some slack to requested expiry */
+				if (timeout < UINT_MAX - X11_TIMEOUT_SLACK)
+					x11_timeout_real = timeout +
+					    X11_TIMEOUT_SLACK;
+				else {
+					/* Don't overflow on long timeouts */
+					x11_timeout_real = UINT_MAX;
+				}
+				xasprintf(&cmd, "%s -f %s generate %s %s "
+				    "untrusted timeout %u 2>%s",
+				    xauth_path, xauthfile, display,
+				    SSH_X11_PROTO, x11_timeout_real,
+				    _PATH_DEVNULL);
+			}
 			debug2("%s: %s", __func__, cmd);
-			if (x11_refuse_time == 0) {
+
+			if (timeout != 0 && x11_refuse_time == 0) {
 				now = monotime() + 1;
 				if (UINT_MAX - timeout < now)
 					x11_refuse_time = UINT_MAX;
@@ -366,6 +377,7 @@ client_x11_get_proto(struct ssh *ssh, const char *display,
 			}
 			if (system(cmd) == 0)
 				generated = 1;
+			free(cmd);
 		}
 
 		/*
@@ -374,7 +386,7 @@ client_x11_get_proto(struct ssh *ssh, const char *display,
 		 * above.
 		 */
 		if (trusted || generated) {
-			snprintf(cmd, sizeof(cmd),
+			xasprintf(&cmd,
 			    "%s %s%s list %s 2>" _PATH_DEVNULL,
 			    xauth_path,
 			    generated ? "-f " : "" ,
@@ -387,6 +399,7 @@ client_x11_get_proto(struct ssh *ssh, const char *display,
 				got_data = 1;
 			if (f)
 				pclose(f);
+			free(cmd);
 		}
 	}
 

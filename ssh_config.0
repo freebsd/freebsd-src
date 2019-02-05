@@ -132,9 +132,9 @@ DESCRIPTION
              Controls whether explicit hostname canonicalization is performed.
              The default, no, is not to perform any name rewriting and let the
              system resolver handle all hostname lookups.  If set to yes then,
-             for connections that do not use a ProxyCommand, ssh(1) will
-             attempt to canonicalize the hostname specified on the command
-             line using the CanonicalDomains suffixes and
+             for connections that do not use a ProxyCommand or ProxyJump,
+             ssh(1) will attempt to canonicalize the hostname specified on the
+             command line using the CanonicalDomains suffixes and
              CanonicalizePermittedCNAMEs rules.  If CanonicalizeHostname is
              set to always, then canonicalization is applied to proxied
              connections too.
@@ -160,6 +160,16 @@ DESCRIPTION
              will allow hostnames matching "*.a.example.com" to be
              canonicalized to names in the "*.b.example.com" or
              "*.c.example.com" domains.
+
+     CASignatureAlgorithms
+             Specifies which algorithms are allowed for signing of
+             certificates by certificate authorities (CAs).  The default is:
+
+                   ecdsa-sha2-nistp256.ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
+                   ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+
+             ssh(1) will not accept host certificates signed using algorithms
+             other than those specified.
 
      CertificateFile
              Specifies a file from which the user's certificate is read.  A
@@ -372,7 +382,9 @@ DESCRIPTION
              Specify a timeout for untrusted X11 forwarding using the format
              described in the TIME FORMATS section of sshd_config(5).  X11
              connections received by ssh(1) after this time will be refused.
-             The default is to disable untrusted X11 forwarding after twenty
+             Setting ForwardX11Timeout to zero will disable the timeout and
+             permit X11 forwarding for the life of the connection.  The
+             default is to disable untrusted X11 forwarding after twenty
              minutes has elapsed.
 
      ForwardX11Trusted
@@ -501,6 +513,9 @@ DESCRIPTION
              to none disables the use of an authentication agent.  If the
              string "SSH_AUTH_SOCK" is specified, the location of the socket
              will be read from the SSH_AUTH_SOCK environment variable.
+             Otherwise if the specified value begins with a M-bM-^@M-^X$M-bM-^@M-^Y character,
+             then it will be treated as an environment variable containing the
+             location of the socket.
 
              Arguments to IdentityAgent may use the tilde syntax to refer to a
              user's home directory or the tokens described in the TOKENS
@@ -1091,4 +1106,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.4                      July 23, 2018                     OpenBSD 6.4
+OpenBSD 6.4                     October 3, 2018                    OpenBSD 6.4

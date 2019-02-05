@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgexs.c,v 1.33 2018/04/10 00:10:49 djm Exp $ */
+/* $OpenBSD: kexgexs.c,v 1.35 2018/10/04 00:04:41 djm Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -240,6 +240,7 @@ input_kex_dh_gex_init(int type, u_int32_t seq, struct ssh *ssh)
 	if ((r = kex_derive_keys_bn(ssh, hash, hashlen, shared_secret)) == 0)
 		r = kex_send_newkeys(ssh);
  out:
+	explicit_bzero(hash, sizeof(hash));
 	DH_free(kex->dh);
 	kex->dh = NULL;
 	BN_clear_free(dh_client_pub);

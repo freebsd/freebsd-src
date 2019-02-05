@@ -1,5 +1,5 @@
 #!/bin/sh
-# $OpenBSD: mktestdata.sh,v 1.6 2017/04/30 23:33:48 djm Exp $
+# $OpenBSD: mktestdata.sh,v 1.7 2018/09/12 01:36:45 djm Exp $
 
 PW=mekmitasdigoat
 
@@ -127,6 +127,18 @@ ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
 ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
     -Oforce-command=/bin/ls -Ono-port-forwarding -Osource-address=10.0.0.0/8 \
     -V 19990101:20110101 -z 4 ed25519_1.pub
+
+# Make a few RSA variant signature too.
+cp rsa_1 rsa_1_sha1
+cp rsa_1 rsa_1_sha512
+cp rsa_1.pub rsa_1_sha1.pub
+cp rsa_1.pub rsa_1_sha512.pub
+ssh-keygen -s rsa_2 -I hugo -n user1,user2 -t ssh-rsa \
+    -Oforce-command=/bin/ls -Ono-port-forwarding -Osource-address=10.0.0.0/8 \
+    -V 19990101:20110101 -z 1 rsa_1_sha1.pub
+ssh-keygen -s rsa_2 -I hugo -n user1,user2 -t rsa-sha2-512 \
+    -Oforce-command=/bin/ls -Ono-port-forwarding -Osource-address=10.0.0.0/8 \
+    -V 19990101:20110101 -z 1 rsa_1_sha512.pub
 
 ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
     -V 19990101:20110101 -z 5 rsa_1.pub

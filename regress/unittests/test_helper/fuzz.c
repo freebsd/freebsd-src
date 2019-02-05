@@ -196,7 +196,6 @@ fuzz_dump(struct fuzz *fuzz)
 	dump(fuzz_ptr(fuzz), fuzz_len(fuzz));
 }
 
-#ifdef SIGINFO
 static struct fuzz *last_fuzz;
 
 static void
@@ -211,7 +210,6 @@ siginfo(int unused __attribute__((__unused__)))
 		atomicio(vwrite, STDERR_FILENO, buf, strlen(buf));
 	}
 }
-#endif
 
 struct fuzz *
 fuzz_begin(u_int strategies, const void *p, size_t l)
@@ -233,10 +231,11 @@ fuzz_begin(u_int strategies, const void *p, size_t l)
 
 	fuzz_next(ret);
 
-#ifdef SIGINFO
 	last_fuzz = ret;
+#ifdef SIGINFO
 	signal(SIGINFO, siginfo);
 #endif
+	signal(SIGUSR1, siginfo);
 
 	return ret;
 }
@@ -245,10 +244,11 @@ void
 fuzz_cleanup(struct fuzz *fuzz)
 {
 	FUZZ_DBG(("cleanup, fuzz = %p", fuzz));
-#ifdef SIGINFO
 	last_fuzz = NULL;
+#ifdef SIGINFO
 	signal(SIGINFO, SIG_DFL);
 #endif
+	signal(SIGUSR1, SIG_DFL);
 	assert(fuzz != NULL);
 	assert(fuzz->seed != NULL);
 	assert(fuzz->fuzzed != NULL);

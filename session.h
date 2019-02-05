@@ -1,4 +1,4 @@
-/* $OpenBSD: session.h,v 1.35 2017/09/12 06:32:07 djm Exp $ */
+/* $OpenBSD: session.h,v 1.36 2018/10/02 12:40:07 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -35,6 +35,7 @@ struct Session {
 	struct passwd *pw;
 	Authctxt *authctxt;
 	pid_t	pid;
+	int	forced;
 
 	/* tty */
 	char	*term;

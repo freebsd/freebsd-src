@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.203 2019/01/27 07:14:11 jmc Exp $ */
+/* $OpenBSD: scp.c,v 1.197 2018/06/01 04:31:48 dtucker Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -94,7 +94,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fnmatch.h>
 #include <limits.h>
 #include <locale.h>
 #include <pwd.h>
@@ -376,14 +375,14 @@ void verifydir(char *);
 struct passwd *pwd;
 uid_t userid;
 int errs, remin, remout;
-int Tflag, pflag, iamremote, iamrecursive, targetshouldbedirectory;
+int pflag, iamremote, iamrecursive, targetshouldbedirectory;
 
 #define	CMDNEEDS	64
 char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
 
 int response(void);
 void rsource(char *, struct stat *);
-void sink(int, char *[], const char *);
+void sink(int, char *[]);
 void source(int, char *[]);
 void tolocal(int, char *[]);
 void toremote(int, char *[]);
@@ -422,9 +421,8 @@ main(int argc, char **argv)
 	addargs(&args, "-oRemoteCommand=none");
 	addargs(&args, "-oRequestTTY=no");
 
-	fflag = Tflag = tflag = 0;
-	while ((ch = getopt(argc, argv,
-	    "dfl:prtTvBCc:i:P:q12346S:o:F:J:")) != -1) {
+	fflag = tflag = 0;
+	while ((ch = getopt(argc, argv, "dfl:prtvBCc:i:P:q12346S:o:F:")) != -1)
 		switch (ch) {
 		/* User-visible flags. */
 		case '1':
@@ -503,13 +501,9 @@ main(int argc, char **argv)
 			setmode(0, O_BINARY);
 #endif
 			break;
-		case 'T':
-			Tflag = 1;
-			break;
 		default:
 			usage();
 		}
-	}
 	argc -= optind;
 	argv += optind;
 
@@ -540,7 +534,7 @@ main(int argc, char **argv)
 	}
 	if (tflag) {
 		/* Receive data. */
-		sink(argc, argv, NULL);
+		sink(argc, argv);
 		exit(errs != 0);
 	}
 	if (argc < 2)
@@ -797,7 +791,7 @@ tolocal(int argc, char **argv)
 			continue;
 		}
 		free(bp);
-		sink(1, argv + argc - 1, src);
+		sink(1, argv + argc - 1);
 		(void) close(remin);
 		remin = remout = -1;
 	}
@@ -973,7 +967,7 @@ rsource(char *name, struct stat *statp)
 	 (sizeof(type) != 4 && sizeof(type) != 8))
 
 void
-sink(int argc, char **argv, const char *src)
+sink(int argc, char **argv)
 {
 	static BUF buffer;
 	struct stat stb;
@@ -989,7 +983,6 @@ sink(int argc, char **argv, const char *src)
 	unsigned long long ull;
 	int setimes, targisdir, wrerrno = 0;
 	char ch, *cp, *np, *targ, *why, *vect[1], buf[2048], visbuf[2048];
-	char *src_copy = NULL, *restrict_pattern = NULL;
 	struct timeval tv[2];
 
 #define	atime	tv[0]
@@ -1014,17 +1007,6 @@ sink(int argc, char **argv, const char *src)
 	(void) atomicio(vwrite, remout, "", 1);
 	if (stat(targ, &stb) == 0 && S_ISDIR(stb.st_mode))
 		targisdir = 1;
-	if (src != NULL && !iamrecursive && !Tflag) {
-		/*
-		 * Prepare to try to restrict incoming filenames to match
-		 * the requested destination file glob.
-		 */
-		if ((src_copy = strdup(src)) == NULL)
-			fatal("strdup failed");
-		if ((restrict_pattern = strrchr(src_copy, '/')) != NULL) {
-			*restrict_pattern++ = '\0';
-		}
-	}
 	for (first = 1;; first = 0) {
 		cp = buf;
 		if (atomicio(read, remin, cp, 1) != 1)
@@ -1128,9 +1110,6 @@ sink(int argc, char **argv, const char *src)
 			run_err("error: unexpected filename: %s", cp);
 			exit(1);
 		}
-		if (restrict_pattern != NULL &&
-		    fnmatch(restrict_pattern, cp, 0) != 0)
-			SCREWUP("filename does not match request");
 		if (targisdir) {
 			static char *namebuf;
 			static size_t cursize;
@@ -1168,7 +1147,7 @@ sink(int argc, char **argv, const char *src)
 					goto bad;
 			}
 			vect[0] = xstrdup(np);
-			sink(1, vect, src);
+			sink(1, vect);
 			if (setimes) {
 				setimes = 0;
 				if (utimes(vect[0], tv) < 0)
@@ -1336,7 +1315,7 @@ void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: scp [-346BCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
+	    "usage: scp [-346BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]\n"
 	    "           [-l limit] [-o ssh_option] [-P port] [-S program] source ... target\n");
 	exit(1);
 }
