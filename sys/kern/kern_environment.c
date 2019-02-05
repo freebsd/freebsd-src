@@ -250,6 +250,23 @@ init_static_kenv(char *buf, size_t len)
 	char *eval;
 
 	KASSERT(!dynamic_kenv, ("kenv: dynamic_kenv already initialized"));
+
+	/*
+	 * We may be called twice, with the second call needed to relocate
+	 * md_envp after enabling paging.  md_envp is then garbage if it is
+	 * not null and the relocation will move it.  Discard it so as to
+	 * not crash using its old value in our first call to kern_getenv().
+	 *
+	 * The second call gives the same environment as the first except
+	 * in silly configurations where the static env disables itself.
+	 *
+	 * Other env calls don't handle possibly-garbage pointers, so must
+	 * not be made between enabling paging and calling here.
+	 */
+	md_envp = NULL;
+	md_env_len = 0;
+	md_env_pos = 0;
+
 	/*
 	 * Give the static environment a chance to disable the loader(8)
 	 * environment first.  This is done with loader_env.disabled=1.
@@ -275,12 +292,16 @@ init_static_kenv(char *buf, size_t len)
 		md_env_pos = 0;
 
 		eval = kern_getenv("static_env.disabled");
-		if (eval != NULL && strcmp(eval, "1") == 0)
-			*kern_envp = '\0';
+		if (eval != NULL && strcmp(eval, "1") == 0) {
+			kern_envp[0] = '\0';
+			kern_envp[1] = '\0';
+		}
 	}
 	eval = kern_getenv("static_hints.disabled");
-	if (eval != NULL && strcmp(eval, "1") == 0)
-		*static_hints = '\0';
+	if (eval != NULL && strcmp(eval, "1") == 0) {
+		static_hints[0] = '\0';
+		static_hints[1] = '\0';
+	}
 }
 
 static void
