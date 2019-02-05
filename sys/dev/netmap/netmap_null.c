@@ -74,15 +74,7 @@
 #ifdef WITH_NMNULL
 
 static int
-netmap_null_txsync(struct netmap_kring *kring, int flags)
-{
-	(void)kring;
-	(void)flags;
-	return 0;
-}
-
-static int
-netmap_null_rxsync(struct netmap_kring *kring, int flags)
+netmap_null_sync(struct netmap_kring *kring, int flags)
 {
 	(void)kring;
 	(void)flags;
@@ -93,12 +85,6 @@ static int
 netmap_null_krings_create(struct netmap_adapter *na)
 {
 	return netmap_krings_create(na, 0);
-}
-
-static void
-netmap_null_krings_delete(struct netmap_adapter *na)
-{
-	netmap_krings_delete(na);
 }
 
 static int
@@ -153,11 +139,11 @@ netmap_get_null_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	}
 	snprintf(nna->up.name, sizeof(nna->up.name), "null:%s", hdr->nr_name);
 
-	nna->up.nm_txsync = netmap_null_txsync;
-	nna->up.nm_rxsync = netmap_null_rxsync;
+	nna->up.nm_txsync = netmap_null_sync;
+	nna->up.nm_rxsync = netmap_null_sync;
 	nna->up.nm_register = netmap_null_reg;
 	nna->up.nm_krings_create = netmap_null_krings_create;
-	nna->up.nm_krings_delete = netmap_null_krings_delete;
+	nna->up.nm_krings_delete = netmap_krings_delete;
 	nna->up.nm_bdg_attach = netmap_null_bdg_attach;
 	nna->up.nm_mem = netmap_mem_get(nmd);
 

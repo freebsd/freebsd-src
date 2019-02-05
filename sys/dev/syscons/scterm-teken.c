@@ -144,6 +144,7 @@ scteken_init(scr_stat *scp, void **softc, int code)
 #ifdef TEKEN_CONS25
 		teken_set_cons25(&ts->ts_teken);
 #endif /* TEKEN_CONS25 */
+		teken_set_cons25keys(&ts->ts_teken);
 		scteken_sync_internal(scp, ts);
 		break;
 	}

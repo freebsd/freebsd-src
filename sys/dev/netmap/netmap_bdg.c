@@ -203,14 +203,14 @@ nm_find_bridge(const char *name, int create, struct netmap_bdg_ops *ops)
 		} else if (x->bdg_namelen != namelen) {
 			continue;
 		} else if (strncmp(name, x->bdg_basename, namelen) == 0) {
-			ND("found '%.*s' at %d", namelen, name, i);
+			nm_prdis("found '%.*s' at %d", namelen, name, i);
 			b = x;
 			break;
 		}
 	}
 	if (i == num_bridges && b) { /* name not found, can create entry */
 		/* initialize the bridge */
-		ND("create new bridge %s with ports %d", b->bdg_basename,
+		nm_prdis("create new bridge %s with ports %d", b->bdg_basename,
 			b->bdg_active_ports);
 		b->ht = nm_os_malloc(sizeof(struct nm_hash_ent) * NM_BDG_HASH);
 		if (b->ht == NULL) {
@@ -239,7 +239,7 @@ netmap_bdg_free(struct nm_bridge *b)
 		return EBUSY;
 	}
 
-	ND("marking bridge %s as free", b->bdg_basename);
+	nm_prdis("marking bridge %s as free", b->bdg_basename);
 	nm_os_free(b->ht);
 	memset(&b->bdg_ops, 0, sizeof(b->bdg_ops));
 	memset(&b->bdg_saved_ops, 0, sizeof(b->bdg_saved_ops));
@@ -312,13 +312,13 @@ netmap_bdg_detach_common(struct nm_bridge *b, int hw, int sw)
 	memcpy(b->tmp_bdg_port_index, b->bdg_port_index, sizeof(b->tmp_bdg_port_index));
 	for (i = 0; (hw >= 0 || sw >= 0) && i < lim; ) {
 		if (hw >= 0 && tmp[i] == hw) {
-			ND("detach hw %d at %d", hw, i);
+			nm_prdis("detach hw %d at %d", hw, i);
 			lim--; /* point to last active port */
 			tmp[i] = tmp[lim]; /* swap with i */
 			tmp[lim] = hw;	/* now this is inactive */
 			hw = -1;
 		} else if (sw >= 0 && tmp[i] == sw) {
-			ND("detach sw %d at %d", sw, i);
+			nm_prdis("detach sw %d at %d", sw, i);
 			lim--;
 			tmp[i] = tmp[lim];
 			tmp[lim] = sw;
@@ -342,7 +342,7 @@ netmap_bdg_detach_common(struct nm_bridge *b, int hw, int sw)
 	b->bdg_active_ports = lim;
 	BDG_WUNLOCK(b);
 
-	ND("now %d active ports", lim);
+	nm_prdis("now %d active ports", lim);
 	netmap_bdg_free(b);
 }
 
@@ -408,7 +408,7 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 
 	b = nm_find_bridge(nr_name, create, ops);
 	if (b == NULL) {
-		ND("no bridges available for '%s'", nr_name);
+		nm_prdis("no bridges available for '%s'", nr_name);
 		return (create ? ENOMEM : ENXIO);
 	}
 	if (strlen(nr_name) < b->bdg_namelen) /* impossible */
@@ -425,10 +425,10 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	for (j = 0; j < b->bdg_active_ports; j++) {
 		i = b->bdg_port_index[j];
 		vpna = b->bdg_ports[i];
-		ND("checking %s", vpna->up.name);
+		nm_prdis("checking %s", vpna->up.name);
 		if (!strcmp(vpna->up.name, nr_name)) {
 			netmap_adapter_get(&vpna->up);
-			ND("found existing if %s refs %d", nr_name)
+			nm_prdis("found existing if %s refs %d", nr_name)
 			*na = &vpna->up;
 			return 0;
 		}
@@ -445,7 +445,7 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	/* record the next two ports available, but do not allocate yet */
 	cand = b->bdg_port_index[b->bdg_active_ports];
 	cand2 = b->bdg_port_index[b->bdg_active_ports + 1];
-	ND("+++ bridge %s port %s used %d avail %d %d",
+	nm_prdis("+++ bridge %s port %s used %d avail %d %d",
 		b->bdg_basename, ifname, b->bdg_active_ports, cand, cand2);
 
 	/*
@@ -515,7 +515,7 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 
 	BDG_WLOCK(b);
 	vpna->bdg_port = cand;
-	ND("NIC  %p to bridge port %d", vpna, cand);
+	nm_prdis("NIC  %p to bridge port %d", vpna, cand);
 	/* bind the port to the bridge (virtual ports are not active) */
 	b->bdg_ports[cand] = vpna;
 	vpna->na_bdg = b;
@@ -526,9 +526,9 @@ netmap_get_bdg_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		hostna->bdg_port = cand2;
 		hostna->na_bdg = b;
 		b->bdg_active_ports++;
-		ND("host %p to bridge port %d", hostna, cand2);
+		nm_prdis("host %p to bridge port %d", hostna, cand2);
 	}
-	ND("if %s refs %d", ifname, vpna->up.na_refcount);
+	nm_prdis("if %s refs %d", ifname, vpna->up.na_refcount);
 	BDG_WUNLOCK(b);
 	*na = &vpna->up;
 	netmap_adapter_get(*na);
@@ -920,8 +920,6 @@ netmap_vp_reg(struct netmap_adapter *na, int onoff)
 {
 	struct netmap_vp_adapter *vpna =
 		(struct netmap_vp_adapter*)na;
-	enum txrx t;
-	int i;
 
 	/* persistent ports may be put in netmap mode
 	 * before being attached to a bridge
@@ -929,14 +927,7 @@ netmap_vp_reg(struct netmap_adapter *na, int onoff)
 	if (vpna->na_bdg)
 		BDG_WLOCK(vpna->na_bdg);
 	if (onoff) {
-		for_rx_tx(t) {
-			for (i = 0; i < netmap_real_rings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-
-				if (nm_kring_pending_on(kring))
-					kring->nr_mode = NKR_NETMAP_ON;
-			}
-		}
+		netmap_krings_mode_commit(na, onoff);
 		if (na->active_fds == 0)
 			na->na_flags |= NAF_NETMAP_ON;
 		 /* XXX on FreeBSD, persistent VALE ports should also
@@ -945,14 +936,7 @@ netmap_vp_reg(struct netmap_adapter *na, int onoff)
 	} else {
 		if (na->active_fds == 0)
 			na->na_flags &= ~NAF_NETMAP_ON;
-		for_rx_tx(t) {
-			for (i = 0; i < netmap_real_rings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-
-				if (nm_kring_pending_off(kring))
-					kring->nr_mode = NKR_NETMAP_OFF;
-			}
-		}
+		netmap_krings_mode_commit(na, onoff);
 	}
 	if (vpna->na_bdg)
 		BDG_WUNLOCK(vpna->na_bdg);
@@ -1077,7 +1061,7 @@ netmap_bwrap_dtor(struct netmap_adapter *na)
 			    (bh ? bna->host.bdg_port : -1));
 	}
 
-	ND("na %p", na);
+	nm_prdis("na %p", na);
 	na->ifp = NULL;
 	bna->host.up.ifp = NULL;
 	hwna->na_vp = bna->saved_na_vp;
@@ -1182,7 +1166,7 @@ netmap_bwrap_reg(struct netmap_adapter *na, int onoff)
 	int error, i;
 	enum txrx t;
 
-	ND("%s %s", na->name, onoff ? "on" : "off");
+	nm_prdis("%s %s", na->name, onoff ? "on" : "off");
 
 	if (onoff) {
 		/* netmap_do_regif has been called on the bwrap na.
@@ -1387,7 +1371,7 @@ netmap_bwrap_krings_delete_common(struct netmap_adapter *na)
 	enum txrx t;
 	int i;
 
-	ND("%s", na->name);
+	nm_prdis("%s", na->name);
 
 	/* decrement the usage counter for all the hwna krings */
 	for_rx_tx(t) {
@@ -1414,7 +1398,7 @@ netmap_bwrap_notify(struct netmap_kring *kring, int flags)
 	struct netmap_kring *hw_kring;
 	int error;
 
-	ND("%s: na %s hwna %s",
+	nm_prdis("%s: na %s hwna %s",
 			(kring ? kring->name : "NULL!"),
 			(na ? na->name : "NULL!"),
 			(hwna ? hwna->name : "NULL!"));
@@ -1426,7 +1410,7 @@ netmap_bwrap_notify(struct netmap_kring *kring, int flags)
 
 	/* first step: simulate a user wakeup on the rx ring */
 	netmap_vp_rxsync(kring, flags);
-	ND("%s[%d] PRE rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
+	nm_prdis("%s[%d] PRE rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
 		na->name, ring_n,
 		kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
 		kring->rhead, kring->rcur, kring->rtail,
@@ -1445,7 +1429,7 @@ netmap_bwrap_notify(struct netmap_kring *kring, int flags)
 
 	/* fourth step: the user goes to sleep again, causing another rxsync */
 	netmap_vp_rxsync(kring, flags);
-	ND("%s[%d] PST rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
+	nm_prdis("%s[%d] PST rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
 		na->name, ring_n,
 		kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
 		kring->rhead, kring->rcur, kring->rtail,
@@ -1595,7 +1579,7 @@ netmap_bwrap_attach_common(struct netmap_adapter *na,
 	if (hwna->na_flags & NAF_MOREFRAG)
 		na->na_flags |= NAF_MOREFRAG;
 
-	ND("%s<->%s txr %d txd %d rxr %d rxd %d",
+	nm_prdis("%s<->%s txr %d txd %d rxr %d rxd %d",
 		na->name, ifp->if_xname,
 		na->num_tx_rings, na->num_tx_desc,
 		na->num_rx_rings, na->num_rx_desc);

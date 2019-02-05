@@ -120,7 +120,12 @@ SAN_CFLAGS+=	-fsanitize=undefined
 
 COVERAGE_ENABLED!=	grep COVERAGE opt_global.h || true ; echo
 .if !empty(COVERAGE_ENABLED)
+.if ${COMPILER_TYPE} == "clang" || \
+    (${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 80100)
 SAN_CFLAGS+=	-fsanitize-coverage=trace-pc,trace-cmp
+.else
+SAN_CFLAGS+=	-fsanitize-coverage=trace-pc
+.endif
 .endif
 
 CFLAGS+=	${SAN_CFLAGS}

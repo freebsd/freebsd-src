@@ -864,8 +864,8 @@ dbtrap:
 	mtsprg3	%r1
 
 	lwz	%r1,TRAP_TOCBASE(0)		/* get new SP */
-	lwz	%r1,tmpstk@got(%r1)
-	addi	%r1,%r1,TMPSTKSZ-16
+	lwz	%r1,trapstk@got(%r1)
+	addi	%r1,%r1,TRAPSTKSZ-16
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */

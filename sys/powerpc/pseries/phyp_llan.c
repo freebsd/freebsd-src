@@ -386,8 +386,6 @@ restart:
 		/* llan_add_rxbuf does DMA sync and unload as well as requeue */
 		if (llan_add_rxbuf(sc, rx) != 0) {
 			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
-			phyp_hcall(H_ADD_LOGICAL_LAN_BUFFER, sc->unit,
-			    rx->rx_bufdesc);
 			continue;
 		}
 

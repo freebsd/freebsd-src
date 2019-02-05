@@ -1208,7 +1208,7 @@ sysdecode_sctp_pr_policy(int policy)
 
 static struct name_table sctpsndflags[] = {
 	X(SCTP_EOF) X(SCTP_ABORT) X(SCTP_UNORDERED) X(SCTP_ADDR_OVER)
-	X(SCTP_SENDALL) X(SCTP_SACK_IMMEDIATELY) XEND
+	X(SCTP_SENDALL) X(SCTP_EOR) X(SCTP_SACK_IMMEDIATELY) XEND
 };
 
 bool

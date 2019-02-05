@@ -165,29 +165,38 @@ static vdev_ops_t *vdev_ops_table[] = {
 
 /* target number of metaslabs per top-level vdev */
 int vdev_max_ms_count = 200;
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_ms_count, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_ms_count, CTLFLAG_RWTUN,
     &vdev_max_ms_count, 0,
-    "Maximum number of metaslabs per top-level vdev");
+    "Target number of metaslabs per top-level vdev");
 
 /* minimum number of metaslabs per top-level vdev */
 int vdev_min_ms_count = 16;
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, min_ms_count, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, min_ms_count, CTLFLAG_RWTUN,
     &vdev_min_ms_count, 0,
     "Minimum number of metaslabs per top-level vdev");
 
 /* practical upper limit of total metaslabs per top-level vdev */
 int vdev_ms_count_limit = 1ULL << 17;
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_ms_count_limit, CTLFLAG_RWTUN,
+    &vdev_ms_count_limit, 0,
+    "Maximum number of metaslabs per top-level vdev");
 
 /* lower limit for metaslab size (512M) */
 int vdev_default_ms_shift = 29;
-SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, default_ms_shift, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, default_ms_shift, CTLFLAG_RWTUN,
     &vdev_default_ms_shift, 0,
-    "Shift between vdev size and number of metaslabs");
+    "Default shift between vdev size and number of metaslabs");
 
 /* upper limit for metaslab size (256G) */
 int vdev_max_ms_shift = 38;
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, max_ms_shift, CTLFLAG_RWTUN,
+    &vdev_max_ms_shift, 0,
+    "Maximum shift between vdev size and number of metaslabs");
 
 boolean_t vdev_validate_skip = B_FALSE;
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, validate_skip, CTLFLAG_RWTUN,
+    &vdev_validate_skip, 0,
+    "Bypass vdev validation");
 
 /*
  * Since the DTL space map of a vdev is not expected to have a lot of
