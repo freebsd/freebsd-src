@@ -136,7 +136,7 @@ int i386_pmap_PDRSHIFT;
 
 int pat_works = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD,
-    &pat_works, 1,
+    &pat_works, 0,
     "Is page attribute table fully functional?");
 
 int pg_ps_enabled = 1;
