@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_acpi.h"
 #include "opt_ddb.h"
 
 /*
@@ -48,8 +49,13 @@ __FBSDID("$FreeBSD$");
  * that can be allocated, or both, depending on the exclusion flags associated
  * with the region.
  */
+#ifdef DEV_ACPI
+#define	MAX_HWCNT	32	/* ACPI needs more regions */
+#define	MAX_EXCNT	32
+#else
 #define	MAX_HWCNT	16
 #define	MAX_EXCNT	16
+#endif
 
 #if defined(__arm__)
 #define	MAX_PHYS_ADDR	0xFFFFFFFFull
