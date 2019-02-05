@@ -521,12 +521,14 @@ fast_syscall_common:
 	movq	TF_RFLAGS(%rsp),%r11	/* original %rflags */
 	movq	TF_RIP(%rsp),%rcx	/* original %rip */
 	movq	TF_RSP(%rsp),%rsp	/* user stack pointer */
+	xorl	%r8d,%r8d		/* zero the rest of GPRs */
+	xorl	%r10d,%r10d
 	cmpq	$~0,PCPU(UCR3)
 	je	2f
 	movq	PCPU(UCR3),%r9
 	movq	%r9,%cr3
-	xorl	%r9d,%r9d
-2:	swapgs
+2:	xorl	%r9d,%r9d
+	swapgs
 	sysretq
 
 3:	/* AST scheduled. */
