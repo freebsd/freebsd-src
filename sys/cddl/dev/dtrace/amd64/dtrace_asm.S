@@ -208,7 +208,7 @@ dtrace_caller(int aframes)
 void
 dtrace_copy(uintptr_t src, uintptr_t dest, size_t size)
 */
-	ENTRY(dtrace_copy)
+	ENTRY(dtrace_copy_nosmap)
 	pushq	%rbp
 	movq	%rsp, %rbp
 
@@ -218,14 +218,28 @@ dtrace_copy(uintptr_t src, uintptr_t dest, size_t size)
 	smovb				/*   move from %ds:rsi to %ed:rdi */
 	leave
 	ret
-	END(dtrace_copy)
+	END(dtrace_copy_nosmap)
+
+	ENTRY(dtrace_copy_smap)
+	pushq	%rbp
+	movq	%rsp, %rbp
+
+	xchgq	%rdi, %rsi		/* make %rsi source, %rdi dest */
+	movq	%rdx, %rcx		/* load count */
+	stac
+	repz				/* repeat for count ... */
+	smovb				/*   move from %ds:rsi to %ed:rdi */
+	clac
+	leave
+	ret
+	END(dtrace_copy_smap)
 
 /*
 void
 dtrace_copystr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
     volatile uint16_t *flags)
 */
-	ENTRY(dtrace_copystr)
+	ENTRY(dtrace_copystr_nosmap)
 	pushq	%rbp
 	movq	%rsp, %rbp
 
@@ -248,55 +262,120 @@ dtrace_copystr(uintptr_t uaddr, uintptr_t kaddr, size_t size,
 	leave
 	ret
 
-	END(dtrace_copystr)
+	END(dtrace_copystr_nosmap)
+
+	ENTRY(dtrace_copystr_smap)
+	pushq	%rbp
+	movq	%rsp, %rbp
+
+	stac
+0:
+	movb	(%rdi), %al		/* load from source */
+	movb	%al, (%rsi)		/* store to destination */
+	addq	$1, %rdi		/* increment source pointer */
+	addq	$1, %rsi		/* increment destination pointer */
+	subq	$1, %rdx		/* decrement remaining count */
+	cmpb	$0, %al
+	je	2f
+	testq	$0xfff, %rdx		/* test if count is 4k-aligned */
+	jnz	1f			/* if not, continue with copying */
+	testq	$CPU_DTRACE_BADADDR, (%rcx) /* load and test dtrace flags */
+	jnz	2f
+1:
+	cmpq	$0, %rdx
+	jne	0b
+2:
+	clac
+	leave
+	ret
+
+	END(dtrace_copystr_smap)
 
 /*
 uintptr_t
 dtrace_fulword(void *addr)
 */
-	ENTRY(dtrace_fulword)
+	ENTRY(dtrace_fulword_nosmap)
 	movq	(%rdi), %rax
 	ret
-	END(dtrace_fulword)
+	END(dtrace_fulword_nosmap)
+
+	ENTRY(dtrace_fulword_smap)
+	stac
+	movq	(%rdi), %rax
+	clac
+	ret
+	END(dtrace_fulword_smap)
 
 /*
 uint8_t
 dtrace_fuword8_nocheck(void *addr)
 */
-	ENTRY(dtrace_fuword8_nocheck)
+	ENTRY(dtrace_fuword8_nocheck_nosmap)
 	xorq	%rax, %rax
 	movb	(%rdi), %al
 	ret
-	END(dtrace_fuword8_nocheck)
+	END(dtrace_fuword8_nocheck_nosmap)
+
+	ENTRY(dtrace_fuword8_nocheck_smap)
+	stac
+	xorq	%rax, %rax
+	movb	(%rdi), %al
+	clac
+	ret
+	END(dtrace_fuword8_nocheck_smap)
 
 /*
 uint16_t
 dtrace_fuword16_nocheck(void *addr)
 */
-	ENTRY(dtrace_fuword16_nocheck)
+	ENTRY(dtrace_fuword16_nocheck_nosmap)
 	xorq	%rax, %rax
 	movw	(%rdi), %ax
 	ret
-	END(dtrace_fuword16_nocheck)
+	END(dtrace_fuword16_nocheck_nosmap)
+
+	ENTRY(dtrace_fuword16_nocheck_smap)
+	stac
+	xorq	%rax, %rax
+	movw	(%rdi), %ax
+	clac
+	ret
+	END(dtrace_fuword16_nocheck_smap)
 
 /*
 uint32_t
 dtrace_fuword32_nocheck(void *addr)
 */
-	ENTRY(dtrace_fuword32_nocheck)
+	ENTRY(dtrace_fuword32_nocheck_nosmap)
 	xorq	%rax, %rax
 	movl	(%rdi), %eax
 	ret
-	END(dtrace_fuword32_nocheck)
+	END(dtrace_fuword32_nocheck_nosmap)
+
+	ENTRY(dtrace_fuword32_nocheck_smap)
+	stac
+	xorq	%rax, %rax
+	movl	(%rdi), %eax
+	clac
+	ret
+	END(dtrace_fuword32_nocheck_smap)
 
 /*
 uint64_t
 dtrace_fuword64_nocheck(void *addr)
 */
-	ENTRY(dtrace_fuword64_nocheck)
+	ENTRY(dtrace_fuword64_nocheck_nosmap)
 	movq	(%rdi), %rax
 	ret
-	END(dtrace_fuword64_nocheck)
+	END(dtrace_fuword64_nocheck_nosmap)
+
+	ENTRY(dtrace_fuword64_nocheck_smap)
+	stac
+	movq	(%rdi), %rax
+	clac
+	ret
+	END(dtrace_fuword64_nocheck_smap)
 
 /*
 void
