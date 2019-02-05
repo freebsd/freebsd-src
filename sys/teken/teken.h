@@ -212,6 +212,7 @@ const char *teken_get_sequence(const teken_t *, unsigned int);
 /* Legacy features. */
 void	teken_set_8bit(teken_t *);
 void	teken_set_cons25(teken_t *);
+void	teken_set_cons25keys(teken_t *);
 
 /* Color conversion. */
 teken_color_t teken_256to16(teken_color_t);
