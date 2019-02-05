@@ -90,7 +90,6 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	struct ifnet *ifp = na->ifp;
 	struct vtnet_softc *sc = ifp->if_softc;
 	int success;
-	enum txrx t;
 	int i;
 
 	/* Drain the taskqueues to make sure that there are no worker threads
@@ -132,44 +131,11 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	success = (ifp->if_drv_flags & IFF_DRV_RUNNING) ? 0 : ENXIO;
 
 	if (state) {
-		for_rx_tx(t) {
-			/* Hardware rings. */
-			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-
-				if (nm_kring_pending_on(kring))
-					kring->nr_mode = NKR_NETMAP_ON;
-			}
-
-			/* Host rings. */
-			for (i = 0; i < nma_get_host_nrings(na, t); i++) {
-				struct netmap_kring *kring =
-					NMR(na, t)[nma_get_nrings(na, t) + i];
-
-				if (nm_kring_pending_on(kring))
-					kring->nr_mode = NKR_NETMAP_ON;
-			}
-		}
+		netmap_krings_mode_commit(na, state);
+		nm_set_native_flags(na);
 	} else {
 		nm_clear_native_flags(na);
-		for_rx_tx(t) {
-			/* Hardware rings. */
-			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-
-				if (nm_kring_pending_off(kring))
-					kring->nr_mode = NKR_NETMAP_OFF;
-			}
-
-			/* Host rings. */
-			for (i = 0; i < nma_get_host_nrings(na, t); i++) {
-				struct netmap_kring *kring =
-					NMR(na, t)[nma_get_nrings(na, t) + i];
-
-				if (nm_kring_pending_off(kring))
-					kring->nr_mode = NKR_NETMAP_OFF;
-			}
-		}
+		netmap_krings_mode_commit(na, state);
 	}
 
 	VTNET_CORE_UNLOCK(sc);
@@ -396,7 +362,7 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 				/* Skip the virtio-net header. */
 				len -= sc->vtnet_hdr_size;
 				if (unlikely(len < 0)) {
-					RD(1, "Truncated virtio-net-header, "
+					nm_prlim(1, "Truncated virtio-net-header, "
 						"missing %d bytes", -len);
 					len = 0;
 				}
@@ -408,7 +374,7 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 		kring->nr_hwtail = nm_i;
 		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
-	ND("[B] h %d c %d hwcur %d hwtail %d", ring->head, ring->cur,
+	nm_prdis("[B] h %d c %d hwcur %d hwtail %d", ring->head, ring->cur,
 				kring->nr_hwcur, kring->nr_hwtail);
 
 	/*
@@ -423,7 +389,7 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 		virtqueue_notify(vq);
 	}
 
-	ND("[C] h %d c %d t %d hwcur %d hwtail %d", ring->head, ring->cur,
+	nm_prdis("[C] h %d c %d t %d hwcur %d hwtail %d", ring->head, ring->cur,
 		ring->tail, kring->nr_hwcur, kring->nr_hwtail);
 
 	return 0;

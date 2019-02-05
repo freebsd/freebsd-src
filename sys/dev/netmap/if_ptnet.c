@@ -1151,10 +1151,10 @@ ptnet_sync_from_csb(struct ptnet_softc *sc, struct netmap_adapter *na)
 		kring->nr_hwtail = kring->rtail =
 			kring->ring->tail = ktoa->hwtail;
 
-		ND("%d,%d: csb {hc %u h %u c %u ht %u}", t, i,
+		nm_prdis("%d,%d: csb {hc %u h %u c %u ht %u}", t, i,
 		   ktoa->hwcur, atok->head, atok->cur,
 		   ktoa->hwtail);
-		ND("%d,%d: kring {hc %u rh %u rc %u h %u c %u ht %u rt %u t %u}",
+		nm_prdis("%d,%d: kring {hc %u rh %u rc %u h %u c %u ht %u rt %u t %u}",
 		   t, i, kring->nr_hwcur, kring->rhead, kring->rcur,
 		   kring->ring->head, kring->ring->cur, kring->nr_hwtail,
 		   kring->rtail, kring->ring->tail);
@@ -1179,7 +1179,6 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 	struct ptnet_softc *sc = if_getsoftc(ifp);
 	int native = (na == &sc->ptna->hwup.up);
 	struct ptnet_queue *pq;
-	enum txrx t;
 	int ret = 0;
 	int i;
 
@@ -1194,7 +1193,7 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 	 * in the RX rings, since we will not receive further interrupts
 	 * until these will be processed. */
 	if (native && !onoff && na->active_fds == 0) {
-		D("Exit netmap mode, re-enable interrupts");
+		nm_prinf("Exit netmap mode, re-enable interrupts");
 		for (i = 0; i < sc->num_rings; i++) {
 			pq = sc->queues + i;
 			pq->atok->appl_need_kick = 1;
@@ -1230,30 +1229,14 @@ ptnet_nm_register(struct netmap_adapter *na, int onoff)
 		/* If not native, don't call nm_set_native_flags, since we don't want
 		 * to replace if_transmit method, nor set NAF_NETMAP_ON */
 		if (native) {
-			for_rx_tx(t) {
-				for (i = 0; i <= nma_get_nrings(na, t); i++) {
-					struct netmap_kring *kring = NMR(na, t)[i];
-
-					if (nm_kring_pending_on(kring)) {
-						kring->nr_mode = NKR_NETMAP_ON;
-					}
-				}
-			}
+			netmap_krings_mode_commit(na, onoff);
 			nm_set_native_flags(na);
 		}
 
 	} else {
 		if (native) {
 			nm_clear_native_flags(na);
-			for_rx_tx(t) {
-				for (i = 0; i <= nma_get_nrings(na, t); i++) {
-					struct netmap_kring *kring = NMR(na, t)[i];
-
-					if (nm_kring_pending_off(kring)) {
-						kring->nr_mode = NKR_NETMAP_OFF;
-					}
-				}
-			}
+			netmap_krings_mode_commit(na, onoff);
 		}
 
 		if (sc->ptna->backend_users == 0) {
@@ -1728,7 +1711,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 
 	if (!PTNET_Q_TRYLOCK(pq)) {
 		/* We failed to acquire the lock, schedule the taskqueue. */
-		RD(1, "Deferring TX work");
+		nm_prlim(1, "Deferring TX work");
 		if (may_resched) {
 			taskqueue_enqueue(pq->taskq, &pq->task);
 		}
@@ -1738,7 +1721,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 
 	if (unlikely(!(ifp->if_drv_flags & IFF_DRV_RUNNING))) {
 		PTNET_Q_UNLOCK(pq);
-		RD(1, "Interface is down");
+		nm_prlim(1, "Interface is down");
 		return ENETDOWN;
 	}
 
@@ -1776,7 +1759,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 					break;
 				}
 
-				RD(1, "Found more slots by doublecheck");
+				nm_prlim(1, "Found more slots by doublecheck");
 				/* More slots were freed before reactivating
 				 * the interrupts. */
 				atok->appl_need_kick = 0;
@@ -1815,7 +1798,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 					continue;
 				}
 			}
-			ND(1, "%s: [csum_flags %lX] vnet hdr: flags %x "
+			nm_prdis(1, "%s: [csum_flags %lX] vnet hdr: flags %x "
 			      "csum_start %u csum_ofs %u hdr_len = %u "
 			      "gso_size %u gso_type %x", __func__,
 			      mhead->m_pkthdr.csum_flags, vh->flags,
@@ -1890,7 +1873,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 	}
 
 	if (count >= budget && may_resched) {
-		DBG(RD(1, "out of budget: resched, %d mbufs pending\n",
+		DBG(nm_prlim(1, "out of budget: resched, %d mbufs pending\n",
 					drbr_inuse(ifp, pq->bufring)));
 		taskqueue_enqueue(pq->taskq, &pq->task);
 	}
@@ -1932,7 +1915,7 @@ ptnet_transmit(if_t ifp, struct mbuf *m)
 	err = drbr_enqueue(ifp, pq->bufring, m);
 	if (err) {
 		/* ENOBUFS when the bufring is full */
-		RD(1, "%s: drbr_enqueue() failed %d\n",
+		nm_prlim(1, "%s: drbr_enqueue() failed %d\n",
 			__func__, err);
 		pq->stats.errors ++;
 		return err;
@@ -2077,13 +2060,13 @@ host_sync:
 				/* There is no good reason why host should
 				 * put the header in multiple netmap slots.
 				 * If this is the case, discard. */
-				RD(1, "Fragmented vnet-hdr: dropping");
+				nm_prlim(1, "Fragmented vnet-hdr: dropping");
 				head = ptnet_rx_discard(kring, head);
 				pq->stats.iqdrops ++;
 				deliver = 0;
 				goto skip;
 			}
-			ND(1, "%s: vnet hdr: flags %x csum_start %u "
+			nm_prdis(1, "%s: vnet hdr: flags %x csum_start %u "
 			      "csum_ofs %u hdr_len = %u gso_size %u "
 			      "gso_type %x", __func__, vh->flags,
 			      vh->csum_start, vh->csum_offset, vh->hdr_len,
@@ -2147,7 +2130,7 @@ host_sync:
 				/* The very last slot prepared by the host has
 				 * the NS_MOREFRAG set. Drop it and continue
 				 * the outer cycle (to do the double-check). */
-				RD(1, "Incomplete packet: dropping");
+				nm_prlim(1, "Incomplete packet: dropping");
 				m_freem(mhead);
 				pq->stats.iqdrops ++;
 				goto host_sync;
@@ -2185,7 +2168,7 @@ host_sync:
 					| VIRTIO_NET_HDR_F_DATA_VALID))) {
 			if (unlikely(ptnet_rx_csum(mhead, vh))) {
 				m_freem(mhead);
-				RD(1, "Csum offload error: dropping");
+				nm_prlim(1, "Csum offload error: dropping");
 				pq->stats.iqdrops ++;
 				deliver = 0;
 			}
@@ -2231,7 +2214,7 @@ escape:
 	if (count >= budget && may_resched) {
 		/* If we ran out of budget or the double-check found new
 		 * slots to process, schedule the taskqueue. */
-		DBG(RD(1, "out of budget: resched h %u t %u\n",
+		DBG(nm_prlim(1, "out of budget: resched h %u t %u\n",
 					head, ring->tail));
 		taskqueue_enqueue(pq->taskq, &pq->task);
 	}
@@ -2246,7 +2229,7 @@ ptnet_rx_task(void *context, int pending)
 {
 	struct ptnet_queue *pq = context;
 
-	DBG(RD(1, "%s: pq #%u\n", __func__, pq->kring_id));
+	DBG(nm_prlim(1, "%s: pq #%u\n", __func__, pq->kring_id));
 	ptnet_rx_eof(pq, PTNET_RX_BUDGET, true);
 }
 
@@ -2255,7 +2238,7 @@ ptnet_tx_task(void *context, int pending)
 {
 	struct ptnet_queue *pq = context;
 
-	DBG(RD(1, "%s: pq #%u\n", __func__, pq->kring_id));
+	DBG(nm_prlim(1, "%s: pq #%u\n", __func__, pq->kring_id));
 	ptnet_drain_transmit_queue(pq, PTNET_TX_BUDGET, true);
 }
 
@@ -2273,7 +2256,7 @@ ptnet_poll(if_t ifp, enum poll_cmd cmd, int budget)
 
 	KASSERT(sc->num_rings > 0, ("Found no queues in while polling ptnet"));
 	queue_budget = MAX(budget / sc->num_rings, 1);
-	RD(1, "Per-queue budget is %d", queue_budget);
+	nm_prlim(1, "Per-queue budget is %d", queue_budget);
 
 	while (budget) {
 		unsigned int rcnt = 0;
