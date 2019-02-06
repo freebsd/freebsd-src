@@ -2532,7 +2532,6 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 				}
 
 				nifp = priv->np_nifp;
-				priv->np_td = td; /* for debugging purposes */
 
 				/* return the offset of the netmap_if object */
 				req->nr_rx_rings = na->num_rx_rings;
@@ -3208,8 +3207,8 @@ nmreq_checkoptions(struct nmreq_header *hdr)
  *
  * Can be called for one or more queues.
  * Return true the event mask corresponding to ready events.
- * If there are no ready events, do a selrecord on either individual
- * selinfo or on the global one.
+ * If there are no ready events (and 'sr' is not NULL), do a
+ * selrecord on either individual selinfo or on the global one.
  * Device-dependent parts (locking and sync of tx/rx rings)
  * are done through callbacks.
  *
