@@ -885,9 +885,6 @@ options 	NKPT=31
 #####################################################################
 # ABI Emulation
 
-# Emulate spx device for client side of SVR3 local X interface
-options 	SPX_HACK
-
 # Enable (32-bit) a.out binary support
 options 	COMPAT_AOUT
 
