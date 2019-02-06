@@ -35,6 +35,7 @@
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/sched.h>
+#include <sys/smp.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
@@ -236,6 +237,7 @@ void
 openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 {
 	struct openpic_softc *sc;
+	uint32_t mask;
 
 	/* If we aren't directly connected to the CPU, this won't work */
 	if (dev != root_pic)
@@ -247,7 +249,23 @@ openpic_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv __unused)
 	 * XXX: openpic_write() is very special and just needs a 32 bits mask.
 	 * For the moment, just play dirty and get the first half word.
 	 */
-	openpic_write(sc, OPENPIC_IDEST(irq), cpumask.__bits[0] & 0xffffffff);
+	mask = cpumask.__bits[0] & 0xffffffff;
+	if (sc->sc_quirks & OPENPIC_QUIRK_SINGLE_BIND) {
+		int i = mftb() % CPU_COUNT(&cpumask);
+		int cpu, ncpu;
+
+		ncpu = 0;
+		CPU_FOREACH(cpu) {
+			if (!(mask & (1 << cpu)))
+				continue;
+			if (ncpu == i)
+				break;
+			ncpu++;
+		}
+		mask &= (1 << cpu);
+	}
+
+	openpic_write(sc, OPENPIC_IDEST(irq), mask);
 }
 
 void
