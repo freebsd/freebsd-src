@@ -1,4 +1,4 @@
-# #-- edns_lame.post --#
+# #-- tcp_req_size.post --#
 # source the master var file when it's there
 [ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
 # source the test var file when it's there
@@ -8,3 +8,4 @@
 . ../common.sh
 kill_pid $FWD_PID
 kill_pid $UNBOUND_PID
+cat unbound.log

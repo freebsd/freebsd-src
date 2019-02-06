@@ -749,6 +749,7 @@ daemon_delete(struct daemon* daemon)
 	free(daemon->pidfile);
 	free(daemon->env);
 #ifdef HAVE_SSL
+	listen_sslctx_delete_ticket_keys();
 	SSL_CTX_free((SSL_CTX*)daemon->listen_sslctx);
 	SSL_CTX_free((SSL_CTX*)daemon->connect_sslctx);
 #endif

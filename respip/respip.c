@@ -451,7 +451,7 @@ respip_views_apply_cfg(struct views* vs, struct config_file* cfg,
  * This function returns the copied rrset key on success, and NULL on memory
  * allocation failure.
  */
-struct ub_packed_rrset_key*
+static struct ub_packed_rrset_key*
 copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region)
 {
 	struct ub_packed_rrset_key* ck = regional_alloc(region,

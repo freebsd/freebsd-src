@@ -715,6 +715,7 @@ perform_arith(double x, char op, double y, double* res)
 		*res = x*y;
 		break;
 	default:
+		*res = 0;
 		return 0;
 	}
 

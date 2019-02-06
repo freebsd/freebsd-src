@@ -721,6 +721,17 @@ fill_any(struct module_env* env,
 	int i, num=6; /* number of RR types to look up */
 	log_assert(lookup[num] == 0);
 
+	if(env->cfg->deny_any) {
+		/* return empty message */
+		msg = dns_msg_create(qname, qnamelen, qtype, qclass,
+			region, 0);
+		if(!msg) {
+			return NULL;
+		}
+		msg->rep->security = sec_status_indeterminate;
+		return msg;
+	}
+
 	for(i=0; i<num; i++) {
 		/* look up this RR for inclusion in type ANY response */
 		struct ub_packed_rrset_key* rrset = rrset_cache_lookup(

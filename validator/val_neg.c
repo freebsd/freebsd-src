@@ -235,6 +235,7 @@ void neg_delete_data(struct val_neg_cache* neg, struct val_neg_data* el)
 
 	/* remove it from the lru list */
 	neg_lru_remove(neg, el);
+	log_assert(neg->first != el && neg->last != el);
 	
 	/* go up the tree and reduce counts */
 	p = el;

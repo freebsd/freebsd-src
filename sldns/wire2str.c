@@ -1908,8 +1908,8 @@ int sldns_wire2str_edns_subnet_print(char** s, size_t* sl, uint8_t* data,
 	return w;
 }
 
-int sldns_wire2str_edns_keepalive_print(char** s, size_t* sl, uint8_t* data,
-	size_t len)
+static int sldns_wire2str_edns_keepalive_print(char** s, size_t* sl,
+	uint8_t* data, size_t len)
 {
 	int w = 0;
 	uint16_t timeout;

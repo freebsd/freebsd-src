@@ -63,6 +63,9 @@
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
 #endif
+#ifdef HAVE_X509_VERIFY_PARAM_SET1_HOST
+#include <openssl/x509v3.h>
+#endif
 
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
@@ -384,6 +387,22 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 				comm_point_close(pend->c);
 				return 0;
 			}
+		}
+#elif defined(HAVE_X509_VERIFY_PARAM_SET1_HOST)
+		/* openssl 1.0.2 has this function that can be used for
+		 * set1_host like verification */
+		if(w->tls_auth_name) {
+			X509_VERIFY_PARAM* param = SSL_get0_param(pend->c->ssl);
+			X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+			if(!X509_VERIFY_PARAM_set1_host(param, w->tls_auth_name, strlen(w->tls_auth_name))) {
+				log_err("X509_VERIFY_PARAM_set1_host failed");
+				pend->c->fd = s;
+				SSL_free(pend->c->ssl);
+				pend->c->ssl = NULL;
+				comm_point_close(pend->c);
+				return 0;
+			}
+			SSL_set_verify(pend->c->ssl, SSL_VERIFY_PEER, NULL);
 		}
 #endif /* HAVE_SSL_SET1_HOST */
 	}
@@ -759,7 +778,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 		outnet->delay_tv.tv_usec = (delayclose%1000)*1000;
 	}
 #endif
-	if(numavailports == 0) {
+	if(numavailports == 0 || num_ports == 0) {
 		log_err("no outgoing ports available");
 		outside_network_delete(outnet);
 		return NULL;
@@ -1487,7 +1506,6 @@ serviced_delete(struct serviced_query* sq)
 		/* clear up the pending query */
 		if(sq->status == serviced_query_UDP_EDNS ||
 			sq->status == serviced_query_UDP ||
-			sq->status == serviced_query_PROBE_EDNS ||
 			sq->status == serviced_query_UDP_EDNS_FRAG ||
 			sq->status == serviced_query_UDP_EDNS_fallback) {
 			struct pending* p = (struct pending*)sq->pending;
@@ -1614,15 +1632,7 @@ serviced_udp_send(struct serviced_query* sq, sldns_buffer* buff)
 	sq->last_rtt = rtt;
 	verbose(VERB_ALGO, "EDNS lookup known=%d vs=%d", edns_lame_known, vs);
 	if(sq->status == serviced_initial) {
-		if(edns_lame_known == 0 && rtt > 5000 && rtt < 10001) {
-			/* perform EDNS lame probe - check if server is
-			 * EDNS lame (EDNS queries to it are dropped) */
-			verbose(VERB_ALGO, "serviced query: send probe to see "
-				" if use of EDNS causes timeouts");
-			/* even 700 msec may be too small */
-			rtt = 1000;
-			sq->status = serviced_query_PROBE_EDNS;
-		} else if(vs != -1) {
+		if(vs != -1) {
 			sq->status = serviced_query_UDP_EDNS;
 		} else { 	
 			sq->status = serviced_query_UDP; 
@@ -1876,7 +1886,7 @@ serviced_tcp_initiate(struct serviced_query* sq, sldns_buffer* buff)
 	if(!sq->pending) {
 		/* delete from tree so that a retry by above layer does not
 		 * clash with this entry */
-		log_err("serviced_tcp_initiate: failed to send tcp query");
+		verbose(VERB_ALGO, "serviced_tcp_initiate: failed to send tcp query");
 		serviced_callbacks(sq, NETEVENT_CLOSED, NULL, NULL);
 	}
 }
@@ -1959,12 +1969,6 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 	sq->pending = NULL; /* removed after callback */
 	if(error == NETEVENT_TIMEOUT) {
 		int rto = 0;
-		if(sq->status == serviced_query_PROBE_EDNS) {
-			/* non-EDNS probe failed; we do not know its status,
-			 * keep trying with EDNS, timeout may not be caused
-			 * by EDNS. */
-			sq->status = serviced_query_UDP_EDNS;
-		}
 		if(sq->status == serviced_query_UDP_EDNS && sq->last_rtt < 5000) {
 			/* fallback to 1480/1280 */
 			sq->status = serviced_query_UDP_EDNS_FRAG;
@@ -2028,18 +2032,6 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 			serviced_callbacks(sq, NETEVENT_CLOSED, c, rep);
 		}
 		return 0;
-	    } else if(sq->status == serviced_query_PROBE_EDNS) {
-		/* probe without EDNS succeeds, so we conclude that this
-		 * host likely has EDNS packets dropped */
-		log_addr(VERB_DETAIL, "timeouts, concluded that connection to "
-			"host drops EDNS packets", &sq->addr, sq->addrlen);
-		/* only store noEDNS in cache if domain is noDNSSEC */
-		if(!sq->want_dnssec)
-		  if(!infra_edns_update(outnet->infra, &sq->addr, sq->addrlen,
-			sq->zone, sq->zonelen, -1, (time_t)now.tv_sec)) {
-			log_err("Out of memory caching no edns for host");
-		  }
-		sq->status = serviced_query_UDP;
 	    } else if(sq->status == serviced_query_UDP_EDNS && 
 		!sq->edns_lame_known) {
 		/* now we know that edns queries received answers store that */
@@ -2403,6 +2395,18 @@ outnet_comm_point_for_http(struct outside_network* outnet,
 				return NULL;
 			}
 		}
+#elif defined(HAVE_X509_VERIFY_PARAM_SET1_HOST)
+		/* openssl 1.0.2 has this function that can be used for
+		 * set1_host like verification */
+		if((SSL_CTX_get_verify_mode(outnet->sslctx)&SSL_VERIFY_PEER)) {
+			X509_VERIFY_PARAM* param = SSL_get0_param(cp->ssl);
+			X509_VERIFY_PARAM_set_hostflags(param, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+			if(!X509_VERIFY_PARAM_set1_host(param, host, strlen(host))) {
+				log_err("X509_VERIFY_PARAM_set1_host failed");
+				comm_point_delete(cp);
+				return NULL;
+			}
+		}
 #endif /* HAVE_SSL_SET1_HOST */
 	}
 
@@ -2508,7 +2512,6 @@ serviced_get_mem(struct serviced_query* sq)
 		s += sizeof(*sb);
 	if(sq->status == serviced_query_UDP_EDNS ||
 		sq->status == serviced_query_UDP ||
-		sq->status == serviced_query_PROBE_EDNS ||
 		sq->status == serviced_query_UDP_EDNS_FRAG ||
 		sq->status == serviced_query_UDP_EDNS_fallback) {
 		s += sizeof(struct pending);

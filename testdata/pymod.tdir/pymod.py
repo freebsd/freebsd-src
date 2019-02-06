@@ -59,12 +59,15 @@ def setTTL(qstate, ttl):
 
 def dataHex(data, prefix=""):
     res = ""
-    for i in range(0, (len(data)+15)/16):
+    for i in range(0, int((len(data)+15)/16)):
         res += "%s0x%02X | " % (prefix, i*16)
-        d = map(lambda x:ord(x), data[i*16:i*16+17])
+        if type(data[0]) == type(1):
+            d = map(lambda x:int(x), data[i*16:i*16+17])
+        else:
+            d = map(lambda x:ord(x), data[i*16:i*16+17])
         for ch in d:
             res += "%02X " % ch
-        for i in range(0,17-len(d)):
+        for i in range(0,17-len(data[i*16:i*16+17])):
             res += "   "
         res += "| "
         for ch in d:
@@ -76,35 +79,35 @@ def dataHex(data, prefix=""):
     return res
 
 def printReturnMsg(qstate):
-    print "Return MSG rep   :: flags: %04X, QDcount: %d, Security:%d, TTL=%d" % (qstate.return_msg.rep.flags, qstate.return_msg.rep.qdcount,qstate.return_msg.rep.security, qstate.return_msg.rep.ttl)
-    print "           qinfo :: qname:",qstate.return_msg.qinfo.qname_list, qstate.return_msg.qinfo.qname_str, "type:",qstate.return_msg.qinfo.qtype_str, "class:",qstate.return_msg.qinfo.qclass_str
+    print ("Return MSG rep   :: flags: %04X, QDcount: %d, Security:%d, TTL=%d" % (qstate.return_msg.rep.flags, qstate.return_msg.rep.qdcount, qstate.return_msg.rep.security, qstate.return_msg.rep.ttl))
+    print ("           qinfo :: qname:",qstate.return_msg.qinfo.qname_list, qstate.return_msg.qinfo.qname_str, "type:",qstate.return_msg.qinfo.qtype_str, "class:",qstate.return_msg.qinfo.qclass_str)
     if (qstate.return_msg.rep):
-        print "RRSets:",qstate.return_msg.rep.rrset_count
+        print ("RRSets:",qstate.return_msg.rep.rrset_count)
         prevkey = None
         for i in range(0,qstate.return_msg.rep.rrset_count):
             r = qstate.return_msg.rep.rrsets[i]
             rk = r.rk
-            print i,":",rk.dname_list, rk.dname_str, "flags: %04X" % rk.flags,
-            print "type:",rk.type_str,"(%d)" % ntohs(rk.type), "class:",rk.rrset_class_str,"(%d)" % ntohs(rk.rrset_class)
+            print (i,":",rk.dname_list, rk.dname_str, "flags: %04X" % rk.flags)
+            print ("type:",rk.type_str,"(%d)" % ntohs(rk.type), "class:",rk.rrset_class_str,"(%d)" % ntohs(rk.rrset_class))
 
             d = r.entry.data
-            print "    RRDatas:",d.count+d.rrsig_count
+            print ("    RRDatas:",d.count+d.rrsig_count)
             for j in range(0,d.count+d.rrsig_count):
-                print "    ",j,":","TTL=",d.rr_ttl[j],"RR data:"
-                print dataHex(d.rr_data[j],"         ")
+                print ("    ",j,":","TTL=",d.rr_ttl[j],"RR data:")
+                print (dataHex(d.rr_data[j],"         "))
 
 
 def operate(id, event, qstate, qdata):
     log_info("pythonmod: operate called, id: %d, event:%s" % (id, strmodulevent(event)))
-    #print "pythonmod: per query data", qdata
+    #print ("pythonmod: per query data", qdata)
 
-    print "Query:", ''.join(map(lambda x:chr(max(32,ord(x))),qstate.qinfo.qname)), qstate.qinfo.qname_list, qstate.qinfo.qname_str,
-    print "Type:",qstate.qinfo.qtype_str,"(%d)" % qstate.qinfo.qtype,
-    print "Class:",qstate.qinfo.qclass_str,"(%d)" % qstate.qinfo.qclass
-    print
+    print ("Query:", qstate.qinfo.qname, qstate.qinfo.qname_list, qstate.qinfo.qname_str)
+    print ("Type:",qstate.qinfo.qtype_str,"(%d)" % qstate.qinfo.qtype)
+    print ("Class:",qstate.qinfo.qclass_str,"(%d)" % qstate.qinfo.qclass)
+    print ()
 
     if (event == MODULE_EVENT_NEW or event == MODULE_EVENT_PASS) and (qstate.qinfo.qname_str.endswith("www2.example.com.")):
-        print qstate.qinfo.qname_str
+        print (qstate.qinfo.qname_str)
 
         qstate.ext_state[id] = MODULE_FINISHED 
 
@@ -121,6 +124,7 @@ def operate(id, event, qstate, qdata):
         if (qstate.qinfo.qtype == RR_TYPE_TXT) or (qstate.qinfo.qtype == RR_TYPE_ANY):
             msg.answer.append("%s 10 IN TXT path=/" % qstate.qinfo.qname_str)
 
+        print(msg.answer)
         if not msg.set_return_msg(qstate):
             qstate.ext_state[id] = MODULE_ERROR 
             return True

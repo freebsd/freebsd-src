@@ -109,8 +109,8 @@ ENTRY_END
 
 RANGE_END
 
-; the working version, until time 50.
-RANGE_BEGIN 0 50
+; the working version, until time 49.
+RANGE_BEGIN 0 49
 	ADDRESS 1.2.3.44
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -220,7 +220,7 @@ RANGE_END
 
 ; Broken.   Does not respond to anything (servfail instead
 ; of timeouts since this is easier to encode in .rpl file format).
-RANGE_BEGIN 0 50
+RANGE_BEGIN 0 49
 	ADDRESS 1.2.3.55
 ENTRY_BEGIN
 MATCH opcode 

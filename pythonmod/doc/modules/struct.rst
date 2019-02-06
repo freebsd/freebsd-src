@@ -514,3 +514,33 @@ pythonmod_qstate
 	
 	   Here you can keep your own private data (each thread has own data object).
 
+sockaddr_storage
+-------------------------
+
+.. class:: sockaddr_storage
+
+   The :class:`sockaddr_storage` provides these data attributes:
+
+   .. attribute:: family
+
+      Address family name as a string. Possible values are `ip4`, `ip6`, and `unix`.
+
+   .. attribute:: addr
+
+      Address in presentation format.
+
+   .. attribute:: raw_addr
+
+      Address in network wire format.
+
+   .. attribute:: port
+
+      Port number. Invalid for Unix address.
+
+   .. attribute:: flowinfo
+
+      Flow info value. Valid only for IPv6 address.
+
+   .. attribute:: scope_id
+
+      Scope ID value. Valid only for IPv6 address.

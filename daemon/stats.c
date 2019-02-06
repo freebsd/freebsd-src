@@ -66,6 +66,9 @@
 #ifdef CLIENT_SUBNET
 #include "edns-subnet/subnetmod.h"
 #endif
+#ifdef HAVE_SSL
+#include <openssl/ssl.h>
+#endif
 
 /** add timers and the values do not overflow or become negative */
 static void
@@ -328,6 +331,8 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 		}
 		lock_rw_unlock(&worker->env.auth_zones->lock);
 	}
+	s->svr.mem_stream_wait =
+		(long long)tcp_req_info_get_stream_buffer_size();
 
 	/* Set neg cache usage numbers */
 	set_neg_cache_stats(worker, &s->svr, reset);
@@ -412,6 +417,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 		total->svr.qtcp += a->svr.qtcp;
 		total->svr.qtcp_outgoing += a->svr.qtcp_outgoing;
 		total->svr.qtls += a->svr.qtls;
+		total->svr.qtls_resume += a->svr.qtls_resume;
 		total->svr.qipv6 += a->svr.qipv6;
 		total->svr.qbit_QR += a->svr.qbit_QR;
 		total->svr.qbit_AA += a->svr.qbit_AA;
@@ -468,8 +474,13 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 	stats->qopcode[ LDNS_OPCODE_WIRE(sldns_buffer_begin(c->buffer)) ]++;
 	if(c->type != comm_udp) {
 		stats->qtcp++;
-		if(c->ssl != NULL)
+		if(c->ssl != NULL) {
 			stats->qtls++;
+#ifdef HAVE_SSL
+			if(SSL_session_reused(c->ssl)) 
+				stats->qtls_resume++;
+#endif
+		}
 	}
 	if(repinfo && addr_is_ip6(&repinfo->addr, repinfo->addrlen))
 		stats->qipv6++;

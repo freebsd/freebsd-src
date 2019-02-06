@@ -808,7 +808,7 @@ static struct lruhash_entry* infra_find_ratedata(struct infra_cache* infra,
 }
 
 /** find data item in array for ip addresses */
-struct lruhash_entry* infra_find_ip_ratedata(struct infra_cache* infra,
+static struct lruhash_entry* infra_find_ip_ratedata(struct infra_cache* infra,
 	struct comm_reply* repinfo, int wr)
 {
 	struct ip_rate_key key;

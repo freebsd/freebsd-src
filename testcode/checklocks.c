@@ -71,6 +71,9 @@ static pid_t check_lock_pid;
 
 /** print all possible debug info on the state of the system */
 static void total_debug_info(void);
+/** print pretty lock error and exit (decl for NORETURN attribute) */
+static void lock_error(struct checked_lock* lock, const char* func,
+	const char* file, int line, const char* err) ATTR_NORETURN;
 
 /** print pretty lock error and exit */
 static void lock_error(struct checked_lock* lock, 

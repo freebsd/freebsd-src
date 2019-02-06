@@ -1,0 +1,136 @@
+# #-- tcp_req_timeout.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE streamtcp)
+# check what sort of netcat we have
+if nc -h 2>&1 | grep "q secs"; then
+        ncopt="-q 3 -i 4"
+else
+        ncopt="-i 4"
+fi
+
+# this test query should just work (server is up)
+echo "> query www1.example.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+echo "OK"
+
+# multiple requests that are answered immediately and then the timeout
+echo "> query www1.example.net. www2.example.net. www3.example.net. www.example.com."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN www2.example.net A IN www3.example.net A IN www.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.net" outfile | grep "1.2.3.2"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "stream closed" outfile; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+# multiple requests that are waiting for answers and then the timeout
+echo "> query www2.example.com. www2.example.com. www3.example.com."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www2.example.com. A IN www2.example.com A IN www3.example.com A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "stream closed" outfile; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+# wait a bit
+sleep 2
+
+# echo a couple requests to the other side and then wait for the timeout.
+# this creates waiting answers in the reply queue.
+echo "> nc www.example.net www2.example.net www3.example.net"
+( echo "0021eb410100000100000000000003777777076578616d706c65036e657400000100010022eb41010000010000000000000477777732076578616d706c65036e657400000100010022eb41010000010000000000000477777733076578616d706c65036e65740000010001" | xxd -r -p ; sleep 10 ; echo "") | nc $ncopt 127.0.0.1 $UNBOUND_PORT | xxd | tee outfile
+
+echo "OK"
+exit 0

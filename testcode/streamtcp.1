@@ -44,6 +44,11 @@ Use UDP instead of TCP. No retries are attempted.
 .B \-n
 Do not wait for the answer.
 .TP
+.B \-a
+Print answers on arrival.  This mean queries are sent in sequence without
+waiting for answer but if answers arrive in this time they are printed out. 
+After sending queries the program waits and prints the remainder.
+.TP
 .B \-s
 Use SSL.
 .TP

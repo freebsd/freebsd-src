@@ -8,3 +8,5 @@
 . ../common.sh
 kill_pid $UNBOUNDSERV_PID
 kill_pid $UNBOUNDCLIE_PID
+cat unboundserv.log
+cat unboundclie.log

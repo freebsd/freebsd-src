@@ -237,4 +237,134 @@ int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
  */
 int create_local_accept_sock(const char* path, int* noproto, int use_systemd);
 
+/**
+ * TCP request info.  List of requests outstanding on the channel, that
+ * are asked for but not yet answered back.
+ */
+struct tcp_req_info {
+	/** the TCP comm point for this.  Its buffer is used for read/write */
+	struct comm_point* cp;
+	/** the buffer to use to spool reply from mesh into,
+	 * it can then be copied to the result list and written.
+	 * it is a pointer to the shared udp buffer. */
+	struct sldns_buffer* spool_buffer;
+	/** are we in worker_handle function call (for recursion callback)*/
+	int in_worker_handle;
+	/** is the comm point dropped (by worker handle).
+	 * That means we have to disconnect the channel. */
+	int is_drop;
+	/** is the comm point set to send_reply (by mesh new client in worker
+	 * handle), if so answer is available in c.buffer */
+	int is_reply;
+	/** read channel has closed, just write pending results */
+	int read_is_closed;
+	/** read again */
+	int read_again;
+	/** number of outstanding requests */
+	int num_open_req;
+	/** list of outstanding requests */
+	struct tcp_req_open_item* open_req_list;
+	/** number of pending writeable results */
+	int num_done_req;
+	/** list of pending writable result packets, malloced one at a time */
+	struct tcp_req_done_item* done_req_list;
+};
+
+/**
+ * List of open items in TCP channel
+ */
+struct tcp_req_open_item {
+	/** next in list */
+	struct tcp_req_open_item* next;
+	/** the mesh area of the mesh_state */
+	struct mesh_area* mesh;
+	/** the mesh state */
+	struct mesh_state* mesh_state;
+};
+
+/**
+ * List of done items in TCP channel
+ */
+struct tcp_req_done_item {
+	/** next in list */
+	struct tcp_req_done_item* next;
+	/** the buffer with packet contents */
+	uint8_t* buf;
+	/** length of the buffer */
+	size_t len;
+};
+
+/**
+ * Create tcp request info structure that keeps track of open
+ * requests on the TCP channel that are resolved at the same time,
+ * and the pending results that have to get written back to that client.
+ * @param spoolbuf: shared buffer
+ * @return new structure or NULL on alloc failure.
+ */
+struct tcp_req_info* tcp_req_info_create(struct sldns_buffer* spoolbuf);
+
+/**
+ * Delete tcp request structure.  Called by owning commpoint.
+ * Removes mesh entry references and stored results from the lists.
+ * @param req: the tcp request info
+ */
+void tcp_req_info_delete(struct tcp_req_info* req);
+
+/**
+ * Clear tcp request structure.  Removes list entries, sets it up ready
+ * for the next connection.
+ * @param req: tcp request info structure.
+ */
+void tcp_req_info_clear(struct tcp_req_info* req);
+
+/**
+ * Remove mesh state entry from list in tcp_req_info.
+ * caller has to manage the mesh state reply entry in the mesh state.
+ * @param req: the tcp req info that has the entry removed from the list.
+ * @param m: the state removed from the list.
+ */
+void tcp_req_info_remove_mesh_state(struct tcp_req_info* req,
+	struct mesh_state* m);
+
+/**
+ * Handle write done of the last result packet
+ * @param req: the tcp req info.
+ */
+void tcp_req_info_handle_writedone(struct tcp_req_info* req);
+
+/**
+ * Handle read done of a new request from the client
+ * @param req: the tcp req info.
+ */
+void tcp_req_info_handle_readdone(struct tcp_req_info* req);
+
+/**
+ * Add mesh state to the tcp req list of open requests.
+ * So the comm_reply can be removed off the mesh reply list when
+ * the tcp channel has to be closed (for other reasons then that that
+ * request was done, eg. channel closed by client or some format error).
+ * @param req: tcp req info structure.  It keeps track of the simultaneous
+ * 	requests and results on a tcp (or TLS) channel.
+ * @param mesh: mesh area for the state.
+ * @param m: mesh state to add.
+ * @return 0 on failure (malloc failure).
+ */
+int tcp_req_info_add_meshstate(struct tcp_req_info* req,
+	struct mesh_area* mesh, struct mesh_state* m);
+
+/**
+ * Send reply on tcp simultaneous answer channel.  May queue it up.
+ * @param req: request info structure.
+ */
+void tcp_req_info_send_reply(struct tcp_req_info* req);
+
+/** the read channel has closed
+ * @param req: request. remaining queries are looked up and answered. 
+ * @return zero if nothing to do, just close the tcp.
+ */
+int tcp_req_info_handle_read_close(struct tcp_req_info* req);
+
+/** get the size of currently used tcp stream wait buffers (in bytes) */
+size_t tcp_req_info_get_stream_buffer_size(void);
+
 #endif /* LISTEN_DNSPORT_H */

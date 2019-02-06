@@ -73,6 +73,7 @@ static void usage(char* argv[])
 	printf("-f server	what ipaddr@portnr to send the queries to\n");
 	printf("-u 		use UDP. No retries are attempted.\n");
 	printf("-n 		do not wait for an answer.\n");
+	printf("-a 		print answers as they arrive.\n");
 	printf("-d secs		delay after connection before sending query\n");
 	printf("-s		use ssl\n");
 	printf("-h 		this help text\n");
@@ -203,13 +204,22 @@ recv_one(int fd, int udp, SSL* ssl, sldns_buffer* buf)
 	uint16_t len;
 	if(!udp) {
 		if(ssl) {
-			if(SSL_read(ssl, (void*)&len, (int)sizeof(len)) <= 0) {
+			int sr = SSL_read(ssl, (void*)&len, (int)sizeof(len));
+			if(sr == 0) {
+				printf("ssl: stream closed\n");
+				exit(1);
+			}
+			if(sr < 0) {
 				log_crypto_err("could not SSL_read");
 				exit(1);
 			}
 		} else {
-			if(recv(fd, (void*)&len, sizeof(len), 0) <
-				(ssize_t)sizeof(len)) {
+			ssize_t r = recv(fd, (void*)&len, sizeof(len), 0);
+			if(r == 0) {
+				printf("recv: stream closed\n");
+				exit(1);
+			}	
+			if(r < (ssize_t)sizeof(len)) {
 #ifndef USE_WINSOCK
 				perror("read() len failed");
 #else
@@ -267,6 +277,37 @@ recv_one(int fd, int udp, SSL* ssl, sldns_buffer* buf)
 	free(pktstr);
 }
 
+/** see if we can receive any results */
+static void
+print_any_answers(int fd, int udp, SSL* ssl, sldns_buffer* buf,
+	int* num_answers, int wait_all)
+{
+	/* see if the fd can read, if so, print one answer, repeat */
+	int ret;
+	struct timeval tv, *waittv;
+	fd_set rfd;
+	while(*num_answers > 0) {
+		memset(&rfd, 0, sizeof(rfd));
+		memset(&tv, 0, sizeof(tv));
+		FD_ZERO(&rfd);
+		FD_SET(fd, &rfd);
+		if(wait_all) waittv = NULL;
+		else waittv = &tv;
+		ret = select(fd+1, &rfd, NULL, NULL, waittv);
+		if(ret < 0) {
+			if(errno == EINTR || errno == EAGAIN) continue;
+			perror("select() failed");
+			exit(1);
+		}
+		if(ret == 0) {
+			if(wait_all) continue;
+			return;
+		}
+		(*num_answers) -= 1;
+		recv_one(fd, udp, ssl, buf);
+	}
+}
+
 static int get_random(void)
 {
 	int r;
@@ -278,12 +319,12 @@ static int get_random(void)
 
 /** send the TCP queries and print answers */
 static void
-send_em(const char* svr, int udp, int usessl, int noanswer, int delay,
-	int num, char** qs)
+send_em(const char* svr, int udp, int usessl, int noanswer, int onarrival,
+	int delay, int num, char** qs)
 {
 	sldns_buffer* buf = sldns_buffer_new(65553);
 	int fd = open_svr(svr, udp);
-	int i;
+	int i, wait_results = 0;
 	SSL_CTX* ctx = NULL;
 	SSL* ssl = NULL;
 	if(!buf) fatal_exit("out of memory");
@@ -325,9 +366,15 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int delay,
 		write_q(fd, udp, ssl, buf, (uint16_t)get_random(), qs[i],
 			qs[i+1], qs[i+2]);
 		/* print at least one result */
-		if(!noanswer)
+		if(onarrival) {
+			wait_results += 1; /* one more answer to fetch */
+			print_any_answers(fd, udp, ssl, buf, &wait_results, 0);
+		} else if(!noanswer) {
 			recv_one(fd, udp, ssl, buf);
+		}
 	}
+	if(onarrival)
+		print_any_answers(fd, udp, ssl, buf, &wait_results, 1);
 
 	if(usessl) {
 		SSL_shutdown(ssl);
@@ -368,6 +415,7 @@ int main(int argc, char** argv)
 	const char* svr = "127.0.0.1";
 	int udp = 0;
 	int noanswer = 0;
+	int onarrival = 0;
 	int usessl = 0;
 	int delay = 0;
 
@@ -394,10 +442,13 @@ int main(int argc, char** argv)
 	if(argc == 1) {
 		usage(argv);
 	}
-	while( (c=getopt(argc, argv, "f:hnsud:")) != -1) {
+	while( (c=getopt(argc, argv, "af:hnsud:")) != -1) {
 		switch(c) {
 			case 'f':
 				svr = optarg;
+				break;
+			case 'a':
+				onarrival = 1;
 				break;
 			case 'n':
 				noanswer = 1;
@@ -446,7 +497,7 @@ int main(int argc, char** argv)
 		(void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
 #endif
 	}
-	send_em(svr, udp, usessl, noanswer, delay, argc, argv);
+	send_em(svr, udp, usessl, noanswer, onarrival, delay, argc, argv);
 	checklock_stop();
 #ifdef USE_WINSOCK
 	WSACleanup();

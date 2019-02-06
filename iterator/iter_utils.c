@@ -282,10 +282,13 @@ iter_filter_unsuitable(struct iter_env* iter_env, struct module_env* env,
 static int
 iter_fill_rtt(struct iter_env* iter_env, struct module_env* env,
 	uint8_t* name, size_t namelen, uint16_t qtype, time_t now, 
-	struct delegpt* dp, int* best_rtt, struct sock_list* blacklist)
+	struct delegpt* dp, int* best_rtt, struct sock_list* blacklist,
+	size_t* num_suitable_results)
 {
 	int got_it = 0;
 	struct delegpt_addr* a;
+	*num_suitable_results = 0;
+
 	if(dp->bogus)
 		return 0; /* NS bogus, all bogus, nothing found */
 	for(a=dp->result_list; a; a = a->next_result) {
@@ -301,9 +304,56 @@ iter_fill_rtt(struct iter_env* iter_env, struct module_env* env,
 			} else if(a->sel_rtt < *best_rtt) {
 				*best_rtt = a->sel_rtt;
 			}
+			(*num_suitable_results)++;
 		}
 	}
 	return got_it;
+}
+
+/** compare two rtts, return -1, 0 or 1 */
+static int
+rtt_compare(const void* x, const void* y)
+{
+	if(*(int*)x == *(int*)y)
+		return 0;
+	if(*(int*)x > *(int*)y)
+		return 1;
+	return -1;
+}
+
+/** get RTT for the Nth fastest server */
+static int
+nth_rtt(struct delegpt_addr* result_list, size_t num_results, size_t n)
+{
+	int rtt_band;
+	size_t i;
+	int* rtt_list, *rtt_index;
+	
+	if(num_results < 1 || n >= num_results) {
+		return -1;
+	}
+
+	rtt_list = calloc(num_results, sizeof(int));
+	if(!rtt_list) {
+		log_err("malloc failure: allocating rtt_list");
+		return -1;
+	}
+	rtt_index = rtt_list;
+
+	for(i=0; i<num_results && result_list; i++) {
+		if(result_list->sel_rtt != -1) {
+			*rtt_index = result_list->sel_rtt;
+			rtt_index++;
+		}
+		result_list=result_list->next_result;
+	}
+	qsort(rtt_list, num_results, sizeof(*rtt_list), rtt_compare);
+
+	log_assert(n > 0);
+	rtt_band = rtt_list[n-1];
+	free(rtt_list);
+
+	return rtt_band;
 }
 
 /** filter the address list, putting best targets at front,
@@ -314,12 +364,13 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 	struct delegpt* dp, int* selected_rtt, int open_target, 
 	struct sock_list* blacklist, time_t prefetch)
 {
-	int got_num = 0, low_rtt = 0, swap_to_front, rtt_band = RTT_BAND;
+	int got_num = 0, low_rtt = 0, swap_to_front, rtt_band = RTT_BAND, nth;
+	size_t num_results;
 	struct delegpt_addr* a, *n, *prev=NULL;
 
 	/* fillup sel_rtt and find best rtt in the bunch */
 	got_num = iter_fill_rtt(iter_env, env, name, namelen, qtype, now, dp, 
-		&low_rtt, blacklist);
+		&low_rtt, blacklist, &num_results);
 	if(got_num == 0) 
 		return 0;
 	if(low_rtt >= USEFUL_SERVER_TOP_TIMEOUT &&
@@ -329,14 +380,19 @@ iter_filter_order(struct iter_env* iter_env, struct module_env* env,
 			     return 0 to force the caller to fetch more */
 	}
 
-	if(env->cfg->low_rtt_permil != 0 && prefetch == 0 &&
-		low_rtt < env->cfg->low_rtt &&
-		ub_random_max(env->rnd, 1000) < env->cfg->low_rtt_permil) {
+	if(env->cfg->fast_server_permil != 0 && prefetch == 0 &&
+		num_results > env->cfg->fast_server_num &&
+		ub_random_max(env->rnd, 1000) < env->cfg->fast_server_permil) {
 		/* the query is not prefetch, but for a downstream client,
-		 * there is a low_rtt (fast) server.  We choose that x% of the
-		 * time */
-		/* pick rtt numbers from 0..LOWBAND_RTT */
-		rtt_band = env->cfg->low_rtt - low_rtt;
+		 * there are more servers available then the fastest N we want
+		 * to choose from. Limit our choice to the fastest servers. */
+		nth = nth_rtt(dp->result_list, num_results,
+			env->cfg->fast_server_num);
+		if(nth > 0) {
+			rtt_band = nth - low_rtt;
+			if(rtt_band > RTT_BAND)
+				rtt_band = RTT_BAND;
+		}
 	}
 
 	got_num = 0;
@@ -1209,4 +1265,51 @@ int iter_dp_cangodown(struct query_info* qinfo, struct delegpt* dp)
 	if(dname_count_labels(qinfo->qname) == dp->namelabs+1)
 		return 0;
 	return 1;
+}
+
+int
+iter_stub_fwd_no_cache(struct module_qstate *qstate, struct query_info *qinf)
+{
+	struct iter_hints_stub *stub;
+	struct delegpt *dp;
+
+	/* Check for stub. */
+	stub = hints_lookup_stub(qstate->env->hints, qinf->qname,
+	    qinf->qclass, NULL);
+	dp = forwards_lookup(qstate->env->fwds, qinf->qname, qinf->qclass);
+
+	/* see if forward or stub is more pertinent */
+	if(stub && stub->dp && dp) {
+		if(dname_strict_subdomain(dp->name, dp->namelabs,
+			stub->dp->name, stub->dp->namelabs)) {
+			stub = NULL; /* ignore stub, forward is lower */
+		} else {
+			dp = NULL; /* ignore forward, stub is lower */
+		}
+	}
+
+	/* check stub */
+	if (stub != NULL && stub->dp != NULL) {
+		if(stub->dp->no_cache) {
+			char qname[255+1];
+			char dpname[255+1];
+			dname_str(qinf->qname, qname);
+			dname_str(stub->dp->name, dpname);
+			verbose(VERB_ALGO, "stub for %s %s has no_cache", qname, dpname);
+		}
+		return (stub->dp->no_cache);
+	}
+
+	/* Check for forward. */
+	if (dp) {
+		if(dp->no_cache) {
+			char qname[255+1];
+			char dpname[255+1];
+			dname_str(qinf->qname, qname);
+			dname_str(dp->name, dpname);
+			verbose(VERB_ALGO, "forward for %s %s has no_cache", qname, dpname);
+		}
+		return (dp->no_cache);
+	}
+	return 0;
 }

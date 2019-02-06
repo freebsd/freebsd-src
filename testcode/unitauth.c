@@ -42,6 +42,7 @@
 #include "testcode/unitmain.h"
 #include "util/regional.h"
 #include "util/net_help.h"
+#include "util/config_file.h"
 #include "util/data/msgreply.h"
 #include "services/cache/dns.h"
 #include "sldns/str2wire.h"
@@ -522,6 +523,7 @@ addzone(struct auth_zones* az, const char* name, char* fname)
 	struct auth_zone* z;
 	size_t nmlen;
 	uint8_t* nm = sldns_str2wire_dname(name, &nmlen);
+	struct config_file* cfg;
 	if(!nm) fatal_exit("out of memory");
 	lock_rw_wrlock(&az->lock);
 	z = auth_zone_create(az, nm, nmlen, LDNS_RR_CLASS_IN);
@@ -529,12 +531,16 @@ addzone(struct auth_zones* az, const char* name, char* fname)
 	if(!z) fatal_exit("cannot find zone");
 	auth_zone_set_zonefile(z, fname);
 	z->for_upstream = 1;
+	cfg = config_create();
+	free(cfg->chrootdir);
+	cfg->chrootdir = NULL;
 
-	if(!auth_zone_read_zonefile(z)) {
+	if(!auth_zone_read_zonefile(z, cfg)) {
 		fatal_exit("parse failure for auth zone %s", name);
 	}
 	lock_rw_unlock(&z->lock);
 	free(nm);
+	config_delete(cfg);
 	return z;
 }
 

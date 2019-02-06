@@ -208,6 +208,8 @@ struct entry {
 	/** copy ednsdata to reply, assume it is clientsubnet and
 	 * adjust scopemask to match sourcemask */
 	uint8_t copy_ednsdata_assume_clientsubnet;
+	/** increment the ECS scope copied from the sourcemask by one */
+	uint8_t increment_ecs_scope;
 	/** in seconds */
 	unsigned int sleeptime; 
 

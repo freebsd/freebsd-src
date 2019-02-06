@@ -359,8 +359,6 @@ struct serviced_query {
 		serviced_query_TCP_EDNS,
 		/** TCP without EDNS sent */
 		serviced_query_TCP,
-		/** probe to test EDNS lameness (EDNS is dropped) */
-		serviced_query_PROBE_EDNS,
 		/** probe to test noEDNS0 (EDNS gives FORMERRorNOTIMP) */
 		serviced_query_UDP_EDNS_fallback,
 		/** probe to test TCP noEDNS0 (EDNS gives FORMERRorNOTIMP) */

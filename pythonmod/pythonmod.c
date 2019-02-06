@@ -110,6 +110,136 @@ struct pythonmod_qstate {
 #include "pythonmod/interface.h"
 #endif
 
+/** log python error */
+static void
+log_py_err(void)
+{
+	char *result = NULL;
+	const char* iomod = "cStringIO";
+	PyObject *modStringIO = NULL;
+	PyObject *modTB = NULL;
+	PyObject *obFuncStringIO = NULL;
+	PyObject *obStringIO = NULL;
+	PyObject *obFuncTB = NULL;
+	PyObject *argsTB = NULL;
+	PyObject *obResult = NULL;
+	PyObject *ascstr = NULL;
+	PyObject *exc_typ, *exc_val, *exc_tb;
+
+	/* Fetch the error state now before we cruch it */
+	/* exc val contains the error message
+	 * exc tb contains stack traceback and other info. */
+	PyErr_Fetch(&exc_typ, &exc_val, &exc_tb);
+	PyErr_NormalizeException(&exc_typ, &exc_val, &exc_tb);
+
+	/* Import the modules we need - cStringIO and traceback */
+	modStringIO = PyImport_ImportModule("cStringIO");
+	if (modStringIO==NULL) {
+		/* python 1.4 and before */
+		modStringIO = PyImport_ImportModule("StringIO");
+		iomod = "StringIO";
+	}
+	if (modStringIO==NULL) {
+		/* python 3 */
+		modStringIO = PyImport_ImportModule("io");
+		iomod = "io";
+	}
+	if (modStringIO==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot ImportModule cStringIO or StringIO or io");
+		goto cleanup;
+	}
+	modTB = PyImport_ImportModule("traceback");
+	if (modTB==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot ImportModule traceback");
+		goto cleanup;
+	}
+
+	/* Construct a cStringIO object */
+	obFuncStringIO = PyObject_GetAttrString(modStringIO, "StringIO");
+	if (obFuncStringIO==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot GetAttrString %s.StringIO", iomod);
+		goto cleanup;
+	}
+	obStringIO = PyObject_CallObject(obFuncStringIO, NULL);
+	if (obStringIO==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot call %s.StringIO()", iomod);
+		goto cleanup;
+	}
+
+	/* Get the traceback.print_exception function, and call it. */
+	obFuncTB = PyObject_GetAttrString(modTB, "print_exception");
+	if (obFuncTB==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot GetAttrString traceback.print_exception");
+		goto cleanup;
+	}
+	argsTB = Py_BuildValue("OOOOO", (exc_typ ? exc_typ : Py_None),
+		(exc_val ? exc_val : Py_None), (exc_tb  ? exc_tb  : Py_None),
+		Py_None, obStringIO);
+	if (argsTB==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot BuildValue for print_exception");
+		goto cleanup;
+	}
+
+	obResult = PyObject_CallObject(obFuncTB, argsTB);
+	if (obResult==NULL) {
+		PyErr_Print();
+		log_err("pythonmod: cannot print exception, "
+			"call traceback.print_exception() failed");
+		goto cleanup;
+	}
+
+	/* Now call the getvalue() method in the StringIO instance */
+	Py_DECREF(obFuncStringIO);
+	obFuncStringIO = PyObject_GetAttrString(obStringIO, "getvalue");
+	if (obFuncStringIO==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"cannot GetAttrString StringIO.getvalue");
+		goto cleanup;
+	}
+	Py_DECREF(obResult);
+	obResult = PyObject_CallObject(obFuncStringIO, NULL);
+	if (obResult==NULL) {
+		log_err("pythonmod: cannot print exception, "
+			"call StringIO.getvalue() failed");
+		goto cleanup;
+	}
+
+	/* And it should be a string all ready to go - duplicate it. */
+	if (!PyString_Check(obResult) && !PyUnicode_Check(obResult)) {
+		log_err("pythonmod: cannot print exception, "
+			"StringIO.getvalue() result did not String_Check"
+			" or Unicode_Check");
+		goto cleanup;
+	}
+	if(PyString_Check(obResult)) {
+		result = PyString_AsString(obResult);
+	} else {
+		ascstr = PyUnicode_AsASCIIString(obResult);
+		result = PyBytes_AsString(ascstr);
+	}
+	log_err("pythonmod: python error: %s", result);
+
+cleanup:
+	Py_XDECREF(modStringIO);
+	Py_XDECREF(modTB);
+	Py_XDECREF(obFuncStringIO);
+	Py_XDECREF(obStringIO);
+	Py_XDECREF(obFuncTB);
+	Py_XDECREF(argsTB);
+	Py_XDECREF(obResult);
+	Py_XDECREF(ascstr);
+
+	/* clear the exception, by not restoring it */
+	/* Restore the exception state */
+	/* PyErr_Restore(exc_typ, exc_val, exc_tb); */
+}
+
 int pythonmod_init(struct module_env* env, int id)
 {
    /* Initialize module */
@@ -193,13 +323,26 @@ int pythonmod_init(struct module_env* env, int id)
 
    /* TODO: deallocation of pe->... if an error occurs */
 
-   if (PyRun_SimpleFile(script_py, pe->fname) < 0)
-   {
+   if (PyRun_SimpleFile(script_py, pe->fname) < 0) {
       log_err("pythonmod: can't parse Python script %s", pe->fname);
+      /* print the error to logs too, run it again */
+      fseek(script_py, 0, SEEK_SET);
+      /* we don't run the file, like this, because then side-effects
+       *    s = PyRun_File(script_py, pe->fname, Py_file_input, 
+       *        PyModule_GetDict(PyImport_AddModule("__main__")), pe->dict);
+       * could happen (again). Instead we parse the file again to get
+       * the error string in the logs, for when the daemon has stderr
+       * removed.  SimpleFile run already printed to stderr, for then
+       * this is called from unbound-checkconf or unbound -dd the user
+       * has a nice formatted error.
+      */
+      /* ignore the NULL return of _node, it is NULL due to the parse failure
+       * that we are expecting */
+      (void)PyParser_SimpleParseFile(script_py, pe->fname, Py_file_input);
+      log_py_err();
       PyGILState_Release(gil);
       return 0;
    }
-
    fclose(script_py);
 
    if ((pe->func_init = PyDict_GetItemString(pe->dict, "init_standard")) == NULL)
@@ -244,7 +387,7 @@ int pythonmod_init(struct module_env* env, int id)
    if (PyErr_Occurred())
    {
       log_err("pythonmod: Exception occurred in function init");
-      PyErr_Print();
+      log_py_err();
       Py_XDECREF(res);
       Py_XDECREF(py_init_arg);
       PyGILState_Release(gil);
@@ -274,7 +417,7 @@ void pythonmod_deinit(struct module_env* env, int id)
       res = PyObject_CallFunction(pe->func_deinit, "i", id);
       if (PyErr_Occurred()) {
          log_err("pythonmod: Exception occurred in function deinit");
-         PyErr_Print();
+         log_py_err();
       }
       /* Free result if any */
       Py_XDECREF(res);
@@ -312,7 +455,7 @@ void pythonmod_inform_super(struct module_qstate* qstate, int id, struct module_
    if (PyErr_Occurred())
    {
       log_err("pythonmod: Exception occurred in function inform_super");
-      PyErr_Print();
+      log_py_err();
       qstate->ext_state[id] = module_error;
    }
    else if ((res == NULL)  || (!PyObject_IsTrue(res)))
@@ -353,7 +496,7 @@ void pythonmod_operate(struct module_qstate* qstate, enum module_ev event,
    if (PyErr_Occurred())
    {
       log_err("pythonmod: Exception occurred in function operate, event: %s", strmodulevent(event));
-      PyErr_Print();
+      log_py_err();
       qstate->ext_state[id] = module_error;
    }
    else if ((res == NULL)  || (!PyObject_IsTrue(res)))

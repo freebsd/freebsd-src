@@ -78,8 +78,6 @@ static const char* ident="unbound";
 /** are we using syslog(3) to log to */
 static int logging_to_syslog = 0;
 #endif /* HAVE_SYSLOG_H */
-/** time to print in log, if NULL, use time(2) */
-static time_t* log_now = NULL;
 /** print time in UTC or in secondsfrom1970 */
 static int log_time_asc = 0;
 
@@ -181,11 +179,6 @@ void log_ident_set(const char* id)
 	ident = id;
 }
 
-void log_set_time(time_t* t)
-{
-	log_now = t;
-}
-
 void log_set_time_asc(int use_asc)
 {
 	log_time_asc = use_asc;
@@ -255,9 +248,7 @@ log_vmsg(int pri, const char* type,
 		lock_quick_unlock(&log_lock);
 		return;
 	}
-	if(log_now)
-		now = (time_t)*log_now;
-	else	now = (time_t)time(NULL);
+	now = (time_t)time(NULL);
 #if defined(HAVE_STRFTIME) && defined(HAVE_LOCALTIME_R) 
 	if(log_time_asc && strftime(tmbuf, sizeof(tmbuf), "%b %d %H:%M:%S",
 		localtime_r(&now, &tm))%(sizeof(tmbuf)) != 0) {
@@ -389,6 +380,24 @@ void
 log_hex(const char* msg, void* data, size_t length)
 {
 	log_hex_f(verbosity, msg, data, length);
+}
+
+void
+log_query(const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	log_vmsg(LOG_INFO, "query", format, args);
+	va_end(args);
+}
+
+void
+log_reply(const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	log_vmsg(LOG_INFO, "reply", format, args);
+	va_end(args);
 }
 
 void log_buf(enum verbosity_value level, const char* msg, sldns_buffer* buf)

@@ -19,7 +19,7 @@ SCENARIO_BEGIN Test validator with blacked key entry and further queries
 ; until the key entry expires.
 
 ; K.ROOT-SERVERS.NET.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 193.0.14.129 
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -47,7 +47,7 @@ ENTRY_END
 RANGE_END
 
 ; a.gtld-servers.net.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 192.5.6.30
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -116,7 +116,7 @@ ENTRY_END
 RANGE_END
 
 ; ns.example.com.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 1.2.3.4
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -228,7 +228,7 @@ ENTRY_END
 RANGE_END
 
 ; ns.blabla.com.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 1.2.3.5
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -336,7 +336,7 @@ ENTRY_END
 RANGE_END
 
 ; ns.sub.example.com.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 1.2.4.6
 ENTRY_BEGIN
 MATCH opcode qtype qname
@@ -402,7 +402,7 @@ ENTRY_END
 RANGE_END
 
 ; ns.foo.com.
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 1.2.4.7
 ENTRY_BEGIN
 MATCH opcode qtype qname

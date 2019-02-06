@@ -158,7 +158,7 @@ static void consistency_test(void)
 {
 	addrlen_t l;
 	time_t i;
-	unsigned int count;
+	uint32_t count;
 	addrkey_t *k;
 	struct addrtree* t;
 	struct module_env env;

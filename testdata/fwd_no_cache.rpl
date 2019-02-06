@@ -1,0 +1,78 @@
+; This is a comment.
+; config options go here.
+forward-zone: name: "." forward-addr: 216.0.0.1
+	forward-no-cache: yes
+CONFIG_END
+
+SCENARIO_BEGIN Forward with no_cache set
+RANGE_BEGIN 0 10
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+www.example.com. IN A
+	SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+	SECTION AUTHORITY
+www.example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+	ENTRY_END
+RANGE_END
+RANGE_BEGIN 200 300
+RANGE_END
+
+RANGE_BEGIN 20 100
+	ENTRY_BEGIN
+	MATCH opcode qtype qname
+	ADJUST copy_id
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+www.example.com. IN A
+	SECTION ANSWER
+www.example.com. IN A 10.20.30.44
+	SECTION AUTHORITY
+www.example.com. IN NS ns.example.com.
+	SECTION ADDITIONAL
+ns.example.com. IN A 10.20.30.50
+	ENTRY_END
+RANGE_END
+RANGE_BEGIN 200 300
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+STEP 4 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+; make some time pass but not enough to timeout a cached record
+STEP 10 TIME_PASSES ELAPSE 10
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+STEP 24 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.44
+ENTRY_END
+SCENARIO_END

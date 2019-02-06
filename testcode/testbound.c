@@ -344,6 +344,7 @@ main(int argc, char* argv[])
 
 	/* we do not want the test to depend on the timezone */
 	(void)putenv("TZ=UTC");
+	memset(pass_argv, 0, sizeof(pass_argv));
 
 	log_init(NULL, 0, NULL);
 	/* determine commandline options for the daemon */

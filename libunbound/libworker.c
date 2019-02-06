@@ -657,8 +657,8 @@ libworker_event_done_cb(void* arg, int rcode, sldns_buffer* buf,
 			sec = 1;
 		else if(s == sec_status_secure)
 			sec = 2;
-		(*cb)(cb_arg, rcode, (void*)sldns_buffer_begin(buf),
-			(int)sldns_buffer_limit(buf), sec, why_bogus, was_ratelimited);
+		(*cb)(cb_arg, rcode, (buf?(void*)sldns_buffer_begin(buf):NULL),
+			(buf?(int)sldns_buffer_limit(buf):0), sec, why_bogus, was_ratelimited);
 	}
 }
 
