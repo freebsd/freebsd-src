@@ -567,16 +567,12 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 		/* Poll for notifications coming from the netmap rings bound to
 		 * this file descriptor. */
 		{
-			NM_SELINFO_T *si[NR_TXRX];
-
 			NMG_LOCK();
-			si[NR_RX] = nm_si_user(priv, NR_RX) ? &na->si[NR_RX] :
-				&na->rx_rings[priv->np_qfirst[NR_RX]]->si;
-			si[NR_TX] = nm_si_user(priv, NR_TX) ? &na->si[NR_TX] :
-				&na->tx_rings[priv->np_qfirst[NR_TX]]->si;
+			poll_wait(priv->np_filp, priv->np_si[NR_TX],
+			    &poll_ctx->wait_table);
+			poll_wait(priv->np_filp, priv->np_si[NR_RX],
+			    &poll_ctx->wait_table);
 			NMG_UNLOCK();
-			poll_wait(priv->np_filp, si[NR_TX], &poll_ctx->wait_table);
-			poll_wait(priv->np_filp, si[NR_RX], &poll_ctx->wait_table);
 		}
 #else   /* SYNC_KLOOP_POLL */
 		opt->nro_status = EOPNOTSUPP;
@@ -657,7 +653,7 @@ netmap_sync_kloop(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 			/* If a poll context is present, yield to the scheduler
 			 * waiting for a notification to come either from
 			 * netmap or the application. */
-			schedule_timeout(msecs_to_jiffies(20000));
+			schedule_timeout(msecs_to_jiffies(3000));
 		} else
 #endif /* SYNC_KLOOP_POLL */
 		{
@@ -708,12 +704,31 @@ out:
 int
 netmap_sync_kloop_stop(struct netmap_priv_d *priv)
 {
+	struct netmap_adapter *na;
 	bool running = true;
 	int err = 0;
 
+	if (priv->np_nifp == NULL) {
+		return ENXIO;
+	}
+	mb(); /* make sure following reads are not from cache */
+
+	na = priv->np_na;
+	if (!nm_netmap_on(na)) {
+		return ENXIO;
+	}
+
+	/* Set the kloop stopping flag. */
 	NMG_LOCK();
 	priv->np_kloop_state |= NM_SYNC_KLOOP_STOPPING;
 	NMG_UNLOCK();
+
+	/* Send a notification to the kloop, in case it is blocked in
+	 * schedule_timeout(). We can use either RX or TX, because the
+	 * kloop is waiting on both. */
+	nm_os_selwakeup(priv->np_si[NR_RX]);
+
+	/* Wait for the kloop to actually terminate. */
 	while (running) {
 		usleep_range(1000, 1500);
 		NMG_LOCK();

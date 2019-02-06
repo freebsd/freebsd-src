@@ -1141,8 +1141,8 @@ netmap_bwrap_intr_notify(struct netmap_kring *kring, int flags)
 		goto put_out;
 	if (kring->nr_hwcur == kring->nr_hwtail) {
 		if (netmap_verbose)
-			nm_prerr("how strange, interrupt with no packets on %s",
-			    na->name);
+			nm_prlim(1, "interrupt with no packets on %s",
+				kring->name);
 		goto put_out;
 	}
 
