@@ -72,6 +72,7 @@ MODULE_DEPEND(ndis, pccard, 1, 1, 1);
 
 static int ndis_probe_pccard	(device_t);
 static int ndis_attach_pccard	(device_t);
+static int ndis_detach_pccard	(device_t);
 static struct resource_list *ndis_get_resource_list
 				(device_t, device_t);
 static int ndis_devcompare	(interface_type,
@@ -89,7 +90,7 @@ static device_method_t ndis_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ndis_probe_pccard),
 	DEVMETHOD(device_attach,	ndis_attach_pccard),
-	DEVMETHOD(device_detach,	ndis_detach),
+	DEVMETHOD(device_detach,	ndis_detach_pccard),
 	DEVMETHOD(device_shutdown,	ndis_shutdown),
 	DEVMETHOD(device_suspend,	ndis_suspend),
 	DEVMETHOD(device_resume,	ndis_resume),
@@ -173,6 +174,50 @@ ndis_probe_pccard(dev)
 	return(ENXIO);
 }
 
+#define NDIS_AM_RID 3
+
+static int
+ndis_alloc_amem(struct ndis_softc *sc)
+{
+	int error, rid;
+
+	rid = NDIS_AM_RID;
+	sc->ndis_res_am = bus_alloc_resource_anywhere(sc->ndis_dev,
+	    SYS_RES_MEMORY, &rid, 0x1000, RF_ACTIVE);
+
+	if (sc->ndis_res_am == NULL) {
+		device_printf(sc->ndis_dev,
+		    "failed to allocate attribute memory\n");
+		return(ENXIO);
+	}
+	sc->ndis_rescnt++;
+	resource_list_add(&sc->ndis_rl, SYS_RES_MEMORY, rid,
+	    rman_get_start(sc->ndis_res_am), rman_get_end(sc->ndis_res_am),
+	    rman_get_size(sc->ndis_res_am));
+
+	error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->ndis_dev),
+	    sc->ndis_dev, rid, 0, NULL);
+
+	if (error) {
+		device_printf(sc->ndis_dev,
+		    "CARD_SET_MEMORY_OFFSET() returned 0x%x\n", error);
+		return(error);
+	}
+
+	error = CARD_SET_RES_FLAGS(device_get_parent(sc->ndis_dev),
+	    sc->ndis_dev, SYS_RES_MEMORY, rid, PCCARD_A_MEM_ATTR);
+
+	if (error) {
+		device_printf(sc->ndis_dev,
+		    "CARD_SET_RES_FLAGS() returned 0x%x\n", error);
+		return(error);
+	}
+
+	sc->ndis_am_rid = rid;
+
+	return(0);
+}
+
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
@@ -249,10 +294,31 @@ ndis_attach_pccard(dev)
 
 	sc->ndis_devidx = devidx;
 
+	error = ndis_alloc_amem(sc);
+	if (error) {
+		device_printf(dev, "failed to allocate attribute memory\n");
+		goto fail;
+	}
+
 	error = ndis_attach(dev);
 
 fail:
 	return(error);
+}
+
+static int
+ndis_detach_pccard(device_t dev)
+{
+	struct ndis_softc *sc = device_get_softc(dev);
+
+	(void) ndis_detach(dev);
+
+	if (sc->ndis_res_am != NULL)
+		bus_release_resource(sc->ndis_dev, SYS_RES_MEMORY,
+		    sc->ndis_am_rid, sc->ndis_res_am);
+	resource_list_free(&sc->ndis_rl);
+
+	return (0);
 }
 
 static struct resource_list *
@@ -264,73 +330,4 @@ ndis_get_resource_list(dev, child)
 
 	sc = device_get_softc(dev);
 	return (&sc->ndis_rl);
-}
-
-#define NDIS_AM_RID 3
-
-int
-ndis_alloc_amem(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-	int			error, rid;
-
-	if (arg == NULL)
-		return(EINVAL);
-
-	sc = arg;
-	rid = NDIS_AM_RID;
-	sc->ndis_res_am = bus_alloc_resource_anywhere(sc->ndis_dev,
-	    SYS_RES_MEMORY, &rid, 0x1000, RF_ACTIVE);
-
-	if (sc->ndis_res_am == NULL) {
-		device_printf(sc->ndis_dev,
-		    "failed to allocate attribute memory\n");
-		return(ENXIO);
-	}
-	sc->ndis_rescnt++;
-	resource_list_add(&sc->ndis_rl, SYS_RES_MEMORY, rid,
-	    rman_get_start(sc->ndis_res_am), rman_get_end(sc->ndis_res_am),
-	    rman_get_size(sc->ndis_res_am));
-
-	error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->ndis_dev),
-	    sc->ndis_dev, rid, 0, NULL);
-
-	if (error) {
-		device_printf(sc->ndis_dev,
-		    "CARD_SET_MEMORY_OFFSET() returned 0x%x\n", error);
-		return(error);
-	}
-
-	error = CARD_SET_RES_FLAGS(device_get_parent(sc->ndis_dev),
-	    sc->ndis_dev, SYS_RES_MEMORY, rid, PCCARD_A_MEM_ATTR);
-
-	if (error) {
-		device_printf(sc->ndis_dev,
-		    "CARD_SET_RES_FLAGS() returned 0x%x\n", error);
-		return(error);
-	}
-
-	sc->ndis_am_rid = rid;
-
-	return(0);
-}
-
-void
-ndis_free_amem(arg)
-	void			*arg;
-{
-	struct ndis_softc	*sc;
-
-	if (arg == NULL)
-		return;
-
-	sc = arg;
-
-	if (sc->ndis_res_am != NULL)
-		bus_release_resource(sc->ndis_dev, SYS_RES_MEMORY,
-		    sc->ndis_am_rid, sc->ndis_res_am);
-	resource_list_free(&sc->ndis_rl);
-
-	return;
 }
