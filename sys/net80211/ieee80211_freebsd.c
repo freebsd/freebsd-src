@@ -66,8 +66,6 @@ SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif
 
-static MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
-
 static const char wlanname[] = "wlan";
 static struct if_clone *wlan_cloner;
 
