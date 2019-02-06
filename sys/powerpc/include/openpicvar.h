@@ -34,6 +34,8 @@
 
 #define OPENPIC_IRQMAX	256	/* h/w allows more */
 
+#define	OPENPIC_QUIRK_SINGLE_BIND	1	/* Bind interrupts to only 1 CPU */
+
 /* Names match the macros in openpicreg.h. */
 struct openpic_timer {
     	uint32_t	tcnt;
@@ -55,6 +57,7 @@ struct openpic_softc {
 	u_int		sc_ncpu;
 	u_int		sc_nirq;
 	int		sc_psim;
+	u_int		sc_quirks;
 
 	/* Saved states. */
 	uint32_t		sc_saved_config;
