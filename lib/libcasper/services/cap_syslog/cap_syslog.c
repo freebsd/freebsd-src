@@ -88,6 +88,9 @@ cap_openlog(cap_channel_t *chan, const char *ident, int logopt, int facility)
 	}
 	nvlist_add_number(nvl, "logopt", logopt);
 	nvlist_add_number(nvl, "facility", facility);
+	if (logopt & LOG_PERROR) {
+		nvlist_add_descriptor(nvl, "stderr", STDERR_FILENO);
+	}
 	nvl = cap_xfer_nvlist(chan, nvl);
 	if (nvl == NULL) {
 		return;
@@ -131,6 +134,7 @@ cap_setlogmask(cap_channel_t *chan, int maskpri)
  */
 
 static char *LogTag;
+static int prev_stderr = -1;
 
 static void
 slog_vsyslog(const nvlist_t *limits __unused, const nvlist_t *nvlin,
@@ -146,6 +150,8 @@ slog_openlog(const nvlist_t *limits __unused, const nvlist_t *nvlin,
     nvlist_t *nvlout __unused)
 {
 	const char *ident;
+	uint64_t logopt;
+	int stderr_fd;
 
 	ident = dnvlist_get_string(nvlin, "ident", NULL);
 	if (ident != NULL) {
@@ -153,8 +159,19 @@ slog_openlog(const nvlist_t *limits __unused, const nvlist_t *nvlin,
 		LogTag = strdup(ident);
 	}
 
-	openlog(LogTag, nvlist_get_number(nvlin, "logopt"),
-	    nvlist_get_number(nvlin, "facility"));
+	logopt = nvlist_get_number(nvlin, "logopt");
+	if (logopt & LOG_PERROR) {
+		stderr_fd = dnvlist_get_descriptor(nvlin, "stderr", -1);
+		if (prev_stderr == -1)
+			prev_stderr = dup(STDERR_FILENO);
+		if (prev_stderr != -1)
+			(void)dup2(stderr_fd, STDERR_FILENO);
+	} else if (prev_stderr != -1) {
+		(void)dup2(prev_stderr, STDERR_FILENO);
+		close(prev_stderr);
+		prev_stderr = -1;
+	}
+	openlog(LogTag, logopt, nvlist_get_number(nvlin, "facility"));
 }
 
 static void
@@ -166,6 +183,12 @@ slog_closelog(const nvlist_t *limits __unused, const nvlist_t *nvlin __unused,
 
 	free(LogTag);
 	LogTag = NULL;
+
+	if (prev_stderr != -1) {
+		(void)dup2(prev_stderr, STDERR_FILENO);
+		close(prev_stderr);
+		prev_stderr = -1;
+	}
 }
 
 static void
@@ -198,4 +221,4 @@ syslog_command(const char *cmd, const nvlist_t *limits, nvlist_t *nvlin,
 	return (0);
 }
 
-CREATE_SERVICE("system.syslog", NULL, syslog_command, CASPER_SERVICE_STDIO);
+CREATE_SERVICE("system.syslog", NULL, syslog_command, 0);
