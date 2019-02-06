@@ -1613,7 +1613,7 @@ upgt_fw_load(struct upgt_softc *sc)
 		data_cmd->buflen = bsize;
 		upgt_bulk_tx(sc, data_cmd);
 
-		DPRINTF(sc, UPGT_DEBUG_FW, "FW offset=%d, read=%d, sent=%d\n",
+		DPRINTF(sc, UPGT_DEBUG_FW, "FW offset=%zu, read=%d, sent=%d\n",
 		    offset, n, bsize);
 		bsize = n;
 	}
@@ -1770,7 +1770,7 @@ upgt_fw_verify(struct upgt_softc *sc)
 	}
 
 	DPRINTF(sc, UPGT_DEBUG_FW,
-	    "firmware Boot Record Area found at offset %d\n", offset);
+	    "firmware Boot Record Area found at offset %zu\n", offset);
 
 	/*
 	 * Parse Boot Record Area (BRA) options.
