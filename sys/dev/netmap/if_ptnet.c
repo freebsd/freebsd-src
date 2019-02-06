@@ -1688,7 +1688,7 @@ ptnet_ring_update(struct ptnet_queue *pq, struct netmap_kring *kring,
 	/* Mimic nm_txsync_prologue/nm_rxsync_prologue. */
 	kring->rcur = kring->rhead = head;
 
-	ptnetmap_guest_write_kring_csb(atok, kring->rcur, kring->rhead);
+	nm_sync_kloop_appl_write(atok, kring->rcur, kring->rhead);
 
 	/* Kick the host if needed. */
 	if (NM_ACCESS_ONCE(ktoa->kern_need_kick)) {
@@ -1764,7 +1764,12 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 				 * the host. */
 				atok->appl_need_kick = 1;
 
-				/* Double-check. */
+				/* Double check. We need a full barrier to
+				 * prevent the store to atok->appl_need_kick
+				 * to be reordered with the load from
+				 * ktoa->hwcur and ktoa->hwtail (store-load
+				 * barrier). */
+				nm_stld_barrier();
 				ptnet_sync_tail(ktoa, kring);
 				if (likely(PTNET_TX_NOSPACE(head, kring,
 							    minspace))) {
@@ -2046,7 +2051,12 @@ host_sync:
 				 * last interrupt. */
 				atok->appl_need_kick = 1;
 
-				/* Double-check. */
+				/* Double check for more completed RX slots.
+				 * We need a full barrier to prevent the store
+				 * to atok->appl_need_kick to be reordered with
+				 * the load from ktoa->hwcur and ktoa->hwtail
+				 * (store-load barrier). */
+				nm_stld_barrier();
 				ptnet_sync_tail(ktoa, kring);
 				if (likely(head == ring->tail)) {
 					break;
