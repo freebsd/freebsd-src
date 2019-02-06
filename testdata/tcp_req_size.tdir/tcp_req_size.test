@@ -1,0 +1,100 @@
+# #-- tcp_req_size.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# this test query should just work (server is up)
+echo "> query www1.example.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+echo "OK"
+
+# out of order requests, the example.com elements take 2 seconds to wait.
+# www3.example.com present twice, answered twice.
+# this queues one answer in the wait buffers, and that exceeds the buffer.
+echo ""
+echo "> query www1.example.net. www3.example.com. www2.example.net. www3.example.com. www3.example.net."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN www3.example.com. A IN www2.example.net A IN www3.example.com. A IN www3.example.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.net" outfile | grep "1.2.3.2"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "stream closed" outfile; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+echo "OK"
+exit 0

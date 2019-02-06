@@ -69,6 +69,9 @@
 #include "sldns/parseutil.h"
 #include "sldns/sbuffer.h"
 
+/* in msec */
+int UNKNOWN_SERVER_NICENESS = 376;
+
 int 
 iter_init(struct module_env* env, int id)
 {
@@ -324,6 +327,29 @@ error_response_cache(struct module_qstate* qstate, int id, int rcode)
 			/* serving expired contents, but nothing is cached
 			 * at all, so the servfail cache entry is useful
 			 * (stops waste of time on this servfail NORR_TTL) */
+		} else {
+			/* don't overwrite existing (non-expired) data in
+			 * cache with a servfail */
+			struct msgreply_entry* msg;
+			if((msg=msg_cache_lookup(qstate->env,
+				qstate->qinfo.qname, qstate->qinfo.qname_len,
+				qstate->qinfo.qtype, qstate->qinfo.qclass,
+				qstate->query_flags, *qstate->env->now, 0))
+				!= NULL) {
+				struct reply_info* rep = (struct reply_info*)
+					msg->entry.data;
+				if(FLAGS_GET_RCODE(rep->flags) ==
+					LDNS_RCODE_NOERROR ||
+					FLAGS_GET_RCODE(rep->flags) ==
+					LDNS_RCODE_NXDOMAIN) {
+					/* we have a good entry,
+					 * don't overwrite */
+					lock_rw_unlock(&msg->entry.lock);
+					return error_response(qstate, id, rcode);
+				}
+				lock_rw_unlock(&msg->entry.lock);
+			}
+			
 		}
 		memset(&err, 0, sizeof(err));
 		err.flags = (uint16_t)(BIT_QR | BIT_RA);
@@ -1144,53 +1170,6 @@ forward_request(struct module_qstate* qstate, struct iter_qstate* iq)
 	return 1;
 }
 
-static int
-iter_stub_fwd_no_cache(struct module_qstate *qstate, struct iter_qstate *iq)
-{
-	struct iter_hints_stub *stub;
-	struct delegpt *dp;
-
-	/* Check for stub. */
-	stub = hints_lookup_stub(qstate->env->hints, iq->qchase.qname,
-	    iq->qchase.qclass, iq->dp);
-	dp = forwards_lookup(qstate->env->fwds, iq->qchase.qname, iq->qchase.qclass);
-
-	/* see if forward or stub is more pertinent */
-	if(stub && stub->dp && dp) {
-		if(dname_strict_subdomain(dp->name, dp->namelabs,
-			stub->dp->name, stub->dp->namelabs)) {
-			stub = NULL; /* ignore stub, forward is lower */
-		} else {
-			dp = NULL; /* ignore forward, stub is lower */
-		}
-	}
-
-	/* check stub */
-	if (stub != NULL && stub->dp != NULL) {
-		if(stub->dp->no_cache) {
-			char qname[255+1];
-			char dpname[255+1];
-			dname_str(iq->qchase.qname, qname);
-			dname_str(stub->dp->name, dpname);
-			verbose(VERB_ALGO, "stub for %s %s has no_cache", qname, dpname);
-		}
-		return (stub->dp->no_cache);
-	}
-
-	/* Check for forward. */
-	if (dp) {
-		if(dp->no_cache) {
-			char qname[255+1];
-			char dpname[255+1];
-			dname_str(iq->qchase.qname, qname);
-			dname_str(dp->name, dpname);
-			verbose(VERB_ALGO, "forward for %s %s has no_cache", qname, dpname);
-		}
-		return (dp->no_cache);
-	}
-	return 0;
-}
-
 /** 
  * Process the initial part of the request handling. This state roughly
  * corresponds to resolver algorithms steps 1 (find answer in cache) and 2
@@ -1268,7 +1247,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 	/* This either results in a query restart (CNAME cache response), a
 	 * terminating response (ANSWER), or a cache miss (null). */
 	
-	if (iter_stub_fwd_no_cache(qstate, iq)) {
+	if (iter_stub_fwd_no_cache(qstate, &iq->qchase)) {
 		/* Asked to not query cache. */
 		verbose(VERB_ALGO, "no-cache set, going to the network");
 		qstate->no_cache_lookup = 1;
@@ -1903,7 +1882,6 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 		struct delegpt* p = hints_lookup_root(qstate->env->hints,
 			iq->qchase.qclass);
 		if(p) {
-			struct delegpt_ns* ns;
 			struct delegpt_addr* a;
 			iq->chase_flags &= ~BIT_RD; /* go to authorities */
 			for(ns = p->nslist; ns; ns=ns->next) {
@@ -2320,7 +2298,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		errinf(qstate, "auth zone lookup failed, fallback is off");
 		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
-	if(iq->dp && iq->dp->auth_dp) {
+	if(iq->dp->auth_dp) {
 		/* we wanted to fallback, but had no delegpt, only the
 		 * auth zone generated delegpt, create an actual one */
 		iq->auth_zone_avoid = 1;
@@ -3592,7 +3570,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	if(event == module_event_noreply || event == module_event_error) {
 		if(event == module_event_noreply && iq->sent_count >= 3 &&
 			qstate->env->cfg->use_caps_bits_for_id &&
-			!iq->caps_fallback) {
+			!iq->caps_fallback && !is_caps_whitelisted(ie, iq)) {
 			/* start fallback */
 			iq->caps_fallback = 1;
 			iq->caps_server = 0;

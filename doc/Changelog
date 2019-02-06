@@ -1,8 +1,280 @@
+5 February 2019: Wouter
+	- Fix tls-ciphers spelling in example.conf
+
+28 January 2019: Wouter
+	- ub_ctx_set_tls call for libunbound that enables DoT for the machines
+	  set with ub_ctx_set_fwd.  Patch from Florian Obser.
+	- Set build system for added call in the libunbound API.
+	- List example config for root zone copy locally hosted with auth-zone
+	  as suggested from draft-ietf-dnsop-7706-bis-02.  But with updated
+	  B root address.
+	- set version to 1.9.0 for release.
+
+25 January 2019: Wouter
+	- Fix that tcp for auth zone and outgoing does not remove and
+	  then gets the ssl read again applied to the deleted commpoint.
+	- updated contrib/fastrpz.patch to cleanly diff.
+	- no lock when threads disabled in tcp request buffer count.
+	- remove compile warnings from libnettle compile.
+	- output of newer lex 2.6.1 and bison 3.0.5.
+
+24 January 2019: Wouter
+	- Newer aclocal and libtoolize used for generating configure scripts,
+	  aclocal 1.16.1 and libtoolize 2.4.6.
+	- Fix unit test for python 3.7 new keyword 'async'.
+	- clang analysis fixes, assert arc4random buffer in init,
+	  no check for already checked delegation pointer in iterator,
+	  in testcode check for NULL packet matches, in perf do not copy
+	  from NULL start list when growing capacity.  Adjust host and file
+	  only when present in test header read to please checker.  In
+	  testcode for unknown macro operand give zero result. Initialise the
+	  passed argv array in test code.  In test code add EDNS data
+	  segment copy only when nonempty.
+	- Patch from Florian Obser fixes some compiler warnings:
+	  include mini_event.h to have a prototype for mini_ev_cmp
+	  include edns.h to have a prototype for apply_edns_options
+	  sldns_wire2str_edns_keepalive_print is only called in the wire2str,
+	  module declare it static to get rid of compiler warning:
+	  no previous prototype for function
+	  infra_find_ip_ratedata() is only called in the infra module,
+	  declare it static to get rid of compiler warning:
+	  no previous prototype for function
+	  do not shadow local variable buf in authzone
+	  auth_chunks_delete and az_nsec3_findnode are only called in the
+	  authzone module, declare them static to get rid of compiler warning:
+	  no previous prototype for function...
+	  copy_rrset() is only called in the respip module, declare it
+	  static to get rid of compiler warning:
+	  no previous prototype for function 'copy_rrset'
+	  no need for another variable "r"; gets rid of compiler warning:
+	  declaration shadows a local variable in libunbound.c
+	  no need for another variable "ns"; gets rid of compiler warning:
+	  declaration shadows a local variable in iterator.c
+	- Moved includes and make depend.
+
+23 January 2019: Wouter
+	- Patch from Manabu Sonoda with tls-ciphers and tls-ciphersuites
+	  options for unbound.conf.
+	- Fixes for the patch, and man page entry.
+	- Fix configure to detect SSL_CTX_set_ciphersuites, for better
+	  library compatibility when compiling.
+	- Patch for TLS session resumption from Manabu Sonoda,
+	  enable with tls-session-ticket-keys in unbound.conf.
+	- Fixes for patch (includes, declarations, warnings).  Free at end
+	  and keep config options in order read from file to keep the first
+	  one as the first one.
+	- Fix for IXFR fallback to reset counter when IXFR does not timeout.
+
+22 January 2019: Wouter
+	- Fix space calculation for tcp req buffer size.
+	- Doc for stream-wait-size and unit test.
+	- unbound-control stats has mem.streamwait that counts TCP and TLS
+	  waiting result buffers.
+	- Fix for #4219: secondaries not updated after serial change, unbound
+	  falls back to AXFR after IXFR gives several timeout failures.
+	- Fix that auth zone after IXFR fallback tries the same master.
+
+21 January 2019: Wouter
+	- Fix tcp idle timeout test, for difference in the tcp reply code.
+	- Unit test for tcp request reorder and timeouts.
+	- Unit tests for ssl out of order processing.
+	- Fix that multiple dns fragments can be carried in one TLS frame.
+	- Add stream-wait-size: 4m config option to limit the maximum
+	  memory used by waiting tcp and tls stream replies.  This avoids
+	  a denial of service where these replies use up all of the memory.
+
+17 January 2019: Wouter
+	- For caps-for-id fallback, use the whitelist to avoid timeout
+	  starting a fallback sequence for it.
+	- increase mesh max activation count for capsforid long fetches.
+
+16 January 2019: Ralph
+	- Get ready for the DNS flag day: remove EDNS lame procedure, do not
+	  re-query without EDNS after timeout.
+
+15 January 2019: Wouter
+	- In the out of order processing, reset byte count for (potential)
+	  partial read.
+	- Review fixes in out of order processing.
+
+14 January 2019: Wouter
+	- streamtcp option -a send queries consecutively and prints answers
+	  as they arrive.
+	- Fix for out of order processing administration quit cleanup.
+	- unit test for tcp out of order processing.
+
+11 January 2019: Wouter
+	- Initial commit for out-of-order processing for TCP and TLS.
+
+9 January 2019: Wouter
+	- Log query name for looping module errors.
+
+8 January 2019: Wouter
+	- Fix syntax in comment of local alias processing.
+	- Fix NSEC3 record that is returned in wildcard replies from
+	  auth-zone zones with NSEC3 and wildcards.
+
+7 January 2019: Wouter
+	- On FreeBSD warn if systcl settings do not allow server TCP FASTOPEN,
+	  and server tcp fastopen is enabled at compile time.
+	- Document interaction between the tls-upstream option in the server
+	  section and forward-tls-upstream option in the forward-zone sections.
+	- Add contrib/unbound-fuzzme.patch from Jacob Hoffman-Andrews,
+	  the patch adds a program used for fuzzing.
+
+12 December 2018: Wouter
+	- Fix for crash in dns64 module if response is null.
+
+10 December 2018: Wouter
+	- Fix config parser memory leaks.
+	- ip-ratelimit-factor of 1 allows all traffic through, instead of the
+	  previous blocking everything.
+	- Fix for FreeBSD port make with dnscrypt and dnstap enabled.
+	- Fix #4206: support openssl 1.0.2 for TLS hostname verification,
+	  alongside the 1.1.0 and later support that is already there.
+	- Fixup openssl 1.0.2 compile
+
+6 December 2018: Wouter
+	- Fix dns64 allocation in wrong region for returned internal queries.
+
+3 December 2018: Wouter
+	- Fix icon, no ragged edges and nicer resolutions available, for eg.
+	  Win 7 and Windows 10 display.
+	- cache-max-ttl also defines upperbound of initial TTL in response.
+
+30 November 2018: Wouter
+	- Patch for typo in unbound.conf man page.
+	- log-tag-queryreply: yes in unbound.conf tags the log-queries and
+	  log-replies in the log file for easier log filter maintenance.
+
+29 November 2018: Wouter
+	- iana portlist updated.
+	- Fix chroot auth-zone fix to remove chroot prefix.
+	- tag for 1.8.2rc1, which became 1.8.2 on 4 dec 2018, with icon
+	  updated.  Trunk contains 1.8.3 in development.
+	  Which became 1.8.3 on 11 december with only the dns64 fix of 6 dec.
+	  Trunk then became 1.8.4 in development.
+	- Fix that unbound-checkconf does not complains if the config file
+	  is not placed inside the chroot.
+	- Refuse to start with no ports.
+	- Remove clang analysis warnings.
+
+28 November 2018: Wouter
+	- Fix leak in chroot fix for auth-zone.
+	- Fix clang analysis for outside directory build test.
+
+27 November 2018: Wouter
+	- Fix DNS64 to not store intermediate results in cache, this avoids
+	  other threads from picking up the wrong data.  The module restores
+	  the previous no_cache_store setting when the the module is finished.
+	- Fix #4208: 'stub-no-cache' and 'forward-no-cache' not work.
+	- New and better fix for Fix #4193: Fix that prefetch failure does
+	  not overwrite valid cache entry with SERVFAIL.
+	- auth-zone give SERVFAIL when expired, fallback activates when
+	  expired, and this is documented in the man page.
+	- stat count SERVFAIL downstream auth-zone queries for expired zones.
+	- Put new logos into windows installer.
+	- Fix windows compile for new rrset roundrobin fix.
+	- Update contrib fastrpz patch for latest release.
+
+26 November 2018: Wouter
+	- Fix to not set GLOB_NOSORT so the unbound.conf include: files are
+	  sorted and in a predictable order.
+	- Fix #4193: Fix that prefetch failure does not overwrite valid cache
+	  entry with SERVFAIL.
+	- Add unbound-control view_local_datas command, like local_datas.
+	- Fix that unbound-control can send file for view_local_datas.
+
+22 November 2018: Wouter
+	- With ./configure --with-pyunbound --with-pythonmodule
+	  PYTHON_VERSION=3.6 or with 2.7 unbound can compile and unit tests
+	  succeed for the python module.
+	- pythonmod logs the python error and traceback on failure.
+	- ignore debug python module for test in doxygen output.
+	- review fixes for python module.
+	- Fix #4209: Crash in libunbound when called from getdns.
+	- auth zone zonefiles can be in a chroot, the chroot directory
+	  components are removed before use.
+	- Fix that empty zonefile means the zonefile is not set and not used.
+	- make depend.
+
+21 November 2018: Wouter
+	- Scrub NS records from NODATA responses as well.
+
+20 November 2018: Wouter
+	- Scrub NS records from NXDOMAIN responses to stop fragmentation
+	  poisoning of the cache.
+	- Add patch from Jan Vcelak for pythonmod,
+	  add sockaddr_storage getters, add support for query callbacks,
+	  allow raw address access via comm_reply and update API documentation.
+	- Removed compile warnings in pythonmod sockaddr routines.
+
+19 November 2018: Wouter
+	- Support SO_REUSEPORT_LB in FreeBSD 12 with the so-reuseport: yes
+	  option in unbound.conf.
+
+6 November 2018: Ralph
+	- Bugfix min-client-subnet-ipv6
+
+25 October 2018: Ralph
+	- Add min-client-subnet-ipv6 and min-client-subnet-ipv4 options.
+
+25 October 2018: Wouter
+	- Fix #4191: NXDOMAIN vs SERVFAIL during dns64 PTR query.
+	- Fix #4190: Please create a "ANY" deny option, adds the option
+	  deny-any: yes in unbound.conf.  This responds with an empty message
+	  to queries of type ANY.
+	- Fix #4141: More randomness to rrset-roundrobin.
+	- Fix #4132: Openness/closeness of RANGE intervals in rpl files.
+	- Fix #4126: RTT_band too low on VSAT links with 600+ms latency,
+	  adds the option unknown-server-time-limit to unbound.conf that
+	  can be increased to avoid the problem.
+	- remade makefile dependencies.
+	- Fix #4152: Logs shows wrong time when using log-time-ascii: yes.
+
+24 October 2018: Ralph
+	- Add markdel function to ECS slabhash.
+	- Limit ECS scope returned to client to the scope used for caching.
+	- Make lint like previous #4154 fix.
+
+22 October 2018: Wouter
+	- Fix #4192: unbound-control-setup generates keys not readable by
+	  group.
+	- check that the dnstap socket file can be opened and exists, print
+	  error if not.
+	- Fix #4154: make ECS_MAX_TREESIZE configurable, with
+	  the max-ecs-tree-size-ipv4 and max-ecs-tree-size-ipv6 options.
+
+22 October 2018: Ralph
+	- Change fast-server-num default to 3.
+
+8 October 2018: Ralph
+	- Add fast-server-permil and fast-server-num options.
+	- Deprecate low-rtt and low-rtt-permil options.
+
 8 October 2018: Wouter
-	- fastrpz.patch fix included.
+	- Squelch log of failed to tcp initiate after TCP Fastopen failure.
+
+5 October 2018: Wouter
+	- Squelch EADDRNOTAVAIL errors when the interface goes away,
+	  this omits 'can't assign requested address' errors unless
+	  verbosity is set to a high value.
+	- Set default for so-reuseport to no for FreeBSD.  It is enabled
+	  by default for Linux and DragonFlyBSD.  The setting can 
+	  be configured in unbound.conf to override the default.
+	- iana port update.
+
+2 October 2018: Wouter
+	- updated contrib/fastrpz.patch to apply for this version
+	- dnscrypt.c removed sizeof to get array bounds.
+	- Fix testlock code to set noreturn on error routine.
+	- Remove unused variable from contrib fastrpz/rpz.c and
+	  remove unused diagnostic pragmas that themselves generate warnings
+	- clang analyze test is used only when assertions are enabled.
 
 1 October 2018: Wouter
-	- tag for release 1.8.1rc1.
+	- tag for release 1.8.1rc1.  Became release 1.8.1 on 8 oct, with
+	  fastrpz.patch fix included.  Trunk has 1.8.2 in development.
 
 27 September 2018: Wouter
 	- Fix #4188: IPv6 forwarders without ipv6 result in SERVFAIL, fixes

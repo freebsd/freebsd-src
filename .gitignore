@@ -36,4 +36,7 @@
 /streamtcp
 /testbound
 /unittest
+/contrib/libunbound.pc
+/contrib/unbound.service
+/contrib/unbound.socket
 

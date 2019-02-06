@@ -103,42 +103,67 @@ Inplace callbacks
     :param opt_list_out: :class:`edns_option`. EDNS option list to append options to.
     :param region: :class:`regional`
 
-.. function:: register_inplace_cb_reply(py_cb, env)
+.. function:: inplace_cb_query(qinfo, flags, qstate, addr, zone, region)
+
+    Function prototype for callback functions used in
+    `register_inplace_cb_query`_.
+
+    :param qinfo: :class:`query_info`
+    :param flags: query flags (integer)
+    :param qstate: :class:`module_qstate`
+    :param addr: :class:`sockaddr_storage`
+    :param zone: zone name in wire format (bytes)
+    :param region: :class:`regional`
+
+.. function:: register_inplace_cb_reply(py_cb, env, id)
 
     Register py_cb as an inplace reply callback function.
 
     :param py_cb: Python function that follows `inplace_cb_reply`_'s prototype. **Must** be callable.
     :param env: :class:`module_env`
+    :param id: Module ID.
     :return: True on success, False otherwise
     :rtype: boolean
 
-.. function:: register_inplace_cb_reply_cache(py_cb, env)
+.. function:: register_inplace_cb_reply_cache(py_cb, env, id)
 
     Register py_cb as an inplace reply_cache callback function.
 
     :param py_cb: Python function that follows `inplace_cb_reply`_'s prototype. **Must** be callable.
     :param env: :class:`module_env`
+    :param id: Module ID.
     :return: True on success, False otherwise
     :rtype: boolean
 
-.. function:: register_inplace_cb_reply_local(py_cb, env)
+.. function:: register_inplace_cb_reply_local(py_cb, env, id)
 
     Register py_cb as an inplace reply_local callback function.
 
     :param py_cb: Python function that follows `inplace_cb_reply`_'s prototype. **Must** be callable.
     :param env: :class:`module_env`
+    :param id: Module ID.
     :return: True on success, False otherwise
     :rtype: boolean
 
-.. function:: register_inplace_cb_reply_servfail(py_cb, env)
+.. function:: register_inplace_cb_reply_servfail(py_cb, env, id)
 
     Register py_cb as an inplace reply_servfail callback function.
 
     :param py_cb: Python function that follows `inplace_cb_reply`_'s prototype. **Must** be callable.
     :param env: :class:`module_env`
+    :param id: Module ID.
     :return: True on success, False otherwise
     :rtype: boolean
 
+.. function:: register_inplace_cb_query(py_cb, env, id)
+
+    Register py_cb as an inplace query callback function.
+
+    :param py_cb: Python function that follows `inplace_cb_query`_'s prototype. **Must** be callable.
+    :param env: :class:`module_env`
+    :param id: Module ID.
+    :return: True on success, False otherwise
+    :rtype: boolean
 
 Logging
 -------

@@ -513,10 +513,12 @@ qlist_grow_capacity(struct perfinfo* info)
 	uint8_t** d = (uint8_t**)calloc(sizeof(uint8_t*), newcap);
 	size_t* l = (size_t*)calloc(sizeof(size_t), newcap);
 	if(!d || !l) fatal_exit("out of memory");
-	memcpy(d, info->qlist_data, sizeof(uint8_t*)*
-		info->qlist_capacity);
-	memcpy(l, info->qlist_len, sizeof(size_t)*
-		info->qlist_capacity);
+	if(info->qlist_data && info->qlist_capacity)
+		memcpy(d, info->qlist_data, sizeof(uint8_t*)*
+			info->qlist_capacity);
+	if(info->qlist_len && info->qlist_capacity)
+		memcpy(l, info->qlist_len, sizeof(size_t)*
+			info->qlist_capacity);
 	free(info->qlist_data);
 	free(info->qlist_len);
 	info->qlist_data = d;

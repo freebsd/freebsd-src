@@ -1088,7 +1088,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct ub_packed_rrset_key* alias_rrset = NULL;
 	struct reply_info* partial_rep = NULL;
 	struct query_info* lookup_qinfo = &qinfo;
-	struct query_info qinfo_tmp; /* placeholdoer for lookup_qinfo */
+	struct query_info qinfo_tmp; /* placeholder for lookup_qinfo */
 	struct respip_client_info* cinfo = NULL, cinfo_tmp;
 	memset(&qinfo, 0, sizeof(qinfo));
 
@@ -1175,7 +1175,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		/* See if we are passed through with slip factor */
 		if(worker->env.cfg->ip_ratelimit_factor != 0 &&
 			ub_random_max(worker->env.rnd,
-						  worker->env.cfg->ip_ratelimit_factor) == 1) {
+						  worker->env.cfg->ip_ratelimit_factor) == 0) {
 
 			char addrbuf[128];
 			addr_to_str(&repinfo->addr, repinfo->addrlen,
@@ -1208,7 +1208,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	if(worker->env.cfg->log_queries) {
 		char ip[128];
 		addr_to_str(&repinfo->addr, repinfo->addrlen, ip, sizeof(ip));
-		log_nametypeclass(0, ip, qinfo.qname, qinfo.qtype, qinfo.qclass);
+		log_query_in(ip, qinfo.qname, qinfo.qtype, qinfo.qclass);
 	}
 	if(qinfo.qtype == LDNS_RR_TYPE_AXFR || 
 		qinfo.qtype == LDNS_RR_TYPE_IXFR) {
@@ -1802,8 +1802,6 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	alloc_set_id_cleanup(&worker->alloc, &worker_alloc_cleanup, worker);
 	worker->env = *worker->daemon->env;
 	comm_base_timept(worker->base, &worker->env.now, &worker->env.now_tv);
-	if(worker->thread_num == 0)
-		log_set_time(worker->env.now);
 	worker->env.worker = worker;
 	worker->env.worker_base = worker->base;
 	worker->env.send_query = &worker_send_query;
@@ -1909,7 +1907,6 @@ worker_delete(struct worker* worker)
 	comm_timer_delete(worker->env.probe_timer);
 	free(worker->ports);
 	if(worker->thread_num == 0) {
-		log_set_time(NULL);
 #ifdef UB_ON_WINDOWS
 		wsvc_desetup_worker(worker);
 #endif /* UB_ON_WINDOWS */

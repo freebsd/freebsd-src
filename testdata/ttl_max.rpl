@@ -180,11 +180,11 @@ REPLY QR RD RA CD
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-www.example.com. 248 IN A	10.20.30.40
+www.example.com. 10 IN A	10.20.30.40
 SECTION AUTHORITY
-example.com.	IN NS	ns.example.com.
+example.com.	10	IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.	IN 	A	1.2.3.4
+ns.example.com.	10	IN 	A	1.2.3.4
 ENTRY_END
 
 ; wait 
@@ -205,10 +205,10 @@ REPLY QR RA
 SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
-.       3600    IN      NS      K.ROOT-SERVERS.NET.
+.       10    IN      NS      K.ROOT-SERVERS.NET.
 SECTION AUTHORITY
 SECTION ADDITIONAL
-K.ROOT-SERVERS.NET.     3600    IN      A       193.0.14.129
+K.ROOT-SERVERS.NET.     10    IN      A       193.0.14.129
 ENTRY_END
 
 SCENARIO_END

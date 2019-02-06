@@ -145,6 +145,29 @@ RANGE_BEGIN 0 100
 			ns.example.com.		IN 	A	1.2.3.4
 	ENTRY_END
 
+	; client send /17, we return /18
+	ENTRY_BEGIN
+		MATCH opcode qtype qname ednsdata
+		ADJUST copy_id copy_ednsdata_assume_clientsubnet increment_ecs_scope
+		REPLY QR NOERROR
+		SECTION QUESTION
+			www.example.com. IN TXT
+		SECTION ANSWER
+			www.example.com. IN TXT "longer scope"
+		SECTION AUTHORITY
+			example.com.	IN NS	ns.example.com.
+		SECTION ADDITIONAL
+			HEX_EDNSDATA_BEGIN
+							; client is 127.1.0.1
+				00 08 		; OPC
+				00 07 		; option length
+				00 01 		; Family
+				11 00 		; source mask, scopemask
+				7f 01 00   	; address
+			HEX_EDNSDATA_END
+			ns.example.com.		IN 	A	1.2.3.4
+	ENTRY_END
+
 RANGE_END
 
 STEP 1 QUERY
@@ -229,5 +252,46 @@ ENTRY_BEGIN
 		ns.example.com.		IN 	A	1.2.3.4
 ENTRY_END
 
+STEP 21 QUERY
+ENTRY_BEGIN
+	HEX_ANSWER_BEGIN;
+		00 00 01 00 00 01 00 00		;ID 0
+		00 00 00 01 03 77 77 77		; www.example.com TXT? (DO)
+		07 65 78 61 6d 70 6c 65 
+		03 63 6f 6d 00 00 10 00
+		01 00 00 29 10 00 00 00 
+		80 00 00 0b
+		
+		00 08 00 07			; OPC, optlen
+		00 01 11 00			; ip4, scope 17, source 0
+		7f 01 00  			;127.1.0.0/17
+	HEX_ANSWER_END
+ENTRY_END
+
+
+
+; server returns /18, since we cache the result to max-client-subnet-ipv4 (/17),
+; the initial answer returned to the client should also be capped to /17.
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+	MATCH all ednsdata
+	REPLY QR RD RA NOERROR
+	SECTION QUESTION
+		www.example.com. IN TXT
+	SECTION ANSWER
+		www.example.com. IN TXT "longer scope"
+	SECTION AUTHORITY
+		example.com.	IN NS	ns.example.com.
+	SECTION ADDITIONAL
+		HEX_EDNSDATA_BEGIN
+						; client is 127.1.0.1
+			00 08 		; OPC
+			00 07 		; option length
+			00 01 		; Family
+			11 11 		; source mask, scopemask
+			7f 01 00 	; address
+		HEX_EDNSDATA_END
+		ns.example.com.		IN 	A	1.2.3.4
+ENTRY_END
 
 SCENARIO_END

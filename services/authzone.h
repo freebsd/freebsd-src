@@ -378,6 +378,8 @@ struct auth_transfer {
 	 * data or add of duplicate data).  Flag is cleared once the retry
 	 * with axfr is done. */
 	int ixfr_fail;
+	/** we saw an ixfr-indicating timeout, count of them */
+	int ixfr_possible_timeout_count;
 	/** we are doing IXFR right now */
 	int on_ixfr;
 	/** did we detect the current AXFR/IXFR serial number yet, 0 not yet,
@@ -599,7 +601,7 @@ int auth_zones_startprobesequence(struct auth_zones* az,
 	struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t dclass);
 
 /** read auth zone from zonefile. caller must lock zone. false on failure */
-int auth_zone_read_zonefile(struct auth_zone* z);
+int auth_zone_read_zonefile(struct auth_zone* z, struct config_file* cfg);
 
 /** find serial number of zone or false if none (no SOA record) */
 int auth_zone_get_serial(struct auth_zone* z, uint32_t* serial);

@@ -303,6 +303,9 @@ fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_type fptr)
 {
 	if(fptr == NULL) return 1;
 	else if(fptr == &rrset_markdel) return 1;
+#ifdef CLIENT_SUBNET
+	else if(fptr == &subnet_markdel) return 1;
+#endif
 	return 0;
 }
 
@@ -561,9 +564,12 @@ int fptr_whitelist_inplace_cb_query(inplace_cb_query_func_type* fptr)
 #ifdef CLIENT_SUBNET
 	if(fptr == &ecs_whitelist_check)
 		return 1;
-#else
-	(void)fptr;
 #endif
+#ifdef WITH_PYTHONMODULE
+        if(fptr == &python_inplace_cb_query_generic)
+                return 1;
+#endif
+	(void)fptr;
 	return 0;
 }
 

@@ -323,9 +323,9 @@ file_name_is_safe(char* s)
 	return 1;
 }
 
-/** adjust host and filename */
+/** adjust host */
 static void
-adjust_host_file(char* host, char* file)
+adjust_host(char* host)
 {
 	size_t i, len;
 	/* remove a port number if present */
@@ -335,6 +335,13 @@ adjust_host_file(char* host, char* file)
 	len = strlen(host);
 	for(i=0; i<len; i++)
 		host[i] = tolower((unsigned char)host[i]);
+}
+
+/** adjust filename */
+static void
+adjust_file(char* file)
+{
+	size_t i, len;
 	len = strlen(file);
 	for(i=0; i<len; i++)
 		file[i] = tolower((unsigned char)file[i]);
@@ -534,7 +541,8 @@ service_ssl(SSL* ssl, struct sockaddr_storage* from, socklen_t falen)
 	if(!read_http_headers(ssl, file, sizeof(file), host, sizeof(host),
 		&vs))
 		return;
-	adjust_host_file(host, file);
+	if(host[0] != 0) adjust_host(host);
+	if(file[0] != 0) adjust_file(file);
 	if(host[0] == 0 || !host_name_is_safe(host))
 		(void)strlcpy(host, "default", sizeof(host));
 	if(!file_name_is_safe(file)) {

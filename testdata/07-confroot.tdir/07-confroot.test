@@ -153,7 +153,7 @@ server:
 EOF
 
 $PRE/unbound-checkconf test.conf
-if test $? -ne 1; then
+if test $? -ne 0; then
 	echo "Checkconf of config with chroot inside it failed"
 	exit 1
 fi

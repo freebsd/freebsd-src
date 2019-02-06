@@ -50,6 +50,11 @@
 #include "sldns/sbuffer.h"
 #include "services/localzone.h"
 
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+#include <sys/time.h>
+
 /** return code that means the function ran out of memory. negative so it does
  * not conflict with DNS rcodes. */
 #define RETVAL_OUTMEM	-2
@@ -672,7 +677,7 @@ reply_info_encode(struct query_info* qinfo, struct reply_info* rep,
 	}
 	/* roundrobin offset. using query id for random number.  With ntohs
 	 * for different roundrobins for sequential id client senders. */
-	rr_offset = RRSET_ROUNDROBIN?ntohs(id):0;
+	rr_offset = RRSET_ROUNDROBIN?ntohs(id)+(timenow?timenow:time(NULL)):0;
 
 	/* "prepend" any local alias records in the answer section if this
 	 * response is supposed to be authoritative.  Currently it should

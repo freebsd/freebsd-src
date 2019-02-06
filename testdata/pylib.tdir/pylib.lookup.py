@@ -12,7 +12,7 @@ qname = "www.example.com"
 qtype = unbound.RR_TYPE_A
 qclass = unbound.RR_CLASS_IN
 
-def create_context(config_file="ub.lookup.conf", async=False):
+def create_context(config_file="ub.lookup.conf", asyncflag=False):
     """
     Create an unbound context to use for testing.
 
@@ -22,7 +22,7 @@ def create_context(config_file="ub.lookup.conf", async=False):
     if status != 0:
         print("read config failed with status: {}".format(status))
         sys.exit(1)
-    ctx.set_async(async)
+    ctx.set_async(asyncflag)
     return ctx
 
 
@@ -132,10 +132,10 @@ def test_ratelimit_bg_off(ctx):
 
 
 test_resolve(create_context())
-test_async_resolve(create_context(async=True))
+test_async_resolve(create_context(asyncflag=True))
 test_ratelimit_fg_on(create_context())
 test_ratelimit_fg_off(create_context())
-test_ratelimit_bg_on(create_context(async=True))
-test_ratelimit_bg_off(create_context(async=True))
+test_ratelimit_bg_on(create_context(asyncflag=True))
+test_ratelimit_bg_off(create_context(asyncflag=True))
 
 sys.exit(0)

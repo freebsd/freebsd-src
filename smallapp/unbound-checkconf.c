@@ -431,7 +431,7 @@ check_modules_exist(const char* module_conf)
 
 /** check configuration for errors */
 static void
-morechecks(struct config_file* cfg, const char* fname)
+morechecks(struct config_file* cfg)
 {
 	warn_hosts("stub-host", cfg->stubs);
 	warn_hosts("forward-host", cfg->forwards);
@@ -462,19 +462,6 @@ morechecks(struct config_file* cfg, const char* fname)
 	if(cfg->chrootdir && cfg->chrootdir[0] &&
 		!is_dir(cfg->chrootdir)) {
 		fatal_exit("bad chroot directory");
-	}
-	if(cfg->chrootdir && cfg->chrootdir[0]) {
-		char buf[10240];
-		buf[0] = 0;
-		if(fname[0] != '/') {
-			if(getcwd(buf, sizeof(buf)) == NULL)
-				fatal_exit("getcwd: %s", strerror(errno));
-			(void)strlcat(buf, "/", sizeof(buf));
-		}
-		(void)strlcat(buf, fname, sizeof(buf));
-		if(strncmp(buf, cfg->chrootdir, strlen(cfg->chrootdir)) != 0)
-			fatal_exit("config file %s is not inside chroot %s",
-				buf, cfg->chrootdir);
 	}
 	if(cfg->directory && cfg->directory[0]) {
 		char* ad = fname_after_chroot(cfg->directory, cfg, 0);
@@ -680,7 +667,7 @@ checkconf(const char* cfgfile, const char* opt, int final)
 		config_delete(cfg);
 		return;
 	}
-	morechecks(cfg, cfgfile);
+	morechecks(cfg);
 	check_mod(cfg, iter_get_funcblock());
 	check_mod(cfg, val_get_funcblock());
 #ifdef WITH_PYTHONMODULE

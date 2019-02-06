@@ -288,9 +288,9 @@ SECTION ANSWER
 SECTION AUTHORITY
 ; at TTL 5 because TTL capped at ttl of minttl in rdata of SOA.
 example.com.	5 IN SOA	a. b. 1 2 3 4 5
-example.com.	3600 IN NS	nsb.example.com.
+;example.com.	3600 IN NS	nsb.example.com.
 SECTION ADDITIONAL
-nsb.example.com.	3600 	IN 	A	1.2.3.4
+;nsb.example.com.	3600 	IN 	A	1.2.3.4
 ENTRY_END
 
 STEP 62 QUERY 
@@ -310,9 +310,9 @@ SECTION ANSWER
 SECTION AUTHORITY
 ; at TTL 5 because TTL capped at ttl of minttl in rdata of SOA.
 example.com.	5 IN SOA	a. b. 1 2 3 4 5
-example.com.	1800 IN NS	nsb.example.com.
+;example.com.	1800 IN NS	nsb.example.com.
 SECTION ADDITIONAL
-nsb.example.com.	3600 	IN 	A	1.2.3.4
+;nsb.example.com.	3600 	IN 	A	1.2.3.4
 ENTRY_END
 
 ; after another 1900 seconds the domain must have timed out.

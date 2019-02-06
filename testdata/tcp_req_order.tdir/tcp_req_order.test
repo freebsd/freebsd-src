@@ -1,0 +1,341 @@
+# #-- tcp_req_order.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+# this test query should just work (server is up)
+echo "> query www1.example.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+echo "OK"
+
+# multiple requests (from localdata)
+echo "> query www1.example.net. www2.example.net. www3.example.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN www2.example.net A IN www3.example.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.net" outfile | grep "1.2.3.2"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+# out of order requests, the example.com elements take 2 seconds to wait.
+echo ""
+echo "> query www1.example.net. www.example.com. www2.example.net. www2.example.com. www3.example.net."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN www.example.com. A IN www2.example.net A IN www2.example.com. A IN www3.example.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.net" outfile | grep "1.2.3.2"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www.example.com" outfile | grep "10.20.30.40"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.com" outfile | grep "10.20.30.42"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+# out of order requests, the example.com elements take 2 seconds to wait.
+# www.example.com present twice, answered twice.
+echo ""
+echo "> query www1.example.net. www.example.com. www2.example.net. www.example.com. www3.example.net."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN www.example.com. A IN www2.example.net A IN www.example.com. A IN www3.example.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.net" outfile | grep "1.2.3.2"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www.example.com" outfile | grep "10.20.30.40"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+# out of order requests, the example.com elements take 2 seconds to wait.
+# www3.example.com present twice, answered twice.
+echo ""
+echo "> query www1.example.net. www3.example.com. www2.example.net. www3.example.com. www3.example.net."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www1.example.net. A IN www3.example.com. A IN www2.example.net A IN www3.example.com. A IN www3.example.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.net" outfile | grep "1.2.3.1"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www2.example.net" outfile | grep "1.2.3.2"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www3.example.com" outfile | grep "10.20.30.43"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+echo ""
+echo "> query www4.example.com. www3.example.net."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www4.example.com. A IN www3.example.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www3.example.net" outfile | grep "1.2.3.3"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+if grep "www4.example.com" outfile | grep "10.20.30.44"; then
+	echo "content OK"
+else
+	echo "result contents not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "result contents not OK"
+	exit 1
+fi
+
+echo ""
+echo "> query a1.example.com. - a100.example.com."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www6.example.com. A IN a1.a.example.com. A IN a2.a.example.com. A IN a3.a.example.com. A IN a4.a.example.com. A IN a5.a.example.com. A IN a6.a.example.com. A IN a7.a.example.com. A IN a8.a.example.com. A IN a9.a.example.com. A IN a10.a.example.com. A IN a11.a.example.com. A IN a12.a.example.com. A IN a13.a.example.com. A IN a14.a.example.com. A IN a15.a.example.com. A IN a16.a.example.com. A IN a17.a.example.com. A IN a18.a.example.com. A IN a19.a.example.com. A IN a20.a.example.com. A IN a21.a.example.com. A IN a22.a.example.com. A IN a23.a.example.com. A IN a24.a.example.com. A IN a25.a.example.com. A IN a26.a.example.com. A IN a27.a.example.com. A IN a28.a.example.com. A IN a29.a.example.com. A IN a30.a.example.com. A IN a31.a.example.com. A IN a32.a.example.com. A IN a33.a.example.com. A IN a34.a.example.com. A IN a35.a.example.com. A IN a36.a.example.com. A IN a37.a.example.com. A IN a38.a.example.com. A IN a39.a.example.com. A IN a40.a.example.com. A IN a41.a.example.com. A IN a42.a.example.com. A IN a43.a.example.com. A IN a44.a.example.com. A IN a45.a.example.com. A IN a46.a.example.com. A IN a47.a.example.com. A IN a48.a.example.com. A IN a49.a.example.com. A IN a50.a.example.com. A IN a51.a.example.com. A IN a52.a.example.com. A IN a53.a.example.com. A IN a54.a.example.com. A IN a55.a.example.com. A IN a56.a.example.com. A IN a57.a.example.com. A IN a58.a.example.com. A IN a59.a.example.com. A IN a60.a.example.com. A IN a61.a.example.com. A IN a62.a.example.com. A IN a63.a.example.com. A IN a64.a.example.com. A IN a65.a.example.com. A IN a66.a.example.com. A IN a67.a.example.com. A IN a68.a.example.com. A IN a69.a.example.com. A IN a70.a.example.com. A IN a71.a.example.com. A IN a72.a.example.com. A IN a73.a.example.com. A IN a74.a.example.com. A IN a75.a.example.com. A IN a76.a.example.com. A IN a77.a.example.com. A IN a78.a.example.com. A IN a79.a.example.com. A IN a80.a.example.com. A IN a81.a.example.com. A IN a82.a.example.com. A IN a83.a.example.com. A IN a84.a.example.com. A IN a85.a.example.com. A IN a86.a.example.com. A IN a87.a.example.com. A IN a88.a.example.com. A IN a89.a.example.com. A IN a90.a.example.com. A IN a91.a.example.com. A IN a92.a.example.com. A IN a93.a.example.com. A IN a94.a.example.com. A IN a95.a.example.com. A IN a96.a.example.com. A IN a97.a.example.com. A IN a98.a.example.com. A IN a99.a.example.com. A IN a100.a.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+grep "a.example.com.	IN	A" outfile
+
+echo ""
+echo "> query www5.example.net. www3.example.net. www.drop.net."
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT www5.example.com. A IN www3.example.net A IN www.drop.net A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat fwd.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+
+echo "OK"
+exit 0

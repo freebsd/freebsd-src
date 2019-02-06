@@ -6,11 +6,21 @@
 # common functions
 . ../common.sh
 
+PRE="../.."
 if test ! -x "`which clang 2>&1`"; then
 	echo "No clang in path"
 	exit 0
 fi
 #echo "have clang"
+# test if assertions are enabled
+if grep "^#define UNBOUND_DEBUG" $PRE/config.h >/dev/null; then
+	:
+else
+	echo "UNBOUND_DEBUG is not enabled, skip test"
+	# no unbound debug means no assertions, and clang analyzer uses
+	# the assertions to make inferences.
+	exit 0
+fi
 
 # read value from Makefile
 # $1: result variable name
@@ -23,7 +33,6 @@ read_value () {
 	#echo $1"="'"'"`eval echo '$'$1`"'"'
 }
 
-PRE="../.."
 # read some values from the Makefile
 read_value srcdir '^srcdir=' $PRE/Makefile
 read_value CPPFLAGS '^CPPFLAGS=' $PRE/Makefile
@@ -41,17 +50,21 @@ compatfiles=`echo "$LIBOBJS" | sed -e 's?..LIBOBJDIR.?compat/?g' -e 's/.U.o/.c/g
 if test "$WITH_PYTHONMODULE" = "yes"; then PYTHONMOD_SRC="pythonmod/*.c"; fi
 if test ! -z "$WINAPPS"; then WIN_SRC="winrc/*.c"; fi
 
-cd $PRE; cd $srcdir
+cd $PRE;
+odir=`pwd`
+cd $srcdir
 # check the files in the srcdir
 fail="no"
 for x in cachedb/*.c daemon/*.c dns64/*.c $DNSCRYPT_SRC $DNSTAP_SRC edns-subnet/*.c ipsecmod/*.c iterator/*.c libunbound/*.c $PYTHONMOD_SRC respip/*.c services/*.c services/*/*.c sldns/*.c smallapp/*.c util/*.c util/*/*.c validator/*.c $WIN_SRC $compatfiles testcode/*.c; do
 	if test "$x" = "util/configlexer.c"; then continue; fi
 	if test "$x" = "util/configparser.c"; then continue; fi
 	if test "$x" = "testcode/signit.c"; then continue; fi
+	if test "$x" = "compat/reallocarray.c"; then continue; fi
 	echo clang --analyze $CPPFLAGS $x
 	plist=`basename $x .c`.plist
 	rm -rf $plist
-	clang --analyze $CPPFLAGS $x 2>&1 | tee tmp.$$
+	#echo "(cd $odir; clang --analyze $CPPFLAGS $srcdir/$x 2>&1 ) | tee tmp.$$"
+	(cd "$odir"; clang --analyze $CPPFLAGS $srcdir/$x 2>&1 ) | tee tmp.$$
 	if grep -e warning -e error tmp.$$ >/dev/null; then
 		fail="yes"
 		fails="$fails $x"

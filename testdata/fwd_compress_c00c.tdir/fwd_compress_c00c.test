@@ -6,9 +6,9 @@
 
 # check what sort of netcat we have
 if nc -h 2>&1 | grep "q secs"; then
-	ncopt="-q 3 -w 2"
+	ncopt="-q 3 -i 2"
 else
-	ncopt="-w 2"
+	ncopt="-i 2"
 fi
 
 PRE="../.."

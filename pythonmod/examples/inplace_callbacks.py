@@ -247,6 +247,25 @@ def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     return True
 
 
+def inplace_query_callback(qinfo, flags, qstate, addr, zone, region, **kwargs):
+    """
+    Function that will be registered as an inplace callback function.
+    It will be called before sending a query to a backend server.
+
+    :param qinfo: query_info struct;
+    :param flags: flags of the query;
+    :param qstate: module qstate. opt_lists are available here;
+    :param addr: struct sockaddr_storage. Address of the backend server;
+    :param zone: zone name in binary;
+    :param region: region to allocate temporary data. Needs to be used when we
+                   want to append a new option to opt_lists.
+    :param **kwargs: Dictionary that may contain parameters added in a future
+                     release.
+    """
+    log_info("python: outgoing query to {}@{}".format(addr.addr, addr.port))
+    return True
+
+
 def init_standard(id, env):
     """
     New version of the init function.
@@ -279,6 +298,11 @@ def init_standard(id, env):
     # Register the inplace_servfail_callback function as an inplace callback
     # function when answering with SERVFAIL.
     if not register_inplace_cb_reply_servfail(inplace_servfail_callback, env, id):
+        return False
+
+    # Register the inplace_query_callback function as an inplace callback
+    # before sending a query to a backend server.
+    if not register_inplace_cb_query(inplace_query_callback, env, id):
         return False
 
     return True

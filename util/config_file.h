@@ -120,6 +120,12 @@ struct config_file {
 	int tls_win_cert;
 	/** additional tls ports */
 	struct config_strlist* tls_additional_port;
+	/** secret key used to encrypt and decrypt TLS session ticket */
+	struct config_strlist_head tls_session_ticket_keys;
+	/** TLS ciphers */
+	char* tls_ciphers;
+	/** TLS chiphersuites (TLSv1.3) */
+	char* tls_ciphersuites;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -132,6 +138,8 @@ struct config_file {
 
 	/** EDNS buffer size to use */
 	size_t edns_buffer_size;
+	/** size of the stream wait buffers, max */
+	size_t stream_wait_size;
 	/** number of bytes buffer size for DNS messages */
 	size_t msg_buffer_size;
 	/** size of the message cache */
@@ -159,10 +167,11 @@ struct config_file {
 
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
-	/** percent*10, how many times in 1000 to pick low rtt destinations */
-	int low_rtt_permil;
-	/** what time in msec is a low rtt destination */
-	int low_rtt;
+	/** percent*10, how many times in 1000 to pick from the fastest
+	 * destinations */
+	int fast_server_permil;
+	/** number of fastest server to select from */
+	size_t fast_server_num;
 
 	/** automatic interface for incoming messages. Uses ipv6 remapping,
 	 * and recvmsg/sendmsg ancillary data to detect interfaces, boolean */
@@ -214,6 +223,12 @@ struct config_file {
 	/** Subnet length we are willing to give up privacy for */
 	uint8_t max_client_subnet_ipv4;
 	uint8_t max_client_subnet_ipv6;
+	/** Minimum subnet length we are willing to answer */
+	uint8_t min_client_subnet_ipv4;
+	uint8_t min_client_subnet_ipv6;
+	/** Max number of nodes in the ECS radix tree */
+	uint32_t max_ecs_tree_size_ipv4;
+	uint32_t max_ecs_tree_size_ipv6;
 #endif
 	/** list of access control entries, linked list */
 	struct config_str2list* acls;
@@ -257,6 +272,8 @@ struct config_file {
 	int prefetch;
 	/** if prefetching of DNSKEYs should be performed. */
 	int prefetch_key;
+	/** deny queries of type ANY with an empty answer */
+	int deny_any;
 
 	/** chrootdir, if not "" or chroot will be done */
 	char* chrootdir;
@@ -277,6 +294,8 @@ struct config_file {
 	int log_queries;
 	/** log replies with one line per reply */
 	int log_replies;
+	/** tag log_queries and log_replies for filtering */
+	int log_tag_queryreply;
 	/** log every local-zone hit **/
 	int log_local_actions;
 	/** log servfails with a reason */
@@ -428,6 +447,9 @@ struct config_file {
 	/* RRSet roundrobin */
 	int rrset_roundrobin;
 
+	/* wait time for unknown server in msec */
+	int unknown_server_time_limit;
+
 	/* maximum UDP response size */
 	size_t max_udp_size;
 
@@ -561,6 +583,8 @@ extern uid_t cfg_uid;
 extern gid_t cfg_gid;
 /** debug and enable small timeouts */
 extern int autr_permit_small_holddown;
+/** size (in bytes) of stream wait buffers max */
+extern size_t stream_wait_max;
 
 /**
  * Stub config options

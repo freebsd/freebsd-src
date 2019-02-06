@@ -236,6 +236,8 @@ static void adjustline(char* line, struct entry* e,
 			e->copy_query = 1;
 		} else if(str_keyword(&parse, "copy_ednsdata_assume_clientsubnet")) {
 			e->copy_ednsdata_assume_clientsubnet = 1;
+		} else if(str_keyword(&parse, "increment_ecs_scope")) {
+			e->increment_ecs_scope = 1;
 		} else if(str_keyword(&parse, "sleep=")) {
 			e->sleeptime = (unsigned int) strtol(parse, (char**)&parse, 10);
 			while(isspace((unsigned char)*parse)) 
@@ -274,6 +276,7 @@ static struct entry* new_entry(void)
 	e->copy_id = 0;
 	e->copy_query = 0;
 	e->copy_ednsdata_assume_clientsubnet = 0;
+	e->increment_ecs_scope = 0;
 	e->sleeptime = 0;
 	e->next = NULL;
 	return e;
@@ -510,7 +513,8 @@ add_edns(uint8_t* pktbuf, size_t pktsize, int do_flag, uint8_t *ednsdata,
 	if(*pktlen + sizeof(edns) + ednslen > pktsize)
 		error("not enough space for EDNS OPT record");
 	memmove(pktbuf+*pktlen, edns, sizeof(edns));
-	memmove(pktbuf+*pktlen+sizeof(edns), ednsdata, ednslen);
+	if(ednsdata && ednslen)
+		memmove(pktbuf+*pktlen+sizeof(edns), ednsdata, ednslen);
 	sldns_write_uint16(pktbuf+10, LDNS_ARCOUNT(pktbuf)+1);
 	*pktlen += (sizeof(edns) + ednslen);
 }
@@ -1593,6 +1597,9 @@ adjust_packet(struct entry* match, uint8_t** answer_pkt, size_t *answer_len,
 		if(walk_qlen >= 15 && walk_plen >= 15) {
 			walk_p[15] = walk_q[14];
 		}	
+		if(match->increment_ecs_scope) {
+			walk_p[15]++;
+		}
 	}
 
 	if(match->sleeptime > 0) {

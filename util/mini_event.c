@@ -41,6 +41,7 @@
  */
 
 #include "config.h"
+#include "util/mini_event.h"
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
@@ -48,7 +49,6 @@
 
 #if defined(USE_MINI_EVENT) && !defined(USE_WINSOCK)
 #include <signal.h>
-#include "util/mini_event.h"
 #include "util/fptr_wlist.h"
 
 /** compare events in tree, based on timevalue, ptr for uniqueness */

@@ -19,9 +19,13 @@ fi
 #echo export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:../../.libs:."
 #export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:../../.libs:."
 
+if grep "PY_MAJOR_VERSION=3" $PRE/Makefile; then
+	PYTHON="python3"; else PYTHON="python2"; fi
+if test ! -x `which $PYTHON` 2>&1; then PYTHON="python"; fi
+
 # do the test
 echo "> pylib.lookup.py www.example.com."
-./pylib.lookup.py www.example.com. | tee outfile
+$PYTHON pylib.lookup.py www.example.com. | tee outfile
 
 echo "> cat logfiles"
 cat fwd.log

@@ -12,6 +12,8 @@
    #include <sys/socket.h>
    #include <netinet/in.h>
    #include <arpa/inet.h>
+   #include <netdb.h>
+   #include <sys/un.h>
    #include <stdarg.h>
    #include "config.h"
    #include "util/log.h"
@@ -43,15 +45,21 @@
 
      i = 0;
      while (i < len) {
-        i += name[i] + 1;
+        i += ((unsigned int)name[i]) + 1;
         cnt++;
      }
 
      list = PyList_New(cnt);
      i = 0; cnt = 0;
      while (i < len) {
-        PyList_SetItem(list, cnt, PyBytes_FromStringAndSize(name + i + 1, name[i]));
-        i += name[i] + 1;
+        char buf[LDNS_MAX_LABELLEN+1];
+        if(((unsigned int)name[i])+1 <= (unsigned int)sizeof(buf) &&
+                i+(int)((unsigned int)name[i]) < len) {
+                memmove(buf, name + i + 1, (unsigned int)name[i]);
+                buf[(unsigned int)name[i]] = 0;
+                PyList_SetItem(list, cnt, PyString_FromString(buf));
+        }
+        i += ((unsigned int)name[i]) + 1;
         cnt++;
      }
      return list;
@@ -159,11 +167,11 @@ struct query_info {
 %}
 
 %inline %{
-   PyObject* dnameAsStr(const char* dname) {
+   PyObject* dnameAsStr(PyObject* dname) {
        char buf[LDNS_MAX_DOMAINLEN+1];
        buf[0] = '\0';
-       dname_str((uint8_t*)dname, buf);
-       return PyBytes_FromString(buf);
+       dname_str((uint8_t*)PyBytes_AsString(dname), buf);
+       return PyString_FromString(buf);
    }
 %}
 
@@ -427,6 +435,164 @@ struct dns_msg {
 }
 
 /* ************************************************************************************ *
+   Structure sockaddr_storage
+ * ************************************************************************************ */
+
+struct sockaddr_storage {};
+
+%inline %{
+    static size_t _sockaddr_storage_len(const struct sockaddr_storage *ss) {
+        if (ss == NULL) {
+            return 0;
+        }
+
+        switch (ss->ss_family) {
+        case AF_INET:  return sizeof(struct sockaddr_in);
+        case AF_INET6: return sizeof(struct sockaddr_in6);
+        case AF_UNIX:  return sizeof(struct sockaddr_un);
+        default:
+            return 0;
+        }
+    }
+
+    PyObject *_sockaddr_storage_family(const struct sockaddr_storage *ss) {
+        if (ss == NULL) {
+            return Py_None;
+        }
+
+        switch (ss->ss_family) {
+        case AF_INET:  return PyUnicode_FromString("ip4");
+        case AF_INET6: return PyUnicode_FromString("ip6");
+        case AF_UNIX:  return PyUnicode_FromString("unix");
+        default:
+            return Py_None;
+        }
+    }
+
+    PyObject *_sockaddr_storage_addr(const struct sockaddr_storage *ss) {
+        const struct sockaddr *sa;
+        size_t sa_len;
+        char name[NI_MAXHOST] = {0};
+
+        if (ss == NULL) {
+            return Py_None;
+        }
+
+        sa = (struct sockaddr *)ss;
+        sa_len = _sockaddr_storage_len(ss);
+        if (sa_len == 0) {
+            return Py_None;
+        }
+
+        if (getnameinfo(sa, sa_len, name, sizeof(name), NULL, 0, NI_NUMERICHOST) != 0) {
+            return Py_None;
+        }
+
+        return PyUnicode_FromString(name);
+    }
+
+    PyObject *_sockaddr_storage_raw_addr(const struct sockaddr_storage *ss) {
+        size_t sa_len;
+
+        if (ss == NULL) {
+            return Py_None;
+        }
+
+        sa_len = _sockaddr_storage_len(ss);
+        if (sa_len == 0) {
+            return Py_None;
+        }
+
+        if (ss->ss_family == AF_INET) {
+            const struct sockaddr_in *sa = (struct sockaddr_in *)ss;
+            const struct in_addr *raw = (struct in_addr *)&sa->sin_addr;
+            return PyBytes_FromStringAndSize((const char *)raw, sizeof(*raw));
+        }
+
+        if (ss->ss_family == AF_INET6) {
+            const struct sockaddr_in6 *sa = (struct sockaddr_in6 *)ss;
+            const struct in6_addr *raw = (struct in6_addr *)&sa->sin6_addr;
+            return PyBytes_FromStringAndSize((const char *)raw, sizeof(*raw));
+        }
+
+        if (ss->ss_family == AF_UNIX) {
+            const struct sockaddr_un *sa = (struct sockaddr_un *)ss;
+            return PyBytes_FromString(sa->sun_path);
+        }
+
+        return Py_None;
+    }
+
+    PyObject *_sockaddr_storage_port(const struct sockaddr_storage *ss) {
+        if (ss == NULL) {
+            return Py_None;
+        }
+
+        if (ss->ss_family == AF_INET) {
+            const struct sockaddr_in *sa4 = (struct sockaddr_in *)ss;
+            return PyInt_FromLong(ntohs(sa4->sin_port));
+        }
+
+        if (ss->ss_family == AF_INET6) {
+            const struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)ss;
+            return PyInt_FromLong(ntohs(sa6->sin6_port));
+        }
+
+        return Py_None;
+    }
+
+    PyObject *_sockaddr_storage_flowinfo(const struct sockaddr_storage *ss) {
+        const struct sockaddr_in6 *sa6;
+
+        if (ss == NULL || ss->ss_family != AF_INET6) {
+            return Py_None;
+        }
+
+        sa6 = (struct sockaddr_in6 *)ss;
+        return PyInt_FromLong(ntohl(sa6->sin6_flowinfo));
+    }
+
+    PyObject *_sockaddr_storage_scope_id(const struct sockaddr_storage *ss) {
+        const struct sockaddr_in6 *sa6;
+
+        if (ss == NULL || ss->ss_family != AF_INET6) {
+            return Py_None;
+        }
+
+        sa6 = (struct sockaddr_in6 *)ss;
+        return PyInt_FromLong(ntohl(sa6->sin6_scope_id));
+    }
+%}
+
+%extend sockaddr_storage {
+   %pythoncode %{
+        def _family_get(self): return _sockaddr_storage_family(self)
+        __swig_getmethods__["family"] = _family_get
+        if _newclass: family = _swig_property(_family_get)
+
+        def _addr_get(self): return _sockaddr_storage_addr(self)
+        __swig_getmethods__["addr"] = _addr_get
+        if _newclass: addr = _swig_property(_addr_get)
+
+        def _raw_addr_get(self): return _sockaddr_storage_raw_addr(self)
+        __swig_getmethods__["raw_addr"] = _raw_addr_get
+        if _newclass: raw_addr = _swig_property(_raw_addr_get)
+
+        def _port_get(self): return _sockaddr_storage_port(self)
+        __swig_getmethods__["port"] = _port_get
+        if _newclass: port = _swig_property(_port_get)
+
+        def _flowinfo_get(self): return _sockaddr_storage_flowinfo(self)
+        __swig_getmethods__["flowinfo"] = _flowinfo_get
+        if _newclass: flowinfo = _swig_property(_flowinfo_get)
+
+        def _scope_id_get(self): return _sockaddr_storage_scope_id(self)
+        __swig_getmethods__["scope_id"] = _scope_id_get
+        if _newclass: scope_id = _swig_property(_scope_id_get)
+   %}
+}
+
+/* ************************************************************************************ *
    Structure mesh_state
  * ************************************************************************************ */
 struct mesh_state {
@@ -438,52 +604,22 @@ struct mesh_reply {
    struct comm_reply query_reply;
 };
 
+%rename(_addr) comm_reply::addr;
 struct comm_reply {
-
+   struct sockaddr_storage addr;
 };
-
-%inline %{
-
-  PyObject* _comm_reply_addr_get(struct comm_reply* reply) {
-     char dest[64];
-     reply_addr2str(reply, dest, 64);
-     if (dest[0] == 0)
-        return Py_None;
-     return PyBytes_FromString(dest);
-  }
-
-  PyObject* _comm_reply_family_get(struct comm_reply* reply) {
-
-        int af = (int)((struct sockaddr_in*) &(reply->addr))->sin_family;
-
-        switch(af) {
-           case AF_INET: return PyBytes_FromString("ip4");
-           case AF_INET6: return PyBytes_FromString("ip6");
-           case AF_UNIX: return PyBytes_FromString("unix");
-        }
-
-        return Py_None;
-  }
-
-  PyObject* _comm_reply_port_get(struct comm_reply* reply) {
-     uint16_t port;
-     port = ntohs(((struct sockaddr_in*)&(reply->addr))->sin_port);
-     return PyInt_FromLong(port);
-  }
-
-%}
 
 %extend comm_reply {
    %pythoncode %{
-        def _addr_get(self): return _comm_reply_addr_get(self)
+        def _addr_get(self): return _sockaddr_storage_addr(self._addr)
         __swig_getmethods__["addr"] = _addr_get
         if _newclass:addr = _swig_property(_addr_get)
 
-        def _port_get(self): return _comm_reply_port_get(self)
+        def _port_get(self): return _sockaddr_storage_port(self._addr)
         __swig_getmethods__["port"] = _port_get
         if _newclass:port = _swig_property(_port_get)
 
-        def _family_get(self): return _comm_reply_family_get(self)
+        def _family_get(self): return _sockaddr_storage_family(self._addr)
         __swig_getmethods__["family"] = _family_get
         if _newclass:family = _swig_property(_family_get)
    %}
@@ -1081,7 +1217,7 @@ int checkList(PyObject *l)
        for (i=0; i < PyList_Size(l); i++)
        {
            item = PyList_GetItem(l, i);
-           if (!PyBytes_Check(item))
+           if (!PyBytes_Check(item) && !PyUnicode_Check(item))
               return 0;
        }
        return 1;
@@ -1096,23 +1232,40 @@ int pushRRList(sldns_buffer* qb, PyObject *l, uint32_t default_ttl, int qsec,
     PyObject* item;
     int i;
     size_t len;
+    char* s;
+    PyObject* ascstr;
 
     for (i=0; i < PyList_Size(l); i++)
     {
+        ascstr = NULL;
         item = PyList_GetItem(l, i);
+        if(PyObject_TypeCheck(item, &PyBytes_Type)) {
+                s = PyBytes_AsString(item);
+        } else {
+                ascstr = PyUnicode_AsASCIIString(item);
+                s = PyBytes_AsString(ascstr);
+        }
 
         len = sldns_buffer_remaining(qb);
         if(qsec) {
-                if(sldns_str2wire_rr_question_buf(PyBytes_AsString(item),
+                if(sldns_str2wire_rr_question_buf(s,
                         sldns_buffer_current(qb), &len, NULL, NULL, 0, NULL, 0)
-                        != 0)
+                        != 0) {
+                        if(ascstr)
+                            Py_DECREF(ascstr);
                         return 0;
+                }
         } else {
-                if(sldns_str2wire_rr_buf(PyBytes_AsString(item),
+                if(sldns_str2wire_rr_buf(s,
                         sldns_buffer_current(qb), &len, NULL, default_ttl,
-                        NULL, 0, NULL, 0) != 0)
+                        NULL, 0, NULL, 0) != 0) {
+                        if(ascstr)
+                            Py_DECREF(ascstr);
                         return 0;
+                }
         }
+        if(ascstr)
+            Py_DECREF(ascstr);
         sldns_buffer_skip(qb, len);
 
         sldns_buffer_write_u16_at(qb, count_offset,
@@ -1437,6 +1590,54 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
         return python_inplace_cb_register(inplace_cb_reply_servfail,
                 py_cb, env, id);
     }
+
+    int python_inplace_cb_query_generic(
+        struct query_info* qinfo, uint16_t flags, struct module_qstate* qstate,
+        struct sockaddr_storage* addr, socklen_t addrlen,
+        uint8_t* zone, size_t zonelen, struct regional* region, int id,
+        void* python_callback)
+    {
+        int res = 0;
+        PyObject *func = python_callback;
+
+        PyGILState_STATE gstate = PyGILState_Ensure();
+
+        PyObject *py_qinfo = SWIG_NewPointerObj((void*) qinfo, SWIGTYPE_p_query_info, 0);
+        PyObject *py_qstate = SWIG_NewPointerObj((void*) qstate, SWIGTYPE_p_module_qstate, 0);
+        PyObject *py_addr = SWIG_NewPointerObj((void *) addr, SWIGTYPE_p_sockaddr_storage, 0);
+        PyObject *py_zone = PyBytes_FromStringAndSize((const char *)zone, zonelen);
+        PyObject *py_region = SWIG_NewPointerObj((void*) region, SWIGTYPE_p_regional, 0);
+
+        PyObject *py_args = Py_BuildValue("(OiOOOO)", py_qinfo, flags, py_qstate, py_addr, py_zone, py_region);
+        PyObject *py_kwargs = Py_BuildValue("{}");
+        PyObject *result = PyObject_Call(func, py_args, py_kwargs);
+        if (result) {
+            res = PyInt_AsLong(result);
+        }
+
+        Py_XDECREF(py_qinfo);
+        Py_XDECREF(py_qstate);
+        Py_XDECREF(py_addr);
+        Py_XDECREF(py_zone);
+        Py_XDECREF(py_region);
+
+        Py_XDECREF(py_args);
+        Py_XDECREF(py_kwargs);
+        Py_XDECREF(result);
+
+        PyGILState_Release(gstate);
+
+        return res;
+    }
+
+    static int register_inplace_cb_query(PyObject* py_cb,
+        struct module_env* env, int id)
+    {
+        int ret = inplace_cb_register(python_inplace_cb_query_generic,
+                inplace_cb_query, (void*) py_cb, env, id);
+        if (ret) Py_INCREF(py_cb);
+        return ret;
+    }
 %}
 /* C declarations */
 int inplace_cb_register(void* cb, enum inplace_cb_list_type type, void* cbarg,
@@ -1450,4 +1651,6 @@ static int register_inplace_cb_reply_cache(PyObject* py_cb,
 static int register_inplace_cb_reply_local(PyObject* py_cb,
     struct module_env* env, int id);
 static int register_inplace_cb_reply_servfail(PyObject* py_cb,
+    struct module_env* env, int id);
+static int register_inplace_cb_query(PyObject *py_cb,
     struct module_env* env, int id);

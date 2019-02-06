@@ -612,17 +612,22 @@ RECURSIVE              = YES
 
 EXCLUDE                = ./build \
                          ./compat \
+			 ./contrib \
                          util/configparser.c \
                          util/configparser.h \
                          util/configlexer.c \
                          util/locks.h \
+                         pythonmod/doc \
+                         pythonmod/examples \
                          pythonmod/unboundmodule.py \
                          pythonmod/interface.h \
-                         pythonmod/examples/resgen.py \
-                         pythonmod/examples/resmod.py \
-                         pythonmod/examples/resip.py \
+                         pythonmod/ubmodule-msg.py \
+                         pythonmod/ubmodule-tst.py \
+			 unboundmodule.py \
                          libunbound/python/unbound.py \
                          libunbound/python/libunbound_wrap.c \
+                         libunbound/python/doc \
+                         libunbound/python/examples \
                          ./ldns-src \
 			 doc/control_proto_spec.txt \
 			 doc/requirements.txt

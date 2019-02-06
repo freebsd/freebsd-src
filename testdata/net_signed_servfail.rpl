@@ -19,7 +19,7 @@ SCENARIO_BEGIN Test validator with DS introduction for .net
 ; after introduction of a .NET DS in the root for a running validator.
 
 ; K.ROOT-SERVERS.NET. (before .net DS introduction)
-RANGE_BEGIN 0 100
+RANGE_BEGIN 0 99
 	ADDRESS 193.0.14.129 
 ENTRY_BEGIN
 MATCH opcode qtype qname

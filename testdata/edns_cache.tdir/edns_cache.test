@@ -11,8 +11,8 @@ PRE="../.."
 # do the test
 echo "> dig netdns.example.net."
 dig @::1 -p $UNBOUND_PORT netdns.example.net. | tee outfile
-echo "> dig www.example.com."
-dig @::1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> dig www.example.net."
+dig @::1 -p $UNBOUND_PORT www.example.net. | tee outfile
 echo "> cat stub1.log"
 cat stub1.log 
 echo "> cat stub2.log"

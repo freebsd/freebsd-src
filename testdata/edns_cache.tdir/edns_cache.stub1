@@ -17,17 +17,6 @@ SECTION ADDITIONAL
 root.server.	IN	A	127.0.0.1
 ENTRY_END
 
-; referral to example.com
-ENTRY_BEGIN
-MATCH opcode subdomain
-REPLY QR NOERROR
-ADJUST copy_id copy_query
-SECTION QUESTION
-example.com.	IN	A
-SECTION AUTHORITY
-example.com.	IN 	NS	netdns.example.net.
-ENTRY_END
-
 ; referral to example.net
 ENTRY_BEGIN
 MATCH opcode subdomain
