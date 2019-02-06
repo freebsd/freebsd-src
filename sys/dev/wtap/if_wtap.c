@@ -370,7 +370,7 @@ wtap_vap_delete(struct ieee80211vap *vap)
 	destroy_dev(avp->av_dev);
 	callout_stop(&avp->av_swba);
 	ieee80211_vap_detach(vap);
-	free((struct wtap_vap*) vap, M_80211_VAP);
+	free(avp, M_80211_VAP);
 }
 
 static void
@@ -599,6 +599,8 @@ wtap_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 
 	ni = malloc(sizeof(struct ieee80211_node), M_80211_NODE,
 	    M_NOWAIT|M_ZERO);
+	if (ni == NULL)
+		return (NULL);
 
 	ni->ni_txrate = 130;
 	return ni;
