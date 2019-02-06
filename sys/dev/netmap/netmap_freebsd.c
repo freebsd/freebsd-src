@@ -85,7 +85,7 @@ void
 nm_os_selinfo_uninit(NM_SELINFO_T *si)
 {
 	/* XXX kqueue(9) needed; these will mirror knlist_init. */
-	knlist_delete(&si->si.si_note, curthread, 0 /* not locked */ );
+	knlist_delete(&si->si.si_note, curthread, /*islocked=*/0);
 	knlist_destroy(&si->si.si_note);
 	/* now we don't need the mutex anymore */
 	mtx_destroy(&si->m);
@@ -1294,21 +1294,21 @@ nm_os_kctx_destroy(struct nm_kctx *nmk)
 /******************** kqueue support ****************/
 
 /*
- * nm_os_selwakeup also needs to issue a KNOTE_UNLOCKED.
- * We use a non-zero argument to distinguish the call from the one
- * in kevent_scan() which instead also needs to run netmap_poll().
- * The knote uses a global mutex for the time being. We might
- * try to reuse the one in the si, but it is not allocated
- * permanently so it might be a bit tricky.
+ * In addition to calling selwakeuppri(), nm_os_selwakeup() also
+ * needs to call KNOTE to wake up kqueue listeners.
+ * We use a non-zero 'hint' argument to inform the netmap_knrw()
+ * function that it is being called from 'nm_os_selwakeup'; this
+ * is necessary because when netmap_knrw() is called by the kevent
+ * subsystem (i.e. kevent_scan()) we also need to call netmap_poll().
+ * The knote uses a private mutex associated to the 'si' (see struct
+ * selinfo, struct nm_selinfo, and nm_os_selinfo_init).
  *
- * The *kqfilter function registers one or another f_event
- * depending on read or write mode.
- * In the call to f_event() td_fpop is NULL so any child function
- * calling devfs_get_cdevpriv() would fail - and we need it in
- * netmap_poll(). As a workaround we store priv into kn->kn_hook
- * and pass it as first argument to netmap_poll(), which then
- * uses the failure to tell that we are called from f_event()
- * and do not need the selrecord().
+ * The netmap_kqfilter() function registers one or another f_event
+ * depending on read or write mode. A pointer to the struct
+ * 'netmap_priv_d' is stored into kn->kn_hook, so that it can later
+ * be passed to netmap_poll(). We pass NULL as a third argument to
+ * netmap_poll(), so that the latter only runs the txsync/rxsync
+ * (if necessary), and skips the nm_os_selrecord() calls.
  */
 
 
@@ -1316,12 +1316,13 @@ void
 nm_os_selwakeup(struct nm_selinfo *si)
 {
 	if (netmap_verbose)
-		D("on knote %p", &si->si.si_note);
+		nm_prinf("on knote %p", &si->si.si_note);
 	selwakeuppri(&si->si, PI_NET);
-	/* use a non-zero hint to tell the notification from the
-	 * call done in kqueue_scan() which uses 0
+	/* We use a non-zero hint to distinguish this notification call
+	 * from the call done in kqueue_scan(), which uses hint=0.
 	 */
-	KNOTE_UNLOCKED(&si->si.si_note, 0x100 /* notification */);
+	KNOTE(&si->si.si_note, /*hint=*/0x100,
+	    mtx_owned(&si->m) ? KNF_LISTLOCKED : 0);
 }
 
 void
@@ -1337,7 +1338,7 @@ netmap_knrdetach(struct knote *kn)
 	struct selinfo *si = &priv->np_si[NR_RX]->si;
 
 	D("remove selinfo %p", si);
-	knlist_remove(&si->si_note, kn, 0);
+	knlist_remove(&si->si_note, kn, /*islocked=*/0);
 }
 
 static void
@@ -1347,14 +1348,15 @@ netmap_knwdetach(struct knote *kn)
 	struct selinfo *si = &priv->np_si[NR_TX]->si;
 
 	D("remove selinfo %p", si);
-	knlist_remove(&si->si_note, kn, 0);
+	knlist_remove(&si->si_note, kn, /*islocked=*/0);
 }
 
 /*
- * callback from notifies (generated externally) and our
- * calls to kevent(). The former we just return 1 (ready)
- * since we do not know better.
- * In the latter we call netmap_poll and return 0/1 accordingly.
+ * Callback triggered by netmap notifications (see netmap_notify()),
+ * and by the application calling kevent(). In the former case we
+ * just return 1 (events ready), since we are not able to do better.
+ * In the latter case we use netmap_poll() to see which events are
+ * ready.
  */
 static int
 netmap_knrw(struct knote *kn, long hint, int events)
@@ -1363,21 +1365,17 @@ netmap_knrw(struct knote *kn, long hint, int events)
 	int revents;
 
 	if (hint != 0) {
-		ND(5, "call from notify");
-		return 1; /* assume we are ready */
-	}
-	priv = kn->kn_hook;
-	/* the notification may come from an external thread,
-	 * in which case we do not want to run the netmap_poll
-	 * This should be filtered above, but check just in case.
-	 */
-	if (curthread != priv->np_td) { /* should not happen */
-		RD(5, "curthread changed %p %p", curthread, priv->np_td);
+		/* Called from netmap_notify(), typically from a
+		 * thread different from the one issuing kevent().
+		 * Assume we are ready. */
 		return 1;
-	} else {
-		revents = netmap_poll(priv, events, NULL);
-		return (events & revents) ? 1 : 0;
 	}
+
+	/* Called from kevent(). */
+	priv = kn->kn_hook;
+	revents = netmap_poll(priv, events, /*thread=*/NULL);
+
+	return (events & revents) ? 1 : 0;
 }
 
 static int
@@ -1408,7 +1406,7 @@ static struct filterops netmap_wfiltops = {
 /*
  * This is called when a thread invokes kevent() to record
  * a change in the configuration of the kqueue().
- * The 'priv' should be the same as in the netmap device.
+ * The 'priv' is the one associated to the open netmap device.
  */
 static int
 netmap_kqfilter(struct cdev *dev, struct knote *kn)
@@ -1435,16 +1433,11 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 	}
 	/* the si is indicated in the priv */
 	si = priv->np_si[(ev == EVFILT_WRITE) ? NR_TX : NR_RX];
-	// XXX lock(priv) ?
 	kn->kn_fop = (ev == EVFILT_WRITE) ?
 		&netmap_wfiltops : &netmap_rfiltops;
 	kn->kn_hook = priv;
-	knlist_add(&si->si.si_note, kn, 0);
-	// XXX unlock(priv)
-	ND("register %p %s td %p priv %p kn %p np_nifp %p kn_fp/fpop %s",
-		na, na->ifp->if_xname, curthread, priv, kn,
-		priv->np_nifp,
-		kn->kn_fp == curthread->td_fpop ? "match" : "MISMATCH");
+	knlist_add(&si->si.si_note, kn, /*islocked=*/0);
+
 	return 0;
 }
 
