@@ -1329,7 +1329,6 @@ sta_roam_check(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	curRssi = ic->ic_node_getrssi(ni);
 	if (ucastRate == IEEE80211_FIXED_RATE_NONE) {
 		curRate = ni->ni_txrate;
-		roamRate &= IEEE80211_RATE_VAL;
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_ROAM,
 		    "%s: currssi %d currate %u roamrssi %d roamrate %u\n",
 		    __func__, curRssi, curRate, roamRssi, roamRate);
