@@ -1132,7 +1132,7 @@ ixv_free_pci_resources(if_ctx_t ctx)
 	struct ix_rx_queue *que = adapter->rx_queues;
 	device_t           dev = iflib_get_dev(ctx);
 
-	/* Release all msix queue resources */
+	/* Release all MSI-X queue resources */
 	if (adapter->intr_type == IFLIB_INTR_MSIX)
 		iflib_irq_free(ctx, &adapter->irq);
 
@@ -1142,10 +1142,9 @@ ixv_free_pci_resources(if_ctx_t ctx)
 		}
 	}
 
-	/* Clean the Legacy or Link interrupt last */
 	if (adapter->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-				     PCIR_BAR(0), adapter->pci_mem);
+		    rman_get_rid(adapter->pci_mem), adapter->pci_mem);
 } /* ixv_free_pci_resources */
 
 /************************************************************************

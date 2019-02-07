@@ -299,7 +299,7 @@ int ixl_limit_iwarp_msix = IXL_IW_MAX_MSIX;
 #endif
 TUNABLE_INT("hw.ixl.limit_iwarp_msix", &ixl_limit_iwarp_msix);
 SYSCTL_INT(_hw_ixl, OID_AUTO, limit_iwarp_msix, CTLFLAG_RDTUN,
-    &ixl_limit_iwarp_msix, 0, "Limit MSIX vectors assigned to iWARP");
+    &ixl_limit_iwarp_msix, 0, "Limit MSI-X vectors assigned to iWARP");
 #endif
 
 extern struct if_txrx ixl_txrx_hwb;
@@ -684,14 +684,14 @@ ixl_if_attach_post(if_ctx_t ctx)
 			error = ixl_iw_pf_attach(pf);
 			if (error) {
 				device_printf(dev,
-				    "interfacing to iwarp driver failed: %d\n",
+				    "interfacing to iWARP driver failed: %d\n",
 				    error);
 				goto err;
 			} else
 				device_printf(dev, "iWARP ready\n");
 		} else
-			device_printf(dev,
-			    "iwarp disabled on this device (no msix vectors)\n");
+			device_printf(dev, "iWARP disabled on this device "
+			    "(no MSI-X vectors)\n");
 	} else {
 		pf->iw_enabled = false;
 		device_printf(dev, "The device is not iWARP enabled\n");
@@ -857,7 +857,7 @@ ixl_if_init(if_ctx_t ctx)
 	/* Set up RSS */
 	ixl_config_rss(pf);
 
-	/* Set up MSI/X routing and the ITR settings */
+	/* Set up MSI-X routing and the ITR settings */
 	if (vsi->shared->isc_intr == IFLIB_INTR_MSIX) {
 		ixl_configure_queue_intr_msix(pf);
 		ixl_configure_itr(pf);
