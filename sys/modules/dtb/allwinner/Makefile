@@ -40,6 +40,7 @@ LINKS= \
 DTS=	\
 	allwinner/sun50i-a64-nanopi-a64.dts \
 	allwinner/sun50i-a64-olinuxino.dts \
+	allwinner/sun50i-a64-pine64-lts.dts \
 	allwinner/sun50i-a64-pine64-plus.dts \
 	allwinner/sun50i-a64-pine64.dts \
 	allwinner/sun50i-a64-sopine-baseboard.dts \
