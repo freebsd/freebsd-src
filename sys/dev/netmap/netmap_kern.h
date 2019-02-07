@@ -1164,6 +1164,15 @@ nm_kr_txempty(struct netmap_kring *kring)
  * rxsync_prologue */
 #define nm_kr_rxempty(_k)	nm_kr_txempty(_k)
 
+/* True if the application needs to wait for more space on the ring
+ * (more received packets or more free tx slots).
+ * Only valid after *xsync_prologue. */
+static inline int
+nm_kr_wouldblock(struct netmap_kring *kring)
+{
+	return kring->rcur == kring->nr_hwtail;
+}
+
 /*
  * protect against multiple threads using the same ring.
  * also check that the ring has not been stopped or locked
