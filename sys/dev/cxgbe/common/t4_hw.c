@@ -4356,6 +4356,10 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
  */
 static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 {
+	static const struct intr_action cim_host_intr_actions[] = {
+		{ F_TIMER0INT, 0, t4_os_dump_cimla },
+		{ 0 },
+	};
 	static const struct intr_details cim_host_intr_details[] = {
 		/* T6+ */
 		{ F_PCIE2CIMINTFPARERR, "CIM IBQ PCIe interface parity error" },
@@ -4400,7 +4404,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.enable_reg = A_CIM_HOST_INT_ENABLE,
 		.fatal = 0,
 		.details = cim_host_intr_details,
-		.actions = NULL,
+		.actions = cim_host_intr_actions,
 	};
 	static const struct intr_details cim_host_upacc_intr_details[] = {
 		{ F_EEPROMWRINT, "CIM EEPROM came out of busy state" },

@@ -648,7 +648,6 @@ static int sysctl_loadavg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ibq_obq(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_la(SYSCTL_HANDLER_ARGS);
-static int sysctl_cim_la_t6(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_ma_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS);
@@ -6026,8 +6025,7 @@ t4_sysctls(struct adapter *sc)
 	    sysctl_cim_ibq_obq, "A", "CIM IBQ 5 (NCSI)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_la",
-	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
-	    chip_id(sc) <= CHELSIO_T5 ? sysctl_cim_la : sysctl_cim_la_t6,
+	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0, sysctl_cim_la,
 	    "A", "CIM logic analyzer");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cim_ma_la",
@@ -7249,35 +7247,10 @@ done:
 	return (rc);
 }
 
-static int
-sysctl_cim_la(SYSCTL_HANDLER_ARGS)
+static void
+sbuf_cim_la4(struct adapter *sc, struct sbuf *sb, uint32_t *buf, uint32_t cfg)
 {
-	struct adapter *sc = arg1;
-	u_int cfg;
-	struct sbuf *sb;
-	uint32_t *buf, *p;
-	int rc;
-
-	MPASS(chip_id(sc) <= CHELSIO_T5);
-
-	rc = -t4_cim_read(sc, A_UP_UP_DBG_LA_CFG, 1, &cfg);
-	if (rc != 0)
-		return (rc);
-
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
-	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
-	if (sb == NULL)
-		return (ENOMEM);
-
-	buf = malloc(sc->params.cim_la_size * sizeof(uint32_t), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-
-	rc = -t4_cim_read_la(sc, buf, NULL);
-	if (rc != 0)
-		goto done;
+	uint32_t *p;
 
 	sbuf_printf(sb, "Status   Data      PC%s",
 	    cfg & F_UPDBGLACAPTPCONLY ? "" :
@@ -7302,43 +7275,12 @@ sysctl_cim_la(SYSCTL_HANDLER_ARGS)
 			    p[6], p[7]);
 		}
 	}
-
-	rc = sbuf_finish(sb);
-	sbuf_delete(sb);
-done:
-	free(buf, M_CXGBE);
-	return (rc);
 }
 
-static int
-sysctl_cim_la_t6(SYSCTL_HANDLER_ARGS)
+static void
+sbuf_cim_la6(struct adapter *sc, struct sbuf *sb, uint32_t *buf, uint32_t cfg)
 {
-	struct adapter *sc = arg1;
-	u_int cfg;
-	struct sbuf *sb;
-	uint32_t *buf, *p;
-	int rc;
-
-	MPASS(chip_id(sc) > CHELSIO_T5);
-
-	rc = -t4_cim_read(sc, A_UP_UP_DBG_LA_CFG, 1, &cfg);
-	if (rc != 0)
-		return (rc);
-
-	rc = sysctl_wire_old_buffer(req, 0);
-	if (rc != 0)
-		return (rc);
-
-	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
-	if (sb == NULL)
-		return (ENOMEM);
-
-	buf = malloc(sc->params.cim_la_size * sizeof(uint32_t), M_CXGBE,
-	    M_ZERO | M_WAITOK);
-
-	rc = -t4_cim_read_la(sc, buf, NULL);
-	if (rc != 0)
-		goto done;
+	uint32_t *p;
 
 	sbuf_printf(sb, "Status   Inst    Data      PC%s",
 	    cfg & F_UPDBGLACAPTPCONLY ? "" :
@@ -7365,12 +7307,76 @@ sysctl_cim_la_t6(SYSCTL_HANDLER_ARGS)
 			    p[2], p[1], p[0], p[5], p[4], p[3]);
 		}
 	}
+}
 
-	rc = sbuf_finish(sb);
-	sbuf_delete(sb);
+static int
+sbuf_cim_la(struct adapter *sc, struct sbuf *sb, int flags)
+{
+	uint32_t cfg, *buf;
+	int rc;
+
+	rc = -t4_cim_read(sc, A_UP_UP_DBG_LA_CFG, 1, &cfg);
+	if (rc != 0)
+		return (rc);
+
+	MPASS(flags == M_WAITOK || flags == M_NOWAIT);
+	buf = malloc(sc->params.cim_la_size * sizeof(uint32_t), M_CXGBE,
+	    M_ZERO | flags);
+	if (buf == NULL)
+		return (ENOMEM);
+
+	rc = -t4_cim_read_la(sc, buf, NULL);
+	if (rc != 0)
+		goto done;
+	if (chip_id(sc) < CHELSIO_T6)
+		sbuf_cim_la4(sc, sb, buf, cfg);
+	else
+		sbuf_cim_la6(sc, sb, buf, cfg);
+
 done:
 	free(buf, M_CXGBE);
 	return (rc);
+}
+
+static int
+sysctl_cim_la(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return (rc);
+	sb = sbuf_new_for_sysctl(NULL, NULL, 4096, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	rc = sbuf_cim_la(sc, sb, M_WAITOK);
+	if (rc == 0)
+		rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+	return (rc);
+}
+
+bool
+t4_os_dump_cimla(struct adapter *sc, int arg, bool verbose)
+{
+	struct sbuf sb;
+	int rc;
+
+	if (sbuf_new(&sb, NULL, 4096, SBUF_AUTOEXTEND) != &sb)
+		return (false);
+	rc = sbuf_cim_la(sc, &sb, M_NOWAIT);
+	if (rc == 0) {
+		rc = sbuf_finish(&sb);
+		if (rc == 0) {
+			log(LOG_DEBUG, "%s: CIM LA dump follows.\n%s",
+		    		device_get_nameunit(sc->dev), sbuf_data(&sb));
+		}
+	}
+	sbuf_delete(&sb);
+	return (false);
 }
 
 static int
