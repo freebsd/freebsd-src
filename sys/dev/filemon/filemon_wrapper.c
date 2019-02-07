@@ -37,7 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/vnode.h>
 
+#include <machine/stdarg.h>
+
 #include "opt_compat.h"
+
+
+static void filemon_output_event(struct filemon *filemon, const char *fmt, ...)
+    __printflike(2, 3);
 
 static eventhandler_tag filemon_exec_tag;
 static eventhandler_tag filemon_exit_tag;
@@ -71,11 +77,25 @@ filemon_output(struct filemon *filemon, char *msg, size_t len)
 		filemon->error = error;
 }
 
+static void
+filemon_output_event(struct filemon *filemon, const char *fmt, ...)
+{
+	va_list ap;
+	size_t len;
+
+	va_start(ap, fmt);
+	len = vsnprintf(filemon->msgbufr, sizeof(filemon->msgbufr), fmt, ap);
+	va_end(ap);
+	/* The event is truncated but still worth logging. */
+	if (len >= sizeof(filemon->msgbufr))
+		len = sizeof(filemon->msgbufr) - 1;
+	filemon_output(filemon, filemon->msgbufr, len);
+}
+
 static int
 filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 {
 	int error, ret;
-	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_chdir(td, uap)) == 0) {
@@ -86,11 +106,8 @@ filemon_wrapper_chdir(struct thread *td, struct chdir_args *uap)
 				goto copyfail;
 			}
 
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "C %d %s\n",
+			filemon_output_event(filemon, "C %d %s\n",
 			    curproc->p_pid, filemon->fname1);
-
-			filemon_output(filemon, filemon->msgbufr, len);
 copyfail:
 			filemon_drop(filemon);
 		}
@@ -104,15 +121,11 @@ filemon_event_process_exec(void *arg __unused, struct proc *p,
     struct image_params *imgp)
 {
 	struct filemon *filemon;
-	size_t len;
 
 	if ((filemon = filemon_proc_get(p)) != NULL) {
-		len = snprintf(filemon->msgbufr,
-		    sizeof(filemon->msgbufr), "E %d %s\n",
+		filemon_output_event(filemon, "E %d %s\n",
 		    p->p_pid,
 		    imgp->execpath != NULL ? imgp->execpath : "<unknown>");
-
-		filemon_output(filemon, filemon->msgbufr, len);
 
 		/* If the credentials changed then cease tracing. */
 		if (imgp->newcred != NULL &&
@@ -140,7 +153,6 @@ static void
 _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 {
 	int error;
-	size_t len;
 	struct file *fp;
 	struct filemon *filemon;
 	char *atpath, *freepath;
@@ -166,10 +178,8 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 			 * XXX: This may be able to come out with
 			 * the namecache lookup now.
 			 */
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "A %d %s\n",
+			filemon_output_event(filemon, "A %d %s\n",
 			    curproc->p_pid, filemon->fname1);
-			filemon_output(filemon, filemon->msgbufr, len);
 			/*
 			 * Try to resolve the path from the vnode using the
 			 * namecache.  It may be inaccurate, but better
@@ -187,19 +197,15 @@ _filemon_wrapper_openat(struct thread *td, char *upath, int flags, int fd)
 			 * to also output an R to distinguish from
 			 * O_WRONLY.
 			 */
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "R %d %s%s%s\n",
+			filemon_output_event(filemon, "R %d %s%s%s\n",
 			    curproc->p_pid, atpath,
 			    atpath[0] != '\0' ? "/" : "", filemon->fname1);
-			filemon_output(filemon, filemon->msgbufr, len);
 		}
 
-		len = snprintf(filemon->msgbufr,
-		    sizeof(filemon->msgbufr), "%c %d %s%s%s\n",
+		filemon_output_event(filemon, "%c %d %s%s%s\n",
 		    (flags & O_ACCMODE) ? 'W':'R',
 		    curproc->p_pid, atpath,
 		    atpath[0] != '\0' ? "/" : "", filemon->fname1);
-		filemon_output(filemon, filemon->msgbufr, len);
 copyfail:
 		filemon_drop(filemon);
 		if (fp != NULL)
@@ -234,7 +240,6 @@ static int
 filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 {
 	int error, ret;
-	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_rename(td, uap)) == 0) {
@@ -247,11 +252,8 @@ filemon_wrapper_rename(struct thread *td, struct rename_args *uap)
 				goto copyfail;
 			}
 
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "M %d '%s' '%s'\n",
+			filemon_output_event(filemon, "M %d '%s' '%s'\n",
 			    curproc->p_pid, filemon->fname1, filemon->fname2);
-
-			filemon_output(filemon, filemon->msgbufr, len);
 copyfail:
 			filemon_drop(filemon);
 		}
@@ -264,7 +266,6 @@ static void
 _filemon_wrapper_link(struct thread *td, char *upath1, char *upath2)
 {
 	struct filemon *filemon;
-	size_t len;
 	int error;
 
 	if ((filemon = filemon_proc_get(curproc)) != NULL) {
@@ -276,11 +277,8 @@ _filemon_wrapper_link(struct thread *td, char *upath1, char *upath2)
 			goto copyfail;
 		}
 
-		len = snprintf(filemon->msgbufr,
-		    sizeof(filemon->msgbufr), "L %d '%s' '%s'\n",
+		filemon_output_event(filemon, "L %d '%s' '%s'\n",
 		    curproc->p_pid, filemon->fname1, filemon->fname2);
-
-		filemon_output(filemon, filemon->msgbufr, len);
 copyfail:
 		filemon_drop(filemon);
 	}
@@ -322,14 +320,11 @@ filemon_wrapper_linkat(struct thread *td, struct linkat_args *uap)
 static void
 filemon_event_process_exit(void *arg __unused, struct proc *p)
 {
-	size_t len;
 	struct filemon *filemon;
 
 	if ((filemon = filemon_proc_get(p)) != NULL) {
-		len = snprintf(filemon->msgbufr, sizeof(filemon->msgbufr),
-		    "X %d %d %d\n", p->p_pid, p->p_xexit, p->p_xsig);
-
-		filemon_output(filemon, filemon->msgbufr, len);
+		filemon_output_event(filemon, "X %d %d %d\n",
+		    p->p_pid, p->p_xexit, p->p_xsig);
 
 		/*
 		 * filemon_untrack_processes() may have dropped this p_filemon
@@ -350,7 +345,6 @@ static int
 filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 {
 	int error, ret;
-	size_t len;
 	struct filemon *filemon;
 
 	if ((ret = sys_unlink(td, uap)) == 0) {
@@ -361,11 +355,8 @@ filemon_wrapper_unlink(struct thread *td, struct unlink_args *uap)
 				goto copyfail;
 			}
 
-			len = snprintf(filemon->msgbufr,
-			    sizeof(filemon->msgbufr), "D %d %s\n",
+			filemon_output_event(filemon, "D %d %s\n",
 			    curproc->p_pid, filemon->fname1);
-
-			filemon_output(filemon, filemon->msgbufr, len);
 copyfail:
 			filemon_drop(filemon);
 		}
@@ -378,15 +369,11 @@ static void
 filemon_event_process_fork(void *arg __unused, struct proc *p1,
     struct proc *p2, int flags __unused)
 {
-	size_t len;
 	struct filemon *filemon;
 
 	if ((filemon = filemon_proc_get(p1)) != NULL) {
-		len = snprintf(filemon->msgbufr,
-		    sizeof(filemon->msgbufr), "F %d %d\n",
+		filemon_output_event(filemon, "F %d %d\n",
 		    p1->p_pid, p2->p_pid);
-
-		filemon_output(filemon, filemon->msgbufr, len);
 
 		/*
 		 * filemon_untrack_processes() or
