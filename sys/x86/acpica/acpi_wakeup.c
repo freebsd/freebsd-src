@@ -260,6 +260,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER) &
 		    ~(EFER_LMA));
 #else
+		if ((amd_feature & AMDID_NX) != 0)
+			WAKECODE_FIXUP(wakeup_efer, uint64_t, rdmsr(MSR_EFER));
 		WAKECODE_FIXUP(wakeup_cr4, register_t, pcb->pcb_cr4);
 #endif
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, pcb);
@@ -375,8 +377,12 @@ acpi_alloc_wakeup_handler(void *wakepages[ACPI_WAKEPAGES])
 	 * page-aligned.
 	 */
 	for (i = 0; i < ACPI_WAKEPAGES; i++) {
-		wakepages[i] = contigmalloc(PAGE_SIZE, M_DEVBUF, M_NOWAIT,
-		    0x500, 0xa0000, PAGE_SIZE, 0ul);
+		wakepages[i] = contigmalloc(PAGE_SIZE, M_DEVBUF,
+		    M_NOWAIT
+#ifdef __i386__
+			     | M_EXEC
+#endif
+		    , 0x500, 0xa0000, PAGE_SIZE, 0ul);
 		if (wakepages[i] == NULL) {
 			printf("%s: can't alloc wake memory\n", __func__);
 			goto freepages;
