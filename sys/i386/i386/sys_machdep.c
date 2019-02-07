@@ -538,7 +538,7 @@ i386_get_ldt(struct thread *td, struct i386_ldt_args *uap)
 	data = malloc(num * sizeof(union descriptor), M_TEMP, M_WAITOK);
 	mtx_lock_spin(&dt_lock);
 	pldt = td->td_proc->p_md.md_ldt;
-	nldt = pldt != NULL ? pldt->ldt_len : nitems(ldt);
+	nldt = pldt != NULL ? pldt->ldt_len : NLDT;
 	if (uap->start >= nldt) {
 		num = 0;
 	} else {
