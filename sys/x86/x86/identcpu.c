@@ -978,7 +978,12 @@ printcpuinfo(void)
 				       "\003UMIP"
 				       "\004PKU"
 				       "\005OSPKE"
+				       "\006WAITPKG"
+				       "\011GFNI"
 				       "\027RDPID"
+				       "\032CLDEMOTE"
+				       "\034MOVDIRI"
+				       "\035MOVDIRI64B"
 				       "\037SGXLC"
 				       );
 			}
@@ -991,6 +996,7 @@ printcpuinfo(void)
 				       "\034STIBP"
 				       "\035L1DFL"
 				       "\036ARCH_CAP"
+				       "\037CORE_CAP"
 				       "\040SSBD"
 				       );
 			}
