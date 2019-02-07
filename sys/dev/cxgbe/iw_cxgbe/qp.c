@@ -1954,7 +1954,8 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	struct c4iw_cq *rchp;
 	struct c4iw_create_qp_resp uresp;
 	unsigned int sqsize, rqsize;
-	struct c4iw_ucontext *ucontext;
+	struct c4iw_ucontext *ucontext = rdma_udata_to_drv_context(
+			udata, struct c4iw_ucontext, ibucontext);
 	int ret;
 	struct c4iw_mm_entry *sq_key_mm = NULL, *rq_key_mm = NULL;
 	struct c4iw_mm_entry *sq_db_key_mm = NULL, *rq_db_key_mm = NULL;
@@ -1985,8 +1986,6 @@ c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	sqsize = attrs->cap.max_send_wr + 1;
 	if (sqsize < 8)
 		sqsize = 8;
-
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
