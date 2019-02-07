@@ -112,9 +112,9 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			continue;
 		}
 		if (dev2unit(dev) == CDEV_MINOR_MEM) {
-kmem_direct_mapped:	v = uio->uio_offset;
+			v = uio->uio_offset;
 
-			off = uio->uio_offset & PAGE_MASK;
+kmem_direct_mapped:	off = v & PAGE_MASK;
 			cnt = PAGE_SIZE - ((vm_offset_t)iov->iov_base &
 			    PAGE_MASK);
 			cnt = min(cnt, PAGE_SIZE - off);
@@ -137,8 +137,10 @@ kmem_direct_mapped:	v = uio->uio_offset;
 		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			va = uio->uio_offset;
 
-			if ((va < VM_MIN_KERNEL_ADDRESS) || (va > virtual_end))
+			if ((va < VM_MIN_KERNEL_ADDRESS) || (va > virtual_end)) {
+				v = DMAP_TO_PHYS(va);
 				goto kmem_direct_mapped;
+			}
 
 			va = trunc_page(uio->uio_offset);
 			eva = round_page(uio->uio_offset
