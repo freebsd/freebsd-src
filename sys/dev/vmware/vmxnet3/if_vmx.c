@@ -461,26 +461,24 @@ static void
 vmxnet3_free_resources(struct vmxnet3_softc *sc)
 {
 	device_t dev;
-	int rid;
 
 	dev = sc->vmx_dev;
 
 	if (sc->vmx_res0 != NULL) {
-		rid = PCIR_BAR(0);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->vmx_res0);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_res0), sc->vmx_res0);
 		sc->vmx_res0 = NULL;
 	}
 
 	if (sc->vmx_res1 != NULL) {
-		rid = PCIR_BAR(1);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->vmx_res1);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_res1), sc->vmx_res1);
 		sc->vmx_res1 = NULL;
 	}
 
 	if (sc->vmx_msix_res != NULL) {
-		rid = PCIR_BAR(2);
-		bus_release_resource(dev, SYS_RES_MEMORY, rid,
-		    sc->vmx_msix_res);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->vmx_msix_res), sc->vmx_msix_res);
 		sc->vmx_msix_res = NULL;
 	}
 }
