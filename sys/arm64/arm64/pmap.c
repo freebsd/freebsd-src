@@ -2862,6 +2862,7 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
 
 	/* Create the new mapping */
 	pmap_load_store(pte, newpte);
+	dsb(ishst);
 
 	critical_exit();
 	intr_restore(intr);
@@ -3281,6 +3282,7 @@ validate:
 	} else {
 		/* New mappig */
 		pmap_load_store(l3, new_l3);
+		dsb(ishst);
 	}
 
 #if VM_NRESERVLEVEL > 0
@@ -3435,6 +3437,7 @@ pmap_enter_l2(pmap_t pmap, vm_offset_t va, pd_entry_t new_l2, u_int flags,
 	 * Map the superpage.
 	 */
 	(void)pmap_load_store(l2, new_l2);
+	dsb(ishst);
 
 	atomic_add_long(&pmap_l2_mappings, 1);
 	CTR2(KTR_PMAP, "pmap_enter_l2: success for va %#lx in pmap %p",
