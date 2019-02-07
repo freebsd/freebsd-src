@@ -118,7 +118,7 @@ quota_open(struct fstab *fs, int quotatype, int openflags)
 	struct dqhdr64 dqh;
 	struct group *grp;
 	struct stat st;
-	int qcmd, serrno;
+	int qcmd, serrno = 0;
 	int ufs;
 
 	if ((qf = calloc(1, sizeof(*qf))) == NULL)
