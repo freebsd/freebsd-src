@@ -100,6 +100,7 @@ rdtsc_mb_none(void)
 DEFINE_UIFUNC(static, void, rdtsc_mb, (void), static)
 {
 	u_int p[4];
+	/* Not a typo, string matches our cpuidp() registers use. */
 	static const char intel_id[] = "GenuntelineI";
 
 	if ((cpu_feature & CPUID_SSE2) == 0)
