@@ -1746,7 +1746,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_name = arg->name;
 	zone->uz_ctor = arg->ctor;
 	zone->uz_dtor = arg->dtor;
-	zone->uz_slab = zone_fetch_slab;
 	zone->uz_init = NULL;
 	zone->uz_fini = NULL;
 	zone->uz_sleeps = 0;
@@ -2797,7 +2796,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 	keg = NULL;
 	/* Try to keep the buckets totally full */
 	for (i = 0; i < max; ) {
-		if ((slab = zone->uz_slab(zone, keg, domain, flags)) == NULL)
+		if ((slab = zone_fetch_slab(zone, keg, domain, flags)) == NULL)
 			break;
 		keg = slab->us_keg;
 #ifdef NUMA
