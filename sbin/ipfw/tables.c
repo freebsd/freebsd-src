@@ -282,7 +282,7 @@ ipfw_table_handler(int ac, char *av[])
 		}
 		break;
 	case TOK_LIST:
-		arg = is_all ? (void*)1 : (void*)0;
+		arg = is_all ? (void*)1 : NULL;
 		if (is_all == 0) {
 			ipfw_xtable_info i;
 			if ((error = table_get_info(&oh, &i)) != 0)
@@ -822,7 +822,9 @@ table_show_one(ipfw_xtable_info *i, void *arg)
 {
 	ipfw_obj_header *oh;
 	int error;
-	int is_all = (int)arg;
+	int is_all;
+
+	is_all = arg == NULL ? 0 : 1;
 
 	if ((error = table_do_get_list(i, &oh)) != 0) {
 		err(EX_OSERR, "Error requesting table %s list", i->tablename);
