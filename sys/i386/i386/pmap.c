@@ -3247,7 +3247,7 @@ retry:
 	if ((prot & VM_PROT_WRITE) == 0)
 		newpde &= ~(PG_RW | PG_M);
 #ifdef PMAP_PAE_COMP
-	if ((prot & VM_PROT_EXECUTE) == 0)
+	if ((prot & VM_PROT_EXECUTE) == 0 && !i386_read_exec)
 		newpde |= pg_nx;
 #endif
 	if (newpde != oldpde) {
@@ -3389,7 +3389,7 @@ retry:
 				pbits &= ~(PG_RW | PG_M);
 			}
 #ifdef PMAP_PAE_COMP
-			if ((prot & VM_PROT_EXECUTE) == 0)
+			if ((prot & VM_PROT_EXECUTE) == 0 && !i386_read_exec)
 				pbits |= pg_nx;
 #endif
 
@@ -3604,7 +3604,7 @@ __CONCAT(PMTYPE, enter)(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	KASSERT((newpte & (PG_M | PG_RW)) != PG_M,
 	    ("pmap_enter: flags includes VM_PROT_WRITE but prot doesn't"));
 #ifdef PMAP_PAE_COMP
-	if ((prot & VM_PROT_EXECUTE) == 0)
+	if ((prot & VM_PROT_EXECUTE) == 0 && !i386_read_exec)
 		newpte |= pg_nx;
 #endif
 	if ((flags & PMAP_ENTER_WIRED) != 0)
@@ -3841,7 +3841,7 @@ pmap_enter_4mpage(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		newpde |= PG_MANAGED;
 #ifdef PMAP_PAE_COMP
-	if ((prot & VM_PROT_EXECUTE) == 0)
+	if ((prot & VM_PROT_EXECUTE) == 0 && !i386_read_exec)
 		newpde |= pg_nx;
 #endif
 	if (pmap != kernel_pmap)
@@ -4099,7 +4099,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	if ((m->oflags & VPO_UNMANAGED) == 0)
 		newpte |= PG_MANAGED;
 #ifdef PMAP_PAE_COMP
-	if ((prot & VM_PROT_EXECUTE) == 0)
+	if ((prot & VM_PROT_EXECUTE) == 0 && !i386_read_exec)
 		newpte |= pg_nx;
 #endif
 	if (pmap != kernel_pmap)
