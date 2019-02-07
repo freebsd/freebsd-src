@@ -98,6 +98,7 @@ arm/mv/mv_cp110_clock.c				optional SOC_MARVELL_8K fdt
 arm/mv/mv_thermal.c				optional SOC_MARVELL_8K mv_thermal fdt
 arm/mv/armada38x/armada38x_rtc.c		optional mv_rtc fdt
 arm/xilinx/uart_dev_cdnc.c			optional uart soc_xilinx_zynq
+arm64/acpica/acpi_iort.c	optional	acpi
 arm64/acpica/acpi_machdep.c	optional	acpi
 arm64/acpica/OsdEnvironment.c	optional	acpi
 arm64/acpica/acpi_wakeup.c	optional	acpi
