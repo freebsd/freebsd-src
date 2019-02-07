@@ -538,7 +538,8 @@ enum {
 
 enum {
 	/* On NETMAP_REQ_REGISTER, ask netmap to use memory allocated
-	 * from user-space allocated memory pools (e.g. hugepages). */
+	 * from user-space allocated memory pools (e.g. hugepages).
+	 */
 	NETMAP_REQ_OPT_EXTMEM = 1,
 
 	/* ON NETMAP_REQ_SYNC_KLOOP_START, ask netmap to use eventfd-based
@@ -549,8 +550,15 @@ enum {
 	/* On NETMAP_REQ_REGISTER, ask netmap to work in CSB mode, where
 	 * head, cur and tail pointers are not exchanged through the
 	 * struct netmap_ring header, but rather using an user-provided
-	 * memory area (see struct nm_csb_atok and struct nm_csb_ktoa). */
+	 * memory area (see struct nm_csb_atok and struct nm_csb_ktoa).
+	 */
 	NETMAP_REQ_OPT_CSB,
+
+	/* An extension to NETMAP_REQ_OPT_SYNC_KLOOP_EVENTFDS, which specifies
+	 * if the TX and/or RX rings are synced in the context of the VM exit.
+	 * This requires the 'ioeventfd' fields to be valid (cannot be < 0).
+	 */
+	NETMAP_REQ_OPT_SYNC_KLOOP_MODE,
 };
 
 /*
@@ -875,6 +883,12 @@ struct nmreq_opt_sync_kloop_eventfds {
 	 * their order must agree with the CSB arrays passed in the
 	 * NETMAP_REQ_OPT_CSB option. Each entry contains a file descriptor
 	 * backed by an eventfd.
+	 *
+	 * If any of the 'ioeventfd' entries is < 0, the event loop uses
+	 * the sleeping synchronization strategy (according to sleep_us),
+	 * and keeps kern_need_kick always disabled.
+	 * Each 'irqfd' can be < 0, and in that case the corresponding queue
+	 * is never notified.
 	 */
 	struct {
 		/* Notifier for the application --> kernel loop direction. */
@@ -882,6 +896,13 @@ struct nmreq_opt_sync_kloop_eventfds {
 		/* Notifier for the kernel loop --> application direction. */
 		int32_t irqfd;
 	} eventfds[0];
+};
+
+struct nmreq_opt_sync_kloop_mode {
+	struct nmreq_option	nro_opt;	/* common header */
+#define NM_OPT_SYNC_KLOOP_DIRECT_TX (1 << 0)
+#define NM_OPT_SYNC_KLOOP_DIRECT_RX (1 << 1)
+	uint32_t mode;
 };
 
 struct nmreq_opt_extmem {

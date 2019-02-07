@@ -2963,6 +2963,9 @@ nmreq_opt_size_by_type(uint32_t nro_reqtype, uint64_t nro_size)
 	case NETMAP_REQ_OPT_CSB:
 		rv = sizeof(struct nmreq_opt_csb);
 		break;
+	case NETMAP_REQ_OPT_SYNC_KLOOP_MODE:
+		rv = sizeof(struct nmreq_opt_sync_kloop_mode);
+		break;
 	}
 	/* subtract the common header */
 	return rv - sizeof(struct nmreq_option);
@@ -3279,10 +3282,8 @@ netmap_poll(struct netmap_priv_d *priv, int events, NM_SELRECORD_T *sr)
 	 * there are pending packets to send. The latter can be disabled
 	 * passing NETMAP_NO_TX_POLL in the NIOCREG call.
 	 */
-	si[NR_RX] = nm_si_user(priv, NR_RX) ? &na->si[NR_RX] :
-				&na->rx_rings[priv->np_qfirst[NR_RX]]->si;
-	si[NR_TX] = nm_si_user(priv, NR_TX) ? &na->si[NR_TX] :
-				&na->tx_rings[priv->np_qfirst[NR_TX]]->si;
+	si[NR_RX] = priv->np_si[NR_RX];
+	si[NR_TX] = priv->np_si[NR_TX];
 
 #ifdef __FreeBSD__
 	/*
