@@ -40619,6 +40619,20 @@ X86TargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
       return Res;
     }
 
+    // dirflag -> DF
+    if (StringRef("{dirflag}").equals_lower(Constraint)) {
+      Res.first = X86::DF;
+      Res.second = &X86::DFCCRRegClass;
+      return Res;
+    }
+
+    // fpsr -> FPSW
+    if (StringRef("{fpsr}").equals_lower(Constraint)) {
+      Res.first = X86::FPSW;
+      Res.second = &X86::FPCCRRegClass;
+      return Res;
+    }
+
     // 'A' means [ER]AX + [ER]DX.
     if (Constraint == "A") {
       if (Subtarget.is64Bit()) {
