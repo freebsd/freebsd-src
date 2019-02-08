@@ -145,10 +145,13 @@ nullfs_mount(struct mount *mp)
 	/*
 	 * Check multi null mount to avoid `lock against myself' panic.
 	 */
-	if (lowerrootvp == VTONULL(mp->mnt_vnodecovered)->null_lowervp) {
-		NULLFSDEBUG("nullfs_mount: multi null mount?\n");
-		vput(lowerrootvp);
-		return (EDEADLK);
+	if (mp->mnt_vnodecovered->v_op == &null_vnodeops) {
+		nn = VTONULL(mp->mnt_vnodecovered);
+		if (nn == NULL || lowerrootvp == nn->null_lowervp) {
+			NULLFSDEBUG("nullfs_mount: multi null mount?\n");
+			vput(lowerrootvp);
+			return (EDEADLK);
+		}
 	}
 
 	xmp = (struct null_mount *) malloc(sizeof(struct null_mount),
