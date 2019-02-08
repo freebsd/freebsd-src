@@ -1996,7 +1996,7 @@ em_if_msix_intr_assign(if_ctx_t ctx, int msix)
 		    &adapter->rx_queues[i % adapter->rx_num_queues].que_irq,
 		    IFLIB_INTR_TX, tx_que, tx_que->me, buf);
 
-		tx_que->msix = (vector % adapter->tx_num_queues);
+		tx_que->msix = (vector % adapter->rx_num_queues);
 
 		/*
 		 * Set the bit to enable interrupt
@@ -2009,9 +2009,9 @@ em_if_msix_intr_assign(if_ctx_t ctx, int msix)
 			adapter->ims |= tx_que->eims;
 			adapter->ivars |= (8 | tx_que->msix) << (8 + (i * 4));
 		} else if (adapter->hw.mac.type == e1000_82575) {
-			tx_que->eims = E1000_EICR_TX_QUEUE0 << (i %  adapter->tx_num_queues);
+			tx_que->eims = E1000_EICR_TX_QUEUE0 << i;
 		} else {
-			tx_que->eims = 1 << (i %  adapter->tx_num_queues);
+			tx_que->eims = 1 << i;
 		}
 	}
 
