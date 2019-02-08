@@ -230,7 +230,7 @@ def _FI32m  : FPI<0xDA, fp, (outs), (ins i32mem:$src),
 } // mayLoad = 1, hasSideEffects = 1
 }
 
-let Defs = [FPSW] in {
+let Defs = [FPSW], Uses = [FPCW] in {
 // FPBinary_rr just defines pseudo-instructions, no need to set a scheduling
 // resources.
 let hasNoSchedulingInfo = 1 in {
@@ -267,7 +267,7 @@ class FPrST0PInst<Format fp, string asm>
 // NOTE: GAS and apparently all other AT&T style assemblers have a broken notion
 // of some of the 'reverse' forms of the fsub and fdiv instructions.  As such,
 // we have to put some 'r's in and take them out of weird places.
-let SchedRW = [WriteFAdd] in {
+let SchedRW = [WriteFAdd], Defs = [FPSW], Uses = [FPCW] in {
 def ADD_FST0r   : FPST0rInst <MRM0r, "fadd\t$op">;
 def ADD_FrST0   : FPrST0Inst <MRM0r, "fadd\t{%st(0), $op|$op, st(0)}">;
 def ADD_FPrST0  : FPrST0PInst<MRM0r, "faddp\t$op">;
@@ -278,16 +278,16 @@ def SUB_FST0r   : FPST0rInst <MRM4r, "fsub\t$op">;
 def SUBR_FrST0  : FPrST0Inst <MRM4r, "fsub{|r}\t{%st(0), $op|$op, st(0)}">;
 def SUBR_FPrST0 : FPrST0PInst<MRM4r, "fsub{|r}p\t$op">;
 } // SchedRW
-let SchedRW = [WriteFCom] in {
+let SchedRW = [WriteFCom], Defs = [FPSW], Uses = [FPCW] in {
 def COM_FST0r   : FPST0rInst <MRM2r, "fcom\t$op">;
 def COMP_FST0r  : FPST0rInst <MRM3r, "fcomp\t$op">;
 } // SchedRW
-let SchedRW = [WriteFMul] in {
+let SchedRW = [WriteFMul], Defs = [FPSW], Uses = [FPCW] in {
 def MUL_FST0r   : FPST0rInst <MRM1r, "fmul\t$op">;
 def MUL_FrST0   : FPrST0Inst <MRM1r, "fmul\t{%st(0), $op|$op, st(0)}">;
 def MUL_FPrST0  : FPrST0PInst<MRM1r, "fmulp\t$op">;
 } // SchedRW
-let SchedRW = [WriteFDiv] in {
+let SchedRW = [WriteFDiv], Defs = [FPSW], Uses = [FPCW] in {
 def DIVR_FST0r  : FPST0rInst <MRM7r, "fdivr\t$op">;
 def DIV_FrST0   : FPrST0Inst <MRM7r, "fdiv{r}\t{%st(0), $op|$op, st(0)}">;
 def DIV_FPrST0  : FPrST0PInst<MRM7r, "fdiv{r}p\t$op">;
@@ -307,7 +307,7 @@ def _Fp80  : FpI_<(outs RFP80:$dst), (ins RFP80:$src), OneArgFPRW,
 def _F     : FPI<0xD9, fp, (outs), (ins), asmstring>;
 }
 
-let Defs = [FPSW] in {
+let Defs = [FPSW], Uses = [FPCW] in {
 
 let SchedRW = [WriteFSign] in {
 defm CHS : FPUnary<fneg, MRM_E0, "fchs">;
@@ -335,7 +335,7 @@ def TST_F  : FPI<0xD9, MRM_E4, (outs), (ins), "ftst">;
 
 // Versions of FP instructions that take a single memory operand.  Added for the
 //   disassembler; remove as they are included with patterns elsewhere.
-let SchedRW = [WriteFComLd] in {
+let SchedRW = [WriteFComLd], Defs = [FPSW], Uses = [FPCW] in {
 def FCOM32m  : FPI<0xD8, MRM2m, (outs), (ins f32mem:$src), "fcom{s}\t$src">;
 def FCOMP32m : FPI<0xD8, MRM3m, (outs), (ins f32mem:$src), "fcomp{s}\t$src">;
 
@@ -454,7 +454,7 @@ def ILD_Fp64m80: FpI_<(outs RFP80:$dst), (ins i64mem:$src), ZeroArgFP,
                   [(set RFP80:$dst, (X86fild addr:$src, i64))]>;
 } // SchedRW
 
-let SchedRW = [WriteStore] in {
+let SchedRW = [WriteStore], Uses = [FPCW] in {
 def ST_Fp32m   : FpIf32<(outs), (ins f32mem:$op, RFP32:$src), OneArgFP,
                   [(store RFP32:$src, addr:$op)]>;
 def ST_Fp64m32 : FpIf64<(outs), (ins f32mem:$op, RFP64:$src), OneArgFP,
@@ -489,7 +489,7 @@ def IST_Fp16m80  : FpI_<(outs), (ins i16mem:$op, RFP80:$src), OneArgFP, []>;
 def IST_Fp32m80  : FpI_<(outs), (ins i32mem:$op, RFP80:$src), OneArgFP, []>;
 def IST_Fp64m80  : FpI_<(outs), (ins i64mem:$op, RFP80:$src), OneArgFP, []>;
 } // mayStore
-} // SchedRW
+} // SchedRW, Uses = [FPCW]
 
 let mayLoad = 1, SchedRW = [WriteLoad] in {
 def LD_F32m   : FPI<0xD9, MRM0m, (outs), (ins f32mem:$src), "fld{s}\t$src">;
@@ -499,7 +499,7 @@ def ILD_F16m  : FPI<0xDF, MRM0m, (outs), (ins i16mem:$src), "fild{s}\t$src">;
 def ILD_F32m  : FPI<0xDB, MRM0m, (outs), (ins i32mem:$src), "fild{l}\t$src">;
 def ILD_F64m  : FPI<0xDF, MRM5m, (outs), (ins i64mem:$src), "fild{ll}\t$src">;
 }
-let mayStore = 1, SchedRW = [WriteStore] in {
+let mayStore = 1, SchedRW = [WriteStore], Uses = [FPCW] in {
 def ST_F32m   : FPI<0xD9, MRM2m, (outs), (ins f32mem:$dst), "fst{s}\t$dst">;
 def ST_F64m   : FPI<0xDD, MRM2m, (outs), (ins f64mem:$dst), "fst{l}\t$dst">;
 def ST_FP32m  : FPI<0xD9, MRM3m, (outs), (ins f32mem:$dst), "fstp{s}\t$dst">;
@@ -513,7 +513,7 @@ def IST_FP64m : FPI<0xDF, MRM7m, (outs), (ins i64mem:$dst), "fistp{ll}\t$dst">;
 }
 
 // FISTTP requires SSE3 even though it's a FPStack op.
-let Predicates = [HasSSE3], SchedRW = [WriteStore] in {
+let Predicates = [HasSSE3], SchedRW = [WriteStore], Uses = [FPCW] in {
 def ISTT_Fp16m32 : FpI_<(outs), (ins i16mem:$op, RFP32:$src), OneArgFP,
                     [(X86fp_to_i16mem RFP32:$src, addr:$op)]>;
 def ISTT_Fp32m32 : FpI_<(outs), (ins i32mem:$op, RFP32:$src), OneArgFP,
@@ -534,7 +534,7 @@ def ISTT_Fp64m80 : FpI_<(outs), (ins i64mem:$op, RFP80:$src), OneArgFP,
                     [(X86fp_to_i64mem RFP80:$src, addr:$op)]>;
 } // Predicates = [HasSSE3]
 
-let mayStore = 1, SchedRW = [WriteStore] in {
+let mayStore = 1, SchedRW = [WriteStore], Uses = [FPCW] in {
 def ISTT_FP16m : FPI<0xDF, MRM1m, (outs), (ins i16mem:$dst), "fisttp{s}\t$dst">;
 def ISTT_FP32m : FPI<0xDB, MRM1m, (outs), (ins i32mem:$dst), "fisttp{l}\t$dst">;
 def ISTT_FP64m : FPI<0xDD, MRM1m, (outs), (ins i64mem:$dst), "fisttp{ll}\t$dst">;
@@ -570,7 +570,7 @@ def LD_F0 : FPI<0xD9, MRM_EE, (outs), (ins), "fldz">;
 let SchedRW = [WriteFLD1] in
 def LD_F1 : FPI<0xD9, MRM_E8, (outs), (ins), "fld1">;
 
-let SchedRW = [WriteFLDC], Defs = [FPSW] in {
+let SchedRW = [WriteFLDC] in {
 def FLDL2T : I<0xD9, MRM_E9, (outs), (ins), "fldl2t", []>;
 def FLDL2E : I<0xD9, MRM_EA, (outs), (ins), "fldl2e", []>;
 def FLDPI : I<0xD9, MRM_EB, (outs), (ins), "fldpi", []>;
@@ -579,7 +579,7 @@ def FLDLN2 : I<0xD9, MRM_ED, (outs), (ins), "fldln2", []>;
 } // SchedRW
 
 // Floating point compares.
-let SchedRW = [WriteFCom] in {
+let SchedRW = [WriteFCom], Uses = [FPCW] in {
 def UCOM_Fpr32 : FpIf32<(outs), (ins RFP32:$lhs, RFP32:$rhs), CompareFP,
                         [(set FPSW, (trunc (X86cmp RFP32:$lhs, RFP32:$rhs)))]>;
 def UCOM_Fpr64 : FpIf64<(outs), (ins RFP64:$lhs, RFP64:$rhs), CompareFP,
@@ -591,16 +591,19 @@ def UCOM_Fpr80 : FpI_  <(outs), (ins RFP80:$lhs, RFP80:$rhs), CompareFP,
 
 let SchedRW = [WriteFCom] in {
 // CC = ST(0) cmp ST(i)
-let Defs = [EFLAGS, FPSW] in {
-def UCOM_FpIr32: FpIf32<(outs), (ins RFP32:$lhs, RFP32:$rhs), CompareFP,
-                  [(set EFLAGS, (X86cmp RFP32:$lhs, RFP32:$rhs))]>;
-def UCOM_FpIr64: FpIf64<(outs), (ins RFP64:$lhs, RFP64:$rhs), CompareFP,
-                  [(set EFLAGS, (X86cmp RFP64:$lhs, RFP64:$rhs))]>;
+let Defs = [EFLAGS, FPSW], Uses = [FPCW] in {
+def UCOM_FpIr32: FpI_<(outs), (ins RFP32:$lhs, RFP32:$rhs), CompareFP,
+                  [(set EFLAGS, (X86cmp RFP32:$lhs, RFP32:$rhs))]>,
+                  Requires<[FPStackf32, HasCMov]>;
+def UCOM_FpIr64: FpI_<(outs), (ins RFP64:$lhs, RFP64:$rhs), CompareFP,
+                  [(set EFLAGS, (X86cmp RFP64:$lhs, RFP64:$rhs))]>,
+                  Requires<[FPStackf64, HasCMov]>;
 def UCOM_FpIr80: FpI_<(outs), (ins RFP80:$lhs, RFP80:$rhs), CompareFP,
-                  [(set EFLAGS, (X86cmp RFP80:$lhs, RFP80:$rhs))]>;
+                  [(set EFLAGS, (X86cmp RFP80:$lhs, RFP80:$rhs))]>,
+                  Requires<[HasCMov]>;
 }
 
-let Defs = [FPSW], Uses = [ST0] in {
+let Defs = [FPSW], Uses = [ST0, FPCW] in {
 def UCOM_Fr    : FPI<0xDD, MRM4r,    // FPSW = cmp ST(0) with ST(i)
                     (outs), (ins RST:$reg), "fucom\t$reg">;
 def UCOM_FPr   : FPI<0xDD, MRM5r,    // FPSW = cmp ST(0) with ST(i), pop
@@ -609,14 +612,12 @@ def UCOM_FPPr  : FPI<0xDA, MRM_E9,       // cmp ST(0) with ST(1), pop, pop
                     (outs), (ins), "fucompp">;
 }
 
-let Defs = [EFLAGS, FPSW], Uses = [ST0] in {
+let Defs = [EFLAGS, FPSW], Uses = [ST0, FPCW] in {
 def UCOM_FIr   : FPI<0xDB, MRM5r,     // CC = cmp ST(0) with ST(i)
                     (outs), (ins RST:$reg), "fucomi\t$reg">;
 def UCOM_FIPr  : FPI<0xDF, MRM5r,     // CC = cmp ST(0) with ST(i), pop
                     (outs), (ins RST:$reg), "fucompi\t$reg">;
-}
 
-let Defs = [EFLAGS, FPSW] in {
 def COM_FIr : FPI<0xDB, MRM6r, (outs), (ins RST:$reg), "fcomi\t$reg">;
 def COM_FIPr : FPI<0xDF, MRM6r, (outs), (ins RST:$reg), "fcompi\t$reg">;
 }
@@ -628,12 +629,12 @@ let Defs = [AX], Uses = [FPSW] in
 def FNSTSW16r : I<0xDF, MRM_E0,                  // AX = fp flags
                   (outs), (ins), "fnstsw\t{%ax|ax}",
                   [(set AX, (X86fp_stsw FPSW))]>;
-let Defs = [FPSW] in
+let Defs = [FPSW], Uses = [FPCW] in
 def FNSTCW16m : I<0xD9, MRM7m,                   // [mem16] = X87 control world
                   (outs), (ins i16mem:$dst), "fnstcw\t$dst",
                   [(X86fp_cwd_get16 addr:$dst)]>;
 } // SchedRW
-let Defs = [FPSW], mayLoad = 1 in
+let Defs = [FPSW,FPCW], mayLoad = 1 in
 def FLDCW16m  : I<0xD9, MRM5m,                   // X87 control world = [mem16]
                   (outs), (ins i16mem:$dst), "fldcw\t$dst", []>,
                 Sched<[WriteLoad]>;
