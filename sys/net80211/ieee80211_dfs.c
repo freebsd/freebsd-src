@@ -154,8 +154,7 @@ cac_timeout(void *arg)
 		/* XXX clobbers any existing desired channel */
 		/* NB: dfs->newchan may be NULL, that's ok */
 		vap->iv_des_chan = dfs->newchan;
-		/* XXX recursive lock need ieee80211_new_state_locked */
-		ieee80211_new_state(vap, IEEE80211_S_SCAN, 0);
+		ieee80211_new_state_locked(vap, IEEE80211_S_SCAN, 0);
 	} else {
 		if_printf(vap->iv_ifp,
 		    "CAC timer on channel %u (%u MHz) expired; "
