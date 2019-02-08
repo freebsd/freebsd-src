@@ -2348,7 +2348,7 @@ priv_script_go(void)
 	if (ip)
 		script_flush_env(ip->client);
 
-	return (wstatus & 0xff);
+	return WEXITSTATUS(wstatus);
 }
 
 void
