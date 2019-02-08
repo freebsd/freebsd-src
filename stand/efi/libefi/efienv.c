@@ -48,7 +48,7 @@ efi_getenv(EFI_GUID *g, const char *v, void *data, size_t *len)
 		return (EFI_OUT_OF_RESOURCES);
 	dl = *len;
 	rv = RS->GetVariable(uv, g, &attr, &dl, data);
-	if (rv == EFI_SUCCESS)
+	if (rv == EFI_SUCCESS || rv == EFI_BUFFER_TOO_SMALL)
 		*len = dl;
 	free(uv);
 	return (rv);
