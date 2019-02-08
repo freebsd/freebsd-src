@@ -469,8 +469,8 @@ kcov_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag __unused,
 		KASSERT(active_count > 0, ("%s: Open count is zero", __func__));
 		active_count--;
 		if (active_count == 0) {
-			cov_register_pc(&trace_pc);
-			cov_register_cmp(&trace_cmp);
+			cov_unregister_pc();
+			cov_unregister_cmp();
 		}
 
 		td->td_kcov_info = NULL;
@@ -505,8 +505,8 @@ kcov_thread_dtor(void *arg __unused, struct thread *td)
 	KASSERT(active_count > 0, ("%s: Open count is zero", __func__));
 	active_count--;
 	if (active_count == 0) {
-		cov_register_pc(&trace_pc);
-		cov_register_cmp(&trace_cmp);
+		cov_unregister_pc();
+		cov_unregister_cmp();
 	}
 	td->td_kcov_info = NULL;
 	if (info->state != KCOV_STATE_DYING) {
