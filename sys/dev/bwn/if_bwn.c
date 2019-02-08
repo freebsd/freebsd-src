@@ -5992,7 +5992,6 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 		 * Do any tx complete callback.  Note this must
 		 * be done before releasing the node reference.
 		 */
-
 		/*
 		 * If we don't get an ACK, then we should log the
 		 * full framecnt.  That may be 0 if it's a PHY
@@ -6012,12 +6011,9 @@ bwn_pio_handle_txeof(struct bwn_mac *mac,
 		      IEEE80211_RATECTL_TX_FAILURE,
 		    &retrycnt, 0);
 
-		if (tp->tp_m->m_flags & M_TXCB)
-			ieee80211_process_callback(tp->tp_ni, tp->tp_m, 0);
-		ieee80211_free_node(tp->tp_ni);
-		tp->tp_ni = NULL;
 	}
-	m_freem(tp->tp_m);
+	ieee80211_tx_complete(tp->tp_ni, tp->tp_m, 0);
+	tp->tp_ni = NULL;
 	tp->tp_m = NULL;
 	TAILQ_INSERT_TAIL(&tq->tq_pktlist, tp, tp_list);
 
