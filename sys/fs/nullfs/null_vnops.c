@@ -870,11 +870,14 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	struct vnode **dvp = ap->a_vpp;
 	struct vnode *lvp, *ldvp;
 	struct ucred *cred = ap->a_cred;
+	struct mount *mp;
 	int error, locked;
 
 	locked = VOP_ISLOCKED(vp);
 	lvp = NULLVPTOLOWERVP(vp);
 	vhold(lvp);
+	mp = vp->v_mount;
+	vfs_ref(mp);
 	VOP_UNLOCK(vp, 0); /* vp is held by vn_vptocnp_locked that called us */
 	ldvp = lvp;
 	vref(lvp);
@@ -882,6 +885,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	vdrop(lvp);
 	if (error != 0) {
 		vn_lock(vp, locked | LK_RETRY);
+		vfs_rel(mp);
 		return (ENOENT);
 	}
 
@@ -893,9 +897,10 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	if (error != 0) {
 		vrele(ldvp);
 		vn_lock(vp, locked | LK_RETRY);
+		vfs_rel(mp);
 		return (ENOENT);
 	}
-	error = null_nodeget(vp->v_mount, ldvp, dvp);
+	error = null_nodeget(mp, ldvp, dvp);
 	if (error == 0) {
 #ifdef DIAGNOSTIC
 		NULLVPTOLOWERVP(*dvp);
@@ -903,6 +908,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		VOP_UNLOCK(*dvp, 0); /* keep reference on *dvp */
 	}
 	vn_lock(vp, locked | LK_RETRY);
+	vfs_rel(mp);
 	return (error);
 }
 
