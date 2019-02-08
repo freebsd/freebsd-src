@@ -117,15 +117,13 @@ static void
 rssadapt_setinterval(const struct ieee80211vap *vap, int msecs)
 {
 	struct ieee80211_rssadapt *rs = vap->iv_rs;
-	int t;
 
 	if (!rs)
 		return;
 
 	if (msecs < 100)
 		msecs = 100;
-	t = msecs_to_ticks(msecs);
-	rs->interval = (t < 1) ? 1 : t;
+	rs->interval = msecs_to_ticks(msecs);
 }
 
 static void

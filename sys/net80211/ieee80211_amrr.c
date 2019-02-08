@@ -102,15 +102,13 @@ static void
 amrr_setinterval(const struct ieee80211vap *vap, int msecs)
 {
 	struct ieee80211_amrr *amrr = vap->iv_rs;
-	int t;
 
 	if (!amrr)
 		return;
 
 	if (msecs < 100)
 		msecs = 100;
-	t = msecs_to_ticks(msecs);
-	amrr->amrr_interval = (t < 1) ? 1 : t;
+	amrr->amrr_interval = msecs_to_ticks(msecs);
 }
 
 static void
