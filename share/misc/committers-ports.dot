@@ -150,6 +150,7 @@ jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
 jsm [label="Jesper Schmitz Mouridsen\njsm@FreeBSD.org\n2018/06/30"]
 junovitch [label="Jason Unovitch\njunovitch@FreeBSD.org\n2015/07/27"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
+kai [label="Kai Knoblich\nkai@FreeBSD.org\n2019/02/01"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
 kbowling [label="Kevin Bowling\nkbowling@FreeBSD.org\n2018/09/02"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2003/02/21"]
@@ -476,6 +477,8 @@ jadawin -> wen
 
 joerg -> netchild
 
+joneum -> kai
+
 jrm -> dch
 jrm -> jwb
 
@@ -573,6 +576,7 @@ miwi -> gahr
 miwi -> jhixson
 miwi -> joneum
 miwi -> jsm
+miwi -> kai
 miwi -> kmoore
 miwi -> lme
 miwi -> makc
@@ -714,6 +718,7 @@ tcberner -> yuri
 tcberner -> fernape
 tcberner -> arrowd
 tcberner -> rigoletto
+tcberner -> kai
 
 thierry -> jadawin
 thierry -> riggs
