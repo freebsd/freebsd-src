@@ -479,6 +479,7 @@ t4vf_attach(device_t dev)
 	sc->params.pci.mps = pci_get_max_payload(dev);
 
 	sc->flags |= IS_VF;
+	TUNABLE_INT_FETCH("hw.cxgbe.dflags", &sc->debug_flags);
 
 	sc->sge_gts_reg = VF_SGE_REG(A_SGE_VF_GTS);
 	sc->sge_kdoorbell_reg = VF_SGE_REG(A_SGE_VF_KDOORBELL);
