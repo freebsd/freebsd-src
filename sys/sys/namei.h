@@ -88,6 +88,10 @@ struct nameidata {
 	struct	vnode *ni_vp;		/* vnode of result */
 	struct	vnode *ni_dvp;		/* vnode of intermediate directory */
 	/*
+	 * Results: flags returned from namei
+	 */
+	u_int	ni_resflags;
+	/*
 	 * Shared between namei and lookup/commit routines.
 	 */
 	size_t	ni_pathlen;		/* remaining chars in path */
@@ -158,6 +162,11 @@ struct nameidata {
 #define	TRAILINGSLASH	0x10000000 /* path ended in a slash */
 #define	NOCAPCHECK	0x20000000 /* do not perform capability checks */
 #define	PARAMASK	0x3ffffe00 /* mask of parameter descriptors */
+
+/*
+ * Namei results flags
+ */
+#define	NIRES_ABS	0x00000001 /* Path was absolute */
 
 /*
  * Flags in ni_lcf, valid for the duration of the namei call.
