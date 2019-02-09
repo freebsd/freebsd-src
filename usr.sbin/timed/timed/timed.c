@@ -192,6 +192,9 @@ main(int argc, char *argv[])
 	if (optind < argc)
 		usage();
 
+	fprintf(stderr, "TIMED will be removed from FreeBSD-13, and will be "
+	    "provided as a port (net/timed) or package (timed).\n");
+
 	/* If we care about which machine is the master, then we must
 	 *	be willing to be a master
 	 */

@@ -97,6 +97,9 @@ main(int argc, char *argv[])
 	}
 
 	fromatty = isatty(fileno(stdin));
+	if (fromatty)
+		printf("TIMEDC will be removed from FreeBSD-13, and will be "
+		    "provided as a port (net/timed) or package (timed).\n");
 	if (setjmp(toplevel))
 		putchar('\n');
 	(void) signal(SIGINT, intr);
