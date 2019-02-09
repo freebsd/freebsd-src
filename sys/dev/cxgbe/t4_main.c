@@ -556,7 +556,7 @@ SYSCTL_INT(_hw_cxgbe, OID_AUTO, pcie_relaxed_ordering, CTLFLAG_RDTUN,
 
 static int t4_panic_on_fatal_err = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, panic_on_fatal_err, CTLFLAG_RDTUN,
-    &t4_panic_on_fatal_err, 0, "panic on fatal firmware errors");
+    &t4_panic_on_fatal_err, 0, "panic on fatal errors");
 
 #ifdef TCP_OFFLOAD
 /*
@@ -2562,6 +2562,16 @@ vcxgbe_detach(device_t dev)
 	return (0);
 }
 
+static struct callout fatal_callout;
+
+static void
+delayed_panic(void *arg)
+{
+	struct adapter *sc = arg;
+
+	panic("%s: panic on fatal error", device_get_nameunit(sc->dev));
+}
+
 void
 t4_fatal_err(struct adapter *sc, bool fw_error)
 {
@@ -2569,9 +2579,6 @@ t4_fatal_err(struct adapter *sc, bool fw_error)
 	t4_shutdown_adapter(sc);
 	log(LOG_ALERT, "%s: encountered fatal error, adapter stopped.\n",
 	    device_get_nameunit(sc->dev));
-	if (t4_panic_on_fatal_err)
-		panic("panic requested on fatal error");
-
 	if (fw_error) {
 		ASSERT_SYNCHRONIZED_OP(sc);
 		sc->flags |= ADAP_ERR;
@@ -2579,6 +2586,12 @@ t4_fatal_err(struct adapter *sc, bool fw_error)
 		ADAPTER_LOCK(sc);
 		sc->flags |= ADAP_ERR;
 		ADAPTER_UNLOCK(sc);
+	}
+
+	if (t4_panic_on_fatal_err) {
+		log(LOG_ALERT, "%s: panic on fatal error after 30s",
+		    device_get_nameunit(sc->dev));
+		callout_reset(&fatal_callout, hz * 30, delayed_panic, sc);
 	}
 }
 
@@ -10685,6 +10698,7 @@ mod_event(module_t mod, int cmd, void *arg)
 			    do_smt_write_rpl);
 			sx_init(&t4_list_lock, "T4/T5 adapters");
 			SLIST_INIT(&t4_list);
+			callout_init(&fatal_callout, 1);
 #ifdef TCP_OFFLOAD
 			sx_init(&t4_uld_list_lock, "T4/T5 ULDs");
 			SLIST_INIT(&t4_uld_list);
