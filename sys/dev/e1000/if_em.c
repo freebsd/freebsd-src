@@ -249,6 +249,7 @@ static int	em_if_mtu_set(if_ctx_t ctx, uint32_t mtu);
 static void	em_if_timer(if_ctx_t ctx, uint16_t qid);
 static void	em_if_vlan_register(if_ctx_t ctx, u16 vtag);
 static void	em_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
+static void	em_if_watchdog_reset(if_ctx_t ctx);
 
 static void	em_identify_hardware(if_ctx_t ctx);
 static int	em_allocate_pci_resources(if_ctx_t ctx);
@@ -386,6 +387,7 @@ static device_method_t em_if_methods[] = {
 	DEVMETHOD(ifdi_mtu_set, em_if_mtu_set),
 	DEVMETHOD(ifdi_promisc_set, em_if_set_promisc),
 	DEVMETHOD(ifdi_timer, em_if_timer),
+	DEVMETHOD(ifdi_watchdog_reset, em_if_watchdog_reset),
 	DEVMETHOD(ifdi_vlan_register, em_if_vlan_register),
 	DEVMETHOD(ifdi_vlan_unregister, em_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, em_if_get_counter),
@@ -721,7 +723,6 @@ em_set_num_queues(if_ctx_t ctx)
  *
  *  return 0 on success, positive on failure
  *********************************************************************/
-
 static int
 em_if_attach_pre(if_ctx_t ctx)
 {
@@ -731,14 +732,9 @@ em_if_attach_pre(if_ctx_t ctx)
 	struct e1000_hw *hw;
 	int error = 0;
 
-	INIT_DEBUGOUT("em_if_attach_pre begin");
+	INIT_DEBUGOUT("em_if_attach_pre: begin");
 	dev = iflib_get_dev(ctx);
 	adapter = iflib_get_softc(ctx);
-
-	if (resource_disabled("em", device_get_unit(dev))) {
-		device_printf(dev, "Disabled by device hint\n");
-		return (ENXIO);
-	}
 
 	adapter->ctx = adapter->osdep.ctx = ctx;
 	adapter->dev = adapter->osdep.dev = dev;
@@ -777,7 +773,6 @@ em_if_attach_pre(if_ctx_t ctx)
 	/* Determine hardware and mac info */
 	em_identify_hardware(ctx);
 
-	scctx->isc_msix_bar = PCIR_BAR(EM_MSIX_BAR);
 	scctx->isc_tx_nsegments = EM_MAX_SCATTER;
 	scctx->isc_nrxqsets_max = scctx->isc_ntxqsets_max = em_set_num_queues(ctx);
 	if (bootverbose)
@@ -785,8 +780,6 @@ em_if_attach_pre(if_ctx_t ctx)
 		    scctx->isc_ntxqsets_max);
 
 	if (adapter->hw.mac.type >= igb_mac_min) {
-		int try_second_bar;
-
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0] * sizeof(union e1000_adv_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_adv_rx_desc), EM_DBA_ALIGN);
 		scctx->isc_txd_size[0] = sizeof(union e1000_adv_tx_desc);
@@ -800,14 +793,13 @@ em_if_attach_pre(if_ctx_t ctx)
 		     CSUM_IP6_TCP | CSUM_IP6_UDP;
 		if (adapter->hw.mac.type != e1000_82575)
 			scctx->isc_tx_csum_flags |= CSUM_SCTP | CSUM_IP6_SCTP;
-
 		/*
 		** Some new devices, as with ixgbe, now may
 		** use a different BAR, so we need to keep
 		** track of which is used.
 		*/
-		try_second_bar = pci_read_config(dev, scctx->isc_msix_bar, 4);
-		if (try_second_bar == 0)
+		scctx->isc_msix_bar = PCIR_BAR(EM_MSIX_BAR);
+		if (pci_read_config(dev, scctx->isc_msix_bar, 4) == 0)
 			scctx->isc_msix_bar += 4;
 	} else if (adapter->hw.mac.type >= em_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0]* sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
@@ -837,6 +829,16 @@ em_if_attach_pre(if_ctx_t ctx)
 		 */
 		scctx->isc_capenable &= ~(IFCAP_TSO4 | IFCAP_VLAN_HWTSO);
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_IP_TSO;
+		/*
+		 * We support MSI-X with 82574 only, but indicate to iflib(4)
+		 * that it shall give MSI at least a try with other devices.
+		 */
+		if (adapter->hw.mac.type == e1000_82574) {
+			scctx->isc_msix_bar = PCIR_BAR(EM_MSIX_BAR);
+		} else {
+			scctx->isc_msix_bar = -1;
+			scctx->isc_disable_msix = 1;
+		}
 	} else {
 		scctx->isc_txqsizes[0] = roundup2((scctx->isc_ntxd[0] + 1) * sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2((scctx->isc_nrxd[0] + 1) * sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
@@ -847,6 +849,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_capabilities = scctx->isc_capenable = LEM_CAPS;
 		if (adapter->hw.mac.type < e1000_82543)
 			scctx->isc_capenable &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
+		/* INTx only */
 		scctx->isc_msix_bar = 0;
 	}
 
@@ -1092,13 +1095,12 @@ err_late:
  *
  *  return 0 on success, positive on failure
  *********************************************************************/
-
 static int
 em_if_detach(if_ctx_t ctx)
 {
 	struct adapter	*adapter = iflib_get_softc(ctx);
 
-	INIT_DEBUGOUT("em_detach: begin");
+	INIT_DEBUGOUT("em_if_detach: begin");
 
 	e1000_phy_hw_reset(&adapter->hw);
 
@@ -1203,9 +1205,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
  *  by the driver as a hw/sw initialization routine to get to a
  *  consistent state.
  *
- *  return 0 on success, positive on failure
  **********************************************************************/
-
 static void
 em_if_init(if_ctx_t ctx)
 {
@@ -1214,6 +1214,7 @@ em_if_init(if_ctx_t ctx)
 	struct ifnet *ifp = iflib_get_ifp(ctx);
 	struct em_tx_queue *tx_que;
 	int i;
+
 	INIT_DEBUGOUT("em_if_init: begin");
 
 	/* Get the latest mac address, User can use a LAA */
@@ -1697,36 +1698,23 @@ em_if_multi_set(if_ctx_t ctx)
 	}
 }
 
-
 /*********************************************************************
  *  Timer routine
  *
- *  This routine checks for link status and updates statistics.
+ *  This routine schedules em_if_update_admin_status() to check for
+ *  link status and to gather statistics as well as to perform some
+ *  controller-specific hardware patting.
  *
  **********************************************************************/
-
 static void
 em_if_timer(if_ctx_t ctx, uint16_t qid)
 {
-	struct adapter *adapter = iflib_get_softc(ctx);
-	struct em_rx_queue *que;
-	int i;
-	int trigger = 0;
 
 	if (qid != 0)
 		return;
 
 	iflib_admin_intr_deferred(ctx);
-
-	/* Mask to use in the irq trigger */
-	if (adapter->intr_type == IFLIB_INTR_MSIX) {
-		for (i = 0, que = adapter->rx_queues; i < adapter->rx_num_queues; i++, que++)
-			trigger |= que->eims;
-	} else {
-		trigger = E1000_ICS_RXDMT0;
-	}
 }
-
 
 static void
 em_if_update_admin_status(if_ctx_t ctx)
@@ -1833,21 +1821,30 @@ em_if_update_admin_status(if_ctx_t ctx)
 	E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
 }
 
+static void
+em_if_watchdog_reset(if_ctx_t ctx)
+{
+	struct adapter *adapter = iflib_get_softc(ctx);
+
+	/*
+	 * Just count the event; iflib(4) will already trigger a
+	 * sufficient reset of the controller.
+	 */
+	adapter->watchdog_events++;
+}
+
 /*********************************************************************
  *
  *  This routine disables all traffic on the adapter by issuing a
- *  global reset on the MAC and deallocates TX/RX buffers.
+ *  global reset on the MAC.
  *
- *  This routine should always be called with BOTH the CORE
- *  and TX locks.
  **********************************************************************/
-
 static void
 em_if_stop(if_ctx_t ctx)
 {
 	struct adapter *adapter = iflib_get_softc(ctx);
 
-	INIT_DEBUGOUT("em_stop: begin");
+	INIT_DEBUGOUT("em_if_stop: begin");
 
 	e1000_reset_hw(&adapter->hw);
 	if (adapter->hw.mac.type >= e1000_82544)
@@ -1856,7 +1853,6 @@ em_if_stop(if_ctx_t ctx)
 	e1000_led_off(&adapter->hw);
 	e1000_cleanup_led(&adapter->hw);
 }
-
 
 /*********************************************************************
  *
@@ -2226,11 +2222,9 @@ em_setup_msix(if_ctx_t ctx)
 
 /*********************************************************************
  *
- *  Initialize the hardware to a configuration
- *  as specified by the adapter structure.
+ *  Workaround for SmartSpeed on 82541 and 82547 controllers
  *
  **********************************************************************/
-
 static void
 lem_smartspeed(struct adapter *adapter)
 {
@@ -2395,6 +2389,12 @@ igb_init_dmac(struct adapter *adapter, u32 pba)
 	}
 }
 
+/*********************************************************************
+ *
+ *  Initialize the hardware to a configuration as specified by the
+ *  adapter structure.
+ *
+ **********************************************************************/
 static void
 em_reset(if_ctx_t ctx)
 {
@@ -2629,6 +2629,11 @@ em_reset(if_ctx_t ctx)
 	e1000_check_for_link(hw);
 }
 
+/*
+ * Initialise the RSS mapping for NICs that support multiple transmit/
+ * receive rings.
+ */
+
 #define RSSKEYLEN 10
 static void
 em_initialize_rss_mapping(struct adapter *adapter)
@@ -2669,7 +2674,6 @@ em_initialize_rss_mapping(struct adapter *adapter)
 			E1000_MRQC_RSS_FIELD_IPV6_TCP_EX |
 			E1000_MRQC_RSS_FIELD_IPV6_EX |
 			E1000_MRQC_RSS_FIELD_IPV6);
-
 }
 
 static void
@@ -2769,7 +2773,7 @@ igb_initialize_rss_mapping(struct adapter *adapter)
 
 /*********************************************************************
  *
- *  Setup networking device structure and register an interface.
+ *  Setup networking device structure and register interface media.
  *
  **********************************************************************/
 static int
@@ -4015,12 +4019,6 @@ em_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
 			CTLFLAG_RD, &adapter->link_irq,
 			"Link MSI-X IRQ Handled");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_fail",
-			 CTLFLAG_RD, &adapter->mbuf_defrag_failed,
-			 "Defragmenting mbuf chain failed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail",
-			CTLFLAG_RD, &adapter->no_tx_dma_setup,
-			"Driver tx dma failure in xmit");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
 			CTLFLAG_RD, &adapter->rx_overruns,
 			"RX overruns");
@@ -4543,7 +4541,8 @@ em_enable_vectors_82574(if_ctx_t ctx)
 	u16 edata;
 
 	e1000_read_nvm(hw, EM_NVM_PCIE_CTRL, 1, &edata);
-	printf("Current cap: %#06x\n", edata);
+	if (bootverbose)
+		device_printf(dev, "EM_NVM_PCIE_CTRL = %#06x\n", edata);
 	if (((edata & EM_NVM_MSIX_N_MASK) >> EM_NVM_MSIX_N_SHIFT) != 4) {
 		device_printf(dev, "Writing to eeprom: increasing "
 		    "reported MSI-X vectors from 3 to 5...\n");
