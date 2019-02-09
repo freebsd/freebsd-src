@@ -288,7 +288,6 @@ static int
 ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 {
 	struct mbuf *m;
-	struct ip *ip;
 	hook_p	hook;
 	int error = 0;
 
@@ -329,8 +328,6 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 	if (m->m_len < sizeof(struct ip) &&
 	    (m = m_pullup(m, sizeof(struct ip))) == NULL)
 		return (EINVAL);
-
-	ip = mtod(m, struct ip *);
 
 	NG_SEND_DATA_ONLY(error, hook, m);
 
