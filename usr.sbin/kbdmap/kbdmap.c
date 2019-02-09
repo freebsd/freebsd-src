@@ -241,8 +241,7 @@ get_font(void)
 				if (strcmp(buf, "NO")) {
 					if (fnt)
 						free(fnt);
-					fnt = (char *) malloc(strlen(buf) + 1);
-					strcpy(fnt, buf);
+					fnt = strdup(buf);
 				}
 			}
 		}
