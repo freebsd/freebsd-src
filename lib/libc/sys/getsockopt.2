@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2018
+.Dd February 10, 2019
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -534,7 +534,11 @@ transfer rate to the given unsigned 32-bit value in bytes per second.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-The call succeeds unless:
+The
+.Fn getsockopt
+and
+.Fn setsockopt
+system calls succeed unless:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The argument
@@ -561,6 +565,15 @@ Installing an
 on a non-listening socket was attempted.
 .It Bq Er ENOMEM
 A memory allocation failed that was required to service the request.
+.El
+.Pp
+The
+.Fn setsockopt
+system call may also return the following error:
+.Bl -tag -width Er
+.It Bq Er ENOBUFS
+Insufficient resources were available in the system
+to perform the operation.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
