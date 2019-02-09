@@ -74,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
+#if defined(__amd64__) || defined(__i386__) /* for i386_read_exec */
+#include <machine/md_var.h>
+#endif
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>

@@ -106,6 +106,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpu.h>
 #include <machine/elf.h>
+#ifdef __amd64__
+#include <machine/md_var.h>
+#endif
 
 #include <security/audit/audit.h>
 
