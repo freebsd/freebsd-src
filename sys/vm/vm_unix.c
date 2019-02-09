@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
+#if defined(__amd64__) || defined(__i386__) /* for i386_read_exec */
+#include <machine/md_var.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
