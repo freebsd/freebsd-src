@@ -414,12 +414,10 @@ ommap(struct thread *td, struct ommap_args *uap)
 #define	OMAP_FIXED	0x0100
 
 	prot = cvtbsdprot[uap->prot & 0x7];
-#ifdef COMPAT_FREEBSD32
-#if defined(__amd64__)
+#if (defined(COMPAT_FREEBSD32) && defined(__amd64__)) || defined(__i386__)
 	if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
 	    prot != 0)
 		prot |= PROT_EXEC;
-#endif
 #endif
 	flags = 0;
 	if (uap->flags & OMAP_ANON)
