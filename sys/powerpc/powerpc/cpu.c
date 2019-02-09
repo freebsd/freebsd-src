@@ -89,7 +89,9 @@ int powerpc_pow_enabled;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
+#ifdef BOOKE_E500
 static void	cpu_idle_e500mc(sbintime_t sbt);
+#endif
 #if defined(__powerpc64__) && defined(AIM)
 static void	cpu_idle_powerx(sbintime_t);
 static void	cpu_idle_power9(sbintime_t);
@@ -756,6 +758,7 @@ cpu_idle_60x(sbintime_t sbt)
 #endif
 }
 
+#ifdef BOOKE_E500
 static void
 cpu_idle_e500mc(sbintime_t sbt)
 {
@@ -765,6 +768,7 @@ cpu_idle_e500mc(sbintime_t sbt)
 	 */
 	__asm __volatile(".long 0x7c00007c");
 }
+#endif
 
 static void
 cpu_idle_booke(sbintime_t sbt)
