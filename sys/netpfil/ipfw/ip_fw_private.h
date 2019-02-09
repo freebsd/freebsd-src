@@ -83,11 +83,13 @@ struct _ip6dn_args {
  * efficient to pass variables around and extend the interface.
  */
 struct ip_fw_args {
-	struct mbuf	*m;		/* the mbuf chain		*/
-	struct ifnet	*oif;		/* output interface		*/
-	struct sockaddr_in *next_hop;	/* forward address		*/
-	struct sockaddr_in6 *next_hop6; /* ipv6 forward address		*/
-
+	uint32_t		flags;
+#define	IPFW_ARGS_ETHER		0x0001	/* has valid ethernet header	*/
+#define	IPFW_ARGS_NH4		0x0002	/* has IPv4 next hop in hopstore */
+#define	IPFW_ARGS_NH6		0x0004	/* has IPv6 next hop in hopstore */
+#define	IPFW_ARGS_NH4PTR	0x0008	/* has IPv4 next hop in next_hop */
+#define	IPFW_ARGS_NH6PTR	0x0010	/* has IPv6 next hop in next_hop6 */
+#define	IPFW_ARGS_REF		0x0020	/* has valid ipfw_rule_ref	*/
 	/*
 	 * On return, it points to the matching rule.
 	 * On entry, rule.slot > 0 means the info is valid and
@@ -95,19 +97,33 @@ struct ip_fw_args {
 	 * If chain_id == chain->id && slot >0 then jump to that slot.
 	 * Otherwise, we locate the first rule >= rulenum:rule_id
 	 */
-	struct ipfw_rule_ref rule;	/* match/restart info		*/
+	struct ipfw_rule_ref	rule;	/* match/restart info		*/
 
-	struct ether_header *eh;	/* for bridged packets		*/
-
-	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
-	//uint32_t	cookie;		/* a cookie depending on rule action */
-	struct inpcb	*inp;
-
-	struct _ip6dn_args	dummypar; /* dummynet->ip6_output */
-	union {		/* store here if cannot use a pointer */
-		struct sockaddr_in hopstore;
-		struct sockaddr_in6 hopstore6;
+	struct ifnet		*oif;	/* output interface		*/
+	struct inpcb		*inp;
+	union {
+		/*
+		 * We don't support forwarding on layer2, thus we can
+		 * keep eh pointer in this union.
+		 * next_hop[6] pointers can be used to point to next hop
+		 * stored in rule's opcode to avoid copying into hopstore.
+		 * Also, it is expected that all 0x1-0x10 flags are mutually
+		 * exclusive.
+		 */
+		struct ether_header	*eh;	/* for bridged packets	*/
+		struct sockaddr_in	*next_hop;
+		struct sockaddr_in6	*next_hop6;
+		/* ipfw next hop storage */
+		struct sockaddr_in	hopstore;
+		struct ip_fw_nh6 {
+			struct in6_addr sin6_addr;
+			uint32_t	sin6_scope_id;
+			uint16_t	sin6_port;
+		} hopstore6;
 	};
+
+	struct mbuf		*m;	/* the mbuf chain		*/
+	struct ipfw_flow_id	f_id;	/* grabbed from IP header	*/
 };
 
 MALLOC_DECLARE(M_IPFW);
