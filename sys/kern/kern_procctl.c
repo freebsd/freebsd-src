@@ -43,6 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/wait.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+
 static int
 protect_setchild(struct thread *td, struct proc *p, int flags)
 {
@@ -413,6 +418,62 @@ trapcap_status(struct thread *td, struct proc *p, int *data)
 	return (0);
 }
 
+static int
+aslr_ctl(struct thread *td, struct proc *p, int state)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	switch (state) {
+	case PROC_ASLR_FORCE_ENABLE:
+		p->p_flag2 &= ~P2_ASLR_DISABLE;
+		p->p_flag2 |= P2_ASLR_ENABLE;
+		break;
+	case PROC_ASLR_FORCE_DISABLE:
+		p->p_flag2 |= P2_ASLR_DISABLE;
+		p->p_flag2 &= ~P2_ASLR_ENABLE;
+		break;
+	case PROC_ASLR_NOFORCE:
+		p->p_flag2 &= ~(P2_ASLR_ENABLE | P2_ASLR_DISABLE);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+aslr_status(struct thread *td, struct proc *p, int *data)
+{
+	struct vmspace *vm;
+	int d;
+
+	switch (p->p_flag2 & (P2_ASLR_ENABLE | P2_ASLR_DISABLE)) {
+	case 0:
+		d = PROC_ASLR_NOFORCE;
+		break;
+	case P2_ASLR_ENABLE:
+		d = PROC_ASLR_FORCE_ENABLE;
+		break;
+	case P2_ASLR_DISABLE:
+		d = PROC_ASLR_FORCE_DISABLE;
+		break;
+	}
+	if ((p->p_flag & P_WEXIT) == 0) {
+		_PHOLD(p);
+		PROC_UNLOCK(p);
+		vm = vmspace_acquire_ref(p);
+		if (vm != NULL && (vm->vm_map.flags & MAP_ASLR) != 0) {
+			d |= PROC_ASLR_ACTIVE;
+			vmspace_free(vm);
+		}
+		PROC_LOCK(p);
+		_PRELE(p);
+	}
+	*data = d;
+	return (0);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct procctl_args {
 	idtype_t idtype;
@@ -434,6 +495,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	int error, error1, flags, signum;
 
 	switch (uap->com) {
+	case PROC_ASLR_CTL:
 	case PROC_SPROTECT:
 	case PROC_TRACE_CTL:
 	case PROC_TRAPCAP_CTL:
@@ -463,6 +525,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 			return (error);
 		data = &x.rk;
 		break;
+	case PROC_ASLR_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 		data = &flags;
@@ -490,6 +553,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 		if (error == 0)
 			error = error1;
 		break;
+	case PROC_ASLR_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 		if (error == 0)
@@ -509,6 +573,10 @@ kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	switch (com) {
+	case PROC_ASLR_CTL:
+		return (aslr_ctl(td, p, *(int *)data));
+	case PROC_ASLR_STATUS:
+		return (aslr_status(td, p, data));
 	case PROC_SPROTECT:
 		return (protect_set(td, p, *(int *)data));
 	case PROC_REAP_ACQUIRE:
@@ -544,6 +612,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	bool tree_locked;
 
 	switch (com) {
+	case PROC_ASLR_CTL:
+	case PROC_ASLR_STATUS:
 	case PROC_REAP_ACQUIRE:
 	case PROC_REAP_RELEASE:
 	case PROC_REAP_STATUS:
@@ -593,6 +663,8 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		sx_xlock(&proctree_lock);
 		tree_locked = true;
 		break;
+	case PROC_ASLR_CTL:
+	case PROC_ASLR_STATUS:
 	case PROC_TRACE_STATUS:
 	case PROC_TRAPCAP_STATUS:
 		tree_locked = false;
