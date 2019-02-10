@@ -350,13 +350,13 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
     bus_size_t size)
 {
 
-	KASSERT(dmat->flags & DMAMAP_DMAMEM_ALLOC ||
+	KASSERT(map->flags & DMAMAP_DMAMEM_ALLOC ||
 	    dmat->alignment <= PAGE_SIZE,
 	    ("%s: unsupported alignment (0x%08lx) for buffer not "
 	    "allocated by bus_dmamem_alloc()",
 	    __func__, dmat->alignment));
 
-	return (!(dmat->flags & DMAMAP_DMAMEM_ALLOC) &&
+	return (!(map->flags & DMAMAP_DMAMEM_ALLOC) &&
 	    ((dmat->flags & BUS_DMA_EXCL_BOUNCE) ||
 	    alignment_bounce(dmat, addr) ||
 	    cacheline_bounce(map, addr, size)));
