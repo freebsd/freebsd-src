@@ -122,7 +122,7 @@ zygote_main(int sock)
 		if (nvlin == NULL) {
 			if (errno == ENOTCONN) {
 				/* Casper exited. */
-				exit(0);
+				_exit(0);
 			}
 			continue;
 		}
@@ -134,7 +134,7 @@ zygote_main(int sock)
 			func = service_execute;
 			break;
 		default:
-			exit(0);
+			_exit(0);
 		}
 
 		/*
@@ -161,7 +161,7 @@ zygote_main(int sock)
 			close(chanfd[0]);
 			func(chanfd[1]);
 			/* NOTREACHED */
-			exit(1);
+			_exit(1);
 		default:
 			/* Parent. */
 			close(chanfd[1]);
