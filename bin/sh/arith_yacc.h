@@ -90,4 +90,5 @@ union yystype {
 
 extern union yystype yylval;
 
+arith_t strtoarith_t(const char *restrict nptr, char **restrict endptr);
 int yylex(void);
