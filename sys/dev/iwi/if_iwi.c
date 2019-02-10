@@ -130,8 +130,6 @@ static const struct iwi_ident iwi_ident_table[] = {
 	{ 0, 0, NULL }
 };
 
-static const uint8_t def_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 static const uint8_t def_chan_5ghz_band1[] =
 	{ 36, 40, 44, 48, 52, 56, 60, 64 };
 static const uint8_t def_chan_5ghz_band2[] =
@@ -3601,8 +3599,8 @@ iwi_getradiocaps(struct ieee80211com *ic,
 	iwi_collect_bands(ic, bands, sizeof(bands));
 	*nchans = 0;
 	if (isset(bands, IEEE80211_MODE_11B) || isset(bands, IEEE80211_MODE_11G))
-		ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-		    def_chan_2ghz, nitems(def_chan_2ghz), bands, 0);
+		ieee80211_add_channels_default_2ghz(chans, maxchans, nchans,
+		    bands, 0);
 	if (isset(bands, IEEE80211_MODE_11A)) {
 		ieee80211_add_channel_list_5ghz(chans, maxchans, nchans,
 		    def_chan_5ghz_band1, nitems(def_chan_5ghz_band1),

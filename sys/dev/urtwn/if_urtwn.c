@@ -467,9 +467,6 @@ static const struct wme_to_queue {
 	{ R92C_EDCA_VO_PARAM, URTWN_BULK_TX_VO}
 };
 
-static const uint8_t urtwn_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
-
 static int
 urtwn_match(device_t self)
 {
@@ -4821,8 +4818,7 @@ urtwn_getradiocaps(struct ieee80211com *ic,
 	setbit(bands, IEEE80211_MODE_11G);
 	if (urtwn_enable_11n)
 		setbit(bands, IEEE80211_MODE_11NG);
-	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    urtwn_chan_2ghz, nitems(urtwn_chan_2ghz), bands, 0);
+	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans, bands, 0);
 }
 
 static void

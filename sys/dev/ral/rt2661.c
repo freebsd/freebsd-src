@@ -195,8 +195,6 @@ static const struct rfprog {
 	RT2661_RF5225_2
 };
 
-static const uint8_t rt2661_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
 static const uint8_t rt2661_chan_5ghz[] =
 	{ 36, 40, 44, 48, 52, 56, 60, 64,
 	  100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
@@ -2776,8 +2774,7 @@ rt2661_getradiocaps(struct ieee80211com *ic,
 	memset(bands, 0, sizeof(bands));
 	setbit(bands, IEEE80211_MODE_11B);
 	setbit(bands, IEEE80211_MODE_11G);
-	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    rt2661_chan_2ghz, nitems(rt2661_chan_2ghz), bands, 0);
+	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans, bands, 0);
 
 	if (sc->rf_rev == RT2661_RF_5225 || sc->rf_rev == RT2661_RF_5325) {
 		setbit(bands, IEEE80211_MODE_11A);
