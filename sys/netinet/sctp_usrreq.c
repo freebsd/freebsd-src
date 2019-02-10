@@ -6115,6 +6115,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						SCTP_INP_RUNLOCK(inp);
 					}
 				}
+			} else {
+				if (stcb) {
+					SCTP_TCB_UNLOCK(stcb);
+				}
 			}
 			break;
 		}
