@@ -247,6 +247,15 @@ nvlist_set_array_next(nvlist_t *nvl, nvpair_t *ele)
 	nvl->nvl_array_next = ele;
 }
 
+nvpair_t *
+nvlist_get_array_next_nvpair(nvlist_t *nvl)
+{
+
+	NVLIST_ASSERT(nvl);
+
+	return (nvl->nvl_array_next);
+}
+
 bool
 nvlist_in_array(const nvlist_t *nvl)
 {
