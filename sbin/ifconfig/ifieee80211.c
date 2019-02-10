@@ -3946,6 +3946,21 @@ list_roam(int s)
 	}
 }
 
+/* XXX TODO: rate-to-string method... */
+static const char*
+get_mcs_mbs_rate_str(uint8_t rate)
+{
+	return (rate & IEEE80211_RATE_MCS) ? "MCS " : "Mb/s";
+}
+
+static uint8_t
+get_rate_value(uint8_t rate)
+{
+	if (rate & IEEE80211_RATE_MCS)
+		return (rate &~ IEEE80211_RATE_MCS);
+	return (rate / 2);
+}
+
 static void
 list_txparams(int s)
 {
@@ -3959,19 +3974,23 @@ list_txparams(int s)
 			continue;
 		if (mode == IEEE80211_MODE_11NA || mode == IEEE80211_MODE_11NG) {
 			if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
-				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u MCS  "
-				    "mcast %2u MCS  maxretry %u",
+				LINE_CHECK("%-7.7s ucast NONE    mgmt %2u %s "
+				    "mcast %2u %s maxretry %u",
 				    modename[mode],
-				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
-				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    get_rate_value(tp->mgmtrate),
+				    get_mcs_mbs_rate_str(tp->mgmtrate),
+				    get_rate_value(tp->mcastrate),
+				    get_mcs_mbs_rate_str(tp->mcastrate),
 				    tp->maxretry);
 			else
-				LINE_CHECK("%-7.7s ucast %2u MCS  mgmt %2u MCS  "
-				    "mcast %2u MCS  maxretry %u",
+				LINE_CHECK("%-7.7s ucast %2u MCS  mgmt %2u %s "
+				    "mcast %2u %s maxretry %u",
 				    modename[mode],
 				    tp->ucastrate &~ IEEE80211_RATE_MCS,
-				    tp->mgmtrate &~ IEEE80211_RATE_MCS,
-				    tp->mcastrate &~ IEEE80211_RATE_MCS,
+				    get_rate_value(tp->mgmtrate),
+				    get_mcs_mbs_rate_str(tp->mgmtrate),
+				    get_rate_value(tp->mcastrate),
+				    get_mcs_mbs_rate_str(tp->mcastrate),
 				    tp->maxretry);
 		} else {
 			if (tp->ucastrate == IEEE80211_FIXED_RATE_NONE)
