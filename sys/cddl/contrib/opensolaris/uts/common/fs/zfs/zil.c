@@ -103,7 +103,7 @@ SYSCTL_INT(_vfs_zfs, OID_AUTO, zil_replay_disable, CTLFLAG_RWTUN,
  * out-of-order write cache is enabled.
  */
 boolean_t zfs_nocacheflush = B_FALSE;
-SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RDTUN,
+SYSCTL_INT(_vfs_zfs, OID_AUTO, cache_flush_disable, CTLFLAG_RWTUN,
     &zfs_nocacheflush, 0, "Disable cache flush");
 boolean_t zfs_trim_enabled = B_TRUE;
 SYSCTL_DECL(_vfs_zfs_trim);
