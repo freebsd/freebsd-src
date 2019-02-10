@@ -148,20 +148,20 @@ service_execute(int chanfd)
 
 	nvl = nvlist_recv(chanfd, 0);
 	if (nvl == NULL)
-		exit(1);
+		_exit(1);
 	if (!nvlist_exists_string(nvl, "service"))
-		exit(1);
+		_exit(1);
 	servname = nvlist_get_string(nvl, "service");
 	casserv = service_find(servname);
 	if (casserv == NULL)
-		exit(1);
+		_exit(1);
 	service = casserv->cs_service;
 	procfd = nvlist_take_descriptor(nvl, "procfd");
 	nvlist_destroy(nvl);
 
 	service_start(service, chanfd, procfd);
 	/* Not reached. */
-	exit(1);
+	_exit(1);
 }
 
 static int
@@ -231,7 +231,7 @@ casper_main_loop(int fd)
 	int sock, maxfd, ret;
 
 	if (zygote_init() < 0)
-		exit(1);
+		_exit(1);
 
 	/*
 	 * Register core services.
@@ -256,7 +256,7 @@ casper_main_loop(int fd)
 		}
 		if (maxfd == -1) {
 			/* Nothing to do. */
-			exit(0);
+			_exit(0);
 		}
 		maxfd++;
 
@@ -267,7 +267,7 @@ casper_main_loop(int fd)
 		if (ret == -1) {
 			if (errno == EINTR)
 				continue;
-			exit(1);
+			_exit(1);
 		}
 
 		TAILQ_FOREACH(casserv, &casper_services, cs_next) {
