@@ -313,13 +313,6 @@ tegra_sdhci_attach(device_t dev)
 
 	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
 	if (rv != 0) {
-
-		device_printf(dev, "Cannot get clock\n");
-		goto fail;
-	}
-
-	rv = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
-	if (rv != 0) {
 		device_printf(dev, "Cannot get clock\n");
 		goto fail;
 	}
