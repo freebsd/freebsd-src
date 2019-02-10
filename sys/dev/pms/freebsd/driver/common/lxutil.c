@@ -63,7 +63,7 @@ STATIC agBOOLEAN agtiapi_typhAlloc( ag_card_info_t *thisCardInst )
   struct agtiapi_softc *pmsc = thisCardInst->pCard;
   int wait = 0;
 
-  if( bus_dma_tag_create( agNULL,                      // parent
+  if( bus_dma_tag_create( bus_get_dma_tag(pmsc->my_dev), // parent
                           32,                          // alignment
                           0,                           // boundary
                           BUS_SPACE_MAXADDR,           // lowaddr

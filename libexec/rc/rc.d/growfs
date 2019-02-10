@@ -49,7 +49,20 @@ rcvar="growfs_enable"
 growfs_start ()
 {
 	echo "Growing root partition to fill device"
-	rootdev=$(df / | tail -n 1 | awk '{ sub("/dev/", "", $1); print $1 }')
+	FSTYPE=$(mount -p | awk '{ if ( $2 == "/") { print $3 }}')
+	FSDEV=$(mount -p | awk '{ if ( $2 == "/") { print $1 }}')
+	case "$FSTYPE" in
+	ufs)
+		rootdev=${FSDEV#/dev/}
+		;;
+	zfs)
+		pool=${FSDEV%%/*}
+		rootdev=$(zpool list -v $pool | tail -n 1 | awk '{ print $1 }')
+		;;
+	*)
+		echo "Don't know how to grow root filesystem type: $FSTYPE"
+		return
+	esac
 	if [ x"$rootdev" = x"${rootdev%/*}" ]; then
 		# raw device
 		rawdev="$rootdev"
@@ -91,7 +104,14 @@ growfs_start ()
 	}
 }' dev="$rawdev"
 	gpart commit "$rootdev"
-	growfs -y /dev/"$rootdev"
+	case "$FSTYPE" in
+	ufs)
+		growfs -y /dev/"$rootdev"
+		;;
+	zfs)
+		zpool online -e $pool $rootdev
+		;;
+	esac
 }
 
 load_rc_config $name

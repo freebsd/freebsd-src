@@ -125,6 +125,7 @@ read_worklist(off_t t)
 		new_lump(s, l, state);
 		d -= l;
 	}
+	fclose(file);
 	(void)fprintf(stderr, " done.\n");
 	/*
 	 * Return the number of bytes already read

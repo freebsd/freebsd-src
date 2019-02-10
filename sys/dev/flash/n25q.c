@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 M. Warner Losh.  All rights reserved.
+ * Copyright (c) 2006 M. Warner Losh.
  * Copyright (c) 2009 Oleksandr Tymoshenko.  All rights reserved.
  * Copyright (c) 2017 Ruslan Bukin <br@bsdpad.com>
  * Copyright (c) 2018 Ian Lepore.  All rights reserved.

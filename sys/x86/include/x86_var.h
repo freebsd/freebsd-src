@@ -83,6 +83,7 @@ extern	int	_ugssel;
 extern	int	use_xsave;
 extern	uint64_t xsave_mask;
 extern	u_int	max_apic_id;
+extern	int	i386_read_exec;
 extern	int	pti;
 extern	int	hw_ibrs_active;
 extern	int	hw_ssb_active;

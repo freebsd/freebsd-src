@@ -74,6 +74,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
+#if defined(__amd64__) || defined(__i386__) /* for i386_read_exec */
+#include <machine/md_var.h>
+#endif
 
 #include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
@@ -411,12 +414,10 @@ ommap(struct thread *td, struct ommap_args *uap)
 #define	OMAP_FIXED	0x0100
 
 	prot = cvtbsdprot[uap->prot & 0x7];
-#ifdef COMPAT_FREEBSD32
-#if defined(__amd64__)
+#if (defined(COMPAT_FREEBSD32) && defined(__amd64__)) || defined(__i386__)
 	if (i386_read_exec && SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
 	    prot != 0)
 		prot |= PROT_EXEC;
-#endif
 #endif
 	flags = 0;
 	if (uap->flags & OMAP_ANON)

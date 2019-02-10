@@ -63,10 +63,10 @@ struct glyph {
 TAILQ_HEAD(glyph_list, glyph);
 static SLIST_HEAD(, glyph) glyph_hash[FONTCVT_NHASH];
 static struct glyph_list glyphs[VFNT_MAPS] = {
-    TAILQ_HEAD_INITIALIZER(glyphs[0]),
-    TAILQ_HEAD_INITIALIZER(glyphs[1]),
-    TAILQ_HEAD_INITIALIZER(glyphs[2]),
-    TAILQ_HEAD_INITIALIZER(glyphs[3]),
+	TAILQ_HEAD_INITIALIZER(glyphs[0]),
+	TAILQ_HEAD_INITIALIZER(glyphs[1]),
+	TAILQ_HEAD_INITIALIZER(glyphs[2]),
+	TAILQ_HEAD_INITIALIZER(glyphs[3]),
 };
 static unsigned int glyph_total, glyph_count[4], glyph_unique, glyph_dupe;
 
@@ -79,10 +79,10 @@ struct mapping {
 
 TAILQ_HEAD(mapping_list, mapping);
 static struct mapping_list maps[VFNT_MAPS] = {
-    TAILQ_HEAD_INITIALIZER(maps[0]),
-    TAILQ_HEAD_INITIALIZER(maps[1]),
-    TAILQ_HEAD_INITIALIZER(maps[2]),
-    TAILQ_HEAD_INITIALIZER(maps[3]),
+	TAILQ_HEAD_INITIALIZER(maps[0]),
+	TAILQ_HEAD_INITIALIZER(maps[1]),
+	TAILQ_HEAD_INITIALIZER(maps[2]),
+	TAILQ_HEAD_INITIALIZER(maps[3]),
 };
 static unsigned int mapping_total, map_count[4], map_folded_count[4],
     mapping_unique, mapping_dupe;

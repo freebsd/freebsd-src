@@ -130,12 +130,10 @@ SYSCTL_INT(__CONCAT(_kern_elf, __ELF_WORD_SIZE), OID_AUTO,
     nxstack, CTLFLAG_RW, &__elfN(nxstack), 0,
     __XSTRING(__CONCAT(ELF, __ELF_WORD_SIZE)) ": enable non-executable stack");
 
-#if __ELF_WORD_SIZE == 32
-#if defined(__amd64__)
+#if __ELF_WORD_SIZE == 32 && (defined(__amd64__) || defined(__i386__))
 int i386_read_exec = 0;
 SYSCTL_INT(_kern_elf32, OID_AUTO, read_exec, CTLFLAG_RW, &i386_read_exec, 0,
     "enable execution from readable segments");
-#endif
 #endif
 
 static Elf_Brandinfo *elf_brand_list[MAX_BRANDS];
@@ -2516,11 +2514,9 @@ __elfN(trans_prot)(Elf_Word flags)
 		prot |= VM_PROT_WRITE;
 	if (flags & PF_R)
 		prot |= VM_PROT_READ;
-#if __ELF_WORD_SIZE == 32
-#if defined(__amd64__)
+#if __ELF_WORD_SIZE == 32 && (defined(__amd64__) || defined(__i386__))
 	if (i386_read_exec && (flags & PF_R))
 		prot |= VM_PROT_EXECUTE;
-#endif
 #endif
 	return (prot);
 }

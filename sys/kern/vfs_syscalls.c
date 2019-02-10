@@ -3544,10 +3544,10 @@ again:
 			goto out;
 		}
 #ifdef CAPABILITIES
-		if (newfd != AT_FDCWD) {
+		if (newfd != AT_FDCWD && (tond.ni_resflags & NIRES_ABS) == 0) {
 			/*
 			 * If the target already exists we require CAP_UNLINKAT
-			 * from 'newfd'.
+			 * from 'newfd', when newfd was used for the lookup.
 			 */
 			error = cap_check(&tond.ni_filecaps.fc_rights,
 			    &cap_unlinkat_rights);

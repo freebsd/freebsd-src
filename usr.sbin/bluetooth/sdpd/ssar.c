@@ -47,6 +47,131 @@ int32_t server_prepare_attr_list(provider_p const provider,
 		uint8_t *rsp, uint8_t const * const rsp_end);
 
 /*
+ * Scan an attribute for matching UUID.
+ */
+static int
+server_search_uuid_sub(uint8_t *buf, uint8_t const * const eob, const uint128_t *uuid)
+{
+        int128_t duuid;
+        uint32_t value;
+        uint8_t type;
+
+        while (buf < eob) {
+
+                SDP_GET8(type, buf);
+
+                switch (type) {
+                case SDP_DATA_UUID16:
+                        if (buf + 2 > eob)
+                                continue;
+                        SDP_GET16(value, buf);
+
+                        memcpy(&duuid, &uuid_base, sizeof(duuid));
+                        duuid.b[2] = value >> 8 & 0xff;
+                        duuid.b[3] = value & 0xff;
+
+                        if (memcmp(&duuid, uuid, sizeof(duuid)) == 0)
+                                return (0);
+                        break;
+                case SDP_DATA_UUID32:
+                        if (buf + 4 > eob)
+                                continue;
+                        SDP_GET32(value, buf);
+                        memcpy(&duuid, &uuid_base, sizeof(duuid));
+                        duuid.b[0] = value >> 24 & 0xff;
+                        duuid.b[1] = value >> 16 & 0xff;
+                        duuid.b[2] = value >> 8 & 0xff;
+                        duuid.b[3] = value & 0xff;
+
+                        if (memcmp(&duuid, uuid, sizeof(duuid)) == 0)
+                                return (0);
+                        break;
+                case SDP_DATA_UUID128:
+                        if (buf + 16 > eob)
+                                continue;
+                        SDP_GET_UUID128(&duuid, buf);
+
+                        if (memcmp(&duuid, uuid, sizeof(duuid)) == 0)
+                                return (0);
+                        break;
+                case SDP_DATA_UINT8:
+                case SDP_DATA_INT8:
+                case SDP_DATA_SEQ8:
+                        buf++;
+                        break;
+                case SDP_DATA_UINT16:
+                case SDP_DATA_INT16:
+                case SDP_DATA_SEQ16:
+                        buf += 2;
+                        break;
+                case SDP_DATA_UINT32:
+                case SDP_DATA_INT32:
+                case SDP_DATA_SEQ32:
+                        buf += 4;
+                        break;
+                case SDP_DATA_UINT64:
+                case SDP_DATA_INT64:
+                        buf += 8;
+                        break;
+                case SDP_DATA_UINT128:
+                case SDP_DATA_INT128:
+                        buf += 16;
+                        break;
+                case SDP_DATA_STR8:
+                        if (buf + 1 > eob)
+                                continue;
+                        SDP_GET8(value, buf);
+                        buf += value;
+                        break;
+                case SDP_DATA_STR16:
+                        if (buf + 2 > eob)
+                                continue;
+                        SDP_GET16(value, buf);
+                        if (value > (eob - buf))
+                                return (1);
+                        buf += value;
+                        break;
+                case SDP_DATA_STR32:
+                        if (buf + 4 > eob)
+                                continue;
+                        SDP_GET32(value, buf);
+                        if (value > (eob - buf))
+                                return (1);
+                        buf += value;
+                        break;
+                case SDP_DATA_BOOL:
+                        buf += 1;
+                        break;
+                default:
+                        return (1);
+                }
+        }
+        return (1);
+}
+
+/*
+ * Search a provider for matching UUID in its attributes.
+ */
+static int
+server_search_uuid(provider_p const provider, const uint128_t *uuid)
+{
+        uint8_t buffer[256];
+        const attr_t *attr;
+        int len;
+
+        for (attr = provider->profile->attrs; attr->create != NULL; attr++) {
+
+                len = attr->create(buffer, buffer + sizeof(buffer),
+                    (const uint8_t *)provider->profile, sizeof(*provider->profile));
+                if (len < 0)
+                        continue;
+                if (server_search_uuid_sub(buffer, buffer + len, uuid) == 0)
+                        return (0);
+        }
+        return (1);
+}
+
+/*
  * Prepare SDP Service Search Attribute Response
  */
 
@@ -225,7 +350,8 @@ server_prepare_service_search_attribute_response(server_p srv, int32_t fd)
 			puuid.b[3] = provider->profile->uuid;
 
 			if (memcmp(&uuid, &puuid, sizeof(uuid)) != 0 &&
-			    memcmp(&uuid, &uuid_public_browse_group, sizeof(uuid)) != 0)
+			    memcmp(&uuid, &uuid_public_browse_group, sizeof(uuid)) != 0 &&
+			    server_search_uuid(provider, &uuid) != 0)
 				continue;
 
 			cs = server_prepare_attr_list(provider,

@@ -96,6 +96,7 @@ ENTRY(arm64_setttb)
 END(arm64_setttb)
 
 ENTRY(arm64_tlb_flushID)
+	dsb	ishst
 #ifdef SMP
 	tlbi	vmalle1is
 #else
