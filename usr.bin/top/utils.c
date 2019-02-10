@@ -146,7 +146,7 @@ string_index(const char *string, const char * const *array)
  *	squat about quotes.
  */
 
-const char * const *
+const char **
 argparse(char *line, int *cntp)
 {
     const char **ap;

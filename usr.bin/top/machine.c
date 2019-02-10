@@ -618,7 +618,7 @@ get_old_proc(struct kinfo_proc *pp)
 		pp->ki_udata = NOPROC;
 		return (NULL);
 	}
-	pp->ki_udata = oldp;
+	pp->ki_udata = __DECONST(void *, oldp);
 	return (oldp);
 }
 
@@ -634,7 +634,7 @@ get_io_stats(const struct kinfo_proc *pp, long *inp, long *oup, long *flp,
 	static struct kinfo_proc dummy;
 	long ret;
 
-	oldp = get_old_proc(pp);
+	oldp = get_old_proc(__DECONST(struct kinfo_proc *, pp));
 	if (oldp == NULL) {
 		memset(&dummy, 0, sizeof(dummy));
 		oldp = &dummy;
