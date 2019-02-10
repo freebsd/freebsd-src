@@ -401,9 +401,12 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 			}
 
 		      if (mlen == (size_t) -2)
-			/* Offset points inside multibyte character:
-			 * no good. */
-			break;
+			{
+			  /* Offset points inside multibyte character:
+			   * no good. */
+			  memset (&mbs, '\0', sizeof (mbstate_t));
+			  break;
+			}
 
 		      beg += mlen;
 		      bytes_left -= mlen;
@@ -463,9 +466,12 @@ EGexecute (char const *buf, size_t size, size_t *match_size, int exact)
 			}
 
 		      if (mlen == (size_t) -2)
-			/* Offset points inside multibyte character:
-			 * no good. */
-			break;
+			{
+			  /* Offset points inside multibyte character:
+			   * no good. */
+			  memset (&mbs, '\0', sizeof (mbstate_t));
+			  break;
+			}
 
 		      beg += mlen;
 		      bytes_left -= mlen;
@@ -926,15 +932,21 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 		}
 
 	      if (mlen == (size_t) -2)
-		/* Offset points inside multibyte character: no good. */
-		break;
+		{
+		  /* Offset points inside multibyte character: no good. */
+		  memset (&mbs, '\0', sizeof (mbstate_t));
+		  break;
+		}
 
 	      beg += mlen;
 	      bytes_left -= mlen;
 	    }
 
 	  if (bytes_left)
-	    continue;
+	    {
+	      beg += bytes_left;
+	      continue;
+	    }
 	}
       else
 #endif /* MBS_SUPPORT */
@@ -1052,6 +1064,7 @@ Fexecute (char const *buf, size_t size, size_t *match_size, int exact)
 			    {
 			      /* Offset points inside multibyte character:
 			       * no good. */
+			      memset (&mbs, '\0', sizeof (mbstate_t));
 			      break;
 			    }
 
