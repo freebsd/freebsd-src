@@ -229,8 +229,16 @@ nvpair_remove_nvlist_array(nvpair_t *nvp)
 	nvlarray = __DECONST(nvlist_t **,
 	    nvpair_get_nvlist_array(nvp, &count));
 	for (i = 0; i < count; i++) {
-		nvlist_set_array_next(nvlarray[i], NULL);
-		nvlist_set_parent(nvlarray[i], NULL);
+		nvlist_t *nvl;
+		nvpair_t *nnvp;
+
+		nvl = nvlarray[i];
+		nnvp = nvlist_get_array_next_nvpair(nvl);
+		if (nnvp != NULL) {
+			nvpair_free_structure(nnvp);
+		}
+		nvlist_set_array_next(nvl, NULL);
+		nvlist_set_parent(nvl, NULL);
 	}
 }
 
