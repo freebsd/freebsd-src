@@ -304,6 +304,8 @@ parent(int sock)
 
 	name = nvlist_next(nvl, &type, &cookie);
 	CHECK(name == NULL);
+
+	nvlist_destroy(nvl);
 }
 
 static void
