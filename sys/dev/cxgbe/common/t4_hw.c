@@ -5306,6 +5306,7 @@ void t4_intr_enable(struct adapter *adap)
 	    F_EGRESS_SIZE_ERR;
 	t4_set_reg_field(adap, A_SGE_INT_ENABLE3, val, val);
 	t4_write_reg(adap, MYPF_REG(A_PL_PF_INT_ENABLE), PF_INTR_MASK);
+	t4_set_reg_field(adap, A_PL_INT_ENABLE, F_SF | F_I2CM, 0);
 	t4_set_reg_field(adap, A_PL_INT_MAP0, 0, 1 << adap->pf);
 }
 
