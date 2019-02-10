@@ -213,6 +213,8 @@ device		gpioled
 device		fdt_pinctrl
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
+device		rk_gpio		# RockChip GPIO Controller
+device		rk_pinctrl	# RockChip Pinmux Controller
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus
