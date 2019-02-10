@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
+#include <machine/bootinfo.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -136,7 +137,7 @@ int i386_pmap_PDRSHIFT;
 
 int pat_works = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD,
-    &pat_works, 1,
+    &pat_works, 0,
     "Is page attribute table fully functional?");
 
 int pg_ps_enabled = 1;
@@ -935,16 +936,19 @@ pmap_kremove(vm_offset_t va)
 
 extern struct pmap_methods pmap_pae_methods, pmap_nopae_methods;
 int pae_mode;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pae_mode, CTLFLAG_RD,
-    &pae_mode, 1,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pae_mode, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &pae_mode, 0,
     "PAE");
 
 void
 pmap_cold(void)
 {
 
-	if ((cpu_feature & CPUID_PAE) != 0) {
-		pae_mode = 1;
+	init_static_kenv((char *)bootinfo.bi_envp, 0);
+	pae_mode = (cpu_feature & CPUID_PAE) != 0;
+	if (pae_mode)
+		TUNABLE_INT_FETCH("vm.pmap.pae_mode", &pae_mode);
+	if (pae_mode) {
 		pmap_methods_ptr = &pmap_pae_methods;
 		pmap_pae_cold();
 	} else {

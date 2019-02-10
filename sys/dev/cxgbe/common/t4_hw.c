@@ -212,9 +212,11 @@ static void t4_report_fw_error(struct adapter *adap)
 
 	pcie_fw = t4_read_reg(adap, A_PCIE_FW);
 	if (pcie_fw & F_PCIE_FW_ERR) {
+		adap->flags &= ~FW_OK;
 		CH_ERR(adap, "firmware reports adapter error: %s (0x%08x)\n",
 		    reason[G_PCIE_FW_EVAL(pcie_fw)], pcie_fw);
-		adap->flags &= ~FW_OK;
+		if (pcie_fw != 0xffffffff)
+			t4_os_dump_devlog(adap);
 	}
 }
 
@@ -488,13 +490,19 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	 * the error and also check to see if the firmware reported any
 	 * errors ...
 	 */
-	ret = (pcie_fw & F_PCIE_FW_ERR) ? -ENXIO : -ETIMEDOUT;
 	CH_ERR(adap, "command %#x in mbox %d timed out (0x%08x).\n",
 	    *(const u8 *)cmd, mbox, pcie_fw);
 	CH_DUMP_MBOX(adap, mbox, 0, "cmdsent", cmd_rpl, true);
 	CH_DUMP_MBOX(adap, mbox, data_reg, "current", NULL, true);
 
-	t4_report_fw_error(adap);
+	if (pcie_fw & F_PCIE_FW_ERR) {
+		ret = -ENXIO;
+		t4_report_fw_error(adap);
+	} else {
+		ret = -ETIMEDOUT;
+		t4_os_dump_devlog(adap);
+	}
+
 	t4_fatal_err(adap, true);
 	return ret;
 }
@@ -4348,6 +4356,10 @@ static bool sge_intr_handler(struct adapter *adap, int arg, bool verbose)
  */
 static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 {
+	static const struct intr_action cim_host_intr_actions[] = {
+		{ F_TIMER0INT, 0, t4_os_dump_cimla },
+		{ 0 },
+	};
 	static const struct intr_details cim_host_intr_details[] = {
 		/* T6+ */
 		{ F_PCIE2CIMINTFPARERR, "CIM IBQ PCIe interface parity error" },
@@ -4392,7 +4404,7 @@ static bool cim_intr_handler(struct adapter *adap, int arg, bool verbose)
 		.enable_reg = A_CIM_HOST_INT_ENABLE,
 		.fatal = 0,
 		.details = cim_host_intr_details,
-		.actions = NULL,
+		.actions = cim_host_intr_actions,
 	};
 	static const struct intr_details cim_host_upacc_intr_details[] = {
 		{ F_EEPROMWRINT, "CIM EEPROM came out of busy state" },

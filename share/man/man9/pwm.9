@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2018
+.Dd January 12, 2019
 .Dt PWM 9
 .Os
 .Sh NAME
@@ -79,7 +79,7 @@ Get the current flags for the channel.
 Enable the PWM channel.
 .It Fn PWM_CHANNEL_ISENABLED "device_t dev" "int channel" "bool *enable"
 Test if the PWM channel is enabled.
-.It PWM_CHANNEL_MAX "device_t dev" "int channel" "int *nchannel"
+.It Fn PWM_CHANNEL_MAX "device_t dev" "int channel" "int *nchannel"
 Get the maximum number of channels supported by the controller.
 .El
 .Sh HISTORY

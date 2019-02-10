@@ -592,7 +592,11 @@ cdg_ack_received(struct cc_var *ccv, uint16_t ack_type)
 			qdiff_min = ((long)(cdg_data->minrtt_in_rtt -
 			    cdg_data->minrtt_in_prevrtt) << D_P_E );
 
-			calc_moving_average(cdg_data, qdiff_max, qdiff_min);
+			if (cdg_data->sample_q_size == 0) {
+				cdg_data->max_qtrend = qdiff_max;
+				cdg_data->min_qtrend = qdiff_min;
+			} else
+				calc_moving_average(cdg_data, qdiff_max, qdiff_min);
 
 			/* Probabilistic backoff with respect to gradient. */
 			if (slowstart && qdiff_min > 0)

@@ -1746,7 +1746,6 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_name = arg->name;
 	zone->uz_ctor = arg->ctor;
 	zone->uz_dtor = arg->dtor;
-	zone->uz_slab = zone_fetch_slab;
 	zone->uz_init = NULL;
 	zone->uz_fini = NULL;
 	zone->uz_sleeps = 0;
@@ -2797,7 +2796,7 @@ zone_import(uma_zone_t zone, void **bucket, int max, int domain, int flags)
 	keg = NULL;
 	/* Try to keep the buckets totally full */
 	for (i = 0; i < max; ) {
-		if ((slab = zone->uz_slab(zone, keg, domain, flags)) == NULL)
+		if ((slab = zone_fetch_slab(zone, keg, domain, flags)) == NULL)
 			break;
 		keg = slab->us_keg;
 #ifdef NUMA
@@ -3874,8 +3873,52 @@ sysctl_vm_zone_count(SYSCTL_HANDLER_ARGS)
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
+	LIST_FOREACH(z, &uma_cachezones, uz_link)
+		count++;
+
 	rw_runlock(&uma_rwlock);
 	return (sysctl_handle_int(oidp, &count, 0, req));
+}
+
+static void
+uma_vm_zone_stats(struct uma_type_header *uth, uma_zone_t z, struct sbuf *sbuf,
+    struct uma_percpu_stat *ups, bool internal)
+{
+	uma_zone_domain_t zdom;
+	uma_cache_t cache;
+	int i;
+
+
+	for (i = 0; i < vm_ndomains; i++) {
+		zdom = &z->uz_domain[i];
+		uth->uth_zone_free += zdom->uzd_nitems;
+	}
+	uth->uth_allocs = counter_u64_fetch(z->uz_allocs);
+	uth->uth_frees = counter_u64_fetch(z->uz_frees);
+	uth->uth_fails = counter_u64_fetch(z->uz_fails);
+	uth->uth_sleeps = z->uz_sleeps;
+	/*
+	 * While it is not normally safe to access the cache
+	 * bucket pointers while not on the CPU that owns the
+	 * cache, we only allow the pointers to be exchanged
+	 * without the zone lock held, not invalidated, so
+	 * accept the possible race associated with bucket
+	 * exchange during monitoring.
+	 */
+	for (i = 0; i < mp_maxid + 1; i++) {
+		bzero(&ups[i], sizeof(*ups));
+		if (internal || CPU_ABSENT(i))
+			continue;
+		cache = &z->uz_cpu[i];
+		if (cache->uc_allocbucket != NULL)
+			ups[i].ups_cache_free +=
+			    cache->uc_allocbucket->ub_cnt;
+		if (cache->uc_freebucket != NULL)
+			ups[i].ups_cache_free +=
+			    cache->uc_freebucket->ub_cnt;
+		ups[i].ups_allocs = cache->uc_allocs;
+		ups[i].ups_frees = cache->uc_frees;
+	}
 }
 
 static int
@@ -3884,9 +3927,7 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	struct uma_stream_header ush;
 	struct uma_type_header uth;
 	struct uma_percpu_stat *ups;
-	uma_zone_domain_t zdom;
 	struct sbuf sbuf;
-	uma_cache_t cache;
 	uma_keg_t kz;
 	uma_zone_t z;
 	int count, error, i;
@@ -3904,6 +3945,9 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
+
+	LIST_FOREACH(z, &uma_cachezones, uz_link)
+		count++;
 
 	/*
 	 * Insert stream header.
@@ -3939,44 +3983,26 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 			if ((z->uz_flags & UMA_ZONE_SECONDARY) &&
 			    (LIST_FIRST(&kz->uk_zones) != z))
 				uth.uth_zone_flags = UTH_ZONE_SECONDARY;
-
-			for (i = 0; i < vm_ndomains; i++) {
-				zdom = &z->uz_domain[i];
-				uth.uth_zone_free += zdom->uzd_nitems;
-			}
-			uth.uth_allocs = counter_u64_fetch(z->uz_allocs);
-			uth.uth_frees = counter_u64_fetch(z->uz_frees);
-			uth.uth_fails = counter_u64_fetch(z->uz_fails);
-			uth.uth_sleeps = z->uz_sleeps;
-			/*
-			 * While it is not normally safe to access the cache
-			 * bucket pointers while not on the CPU that owns the
-			 * cache, we only allow the pointers to be exchanged
-			 * without the zone lock held, not invalidated, so
-			 * accept the possible race associated with bucket
-			 * exchange during monitoring.
-			 */
-			for (i = 0; i < mp_maxid + 1; i++) {
-				bzero(&ups[i], sizeof(*ups));
-				if (kz->uk_flags & UMA_ZFLAG_INTERNAL ||
-				    CPU_ABSENT(i))
-					continue;
-				cache = &z->uz_cpu[i];
-				if (cache->uc_allocbucket != NULL)
-					ups[i].ups_cache_free +=
-					    cache->uc_allocbucket->ub_cnt;
-				if (cache->uc_freebucket != NULL)
-					ups[i].ups_cache_free +=
-					    cache->uc_freebucket->ub_cnt;
-				ups[i].ups_allocs = cache->uc_allocs;
-				ups[i].ups_frees = cache->uc_frees;
-			}
+			uma_vm_zone_stats(&uth, z, &sbuf, ups,
+			    kz->uk_flags & UMA_ZFLAG_INTERNAL);
 			ZONE_UNLOCK(z);
 			(void)sbuf_bcat(&sbuf, &uth, sizeof(uth));
 			for (i = 0; i < mp_maxid + 1; i++)
 				(void)sbuf_bcat(&sbuf, &ups[i], sizeof(ups[i]));
 		}
 	}
+	LIST_FOREACH(z, &uma_cachezones, uz_link) {
+		bzero(&uth, sizeof(uth));
+		ZONE_LOCK(z);
+		strlcpy(uth.uth_name, z->uz_name, UTH_MAX_NAME);
+		uth.uth_size = z->uz_size;
+		uma_vm_zone_stats(&uth, z, &sbuf, ups, false);
+		ZONE_UNLOCK(z);
+		(void)sbuf_bcat(&sbuf, &uth, sizeof(uth));
+		for (i = 0; i < mp_maxid + 1; i++)
+			(void)sbuf_bcat(&sbuf, &ups[i], sizeof(ups[i]));
+	}
+
 	rw_runlock(&uma_rwlock);
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);

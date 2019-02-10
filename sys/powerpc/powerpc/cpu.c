@@ -89,6 +89,9 @@ int powerpc_pow_enabled;
 void (*cpu_idle_hook)(sbintime_t) = NULL;
 static void	cpu_idle_60x(sbintime_t);
 static void	cpu_idle_booke(sbintime_t);
+#ifdef BOOKE_E500
+static void	cpu_idle_e500mc(sbintime_t sbt);
+#endif
 #if defined(__powerpc64__) && defined(AIM)
 static void	cpu_idle_powerx(sbintime_t);
 static void	cpu_idle_power9(sbintime_t);
@@ -585,10 +588,12 @@ cpu_booke_setup(int cpuid, uint16_t vers)
 	switch (vers) {
 	case FSL_E500mc:
 		bitmask = HID0_E500MC_BITMASK;
+		cpu_idle_hook = cpu_idle_e500mc;
 		break;
 	case FSL_E5500:
 	case FSL_E6500:
 		bitmask = HID0_E5500_BITMASK;
+		cpu_idle_hook = cpu_idle_e500mc;
 		break;
 	case FSL_E500v1:
 	case FSL_E500v2:
@@ -753,26 +758,28 @@ cpu_idle_60x(sbintime_t sbt)
 #endif
 }
 
+#ifdef BOOKE_E500
+static void
+cpu_idle_e500mc(sbintime_t sbt)
+{
+	/*
+	 * Base binutils doesn't know what the 'wait' instruction is, so
+	 * use the opcode encoding here.
+	 */
+	__asm __volatile(".long 0x7c00007c");
+}
+#endif
+
 static void
 cpu_idle_booke(sbintime_t sbt)
 {
 	register_t msr;
-	uint16_t vers;
 
 	msr = mfmsr();
-	vers = mfpvr() >> 16;
 
-#ifdef BOOKE
-	switch (vers) {
-	case FSL_E500mc:
-	case FSL_E5500:
-	case FSL_E6500:
-		break;
-	default:
-		powerpc_sync();
-		mtmsr(msr | PSL_WE);
-		break;
-	}
+#ifdef BOOKE_E500
+	powerpc_sync();
+	mtmsr(msr | PSL_WE);
 #endif
 }
 

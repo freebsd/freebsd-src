@@ -266,11 +266,14 @@ localupdate(char *name, char *filename, u_int op, u_int keylen __unused,
 	sprintf(tmpname, "%s.tmp", filename);
 	rf = fopen(filename, "r");
 	if (rf == NULL) {
-		return (ERR_READ);
+		err = ERR_READ;
+		goto cleanup;
 	}
 	wf = fopen(tmpname, "w");
 	if (wf == NULL) {
-		return (ERR_WRITE);
+		fclose(rf);
+		err = ERR_WRITE;
+		goto cleanup;
 	}
 	err = -1;
 	while (fgets(line, sizeof (line), rf)) {
@@ -310,13 +313,18 @@ localupdate(char *name, char *filename, u_int op, u_int keylen __unused,
 	fclose(rf);
 	if (err == 0) {
 		if (rename(tmpname, filename) < 0) {
-			return (ERR_DBASE);
+			err = ERR_DBASE;
+			goto cleanup;
 		}
 	} else {
 		if (unlink(tmpname) < 0) {
-			return (ERR_DBASE);
+			err = ERR_DBASE;
+			goto cleanup;
 		}
 	}
+
+cleanup:
+	free(tmpname);
 	return (err);
 }
 

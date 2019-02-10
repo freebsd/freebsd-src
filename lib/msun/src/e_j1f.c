@@ -56,8 +56,7 @@ __ieee754_j1f(float x)
 	if(ix>=0x7f800000) return one/x;
 	y = fabsf(x);
 	if(ix >= 0x40000000) {	/* |x| >= 2.0 */
-		s = sinf(y);
-		c = cosf(y);
+		sincosf(y, &s, &c);
 		ss = -s-c;
 		cc = s-c;
 		if(ix<0x7f000000) {  /* make sure y+y not overflow */
@@ -114,8 +113,7 @@ __ieee754_y1f(float x)
 	if(ix==0) return -one/vzero;
 	if(hx<0) return vzero/vzero;
         if(ix >= 0x40000000) {  /* |x| >= 2.0 */
-                s = sinf(x);
-                c = cosf(x);
+                sincosf(x, &s, &c);
                 ss = -s-c;
                 cc = s-c;
                 if(ix<0x7f000000) {  /* make sure x+x not overflow */

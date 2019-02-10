@@ -1164,6 +1164,8 @@ void free_atid(struct adapter *, int);
 void release_tid(struct adapter *, int, struct sge_wrq *);
 int cxgbe_media_change(struct ifnet *);
 void cxgbe_media_status(struct ifnet *, struct ifmediareq *);
+bool t4_os_dump_cimla(struct adapter *, int, bool);
+void t4_os_dump_devlog(struct adapter *);
 
 #ifdef DEV_NETMAP
 /* t4_netmap.c */

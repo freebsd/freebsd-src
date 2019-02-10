@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2018
+.Dd January 12, 2019
 .Dt PWM 8
 .Os
 .Sh NAME
@@ -44,20 +44,25 @@
 .Nm
 .Op Fl f Ar device
 .Fl c Ar channel
-.Fl p period
+.Fl p Ar period
 .Nm
 .Op Fl f Ar device
 .Fl c Ar channel
-.Fl d duty
+.Fl d Ar duty
 .Sh DESCRIPTION
 The
 .Nm
 utility can be used to configure pwm controllers.
 .Pp
 The options are as follow:
-.Bl -tag -width ".Fl f Ar device"
+.Bl -tag -width "-c channel"
 .It Fl c Ar channel
 Channel number to operate on
+.It Fl f Ar device
+Device to operate on.
+If not specified,
+.Pa /dev/pwmc0
+is used.
 .It Fl E
 Enable the pwm channel
 .It Fl D
@@ -73,16 +78,19 @@ Configure the duty (in nanoseconds or percentage) of the pwm channel
 .Bl -bullet
 .It
 Show the configuration of the pwm channel:
-.Pp
+.Bd -literal
 pwm -f /dev/pwmc0 -C
+.Ed
 .It
 Configure a 50000 ns period and a 25000 duty cycle:
-.Pp
+.Bd -literal
 pwm -f /dev/pwmc0 -p 50000 -d 25000
+.Ed
 .It
 Configure a 50% duty cycle:
-.Pp
+.Bd -literal
 pwm -f /dev/pwmc0 -d 50%
+.Ed
 .El
 .Sh SEE ALSO
 .Xr pwm 9 ,

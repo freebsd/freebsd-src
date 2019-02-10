@@ -65,9 +65,13 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	 AXP_POWERSRC_ACIN	(1 << 7)
 #define	 AXP_POWERSRC_VBUS	(1 << 5)
 #define	 AXP_POWERSRC_VBAT	(1 << 3)
-#define	 AXP_POWERSRC_CHARING	(1 << 2)
+#define	 AXP_POWERSRC_CHARING	(1 << 2)	/* Charging Direction */
 #define	 AXP_POWERSRC_SHORTED	(1 << 1)
 #define	 AXP_POWERSRC_STARTUP	(1 << 0)
+#define	AXP_POWERMODE		0x01
+#define	 AXP_POWERMODE_BAT_CHARGING	(1 << 6)
+#define	 AXP_POWERMODE_BAT_PRESENT	(1 << 5)
+#define	 AXP_POWERMODE_BAT_VALID	(1 << 4)
 #define	AXP_ICTYPE		0x03
 #define	AXP_POWERCTL1		0x10
 #define	 AXP_POWERCTL1_DCDC7	(1 << 6)	/* AXP813/818 only */
@@ -117,14 +121,47 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	AXP_POWERBAT		0x32
 #define	 AXP_POWERBAT_SHUTDOWN	(1 << 7)
 #define	AXP_IRQEN1		0x40
+#define	 AXP_IRQEN1_ACIN_HI	(1 << 6)
+#define	 AXP_IRQEN1_ACIN_LO	(1 << 5)
+#define	 AXP_IRQEN1_VBUS_HI	(1 << 3)
+#define	 AXP_IRQEN1_VBUS_LO	(1 << 2)
 #define	AXP_IRQEN2		0x41
+#define	 AXP_IRQEN2_BAT_IN	(1 << 7)
+#define	 AXP_IRQEN2_BAT_NO	(1 << 6)
+#define	 AXP_IRQEN2_BATCHGC	(1 << 3)
+#define	 AXP_IRQEN2_BATCHGD	(1 << 2)
 #define	AXP_IRQEN3		0x42
 #define	AXP_IRQEN4		0x43
+#define	 AXP_IRQEN4_BATLVL_LO1	(1 << 1)
+#define	 AXP_IRQEN4_BATLVL_LO0	(1 << 0)
 #define	AXP_IRQEN5		0x44
 #define	 AXP_IRQEN5_POKSIRQ	(1 << 4)
+#define	 AXP_IRQEN5_POKLIRQ	(1 << 3)
 #define	AXP_IRQEN6		0x45
+#define	AXP_IRQSTAT1		0x48
+#define	 AXP_IRQSTAT1_ACIN_HI	(1 << 6)
+#define	 AXP_IRQSTAT1_ACIN_LO	(1 << 5)
+#define	 AXP_IRQSTAT1_VBUS_HI	(1 << 3)
+#define	 AXP_IRQSTAT1_VBUS_LO	(1 << 2)
+#define	AXP_IRQSTAT2		0x49
+#define	 AXP_IRQSTAT2_BAT_IN	(1 << 7)
+#define	 AXP_IRQSTAT2_BAT_NO	(1 << 6)
+#define	 AXP_IRQSTAT2_BATCHGC	(1 << 3)
+#define	 AXP_IRQSTAT2_BATCHGD	(1 << 2)
+#define	AXP_IRQSTAT3		0x4a
+#define	AXP_IRQSTAT4		0x4b
+#define	 AXP_IRQSTAT4_BATLVL_LO1	(1 << 1)
+#define	 AXP_IRQSTAT4_BATLVL_LO0	(1 << 0)
 #define	AXP_IRQSTAT5		0x4c
 #define	 AXP_IRQSTAT5_POKSIRQ	(1 << 4)
+#define	 AXP_IRQEN5_POKLIRQ	(1 << 3)
+#define	AXP_IRQSTAT6		0x4d
+#define	AXP_BATSENSE_HI		0x78
+#define	AXP_BATSENSE_LO		0x79
+#define	AXP_BATCHG_HI		0x7a
+#define	AXP_BATCHG_LO		0x7b
+#define	AXP_BATDISCHG_HI	0x7c
+#define	AXP_BATDISCHG_LO	0x7d
 #define	AXP_GPIO0_CTRL		0x90
 #define	AXP_GPIO0LDO_CTRL	0x91
 #define	AXP_GPIO1_CTRL		0x92
@@ -138,6 +175,24 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	 AXP_GPIO_FUNC_LDO_OFF	4
 #define	AXP_GPIO_SIGBIT		0x94
 #define	AXP_GPIO_PD		0x97
+#define	AXP_FUEL_GAUGECTL	0xb8
+#define	 AXP_FUEL_GAUGECTL_EN	(1 << 7)
+
+#define	AXP_BAT_CAP		0xb9
+#define	 AXP_BAT_CAP_VALID	(1 << 7)
+#define	 AXP_BAT_CAP_PERCENT	0x7f
+
+#define	AXP_BAT_MAX_CAP_HI	0xe0
+#define	 AXP_BAT_MAX_CAP_VALID	(1 << 7)
+#define	AXP_BAT_MAX_CAP_LO	0xe1
+
+#define	AXP_BAT_COULOMB_HI	0xe2
+#define	 AXP_BAT_COULOMB_VALID	(1 << 7)
+#define	AXP_BAT_COULOMB_LO	0xe3
+
+#define	AXP_BAT_CAP_WARN	0xe6
+#define	 AXP_BAT_CAP_WARN_LV1	0xf0	/* Bits 4, 5, 6, 7 */
+#define	 AXP_BAT_CAP_WARN_LV2	0xf	/* Bits 0, 1, 2, 3 */
 
 static const struct {
 	const char *name;
@@ -710,6 +765,68 @@ axp8xx_intr(void *arg)
 
 	dev = arg;
 
+	error = axp8xx_read(dev, AXP_IRQSTAT1, &val, 1);
+	if (error != 0)
+		return;
+
+	if (val) {
+		if (bootverbose)
+			device_printf(dev, "AXP_IRQSTAT1 val: %x\n", val);
+		if (val & AXP_IRQSTAT1_ACIN_HI)
+			devctl_notify("PMU", "AC", "plugged", NULL);
+		if (val & AXP_IRQSTAT1_ACIN_LO)
+			devctl_notify("PMU", "AC", "unplugged", NULL);
+		if (val & AXP_IRQSTAT1_VBUS_HI)
+			devctl_notify("PMU", "USB", "plugged", NULL);
+		if (val & AXP_IRQSTAT1_VBUS_LO)
+			devctl_notify("PMU", "USB", "unplugged", NULL);
+		/* Acknowledge */
+		axp8xx_write(dev, AXP_IRQSTAT1, val);
+	}
+
+	error = axp8xx_read(dev, AXP_IRQSTAT2, &val, 1);
+	if (error != 0)
+		return;
+
+	if (val) {
+		if (bootverbose)
+			device_printf(dev, "AXP_IRQSTAT2 val: %x\n", val);
+		if (val & AXP_IRQSTAT2_BATCHGD)
+			devctl_notify("PMU", "Battery", "charged", NULL);
+		if (val & AXP_IRQSTAT2_BATCHGC)
+			devctl_notify("PMU", "Battery", "charging", NULL);
+		if (val & AXP_IRQSTAT2_BAT_NO)
+			devctl_notify("PMU", "Battery", "absent", NULL);
+		if (val & AXP_IRQSTAT2_BAT_IN)
+			devctl_notify("PMU", "Battery", "plugged", NULL);
+		/* Acknowledge */
+		axp8xx_write(dev, AXP_IRQSTAT2, val);
+	}
+
+	error = axp8xx_read(dev, AXP_IRQSTAT3, &val, 1);
+	if (error != 0)
+		return;
+
+	if (val) {
+		/* Acknowledge */
+		axp8xx_write(dev, AXP_IRQSTAT3, val);
+	}
+
+	error = axp8xx_read(dev, AXP_IRQSTAT4, &val, 1);
+	if (error != 0)
+		return;
+
+	if (val) {
+		if (bootverbose)
+			device_printf(dev, "AXP_IRQSTAT4 val: %x\n", val);
+		if (val & AXP_IRQSTAT4_BATLVL_LO0)
+			devctl_notify("PMU", "Battery", "lower than level 2", NULL);
+		if (val & AXP_IRQSTAT4_BATLVL_LO1)
+			devctl_notify("PMU", "Battery", "lower than level 1", NULL);
+		/* Acknowledge */
+		axp8xx_write(dev, AXP_IRQSTAT4, val);
+	}
+
 	error = axp8xx_read(dev, AXP_IRQSTAT5, &val, 1);
 	if (error != 0)
 		return;
@@ -722,6 +839,15 @@ axp8xx_intr(void *arg)
 		}
 		/* Acknowledge */
 		axp8xx_write(dev, AXP_IRQSTAT5, val);
+	}
+
+	error = axp8xx_read(dev, AXP_IRQSTAT6, &val, 1);
+	if (error != 0)
+		return;
+
+	if (val) {
+		/* Acknowledge */
+		axp8xx_write(dev, AXP_IRQSTAT6, val);
 	}
 }
 
@@ -1105,12 +1231,24 @@ axp8xx_attach(device_t dev)
 		}
 	}
 
-	/* Enable IRQ on short power key press */
-	axp8xx_write(dev, AXP_IRQEN1, 0);
-	axp8xx_write(dev, AXP_IRQEN2, 0);
+	/* Enable interrupts */
+	axp8xx_write(dev, AXP_IRQEN1,
+	    AXP_IRQEN1_VBUS_LO |
+	    AXP_IRQEN1_VBUS_HI |
+	    AXP_IRQEN1_ACIN_LO |
+	    AXP_IRQEN1_ACIN_HI);
+	axp8xx_write(dev, AXP_IRQEN2,
+	    AXP_IRQEN2_BATCHGD |
+	    AXP_IRQEN2_BATCHGC |
+	    AXP_IRQEN2_BAT_NO |
+	    AXP_IRQEN2_BAT_IN);
 	axp8xx_write(dev, AXP_IRQEN3, 0);
-	axp8xx_write(dev, AXP_IRQEN4, 0);
-	axp8xx_write(dev, AXP_IRQEN5, AXP_IRQEN5_POKSIRQ);
+	axp8xx_write(dev, AXP_IRQEN4,
+	    AXP_IRQEN4_BATLVL_LO0 |
+	    AXP_IRQEN4_BATLVL_LO1);
+	axp8xx_write(dev, AXP_IRQEN5,
+	    AXP_IRQEN5_POKSIRQ |
+	    AXP_IRQEN5_POKLIRQ);
 	axp8xx_write(dev, AXP_IRQEN6, 0);
 
 	/* Install interrupt handler */

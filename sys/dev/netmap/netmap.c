@@ -3711,8 +3711,7 @@ netmap_attach_ext(struct netmap_adapter *arg, size_t size, int override_reg)
 		hwna->up.nm_dtor = netmap_hw_dtor;
 	}
 
-	nm_prinf("%s: netmap queues/slots: TX %d/%d, RX %d/%d\n",
-	    hwna->up.name,
+	if_printf(ifp, "netmap queues/slots: TX %d/%d, RX %d/%d\n",
 	    hwna->up.num_tx_rings, hwna->up.num_tx_desc,
 	    hwna->up.num_rx_rings, hwna->up.num_rx_desc);
 	return 0;

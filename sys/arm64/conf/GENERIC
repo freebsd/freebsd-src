@@ -94,8 +94,8 @@ options 	USB_DEBUG		# enable debug msgs
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Kernel Sanitizers
-options 	COVERAGE		# Generic kernel coverage. Used by KCOV
-options 	KCOV			# Kernel Coverage Sanitizer
+#options 	COVERAGE		# Generic kernel coverage. Used by KCOV
+#options 	KCOV			# Kernel Coverage Sanitizer
 # Warning: KUBSAN can result in a kernel too large for loader to load
 #options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
 
@@ -213,6 +213,8 @@ device		gpioled
 device		fdt_pinctrl
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
+device		rk_gpio		# RockChip GPIO Controller
+device		rk_pinctrl	# RockChip Pinmux Controller
 
 # I2C
 device		aw_rsb		# Allwinner Reduced Serial Bus
