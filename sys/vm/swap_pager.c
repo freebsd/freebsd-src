@@ -2478,10 +2478,23 @@ struct xswdev11 {
 };
 #endif
 
+#if defined(__amd64__) && defined(COMPAT_FREEBSD32)
+struct xswdev32 {
+	u_int	xsw_version;
+	u_int	xsw_dev1, xsw_dev2;
+	int	xsw_flags;
+	int	xsw_nblks;
+	int     xsw_used;
+};
+#endif
+
 static int
 sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 {
 	struct xswdev xs;
+#if defined(__amd64__) && defined(COMPAT_FREEBSD32)
+	struct xswdev32 xs32;
+#endif
 #if defined(COMPAT_FREEBSD11)
 	struct xswdev11 xs11;
 #endif
@@ -2492,6 +2505,18 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	error = swap_dev_info(*(int *)arg1, &xs, NULL, 0);
 	if (error != 0)
 		return (error);
+#if defined(__amd64__) && defined(COMPAT_FREEBSD32)
+	if (req->oldlen == sizeof(xs32)) {
+		xs32.xsw_version = XSWDEV_VERSION;
+		xs32.xsw_dev1 = xs.xsw_dev;
+		xs32.xsw_dev2 = xs.xsw_dev >> 32;
+		xs32.xsw_flags = xs.xsw_flags;
+		xs32.xsw_nblks = xs.xsw_nblks;
+		xs32.xsw_used = xs.xsw_used;
+		error = SYSCTL_OUT(req, &xs32, sizeof(xs32));
+		return (error);
+	}
+#endif
 #if defined(COMPAT_FREEBSD11)
 	if (req->oldlen == sizeof(xs11)) {
 		xs11.xsw_version = XSWDEV_VERSION_11;
@@ -2500,9 +2525,10 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 		xs11.xsw_nblks = xs.xsw_nblks;
 		xs11.xsw_used = xs.xsw_used;
 		error = SYSCTL_OUT(req, &xs11, sizeof(xs11));
-	} else
+		return (error);
+	}
 #endif
-		error = SYSCTL_OUT(req, &xs, sizeof(xs));
+	error = SYSCTL_OUT(req, &xs, sizeof(xs));
 	return (error);
 }
 
