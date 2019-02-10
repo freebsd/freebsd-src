@@ -55,8 +55,7 @@ __ieee754_j0f(float x)
 	if(ix>=0x7f800000) return one/(x*x);
 	x = fabsf(x);
 	if(ix >= 0x40000000) {	/* |x| >= 2.0 */
-		s = sinf(x);
-		c = cosf(x);
+		sincosf(x, &s, &c);
 		ss = s-c;
 		cc = s+c;
 		if(ix<0x7f000000) {  /* Make sure x+x does not overflow. */
@@ -128,8 +127,7 @@ __ieee754_y0f(float x)
          *              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
          * to compute the worse one.
          */
-                s = sinf(x);
-                c = cosf(x);
+                sincosf(x, &s, &c);
                 ss = s-c;
                 cc = s+c;
 	/*
