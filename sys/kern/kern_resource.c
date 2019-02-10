@@ -863,6 +863,15 @@ rufetchtd(struct thread *td, struct rusage *ru)
 	calcru1(p, &td->td_rux, &ru->ru_utime, &ru->ru_stime);
 }
 
+static uint64_t
+mul64_by_fraction(uint64_t a, uint64_t b, uint64_t c)
+{
+	/*
+	 * Compute floor(a * (b / c)) without overflowing, (b / c) <= 1.0.
+	 */
+	return ((a / c) * b + (a % c) * (b / c) + (a % c) * (b % c) / c);
+}
+
 static void
 calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
     struct timeval *sp)
@@ -892,10 +901,10 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 		 * The normal case, time increased.
 		 * Enforce monotonicity of bucketed numbers.
 		 */
-		uu = (tu * ut) / tt;
+		uu = mul64_by_fraction(tu, ut, tt);
 		if (uu < ruxp->rux_uu)
 			uu = ruxp->rux_uu;
-		su = (tu * st) / tt;
+		su = mul64_by_fraction(tu, st, tt);
 		if (su < ruxp->rux_su)
 			su = ruxp->rux_su;
 	} else if (tu + 3 > ruxp->rux_tu || 101 * tu > 100 * ruxp->rux_tu) {
@@ -924,8 +933,8 @@ calcru1(struct proc *p, struct rusage_ext *ruxp, struct timeval *up,
 		    "to %ju usec for pid %d (%s)\n",
 		    (uintmax_t)ruxp->rux_tu, (uintmax_t)tu,
 		    p->p_pid, p->p_comm);
-		uu = (tu * ut) / tt;
-		su = (tu * st) / tt;
+		uu = mul64_by_fraction(tu, ut, tt);
+		su = mul64_by_fraction(tu, st, tt);
 	}
 
 	ruxp->rux_uu = uu;
