@@ -94,8 +94,7 @@ __ieee754_j1(double x)
 	if(ix>=0x7ff00000) return one/x;
 	y = fabs(x);
 	if(ix >= 0x40000000) {	/* |x| >= 2.0 */
-		s = sin(y);
-		c = cos(y);
+		sincos(y, &s, &c);
 		ss = -s-c;
 		cc = s-c;
 		if(ix<0x7fe00000) {  /* make sure y+y not overflow */
@@ -159,8 +158,7 @@ __ieee754_y1(double x)
 	/* y1(x<0) = NaN and raise invalid exception. */
         if(hx<0) return vzero/vzero;
         if(ix >= 0x40000000) {  /* |x| >= 2.0 */
-                s = sin(x);
-                c = cos(x);
+                sincos(x, &s, &c);
                 ss = -s-c;
                 cc = s-c;
                 if(ix<0x7fe00000) {  /* make sure x+x not overflow */
