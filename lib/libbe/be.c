@@ -203,13 +203,14 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
 int
 be_destroy(libbe_handle_t *lbh, const char *name, int options)
 {
+	char origin[BE_MAXPATHLEN], path[BE_MAXPATHLEN];
 	zfs_handle_t *fs;
-	char path[BE_MAXPATHLEN];
 	char *p;
 	int err, force, mounted;
 
 	p = path;
 	force = options & BE_DESTROY_FORCE;
+	*origin = '\0';
 
 	be_root_concat(lbh, name, path);
 
@@ -222,16 +223,20 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 			return (set_error(lbh, BE_ERR_DESTROYACT));
 
 		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_FILESYSTEM);
+		if (fs == NULL)
+			return (set_error(lbh, BE_ERR_ZFSOPEN));
+		if ((options & BE_DESTROY_ORIGIN) != 0 &&
+		    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
+		    NULL, NULL, 0, 1) != 0)
+			return (set_error(lbh, BE_ERR_NOORIGIN));
 	} else {
-
 		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_SNAPSHOT))
 			return (set_error(lbh, BE_ERR_NOENT));
 
 		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_SNAPSHOT);
+		if (fs == NULL)
+			return (set_error(lbh, BE_ERR_ZFSOPEN));
 	}
-
-	if (fs == NULL)
-		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
 	/* Check if mounted, unmount if force is specified */
 	if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
@@ -246,6 +251,17 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (err == EBUSY)
 			return (set_error(lbh, BE_ERR_DESTROYMNT));
 		return (set_error(lbh, BE_ERR_UNKNOWN));
+	}
+
+	if (*origin != '\0') {
+		fs = zfs_open(lbh->lzh, origin, ZFS_TYPE_SNAPSHOT);
+		if (fs == NULL)
+			return (set_error(lbh, BE_ERR_ZFSOPEN));
+		err = zfs_destroy(fs, false);
+		if (err == EBUSY)
+			return (set_error(lbh, BE_ERR_DESTROYMNT));
+		else if (err != 0)
+			return (set_error(lbh, BE_ERR_UNKNOWN));
 	}
 
 	return (0);
