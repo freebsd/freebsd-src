@@ -16,6 +16,7 @@ makeoptions	WITH_CTF=1
 makeoptions	WERROR="-Werror -Wno-format -Wno-redundant-decls"
 
 options 	FPU_EMU
+options 	MAXCPU=2
 
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options 	ALT_BREAK_TO_DEBUGGER
