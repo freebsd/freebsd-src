@@ -2062,6 +2062,7 @@ nvpair_free(nvpair_t *nvp)
 	case NV_TYPE_DESCRIPTOR_ARRAY:
 		for (i = 0; i < nvp->nvp_nitems; i++)
 			close(((int *)(intptr_t)nvp->nvp_data)[i]);
+		nv_free((int *)(intptr_t)nvp->nvp_data);
 		break;
 #endif
 	case NV_TYPE_NVLIST:
