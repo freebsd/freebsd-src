@@ -104,7 +104,7 @@ static arith_t arith_lookupvarint(char *varname)
 	if (str == NULL || *str == '\0')
 		str = "0";
 	errno = 0;
-	result = strtoarith_t(str, &p, 0);
+	result = strtoarith_t(str, &p);
 	if (errno != 0 || *p != '\0')
 		yyerror("variable conversion error");
 	return result;
