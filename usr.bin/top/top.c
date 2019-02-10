@@ -219,7 +219,7 @@ end:
 }
 
 int
-main(int argc, char *argv[])
+main(int argc, const char *argv[])
 {
     int i;
     int active_procs;
@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 	    optind = 1;
 	}
 
-	while ((i = getopt_long(ac, av, "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
+	while ((i = getopt_long(ac, __DECONST(char * const *, av), "CSIHPabijJ:nquvzs:d:U:m:o:p:Ttw", longopts, NULL)) != EOF)
 	{
 	    switch(i)
 	    {

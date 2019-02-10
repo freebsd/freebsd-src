@@ -184,7 +184,7 @@ int
 display_init(struct statics * statics)
 {
     int lines;
-    char **pp;
+    const char * const *pp;
     int *ip;
     int i;
 
@@ -516,8 +516,8 @@ void
 z_cpustates(void)
 {
     int i = 0;
-    const char **names;
-    char *thisname;
+    const char * const *names;
+    const char *thisname;
     int cpu, value;
 
     for (cpu = 0; cpu < num_cpus; cpu++) {
@@ -751,7 +751,7 @@ static int header_length;
  * allocated area with the trimmed header.
  */
 
-const char *
+char *
 trim_header(const char *text)
 {
 	char *s;
