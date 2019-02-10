@@ -1235,6 +1235,17 @@ ieee80211_add_channel_list_2ghz(struct ieee80211_channel chans[], int maxchans,
 }
 
 int
+ieee80211_add_channels_default_2ghz(struct ieee80211_channel chans[],
+    int maxchans, int *nchans, const uint8_t bands[], int ht40)
+{
+	const uint8_t default_chan_list[] =
+	    { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
+
+	return (ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
+	    default_chan_list, nitems(default_chan_list), bands, ht40));
+}
+
+int
 ieee80211_add_channel_list_5ghz(struct ieee80211_channel chans[], int maxchans,
     int *nchans, const uint8_t ieee[], int nieee, const uint8_t bands[],
     int ht40)

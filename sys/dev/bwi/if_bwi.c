@@ -305,9 +305,6 @@ static const struct {
 	[108]	= { 7, 3 }
 };
 
-static const uint8_t bwi_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
-
 #ifdef BWI_DEBUG
 #ifdef BWI_DEBUG_VERBOSE
 static uint32_t bwi_debug = BWI_DBG_ATTACH | BWI_DBG_INIT | BWI_DBG_TXPOWER;
@@ -1713,8 +1710,7 @@ bwi_getradiocaps(struct ieee80211com *ic,
 		panic("unknown phymode %d\n", phy->phy_mode);
 	}
 
-	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    bwi_chan_2ghz, nitems(bwi_chan_2ghz), bands, 0);
+	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans, bands, 0);
 }
 
 static void

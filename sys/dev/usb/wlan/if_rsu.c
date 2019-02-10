@@ -251,9 +251,6 @@ MODULE_DEPEND(rsu, firmware, 1, 1, 1);
 MODULE_VERSION(rsu, 1);
 USB_PNP_HOST_INFO(rsu_devs);
 
-static const uint8_t rsu_chan_2ghz[] =
-	{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 };
-
 static uint8_t rsu_wme_ac_xfer_map[4] = {
 	[WME_AC_BE] = RSU_BULK_TX_BE_BK,
 	[WME_AC_BK] = RSU_BULK_TX_BE_BK,
@@ -714,9 +711,8 @@ rsu_getradiocaps(struct ieee80211com *ic,
 	setbit(bands, IEEE80211_MODE_11G);
 	if (sc->sc_ht)
 		setbit(bands, IEEE80211_MODE_11NG);
-	ieee80211_add_channel_list_2ghz(chans, maxchans, nchans,
-	    rsu_chan_2ghz, nitems(rsu_chan_2ghz), bands,
-	    (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) != 0);
+	ieee80211_add_channels_default_2ghz(chans, maxchans, nchans,
+	    bands, (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) != 0);
 }
 
 static void

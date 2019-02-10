@@ -742,6 +742,8 @@ int	ieee80211_add_channel_ht40(struct ieee80211_channel[], int, int *,
 	    uint8_t, int8_t, uint32_t);
 int	ieee80211_add_channel_list_2ghz(struct ieee80211_channel[], int, int *,
 	    const uint8_t[], int, const uint8_t[], int);
+int	ieee80211_add_channels_default_2ghz(struct ieee80211_channel[], int,
+	    int *, const uint8_t[], int);
 int	ieee80211_add_channel_list_5ghz(struct ieee80211_channel[], int, int *,
 	    const uint8_t[], int, const uint8_t[], int);
 struct ieee80211_channel *ieee80211_find_channel(struct ieee80211com *,
