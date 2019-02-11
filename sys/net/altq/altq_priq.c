@@ -95,12 +95,11 @@ priq_pfattach(struct pf_altq *a)
 }
 
 int
-priq_add_altq(struct pf_altq *a)
+priq_add_altq(struct ifnet * ifp, struct pf_altq *a)
 {
 	struct priq_if	*pif;
-	struct ifnet	*ifp;
 
-	if ((ifp = ifunit(a->ifname)) == NULL)
+	if (ifp == NULL)
 		return (EINVAL);
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);

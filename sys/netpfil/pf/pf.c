@@ -113,10 +113,12 @@ __FBSDID("$FreeBSD$");
  */
 
 /* state tables */
-VNET_DEFINE(struct pf_altqqueue,	 pf_altqs[2]);
+VNET_DEFINE(struct pf_altqqueue,	 pf_altqs[4]);
 VNET_DEFINE(struct pf_palist,		 pf_pabuf);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_active);
+VNET_DEFINE(struct pf_altqqueue *,	 pf_altq_ifs_active);
 VNET_DEFINE(struct pf_altqqueue *,	 pf_altqs_inactive);
+VNET_DEFINE(struct pf_altqqueue *,	 pf_altq_ifs_inactive);
 VNET_DEFINE(struct pf_kstatus,		 pf_status);
 
 VNET_DEFINE(u_int32_t,			 ticket_altqs_active);
@@ -358,7 +360,7 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 		counter_u64_add(s->rule.ptr->states_cur, -1);		\
 	} while (0)
 
-static MALLOC_DEFINE(M_PFHASH, "pf_hash", "pf(4) hash header structures");
+MALLOC_DEFINE(M_PFHASH, "pf_hash", "pf(4) hash header structures");
 VNET_DEFINE(struct pf_keyhash *, pf_keyhash);
 VNET_DEFINE(struct pf_idhash *, pf_idhash);
 VNET_DEFINE(struct pf_srchash *, pf_srchash);
@@ -860,9 +862,13 @@ pf_initialize()
 	/* ALTQ */
 	TAILQ_INIT(&V_pf_altqs[0]);
 	TAILQ_INIT(&V_pf_altqs[1]);
+	TAILQ_INIT(&V_pf_altqs[2]);
+	TAILQ_INIT(&V_pf_altqs[3]);
 	TAILQ_INIT(&V_pf_pabuf);
 	V_pf_altqs_active = &V_pf_altqs[0];
-	V_pf_altqs_inactive = &V_pf_altqs[1];
+	V_pf_altq_ifs_active = &V_pf_altqs[1];
+	V_pf_altqs_inactive = &V_pf_altqs[2];
+	V_pf_altq_ifs_inactive = &V_pf_altqs[3];
 
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
