@@ -1360,7 +1360,6 @@ pf_import_kaltq(struct pfioc_altq_v1 *pa, struct pf_altq *q, size_t ioc_size)
 	
 	return (0);
 }
-#endif /* ALTQ */
 
 static struct pf_altq *
 pf_altq_get_nth_active(u_int32_t n)
@@ -1383,6 +1382,7 @@ pf_altq_get_nth_active(u_int32_t n)
 
 	return (NULL);
 }
+#endif /* ALTQ */
 
 static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
