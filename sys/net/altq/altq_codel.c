@@ -89,13 +89,12 @@ codel_pfattach(struct pf_altq *a)
 }
 
 int
-codel_add_altq(struct pf_altq *a)
+codel_add_altq(struct ifnet *ifp, struct pf_altq *a)
 {
 	struct codel_if	*cif;
-	struct ifnet	*ifp;
 	struct codel_opts	*opts;
 
-	if ((ifp = ifunit(a->ifname)) == NULL)
+	if (ifp == NULL)
 		return (EINVAL);
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);

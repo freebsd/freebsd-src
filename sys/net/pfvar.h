@@ -41,6 +41,7 @@
 #include <sys/cpuset.h>
 #include <sys/malloc.h>
 #include <sys/refcount.h>
+#include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/tree.h>
@@ -94,6 +95,9 @@ struct pf_addr_wrap {
 };
 
 #ifdef _KERNEL
+
+SYSCTL_DECL(_net_pf);
+MALLOC_DECLARE(M_PFHASH);
 
 struct pfi_dynaddr {
 	TAILQ_ENTRY(pfi_dynaddr)	 entry;
@@ -1601,7 +1605,7 @@ VNET_DECLARE(uint64_t, pf_stateid[MAXCPU]);
 #define	V_pf_stateid	VNET(pf_stateid)
 
 TAILQ_HEAD(pf_altqqueue, pf_altq);
-VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[2]);
+VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[4]);
 #define	V_pf_altqs			 VNET(pf_altqs)
 VNET_DECLARE(struct pf_palist,		 pf_pabuf);
 #define	V_pf_pabuf			 VNET(pf_pabuf)
@@ -1616,8 +1620,12 @@ VNET_DECLARE(u_int32_t,			 ticket_pabuf);
 #define	V_ticket_pabuf			 VNET(ticket_pabuf)
 VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_active);
 #define	V_pf_altqs_active		 VNET(pf_altqs_active)
+VNET_DECLARE(struct pf_altqqueue *,	 pf_altq_ifs_active);
+#define	V_pf_altq_ifs_active		 VNET(pf_altq_ifs_active)
 VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_inactive);
 #define	V_pf_altqs_inactive		 VNET(pf_altqs_inactive)
+VNET_DECLARE(struct pf_altqqueue *,	 pf_altq_ifs_inactive);
+#define	V_pf_altq_ifs_inactive		 VNET(pf_altq_ifs_inactive)
 
 VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)

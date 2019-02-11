@@ -159,12 +159,11 @@ hfsc_pfattach(struct pf_altq *a)
 }
 
 int
-hfsc_add_altq(struct pf_altq *a)
+hfsc_add_altq(struct ifnet *ifp, struct pf_altq *a)
 {
 	struct hfsc_if *hif;
-	struct ifnet *ifp;
 
-	if ((ifp = ifunit(a->ifname)) == NULL)
+	if (ifp == NULL)
 		return (EINVAL);
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
@@ -506,6 +505,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 			goto err_ret;
 		}
 	}
+	cl->cl_slot = i;
 
 	if (flags & HFCF_DEFAULTCLASS)
 		hif->hif_defaultclass = cl;
@@ -558,7 +558,7 @@ hfsc_class_create(struct hfsc_if *hif, struct service_curve *rsc,
 static int
 hfsc_class_destroy(struct hfsc_class *cl)
 {
-	int i, s;
+	int s;
 
 	if (cl == NULL)
 		return (0);
@@ -589,12 +589,7 @@ hfsc_class_destroy(struct hfsc_class *cl)
 		ASSERT(p != NULL);
 	}
 
-	for (i = 0; i < HFSC_MAX_CLASSES; i++)
-		if (cl->cl_hif->hif_class_tbl[i] == cl) {
-			cl->cl_hif->hif_class_tbl[i] = NULL;
-			break;
-		}
-
+	cl->cl_hif->hif_class_tbl[cl->cl_slot] = NULL;
 	cl->cl_hif->hif_classes--;
 	IFQ_UNLOCK(cl->cl_hif->hif_ifq);
 	splx(s);
