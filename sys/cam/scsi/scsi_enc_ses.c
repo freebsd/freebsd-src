@@ -2727,13 +2727,13 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 	if (sstr->bufsiz > 0xffff)
 		return (EINVAL); /* buffer size too large */
 
-	if (ioc == ENCIOC_SETSTRING) {
+	switch (ioc) {
+	case ENCIOC_SETSTRING:
 		payload = sstr->bufsiz + 4; /* header for SEND DIAGNOSTIC */
 		amt = 0 - payload;
 		buf = ENC_MALLOC(payload);
 		if (buf == NULL)
-			return ENOMEM;
-
+			return (ENOMEM);
 		ses_page_cdb(cdb, payload, 0, CAM_DIR_OUT);
 		/* Construct the page request */
 		buf[0] = SesStringOut;
@@ -2741,12 +2741,14 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 		buf[2] = sstr->bufsiz >> 8;
 		buf[3] = sstr->bufsiz & 0xff;
 		memcpy(&buf[4], sstr->buf, sstr->bufsiz);
-	} else if (ioc == ENCIOC_GETSTRING) {
+		break;
+	case ENCIOC_GETSTRING:
 		payload = sstr->bufsiz;
 		amt = payload;
 		ses_page_cdb(cdb, payload, SesStringIn, CAM_DIR_IN);
 		buf = sstr->buf;
-	} else if (ioc == ENCIOC_GETENCNAME) {
+		break;
+	case ENCIOC_GETENCNAME:
 		if (ses_cache->ses_nsubencs < 1)
 			return (ENODEV);
 		enc_desc = ses_cache->subencs[0];
@@ -2766,7 +2768,7 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 			size = sstr->bufsiz;
 		copyout(str, sstr->buf, size);
 		return (size == rsize ? 0 : ENOMEM);
-	} else if (ioc == ENCIOC_GETENCID) {
+	case ENCIOC_GETENCID:
 		if (ses_cache->ses_nsubencs < 1)
 			return (ENODEV);
 		enc_desc = ses_cache->subencs[0];
@@ -2780,13 +2782,13 @@ ses_handle_string(enc_softc_t *enc, encioc_string_t *sstr, int ioc)
 			size = sstr->bufsiz;
 		copyout(str, sstr->buf, size);
 		return (size == rsize ? 0 : ENOMEM);
-	} else
-		return EINVAL;
-
+	default:
+		return (EINVAL);
+	}
 	ret = enc_runcmd(enc, cdb, 6, buf, &amt);
 	if (ioc == ENCIOC_SETSTRING)
 		ENC_FREE(buf);
-	return ret;
+	return (ret);
 }
 
 /**
