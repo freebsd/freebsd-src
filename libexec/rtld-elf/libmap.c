@@ -25,7 +25,7 @@ struct lm {
 	TAILQ_ENTRY(lm)	lm_link;
 };
 
-TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
+static TAILQ_HEAD(lmp_list, lmp) lmp_head = TAILQ_HEAD_INITIALIZER(lmp_head);
 struct lmp {
 	char *p;
 	enum { T_EXACT=0, T_BASENAME, T_DIRECTORY } type;
@@ -44,8 +44,8 @@ struct lmc {
 static int lm_count;
 
 static void lmc_parse(char *, size_t);
-static void lmc_parse_file(char *);
-static void lmc_parse_dir(char *);
+static void lmc_parse_file(const char *);
+static void lmc_parse_dir(const char *);
 static void lm_add(const char *, const char *, const char *);
 static void lm_free(struct lm_list *);
 static char *lml_find(struct lm_list *, const char *);
@@ -96,7 +96,7 @@ lm_init(char *libmap_override)
 }
 
 static void
-lmc_parse_file(char *path)
+lmc_parse_file(const char *path)
 {
 	struct lmc *p;
 	char *lm_map;
@@ -149,7 +149,7 @@ lmc_parse_file(char *path)
 }
 
 static void
-lmc_parse_dir(char *idir)
+lmc_parse_dir(const char *idir)
 {
 	DIR *d;
 	struct dirent *dp;
@@ -199,8 +199,7 @@ lmc_parse(char *lm_p, size_t lm_len)
 	char prog[MAXPATHLEN];
 	/* allow includedir + full length path */
 	char line[MAXPATHLEN + 13];
-	size_t cnt;
-	int i;
+	size_t cnt, i;
 
 	cnt = 0;
 	p = NULL;
@@ -403,7 +402,7 @@ lm_find(const char *p, const char *f)
  * replacement library, or NULL.
  */
 char *
-lm_findn(const char *p, const char *f, const int n)
+lm_findn(const char *p, const char *f, const size_t n)
 {
 	char pathbuf[64], *s, *t;
 

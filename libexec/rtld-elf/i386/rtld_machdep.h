@@ -58,7 +58,7 @@ extern uint32_t cpu_feature2;
 extern uint32_t cpu_stdext_feature;
 extern uint32_t cpu_stdext_feature2;
 #define	call_ifunc_resolver(ptr) \
-	(((Elf_Addr (*)(uint32_t, uint32_t, uint32_t, uint32_t))ptr)( \
+	(((Elf_Addr (*)(uint32_t, uint32_t, uint32_t, uint32_t))(ptr))( \
 	    cpu_feature, cpu_feature2, cpu_stdext_feature, cpu_stdext_feature2))
 
 #define round(size, align) \

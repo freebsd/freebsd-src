@@ -31,6 +31,7 @@ SRCS+= \
 	thr_kern.c \
 	thr_kill.c \
 	thr_main_np.c \
+	thr_malloc.c \
 	thr_multi_np.c \
 	thr_mutex.c \
 	thr_mutexattr.c \
