@@ -696,8 +696,10 @@ interpret:
 	else
 		error = suword(--stack_base, imgp->args->argc) == 0 ?
 		    0 : EFAULT;
-	if (error != 0)
+	if (error != 0) {
+		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		goto exec_fail_dealloc;
+	}
 
 	if (args->fdp != NULL) {
 		/* Install a brand new file descriptor table. */
