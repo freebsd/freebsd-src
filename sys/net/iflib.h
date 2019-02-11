@@ -69,6 +69,9 @@ typedef struct if_rxd_frag {
 	uint16_t irf_len;
 } *if_rxd_frag_t;
 
+/* bnxt supports 64 with hardware LRO enabled */
+#define IFLIB_MAX_RX_SEGS		64
+
 typedef struct if_rxd_info {
 	/* set by iflib */
 	uint16_t iri_qsidx;		/* qset index */
@@ -428,6 +431,7 @@ void iflib_iov_intr_deferred(if_ctx_t ctx);
 void iflib_link_state_change(if_ctx_t ctx, int linkstate, uint64_t baudrate);
 
 int iflib_dma_alloc(if_ctx_t ctx, int size, iflib_dma_info_t dma, int mapflags);
+int iflib_dma_alloc_align(if_ctx_t ctx, int size, int align, iflib_dma_info_t dma, int mapflags);
 void iflib_dma_free(iflib_dma_info_t dma);
 
 int iflib_dma_alloc_multi(if_ctx_t ctx, int *sizes, iflib_dma_info_t *dmalist, int mapflags, int count);
