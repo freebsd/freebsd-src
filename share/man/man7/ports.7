@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2019
+.Dd February 11, 2019
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -38,8 +38,6 @@ Ports Collection
 offers a simple way to compile and install third party applications.
 It is also used to build packages, to be installed using
 .Xr pkg 8 .
-It can be installed and updated using
-.Xr portsnap 8 .
 .Pp
 The ports tree, typically located at
 .Pa /usr/ports ,
@@ -61,6 +59,55 @@ the port depends on in order to build and work.
 Afterwards,
 .Dq Li "make install"
 installs the application.
+.Pp
+The
+.Fx
+Ports Collection is maintained in several branches, which differ mostly
+by versions of software provided: the
+.Em head
+branch contains all the latest changes, while the
+.Em quarterly
+branches only provide critical fixes.
+The
+.Em head
+branch can be installed or updated using either
+.Xr portsnap 8 ,
+or from Subversion repository at:
+.Pp
+.Lk https://svn.FreeBSD.org/ports/head
+.Pp
+The
+.Em quarterly
+branches can be found in Subversion in the
+.Fa branches/
+subdirectory, eg:
+.Pp
+.Lk https://svn.FreeBSD.org/ports/branches/2019Q1
+.Pp
+It is generally a good idea to use the
+.Nm
+branch that matches the
+.Xr pkg 8
+repository being used.
+By default, for
+.Fx CURRENT
+the
+.Xr pkg 8
+is configured to install packages built from the
+.Em head
+branch, while for
+.Fx STABLE
+or RELEASE versions it is configured to install packages built from
+the latest
+.Em quarterly
+branch.
+Currently configured
+.Xr pkg 8
+repository can be verified by looking at the
+.Em url
+field in
+.Cm pkg -vv
+output.
 .Pp
 For more information about using ports, see the
 .Dq "Packages and Ports" section
