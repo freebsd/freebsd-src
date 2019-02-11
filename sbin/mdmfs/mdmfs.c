@@ -444,7 +444,8 @@ static void
 do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 {
 	const char *ta;		/* Type arg. */
-	char *linep, *linebuf; 	/* Line pointer, line buffer. */
+	char *linep;
+	char linebuf[12];	/* 32-bit unit (10) + '\n' (1) + '\0' (1) */
 	int fd;			/* Standard output of mdconfig invocation. */
 	FILE *sfd;
 	int rv;
@@ -479,14 +480,15 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	if (sfd == NULL)
 		err(1, "fdopen");
 	linep = fgetln(sfd, &linelen);
-	if (linep == NULL && linelen < mdnamelen + 1)
-		errx(1, "unexpected output from mdconfig (attach)");
 	/* If the output format changes, we want to know about it. */
-	assert(strncmp(linep, mdname, mdnamelen) == 0);
-	linebuf = malloc(linelen - mdnamelen + 1);
-	assert(linebuf != NULL);
+	if (linep == NULL || linelen <= mdnamelen + 1 ||
+	    linelen - mdnamelen >= sizeof(linebuf) ||
+	    strncmp(linep, mdname, mdnamelen) != 0)
+		errx(1, "unexpected output from mdconfig (attach)");
+	linep += mdnamelen;
+	linelen -= mdnamelen;
 	/* Can't use strlcpy because linep is not NULL-terminated. */
-	strncpy(linebuf, linep + mdnamelen, linelen);
+	strncpy(linebuf, linep, linelen);
 	linebuf[linelen] = '\0';
 	ul = strtoul(linebuf, &p, 10);
 	if (ul == ULONG_MAX || *p != '\n')
@@ -494,7 +496,6 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	unit = ul;
 
 	fclose(sfd);
-	close(fd);
 }
 
 /*
