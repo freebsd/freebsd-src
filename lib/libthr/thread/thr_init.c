@@ -461,6 +461,7 @@ init_private(void)
 	 */
 	if (init_once == 0) {
 		__thr_pshared_init();
+		__thr_malloc_init();
 		/* Find the stack top */
 		mib[0] = CTL_KERN;
 		mib[1] = KERN_USRSTACK;
