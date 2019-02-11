@@ -187,7 +187,7 @@ vtblk_proc(struct beri_vtblk_softc *sc, struct vqueue_info *vq)
 		break;
 	case VIRTIO_BLK_T_GET_ID:
 		/* Assume a single buffer */
-		strlcpy(iov[1].iov_base, sc->ident,
+		strncpy(iov[1].iov_base, sc->ident,
 		    MIN(iov[1].iov_len, sizeof(sc->ident)));
 		err = 0;
 		break;
@@ -401,7 +401,7 @@ backend_info(struct beri_vtblk_softc *sc)
 		s+=1;
 	}
 
-	sprintf(sc->ident, "Virtio block backend");
+	strncpy(sc->ident, "Virtio block backend", sizeof(sc->ident));
 
 	return (0);
 }
