@@ -134,9 +134,8 @@ struct dyn_data {
 
 	uint32_t	hashval;	/* hash value used for hash resize */
 	uint16_t	fibnum;		/* fib used to send keepalives */
-	uint8_t		_pad[2];
+	uint8_t		_pad[3];
 	uint8_t		flags;		/* internal flags */
-	uint8_t		set;		/* parent rule set number */
 	uint16_t	rulenum;	/* parent rule number */
 	uint32_t	ruleid;		/* parent rule id */
 
@@ -162,8 +161,7 @@ struct dyn_data {
 struct dyn_parent {
 	void		*parent;	/* pointer to parent rule */
 	uint32_t	count;		/* number of linked states */
-	uint8_t		_pad;
-	uint8_t		set;		/* parent rule set number */
+	uint8_t		_pad[2];
 	uint16_t	rulenum;	/* parent rule number */
 	uint32_t	ruleid;		/* parent rule id */
 	uint32_t	hashval;	/* hash value used for hash resize */
@@ -506,7 +504,7 @@ static int dyn_lookup_ipv6_state_locked(const struct ipfw_flow_id *,
     uint32_t, const void *, int, uint32_t, uint16_t);
 static struct dyn_ipv6_state *dyn_alloc_ipv6_state(
     const struct ipfw_flow_id *, uint32_t, uint16_t, uint8_t);
-static int dyn_add_ipv6_state(void *, uint32_t, uint16_t, uint8_t,
+static int dyn_add_ipv6_state(void *, uint32_t, uint16_t,
     const struct ipfw_flow_id *, uint32_t, const void *, int, uint32_t,
     struct ipfw_dyn_info *, uint16_t, uint16_t, uint8_t);
 static void dyn_export_ipv6_state(const struct dyn_ipv6_state *,
@@ -527,8 +525,7 @@ static struct dyn_ipv6_state *dyn_lookup_ipv6_parent_locked(
     const struct ipfw_flow_id *, uint32_t, const void *, uint32_t, uint16_t,
     uint32_t);
 static struct dyn_ipv6_state *dyn_add_ipv6_parent(void *, uint32_t, uint16_t,
-    uint8_t, const struct ipfw_flow_id *, uint32_t, uint32_t, uint32_t,
-    uint16_t);
+    const struct ipfw_flow_id *, uint32_t, uint32_t, uint32_t, uint16_t);
 #endif /* INET6 */
 
 /* Functions to work with limit states */
@@ -539,17 +536,17 @@ static struct dyn_ipv4_state *dyn_lookup_ipv4_parent(
 static struct dyn_ipv4_state *dyn_lookup_ipv4_parent_locked(
     const struct ipfw_flow_id *, const void *, uint32_t, uint16_t, uint32_t);
 static struct dyn_parent *dyn_alloc_parent(void *, uint32_t, uint16_t,
-    uint8_t, uint32_t);
+    uint32_t);
 static struct dyn_ipv4_state *dyn_add_ipv4_parent(void *, uint32_t, uint16_t,
-    uint8_t, const struct ipfw_flow_id *, uint32_t, uint32_t, uint16_t);
+    const struct ipfw_flow_id *, uint32_t, uint32_t, uint16_t);
 
 static void dyn_tick(void *);
 static void dyn_expire_states(struct ip_fw_chain *, ipfw_range_tlv *);
 static void dyn_free_states(struct ip_fw_chain *);
-static void dyn_export_parent(const struct dyn_parent *, uint16_t,
+static void dyn_export_parent(const struct dyn_parent *, uint16_t, uint8_t,
     ipfw_dyn_rule *);
 static void dyn_export_data(const struct dyn_data *, uint16_t, uint8_t,
-    ipfw_dyn_rule *);
+    uint8_t, ipfw_dyn_rule *);
 static uint32_t dyn_update_tcp_state(struct dyn_data *,
     const struct ipfw_flow_id *, const struct tcphdr *, int);
 static void dyn_update_proto_state(struct dyn_data *,
@@ -562,7 +559,7 @@ static int dyn_lookup_ipv4_state_locked(const struct ipfw_flow_id *,
     const void *, int, uint32_t, uint16_t);
 static struct dyn_ipv4_state *dyn_alloc_ipv4_state(
     const struct ipfw_flow_id *, uint16_t, uint8_t);
-static int dyn_add_ipv4_state(void *, uint32_t, uint16_t, uint8_t,
+static int dyn_add_ipv4_state(void *, uint32_t, uint16_t,
     const struct ipfw_flow_id *, const void *, int, uint32_t,
     struct ipfw_dyn_info *, uint16_t, uint16_t, uint8_t);
 static void dyn_export_ipv4_state(const struct dyn_ipv4_state *,
@@ -1459,7 +1456,7 @@ ipfw_dyn_lookup_state(const struct ip_fw_args *args, const void *ulp,
 
 static struct dyn_parent *
 dyn_alloc_parent(void *parent, uint32_t ruleid, uint16_t rulenum,
-    uint8_t set, uint32_t hashval)
+    uint32_t hashval)
 {
 	struct dyn_parent *limit;
 
@@ -1478,7 +1475,6 @@ dyn_alloc_parent(void *parent, uint32_t ruleid, uint16_t rulenum,
 	limit->parent = parent;
 	limit->ruleid = ruleid;
 	limit->rulenum = rulenum;
-	limit->set = set;
 	limit->hashval = hashval;
 	limit->expire = time_uptime + V_dyn_short_lifetime;
 	return (limit);
@@ -1486,7 +1482,7 @@ dyn_alloc_parent(void *parent, uint32_t ruleid, uint16_t rulenum,
 
 static struct dyn_data *
 dyn_alloc_dyndata(void *parent, uint32_t ruleid, uint16_t rulenum,
-    uint8_t set, const struct ipfw_flow_id *pkt, const void *ulp, int pktlen,
+    const struct ipfw_flow_id *pkt, const void *ulp, int pktlen,
     uint32_t hashval, uint16_t fibnum)
 {
 	struct dyn_data *data;
@@ -1505,7 +1501,6 @@ dyn_alloc_dyndata(void *parent, uint32_t ruleid, uint16_t rulenum,
 	data->parent = parent;
 	data->ruleid = ruleid;
 	data->rulenum = rulenum;
-	data->set = set;
 	data->fibnum = fibnum;
 	data->hashval = hashval;
 	data->expire = time_uptime + V_dyn_syn_lifetime;
@@ -1542,8 +1537,8 @@ dyn_alloc_ipv4_state(const struct ipfw_flow_id *pkt, uint16_t kidx,
  */
 static struct dyn_ipv4_state *
 dyn_add_ipv4_parent(void *rule, uint32_t ruleid, uint16_t rulenum,
-    uint8_t set, const struct ipfw_flow_id *pkt, uint32_t hashval,
-    uint32_t version, uint16_t kidx)
+    const struct ipfw_flow_id *pkt, uint32_t hashval, uint32_t version,
+    uint16_t kidx)
 {
 	struct dyn_ipv4_state *s;
 	struct dyn_parent *limit;
@@ -1570,7 +1565,7 @@ dyn_add_ipv4_parent(void *rule, uint32_t ruleid, uint16_t rulenum,
 		}
 	}
 
-	limit = dyn_alloc_parent(rule, ruleid, rulenum, set, hashval);
+	limit = dyn_alloc_parent(rule, ruleid, rulenum, hashval);
 	if (limit == NULL) {
 		DYN_BUCKET_UNLOCK(bucket);
 		return (NULL);
@@ -1595,7 +1590,7 @@ dyn_add_ipv4_parent(void *rule, uint32_t ruleid, uint16_t rulenum,
 
 static int
 dyn_add_ipv4_state(void *parent, uint32_t ruleid, uint16_t rulenum,
-    uint8_t set, const struct ipfw_flow_id *pkt, const void *ulp, int pktlen,
+    const struct ipfw_flow_id *pkt, const void *ulp, int pktlen,
     uint32_t hashval, struct ipfw_dyn_info *info, uint16_t fibnum,
     uint16_t kidx, uint8_t type)
 {
@@ -1620,7 +1615,7 @@ dyn_add_ipv4_state(void *parent, uint32_t ruleid, uint16_t rulenum,
 		}
 	}
 
-	data = dyn_alloc_dyndata(parent, ruleid, rulenum, set, pkt, ulp,
+	data = dyn_alloc_dyndata(parent, ruleid, rulenum, pkt, ulp,
 	    pktlen, hashval, fibnum);
 	if (data == NULL) {
 		DYN_BUCKET_UNLOCK(bucket);
@@ -1673,8 +1668,8 @@ dyn_alloc_ipv6_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
  */
 static struct dyn_ipv6_state *
 dyn_add_ipv6_parent(void *rule, uint32_t ruleid, uint16_t rulenum,
-    uint8_t set, const struct ipfw_flow_id *pkt, uint32_t zoneid,
-    uint32_t hashval, uint32_t version, uint16_t kidx)
+    const struct ipfw_flow_id *pkt, uint32_t zoneid, uint32_t hashval,
+    uint32_t version, uint16_t kidx)
 {
 	struct dyn_ipv6_state *s;
 	struct dyn_parent *limit;
@@ -1701,7 +1696,7 @@ dyn_add_ipv6_parent(void *rule, uint32_t ruleid, uint16_t rulenum,
 		}
 	}
 
-	limit = dyn_alloc_parent(rule, ruleid, rulenum, set, hashval);
+	limit = dyn_alloc_parent(rule, ruleid, rulenum, hashval);
 	if (limit == NULL) {
 		DYN_BUCKET_UNLOCK(bucket);
 		return (NULL);
@@ -1726,8 +1721,8 @@ dyn_add_ipv6_parent(void *rule, uint32_t ruleid, uint16_t rulenum,
 
 static int
 dyn_add_ipv6_state(void *parent, uint32_t ruleid, uint16_t rulenum,
-    uint8_t set, const struct ipfw_flow_id *pkt, uint32_t zoneid,
-    const void *ulp, int pktlen, uint32_t hashval, struct ipfw_dyn_info *info,
+    const struct ipfw_flow_id *pkt, uint32_t zoneid, const void *ulp,
+    int pktlen, uint32_t hashval, struct ipfw_dyn_info *info,
     uint16_t fibnum, uint16_t kidx, uint8_t type)
 {
 	struct dyn_ipv6_state *s;
@@ -1751,7 +1746,7 @@ dyn_add_ipv6_state(void *parent, uint32_t ruleid, uint16_t rulenum,
 		}
 	}
 
-	data = dyn_alloc_dyndata(parent, ruleid, rulenum, set, pkt, ulp,
+	data = dyn_alloc_dyndata(parent, ruleid, rulenum, pkt, ulp,
 	    pktlen, hashval, fibnum);
 	if (data == NULL) {
 		DYN_BUCKET_UNLOCK(bucket);
@@ -1801,8 +1796,7 @@ dyn_get_parent_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 			DYNSTATE_CRITICAL_EXIT();
 
 			s = dyn_add_ipv4_parent(rule, rule->id,
-			    rule->rulenum, rule->set, pkt, hashval,
-			    version, kidx);
+			    rule->rulenum, pkt, hashval, version, kidx);
 			if (s == NULL)
 				return (NULL);
 			/* Now we are in critical section again. */
@@ -1825,8 +1819,8 @@ dyn_get_parent_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 			DYNSTATE_CRITICAL_EXIT();
 
 			s = dyn_add_ipv6_parent(rule, rule->id,
-			    rule->rulenum, rule->set, pkt, zoneid, hashval,
-			    version, kidx);
+			    rule->rulenum, pkt, zoneid, hashval, version,
+			    kidx);
 			if (s == NULL)
 				return (NULL);
 			/* Now we are in critical section again. */
@@ -1869,8 +1863,7 @@ dyn_get_parent_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 
 static int
 dyn_install_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
-    uint16_t fibnum, const void *ulp, int pktlen, void *rule,
-    uint32_t ruleid, uint16_t rulenum, uint8_t set,
+    uint16_t fibnum, const void *ulp, int pktlen, struct ip_fw *rule,
     struct ipfw_dyn_info *info, uint32_t limit, uint16_t limit_mask,
     uint16_t kidx, uint8_t type)
 {
@@ -1934,11 +1927,11 @@ dyn_install_state(const struct ipfw_flow_id *pkt, uint32_t zoneid,
 
 	hashval = hash_packet(pkt);
 	if (IS_IP4_FLOW_ID(pkt))
-		ret = dyn_add_ipv4_state(rule, ruleid, rulenum, set, pkt,
+		ret = dyn_add_ipv4_state(rule, rule->id, rule->rulenum, pkt,
 		    ulp, pktlen, hashval, info, fibnum, kidx, type);
 #ifdef INET6
 	else if (IS_IP6_FLOW_ID(pkt))
-		ret = dyn_add_ipv6_state(rule, ruleid, rulenum, set, pkt,
+		ret = dyn_add_ipv6_state(rule, rule->id, rule->rulenum, pkt,
 		    zoneid, ulp, pktlen, hashval, info, fibnum, kidx, type);
 #endif /* INET6 */
 	else
@@ -2011,8 +2004,8 @@ ipfw_dyn_install_state(struct ip_fw_chain *chain, struct ip_fw *rule,
 #ifdef INET6
 	    IS_IP6_FLOW_ID(&args->f_id) ? dyn_getscopeid(args):
 #endif
-	    0, M_GETFIB(args->m), ulp, pktlen, rule, rule->id, rule->rulenum,
-	    rule->set, info, limit, limit_mask, cmd->o.arg1, cmd->o.opcode));
+	    0, M_GETFIB(args->m), ulp, pktlen, rule, info, limit,
+	    limit_mask, cmd->o.arg1, cmd->o.opcode));
 }
 
 /*
@@ -2197,17 +2190,19 @@ dyn_match_ipv4_state(struct ip_fw_chain *ch, struct dyn_ipv4_state *s,
 	struct ip_fw *rule;
 	int ret;
 
-	if (s->type == O_LIMIT_PARENT)
-		return (dyn_match_range(s->limit->rulenum,
-		    s->limit->set, rt));
-
-	ret = dyn_match_range(s->data->rulenum, s->data->set, rt);
-	if (ret == 0 || V_dyn_keep_states == 0 || ret > 1)
-		return (ret);
+	if (s->type == O_LIMIT_PARENT) {
+		rule = s->limit->parent;
+		return (dyn_match_range(s->limit->rulenum, rule->set, rt));
+	}
 
 	rule = s->data->parent;
 	if (s->type == O_LIMIT)
 		rule = ((struct dyn_ipv4_state *)rule)->limit->parent;
+
+	ret = dyn_match_range(s->data->rulenum, rule->set, rt);
+	if (ret == 0 || V_dyn_keep_states == 0 || ret > 1)
+		return (ret);
+
 	dyn_acquire_rule(ch, s->data, rule, s->kidx);
 	return (0);
 }
@@ -2220,17 +2215,19 @@ dyn_match_ipv6_state(struct ip_fw_chain *ch, struct dyn_ipv6_state *s,
 	struct ip_fw *rule;
 	int ret;
 
-	if (s->type == O_LIMIT_PARENT)
-		return (dyn_match_range(s->limit->rulenum,
-		    s->limit->set, rt));
-
-	ret = dyn_match_range(s->data->rulenum, s->data->set, rt);
-	if (ret == 0 || V_dyn_keep_states == 0 || ret > 1)
-		return (ret);
+	if (s->type == O_LIMIT_PARENT) {
+		rule = s->limit->parent;
+		return (dyn_match_range(s->limit->rulenum, rule->set, rt));
+	}
 
 	rule = s->data->parent;
 	if (s->type == O_LIMIT)
 		rule = ((struct dyn_ipv6_state *)rule)->limit->parent;
+
+	ret = dyn_match_range(s->data->rulenum, rule->set, rt);
+	if (ret == 0 || V_dyn_keep_states == 0 || ret > 1)
+		return (ret);
+
 	dyn_acquire_rule(ch, s->data, rule, s->kidx);
 	return (0);
 }
@@ -2898,7 +2895,7 @@ ipfw_is_dyn_rule(struct ip_fw *rule)
 }
 
 static void
-dyn_export_parent(const struct dyn_parent *p, uint16_t kidx,
+dyn_export_parent(const struct dyn_parent *p, uint16_t kidx, uint8_t set,
     ipfw_dyn_rule *dst)
 {
 
@@ -2910,9 +2907,9 @@ dyn_export_parent(const struct dyn_parent *p, uint16_t kidx,
 
 	/* 'rule' is used to pass up the rule number and set */
 	memcpy(&dst->rule, &p->rulenum, sizeof(p->rulenum));
+
 	/* store set number into high word of dst->rule pointer. */
-	memcpy((char *)&dst->rule + sizeof(p->rulenum), &p->set,
-	    sizeof(p->set));
+	memcpy((char *)&dst->rule + sizeof(p->rulenum), &set, sizeof(set));
 
 	/* unused fields */
 	dst->pcnt = 0;
@@ -2931,7 +2928,7 @@ dyn_export_parent(const struct dyn_parent *p, uint16_t kidx,
 
 static void
 dyn_export_data(const struct dyn_data *data, uint16_t kidx, uint8_t type,
-    ipfw_dyn_rule *dst)
+    uint8_t set, ipfw_dyn_rule *dst)
 {
 
 	dst->dyn_type = type;
@@ -2943,9 +2940,9 @@ dyn_export_data(const struct dyn_data *data, uint16_t kidx, uint8_t type,
 
 	/* 'rule' is used to pass up the rule number and set */
 	memcpy(&dst->rule, &data->rulenum, sizeof(data->rulenum));
+
 	/* store set number into high word of dst->rule pointer. */
-	memcpy((char *)&dst->rule + sizeof(data->rulenum), &data->set,
-	    sizeof(data->set));
+	memcpy((char *)&dst->rule + sizeof(data->rulenum), &set, sizeof(set));
 
 	dst->state = data->state;
 	if (data->flags & DYN_REFERENCED)
@@ -2967,13 +2964,18 @@ dyn_export_data(const struct dyn_data *data, uint16_t kidx, uint8_t type,
 static void
 dyn_export_ipv4_state(const struct dyn_ipv4_state *s, ipfw_dyn_rule *dst)
 {
+	struct ip_fw *rule;
 
 	switch (s->type) {
 	case O_LIMIT_PARENT:
-		dyn_export_parent(s->limit, s->kidx, dst);
+		rule = s->limit->parent;
+		dyn_export_parent(s->limit, s->kidx, rule->set, dst);
 		break;
 	default:
-		dyn_export_data(s->data, s->kidx, s->type, dst);
+		rule = s->data->parent;
+		if (s->type == O_LIMIT)
+			rule = ((struct dyn_ipv4_state *)rule)->limit->parent;
+		dyn_export_data(s->data, s->kidx, s->type, rule->set, dst);
 	}
 
 	dst->id.dst_ip = s->dst;
@@ -2994,13 +2996,18 @@ dyn_export_ipv4_state(const struct dyn_ipv4_state *s, ipfw_dyn_rule *dst)
 static void
 dyn_export_ipv6_state(const struct dyn_ipv6_state *s, ipfw_dyn_rule *dst)
 {
+	struct ip_fw *rule;
 
 	switch (s->type) {
 	case O_LIMIT_PARENT:
-		dyn_export_parent(s->limit, s->kidx, dst);
+		rule = s->limit->parent;
+		dyn_export_parent(s->limit, s->kidx, rule->set, dst);
 		break;
 	default:
-		dyn_export_data(s->data, s->kidx, s->type, dst);
+		rule = s->data->parent;
+		if (s->type == O_LIMIT)
+			rule = ((struct dyn_ipv6_state *)rule)->limit->parent;
+		dyn_export_data(s->data, s->kidx, s->type, rule->set, dst);
 	}
 
 	dst->id.src_ip6 = s->src;
