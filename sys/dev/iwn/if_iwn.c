@@ -3801,6 +3801,7 @@ iwn_notif_intr(struct iwn_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ieee80211vap *vap = TAILQ_FIRST(&ic->ic_vaps);
 	uint16_t hw;
+	int is_stopped;
 
 	bus_dmamap_sync(sc->rxq.stat_dma.tag, sc->rxq.stat_dma.map,
 	    BUS_DMASYNC_POSTREAD);
@@ -3832,6 +3833,11 @@ iwn_notif_intr(struct iwn_softc *sc)
 		case IWN_MPDU_RX_DONE:
 			/* An 802.11 frame has been received. */
 			iwn_rx_done(sc, desc, data);
+
+			is_stopped = (sc->sc_flags & IWN_FLAG_RUNNING) == 0;
+			if (__predict_false(is_stopped))
+				return;
+
 			break;
 
 		case IWN_RX_COMPRESSED_BA:
@@ -3874,6 +3880,11 @@ iwn_notif_intr(struct iwn_softc *sc)
 					IWN_UNLOCK(sc);
 					ieee80211_beacon_miss(ic);
 					IWN_LOCK(sc);
+
+					is_stopped = (sc->sc_flags &
+					    IWN_FLAG_RUNNING) == 0;
+					if (__predict_false(is_stopped))
+						return;
 				}
 			}
 			break;
@@ -3950,6 +3961,11 @@ iwn_notif_intr(struct iwn_softc *sc)
 			IWN_UNLOCK(sc);
 			ieee80211_scan_next(vap);
 			IWN_LOCK(sc);
+
+			is_stopped = (sc->sc_flags & IWN_FLAG_RUNNING) == 0;
+			if (__predict_false(is_stopped))  
+				return;
+
 			break;
 		}
 		case IWN5000_CALIBRATION_RESULT:
