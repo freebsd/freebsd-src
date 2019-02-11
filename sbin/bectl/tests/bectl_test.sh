@@ -110,7 +110,7 @@ bectl_destroy_body()
 	bectl_create_setup ${zpool} ${disk} ${mount}
 	atf_check bectl -r ${zpool}/ROOT create -e default default2
 	atf_check -o not-empty zfs get mountpoint ${zpool}/ROOT/default2
-	atf_check bectl -r ${zpool}/ROOT destroy default2
+	atf_check -e ignore bectl -r ${zpool}/ROOT destroy default2
 	atf_check -e not-empty -s not-exit:0 zfs get mountpoint ${zpool}/ROOT/default2
 }
 bectl_destroy_cleanup()
@@ -137,7 +137,7 @@ bectl_export_import_body()
 	atf_check -o save:exported bectl -r ${zpool}/ROOT export default
 	atf_check -x "bectl -r ${zpool}/ROOT import default2 < exported"
 	atf_check -o not-empty zfs get mountpoint ${zpool}/ROOT/default2
-	atf_check bectl -r ${zpool}/ROOT destroy default2
+	atf_check -e ignore bectl -r ${zpool}/ROOT destroy default2
 	atf_check -e not-empty -s not-exit:0 zfs get mountpoint \
 	    ${zpool}/ROOT/default2
 }
@@ -171,7 +171,7 @@ bectl_list_body()
 	atf_check bectl -r ${zpool}/ROOT create -e default default2
 	atf_check -o save:list.out bectl -r ${zpool}/ROOT list
 	atf_check -o not-empty grep 'default2' list.out
-	atf_check bectl -r ${zpool}/ROOT destroy default2
+	atf_check -e ignore bectl -r ${zpool}/ROOT destroy default2
 	atf_check -o save:list.out bectl -r ${zpool}/ROOT list
 	atf_check -s not-exit:0 grep 'default2' list.out
 	# XXX TODO: Formatting checks
