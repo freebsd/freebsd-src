@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2017
+.Dd February 8, 2019
 .Dt PW 8
 .Os
 .Sh NAME
@@ -978,6 +978,12 @@ pw useradd -n gsmith -c "Glurmo Smith" -s /bin/csh -m -w random
 Delete the gsmith user and their home directory, including contents.
 .Bd -literal -offset indent
 pw userdel -n gsmith -r
+.Ed
+.Pp
+Add the existing user jsmith to the wheel group,
+in addition to the other groups jsmith is already a member of.
+.Bd -literal -offset indent
+pw groupmod wheel -m jsmith
 .Ed
 .Sh EXIT STATUS
 The
