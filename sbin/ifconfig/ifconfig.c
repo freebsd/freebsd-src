@@ -111,6 +111,8 @@ static	void status(const struct afswtch *afp, const struct sockaddr_dl *sdl,
 static	void tunnel_status(int s);
 static _Noreturn void usage(void);
 
+static int getifflags(const char *ifname, int us);
+
 static struct afswtch *af_getbyname(const char *name);
 static struct afswtch *af_getbyfamily(int af);
 static void af_other_status(int);
@@ -369,6 +371,7 @@ main(int argc, char *argv[])
 	const char *ifname;
 	struct option *p;
 	size_t iflen;
+	int flags;
 
 	all = downonly = uponly = namesonly = noload = verbose = 0;
 	f_inet = f_inet6 = f_ether = f_addr = NULL;
@@ -526,6 +529,25 @@ main(int argc, char *argv[])
 			argc--, argv++;
 	}
 
+	/*
+	 * Check for a requested configuration action on a single interface,
+	 * which doesn't require building, sorting, and searching the entire
+	 * system address list
+	 */
+	if ((argc > 0) && (ifname != NULL)) {
+		iflen = strlcpy(name, ifname, sizeof(name));
+		if (iflen >= sizeof(name)) {
+			warnx("%s: interface name too long, skipping", ifname);
+		} else {
+			flags = getifflags(name, -1);
+			if (!(((flags & IFF_CANTCONFIG) != 0) ||
+				(downonly && (flags & IFF_UP) != 0) ||
+				(uponly && (flags & IFF_UP) == 0)))
+				ifconfig(argc, argv, 0, afp);
+		}
+		goto done;
+	}
+
 	if (getifaddrs(&ifap) != 0)
 		err(EXIT_FAILURE, "getifaddrs");
 
@@ -609,6 +631,7 @@ main(int argc, char *argv[])
 		printf("\n");
 	freeifaddrs(ifap);
 
+done:
 	freeformat();
 	exit(exit_code);
 }
@@ -1020,6 +1043,28 @@ setifdstaddr(const char *addr, int param __unused, int s,
 		afp->af_getaddr(addr, DSTADDR);
 }
 
+static int
+getifflags(const char *ifname, int us)
+{
+	struct ifreq my_ifr;
+	int s;
+	
+	memset(&my_ifr, 0, sizeof(my_ifr));
+	(void) strlcpy(my_ifr.ifr_name, ifname, sizeof(my_ifr.ifr_name));
+	if (us < 0) {
+		if ((s = socket(AF_LOCAL, SOCK_DGRAM, 0)) < 0)
+			err(1, "socket(family AF_LOCAL,SOCK_DGRAM");
+	} else
+		s = us;
+ 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&my_ifr) < 0) {
+ 		Perror("ioctl (SIOCGIFFLAGS)");
+ 		exit(1);
+ 	}
+	if (us < 0)
+		close(s);
+	return ((my_ifr.ifr_flags & 0xffff) | (my_ifr.ifr_flagshigh << 16));
+}
+
 /*
  * Note: doing an SIOCIGIFFLAGS scribbles on the union portion
  * of the ifreq structure, which may confuse other parts of ifconfig.
@@ -1031,20 +1076,14 @@ setifflags(const char *vname, int value, int s, const struct afswtch *afp)
 	struct ifreq		my_ifr;
 	int flags;
 
-	memset(&my_ifr, 0, sizeof(my_ifr));
-	(void) strlcpy(my_ifr.ifr_name, name, sizeof(my_ifr.ifr_name));
-
- 	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&my_ifr) < 0) {
- 		Perror("ioctl (SIOCGIFFLAGS)");
- 		exit(1);
- 	}
-	flags = (my_ifr.ifr_flags & 0xffff) | (my_ifr.ifr_flagshigh << 16);
-
+	flags = getifflags(name, s);
 	if (value < 0) {
 		value = -value;
 		flags &= ~value;
 	} else
 		flags |= value;
+	memset(&my_ifr, 0, sizeof(my_ifr));
+	(void) strlcpy(my_ifr.ifr_name, name, sizeof(my_ifr.ifr_name));
 	my_ifr.ifr_flags = flags & 0xffff;
 	my_ifr.ifr_flagshigh = flags >> 16;
 	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&my_ifr) < 0)
