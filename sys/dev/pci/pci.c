@@ -341,7 +341,7 @@ SYSCTL_INT(_hw_pci, OID_AUTO, enable_io_modes, CTLFLAG_RWTUN,
     " enable these bits correctly.  We'd like to do this all the time, but"
     " there are some peripherals that this causes problems with.");
 
-static int pci_do_realloc_bars = 0;
+static int pci_do_realloc_bars = 1;
 SYSCTL_INT(_hw_pci, OID_AUTO, realloc_bars, CTLFLAG_RWTUN,
     &pci_do_realloc_bars, 0,
     "Attempt to allocate a new range for any BARs whose original "
