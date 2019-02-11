@@ -577,6 +577,8 @@ ocs_device_detach(ocs_t *ocs)
                         return -1;
                 }
 
+                ocs->attached = FALSE;
+
                 rc = ocs_xport_control(ocs->xport, OCS_XPORT_SHUTDOWN);
                 if (rc) {
                         ocs_log_err(ocs, "%s: Transport Shutdown timed out\n", __func__);
@@ -599,8 +601,6 @@ ocs_device_detach(ocs_t *ocs)
 		bus_dma_tag_destroy(ocs->dmat);
                 ocs_xport_free(ocs->xport);
                 ocs->xport = NULL;
-
-                ocs->attached = FALSE;
 
         }
 
