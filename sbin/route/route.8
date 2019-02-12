@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2014
+.Dd January 9, 2019
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -290,14 +290,14 @@ is available instead of the
 qualifier because non-continuous masks are not allowed in IPv6.
 For example,
 .Fl prefixlen Li 32
-specifies network mask of
+specifies that a network mask of
 .Li ffff:ffff:0000:0000:0000:0000:0000:0000
-to be used.
-The default value of prefixlen is 64 to get along with
-the aggregatable address.
-But 0 is assumed if
+will be used.
+The default prefixlen is 64.
+However, it is assumed to be 0 if
 .Cm default
-is specified.
+is specified for
+.Ar destination .
 Note that the qualifier works only for
 .Dv AF_INET6
 address family.
