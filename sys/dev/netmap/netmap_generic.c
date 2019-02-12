@@ -235,18 +235,7 @@ generic_netmap_unregister(struct netmap_adapter *na)
 		nm_os_catch_tx(gna, 0);
 	}
 
-	for_each_rx_kring_h(r, kring, na) {
-		if (nm_kring_pending_off(kring)) {
-			nm_prinf("Emulated adapter: ring '%s' deactivated", kring->name);
-			kring->nr_mode = NKR_NETMAP_OFF;
-		}
-	}
-	for_each_tx_kring_h(r, kring, na) {
-		if (nm_kring_pending_off(kring)) {
-			kring->nr_mode = NKR_NETMAP_OFF;
-			nm_prinf("Emulated adapter: ring '%s' deactivated", kring->name);
-		}
-	}
+	netmap_krings_mode_commit(na, /*onoff=*/0);
 
 	for_each_rx_kring(r, kring, na) {
 		/* Free the mbufs still pending in the RX queues,
@@ -369,19 +358,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 		}
 	}
 
-	for_each_rx_kring_h(r, kring, na) {
-		if (nm_kring_pending_on(kring)) {
-			nm_prinf("Emulated adapter: ring '%s' activated", kring->name);
-			kring->nr_mode = NKR_NETMAP_ON;
-		}
-
-	}
-	for_each_tx_kring_h(r, kring, na) {
-		if (nm_kring_pending_on(kring)) {
-			nm_prinf("Emulated adapter: ring '%s' activated", kring->name);
-			kring->nr_mode = NKR_NETMAP_ON;
-		}
-	}
+	netmap_krings_mode_commit(na, /*onoff=*/1);
 
 	for_each_tx_kring(r, kring, na) {
 		/* Initialize tx_pool and tx_event. */

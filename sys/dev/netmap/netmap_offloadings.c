@@ -80,16 +80,16 @@ gso_fix_segment(uint8_t *pkt, size_t len, u_int ipv4, u_int iphlen, u_int tcp,
 	if (ipv4) {
 		/* Set the IPv4 "Total Length" field. */
 		iph->tot_len = htobe16(len);
-		ND("ip total length %u", be16toh(ip->tot_len));
+		nm_prdis("ip total length %u", be16toh(ip->tot_len));
 
 		/* Set the IPv4 "Identification" field. */
 		iph->id = htobe16(be16toh(iph->id) + idx);
-		ND("ip identification %u", be16toh(iph->id));
+		nm_prdis("ip identification %u", be16toh(iph->id));
 
 		/* Compute and insert the IPv4 header checksum. */
 		iph->check = 0;
 		iph->check = nm_os_csum_ipv4(iph);
-		ND("IP csum %x", be16toh(iph->check));
+		nm_prdis("IP csum %x", be16toh(iph->check));
 	} else {
 		/* Set the IPv6 "Payload Len" field. */
 		ip6h->payload_len = htobe16(len-iphlen);
@@ -100,13 +100,13 @@ gso_fix_segment(uint8_t *pkt, size_t len, u_int ipv4, u_int iphlen, u_int tcp,
 
 		/* Set the TCP sequence number. */
 		tcph->seq = htobe32(be32toh(tcph->seq) + segmented_bytes);
-		ND("tcp seq %u", be32toh(tcph->seq));
+		nm_prdis("tcp seq %u", be32toh(tcph->seq));
 
 		/* Zero the PSH and FIN TCP flags if this is not the last
 		   segment. */
 		if (!last_segment)
 			tcph->flags &= ~(0x8 | 0x1);
-		ND("last_segment %u", last_segment);
+		nm_prdis("last_segment %u", last_segment);
 
 		check = &tcph->check;
 		check_data = (uint8_t *)tcph;
@@ -127,7 +127,7 @@ gso_fix_segment(uint8_t *pkt, size_t len, u_int ipv4, u_int iphlen, u_int tcp,
 	else
 		nm_os_csum_tcpudp_ipv6(ip6h, check_data, len-iphlen, check);
 
-	ND("TCP/UDP csum %x", be16toh(*check));
+	nm_prdis("TCP/UDP csum %x", be16toh(*check));
 }
 
 static inline int
@@ -168,7 +168,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 	u_int dst_slots = 0;
 
 	if (unlikely(ft_p == ft_end)) {
-		RD(1, "No source slots to process");
+		nm_prlim(1, "No source slots to process");
 		return;
 	}
 
@@ -187,11 +187,11 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 		/* Initial sanity check on the source virtio-net header. If
 		 * something seems wrong, just drop the packet. */
 		if (src_len < na->up.virt_hdr_len) {
-			RD(1, "Short src vnet header, dropping");
+			nm_prlim(1, "Short src vnet header, dropping");
 			return;
 		}
 		if (unlikely(vnet_hdr_is_bad(vh))) {
-			RD(1, "Bad src vnet header, dropping");
+			nm_prlim(1, "Bad src vnet header, dropping");
 			return;
 		}
 	}
@@ -264,7 +264,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			if (dst_slots >= *howmany) {
 				/* We still have work to do, but we've run out of
 				 * dst slots, so we have to drop the packet. */
-				ND(1, "Not enough slots, dropping GSO packet");
+				nm_prdis(1, "Not enough slots, dropping GSO packet");
 				return;
 			}
 
@@ -279,7 +279,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				 * encapsulation. */
 				for (;;) {
 					if (src_len < ethhlen) {
-						RD(1, "Short GSO fragment [eth], dropping");
+						nm_prlim(1, "Short GSO fragment [eth], dropping");
 						return;
 					}
 					ethertype = be16toh(*((uint16_t *)
@@ -295,7 +295,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 									(gso_hdr + ethhlen);
 
 						if (src_len < ethhlen + 20) {
-							RD(1, "Short GSO fragment "
+							nm_prlim(1, "Short GSO fragment "
 							      "[IPv4], dropping");
 							return;
 						}
@@ -308,14 +308,14 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 						iphlen = 40;
 						break;
 					default:
-						RD(1, "Unsupported ethertype, "
+						nm_prlim(1, "Unsupported ethertype, "
 						      "dropping GSO packet");
 						return;
 				}
-				ND(3, "type=%04x", ethertype);
+				nm_prdis(3, "type=%04x", ethertype);
 
 				if (src_len < ethhlen + iphlen) {
-					RD(1, "Short GSO fragment [IP], dropping");
+					nm_prlim(1, "Short GSO fragment [IP], dropping");
 					return;
 				}
 
@@ -327,7 +327,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 								(gso_hdr + ethhlen + iphlen);
 
 					if (src_len < ethhlen + iphlen + 20) {
-						RD(1, "Short GSO fragment "
+						nm_prlim(1, "Short GSO fragment "
 								"[TCP], dropping");
 						return;
 					}
@@ -338,11 +338,11 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				}
 
 				if (src_len < gso_hdr_len) {
-					RD(1, "Short GSO fragment [TCP/UDP], dropping");
+					nm_prlim(1, "Short GSO fragment [TCP/UDP], dropping");
 					return;
 				}
 
-				ND(3, "gso_hdr_len %u gso_mtu %d", gso_hdr_len,
+				nm_prdis(3, "gso_hdr_len %u gso_mtu %d", gso_hdr_len,
 								   dst_na->mfs);
 
 				/* Advance source pointers. */
@@ -384,7 +384,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 						gso_idx, segmented_bytes,
 						src_len == 0 && ft_p + 1 == ft_end);
 
-				ND("frame %u completed with %d bytes", gso_idx, (int)gso_bytes);
+				nm_prdis("frame %u completed with %d bytes", gso_idx, (int)gso_bytes);
 				dst_slot->len = gso_bytes;
 				dst_slot->flags = 0;
 				dst_slots++;
@@ -408,7 +408,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				src_len = ft_p->ft_len;
 			}
 		}
-		ND(3, "%d bytes segmented", segmented_bytes);
+		nm_prdis(3, "%d bytes segmented", segmented_bytes);
 
 	} else {
 		/* Address of a checksum field into a destination slot. */
@@ -421,7 +421,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 		/* Init 'check' if necessary. */
 		if (vh && (vh->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
 			if (unlikely(vh->csum_offset + vh->csum_start > src_len))
-				D("invalid checksum request");
+				nm_prerr("invalid checksum request");
 			else
 				check = (uint16_t *)(dst + vh->csum_start +
 						vh->csum_offset);
@@ -466,7 +466,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 		if (check && vh && (vh->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
 			*check = nm_os_csum_fold(csum);
 		}
-		ND(3, "using %u dst_slots", dst_slots);
+		nm_prdis(3, "using %u dst_slots", dst_slots);
 
 		/* A second pass on the destination slots to set the slot flags,
 		 * using the right number of destination slots.
@@ -483,7 +483,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 	/* Update howmany and j. This is to commit the use of
 	 * those slots in the destination ring. */
 	if (unlikely(dst_slots > *howmany)) {
-		D("Slot allocation error: This is a bug");
+		nm_prerr("bug: slot allocation error");
 	}
 	*j = j_cur;
 	*howmany -= dst_slots;

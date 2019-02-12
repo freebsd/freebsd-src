@@ -116,8 +116,8 @@ netmap_pipe_dealloc(struct netmap_adapter *na)
 {
 	if (na->na_pipes) {
 		if (na->na_next_pipe > 0) {
-			D("freeing not empty pipe array for %s (%d dangling pipes)!", na->name,
-					na->na_next_pipe);
+			nm_prerr("freeing not empty pipe array for %s (%d dangling pipes)!",
+			    na->name, na->na_next_pipe);
 		}
 		nm_os_free(na->na_pipes);
 		na->na_pipes = NULL;
@@ -188,8 +188,8 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 	int complete; /* did we see a complete packet ? */
 	struct netmap_ring *txring = txkring->ring, *rxring = rxkring->ring;
 
-	ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
-	ND(20, "TX before: hwcur %d hwtail %d cur %d head %d tail %d",
+	nm_prdis("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
+	nm_prdis(20, "TX before: hwcur %d hwtail %d cur %d head %d tail %d",
 		txkring->nr_hwcur, txkring->nr_hwtail,
 		txkring->rcur, txkring->rhead, txkring->rtail);
 
@@ -219,7 +219,7 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 
 	txkring->nr_hwcur = k;
 
-	ND(20, "TX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
+	nm_prdis(20, "TX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
 		txkring->nr_hwcur, txkring->nr_hwtail,
 		txkring->rcur, txkring->rhead, txkring->rtail, k);
 
@@ -240,8 +240,8 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
 	int m; /* slots to release */
 	struct netmap_ring *txring = txkring->ring, *rxring = rxkring->ring;
 
-	ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
-	ND(20, "RX before: hwcur %d hwtail %d cur %d head %d tail %d",
+	nm_prdis("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
+	nm_prdis(20, "RX before: hwcur %d hwtail %d cur %d head %d tail %d",
 		rxkring->nr_hwcur, rxkring->nr_hwtail,
 		rxkring->rcur, rxkring->rhead, rxkring->rtail);
 
@@ -272,7 +272,7 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
 	txkring->pipe_tail = nm_prev(k, lim);
 	rxkring->nr_hwcur = k;
 
-	ND(20, "RX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
+	nm_prdis(20, "RX after : hwcur %d hwtail %d cur %d head %d tail %d k %d",
 		rxkring->nr_hwcur, rxkring->nr_hwtail,
 		rxkring->rcur, rxkring->rhead, rxkring->rtail, k);
 
@@ -310,6 +310,47 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
  */
 
 
+int netmap_pipe_krings_create_both(struct netmap_adapter *na,
+				  struct netmap_adapter *ona)
+{
+	enum txrx t;
+	int error;
+	int i;
+
+	/* case 1) below */
+	nm_prdis("%p: case 1, create both ends", na);
+	error = netmap_krings_create(na, 0);
+	if (error)
+		return error;
+
+	/* create the krings of the other end */
+	error = netmap_krings_create(ona, 0);
+	if (error)
+		goto del_krings1;
+
+	/* cross link the krings and initialize the pipe_tails */
+	for_rx_tx(t) {
+		enum txrx r = nm_txrx_swap(t); /* swap NR_TX <-> NR_RX */
+		for (i = 0; i < nma_get_nrings(na, t); i++) {
+			struct netmap_kring *k1 = NMR(na, t)[i],
+					    *k2 = NMR(ona, r)[i];
+			k1->pipe = k2;
+			k2->pipe = k1;
+			/* mark all peer-adapter rings as fake */
+			k2->nr_kflags |= NKR_FAKERING;
+			/* init tails */
+			k1->pipe_tail = k1->nr_hwtail;
+			k2->pipe_tail = k2->nr_hwtail;
+		}
+	}
+
+	return 0;
+
+del_krings1:
+	netmap_krings_delete(na);
+	return error;
+}
+
 /* netmap_pipe_krings_create.
  *
  * There are two cases:
@@ -334,46 +375,83 @@ netmap_pipe_krings_create(struct netmap_adapter *na)
 	struct netmap_pipe_adapter *pna =
 		(struct netmap_pipe_adapter *)na;
 	struct netmap_adapter *ona = &pna->peer->up;
-	int error = 0;
+
+	if (pna->peer_ref)
+		return netmap_pipe_krings_create_both(na, ona);
+
+	return 0;
+}
+
+int
+netmap_pipe_reg_both(struct netmap_adapter *na, struct netmap_adapter *ona)
+{
+	int i, error = 0;
 	enum txrx t;
 
-	if (pna->peer_ref) {
-		int i;
+	for_rx_tx(t) {
+		for (i = 0; i < nma_get_nrings(na, t); i++) {
+			struct netmap_kring *kring = NMR(na, t)[i];
 
-		/* case 1) above */
-		ND("%p: case 1, create both ends", na);
-		error = netmap_krings_create(na, 0);
-		if (error)
-			goto err;
-
-		/* create the krings of the other end */
-		error = netmap_krings_create(ona, 0);
-		if (error)
-			goto del_krings1;
-
-		/* cross link the krings and initialize the pipe_tails */
-		for_rx_tx(t) {
-			enum txrx r = nm_txrx_swap(t); /* swap NR_TX <-> NR_RX */
-			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				struct netmap_kring *k1 = NMR(na, t)[i],
-					            *k2 = NMR(ona, r)[i];
-				k1->pipe = k2;
-				k2->pipe = k1;
-				/* mark all peer-adapter rings as fake */
-				k2->nr_kflags |= NKR_FAKERING;
-				/* init tails */
-				k1->pipe_tail = k1->nr_hwtail;
-				k2->pipe_tail = k2->nr_hwtail;
+			if (nm_kring_pending_on(kring)) {
+				/* mark the peer ring as needed */
+				kring->pipe->nr_kflags |= NKR_NEEDRING;
 			}
 		}
-
 	}
-	return 0;
 
-del_krings1:
-	netmap_krings_delete(na);
-err:
-	return error;
+	/* create all missing needed rings on the other end.
+	 * Either our end, or the other, has been marked as
+	 * fake, so the allocation will not be done twice.
+	 */
+	error = netmap_mem_rings_create(ona);
+	if (error)
+		return error;
+
+	/* In case of no error we put our rings in netmap mode */
+	for_rx_tx(t) {
+		for (i = 0; i < nma_get_nrings(na, t); i++) {
+			struct netmap_kring *kring = NMR(na, t)[i];
+			if (nm_kring_pending_on(kring)) {
+				struct netmap_kring *sring, *dring;
+
+				kring->nr_mode = NKR_NETMAP_ON;
+				if ((kring->nr_kflags & NKR_FAKERING) &&
+				    (kring->pipe->nr_kflags & NKR_FAKERING)) {
+					/* this is a re-open of a pipe
+					 * end-point kept alive by the other end.
+					 * We need to leave everything as it is
+					 */
+					continue;
+				}
+
+				/* copy the buffers from the non-fake ring */
+				if (kring->nr_kflags & NKR_FAKERING) {
+					sring = kring->pipe;
+					dring = kring;
+				} else {
+					sring = kring;
+					dring = kring->pipe;
+				}
+				memcpy(dring->ring->slot,
+				       sring->ring->slot,
+				       sizeof(struct netmap_slot) *
+						sring->nkr_num_slots);
+				/* mark both rings as fake and needed,
+				 * so that buffers will not be
+				 * deleted by the standard machinery
+				 * (we will delete them by ourselves in
+				 * netmap_pipe_krings_delete)
+				 */
+				sring->nr_kflags |=
+					(NKR_FAKERING | NKR_NEEDRING);
+				dring->nr_kflags |=
+					(NKR_FAKERING | NKR_NEEDRING);
+				kring->nr_mode = NKR_NETMAP_ON;
+			}
+		}
+	}
+
+	return 0;
 }
 
 /* netmap_pipe_reg.
@@ -415,108 +493,103 @@ netmap_pipe_reg(struct netmap_adapter *na, int onoff)
 	struct netmap_pipe_adapter *pna =
 		(struct netmap_pipe_adapter *)na;
 	struct netmap_adapter *ona = &pna->peer->up;
-	int i, error = 0;
-	enum txrx t;
+	int error = 0;
 
-	ND("%p: onoff %d", na, onoff);
+	nm_prdis("%p: onoff %d", na, onoff);
 	if (onoff) {
-		for_rx_tx(t) {
-			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-
-				if (nm_kring_pending_on(kring)) {
-					/* mark the peer ring as needed */
-					kring->pipe->nr_kflags |= NKR_NEEDRING;
-				}
-			}
-		}
-
-		/* create all missing needed rings on the other end.
-		 * Either our end, or the other, has been marked as
-		 * fake, so the allocation will not be done twice.
-		 */
-		error = netmap_mem_rings_create(ona);
-		if (error)
+		error = netmap_pipe_reg_both(na, ona);
+		if (error) {
 			return error;
-
-		/* In case of no error we put our rings in netmap mode */
-		for_rx_tx(t) {
-			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-				if (nm_kring_pending_on(kring)) {
-					struct netmap_kring *sring, *dring;
-
-					kring->nr_mode = NKR_NETMAP_ON;
-					if ((kring->nr_kflags & NKR_FAKERING) &&
-					    (kring->pipe->nr_kflags & NKR_FAKERING)) {
-						/* this is a re-open of a pipe
-						 * end-point kept alive by the other end.
-						 * We need to leave everything as it is
-						 */
-						continue;
-					}
-
-					/* copy the buffers from the non-fake ring */
-					if (kring->nr_kflags & NKR_FAKERING) {
-						sring = kring->pipe;
-						dring = kring;
-					} else {
-						sring = kring;
-						dring = kring->pipe;
-					}
-					memcpy(dring->ring->slot,
-					       sring->ring->slot,
-					       sizeof(struct netmap_slot) *
-							sring->nkr_num_slots);
-					/* mark both rings as fake and needed,
-					 * so that buffers will not be
-					 * deleted by the standard machinery
-					 * (we will delete them by ourselves in
-					 * netmap_pipe_krings_delete)
-					 */
-					sring->nr_kflags |=
-						(NKR_FAKERING | NKR_NEEDRING);
-					dring->nr_kflags |=
-						(NKR_FAKERING | NKR_NEEDRING);
-					kring->nr_mode = NKR_NETMAP_ON;
-				}
-			}
 		}
 		if (na->active_fds == 0)
 			na->na_flags |= NAF_NETMAP_ON;
 	} else {
 		if (na->active_fds == 0)
 			na->na_flags &= ~NAF_NETMAP_ON;
-		for_rx_tx(t) {
-			for (i = 0; i < nma_get_nrings(na, t); i++) {
-				struct netmap_kring *kring = NMR(na, t)[i];
-
-				if (nm_kring_pending_off(kring)) {
-					kring->nr_mode = NKR_NETMAP_OFF;
-				}
-			}
-		}
+		netmap_krings_mode_commit(na, onoff);
 	}
 
 	if (na->active_fds) {
-		ND("active_fds %d", na->active_fds);
+		nm_prdis("active_fds %d", na->active_fds);
 		return 0;
 	}
 
 	if (pna->peer_ref) {
-		ND("%p: case 1.a or 2.a, nothing to do", na);
+		nm_prdis("%p: case 1.a or 2.a, nothing to do", na);
 		return 0;
 	}
 	if (onoff) {
-		ND("%p: case 1.b, drop peer", na);
+		nm_prdis("%p: case 1.b, drop peer", na);
 		pna->peer->peer_ref = 0;
 		netmap_adapter_put(na);
 	} else {
-		ND("%p: case 2.b, grab peer", na);
+		nm_prdis("%p: case 2.b, grab peer", na);
 		netmap_adapter_get(na);
 		pna->peer->peer_ref = 1;
 	}
 	return error;
+}
+
+void
+netmap_pipe_krings_delete_both(struct netmap_adapter *na,
+			       struct netmap_adapter *ona)
+{
+	struct netmap_adapter *sna;
+	enum txrx t;
+	int i;
+
+	/* case 1) below */
+	nm_prdis("%p: case 1, deleting everything", na);
+	/* To avoid double-frees we zero-out all the buffers in the kernel part
+	 * of each ring. The reason is this: If the user is behaving correctly,
+	 * all buffers are found in exactly one slot in the userspace part of
+	 * some ring.  If the user is not behaving correctly, we cannot release
+	 * buffers cleanly anyway. In the latter case, the allocator will
+	 * return to a clean state only when all its users will close.
+	 */
+	sna = na;
+cleanup:
+	for_rx_tx(t) {
+		for (i = 0; i < nma_get_nrings(sna, t); i++) {
+			struct netmap_kring *kring = NMR(sna, t)[i];
+			struct netmap_ring *ring = kring->ring;
+			uint32_t j, lim = kring->nkr_num_slots - 1;
+
+			nm_prdis("%s ring %p hwtail %u hwcur %u",
+				kring->name, ring, kring->nr_hwtail, kring->nr_hwcur);
+
+			if (ring == NULL)
+				continue;
+
+			if (kring->tx == NR_RX)
+				ring->slot[kring->pipe_tail].buf_idx = 0;
+
+			for (j = nm_next(kring->pipe_tail, lim);
+			     j != kring->nr_hwcur;
+			     j = nm_next(j, lim))
+			{
+				nm_prdis("%s[%d] %u", kring->name, j, ring->slot[j].buf_idx);
+				ring->slot[j].buf_idx = 0;
+			}
+			kring->nr_kflags &= ~(NKR_FAKERING | NKR_NEEDRING);
+		}
+
+	}
+	if (sna != ona && ona->tx_rings) {
+		sna = ona;
+		goto cleanup;
+	}
+
+	netmap_mem_rings_delete(na);
+	netmap_krings_delete(na); /* also zeroes tx_rings etc. */
+
+	if (ona->tx_rings == NULL) {
+		/* already deleted, we must be on an
+		 * cleanup-after-error path */
+		return;
+	}
+	netmap_mem_rings_delete(ona);
+	netmap_krings_delete(ona);
 }
 
 /* netmap_pipe_krings_delete.
@@ -544,67 +617,14 @@ netmap_pipe_krings_delete(struct netmap_adapter *na)
 {
 	struct netmap_pipe_adapter *pna =
 		(struct netmap_pipe_adapter *)na;
-	struct netmap_adapter *sna, *ona; /* na of the other end */
-	enum txrx t;
-	int i;
+	struct netmap_adapter *ona; /* na of the other end */
 
 	if (!pna->peer_ref) {
-		ND("%p: case 2, kept alive by peer",  na);
+		nm_prdis("%p: case 2, kept alive by peer",  na);
 		return;
 	}
 	ona = &pna->peer->up;
-	/* case 1) above */
-	ND("%p: case 1, deleting everything", na);
-	/* To avoid double-frees we zero-out all the buffers in the kernel part
-	 * of each ring. The reason is this: If the user is behaving correctly,
-	 * all buffers are found in exactly one slot in the userspace part of
-	 * some ring.  If the user is not behaving correctly, we cannot release
-	 * buffers cleanly anyway. In the latter case, the allocator will
-	 * return to a clean state only when all its users will close.
-	 */
-	sna = na;
-cleanup:
-	for_rx_tx(t) {
-		for (i = 0; i < nma_get_nrings(sna, t); i++) {
-			struct netmap_kring *kring = NMR(sna, t)[i];
-			struct netmap_ring *ring = kring->ring;
-			uint32_t j, lim = kring->nkr_num_slots - 1;
-
-			ND("%s ring %p hwtail %u hwcur %u",
-				kring->name, ring, kring->nr_hwtail, kring->nr_hwcur);
-
-			if (ring == NULL)
-				continue;
-
-			if (kring->tx == NR_RX)
-				ring->slot[kring->pipe_tail].buf_idx = 0;
-
-			for (j = nm_next(kring->pipe_tail, lim);
-			     j != kring->nr_hwcur;
-			     j = nm_next(j, lim))
-			{
-				ND("%s[%d] %u", kring->name, j, ring->slot[j].buf_idx);
-				ring->slot[j].buf_idx = 0;
-			}
-			kring->nr_kflags &= ~(NKR_FAKERING | NKR_NEEDRING);
-		}
-
-	}
-	if (sna != ona && ona->tx_rings) {
-		sna = ona;
-		goto cleanup;
-	}
-
-	netmap_mem_rings_delete(na);
-	netmap_krings_delete(na); /* also zeroes tx_rings etc. */
-
-	if (ona->tx_rings == NULL) {
-		/* already deleted, we must be on an
-		 * cleanup-after-error path */
-		return;
-	}
-	netmap_mem_rings_delete(ona);
-	netmap_krings_delete(ona);
+	netmap_pipe_krings_delete_both(na, ona);
 }
 
 
@@ -613,9 +633,9 @@ netmap_pipe_dtor(struct netmap_adapter *na)
 {
 	struct netmap_pipe_adapter *pna =
 		(struct netmap_pipe_adapter *)na;
-	ND("%p %p", na, pna->parent_ifp);
+	nm_prdis("%p %p", na, pna->parent_ifp);
 	if (pna->peer_ref) {
-		ND("%p: clean up peer", na);
+		nm_prdis("%p: clean up peer", na);
 		pna->peer_ref = 0;
 		netmap_adapter_put(&pna->peer->up);
 	}
@@ -649,7 +669,7 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		if (cbra != NULL) {
 			role = NM_PIPE_ROLE_SLAVE;
 		} else {
-			ND("not a pipe");
+			nm_prdis("not a pipe");
 			return 0;
 		}
 	}
@@ -680,10 +700,10 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		if (!error)
 			break;
 		if (error != ENXIO || retries++) {
-			ND("parent lookup failed: %d", error);
+			nm_prdis("parent lookup failed: %d", error);
 			return error;
 		}
-		ND("try to create a persistent vale port");
+		nm_prdis("try to create a persistent vale port");
 		/* create a persistent vale port and try again */
 		*cbra = '\0';
 		NMG_UNLOCK();
@@ -692,14 +712,15 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		strlcpy(hdr->nr_name, nr_name_orig, sizeof(hdr->nr_name));
 		if (create_error && create_error != EEXIST) {
 			if (create_error != EOPNOTSUPP) {
-				D("failed to create a persistent vale port: %d", create_error);
+				nm_prerr("failed to create a persistent vale port: %d",
+				    create_error);
 			}
 			return error;
 		}
 	}
 
 	if (NETMAP_OWNED_BY_KERN(pna)) {
-		ND("parent busy");
+		nm_prdis("parent busy");
 		error = EBUSY;
 		goto put_out;
 	}
@@ -709,10 +730,10 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	mna = netmap_pipe_find(pna, pipe_id);
 	if (mna) {
 		if (mna->role == role) {
-			ND("found %s directly at %d", pipe_id, mna->parent_slot);
+			nm_prdis("found %s directly at %d", pipe_id, mna->parent_slot);
 			reqna = mna;
 		} else {
-			ND("found %s indirectly at %d", pipe_id, mna->parent_slot);
+			nm_prdis("found %s indirectly at %d", pipe_id, mna->parent_slot);
 			reqna = mna->peer;
 		}
 		/* the pipe we have found already holds a ref to the parent,
@@ -721,7 +742,7 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		netmap_unget_na(pna, ifp);
 		goto found;
 	}
-	ND("pipe %s not found, create %d", pipe_id, create);
+	nm_prdis("pipe %s not found, create %d", pipe_id, create);
 	if (!create) {
 		error = ENODEV;
 		goto put_out;
@@ -812,10 +833,10 @@ netmap_get_pipe_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 		sna->peer_ref = 1;
 		netmap_adapter_get(&mna->up);
 	}
-	ND("created master %p and slave %p", mna, sna);
+	nm_prdis("created master %p and slave %p", mna, sna);
 found:
 
-	ND("pipe %s %s at %p", pipe_id,
+	nm_prdis("pipe %s %s at %p", pipe_id,
 		(reqna->role == NM_PIPE_ROLE_MASTER ? "master" : "slave"), reqna);
 	*na = &reqna->up;
 	netmap_adapter_get(*na);
