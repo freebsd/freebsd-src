@@ -39,12 +39,11 @@
  * field of struct task and the second argument is a count of how many
  * times the task was enqueued before the call to taskqueue_run().
  *
- * List of locks	 
- * (c)	const after init	 
+ * List of locks
+ * (c)	const after init
  * (q)	taskqueue lock
  */
 typedef void task_fn_t(void *context, int pending);
-typedef void gtask_fn_t(void *context);
 
 struct task {
 	STAILQ_ENTRY(task) ta_link;	/* (q) link for queue */
@@ -54,6 +53,10 @@ struct task {
 	void	*ta_context;		/* (c) argument for handler */
 };
 
+#ifdef _KERNEL
+
+typedef void gtask_fn_t(void *context);
+
 struct gtask {
 	STAILQ_ENTRY(gtask) ta_link;	/* (q) link for queue */
 	uint16_t ta_flags;		/* (q) state flags */
@@ -62,15 +65,6 @@ struct gtask {
 	void	*ta_context;		/* (c) argument for handler */
 };
 
-struct grouptask {
-	struct	gtask		gt_task;
-	void			*gt_taskqueue;
-	LIST_ENTRY(grouptask)	gt_list;
-	void			*gt_uniq;
-#define GROUPTASK_NAMELEN	32
-	char			gt_name[GROUPTASK_NAMELEN];
-	int16_t			gt_irq;
-	int16_t			gt_cpu;
-};
+#endif /* _KERNEL */
 
 #endif /* !_SYS__TASK_H_ */

@@ -4481,7 +4481,8 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 
 	GROUPTASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
 	/* XXX format name */
-	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx, -1, "admin");
+	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx,
+	    NULL, NULL, "admin");
 
 	/* Set up cpu set.  If it fails, use the set of all CPUs. */
 	if (bus_get_cpus(dev, INTR_CPUS, sizeof(ctx->ifc_cpus), &ctx->ifc_cpus) != 0) {
@@ -4742,7 +4743,8 @@ iflib_pseudo_register(device_t dev, if_shared_ctx_t sctx, if_ctx_t *ctxp,
 
 	GROUPTASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
 	/* XXX format name */
-	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx, -1, "admin");
+	taskqgroup_attach(qgroup_if_config_tqg, &ctx->ifc_admin_task, ctx,
+	    NULL, NULL, "admin");
 
 	/* XXX --- can support > 1 -- but keep it simple for now */
 	scctx->isc_intr = IFLIB_INTR_LEGACY;
@@ -5634,19 +5636,22 @@ get_core_offset(if_ctx_t ctx, iflib_intr_type_t type, int qid)
 
 /* Just to avoid copy/paste */
 static inline int
-iflib_irq_set_affinity(if_ctx_t ctx, int irq, iflib_intr_type_t type, int qid,
-    struct grouptask *gtask, struct taskqgroup *tqg, void *uniq, const char *name)
+iflib_irq_set_affinity(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
+    int qid, struct grouptask *gtask, struct taskqgroup *tqg, void *uniq,
+    const char *name)
 {
-	int cpuid;
-	int err, tid;
+	device_t dev;
+	int err, cpuid, tid;
 
+	dev = ctx->ifc_dev;
 	cpuid = find_nth(ctx, qid);
 	tid = get_core_offset(ctx, type, qid);
 	MPASS(tid >= 0);
 	cpuid = find_close_core(cpuid, tid);
-	err = taskqgroup_attach_cpu(tqg, gtask, uniq, cpuid, irq, name);
+	err = taskqgroup_attach_cpu(tqg, gtask, uniq, cpuid, dev, irq->ii_res,
+	    name);
 	if (err) {
-		device_printf(ctx->ifc_dev, "taskqgroup_attach_cpu failed %d\n", err);
+		device_printf(dev, "taskqgroup_attach_cpu failed %d\n", err);
 		return (err);
 	}
 #ifdef notyet
@@ -5661,6 +5666,7 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 			iflib_intr_type_t type, driver_filter_t *filter,
 			void *filter_arg, int qid, const char *name)
 {
+	device_t dev;
 	struct grouptask *gtask;
 	struct taskqgroup *tqg;
 	iflib_filter_info_t info;
@@ -5720,20 +5726,22 @@ iflib_irq_alloc_generic(if_ctx_t ctx, if_irq_t irq, int rid,
 	info->ifi_task = gtask;
 	info->ifi_ctx = q;
 
+	dev = ctx->ifc_dev;
 	err = _iflib_irq_alloc(ctx, irq, rid, intr_fast, NULL, info,  name);
 	if (err != 0) {
-		device_printf(ctx->ifc_dev, "_iflib_irq_alloc failed %d\n", err);
+		device_printf(dev, "_iflib_irq_alloc failed %d\n", err);
 		return (err);
 	}
 	if (type == IFLIB_INTR_ADMIN)
 		return (0);
 
 	if (tqrid != -1) {
-		err = iflib_irq_set_affinity(ctx, rman_get_start(irq->ii_res), type, qid, gtask, tqg, q, name);
+		err = iflib_irq_set_affinity(ctx, irq, type, qid, gtask, tqg,
+		    q, name);
 		if (err)
 			return (err);
 	} else {
-		taskqgroup_attach(tqg, gtask, q, rman_get_start(irq->ii_res), name);
+		taskqgroup_attach(tqg, gtask, q, dev, irq->ii_res, name);
 	}
 
 	return (0);
@@ -5746,7 +5754,6 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, 
 	struct taskqgroup *tqg;
 	gtask_fn_t *fn;
 	void *q;
-	int irq_num = -1;
 	int err;
 
 	switch (type) {
@@ -5755,16 +5762,12 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, 
 		gtask = &ctx->ifc_txqs[qid].ift_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_tx;
-		if (irq != NULL)
-			irq_num = rman_get_start(irq->ii_res);
 		break;
 	case IFLIB_INTR_RX:
 		q = &ctx->ifc_rxqs[qid];
 		gtask = &ctx->ifc_rxqs[qid].ifr_task;
 		tqg = qgroup_if_io_tqg;
 		fn = _task_fn_rx;
-		if (irq != NULL)
-			irq_num = rman_get_start(irq->ii_res);
 		break;
 	case IFLIB_INTR_IOV:
 		q = ctx;
@@ -5776,13 +5779,14 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type, 
 		panic("unknown net intr type");
 	}
 	GROUPTASK_INIT(gtask, 0, fn, q);
-	if (irq_num != -1) {
-		err = iflib_irq_set_affinity(ctx, irq_num, type, qid, gtask, tqg, q, name);
+	if (irq != NULL) {
+		err = iflib_irq_set_affinity(ctx, irq, type, qid, gtask, tqg,
+		    q, name);
 		if (err)
-			taskqgroup_attach(tqg, gtask, q, irq_num, name);
-	}
-	else {
-		taskqgroup_attach(tqg, gtask, q, irq_num, name);
+			taskqgroup_attach(tqg, gtask, q, ctx->ifc_dev,
+			    irq->ii_res, name);
+	} else {
+		taskqgroup_attach(tqg, gtask, q, NULL, NULL, name);
 	}
 }
 
@@ -5805,7 +5809,9 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	iflib_rxq_t rxq = ctx->ifc_rxqs;
 	if_irq_t irq = &ctx->ifc_legacy_irq;
 	iflib_filter_info_t info;
+	device_t dev;
 	struct grouptask *gtask;
+	struct resource *res;
 	struct taskqgroup *tqg;
 	gtask_fn_t *fn;
 	int tqrid;
@@ -5825,14 +5831,17 @@ iflib_legacy_setup(if_ctx_t ctx, driver_filter_t filter, void *filter_arg, int *
 	info->ifi_task = gtask;
 	info->ifi_ctx = ctx;
 
+	dev = ctx->ifc_dev;
 	/* We allocate a single interrupt resource */
 	if ((err = _iflib_irq_alloc(ctx, irq, tqrid, iflib_fast_intr_ctx, NULL, info, name)) != 0)
 		return (err);
 	GROUPTASK_INIT(gtask, 0, fn, q);
-	taskqgroup_attach(tqg, gtask, q, rman_get_start(irq->ii_res), name);
+	res = irq->ii_res;
+	taskqgroup_attach(tqg, gtask, q, dev, res, name);
 
 	GROUPTASK_INIT(&txq->ift_task, 0, _task_fn_tx, txq);
-	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, rman_get_start(irq->ii_res), "tx");
+	taskqgroup_attach(qgroup_if_io_tqg, &txq->ift_task, txq, dev, res,
+	    "tx");
 	return (0);
 }
 
@@ -5882,7 +5891,8 @@ void
 iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu, char *name)
 {
 
-	taskqgroup_attach_cpu(qgroup_if_io_tqg, gt, uniq, cpu, -1, name);
+	taskqgroup_attach_cpu(qgroup_if_io_tqg, gt, uniq, cpu, NULL, NULL,
+	    name);
 }
 
 void
@@ -5891,7 +5901,8 @@ iflib_config_gtask_init(void *ctx, struct grouptask *gtask, gtask_fn_t *fn,
 {
 
 	GROUPTASK_INIT(gtask, 0, fn, ctx);
-	taskqgroup_attach(qgroup_if_config_tqg, gtask, gtask, -1, name);
+	taskqgroup_attach(qgroup_if_config_tqg, gtask, gtask, NULL, NULL,
+	    name);
 }
 
 void
