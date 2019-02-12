@@ -151,10 +151,10 @@ main(int argc, char *argv[])
 			volumelabel = optarg;
 			i = -1;
 			while (isalnum(volumelabel[++i]) ||
-			    volumelabel[i] == '_');
+			    volumelabel[i] == '_' || volumelabel[i] == '-');
 			if (volumelabel[i] != '\0') {
 				errx(1, "bad volume label. Valid characters "
-				    "are alphanumerics and underscores.");
+				    "are alphanumerics, dashes, and underscores.");
 			}
 			if (strlen(volumelabel) >= MAXVOLLEN) {
 				errx(1, "bad volume label. Length is longer than %d.",
