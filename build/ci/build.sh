@@ -3,15 +3,17 @@
 # Automated build and test of libarchive on CI systems
 #
 # Variables that can be passed via environment:
-# BUILD_SYSTEM=
-# BUILDDIR=
-# SRCDIR=
-# CONFIGURE_ARGS=
-# MAKE_ARGS=
-#
+# BS=			# build system (autotools or cmake)
+# BUILDDIR=		# build directory
+# SRCDIR=		# source directory
+# CONFIGURE_ARGS=	# configure arguments
+# MAKE_ARGS=		# make arguments
 
 ACTIONS=
-BUILD_SYSTEM="${BUILD_SYSTEM:-autotools}"
+if [ -n "${BUILD_SYSTEM}" ]; then
+	BS="${BUILD_SYSTEM}"
+fi
+BS="${BS:-autotools}"
 MAKE="${MAKE:-make}"
 CMAKE="${CMAKE:-cmake}"
 CURDIR=`pwd`
@@ -38,8 +40,8 @@ while getopts a:b:d:s: opt; do
 			esac
 			ACTIONS="${ACTIONS} ${OPTARG}"
 		;;
-		b) BUILD_SYSTEM="${OPTARG}"
-			case "${BUILD_SYSTEM}" in
+		b) BS="${OPTARG}"
+			case "${BS}" in
 				autotools) ;;
 				cmake) ;;
 				*) inputerror "Invalid build system (-b)" ;;
@@ -59,18 +61,18 @@ done
 if [ -z "${ACTIONS}" ]; then
 	ACTIONS="autogen configure build test"
 fi
-if [ -z "${BUILD_SYSTEM}" ]; then
-	inputerror "Missing type (-t) parameter"
+if [ -z "${BS}" ]; then
+	inputerror "Missing build system (-b) parameter"
 fi
 if [ -z "${BUILDDIR}" ]; then
-	BUILDDIR="${CURDIR}/build_ci/${BUILD_SYSTEM}"
+	BUILDDIR="${CURDIR}/build_ci/${BS}"
 fi
 mkdir -p "${BUILDDIR}"
 for action in ${ACTIONS}; do
 	cd "${BUILDDIR}"
 	case "${action}" in
 		autogen)
-			case "${BUILD_SYSTEM}" in
+			case "${BS}" in
 				autotools)
 					cd "${SRCDIR}"
 					sh build/autogen.sh
@@ -79,7 +81,7 @@ for action in ${ACTIONS}; do
 			esac
 		;;
 		configure)
-			case "${BUILD_SYSTEM}" in
+			case "${BS}" in
 				autotools) "${SRCDIR}/configure" ${CONFIGURE_ARGS} ;;
 				cmake) ${CMAKE} ${CONFIGURE_ARGS} "${SRCDIR}" ;;
 			esac
@@ -90,15 +92,16 @@ for action in ${ACTIONS}; do
 			RET="$?"
 		;;
 		test)
-			case "${BUILD_SYSTEM}" in
+			case "${BS}" in
 				autotools)
-					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci_test_driver"
+					${MAKE} ${MAKE_ARGS} check LOG_DRIVER="${SRCDIR}/build/ci/test_driver"
 					;;
 				cmake)
 					${MAKE} ${MAKE_ARGS} test
 					;;
 			esac
 			RET="$?"
+			find ${TMPDIR:-/tmp} -path '*_test.*' -name '*.log' -print -exec cat {} \;
 		;;
 	esac
 	if [ "${RET}" != "0" ]; then

@@ -856,7 +856,11 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	const struct stat *st; /* info to use for this entry */
 	const struct stat *lst;/* lstat() information */
 	const char *name;
-	int descend, r;
+	int delayed, delayed_errno, descend, r;
+	struct archive_string delayed_str;
+
+	delayed = ARCHIVE_OK;
+	archive_string_init(&delayed_str);
 
 	st = NULL;
 	lst = NULL;
@@ -885,11 +889,23 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 		case TREE_REGULAR:
 			lst = tree_current_lstat(t);
 			if (lst == NULL) {
+			    if (errno == ENOENT && t->depth > 0) {
+				delayed = ARCHIVE_WARN;
+				delayed_errno = errno;
+				if (delayed_str.length == 0) {
+					archive_string_sprintf(&delayed_str,
+					    "%s", tree_current_path(t));
+				} else {
+					archive_string_sprintf(&delayed_str,
+					    " %s", tree_current_path(t));
+				}
+			    } else {
 				archive_set_error(&a->archive, errno,
 				    "%s: Cannot stat",
 				    tree_current_path(t));
 				tree_enter_initial_dir(t);
 				return (ARCHIVE_FAILED);
+			    }
 			}
 			break;
 		}	
@@ -1082,6 +1098,18 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	archive_entry_copy_sourcepath(entry, tree_current_access_path(t));
 	r = archive_read_disk_entry_from_file(&(a->archive), entry,
 		t->entry_fd, st);
+
+	if (r == ARCHIVE_OK) {
+		r = delayed;
+		if (r != ARCHIVE_OK) {
+			archive_string_sprintf(&delayed_str, ": %s",
+			    "File removed before we read it");
+			archive_set_error(&(a->archive), delayed_errno,
+			    "%s", delayed_str.s);
+		}
+	}
+	if (!archive_string_empty(&delayed_str))
+		archive_string_free(&delayed_str);
 
 	return (r);
 }

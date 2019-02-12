@@ -58,7 +58,6 @@ IF(ENABLE_TEST)
     test_compat_lzma.c
     test_compat_lzop.c
     test_compat_mac.c
-    test_compat_pax_libarchive_2x.c
     test_compat_perl_archive_tar.c
     test_compat_plexus_archiver_tar.c
     test_compat_solaris_pax_sparse.c

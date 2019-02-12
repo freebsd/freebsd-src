@@ -183,6 +183,7 @@ OPTION(ENABLE_LIBB2 "Enable the use of the system LIBB2 library if found" ON)
 OPTION(ENABLE_LZ4 "Enable the use of the system LZ4 library if found" ON)
 OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
 OPTION(ENABLE_LZMA "Enable the use of the system LZMA library if found" ON)
+OPTION(ENABLE_ZSTD "Enable the use of the system zstd library if found" ON)
 
 OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
 OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
@@ -458,7 +459,7 @@ MARK_AS_ADVANCED(CLEAR BZIP2_LIBRARIES)
 IF(ENABLE_LZMA)
   FIND_PACKAGE(LibLZMA)
 ELSE()
-  SET(LIBZMA_FOUND FALSE) # Override cached value
+  SET(LIBLZMA_FOUND FALSE) # Override cached value
 ENDIF()
 
 IF(LIBLZMA_FOUND)
@@ -480,6 +481,9 @@ IF(LIBLZMA_FOUND)
 ELSE(LIBLZMA_FOUND)
 # LZMA not found and will not be used.
 ENDIF(LIBLZMA_FOUND)
+MARK_AS_ADVANCED(CLEAR LIBLZMA_INCLUDE_DIR)
+MARK_AS_ADVANCED(CLEAR LIBLZMA_LIBRARY)
+
 #
 # Find LZO2
 #
@@ -569,15 +573,19 @@ MARK_AS_ADVANCED(CLEAR LZ4_LIBRARY)
 #
 # Find Zstd
 #
-IF (ZSTD_INCLUDE_DIR)
-  # Already in cache, be silent
-  SET(ZSTD_FIND_QUIETLY TRUE)
-ENDIF (ZSTD_INCLUDE_DIR)
+IF(ENABLE_ZSTD)
+  IF (ZSTD_INCLUDE_DIR)
+    # Already in cache, be silent
+    SET(ZSTD_FIND_QUIETLY TRUE)
+  ENDIF (ZSTD_INCLUDE_DIR)
 
-FIND_PATH(ZSTD_INCLUDE_DIR zstd.h)
-FIND_LIBRARY(ZSTD_LIBRARY NAMES zstd libzstd)
-INCLUDE(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(ZSTD DEFAULT_MSG ZSTD_LIBRARY ZSTD_INCLUDE_DIR)
+  FIND_PATH(ZSTD_INCLUDE_DIR zstd.h)
+  FIND_LIBRARY(ZSTD_LIBRARY NAMES zstd libzstd)
+  INCLUDE(FindPackageHandleStandardArgs)
+  FIND_PACKAGE_HANDLE_STANDARD_ARGS(ZSTD DEFAULT_MSG ZSTD_LIBRARY ZSTD_INCLUDE_DIR)
+ELSE(ENABLE_ZSTD)
+  SET(ZSTD_FOUND FALSE) # Override cached value
+ENDIF(ENABLE_ZSTD)
 IF(ZSTD_FOUND)
   SET(HAVE_ZSTD_H 1)
   INCLUDE_DIRECTORIES(${ZSTD_INCLUDE_DIR})
