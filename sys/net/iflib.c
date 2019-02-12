@@ -3658,6 +3658,9 @@ _task_fn_tx(void *context)
 {
 	iflib_txq_t txq = context;
 	if_ctx_t ctx = txq->ift_ctx;
+#if defined(ALTQ) || defined(DEV_NETMAP)
+	if_t ifp = ctx->ifc_ifp;
+#endif
 	int abdicate = ctx->ifc_sysctl_tx_abdicate;
 
 #ifdef IFLIB_DIAGNOSTICS
@@ -3666,11 +3669,11 @@ _task_fn_tx(void *context)
 	if (!(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING))
 		return;
 #ifdef DEV_NETMAP
-	if (if_getcapenable(ctx->ifc_ifp) & IFCAP_NETMAP) {
+	if (if_getcapenable(ifp) & IFCAP_NETMAP) {
 		bus_dmamap_sync(txq->ift_ifdi->idi_tag, txq->ift_ifdi->idi_map,
 		    BUS_DMASYNC_POSTREAD);
 		if (ctx->isc_txd_credits_update(ctx->ifc_softc, txq->ift_id, false))
-			netmap_tx_irq(ctx->ifc_ifp, txq->ift_id);
+			netmap_tx_irq(ifp, txq->ift_id);
 		IFDI_TX_QUEUE_INTR_ENABLE(ctx, txq->ift_id);
 		return;
 	}
