@@ -241,7 +241,20 @@ extern pt_entry_t *KPTmap;
 #define	pte_load_store(ptep, pte)	atomic_swap_64_i586(ptep, pte)
 #define	pte_load_clear(ptep)		atomic_swap_64_i586(ptep, 0)
 #define	pte_store(ptep, pte)		atomic_store_rel_64_i586(ptep, pte)
-#define	pte_load(ptep)			atomic_load_acq_64_i586(ptep)
+static __inline uint64_t
+pte_load(pt_entry_t *p)
+{
+	uint64_t res;
+
+	__asm __volatile(
+	"	movl	%%ebx,%%eax ;	"
+	"	movl	%%ecx,%%edx ;	"
+	"	lock; cmpxchg8b %1"
+	: "=&A" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: : "memory", "cc");
+	return (res);
+}
 
 extern pt_entry_t pg_nx;
 
