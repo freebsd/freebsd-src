@@ -352,14 +352,12 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 #endif
 	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1, sconv);
 	if (ret < ARCHIVE_WARN) {
-		if (entry_main)
-			archive_entry_free(entry_main);
+		archive_entry_free(entry_main);
 		return (ret);
 	}
 	ret2 = __archive_write_output(a, buff, 512);
 	if (ret2 < ARCHIVE_WARN) {
-		if (entry_main)
-			archive_entry_free(entry_main);
+		archive_entry_free(entry_main);
 		return (ret2);
 	}
 	if (ret2 < ret)
@@ -367,8 +365,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 
 	ustar->entry_bytes_remaining = archive_entry_size(entry);
 	ustar->entry_padding = 0x1ff & (-(int64_t)ustar->entry_bytes_remaining);
-	if (entry_main)
-		archive_entry_free(entry_main);
+	archive_entry_free(entry_main);
 	return (ret);
 }
 
