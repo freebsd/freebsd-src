@@ -80,6 +80,7 @@ struct nvd_disk {
 	struct nvme_namespace	*ns;
 
 	uint32_t		cur_depth;
+#define	NVD_ODEPTH	(1 << 30)
 	uint32_t		ordered_in_flight;
 	u_int			unit;
 
@@ -179,39 +180,50 @@ nvd_unload()
 	mtx_destroy(&nvd_lock);
 }
 
-static int
+static void
 nvd_bio_submit(struct nvd_disk *ndisk, struct bio *bp)
 {
 	int err;
 
 	bp->bio_driver1 = NULL;
-	atomic_add_int(&ndisk->cur_depth, 1);
+	if (__predict_false(bp->bio_flags & BIO_ORDERED))
+		atomic_add_int(&ndisk->cur_depth, NVD_ODEPTH);
+	else
+		atomic_add_int(&ndisk->cur_depth, 1);
 	err = nvme_ns_bio_process(ndisk->ns, bp, nvd_done);
 	if (err) {
-		atomic_add_int(&ndisk->cur_depth, -1);
-		if (__predict_false(bp->bio_flags & BIO_ORDERED))
+		if (__predict_false(bp->bio_flags & BIO_ORDERED)) {
+			atomic_add_int(&ndisk->cur_depth, -NVD_ODEPTH);
 			atomic_add_int(&ndisk->ordered_in_flight, -1);
+			wakeup(&ndisk->cur_depth);
+		} else {
+			if (atomic_fetchadd_int(&ndisk->cur_depth, -1) == 1 &&
+			    __predict_false(ndisk->ordered_in_flight != 0))
+				wakeup(&ndisk->cur_depth);
+		}
 		bp->bio_error = err;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
 		biodone(bp);
-		return (-1);
 	}
-
-	return (0);
 }
 
 static void
 nvd_strategy(struct bio *bp)
 {
-	struct nvd_disk *ndisk;
+	struct nvd_disk *ndisk = (struct nvd_disk *)bp->bio_disk->d_drv1;
 
-	ndisk = (struct nvd_disk *)bp->bio_disk->d_drv1;
-
-	if (__predict_false(bp->bio_flags & BIO_ORDERED))
-		atomic_add_int(&ndisk->ordered_in_flight, 1);
-
-	if (__predict_true(ndisk->ordered_in_flight == 0)) {
+	/*
+	 * bio with BIO_ORDERED flag must be executed after all previous
+	 * bios in the queue, and before any successive bios.
+	 */
+	if (__predict_false(bp->bio_flags & BIO_ORDERED)) {
+		if (atomic_fetchadd_int(&ndisk->ordered_in_flight, 1) == 0 &&
+		    ndisk->cur_depth == 0 && bioq_first(&ndisk->bioq) == NULL) {
+			nvd_bio_submit(ndisk, bp);
+			return;
+		}
+	} else if (__predict_true(ndisk->ordered_in_flight == 0)) {
 		nvd_bio_submit(ndisk, bp);
 		return;
 	}
@@ -279,11 +291,8 @@ nvd_ioctl(struct disk *ndisk, u_long cmd, void *data, int fflag,
 static int
 nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
 {
-	struct nvd_disk *ndisk;
-	struct disk *dp;
-
-	dp = arg;
-	ndisk = dp->d_drv1;
+	struct disk *dp = arg;
+	struct nvd_disk *ndisk = dp->d_drv1;
 
 	return (nvme_ns_dump(ndisk->ns, virt, offset, len));
 }
@@ -291,16 +300,18 @@ nvd_dump(void *arg, void *virt, vm_offset_t phys, off_t offset, size_t len)
 static void
 nvd_done(void *arg, const struct nvme_completion *cpl)
 {
-	struct bio *bp;
-	struct nvd_disk *ndisk;
+	struct bio *bp = (struct bio *)arg;
+	struct nvd_disk *ndisk = bp->bio_disk->d_drv1;
 
-	bp = (struct bio *)arg;
-
-	ndisk = bp->bio_disk->d_drv1;
-
-	atomic_add_int(&ndisk->cur_depth, -1);
-	if (__predict_false(bp->bio_flags & BIO_ORDERED))
+	if (__predict_false(bp->bio_flags & BIO_ORDERED)) {
+		atomic_add_int(&ndisk->cur_depth, -NVD_ODEPTH);
 		atomic_add_int(&ndisk->ordered_in_flight, -1);
+		wakeup(&ndisk->cur_depth);
+	} else {
+		if (atomic_fetchadd_int(&ndisk->cur_depth, -1) == 1 &&
+		    __predict_false(ndisk->ordered_in_flight != 0))
+			wakeup(&ndisk->cur_depth);
+	}
 
 	biodone(bp);
 }
@@ -318,22 +329,23 @@ nvd_bioq_process(void *arg, int pending)
 		if (bp == NULL)
 			break;
 
-		if (nvd_bio_submit(ndisk, bp) != 0) {
-			continue;
+		if (__predict_false(bp->bio_flags & BIO_ORDERED)) {
+			/*
+			 * bio with BIO_ORDERED flag set must be executed
+			 * after all previous bios.
+			 */
+			while (ndisk->cur_depth > 0)
+				tsleep(&ndisk->cur_depth, 0, "nvdorb", 1);
+		} else {
+			/*
+			 * bio with BIO_ORDERED flag set must be completed
+			 * before proceeding with additional bios.
+			 */
+			while (ndisk->cur_depth >= NVD_ODEPTH)
+				tsleep(&ndisk->cur_depth, 0, "nvdora", 1);
 		}
 
-#ifdef BIO_ORDERED
-		/*
-		 * BIO_ORDERED flag dictates that the bio with BIO_ORDERED
-		 *  flag set must be completed before proceeding with
-		 *  additional bios.
-		 */
-		if (bp->bio_flags & BIO_ORDERED) {
-			while (ndisk->cur_depth > 0) {
-				pause("nvd flush", 1);
-			}
-		}
-#endif
+		nvd_bio_submit(ndisk, bp);
 	}
 }
 
