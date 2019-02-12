@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd April 23, 2016
+.Dd December 29, 2018
 .Dt RC 8
 .Os
 .Sh NAME
@@ -156,9 +156,6 @@ which sets
 to
 .Dq Li start ,
 and sources the script in a subshell.
-If the script has a
-.Pa .sh
-suffix then it is sourced directly into the current shell.
 Stop processing when the script that is the value of the
 .Va $early_late_divider
 has been run.
@@ -219,9 +216,6 @@ which sets
 to
 .Dq Li stop ,
 and sources the script in a subshell.
-If the script has a
-.Pa .sh
-suffix then it is sourced directly into the current shell.
 .El
 .Ss Contents of Nm rc.d/
 .Nm rc.d/
@@ -261,13 +255,6 @@ as well as services which might run commands as users
 and
 .Pa sendmail ) .
 .El
-.It Pa foo.sh
-Scripts that are to be sourced into the current shell rather than a subshell
-have a
-.Pa .sh
-suffix.
-Extreme care must be taken in using this, as the startup sequence will
-terminate if the script does.
 .It Pa bar
 Scripts that are sourced in a subshell.
 The boot does not stop if such a script terminates with a non-zero status,
