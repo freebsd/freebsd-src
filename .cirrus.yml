@@ -1,0 +1,26 @@
+env:
+  CIRRUS_CLONE_DEPTH: 1
+  ARCH: amd64
+
+task:
+  matrix:
+    container:
+      image: fedora:29
+    freebsd_instance:
+      image: freebsd-12-0-release-amd64
+    freebsd_instance:
+      image: freebsd-11-2-release-amd64
+    osx_instance:
+      image: mojave-xcode-10.1
+    osx_instance:
+      image: high-sierra-xcode-10.0
+  matrix:
+    env:
+      BS: autotools
+    env:
+      BS: cmake
+  install_script:
+    - ./build/ci/cirrus_ci.sh install
+  script:
+    - ./build/ci/build.sh
+    - ./build/ci/cirrus_ci.sh test

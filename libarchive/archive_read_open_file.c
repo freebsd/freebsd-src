@@ -174,8 +174,7 @@ file_close(struct archive *a, void *client_data)
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
 
 	(void)a; /* UNUSED */
-	if (mine->buffer != NULL)
-		free(mine->buffer);
+	free(mine->buffer);
 	free(mine);
 	return (ARCHIVE_OK);
 }

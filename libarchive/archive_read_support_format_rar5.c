@@ -588,8 +588,7 @@ static int run_filter(struct archive_read* a, struct filter_info* flt) {
     int ret;
     struct rar5* rar = get_context(a);
 
-    if(rar->cstate.filtered_buf)
-        free(rar->cstate.filtered_buf);
+    free(rar->cstate.filtered_buf);
 
     rar->cstate.filtered_buf = malloc(flt->block_length);
     if(!rar->cstate.filtered_buf) {
@@ -772,7 +771,7 @@ static void free_filters(struct rar5* rar) {
         struct filter_info* f = NULL;
 
         /* Pop_front will also decrease the collection's size. */
-        if(CDE_OK == cdeque_pop_front(d, cdeque_filter_p(&f)) && f != NULL)
+        if (CDE_OK == cdeque_pop_front(d, cdeque_filter_p(&f)))
             free(f);
     }
 
@@ -873,7 +872,7 @@ static int read_var(struct archive_read* a, uint64_t* pvalue,
 
         /* Strip the MSB from the input byte and add the resulting number
          * to the `result`. */
-        result += (b & 0x7F) << shift;
+        result += (b & (uint64_t)0x7F) << shift;
 
         /* MSB set to 1 means we need to continue decoding process. MSB set
          * to 0 means we're done.
@@ -1301,7 +1300,7 @@ static int process_head_file(struct archive_read* a, struct rar5* rar,
     char name_utf8_buf[2048 * 4];
     const uint8_t* p;
 
-    memset(entry, 0, sizeof(struct archive_entry));
+    archive_entry_clear(entry);
 
     /* Do not reset file context if we're switching archives. */
     if(!rar->cstate.switch_multivolume) {
@@ -1795,8 +1794,14 @@ static int skip_base_block(struct archive_read* a) {
     int ret;
     struct rar5* rar = get_context(a);
 
-    struct archive_entry entry;
-    ret = process_base_block(a, &entry);
+    /* Create a new local archive_entry structure that will be operated on
+     * by header reader; operations on this archive_entry will be discarded.
+     */
+    struct archive_entry* entry = archive_entry_new();
+    ret = process_base_block(a, entry);
+
+    /* Discard operations on this archive_entry structure. */
+    archive_entry_free(entry);
 
     if(rar->generic.last_header_id == 2 && rar->generic.split_before > 0)
         return ARCHIVE_OK;
@@ -1836,13 +1841,14 @@ static int rar5_read_header(struct archive_read *a,
 
 static void init_unpack(struct rar5* rar) {
     rar->file.calculated_crc32 = 0;
-    rar->cstate.window_mask = rar->cstate.window_size - 1;
+    if (rar->cstate.window_size)
+        rar->cstate.window_mask = rar->cstate.window_size - 1;
+    else
+        rar->cstate.window_mask = 0;
 
-    if(rar->cstate.window_buf)
-        free(rar->cstate.window_buf);
+    free(rar->cstate.window_buf);
 
-    if(rar->cstate.filtered_buf)
-        free(rar->cstate.filtered_buf);
+    free(rar->cstate.filtered_buf);
 
     rar->cstate.window_buf = calloc(1, rar->cstate.window_size);
     rar->cstate.filtered_buf = calloc(1, rar->cstate.window_size);
@@ -2676,12 +2682,20 @@ static int merge_block(struct archive_read* a, ssize_t block_size,
     if(rar->vol.push_buf)
         free((void*) rar->vol.push_buf);
 
-    rar->vol.push_buf = malloc(block_size);
+    /* Increasing the allocation block by 8 is due to bit reading functions,
+     * which are using additional 2 or 4 bytes. Allocating the block size
+     * by exact value would make bit reader perform reads from invalid memory
+     * block when reading the last byte from the buffer. */
+    rar->vol.push_buf = malloc(block_size + 8);
     if(!rar->vol.push_buf) {
         archive_set_error(&a->archive, ENOMEM, "Can't allocate memory for a "
                 "merge block buffer.");
         return ARCHIVE_FATAL;
     }
+
+    /* Valgrind complains if the extension block for bit reader is not
+     * initialized, so initialize it. */
+    memset(&rar->vol.push_buf[block_size], 0, 8);
 
     /* A single block can span across multiple multivolume archive files,
      * so we use a loop here. This loop will consume enough multivolume
@@ -3394,14 +3408,11 @@ static int64_t rar5_seek_data(struct archive_read *a, int64_t offset,
 static int rar5_cleanup(struct archive_read *a) {
     struct rar5* rar = get_context(a);
 
-    if(rar->cstate.window_buf)
-        free(rar->cstate.window_buf);
+    free(rar->cstate.window_buf);
 
-    if(rar->cstate.filtered_buf)
-        free(rar->cstate.filtered_buf);
+    free(rar->cstate.filtered_buf);
 
-    if(rar->vol.push_buf)
-        free(rar->vol.push_buf);
+    free(rar->vol.push_buf);
 
     free_filters(rar);
     cdeque_free(&rar->cstate.filters);

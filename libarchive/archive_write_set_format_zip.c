@@ -564,10 +564,8 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 	zip->entry_uses_zip64 = 0;
 	zip->entry_crc32 = zip->crc32func(0, NULL, 0);
 	zip->entry_encryption = 0;
-	if (zip->entry != NULL) {
-		archive_entry_free(zip->entry);
-		zip->entry = NULL;
-	}
+	archive_entry_free(zip->entry);
+	zip->entry = NULL;
 
 	if (zip->cctx_valid)
 		archive_encrypto_aes_ctr_release(&zip->cctx);
@@ -1429,6 +1427,9 @@ write_path(struct archive_entry *entry, struct archive_write *archive)
 	path = archive_entry_pathname(entry);
 	type = archive_entry_filetype(entry);
 	written_bytes = 0;
+
+	if (path == NULL)
+		return (ARCHIVE_FATAL);
 
 	ret = __archive_write_output(archive, path, strlen(path));
 	if (ret != ARCHIVE_OK)

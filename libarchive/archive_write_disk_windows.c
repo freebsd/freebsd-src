@@ -696,10 +696,8 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	a->pst = NULL;
 	a->current_fixup = NULL;
 	a->deferred = 0;
-	if (a->entry) {
-		archive_entry_free(a->entry);
-		a->entry = NULL;
-	}
+	archive_entry_free(a->entry);
+	a->entry = NULL;
 	a->entry = archive_entry_clone(entry);
 	a->fh = INVALID_HANDLE_VALUE;
 	a->fd_offset = 0;
@@ -1145,10 +1143,8 @@ _archive_write_disk_finish_entry(struct archive *_a)
 		a->fh = INVALID_HANDLE_VALUE;
 	}
 	/* If there's an entry, we can release it now. */
-	if (a->entry) {
-		archive_entry_free(a->entry);
-		a->entry = NULL;
-	}
+	archive_entry_free(a->entry);
+	a->entry = NULL;
 	a->archive.state = ARCHIVE_STATE_HEADER;
 	return (ret);
 }
@@ -1690,8 +1686,7 @@ _archive_write_disk_free(struct archive *_a)
 	ret = _archive_write_disk_close(&a->archive);
 	archive_write_disk_set_group_lookup(&a->archive, NULL, NULL, NULL);
 	archive_write_disk_set_user_lookup(&a->archive, NULL, NULL, NULL);
-	if (a->entry)
-		archive_entry_free(a->entry);
+	archive_entry_free(a->entry);
 	archive_wstring_free(&a->_name_data);
 	archive_string_free(&a->archive.error_string);
 	archive_wstring_free(&a->path_safe);

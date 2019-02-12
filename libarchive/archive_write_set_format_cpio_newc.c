@@ -366,8 +366,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		}
 	}
 exit_write_header:
-	if (entry_main)
-		archive_entry_free(entry_main);
+	archive_entry_free(entry_main);
 	return (ret_final);
 }
 

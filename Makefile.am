@@ -132,6 +132,8 @@ libarchive_la_SOURCES= \
 	libarchive/archive_ppmd_private.h \
 	libarchive/archive_ppmd7.c \
 	libarchive/archive_ppmd7_private.h \
+	libarchive/archive_ppmd8.c \
+	libarchive/archive_ppmd8_private.h \
 	libarchive/archive_private.h \
 	libarchive/archive_random.c \
 	libarchive/archive_random_private.h \
@@ -400,7 +402,6 @@ libarchive_test_SOURCES= \
 	libarchive/test/test_compat_lzma.c \
 	libarchive/test/test_compat_lzop.c \
 	libarchive/test/test_compat_mac.c \
-	libarchive/test/test_compat_pax_libarchive_2x.c \
 	libarchive/test/test_compat_perl_archive_tar.c \
 	libarchive/test/test_compat_plexus_archiver_tar.c \
 	libarchive/test/test_compat_solaris_tar_acl.c \
@@ -671,7 +672,6 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_compat_lzop_3.tar.lzo.uu \
 	libarchive/test/test_compat_mac-1.tar.Z.uu \
 	libarchive/test/test_compat_mac-2.tar.Z.uu \
-	libarchive/test/test_compat_pax_libarchive_2x.tar.Z.uu \
 	libarchive/test/test_compat_perl_archive_tar.tar.uu \
 	libarchive/test/test_compat_plexus_archiver_tar.tar.uu \
 	libarchive/test/test_compat_solaris_pax_sparse_1.pax.Z.uu \

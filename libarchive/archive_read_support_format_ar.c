@@ -138,8 +138,7 @@ archive_read_format_ar_cleanup(struct archive_read *a)
 	struct ar *ar;
 
 	ar = (struct ar *)(a->format->data);
-	if (ar->strtab)
-		free(ar->strtab);
+	free(ar->strtab);
 	free(ar);
 	(a->format->data) = NULL;
 	return (ARCHIVE_OK);
@@ -388,9 +387,10 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 
 	/*
 	 * "/" is the SVR4/GNU archive symbol table.
+	 * "/SYM64/" is the SVR4/GNU 64-bit variant archive symbol table.
 	 */
-	if (strcmp(filename, "/") == 0) {
-		archive_entry_copy_pathname(entry, "/");
+	if (strcmp(filename, "/") == 0 || strcmp(filename, "/SYM64/") == 0) {
+		archive_entry_copy_pathname(entry, filename);
 		/* Parse the time, owner, mode, size fields. */
 		r = ar_parse_common_header(ar, entry, h);
 		/* Force the file type to a regular file. */

@@ -169,8 +169,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	}
 
 	/* Save the entry for the closing. */
-	if (shar->entry)
-		archive_entry_free(shar->entry);
+	archive_entry_free(shar->entry);
 	shar->entry = archive_entry_clone(entry);
 	name = archive_entry_pathname(entry);
 
@@ -289,8 +288,7 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 			    "mkdir -p %s > /dev/null 2>&1\n",
 			    shar->quoted_name.s);
 			/* Record that we just created this directory. */
-			if (shar->last_dir != NULL)
-				free(shar->last_dir);
+			free(shar->last_dir);
 
 			shar->last_dir = strdup(name);
 			/* Trim a trailing '/'. */
