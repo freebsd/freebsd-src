@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2018
+.Dd February 11, 2019
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -253,6 +253,13 @@ It will not destroy a mounted boot environment unless the
 .Dv BE_DESTROY_FORCE
 option is set in
 .Fa options .
+If the
+.Dv BE_DESTROY_ORIGIN
+option is set in
+.Fa options ,
+the
+.Fn be_destroy
+function will destroy the origin snapshot to this boot environment as well.
 .Pp
 The
 .Fn be_nicenum
