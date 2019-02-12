@@ -622,7 +622,7 @@ zone_timeout(uma_zone_t zone)
 static int
 hash_alloc(struct uma_hash *hash)
 {
-	int oldsize;
+	u_int oldsize;
 	size_t alloc;
 
 	oldsize = hash->uh_hashsize;
@@ -666,8 +666,8 @@ static int
 hash_expand(struct uma_hash *oldhash, struct uma_hash *newhash)
 {
 	uma_slab_t slab;
-	int hval;
-	int i;
+	u_int hval;
+	u_int idx;
 
 	if (!newhash->uh_slab_hash)
 		return (0);
@@ -680,10 +680,10 @@ hash_expand(struct uma_hash *oldhash, struct uma_hash *newhash)
 	 * full rehash.
 	 */
 
-	for (i = 0; i < oldhash->uh_hashsize; i++)
-		while (!SLIST_EMPTY(&oldhash->uh_slab_hash[i])) {
-			slab = SLIST_FIRST(&oldhash->uh_slab_hash[i]);
-			SLIST_REMOVE_HEAD(&oldhash->uh_slab_hash[i], us_hlink);
+	for (idx = 0; idx < oldhash->uh_hashsize; idx++)
+		while (!SLIST_EMPTY(&oldhash->uh_slab_hash[idx])) {
+			slab = SLIST_FIRST(&oldhash->uh_slab_hash[idx]);
+			SLIST_REMOVE_HEAD(&oldhash->uh_slab_hash[idx], us_hlink);
 			hval = UMA_HASH(newhash, slab->us_data);
 			SLIST_INSERT_HEAD(&newhash->uh_slab_hash[hval],
 			    slab, us_hlink);
