@@ -118,7 +118,7 @@ set_crcstrip(struct ixgbe_hw *hw, int onoff)
 	hl = IXGBE_READ_REG(hw, IXGBE_HLREG0);
 	rxc = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	if (netmap_verbose)
-		D("%s read  HLREG 0x%x rxc 0x%x",
+		nm_prinf("%s read  HLREG 0x%x rxc 0x%x",
 			onoff ? "enter" : "exit", hl, rxc);
 	/* hw requirements ... */
 	rxc &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
@@ -133,7 +133,7 @@ set_crcstrip(struct ixgbe_hw *hw, int onoff)
 		rxc |= IXGBE_RDRXCTL_CRCSTRIP;
 	}
 	if (netmap_verbose)
-		D("%s write HLREG 0x%x rxc 0x%x",
+		nm_prinf("%s write HLREG 0x%x rxc 0x%x",
 			onoff ? "enter" : "exit", hl, rxc);
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hl);
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rxc);
@@ -340,8 +340,8 @@ ixgbe_netmap_txsync(struct netmap_kring *kring, int flags)
 		 * good way.
 		 */
 		nic_i = IXGBE_READ_REG(&adapter->hw, IXGBE_TDH(kring->ring_id));
-		if (nic_i >= kring->nkr_num_slots) { /* XXX can it happen ? */
-			D("TDH wrap %d", nic_i);
+		if (unlikely(nic_i >= kring->nkr_num_slots)) {
+			nm_prinf("TDH wrap %d", nic_i);
 			nic_i -= kring->nkr_num_slots;
 		}
 		if (nic_i != txr->next_to_clean) {

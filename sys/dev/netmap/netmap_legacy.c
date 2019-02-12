@@ -362,7 +362,14 @@ netmap_ioctl_legacy(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 		/* Request for the legacy control API. Convert it to a
 		 * NIOCCTRL request. */
 		struct nmreq *nmr = (struct nmreq *) data;
-		struct nmreq_header *hdr = nmreq_from_legacy(nmr, cmd);
+		struct nmreq_header *hdr;
+
+		if (nmr->nr_version < 11) {
+			nm_prerr("Minimum supported API is 11 (requested %u)",
+			    nmr->nr_version);
+			return EINVAL;
+		}
+		hdr = nmreq_from_legacy(nmr, cmd);
 		if (hdr == NULL) { /* out of memory */
 			return ENOMEM;
 		}
@@ -387,14 +394,14 @@ netmap_ioctl_legacy(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 #ifdef __FreeBSD__
 	case FIONBIO:
 	case FIOASYNC:
-		ND("FIONBIO/FIOASYNC are no-ops");
+		/* FIONBIO/FIOASYNC are no-ops. */
 		break;
 
 	case BIOCIMMEDIATE:
 	case BIOCGHDRCMPLT:
 	case BIOCSHDRCMPLT:
 	case BIOCSSEESENT:
-		D("ignore BIOCIMMEDIATE/BIOCSHDRCMPLT/BIOCSHDRCMPLT/BIOCSSEESENT");
+		/* Ignore these commands. */
 		break;
 
 	default:	/* allow device-specific ioctls */
