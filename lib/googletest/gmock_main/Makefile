@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+.include <bsd.init.mk>
+
+.PATH:	${GOOGLEMOCK_SRCROOT}/include ${GOOGLEMOCK_SRCROOT}/src
+
+LIB_CXX=	gmock_main
+SHLIB_MAJOR=	0
+PRIVATELIB=	true
+
+CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}/include
+CXXFLAGS+=	-I${GOOGLEMOCK_SRCROOT}
+CXXFLAGS+=	-I${GOOGLETEST_SRCROOT}/include
+
+LIBADD=		gmock
+SRCS+=		gmock_main.cc
+
+SUBDIR.${MK_TESTS}+=	tests
+
+.include <bsd.lib.mk>
