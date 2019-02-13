@@ -4989,23 +4989,34 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 	struct i40e_nvm_access *nvma;
 	device_t dev = pf->dev;
 	enum i40e_status_code status = 0;
-	int perrno;
+	size_t nvma_size, ifd_len, exp_len;
+	int err, perrno;
 
 	DEBUGFUNC("ixl_handle_nvmupd_cmd");
 
 	/* Sanity checks */
-	if (ifd->ifd_len < sizeof(struct i40e_nvm_access) ||
+	nvma_size = sizeof(struct i40e_nvm_access);
+	ifd_len = ifd->ifd_len;
+
+	if (ifd_len < nvma_size ||
 	    ifd->ifd_data == NULL) {
 		device_printf(dev, "%s: incorrect ifdrv length or data pointer\n",
 		    __func__);
 		device_printf(dev, "%s: ifdrv length: %zu, sizeof(struct i40e_nvm_access): %zu\n",
-		    __func__, ifd->ifd_len, sizeof(struct i40e_nvm_access));
+		    __func__, ifd_len, nvma_size);
 		device_printf(dev, "%s: data pointer: %p\n", __func__,
 		    ifd->ifd_data);
 		return (EINVAL);
 	}
 
-	nvma = (struct i40e_nvm_access *)ifd->ifd_data;
+	nvma = malloc(ifd_len, M_DEVBUF, M_WAITOK);
+	err = copyin(ifd->ifd_data, nvma, ifd_len);
+	if (err) {
+		device_printf(dev, "%s: Cannot get request from user space\n",
+		    __func__);
+		free(nvma, M_DEVBUF);
+		return (err);
+	}
 
 	if (pf->dbg_mask & IXL_DBG_NVMUPD)
 		ixl_print_nvm_cmd(dev, nvma);
@@ -5019,12 +5030,48 @@ ixl_handle_nvmupd_cmd(struct ixl_pf *pf, struct ifdrv *ifd)
 		}
 	}
 
-	if (!(pf->state & IXL_PF_STATE_EMPR_RESETTING)) {
-		IXL_PF_LOCK(pf);
-		status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
-		IXL_PF_UNLOCK(pf);
-	} else {
-		perrno = -EBUSY;
+	if (pf->state & IXL_PF_STATE_EMPR_RESETTING) {
+		free(nvma, M_DEVBUF);
+		return (-EBUSY);
+	}
+
+	if (nvma->data_size < 1 || nvma->data_size > 4096) {
+		device_printf(dev, "%s: invalid request, data size not in supported range\n",
+		    __func__);
+		free(nvma, M_DEVBUF);
+		return (EINVAL);
+	}
+
+	/*
+	 * Older versions of the NVM update tool don't set ifd_len to the size
+	 * of the entire buffer passed to the ioctl. Check the data_size field
+	 * in the contained i40e_nvm_access struct and ensure everything is
+	 * copied in from userspace.
+	 */
+	exp_len = nvma_size + nvma->data_size - 1; /* One byte is kept in struct */
+
+	if (ifd_len < exp_len) {
+		ifd_len = exp_len;
+		nvma = realloc(nvma, ifd_len, M_DEVBUF, M_WAITOK);
+		err = copyin(ifd->ifd_data, nvma, ifd_len);
+		if (err) {
+			device_printf(dev, "%s: Cannot get request from user space\n",
+					__func__);
+			free(nvma, M_DEVBUF);
+			return (err);
+		}
+	}
+
+	IXL_PF_LOCK(pf);
+	status = i40e_nvmupd_command(hw, nvma, nvma->data, &perrno);
+	IXL_PF_UNLOCK(pf);
+
+	err = copyout(nvma, ifd->ifd_data, ifd_len);
+	free(nvma, M_DEVBUF);
+	if (err) {
+		device_printf(dev, "%s: Cannot return data to user space\n",
+				__func__);
+		return (err);
 	}
 
 	/* Let the nvmupdate report errors, show them only when debug is enabled */
