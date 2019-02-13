@@ -860,6 +860,7 @@ next_entry(struct archive_read_disk *a, struct tree *t,
 	struct archive_string delayed_str;
 
 	delayed = ARCHIVE_OK;
+	delayed_errno = 0;
 	archive_string_init(&delayed_str);
 
 	st = NULL;
