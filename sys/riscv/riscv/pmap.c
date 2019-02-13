@@ -4074,6 +4074,14 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 void
 pmap_clear_modify(vm_page_t m)
 {
+	struct md_page *pvh;
+	struct rwlock *lock;
+	pmap_t pmap;
+	pv_entry_t next_pv, pv;
+	pd_entry_t *l2, oldl2;
+	pt_entry_t *l3, oldl3;
+	vm_offset_t va;
+	int md_gen, pvh_gen;
 
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
@@ -4088,8 +4096,78 @@ pmap_clear_modify(vm_page_t m)
 	 */
 	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
-
-	/* RISCVTODO: We lack support for tracking if a page is modified */
+	pvh = (m->flags & PG_FICTITIOUS) != 0 ? &pv_dummy :
+	    pa_to_pvh(VM_PAGE_TO_PHYS(m));
+	lock = VM_PAGE_TO_PV_LIST_LOCK(m);
+	rw_rlock(&pvh_global_lock);
+	rw_wlock(lock);
+restart:
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto restart;
+			}
+		}
+		va = pv->pv_va;
+		l2 = pmap_l2(pmap, va);
+		oldl2 = pmap_load(l2);
+		if ((oldl2 & PTE_W) != 0) {
+			if (pmap_demote_l2_locked(pmap, l2, va, &lock)) {
+				if ((oldl2 & PTE_SW_WIRED) == 0) {
+					/*
+					 * Write protect the mapping to a
+					 * single page so that a subsequent
+					 * write access may repromote.
+					 */
+					va += VM_PAGE_TO_PHYS(m) -
+					    PTE_TO_PHYS(oldl2);
+					l3 = pmap_l2_to_l3(l2, va);
+					oldl3 = pmap_load(l3);
+					if ((oldl3 & PTE_V) != 0) {
+						while (!atomic_fcmpset_long(l3,
+						    &oldl3, oldl3 & ~(PTE_D |
+						    PTE_W)))
+							cpu_spinwait();
+						vm_page_dirty(m);
+						pmap_invalidate_page(pmap, va);
+					}
+				}
+			}
+		}
+		PMAP_UNLOCK(pmap);
+	}
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
+		pmap = PV_PMAP(pv);
+		if (!PMAP_TRYLOCK(pmap)) {
+			md_gen = m->md.pv_gen;
+			pvh_gen = pvh->pv_gen;
+			rw_wunlock(lock);
+			PMAP_LOCK(pmap);
+			rw_wlock(lock);
+			if (pvh_gen != pvh->pv_gen || md_gen != m->md.pv_gen) {
+				PMAP_UNLOCK(pmap);
+				goto restart;
+			}
+		}
+		l2 = pmap_l2(pmap, pv->pv_va);
+		KASSERT((pmap_load(l2) & PTE_RWX) == 0,
+		    ("pmap_clear_modify: found a 2mpage in page %p's pv list",
+		    m));
+		l3 = pmap_l2_to_l3(l2, pv->pv_va);
+		if ((pmap_load(l3) & (PTE_D | PTE_W)) == (PTE_D | PTE_W)) {
+			pmap_clear_bits(l3, PTE_D);
+			pmap_invalidate_page(pmap, pv->pv_va);
+		}
+		PMAP_UNLOCK(pmap);
+	}
+	rw_wunlock(lock);
+	rw_runlock(&pvh_global_lock);
 }
 
 void *
