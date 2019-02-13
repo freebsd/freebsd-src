@@ -1565,6 +1565,7 @@ in_pcbfree_deferred(epoch_context_t ctx)
 	inp = __containerof(ctx, struct inpcb, inp_epoch_ctx);
 
 	INP_WLOCK(inp);
+	CURVNET_SET(inp->inp_vnet);
 #ifdef INET
 	struct ip_moptions *imo = inp->inp_moptions;
 	inp->inp_moptions = NULL;
@@ -1597,6 +1598,7 @@ in_pcbfree_deferred(epoch_context_t ctx)
 #ifdef INET
 	inp_freemoptions(imo);
 #endif	
+	CURVNET_RESTORE();
 }
 
 /*
