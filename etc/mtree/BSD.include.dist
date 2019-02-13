@@ -231,6 +231,18 @@
         virstor
         ..
     ..
+    gmock
+        internal
+            custom
+            ..
+        ..
+    ..
+    gtest
+        internal
+            custom
+            ..
+        ..
+    ..
     gnu
         posix
         ..
