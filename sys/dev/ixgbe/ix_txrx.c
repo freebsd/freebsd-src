@@ -131,7 +131,7 @@ ixgbe_tx_ctx_setup(struct ixgbe_adv_tx_context_desc *TXD, if_pkt_info_t pi)
 
 	switch (pi->ipi_ipproto) {
 	case IPPROTO_TCP:
-		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP))
+		if (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP | CSUM_TSO))
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
 		else
 			offload = FALSE;
