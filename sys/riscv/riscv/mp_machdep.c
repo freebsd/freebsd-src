@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
+#include <vm/vm_map.h>
 
 #include <machine/intr.h>
 #include <machine/smp.h>
@@ -254,6 +255,9 @@ init_secondary(uint64_t cpu)
 
 	/* Enable external (PLIC) interrupts */
 	csr_set(sie, SIE_SEIE);
+
+	/* Activate process 0's pmap. */
+	pmap_activate_boot(vmspace_pmap(proc0.p_vmspace));
 
 	mtx_lock_spin(&ap_boot_mtx);
 

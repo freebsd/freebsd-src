@@ -871,10 +871,6 @@ initriscv(struct riscv_bootparams *rvbp)
 
 	init_proc0(rvbp->kern_stack);
 
-	/* set page table base register for thread0 */
-	thread0.td_pcb->pcb_l1addr = \
-	    (rvbp->kern_l1pt - KERNBASE + rvbp->kern_phys);
-
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 	init_param2(physmem);
