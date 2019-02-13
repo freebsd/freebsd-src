@@ -28,4 +28,7 @@ CXXFLAGS+=		-I${GOOGLETEST_SRCROOT}
 
 LIBADD=		gtest
 
+# XXX: https://github.com/google/googletest/pull/2119
+NO_WERROR=
+
 .include <bsd.test.mk>
