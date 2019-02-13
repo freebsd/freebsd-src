@@ -349,6 +349,10 @@ ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index,
 		    ACPI_RESOURCE **resp);
 ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf,
 		    ACPI_RESOURCE *res);
+UINT8		acpi_DSMQuery(ACPI_HANDLE h, uint8_t *uuid, int revision);
+ACPI_STATUS	acpi_EvaluateDSM(ACPI_HANDLE handle, uint8_t *uuid,
+		    int revision, uint64_t function, union acpi_object *package,
+		    ACPI_BUFFER *out_buf);
 ACPI_STATUS	acpi_EvaluateOSC(ACPI_HANDLE handle, uint8_t *uuid,
 		    int revision, int count, uint32_t *caps_in,
 		    uint32_t *caps_out, bool query);
