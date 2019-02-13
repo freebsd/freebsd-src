@@ -332,16 +332,11 @@ igb_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 	prev = txr->tx_cidx_processed;
 	ntxd = scctx->isc_ntxd[0];
 	do {
+		MPASS(prev != cur);
 		delta = (int32_t)cur - (int32_t)prev;
-		/*
-		 * XXX This appears to be a hack for first-packet.
-		 * A correct fix would prevent prev == cur in the first place.
-		 */
-		MPASS(prev == 0 || delta != 0);
-		if (prev == 0 && cur == 0)
-			delta += 1;
 		if (delta < 0)
 			delta += ntxd;
+		MPASS(delta > 0);
 
 		processed += delta;
 		prev  = cur;
