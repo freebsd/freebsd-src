@@ -1097,7 +1097,6 @@ sendreq:
 		break;
 	case ZIO_TYPE_IOCTL:
 		bp->bio_cmd = BIO_FLUSH;
-		bp->bio_flags |= BIO_ORDERED;
 		bp->bio_data = NULL;
 		bp->bio_offset = cp->provider->mediasize;
 		bp->bio_length = 0;
