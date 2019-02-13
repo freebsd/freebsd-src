@@ -45,6 +45,11 @@ __FBSDID("$FreeBSD$");
 #include "be.h"
 #include "be_impl.h"
 
+struct be_destroy_data {
+	libbe_handle_t		*lbh;
+	char			*snapname;
+};
+
 #if SOON
 static int be_create_child_noent(libbe_handle_t *lbh, const char *active,
     const char *child_path);
@@ -186,12 +191,38 @@ be_nicenum(uint64_t num, char *buf, size_t buflen)
 static int
 be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
 {
+	char path[BE_MAXPATHLEN];
+	struct be_destroy_data *bdd;
+	zfs_handle_t *snap;
 	int err;
 
-	if ((err = zfs_iter_children(zfs_hdl, be_destroy_cb, data)) != 0)
+	bdd = (struct be_destroy_data *)data;
+	if (bdd->snapname == NULL) {
+		err = zfs_iter_children(zfs_hdl, be_destroy_cb, data);
+		if (err != 0)
+			return (err);
+		return (zfs_destroy(zfs_hdl, false));
+	}
+	/* If we're dealing with snapshots instead, delete that one alone */
+	err = zfs_iter_filesystems(zfs_hdl, be_destroy_cb, data);
+	if (err != 0)
 		return (err);
-	if ((err = zfs_destroy(zfs_hdl, false)) != 0)
-		return (err);
+	/*
+	 * This part is intentionally glossing over any potential errors,
+	 * because there's a lot less potential for errors when we're cleaning
+	 * up snapshots rather than a full deep BE.  The primary error case
+	 * here being if the snapshot doesn't exist in the first place, which
+	 * the caller will likely deem insignificant as long as it doesn't
+	 * exist after the call.  Thus, such a missing snapshot shouldn't jam
+	 * up the destruction.
+	 */
+	snprintf(path, sizeof(path), "%s@%s", zfs_get_name(zfs_hdl),
+	    bdd->snapname);
+	if (!zfs_dataset_exists(bdd->lbh->lzh, path, ZFS_TYPE_SNAPSHOT))
+		return (0);
+	snap = zfs_open(bdd->lbh->lzh, path, ZFS_TYPE_SNAPSHOT);
+	if (snap != NULL)
+		zfs_destroy(snap, false);
 	return (0);
 }
 
@@ -199,22 +230,26 @@ be_destroy_cb(zfs_handle_t *zfs_hdl, void *data)
  * Destroy the boot environment or snapshot specified by the name
  * parameter. Options are or'd together with the possible values:
  * BE_DESTROY_FORCE : forces operation on mounted datasets
+ * BE_DESTROY_ORIGIN: destroy the origin snapshot as well
  */
 int
 be_destroy(libbe_handle_t *lbh, const char *name, int options)
 {
+	struct be_destroy_data bdd;
 	char origin[BE_MAXPATHLEN], path[BE_MAXPATHLEN];
 	zfs_handle_t *fs;
-	char *p;
+	char *snapdelim;
 	int err, force, mounted;
+	size_t rootlen;
 
-	p = path;
+	bdd.lbh = lbh;
+	bdd.snapname = NULL;
 	force = options & BE_DESTROY_FORCE;
 	*origin = '\0';
 
 	be_root_concat(lbh, name, path);
 
-	if (strchr(name, '@') == NULL) {
+	if ((snapdelim = strchr(path, '@')) == NULL) {
 		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_FILESYSTEM))
 			return (set_error(lbh, BE_ERR_NOENT));
 
@@ -222,9 +257,10 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		    strcmp(path, lbh->bootfs) == 0)
 			return (set_error(lbh, BE_ERR_DESTROYACT));
 
-		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_FILESYSTEM);
+		fs = zfs_open(lbh->lzh, path, ZFS_TYPE_FILESYSTEM);
 		if (fs == NULL)
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
+
 		if ((options & BE_DESTROY_ORIGIN) != 0 &&
 		    zfs_prop_get(fs, ZFS_PROP_ORIGIN, origin, sizeof(origin),
 		    NULL, NULL, 0, 1) != 0)
@@ -233,40 +269,56 @@ be_destroy(libbe_handle_t *lbh, const char *name, int options)
 		if (!zfs_dataset_exists(lbh->lzh, path, ZFS_TYPE_SNAPSHOT))
 			return (set_error(lbh, BE_ERR_NOENT));
 
-		fs = zfs_open(lbh->lzh, p, ZFS_TYPE_SNAPSHOT);
-		if (fs == NULL)
+		bdd.snapname = strdup(snapdelim + 1);
+		if (bdd.snapname == NULL)
+			return (set_error(lbh, BE_ERR_NOMEM));
+		*snapdelim = '\0';
+		fs = zfs_open(lbh->lzh, path, ZFS_TYPE_DATASET);
+		if (fs == NULL) {
+			free(bdd.snapname);
 			return (set_error(lbh, BE_ERR_ZFSOPEN));
+		}
 	}
 
 	/* Check if mounted, unmount if force is specified */
 	if ((mounted = zfs_is_mounted(fs, NULL)) != 0) {
-		if (force)
+		if (force) {
 			zfs_unmount(fs, NULL, 0);
-		else
+		} else {
+			free(bdd.snapname);
 			return (set_error(lbh, BE_ERR_DESTROYMNT));
+		}
 	}
 
-	if ((err = be_destroy_cb(fs, NULL)) != 0) {
+	err = be_destroy_cb(fs, &bdd);
+	zfs_close(fs);
+	free(bdd.snapname);
+	if (err != 0) {
 		/* Children are still present or the mount is referenced */
 		if (err == EBUSY)
 			return (set_error(lbh, BE_ERR_DESTROYMNT));
 		return (set_error(lbh, BE_ERR_UNKNOWN));
 	}
 
-	if (*origin != '\0') {
-		fs = zfs_open(lbh->lzh, origin, ZFS_TYPE_SNAPSHOT);
-		if (fs == NULL)
-			return (set_error(lbh, BE_ERR_ZFSOPEN));
-		err = zfs_destroy(fs, false);
-		if (err == EBUSY)
-			return (set_error(lbh, BE_ERR_DESTROYMNT));
-		else if (err != 0)
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-	}
+	if ((options & BE_DESTROY_ORIGIN) == 0)
+		return (0);
 
-	return (0);
+	/* The origin can't possibly be shorter than the BE root */
+	rootlen = strlen(lbh->root);
+	if (*origin == '\0' || strlen(origin) <= rootlen + 1)
+		return (set_error(lbh, BE_ERR_INVORIGIN));
+
+	/*
+	 * We'll be chopping off the BE root and running this back through
+	 * be_destroy, so that we properly handle the origin snapshot whether
+	 * it be that of a deep BE or not.
+	 */
+	if (strncmp(origin, lbh->root, rootlen) != 0 || origin[rootlen] != '/')
+		return (0);
+
+	return (be_destroy(lbh, origin + rootlen + 1,
+	    options & ~BE_DESTROY_ORIGIN));
 }
-
 
 int
 be_snapshot(libbe_handle_t *lbh, const char *source, const char *snap_name,
