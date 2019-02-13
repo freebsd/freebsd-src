@@ -267,6 +267,7 @@ static	int vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr);
 #ifdef RATELIMIT
 static	int vlan_snd_tag_alloc(struct ifnet *,
     union if_snd_tag_alloc_params *, struct m_snd_tag **);
+static void vlan_snd_tag_free(struct m_snd_tag *);
 #endif
 static	void vlan_qflush(struct ifnet *ifp);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
@@ -1047,6 +1048,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_ioctl = vlan_ioctl;
 #ifdef RATELIMIT
 	ifp->if_snd_tag_alloc = vlan_snd_tag_alloc;
+	ifp->if_snd_tag_free = vlan_snd_tag_free;
 #endif
 	ifp->if_flags = VLAN_IFFLAGS;
 	ether_ifattach(ifp, eaddr);
@@ -1933,5 +1935,11 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 		return (EOPNOTSUPP);
 	/* forward allocation request */
 	return (ifp->if_snd_tag_alloc(ifp, params, ppmt));
+}
+
+static void
+vlan_snd_tag_free(struct m_snd_tag *tag)
+{
+	tag->ifp->if_snd_tag_free(tag);
 }
 #endif
