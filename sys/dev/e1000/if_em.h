@@ -519,7 +519,6 @@ struct adapter {
 
 	u64		que_mask;
 
-	
 	struct em_int_delay_info tx_int_delay;
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;
@@ -529,9 +528,6 @@ struct adapter {
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
 	unsigned long	link_irq;
-	unsigned long	mbuf_defrag_failed;
-	unsigned long	no_tx_dma_setup;
-	unsigned long	no_tx_map_avail;
 	unsigned long	rx_overruns;
 	unsigned long	watchdog_events;
 
