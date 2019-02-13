@@ -259,6 +259,17 @@ bioq_disksort(struct bio_queue_head *head, struct bio *bp)
 		return;
 	}
 
+	/*
+	 * We should only sort requests of types that have concept of offset.
+	 * Other types, such as BIO_FLUSH or BIO_ZONE, may imply some degree
+	 * of ordering even if strict ordering is not requested explicitly.
+	 */
+	if (bp->bio_cmd != BIO_READ && bp->bio_cmd != BIO_WRITE &&
+	    bp->bio_cmd != BIO_DELETE) {
+		bioq_insert_tail(head, bp);
+		return;
+	}
+
 	if (bioq_batchsize > 0 && head->batched > bioq_batchsize) {
 		bioq_insert_tail(head, bp);
 		return;
