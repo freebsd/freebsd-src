@@ -436,10 +436,10 @@ getoffset(char *timearg)
 
 	(void)time(&now);
 
-	if (!strcasecmp(timearg, "now")
-	    || !strcasecmp(timearg, "nao")
-	    || !strcasecmp(timearg, "mew")
-	    || !strcasecmp(timearg, "meow")) {		/* now */
+	if (strcasecmp(timearg, "now") == 0 || /* now */
+	    strcasecmp(timearg, "nao") == 0 ||
+	    strcasecmp(timearg, "mew") == 0 ||
+	    strcasecmp(timearg, "meow") == 0) {
 		offset = 0;
 		shuttime = now;
 		return;
