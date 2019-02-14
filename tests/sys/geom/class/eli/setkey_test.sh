@@ -1,6 +1,8 @@
 #!/bin/sh
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 atf_test_case setkey cleanup
 setkey_head()
 {
@@ -9,7 +11,7 @@ setkey_head()
 }
 setkey_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -88,7 +90,6 @@ setkey_body()
 }
 setkey_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -100,7 +101,7 @@ setkey_readonly_head()
 }
 setkey_readonly_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -114,7 +115,6 @@ setkey_readonly_body()
 }
 setkey_readonly_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -126,7 +126,7 @@ nokey_head()
 }
 nokey_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -152,7 +152,6 @@ nokey_body()
 }
 nokey_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
