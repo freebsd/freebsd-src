@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 atf_test_case kill cleanup
 kill_head()
 {
@@ -8,7 +10,7 @@ kill_head()
 }
 kill_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -61,7 +63,6 @@ kill_body()
 }
 kill_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -73,7 +74,7 @@ kill_readonly_head()
 }
 kill_readonly_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s `expr $sectors + 1`)
@@ -91,7 +92,6 @@ kill_readonly_body()
 }
 kill_readonly_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 

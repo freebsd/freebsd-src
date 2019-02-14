@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+. $(atf_get_srcdir)/conf.sh
+
 onetime_test()
 {
 	cipher=$1
@@ -35,7 +37,8 @@ onetime_head()
 }
 onetime_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
+
 	sectors=100
 
 	dd if=/dev/random of=rnd bs=${MAX_SECSIZE} count=${sectors} status=none
@@ -43,7 +46,6 @@ onetime_body()
 }
 onetime_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -78,7 +80,8 @@ onetime_a_head()
 }
 onetime_a_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
+
 	sectors=8
 
 	atf_check dd if=/dev/random of=rnd bs=$MAX_SECSIZE count=$sectors \
@@ -87,7 +90,6 @@ onetime_a_body()
 }
 onetime_a_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
@@ -99,7 +101,7 @@ onetime_d_head()
 }
 onetime_d_body()
 {
-	. $(atf_get_srcdir)/conf.sh
+	geli_test_setup
 
 	sectors=100
 	md=$(attach_md -t malloc -s $sectors)
@@ -125,7 +127,6 @@ onetime_d_body()
 }
 onetime_d_cleanup()
 {
-	. $(atf_get_srcdir)/conf.sh
 	geli_test_cleanup
 }
 
