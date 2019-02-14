@@ -35,49 +35,76 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 #include <stdlib.h>
 #include <machine/cpufunc.h>
-#include <machine/fpu.h>
 #include <machine/specialreg.h>
 #include <machine/sysarch.h>
+#include <x86/ifunc.h>
+#include <x86/fpu.h>
 
-static int xstate_sz = -1;
+#if defined __i386__
+#define	X86_GET_XFPUSTATE	I386_GET_XFPUSTATE
+typedef struct savexmm savex86_t ;
+typedef struct i386_get_xfpustate x86_get_xfpustate_t;
+#elif defined __amd64__
+#define	X86_GET_XFPUSTATE	AMD64_GET_XFPUSTATE
+typedef struct savefpu savex86_t;
+typedef struct amd64_get_xfpustate x86_get_xfpustate_t;
+#else
+#error "Wrong arch"
+#endif
 
-int
-__getcontextx_size(void)
+static int xstate_sz = 0;
+
+static int
+__getcontextx_size_xfpu(void)
 {
-	u_int p[4];
-
-	if (xstate_sz == -1) {
-		do_cpuid(1, p);
-		if ((p[2] & CPUID2_OSXSAVE) != 0) {
-			cpuid_count(0xd, 0x0, p);
-			xstate_sz = p[1] - sizeof(struct savefpu);
-		} else
-			xstate_sz = 0;
-	}
 
 	return (sizeof(ucontext_t) + xstate_sz);
 }
 
-int
-__fillcontextx2(char *ctx)
+DEFINE_UIFUNC(, int, __getcontextx_size, (void), static)
 {
-	struct amd64_get_xfpustate xfpu;
+	u_int p[4];
+
+	if ((cpu_feature2 & CPUID2_OSXSAVE) != 0) {
+		cpuid_count(0xd, 0x0, p);
+		xstate_sz = p[1] - sizeof(savex86_t);
+	}
+	return (__getcontextx_size_xfpu);
+}
+
+static int
+__fillcontextx2_xfpu(char *ctx)
+{
+	x86_get_xfpustate_t xfpu;
 	ucontext_t *ucp;
 
 	ucp = (ucontext_t *)ctx;
-	if (xstate_sz != 0) {
-		xfpu.addr = (char *)(ucp + 1);
-		xfpu.len = xstate_sz;
-		if (sysarch(AMD64_GET_XFPUSTATE, &xfpu) == -1)
-			return (-1);
-		ucp->uc_mcontext.mc_xfpustate = (__register_t)xfpu.addr;
-		ucp->uc_mcontext.mc_xfpustate_len = xstate_sz;
-		ucp->uc_mcontext.mc_flags |= _MC_HASFPXSTATE;
-	} else {
-		ucp->uc_mcontext.mc_xfpustate = 0;
-		ucp->uc_mcontext.mc_xfpustate_len = 0;
-	}
+	xfpu.addr = (char *)(ucp + 1);
+	xfpu.len = xstate_sz;
+	if (sysarch(X86_GET_XFPUSTATE, &xfpu) == -1)
+		return (-1);
+	ucp->uc_mcontext.mc_xfpustate = (__register_t)xfpu.addr;
+	ucp->uc_mcontext.mc_xfpustate_len = xstate_sz;
+	ucp->uc_mcontext.mc_flags |= _MC_HASFPXSTATE;
 	return (0);
+}
+
+static int
+__fillcontextx2_noxfpu(char *ctx)
+{
+	ucontext_t *ucp;
+
+	ucp = (ucontext_t *)ctx;
+	ucp->uc_mcontext.mc_xfpustate = 0;
+	ucp->uc_mcontext.mc_xfpustate_len = 0;
+	return (0);
+}
+
+DEFINE_UIFUNC(, int, __fillcontextx2, (char *), static)
+{
+
+	return ((cpu_feature2 & CPUID2_OSXSAVE) != 0 ? __fillcontextx2_xfpu : 
+	    __fillcontextx2_noxfpu);
 }
 
 int

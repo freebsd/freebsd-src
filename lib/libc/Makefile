@@ -122,6 +122,7 @@ NOASM=
 .endif
 .if ${LIBC_ARCH} == "i386" || ${LIBC_ARCH} == "amd64"
 .include "${LIBC_SRCTOP}/x86/sys/Makefile.inc"
+.include "${LIBC_SRCTOP}/x86/gen/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"
 CFLAGS+= -DYP
