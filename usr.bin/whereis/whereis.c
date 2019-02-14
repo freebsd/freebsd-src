@@ -285,9 +285,9 @@ defaults(void)
 		bindirs[nele] = NULL;
 		if ((cp = getenv("PATH")) != NULL) {
 			/* don't destroy the original environment... */
-			if ((b = malloc(strlen(cp) + 1)) == NULL)
+			b = strdup(cp);
+			if (b == NULL)
 				abort();
-			strcpy(b, cp);
 			decolonify(b, &bindirs, &nele);
 		}
 	}
@@ -301,18 +301,18 @@ defaults(void)
 			err(EX_OSERR, "error processing manpath results");
 		if ((b = strchr(buf, '\n')) != NULL)
 			*b = '\0';
-		if ((b = malloc(strlen(buf) + 1)) == NULL)
+		b = strdup(buf);
+		if (b == NULL)
 			abort();
-		strcpy(b, buf);
 		nele = 0;
 		decolonify(b, &mandirs, &nele);
 	}
 
 	/* -s defaults to precompiled list, plus subdirs of /usr/ports */
 	if (!sourcedirs) {
-		if ((b = malloc(strlen(sourcepath) + 1)) == NULL)
+		b = strdup(sourcepath);
+		if (b == NULL)
 			abort();
-		strcpy(b, sourcepath);
 		nele = 0;
 		decolonify(b, &sourcedirs, &nele);
 
@@ -523,11 +523,9 @@ main(int argc, char **argv)
 						 * man -w found plain source
 						 * page, use it.
 						 */
-						s = strlen(buf);
-						cp2 = malloc(s + 1);
+						cp2 = strdup(buf);
 						if (cp2 == NULL)
 							abort();
-						strcpy(cp2, buf);
 					}
 
 					if (man == NULL) {
