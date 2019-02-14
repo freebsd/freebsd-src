@@ -195,16 +195,16 @@ pfsync_status(int s)
 		return;
 
 	if (preq.pfsyncr_syncdev[0] != '\0' ||
-	    preq.pfsyncr_syncpeer.s_addr != INADDR_PFSYNC_GROUP)
+	    preq.pfsyncr_syncpeer.s_addr != htonl(INADDR_PFSYNC_GROUP))
 			printf("\t");
 
 	if (preq.pfsyncr_syncdev[0] != '\0')
 		printf("pfsync: syncdev: %s ", preq.pfsyncr_syncdev);
-	if (preq.pfsyncr_syncpeer.s_addr != INADDR_PFSYNC_GROUP)
+	if (preq.pfsyncr_syncpeer.s_addr != htonl(INADDR_PFSYNC_GROUP))
 		printf("syncpeer: %s ", inet_ntoa(preq.pfsyncr_syncpeer));
 
 	if (preq.pfsyncr_syncdev[0] != '\0' ||
-	    preq.pfsyncr_syncpeer.s_addr != INADDR_PFSYNC_GROUP) {
+	    preq.pfsyncr_syncpeer.s_addr != htonl(INADDR_PFSYNC_GROUP)) {
 		printf("maxupd: %d ", preq.pfsyncr_maxupdates);
 		printf("defer: %s\n", preq.pfsyncr_defer ? "on" : "off");
 	}
