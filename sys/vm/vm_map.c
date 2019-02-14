@@ -1487,7 +1487,22 @@ static const int aslr_pages_rnd_32[2] = {0x100, 0x4};
 static int cluster_anon = 1;
 SYSCTL_INT(_vm, OID_AUTO, cluster_anon, CTLFLAG_RW,
     &cluster_anon, 0,
-    "Cluster anonymous mappings");
+    "Cluster anonymous mappings: 0 = no, 1 = yes if no hint, 2 = always");
+
+static bool
+clustering_anon_allowed(vm_offset_t addr)
+{
+
+	switch (cluster_anon) {
+	case 0:
+		return (false);
+	case 1:
+		return (addr == 0);
+	case 2:
+	default:
+		return (true);
+	}
+}
 
 static long aslr_restarts;
 SYSCTL_LONG(_vm, OID_AUTO, aslr_restarts, CTLFLAG_RD,
@@ -1593,7 +1608,7 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	} else
 		alignment = 0;
 	en_aslr = (map->flags & MAP_ASLR) != 0;
-	update_anon = cluster = cluster_anon != 0 &&
+	update_anon = cluster = clustering_anon_allowed(*addr) &&
 	    (map->flags & MAP_IS_SUB_MAP) == 0 && max_addr == 0 &&
 	    find_space != VMFS_NO_SPACE && object == NULL &&
 	    (cow & (MAP_INHERIT_SHARE | MAP_STACK_GROWS_UP |
