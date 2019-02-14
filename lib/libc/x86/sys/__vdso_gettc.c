@@ -54,31 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 static void
-cpuidp(u_int leaf, u_int p[4])
-{
-
-	__asm __volatile(
-#if defined(__i386__)
-	    "	pushl	%%ebx\n"
-#endif
-	    "	cpuid\n"
-#if defined(__i386__)
-	    "	movl	%%ebx,%1\n"
-	    "	popl	%%ebx"
-#endif
-	    : "=a" (p[0]),
-#if defined(__i386__)
-	    "=r" (p[1]),
-#elif defined(__amd64__)
-	    "=b" (p[1]),
-#else
-#error "Arch"
-#endif
-	    "=c" (p[2]), "=d" (p[3])
-	    :  "0" (leaf));
-}
-
-static void
 rdtsc_mb_lfence(void)
 {
 
@@ -100,12 +75,12 @@ rdtsc_mb_none(void)
 DEFINE_UIFUNC(static, void, rdtsc_mb, (void), static)
 {
 	u_int p[4];
-	/* Not a typo, string matches our cpuidp() registers use. */
+	/* Not a typo, string matches our do_cpuid() registers use. */
 	static const char intel_id[] = "GenuntelineI";
 
 	if ((cpu_feature & CPUID_SSE2) == 0)
 		return (rdtsc_mb_none);
-	cpuidp(0, p);
+	do_cpuid(0, p);
 	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
 	    rdtsc_mb_lfence : rdtsc_mb_mfence);
 }
