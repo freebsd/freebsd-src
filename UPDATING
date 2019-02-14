@@ -237,7 +237,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 20180719:
 	ARM64 now have efifb support, if you want to have serial console
 	on your arm64 board when an screen is connected and the bootloader
-	setup a frambuffer for us to use, just add :
+	setup a framebuffer for us to use, just add :
 	boot_serial=YES
 	boot_multicons=YES
 	in /boot/loader.conf
