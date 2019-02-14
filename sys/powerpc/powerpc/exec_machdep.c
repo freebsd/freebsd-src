@@ -474,6 +474,10 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	else
 		tf->fixreg[2] = tls;
 
+	/* Disable FPU */
+	tf->srr1 &= ~PSL_FP;
+	pcb->pcb_flags &= ~PCB_FPU;
+
 	if (mcp->mc_flags & _MC_FP_VALID) {
 		/* enable_fpu() will happen lazily on a fault */
 		pcb->pcb_flags |= PCB_FPREGS;
