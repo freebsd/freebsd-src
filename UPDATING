@@ -38,6 +38,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	modules on kernels not having 'device iflib', the iflib.ko module
 	is loaded automatically.
 
+20190125:
+	The IEEE80211_AMPDU_AGE and AH_SUPPORT_AR5416 kernel configuration
+	options no longer exist since r343219 and r343427 respectively;
+	nothing uses them, so they should be just removed from custom
+	kernel config files.
+
 20181230:
 	r342635 changes the way efibootmgr(8) works by requiring users to add
 	the -b (bootnum) parameter for commands where the bootnum was previously
