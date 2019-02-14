@@ -6537,6 +6537,7 @@ OLD_FILES+=usr/sbin/rpc.ypxfrd
 OLD_FILES+=usr/sbin/yp_mkdb
 OLD_FILES+=usr/sbin/ypbind
 OLD_FILES+=usr/sbin/ypinit
+OLD_FILES+=usr/sbin/ypldap
 OLD_FILES+=usr/sbin/yppoll
 OLD_FILES+=usr/sbin/yppush
 OLD_FILES+=usr/sbin/ypserv
@@ -6549,6 +6550,7 @@ OLD_FILES+=usr/share/man/man1/ypmatch.1.gz
 OLD_FILES+=usr/share/man/man1/yppasswd.1.gz
 OLD_FILES+=usr/share/man/man1/ypwhich.1.gz
 OLD_FILES+=usr/share/man/man5/netid.5.gz
+OLD_FILES+=usr/share/man/man5/ypldap.conf.5.gz
 OLD_FILES+=usr/share/man/man8/mknetid.8.gz
 OLD_FILES+=usr/share/man/man8/rpc.yppasswdd.8.gz
 OLD_FILES+=usr/share/man/man8/rpc.ypxfrd.8.gz
@@ -6559,6 +6561,7 @@ OLD_FILES+=usr/share/man/man8/nis.8.gz
 OLD_FILES+=usr/share/man/man8/yp_mkdb.8.gz
 OLD_FILES+=usr/share/man/man8/ypbind.8.gz
 OLD_FILES+=usr/share/man/man8/ypinit.8.gz
+OLD_FILES+=usr/share/man/man8/ypldap.8.gz
 OLD_FILES+=usr/share/man/man8/yppoll.8.gz
 OLD_FILES+=usr/share/man/man8/yppush.8.gz
 OLD_FILES+=usr/share/man/man8/ypserv.8.gz
@@ -6566,6 +6569,7 @@ OLD_FILES+=usr/share/man/man8/ypset.8.gz
 OLD_FILES+=usr/share/man/man8/ypxfr.8.gz
 OLD_FILES+=var/yp/Makefile
 OLD_FILES+=var/yp/Makefile.dist
+OLD_DIRS+=var/yp
 .endif
 
 .if ${MK_NLS} == no
