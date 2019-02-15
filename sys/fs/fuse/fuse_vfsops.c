@@ -444,7 +444,8 @@ fuse_vfsop_root(struct mount *mp, int lkflags, struct vnode **vpp)
 		if (err == 0)
 			*vpp = data->vroot;
 	} else {
-		err = fuse_vnode_get(mp, FUSE_ROOT_ID, NULL, vpp, NULL, VDIR);
+		err = fuse_vnode_get(mp, NULL, FUSE_ROOT_ID, NULL, vpp, NULL,
+		    VDIR);
 		if (err == 0) {
 			FUSE_LOCK();
 			MPASS(data->vroot == NULL || data->vroot == *vpp);
