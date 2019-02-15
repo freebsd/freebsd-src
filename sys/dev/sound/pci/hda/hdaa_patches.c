@@ -410,6 +410,18 @@ hdac_pin_patch(struct hdaa_widget *w)
 			patch = "as=1 seq=15";
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC295 && subid == HP_AF006UR_SUBVENDOR) {
+		switch (nid) {
+		case 18:
+			patch = "as=2";
+			break;
+		case 25:
+			patch = "as=2 seq=15";
+			break;
+		case 33:
+			patch = "as=1 seq=15";
+			break;
+		}
 	} else if (id == HDA_CODEC_ALC298 && subid == DELL_XPS9560_SUBVENDOR) {
 		switch (nid) {
 		case 24:
