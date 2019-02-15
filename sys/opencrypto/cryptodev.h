@@ -133,6 +133,7 @@
 
 #define	ARC4_IV_LEN		1
 #define	AES_GCM_IV_LEN		12
+#define	AES_CCM_IV_LEN		12
 #define	AES_XTS_IV_LEN		8
 #define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
 
@@ -204,7 +205,8 @@
 #define	CRYPTO_SHA2_512		37
 #define	CRYPTO_POLY1305		38
 #define	CRYPTO_AES_CCM_CBC_MAC	39	/* auth side */
-#define	CRYPTO_ALGORITHM_MAX	39 /* Keep updated - see below */
+#define	CRYPTO_AES_CCM_16	40	/* cipher side */
+#define	CRYPTO_ALGORITHM_MAX	40	/* Keep updated - see below */
 
 #define	CRYPTO_ALGO_VALID(x)	((x) >= CRYPTO_ALGORITHM_MIN && \
 				 (x) <= CRYPTO_ALGORITHM_MAX)
