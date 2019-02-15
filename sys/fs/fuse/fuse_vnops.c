@@ -384,7 +384,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	if ((err = fuse_internal_checkentry(feo, VREG))) {
 		goto out;
 	}
-	err = fuse_vnode_get(mp, feo->nodeid, dvp, vpp, cnp, VREG);
+	err = fuse_vnode_get(mp, feo, feo->nodeid, dvp, vpp, cnp, VREG);
 	if (err) {
 		struct fuse_release_in *fri;
 		uint64_t nodeid = feo->nodeid;
@@ -857,8 +857,8 @@ calldaemon:
 				vref(dvp);
 				*vpp = dvp;
 			} else {
-				err = fuse_vnode_get(dvp->v_mount, nid, dvp,
-				    &vp, cnp, IFTOVT(fattr->mode));
+				err = fuse_vnode_get(dvp->v_mount, feo, nid,
+				    dvp, &vp, cnp, IFTOVT(fattr->mode));
 				if (err)
 					goto out;
 				*vpp = vp;
@@ -893,12 +893,8 @@ calldaemon:
 				err = EISDIR;
 				goto out;
 			}
-			err = fuse_vnode_get(vnode_mount(dvp),
-			    nid,
-			    dvp,
-			    &vp,
-			    cnp,
-			    IFTOVT(fattr->mode));
+			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
+			    &vp, cnp, IFTOVT(fattr->mode));
 			if (err) {
 				goto out;
 			}
@@ -936,12 +932,8 @@ calldaemon:
 				}
 			}
 			VOP_UNLOCK(dvp, 0);
-			err = fuse_vnode_get(vnode_mount(dvp),
-			    nid,
-			    NULL,
-			    &vp,
-			    cnp,
-			    IFTOVT(fattr->mode));
+			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, NULL,
+			    &vp, cnp, IFTOVT(fattr->mode));
 			vfs_unbusy(mp);
 			vn_lock(dvp, ltype | LK_RETRY);
 			if ((dvp->v_iflag & VI_DOOMED) != 0) {
@@ -956,12 +948,8 @@ calldaemon:
 			vref(dvp);
 			*vpp = dvp;
 		} else {
-			err = fuse_vnode_get(vnode_mount(dvp),
-			    nid,
-			    dvp,
-			    &vp,
-			    cnp,
-			    IFTOVT(fattr->mode));
+			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
+			    &vp, cnp, IFTOVT(fattr->mode));
 			if (err) {
 				goto out;
 			}

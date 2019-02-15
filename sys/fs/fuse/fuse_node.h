@@ -117,6 +117,7 @@ fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 void fuse_vnode_destroy(struct vnode *vp);
 
 int fuse_vnode_get(struct mount         *mp,
+                   struct fuse_entry_out *feo,
                    uint64_t              nodeid,
                    struct vnode         *dvp,
                    struct vnode        **vpp,
