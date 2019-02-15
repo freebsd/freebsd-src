@@ -576,8 +576,6 @@ blockif_open(const char *optstr, const char *ident)
 err:
 	if (fd >= 0)
 		close(fd);
-	free(cp);
-	free(xopts);
 	free(nopt);
 	return (NULL);
 }
