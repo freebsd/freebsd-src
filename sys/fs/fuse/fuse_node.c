@@ -241,6 +241,7 @@ fuse_vnode_alloc(struct mount *mp,
 
 int
 fuse_vnode_get(struct mount *mp,
+    struct fuse_entry_out *feo,
     uint64_t nodeid,
     struct vnode *dvp,
     struct vnode **vpp,
@@ -261,7 +262,9 @@ fuse_vnode_get(struct mount *mp,
 		MPASS(!(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.'));
 		fuse_vnode_setparent(*vpp, dvp);
 	}
-	if (dvp != NULL && cnp != NULL && (cnp->cn_flags & MAKEENTRY) != 0) {
+	if (dvp != NULL && cnp != NULL && (cnp->cn_flags & MAKEENTRY) != 0 &&
+	    feo != NULL &&
+	    (feo->entry_valid != 0 || feo->entry_valid_nsec != 0)) {
 		ASSERT_VOP_LOCKED(*vpp, "fuse_vnode_get");
 		ASSERT_VOP_LOCKED(dvp, "fuse_vnode_get");
 		cache_enter(dvp, *vpp, cnp);
