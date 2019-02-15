@@ -136,6 +136,7 @@ typedef struct synapticshw {
 	int infoXupmm;
 	int infoYupmm;
 	int forcePad;
+	int topButtonPad;
 } synapticshw_t;
 
 /* iftype */

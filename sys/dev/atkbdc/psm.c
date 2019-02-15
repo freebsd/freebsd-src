@@ -136,6 +136,7 @@ struct psmcpnp_softc {
 	enum {
 		PSMCPNP_GENERIC,
 		PSMCPNP_FORCEPAD,
+		PSMCPNP_TOPBUTTONPAD,
 	} type;		/* Based on PnP ID */
 };
 
@@ -1823,6 +1824,8 @@ psm_register_synaptics(device_t dev)
 		evdev_support_prop(evdev_a, INPUT_PROP_SEMI_MT);
 	if (sc->synhw.capClickPad)
 		evdev_support_prop(evdev_a, INPUT_PROP_BUTTONPAD);
+	if (sc->synhw.capClickPad && sc->synhw.topButtonPad)
+		evdev_support_prop(evdev_a, INPUT_PROP_TOPBUTTONPAD);
 	evdev_support_key(evdev_a, BTN_TOUCH);
 	evdev_support_nfingers(evdev_a, 3);
 	psm_support_abs_bulk(evdev_a, synaptics_absinfo_st);
@@ -5717,7 +5720,7 @@ synaptics_sysctl_create_softbuttons_tree(struct psm_softc *sc)
 	 */
 
 	/* hw.psm.synaptics.softbuttons_y */
-	sc->syninfo.softbuttons_y = 1700;
+	sc->syninfo.softbuttons_y = sc->synhw.topButtonPad ? -1700 : 1700;
 	SYSCTL_ADD_PROC(&sc->syninfo.sysctl_ctx,
 	    SYSCTL_CHILDREN(sc->syninfo.sysctl_tree), OID_AUTO,
 	    "softbuttons_y", CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_ANYBODY,
@@ -6447,6 +6450,9 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 				case PSMCPNP_FORCEPAD:
 					synhw.forcePad = 1;
 					break;
+				case PSMCPNP_TOPBUTTONPAD:
+					synhw.topButtonPad = 1;
+					break;
 				default:
 					break;
 				}
@@ -6489,8 +6495,11 @@ enable_synaptics(struct psm_softc *sc, enum probearg arg)
 					       synhw.minimumYCoord);
 				}
 				if (synhw.capClickPad) {
+					printf("  Clickpad capabilities:\n");
 					printf("   forcePad: %d\n",
 					       synhw.forcePad);
+					printf("   topButtonPad: %d\n",
+					       synhw.topButtonPad);
 				}
 			}
 			buttons += synhw.capClickPad;
@@ -7338,6 +7347,44 @@ static struct isa_pnp_id psmcpnp_ids[] = {
 };
 
 /* _HID list for quirk detection. Any device below has _CID from psmcpnp_ids */
+static struct isa_pnp_id topbtpad_ids[] = {
+	{ 0x1700ae30, "Lenovo PS/2 clickpad port" },	/* LEN0017, ThinkPad */
+	{ 0x1800ae30, "Lenovo PS/2 clickpad port" },	/* LEN0018, ThinkPad */
+	{ 0x1900ae30, "Lenovo PS/2 clickpad port" },	/* LEN0019, ThinkPad */
+	{ 0x2300ae30, "Lenovo PS/2 clickpad port" },	/* LEN0023, ThinkPad */
+	{ 0x2a00ae30, "Lenovo PS/2 clickpad port" },	/* LEN002a, ThinkPad */
+	{ 0x2b00ae30, "Lenovo PS/2 clickpad port" },	/* LEN002b, ThinkPad */
+	{ 0x2c00ae30, "Lenovo PS/2 clickpad port" },	/* LEN002c, ThinkPad */
+	{ 0x2d00ae30, "Lenovo PS/2 clickpad port" },	/* LEN002d, ThinkPad */
+	{ 0x2e00ae30, "Lenovo PS/2 clickpad port" },	/* LEN002e, ThinkPad */
+	{ 0x3300ae30, "Lenovo PS/2 clickpad port" },	/* LEN0033, ThinkPad */
+	{ 0x3400ae30, "Lenovo PS/2 clickpad port" },	/* LEN0034, ThinkPad */
+	{ 0x3500ae30, "Lenovo PS/2 clickpad port" },	/* LEN0035, ThinkPad */
+	{ 0x3600ae30, "Lenovo PS/2 clickpad port" },	/* LEN0036, ThinkPad */
+	{ 0x3700ae30, "Lenovo PS/2 clickpad port" },	/* LEN0037, ThinkPad */
+	{ 0x3800ae30, "Lenovo PS/2 clickpad port" },	/* LEN0038, ThinkPad */
+	{ 0x3900ae30, "Lenovo PS/2 clickpad port" },	/* LEN0039, ThinkPad */
+	{ 0x4100ae30, "Lenovo PS/2 clickpad port" },	/* LEN0041, ThinkPad */
+	{ 0x4200ae30, "Lenovo PS/2 clickpad port" },	/* LEN0042, ThinkPad */
+	{ 0x4500ae30, "Lenovo PS/2 clickpad port" },	/* LEN0045, ThinkPad */
+	{ 0x4700ae30, "Lenovo PS/2 clickpad port" },	/* LEN0047, ThinkPad */
+	{ 0x4900ae30, "Lenovo PS/2 clickpad port" },	/* LEN0049, ThinkPad */
+	{ 0x0020ae30, "Lenovo PS/2 clickpad port" },	/* LEN2000, ThinkPad */
+	{ 0x0120ae30, "Lenovo PS/2 clickpad port" },	/* LEN2001, ThinkPad */
+	{ 0x0220ae30, "Lenovo PS/2 clickpad port" },	/* LEN2002, ThinkPad */
+	{ 0x0320ae30, "Lenovo PS/2 clickpad port" },	/* LEN2003, ThinkPad */
+	{ 0x0420ae30, "Lenovo PS/2 clickpad port" },	/* LEN2004, ThinkPad */
+	{ 0x0520ae30, "Lenovo PS/2 clickpad port" },	/* LEN2005, ThinkPad */
+	{ 0x0620ae30, "Lenovo PS/2 clickpad port" },	/* LEN2006, ThinkPad */
+	{ 0x0720ae30, "Lenovo PS/2 clickpad port" },	/* LEN2007, ThinkPad */
+	{ 0x0820ae30, "Lenovo PS/2 clickpad port" },	/* LEN2008, ThinkPad */
+	{ 0x0920ae30, "Lenovo PS/2 clickpad port" },	/* LEN2009, ThinkPad */
+	{ 0x0a20ae30, "Lenovo PS/2 clickpad port" },	/* LEN200a, ThinkPad */
+	{ 0x0b20ae30, "Lenovo PS/2 clickpad port" },	/* LEN200b, ThinkPad */
+	{ 0 }
+};
+
+/* _HID list for quirk detection. Any device below has _CID from psmcpnp_ids */
 static struct isa_pnp_id forcepad_ids[] = {
 	{ 0x0d302e4f, "HP PS/2 forcepad port" },	/* SYN300D, EB 1040 */
 	{ 0x14302e4f, "HP PS/2 forcepad port" },	/* SYN3014, EB 1040 */
@@ -7377,6 +7424,8 @@ psmcpnp_probe(device_t dev)
 
 	if (ISA_PNP_PROBE(device_get_parent(dev), dev, forcepad_ids) == 0)
 		sc->type = PSMCPNP_FORCEPAD;
+	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, topbtpad_ids) == 0)
+		sc->type = PSMCPNP_TOPBUTTONPAD;
 	else if (ISA_PNP_PROBE(device_get_parent(dev), dev, psmcpnp_ids) == 0)
 		sc->type = PSMCPNP_GENERIC;
 	else
