@@ -40,6 +40,22 @@ Non-comprehensive list of changes in this release
    functionality, or simply have a lot to talk about), see the `NOTE` below
    for adding a new subsection.
 
+* As `discussed on the mailing list
+  <https://lists.llvm.org/pipermail/llvm-dev/2019-January/129452.html>`_,
+  building LLVM will soon require more recent toolchains as follows:
+
+  ============= ====
+  Clang         3.5
+  Apple Clang   6.0
+  GCC           5.1
+  Visual Studio 2017
+  ============= ====
+
+  A new CMake check when configuring LLVM provides a soft-error if your
+  toolchain will become unsupported soon. You can opt out of the soft-error by
+  setting the ``LLVM_TEMPORARILY_ALLOW_OLD_TOOLCHAIN`` CMake variable to
+  ``ON``.
+
 * The **llvm-cov** tool can now export lcov trace files using the
   `-format=lcov` option of the `export` command.
 
@@ -82,7 +98,7 @@ Changes to the ARM Backend
 
 
 Changes to the Hexagon Target
---------------------------
+-----------------------------
 
 * Added support for Hexagon/HVX V66 ISA.
 
@@ -155,6 +171,21 @@ Changes to the DAG infrastructure
 
 External Open Source Projects Using LLVM 8
 ==========================================
+
+LDC - the LLVM-based D compiler
+-------------------------------
+
+`D <http://dlang.org>`_ is a language with C-like syntax and static typing. It
+pragmatically combines efficiency, control, and modeling power, with safety and
+programmer productivity. D supports powerful concepts like Compile-Time Function
+Execution (CTFE) and Template Meta-Programming, provides an innovative approach
+to concurrency and offers many classical paradigms.
+
+`LDC <http://wiki.dlang.org/LDC>`_ uses the frontend from the reference compiler
+combined with LLVM as backend to produce efficient native code. LDC targets
+x86/x86_64 systems like Linux, OS X, FreeBSD and Windows and also Linux on ARM
+and PowerPC (32/64 bit). Ports to other architectures like AArch64 and MIPS64
+are underway.
 
 Zig Programming Language
 ------------------------
