@@ -77,6 +77,9 @@ The
 .Xr cpuset 1
 tool is available for starting processes with a non-default
 policy, or to change the policy of an existing thread or process.
+See
+.Xr SMP 4
+for information about CPU to domain mapping.
 .Pp
 Systems with non-uniform access to I/O devices may mark those devices
 with the local VM domain identifier.
@@ -117,6 +120,7 @@ Policy information is available in both struct thread and struct proc.
 .Xr cpuset 1 ,
 .Xr cpuset_getaffinity 2 ,
 .Xr cpuset_setaffinity 2 ,
+.Xr SMP 4 ,
 .Xr bus_get_domain 9
 .Sh HISTORY
 .Nm

@@ -330,14 +330,12 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 #endif
 	ret = format_header_v7tar(a, buff, entry, 1, sconv);
 	if (ret < ARCHIVE_WARN) {
-		if (entry_main)
-			archive_entry_free(entry_main);
+		archive_entry_free(entry_main);
 		return (ret);
 	}
 	ret2 = __archive_write_output(a, buff, 512);
 	if (ret2 < ARCHIVE_WARN) {
-		if (entry_main)
-			archive_entry_free(entry_main);
+		archive_entry_free(entry_main);
 		return (ret2);
 	}
 	if (ret2 < ret)
@@ -345,8 +343,7 @@ archive_write_v7tar_header(struct archive_write *a, struct archive_entry *entry)
 
 	v7tar->entry_bytes_remaining = archive_entry_size(entry);
 	v7tar->entry_padding = 0x1ff & (-(int64_t)v7tar->entry_bytes_remaining);
-	if (entry_main)
-		archive_entry_free(entry_main);
+	archive_entry_free(entry_main);
 	return (ret);
 }
 

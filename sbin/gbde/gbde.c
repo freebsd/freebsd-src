@@ -174,18 +174,7 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 static void
 random_bits(void *p, u_int len)
 {
-	static int fdr = -1;
-	int i;
-
-	if (fdr < 0) {
-		fdr = open("/dev/urandom", O_RDONLY);
-		if (fdr < 0)
-			err(1, "/dev/urandom");
-	}
-
-	i = read(fdr, p, len);
-	if (i != (int)len)
-		err(1, "read from /dev/urandom");
+	arc4random_buf(p, len);
 }
 
 /* XXX: not nice */

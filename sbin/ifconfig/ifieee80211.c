@@ -5080,7 +5080,9 @@ end:
 				LINE_CHECK("roam:rssi %u.5", rp->rssi/2);
 			else
 				LINE_CHECK("roam:rssi %u", rp->rssi/2);
-			LINE_CHECK("roam:rate %u", rp->rate/2);
+			LINE_CHECK("roam:rate %s%u",
+			    (rp->rate & IEEE80211_RATE_MCS) ? "MCS " : "",
+			    get_rate_value(rp->rate));
 		} else {
 			LINE_BREAK();
 			list_roam(s);

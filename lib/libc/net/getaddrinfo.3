@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2017
+.Dd February 10, 2019
 .Dt GETADDRINFO 3
 .Os
 .Sh NAME
@@ -78,14 +78,14 @@ as defined by
 .Aq Pa netdb.h :
 .Bd -literal
 struct addrinfo {
-	int ai_flags;		/* input flags */
-	int ai_family;		/* address family for socket */
-	int ai_socktype;	/* socket type */
-	int ai_protocol;	/* protocol for socket */
-	socklen_t ai_addrlen;	/* length of socket-address */
-	struct sockaddr *ai_addr; /* socket-address for socket */
-	char *ai_canonname;	/* canonical name for service location */
-	struct addrinfo *ai_next; /* pointer to next in list */
+        int     ai_flags;       /* AI_PASSIVE, AI_CANONNAME, .. */
+        int     ai_family;      /* AF_xxx */
+        int     ai_socktype;    /* SOCK_xxx */
+        int     ai_protocol;    /* 0 or IPPROTO_xxx for IPv4 and IPv6 */
+        socklen_t ai_addrlen;   /* length of ai_addr */
+        char    *ai_canonname;  /* canonical name for hostname */
+        struct  sockaddr *ai_addr;      /* binary address */
+        struct  addrinfo *ai_next;      /* next structure in linked list */
 };
 .Ed
 .Pp

@@ -146,7 +146,7 @@ string_index(const char *string, const char * const *array)
  *	squat about quotes.
  */
 
-const char * const *
+const char **
 argparse(char *line, int *cntp)
 {
     const char **ap;
@@ -292,11 +292,11 @@ char *
 format_k(int64_t amt)
 {
     static char retarray[NUM_STRINGS][16];
-    static int index = 0;
+    static int index_ = 0;
     char *ret;
 
-    ret = retarray[index];
-	index = (index + 1) % NUM_STRINGS;
+    ret = retarray[index_];
+	index_ = (index_ + 1) % NUM_STRINGS;
 	humanize_number(ret, 6, amt * 1024, "", HN_AUTOSCALE, HN_NOSPACE);
 	return (ret);
 }

@@ -1229,8 +1229,7 @@ heap_add_entry(struct archive_read *a,
 		}
 		memcpy(new_pending_files, heap->files,
 		    heap->allocated * sizeof(new_pending_files[0]));
-		if (heap->files != NULL)
-			free(heap->files);
+		free(heap->files);
 		heap->files = new_pending_files;
 		heap->allocated = new_size;
 	}

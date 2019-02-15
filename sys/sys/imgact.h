@@ -89,6 +89,7 @@ struct image_params {
 	u_long stack_sz;
 	struct ucred *newcred;		/* new credentials if changing */
 	bool credential_setid;		/* true if becoming setid */
+	u_int map_flags;
 };
 
 #ifdef _KERNEL

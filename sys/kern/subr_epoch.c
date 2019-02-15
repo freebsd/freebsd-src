@@ -147,7 +147,7 @@ epoch_init(void *arg __unused)
 		GROUPTASK_INIT(DPCPU_ID_PTR(cpu, epoch_cb_task), 0,
 		    epoch_call_task, NULL);
 		taskqgroup_attach_cpu(qgroup_softirq,
-		    DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, -1,
+		    DPCPU_ID_PTR(cpu, epoch_cb_task), NULL, cpu, NULL, NULL,
 		    "epoch call task");
 	}
 	inited = 1;

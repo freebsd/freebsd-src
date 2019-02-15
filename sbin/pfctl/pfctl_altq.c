@@ -429,34 +429,25 @@ eval_pfqueue(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 	if (pa->qlimit == 0)
 		pa->qlimit = DEFAULT_QLIMIT;
 
-	if (eval_queue_opts(pa, opts,
-		parent == NULL ? pa->ifbandwidth : parent->pa.bandwidth))
-		return (1);
-
 	if (pa->scheduler == ALTQT_CBQ || pa->scheduler == ALTQT_HFSC ||
 		pa->scheduler == ALTQT_FAIRQ) {
 		pa->bandwidth = eval_bwspec(bw,
 		    parent == NULL ? pa->ifbandwidth : parent->pa.bandwidth);
-
-		/*
-		 * For HFSC, if the linkshare service curve m2 parameter is
-		 * set, it overrides the provided queue bandwidth parameter,
-		 * so adjust the queue bandwidth parameter accordingly here
-		 * to avoid false positives in the total child bandwidth
-		 * check below.
-		 */
-		if ((pa->scheduler == ALTQT_HFSC) &&
-		    (pa->pq_u.hfsc_opts.lssc_m2 != 0)) {
-			pa->bandwidth = pa->pq_u.hfsc_opts.lssc_m2;
-		}
 
 		if (pa->bandwidth > pa->ifbandwidth) {
 			fprintf(stderr, "bandwidth for %s higher than "
 			    "interface\n", pa->qname);
 			return (1);
 		}
-		/* check the sum of the child bandwidth is under parent's */
-		if (parent != NULL) {
+		/*
+		 * If not HFSC, then check that the sum of the child
+		 * bandwidths is less than the parent's bandwidth.  For
+		 * HFSC, the equivalent concept is to check that the sum of
+		 * the child linkshare service curves are under the parent's
+		 * linkshare service curve, and that check is performed by
+		 * eval_pfqueue_hfsc().
+		 */
+		if ((parent != NULL) && (pa->scheduler != ALTQT_HFSC)) {
 			if (pa->bandwidth > parent->pa.bandwidth) {
 				warnx("bandwidth for %s higher than parent",
 				    pa->qname);
@@ -471,6 +462,10 @@ eval_pfqueue(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 			}
 		}
 	}
+
+	if (eval_queue_opts(pa, opts,
+		parent == NULL ? pa->ifbandwidth : parent->pa.bandwidth))
+		return (1);
 
 	if (parent != NULL)
 		parent->meta.children++;

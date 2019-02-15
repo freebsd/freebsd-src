@@ -339,16 +339,27 @@ cacheline_bounce(bus_dmamap_t map, bus_addr_t addr, bus_size_t size)
  *
  * Note that the addr argument might be either virtual or physical.  It doesn't
  * matter because we only look at the low-order bits, which are the same in both
- * address spaces.
+ * address spaces and maximum alignment of generic buffer is limited up to page
+ * size.
+ * Bouncing of buffers allocated by bus_dmamem_alloc()is not necessary, these
+ * always comply with the required rules (alignment, boundary, and address
+ * range).
  */
 static __inline int
 might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t addr,
     bus_size_t size)
 {
 
-	return ((dmat->flags & BUS_DMA_EXCL_BOUNCE) ||
+	KASSERT(map->flags & DMAMAP_DMAMEM_ALLOC ||
+	    dmat->alignment <= PAGE_SIZE,
+	    ("%s: unsupported alignment (0x%08lx) for buffer not "
+	    "allocated by bus_dmamem_alloc()",
+	    __func__, dmat->alignment));
+
+	return (!(map->flags & DMAMAP_DMAMEM_ALLOC) &&
+	    ((dmat->flags & BUS_DMA_EXCL_BOUNCE) ||
 	    alignment_bounce(dmat, addr) ||
-	    cacheline_bounce(map, addr, size));
+	    cacheline_bounce(map, addr, size)));
 }
 
 /*

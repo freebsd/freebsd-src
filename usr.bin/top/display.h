@@ -27,7 +27,7 @@ void	 i_timeofday(time_t *tod);
 void	 i_uptime(struct timeval *bt, time_t *tod);
 void	 new_message(int type, const char *msgfmt, ...);
 int	 readline(char *buffer, int size, int numeric);
-const char	*trim_header(const char *text);
+char	*trim_header(const char *text);
 void	 u_arc(int *stats);
 void	 u_carc(int *stats);
 void	 u_cpustates(int *states);

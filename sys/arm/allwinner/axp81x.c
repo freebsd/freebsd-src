@@ -194,6 +194,11 @@ MALLOC_DEFINE(M_AXP8XX_REG, "AXP8xx regulator", "AXP8xx power regulator");
 #define	 AXP_BAT_CAP_WARN_LV1	0xf0	/* Bits 4, 5, 6, 7 */
 #define	 AXP_BAT_CAP_WARN_LV2	0xf	/* Bits 0, 1, 2, 3 */
 
+/* Sensor conversion macros */
+#define	AXP_SENSOR_BAT_H(hi)		((hi) << 4)
+#define	AXP_SENSOR_BAT_L(lo)		((lo) & 0xf)
+#define	AXP_SENSOR_COULOMB(hi, lo)	(((hi & ~(1 << 7)) << 8) | (lo))
+
 static const struct {
 	const char *name;
 	uint8_t	ctrl_reg;
@@ -538,6 +543,123 @@ static struct axp8xx_regdef axp8xx_common_regdefs[] = {
 	},
 };
 
+enum axp8xx_sensor {
+	AXP_SENSOR_ACIN_PRESENT,
+	AXP_SENSOR_VBUS_PRESENT,
+	AXP_SENSOR_BATT_PRESENT,
+	AXP_SENSOR_BATT_CHARGING,
+	AXP_SENSOR_BATT_CHARGE_STATE,
+	AXP_SENSOR_BATT_VOLTAGE,
+	AXP_SENSOR_BATT_CHARGE_CURRENT,
+	AXP_SENSOR_BATT_DISCHARGE_CURRENT,
+	AXP_SENSOR_BATT_CAPACITY_PERCENT,
+	AXP_SENSOR_BATT_MAXIMUM_CAPACITY,
+	AXP_SENSOR_BATT_CURRENT_CAPACITY,
+};
+
+enum battery_capacity_state {
+	BATT_CAPACITY_NORMAL = 1,	/* normal cap in battery */
+	BATT_CAPACITY_WARNING,		/* warning cap in battery */
+	BATT_CAPACITY_CRITICAL,		/* critical cap in battery */
+	BATT_CAPACITY_HIGH,		/* high cap in battery */
+	BATT_CAPACITY_MAX,		/* maximum cap in battery */
+	BATT_CAPACITY_LOW		/* low cap in battery */
+};
+
+struct axp8xx_sensors {
+	int             id;
+	const char      *name;
+	const char      *desc;
+	const char      *format;
+};
+
+static const struct axp8xx_sensors axp8xx_common_sensors[] = {
+	{
+		.id = AXP_SENSOR_ACIN_PRESENT,
+		.name = "acin",
+		.format = "I",
+		.desc = "ACIN Present",
+	},
+	{
+		.id = AXP_SENSOR_VBUS_PRESENT,
+		.name = "vbus",
+		.format = "I",
+		.desc = "VBUS Present",
+	},
+	{
+		.id = AXP_SENSOR_BATT_PRESENT,
+		.name = "bat",
+		.format = "I",
+		.desc = "Battery Present",
+	},
+	{
+		.id = AXP_SENSOR_BATT_CHARGING,
+		.name = "batcharging",
+		.format = "I",
+		.desc = "Battery Charging",
+	},
+	{
+		.id = AXP_SENSOR_BATT_CHARGE_STATE,
+		.name = "batchargestate",
+		.format = "I",
+		.desc = "Battery Charge State",
+	},
+	{
+		.id = AXP_SENSOR_BATT_VOLTAGE,
+		.name = "batvolt",
+		.format = "I",
+		.desc = "Battery Voltage",
+	},
+	{
+		.id = AXP_SENSOR_BATT_CHARGE_CURRENT,
+		.name = "batchargecurrent",
+		.format = "I",
+		.desc = "Battery Charging Current",
+	},
+	{
+		.id = AXP_SENSOR_BATT_DISCHARGE_CURRENT,
+		.name = "batdischargecurrent",
+		.format = "I",
+		.desc = "Battery Discharging Current",
+	},
+	{
+		.id = AXP_SENSOR_BATT_CAPACITY_PERCENT,
+		.name = "batcapacitypercent",
+		.format = "I",
+		.desc = "Battery Capacity Percentage",
+	},
+	{
+		.id = AXP_SENSOR_BATT_MAXIMUM_CAPACITY,
+		.name = "batmaxcapacity",
+		.format = "I",
+		.desc = "Battery Maximum Capacity",
+	},
+	{
+		.id = AXP_SENSOR_BATT_CURRENT_CAPACITY,
+		.name = "batcurrentcapacity",
+		.format = "I",
+		.desc = "Battery Current Capacity",
+	},
+};
+
+struct axp8xx_config {
+	const char		*name;
+	int			batsense_step;  /* uV */
+	int			charge_step;    /* uA */
+	int			discharge_step; /* uA */
+	int			maxcap_step;    /* uAh */
+	int			coulomb_step;   /* uAh */
+};
+
+static struct axp8xx_config axp803_config = {
+	.name = "AXP803",
+	.batsense_step = 1100,
+	.charge_step = 1000,
+	.discharge_step = 1000,
+	.maxcap_step = 1456,
+	.coulomb_step = 1456,
+};
+
 struct axp8xx_softc;
 
 struct axp8xx_reg_sc {
@@ -558,9 +680,20 @@ struct axp8xx_softc {
 
 	int			type;
 
+	/* Configs */
+	const struct axp8xx_config	*config;
+
+	/* Sensors */
+	const struct axp8xx_sensors	*sensors;
+	int				nsensors;
+
 	/* Regulators */
 	struct axp8xx_reg_sc	**regs;
 	int			nregs;
+
+	/* Warning, shutdown thresholds */
+	int			warn_thres;
+	int			shut_thres;
 };
 
 #define	AXP_LOCK(sc)	mtx_lock(&(sc)->mtx)
@@ -754,6 +887,110 @@ axp8xx_shutdown(void *devp, int howto)
 		device_printf(dev, "Shutdown Axp8xx\n");
 
 	axp8xx_write(dev, AXP_POWERBAT, AXP_POWERBAT_SHUTDOWN);
+}
+
+static int
+axp8xx_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct axp8xx_softc *sc;
+	device_t dev = arg1;
+	enum axp8xx_sensor sensor = arg2;
+	const struct axp8xx_config *c;
+	uint8_t data;
+	int val, i, found, batt_val;
+	uint8_t lo, hi;
+
+	sc = device_get_softc(dev);
+	c = sc->config;
+
+	for (found = 0, i = 0; i < sc->nsensors; i++) {
+		if (sc->sensors[i].id == sensor) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (found == 0)
+		return (ENOENT);
+
+	switch (sensor) {
+	case AXP_SENSOR_ACIN_PRESENT:
+		if (axp8xx_read(dev, AXP_POWERSRC, &data, 1) == 0)
+			val = !!(data & AXP_POWERSRC_ACIN);
+		break;
+	case AXP_SENSOR_VBUS_PRESENT:
+		if (axp8xx_read(dev, AXP_POWERSRC, &data, 1) == 0)
+			val = !!(data & AXP_POWERSRC_VBUS);
+		break;
+	case AXP_SENSOR_BATT_PRESENT:
+		if (axp8xx_read(dev, AXP_POWERMODE, &data, 1) == 0) {
+			if (data & AXP_POWERMODE_BAT_VALID)
+				val = !!(data & AXP_POWERMODE_BAT_PRESENT);
+		}
+		break;
+	case AXP_SENSOR_BATT_CHARGING:
+		if (axp8xx_read(dev, AXP_POWERMODE, &data, 1) == 0)
+			val = !!(data & AXP_POWERMODE_BAT_CHARGING);
+		break;
+	case AXP_SENSOR_BATT_CHARGE_STATE:
+		if (axp8xx_read(dev, AXP_BAT_CAP, &data, 1) == 0 &&
+		    (data & AXP_BAT_CAP_VALID) != 0) {
+			batt_val = (data & AXP_BAT_CAP_PERCENT);
+			if (batt_val <= sc->shut_thres)
+				val = BATT_CAPACITY_CRITICAL;
+			else if (batt_val <= sc->warn_thres)
+				val = BATT_CAPACITY_WARNING;
+			else
+				val = BATT_CAPACITY_NORMAL;
+		}
+		break;
+	case AXP_SENSOR_BATT_CAPACITY_PERCENT:
+		if (axp8xx_read(dev, AXP_BAT_CAP, &data, 1) == 0 &&
+		    (data & AXP_BAT_CAP_VALID) != 0)
+			val = (data & AXP_BAT_CAP_PERCENT);
+		break;
+	case AXP_SENSOR_BATT_VOLTAGE:
+		if (axp8xx_read(dev, AXP_BATSENSE_HI, &hi, 1) == 0 &&
+		    axp8xx_read(dev, AXP_BATSENSE_LO, &lo, 1) == 0) {
+			val = (AXP_SENSOR_BAT_H(hi) | AXP_SENSOR_BAT_L(lo));
+			val *= c->batsense_step;
+		}
+		break;
+	case AXP_SENSOR_BATT_CHARGE_CURRENT:
+		if (axp8xx_read(dev, AXP_POWERSRC, &data, 1) == 0 &&
+		    (data & AXP_POWERSRC_CHARING) != 0 &&
+		    axp8xx_read(dev, AXP_BATCHG_HI, &hi, 1) == 0 &&
+		    axp8xx_read(dev, AXP_BATCHG_LO, &lo, 1) == 0) {
+			val = (AXP_SENSOR_BAT_H(hi) | AXP_SENSOR_BAT_L(lo));
+			val *= c->charge_step;
+		}
+		break;
+	case AXP_SENSOR_BATT_DISCHARGE_CURRENT:
+		if (axp8xx_read(dev, AXP_POWERSRC, &data, 1) == 0 &&
+		    (data & AXP_POWERSRC_CHARING) == 0 &&
+		    axp8xx_read(dev, AXP_BATDISCHG_HI, &hi, 1) == 0 &&
+		    axp8xx_read(dev, AXP_BATDISCHG_LO, &lo, 1) == 0) {
+			val = (AXP_SENSOR_BAT_H(hi) | AXP_SENSOR_BAT_L(lo));
+			val *= c->discharge_step;
+		}
+		break;
+	case AXP_SENSOR_BATT_MAXIMUM_CAPACITY:
+		if (axp8xx_read(dev, AXP_BAT_MAX_CAP_HI, &hi, 1) == 0 &&
+		    axp8xx_read(dev, AXP_BAT_MAX_CAP_LO, &lo, 1) == 0) {
+			val = AXP_SENSOR_COULOMB(hi, lo);
+			val *= c->maxcap_step;
+		}
+		break;
+	case AXP_SENSOR_BATT_CURRENT_CAPACITY:
+		if (axp8xx_read(dev, AXP_BAT_COULOMB_HI, &hi, 1) == 0 &&
+		    axp8xx_read(dev, AXP_BAT_COULOMB_LO, &lo, 1) == 0) {
+			val = AXP_SENSOR_COULOMB(hi, lo);
+			val *= c->coulomb_step;
+		}
+		break;
+	}
+
+	return sysctl_handle_opaque(oidp, &val, sizeof(val), req);
 }
 
 static void
@@ -1157,7 +1394,7 @@ axp8xx_attach(device_t dev)
 {
 	struct axp8xx_softc *sc;
 	struct axp8xx_reg_sc *reg;
-	uint8_t chip_id;
+	uint8_t chip_id, val;
 	phandle_t rnode, child;
 	int error, i;
 
@@ -1187,6 +1424,10 @@ axp8xx_attach(device_t dev)
 		sc->nregs += nitems(axp813_regdefs);
 		break;
 	}
+	sc->config = &axp803_config;
+	sc->sensors = axp8xx_common_sensors;
+	sc->nsensors = nitems(axp8xx_common_sensors);
+
 	sc->regs = malloc(sizeof(struct axp8xx_reg_sc *) * sc->nregs,
 	    M_AXP8XX_REG, M_WAITOK | M_ZERO);
 
@@ -1228,6 +1469,31 @@ axp8xx_attach(device_t dev)
 				continue;
 			}
 			sc->regs[i] = reg;
+		}
+	}
+
+	/* Add sensors */
+	for (i = 0; i < sc->nsensors; i++) {
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, sc->sensors[i].name,
+		    CTLTYPE_INT | CTLFLAG_RD,
+		    dev, sc->sensors[i].id, axp8xx_sysctl,
+		    sc->sensors[i].format,
+		    sc->sensors[i].desc);
+	}
+
+	/* Get thresholds */
+	if (axp8xx_read(dev, AXP_BAT_CAP_WARN, &val, 1) == 0) {
+		sc->warn_thres = (val & AXP_BAT_CAP_WARN_LV1) >> 4;
+		sc->shut_thres = (val & AXP_BAT_CAP_WARN_LV2);
+		if (bootverbose) {
+			device_printf(dev,
+			    "Raw reg val: 0x%02x\n", val);
+			device_printf(dev,
+			    "Warning threshold: 0x%02x\n", sc->warn_thres);
+			device_printf(dev,
+			    "Shutdown threshold: 0x%02x\n", sc->shut_thres);
 		}
 	}
 
