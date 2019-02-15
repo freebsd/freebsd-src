@@ -949,12 +949,45 @@ calldaemon:
 			vref(dvp);
 			*vpp = dvp;
 		} else {
+			struct fuse_vnode_data *fvdat;
+
 			err = fuse_vnode_get(vnode_mount(dvp), feo, nid, dvp,
 			    &vp, cnp, IFTOVT(fattr->mode));
 			if (err) {
 				goto out;
 			}
 			fuse_vnode_setparent(vp, dvp);
+
+			/*
+			 * In the case where we are looking up a FUSE node
+			 * represented by an existing cached vnode, and the
+			 * true size reported by FUSE_LOOKUP doesn't match
+			 * the vnode's cached size, fix the vnode cache to
+			 * match the real object size.
+			 *
+			 * This can occur via FUSE distributed filesystems,
+			 * irregular files, etc.
+			 */
+			fvdat = VTOFUD(vp);
+			if (vnode_isreg(vp) &&
+			    fattr->size != fvdat->filesize) {
+				/*
+				 * The FN_SIZECHANGE flag reflects a dirty
+				 * append.  If userspace lets us know our cache
+				 * is invalid, that write was lost.  (Dirty
+				 * writes that do not cause append are also
+				 * lost, but we don't detect them here.)
+				 *
+				 * XXX: Maybe disable WB caching on this mount.
+				 */
+				if (fvdat->flag & FN_SIZECHANGE)
+					printf("%s: WB cache incoherent on "
+					    "%s!\n", __func__,
+					    vnode_mount(vp)->mnt_stat.f_mntonname);
+
+				(void)fuse_vnode_setsize(vp, cred, fattr->size);
+				fvdat->flag &= ~FN_SIZECHANGE;
+			}
 			*vpp = vp;
 		}
 
